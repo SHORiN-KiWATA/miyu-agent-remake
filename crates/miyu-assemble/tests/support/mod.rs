@@ -282,6 +282,7 @@ pub fn wire(request: &Request) -> Encoded {
         max_output: Some(8192),
         inputs: Inputs::default(),
         effort: None,
+        temperature: None,
     };
     openai_chat::encode(
         request,
@@ -301,6 +302,7 @@ pub fn anthropic_wire(request: &Request) -> Encoded {
         max_output: Some(8192),
         inputs: Inputs::default(),
         effort: None,
+        temperature: None,
     };
     anthropic::encode(request, &call, &driver_texts(), &BTreeMap::new())
         .expect("探针里没有图片、文件，不要 blob")
@@ -314,6 +316,7 @@ pub fn responses_wire(request: &Request) -> Encoded {
         max_output: None,
         inputs: Inputs::default(),
         effort: None,
+        temperature: None,
     };
     openai_responses::encode(request, &call, &driver_texts(), &BTreeMap::new())
         .expect("探针里没有图片、文件，不要 blob")

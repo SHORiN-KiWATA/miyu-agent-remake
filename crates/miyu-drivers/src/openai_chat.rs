@@ -165,7 +165,7 @@ pub enum ReasoningField {
     Reasoning,
 }
 
-/// 编码：顶层照 `model`、`messages`、`tools`、`stream`、`stream_options`、输出上限、思考强度（施工 8-18，`openai_chat/effort.rs`）的
+/// 编码：顶层照 `model`、`messages`、`tools`、`stream`、`stream_options`、输出上限、温度（施工 8-22）、思考强度（施工 8-18，`openai_chat/effort.rs`）的
 /// 先后写，别的字段一概不发。带着接着写的记号、供应商又会接着写的，照 [`Continuation::Prefix`] 写，发到它的
 /// 路径；别的发到 [`PATH`]。
 ///
@@ -221,6 +221,7 @@ pub fn encode(
         let field = compat.output_limit.field();
         body.extend_from_slice(format!(",\"{field}\":{limit}").as_bytes());
     }
+    crate::write_temperature(&mut body, call.temperature);
     effort::write(&mut body, call.effort.as_deref(), compat);
     body.push(b'}');
     Ok(Encoded {

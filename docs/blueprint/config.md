@@ -273,6 +273,7 @@ miyu_config::settings! {
 | `providers.<id>.models.<model>.tools` | 开关 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.reasoning` | 文字的列表，每个最多 32 个字符 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.effort` | 文字，最多 32 个字符：这个模型的一档（`models.md`「怎么走」第十一条） | 没有：请求里不带，照供应商的默认 | 系统、个人 | 不能写 | `next_turn` | 8-18 |
+| `providers.<id>.models.<model>.temperature` | 小数 0 到 2 | 没有：请求里不带，照供应商的默认 | 系统、个人 | 不能写 | `next_turn` | 8-22 |
 | `providers.<id>.models.<model>.price.input`、`output`、`cache_read`、`cache_write` | 小数 0 到 1000000 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.price.currency` | 文字，最多 3 个字符 | 没有：`USD` | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `models.catalog.update` | 开关 | `true`，`MIYU_CATALOG_UPDATE` 压过 | 系统、个人 | 不能写 | `now` | 8-7 |
@@ -338,6 +339,7 @@ miyu_config::settings! {
 | `bad_format` | 错误 | 时长、路径、网址、名字、引用写法不对；键里人起的名字那一段写法不对 | 8-6（网址、名字、引用、键里的名字） |
 | `bad_reference` | 错误 | 引用、模型的列表指的供应商、池在不算项目配置的最终值里没有（`name` 是指的那个）。读进来以后另查、只报不丢：值照样用，路由当场照它说 `no_model`；算进 `config_errors`。`config.check` 照「这段字换掉它那一层」合出来的查 | 8-8 |
 | `unknown_effort` | 错误 | 模型的 `effort` 不在这个模型这时的档位里（`name` 是写的那一档，档位照 `models.md`「模型的资料」的 `reasoning`）。照 `bad_reference` 的办法：读进来以后另查、只报不丢，请求照没写发；算进 `config_errors`；`config.check` 照「这段字换掉它那一层」合出来的查。档位要目录：目录读完以前不查。那一家用不了（推不出驱动、地址）的不查 | 8-18 |
+| `unusable_temperature` | 错误 | 模型的 `temperature` 这个模型用不了：目录说它不收温度（`temperature: false`），或者超过它真走的驱动的上限（`anthropic` 是 1，`name` 是上限）。照 `unknown_effort` 的办法：读进来以后另查、只报不丢，请求照没写发；算进 `config_errors`；`config.check` 照「这段字换掉它那一层」合出来的查。目录读完以前、那一家用不了的不查（`models.md`「怎么走」第十四条） | 8-22 |
 | `wrong_layer` | 错误 | 这一项不能写在这一层 | 8-2 |
 | `not_tightening` | 错误 | 项目配置写得比下面几层宽 | 8-2 |
 | `untrusted_project` | 警告 | 项目配置还没信任，或者信任以后内容变了：这一份先不用（第三条第 2 条） | 8-2 |
@@ -1079,6 +1081,10 @@ keys = []
 # 能写：最多 32 个字的文字 的列表。只能写在系统配置或个人设置里。下一轮生效。
 # reasoning =
 
+# 默认的温度：这个模型默认的温度，0 到 2，越高回答越随意。不写的照供应商的默认；这个模型不收温度的不发。
+# 能写：0 到 2 之间的数。只能写在系统配置或个人设置里。下一轮生效。
+# temperature =
+
 # 能调工具：这个模型能不能调工具。
 # 能写：true 或 false。只能写在系统配置或个人设置里。下一轮生效。
 # tools =
@@ -1480,6 +1486,13 @@ currency = "USD"
                   "title": "思考强度",
                   "type": "array"
                 },
+                "temperature": {
+                  "description": "这个模型默认的温度，0 到 2，越高回答越随意。不写的照供应商的默认；这个模型不收温度的不发。能写：0 到 2 之间的数。只能写在系统配置或个人设置里。下一轮生效。",
+                  "maximum": 2,
+                  "minimum": 0,
+                  "title": "默认的温度",
+                  "type": "number"
+                },
                 "tools": {
                   "description": "这个模型能不能调工具。能写：true 或 false。只能写在系统配置或个人设置里。下一轮生效。",
                   "title": "能调工具",
@@ -1654,6 +1667,8 @@ currency = "USD"
 | 选项 | `contract` 照前缀计费、`best_effort` 尽量命中、`per_request` 按次计费 | Billed by prefix、Best effort、Per request | 前置きで課金、できるだけ当てる、リクエストごと |
 | `providers.<id>.models.<model>.effort` 名字（8-18） | 默认的思考强度 | Default reasoning effort | 既定の思考の強さ |
 | 说明 | 这个模型默认的思考强度，写它的一档，例如 high；能关思考的写 off。不写的照供应商的默认。 | The reasoning effort this model uses by default: one of its levels, for example high, or off where thinking can be turned off. Left out, the provider decides. | このモデルが既定で使う思考の強さ。段階のひとつを書きます（例：high）。思考を切れるモデルは off。書かなければプロバイダーの既定に従います。 |
+| `providers.<id>.models.<model>.temperature` 名字（8-22） | 默认的温度 | Default temperature | 既定の温度 |
+| 说明 | 这个模型默认的温度，0 到 2，越高回答越随意。不写的照供应商的默认；这个模型不收温度的不发。 | The temperature this model uses by default, from 0 to 2; higher gives looser answers. Left out, the provider decides. Not sent to models that do not take one. | このモデルが既定で使う温度。0 から 2 で、高いほど答えが自由になります。書かなければプロバイダーの既定に従います。温度を受け付けないモデルには送りません。 |
 
 页和组（`config.pages`、`config.groups`，编号到名字；资源里只放清单用到的，`permissions`、`sessions` 随 8-2 加，`interface`、`tui` 随 8-3 加）：
 
@@ -1735,6 +1750,8 @@ currency = "USD"
 | `config/no-provider`（8-8，`bad_reference`） | `key`、`name` | {key} 指的供应商 {name} 没有配 | {key} points at the provider {name}, which is not configured |
 | `config/no-pool`（8-8，`bad_reference`） | `key`、`name` | {key} 指的池 {name} 没有配 | {key} points at the pool {name}, which is not configured |
 | `config/unknown-effort`（8-18，`unknown_effort`） | `key`、`name` | {key} 写的 {name} 不是这个模型现在有的一档：请求照没写发 | {key} is {name}, which is not one of this model's levels now. Requests go out as if it were not set |
+| `config/temperature-unsupported`（8-22，`unusable_temperature`） | `key` | {key}：这个模型不收温度，请求照没写发 | {key}: this model does not take a temperature. Requests go out as if it were not set |
+| `config/temperature-too-high`（8-22，`unusable_temperature`） | `key`、`got`、`max` | {key} 写的 {got} 超过了这个模型的上限 {max}：请求照没写发 | {key} is {got}, above this model's limit of {max}. Requests go out as if it were not set |
 | `config/expected/float`（8-7，带范围） | `min`、`max` | {min} 到 {max} 之间的数 | a number from {min} to {max} |
 | `config/expected/text`（8-7） | `max` | 最多 {max} 个字的文字 | text of at most {max} characters |
 | `config/expected/english`（8-8 补，日文 `{max} 文字までの英語一行`） | `max` | 最多 {max} 个字的一行英文 | one line of English, at most {max} characters |
@@ -1959,6 +1976,7 @@ Options:
 | `crates/miyu-config/src/dangling/tests.rs` | `bad_reference`：供应商、池没配的一处一条、带名字、指到值那一行，列表里一个一条，配了的、不算数的那一层不报，说成话；类型「模型」只收 `<供应商>/<模型>`，池的成员写了池是 `bad_format` | 8-8 |
 | `crates/miyu-endpoint/tests/models_pools.rs` | `bad_reference` 照最终值查、算进 `config_errors`、`config.get` 里的话，`config.check` 照新的字查（连同 `models.md` 的几条） | 8-8 |
 | `crates/miyu-models/src/effort/tests.rs`、`crates/miyu-endpoint/tests/models_effort.rs` | `unknown_effort`：写的不在档位里的一处一条、带写的那一档、指到值那一行，在档位里的、那一家用不了的、不算数的那一层不报，说成话；算进 `config_errors`，`config.get` 的 `problems` 里有，`config.check` 照新的字查；请求照没写发（连同 `models.md` 的几条） | 8-18 |
+| `crates/miyu-models/src/temperature/tests.rs`、`crates/miyu-endpoint/tests/models_temperature.rs` | `unusable_temperature`：目录说不收的、走 `anthropic` 写了大于 1 的一处一条、超过上限的带上限、指到值那一行，能调的、目录没说的、那一家用不了的、不算数的那一层不报，说成话；算进 `config_errors`，`config.get` 的 `problems` 里有，`config.check` 照新的字查；`config.set` 写温度 `next_turn`，超出 0 到 2 的拒 | 8-22 |
 | `crates/miyu-config/src/value/tests.rs` | 有默认值的网址读写死的、引用的（8-8，`models.catalog.url`） | 8-8 |
 | `crates/miyu-config/src/item/kind/tests.rs`（8-8 补那几条） | 给模型看的字：一行、最多几个字、没有控制字符、CJK 的字占一半以上的 `bad_format`，从 TOML 和协议读、Schema、期望说要英文、宏的写法 | 8-8 补 |
 | `crates/miyu-core/tests/settings.rs`（8-8 补那一条） | `models.tiers.*` 照不认识的键警告、原样留着；池的两项读得进、写错的报 | 8-8 补 |
@@ -2252,6 +2270,14 @@ Options:
 | `unknown_effort` 是新的原因码（`Code::UnknownEffort`），话是 `config/unknown-effort`，`name` 是写的那一档 | 说得出写的是哪一档，人一眼看出是写错了还是目录变了 | 借 `bad_format`：写法本身没错 |
 | 查法放在端点的配置服务（`config/effort.rs`，`Config::missing` 调它），档位照核心一份的模型资料算（核心起来时交给配置服务，`Core::with_model_data`）；纯的那一半在 `miyu_models::effort::unknown` | 档位要档案、目录，配置那一层没有；照 `bad_reference` 挂在同一处 | 合并时丢掉：目录一变，配置就跟着变 |
 | 目录读完以前、那一家用不了的不查 | 起来那一刻目录还没读，查了会把每一个都报成错；用不了的那一家推不出档案，开关算不出来 | 照手里的查：起来时多报一堆错 |
+
+8-22 施工时照推荐定的配置这一半（2026-10-04 项目主人定，写进了正文；模型那一半在 `models.md`「施工时定的」8-22，施工单 `8-22-模型默认温度.md`）：
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| `providers.<id>.models.<model>.temperature` 是小数（`float [0, 2]`），系统、个人两层，`next_turn` | 和 `effort` 一个位置、一个生效时机；0 到 2 是 OpenAI、DeepSeek 这些收的范围，最宽的那一家 | 供应商那一层也能写一个默认（没要） |
+| `unusable_temperature` 是新的原因码（`Code::UnusableTemperature`），两句话：不收的 `config/temperature-unsupported`，超过上限的 `config/temperature-too-high`（`name` 是上限） | 头只认一种码；话说得清是模型不收还是写大了 | 超过上限另开一个码 |
+| 查法和 `unknown_effort` 挂在同一处（`config/effort.rs` 的 `unusable_temperature`），能不能调照目录、上限照这个模型真走的驱动（`Provider::driver_for`）；纯的那一半在 `miyu_models::temperature::unusable` | 同一个时机、同一份模型资料 | 写的时候就拒：目录会变，照样要只报不丢 |
 
 ### 要跟着改的别的页
 

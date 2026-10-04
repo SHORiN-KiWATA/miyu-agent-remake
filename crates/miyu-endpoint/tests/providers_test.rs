@@ -1,6 +1,6 @@
 //! `provider.test`（施工 8-11，`docs/blueprint/models.md`「协议」、「怎么走」第七条第 4 条）：对本机回环上的假服务器试。
 //! 成了交 `first_token_ms`、收到第一段正文就停（假服务器之后停住不动也照样成了）；配好的存列表、候选不存；列不出的照目录
-//! 列；认证失败交分类、状态、原话；推荐的模型；推不出的 `config`；没有模型可试的 `list`；参数不对、`unknown_provider`。
+//! 列；认证失败交分类、状态、原话；推荐的模型；推不出的 `config`；没有模型可试的 `list`；参数不对、`unknown_provider`；配了温度的照带（施工 8-22）。
 
 mod support;
 
@@ -129,7 +129,31 @@ async fn a_configured_provider_works_its_list_is_kept_and_it_stops_at_the_first_
         "只有一条 user，那一句去掉了行尾的换行"
     );
     assert!(body.get("tools").is_none(), "没有工具面：{body}");
+    assert!(body.get("temperature").is_none(), "没配温度的不带：{body}");
     assert!(shared.list_fetched("deepseek").is_some(), "配好的存进列表");
+}
+
+/// 试的那个模型配了温度的照带（施工 8-22，「怎么走」第十四条第 4 条），和会话真发时一样。
+#[tokio::test]
+async fn the_probe_takes_the_configured_temperature_of_the_model() {
+    let server = Server::start(vec![listing(&["deepseek-flash"]), first_words_then_stall()]).await;
+    let home = Home::new();
+    home.write(
+        "system/config.toml",
+        &format!(
+            "[providers.deepseek]\nbase_url = \"{}\"\nkeys = []\n\n[providers.deepseek.models.\"deepseek-flash\"]\ntemperature = 0.6\n",
+            server.base_url
+        ),
+    );
+    let reply = test(
+        &home,
+        &[],
+        fresh(),
+        json!({"provider": "deepseek", "model": "deepseek-flash"}),
+    )
+    .await;
+    assert_eq!(reply["result"]["ok"], true, "{reply}");
+    assert_eq!(asked(&server, 1)["temperature"], 0.6);
 }
 
 #[tokio::test]

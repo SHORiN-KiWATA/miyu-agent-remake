@@ -32,6 +32,7 @@ use miyu_models::matching::Found;
 use miyu_models::provider::{self, NoModel};
 use miyu_models::reference::named;
 use miyu_models::settings::ProviderSettings;
+use miyu_models::temperature;
 use miyu_session::ModelData;
 
 use super::Snapshot;
@@ -114,6 +115,8 @@ pub(crate) fn provider(data: &ModelData, snapshot: &Snapshot, id: &str, now: Tim
                         });
                         entry["facts"]["effort"]["key"] =
                             json!(config_key::fill(effort::ITEM, &[id, &model]));
+                        entry["facts"]["temperature"]["key"] =
+                            json!(config_key::fill(temperature::ITEM, &[id, &model]));
                         match no_key {
                             true => entry["state"] = json!("no_key"),
                             false => {

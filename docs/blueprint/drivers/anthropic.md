@@ -49,7 +49,7 @@
 
 ### 怎么走：编码
 
-1. **顶层**，照这个先后，别的字段一概不发：`model`、`max_tokens`、`system`（第 2 条）、`tools`（第 8 条）、`messages`、`"stream":true`、思考强度（「思考强度」一节：`thinking`、`output_config`，有才写）。紧凑的 JSON，结构体照声明的先后写，参数格式原样照抄。
+1. **顶层**，照这个先后，别的字段一概不发：`model`、`max_tokens`、`system`（第 2 条）、`tools`（第 8 条）、`messages`、`"stream":true`、温度（「温度」一节，`Call.temperature` 有、思考没开着才写，施工 8-22）、思考强度（「思考强度」一节：`thinking`、`output_config`，有才写）。紧凑的 JSON，结构体照声明的先后写，参数格式原样照抄。
    - `max_tokens`：`Call.max_output`；没有的写 `FALLBACK_MAX_TOKENS`。路由替这一家填 `Call.max_output`：一次性入口写了的照它，没写的照真发的那个模型资料的最大输出（`models.md`「模型的资料」）；资料也没有的才轮到 8192。openai-chat 照旧不填。
    - 不发：`metadata`、`temperature`、`tool_choice`（默认就是 `auto`）、`stop_sequences`、顶层的 `cache_control`（自动缓存，见「缓存打点」第 6 条）、任何 `anthropic-beta` 头。
 2. **system**：`[{"type":"text","text":<system>}]`，写成一块的数组，好打点。空的不发这一格。
@@ -119,6 +119,14 @@
 3. **思考预算**（`budget_tokens`）：不读、不写（`models.md`「还没有的」）。只有预算的模型（Haiku 4.5、Sonnet 4.5）目录里没有档位，请求里不带思考。
 4. **思考块怎么回传**：见「编码」第 5 条。同一家的原样带签名回传，每一轮都带，不剥；别家的、没签名的丢掉。工具循环里最后那条 assistant 开着思考时一定以思考块开头，原样回传就满足。
 5. **换了思考设置**：前面对话的缓存作废（「缓存打点」第 8 条）。
+
+### 温度
+
+施工 8-22（`models.md`「驱动要守的约定」第 14 条、「怎么走」第十四条）。
+
+1. `Call.temperature` 有的写 `"temperature":<数>`，最短的十进制（`0.7`、`1`），接在 `"stream":true` 后面、思考强度前面。路由交来的已经查过不超过 1（这个接口只收 0 到 1）。
+2. 这一次的强度是档位或 `on`（思考开着）的不写：开着思考只能用默认的温度，带了别的整个请求被拒。`off`、没有的照写（`anthropic/effort.rs` 的 `temperature`）。
+3. 没有的一个字节都不加。
 
 ### 怎么走：解码
 

@@ -1,5 +1,5 @@
 //! 模型调用口的一次性入口（`docs/blueprint/models.md`「怎么走」第十二条，施工 8-20）：模型、`@池`、不写照 `models.chat`；
-//! system 和几条消息照先后发、不带工具、`max_tokens` 照写的发；带图照字节发、模型不收图的不发；四种出错；配置的默认强度；
+//! system 和几条消息照先后发、不带工具、`max_tokens` 照写的发；带图照字节发、模型不收图的不发；四种出错；配置的默认强度、温度（施工 8-22）；
 //! key 照用途钉、取不到的跳过；429 当场换下一个 key、说到一半断了也换、只有一个候选的不再来、最多换 5 次。
 //!
 //! 假服务器在本机回环上，档案是空的、没有目录：资料全照手写的。
@@ -266,6 +266,22 @@ async fn the_default_effort_of_the_model_goes_out() {
         .await
         .expect("答得上来");
     assert_eq!(body(&first, 0)["reasoning_effort"], "high");
+}
+
+/// 温度（施工 8-22，「怎么走」第十四条第 5 条）：一次性入口照真发的那个模型配置的默认带，和会话入口一样。
+#[tokio::test]
+async fn the_default_temperature_of_the_model_goes_out() {
+    let first = Server::start(hellos(1)).await;
+    let second = Server::start(Vec::new()).await;
+    let extra = "\n[providers.a.models.m]\ntemperature = 0.3\n";
+    let config = frozen(&two(&first, &second, extra), &[]);
+    let routes = plain();
+    let (_scratch, blobs) = blobs();
+    entry(&routes)
+        .call(&config, &blobs, asking(None, "platform", "hi"))
+        .await
+        .expect("答得上来");
+    assert_eq!(body(&first, 0)["temperature"], 0.3);
 }
 
 #[tokio::test]

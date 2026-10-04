@@ -24,6 +24,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | `crates/miyu-models/src/reference.rs` | 两种写法：读、哪里能写哪几种（8-6）；造会话记下的引用（`record`）、一个引用这一轮指到一个模型还是一个池（`resolve`）、用途池里点名的模型（`named`）（8-8；挡位 8-8 补去掉了） | 8-6、8-8 |
 | `crates/miyu-models/src/settings.rs` | 模型这一块的配置项：`UseSettings`（`models.chat`、`vision`）、`PoolSettings`（`pools.<id>` 的成员、分法，8-8；派子代理能不能选、给模型看的说明，8-8 补）、`ProviderSettings`（`providers.<id>` 的驱动、地址、key、`catalog`，8-8 加 `cache`）、`ModelSettings`（`providers.<id>.models.<model>` 的窗口，8-18 加 `effort`），核心登记进清单（`config.md`） | 8-6 起 |
 | `crates/miyu-models/src/effort.rs` | 思考强度（8-18；8-18（补）去掉会话那一层）：档位名怎么规整（`none`、`disabled` 读成 `off`，有开关的多 `off`），给头看的那一档从配置的哪一层来（`in_use`），空闲超时放大几倍（`idle_factor`），配置里写的不在档位里的（`unknown`，报 `unknown_effort`） | 8-18 |
+| `crates/miyu-models/src/temperature.rs` | 温度（8-22）：驱动的上限、这个模型用不用得了、配置里写的用不了的（`unusable_temperature`） | 8-22 |
 | `crates/miyu-models/src/profile.rs` | 档案的样子：驱动、地址、`compat`（8-18 多 `toggle`：开关思考的字段）、能收哪些输入、一张图怎么算，核心读成 JSON 交进来 | 8-6 起 |
 | `crates/miyu-models/src/provider.rs` | 一家供应商这一轮的样子（手写的、档案的合起来），一个引用这一轮发给谁，窗口手写的压过模型资料，没有模型时的原话 | 8-6 起 |
 | `crates/miyu-models/src/keys.rs` | 一个会话钉在哪一个 key 上、候选的先后 | 8-6 |
@@ -99,7 +100,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | `continuation` | `"none"`，或者 `{ field = "prefix" 或 "partial", path = "…" }` |
 | `toggle` | `{ field = "…", on = <值>, off = <值> }`：开关思考写在哪个字段、开和关各写什么（8-18）。没写的这一家不能照开关关思考（「怎么走」第十一条第 1 条） |
 
-**`[providers.<编号>.models."<模型名>"]`**：手写的资料（8-7）。模型名照供应商那边的叫法，照「短名字」的写法（1 到 128 字节，没有控制字符）。每一格都可以不写。8-7 登记了除 `driver` 以外的几格（模型手写的 `driver` 还没登记：8-14 只照目录，见「模型的资料」），8-18 加 `effort`，类型、范围见 `config.md`「M8 的配置项」：`catalog` 是最多 256 个字符的文字，`reasoning` 的每一级最多 32 个字符，价格每一项 0 到 1000000，倍率 0 到 1000；`price` 写成行内表、有表头的表都行，清单里是 `price.input` 这样的五项。
+**`[providers.<编号>.models."<模型名>"]`**：手写的资料（8-7）。模型名照供应商那边的叫法，照「短名字」的写法（1 到 128 字节，没有控制字符）。每一格都可以不写。8-7 登记了除 `driver` 以外的几格（模型手写的 `driver` 还没登记：8-14 只照目录，见「模型的资料」），8-18 加 `effort`，8-22 加 `temperature`，类型、范围见 `config.md`「M8 的配置项」：`catalog` 是最多 256 个字符的文字，`reasoning` 的每一级最多 32 个字符，价格每一项 0 到 1000000，倍率 0 到 1000；`price` 写成行内表、有表头的表都行，清单里是 `price.input` 这样的五项。
 
 | 键 | 取值 | 是什么 |
 |---|---|---|
@@ -110,6 +111,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | `tools` | 布尔 | 能不能调工具 |
 | `reasoning` | 字符串的列表 | 思考强度有哪几档，盖过目录的。`none`、`disabled` 读成 `off`（8-18）。`effort` 照它查 |
 | `effort` | 一档的名字，最多 32 个字符 | 这个模型默认的思考强度（8-18，生效时机 `next_turn`）。不写的请求里不带，照供应商的默认。写的不在这时的档位里（目录变了、写错了）：照没写发，配置报 `unknown_effort`（「怎么走」第十一条第 2 条），配置不改 |
+| `temperature` | 小数，0 到 2 | 这个模型默认的温度（8-22，生效时机 `next_turn`）。不写的请求里不带，照供应商的默认。这个模型用不了的（目录说不收、超过它真走的驱动的上限：`anthropic` 是 1）：照没写发，配置报 `unusable_temperature`（「怎么走」第十四条），配置不改 |
 | `price` | `{ input, output, cache_read, cache_write, currency }`：每一百万 token 的价，`currency` 是币种，写 ISO 4217 的三个大写字母，不写是 `USD` | 价格。写了就整份用它，不和目录的拼。中转站按人民币标价的写 `currency = "CNY"` |
 | `price_multiplier` | 不小于 0 的数 | 盖过供应商上写的 |
 | `driver` | 同供应商的 `driver` | 这个模型走另一种驱动，例如 opencode Zen 的 Claude 走 `anthropic` |
@@ -188,6 +190,8 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | `tools` 能不能调工具 | `tools` | | | `tool_call` | 不知道：照样带工具面 |
 | `reasoning` 思考强度的几档 | `reasoning` | | | `reasoning_options` 里 `effort` 的几档；有 `toggle`、这一家能关思考的（openai-chat 照档案写没写开关 `compat.toggle`，anthropic 接口自带，8-12；openai-responses 没有开关，8-13），多一档 `off`，只有开关的是 `off`、`on`（8-18） | 没有 |
 | `effort` 默认的思考强度 | `effort`，在这时的档位里的才算（8-18） | | | | 没有：请求里不带 |
+| `takes_temperature` 能不能调温度 | | | | `temperature`（8-22） | 没有：当能调 |
+| `temperature` 默认的温度 | `temperature`，这个模型用得了的才算（8-22） | | | | 没有：请求里不带 |
 | `price` 价格 | `price` | | | `cost`（连同 `tiers`、`context_over_200k`），币种是 `USD` | 本机的服务是 0，当免费。别的没有：不算金额 |
 | `multiplier` 倍率 | 模型的 `price_multiplier`，再是供应商的 | | | | 1 |
 | `cache` 缓存类别 | 供应商的 `cache` | | | | 驱动的：`anthropic`、`openai-responses` 是 `contract`，`openai-chat` 是 `best_effort` |
@@ -200,8 +204,8 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 - 本机的服务（`local` 是真的）价格只认手写的，不借目录，没写的是 0，来源是 `local`（2026-10-01 项目主人定）：按名字对上的目录价是云端的价，本机跑不花这个钱。
 - 第 3、4 层按名字对上的，借不借照 `15-模型与供应商.md` 第三节那张表：能收什么、能不能调工具、思考强度都借，窗口、最大输出借、标明来源，价格照第二条第 6 条挑。
 - 档位名（8-18）：照目录原样（`minimal`、`low`、`medium`、`high`、`xhigh`、`max` 这些），`none`、`disabled` 读成 `off`，手写的也一样；重复的只留第一个。能不能关、关和开怎么写，照驱动和档案（`miyu_models::provider::Provider::switchable`）：openai-chat 的，目录的 `toggle` 只在档案写了开关时才算，没写的驱动说不出来，不加 `off`；anthropic 的开关是接口自带的（`thinking` 写 `disabled`），目录有 `toggle` 就算（8-12）；openai-responses 没有开关，目录的 `toggle` 不算，`off` 只从目录写的 `none` 来（8-13）。不能关的没有 `off`。`off` 和「没写」是两回事：`off` 是关掉，没写是照供应商的默认。
-- 谁在用：窗口、最大输出交给内核当限额（压缩线），造会话、载入时定，开着的会话下一个回合开始时照新的重算（8-10）。能收什么交给驱动（`Call.inputs`），每次请求照这一轮查。`driver` 定这个模型走哪种驱动。价格、倍率算金额（8-15）。思考强度的几档、`effort` 定一次请求带哪一档（8-18，「怎么走」第十一条）。别的只给 `model.list` 看。
-- 8-7 做了的格：窗口、最大输出、能收什么、能不能调工具、思考强度、价格、倍率、显示名、状态（`miyu_models::facts`）；8-18 加 `effort`。`cache` 8-8 只用来定池不写分法时怎么分，照供应商手写的那一格直接读（`miyu_models::pools`），不进资料、`model.list` 的 `facts` 里没有（「施工时定的」8-8）；`driver`、`interleaved` 8-14 做了，只照目录、不进 `model.list` 的 `facts`（`Facts::wire`，路由造驱动时照它换，`Provider::for_model`）。
+- 谁在用：窗口、最大输出交给内核当限额（压缩线），造会话、载入时定，开着的会话下一个回合开始时照新的重算（8-10）。能收什么交给驱动（`Call.inputs`），每次请求照这一轮查。`driver` 定这个模型走哪种驱动。价格、倍率算金额（8-15）。思考强度的几档、`effort` 定一次请求带哪一档（8-18，「怎么走」第十一条）。能不能调温度、`temperature` 定一次请求带不带温度（8-22，「怎么走」第十四条）。别的只给 `model.list` 看。
+- 8-7 做了的格：窗口、最大输出、能收什么、能不能调工具、思考强度、价格、倍率、显示名、状态（`miyu_models::facts`）；8-18 加 `effort`；8-22 加 `takes_temperature`、`temperature`。`cache` 8-8 只用来定池不写分法时怎么分，照供应商手写的那一格直接读（`miyu_models::pools`），不进资料、`model.list` 的 `facts` 里没有（「施工时定的」8-8）；`driver`、`interleaved` 8-14 做了，只照目录、不进 `model.list` 的 `facts`（`Facts::wire`，路由造驱动时照它换，`Provider::for_model`）。
 - 用出来的只交窗口；供应商的列表只交窗口（列表里报了的）。没对上目录、没手写的格是驱动的保守默认，来源 `default`，值是 `null`（能收什么是 `["text"]`、倍率是 1、显示名是模型名）。
 
 **来源**写成一个对象，头照它说一句（「给人看的字」）：
@@ -304,7 +308,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | 格 | 是什么 |
 |---|---|
 | `providers` | 配好的供应商，照编号排。每一家：`id`、`name`（显示名，施工 8-21：`{"value", "from", "key"}`，`from` 是 `config`（写了的，另带 `file`、`line`、`layer`，照资料那一格的写法）、`catalog`（目录里对上的那一家的名字）、`id`（都没有，照编号）；`key` 是完整的配置键名 `providers.<编号>.name`，头照抄它发 `config.set`；用不了的那一家也有）、`driver`、`base_url`（照配置写的样子交：写死的是地址本身，是 `{ env = … }` 的交 `{"env": "…"}`，不解出地址，施工 8-6b）、`keys`（每个 key 的 `ref`：`secret:<名字>` 或 `env:<变量>`，`set` 有没有值，`state`）、`catalog`（对上了目录里的哪一家，`how` 是怎么对上的：`config` 手写、`id` 编号一样、`similar_id` 去掉分隔以后一样、`url` 地址一样，没对上的不写）、`models`。这一家用不了的（推不出驱动、地址，驱动还没有）：`driver`、`base_url` 照手写的，没写的是 `null`，多一格 `problem`（`no_model` 的那一句原话），`models` 是空的（8-7） |
-| `models` 里的每一个 | `model` 模型名、`ref` 写成引用的样子、`listed` 从哪几处列出来的（`config`、`provider`、`catalog`，照这个先后）、`facts` 每一格的 `value` 和来源（上面「模型的资料」，十格都在：`window`、`max_output`、`inputs`、`tools`、`reasoning`、`effort`（8-18：配置的默认；没写的、写的不在档位里的是 `{"value":null,"from":"default"}`；多一格 `key`，8-18（补）：这一项完整的配置键名，模型名带点的加好引号，例如 `providers.dev.models."deepseek-v4.1-flash".effort`，头照抄它发 `config.set`（个人设置），选「默认」就发 `unset: true`）、`price`、`multiplier`、`name`、`status`）、`state`。手写指定的目录条目不存在的，多一格 `catalog_missing`：写的那个条目（8-7） |
+| `models` 里的每一个 | `model` 模型名、`ref` 写成引用的样子、`listed` 从哪几处列出来的（`config`、`provider`、`catalog`，照这个先后）、`facts` 每一格的 `value` 和来源（上面「模型的资料」，十二格都在：`window`、`max_output`、`inputs`、`tools`、`reasoning`、`effort`（8-18：配置的默认；没写的、写的不在档位里的是 `{"value":null,"from":"default"}`；多一格 `key`，8-18（补）：这一项完整的配置键名，模型名带点的加好引号，例如 `providers.dev.models."deepseek-v4.1-flash".effort`，头照抄它发 `config.set`（个人设置），选「默认」就发 `unset: true`）、`takes_temperature`（8-22：目录说的能不能调，`true`、`false`，没说的是 `null`、`default`；头照它决定温度那一格能不能改）、`temperature`（8-22：配置的默认，这个模型用不了的、没写的是 `{"value":null,"from":"default"}`；和 `effort` 一样多一格 `key`，头照抄它发 `config.set`，选「默认」发 `unset: true`）、`price`、`multiplier`、`name`、`status`）、`state`。手写指定的目录条目不存在的，多一格 `catalog_missing`：写的那个条目（8-7） |
 | `pools` | 每个池，照名字排：`name`、`strategy`（生效的分法：写了的照写的，没写的照成员定，一个成员都认不出的照写的或 `pin`）、`models`（照配置写的原样，认不出的也在）（8-8）；`subagent`（开关，没写的是 `false`）、`description`（没写的是 `null`）（8-8 补）。8-8 的 `tiers` 8-8 补去掉了 |
 | `uses` | `chat`、`vision` 各配的引用，没配的是 `null`（8-7 只有 `chat`，8-8 加 `vision`） |
 | `catalog` | 在用的目录：`source`（`snapshot` 或 `cache`）、`fetched`；两份都读不了的是 `null` |
@@ -507,6 +511,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 11. 输出上限：一定要写的（Anthropic），路由替它填 `Call.max_output`：一次性入口写了的照它，没写的照真发的那个模型资料的最大输出（`facts.max_output`），资料也没有的驱动写 8192（`drivers/anthropic.md`，8-12）。openai-chat 照旧不写（`drivers/openai-chat.md`）。
 12. 接着写被打断的回复：一个开关，实测过的才开（`05-内核接口.md` 第七节）。
 13. **思考强度**（8-18）：`Call.effort` 是这一次要的一档，规整过的名字（`off`、`on`，或者目录里的档位名）；没有的什么都不加，请求和以前一个字节不差。openai-chat 照档案的 `compat`：档位发 `reasoning_effort`；`off` 档案写了开关（`toggle`）的发开关的「关」（DeepSeek 是 `"thinking":{"type":"disabled"}`），没写的发 `"reasoning_effort":"none"`（目录写 `none` 的那种）；`on` 写了开关的发开关的「开」，没写的什么都不加。两样都接在请求最后。Anthropic（8-12）：开关是接口自带的；档位写 `"thinking":{"type":"adaptive","display":"summarized"}` 加 `"output_config":{"effort":"<档位>"}`，`off` 写 `"thinking":{"type":"disabled"}`，`on` 写 `adaptive` 那一格，都接在最后（`drivers/anthropic.md`「思考强度」）；换了思考设置，前面对话的缓存作废（system、工具的照旧），这是人自己改的，认这一次的钱。Responses（8-13）：没有开关；档位写 `"reasoning":{"effort":"<档位>","summary":"auto"}` 加 `"include":["reasoning.encrypted_content"]`（要摘要给人看、要加密的思考好回传），`off` 写 `"reasoning":{"effort":"none"}`，`on` 什么都不加，没有的不加（`drivers/openai-responses.md`「思考强度」）。
+14. **温度**（8-22）：`Call.temperature` 是这一次的温度，路由已经查过这个模型收、不超过驱动的上限；没有的什么都不加，请求和以前一个字节不差。三种驱动都写顶层 `"temperature":<数>`，数照最短的十进制（`0.7`、`1`），接在输出上限后面、思考强度那几样前面。Anthropic 开着思考（这一次的强度是档位或 `on`）不带：它的接口开着思考只能用默认的温度，带了别的整个请求被拒；`off`、没有的照带（`drivers/anthropic.md`「温度」）。
 
 ### 怎么走
 
@@ -811,6 +816,18 @@ opencode 有两个端点：Zen（`https://opencode.ai/zen/v1`，按量付费）�
 10. **给模型看的字**：转述那一次请求里的两份（`core/vision/instruction.txt`、`question.txt`），主请求里图的位置的三份（`core/drivers/image-description-open.txt`、`image-description-open-named.txt`、`image-description-close.txt`）。都冻结在策略快照里（`core.vision`、`core.drivers.image_description`，`policy.md`），老会话照它造时的样子；登记在 `26-提示词.md` 第十节。
 11. **这一步不做**：给她留一个追问的口子（先实测转述够不够细，不够再开一步、找项目主人定）；视频、音频；头上显示转述。本地估算的用量照旧照图算，不照转述的字算（「还没有的」）。
 
+**十四、温度**（8-22；2026-10-04 项目主人转来、同一天照推荐定，施工单 `8-22-模型默认温度.md`）
+
+温度和思考强度一个规矩：一个模型的一项配置，系统配置兜底、个人设置压在上面。
+
+1. **能不能调**：「模型的资料」的 `takes_temperature`，照目录的 `temperature`（布尔）借，第 3、4 层按名字对上的也借（能力都借）。目录没写这一格的、没对上目录的没有，当能调。模型不能手写盖过它（随用到它的那一步）。
+2. **配置的默认**：`providers.<id>.models.<model>.temperature`，0 到 2 的小数，系统、个人两层，`next_turn`。目录说这个模型不收的照没写，配置读进来以后另查一遍、只报不丢：`unusable_temperature`（错误），算进 `config_errors`，`config.get` 的 `problems`、`config.changed` 照样带，`config.check` 照新的字查（`config.md`，和 `unknown_effort` 挂在同一处）。目录读完以前不查；那一家用不了的不查。配置不改。
+3. **驱动的上限**：`anthropic` 只收 0 到 1，别的两种收 0 到 2（清单本身的上限）。走 `anthropic` 的模型写了大于 1 的，同第 2 条：照没写，报 `unusable_temperature`，话说上限是 1。驱动照这个模型真走的那一种（`Provider::driver_for`，8-14 的 `for_model`），它用不了的照这一家的。
+4. **一次请求带哪一个**（`miyu_models::facts::Facts::temperature`，已经照第 2、3 条查过；路由每次挑好端点以后直接读，`route/base.rs`）：照真发给的那个模型配置的最终值，池里的成员各用各的。主请求、辅助请求（起标题、回顾、压缩的摘要、替看不了图的模型看图）、一次性入口（第十二条）、`provider.test` 都照这一条。没有的什么都不带：照供应商的默认。
+5. **怎么发**：交给驱动（`Call.temperature`），驱动照「驱动要守的约定」第 14 条写。Anthropic 开着思考的那一次不带（只看这一次的强度，不报配置问题：强度一改又好了）。
+6. **头看得到**：`model.list` 的 `facts.takes_temperature`、`facts.temperature`（多一格 `key`，照 `facts.effort.key` 的写法）。头照 `takes_temperature` 决定温度那一格能不能改，照 `key` 发 `config.set`（写个人设置），选「默认」发 `unset: true`。
+7. **不记**：温度不进会话日志（`model.called`、`session.created` 不记），`subscribe`、`model.changed` 不带。
+
 ### 样子
 
 配置（例子，地址用 `.invalid`）：
@@ -1075,6 +1092,7 @@ mimo = ["xiaomi"]
 | `xtask/src/ledger.rs` | 新的几句和登记簿对得上（8-8、8-8 补：`subagent.json` 换了指纹；8-15：`session_usage.json` 和七句） | 8-8、8-11、8-14、8-15 |
 | `crates/miyu-core/tests/settings.rs`、`crates/miyu/tests/config.rs` | `usage.currency` 登记进清单、三种语言有名字和说明、生成的样本跟着变（8-15） | 8-15 |
 | `crates/miyu-models/src/effort/tests.rs` | 思考强度：`none`、`disabled` 读成 `off`、重复的去掉；目录的开关只在档案写了开关时多 `off`、只有开关的是 `off`、`on`；给头看的那一档从配置的哪一层来（`in_use`：系统、个人、都没有）；空闲超时放大几倍；配置里写的不在档位里的报在值那一行、那一家用不了的和不算数的那一层不查 | 8-18；8-18（补）去掉会话的 `pick` 测试 |
+| `crates/miyu-models/src/temperature/tests.rs`、`facts/tests.rs`、`crates/miyu-drivers/tests/temperature.rs`、`crates/miyu-session/tests/route_temperature.rs`、`once.rs`、`crates/miyu-endpoint/tests/models_temperature.rs` | 温度：上限、目录说不收的、超过上限的照没写；三种驱动写在哪、没有的一个字节不变、Anthropic 开着思考不带；主请求、辅助请求、一次性入口、池里的成员各带各的，个人设置下一轮压着系统配置；`model.list` 的两格、`unusable_temperature`、`config.set` 的范围（「怎么走」第十四条） | 8-22 |
 | `crates/miyu-models/src/facts/tests.rs`、`catalog/tests.rs`、`profile/tests.rs`（8-18 那几条） | 资料的 `effort` 只认档位里的、来源写文件和行；个人设置压着系统配置：两层都写、只写一层、都不写各一条（8-18（补））；`reasoning` 照档案算开关、手写的盖过目录照样规整；目录的开关、`none`、只有预算的读法；档案的 `toggle` | 8-18 |
 | `crates/miyu-drivers/tests/openai_chat_effort.rs` | 没写思考强度的一个字节不加；档位发 `reasoning_effort`；`off`、`on` 照档案的开关，没有开关的 `off` 发 `none`、`on` 不加；都接在最后 | 8-18 |
 | `crates/miyu-kernel/src/event/session/tests.rs`、`tests/samples.rs`、`tests/transient_sample.rs` | 以前日志里带 `effort` 的 `session.policy_changed` 照读得进、内核不理它（8-18（补），替掉了 8-18 的 `session/tests/effort.rs`、随机测试里那一串命令编号，整份删掉）；`model.changed` 第二条的 `effort.from` 是 `system` | 8-18；8-18（补）删会话那一层 |
@@ -1478,6 +1496,20 @@ mimo = ["xiaomi"]
 | 回退：写了的（去掉两头空白不是空的）→ 目录里对上的那一家的名字 → 编号 | 项目主人说的「供应商名称或 ID」 | 档案里本机服务的名字也算一层（本机服务的编号本来就是它的名字） |
 | `model.list` 的 `name` 写成 `{"value", "from", "key"}`，写了的另带 `file`、`line`、`layer`；用不了的那一家也有 | 和资料的格、思考强度的 `key` 一个样子，头少写一种读法；照 `from` 知道是不是写了的 | 只交一个字符串 |
 | 名字不进请求、会话日志、用量记账，引用只认编号 | 名字改了不该让任何记录对不上 | — |
+
+8-22 施工时照推荐定的（2026-10-04 项目主人定，写进了正文「怎么走」第十四条、「驱动要守的约定」第 14 条；施工单 `8-22-模型默认温度.md`）
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| `providers.<id>.models.<model>.temperature`：0 到 2 的小数，系统、个人，`next_turn` | 和 `effort` 一个位置、一个生效时机 | 供应商那一层也能写一个默认（没要） |
+| 目录说不收的：不带，报 `unusable_temperature`，只报不丢；目录没说的当能调 | 写了也不让请求出错，人看得到为什么没生效；不拦能用的 | 照写的发（请求一直失败、换端点）；写的时候就拒（目录会变） |
+| 走 `anthropic` 写了大于 1 的：同上，话说上限是 1 | 写配置那一刻不一定知道走哪种驱动；挂在同一个码上 | 压到 1 再发（说不清）；单开一个码 |
+| Anthropic 开着思考（档位、`on`）不带温度，不报配置问题 | 接口规定开着思考只能是默认的温度；这是这一次的强度和温度凑在一起才有的事 | 报一个配置问题（要照强度的最终值再查） |
+| 主请求、辅助请求、一次性入口、`provider.test` 都带 | 温度是这个模型的默认，和思考强度一个规矩 | 辅助请求不带（另一个需求） |
+| `model.list` 的 `facts` 多 `takes_temperature`、`temperature` 两格，`temperature` 带 `key` | 头照前一格定能不能改、照 `key` 发 `config.set`；「每一格一个值、一个来源」 | 只交一格 |
+| 三种驱动都写顶层 `"temperature":<数>`，最短的十进制，在思考强度那几样前面 | 三家都叫这个名字、放在顶层 | — |
+| 不进会话日志，`subscribe`、`model.changed` 不带 | 它是配置的值，配置有自己的来源 | `model.called` 记一格（要改事件形状） |
+| 驱动那一头不记 `DEBUG`：Anthropic 开着思考不带温度只是不写，驱动这一层不打日志 | `miyu-drivers` 是纯编码，不依赖日志；施工单第 4 条说的那一行没有地方挂 | 在路由里另判一次驱动、记一行（为一行日志多一处判断） |
 
 ### 要跟着改的别的页
 

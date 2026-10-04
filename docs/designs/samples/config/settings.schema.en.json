@@ -351,6 +351,13 @@
                   "title": "Reasoning levels",
                   "type": "array"
                 },
+                "temperature": {
+                  "description": "The temperature this model uses by default, from 0 to 2; higher gives looser answers. Left out, the provider decides. Not sent to models that do not take one. Allowed: a number from 0 to 2. Only in the system config or personal settings. Takes effect next turn.",
+                  "maximum": 2,
+                  "minimum": 0,
+                  "title": "Default temperature",
+                  "type": "number"
+                },
                 "tools": {
                   "description": "Whether this model can call tools. Allowed: true or false. Only in the system config or personal settings. Takes effect next turn.",
                   "title": "Tool calls",

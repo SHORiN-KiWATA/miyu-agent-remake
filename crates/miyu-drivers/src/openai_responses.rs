@@ -73,6 +73,7 @@ pub fn encode(
     if let Some(limit) = call.max_output {
         body.extend_from_slice(format!(",\"max_output_tokens\":{limit}").as_bytes());
     }
+    crate::write_temperature(&mut body, call.temperature);
     effort::write(&mut body, call.effort.as_deref());
     body.push(b'}');
     Ok(Encoded {

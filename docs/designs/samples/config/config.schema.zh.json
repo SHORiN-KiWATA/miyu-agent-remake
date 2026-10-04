@@ -370,6 +370,13 @@
                   "title": "思考强度",
                   "type": "array"
                 },
+                "temperature": {
+                  "description": "这个模型默认的温度，0 到 2，越高回答越随意。不写的照供应商的默认；这个模型不收温度的不发。能写：0 到 2 之间的数。只能写在系统配置或个人设置里。下一轮生效。",
+                  "maximum": 2,
+                  "minimum": 0,
+                  "title": "默认的温度",
+                  "type": "number"
+                },
                 "tools": {
                   "description": "这个模型能不能调工具。能写：true 或 false。只能写在系统配置或个人设置里。下一轮生效。",
                   "title": "能调工具",

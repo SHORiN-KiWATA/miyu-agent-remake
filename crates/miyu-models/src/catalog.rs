@@ -4,7 +4,7 @@
 //! - 供应商：`id`、`name`、`env`、`npm`、`api`、`doc`、`models`；
 //! - 模型：`id`、`name`、`family`、`tool_call`、`modalities.input`、`limit`（`context`、`input`、`output`）、`cost`、
 //!   `reasoning_options`、`status`、`release_date`（施工 8-11，推荐模型用）、`provider.npm`、`interleaved`（施工 8-14：这个模型
-//!   走哪种驱动、交错思考写在哪个字段）。窗口取 `limit.context` 和 `limit.input` 里小的那个。
+//!   走哪种驱动、交错思考写在哪个字段）、`temperature`（施工 8-22：能不能调温度）。窗口取 `limit.context` 和 `limit.input` 里小的那个。
 //!
 //! 一个模型的格坏了（类型不对、数是负的），跳过它，交回它的名字由读的一方记一行；一家供应商自己的格坏了，整家跳过。
 //! 整份不是 JSON 对象的，算读不了。读好以后照名字建两份索引：一模一样的名字、规整以后的名字（[`crate::matching`]）。
@@ -71,6 +71,8 @@ pub struct CatalogModel {
     pub price: Option<Price>,
     /// 思考强度：`effort` 的几档（规整过）、有没有开关（施工 8-18）。都没有的没有。
     pub reasoning: Option<Reasoning>,
+    /// 能不能调温度（`temperature`，施工 8-22）。没写的没有：当能调。
+    pub temperature: Option<bool>,
     /// `deprecated`、`beta` 这类。
     pub status: Option<String>,
     /// 发布日期，原样（`2026-09-10`）：照字比新旧（施工 8-11，第一次接入推荐模型用）。
@@ -168,6 +170,8 @@ struct RawModel {
     cost: Option<price::RawCost>,
     #[serde(default)]
     reasoning_options: Option<Vec<ReasoningOption>>,
+    #[serde(default)]
+    temperature: Option<bool>,
     #[serde(default)]
     status: Option<String>,
     #[serde(default)]
@@ -332,6 +336,7 @@ impl From<RawModel> for CatalogModel {
             max_output: limit.output.filter(|output| *output > 0),
             price: raw.cost.map(price::RawCost::price),
             reasoning: raw.reasoning_options.and_then(reasoning),
+            temperature: raw.temperature,
             status: raw.status,
             release_date: raw.release_date,
             npm: raw.provider.and_then(|provider| provider.npm),

@@ -61,6 +61,7 @@ fn written(snapshot: &Snapshot) -> String {
         max_output: None,
         inputs: Inputs::default(),
         effort: None,
+        temperature: None,
     };
     let texts = snapshot.driver_texts().unwrap();
     let body = encode(

@@ -57,6 +57,8 @@ fn every_fact_from_the_catalog_carries_its_entry_layer_and_date() {
             "tools": with(json!(true)),
             "reasoning": with(json!(["low", "high", "max"])),
             "effort": {"value": null, "from": "default"},
+            "takes_temperature": with(json!(true)),
+            "temperature": {"value": null, "from": "default"},
             "price": with(json!({"input": 0.15, "output": 0.6, "cache_read": 0.003, "reasoning": 0.6, "currency": "USD"})),
             "multiplier": {"value": 1.0, "from": "default"},
             "name": with(json!("DeepSeek V4.1 Flash")),

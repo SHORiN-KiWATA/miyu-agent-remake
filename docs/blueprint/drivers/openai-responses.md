@@ -48,7 +48,7 @@
 
 ### 怎么走：编码
 
-1. **顶层**，照这个先后，别的字段一概不发：`model`、`instructions`（第 2 条）、`input`、`tools`（第 7 条）、`"store":false`、`"stream":true`、`max_output_tokens`（`Call.max_output` 有才写）、思考强度（「思考强度」：`reasoning`、`include`，有才写）。紧凑的 JSON，结构体照声明的先后写，参数格式原样照抄。
+1. **顶层**，照这个先后，别的字段一概不发：`model`、`instructions`（第 2 条）、`input`、`tools`（第 7 条）、`"store":false`、`"stream":true`、`max_output_tokens`（`Call.max_output` 有才写）、温度（`Call.temperature` 有才写，施工 8-22：`"temperature":<数>`，最短的十进制）、思考强度（「思考强度」：`reasoning`、`include`，有才写）。紧凑的 JSON，结构体照声明的先后写，参数格式原样照抄。
    - 不发：`previous_response_id`、`tool_choice`、`parallel_tool_calls`（默认就是能并行）、`truncation`（默认不截，超长报错，交给压缩）、`prompt_cache_key`、`user`、`metadata`、`text`、`service_tier`。
 2. **system**：写进 `instructions`，一整段；空的不发这一格。
 3. **user**：`{"role":"user","content":…}`。

@@ -102,6 +102,7 @@ pub fn encode(
         ranges.push(start..body.len());
     }
     body.extend_from_slice(b"],\"stream\":true");
+    crate::write_temperature(&mut body, effort::temperature(call));
     effort::write(&mut body, call.effort.as_deref());
     body.push(b'}');
     Ok(Encoded {

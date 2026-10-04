@@ -174,6 +174,14 @@ pub(crate) fn words(items: &[Item]) -> Fake {
             "config/unknown-effort",
             "{key} 写的 {name} 不是这个模型现在有的一档：请求照没写发",
         ),
+        (
+            "config/temperature-unsupported",
+            "{key}：这个模型不收温度，请求照没写发",
+        ),
+        (
+            "config/temperature-too-high",
+            "{key} 写的 {got} 超过了这个模型的上限 {max}：请求照没写发",
+        ),
     ];
     Fake {
         items: items

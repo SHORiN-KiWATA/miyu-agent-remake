@@ -63,7 +63,7 @@
 
 ### 怎么走：编码
 
-1. **顶层**，照这个先后，别的字段一概不发：`model`、`messages`、`tools`（见第 8 条）、`"stream":true`、`"stream_options":{"include_usage":true}`（开关开着才有）、输出上限（`Call.max_output` 有才写，字段名照开关）、思考强度（`Call.effort` 有才写，施工 8-18，`openai_chat/effort.rs`：档位写 `"reasoning_effort":"<档位>"`；`off` 有开关的写 `"<field>":<off>`，没有的写 `"reasoning_effort":"none"`；`on` 有开关的写 `"<field>":<on>`，没有的不写）。紧凑的 JSON，结构体照声明的先后写，参数格式原样照抄。
+1. **顶层**，照这个先后，别的字段一概不发：`model`、`messages`、`tools`（见第 8 条）、`"stream":true`、`"stream_options":{"include_usage":true}`（开关开着才有）、输出上限（`Call.max_output` 有才写，字段名照开关）、温度（`Call.temperature` 有才写，施工 8-22：`"temperature":<数>`，最短的十进制）、思考强度（`Call.effort` 有才写，施工 8-18，`openai_chat/effort.rs`：档位写 `"reasoning_effort":"<档位>"`；`off` 有开关的写 `"<field>":<off>`，没有的写 `"reasoning_effort":"none"`；`on` 有开关的写 `"<field>":<on>`，没有的不写）。紧凑的 JSON，结构体照声明的先后写，参数格式原样照抄。
 2. **system**：第一条 `{"role":"system","content":…}`；空的不发。
 3. **user**：
    - 全是文字的，`content` 是一个字符串：相邻两块之间补一个换行，前一块已经以换行结尾的不补；空的一块什么都不接。

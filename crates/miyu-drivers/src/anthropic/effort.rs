@@ -5,8 +5,11 @@
 //!   `summarized`：4.7 起默认不给思考的字，写了才看得到思考的摘要，不多花钱。
 //! - `off`：`"thinking":{"type":"disabled"}`。开关是接口自带的，不用档案写。
 //! - `on`：`"thinking":{"type":"adaptive","display":"summarized"}`。
+//!
+//! 温度（施工 8-22，[`temperature`]）：开着思考只能用默认的温度，带了别的整个请求被拒。档位、`on` 的不带温度；`off`、没有的
+//! 照交来的带。
 
-use crate::{EFFORT_OFF, EFFORT_ON};
+use crate::{Call, EFFORT_OFF, EFFORT_ON};
 
 /// 开着思考的写法。
 const ADAPTIVE: &str = r#","thinking":{"type":"adaptive","display":"summarized"}"#;
@@ -23,5 +26,13 @@ pub(super) fn write(body: &mut Vec<u8>, effort: Option<&str>) {
             super::json(body, level);
             body.push(b'}');
         }
+    }
+}
+
+/// 这一次带不带温度：思考开着（档位、`on`）的不带，别的照 `call.temperature`。
+pub(super) fn temperature(call: &Call) -> Option<f64> {
+    match call.effort.as_deref() {
+        None | Some(EFFORT_OFF) => call.temperature,
+        Some(_) => None,
     }
 }

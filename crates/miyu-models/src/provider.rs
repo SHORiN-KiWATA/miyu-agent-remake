@@ -172,6 +172,13 @@ impl Provider {
         Ok(speaking)
     }
 
+    /// 发给模型 `model` 时真走的驱动（施工 8-22，温度的上限照它）：照 [`Provider::for_model`]，这个模型用不了的照这一家的
+    /// （发的时候当场 `no_model`）。
+    pub fn driver_for(&self, model: &str, wire: &Wire, npm: &BTreeMap<String, String>) -> Driver {
+        self.for_model(model, wire, npm)
+            .map_or(self.driver, |speaking| speaking.driver)
+    }
+
     /// 另配的头，照种子 `seed` 换好模板（施工 8-14，[`crate::headers`]）：会话的是会话编号，一次性的是用途，`provider.test`
     /// 是 [`headers::PROBE_SEED`]。照名字排。
     pub fn headers(&self, seed: &str) -> Vec<(String, String)> {

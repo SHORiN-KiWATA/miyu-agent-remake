@@ -65,6 +65,7 @@ fn the_registered_list_is_well_formed() {
             "providers.<id>.models.<model>.tools",
             "providers.<id>.models.<model>.reasoning",
             "providers.<id>.models.<model>.effort",
+            "providers.<id>.models.<model>.temperature",
             "providers.<id>.models.<model>.price_multiplier",
             "providers.<id>.models.<model>.price.input",
             "providers.<id>.models.<model>.price.output",

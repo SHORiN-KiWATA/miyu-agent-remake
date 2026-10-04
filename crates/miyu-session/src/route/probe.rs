@@ -185,12 +185,13 @@ async fn run(
     };
     *tried = Some(model.clone());
     // 发那一句照这个模型的驱动（施工 8-14：同一家里的模型可以各走各的），没有驱动的是 `config`；另配的头照固定的种子换。
-    let speaking = data
-        .with(|knowledge| {
-            let (facts, _) = facts(probe.resolved, knowledge, &provider, &model);
-            provider.for_model(&model, &facts.wire, &knowledge.profiles.npm)
-        })
-        .map_err(config)?;
+    // 温度照这个模型配置的默认（施工 8-22），和会话真发时一样。
+    let (speaking, temperature) = data.with(|knowledge| {
+        let (facts, _) = facts(probe.resolved, knowledge, &provider, &model);
+        let speaking = provider.for_model(&model, &facts.wire, &knowledge.profiles.npm);
+        (speaking, facts.temperature.value)
+    });
+    let speaking = speaking.map_err(config)?;
     let asking = speaking.build(listing_texts().map_err(unready)?);
     let endpoint = match &key {
         Some(key) => Endpoint::new(base_url, key.expose()),
@@ -210,6 +211,7 @@ async fn run(
         &model,
         probe.text,
         &placeholders,
+        temperature,
     )
     .await?;
     Ok(Probed::Worked {
@@ -220,7 +222,7 @@ async fn run(
     })
 }
 
-/// 发那一句：收到正文那一块的第一段字就叫停。交回第一段增量的毫秒数。
+/// 发那一句：收到正文那一块的第一段字就叫停，带这个模型默认的温度 `temperature`（施工 8-22）。交回第一段增量的毫秒数。
 async fn ask(
     client: &miyu_http::Client,
     driver: &dyn Driver,
@@ -228,6 +230,7 @@ async fn ask(
     model: &str,
     text: &str,
     placeholders: &[(String, String)],
+    temperature: Option<f64>,
 ) -> Result<u64, Probed> {
     let name = ModelName::parse(model)
         .map_err(|error| failed(Stage::Request, ErrorClass::Unclassified, error.to_string()))?;
@@ -250,6 +253,7 @@ async fn ask(
         max_output: None,
         inputs: Inputs::default(),
         effort: None,
+        temperature,
     };
     let encoded = driver
         .encode(&request, &call, &BTreeMap::new())

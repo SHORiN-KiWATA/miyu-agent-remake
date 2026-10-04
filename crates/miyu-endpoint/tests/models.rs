@@ -184,6 +184,8 @@ async fn the_list_has_providers_models_facts_and_states() {
                 "tools": fact(json!(true)),
                 "reasoning": fact(json!(["low", "high", "max"])),
                 "effort": {"value": null, "from": "default", "key": "providers.deepseek.models.deepseek-flash.effort"},
+                "takes_temperature": fact(json!(true)),
+                "temperature": {"value": null, "from": "default", "key": "providers.deepseek.models.deepseek-flash.temperature"},
                 "price": fact(json!({"input": 0.15, "output": 0.6, "cache_read": 0.003, "reasoning": 0.6, "currency": "USD"})),
                 "multiplier": {"value": 1.0, "from": "default"},
                 "name": fact(json!("DeepSeek V4.1 Flash")),

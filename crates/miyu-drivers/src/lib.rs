@@ -41,8 +41,8 @@ use miyu_kernel::accumulate::Delta;
 use miyu_kernel::event::{CallError, Usage};
 use miyu_kernel::id::{ContentHash, ModelName};
 
-/// 一次调用要定的：发给哪个模型、输出的上限、模型能收哪些输入、思考强度。
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// 一次调用要定的：发给哪个模型、输出的上限、模型能收哪些输入、思考强度、温度（施工 8-22）。
+#[derive(Debug, Clone, PartialEq)]
 pub struct Call {
     /// 模型名，照供应商那边的叫法。
     pub model: ModelName,
@@ -54,6 +54,17 @@ pub struct Call {
     /// 这一次的思考强度（施工 8-18，`docs/blueprint/models.md`「驱动要守的约定」第 13 条）：规整过的名字，[`EFFORT_OFF`]、
     /// [`EFFORT_ON`]，或者目录里的档位名。没有的什么都不加，请求和以前一个字节不差。
     pub effort: Option<String>,
+    /// 这一次的温度（施工 8-22，`docs/blueprint/models.md`「驱动要守的约定」第 14 条）：路由照模型资料交，已经查过这个模型
+    /// 收、不超过驱动的上限。没有的什么都不加，请求和以前一个字节不差。
+    pub temperature: Option<f64>,
+}
+
+/// 温度写成一个顶层字段 `,"temperature":<数>`（施工 8-22），接在思考强度那几样的前面。数照最短的十进制写（`0.7`、`1`）。
+/// 没有的什么都不加。
+pub(crate) fn write_temperature(body: &mut Vec<u8>, temperature: Option<f64>) {
+    if let Some(temperature) = temperature {
+        body.extend_from_slice(format!(",\"temperature\":{temperature}").as_bytes());
+    }
 }
 
 /// 思考强度「关」的名字（施工 8-18）：目录里写 `none`、`disabled` 的读成它，有开关的模型多这一档。

@@ -99,7 +99,7 @@ impl Routes {
         Ok((picked, pins))
     }
 
-    /// 挑定了 `choice`：照真发的那个模型查资料、换驱动（施工 8-14），思考强度照配置的默认，驱动的占位是 `texts`，占位工具照档案
+    /// 挑定了 `choice`：照真发的那个模型查资料、换驱动（施工 8-14），思考强度、温度（施工 8-22）照配置的默认，驱动的占位是 `texts`，占位工具照档案
     /// （8-14 补），输出上限 `max_output`
     /// （没有的照供应商的默认；一定要写的驱动照模型资料的最大输出，资料也没有的驱动自己兜底，施工 8-12）。
     pub(super) fn ready(
@@ -149,6 +149,8 @@ impl Routes {
                 }),
                 inputs: facts.driver_inputs(),
                 effort,
+                // 温度照这个模型配置的默认（施工 8-22），已经查过这个模型收、不超过它走的驱动的上限。
+                temperature: facts.temperature.value,
             },
             learn: Learn {
                 data: Arc::clone(&self.data),

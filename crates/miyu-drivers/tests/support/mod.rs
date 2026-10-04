@@ -64,6 +64,7 @@ pub fn call(inputs: Inputs, max_output: Option<u32>) -> Call {
         max_output,
         inputs,
         effort: None,
+        temperature: None,
     }
 }
 
@@ -138,6 +139,7 @@ pub fn gpt(inputs: Inputs, max_output: Option<u32>) -> Call {
         max_output,
         inputs,
         effort: None,
+        temperature: None,
     }
 }
 
@@ -148,6 +150,7 @@ pub fn claude(inputs: Inputs, max_output: Option<u32>) -> Call {
         max_output,
         inputs,
         effort: None,
+        temperature: None,
     }
 }
 
