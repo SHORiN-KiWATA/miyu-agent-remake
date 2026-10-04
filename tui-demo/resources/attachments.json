@@ -1,0 +1,9 @@
+{
+  "file_name_cols": 24,
+  "kinds": [
+    { "name": "image", "extensions": ["png", "jpg", "jpeg", "gif", "webp"] },
+    { "name": "pdf", "extensions": ["pdf"] },
+    { "name": "audio", "extensions": ["mp3", "wav", "m4a", "aac", "flac", "ogg", "opus"] },
+    { "name": "video", "extensions": ["mp4", "mov", "webm", "mkv", "avi", "m4v"] }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "tools": {
+    "shell": "$"
+  },
+  "tool": "⚙",
+  "think": "✳",
+  "error": "✗",
+  "pin": "* ",
+  "video": "▶",
+  "stash": "▤ "
+}

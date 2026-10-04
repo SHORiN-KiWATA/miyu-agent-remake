@@ -1,0 +1,22 @@
+{
+  "tools": {
+    "shell": "$",
+    "edit": "",
+    "write": "",
+    "trash": "",
+    "read": "",
+    "glob": "",
+    "grep": "",
+    "history": "",
+    "subagent": "",
+    "jobs": "\uf0ae",
+    "send_message": "\uf0e5",
+    "sessions": "\uf03a"
+  },
+  "tool": "",
+  "think": "󰝨",
+  "error": "",
+  "pin": "󰐃 ",
+  "video": "▶",
+  "stash": " "
+}

@@ -1,0 +1,287 @@
+//! 回合进行中发的话（蓝图 `tui.md`「运行状态行和排队的消息」第 5 条，`kernel/session.md`「排队的消息」第 1 条）：
+//! 核心下一次请求就带上它，不等下一轮。哪一次请求带上了，看那次请求推来的字里的 `seen`：够着它的序号，前面那段
+//! 时间线收起，这句话进正文，接着的步另起一段。
+
+use super::super::{Kind, Transcript};
+use super::apply;
+use crate::core::{Block, Push};
+
+/// 一次请求想了一下：先报看到了第几条为止，再是一块思考。
+fn thought(seen: u64, text: &str) -> Vec<Push> {
+    vec![
+        Push::Heard(seen),
+        Push::BlockStart {
+            index: 0,
+            block: Block::Reasoning,
+        },
+        Push::Delta {
+            index: 0,
+            text: text.into(),
+        },
+        Push::BlockEnd(0),
+    ]
+}
+
+/// 看得见的一条：种类、字；时间线那一段是不是收起了、有几步。
+type Shown = (Kind, String, Option<(bool, usize)>);
+
+/// 看得见的几条。
+fn shown(t: &Transcript) -> Vec<Shown> {
+    t.entries
+        .iter()
+        .filter(|e| !e.hidden && !e.queued)
+        .map(|e| {
+            let seg = e.segment.as_ref().map(|s| (s.finished, s.steps.len()));
+            (e.kind.clone(), e.text.clone(), seg)
+        })
+        .collect()
+}
+
+/// 第一句开了第 2 轮，想了第一步。
+fn started() -> Transcript {
+    let mut t = Transcript::default();
+    t.user("先跑一下".into(), Vec::new());
+    apply(
+        &mut t,
+        vec![Push::UserMessage(1), Push::TurnStarted(2, Some(1))],
+    );
+    apply(&mut t, thought(1, "第一步"));
+    t
+}
+
+#[test]
+fn a_message_heard_between_steps_folds_the_steps_and_starts_a_new_segment() {
+    // 2026-09-29 项目主人：步与步之间发的话，前面的时间线没收起，那句话也不见了。
+    let mut t = started();
+    t.user("顺便看看 README".into(), Vec::new());
+    apply(&mut t, vec![Push::UserMessage(5)]);
+    apply(&mut t, thought(5, "第二步"));
+    assert_eq!(
+        shown(&t),
+        [
+            (Kind::User, "先跑一下".to_string(), None),
+            (Kind::Steps, String::new(), Some((true, 1))),
+            (Kind::User, "顺便看看 README".to_string(), None),
+            (Kind::Steps, String::new(), Some((false, 1))),
+        ],
+        "前面那段收起，这句进正文，接着的步另起一段"
+    );
+    let heard = t
+        .entries
+        .iter()
+        .find(|e| e.text == "顺便看看 README")
+        .unwrap();
+    assert_eq!(heard.turn, Some(2), "归到在跑的这一轮");
+}
+
+#[test]
+fn a_request_sent_before_the_message_leaves_it_queued() {
+    let mut t = started();
+    t.user("顺便看看 README".into(), Vec::new());
+    apply(&mut t, vec![Push::UserMessage(5)]);
+    // 这次请求在这句落盘之前就发出去了：看到第 4 条为止。
+    apply(&mut t, thought(4, "第二步"));
+    assert_eq!(
+        shown(&t),
+        [
+            (Kind::User, "先跑一下".to_string(), None),
+            (Kind::Steps, String::new(), Some((false, 2))),
+        ],
+        "还排着：新的一步接在原来那一段里，不因为排着一句话另起一段"
+    );
+    assert!(
+        t.entries
+            .iter()
+            .any(|e| e.queued && e.text == "顺便看看 README")
+    );
+}
+
+#[test]
+fn messages_heard_together_join_into_one_block() {
+    let mut t = started();
+    t.user("第一句补充".into(), Vec::new());
+    t.user("第二句补充".into(), Vec::new());
+    apply(&mut t, vec![Push::UserMessage(5), Push::UserMessage(6)]);
+    apply(&mut t, thought(6, "第二步"));
+    let users: Vec<String> = shown(&t)
+        .into_iter()
+        .filter(|(k, _, _)| *k == Kind::User)
+        .map(|(_, text, _)| text)
+        .collect();
+    assert_eq!(
+        users,
+        ["先跑一下", "第一句补充\n第二句补充"],
+        "一起听到的拼成一段"
+    );
+}
+
+#[test]
+fn what_she_said_before_hearing_it_stays_above_it() {
+    // 这句排着时，在路上的那次请求先说了话、调了工具；下一次请求才带上它。
+    let mut t = started();
+    t.user("补充一句".into(), Vec::new());
+    apply(&mut t, vec![Push::UserMessage(5)]);
+    let mut pushes = vec![
+        Push::Heard(4),
+        Push::BlockStart {
+            index: 0,
+            block: Block::Text,
+        },
+        Push::Delta {
+            index: 0,
+            text: "我先看看".into(),
+        },
+        Push::BlockEnd(0),
+        Push::BlockStart {
+            index: 1,
+            block: Block::ToolCall("shell".into()),
+        },
+        Push::BlockEnd(1),
+        Push::Calls(vec!["c1".into()]),
+    ];
+    pushes.extend(thought(5, "听到了"));
+    apply(&mut t, pushes);
+    // 工具的结果晚到：还落在那一步上（拿走排着的那条以后，记着的下标跟着挪）。
+    apply(
+        &mut t,
+        vec![Push::ToolResult {
+            call_id: "c1".into(),
+            status: crate::core::ToolStatus::Ok,
+            text: "a.txt".into(),
+            said: None,
+        }],
+    );
+    let kinds: Vec<(Kind, String)> = shown(&t)
+        .into_iter()
+        .map(|(k, text, _)| (k, text))
+        .collect();
+    assert_eq!(
+        kinds,
+        [
+            (Kind::User, "先跑一下".to_string()),
+            (Kind::Steps, String::new()),
+            (Kind::Reply, "我先看看".to_string()),
+            (Kind::Steps, String::new()),
+            (Kind::User, "补充一句".to_string()),
+            (Kind::Steps, String::new()),
+        ],
+        "听到它以前说的、做的在它上面"
+    );
+    let shell = t
+        .entries
+        .iter()
+        .filter_map(|e| e.segment.as_ref())
+        .nth(1)
+        .unwrap();
+    assert!(
+        matches!(&shell.steps[0].kind, crate::transcript::StepKind::Tool { output, .. } if output == "a.txt"),
+        "结果落在调它的那一步"
+    );
+}
+
+#[test]
+fn a_turn_opened_by_queued_messages_can_hand_them_back_until_she_answers() {
+    // 2026-09-30 项目主人：排着的话一转眼成了新一轮，Ctrl+C 打断时没回到输入框；定只退回排着的。
+    use crate::core::EndReason;
+    let mut t = Transcript::default();
+    t.user("你好".into(), Vec::new());
+    apply(
+        &mut t,
+        vec![Push::UserMessage(1), Push::TurnStarted(2, Some(1))],
+    );
+    assert!(t.takeback().is_none(), "你直接发的那句开的一轮：不退");
+    // 她在回答时又发了两句，排着；这一轮答完，核心接着拿排着的开下一轮。
+    t.user("第一条排队".into(), Vec::new());
+    t.user("第二条排队".into(), Vec::new());
+    apply(&mut t, vec![Push::UserMessage(3), Push::UserMessage(4)]);
+    apply(
+        &mut t,
+        vec![
+            Push::TurnEnded(EndReason::Completed),
+            Push::TurnStarted(5, Some(4)),
+        ],
+    );
+    let back: Vec<String> = t
+        .takeback()
+        .unwrap()
+        .into_iter()
+        .map(|(text, _)| text)
+        .collect();
+    assert_eq!(back, ["第一条排队", "第二条排队"], "一句一句交回");
+    // 只在想：还算没开口。
+    apply(&mut t, thought(4, "想一下"));
+    assert!(t.takeback().is_some(), "只在想还算没开口");
+    // 开口说了：不退。
+    apply(
+        &mut t,
+        vec![
+            Push::BlockStart {
+                index: 1,
+                block: Block::Text,
+            },
+            Push::Delta {
+                index: 1,
+                text: "你好".into(),
+            },
+        ],
+    );
+    assert!(t.takeback().is_none(), "她开口了");
+}
+
+#[test]
+fn a_queued_message_that_opens_the_turn_after_a_core_restart_comes_in_there() {
+    // 2026-10-02 项目主人报：回答进行中发「你在干嘛」，她回了；之后再发一句，「你在干嘛」又出现在新那句下面。
+    // 日志：排着的第 5 条没被请求带上，核心重启，这一轮记成 restarted，接着开的一轮由第 5 条开。
+    let texts = crate::config::Config::builtin().unwrap().text;
+    let mut t = started();
+    t.user("你在干嘛？".into(), Vec::new());
+    apply(&mut t, vec![Push::UserMessage(5)]);
+    apply(&mut t, thought(4, "第二步"));
+    t.update(crate::core::Update::Disconnected, &texts);
+    apply(
+        &mut t,
+        vec![
+            Push::TurnEnded(crate::core::EndReason::Other("restarted".into())),
+            Push::TurnStarted(9, Some(5)),
+        ],
+    );
+    let users: Vec<String> = shown(&t)
+        .into_iter()
+        .filter(|(k, _, _)| *k == Kind::User)
+        .map(|(_, text, _)| text)
+        .collect();
+    assert_eq!(users, ["先跑一下", "你在干嘛？"], "开新一轮时进正文");
+}
+
+#[test]
+fn a_queued_message_left_over_when_the_core_drops_comes_in_before_the_next_one() {
+    // 2026-10-02 沙盒里复现：核心被杀，排着的那句没被带上，核心载入时记成 aborted、不另开一轮；它已经在日志里，
+    // 下一次请求会带上。原来它一直排着、看不见，下一句开轮时被挪到那一句后面。
+    let texts = crate::config::Config::builtin().unwrap().text;
+    let mut t = started();
+    t.user("你在干嘛？".into(), Vec::new());
+    apply(&mut t, vec![Push::UserMessage(9)]);
+    t.update(crate::core::Update::Disconnected, &texts);
+    let users = |t: &Transcript| -> Vec<String> {
+        shown(t)
+            .into_iter()
+            .filter(|(k, _, _)| *k == Kind::User)
+            .map(|(_, text, _)| text)
+            .collect()
+    };
+    assert_eq!(
+        users(&t),
+        ["先跑一下", "你在干嘛？"],
+        "断开时进正文，不悬着"
+    );
+    t.user("算了，不发了。".into(), Vec::new());
+    apply(
+        &mut t,
+        vec![
+            Push::TurnEnded(crate::core::EndReason::Other("aborted".into())),
+            Push::UserMessage(12),
+            Push::TurnStarted(13, Some(12)),
+        ],
+    );
+    assert_eq!(users(&t), ["先跑一下", "你在干嘛？", "算了，不发了。"]);
+}

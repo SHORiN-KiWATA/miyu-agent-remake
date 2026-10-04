@@ -1,0 +1,240 @@
+{
+  "commands": [
+    {
+      "name": "undo",
+      "aliases": [
+        "rewind"
+      ],
+      "summary": {
+        "zh": "撤销上一轮，她改过的文件改回去",
+        "en": "Undo the last turn and revert the files she changed",
+        "ja": "直前のやり取りを取り消し、変更されたファイルを元に戻す"
+      },
+      "run": "revert"
+    },
+    {
+      "name": "restore",
+      "summary": {
+        "zh": "恢复刚才撤销的那一轮",
+        "en": "Bring back the turn you just undid",
+        "ja": "直前に取り消したやり取りを復元する"
+      },
+      "run": "unrevert"
+    },
+    {
+      "name": "redo",
+      "summary": {
+        "zh": "这一轮原样重来一遍",
+        "en": "Run this turn again as it was",
+        "ja": "このやり取りをそのままやり直す"
+      },
+      "run": "redo"
+    },
+    {
+      "name": "edit",
+      "summary": {
+        "zh": "编辑上一句，改完回车重来",
+        "en": "Edit your last message and send it again",
+        "ja": "直前のメッセージを編集して再送信する"
+      },
+      "run": "edit"
+    },
+    {
+      "name": "clear",
+      "aliases": [
+        "reset"
+      ],
+      "summary": {
+        "zh": "清空上下文，会话不变",
+        "en": "Clear the context, keep the session",
+        "ja": "コンテキストをクリアする（セッションは維持）"
+      },
+      "run": "clear"
+    },
+    {
+      "name": "compact",
+      "summary": {
+        "zh": "现在就压缩上下文，后面可以写给摘要的要求",
+        "en": "Compact the context now; anything after it guides the summary",
+        "ja": "今すぐコンテキストを圧縮する。続けて要約への指示を書ける"
+      },
+      "run": "compact",
+      "args": true
+    },
+    {
+      "name": "recap",
+      "summary": {
+        "zh": "回顾一下：在做什么、做完了什么、还剩什么",
+        "en": "Recap what is being done, what is done and what is left",
+        "ja": "振り返り：今やっていること、終わったこと、残っていること"
+      },
+      "run": "recap"
+    },
+    {
+      "name": "rename",
+      "summary": {
+        "zh": "给会话改名，只打 /rename 是去掉标题",
+        "en": "Rename the session; /rename alone removes the title",
+        "ja": "セッション名を変える。/rename だけならタイトルを外す"
+      },
+      "run": "rename",
+      "args": true
+    },
+    {
+      "name": "theme",
+      "summary": {
+        "zh": "换一套颜色：tokyonight-night、terminal 轮着换",
+        "en": "Switch colors: tokyonight-night, terminal in turn",
+        "ja": "配色を切り替える：tokyonight-night、terminal を順に切り替え"
+      },
+      "run": "theme"
+    },
+    {
+      "name": "icons",
+      "summary": {
+        "zh": "换一套图标：nerd、plain 轮着换",
+        "en": "Switch icons: nerd, plain in turn",
+        "ja": "アイコンを切り替える：nerd、plain を順に切り替え"
+      },
+      "run": "icons"
+    },
+    {
+      "name": "new",
+      "summary": {
+        "zh": "开一个新会话",
+        "en": "Start a new session",
+        "ja": "新しいセッションを開始する"
+      },
+      "run": "new"
+    },
+    {
+      "name": "sessions",
+      "aliases": [
+        "resume"
+      ],
+      "summary": {
+        "zh": "列出会话，切过去",
+        "en": "List sessions and switch to one",
+        "ja": "セッション一覧を表示して切り替える"
+      },
+      "run": "sessions"
+    },
+    {
+      "name": "model",
+      "summary": {
+        "zh": "换这个会话的模型",
+        "en": "Change this session's model",
+        "ja": "このセッションのモデルを変更する"
+      },
+      "run": "model"
+    },
+    {
+      "name": "effort",
+      "summary": {
+        "zh": "换正在用的模型的思考强度",
+        "en": "Change the thinking effort of the model in use",
+        "ja": "使用中のモデルの思考の強さを変更する"
+      },
+      "run": "effort"
+    },
+    {
+      "name": "readonly",
+      "summary": {
+        "zh": "开关只读，和 Shift+Tab 一样",
+        "en": "Toggle read-only, same as Shift+Tab",
+        "ja": "読み取り専用を切り替える（Shift+Tab と同じ）"
+      },
+      "run": "fake"
+    },
+    {
+      "name": "level",
+      "summary": {
+        "zh": "改常用的权限级别：工作区或完全放开",
+        "en": "Change the usual permission level: workspace or full access",
+        "ja": "普段使う権限レベルを変更する：ワークスペースまたはフルアクセス"
+      },
+      "run": "fake"
+    },
+    {
+      "name": "tools",
+      "summary": {
+        "zh": "工具设置：哪些常驻、哪些按需加载",
+        "en": "Tool settings: which are always loaded, which on demand",
+        "ja": "ツール設定：常に読み込むものとオンデマンドで読み込むもの"
+      },
+      "run": "fake"
+    },
+    {
+      "name": "settings",
+      "summary": {
+        "zh": "打开设置",
+        "en": "Open settings",
+        "ja": "設定を開く"
+      },
+      "run": "fake"
+    },
+    {
+      "name": "copy",
+      "summary": {
+        "zh": "复制她上一轮的回答",
+        "en": "Copy her last reply",
+        "ja": "直前の返信をコピーする"
+      },
+      "run": "copy"
+    },
+    {
+      "name": "help",
+      "summary": {
+        "zh": "看看按键和命令",
+        "en": "See keys and commands",
+        "ja": "キー操作とコマンドを見る"
+      },
+      "run": "help"
+    },
+    {
+      "name": "language",
+      "summary": {
+        "zh": "选择界面语言",
+        "en": "Choose the interface language",
+        "ja": "表示言語を選ぶ"
+      },
+      "run": "language"
+    },
+    {
+      "name": "exit",
+      "summary": {
+        "zh": "退出",
+        "en": "Exit",
+        "ja": "終了する"
+      },
+      "run": "quit"
+    },
+    {
+      "name": "demo-todo",
+      "summary": {
+        "zh": "演示：推一份假的待办",
+        "en": "Demo: push a fake to-do list",
+        "ja": "デモ：ダミーの ToDo リストを表示する"
+      },
+      "run": "demo_todo"
+    },
+    {
+      "name": "demo-ask",
+      "summary": {
+        "zh": "演示：她问一个假的问题，看提问的抽屉",
+        "en": "Demo: she asks a fake question, to see the question drawer",
+        "ja": "デモ：ダミーの質問をして、質問ドロワーを表示する"
+      },
+      "run": "demo_ask"
+    },
+    {
+      "name": "demo-approve",
+      "summary": {
+        "zh": "演示：要一次假的权限确认，看确认的抽屉",
+        "en": "Demo: a fake permission request, to see the approval drawer",
+        "ja": "デモ：ダミーの権限確認を発生させて、確認ドロワーを表示する"
+      },
+      "run": "demo_approve"
+    }
+  ]
+}

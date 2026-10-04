@@ -1,0 +1,35 @@
+{
+  "kinds": {
+    "shell": "command",
+    "edit": "edit",
+    "write": "edit",
+    "subagent": "agent",
+    "send_message": "message"
+  },
+  "spinner": [
+    "⠋",
+    "⠙",
+    "⠹",
+    "⠸",
+    "⠼",
+    "⠴",
+    "⠦",
+    "⠧",
+    "⠇",
+    "⠏"
+  ],
+  "spinner_ms": 80,
+  "session_arg": "session",
+  "preview_rows": 10,
+  "thought_rows": 15,
+  "limit_live": true,
+  "line": "│",
+  "queued": "·",
+  "omitted": "⋮",
+  "fold": true,
+  "expand": {
+    "thought": false,
+    "command": false,
+    "edit": false
+  }
+}

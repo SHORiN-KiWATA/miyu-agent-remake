@@ -1,0 +1,113 @@
+{
+  "width_percent": 90,
+  "narrow_below": 20,
+  "home_max_width": 80,
+  "side_gap": 2,
+  "top_gap": 1,
+  "pad_left": 3,
+  "pad_right": 2,
+  "compact_below": 80,
+  "compact_pad_left": 2,
+  "compact_pad_right": 1,
+  "paste_fold_lines": 10,
+  "paste_fold_chars": 800,
+  "max_rows": 8,
+  "double_click_ms": 400,
+  "notice_ms": 2000,
+  "frame_ms": 33,
+  "key_burst_ms": 2,
+  "markdown_cache": 8,
+  "slow_frame_ms": 8,
+  "relayout_budget_ms": 8,
+  "reconnect_ms": [
+    500,
+    5000
+  ],
+  "user_bar": "┃ ",
+  "recap_mark": "※ ",
+  "title_max": 200,
+  "done_icon": "✻ ",
+  "done_gap": {
+    "workspace": " "
+  },
+  "prompt": "❯ ",
+  "menu_rows": 5,
+  "history_rows": 8,
+  "session_rows": 10,
+  "session_cwd_width": 24,
+  "session_title_width": 36,
+  "tick_mark": "✓ ",
+  "history_preview_rows": 12,
+  "level_icons": {
+    "workspace": "▣ ",
+    "full": "⏵⏵ ",
+    "read_only": "⏸ "
+  },
+  "level_cycle": [
+    "workspace",
+    "full",
+    "read_only"
+  ],
+  "undo_icon": "↶ ",
+  "bottom_mark": "↓",
+  "link_cover_rows": 4,
+  "link_icon_cols": 2,
+  "current_mark": "●",
+  "undo_restored_mark": "✓ ",
+  "undo_left_mark": "✗ ",
+  "esc_window_ms": 1500,
+  "drawer_keep_rows": 6,
+  "dots": {
+    "mark": ".",
+    "count": 3
+  },
+  "shimmer": {
+    "sweep_seconds": 3.0,
+    "band": 1.5,
+    "dim": 0.85,
+    "lift": 0.35
+  },
+  "queued_mark": "↳ ",
+  "theme": "tokyonight-night",
+  "icons": "nerd",
+  "sidebar_from": 120,
+  "sidebar_width": 38,
+  "agent_rows": 5,
+  "output": {
+    "panel_rows": 12,
+    "note_lines": 2000,
+    "poll_ms": 1000,
+    "tab": 4
+  },
+  "todo_marks": {
+    "pending": "☐ ",
+    "active": "■ ",
+    "done": "☑ "
+  },
+  "todo_rows": 5,
+  "mascot_home": true,
+  "mascot_sidebar": true,
+  "compaction": {
+    "pause_ms": [
+      300,
+      1500
+    ],
+    "step_cells": [
+      1,
+      3
+    ],
+    "cap_percent": 95,
+    "blink_hz": 1.2,
+    "blink_low": 0.45,
+    "breathe_after_ms": 3000,
+    "breathe_period_ms": 2000,
+    "breathe_lift": 0.2,
+    "finish_ms": 400,
+    "finish_hold_ms": 200
+  },
+  "bar": {
+    "full": "▰",
+    "empty": "▱",
+    "width": 20
+  }
+}

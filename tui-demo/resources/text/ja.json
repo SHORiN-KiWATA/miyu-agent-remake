@@ -1,0 +1,485 @@
+{
+  "tips": [
+    "Tab で権限レベルを切り替え",
+    "Ctrl+R で入力履歴を見る",
+    "/ でコマンド一覧を開く",
+    "Shift+Enter で改行",
+    "↑ で直前に送った内容を呼び出す",
+    "Ctrl+S でこの文章を一時保存、もう一度押すと戻る",
+    "Esc を2回押すと入力欄をクリア",
+    "ドラッグで選択、Ctrl+C でコピー",
+    "PgUp・PgDn で本文をスクロール",
+    "Ctrl+Z でバックグラウンドへ、fg で戻る",
+    "/undo で直前のやり取りを取り消し、/restore で復元",
+    "バックグラウンドコマンドがあるとき、入力欄が空の状態で ↓ を押すとパネルを開く"
+  ],
+  "untitled": "無題のセッション",
+  "side_id": "#{id}",
+  "side_cwd": "作業ディレクトリ",
+  "side_context": "コンテキスト",
+  "side_context_value": "{used} / {window} · {percent}%",
+  "side_usage": "使用量",
+  "side_total": "合計 {tokens} トークン",
+  "side_split": "入力 {input} · 出力 {output}",
+  "side_hit": "キャッシュヒット {percent}%",
+  "side_compactions": "圧縮 {n} 回",
+  "side_breaks": "キャッシュ断絶 {n} 回",
+  "copied": "{count} 文字をコピーしました",
+  "copy_failed": "コピーに失敗：{reason}",
+  "nothing_to_copy": "コピーできる返信がまだありません",
+  "connecting": "コアに接続中…",
+  "no_core_bin": "コアが起動していません：起動時に MIYU_CORE_BIN をリメイク版の miyu に設定してください",
+  "core_failed": "コアに接続できません：{reason}",
+  "reconnecting": "コアとの接続が切れました、再接続中…",
+  "turn_cut": "コアが切断されました",
+  "missing_core": "コアプログラムが見つかりません：{path}",
+  "not_connected": "コア未接続",
+  "crash_saved": "スタックトレースを {path} に保存しました",
+  "notify": {
+    "title": "Miyu",
+    "replied": "完了しました",
+    "failed": "エラーが発生しました",
+    "approving": "確認待ちです",
+    "asking": "回答待ちです"
+  },
+  "refused": "コアに拒否されました：{reason}",
+  "interrupted": "中断しました",
+  "failed": "エラー：{reason}",
+  "reason_with": "{head}：{message}",
+  "status_hints": {
+    "402": "利用枠を使い切りました",
+    "404": "見つかりません。エンドポイントのアドレスとモデル名を確認してください",
+    "429": "レート制限か利用枠不足です。しばらくして再試行してください"
+  },
+  "retry": "再試行 {attempt}/{limit}：{message}",
+  "total": "Σ{tokens}(C{percent}%)",
+  "done": "{time} · {endpoint}/{model} · {elapsed}",
+  "speed": "{rate} tok/s",
+  "context": "{used}/{window}({percent}%)",
+  "undone": "取り消しました",
+  "undo_restore": "/restore で復元",
+  "undo_compactions": "圧縮を取り消しました。コンテキストは圧縮前の状態に戻りました",
+  "undo_clears": "クリアを取り消しました。コンテキストはクリア前の状態に戻りました",
+  "restored": "{count} 個のファイルを元に戻しました",
+  "undo_files": {
+    "restored": "元に戻しました",
+    "changed": "そのまま：その後さらに変更された",
+    "missing": "そのまま：既に存在しない",
+    "occupied": "そのまま：元の場所が使われている",
+    "gone": "そのまま：ゴミ箱に既にない",
+    "unsaved": "そのまま：変更前の内容が保存されていない",
+    "unavailable": "そのまま：ゴミ箱に入れられない",
+    "failed": "そのまま：失敗しました",
+    "other": "そのまま",
+    "more": "⋯ あと {count} 行"
+  },
+  "unknown_command": "そのコマンドはありません",
+  "fake_command": "/{name} はこのデモ用の仮コマンドで、まだ何もしません",
+  "thinking": "考え中",
+  "thought": "思考済み",
+  "prepare": "{name}を準備中",
+  "on_session": "セッション {id}",
+  "omitted": "{count} 行を省略しました",
+  "summary": {
+    "ran": [
+      "コマンドを 1 件実行",
+      "コマンドを {count} 件実行"
+    ],
+    "used": [
+      "ツールを 1 件使用",
+      "ツールを {count} 件使用"
+    ],
+    "made": [
+      "1 件編集",
+      "{count} 件編集"
+    ],
+    "edits": [
+      "編集 1 件",
+      "編集 {count} 件"
+    ],
+    "tools": [
+      "ツール 1 件",
+      "ツール {count} 件"
+    ],
+    "thoughts": [
+      "思考 1 回",
+      "思考 {count} 回"
+    ],
+    "errors": [
+      "エラー 1 件",
+      "エラー {count} 件"
+    ],
+    "thought_for": "思考時間 {elapsed}",
+    "spawned": ["サブエージェントを 1 件派遣", "サブエージェントを {count} 件派遣"],
+    "messaged": ["サブエージェント 1 件にメッセージ", "サブエージェント {count} 件にメッセージ"],
+    "messaged_sessions": ["セッション 1 件にメッセージ", "セッション {count} 件にメッセージ"],
+    "agents": ["サブエージェント 1 件", "サブエージェント {count} 件"],
+    "messages": ["メッセージ 1 件", "メッセージ {count} 件"]
+  },
+  "levels": {
+    "workspace": "ワークスペース",
+    "full": "フルアクセス",
+    "read_only": "読み取り専用"
+  },
+  "home_placeholder": "Tab で権限レベルを切り替え",
+  "exit_hint": "Ctrl+D で終了",
+  "input_cleared": "クリアしました · ↑ で復元",
+  "editing": " 直前のメッセージを編集中 · Esc でキャンセル ",
+  "open": {
+    "refused": "この種類のアドレスは開けません：{url}",
+    "missing": "ファイルが見つかりません：{path}",
+    "failed": "開けません：{reason}"
+  },
+  "esc_hint": "もう一度 Esc で中断",
+  "stashed": "> 一時保存",
+  "esc_clear_hint": "もう一度 Esc でクリア",
+  "no_clear_running": "返信中は画面をクリアできません",
+  "theme_changed": "テーマ：{name}",
+  "icons_changed": "アイコン：{name}",
+  "figure_pending": "⋯ 描画中",
+  "figure_zoom": "クリックで拡大",
+  "markdown": {
+    "image": "[画像: ",
+    "details": "詳細情報",
+    "details_marks": [
+      "▶ ",
+      "▼ "
+    ],
+    "bullets": [
+      "▪",
+      "•",
+      "◦"
+    ]
+  },
+  "refusal_hints": {
+    "session_not_found": "そのセッションはもうありません",
+    "nothing_to_rename": "まだセッションがありません。何か話してから名前を変えてください",
+    "nothing_to_recap": "まだ振り返る内容がありません",
+    "recap_failed": "振り返りを作れませんでした。もう一度試してください",
+    "nothing_to_compact": "コンテキストが少なすぎます",
+    "nothing_to_clear": "コンテキストは空です",
+    "not_redoable": "やり直せません",
+    "empty_message": "編集後に何も残りませんでした",
+    "unknown_job": "そのタスクはすでに終了しています",
+    "nothing_to_unrevert": "復元できる取り消しがありません",
+    "nothing_to_revert": "取り消せるものがありません",
+    "turn_running": "返信中です：先に中断するか、終わるまでお待ちください",
+    "unknown_turn": "取り消す対象のやり取りが見つかりません",
+    "restoring": "前回の取り消し・復元がまだ終わっていません、少々お待ちください"
+  },
+  "models": {
+    "failover": "↻ モデルを切り替えました：{from} → {to}",
+    "cooling": "すべてクールダウン中",
+    "cooling_until": "すべてクールダウン中、{n} 分後に復帰",
+    "replaced": "↻ 固定していたモデルがなくなったので既定に戻しました：{from} → {to}"
+  },
+  "recap": {
+    "label": "振り返り：{text}",
+    "working": "振り返り中…"
+  },
+  "rename": {
+    "done": "名前を変更しました：{title}",
+    "removed": "タイトルを外しました",
+    "too_long": "タイトルは {max} 文字まで"
+  },
+  "done_usage": " · {tokens}(C{percent}%)",
+  "menu": {
+    "title": "コマンド",
+    "count": " {count}"
+  },
+  "compaction": {
+    "progress": "コンテキストを圧縮中",
+    "written": " {written}",
+    "percent": " {percent}%",
+    "done": "コンテキストを圧縮しました：{before} → {after} トークン",
+    "done_mark": "● ",
+    "cleared": "コンテキストをクリアしました",
+    "failed": "· 圧縮に失敗：{reason}",
+    "called_a_tool": "要約リクエスト内でツールが呼び出されました",
+    "isolating": "· 要約リクエスト内でツールが呼び出されたため、ツールなしで再度圧縮します",
+    "paused_failures": "· 自動圧縮が {n} 回連続で失敗したため一時停止しました：手動で圧縮する、モデルを変える、または新しいセッションを始めてください",
+    "paused_too_large": "· {entry} 番目の内容が大きすぎて、圧縮してもすぐにコンテキストが埋まってしまうため、自動圧縮を一時停止しました",
+    "paused": "· 自動圧縮を一時停止しました：手動で圧縮する、モデルを変える、または新しいセッションを始めてください"
+  },
+  "error_classes": {
+    "retryable": "一時的なエラー",
+    "rate_limited": "レート制限",
+    "context_too_long": "コンテキストが長すぎます",
+    "auth": "認証エラー",
+    "no_model": "使えるモデルがありません",
+    "cooling": "すべてのモデルがクールダウン中",
+    "content_policy": "コンテンツポリシーによりブロックされました",
+    "bad_stream": "応答ストリームの形式が不正です",
+    "empty_reply": "空の応答",
+    "bad_summary": "要約を取得できませんでした",
+    "compaction_paused": "自動圧縮は一時停止中です",
+    "other": "モデルエラー"
+  },
+  "mention": {
+    "title": "@ {query}",
+    "count": " · {count}",
+    "layer": " · このフォルダのみ",
+    "indexing": " · ファイル検索中…",
+    "partial": " · 一部のみ表示、/ でフォルダを探せます",
+    "empty": "該当なし",
+    "hints": "↑/↓ 選択 · Tab フォルダを開く · Enter 挿入 · Esc 閉じる"
+  },
+  "history": {
+    "title": "履歴",
+    "count": "  {count}",
+    "query": " · 検索：",
+    "empty": "該当なし",
+    "lines": " · +{count} 行",
+    "more": "⋮ さらに {count} 行",
+    "hints": "↑/↓ 選択 · Tab 全文表示 · Enter 入力欄に反映 · Esc 閉じる",
+    "now": "たった今",
+    "minutes": "{n} 分前",
+    "hours": "{n} 時間前",
+    "none": "送信履歴がありません"
+  },
+  "help": {
+    "title": "ヘルプ",
+    "hint": "↑/↓ スクロール · Esc 閉じる",
+    "commands": "コマンド",
+    "keys_title": "キー操作",
+    "keys": [
+      [
+        "Enter",
+        "送信。リストが開いているときは選択中の項目を実行"
+      ],
+      [
+        "Shift+Enter, Ctrl+J",
+        "改行（Alt+Enter でも可）"
+      ],
+      [
+        "↑ ↓",
+        "最初の行・最後の行で入力履歴を辿る"
+      ],
+      [
+        "Ctrl+R",
+        "入力履歴一覧"
+      ],
+      [
+        "@",
+        "ファイルパスを補完"
+      ],
+      [
+        "Tab, Shift+Tab",
+        "権限レベルを切り替え"
+      ],
+      [
+        "Ctrl+A",
+        "入力欄の先頭に移動"
+      ],
+      [
+        "Ctrl+← Ctrl+→",
+        "単語単位で移動"
+      ],
+      [
+        "Ctrl+W, Alt+Backspace",
+        "直前の単語を削除"
+      ],
+      [
+        "Ctrl+C",
+        "選択部分をコピー。入力欄をクリア（↑ で復元）。返信中は中断"
+      ],
+      [
+        "Ctrl+G",
+        "エディタでこのメッセージを書く（$VISUAL、$EDITOR）"
+      ],
+      [
+        "Ctrl+Enter",
+        "回答中、待機中のメッセージ（入力欄の分も）をすぐ送る"
+      ],
+      [
+        "Esc Esc",
+        "返信中は中断（待機中のメッセージはすぐ後に送信）。それ以外は入力欄をクリア"
+      ],
+      [
+        "Ctrl+S",
+        "入力欄を一時保存、もう一度押すと戻る"
+      ],
+      [
+        "Ctrl+V",
+        "貼り付け。クリップボードの画像は添付ファイルになる"
+      ],
+      [
+        "↓（入力欄が空のとき）",
+        "バックグラウンドボタンとサブエージェントの行へ移動"
+      ],
+      [
+        "PgUp PgDn",
+        "本文をスクロール"
+      ],
+      [
+        "Ctrl+End",
+        "本文のいちばん下へ戻る"
+      ],
+      [
+        "Ctrl+L",
+        "画面をクリア"
+      ],
+      [
+        "Ctrl+Z",
+        "バックグラウンドへ、fg で戻る"
+      ],
+      [
+        "Ctrl+D",
+        "入力欄が空のとき終了"
+      ]
+    ]
+  },
+  "jobs": {
+    "button": "バックグラウンド：{count}",
+    "title": "バックグラウンド",
+    "active": "{count} 件実行中",
+    "hint": "↑/↓ 選択 · Enter 展開 · x 停止 · Esc 閉じる",
+    "running": "（実行中 {elapsed}）",
+    "done": "（完了 {elapsed}）",
+    "failed": "（失敗 · 終了コード {code}）",
+    "stopped": "（停止済み）",
+    "main": "メインセッション",
+    "more": "他 {count} 件",
+    "todo": "ToDo {done}/{total}",
+    "done_note": "バックグラウンドコマンド完了 · {title} · {elapsed}",
+    "failed_note": "バックグラウンドコマンド失敗 · {title} · 終了コード {code}",
+    "stopped_note": "バックグラウンドコマンド停止 · {title}{why}",
+    "agent_note": "バックグラウンドタスク完了 · {title} · {elapsed}",
+    "ok_mark": "● ",
+    "fail_mark": "✗ ",
+    "stop_mark": "● ",
+    "todo_folded": "{count} 件完了",
+    "todo_more": "… 他 {count} 件",
+    "killed": "（失敗 · シグナル {signal}）",
+    "undone": "（取り消しで停止）",
+    "restarted": "（コア再起動で停止）",
+    "no_output": "出力なし",
+    "more_ended": "{count} 件を折りたたみ済み",
+    "less_ended": "終了したものを折りたたむ",
+    "killed_note": "バックグラウンドコマンド失敗 · {title} · シグナル {signal}",
+    "agent_stopped_note": "バックグラウンドタスク停止 · {title}{why}",
+    "why_undone": " · 取り消しで停止",
+    "why_restarted": " · コア再起動で停止",
+    "doing_thinking": "考え中",
+    "doing_replying": "返信中",
+    "from_person": "他の場所からのメッセージ",
+    "from_main": "メインセッションからのメッセージ",
+    "from_session": "セッション {id}「{title}」からのメッセージ",
+    "from_session_untitled": "セッション {id} からのメッセージ",
+    "peer_who": "{id}「{title}」",
+    "peer_who_untitled": "{id} ",
+    "peer_idle": "セッション {who}の返信",
+    "peer_expired": "セッション {who}は 12 時間空きませんでした。待つのをやめます",
+    "peer_gone": "セッション {who}はもうありません。待つのをやめます",
+    "peer_other": "セッション {who}· {reason}",
+    "from_agent": "サブエージェント {job} からのメッセージ",
+    "from_harness": "{name} からのメッセージ",
+    "received": "{from} · {text}",
+    "child_tag": " サブエージェント · {title} ",
+    "finished": "完了"
+  },
+  "drawer": {
+    "asking": "{who}が質問しています",
+    "answered_tab": " ✓",
+    "review_tab": "確認",
+    "pointer": "› ",
+    "unchecked": "[ ] ",
+    "checked": "[✓] ",
+    "other": "他の回答を入力",
+    "custom": "カスタム：{text}",
+    "notes_label": "補足",
+    "decisions": [
+      "今回だけ許可",
+      "このセッションでは常に許可",
+      "このワークスペースでは常に許可",
+      "許可しない"
+    ],
+    "reason_hint": "理由を入力（任意）",
+    "access": {
+      "write": "{count} 個のファイルへの書き込みを求めています",
+      "read": "{count} 個のファイルの読み込みを求めています",
+      "exec": "{tool} の実行を求めています"
+    },
+    "access_other": "{tool} の使用を求めています",
+    "outside": "ワークスペース外",
+    "unanswered": "未回答",
+    "keys": "↑/↓ 選択 · Enter 送信 · n 補足 · Esc ×2 キャンセル",
+    "keys_multi": "↑/↓ 選択 · Space チェック · Enter 送信 · n 補足 · Esc ×2 キャンセル",
+    "keys_approve": "↑/↓ 選択 · Enter 確定 · Esc ×2 キャンセル",
+    "keys_review": "Enter 送信 · Esc ×2 キャンセル",
+    "keys_edit": "Enter 保存 · Esc 編集終了",
+    "keys_tabs": " · ←/→ 質問切り替え",
+    "answered_title": "回答済み",
+    "answered_line": "{label}：{answer}",
+    "notes_suffix": "（補足：{notes}）",
+    "denied_with": "許可しません · {reason}",
+    "cancelled_question": "質問をキャンセルしました",
+    "cancelled_approval": "承認をキャンセルしました",
+    "cancel_hint": "もう一度 Esc でキャンセル"
+  },
+  "clipboard_unreadable": "クリップボードを読み取れません：ターミナル自体の貼り付けを使ってください（kitty では Ctrl+Shift+V）",
+  "clipboard_empty": "クリップボードは空です",
+  "paste_label": "[{lines} 行を貼り付け済み]",
+  "attach": {
+    "labels": {
+      "image": "[画像 {n}]",
+      "pdf": "[PDF {n}]",
+      "audio": "[音声 {n}]",
+      "video": "[動画 {n}]"
+    },
+    "file": "[{name}]",
+    "folder": "[{name}/]"
+  },
+  "stopped_jobs": "{count} 件のタスクを停止しました",
+  "language_switched": "表示言語：日本語",
+  "languages": {
+    "title": "表示言語",
+    "hint": "↑/↓ 選択 · Enter 切り替え · Esc 閉じる",
+    "current": "現在",
+    "auto": "自動（システムに合わせる：{name}）",
+    "auto_switched": "表示言語：自動（システムに合わせる：{name}）"
+  },
+  "sessions": {
+    "title": "セッション",
+    "count": "  {count} 件",
+    "query": " · 検索：",
+    "hint": "↑/↓ 選択 · Enter 切り替え · Space チェック · Ctrl+P ピン留め · Ctrl+D 削除 · Esc 閉じる",
+    "loading": "セッションを読み込み中…",
+    "empty": "一致するセッションがありません",
+    "now": "たった今",
+    "minutes": "{n} 分前",
+    "hours": "{n} 時間前",
+    "days": "{n} 日前",
+    "delete_again": "もう一度 Ctrl+D で「{title}」を削除",
+    "deleted": "「{title}」を削除しました",
+    "delete_current": "使用中のセッションは削除できません。先に切り替えてください",
+    "pinned": "ピン留めしました",
+    "unpinned": "ピン留めを外しました",
+    "ticked": " · {count} 件選択",
+    "delete_many": "もう一度 Ctrl+D で {count} 件のセッションを削除",
+    "deleted_many": "{count} 件のセッションを削除しました"
+  },
+  "effort": {
+    "title": "思考の強さ · {model}",
+    "loading_title": "思考の強さ",
+    "hint": "↑/↓ 選択 · Enter 切替 · Esc 閉じる",
+    "default": "デフォルト（プロバイダーが決める）",
+    "loading": "モデルを読み込み中…",
+    "none": "このモデルには選べる強さがありません",
+    "need_model": "モデルプールを使用中です"
+  },
+  "model_panel": {
+    "title": "モデル",
+    "count": "  {count} 件",
+    "query": " · 検索：",
+    "hint": "↑/↓ 選択 · Enter 切り替え · Esc 閉じる",
+    "loading": "モデルを読み込み中…",
+    "empty": "一致するモデルがありません",
+    "current": "使用中",
+    "cooling": "クールダウン {n}m",
+    "cooling_bare": "クールダウン中",
+    "no_key": "キーなし",
+    "refuse_cooling": "このモデルはクールダウン中です。{n} 分後に使えます",
+    "refuse_no_key": "このモデルにはキーがありません"
+  }
+}

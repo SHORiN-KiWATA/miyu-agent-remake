@@ -1,0 +1,61 @@
+{
+  "cols": 36,
+  "rows": 15,
+  "radius": 11.0,
+  "cell_aspect": 2.1,
+  "center_row": 7.6,
+  "ramp": " .:-=+*#%@",
+  "light": [-0.25, 0.3, 0.92],
+  "ambient": 0.7,
+  "shapes": [
+    { "part": "head", "center": [0.0, 0.0, 0.0], "radii": [1.0, 1.0, 1.0], "tilt": 0.0 },
+    { "part": "ear", "center": [-0.33, 1.12, 0.0], "radii": [0.11, 0.28, 0.07], "tilt": 0.45, "mirror": true },
+    { "part": "fin", "center": [-0.62, -1.08, 0.1], "radii": [0.42, 0.16, 0.1], "tilt": 0.5, "mirror": true, "follow": 0.35 }
+  ],
+  "face": {
+    "eyes": [[[-0.3, 0.2], [-0.3, 0.58]], [[0.3, 0.2], [0.3, 0.58]]],
+    "eye_width": 0.075,
+    "eye_mark": " ",
+    "line": [[-0.98, -0.08], [-0.78, 0.25], [-0.54, -0.16], [0.0, 0.25], [0.54, -0.16], [0.78, 0.25], [0.98, -0.08]],
+    "line_width": 0.065,
+    "line_mark": ".",
+    "mouth_gap": 0.24,
+    "belly": {
+      "center": [0.0, -0.52],
+      "half": [0.4, 0.3],
+      "round": 0.28,
+      "ring": 0.13
+    }
+  },
+  "mouth": {
+    "rest": 0.0,
+    "half_life_ms": 35,
+    "frame_ms": 16,
+    "yawn": 1.0,
+    "yawn_ms": 1500,
+    "yawn_half_life_ms": 220,
+    "yawn_idle": 6,
+    "yawn_every_ms": [25000, 60000],
+    "hop": 0.7,
+    "hop_ms": 200,
+    "walk": 0.7
+  },
+  "idle": {
+    "after_ms": 3000,
+    "frame_ms": 33,
+    "blink_every_ms": [2000, 7000],
+    "blink_ms": [100, 200],
+    "double_blink": 0.25,
+    "double_gap_ms": 120,
+    "glance_hold_ms": [800, 3500],
+    "glance_yaw": 10.0,
+    "glance_pitch": 4.0,
+    "glance_home": 0.3,
+    "glance_half_life_ms": 120,
+    "twitch_every_ms": [5000, 12000],
+    "twitch_ms": 350,
+    "twitch_tilt": [0.3, 0.6]
+  },
+  "perch": { "settle_ms": 600, "row_ms": 60 },
+  "gaze": { "max_yaw": 40.0, "max_pitch": 20.0, "distance": 30.0, "half_life_ms": 40, "frame_ms": 16, "pointer_settle_ms": 1500 }
+}
