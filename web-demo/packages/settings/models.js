@@ -25,6 +25,8 @@ export function drawModels(dialog) {
   return [tabs, defaults(dialog, list, dialog.modelTab)];
 }
 
+/** 供应商的显示名（核心 8-21：`name.value`，已经照配置、目录、编号退好；旧核心是字或没有）。 */
+const providerName = (p) => (typeof p.name === 'object' ? p.name?.value : p.name) || p.id;
 /** 模型的显示名：目录给的名字，没有的写模型名。 */
 const modelName = (m) => m.facts?.name?.value ?? m.model;
 /** 看得了图。 */
@@ -52,7 +54,7 @@ function providers(dialog, list) {
   const p = all.find((x) => x.id === dialog.provider);
   const side = h('div.set-prov-list',
     all.map((x) => h(`button.set-prov${x.id === dialog.provider ? '.is-on' : ''}`, { type: 'button', onclick: () => { dialog.provider = x.id; dialog.modelDetail = null; dialog.drawBody(); } },
-      h('span', x.name ?? x.id), sharedState(x.models ?? []) ? h('i.set-warn-dot') : null)),
+      h('span', providerName(x)), sharedState(x.models ?? []) ? h('i.set-warn-dot') : null)),
     h('button.set-prov.is-add', { type: 'button', onclick: () => dialog.toast(ctx.text('models.edit_todo')) }, icon('plus'), ctx.text('models.add_provider')));
   if (!p) return h('div.set-prov-wrap', side);
   const models = p.models ?? [];
@@ -126,7 +128,9 @@ function drawer(dialog, p, m) {
     h('div.set-rows',
       row('inputs', f.inputs, ctx.text('models.inputs')),
       row('window', f.window, ctx.text('models.window')),
-      effort && effort.options && effort.options.length > 1 ? coreRow(dialog, effort, { compact: true }) : null),
+      effort && effort.options && effort.options.length > 1 ? coreRow(dialog, effort, { compact: true }) : null,
+      // 默认温度（核心 8-22）：这个模型收温度的才有这一行；空着是不带，照供应商的默认
+      f.takes_temperature?.value !== false ? row('temperature', undefined, ctx.text('models.temperature')) : null),
     prices(dialog, item));
   el.addEventListener('set-dismiss', close);
   return el;
@@ -168,7 +172,7 @@ function defaults(dialog, list, which) {
   // 只有一家的不写是哪一家
   const many = (list.providers ?? []).length > 1;
   return h('div.set-picks', all.map(({ p, m }) => h(`button.set-pick${m.ref === current ? '.is-on' : ''}`, { type: 'button', onclick: () => pick(m.ref) },
-    h('i.set-radio'), modelLabel(m, dup), many ? h('span.set-pick-provider', p.name ?? p.id) : null)));
+    h('i.set-radio'), modelLabel(m, dup), many ? h('span.set-pick-provider', providerName(p)) : null)));
 }
 
 /** 模型池：一个池一张卡片（名字、调用方式、成员），最后一张「新建模型池」。样板：只能看。 */

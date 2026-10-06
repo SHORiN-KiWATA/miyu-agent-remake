@@ -196,7 +196,8 @@
           "ok": ""
         },
         "test_ok": "能用 · {model} · 首字 {ms} ms",
-        "price_currency": "币种"
+        "price_currency": "币种",
+        "temperature": "默认温度"
       },
       "changed": "已改"
     },
@@ -284,7 +285,8 @@
           "ok": ""
         },
         "test_ok": "使用可能 · {model} · 最初の応答 {ms} ms",
-        "price_currency": "通貨"
+        "price_currency": "通貨",
+        "temperature": "既定の温度"
       },
       "changed": "変更済み"
     }

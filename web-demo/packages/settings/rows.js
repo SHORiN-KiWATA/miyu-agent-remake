@@ -121,9 +121,10 @@ function control(dialog, item, value, save) {
     return select(dialog, options, value ?? null, (v) => save(v === null ? { unset: true } : { value: v }));
   }
   if (item.control === 'list') return list(dialog, item, Array.isArray(value) ? value : [], (next) => save({ value: next }));
-  // 文字、数：一行字，`Enter`、离开时存，整串交给核心照类型读（`input`）；环境变量引用的先写「来自环境变量 X」，点了才改
+  // 文字、数：一行字，`Enter`、离开时存，整串交给核心照类型读（`input`）；清空了是从这一层删掉（回到默认）；环境变量引用的先写
+  // 「来自环境变量 X」，点了才改
   const env = envRef(value);
-  const field = textField(inputText(env ? '' : value), item.control === 'number' ? 'number' : 'text', item.max != null && item.min != null ? `${item.min} – ${item.max}` : '', (text) => save({ input: text }));
+  const field = textField(inputText(env ? '' : value), item.control === 'number' ? 'number' : 'text', item.max != null && item.min != null ? `${item.min} – ${item.max}` : '', (text) => save(text === '' ? { unset: true } : { input: text }));
   if (!env) return field;
   const label = h('button.set-env', { type: 'button', onclick: () => { label.replaceWith(field); field.focus(); } }, ctx.text('from_env', { name: env }));
   return label;
