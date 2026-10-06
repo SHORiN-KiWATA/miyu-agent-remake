@@ -232,7 +232,10 @@
 .set-chip.is-member { padding: 0 4px; }
 .set-chip.is-member button:disabled { opacity: 0.3; cursor: default; }
 .set-chip.is-member > span { padding: 0 2px; }
-.set-pool.is-new .set-input { width: 100%; }
+/* 正在新建的这张和「新建」那张一样是淡底：里面的框没聚焦是 surface_2，聚焦换白，看得出框在哪 */
+.set-pool.is-new { background: color-mix(in srgb, var(--text) 3%, transparent); box-shadow: none; }
+.set-pool.is-new .set-input { width: 100%; background: var(--surface-1); }
+.set-pool.is-new .set-input:focus { box-shadow: var(--card-shadow); }
 .set-pool.is-new .set-error { margin: 0; }
 
 /* 找模型、读模型列表、选模型的小窗 */
