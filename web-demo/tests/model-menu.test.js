@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadRes } from './support.js';
-import { menuOf, footerOf, effortLevels, effortRows, effortLabel, effortOf, effortChange, defaultModelChange } from '../src/model/model-menu.js';
+import { menuOf, filterRows, footerOf, effortLevels, effortRows, effortLabel, effortOf, effortChange, defaultModelChange } from '../src/model/model-menu.js';
 
 loadRes();
 
@@ -105,4 +105,23 @@ test('开发端点那个 DeepSeek 的档位（off、low、high、max）；目录
 test('手动选的模型记成新会话的默认（2026-10-02 项目主人定）：写个人设置的 models.chat，模型、池照原样', () => {
   assert.deepEqual(defaultModelChange('dev/deepseek-v4-pro'), { layer: 'personal', changes: [{ key: 'models.chat', value: 'dev/deepseek-v4-pro' }] });
   assert.deepEqual(defaultModelChange('@duo'), { layer: 'personal', changes: [{ key: 'models.chat', value: '@duo' }] });
+});
+
+test('模型那一行写显示名（目录给的），下面写供应商的显示名；显示名重了的下面接模型名；搜索照显示名、模型名、供应商找', () => {
+  const named = (provider, name, display) => ({ model: name, ref: `${provider}/${name}`, facts: { name: { value: display, from: 'catalog' } }, state: 'ok' });
+  const list = { providers: [
+    { id: 'magpie', name: { value: 'magpie', from: 'id' }, models: [named('magpie', 'clinepass/cline-pass/deepseek-v4.1-flash', 'DeepSeek V4.1 Flash'), named('magpie', 'workbuddy/deepseek-v4.1-flash', 'DeepSeek V4.1 Flash'), named('magpie', 'clinepass/cline-pass/qwen3.7-max', 'Qwen3.7 Max')] },
+    { id: 'dev', name: { value: 'DeepSeek', from: 'catalog' }, models: [named('dev', 'glm-5.3-flash', 'GLM-5.3-Flash')] },
+  ], pools: [] };
+  const { models } = menuOf(list, null);
+  assert.deepEqual(models.map((r) => [r.title, r.desc]), [
+    ['DeepSeek V4.1 Flash', 'magpie · clinepass/cline-pass/deepseek-v4.1-flash'],
+    ['DeepSeek V4.1 Flash', 'magpie · workbuddy/deepseek-v4.1-flash'],
+    ['Qwen3.7 Max', 'magpie'],
+    ['GLM-5.3-Flash', 'DeepSeek'],
+  ]);
+  assert.deepEqual(filterRows(models, 'qwen').map((r) => r.title), ['Qwen3.7 Max']);
+  assert.deepEqual(filterRows(models, 'workbuddy flash').map((r) => r.ref), ['magpie/workbuddy/deepseek-v4.1-flash'], '模型名也算，几段都要有');
+  assert.deepEqual(filterRows(models, 'deepseek').map((r) => r.title), ['DeepSeek V4.1 Flash', 'DeepSeek V4.1 Flash', 'GLM-5.3-Flash'], '供应商的显示名也算');
+  assert.equal(filterRows(models, '  ').length, 4);
 });

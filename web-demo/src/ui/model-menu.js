@@ -8,7 +8,7 @@
 import { h, icon, replace, scaleOf } from './dom.js';
 import { show, hide, span, cubicBezier, parseBezier, snapToPixels } from '../lib/motion.js';
 import { res, t } from '../util/res.js';
-import { menuOf, effortRows, effortLabel } from '../model/model-menu.js';
+import { menuOf, filterRows, effortRows, effortLabel } from '../model/model-menu.js';
 
 /**
  * @typedef {import('../model/model-menu.js').Row} Row
@@ -44,8 +44,15 @@ export class ModelMenu {
      */
     this.sheet = h('div.model-menu-sheet', this.list, this.effortEl);
     this.pages = h('div.model-menu-pages', this.sheet);
+    /** 搜索框：这一页的项比能露出的行多才有（蓝图「换模型的菜单」第 2 条）；照显示名、模型名、供应商就地筛 */
+    this.query = '';
+    this.searchInput = /** @type {HTMLInputElement} */ (h('input.model-menu-search-input', {
+      type: 'search', placeholder: t('model_menu.search'), spellcheck: 'false', autocomplete: 'off',
+      oninput: () => { this.query = this.searchInput.value; this.draw(); this.markFirst(); },
+    }));
+    this.searchEl = h('label.model-menu-search', { hidden: true }, icon('search'), this.searchInput);
     this.el = h('div.model-menu', { hidden: true, style: `--menu-w: ${res.layout.model_menu_width}px; --menu-min: ${res.layout.model_menu_min_width}px` },
-      this.pages, this.switchEl, this.sub);
+      this.searchEl, this.pages, this.switchEl, this.sub);
     /** 子菜单开着吗；它的几行、选中第几行；键盘在子菜单里吗 */
     this.subOpen = false;
     this.subRows = /** @type {{el: HTMLElement, level: string|null}[]} */ ([]);
@@ -116,6 +123,10 @@ export class ModelMenu {
     this.pages.style.height = '';
     this.data = null;
     this.rows = [];
+    this.query = '';
+    this.searchInput.value = '';
+    // 关了以后焦点回到原来的地方（有搜索框时打开菜单焦点进它）
+    this.back = /** @type {HTMLElement|null} */ (document.activeElement);
     // 有上一次问到的列表：照它先画好再露出来（宽高一开始就是最后的样子，展开时不跳：原来先写「正在读…」又矮又窄，列表来了一下
     // 变大，2026-10-02 项目主人觉得抖）；没有的先写「正在读…」
     // 先露出来再画（藏着的量不出宽），同一帧里画完，看不到中间的样子
@@ -161,6 +172,13 @@ export class ModelMenu {
     this.page = page;
     this.draw();
     this.mark(Math.max(0, this.rows.findIndex((r) => r.row.current)), true);
+    if (!this.searchEl.hidden) this.searchInput.focus({ preventScroll: true });
+  }
+
+  /** 筛过以后选中第一个能选的。 */
+  markFirst() {
+    const i = this.rows.findIndex((r) => r.row.usable);
+    this.mark(i >= 0 ? i : 0, true);
   }
 
   close() {
@@ -172,16 +190,22 @@ export class ModelMenu {
     this.anchor?.classList.remove('is-open');
     document.removeEventListener('keydown', this.onKey, true);
     document.removeEventListener('pointerdown', this.onDown, true);
+    if (this.el.contains(document.activeElement)) this.back?.focus({ preventScroll: true });
     hide(this.el);
   }
 
   /** 画这一页（选了一行以后原地重画：不关、不重放进场）。`slide` 是换页时这一页从哪边滑进来。 */
   draw(slide = '') {
     const menu = menuOf(this.data, this.on.current());
-    const rows = this.page === 'pools' ? menu.pools : menu.models;
+    const all = this.page === 'pools' ? menu.pools : menu.models;
+    // 搜索框：这一页的项比能露出的行多才有；没有的不筛
+    const searchable = all.length > res.layout.model_menu_rows;
+    if (!searchable) this.query = '';
+    this.searchEl.hidden = !searchable;
+    const rows = filterRows(all, this.query);
     this.rows = rows.map((row) => ({ row, el: this.rowEl(row) }));
     this.sheet.className = `model-menu-sheet${slide ? ` ${slide}` : ''}`;
-    const none = t(this.page === 'pools' ? 'model_menu.no_pools' : 'model_menu.empty');
+    const none = all.length ? t('model_menu.no_match') : t(this.page === 'pools' ? 'model_menu.no_pools' : 'model_menu.empty');
     replace(this.list, this.rows.length ? this.rows.map((r) => r.el) : h('div.model-menu-note', none));
     // 思考强度：模型那一页一直有（池不设；这个模型报了哪几档在子菜单里分）
     const effort = this.on.effort();
@@ -247,6 +271,9 @@ export class ModelMenu {
   turn(page) {
     if (this.page === page || !this.data) return;
     this.closeSub(true);
+    // 换页清空搜索框
+    this.query = '';
+    this.searchInput.value = '';
     const from = (this.pages.getBoundingClientRect().height * (window.devicePixelRatio || 1)) / this.pixelScale();
     cancelAnimationFrame(this.heightFrame);
     this.page = page;
@@ -413,7 +440,13 @@ export class ModelMenu {
         if (row) this.choose(row);
       }
     } else if (e.key === 'Tab') this.turn(this.page === 'models' ? 'pools' : 'models');
-    else if (e.key === 'Escape') this.close();
+    else if (e.key === 'Escape' && this.query) {
+      // 搜索框里有字：先清空，再按一次才关
+      this.query = '';
+      this.searchInput.value = '';
+      this.draw();
+      this.mark(Math.max(0, this.rows.findIndex((r) => r.row.current)), true);
+    } else if (e.key === 'Escape') this.close();
     else return;
     e.preventDefault();
     e.stopPropagation();

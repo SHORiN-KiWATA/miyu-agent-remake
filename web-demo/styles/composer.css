@@ -186,6 +186,11 @@
 /* 高度不用 CSS 过渡：model-menu.js 的 slideHeight 一帧一帧缓、对齐到整的屏幕像素（CSS 过渡缓小数高度，字跟着抖 1 像素） */
 .model-menu-pages { position: relative; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; }
 .model-menu-pages > .model-menu-sheet { flex: none; }
+/* 换模型的菜单的搜索框：和设置页左上角那个一样，放大镜、底色一块、不画描边（蓝图「换模型的菜单」第 2 条） */
+.model-menu-search { display: flex; align-items: center; gap: 6px; height: 30px; margin: 0 0 4px; padding: 0 9px; border-radius: 8px; background: var(--surface-2); color: var(--text-faint); }
+.model-menu-search .icon { width: 14px; height: 14px; flex: none; }
+.model-menu-search-input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: 13px var(--sans); }
+.model-menu-search-input::-webkit-search-cancel-button { display: none; }
 .model-menu-list { position: relative; max-height: calc(var(--rows) * 42px); overflow-y: auto; overscroll-behavior: contain; }
 .model-menu-sheet.is-from-right { animation: menu-from-right var(--menu-turn) var(--menu-turn-ease) both; }
 .model-menu-sheet.is-from-left { animation: menu-from-left var(--menu-turn) var(--menu-turn-ease) both; }

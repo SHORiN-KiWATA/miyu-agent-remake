@@ -6,8 +6,8 @@ import { res, t } from '../util/res.js';
 import { hhmm } from './format.js';
 
 /**
- * @typedef {{ref: string, title: string, desc: string, current: boolean, usable: boolean, why: string}} Row 一行：选了交给
- *   核心的引用、上面一行、下面一行小字、是不是现在用着的、能不能选、不能选为什么（悬停写）
+ * @typedef {{ref: string, title: string, desc: string, current: boolean, usable: boolean, why: string, find: string}} Row 一行：选了交给
+ *   核心的引用、上面一行、下面一行小字、是不是现在用着的、能不能选、不能选为什么（悬停写）、搜索照着找的字（显示名、模型名、供应商）
  */
 
 /**
@@ -17,17 +17,34 @@ import { hhmm } from './format.js';
  */
 export function menuOf(list, current) {
   if (!list) return { models: [], pools: [] };
-  const models = (list.providers ?? []).flatMap((p) => (p.models ?? []).map((m) => {
+  // 上面写显示名（目录里没有的写模型名），下面写供应商的显示名；显示名重了的（同一个模型的几条线路）下面接模型名分开它们
+  const all = (list.providers ?? []).flatMap((p) => (p.models ?? []).map((m) => ({ p, m, name: m.facts?.name?.value || m.model, provider: providerName(p) })));
+  const seen = new Map();
+  for (const x of all) seen.set(x.name, (seen.get(x.name) ?? 0) + 1);
+  const models = all.map(({ m, name, provider }) => {
     const usable = m.state === 'ok';
-    return { ref: m.ref, title: m.model, desc: p.id, current: m.ref === current, usable, why: usable ? '' : why(m) };
-  }));
+    const desc = (seen.get(name) ?? 0) > 1 && name !== m.model ? `${provider} · ${m.model}` : provider;
+    return { ref: m.ref, title: name, desc, current: m.ref === current, usable, why: usable ? '' : why(m), find: `${name}\n${m.model}\n${provider}` };
+  });
   const pools = (list.pools ?? []).map((pool) => {
     const ref = `@${pool.name}`;
     const members = pool.models.map((r) => footerOf(r).model).join(t('list_sep'));
     const how = t(`model_menu.${pool.strategy === 'rotate' ? 'rotate' : 'pin'}`);
-    return { ref, title: ref, desc: `${how} · ${members}`, current: ref === current, usable: true, why: '' };
+    return { ref, title: ref, desc: `${how} · ${members}`, current: ref === current, usable: true, why: '', find: `${ref}\n${members}` };
   });
   return { models, pools };
+}
+
+/** 供应商的显示名（核心 8-21：`name.value`，已经照配置、目录、编号退好；旧核心是字或没有）。 */
+const providerName = (p) => (typeof p.name === 'object' ? p.name?.value : p.name) || p.id;
+
+/**
+ * 搜索框：照 `find`（显示名、模型名、供应商）找，空格分开的几段都要有，不分大小写；空的全给。
+ * @param {Row[]} rows @param {string} query
+ */
+export function filterRows(rows, query) {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  return words.length ? rows.filter((r) => words.every((w) => r.find.toLowerCase().includes(w))) : rows;
 }
 
 /** 用不了的为什么：冷却到几点（本地时间）、没设 key。 */
