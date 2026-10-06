@@ -65,8 +65,8 @@ test('别的工具：显示名、等宽的对象（家目录写成 ~）、结果
   // 结果那一句少了字段的不写
   const bad = { key: 'software/basesystem/read/lines', fields: {} };
   assert.equal(row(tool('read', { file_path: '/tmp/x' }, { said: bad }), HOME).said, null);
-  const ask = row(tool('ask_user', { question: '删吗' }), HOME);
-  assert.deepEqual([ask.icon, ask.name, ask.subject], ['wrench', 'ask_user', null]);
+  const unknown = row(tool('mystery_tool', { x: 1 }), HOME);
+  assert.deepEqual([unknown.icon, unknown.name, unknown.subject], ['wrench', 'mystery_tool', null]);
   assert.equal(row(tool('grep', { pattern: 'todo' }), HOME).icon, 'search');
   assert.equal(row(tool('edit', { file_path: '/a' }), HOME).icon, 'square-pen');
 });
@@ -302,7 +302,7 @@ test('收起那一行：手动定了语言的照那种语言写（中文、日�
 
 test('每件工具都有自己的图标，不落到扳手：列会话 sessions 和左栏「会话」同一个（2026-10-01 项目主人指出）', () => {
   assert.equal(row(tool('sessions', {}), HOME).icon, 'message-circle');
-  for (const name of ['shell', 'read', 'glob', 'grep', 'history', 'write', 'edit', 'trash', 'subagent', 'send_message', 'jobs', 'sessions']) {
+  for (const name of ['shell', 'read', 'glob', 'grep', 'history', 'write', 'edit', 'trash', 'subagent', 'send_message', 'jobs', 'sessions', 'ask_user']) {
     assert.notEqual(row(tool(name, {}), HOME).icon, res.timeline.icon_default, name);
   }
 });

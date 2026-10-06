@@ -20,6 +20,7 @@ import { Composer } from './composer.js';
 import { Artifacts } from './artifacts.js';
 import { runCommand, refusalText, redo, copyTurn, Commands, revertLatest } from './commands.js';
 import { project } from '../model/transcript.js';
+import { group } from '../model/group.js';
 import { withRecaps, withChanges } from '../model/notes.js';
 import { rank, startupSession, untouchedTurn } from '../model/session.js';
 import { footer, levelLabel, nextLevel, levelParams } from '../model/footer.js';
@@ -398,6 +399,18 @@ export class App {
     } catch (err) {
       this.composer.say(refusalText(err));
     }
+  }
+
+  /**
+   * 正在看的会话照日志算到第 `seq` 条为止，正文里最后一块的编号（服务 `chat` 的 `keyAt`）：从事件画的东西（确认和提问了结以后留的）
+   * 照它钉在那条事件来的时候的位置，刷新、别的设备读回来也一样。没开的会话、一块都还没有的是空的（钉在最前面）。
+   * @param {number} seq
+   */
+  blockKeyAt(seq) {
+    const s = this.current ? this.store.sessions.get(this.current) : null;
+    if (!s) return '';
+    const items = project(s.events.filter((e) => e.seq <= seq), null, s.marks, s.compactStats).items;
+    return group(items).at(-1)?.key ?? '';
   }
 
   /** 记着要撤的那一轮结束了（`turn.ended`）：撤掉、把话放回框里；撤不成的什么都不做。 */

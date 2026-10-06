@@ -16,8 +16,8 @@
  * @typedef {{d: Drawer, done: Result|null, edit: 'other'|'note'|'reason'|null}} Step 按一下以后：新的抽屉、交出去的、要进编辑的
  */
 
-/** 放行的四种决定，照先后；请求没提规则的只给头尾两种（核心会拒 `no_rule`）。 */
-const DECISIONS = ['once', 'session', 'workspace', 'deny'];
+/** 放行的几种决定，照先后；请求没提规则的只给头尾两种（核心会拒 `no_rule`）。`workspace` 核心还不收（D-1 回 `bad_params`），收了再加。 */
+const DECISIONS = ['once', 'session', 'deny'];
 const NEEDS_RULE = new Set(['session', 'workspace']);
 
 /** @param {'ask'|'approve'} kind @param {{who?: string, body: any}} item @param {Question[]} questions @returns {Drawer} */
@@ -197,4 +197,55 @@ export function report(d, result) {
       return { label: q.header || q.question, answer: parts.length || got.notes ? { text: parts.join('、'), notes: got.notes ?? null } : null };
     }),
   };
+}
+
+/** 了结一个调用的事件：答了、决定了、有了结果。 */
+const SETTLES = new Set(['question.answered', 'tool.approval_decided', 'tool.result']);
+
+/**
+ * 还没了结的提问、确认（蓝图「确认和提问」第 1 条）：这个调用后面还没有回答、决定、结果的 `question.asked`、`tool.approval_requested`，
+ * 照先后。同一个调用答完了又问的（核心允许），照最后那一次算。
+ * @param {any[]} events 这个会话的日志
+ * @returns {Drawer[]}
+ */
+export function pendingAsks(events) {
+  /** @type {Map<string, any>} 调用 → 在等的那一条 */
+  const open = new Map();
+  for (const e of events) {
+    const call = e.body?.call_id;
+    if (!call) continue;
+    if (e.kind === 'question.asked' || e.kind === 'tool.approval_requested') open.set(call, e);
+    else if (SETTLES.has(e.kind)) open.delete(call);
+  }
+  return [...open.values()].map((e) => (e.kind === 'question.asked' ? openAsk({ body: e.body }) : openApproval({ body: e.body })));
+}
+
+/**
+ * 了结以后留下的，从事件来（蓝图「确认和提问」第 6 条）：回答了的提问一张卡片、不允许的一张、问过没答就取消、跳过了的一行；允许了的
+ * 不留。`seq` 是了结的那条事件（照它钉位置）。
+ * @param {any[]} events
+ * @returns {{seq: number, call: string, report: any}[]}
+ */
+export function reportsFrom(events) {
+  /** @type {Map<string, any>} 调用 → 问的那一条（还没了结的） */
+  const asked = new Map();
+  const out = [];
+  for (const e of events) {
+    const call = e.body?.call_id;
+    if (!call) continue;
+    if (e.kind === 'question.asked' || e.kind === 'tool.approval_requested') {
+      asked.set(call, e);
+      continue;
+    }
+    const q = asked.get(call);
+    if (!q || !SETTLES.has(e.kind)) continue;
+    asked.delete(call);
+    const d = q.kind === 'question.asked' ? openAsk({ body: q.body }) : openApproval({ body: q.body });
+    let got = null;
+    if (e.kind === 'question.answered') got = report(d, { kind: 'ask', answers: e.body.answers ?? [] });
+    else if (e.kind === 'tool.approval_decided') got = report(d, { kind: 'approve', decision: e.body.decision, ...(e.body.reason ? { reason: e.body.reason } : {}) });
+    else if (e.body.status === 'cancelled' || e.body.status === 'skipped') got = report(d, { kind: d.kind, cancelled: true });
+    if (got) out.push({ seq: e.seq, call, report: got });
+  }
+  return out;
 }

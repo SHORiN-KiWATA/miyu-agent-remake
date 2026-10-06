@@ -1,18 +1,20 @@
 // @ts-check
-//! 了结以后留下的（蓝图 `web.md`「确认和提问」第 6 条）：钉在答的那一刻正文里最后一块的后面（服务 `chat` 的 `anchor`），之后的
-//! 接在它下面，不再一直掉在最下面；换了会话回来照原来的位置再钉（`place`）。留什么由 `model.js` 的 `report` 算，这里只画。
-//! 演示的数据只在这一页里。
+//! 了结以后留下的（蓝图 `web.md`「确认和提问」第 6 条）：真的从事件来（`sync`：钉在那条事件来的时候正文里最后一块的后面，服务
+//! `chat` 的 `keyAt`、`place`，刷新、别的设备照样有）；演示的只在这一页里（`addLocal`：钉在答的那一刻正文的末尾，`anchor`）。
+//! 之后的接在它下面，不再一直掉在最下面。留什么由 `model.js` 的 `report`、`reportsFrom` 算，这里只画。
 
 import { h, icon } from '../../src/lib/dom.js';
 
 export class Reports {
   /**
    * @param {(key: string, fields?: Record<string, any>) => string} text
-   * @param {{anchor: (node: HTMLElement) => string, place: (where: string, node: HTMLElement) => void}} chat
+   * @param {{anchor: (node: HTMLElement) => string, place: (where: string, node: HTMLElement) => void, keyAt: (seq: number) => string}} chat
    */
   constructor(text, chat) {
     this.text = text;
     this.chat = chat;
+    /** 从事件画的：会话 → 了结的那条事件的序号 → 节点（画过的不重画，换了会话回来照旧钉） @type {Map<string, Map<number, HTMLElement>>} */
+    this.drawn = new Map();
     /** 会话 → 留下的几条和钉在哪（还没开的新会话记在 `''` 下） @type {Map<string, {report: any, where: string}[]>} */
     this.by = new Map();
     this.session = /** @type {string|null} */ (null);
@@ -32,8 +34,31 @@ export class Reports {
     this.by.set(to, [...(this.by.get(to) ?? []), ...got]);
   }
 
-  /** 记一条；是正在看的会话的，钉在这时正文的末尾、淡入，交回 `true`（要滚到露出它）。 @param {string|null} session @param {any} report */
-  add(session, report) {
+  /**
+   * 从事件画的那几条钉好（对话区每画一次都叫，钉过的再钉不动）。这个会话第一次叫时画的是读回来的，不淡入；之后新来的淡入，交回 `true`
+   * （刚答完，要滚到露出它）。
+   * @param {string|null} session @param {{seq: number, report: any}[]} list
+   */
+  sync(session, list) {
+    if (!session) return false;
+    const first = !this.drawn.has(session);
+    const nodes = this.drawn.get(session) ?? new Map();
+    this.drawn.set(session, nodes);
+    let fresh = false;
+    for (const { seq, report } of list) {
+      let node = nodes.get(seq);
+      if (!node) {
+        node = this.node(report, !first);
+        nodes.set(seq, node);
+        fresh ||= !first;
+      }
+      this.chat.place(this.chat.keyAt(seq), node);
+    }
+    return fresh;
+  }
+
+  /** 演示的记一条；是正在看的会话的，钉在这时正文的末尾、淡入，交回 `true`（要滚到露出它）。 @param {string|null} session @param {any} report */
+  addLocal(session, report) {
     const key = session ?? '';
     const shown = key === (this.session ?? '');
     const node = this.node(report, true);

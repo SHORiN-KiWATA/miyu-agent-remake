@@ -19,7 +19,8 @@
     "subagent": "bot",
     "send_message": "bot-message-square",
     "jobs": "list-checks",
-    "sessions": "message-circle"
+    "sessions": "message-circle",
+    "ask_user": "circle-help"
   },
   "icon_default": "wrench",
   "thinking_rows": 10,

@@ -11,13 +11,14 @@
   },
   "kind": "optional",
   "description": {
-    "zh": "她要你批准、要问你问题时，输入框变成一个抽屉让你选（照 TUI）；核心还推不来，/demo-ask、/demo-approve 出一个演示的。"
+    "zh": "她要你批准、要问你问题时，输入框变成一个抽屉让你选（照 TUI）；照会话的事件开，答了发 session.answer（核心 D-1、D-2）；/demo-ask、/demo-approve 出一个演示的看样子。"
   },
   "inject": [
     "slots",
     "commands",
     "chat",
-    "composer"
+    "composer",
+    "core"
   ],
   "settings": {
     "max_vh": {

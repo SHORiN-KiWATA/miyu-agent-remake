@@ -69,8 +69,8 @@ export async function boot(root) {
     throw new Offline(key === 'ok' ? 'core' : key, key === 'ok' ? t('no_bridge') : '');
   });
   root.replaceChildren();
-  // 还没有确认的抽屉：握手时说没人能当场确认，要确认的那一步核心当场拒绝（照 TUI 演示）
-  const greeting = { protocol: [1, 1], head: { kind: 'web', version: '0.0.0' }, locale: language.tag, caps: { input: false } };
+  // 能当场确认、回答（确认和提问的抽屉，核心 D-1、D-2）：核心照造会话的那个连接的 `caps.input` 定这个会话有没有人能确认、回答
+  const greeting = { protocol: [1, 1], head: { kind: 'web', version: '0.0.0' }, locale: language.tag, caps: { input: true } };
   const hello = await conn.request('hello', greeting);
   // 这个页面登录成哪个账号：这台设备上存的按它分开（「多用户、多终端」第 5 条）
   const account = hello?.account ?? 'admin';
