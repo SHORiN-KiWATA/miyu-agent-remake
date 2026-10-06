@@ -20,7 +20,9 @@
     "send_message": "bot-message-square",
     "jobs": "list-checks",
     "sessions": "message-circle",
-    "ask_user": "circle-help"
+    "ask_user": "circle-help",
+    "todowrite": "list-todo",
+    "session_usage": "gauge"
   },
   "icon_default": "wrench",
   "thinking_rows": 10,

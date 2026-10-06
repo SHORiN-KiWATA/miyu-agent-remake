@@ -4,7 +4,7 @@
 //! 跟着字长高的框：`Enter` 保存、`Shift+Enter` 换行、`Esc` 退出编辑。
 
 import { h, icon, replace } from '../../src/lib/dom.js';
-import { press, saveEdit, cancel, hasReview, onOther, answerOf, approvalHead } from './model.js';
+import { press, saveEdit, cancel, hasReview, onOther, answerOf, approvalHead, multiReady, submitMulti } from './model.js';
 import { isNewline, insertNewline } from '../../src/lib/newline.js';
 
 /** 键 → `model.js` 的按键名 */
@@ -143,7 +143,8 @@ export class Drawer {
       d.who ? h('div.asking-who', t('asking', { who: d.who })) : null,
       hasReview(d) ? this.tabs() : null,
       scroll,
-      this.foot = h('div.asking-foot', this.keysEl = h('span.asking-keys'), h('button.asking-cancel', { type: 'button', onclick: () => this.cancel() }, t('cancel'))));
+      this.foot = h('div.asking-foot', this.keysEl = h('span.asking-keys'),
+        h('span.asking-foot-right', h('button.asking-cancel', { type: 'button', onclick: () => this.cancel() }, t('cancel')), review ? null : this.nextButton())));
     this.drawKeys();
     scroll.querySelector('.asking-option.is-selected')?.scrollIntoView({ block: 'nearest' });
     const box = /** @type {HTMLTextAreaElement|null} */ (this.el.querySelector('textarea'));
@@ -177,6 +178,21 @@ export class Drawer {
     };
     return h('div.asking-top', h('span.asking-label', label),
       h('span.asking-pager', arrow(-1, '←'), h('span.asking-page', review ? this.text('review_tab') : `${d.tab + 1}/${n}`), arrow(1, '→')));
+  }
+
+  /**
+   * 多选题「取消」右边的主按钮：等于按 `Enter` 交这一道（后面还有题写「下一题」，只有这一道写「提交」），一项都没勾灰着；单选的没有。
+   * 按下去不抢焦点，键盘照旧在抽屉上。
+   */
+  nextButton() {
+    const d = /** @type {import('./model.js').Drawer} */ (this.d);
+    if (!d.questions[d.tab]?.multiple) return null;
+    const ready = multiReady(d);
+    return h('button.asking-next', {
+      type: 'button', disabled: ready ? null : true,
+      onmousedown: (/** @type {MouseEvent} */ e) => e.preventDefault(),
+      onclick: () => { if (multiReady(d)) this.step(submitMulti(d)); },
+    }, this.text(hasReview(d) ? 'next_question' : 'submit'));
   }
 
   questionPage() {

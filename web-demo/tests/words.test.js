@@ -302,7 +302,7 @@ test('收起那一行：手动定了语言的照那种语言写（中文、日�
 
 test('每件工具都有自己的图标，不落到扳手：列会话 sessions 和左栏「会话」同一个（2026-10-01 项目主人指出）', () => {
   assert.equal(row(tool('sessions', {}), HOME).icon, 'message-circle');
-  for (const name of ['shell', 'read', 'glob', 'grep', 'history', 'write', 'edit', 'trash', 'subagent', 'send_message', 'jobs', 'sessions', 'ask_user']) {
+  for (const name of ['shell', 'read', 'glob', 'grep', 'history', 'write', 'edit', 'trash', 'subagent', 'send_message', 'jobs', 'sessions', 'ask_user', 'todowrite', 'session_usage']) {
     assert.notEqual(row(tool(name, {}), HOME).icon, res.timeline.icon_default, name);
   }
 });

@@ -89,6 +89,10 @@
 .asking-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
 .asking-keys { color: var(--text-faint); font-size: 12px; transition: color 0.15s ease; }
 .asking-keys.is-armed { color: var(--t-warn); }
+.asking-foot-right { display: inline-flex; flex: none; align-items: center; gap: 10px; }
+.asking-next { height: 26px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--accent); color: var(--on-primary); font: inherit; font-size: 12.5px; cursor: pointer; }
+.asking-next:hover { filter: brightness(1.06); }
+.asking-next:disabled { opacity: 0.4; cursor: default; filter: none; }
 .asking-cancel { flex: none; padding: 2px 4px; border: 0; background: none; color: var(--text-soft); font: inherit; font-size: 12px; cursor: pointer; }
 .asking-cancel:hover { color: var(--text); }
 

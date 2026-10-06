@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { openAsk, openApproval, press, saveEdit, approvalHead, report, pendingAsks, reportOf } from '../../packages/asking/model.js';
+import { openAsk, openApproval, press, saveEdit, approvalHead, report, pendingAsks, reportOf, multiReady, submitMulti } from '../../packages/asking/model.js';
 
 const fake = JSON.parse(readFileSync(new URL('../../packages/asking/fake.json', import.meta.url), 'utf8'));
 const ask = (id) => fake.asks.find((a) => a.body.call_id === id);
@@ -120,4 +120,21 @@ test('留下的照了结的那一条和问的那一条算：答了的卡片（�
   assert.equal(reportOf({ seq: 85, kind: 'tool.approval_decided', body: { call_id: 'a', decision: 'once' } }, req), null, '允许了的不留');
   const cancelled = reportOf({ seq: 87, kind: 'tool.result', body: { call_id: 'c1', status: 'cancelled' } }, asked);
   assert.deepEqual([cancelled?.type, cancelled?.kind], ['cancelled', 'ask']);
+});
+
+test('多选题最下面的按钮：勾了才能点；点了交这一道、跳到下一道没答的（光标停在「输入其他答案」上也一样）；只有一道的直接交', () => {
+  const two = openAsk({ body: { call_id: 'm', questions: [
+    { header: 'a', question: '多选', multiple: true, options: [{ label: 'x' }, { label: 'y' }] },
+    { header: 'b', question: '单选', options: [{ label: 'p' }] },
+  ] } });
+  assert.equal(multiReady(two), false, '一项都没勾');
+  const ticked = press(press(two, 'space').d, 'down').d;
+  const onOtherRow = press(press(ticked, 'down').d, 'noop').d;
+  assert.equal(multiReady(onOtherRow), true);
+  const r = submitMulti(onOtherRow);
+  assert.deepEqual([r.done, r.d.tab, r.d.done], [null, 1, [true, false]], '跳到第二道，不进编辑');
+  const one = openAsk({ body: { call_id: 'o', questions: [{ question: '多选', multiple: true, options: [{ label: 'x' }, { label: 'y' }] }] } });
+  const done = submitMulti(press(one, 'space').d).done;
+  assert.deepEqual(done, { kind: 'ask', answers: [{ picked: ['x'] }] }, '只有一道的直接交');
+  assert.equal(multiReady(openAsk({ body: { call_id: 's', questions: [{ question: '单选', options: [{ label: 'x' }] }] } })), false, '单选的没有这个按钮');
 });

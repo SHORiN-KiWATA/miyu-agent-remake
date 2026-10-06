@@ -101,6 +101,20 @@ export function press(d, key) {
   return advance(next(answered, { done: put(d.done, d.tab, true) }));
 }
 
+/**
+ * 多选题最下面那个按钮能不能点（蓝图「确认和提问」第 3 条）：在这一道的题目页上、勾了至少一项或写了其他答案的才行。
+ * @param {Drawer} d
+ */
+export function multiReady(d) {
+  const q = d.questions[d.tab];
+  return !!q?.multiple && (d.checked[d.tab].size > 0 || !!d.custom[d.tab]);
+}
+
+/** 点了那个按钮：交这一道（等于按 `Enter`，不管光标在哪一行），跳到下一道没答的，只有一道题的直接交。 @param {Drawer} d @returns {Step} */
+export function submitMulti(d) {
+  return advance(next(d, { done: put(d.done, d.tab, true) }));
+}
+
 /** 能多选的：勾上、取消光标所在的那一项。 @param {Drawer} d */
 function toggle(d) {
   const set = new Set(d.checked[d.tab]);

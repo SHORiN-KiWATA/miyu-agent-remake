@@ -91,7 +91,8 @@
       "cancelled_approval": "批准已取消",
       "answered_who": " · {who}",
       "notes_line": "补充：{notes}",
-      "denied_reason": " · {reason}"
+      "denied_reason": " · {reason}",
+      "next_question": "下一题"
     },
     "ja": {
       "command_ask": "デモ：質問をいくつか聞かれる",
@@ -133,7 +134,8 @@
       "cancelled_approval": "許可の確認を取り消しました",
       "answered_who": " · {who}",
       "notes_line": "補足：{notes}",
-      "denied_reason": " · {reason}"
+      "denied_reason": " · {reason}",
+      "next_question": "次へ"
     }
   }
 }
