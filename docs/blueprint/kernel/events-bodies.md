@@ -244,7 +244,7 @@
 | `rule` | 原样的 JSON | 可以没有 | 提的放行规则：选本会话都允许、这个工作区以后都允许时，放行的就是它。没提的，只能选允许这一次或者拒绝 |
 | `detail` | 原样的 JSON | 可以没有 | 给头看的：为什么要问 |
 
-`rule`、`detail` 的写法由提问的模块定，内核原样记，不看里面（权限策略写的样子见 `session/guard.md`）。
+`rule`、`detail` 的写法由提问的模块定，内核原样记，不看里面（权限策略写的样子见 `session/guard.md` 第五条）。例如越过沙盒跑一条命令（施工 D-4）：`{"call_id":"…","access":"execute","detail":{"command":"touch ~/Downloads/x.txt","sandbox":false,"title":"Create a file","tool":"shell"}}`，没有 `rule`：只能选允许这一次或者拒绝。
 
 **`tool.approval_decided`**：人对一个请求的决定。
 
