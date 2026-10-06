@@ -80,6 +80,47 @@ fn shell_comes_from_the_resources_and_names_its_shell() {
     assert!(targets.is_empty(), "执行命令不报路径");
 }
 
+/// 要不要在沙盒外跑、问人时的说明，照参数报（施工 D-4）：没写的、写了假的、参数不对的都不越过沙盒，参数不对的说明是空的。
+#[test]
+fn shell_says_when_it_wants_out_and_what_to_show() {
+    let tool = tool("shell");
+    let call = |args: serde_json::Value| Call {
+        args: args.to_string(),
+        cwd: String::new(),
+        home: None,
+        data_root: None,
+        seen: Default::default(),
+        stop: Default::default(),
+        sandbox: None,
+        log: None,
+        offset: miyu_kernel::time::UtcOffset::UTC,
+        agents: None,
+        messages: None,
+        jobs: None,
+        sessions: None,
+        usage: None,
+        questions: None,
+    };
+    let out =
+        call(json!({"command": "touch ~/x", "description": "Touch", "outside_sandbox": true}));
+    assert!(tool.outside_sandbox(&out));
+    assert_eq!(
+        tool.asking(&out),
+        [
+            ("command", "touch ~/x".to_string()),
+            ("title", "Touch".to_string())
+        ]
+    );
+    for args in [
+        json!({"command": "ls", "description": "List"}),
+        json!({"command": "ls", "description": "List", "outside_sandbox": false}),
+        json!({"command": "ls", "outside_sandbox": true}),
+    ] {
+        assert!(!tool.outside_sandbox(&call(args.clone())), "{args}");
+    }
+    assert!(tool.asking(&call(json!({"command": "ls"}))).is_empty());
+}
+
 #[tokio::test]
 async fn a_command_runs_in_the_working_directory() {
     let site = Site::new();

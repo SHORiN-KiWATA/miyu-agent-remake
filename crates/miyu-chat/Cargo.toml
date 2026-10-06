@@ -1,0 +1,17 @@
+[package]
+name = "miyu-chat"
+description = "群聊内核：通讯平台里和平台无关的那一层；现在有场所规则：读规则文件、套到一个场所上、说清哪里写错了（施工 O-1）；纯逻辑，不碰磁盘"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# 名字、选项、整数、文字照配置清单的类型认，问题用配置的原因码和位置（`docs/blueprint/chat.md` 施工时定的第 4 条）。
+miyu-config = { path = "../miyu-config" }
+# 读规则文件的 TOML，记下每一项在第几行；只开 `parse`，同 miyu-config。
+toml_edit = { version = "0.25", default-features = false, features = ["parse"] }
+
+[lints]
+workspace = true

@@ -303,7 +303,11 @@ impl Tools {
             Progress::new(move |text| send(&backs, ToolBack::Progress { call_id, text }))
         };
         let span = tracing::Span::current();
-        let sandbox = self.sandbox.clone();
+        // 工具报要在沙盒外跑的不写规格（施工 D-4）：权限策略照同一个报判过了，工作区一定问过人、人允许了才走到这里。
+        let sandbox = self
+            .sandbox
+            .clone()
+            .filter(|_| !tool.outside_sandbox(&call));
         let inner = tokio::spawn(
             async move {
                 let call = confine(call, sandbox, permission, dirs, call_id).await?;

@@ -28,7 +28,7 @@
 ```json
 {
   "description": "Execute a command with {shell} and return its output. Use it for builds, tests, git and other programs, not to read, search or edit files. Every call starts in the working directory, so cd does not carry over to the next call.",
-  "parameters": {"type":"object","properties":{"command":{"type":"string"},"description":{"type":"string","description":"Short title of what the command does, in a few words."},"timeout":{"type":"integer","description":"Milliseconds before the command is stopped, up to 600000. Default 120000."},"run_in_background":{"type":"boolean","description":"Run it in the background with no timeout and return a job id at once."}},"required":["command","description"]}
+  "parameters": {"type":"object","properties":{"command":{"type":"string"},"description":{"type":"string","description":"Short title of what the command does, in a few words."},"timeout":{"type":"integer","description":"Milliseconds before the command is stopped, up to 600000. Default 120000."},"run_in_background":{"type":"boolean","description":"Run it in the background with no timeout and return a job id at once."},"outside_sandbox":{"type":"boolean","description":"Run it outside the sandbox once the user approves, only after the sandbox blocked it."}},"required":["command","description"]}
 }
 ```
 
@@ -41,9 +41,12 @@
 | `description` | 是 | 这条命令在做什么的短标题，几个词。前台的不用它跑命令，记在调用里，前端显示用（施工 4-13，2026-09-28 项目主人定；前端随 M8）；后台的是任务的标题，记进 `job.started`（施工 7-3）。没写的，参数不对 |
 | `timeout` | 否 | 毫秒。没给、给了 0，是 120000；大过 600000 的照 600000。要是不小于 0 的整数，负数参数不对。后台的不看它，照样查写法 |
 | `run_in_background` | 否 | 布尔，没写是假。真的放到后台（施工 7-3，下面「后台」）。写成字符串的（`"true"`）内核照参数格式修正成布尔 |
+| `outside_sandbox` | 否 | 布尔，没写是假。真的：这一次要在沙盒外跑，先问人（施工 D-4，2026-10-07 项目主人定，照 Claude Code 的 `dangerouslyDisableSandbox`）。工具自己不看它决定套不套沙盒，只报给权限策略和执行器（`Tool::outside_sandbox`）；写成字符串的照参数格式修正成布尔 |
 
 - 别的参数不认，也不报错。
 - 不报要碰的路径。权限策略照访问类别判：完全放开放行；工作区、只读两级，沙盒能用就放行、在沙盒里跑，用不了的问人（施工 5-4 上，`session/guard.md`）。
+- 写了 `outside_sandbox` 的（施工 D-4）：报「这一次要在沙盒外跑」（`Tool::outside_sandbox`）。权限策略：完全放开放行，工作区问人、不提规则，只读拒绝（`session/guard.md` 第四节）。执行器照它不写沙盒的规格（`Call.sandbox` 是空的），所以只有问过人、人允许了，命令才在沙盒外跑。
+- 问人时交给说明的几格（`Tool::asking`，施工 D-4）：`title` 是 `description`，`command` 原样。
 
 ### 怎么走
 
@@ -227,6 +230,8 @@ Exit code 2
 | `crates/miyu-basesystem/tests/human.rs` | 每一种结果的说法，两种语言都换得出字 |
 | `crates/miyu-session/tests/write.rs` | 会话里真的跑：结果进日志，给她的是输出加退出码，说法里有退出码，没有效果 |
 | `crates/miyu-session/tests/guard.rs` | 工作区这一级执行命令不问、只读时问（没人能确认就拒绝） |
+| `crates/miyu-basesystem/tests/shell.rs` 的 `shell_says_when_it_wants_out_and_what_to_show`（施工 D-4） | 写了 `outside_sandbox` 的报要在沙盒外跑，没写的、写了假的、参数不对的不报；问人时交 `command`、`title`，参数不对的交空的 |
+| `crates/miyu-session/tests/outside_sandbox.rs`（施工 D-4） | 工作区问人、允许一次的那一次不套沙盒；只读拒绝；完全放开不问；真经助手跑：允许以后写得进工作区以外 |
 | `xtask/src/ledger.rs` | 这些字的指纹和登记簿对得上 |
 
 ### 出处

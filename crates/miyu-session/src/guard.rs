@@ -7,6 +7,9 @@
 //!
 //! 施工 D-1：要问人的那几条，落在本会话放行过的范围里的（人选过「本会话都允许」，内核把那几条规则交来），不问；放行的范围
 //! 照 `11-权限与沙盒.md` 第二节「放行规则管多大」，提规则时就算好。
+//!
+//! 施工 D-4：工具报「这一次要在沙盒外跑」的（`Tool::outside_sandbox`），完全放开照判的，只读拒绝，工作区问人、不提规则；
+//! 执行器照同一个报不写沙盒的规格。问人时的说明并进工具交的几格（`Tool::asking`），执行类的写明 `sandbox: false`。
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -21,7 +24,7 @@ use miyu_kernel::session::Verdict;
 use miyu_kernel::time::UtcOffset;
 use miyu_kernel::tool::{Access, Worded};
 use miyu_policy::GuardTexts;
-use miyu_tool::{Call, Catalog, Stop, Target};
+use miyu_tool::{Call, Catalog, Stop, Target, Tool};
 
 /// 权限策略：一个会话一份。
 pub(crate) struct Guard {
@@ -112,8 +115,8 @@ impl Guard {
         };
         let level = effective(permission);
         let access = tool.spec().access.clone();
-        // 报要碰的路径只看参数，用不着她看过的。
-        let targets = tool.targets(&Call {
+        // 报要碰的路径、要不要在沙盒外跑都只看参数，用不着她看过的。
+        let call = Call {
             args,
             cwd: cwd.clone(),
             home: self.home.clone(),
@@ -129,13 +132,37 @@ impl Guard {
             sessions: None,
             usage: None,
             questions: None,
-        });
-        if targets.is_empty() {
-            return untargeted(level, name, access, self.sandboxed);
+        };
+        let asking = tool.asking(&call);
+        let verdict = self.paths(tool.as_ref(), name, level, &call, dirs, grants, &asking);
+        if tool.outside_sandbox(&call) {
+            beyond(verdict, level, name, access, &asking, &self.texts)
+        } else {
+            verdict
         }
+    }
+
+    /// 照报的路径判；一条都没报的照访问类别判（第四条）。
+    #[allow(clippy::too_many_arguments)]
+    fn paths(
+        &self,
+        tool: &dyn Tool,
+        name: &str,
+        level: Effective,
+        call: &Call,
+        dirs: &[String],
+        grants: &[RawJson],
+        asking: &[(&'static str, String)],
+    ) -> Verdict {
+        let access = tool.spec().access.clone();
+        let targets = tool.targets(call);
+        if targets.is_empty() {
+            return untargeted(level, name, access, self.sandboxed, asking);
+        }
+        let cwd = &call.cwd;
         // 工作目录本身也换成真实的位置：头报来的可能是 `~`。
-        let cwd = resolve(Path::new(&cwd), self.home.as_deref(), &cwd)
-            .unwrap_or_else(|_| PathBuf::from(&cwd));
+        let cwd = resolve(Path::new(cwd), self.home.as_deref(), cwd)
+            .unwrap_or_else(|_| PathBuf::from(cwd));
         // 加进来的目录照工作目录的办法换（施工 5-10 上）：边界表照工作区算。
         let dirs = dirs
             .iter()
@@ -218,8 +245,15 @@ fn mark(level: Effective, zone: Zone, write: bool) -> Mark {
 }
 
 /// 不报路径的调用：执行命令，沙盒能用（`sandboxed`）就工作区、只读都放行，在沙盒里跑；用不了的问人（施工 5-4 上）。
-/// 读写放行（查不到路径的执行时自己报错），联网、对外发消息这些还没有的，除了完全放开都问人。
-fn untargeted(level: Effective, name: &str, access: Access, sandboxed: bool) -> Verdict {
+/// 读写放行（查不到路径的执行时自己报错），联网、对外发消息这些还没有的，除了完全放开都问人。问人时的说明并进工具交的
+/// `asking`（施工 D-4）。
+fn untargeted(
+    level: Effective,
+    name: &str,
+    access: Access,
+    sandboxed: bool,
+    asking: &[(&'static str, String)],
+) -> Verdict {
     let fine = matches!(
         (&access, level),
         (_, Effective::Full) | (Access::Read | Access::Write, _)
@@ -227,12 +261,53 @@ fn untargeted(level: Effective, name: &str, access: Access, sandboxed: bool) -> 
     if fine {
         return Verdict::Allow;
     }
+    let detail = described(name, &access, asking);
     Verdict::Ask {
         module: module(),
         access,
         rule: None,
-        detail: Some(raw(&json!({ "tool": name }))),
+        detail: Some(detail),
     }
+}
+
+/// 要在沙盒外跑的（施工 D-4，第四条）：拒绝的照拒（数据根这些），完全放开照判的（本来就不套沙盒），只读拒绝，工作区问人、
+/// 不提规则（一次放开整个沙盒，不该一劳永逸；本会话放行过的规则只管路径，管不到它）。
+fn beyond(
+    verdict: Verdict,
+    level: Effective,
+    name: &str,
+    access: Access,
+    asking: &[(&'static str, String)],
+    texts: &GuardTexts,
+) -> Verdict {
+    match (verdict, level) {
+        (denied @ Verdict::Deny { .. }, _) => denied,
+        (verdict, Effective::Full) => verdict,
+        (_, Effective::ReadOnly) => deny(texts.read_only()),
+        (_, Effective::Workspace) => {
+            let detail = described(name, &access, asking);
+            Verdict::Ask {
+                module: module(),
+                access,
+                rule: None,
+                detail: Some(detail),
+            }
+        }
+    }
+}
+
+/// 不报路径的调用问人时的说明（第五条第 4 款，施工 D-4）：工具交的几格，再写上工具名；执行类的写明这一次不在沙盒里跑
+/// （走到问人的执行，不是要在沙盒外跑，就是沙盒用不了）。键照字母排。
+fn described(name: &str, access: &Access, asking: &[(&'static str, String)]) -> RawJson {
+    let mut detail = json!({});
+    for (key, value) in asking {
+        detail[*key] = json!(value);
+    }
+    detail["tool"] = json!(name);
+    if *access == Access::Execute {
+        detail["sandbox"] = json!(false);
+    }
+    raw(&detail)
 }
 
 /// 要问人：提的放行规则列出放行的范围（`scope`），给头看的说明列出每一条。
