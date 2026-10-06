@@ -74,6 +74,10 @@
       "name": "質問",
       "icon": "?"
     },
+    "todowrite": {
+      "name": "ToDo",
+      "icon": "≡"
+    },
     "send_message": {
       "name": "メッセージ",
       "subject": "to",
@@ -184,6 +188,8 @@
     "session_usage/shown": "使用量を確認しました",
     "session_usage/failed": "使用量を読めませんでした：{error}",
     "ask_user/answered": "回答しました",
-    "ask_user/unattended": "ここでは誰も答えられません"
+    "ask_user/unattended": "ここでは誰も答えられません",
+    "todowrite/updated": "ToDo を更新：{done}/{total} 完了",
+    "todowrite/cleared": "ToDo はすべて完了、クリアしました"
   }
 }

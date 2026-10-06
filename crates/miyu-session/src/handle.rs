@@ -157,6 +157,15 @@ impl Handle {
             .limits
     }
 
+    /// 当前的待办（施工 D-3）：协议照它写 `subscribe` 回应的 `todos`。内核推了 `todos.changed` 的是推了以后的。
+    pub fn todos(&self) -> Vec<miyu_kernel::event::Todo> {
+        self.shown
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .todos
+            .clone()
+    }
+
     /// 会话接下来请求的模型（施工 8-10）：引用、接下来发给谁。协议照它写 `subscribe` 回应的 `model`。回合开始重新解析过、
     /// 出错换了成员的是换了以后的。
     pub fn next(&self) -> Next {

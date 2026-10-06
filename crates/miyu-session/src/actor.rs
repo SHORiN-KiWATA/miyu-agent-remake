@@ -163,6 +163,7 @@ impl Actor {
         let shown = Arc::new(Mutex::new(Shown {
             limits: session.context_limits(),
             next: Next::of(&*model),
+            todos: session.todos(),
         }));
         Actor {
             session,
@@ -302,6 +303,7 @@ impl Actor {
             }
             Action::PushTransient(transient) => {
                 note(&transient);
+                self.show_todos(&transient);
                 self.push(Pushed::Transient(transient));
                 None
             }

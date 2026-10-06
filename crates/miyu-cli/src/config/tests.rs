@@ -258,8 +258,8 @@ fn set_and_unset_lines_match_the_blueprint() {
         "· permission.start_read_only = true saved to the system config, applies to sessions opened from now on"
     );
     assert_eq!(
-        zh.saved("tui.startup", "\"recent\"", "personal", "head_start"),
-        "· tui.startup = \"recent\" 写进了个人设置，下次打开界面时生效"
+        zh.saved("ui.startup", "\"recent\"", "personal", "head_start"),
+        "· ui.startup = \"recent\" 写进了个人设置，下次打开界面时生效"
     );
     assert_eq!(
         zh.saved_below("ui.language", "\"en\"", "system", "personal", "\"zh\""),
@@ -344,8 +344,8 @@ fn edit_and_trust_words_match_the_blueprint() {
         "· The project config at ~/src/app/.miyu/config.toml is not trusted yet, so it was not used: run miyu config trust to review it"
     );
     assert_eq!(
-        zh.explain_header("启动时打开", "tui.startup", "说明。", "head_start"),
-        "启动时打开（tui.startup）：说明。下次打开界面时生效。"
+        zh.explain_header("启动时打开", "ui.startup", "说明。", "head_start"),
+        "启动时打开（ui.startup）：说明。下次打开界面时生效。"
     );
 }
 

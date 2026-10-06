@@ -168,15 +168,14 @@ keys = []
 # Allowed: a number from 0 to 1000000. Only in the system config or personal settings. Takes effect next turn.
 # output =
 
-[tui]
-# On start, open: Whether the terminal interface starts a new session or picks up the most recent one.
-# Allowed: new or recent. Only in the system config or personal settings. Takes effect the next time the interface opens.
-startup = "new"
-
 [ui]
 # Interface language: The language terminals, the web page and the command line use for you. auto follows the terminal or browser.
 # Allowed: auto, zh, en or ja. Only in the system config or personal settings. Takes effect at once.
 language = "auto"
+
+# On start, open: Whether a terminal interface or the web page opens a new session or picks up the most recent one.
+# Allowed: new or recent. Only in the system config or personal settings. Takes effect the next time the interface opens.
+startup = "new"
 
 [usage]
 # Currency shown first: Amounts are added up per currency, never converted. This one is listed first, the others by code. Three capital letters such as USD or CNY.

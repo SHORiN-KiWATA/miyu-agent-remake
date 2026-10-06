@@ -188,7 +188,10 @@ impl Session {
             reference,
             sight,
             grants,
+            told_todos: Vec::new(),
         };
+        // 头订阅时从回应里拿当前的待办（施工 D-3）：当已经告诉过它这一份，变了再推。
+        session.told_todos = session.todos();
         let mut actions: Vec<Action> = session.recall().into_iter().collect();
         // 最后报的那一份再交一次（施工 7-6）：送到一半崩了的不漏，父会话照命令编号认出重的，不重。
         actions.extend(session.duty.last().cloned().map(Action::Report));

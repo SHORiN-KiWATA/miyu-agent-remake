@@ -13,7 +13,7 @@
 | `crates/miyu-kernel/src/event/restore.rs` | `files.restored`（`Restored`、`RestoreAction`、`RestoreOutcome`） |
 | `crates/miyu-kernel/src/event/message.rs` | `message.user`、`message.assistant`、`message.withdrawn` |
 | `crates/miyu-kernel/src/event/tool.rs` | `tool.result`（`ToolStatus`、给人看的说法 `Said`）、`tool.approval_requested`、`tool.approval_decided`（`Decision`） |
-| `crates/miyu-kernel/src/event/effect.rs` | 效果 `Effect`：`file.read`、`file.changed`、`file.trashed`、`job.started`（`JobStarted`、`JobKind`，施工 7-1）、`job.messaged`（`JobMessaged`，施工 7-7）、`peer.watch`（`PeerWatch`，施工 C-1） |
+| `crates/miyu-kernel/src/event/effect.rs` | 效果 `Effect`：`file.read`、`file.changed`、`file.trashed`、`job.started`（`JobStarted`、`JobKind`，施工 7-1）、`job.messaged`（`JobMessaged`，施工 7-7）、`peer.watch`（`PeerWatch`，施工 C-1）、`todo.written`（`TodoWritten`、`Todo`、`TodoStatus`，施工 D-3） |
 | `crates/miyu-kernel/src/event/question.rs` | `question.asked`、`question.answered`；回答对不对得上 `fits` |
 | `crates/miyu-kernel/src/event/context.rs` | `context.injected`、`context.compacted`、`context.compaction_paused`（`PauseReason`） |
 | `crates/miyu-kernel/src/event/model.rs` | `model.called`（`FirstDifference`、`Usage`、`BlockSpan`、`CallResult`、`CallError`、`ErrorClass`，辅助请求的用途 `Purpose`、是不是辅助请求 `aside()`，施工 3-8 四补） |
@@ -227,11 +227,12 @@
 | | `session`，可以没有 | 子代理的会话编号：`agent` 必有，`command` 没有，不认识的种类不管，由账本查 |
 | `job.messaged` | `job`，必有 | 给这个任务编号的子代理留了言（施工 7-7，`agents.md` 第六条）：`send_message` 那次调用报一条，它欠一份回报。对得上这个会话派的一个子代理，由账本查 |
 | `peer.watch` | `session`，必有 | 订了别的会话的「空了告诉我」（施工 C-1，`cross-session.md`「效果 peer.watch」）：被等的会话的整个编号。`send_message` 写 `notify_when_idle` 的那次调用报一条（施工 C-6），这就是订的记录，账本照它算在等哪几个会话、从这条结果的时刻算起；不是这个会话自己，由账本查 |
+| `todo.written` | `todos`，必有：照先后的每一项 `{"content": 一句话, "status": "pending"、"in_progress"、"completed"}`，不认识的状态原样留着 | `todowrite` 换上的整份待办（施工 D-3，`tools/todowrite.md`）：全部做完、清空的是空列表。有效历史另记一张表，当前的清单是最近一份没撤掉的（`kernel/session.md`「待办」）；不发给模型 |
 
 - 改前改后的内容由执行器存成 blob，效果里是它们的哈希（`session/actor.md`）。
 - 缺了 `kind`、认识的种类缺了必有的格、哈希或者任务编号不合写法的，读不进来。
 - 不认识的种类，例如第三方的工具报来的，整块原样留着，内核不解读。
-- 撤销、恢复照效果改回文件（`kernel/history.md`）；她看过的文件也照效果记（`session/actor.md`）。`job.started`、`job.messaged`、`peer.watch` 不改回什么，撤销时也不算改过文件。
+- 撤销、恢复照效果改回文件（`kernel/history.md`）；她看过的文件也照效果记（`session/actor.md`）。`job.started`、`job.messaged`、`peer.watch`、`todo.written` 不改回什么，撤销时也不算改过文件。
 - `job.started` 的编号整份日志里不重复，撤掉的回合里的也算，由账本查（`kernel/history.md`）。
 
 **`tool.approval_requested`**：请人确认一次调用。

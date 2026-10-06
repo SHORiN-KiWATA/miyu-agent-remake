@@ -10,6 +10,7 @@ fn notes() -> Notes {
         files_more: template("<more {count}/>\n"),
         retrieve: template("<retrieve {upto}/>\n"),
         too_large: template("<too-large {files}/>\n"),
+        todos: None,
         uncovered: None,
     }
 }

@@ -8,7 +8,8 @@
 //!   （施工 3-5 三补）；另一个会话里池的一个成员限速、换到下一个当场再来的状态（带 `failover`），和换过去成了以后推的
 //!   `model.changed`（施工 8-9）；人换了模型、下一轮开始时池没了退回默认，推的 `model.changed`（`why` 是 `turn`，施工 8-10）；
 //! - 54 号压缩写摘要时的两段进度（`compaction.progress`，施工 6-2 上），和压好了的那一条（`compaction.done`，
-//!   施工 6-3 下）。
+//!   施工 6-3 下）；
+//! - 65 号回合里换上了一份待办以后推的 `todos.changed`（施工 D-3）。
 //!
 //! 瞬时事件内核只推不读，所以样本在代码里照着造，不从文件读回来。
 
@@ -18,8 +19,8 @@ use std::path::PathBuf;
 use miyu_kernel::accumulate::{Accumulator, Delta, Kind};
 use miyu_kernel::event::{
     Body, ChangeWhy, CompactTrigger, CompactionDone, CompactionProgress, EffortInUse, EffortSource,
-    ErrorClass, Event, ModelChanged, ModelDelta, Piece, Retry, Status, ToolProgress, Transient,
-    TransientBody, Usage,
+    ErrorClass, Event, ModelChanged, ModelDelta, Piece, Retry, Status, Todo, TodoStatus,
+    TodosChanged, ToolProgress, Transient, TransientBody, Usage,
 };
 use miyu_kernel::id::{CallId, CommandId, ModelName, ProviderId, Seq, TurnId};
 use miyu_kernel::origin::{By, Model, Tool};
@@ -305,4 +306,26 @@ fn the_compaction_done_sample_is_written_exactly() {
         }),
     };
     assert_eq!(lines("transient/compaction.done.jsonl"), [done.to_line()]);
+}
+
+#[test]
+fn the_todos_changed_sample_is_written_exactly() {
+    let todo = |content: &str, status: TodoStatus| Todo {
+        content: content.to_string(),
+        status,
+    };
+    let changed = Transient {
+        at: Timestamp::parse("2026-09-25T07:31:00.000Z").expect("样本的时刻合写法"),
+        turn: Some(TurnId::new(Seq::new(65).expect("65 是合法的序号"))),
+        by: By::Kernel,
+        cause: None,
+        body: TransientBody::TodosChanged(TodosChanged {
+            todos: vec![
+                todo("读代码", TodoStatus::Completed),
+                todo("写测试", TodoStatus::InProgress),
+                todo("跑门禁", TodoStatus::Pending),
+            ],
+        }),
+    };
+    assert_eq!(lines("transient/todos.changed.jsonl"), [changed.to_line()]);
 }

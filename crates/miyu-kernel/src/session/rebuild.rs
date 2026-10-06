@@ -104,7 +104,11 @@ impl Session {
             .iter()
             .map(|path| self.shown(path))
             .collect();
-        let head = files_and_retrieve(notes, &listed, upto);
+        let mut head = files_and_retrieve(notes, &listed, upto);
+        // 当前的待办（施工 D-3，`09-压缩.md` 第四节「待办清单原样带上」）：不空的才写，接在取回指路后面。
+        if let Some(todos) = &notes.todos {
+            head.push_str(&todo_list(todos, self.history.todos().unwrap_or_default()));
+        }
         // 摘要请求截短过的：摘要没看到的那一段，从检查点后面第一条到截到的那一条（施工 6-6 中）。写在最后，估算照算。
         let uncovered = cut
             .zip(notes.uncovered.as_ref())
@@ -241,6 +245,23 @@ fn files_and_retrieve(notes: &Notes, listed: &[String], upto: Seq) -> String {
         }
     }
     text.push_str(&say(&notes.retrieve, &[("upto", &upto.to_string())]));
+    text
+}
+
+/// 待办那一段：头一行，下面一项一行 `- [<状态>] <内容>`，状态照 `todowrite` 参数里的写法。清单是空的什么都不写。
+fn todo_list(head: &Template, todos: &[crate::event::Todo]) -> String {
+    if todos.is_empty() {
+        return String::new();
+    }
+    let mut text = say(head, &[]);
+    for todo in todos {
+        text.push_str(&format!(
+            "- [{}] {}
+",
+            todo.status.as_str(),
+            todo.content
+        ));
+    }
     text
 }
 

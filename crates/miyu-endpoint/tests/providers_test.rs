@@ -294,7 +294,7 @@ async fn what_cannot_be_worked_out_is_the_config_stage() {
     assert!(
         reply["result"]["error"]["message"]
             .as_str()
-            .is_some_and(|message| message.contains("needs driver and base_url"))
+            .is_some_and(|message| message.contains("needs base_url"))
     );
     let reply = test(&home, &[], fresh(), json!({"provider": "deepseek"})).await;
     assert_eq!(

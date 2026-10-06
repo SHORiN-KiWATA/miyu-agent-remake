@@ -134,7 +134,7 @@ async fn no_model_is_said_at_once_and_nothing_is_sent() {
         (
             "[providers.x]\nkeys = []\n\n[models]\nchat = \"x/m\"\n".to_string(),
             set(&[]),
-            r#"provider "x" needs driver and base_url: it matches nothing in the catalog"#,
+            r#"provider "x" needs base_url: it matches nothing in the catalog"#,
         ),
     ] {
         let mut home = Home::new();

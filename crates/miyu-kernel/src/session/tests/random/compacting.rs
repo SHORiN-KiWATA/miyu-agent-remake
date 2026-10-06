@@ -44,6 +44,7 @@ pub(super) fn random_policy(attended: bool, isolate: bool) -> Policy {
         files_more: template("<more {count}/>"),
         retrieve: template("<retrieve {upto}/>"),
         too_large: template("<too-large {files}/>"),
+        todos: None,
         uncovered: Some(template("<uncovered {from}-{to}/>")),
     });
     limited

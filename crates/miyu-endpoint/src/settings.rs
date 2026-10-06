@@ -14,6 +14,15 @@ miyu_config::settings! {
             applies: now,
             ui: { page: "general", group: "display", common: true, control: select },
         },
+        /// 打开一个头（终端界面、网页）时开哪个会话：`new` 开一个新的，`recent` 接着最近的那一个（施工 8-28，2026-10-07 项目主人定：
+        /// 同一个人在同一台机器上，每个头的体验一样，几个头都有的行为是一个共用的项；原来是 `tui.startup`）。头自己经
+        /// `config.get` 读、起来时读一次，核心不管它。
+        startup: String = "new" {
+            kind: option ["new", "recent"],
+            layers: [System, Personal],
+            applies: head_start,
+            ui: { page: "general", group: "display", control: select },
+        },
     }
 }
 

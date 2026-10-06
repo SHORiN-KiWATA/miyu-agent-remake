@@ -19,6 +19,9 @@ pub struct RebuildTexts {
     pub notes_retrieve: String,
     /// 太大没重读的（`notes-too-large.txt`）。
     pub notes_too_large: String,
+    /// 待办那一段的头一行（`notes-todos.txt`，施工 D-3）。以前造的快照里没有，读成没有：那些会话不写这一段。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notes_todos: Option<String>,
     /// 重读的文件那一块的头（`restored-open.txt`）。
     pub restored_open: String,
     /// 重读的文件那一块的尾（`restored-close.txt`）。
@@ -74,6 +77,11 @@ impl RebuildTexts {
             files_more: template(&self.notes_files_more, &["count"])?,
             retrieve: template(&self.notes_retrieve, &["upto"])?,
             too_large: template(&self.notes_too_large, &["files"])?,
+            todos: self
+                .notes_todos
+                .as_deref()
+                .map(|todos| template(todos, &[]))
+                .transpose()?,
             uncovered: None,
         })
     }
