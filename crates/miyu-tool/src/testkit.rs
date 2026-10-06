@@ -151,6 +151,30 @@ impl Tool for Fake {
             .collect()
     }
 
+    /// 参数里 `outside_sandbox` 是真的，就报要在沙盒外跑（施工 D-4）。
+    fn outside_sandbox(&self, call: &Call) -> bool {
+        serde_json::from_str::<serde_json::Value>(&call.args).is_ok_and(|args| {
+            args.get("outside_sandbox")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false)
+        })
+    }
+
+    /// 参数里有字的 `command`、`title`，照原样交给说明（施工 D-4）。
+    fn asking(&self, call: &Call) -> Vec<(&'static str, String)> {
+        let Ok(args) = serde_json::from_str::<serde_json::Value>(&call.args) else {
+            return Vec::new();
+        };
+        ["command", "title"]
+            .into_iter()
+            .filter_map(|key| {
+                args.get(key)
+                    .and_then(serde_json::Value::as_str)
+                    .map(|value| (key, value.to_string()))
+            })
+            .collect()
+    }
+
     fn run(&self, call: Call, progress: Progress) -> Running<'_> {
         self.calls
             .lock()

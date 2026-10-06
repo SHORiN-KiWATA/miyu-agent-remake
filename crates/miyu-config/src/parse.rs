@@ -244,8 +244,12 @@ impl Reader<'_> {
 }
 
 /// 照类型读一个 TOML 的值：选项、网址、名字、引用、文字、时长要字，开关要布尔，整数要整数，小数要小数或整数，密钥要只有一格的行内表，列表要数组、
-/// 每一个照元素的类型。别的写法读不成。有表头的密钥不是值，不走这里（[`crate::secret::read_node`]）。
-pub(crate) fn read(kind: Kind, value: &TomlValue) -> Option<Value> {
+/// 每一个照元素的类型。别的写法读不成。有表头的密钥不是值，不走这里（`secret::read_node`）。
+///
+/// 只认 TOML 的形状，不查值合不合类型：读出来的还要过 [`Kind::check`]（范围、选项、写法）。读不成的是空的，调用的一方照
+/// `wrong_type` 报。公开给别的 crate 读自己的 TOML 时照配置清单的类型认（施工 O-1：群聊内核的场所规则，
+/// `docs/blueprint/chat.md`「在哪」）。
+pub fn read(kind: Kind, value: &TomlValue) -> Option<Value> {
     match (kind, value) {
         (
             Kind::Option(_)

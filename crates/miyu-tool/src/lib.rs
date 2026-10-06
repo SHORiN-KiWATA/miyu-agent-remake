@@ -76,6 +76,18 @@ pub trait Tool: Send + Sync {
         Vec::new()
     }
 
+    /// 这次调用要在沙盒外跑（施工 D-4）：照参数算，不碰磁盘。权限策略照它判（工作区问人、只读拒绝），执行器照它不写
+    /// 沙盒的规格：工具自己从不决定套不套沙盒。默认否。
+    fn outside_sandbox(&self, _call: &Call) -> bool {
+        false
+    }
+
+    /// 问人时交给说明（`detail`）的几格，键和值（施工 D-4）：照参数算，例如 `shell` 的 `title`、`command`。权限策略并进
+    /// 它自己写的那几格。参数不对的交回空的。默认空。
+    fn asking(&self, _call: &Call) -> Vec<(&'static str, String)> {
+        Vec::new()
+    }
+
     /// 执行一次调用：执行器在它自己的任务里跑交回的 future，执行中的输出交给 `progress`。叫停有两种：
     /// 「叫它停」举 [`Call::stop`] 的旗，等它交回来（施工 4-9 再补一）；「掐掉」丢掉这个 future（施工 4-2）。
     fn run(&self, call: Call, progress: Progress) -> Running<'_>;

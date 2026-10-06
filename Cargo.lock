@@ -1489,6 +1489,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-chat"
+version = "0.0.0"
+dependencies = [
+ "miyu-config",
+ "toml_edit",
+]
+
+[[package]]
 name = "miyu-cli"
 version = "0.0.0"
 dependencies = [
