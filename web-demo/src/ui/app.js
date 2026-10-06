@@ -28,7 +28,7 @@ import { copy } from '../markdown/build.js';
 import { childrenOf, runningDeep } from '../lib/jobs.js';
 import { SessionsPage } from './sessions-page.js';
 import { listFiles } from '../core/files.js';
-import { footerOf, effortLevels, effortLabel, effortOf, effortChange, defaultModelChange } from '../model/model-menu.js';
+import { footerOf, footerLabel, effortLevels, effortLabel, effortOf, effortChange, defaultModelChange } from '../model/model-menu.js';
 import { Crumbs, BackButton } from './crumbs.js';
 import { pathOf } from '../model/tree.js';
 
@@ -515,7 +515,8 @@ export class App {
   /** 问一次 `model.list`，记下来（新会话框下面照它写默认的那一个）。 */
   async loadModels() {
     this.models = await this.store.conn.request('model.list', {});
-    if (!this.current) this.render();
+    // 框下面那一截照列表写显示名：列表来了重画一次
+    this.schedule();
     return this.models;
   }
 
@@ -677,6 +678,8 @@ export class App {
     const ref = this.modelRef();
     const picked = this.current ? this.picked.get(this.current) : null;
     if (ref && (!this.current || picked || ref.startsWith('@'))) f.left = { ...f.left, ...footerOf(ref) };
+    // 写给人看的：显示名、供应商的显示名（重名的、找不到的照模型名）
+    f.left = { ...f.left, ...footerLabel({ model: f.left.model ?? null, endpoint: f.left.endpoint ?? null }, this.models) };
     // 思考强度：默认的不写（蓝图「换模型的菜单」第 1 条）
     const effort = this.effortLevel();
     f.left = { ...f.left, effort: effort === null ? null : effortLabel(effort) };

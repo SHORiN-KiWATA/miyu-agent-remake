@@ -595,11 +595,13 @@ export class Composer {
   }
 
   drawFooter(f) {
-    const { level, label, model, endpoint, effort } = f.left;
+    const { level, label, model, endpoint, effort, full } = f.left;
     this.drawLevel(level, label);
-    const sig = `${model}|${endpoint}|${effort}`;
+    const sig = `${model}|${endpoint}|${effort}|${full}`;
     if (this.model.dataset.sig !== sig) {
       this.model.dataset.sig = sig;
+      // 悬停写完整的 `供应商/模型`（这一截写的是显示名）
+      this.model.title = full ?? t('model_menu.tip');
       // <模型名> <小字供应商>：模型名照正常的字色、不加粗（蓝图「换模型的菜单」第 1 条）
       // 后面接思考强度（工作区那个蓝），默认的不写
       replace(this.model, model ? [h('span.footer-model-name', model), endpoint ? h('span.footer-model-prov', endpoint) : null,

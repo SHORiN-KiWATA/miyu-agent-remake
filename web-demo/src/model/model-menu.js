@@ -64,6 +64,21 @@ export function footerOf(ref) {
 }
 
 /**
+ * 框下面那一截给人看的样子（蓝图「换模型的菜单」第 1 条）：模型写显示名（`facts.name`；重名的也写显示名，这一截只有一行），
+ * 列表里找不到的写模型名；供应商写它的显示名；`full` 是悬停写的完整 `供应商/模型`。池（`@名字`）、还没有列表的照原样。
+ * @param {{model: string|null, endpoint: string|null}} left 照引用、核心报的拆出来的模型名和供应商编号
+ * @param {any} list `model.list` 的回应
+ * @returns {{model: string|null, endpoint: string|null, full?: string}}
+ */
+export function footerLabel(left, list) {
+  if (!list || !left.model || !left.endpoint || left.model.startsWith('@')) return left;
+  const p = (list.providers ?? []).find((x) => x.id === left.endpoint);
+  if (!p) return left;
+  const m = p.models?.find((x) => x.model === left.model);
+  return { model: m?.facts?.name?.value || left.model, endpoint: providerName(p), full: `${left.endpoint}/${left.model}` };
+}
+
+/**
  * 这个模型的思考强度有哪几档（`model.list` 里它的 `facts.reasoning`，核心施工 8-7；能关的带 `off`，8-18）。池、列表里没有的、
  * 没写的是空的：菜单里就不画思考强度那一行（池不设思考强度，蓝图「换模型的菜单」第 2 条）。
  * @param {any} list

@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadRes } from './support.js';
-import { menuOf, filterRows, footerOf, effortLevels, effortRows, effortLabel, effortOf, effortChange, defaultModelChange } from '../src/model/model-menu.js';
+import { menuOf, filterRows, footerOf, footerLabel, effortLevels, effortRows, effortLabel, effortOf, effortChange, defaultModelChange } from '../src/model/model-menu.js';
 
 loadRes();
 
@@ -124,4 +124,17 @@ test('模型那一行写显示名（目录给的），下面写供应商的显�
   assert.deepEqual(filterRows(models, 'workbuddy flash').map((r) => r.ref), ['magpie/workbuddy/deepseek-v4.1-flash'], '模型名也算，几段都要有');
   assert.deepEqual(filterRows(models, 'deepseek').map((r) => r.title), ['DeepSeek V4.1 Flash', 'DeepSeek V4.1 Flash', 'GLM-5.3-Flash'], '供应商的显示名也算');
   assert.equal(filterRows(models, '  ').length, 4);
+});
+
+test('框下面那一截写显示名和供应商的显示名（重名的也写显示名，悬停写完整的）；找不到的写模型名；池、没有列表的照原样', () => {
+  const named = (name, display) => ({ model: name, ref: `magpie/${name}`, facts: { name: { value: display } }, state: 'ok' });
+  const list = { providers: [{ id: 'magpie', name: { value: 'Magpie', from: 'config' }, models: [
+    named('clinepass/cline-free/mimo-v2.6-flash', 'MiMo-V2.6-Flash'),
+    named('a/deepseek-v4.1-flash', 'DeepSeek V4.1 Flash'), named('b/deepseek-v4.1-flash', 'DeepSeek V4.1 Flash'),
+  ] }] };
+  assert.deepEqual(footerLabel({ model: 'clinepass/cline-free/mimo-v2.6-flash', endpoint: 'magpie' }, list), { model: 'MiMo-V2.6-Flash', endpoint: 'Magpie', full: 'magpie/clinepass/cline-free/mimo-v2.6-flash' });
+  assert.equal(footerLabel({ model: 'a/deepseek-v4.1-flash', endpoint: 'magpie' }, list).model, 'DeepSeek V4.1 Flash', '显示名重了也写显示名');
+  assert.deepEqual(footerLabel({ model: 'gone', endpoint: 'magpie' }, list), { model: 'gone', endpoint: 'Magpie', full: 'magpie/gone' }, '列表里找不到这个模型');
+  assert.deepEqual(footerLabel({ model: '@duo', endpoint: null }, list), { model: '@duo', endpoint: null });
+  assert.deepEqual(footerLabel({ model: 'x', endpoint: 'nope' }, null), { model: 'x', endpoint: 'nope' }, '还没有列表');
 });

@@ -48,7 +48,13 @@ export class ModelMenu {
     this.query = '';
     this.searchInput = /** @type {HTMLInputElement} */ (h('input.model-menu-search-input', {
       type: 'search', placeholder: t('model_menu.search'), spellcheck: 'false', autocomplete: 'off',
-      oninput: () => { this.query = this.searchInput.value; this.draw(); this.markFirst(); },
+      oninput: () => {
+        // 开始搜的那一下记住列表多高：搜的时候保持这个高度（行少了菜单不缩，鼠标不会一下落到外面被收起）
+        if (!this.query && this.searchInput.value) this.searchHeight = this.list.offsetHeight;
+        this.query = this.searchInput.value;
+        this.draw();
+        this.markFirst();
+      },
     }));
     this.searchEl = h('label.model-menu-search', { hidden: true }, icon('search'), this.searchInput);
     this.el = h('div.model-menu', { hidden: true, style: `--menu-w: ${res.layout.model_menu_width}px; --menu-min: ${res.layout.model_menu_min_width}px` },
@@ -82,7 +88,8 @@ export class ModelMenu {
       clearTimeout(this.leaveTimer);
     };
     const leave = (/** @type {PointerEvent} */ e) => {
-      if (e.pointerType !== 'mouse' || !this.isOpen || !this.hovered) return;
+      // 光标在搜索框里（在打字）的不自己收：点外面、`Esc` 照样关
+      if (e.pointerType !== 'mouse' || !this.isOpen || !this.hovered || document.activeElement === this.searchInput) return;
       clearTimeout(this.leaveTimer);
       this.leaveTimer = window.setTimeout(() => this.close(), res.layout.model_menu_leave_ms);
     };
@@ -203,6 +210,7 @@ export class ModelMenu {
     if (!searchable) this.query = '';
     this.searchEl.hidden = !searchable;
     const rows = filterRows(all, this.query);
+    this.list.style.minHeight = this.query && this.searchHeight ? `${this.searchHeight}px` : '';
     this.rows = rows.map((row) => ({ row, el: this.rowEl(row) }));
     this.sheet.className = `model-menu-sheet${slide ? ` ${slide}` : ''}`;
     const none = all.length ? t('model_menu.no_match') : t(this.page === 'pools' ? 'model_menu.no_pools' : 'model_menu.empty');
