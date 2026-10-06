@@ -1669,6 +1669,61 @@ Context: about {used} tokens. This model reports no window.
 Could not read the usage: {error}
 ```
 
+#### `software/basesystem/ask_user/answer.txt`
+
+- 什么时候加进来：`ask_user` 答了：一道一行
+- token：10（字段按 `用哪个？`、`甲` 算，2026-10-07 量）
+- 为什么加：一道一行 `"<问的话>" = <回答>`：照 Claude Code 的结果改成一行一道，长回答也读得清（施工 D-2）
+- 指纹：`ab0ad945`
+
+```text
+"{question}" = {answer}
+```
+
+#### `software/basesystem/ask_user/no-answer.txt`
+
+- 什么时候加进来：`ask_user`：这道没答，接在 `answer.txt` 的回答处
+- token：5（2026-10-07 量）
+- 为什么加：人可以只答几道；不写她会以为漏了（施工 D-2）
+- 指纹：`9faebc8c`
+
+```text
+(no answer)
+```
+
+#### `software/basesystem/ask_user/note.txt`
+
+- 什么时候加进来：`ask_user`：这道补了一句备注，接在回答后面
+- token：8（`{notes}` 按 `先这样` 算，2026-10-07 量）
+- 为什么加：人补的备注（`notes`，2026-09-29 项目主人定照 Claude Code）要交给她（施工 D-2）
+- 指纹：`50f09b9c`
+
+```text
+ (note: {notes})
+```
+
+#### `software/basesystem/ask_user/end.txt`
+
+- 什么时候加进来：`ask_user` 答了：最后一行
+- token：9（2026-10-07 量）
+- 为什么加：照 Claude Code 结果的最后一句：照这些回答接着做，不再问一遍（施工 D-2）
+- 指纹：`9c1bbcb7`
+
+```text
+Go on with these answers in mind.
+```
+
+#### `software/basesystem/ask_user/unattended.txt`
+
+- 什么时候加进来：`ask_user`：这个会话没人能回答（工具面上本来就不给，兜底）
+- token：14（2026-10-07 量）
+- 为什么加：每次调用都要有结果；告诉她改在回复里问（`11-权限与沙盒.md` A11 的说法），施工 D-2
+- 指纹：`482ecb6c`
+
+```text
+No one can answer questions here. Ask in your reply instead.
+```
+
 #### `software/basesystem/common/not-read.txt`
 
 - 什么时候加进来：`write`、`edit` 要改的文件已经在了、她这个会话里没看过
@@ -2490,6 +2545,20 @@ Placeholder for a tool this client is expected to send with the request; it is n
 {
   "description": "Show how many tokens and how much money this session has used so far, and how full your context is.",
   "parameters": {"type":"object","properties":{}}
+}
+```
+
+#### `software/basesystem/tools/ask_user.json`
+
+- 什么时候加进来：会话的工具面里有 `ask_user`：能问人的会话，有人能回答的本机主会话（每次请求都带）
+- token：237（2026-10-07 主会话照开发端点量，十四件一起时的边际份量）
+- 为什么加：她干活中途遇到要人拿主意的事，问一组题、等回答（施工 D-2，`10-自带软件.md` 第三节，`tools/ask_user.md`）。说明照附录的草稿一字不差，参数照 Claude Code，说明只给名字看不出来的三格（`header`、`preview`、`multiSelect`）
+- 指纹：`a5cc8719`
+
+```json
+{
+  "description": "Ask the user one or more questions with options and wait for the answers. Put the recommended option first and add \"(Recommended)\" to its label. Don't add an \"other\" option: the user can always type their own answer.",
+  "parameters": {"type":"object","properties":{"questions":{"type":"array","items":{"type":"object","properties":{"question":{"type":"string"},"header":{"type":"string","description":"A short tag shown above the question."},"options":{"type":"array","items":{"type":"object","properties":{"label":{"type":"string"},"description":{"type":"string"},"preview":{"type":"string","description":"Text shown in monospace while the option is focused, such as code or a sketch."}},"required":["label"]}},"multiSelect":{"type":"boolean","description":"Allow picking more than one option."}},"required":["question"]}}},"required":["questions"]}
 }
 ```
 

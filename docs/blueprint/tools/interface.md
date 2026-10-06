@@ -14,6 +14,7 @@
 | `crates/miyu-tool/src/messages.rs` | 留言的端口 `MessagePort`、发给谁 `Recipient`、没送出去 `NotSent`，那件工具的名字 `MESSAGE_AGENT`（施工 7-7） |
 | `crates/miyu-tool/src/sessions.rs` | 列会话的端口 `SessionsPort`、列出来的一个 `MainSession`，那件工具的名字 `SESSIONS`；认会话编号的 `find_session`、`Found`（施工 C-3） |
 | `crates/miyu-tool/src/usage.rs` | 查用量的端口 `UsagePort`、上下文 `ContextUse`、用量和金额 `Spent`，那件工具的名字 `SESSION_USAGE`（施工 8-15） |
+| `crates/miyu-tool/src/questions.rs` | 提问的端口 `QuestionPort`、等回答的 `Answering`，那件工具的名字 `ASK_USER`（施工 D-2） |
 | `crates/miyu-tool/src/catalog.rs` | 工具目录，登记时查的几条；改过名的照以前的名字也找得到（施工 7-5 再补） |
 | `crates/miyu-tool/src/jobs.rs` | 任务端口 `JobPort`、交出去的后台命令 `Background`、它的进程 `Process`、怎么结束的 `Exit`（施工 7-3）；列出来的 `Listed`、读到的 `Output`、读不了停不了的 `JobError`（施工 7-4） |
 | `crates/miyu-tool/src/testkit.rs` | 测试用的假工具（`testkit` 开关打开时才编）；`testkit/held.rs` 是假的后台命令 `Held`（施工 7-3）；`testkit/renamed.rs` 是换了名字的一件 `Renamed`，造改名以前的核心的目录（施工 7-5 再补） |
@@ -64,6 +65,7 @@
 | `jobs` | 任务端口（`Arc<dyn JobPort>`，施工 7-3）：执行器照这一次调用造一个，起它的命令自己退出了，`job.reported` 的 `by` 是这次调用、`cause` 是它所在那一轮的。`shell` 交后台命令，`jobs` 查、停（施工 7-4）；没有的（会话外面的调用，例如测试）是空的，不能放到后台，也查不到任务 |
 | `sessions` | 列会话的端口（`Arc<dyn SessionsPort>`，施工 C-3）：执行器照这一次调用抄好这个会话的编号、属主（`session/tools.md`「1d. 列会话」）。只有本机的主会话有，只有 `sessions` 用；没有的（测试里的假调用、子会话、场所会话、没装会话表的核心）是空的，`sessions` 照没有别的会话答 |
 | `usage` | 查用量的端口（`Arc<dyn UsagePort>`，施工 8-15）：执行器照这一次调用抄好这个会话的编号、属主、派出去那一刻内核算的上下文、这一轮的 `usage.currency`（`tools/session_usage.md`）。只有派的是 `session_usage`、核心开着用量汇总的才有；没有的是空的，`session_usage` 照什么都没花答 |
+| `questions` | 提问的端口（`Arc<dyn QuestionPort>`，施工 D-2）：执行器照这一次调用造，交来的题经它送进内核、回答落了盘送回来（`session/tools.md`「1e. 问人」）。只有能问人的会话有（有人能回答的本机主会话），只有 `ask_user` 用；没有的（测试里的假调用、子会话、`miyu ask` 开的、场所会话）是空的，`ask_user` 照这里没人能回答出错 |
 
 - `Seen`：换成真实位置以后的路径 → 她最后一次看到的整份文件的内容哈希（`sha256:` 加 64 位小写十六进制）。
 - 任务端口（施工 7-3）：`start(Background)` 把起好的后台命令交给执行器的任务表，交回编号，当场返回；收不下的（输出的文件建不起来、会话已经停了），任务表整组杀掉它，交回出错。`Background` 两格：`output` 是一段段交出来的输出（已经照前台的规矩合法化，读完了就没有了），`process` 是 `Process`：`wait()` 等它结束、交回 `Exit`（退出码或者信号），`kill()` 整组杀、已经结束了的什么都不做。两个端口比的是不是同一个（`Call` 照格子比较时用）。

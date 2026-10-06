@@ -33,6 +33,7 @@ pub(super) fn build_question() -> Vec<Question> {
             .map(|label| Choice {
                 label: label.to_string(),
                 description: None,
+                preview: None,
             })
             .collect(),
         multiple: false,
@@ -43,6 +44,7 @@ pub(super) fn picked(labels: &[&str]) -> Response {
     Response {
         picked: labels.iter().map(|label| label.to_string()).collect(),
         text: None,
+        notes: None,
     }
 }
 
@@ -144,6 +146,7 @@ fn a_call_can_ask_again_after_an_answer() {
     let with_text = Response {
         picked: Vec::new(),
         text: Some("先问问我同事".to_string()),
+        notes: None,
     };
     assert_eq!(
         appended(&session.handle(reply(3, call(6, 1), vec![with_text]))),
@@ -196,6 +199,7 @@ fn answers_that_do_not_fit_are_rejected() {
     let blank = Response {
         picked: vec!["保留".to_string()],
         text: Some("  ".to_string()),
+        notes: None,
     };
     let events = appended_events(&session.handle(reply(8, call(6, 1), vec![blank])));
     let Body::QuestionAnswered(answered) = &events[0].body else {

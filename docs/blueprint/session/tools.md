@@ -137,9 +137,17 @@ The tool "{name}" stopped because of an internal error. It may have been partly 
 2. 工具调它 `list(旗)`：经会话表的端口 `sessions(属主, 旗)` 要这个会话的属主的主会话（会话表交回的含这个会话自己），拿掉这个会话自己交回，不排先后。列不出来：记一行 `WARN` `sessions not listed`（`error`），把原因交回工具。
 3. `this()` 是这个会话的编号。
 
+**1e. 问人**（`crates/miyu-session/src/tools/questions.rs`，施工 D-2；`tools/ask_user.md`）
+
+1. 能问人的会话（`Agents::asks`：有人能回答、本机、主会话，造会话、载入时照 `attended`、场所、父会话定）每一次调用给一个提问的端口；别的没有。
+2. 工具交题：经回传的通道送回 actor（`ToolBack::Asks`，带一个回信的口子）。这次调用还在跑、没被叫停的，记下口子，交给内核 `ToolAsks`；内核记 `question.asked`（`by` 是这次调用）、等（`kernel/asking.md`）。叫停过、已经掐掉的不理：口子跟着丢。
+3. 人用 `session.answer` 回答，`question.answered` 落了盘内核出 `AnswerTool`：照调用编号把回答送给在等的工具（`Tools::answer`），工具写成结果交回，照常报跑完。
+4. 没答到就了结：叫停（`StopTool`）丢掉口子；打断、等的时候来了一句话、收紧成只读，内核补了结果、出 `CancelTool`，掐掉时口子跟着丢。工具那一头拿到没有回答，照叫停收场；内核已经有这次调用的结果，不再收它。
+5. `tools.rs` 到了 500 行，施工 D-2 把「跑工具的任务送回来的，写成内核的输入」挪进 `tools/back.rs`，提问的这一摊在 `tools/questions.rs`。
+
 **会话表那一头**（`crates/miyu-endpoint/src/spawn.rs`、`sessions.rs`）：造会话、载入时交给会话一份端口，拿着核心的弱引用（会话由会话表拿着，再强拿着核心就成了环）；核心没了的说 `the core is shutting down`。造子会话照交来的填：`by` 是父会话，`oneshot` 是假的，时区是核心所在机器这一刻的，模型、工具目录、家目录、沙盒照核心的，沙盒的缓存照属主；造好了放进会话表，工作目录记成交来的那一个（父会话这一轮实际干活的，已经定过宽不宽）。发命令照会话表找会话（没在跑的先载入），停了的从表里拿掉。停下子会话（施工 7-4）：照会话表找它（没在跑的先载入），先发打断（排着的退回；没有在跑的回合被拒不要紧），再 `stop_jobs`；停了的从表里拿掉，交回出错。看子会话（施工 7-4）：在阻塞线程里只读地读它的日志（属主是管理员），照 `peek.rs` 算，不载入它。列主会话（施工 C-3）：先拿着表的锁记下这时忙着的（`Sessions::busy_ids`），再在阻塞线程里照 `session.list` 的 `scan` 读属主的会话，只要 `session.created` 不带 `parent` 的（`protocol.md`「`session.list`」）；放会话的目录读不了交回 `sessions not listed: <原因>`。认一个会话这时是不是没人看着的一次性会话（施工 C-5，`SessionPort::held`）：对方刚经 `command` 载入过，再经会话表查一次它的 `Handle`，`oneshot() && !watched()`；核心正在停、这个会话不在表里的，当不是。订「空了告诉我」（施工 C-6，`SessionPort::watch`）：见「1c2. 订、计时、再订」第 6 条。
 
-**工具面**（`crates/miyu-session/src/agents.rs` 的 `Agents::face`，造会话时 `open.rs` 叫它）：造会话时，只有本机（场所 `local`）、还没到深度上限（`jobs.depth`，第几层小于它）的会话，工具面里有 `subagent`（以前叫 `agent`，施工 7-5 再补改名：以前造的会话照快照发 `agent`，`tools/subagent.md`「以前的名字」）；本机的会话都有 `send_message`，到了深度上限的也有，只能发给父（施工 7-7）；场所会话（群）两件都拿掉：派不了子代理，也没有父。只有本机的主会话有 `sessions`（施工 C-3，`cross-session.md` 第九条）：子会话的事经它的父会话，群里的人不可信。本机的会话（主会话、子会话）都有 `session_usage`，群里的没有（施工 8-15，`tools/session_usage.md`）：花了多少钱是属主的事。别的工具照给。`subagent` 的 `pool` 那一格照造会话时的配置拼（施工 8-8 补，`tools/subagent.md`「会话开局时拼 `pool`」）：开着开关、有认得出的成员的池照名字排进 `enum`，一个都没有的拿掉 `pool`；配置照 `create` 取的那一份（`Turning::start`），子会话造的时候照它那时的配置拼它自己的。子会话（带着父会话）的 system 在人设后面接上场所说明（`policy.md`「拼」）。
+**工具面**（`crates/miyu-session/src/agents.rs` 的 `Agents::face`，造会话时 `open.rs` 叫它）：造会话时，只有本机（场所 `local`）、还没到深度上限（`jobs.depth`，第几层小于它）的会话，工具面里有 `subagent`（以前叫 `agent`，施工 7-5 再补改名：以前造的会话照快照发 `agent`，`tools/subagent.md`「以前的名字」）；本机的会话都有 `send_message`，到了深度上限的也有，只能发给父（施工 7-7）；场所会话（群）两件都拿掉：派不了子代理，也没有父。只有本机的主会话有 `sessions`（施工 C-3，`cross-session.md` 第九条）：子会话的事经它的父会话，群里的人不可信。本机的会话（主会话、子会话）都有 `session_usage`，群里的没有（施工 8-15，`tools/session_usage.md`）：花了多少钱是属主的事。`ask_user` 只给能问人的会话（施工 D-2，「1e. 问人」第 1 条）：子会话问父会话，`miyu ask` 开的、群里没有提问的界面。别的工具照给。`subagent` 的 `pool` 那一格照造会话时的配置拼（施工 8-8 补，`tools/subagent.md`「会话开局时拼 `pool`」）：开着开关、有认得出的成员的池照名字排进 `enum`，一个都没有的拿掉 `pool`；配置照 `create` 取的那一份（`Turning::start`），子会话造的时候照它那时的配置拼它自己的。子会话（带着父会话）的 system 在人设后面接上场所说明（`policy.md`「拼」）。
 
 **2. 效果存成 blob**（跑完、交进内核之前，在阻塞线程里）
 

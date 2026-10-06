@@ -123,6 +123,7 @@ fn it_does_not_void_a_question_waiting_for_the_person() {
         vec![Response {
             picked: vec!["删".to_string()],
             text: None,
+            notes: None,
         }],
     );
     let answered = s.log().iter().any(|event| {

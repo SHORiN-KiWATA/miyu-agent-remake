@@ -431,9 +431,9 @@ impl Actor {
                 }
                 None
             }
-            // 工具执行中问人随施工 4-9：这之前没有工具会问。
-            Action::AnswerTool { .. } => {
-                tracing::error!(target: TARGET, action = kind, "answer without a question");
+            // 回答落了盘，送给在等的工具（施工 D-2，`tools/questions.rs`）。
+            Action::AnswerTool { call_id, answers } => {
+                self.tools.answer(call_id, answers);
                 None
             }
         })

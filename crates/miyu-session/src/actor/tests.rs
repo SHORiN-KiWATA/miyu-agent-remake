@@ -158,6 +158,7 @@ async fn a_write_that_fails_stops_the_session() {
             job_ids: Arc::new(crate::job_ids::JobIds::starting_after(None, 0)),
             agents: None,
             ledger: None,
+            asks: false,
         },
         crate::actor::JobKit {
             table: Arc::new(crate::jobs::Jobs::new()),

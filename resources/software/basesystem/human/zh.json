@@ -70,6 +70,10 @@
       "name": "查用量",
       "icon": "≡"
     },
+    "ask_user": {
+      "name": "提问",
+      "icon": "?"
+    },
     "send_message": {
       "name": "留言",
       "subject": "to",
@@ -178,6 +182,8 @@
     "sessions/past-end": "一共 {total} 个别的会话，已经列完了",
     "sessions/failed": "没列出来：{error}",
     "session_usage/shown": "查了用量",
-    "session_usage/failed": "用量读不出来：{error}"
+    "session_usage/failed": "用量读不出来：{error}",
+    "ask_user/answered": "你答了",
+    "ask_user/unattended": "这里没人能回答"
   }
 }

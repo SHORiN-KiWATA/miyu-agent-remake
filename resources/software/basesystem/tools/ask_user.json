@@ -1,0 +1,4 @@
+{
+  "description": "Ask the user one or more questions with options and wait for the answers. Put the recommended option first and add \"(Recommended)\" to its label. Don't add an \"other\" option: the user can always type their own answer.",
+  "parameters": {"type":"object","properties":{"questions":{"type":"array","items":{"type":"object","properties":{"question":{"type":"string"},"header":{"type":"string","description":"A short tag shown above the question."},"options":{"type":"array","items":{"type":"object","properties":{"label":{"type":"string"},"description":{"type":"string"},"preview":{"type":"string","description":"Text shown in monospace while the option is focused, such as code or a sketch."}},"required":["label"]}},"multiSelect":{"type":"boolean","description":"Allow picking more than one option."}},"required":["question"]}}},"required":["questions"]}
+}

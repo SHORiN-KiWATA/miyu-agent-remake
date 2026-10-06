@@ -35,9 +35,9 @@
 | 回答 | 带着 |
 |---|---|
 | `Answer::Approval { decision, reason }` | 选了哪一项：`once` 允许这一次、`session` 本会话都允许、`workspace` 这个工作区以后都允许、`deny` 拒绝，不认识的原样留着；拒绝的理由，只有拒绝能带 |
-| `Answer::Questions(回答)` | 照题目的先后一道一条：`Response { picked, text }`，选了哪几项（写选项的标题）、自己写的。两样都没有的，这道没答 |
+| `Answer::Questions(回答)` | 照题目的先后一道一条：`Response { picked, text, notes }`，选了哪几项（写选项的标题）、自己写的、补的一句备注（施工 D-2）。`picked`、`text` 都没有的，这道没答 |
 
-**题目**（`Input::ToolAsks { at, call_id, questions }`）：一组题，照先后，几道都行。一道题 `Question { header, question, options, multiple }`：顶上标签里的短名字（可以不写）、问的话、几个选项（`Choice { label, description }`，一行标题、一行说明，说明可以不写；选项可以一个都没有）、能不能多选。
+**题目**（`Input::ToolAsks { at, call_id, questions }`）：一组题，照先后，几道都行。一道题 `Question { header, question, options, multiple }`：顶上标签里的短名字（可以不写）、问的话、几个选项（`Choice { label, description, preview }`，一行标题、一行说明、一段文字画，后两样可以不写；选项可以一个都没有）、能不能多选。施工 D-2 起会问的工具是 `ask_user`（`tools/ask_user.md`）。
 
 **动作**：`GuardTool { call_id, name, args, cwd, permission }` 交给链；`RunTool { call_id, name, args, cwd, permission }` 派去跑，带着派出去那一刻实际生效的那一级（施工 5-4 上）；`AnswerTool { call_id, answers }` 把回答交给在等的调用；`CancelTool { call_id }` 叫停（`session.md`）。
 
@@ -188,7 +188,5 @@
 
 ### 还没有的
 
-- 提问的工具 `ask_user`（`10-自带软件.md`）还没有：现在没有工具会问人，会话 actor 收到 `AnswerTool` 只记一条运行日志（`crates/miyu-session/src/actor.rs`）。
 - 这个工作区以后都允许：要存进工作区的配置，存哪还没定（`11-权限与沙盒.md` 第二节，2026-09-28 项目主人定以后再加）；协议上先不认这一项（`protocol.md` 的 `session.answer`）。
 - 扩展的守卫（`05-内核接口.md` 第五节）：现在链里只有权限策略。
-- `question.asked` 选项的 `preview`（一段文字画）、`question.answered` 每道回答的 `notes`（补一句备注）：2026-09-29 项目主人定，随 M8 的抽屉加（`03-事件模型.md` 第三节「提问的事件怎么写」）。

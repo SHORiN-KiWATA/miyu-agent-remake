@@ -80,6 +80,7 @@ pub(super) fn some_question(rng: &mut Rng, watch: &Watch) -> Input {
                 .map(|label| Choice {
                     label: label.to_string(),
                     description: None,
+                    preview: None,
                 })
                 .collect(),
             multiple: rng.below(2) == 0,
@@ -118,6 +119,7 @@ pub(super) fn some_reply(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> Inp
             Response {
                 picked: picked.into_iter().map(str::to_string).collect(),
                 text: (rng.below(4) == 0).then(|| " ".to_string()),
+                notes: None,
             }
         })
         .collect();

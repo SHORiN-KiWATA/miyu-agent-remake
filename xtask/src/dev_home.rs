@@ -1,13 +1,13 @@
 //! `cargo xtask dev-home <目录>`（`docs/blueprint/models.md`「怎么走」第十条第 2 条，施工 8-6；8-6b 起地址也不写进文件）：
 //! 开发时真模型自测，照三个环境变量造一个带配置的数据根，之后照平常
-//! `MIYU_DEV_BASE_URL=… DEEPSEEK_API_KEY=… MIYU_HOME=<目录> miyu ask …`。
+//! `MIYU_DEV_BASE_URL=… MIYU_DEV_API_KEY=… MIYU_HOME=<目录> miyu ask …`。
 //!
 //! - `MIYU_DEV_BASE_URL`（地址，必设）、`MIYU_DEV_MODEL`（模型名，必设）、`MIYU_DEV_WINDOW`（窗口，可以不设）。这三个名字只在
 //!   这里，程序里没有了。地址、key 都不进仓库，也不进造出来的配置文件：本机端点地址和 key 一样，只放在拉起核心的命令的
 //!   环境变量里（施工 8-6b）。
 //! - 先建骨架（照核心的写法，`store.md`「认得出自己的数据根才动它」），再写 `system/config.toml`：一家 `dev`
 //!   （`openai-chat`，`catalog = "deepseek"` 照 DeepSeek 的档案配开关，地址照 `{ env = "MIYU_DEV_BASE_URL" }` 取、key
-//!   照 `{ env = "DEEPSEEK_API_KEY" }` 取），`models.chat = "dev/<模型>"`，设了窗口的写进这个模型的 `window`。地址本身
+//!   照 `{ env = "MIYU_DEV_API_KEY" }` 取），`models.chat = "dev/<模型>"`，设了窗口的写进这个模型的 `window`。地址本身
 //!   只在这个进程里读一下校验写法（`Vars::read`），从不落盘：造出来的文件、`config.get`、`model.list` 都只看得到
 //!   `{ env = "MIYU_DEV_BASE_URL" }` 这几个字。
 //! - 已经有 `system/config.toml` 的不盖：人改过的配置不替人扔掉（「施工时定的」8-6）。
@@ -29,7 +29,7 @@ pub const MODEL: &str = "MIYU_DEV_MODEL";
 pub const WINDOW: &str = "MIYU_DEV_WINDOW";
 
 /// 配置里 key 照哪个环境变量取：拉起核心的那个终端里设它。
-pub const KEY_ENV: &str = "DEEPSEEK_API_KEY";
+pub const KEY_ENV: &str = "MIYU_DEV_API_KEY";
 
 /// 照环境变量读好的三样。
 #[derive(Debug, Clone, PartialEq, Eq)]
