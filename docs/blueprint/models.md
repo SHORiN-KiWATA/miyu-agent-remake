@@ -107,7 +107,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | `catalog` | `"<目录里的供应商>/<目录里的模型>"` | 手写指定照目录里的哪一个（第二条第 4 条第 1 层） |
 | `window` | 正整数，1 到 100000000 | 上下文窗口。取代开发用的 `MIYU_DEV_WINDOW`（8-6 先登记这一格，造会话、载入时用；8-10 起开着的会话下一个回合开始时用上，生效时机 `next_turn`） |
 | `max_output` | 正整数 | 最大输出 |
-| `inputs` | `"text"`、`"image"`、`"pdf"` 的列表 | 能收哪些输入 |
+| `inputs` | `"text"`、`"image"`、`"pdf"`、`"audio"`、`"video"` 的列表（音频、视频施工 8-27） | 能收哪些输入 |
 | `tools` | 布尔 | 能不能调工具 |
 | `reasoning` | 字符串的列表 | 思考强度有哪几档，盖过目录的。`none`、`disabled` 读成 `off`（8-18）。`effort` 照它查 |
 | `effort` | 一档的名字，最多 32 个字符 | 这个模型默认的思考强度（8-18，生效时机 `next_turn`）。不写的请求里不带，照供应商的默认。写的不在这时的档位里（目录变了、写错了）：照没写发，配置报 `unknown_effort`（「怎么走」第十一条第 2 条），配置不改 |
@@ -186,7 +186,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 |---|---|---|---|---|---|
 | `window` 上下文窗口 | `window` | 撞到上下文超长时报的上限 | `context_window`、`context_length`、`max_context_length` | `limit.context` 和 `limit.input` 里小的那个 | 没有：不主动压 |
 | `max_output` 最大输出 | `max_output` | | | `limit.output` | 没有：输出预留照策略的上限 |
-| `inputs` 能收什么 | `inputs` | | | `modalities.input` 里的 `text`、`image`、`pdf` | 只有文字 |
+| `inputs` 能收什么 | `inputs` | | | `modalities.input` 里的 `text`、`image`、`pdf`、`audio`、`video`（后两样施工 8-27） | 只有文字 |
 | `tools` 能不能调工具 | `tools` | | | `tool_call` | 不知道：照样带工具面 |
 | `reasoning` 思考强度的几档 | `reasoning` | | | `reasoning_options` 里 `effort` 的几档；有 `toggle`、这一家能关思考的（openai-chat 照档案写没写开关 `compat.toggle`，anthropic 接口自带，8-12；openai-responses 没有开关，8-13），多一档 `off`，只有开关的是 `off`、`on`（8-18） | 没有 |
 | `effort` 默认的思考强度 | `effort`，在这时的档位里的才算（8-18） | | | | 没有：请求里不带 |
@@ -204,7 +204,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 - 本机的服务（`local` 是真的）价格只认手写的，不借目录，没写的是 0，来源是 `local`（2026-10-01 项目主人定）：按名字对上的目录价是云端的价，本机跑不花这个钱。
 - 第 3、4 层按名字对上的，借不借照 `15-模型与供应商.md` 第三节那张表：能收什么、能不能调工具、思考强度都借，窗口、最大输出借、标明来源，价格照第二条第 6 条挑。
 - 档位名（8-18）：照目录原样（`minimal`、`low`、`medium`、`high`、`xhigh`、`max` 这些），`none`、`disabled` 读成 `off`，手写的也一样；重复的只留第一个。能不能关、关和开怎么写，照驱动和档案（`miyu_models::provider::Provider::switchable`）：openai-chat 的，目录的 `toggle` 只在档案写了开关时才算，没写的驱动说不出来，不加 `off`；anthropic 的开关是接口自带的（`thinking` 写 `disabled`），目录有 `toggle` 就算（8-12）；openai-responses 没有开关，目录的 `toggle` 不算，`off` 只从目录写的 `none` 来（8-13）。不能关的没有 `off`。`off` 和「没写」是两回事：`off` 是关掉，没写是照供应商的默认。
-- 谁在用：窗口、最大输出交给内核当限额（压缩线），造会话、载入时定，开着的会话下一个回合开始时照新的重算（8-10）。能收什么交给驱动（`Call.inputs`），每次请求照这一轮查。`driver` 定这个模型走哪种驱动。价格、倍率算金额（8-15）。思考强度的几档、`effort` 定一次请求带哪一档（8-18，「怎么走」第十一条）。能不能调温度、`temperature` 定一次请求带不带温度（8-22，「怎么走」第十四条）。别的只给 `model.list` 看。
+- 谁在用：窗口、最大输出交给内核当限额（压缩线），造会话、载入时定，开着的会话下一个回合开始时照新的重算（8-10）。能收什么交给驱动（`Call.inputs`），每次请求照这一轮查；音频、视频只是声明能收（施工 8-27，2026-10-07 项目主人定），驱动照旧只认图片、PDF，附件里的音频、视频怎么发随以后（2026-09-28 项目主人定先不做）。`driver` 定这个模型走哪种驱动。价格、倍率算金额（8-15）。思考强度的几档、`effort` 定一次请求带哪一档（8-18，「怎么走」第十一条）。能不能调温度、`temperature` 定一次请求带不带温度（8-22，「怎么走」第十四条）。别的只给 `model.list` 看。
 - 8-7 做了的格：窗口、最大输出、能收什么、能不能调工具、思考强度、价格、倍率、显示名、状态（`miyu_models::facts`）；8-18 加 `effort`；8-22 加 `takes_temperature`、`temperature`。`cache` 8-8 只用来定池不写分法时怎么分，照供应商手写的那一格直接读（`miyu_models::pools`），不进资料、`model.list` 的 `facts` 里没有（「施工时定的」8-8）；`driver`、`interleaved` 8-14 做了，只照目录、不进 `model.list` 的 `facts`（`Facts::wire`，路由造驱动时照它换，`Provider::for_model`）。
 - 用出来的只交窗口；供应商的列表只交窗口（列表里报了的）。没对上目录、没手写的格是驱动的保守默认，来源 `default`，值是 `null`（能收什么是 `["text"]`、倍率是 1、显示名是模型名）。
 

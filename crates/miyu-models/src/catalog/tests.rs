@@ -84,7 +84,7 @@ fn the_index_finds_names_and_normalized_names_in_byte_order() {
 fn odd_fields_are_read_the_cautious_way() {
     let text = json!({
         "p": {"id": "p", "models": {
-            "toggle": {"reasoning_options": [{"type": "toggle"}], "modalities": {"input": ["text", "audio", "pdf"]}},
+            "toggle": {"reasoning_options": [{"type": "toggle"}], "modalities": {"input": ["video", "text", "audio", "smell", "pdf"]}},
             "null-level": {"reasoning_options": [{"type": "effort", "values": [null, "low", "high"]}]},
             "off-by-name": {"reasoning_options": [{"type": "effort", "values": ["none", "disabled", "low"]}]},
             "budget-only": {"reasoning_options": [{"type": "budget_tokens", "min": 1024}]},
@@ -127,8 +127,13 @@ fn odd_fields_are_read_the_cautious_way() {
     );
     assert_eq!(
         model("toggle").inputs,
-        Some(vec!["text".to_string(), "pdf".to_string()]),
-        "认得的几种照固定的先后"
+        Some(vec![
+            "text".to_string(),
+            "pdf".to_string(),
+            "audio".to_string(),
+            "video".to_string()
+        ]),
+        "认得的几种照固定的先后，音频、视频也认（施工 8-27），认不得的不要"
     );
     assert_eq!(
         model("null-level")

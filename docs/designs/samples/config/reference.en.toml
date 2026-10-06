@@ -119,8 +119,8 @@ keys = []
 # Allowed: text of at most 32 characters. Only in the system config or personal settings. Takes effect next turn.
 # effort =
 
-# Inputs: What this model can read: text, images, PDF.
-# Allowed: a list of text, image or pdf. Only in the system config or personal settings. Takes effect next turn.
+# Inputs: What this model can read: text, images, PDF, audio, video.
+# Allowed: a list of text, image, pdf, audio or video. Only in the system config or personal settings. Takes effect next turn.
 # inputs =
 
 # Max output: How many tokens this model can write at most in one reply.

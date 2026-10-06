@@ -123,11 +123,13 @@
       },
       "providers.<id>.models.<model>.inputs": {
         "name": "Inputs",
-        "description": "What this model can read: text, images, PDF.",
+        "description": "What this model can read: text, images, PDF, audio, video.",
         "options": {
           "text": "Text",
           "image": "Images",
-          "pdf": "PDF"
+          "pdf": "PDF",
+          "audio": "Audio",
+          "video": "Video"
         }
       },
       "providers.<id>.models.<model>.tools": {

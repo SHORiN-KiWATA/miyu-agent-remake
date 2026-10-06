@@ -1,0 +1,294 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"></head><body><!-- 本地外壳：这一行和最后两行只给直接打开用 -->
+<title>并行回复与上下文组装</title>
+<style>
+/* 布局：单栏长文，图在上、清单在下；宽表格各自横向滚动 */
+:root{
+  --bg:#f6f7f5; --panel:#ffffff; --fg:#1d2321; --muted:#5d6763; --line:#d9dedb;
+  --accent:#1f6f5c;
+  --k:#2f5d8a; --k-bg:#e6eef6;
+  --c:#1f6f5c; --c-bg:#e3f1ec;
+  --d:#8a5a1f; --d-bg:#f5ecdf;
+  --p:#6a4c93; --p-bg:#eee8f5;
+  --x:#7a7f7d; --x-bg:#ececea;
+  --q:#a33d3d; --q-bg:#f7e7e5;
+  --sans:"PingFang SC","Noto Sans CJK SC","Source Han Sans SC","Microsoft YaHei",system-ui,sans-serif;
+  --mono:"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --panel:#1b2220; --fg:#e4e9e6; --muted:#9aa5a0; --line:#2e3834;
+  --accent:#5fc0a3;
+  --k:#8db8e3; --k-bg:#1d2b3a; --c:#6fcfaf; --c-bg:#183129; --d:#e0b27a; --d-bg:#332818;
+  --p:#c3a8e8; --p-bg:#2a2236; --x:#a3a8a6; --x-bg:#262b29; --q:#ef9a92; --q-bg:#3a2220;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --panel:#1b2220; --fg:#e4e9e6; --muted:#9aa5a0; --line:#2e3834;
+  --accent:#5fc0a3;
+  --k:#8db8e3; --k-bg:#1d2b3a; --c:#6fcfaf; --c-bg:#183129; --d:#e0b27a; --d-bg:#332818;
+  --p:#c3a8e8; --p-bg:#2a2236; --x:#a3a8a6; --x-bg:#262b29; --q:#ef9a92; --q-bg:#3a2220;
+  color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.7;font-size:15px}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:16px;padding-block:32px 64px;display:flex;flex-direction:column;gap:40px}
+h1{font-size:28px;margin:0;text-wrap:balance;letter-spacing:.02em}
+h2{font-size:20px;margin:0 0 12px;text-wrap:balance;border-bottom:1px solid var(--line);padding-bottom:6px}
+h3{font-size:16px;margin:20px 0 8px}
+p{margin:0 0 10px;max-width:68ch}
+.lede{color:var(--muted)}
+code{font-family:var(--mono);font-size:.88em;background:var(--x-bg);padding:1px 5px;border-radius:3px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin:6px 0 4px}
+.tag{display:inline-block;font-size:12px;font-weight:600;padding:1px 8px;border-radius:10px;white-space:nowrap;letter-spacing:.03em}
+.K{color:var(--k);background:var(--k-bg)} .C{color:var(--c);background:var(--c-bg)}
+.D{color:var(--d);background:var(--d-bg)} .P{color:var(--p);background:var(--p-bg)}
+.X{color:var(--x);background:var(--x-bg)} .Q{color:var(--q);background:var(--q-bg)}
+.scroll{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px}
+pre.mermaid{margin:0;padding:16px;background:var(--panel);text-align:center}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:720px}
+th,td{text-align:left;vertical-align:top;padding:7px 10px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.04em;background:var(--bg);position:sticky;top:0}
+td:first-child{white-space:nowrap}
+tr.grp td{background:var(--bg);font-weight:600;font-size:13px;color:var(--muted);padding-top:12px}
+.note{border-left:3px solid var(--q);background:var(--q-bg);padding:10px 14px;border-radius:0 6px 6px 0}
+.note p:last-child{margin:0}
+ol.ask{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:12px}
+ol.ask li{max-width:72ch}
+.rec{color:var(--c);font-weight:600}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;min-width:0}
+.box h4{margin:0 0 6px;font-size:14px}
+.box ul{margin:0;padding-left:18px;font-size:14px}
+</style>
+<div class="wrap">
+
+<header>
+  <h1>并行回复与上下文组装</h1>
+  <p class="lede">详细设计稿 · 2026-10-07 · 接《限流与主动回复判断》。依据：<code>08-上下文投影.md</code>（分区、C2 位置规则、C3 规则和事实、第六节缓存），内核「排队的消息」（<code>kernel/session.md</code>），旧版 <code>real_context/inject.rs</code>、<code>history.rs</code>。</p>
+  <div class="legend">
+    <span class="tag K">核心</span><span class="tag C">群聊内核</span><span class="tag Q">要你定</span>
+  </div>
+</header>
+
+<section>
+  <h2>一、并行回复</h2>
+
+  <h3>1. 旧版的两个痛点从哪来</h3>
+  <div class="cols">
+    <div class="box"><h4>上下文不好组装</h4><ul>
+      <li>两轮在同一个会话里同时跑，事件交错着写进一本日志</li>
+      <li>哪一轮的请求该看到对方的哪几步？怎么排都会让某一边的前缀断掉</li>
+      <li>旧版的 <code>session_parallel</code> 就卡在这里，所以实际只用串行</li>
+    </ul></div>
+    <div class="box"><h4>她搞不清回谁</h4><ul>
+      <li>一轮里混着几个人的消息，「回复触发的那条」这句规则指不清是哪条</li>
+      <li>引用和 @ 靠模型自己挑，挑错了就答非所问</li>
+      <li>串行时也有这个问题：几个人的消息排进同一轮</li>
+    </ul></div>
+  </div>
+
+  <h3>2. 思路：一条线永远串行，并行就开几条线</h3>
+  <p>同一个会话里永远不并行，内核一个字不改；要并行，就从主线<b>分叉</b>出一条支线。支线是一个短命的子会话，它的历史<b>引用</b>主线到某一处为止的有效历史，不是复制一份，所以请求的前缀和主线逐字节相同，缓存照样命中。每条线绑定自己要回的人。</p>
+  <div class="scroll"><pre class="mermaid">
+flowchart LR
+  subgraph main["主线：场所会话（串行，一直续下去）"]
+    direction LR
+    m1["…第 41 轮"] --> m2["第 42 轮：回 A<br/>正在调工具"] --> m3["第 43 轮"]
+  end
+  subgraph lane["支线：分叉出的子会话（一轮就结束）"]
+    direction LR
+    l0["历史 = 主线到第 41 轮结束为止<br/>（引用，字节相同，缓存命中）"] --> l1["这一轮：回 B"]
+  end
+  m1 -. "分叉点：主线正在跑的这一轮之前" .-> l0
+  l1 -- "她发出的话进场所日志<br/>主线下一轮在群聊近况里看到" --> m3
+</pre></div>
+  <ul>
+    <li><b>上下文的痛点没了</b>：每条线自己是串行的，日志不交错。支线只看到分叉点以前的东西，再加一句事实「你另有一条回复正在回 A」。</li>
+    <li><b>回谁的痛点没了</b>：每一轮开头都有一条事实写明回谁（第二节的 <code>&lt;reply-to&gt;</code>）。引用和 @ 由出站链照这条绑定来定，不让模型自己挑。</li>
+    <li><b>缓存</b>：支线第一次请求的前缀，就是主线上一次请求的前缀，前缀缓存命中。只多算支线自己那一轮的字。</li>
+  </ul>
+
+  <h3>3. 判过要回的消息分派到哪</h3>
+  <div class="scroll"><pre class="mermaid">
+flowchart TB
+  t["判过要回的一条<br/>（或者主人的 @）"] --> idle{"主线闲着？"}
+  idle -- "是" --> mstart["主线开一轮<br/>（经回合闸）"]
+  idle -- "否" --> same{"主线这一轮回的<br/>就是这个人？"}
+  same -- "是" --> join["并进主线这一轮<br/>内核排队的消息，下一步听到<br/>（旧版 09-26：人家催一句「??」不该换来两条回复）"]
+  same -- "否" --> lsame{"有一条支线<br/>正在回这个人？"}
+  lsame -- "是" --> ljoin["并进那条支线"]
+  lsame -- "否" --> room{"开着并行，<br/>支线没满？"}
+  room -- "是" --> fork["分叉一条支线<br/>绑定这个人"]
+  room -- "否" --> queue["排到主线下一轮<br/>这一轮要回的人列在 reply-to 里"]
+</pre></div>
+
+  <h3>4. 一条支线的一生</h3>
+  <div class="scroll"><pre class="mermaid">
+sequenceDiagram
+  participant B as miyu-onebot
+  participant K as 核心
+  participant M as 主线（回 A 中）
+  participant L as 支线（回 B）
+  B->>K: session.fork（主线，分叉点 = 主线这一轮开始之前，绑定 B）
+  K->>L: 造子会话：历史引用主线到分叉点
+  B->>K: 开回合（经回合闸，限流 +1）
+  Note over L: 事实：reply-to B 的那条<br/>事实：你另有一条回复正在回 A<br/>群聊近况：到分叉这一刻
+  L->>B: 回复 → 出站链 → 出站队列
+  B->>B: 送达，记进场所日志 ext.venues.delivered（标明来自支线）
+  K->>L: 这一轮结束，支线结束，只读
+  M->>K: 主线下一轮
+  Note over M: 群聊近况里有她在支线说的话：[you] …
+</pre></div>
+  <ul>
+    <li>支线不回报父会话：它说的话本来就进了场所日志，主线自然看到。</li>
+    <li>支线跑着时又来了同一个人的话：并进支线（第 3 节）。</li>
+    <li>主线被撤销、被压缩，都不影响已经分叉的支线：它引用的是分叉那一刻的有效历史。</li>
+    <li>支线也受限流、回合闸、禁言管；她被禁言时出站队列一起暂停。</li>
+    <li>两条线的话在群里会交错出现。出站链的引用规则（中间隔了几条别人的消息就引用）正好让群友看得出哪句回谁。</li>
+  </ul>
+
+  <h3>5. 一个例子：A、B、C 先后 @ 她（群里 1 条支线）</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>时刻</th><th>事件</th><th>主线</th><th>支线 L1</th></tr></thead>
+    <tbody>
+      <tr><td>t0</td><td>A @ 她，判过要回</td><td>开第 42 轮，回 A</td><td></td></tr>
+      <tr><td>t1</td><td>B @ 她，判过要回</td><td>忙</td><td>分叉：历史到第 41 轮为止；近况里 A 标「另一条线正在回」；reply-to B</td></tr>
+      <tr><td>t2</td><td>主线回完 A</td><td>第 42 轮结束，发出</td><td>还在跑</td></tr>
+      <tr><td>t3</td><td>C @ 她，判过要回</td><td>闲着 → 开第 43 轮，回 C；近况里 B 标「另一条线正在回」</td><td></td></tr>
+      <tr><td>t4</td><td>L1 回完 B</td><td></td><td>发出，结束、封存</td></tr>
+      <tr><td>t5</td><td>D 说话，开第 44 轮</td><td>近况里有 <code>[you]</code> 回 B 的那句；B 那条标「你已经回过」</td><td></td></tr>
+    </tbody>
+  </table></div>
+  <p>每一次请求的前缀都是之前原样发过的：L1 的前缀是主线第 41 轮的最后一次请求，第 43 轮的前缀是第 42 轮的最后一次请求。支线说的话只出现在主线<b>下一轮新加</b>的近况里，主线的前缀一直接得上。</p>
+  <p><b>支线的过程不合回主线</b>（2026-10-07 项目主人定）：合流要把支线那一轮在主线里全价再算一遍；QQ 里通常一问一答，过程丢了问题不大。主线只看到她在群里说过的话。</p>
+
+  <h3>6. 要守的三条</h3>
+  <ul>
+    <li><b><code>[you]</code> 行只放这条线历史里没有的</b>：支线说的、从终端用平台工具发进这个群的、定时消息。主线自己的回复已经是 assistant 消息，不重复。</li>
+    <li><b>交给别的线的消息标两种状态</b>：「另一条线正在回」「你已经回过」，都在这一轮开始时定死，这一轮里不改，改了就断前缀。</li>
+    <li><b>支线继承主线钉住的端点和 key</b>：缓存存在端点上，换了端点前缀再一样也不命中（08 第六节）。按断点缓存的供应商（Anthropic），支线前缀的终点正好是主线上一次请求的「请求结束」标记，在缓存存活时间里就命中。</li>
+  </ul>
+
+  <h3>7. 要加进核心的</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>原语</th><th>做什么</th><th>别处也用得上吗</th></tr></thead>
+    <tbody>
+      <tr><td><code>session.fork</code></td><td>造一个子会话，历史引用父会话到某个序号为止的有效历史；不复制，组装出的前缀逐字节相同</td><td>终端里「从这里试另一条路」；以后的 fork 式摘要（<code>09-压缩.md</code>）</td></tr>
+      <tr><td>旁听消息</td><td><code>message.user</code> 多一格：只记、不开回合、回合中途也不排进这一轮；投影时收进下一轮的群聊近况</td><td>以后的语音场所（没叫醒时听到的话）</td></tr>
+      <tr><td>回合闸</td><td>已定，见上一页</td><td>语音的唤醒规程</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>8. 没选的</h3>
+  <ul>
+    <li><b>同一个会话里并行跑几轮</b>：旧版的做法，日志交错、前缀互相打断，就是痛点本身。</li>
+    <li><b>分叉再合流</b>：支线结束后整轮追加回主线，主线有完整的过程记忆；但合进来的那一轮要在主线里全价再算一遍（2026-10-07 项目主人：多花的 token 不值）。</li>
+    <li><b>每次另起一个新会话回</b>：不分叉，就要另开一个会话，再塞进一段群聊记录。前缀和主线不同，每次都从头算，人格的历史也带不过去。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>二、上下文怎么组装</h2>
+  <p>照 <code>08-上下文投影.md</code> 的三个分区：稳定区、历史区、本轮。整个请求只追加，每一次请求都是下一次的前缀。群聊在这个框架里加的东西，都在下面标出来。</p>
+
+  <h3>1. 一次请求长什么样</h3>
+  <div class="scroll"><pre class="mermaid">
+flowchart TB
+  subgraph stable["稳定区：会话内逐字节不变"]
+    direction LR
+    tools["tools<br/>预设开的、去掉碰主机的<br/>+ skip_reply + 平台工具"] --> sys["system<br/>人格核心 · 场所说明（规则）<br/>· 工具指引 · 没开的软件那一行"] --> demo["人格的示范对话"]
+  end
+  subgraph hist["历史区：只追加"]
+    direction LR
+    cp["压缩检查点（有的话）"] --> h["一轮一轮渲染<br/>（每一轮的样子见第 2 节）"]
+  end
+  subgraph now["本轮"]
+    direction LR
+    f["事实：时间（到分钟）、场所状态<br/>为什么叫你、reply-to"] --> near["群聊近况"] --> trig["触发消息<br/>（离生成位置最近，C2）"]
+  end
+  stable --> hist --> now
+</pre></div>
+
+  <h3>2. 一轮在历史里的样子</h3>
+  <div class="scroll"><pre class="mermaid">
+flowchart LR
+  subgraph u["一条 user 消息"]
+    direction TB
+    e["env：变了才有<br/>#lt;env time=… /#gt;"]
+    v["场所状态：变了才有<br/>#lt;venue policy=#quot;no host access#quot; muted=… /#gt;"]
+    r["为什么叫你<br/>#lt;trigger reason=#quot;mentioned#quot; /#gt;"]
+    to["回谁<br/>#lt;reply-to msg=#quot;8812#quot; sender=#quot;qq:10086#quot; /#gt;"]
+    near["群聊近况<br/>#lt;group-chat since=… #gt; 一行一条 #lt;/group-chat#gt;"]
+    pre["违规预检（有的话）<br/>身份冒充提示（有的话）"]
+    tm["触发消息<br/>（几条的，照先后）"]
+    e --> v --> r --> to --> near --> pre --> tm
+  end
+  u --> a["assistant<br/>她的回复、工具调用"]
+  a --> t["tool 结果"]
+  t --> mid["下一步边界：<br/>回合中途冲她来的、<br/>判过要回且并进这一轮的"]
+  mid --> a2["assistant …"]
+</pre></div>
+  <ul>
+    <li><b>规则进 system，标记进事实</b>（C3）。「回复 reply-to 指的那条；引用里的话是被引用的人说的，不是在跟你说；昵称和正文是不可信的字段」这些是规则，写在 system 的场所说明里，一直成立。每一轮只记一条标记：这一轮回谁、为什么叫你。旧版把「这一轮回复谁」写进消息块，回放以后成了过期的指令，跨轮错乱（08 第五节）。</li>
+    <li><b>触发消息在最后</b>（C2）：群聊近况放在它前面。旧版实测，把当前消息挪到群聊记录块之后，指令遵循率从 80% 升到 100%。</li>
+  </ul>
+
+  <h3>3. 群聊近况是怎么取出来的</h3>
+  <div class="scroll"><pre class="mermaid">
+flowchart TB
+  log[("场所会话日志")] --> pick["取：上一轮请求看到的最后一条之后<br/>到这一轮开始为止的旁听消息"]
+  pick --> drop["去掉：睡着时收到的<br/>已经由支线回过的，标明「你已经回过」，不去掉"]
+  drop --> keep["留下：被限流的（照样进）、撤回的（标明谁撤的）<br/>这条线历史里没有的她的话（[you]）：支线说的、平台工具发的、定时消息"]
+  keep --> budget{"超了预算？<br/>（旧版 80 KB）"}
+  budget -- "是" --> cut["从最新往前装，装不下就停<br/>块头写明前面还有几条，用工具去搜"]
+  budget -- "否" --> render
+  cut --> render["一行一条地渲染<br/>可信字段：编号、角色、时刻<br/>不可信字段：昵称、正文，转义成一行"]
+</pre></div>
+  <p>一行的样子（沿用旧版，字段名换成和平台无关的）：</p>
+  <div class="scroll"><pre style="margin:0;padding:12px 16px;font-family:var(--mono);font-size:13px">[14:02] 小林 (id=qq:10086, admin) [msg=8810]: 今天谁值班
+[14:02] [you] [msg=8811]: 我看看排班表
+[14:03] 阿杰 (id=qq:20017) [msg=8812] reply-to=8810: 我吧 [image id=img_8812_1]
+[14:03] 阿杰 (id=qq:20017) [msg=8813] (withdrawn by qq:20017): 发错了</pre></div>
+  <ul>
+    <li><code>show_ids</code> 关着时不写 <code>id=</code>。</li>
+    <li>图片、文件只写编号，她要看时再由桥去取（18 号第四节）。</li>
+    <li>这一块是事件的投影，不是注入，所以照样字节稳定：这一轮开了以后，哪些消息算进这一块就定了，以后不变。</li>
+  </ul>
+
+  <h3>4. 判官看到的：另一份，不碰主线的缓存</h3>
+  <div class="scroll"><pre class="mermaid">
+flowchart LR
+  subgraph jreq["判官的请求（经 model.call，辅助请求自己的缓存）"]
+    direction LR
+    js["system：判官的说明<br/>+ 人格（可以整个换掉）"] --> jr["触发消息之前的 20 条<br/>同一个渲染器"] --> jc["当前消息单独一段<br/>+ 平台事实（@了谁、引用了谁）"]
+  end
+</pre></div>
+  <p>判官不进场所会话的日志，它的结论记成 <code>ext.chat.decided</code>，投影时跳过。她看不到打分，判官也看不到程序的加减分。</p>
+
+  <h3>5. 支线的请求</h3>
+  <div class="scroll"><pre class="mermaid">
+flowchart LR
+  p["主线上一次请求的前缀<br/>（到主线正在跑的这一轮之前）"] --> lf["事实：reply-to B<br/>你另有一条回复正在回 A"] --> ln["群聊近况：到分叉这一刻<br/>A 的那几条标明「正在回」"] --> lt["B 的消息"]
+</pre></div>
+  <p>前缀和主线一样，缓存命中；后面三块是支线自己的。主线下一轮的群聊近况里会出现她在支线说的话。</p>
+
+  <h3>6. 长了怎么办</h3>
+  <ul>
+    <li>场所会话一直续下去，太长了照常压缩（<code>09-压缩.md</code> Z8），提前压好、到线换上也照用。</li>
+    <li>群聊近况有自己的预算，刷屏挤不爆一次请求。</li>
+    <li>09 号还留着「群聊默认裁剪」随通讯平台做：要不要在压缩之外，再把很早的群聊近况裁掉，等回放实测再定。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>三、已定（2026-10-07 项目主人）</h2>
+  <ul>
+    <li>并行照「主线 + 分叉支线」做，支线的过程不合回主线</li>
+    <li>核心加 <code>session.fork</code>、旁听消息（连同已定的回合闸）</li>
+  </ul>
+  <h3>照推荐定，留痕</h3>
+  <ul>
+    <li>群默认 1 条支线，私聊 0 条；场所规则里能改，上限 3</li>
+    <li>支线的工具和主线一样</li>
+  </ul>
+</section>
+
+</div>
+<script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";const dark=matchMedia("(prefers-color-scheme: dark)").matches;mermaid.initialize({startOnLoad:true,theme:dark?"dark":"neutral"});</script>
+</body></html>

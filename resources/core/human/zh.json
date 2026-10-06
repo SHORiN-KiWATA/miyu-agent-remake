@@ -123,11 +123,13 @@
       },
       "providers.<id>.models.<model>.inputs": {
         "name": "能收哪些输入",
-        "description": "这个模型能读的：文字、图片、PDF。",
+        "description": "这个模型能读的：文字、图片、PDF、音频、视频。",
         "options": {
           "text": "文字",
           "image": "图片",
-          "pdf": "PDF"
+          "pdf": "PDF",
+          "audio": "音频",
+          "video": "视频"
         }
       },
       "providers.<id>.models.<model>.tools": {
