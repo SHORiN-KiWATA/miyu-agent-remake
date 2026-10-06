@@ -97,6 +97,8 @@ pub struct Settings {
     pub standalone: bool,
     /// 在主菜单上。
     pub on_menu: bool,
+    /// 照 `/connect` 直接进的「供应商和模型」：`Esc` 从这一页直接回对话，不经过主菜单。
+    direct: bool,
     /// 读来的；还没读到的是 `None`。
     pub data: Option<Data>,
     /// 读来的叠上草稿（界面看的）。
@@ -137,6 +139,14 @@ impl Settings {
             ..Self::default()
         };
         page.reload();
+        page
+    }
+
+    /// `/connect`：直接停在「供应商和模型」的供应商页（2026-10-07 项目主人要）。
+    pub fn connect(online: bool) -> Self {
+        let mut page = Self::open(false, online);
+        page.on_menu = false;
+        page.direct = true;
         page
     }
 
@@ -455,7 +465,7 @@ impl Settings {
     /// 回主菜单；在主菜单上的回对话（照 `--page config` 起来的退出程序）。
     fn back(&mut self) -> Outcome {
         self.popup = None;
-        if self.on_menu {
+        if self.on_menu || self.direct {
             return if self.standalone {
                 Outcome::Quit
             } else {

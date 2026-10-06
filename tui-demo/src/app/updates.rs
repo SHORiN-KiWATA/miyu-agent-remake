@@ -12,6 +12,10 @@ impl App {
         if self.settings_update(&update) {
             return;
         }
+        // 确认、提问归抽屉；工具有了结果的收起它的抽屉（`asking.rs`）。
+        if self.asking_update(&update) {
+            return;
+        }
         // 命令的输出：记进任务表，不经正文（`output.rs`）。
         if let Update::Output {
             session,

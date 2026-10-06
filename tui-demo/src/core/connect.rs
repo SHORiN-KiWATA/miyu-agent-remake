@@ -38,13 +38,13 @@ pub(super) async fn connect() -> Result<Rpc, Update> {
     };
     let (connection, token) = connected?;
     let mut rpc = Rpc::new(connection);
-    // 还没有确认的抽屉，先说没人能当场回答：要确认的那一步，核心当场拒绝，不会一直等着。
+    // 有确认、提问的抽屉：说这一头有人能当场回答（核心 D-1，`session.answer`）。
     let hello = json!({
         "protocol": [1, 1],
         "head": {"kind": "tui", "version": env!("CARGO_PKG_VERSION")},
         // 系统的语言（核心 8-2：`ui.language` 是 `auto` 时核心照它说话），照 `miyu_store::env::locale`，和命令行认的一样。
         "locale": miyu_store::env::locale().unwrap_or_default(),
-        "caps": {"input": false},
+        "caps": {"input": true},
         "token": token,
     });
     rpc.call("hello", hello).await.map_err(refused)?;

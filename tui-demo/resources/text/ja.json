@@ -235,6 +235,7 @@
     "now": "たった今",
     "minutes": "{n} 分前",
     "hours": "{n} 時間前",
+    "days": "{n} 日前",
     "none": "送信履歴がありません"
   },
   "help": {
@@ -380,6 +381,7 @@
   },
   "drawer": {
     "asking": "{who}が質問しています",
+    "agent": "サブエージェント {name}",
     "answered_tab": " ✓",
     "review_tab": "確認",
     "pointer": "› ",
@@ -391,11 +393,11 @@
     "decisions": [
       "今回だけ許可",
       "このセッションでは常に許可",
-      "このワークスペースでは常に許可",
       "許可しない"
     ],
     "reason_hint": "理由を入力（任意）",
     "access": {
+      "execute": "コマンドを実行します",
       "write": "{count} 個のファイルへの書き込みを求めています",
       "read": "{count} 個のファイルの読み込みを求めています",
       "exec": "{tool} の実行を求めています"
@@ -536,7 +538,9 @@
       "text": "テキスト",
       "image": "画像",
       "pdf": "PDF",
-      "effort_default": "既定"
+      "effort_default": "既定",
+      "audio": "音声",
+      "video": "動画"
     },
     "fields": {
       "id": "ID",
@@ -725,15 +729,15 @@
       [
         [
           "j/k",
-          "move"
+          "移動"
         ],
         [
           "Enter",
-          "open"
+          "開く"
         ],
         [
-          "Esc",
-          "back"
+          "q/Esc",
+          "戻る"
         ]
       ],
       [
@@ -816,7 +820,7 @@
           "ページ"
         ],
         [
-          "Esc",
+          "q/Esc",
           "戻る"
         ]
       ],

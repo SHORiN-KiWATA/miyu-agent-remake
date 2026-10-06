@@ -147,3 +147,15 @@ fn pool_members_keep_the_order_they_were_ticked_and_gone_members_come_first() {
         ]))
     );
 }
+
+#[test]
+fn inputs_offer_audio_and_video_too() {
+    // 2026-10-07 项目主人要；核心 8-27 起配置收这五种，先后照核心的。
+    let data = sample();
+    let form = model(&data, &data, &Draft::default(), "dev", Some("flash"));
+    let row = form.rows.iter().find(|r| r.field == Field::Inputs).unwrap();
+    let Val::Multi { options, .. } = &row.val else {
+        panic!("多选");
+    };
+    assert_eq!(options, &["text", "image", "pdf", "audio", "video"]);
+}

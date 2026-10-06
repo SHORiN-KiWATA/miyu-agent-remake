@@ -242,6 +242,7 @@ impl Transcript {
             | Update::BlobSaved { .. }
             | Update::Mermaid { .. }
             | Update::Answer { .. }
+            | Update::AnswerRefused { .. }
             | Update::ConfigChanged => {}
             Update::Failed(reason) => {
                 self.link = Link::Down(texts.core_failed.replace("{reason}", &reason));
@@ -395,6 +396,8 @@ impl Transcript {
             // 回顾这类辅助请求：只算进累计用量（蓝图「回顾」第 5 条）。
             Push::AuxUsage(usage) => self.total.aux += usage.input() + usage.output,
             Push::Recapped(text) => self.recap(&text, texts),
+            // 确认、提问归抽屉（`app/asking.rs`）：正文里的结果由那边写。
+            Push::Asking(_) => {}
             Push::Speed { output, ms } => {
                 self.speed = Some(output as f64 * 1000.0 / ms as f64);
             }

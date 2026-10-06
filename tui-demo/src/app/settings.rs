@@ -19,6 +19,13 @@ impl App {
         self.send_settings_asks();
     }
 
+    /// `/connect`：直接进「供应商和模型」。
+    pub(super) fn open_connect(&mut self) {
+        let online = matches!(self.transcript.link, Link::Ready);
+        self.settings = Some(Settings::connect(online));
+        self.send_settings_asks();
+    }
+
     /// 配置页攒着的请求发出去。
     fn send_settings_asks(&mut self) {
         let Some(page) = self.settings.as_mut() else {

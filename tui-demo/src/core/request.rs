@@ -23,6 +23,16 @@ pub(super) fn request(
             )
         }
         Command::Revert => ("session.revert", json!({"session": session})),
+        // 回答的是问的那个会话：子会话的带着它的编号，不管现在看的是哪个（「确认和提问的抽屉」第 8 条）。
+        Command::Answer {
+            session: asker,
+            call,
+            mut body,
+        } => {
+            body["session"] = json!(asker.as_deref().unwrap_or(session));
+            body["call"] = json!(call);
+            ("session.answer", body)
+        }
         Command::Unrevert => ("session.unrevert", json!({"session": session})),
         Command::Compact(words) => {
             let mut params = json!({"session": session});

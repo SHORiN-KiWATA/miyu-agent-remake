@@ -9,6 +9,7 @@ mod mouse;
 mod pasted;
 mod place;
 mod recall;
+mod saved;
 mod wrap;
 
 #[cfg(test)]
@@ -23,7 +24,8 @@ use ratatui::layout::{Position, Rect};
 pub use attach::{AttachKind, AttachRule, Attachment};
 use dropped::Dropped;
 pub use editor::Editor;
-pub use pasted::{Draft, PasteRule, Sent};
+pub use pasted::{Block, Draft, PasteRule, Sent};
+pub use saved::Saved;
 pub use wrap::{VisualLine, locate, offset_at, pieces, tail_pieces, wrap, wrap_words};
 
 /// 输入框处理完一个事件后，要外面做的事。
@@ -68,6 +70,8 @@ pub struct InputBox {
     stash: Option<Draft>,
     /// 发过的话和命令，从旧到新，连同粘贴块和发出去的时刻：翻历史、历史列表用。
     history: Vec<Sent>,
+    /// 输入历史记在哪个文件（`saved.rs`）。
+    saved: Saved,
     /// 正在翻历史，翻到第几条；没在翻是 `None`。
     browsing: Option<usize>,
     /// 开始翻历史之前没发的那句：翻过最新一条回到它。
@@ -106,6 +110,7 @@ impl InputBox {
             area: Rect::default(),
             stash: None,
             history: Vec::new(),
+            saved: Saved::default(),
             browsing: None,
             draft: Draft::default(),
             follow: false,
@@ -381,11 +386,22 @@ impl InputBox {
     /// 记下一句发出去的话或命令，连同粘贴块，翻历史用。和上一条一样的不重复记。
     pub fn remember(&mut self, sent: Draft) {
         if self.history.last().is_none_or(|last| last.draft != sent) {
-            self.history.push(Sent {
+            let sent = Sent {
                 draft: sent,
-                at: Instant::now(),
-            });
+                at: saved::now(),
+            };
+            // 记进文件：重启以后、别的会话里都翻得到（「输入历史列表」第 8 条）。
+            self.saved.append(&sent);
+            self.history.push(sent);
         }
+    }
+
+    /// 输入历史记在这个文件里：读回最近的 `keep` 条，以后发的接着记（「输入历史列表」第 8 条）。
+    pub fn keep_history(&mut self, saved: Saved, keep: usize) {
+        let mut earlier = saved.load(keep);
+        earlier.append(&mut self.history);
+        self.history = earlier;
+        self.saved = saved;
     }
 
     fn line_edge(&mut self, end: bool, extend: bool) {

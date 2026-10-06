@@ -111,6 +111,8 @@ pub struct Layout {
     pub tick_mark: String,
     /// 输入历史列表里 Tab 展开的那一条最多几行（`tui.md`「输入历史列表」第 7 条）。
     pub history_preview_rows: usize,
+    /// 输入历史文件里留最近几条（「输入历史列表」第 8 条）。
+    pub history_keep: usize,
     /// 正文里用户说的话前面那根竖线，连同它后面的空格。
     pub user_bar: String,
     /// 回顾前面的记号，连同它后面的空格（`tui.md`「回顾」第 2 条）。

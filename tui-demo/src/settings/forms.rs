@@ -325,7 +325,8 @@ pub fn model(view: &Data, data: &Data, draft: &Draft, provider: &str, model: Opt
     let text_of = |item: &str| written(item).map(|v| plain(&v)).unwrap_or_default();
     let fact = |name: &str| Some(plain(m.fact(name))).filter(|s| !s.is_empty());
     let from = |name: &str| Some(m.from(name));
-    let inputs = ["text", "image", "pdf"];
+    // 先后照核心配置项的选项（8-27 起多了音频、视频；驱动现在只真发图、PDF）。
+    let inputs = ["text", "image", "pdf", "audio", "video"];
     let on = written("inputs").map(|v| {
         let have: Vec<String> = v
             .as_array()
@@ -355,7 +356,11 @@ pub fn model(view: &Data, data: &Data, draft: &Draft, provider: &str, model: Opt
             Field::Inputs,
             Val::Multi {
                 options: inputs.iter().map(|i| i.to_string()).collect(),
-                on: on.or_else(|| model.is_none().then(|| vec![true, false, false])),
+                on: on.or_else(|| {
+                    model
+                        .is_none()
+                        .then(|| vec![true, false, false, false, false])
+                }),
             },
         )
         .inherit(Some(m.inputs().join(",")), from("inputs")),

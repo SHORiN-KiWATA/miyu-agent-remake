@@ -28,6 +28,8 @@ impl App {
             }
             _ => return,
         };
+        let mut drawer = drawer;
+        drawer.demo = true;
         let was_open = self.drawers.open();
         self.drawers.push(drawer);
         // 新开的抽屉：弹「在等你」（「系统通知」第 1 条）；前一个还没了结的排着，轮到它时再弹。
@@ -110,17 +112,33 @@ impl App {
         }
     }
 
-    /// 了结：正文末尾留下结果，提问答了是引用块，不允许、取消是一行，允许了什么都不留（第 6 条）；取消的在回答时
-    /// 顺带打断这一轮（第 5 条）。回答照 `question.answered`、`tool.approval_decided` 的形状，演示里不发给核心
-    /// （`session.answer` 在 M8）。
+    /// 了结：交了的经 `session.answer` 交给问的那个会话，正文的结果等核心推来回答再写（`asking.rs`）；演示的、取消的
+    /// 当场写：提问答了是引用块，不允许、取消是一行，允许了什么都不留（第 6 条）；取消的在回答时顺带打断这一轮（第 5 条）。
     fn settle_drawer(&mut self, outcome: &Outcome) {
         let Some(drawer) = self.drawers.finish() else {
             return;
         };
-        match drawer.report(outcome, &self.config.text.drawer) {
-            Report::Block(lines) => self.transcript.note(Kind::Answered, lines.join("\n")),
-            Report::Line(mark, text) => self.transcript.job(job_mark(mark), text, String::new()),
-            Report::Nothing => {}
+        let answered = match outcome {
+            Outcome::Answered(a) => Some(serde_json::json!({"answers": a.answers})),
+            Outcome::Decided(d) => {
+                Some(serde_json::json!({"decision": d.decision, "reason": d.reason}))
+            }
+            Outcome::Cancelled => None,
+        };
+        match answered.filter(|_| !drawer.demo) {
+            Some(mut body) => {
+                if body["reason"].is_null()
+                    && let Some(fields) = body.as_object_mut()
+                {
+                    fields.remove("reason");
+                }
+                self.core.send(Command::Answer {
+                    session: drawer.session.clone(),
+                    call: drawer.call_id.clone(),
+                    body,
+                });
+            }
+            None => self.write_report(&drawer, outcome),
         }
         if *outcome == Outcome::Cancelled && self.transcript.running.is_some() {
             self.core.send(Command::Interrupt { send: true });
@@ -130,6 +148,17 @@ impl App {
             self.notify_drawer();
         } else {
             self.settle_state();
+        }
+    }
+}
+
+impl App {
+    /// 正文末尾写一问的结果（第 6 条）。
+    pub(super) fn write_report(&mut self, drawer: &crate::drawer::Drawer, outcome: &Outcome) {
+        match drawer.report(outcome, &self.config.text.drawer) {
+            Report::Block(lines) => self.transcript.note(Kind::Answered, lines.join("\n")),
+            Report::Line(mark, text) => self.transcript.job(job_mark(mark), text, String::new()),
+            Report::Nothing => {}
         }
     }
 }

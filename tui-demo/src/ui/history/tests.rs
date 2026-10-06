@@ -1,7 +1,7 @@
 //! 输入历史列表排成的行（蓝图 `tui.md`「输入历史列表」）：和命令列表、后台面板一个框，每条右边写多久以前，
 //! 命令名、好几行的、粘贴块、搜到的字各有记号。
 
-use std::time::{Duration, Instant};
+use std::time::{Duration, SystemTime};
 
 use ratatui::layout::Rect;
 use ratatui::style::Modifier;
@@ -12,7 +12,7 @@ use crate::history::History;
 use crate::input::{Draft, Sent};
 use crate::theme;
 
-fn sent(text: &str, ago: u64, now: Instant) -> Sent {
+fn sent(text: &str, ago: u64, now: SystemTime) -> Sent {
     Sent {
         draft: Draft::plain(text),
         at: now - Duration::from_secs(ago),
@@ -34,7 +34,7 @@ fn title(chrome: &crate::ui::panel::Chrome) -> String {
 fn it_looks_like_the_background_panel_and_clicks_find_their_entry() {
     let _theme = theme::hold();
     let config = Config::builtin().unwrap();
-    let now = Instant::now();
+    let now = SystemTime::now();
     let list = [
         sent("新的", 10, now),
         sent("中间", 300, now),
@@ -73,7 +73,7 @@ fn it_looks_like_the_background_panel_and_clicks_find_their_entry() {
 fn commands_lines_pastes_and_hits_are_marked() {
     let _theme = theme::hold();
     let config = Config::builtin().unwrap();
-    let now = Instant::now();
+    let now = SystemTime::now();
     let label = "[已粘贴 18 行]";
     let pasted = Sent {
         draft: Draft::from_pasted(
@@ -129,7 +129,7 @@ fn commands_lines_pastes_and_hits_are_marked() {
 #[test]
 fn a_long_entry_is_clipped_and_keeps_its_time() {
     let config = Config::builtin().unwrap();
-    let now = Instant::now();
+    let now = SystemTime::now();
     let long: String = "很长的一句话".repeat(10);
     let list = [sent(&long, 0, now)];
     let found: Vec<&Sent> = list.iter().collect();
@@ -146,7 +146,7 @@ fn nothing_found_says_so() {
         query: "xyz".into(),
         ..History::default()
     };
-    let (chrome, rows) = lines(&history, &[], 40, &config, Instant::now(), usize::MAX);
+    let (chrome, rows) = lines(&history, &[], 40, &config, SystemTime::now(), usize::MAX);
     assert_eq!(title(&chrome), "历史  0 条 · 搜索：xyz");
     assert_eq!(plain(&rows), [format!("  {}", config.text.history.empty)]);
 }
@@ -154,7 +154,7 @@ fn nothing_found_says_so() {
 #[test]
 fn tab_shows_the_selected_one_in_full_and_caps_long_ones() {
     let config = Config::builtin().unwrap();
-    let now = Instant::now();
+    let now = SystemTime::now();
     let list = [sent("第一行\n第二行", 0, now), sent("早的", 0, now)];
     let mut history = History::default();
     history.toggle_full(list[0].at);
@@ -184,7 +184,7 @@ fn an_expanded_entry_stays_open_and_others_do_not_follow() {
     // 2026-09-29 项目主人：展开的那一条光标移走不收起，移到别的条上也不跟着展开。
     let _theme = theme::hold();
     let config = Config::builtin().unwrap();
-    let now = Instant::now();
+    let now = SystemTime::now();
     let list = [
         sent("第一行\n第二行", 0, now),
         sent("甲\n乙", 60, now),

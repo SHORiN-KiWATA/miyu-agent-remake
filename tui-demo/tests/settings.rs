@@ -172,3 +172,46 @@ fn a_new_provider_keeps_its_key_in_the_secret_store_and_an_added_model_can_be_de
         tui.pump(Duration::from_millis(100));
     }
 }
+
+#[test]
+fn audio_can_be_ticked_and_the_core_takes_it() {
+    // 2026-10-07 项目主人要；核心 8-27 起收。
+    let home = Home::with_settings(Script::new([Play::Says("好。")]), RELAY);
+    let mut tui = home.tui_args("zh_CN.UTF-8", &["config"]);
+    tui.wait_for("供应商、默认模型、模型池");
+    tui.key(b"\r");
+    tui.wait_for("cline");
+    tui.key(b"l");
+    tui.key(b"l");
+    tui.key(b"\r");
+    tui.wait_for("音频");
+    // 停在「支持输入」：往右三下到音频，勾上，存。
+    for _ in 0..3 {
+        tui.key(b"\x1b[C");
+    }
+    tui.key(b" ");
+    tui.key(b"s");
+    wait_settings(&home, &mut tui, "\"audio\"");
+}
+
+#[test]
+fn slash_connect_goes_straight_to_providers_and_back_to_the_chat() {
+    // 2026-10-07 项目主人：/connect 直接进供应商和模型。
+    let home = Home::with_settings(Script::new([Play::Says("好。")]), RELAY);
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("/connect");
+    tui.wait_for("组织");
+    assert!(
+        !tui.lines()
+            .iter()
+            .any(|l| l.contains("供应商、默认模型、模型池")),
+        "不经过主菜单"
+    );
+    tui.key(b"\x1b");
+    tui.wait_for("工作区");
+    assert!(
+        !tui.lines().iter().any(|l| l.contains("组织")),
+        "直接回对话"
+    );
+}

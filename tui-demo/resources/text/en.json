@@ -235,6 +235,7 @@
     "now": "just now",
     "minutes": "{n} min ago",
     "hours": "{n} h ago",
+    "days": "{n}d ago",
     "none": "Nothing sent yet"
   },
   "help": {
@@ -380,6 +381,7 @@
   },
   "drawer": {
     "asking": "{who} is asking",
+    "agent": "Subagent {name}",
     "answered_tab": " ✓",
     "review_tab": "Review",
     "pointer": "› ",
@@ -391,11 +393,11 @@
     "decisions": [
       "Allow once",
       "Allow for this session",
-      "Allow for this workspace",
       "Don't allow"
     ],
     "reason_hint": "Add a reason (optional)",
     "access": {
+      "execute": "Run a command",
       "write": "Wants to write {count} file(s)",
       "read": "Wants to read {count} file(s)",
       "exec": "Wants to run {tool}"
@@ -536,7 +538,9 @@
       "text": "Text",
       "image": "Image",
       "pdf": "PDF",
-      "effort_default": "Default"
+      "effort_default": "Default",
+      "audio": "Audio",
+      "video": "Video"
     },
     "fields": {
       "id": "ID",
@@ -732,7 +736,7 @@
           "open"
         ],
         [
-          "Esc",
+          "q/Esc",
           "back"
         ]
       ],
@@ -816,7 +820,7 @@
           "page"
         ],
         [
-          "Esc",
+          "q/Esc",
           "back"
         ]
       ],

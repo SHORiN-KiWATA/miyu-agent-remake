@@ -339,7 +339,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
             &found,
             width,
             &app.config,
-            now,
+            std::time::SystemTime::now(),
             usize::from(inner),
         )
     } else {

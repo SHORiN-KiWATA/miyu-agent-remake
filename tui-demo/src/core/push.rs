@@ -9,7 +9,10 @@ use miyu_kernel::event::Said;
 use super::Limits;
 use super::kinds::{EndReason, Level, ToolStatus};
 
+mod asking;
 mod jobs;
+
+pub use asking::Asking;
 
 pub use jobs::{JobEnd, JobReason, JobStart, Said as Foreign, Sender};
 
@@ -182,6 +185,8 @@ pub enum Push {
         /// 给人看的结果那一句（`human`）：哪一句、换进去的字段；头照资源里的字换。
         said: Option<Said>,
     },
+    /// 确认、提问（核心 D-1、D-2）：开、收抽屉，写结果。
+    Asking(Asking),
     /// 一次请求的用量（`model.called` 的 `usage`，供应商没报的没有这一条）。
     Usage(Usage),
     /// 辅助请求（回顾这类，`model.called` 带 `purpose`）的用量：算进累计，不算上下文、缓存、速度（蓝图「回顾」第 5 条）。
@@ -374,6 +379,10 @@ pub fn read(event: &Value, mine: &dyn Fn(&str) -> bool) -> Vec<Push> {
                 .collect();
             out.push(Push::Calls(calls));
         }
+        kind @ ("question.asked"
+        | "tool.approval_requested"
+        | "question.answered"
+        | "tool.approval_decided") => out.extend(Asking::read(kind, body).map(Push::Asking)),
         "tool.result" => {
             jobs::effects(body, &mut out);
             out.push(Push::ToolResult {

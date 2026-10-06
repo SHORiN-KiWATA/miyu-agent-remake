@@ -165,6 +165,18 @@ impl Transcript {
         (took, self.failure.take())
     }
 
+    /// 一次工具调用的参数（收齐以后读成的值）：确认的抽屉照它写命令的短标题、原文（「确认和提问的抽屉」第 3 条）。
+    pub fn tool_args(&self, call_id: &str) -> Option<&serde_json::Value> {
+        let segments = self.entries.iter().filter_map(|e| e.segment.as_ref());
+        segments
+            .flat_map(|s| s.steps.iter())
+            .find(|step| step.call_id.as_deref() == Some(call_id))
+            .and_then(|step| match &step.kind {
+                StepKind::Tool { parsed, .. } => Some(parsed),
+                StepKind::Thought { .. } => None,
+            })
+    }
+
     /// 这一轮结束了还没有结果的步骤（被打断的）：停表、不再转圈。
     pub(super) fn settle_leftovers(&mut self) {
         let now = self.clock.now();

@@ -59,6 +59,7 @@
   "session_title_width": 36,
   "tick_mark": "✓ ",
   "history_preview_rows": 12,
+  "history_keep": 1000,
   "level_icons": {
     "workspace": "▣ ",
     "full": "⏵⏵ ",

@@ -1,4 +1,4 @@
-//! 核心推来的提问、确认，和作答交回去的形状（`docs/designs/samples/events/` 的 `question.asked`、
+//! 核心推来的提问、确认，和作答交回去的形状（核心 D-1 `session.answer`、D-2 `ask_user`）（`docs/designs/samples/events/` 的 `question.asked`、
 //! `tool.approval_requested`、`question.answered`、`tool.approval_decided`）。
 //!
 //! 读的时候不拒认不得的字段：核心加了字段，头照旧能读。
@@ -50,6 +50,9 @@ pub struct Approval {
     pub call_id: String,
     /// 要什么权限：`write`、`read`、`exec` 这类。
     pub access: String,
+    /// 提的放行规则：有的才能选「这个会话都允许」（核心 D-1：没有的选了回 `no_rule`）。
+    #[serde(default)]
+    pub rule: Option<serde_json::Value>,
     /// 碰到哪些东西。
     #[serde(default)]
     pub detail: Option<Detail>,
@@ -77,7 +80,7 @@ pub struct Touched {
 }
 
 /// `question.answered` 的 `body`。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Answered {
     /// 调用编号。
     pub call_id: String,
@@ -86,48 +89,46 @@ pub struct Answered {
 }
 
 /// 一道题的回答：选了哪几项、自己写的话。
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Answer {
     /// 选中的选项的标题。
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub picked: Vec<String>,
     /// 自己写的话（「其他」）。
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
-    /// 补充的话（按 `n` 写的；协议还没有，已转告加上）。
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// 补充的话（按 `n` 写的；核心 D-2 起有）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
 }
 
 /// `tool.approval_decided` 的 `body`。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Decided {
     /// 调用编号。
     pub call_id: String,
     /// 怎么定的。
     pub decision: Decision,
     /// 不允许时写的理由。
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
 }
 
-/// 确认的四种回答。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+/// 确认的几种回答（核心 D-1；「这个工作区都允许」核心还没有）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Decision {
     /// 允许这一次。
     Once,
     /// 这个会话都允许。
     Session,
-    /// 这个工作区都允许。
-    Workspace,
     /// 不允许。
     Deny,
 }
 
 impl Decision {
     /// 抽屉里的先后。
-    pub const ALL: [Self; 4] = [Self::Once, Self::Session, Self::Workspace, Self::Deny];
+    pub const ALL: [Self; 3] = [Self::Once, Self::Session, Self::Deny];
 }
 
 /// 演示用的一条假事件：谁在问（子代理、后台命令问的才有），和核心推的 `body` 一个形状。

@@ -3,7 +3,7 @@
 //! 列的是输入框记着的发过的话和命令（和 `↑`、`↓` 翻的是同一份）。对得上的照「最新的在前」排，
 //! 选中的是其中第几条：0 是最新的，画的时候最新的贴着输入框。
 
-use std::time::Instant;
+use std::time::SystemTime;
 
 use crate::input::Sent;
 
@@ -20,7 +20,7 @@ pub struct History {
     pub pinned: Option<usize>,
     /// `Tab` 展开着的几条，照发出去的时刻认：展开是那一条自己的，光标移走照旧展开着，移到别的条上也不跟着展开
     /// （蓝图「输入历史列表」第 7 条）。
-    pub expanded: Vec<Instant>,
+    pub expanded: Vec<SystemTime>,
 }
 
 impl History {
@@ -33,7 +33,7 @@ impl History {
     }
 
     /// `Tab`：`at` 发的那一条展开成全文，再按收回一行。
-    pub fn toggle_full(&mut self, at: Instant) {
+    pub fn toggle_full(&mut self, at: SystemTime) {
         match self.expanded.iter().position(|a| *a == at) {
             Some(i) => {
                 self.expanded.remove(i);
@@ -43,7 +43,7 @@ impl History {
     }
 
     /// `at` 发的那一条展开着。
-    pub fn is_expanded(&self, at: Instant) -> bool {
+    pub fn is_expanded(&self, at: SystemTime) -> bool {
         self.expanded.contains(&at)
     }
 
@@ -110,7 +110,7 @@ mod tests {
         ]
         .map(|text| Sent {
             draft: Draft::plain(text),
-            at: std::time::Instant::now(),
+            at: std::time::SystemTime::now(),
         })
         .to_vec()
     }

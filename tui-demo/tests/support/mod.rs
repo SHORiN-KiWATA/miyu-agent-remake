@@ -52,6 +52,15 @@ impl Home {
 
     /// 同 [`Home::new`]，核心起来以前先写好 alice 的个人设置（`home/alice/settings.toml`，TOML）；空的不写。
     pub fn with_settings(script: Script, settings: &str) -> Home {
+        Home::build(script, settings, false)
+    }
+
+    /// 同 [`Home::with_settings`]，另外装上基础系统的工具（读写文件、跑命令这些）：她调了要确认的，核心来问。
+    pub fn with_tools(script: Script, settings: &str) -> Home {
+        Home::build(script, settings, true)
+    }
+
+    fn build(script: Script, settings: &str, tools: bool) -> Home {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         let n = NEXT.fetch_add(1, Ordering::Relaxed);
         let dir = std::env::temp_dir().join(format!("miyu-tui-{}-{n}", std::process::id()));
@@ -100,7 +109,11 @@ impl Home {
                         root,
                         ResourceRoot::at(resources()),
                         Arc::new(script),
-                        Catalog::default(),
+                        if tools {
+                            miyu_core::tools(&ResourceRoot::at(resources())).expect("工具登记得上")
+                        } else {
+                            Catalog::default()
+                        },
                         None,
                         admin,
                         opened.token,

@@ -235,6 +235,7 @@
     "now": "刚才",
     "minutes": "{n} 分钟前",
     "hours": "{n} 小时前",
+    "days": "{n} 天前",
     "none": "历史发送为空"
   },
   "help": {
@@ -380,6 +381,7 @@
   },
   "drawer": {
     "asking": "{who} 在问",
+    "agent": "子代理 {name}",
     "answered_tab": " ✓",
     "review_tab": "确认",
     "pointer": "› ",
@@ -391,11 +393,11 @@
     "decisions": [
       "允许这一次",
       "这个会话都允许",
-      "这个工作区都允许",
       "不允许"
     ],
     "reason_hint": "写上理由（可以不写）",
     "access": {
+      "execute": "要运行一条命令",
       "write": "要写 {count} 个文件",
       "read": "要读 {count} 个文件",
       "exec": "要运行 {tool}"
@@ -536,7 +538,9 @@
       "text": "文字",
       "image": "图像",
       "pdf": "PDF",
-      "effort_default": "默认"
+      "effort_default": "默认",
+      "audio": "音频",
+      "video": "视频"
     },
     "fields": {
       "id": "ID",
@@ -732,7 +736,7 @@
           "进入"
         ],
         [
-          "Esc",
+          "q/Esc",
           "返回"
         ]
       ],
@@ -816,7 +820,7 @@
           "换页"
         ],
         [
-          "Esc",
+          "q/Esc",
           "返回"
         ]
       ],

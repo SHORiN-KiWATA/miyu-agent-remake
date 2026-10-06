@@ -99,7 +99,8 @@ impl Settings {
                     });
                 }
             }
-            KeyCode::Esc => return self.leave(),
+            // `q` 和 `Esc` 一样返回（2026-10-07 项目主人）。
+            KeyCode::Esc | KeyCode::Char('q') => return self.leave(),
             _ => {}
         }
         Outcome::Stay

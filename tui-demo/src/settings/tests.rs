@@ -249,3 +249,28 @@ fn deleting_asks_who_uses_it_and_built_in_models_cannot_be_deleted() {
         "目录列出的删不掉"
     );
 }
+
+#[test]
+fn connect_opens_straight_on_the_providers_page_and_escape_goes_back_to_the_chat() {
+    // 2026-10-07 项目主人：/connect 直接进供应商和模型。
+    let mut page = Settings::connect(true);
+    answer_loads(&mut page);
+    assert!(!page.on_menu, "不停在主菜单");
+    assert_eq!(page.nav.page, super::nav::Page::Providers);
+    assert_eq!(press(&mut page, KeyCode::Esc), Outcome::Back, "直接回对话");
+}
+
+#[test]
+fn q_on_a_page_goes_back_like_escape() {
+    // 2026-10-07 项目主人：q 返回，和 Esc 一样。
+    let mut page = opened(false);
+    assert_eq!(press(&mut page, KeyCode::Char('q')), Outcome::Stay);
+    assert!(page.on_menu, "回主菜单");
+    let mut page = Settings::connect(true);
+    answer_loads(&mut page);
+    assert_eq!(
+        press(&mut page, KeyCode::Char('q')),
+        Outcome::Back,
+        "/connect 进来的直接回对话"
+    );
+}

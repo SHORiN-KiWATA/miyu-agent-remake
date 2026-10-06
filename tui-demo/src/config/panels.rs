@@ -26,6 +26,8 @@ pub struct HistoryTexts {
     pub minutes: String,
     /// `{n}` 小时前发的。
     pub hours: String,
+    /// `{n}` 天前发的（重启以后还在，「输入历史列表」第 8 条）。
+    pub days: String,
     /// 还没发过话时按 Ctrl+R 的提示。
     pub none: String,
 }

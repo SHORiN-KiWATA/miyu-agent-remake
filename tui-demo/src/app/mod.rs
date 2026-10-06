@@ -1,5 +1,6 @@
 //! 程序的状态，和把终端事件、核心的消息分给各块。按键在 `keys.rs`，鼠标在 `mouse.rs`。
 
+mod asking;
 mod cards;
 mod compose;
 mod deadline;
@@ -145,6 +146,8 @@ pub struct App {
     pub settings: Option<crate::settings::Settings>,
     /// 输入法跟着打字状态切（`ime.rs`）。
     ime: crate::ime::Ime,
+    /// 核心推来的确认、提问：问过的、了结过的（`asking.rs`）。
+    asks: crate::drawer::Asks,
     /// 链接卡片的账：排正文时记下要的卡片、图，主循环每一帧以后发（`cards.rs`）。
     pub cards: std::cell::RefCell<crate::link_cards::LinkCards>,
     /// mermaid 图的账：排正文时记下要画的，主循环每一帧以后交给核心（`diagrams.rs`）。
@@ -243,6 +246,13 @@ impl App {
             label: config.text.paste_label.clone(),
         });
         input.set_attach_rule(paste::attach_rule(&config));
+        // 输入历史记在数据根的 `state/tui/history.jsonl`：所有会话一起、重启以后还在（「输入历史列表」第 8 条）。
+        // 单元测试不记：数据根是人在用的。
+        let saved = miyu_store::root::DataRoot::locate(&miyu_store::env::Env::current())
+            .ok()
+            .filter(|_| !cfg!(test))
+            .map(|root| root.state().join("tui").join("history.jsonl"));
+        input.keep_history(crate::input::Saved::at(saved), layout.history_keep);
         // 提示音、暂存的截图放机器缓存目录（「系统通知」第 5 条、「输入框」第 12 条）；找不到的不响、贴不了图。
         let cache = miyu_store::root::cache_root(&miyu_store::env::Env::current()).ok();
         let sounds = cache.as_ref().map(|root| root.join("tui").join("sounds"));
@@ -298,6 +308,7 @@ impl App {
             model_list: None,
             settings: None,
             ime,
+            asks: Default::default(),
             efforts: None,
             cards: std::cell::RefCell::new(crate::link_cards::LinkCards::cached()),
             diagrams: std::cell::RefCell::default(),

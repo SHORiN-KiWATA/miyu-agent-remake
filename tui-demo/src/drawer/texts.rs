@@ -10,6 +10,8 @@ use serde::Deserialize;
 pub struct Texts {
     /// 顶上一行谁在问，`{who}`。
     pub asking: String,
+    /// 子会话问的，`{who}` 怎么写：`子代理 {name}`。
+    pub agent: String,
     /// 答过的标签后面接的。
     pub answered_tab: String,
     /// 最后一个标签：「确认」页。
@@ -26,8 +28,8 @@ pub struct Texts {
     pub custom: String,
     /// 补充那一行打头的。
     pub notes_label: String,
-    /// 确认的四项，照 `Decision::ALL` 的先后。
-    pub decisions: [String; 4],
+    /// 确认的几项，照 `Decision::ALL` 的先后。
+    pub decisions: [String; 3],
     /// 写「不允许」的理由时，还没打字暗色写的。
     pub reason_hint: String,
     /// 确认的问题行，照 `access` 找，`{count}` 路径数、`{tool}` 工具名。

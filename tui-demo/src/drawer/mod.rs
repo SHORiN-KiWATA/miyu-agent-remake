@@ -12,6 +12,9 @@ mod tests;
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
+mod asks;
+
+pub use asks::Asks;
 pub use event::{Answer, Answered, Approval, Asked, Decided, Decision, Fake, Question};
 pub use report::{Mark, Report, inline, said};
 pub use texts::Texts;
@@ -74,6 +77,12 @@ pub enum Step {
 pub struct Drawer {
     /// 谁在问：子代理、后台命令问的才有。
     pub who: Option<String>,
+    /// 问的是哪个会话：主会话的是 `None`，子会话的是它的编号（作答交给它，第 8 条）。
+    pub session: Option<String>,
+    /// 演示的假事件（`/demo-ask`、`/demo-approve`）：作答不发给核心，结果当场写。
+    pub demo: bool,
+    /// 确认要跑的那条命令：短标题（她调 shell 时写的几个字，当问题行）、原文（下面暗色一行行写），没有的是 `None`。
+    pub command: Option<(Option<String>, String)>,
     /// 调用编号：作答照它交回去。
     pub call_id: String,
     /// 问的是什么。
@@ -126,6 +135,9 @@ impl Drawer {
         let pages = checked.len();
         Self {
             who,
+            session: None,
+            demo: false,
+            command: None,
             call_id,
             ask,
             tab: 0,
@@ -191,9 +203,12 @@ impl Drawer {
                     .chain([Item::Other])
                     .collect()
             }),
-            Ask::Approval(_) if page == 0 => {
-                Decision::ALL.into_iter().map(Item::Decision).collect()
-            }
+            // 请求没提放行规则的不给「这个会话都允许」（核心会回 `no_rule`）。
+            Ask::Approval(a) if page == 0 => Decision::ALL
+                .into_iter()
+                .filter(|d| *d != Decision::Session || a.rule.is_some())
+                .map(Item::Decision)
+                .collect(),
             Ask::Approval(_) => Vec::new(),
         }
     }
@@ -269,6 +284,23 @@ impl Drawers {
     /// 开着的那一个正在编辑。
     pub fn editing(&self) -> bool {
         self.current.as_ref().is_some_and(|d| d.editing.is_some())
+    }
+
+    /// 这一次调用了结了（别的头答了、打断了、补发里一问一答都在）：开着的收起、排着的拿掉；交回收起的是不是开着的那个。
+    pub fn settle(&mut self, call_id: &str) -> bool {
+        self.queue.retain(|d| d.call_id != call_id);
+        if self.current.as_ref().is_some_and(|d| d.call_id == call_id) {
+            self.current = self.queue.pop_front();
+            return true;
+        }
+        false
+    }
+
+    /// 交了被拒、要重新打开的：放回最前面，开着的那个排到它后面。
+    pub fn reopen(&mut self, drawer: Drawer) {
+        if let Some(open) = self.current.replace(drawer) {
+            self.queue.push_front(open);
+        }
     }
 
     /// 了结现在这一个，交回它；排着的下一个打开。

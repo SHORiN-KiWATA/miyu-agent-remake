@@ -42,7 +42,9 @@ pub use links::{Card, CardKind, blob_path, cards_dir};
 pub use mermaid::{Marks, Rendered};
 pub use models::{Choice, ChoiceState, Current};
 pub use output::JobOutput;
-pub use push::{Block, CallError, Compaction, JobEnd, JobReason, JobStart, Push, Sender, Usage};
+pub use push::{
+    Asking, Block, CallError, Compaction, JobEnd, JobReason, JobStart, Push, Sender, Usage,
+};
 use rpc::Rpc;
 pub use sessions::SessionInfo;
 pub use undo::{Report, UndoFile};
@@ -154,6 +156,16 @@ pub enum Command {
     Recap,
     /// 改名（`session.set_meta`，`/rename`）：`None` 是去掉标题。
     Rename(Option<String>),
+    /// 回答一次确认或提问（`session.answer`，核心 D-1）：问的那个会话（主会话的是 `None`）、调用编号、`decision` 或
+    /// `answers`（连同 `reason`）那几格。
+    Answer {
+        /// 问的那个会话；`None` 是主会话。
+        session: Option<String>,
+        /// 调用编号。
+        call: String,
+        /// `{"decision": …}` 或 `{"answers": […]}`。
+        body: serde_json::Value,
+    },
     /// 不对着会话的一条请求，回应原样交回（[`Update::Answer`]）：配置页用（蓝图「配置页」第 23 条），不为每个方法再加一对命令。
     Ask {
         /// 界面自己的编号：回应照它认。
@@ -275,6 +287,15 @@ pub enum Update {
         tag: u64,
         /// 回应。
         result: Result<serde_json::Value, Refusal>,
+    },
+    /// 回答确认、提问被拒（[`Command::Answer`]）：调用编号、原因码、原话。`not_asking` 是已经答过、了结了。
+    AnswerRefused {
+        /// 调用编号。
+        call: String,
+        /// 原因码。
+        reason: Option<String>,
+        /// 核心的原话。
+        message: String,
     },
     /// 配置变了（推来的 `config.changed`，哪个头、哪一层改的都算）：开着配置页的重读（「配置页」第 25 条）。
     ConfigChanged,

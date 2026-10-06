@@ -5,7 +5,7 @@
 //!
 //! 列表排成哪几行、每一行是哪一条，都由 [`lines`] 定：占几行、画什么、鼠标点的是哪一条，照同一份。
 
-use std::time::Instant;
+use std::time::SystemTime;
 
 use ratatui::Frame;
 use ratatui::layout::Rect;
@@ -28,7 +28,7 @@ pub fn lines(
     matches: &[&Sent],
     width: u16,
     config: &Config,
-    now: Instant,
+    now: SystemTime,
     max: usize,
 ) -> (Chrome, Vec<Row>) {
     let words = &config.text.history;
@@ -64,15 +64,17 @@ pub fn lines(
     (chrome, panel::fit(out, Some(history.selected), max))
 }
 
-/// 多久以前发的：一分钟以内「刚才」，再往后几分钟、几小时。
-fn ago(at: Instant, now: Instant, words: &HistoryTexts) -> String {
-    let secs = now.saturating_duration_since(at).as_secs();
+/// 多久以前发的：一分钟以内「刚才」，再往后几分钟、几小时、几天（重启以后还在，第 8 条）。
+fn ago(at: SystemTime, now: SystemTime, words: &HistoryTexts) -> String {
+    let secs = now.duration_since(at).unwrap_or_default().as_secs();
     if secs < 60 {
         words.now.clone()
     } else if secs < 3600 {
         words.minutes.replace("{n}", &(secs / 60).to_string())
-    } else {
+    } else if secs < 86_400 {
         words.hours.replace("{n}", &(secs / 3600).to_string())
+    } else {
+        words.days.replace("{n}", &(secs / 86_400).to_string())
     }
 }
 

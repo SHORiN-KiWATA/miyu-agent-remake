@@ -251,6 +251,7 @@ async fn send(
         Command::Recap => Some(Awaiting::Recap),
         Command::Configure(ref reference) => Some(Awaiting::Configure(reference.clone())),
         Command::Rename(ref title) => Some(Awaiting::Rename(title.clone())),
+        Command::Answer { ref call, .. } => Some(Awaiting::Answer(call.clone())),
         _ => None,
     };
     let files = match &command {
@@ -325,6 +326,11 @@ async fn take(
         let reason = error["data"]["reason"].as_str().map(str::to_string);
         let message = error["message"].as_str().unwrap_or_default().to_string();
         return match kind {
+            Some(Awaiting::Answer(call)) => notify(Update::AnswerRefused {
+                call,
+                reason,
+                message,
+            }),
             Some(Awaiting::Ask(tag)) => notify(Update::Answer {
                 tag,
                 result: Err(super::Refusal {
@@ -406,6 +412,8 @@ async fn take(
             return notify(Update::Efforts(super::EffortList::read(&message["result"])));
         }
         Some(Awaiting::Configure(reference)) => return notify(Update::Configured(reference)),
+        // 答成了不用说：抽屉照推来的 `question.answered`、`tool.approval_decided` 收、写结果。
+        Some(Awaiting::Answer(_)) => return true,
         Some(Awaiting::Ask(tag)) => {
             let result = Ok(message["result"].clone());
             return notify(Update::Answer { tag, result });

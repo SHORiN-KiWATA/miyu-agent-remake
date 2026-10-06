@@ -73,7 +73,21 @@ fn the_kernel_samples_read_and_there_is_no_decline() {
         vec![Item::Choice(0), Item::Choice(1), Item::Other]
     );
     let a = Drawer::approval(None, approval());
-    assert_eq!(a.items(0).len(), 4, "允许这一次、会话、工作区、不允许");
+    assert_eq!(
+        a.items(0).len(),
+        3,
+        "允许这一次、这个会话都允许、不允许（核心 D-1 还没有工作区）"
+    );
+    let mut bare = approval();
+    bare.rule = None;
+    assert_eq!(
+        Drawer::approval(None, bare).items(0),
+        vec![
+            Item::Decision(Decision::Once),
+            Item::Decision(Decision::Deny)
+        ],
+        "没提放行规则的不给「这个会话都允许」：选了核心回 no_rule"
+    );
     assert!(!d.has_review(), "一道题没有「确认」页");
     assert!(Drawer::question(None, two()).has_review());
 }
@@ -219,7 +233,7 @@ fn approval_decides_and_deny_asks_for_a_reason_first() {
         other => panic!("{other:?}"),
     }
     let mut d = Drawer::approval(None, approval());
-    assert_eq!(d.key(key(KeyCode::Char('4'))), Step::Stay);
+    assert_eq!(d.key(key(KeyCode::Char('3'))), Step::Stay);
     assert_eq!(d.editing, Some(Edit::Reason), "不允许：先写理由");
     assert_eq!(d.key(key(KeyCode::Char('n'))), Step::Stay, "编辑时 n 是字");
     d.key(key(KeyCode::Backspace));

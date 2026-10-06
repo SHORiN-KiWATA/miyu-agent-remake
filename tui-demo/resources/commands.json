@@ -177,6 +177,15 @@
       "run": "config"
     },
     {
+      "name": "connect",
+      "summary": {
+        "zh": "连接供应商：直接打开供应商和模型",
+        "en": "Connect a provider: open providers and models",
+        "ja": "プロバイダを接続：プロバイダとモデルを開く"
+      },
+      "run": "connect"
+    },
+    {
       "name": "copy",
       "summary": {
         "zh": "复制她上一轮的回答",

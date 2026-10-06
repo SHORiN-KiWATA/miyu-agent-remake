@@ -131,6 +131,14 @@ fn head(d: &Drawer, texts: &Texts, width: u16, v: &mut View) {
     for (piece, _) in pieces(&title, width) {
         v.push(Line::styled(piece, bold), None);
     }
+    // 要跑的命令原文：`$ ` 打头、暗色，一行行写，长的折行（2026-10-07 项目主人：确认时看不到具体的命令）。
+    if let Some((_, command)) = &d.command {
+        for line in command.lines() {
+            for (piece, _) in pieces(&format!("$ {line}"), width) {
+                v.push(Line::styled(piece, theme::dim()), None);
+            }
+        }
+    }
     for (path, mark) in d.paths(texts) {
         let mut spans = vec![Span::styled(clip(&path, width), theme::dim())];
         if let Some(mark) = mark {

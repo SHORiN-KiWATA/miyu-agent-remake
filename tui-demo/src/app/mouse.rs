@@ -171,7 +171,7 @@ impl App {
         use ratatui::crossterm::event::MouseButton;
         let found = self.history.matches(self.input.sent());
         let width = self.areas.menu_text.width;
-        let now = std::time::Instant::now();
+        let now = std::time::SystemTime::now();
         // 和画出来的同一份：放进列表那块的高度（「窗口小的时候」第 1 条）。
         let max = usize::from(self.areas.menu_text.height);
         // 悬停钉住、滚轮滚（最新的贴底：滚轮往上是更早的），照钉住以后画出来的行认指针下是哪一条。

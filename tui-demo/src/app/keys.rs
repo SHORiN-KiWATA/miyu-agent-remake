@@ -303,6 +303,7 @@ impl App {
             Run::Sessions => self.open_sessions(),
             Run::Model => self.open_models(),
             Run::Config => self.open_settings(false),
+            Run::Connect => self.open_connect(),
             Run::Effort => self.open_effort(),
             Run::Copy => self.copy_reply(),
             Run::New => self.new_session(),

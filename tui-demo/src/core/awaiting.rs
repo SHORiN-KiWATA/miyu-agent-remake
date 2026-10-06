@@ -45,4 +45,6 @@ pub(super) enum Awaiting {
     Configure(String),
     /// 配置页的一条请求：界面给的编号。
     Ask(u64),
+    /// 回答确认、提问：调用编号（拒了要告诉界面）。
+    Answer(String),
 }

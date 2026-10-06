@@ -58,7 +58,7 @@ impl Drawer {
             Outcome::Decided(d) if d.decision != Decision::Deny => Report::Nothing,
             Outcome::Decided(d) => {
                 let text = d.reason.as_ref().map_or_else(
-                    || texts.decisions[3].clone(),
+                    || texts.decisions[2].clone(),
                     |r| texts.denied_with.replace("{reason}", &inline(r)),
                 );
                 Report::Line(Mark::Bad, text)
@@ -71,6 +71,10 @@ impl Drawer {
         let Ask::Approval(a) = &self.ask else {
             return String::new();
         };
+        // 跑命令的：她写的短标题当问题行（2026-10-07 项目主人：不写「要用 shell」）。
+        if let Some((Some(title), _)) = &self.command {
+            return title.clone();
+        }
         let detail = a.detail.clone().unwrap_or_default();
         let template = texts.access.get(&a.access).unwrap_or(&texts.access_other);
         template

@@ -203,6 +203,14 @@ impl Board {
         self.jobs.iter().any(Job::running)
     }
 
+    /// 子会话 `session` 的那个子代理的名字。
+    pub fn agent_title(&self, session: &str) -> Option<&str> {
+        self.jobs
+            .iter()
+            .find(|j| j.session.as_deref() == Some(session))
+            .map(|j| j.title.as_str())
+    }
+
     /// 子会话 `session` 的那个子代理。
     pub fn agent_mut(&mut self, session: &str) -> Option<&mut Job> {
         self.jobs

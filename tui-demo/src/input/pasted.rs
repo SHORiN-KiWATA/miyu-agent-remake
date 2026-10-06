@@ -71,8 +71,8 @@ impl Block {
 pub struct Sent {
     /// 发的字和粘贴块。
     pub draft: Draft,
-    /// 什么时候发的。
-    pub at: std::time::Instant,
+    /// 什么时候发的：墙上的钟（记进文件、重启以后还要算「几天前」）。
+    pub at: std::time::SystemTime,
 }
 
 /// 一段带着块的字：输入框里的样子，和每一块在哪、原文是什么。输入历史、暂存、发出去都用它。
