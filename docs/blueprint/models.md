@@ -742,20 +742,20 @@ opencode 有两个端点：Zen（`https://opencode.ai/zen/v1`，按量付费）�
 **十、开发怎么测**（8-6）
 
 1. CI 里的测试照旧不连真模型：假服务器（`miyu-http` 的 `testkit`）、执行器替身。真核心的测试在数据根里写一份 `system/config.toml`（`crates/miyu/tests/crash.rs`、`dev_home.rs`），会话的测试照配置的字造一份不变的配置（`crates/miyu-session/tests/support/routing.rs`），供应商的地址指到假服务器。
-2. 真模型自测：`cargo xtask dev-home <目录>` 照三个环境变量造一个数据根：`MIYU_DEV_BASE_URL`（地址）、`MIYU_DEV_MODEL`（模型名）、`MIYU_DEV_WINDOW`（可以不设）。它建好骨架、写 `system/config.toml`：一家 `dev`（`openai-chat`，`catalog = "deepseek"`，地址照 `{ env = "MIYU_DEV_BASE_URL" }` 取、key 照 `{ env = "DEEPSEEK_API_KEY" }` 取，8-6b 起地址也不写进文件），`models.chat = "dev/<模型>"`，设了窗口的写进这个模型的 `window`。
+2. 真模型自测：`cargo xtask dev-home <目录>` 照三个环境变量造一个数据根（key 照第四个 `MIYU_DEV_API_KEY` 取；8-29 以前叫 `DEEPSEEK_API_KEY`，开发端点不是 DeepSeek 官方，名字跟着用途走，2026-10-07 项目主人定）：`MIYU_DEV_BASE_URL`（地址）、`MIYU_DEV_MODEL`（模型名）、`MIYU_DEV_WINDOW`（可以不设）。它建好骨架、写 `system/config.toml`：一家 `dev`（`openai-chat`，`catalog = "deepseek"`，地址照 `{ env = "MIYU_DEV_BASE_URL" }` 取、key 照 `{ env = "MIYU_DEV_API_KEY" }` 取，8-6b 起地址也不写进文件），`models.chat = "dev/<模型>"`，设了窗口的写进这个模型的 `window`。
    - 这三个名字只在 xtask 里，程序里没有了。地址、key 都不进仓库、也不进造出来的配置文件（和 key 一样只在命令里，8-6b 起地址也是这样：和本机端点地址一样，只放在拉起核心的命令的环境变量里）。
    - 之后照平常 `MIYU_DEV_BASE_URL=… MIYU_HOME=<目录> miyu ask …`：地址每次拉起核心都要照这个环境变量取，不是只在 `dev-home` 这一次。
    - 数据根要先有骨架再写配置：不然核心认不出它是 Miyu 的数据根（`store.md`「认得出自己的数据根才动它」）。骨架照核心的写法建（`miyu-store` 的 `DataRoot::prepare`）：目录里有别的东西、认不出是 Miyu 的数据根的不动。
    - 已经有 `system/config.toml` 的不盖，说一句、退出码 1：人改过的配置不替人扔掉。要换地址、模型，换一个目录，或者用 `miyu config` 改。
-   - 写的配置第一行是 `#:schema`，第二行注释说是它造的、地址照 `MIYU_DEV_BASE_URL` 取、key 照 `DEEPSEEK_API_KEY` 取；模型名照 TOML 的字符串写（`[providers.dev.models."<模型>"]`）。目录写相对的照当前目录接上。没设地址、模型，地址不是 `http://`、`https://` 开头（这一步只在内存里查，不写进文件），模型名超过 128 字节或有控制字符，窗口不是 1 到 100000000 的整数：说哪个变量不对，退出码 1；没写目录的印用法，退出码 2。
+   - 写的配置第一行是 `#:schema`，第二行注释说是它造的、地址照 `MIYU_DEV_BASE_URL` 取、key 照 `MIYU_DEV_API_KEY` 取；模型名照 TOML 的字符串写（`[providers.dev.models."<模型>"]`）。目录写相对的照当前目录接上。没设地址、模型，地址不是 `http://`、`https://` 开头（这一步只在内存里查，不写进文件），模型名超过 128 字节或有控制字符，窗口不是 1 到 100000000 的整数：说哪个变量不对，退出码 1；没写目录的印用法，退出码 2。
    - 用法（地址、key 照你自己的）：
 
      ```sh
      MIYU_DEV_BASE_URL=https://relay.example.invalid/v1 MIYU_DEV_MODEL=deepseek-v4.1-flash MIYU_DEV_WINDOW=128000 cargo xtask dev-home ~/miyu-dev
-     MIYU_DEV_BASE_URL=https://relay.example.invalid/v1 DEEPSEEK_API_KEY=… MIYU_HOME=~/miyu-dev miyu ask "在吗"
+     MIYU_DEV_BASE_URL=https://relay.example.invalid/v1 MIYU_DEV_API_KEY=… MIYU_HOME=~/miyu-dev miyu ask "在吗"
      ```
 
-     核心在拉起它的终端里取 `MIYU_DEV_BASE_URL`、`DEEPSEEK_API_KEY`：已经在跑的核心看不到后来设的，先让它退出（空闲十分钟自己走）。也可以 `MIYU_HOME=~/miyu-dev miyu login dev` 存一个密钥、把配置里的 `{ env = "DEEPSEEK_API_KEY" }` 改成 `{ secret = "dev" }`（地址没有这条路：`{ secret = … }` 对网址不是合法的写法，地址一直要靠环境变量）。
+     核心在拉起它的终端里取 `MIYU_DEV_BASE_URL`、`MIYU_DEV_API_KEY`：已经在跑的核心看不到后来设的，先让它退出（空闲十分钟自己走）。也可以 `MIYU_HOME=~/miyu-dev miyu login dev` 存一个密钥、把配置里的 `{ env = "MIYU_DEV_API_KEY" }` 改成 `{ secret = "dev" }`（地址没有这条路：`{ secret = … }` 对网址不是合法的写法，地址一直要靠环境变量）。
 3. 合进 main 以后告诉终端界面、网页两个演示：开发端点改成这样接，协议多了哪几个方法（改了协议要告诉两个头）。
 
 **十一、思考强度**（8-18；8-18（补）去掉会话那一层，只剩配置的默认。2026-10-02 项目主人定，「定的」第 12 条）
@@ -1077,7 +1077,7 @@ mimo = ["xiaomi"]
 | `crates/miyu-session/tests/route_zen.rs` | 只写 key：Go 的模型各发各的路径、认证头照各自的驱动、输出上限照模型的驱动填；请求带 `x-opencode-session`，一次性的照用途、会话照会话编号；DeepSeek 回传空串；没有驱动的模型 `no_model`、没发、别的照常；没写头的一家不带；8-14 补：Zen 的 User-Agent 盖成 `opencode/2.0.21`、三个头照用途换、工具面里缺的补占位（空参数、说明照资源）、没写头的照客户端默认；`route/placeholder.rs` 的三条单测：缺的照名字排着补、已经有的一字节不动、空的不补 | 8-14、8-14 补 |
 | `crates/miyu-http/tests/auth.rs` | 认证头照驱动（`Bearer`、`x-api-key` 加版本头），没有 key 的不带，打印端点不漏 key（8-6，放在用假服务器的集成测试里） | 8-6 |
 | `crates/miyu-core/src/models/tests.rs`、`crates/miyu-core/tests/serve.rs` | 出厂的档案读得进来、DeepSeek 那一套和请求形状探针用的一样、TOML 读成 JSON、写坏的说是档案；真核心没配模型的每次请求 `no_model`、没发出去 | 8-6 |
-| `crates/miyu/tests/dev_home.rs` | `xtask dev-home` 的三个变量怎么读、哪些不收；造的配置照清单读一处错都没有；已经有配置的不盖、别人的目录不动；真核心在这个数据根上照配置连上假服务器，带着 `DEEPSEEK_API_KEY` 的值、发给写的那个模型，`miyu ask` 答得上来 | 8-6 |
+| `crates/miyu/tests/dev_home.rs` | `xtask dev-home` 的三个变量怎么读、哪些不收；造的配置照清单读一处错都没有；已经有配置的不盖、别人的目录不动；真核心在这个数据根上照配置连上假服务器，带着 `MIYU_DEV_API_KEY` 的值、发给写的那个模型，`miyu ask` 答得上来 | 8-6 |
 | `crates/miyu-store/tests/usage.rs`、`usage_purged.rs`、`crates/miyu-endpoint/tests/usage.rs`、`crates/miyu-endpoint/src/usage/tests.rs` | 一次一行、没发出去的不算、重复不出两行、补多出来的（连同换了段的、从没写过的）、重建（版本不对、乱写的文件、用着用着坏了）、回收处、撤掉的回合也算、分组（`null` 在前）、`tree`、左闭右开；`usage.purged` 按小时按用途的合计一字不差、写进去了才删、写不进去的留着、写两遍只算一次、重建照账号日志读回来、整点时区一分不差、半点时区照小时开头；一次性调用记进账号日志、照用途分组、重建以后还在；协议上照分组、币种各加各的、照 `usage.currency` 排、参数不对的 `bad_params` | 8-15 |
 | `crates/miyu-basesystem/tests/subagent.rs` | `pool` 只认端口列着的、交给端口，不写的、`null` 交没有，不在列表里的、大小写不对的、带 `@` 的、不是字的照参数不对、端口不派、原话列出能写的几个，一个都没列的照样拒；`tier` 不报错、不理它；资源里 `pool` 没有 `enum`（8-8 补） | 8-8、8-8 补 |
 | `crates/miyu-session/tests/spawn/pool.rs` | 子会话的引用：写了 `pool` 的记 `@池`，没写的、写 `tier` 的抄父会话钉着的；工具面照造会话时的配置拼，开着开关、有成员的才列，配置改了这个会话（连同载入以后）一字不变、新会话变，拿新会话才列的池在老会话里照参数不对；一个都没有的不出现 `pool`（8-8 补，取代 8-8 的 `tier.rs`） | 8-8 补 |
@@ -1225,7 +1225,7 @@ mimo = ["xiaomi"]
 | `no_model` 的原话照图纸，再加两种：`provider "…" has no usable key`、`driver "…" of provider "…" is not available yet`；路由每次记一行 `WARN no model why=…` | 说清是哪一种没有；运行日志看得到 | 一律 `no model configured`：配了还说没配 |
 | 命令行认 `no_model`（没发出去）是退出码 5，没发出去的认证失败不再算没有模型；分类的话「没有可用的模型」 | 以前没有 key 才报认证失败，现在认证失败是真的 key 不对 | 两种都算 5：key 写错了也叫人去配 |
 | `cargo xtask dev-home` 的代码在 `xtask/src/dev_home.rs`，测试把它原样编进 `crates/miyu/tests/dev_home.rs`（`#[path]`）；xtask 依赖 `miyu-store` 建骨架 | xtask 不是库；测的就是那一份代码；骨架照核心的写法 | 另写一份造数据根的：两份要对；测试里跑 `cargo xtask`：测试里套 cargo |
-| `dev-home` 已经有配置的不盖；key 写成 `{ env = "DEEPSEEK_API_KEY" }` | 不替人扔掉改过的配置；图纸第十条 | 盖掉：手改的白改 |
+| `dev-home` 已经有配置的不盖；key 写成 `{ env = "MIYU_DEV_API_KEY" }` | 不替人扔掉改过的配置；图纸第十条 | 盖掉：手改的白改 |
 | 没有 key 也一律拉起核心（主会话定，照图纸）；没有模型那一句先指到 `miyu config edit --system`，8-11 换成 `miyu setup`（主会话定） | 头不知道配置里有没有模型 | 照旧看 `DEEPSEEK_API_KEY`：配置里配了也不拉起 |
 
 8-7 施工时照推荐定的技术细节（2026-10-01，施工员定，写进了正文；标着「主会话定」的是主会话同一天定的；配置那一半在 `config.md`「施工时定的」8-7）：
