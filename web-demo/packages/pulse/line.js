@@ -13,8 +13,9 @@ import { clock } from '../../src/lib/format.js';
 import { Pulse, widest, dotCount, retryLine } from './model.js';
 
 /**
- * @typedef {{id: string, start: number, beat: unknown, retry: {attempt: number, limit: number, message: string, failover?: boolean, due?: number}|null, queued: string[]}} PulseState
- *   在跑的那一轮（会话加回合、开始的时刻）、这一轮出过的事的记号（`beatOf`）、在等的重试、排着的话（蓝图「排队的消息」）
+ * @typedef {{id: string, start: number, beat: unknown, retry: {attempt: number, limit: number, message: string, failover?: boolean, due?: number}|null, queued: string[], waiting?: string|null}} PulseState
+ *   在跑的那一轮（会话加回合、开始的时刻）、这一轮出过的事的记号（`beatOf`）、在等的重试、排着的话（蓝图「排队的消息」）；`waiting` 是
+ *   在等你确认、回答时写的那几个字（「等你回答」：静止的，不扫流光、不轮点、不写用时）
  */
 
 export class PulseLine {
@@ -67,6 +68,19 @@ export class PulseLine {
     unfold(this.el, !!s);
     if (!s) return;
     const now = Date.now();
+    // 在等你确认、回答：一行静止的字（蓝图「运行状态行」），了结了照常走、流光从头扫
+    if (s.waiting) {
+      if (this.drawn !== -1) {
+        this.drawn = -1;
+        const wait = h('span.pulse-shine.is-waiting', s.waiting);
+        this.shine.replaceWith(wait);
+        this.shine = wait;
+      }
+      setText(this.clock, '');
+      setText(this.retry, '');
+      return;
+    }
+    if (this.drawn === -1) this.drawn = null;
     const word = this.pulse.word({ id: s.id, start: s.start }, s.beat, now, this.config.words);
     const { dot_mark: mark, dot_count: count, sweep_seconds: sweep } = this.config;
     if (this.pulse.shown !== this.drawn) {

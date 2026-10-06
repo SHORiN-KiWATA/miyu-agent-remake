@@ -36,8 +36,6 @@ export function apply(ctx) {
     /** 钉一个节点在这时正文里最后一块的后面，交回钉在哪；照交回的位置再钉（换了会话回来） */
     anchor: (node) => app.chat.anchor(node),
     place: (where, node) => app.chat.place(where, node),
-    /** 正在看的会话照日志算到第 `seq` 条为止，正文里最后一块是哪一块（交给 `place`：从事件画的东西钉在那条事件来的时候的位置） */
-    keyAt: (seq) => app.blockKeyAt(seq),
   });
   // 输入框：提示、跟着发的东西变了、写字的那个框（附件这类包经它粘贴、提示）
   ctx.provide('composer', {

@@ -6,17 +6,20 @@
 }
 .asking-who { margin-bottom: 8px; color: var(--text-faint); font-size: 12px; }
 
-/* 两道题及以上：一排标签，最后一个是「确认」 */
-.asking-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-.asking-tab {
-  padding: 3px 10px; border: 0; border-radius: 999px; background: var(--surface-2); color: var(--text-soft);
-  font: inherit; font-size: 12px; cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease;
-}
-.asking-tab.is-current { background: var(--accent); color: var(--on-primary); }
+/* 两道题及以上：顶上一行，左边这一道的短名，右边换题的 ‹ 1/2 › */
+.asking-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; min-height: 22px; }
+.asking-label { min-width: 0; overflow: hidden; color: var(--text-faint); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.asking-pager { display: inline-flex; flex: none; align-items: center; gap: 2px; color: var(--text-soft); font-size: 12px; font-variant-numeric: tabular-nums; }
+.asking-page { min-width: 28px; text-align: center; }
+.asking-pager-arrow { display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-soft); cursor: pointer; }
+.asking-pager-arrow:hover { background: var(--surface-2); color: var(--text); }
+.asking-pager-arrow.is-off { opacity: 0.3; cursor: default; }
+.asking-pager-arrow.is-off:hover { background: transparent; }
+.asking-pager-arrow .icon { width: 14px; height: 14px; }
 
 /* 中间自己滚：问题、选项；上面的标签、下面的按键提示钉着 */
 .asking-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-.asking-question { margin-bottom: 10px; color: var(--text); font-size: 15px; font-weight: 600; line-height: 1.5; }
+.asking-question { margin-bottom: 8px; color: var(--text); font-size: 14px; font-weight: 600; line-height: 1.45; }
 .asking-paths { display: grid; gap: 2px; margin: -4px 0 10px; }
 .asking-path { display: flex; align-items: center; gap: 8px; color: var(--text-soft); font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
 .asking-outside {
@@ -25,33 +28,35 @@
 }
 
 /* 选项：一项一块，选中的淡底 */
-.asking-main { display: grid; gap: 12px; }
+.asking-main { display: grid; gap: 10px; }
 .asking.is-wide .asking-main.has-preview { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
-.asking-options { display: grid; gap: 2px; }
+.asking-options { display: grid; gap: 0; }
 .asking-option {
-  display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 10px; cursor: pointer;
+  display: flex; align-items: flex-start; gap: 9px; padding: 5px 10px; border-radius: 8px; cursor: pointer;
   transition: background-color 0.12s ease;
 }
 .asking-option.is-selected { background: var(--accent-soft); }
 .asking-num, .asking-check {
-  flex: none; display: grid; place-items: center; width: 20px; height: 20px; margin-top: 1px; border-radius: 6px;
-  background: var(--surface-2); color: var(--text-faint); font-family: var(--mono); font-size: 12px;
+  flex: none; display: grid; place-items: center; width: 18px; height: 18px; margin-top: 1px; border-radius: 5px;
+  background: var(--surface-2); color: var(--text-faint); font-family: var(--mono); font-size: 11.5px;
   transition: background-color 0.12s ease, color 0.12s ease;
 }
 .asking-option.is-selected .asking-num { background: var(--accent); color: var(--on-primary); }
-.asking-check { border: 1.5px solid var(--line-strong); background: transparent; }
-.asking-check.is-on { border-color: var(--accent); background: var(--accent); color: var(--on-primary); }
+.asking-check { background: var(--surface-3); }
+.asking-check.is-on { background: var(--accent); color: var(--on-primary); }
 .asking-text { display: grid; gap: 2px; min-width: 0; flex: 1; }
-.asking-text strong { color: var(--text); font-size: 14px; font-weight: 500; line-height: 1.45; overflow-wrap: anywhere; }
-.asking-desc { color: var(--text-soft); font-size: 12.5px; line-height: 1.45; }
+.asking-text { gap: 1px; }
+.asking-text strong { color: var(--text); font-size: 13.5px; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+.asking-desc { color: var(--text-soft); font-size: 12px; line-height: 1.4; }
 .asking-option.is-other strong { color: var(--text-soft); }
 
 /* 编辑的框：跟着字长高 */
 .asking-edit {
-  width: 100%; margin-top: 2px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; resize: none; overflow: hidden;
-  background: var(--surface); color: var(--text); font: inherit; font-size: 14px; line-height: 1.5; outline: none;
+  width: 100%; margin-top: 2px; padding: 6px 8px; border: 0; border-radius: 8px; resize: none; overflow: hidden;
+  background: var(--surface-2); color: var(--text); font: inherit; font-size: 13.5px; line-height: 1.5; outline: none;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
-.asking-edit:focus { border-color: var(--accent); }
+.asking-edit:focus { background: var(--surface-1); box-shadow: var(--card-shadow); }
 
 /* 选项的文字画：右边（窄了在下面），高度照最高的那张，换选项不跳 */
 .asking-previews { display: grid; }
@@ -64,7 +69,7 @@
 .asking-preview.is-shown { visibility: visible; }
 
 /* 补充 */
-.asking-notes { display: flex; align-items: baseline; gap: 10px; margin: 8px 10px 0; color: var(--text); font-size: 13px; }
+.asking-notes { display: flex; align-items: baseline; gap: 10px; margin: 6px 10px 0; color: var(--text); font-size: 12.5px; }
 .asking-notes-label { flex: none; color: var(--text-faint); }
 .asking-notes-add {
   margin: 6px 0 0 10px; padding: 2px 0; border: 0; background: none; color: var(--text-faint); font: inherit; font-size: 12px; cursor: pointer;
@@ -81,15 +86,16 @@
 }
 
 /* 最下面一行：按键提示、取消 */
-.asking-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
+.asking-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
 .asking-keys { color: var(--text-faint); font-size: 12px; transition: color 0.15s ease; }
 .asking-keys.is-armed { color: var(--t-warn); }
 .asking-cancel { flex: none; padding: 2px 4px; border: 0; background: none; color: var(--text-soft); font: inherit; font-size: 12px; cursor: pointer; }
 .asking-cancel:hover { color: var(--text); }
 
 /* 了结以后正文末尾留的：卡片（照附件卡、链接卡片），不能点、没有悬停，新来的淡入；取消的照别的提示行暗色一行 */
-/* 钉在正文里（`chat.anchor`）：和提示行一样缩进，下面空一行 */
+/* 钉在正文末尾的（演示的，`chat.anchor`）：和提示行一样缩进，下面空一行；夹在她这一轮里的（真的，挂载位 chat.item）上下留一点 */
 .timeline > .asking-report { margin: 0 0 30px 40px; }
+.assistant-content > .asking-report { margin: 4px 0 10px; }
 @media (max-width: 836px) { .timeline > .asking-report { margin-left: 38px; } }
 .asking-report.is-fresh { animation: rise-in var(--motion-in) var(--ease-out); }
 .asking-card {

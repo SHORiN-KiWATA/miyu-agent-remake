@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { openAsk, openApproval, press, saveEdit, approvalHead, report, pendingAsks, reportsFrom } from '../../packages/asking/model.js';
+import { openAsk, openApproval, press, saveEdit, approvalHead, report, pendingAsks, reportOf } from '../../packages/asking/model.js';
 
 const fake = JSON.parse(readFileSync(new URL('../../packages/asking/fake.json', import.meta.url), 'utf8'));
 const ask = (id) => fake.asks.find((a) => a.body.call_id === id);
@@ -110,15 +110,14 @@ test('还没了结的：问了、后面还没有回答、决定、结果的，�
   assert.deepEqual(pendingAsks([{ ...approve, body: { call_id: 'c0', access: 'write' } }]).at(0)?.questions[0].options.map((o) => o.decision), ['once', 'deny'], '没提规则的两项');
 });
 
-test('留下的从事件来：答了的卡片（题目照问的那一条）、不允许的带理由、允许的不留、问过没答就取消的一行', () => {
+test('留下的照了结的那一条和问的那一条算：答了的卡片（题目照问的那一条）、不允许的带理由、允许的不留、问过没答就取消的一行', () => {
   const asked = { seq: 79, kind: 'question.asked', body: { call_id: 'c1', questions: [{ header: 'build', question: '删掉还是保留？', options: [{ label: '删掉' }, { label: '保留' }] }] } };
-  const answered = { seq: 80, kind: 'question.answered', body: { call_id: 'c1', answers: [{ picked: ['保留'], notes: '下次再说' }] } };
-  const req = (id, seq) => ({ seq, kind: 'tool.approval_requested', body: { call_id: id, access: 'write', rule: {} } });
-  const got = reportsFrom([asked, answered, req('a', 81), { seq: 82, kind: 'tool.approval_decided', body: { call_id: 'a', decision: 'deny', reason: '别覆盖' } }, { seq: 83, kind: 'tool.result', body: { call_id: 'a', status: 'denied' } },
-    req('b', 84), { seq: 85, kind: 'tool.approval_decided', body: { call_id: 'b', decision: 'once' } },
-    { seq: 86, kind: 'question.asked', body: { call_id: 'c2', questions: [{ question: '要吗？', options: [] }] } }, { seq: 87, kind: 'tool.result', body: { call_id: 'c2', status: 'cancelled' } }]);
-  assert.deepEqual(got.map((r) => [r.seq, r.report.type]), [[80, 'answered'], [82, 'denied'], [87, 'cancelled']]);
-  assert.deepEqual(got[0].report.rows, [{ label: 'build', answer: { text: '保留', notes: '下次再说' } }]);
-  assert.equal(got[1].report.reason, '别覆盖');
-  assert.equal(got[2].report.kind, 'ask');
+  const answered = reportOf({ seq: 80, kind: 'question.answered', body: { call_id: 'c1', answers: [{ picked: ['保留'], notes: '下次再说' }] } }, asked);
+  assert.deepEqual([answered?.type, answered?.rows], ['answered', [{ label: 'build', answer: { text: '保留', notes: '下次再说' } }]]);
+  const req = { seq: 81, kind: 'tool.approval_requested', body: { call_id: 'a', access: 'write', rule: {} } };
+  const denied = reportOf({ seq: 82, kind: 'tool.approval_decided', body: { call_id: 'a', decision: 'deny', reason: '别覆盖' } }, req);
+  assert.deepEqual([denied?.type, denied?.reason], ['denied', '别覆盖']);
+  assert.equal(reportOf({ seq: 85, kind: 'tool.approval_decided', body: { call_id: 'a', decision: 'once' } }, req), null, '允许了的不留');
+  const cancelled = reportOf({ seq: 87, kind: 'tool.result', body: { call_id: 'c1', status: 'cancelled' } }, asked);
+  assert.deepEqual([cancelled?.type, cancelled?.kind], ['cancelled', 'ask']);
 });

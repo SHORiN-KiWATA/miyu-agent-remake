@@ -44,6 +44,19 @@ export function project(events, live = null, marks = new Map(), stats = new Map(
   const jobs = new Map();
   /** 调用编号 → 参数：后台命令的回报点开时写命令 */
   const args = new Map();
+  /** 调用编号 → 问人的那一条（`question.asked`、`tool.approval_requested`）：了结的那一条处放一条交给软件包画的（`slotted`） */
+  const asked = new Map();
+  /**
+   * 确认和提问了结以后留下的（蓝图「确认和提问」第 6 条）：在了结的那一条事件处放一条，挂载位 `chat.item` 按 `asking` 画，带上问的那一条；
+   * 和回报一样夹在她这一轮里（问的那一步后面、她接着说的前面），前面那段时间线收起。
+   */
+  const slotted = (e) => {
+    const q = asked.get(e.body.call_id);
+    asked.delete(e.body.call_id);
+    if (!q) return;
+    timeline.speak(Date.parse(e.at));
+    items.push({ type: 'note', key: `a${e.seq}`, seq: e.seq, turn: e.turn ?? null, slot: 'asking', event: e, asked: q });
+  };
   /** 这个会话是子会话的：派它的那个会话（它发来的话写「派它的会话」） */
   let parent = null;
   /** 请求 `seen` 听到了排着的：前面那段收起，听到的照先后挪到正文末尾 */
@@ -124,6 +137,23 @@ export function project(events, live = null, marks = new Map(), stats = new Map(
       case 'tool.result':
         noteJobs(e, jobs, args);
         timeline.result(e);
+        // 问过、没答就有了结果的（打断、跳过）：留「已取消」那一行；别的结果只了结
+        if (asked.has(b.call_id)) {
+          if (b.status === 'cancelled' || b.status === 'skipped') slotted(e);
+          else asked.delete(b.call_id);
+        }
+        break;
+      case 'question.asked':
+      case 'tool.approval_requested':
+        asked.set(b.call_id, e);
+        break;
+      case 'question.answered':
+        slotted(e);
+        break;
+      case 'tool.approval_decided':
+        // 允许了的不留（蓝图「确认和提问」第 6 条）
+        if (b.decision === 'deny') slotted(e);
+        else asked.delete(b.call_id);
         break;
       case 'job.reported':
       case 'child.reported':

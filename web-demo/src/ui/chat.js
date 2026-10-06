@@ -6,7 +6,7 @@
 //! 选中的字、滚到哪都不丢）。滚到哪由 `follow.js` 管：跟着最新的、不往回退、长回答停住、点开时钉住被点的那一行。
 
 import { h } from './dom.js';
-import { res } from '../util/res.js';
+import { res, t } from '../util/res.js';
 import { SegmentView, Ticker, waitingNode } from './timeline.js';
 import { renderMarkdown } from '../markdown/render.js';
 import { richHooks } from './rich.js';
@@ -242,7 +242,7 @@ export class Chat {
     if (!rec || rec.sig !== sig) {
       const node = block.kind === 'user'
         ? userNode(block.item, this.on, { session: this.where.session, lightbox: this.ext.lightbox, mine: this.mine(block.item), titleOf: this.ext.titleOf })
-        : block.kind === 'note' ? noteNode(block.item, this.where, this.markdown) : herNode(!!block.cont);
+        : block.kind === 'note' ? (block.item.slot ? slotNode(block.item, this) : noteNode(block.item, this.where, this.markdown)) : herNode(!!block.cont);
       rec?.node.replaceWith(node);
       // 记下这是哪一块：钉在它后面的照它找（`anchor`）
       node.dataset.block = block.key;
@@ -303,6 +303,19 @@ function sigOf(it) {
   return JSON.stringify(it, (_, v) => (typeof v === 'string' && v.length > 256 ? `${v.length}:${v.slice(0, 32)}…${v.slice(-64)}` : v));
 }
 
+/**
+ * 正文里交给软件包画的一条（`slot` 是挂载位 `chat.item` 的键，蓝图 `web/architecture.md`「挂载位」）：挂的包交回节点；看着的时候来的
+ * 告诉它是新的（淡入），读回来的不是。没人接（包停了）的空着；画的时候抛错的写「这一块出错了」。
+ */
+function slotNode(it, chat) {
+  const slots = chat.ext?.slots;
+  const entry = slots?.pick('chat.item', it.slot);
+  const out = entry ? slots.draw(entry, it, { fresh: chat.settled }) : null;
+  if (out instanceof Node) return out;
+  if (out?.failed) return h('div.slot-failed', t('slot_failed', { owner: out.owner, reason: out.reason }));
+  return h('div.note.is-empty');
+}
+
 /** 她的一轮：头像和名字，下面是内容；`cont` 的是接着她同一轮的（中间插进来一句话），只有内容。 */
 function herNode(cont) {
   const p = res.persona;
@@ -318,8 +331,8 @@ function herNode(cont) {
  */
 function itemNode(it, chat) {
   if (it.type === 'done') return endNode(it, chat.on);
-  // 她正在回答时来的回报：夹在她这一块里（上下两段时间线中间）
-  if (it.type === 'note') return noteNode(it, chat.where, chat.markdown);
+  // 她正在回答时来的回报：夹在她这一块里（上下两段时间线中间）；软件包画的（确认和提问了结以后留的）照挂载位 `chat.item`
+  if (it.type === 'note') return it.slot ? slotNode(it, chat) : noteNode(it, chat.where, chat.markdown);
   if (it.type === 'waiting') return waitingNode();
   const node = h('div.reply.markdown-body');
   renderMarkdown(node, it.text, { say: chat.markdown.say, hooks: chat.markdown.hooks(it.scope), streaming: it.streaming });

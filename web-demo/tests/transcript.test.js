@@ -9,9 +9,9 @@ import { project } from '../src/model/transcript.js';
 loadRes();
 
 /** 条目写成一行字，好比对。 */
-const brief = (items) => items.map((it) => `${it.type}: ${it.type === 'steps' ? it.steps.map((s) => s.name ?? s.kind).join(',') : it.text}`);
+const brief = (items) => items.map((it) => `${it.type}: ${it.type === 'steps' ? it.steps.map((s) => s.name ?? s.kind).join(',') : it.slot ? `[${it.slot}] ${it.event.kind}` : it.text}`);
 
-test('一个会话的条目：撤销掉的那一轮不见了；撤回的话不见了；收尾那一行照 TUI 写；压缩那一行照先后在', () => {
+test('一个会话的条目：撤销掉的那一轮不见了；撤回的话不见了；收尾那一行照 TUI 写；压缩那一行照先后在；确认和提问了结的夹在问的那一步后面', () => {
   assert.deepEqual(brief(project(sampleLog()).items), [
     'note: 上下文已压缩',
     'user: 再看看 tests 目录',
@@ -19,11 +19,13 @@ test('一个会话的条目：撤销掉的那一轮不见了；撤回的话不�
     'user: 把仓库里的 .editorconfig 装到我的家目录',
     'reply: 我把它复制过去。',
     'steps: shell',
+    'note: [asking] tool.approval_decided',
     'reply: 好，不动家目录里那份。要对比两份的差别，跟我说一声。',
     'done: ▣  07:33 · deepseek/deepseek-v4 · 24.1s · 4.2k(C92%)',
     'user: 把旧的构建产物清一清',
     'reply: 清之前先问你一句。',
     'steps: ask_user',
+    'note: [asking] question.answered',
     'reply: 好，build 目录保留，缓存我也先不动。',
     'done: ▣  07:40 · deepseek/deepseek-v4 · 19.2s · 4.5k(C97%)',
   ]);
@@ -186,4 +188,35 @@ test('收尾那一行的别的原因：前面权限级别的图标，后面界�
   assert.equal(ended('aborted'), '▣  核心上次在这一轮崩了，没做完');
   assert.equal(ended('step_limit'), '▣  请求次数到了上限，停了');
   assert.equal(ended('mystery'), 'mystery');
+});
+
+test('确认和提问了结以后留的：在了结的那一条处放一条交给软件包画（slot asking，带着问的那一条），夹在她这一轮里：问的那一步后面、她接着说的前面；允许了的不放、打断的放', async () => {
+  const { group } = await import('../src/model/group.js');
+  const at = (n) => `2026-10-07T00:00:${String(n).padStart(2, '0')}.000Z`;
+  const ev = (seq, kind, body, more = {}) => ({ seq, at: at(seq), kind, turn: 2, by: { kind: 'kernel' }, body, ...more });
+  const events = [
+    { seq: 1, at: at(1), kind: 'message.user', by: { kind: 'person' }, body: { blocks: [{ type: 'text', text: '问我' }] } },
+    ev(2, 'turn.started', { trigger: 1 }),
+    ev(3, 'message.assistant', { blocks: [{ type: 'tool_call', call_id: 'c1', name: 'ask_user', args: '{}' }], seen: 2 }),
+    ev(4, 'question.asked', { call_id: 'c1', questions: [{ question: '要吗？', options: [{ label: '要' }] }] }),
+    ev(5, 'question.answered', { call_id: 'c1', answers: [{ picked: ['要'] }] }),
+    ev(6, 'tool.result', { call_id: 'c1', status: 'ok', blocks: [] }),
+    ev(7, 'message.assistant', { blocks: [{ type: 'tool_call', call_id: 'c2', name: 'write', args: '{}' }], seen: 6 }),
+    ev(8, 'tool.approval_requested', { call_id: 'c2', access: 'write' }),
+    ev(9, 'tool.approval_decided', { call_id: 'c2', decision: 'once' }),
+    ev(10, 'tool.result', { call_id: 'c2', status: 'ok', blocks: [] }),
+    ev(11, 'message.assistant', { blocks: [{ type: 'text', text: '好的，收到。' }], seen: 10 }),
+    ev(12, 'turn.ended', { reason: 'done' }),
+  ];
+  const { items } = project(events, null);
+  const kinds = items.map((it) => (it.slot ? `slot:${it.event.kind}` : it.type));
+  const slot = kinds.indexOf('slot:question.answered');
+  assert.ok(slot > kinds.indexOf('steps') && slot < kinds.indexOf('reply'), `问的那一步后面、她接着说的前面：${kinds.join(' ')}`);
+  assert.equal(kinds.filter((k) => k.startsWith('slot:')).length, 1, '允许了的不放');
+  assert.equal(items[slot].asked.kind, 'question.asked');
+  const blocks = group(items);
+  assert.equal(blocks.filter((b) => b.kind === 'her').length, 1, '夹在她这一块里，不另起一块');
+  // 打断：问过、没答就有了结果
+  const cut = [...events.slice(0, 4), ev(5, 'tool.result', { call_id: 'c1', status: 'cancelled', blocks: [] }), ev(6, 'turn.ended', { reason: 'interrupted' })];
+  assert.deepEqual(project(cut, null).items.filter((it) => it.slot).map((it) => it.event.body.status), ['cancelled']);
 });

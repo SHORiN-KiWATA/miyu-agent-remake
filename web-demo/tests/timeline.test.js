@@ -80,9 +80,9 @@ test('页面看着流出来的思考，照记下的时刻；对上的是这次�
   assert.deepEqual([steps[3].start, steps[3].end], [ms(8), ms(8.4)]);
 });
 
-test('样本：她先开口再调工具，工具另起一段，下一句话收起它', () => {
+test('样本：她先开口再调工具，工具另起一段，下一句话收起它；不允许的那一条夹在那一步后面', () => {
   const items = project(sampleLog()).items.filter((it) => it.turn === 65);
-  assert.deepEqual(items.map((it) => it.type), ['user', 'reply', 'steps', 'reply', 'done']);
+  assert.deepEqual(items.map((it) => it.type), ['user', 'reply', 'steps', 'note', 'reply', 'done']);
   const [step] = items[2].steps;
   assert.equal(step.name, 'shell');
   assert.equal(step.status, 'denied');

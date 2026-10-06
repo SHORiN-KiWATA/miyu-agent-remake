@@ -221,31 +221,16 @@ export function pendingAsks(events) {
 }
 
 /**
- * 了结以后留下的，从事件来（蓝图「确认和提问」第 6 条）：回答了的提问一张卡片、不允许的一张、问过没答就取消、跳过了的一行；允许了的
- * 不留。`seq` 是了结的那条事件（照它钉位置）。
- * @param {any[]} events
- * @returns {{seq: number, call: string, report: any}[]}
+ * 了结以后留下的（蓝图「确认和提问」第 6 条）：正文那一层在了结的那一条事件处放一条（`slot: 'asking'`），带着问的那一条；这里算留什么：
+ * 回答了的提问一张卡片、不允许的一张、问过没答就取消、跳过了的一行；别的（允许了的）不留，交 `null`。
+ * @param {any} settle 了结的那一条（`question.answered`、`tool.approval_decided`、`tool.result`）
+ * @param {any} asked 问的那一条（`question.asked`、`tool.approval_requested`）
  */
-export function reportsFrom(events) {
-  /** @type {Map<string, any>} 调用 → 问的那一条（还没了结的） */
-  const asked = new Map();
-  const out = [];
-  for (const e of events) {
-    const call = e.body?.call_id;
-    if (!call) continue;
-    if (e.kind === 'question.asked' || e.kind === 'tool.approval_requested') {
-      asked.set(call, e);
-      continue;
-    }
-    const q = asked.get(call);
-    if (!q || !SETTLES.has(e.kind)) continue;
-    asked.delete(call);
-    const d = q.kind === 'question.asked' ? openAsk({ body: q.body }) : openApproval({ body: q.body });
-    let got = null;
-    if (e.kind === 'question.answered') got = report(d, { kind: 'ask', answers: e.body.answers ?? [] });
-    else if (e.kind === 'tool.approval_decided') got = report(d, { kind: 'approve', decision: e.body.decision, ...(e.body.reason ? { reason: e.body.reason } : {}) });
-    else if (e.body.status === 'cancelled' || e.body.status === 'skipped') got = report(d, { kind: d.kind, cancelled: true });
-    if (got) out.push({ seq: e.seq, call, report: got });
-  }
-  return out;
+export function reportOf(settle, asked) {
+  const d = asked.kind === 'question.asked' ? openAsk({ body: asked.body }) : openApproval({ body: asked.body });
+  const b = settle.body;
+  if (settle.kind === 'question.answered') return report(d, { kind: 'ask', answers: b.answers ?? [] });
+  if (settle.kind === 'tool.approval_decided') return report(d, { kind: 'approve', decision: b.decision, ...(b.reason ? { reason: b.reason } : {}) });
+  if (b.status === 'cancelled' || b.status === 'skipped') return report(d, { kind: d.kind, cancelled: true });
+  return null;
 }

@@ -30,3 +30,5 @@
 .pulse-retry { min-width: 0; overflow: hidden; color: var(--t-warn); text-overflow: ellipsis; white-space: pre; }
 
 @keyframes pulse-sweep { from { background-position: 100% 0; } to { background-position: 0 0; } }
+/* 在等你确认、回答：静止的字，不扫流光（蓝图「运行状态行」） */
+.pulse-shine.is-waiting { animation: none; background: none; color: var(--text-soft); -webkit-text-fill-color: currentColor; }

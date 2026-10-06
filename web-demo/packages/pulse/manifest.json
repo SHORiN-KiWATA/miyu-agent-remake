@@ -150,12 +150,16 @@
     "zh": {
       "retry": " · 重试 {attempt}/{limit}：{message}",
       "retry_wait": " · {wait} 后重试 {attempt}/{limit}：{message}",
-      "retry_failover": " · 换端点重试 {attempt}/{limit}：{message}"
+      "retry_failover": " · 换端点重试 {attempt}/{limit}：{message}",
+      "waiting_ask": "等你回答",
+      "waiting_approve": "等你批准"
     },
     "ja": {
       "retry": " · 再試行 {attempt}/{limit}：{message}",
       "retry_wait": " · {wait}後に再試行 {attempt}/{limit}：{message}",
-      "retry_failover": " · エンドポイントを替えて再試行 {attempt}/{limit}：{message}"
+      "retry_failover": " · エンドポイントを替えて再試行 {attempt}/{limit}：{message}",
+      "waiting_ask": "回答を待っています",
+      "waiting_approve": "承認を待っています"
     }
   }
 }

@@ -3,7 +3,7 @@
 //! 按键、鼠标交给 `model.js` 算新的抽屉，交了、取消了交给 `index.js`。编辑（「输入其他答案」、补充、不允许的理由）用一个
 //! 跟着字长高的框：`Enter` 保存、`Shift+Enter` 换行、`Esc` 退出编辑。
 
-import { h, replace } from '../../src/lib/dom.js';
+import { h, icon, replace } from '../../src/lib/dom.js';
 import { press, saveEdit, cancel, hasReview, onOther, answerOf, approvalHead } from './model.js';
 import { isNewline, insertNewline } from '../../src/lib/newline.js';
 
@@ -154,13 +154,29 @@ export class Drawer {
     }
   }
 
-  /** 两道题及以上：一排标签，最后一个是「确认」。 */
+  /**
+   * 两道题及以上：顶上一行，左边暗色小字写这一道的短名（答过的加 ✓），右边换题的 `‹ 1/2 ›`（「确认」页写 `‹ 确认 ›`），到头的箭头暗下去
+   * （蓝图「确认和提问」第 3 条：原来是一排标签药丸，占一整行，2026-10-07 项目主人要的）。
+   */
   tabs() {
     const d = /** @type {import('./model.js').Drawer} */ (this.d);
-    const names = [...d.questions.map((q, i) => `${q.header || i + 1}${answerOf(d, i) ? ' ✓' : ''}`), this.text('review_tab')];
-    return h('div.asking-tabs', names.map((name, i) => h(`button.asking-tab${i === d.tab ? '.is-current' : ''}`, {
-      type: 'button', onclick: () => this.step({ d: { ...d, tab: i }, done: null, edit: null }),
-    }, name)));
+    const n = d.questions.length;
+    const review = d.tab === n;
+    const q = d.questions[d.tab];
+    const label = review ? '' : `${q.header ?? ''}${answerOf(d, d.tab) ? ' ✓' : ''}`;
+    const go = (tab) => this.step({ d: { ...d, tab }, done: null, edit: null });
+    const arrow = (dir, name) => {
+      const to = d.tab + dir;
+      const off = to < 0 || to > n;
+      // 按下去不抢焦点：点了重画，按钮没了焦点会掉到页面上，接着按的键就丢了；焦点一直留在抽屉上
+      return h(`button.asking-pager-arrow${off ? '.is-off' : ''}`, {
+        type: 'button', disabled: off ? true : null, 'aria-label': name,
+        onmousedown: (/** @type {MouseEvent} */ e) => e.preventDefault(),
+        onclick: () => { go(to); this.focus(); },
+      }, icon(dir < 0 ? 'chevron-left' : 'chevron-right'));
+    };
+    return h('div.asking-top', h('span.asking-label', label),
+      h('span.asking-pager', arrow(-1, '←'), h('span.asking-page', review ? this.text('review_tab') : `${d.tab + 1}/${n}`), arrow(1, '→')));
   }
 
   questionPage() {

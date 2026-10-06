@@ -1,21 +1,26 @@
 // @ts-check
 //! 确认和提问（软件包 `asking`，蓝图 `web.md`「确认和提问」）：抽屉挂进 `composer.takeover`，开着时占着输入框（服务 `composer` 的
 //! `takeover`）。数据照正在看的会话的事件（核心 D-1 `session.answer`、D-2 `ask_user`）：还没了结的 `question.asked`、
-//! `tool.approval_requested` 一个一个开，答了发 `session.answer`，取消是打断这一轮；别处先答了，开着的当场收掉。了结以后留下的也从
-//! 事件画（`reportsFrom`），钉在那条事件来的时候正文的位置（服务 `chat` 的 `keyAt`、`place`），刷新、别的设备照样有。
+//! `tool.approval_requested` 一个一个开，答了发 `session.answer`，取消是打断这一轮；别处先答了，开着的当场收掉。了结以后留下的由正文
+//! 那一层照日志排、交给挂载位 `chat.item`（键 `asking`）由这里画，夹在她这一轮里，刷新、别的设备照样有。
 //! `/demo-ask`、`/demo-approve` 照 `fake.json` 出一个看样子：答了只在这一页里，不发给核心。
 
 import { Drawer } from './drawer.js';
 import { Reports } from './report.js';
-import { openAsk, openApproval, report, pendingAsks, reportsFrom } from './model.js';
+import { openAsk, openApproval, report, pendingAsks, reportOf } from './model.js';
 
 /** @param {any} ctx */
 export function apply(ctx) {
   const text = (path, fields) => ctx.text(path, fields);
-  const reports = new Reports(text, {
-    anchor: (node) => ctx.chat.anchor(node),
-    place: (where, node) => ctx.chat.place(where, node),
-    keyAt: (seq) => ctx.chat.keyAt(seq),
+  const reports = new Reports(text, { anchor: (node) => ctx.chat.anchor(node), place: (where, node) => ctx.chat.place(where, node) });
+  // 了结以后留下的：正文的条目里一条（`slot: 'asking'`，带着了结的和问的那两条），画成卡片、一行；允许了的画空的
+  ctx.slots.mount('chat.item', {
+    id: 'asking',
+    key: 'asking',
+    render: (/** @type {any} */ it, /** @type {{fresh: boolean}} */ how) => {
+      const got = reportOf(it.event, it.asked);
+      return got ? reports.node(got, how.fresh) : document.createElement('div');
+    },
   });
   /** 演示出的，排在真的后面 @type {{d: import('./model.js').Drawer, session: string|null, demo: true}[]} */
   const demos = [];
@@ -66,18 +71,22 @@ export function apply(ctx) {
     }
   };
 
+  /** 告诉运行状态行在不在等你（状态事件 `asking.waiting`：开着的是真的才算，演示的不算）。 */
+  const announce = () => ctx.publish('asking.waiting', showing && !showing.demo ? { session: showing.session, kind: showing.d.kind } : null);
+
   /** 开着的没有了，开下一个：正在看的会话里还没了结的（不算正在等回应的），再是演示的。 */
   const next = () => {
-    if (drawer.open) return;
+    if (drawer.open) return announce();
     const real = view ? pendingAsks(view.events).find((d) => !answering.has(d.id)) : null;
     const item = real ? { d: real, session: view?.session ?? null, demo: false } : demos.shift();
-    if (!item) return;
+    if (!item) return announce();
     showing = item;
     // 先画好抽屉再占框：框照画好的抽屉量高度（反过来量到的是空的，先缩成一条再跳上去）
     drawer.show(item.d);
     ctx.composer.takeover(true);
     // 占了框、抽屉露出来以后才接得住焦点（藏着的时候给不上）
     drawer.focus();
+    announce();
   };
 
   /** 日志变了：开着的真的那一个别处了结了、换了会话，收掉（不留提示）；再看要不要开下一个；留下的照日志钉好。 */
@@ -92,7 +101,6 @@ export function apply(ctx) {
       }
     }
     next();
-    if (reports.sync(v.session, reportsFrom(v.events))) requestAnimationFrame(() => ctx.chat.reveal());
   };
 
   ctx.effect(() => () => {
