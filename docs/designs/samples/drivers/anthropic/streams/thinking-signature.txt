@@ -1,0 +1,15 @@
+start 0 reasoning
+text 0 "用户想看"
+text 0 "目录。"
+private 0 anthropic {"signature":"EqQBCgIYAhIM1gbcDa9GJwZA2b3hGgxBdjrkzLoky3dl1pkiMOYds"}
+start 1 text
+text 1 "我先看一下目录。"
+start 2 tool_call read
+private 2 anthropic {"id":"toolu_01ABC"}
+text 2 "{\"path\""
+text 2 ":\"src\"}"
+end 0
+end 1
+end 2
+usage uncached=40 cache_read=0 cache_write=0 output=89
+ok

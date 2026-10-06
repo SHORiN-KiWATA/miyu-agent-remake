@@ -1,0 +1,5 @@
+start 0 text
+text 0 "很长的一段"
+end 0
+usage uncached=9 cache_read=0 cache_write=0 output=8192
+ok

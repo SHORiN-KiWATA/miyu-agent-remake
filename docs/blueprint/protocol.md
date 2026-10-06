@@ -93,7 +93,10 @@
 | `head` | `{"kind": 字符串, "version": 字符串}` | 头的种类和版本，必写，只记进运行日志 |
 | `locale` | 字符串，可以不写 | 头所在系统的语言（BCP 47 或者 `LANG` 的写法都行）。`ui.language` 是 `auto` 时照它定这个连接的语言：`zh` 开头的（区分大小写）是 `zh`，`ja` 开头的是 `ja`，别的、没写的是 `en`（施工 8-2） |
 | `caps` | 对象，不写是 `{}` | 现在只看 `input`（布尔，不写是 `false`）：这个头能不能让人输入。别的格不理 |
-| `token` | 字符串，可以不写 | 本机令牌（`ipc.md`）；不写的过不了第 3 条 |
+| `token` | 字符串，可以不写 | 本机令牌（`ipc.md`）；本机的头出示它 |
+| `code` | 字符串，可以不写 | 一次性码：64 位小写十六进制（施工 W-8，`web-module.md`「怎么走」第一条） |
+| `login` | 字符串，可以不写 | 登录令牌：64 位小写十六进制（施工 W-8） |
+| `user`、`password` | 字符串，可以不写 | 网页登录用的用户名、密码，一起写（施工 W-8） |
 
 回应：
 
@@ -105,11 +108,13 @@
 | `host` | `{"home": <系统的家目录>, "platform": "linux" 或 "macos" 或 "windows", "workspace": <这个账号的工作区>}`，总有（施工 W-3，`web-module.md`「四、路径」）：`home` 是核心起来时拿到的系统的家目录，照原样，读不出来的是 `null`；`platform` 是核心所在的平台；`workspace` 是这个账号的工作区，换成真实的位置（管理员的工作区核心起来时就建好了，`core.md`；握手不另外建） |
 | `language` | `zh`、`en`、`ja` 之一：这个连接给人看的字用哪种（施工 8-2，`config.md` 第二条第 8 条）。`ui.language` 的最终值（默认值、系统配置、个人设置）定了的就是它，`auto` 的照 `locale`。`ui.language` 改了，连接下一句就照新的说，不用再握手（施工 8-4）：回应里这一格只是握手那一刻的。核心拒绝时的话只有中文、英文，`ja` 的照英文；配置的名字、说明、报错的话有日文 |
 | `config_errors` | 系统配置、个人设置、密钥文件（施工 8-5）里现在有几处错误（不算警告，施工 8-2）。没有的不写 |
+| `setup` | `true`：用一次性码连上的，只能设用户名和密码（施工 W-8）。别的不写 |
+| `login` | `{"expires": <时刻>, "token": <登录令牌>}`：用用户名、密码连上的才有（施工 W-8） |
 | `sandbox` | 这台机器上的沙盒能不能用（核心起来时探的，`sandbox.md`）：`{"usable": true}`，或者 `{"usable": false, "reason": <原因>}`。原因是 `helper_missing`（主程序旁边没有助手）、`helper_failed`（助手跑不起来、超时、说的读不懂）、`no_mechanism`（探成了，这台机器上却没有能用的手段）之一（施工 5-4 下） |
 
 1. 参数读不成（缺了必写的格、哪一格类型不对）：`bad_params`，连接不断。
 2. `1` 不在 `[最低, 最高]` 里：`protocol_mismatch`，回完断开。
-3. 令牌没带、不对：`bad_token`，回完断开。长短要一样，每个字节都比；比到哪一个不一样都用一样长的时间。
+3. 凭据正好写一种（施工 W-8）：`token`，`code`，`login`，或者 `user` 加 `password`。写了不止一种、`user` 和 `password` 只写了一个：`bad_params`，回完断开。一种都没写、本机令牌不对：`bad_token`，回完断开；本机令牌长短要一样，每个字节都比，比到哪一个不一样都用一样长的时间。另外三种怎么验、被拒回什么（`bad_code`、`bad_login`、`bad_password`、`login_throttled`，都回完断开）照 `web-module.md`「怎么走」第一条。用一次性码连上的只能调 `hello`、`human.get`、`account.setup`，别的回 `setup_first`；用登录令牌、密码连上的，它靠的登录令牌作废了就断开。
 4. 过了：这个连接就是管理员。它发的命令都记成管理员发的（`by` 是 `{"kind":"person","account":"admin"}`），命令引起的事件，`cause` 是请求的 `id`（`kernel/events.md`）。
 5. 握手以前：别的方法一律 `hello_first`，连接不断；读不懂的行照「请求」的表回；通知不理。
 6. 握手以前的拒绝说英文；`hello` 本身被拒的，话照这一次报的 `locale` 说（读得出来的话，施工 4-9 再补三上）。过了的，话照回应的 `language` 说（施工 8-2）：`ui.language` 定成 `en` 的，报 `zh-CN` 的头也听英文。握手以后再发 `hello`：照样从第 1 条查起；过了，换成这一次算出的语言和能力；这一次被拒的，话照这一次报的语言说，没断开的还是上一次握手的语言和能力。
@@ -134,6 +139,9 @@
 | `job.stop` | 停掉一个后台命令或者子代理（施工 7-4） |
 | `job.output` | 读一条后台命令到这时为止的输出（施工 7-4 补） |
 | `blob.put` | 传一个附件，存成 blob（施工 3-9 三补） |
+| `account.setup_code` | 要一个一次性码：第一次给管理员设网页登录的用户名和密码、忘了密码重设；只给出示本机令牌的连接（施工 W-8） |
+| `account.setup` | 用一次性码连上的设用户名和密码，换一个登录令牌（施工 W-8） |
+| `account.logout` | 作废登录令牌：这一个，或者 `all` 全部（施工 W-8） |
 | `blob.open`、`blob.write`、`blob.close` | 分块传一个附件，最后存成 blob，回应和 `blob.put` 一样；跟着连接走，60 秒不写、连接断了都作废（施工 W-5） |
 | `blob.get` | 分块读这个账号的一个 blob：照属主给，不照会话（施工 W-6） |
 | `fs.list` | 列一层目录：数据根只有账号自己的工作区能列（施工 W-2） |
@@ -737,7 +745,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了；附件存不下来、读不出来；删会话时读不了放会话的目录、挪不进回收处、崩了；读后台命令的输出时崩了（施工 7-4 补）；给人看的字读不懂（施工 W-1）；画图的库初始化不了：`style.json` 读不懂，或者这台机器上一种字体都读不到（施工 W-4）；分块上传的暂存文件建不了、写不进（施工 W-5）；`link_preview.json` 读不懂（施工 W-7） |
 | `hello_first` | -32010 | 握手以前发了别的方法 |
 | `protocol_mismatch` | -32010 | 头支持的主版本里没有 1（之后断开） |
-| `bad_token` | -32010 | 本机令牌没带、不对（之后断开） |
+| `bad_token` | -32010 | 凭据一种都没写、本机令牌不对（之后断开） |
+| `bad_code`、`bad_login`、`bad_password`、`login_throttled`、`setup_first`、`local_only` | -32010 | 网页登录的几种（施工 W-8，`web-module.md`「出错」） |
 | `unknown_persona` | -32010 | 造会话时人格的目录不存在 |
 | `session_not_found` | -32010 | 没有这个会话，删了的也是 |
 | `session_stopped` | -32010 | 会话停了：写不进去、出了 bug |
@@ -790,8 +799,9 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | 级别 | 这件事 | 什么时候 |
 |---|---|---|
 | `DEBUG` | `connected` | 接上一个连接 |
-| `INFO` | `connected head=… version=… protocol=1` | 握手过了 |
-| `WARN` | `protocol mismatch head=… low=… high=…`、`bad token head=…` | 握手被拒、断开 |
+| `INFO` | `connected head=… version=… protocol=1 via=…` | 握手过了；`via` 是 `token`、`code`、`login`、`password`（施工 W-8） |
+| `WARN` | `protocol mismatch head=… low=… high=…`、`bad token head=…`、`bad code head=…`、`bad login head=…`、`bad password head=…`、`login throttled head=…` | 握手被拒、断开 |
+| `INFO` | `login revoked, closed` | 这个连接靠的登录令牌作废了，断开（施工 W-8） |
 | `DEBUG` | `request method=…` | 每一条请求 |
 | `WARN` | `line too long, closed` | 一行太长 |
 | `INFO` | `disconnected` | 握过手的连接断了 |
@@ -852,6 +862,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `hello_first` | 连上以后要先打招呼（hello）。 | Say hello first after connecting. |
 | `protocol_mismatch` | 头和核心的协议版本对不上，请把它们升级到同一个版本。 | The head and the core speak different protocol versions; upgrade them to the same release. |
 | `bad_token` | 本机令牌不对。 | The local token is wrong. |
+| `bad_code` 到 `local_only` | 照 `web-module.md`「给人看的字」（施工 W-8） | |
 | `unknown_persona` | 没有这个人格。 | There is no such persona. |
 | `session_not_found` | 没有这个会话。 | There is no such session. |
 | `session_stopped` | 这个会话停了，详情在运行日志里；再发一次会重新载入。 | This session has stopped; the runtime log has the details. Sending again reloads it. |
@@ -940,6 +951,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/attach_send.rs` | `session.send` 带附件（施工 3-9 三补）：照先后接在文字后面，宽高、种类照核心量的，图片块带着 `blob.put` 的名字（施工 3-9 四补），她收到的请求里就是这几块；只有附件也是一句话，`null` 是没有；blob 不在的拒绝、什么都没写、换的工作目录也没送进会话；附件的格不对的七种 |
 | `crates/miyu-endpoint/tests/files.rs` | `fs.list`、`fs.find`（施工 W-2）：真核心上数据根不列不找、账号的工作区照样列；开头对、大小写不论、点开头的打了点才列、目录在前、50 条截断、`marks`；模糊找有 `marks`、子目录的 `path` 用 `/`；清单没建完先给一部分、`building`；`fresh` 隔一段时间才重建、不是 `true` 不重建；最多记 4 份、多了丢最久没用的；换不成真实的位置、不是目录的 `path_unreadable`；没写 `cwd` 的 `bad_params` |
 | `crates/miyu-endpoint/tests/hello.rs`（施工 W-3） | 握手的 `host`：三格总有、`platform` 是这台机器的、`workspace` 换成真实的位置（链接也换成指的地方）、没有系统的家目录 `home` 是 `null`、没人建过工作区就回原样的路径（不替连上来的头造目录）。`fs.realpath`：`~` 照家目录接、`cwd` 可以不写也可以本身是 `~`；相对的没给 `cwd` 的 `bad_params`；往上找最近在的一层、后面几段原样接上；路中间的链接换成指的地方；落在数据根里的照样换，不查边界；一层都不在（没有家目录）`path_unreadable` |
+| `crates/miyu-endpoint/tests/login.rs`、`login_log.rs`（施工 W-8） | 握手的四种凭据、`account.setup_code`、`account.setup`、`account.logout`、作废了断开、运行日志里没有码、密码、令牌（`web-module.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/reads.rs`（施工 W-6） | `blob.get`：读一段、读到结尾就停、`offset` 过了结尾是空的、不写 `offset`、`length` 的默认值、`length` 写 0 只问大小；没有这个 blob `unknown_blob`。`fs.read`：数据根拒、工作区能读、相对的 `bad_params`、`~` 接系统的家目录；没有、目录、（Unix）套接字 `path_unreadable`。两个方法 `length` 超过 512 KiB 都是 `bad_params`；拒绝的中英文 |
 | `crates/miyu-endpoint/tests/from.rs`、`src/from/tests.rs` | `session.send` 带 `from`（施工 7-10）：记成 `harness`、带着名字，不带的、`null` 照旧记成本人；闲着开一轮、`cause` 是这一条，正忙排进这一轮；附件照收；控制字符去掉、截到 128 字节不截断一个字；空的、只有控制字符的、不是字符串的参数不对，什么都没写；`session.create`、`session.redo` 写了不理 |
 | `crates/miyu-endpoint/src/attach/kind/tests.rs` | 认附件：量得出的图是图片、头写的不算，量不出的当文件；图片的上限和线上的；PDF 照开头认；别的文件照头写的，写成 PDF、图片的照内容认，文本、空的、二进制、不是 UTF-8 的 |

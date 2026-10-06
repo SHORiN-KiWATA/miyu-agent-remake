@@ -79,11 +79,15 @@ impl Routes {
     ) -> Result<Vec<Choice>, NoModel> {
         let provider = &target.provider;
         let base_url = provider::resolve_base_url(provider, &|reference| config.secret(reference))?;
+        // 档案另配的头照谁在挑的种子换（施工 8-14）：会话是会话编号，一次性的是用途。
+        let headers = provider.headers(seat.seed);
         let choice = |at: Option<usize>, key: Option<&str>, endpoint: Endpoint| Choice {
             who: Candidate::new(&provider.id, key, &target.model),
             at,
             target: target.clone(),
-            endpoint,
+            endpoint: headers.iter().fold(endpoint, |endpoint, (name, value)| {
+                endpoint.with_header(name, value)
+            }),
             member: member.cloned(),
         };
         if provider.keys.is_empty() {

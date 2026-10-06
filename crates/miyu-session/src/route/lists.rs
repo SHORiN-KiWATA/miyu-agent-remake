@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use miyu_config::Values;
 use miyu_config::secret::{Reference, Secret};
-use miyu_drivers::{Driver, DriverTextSources, DriverTexts, OpenAiChat};
+use miyu_drivers::{Driver, DriverTextSources, DriverTexts};
 use miyu_http::{Client, Failed, Get, Got, get_full};
 use miyu_models::observed::{ListedModel, ProviderList};
 use miyu_models::provider::{self, NoModel};
@@ -68,9 +68,7 @@ async fn fetch(
     let provider = data
         .with(|knowledge| provider::provider(values, knowledge, id))
         .map_err(|NoModel(why)| why)?;
-    let driver = match provider.driver {
-        provider::Driver::OpenAiChat => OpenAiChat::new(provider.compat.clone(), listing_texts()?),
-    };
+    let driver = provider.build(listing_texts()?);
     let headers = if provider.keys.is_empty() {
         Vec::new()
     } else {
@@ -87,7 +85,7 @@ async fn fetch(
     let client = data
         .fetcher_for(&base_url)
         .ok_or("no client to fetch with")?;
-    list_models(client, &driver, &base_url, &headers, TIMEOUT)
+    list_models(client, driver.as_ref(), &base_url, &headers, TIMEOUT)
         .await
         .map_err(|failed| failed.message)
 }

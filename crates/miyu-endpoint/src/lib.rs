@@ -33,6 +33,7 @@ mod human;
 mod job_output;
 mod list;
 mod listen;
+mod login;
 mod meta;
 mod methods;
 mod models;
@@ -126,6 +127,8 @@ pub struct Core {
     /// 分块上传（施工 W-5）：这个连接上的一个上传多久没有 `blob.write` 就作废。出厂 60 秒，测试里设短的，
     /// 不用真等一分钟。
     upload_idle: Duration,
+    /// 身份（施工 W-8）：一次性码、登录失败的计数、作废登录令牌的广播。
+    identity: login::Identity,
 }
 
 /// 空的模型资料：没有档案、没有目录，读完了。
@@ -186,6 +189,7 @@ impl Core {
             files_fresh: Duration::from_secs(miyu_fs::FRESH_SECS),
             queries: Queries::default(),
             upload_idle: UPLOAD_IDLE,
+            identity: login::Identity::new(login::CODE_TTL),
         }
     }
 
@@ -232,6 +236,13 @@ impl Core {
     #[must_use]
     pub fn with_upload_idle(mut self, idle: Duration) -> Core {
         self.upload_idle = idle;
+        self
+    }
+
+    /// 同一份家底，一次性码 `ttl` 有效（施工 W-8）：测试里设短的，不用真等 5 分钟。
+    #[must_use]
+    pub fn with_code_ttl(mut self, ttl: Duration) -> Core {
+        self.identity = login::Identity::new(ttl);
         self
     }
 

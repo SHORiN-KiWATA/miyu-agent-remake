@@ -84,6 +84,10 @@
         "name": "キー",
         "description": "{ secret = \"名前\" }（miyu login で保存）か { env = \"環境変数\" } を書きます。セッションはそのうちの一つを使い続けます。空なら認証ヘッダーを付けません。"
       },
+      "providers.<id>.name": {
+        "name": "表示名",
+        "description": "画面に出す名前。ID はモデルの参照にだけ使います。書かなければモデル資料のプロバイダー名、それもなければ ID を使います。"
+      },
       "providers.<id>.catalog": {
         "name": "対応するプロバイダー",
         "description": "モデル資料のどのプロバイダーに当たるか。DeepSeek だけを中継するなら deepseek と書きます。"
@@ -137,6 +141,10 @@
       "providers.<id>.models.<model>.effort": {
         "name": "既定の思考の強さ",
         "description": "このモデルが既定で使う思考の強さ。段階のひとつを書きます（例：high）。思考を切れるモデルは off。書かなければプロバイダーの既定に従います。"
+      },
+      "providers.<id>.models.<model>.temperature": {
+        "name": "既定の温度",
+        "description": "このモデルが既定で使う温度。0 から 2 で、高いほど答えが自由になります。書かなければプロバイダーの既定に従います。温度を受け付けないモデルには送りません。"
       },
       "providers.<id>.models.<model>.price_multiplier": {
         "name": "倍率",
@@ -258,6 +266,8 @@
     "config/no-provider": "{key} が指しているプロバイダー {name} は設定されていません",
     "config/no-pool": "{key} が指しているプール {name} は設定されていません",
     "config/unknown-effort": "{key} の {name} は、このモデルのいまの段階にありません。リクエストは書かなかったものとして送ります",
+    "config/temperature-unsupported": "{key}：このモデルは温度を受け付けません。リクエストは書かなかったものとして送ります",
+    "config/temperature-too-high": "{key} の {got} は、このモデルの上限 {max} を超えています。リクエストは書かなかったものとして送ります",
     "config/bad-secret-name": "{key} はシークレットの名前にできません：小文字で始め、小文字、数字、-、_ だけで、64 文字まで",
     "config/bad-secret-value": "{key} の値は引用符で囲んだ文字列にしてください。空にはできません",
     "config/trust-header": "Miyu が記録しているプロジェクト設定の信頼：どのリポジトリの、どの内容を、信頼するかどうか。",

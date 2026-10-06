@@ -17,9 +17,9 @@ use miyu_store::root::DataRoot;
 /// 测试构建出来的主程序。
 pub const MIYU: &str = env!("CARGO_BIN_EXE_miyu");
 
-/// 一个永远用不了的主对话的模型（施工 8-11）：驱动还没有，请求当场 `no_model`，一个字节都不往外发。`miyu ask` 说话之前先看
+/// 一个永远用不了的主对话的模型（施工 8-11）：没写驱动和地址、目录里也对不上（施工 8-13 起三种驱动都有了），请求当场 `no_model`，一个字节都不往外发。`miyu ask` 说话之前先看
 /// `models.chat` 配没配，没配的不造会话；要看「没有可用的模型」那一轮的测试照它写系统配置。
-pub const UNUSABLE_MODEL: &str = "[providers.idle]\ndriver = \"anthropic\"\nbase_url = \"https://idle.invalid\"\nkeys = []\n\n[models]\nchat = \"idle/none\"\n";
+pub const UNUSABLE_MODEL: &str = "[providers.idle]\nkeys = []\n\n[models]\nchat = \"idle/none\"\n";
 
 /// 一个用完就删的临时数据根，建好了骨架。
 pub struct Home {

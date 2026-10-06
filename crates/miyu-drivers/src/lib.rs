@@ -5,6 +5,8 @@
 //!
 //! - [`Driver`]：驱动的接口，执行器照着它调：家族、路径、要哪些 blob、编码、解码器、分类、认证头、列模型（[`Listed`]）；
 //! - [`openai_chat`]：OpenAI 兼容的对话接口（DeepSeek、智谱、OpenRouter、本机的 Ollama 这些）；
+//! - [`anthropic`]：Anthropic 的消息接口（官方、opencode Zen 上的 Claude，施工 8-12）；
+//! - [`openai_responses`]：OpenAI 的 Responses 接口（官方、opencode Zen 上的 GPT，施工 8-13）；
 //! - [`sse`]：SSE 分帧；[`classify`]：出错分类；[`base64`]：图片、文件写成 data URL 要用的编码；
 //! - [`DeepSeekImages`]：一张图在 DeepSeek 上算多少 token（施工 6-3 上）；
 //! - [`text_file`]：人附的文本文件照字放进消息，什么算文本、最多给多少（施工 3-9 三补）。
@@ -13,16 +15,19 @@
 //! 由执行器先从 blob 取出来交进来（[`BlobBytes`]），驱动不碰文件；给模型看的几句占位也由执行器
 //! 从资源目录读好交进来（[`DriverTexts`]）。
 
+pub mod anthropic;
 pub mod base64;
 pub mod classify;
 mod driver;
 mod image_tokens;
+mod media;
 pub mod openai_chat;
+pub mod openai_responses;
 pub mod sse;
 pub mod text_file;
 mod texts;
 
-pub use driver::{Decode, Driver, OpenAiChat};
+pub use driver::{Anthropic, Decode, Driver, OpenAiChat, OpenAiResponses};
 pub use image_tokens::{DeepSeekImages, deepseek_image_tokens};
 pub use texts::{
     DriverTextSources, DriverTexts, ImageDescriptionSources, ImageNameSources, TextFileSources,
@@ -36,18 +41,30 @@ use miyu_kernel::accumulate::Delta;
 use miyu_kernel::event::{CallError, Usage};
 use miyu_kernel::id::{ContentHash, ModelName};
 
-/// 一次调用要定的：发给哪个模型、输出的上限、模型能收哪些输入、思考强度。
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// 一次调用要定的：发给哪个模型、输出的上限、模型能收哪些输入、思考强度、温度（施工 8-22）。
+#[derive(Debug, Clone, PartialEq)]
 pub struct Call {
     /// 模型名，照供应商那边的叫法。
     pub model: ModelName,
-    /// 最多输出多少 token。没有就不写，照供应商的默认。
+    /// 最多输出多少 token。没有的：openai-chat 不写，照供应商的默认；anthropic 一定要写，写它的兜底（施工 8-12，
+    /// [`anthropic::FALLBACK_MAX_TOKENS`]），路由先照模型资料替它填。
     pub max_output: Option<u32>,
     /// 模型能收哪些输入。
     pub inputs: Inputs,
     /// 这一次的思考强度（施工 8-18，`docs/blueprint/models.md`「驱动要守的约定」第 13 条）：规整过的名字，[`EFFORT_OFF`]、
     /// [`EFFORT_ON`]，或者目录里的档位名。没有的什么都不加，请求和以前一个字节不差。
     pub effort: Option<String>,
+    /// 这一次的温度（施工 8-22，`docs/blueprint/models.md`「驱动要守的约定」第 14 条）：路由照模型资料交，已经查过这个模型
+    /// 收、不超过驱动的上限。没有的什么都不加，请求和以前一个字节不差。
+    pub temperature: Option<f64>,
+}
+
+/// 温度写成一个顶层字段 `,"temperature":<数>`（施工 8-22），接在思考强度那几样的前面。数照最短的十进制写（`0.7`、`1`）。
+/// 没有的什么都不加。
+pub(crate) fn write_temperature(body: &mut Vec<u8>, temperature: Option<f64>) {
+    if let Some(temperature) = temperature {
+        body.extend_from_slice(format!(",\"temperature\":{temperature}").as_bytes());
+    }
 }
 
 /// 思考强度「关」的名字（施工 8-18）：目录里写 `none`、`disabled` 的读成它，有开关的模型多这一档。
@@ -92,8 +109,9 @@ impl BlobBytes for BTreeMap<ContentHash, Vec<u8>> {
 pub struct Encoded {
     /// 请求字节：发出去的就是它，它的 SHA-256 记进 `model.called`。
     pub body: Vec<u8>,
-    /// 每条线上的消息在字节里的位置，照先后。system 和挪出来的那条 user 消息也各算一条，所以
-    /// 条数不一定和统一的请求一样。
+    /// 每条线上的消息在字节里的位置，照先后。openai-chat 的 system 和挪出来的那条 user 消息也各算一条；anthropic 的
+    /// system 在顶层、不算，相邻同角色的合成一条（施工 8-12）；openai-responses 是 `input` 里的每一项，system 在
+    /// `instructions`、不算（施工 8-13）。所以条数不一定和统一的请求一样。
     pub messages: Vec<Range<usize>>,
     /// 发到供应商地址后面的哪一截：平时是驱动的那一条，接着写的另有一条（施工 3-5 再补）。
     pub path: String,

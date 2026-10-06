@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use miyu_config::Values;
-use miyu_drivers::{Call, DriverTexts, OpenAiChat};
+use miyu_drivers::{Call, Driver, DriverTexts};
 use miyu_http::{Client, Endpoint, is_loopback_url};
 use miyu_kernel::id::ModelName;
 use miyu_kernel::origin::Model;
@@ -54,8 +54,8 @@ pub(super) struct Ready {
     pub(super) model: Model,
     /// 地址和 key 的值。
     pub(super) endpoint: Endpoint,
-    /// 驱动：开关照这一家的档案，占位照交进来的。
-    pub(super) driver: OpenAiChat,
+    /// 驱动：照真发的那个模型的驱动造（施工 8-12、8-14），开关照档案和目录，占位照交进来的。
+    pub(super) driver: Box<dyn Driver>,
     /// 这一次的调用：模型名、输出上限、能收什么、思考强度。
     pub(super) call: Call,
     /// 空闲超时，照思考强度放大过。
@@ -64,6 +64,8 @@ pub(super) struct Ready {
     pub(super) learn: Learn,
     /// 这个模型的价格（施工 8-15）：说完了照用量算金额。资料里没有价格的没有。
     pub(super) tariff: Option<Tariff>,
+    /// 占位工具（施工 8-14 补）：档案点名的名字 + 给模型看的说明。工具面里缺哪件补哪件（`placeholder.rs`）；空的不动。
+    pub(super) placeholders: Vec<(String, String)>,
 }
 
 impl Routes {
@@ -97,8 +99,9 @@ impl Routes {
         Ok((picked, pins))
     }
 
-    /// 挑定了 `choice`：照真发的那个模型查资料，思考强度照配置的默认，驱动的占位是 `texts`，输出上限 `max_output`
-    /// （没有的照供应商的默认）。
+    /// 挑定了 `choice`：照真发的那个模型查资料、换驱动（施工 8-14），思考强度、温度（施工 8-22）照配置的默认，驱动的占位是 `texts`，占位工具照档案
+    /// （8-14 补），输出上限 `max_output`
+    /// （没有的照供应商的默认；一定要写的驱动照模型资料的最大输出，资料也没有的驱动自己兜底，施工 8-12）。
     pub(super) fn ready(
         &self,
         config: &TurnConfig,
@@ -108,9 +111,16 @@ impl Routes {
     ) -> Result<Ready, NoModel> {
         let target = &choice.target;
         let model = ModelName::parse(&target.model).map_err(|error| NoModel(error.to_string()))?;
-        let (facts, _): (Facts, _) = self
-            .data
-            .with(|knowledge| facts(&config.resolved, knowledge, &target.provider, &target.model));
+        // 驱动、开关照真发的那个模型（施工 8-14）：同一家里的模型可以各走各的驱动，没有驱动的这个模型当场 `no_model`。
+        let (facts, speaking): (Facts, _) = self.data.with(|knowledge| {
+            let (facts, _) = facts(&config.resolved, knowledge, &target.provider, &target.model);
+            let speaking =
+                target
+                    .provider
+                    .for_model(&target.model, &facts.wire, &knowledge.profiles.npm);
+            (facts, speaking)
+        });
+        let speaking = speaking?;
         let endpoint = choice.endpoint.clone();
         // 思考强度照这个模型配置的默认（施工 8-18；8-18（补）起不认会话那一层，已经照档位查过）。
         let effort = facts.effort.value.clone();
@@ -123,13 +133,24 @@ impl Routes {
             client,
             model: model_of(target),
             endpoint,
-            driver: OpenAiChat::new(target.provider.compat.clone(), texts),
+            // 占位工具（施工 8-14 补）：档案点名了哪几件，说明是资源目录里那一句。
+            placeholders: speaking.placeholder_specs(self.data.placeholder_tool()),
+            driver: speaking.build(texts),
             idle: effort::idle(self.idle, effort.as_deref()),
             call: Call {
                 model,
-                max_output,
+                max_output: max_output.or_else(|| {
+                    let driver = speaking.driver;
+                    let written = facts
+                        .max_output
+                        .value
+                        .filter(|_| driver.needs_max_output())?;
+                    Some(u32::try_from(written).unwrap_or(u32::MAX))
+                }),
                 inputs: facts.driver_inputs(),
                 effort,
+                // 温度照这个模型配置的默认（施工 8-22），已经查过这个模型收、不超过它走的驱动的上限。
+                temperature: facts.temperature.value,
             },
             learn: Learn {
                 data: Arc::clone(&self.data),

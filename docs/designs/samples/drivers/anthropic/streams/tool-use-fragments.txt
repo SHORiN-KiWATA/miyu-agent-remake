@@ -1,0 +1,11 @@
+start 0 tool_call read
+private 0 anthropic {"id":"toolu_01A"}
+start 1 tool_call shell
+private 1 anthropic {"id":"toolu_01B"}
+text 0 "{\"path\":"
+text 1 "{\"command\":\"ls\"}"
+text 0 "\"a.txt\"}"
+end 0
+end 1
+usage uncached=30 cache_read=0 cache_write=0 output=40
+ok

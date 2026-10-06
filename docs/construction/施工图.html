@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>186</b><span>/ 196 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出</span></li>
-    <li><b>8-1</b><span>下一步：M8 从配置清单开始，跨会话从 C-1 开始，两条线并行；接着 C-7 跨会话验收、三个驱动（等项目主人给 key）；跨会话只剩 C-7 验收</span></li>
-    <li><b class="mono">721422ad</b><span>最近一步（W-7 再补 按网站取卡片）的提交</span></li>
+    <li><b>196</b><span>/ 200 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-24（网页演示转来的下架模型移出池；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
+    <li><b class="mono">09215c0b</b><span>最近一步（8-22 模型的默认温度）的提交</span></li>
   </ul>
 </header>
 
@@ -557,15 +557,19 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s8-10"><span class="n">8-10</span>会话里换模型<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-11"><span class="n">8-11</span>第一次接入<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-11b"><span class="n">8-11</span>本机的服务不走代理（补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">8-12</span>Anthropic 消息接口</span></li>
-        <li><span class="step"><span class="n">8-13</span>OpenAI Responses 接口</span></li>
-        <li><span class="step"><span class="n">8-14</span>opencode Zen</span></li>
+        <li><a class="step done" href="#s8-12"><span class="n">8-12</span>Anthropic 消息接口<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s8-13"><span class="n">8-13</span>OpenAI Responses 接口<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s8-14"><span class="n">8-14</span>opencode Zen<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-15"><span class="n">8-15</span>用量与金额<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-20"><span class="n">8-20</span>模型调用口<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-17"><span class="n">8-17</span>替看不了图的模型看图<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-18"><span class="n">8-18</span>思考强度<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-18b"><span class="n">8-18</span>去掉会话里的思考强度（补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">8-16</span>M8 验收</span></li>
+        <li><a class="step done" href="#s8-16"><span class="n">8-16</span>M8 验收<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s8-21"><span class="n">8-21</span>供应商的显示名<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s8-22"><span class="n">8-22</span>模型的默认温度<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">8-23</span>下架的模型移出池（要补）</span></li>
+        <li><span class="step"><span class="n">8-24</span><code>miyu config</code> 打开终端界面的配置页（要补）</span></li>
       </ol>
     </li>
     <li>
@@ -577,7 +581,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sC-4"><span class="n">C-4</span>读别的会话<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sC-5"><span class="n">C-5</span>发给别的会话<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sC-6"><span class="n">C-6</span>空了告诉我<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">C-7</span>跨会话验收</span></li>
+        <li><a class="step done" href="#sC-7"><span class="n">C-7</span>跨会话验收<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -592,10 +596,10 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sW-7"><span class="n">W-7</span>链接卡片<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sW-7b"><span class="n">W-7</span>压缩的页面和 head 后面的标签（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sW-7c"><span class="n">W-7</span>按网站取卡片（再补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">W-8</span>身份</span></li>
-        <li><span class="step"><span class="n">W-9</span>网页软件</span></li>
-        <li><span class="step"><span class="n">W-10</span>媒体地址</span></li>
-        <li><span class="step"><span class="n">W-11</span>打包</span></li>
+        <li><a class="step done" href="#sW-8"><span class="n">W-8</span>身份<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sW-9"><span class="n">W-9</span>网页软件<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sW-10"><span class="n">W-10</span>媒体地址<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">W-11</span>打包（暂停）</span></li>
       </ol>
     </li>
     <li>
@@ -11789,6 +11793,339 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s8-12" aria-labelledby="h-s812">
+  <div class="sheet-head"><h2 id="h-s812"><span class="no">8-12</span>Anthropic 消息接口</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">多一个驱动家族 <code>anthropic</code>：Anthropic 官方、Zen 上的 Claude、走这种写法的兼容接口能直接配上用。缓存照前缀契约打四处点，带签名的思考原样回传，工具、图片、PDF、思考强度照这一家的写法；请求形状探针多一张 Anthropic 的脸。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-drivers/src/anthropic/</span><span class="dir-note">新驱动</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">messages.rs</span><span class="rl">相邻同角色的合成一条；思考块回传；结果里的图、PDF 放在 tool_result 里</span></div>
+              <div class="tile new"><span class="nm">marks.rs</span><span class="rl">四处打点：工具和 system、稳定区、上一次、这一次的末尾</span></div>
+              <div class="tile new"><span class="nm">effort.rs</span><span class="rl">档位 adaptive + effort；off 是 disabled；没配的不加</span></div>
+              <div class="tile new"><span class="nm">decode.rs、usage.rs</span><span class="rl">SSE 解成四种增量；签名、编号进私有数据；用量四项</span></div>
+              <div class="tile new"><span class="nm">media.rs</span><span class="rl">换成字的几步从 openai-chat 挪出来共用，样本一个字节不变</span></div>
+            </div>
+          </div>
+          <ol class="pipe" aria-label="接上了哪些">
+            <li class="cmd">供应商 driver = "anthropic"</li>
+            <li>模型资料：开关是接口自带的，目录有开关的多 <code>off</code></li>
+            <li>路由：照 driver 造驱动，替它照资料填输出上限</li>
+            <li>档案加 <code>[providers.anthropic]</code></li>
+          </ol>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不用自动缓存</span><span class="rl">打点位置自己定、样本里看得见</span></div>
+          <div class="tile new"><span class="nm">没配强度什么都不加</span><span class="rl">照供应商的默认</span></div>
+          <div class="tile new"><span class="nm">保留思考的校验</span><span class="rl">先原样回传；有官方 key 实测后另开 8-12 补</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-12</dd></div>
+        <div><dt>名称</dt><dd>Anthropic 消息接口</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-03</dd></div>
+        <div><dt>提交</dt><dd class="mono">f73cfb5d</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>19 个手写变异逮住 18 个，没逮住的是多余的一行，删了；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型（DeepSeek 的兼容接口）：工具循环、思考强度、附图、打断再接着说、写错 key 都对；缓存打点命中待官方 key</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-12-Anthropic消息接口.md</code>；蓝图 <code>drivers/anthropic.md</code>、<code>models.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-13" aria-labelledby="h-s813">
+  <div class="sheet-head"><h2 id="h-s813"><span class="no">8-13</span>OpenAI Responses 接口</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">多一个驱动家族 <code>openai-responses</code>：OpenAI 官方、Zen 上的 GPT 能直接配上用。不存对话、每次带全部历史；工具、图片、PDF 照这一家的写法；配了思考强度的要摘要、要加密的思考并原样回传；缓存自动按前缀。请求形状探针多一张 Responses 的脸。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-drivers/src/openai_responses/</span><span class="dir-note">新驱动</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">input.rs</span><span class="rl">user、assistant 几项、function_call、function_call_output；结果里的图放在 output 里</span></div>
+              <div class="tile new"><span class="nm">effort.rs</span><span class="rl">档位要摘要和加密思考；off 是 effort none；没配的不加</span></div>
+              <div class="tile new"><span class="nm">decode.rs、usage.rs</span><span class="rl">一项开一块；参数攒到这一项完了照整段交；用量减命中</span></div>
+              <div class="tile new"><span class="nm">wire.rs</span><span class="rl">store:false、strict:false、instructions</span></div>
+            </div>
+          </div>
+          <ol class="pipe" aria-label="接上了哪些">
+            <li class="cmd">供应商 driver = "openai-responses"</li>
+            <li>模型资料：没有开关，off 只从目录的 none 来</li>
+            <li>档案加 <code>[providers.openai]</code></li>
+          </ol>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不存对话</span><span class="rl">真相只在我们的日志里</span></div>
+          <div class="tile new"><span class="nm">参数照整段交</span><span class="rl">实测中转站的增量丢了开头的字</span></div>
+          <div class="tile new"><span class="nm">没配强度什么都不加</span><span class="rl">和 Anthropic 一个规矩</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-13</dd></div>
+        <div><dt>名称</dt><dd>OpenAI Responses 接口</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-03</dd></div>
+        <div><dt>提交</dt><dd class="mono">14b4cbc0</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>19 个手写变异全逮住；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真模型（中转站）：工具循环、思考强度、附图、打断、写错 key 都对；加密思考的回传、官方缓存命中待官方 key</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-13-OpenAI Responses接口.md</code>；蓝图 <code>drivers/openai-responses.md</code>、<code>models.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-14" aria-labelledby="h-s814">
+  <div class="sheet-head"><h2 id="h-s814"><span class="no">8-14</span>opencode Zen</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">opencode 的 Zen、Console Go 只写 key 就能用：同一家里的模型照目录的包名各走各的驱动（Claude、MiniMax 走 Anthropic，GPT 走 Responses，别的走 OpenAI 兼容），交错思考的照目录回传思考，Go 的请求带它要的 <code>x-opencode-session</code>。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-models/src/</span><span class="dir-note">资料和供应商</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">headers.rs</span><span class="rl">头的模板：只认 {session_digest}，种子的 SHA-256 前 26 位</span></div>
+              <div class="tile"><span class="nm">catalog.rs、facts.rs</span><span class="rl">模型自己的包名、交错思考的字段，只取第 1、2 层</span></div>
+              <div class="tile"><span class="nm">provider.rs</span><span class="rl">for_model：照模型换驱动和开关；没有驱动的这个模型 no_model</span></div>
+            </div>
+          </div>
+          <ol class="pipe" aria-label="接上了哪些">
+            <li class="cmd">档案加 <code>[providers.opencode-go]</code> 的头</li>
+            <li>路由照真发的模型造驱动、填上限</li>
+            <li>挑候选时照种子挂头；provider.test 也照模型</li>
+          </ol>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">驱动按模型</span><span class="rl">手写的供应商驱动 &gt; 模型的包名 &gt; 档案 &gt; 那一家的包名</span></div>
+          <div class="tile new"><span class="nm">种子</span><span class="rl">会话编号、一次性的用途、provider.test</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-14</dd></div>
+        <div><dt>名称</dt><dd>opencode Zen</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-03</dd></div>
+        <div><dt>提交</dt><dd class="mono">4dd627a0</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>21 个手写变异全逮住；三台机器的 CI 和长跑全绿；请求形状探针的存档没动</span></li>
+        <li><span class="ok">✓</span><span>真模型（Go）：deepseek-v4.1-flash 带工具三轮、缓存命中九成以上；minimax-m3 走 /messages、gpt-5.6-luna 走 /responses 都答对</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-14-opencode Zen.md</code>；蓝图 <code>models.md</code> 第八条、<code>drivers/openai-chat.md</code>「接 opencode Zen」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-16" aria-labelledby="h-s816">
+  <div class="sheet-head"><h2 id="h-s816"><span class="no">8-16</span>M8 验收</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">M8 配置与模型的真模型验收：从空的数据根起、不靠开发用的环境变量，第一次接入走一遍，只用配置接上三种接口，会话里换模型，池里一个端点出错换到下一个，思考强度当场生效，金额对得上。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">自测：一个空的数据根连起来走</span><span class="dir-note">main 8d3170c · 界面中文</span></div>
+            <ol class="pipe" aria-label="自测的几件">
+              <li><code>miyu ask</code> 没模型先走 setup：找到 <code>OPENCODE_API_KEY</code>、选 Go、试通、敲名字选模型，接着答对</li>
+              <li>DeepSeek 官方只写 key；它的 Anthropic 接口、Responses 中转站写驱动和地址：三家带工具各一轮都对</li>
+              <li>会话里从 Responses 换到 Anthropic 接口，接着上文答；池里第一个 401、记冷却、换第二个，下次不再试坏的</li>
+              <li><code>effort</code> 改了下一个回合就用上；<code>usage.query</code> 和每次冻结的金额、照目录价格手算的一分不差；<code>recap</code> 记在用途里</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">项目主人真人试</span><span class="dir-note">2026-10-04</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">通过</span><span class="rl">照施工单的九条走了一遍</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步看到的</p>
+          <div class="tile"><span class="nm">换端点的通知</span><span class="rl">瞬时的 model.changed，命令行不印，给界面（M9）</span></div>
+          <div class="tile"><span class="nm">401 的原话</span><span class="rl">供应商自己打了码，带着 key 的末四位</span></div>
+          <div class="tile"><span class="nm">同期合的</span><span class="rl">8-14 补：Zen 免费档</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-16</dd></div>
+        <div><dt>名称</dt><dd>M8 验收</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-04</dd></div>
+        <div><dt>提交</dt><dd class="mono">8f0fba6</dd></div>
+        <div><dt>验收</dt><dd>自测、项目主人真人试 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真模型自测九条都对；数据根、仓库里没有 key</span></li>
+        <li><span class="ok">✓</span><span>项目主人真人试，通过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-16-M8 验收.md</code>：施工单和验收结果。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-21" aria-labelledby="h-s821">
+  <div class="sheet-head"><h2 id="h-s821"><span class="no">8-21</span>供应商的显示名</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">供应商的编号给模型引用用，界面上给人看的名字另配一项 <code>providers.&lt;id&gt;.name</code>。<code>model.list</code> 每一家多一格 <code>name</code>：写了的、目录里那一家的名字、编号，照这个先后，带它从哪来。名字只给界面看，不进请求、不进日志。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">供应商的显示名</span><span class="dir-note">8-21</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>配置清单多 <code>providers.&lt;id&gt;.name</code>：文字，最多 64 个字，只能写在系统配置、个人设置里，当场生效</li>
+              <li><code>model.list</code> 的 <code>name</code>：<code>value</code>、<code>from</code>（<code>config</code>、<code>catalog</code>、<code>id</code>）、<code>key</code>，写了的另带 <code>file</code>、<code>line</code>、<code>layer</code>；用不了的那一家也有</li>
+              <li>两种语言的四份样本、三种语言的字跟着换</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">只有空白的当没写</span><span class="rl">去掉两头空白以后是空的，往下退</span></div>
+          <div class="tile new"><span class="nm">和资料的格一个样子</span><span class="rl">头照 from 知道是不是写了的（写了的才「恢复默认」）</span></div>
+          <div class="tile"><span class="nm">空表照旧</span><span class="rl">只写 [providers.x] 不算配好了，项目主人定不变</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-21</dd></div>
+        <div><dt>名称</dt><dd>供应商的显示名</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-04</dd></div>
+        <div><dt>提交</dt><dd class="mono">287899de</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真核心 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试先写（<code>models_name.rs</code> 两条，清单登记的先后、样本逐字节一样）；10 个手写变异全逮住；三台机器的 CI 和长跑全绿（run 949）</span></li>
+        <li><span class="ok">✓</span><span>真核心：不写名字的照目录给「DeepSeek」，写了的给「我的中转」带文件、行、层；<code>config.set</code> 改名字，回应 <code>applies: now</code>，紧接着的 <code>model.list</code> 就是新名字</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-21-供应商显示名.md</code>；蓝图 <code>models.md</code>「对外的样子」「协议」，<code>config.md</code>「M8 的配置项」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-22" aria-labelledby="h-s822">
+  <div class="sheet-head"><h2 id="h-s822"><span class="no">8-22</span>模型的默认温度</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">每个模型多一项配置 <code>providers.&lt;id&gt;.models.&lt;model&gt;.temperature</code>，照思考强度的路子从配置、模型资料、路由交到三个驱动。没写的请求一个字节不加，照供应商的默认；这个模型用不了的照没写发，配置里报出来。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">模型的默认温度</span><span class="dir-note">8-22</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>配置清单多 <code>temperature</code>：0 到 2 的小数，只能写在系统配置、个人设置里，下一轮生效</li>
+              <li>目录多读一格 <code>temperature</code>（能不能调）；模型资料多 <code>takes_temperature</code>、<code>temperature</code> 两格，<code>model.list</code> 的 <code>facts</code> 照着交</li>
+              <li>路由把最终值交给驱动的 <code>Call.temperature</code>，三种驱动写顶层 <code>"temperature"</code>，在思考强度那几样前面；主请求、辅助请求、一次性入口、<code>provider.test</code> 都带</li>
+              <li>用不了的报 <code>unusable_temperature</code>（错误，只报不丢）：目录说不收的、走 <code>anthropic</code> 超过 1 的</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">没写不带</span><span class="rl">请求和以前逐字节一样，照供应商的默认</span></div>
+          <div class="tile new"><span class="nm">目录没说当能调</span><span class="rl">只有目录明说不收的才拦</span></div>
+          <div class="tile new"><span class="nm">Anthropic 开着思考不带</span><span class="rl">只看这一次的强度，不报配置问题</span></div>
+          <div class="tile"><span class="nm">不进会话日志</span><span class="rl">model.called、session.created 不记温度</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-22</dd></div>
+        <div><dt>名称</dt><dd>模型的默认温度</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">09215c0b</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真核心 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试先写（新的 19 条：资料、三种驱动、路由、一次性入口、<code>model.list</code>、<code>provider.test</code>）；16 个手写变异全逮住；三台机器的 CI 和长跑全绿（run 952）</span></li>
+        <li><span class="ok">✓</span><span>真核心加假供应商九个场景：没写不带，系统、个人两层和删掉、写 0；Anthropic 写 0.5 带、开着思考不带、写 1.5 不带、目录说不收的不带；<code>config check</code> 报两处，写 3 被拒</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-22-模型默认温度.md</code>；蓝图 <code>models.md</code>「怎么走」第十四条、「驱动要守的约定」第 14 条、「协议」，<code>config.md</code>「M8 的配置项」，三个驱动页。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sC-1" aria-labelledby="h-sC1">
   <div class="sheet-head"><h2 id="h-sC1"><span class="no">C-1</span>跨会话的事件和编号</h2><span class="pill done">已完成</span></div>
   <p class="purpose">跨会话这条线的第一步，和 M8 并行：会话的短编号，事件 <code>peer.idle</code>、效果 <code>peer.watch</code> 的类型、读写、样本，账本认得在等哪几个会话。这一步不收话、不列、不读、不发、不订，她和头都还看不到变化。</p>
@@ -12088,6 +12425,37 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/C-6-空了告诉我.md</code>；蓝图 <code>cross-session.md</code> 第六条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sC-7" aria-labelledby="h-sC7">
+  <div class="sheet-head"><h2 id="h-sC7"><span class="no">C-7</span>跨会话验收</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">跨会话 C-1 到 C-6 在真模型上用一遍：列会话、读、发、回话、空了告诉我。不改代码、不改蓝图。</p>
+  <figure class="frame">
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">C-7</dd></div>
+        <div><dt>名称</dt><dd>跨会话验收</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-03</dd></div>
+        <div><dt>提交</dt><dd class="mono">—</dd></div>
+        <div><dt>验收</dt><dd>项目主人 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>项目主人确认：列会话、读、发、回话、空了告诉我都能用</span></li>
+        <li><span class="wait">–</span><span>没单独记真模型实测：子代理被拒、互发停下、不当人的许可、缓存、防刷屏的数（由 C-2 到 C-6 的测试守着）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/C-7-跨会话验收.md</code>；蓝图 <code>cross-session.md</code>。</li>
       </ul>
     </div>
   </div>
@@ -12560,6 +12928,175 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sW-8" aria-labelledby="h-sW8">
+  <div class="sheet-head"><h2 id="h-sW8"><span class="no">W-8</span>身份</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">本机的浏览器怎么证明是你，核心这一半：只有一个账号 <code>admin</code>，网页第一次、忘了密码时，用本机终端要来的一次性码进来，设登录用的用户名和密码；以后用它们登录，浏览器记住 30 天。网页软件只转发，凭据由核心在握手时验。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-endpoint/src/</span><span class="dir-note">握手认四种凭据</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">login.rs、login/files.rs</span><span class="rl">一次性码、设密码、密码登录和限流、登录令牌、作废了断开</span></div>
+              <div class="tile"><span class="nm">hello.rs、connection.rs</span><span class="rl">本机令牌、一次性码、登录令牌、用户名加密码，只写一种；用码连上的只能设密码</span></div>
+            </div>
+          </div>
+          <ol class="pipe" aria-label="接上了哪些">
+            <li class="cmd"><code>account.setup_code</code>、<code>account.setup</code>、<code>account.logout</code></li>
+            <li><code>system/accounts.json</code>（argon2id）、<code>home/admin/logins.json</code>（只存哈希），0600</li>
+            <li><code>miyu-ipc</code> 的 <code>connect_bare</code>：不读本机令牌，留给网页软件</li>
+          </ol>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">只有一个 admin</span><span class="rl">用户名只用来登录，家目录照旧</span></div>
+          <div class="tile new"><span class="nm">码只用一次</span><span class="rl">握手当场作废，忘了密码 miyu web --reset</span></div>
+          <div class="tile new"><span class="nm">60 秒错 5 次</span><span class="rl">先拒、不验；验一次 27 毫秒</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">W-8</dd></div>
+        <div><dt>名称</dt><dd>身份</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-04</dd></div>
+        <div><dt>提交</dt><dd class="mono">e0f162c3</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>16 条测试先写；26 个手写变异全逮住（查出一处判断断开的漏洞，补了）；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>运行日志里搜不到一次性码、密码、登录令牌</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/W-8-身份.md</code>；蓝图 <code>web-module.md</code> 第一条（2026-10-04 照项目主人定的重画）。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sW-9" aria-labelledby="h-sW9">
+  <div class="sheet-head"><h2 id="h-sW9"><span class="no">W-9</span>网页软件</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">网页界面成一个单独的程序 <code>miyu-web</code>：自己开一个只听本机的端口给页面，把浏览器的 WebSocket 一帧一条转成核心协议的一行一条，经本机套接字（Windows 上命名管道）连核心，不读本机令牌，凭据照原样交给核心验。主程序的 <code>miyu web</code> 找到它、交参数：确保在跑，第一次、忘了密码的带一次性码打开浏览器。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-web/src/</span><span class="dir-note">新 crate，第 5 层的头</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">serve.rs、pages.rs</span><span class="rl">单实例、run/web、Host 核对、页面文件和响应头、空闲退出</span></div>
+              <div class="tile new"><span class="nm">ws.rs</span><span class="rl">Origin 核对，一帧一行照转；1003、1009、1012，关了先读掉再放</span></div>
+              <div class="tile new"><span class="nm">open.rs</span><span class="rl">拉起 serve、要一次性码、开浏览器或者印网址、--logout</span></div>
+            </div>
+          </div>
+          <ol class="pipe" aria-label="接上了哪些">
+            <li class="cmd"><code>miyu web</code> → 旁边的 <code>miyu-web open</code> → <code>serve</code></li>
+            <li><code>resources/web/web.json</code>：端口、空闲、CSP、媒体类型</li>
+            <li><code>miyu-ipc</code> 的 <code>spawn_detached</code>：拉起、跟终端脱开、等那一行，和拉起核心一个办法</li>
+          </ol>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">出厂端口 8300</span><span class="rl">Miyu 的生日 8 月 30 日</span></div>
+          <div class="tile new"><span class="nm">只认本机</span><span class="rl">127.0.0.1、localhost、[::1]，别的 Host、Origin 403</span></div>
+          <div class="tile new"><span class="nm">关了先读掉</span><span class="rl">带着没读的数据关会 RST，Windows 上丢关闭帧</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">W-9</dd></div>
+        <div><dt>名称</dt><dd>网页软件</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-04</dd></div>
+        <div><dt>提交</dt><dd class="mono">e9e300e3</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真机 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>19 条测试先写；35 个手写变异全逮住（头一轮查出五处测试的漏洞，补了）</span></li>
+        <li><span class="ok">✓</span><span>真机：Chromium、真 Firefox 打开网页演示的页面，CSP 下零违规；一次性码设密码、登录令牌重连、真模型说一句；核心停了收到 1012</span></li>
+        <li><span class="ok">✓</span><span>项目主人独立验收查出 Windows 上超长帧收不到 1009（带着没读的数据关，系统回 RST）；改成关了先读掉再放，三台机器的 CI 和长跑全绿</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/W-9-网页软件.md</code>；蓝图新页 <code>web-ui.md</code>（<code>web-module.md</code> 第九、十一条挪过去）。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sW-10" aria-labelledby="h-sW10">
+  <div class="sheet-head"><h2 id="h-sW10"><span class="no">W-10</span>媒体地址</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">网页上的图、附件、她写到的本机图片和音视频怎么给浏览器：页面带登录令牌换一张票据，照票据拿，能分段拿（视频拖进度）。内容由核心一块 512 KiB 地给，网页软件读一块写一块，不整个读进内存；回应关在一个空的来源里，直接打开碰不到页面。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-web/src/media/</span><span class="dir-note">网页软件多的 /media</span></div>
+            <div class="files">
+              <div class="tile new"><span class="nm">media.rs</span><span class="rl">POST /media 换票据，GET /media/&lt;票据&gt; 一块块给、响应头</span></div>
+              <div class="tile new"><span class="nm">tickets.rs</span><span class="rl">64 位十六进制，同样的交回同一张，12 小时不用作废，最多 4096 张</span></div>
+              <div class="tile new"><span class="nm">link.rs、range.rs</span><span class="rl">一个登录令牌一条核心连接，同时问；Range 只认一段；下载名照 RFC 5987</span></div>
+            </div>
+          </div>
+          <ol class="pipe" aria-label="接上了哪些">
+            <li class="cmd"><code>blob.get</code>、<code>fs.read</code>（W-6）一块 512 KiB</li>
+            <li><code>web.json</code>：票据多久作废、最多几张；音视频、PDF 的类型</li>
+            <li>令牌作废了（<code>miyu web --logout</code>），票据一起作废</li>
+          </ol>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">关在空的来源里</span><span class="rl">sandbox、nosniff、private, no-cache</span></div>
+          <div class="tile new"><span class="nm">类型只认表里的</span><span class="rl">页面说的类型不在 web.json 的表里不认</span></div>
+          <div class="tile new"><span class="nm">在给不算空闲</span><span class="rl">换票据不算，一块块给的时候算</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">W-10</dd></div>
+        <div><dt>名称</dt><dd>媒体地址</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-04</dd></div>
+        <div><dt>提交</dt><dd class="mono">dec1451c</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真机 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>14 条测试先写（核心的替身同一条连接上乱序答）；21 个手写变异全逮住（查出两处测试漏洞，删了三处多余的代码）；三台机器的 CI 和长跑全绿</span></li>
+        <li><span class="ok">✓</span><span>真机（Chromium）：传一张图、一段 5 MB 的视频，图显示，视频拖到 15 秒（5 次 206）；本机文件、数据根里的 403、下载名、直接打开关在 sandbox 里；退出登录以后 401、再要 404</span></li>
+        <li><span class="ok">✓</span><span>顺手修了 <code>redo.rs</code> 一个量早了的偶发失败（15 次错 2 次 → 30 次全过）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/W-10-媒体地址.md</code>；蓝图 <code>web-ui.md</code>「怎么走」第三条（<code>web-module.md</code> 第十条挪过去）。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 
 
 
@@ -12753,6 +13290,7 @@ const BUILD = {
   n_models: { by: '3-9', how: 'frame', note: '配置系统做出来之前只认环境变量 DEEPSEEK_API_KEY：设了就接 DeepSeek 官方的 deepseek-flash，key 只在内存里；没设的，每次请求都当场回「没有可用的模型」（3-9 上，项目主人定）；开发用的 MIYU_DEV_BASE_URL、MIYU_DEV_MODEL 替换地址和模型（3-9 再补）' },
   n_cli: { by: '3-9', how: 'frame', note: 'miyu ask：连上核心（没在跑就拉起），开一次性会话或者 --continue、--session 接着说；思考灰色印在标准错误上，回答印在标准输出上，问完一行用量；Ctrl+C 一次打断、两次就走；--format json 给脚本（3-9 下）' },
   n_compact: { by: '6-1', how: 'frame', note: '用量和压缩线（6-1）：锚是最近一次压缩以后、说完了、带用量的 model.called，盖住工具面、system 和前 messages+1 条；后面新增的照 UTF-8 字节除以 4 估（照 codex）；报的比估的小取估的、换过模型整份估（照 dsh）；压缩线 = 窗口 − min(最大输出, 20000) − 13000。摘要请求（6-2 上）：发主请求之前过了线，在这一轮里先压：有效历史到第 N 条的投影加摘要指令，取出摘要写检查点，这一轮要回应的话留在尾巴里，一组不拆；执行器交了限额才主动压。留尾巴（6-2 下）：照投影的先后一组一组地留，至多 min(16000, 线的四分之一)，只在切得开的地方切；一步至多压一次。模型资料和限额（6-3 上）：models.dev 的快照查窗口，DeepSeek 的图片照官方计算器，会话 actor 造会话、载入以后交给内核，真的会话到线就压。接上真模型（6-3 下）：miyu ask 印压缩那一行（原地刷新进度，压好了换成压前 → 压后），日志记度量；检查点包装的结尾加一句接着做、别重做（J12 实测）；取摘要先去草稿。检查点里的几段和压后重建（6-5）：清单、取回指路、太大没重读的由代码写；发摘要请求之前先重读最近的文件，原文存成 blob 放进检查点。失败和熔断（6-6 上）：连续失败 3 次、压完 3 个回合内又到线连着 3 次，暂停自动压缩，暂停着放不下的请求不发。截短重试（6-6 中）：摘要请求自己超长，截掉最老的几组再试，最多 3 次，截过的写明摘要没看到哪一段。撤销能撤掉压缩（6-9）：压缩跟着它所在的那一轮撤，撤到压缩以前时从磁盘读回更早的一段。隔离式回退（6-6 下）：摘要回复里调了工具，改发不带工具面的摘要请求。截过的、隔离式的出错再来照记下的发（6-6 补）。被动压缩（6-7）：主请求报超长，先压再重发一次。手动压缩（6-8）：session.compact、miyu compact 单开一轮只做压缩，要求夹在摘要指令里，暂停着也能压' },
+  n_web: { by: 'W-9', how: 'frame', note: '网页软件 miyu-web（W-9）：只听本机的 HTTP 端口（出厂 8300），给页面文件，/ws 把浏览器的 WebSocket 一帧一条转成核心协议的一行一条，不读本机令牌；单实例、空闲退出；miyu web 找旁边的它、确保在跑、带一次性码打开浏览器。/media（W-10）：带登录令牌换票据，照票据一块块给 blob、本机文件，能分段拖进度。页面还在网页演示里' },
   n_bus: { by: '3-8', how: 'frame', note: '连接上一行一条 JSON-RPC 2.0：握手（主版本、本机令牌）、造会话、说话、打断，拒绝附原因码（3-8 上）；订阅事件流，回应排在它产生的推送后面，掉队推 resync（3-8 中）；核心在本机的 Unix 套接字上等连接：一个数据根一个核心（锁），本机令牌写进 run/token，实际位置记在 run/socket，套接字放在只有自己能进的目录里（3-8 下）；Windows 上是命名管道，只对本人开放，头连上以后核对另一头是自己的（3-8 补）' },
 };
 

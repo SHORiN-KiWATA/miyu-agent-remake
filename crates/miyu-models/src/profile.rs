@@ -3,14 +3,15 @@
 //! 的资源文件，`models.md`「在哪」末尾）。
 //!
 //! 档案只有用得上的几格：驱动、地址、`openai-chat` 的开关（8-18 多开关思考的 `toggle`）、一张图怎么算（8-6），`[npm]`：目录里的 AI SDK 包名 → 驱动
-//! （8-7，照目录推驱动），名字（8-11：只在档案里的一家，第一次接入列给人看）。另配的头、占位工具随 8-14；找 key 的环境
-//! 变量随第一家用得上它的。8-6 加的「能收哪些输入」8-7 拿掉了：
+//! （8-7，照目录推驱动），名字（8-11：只在档案里的一家，第一次接入列给人看），另配的头（8-14：值是模板，只认
+//! `{session_digest}`，[`crate::headers`]）。找 key 的环境变量随第一家用得上它的。8-6 加的「能收哪些输入」8-7 拿掉了：
 //! 照模型资料（目录、手写的，「施工时定的」8-7）。
 
 use std::collections::BTreeMap;
 
 use serde::Deserialize;
 
+use crate::headers;
 use miyu_drivers::openai_chat::{
     Compat, Continuation, ContinuationField, OutputLimit, ReasoningField, ReasoningReplay, Toggle,
 };
@@ -46,6 +47,13 @@ pub struct Profile {
     /// 一张图怎么算 token：现在只有 `deepseek`（官方计算器的算法）。不写照策略的固定数。
     #[serde(default)]
     pub image_tokens: Option<ImageTokens>,
+    /// 另配的头（施工 8-14）：名字 → 模板，值里只认 `{session_digest}`（[`crate::headers`]）。
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
+    /// 工具面里缺这几件时补同名的占位声明（施工 8-14 补，`models.md`「八、opencode Zen」第 2 条）：说明是
+    /// `resources/core/drivers/placeholder-tool.txt` 那一句。
+    #[serde(default)]
+    pub placeholder_tools: Vec<String>,
 }
 
 /// 一张图怎么算 token 的算法。
@@ -172,8 +180,16 @@ impl Profiles {
     ///
     /// 不是这个形状（多了不认识的格、写法不对）：原因写明是档案。
     pub fn parse(json: &serde_json::Value) -> Result<Profiles, String> {
-        Profiles::deserialize(json)
-            .map_err(|error| format!("models/profiles.toml not readable: {error}"))
+        let profiles = Profiles::deserialize(json)
+            .map_err(|error| format!("models/profiles.toml not readable: {error}"))?;
+        for (id, profile) in &profiles.providers {
+            for (name, template) in &profile.headers {
+                headers::check(template).map_err(|error| {
+                    format!("models/profiles.toml not readable: header {name:?} of provider {id:?}: {error}")
+                })?;
+            }
+        }
+        Ok(profiles)
     }
 }
 

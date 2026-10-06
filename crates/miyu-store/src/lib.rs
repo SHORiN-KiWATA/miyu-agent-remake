@@ -20,6 +20,7 @@
 //!   坏了怎么删掉重建在 [`mod@sqlite`]；
 //! - [`watch`]：监视配置文件所在的目录，按文件名认，合并连着来的变动（施工 8-4）。
 
+pub mod accounts;
 pub mod blob;
 pub mod config_file;
 mod durable;
@@ -30,6 +31,8 @@ pub mod index;
 pub mod jobs;
 pub mod journal;
 pub mod log;
+pub mod logins;
+mod private_json;
 pub mod resources;
 pub mod root;
 pub mod secrets;

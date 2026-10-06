@@ -2328,6 +2328,17 @@ Reply with OK.
 }
 ```
 
+#### `core/drivers/placeholder-tool.txt`
+
+- 什么时候加进来：档案点名了占位工具的供应商、工具面里缺那几件的请求（施工 8-14 补）
+- token：29
+- 为什么加：Zen 免费档按客户端识别，请求体的工具面里要有 `shell` 和 `read`；缺的补一条同名占位声明，说明写明别调用（`models.md` 第八条第 2 条）。2026-10-04 照 Go 的 `deepseek-v4.1-flash` 量：`hi` 接一个换行、再接这一句是 60，基线 `hi` 是 31，这一句 29
+- 指纹：`2f762840`
+
+```text
+Placeholder for a tool this client is expected to send with the request; it is not available in this session. Do not call it.
+```
+
 #### `software/basesystem/tools/glob.json`
 
 - 什么时候加进来：会话的工具面里有 `glob`（每次请求都带）

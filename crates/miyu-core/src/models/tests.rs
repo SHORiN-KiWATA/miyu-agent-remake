@@ -37,6 +37,50 @@ fn the_shipped_profiles_keep_what_was_in_the_code() {
             Some("http://127.0.0.1:11434/v1")
         )
     );
+    // 施工 8-12：Anthropic 官方的地址目录里没有，档案补上；没有开关。
+    let anthropic = &profiles.providers["anthropic"];
+    assert_eq!(
+        (anthropic.driver.as_deref(), anthropic.base_url.as_deref()),
+        (Some("anthropic"), Some("https://api.anthropic.com/v1"))
+    );
+    assert!(anthropic.compat.is_none());
+    assert_eq!(profiles.npm["@ai-sdk/anthropic"], "anthropic");
+    // 施工 8-13：OpenAI 官方一样，目录里没有地址，档案补上。
+    let openai = &profiles.providers["openai"];
+    assert_eq!(
+        (openai.driver.as_deref(), openai.base_url.as_deref()),
+        (Some("openai-responses"), Some("https://api.openai.com/v1"))
+    );
+    assert!(openai.compat.is_none());
+    assert_eq!(profiles.npm["@ai-sdk/openai"], "openai-responses");
+    // 施工 8-14：opencode Go 只多一个头，驱动、地址照目录。
+    let go = &profiles.providers["opencode-go"];
+    assert_eq!(
+        go.headers.iter().collect::<Vec<_>>(),
+        [(
+            &"x-opencode-session".to_string(),
+            &"ses_{session_digest}".to_string()
+        )]
+    );
+    assert_eq!((go.driver.as_deref(), go.base_url.as_deref()), (None, None));
+    assert!(go.compat.is_none());
+    // 施工 8-14 补（2026-10-04 实测）：Zen 免费档按客户端识别——User-Agent 盖成 opencode 的形状，另配三个头，
+    // 工具面里缺 `read`、`shell` 的补占位；说明是 `resources/core/drivers/placeholder-tool.txt` 那一句。
+    let zen = &profiles.providers["opencode"];
+    assert_eq!(zen.headers["User-Agent"], "opencode/2.0.21");
+    assert_eq!(zen.headers["x-opencode-client"], "cli");
+    assert_eq!(zen.headers["x-opencode-project"], "global");
+    assert_eq!(zen.headers["x-opencode-session"], "ses_{session_digest}");
+    assert_eq!(zen.placeholder_tools, ["read", "shell"]);
+    assert!(
+        !include_str!("../../../../resources/core/drivers/placeholder-tool.txt").is_empty(),
+        "占位说明在资源里"
+    );
+    for (id, profile) in &profiles.providers {
+        if id != "opencode-go" && id != "opencode" {
+            assert!(profile.headers.is_empty(), "{id}");
+        }
+    }
 }
 
 #[test]

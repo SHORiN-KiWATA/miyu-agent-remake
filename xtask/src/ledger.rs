@@ -33,6 +33,9 @@ const HUMAN: &str = "human";
 /// 资源目录最上一层的这个目录放模型资料，是数据，不发给模型，不登记（施工 6-3 上）。
 const DATA: &str = "models";
 
+/// 资源目录最上一层的这个目录放网页软件的设置（`web.json`）和页面，给浏览器的，不发给模型，不登记（施工 W-9，`web-ui.md`）。
+const WEB: &str = "web";
+
 /// `software/mermaid/`、`software/net/` 整个是数据（字体、三种记号色、源码的上限；抓链接卡片的时限、上限、请求头），
 /// 不发给模型，不登记（施工 W-4，`mermaid.md`「样子」：「这条线不加给模型看的字」；施工 W-7，`net.md`）。
 const SOFTWARE_DIR: &str = "software/";
@@ -83,10 +86,10 @@ fn walk(dir: &Path, prefix: &str, files: &mut BTreeMap<String, Vec<u8>>) -> Resu
         let name = entry.file_name().to_string_lossy().into_owned();
         let path = format!("{prefix}{name}");
         if entry.file_type().map_err(unreadable)?.is_dir() {
-            // 给人看的字、模型资料、mermaid 的 style.json、net 的 link_preview.json 都不发给模型，不进登记簿
-            // （26 第十节，施工 4-5 上、6-3 上、W-4、W-7）。
+            // 给人看的字、模型资料、mermaid 的 style.json、net 的 link_preview.json、网页软件的都不发给模型，不进登记簿
+            // （26 第十节，施工 4-5 上、6-3 上、W-4、W-7、W-9）。
             if name == HUMAN
-                || (prefix.is_empty() && name == DATA)
+                || (prefix.is_empty() && (name == DATA || name == WEB))
                 || (prefix == SOFTWARE_DIR && DATA_PACKAGES.contains(&name.as_str()))
             {
                 continue;
@@ -197,6 +200,9 @@ mod tests {
             ("software/x/human/en.json", "{}"),
             ("software/x/tools/t.json", "{}"),
             ("models/models-dev.json", "{}"),
+            ("web/web.json", "{}"),
+            ("web/pages/index.html", "x"),
+            ("core/web/w.txt", "w"),
             ("core/models/m.txt", "m"),
             ("software/mermaid/style.json", "{}"),
             ("software/net/link_preview.json", "{}"),
@@ -211,13 +217,14 @@ mod tests {
         let walked = walk(&dir, "", &mut found);
         std::fs::remove_dir_all(&dir).unwrap();
         walked.unwrap();
-        // 给人看的字、最上一层的模型资料、software/mermaid/、software/net/ 不登记，别的照查（别处叫 models、
-        // mermaid、net 的目录照查：只有正好 software/ 下这两处才豁免）。
+        // 给人看的字、最上一层的模型资料和网页软件、software/mermaid/、software/net/ 不登记，别的照查（别处叫 models、
+        // web、mermaid、net 的目录照查：只有正好最上一层、software/ 下这几处才豁免）。
         assert_eq!(
             found.keys().collect::<Vec<_>>(),
             [
                 "core/a.txt",
                 "core/models/m.txt",
+                "core/web/w.txt",
                 "software/x/mermaid/not_special_here.json",
                 "software/x/net/not_special_here.json",
                 "software/x/tools/t.json",

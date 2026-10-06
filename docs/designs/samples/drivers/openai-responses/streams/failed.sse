@@ -1,0 +1,9 @@
+event: response.output_item.added
+data: {"type":"response.output_item.added","output_index":0,"item":{"id":"msg_7","type":"message","role":"assistant","content":[]}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","output_index":0,"delta":"说到"}
+
+event: response.failed
+data: {"type":"response.failed","response":{"id":"resp_7","status":"failed","error":{"code":"server_error","message":"The server had an error processing your request."}}}
+

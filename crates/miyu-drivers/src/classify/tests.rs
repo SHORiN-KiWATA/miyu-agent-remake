@@ -309,3 +309,123 @@ fn the_http_status_is_kept_in_its_own_field() {
         (ErrorClass::RateLimited, None)
     );
 }
+
+#[test]
+fn anthropic_error_bodies() {
+    // 施工 8-12：Anthropic 的错误体 `{"type":"error","error":{"type":…,"message":…}}`，照官方文档的几类各一个。
+    let body = |kind: &str, message: &str| {
+        format!(
+            r#"{{"type":"error","error":{{"type":"{kind}","message":"{message}"}},"request_id":"req_1"}}"#
+        )
+    };
+    let cases = [
+        (
+            400,
+            body(
+                "invalid_request_error",
+                "prompt is too long: 210000 tokens > 200000 maximum",
+            ),
+            ErrorClass::ContextTooLong,
+        ),
+        (
+            400,
+            body(
+                "invalid_request_error",
+                "input length and `max_tokens` exceed context limit: 197000 + 8192 > 200000, decrease input length or `max_tokens` and try again",
+            ),
+            ErrorClass::ContextTooLong,
+        ),
+        (
+            400,
+            body(
+                "invalid_request_error",
+                "Output blocked by content filtering policy",
+            ),
+            ErrorClass::ContentPolicy,
+        ),
+        (
+            400,
+            body(
+                "invalid_request_error",
+                "messages.1.content.0: unexpected `tool_use_id` found",
+            ),
+            ErrorClass::Unclassified,
+        ),
+        (
+            401,
+            body("authentication_error", "invalid x-api-key"),
+            ErrorClass::Auth,
+        ),
+        (
+            402,
+            body("billing_error", "Your credit balance is too low"),
+            ErrorClass::Auth,
+        ),
+        (
+            403,
+            body("permission_error", "Your API key does not have permission"),
+            ErrorClass::Auth,
+        ),
+        (
+            404,
+            body("not_found_error", "model: claude-nope"),
+            ErrorClass::Unclassified,
+        ),
+        (
+            413,
+            body(
+                "request_too_large",
+                "Request exceeds the maximum allowed number of bytes",
+            ),
+            ErrorClass::ContextTooLong,
+        ),
+        (
+            429,
+            body(
+                "rate_limit_error",
+                "Number of request tokens has exceeded your per-minute rate limit",
+            ),
+            ErrorClass::RateLimited,
+        ),
+        (
+            500,
+            body("api_error", "Internal server error"),
+            ErrorClass::Retryable,
+        ),
+        (
+            529,
+            body("overloaded_error", "Overloaded"),
+            ErrorClass::Retryable,
+        ),
+    ];
+    for (status, body, want) in cases {
+        let got = classify(&failure(Some(status), &[], &body));
+        assert_eq!(got.error.class, want, "{status} {body}");
+        assert!(
+            got.error.message.starts_with(&format!("HTTP {status}: ")),
+            "{}",
+            got.error.message
+        );
+        assert!(
+            !got.error.message.contains("request_id"),
+            "原话是 error.message：{}",
+            got.error.message
+        );
+    }
+    // 超长的老说法：超了多少、上限不解析。
+    let old = classify(&failure(
+        Some(400),
+        &[],
+        &body(
+            "invalid_request_error",
+            "input length and `max_tokens` exceed context limit: 197000 + 8192 > 200000",
+        ),
+    ));
+    assert_eq!((old.excess, old.limit), (None, None));
+    // 流里的错没有状态：过载可重试。
+    let stream = classify(&Failure::stream(
+        body("overloaded_error", "Overloaded").as_bytes(),
+    ));
+    assert_eq!(stream.error.class, ErrorClass::Retryable);
+    assert_eq!(stream.error.message, "Overloaded");
+}

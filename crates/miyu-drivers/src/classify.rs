@@ -56,7 +56,7 @@ const OVERFLOW_CODES: [&str; 3] = [
 ];
 
 /// 超长的说法。
-const OVERFLOW_PHRASES: [&str; 22] = [
+const OVERFLOW_PHRASES: [&str; 23] = [
     "prompt is too long",
     "prompt too long",
     "input is too long",
@@ -79,6 +79,8 @@ const OVERFLOW_PHRASES: [&str; 22] = [
     "maximum prompt length is",
     "maximum allowed input length",
     "range of input length should be",
+    // Anthropic 的老模型：输入加 `max_tokens` 超了窗口（施工 8-12）。
+    "exceed context limit",
 ];
 
 /// 限速的说法：先排除它们，再认超长。

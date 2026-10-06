@@ -1,0 +1,9 @@
+event: response.output_item.added
+data: {"type":"response.output_item.added","output_index":0,"item":{"id":"msg_8","type":"message","role":"assistant","content":[]}}
+
+event: error
+data: {"type":"error","code":"rate_limit_exceeded","message":"Rate limit reached. Please try again in 1.5s","param":null}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","output_index":0,"delta":"后面的不理"}
+

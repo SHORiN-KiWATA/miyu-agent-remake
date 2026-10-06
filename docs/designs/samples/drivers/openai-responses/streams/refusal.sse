@@ -1,0 +1,9 @@
+event: response.output_item.added
+data: {"type":"response.output_item.added","output_index":0,"item":{"id":"msg_4","type":"message","role":"assistant","content":[]}}
+
+event: response.refusal.delta
+data: {"type":"response.refusal.delta","output_index":0,"content_index":0,"delta":"I can’t help with that."}
+
+event: response.completed
+data: {"type":"response.completed","response":{"status":"completed","usage":{"input_tokens":10,"output_tokens":7}}}
+

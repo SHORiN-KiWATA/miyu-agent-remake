@@ -12,6 +12,7 @@ Commands:
   login [name]          Save a provider's key; --list shows which are set
   logout [name]         Delete a provider's key
   setup                 Connect the first model: find a key, try it, save it
+  web                   Open the web UI
   sandbox setup|remove  Set up or remove the sandbox user (Windows, needs admin)
 
 ask options:

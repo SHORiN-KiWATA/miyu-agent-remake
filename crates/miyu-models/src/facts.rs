@@ -7,8 +7,13 @@
 //! - 倍率：模型手写的，再是供应商手写的，都没有是 1。
 //! - 思考强度（施工 8-18，[`crate::effort`]）：几档照手写的、目录的，规整过；目录的开关只在这一家的档案写了开关时才算。默认的
 //!   那一档只认配置写的、在这时的档位里的。
+//! - 温度（施工 8-22，[`crate::temperature`]）：能不能调照目录借；默认的温度只认配置写的、这个模型用得了的（目录没说不收、
+//!   不超过它真走的驱动的上限）。
 //!
-//! 驱动、缓存类别这两格随用到它们的那一步（「施工时定的」8-7）。
+//! - 这个模型照目录怎么说话（施工 8-14，[`Wire`]）：自己的包名、交错思考的字段，只取第 1、2 层对上的；不进 `model.list`。
+//!   能不能关思考照它换出来的驱动算（[`Provider::for_model`]）。
+//!
+//! 缓存类别随用到它的那一步（「施工时定的」8-7）。
 
 mod source;
 
@@ -24,6 +29,7 @@ use crate::effort;
 use crate::knowledge::Knowledge;
 use crate::matching::{Found, Matched, find};
 use crate::provider::Provider;
+use crate::temperature;
 
 /// 一格的值和它的来源。
 #[derive(Debug, Clone, PartialEq)]
@@ -32,6 +38,16 @@ pub struct Fact<T> {
     pub value: T,
     /// 从哪来的。
     pub source: Source,
+}
+
+/// 这个模型照目录怎么说话（施工 8-14）：只取第 1、2 层对上的（手写指定的、供应商对上了的）——包名、字段名是供应商接口的
+/// 写法，不是模型的性质，按名字对上的中转不借。路由照它换驱动、开关（[`Provider::for_model`]）。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Wire {
+    /// 模型自己的 AI SDK 包名。
+    pub npm: Option<String>,
+    /// 交错思考写回哪个字段。
+    pub interleaved: Option<String>,
 }
 
 /// 一个模型的资料：每一格各有来源。没有的值是 `None`，来源照样有（驱动的保守默认）。
@@ -49,6 +65,10 @@ pub struct Facts {
     pub reasoning: Fact<Option<Vec<String>>>,
     /// 默认的思考强度（施工 8-18）：配置写的、在这时的档位里的那一档；没写的、不在档位里的没有（请求照没写发）。
     pub effort: Fact<Option<String>>,
+    /// 能不能调温度（施工 8-22）：目录的 `temperature`。没有：不知道，当能调。
+    pub takes_temperature: Fact<Option<bool>>,
+    /// 默认的温度（施工 8-22）：配置写的、这个模型用得了的；没写的、用不了的没有（请求照没写发）。
+    pub temperature: Fact<Option<f64>>,
     /// 价格。没有：不算金额。
     pub price: Fact<Option<Price>>,
     /// 倍率。
@@ -57,6 +77,8 @@ pub struct Facts {
     pub name: Fact<String>,
     /// `deprecated`、`beta` 这类。
     pub status: Fact<Option<String>>,
+    /// 照目录怎么说话（施工 8-14）：没有来源，不进 `model.list`。
+    pub wire: Wire,
 }
 
 impl Facts {
@@ -96,6 +118,16 @@ impl Facts {
             &self.reasoning.source,
         );
         put("effort", json!(self.effort.value), &self.effort.source);
+        put(
+            "takes_temperature",
+            json!(self.takes_temperature.value),
+            &self.takes_temperature.source,
+        );
+        put(
+            "temperature",
+            json!(self.temperature.value),
+            &self.temperature.source,
+        );
         let price = self.price.value.as_ref().map_or(Json::Null, Price::json);
         put("price", price, &self.price.source);
         put(
@@ -145,6 +177,22 @@ pub fn facts(
     // 对上了目录的：每一格借的来源都是这一个条目（价格另看挑的那家借不借）。
     let model_data = entry.map(|(entry, _, _)| entry);
     let borrowed = entry.map(|(_, matched, fetched)| Source::catalog(matched, fetched));
+    let wire = entry
+        .filter(|(_, matched, _)| matched.layer <= 2)
+        .map_or_else(Wire::default, |(entry, _, _)| Wire {
+            npm: entry.npm.clone(),
+            interleaved: entry.interleaved.clone(),
+        });
+    // 能不能关思考、温度的上限照这个模型真走的驱动（施工 8-14、8-22）；它用不了的照这一家的（发的时候当场 `no_model`）。
+    let speaking = provider
+        .for_model(model, &wire, &knowledge.profiles.npm)
+        .ok();
+    let switchable = speaking
+        .as_ref()
+        .map_or_else(|| provider.switchable(), Provider::switchable);
+    let driver = speaking
+        .as_ref()
+        .map_or(provider.driver, |speaking| speaking.driver);
     let from_catalog =
         |pick: &dyn Fn(&CatalogModel) -> Option<u64>| Some((pick(model_data?)?, borrowed.clone()?));
     let learned = knowledge.learned.window(&provider.id, model);
@@ -162,7 +210,6 @@ pub fn facts(
             .texts(&["reasoning"])
             .map(|(names, source)| (effort::levels(&names), source))
             .or_else(|| {
-                let switchable = provider.compat.toggle.is_some();
                 let offered = effort::offered(model_data?.reasoning.as_ref()?, switchable)?;
                 Some((offered, borrowed.clone()?))
             }),
@@ -171,6 +218,12 @@ pub fn facts(
         let level = effort::normalize(&level).to_string();
         let known = reasoning.value.as_deref().unwrap_or_default();
         known.contains(&level).then_some((level, source))
+    });
+    let takes_temperature =
+        fact(model_data.and_then(|entry| Some((entry.temperature?, borrowed.clone()?))));
+    let temperature = written.float(&["temperature"]).and_then(|(value, source)| {
+        let value = temperature::usable(value, takes_temperature.value, driver).ok()?;
+        Some((value, source))
     });
     let window = written
         .int(&["window"])
@@ -197,6 +250,8 @@ pub fn facts(
         ),
         reasoning,
         effort: fact(chosen),
+        takes_temperature,
+        temperature: fact(temperature),
         price: price(&written, provider.local, entry),
         multiplier: or_default(
             written
@@ -209,6 +264,7 @@ pub fn facts(
             model.to_string(),
         ),
         status: fact(model_data.and_then(|entry| Some((entry.status.clone()?, borrowed.clone()?)))),
+        wire,
     };
     (facts, found)
 }

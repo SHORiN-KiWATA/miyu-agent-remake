@@ -1,0 +1,6 @@
+start 0 text
+text 0 "你好"
+text 0 "！"
+end 0
+usage uncached=25 cache_read=3000 cache_write=1200 output=12
+ok

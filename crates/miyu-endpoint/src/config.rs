@@ -281,7 +281,8 @@ impl Config {
 
     /// 一份配置文件读进来以后另查的：引用的密钥、环境变量取不到的（施工 8-5，`unknown_secret`、`env_not_set`，警告）；引用、
     /// 池的成员指的供应商、池在不算项目配置的最终值里没有的（施工 8-8，`bad_reference`，错误，只报不丢：路由当场照样说
-    /// `no_model` 和为什么）；模型默认的思考强度不在档位里的（施工 8-18，`unknown_effort`，错误，只报不丢：请求照没写发）。
+    /// `no_model` 和为什么）；模型默认的思考强度不在档位里的（施工 8-18，`unknown_effort`，错误，只报不丢：请求照没写发）；
+    /// 模型默认的温度这个模型用不了的（施工 8-22，`unusable_temperature`，同上）。
     pub(crate) fn missing(
         &self,
         parsed: &miyu_config::parse::Parsed,
@@ -307,7 +308,7 @@ impl Config {
         self.missing_in(parsed, layer, &merged)
     }
 
-    /// 照最终值 `resolved` 查 `parsed` 里引用的东西在不在、写的思考强度在不在档位里。
+    /// 照最终值 `resolved` 查 `parsed` 里引用的东西在不在、写的思考强度在不在档位里、写的温度这个模型用不用得了。
     fn missing_in(
         &self,
         parsed: &miyu_config::parse::Parsed,
@@ -335,6 +336,7 @@ impl Config {
         ));
         if let Some(data) = &self.models {
             found.extend(effort::unknown(data, parsed, layer, resolved));
+            found.extend(effort::unusable_temperature(data, parsed, layer, resolved));
         }
         found
     }

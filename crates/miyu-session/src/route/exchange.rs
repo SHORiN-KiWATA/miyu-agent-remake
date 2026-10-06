@@ -7,8 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::sync::Arc;
 
+use miyu_drivers::EncodeError;
 use miyu_drivers::classify::Classified;
-use miyu_drivers::{Driver, EncodeError};
 use miyu_http::{Attempt, Outcome, Progress, send};
 use miyu_kernel::event::{CallError, ErrorClass, Usage};
 use miyu_kernel::id::ContentHash;
@@ -67,6 +67,16 @@ pub(super) async fn exchange(
     let needed = ready.driver.blobs_needed(request, &ready.call);
     let blobs = blobs.clone();
     let fetched = blocking(move || fetch(&blobs, needed)).await;
+    // 占位工具（施工 8-14 补）：档案点名了哪几件、工具面里缺的才拷一份补上；不缺的、没点名的原样编码，一个字节不动。
+    let filled = match super::placeholder::missing(request, &ready.placeholders) {
+        false => None,
+        true => {
+            let mut copy = request.clone();
+            super::placeholder::fill(&mut copy, &ready.placeholders);
+            Some(copy)
+        }
+    };
+    let request = filled.as_ref().unwrap_or(request);
     let encoded = match ready.driver.encode(request, &ready.call, &fetched) {
         Ok(encoded) => encoded,
         Err(EncodeError::MissingBlob(hash)) => return Exchanged::Missing(missing(&hash)),
@@ -74,7 +84,7 @@ pub(super) async fn exchange(
     let attempt = Attempt {
         client: &ready.client,
         endpoint: &ready.endpoint,
-        driver: &ready.driver,
+        driver: ready.driver.as_ref(),
         body: &encoded.body,
         path: &encoded.path,
         idle: ready.idle,

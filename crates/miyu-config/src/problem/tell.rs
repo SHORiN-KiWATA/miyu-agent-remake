@@ -128,6 +128,14 @@ pub fn tell(
             let name = problem.name.as_deref().unwrap_or_default();
             parts.push(sentence(words, said, &[("key", key), ("name", name)])?);
         }
+        Code::UnusableTemperature => parts.push(match problem.name.as_deref() {
+            Some(max) => sentence(
+                words,
+                "config/temperature-too-high",
+                &[("key", key), ("got", got), ("max", max)],
+            )?,
+            None => sentence(words, "config/temperature-unsupported", &[("key", key)])?,
+        }),
         Code::BadSegment => {
             let name = problem.name.as_deref().unwrap_or_default();
             let expected = match why {

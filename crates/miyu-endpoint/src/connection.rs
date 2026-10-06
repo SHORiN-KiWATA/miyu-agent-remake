@@ -8,6 +8,10 @@
 //! 分块上传跟着连接走（施工 W-5）：这个连接的上传表（[`crate::uploads::Uploads`]）住在读的一头的循环里，
 //! 和请求一条条办；连接断了，循环结束前把它开着的上传全部作废、删暂存文件。
 //!
+//! 身份（施工 W-8，`web-module.md`「怎么走」第一条）：握手时定这个连接是怎么认出来的（[`Via`]）。用一次性码连上的只能调
+//! `hello`、`human.get`、`account.setup`，别的回 `setup_first`；设好了换成登录令牌的连接。用登录令牌、密码连上的收作废的
+//! 广播，作废了它靠的那个令牌就断开。
+//!
 //! 登记成在后台答的查询（`link.preview`，施工 W-7，`net.md`「怎么走」第 11 条）是一条条办的例外：交给这个连接自己的
 //! 一组后台任务，接着读下一行；办完了回应照 `id` 对上，直接放进写队列。连接断了，这组任务一起停：不然连接走了
 //! 还在抓，核心一直不算空闲。
@@ -24,6 +28,7 @@ use miyu_kernel::id::SessionId;
 use miyu_session::Handle;
 
 use crate::hello::{Shaken, hello};
+use crate::login::{self, Revoked, Via};
 use crate::methods;
 use crate::queries::Handler;
 use crate::refusal::{Locale, Refusal};
@@ -65,6 +70,9 @@ async fn write_all<W: AsyncWrite + Unpin>(mut write: W, mut lines: mpsc::Receive
 async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sender<String>) {
     let mut reader = BufReader::new(read);
     let mut shaken: Option<Shaken> = None;
+    // 这个连接是怎么认出来的（施工 W-8）：用登录令牌、密码连上的另收作废的广播。
+    let mut via: Option<Via> = None;
+    let mut revoked: Option<tokio::sync::broadcast::Receiver<Revoked>> = None;
     let mut subscriptions = Subscriptions::default();
     // 这个连接上的分块上传（施工 W-5）：和请求一条条办，不用锁。
     let mut uploads = Uploads::new(core.upload_idle);
@@ -73,15 +81,31 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
     // 握手的期限（施工 4-9 再补三上）：连上以后这么久还没握手成的，断开。
     let deadline = tokio::time::Instant::now() + core.hello_wait;
     loop {
-        let read = match shaken {
-            Some(_) => wire::read_line(&mut reader).await,
-            None => match tokio::time::timeout_at(deadline, wire::read_line(&mut reader)).await {
-                Ok(read) => read,
-                Err(_) => {
-                    tracing::info!(target: "miyu::endpoint", "no hello, closed");
-                    break;
+        let read = match (shaken, revoked.as_mut()) {
+            (Some(_), Some(revoked)) => {
+                let mine = via
+                    .as_ref()
+                    .and_then(Via::login)
+                    .unwrap_or_default()
+                    .to_string();
+                tokio::select! {
+                    read = wire::read_line(&mut reader) => read,
+                    () = until_revoked(revoked, &mine) => {
+                        tracing::info!(target: "miyu::endpoint", "login revoked, closed");
+                        break;
+                    }
                 }
-            },
+            }
+            (Some(_), None) => wire::read_line(&mut reader).await,
+            (None, _) => {
+                match tokio::time::timeout_at(deadline, wire::read_line(&mut reader)).await {
+                    Ok(read) => read,
+                    Err(_) => {
+                        tracing::info!(target: "miyu::endpoint", "no hello, closed");
+                        break;
+                    }
+                }
+            }
         };
         let line = match read {
             Ok(Read::Line(line)) => line,
@@ -109,6 +133,23 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
         };
         tracing::debug!(target: "miyu::endpoint", method = request.method.as_str(), "request");
         reap(&mut background);
+        // 用一次性码连上的，先设密码（施工 W-8）。
+        if via == Some(Via::Code)
+            && !matches!(
+                request.method.as_str(),
+                "hello" | "human.get" | "account.setup"
+            )
+        {
+            let refused = wire::error(
+                Value::String(request.id.as_str().to_string()),
+                Refusal::SETUP_FIRST,
+                locale,
+            );
+            if !send(&out, refused).await {
+                break;
+            }
+            continue;
+        }
         if peer.is_some()
             && let Some(handler) = core.queries.background(&request.method)
         {
@@ -123,9 +164,11 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
         }
         let id = || Value::String(request.id.as_str().to_string());
         let (answer, target, close) = match (request.method.as_str(), peer) {
-            ("hello", _) => match hello(&core, request.params.clone()) {
-                Ok((shook, result)) => {
+            ("hello", _) => match hello(&core, request.params.clone()).await {
+                Ok((shook, by, result)) => {
                     shaken = Some(shook);
+                    revoked = by.login().map(|_| core.identity.revoked());
+                    via = Some(by);
                     (wire::result(&request.id, result), None, false)
                 }
                 // 被拒的，话照这一次报的语言说（施工 4-9 再补三上）：第一次握手也不是一律英文。
@@ -152,6 +195,28 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
                 };
                 (answer(&request, result, peer.locale), target, false)
             }
+            ("account.setup_code", Some(_)) => {
+                let result = login::setup_code(&core, via.as_ref().unwrap_or(&Via::Token));
+                (answer(&request, result, locale), None, false)
+            }
+            ("account.setup", Some(_)) => {
+                let now = via.clone().unwrap_or(Via::Token);
+                match login::setup(&core, &now, request.params.clone()).await {
+                    Ok((result, by)) => {
+                        revoked = Some(core.identity.revoked());
+                        via = Some(by);
+                        (wire::result(&request.id, result), None, false)
+                    }
+                    Err(refusal) => (answer(&request, Err(refusal), locale), None, false),
+                }
+            }
+            ("account.logout", Some(_)) => {
+                let now = via.clone().unwrap_or(Via::Token);
+                match login::logout(&core, &now, request.params.clone()).await {
+                    Ok((result, close)) => (wire::result(&request.id, result), None, close),
+                    Err(refusal) => (answer(&request, Err(refusal), locale), None, false),
+                }
+            }
             ("unsubscribe", Some(_)) => {
                 let result = stream_of(&request).map(|stream| {
                     match stream {
@@ -177,6 +242,17 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
     uploads.discard_all(&core).await;
     if shaken.is_some() {
         tracing::info!(target: "miyu::endpoint", "disconnected");
+    }
+}
+
+/// 等到作废了这个连接靠的登录令牌 `mine`（施工 W-8）：全部作废、作废的正是它；收慢了丢了几条的也当作废了（页面照登录令牌
+/// 重连，还认得的照常进来）。
+async fn until_revoked(revoked: &mut tokio::sync::broadcast::Receiver<Revoked>, mine: &str) {
+    loop {
+        match revoked.recv().await {
+            Ok(Revoked::One(hash)) if hash != mine => {}
+            Ok(_) | Err(_) => return,
+        }
     }
 }
 

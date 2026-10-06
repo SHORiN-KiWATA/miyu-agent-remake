@@ -128,7 +128,8 @@ async fn the_list_has_providers_models_facts_and_states() {
     // 推不出来的一家：说清为什么，没有模型。
     assert_eq!(
         providers[0],
-        json!({"id": "broken", "driver": null, "base_url": null, "keys": [], "models": [],
+        json!({"id": "broken", "name": {"value": "broken", "from": "id", "key": "providers.broken.name"},
+               "driver": null, "base_url": null, "keys": [], "models": [],
                "problem": "provider \"broken\" needs driver and base_url: it matches nothing in the catalog"})
     );
     // DeepSeek：档案推出驱动、地址，编号认出目录里的那一家，模型是目录里那一家的四个；key 的值不交出去。
@@ -143,6 +144,10 @@ async fn the_list_has_providers_models_facts_and_states() {
     assert_eq!(
         deepseek["catalog"],
         json!({"provider": "deepseek", "how": "id"})
+    );
+    assert_eq!(
+        deepseek["name"],
+        json!({"value": "DeepSeek", "from": "catalog", "key": "providers.deepseek.name"})
     );
     let names: Vec<&str> = deepseek["models"]
         .as_array()
@@ -179,6 +184,8 @@ async fn the_list_has_providers_models_facts_and_states() {
                 "tools": fact(json!(true)),
                 "reasoning": fact(json!(["low", "high", "max"])),
                 "effort": {"value": null, "from": "default", "key": "providers.deepseek.models.deepseek-flash.effort"},
+                "takes_temperature": fact(json!(true)),
+                "temperature": {"value": null, "from": "default", "key": "providers.deepseek.models.deepseek-flash.temperature"},
                 "price": fact(json!({"input": 0.15, "output": 0.6, "cache_read": 0.003, "reasoning": 0.6, "currency": "USD"})),
                 "multiplier": {"value": 1.0, "from": "default"},
                 "name": fact(json!("DeepSeek V4.1 Flash")),

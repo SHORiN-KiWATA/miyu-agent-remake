@@ -1,6 +1,6 @@
 ## OpenAI 的 Responses 接口
 
-状态：图纸，2026-10-02 起草，待主会话审。施工 8-13 照它做；做完照做好的样子改写，施工时定的另记一节。
+状态：图纸，2026-10-02 起草，2026-10-03 主会话审过（`response.failed` 交给出错分类的是哪一段、拼字的 `join` 挪进 `media.rs` 共用、拍板的那一题照 8-12 定了 A）。施工 8-13 做完了（2026-10-03，项目主人验收通过；真模型在项目主人给的中转站上实测过，加密思考的回传、官方的缓存命中待官方 key，见施工单）：这一页照做好的样子写，施工时定的记在「施工时定的」。
 
 ### 是什么
 
@@ -12,13 +12,14 @@
 
 | 代码 | 管什么 |
 |---|---|
-| `crates/miyu-drivers/src/openai_responses.rs` | 家族名、路径、`OpenAiResponses` 和它的 `impl Driver`、顶层怎么写、要哪些 blob |
+| `crates/miyu-drivers/src/openai_responses.rs` | 家族名、路径、顶层怎么写、要哪些 blob |
+| `crates/miyu-drivers/src/driver.rs` | `OpenAiResponses` 和它的 `impl Driver`、`impl Decode` |
 | `crates/miyu-drivers/src/openai_responses/input.rs` | 统一的请求里的消息写成 `input` 里的一项项 |
 | `crates/miyu-drivers/src/openai_responses/effort.rs` | 思考强度换成 `reasoning`、`include` |
 | `crates/miyu-drivers/src/openai_responses/wire.rs` | 线上的 JSON 结构、工具面 |
 | `crates/miyu-drivers/src/openai_responses/decode.rs` | 解码：事件、每一项开一块、加密的思考、收尾 |
 | `crates/miyu-drivers/src/openai_responses/usage.rs` | 用量归成四项 |
-| `crates/miyu-drivers/src/media.rs` | 图片、文件发不了时换成的字，三个驱动共用（`drivers/anthropic.md`「在哪」） |
+| `crates/miyu-drivers/src/media.rs` | 图片、文件发不了时换成的字、要哪些 blob，三个驱动共用（`drivers/anthropic.md`「在哪」）；8-13 起 user 的字照 openai-chat 拼的那一步（`join`）也挪进来，openai-chat 的样本一个字节不变 |
 | `crates/miyu-drivers/src/sse.rs`、`classify.rs`、`texts.rs`、`text_file.rs`、`base64.rs` | 和 openai-chat 共用 |
 | `crates/miyu-drivers/src/openai_chat/models.rs` | 列模型：OpenAI 的 `/models` 写法一样，共用 `parse_models` |
 
@@ -47,7 +48,7 @@
 
 ### 怎么走：编码
 
-1. **顶层**，照这个先后，别的字段一概不发：`model`、`instructions`（第 2 条）、`input`、`tools`（第 7 条）、`"store":false`、`"stream":true`、`max_output_tokens`（`Call.max_output` 有才写）、思考强度（「思考强度」：`reasoning`、`include`，有才写）。紧凑的 JSON，结构体照声明的先后写，参数格式原样照抄。
+1. **顶层**，照这个先后，别的字段一概不发：`model`、`instructions`（第 2 条）、`input`、`tools`（第 7 条）、`"store":false`、`"stream":true`、`max_output_tokens`（`Call.max_output` 有才写）、温度（`Call.temperature` 有才写，施工 8-22：`"temperature":<数>`，最短的十进制）、思考强度（「思考强度」：`reasoning`、`include`，有才写）。紧凑的 JSON，结构体照声明的先后写，参数格式原样照抄。
    - 不发：`previous_response_id`、`tool_choice`、`parallel_tool_calls`（默认就是能并行）、`truncation`（默认不截，超长报错，交给压缩）、`prompt_cache_key`、`user`、`metadata`、`text`、`service_tier`。
 2. **system**：写进 `instructions`，一整段；空的不发这一格。
 3. **user**：`{"role":"user","content":…}`。
@@ -93,7 +94,7 @@
 
 1. **`summary`**：写了档位的要思考的摘要，头上看得到她在想什么。
 2. **加密的思考**：`store` 是假的，服务端不存思考；要回传就得在 `include` 里要加密的那一份，解码时存进私有数据，下一次原样带回去（「编码」第 4 条）。工具循环里回传思考，官方说答得更好。
-3. **为什么只在有档位时写**：没写强度的时候不知道这个模型会不会思考，`reasoning` 发给不会思考的模型（`gpt-4.1` 这类）会报错。所以没写强度的，思考不回传、也看不到摘要（「要项目主人拍板的」）。
+3. **为什么只在有档位时写**：没写强度的时候不知道这个模型会不会思考，`reasoning` 发给不会思考的模型（`gpt-4.1` 这类）会报错。所以没写强度的，思考不回传、也看不到摘要（「起草时定的」第 12 条）。
 
 ### 怎么走：解码
 
@@ -108,11 +109,11 @@ SSE 分帧共用 `sse.rs`。这一家没有 `[DONE]`：说完是 `response.compl
 | `response.output_item.added` | `item.type` 是 `message` 开正文块；`reasoning` 开思考块；`function_call` 开工具调用块 `ToolCall { name }`，私有数据 `{"driver":"openai-responses","data":{"call_id":<它>}}` |
 | `response.output_text.delta`、`response.refusal.delta` | 正文块的 `Text`（拒答的字也是她说的话，照正文给人看） |
 | `response.reasoning_summary_text.delta`、`response.reasoning_text.delta` | 思考块的 `Text`。一项里第二段摘要开始时（`summary_index` 变了），先交一个空行 `\n\n` 再接着 |
-| `response.function_call_arguments.delta` | 工具调用块的 `Text` |
-| `response.output_item.done` | 思考项：有 `encrypted_content` 的交私有数据 `{"driver":"openai-responses","data":{"id":<id>,"encrypted_content":<它>}}`；摘要一个字都没流过来、`item.summary` 里有的，照它补上。正文项、工具调用项：一个字都没流过来的（有的网关只在这里给整段），照 `item` 里的补上 |
+| `response.function_call_arguments.delta` | 攒着，不当场交（「施工时定的」）；`response.function_call_arguments.done` 的 `arguments` 来了换成它 |
+| `response.output_item.done` | 思考项：有 `encrypted_content` 的交私有数据 `{"driver":"openai-responses","data":{"id":<id>,"encrypted_content":<它>}}`；摘要一个字都没流过来、`item.summary` 里有的，照它补上。正文项：一个字都没流过来的（有的网关只在这里给整段），照 `item` 里的补上。工具调用项：参数照 `item.arguments` 交一整段，没有的照攒着的；没等到这一项完了就说完的，收尾时照攒着的交 |
 | `response.completed` | 用量记下，说完了 |
 | `response.incomplete` | 用量记下；`response.incomplete_details.reason` 记下 |
-| `response.failed` | 出错：`response.error` 照「出错分类」分，用的是 `Failure::stream(<那一段>)` |
+| `response.failed` | 出错：照「出错分类」分，用的是 `Failure::stream(<data 里的 response 那个对象>)`：共用的读法先找 `error` 一格，`response` 对象里正好有（整段 `data` 交进去找不到，原话会是整段 JSON） |
 | `error` | 出错，照「出错分类」分，用的是 `Failure::stream(data)` |
 | 别的（`response.created`、`…in_progress`、`…content_part.*`、`…done` 这些） | 不理 |
 
@@ -175,7 +176,7 @@ SSE 分帧共用 `sse.rs`。这一家没有 `[DONE]`：说完是 `response.compl
 
 探针的每一次请求编码以后的样子：`docs/designs/samples/probe/terminal/openai-responses/`（模型 `gpt-5.4`，没有输出上限、没有思考强度）。
 
-**流**，样本在同一目录的 `streams/` 下：`text`、`reasoning-summary`（两段摘要、加密内容）、`reasoning-encrypted-only`、`function-calls`（两次并行）、`done-only`（只在 `output_item.done` 给整段）、`refusal`、`incomplete-max-tokens`、`incomplete-content-filter`、`failed`、`error-event`、`unknown-item`、`cut-off`、`bad-json`。
+**流**，样本在同一目录的 `streams/` 下：`text`、`reasoning-summary`（两段摘要、加密内容）、`reasoning-encrypted-only`、`function-calls`（两次并行）、`done-only`（只在 `output_item.done` 给整段）、`refusal`、`incomplete-max-tokens`、`incomplete-content-filter`、`failed`、`error-event`、`unknown-item`、`cut-off`、`bad-json`、`no-completed`（没等到收尾的事件）、`arguments-dropped`（增量丢了字，整段是对的）。
 
 **给模型看的几句**：没有新的，照 `DriverTexts`；`tool-attachments.txt`、`tool-attachments-only.txt` 这一家不用。
 
@@ -198,7 +199,10 @@ SSE 分帧共用 `sse.rs`。这一家没有 `[DONE]`：说完是 `response.compl
 | `crates/miyu-drivers/tests/openai_responses_reasoning.rs` | 加密的思考回传、空摘要、别家的和没有加密内容的不写；思考强度两种写法接在最后，没写的一个字节不加 |
 | `crates/miyu-drivers/tests/openai_responses_media.rs` | 图片、PDF、不能收的占位；工具结果里的图、PDF；文本文件、带名字的图片、替它看的图和 openai-chat 一样；缺 blob 报错 |
 | `crates/miyu-drivers/tests/openai_responses_streams.rs` | 流的样本；从哪里切开喂都一样；解出来的编码回去：`call_id`、加密内容原样；驱动的接口走一遍；`finished()` 在收尾事件以后才说是 |
-| `crates/miyu-assemble/tests/probe.rs`、`random_logs.rs` | 加 Responses 的脸：编码以后是上一次的前缀延伸 |
+| `crates/miyu-assemble/tests/probe.rs`、`random_logs.rs`、`tests/support` | 加 Responses 的脸：每个探针、每段随机日志的每一次请求编码以后是上一次的前缀延伸；主会话（`terminal`）的存档多 `openai-responses/` |
+| `crates/miyu-session/tests/route_responses.rs` | 路由照供应商的 `driver` 造驱动：发到 `/responses`、带 `Bearer`；输出上限不替它填、写了的照它；思考强度照这一家的写法；回来的流照这一家解 |
+| `crates/miyu-models/src/provider/tests.rs`、`facts/tests.rs` | `openai-responses` 认得了、没有开关，目录有开关的模型也不多 `off` |
+| `crates/miyu-core/src/models/tests.rs` | 出厂的档案有 `[providers.openai]` |
 
 ### 真模型实测
 
@@ -231,19 +235,14 @@ SSE 分帧共用 `sse.rs`。这一家没有 `[DONE]`：说完是 `response.compl
 | 2 | system 写进 `instructions` | 这一家的标准写法，永远在最前面 | 写成第一项 `developer` 消息 |
 | 3 | `strict` 一定写假的 | 这一家默认严格，我们的参数格式有可选参数，严格了要么报错、要么逼她每个参数都填 | 不写：靠默认，默认会变 |
 | 4 | 工具结果里的图、PDF 放在 `output` 里 | 放在原处，她知道是哪次调用的 | 照 openai-chat 挪到后面 |
-| 5 | 思考只在配了档位时要摘要、要加密内容、回传 | 不知道会不会思考的模型发 `reasoning` 会报错；`Call` 不多一格 | `Call` 加「会思考」一格，没配也回传（「要项目主人拍板的」B） |
+| 5 | 思考只在配了档位时要摘要、要加密内容、回传 | 不知道会不会思考的模型发 `reasoning` 会报错；`Call` 不多一格 | `Call` 加「会思考」一格，没配也回传（第 12 条） |
 | 6 | 回传的思考带 `id` 和加密内容，工具调用不带 `id` | 思考项的 `id` 在接口的格式里是必写的，有加密内容就不用服务端存；调用的 `id` 可写可不写，写了服务端会去找 | 都不带 `id`、都带 `id` |
 | 7 | 一项开一块；一项里几段摘要用空行接成一块 | 和 openai-chat 一样一块一段字；回传时一项一块对得上 | 一段摘要一块：回传时拆不回一项 |
 | 8 | 工具调用的编号只用自己家私有数据里的 `call_id` | 同 Anthropic：别家的编号写法不一定收 | 原样用别家的 |
 | 9 | 出错分类共用一份 | 错误体和 openai-chat 一样 | 另写 |
 | 10 | `prompt_cache_key` 不发 | 一台机器一个人用，按前缀分流就够；它要会话编号，`Call` 里没有 | 照会话编号发：要 `Call` 多一格 |
 | 11 | 一张图算多少 token 照策略的固定数 | 官方公式随模型变，先不做 | 照官方公式 |
-
-### 要项目主人拍板的
-
-1. **没配思考强度时，要不要让 GPT 的思考看得见、在工具循环里回传**（Anthropic 那一页同一题）。
-   - A（推荐）：照现在的约定，没配就什么都不加。代价：GPT-5 这一代没配强度时照样思考，可是头上看不到摘要，工具循环里思考也不回传（官方说回传答得更好）。想要就在头上选一档。
-   - B：会思考的模型没配也要摘要、回传。要 `Call` 多一格「这个模型会思考」（照资料的思考档位有没有），三个驱动都改；不再是「没配就一个字节不加」。
+| 12 | 没配思考强度的什么都不加：不要摘要、不要加密内容、不回传（2026-10-03 主会话照 8-12 项目主人定的 A 定，原「要项目主人拍板的」第 1 题） | 和 Anthropic 一个规矩，`models.md` 定的第 12 条；想看思考的在头上选一档 | 会思考的模型没配也要摘要、回传：`Call` 多一格，三个驱动都改 |
 
 ### 还没有的
 
@@ -251,7 +250,24 @@ SSE 分帧共用 `sse.rs`。这一家没有 `[DONE]`：说完是 `response.compl
 - 一张图的官方公式（`ImagePrice`）：现在照策略的固定数。
 - 列模型的窗口：官方的列表不报，照目录。
 
+### 施工时定的
+
+8-13 施工时照推荐定的（2026-10-03 主会话施工时定，写进了正文）：
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| `response.output_item.done` 来了、`added` 没来过的那一项，照 `done` 里的 `item` 开一块再补 | 只在 `done` 给整段的网关可能连 `added` 都不发；照样开块不丢话 | 没开的不理：那一项的话就丢了 |
+| 思考的第二段摘要先接一个空行，只在前面已经流过字时接 | 第一段的 `summary_index` 不一定是 0；一项开头不多一个空行 | 照 `summary_index` 大于 0 就接 |
+| `response.incomplete` 没写原因的，原话 `incomplete: unknown`，分类 `other` | 不该发生；照不认的原因算 | 当正常说完 |
+| `response.failed` 交给出错分类的是 `response` 那个对象（审图时改的） | 共用的分类先找 `error` 一格 | 整段 `data`：原话是整段 JSON |
+| 流里的错没有状态，限速的说法也照可重试算、要等多久照原话（共用的分类） | 和 openai-chat 流里的错一样 | 这一家另算 |
+| 工具调用的参数不照增量交，攒到这一项完了照整段交（`output_item.done` 的 `arguments`，再是 `function_call_arguments.done` 的，再是攒的增量） | 2026-10-03 实测项目主人给的中转站：增量丢了开头的 `{"`，整段是对的，她连调了十几次都参数不对；没收全的调用本来就执行不了，晚一点交不丢东西（样本 `arguments-dropped`） | 照增量交：中转站坏了她就一直调不成 |
+| 中转站给的思考摘要没有加密内容：留着字给人看，不回传 | 没有加密内容，`store` 是假的，这一家认不出这一项 | 写成一块字回传：她会当成自己说过的话 |
+
 ### 要跟着改的别的页
+
+8-13 都改了：`models.md`（「施工时定的」8-13 那张表、正文几处）、`drivers/openai-chat.md`、`kernel/request.md`（`stable` 那一行）、`05-内核接口.md` 第七节、探针；施工图合进 main 时补。下表是起草时列的：
+
 
 | 页 | 改什么 |
 |---|---|

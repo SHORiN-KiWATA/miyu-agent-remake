@@ -54,6 +54,9 @@ pub struct ModelData {
     local: Option<Client>,
     /// 用量汇总（施工 8-15）：一次性入口每发出去一次记一笔。核心起来时交进来（[`ModelData::keep_ledger`]）；没有的不记。
     ledger: Mutex<Option<Arc<UsageIndex>>>,
+    /// 占位工具给模型看的说明（施工 8-14 补）：档案点名了占位工具的供应商，工具面里缺这几件时补上
+    /// （`route/placeholder.rs`）。没读到的（测试、老数据根）是空的，空的不补。
+    placeholder_tool: String,
 }
 
 /// 用出来的、供应商的列表、池的指针：核心起来时从 `state/models/` 读回来的。
@@ -81,6 +84,7 @@ impl ModelData {
             fetcher: None,
             local: None,
             ledger: Mutex::new(None),
+            placeholder_tool: String::new(),
         }
     }
 
@@ -129,6 +133,18 @@ impl ModelData {
     /// 探本机的服务用的客户端；没有的不探（`provider.detect` 的 `local` 是空的）。
     pub fn local(&self) -> Option<&Client> {
         self.local.as_ref()
+    }
+
+    /// 同一份，占位工具给模型看的说明（施工 8-14 补）：核心起来时从资源目录读进来（`resources/core/drivers/placeholder-tool.txt`）。
+    #[must_use]
+    pub fn with_placeholder_tool(mut self, text: String) -> ModelData {
+        self.placeholder_tool = text;
+        self
+    }
+
+    /// 占位工具给模型看的说明；没读到的（测试、老数据根）是空的，空的不补。
+    pub fn placeholder_tool(&self) -> &str {
+        &self.placeholder_tool
     }
 
     /// 目录读完了（读没读成都算）：连同读好的用出来的、供应商的列表一起换上，等着的都放行。

@@ -7,7 +7,7 @@
 //! 思考强度、价格、倍率）；目录怎么更新 `[models.catalog]`。8-8 加上看图的模型、池，供应商的缓存类别（池不写分法时照它
 //! 定，[`crate::pools`]）；8-8 的四个挡位 8-8 补去掉了，池多派子代理能不能选、给模型看的说明两项。别的格（另配的头、开关、占位工具、模型的驱动）随用到它的那一步加（「施工时定的」
 //! 8-6、8-7、8-8）。8-9 加上冷却 `[models.cooldown]` 的三类。8-18 加上模型默认的思考强度
-//! `effort`。项目配置一项都不能写。
+//! `effort`。8-21 加上供应商的显示名 `name`。8-22 加上模型默认的温度 `temperature`。项目配置一项都不能写。
 //!
 //! `base_url` 8-6b 起也能写 `{ env = … }`：地址不进任何回应、日志、文件，照核心起来时的环境取（[`crate::provider`] 的
 //! `resolve_base_url`）。
@@ -20,6 +20,14 @@ use miyu_config::{Address, Number};
 miyu_config::settings! {
     /// 一家供应商（`models.md`「怎么走」第一条）：编号是键里 `<id>` 那一段，「路径里的名字」的写法。
     pub struct ProviderSettings in "providers.<id>" {
+        /// 界面上给人看的名字（施工 8-21）：编号只用来引用模型。不写的照目录里对上的那一家的名字，再没有的照编号
+        /// （`model.list` 的 `name`）。只给界面看，不进请求，当场生效。
+        name: Option<String> = none {
+            kind: text [64],
+            layers: [System, Personal],
+            applies: now,
+            ui: { page: "models", group: "providers", control: text },
+        },
         /// 怎么说话。不写照档案推；推不出来的这一家用不了。
         driver: Option<String> = none {
             kind: option ["openai-chat", "anthropic", "openai-responses"],
@@ -127,6 +135,14 @@ miyu_config::settings! {
             layers: [System, Personal],
             applies: next_turn,
             ui: { page: "models", group: "providers", control: text },
+        },
+        /// 默认的温度（施工 8-22，`models.md`「怎么走」第十四条）：不写的请求里不带、照供应商的默认。这个模型用不了的
+        /// （目录说不收温度、超过驱动的上限）照没写，配置报 `unusable_temperature`（[`crate::temperature::unusable`]）。
+        temperature: Option<Number> = none {
+            kind: float [0, 2],
+            layers: [System, Personal],
+            applies: next_turn,
+            ui: { page: "models", group: "providers", control: number },
         },
         /// 倍率：盖过供应商上写的（施工 8-7）。
         price_multiplier: Option<Number> = none {

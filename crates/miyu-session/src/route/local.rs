@@ -8,9 +8,9 @@ use std::time::Duration;
 
 use tokio::task::JoinSet;
 
-use miyu_drivers::OpenAiChat;
 use miyu_drivers::openai_chat::Compat;
 use miyu_models::onboard::Listed;
+use miyu_models::provider::Driver;
 
 use crate::route::lists::{list_models, listing_texts};
 use crate::route::shared::ModelData;
@@ -36,10 +36,11 @@ pub async fn find_local(data: &ModelData, services: Vec<Listed>) -> Vec<Running>
     for (at, listed) in services.into_iter().enumerate() {
         let (client, texts) = (client.clone(), texts.clone());
         probes.spawn(async move {
-            // 能用的几家现在都是 `openai-chat`（`Driver::parse`）；开关不影响列模型。
-            let driver = OpenAiChat::new(Compat::default(), texts);
+            // 照这一家的驱动列模型（施工 8-12）；开关不影响列模型。只探能用的几家，驱动都认得出。
+            let kind = listed.driver.as_deref().and_then(Driver::parse)?;
+            let driver = kind.build(Compat::default(), texts);
             let base_url = listed.base_url.clone().unwrap_or_default();
-            let found = list_models(&client, &driver, &base_url, &[], LOCAL_WAIT).await;
+            let found = list_models(&client, driver.as_ref(), &base_url, &[], LOCAL_WAIT).await;
             found.ok().map(|models| {
                 let mut models: Vec<String> = models.into_iter().map(|model| model.id).collect();
                 models.sort_unstable();

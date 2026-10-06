@@ -44,6 +44,9 @@ pub fn prepare(resources: &ResourceRoot, state: Option<PathBuf>) -> Result<Route
         .vendors()
         .map_err(|error| error.to_string())
         .and_then(|text| vendors(&text))?;
+    let placeholder_tool = resources
+        .placeholder_tool()
+        .map_err(|error| error.to_string())?;
     tracing::info!(
         target: TARGET,
         profiles = profiles.providers.len(),
@@ -56,6 +59,7 @@ pub fn prepare(resources: &ResourceRoot, state: Option<PathBuf>) -> Result<Route
     // 探本机的服务不走代理（施工 8-11）：同上。
     let local = fetcher(Proxy::Off).map_err(|error| error.to_string())?;
     let data = ModelData::new(profiles, vendors, state)
+        .with_placeholder_tool(placeholder_tool)
         .with_fetcher(lists)
         .with_local(local);
     Ok(Routes {

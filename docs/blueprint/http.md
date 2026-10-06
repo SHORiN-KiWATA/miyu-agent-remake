@@ -60,10 +60,10 @@ HTTP 执行器：照驱动编码好的字节发一次请求，流式地读回来
 
 1. 地址是 `base_url` 去掉末尾的 `/`，接上 `path`：地址后面多写了斜杠，也不会成两个。
 2. `POST`，请求体就是那串字节，一个字节不改。头照这个先后加：
-   - 认证头：有 key 的，照驱动交回的（`Driver::auth(key)`，施工 8-6：`openai-chat` 是 `Authorization: Bearer <key>`）；没有 key 的不带。头的值写得不对的，不发，出错 `other`，原话只说是认证头。
+   - 认证头：有 key 的，照驱动交回的（`Driver::auth(key)`，施工 8-6：`openai-chat` 是 `Authorization: Bearer <key>`；施工 8-12：`anthropic` 是 `x-api-key: <key>`、`anthropic-version: 2023-06-01`，照这个先后，`drivers/anthropic.md`）；没有 key 的不带。头的值写得不对的，不发，出错 `other`，原话只说是认证头。
    - `Content-Type: application/json`
    - `Accept: text/event-stream`
-   - 端点另配的头，照先后；和上面同名的，换掉上面那个，不是再加一个（施工 4-9 再补三下）。名字、值写得不对的，不发，出错 `other`（下面「出错」）。
+   - 端点另配的头，照先后；和上面同名的，换掉上面那个，不是再加一个（施工 4-9 再补三下）。名字、值写得不对的，不发，出错 `other`（下面「出错」）。值是路由照档案的模板换好的（施工 8-14，`models.md`「怎么走」第一条第 4 条），这里不认模板。
    - `User-Agent` 由客户端带上。
 3. 先报 `Sent`，带上请求字节的 SHA-256，再造请求、真的发：连不上的、造不出请求的（地址、另配的头写得不对）也报过了，`model.called` 里照样有发给了谁、请求的哈希。
 4. 等响应头：最多等 `idle`。
@@ -152,5 +152,5 @@ HTTP 执行器：照驱动编码好的字节发一次请求，流式地读回来
 - 等第一个字的时候定时给头发心跳（同上；`03-事件模型.md` 第五节 `status` 那一格）。
 - 连接预热（`15-模型与供应商.md` 第五节）。
 - 子进程的传输：借用 agent CLI 的订阅（`05-内核接口.md` 第七节 `transport`）。
-- 另配的头的模板（`{session_digest}`、`{call_digest}`）：8-14（`models.md`）。出错换 key、换端点：8-9。
+- 出错换 key、换端点：8-9。
 - 一次 GET 不记运行日志：用它的一方（读目录、拉列表）照结果记。

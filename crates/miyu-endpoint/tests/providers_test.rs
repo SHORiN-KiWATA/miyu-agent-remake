@@ -1,6 +1,6 @@
 //! `provider.test`（施工 8-11，`docs/blueprint/models.md`「协议」、「怎么走」第七条第 4 条）：对本机回环上的假服务器试。
 //! 成了交 `first_token_ms`、收到第一段正文就停（假服务器之后停住不动也照样成了）；配好的存列表、候选不存；列不出的照目录
-//! 列；认证失败交分类、状态、原话；推荐的模型；推不出的 `config`；没有模型可试的 `list`；参数不对、`unknown_provider`。
+//! 列；认证失败交分类、状态、原话；推荐的模型；推不出的 `config`；没有模型可试的 `list`；参数不对、`unknown_provider`；配了温度的照带（施工 8-22）。
 
 mod support;
 
@@ -129,7 +129,31 @@ async fn a_configured_provider_works_its_list_is_kept_and_it_stops_at_the_first_
         "只有一条 user，那一句去掉了行尾的换行"
     );
     assert!(body.get("tools").is_none(), "没有工具面：{body}");
+    assert!(body.get("temperature").is_none(), "没配温度的不带：{body}");
     assert!(shared.list_fetched("deepseek").is_some(), "配好的存进列表");
+}
+
+/// 试的那个模型配了温度的照带（施工 8-22，「怎么走」第十四条第 4 条），和会话真发时一样。
+#[tokio::test]
+async fn the_probe_takes_the_configured_temperature_of_the_model() {
+    let server = Server::start(vec![listing(&["deepseek-flash"]), first_words_then_stall()]).await;
+    let home = Home::new();
+    home.write(
+        "system/config.toml",
+        &format!(
+            "[providers.deepseek]\nbase_url = \"{}\"\nkeys = []\n\n[providers.deepseek.models.\"deepseek-flash\"]\ntemperature = 0.6\n",
+            server.base_url
+        ),
+    );
+    let reply = test(
+        &home,
+        &[],
+        fresh(),
+        json!({"provider": "deepseek", "model": "deepseek-flash"}),
+    )
+    .await;
+    assert_eq!(reply["result"]["ok"], true, "{reply}");
+    assert_eq!(asked(&server, 1)["temperature"], 0.6);
 }
 
 #[tokio::test]
@@ -309,4 +333,65 @@ async fn wrong_params_and_unknown_providers_are_refused() {
     }
     let reply = test(&home, &[], fresh(), json!({"provider": "nope"})).await;
     assert_eq!(reason(&reply), Some("unknown_provider"));
+}
+
+/// 施工 8-14：发的那一句照挑的模型的驱动（Go 上的 MiniMax 走 `anthropic`），档案另配的头照固定的种子 `provider.test` 换；
+/// 列模型不带它。模型没有驱动的是 `config`。
+#[tokio::test]
+async fn the_probe_speaks_through_the_model_driver_with_the_profile_headers() {
+    let anthropic = std::fs::read(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../docs/designs/samples/drivers/anthropic/streams/text.sse"),
+    )
+    .expect("样本读得到");
+    let server = Server::start(vec![
+        listing(&["minimax-m3", "gemini-3-pro"]),
+        Reply::stream(vec![Piece::Bytes(anthropic)]),
+        listing(&["minimax-m3", "gemini-3-pro"]),
+    ])
+    .await;
+    let home = Home::new();
+    home.write(
+        "system/config.toml",
+        &format!(
+            "[providers.opencode-go]\nbase_url = \"{0}\"\nkeys = [{{ env = \"GO_KEY\" }}]\n\n[providers.opencode]\nbase_url = \"{0}\"\nkeys = [{{ env = \"GO_KEY\" }}]\n",
+            server.base_url
+        ),
+    );
+    let shared = data(profiles(
+        json!({"opencode-go": {"headers": {"x-opencode-session": "ses_{session_digest}"}}}),
+    ));
+    let reply = test(
+        &home,
+        &[("GO_KEY", FAKE)],
+        Arc::clone(&shared),
+        json!({"provider": "opencode-go", "model": "minimax-m3"}),
+    )
+    .await;
+    assert_eq!(reply["result"]["ok"], true, "{reply}");
+    let received = server.received();
+    assert_eq!(received[0].header("x-opencode-session"), None, "列模型不带");
+    assert_eq!(received[1].path, "/v1/messages");
+    assert_eq!(received[1].header("x-api-key"), Some(FAKE));
+    let wanted = format!("ses_{}", miyu_models::headers::digest("provider.test"));
+    assert_eq!(
+        received[1].header("x-opencode-session"),
+        Some(wanted.as_str())
+    );
+    let reply = test(
+        &home,
+        &[("GO_KEY", FAKE)],
+        shared,
+        json!({"provider": "opencode", "model": "gemini-3-pro"}),
+    )
+    .await;
+    let result = &reply["result"];
+    assert_eq!(result["ok"], false, "{reply}");
+    assert_eq!(result["stage"], "config");
+    assert_eq!(result["error"]["class"], "no_model");
+    assert_eq!(
+        result["error"]["message"],
+        r#"model "opencode/gemini-3-pro" needs driver "@ai-sdk/google", which is not available yet"#
+    );
+    assert_eq!(server.received().len(), 3, "没发");
 }
