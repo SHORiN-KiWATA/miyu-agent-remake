@@ -876,7 +876,7 @@ ui.language = "zh"
 | 删掉了 | `· 从个人设置里删掉了 ui.language，现在是 "en"（系统配置）` | `· Removed ui.language from personal settings. It is now "en" (system config)` |
 | 本来就没写 | `· 个人设置里本来就没写 ui.language` | `· Personal settings did not have ui.language` |
 
-「当场生效」按 `applies` 换：`当场生效`、`以后开的会话生效`、`下次打开界面时生效`、`下一轮生效`、`重启核心后生效`（`takes effect at once`、`applies to sessions opened from now on`、`takes effect the next time the interface opens`、`takes effect next turn`、`takes effect after the core restarts`）。M8 用得上前三种（`head_start` 8-3 加）。
+「当场生效」按 `applies` 换：`当场生效`、`以后开的会话生效`、`下次打开界面时生效`、`下一轮生效`、`重启核心后生效`（`takes effect at once`、`applies to sessions opened from now on`、`takes effect the next time the interface opens`、`takes effect next turn`、`takes effect after the core restarts`）。M8 用得上前四种（`head_start` 8-3 加，`next_turn` 8-6 起）。认不出的（核心比命令行新）不说什么时候生效：`· providers.dev.models.m-1.window = 4096 写进了个人设置`（施工 8-3 补）。
 
 - 上面一层压着的，那一层照句子里的叫法：个人设置、系统配置、环境变量（`personal settings say`、`the system config says`、`the environment says`）。
 - 删掉了以后括号里是现在那个值从哪一层来：默认值、系统配置、个人设置（`default`、`system config`、`personal settings`），和 `explain` 的层名一样。
