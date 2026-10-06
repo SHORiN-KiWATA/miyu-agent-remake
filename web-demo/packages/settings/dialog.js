@@ -178,7 +178,7 @@ export class SettingsDialog {
    */
   save(item, change) {
     const layer = layerFor(item);
-    return this.saveMany(layer, [{ key: item.key, ...change, expect: expectFor(item.entry, layer, item.type) }]);
+    return this.saveMany(layer, [{ key: item.key, ...change, expect: expectFor(item.entry, layer) }]);
   }
 
   /**

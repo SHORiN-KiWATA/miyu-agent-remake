@@ -94,15 +94,12 @@ export function splitKey(key) {
 export const layerFor = (item) => (item.layers.includes('personal') ? 'personal' : 'system');
 
 /**
- * `config.set` 的 `expect`：这一层里这一项现在写着什么，`{value}` 或者没写 `{}`。小数项现在写着整数值的（`1.0`）交 `undefined`
- * 不查：JSON 里分不出 `1` 和 `1.0`，核心照类型比会当成对不上（2026-10-07 报给核心，修好以后去掉这一条）。
+ * `config.set` 的 `expect`：这一层里这一项现在写着什么，`{value}` 或者没写 `{}`（数照数值比：`1` 对得上文件里的 `1.0`，核心 8-3 再补）。
  * @param {Entry|null} entry
  * @param {string} layer
- * @param {string} [type] 这一项的类型（`float` 的才看上面那一条）
  */
-export function expectFor(entry, layer, type) {
+export function expectFor(entry, layer) {
   const had = entry?.layers?.find((l) => l.origin.layer === layer);
-  if (type === 'float' && had && Number.isInteger(had.value)) return undefined;
   return had ? { value: had.value } : {};
 }
 

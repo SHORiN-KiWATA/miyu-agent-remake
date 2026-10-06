@@ -64,10 +64,7 @@ test('写在哪一层：能写个人设置的写个人设置，只能写系统�
   assert.deepEqual(expectFor(got.items['models.chat'], 'personal'), { value: 'dev/deepseek-v4.1-flash' });
   assert.deepEqual(expectFor(got.items['ui.language'], 'personal'), {});
   assert.deepEqual(expectFor(null, 'personal'), {});
-  const whole = { layers: [{ origin: { layer: 'personal' }, used: true, value: 1 }] };
-  assert.equal(expectFor(whole, 'personal', 'float'), undefined, '小数项写着整数值的不查（JSON 分不出 1 和 1.0，等核心修）');
-  assert.deepEqual(expectFor(whole, 'personal', 'int'), { value: 1 });
-  assert.deepEqual(expectFor({ layers: [{ origin: { layer: 'personal' }, used: true, value: 1.5 }] }, 'personal', 'float'), { value: 1.5 });
+  assert.deepEqual(expectFor({ layers: [{ origin: { layer: 'personal' }, used: true, value: 1 }] }, 'personal'), { value: 1 }, '小数项写着整数值的照样带（核心照数值比，8-3 再补）');
   assert.equal(writtenIn(got.items['models.chat'], 'personal'), true, '写过的能恢复默认');
   assert.equal(writtenIn(got.items['ui.language'], 'personal'), false);
 });

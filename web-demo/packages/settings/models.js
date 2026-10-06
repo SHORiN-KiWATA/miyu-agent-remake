@@ -155,7 +155,7 @@ function prices(dialog, item) {
     const layer = layerFor(parts[0].it);
     const changes = parts.flatMap(({ name, it }) => {
       const text = inputs.get(name)?.value.trim() ?? '';
-      const expect = expectFor(it.entry, layer, it.type);
+      const expect = expectFor(it.entry, layer);
       if (text) return [{ key: it.key, input: text, expect }];
       return writtenIn(it.entry, layer) ? [{ key: it.key, unset: true, expect }] : [];
     });
