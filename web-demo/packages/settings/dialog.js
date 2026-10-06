@@ -249,7 +249,7 @@ export class SettingsDialog {
     if (e.key === 'Escape') {
       e.stopPropagation();
       e.preventDefault();
-      const open = this.panel.querySelector('.set-menu, .set-drawer, .set-form');
+      const open = this.panel.querySelector('.set-menu, .set-drawer, .set-form, .set-pool.is-editing');
       if (open) {
         open.dispatchEvent(new CustomEvent('set-dismiss'));
         return;

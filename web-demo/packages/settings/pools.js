@@ -3,7 +3,7 @@
 //! 勾）、删除；下面成员一行一个（序号、名字、哪一家，悬停露出往上、往下、✕）；最后一张「新建模型池」写名字回车建好。改了当场存，
 //! 写进个人设置。
 
-import { h, icon, replace } from '../../src/lib/dom.js';
+import { h, icon } from '../../src/lib/dom.js';
 import { pickModels } from './picker.js';
 import { itemFor, layerFor, validId, keySegment, moveMember, poolRemoval, duplicates, providerName } from './model.js';
 
@@ -78,23 +78,25 @@ export function drawPools(dialog, list) {
       rows.length ? scroller(pool.name, rows) : h('span.set-muted', t('pool_empty')));
   };
 
-  // 新建：这张卡变成写名字的框，回车建好（固定、没有成员），`Esc` 取消
+  // 新建：还是这一张卡（宽、高、底色不变），中间换成居中的「@ 框」，下面一行「回车创建 · Esc 取消」；回车建好（固定、没有成员），
+  // `Esc`、空着点别处回到原来的样子
   const create = h('button.set-pool.is-add', { type: 'button' }, icon('plus'), t('new_pool'));
   create.addEventListener('click', () => {
-    const error = h('span.set-error');
+    const hint = h('span.set-new-hint', t('pool_new_hint'));
     const input = /** @type {HTMLInputElement} */ (h('input.set-input', { type: 'text', placeholder: t('pool_name_hint'), spellcheck: 'false', autocomplete: 'off' }));
-    const box = h('div.set-pool.is-new', h('div.set-pool-head', h('strong', '@'), input), error);
+    const box = h('div.set-pool.is-add.is-editing', h('div.set-new-row', h('span.set-new-at', '@'), input), hint);
     const cancel = () => box.replaceWith(create);
+    const fail = (why) => { hint.textContent = why; hint.classList.add('is-bad'); };
     box.addEventListener('set-dismiss', cancel);
-    box.classList.add('set-form');
+    input.addEventListener('blur', () => setTimeout(() => { if (box.isConnected && !input.value.trim()) cancel(); }, 120));
     input.addEventListener('keydown', async (e) => {
       if (e.key !== 'Enter') return;
       const id = input.value.trim();
-      if (!validId(id)) return replace(error, ctx.text('models.form.bad_id'));
-      if ((list.pools ?? []).some((p) => p.name === id)) return replace(error, ctx.text('models.form.taken_id', { id }));
+      if (!validId(id)) return fail(ctx.text('models.form.bad_id'));
+      if ((list.pools ?? []).some((p) => p.name === id)) return fail(ctx.text('models.form.taken_id', { id }));
       const base = `pools.${keySegment(id)}`;
       const why = await dialog.saveMany(layer, [{ key: `${base}.strategy`, value: 'pin', expect: {} }, { key: `${base}.models`, value: [], expect: {} }]);
-      if (why) replace(error, why);
+      if (why) fail(why);
     });
     create.replaceWith(box);
     input.focus();

@@ -232,11 +232,15 @@
 .set-chip.is-member { padding: 0 4px; }
 .set-chip.is-member button:disabled { opacity: 0.3; cursor: default; }
 .set-chip.is-member > span { padding: 0 2px; }
-/* 正在新建的这张和「新建」那张一样是淡底：里面的框没聚焦是 surface_2，聚焦换白，看得出框在哪 */
-.set-pool.is-new { background: color-mix(in srgb, var(--text) 3%, transparent); box-shadow: none; }
-.set-pool.is-new .set-input { width: 100%; background: var(--surface-1); }
-.set-pool.is-new .set-input:focus { box-shadow: var(--card-shadow); }
-.set-pool.is-new .set-error { margin: 0; }
+/* 正在新建：还是「新建」那一张（尺寸、淡底不变），中间居中「@ 框」，下面一行暗色小字 */
+.set-pool.is-add.is-editing { flex-direction: column; gap: 6px; cursor: default; }
+.set-pool.is-add.is-editing:hover { background: color-mix(in srgb, var(--text) 3%, transparent); }
+.set-new-row { display: flex; align-items: center; gap: 6px; }
+.set-new-at { color: var(--text-soft); font-weight: 600; }
+.set-new-row .set-input { width: 280px; max-width: 60vw; background: var(--surface-1); }
+.set-new-row .set-input:focus { box-shadow: var(--card-shadow); }
+.set-new-hint { color: var(--text-faint); font-size: 12px; }
+.set-new-hint.is-bad { color: var(--danger); }
 
 /* 找模型、读模型列表、选模型的小窗 */
 .set-model-search { width: 100%; margin-top: 12px; }
