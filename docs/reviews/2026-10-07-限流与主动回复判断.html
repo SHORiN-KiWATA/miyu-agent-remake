@@ -1,0 +1,375 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"></head><body><!-- 本地外壳：这一行和最后两行只给直接打开用 -->
+<title>限流与主动回复判断</title>
+<style>
+/* 布局：单栏长文，图在上、清单在下；宽表格各自横向滚动 */
+:root{
+  --bg:#f6f7f5; --panel:#ffffff; --fg:#1d2321; --muted:#5d6763; --line:#d9dedb;
+  --accent:#1f6f5c;
+  --k:#2f5d8a; --k-bg:#e6eef6;
+  --c:#1f6f5c; --c-bg:#e3f1ec;
+  --d:#8a5a1f; --d-bg:#f5ecdf;
+  --p:#6a4c93; --p-bg:#eee8f5;
+  --x:#7a7f7d; --x-bg:#ececea;
+  --q:#a33d3d; --q-bg:#f7e7e5;
+  --sans:"PingFang SC","Noto Sans CJK SC","Source Han Sans SC","Microsoft YaHei",system-ui,sans-serif;
+  --mono:"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --panel:#1b2220; --fg:#e4e9e6; --muted:#9aa5a0; --line:#2e3834;
+  --accent:#5fc0a3;
+  --k:#8db8e3; --k-bg:#1d2b3a; --c:#6fcfaf; --c-bg:#183129; --d:#e0b27a; --d-bg:#332818;
+  --p:#c3a8e8; --p-bg:#2a2236; --x:#a3a8a6; --x-bg:#262b29; --q:#ef9a92; --q-bg:#3a2220;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --panel:#1b2220; --fg:#e4e9e6; --muted:#9aa5a0; --line:#2e3834;
+  --accent:#5fc0a3;
+  --k:#8db8e3; --k-bg:#1d2b3a; --c:#6fcfaf; --c-bg:#183129; --d:#e0b27a; --d-bg:#332818;
+  --p:#c3a8e8; --p-bg:#2a2236; --x:#a3a8a6; --x-bg:#262b29; --q:#ef9a92; --q-bg:#3a2220;
+  color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.7;font-size:15px}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:16px;padding-block:32px 64px;display:flex;flex-direction:column;gap:40px}
+h1{font-size:28px;margin:0;text-wrap:balance;letter-spacing:.02em}
+h2{font-size:20px;margin:0 0 12px;text-wrap:balance;border-bottom:1px solid var(--line);padding-bottom:6px}
+h3{font-size:16px;margin:20px 0 8px}
+p{margin:0 0 10px;max-width:68ch}
+.lede{color:var(--muted)}
+code{font-family:var(--mono);font-size:.88em;background:var(--x-bg);padding:1px 5px;border-radius:3px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin:6px 0 4px}
+.tag{display:inline-block;font-size:12px;font-weight:600;padding:1px 8px;border-radius:10px;white-space:nowrap;letter-spacing:.03em}
+.K{color:var(--k);background:var(--k-bg)} .C{color:var(--c);background:var(--c-bg)}
+.D{color:var(--d);background:var(--d-bg)} .P{color:var(--p);background:var(--p-bg)}
+.X{color:var(--x);background:var(--x-bg)} .Q{color:var(--q);background:var(--q-bg)}
+.scroll{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px}
+pre.mermaid{margin:0;padding:16px;background:var(--panel);text-align:center}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:720px}
+th,td{text-align:left;vertical-align:top;padding:7px 10px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.04em;background:var(--bg);position:sticky;top:0}
+td:first-child{white-space:nowrap}
+tr.grp td{background:var(--bg);font-weight:600;font-size:13px;color:var(--muted);padding-top:12px}
+.note{border-left:3px solid var(--q);background:var(--q-bg);padding:10px 14px;border-radius:0 6px 6px 0}
+.note p:last-child{margin:0}
+ol.ask{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:12px}
+ol.ask li{max-width:72ch}
+.rec{color:var(--c);font-weight:600}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;min-width:0}
+.box h4{margin:0 0 6px;font-size:14px}
+.box ul{margin:0;padding-left:18px;font-size:14px}
+</style>
+<div class="wrap">
+
+<header>
+  <h1>限流与主动回复判断</h1>
+  <p class="lede">详细设计稿 · 2026-10-07 · 依据：旧版 <code>real_context</code>、<code>scheduling.rs</code> 的实现和默认值，<code>18-通讯平台.md</code> 第五、六节，新内核「排队的消息」（<code>kernel/session.md</code>）。数字都取旧版的默认值，实现时照 Q4 拿旧版群聊日志回放校一遍。</p>
+  <div class="legend">
+    <span class="tag K">核心</span><span class="tag C">群聊内核</span><span class="tag D">OneBot 驱动</span><span class="tag Q">要你定</span>
+  </div>
+</header>
+
+<section>
+  <h2>〇、先补一个核心原语：回合闸</h2>
+  <p>Q1 重开以后，睡眠、限流、开不开口这些都在 <code>miyu-onebot</code> 里。群消息由桥自己决定要不要开回合，这好办。麻烦在<b>核心自己开的回合</b>：子代理回报、后台命令结束、定时到了、别的会话发来的话。这些回合核心不问桥就开了，半夜照样开口，限流也管不着。</p>
+  <p>所以核心加一个通用原语：<b>回合闸</b>。一个会话绑了闸，它的每一次开回合，不管谁触发，都先问闸的提供者。提供者回三种答案之一：</p>
+  <div class="scroll"><table>
+    <thead><tr><th>回答</th><th>核心怎么做</th><th>例子</th></tr></thead>
+    <tbody>
+      <tr><td><code>now</code></td><td>照常开</td><td>额度够，没睡</td></tr>
+      <tr><td><code>later(时刻)</code></td><td>触发它的那条（回报、通知）照常记下、排着，到那个时刻再问一次</td><td>睡着了，推迟到 07:00；额度满了，推迟到窗口腾出位置</td></tr>
+      <tr><td><code>hold</code></td><td>记下、排着，等下一次别的原因开回合时一起看到</td><td>暂时不想为它单独开一轮</td></tr>
+    </tbody>
+  </table></div>
+  <ul>
+    <li>闸只能推迟，不能丢：回报、留言照内核的规矩排着，迟早会被看到。</li>
+    <li>提供者没连着（桥断了）：按 <code>hold</code> 算。连不上，不能替提供者做主。</li>
+    <li>主人在终端里直接对这个会话说话，不过闸：闸管的是平台上的场所，不管本人。</li>
+    <li>这是协议上的一个反向调用（<code>gate.ask</code>），以后语音的唤醒规程也用得上，不认识 QQ。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>一、限流</h2>
+  <p>它是防滥用、防花费的兜底（Q6），不管她话多话少，话多话少归冷静机制管。旧版 7 天日志里，三个主群一次都没碰到过限流。</p>
+
+  <h3>1. 数什么、怎么算</h3>
+  <div class="cols">
+    <div class="box"><h4>数的是回合</h4><ul>
+      <li>数这个场所里 <code>turn.started</code> 的条数，不数群里的消息</li>
+      <li>由主人和自己人触发的回合不计数</li>
+      <li>不是消息开的回合也算：回报、后台命令结束、定时到了</li>
+      <li>判官的辅助请求不算回合，另有全局的并发上限（旧版是 4）</li>
+    </ul></div>
+    <div class="box"><h4>滑动窗口，从日志算</h4><ul>
+      <li>额度 <code>N/T</code>：最近 T 秒里开了几轮</li>
+      <li>直接从场所会话的日志投影出来，核心或桥重启都不丢；旧版放在内存里，重启就清零</li>
+      <li>旧版是固定窗口，从这段时间的第一条算起，窗口一到整段清零，边界上能瞬间多用一倍额度；新版改成滑动的</li>
+      <li>纯函数：输入是时间戳列表和额度，输出是判定，好测</li>
+    </ul></div>
+    <div class="box"><h4>按场所规则配</h4><ul>
+      <li>场所规则的 <code>rate</code> 属性，写 <code>"5/300s"</code>，<code>"0"</code> 是不限</li>
+      <li>旧版三档：私聊游客 5/300s，白名单群 30/60s，别的群 5/300s。新版写成三条出厂规则</li>
+      <li><code>miyu onebot venue show</code> 和 WebUI 列出现在用了几轮、哪条规则定的</li>
+    </ul></div>
+  </div>
+
+  <h3>2. 一条消息到了限流这一关</h3>
+  <div class="scroll"><pre class="mermaid">
+flowchart TB
+  in["进站链第 4 条：限流<br/>（前面三条：睡眠、禁言、谁能叫她）"] --> ex{"发的人是主人<br/>或自己人？"}
+  ex -- "是" --> pass["放行：交给线路规程<br/>这一轮不计数"]
+  ex -- "否" --> cnt["从日志数：最近 T 秒里<br/>不是主人、自己人开的回合数 n"]
+  cnt --> full{"n &lt; N ？"}
+  full -- "是" --> pass2["放行：交给线路规程"]
+  full -- "否" --> addr{"这条冲她来？<br/>@她 / 回复她 / 叫名字"}
+  addr -- "否" --> rec["只记下<br/>这段时间也不抽样、不判官"]
+  addr -- "是" --> warned{"这个窗口里<br/>已经提示过？"}
+  warned -- "是" --> rec
+  warned -- "否" --> note["拒绝并回一句<br/>「消息太频繁了，请稍候再发。」<br/>记 ext.venues.rate_noticed"]
+  note --> q["出站队列：短通知<br/>不转图、不去重<br/>禁言时照样暂停"]
+</pre></div>
+  <ul>
+    <li>「已经提示过」也从日志看：窗口里有没有 <code>ext.venues.rate_noticed</code>。回合数降到 N 以下，下次满了再提示一次。</li>
+    <li>额度满时，「看情况插话」不抽样、不调判官，冲她来的也只提示一次。旧版就是这样，额度满了连判官也停。</li>
+  </ul>
+
+  <h3>3. 不是消息开的回合：经回合闸</h3>
+  <div class="scroll"><pre class="mermaid">
+sequenceDiagram
+  participant K as 核心：场所会话
+  participant G as miyu-onebot：回合闸
+  Note over K: 子代理回报到了，会话空闲
+  K->>G: gate.ask（原因：child.reported）
+  G->>G: 睡眠？额度？
+  alt 额度够、没睡
+    G-->>K: now
+    K->>K: turn.started（计数 +1）
+  else 额度满了
+    G-->>K: later（窗口里最早那一轮满 T 秒的时刻）
+    Note over K: 回报照常记下、排着
+    K->>G: 到了那个时刻再问一次
+  else 睡着了
+    G-->>K: later（醒来的时刻）
+  end
+</pre></div>
+
+  <h3>4. 时间线示例：额度 5/300s</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>时刻</th><th>发生了什么</th><th>最近 300 秒的回合数</th><th>结果</th></tr></thead>
+    <tbody>
+      <tr><td>00:00 到 01:40</td><td>群友 @ 她 5 次，每 25 秒一次</td><td>0 → 5</td><td>开了 5 轮</td></tr>
+      <tr><td>01:50</td><td>A @ 她</td><td>5</td><td>回一句「消息太频繁了」，记 <code>rate_noticed</code></td></tr>
+      <tr><td>02:10</td><td>B @ 她</td><td>5</td><td>只记下（这个窗口里提示过了）</td></tr>
+      <tr><td>02:30</td><td>主人 @ 她</td><td>5</td><td>开一轮，不计数</td></tr>
+      <tr><td>03:00</td><td>子代理回报到了</td><td>5</td><td>闸回答 <code>later(05:00)</code></td></tr>
+      <tr><td>05:00</td><td>00:00 那一轮出了窗口</td><td>4</td><td>闸放行，开一轮处理回报 → 5</td></tr>
+      <tr><td>05:25</td><td>00:25 那一轮出了窗口</td><td>4</td><td>又能开一轮；再满了会再提示一次</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>5. 旧版有、新版不要的</h3>
+  <ul>
+    <li><b>每个会话最多同时跑 8 轮、排 16 轮</b>（<code>session_limits</code>），以及全局 16 的并发：新版一个场所只有一个会话 actor，回合一轮一轮跑，中途来的消息照内核「排队的消息」并进下一步或下一轮，最多积压一轮。不用另设上限。</li>
+    <li><b>判官单独限流</b>：不加。旧版 7 天约 6000 次判断，判官用的是便宜的模型；额度满了停判官，加上全局并发上限，已经够了。真成了问题再加。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>二、主动回复判断（线路规程 chatty）</h2>
+  <p>一个场所挂了 <code>chatty</code>，才有下面这一套；挂 <code>when-called</code> 或 <code>every-message</code>，判官、加值项、门槛修正都不构造。</p>
+
+  <h3>1. 全流程</h3>
+  <div class="scroll"><pre class="mermaid">
+flowchart TB
+  msg["群消息（已过进站链）"] --> facts["驱动给出的平台事实<br/>@她 · 回复她 · 叫名字/触发词<br/>@了别人 · 引用了谁 · 只有图/表情"]
+  facts --> busy{"这个场所<br/>正在跑回合？"}
+  busy -- "是" --> inturn{"冲她来，或者是<br/>这一轮的触发人接着说？"}
+  inturn -- "是" --> q1["并进这一轮<br/>（内核排队的消息，下一步听到）"]
+  inturn -- "否" --> rec0["只记下<br/>下一轮的群聊近况里看到"]
+  busy -- "否" --> set["算触发条件集合<br/>（第 2 节）"]
+  set --> empty{"集合是空的？"}
+  empty -- "是" --> rec1["只记下"]
+  empty -- "否" --> sup{"7 秒内同一个人<br/>有一条还在判 / 已承诺？"}
+  sup -- "已承诺" --> inherit["继承：不再判<br/>沿用原来的触发标签"]
+  sup -- "还在判" --> cancel["取消旧的判断<br/>带着原标签重判"]
+  sup -- "没有" --> priv
+  cancel --> priv{"冲她来，且发的人<br/>是主人或自己人？"}
+  priv -- "是" --> commit
+  priv -- "否" --> only{"只有违规旗？"}
+  only -- "是" --> modj["判官：只查违规"]
+  only -- "否" --> judge["判官：五维打分<br/>+ should_reply + to_bot + 违规"]
+  judge --> score["算分（第 3 节）"]
+  modj --> viol{"违规？"}
+  score --> pass{"分数 ≥ 门槛<br/>或违规？"}
+  viol -- "否" --> rec2["只记下"]
+  viol -- "是" --> commit
+  pass -- "否" --> rec2
+  pass -- "是" --> commit["承诺：要回<br/>记 ext.chat.decided"]
+  inherit --> commit
+  commit --> react["贴「在看了」表情<br/>（抽样和观察窗口不贴）"]
+  react --> turn["开回合（经回合闸）<br/>附事实：为什么叫她<br/>违规时附预检结论"]
+  turn --> out{"她回了，<br/>还是 skip_reply？"}
+  out -- "回了" --> sent["出站链 → 出站队列 → 送达<br/>ext.venues.delivered"]
+  out -- "skip_reply" --> quiet["不发，理由只进日志"]
+  sent --> reset["续聊窗口、观察窗口重新计时<br/>冷静的近期发言量 +1<br/>摘表情"]
+  quiet --> unreact["摘表情"]
+</pre></div>
+
+  <h3>2. 触发条件：集合，不是梯子</h3>
+  <p>每个条件是一个加值项插件：自己判断成不成立，成立就给一笔加分。几个同时成立，加分相加，不封顶。</p>
+  <div class="scroll"><table>
+    <thead><tr><th>加值项</th><th>什么时候成立</th><th>加分</th><th>窗口</th><th>算不算冲她来</th><th>贴不贴表情</th></tr></thead>
+    <tbody>
+      <tr><td><code>direct</code> 冲她来</td><td>@ 她、回复她的消息、叫到名字或触发词</td><td>+0.30</td><td>—</td><td>算（免冷静）</td><td>贴</td></tr>
+      <tr><td><code>continuation</code> 续聊</td><td>她刚回过这个人，他接着说。<b>新加</b>：这句 @ 了别人、或者引用的是别人的消息，就不成立</td><td>+0.10</td><td>15 秒</td><td>不算</td><td>贴</td></tr>
+      <tr><td><code>after_speaking</code> 刚说过话</td><td>她刚在群里说过话，任何人接着说；只有表情的不算</td><td>+0.10</td><td>30 秒</td><td>不算</td><td>不贴</td></tr>
+      <tr><td><code>inherited</code> 顶替</td><td>同一个人 7 秒内补发，接过前一条的回合</td><td>沿用前一条的整个集合</td><td>7 秒</td><td>随前一条</td><td>随前一条</td></tr>
+      <tr><td><code>probability</code> 抽样</td><td>没有别的条件时，按 5% 抽中；只有图的不抽</td><td>0</td><td>—</td><td>不算</td><td>不贴</td></tr>
+      <tr><td><code>moderation</code> 违规旗</td><td>关键词或 base64 解码后命中</td><td>0（只是让判官认真查一眼）</td><td>—</td><td>—</td><td>—</td></tr>
+    </tbody>
+  </table></div>
+  <ul>
+    <li><b>主触发</b>只用来归类：日志标题、贴不贴表情、回合开头那句「为什么叫你」写哪一种。优先级：冲她来 &gt; 顶替 &gt; 续聊 &gt; 刚说过话 &gt; 抽样 &gt; 违规旗。</li>
+    <li><b>抽样要能回放</b>：随机数的种子由「场所 + 消息编号」算出来，同一份日志回放出同样的结果。纯逻辑层不碰时钟和随机源（02 号 K1）。</li>
+  </ul>
+
+  <h3>3. 算分</h3>
+  <div class="scroll"><pre class="mermaid">
+flowchart LR
+  subgraph J["判官给的（它看不到下面任何加减分）"]
+    d["五维 0–10：<br/>相关 0.25 · 意愿 0.25 · 社交 0.15<br/>时机 0.15 · 连贯 0.20"]
+    sr["should_reply"]
+    tb["to_bot：是不是在跟她说话"]
+    mv["违规：severity 0–10"]
+  end
+  d --> raw["raw = Σ 权重×分 ÷ (10×Σ权重)"]
+  sr --> adj["should_reply 是 +0.2，否 −0.2"]
+  raw --> final["final = raw + should_reply 调整<br/>+ Σ 加值项"]
+  adj --> final
+  bon["加值项：冲她来 +0.3 · 续聊 +0.1<br/>刚说过话 +0.1"] --> final
+  base["基础门槛 0.8"] --> th["门槛 = 0.8 + 冷静抬高"]
+  lift["冷静抬高<br/>冲她来或 to_bot 时为 0"] --> th
+  tb -. "免冷静" .-> lift
+  final --> cmp{"final ≥ 门槛<br/>或 severity ≥ 7"}
+  th --> cmp
+  mv --> cmp
+</pre></div>
+  <div class="cols">
+    <div class="box"><h4>例 1：刚说过话时有人接一句</h4><ul>
+      <li>五维 6/5/4/6/3 → raw = 4.85 ÷ 10 = 0.485</li>
+      <li>should_reply 是：+0.2 → 0.685；刚说过话 +0.1 → 0.785</li>
+      <li>她最近连说了 2 句：门槛 0.8 + 0.12 = 0.92</li>
+      <li><b>不回</b>，记下这一笔</li>
+    </ul></div>
+    <div class="box"><h4>例 2：同样的话，但 @ 了她</h4><ul>
+      <li>再加冲她来 +0.3 → 1.085</li>
+      <li>冲她来免冷静：门槛 0.8</li>
+      <li><b>回</b></li>
+    </ul></div>
+  </div>
+
+  <h3>4. 冷静机制</h3>
+  <p>她在这个场所每真发出一轮回复（回 @ 的也算），记一笔，每笔 3 分钟衰减一半。加起来是近期发言量 p。插嘴的门槛抬高 <code>0.35 · p³ / (p³ + 2.5³)</code>，曲线和半衰期内置，只留一个开关。</p>
+  <div class="scroll"><table>
+    <thead><tr><th>近期发言量 p</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>8</th></tr></thead>
+    <tbody><tr><td>门槛抬高</td><td>0.02</td><td>0.12</td><td>0.22</td><td>0.28</td><td>0.31</td><td>0.34</td></tr></tbody>
+  </table></div>
+  <p>p 从日志里 <code>ext.venues.delivered</code> 的时刻算出来，重启以后照样在。旧版放在内存里，重启就清零。</p>
+
+  <h3>5. 顶替窗口：发错了马上改</h3>
+  <div class="scroll"><pre class="mermaid">
+sequenceDiagram
+  participant A as 群友 A
+  participant B as miyu-onebot
+  participant J as 判官（model.call）
+  participant K as 核心
+  A->>B: 0s「今天几号」（刚说过话的窗口里）
+  B->>J: 判（集合：刚说过话）
+  A->>B: 3s「明天几号*」
+  B->>B: 7 秒内同一个人，旧的还在判
+  B--xJ: 取消旧的判断
+  B->>J: 带着原标签重判，两条一起给
+  J-->>B: 回
+  B->>K: 开回合，触发消息是第二条
+  Note over B: 如果第一条已经判过要回（已承诺），<br/>第二条直接继承，不再判
+</pre></div>
+
+  <h3>6. 判官和她看到的不一样，这是有意的</h3>
+  <div class="scroll"><table>
+    <thead><tr><th></th><th>判官</th><th>她（主回合）</th></tr></thead>
+    <tbody>
+      <tr><td>群聊记录</td><td>触发消息之前的 20 条，每次重新取一段</td><td>群聊近况：上一轮到<b>开回合那一刻</b>，增量</td></tr>
+      <tr><td>为什么刀口不同</td><td colspan="2">判官可能跑几十秒，这段时间群里聊到哪儿，她回话时就该看到哪儿</td></tr>
+      <tr><td>人设</td><td>默认带上人格提示词，可以整个换掉</td><td>人格、预设</td></tr>
+      <tr><td>加减分</td><td>看不到</td><td>看不到</td></tr>
+      <tr><td>判官的打分</td><td>—</td><td>看不到；只看到「为什么叫你」一句事实，违规时多一句预检结论</td></tr>
+      <tr><td>模型</td><td>经核心 <code>model.call</code>，用场所规则指定的池（默认便宜的那档）</td><td>场所的预设</td></tr>
+      <tr><td>工具、记忆</td><td>没有</td><td>有，再去掉碰主机的</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>7. 状态都从日志算</h3>
+  <div class="scroll"><pre class="mermaid">
+flowchart LR
+  subgraph log["场所会话日志"]
+    e1["message.user<br/>（每条群消息）"]
+    e2["ext.chat.decided<br/>（每一次判断）"]
+    e3["turn.started / turn.ended"]
+    e4["ext.venues.delivered<br/>（真的送达了）"]
+    e5["ext.venues.rate_noticed"]
+  end
+  e4 --> s1["续聊窗口：最后一次回谁、什么时候"]
+  e4 --> s2["观察窗口：最后一次说话的时刻"]
+  e4 --> s3["冷静：近期发言量 p"]
+  e2 --> s4["顶替窗口：7 秒内谁有判断在途 / 已承诺"]
+  e3 --> s5["限流：最近 T 秒的回合数"]
+  e5 --> s6["限流：这个窗口提示过没有"]
+  e1 --> s7["群聊近况"]
+</pre></div>
+  <p><code>ext.chat.decided</code> 记下一次判断的全部分项：条件集合、五维、raw、各项加分、冷静抬高、门槛、结论、判官的理由、用的模型和耗时。给模型的投影里跳过它；WebUI 里能逐条看「她为什么说了、为什么没说」，Q4 的回放验收也靠它逐条对照。旧版的决策日志只写进运行日志，重启就查不到了。</p>
+
+  <h3>8. 插件槽</h3>
+  <div class="scroll"><pre class="mermaid">
+flowchart TB
+  ld["线路规程 chatty（每个场所独占）"]
+  ld --> bonus["加值项（求和）<br/>direct · continuation · after_speaking<br/>inherited · probability · moderation"]
+  ld --> judgeSlot["判官（独占，可以换）<br/>默认：五维打分"]
+  ld --> thr["门槛修正（求和）<br/>restraint 冷静"]
+  bonus -. "第三方以后能加" .-> ext1["例：关键词加分、某人减分"]
+  thr -. "第三方以后能加" .-> ext2["例：深夜抬门槛"]
+</pre></div>
+  <p>每个插件的输入是「这条消息的平台事实 + 日志投影出的状态」，输出是一笔加分或一个门槛修正，加一句理由。输入输出都能写成协议消息：第一期编进包里，第二期原样挪到进程外（插件分三期，已定）。</p>
+
+  <h3>9. 参数：旧版的默认值</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>参数</th><th>旧版默认</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>抽样概率</td><td>5%</td><td>只有图的消息不抽</td></tr>
+      <tr><td>基础门槛</td><td>0.8</td><td></td></tr>
+      <tr><td>五维权重</td><td>0.25 / 0.25 / 0.15 / 0.15 / 0.20</td><td>相关、意愿、社交、时机、连贯</td></tr>
+      <tr><td>should_reply 调整</td><td>±0.2</td><td></td></tr>
+      <tr><td>冲她来 / 续聊 / 刚说过话</td><td>+0.3 / +0.1 / +0.1</td><td>窗口 — / 15 秒 / 30 秒</td></tr>
+      <tr><td>顶替窗口</td><td>7 秒</td><td></td></tr>
+      <tr><td>判官看的记录</td><td>20 条</td><td>她看的群聊近况另算</td></tr>
+      <tr><td>判官超时</td><td>60 秒（只查违规时 120 秒）</td><td>排队等并发最多 15 秒，重试 1 次</td></tr>
+      <tr><td>判官并发</td><td>全局 4</td><td></td></tr>
+      <tr><td>违规门槛</td><td>severity ≥ 7</td><td>关键词只能拉起判官，不能直接定违规</td></tr>
+      <tr><td>贴的表情</td><td>QQ 表情 289，10 分钟没回就摘</td><td>表情编号是驱动的事</td></tr>
+      <tr><td>冷静</td><td>半衰期 3 分钟，上限 +0.35</td><td>内置，只留开关</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>三、要你定的</h2>
+  <ol class="ask">
+    <li><b>被 @ 要不要也过判官。</b>旧版默认要过（加 0.3、免冷静），判官能拒掉 @；18 号写的是「冲她来的一定交给她」，由她自己用 <code>skip_reply</code> 不说话。<span class="rec">推荐照旧版：</span>Q4 定了效果照搬、拿旧版日志逐条对照；改成直通，回放时每一条被判官拒掉的 @ 都会对不上，而且每个 @ 都要花一次主回合。主人和自己人的 @ 照旧不过判官。</li>
+    <li><b>加一个核心原语「回合闸」。</b>核心开的回合（回报、后台命令结束、定时）先问桥，桥只能推迟、不能丢。<span class="rec">推荐：加。</span>不加，Q1 重开以后，睡眠和限流就管不着这些回合。</li>
+    <li><b>超了额度的消息进不进下一轮的群聊近况。</b><span class="rec">推荐：进。</span>她醒着，只是没开口，这和睡着时错过的不一样。近况本来就有预算，刷屏也挤不爆。</li>
+    <li><b>回合跑着时，别人不冲她来的消息不判。</b>只记下，进下一轮的近况；这一轮结束后观察窗口开着，接下来的话照常判。<span class="rec">推荐：这样。</span>旧版这里有并进同一个人回合的特例（09-26），新版由内核的排队接住。</li>
+    <li><b>按场所能改到多细</b>（上一轮留下的）。<span class="rec">推荐：</span>第 9 节的每个参数都在清单里声明类型，场所规则里都能按场所改；WebUI 先露开关和常用的几项（抽样概率、门槛、限流），其余写规则文件。</li>
+    <li><b>核心什么时候拉起 <code>miyu-onebot</code></b>（上一轮留下的）。<span class="rec">推荐：</span>装了、启用了就拉起；还没配好时它只开 WebUI，不连 NapCat。</li>
+  </ol>
+</section>
+
+</div>
+<script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";const dark=matchMedia("(prefers-color-scheme: dark)").matches;mermaid.initialize({startOnLoad:true,theme:dark?"dark":"neutral"});</script>
+</body></html>
