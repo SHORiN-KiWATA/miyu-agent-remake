@@ -123,11 +123,13 @@
       },
       "providers.<id>.models.<model>.inputs": {
         "name": "入力",
-        "description": "このモデルが読めるもの：テキスト、画像、PDF。",
+        "description": "このモデルが読めるもの：テキスト、画像、PDF、音声、動画。",
         "options": {
           "text": "テキスト",
           "image": "画像",
-          "pdf": "PDF"
+          "pdf": "PDF",
+          "audio": "音声",
+          "video": "動画"
         }
       },
       "providers.<id>.models.<model>.tools": {

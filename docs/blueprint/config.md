@@ -269,7 +269,7 @@ miyu_config::settings! {
 | `providers.<id>.cache` | 选项 `contract`、`best_effort`、`per_request` | 没有：照驱动 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
 | `providers.<id>.models.<model>.catalog` | 文字，最多 256 个字符 | 没有：照名字对目录 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.max_output` | 整数 1 到 100000000 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn`（施工 8-10 起：开着的会话下一个回合开始时用上） | 8-7 |
-| `providers.<id>.models.<model>.inputs` | 选项 `text`、`image`、`pdf` 的列表 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
+| `providers.<id>.models.<model>.inputs` | 选项 `text`、`image`、`pdf`、`audio`、`video` 的列表 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7（音频、视频 8-27） |
 | `providers.<id>.models.<model>.tools` | 开关 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.reasoning` | 文字的列表，每个最多 32 个字符 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.effort` | 文字，最多 32 个字符：这个模型的一档（`models.md`「怎么走」第十一条） | 没有：请求里不带，照供应商的默认 | 系统、个人 | 不能写 | `next_turn` | 8-18 |
@@ -427,7 +427,7 @@ miyu_config::settings! {
 2. 写了清单里没有的键：`unknown_config_key`。
 3. 一次的几项一起查、一起写：有一项不对（类型、范围、不能写在这一层），整条不收，`config_invalid`，`data.problems` 里是每一处。这几条问题查的是请求，不带 `file`、行列，也不说「先照…用着」（什么都没变，8-3 施工时定）。
 4. 文件现在读不进来（`syntax` 这类整份的问题），又是改几项的：`config_file_broken`，`data.problems` 里是那几处。这一项所在的那一组在文件里写成了别的东西、放不进去的（`ui = "zh"`、`[[ui]]`，第五条第 2 条第 3 款）也是它，`data.problems` 是这份文件现在的全部问题。整份换的不管这一条。
-5. 写了 `expect`、对不上：`config_conflict`，`data.current` 是这一层里这一项现在的样子（`{"value": …}` 或 `{}`），什么都没写。几项里有一项对不上，整条不收，`data.current` 是头一个对不上的那一项的。这一项在文件里写错了（丢掉了）的当没写，是 `{}`。
+5. 写了 `expect`、对不上：`config_conflict`，`data.current` 是这一层里这一项现在的样子（`{"value": …}` 或 `{}`），什么都没写。几项里有一项对不上，整条不收，`data.current` 是头一个对不上的那一项的。这一项在文件里写错了（丢掉了）的当没写，是 `{}`。两边都是数字的照数值比：文件里的 `1.0` 和头发来的 `1` 算对得上（施工 8-3 再补，2026-10-07 网页撞见：JS 的头写不出 `1.0`）；别的照 JSON 一字不差地比。
 6. 整份换的：`version` 和现在文件的版本对不上，`config_conflict`，`data.version` 是现在的版本。新的字里有错误（警告不算）：`config_invalid`，`data.problems` 里只有那几处错误（照 `config.check` 的写法，不带 `file`）。
 7. 收下的：写盘（第五条）、记日志（第六条）、推 `config.changed`（给订阅着的连接，发这一条的那个连接先见推送、后见回应，8-4），再回应。写了盘的都推，整份换只动了注释的也推（`keys` 是空的）：头手里的版本跟着换。第 3 到 6 条都在第五条第 2 条第 1 款重读过的文件上查：手改过的照新的字。替换前发现这一瞬间有人手改了，从头再来，三次还不行的：`config_conflict`，`data.version` 是现在的版本（第五条第 6 条）。
 8. 先落盘，后回应：回应到的时候，文件已经写好、同步过了。配置服务同时换上新的最终值：之后握手的连接、造的会话照新的；已经连着的连接下一句照新的语言说，开着的会话下一个回合照新的（第八条，8-4）。
@@ -1065,8 +1065,8 @@ keys = []
 # 能写：最多 32 个字的文字。只能写在系统配置或个人设置里。下一轮生效。
 # effort =
 
-# 能收哪些输入：这个模型能读的：文字、图片、PDF。
-# 能写：text、image 或 pdf 的列表。只能写在系统配置或个人设置里。下一轮生效。
+# 能收哪些输入：这个模型能读的：文字、图片、PDF、音频、视频。
+# 能写：text、image、pdf、audio 或 video 的列表。只能写在系统配置或个人设置里。下一轮生效。
 # inputs =
 
 # 最大输出：这个模型一次最多输出多少 token。
@@ -1410,12 +1410,14 @@ currency = "USD"
                   "type": "string"
                 },
                 "inputs": {
-                  "description": "这个模型能读的：文字、图片、PDF。能写：text、image 或 pdf 的列表。只能写在系统配置或个人设置里。下一轮生效。",
+                  "description": "这个模型能读的：文字、图片、PDF、音频、视频。能写：text、image、pdf、audio 或 video 的列表。只能写在系统配置或个人设置里。下一轮生效。",
                   "items": {
                     "enum": [
                       "text",
                       "image",
-                      "pdf"
+                      "pdf",
+                      "audio",
+                      "video"
                     ],
                     "type": "string"
                   },
