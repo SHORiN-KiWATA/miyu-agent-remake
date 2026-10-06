@@ -83,7 +83,8 @@ function providers(dialog, list) {
   } }, ctx.text('models.test'));
   const head = h('div.set-prov-facts',
     fact(ctx.text('models.address'), address),
-    fact(ctx.text('models.driver'), p.driver ?? ''),
+    // 核心推不出接口、先照 openai-chat 用的（`driver_from: default`，核心 8-26）：写明是猜的，猜错了请求会出错
+    fact(ctx.text('models.driver'), p.driver ?? '', p.driver_from === 'default' ? ctx.text('models.driver_guess') : null),
     fact(ctx.text('models.key'), keyText),
     h('div.set-prov-buttons', h('button.set-btn', { type: 'button', onclick: openForm(dialog, p.id) }, ctx.text('models.edit')), test));
   // 还没有模型的一家：请核心去拉一次（这个弹窗里每家一次），拉的时候写「正在读模型列表」
@@ -108,7 +109,7 @@ function providers(dialog, list) {
   return h('div.set-prov-wrap', side, main);
 }
 
-const fact = (label, value) => h('div.set-fact', h('span', label), h('strong', { title: value }, value));
+const fact = (label, value, note = null) => h('div.set-fact', h('span', label), h('strong', { title: value }, value, note ? h('em.set-fact-note', note) : null));
 
 /** 一个模型的详情：从右边滑进来，只有名字和控件；`Esc`、✕ 收回。 */
 function drawer(dialog, p, m) {

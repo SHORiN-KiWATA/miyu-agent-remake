@@ -673,7 +673,7 @@ export class App {
     this.composer.setRunning(!!view.running);
     this.chat.setRunning(!!view.running);
     // 对话区画了一次：照它画的软件包（运行状态行这类）听这个事件；是状态事件，晚起来的包先拿到最后一份
-    this.ctx.publish('view.changed', { session: s?.id ?? null, running: view.running, events, live: s?.live ?? null, retry: s?.retry ?? null, queued: view.queued });
+    this.ctx.publish('view.changed', { session: s?.id ?? null, running: view.running, events, live: s?.live ?? null, retry: s?.retry ?? null, queued: view.queued, todos: s?.todos ?? [], todosDone: s?.todosDone ?? null });
     // 排着的话（打断时有排着的不撤那一轮）
     this.queuedNow = view.queued ?? [];
     const f = footer(events, s?.limits ?? {}, s?.compactStats, s?.model);

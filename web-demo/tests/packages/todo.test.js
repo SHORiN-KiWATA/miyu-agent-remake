@@ -76,3 +76,11 @@ test('演示的数据照 TUI：9 项、3 秒推进一项', () => {
   assert.equal(config.every_ms, 3000);
   assert.equal(config.rows, 5);
 });
+
+test('核心的清单换成这一块的样子：pending 没做、in_progress 在做、completed 做完，不认识的当没做；空的是空的', async () => {
+  const { fromCore } = await import('../../packages/todo/model.js');
+  assert.deepEqual(fromCore([{ content: '读代码', status: 'completed' }, { content: '改', status: 'in_progress' }, { content: '测', status: 'pending' }, { content: '?', status: 'odd' }]),
+    [{ text: '读代码', state: 'done' }, { text: '改', state: 'active' }, { text: '测', state: 'pending' }, { text: '?', state: 'pending' }]);
+  assert.deepEqual(fromCore([]), []);
+  assert.deepEqual(fromCore(undefined), []);
+});

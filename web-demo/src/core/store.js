@@ -18,13 +18,13 @@ import { summarize } from '../model/session.js';
  *   提前压好、直接换上的（`prepared`，核心 6-11）没有进度那一行：前后的用量先放 `compactReady`，等落了盘的那一条 `context.compacted` 来了再记上
  * @typedef {{id: string, events: any[], live: Live|null, marks: Map<string, {start: number, end: number|null}>,
  *   limits: any, unread: boolean, replaying?: boolean, retry: Retry|null, compacting: Compacting|null, compactStats: Map<number, {before: number, after: number}>,
- *   compactReady: {before: number, after: number}|null,
+ *   compactReady: {before: number, after: number}|null, todos: {content: string, status: string}[], todosDone: {content: string, status: string}[]|null,
  *   changes: {after: number, at: string, body: any}[], model: {ref?: string, endpoint?: string, model?: string, effort?: {level: string, from: string}}|null}} Session
  */
 
 /** 一个刚知道、还没读的会话。 */
 export function emptySession(id) {
-  return /** @type {Session} */ ({ id, events: [], live: null, marks: new Map(), limits: {}, unread: false, retry: null, compacting: null, compactStats: new Map(), compactReady: null, changes: [], model: null });
+  return /** @type {Session} */ ({ id, events: [], live: null, marks: new Map(), limits: {}, unread: false, retry: null, compacting: null, compactStats: new Map(), compactReady: null, changes: [], model: null, todos: [], todosDone: null });
 }
 
 export class Store {
@@ -88,10 +88,13 @@ export class Store {
   async subscribe(s, after) {
     s.replaying = true;
     try {
-      const { limits, model } = await this.conn.request('subscribe', { session: s.id, stream: 'events', after });
+      const { limits, model, todos } = await this.conn.request('subscribe', { session: s.id, stream: 'events', after });
       s.limits = limits ?? s.limits ?? {};
       // 会话接下来请求的模型（核心施工 8-10）：框下面那一行照它写
       s.model = model ?? null;
+      // 待办（核心 D-3）：清单不空时回应里带着；之后照瞬时的 `todos.changed` 换
+      s.todos = todos ?? [];
+      s.todosDone = null;
     } finally {
       s.replaying = false;
     }
@@ -240,6 +243,13 @@ export class Store {
    * 来了、这一轮结束了就去掉（蓝图 `web.md`「运行状态行」、`kernel/events.md` 瞬时事件第 17 条）。
    */
   transient(s, e) {
+    // 待办换了（核心 D-3，瞬时的 `todos.changed`）：整份换上，空的是清空了
+    if (e.kind === 'todos.changed') {
+      s.todos = e.body?.todos ?? [];
+      // 因为全做完了清空的带着清空前那一份（核心 D-3 补）：待办那一块照它停一下再收
+      s.todosDone = s.todos.length ? null : e.body?.done ?? null;
+      return;
+    }
     // 压缩的进度：写了多少、估计多少；压好了记下前后的用量，等界面走满了再收（`finishCompaction`）。写了的变少了是重来
     // （提前压好的那次在线上失败了，换成当场的摘要请求，核心 6-11），从头走
     if (e.kind === 'compaction.progress') {

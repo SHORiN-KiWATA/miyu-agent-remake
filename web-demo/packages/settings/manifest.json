@@ -241,7 +241,8 @@
         "pool_up": "往上挪",
         "pool_down": "往下挪",
         "pool_remove": "移出这个池",
-        "pool_new_hint": "回车创建 · Esc 取消"
+        "pool_new_hint": "回车创建 · Esc 取消",
+        "driver_guess": "没认出来，先这样用"
       },
       "changed": "已改"
     },
@@ -365,7 +366,8 @@
         "pool_up": "上へ",
         "pool_down": "下へ",
         "pool_remove": "プールから外す",
-        "pool_new_hint": "Enter で作成 · Esc でキャンセル"
+        "pool_new_hint": "Enter で作成 · Esc でキャンセル",
+        "driver_guess": "判別できず、仮にこれを使用"
       },
       "changed": "変更済み"
     }

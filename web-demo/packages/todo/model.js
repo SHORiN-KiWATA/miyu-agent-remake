@@ -58,3 +58,15 @@ export function fold(todos, rows, full) {
   if (shown < open.length) out.push({ kind: 'more', count: open.length - shown });
   return out;
 }
+
+/** 核心的状态 → 这一块的三种（核心 D-3：`pending` 没做、`in_progress` 在做、`completed` 做完；不认识的当没做）。 */
+const STATES = { pending: 'pending', in_progress: 'active', completed: 'done' };
+
+/**
+ * 核心推来的清单（`subscribe` 回应的 `todos`、瞬时的 `todos.changed`）换成这一块的样子。
+ * @param {{content: string, status: string}[]} todos
+ * @returns {Todo[]}
+ */
+export function fromCore(todos) {
+  return (todos ?? []).map((x) => ({ text: x.content, state: /** @type {TodoState} */ (STATES[x.status] ?? 'pending') }));
+}
