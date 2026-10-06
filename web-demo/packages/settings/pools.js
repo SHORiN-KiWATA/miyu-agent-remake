@@ -1,6 +1,7 @@
 // @ts-check
-//! 模型池（蓝图 `web.md`「设置页」第 14 条）：一个池一张卡片：`@名字`、调用方式（固定、轮换）、成员一个个小块（往前、往后挪，✕ 去掉，
-//! 「＋」从还没进来的模型里加）、右上角删除；最后一张「新建模型池」写名字回车建好。改了当场存，写进个人设置。
+//! 模型池（蓝图 `web.md`「设置页」第 14 条）：一个池一张卡片：头上 `@名字`、调用方式（固定、轮换）、「＋ 添加」（从还没进来的模型里
+//! 勾）、删除；下面成员一行一个（序号、名字、哪一家，悬停露出往上、往下、✕）；最后一张「新建模型池」写名字回车建好。改了当场存，
+//! 写进个人设置。
 
 import { h, icon, replace } from '../../src/lib/dom.js';
 import { pickModels } from './picker.js';
@@ -14,9 +15,7 @@ export function drawPools(dialog, list) {
   const ctx = dialog.ctx;
   const t = (k, f) => ctx.text(`models.${k}`, f);
   const all = (list.providers ?? []).flatMap((p) => (p.models ?? []).map((m) => ({ ref: m.ref, model: m.model, name: m.facts?.name?.value ?? m.model, provider: providerName(p) })));
-  // 显示名重了的（同一个模型的几条线路）写模型名分开它们
-  const dup = duplicates(all.map((r) => r.name));
-  const refs = all.map((r) => ({ ref: r.ref, name: dup.has(r.name) ? r.model : r.name }));
+  const byRef = new Map(all.map((r) => [r.ref, r]));
   const field = (id, name) => itemFor(dialog.schema, dialog.got, `pools.<id>.${name}`, { id });
   const layer = layerFor(dialog.schema.items.find((i) => i.key === 'pools.<id>.models') ?? { layers: ['personal'] });
   const report = (why) => { if (why) dialog.toast(why); };
@@ -31,19 +30,26 @@ export function drawPools(dialog, list) {
       type: 'button',
       onclick: async () => { if (strategy && pool.strategy !== s) report(await dialog.save(strategy, { value: s })); },
     }, t(`strategies.${s}`))));
-    const chips = now.map((ref, i) => h('span.set-chip.is-member',
-      h('button', { type: 'button', 'aria-label': '←', disabled: i === 0 ? true : null, onclick: () => setMembers(moveMember(now, i, -1)) }, icon('chevron-left')),
-      h('span', { title: ref }, refs.find((r) => r.ref === ref)?.name ?? ref),
-      h('button', { type: 'button', 'aria-label': '→', disabled: i === now.length - 1 ? true : null, onclick: () => setMembers(moveMember(now, i, 1)) }, icon('chevron-right')),
-      h('button', { type: 'button', 'aria-label': '×', onclick: () => setMembers(now.filter((_, n) => n !== i)) }, icon('x'))));
-    const add = h('button.set-chip.is-add', { type: 'button', title: t('pool_add'), 'aria-label': t('pool_add') }, icon('plus'));
-    // 「＋」：浮出选模型的小窗，能勾好几个，照勾的先后接在最后
+    // 成员一行一个：序号、名字（池里重了的写模型名分开）、哪一家；悬停露出往上、往下、✕。配置里写着、认不出的照原样写
+    const known = now.map((ref) => byRef.get(ref) ?? { ref, name: ref, model: ref, provider: '' });
+    const dup = duplicates(known.map((r) => r.name));
+    // 第一行的往上、最后一行的往下留着位置不露（一列一列对齐）
+    const tool = (label, name, onclick, off) => h(`button.set-member-tool${off ? '.is-off' : ''}`, { type: 'button', title: label, 'aria-label': label, disabled: off ? true : null, onclick }, icon(name));
+    const rows = known.map((r, i) => h('div.set-member',
+      h('span.set-member-n', String(i + 1)),
+      h('span.set-model-name', { title: r.ref }, r.name, dup.has(r.name) ? h('code.set-model-id', r.model) : null),
+      h('span.set-pick-provider', r.provider),
+      h('span.set-member-tools',
+        tool(t('pool_up'), 'arrow-up', () => setMembers(moveMember(now, i, -1)), i === 0),
+        tool(t('pool_down'), 'arrow-down', () => setMembers(moveMember(now, i, 1)), i === now.length - 1),
+        tool(t('pool_remove'), 'x', () => setMembers(now.filter((_, n) => n !== i))))));
+    // 「＋ 添加」在头上：浮出选模型的小窗，能勾好几个，照勾的先后接在最后
+    const add = h('button.set-btn.is-small', { type: 'button' }, icon('plus'), t('pool_add'));
     add.addEventListener('click', () => pickModels(dialog, add, all.filter((r) => !now.includes(r.ref)), (picked) => setMembers([...now, ...picked])));
     return h('div.set-pool',
-      h('div.set-pool-head', h('strong', `@${pool.name}`), seg,
+      h('div.set-pool-head', h('strong', `@${pool.name}`), seg, add,
         removal.length ? h('button.set-reset.is-shown', { type: 'button', title: t('pool_delete'), 'aria-label': t('pool_delete'), onclick: async () => report(await dialog.saveMany(layer, removal)) }, icon('trash-2')) : null),
-      h('div.set-chips', chips, add),
-      now.length ? null : h('span.set-muted', t('pool_empty')));
+      rows.length ? h('div.set-members', rows) : h('span.set-muted', t('pool_empty')));
   };
 
   // 新建：这张卡变成写名字的框，回车建好（固定、没有成员），`Esc` 取消

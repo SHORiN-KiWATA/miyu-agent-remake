@@ -178,7 +178,7 @@
 .set-pick code { color: var(--text-faint); font: 11px var(--mono); }
 .set-radio { width: 14px; height: 14px; flex: none; border: 1.5px solid var(--line-strong); border-radius: 50%; }
 .set-pick.is-on .set-radio { border: 4px solid var(--accent); }
-.set-pools { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-top: 14px; }
+.set-pools { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin-top: 14px; }
 .set-pool { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 0; border-radius: 12px; background: var(--surface-1); box-shadow: var(--card-shadow); color: var(--text); font: 13px var(--sans); text-align: left; }
 .set-pool-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .set-pool .set-chips { justify-content: flex-start; max-width: none; }
@@ -233,12 +233,29 @@
 .set-loading { display: flex; align-items: center; gap: 8px; padding: 18px 0; color: var(--text-faint); font-size: 13px; }
 .set-loading .icon { animation: set-spin 0.9s linear infinite; }
 .set-picker { display: flex; flex-direction: column; gap: 6px; width: 380px; max-width: calc(100% - 24px); max-height: 420px; padding: 8px; }
-.set-picker > .set-input { width: 100%; }
+.set-picker > .set-search-box { flex: none; background: var(--surface-2); box-shadow: none; }
 .set-picker-list { flex: 1; min-height: 0; overflow-y: auto; }
 .set-picker-row { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
 .set-picker-row:hover { background: var(--surface-2); }
 .set-picker-row input { flex: none; accent-color: var(--accent); }
 .set-picker-foot { display: flex; justify-content: flex-end; gap: 6px; padding-top: 4px; border-top: 1px solid var(--line); }
+
+/* 模型池的成员：一行一个 */
+.set-pool-head strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-pool-head .set-seg { margin-left: 0; }
+.set-btn.is-small { height: 26px; gap: 4px; padding: 0 8px; font-size: 12.5px; }
+.set-btn.is-small .icon { width: 14px; height: 14px; }
+.set-members { display: flex; flex-direction: column; margin: 0 -6px; }
+.set-member { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 3px 6px; border-radius: 6px; font-size: 13px; }
+.set-member:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
+.set-member-n { flex: 0 0 16px; color: var(--text-faint); font: 11px var(--mono); text-align: right; }
+.set-member .set-pick-provider { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.set-member-tools { display: flex; flex: none; gap: 2px; opacity: 0; transition: opacity 0.12s ease; }
+.set-member:hover .set-member-tools, .set-member:focus-within .set-member-tools { opacity: 1; }
+.set-member-tool { display: inline-grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--text-faint); cursor: pointer; }
+.set-member-tool.is-off { visibility: hidden; }
+.set-member-tool:hover { background: var(--surface-3); color: var(--text); }
+.set-member-tool .icon { width: 13px; height: 13px; }
 
 /* 窄（第 15 条）：占满整个窗口，先列分页，点进去看那一页 */
 @media (max-width: 640px) {

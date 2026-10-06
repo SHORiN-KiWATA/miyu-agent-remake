@@ -196,7 +196,7 @@
         "test_ok": "能用 · {model} · 首字 {ms} ms",
         "price_currency": "币种",
         "temperature": "默认温度",
-        "pool_add": "加一个模型",
+        "pool_add": "添加",
         "pool_delete": "删除这个池",
         "pool_name_hint": "名字，比如 fast",
         "form": {
@@ -228,7 +228,10 @@
           "add": "加入 {count} 个",
           "none": "没有可以加的模型",
           "cancel": "取消"
-        }
+        },
+        "pool_up": "往上挪",
+        "pool_down": "往下挪",
+        "pool_remove": "移出这个池"
       },
       "changed": "已改"
     },
@@ -316,7 +319,7 @@
         "test_ok": "使用可能 · {model} · 最初の応答 {ms} ms",
         "price_currency": "通貨",
         "temperature": "既定の温度",
-        "pool_add": "モデルを追加",
+        "pool_add": "追加",
         "pool_delete": "このプールを削除",
         "pool_name_hint": "名前（例：fast）",
         "form": {
@@ -348,7 +351,10 @@
           "add": "{count} 件追加",
           "none": "追加できるモデルがありません",
           "cancel": "キャンセル"
-        }
+        },
+        "pool_up": "上へ",
+        "pool_down": "下へ",
+        "pool_remove": "プールから外す"
       },
       "changed": "変更済み"
     }

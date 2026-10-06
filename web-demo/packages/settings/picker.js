@@ -2,7 +2,7 @@
 //! 选模型的小窗（蓝图 `web.md`「设置页」第 14 条，模型池「＋」）：浮在按钮旁边，顶上搜索框，下面一行一个模型（勾选框、显示名、
 //! 模型名、哪一家），能勾好几个；底下「取消」「加入 N 个」，照勾的先后交出去。`Esc`、点外面关（类名 `set-menu`：弹窗的 `Esc` 先关它）。
 
-import { h, replace } from '../../src/lib/dom.js';
+import { h, icon, replace } from '../../src/lib/dom.js';
 import { filterModels } from './model.js';
 
 /**
@@ -17,7 +17,7 @@ export function pickModels(dialog, anchor, rows, done) {
   dialog.panel.querySelector('.set-menu')?.dispatchEvent(new CustomEvent('set-dismiss'));
   /** @type {string[]} */
   const picked = [];
-  const search = /** @type {HTMLInputElement} */ (h('input.set-input', { type: 'search', placeholder: t('search'), spellcheck: 'false', autocomplete: 'off' }));
+  const search = /** @type {HTMLInputElement} */ (h('input.set-search', { type: 'search', placeholder: t('search'), spellcheck: 'false', autocomplete: 'off' }));
   const list = h('div.set-picker-list');
   const add = /** @type {HTMLButtonElement} */ (h('button.set-btn.is-primary', { type: 'button', disabled: true, onclick: () => { close(); done([...picked]); } }, t('add', { count: 0 })));
   const sync = () => {
@@ -41,7 +41,8 @@ export function pickModels(dialog, anchor, rows, done) {
   };
   search.addEventListener('input', draw);
   search.addEventListener('keydown', (e) => { if (e.key === 'Enter' && picked.length) add.click(); });
-  const el = h('div.set-menu.set-picker', search, list, h('div.set-picker-foot', h('button.set-btn', { type: 'button', onclick: () => close() }, t('cancel')), add));
+  // 搜索框和左栏那个一个样子：放大镜、底色一块、不画描边
+  const el = h('div.set-menu.set-picker', h('label.set-search-box', icon('search'), search), list, h('div.set-picker-foot', h('button.set-btn', { type: 'button', onclick: () => close() }, t('cancel')), add));
   const outside = (e) => { if (!el.contains(e.target) && !anchor.contains(e.target)) close(); };
   const close = () => {
     document.removeEventListener('pointerdown', outside, true);
