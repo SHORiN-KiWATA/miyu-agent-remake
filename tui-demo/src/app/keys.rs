@@ -19,6 +19,16 @@ impl App {
             Some(at) if at.elapsed() <= window => {
                 self.notice = None;
                 if running {
+                    // 她还没开始做事、又没有排着的：打断以后撤掉这一轮，那一句放回输入框（「按键」`Esc`，2026-10-07
+                    // 项目主人定；和 Ctrl+C 退回排着的走同一条路，`takeback.rs`）。
+                    let queued = self
+                        .transcript
+                        .entries
+                        .iter()
+                        .any(|e| e.queued && !e.hidden);
+                    if !queued && let Some(back) = self.transcript.untouched() {
+                        self.takeback = Some(super::takeback::Takeback::Interrupting(back));
+                    }
                     self.core.send(Command::Interrupt { send: true });
                 } else {
                     self.input.editor.take();

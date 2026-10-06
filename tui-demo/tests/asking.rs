@@ -114,3 +114,39 @@ fn a_command_approval_shows_its_short_title_and_the_command() {
     tui.key(b"\r");
     tui.wait_for("看完了。");
 }
+
+#[test]
+fn ask_user_opens_the_question_drawer_and_the_answers_reach_her() {
+    // 核心 D-2：她调 ask_user，核心推 `question.asked`；抽屉里答了经 `session.answer` 交回去，结果写进正文。
+    let args = serde_json::json!({"questions": [
+        {"header": "语言", "question": "用哪种语言写？", "options": [
+            {"label": "Rust（推荐）", "description": "和仓库一样", "preview": "fn main() {}"},
+            {"label": "Python"}]},
+        {"header": "测试", "question": "要不要写测试？", "options": [{"label": "要"}, {"label": "不要"}]}
+    ]})
+    .to_string();
+    let script = Script::new([
+        Play::Calls(vec![("ask_user".into(), args)]),
+        Play::Says("好，照你说的写。"),
+    ]);
+    let home = Home::with_tools(script, "");
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("帮我写个小工具");
+    tui.wait_for("用哪种语言写？");
+    tui.wait_for("fn main() {}");
+    // 第一道选第一项（Enter），跳到第二道；按 n 补一句，再选「不要」（数字 2），到「确认」页交。
+    tui.key(b"\r");
+    tui.wait_for("要不要写测试？");
+    tui.key(b"n");
+    tui.type_text("以后再说");
+    tui.key(b"\r");
+    tui.key(b"2");
+    tui.wait_for("测试：不要");
+    tui.key(b"\r");
+    tui.wait_for("好，照你说的写。");
+    let screen = tui.lines().join("\n");
+    assert!(screen.contains("已回答"), "{screen}");
+    assert!(screen.contains("语言：Rust（推荐）"), "{screen}");
+    assert!(screen.contains("测试：不要（补充：以后再说）"), "{screen}");
+}

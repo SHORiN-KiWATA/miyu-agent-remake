@@ -65,13 +65,37 @@ impl Transcript {
     /// 这一轮是排着的话开的、她还没开口（没说字、没做步，只在想也算没开口）：交回开它的那几句（字和粘贴块）。
     /// Ctrl+C 打断以后撤掉这一轮，那几句放回输入框（蓝图 `tui.md`「按键」`Ctrl+C`，2026-09-30 项目主人定只退回排着的）。
     pub fn takeback(&self) -> Option<Vec<(String, Vec<Chip>)>> {
-        self.running?;
-        let turn = self.turn?;
-        if self.opened_by.is_empty() {
+        if self.opened_by.is_empty() || self.started_work() {
             return None;
         }
-        let answered = self
+        Some(self.opened_by.clone())
+    }
+
+    /// 她还没开始做事的这一轮：交回开它的那几句，直接发的那一句也算（两下 `Esc` 打断以后撤掉、放回输入框，蓝图「按键」
+    /// `Esc`，2026-10-07 项目主人定）。
+    pub fn untouched(&self) -> Option<Vec<(String, Vec<Chip>)>> {
+        let turn = self.turn?;
+        if self.started_work() {
+            return None;
+        }
+        if !self.opened_by.is_empty() {
+            return Some(self.opened_by.clone());
+        }
+        let opening: Vec<(String, Vec<Chip>)> = self
             .entries
+            .iter()
+            .filter(|e| e.kind == Kind::User && e.turn == Some(turn))
+            .map(|e| (e.text.clone(), e.pasted.clone()))
+            .collect();
+        (!opening.is_empty()).then_some(opening)
+    }
+
+    /// 这一轮在回答，她已经开始做事了：说了字或者调了工具（只在想不算）；没在回答的也算做了（不撤）。
+    fn started_work(&self) -> bool {
+        let (Some(_), Some(turn)) = (self.running, self.turn) else {
+            return true;
+        };
+        self.entries
             .iter()
             .filter(|e| e.turn == Some(turn))
             .any(|e| {
@@ -81,8 +105,7 @@ impl Transcript {
                             .iter()
                             .any(|st| matches!(st.kind, StepKind::Tool { .. }))
                     })
-            });
-        (!answered).then(|| self.opened_by.clone())
+            })
     }
 
     /// 第 `at` 条从正文里拿走了：记着的下标（在接的块、还没配上编号的调用、调用编号到那一步、正在压缩那一行）

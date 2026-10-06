@@ -285,3 +285,37 @@ fn a_queued_message_left_over_when_the_core_drops_comes_in_before_the_next_one()
     );
     assert_eq!(users(&t), ["先跑一下", "你在干嘛？", "算了，不发了。"]);
 }
+
+#[test]
+fn a_turn_she_has_not_started_on_hands_back_the_message_that_opened_it() {
+    // 2026-10-07 项目主人：刚发出去就两下 Esc 打断、她还没开始做事的，撤掉这一轮、字放回输入框。
+    let mut t = Transcript::default();
+    t.user("你好".into(), Vec::new());
+    apply(
+        &mut t,
+        vec![Push::UserMessage(1), Push::TurnStarted(2, Some(1))],
+    );
+    let back: Vec<String> = t
+        .untouched()
+        .unwrap()
+        .into_iter()
+        .map(|(text, _)| text)
+        .collect();
+    assert_eq!(back, ["你好"], "直接发的那句也算");
+    apply(&mut t, thought(2, "想一下"));
+    assert!(t.untouched().is_some(), "只在想还算没开始");
+    apply(
+        &mut t,
+        vec![
+            Push::BlockStart {
+                index: 1,
+                block: Block::Text,
+            },
+            Push::Delta {
+                index: 1,
+                text: "嗯".into(),
+            },
+        ],
+    );
+    assert!(t.untouched().is_none(), "她开口了：不撤");
+}
