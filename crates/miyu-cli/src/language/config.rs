@@ -68,7 +68,7 @@ impl Language {
         }
     }
 
-    /// `explain` 第一行：名字、键、说明、什么时候生效。
+    /// `explain` 第一行：名字、键、说明、什么时候生效。认不出的生效时机不说（[`Language::applies`]）。
     pub(crate) fn explain_header(
         &self,
         name: &str,
@@ -76,37 +76,48 @@ impl Language {
         description: &str,
         applies: &str,
     ) -> String {
-        let applies = self.applies(applies);
-        match self {
-            Language::Chinese => format!("{name}（{key}）：{description}{applies}。"),
-            Language::English => format!("{name} ({key}): {description} {applies}."),
+        match (self, self.applies(applies)) {
+            (Language::Chinese, Some(applies)) => {
+                format!("{name}（{key}）：{description}{applies}。")
+            }
+            (Language::Chinese, None) => format!("{name}（{key}）：{description}"),
+            (Language::English, Some(applies)) => {
+                format!("{name} ({key}): {description} {applies}.")
+            }
+            (Language::English, None) => format!("{name} ({key}): {description}"),
         }
     }
 
-    /// 什么时候生效，句首大写（`explain`）。
-    fn applies(&self, applies: &str) -> &'static str {
-        match (self, applies) {
+    /// 什么时候生效，句首大写（`explain`）：五种照 `config.md`「`miyu config set`、`unset` 印的那一行」（施工 8-3 补：以前
+    /// 只认两种，`next_turn` 说成了「当场生效」）。认不出的（核心比命令行新）是 `None`：不说，不瞎说「当场」。
+    fn applies(&self, applies: &str) -> Option<&'static str> {
+        Some(match (self, applies) {
+            (Language::Chinese, "now") => "当场生效",
             (Language::Chinese, "new_session") => "以后开的会话生效",
             (Language::Chinese, "head_start") => "下次打开界面时生效",
-            (Language::Chinese, _) => "当场生效",
+            (Language::Chinese, "next_turn") => "下一轮生效",
+            (Language::Chinese, "restart") => "重启核心后生效",
+            (Language::English, "now") => "Takes effect at once",
             (Language::English, "new_session") => "Applies to sessions opened from now on",
             (Language::English, "head_start") => "Takes effect the next time the interface opens",
-            (Language::English, _) => "Takes effect at once",
-        }
+            (Language::English, "next_turn") => "Takes effect next turn",
+            (Language::English, "restart") => "Takes effect after the core restarts",
+            _ => return None,
+        })
     }
 
-    /// 什么时候生效，接在句子中间（`set`、`edit` 印的那一行，施工 8-3）：英文小写开头。
-    pub(crate) fn applies_after(&self, applies: &str) -> String {
-        match self {
-            Language::Chinese => self.applies(applies).to_string(),
+    /// 什么时候生效，接在句子中间（`set`、`edit` 印的那一行，施工 8-3）：英文小写开头。认不出的是 `None`。
+    pub(crate) fn applies_after(&self, applies: &str) -> Option<String> {
+        let said = self.applies(applies)?;
+        Some(match self {
+            Language::Chinese => said.to_string(),
             Language::English => {
-                let said = self.applies(applies);
                 let mut chars = said.chars();
                 chars.next().map_or_else(String::new, |first| {
                     first.to_lowercase().chain(chars).collect()
                 })
             }
-        }
+        })
     }
 
     /// 一层的名字（`explain`）：`default`、`system`、`personal`、`project`、`env`。

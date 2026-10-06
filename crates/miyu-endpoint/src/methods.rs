@@ -22,7 +22,7 @@ use serde_json::{Value, json};
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::Level;
-use miyu_kernel::id::{JobId, Seq, SessionId, TurnId};
+use miyu_kernel::id::{CallId, JobId, Seq, SessionId, TurnId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Outcome, Queued};
 use miyu_session::Handle;
@@ -205,6 +205,17 @@ pub(crate) async fn call(
             };
             command_to(core, request, &session, &found.handle, command).await?;
             Ok(json!({}))
+        }
+        "session.answer" => {
+            // 先查参数，再找会话（施工 D-1）。
+            let params: AnswerParams = params(request)?;
+            let call_id = CallId::parse(&params.call).map_err(|_| Refusal::BAD_PARAMS)?;
+            let session = session(&params.session)?;
+            let answer = params.answer()?;
+            let found = core.sessions.get(core, &session, None, None).await?;
+            let command = Command::Answer { call_id, answer };
+            let events = command_to(core, request, &session, &found.handle, command).await?;
+            Ok(json!({ "events": events }))
         }
         "session.clear" => {
             let params: ClearParams = params(request)?;

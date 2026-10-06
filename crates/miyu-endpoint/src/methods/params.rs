@@ -2,7 +2,11 @@
 
 use serde::Deserialize;
 
+use miyu_kernel::event::{Decision, Response};
+use miyu_kernel::session::Answer;
+
 use crate::attach::Attachment;
+use crate::refusal::Refusal;
 
 /// `session.create` 的参数。
 #[derive(Debug, Deserialize)]
@@ -113,6 +117,54 @@ pub(super) struct PermissionParams {
     pub(super) level: Option<LevelParam>,
     #[serde(default)]
     pub(super) read_only: Option<bool>,
+}
+
+/// `session.answer` 的参数（施工 D-1，`protocol.md` 的 `session.answer`）：回答确认的写 `decision`，拒绝的可以带 `reason`；
+/// 回答提问的写 `answers`，照题目的先后一道一条。
+#[derive(Debug, Deserialize)]
+pub(super) struct AnswerParams {
+    pub(super) session: String,
+    pub(super) call: String,
+    #[serde(default)]
+    decision: Option<DecisionParam>,
+    #[serde(default)]
+    reason: Option<String>,
+    #[serde(default)]
+    answers: Option<Vec<Response>>,
+}
+
+impl AnswerParams {
+    /// 交给内核的回答。`decision`、`answers` 两样都写、都不写，回答提问却带了 `reason`：参数不对。
+    pub(super) fn answer(self) -> Result<Answer, Refusal> {
+        match (self.decision, self.answers) {
+            (Some(decision), None) => Ok(Answer::Approval {
+                decision: decision.into(),
+                reason: self.reason,
+            }),
+            (None, Some(answers)) if self.reason.is_none() => Ok(Answer::Questions(answers)),
+            _ => Err(Refusal::BAD_PARAMS),
+        }
+    }
+}
+
+/// 协议上回答确认能选的三项（施工 D-1）。「这个工作区以后都允许」2026-09-28 项目主人定以后再加，协议先不认，写了是参数
+/// 不对：内核的 `unknown_decision` 因此从协议上碰不到。
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum DecisionParam {
+    Once,
+    Session,
+    Deny,
+}
+
+impl From<DecisionParam> for Decision {
+    fn from(decision: DecisionParam) -> Decision {
+        match decision {
+            DecisionParam::Once => Decision::Once,
+            DecisionParam::Session => Decision::Session,
+            DecisionParam::Deny => Decision::Deny,
+        }
+    }
 }
 
 /// `session.delete` 的参数（施工 3-8 三补）。

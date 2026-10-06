@@ -15,6 +15,7 @@ mod call;
 mod clear;
 mod compaction;
 mod configure;
+mod grants;
 mod input;
 mod interrupt;
 mod jobs;
@@ -134,6 +135,8 @@ pub struct Session {
     reference: configure::Reference,
     /// 转述过哪些图、哪些正在转（施工 8-17，`sight.rs`）：转述过的每追加一条记一次。
     sight: sight::Sight,
+    /// 本会话放行过的规则（施工 D-1，`grants.rs`）：每追加一条记一次，交给链。
+    grants: grants::Grants,
 }
 
 impl Session {
@@ -183,6 +186,7 @@ impl Session {
             titling: None,
             reference: configure::Reference::default(),
             sight: sight::Sight::default(),
+            grants: grants::Grants::default(),
         };
         let event = session.record(at, by, Some(id.clone()), Body::SessionCreated(created));
         session.accept(id, vec![event.seq]);
@@ -435,6 +439,7 @@ impl Session {
         self.naming.note(event);
         self.reference.note(event);
         self.sight.note(event);
+        self.grants.note(event);
         self.history.append(event.clone());
         self.unstored.push(event.clone());
         Ok(())

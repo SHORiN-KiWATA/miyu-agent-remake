@@ -172,6 +172,7 @@ impl Session {
                 cwd: turn.cwd.clone(),
                 dirs: turn.dirs.clone(),
                 permission: self.effective.clone(),
+                grants: self.grants.granted(),
             });
         }
         actions

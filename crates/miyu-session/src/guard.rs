@@ -4,6 +4,9 @@
 //!
 //! 施工 5-4 上起：读哪儿都放行，数据根除外（沙盒整盘能读，文件工具跟它一样）；执行命令，这台机器的沙盒能用就放行、
 //! 在沙盒里跑（执行器写规格，`crate::sandbox`），用不了的问人。
+//!
+//! 施工 D-1：要问人的那几条，落在本会话放行过的范围里的（人选过「本会话都允许」，内核把那几条规则交来），不问；放行的范围
+//! 照 `11-权限与沙盒.md` 第二节「放行规则管多大」，提规则时就算好。
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -25,6 +28,9 @@ pub(crate) struct Guard {
     catalog: Catalog,
     data_root: PathBuf,
     home: Option<PathBuf>,
+    /// 家目录的真实位置（施工 D-1）：放行的范围拿它和换成真实位置的路径比。不换的话 Windows 上一边带 `\\?\` 前缀、一边不带，
+    /// 永远比不上（CI run 960 撞见）；macOS 上家目录在链接后面时也一样。换不成的照原样。
+    real_home: Option<PathBuf>,
     /// 边界表里跟环境有关的几片（临时目录、系统目录、工具链目录）：造的时候读一次，以后照它（施工 4-9 再补四下：
     /// 原来每判一次重读环境变量）。工作区每判一次换成这一轮的工作目录。
     places: Places,
@@ -75,17 +81,22 @@ impl Guard {
         sandboxed: bool,
     ) -> Guard {
         let places = Places::here(PathBuf::new(), data_root.clone(), home.as_deref());
+        let real_home = home
+            .as_deref()
+            .map(|home| resolve(home, Some(home), "~").unwrap_or_else(|_| home.to_path_buf()));
         Guard {
             catalog,
             data_root,
             home,
+            real_home,
             places,
             texts,
             sandboxed,
         }
     }
 
-    /// 判一次调用：工具名 `name`，修正过的参数 `args`，这一轮的工作目录 `cwd`，实际生效的级别 `permission`。
+    /// 判一次调用：工具名 `name`，修正过的参数 `args`，这一轮的工作目录 `cwd`，实际生效的级别 `permission`，本会话放行过的
+    /// 规则 `grants`（施工 D-1）。
     pub(crate) fn judge(
         &self,
         name: &str,
@@ -93,6 +104,7 @@ impl Guard {
         cwd: String,
         dirs: &[String],
         permission: &Permission,
+        grants: &[RawJson],
     ) -> Verdict {
         // 目录里没有的：放行，执行时报现在用不了（施工 4-2）。
         let Some(tool) = self.catalog.get(name) else {
@@ -157,10 +169,12 @@ impl Guard {
                 Mark::ReadOnly => return deny(self.texts.read_only()),
             }
         }
+        // 放行过的不问（施工 D-1）：只读、数据根上面已经拦下了，走不到这里。
+        asked.retain(|asked| !granted(grants, asked));
         if asked.is_empty() {
             Verdict::Allow
         } else {
-            ask(name, access, &asked)
+            ask(name, access, &asked, self.real_home.as_deref())
         }
     }
 }
@@ -220,13 +234,13 @@ fn untargeted(level: Effective, name: &str, access: Access, sandboxed: bool) -> 
     }
 }
 
-/// 要问人：提的放行规则列出越界的目录，给头看的说明列出每一条。
-fn ask(name: &str, access: Access, asked: &[Asked]) -> Verdict {
+/// 要问人：提的放行规则列出放行的范围（`scope`），给头看的说明列出每一条。
+fn ask(name: &str, access: Access, asked: &[Asked], home: Option<&Path>) -> Verdict {
     let dirs = |write: bool| -> Vec<String> {
         let mut dirs: Vec<String> = asked
             .iter()
             .filter(|asked| asked.write == write)
-            .map(|asked| text(&directory(&asked.real)))
+            .map(|asked| text(&scope(&asked.real, home)))
             .collect();
         dirs.sort();
         dirs.dedup();
@@ -275,14 +289,36 @@ fn module() -> ModuleId {
     ModuleId::parse("permissions").expect("permissions 合模块编号的写法")
 }
 
-/// 放行的范围：是目录的就是它自己，别的是它所在的目录。
-fn directory(real: &Path) -> PathBuf {
-    if real.is_dir() {
+/// 放行的范围（`11-权限与沙盒.md` 第二节「放行规则管多大」）：是目录的就是它自己，别的是它所在的目录，连同下面的；那个目录
+/// 是家目录本身、或者更上面的，只放这一条本身：家目录里有钥匙（施工 D-1）。`real`、`home` 都是真实的位置。
+fn scope(real: &Path, home: Option<&Path>) -> PathBuf {
+    let directory = if real.is_dir() {
         real.to_path_buf()
     } else {
         real.parent()
             .map_or_else(|| real.to_path_buf(), Path::to_path_buf)
+    };
+    match home {
+        Some(home) if home.starts_with(&directory) => real.to_path_buf(),
+        _ => directory,
     }
+}
+
+/// 要问人的一条落在放行过的规则里没有（施工 D-1）：规则里照是读是写（`read`、`write`）列着放行的范围，这一条是其中一个
+/// 本身、或者在它下面。按路径的段比（`Path::starts_with`），`/a/b` 不放行 `/a/bc`。读不懂的规则不算。
+fn granted(grants: &[RawJson], asked: &Asked) -> bool {
+    let key = if asked.write { "write" } else { "read" };
+    grants.iter().any(|rule| {
+        serde_json::from_str::<Value>(rule.get())
+            .ok()
+            .and_then(|rule| rule.get(key).and_then(Value::as_array).cloned())
+            .is_some_and(|scopes| {
+                scopes
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .any(|scope| asked.real.starts_with(scope))
+            })
+    })
 }
 
 /// 路径写成字。
