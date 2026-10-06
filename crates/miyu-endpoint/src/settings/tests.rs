@@ -5,6 +5,7 @@ use super::*;
 fn chosen(language: &str) -> UiSettings {
     UiSettings {
         language: language.to_string(),
+        startup: "new".to_string(),
     }
 }
 
