@@ -344,12 +344,14 @@ impl Actor {
                 cwd,
                 dirs,
                 permission,
+                grants,
             } => {
                 // 判要碰磁盘（换真实的位置、造边界表）：在阻塞线程里判，不占跑异步任务的线程，慢盘上只让这个会话
                 // 自己等（施工 4-9 再补四下：原来当场在这里判）。
                 let guard = Arc::clone(&self.guard);
                 let verdict =
-                    blocking(move || guard.judge(&name, args, cwd, &dirs, &permission)).await;
+                    blocking(move || guard.judge(&name, args, cwd, &dirs, &permission, &grants))
+                        .await;
                 Some(Input::ToolGuarded {
                     at: self.clock.now(),
                     call_id,

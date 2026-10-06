@@ -5,6 +5,7 @@
 use crate::event::{Event, Permission, Purpose, Response, Transient};
 use crate::id::{CallId, CommandId, ContentHash, JobId, Seq, TurnId};
 use crate::origin::By;
+use crate::raw::RawJson;
 use crate::request::{Difference, Request};
 use crate::time::Timestamp;
 
@@ -100,6 +101,8 @@ pub enum Action {
         dirs: Vec<String>,
         /// 实际生效的那一级：权限策略照它判。
         permission: Permission,
+        /// 本会话放行过的规则，照先后（施工 D-1，`grants.rs`）：原样交，链照它判，内核不看里面。
+        grants: Vec<RawJson>,
     },
     /// 把人的回答交给在等的那个调用：它问的那组题答完了，回答已经落了盘（`02-内核.md` 第六节
     /// 「提问怎么走」第 3 条）。之后照常等它执行完。

@@ -29,11 +29,11 @@ pub(super) fn answer(n: u64, call_id: CallId, decision: Decision, reason: Option
 }
 
 /// 替身的权限策略。
-fn permissions() -> ModuleId {
+pub(super) fn permissions() -> ModuleId {
     ModuleId::parse("permissions").unwrap()
 }
 
-fn raw(text: &str) -> RawJson {
+pub(super) fn raw(text: &str) -> RawJson {
     serde_json::from_str(text).unwrap()
 }
 
@@ -109,6 +109,7 @@ fn every_call_goes_through_the_chain_before_it_runs() {
                 level: Level::Workspace,
                 read_only: false,
             },
+            grants: Vec::new(),
         })
     );
     assert!(ran(&actions).is_empty(), "链放行了才派");

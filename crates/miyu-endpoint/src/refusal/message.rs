@@ -114,6 +114,20 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
         "nothing_to_clear" => ("上下文为空", "The context is empty."),
         // 2026-09-30 项目主人定（施工 4-7 再补）：两种情况一句话，头把它当一条提示通知显示。
         "not_redoable" => ("无法重做", "Cannot redo."),
+        // 施工 D-1：`session.answer` 碰得到的四个（`unknown_decision` 协议上碰不到，`protocol.md`「出错」）。
+        "not_asking" => (
+            "它没在等回答：已经答过，或者已经了结了。",
+            "It is not waiting for an answer: it was answered or settled already.",
+        ),
+        "no_rule" => (
+            "这一次只能允许这一次，或者拒绝。",
+            "This one can only be allowed once or denied.",
+        ),
+        "unexpected_reason" => ("只有拒绝能带理由。", "Only a denial can carry a reason."),
+        "bad_answer" => (
+            "回答和题目对不上：几道题几条，只能选题目里的选项。",
+            "The answers do not fit the questions: one per question, picking only their options.",
+        ),
         // 2026-10-01 主会话定（施工 3-8 四补）。
         "nothing_to_recap" => ("还没有可回顾的内容", "There is nothing to recap yet."),
         // 施工 8-2（`config.md`「协议拒绝时的话」）。
