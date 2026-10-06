@@ -6,6 +6,7 @@
 import { h, icon, replace } from '../../src/lib/dom.js';
 import { toggle } from './rows.js';
 import { packageSettings } from './look.js';
+import { editableKeys } from './model.js';
 
 /** 展开着的包：换页回来还开着（这个弹窗里记着） */
 const opened = new Set();
@@ -19,7 +20,8 @@ export function drawPackages(dialog) {
       const m = p.manifest ?? {};
       const why = p.state === 'pending' && p.missing.length ? ctx.text('pkg_missing', { names: p.missing.join('、') }) : p.state === 'failed' ? p.reason : '';
       const on = p.state !== 'disabled';
-      const hasSettings = Object.keys(m.settings ?? {}).length > 0;
+      // 能改的设置项一项都没有的（全是结构复杂的）不出展开的箭头
+      const hasSettings = editableKeys(m.settings).length > 0;
       const body = h('div.set-pkg-settings', { hidden: !opened.has(p.id) }, opened.has(p.id) ? packageSettings(dialog, p.id) : null);
       const head = h(`div.set-row.set-pkg${hasSettings ? '.is-expandable' : ''}${opened.has(p.id) ? '.is-open' : ''}`, {
         onclick: (e) => {

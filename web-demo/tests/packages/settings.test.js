@@ -189,3 +189,11 @@ test('找模型：显示名、模型名、供应商名都算，空格分开的�
   assert.deepEqual(filterModels(rows, 'deepseek MAGPIE').map((r) => r.name), ['DeepSeek V4.1 Flash'], '几段都要有');
   assert.deepEqual(filterModels(rows, 'v4-pro').map((r) => r.provider), ['DeepSeek'], '模型名也算');
 });
+
+test('网页包的设置项只列有控件能改的：json、map、list 不列', async () => {
+  const { editableKeys } = await import('../../packages/settings/model.js');
+  const settings = { a: { type: 'number' }, words: { type: 'json' }, b: { type: 'boolean' }, m: { type: 'map' }, l: { type: 'list' }, c: { type: 'color' }, d: { type: 'duration' } };
+  assert.deepEqual(editableKeys(settings), ['a', 'b', 'c', 'd']);
+  assert.deepEqual(editableKeys({ only: { type: 'json' } }), [], '全是复杂项的一项都不列（不出展开箭头）');
+  assert.deepEqual(editableKeys(undefined), []);
+});

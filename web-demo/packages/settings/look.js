@@ -5,6 +5,7 @@
 
 import { h, icon, replace } from '../../src/lib/dom.js';
 import { shell, groupBlock, toggle, textField, select } from './rows.js';
+import { editableKeys } from './model.js';
 
 /** 一个先空着、读完再填的块（读包的设置是异步的）。 */
 export function later(fill) {
@@ -53,7 +54,8 @@ export function packageSettings(dialog, id) {
   return later(async (el) => {
     const got = await ctx.packages.settings(id);
     const specs = got.manifest.settings ?? {};
-    const keys = Object.keys(specs);
+    // 只列有控件能改的；结构复杂的（json、map、list）改不了，不列
+    const keys = editableKeys(specs);
     const hidden = (k) => specs[k].advanced || (id.startsWith('theme-') && k.startsWith('t_'));
     const rowOf = (k) => packageRow(dialog, id, k, got, () => replace(el, packageSettings(dialog, id)));
     replace(el, h('div.set-rows', keys.filter((k) => !hidden(k)).map(rowOf)), fold(ctx, keys.filter(hidden).map(rowOf)));
@@ -94,7 +96,7 @@ function packageRow(dialog, id, key, got, redraw) {
   return row.el;
 }
 
-/** 网页包设置项的控件，照清单的 `type`。结构复杂的（`json`、`map`、`list`）样板里先只读。 */
+/** 网页包设置项的控件，照清单的 `type`（只会是 `editableKeys` 认的那几种）。 */
 function packageControl(dialog, spec, value, set) {
   if (spec.type === 'boolean') return toggle(!!value, set);
   if (spec.type === 'choice') return select(dialog, (spec.choices ?? []).map((c) => ({ value: c, name: c })), value, set);
@@ -111,6 +113,5 @@ function packageControl(dialog, spec, value, set) {
     const swatch = h('input.set-color', { type: 'color', value, onchange: (e) => set(e.target.value) });
     return h('div.set-color-row', swatch, field);
   }
-  if (spec.type === 'text' || spec.type === 'key') return textField(String(value ?? ''), 'text', '', set);
-  return h('code.set-json', { title: JSON.stringify(value) }, JSON.stringify(value));
+  return textField(String(value ?? ''), 'text', '', set);
 }

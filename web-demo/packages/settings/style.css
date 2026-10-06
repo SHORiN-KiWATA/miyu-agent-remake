@@ -99,7 +99,6 @@
 .set-color::-webkit-color-swatch { border: 0; border-radius: 8px; }
 .set-color::-moz-color-swatch { border: 0; border-radius: 8px; }
 .set-color-row .set-input { width: 110px; font-family: var(--mono); }
-.set-json { max-width: 260px; overflow: hidden; color: var(--text-faint); font: 12px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .set-fold-head { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; padding: 4px 6px 4px 2px; border: 0; border-radius: 6px; background: transparent; color: var(--text-soft); font: 12.5px var(--sans); cursor: pointer; }
 .set-fold-head .icon { transition: transform 0.16s var(--ease-out); }
 .set-fold-head.is-open .icon { transform: rotate(90deg); }

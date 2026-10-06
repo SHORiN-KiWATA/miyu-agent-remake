@@ -273,3 +273,9 @@ export function filterModels(rows, query) {
 
 /** 供应商的显示名（核心 8-21：`name.value`，已经照配置、目录、编号退好；旧核心是字或没有）。 @param {{id: string, name?: any}} p */
 export const providerName = (p) => (typeof p.name === 'object' ? p.name?.value : p.name) || p.id;
+
+/** 网页包的设置项里有控件能改的类型；结构复杂的（`json`、`map`、`list`）在设置页改不了，不列（蓝图「设置页」第 11 条）。 */
+const EDITABLE = new Set(['boolean', 'choice', 'number', 'duration', 'color', 'text', 'key']);
+
+/** 一个包能在设置页列出来的设置项（照清单的先后）。 @param {Record<string, {type: string}>} settings */
+export const editableKeys = (settings) => Object.keys(settings ?? {}).filter((k) => EDITABLE.has(settings[k].type));
