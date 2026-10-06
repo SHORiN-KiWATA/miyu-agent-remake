@@ -12,6 +12,7 @@ fn choice(label: &str) -> Choice {
     Choice {
         label: label.to_string(),
         description: None,
+        preview: None,
     }
 }
 
@@ -28,6 +29,7 @@ fn picked(labels: &[&str]) -> Response {
     Response {
         picked: labels.iter().map(|label| label.to_string()).collect(),
         text: None,
+        notes: None,
     }
 }
 
@@ -106,4 +108,25 @@ fn broken_question_events_say_which_kind() {
         let line = event_line(kind, body);
         rejected::<Event>(&line, &format!("body of {kind} not readable"));
     }
+}
+
+/// 施工 D-2：选项的 `preview`、回答的 `notes` 读得进、写得出，原样；以前的日志没有这两格的照旧读得懂，写回去一字不差。
+#[test]
+fn previews_and_notes_round_trip_and_old_lines_still_read() {
+    let asked = r#"{"call_id":"call_77_1","questions":[{"question":"用哪个？","options":[{"label":"甲","preview":"fn a() {}\n"},{"label":"乙"}]}]}"#;
+    let parsed: QuestionAsked = serde_json::from_str(asked).unwrap();
+    assert_eq!(
+        parsed.questions[0].options[0].preview.as_deref(),
+        Some("fn a() {}\n")
+    );
+    assert_eq!(parsed.questions[0].options[1].preview, None);
+    assert_eq!(serde_json::to_string(&parsed).unwrap(), asked);
+    let answered = r#"{"call_id":"call_77_1","answers":[{"picked":["甲"],"notes":"先这样"},{}]}"#;
+    let parsed: QuestionAnswered = serde_json::from_str(answered).unwrap();
+    assert_eq!(parsed.answers[0].notes.as_deref(), Some("先这样"));
+    assert_eq!(parsed.answers[1].notes, None);
+    assert_eq!(serde_json::to_string(&parsed).unwrap(), answered);
+    let old = r#"{"call_id":"call_77_1","answers":[{"picked":["保留"]}]}"#;
+    let parsed: QuestionAnswered = serde_json::from_str(old).unwrap();
+    assert_eq!(serde_json::to_string(&parsed).unwrap(), old);
 }

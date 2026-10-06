@@ -85,6 +85,12 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         &venue,
         lineage.as_ref(),
         &config.current().resolved.values(),
+        attended,
+    );
+    let asks = Agents::asks(
+        &venue,
+        lineage.as_ref().map(|lineage| &lineage.parent),
+        attended,
     );
     let pools = Agents::pools_in(&face);
     let child = lineage.is_some();
@@ -215,6 +221,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             job_ids,
             agents,
             ledger,
+            asks,
         },
         jobs,
         guard,
@@ -322,6 +329,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     );
     let port = sessions.clone();
     let who = Who::of(&created);
+    let asks = Agents::asks(&created.venue, created.parent.as_ref(), attended);
     let agents = sessions.map(|port| {
         Arc::new(Agents {
             port,
@@ -409,6 +417,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             job_ids,
             agents,
             ledger,
+            asks,
         },
         jobs,
         guard,

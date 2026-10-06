@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
-use miyu_kernel::event::{JobKind, JobStarted};
+use miyu_kernel::event::{JobKind, JobStarted, Question};
 use miyu_kernel::id::MediaType;
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::tool::Access;
@@ -44,6 +44,9 @@ pub enum Act {
     /// 把这条假的后台命令交给任务端口（施工 7-3）：交上了回一句成功 `started <编号>`，报 `job.started`（后台命令，标题
     /// `fake`）；交不上、没有端口的回一句出错。
     Background(Arc<Held>),
+    /// 经提问的端口问这组题（施工 D-2）：答了回一句成功 `answered <回答>`（回答写成 JSON）；没答到就了结的交回 `stopped`；
+    /// 没有端口的回一句出错。
+    Asks(Vec<Question>),
 }
 
 /// 一件假工具。
@@ -191,6 +194,16 @@ impl Tool for Fake {
                     height: 1,
                 }),
                 Act::Background(held) => background(&call, &held),
+                Act::Asks(questions) => match call.questions.clone() {
+                    Some(port) => match port.ask(questions).await {
+                        Some(answers) => Done::ok(format!(
+                            "answered {}",
+                            serde_json::to_string(&answers).expect("回答写得成 JSON")
+                        )),
+                        None => Done::stopped(),
+                    },
+                    None => Done::error("no one to ask"),
+                },
             };
             guard.finished = true;
             done

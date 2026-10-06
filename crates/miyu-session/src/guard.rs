@@ -128,6 +128,7 @@ impl Guard {
             jobs: None,
             sessions: None,
             usage: None,
+            questions: None,
         });
         if targets.is_empty() {
             return untargeted(level, name, access, self.sandboxed);
