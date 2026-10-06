@@ -136,6 +136,7 @@
 | `session.set_permission_level` | 切权限级别：开关只读，改常用的那一级（施工 3-8 再补） |
 | `session.clear` | 清空上下文：单开一轮压成一个空的检查点，不请求模型（施工 6-8 补） |
 | `session.recap` | 要一句回顾：这个会话在做什么、做完了什么、卡在哪（施工 3-8 四补） |
+| `session.answer` | 回答一次确认（允许这一次、本会话都允许、拒绝），或者一组题（施工 D-1） |
 | `job.stop` | 停掉一个后台命令或者子代理（施工 7-4） |
 | `job.output` | 读一条后台命令到这时为止的输出（施工 7-4 补） |
 | `blob.put` | 传一个附件，存成 blob（施工 3-9 三补） |
@@ -415,6 +416,23 @@
 4. 不一样的：记一条 `session.policy_changed`，`permission` 两格都写，`by` 取自连接（现在都是管理员），`cause` 是这一条的 `id`，回合进行中切的带上这个回合；落了盘才回应。收紧的当场生效：收紧成只读的，这一步里还没跑的写入当场补 `denied`，和它同一批落盘、推送；放宽的下一次请求才生效（`kernel/session.md`「切权限级别」第 4、5 条）。
 5. 改成完全放开之前请人确认一次，是头的事（`04-核心协议.md` 第九节），核心不问。
 6. 先找会话，找不到的回的是找不到。
+
+**`session.answer`**（施工 D-1，`kernel/asking.md`「回答」，`session/guard.md`「判一次调用」第 7 条）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `session` | 字符串，必写 | 哪个会话 |
+| `call` | 字符串，必写 | 回答的是哪一次调用：`tool.approval_requested`、`question.asked` 里的 `call_id` |
+| `decision` | `"once"`、`"session"` 或 `"deny"`，可以不写 | 回答确认：允许这一次、本会话都允许、拒绝 |
+| `reason` | 字符串，可以不写 | 拒绝的理由，她看得到；只有拒绝能带 |
+| `answers` | 数组，可以不写 | 回答提问：照题目的先后一道一条 `{"picked": [选项的标题], "text": 自己写的}`，两格都可以不写（这道没答） |
+
+回应：`{"events": [序号]}`，这一次追加的事件（决定、拒绝时的工具结果，回答）都落了盘才回。
+
+1. 先查参数，再找会话：`decision`、`answers` 两样都写、都不写；回答提问却带了 `reason`；`call` 不合调用编号的写法；`decision` 不是这三种（`workspace`、大写的也算）：`bad_params`。「这个工作区以后都允许」以后再加（2026-09-28 项目主人定），协议先不认：内核的 `unknown_decision` 因此从协议上碰不到。
+2. 交给内核（`Command::Answer`），`by` 取自连接（现在都是管理员），`cause` 是这一条的 `id`。内核拒的：这个调用没在等回答（答过了、了结了、不是这一种），`not_asking`；请求没提放行规则却选了本会话都允许，`no_rule`；允许却带了理由，`unexpected_reason`；回答和题目对不上，`bad_answer`（`kernel/asking.md`）。空的理由当没写。
+3. 允许的，决定落了盘这个调用才跑；本会话都允许的，这个会话以后落在同一个范围里的写入不再问（`session/guard.md`「判一次调用」第 7 条）。拒绝的，再记一条 `denied` 的结果，写了理由的带上，她接着干（`11-权限与沙盒.md` A13）。
+4. 头收起抽屉照推送：这个调用有了结果（`tool.result`），或者回答落了盘（`tool.approval_decided`、`question.answered`）。
 
 **`session.clear`**（施工 6-8 补，`compaction.md` 第十四条）
 
@@ -741,7 +759,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `parse_error` | -32700 | 不是 JSON；一行太长（之后断开） |
 | `invalid_request` | -32600 | 是 JSON，不是请求（「请求」的表） |
 | `unknown_method` | -32601 | 握手以后，没有这个方法 |
-| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`、`config`，`config` 带了 `session`、`after`（施工 8-4）；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；`session.send` 的 `from` 不是字符串、去掉控制字符以后是空的（施工 7-10）；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字；`job.stop`、`job.output` 的任务编号不合写法（施工 7-4），`job.output` 的 `tail` 不是 1 到 2000 的整数（施工 7-4 补）；`human.get` 的 `language` 不合写法（施工 W-1）；`fs.realpath` 的 `path` 是相对的、没给 `cwd`（施工 W-3）；`mermaid.render` 的源码是空的（去掉前后空白以后，施工 W-4）；`blob.write` 的 `data` 不是 base64、解出来超过 512 KiB、加上它超过 `size`（施工 W-5）；`model.call` 的 `purpose` 不合写法、`messages` 不是那个样子、`max_tokens` 是 0 或者太大、`model` 是空字、图的 blob 不是图（施工 8-20）；`fs.read` 的 `path` 是相对的；`blob.get`、`fs.read` 的 `length` 超过 512 KiB（施工 W-6）；`link.preview` 的 `url` 没写、不是字符串（施工 W-7）；`usage.query` 的分组不认识、时刻和时区写法不对、会话编号不合写法、类型不对（施工 8-15） |
+| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`、`config`，`config` 带了 `session`、`after`（施工 8-4）；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；`session.send` 的 `from` 不是字符串、去掉控制字符以后是空的（施工 7-10）；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字；`job.stop`、`job.output` 的任务编号不合写法（施工 7-4），`job.output` 的 `tail` 不是 1 到 2000 的整数（施工 7-4 补）；`human.get` 的 `language` 不合写法（施工 W-1）；`fs.realpath` 的 `path` 是相对的、没给 `cwd`（施工 W-3）；`mermaid.render` 的源码是空的（去掉前后空白以后，施工 W-4）；`blob.write` 的 `data` 不是 base64、解出来超过 512 KiB、加上它超过 `size`（施工 W-5）；`model.call` 的 `purpose` 不合写法、`messages` 不是那个样子、`max_tokens` 是 0 或者太大、`model` 是空字、图的 blob 不是图（施工 8-20）；`fs.read` 的 `path` 是相对的；`blob.get`、`fs.read` 的 `length` 超过 512 KiB（施工 W-6）；`link.preview` 的 `url` 没写、不是字符串（施工 W-7）；`usage.query` 的分组不认识、时刻和时区写法不对、会话编号不合写法、类型不对（施工 8-15）；`session.answer` 的 `decision`、`answers` 两样都写或都不写、`decision` 不是那三种、回答提问带了 `reason`、`call` 不合写法（施工 D-1） |
 | `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了；附件存不下来、读不出来；删会话时读不了放会话的目录、挪不进回收处、崩了；读后台命令的输出时崩了（施工 7-4 补）；给人看的字读不懂（施工 W-1）；画图的库初始化不了：`style.json` 读不懂，或者这台机器上一种字体都读不到（施工 W-4）；分块上传的暂存文件建不了、写不进（施工 W-5）；`link_preview.json` 读不懂（施工 W-7） |
 | `hello_first` | -32010 | 握手以前发了别的方法 |
 | `protocol_mismatch` | -32010 | 头支持的主版本里没有 1（之后断开） |
@@ -777,6 +795,10 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `not_a_command` | -32010 | `job.output` 读的是子代理，不是后台命令（施工 7-4 补） |
 | `not_redoable` | -32010 | 重做时最后一轮不是人说的话开的，或者一轮都没有（施工 4-7 再补） |
 | `nothing_to_recap` | -32010 | 回顾时她一个带正文的回复都还没有；以前造的快照里没有回顾的字（施工 3-8 四补） |
+| `not_asking` | -32010 | `session.answer` 回答的调用没在等回答：答过了、了结了、等的不是这一种（施工 D-1） |
+| `no_rule` | -32010 | `session.answer` 选了本会话都允许，请求却没提放行规则（施工 D-1） |
+| `unexpected_reason` | -32010 | `session.answer` 允许却带了理由（施工 D-1） |
+| `bad_answer` | -32010 | `session.answer` 的回答和题目对不上：条数不对、选了题目里没有的、单选的选了几项、选重了（施工 D-1） |
 | `recap_failed` | -32010 | 回顾没写成：请求出了错，或者回复里没有正文（施工 3-8 四补） |
 | `unknown_config_key` | -32010 | `config.schema`、`config.get` 的 `keys`、`config.set` 的 `changes` 里有清单里没有的键：`data.problems` 里每个不认识的一条，`code` 是 `unknown_key`、`level` 是 `error`，带最近的键名 `suggest`（施工 8-2） |
 | `config_invalid` | -32010 | `config.set` 的值不对、不能写在这一层，整份换的字里有错误：整条不收，`data.problems` 里是每一处（施工 8-3） |
@@ -791,8 +813,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `model_failed` | -32010 | `model.call` 发了、出错了：`data.class`、`data.status`（有状态码的才写）、`data.message`，和 `model.called` 的 `error` 一样（施工 8-20） |
 | `restoring` | -32010 | 撤销、恢复还没做完（正在读回更早的日志、正在改回文件）时来的命令、删会话。兜底：会话做完才接下一个命令，照常碰不到 |
 
-- 从 `empty_message` 起，除了 `dir_too_wide`、附件的四个和 `not_a_command`，十三个是内核拒命令时给的原因码（`kernel/session.md`）。
-- 内核还有六个原因码，现在没有方法碰得到：`unknown_level`（协议上的级别只认两种，别的先是 `bad_params`）、`not_asking`、`unknown_decision`、`no_rule`、`unexpected_reason`、`bad_answer`。它们没有配话，说的是最后那一句「被拒绝了」。
+- 从 `empty_message` 起，除了 `dir_too_wide`、附件的四个和 `not_a_command`，十三个是内核拒命令时给的原因码（`kernel/session.md`）；施工 D-1 起加上 `session.answer` 的四个（`not_asking`、`no_rule`、`unexpected_reason`、`bad_answer`），十七个。
+- 内核还有两个原因码，现在没有方法碰得到：`unknown_level`（协议上的级别只认两种，别的先是 `bad_params`）、`unknown_decision`（协议上的决定只认三种，施工 D-1）。它们没有配话，说的是最后那一句「被拒绝了」。
 
 运行日志（目标 `miyu::endpoint`，`log.md`）：
 
@@ -894,6 +916,10 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `not_a_command` | 这是子代理，不是后台命令：去看它的会话。 | This is a subagent, not a background command; open its session instead. |
 | `not_redoable` | 无法重做 | Cannot redo. |
 | `nothing_to_recap` | 还没有可回顾的内容 | There is nothing to recap yet. |
+| `not_asking` | 它没在等回答：已经答过，或者已经了结了。 | It is not waiting for an answer: it was answered or settled already. |
+| `no_rule` | 这一次只能允许这一次，或者拒绝。 | This one can only be allowed once or denied. |
+| `unexpected_reason` | 只有拒绝能带理由。 | Only a denial can carry a reason. |
+| `bad_answer` | 回答和题目对不上：几道题几条，只能选题目里的选项。 | The answers do not fit the questions: one per question, picking only their options. |
 | `unknown_config_key` | 没有这一项配置。 | There is no such setting. |
 | `config_invalid` | 配置有几处不对，没有改。 | Some settings are not right. Nothing was changed. |
 | `config_conflict` | 这一项刚被别处改过，没有改：先看看现在的值。 | This was just changed elsewhere. Nothing was changed. Look at the current value first. |
@@ -931,6 +957,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/spawn.rs` | 会话里派子代理，会话表造出子会话、交代送进去、替身模型在子会话里答话；`session.list` 里子会话写着父会话、主会话写 `null`（施工 7-5） |
 | `crates/miyu-endpoint/tests/revert.rs` | 协议上撤销、恢复；三种拒绝的中文；`turn` 写 0 |
 | `crates/miyu-endpoint/tests/permission.rs` | 协议上切权限级别（施工 3-8 再补）：切到完全放开、开只读、两样一起换，各记一条、推给订阅着的头、回应 `{}`；和现在一样的四种什么都不记不推；两格都不写（含写 `null`、会话没有的）、级别和只读的值不对、会话编号不对、没写会话是参数不对；没有的会话找不到，停了的会话是停了；回合进行中收紧成只读，真核心走一遍：等着的写入当场补 `denied`、和切权限同一批、推送在回应前面，放行以后请求之前注入只读那一块（切换那一份，带上一级 `workspace`，施工 2-7 补），写的一次没跑 |
+| `crates/miyu-endpoint/tests/answer.rs`（施工 D-1） | `session.answer` 真核心走一遍：允许这一次照常跑、回应列出事件；本会话都允许以后同一个目录不再问；拒绝的理由她看得到、这一轮接着走；参数不对的七种 `bad_params`、什么都没记；`unexpected_reason`、答过了 `not_asking`，话照握手的语言 |
 | `crates/miyu-endpoint/tests/job_stop.rs` | 协议上停子代理（施工 7-4）：回应 `{}`、回应之前父会话记下了回报、子会话那一轮被父会话打断；停过的、没有的 `unknown_job`，中文、英文；编号不合写法、不是字符串的参数不对；没有这个会话 |
 | `crates/miyu-endpoint/tests/job_output.rs` | 协议上读后台命令的输出（施工 7-4 补），后台命令用假的：跑着的读到这时为止的、`running` 是真，和她用 `jobs` 读到的一样；结束了的读 blob（拿掉输出文件照样读得到）、`running` 是假，和 `jobs` 读到的一字不差；`tail` 截尾、`truncated`、`lines`，最后一段没有换行的照样，不写 `tail` 交最后 200 行；超了上限从前面按整行去掉；开不了的输出文件当是空的；空的；没有这个任务、编号不合写法、`tail` 不对的七种（先查、不找会话）、没有这个会话、子代理的拒绝，中文、英文；拒绝的什么都不写 |
 | `crates/miyu-endpoint/src/job_output/tests.rs` | 取尾巴（施工 7-4 补）：照 `jobs` 数行、只照换行切；最后几行；上限正好 131,072 字节的一行整行给、多一个字节只留末尾；超了从前面按整行去掉；最后一行太长只交末尾、前面的不接上（前面那一行正好放得下也不接），读的时候就去掉过前面的也一样；中间太长的一行、截过的一行后面又来了行，整行去掉；截处从一个字的开头起，剩半个字的跳过；解不开的字节换成 `�`；读不下去的读到多少算多少；最坏的回应（每个字节都转义成六个、编号全是引号）放得进一行；回应的格 |
@@ -988,7 +1015,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 
 设计里有、还没做的：
 
-- 第九节表里的其余方法：`session.fork`、`session.answer`（随 M9 的抽屉）、`command.run`、查询、账号……（`04-核心协议.md` 第九节）。
+- 第九节表里的其余方法：`session.fork`、`command.run`、查询、账号……（`04-核心协议.md` 第九节）。
 - blob 的一般回收（删会话以后没人引用的、`blob.put` 自己崩溃留下的那种临时文件）：`store.md`「还没有的」。
 - 视图流、会话列表流，`view.*`、`sessions.changed` 这些推送；核心决定「显示什么」（第五节、P3）。改名、置顶、删除现在只推给订阅着那个会话的头（删除是 `resync`），别的头要重新列。
 - 找回删了的会话、自动起标题（照第一句话生成，要请求模型）：以后（施工 3-8 三补）。回收处里的文件留着，找回时挪回去。

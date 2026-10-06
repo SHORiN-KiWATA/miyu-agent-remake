@@ -11,6 +11,7 @@
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu-kernel/src/session/approval.rs` | 链的结论；人的确认 |
+| `crates/miyu-kernel/src/session/grants.rs` | 本会话放行过的规则：每追加一条记一次，交给链（施工 D-1） |
 | `crates/miyu-kernel/src/session/question.rs` | 在跑的调用问人；人的回答；来了一句话，在等人的作废 |
 | `crates/miyu-kernel/src/session/step.rs` | 每个调用走到了哪 |
 | `crates/miyu-kernel/src/session/tools.rs` | 交给链、允许了派、答完了交回答；打断、插话、收紧成只读时补结果 |
@@ -161,12 +162,21 @@
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-kernel/src/session/tests/approval.rs` | 每个调用都先过链、带上实际生效的那一级；链拒绝的 `by` 是模块、说法原样；要问人记请求、调用等着；等着的占着位置；允许的决定落了盘才派；拒绝的记决定和结果、空理由当没写、她接着干；四个原因码；没人能确认当场拒绝；收紧成只读拦下要写入的；打断、急着插话时在等的补结果；过时的结论不理 |
+| `crates/miyu-kernel/src/session/grants/tests.rs`、`tests/grants.rs`（施工 D-1） | 只记本会话都允许的；没提规则的、对不上请求的不算；照先后、一样的只记一次；交给链的动作带上；载入以后照日志算回来、撤销不收回 |
 | `crates/miyu-kernel/src/session/tests/question.rs` | 在跑的调用问人、等人；回答落了盘才交给工具；答完了还能再问；对不上的回答、答错了种类、先答者胜；没人能回答跳过、叫停；打断时问着人的、答完了的；来了一句话作废提问、跳过确认；工具先交回结果了结题目；不是在跑的调用问的不理 |
 | `crates/miyu-kernel/src/session/tests/load.rs` | 崩在等确认、等回答的时候，载入时补结果，之后的回答拒绝 |
 | `crates/miyu-kernel/src/session/tests/scenario/asking.rs` | 执行器替身跑整轮：她问、工具拿到回答；允许、拒绝两种决定以后她都接着干 |
 | `crates/miyu-kernel/src/session/tests/random/asking.rs`、`random/watch/approval.rs`、`random/watch/question.rs` | 随机输入里的结论、题目、回答；每一步查请求只在链要问人时记、没人能确认和只读的当场拒绝、回答照规矩接受或拒绝、`by` 写对 |
 | `crates/miyu-kernel/src/event/question/tests.rs` | 回答对不对得上题目 |
 | `crates/miyu-kernel/src/tool/texts/tests.rs`、`crates/miyu-kernel/tests/resources.rs` | 拒绝的理由照模板转义、只收 `reason` 一个字段；样本里被拒绝的那一条就是资源里带理由的那一句 |
+
+**本会话放行过的**（施工 D-1，`grants.rs`；`02-内核.md` 第六节「确认怎么走」第 3 条：记住的放行规则由链照日志去用，内核只记，不判）
+
+1. 人回答确认选了 `session`（本会话都允许）：那一次 `tool.approval_requested` 提的 `rule` 记进这个会话放行过的规则，照先后，一样的只记一次。别的决定不记；请求没提规则的，内核本来就拒（`no_rule`）。
+2. 照日志算：活着时每追加一条记一次，载入时照日志从第 1 条再走一遍（载入本来就读整份日志）。不另开事件，不进上下文。
+3. 撤销、压缩都不收回：放行是人的决定，不是她说的话（Claude Code 回退也不收回权限）。子会话有自己的日志，不继承父会话的。
+4. 交给链：每一个 `GuardTool` 带上 `grants`，放行过的规则原样照先后，链照它判（`session/guard.md`「判一次调用」第 7 条）。
+5. 请求没等到决定就了结的（打断、跳过、收紧成只读拦下），它的规则留着不再有人认领：调用编号在一个会话里不重复，留着不放行任何东西。
 
 ### 出处
 
@@ -178,8 +188,7 @@
 
 ### 还没有的
 
-- 核心还不收 `session.answer`（`04-核心协议.md` 第九节）：头回答不了确认和提问。
 - 提问的工具 `ask_user`（`10-自带软件.md`）还没有：现在没有工具会问人，会话 actor 收到 `AnswerTool` 只记一条运行日志（`crates/miyu-session/src/actor.rs`）。
-- 记住的放行规则照日志去用：本会话的读这个会话里的决定，这个工作区以后的存进工作区的配置（`02-内核.md` 第六节「确认怎么走」第 3 条，M5）。
+- 这个工作区以后都允许：要存进工作区的配置，存哪还没定（`11-权限与沙盒.md` 第二节，2026-09-28 项目主人定以后再加）；协议上先不认这一项（`protocol.md` 的 `session.answer`）。
 - 扩展的守卫（`05-内核接口.md` 第五节）：现在链里只有权限策略。
 - `question.asked` 选项的 `preview`（一段文字画）、`question.answered` 每道回答的 `notes`（补一句备注）：2026-09-29 项目主人定，随 M8 的抽屉加（`03-事件模型.md` 第三节「提问的事件怎么写」）。
