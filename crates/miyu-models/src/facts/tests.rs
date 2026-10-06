@@ -416,6 +416,7 @@ fn a_missing_hand_pick_borrows_nothing() {
         recognized: None,
         local: false,
         driver_written: false,
+        driver_from: crate::provider::DriverFrom::Profile,
         reasoning_written: false,
         headers: std::collections::BTreeMap::new(),
         placeholders: Vec::new(),

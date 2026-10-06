@@ -38,6 +38,7 @@ fn shortening(shorten: Option<Shorten>) -> Stage {
             files_more: template(""),
             retrieve: template("<retrieve {upto}/>"),
             too_large: template(""),
+            todos: None,
             uncovered: Some(template("<uncovered {from}-{to}/>")),
         });
         policy

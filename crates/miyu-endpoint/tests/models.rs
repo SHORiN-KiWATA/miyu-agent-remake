@@ -130,11 +130,15 @@ async fn the_list_has_providers_models_facts_and_states() {
         providers[0],
         json!({"id": "broken", "name": {"value": "broken", "from": "id", "key": "providers.broken.name"},
                "driver": null, "base_url": null, "keys": [], "models": [],
-               "problem": "provider \"broken\" needs driver and base_url: it matches nothing in the catalog"})
+               "problem": "provider \"broken\" needs base_url: it matches nothing in the catalog"})
     );
     // DeepSeek：档案推出驱动、地址，编号认出目录里的那一家，模型是目录里那一家的四个；key 的值不交出去。
     let deepseek = &providers[1];
     assert_eq!(deepseek["driver"], "openai-chat");
+    assert_eq!(
+        deepseek["driver_from"], "profile",
+        "档案推出来的（施工 8-26）"
+    );
     assert_eq!(deepseek["base_url"], "https://api.deepseek.com");
     assert_eq!(
         deepseek["keys"],

@@ -141,14 +141,23 @@ impl Actor {
             self.session.handle(Input::Limits(limits.clone()));
             self.handed = limits;
         }
-        let shown = Shown {
-            limits: self.session.context_limits(),
-            next: Next::of(&*self.model),
-        };
-        *self
+        // 只换模型这两格：待办另有人换（施工 D-3）。
+        let mut shown = self
             .shown
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = shown;
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        shown.limits = self.session.context_limits();
+        shown.next = Next::of(&*self.model);
+    }
+
+    /// 内核推了 `todos.changed`（施工 D-3）：给头看的那一份跟着换，`subscribe` 照它答。别的瞬时事件不管。
+    pub(super) fn show_todos(&self, transient: &Transient) {
+        if let TransientBody::TodosChanged(changed) = &transient.body {
+            self.shown
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .todos = changed.todos.clone();
+        }
     }
 
     /// 给头看的那一份，这一刻的。
@@ -161,7 +170,7 @@ impl Actor {
 
     /// 推一条 `model.changed`，照给头看的那一份写：`by` 是内核，`turn`、`cause` 照内核这时的回合。
     fn announce(&mut self, why: ChangeWhy) {
-        let Shown { limits, next } = self.shown_now();
+        let Shown { limits, next, .. } = self.shown_now();
         let (turn, cause) = self
             .session
             .turn_cause()

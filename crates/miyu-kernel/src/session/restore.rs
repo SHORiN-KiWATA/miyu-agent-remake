@@ -111,7 +111,7 @@ impl Step {
 }
 
 /// 撤销：`reverted` 是撤掉的那几轮的事件，`history` 是有效历史（找移进过回收站的现在在哪）。每条工具结果的效果照
-/// 先后排好，倒过来：改过的写回改前的，新建的移进回收站，删掉的从回收站移回来。读过的、派了任务的、不认识的不用改回。
+/// 先后排好，倒过来：改过的写回改前的，新建的移进回收站，删掉的从回收站移回来。读过的、派了任务的、写了待办的、不认识的不用改回。
 pub(super) fn undo(reverted: &[Event], history: &[Event]) -> Vec<Step> {
     let places = where_is(history);
     let mut steps: Vec<Step> = effects(reverted)
@@ -144,6 +144,7 @@ pub(super) fn undo(reverted: &[Event], history: &[Event]) -> Vec<Step> {
                 | Effect::JobStarted(_)
                 | Effect::JobMessaged(_)
                 | Effect::PeerWatch(_)
+                | Effect::TodoWritten(_)
                 | Effect::Unknown(_) => return None,
             };
             Some(Step {
@@ -189,6 +190,7 @@ pub(super) fn redo(unreverted: &[Event], history: &[Event]) -> Vec<Step> {
                 | Effect::JobStarted(_)
                 | Effect::JobMessaged(_)
                 | Effect::PeerWatch(_)
+                | Effect::TodoWritten(_)
                 | Effect::Unknown(_) => return None,
             };
             Some(Step {

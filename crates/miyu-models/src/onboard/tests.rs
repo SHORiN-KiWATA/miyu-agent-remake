@@ -279,10 +279,7 @@ fn a_candidate_is_worked_out_like_the_config_it_would_write() {
     assert_eq!(relay.keys, [value_key()]);
     let bare = Candidate::default();
     let problem = provider(&bare.values(), &held.knowledge(), CANDIDATE).expect_err("推不出");
-    assert!(
-        problem.0.contains("needs driver and base_url"),
-        "{problem:?}"
-    );
+    assert!(problem.0.contains("needs base_url"), "{problem:?}");
 }
 
 #[test]

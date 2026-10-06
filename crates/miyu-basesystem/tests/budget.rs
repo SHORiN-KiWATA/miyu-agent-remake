@@ -23,6 +23,8 @@
 //! token（不列池），还在预算里，预算不改。
 //! 施工 D-2 加了 `ask_user`（878 字节，边际份量 237，2026-10-07 主会话照 magpie 网关的 `cline-pass/deepseek-v4.1-flash` 量）：
 //! 十四件合计 2221 个 token（不列池）、8343 字节，超了；照同一个办法预算改成 2443 个 token，合 9200 字节。
+//! 施工 D-3 加了 `todowrite`（479 字节，边际份量 139，同一天同一个端点量）：十五件合计 2360 个 token、8822 字节，还在预算里，
+//! 预算不改。
 
 use std::path::Path;
 
@@ -46,7 +48,7 @@ fn the_tool_face_stays_within_its_budget() {
             files += 1;
         }
     }
-    assert_eq!(files, 14, "基础系统现在是十四件");
+    assert_eq!(files, 15, "基础系统现在是十五件");
     assert!(
         total <= BUDGET,
         "工具面的几份说明一共 {total} 字节，超过预算 {BUDGET}：重新量 token，再改预算（10-自带软件.md 第九节）"

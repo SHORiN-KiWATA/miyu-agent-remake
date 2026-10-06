@@ -22,7 +22,7 @@ use miyu_kernel::session::{Command, Outcome};
 use miyu_policy::{Choice, JOB_DEPTH, ToolEntry};
 use miyu_tool::{
     ASK_USER, AgentPort, Catalog, NotSpawned, SEND_MESSAGE, SESSION_USAGE, SESSIONS, SUBAGENT,
-    Spawned, Spawning, is_subagent,
+    Spawned, Spawning, TODOWRITE, is_subagent,
 };
 
 use crate::TARGET;
@@ -82,7 +82,8 @@ impl Agents {
     /// （[`Agents::lists_sessions`]）。`session_usage` 只给本机的会话（施工 8-15）：群里的人不可信，花了多少钱是属主的事。
     /// 工具面造会话时定，一个会话里不变，给了只会被拒的不给（`agents.md` 第一条第 6 条）。
     /// `subagent` 的 `pool` 照这时的配置 `values` 填上能选的池（施工 8-8 补：`miyu_models::pools::offered`，一个都没有的拿掉
-    /// 这个参数）。`ask_user` 只给能问人的会话（[`Agents::asks`]，施工 D-2）。
+    /// 这个参数）。`ask_user` 只给能问人的会话（[`Agents::asks`]，施工 D-2）。`todowrite` 只给本机的会话（施工 D-3）：群里没人
+    /// 看她的清单。
     pub(crate) fn face(
         tools: &Catalog,
         venue: &VenueId,
@@ -101,6 +102,7 @@ impl Agents {
             .filter(|spec| lists || spec.name != SESSIONS)
             .filter(|spec| local || spec.name != SESSION_USAGE)
             .filter(|spec| asks || spec.name != ASK_USER)
+            .filter(|spec| local || spec.name != TODOWRITE)
             .map(|spec| {
                 let mut entry = ToolEntry {
                     name: spec.name.clone(),

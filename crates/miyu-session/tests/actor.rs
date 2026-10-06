@@ -16,7 +16,7 @@ use miyu_session::{Pushed, Stopped};
 use miyu_store::blob::Blobs;
 use support::{
     Home, alice_account, ask, id, kinds, say, stop, until_delta, until_logged, until_turn_ends,
-    watch,
+    watch, within,
 };
 
 /// 一份推送里的事件的序号；瞬时事件没有。
@@ -143,6 +143,44 @@ async fn a_retryable_error_waits_and_asks_again() {
         "{:?}",
         kinds(&log)
     );
+}
+
+/// 停住、一个字都没出的请求照样叫得停：她什么都还没说，这一轮也没有增量（终端界面「还没开口就打断」要测这一边）。
+#[tokio::test]
+async fn interrupting_a_stalled_request_cancels_it_without_a_word() {
+    let home = Home::new();
+    let script = Script::new([Play::Stalls]);
+    let handle = home.create(&script).await;
+    let mut pushes = watch(&handle).await;
+    ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
+    within("请求发出去", async {
+        while script.requests().is_empty() {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await;
+    ask(
+        &handle,
+        "cmd-2",
+        Command::Interrupt {
+            queued: Queued::Return,
+        },
+    )
+    .await
+    .expect("会话在跑");
+    let pushed = until_turn_ends(&mut pushes).await;
+    assert!(
+        !pushed.iter().any(|next| matches!(&**next, Pushed::Transient(t) if matches!(t.body, TransientBody::ModelDelta(_)))),
+        "一段增量都没有"
+    );
+    let seen = script.requests()[0].0;
+    within("端口收到叫停", async {
+        while script.cancelled().is_empty() {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await;
+    assert_eq!(script.cancelled(), [seen]);
 }
 
 #[tokio::test]

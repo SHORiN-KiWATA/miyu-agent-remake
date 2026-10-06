@@ -239,6 +239,7 @@ async fn credentials(
 fn system(locale: Option<&str>) -> &'static str {
     let auto = UiSettings {
         language: "auto".to_string(),
+        startup: "new".to_string(),
     };
     match auto.language_for(locale) {
         "zh" => "zh",

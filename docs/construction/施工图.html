@@ -276,7 +276,7 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>201</b><span>/ 210 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>204</b><span>/ 210 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
     <li><b class="mono">b376721b</b><span>最近一步（8-3 <code>expect</code> 照数值比（再补））的提交</span></li>
   </ul>
@@ -543,9 +543,9 @@ a.step:hover{border-color:var(--primary)}
         <li><span class="step"><span class="n">8-23</span>下架的模型移出池（要补）</span></li>
         <li><span class="step"><span class="n">8-24</span><code>miyu config</code> 打开终端界面的配置页（要补）</span></li>
         <li><span class="step"><span class="n">8-25</span>一家供应商一个 key（要补）</span></li>
-        <li><span class="step"><span class="n">8-26</span>推不出驱动的用 <code>openai-chat</code></span></li>
+        <li><a class="step done" href="#s8-26"><span class="n">8-26</span>推不出驱动的用 <code>openai-chat</code><span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-27"><span class="n">8-27</span>支持输入加上音频、视频<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">8-28</span>「启动时打开」改成共用的 <code>ui.startup</code></span></li>
+        <li><a class="step done" href="#s8-28"><span class="n">8-28</span>「启动时打开」改成共用的 <code>ui.startup</code><span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-29"><span class="n">8-29</span>开发用的 key 改名<span class="st">✓</span></a></li>
       </ol>
     </li>
@@ -584,7 +584,7 @@ a.step:hover{border-color:var(--primary)}
       <ol class="chips">
         <li><a class="step done" href="#sD-1"><span class="n">D-1</span>回答确认和提问<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sD-2"><span class="n">D-2</span>提问工具<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">D-3</span>待办</span></li>
+        <li><a class="step done" href="#sD-3"><span class="n">D-3</span>待办<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -12208,6 +12208,55 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s8-26" aria-labelledby="h-s826">
+  <div class="sheet-head"><h2 id="h-s826"><span class="no">8-26</span>推不出驱动的用 <code>openai-chat</code></h2><span class="pill done">已完成</span></div>
+  <p class="purpose">局域网、自建的中转只写了地址、目录对不上，以前这一家用不了。改成照 <code>openai-chat</code> 接上，配置里照旧不写，<code>model.list</code> 标出驱动是从哪来的。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">推不出驱动的用 <code>openai-chat</code></span><span class="dir-note">8-26</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>手写、档案、目录都推不出驱动的用 <code>openai-chat</code>（<code>DEFAULT_DRIVER</code>）</li>
+              <li><code>model.list</code> 每一家多 <code>driver_from</code>：<code>config</code>、<code>profile</code>、<code>catalog</code>、<code>default</code></li>
+              <li>连地址都没有的照旧用不了，原话只说缺地址</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">配置里不写</span><span class="rl">以后目录对上了、档案写了，照它们的</span></div>
+          <div class="tile new"><span class="nm">不自动探测</span><span class="rl">要发请求，不做</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-26</dd></div>
+        <div><dt>名称</dt><dd>推不出驱动的用 <code>openai-chat</code></dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">b529c30a</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>5 个手写变异全逮住；三台机器的 CI 和长跑全绿（run 984）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-26-推不出驱动的用openai-chat.md</code>；蓝图 <code>models.md</code>「怎么走」第一条、「协议」<code>model.list</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="s8-27" aria-labelledby="h-s827">
   <div class="sheet-head"><h2 id="h-s827"><span class="no">8-27</span>支持输入加上音频、视频</h2><span class="pill done">已完成</span></div>
   <p class="purpose">模型「能收哪些输入」以前只认文字、图片、PDF，配置页写不了音频、视频，目录里写着的也读不出来。这一步只是声明能收：配置能写，目录读得出，<code>model.list</code> 的 <code>facts.inputs</code> 带着；驱动照旧只发图片、PDF。</p>
@@ -12253,6 +12302,55 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/8-27-支持输入加上音频视频.md</code>；蓝图 <code>models.md</code> 的 <code>inputs</code>、「模型的资料」，<code>config.md</code>「M8 的配置项」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-28" aria-labelledby="h-s828">
+  <div class="sheet-head"><h2 id="h-s828"><span class="no">8-28</span>「启动时打开」改成共用的 <code>ui.startup</code></h2><span class="pill done">已完成</span></div>
+  <p class="purpose">同一个人在同一台机器上，每个头的体验一样：几个头都有的行为是一个共用的项。<code>tui.startup</code> 改名 <code>ui.startup</code>，挪进通用页；<code>log.level</code> 的选项名照多少排。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">「启动时打开」改成共用的 <code>ui.startup</code></span><span class="dir-note">8-28</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>声明挪进端点的 <code>UiSettings</code>，核心的 <code>TuiSettings</code> 去掉；页「界面」、组「终端界面」去掉</li>
+              <li>说明不点名哪个头；三种语言的 <code>log.level</code> 选项改成常规、详细（排查用）、最详细</li>
+              <li>六份样本照核心生成的写回去</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不留旧名字</span><span class="rl">还没发布，旧名字照不认识的键报警告</span></div>
+          <div class="tile new"><span class="nm">只有一个头才有的才用 tui.*、web.*</span><span class="rl">2026-10-07 项目主人定</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-28</dd></div>
+        <div><dt>名称</dt><dd>「启动时打开」改成共用的 <code>ui.startup</code></dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">fd2a0d27</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>7 个手写变异全逮住（头一轮漏了英文、日文的选项名，补了一条）；三台机器的 CI 和长跑全绿（run 985）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-28-启动时打开改成共用的项.md</code>；蓝图 <code>config.md</code>。</li>
       </ul>
     </div>
   </div>
@@ -13380,6 +13478,58 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sD-3" aria-labelledby="h-sD3">
+  <div class="sheet-head"><h2 id="h-sD3"><span class="no">D-3</span>待办</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她做多步的活时用 <code>todowrite</code> 维护一张待办，头照着显示。每次整份换；撤销一轮，清单跟着退回去；压缩以后照样带着。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">待办</span><span class="dir-note">D-3</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>工具 <code>todowrite</code>：<code>todos</code> 每项 <code>content</code>、<code>status</code>；全部做完的清空；结果一句短话</li>
+              <li>效果 <code>todo.written</code>；内核另记当前清单（每追加一条记一次、载入照日志重算），撤销、恢复跟着退回</li>
+              <li><code>subscribe</code> 的回应带 <code>todos</code>，变了推瞬时的 <code>todos.changed</code></li>
+              <li>检查点里代码写的几段多一段待办，模板没有的不写</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">整份换、没有编号</span><span class="rl">照 Claude Code、codex、opencode 的基本款</span></div>
+          <div class="tile new"><span class="nm">不每轮提醒</span><span class="rl">只在工具结果里给她看</span></div>
+          <div class="tile new"><span class="nm">只给本机会话</span><span class="rl">群里没有</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">D-3</dd></div>
+        <div><dt>名称</dt><dd>待办</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">933a01d2</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试先写（工具四、内核六、检查点一、协议一）；13 个手写变异全逮住；三台机器的 CI 和长跑全绿（run 983）</span></li>
+        <li><span class="ok">✓</span><span>真模型：写一个多步的小工具，她调了三次 <code>todowrite</code>：开头四项、做到一半更新、做完清空；头每次都收到 <code>todos.changed</code></span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/D-3-待办.md</code>；蓝图 <code>tools/todowrite.md</code>、<code>kernel/session.md</code>「待办」、<code>protocol.md</code>、<code>compaction.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 
 
 
@@ -13414,35 +13564,32 @@ function tx(parent, x, y, s, cls, anchor) {
 /* ↓ 布局：照抄架构全图 */
 const W = 1400, H = 1192;
 const GROUPS = [
-  { id: 'g_heads', x: 256, y: 14, w: 888, h: 128, label: '头 · 各自独立的进程，可以同时连好几个', tag: true },
-  { id: 'g_core', x: 256, y: 208, w: 888, h: 686, cls: 'core' },
+  { id: 'g_heads', x: 296, y: 14, w: 848, h: 128, label: '头 · 各自独立的进程，可以同时连好几个', tag: true },
+  { id: 'g_core', x: 296, y: 208, w: 848, h: 686, cls: 'core' },
   { id: 'g_kernel', x: 472, y: 342, w: 456, h: 400, cls: 'kernel' },
-  { id: 'g_venue', x: 272, y: 342, w: 176, h: 294, label: '场所子系统 · 仿终端' },
   { id: 'g_policy', x: 952, y: 342, w: 176, h: 400, label: '策略与模型' },
-  { id: 'g_drivers', x: 16, y: 208, w: 220, h: 532, label: '场所驱动 · 核心拉起，也是头' },
+  { id: 'g_onebot', x: 16, y: 152, w: 260, h: 522, label: '软件包 miyu-onebot · 也是头' },
+  { id: 'g_chat', x: 28, y: 274, w: 236, h: 330, label: '群聊内核 miyu-chat · 和平台无关' },
   { id: 'g_net', x: 1164, y: 340, w: 220, h: 522, label: '外部 · 经网络' },
   { id: 'g_dataroot', x: 16, y: 944, w: 388, h: 236, cls: 'store', label: '数据根 · 真相只有四种' },
   { id: 'g_children', x: 420, y: 944, w: 964, h: 236, label: '核心的子进程 · 随核心退出' },
 ];
 const NODES = [
   // heads
-  { id: 'n_tui', x: 268, y: 42, w: 198, h: 88, k: 'proc', p: 'head', t: '终端界面', s: ['miyu · 全屏 TUI', '时间线 · 抽屉 · 会话树'] },
-  { id: 'n_web', x: 490, y: 42, w: 198, h: 88, k: 'proc', p: 'head', t: '网页', s: ['浏览器 · 原生 JS', '设置页照清单生成'] },
-  { id: 'n_cli', x: 712, y: 42, w: 198, h: 88, k: 'proc', p: 'head', t: '命令行', s: ['miyu ask · miyu stdio', '给人，也给别的程序'] },
-  { id: 'n_shell', x: 934, y: 42, w: 198, h: 88, k: 'proc', p: 'head', t: '终端无缝集成', s: ['fish 完整 · bash/zsh 兜底', '工作目录跟着 shell'] },
+  { id: 'n_tui', x: 308, y: 42, w: 194, h: 88, k: 'proc', p: 'head', t: '终端界面', s: ['miyu · 全屏 TUI', '时间线 · 抽屉 · 会话树'] },
+  { id: 'n_web', x: 518, y: 42, w: 194, h: 88, k: 'proc', p: 'head', t: '网页', s: ['浏览器 · 原生 JS', '设置页照清单生成'] },
+  { id: 'n_cli', x: 728, y: 42, w: 194, h: 88, k: 'proc', p: 'head', t: '命令行', s: ['miyu ask · miyu stdio', '给人，也给别的程序'] },
+  { id: 'n_shell', x: 938, y: 42, w: 194, h: 88, k: 'proc', p: 'head', t: '终端无缝集成', s: ['fish 完整 · bash/zsh 兜底', '工作目录跟着 shell'] },
   // bus
-  { id: 'n_bus', x: 256, y: 158, w: 888, h: 30, k: 'bus', p: 'core', t: '核心协议', custom: 'bus' },
+  { id: 'n_bus', x: 296, y: 158, w: 848, h: 30, k: 'bus', p: 'core', t: '核心协议', custom: 'bus' },
   // core top row
-  { id: 'n_view', x: 272, y: 236, w: 230, h: 90, k: 'module', p: 'core', t: '视图投影', s: ['事件 → 显示用的条目', '按头的语言和能力生成'] },
-  { id: 'n_http', x: 514, y: 236, w: 170, h: 90, k: 'module', p: 'core', t: 'HTTP 模块', s: ['开了网页才构造', '页面文件 · WebSocket'] },
+  { id: 'n_view', x: 312, y: 236, w: 200, h: 90, k: 'module', p: 'core', t: '视图投影', s: ['事件 → 显示用的条目', '按头的语言和能力生成'] },
+  { id: 'n_http', x: 524, y: 236, w: 160, h: 90, k: 'module', p: 'core', t: 'HTTP 模块', s: ['开了网页才构造', '页面文件 · WebSocket'] },
   { id: 'n_auth', x: 696, y: 236, w: 200, h: 90, k: 'module', p: 'core', t: '账号与权限', s: ['命令进入的第一道链', '属主 ∩ 能力 ∩ 强制策略'] },
   { id: 'n_config', x: 908, y: 236, w: 220, h: 90, k: 'module', p: 'core', t: '配置服务', s: ['一份清单 · 七层 · 管理员锁', '只有核心写文件'] },
-  // venue subsystem
-  { id: 'n_rules', x: 280, y: 368, w: 160, h: 64, k: 'module', p: 'core', t: '场所规则', s: ['新场所出现时配置它', '像 udev · venues.d'] },
-  { id: 'n_inchain', x: 280, y: 438, w: 160, h: 48, k: 'module', p: 'core', t: '进站链', s: ['睡眠→禁言→准入→限流'] },
-  { id: 'n_ld', x: 280, y: 492, w: 160, h: 64, k: 'module', p: 'core', t: '线路规程', s: ['每条都回 · 叫她才回', '看情况插话：判官、冷静'] },
-  { id: 'n_out', x: 280, y: 562, w: 160, h: 64, k: 'module', p: 'core', t: '出站链 → 出站队列', s: ['清理 · 去重 · 引用和 @', '先记账再发，失败退回'] },
-  { id: 'n_voicesvc', x: 272, y: 652, w: 176, h: 64, k: 'module', p: 'core', t: '语音服务', s: ['识别 · 合成 · 播放', '桌面语音也是一个场所'] },
+  // venue primitives
+  { id: 'n_prim', x: 312, y: 342, w: 138, h: 152, k: 'module', p: 'core', t: '场所的原语', s: ['通用，不认识 QQ', '旁听消息', '回合闸 gate.ask', '分叉 session.fork', '外部身份绑定', '系统账号'] },
+  { id: 'n_voicesvc', x: 312, y: 660, w: 138, h: 64, k: 'module', p: 'core', t: '语音服务', s: ['识别 · 合成 · 播放', '桌面语音也是一个场所'] },
   // kernel
   { id: 'k_turn', x: 484, y: 376, w: 210, h: 66, k: 'kernel', p: 'core', t: '回合状态机', s: ['空闲 → 请求模型 → 执行工具', '→ 等待人 · 一次一个回合'] },
   { id: 'k_sessions', x: 706, y: 376, w: 210, h: 66, k: 'kernel', p: 'core', t: '会话表', s: ['每个会话一个 actor', '自己的日志和收件箱'] },
@@ -13458,18 +13605,24 @@ const NODES = [
   { id: 'n_models', x: 960, y: 578, w: 160, h: 64, k: 'module', p: 'core', t: '模型服务', s: ['供应商 · 模型 · 池', '四个挡位 · 五种用途'] },
   { id: 'n_driver', x: 960, y: 656, w: 160, h: 64, k: 'module', p: 'core', t: '模型驱动', s: ['编解码与分类：纯函数', '执行器发出请求'] },
   // bottom row
-  { id: 'n_store', x: 272, y: 758, w: 120, h: 120, k: 'module', p: 'core', t: '存储后端', s: ['JSONL 只追加', 'blob 按哈希存', '先落盘，后推送', '一个写者，不用锁'] },
-  { id: 'n_mem', x: 404, y: 758, w: 99, h: 120, k: 'module', p: 'core', t: '记忆', s: ['跟着人格走', '每轮开始召回', '按听众过滤'] },
-  { id: 'n_kb', x: 507, y: 758, w: 99, h: 120, k: 'module', p: 'core', t: '知识库', s: ['文档 + 索引', 'kb_search 等', '想起默认关'] },
-  { id: 'n_adapters', x: 618, y: 758, w: 156, h: 120, k: 'module', p: 'core', t: '扩展适配器', s: ['进程扩展：像 FUSE', 'MCP：只接工具', '外部只挂异步点', '每次调用都有超时'] },
+  { id: 'n_store', x: 312, y: 758, w: 112, h: 120, k: 'module', p: 'core', t: '存储后端', s: ['JSONL 只追加', 'blob 按哈希存', '先落盘，后推送', '一个写者，不用锁'] },
+  { id: 'n_mem', x: 436, y: 758, w: 91, h: 120, k: 'module', p: 'core', t: '记忆', s: ['跟着人格走', '每轮开始召回', '按听众过滤'] },
+  { id: 'n_kb', x: 531, y: 758, w: 91, h: 120, k: 'module', p: 'core', t: '知识库', s: ['文档 + 索引', 'kb_search 等', '想起默认关'] },
+  { id: 'n_adapters', x: 634, y: 758, w: 140, h: 120, k: 'module', p: 'core', t: '扩展适配器', s: ['进程扩展：像 FUSE', 'MCP：只接工具', '外部只挂异步点', '每次调用都有超时'] },
   { id: 'n_software', x: 786, y: 758, w: 214, h: 120, k: 'module', p: 'core', t: '自带软件', custom: 'software' },
   { id: 'n_sandbox', x: 1012, y: 758, w: 116, h: 120, k: 'module', p: 'core', t: '沙盒', s: ['管得住的不问人', '越界才问人', '整盘能读，只管写'] },
-  // left column
-  { id: 'x_qq', x: 28, y: 244, w: 196, h: 64, k: 'ext', p: 'ext', t: 'QQ 群与私聊', s: ['OneBot v11 实现', 'NapCat、SnowLuma…'] },
-  { id: 'n_qqbridge', x: 28, y: 420, w: 196, h: 84, k: 'proc', p: 'child', t: 'QQ 桥', s: ['适配层 · quirk 表', '平台工具：像 ioctl', 'Miyu 协议 · 标准输入输出'] },
-  { id: 'x_mic', x: 28, y: 560, w: 196, h: 48, k: 'ext', p: 'ext', t: '麦克风与音箱', s: ['系统的声音服务'] },
-  { id: 'n_voice', x: 28, y: 642, w: 196, h: 84, k: 'proc', p: 'child', t: '语音 worker', s: ['miyu-voice · 单独下载', '人声检测 · 唤醒词', '本机识别 SenseVoice'] },
-  { id: 'x_editor', x: 28, y: 790, w: 196, h: 64, k: 'ext', p: 'ext', t: '你的编辑器', s: ['手改 TOML', '核心监视、重读'] },
+  // left column: QQ, the miyu-onebot package, voice
+  { id: 'x_qq', x: 28, y: 42, w: 236, h: 88, k: 'ext', p: 'ext', t: 'QQ 群与私聊', s: ['OneBot v11 实现', 'NapCat、SnowLuma…'] },
+  { id: 'n_obdrv', x: 28, y: 180, w: 236, h: 64, k: 'module', p: 'child', t: 'OneBot 驱动', s: ['连接 · 消息段 · quirk 表', '平台工具：像 ioctl'] },
+  { id: 'n_inchain', x: 40, y: 302, w: 212, h: 48, k: 'module', p: 'child', t: '进站链与限流', s: ['睡眠→禁言→准入→违规→限流'] },
+  { id: 'n_ld', x: 40, y: 356, w: 212, h: 64, k: 'module', p: 'child', t: '线路规程 · 主动回复判断', s: ['每条都回 · 叫她才回 · 唤醒', '看情况插话：判官、冷静'] },
+  { id: 'n_dispatch', x: 40, y: 426, w: 212, h: 48, k: 'module', p: 'child', t: '并行的分派', s: ['主线串行，忙时分叉支线'] },
+  { id: 'n_out', x: 40, y: 480, w: 212, h: 58, k: 'module', p: 'child', t: '出站链 → 出站队列', s: ['清理 · 去重 · 引用和 @', '先记账再发，失败退回'] },
+  { id: 'n_rules', x: 40, y: 544, w: 212, h: 48, k: 'module', p: 'child', t: '场所规则', s: ['新场所出现时配好 · 像 udev'] },
+  { id: 'n_obweb', x: 28, y: 614, w: 236, h: 48, k: 'module', p: 'child', t: '自己的 WebUI', s: ['只听本机 · 登录交给核心验'] },
+  { id: 'n_voice', x: 28, y: 694, w: 236, h: 70, k: 'proc', p: 'child', t: '语音 worker', s: ['miyu-voice · 另一个软件包', '人声检测 · 唤醒词 · 本机识别'] },
+  { id: 'x_mic', x: 28, y: 788, w: 236, h: 48, k: 'ext', p: 'ext', t: '麦克风与音箱', s: ['系统的声音服务'] },
+  { id: 'x_editor', x: 28, y: 860, w: 236, h: 48, k: 'ext', p: 'ext', t: '你的编辑器', s: ['手改 TOML · 核心监视、重读'] },
   // right column
   { id: 'x_svc', x: 1176, y: 236, w: 196, h: 64, k: 'ext', p: 'ext', t: '系统服务管理器', s: ['systemd · launchd · Run 键', '要常驻时托管核心'] },
   { id: 'x_pkgsrc', x: 1176, y: 368, w: 196, h: 64, k: 'ext', p: 'ext', t: '软件源', s: ['官方源 ed25519 签名', 'GitHub Releases'] },
@@ -13483,24 +13636,25 @@ const NODES = [
   { id: 'p_cmd', x: 812, y: 980, w: 560, h: 116, k: 'proc', p: 'child', t: '沙盒里的命令', custom: 'cmd' },
 ];
 const EDGES = [
-  { id: 'e_h_tui', pts: [[367, 130], [367, 158]], t: 'proto', a: 'both', lab: { x: 374, y: 148, s: '套接字 + 令牌' } },
-  { id: 'e_h_web', pts: [[589, 130], [589, 158]], t: 'proto', a: 'both', lab: { x: 596, y: 148, s: 'WebSocket' } },
-  { id: 'e_h_cli', pts: [[811, 130], [811, 158]], t: 'proto', a: 'both', lab: { x: 818, y: 148, s: '套接字 + 令牌' } },
-  { id: 'e_h_shell', pts: [[1033, 130], [1033, 158]], t: 'proto', a: 'both', lab: { x: 1040, y: 148, s: '套接字 + 令牌' } },
-  { id: 'e_push', pts: [[387, 236], [387, 188]], t: 'proto', a: 'end', z: 'core', lab: { x: 395, y: 229, s: '推送 view.*' } },
-  { id: 'e_http', pts: [[599, 236], [599, 188]], t: 'proto', a: 'both', z: 'core', lab: { x: 607, y: 229, s: '页面 · WebSocket' } },
+  { id: 'e_h_tui', pts: [[405, 130], [405, 158]], t: 'proto', a: 'both', lab: { x: 412, y: 148, s: '套接字 + 令牌' } },
+  { id: 'e_h_web', pts: [[615, 130], [615, 158]], t: 'proto', a: 'both', lab: { x: 622, y: 148, s: 'WebSocket' } },
+  { id: 'e_h_cli', pts: [[825, 130], [825, 158]], t: 'proto', a: 'both', lab: { x: 832, y: 148, s: '套接字 + 令牌' } },
+  { id: 'e_h_shell', pts: [[1035, 130], [1035, 158]], t: 'proto', a: 'both', lab: { x: 1042, y: 148, s: '套接字 + 令牌' } },
+  { id: 'e_push', pts: [[420, 236], [420, 188]], t: 'proto', a: 'end', z: 'core', lab: { x: 428, y: 229, s: '推送 view.*' } },
+  { id: 'e_http', pts: [[604, 236], [604, 188]], t: 'proto', a: 'both', z: 'core', lab: { x: 612, y: 229, s: '页面 · WebSocket' } },
   { id: 'e_cmd', pts: [[796, 188], [796, 236]], t: 'proto', a: 'end', z: 'core', lab: { x: 806, y: 229, s: '命令 · 查询' } },
   { id: 'e_config_push', pts: [[1018, 236], [1018, 188]], t: 'proto', a: 'end', z: 'core', only: true, lab: { x: 1026, y: 229, s: 'config.changed' } },
   { id: 'e_auth_sess', pts: [[796, 326], [796, 376]], t: 'int', a: 'end' },
   { id: 'e_auth_config', pts: [[896, 281], [908, 281]], t: 'int', a: 'end', only: true },
   { id: 'e_auth_pkg', pts: [[870, 326], [870, 334], [1040, 334], [1040, 368]], t: 'int', a: 'end', only: true },
   { id: 'e_log_view', pts: [[460, 497], [460, 326]], t: 'int', a: 'end', z: 'core', lab: { x: 466, y: 337, s: '事件' } },
-  { id: 'e_log_store', pts: [[484, 497], [460, 497], [460, 750], [332, 750], [332, 758]], t: 'store', a: 'end', z: 'core', lab: { x: 452, y: 734, s: '先落盘', a: 'end' } },
-  { id: 'e_qq_bridge', pts: [[126, 308], [126, 420]], t: 'io', a: 'both', lab: { x: 134, y: 368, s: 'OneBot v11' } },
-  { id: 'e_bridge_in', pts: [[224, 462], [280, 462]], t: 'proto', a: 'end' },
-  { id: 'e_out_bridge', pts: [[280, 594], [246, 594], [246, 492], [224, 492]], t: 'proto', a: 'end' },
-  { id: 'e_mic_voice', pts: [[126, 608], [126, 642]], t: 'io', a: 'both' },
-  { id: 'e_voice_svc', pts: [[224, 684], [272, 684]], t: 'proto', a: 'both' },
+  { id: 'e_log_store', pts: [[484, 497], [460, 497], [460, 750], [368, 750], [368, 758]], t: 'store', a: 'end', z: 'core', lab: { x: 452, y: 741, s: '先落盘', a: 'end' } },
+  { id: 'e_qq_bridge', pts: [[220, 130], [220, 180]], t: 'io', a: 'both', lab: { x: 212, y: 146, s: 'OneBot v11', a: 'end' } },
+  { id: 'e_drv_chat', pts: [[146, 244], [146, 274]], t: 'int', a: 'both', lab: { x: 154, y: 263, s: '统一的消息' } },
+  { id: 'e_model_call', pts: [[252, 388], [286, 388], [286, 334], [940, 334], [940, 588], [960, 588]], t: 'proto', a: 'end', only: true, lab: { x: 600, y: 338, s: 'model.call', a: 'middle' } },
+  { id: 'e_bridge_in', pts: [[264, 450], [312, 450]], t: 'proto', a: 'both' },
+  { id: 'e_mic_voice', pts: [[146, 788], [146, 764]], t: 'io', a: 'both' },
+  { id: 'e_voice_svc', pts: [[264, 729], [286, 729], [286, 692], [312, 692]], t: 'proto', a: 'both' },
   { id: 'e_prompt_ctx', pts: [[960, 562], [916, 562]], t: 'int', a: 'end', z: 'core', lab: { x: 940, y: 556, s: '策略', a: 'middle' } },
   { id: 'e_ctx_models', pts: [[916, 605], [960, 605]], t: 'int', a: 'both', z: 'core', lab: { x: 940, y: 599, s: '请求', a: 'middle' } },
   { id: 'e_models_driver', pts: [[1040, 642], [1040, 656]], t: 'int', a: 'end' },
@@ -13509,21 +13663,22 @@ const EDGES = [
   { id: 'e_pkg_src', pts: [[1120, 400], [1176, 400]], t: 'io', a: 'both' },
   { id: 'e_pkg_catalog', pts: [[960, 420], [940, 420], [940, 546], [589, 546], [589, 552]], t: 'int', a: 'end', only: true },
   { id: 'e_svc', pts: [[1176, 268], [1144, 268]], t: 'io', a: 'end', lab: { x: 1160, y: 261, s: '托管', a: 'middle' } },
-  { id: 'e_mem_kernel', pts: [[488, 758], [488, 742]], t: 'int', a: 'end' },
-  { id: 'e_kb_kernel', pts: [[560, 758], [560, 742]], t: 'int', a: 'end' },
+  { id: 'e_mem_kernel', pts: [[480, 758], [480, 742]], t: 'int', a: 'end' },
+  { id: 'e_kb_kernel', pts: [[575, 758], [575, 742]], t: 'int', a: 'end' },
   { id: 'e_tools_adapters', pts: [[740, 730], [740, 758]], t: 'int', a: 'end' },
   { id: 'e_tools_software', pts: [[890, 730], [890, 758]], t: 'int', a: 'end' },
   { id: 'e_software_sandbox', pts: [[1000, 818], [1012, 818]], t: 'int', a: 'end' },
   { id: 'e_sandbox_web', pts: [[1128, 818], [1176, 818]], t: 'io', a: 'end', lab: { x: 1152, y: 811, s: '代理', a: 'middle' } },
   { id: 'e_sandbox_cmd', pts: [[1070, 878], [1070, 980]], t: 'int', a: 'end', lab: { x: 1080, y: 934, s: '沙盒边界' } },
-  { id: 'e_store_root', pts: [[332, 878], [332, 944]], t: 'store', a: 'both', lab: { x: 340, y: 925, s: '追加 · 同步' } },
-  { id: 'e_editor_root', pts: [[126, 854], [126, 944]], t: 'store', a: 'end', lab: { x: 134, y: 903, s: '手改 TOML' } },
-  { id: 'e_mem_embed', pts: [[453, 878], [453, 980]], t: 'int', a: 'end', lab: { x: 461, y: 934, s: '向量' } },
-  { id: 'e_kb_embed', pts: [[556, 878], [556, 980]], t: 'int', a: 'end' },
-  { id: 'e_adapters_ext', pts: [[650, 878], [650, 980]], t: 'proto', a: 'both', lab: { x: 658, y: 934, s: 'stdio' } },
+  { id: 'e_store_root', pts: [[368, 878], [368, 944]], t: 'store', a: 'both', lab: { x: 376, y: 925, s: '追加 · 同步' } },
+  { id: 'e_editor_root', pts: [[146, 908], [146, 944]], t: 'store', a: 'end', lab: { x: 154, y: 930, s: '手改 TOML' } },
+  { id: 'e_mem_embed', pts: [[470, 878], [470, 980]], t: 'int', a: 'end', lab: { x: 478, y: 934, s: '向量' } },
+  { id: 'e_kb_embed', pts: [[575, 878], [575, 980]], t: 'int', a: 'end' },
+  { id: 'e_adapters_ext', pts: [[656, 878], [656, 980]], t: 'proto', a: 'both', lab: { x: 664, y: 934, s: 'stdio' } },
   { id: 'e_adapters_mcp', pts: [[745, 878], [745, 980]], t: 'io', a: 'both', lab: { x: 753, y: 934, s: 'MCP' } },
-  // drawn last: crosses the event lane, so it gets a hop
-  { id: 'e_venue_kernel', pts: [[448, 409], [472, 409]], t: 'int', a: 'both', hop: true },
+  // drawn last in 架构全图: these cross the event lane and get a hop there
+  { id: 'e_venue_kernel', pts: [[450, 409], [472, 409]], t: 'int', a: 'both', hop: true },
+  { id: 'e_out_bridge', pts: [[484, 509], [252, 509]], t: 'proto', a: 'end', hop: [[470, 509], [450, 509]], z: 'core', lab: { x: 381, y: 526, s: '推送事件', a: 'middle' } },
 ];
 const TREE = {
   home: [

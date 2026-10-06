@@ -47,6 +47,7 @@ mod spans;
 mod step;
 mod summary;
 mod title;
+mod todos;
 mod tools;
 mod turn;
 
@@ -137,6 +138,8 @@ pub struct Session {
     sight: sight::Sight,
     /// 本会话放行过的规则（施工 D-1，`grants.rs`）：每追加一条记一次，交给链。
     grants: grants::Grants,
+    /// 上次告诉头的待办（施工 D-3，`todos.rs`）：变了才推 `todos.changed`。只在内存里。
+    told_todos: Vec<crate::event::Todo>,
 }
 
 impl Session {
@@ -187,6 +190,7 @@ impl Session {
             reference: configure::Reference::default(),
             sight: sight::Sight::default(),
             grants: grants::Grants::default(),
+            told_todos: Vec::new(),
         };
         let event = session.record(at, by, Some(id.clone()), Body::SessionCreated(created));
         session.accept(id, vec![event.seq]);
@@ -456,6 +460,7 @@ impl Session {
         let pushed: Vec<Event> = self.unstored.drain(..split).collect();
         self.stored = pushed.last().map(|event| event.seq);
         let mut actions = vec![Action::Push(pushed)];
+        actions.extend(self.todos_changed(at));
         for (id, events, outcome) in std::mem::take(&mut self.waiting) {
             if self.is_stored(&events) {
                 actions.push(Action::Reply { id, outcome });

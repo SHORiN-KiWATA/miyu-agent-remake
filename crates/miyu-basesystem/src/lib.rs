@@ -7,7 +7,7 @@
 //! 翻这个会话自己记录的 `history`（施工 6-4，施工 C-4 多认别的会话），派子代理的 `subagent`（施工 7-5，7-5 再补从 `agent`
 //! 改名），看、停派出去的任务的 `jobs`（施工 7-4），发话的 `send_message`（施工 7-7，施工 C-5 从 `message_agent` 改名，
 //! 多发得到别的会话），列你别的主会话的 `sessions`（施工 C-3），查这个会话的用量、金额、上下文的 `session_usage`（施工 8-15），
-//! 问人一组题、等回答的 `ask_user`（施工 D-2）。
+//! 问人一组题、等回答的 `ask_user`（施工 D-2），维护这个会话的待办清单的 `todowrite`（施工 D-3）。
 //! 名字、参数、输出照成熟 harness 的规范，以 Claude Code 为主（`10-自带软件.md` 第十节）。
 
 mod ask_user;
@@ -27,6 +27,7 @@ mod sessions;
 mod shell;
 mod subagent;
 mod text;
+mod todowrite;
 mod trash;
 mod walk;
 mod write;
@@ -59,6 +60,7 @@ pub fn tools(resources: &Path) -> Result<Vec<Arc<dyn Tool>>, LoadError> {
         Arc::new(send_message::SendMessage::load(resources, common.clone())?),
         Arc::new(sessions::Sessions::load(resources, common.clone())?),
         Arc::new(session_usage::SessionUsage::load(resources)?),
-        Arc::new(ask_user::AskUser::load(resources, common)?),
+        Arc::new(ask_user::AskUser::load(resources, common.clone())?),
+        Arc::new(todowrite::TodoWrite::load(resources, common)?),
     ])
 }

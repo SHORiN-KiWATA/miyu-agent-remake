@@ -13,6 +13,7 @@ use crate::event::{Body, Event};
 use crate::id::{ContentHash, JobId, Seq, SessionId, TurnId};
 
 mod jobs;
+mod todos;
 mod undo;
 
 pub use jobs::Dispatched;
@@ -35,6 +36,8 @@ pub struct History {
     recalled: BTreeMap<ContentHash, String>,
     /// 派出去过的任务（施工 7-2，`history/jobs.rs`）：压缩不丢，撤销、恢复跟着标。父会话也记在那里（施工 C-2）。
     jobs: jobs::Jobs,
+    /// 写过的待办（施工 D-3，`history/todos.rs`）：压缩不丢，撤销、恢复跟着标。
+    todos: todos::Todos,
 }
 
 impl History {
@@ -85,12 +88,19 @@ impl History {
     /// 全的（`kernel/history.md`「从日志的一段重建」）。
     pub fn note(&mut self, event: &Event) {
         self.jobs.note(event);
+        self.todos.note(event);
+    }
+
+    /// 当前的待办（施工 D-3）：最近一份没撤掉的 `todo.written`，压缩换掉了那一条也在。没写过的没有；清空了的是空的。
+    pub fn todos(&self) -> Option<&[crate::event::Todo]> {
+        self.todos.current()
     }
 
     /// 派出去过的任务照 `before` 那一份的（施工 7-2）：撤掉压缩时从读回的一段重建了有效历史，那一段以前派的只有原来那份
     /// 记着。
     pub fn jobs_from(&mut self, before: &History) {
         self.jobs = before.jobs.clone();
+        self.todos = before.todos.clone();
     }
 
     /// 最近一次压缩的检查点；没压缩过就没有。
@@ -124,6 +134,7 @@ impl History {
             whole: self.whole,
             recalled: self.recalled.clone(),
             jobs: self.jobs.clone(),
+            todos: self.todos.clone(),
         }
     }
 
@@ -142,6 +153,7 @@ impl History {
             whole: self.whole,
             recalled: self.recalled.clone(),
             jobs: self.jobs.clone(),
+            todos: self.todos.clone(),
         }
     }
 
@@ -205,6 +217,7 @@ impl History {
     /// 压缩的那一次撤销放在一边的），再落到检查点上（[`History::settle`]）。每一条都先记派出去的任务（[`History::note`]）。
     pub fn append(&mut self, event: Event) {
         self.jobs.note(&event);
+        self.todos.note(&event);
         match &event.body {
             Body::ContextCompacted(_) if self.whole => {
                 self.events.push(event);

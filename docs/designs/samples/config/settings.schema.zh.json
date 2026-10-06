@@ -396,21 +396,6 @@
       },
       "type": "object"
     },
-    "tui": {
-      "properties": {
-        "startup": {
-          "default": "new",
-          "description": "终端界面启动时开一个新会话，还是接着最近的那一个。能写：new 或 recent。只能写在系统配置或个人设置里。下次打开界面时生效。",
-          "enum": [
-            "new",
-            "recent"
-          ],
-          "title": "启动时打开",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
     "ui": {
       "properties": {
         "language": {
@@ -423,6 +408,16 @@
             "ja"
           ],
           "title": "界面语言",
+          "type": "string"
+        },
+        "startup": {
+          "default": "new",
+          "description": "打开终端界面或网页时，开一个新会话，还是接着最近的那一个。能写：new 或 recent。只能写在系统配置或个人设置里。下次打开界面时生效。",
+          "enum": [
+            "new",
+            "recent"
+          ],
+          "title": "启动时打开",
           "type": "string"
         }
       },

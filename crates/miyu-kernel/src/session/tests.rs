@@ -36,6 +36,7 @@ mod revert;
 mod scenario;
 mod spans;
 mod title;
+mod todos;
 mod tools;
 mod turn;
 

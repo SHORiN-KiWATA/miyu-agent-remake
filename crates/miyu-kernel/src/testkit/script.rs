@@ -1,7 +1,7 @@
 //! 剧本：模型每次请求说什么，每次调工具怎么回。执行前的链、回合开始的挂接点照默认的来：放行，
 //! 不注入；要别的，交给 [`super::Stage`] 另排。
 
-use crate::event::{CallError, ErrorClass, JobKind, JobStarted, Question, Usage};
+use crate::event::{CallError, ErrorClass, JobKind, JobStarted, Question, Todo, Usage};
 use crate::id::{JobId, SessionId};
 
 /// 模型的一次回复：想的、说的话、调的工具；或者出错。
@@ -162,6 +162,8 @@ pub enum Play {
     Messages(JobId),
     /// 订了会话的「空了告诉我」（施工 C-6）：报 `peer.watch`。
     Watches(SessionId),
+    /// 换上一份待办（施工 D-3）：报 `todo.written`。
+    Writes(Vec<Todo>),
 }
 
 impl Play {

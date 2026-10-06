@@ -74,6 +74,10 @@
       "name": "提问",
       "icon": "?"
     },
+    "todowrite": {
+      "name": "待办",
+      "icon": "≡"
+    },
     "send_message": {
       "name": "留言",
       "subject": "to",
@@ -184,6 +188,8 @@
     "session_usage/shown": "查了用量",
     "session_usage/failed": "用量读不出来：{error}",
     "ask_user/answered": "你答了",
-    "ask_user/unattended": "这里没人能回答"
+    "ask_user/unattended": "这里没人能回答",
+    "todowrite/updated": "更新了待办：做完 {done}/{total}",
+    "todowrite/cleared": "待办都做完了，清空"
   }
 }

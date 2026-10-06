@@ -15,6 +15,7 @@
 | `crates/miyu-tool/src/sessions.rs` | 列会话的端口 `SessionsPort`、列出来的一个 `MainSession`，那件工具的名字 `SESSIONS`；认会话编号的 `find_session`、`Found`（施工 C-3） |
 | `crates/miyu-tool/src/usage.rs` | 查用量的端口 `UsagePort`、上下文 `ContextUse`、用量和金额 `Spent`，那件工具的名字 `SESSION_USAGE`（施工 8-15） |
 | `crates/miyu-tool/src/questions.rs` | 提问的端口 `QuestionPort`、等回答的 `Answering`，那件工具的名字 `ASK_USER`（施工 D-2） |
+| `crates/miyu-tool/src/todos.rs` | 待办那件工具的名字 `TODOWRITE`（施工 D-3）：执行器照它定工具面；工具不用端口，只报效果 `todo.written` |
 | `crates/miyu-tool/src/catalog.rs` | 工具目录，登记时查的几条；改过名的照以前的名字也找得到（施工 7-5 再补） |
 | `crates/miyu-tool/src/jobs.rs` | 任务端口 `JobPort`、交出去的后台命令 `Background`、它的进程 `Process`、怎么结束的 `Exit`（施工 7-3）；列出来的 `Listed`、读到的 `Output`、读不了停不了的 `JobError`（施工 7-4） |
 | `crates/miyu-tool/src/testkit.rs` | 测试用的假工具（`testkit` 开关打开时才编）；`testkit/held.rs` 是假的后台命令 `Held`（施工 7-3）；`testkit/renamed.rs` 是换了名字的一件 `Renamed`，造改名以前的核心的目录（施工 7-5 再补） |

@@ -40,6 +40,7 @@ pub(crate) fn store(blobs: &Blobs, effects: Vec<miyu_tool::Effect>) -> Vec<Effec
             miyu_tool::Effect::JobStarted(started) => Effect::JobStarted(started),
             miyu_tool::Effect::JobMessaged(messaged) => Effect::JobMessaged(messaged),
             miyu_tool::Effect::PeerWatch(watch) => Effect::PeerWatch(watch),
+            miyu_tool::Effect::TodoWritten(written) => Effect::TodoWritten(written),
         })
         .collect()
 }
@@ -57,10 +58,11 @@ pub(crate) fn saw(seen: &mut Seen, effects: &[Effect]) {
             Effect::FileTrashed(trashed) => {
                 seen.remove(Path::new(&trashed.path));
             }
-            // 派出去的任务、留的言、订的别的会话不是看过的文件（施工 7-1、7-7、C-1）。
+            // 派出去的任务、留的言、订的别的会话、写的待办不是看过的文件（施工 7-1、7-7、C-1、D-3）。
             Effect::JobStarted(_)
             | Effect::JobMessaged(_)
             | Effect::PeerWatch(_)
+            | Effect::TodoWritten(_)
             | Effect::Unknown(_) => {}
         }
     }

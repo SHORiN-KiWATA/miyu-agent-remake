@@ -146,6 +146,9 @@ pub(crate) fn core() -> CoreTexts {
                     "../../../resources/core/compaction/notes-too-large.txt"
                 )
                 .to_string(),
+                notes_todos: Some(
+                    include_str!("../../../resources/core/compaction/notes-todos.txt").to_string(),
+                ),
                 restored_open: include_str!("../../../resources/core/compaction/restored-open.txt")
                     .to_string(),
                 restored_close: include_str!(

@@ -31,7 +31,8 @@ pub use context::{
 };
 pub use cost::{Cost, Prices, Real};
 pub use effect::{
-    Effect, FileChanged, FileRead, FileTrashed, JobKind, JobMessaged, JobStarted, PeerWatch,
+    Effect, FileChanged, FileRead, FileTrashed, JobKind, JobMessaged, JobStarted, PeerWatch, Todo,
+    TodoStatus, TodoWritten,
 };
 pub use image::ImageDescribed;
 pub use job::{ChildReason, ChildReported, JobReason, JobReported};
@@ -47,7 +48,7 @@ pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated,
 pub use tool::{ApprovalDecided, ApprovalRequested, Decision, Said, ToolResult, ToolStatus};
 pub use transient::{
     ChangeWhy, CompactionDone, CompactionProgress, EffortInUse, EffortSource, ModelChanged,
-    ModelDelta, Piece, Retry, Status, ToolProgress, Transient, TransientBody,
+    ModelDelta, Piece, Retry, Status, TodosChanged, ToolProgress, Transient, TransientBody,
 };
 pub use turn::{EndReason, TurnEnded, TurnReverted, TurnStarted, TurnUnreverted};
 

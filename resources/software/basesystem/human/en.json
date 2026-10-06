@@ -74,6 +74,10 @@
       "name": "Ask",
       "icon": "?"
     },
+    "todowrite": {
+      "name": "Todos",
+      "icon": "≡"
+    },
     "send_message": {
       "name": "Message",
       "subject": "to",
@@ -203,6 +207,8 @@
     "session_usage/shown": "Checked the usage",
     "session_usage/failed": "Could not read the usage: {error}",
     "ask_user/answered": "You answered",
-    "ask_user/unattended": "No one can answer here"
+    "ask_user/unattended": "No one can answer here",
+    "todowrite/updated": "Updated the todos, done: {done}/{total}",
+    "todowrite/cleared": "All todos done, list cleared"
   }
 }

@@ -288,9 +288,23 @@ fn config_words_go_to_the_settings_list_with_the_core_prefix() {
     assert_eq!(level.name, "运行日志的级别");
     assert_eq!(
         level.options.get("debug").map(String::as_str),
-        Some("更细，排查用")
+        Some("详细，排查用")
     );
     assert!(Words::item(&zh, "log.nope").is_none());
+    // 运行日志的选项照多少排，一眼看出哪个更细（施工 8-28）。
+    for (language, names) in [
+        ("zh", ["常规", "详细，排查用", "最详细"]),
+        ("en", ["Normal", "Detailed, for debugging", "Most detailed"]),
+        ("ja", ["通常", "詳細（調査用）", "最も詳細"]),
+    ] {
+        let human = load(language);
+        let level = Words::item(&human, "log.level").expect("有 log.level");
+        let said: Vec<&str> = ["info", "debug", "trace"]
+            .iter()
+            .map(|option| level.options.get(*option).map_or("", String::as_str))
+            .collect();
+        assert_eq!(said, names, "{language}");
+    }
     assert_eq!(
         Words::sentence(&zh, "config/applies/now", &[]).as_deref(),
         Some("当场生效")

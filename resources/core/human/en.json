@@ -7,9 +7,9 @@
         "options": {
           "error": "Errors only",
           "warn": "Errors and warnings",
-          "info": "What happens",
-          "debug": "More detail, for debugging",
-          "trace": "Everything",
+          "info": "Normal",
+          "debug": "Detailed, for debugging",
+          "trace": "Most detailed",
           "off": "Nothing"
         }
       },
@@ -27,9 +27,9 @@
         "name": "Currency shown first",
         "description": "Amounts are added up per currency, never converted. This one is listed first, the others by code. Three capital letters such as USD or CNY."
       },
-      "tui.startup": {
+      "ui.startup": {
         "name": "On start, open",
-        "description": "Whether the terminal interface starts a new session or picks up the most recent one.",
+        "description": "Whether a terminal interface or the web page opens a new session or picks up the most recent one.",
         "options": {
           "new": "A new session",
           "recent": "The most recent session"
@@ -211,14 +211,12 @@
     },
     "pages": {
       "general": "General",
-      "interface": "Interface",
       "advanced": "Advanced",
       "permissions": "Permissions",
       "models": "Models"
     },
     "groups": {
       "display": "Display",
-      "tui": "Terminal interface",
       "log": "Runtime log",
       "sessions": "Sessions",
       "uses": "Uses",

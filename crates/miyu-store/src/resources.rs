@@ -261,6 +261,7 @@ impl ResourceRoot {
                     notes_files_more: core(&["compaction", "notes-files-more.txt"])?,
                     notes_retrieve: core(&["compaction", "notes-retrieve.txt"])?,
                     notes_too_large: core(&["compaction", "notes-too-large.txt"])?,
+                    notes_todos: Some(core(&["compaction", "notes-todos.txt"])?),
                     restored_open: core(&["compaction", "restored-open.txt"])?,
                     restored_close: core(&["compaction", "restored-close.txt"])?,
                 }),
