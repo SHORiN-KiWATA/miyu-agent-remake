@@ -180,6 +180,17 @@ Entries 1-{upto} were compacted. history still finds them by number, words or ti
 Not shown again, read them if you need them: {files}
 ```
 
+#### `core/compaction/notes-todos.txt`
+
+- 什么时候加进来：压缩时当前的待办不空：头一行，下面一项一行由内核写
+- token：7（头一行；带三项的完整一段 34，2026-10-07 量）
+- 为什么加：压缩以后她还看得到清单（`09-压缩.md` 第四节「待办清单原样带上」，2026-10-07 项目主人定，施工 D-3）
+- 指纹：`dfde38db`
+
+```text
+Todo list before this checkpoint:
+```
+
 #### `core/compaction/notes-uncovered.txt`
 
 - 什么时候加进来：摘要请求截短过的压缩
@@ -1724,6 +1735,28 @@ Go on with these answers in mind.
 No one can answer questions here. Ask in your reply instead.
 ```
 
+#### `software/basesystem/todowrite/updated.txt`
+
+- 什么时候加进来：`todowrite` 换上了一份、还有没做完的
+- token：12（字段按 `1`、`3` 算，2026-10-07 量）
+- 为什么加：一句短话，不把清单原样回给她（opencode 那样会多一份 token，施工 D-3）
+- 指纹：`78ce8c1d`
+
+```text
+Todo list updated: {done} of {total} done.
+```
+
+#### `software/basesystem/todowrite/cleared.txt`
+
+- 什么时候加进来：`todowrite`：全部做完（连同空的）
+- token：11（2026-10-07 量）
+- 为什么加：全部做完的清空（照 Claude Code），告诉她清了，下一次从空的写起（施工 D-3）
+- 指纹：`71fd595f`
+
+```text
+All todos are done. The list is cleared.
+```
+
 #### `software/basesystem/common/not-read.txt`
 
 - 什么时候加进来：`write`、`edit` 要改的文件已经在了、她这个会话里没看过
@@ -2559,6 +2592,20 @@ Placeholder for a tool this client is expected to send with the request; it is n
 {
   "description": "Ask the user one or more questions with options and wait for the answers. Put the recommended option first and add \"(Recommended)\" to its label. Don't add an \"other\" option: the user can always type their own answer.",
   "parameters": {"type":"object","properties":{"questions":{"type":"array","items":{"type":"object","properties":{"question":{"type":"string"},"header":{"type":"string","description":"A short tag shown above the question."},"options":{"type":"array","items":{"type":"object","properties":{"label":{"type":"string"},"description":{"type":"string"},"preview":{"type":"string","description":"Text shown in monospace while the option is focused, such as code or a sketch."}},"required":["label"]}},"multiSelect":{"type":"boolean","description":"Allow picking more than one option."}},"required":["question"]}}},"required":["questions"]}
+}
+```
+
+#### `software/basesystem/tools/todowrite.json`
+
+- 什么时候加进来：会话的工具面里有 `todowrite`：本机的会话，主会话、子会话都有（每次请求都带）
+- token：139（2026-10-07 主会话照开发端点量，十五件一起时的边际份量）
+- 为什么加：她做多步的活时维护一张待办清单，头照着显示（施工 D-3，`10-自带软件.md` 第三节，`tools/todowrite.md`）。每次整份换，照 Claude Code、codex、opencode 的基本款（2026-10-07 项目主人定）；不要 Claude Code 的 `activeForm`，头照 `content` 显示就够。三句：是什么、整份换、怎么标状态
+- 指纹：`ae59687b`
+
+```json
+{
+  "description": "Keep this session's task list for multi-step work, which the user sees. Each call replaces the whole list. Mark an item in_progress when you start it and completed as soon as it is done.",
+  "parameters": {"type":"object","properties":{"todos":{"type":"array","items":{"type":"object","properties":{"content":{"type":"string"},"status":{"type":"string","enum":["pending","in_progress","completed"]}},"required":["content","status"]}}},"required":["todos"]}
 }
 ```
 

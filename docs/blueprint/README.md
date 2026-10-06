@@ -53,6 +53,7 @@
 | `tools/sessions.md` | 列你别的主会话（施工 C-3，跨会话） |
 | `tools/session_usage.md` | 查这个会话的用量、金额、上下文（施工 8-15） |
 | `tools/ask_user.md` | 问人一组题、等回答（施工 D-2） |
+| `tools/todowrite.md` | 这个会话的待办清单，每次整份换（施工 D-3） |
 | `cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`、`cli/config.md`、`cli/login.md`、`cli/setup.md`、`cli/main.md` | 每条命令一页（`cli/compact.md` 施工 6-8，`cli/redo.md` 施工 4-7 再补，`cli/recap.md` 施工 3-8 四补，`cli/rename.md` 施工 3-8 五补，`cli/config.md` 施工 8-2，`cli/login.md` 施工 8-5，`cli/setup.md` 施工 8-11）；主程序 |
 | `sandbox.md` | 沙盒：规格、助手 `miyu-sandbox`、探测、找助手（施工 5-1 起） |
 | `sandbox/linux.md` | 沙盒在 Linux 上怎么收紧：只用 Landlock，整盘能读、只管写（施工 5-2 起，5-3 改成只管写） |

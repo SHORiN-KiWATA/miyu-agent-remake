@@ -221,6 +221,7 @@
    - 取回指路：被替代的是第 1 到 N 条，原文还在日志里，用 `history` 按序号、关键词、时间取回（`compaction/notes-retrieve.txt`）。6-4 真模型上她不知道序号，只能从头往下翻。
    - 压前读过、太大没重读的文件，写明要看自己读（`compaction/notes-too-large.txt`）。
    - 不列还在跑的任务（施工 7-8 补，2026-10-01 项目主人定，`agents.md` 第十条第 1 条）：还在跑的后台命令和子代理交给摘要记。7-8 在这里加过一段，照编号列账本说还在跑的（`compaction/notes-jobs.txt`、`notes-job.txt`）；2026-10-01 主会话实测没证出非加不可，照「非必要不加」（`26-提示词.md` J12）去掉：开发端点的 `deepseek-v4.1-flash`、窗口设 40000，有这一段的和没有的都让她在后台跑长命令、读大文件读到自动压缩，再不许用工具问她还有哪些在跑；压一次、连压三次两边都答对，没有这一段的那一边，摘要里记着编号、标题。以后实测撞见摘要丢了还在跑的任务，再加回来。7-8 以后造的快照里带着那两份模板的，读回来不理（`policy.md`「字节和哈希」第 4 条），也就不写；已经写进日志的 `notes` 照原样回放。她还没看到的回报也不列：它们算这一轮要回应的（第三条第 2 条），原样留在检查点后面。
+   - 当前的待办不空的（施工 D-3，`09-压缩.md` 第四节「待办清单原样带上」）：头一行（`compaction/notes-todos.txt`），下面一项一行 `- [<状态>] <内容>`，状态照 `todowrite` 参数里的写法，接在取回指路后面。当前的清单照有效历史另记的那张表（`kernel/session.md`「待办」），压缩换掉了写它的那一条也在。以前造的快照里没有这份模板的不写。
    - 摘要请求截过最老的一段的，写明第几到第几条摘要没看到、用 `history` 取回（`compaction/notes-uncovered.txt`，施工 6-6 中）。
 5. 重读的文件（`restored`，施工 6-5）：照挑中的先后，每个一块：`compaction/restored-open.txt`（`<file path="…">`，路径照清单的写法）、原文（照 blob，不转义）、`compaction/restored-close.txt`（`</file>`）。
 6. 包装的结尾（`resources/core/checkpoint-end.txt`：规则那一句和 `</conversation-checkpoint>`）。
