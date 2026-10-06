@@ -22,6 +22,7 @@
 .asking-question { margin-bottom: 8px; color: var(--text); font-size: 14px; font-weight: 600; line-height: 1.45; }
 .asking-paths { display: grid; gap: 2px; margin: -4px 0 10px; }
 .asking-path { display: flex; align-items: center; gap: 8px; color: var(--text-soft); font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
+.asking-command { white-space: pre-wrap; }
 .asking-outside {
   flex: none; padding: 0 6px; border-radius: 4px; background: color-mix(in srgb, var(--t-warn) 14%, transparent);
   color: var(--t-warn); font-family: var(--sans); font-size: 11px; line-height: 18px;

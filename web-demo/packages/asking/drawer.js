@@ -207,6 +207,8 @@ export class Drawer {
       : null;
     return [
       h('div.asking-question', head ? head.title : q.question),
+      head?.command != null ? h('div.asking-paths', h('div.asking-path', h('span.asking-command', head.command.split('\n').map((l) => `$ ${l}`).join('\n')),
+        head.outsideSandbox ? h('span.asking-outside', t('outside_sandbox')) : null)) : null,
       head?.paths.length ? h('div.asking-paths', head.paths.map((p) => h('div.asking-path', h('span', p.path), p.outside ? h('span.asking-outside', t('outside')) : null))) : null,
       h(`div.asking-main${previews ? '.has-preview' : ''}`, h('div.asking-options', options), previews),
       d.kind === 'ask' ? this.notesRow() : null,

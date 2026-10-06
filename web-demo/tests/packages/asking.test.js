@@ -82,7 +82,12 @@ test('确认的问题行：写几个文件、家目录写 ~、工作区外的标
   const head = approvalHead(approval('demo_approve_1').body, '/home/alice', text);
   assert.equal(head.title, 'access.write{"count":1,"tool":"write"}');
   assert.deepEqual(head.paths, [{ path: '~/.editorconfig', outside: true }]);
-  assert.equal(approvalHead(approval('demo_approve_2').body, null, text).title, 'access.exec{"count":0,"tool":"cargo clean"}');
+  // 跑命令的（D-4）：问题行是短标题，带命令原文，`sandbox: false` 标出来；没有短标题的写「要运行一条命令」；老的只有 `tool` 的照原来
+  const exec = approvalHead(approval('demo_approve_2').body, null, text);
+  assert.deepEqual([exec.title, exec.command, exec.outsideSandbox], ['清掉另一个仓库的编译产物', 'cargo clean --manifest-path ~/src/other/Cargo.toml', true]);
+  const bare = approvalHead({ call_id: 'x', access: 'execute', detail: { command: 'ls', tool: 'shell' } }, null, text);
+  assert.deepEqual([bare.title, bare.command, bare.outsideSandbox], ['exec_untitled', 'ls', false]);
+  assert.equal(approvalHead({ call_id: 'x', access: 'execute', detail: { tool: 'shell' } }, null, text).title, 'access.exec{"count":0,"tool":"shell"}');
   assert.equal(approvalHead({ call_id: 'x', access: 'network', detail: { tool: 'web_fetch' } }, null, text).title, 'access_other{"count":0,"tool":"web_fetch"}');
 });
 
