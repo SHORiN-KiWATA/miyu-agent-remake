@@ -106,6 +106,8 @@ pub struct Provider {
     pub local: bool,
     /// 驱动是配置里手写的（施工 8-14）：压过目录里模型的 `npm`。
     pub driver_written: bool,
+    /// 驱动从哪来（施工 8-26）：配置手写的、档案的、目录的，都没有的是默认的 `openai-chat`。`model.list` 的 `driver_from`。
+    pub driver_from: DriverFrom,
     /// 档案写了思考怎么回传（施工 8-14）：压过目录的 `interleaved`。
     pub reasoning_written: bool,
     /// 档案另配的头：名字 → 模板（施工 8-14，[`crate::headers`]）。
@@ -232,7 +234,7 @@ pub fn configured(values: &Values) -> Vec<String> {
 ///
 /// # Errors
 ///
-/// 配置里没有这一家；推不出驱动、地址；驱动还没有。
+/// 配置里没有这一家；推不出地址（推不出驱动的用 [`DEFAULT_DRIVER`]，施工 8-26）；驱动还没有。
 pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<Provider, NoModel> {
     if !configured(values).iter().any(|name| name == id) {
         return Err(NoModel(format!("no provider {id:?}")));
@@ -268,18 +270,28 @@ pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<
         .and_then(|listed| listed.npm.as_ref())
         .and_then(|npm| knowledge.profiles.npm.get(npm).cloned());
     let driver_written = settings.driver.is_some();
-    let (Some(driver), Some(base_url)) = (
-        settings.driver.or(profile.driver.clone()).or(from_npm),
-        written_url.or_else(|| {
-            listed
-                .and_then(|listed| listed.api.clone())
-                .map(Address::Literal)
-        }),
-    ) else {
+    let driver_from = match (&settings.driver, &profile.driver, &from_npm) {
+        (Some(_), _, _) => DriverFrom::Config,
+        (None, Some(_), _) => DriverFrom::Profile,
+        (None, None, Some(_)) => DriverFrom::Catalog,
+        (None, None, None) => DriverFrom::Default,
+    };
+    let Some(base_url) = written_url.or_else(|| {
+        listed
+            .and_then(|listed| listed.api.clone())
+            .map(Address::Literal)
+    }) else {
         return Err(NoModel(format!(
-            "provider {id:?} needs driver and base_url: it matches nothing in the catalog"
+            "provider {id:?} needs base_url: it matches nothing in the catalog"
         )));
     };
+    // 有地址、推不出驱动的照 `openai-chat`（施工 8-26，2026-10-07 项目主人定）：局域网、自建的中转多半说它。配置里照旧不写，
+    // 以后目录对上了照目录的。
+    let driver = settings
+        .driver
+        .or(profile.driver.clone())
+        .or(from_npm)
+        .unwrap_or_else(|| DEFAULT_DRIVER.to_string());
     let Some(driver_kind) = Driver::parse(&driver) else {
         return Err(NoModel(format!(
             "driver {driver:?} of provider {id:?} is not available yet"
@@ -304,6 +316,7 @@ pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<
         recognized,
         local,
         driver_written,
+        driver_from,
         reasoning_written: profile
             .compat
             .as_ref()
@@ -311,6 +324,34 @@ pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<
         headers: profile.headers,
         placeholders: profile.placeholder_tools,
     })
+}
+
+/// 推不出驱动时用的（施工 8-26）。
+pub const DEFAULT_DRIVER: &str = "openai-chat";
+
+/// 一家供应商的驱动从哪来（施工 8-26）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DriverFrom {
+    /// 配置里手写的。
+    Config,
+    /// 档案（`profiles.toml`）写的。
+    Profile,
+    /// 照目录里那一家的 `npm` 换的。
+    Catalog,
+    /// 都没有，用 [`DEFAULT_DRIVER`]。
+    Default,
+}
+
+impl DriverFrom {
+    /// `model.list` 里的写法：`config`、`profile`、`catalog`、`default`。
+    pub fn as_str(self) -> &'static str {
+        match self {
+            DriverFrom::Config => "config",
+            DriverFrom::Profile => "profile",
+            DriverFrom::Catalog => "catalog",
+            DriverFrom::Default => "default",
+        }
+    }
 }
 
 /// 字面地址：写死的就是它，环境变量的引用查不出来（施工 8-6b）。

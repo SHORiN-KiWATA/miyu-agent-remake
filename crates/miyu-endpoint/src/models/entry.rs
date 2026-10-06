@@ -138,6 +138,7 @@ pub(crate) fn provider(data: &ModelData, snapshot: &Snapshot, id: &str, now: Tim
                     "id": id,
                     "name": name(snapshot, id, catalog_name),
                     "driver": driver,
+                    "driver_from": found.driver_from.as_str(),
                     "base_url": address_json(&found.base_url),
                     "keys": keys,
                     "models": models,

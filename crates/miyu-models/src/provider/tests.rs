@@ -78,6 +78,27 @@ fn hand_written_values_win_and_the_profile_is_found_by_catalog() {
     );
 }
 
+/// 只写了地址、推不出驱动的（局域网、自建的中转，目录对不上）：用 `openai-chat`，来源是默认（施工 8-26，2026-10-07 项目主人
+/// 定）。手写了驱动的照手写的；档案、目录推得出的照它们。
+#[test]
+fn a_relay_with_only_an_address_speaks_openai_chat() {
+    let values = values(
+        "[providers.lan]\nbase_url = \"http://relay.example.invalid:3425/v1\"\nkeys = []\n\n\
+         [providers.written]\ndriver = \"anthropic\"\nbase_url = \"http://relay.example.invalid:3425\"\nkeys = []\n",
+    );
+    let held = held(true);
+    let lan = provider(&values, &held.knowledge(), "lan").expect("有地址就能用");
+    assert_eq!(
+        (lan.driver, lan.driver_from, lan.driver_written),
+        (Driver::OpenAiChat, DriverFrom::Default, false)
+    );
+    let written = provider(&values, &held.knowledge(), "written").expect("手写的");
+    assert_eq!(
+        (written.driver, written.driver_from),
+        (Driver::Anthropic, DriverFrom::Config)
+    );
+}
+
 #[test]
 fn a_provider_that_cannot_be_worked_out_says_why() {
     let values = values("[providers.newapi]\nkeys = []\n\n[providers.gemini]\nkeys = []\n");
@@ -85,8 +106,7 @@ fn a_provider_that_cannot_be_worked_out_says_why() {
     assert_eq!(
         provider(&values, &held.knowledge(), "newapi"),
         Err(NoModel(
-            r#"provider "newapi" needs driver and base_url: it matches nothing in the catalog"#
-                .to_string()
+            r#"provider "newapi" needs base_url: it matches nothing in the catalog"#.to_string()
         ))
     );
     assert_eq!(
@@ -182,6 +202,7 @@ fn resolving_the_address_follows_the_reference_or_fails_cleanly() {
         recognized: None,
         local: false,
         driver_written: false,
+        driver_from: crate::provider::DriverFrom::Profile,
         reasoning_written: false,
         headers: std::collections::BTreeMap::new(),
         placeholders: Vec::new(),
