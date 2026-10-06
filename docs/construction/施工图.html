@@ -588,6 +588,15 @@ a.step:hover{border-color:var(--primary)}
       </ol>
     </li>
     <li>
+      <div class="ms-head"><span class="ms-id">O</span><span class="ms-name">通讯平台</span><span class="ms-goal">软件包 miyu-onebot：群聊内核和平台无关，核心只给通用的原语（2026-10-07 项目主人定开工）</span></div>
+      <ol class="chips">
+        <li><a class="step done" href="#sO-1"><span class="n">O-1</span>群聊内核的骨架和场所规则<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">O-2</span>核心：提供者</span></li>
+        <li><span class="step"><span class="n">O-3</span>核心：外部身份</span></li>
+        <li><span class="step"><span class="n">O-4</span>核心：系统账号</span></li>
+      </ol>
+    </li>
+    <li>
       <div class="ms-head"><span class="ms-id">M9</span><span class="ms-name">有界面</span></div>
       <p class="later">到了跟前再拆。终端界面以演示为蓝本并进主仓库，「显示什么」改由核心的视图投影给。</p>
     </li>
@@ -13537,6 +13546,57 @@ a.step:hover{border-color:var(--primary)}
 
 
 
+<section class="sheet" id="sO-1" aria-labelledby="h-sO1">
+  <div class="sheet-head"><h2 id="h-sO1"><span class="no">O-1</span>群聊内核的骨架和场所规则</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">通讯平台的第一步：新开第 2 层的纯逻辑 crate <code>miyu-chat</code>。先做场所规则：读 <code>venues.d</code> 里的规则文件，照文件名的先后套到一个场所上，后面的盖前面的，每一项记下来自哪份、哪个文件、第几条规则、第几行。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-chat</span><span class="dir-note">O-1</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>出厂的和系统的合在一起照文件名排；同名的系统文件替换出厂的那一份，像 systemd 的 <code>/etc</code> 盖 <code>/usr/lib</code></li>
+              <li>匹配条件 <code>platform</code>、<code>kind</code>、<code>group</code>、<code>user</code>；编号写成整数和字一样</li>
+              <li>属性照 18 第四节的表，类型复用配置清单的 <code>Kind</code>；<code>rate</code>、<code>sleep</code>、身份三种写法自己认</li>
+              <li>写错的照配置的原因码报，带行、列和最近的键名</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">默认值是出厂的规则文件</span><span class="rl">代码里不写死</span></div>
+          <div class="tile new"><span class="nm">match 写错整条不用</span><span class="rl">拼错的条件不能让规则套得更宽</span></div>
+          <div class="tile new"><span class="nm">属性写错只丢一项</span><span class="rl">和配置一样</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-1</dd></div>
+        <div><dt>名称</dt><dd>群聊内核的骨架和场所规则</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">c9f44512</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试先写（35 个，只有骨架时 30 个红）；22 个手写变异全逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 986）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-1-群聊内核的骨架和场所规则.md</code>；蓝图 <code>chat.md</code> 第一条；<code>01-架构.md</code> 第九节登记第 2 层。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -13713,6 +13773,7 @@ const TREE = {
 
 /* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
 const BUILD = {
+  n_rules: { by: 'O-1', how: 'frame', note: '场所规则（O-1）：miyu-chat 读 venues.d，出厂和系统的照文件名排、同名的系统替换出厂的；匹配 platform、kind、group、user，写错整条不用；属性照 18 第四节，写错只丢一项；每一项记下来处。读磁盘、venue show 随桥那几步' },
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '18 种事件的写法、瞬时事件、追加时的检查' },
   k_ctx: { by: '1-8', how: 'frame', note: '请求、历史、模板、组装、事实、探针' },
