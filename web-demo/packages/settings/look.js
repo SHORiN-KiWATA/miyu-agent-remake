@@ -19,7 +19,8 @@ export function drawLook(dialog) {
   return later(async (el) => {
     const theme = await ctx.packages.settings('theme');
     const palettes = ctx.slots.list('theme.palettes');
-    const chosen = theme.values.palette ?? null;
+    // 出厂是空字：空着的就是跟随系统
+    const chosen = theme.values.palette || null;
     const pick = async (id) => {
       await ctx.packages.set('theme', { config: { palette: id } });
       dialog.drawBody();

@@ -73,18 +73,20 @@
 .set-switch.is-on { background: var(--accent); }
 .set-switch.is-on i { transform: translateX(16px); }
 .set-select, .set-btn, .set-env {
-  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px;
-  background: var(--surface-1); color: var(--text); font: 13px var(--sans); cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border: 0; border-radius: 8px;
+  background: var(--surface-2); color: var(--text); font: 13px var(--sans); cursor: pointer; white-space: nowrap;
 }
-.set-select:hover, .set-btn:hover, .set-env:hover { border-color: var(--line-strong); }
+.set-select:hover, .set-btn:hover, .set-env:hover { background: var(--surface-3); }
 .set-btn:disabled { opacity: 0.6; cursor: default; }
 .set-env { color: var(--text-soft); }
 .set-input {
-  width: 240px; height: 30px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; outline: 0;
-  background: var(--surface-1); color: var(--text); font: 13px var(--sans);
+  width: 240px; height: 30px; padding: 0 9px; border: 0; border-radius: 8px; outline: 0;
+  background: var(--surface-2); transition: background-color 0.15s ease, box-shadow 0.15s ease; color: var(--text); font: 13px var(--sans);
 }
 .set-input.is-number { width: 96px; font-family: var(--mono); }
-.set-input:focus { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); }
+.set-input:hover { background: var(--surface-3); }
+/* 聚焦：换亮底加一层软影（输入框那层影带一圈 1px 的环，放在白卡片里像描边，不用它） */
+.set-input:focus { background: var(--surface-1); box-shadow: var(--card-shadow); }
 .set-chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 320px; }
 .set-chip { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 10px; border: 0; border-radius: 999px; background: var(--surface-2); color: var(--text); font: 12.5px var(--sans); }
 .set-chip button { display: inline-grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--text-faint); cursor: pointer; }
@@ -92,7 +94,10 @@
 .set-chip .icon { width: 12px; height: 12px; }
 .set-chip.is-add { padding: 0 8px; color: var(--text-soft); cursor: pointer; }
 .set-color-row { display: flex; align-items: center; gap: 6px; }
-.set-color { width: 30px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: none; cursor: pointer; }
+.set-color { width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; background: none; cursor: pointer; }
+.set-color::-webkit-color-swatch-wrapper { padding: 0; }
+.set-color::-webkit-color-swatch { border: 0; border-radius: 8px; }
+.set-color::-moz-color-swatch { border: 0; border-radius: 8px; }
 .set-color-row .set-input { width: 110px; font-family: var(--mono); }
 .set-json { max-width: 260px; overflow: hidden; color: var(--text-faint); font: 12px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .set-fold-head { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; padding: 4px 6px 4px 2px; border: 0; border-radius: 6px; background: transparent; color: var(--text-soft); font: 12.5px var(--sans); cursor: pointer; }
@@ -118,12 +123,14 @@
 /* 外观（第 12 条） */
 .set-themes { display: flex; flex-wrap: wrap; gap: 12px; padding: 8px 0 4px; }
 .set-theme { display: flex; flex-direction: column; gap: 6px; width: 132px; padding: 0; border: 0; background: none; color: var(--text-soft); font: 12.5px var(--sans); cursor: pointer; }
-.set-theme-sample { display: flex; height: 76px; overflow: hidden; border-radius: 10px; box-shadow: var(--card-shadow); outline: 2px solid transparent; outline-offset: 2px; transition: outline-color 0.15s ease; }
+.set-theme-sample { position: relative; display: flex; height: 76px; overflow: hidden; border-radius: 10px; box-shadow: var(--card-shadow); }
 .set-theme-sample i { position: relative; display: flex; flex: 1; flex-direction: column; justify-content: flex-end; gap: 4px; padding: 8px; }
 .set-theme-sample i:first-child { flex: 0 0 34%; }
 .set-theme-sample b { display: block; height: 5px; border-radius: 3px; }
 .set-theme-sample b:first-child { width: 70%; }
-.set-theme.is-on .set-theme-sample { outline-color: var(--accent); }
+/* 选中的：右上角一个 accent 实心小圆点、名字变实，不描圈 */
+.set-theme.is-on .set-theme-sample::after { position: absolute; top: 7px; right: 7px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--surface-1); content: ''; }
+.set-theme.is-on .set-theme-name { font-weight: 600; }
 .set-theme.is-on { color: var(--text); }
 
 /* 模型（第 14 条） */
@@ -176,13 +183,14 @@
 .set-picks { position: relative; display: flex; flex-direction: column; gap: 2px; margin-top: 10px; }
 .set-picks > .set-status { position: absolute; top: -22px; right: 0; }
 .set-pick code { color: var(--text-faint); font: 11px var(--mono); }
-.set-radio { width: 14px; height: 14px; flex: none; border: 1.5px solid var(--line-strong); border-radius: 50%; }
-.set-pick.is-on .set-radio { border: 4px solid var(--accent); }
+.set-radio { width: 14px; height: 14px; flex: none; border-radius: 50%; background: var(--surface-3); }
+.set-pick.is-on .set-radio { background: var(--accent); box-shadow: inset 0 0 0 4px var(--accent), inset 0 0 0 7px var(--surface-1); }
 .set-pools { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; margin-top: 14px; }
 .set-pool { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 0; border-radius: 12px; background: var(--surface-1); box-shadow: var(--card-shadow); color: var(--text); font: 13px var(--sans); text-align: left; }
 .set-pool-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .set-pool .set-chips { justify-content: flex-start; max-width: none; }
-.set-pool.is-add { flex-direction: row; align-items: center; justify-content: center; min-height: 84px; background: transparent; box-shadow: none; outline: 1.5px dashed var(--line-strong); outline-offset: -1.5px; color: var(--text-soft); cursor: pointer; }
+.set-pool.is-add { flex-direction: row; align-items: center; justify-content: center; min-height: 84px; background: color-mix(in srgb, var(--text) 3%, transparent); box-shadow: none; color: var(--text-soft); cursor: pointer; transition: background-color 0.15s ease; }
+.set-pool.is-add:hover { background: color-mix(in srgb, var(--text) 6%, transparent); color: var(--text); }
 
 /* 第二轮（只放用户要看的） */
 .set-warn-dot { width: 6px; height: 6px; flex: none; border-radius: 50%; background: var(--t-warn, var(--gold)); }
@@ -212,7 +220,6 @@
 .set-form-row { display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: center; gap: 12px; padding: 8px 0; color: var(--text-soft); font-size: 13px; }
 .set-form-row .set-input { width: 100%; }
 .set-form-fixed { color: var(--text); font: 13px var(--mono); }
-.set-input.is-select { appearance: auto; }
 .set-form-keyrow { display: flex; flex-direction: column; gap: 8px; }
 .set-form-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 .set-btn.is-primary { border-color: var(--accent); background: var(--accent); color: var(--on-primary); }
@@ -235,9 +242,13 @@
 .set-picker { display: flex; flex-direction: column; gap: 6px; width: 380px; max-width: calc(100% - 24px); max-height: 420px; padding: 8px; }
 .set-picker > .set-search-box { flex: none; background: var(--surface-2); box-shadow: none; }
 .set-picker-list { flex: 1; min-height: 0; overflow-y: auto; }
-.set-picker-row { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.set-picker-row { position: relative; display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
 .set-picker-row:hover { background: var(--surface-2); }
-.set-picker-row input { flex: none; accent-color: var(--accent); }
+.set-picker-row input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.set-check { display: inline-grid; flex: none; width: 16px; height: 16px; place-items: center; border-radius: 4px; background: var(--surface-3); color: transparent; transition: background-color 0.12s ease; }
+.set-check .icon { width: 12px; height: 12px; stroke-width: 2.5; }
+.set-picker-row input:checked + .set-check { background: var(--accent); color: var(--on-primary); }
+.set-picker-row input:focus-visible + .set-check { box-shadow: var(--card-shadow); }
 .set-picker-foot { display: flex; justify-content: flex-end; gap: 6px; padding-top: 4px; border-top: 1px solid var(--line); }
 
 /* 模型池的成员：一行一个 */
@@ -245,7 +256,15 @@
 .set-pool-head .set-seg { margin-left: 0; }
 .set-btn.is-small { height: 26px; gap: 4px; padding: 0 8px; font-size: 12.5px; }
 .set-btn.is-small .icon { width: 14px; height: 14px; }
-.set-members { display: flex; flex-direction: column; margin: 0 -6px; }
+.set-members {
+  display: flex; flex-direction: column; max-height: calc(var(--rows, 8) * 36px); margin: 0 -6px; overflow-y: auto; overscroll-behavior: contain;
+  --fade-top: 16px; --fade-bottom: 16px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent);
+}
+.set-members.is-top { --fade-top: 0px; }
+.set-members.is-bottom { --fade-bottom: 0px; }
+.set-member { flex: none; }
 .set-member { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 3px 6px; border-radius: 6px; font-size: 13px; }
 .set-member:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
 .set-member-n { flex: 0 0 16px; color: var(--text-faint); font: 11px var(--mono); text-align: right; }

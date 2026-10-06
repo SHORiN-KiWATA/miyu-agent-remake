@@ -19,6 +19,28 @@ export function drawPools(dialog, list) {
   const field = (id, name) => itemFor(dialog.schema, dialog.got, `pools.<id>.${name}`, { id });
   const layer = layerFor(dialog.schema.items.find((i) => i.key === 'pools.<id>.models') ?? { layers: ['personal'] });
   const report = (why) => { if (why) dialog.toast(why); };
+  // 成员那一块最高 `pool_rows` 行，多了自己滚；每个池滚到哪记在弹窗上，挪、删以后重画回到原处
+  dialog.poolScroll ??= new Map();
+  const scrolls = /** @type {Map<string, number>} */ (dialog.poolScroll);
+  const scroller = (name, rows) => {
+    const box = h('div.set-members', { style: `--rows: ${ctx.config.pool_rows}` }, rows);
+    // 上下边缘渐隐：滚到顶的不隐上沿，滚到底的不隐下沿
+    const edges = () => {
+      box.classList.toggle('is-top', box.scrollTop <= 1);
+      box.classList.toggle('is-bottom', box.scrollTop + box.clientHeight >= box.scrollHeight - 1);
+    };
+    // 被下一次重画换掉的这一块，浏览器把它归 0 时也发 scroll：不记
+    box.addEventListener('scroll', () => { if (box.isConnected) { scrolls.set(name, box.scrollTop); edges(); } });
+    requestAnimationFrame(() => {
+      // 存一项会连着重画几次：已经被下一次换掉的这一块不动记着的位置（它量出来是 0）
+      if (!box.isConnected) return;
+      const at = scrolls.get(name) ?? 0;
+      box.scrollTop = at === Infinity ? box.scrollHeight : at;
+      scrolls.set(name, box.scrollTop);
+      edges();
+    });
+    return box;
+  };
 
   const card = (pool) => {
     const members = field(pool.name, 'models');
@@ -45,11 +67,15 @@ export function drawPools(dialog, list) {
         tool(t('pool_remove'), 'x', () => setMembers(now.filter((_, n) => n !== i))))));
     // 「＋ 添加」在头上：浮出选模型的小窗，能勾好几个，照勾的先后接在最后
     const add = h('button.set-btn.is-small', { type: 'button' }, icon('plus'), t('pool_add'));
-    add.addEventListener('click', () => pickModels(dialog, add, all.filter((r) => !now.includes(r.ref)), (picked) => setMembers([...now, ...picked])));
+    add.addEventListener('click', () => pickModels(dialog, add, all.filter((r) => !now.includes(r.ref)), (picked) => {
+      // 加进来的在最后：重画以后滚到最下面露出来
+      scrolls.set(pool.name, Infinity);
+      setMembers([...now, ...picked]);
+    }));
     return h('div.set-pool',
       h('div.set-pool-head', h('strong', `@${pool.name}`), seg, add,
         removal.length ? h('button.set-reset.is-shown', { type: 'button', title: t('pool_delete'), 'aria-label': t('pool_delete'), onclick: async () => report(await dialog.saveMany(layer, removal)) }, icon('trash-2')) : null),
-      rows.length ? h('div.set-members', rows) : h('span.set-muted', t('pool_empty')));
+      rows.length ? scroller(pool.name, rows) : h('span.set-muted', t('pool_empty')));
   };
 
   // 新建：这张卡变成写名字的框，回车建好（固定、没有成员），`Esc` 取消

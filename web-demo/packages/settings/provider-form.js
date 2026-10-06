@@ -5,6 +5,7 @@
 
 import { h, replace } from '../../src/lib/dom.js';
 import { validId, secretName, providerChanges, layerFor, envRef, inputText } from './model.js';
+import { select } from './rows.js';
 
 /**
  * 画这张表。`dialog.providerForm` 是 `{id}`（编辑）或 `{id: null}`（新建）。
@@ -29,8 +30,12 @@ export function providerForm(dialog, providers) {
   // 地址是环境变量引用的：框空着就是不改（照写「来自环境变量 X」当占位）
   const urlEnv = envRef(p?.base_url);
   const urlField = input({ value: urlEnv ? '' : inputText(p?.base_url ?? ''), placeholder: urlEnv ? ctx.text('from_env', { name: urlEnv }) : 'https://…/v1' });
+  // 接口：用这一页自己的下拉（浏览器自带的下拉有边框），选了换掉按钮
   const drivers = template('driver')?.options ?? [];
-  const driverField = /** @type {HTMLSelectElement} */ (h('select.set-input.is-select', drivers.map((o) => h('option', { value: o.value, selected: o.value === (p?.driver ?? drivers[0]?.value) ? true : null }, o.name))));
+  let driver = p?.driver ?? drivers[0]?.value ?? '';
+  const driverBox = h('div.set-form-select');
+  const drawDriver = () => replace(driverBox, select(dialog, drivers, driver, (v) => { driver = v; drawDriver(); }));
+  drawDriver();
   // 密钥：粘贴（密码框，编辑时空着是不改）或者环境变量的名字
   const keyRef = p?.keys?.[0]?.ref ?? '';
   let keyKind = keyRef.startsWith('env:') ? 'env' : 'secret';
@@ -65,7 +70,7 @@ export function providerForm(dialog, providers) {
     const form = {
       name: nameField.value,
       base_url: urlEnv && !urlField.value.trim() ? null : urlField.value,
-      driver: driverField.value,
+      driver,
       key: { kind: /** @type {'secret'|'env'|'keep'} */ (keyKind === 'secret' && !secret ? 'keep' : keyKind), value: envField.value },
     };
     const why = await dialog.saveMany(layer, providerChanges(id, form, dialog.got, layer, secret));
@@ -81,7 +86,7 @@ export function providerForm(dialog, providers) {
     row(t('id'), idField),
     row(t('name'), nameField),
     row(t('url'), urlField),
-    row(t('driver'), driverField),
+    row(t('driver'), driverBox),
     row(t('key'), h('div.set-form-keyrow', h('div.set-seg', kindButtons), keyBox)),
     error,
     h('div.set-form-buttons', h('button.set-btn', { type: 'button', onclick: close }, t('cancel')), saveButton));

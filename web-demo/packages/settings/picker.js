@@ -32,7 +32,8 @@ export function pickModels(dialog, anchor, rows, done) {
       if (!box.checked && i >= 0) picked.splice(i, 1);
       sync();
     });
-    return h('label.set-picker-row', box, h('span.set-model-name', r.name, r.name !== r.model ? h('code.set-model-id', r.model) : null), h('span.set-pick-provider', r.provider));
+    // 浏览器自带的勾选框有边框：藏起来，画一块底色的方块，勾上了铺 accent 打勾
+    return h('label.set-picker-row', box, h('span.set-check', icon('check')), h('span.set-model-name', r.name, r.name !== r.model ? h('code.set-model-id', r.model) : null), h('span.set-pick-provider', r.provider));
   };
   const nodes = new Map(rows.map((r) => [r, row(r)]));
   const draw = () => {

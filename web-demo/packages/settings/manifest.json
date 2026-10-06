@@ -45,6 +45,15 @@
         "zh": "框窄于这么宽（px）就占满整个窗口、分页点进去看"
       }
     },
+    "pool_rows": {
+      "type": "number",
+      "default": 8,
+      "min": 3,
+      "integer": true,
+      "name": {
+        "zh": "模型池的成员最多露几行（多了在卡片里滚）"
+      }
+    },
     "order": {
       "type": "list",
       "of": "text",
