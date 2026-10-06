@@ -269,7 +269,7 @@ miyu_config::settings! {
 | `providers.<id>.cache` | 选项 `contract`、`best_effort`、`per_request` | 没有：照驱动 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
 | `providers.<id>.models.<model>.catalog` | 文字，最多 256 个字符 | 没有：照名字对目录 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.max_output` | 整数 1 到 100000000 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn`（施工 8-10 起：开着的会话下一个回合开始时用上） | 8-7 |
-| `providers.<id>.models.<model>.inputs` | 选项 `text`、`image`、`pdf` 的列表 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
+| `providers.<id>.models.<model>.inputs` | 选项 `text`、`image`、`pdf`、`audio`、`video` 的列表 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7（音频、视频 8-27） |
 | `providers.<id>.models.<model>.tools` | 开关 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.reasoning` | 文字的列表，每个最多 32 个字符 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
 | `providers.<id>.models.<model>.effort` | 文字，最多 32 个字符：这个模型的一档（`models.md`「怎么走」第十一条） | 没有：请求里不带，照供应商的默认 | 系统、个人 | 不能写 | `next_turn` | 8-18 |
@@ -1065,8 +1065,8 @@ keys = []
 # 能写：最多 32 个字的文字。只能写在系统配置或个人设置里。下一轮生效。
 # effort =
 
-# 能收哪些输入：这个模型能读的：文字、图片、PDF。
-# 能写：text、image 或 pdf 的列表。只能写在系统配置或个人设置里。下一轮生效。
+# 能收哪些输入：这个模型能读的：文字、图片、PDF、音频、视频。
+# 能写：text、image、pdf、audio 或 video 的列表。只能写在系统配置或个人设置里。下一轮生效。
 # inputs =
 
 # 最大输出：这个模型一次最多输出多少 token。
@@ -1410,12 +1410,14 @@ currency = "USD"
                   "type": "string"
                 },
                 "inputs": {
-                  "description": "这个模型能读的：文字、图片、PDF。能写：text、image 或 pdf 的列表。只能写在系统配置或个人设置里。下一轮生效。",
+                  "description": "这个模型能读的：文字、图片、PDF、音频、视频。能写：text、image、pdf、audio 或 video 的列表。只能写在系统配置或个人设置里。下一轮生效。",
                   "items": {
                     "enum": [
                       "text",
                       "image",
-                      "pdf"
+                      "pdf",
+                      "audio",
+                      "video"
                     ],
                     "type": "string"
                   },

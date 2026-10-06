@@ -275,12 +275,14 @@
                   "type": "string"
                 },
                 "inputs": {
-                  "description": "What this model can read: text, images, PDF. Allowed: a list of text, image or pdf. Only in the system config or personal settings. Takes effect next turn.",
+                  "description": "What this model can read: text, images, PDF, audio, video. Allowed: a list of text, image, pdf, audio or video. Only in the system config or personal settings. Takes effect next turn.",
                   "items": {
                     "enum": [
                       "text",
                       "image",
-                      "pdf"
+                      "pdf",
+                      "audio",
+                      "video"
                     ],
                     "type": "string"
                   },

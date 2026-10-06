@@ -275,12 +275,14 @@
                   "type": "string"
                 },
                 "inputs": {
-                  "description": "这个模型能读的：文字、图片、PDF。能写：text、image 或 pdf 的列表。只能写在系统配置或个人设置里。下一轮生效。",
+                  "description": "这个模型能读的：文字、图片、PDF、音频、视频。能写：text、image、pdf、audio 或 video 的列表。只能写在系统配置或个人设置里。下一轮生效。",
                   "items": {
                     "enum": [
                       "text",
                       "image",
-                      "pdf"
+                      "pdf",
+                      "audio",
+                      "video"
                     ],
                     "type": "string"
                   },
