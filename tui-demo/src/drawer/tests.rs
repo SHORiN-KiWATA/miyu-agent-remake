@@ -308,3 +308,34 @@ fn what_is_left_behind() {
         Report::Line(Mark::Void, "提问已取消".into())
     );
 }
+
+#[test]
+fn landing_on_deny_opens_the_reason_and_one_enter_submits() {
+    // 2026-10-07 项目主人：光标移到「不允许」就能写理由，回车直接交，不用按两次。
+    let mut d = Drawer::approval(None, approval());
+    d.key(key(KeyCode::Down));
+    assert_eq!(d.editing, None, "「这个会话都允许」上不写字");
+    d.key(key(KeyCode::Down));
+    assert_eq!(d.editing, Some(Edit::Reason), "落到「不允许」就在写理由");
+    typed(&mut d, "jk别动");
+    assert_eq!(d.typed[0], "jk别动", "字母进理由，不是上下");
+    d.key(key(KeyCode::Up));
+    assert_eq!(d.editing, None, "方向键照样能离开");
+    assert_eq!(d.typed[0], "jk别动", "写的字留着");
+    d.key(key(KeyCode::Down));
+    let Step::Done(Outcome::Decided(x)) = d.key(key(KeyCode::Enter)) else {
+        panic!("一下就交");
+    };
+    assert_eq!(
+        (x.decision, x.reason.as_deref()),
+        (Decision::Deny, Some("jk别动"))
+    );
+    let mut d = Drawer::approval(None, approval());
+    d.key(key(KeyCode::Char('3')));
+    assert_eq!(d.editing, Some(Edit::Reason), "数字选到「不允许」也一样");
+    assert_eq!(
+        d.key(key(KeyCode::Esc)),
+        Step::Escape,
+        "Esc 照旧算两下取消的第一下"
+    );
+}

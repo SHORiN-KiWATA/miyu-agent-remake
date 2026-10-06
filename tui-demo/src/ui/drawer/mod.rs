@@ -16,7 +16,7 @@ use ratatui::widgets::Paragraph;
 
 use super::rows::clip;
 use crate::caret::Caret;
-use crate::drawer::{Drawer, Texts};
+use crate::drawer::{Drawer, Edit, Texts};
 use crate::input::pieces;
 use crate::theme;
 
@@ -78,7 +78,8 @@ pub fn view(d: &Drawer, texts: &Texts, width: u16) -> View {
 
 /// 最后一行按键提示：照这一页能做什么写；编辑时只写保存、退出编辑。
 fn keys(d: &Drawer, texts: &Texts) -> String {
-    if d.editing.is_some() {
+    // 写「不允许」的理由不换提示：方向键、两下 Esc 照旧（第 4 条）。
+    if matches!(d.editing, Some(Edit::Other | Edit::Notes)) {
         return texts.keys_edit.clone();
     }
     let mut keys = if d.on_review() {

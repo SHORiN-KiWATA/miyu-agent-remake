@@ -8,8 +8,9 @@ use super::{Answer, Decided, Decision, Drawer, Edit, Item, Outcome, Step};
 impl Drawer {
     /// 按一下（抽屉开着时按键都先归它）。
     pub fn key(&mut self, key: KeyEvent) -> Step {
-        // 按了别的键：上一下 `Esc` 不算了。
-        if key.code != KeyCode::Esc || self.editing.is_some() {
+        // 按了别的键：上一下 `Esc` 不算了。写「不允许」的理由不算在编辑（光标落上去就在写，第 4 条）。
+        let typing = matches!(self.editing, Some(Edit::Other | Edit::Notes));
+        if key.code != KeyCode::Esc || typing {
             self.armed = None;
         }
         if let Some(edit) = self.editing {
@@ -35,14 +36,27 @@ impl Drawer {
             KeyCode::Char(c) if plain => return self.char(c),
             _ => {}
         }
+        self.follow_cursor();
         Step::Stay
+    }
+
+    /// 光标落在「不允许」上就在写理由，离开就不写了（字留着；2026-10-07 项目主人：原来要先按一下回车才能写）。
+    fn follow_cursor(&mut self) {
+        let on_deny = self.current() == Some(Item::Decision(Decision::Deny));
+        if on_deny && self.editing.is_none() {
+            self.editing = Some(Edit::Reason);
+        } else if !on_deny && self.editing == Some(Edit::Reason) {
+            self.editing = None;
+        }
     }
 
     /// 点中第几项：等于移过去按 `Enter`（能多选的是勾上、取消）。
     pub fn click(&mut self, index: usize) -> Step {
         self.editing = None;
         self.armed = None;
-        self.pick(index)
+        let step = self.pick(index);
+        self.follow_cursor();
+        step
     }
 
     /// 编辑时的按键：`Enter` 保存，`Shift+Enter`、`Alt+Enter`、`Ctrl+J` 换行，`Esc` 退出编辑（字留着）。
@@ -55,6 +69,17 @@ impl Drawer {
             Edit::Notes => &mut self.notes[self.tab],
             Edit::Other | Edit::Reason => &mut self.typed[self.tab],
         };
+        // 理由：方向键照样上下选，`Esc` 照旧是两下取消的一下（光标在「不允许」上就在写，没有「退出编辑」）。
+        if edit == Edit::Reason {
+            match key.code {
+                KeyCode::Esc => return Step::Escape,
+                KeyCode::Up | KeyCode::Down => {
+                    self.editing = None;
+                    return self.key(key);
+                }
+                _ => {}
+            }
+        }
         match key.code {
             KeyCode::Esc => self.editing = None,
             KeyCode::Enter if newline => text.push('\n'),
@@ -95,7 +120,9 @@ impl Drawer {
             'n' if self.is_question() && !self.on_review() => self.editing = Some(Edit::Notes),
             _ => {
                 if let Some(d @ 1..=9) = c.to_digit(10) {
-                    return self.pick(d as usize - 1);
+                    let step = self.pick(d as usize - 1);
+                    self.follow_cursor();
+                    return step;
                 }
             }
         }
