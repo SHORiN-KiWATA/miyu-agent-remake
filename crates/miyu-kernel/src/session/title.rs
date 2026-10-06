@@ -16,7 +16,7 @@ use super::Session;
 use super::action::Action;
 use super::aside::{Aside, Finished};
 use crate::block::Block;
-use crate::event::{Body, CallError, Event, MetaChanged, Purpose, Usage};
+use crate::event::{Body, CallError, Cost, Event, MetaChanged, Purpose, Usage};
 use crate::id::{Seq, TurnId};
 use crate::time::Timestamp;
 
@@ -89,7 +89,7 @@ impl Session {
         &mut self,
         at: Timestamp,
         upto: Seq,
-        usage: Option<Usage>,
+        spent: (Option<Usage>, Option<Cost>),
         error: Option<CallError>,
     ) -> Vec<Action> {
         let Some(aside) = self.titling.take_if(|aside| aside.upto == upto) else {
@@ -99,7 +99,7 @@ impl Session {
         let Finished { called, text } = aside.finish(
             at,
             Purpose::Title,
-            usage,
+            spent,
             error,
             next,
             "the title reply has no text",

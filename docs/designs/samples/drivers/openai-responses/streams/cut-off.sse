@@ -1,0 +1,8 @@
+event: response.output_item.added
+data: {"type":"response.output_item.added","output_index":0,"item":{"id":"msg_10","type":"message","role":"assistant","content":[]}}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","output_index":0,"delta":"断在"}
+
+event: response.output_text.delta
+data: {"type":"response.output_text.delta","output_index":0,"delta":"一半

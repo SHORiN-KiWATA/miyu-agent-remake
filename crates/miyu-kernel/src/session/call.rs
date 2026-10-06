@@ -6,6 +6,7 @@
 
 use super::Session;
 use super::action::Action;
+use super::aside::bad_stream;
 use super::compaction::Compacting;
 use super::spans::{Mark, Spans, millis};
 use super::summary::{Summarized, called_tool};
@@ -13,8 +14,9 @@ use super::turn::Stage;
 use crate::accumulate::{Accumulator, Delta};
 use crate::block::{Block, ToolCall};
 use crate::event::{
-    Body, CallError, CallResult, CompactionProgress, EndReason, ErrorClass, Event, FirstDifference,
-    MessageAssistant, ModelCalled, ModelDelta, Piece, Transient, TransientBody, Usage,
+    Body, CallError, CallResult, CompactionProgress, Cost, EndReason, ErrorClass, Event,
+    FirstDifference, MessageAssistant, ModelCalled, ModelDelta, Piece, Transient, TransientBody,
+    Usage,
 };
 use crate::id::{CommandId, ContentHash, Seq};
 use crate::origin::{By, Model};
@@ -78,7 +80,7 @@ impl Call {
     /// 增量对不上，都是出错。
     fn take(&mut self, at: Timestamp, delta: Delta) -> Result<Option<Pushed>, CallError> {
         let Some(model) = self.sent.as_ref().map(|sent| sent.model.clone()) else {
-            return Err(bad_stream("请求还没发出去就来了增量".to_string()));
+            return Err(bad_stream("请求还没发出去就来了增量"));
         };
         self.first_token.get_or_insert(at);
         let pushed = match self.compaction.as_mut() {
@@ -92,7 +94,7 @@ impl Call {
         let mark = Mark::of(&delta);
         self.accumulator
             .apply(delta)
-            .map_err(|error| bad_stream(error.to_string()))?;
+            .map_err(|error| bad_stream(&error.to_string()))?;
         self.spans.mark(at, mark);
         Ok(pushed)
     }
@@ -100,9 +102,10 @@ impl Call {
 
 /// 一次请求的结局。
 enum Ending {
-    /// 执行器报说完了：正常说完的带用量，出错的带分类和原话。
+    /// 执行器报说完了：正常说完的带用量（和金额，装在盒子里：照 `model.called` 的那一格），出错的带分类和原话。
     Said {
         usage: Option<Usage>,
+        cost: Option<Box<Cost>>,
         error: Option<CallError>,
     },
     /// 被人打断。
@@ -192,8 +195,14 @@ impl Session {
                 progress,
             ))],
             Err(error) => {
-                let mut actions =
-                    self.model_ended(at, seen, None, Some(error), Default::default(), None);
+                let mut actions = self.model_ended(
+                    at,
+                    seen,
+                    (None, None),
+                    Some(error),
+                    Default::default(),
+                    None,
+                );
                 actions.push(Action::CancelModel { seen });
                 actions
             }
@@ -207,7 +216,7 @@ impl Session {
         &mut self,
         at: Timestamp,
         seen: Seq,
-        usage: Option<Usage>,
+        (usage, cost): (Option<Usage>, Option<Cost>),
         error: Option<CallError>,
         said: super::retry::Said,
         excess: Option<u64>,
@@ -216,7 +225,8 @@ impl Session {
             return Vec::new();
         };
         let compacting = call.compaction.is_some();
-        let settled = self.settle(at, call, cause.clone(), Ending::Said { usage, error });
+        let cost = cost.map(Box::new);
+        let settled = self.settle(at, call, cause.clone(), Ending::Said { usage, cost, error });
         let mut events = settled.events;
         if let Some(error) = settled.error {
             // 摘要请求自己超长：截掉最老的几组，落了盘再发（施工 6-6 中，`shorten.rs`）。
@@ -324,9 +334,9 @@ impl Session {
             spans,
             compaction,
         } = call;
-        let (usage, mut error, cut) = match ending {
-            Ending::Said { usage, error } => (usage, error, false),
-            Ending::CutOff => (None, None, true),
+        let (usage, cost, mut error, cut) = match ending {
+            Ending::Said { usage, cost, error } => (usage, cost, error, false),
+            Ending::CutOff => (None, None, None, true),
         };
         let mut events = Vec::new();
         let mut reply = None;
@@ -336,7 +346,7 @@ impl Session {
         let mut times = None;
         match &sent {
             None if !cut && error.is_none() => {
-                error = Some(bad_stream("请求还没发出去就说完了".to_string()));
+                error = Some(bad_stream("请求还没发出去就说完了"));
             }
             // 摘要请求不写回复，说完了的取出摘要（施工 6-2 上）。
             Some(_) if compaction.is_some() => {
@@ -409,6 +419,7 @@ impl Session {
             first_difference: difference
                 .map(|difference| Box::new(FirstDifference::from(difference))),
             usage,
+            cost,
             first_token_ms: sent
                 .as_ref()
                 .zip(first_token)
@@ -469,15 +480,6 @@ impl Session {
             Stage::Asking(call) => Some((call, turn.cause.clone())),
             _ => None,
         }
-    }
-}
-
-/// 增量对不上、回报的先后不对：驱动或执行器的错。
-fn bad_stream(message: String) -> CallError {
-    CallError {
-        class: ErrorClass::BadStream,
-        message,
-        status: None,
     }
 }
 

@@ -76,6 +76,14 @@ impl Language {
         }
     }
 
+    /// 贴 key 时取消了：按了 `Ctrl+C`，或者空行按了 `Ctrl+D`（施工 8-5 补）。
+    pub(crate) fn key_paste_cancelled(&self) -> &'static str {
+        match self {
+            Language::Chinese => "没存，取消了",
+            Language::English => "Not saved, cancelled",
+        }
+    }
+
     /// 存好了：`replaced` 的是换掉了原来的。
     pub(crate) fn key_saved(&self, name: &str, replaced: bool) -> String {
         match (self, replaced) {

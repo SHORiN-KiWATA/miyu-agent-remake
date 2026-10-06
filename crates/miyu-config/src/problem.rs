@@ -62,6 +62,9 @@ pub enum Code {
     /// 模型默认的思考强度不在这个模型这时的档位里（施工 8-18，`miyu_models::effort::unknown` 查）：`name` 是写的那一档。
     /// 只报不丢，请求照没写发。
     UnknownEffort,
+    /// 模型默认的温度这个模型用不了（施工 8-22，`miyu_models::temperature::unusable` 查）：目录说它不收温度的，`name` 没有；
+    /// 超过这个模型走的驱动的上限的，`name` 是上限（`anthropic` 是 `1`）。只报不丢，请求照没写发。
+    UnusableTemperature,
 }
 
 impl Code {
@@ -86,6 +89,7 @@ impl Code {
             Code::SecretValue => "wrong_type",
             Code::NoProvider | Code::NoPool => "bad_reference",
             Code::UnknownEffort => "unknown_effort",
+            Code::UnusableTemperature => "unusable_temperature",
         }
     }
 
@@ -168,7 +172,8 @@ pub struct Problem {
     /// 下面几层合出来的值：`not_tightening` 说「现在是什么」。
     pub current: Option<Value>,
     /// 引用的密钥、环境变量的名字：`unknown_secret`、`env_not_set` 说「引用的是哪一个」（施工 8-5）；引用的供应商、池的
-    /// 名字：`bad_reference` 说「指的是哪一个」（施工 8-8）；写的那一档：`unknown_effort`（施工 8-18）。
+    /// 名字：`bad_reference` 说「指的是哪一个」（施工 8-8）；写的那一档：`unknown_effort`（施工 8-18）；驱动收的温度的上限：
+    /// `unusable_temperature`（施工 8-22，目录说不收温度的没有）。
     pub name: Option<String>,
 }
 

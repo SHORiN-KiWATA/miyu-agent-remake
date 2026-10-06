@@ -9,12 +9,13 @@
 //! - 再来的交出到点叫醒，推一条 `status`；叫醒以前不请求；叫醒以后的那一次是重试，不算步数；
 //! - 一步里连着再来不超过 5 次；
 //! - 再来的只有能再来的分类，和端口说换了端点的（不管分类）；换了端点、全在冷却的，没到 5 次、要等的不超过 2 分钟就一定
-//!   再来；推的 `status` 带的 `failover` 和端口说的一样，换了端点又没说等多久的等 0 毫秒（施工 8-9）。
+//!   再来；推的 `status` 带的 `failover` 和端口说的一样，换了端点又没说等多久的等 0 毫秒（施工 8-9）；
+//! - 金额：说完了的 `model.called` 带的就是最近一次喂进去的说完了带的，原样；被打断的没有（施工 8-15）。
 
 use std::collections::BTreeMap;
 
 use super::*;
-use crate::event::{ModelCalled, Status};
+use crate::event::{Cost, ModelCalled, Prices, Real, Status};
 
 /// 供应商说的、要等多久的上限（`retry.rs` 的 `WAIT_LIMIT_MS`）：看守自己记一份，不借内核的。
 const WAIT_LIMIT_MS: u64 = 120_000;
@@ -41,6 +42,20 @@ pub(super) struct Retries {
     said: BTreeMap<Seq, Said>,
     /// 刚记了出错、要再来的那一次端口说的：推的 `status` 照它查。
     expecting_said: Said,
+    /// 每次请求最近一次喂进去的说完了带的金额（施工 8-15）：记了 `model.called` 就拿走，照它查。
+    costs: BTreeMap<Seq, Option<Cost>>,
+}
+
+/// 喂进去的金额，照请求的序号造（施工 8-15）：不同的请求金额不同，记混了查得出来。
+pub(in crate::session::tests::random) fn priced(seen: Seq) -> Cost {
+    Cost {
+        amount: Real::new(seen.get() as f64 / 1000.0),
+        currency: "USD".to_string(),
+        price: Prices::default(),
+        multiplier: Real::new(1.0),
+        source: "local".to_string(),
+        above: None,
+    }
 }
 
 impl Watch {
@@ -48,6 +63,8 @@ impl Watch {
     /// 一个回合的请求不超过上限。摘要请求照压缩的规矩查（`watch/compaction.rs`），不算步数。
     pub(super) fn called(&mut self, seen: Seq, request: &Request) {
         let seed = self.seed;
+        // 交出去以前喂进去的说完了不算（内核不收不在路上的）：只查交出去以后的（施工 8-15）。
+        self.retries.costs.remove(&seen);
         let turn = self.open_turn();
         assert!(
             self.done.contains(&turn),
@@ -116,6 +133,7 @@ impl Watch {
             return;
         }
         self.breaker_called(called);
+        self.cost_recorded(called);
         assert!(
             self.issued.contains(&called.seen),
             "种子 {seed}：没交给执行器的请求 {} 记了一条",
@@ -147,6 +165,27 @@ impl Watch {
         self.undo_called(called);
         if self.asking == Some(called.seen) {
             self.asking = None;
+        }
+    }
+
+    /// 金额（施工 8-15）：被打断的没有；别的是最近一次喂进去的说完了带的，原样。
+    fn cost_recorded(&mut self, called: &ModelCalled) {
+        let seed = self.seed;
+        let fed = self.retries.costs.remove(&called.seen);
+        if called.result == CallResult::Interrupted {
+            assert_eq!(called.cost, None, "种子 {seed}：被打断的请求不该有金额");
+            return;
+        }
+        if let Some(fed) = fed {
+            assert_eq!(
+                called.cost.as_deref(),
+                fed.as_ref(),
+                "种子 {seed}：请求 {} 记的金额不是喂进去的",
+                called.seen
+            );
+            if fed.is_some() {
+                self.seen_paths.insert("记下金额");
+            }
         }
     }
 
@@ -305,6 +344,9 @@ impl Watch {
     /// 喂进「到点了」：对得上在等的那一次，下一次请求就是重试。喂进说完了的：记下端口说的（施工 8-9）。
     pub(super) fn retry_fed(&mut self, input: &Input) {
         // 内核只收在路上的那一次的：对不上的不理，也不记。
+        if let Input::ModelEnded { seen, cost, .. } = input {
+            self.retries.costs.insert(*seen, cost.clone());
+        }
         if let Input::ModelEnded {
             seen,
             wait_ms,

@@ -1,0 +1,1 @@
+{"model":"gpt-5.4","instructions":"You are a helpful assistant.","input":[{"role":"user","content":"你好"},{"role":"assistant","content":"你好！"},{"role":"user","content":"今天天气\n怎么样？"}],"store":false,"stream":true}

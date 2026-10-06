@@ -9,9 +9,10 @@
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu-drivers/src/lib.rs` | `Call`、`Inputs`、`BlobBytes`、`Encoded`、`EncodeError`、`Ending` |
-| `crates/miyu-drivers/src/driver.rs` | 驱动的接口 `Driver`、`Decode`；`OpenAiChat` |
+| `crates/miyu-drivers/src/driver.rs` | 驱动的接口 `Driver`、`Decode`；`OpenAiChat`（`Anthropic` 也在这里，`drivers/anthropic.md`） |
 | `crates/miyu-drivers/src/openai_chat.rs` | 家族名、路径、`Compat` 的开关、顶层怎么写、要哪些 blob |
 | `crates/miyu-drivers/src/openai_chat/messages.rs` | 每条消息怎么写、附件挪到后面、接着写 |
+| `crates/miyu-drivers/src/media.rs` | 图片、文件发不了时换成的字（占位、替它看的图、文本文件、带名字的图片的标签）和要哪些 blob：施工 8-12 从 `openai_chat/messages.rs`、`openai_chat.rs` 挪出来，和 `anthropic` 共用；施工 8-13 把拼字（`join`）也挪进来，和 `openai-responses` 共用。这一页的样本一个字节没变 |
 | `crates/miyu-drivers/src/openai_chat/wire.rs` | 线上的 JSON 结构、工具面 |
 | `crates/miyu-drivers/src/openai_chat/decode.rs` | 解码：块、工具调用、`finish_reason`、流里的错 |
 | `crates/miyu-drivers/src/openai_chat/usage.rs` | 各家的用量归成四项 |
@@ -62,7 +63,7 @@
 
 ### 怎么走：编码
 
-1. **顶层**，照这个先后，别的字段一概不发：`model`、`messages`、`tools`（见第 8 条）、`"stream":true`、`"stream_options":{"include_usage":true}`（开关开着才有）、输出上限（`Call.max_output` 有才写，字段名照开关）、思考强度（`Call.effort` 有才写，施工 8-18，`openai_chat/effort.rs`：档位写 `"reasoning_effort":"<档位>"`；`off` 有开关的写 `"<field>":<off>`，没有的写 `"reasoning_effort":"none"`；`on` 有开关的写 `"<field>":<on>`，没有的不写）。紧凑的 JSON，结构体照声明的先后写，参数格式原样照抄。
+1. **顶层**，照这个先后，别的字段一概不发：`model`、`messages`、`tools`（见第 8 条）、`"stream":true`、`"stream_options":{"include_usage":true}`（开关开着才有）、输出上限（`Call.max_output` 有才写，字段名照开关）、温度（`Call.temperature` 有才写，施工 8-22：`"temperature":<数>`，最短的十进制）、思考强度（`Call.effort` 有才写，施工 8-18，`openai_chat/effort.rs`：档位写 `"reasoning_effort":"<档位>"`；`off` 有开关的写 `"<field>":<off>`，没有的写 `"reasoning_effort":"none"`；`on` 有开关的写 `"<field>":<on>`，没有的不写）。紧凑的 JSON，结构体照声明的先后写，参数格式原样照抄。
 2. **system**：第一条 `{"role":"system","content":…}`；空的不发。
 3. **user**：
    - 全是文字的，`content` 是一个字符串：相邻两块之间补一个换行，前一块已经以换行结尾的不补；空的一块什么都不接。
@@ -184,7 +185,7 @@
 
 4. 清单，都照小写比。「错误码是」指 `code` 或 `type` 正好是其中一个；「说法」指找说法的字里有这一截：
    - 超长的错误码：`context_length_exceeded`、`model_context_window_exceeded`、`request_too_large`。
-   - 超长的说法（22 句）：`prompt is too long`、`prompt too long`、`input is too long`、`too large for model`、`exceeds the context window`、`context window exceeds`、`maximum context length`、`context length exceeded`、`context_length_exceeded`、`context length is only`、`greater than the context length`、`longer than the model`、`exceeds the available context size`、`the configured context size`、`exceeded model token limit`、`token limit exceeded`、`too many tokens`、`tokens in request more than max tokens allowed`、`reduce the length of the messages`、`maximum prompt length is`、`maximum allowed input length`、`range of input length should be`。
+   - 超长的说法（23 句）：`prompt is too long`、`prompt too long`、`input is too long`、`too large for model`、`exceeds the context window`、`context window exceeds`、`maximum context length`、`context length exceeded`、`context_length_exceeded`、`context length is only`、`greater than the context length`、`longer than the model`、`exceeds the available context size`、`the configured context size`、`exceeded model token limit`、`token limit exceeded`、`too many tokens`、`tokens in request more than max tokens allowed`、`reduce the length of the messages`、`maximum prompt length is`、`maximum allowed input length`、`range of input length should be`、`exceed context limit`（Anthropic 的老模型输入加 `max_tokens` 超了窗口时这样说，施工 8-12 加，两家共用）。
    - 限速的说法：`rate limit`、`rate_limit`、`too many requests`、`throttling`、`service unavailable`。
    - 内容策略的错误码：`content_filter`、`responsibleaipolicyviolation`、`content_policy_violation`、`image_content_policy_violation`、`refusal`、`cyber_policy`、`bio_policy`、`misalignment_policy_violation`。
    - 内容策略的说法：`violating our usage policy`、`blocked by content filtering policy`、`content policy`、`content-policy`、`content_policy`、`contentpolicy`、`rejected as a result of our safety system`。
@@ -301,6 +302,37 @@ A file was attached here (报告.pdf, application/pdf, 15 bytes), but this model
 
 - 驱动规格里的 `cache`（缓存类型）、子进程的 `transport`（`05-内核接口.md` 第七节）。列模型分页的几家（随它们自己的驱动）。
 - 配置里手写的 `compat` 一格格盖在档案上面（`models.md`「对外的样子」）：随用到它的那一步。
-- 别的驱动家族：OpenAI 的 Responses 接口、Anthropic 的消息接口、借用 agent CLI 的子进程（`15-模型与供应商.md` 第二节）。
-- 接 opencode Zen 要的：工具面缺 `read`、`shell` 时补同名的占位声明，带 `x-opencode-*` 头（`15-模型与供应商.md` 第二节）。
+- 别的驱动家族：借用 agent CLI 的子进程（`15-模型与供应商.md` 第二节）。Anthropic 的消息接口施工 8-12 做了（`drivers/anthropic.md`），OpenAI 的 Responses 接口施工 8-13 做了（`drivers/openai-responses.md`）。
+- 接 opencode Zen 要的：工具面缺 `read`、`shell` 时补同名的占位声明，带 `x-opencode-*` 头（`15-模型与供应商.md` 第二节）。驱动这边要做的见末尾「接 opencode Zen」。
 - Kimi、通义的 `partial`、Mistral 的 `prefix`：写法有了，出厂没开，等实测（`05-内核接口.md` 第七节）。
+
+### 接 opencode Zen（8-14 驱动这边的一半）
+
+状态：2026-10-02 起草，2026-10-03 主会话审过、照实测收窄。头在 `models.md` 第八条，这里只写驱动这边要做的。
+
+1. **编码、解码、分类不加新写法**：Zen、Go 的 OpenAI 兼容那一路是标准的 `/chat/completions`，照这一页走。头由 HTTP 执行器照端点另配的头发，不进驱动。
+2. **一家三种驱动**：目录里 Zen、Go 的模型各自写着 `provider.npm`（2026-10-02 的快照：Zen 114 个，51 个走这一页，32 个 `@ai-sdk/openai` 走 `openai-responses`，23 个 `@ai-sdk/anthropic` 走 `anthropic`，8 个 `@ai-sdk/google` 没有驱动；Go 33 个，23、7、3）。
+   - 怎么挑是模型资料的 `driver` 那一格（`models.md`「模型的资料」）：先后是手写的供应商 `driver`、第 1、2 层对上的模型的 `provider.npm`（照档案的 `[npm]` 表换成驱动）、档案的、目录里那一家的 `npm`。路由照真发的那个模型造驱动（`route/base.rs`）。模型的 `npm` 换不出驱动的（Google 那几个），这个模型当场 `no_model`，原话 `model "<供应商>/<模型>" needs driver "<它>", which is not available yet`，同一家的别的照常。
+   - 能不能关思考、要不要替它填输出上限，照模型的驱动算（Zen 上的 Claude 走 `anthropic`，开关是接口自带的）。
+   - 三种驱动接同一个地址，各发各的路径（`/chat/completions`、`/messages`、`/responses`），key 一样，认证头照各自的驱动。
+   - 列模型照供应商的驱动：这一页的 `GET /models`。
+3. **开关**：照默认（没实测过的不开）：`max_tokens`、发 `stream_options`、不接着写、没有思考的开关（目录写着 `toggle` 的模型不多 `off`）。思考回传照第 4 条。
+4. **思考回传照目录的 `interleaved`**（对所有走这一页的供应商都成立，不只 Zen）：
+   - 目录给交错思考的模型写了 `interleaved`。`{"field":"reasoning_content"}` 的，`reasoning` 开关当 `Replay { ReasoningContent, always: true }`；`{"field":"reasoning"}` 的当 `Replay { Reasoning, always: true }`；别的写法（`true`、`{"field":"reasoning_details"}`）不认，照档案。
+   - 只认第 1、2 层对上的（手写指定的、供应商对上了的）：字段名是供应商接口的写法，不是模型的性质，按名字对上的中转不借。
+   - 档案写了 `reasoning` 的照档案（DeepSeek 官方）；只管走这一页的模型。
+   - 为什么：Zen 的 OpenAI 兼容模型 51 个里 39 个写着 `reasoning_content`，Go 是 23 个里 17 个。照默认不回传，工具循环里她每一步都丢了上一步的思路。2026-10-03 实测 Go 上的 `deepseek-v4.1-flash`：不带、带空串、带字都不报 400，回传是为了接上思路。
+   - `always` 是真的：照 DeepSeek 官方实测过的那一种，没有思考的 assistant 也带空串（Go 上实测收）。
+   - 这是 `miyu_models` 的事：资料多一格 `interleaved`（只取第 1、2 层），路由造驱动时盖在档案的开关上（`Provider::for_model`）。驱动本身一行不改。
+5. **出错**：Go 缺 `x-opencode-session` 回 400 `MissingSessionID`，是 `other`；带上了就不会遇到。Zen 免费档的 403 `FreeTierError` 照分类表是 `auth`。
+6. **用量**：照「解码」那张表。
+7. **守着它的**：`miyu-models` 的资料测试（`driver` 照模型、`interleaved` 第 1、2 层取、第 3、4 层不取、档案写了的照档案、认不得的写法不取）；档案的头（值里只认 `{session_digest}`）；路由的测试（同一家的模型照资料造三种驱动、没有驱动的模型 `no_model`、别的照常、请求带头）。
+8. **真模型实测**：项目主人给的 Go key：`deepseek-v4.1-flash` 带工具的会话跑三轮，思考回传；走 `anthropic`、`openai-responses` 的 Go 模型各问一句。
+
+**起草时定的**（2026-10-02，10-03 收窄时照改）：
+
+| # | 定了什么 | 为什么 | 别的选法 |
+|---|---|---|---|
+| 1 | 思考回传照目录的 `interleaved`，按模型 | Zen 一家里的模型各有各的上游，档案只能按供应商写一份；目录本来就按模型写了，代码里不用有模型表 | Zen 的档案一律回传：不交错思考的上游收到多出来的字段，有的会拒 |
+| 2 | `always` 是真的 | DeepSeek 官方实测要它；空串对不用它的模型没有意思 | 假的：DeepSeek 一类的示范对话那几条会被拒 |
+| 3 | 驱动按模型挑，列模型照供应商的 | 目录写的就是按模型的；列表接口只有一个 | 一家一个驱动：Zen 上的 Claude、GPT 用不了 |

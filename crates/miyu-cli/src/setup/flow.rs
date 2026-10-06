@@ -6,7 +6,7 @@
 //!
 //! 配置里一个池都没有的，写配置时一起写三个预设的池（施工 8-8 补，[`PRESET_POOLS`]）。
 
-use std::io::Write;
+use std::io::{self, Write};
 
 use serde_json::{Value, json};
 
@@ -175,7 +175,8 @@ impl<'a> Flow<'a> {
         }
     }
 
-    /// 读贴的 key：标准输入是终端的关掉回显读一行，不是的整份读。去掉前后空白是空的：说「没收到 key」。
+    /// 读贴的 key：标准输入是终端的关掉回显读一行，不是的整份读。去掉前后空白是空的：说「没收到 key」。按了
+    /// `Ctrl+C`、或者空行按了 `Ctrl+D`：取消，整个 `miyu setup` 照取消办（施工 8-5 补）。
     fn read_key(&mut self, name: &str) -> Result<String, u8> {
         let language = self.plan.language;
         let read = match self.console.typed() {
@@ -190,6 +191,10 @@ impl<'a> Flow<'a> {
             Ok(_) => {
                 say(self.err, language.no_key_given());
                 Err(exit::ERROR)
+            }
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {
+                say(self.err, language.key_paste_cancelled());
+                Err(exit::CANCELLED)
             }
             Err(error) => {
                 say(self.err, &error.to_string());

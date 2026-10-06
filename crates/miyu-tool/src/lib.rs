@@ -14,6 +14,7 @@
 //! - [`JobPort`]：任务端口（施工 7-3），`shell` 把起好的后台命令交给它，`jobs` 经它查、停（施工 7-4）；
 //! - [`SessionsPort`]：列会话、只读地开别的会话的日志（施工 C-3、C-4），`sessions`、`history` 用；[`find_session`]
 //!   认她写的会话编号；
+//! - [`UsagePort`]：查这个会话的用量、金额、上下文（施工 8-15），`session_usage` 用；
 //! - [`picture`]：什么算一张图（施工 4-13 定，3-9 三补挪来）：`read` 读到的、人附上的，都照它认。
 
 mod agents;
@@ -27,6 +28,7 @@ mod sessions;
 mod stop;
 #[cfg(feature = "testkit")]
 pub mod testkit;
+mod usage;
 
 pub use agents::{
     AgentPort, NotSpawned, SUBAGENT, SUBAGENT_FORMERLY, Spawned, Spawning, is_subagent,
@@ -40,6 +42,7 @@ pub use messages::{
 pub use run::{Call, Done, Effect, Picture, Progress, Running, Seen, Target};
 pub use sessions::{Found, Listing, MainSession, Opening, SESSIONS, SessionsPort, find_session};
 pub use stop::Stop;
+pub use usage::{ContextUse, SESSION_USAGE, Spending, Spent, UsagePort};
 
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::tool::Access;

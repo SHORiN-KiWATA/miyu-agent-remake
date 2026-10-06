@@ -1,0 +1,8 @@
+start 0 reasoning
+private 0 anthropic {"signature":"EqQBCgIYAhIMomitted"}
+start 1 text
+text 1 "42"
+end 0
+end 1
+usage uncached=40 cache_read=0 cache_write=0 output=310
+ok

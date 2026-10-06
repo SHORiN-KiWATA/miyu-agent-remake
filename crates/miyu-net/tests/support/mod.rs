@@ -74,6 +74,29 @@ impl Reply {
         }
     }
 
+    /// 200，`text/html`，身子照 `encoding`（`"gzip"` 或者 `"br"`）压过，带上 `Content-Encoding`
+    /// （W-7 补：测不带 `Accept-Encoding` 的请求，对方也照样压着发）。
+    pub fn html_encoded(text: &str, encoding: &str) -> Reply {
+        let body = match encoding {
+            "gzip" => gzip(text.as_bytes()),
+            "br" => brotli(text.as_bytes()),
+            other => panic!("不认得的编码：{other}"),
+        };
+        Reply::bytes("text/html; charset=utf-8", &body).with_header("Content-Encoding", encoding)
+    }
+
+    /// 另加一个响应头，照先后排在后面。
+    pub fn with_header(mut self, name: &str, value: &str) -> Reply {
+        self.headers.push((name.to_string(), value.to_string()));
+        self
+    }
+
+    /// 换一个状态码（W-7 再补：人机验证页回 403、503 也带着页面）。
+    pub fn with_status(mut self, status: u16) -> Reply {
+        self.status = status;
+        self
+    }
+
     /// 不写 `Content-Length`：身子写完关连接。
     pub fn without_length(mut self) -> Reply {
         self.sized = false;
@@ -88,15 +111,18 @@ impl Reply {
     }
 }
 
-/// 收到的一个请求：请求行里的地址（直连的是路径，经代理的是整个地址）、`Host`、`User-Agent`。
+/// 收到的一个请求：请求行里的地址（直连的是路径，经代理的是整个地址）、`Host`、`User-Agent`、`Accept-Encoding`
+/// （没写的是空字，W-7 补：查客户端是不是自己带上了它）。
 #[derive(Debug, Clone)]
 pub struct Seen {
     pub target: String,
     pub host: String,
     pub user_agent: String,
+    pub accept_encoding: String,
 }
 
-/// 跑着的假服务器：照请求行里的地址回，没有的回 404。收到的请求都记下来。
+/// 跑着的假服务器：照请求行里的地址回，没有的回 404；路由以 `*` 结尾的照前缀对（W-7 再补：接口的查询参数长）。
+/// 收到的请求都记下来。
 pub struct Site {
     pub port: u16,
     seen: Arc<Mutex<Vec<Seen>>>,
@@ -173,10 +199,14 @@ async fn serve(mut socket: TcpStream, routes: &[(String, Reply)], log: &Mutex<Ve
             target: target.clone(),
             host: header("host"),
             user_agent: header("user-agent"),
+            accept_encoding: header("accept-encoding"),
         });
     let reply = routes
         .iter()
-        .find(|(path, _)| *path == target)
+        .find(|(path, _)| match path.strip_suffix('*') {
+            Some(prefix) => target.starts_with(prefix),
+            None => *path == target,
+        })
         .map_or_else(|| Reply::status(404), |(_, reply)| reply.clone());
     let mut out = format!("HTTP/1.1 {} X\r\n", reply.status);
     for (name, value) in &reply.headers {
@@ -283,4 +313,34 @@ pub async fn miss(links: &LinkPreview, url: &str) -> Why {
 /// 一页带着标题的 HTML，`head` 里另加 `extra`。
 pub fn page(title: &str, extra: &str) -> String {
     format!("<html><head><title>{title}</title>{extra}</head><body>hello</body></html>")
+}
+
+/// gzip 压一份（W-7 补：假服务器用它造「不管请求带不带 Accept-Encoding 都压着发」的页面）。
+pub fn gzip(bytes: &[u8]) -> Vec<u8> {
+    use std::io::Write;
+    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    encoder.write_all(bytes).expect("压得进");
+    encoder.finish().expect("压得完")
+}
+
+/// br（brotli）压一份。
+pub fn brotli(bytes: &[u8]) -> Vec<u8> {
+    let mut input = std::io::Cursor::new(bytes);
+    let mut output = Vec::new();
+    brotli::BrotliCompress(
+        &mut input,
+        &mut output,
+        &brotli::enc::BrotliEncoderParams::default(),
+    )
+    .expect("压得完");
+    output
+}
+
+/// 测试的口子，再加上这几个名字都解析到回环：站的测试用真的主机名（认站照主机名），连的是本机的假服务器。
+pub fn local_with(names: &[&str]) -> Testing {
+    let mut testing = local();
+    for name in names {
+        testing.hosts.push(((*name).to_string(), ip("127.0.0.1")));
+    }
+    testing
 }

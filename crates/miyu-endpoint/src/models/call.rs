@@ -102,6 +102,8 @@ pub(crate) async fn call(core: &Core, params: CallParams) -> Result<Value, Refus
         system,
         messages,
         max_tokens,
+        // M8 只有管理员：本机连上来的都是他（施工 8-15：用量记在他的账上）。
+        owner: core.admin.clone(),
     };
     match one_shot.call(&turn, &blobs, ask).await {
         Ok(answer) => Ok(answered(answer)),

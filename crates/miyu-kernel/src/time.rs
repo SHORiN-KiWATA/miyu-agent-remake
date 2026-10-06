@@ -146,6 +146,13 @@ impl Timestamp {
         )
     }
 
+    /// 这个时刻在 `offset` 那个时区是哪一天：`2026-10-01`（施工 8-15，用量按天分组）。
+    pub fn local_date(self, offset: UtcOffset) -> String {
+        let local = self.0 + i64::from(offset.0) * 60_000;
+        let (year, month, day) = civil_from_days(local.div_euclid(MS_PER_DAY));
+        format!("{year:04}-{month:02}-{day:02}")
+    }
+
     /// `offset` 那个时区的某年某月某日某时某分，换回时刻（施工 6-4，`history` 读 `since`、`until`）。日期不存在的、
     /// 钟点不在 0:00 到 23:59 之间的、出了 0000 年到 9999 年的，没有。
     pub fn from_local(

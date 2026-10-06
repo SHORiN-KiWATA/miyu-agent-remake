@@ -57,6 +57,8 @@ fn every_fact_from_the_catalog_carries_its_entry_layer_and_date() {
             "tools": with(json!(true)),
             "reasoning": with(json!(["low", "high", "max"])),
             "effort": {"value": null, "from": "default"},
+            "takes_temperature": with(json!(true)),
+            "temperature": {"value": null, "from": "default"},
             "price": with(json!({"input": 0.15, "output": 0.6, "cache_read": 0.003, "reasoning": 0.6, "currency": "USD"})),
             "multiplier": {"value": 1.0, "from": "default"},
             "name": with(json!("DeepSeek V4.1 Flash")),
@@ -413,8 +415,46 @@ fn a_missing_hand_pick_borrows_nothing() {
         catalog: "deepseek".to_string(),
         recognized: None,
         local: false,
+        driver_written: false,
+        reasoning_written: false,
+        headers: std::collections::BTreeMap::new(),
+        placeholders: Vec::new(),
     };
     let (facts, found) = super::facts(&resolved, &empty.knowledge(), &deepseek, "deepseek-flash");
     assert_eq!(found, Found::Nothing);
     assert_eq!(facts.window.source, Source::Default);
 }
+
+/// 施工 8-12：`anthropic` 的开关是接口自带的，目录里有开关的模型多一档 `off`；同一个模型走 openai-chat、档案没写开关的不加。
+#[test]
+fn anthropic_can_switch_thinking_off_without_a_profile() {
+    let catalog = json!({"anthropic": {"id": "anthropic", "name": "Anthropic", "npm": "@ai-sdk/anthropic",
+        "env": ["ANTHROPIC_API_KEY"], "models": {"claude-sonnet-5": {"id": "claude-sonnet-5", "name": "Claude Sonnet 5",
+            "reasoning": true, "reasoning_options": [{"type": "toggle"}, {"type": "effort", "values": ["low", "high"]}],
+            "limit": {"context": 1_000_000, "output": 128_000}, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}}}}});
+    let mut held = Held::new(json!({}), false);
+    held.catalog = Some(crate::catalog::Loaded {
+        catalog: crate::catalog::Catalog::parse(&catalog.to_string())
+            .expect("读得进")
+            .catalog,
+        source: crate::catalog::CatalogSource::Snapshot,
+        fetched: "2026-10-03T00:00:00.000Z".to_string(),
+    });
+    let source = "[providers.anthropic]\ndriver = \"anthropic\"\nbase_url = \"https://api.anthropic.com/v1\"\nkeys = []\n\n\
+        [providers.relay]\ndriver = \"openai-chat\"\nbase_url = \"https://relay.invalid/v1\"\ncatalog = \"anthropic\"\nkeys = []\n\n\
+        [providers.gpt]\ndriver = \"openai-responses\"\nbase_url = \"https://gpt.invalid/v1\"\ncatalog = \"anthropic\"\nkeys = []\n";
+    let (claude, _) = facts_of(&held, source, "anthropic", "claude-sonnet-5");
+    assert_eq!(claude.levels(), ["off", "low", "high"]);
+    assert_eq!(claude.max_output.value, Some(128_000));
+    let (relayed, _) = facts_of(&held, source, "relay", "claude-sonnet-5");
+    assert_eq!(
+        relayed.levels(),
+        ["low", "high"],
+        "openai-chat 照档案的开关"
+    );
+    // 施工 8-13：openai-responses 没有开关，目录的开关不算。
+    let (responses, _) = facts_of(&held, source, "gpt", "claude-sonnet-5");
+    assert_eq!(responses.levels(), ["low", "high"]);
+}
+
+mod wire;

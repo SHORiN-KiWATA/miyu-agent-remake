@@ -212,3 +212,20 @@ fn broken_bodies_say_what_is_wrong() {
         "body of model.called not readable",
     );
 }
+
+/// 金额排在用量后面（施工 8-15）：读写一字不差；以前的日志没有这一格，照读，写出去还是没有。
+#[test]
+fn a_cost_round_trips_after_the_usage_and_old_logs_without_it_still_read() {
+    let body = CALLED.replace(
+        r#""output":26},"#,
+        r#""output":26},"cost":{"amount":0.00029205,"currency":"USD","price":{"input":0.15,"output":0.6,"cache_read":0.003},"multiplier":1,"source":"catalog:deepseek/deepseek-flash"},"#,
+    );
+    let priced = called(&body);
+    let cost = priced.cost.as_deref().expect("有金额");
+    assert_eq!(cost.amount.get(), 0.000_292_05);
+    assert_eq!(cost.currency, "USD");
+    assert_eq!(serde_json::to_string(&priced).unwrap(), body);
+    let old = called(CALLED);
+    assert_eq!(old.cost, None);
+    assert_eq!(serde_json::to_string(&old).unwrap(), CALLED);
+}

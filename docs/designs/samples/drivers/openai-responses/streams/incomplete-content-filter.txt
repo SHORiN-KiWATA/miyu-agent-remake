@@ -1,0 +1,4 @@
+start 0 text
+text 0 "我"
+usage uncached=10 cache_read=0 cache_write=0 output=1
+error content_policy "incomplete: content_filter"

@@ -11,7 +11,7 @@
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu/src/main.rs` | 子命令 `config`，八个子命令都换上 `config` 那一页帮助 |
-| `crates/miyu-cli/src/config.rs` | 参数（`Config`、`ConfigCommand`）、连核心以前就拦的参数不对（`early`：`set --project`、不在终端里的 `edit`）、连核心、握手、`get`、`explain`、`path`；`config_on` 在连上了的连接上办一次，要问人、开编辑器的经 `Console`，测试照它走 |
+| `crates/miyu-cli/src/config.rs` | 参数（`Config`、`ConfigCommand`）、连核心以前就拦的参数不对（`early`：`set --project`、不在终端里的 `edit`）、连核心、握手、`get`、`explain`、`path`；人敲的键先规整（`tidy`，施工 8-3 补）；`config_on` 在连上了的连接上办一次，要问人、开编辑器的经 `Console`，测试照它走 |
 | `crates/miyu-cli/src/config/set.rs` | `set`、`unset`：`config.set`，照回应说一行（施工 8-3） |
 | `crates/miyu-cli/src/config/edit.rs` | `edit`：副本、开编辑器、查、问、存（施工 8-3） |
 | `crates/miyu-cli/src/config/trust.rs` | `trust`：列出会改哪几项、问、`config.trust`（施工 8-3） |
@@ -54,6 +54,7 @@
    - 有错误退出码 1，只有警告、没有问题的 0。
 7. **`path`**：`config.get`（`--project` 的带 `cwd`），照 `files` 里那一层的 `file` 换成真的位置，一行，文件还没有也印。不写 `--system`、`--project` 的是个人设置。`--project` 没找到项目配置的：从当前目录往上找有 `.git` 的那一层（仓库的根），没有的就是当前目录，印它下面的 `.miyu/config.toml`，标准错误上说「还没有这个文件」。
 8. **`set`、`unset`、`edit`、`trust`**（施工 8-3）：照 `config.md` 第十条第 4、5、6、11 条。印的那一行都在标准错误上，灰（标准错误是终端、`NO_COLOR` 没设才上色）；`trust` 列出会改哪几项在标准输出上。`set --project`、不在终端里的 `edit` 连核心以前就说一句，退出码 2：参数不对不拉起核心，没设 key 时也是 2。
+   - `set`、`unset`、`explain` 的键先规整（施工 8-3 补，`miyu_config::key` 拆开再拼，和核心一个写法）：多余的引号、点两边的空格去掉，名字里有点的那一段照旧带引号；交给核心、找回应、印出来的都是规整过的。拆不开的原样交，由核心照原来的话报错。
 
 ### 样子
 
@@ -132,11 +133,12 @@ Options:
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-cli/src/config/tests.rs` | `get` 的值、报错一行（上色）、合计、`explain` 的几行和图纸一样（两种语言）、环境变量和不算的那一行、文件在哪、还没有项目配置时该在哪 |
+| `crates/miyu-cli/src/config/tests.rs` | `get` 的值、报错一行（上色）、合计、`explain` 的几行和图纸一样（两种语言）、环境变量和不算的那一行、文件在哪、还没有项目配置时该在哪；五种生效时机两种语言、认不出的不说，键的规整（施工 8-3 补） |
 | `crates/miyu-cli/src/help/tests.rs` | 这一页列的选项和八个子命令真有的合在一起一一对得上，最宽 80 列 |
 | `crates/miyu-cli/tests/config.rs`（施工 8-3） | 在进程里起核心、人那一头照剧本回：`set`、`unset`、`edit`、`trust` 每一条路印的字、退出码、文件（`config.md`「守着它的」） |
 | `crates/miyu/tests/login.rs`（施工 8-5） | 真核心：`check` 印出密钥文件写错的那一行，不带值；`--project` 不印它 |
 | `crates/miyu/tests/config.rs` | 真核心带三层配置起来：`get`、`explain`、`check`、`path` 印的对，照 `ui.language` 说话，退出码；帮助页；参数不对 2；核心没在跑的拉起来（施工 8-6） |
+| `crates/miyu/tests/config_keys.rs`（施工 8-3 补） | 真核心上带多余引号的模型键：`set`、`explain`、`unset` 都找得到、印规整过的键，说「下一轮生效」；跑命令行的几个辅助在 `tests/support/cli.rs`，和 `config.rs` 共用 |
 
 ### 出处
 

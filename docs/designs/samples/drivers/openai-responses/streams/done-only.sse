@@ -1,0 +1,12 @@
+event: response.output_item.done
+data: {"type":"response.output_item.done","output_index":0,"item":{"id":"rs_3","type":"reasoning","summary":[{"type":"summary_text","text":"一段"},{"type":"summary_text","text":"两段"}]}}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","output_index":1,"item":{"id":"msg_3","type":"message","role":"assistant","content":[{"type":"output_text","text":"整段"},{"type":"output_text","text":"给的"}]}}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","output_index":2,"item":{"id":"fc_3","type":"function_call","arguments":"{\"path\":\"b\"}","call_id":"call_c","name":"read"}}
+
+event: response.completed
+data: {"type":"response.completed","response":{"status":"completed","usage":{"input_tokens":10,"output_tokens":5}}}
+

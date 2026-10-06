@@ -12,6 +12,7 @@ use crate::raw::{self, RawJson};
 use crate::time::Timestamp;
 
 mod context;
+mod cost;
 mod effect;
 mod image;
 mod job;
@@ -28,6 +29,7 @@ mod turn;
 pub use context::{
     CompactTrigger, CompactionPaused, ContextCompacted, ContextInjected, PauseReason, RestoredFile,
 };
+pub use cost::{Cost, Prices, Real};
 pub use effect::{
     Effect, FileChanged, FileRead, FileTrashed, JobKind, JobMessaged, JobStarted, PeerWatch,
 };

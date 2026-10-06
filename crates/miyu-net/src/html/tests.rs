@@ -1,10 +1,28 @@
 use super::*;
+use crate::rules::Clip;
 
 const CLIP: Clip = Clip {
     title: 120,
     description: 300,
     site: 60,
+    author: 60,
 };
+
+/// 照合卡片时的样子：挖、收拢截断、没有站名的退到主机名（`sites.rs` 的 `finish` 也是这几步）。
+fn read(html: &str, page: &Url, clip: &Clip) -> Found {
+    let found = scan(html, page, false);
+    let site = if found.site.is_empty() {
+        host_name(page)
+    } else {
+        found.site
+    };
+    Found {
+        title: tidy(&found.title, clip.title),
+        description: tidy(&found.description, clip.description),
+        site: tidy(&site, clip.site),
+        ..found
+    }
+}
 
 fn url(text: &str) -> Url {
     Url::parse(text).expect(text)
@@ -135,6 +153,37 @@ fn entities_are_decoded() {
 }
 
 #[test]
+fn an_og_title_past_the_head_boundary_is_still_found_when_the_head_had_nothing() {
+    // YouTube 的样子：<head> 里什么都没有，og:* 挪到了 </head> 后面（W-7 补）
+    let html = r#"<html><head></head><body><meta property="og:title" content="Channel - YouTube">
+        <meta property="og:image" content="/thumb.jpg"></body></html>"#;
+    let found = read(html, &url("https://www.youtube.com/@x"), &CLIP);
+    assert_eq!(found.title, "Channel - YouTube");
+    assert_eq!(found.image, Some(url("https://www.youtube.com/thumb.jpg")));
+}
+
+#[test]
+fn a_plain_title_in_head_stops_the_scan_before_the_body() {
+    // <head> 里已经有 <title>：够了，不去正文找 og:title（正文里的不算）
+    let html = r#"<head><title>Plain</title></head><body>
+        <meta property="og:title" content="正文里的不算"></body>"#;
+    let found = read(html, &url("https://example.com/"), &CLIP);
+    assert_eq!(found.title, "Plain");
+}
+
+#[test]
+fn meta_is_og_title_checks_the_key_and_a_non_empty_content() {
+    assert!(meta_is_og_title(r#"meta property="og:title" content="Hi""#));
+    // name 是 property 的退路；大小写、属性先后都不管
+    assert!(meta_is_og_title(r#"meta content="Hi" name="OG:TITLE""#));
+    assert!(!meta_is_og_title(r#"meta property="og:title" content="""#));
+    assert!(!meta_is_og_title(r#"meta property="og:title""#));
+    assert!(!meta_is_og_title(
+        r#"meta property="og:description" content="Hi""#
+    ));
+}
+
+#[test]
 fn malformed_markup_does_not_panic() {
     for html in [
         "<meta property=og:title content=",
@@ -150,4 +199,51 @@ fn malformed_markup_does_not_panic() {
     ] {
         let _found = read(html, &url("https://example.com/"), &CLIP);
     }
+}
+
+#[test]
+fn whole_scans_past_the_head_even_with_a_title() {
+    // YouTube：<head> 里有 <title>，og:* 在 </head> 后面；整段都看的时候 og 先（W-7 再补）
+    let html = r#"<head><title>Plain - YouTube</title></head><body>
+        <meta property="og:title" content="Video"><meta itemprop="duration" content="PT3M33S">
+        <span itemprop="author"><link itemprop="url" href="/@x"><link itemprop="name" content="Rick"></span></body>"#;
+    let page = url("https://www.youtube.com/watch?v=x");
+    assert_eq!(scan(html, &page, true).title, "Video");
+    assert_eq!(scan(html, &page, false).title, "Plain - YouTube");
+    assert_eq!(
+        first(html, "meta", "itemprop", "duration", "content").as_deref(),
+        Some("PT3M33S")
+    );
+    assert_eq!(
+        first(html, "link", "itemprop", "name", "content").as_deref(),
+        Some("Rick")
+    );
+    assert_eq!(first(html, "link", "itemprop", "nope", "content"), None);
+}
+
+#[test]
+fn first_skips_empty_values_and_compares_the_key_without_case() {
+    let html = r#"<meta name="generator" content=" "><meta NAME="Generator" content="MediaWiki 1.43.1">
+        <link rel="EditURI" type="application/rsd+xml" href="//wiki.example.org/api.php?action=rsd">"#;
+    assert_eq!(
+        first(html, "meta", "name", "generator", "content").as_deref(),
+        Some("MediaWiki 1.43.1")
+    );
+    assert_eq!(
+        first(html, "link", "rel", "edituri", "href").as_deref(),
+        Some("//wiki.example.org/api.php?action=rsd")
+    );
+}
+
+#[test]
+fn an_unfilled_template_empties_the_field() {
+    // B 站删了的视频页：og 的简介是没填的模板（W-7 再补）
+    assert_eq!(tidy("视频去哪了呢？{$0}的视频", 300), "");
+    assert_eq!(tidy("{$12}", 300), "");
+    // 不是模板的照旧
+    assert_eq!(
+        tidy("costs {$} or {$x} or $0", 300),
+        "costs {$} or {$x} or $0"
+    );
+    assert_eq!(tidy("{$1 }", 300), "{$1 }");
 }

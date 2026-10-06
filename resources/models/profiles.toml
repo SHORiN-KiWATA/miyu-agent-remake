@@ -1,8 +1,8 @@
 # 认得出的供应商的档案（docs/blueprint/models.md「在哪」，施工 8-6）：配置里写了这一家（或者 catalog 指着它），没写的
 # 驱动、地址、开关照这里推。只给实测过的开（05-内核接口.md 第七节）。
 
-# 目录里的 AI SDK 包名 → 驱动（施工 8-7）：档案没有的一家，照它对上的目录里那一家的 npm 推驱动、照 api 推地址。还没有的
-# 两种驱动（anthropic、openai-responses）照写，用到时当场说还没有。
+# 目录里的 AI SDK 包名 → 驱动（施工 8-7）：档案没有的一家，照它对上的目录里那一家的 npm 推驱动、照 api 推地址。这里没列的
+# 包（Google 这些）推不出驱动。
 [npm]
 "@ai-sdk/openai-compatible" = "openai-chat"
 "@ai-sdk/anthropic" = "anthropic"
@@ -23,3 +23,29 @@ compat = { reasoning = { replay = "reasoning_content", always = true }, continua
 name = "Ollama"
 driver = "openai-chat"
 base_url = "http://127.0.0.1:11434/v1"
+
+# Anthropic 官方（施工 8-12）：目录里这一家没写地址，档案补上。驱动的写法只有一套，没有开关；思考的开关是接口自带的。
+[providers.anthropic]
+driver = "anthropic"
+base_url = "https://api.anthropic.com/v1"
+
+# OpenAI 官方（施工 8-13）：目录里这一家没写地址，档案补上。Responses 接口，没有开关；思考强度照目录的档位。
+[providers.openai]
+driver = "openai-responses"
+base_url = "https://api.openai.com/v1"
+
+# opencode Console Go（施工 8-14）：驱动、地址照目录（https://opencode.ai/zen/go/v1，模型各自写着包名：Claude、MiniMax 这几个走
+# anthropic，GPT、Grok 走 openai-responses，别的走 openai-chat）。缺 x-opencode-session 回 400 MissingSessionID（2026-10-03 实测）；
+# 官方文档写明给第三方 agent 用：用自己的 User-Agent，每段对话发一个稳定的 x-opencode-session。值里的 {session_digest} 是种子
+# （会话编号、一次性调用的用途）的 SHA-256 前 26 位。
+[providers.opencode-go]
+headers = { "x-opencode-session" = "ses_{session_digest}" }
+
+# opencode Zen（施工 8-14 补，2026-10-04 实测）：免费档按客户端识别，三件同时成立——User-Agent 要是 opencode/<版本≥1.18>
+# 的形状、请求带至少一个 x-opencode-* 头（值里的种子照 {session_digest} 换，得是小写十六进制）、工具面里有 shell 和 read；
+# 还要求流式。头只发给这一家（目录里的地址是 https://opencode.ai/zen/v1）。User-Agent 盖掉客户端的 miyu/<版本>，这里写的是
+# 本机装的 opencode 版本（2.0.21）；opencode 升级或被闸改判据时，先跑旧版 `miyu-agent` 仓库里的测具
+# `testkit/opencode-zen/freetier_probe.js` 再动这一行。占位工具见「八、opencode Zen」第 2 条。
+[providers.opencode]
+headers = { "User-Agent" = "opencode/2.0.21", "x-opencode-client" = "cli", "x-opencode-project" = "global", "x-opencode-session" = "ses_{session_digest}" }
+placeholder_tools = ["read", "shell"]

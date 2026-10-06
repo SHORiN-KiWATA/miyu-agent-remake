@@ -23,6 +23,10 @@
           "ja": "日本語"
         }
       },
+      "usage.currency": {
+        "name": "Currency shown first",
+        "description": "Amounts are added up per currency, never converted. This one is listed first, the others by code. Three capital letters such as USD or CNY."
+      },
       "tui.startup": {
         "name": "On start, open",
         "description": "Whether the terminal interface starts a new session or picks up the most recent one.",
@@ -80,6 +84,10 @@
         "name": "Keys",
         "description": "Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Each session sticks to one of them. Empty means no auth header."
       },
+      "providers.<id>.name": {
+        "name": "Display name",
+        "description": "The name people see. The id is only for referring to models; without one, the model data's name for this provider is used, then the id."
+      },
       "providers.<id>.catalog": {
         "name": "Catalog provider",
         "description": "Which provider in the model data this one is, for example deepseek for a relay that only forwards DeepSeek."
@@ -133,6 +141,10 @@
       "providers.<id>.models.<model>.effort": {
         "name": "Default reasoning effort",
         "description": "The reasoning effort this model uses by default: one of its levels, for example high, or off where thinking can be turned off. Left out, the provider decides."
+      },
+      "providers.<id>.models.<model>.temperature": {
+        "name": "Default temperature",
+        "description": "The temperature this model uses by default, from 0 to 2; higher gives looser answers. Left out, the provider decides. Not sent to models that do not take one."
       },
       "providers.<id>.models.<model>.price_multiplier": {
         "name": "Price multiplier",
@@ -254,6 +266,8 @@
     "config/no-provider": "{key} points at the provider {name}, which is not configured",
     "config/no-pool": "{key} points at the pool {name}, which is not configured",
     "config/unknown-effort": "{key} is {name}, which is not one of this model's levels now. Requests go out as if it were not set",
+    "config/temperature-unsupported": "{key}: this model does not take a temperature. Requests go out as if it were not set",
+    "config/temperature-too-high": "{key} is {got}, above this model's limit of {max}. Requests go out as if it were not set",
     "config/bad-secret-name": "{key} is not a valid secret name: start with a lowercase letter and use only lowercase letters, digits, - and _, up to 64 characters",
     "config/bad-secret-value": "The value of {key} must be quoted text, not empty",
     "config/trust-header": "Which project configs Miyu trusts: the repository, the exact content, and the answer.",

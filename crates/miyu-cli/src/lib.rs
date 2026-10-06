@@ -40,6 +40,7 @@ mod sandbox;
 mod setup;
 mod shown;
 mod undo;
+mod web;
 
 pub use ask::{Ask, Format, Plan, Screen, Target, ask, exit, talk};
 pub use compact::{Compact, CompactPlan, compact, compact_on};
@@ -52,3 +53,4 @@ pub use rename::{Rename, RenamePlan, rename, rename_on};
 pub use sandbox::{Action as SandboxAction, OwnerArgs, Sandbox, sandbox};
 pub use setup::{HeadEnv, Setup, SetupPlan, model_ready_on, setup, setup_on};
 pub use undo::{Direction, Undo, UndoPlan, undo, undo_on};
+pub use web::{Web, web, web_on};

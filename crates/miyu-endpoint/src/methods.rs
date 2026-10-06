@@ -13,7 +13,7 @@
 //! （施工 W-2、W-3、W-6）。第一次接入的
 //! `provider.detect`、`provider.catalog`、`provider.test` 在 `providers.rs`（施工 8-11）。分块上传
 //! `blob.open`、`blob.write`、`blob.close` 在 `uploads.rs`（施工 W-5），要这个连接的上传表 `uploads`。分块读一个 blob
-//! `blob.get` 在 `attach.rs`（施工 W-6）。
+//! `blob.get` 在 `attach.rs`（施工 W-6）。用量汇总的 `usage.query` 在 `usage.rs`（施工 8-15）。
 //! 各方法的参数在 `methods/params.rs`（W-5 合并时这一份过了 500 行，挪出去的）。
 
 use std::sync::Arc;
@@ -22,7 +22,7 @@ use serde_json::{Value, json};
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::Level;
-use miyu_kernel::id::{JobId, Seq, SessionId, TurnId};
+use miyu_kernel::id::{CallId, JobId, Seq, SessionId, TurnId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Outcome, Queued};
 use miyu_session::Handle;
@@ -206,6 +206,17 @@ pub(crate) async fn call(
             command_to(core, request, &session, &found.handle, command).await?;
             Ok(json!({}))
         }
+        "session.answer" => {
+            // 先查参数，再找会话（施工 D-1）。
+            let params: AnswerParams = params(request)?;
+            let call_id = CallId::parse(&params.call).map_err(|_| Refusal::BAD_PARAMS)?;
+            let session = session(&params.session)?;
+            let answer = params.answer()?;
+            let found = core.sessions.get(core, &session, None, None).await?;
+            let command = Command::Answer { call_id, answer };
+            let events = command_to(core, request, &session, &found.handle, command).await?;
+            Ok(json!({ "events": events }))
+        }
         "session.clear" => {
             let params: ClearParams = params(request)?;
             let session = session(&params.session)?;
@@ -258,6 +269,7 @@ pub(crate) async fn call(
         "provider.catalog" => providers::catalog(core, params(request)?).await,
         "provider.test" => providers::test(core, params(request)?).await,
         "model.call" => models::call(core, params(request)?).await,
+        "usage.query" => crate::usage::query(core, params(request)?).await,
         "blob.put" => attach::put(core, params(request)?).await,
         "blob.open" => uploads::open(core, uploads, params(request)?).await,
         "blob.write" => uploads::write(core, uploads, params(request)?).await,

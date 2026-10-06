@@ -245,7 +245,9 @@ pub async fn config_on(
     };
     match &plan.command {
         ConfigCommand::Get { keys, format } => get(&mut talk, keys, *format, out).await,
-        ConfigCommand::Explain { key, format } => explain(&mut talk, key, *format, out).await,
+        ConfigCommand::Explain { key, format } => {
+            explain(&mut talk, &tidy(key), *format, out).await
+        }
         ConfigCommand::Path { system, project } => path(&mut talk, *system, *project, out).await,
         ConfigCommand::Check {
             file,
@@ -258,8 +260,8 @@ pub async fn config_on(
         }
         ConfigCommand::Set {
             key, value, system, ..
-        } => set::set(&mut talk, key, value, *system).await,
-        ConfigCommand::Unset { key, system } => set::unset(&mut talk, key, *system).await,
+        } => set::set(&mut talk, &tidy(key), value, *system).await,
+        ConfigCommand::Unset { key, system } => set::unset(&mut talk, &tidy(key), *system).await,
         ConfigCommand::Edit { system, project } => {
             edit::edit(&mut talk, check::Only::of(*system, *project), console).await
         }
@@ -433,4 +435,14 @@ async fn path(talk: &mut Talk<'_>, system: bool, project: bool, out: &mut dyn Wr
 fn failed(reason: &str) -> u8 {
     say(&mut io::stderr(), reason);
     exit::ERROR
+}
+
+/// 人敲的键照核心的写法规整（施工 8-3 补，`cli/config.md`「怎么走」第 8 条）：照 `miyu_config::key` 拆开再拼回去，多余的
+/// 引号去掉、点两边的空格去掉，名字里有点的那一段照旧带引号。核心回应里的键是规整过的，拿人敲的原样去找会找不到
+/// （`set` 写进去了却说没改）。拆不开的原样交，由核心照原来的话报错。
+fn tidy(key: &str) -> String {
+    miyu_config::key::split(key).map_or_else(
+        || key.to_string(),
+        |segments| miyu_config::key::join(&segments),
+    )
 }

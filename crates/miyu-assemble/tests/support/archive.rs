@@ -2,7 +2,9 @@
 //! `log.jsonl` 是真内核记下的日志，`requests/` 下一次请求一个文件（规范字节，末尾一个换行），`openai-chat/` 下是同一次请求
 //! 编码成 OpenAI 兼容接口的字节。要过回顾的（施工 3-8 四补），回顾的请求另放在 `recaps/`、`recaps/openai-chat/` 下：它是
 //! 单独的一次请求，照它自己的存档比；起标题的（施工 3-8 五补）照样放在 `titles/`、`titles/openai-chat/` 下。替它看图的转述请求
-//! （施工 8-17）放在 `describes/` 下，只有规范字节：它发给看得了图的模型，图照字节发，线上的样子由一次性入口的测试守着。字节变了必须是有意的：设上 `MIYU_PROBE_WRITE=1` 跑一遍，重写存档，提交说明里写为什么变。
+//! （施工 8-17）放在 `describes/` 下，只有规范字节。主会话（`terminal`）另有两张脸：`anthropic/` 下是同一次请求编码成 Anthropic
+//! 消息接口的字节（施工 8-12，[`super::anthropic_wire`]），`openai-responses/` 下是编码成 Responses 接口的（施工 8-13，
+//! [`super::responses_wire`]），只照它比，别的会话不存。替它看图的转述请求它发给看得了图的模型，图照字节发，线上的样子由一次性入口的测试守着。字节变了必须是有意的：设上 `MIYU_PROBE_WRITE=1` 跑一遍，重写存档，提交说明里写为什么变。
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -12,7 +14,7 @@ use miyu_kernel::id::Seq;
 use miyu_kernel::request::Request;
 use miyu_kernel::testkit::Stage;
 
-use super::{lines, wire};
+use super::{anthropic_wire, lines, responses_wire, wire};
 
 /// 存档所在的目录：这个 crate 的目录往上两级是仓库根。
 fn archive(name: &str) -> PathBuf {
@@ -49,15 +51,41 @@ fn requests(files: &mut Vec<(String, String)>, folder: &str, requests: &[(Seq, R
     }
 }
 
+/// 主请求编码成另两家的字节：`anthropic/`（施工 8-12）、`openai-responses/`（施工 8-13）下一次请求一个文件，末尾一个换行。
+pub fn face_files(stage: &Stage) -> Vec<(String, String)> {
+    let mut files = Vec::new();
+    for (index, (_, request)) in stage.requests().iter().enumerate() {
+        for (folder, encoded) in [
+            ("anthropic", anthropic_wire(request)),
+            ("openai-responses", responses_wire(request)),
+        ] {
+            let body = String::from_utf8(encoded.body).expect("请求字节是 UTF-8");
+            files.push((format!("{folder}/{:02}.json", index + 1), body + "\n"));
+        }
+    }
+    files
+}
+
 /// 这段会话和存档 `name` 逐字节比；设了 `MIYU_PROBE_WRITE` 的重写存档。
 pub fn matches_the_archive(name: &str, stage: &Stage) {
-    let files = files(stage);
+    compare(name, &files(stage));
+}
+
+/// 同上，多另两家的脸（施工 8-12、8-13，[`face_files`]）。
+pub fn matches_the_archive_with_faces(name: &str, stage: &Stage) {
+    let mut files = files(stage);
+    files.extend(face_files(stage));
+    compare(name, &files);
+}
+
+/// 存档 `name` 和这些文件逐字节比；设了 `MIYU_PROBE_WRITE` 的重写存档。
+fn compare(name: &str, files: &[(String, String)]) {
     let dir = archive(name);
     if std::env::var_os("MIYU_PROBE_WRITE").is_some() {
         if dir.exists() {
             fs::remove_dir_all(&dir).expect("删得掉旧的存档");
         }
-        for (name, content) in &files {
+        for (name, content) in files {
             let path = dir.join(name);
             fs::create_dir_all(path.parent().expect("存档里的文件有目录")).expect("建得了存档目录");
             fs::write(path, content).expect("写得了存档");
@@ -65,7 +93,7 @@ pub fn matches_the_archive(name: &str, stage: &Stage) {
         return;
     }
     let mut counts: BTreeMap<PathBuf, usize> = BTreeMap::new();
-    for (name, content) in &files {
+    for (name, content) in files {
         let path = dir.join(name);
         let archived =
             fs::read_to_string(&path).unwrap_or_else(|e| panic!("读不了 {}：{e}", path.display()));

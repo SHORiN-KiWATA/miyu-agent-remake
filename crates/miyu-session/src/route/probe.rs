@@ -5,7 +5,8 @@
 //! 2. 列模型（[`list_models`]，和拉列表一样整个 30 秒）。拉到了的，`save` 的（配好了的一家）存进供应商的列表；拉不到的
 //!    照目录里对上的那一家列，出错照驱动分类留着。
 //! 3. 挑模型：写了的用它；没写的照推荐挑（`miyu_models::onboard::recommend`）。列表是空的：`list`，交第 2 步的出错。
-//! 4. 发：只有一条 user，没有 system、没有工具面；收到正文那一块的第一段字就叫停，空闲 60 秒。客户端和列模型用同一个
+//! 4. 发：只有一条 user，没有 system、没有工具面；收到正文那一块的第一段字就叫停，空闲 60 秒。驱动照挑的那个模型（施工
+//!    8-14，没有驱动的是 `config`），档案另配的头照固定的种子 `provider.test` 换。客户端和列模型用同一个
 //!    （照地址挑，施工 8-11 补：地址落在本机的不走代理，别的照环境变量，和会话真发时一样）。请求发了就报请求的结果
 //!    （「施工时定的」8-11）。
 //! 5. 不记会话日志、不记用量；记一行 `INFO provider tested`。key、地址不进任何一行。
@@ -20,7 +21,7 @@ use miyu_config::Values;
 use miyu_config::merge::Resolved;
 use miyu_config::secret::{Reference, Secret};
 use miyu_drivers::classify::Failure;
-use miyu_drivers::{Call, Driver, Inputs, OpenAiChat};
+use miyu_drivers::{Call, Driver, Inputs};
 use miyu_http::{Attempt, Endpoint, Failed, Outcome, Progress, send};
 use miyu_kernel::accumulate::{Delta, Kind};
 use miyu_kernel::block::{Block, Text};
@@ -28,6 +29,7 @@ use miyu_kernel::event::{CallError, ErrorClass};
 use miyu_kernel::id::ModelName;
 use miyu_kernel::request::{Message, Request};
 use miyu_models::facts::facts;
+use miyu_models::headers::PROBE_SEED;
 use miyu_models::observed::ProviderList;
 use miyu_models::onboard::{Offered, recommend, released};
 use miyu_models::provider::{self, NoModel, Provider};
@@ -143,12 +145,12 @@ async fn run(
         .cloned()
         .ok_or_else(|| unready("no client to send with".to_string()))?;
     let texts = listing_texts().map_err(unready)?;
-    let driver = OpenAiChat::new(provider.compat.clone(), texts);
+    let driver = provider.build(texts);
     let headers = key
         .as_ref()
         .map(|key| driver.auth(key.expose()))
         .unwrap_or_default();
-    let listed = list_models(&client, &driver, &base_url, &headers, TIMEOUT).await;
+    let listed = list_models(&client, driver.as_ref(), &base_url, &headers, TIMEOUT).await;
     let (models, from_catalog, unlisted) = match listed {
         Ok(listed) => {
             let mut models: Vec<String> = listed.iter().map(|model| model.id.clone()).collect();
@@ -167,7 +169,7 @@ async fn run(
         Err(why) => (
             catalog_models(data, &provider),
             true,
-            Some(classify(&driver, &why)),
+            Some(classify(driver.as_ref(), &why)),
         ),
     };
     let model = match probe.model {
@@ -182,11 +184,36 @@ async fn run(
         })?,
     };
     *tried = Some(model.clone());
+    // 发那一句照这个模型的驱动（施工 8-14：同一家里的模型可以各走各的），没有驱动的是 `config`；另配的头照固定的种子换。
+    // 温度照这个模型配置的默认（施工 8-22），和会话真发时一样。
+    let (speaking, temperature) = data.with(|knowledge| {
+        let (facts, _) = facts(probe.resolved, knowledge, &provider, &model);
+        let speaking = provider.for_model(&model, &facts.wire, &knowledge.profiles.npm);
+        (speaking, facts.temperature.value)
+    });
+    let speaking = speaking.map_err(config)?;
+    let asking = speaking.build(listing_texts().map_err(unready)?);
     let endpoint = match &key {
         Some(key) => Endpoint::new(base_url, key.expose()),
         None => Endpoint::keyless(base_url),
     };
-    let first_token_ms = ask(&client, &driver, &endpoint, &model, probe.text).await?;
+    let endpoint = provider
+        .headers(PROBE_SEED)
+        .into_iter()
+        .fold(endpoint, |endpoint, (name, value)| {
+            endpoint.with_header(name, value)
+        });
+    let placeholders = speaking.placeholder_specs(data.placeholder_tool());
+    let first_token_ms = ask(
+        &client,
+        asking.as_ref(),
+        &endpoint,
+        &model,
+        probe.text,
+        &placeholders,
+        temperature,
+    )
+    .await?;
     Ok(Probed::Worked {
         models,
         from_catalog,
@@ -195,17 +222,19 @@ async fn run(
     })
 }
 
-/// 发那一句：收到正文那一块的第一段字就叫停。交回第一段增量的毫秒数。
+/// 发那一句：收到正文那一块的第一段字就叫停，带这个模型默认的温度 `temperature`（施工 8-22）。交回第一段增量的毫秒数。
 async fn ask(
     client: &miyu_http::Client,
-    driver: &OpenAiChat,
+    driver: &dyn Driver,
     endpoint: &Endpoint,
     model: &str,
     text: &str,
+    placeholders: &[(String, String)],
+    temperature: Option<f64>,
 ) -> Result<u64, Probed> {
     let name = ModelName::parse(model)
         .map_err(|error| failed(Stage::Request, ErrorClass::Unclassified, error.to_string()))?;
-    let request = Request {
+    let mut request = Request {
         tools: Vec::new(),
         system: String::new(),
         messages: vec![Message::User {
@@ -217,11 +246,14 @@ async fn ask(
         continuation: false,
         described: Default::default(),
     };
+    // 占位工具（施工 8-14 补）：试一家时工具面里缺 `shell`、`read` 的照档案补上（Zen 免费档要这两件）。
+    super::placeholder::fill(&mut request, placeholders);
     let call = Call {
         model: name,
         max_output: None,
         inputs: Inputs::default(),
         effort: None,
+        temperature,
     };
     let encoded = driver
         .encode(&request, &call, &BTreeMap::new())
@@ -295,7 +327,7 @@ impl Seen {
 }
 
 /// 列模型没成：照驱动分类（状态码、头、响应体；连不上的只有原话），和 `model.called` 的一样。
-fn classify(driver: &OpenAiChat, failed: &Failed) -> CallError {
+fn classify(driver: &dyn Driver, failed: &Failed) -> CallError {
     let headers: Vec<(&str, &str)> = failed
         .headers
         .iter()

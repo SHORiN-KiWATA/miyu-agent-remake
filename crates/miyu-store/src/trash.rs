@@ -2,6 +2,9 @@
 //! `home/<账号>/trash/sessions/<会话编号>/`，里面多一个 `deleted_at`，写着删的时刻；核心起来时清一次，满了留的时限的
 //! 真删（2026-09-30 项目主人定：删了的进回收处，留 7 天）。
 //!
+//! 真删之前先留底（施工 8-15，`07-存储.md` 第六节）：照它的日志算好用量的合计，往账号日志 `journal.jsonl` 追加一条
+//! `usage.purged`（[`crate::usage::purged`]），写进去了才删目录；写不进去的留着，下次再清。
+//!
 //! 挪是一次改名：要么挪了、要么没挪，不会留半个会话。`deleted_at` 先写进还在原处的会话目录、落了盘，再改名：回收处里
 //! 的每一个都带着它；写了没来得及挪的，会话照旧在原处，日志只认 12 位数字的段，不碍着它。blob 不动：回收随存储的回收
 //! 那一步（`07-存储.md` 第五节）。
@@ -11,11 +14,15 @@ use std::io::{self, Write};
 use std::path::Path;
 use std::time::Duration;
 
-use miyu_kernel::id::{AccountId, SessionId};
+use miyu_kernel::id::{AccountId, EventKind, SessionId};
+use miyu_kernel::origin::By;
+use miyu_kernel::raw::RawJson;
 use miyu_kernel::time::Timestamp;
 
 use crate::durable::{create_dir, sync_dir};
+use crate::journal::{self, Entry};
 use crate::root::DataRoot;
+use crate::usage;
 
 /// 回收处里每个会话目录下写着删的时刻的那个文件：一行，事件的时刻写法，例如 `2026-09-30T12:00:00.000Z`，加换行。
 pub const DELETED_AT: &str = "deleted_at";
@@ -56,7 +63,8 @@ pub struct Purged {
     pub failed: Vec<(SessionId, String)>,
 }
 
-/// 清一次账号 `account` 的回收处：删的时刻离 `now` 满了 `keep` 的，连目录整个删掉；没满的、删的时刻比 `now` 还晚的
+/// 清一次账号 `account` 的回收处：删的时刻离 `now` 满了 `keep` 的，先往账号日志里留一条用量的底（`usage.purged`，时刻是
+/// `now`），再连目录整个删掉；留不了底的（日志读不了、账号日志写不进）留着，记进 [`Purged::failed`]。没满的、删的时刻比 `now` 还晚的
 /// （时钟往回拨过）留着；读不出删的时刻的也留着，记进 [`Purged::failed`]：说不清它删了多久，不猜。名字不合会话编号写法的
 /// 不是这里放的，不看。回收处还没有的，什么都不做。
 ///
@@ -96,12 +104,43 @@ pub fn purge(
         if now.unix_millis().saturating_sub(deleted.unix_millis()) < keep {
             continue;
         }
+        if let Err(why) = keep_usage(root, account, &session, &dir, now) {
+            purged.failed.push((session, why));
+            continue;
+        }
         match fs::remove_dir_all(&dir) {
             Ok(()) => purged.removed += 1,
             Err(error) => purged.failed.push((session, error.to_string())),
         }
     }
     Ok(purged)
+}
+
+/// 真删会话 `session`（目录在 `dir`）之前，照它的日志算好用量的合计，追加进账号 `account` 的日志。一次请求都没有的不写。
+fn keep_usage(
+    root: &DataRoot,
+    account: &AccountId,
+    session: &SessionId,
+    dir: &Path,
+    now: Timestamp,
+) -> Result<(), String> {
+    let Some(summary) = usage::purged::of_log(dir, session).map_err(|error| error.to_string())?
+    else {
+        return Ok(());
+    };
+    let body = serde_json::to_string(&summary)
+        .and_then(|text| serde_json::from_str::<RawJson>(&text))
+        .map_err(|error| error.to_string())?;
+    let entry = Entry {
+        at: now,
+        by: By::Kernel,
+        cause: None,
+        kind: EventKind::parse(usage::PURGED).map_err(|error| error.to_string())?,
+        body,
+    };
+    journal::append(&root.account_dir(account).join(journal::FILE), entry)
+        .map(|_| ())
+        .map_err(|error| error.to_string())
 }
 
 /// 回收处里的会话目录 `dir` 写着的删的时刻。读不了、写法不对的，交回为什么。

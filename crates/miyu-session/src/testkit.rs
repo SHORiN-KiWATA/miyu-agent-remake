@@ -13,6 +13,7 @@ use miyu_kernel::id::{ModelName, ProviderId, Seq};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
 use miyu_kernel::session::Limits;
+use miyu_models::price::Tariff;
 
 use crate::config::TurnConfig;
 use crate::port::{Cancel, ForSession, ModelPort, Models, Reports};
@@ -77,6 +78,8 @@ pub struct Script {
     titled: Arc<Mutex<Vec<(Seq, Request)>>>,
     /// 造这个端口的会话记着的引用（施工 8-8）：剧本照样回，只把它交出去，派子代理照它抄。
     reference: Option<String>,
+    /// 价格（施工 8-15）：有的话每次说完了照它算金额，和路由一样经 [`Reports::billed`]。
+    tariff: Option<Tariff>,
 }
 
 impl Script {
@@ -99,7 +102,15 @@ impl Script {
             titles: Arc::new(Mutex::new(VecDeque::new())),
             titled: Arc::new(Mutex::new(Vec::new())),
             reference: None,
+            tariff: None,
         }
+    }
+
+    /// 同一份剧本，每次说完了照 `tariff` 算金额（施工 8-15）：`model.called` 带 `cost`。
+    #[must_use]
+    pub fn priced(mut self, tariff: Tariff) -> Script {
+        self.tariff = Some(tariff);
+        self
     }
 
     /// 起标题的请求照先后这样回（施工 3-8 五补）。
@@ -202,6 +213,7 @@ impl ModelPort for Script {
         }
         let model = self.model.clone();
         let cancelled = Arc::clone(&self.cancelled);
+        let reports = reports.billed(self.tariff.clone());
         tokio::spawn(async move {
             reports.sent(model, hash);
             match play {

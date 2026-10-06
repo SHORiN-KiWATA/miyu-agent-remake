@@ -30,6 +30,9 @@ miyu-http = { path = "../miyu-http", features = ["testkit"] }
 miyu-kernel = { path = "../miyu-kernel" }
 # 测试里的数据根。
 miyu-store = { path = "../miyu-store" }
+# 测试里开一对真的伪终端，贴 key 时按 `Ctrl+C` 走一遍真的子进程（施工 8-5 补，Unix 上才用得到；`termios`、`pty` 两个
+# 模块本身就只在 Unix 编）。
+rustix = { version = "1", features = ["termios", "pty"] }
 # 测试里在套接字上说 JSON-RPC。
 serde_json = "1.0"
 tokio = { version = "1", features = ["io-util", "macros", "rt", "time"] }

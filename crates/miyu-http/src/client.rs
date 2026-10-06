@@ -41,7 +41,14 @@ fn build(proxy: Proxy, connect: Duration) -> reqwest::Result<reqwest::Client> {
     let mut builder = reqwest::Client::builder()
         .use_rustls_tls()
         .user_agent(concat!("miyu/", env!("CARGO_PKG_VERSION")))
-        .connect_timeout(connect);
+        .connect_timeout(connect)
+        // 链接卡片（miyu-net）开了 gzip/brotli/deflate/zstd 这几个 reqwest 特性；cargo 的特性是整个工作区合起来
+        // 的，这几个方法不管特性开没开都存在，专门用来保证不被别的包带起来（W-7 补，http.md「客户端」）。不关的话，
+        // 这个客户端会自己带上 Accept-Encoding，请求模型那条路的字节就变了。
+        .no_gzip()
+        .no_brotli()
+        .no_deflate()
+        .no_zstd();
     if proxy == Proxy::Off {
         builder = builder.no_proxy();
     }

@@ -1,7 +1,7 @@
 //! 本机的假服务器上整条走通（`net.md`「守着它的」，施工 W-7）：钉住的地址、元数据、图存成 blob、记着的不再抓、
 //! blob 没了交 `null`；跳转每一跳过闸、最多 5 跳；不是 HTML、没有标题、4xx、5xx；读到 `</head>` 就停、最多 2 MiB；
 //! 图只收五种、最多 3 MiB。假服务器在回环上，用测试的口子（`testkit`）把回环当公网、把 `site.test` 解析到回环。
-//! 代理、没开口子时的闸在 `proxy.rs`。
+//! 代理、没开口子时的闸在 `proxy.rs`。gzip/br、`</head>` 后面的 `og:title` 在这个文件最后（W-7 补）。
 
 mod support;
 
@@ -282,6 +282,101 @@ async fn only_five_image_kinds_up_to_three_mib_are_kept() {
             "{path}：图抓不到的那一格是空的，卡片照样成立"
         );
     }
+}
+
+#[tokio::test]
+async fn gzip_and_br_pages_are_decoded_even_without_asking_for_it() {
+    // B 站不管请求带不带 Accept-Encoding 都压着发页面（W-7 补，net.md「怎么走」第 6 条）
+    let site = Site::start(vec![
+        (
+            "/gzip".to_string(),
+            Reply::html_encoded(&page("Gzipped", ""), "gzip"),
+        ),
+        (
+            "/br".to_string(),
+            Reply::html_encoded(&page("Brotli", ""), "br"),
+        ),
+    ])
+    .await;
+    let store = Store::new();
+    let links = previewer(&store, local());
+    assert_eq!(card(&links, &site.url("/gzip")).await.title, "Gzipped");
+    assert_eq!(card(&links, &site.url("/br")).await.title, "Brotli");
+}
+
+#[tokio::test]
+async fn a_small_gzip_bomb_is_capped_at_two_mib_decoded_not_fully_inflated() {
+    // 一个压得很小的包，解开以后比 2 MiB 大得多：照上限停，不整份解开。标题在填料前面的找得到（证明确实解开了，
+    // 不是读到压过的字节就直接放弃）；标题在填料后面的（总共远超 2 MiB）找不到（证明上限照解开以后的字节算，
+    // 不是照 Content-Length 这个压过的小数）。
+    let huge_filler = "x".repeat(20 * 1024 * 1024);
+    let early = support::gzip(format!("<html><head><title>Early</title>{huge_filler}").as_bytes());
+    let late =
+        support::gzip(format!("<html><head>{huge_filler}<title>Too late</title>").as_bytes());
+    for compressed in [&early, &late] {
+        assert!(
+            compressed.len() < 200 * 1024,
+            "压完该比原文（20 MiB 多）小得多：{}",
+            compressed.len()
+        );
+    }
+    let bomb = |body: &[u8]| {
+        Reply::bytes("text/html; charset=utf-8", body).with_header("Content-Encoding", "gzip")
+    };
+    let site = Site::start(vec![
+        ("/early".to_string(), bomb(&early)),
+        ("/late".to_string(), bomb(&late)),
+    ])
+    .await;
+    let store = Store::new();
+    let links = previewer(&store, local());
+    assert_eq!(card(&links, &site.url("/early")).await.title, "Early");
+    assert_eq!(miss(&links, &site.url("/late")).await, Why::NoPreview);
+}
+
+#[tokio::test]
+async fn an_og_title_after_head_is_found_and_past_the_cap_is_not() {
+    // YouTube 的样子：<head> 里没有 <title>，og:* 挪到了 </head> 后面（W-7 补，net.md「怎么走」第 6 条）
+    let found = "<html><head></head><body><meta property=\"og:title\" content=\"Channel\"></body>";
+    // 同样的样子，但 og:title 在 2 MiB 以后：照上限停，没有卡片
+    let filler = "x".repeat(2 * 1024 * 1024 + 1024 * 1024);
+    let too_late = format!(
+        "<html><head></head><body>{filler}<meta property=\"og:title\" content=\"Too late\">"
+    );
+    let site = Site::start(vec![
+        ("/found".to_string(), Reply::html(found).stalled()),
+        ("/too-late".to_string(), Reply::html(&too_late).stalled()),
+    ])
+    .await;
+    let store = Store::new();
+    let links = previewer(&store, local());
+    assert_eq!(card(&links, &site.url("/found")).await.title, "Channel");
+    assert_eq!(miss(&links, &site.url("/too-late")).await, Why::NoPreview);
+}
+
+#[tokio::test]
+async fn an_early_og_title_does_not_stop_reading_the_rest_of_the_head() {
+    // og:title 排在 head 里靠前的位置，og:image 排在后面、隔着一截填料（够大，几次 TCP 读才收得完）：
+    // 没到 </head> 的记号之前，找到 og:title 不该提前收手——不然 head 里排在后面的字段会丢（W-7 补）。
+    let filler = "x".repeat(256 * 1024);
+    let html = format!(
+        "<html><head><meta property=\"og:title\" content=\"Early\">\
+         <!--{filler}-->\
+         <meta property=\"og:image\" content=\"/card.png\"></head><body>"
+    );
+    let site = Site::start(vec![
+        ("/page".to_string(), Reply::html(&html)),
+        ("/card.png".to_string(), Reply::bytes("image/png", PNG)),
+    ])
+    .await;
+    let store = Store::new();
+    let links = previewer(&store, local());
+    let found = card(&links, &site.url("/page")).await;
+    assert_eq!(found.title, "Early");
+    assert!(
+        found.image.is_some(),
+        "og:image 排在填料后面，不该因为先找到 og:title 就被截掉"
+    );
 }
 
 #[tokio::test]

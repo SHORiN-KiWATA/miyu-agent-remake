@@ -7,12 +7,14 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
 
 use miyu_kernel::event::{Body, Event, SessionCreated};
+use miyu_kernel::id::{AccountId, SessionId};
 use miyu_kernel::origin::Model;
 use miyu_kernel::session::{Input, Session};
 use miyu_models::provider::chat;
 use miyu_policy::{Snapshot, compose};
 use miyu_store::blob::Blobs;
 use miyu_store::log::{SEGMENT_LIMIT, SessionLog, abandon};
+use miyu_store::usage::{UsageIndex, Who};
 use miyu_tool::{Log, Seen};
 
 use crate::TARGET;
@@ -30,6 +32,7 @@ use crate::port::ForSession;
 use crate::report::{Reporter, Upstream, wake_children};
 use crate::store::{Indexed, LogDir};
 use crate::tools::ToolKit;
+use crate::usage::Ledger;
 
 mod error;
 mod setup;
@@ -67,6 +70,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         sessions,
         jobs,
         index,
+        usage,
         configs,
         model,
     } = setup;
@@ -114,6 +118,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     models.ready().await;
     let model = models.port(ForSession {
         id: id.clone(),
+        owner: owner.clone(),
         config: Arc::clone(config.current()),
         texts,
         blobs,
@@ -146,7 +151,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         parent: lineage.as_ref().map(|lineage| lineage.parent.clone()),
         depth: lineage.as_ref().map(|lineage| lineage.depth),
         model: reference,
-        ..snapshot.session_created(owner, venue.clone(), permission)
+        ..snapshot.session_created(owner.clone(), venue.clone(), permission)
     };
     let (mut session, first) = Session::create(
         id.clone(),
@@ -181,9 +186,20 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         guard,
         sandbox.is_some(),
     );
+    let who = Who {
+        owner: owner.clone(),
+        venue: venue.clone(),
+        parent: lineage.as_ref().map(|lineage| lineage.parent.clone()),
+    };
+    let ledger = ledger_of(usage.as_ref(), &id, &owner);
     let mut actor = Actor::new(
         session,
-        Box::new(Indexed::new(log, index, &id)),
+        Box::new(Indexed::new(
+            log,
+            &id,
+            index,
+            usage.map(|usage| (usage, who)),
+        )),
         model,
         ToolKit {
             catalog: tools.clone(),
@@ -198,6 +214,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             offset,
             job_ids,
             agents,
+            ledger,
         },
         jobs,
         guard,
@@ -255,6 +272,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         sessions,
         jobs,
         index,
+        usage,
         configs,
     } = setup;
     let span = actor::span(&id);
@@ -303,6 +321,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         &id,
     );
     let port = sessions.clone();
+    let who = Who::of(&created);
     let agents = sessions.map(|port| {
         Arc::new(Agents {
             port,
@@ -332,6 +351,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     // 路由照内核从日志算的引用造（施工 8-10）：换过模型的是换过以后的。
     let model = models.port(ForSession {
         id: id.clone(),
+        owner: owner.clone(),
         config: Arc::clone(config.current()),
         texts,
         blobs,
@@ -365,9 +385,15 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         guard,
         sandbox.is_some(),
     );
+    let ledger = ledger_of(usage.as_ref(), &id, &owner);
     let mut actor = Actor::new(
         session,
-        Box::new(Indexed::new(log, index, &id)),
+        Box::new(Indexed::new(
+            log,
+            &id,
+            index,
+            usage.map(|usage| (usage, who)),
+        )),
         model,
         ToolKit {
             catalog: tools.clone(),
@@ -382,6 +408,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             offset,
             job_ids,
             agents,
+            ledger,
         },
         jobs,
         guard,
@@ -410,6 +437,15 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         watched,
         shown,
     ))
+}
+
+/// 用量汇总里的这个会话（施工 8-15）：`session_usage` 的端口照它造。没开汇总的没有。
+fn ledger_of(usage: Option<&Arc<UsageIndex>>, id: &SessionId, owner: &AccountId) -> Option<Ledger> {
+    usage.map(|index| Ledger {
+        index: Arc::clone(index),
+        session: id.clone(),
+        owner: owner.clone(),
+    })
 }
 
 /// 最近一条发出去了的 `model.called` 发给了谁（施工 8-8）：钉住的池载入时照它认钉着的成员（「起草时定的」第 2 条）。

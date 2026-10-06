@@ -1,0 +1,4 @@
+start 0 reasoning
+text 0 "想到一半"
+usage uncached=3 cache_read=0 cache_write=0 output=1
+error retryable "流断了：没等到 stop_reason，也没等到 message_stop"

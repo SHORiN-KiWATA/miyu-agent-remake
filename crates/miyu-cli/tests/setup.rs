@@ -177,6 +177,23 @@ async fn a_pasted_key_is_tried_first_and_kept_only_once_it_works() {
     no_key_on(&home, &asked.screen);
 }
 
+/// 贴 key 那一步取消了（施工 8-5 补：`Ctrl+C`，或者空行 `Ctrl+D`），`Console::hidden` 报
+/// [`std::io::ErrorKind::Interrupted`]：整个 `miyu setup` 照取消办，退出码 130，配置文件、密钥文件一个字都没写。真的
+/// 终端里的 `Ctrl+C` 这一条用的是真的伪终端，在 `crates/miyu/tests/login_tty.rs`。
+#[tokio::test]
+async fn cancelling_the_key_paste_writes_nothing() {
+    let server = Server::start(vec![]).await;
+    let home = Home::onboarding("", &[], deepseek_at(&server));
+    let mut typist = Typist::at_terminal(&["deep", "1"], &[]);
+    typist.cancel_key = true;
+    let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;
+    assert_eq!(asked.code, 130, "{}", asked.screen);
+    assert!(asked.screen.ends_with("没存，取消了\n"), "{}", asked.screen);
+    assert_eq!(home.system_config(), "", "配置一个字都没写");
+    assert_eq!(home.secrets(), "", "密钥文件一个字都没写");
+    assert!(server.received().is_empty(), "没发出去任何请求");
+}
+
 #[tokio::test]
 async fn a_local_service_needs_no_key() {
     let server = Server::start(vec![

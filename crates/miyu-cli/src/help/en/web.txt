@@ -1,0 +1,17 @@
+Usage: miyu web [options]
+
+Open the web UI: start the web UI program if it is not running and open it
+in your browser. The first time it opens with a one-time code so you can set
+a username and password on the page; later you sign in with them.
+
+Options:
+      --port <port>  Port the web UI listens on this time (if not running;
+                     default 8300)
+      --print        Do not open a browser; print the address
+      --reset        Forgot the password: open with a one-time code to set
+                     a new username and password
+      --logout       Sign out every browser
+  -h, --help         Print help
+
+The web UI is a separate program, miyu-web, installed next to miyu; if it
+is missing, miyu web says how to install it.

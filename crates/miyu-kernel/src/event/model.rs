@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::event::CompactTrigger;
+use crate::event::{CompactTrigger, Cost};
 use crate::id::{ContentHash, ModelName, ProviderId, Seq};
 use crate::request::{Difference, Role};
 use crate::text_enum::text_enum;
@@ -32,6 +32,11 @@ pub struct ModelCalled {
     /// 用量。供应商没报的，没有。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage: Option<Usage>,
+    /// 金额（施工 8-15，`models.md`「事件」）：执行器照这一次真发给的模型的价格、倍率算好交来的，内核原样记下；以后目录
+    /// 更新、人改倍率，已经记下的不重算。没有用量的、哪一项用了却没有价格的、单写了思考价的算不出，没有。以前的日志没有
+    /// 这一格。装在盒子里：照 `first_difference`，`model.called` 不再变大。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cost: Option<Box<Cost>>,
     /// 从请求发出去到第一段增量用了多少毫秒。没发出去的、一段增量都没来的，没有。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub first_token_ms: Option<u64>,

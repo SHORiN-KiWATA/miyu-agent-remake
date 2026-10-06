@@ -257,6 +257,10 @@ macro_rules! __settings_default {
     (duration, $default:literal) => {
         ::core::option::Option::Some($crate::Value::Text(::std::borrow::Cow::Borrowed($default)))
     };
+    // 文字有默认值的（施工 8-15：`usage.currency` 默认 `USD`）。
+    (text, $default:literal) => {
+        ::core::option::Option::Some($crate::Value::Text(::std::borrow::Cow::Borrowed($default)))
+    };
 }
 
 /// [`settings!`](crate::settings) 里 `tighten` 那一格：不写是没有。

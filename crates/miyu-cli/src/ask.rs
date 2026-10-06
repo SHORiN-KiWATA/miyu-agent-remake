@@ -62,6 +62,9 @@ pub mod exit {
     pub const UNATTENDED: u8 = 4;
     /// 没有可用的模型：没配，或者候选全在冷却、没发出去（施工 8-9）。
     pub const NO_MODEL: u8 = 5;
+    /// `miyu login`、`miyu setup` 贴 key 时取消了（按了 `Ctrl+C`，或者空行按了 `Ctrl+D`）：照 Unix 被 `Ctrl+C` 打断的
+    /// 习惯（`128 + SIGINT`），和上面几个退出码不是同一套（施工 8-5 补）。
+    pub const CANCELLED: u8 = 130;
 }
 
 /// `miyu ask` 的参数。给人看的说明在帮助页里（[`crate::help`]），这里的注释只给读代码的人看。

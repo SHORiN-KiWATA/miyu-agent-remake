@@ -1,0 +1,3 @@
+start 0 text
+usage none
+error bad_stream "流里有一段不是 JSON：{\"type\":\"response.output_text.delta\",oops}"

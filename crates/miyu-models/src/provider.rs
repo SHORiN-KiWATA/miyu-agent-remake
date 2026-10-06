@@ -16,31 +16,70 @@
 //! 解出来（`route.rs`、`route/lists.rs`），地址因此不会被这一层的任何输出（`model.list`、`config.get`）带出去。
 //!
 //! 模型的资料照 [`crate::facts`]。
+//!
+//! 一家里的模型可以各走各的驱动（施工 8-14，`drivers/openai-chat.md`「接 opencode Zen」）：真发的那个模型照
+//! [`Provider::for_model`] 换成它的样子——驱动照「手写的供应商 `driver` > 第 1、2 层对上的模型的 `npm` > 档案 > 目录里那一家的
+//! `npm`」，`openai-chat` 的思考回传照目录的 `interleaved`（档案写了 `reasoning` 的照档案）。另配的头照档案，值是模板
+//! （[`crate::headers`]）。
 
 use miyu_config::secret::{Reference as KeyRef, Secret};
 use miyu_config::{Address, Values};
-use miyu_drivers::openai_chat::Compat;
+use std::collections::BTreeMap;
 
+use miyu_drivers::openai_chat::{Compat, ReasoningField, ReasoningReplay};
+use miyu_drivers::{Anthropic, DriverTexts, OpenAiChat, OpenAiResponses};
+
+use crate::facts::Wire;
+use crate::headers;
 use crate::knowledge::Knowledge;
 use crate::matching::{Recognized, recognize};
 use crate::profile::ImageTokens;
 use crate::settings::{ProviderSettings, UseSettings};
 
-/// 认得的驱动。8-6 只有 OpenAI 兼容的对话接口；另两种随 8-12、8-13。
+/// 认得的驱动。8-6 有 OpenAI 兼容的对话接口，8-12 加 Anthropic 的消息接口，8-13 加 OpenAI 的 Responses 接口。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Driver {
     /// `openai-chat`。
     OpenAiChat,
+    /// `anthropic`（施工 8-12）。
+    Anthropic,
+    /// `openai-responses`（施工 8-13）。
+    OpenAiResponses,
 }
 
 impl Driver {
     /// 配置、档案里驱动的写法认成现在有的哪一种（施工 8-11 从 [`provider`] 里拿出来，`provider.catalog` 的 `supported` 也照
-    /// 它）；还没有的（`anthropic`、`openai-responses`）、不认识的是空的。
+    /// 它）；不认识的（档案里写了别的、目录的包名换出来的还没有的）是空的。
     pub fn parse(name: &str) -> Option<Driver> {
         match name {
             "openai-chat" => Some(Driver::OpenAiChat),
+            "anthropic" => Some(Driver::Anthropic),
+            "openai-responses" => Some(Driver::OpenAiResponses),
             _ => None,
         }
+    }
+
+    /// 配置、档案里的写法。
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Driver::OpenAiChat => "openai-chat",
+            Driver::Anthropic => "anthropic",
+            Driver::OpenAiResponses => "openai-responses",
+        }
+    }
+
+    /// 造这种驱动（施工 8-12）：`openai-chat` 照开关 `compat`，`anthropic`、`openai-responses` 没有开关；占位是 `texts`。
+    pub fn build(self, compat: Compat, texts: DriverTexts) -> Box<dyn miyu_drivers::Driver> {
+        match self {
+            Driver::OpenAiChat => Box::new(OpenAiChat::new(compat, texts)),
+            Driver::Anthropic => Box::new(Anthropic::new(texts)),
+            Driver::OpenAiResponses => Box::new(OpenAiResponses::new(texts)),
+        }
+    }
+
+    /// 一定要写输出上限（`models.md`「驱动要守的约定」第 11 条，施工 8-12）：`anthropic` 是，路由替它照模型资料填。
+    pub fn needs_max_output(self) -> bool {
+        self == Driver::Anthropic
     }
 }
 
@@ -65,6 +104,102 @@ pub struct Provider {
     pub recognized: Option<Recognized>,
     /// 本机的模型服务：价格当 0（8-7）。
     pub local: bool,
+    /// 驱动是配置里手写的（施工 8-14）：压过目录里模型的 `npm`。
+    pub driver_written: bool,
+    /// 档案写了思考怎么回传（施工 8-14）：压过目录的 `interleaved`。
+    pub reasoning_written: bool,
+    /// 档案另配的头：名字 → 模板（施工 8-14，[`crate::headers`]）。
+    pub headers: BTreeMap<String, String>,
+    /// 档案点名的占位工具（施工 8-14 补）：工具面里缺这几件时补同名的占位声明（`models.md`「八、opencode Zen」第 2 条）。
+    pub placeholders: Vec<String>,
+}
+
+impl Provider {
+    /// 能不能照开关关思考（「怎么走」第十一条第 1 条，施工 8-12）：`openai-chat` 照档案写没写开关（`compat.toggle`），
+    /// `anthropic` 的开关是接口自带的（`thinking` 写 `disabled`）；`openai-responses` 没有开关，`off` 只从目录的 `none` 来（8-13）。
+    pub fn switchable(&self) -> bool {
+        match self.driver {
+            Driver::OpenAiChat => self.compat.toggle.is_some(),
+            Driver::Anthropic => true,
+            Driver::OpenAiResponses => false,
+        }
+    }
+
+    /// 照这一家的驱动和开关造一个驱动，占位是 `texts`（施工 8-12）。
+    pub fn build(&self, texts: DriverTexts) -> Box<dyn miyu_drivers::Driver> {
+        self.driver.build(self.compat.clone(), texts)
+    }
+
+    /// 发给模型 `model` 时这一家的样子（施工 8-14）：`wire` 是这个模型照目录怎么说话（只取第 1、2 层对上的，
+    /// [`crate::facts::Facts::wire`]），`npm` 是档案的 `[npm]` 表。
+    ///
+    /// - 驱动：手写的照手写的；不然模型写了自己的包名的照它换，换不出现在有的驱动的，这个模型用不了；都没有的照这一家的。
+    /// - 开关：走 `openai-chat`、档案没写 `reasoning` 的，目录写了交错思考的照它回传（`always` 是真的），认不出的字段照旧。
+    ///
+    /// # Errors
+    ///
+    /// 模型的包名换不出现在有的驱动：`model "<供应商>/<模型>" needs driver "<它>", which is not available yet`（「它」是 `[npm]`
+    /// 换出来的名字，表里没有的是包名本身）。
+    pub fn for_model(
+        &self,
+        model: &str,
+        wire: &Wire,
+        npm: &BTreeMap<String, String>,
+    ) -> Result<Provider, NoModel> {
+        let mut speaking = self.clone();
+        if let Some(package) = wire.npm.as_deref().filter(|_| !self.driver_written) {
+            let name = npm.get(package).map_or(package, String::as_str);
+            speaking.driver = Driver::parse(name).ok_or_else(|| {
+                NoModel(format!(
+                    "model \"{}/{model}\" needs driver {name:?}, which is not available yet",
+                    self.id
+                ))
+            })?;
+        }
+        let field = match wire.interleaved.as_deref() {
+            Some("reasoning_content") => Some(ReasoningField::ReasoningContent),
+            Some("reasoning") => Some(ReasoningField::Reasoning),
+            _ => None,
+        };
+        if let Some(field) =
+            field.filter(|_| speaking.driver == Driver::OpenAiChat && !self.reasoning_written)
+        {
+            speaking.compat.reasoning = ReasoningReplay::Replay {
+                field,
+                always: true,
+            };
+        }
+        Ok(speaking)
+    }
+
+    /// 发给模型 `model` 时真走的驱动（施工 8-22，温度的上限照它）：照 [`Provider::for_model`]，这个模型用不了的照这一家的
+    /// （发的时候当场 `no_model`）。
+    pub fn driver_for(&self, model: &str, wire: &Wire, npm: &BTreeMap<String, String>) -> Driver {
+        self.for_model(model, wire, npm)
+            .map_or(self.driver, |speaking| speaking.driver)
+    }
+
+    /// 另配的头，照种子 `seed` 换好模板（施工 8-14，[`crate::headers`]）：会话的是会话编号，一次性的是用途，`provider.test`
+    /// 是 [`headers::PROBE_SEED`]。照名字排。
+    pub fn headers(&self, seed: &str) -> Vec<(String, String)> {
+        self.headers
+            .iter()
+            .map(|(name, template)| (name.clone(), headers::fill(template, seed)))
+            .collect()
+    }
+
+    /// 占位工具（施工 8-14 补）：档案点名的名字，说明 `text` 是资源目录里那一句（`resources/core/drivers/placeholder-tool.txt`）。
+    /// 说明是空的（测试、老数据根）不补；造请求的一方（`route/placeholder.rs`）照它填。
+    pub fn placeholder_specs(&self, text: &str) -> Vec<(String, String)> {
+        match text.is_empty() {
+            true => Vec::new(),
+            false => self
+                .placeholders
+                .iter()
+                .map(|name| (name.clone(), text.to_string()))
+                .collect(),
+        }
+    }
 }
 
 /// 一次请求发给谁：哪一家、哪个模型。
@@ -132,6 +267,7 @@ pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<
     let from_npm = listed
         .and_then(|listed| listed.npm.as_ref())
         .and_then(|npm| knowledge.profiles.npm.get(npm).cloned());
+    let driver_written = settings.driver.is_some();
     let (Some(driver), Some(base_url)) = (
         settings.driver.or(profile.driver.clone()).or(from_npm),
         written_url.or_else(|| {
@@ -167,6 +303,13 @@ pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<
         catalog,
         recognized,
         local,
+        driver_written,
+        reasoning_written: profile
+            .compat
+            .as_ref()
+            .is_some_and(|compat| compat.reasoning.is_some()),
+        headers: profile.headers,
+        placeholders: profile.placeholder_tools,
     })
 }
 

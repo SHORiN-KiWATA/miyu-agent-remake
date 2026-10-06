@@ -25,12 +25,18 @@ impl Language {
         }
     }
 
-    /// `set` 成了：`键 = 值` 写进了哪一层，什么时候生效。
+    /// `set` 成了：`键 = 值` 写进了哪一层，什么时候生效（认不出的不说）。
     pub(crate) fn saved(&self, key: &str, value: &str, layer: &str, applies: &str) -> String {
-        let (layer, applies) = (self.layer_in(layer, false), self.applies_after(applies));
-        match self {
-            Language::Chinese => format!("· {key} = {value} 写进了{layer}，{applies}"),
-            Language::English => format!("· {key} = {value} saved to {layer}, {applies}"),
+        let layer = self.layer_in(layer, false);
+        match (self, self.applies_after(applies)) {
+            (Language::Chinese, Some(applies)) => {
+                format!("· {key} = {value} 写进了{layer}，{applies}")
+            }
+            (Language::Chinese, None) => format!("· {key} = {value} 写进了{layer}"),
+            (Language::English, Some(applies)) => {
+                format!("· {key} = {value} saved to {layer}, {applies}")
+            }
+            (Language::English, None) => format!("· {key} = {value} saved to {layer}"),
         }
     }
 
@@ -154,11 +160,11 @@ impl Language {
         }
     }
 
-    /// `edit` 存好了：改了的几项什么时候生效（照先后，一样的只说一次）；一项都没变的（只动了注释）不说。
+    /// `edit` 存好了：改了的几项什么时候生效（照先后，一样的只说一次）；一项都没变的（只动了注释）不说，认不出的也不说。
     pub(crate) fn edit_saved(&self, applies: &[&str]) -> String {
         let said: Vec<String> = applies
             .iter()
-            .map(|applies| self.applies_after(applies))
+            .filter_map(|applies| self.applies_after(applies))
             .collect();
         match (self, said.is_empty()) {
             (Language::Chinese, true) => "· 存好了".to_string(),

@@ -20,14 +20,13 @@ pub use models::{MODELS_PATH, parse_models};
 
 use std::collections::BTreeSet;
 
-use miyu_kernel::block::Block;
 use miyu_kernel::id::ContentHash;
-use miyu_kernel::request::{Message, Request};
+use miyu_kernel::request::Request;
 use serde::Serialize;
 
 pub use crate::{EncodeError, Encoded};
 
-use crate::{BlobBytes, Call, DriverTexts};
+use crate::{BlobBytes, Call, DriverTexts, media};
 
 /// 驱动家族：私有数据里写的是它的，才是这个驱动的（`03-事件模型.md` 第九节）。
 pub const FAMILY: &str = "openai-chat";
@@ -166,7 +165,7 @@ pub enum ReasoningField {
     Reasoning,
 }
 
-/// 编码：顶层照 `model`、`messages`、`tools`、`stream`、`stream_options`、输出上限、思考强度（施工 8-18，`openai_chat/effort.rs`）的
+/// 编码：顶层照 `model`、`messages`、`tools`、`stream`、`stream_options`、输出上限、温度（施工 8-22）、思考强度（施工 8-18，`openai_chat/effort.rs`）的
 /// 先后写，别的字段一概不发。带着接着写的记号、供应商又会接着写的，照 [`Continuation::Prefix`] 写，发到它的
 /// 路径；别的发到 [`PATH`]。
 ///
@@ -222,6 +221,7 @@ pub fn encode(
         let field = compat.output_limit.field();
         body.extend_from_slice(format!(",\"{field}\":{limit}").as_bytes());
     }
+    crate::write_temperature(&mut body, call.temperature);
     effort::write(&mut body, call.effort.as_deref(), compat);
     body.push(b'}');
     Ok(Encoded {
@@ -234,25 +234,7 @@ pub fn encode(
 /// 这份请求编码时要用哪些 blob：模型能看图的，要图片；文件每一个都要（施工 3-9 三补）：能读 PDF 的发 PDF，别的
 /// 要认是不是文本、要写有多大。执行器照着先取出来。
 pub fn blobs_needed(request: &Request, call: &Call) -> BTreeSet<ContentHash> {
-    let mut needed = BTreeSet::new();
-    for message in &request.messages {
-        let blocks = match message {
-            Message::User { blocks } | Message::Tool { blocks, .. } => blocks,
-            Message::Assistant { .. } => continue,
-        };
-        for block in blocks {
-            match block {
-                Block::Image(image) if call.inputs.images => {
-                    needed.insert(image.blob.clone());
-                }
-                Block::File(file) => {
-                    needed.insert(file.blob.clone());
-                }
-                _ => {}
-            }
-        }
-    }
-    needed
+    media::blobs_needed(request, call)
 }
 
 /// 写成紧凑的 JSON，接在后面。

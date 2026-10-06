@@ -58,6 +58,8 @@ enum Command {
     Logout(miyu_cli::Logout),
     /// 第一次接入模型（施工 8-11）。
     Setup(miyu_cli::Setup),
+    /// 打开网页界面：找主程序旁边的网页软件，参数交给它（施工 W-9）。
+    Web(miyu_cli::Web),
     /// 核心进程：由头拉起，平时不用人敲。
     #[command(hide = true)]
     Core {
@@ -100,6 +102,7 @@ fn main() -> ExitCode {
         .mut_subcommand("setup", |setup| {
             setup.override_help(page(language, Page::Setup))
         })
+        .mut_subcommand("web", |web| web.override_help(page(language, Page::Web)))
         .mut_subcommand("config", |config| {
             let help = page(language, Page::Config);
             [
@@ -137,6 +140,7 @@ fn main() -> ExitCode {
         Some(Command::Login(args)) => miyu_cli::login(args.into(), core),
         Some(Command::Logout(args)) => miyu_cli::login(args.into(), core),
         Some(Command::Setup(args)) => miyu_cli::setup(args, core),
+        Some(Command::Web(args)) => miyu_cli::web(args),
         Some(Command::Core { idle_seconds }) => miyu_core::main(miyu_core::Options {
             idle: idle_seconds.map_or(miyu_core::IDLE, Duration::from_secs),
         }),

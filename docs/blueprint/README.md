@@ -28,6 +28,8 @@
 | `kernel/history.md` | 账本、有效历史、撤销和恢复、改回文件的几步 |
 | `kernel/request.md` | 统一的请求、组装、事实注入、模板、流式累积 |
 | `drivers/openai-chat.md` | OpenAI 兼容接口：编码、解码、出错分类 |
+| `drivers/anthropic.md` | Anthropic 的消息接口：编码、缓存打点、思考、解码、出错分类：图纸，2026-10-02 起草，待主会话审 |
+| `drivers/openai-responses.md` | OpenAI 的 Responses 接口：编码、思考、解码、出错分类：图纸，2026-10-02 起草，待主会话审 |
 | `http.md` | 发请求、读流 |
 | `policy.md` | 策略快照 |
 | `store.md` | 数据根、会话日志、blob |
@@ -49,6 +51,7 @@
 | `tools/jobs.md` | 看、读、停派出去的任务（施工 7-4） |
 | `tools/send_message.md` | 父子之间留言（施工 7-7） |
 | `tools/sessions.md` | 列你别的主会话（施工 C-3，跨会话） |
+| `tools/session_usage.md` | 查这个会话的用量、金额、上下文（施工 8-15） |
 | `cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`、`cli/config.md`、`cli/login.md`、`cli/setup.md`、`cli/main.md` | 每条命令一页（`cli/compact.md` 施工 6-8，`cli/redo.md` 施工 4-7 再补，`cli/recap.md` 施工 3-8 四补，`cli/rename.md` 施工 3-8 五补，`cli/config.md` 施工 8-2，`cli/login.md` 施工 8-5，`cli/setup.md` 施工 8-11）；主程序 |
 | `sandbox.md` | 沙盒：规格、助手 `miyu-sandbox`、探测、找助手（施工 5-1 起） |
 | `sandbox/linux.md` | 沙盒在 Linux 上怎么收紧：只用 Landlock，整盘能读、只管写（施工 5-2 起，5-3 改成只管写） |
@@ -60,6 +63,7 @@
 | `models.md` | 供应商和模型：供应商的配置、模型资料和四层对目录、用途和池、出错换端点和冷却、会话里换模型、第一次接入、opencode Zen、用量和金额：图纸，定稿（2026-10-01 项目主人批准），M8 照它施工 |
 | `config.md` | 配置和密钥：清单、分层、项目配置的信任、校验和报错、写盘、留痕、监视和生效、密钥、`config.*`、`secret.*`、`miyu config`、`miyu login`、`miyu logout`：图纸，定稿（2026-10-01 项目主人批准），M8 的 8-1 到 8-5 照它施工 |
 | `web-module.md` | 网页界面这个软件和核心给它的通用方法：网页软件 `miyu-web`（端口、页面、WebSocket 照转、一次性登录、媒体地址），核心给所有头的 `human.get`、`fs.*`、`mermaid.render`、分块传和读 blob、`link.preview`：图纸，2026-10-01 项目主人批准；W-1 到 W-7 现在做，身份、网页软件等用户系统 |
+| `web-ui.md` | 网页软件 `miyu-web`：起停、端口（8300）、页面、WebSocket 照转、`miyu web`（施工 W-9，从 `web-module.md` 搬出来独立成页）；媒体地址随 W-10 |
 | `mermaid.md` | mermaid 源码画成 SVG：可选软件包 `mermaid`、crate `miyu-mermaid`、`mermaid.render`，懒初始化、缓存、三种记号色（施工 W-4，2026-10-02 从 `web-module.md` 搬出来独立成页） |
 | `net.md` | 链接卡片：可选软件包 `net`、crate `miyu-net`、`link.preview`，地址闸、钉地址、代理、跳转、元数据、图存成 blob、在后台答（施工 W-7，2026-10-02 从 `web-module.md` 搬出来独立成页） |
 | `licenses.md` | 仓库用什么许可证；门禁查依赖的许可证能不能和它合在一起发（施工 4-12） |

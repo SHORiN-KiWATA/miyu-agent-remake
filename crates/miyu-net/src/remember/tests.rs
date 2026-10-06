@@ -15,6 +15,9 @@ fn card() -> Card {
         site: "example.com".to_string(),
         image: None,
         icon: None,
+        kind: crate::Kind::Page,
+        duration: None,
+        author: None,
     }
 }
 

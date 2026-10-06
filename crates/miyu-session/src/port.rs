@@ -10,11 +10,12 @@ use tokio::sync::{mpsc, oneshot};
 
 use miyu_drivers::DriverTexts;
 use miyu_kernel::accumulate::Delta;
-use miyu_kernel::event::{CallError, EffortInUse, Purpose, Usage};
-use miyu_kernel::id::{ContentHash, Seq, SessionId};
+use miyu_kernel::event::{CallError, Cost, EffortInUse, Purpose, Usage};
+use miyu_kernel::id::{AccountId, ContentHash, Seq, SessionId};
 use miyu_kernel::origin::Model;
 use miyu_kernel::request::Request;
 use miyu_kernel::session::{Limits, Replaced};
+use miyu_models::price::Tariff;
 use miyu_store::blob::Blobs;
 
 use crate::config::TurnConfig;
@@ -43,6 +44,8 @@ pub trait Models: Send + Sync {
 pub struct ForSession {
     /// 会话编号：路由照它挑 key（施工 8-6，`models.md` 第一条第 6 条）。
     pub id: SessionId,
+    /// 会话的属主（施工 8-15）：替它看图的一次性调用记在他的账上。
+    pub owner: AccountId,
     /// 造会话、载入时取的那一份配置（施工 8-6）：会话用哪个模型、限额照它定。
     pub config: TurnConfig,
     /// 驱动的占位：取自这个会话的策略快照。
@@ -125,6 +128,8 @@ pub struct Reports {
     seen: Seq,
     /// 辅助请求的用途（施工 3-8 四补的回顾、五补的起标题）：回报另走一路，不和主请求的 `seen` 撞。主请求没有。
     purpose: Option<Purpose>,
+    /// 这一次真发给的模型的价格（施工 8-15，[`Reports::billed`]）：说完了照用量算金额。没有的不算。
+    tariff: Option<Tariff>,
     back: mpsc::UnboundedSender<Back>,
 }
 
@@ -133,6 +138,7 @@ impl Reports {
         Reports {
             seen,
             purpose: None,
+            tariff: None,
             back,
         }
     }
@@ -142,8 +148,17 @@ impl Reports {
         Reports {
             seen: upto,
             purpose: Some(purpose),
+            tariff: None,
             back,
         }
+    }
+
+    /// 这一次照 `tariff` 算金额（施工 8-15，`docs/blueprint/models.md`「怎么走」第九条第 3 条）：端口挑定了真发给的模型以后
+    /// 交，说完了照报的用量算好，随说完了交给内核。不交的（测试的剧本）不算，`model.called` 不写 `cost`。
+    #[must_use]
+    pub fn billed(mut self, tariff: Option<Tariff>) -> Reports {
+        self.tariff = tariff;
+        self
     }
 
     /// 是哪一种辅助请求；主请求没有（施工 3-8 五补）。端口照请求发，用不着它；测试的端口照它分剧本。
@@ -170,8 +185,10 @@ impl Reports {
         wait_ms: Option<u64>,
         excess: Option<u64>,
     ) {
+        let cost = self.cost(usage.as_ref());
         self.send(Report::Ended {
             usage,
+            cost,
             error,
             wait_ms,
             excess,
@@ -182,13 +199,20 @@ impl Reports {
     /// 出错了，端口换了端点（施工 8-9，`models.md`「怎么走」第五条第 3 条）：内核不管分类当场再来。`wait_ms` 是别的候选都在
     /// 冷却时要等多久，有别的能用的没有。
     pub fn failed_over(self, usage: Option<Usage>, error: CallError, wait_ms: Option<u64>) {
+        let cost = self.cost(usage.as_ref());
         self.send(Report::Ended {
             usage,
+            cost,
             error: Some(error),
             wait_ms,
             excess: None,
             failover: true,
         });
+    }
+
+    /// 照交来的价格和报的用量算金额：没有价格、没报用量、算不出的没有。
+    fn cost(&self, usage: Option<&Usage>) -> Option<Box<Cost>> {
+        self.tariff.as_ref()?.cost(usage?).map(Box::new)
     }
 
     #[expect(
@@ -275,6 +299,8 @@ pub(crate) enum Report {
     /// 说完了。`failover`：出错以后端口换了端点（施工 8-9）。
     Ended {
         usage: Option<Usage>,
+        /// 装在盒子里：照 `model.called` 的那一格，回报不平白变大。
+        cost: Option<Box<Cost>>,
         error: Option<CallError>,
         wait_ms: Option<u64>,
         excess: Option<u64>,

@@ -1,0 +1,303 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"></head><body><!-- 本地外壳：这一行和最后两行只给直接打开用 -->
+<title>miyu-onebot 拆分图</title>
+<style>
+/* 布局：单栏长文，图在上、清单在下；宽表格各自横向滚动 */
+:root{
+  --bg:#f6f7f5; --panel:#ffffff; --fg:#1d2321; --muted:#5d6763; --line:#d9dedb;
+  --accent:#1f6f5c;
+  --k:#2f5d8a; --k-bg:#e6eef6;
+  --c:#1f6f5c; --c-bg:#e3f1ec;
+  --d:#8a5a1f; --d-bg:#f5ecdf;
+  --p:#6a4c93; --p-bg:#eee8f5;
+  --x:#7a7f7d; --x-bg:#ececea;
+  --q:#a33d3d; --q-bg:#f7e7e5;
+  --sans:"PingFang SC","Noto Sans CJK SC","Source Han Sans SC","Microsoft YaHei",system-ui,sans-serif;
+  --mono:"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141917; --panel:#1b2220; --fg:#e4e9e6; --muted:#9aa5a0; --line:#2e3834;
+  --accent:#5fc0a3;
+  --k:#8db8e3; --k-bg:#1d2b3a; --c:#6fcfaf; --c-bg:#183129; --d:#e0b27a; --d-bg:#332818;
+  --p:#c3a8e8; --p-bg:#2a2236; --x:#a3a8a6; --x-bg:#262b29; --q:#ef9a92; --q-bg:#3a2220;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --panel:#1b2220; --fg:#e4e9e6; --muted:#9aa5a0; --line:#2e3834;
+  --accent:#5fc0a3;
+  --k:#8db8e3; --k-bg:#1d2b3a; --c:#6fcfaf; --c-bg:#183129; --d:#e0b27a; --d-bg:#332818;
+  --p:#c3a8e8; --p-bg:#2a2236; --x:#a3a8a6; --x-bg:#262b29; --q:#ef9a92; --q-bg:#3a2220;
+  color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.7;font-size:15px}
+.wrap{max-width:1040px;margin:0 auto;padding-inline:16px;padding-block:32px 64px;display:flex;flex-direction:column;gap:40px}
+h1{font-size:28px;margin:0;text-wrap:balance;letter-spacing:.02em}
+h2{font-size:20px;margin:0 0 12px;text-wrap:balance;border-bottom:1px solid var(--line);padding-bottom:6px}
+h3{font-size:16px;margin:20px 0 8px}
+p{margin:0 0 10px;max-width:68ch}
+.lede{color:var(--muted)}
+code{font-family:var(--mono);font-size:.88em;background:var(--x-bg);padding:1px 5px;border-radius:3px}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin:6px 0 4px}
+.tag{display:inline-block;font-size:12px;font-weight:600;padding:1px 8px;border-radius:10px;white-space:nowrap;letter-spacing:.03em}
+.K{color:var(--k);background:var(--k-bg)} .C{color:var(--c);background:var(--c-bg)}
+.D{color:var(--d);background:var(--d-bg)} .P{color:var(--p);background:var(--p-bg)}
+.X{color:var(--x);background:var(--x-bg)} .Q{color:var(--q);background:var(--q-bg)}
+.scroll{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px}
+pre.mermaid{margin:0;padding:16px;background:var(--panel);text-align:center}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:720px}
+th,td{text-align:left;vertical-align:top;padding:7px 10px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.04em;background:var(--bg);position:sticky;top:0}
+td:first-child{white-space:nowrap}
+tr.grp td{background:var(--bg);font-weight:600;font-size:13px;color:var(--muted);padding-top:12px}
+.note{border-left:3px solid var(--q);background:var(--q-bg);padding:10px 14px;border-radius:0 6px 6px 0}
+.note p:last-child{margin:0}
+ol.ask{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:12px}
+ol.ask li{max-width:72ch}
+.rec{color:var(--c);font-weight:600}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.box{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;min-width:0}
+.box h4{margin:0 0 6px;font-size:14px}
+.box ul{margin:0;padding-left:18px;font-size:14px}
+</style>
+
+<div class="wrap">
+
+<header>
+  <h1>miyu-onebot 拆分图</h1>
+  <p class="lede">讨论稿 · 2026-10-07 · 旧版 QQ 这一套逐个功能归位，配上新版的分层、插件槽、配置页和插件的方向。最后一节是已定的和还要定的。</p>
+  <div class="legend">
+    <span class="tag K">核心</span><span class="tag C">群聊内核</span><span class="tag D">OneBot 驱动</span><span class="tag P">别的软件包</span><span class="tag X">不做 / 被架构消掉</span><span class="tag Q">要你定</span>
+  </div>
+</header>
+
+<section>
+  <h2>一、分层：装了才有</h2>
+  <p>软件包 <code>miyu-onebot</code> 和终端界面、网页平级，是一个头。不装它，核心里一行 QQ 的代码、一个 QQ 的配置项都没有。</p>
+  <div class="scroll"><pre class="mermaid">
+flowchart TB
+  subgraph pkg["软件包 miyu-onebot（装了才有）"]
+    direction TB
+    entry["入口：miyu onebot（照清单找）<br/>状态、最小接入、场所 show/set"]
+    page["自己的 WebUI<br/>只听本机"]
+    plug["插件：清单 + 进程<br/>以后有市场"]
+    subgraph chat["群聊内核 miyu-chat：和平台无关，以后的 Telegram 桥直接链进去"]
+      direction LR
+      inq["进站链"] --> ld["线路规程"] --> sc["加值项求和<br/>+ 门槛修正"] --> jd["判官"]
+      oq["出站链"] --> spool["出站队列"]
+      rules["场所规则<br/>venues.d"]
+    end
+    subgraph drv["OneBot 驱动：只有 QQ"]
+      direction LR
+      tr["连接<br/>反向 WS"] --- codec["消息段<br/>编解码"] --- qk["quirk 表"] --- io["平台工具<br/>ioctl"]
+    end
+    manifest["清单：配置项、平台工具、能力"]
+  end
+  napcat["NapCat / SnowLuma"] <--> tr
+  pkg <-- "Miyu 协议：头 + 提供者" --> core
+  subgraph core["核心（不认识 QQ）"]
+    direction LR
+    p1["外部身份<br/>主人绑定"]
+    p2["旁听消息<br/>只记不开回合"]
+    p3["开回合<br/>带原因"]
+    p4["model.call<br/>池、用量"]
+    p5["头提供的工具"]
+    p6["ext 事件<br/>会话日志"]
+  end
+  tui["终端界面、网页的设置页"] -. "只给一个跳转入口" .-> page
+</pre></div>
+  <h3>和现有设计的出入</h3>
+  <div class="note">
+    <p><b>Q1 重开（2026-10-07 项目主人定）。</b><code>18-通讯平台.md</code> Q1 原定场所子系统编进核心，理由有两条：换平台不用重写；用模型的决定都在核心。</p>
+    <p>现在把它挪进软件包里的群聊内核 <code>miyu-chat</code>（一个库）。这样两条理由都还成立：</p>
+    <ul>
+      <li>库和平台无关，以后的 Telegram 桥照样链进去，换平台不用重写；</li>
+      <li>判官走核心的 <code>model.call</code>（8-20 已做），模型池和用量照样在核心记账。</li>
+    </ul>
+    <p>换来的是：没装 QQ 的人，核心里没有线路规程、判官、出站队列。核心只多六个通用的原语（图里那一排），终端界面、网页、子代理以后也用得上。</p>
+  </div>
+</section>
+
+<section>
+  <h2>二、一条群消息怎么走</h2>
+  <p>旧版的核心机制是「主动回复判断」：几个加值项相加，减去冷静抬起的门槛，再由判官打分。新版把每一项拆成能登记的插件，算出的每一笔都记进日志，事后能回放、能解释。</p>
+  <div class="scroll"><pre class="mermaid">
+flowchart LR
+  m["群消息"] --> codec["驱动：解码<br/>去重：账号+消息号"]
+  codec --> log[("场所会话日志<br/>每条都记")]
+  log --> inq{"进站链<br/>睡眠·禁言·谁能叫·限流·违规词"}
+  inq -- "只记下" --> stop["结束"]
+  inq -- "放行" --> ld{"线路规程<br/>chatty"}
+  ld -- "冲她来的" --> turn
+  ld -- "没人叫：抽样或窗口内" --> sum["加值项求和<br/>直触发 +0.3 · 续聊 +0.1<br/>观察窗口 +0.1 · 顶替继承"]
+  sum --> jd["判官 五维打分<br/>（看不到加减分）"]
+  jd --> th{"分数 ≥ 门槛 +<br/>冷静 S 曲线"}
+  th -- "否" --> dlog["ext.chat.decided<br/>每笔都记"]
+  th -- "是" --> turn["核心开回合<br/>附：为什么叫她"]
+  turn --> reply["她的回复 / skip_reply"]
+  reply --> oq["出站链<br/>清理·去重·引用和@"] --> spool["出站队列<br/>先记账"] --> send["驱动：拆段<br/>长文转图·表情包隔开发"]
+</pre></div>
+</section>
+
+<section>
+  <h2>三、插件槽：旧版 19 个挂接点 → 新版 10 个登记表</h2>
+  <p>旧版的插件接口是一个 19 个方法的 trait，插件之间共享同一个可变的 <code>TriggerDecision</code>。新版一个插槽只做一件事，加东西只登记，不改中心。</p>
+  <div class="scroll"><table>
+    <thead><tr><th>新插槽</th><th>在哪</th><th>合并规则</th><th>自带</th><th>对应旧版</th></tr></thead>
+    <tbody>
+      <tr><td>线路规程</td><td><span class="tag C">群聊内核</span></td><td>每个场所独占一个</td><td>每条都回、叫她才回、看情况插话、唤醒</td><td><code>decide_trigger</code></td></tr>
+      <tr><td>加值项</td><td><span class="tag C">群聊内核</span></td><td>求和，不封顶</td><td>直触发、续聊、观察窗口、顶替继承、判官的 should_reply</td><td>判官里写死的 final 公式</td></tr>
+      <tr><td>门槛修正</td><td><span class="tag C">群聊内核</span></td><td>求和</td><td>冷静（S 曲线，只管插嘴）</td><td>判官里写死的阈值公式</td></tr>
+      <tr><td>进站链规则</td><td><span class="tag C">群聊内核</span></td><td>链式，每条给出结果</td><td>睡眠、禁言、谁能叫她、限流、违规关键词</td><td><code>admission.rs</code>，约 720 行的分发函数</td></tr>
+      <tr><td>出站链规则</td><td><span class="tag C">群聊内核</span></td><td>链式</td><td>清理、去重、引用和 @</td><td>各插件的 <code>before_send</code></td></tr>
+      <tr><td>出站形态</td><td><span class="tag C">群聊内核</span></td><td>照场所规则选一种</td><td>纯文本拆段、长文转图、合并转发</td><td>reply_processor</td></tr>
+      <tr><td>观察者</td><td><span class="tag C">群聊内核</span></td><td>广播，只读日志，能写自己的 ext 事件</td><td>违规者档案、表情包收集</td><td><code>observe_inbound</code>、<code>after_send</code></td></tr>
+      <tr><td>平台工具</td><td><span class="tag D">OneBot 驱动</span></td><td>登记进核心的工具目录</td><td>群管、撤回、贴表情、通讯录、群文件、头像、群成员</td><td><code>register_tools</code></td></tr>
+      <tr><td>消息段</td><td><span class="tag D">OneBot 驱动</span></td><td>一种段一个编解码</td><td>at、reply、image、file、record、video、forward、face</td><td><code>inbound.rs</code> 里的大 match</td></tr>
+      <tr><td>quirk</td><td><span class="tag D">OneBot 驱动</span></td><td>连上后照实现和版本打开</td><td>旧版散在各处的 28 条特判</td><td>散在 12 个文件</td></tr>
+    </tbody>
+  </table></div>
+  <p style="margin-top:10px">旧版另外 9 个挂接点不用搬：顶替、合并、中止、重置这 7 个（<code>preempt_inbound</code>、<code>turn_is_superseded</code>、<code>confirm_supersede</code>、<code>adopt_followup</code>、<code>accept_followup</code>、<code>after_turn_aborted</code>、<code>after_*_reset</code>）由核心的单入口和排队的消息管（Q11、施工 2-6），状态从日志算出来；<code>before_turn</code> 换成事实注入加群聊近况的投影；<code>observe_ingress</code> 和 <code>record_external_bot_message</code> 也不用了，因为日志本身就是聊天记录。</p>
+</section>
+
+<section>
+  <h2>四、旧版逐个功能的去处</h2>
+  <p>旧版约 5.2 万行：real_context 30 个机制、95 个配置项；平台层 8 个插件、20 个工具、28 条 quirk。按新架构归到下面五处。</p>
+  <div class="scroll"><table>
+    <thead><tr><th>去处</th><th>旧版功能</th><th>新版怎么做</th></tr></thead>
+    <tbody>
+      <tr class="grp"><td colspan="3">主动回复判断（real_context）</td></tr>
+      <tr><td><span class="tag C">群聊内核</span></td><td>触发条件集合</td><td>拆成加值项，几个同时成立就相加，旧版的效果照搬（Q4）</td></tr>
+      <tr><td><span class="tag C">群聊内核</span></td><td>判官（五维打分、to_bot）</td><td>经核心 <code>model.call</code>；看不到程序的加减分</td></tr>
+      <tr><td><span class="tag C">群聊内核</span></td><td>冷静机制</td><td>门槛修正项，曲线内置，只留开关</td></tr>
+      <tr><td><span class="tag C">群聊内核</span></td><td>续聊窗口、观察窗口、概率抽样</td><td>加值项；窗口状态从日志投影，重启不丢（旧版放在内存里）</td></tr>
+      <tr><td><span class="tag C">群聊内核</span></td><td>顶替窗口（发错马上改）</td><td>一个加值项加一条规则；回合中途来的消息，核心排队的机制已经接住</td></tr>
+      <tr><td><span class="tag C">群聊内核</span></td><td>违规初判、关键词、base64</td><td>进站链的一条规则，命中就拉起判官；结论作为事实注入</td></tr>
+      <tr><td><span class="tag C">群聊内核</span></td><td>引用与 @ 的决定</td><td>出站链：隔 4 条别人的消息才引用，隔 15 秒才 @</td></tr>
+      <tr><td><span class="tag C">群聊内核</span></td><td>贴「在看了」表情</td><td>什么时候贴归内核，怎么贴是驱动的平台工具</td></tr>
+      <tr><td><span class="tag C">群聊内核</span></td><td>身份防冒充</td><td>进站时标注；昵称照旧是不可信字段</td></tr>
+      <tr><td><span class="tag C">群聊内核</span></td><td>决策日志（旧版只写 tracing）</td><td>写成 <code>ext.chat.decided</code> 事件，能查、能回放</td></tr>
+      <tr><td><span class="tag K">核心</span></td><td>上下文注入、水位、80 KB 预算</td><td>群聊近况的投影（施工 1-10 留的口子）</td></tr>
+      <tr><td><span class="tag K">核心</span></td><td>同一个人接着发的几条并进当前回合</td><td>排队的消息（施工 2-6）</td></tr>
+      <tr><td><span class="tag K">核心</span></td><td>注入时转义</td><td>投影统一清洗不可信字段</td></tr>
+      <tr><td><span class="tag X">消掉</span></td><td>跳过判断名单（QQ 号存在键值表里，两件工具）</td><td>改成场所规则里的一条「人」的属性</td></tr>
+      <tr><td><span class="tag X">消掉</span></td><td>原文透传、重置时清状态</td><td>日志里本来就有，状态从日志算</td></tr>
+      <tr><td><span class="tag X">不做</span></td><td>好感度（28 项）</td><td>不做（2026-10-07 项目主人定）</td></tr>
+      <tr><td><span class="tag X">不做</span></td><td>情绪（13 项）：心情和表达欲，修正门槛，tone_hint</td><td>不做（2026-10-07 项目主人定）</td></tr>
+
+      <tr class="grp"><td colspan="3">OneBot 协议这一层</td></tr>
+      <tr><td><span class="tag D">驱动</span></td><td>反向 WS、鉴权、多账号、echo 配对、事件分流</td><td>传输层；默认只绑本机、必须带令牌（旧版绑 <code>0.0.0.0</code>）</td></tr>
+      <tr><td><span class="tag D">驱动</span></td><td>入站解码：CQ 字符串和段数组、图、文件、语音、视频、合并转发</td><td>消息段登记表；合并转发进来时就展开；媒体先只记编号</td></tr>
+      <tr><td><span class="tag D">驱动</span></td><td>出站：段构造、合并转发、文件上传、base64 退路</td><td>出站形态落到 OneBot 段</td></tr>
+      <tr><td><span class="tag D">驱动</span></td><td>撤回、禁言、成员减少、群文件上传这几种通知</td><td>解码成 <code>ext.venues.*</code> 事件</td></tr>
+      <tr><td><span class="tag D">驱动</span></td><td>28 条特判（负数消息号、no_cache、real_seq、踢人的返回值不可信……）</td><td>quirk 表，一行一条，带「旧版踩到的现象」</td></tr>
+      <tr><td><span class="tag D">驱动</span></td><td>群管、撤回、通讯录、头像、群成员、群文件</td><td>平台工具，每件都带「对哪个场所」的参数（Q16）</td></tr>
+      <tr><td><span class="tag C">群聊内核</span></td><td>群管的二次确认、默认不动群主和管理员、违规者档案</td><td>策略在内核，档案从日志投影</td></tr>
+      <tr><td><span class="tag C">群聊内核</span></td><td>入群审批、好友请求</td><td>策略在内核（审批走 <code>model.call</code>，出错就保持待定）；SnowLuma 的 flag 改写是一条 quirk</td></tr>
+      <tr><td><span class="tag D">驱动</span></td><td>旧版没有的：戳一戳、进群、被踢、群邀请、商城表情</td><td>解码成事件就行，第一版只记下</td></tr>
+
+      <tr class="grp"><td colspan="3">准入、权限、出站</td></tr>
+      <tr><td><span class="tag C">群聊内核</span></td><td>睡眠时间、限流（数回合）、谁能叫她</td><td>进站链，规则照 18 号第五节</td></tr>
+      <tr><td><span class="tag K">核心</span></td><td>管理员名单</td><td>外部身份绑定本机用户，像 <code>authorized_keys</code>；由核心认，不信桥</td></tr>
+      <tr><td><span class="tag C">群聊内核</span></td><td>私聊白名单、群白名单、动态授权工具</td><td>都变成场所规则；给主人一件改规则的工具</td></tr>
+      <tr><td><span class="tag C">群聊内核</span></td><td>Markdown 转纯文本、拆段、去重、空括号拦截、表情包隔开发</td><td>出站链加出站形态</td></tr>
+      <tr><td><span class="tag C">群聊内核</span></td><td>未送达退回、直发通道、命令回执 3 秒撤回</td><td>出站队列：先记账，失败退回，带条件入队</td></tr>
+      <tr><td><span class="tag K">核心</span></td><td>命令解析、<code>/reset</code>、<code>/stop</code>、<code>/models</code></td><td>核心的命令目录；软件包另外登记自己的命令</td></tr>
+      <tr><td><span class="tag K">核心</span></td><td>回合排队、票据、在途登记、到达顺序闸（旧版约 8 套）</td><td>会话 actor 单入口（Q11）</td></tr>
+      <tr><td><span class="tag K">核心</span></td><td>任务回报攒着等账号上线、中间轮正文立即发</td><td>子代理回报（M7）；出站队列等桥重连</td></tr>
+      <tr><td><span class="tag K">核心</span></td><td>消息历史库和搜索工具</td><td>会话日志加派生索引（Q2），不另开一个库</td></tr>
+      <tr><td><span class="tag K">核心</span></td><td>定时消息</td><td>核心的定时，到点带「不早于」入队</td></tr>
+
+      <tr class="grp"><td colspan="3">本来就不是 QQ 的东西</td></tr>
+      <tr><td><span class="tag P">别的包</span></td><td>长文转图的渲染器（约 4000 行）、<code>render_image</code></td><td>独立的渲染包，终端里的会话也能用（mermaid 已经是这个形状）</td></tr>
+      <tr><td><span class="tag P">别的包</span></td><td>语音转写（SenseVoice）、<code>send_voice_message</code></td><td>语音包（<code>20-语音.md</code>）；驱动只负责按 wav 取回来</td></tr>
+      <tr><td><span class="tag P">别的包</span></td><td>表情包库、<code>use_meme</code>、群里收集表情</td><td>表情包包；收集是挂在群聊内核上的一个观察者</td></tr>
+      <tr><td><span class="tag P">别的包</span></td><td>赞助记账 <code>sponsor</code>（汇率折算）</td><td>和 QQ 无关，单独一个包，或者不做</td></tr>
+      <tr><td><span class="tag X">不做</span></td><td>live_turns（给 claude-code 的 MCP 桥）</td><td>新版没有这条路</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>五、自己的 WebUI</h2>
+  <p>2026-10-07 项目主人定：<code>miyu-onebot</code> 自己开一个 WebUI，像 NapCat、AstrBot 的面板，不挂进网页软件。别的头只给一个跳转入口，不做配置，免得替不装的人留下死代码。</p>
+  <div class="cols">
+    <div class="box"><h4>旧版</h4><ul>
+      <li>终端界面里约 20 屏 QQ 配置，网页 <code>settings-schema.js</code> 里约 1600 行</li>
+      <li>4 个网页面板写死在网页里</li>
+      <li>不用 QQ 的人也装着这些</li>
+    </ul></div>
+    <div class="box"><h4>新版</h4><ul>
+      <li><code>miyu-onebot</code> 进程自己开 HTTP，只听本机，端口固定，不和网页软件共用</li>
+      <li>连接状态、主人、场所规则、平台工具开关、插件和插件的配置都在这里；以后的聊天记录、群管面板、插件市场也在这里</li>
+      <li><code>miyu onebot</code> 像 <code>miyu web</code>：确保它在跑，开浏览器</li>
+      <li>终端界面、网页的设置页只有一行「QQ：打开 miyu-onebot」</li>
+    </ul></div>
+    <div class="box"><h4>和核心的分工</h4><ul>
+      <li>登录不自建账号：照网页软件的做法（W-8），用户名、密码交给核心验</li>
+      <li>配置项照旧在清单里声明，经核心的 <code>config.set</code> 写，校验只在一处</li>
+      <li>没有浏览器的服务器：<code>miyu onebot setup</code> 只问令牌和主人，剩下的改文件</li>
+    </ul></div>
+  </div>
+</section>
+
+<section>
+  <h2>六、不开主动回复判断时</h2>
+  <p>「开不开」就是给这个场所挂哪个线路规程。不开，就不挂「看情况插话」：判官、加值项、门槛修正这三种插槽都不构造，一次辅助请求也不发。</p>
+  <div class="scroll"><table>
+    <thead><tr><th>线路规程</th><th>交给她的</th><th>花费</th></tr></thead>
+    <tbody>
+      <tr><td><code>when-called</code> 叫她才回</td><td>@ 她、回复她、叫到名字或触发词；她刚回过的人接着说；同一个人接连发的几条</td><td>只有主回合</td></tr>
+      <tr><td><code>every-message</code> 每条都回</td><td>有字的都交给她</td><td>每条一个主回合</td></tr>
+      <tr><td><code>chatty</code> 看情况插话</td><td>冲她来的一定交；没人叫时抽样，交给判官</td><td>主回合加判官</td></tr>
+    </tbody>
+  </table></div>
+  <p style="margin-top:10px">没有判官时照样有的：进站链、出站链、引用和 @、群聊近况、<code>skip_reply</code>、写明为什么叫她。少了的：主动插话，以及判官顺带做的违规初判。没有判官时，关键词命中就直接开一个回合，并附上提示。</p>
+  <div class="note">
+    <p><b>有一处要改。</b>18 号的「叫她才回」把续聊算成冲她来的：她刚回过的人接着说，就直接交给她。旧版的续聊要先过判官，判官会认出「这句是对别人说的」。没有判官时，这个人 15 秒内的每句话她都会接。</p>
+    <p>推荐加一条不用模型的规则：这句话 @ 了别人，或者引用的是别人的消息，就不算续聊。剩下误接的，由她用 <code>skip_reply</code> 兜住。</p>
+  </div>
+</section>
+
+<section>
+  <h2>七、插件：照 AstrBot 的方向</h2>
+  <p>你在 AstrBot 上写过 22 个插件，统计下来用得最多的是：LLM 工具 77 件，命令 13 个，改请求 9 处，改回复 7 处，发出后回调 4 处，直接调 OneBot 接口若干（比如反戳一戳）。新版的插件照这几样来设计插槽。</p>
+  <div class="scroll"><table>
+    <thead><tr><th>AstrBot</th><th>Miyu</th><th>差别</th></tr></thead>
+    <tbody>
+      <tr><td><code>metadata.yaml</code></td><td>清单（<code>05-内核接口.md</code> 第二节）</td><td>多一项：要哪些能力，装的时候由人批准</td></tr>
+      <tr><td><code>_conf_schema.json</code></td><td>清单里的 <code>[settings]</code></td><td>同一份配置清单，配置页照它画</td></tr>
+      <tr><td><code>@filter.llm_tool</code>、<code>@filter.command</code></td><td>核心的工具目录、命令目录</td><td>终端、网页里的会话也能用，不只是 QQ</td></tr>
+      <tr><td><code>on_llm_request</code></td><td>回合开始时注入（变成事件）</td><td>字节稳定，前缀缓存不掉（<code>05</code> 第五节第 3 条）</td></tr>
+      <tr><td><code>on_decorating_result</code>、<code>after_message_sent</code></td><td>出站链规则、观察者</td><td>多了进站链规则，能拦广告这类</td></tr>
+      <tr><td><code>call_action</code>（直调 OneBot）</td><td>能力 <code>onebot.call</code>，清单里写明调哪几个接口</td><td>只给插件，不给模型（Q16 照旧）</td></tr>
+      <tr><td>进程内的 Python，权限不受限</td><td>独立进程，任何语言，跑在沙盒里</td><td>插件崩了不拖垮桥；先出一个 Python 的 SDK</td></tr>
+      <tr><td>插件市场</td><td>Miyu 的软件源（<code>12-进程形态与分发.md</code> 第四节）</td><td>QQ 插件是依赖 <code>miyu-onebot</code> 的软件包，不另开一个市场</td></tr>
+    </tbody>
+  </table></div>
+  <p style="margin-top:10px">推荐分三期：</p>
+  <ol>
+    <li>自带的插件（线路规程、加值项、进站链和出站链的规则）照插件的形状写，每个插槽都有契约测试；</li>
+    <li>进程外的插件和 Python SDK；</li>
+    <li>市场，也就是软件源、签名和安装界面。</li>
+  </ol>
+  <p>第一期要求插槽的输入输出都能写成协议消息，第二期只加一个转发的适配器。</p>
+</section>
+
+<section>
+  <h2>八、已定和还要你定的</h2>
+  <h3>已定（2026-10-07 项目主人）</h3>
+  <ul>
+    <li>Q1 重开：群聊内核挪出核心，进软件包</li>
+    <li>好感度、情绪不做</li>
+    <li><code>miyu-onebot</code> 有自己的 WebUI，别的头只给跳转入口</li>
+    <li>第三方插件照 AstrBot 的方向，一步步做到插件市场；市场不急</li>
+  </ul>
+  <h3>还要你定</h3>
+  <ol class="ask">
+    <li><b>插件分三期，第一期只做自带的插件，第二期做进程外的插件和 Python SDK。</b><span class="rec">推荐：这样分。</span>第一期把插槽定稳，第二期不用回头改。</li>
+    <li><b>插件能不能直调 OneBot 接口。</b><span class="rec">推荐：能。</span>做成能力 <code>onebot.call</code>，清单里列出调哪几个接口，装的时候给人看。反戳一戳这类插件离不开它。</li>
+    <li><b>「叫她才回」的续聊加一条规则：这句话 @ 了别人，或者引用的是别人的消息，就不算续聊。</b><span class="rec">推荐：加。</span></li>
+    <li><b>按场所能改到多细。</b><span class="rec">推荐：</span>每个插件的参数都在清单里声明类型，场所规则里都能按场所改；配置页先露开关和常用的几项。</li>
+  </ol>
+</section>
+
+</div>
+<script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";const dark=matchMedia("(prefers-color-scheme: dark)").matches;mermaid.initialize({startOnLoad:true,theme:dark?"dark":"neutral"});</script>
+</body></html>

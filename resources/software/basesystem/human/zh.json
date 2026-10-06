@@ -66,6 +66,10 @@
       "name": "列会话",
       "icon": "≡"
     },
+    "session_usage": {
+      "name": "查用量",
+      "icon": "≡"
+    },
     "send_message": {
       "name": "留言",
       "subject": "to",
@@ -172,6 +176,8 @@
     "sessions/listed": "列出 {count} 个会话",
     "sessions/none": "没有别的会话",
     "sessions/past-end": "一共 {total} 个别的会话，已经列完了",
-    "sessions/failed": "没列出来：{error}"
+    "sessions/failed": "没列出来：{error}",
+    "session_usage/shown": "查了用量",
+    "session_usage/failed": "用量读不出来：{error}"
   }
 }

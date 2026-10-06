@@ -1,0 +1,1 @@
+{"model":"gpt-5.4","instructions":"You are a helpful assistant.","input":[{"role":"user","content":"看看"},{"type":"function_call","call_id":"call_1_1","name":"read","arguments":"{}"},{"type":"function_call_output","call_id":"call_1_1","output":"ok"}],"tools":[],"store":false,"stream":true}

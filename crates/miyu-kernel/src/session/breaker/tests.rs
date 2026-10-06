@@ -13,6 +13,7 @@ fn called(compaction: Option<CompactTrigger>, result: CallResult) -> ModelCalled
         messages: 3,
         first_difference: None,
         usage: None,
+        cost: None,
         first_token_ms: None,
         duration_ms: None,
         blocks: None,

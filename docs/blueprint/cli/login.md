@@ -13,7 +13,9 @@
 | `crates/miyu/src/main.rs` | 子命令 `login`、`logout`，各换上自己那一页帮助 |
 | `crates/miyu-cli/src/login.rs` | 参数（`Login`、`Logout`，变成 `KeyCommand`）、连核心以前就拦的参数不对（`early`）、连核心、握手、存、列、删；`login_on` 在连上了的连接上办一次，要问人、读 key 的经 `Console`，测试照它走 |
 | `crates/miyu-cli/src/login/pick.rs` | `--list` 的表、选的时候的编号表（几列照显示的宽度对齐，整列都空的不占位置）、敲的字认成哪一个 |
-| `crates/miyu-cli/src/config/console.rs` | 人那一头 `Console`（和 `miyu config` 共用）：在不在终端里、读一行、标准输入是不是终端、关掉回显读一行（`rpassword`）、整份读管道 |
+| `crates/miyu-cli/src/config/console.rs` | 人那一头 `Console`（和 `miyu config` 共用）：在不在终端里、读一行、标准输入是不是终端、关掉回显读一行、整份读管道 |
+| `crates/miyu-cli/src/config/console/hidden.rs` | 关掉回显读一行的核心：一个字节一个字节认成「这一行」还是「取消了」，两个平台共用（施工 8-5 补） |
+| `crates/miyu-cli/src/config/console/unix.rs`、`windows.rs` | 各平台怎么开关终端/控制台的设置、怎么读下一个字节；`Guard` 的 `Drop` 照原样写回去（施工 8-5 补） |
 | `crates/miyu-cli/src/language/login.rs` | 给人看的字 |
 | `crates/miyu-cli/src/help/{zh,en}/login.txt`、`logout.txt` | 帮助页 |
 
@@ -35,7 +37,7 @@
 1. **连核心以前**：写了名字、不合名字的写法：说「<名字> 不能当 key 的名字：……」，退出码 2。没写名字、标准输入或标准错误不是终端的（`--list` 不算）：说「要在终端里选，或者写 miyu login <名字>」（`logout` 写 `miyu logout <名字>`），退出码 2。都不拉起核心。
 2. **连核心、握手**：照 `miyu config`（`cli/config.md` 第 1、2 条），没在跑就拉起来（施工 8-6 起一律拉起）。
 3. **选**（没写名字，在终端里）：`secret.list`。`login` 列全部（设了的、配置里用到还没设的），`logout` 只列设了的。一个都没有：`login` 说「配置里还没有用到密钥的供应商：写 miyu login <名字>」退出码 2，`logout` 说「还没有设过 key」退出码 1。有的：标准错误上印头一行（`login` 是「配置里用到的密钥：」，`logout` 是「设过的 key：」），一个一行 `  编号  名字  谁在用  设没设`，再问（`login`「选一个编号，或者敲一个新名字：」，`logout`「选一个编号：」）。编号表、问的话都在标准错误上，标准输出留给 `--list`。敲的是列出的编号，就是那一个；不是编号、合名字写法的，就是这个名字；直接回车、读到头：说「没选」，退出码 1；别的：说名字不合写法那一句，退出码 2（2026-10-01 主会话定）。
-4. **读 key**：标准输入是终端的，标准错误上问「粘贴 <名字> 的 key（不显示）：」，关掉回显读一行（`rpassword`：读的是终端本身，读完把回显开回来）。不是终端的，整份读标准输入。去掉前后空白是空的：说「没收到 key」，退出码 1。原样交给 `secret.set`（核心去掉前后空白）。
+4. **读 key**：标准输入是终端的，标准错误上问「粘贴 <名字> 的 key（不显示）：」，自己管终端的设置读一行（Unix 上 `termios`，Windows 上控制台模式；读之前存下原来的设置，不管哪条路出去都照原样写回去，`panic` 也算）。按了 `Ctrl+C`，或者还没贴一个字时按了 `Ctrl+D`：当人不要了，说「没存，取消了」，退出码 130（照 Unix 被 `Ctrl+C` 打断的习惯）。不是终端的，整份读标准输入，没有取消这一条。读到的那一行（回车前的整段），去掉前后空白是空的：说「没收到 key」，退出码 1。原样交给 `secret.set`（核心去掉前后空白）（施工 8-5 补）。
 5. **存**：`secret.set`。成了：标准错误上一行灰字，照 `replaced` 说「存好了」或「换掉了」。被拒绝的（有控制字符、太长……）：印核心的原话，退出码 1。
 6. **`--list`**：`secret.list`。标准输出上一个一行：名字、已设置或未设置、谁在用（几项用「、」连，英文用「, 」）；设了的在前、原色，没设的在后、灰；各自照名字的先后。几列照显示的宽度对齐，整列都空的不占位置。一个都没有：印「还没有设过 key」。`--format json`：回应原样，一行。
 7. **删**：`secret.delete`。成了：灰字「删掉了」。`unknown_secret`：说「<名字> 没有设过 key」，退出码 1。
@@ -110,18 +112,23 @@ Options:
 | 0 | 成了 |
 | 1 | 核心拒绝了；没收到 key；没选；要删的没设过；`logout` 选的时候一个都没设过；连不上核心、数据根的错 |
 | 2 | 参数不对：名字不合写法（写的、选的时候敲的）；不写名字又不在终端里；`login` 选的时候一个能选的都没有；`--list` 带名字、`--format` 不带 `--list` |
+| 130 | 贴 key 时取消了：按了 `Ctrl+C`，或者空行按了 `Ctrl+D`（施工 8-5 补） |
 
 ### 给人看的字
 
-见 `config.md`「给人看的字」的「命令行」那张表。
+见 `config.md`「给人看的字」的「命令行」那张表；「没存，取消了」照施工 8-5 补。
 
 ### 守着它的
 
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-cli/src/login/pick/tests.rs` | `--list` 设了的在前、对齐、没设的灰；编号表照样子；敲的编号、新名字、超出的编号、写错的、直接回车 |
-| `crates/miyu-cli/tests/login.rs` | 在进程里起核心、假终端照剧本回：写名字的贴 key 走关掉回显的那一条、管道的整份读、空的不收、核心拒了照原话；参数不对的三种；选（编号、新名字、没选、读到头、写错的、一个都没有）；`--list` 两种格式；`logout` 写名字、选、没设过的；两种语言；屏幕上从头到尾没有 key |
+| `crates/miyu-cli/src/config/console/hidden.rs`（内联 `mod tests`） | 一个字节一个字节地认：回车（`\r`、`\n`）结束；`Ctrl+C` 随时取消；`Ctrl+D` 空行取消、攒了字的不取消；退格删上一个字节；读到头是空的；不是 UTF-8 报错 |
+| `crates/miyu-cli/src/config/console/unix.rs`（内联 `mod tests`） | `Guard` 本身，真的伪终端：进去关 `ECHO`、`ISIG`、`ICANON`，丢掉照原样写回去；`panic` 半路丢掉也照样写回（施工 8-5 补） |
+| `crates/miyu-cli/src/config/console/windows.rs`（内联 `mod tests`） | 控制台模式的读写、`Guard` 丢掉照原样写回去；CI 的 Windows 上跑，没有控制台时跳过（施工 8-5 补） |
+| `crates/miyu-cli/tests/login.rs` | 在进程里起核心、假终端照剧本回：写名字的贴 key 走关掉回显的那一条、管道的整份读、空的不收、核心拒了照原话；参数不对的三种；选（编号、新名字、没选、读到头、写错的、一个都没有）；`--list` 两种格式；`logout` 写名字、选、没设过的；两种语言；屏幕上从头到尾没有 key；取消了说「没存，取消了」、退出码 130、密钥文件不写（施工 8-5 补） |
 | `crates/miyu/tests/login.rs` | 真核心：管道进来的 key 存进文件、0600；`--list`、`logout`、两种语言；参数不对 2；核心没在跑的拉起来、存进去（施工 8-6）；帮助页；整份运行日志（`trace`）、系统日志、屏幕上没有 key |
+| `crates/miyu/tests/login_tty.rs` | 真的伪终端、真的子进程（Unix 上）：贴 key 时送 `Ctrl+C`，130 退出、印了取消那一句、回显开回来；送正常的 key 加回车，读到的对、回显照原样（施工 8-5 补） |
 | `crates/miyu-cli/src/help/tests.rs` | 两页列的选项和程序真有的对得上，最宽 80 列 |
 
 ### 出处
@@ -129,6 +136,7 @@ Options:
 - `config.md` 第九条（密钥）、第十一条（`miyu login`、`miyu logout`）、「样子」、「给人看的字」。
 - `22-命令行.md` 第二节（输出的规矩、退出码、`--format json`）、第五节、O5。
 - 别家：opencode 的 `auth login`、`auth list`、`auth logout`，codex 的 `login`、`logout`。
+- `cli/setup.md`（贴 key 那一步共用同一条取消的逻辑，施工 8-5 补）。
 
 ### 还没有的
 

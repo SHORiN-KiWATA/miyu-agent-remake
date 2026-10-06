@@ -8,8 +8,8 @@ use crate::accumulate::Delta;
 use crate::block::Block;
 use crate::estimate::ImagePrice;
 use crate::event::{
-    CallError, ChildReported, ContextInjected, Decision, Effect, Event, IdleReason, JobReported,
-    Level, Purpose, Question, Response, Restored, Said, Usage,
+    CallError, ChildReported, ContextInjected, Cost, Decision, Effect, Event, IdleReason,
+    JobReported, Level, Purpose, Question, Response, Restored, Said, Usage,
 };
 use crate::facts::Environment;
 use crate::id::{CallId, CommandId, ContentHash, ModuleId, Seq, SessionId, TurnId};
@@ -75,6 +75,8 @@ pub enum Input {
         seen: Seq,
         /// 用量。供应商没报的，没有。
         usage: Option<Usage>,
+        /// 金额（施工 8-15）：执行器照价格算好的，内核原样记进 `model.called`。算不出的没有。
+        cost: Option<Cost>,
         /// 出错的分类和原话；正常说完的，没有。
         error: Option<CallError>,
         /// 出错时供应商说了要等多久再试，毫秒（施工 3-5 下）；没说的，没有。
@@ -217,6 +219,8 @@ pub enum Input {
         upto: Seq,
         /// 用量。供应商没报的，没有。
         usage: Option<Usage>,
+        /// 金额（施工 8-15）：同 [`Input::ModelEnded`] 的。
+        cost: Option<Cost>,
         /// 出错的分类和原话；正常说完的，没有。
         error: Option<CallError>,
     },

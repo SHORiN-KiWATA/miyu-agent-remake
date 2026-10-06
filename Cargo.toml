@@ -27,3 +27,10 @@ unwrap_used = "deny"
 # 会出错的函数写 # Errors，会 panic 的写 # Panics。
 missing_errors_doc = "warn"
 missing_panics_doc = "warn"
+
+# argon2 不开优化时算一次密码哈希要零点几秒（施工 W-8）：开发、测试编的也优化它和它用的 blake2，测试不白等。
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3

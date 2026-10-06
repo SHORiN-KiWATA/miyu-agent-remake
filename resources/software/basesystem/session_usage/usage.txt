@@ -1,0 +1,1 @@
+Usage so far: {requests} requests, {input} input tokens ({cached} from cache), {output} output tokens.

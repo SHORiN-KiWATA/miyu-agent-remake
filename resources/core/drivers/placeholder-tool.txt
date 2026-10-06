@@ -1,0 +1,1 @@
+Placeholder for a tool this client is expected to send with the request; it is not available in this session. Do not call it.

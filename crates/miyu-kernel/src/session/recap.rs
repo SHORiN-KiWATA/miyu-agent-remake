@@ -14,7 +14,7 @@
 use super::Session;
 use super::action::{Action, Outcome, Reason};
 use super::aside::{Aside, Finished};
-use crate::event::{Body, CallError, Purpose, SessionRecapped, Usage};
+use crate::event::{Body, CallError, Cost, Purpose, SessionRecapped, Usage};
 use crate::id::{CommandId, Seq};
 use crate::time::Timestamp;
 
@@ -80,7 +80,7 @@ impl Session {
         &mut self,
         at: Timestamp,
         upto: Seq,
-        usage: Option<Usage>,
+        spent: (Option<Usage>, Option<Cost>),
         error: Option<CallError>,
     ) -> Vec<Action> {
         let Some(recapping) = self
@@ -94,7 +94,7 @@ impl Session {
         let Finished { called, text } = aside.finish(
             at,
             Purpose::Recap,
-            usage,
+            spent,
             error,
             next,
             "the recap reply has no text",

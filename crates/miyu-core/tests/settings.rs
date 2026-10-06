@@ -41,6 +41,7 @@ fn the_registered_list_is_well_formed() {
         keys,
         [
             "ui.language",
+            "usage.currency",
             "tui.startup",
             "permission.start_read_only",
             "models.chat",
@@ -49,6 +50,7 @@ fn the_registered_list_is_well_formed() {
             "pools.<id>.strategy",
             "pools.<id>.subagent",
             "pools.<id>.description",
+            "providers.<id>.name",
             "providers.<id>.driver",
             "providers.<id>.base_url",
             "providers.<id>.keys",
@@ -63,6 +65,7 @@ fn the_registered_list_is_well_formed() {
             "providers.<id>.models.<model>.tools",
             "providers.<id>.models.<model>.reasoning",
             "providers.<id>.models.<model>.effort",
+            "providers.<id>.models.<model>.temperature",
             "providers.<id>.models.<model>.price_multiplier",
             "providers.<id>.models.<model>.price.input",
             "providers.<id>.models.<model>.price.output",

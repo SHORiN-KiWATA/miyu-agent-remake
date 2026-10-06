@@ -6,56 +6,19 @@
 mod support;
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::Command;
 
 use miyu_cli::help::{Page, page};
 use miyu_cli::language::Language;
 use miyu_ipc::connect_or_start;
-use support::{Home, MIYU, count, within};
+use support::cli::{miyu, run, stderr, stdout};
+use support::{Home, count, within};
 
 /// 系统配置：日志记到 debug，界面英文，开局只读写错了（一处错误）。
 const SYSTEM: &str = "[log]\nlevel = \"debug\"\n\n[ui]\nlanguage = \"en\"\n\n[permission]\nstart_read_only = \"yes\"\n";
 
 /// 个人设置：界面中文（第 3 行），一个拼错的键（警告）。
 const PERSONAL: &str = "\n[ui]\nlanguage = \"zh\"\nlangauge = \"ja\"\n";
-
-/// 在数据根 `root` 上、工作目录 `cwd` 里跑 `miyu <args>`：没有 key，界面语言是 `lang`。
-fn miyu(root: &Path, cwd: &Path, lang: &str, args: &[&str]) -> Output {
-    Command::new(MIYU)
-        .args(args)
-        .current_dir(cwd)
-        .env("MIYU_HOME", root)
-        .envs(support::offline(root))
-        .env("MIYU_RESOURCES", support::resources())
-        .env("LANG", lang)
-        .env_remove("LC_ALL")
-        .env_remove("LC_MESSAGES")
-        .env_remove("XDG_RUNTIME_DIR")
-        .env_remove("NO_COLOR")
-        .output()
-        .expect("跑得起来")
-}
-
-/// 在阻塞线程里跑：核心在这个测试的运行时里。
-async fn run(root: &Path, cwd: &Path, lang: &str, args: &[&str]) -> Output {
-    let (root, cwd, lang): (PathBuf, PathBuf, String) =
-        (root.to_path_buf(), cwd.to_path_buf(), lang.to_string());
-    let args: Vec<String> = args.iter().map(|arg| (*arg).to_string()).collect();
-    tokio::task::spawn_blocking(move || {
-        let args: Vec<&str> = args.iter().map(String::as_str).collect();
-        miyu(&root, &cwd, &lang, &args)
-    })
-    .await
-    .expect("没 panic")
-}
-
-fn stdout(output: &Output) -> String {
-    String::from_utf8_lossy(&output.stdout).into_owned()
-}
-
-fn stderr(output: &Output) -> String {
-    String::from_utf8_lossy(&output.stderr).into_owned()
-}
 
 /// 写一份配置文件，目录没有的建上。
 fn write(path: &Path, text: &str) {
@@ -108,7 +71,7 @@ async fn a_core_with_three_layers_says_where_each_value_came_from() {
     assert_eq!(
         stdout(&all),
         // 测试拉起的核心带着 `MIYU_CATALOG_UPDATE=false`（施工 8-7）：环境变量压过的那一项照它。
-        "log.level = \"debug\"\nmodels.catalog.every = \"24h\"\nmodels.catalog.update = false\nmodels.catalog.url = \"https://models.dev/api.json\"\nmodels.cooldown.auth.base = \"10m\"\nmodels.cooldown.auth.max = \"2h\"\nmodels.cooldown.rate_limited.base = \"30s\"\nmodels.cooldown.rate_limited.max = \"10m\"\nmodels.cooldown.retryable.base = \"10s\"\nmodels.cooldown.retryable.max = \"5m\"\npermission.start_read_only = false\ntui.startup = \"new\"\nui.language = \"zh\"\n"
+        "log.level = \"debug\"\nmodels.catalog.every = \"24h\"\nmodels.catalog.update = false\nmodels.catalog.url = \"https://models.dev/api.json\"\nmodels.cooldown.auth.base = \"10m\"\nmodels.cooldown.auth.max = \"2h\"\nmodels.cooldown.rate_limited.base = \"30s\"\nmodels.cooldown.rate_limited.max = \"10m\"\nmodels.cooldown.retryable.base = \"10s\"\nmodels.cooldown.retryable.max = \"5m\"\npermission.start_read_only = false\ntui.startup = \"new\"\nui.language = \"zh\"\nusage.currency = \"USD\"\n"
     );
     let json = run(
         &root,

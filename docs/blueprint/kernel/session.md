@@ -56,6 +56,7 @@
 | `idle()` | 空闲：没有回合在进行，没有结束了、`turn.ended` 还没落盘的回合，没在读回日志、改回文件。核心照它决定能不能空闲退出（后台命令另由执行器的任务表算，`core.md`） |
 | `landed()` | 落了盘的最后一条（施工 3-8 六补）：`Stored` 送进来那一刻就推送了，所以也是推过的最后一条；还没落过盘的没有，载入的是日志里最后一条。只读。会话 actor 订阅时照它定补发补到哪一条（`session/actor.md` 第 6 条） |
 | `deletable()` | 删得了没有（施工 3-8 三补）：空闲的删得了；正在读回日志、改回文件的是 `Restoring`；别的不空闲（有回合在进行、`turn.ended` 还没落盘）是 `TurnRunning`。只读。会话 actor 照它答应删、停下，挪目录是会话表的事（`protocol.md` 的 `session.delete`） |
+| `context_used()` | 这时的上下文用量（施工 8-15）：照有效历史组装这时的请求，用和压缩线同一个算法估（`compaction.md` 第一条）。没交过限额的、策略里没有压缩的没有。只读，不出动作。执行器派 `session_usage` 时向它要一份（`tools/session_usage.md`） |
 | `context_limits()` | 给头看的限额 `ContextLimits`（施工 6-3 补）：`window` 上下文窗口，`compaction_line` 压缩线，和内核判到线用的是同一条（`compaction.md` 第二条第 2 条）。没交过限额的、没报窗口的，两格都没有；策略里没有压缩的、算不出正数的，没有压缩线。只读，不出动作。协议照它回 `subscribe`（`protocol.md`） |
 | `turn_cause()` | 在跑的回合的编号和它的 `cause`；没有在跑的回合的没有（施工 8-9）。只读，不出动作。会话 actor 推 `model.changed` 时照它写 `turn`、`cause`（`models.md`「瞬时事件」） |
 | `reference()` | 会话现在的引用：模型或 `@池`（施工 8-10，「换模型」第 1 条）；没有记下的没有。只读，不出动作。会话 actor 载入时照它造路由（`session/actor.md` 第 8 条第 2 款） |
@@ -71,7 +72,7 @@
 | `TurnStartHooksDone { at, turn, injected, replaced }` | 哪个回合；各模块的注入 `Injection { module, fact }`，照固定的先后；执行器重新解析时钉着的没了、退回了默认的 `Replaced { from, to }`（原来的、退回的，施工 8-10），没有的是没有 | 「回合」第 4 条，「换模型」第 3 条 |
 | `RequestSent { at, seen, model, request }` | 哪次请求；发给了哪个端点的哪个模型（`Model { endpoint, model }`）；驱动编码以后的请求字节的哈希 | 「收回复」 |
 | `ModelDelta { at, seen, delta }` | 一段增量：`Start { index, kind }`、`Text { index, text }`、`Private { index, private }`、`End { index }` | 「收回复」 |
-| `ModelEnded { at, seen, usage, error, wait_ms, excess, failover }` | 用量；出错的分类和原话；供应商说要等多少毫秒（换了端点的是别的候选都在冷却时要等多久）；超长的超了多少 token（施工 6-6 中，不进日志）；端口换了端点（`failover`，施工 8-9，不进日志）。没发出去就失败的不报 `RequestSent`，直接报这一条 | 「收回复」「出错再来」 |
+| `ModelEnded { at, seen, usage, cost, error, wait_ms, excess, failover }` | 用量；金额（施工 8-15：执行器照价格算好的，原样记进 `model.called` 的 `cost`，内核不碰价格）；出错的分类和原话；供应商说要等多少毫秒（换了端点的是别的候选都在冷却时要等多久）；超长的超了多少 token（施工 6-6 中，不进日志）；端口换了端点（`failover`，施工 8-9，不进日志）。没发出去就失败的不报 `RequestSent`，直接报这一条 | 「收回复」「出错再来」 |
 | `Woke { at, seen }` | 为哪一次请求等的；等停着的，是那一步回复的序号 | 「出错再来」「打断」第 7 条 |
 | `ToolDone { at, call_id, error, blocks, duration_ms, human, effects, stopped }` | 出没出错、给模型看的内容、用时、给人看的说法、效果；叫它停以后停在了改之前的，`stopped` 是真的 | 「调工具」「打断」第 7 条 |
 | `ToolProgress { at, call_id, text }` | 一段输出 | 「调工具」 |
@@ -85,7 +86,7 @@
 | `WatchEnded { at, session, reason }` | 等的会话等不到了：`expired` 到点了、`gone` 不在了（施工 C-6，执行器交） | 「空了的通知」第 3、4 条；读回日志的时候到的先放着 |
 | `Described { at, blob, seen }` | 替它看图回来了（施工 8-17）：哪一张图；成了的是替它看的端点和模型、转述的原文（`(Model, String)`），没成的是没有 | 「替它看图」第 4 到 6 条；读回日志的时候到的先放着 |
 | `Watched { watched }` | 有没有头订阅着这个会话（施工 7-2 加的输入）：会话 actor 在拿着订阅的头从没有到有、从有到没有时交（施工 7-9，`session/actor.md` 第 3 条） | 只在内存里，什么都不出，不进日志；造会话、载入以后当没人看着（「回报」第 6 条） |
-| `AsideSent { at, purpose, upto, model, request }`、`AsideDelta { at, purpose, upto, delta }`、`AsideEnded { at, purpose, upto, usage, error }` | 辅助请求的三种回报（施工 3-8 四补的回顾；五补起回顾、起标题共用，原来叫 `RecapSent` 这几个）：用途和它照到的那一条合起来是名字；和主请求的三种一样，只是说完了不带要等多久、超了多少。用途不认识的不理 | 「回顾」第 6、7 条，「起标题」第 5、6 条 |
+| `AsideSent { at, purpose, upto, model, request }`、`AsideDelta { at, purpose, upto, delta }`、`AsideEnded { at, purpose, upto, usage, cost, error }` | 辅助请求的三种回报（`cost` 施工 8-15）（施工 3-8 四补的回顾；五补起回顾、起标题共用，原来叫 `RecapSent` 这几个）：用途和它照到的那一条合起来是名字；和主请求的三种一样，只是说完了不带要等多久、超了多少。用途不认识的不理 | 「回顾」第 6、7 条，「起标题」第 5、6 条 |
 
 **命令**（`Command`）：
 
@@ -246,6 +247,7 @@
 | `messages` | 统一的请求里有几条消息 |
 | `first_difference` | `CallModel` 的 `changed` |
 | `usage` | `ModelEnded` 带的；打断的没有 |
+| `cost` | `ModelEnded` 带的，原样（施工 8-15）；打断的没有 |
 | `first_token_ms` | 发出去到第一段增量；没发出去、一段增量都没来的没有。时钟往回拨了算 0 |
 | `duration_ms` | 发出去到说完（或者打断）；没发出去的没有。时钟往回拨了算 0 |
 | `blocks` | 写成了回复的：回复里每一块的起止，从发出去算起，时钟往回拨了算 0（第 2 条、第 3 条第 3 款）。没写回复的没有 |
@@ -607,5 +609,5 @@
 - 压缩（`compaction.md`）：`context_too_long` 现在结束回合，不先压缩（被动压缩，6-7）；截掉最老的再试、隔离式回退（6-6 下）；撤销能撤掉压缩（6-9）。
 - 子代理、后台命令（`02-内核.md` 第七节，M7）：回报到了开不开轮施工 7-2 做好了，施工 7-3 起有真的后台命令，载入时给没结束的补 `aborted`；子会话向上回报施工 7-6 做好了；撤销时一起停下施工 7-8 做好了（`history.md`「撤销」第 5 条）。
 - 等第一个字时的心跳 `status`（`03-事件模型.md` 第五节）；中途连上的头拿「到目前为止的内容」（M8）。
-- 协议上还没有 `session.answer`（`04-核心协议.md` 第九节）：内核有这个命令，核心还不收，随 M8 的抽屉。`session.set_permission_level` 协议收了（施工 3-8 再补，`protocol.md`）。
+- `session.answer` 协议收了（施工 D-1，`protocol.md`）；`session.set_permission_level` 协议收了（施工 3-8 再补，`protocol.md`）。
 - 没人盯着的场所的步数上限，随预设定（`02-内核.md` 第六节「工具怎么调、下一步怎么走」第 6 条）。
