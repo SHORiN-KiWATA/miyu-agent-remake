@@ -21,8 +21,8 @@ use miyu_kernel::origin::{By, Session};
 use miyu_kernel::session::{Command, Outcome};
 use miyu_policy::{Choice, JOB_DEPTH, ToolEntry};
 use miyu_tool::{
-    AgentPort, Catalog, NotSpawned, SEND_MESSAGE, SESSION_USAGE, SESSIONS, SUBAGENT, Spawned,
-    Spawning, is_subagent,
+    ASK_USER, AgentPort, Catalog, NotSpawned, SEND_MESSAGE, SESSION_USAGE, SESSIONS, SUBAGENT,
+    Spawned, Spawning, is_subagent,
 };
 
 use crate::TARGET;
@@ -70,21 +70,29 @@ impl Agents {
         venue.as_str() == LOCAL && parent.is_none()
     }
 
+    /// 会话能不能问人（施工 D-2）：有人能回答（`attended`）的本机主会话。子会话问父会话，`miyu ask`、群里没有提问的界面。
+    /// 造会话时照它定工具面里有没有 `ask_user`，执行器照它给不给提问的端口。
+    pub(crate) fn asks(venue: &VenueId, parent: Option<&SessionId>, attended: bool) -> bool {
+        attended && Agents::lists_sessions(venue, parent)
+    }
+
     /// 造会话时定的工具面（施工 7-5、7-7、C-3、C-5）：目录里每件工具的规格换成快照里的写法。不能派子代理的会话不给
     /// `subagent`；场所会话（群）不给 `send_message`：它没有父，也派不了子代理，给了只会被 `not-here.txt` 拒。到了
     /// 深度上限的子会话照样有 `send_message`，能发给父、能发给别的会话，只是不能派子代理。只有本机的主会话有 `sessions`
     /// （[`Agents::lists_sessions`]）。`session_usage` 只给本机的会话（施工 8-15）：群里的人不可信，花了多少钱是属主的事。
     /// 工具面造会话时定，一个会话里不变，给了只会被拒的不给（`agents.md` 第一条第 6 条）。
     /// `subagent` 的 `pool` 照这时的配置 `values` 填上能选的池（施工 8-8 补：`miyu_models::pools::offered`，一个都没有的拿掉
-    /// 这个参数）。
+    /// 这个参数）。`ask_user` 只给能问人的会话（[`Agents::asks`]，施工 D-2）。
     pub(crate) fn face(
         tools: &Catalog,
         venue: &VenueId,
         lineage: Option<&Lineage>,
         values: &Values,
+        attended: bool,
     ) -> Vec<ToolEntry> {
         let spawns = Agents::allowed(venue, lineage);
         let local = venue.as_str() == LOCAL;
+        let asks = Agents::asks(venue, lineage.map(|lineage| &lineage.parent), attended);
         let lists = Agents::lists_sessions(venue, lineage.map(|lineage| &lineage.parent));
         tools
             .specs()
@@ -92,6 +100,7 @@ impl Agents {
             .filter(|spec| local || spec.name != SEND_MESSAGE)
             .filter(|spec| lists || spec.name != SESSIONS)
             .filter(|spec| local || spec.name != SESSION_USAGE)
+            .filter(|spec| asks || spec.name != ASK_USER)
             .map(|spec| {
                 let mut entry = ToolEntry {
                     name: spec.name.clone(),

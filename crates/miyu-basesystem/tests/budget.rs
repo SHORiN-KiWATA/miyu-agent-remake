@@ -21,11 +21,13 @@
 //! 十二件合计 1936 个 token，列一个带说明的池是 182（2026-10-02 主会话量），还在预算里，预算不改。
 //! 施工 8-15 加了 `session_usage`（零参数，174 字节，边际份量 48，2026-10-02 主会话量）：字节 7291 → 7465，十三件合计 1984 个
 //! token（不列池），还在预算里，预算不改。
+//! 施工 D-2 加了 `ask_user`（878 字节，边际份量 237，2026-10-07 主会话照 magpie 网关的 `cline-pass/deepseek-v4.1-flash` 量）：
+//! 十四件合计 2221 个 token（不列池）、8343 字节，超了；照同一个办法预算改成 2443 个 token，合 9200 字节。
 
 use std::path::Path;
 
 /// 预算：字节，回车 `\r` 不算（Windows 上检出的可能多出回车）。
-const BUDGET: usize = 7700;
+const BUDGET: usize = 9200;
 
 #[test]
 fn the_tool_face_stays_within_its_budget() {
@@ -44,7 +46,7 @@ fn the_tool_face_stays_within_its_budget() {
             files += 1;
         }
     }
-    assert_eq!(files, 13, "基础系统现在是十三件");
+    assert_eq!(files, 14, "基础系统现在是十四件");
     assert!(
         total <= BUDGET,
         "工具面的几份说明一共 {total} 字节，超过预算 {BUDGET}：重新量 token，再改预算（10-自带软件.md 第九节）"

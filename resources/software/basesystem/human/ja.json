@@ -70,6 +70,10 @@
       "name": "使用量",
       "icon": "≡"
     },
+    "ask_user": {
+      "name": "質問",
+      "icon": "?"
+    },
     "send_message": {
       "name": "メッセージ",
       "subject": "to",
@@ -178,6 +182,8 @@
     "sessions/past-end": "ほかのセッション {total} 件はすべて表示済みです",
     "sessions/failed": "一覧を取得できませんでした：{error}",
     "session_usage/shown": "使用量を確認しました",
-    "session_usage/failed": "使用量を読めませんでした：{error}"
+    "session_usage/failed": "使用量を読めませんでした：{error}",
+    "ask_user/answered": "回答しました",
+    "ask_user/unattended": "ここでは誰も答えられません"
   }
 }

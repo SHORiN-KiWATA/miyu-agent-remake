@@ -15,8 +15,8 @@ use miyu_sandbox::Sandboxed;
 use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
 use miyu_tool::{
-    AgentPort, Background, Call, Done, JobPort, Log, MessagePort, Progress, ReadLog, Seen,
-    SessionsPort, Stop, Tool, UsagePort,
+    AgentPort, Background, Call, Done, JobPort, Log, MessagePort, Progress, QuestionPort, ReadLog,
+    Seen, SessionsPort, Stop, Tool, UsagePort,
 };
 
 /// 源码树里的资源目录。
@@ -227,6 +227,20 @@ impl Site {
         tool(name).run(call, Progress::new(|_| {})).await
     }
 
+    /// 在 `work/` 里调一次工具，提问的端口是 `questions`（施工 D-2：`ask_user` 经它问人）。
+    pub async fn done_with_questions(
+        &self,
+        name: &str,
+        args: serde_json::Value,
+        questions: Option<Arc<dyn QuestionPort>>,
+    ) -> Done {
+        let call = Call {
+            questions,
+            ..self.call_for("work", args, Seen::new(), Stop::default())
+        };
+        tool(name).run(call, Progress::new(|_| {})).await
+    }
+
     /// 在 `work/` 里调一次工具，发话的端口是 `messages`、列会话的端口是 `sessions`（施工 C-5：`send_message` 的 `to`
     /// 认会话编号要两个端口一起给）。
     pub async fn done_with_messages_and_sessions(
@@ -261,6 +275,7 @@ impl Site {
             jobs: None,
             sessions: None,
             usage: None,
+            questions: None,
         }
     }
 }

@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>198</b><span>/ 209 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>201</b><span>/ 210 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
-    <li><b class="mono">923e15cf</b><span>最近一步（8-27 支持输入加上音频、视频）的提交</span></li>
+    <li><b class="mono">b376721b</b><span>最近一步（8-3 <code>expect</code> 照数值比（再补））的提交</span></li>
   </ul>
 </header>
 
@@ -546,7 +546,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s8-2"><span class="n">8-2</span>读配置<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-3"><span class="n">8-3</span>写配置<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-3b"><span class="n">8-3</span>命令行说对生效时机、认带引号的键（补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">8-3</span><code>expect</code> 照数值比（再补）</span></li>
+        <li><a class="step done" href="#s8-3c"><span class="n">8-3</span><code>expect</code> 照数值比（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-4"><span class="n">8-4</span>监视与生效<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-5"><span class="n">8-5</span>密钥<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-5b"><span class="n">8-5</span>按 Ctrl+C 也把回显开回来（补）<span class="st">✓</span></a></li>
@@ -577,6 +577,7 @@ a.step:hover{border-color:var(--primary)}
         <li><span class="step"><span class="n">8-26</span>推不出驱动的用 <code>openai-chat</code></span></li>
         <li><a class="step done" href="#s8-27"><span class="n">8-27</span>支持输入加上音频、视频<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">8-28</span>「启动时打开」改成共用的 <code>ui.startup</code></span></li>
+        <li><a class="step done" href="#s8-29"><span class="n">8-29</span>开发用的 key 改名<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -613,7 +614,7 @@ a.step:hover{border-color:var(--primary)}
       <div class="ms-head"><span class="ms-id">D</span><span class="ms-name">抽屉</span><span class="ms-goal">确认、提问、待办：头那边基本的工作都能做（2026-10-07 项目主人定提前做）</span></div>
       <ol class="chips">
         <li><a class="step done" href="#sD-1"><span class="n">D-1</span>回答确认和提问<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">D-2</span>提问工具</span></li>
+        <li><a class="step done" href="#sD-2"><span class="n">D-2</span>提问工具<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">D-3</span>待办</span></li>
       </ol>
     </li>
@@ -11256,6 +11257,54 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s8-3c" aria-labelledby="h-s83c">
+  <div class="sheet-head"><h2 id="h-s83c"><span class="no">8-3</span><code>expect</code> 照数值比（再补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">小数项文件里存的是整数值时（<code>input = 1.0</code>），头带 <code>expect: {"value": 1}</code> 改它会被当成冲突拒掉：JSON 的 <code>1</code> 和 <code>1.0</code> 比不上，而 JS 的头写不出 <code>1.0</code>。两边都是数的改照数值比。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path"><code>expect</code> 照数值比（再补）</span><span class="dir-note">8-3</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>config.set</code> 比 <code>expect</code> 走 <code>same()</code>：两边都是数的照数值比，别的照 JSON 一字不差</li>
+              <li><code>value</code> 本身不动：整数写进小数项本来就收</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">只有数照数值比</span><span class="rl">字符串、布尔、列表照旧逐字比</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-3</dd></div>
+        <div><dt>名称</dt><dd><code>expect</code> 照数值比（再补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">b376721b</dd></div>
+        <div><dt>验收</dt><dd>CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试先写，修之前红：<code>1</code> 对得上 <code>1.0</code>，写进去的 <code>3</code> 对得上 <code>3.0</code>，<code>2</code> 对不上 <code>2.5</code></span></li>
+        <li><span class="ok">✓</span><span><code>cargo xtask check</code> 八项；三台机器的 CI 和长跑全绿（run 970）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-3-expect照数值比（再补）.md</code>；蓝图 <code>config.md</code>「<code>config.set</code>」第 5 条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="s8-7b" aria-labelledby="h-s87b">
   <div class="sheet-head"><h2 id="h-s87b"><span class="no">8-7 补</span>资料的来源带上哪一层（补）</h2><span class="pill done">已完成</span></div>
   <p class="purpose"><code>model.list</code> 资料里来源是配置的每一格多一格 <code>layer</code>：<code>system</code> 或 <code>personal</code>，照 <code>config.get</code> 说的那一层。网页照它判思考强度是不是人自己在个人设置里改的，不用猜文件路径。</p>
@@ -12235,6 +12284,54 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/8-27-支持输入加上音频视频.md</code>；蓝图 <code>models.md</code> 的 <code>inputs</code>、「模型的资料」，<code>config.md</code>「M8 的配置项」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s8-29" aria-labelledby="h-s829">
+  <div class="sheet-head"><h2 id="h-s829"><span class="no">8-29</span>开发用的 key 改名</h2><span class="pill done">已完成</span></div>
+  <p class="purpose"><code>cargo xtask dev-home</code> 造的数据根，key 以前照 3-9 留下的 <code>DEEPSEEK_API_KEY</code> 取；开发端点早就不是 DeepSeek 官方了。改叫 <code>MIYU_DEV_API_KEY</code>，和另外三个开发变量排在一起。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">开发用的 key 改名</span><span class="dir-note">8-29</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>xtask/src/dev_home.rs</code> 的 <code>KEY_ENV</code> 改名，造的配置写 <code>{ env = "MIYU_DEV_API_KEY" }</code></li>
+              <li>程序里本来没有这个名字，核心、头都不动；「找现成的」照旧会找 DeepSeek 官方的变量</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">名字照用途叫</span><span class="rl">开发端点不是哪一家官方</span></div>
+          <div class="tile new"><span class="nm">不留旧名字</span><span class="rl">老的开发数据根改配置里那一行，或者重造</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-29</dd></div>
+        <div><dt>名称</dt><dd>开发用的 key 改名</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">6fbc87b0</dd></div>
+        <div><dt>验收</dt><dd>CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试先改：两条红（造的配置、真核心照配置连假服务器），改了常量以后绿；三台机器的 CI 和长跑全绿（run 975）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-29-开发用的key改名.md</code>；蓝图 <code>models.md</code>「怎么走」第十条第 2 条。</li>
       </ul>
     </div>
   </div>
@@ -13257,6 +13354,58 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/D-1-回答确认和提问.md</code>；蓝图 <code>protocol.md</code> 的 <code>session.answer</code>、<code>kernel/asking.md</code>「本会话放行过的」、<code>session/guard.md</code>「判一次调用」第 7 条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sD-2" aria-labelledby="h-sD2">
+  <div class="sheet-head"><h2 id="h-sD2"><span class="no">D-2</span>提问工具</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她拿不准、得人定的事，用 <code>ask_user</code> 一次问几道，人从头上回答。参数照 Claude Code、不设上限；选项能带 <code>preview</code>，回答能带 <code>notes</code>。只给有人能回答的本机主会话。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">提问工具</span><span class="dir-note">D-2</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>工具 <code>ask_user</code>：题、选项、多选；读不懂的参数不对；回答写回给她的一段</li>
+              <li>执行器的提问端口（<code>Agents::asks</code>）：交题、等回答、打断时只有一条结果；没人能回答的会话没有端口，工具面也没有这一件</li>
+              <li>事件 <code>question.asked</code> 的选项多 <code>preview</code>，<code>question.answered</code> 多 <code>notes</code></li>
+              <li><code>tools.rs</code> 挪出 <code>tools/back.rs</code>、<code>tools/questions.rs</code>，守着 500 行</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">题数不设上限</span><span class="rl">照 Claude Code 的字段名</span></div>
+          <div class="tile new"><span class="nm">端口看能不能问人</span><span class="rl">有人能回答、本机、主会话；子会话、群里没有</span></div>
+          <div class="tile new"><span class="nm">工具说明预算 9200 字节</span><span class="rl">照实测加一成</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">D-2</dd></div>
+        <div><dt>名称</dt><dd>提问工具</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">c8c59f37</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试先写（工具五、执行器四、协议二、事件一）；12 个手写变异全逮住；三台机器的 CI 和长跑全绿（run 967）</span></li>
+        <li><span class="ok">✓</span><span>真模型：起一个命令行记账工具时，她先看目录，再一次问五道，推荐的放第一个；回答送回以后照着做</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/D-2-提问工具.md</code>；蓝图 <code>tools/ask_user.md</code>、<code>kernel/events-bodies.md</code>、<code>26-提示词.md</code> 第十节。</li>
       </ul>
     </div>
   </div>

@@ -19,7 +19,7 @@ use tokio::task::AbortHandle;
 use tracing::Instrument;
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::{Effect, Permission, Restored};
+use miyu_kernel::event::{Effect, Permission, Question, Response, Restored};
 use miyu_kernel::id::{CallId, ContentHash, JobId};
 use miyu_kernel::session::{Input, Reread, Step, Subagent};
 use miyu_kernel::time::{Timestamp, UtcOffset};
@@ -39,6 +39,9 @@ use crate::port::Back;
 use crate::sandbox::{Sandbox, SandboxCache};
 use crate::sessions;
 use crate::usage::{Asked, Ledger};
+
+mod back;
+mod questions;
 
 /// 执行工具要的：工具目录、替工具写的两句、系统的家目录（施工 4-4 上，交给每次调用）。
 pub(crate) struct ToolKit {
@@ -68,6 +71,8 @@ pub(crate) struct ToolKit {
     pub(crate) agents: Option<Arc<Agents>>,
     /// 用量汇总里的这个会话（施工 8-15）：`session_usage` 的端口照它造。没开汇总的没有。
     pub(crate) ledger: Option<Ledger>,
+    /// 能不能问人（施工 D-2，[`Agents::asks`]）：能的每次调用给一个提问的端口。
+    pub(crate) asks: bool,
 }
 
 /// 执行工具的端口：一个会话一份。
@@ -91,6 +96,8 @@ pub(crate) struct Tools {
     agents: Option<Arc<Agents>>,
     /// 用量汇总里的这个会话（施工 8-15）。
     ledger: Option<Ledger>,
+    /// 能不能问人（施工 D-2）。
+    asks: bool,
     /// 在跑的调用：掐掉它的那一头、它的旗、开始跑的那一刻、工具名。
     running: BTreeMap<CallId, Running>,
     backs: mpsc::UnboundedSender<Back>,
@@ -105,11 +112,19 @@ struct Running {
     stopping: bool,
     started: Instant,
     name: String,
+    /// 它交了题、在等回答（施工 D-2）：回答落了盘从这里送回去。叫停、掐掉、了结时跟着丢，工具当没答收场。
+    answer: Option<tokio::sync::oneshot::Sender<Vec<Response>>>,
 }
 
 /// 跑工具的任务送回来的。
 #[derive(Debug)]
 pub(crate) enum ToolBack {
+    /// 交了一组题，回答落了盘从 `reply` 送回去（施工 D-2，`questions.rs`）。
+    Asks {
+        call_id: CallId,
+        questions: Vec<Question>,
+        reply: tokio::sync::oneshot::Sender<Vec<Response>>,
+    },
     /// 执行中的一段输出。
     Progress { call_id: CallId, text: String },
     /// 跑完了：工具交回的，和它报的效果（改前改后已经存成了 blob）。
@@ -176,6 +191,7 @@ impl Tools {
             job_ids: kit.job_ids,
             agents: kit.agents,
             ledger: kit.ledger,
+            asks: kit.asks,
             running: BTreeMap::new(),
             backs,
         }
@@ -264,6 +280,7 @@ impl Tools {
             jobs: Some(jobs),
             sessions,
             usage: crate::usage::for_call(self.ledger.as_ref(), usage),
+            questions: questions::port(self.asks, call_id, &self.backs),
         };
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name).cloned() else {
@@ -346,6 +363,7 @@ impl Tools {
                 stopping: false,
                 started: Instant::now(),
                 name,
+                answer: None,
             },
         );
         None
@@ -357,6 +375,8 @@ impl Tools {
         if let Some(running) = self.running.get_mut(&call_id) {
             running.stop.raise();
             running.stopping = true;
+            // 在等回答的不等了（施工 D-2）：口子一丢，工具当没答收场。
+            running.answer = None;
         }
     }
 
@@ -377,65 +397,6 @@ impl Tools {
         );
         if running.stopping {
             tracing::warn!(target: TARGET, call = call.as_str(), "cancelled while stopping");
-        }
-    }
-
-    /// 跑工具的任务送回来的，写成内核的输入。不在跑的（已经叫停了的）不理。
-    pub(crate) fn back(&mut self, at: Timestamp, back: ToolBack) -> Option<Input> {
-        match back {
-            ToolBack::Progress { call_id, text } => self
-                .running
-                .contains_key(&call_id)
-                .then_some(Input::ToolProgress { at, call_id, text }),
-            ToolBack::Done {
-                call_id,
-                done,
-                effects,
-            } => {
-                let running = self.running.remove(&call_id)?;
-                effects::saw(Arc::make_mut(&mut self.seen), &effects);
-                let took_ms = millis(running.started.elapsed());
-                tracing::info!(
-                    target: TARGET,
-                    call = call_id.to_string().as_str(),
-                    took_ms,
-                    error = done.error.then_some(true),
-                    stopped = done.stopped.then_some(true),
-                    "ran"
-                );
-                Some(Input::ToolDone {
-                    at,
-                    call_id,
-                    error: done.error,
-                    blocks: done.blocks,
-                    duration_ms: Some(took_ms),
-                    human: done.human,
-                    effects,
-                    stopped: done.stopped,
-                })
-            }
-            ToolBack::Crashed { call_id } => {
-                let running = self.running.remove(&call_id)?;
-                let took_ms = millis(running.started.elapsed());
-                tracing::error!(
-                    target: TARGET,
-                    call = call_id.to_string().as_str(),
-                    tool = running.name.as_str(),
-                    took_ms,
-                    "crashed"
-                );
-                let worded = self.texts.crashed(&running.name);
-                Some(Input::ToolDone {
-                    at,
-                    call_id,
-                    error: true,
-                    blocks: text(worded.text),
-                    duration_ms: Some(took_ms),
-                    human: worded.said,
-                    effects: Vec::new(),
-                    stopped: false,
-                })
-            }
         }
     }
 }

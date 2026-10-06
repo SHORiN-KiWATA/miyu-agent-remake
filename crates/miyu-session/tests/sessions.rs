@@ -265,10 +265,16 @@ async fn only_a_local_main_session_has_it() {
     };
     for (lines, want) in [
         (Lines::default(), all.clone()),
-        (child, without(&["sessions"])),
+        (child, without(&["sessions", "ask_user"])),
         (
             group,
-            without(&["sessions", "subagent", "send_message", "session_usage"]),
+            without(&[
+                "sessions",
+                "subagent",
+                "send_message",
+                "session_usage",
+                "ask_user",
+            ]),
         ),
     ] {
         let script = Script::new([Play::Says("好。")]);

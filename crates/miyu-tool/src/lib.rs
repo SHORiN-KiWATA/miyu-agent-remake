@@ -23,6 +23,7 @@ mod jobs;
 mod log;
 mod messages;
 pub mod picture;
+mod questions;
 mod run;
 mod sessions;
 mod stop;
@@ -39,6 +40,7 @@ pub use log::{Log, ReadLog};
 pub use messages::{
     Delivered, MessagePort, NotSent, Recipient, SEND_MESSAGE, SEND_MESSAGE_FORMERLY, Sending,
 };
+pub use questions::{ASK_USER, Answering, QuestionPort};
 pub use run::{Call, Done, Effect, Picture, Progress, Running, Seen, Target};
 pub use sessions::{Found, Listing, MainSession, Opening, SESSIONS, SessionsPort, find_session};
 pub use stop::Stop;

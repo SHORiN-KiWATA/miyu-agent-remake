@@ -39,6 +39,9 @@ pub struct Choice {
     /// 一行说明；可以不写。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// 一段文字画（代码片段、界面草图），头照等宽字显示，内核原样记、不解读；可以不写（施工 D-2，2026-09-29 项目主人定）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview: Option<String>,
 }
 
 /// `question.answered`：人对一组题的回答。`by` 是回答的人。
@@ -50,7 +53,7 @@ pub struct QuestionAnswered {
     pub answers: Vec<Response>,
 }
 
-/// 一道题的回答。两样都没有，就是这道没答。
+/// 一道题的回答。`picked`、`text` 都没有，就是这道没答。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Response {
     /// 选了哪几项，写选项的标题。
@@ -59,6 +62,9 @@ pub struct Response {
     /// 自己写的。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
+    /// 补的一句备注，不选「其他」也能写（施工 D-2，照 Claude Code，2026-09-29 项目主人定）；可以不写。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notes: Option<String>,
 }
 
 /// 一组回答对不对得上这组题：几道题几条；选的都是那道题的选项，不重复；单选的至多选一项。

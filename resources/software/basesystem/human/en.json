@@ -70,6 +70,10 @@
       "name": "Usage",
       "icon": "≡"
     },
+    "ask_user": {
+      "name": "Ask",
+      "icon": "?"
+    },
     "send_message": {
       "name": "Message",
       "subject": "to",
@@ -197,6 +201,8 @@
     "sessions/past-end/one": "{total} other session is listed",
     "sessions/failed": "Could not list sessions: {error}",
     "session_usage/shown": "Checked the usage",
-    "session_usage/failed": "Could not read the usage: {error}"
+    "session_usage/failed": "Could not read the usage: {error}",
+    "ask_user/answered": "You answered",
+    "ask_user/unattended": "No one can answer here"
   }
 }
