@@ -64,6 +64,10 @@ test('写在哪一层：能写个人设置的写个人设置，只能写系统�
   assert.deepEqual(expectFor(got.items['models.chat'], 'personal'), { value: 'dev/deepseek-v4.1-flash' });
   assert.deepEqual(expectFor(got.items['ui.language'], 'personal'), {});
   assert.deepEqual(expectFor(null, 'personal'), {});
+  const whole = { layers: [{ origin: { layer: 'personal' }, used: true, value: 1 }] };
+  assert.equal(expectFor(whole, 'personal', 'float'), undefined, '小数项写着整数值的不查（JSON 分不出 1 和 1.0，等核心修）');
+  assert.deepEqual(expectFor(whole, 'personal', 'int'), { value: 1 });
+  assert.deepEqual(expectFor({ layers: [{ origin: { layer: 'personal' }, used: true, value: 1.5 }] }, 'personal', 'float'), { value: 1.5 });
   assert.equal(writtenIn(got.items['models.chat'], 'personal'), true, '写过的能恢复默认');
   assert.equal(writtenIn(got.items['ui.language'], 'personal'), false);
 });
@@ -143,4 +147,32 @@ test('别的头的项不列：键名以 hide 里的开头的（tui.），连它�
   assert.deepEqual(shown[0].groups.map((g) => g.id), ['display']);
   assert.deepEqual(shown.flatMap((p) => p.problems).map((p) => p.key), ['tui.gone'], '别的头的项的问题不挂；改了名留下的旧键要提示');
   assert.deepEqual(buildPages(extra, withBad)[0].groups.map((g) => g.id), ['display', 'tui'], '不写 hide 的照列');
+});
+
+test('供应商的表：编号的写法、密钥存成的新名字、要发的几项（带 expect，空着的删、新建的不写空的，密钥 keep 不动）', async () => {
+  const { validId, secretName, providerChanges, moveMember, poolRemoval } = await import('../../packages/settings/model.js');
+  assert.deepEqual(['dev', 'my-api_2', 'Dev', '2x', '', 'a'.repeat(33)].map(validId), [true, true, false, false, false, false]);
+  assert.equal(secretName('dev', 1700000000000), 'dev-loyw3v28');
+  const got = { items: { 'providers.dev.name': { layers: [{ origin: { layer: 'personal' }, used: true, value: '开发' }], value: '开发' } } };
+  const edit = providerChanges('dev', { name: '', base_url: 'https://x/v1', driver: 'openai-chat', key: { kind: 'keep', value: '' } }, got, 'personal', null);
+  assert.deepEqual(edit, [
+    { key: 'providers.dev.name', unset: true, expect: { value: '开发' } },
+    { key: 'providers.dev.base_url', input: 'https://x/v1', expect: {} },
+    { key: 'providers.dev.driver', value: 'openai-chat', expect: {} },
+  ]);
+  const fresh = providerChanges('new-one', { name: '', base_url: '', driver: 'anthropic', key: { kind: 'secret', value: 'sk-…' } }, { items: {} }, 'personal', 'new-one-x');
+  assert.deepEqual(fresh.map((c) => c.key), ['providers.new-one.driver', 'providers.new-one.keys'], '新建的空着的不写');
+  assert.deepEqual(fresh[1].value, [{ secret: 'new-one-x' }], '明文不进配置，只写密钥的名字');
+  const env = providerChanges('dev', { name: '', base_url: '', driver: '', key: { kind: 'env', value: ' KEY ' } }, { items: {} }, 'personal', null);
+  assert.deepEqual(env, [{ key: 'providers.dev.keys', value: [{ env: 'KEY' }], expect: {} }]);
+  const urlKept = providerChanges('dev', { name: '', base_url: null, driver: '', key: { kind: 'keep', value: '' } }, { items: { 'providers.dev.base_url': { layers: [{ origin: { layer: 'personal' }, used: true, value: { env: 'U' } }] } } }, 'personal', null);
+  assert.deepEqual(urlKept, [], '地址是 null（原来是环境变量、框空着）的不动');
+  assert.deepEqual(moveMember(['a', 'b', 'c'], 0, 1), ['b', 'a', 'c']);
+  assert.deepEqual(moveMember(['a', 'b'], 0, -1), ['a', 'b'], '到头了不动');
+  const pools = { items: {
+    'pools.fast.models': { layers: [{ origin: { layer: 'personal' }, used: true, value: [] }] },
+    'pools.fast.strategy': { layers: [{ origin: { layer: 'system' }, used: true, value: 'pin' }] },
+    'pools.faster.models': { layers: [{ origin: { layer: 'personal' }, used: true, value: [] }] },
+  } };
+  assert.deepEqual(poolRemoval('fast', pools, 'personal'), [{ key: 'pools.fast.models', unset: true, expect: { value: [] } }], '只删这一层写着的，不碰同前缀的别的池');
 });

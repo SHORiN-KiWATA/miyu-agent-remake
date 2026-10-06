@@ -173,7 +173,6 @@
         "key": "密钥",
         "edit": "编辑",
         "test": "测试连接",
-        "edit_todo": "样板：编辑供应商还没做",
         "no_models": "这个供应商还没有模型",
         "window": "窗口",
         "inputs": "支持输入",
@@ -185,7 +184,6 @@
         "price_cache_write": "缓存写",
         "pool_empty": "空池用不了",
         "new_pool": "新建模型池",
-        "pool_todo": "样板：模型池还只能看",
         "strategies": {
           "pin": "固定",
           "rotate": "轮换"
@@ -197,7 +195,30 @@
         },
         "test_ok": "能用 · {model} · 首字 {ms} ms",
         "price_currency": "币种",
-        "temperature": "默认温度"
+        "temperature": "默认温度",
+        "pool_add": "加一个模型",
+        "pool_delete": "删除这个池",
+        "pool_name_hint": "名字，比如 fast",
+        "form": {
+          "new_title": "添加供应商",
+          "edit_title": "编辑 {name}",
+          "id": "编号",
+          "id_hint": "比如 deepseek，引用模型时写 编号/模型",
+          "name": "显示名",
+          "name_hint": "可以空着",
+          "url": "地址",
+          "driver": "接口",
+          "key": "密钥",
+          "key_secret": "粘贴密钥",
+          "key_env": "环境变量",
+          "key_paste": "粘贴 API Key",
+          "key_keep": "已设置；不改就空着",
+          "save": "保存",
+          "cancel": "取消",
+          "bad_id": "编号要小写字母开头，只能有小写字母、数字、- 和 _，最长 32 个字符",
+          "taken_id": "已经有 {id} 了",
+          "secret_kept": "密钥已经存成 {name}，再存一次会用新的名字"
+        }
       },
       "changed": "已改"
     },
@@ -262,7 +283,6 @@
         "key": "キー",
         "edit": "編集",
         "test": "接続テスト",
-        "edit_todo": "サンプル：プロバイダーの編集はまだです",
         "no_models": "このプロバイダーにはまだモデルがありません",
         "window": "ウィンドウ",
         "inputs": "対応入力",
@@ -274,7 +294,6 @@
         "price_cache_write": "キャッシュ書き込み",
         "pool_empty": "空のプールは使えません",
         "new_pool": "モデルプールを作成",
-        "pool_todo": "サンプル：モデルプールはまだ閲覧のみ",
         "strategies": {
           "pin": "固定",
           "rotate": "ローテーション"
@@ -286,7 +305,30 @@
         },
         "test_ok": "使用可能 · {model} · 最初の応答 {ms} ms",
         "price_currency": "通貨",
-        "temperature": "既定の温度"
+        "temperature": "既定の温度",
+        "pool_add": "モデルを追加",
+        "pool_delete": "このプールを削除",
+        "pool_name_hint": "名前（例：fast）",
+        "form": {
+          "new_title": "プロバイダーを追加",
+          "edit_title": "{name} を編集",
+          "id": "ID",
+          "id_hint": "例：deepseek。モデルは ID/モデル で参照します",
+          "name": "表示名",
+          "name_hint": "空欄でも可",
+          "url": "アドレス",
+          "driver": "インターフェース",
+          "key": "キー",
+          "key_secret": "キーを貼り付け",
+          "key_env": "環境変数",
+          "key_paste": "API Key を貼り付け",
+          "key_keep": "設定済み。変えないなら空欄のまま",
+          "save": "保存",
+          "cancel": "キャンセル",
+          "bad_id": "ID は小文字で始め、小文字・数字・- ・_ のみ、32 文字以内",
+          "taken_id": "{id} はすでにあります",
+          "secret_kept": "キーは {name} として保存済み。もう一度保存すると新しい名前を使います"
+        }
       },
       "changed": "変更済み"
     }

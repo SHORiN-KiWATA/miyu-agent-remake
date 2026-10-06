@@ -162,15 +162,26 @@ export class SettingsDialog {
   }
 
   /**
-   * 存一项核心的配置（第 6 条）：写在哪一层照 `layerFor`，带上这一层读到的 `expect`；成了重读重画，拒了交回原因。
+   * 存一项核心的配置（第 6 条）：写在哪一层照 `layerFor`，带上这一层读到的 `expect`。
    * @param {import('./model.js').Item} item
    * @param {{value?: any, input?: string, unset?: true}} change
    * @returns {Promise<string|null>} 拒了的原因（给人看的一句）；成了是 `null`
    */
-  async save(item, change) {
+  save(item, change) {
     const layer = layerFor(item);
+    return this.saveMany(layer, [{ key: item.key, ...change, expect: expectFor(item.entry, layer, item.type) }]);
+  }
+
+  /**
+   * 一条 `config.set` 改几项（全收或者全不收）：成了重读重画，拒了交回原因（冲突的先重读，写「别处改过了，现在是 X」）。
+   * @param {string} layer
+   * @param {{key: string, value?: any, input?: string, unset?: true, expect?: any}[]} changes
+   * @returns {Promise<string|null>}
+   */
+  async saveMany(layer, changes) {
+    if (!changes.length) return null;
     try {
-      await this.ctx.core.request('config.set', { layer, changes: [{ key: item.key, ...change, expect: expectFor(item.entry, layer) }] });
+      await this.ctx.core.request('config.set', { layer, changes });
     } catch (err) {
       if (err.reason === 'config_conflict' || err.data?.current) {
         await this.reload();
@@ -229,7 +240,7 @@ export class SettingsDialog {
     if (e.key === 'Escape') {
       e.stopPropagation();
       e.preventDefault();
-      const open = this.panel.querySelector('.set-menu, .set-drawer');
+      const open = this.panel.querySelector('.set-menu, .set-drawer, .set-form');
       if (open) {
         open.dispatchEvent(new CustomEvent('set-dismiss'));
         return;

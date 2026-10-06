@@ -94,12 +94,15 @@ export function splitKey(key) {
 export const layerFor = (item) => (item.layers.includes('personal') ? 'personal' : 'system');
 
 /**
- * `config.set` 的 `expect`：这一层里这一项现在写着什么，`{value}` 或者没写 `{}`。
+ * `config.set` 的 `expect`：这一层里这一项现在写着什么，`{value}` 或者没写 `{}`。小数项现在写着整数值的（`1.0`）交 `undefined`
+ * 不查：JSON 里分不出 `1` 和 `1.0`，核心照类型比会当成对不上（2026-10-07 报给核心，修好以后去掉这一条）。
  * @param {Entry|null} entry
  * @param {string} layer
+ * @param {string} [type] 这一项的类型（`float` 的才看上面那一条）
  */
-export function expectFor(entry, layer) {
+export function expectFor(entry, layer, type) {
   const had = entry?.layers?.find((l) => l.origin.layer === layer);
+  if (type === 'float' && had && Number.isInteger(had.value)) return undefined;
   return had ? { value: had.value } : {};
 }
 
@@ -204,4 +207,51 @@ export function duplicates(names) {
   const dup = new Set();
   for (const n of names) (seen.has(n) ? dup : seen).add(n);
   return dup;
+}
+
+/** 人起的编号（供应商、池）：小写字母开头，只有小写字母、数字、`-`、`_`，最长 32 个字符（`kernel/ids.md`「路径里的名字」）。 */
+export const validId = (id) => /^[a-z][a-z0-9_-]{0,31}$/.test(id);
+
+/** 粘贴的密钥存成的新名字：`<编号>-<时刻>`（不覆盖原来的，照终端第 7 条）；名字最长 64。 @param {string} id @param {number} now */
+export const secretName = (id, now) => `${id}-${now.toString(36)}`.slice(0, 64);
+
+/**
+ * 存一家供应商的表要发的 `config.set` 的 `changes`（蓝图「设置页」第 14 条）：显示名、地址、接口、密钥，每项带这一层读到的
+ * `expect`；空着的显示名、地址是删掉（新建的不写），地址是 `null` 的不改（原来是环境变量引用、框空着）；密钥 `keep` 是不改。
+ * @param {string} id
+ * @param {{name: string, base_url: string|null, driver: string, key: {kind: 'keep'|'secret'|'env', value: string}}} form
+ * @param {{items: Record<string, Entry>}} got
+ * @param {string} layer
+ * @param {string|null} secret 粘贴的密钥存成的名字（`kind` 是 `secret` 时）
+ */
+export function providerChanges(id, form, got, layer, secret) {
+  const key = (field) => `providers.${keySegment(id)}.${field}`;
+  const changes = [];
+  const put = (field, change) => {
+    const entry = got.items?.[key(field)] ?? null;
+    const had = writtenIn(entry, layer);
+    if ('unset' in change && !had) return;
+    changes.push({ key: key(field), ...change, expect: expectFor(entry, layer) });
+  };
+  put('name', form.name.trim() ? { value: form.name.trim() } : { unset: true });
+  if (form.base_url !== null) put('base_url', form.base_url.trim() ? { input: form.base_url.trim() } : { unset: true });
+  if (form.driver) put('driver', { value: form.driver });
+  if (form.key.kind === 'secret' && secret) put('keys', { value: [{ secret }] });
+  if (form.key.kind === 'env' && form.key.value.trim()) put('keys', { value: [{ env: form.key.value.trim() }] });
+  return changes;
+}
+
+/** 池的成员往前（`-1`）、往后（`1`）挪一格；到头了不动。 @param {string[]} list @param {number} i @param {number} dir */
+export function moveMember(list, i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= list.length) return list;
+  const next = [...list];
+  [next[i], next[j]] = [next[j], next[i]];
+  return next;
+}
+
+/** 删一个池：它在这一层写着的几项（`pools.<id>.*`）各一条 `unset`。 @param {string} id @param {{items: Record<string, Entry>}} got @param {string} layer */
+export function poolRemoval(id, got, layer) {
+  const prefix = `pools.${keySegment(id)}.`;
+  return Object.keys(got.items ?? {}).filter((k) => k.startsWith(prefix) && writtenIn(got.items[k], layer)).map((k) => ({ key: k, unset: true, expect: expectFor(got.items[k], layer) }));
 }

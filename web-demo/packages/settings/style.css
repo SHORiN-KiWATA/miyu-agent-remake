@@ -203,6 +203,28 @@
 .set-pkg-settings { padding: 0 0 8px 28px; }
 .set-pkg-settings .set-row:last-child { border-bottom: 0; }
 
+/* 供应商的表、两段切换、模型池的编辑 */
+.set-form { max-width: 560px; margin-top: 14px; }
+.set-form-title { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+.set-form-row { display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: center; gap: 12px; padding: 8px 0; color: var(--text-soft); font-size: 13px; }
+.set-form-row .set-input { width: 100%; }
+.set-form-fixed { color: var(--text); font: 13px var(--mono); }
+.set-input.is-select { appearance: auto; }
+.set-form-keyrow { display: flex; flex-direction: column; gap: 8px; }
+.set-form-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.set-btn.is-primary { border-color: var(--accent); background: var(--accent); color: var(--on-primary); }
+.set-btn.is-primary:hover { border-color: var(--accent); filter: brightness(1.06); }
+.set-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--surface-2); width: fit-content; }
+.set-seg-item { height: 24px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text-soft); font: 12.5px var(--sans); cursor: pointer; }
+.set-seg-item.is-on { background: var(--surface-1); box-shadow: var(--card-shadow); color: var(--text); }
+.set-pool-head .set-seg { margin-left: auto; }
+.set-reset.is-shown { opacity: 1; }
+.set-chip.is-member { padding: 0 4px; }
+.set-chip.is-member button:disabled { opacity: 0.3; cursor: default; }
+.set-chip.is-member > span { padding: 0 2px; }
+.set-pool.is-new .set-input { width: 100%; }
+.set-pool.is-new .set-error { margin: 0; }
+
 /* 窄（第 15 条）：占满整个窗口，先列分页，点进去看那一页 */
 @media (max-width: 640px) {
   .set-panel { grid-template-columns: 1fr; width: 100vw; height: 100dvh; border: 0; border-radius: 0; }

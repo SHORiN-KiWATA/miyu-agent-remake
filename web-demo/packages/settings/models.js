@@ -1,11 +1,14 @@
 // @ts-check
 //! 「模型」页（蓝图 `web.md`「设置页」第 14 条，照 `tui.md`「全屏配置页」）：四个标签：供应商和模型、默认文本模型、默认视觉模型、
 //! 模型池。列表照 `model.list`，存照 `config.set`（和通用的行同一条路：`coreRow` 加上换成真键的项）。只放用户要看的：一家用不了的
-//! 原因写一次、不在每个模型上重复；模型名只在显示名重了时写；详情里只有名字和控件。样板：添加、编辑供应商，模型池的编辑还没做。
+//! 原因写一次、不在每个模型上重复；模型名只在显示名重了时写；详情里只有名字和控件。添加、编辑供应商的表在 `provider-form.js`，
+//! 模型池在 `pools.js`。
 
 import { h, icon, replace } from '../../src/lib/dom.js';
 import { coreRow, textField } from './rows.js';
-import { itemFor, plainItem, shortCount, inputText, duplicates, layerFor, writtenIn } from './model.js';
+import { itemFor, plainItem, shortCount, inputText, duplicates, layerFor, writtenIn, expectFor } from './model.js';
+import { providerForm, openForm } from './provider-form.js';
+import { drawPools } from './pools.js';
 
 const TABS = ['providers', 'chat', 'vision', 'pools'];
 
@@ -16,12 +19,12 @@ export function drawModels(dialog) {
   const tabs = h('div.set-tabs', { role: 'tablist' }, TABS.map((id) => h(`button.set-tabbar${dialog.modelTab === id ? '.is-on' : ''}`, {
     type: 'button',
     role: 'tab',
-    onclick: () => { dialog.modelTab = id; dialog.modelDetail = null; dialog.drawBody(); },
+    onclick: () => { dialog.modelTab = id; dialog.modelDetail = null; dialog.providerForm = null; dialog.drawBody(); },
   }, ctx.text(`models.tabs.${id}`))));
   const list = dialog.models;
   if (!list) return [tabs, h('p.set-empty.is-bad', ctx.text('load_failed', { reason: 'model.list' }))];
-  if (dialog.modelTab === 'providers') return [tabs, providers(dialog, list)];
-  if (dialog.modelTab === 'pools') return [tabs, pools(dialog, list)];
+  if (dialog.modelTab === 'providers') return [tabs, dialog.providerForm ? providerForm(dialog, list.providers ?? []) : providers(dialog, list)];
+  if (dialog.modelTab === 'pools') return [tabs, drawPools(dialog, list)];
   return [tabs, defaults(dialog, list, dialog.modelTab)];
 }
 
@@ -55,7 +58,7 @@ function providers(dialog, list) {
   const side = h('div.set-prov-list',
     all.map((x) => h(`button.set-prov${x.id === dialog.provider ? '.is-on' : ''}`, { type: 'button', onclick: () => { dialog.provider = x.id; dialog.modelDetail = null; dialog.drawBody(); } },
       h('span', providerName(x)), sharedState(x.models ?? []) ? h('i.set-warn-dot') : null)),
-    h('button.set-prov.is-add', { type: 'button', onclick: () => dialog.toast(ctx.text('models.edit_todo')) }, icon('plus'), ctx.text('models.add_provider')));
+    h('button.set-prov.is-add', { type: 'button', onclick: openForm(dialog, null) }, icon('plus'), ctx.text('models.add_provider')));
   if (!p) return h('div.set-prov-wrap', side);
   const models = p.models ?? [];
   const key = p.keys?.[0];
@@ -82,7 +85,7 @@ function providers(dialog, list) {
     fact(ctx.text('models.address'), address),
     fact(ctx.text('models.driver'), p.driver ?? ''),
     fact(ctx.text('models.key'), keyText),
-    h('div.set-prov-buttons', h('button.set-btn', { type: 'button', onclick: () => dialog.toast(ctx.text('models.edit_todo')) }, ctx.text('models.edit')), test));
+    h('div.set-prov-buttons', h('button.set-btn', { type: 'button', onclick: openForm(dialog, p.id) }, ctx.text('models.edit')), test));
   const dup = duplicates(models.map(modelName));
   const grid = models.length
     ? h('div.set-model-grid', models.map((m) => h(`button.set-model${dialog.modelDetail === m.model ? '.is-on' : ''}`, { type: 'button', onclick: () => { dialog.modelDetail = m.model; dialog.drawBody(); } },
@@ -136,22 +139,31 @@ function drawer(dialog, p, m) {
   return el;
 }
 
-/** 价格一块：输入、输出、缓存读、缓存写两行两列，币种跟在后面；空着的是没写（不当成 0）。 */
+/** 价格一块：输入、输出、缓存读、缓存写两行两列，币种跟在后面；改一项时五项照显示的整份存（照终端第 4 条），空着的是删掉（不当成 0）。 */
 function prices(dialog, item) {
   const ctx = dialog.ctx;
-  const fields = ['input', 'output', 'cache_read', 'cache_write'];
-  const field = (it, kind) => textField(inputText(it.entry?.value ?? ''), kind, '', async (text) => {
-    const why = await dialog.save(it, text === '' ? { unset: true } : { input: text });
+  const parts = ['input', 'output', 'cache_read', 'cache_write', 'currency'].map((name) => ({ name, it: item(`price.${name}`) })).filter((x) => x.it);
+  /** @type {Map<string, HTMLInputElement>} */
+  const inputs = new Map();
+  // 照显示的整份写：有字的都写（没改的也写，五项一起成一套），空着的这一层写过才删
+  const saveAll = async () => {
+    const layer = layerFor(parts[0].it);
+    const changes = parts.flatMap(({ name, it }) => {
+      const text = inputs.get(name)?.value.trim() ?? '';
+      const expect = expectFor(it.entry, layer, it.type);
+      if (text) return [{ key: it.key, input: text, expect }];
+      return writtenIn(it.entry, layer) ? [{ key: it.key, unset: true, expect }] : [];
+    });
+    const why = await dialog.saveMany(layer, changes);
     if (why) dialog.toast(why);
-  });
-  const cells = [];
+  };
   let changed = false;
-  for (const name of [...fields, 'currency']) {
-    const it = item(`price.${name}`);
-    if (!it) continue;
+  const cells = parts.map(({ name, it }) => {
     changed ||= writtenIn(it.entry, layerFor(it));
-    cells.push(h(`label.set-price${name === 'currency' ? '.is-currency' : ''}`, h('span', ctx.text(`models.price_${name}`)), field(it, name === 'currency' ? 'text' : 'number')));
-  }
+    const field = /** @type {HTMLInputElement} */ (textField(inputText(it.entry?.value ?? ''), name === 'currency' ? 'text' : 'number', '', saveAll));
+    inputs.set(name, field);
+    return h(`label.set-price${name === 'currency' ? '.is-currency' : ''}`, h('span', ctx.text(`models.price_${name}`)), field);
+  });
   return h('section.set-prices',
     h('div.set-prices-head', h('span', ctx.text('models.price')), changed ? h('em', ctx.text('changed')) : null),
     h('div.set-price-grid', cells));
@@ -173,14 +185,4 @@ function defaults(dialog, list, which) {
   const many = (list.providers ?? []).length > 1;
   return h('div.set-picks', all.map(({ p, m }) => h(`button.set-pick${m.ref === current ? '.is-on' : ''}`, { type: 'button', onclick: () => pick(m.ref) },
     h('i.set-radio'), modelLabel(m, dup), many ? h('span.set-pick-provider', providerName(p)) : null)));
-}
-
-/** 模型池：一个池一张卡片（名字、调用方式、成员），最后一张「新建模型池」。样板：只能看。 */
-function pools(dialog, list) {
-  const ctx = dialog.ctx;
-  const cards = (list.pools ?? []).map((pool) => h('div.set-pool',
-    h('div.set-pool-head', h('strong', `@${pool.name}`), h('span.set-pill', ctx.text(`models.strategies.${pool.strategy}`))),
-    h('div.set-chips', (pool.models ?? []).length ? pool.models.map((ref) => h('span.set-chip', h('span', ref))) : h('span.set-muted', ctx.text('models.pool_empty')))));
-  const add = h('button.set-pool.is-add', { type: 'button', onclick: () => dialog.toast(ctx.text('models.pool_todo')) }, icon('plus'), ctx.text('models.new_pool'));
-  return h('div.set-pools', cards, add);
 }
