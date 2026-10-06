@@ -1,5 +1,5 @@
 //! `cargo xtask dev-home`（施工 8-6，`docs/blueprint/models.md`「怎么走」第十条）：照三个环境变量造的数据根，配置照清单读
-//! 一处错都没有；已经有配置的不盖、别人的目录不动；真的核心认得出它，照配置连上假服务器，带着 `DEEPSEEK_API_KEY` 的值、
+//! 一处错都没有；已经有配置的不盖、别人的目录不动；真的核心认得出它，照配置连上假服务器，带着 `MIYU_DEV_API_KEY` 的值、
 //! 发给写的那个模型，`miyu ask` 答得上来。
 //!
 //! xtask 不是库：它的 `dev_home.rs` 原样编进这个测试（`#[path]`），测的就是 `cargo xtask dev-home` 用的那一份。
@@ -119,7 +119,7 @@ fn the_config_reads_without_a_single_problem() {
     );
     assert_eq!(
         value("providers.dev.keys").as_deref(),
-        Some(r#"[{ env = "DEEPSEEK_API_KEY" }]"#)
+        Some(r#"[{ env = "MIYU_DEV_API_KEY" }]"#)
     );
     assert_eq!(
         value(r#"providers.dev.models."deepseek-v4.1-flash".window"#).as_deref(),
@@ -181,7 +181,7 @@ async fn a_real_core_on_a_dev_home_answers_through_the_config() {
         connect_or_start(&home.root, || {
             let mut core = home.core();
             core.env("MIYU_DEV_BASE_URL", &server.base_url)
-                .env("DEEPSEEK_API_KEY", "sk-dev-home-test")
+                .env("MIYU_DEV_API_KEY", "sk-dev-home-test")
                 .env("NO_PROXY", "127.0.0.1")
                 .env_remove("HTTP_PROXY")
                 .env_remove("HTTPS_PROXY")
