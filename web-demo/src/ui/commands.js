@@ -15,7 +15,6 @@ import { Menu, revertedSaid } from '../model/commands.js';
 import { project } from '../model/transcript.js';
 import { copy } from '../markdown/build.js';
 import { Refusal } from '../core/connection.js';
-import { openPackages } from './packages.js';
 
 /** @typedef {import('../model/commands.js').Spec} Spec */
 /** @typedef {import('./app.js').App} App */
@@ -250,7 +249,6 @@ const RUNS = {
     app.composer.focus();
   },
   copy: copyReply,
-  packages: (app) => openPackages(app.ctx.packages, (text) => app.composer.say(text)),
   fake: (app, spec) => app.composer.say(t('commands.fake', { name: spec.name })),
 };
 

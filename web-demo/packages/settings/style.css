@@ -166,6 +166,9 @@
 .set-drawer-head div { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; }
 .set-drawer-head code { overflow: hidden; color: var(--text-faint); font: 11px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .set-drawer .set-row { gap: 12px; }
+.set-drawer .set-text { flex: 0 0 auto; min-width: 72px; }
+.set-drawer .set-name > span { white-space: nowrap; }
+.set-drawer .set-control { flex: 1; min-width: 0; flex-wrap: wrap; }
 .set-drawer .set-control { justify-content: flex-end; }
 .set-drawer .set-chips { max-width: none; }
 .set-drawer .set-input:not(.is-number) { width: 160px; }
@@ -224,6 +227,18 @@
 .set-chip.is-member > span { padding: 0 2px; }
 .set-pool.is-new .set-input { width: 100%; }
 .set-pool.is-new .set-error { margin: 0; }
+
+/* 找模型、读模型列表、选模型的小窗 */
+.set-model-search { width: 100%; margin-top: 12px; }
+.set-loading { display: flex; align-items: center; gap: 8px; padding: 18px 0; color: var(--text-faint); font-size: 13px; }
+.set-loading .icon { animation: set-spin 0.9s linear infinite; }
+.set-picker { display: flex; flex-direction: column; gap: 6px; width: 380px; max-width: calc(100% - 24px); max-height: 420px; padding: 8px; }
+.set-picker > .set-input { width: 100%; }
+.set-picker-list { flex: 1; min-height: 0; overflow-y: auto; }
+.set-picker-row { display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.set-picker-row:hover { background: var(--surface-2); }
+.set-picker-row input { flex: none; accent-color: var(--accent); }
+.set-picker-foot { display: flex; justify-content: flex-end; gap: 6px; padding-top: 4px; border-top: 1px solid var(--line); }
 
 /* 窄（第 15 条）：占满整个窗口，先列分页，点进去看那一页 */
 @media (max-width: 640px) {

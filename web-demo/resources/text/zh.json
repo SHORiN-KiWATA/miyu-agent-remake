@@ -285,23 +285,6 @@
   "esc_interrupt_hint": "再按一次 Esc 打断",
   "interrupt": "打断",
   "slot_failed": "这一块出错了（{owner}：{reason}）",
-  "pkg": {
-    "title": "软件包",
-    "note": "停用、启用当场生效，记在这个浏览器里",
-    "base": "基础系统",
-    "enable": "启用",
-    "disable": "停用",
-    "close": "关闭",
-    "states": {
-      "active": "就绪",
-      "pending": "等着",
-      "failed": "故障",
-      "disabled": "停了",
-      "idle": "还没起",
-      "disposed": "撤回了"
-    },
-    "missing": "缺 {names}"
-  },
   "status_hints": {
     "429": "被限速了，或者额度不够，过一会儿再试",
     "402": "额度用完了",

@@ -255,3 +255,21 @@ export function poolRemoval(id, got, layer) {
   const prefix = `pools.${keySegment(id)}.`;
   return Object.keys(got.items ?? {}).filter((k) => k.startsWith(prefix) && writtenIn(got.items[k], layer)).map((k) => ({ key: k, unset: true, expect: expectFor(got.items[k], layer) }));
 }
+
+/**
+ * 找模型（蓝图「设置页」第 14 条的搜索框）：显示名、模型名、供应商名里有这几个字（不分大小写，空格分开的几段都要有）；空的全给。
+ * @template {{name: string, model: string, provider?: string}} T
+ * @param {T[]} rows @param {string} query
+ * @returns {T[]}
+ */
+export function filterModels(rows, query) {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return rows;
+  return rows.filter((r) => {
+    const hay = `${r.name}\n${r.model}\n${r.provider ?? ''}`.toLowerCase();
+    return words.every((w) => hay.includes(w));
+  });
+}
+
+/** 供应商的显示名（核心 8-21：`name.value`，已经照配置、目录、编号退好；旧核心是字或没有）。 @param {{id: string, name?: any}} p */
+export const providerName = (p) => (typeof p.name === 'object' ? p.name?.value : p.name) || p.id;

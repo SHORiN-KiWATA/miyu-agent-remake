@@ -285,23 +285,6 @@
   "esc_interrupt_hint": "もう一度 Esc で中断",
   "interrupt": "中断",
   "slot_failed": "この部分でエラーが発生しました（{owner}：{reason}）",
-  "pkg": {
-    "title": "パッケージ",
-    "note": "無効化・有効化はその場で反映され、このブラウザーに保存されます",
-    "base": "基本システム",
-    "enable": "有効にする",
-    "disable": "無効にする",
-    "close": "閉じる",
-    "states": {
-      "active": "準備完了",
-      "pending": "待機中",
-      "failed": "故障",
-      "disabled": "停止中",
-      "idle": "未起動",
-      "disposed": "撤回済み"
-    },
-    "missing": "{names} が不足"
-  },
   "status_hints": {
     "429": "レート制限か利用枠不足です。しばらくして再試行してください",
     "402": "利用枠を使い切りました",

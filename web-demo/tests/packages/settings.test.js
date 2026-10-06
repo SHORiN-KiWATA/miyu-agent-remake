@@ -176,3 +176,16 @@ test('供应商的表：编号的写法、密钥存成的新名字、要发的�
   } };
   assert.deepEqual(poolRemoval('fast', pools, 'personal'), [{ key: 'pools.fast.models', unset: true, expect: { value: [] } }], '只删这一层写着的，不碰同前缀的别的池');
 });
+
+test('找模型：显示名、模型名、供应商名都算，空格分开的几段都要有，不分大小写；空的全给', async () => {
+  const { filterModels } = await import('../../packages/settings/model.js');
+  const rows = [
+    { name: 'DeepSeek V4.1 Flash', model: 'cline-pass/deepseek-v4.1-flash', provider: 'magpie' },
+    { name: 'GLM-5.3', model: 'clinepass/cline-pass/glm-5.3', provider: 'magpie' },
+    { name: 'DeepSeek V4 Pro', model: 'deepseek-v4-pro', provider: 'DeepSeek' },
+  ];
+  assert.equal(filterModels(rows, '').length, 3);
+  assert.deepEqual(filterModels(rows, 'glm').map((r) => r.name), ['GLM-5.3']);
+  assert.deepEqual(filterModels(rows, 'deepseek MAGPIE').map((r) => r.name), ['DeepSeek V4.1 Flash'], '几段都要有');
+  assert.deepEqual(filterModels(rows, 'v4-pro').map((r) => r.provider), ['DeepSeek'], '模型名也算');
+});

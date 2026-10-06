@@ -218,33 +218,6 @@
 .stage-right { display: contents; }
 .slot-failed { color: var(--danger); font-size: 12px; }
 
-/* 软件包的浮层（/pkg）：居中的一张卡，半透明加毛玻璃，和菜单一个样子；一行一个包，右边开关 */
-.pkg-layer { position: fixed; z-index: 80; display: grid; place-items: center; inset: 0; animation: fade-in var(--motion-in) var(--ease-out) both; }
-.pkg-layer.is-leaving { animation: fade-out var(--motion-out) var(--ease-in) both; }
-.pkg-layer.is-leaving .pkg-panel { animation: pop-out var(--motion-out) var(--ease-in) both; }
-.pkg-scrim { position: absolute; border: 0; background: var(--scrim); inset: 0; }
-.pkg-panel {
-  position: relative; width: min(560px, calc(100vw - 32px)); max-height: 70vh; padding: 14px 10px 10px; overflow-y: auto;
-  border: 1px solid var(--line); border-radius: 16px; background: color-mix(in srgb, var(--surface-1) 94%, transparent);
-  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: var(--float-shadow); animation: pop-in var(--motion-in) var(--ease-out) both;
-}
-.pkg-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 8px 10px; color: var(--text); }
-.pkg-head span { color: var(--text-faint); font-size: 12px; }
-.pkg-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 9px 8px; border-radius: 10px; }
-.pkg-row:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
-.pkg-name { display: flex; min-width: 0; align-items: baseline; gap: 8px; color: var(--text); font-size: 14px; }
-.pkg-name code { color: var(--text-faint); font: 12px var(--mono); }
-.pkg-state { display: flex; min-width: 0; align-items: center; gap: 6px; font-size: 12px; }
-.pkg-chip { padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--text-soft); }
-.pkg-row.is-active .pkg-chip { background: color-mix(in srgb, var(--online) 16%, transparent); color: var(--online); }
-.pkg-row.is-failed .pkg-chip { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
-.pkg-why { max-width: 180px; overflow: hidden; color: var(--text-faint); text-overflow: ellipsis; white-space: nowrap; }
-.pkg-base { color: var(--text-faint); font-size: 12px; }
-.pkg-switch { position: relative; width: 34px; height: 20px; padding: 0; border: 0; border-radius: 999px; background: var(--surface-3); cursor: pointer; transition: background-color 0.15s ease; }
-.pkg-switch i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface-1); box-shadow: var(--bubble-shadow); transition: transform 0.15s ease; }
-.pkg-switch.is-on { background: var(--accent); }
-.pkg-switch.is-on i { transform: translateX(14px); }
-
 /* 子代理的会话顶上那条路径（蓝图 web.md「对话区」的「子代理的会话顶上那条路径」）：高 40px，占着地方（正文从它下面起），下面一根
    line 细线；路径，前面几段 text_soft、悬停 text、能点，最后一段 text。左栏收起、窄屏时让开左上角的按钮。回派它的那一层的按钮在
    输入框正上方（composer.css 的 .back-row） */

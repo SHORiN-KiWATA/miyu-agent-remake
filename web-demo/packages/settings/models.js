@@ -6,7 +6,7 @@
 
 import { h, icon, replace } from '../../src/lib/dom.js';
 import { coreRow, textField } from './rows.js';
-import { itemFor, plainItem, shortCount, inputText, duplicates, layerFor, writtenIn, expectFor } from './model.js';
+import { itemFor, plainItem, shortCount, inputText, duplicates, layerFor, writtenIn, expectFor, providerName, filterModels } from './model.js';
 import { providerForm, openForm } from './provider-form.js';
 import { drawPools } from './pools.js';
 
@@ -22,14 +22,12 @@ export function drawModels(dialog) {
     onclick: () => { dialog.modelTab = id; dialog.modelDetail = null; dialog.providerForm = null; dialog.drawBody(); },
   }, ctx.text(`models.tabs.${id}`))));
   const list = dialog.models;
-  if (!list) return [tabs, h('p.set-empty.is-bad', ctx.text('load_failed', { reason: 'model.list' }))];
+  if (!list) return [tabs, dialog.modelsLoading ? loadingRow(ctx) : h('p.set-empty.is-bad', ctx.text('load_failed', { reason: 'model.list' }))];
   if (dialog.modelTab === 'providers') return [tabs, dialog.providerForm ? providerForm(dialog, list.providers ?? []) : providers(dialog, list)];
   if (dialog.modelTab === 'pools') return [tabs, drawPools(dialog, list)];
   return [tabs, defaults(dialog, list, dialog.modelTab)];
 }
 
-/** 供应商的显示名（核心 8-21：`name.value`，已经照配置、目录、编号退好；旧核心是字或没有）。 */
-const providerName = (p) => (typeof p.name === 'object' ? p.name?.value : p.name) || p.id;
 /** 模型的显示名：目录给的名字，没有的写模型名。 */
 const modelName = (m) => m.facts?.name?.value ?? m.model;
 /** 看得了图。 */
@@ -53,10 +51,10 @@ function modelLabel(m, dup) {
 function providers(dialog, list) {
   const ctx = dialog.ctx;
   const all = list.providers ?? [];
-  if (!all.some((p) => p.id === dialog.provider)) dialog.provider = all[0]?.id ?? null;
-  const p = all.find((x) => x.id === dialog.provider);
+  // 记着的那一家（刚建好、模型列表还没读回来的）不在表里时先看第一家，不改记着的
+  const p = all.find((x) => x.id === dialog.provider) ?? all[0];
   const side = h('div.set-prov-list',
-    all.map((x) => h(`button.set-prov${x.id === dialog.provider ? '.is-on' : ''}`, { type: 'button', onclick: () => { dialog.provider = x.id; dialog.modelDetail = null; dialog.drawBody(); } },
+    all.map((x) => h(`button.set-prov${x.id === p?.id ? '.is-on' : ''}`, { type: 'button', onclick: () => { dialog.provider = x.id; dialog.modelDetail = null; if (dialog.modelQuery) dialog.modelQuery.providers = ''; dialog.drawBody(); } },
       h('span', providerName(x)), sharedState(x.models ?? []) ? h('i.set-warn-dot') : null)),
     h('button.set-prov.is-add', { type: 'button', onclick: openForm(dialog, null) }, icon('plus'), ctx.text('models.add_provider')));
   if (!p) return h('div.set-prov-wrap', side);
@@ -75,6 +73,8 @@ function providers(dialog, list) {
       const r = await ctx.core.request('provider.test', { provider: p.id, ...(dialog.modelDetail ? { model: dialog.modelDetail } : {}) });
       result.className = `set-test ${r.ok ? 'is-good' : 'is-bad'}`;
       replace(result, r.ok ? ctx.text('models.test_ok', { model: r.model, ms: r.first_token_ms }) : r.error?.message ?? r.stage);
+      // 测成了：核心顺手存了供应商列出来的模型，重读这一家
+      if (r.ok) refreshProvider(dialog, p.id, false);
     } catch (err) {
       result.className = 'set-test is-bad';
       replace(result, err.message);
@@ -86,11 +86,16 @@ function providers(dialog, list) {
     fact(ctx.text('models.driver'), p.driver ?? ''),
     fact(ctx.text('models.key'), keyText),
     h('div.set-prov-buttons', h('button.set-btn', { type: 'button', onclick: openForm(dialog, p.id) }, ctx.text('models.edit')), test));
+  // 还没有模型的一家：请核心去拉一次（这个弹窗里每家一次），拉的时候写「正在读模型列表」
+  if (!models.length && !dialog.refreshed?.has(p.id)) queueMicrotask(() => refreshProvider(dialog, p.id, true));
   const dup = duplicates(models.map(modelName));
-  const grid = models.length
-    ? h('div.set-model-grid', models.map((m) => h(`button.set-model${dialog.modelDetail === m.model ? '.is-on' : ''}`, { type: 'button', onclick: () => { dialog.modelDetail = m.model; dialog.drawBody(); } },
-      modelLabel(m, dup), !shared && m.state && m.state !== 'ok' ? h('em.set-model-state', ctx.text(`models.states.${m.state}`)) : null)))
-    : h('p.set-empty', ctx.text('models.no_models'));
+  const rows = models.map((m) => ({ name: modelName(m), model: m.model, node: h(`button.set-model${dialog.modelDetail === m.model ? '.is-on' : ''}`, { type: 'button', onclick: () => { dialog.modelDetail = m.model; dialog.drawBody(); } },
+    modelLabel(m, dup), !shared && m.state && m.state !== 'ok' ? h('em.set-model-state', ctx.text(`models.states.${m.state}`)) : null) }));
+  let grid;
+  if (models.length) {
+    const find = searchable(dialog, 'providers', rows);
+    grid = [find.input, h('div.set-model-grid', rows.map((r) => r.node)), find.empty];
+  } else grid = dialog.loadingProvider === p.id || dialog.modelsLoading ? loadingRow(ctx) : h('p.set-empty', ctx.text('models.no_models'));
   const main = h('div.set-prov-main', head, shared ? h('p.set-prov-warn', ctx.text(`models.states.${shared}`)) : null, result, grid);
   // 详情盖着右边整栏（挂在 `.set-main` 上，滚正文时它不跟着走）
   const detail = dialog.modelDetail ? drawer(dialog, p, models.find((m) => m.model === dialog.modelDetail)) : null;
@@ -183,6 +188,51 @@ function defaults(dialog, list, which) {
   };
   // 只有一家的不写是哪一家
   const many = (list.providers ?? []).length > 1;
-  return h('div.set-picks', all.map(({ p, m }) => h(`button.set-pick${m.ref === current ? '.is-on' : ''}`, { type: 'button', onclick: () => pick(m.ref) },
-    h('i.set-radio'), modelLabel(m, dup), many ? h('span.set-pick-provider', providerName(p)) : null)));
+  const rows = all.map(({ p, m }) => ({ name: modelName(m), model: m.model, provider: providerName(p), node: h(`button.set-pick${m.ref === current ? '.is-on' : ''}`, { type: 'button', onclick: () => pick(m.ref) },
+    h('i.set-radio'), modelLabel(m, dup), many ? h('span.set-pick-provider', providerName(p)) : null) }));
+  const find = searchable(dialog, which, rows);
+  return [find.input, h('div.set-picks', rows.map((r) => r.node)), find.empty];
+}
+
+/** 「正在读模型列表」那一行，前面一个转圈。 */
+const loadingRow = (ctx) => h('p.set-loading', icon('loader-circle'), ctx.text('models.loading'));
+
+/**
+ * 搜索框：照显示名、模型名、供应商名就地藏掉对不上的行（不重画，打字不丢焦点）；字记在弹窗上，重画以后照旧。
+ * @param {any} dialog @param {string} slot 记在哪一格（每个标签一格） @param {{name: string, model: string, provider?: string, node: HTMLElement}[]} rows
+ */
+function searchable(dialog, slot, rows) {
+  dialog.modelQuery ??= {};
+  const input = /** @type {HTMLInputElement} */ (h('input.set-input.set-model-search', { type: 'search', placeholder: dialog.ctx.text('models.search'), value: dialog.modelQuery[slot] ?? '', spellcheck: 'false', autocomplete: 'off' }));
+  const empty = h('p.set-empty', { hidden: true }, dialog.ctx.text('models.no_match'));
+  const apply = () => {
+    dialog.modelQuery[slot] = input.value;
+    const shown = new Set(filterModels(rows, input.value));
+    for (const r of rows) r.node.hidden = !shown.has(r);
+    empty.hidden = shown.size > 0;
+  };
+  input.addEventListener('input', apply);
+  apply();
+  return { input, empty };
+}
+
+/**
+ * 重读一家的模型（`refresh` 的请核心先去供应商那边拉一遍）：读的时候那一块写「正在读模型列表」，读完换上、重画。
+ * @param {any} dialog @param {string} id @param {boolean} refresh
+ */
+export async function refreshProvider(dialog, id, refresh) {
+  dialog.refreshed ??= new Set();
+  dialog.refreshed.add(id);
+  dialog.loadingProvider = id;
+  if (dialog.isOpen) dialog.drawBody();
+  try {
+    const got = await dialog.ctx.core.request('model.list', { provider: id, ...(refresh ? { refresh: true } : {}) });
+    const fresh = got?.providers?.find((x) => x.id === id);
+    if (fresh && dialog.models) dialog.models.providers = dialog.models.providers.map((x) => (x.id === id ? fresh : x));
+  } catch {
+    // 读不到的照旧显示原来的（没有模型的写「还没有模型」）
+  } finally {
+    dialog.loadingProvider = null;
+    if (dialog.isOpen && !dialog.editing()) dialog.drawBody();
+  }
 }

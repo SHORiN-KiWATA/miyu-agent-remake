@@ -74,19 +74,28 @@ export class SettingsDialog {
     leave(this.root, () => this.root.remove());
   }
 
-  /** 读核心的配置清单、最终值、模型（三样一起读）。 */
+  /** 读核心的配置清单、最终值；模型列表另读（可能慢：核心要去供应商那边拉），读完了模型页跟着重画。 */
   async load() {
     const core = this.ctx.core;
-    const [schema, got, models] = await Promise.all([
-      core.request('config.schema', {}),
-      core.request('config.get', { all: true }),
-      core.request('model.list', {}).catch(() => null),
-    ]);
+    const [schema, got] = await Promise.all([core.request('config.schema', {}), core.request('config.get', { all: true })]);
     this.schema = schema;
     this.got = got;
-    this.models = models;
     const cfg = this.ctx.config;
     this.pages = buildPages(schema, got, { merge: cfg.merge, moveGroups: cfg.move_groups, hide: cfg.hide_prefixes });
+    this.modelsPromise = this.loadModels();
+  }
+
+  /** 读模型列表：读着的时候 `modelsLoading`，读完了在模型页的重画一次（正在改一项的不打断）。 */
+  async loadModels() {
+    this.modelsLoading = true;
+    try {
+      this.models = await this.ctx.core.request('model.list', {});
+    } catch {
+      // 读不到的留着上一次的；第一次就读不到的，模型页写读不到
+    } finally {
+      this.modelsLoading = false;
+      if (this.isOpen && this.current === 'models' && !this.query && !this.editing()) this.drawBody();
+    }
   }
 
   /** 左栏的分页：核心的照 `pages`，网页的「外观」「软件包」，挂进 `settings.section` 的；先后照设置项 `order`。 */

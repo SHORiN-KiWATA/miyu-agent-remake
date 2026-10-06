@@ -205,7 +205,6 @@
           "id": "编号",
           "id_hint": "比如 deepseek，引用模型时写 编号/模型",
           "name": "显示名",
-          "name_hint": "可以空着",
           "url": "地址",
           "driver": "接口",
           "key": "密钥",
@@ -217,7 +216,18 @@
           "cancel": "取消",
           "bad_id": "编号要小写字母开头，只能有小写字母、数字、- 和 _，最长 32 个字符",
           "taken_id": "已经有 {id} 了",
-          "secret_kept": "密钥已经存成 {name}，再存一次会用新的名字"
+          "secret_kept": "密钥已经存成 {name}，再存一次会用新的名字",
+          "name_empty": "空着时显示 {name}",
+          "name_empty_new": "空着时显示编号"
+        },
+        "search": "搜索模型",
+        "no_match": "没有找到",
+        "loading": "正在读模型列表…",
+        "picker": {
+          "search": "搜索模型",
+          "add": "加入 {count} 个",
+          "none": "没有可以加的模型",
+          "cancel": "取消"
         }
       },
       "changed": "已改"
@@ -315,7 +325,6 @@
           "id": "ID",
           "id_hint": "例：deepseek。モデルは ID/モデル で参照します",
           "name": "表示名",
-          "name_hint": "空欄でも可",
           "url": "アドレス",
           "driver": "インターフェース",
           "key": "キー",
@@ -327,7 +336,18 @@
           "cancel": "キャンセル",
           "bad_id": "ID は小文字で始め、小文字・数字・- ・_ のみ、32 文字以内",
           "taken_id": "{id} はすでにあります",
-          "secret_kept": "キーは {name} として保存済み。もう一度保存すると新しい名前を使います"
+          "secret_kept": "キーは {name} として保存済み。もう一度保存すると新しい名前を使います",
+          "name_empty": "空欄なら {name} と表示",
+          "name_empty_new": "空欄なら ID を表示"
+        },
+        "search": "モデルを検索",
+        "no_match": "見つかりません",
+        "loading": "モデル一覧を読み込み中…",
+        "picker": {
+          "search": "モデルを検索",
+          "add": "{count} 件追加",
+          "none": "追加できるモデルがありません",
+          "cancel": "キャンセル"
         }
       },
       "changed": "変更済み"

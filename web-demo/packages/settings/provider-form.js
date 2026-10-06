@@ -23,7 +23,9 @@ export function providerForm(dialog, providers) {
   const input = (attrs) => /** @type {HTMLInputElement} */ (h('input.set-input', { type: 'text', spellcheck: 'false', autocomplete: 'off', ...attrs }));
   const idField = editing ? h('strong.set-form-fixed', editing) : input({ placeholder: t('id_hint') });
   const nameWritten = p?.name && typeof p.name === 'object' && p.name.from === 'config' ? p.name.value : '';
-  const nameField = input({ value: nameWritten, placeholder: (typeof p?.name === 'object' ? p.name.value : '') || t('name_hint') });
+  // 占位写空着时显示什么：编辑的照现在退到的名字（目录的、编号），新建的是编号
+  const fallback = p && typeof p.name === 'object' && p.name.from !== 'config' ? p.name.value : editing;
+  const nameField = input({ value: nameWritten, placeholder: fallback ? t('name_empty', { name: fallback }) : t('name_empty_new') });
   // 地址是环境变量引用的：框空着就是不改（照写「来自环境变量 X」当占位）
   const urlEnv = envRef(p?.base_url);
   const urlField = input({ value: urlEnv ? '' : inputText(p?.base_url ?? ''), placeholder: urlEnv ? ctx.text('from_env', { name: urlEnv }) : 'https://…/v1' });
@@ -68,6 +70,8 @@ export function providerForm(dialog, providers) {
     };
     const why = await dialog.saveMany(layer, providerChanges(id, form, dialog.got, layer, secret));
     if (why) return fail(secret ? `${why}\n${t('secret_kept', { name: secret })}` : why);
+    // 等模型列表读回来（新建的那一家要在表里）再回到模型那一栏，选中它
+    await dialog.modelsPromise;
     dialog.providerForm = null;
     dialog.provider = id;
     dialog.drawBody();

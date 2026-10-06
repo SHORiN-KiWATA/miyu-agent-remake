@@ -3,8 +3,8 @@
 //! 「＋」从还没进来的模型里加）、右上角删除；最后一张「新建模型池」写名字回车建好。改了当场存，写进个人设置。
 
 import { h, icon, replace } from '../../src/lib/dom.js';
-import { menu } from './rows.js';
-import { itemFor, layerFor, validId, keySegment, moveMember, poolRemoval, duplicates } from './model.js';
+import { pickModels } from './picker.js';
+import { itemFor, layerFor, validId, keySegment, moveMember, poolRemoval, duplicates, providerName } from './model.js';
 
 /**
  * @param {any} dialog
@@ -13,7 +13,7 @@ import { itemFor, layerFor, validId, keySegment, moveMember, poolRemoval, duplic
 export function drawPools(dialog, list) {
   const ctx = dialog.ctx;
   const t = (k, f) => ctx.text(`models.${k}`, f);
-  const all = (list.providers ?? []).flatMap((p) => (p.models ?? []).map((m) => ({ ref: m.ref, model: m.model, name: m.facts?.name?.value ?? m.model })));
+  const all = (list.providers ?? []).flatMap((p) => (p.models ?? []).map((m) => ({ ref: m.ref, model: m.model, name: m.facts?.name?.value ?? m.model, provider: providerName(p) })));
   // 显示名重了的（同一个模型的几条线路）写模型名分开它们
   const dup = duplicates(all.map((r) => r.name));
   const refs = all.map((r) => ({ ref: r.ref, name: dup.has(r.name) ? r.model : r.name }));
@@ -37,10 +37,8 @@ export function drawPools(dialog, list) {
       h('button', { type: 'button', 'aria-label': '→', disabled: i === now.length - 1 ? true : null, onclick: () => setMembers(moveMember(now, i, 1)) }, icon('chevron-right')),
       h('button', { type: 'button', 'aria-label': '×', onclick: () => setMembers(now.filter((_, n) => n !== i)) }, icon('x'))));
     const add = h('button.set-chip.is-add', { type: 'button', title: t('pool_add'), 'aria-label': t('pool_add') }, icon('plus'));
-    add.addEventListener('click', () => {
-      const rest = refs.filter((r) => !now.includes(r.ref)).map((r) => ({ value: r.ref, name: r.name, note: r.ref }));
-      if (rest.length) menu(dialog, add, rest, null, (ref) => setMembers([...now, ref]));
-    });
+    // 「＋」：浮出选模型的小窗，能勾好几个，照勾的先后接在最后
+    add.addEventListener('click', () => pickModels(dialog, add, all.filter((r) => !now.includes(r.ref)), (picked) => setMembers([...now, ...picked])));
     return h('div.set-pool',
       h('div.set-pool-head', h('strong', `@${pool.name}`), seg,
         removal.length ? h('button.set-reset.is-shown', { type: 'button', title: t('pool_delete'), 'aria-label': t('pool_delete'), onclick: async () => report(await dialog.saveMany(layer, removal)) }, icon('trash-2')) : null),
