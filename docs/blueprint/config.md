@@ -41,7 +41,7 @@
 | `crates/miyu-endpoint/src/config/environment.rs` | 核心的环境 `Environment`（8-5）：带 `env` 的项、`{ env = … }` 都照它取；核心照进程的，测试照手写的几个；`Debug` 不印值 | 8-5 |
 | `crates/miyu-store/src/env.rs` 的 `locale` | 系统的语言：`ui.language` 是 `auto` 时照它（第二条第 8 条）。先看 `LC_ALL`、`LC_MESSAGES`、`LANG`，都没设的用 `sys-locale` 看系统设置（`system_locale`，8-2） | 8-1、8-2 |
 | `crates/miyu-log/src/settings.rs`、`lib.rs` | `log.level`（8-1）。换级别的把手 `Guard::set_level`：读完配置换一次（8-2）；`Guard::levels` 交出同一个把手，运行中换（8-4） | 8-1、8-2、8-4 |
-| `crates/miyu-core/src/settings.rs` | 登记各模块的清单（`items`）；替还没进工作区的终端界面声明 `tui.startup`（`TuiSettings`，8-3）。起来时读配置（`read`，8-2；连同密钥文件，环境照进程的 `Environment::process`，8-5）、照 `log.level` 换运行日志的级别（`log_level`，8-2）、写 Schema 和参考文件（`generate`，8-1）；运行中跟着配置换（`follow`，8-4）；开始监视由核心的 `lib.rs` 调端点的 `Core::watch_config`（8-4） | 8-1 起 |
+| `crates/miyu-core/src/settings.rs` | 登记各模块的清单（`items`）；8-3 到 8-28 替终端界面声明过 `tui.startup`（`TuiSettings`），8-28 改成各个头共用的 `ui.startup`，挪进端点的 `UiSettings`。起来时读配置（`read`，8-2；连同密钥文件，环境照进程的 `Environment::process`，8-5）、照 `log.level` 换运行日志的级别（`log_level`，8-2）、写 Schema 和参考文件（`generate`，8-1）；运行中跟着配置换（`follow`，8-4）；开始监视由核心的 `lib.rs` 调端点的 `Core::watch_config`（8-4） | 8-1 起 |
 | `crates/miyu-session/src/config.rs`、`actor/` | 会话从哪取配置（`ConfigSource`、`Configs`），回合开始时取一份快照（`TurnConfig`），这一轮的每一次请求都交给端口（`ModelPort::call` 多一格） | 8-4 |
 | `crates/miyu-endpoint/src/subscriptions/config.rs` | 配置的订阅：一个连接至多一个转发任务，照连接这一刻的语言写 `config.changed`，掉队推 `resync`；`config.set` 的回应经它，排在推送后面 | 8-4 |
 | `crates/miyu-core/src/settings/follow.rs` | 运行中配置换了：`log.level` 当场换级别，`ui.language` 变了重写生成的三份 | 8-4 |
@@ -174,9 +174,9 @@ trusted = true
 | `new_session` | 以后开的会话。已经开着的会话不跟着变 | `permission.start_read_only`、`models.chat`（`models.md`） |
 | `next_turn` | 下一个回合开始时（第八条，8-6） | 供应商的驱动、地址、key、`catalog`（`models.md`） |
 | `restart` | 重启核心 | M8 没有 |
-| `head_start` | 头下次启动。头自己读、启动时读一次的项，核心不管它（8-3） | `tui.startup` |
+| `head_start` | 头下次启动。头自己读、启动时读一次的项，核心不管它（8-3） | `ui.startup` |
 
-`new_session`、`head_start` 是这一页加的（`head_start` 8-3 施工时照 `tui.startup` 加）：G7 那张表只有三种，可「新会话默认用什么」这类项，改了以后已经开着的会话本来就不该跟着变，说成「下一个回合」会让人以为当前会话也换了（「要跟着改的别的页」`14-配置.md`）。
+`new_session`、`head_start` 是这一页加的（`head_start` 8-3 施工时照 `tui.startup` 加，8-28 改名 `ui.startup`）：G7 那张表只有三种，可「新会话默认用什么」这类项，改了以后已经开着的会话本来就不该跟着变，说成「下一个回合」会让人以为当前会话也换了（「要跟着改的别的页」`14-配置.md`）。
 
 **收紧** `tighten`：项目配置信任过才算，算了也只能让限制更严（G3 照原样，2026-10-01 项目主人再确认）。每一项写明哪个方向是严：
 
@@ -241,7 +241,7 @@ miyu_config::settings! {
 - `LogSettings::ITEMS`：清单里的这几项，照声明的先后。
 - `LogSettings::from(&最终值)`（`From<&Values>`）：带类型的设置，代码只经它读值，不自己读文件、不另写常量（`14-配置.md` 第十节）。最终值 `Values` 是键到值，8-2 的分层合并交出它；8-1 还不读配置，用的是 `Values::defaults(清单)`，全是默认值。最终值里没有的项照默认值，最终值都校验过，这一步不会出错。字段的类型要能从值变过来（`From<&Value>`）：选项用 `String`，拿到的就是那个选项。
 
-**登记**（`crates/miyu-core/src/settings.rs`）：`MODULES` 一个模块一行，照这个先后：`UiSettings::ITEMS`、`UsageSettings::ITEMS`（`miyu-models`，8-15：`usage.currency`，通用页的「显示」组，排在界面语言后面）、`TuiSettings::ITEMS`（8-3，终端界面还没进工作区，先在这个文件里替它声明，并进来以后挪进它自己的 crate）、`PermissionSettings::ITEMS`（`miyu-endpoint`，8-2）、`UseSettings::ITEMS`、`PoolSettings::ITEMS`（8-8；8-8 的 `TierSettings::ITEMS` 8-8 补去掉了）、`ProviderSettings::ITEMS`、`ModelSettings::ITEMS`（`miyu-models`，8-6）、`PriceSettings::ITEMS`、`CatalogSettings::ITEMS`（8-7）、`LogSettings::ITEMS`（`miyu-log`）。`items()` 把它们接成一张表。设置页的页照第一次出现的先后排：通用、界面、权限、模型、高级；模型那一页先「用途」、再「池」（8-8；「挡位」那一组 8-8 补去掉了）、再「供应商」、再「目录」。
+**登记**（`crates/miyu-core/src/settings.rs`）：`MODULES` 一个模块一行，照这个先后：`UiSettings::ITEMS`、`UsageSettings::ITEMS`（`miyu-models`，8-15：`usage.currency`，通用页的「显示」组，排在界面语言后面）（8-3 到 8-28 这里还有 `TuiSettings::ITEMS`，替终端界面声明 `tui.startup`；8-28 改成 `UiSettings` 里的 `ui.startup`）、`PermissionSettings::ITEMS`（`miyu-endpoint`，8-2）、`UseSettings::ITEMS`、`PoolSettings::ITEMS`（8-8；8-8 的 `TierSettings::ITEMS` 8-8 补去掉了）、`ProviderSettings::ITEMS`、`ModelSettings::ITEMS`（`miyu-models`，8-6）、`PriceSettings::ITEMS`、`CatalogSettings::ITEMS`（8-7）、`LogSettings::ITEMS`（`miyu-log`）。`items()` 把它们接成一张表。设置页的页照第一次出现的先后排：通用、权限、模型、高级（8-3 到 8-28 通用后面还有一页「界面」）；模型那一页先「用途」、再「池」（8-8；「挡位」那一组 8-8 补去掉了）、再「供应商」、再「目录」。
 
 **M8 的配置项**：
 
@@ -251,7 +251,7 @@ miyu_config::settings! {
 | `usage.currency` | 文字，最多 3 个字符 | `USD` | 系统、个人 | 不能写 | `now`：下一次 `usage.query` 照新的排；`session_usage` 照这一轮冻结的 | 8-15（`models.md`「对外的样子」） |
 | `log.level` | 选项 `error`、`warn`、`info`、`debug`、`trace`、`off` | `info` | 系统 | 不能写 | `now`，`MIYU_LOG` 压过 | 8-1 声明，8-2 读，8-4 当场换 |
 | `permission.start_read_only` | 开关 | `false` | 系统、个人、项目 | `true_only` | `new_session` | 8-2 |
-| `tui.startup` | 选项 `new`、`recent` | `new`，开一个新会话 | 系统、个人 | 不能写 | `head_start` | 8-3 |
+| `ui.startup` | 选项 `new`、`recent` | `new`，开一个新会话 | 系统、个人 | 不能写 | `head_start` | 8-3（8-28 从 `tui.startup` 改名） |
 | `models.chat` | 引用 | 没有：`no_model` | 系统、个人 | 不能写 | `new_session` | 8-6 |
 | `models.vision` | 引用 | 没有 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
 | `pools.<id>.models` | 模型的列表，可以是空的 | 没有：这个池解析不出 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
@@ -285,7 +285,7 @@ miyu_config::settings! {
 
 - `ui.language` 的 `auto`：跟着系统，终端的头照系统的语言，网页照浏览器（第二条第 8 条，2026-10-01 项目主人定）。它的界面提示：`general` 页的 `display` 组，常用项，下拉。`log.level` 的：`advanced` 页的 `log` 组，下拉。
 - 项目配置能写的，M8 里只有 `permission.start_read_only` 这一项（2026-10-01 项目主人定）。
-- `tui.startup`：终端界面启动时开一个新会话（`new`），还是接着最近的那一个（`recent`）。头自己用 `config.get` 读，核心不管它（2026-10-01 主会话和终端界面定）。界面提示：`interface` 页（界面）的 `tui` 组（终端界面），下拉。
+- `ui.startup`：打开一个头（终端界面、网页）时开一个新会话（`new`），还是接着最近的那一个（`recent`）。头自己用 `config.get` 读，核心不管它（2026-10-01 主会话和终端界面定）。界面提示：`general` 页（通用）的 `display` 组（显示），下拉。施工 8-28 从 `tui.startup` 改名（2026-10-07 项目主人定：同一个人在同一台机器上，每个头的体验一样，几个头都有的行为是一个共用的项，只有一个头才有的才用 `tui.*`、`web.*`）；不留旧名字：还没发布，文件里写着旧名字的照不认识的键报警告、不算。
 - `log.level` 只能放在系统配置里：运行日志是整个核心的，一个人设了不能算数。
 - 蓝图里写着「配置那一步能改」的几个数（压缩的几个数、`jobs.*`、回收处留几天、空闲多久退出）这次不挪：只挪真要调的（2026-10-01 主会话定）。有人要改哪一个，再为它开一张小单。
 
@@ -862,8 +862,8 @@ zh
 $ miyu config get
 log.level = "info"
 permission.start_read_only = false
-tui.startup = "new"
 ui.language = "zh"
+ui.startup = "new"
 ```
 
 **`miyu config set`、`unset` 印的那一行**（标准错误，灰）：
@@ -1114,15 +1114,14 @@ keys = []
 # 能写：0 到 1000000 之间的数。只能写在系统配置或个人设置里。下一轮生效。
 # output =
 
-[tui]
-# 启动时打开：终端界面启动时开一个新会话，还是接着最近的那一个。
-# 能写：new 或 recent。只能写在系统配置或个人设置里。下次打开界面时生效。
-startup = "new"
-
 [ui]
 # 界面语言：终端、网页、命令行给你看的字用哪种话。auto 跟着终端或浏览器的语言。
 # 能写：auto、zh、en 或 ja。只能写在系统配置或个人设置里。当场生效。
 language = "auto"
+
+# 启动时打开：打开终端界面或网页时，开一个新会话，还是接着最近的那一个。
+# 能写：new 或 recent。只能写在系统配置或个人设置里。下次打开界面时生效。
+startup = "new"
 
 [usage]
 # 显示的币种：用量的金额照币种各加各的，不换算；这一种排在最前，别的照代码的字母先后。三个大写字母，例如 USD、CNY。
@@ -1130,7 +1129,7 @@ language = "auto"
 currency = "USD"
 ```
 
-样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `models.chat`、`models.vision`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`models.cooldown.*`（8-9）、`permission.start_read_only`、`providers.<id>.*`、`tui.startup`、`ui.language`）：
+样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `models.chat`、`models.vision`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`models.cooldown.*`（8-9）、`permission.start_read_only`、`providers.<id>.*`、`ui.language`、`ui.startup`）：
 
 ```json
 {
@@ -1531,21 +1530,6 @@ currency = "USD"
       },
       "type": "object"
     },
-    "tui": {
-      "properties": {
-        "startup": {
-          "default": "new",
-          "description": "终端界面启动时开一个新会话，还是接着最近的那一个。能写：new 或 recent。只能写在系统配置或个人设置里。下次打开界面时生效。",
-          "enum": [
-            "new",
-            "recent"
-          ],
-          "title": "启动时打开",
-          "type": "string"
-        }
-      },
-      "type": "object"
-    },
     "ui": {
       "properties": {
         "language": {
@@ -1558,6 +1542,16 @@ currency = "USD"
             "ja"
           ],
           "title": "界面语言",
+          "type": "string"
+        },
+        "startup": {
+          "default": "new",
+          "description": "打开终端界面或网页时，开一个新会话，还是接着最近的那一个。能写：new 或 recent。只能写在系统配置或个人设置里。下次打开界面时生效。",
+          "enum": [
+            "new",
+            "recent"
+          ],
+          "title": "启动时打开",
           "type": "string"
         }
       },
@@ -1625,7 +1619,7 @@ currency = "USD"
 
 ### 给人看的字
 
-**配置项的名字、说明、选项名**（`core/human/<语言>.json` 的 `config.items`，一项一格：`name`、`description`、`options`（选项到名字）；8-1 有前两项，`permission.start_read_only` 随 8-2，`tui.startup` 随 8-3）：
+**配置项的名字、说明、选项名**（`core/human/<语言>.json` 的 `config.items`，一项一格：`name`、`description`、`options`（选项到名字）；8-1 有前两项，`permission.start_read_only` 随 8-2，`tui.startup` 随 8-3、8-28 改名 `ui.startup`）：
 
 | 键 | 中文 | 英文 | 日文 |
 |---|---|---|---|
@@ -1634,11 +1628,11 @@ currency = "USD"
 | 选项 | `auto` 跟随系统、`zh` 中文、`en` English、`ja` 日本語 | `auto` Follow the system，别的同左 | `auto` システムに合わせる，别的同左 |
 | `log.level` 名字 | 运行日志的级别 | Runtime log level | 実行ログのレベル |
 | 说明 | 运行日志记到哪一级。排查问题时调成 debug。设了环境变量 MIYU_LOG 的，那一次启动照它。 | How much the runtime log records. Set debug when chasing a problem. MIYU_LOG, when set, wins for that launch. | 実行ログにどこまで記録するかです。問題を調べるときは debug にします。環境変数 MIYU_LOG があれば、その起動ではそちらが優先されます。 |
-| 选项 | `error` 只记错误、`warn` 错误和警告、`info` 来龙去脉、`debug` 更细，排查用、`trace` 全记、`off` 不记 | Errors only、Errors and warnings、What happens、More detail, for debugging、Everything、Nothing | エラーのみ、エラーと警告、経過も記録、詳細（調査用）、すべて、記録しない |
+| 选项（8-28 改了 `info`、`debug`、`trace` 三个：照多少排，一眼看出哪个更细） | `error` 只记错误、`warn` 错误和警告、`info` 常规、`debug` 详细，排查用、`trace` 最详细、`off` 不记 | Errors only、Errors and warnings、Normal、Detailed, for debugging、Most detailed、Nothing | エラーのみ、エラーと警告、通常、詳細（調査用）、最も詳細、記録しない |
 | `permission.start_read_only` 名字 | 新会话开局只读 | Start new sessions read-only | 新しいセッションを読み取り専用で始める |
 | 说明 | 打开以后，新会话一开始就是只读。她只能查、写计划，要改文件时你再关掉只读。项目配置里只能把它打开。 | When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on. | オンにすると、新しいセッションは読み取り専用で始まります。調査と計画だけを行い、ファイルを変更するときに読み取り専用をオフにします。プロジェクト設定ではオンにすることしかできません。 |
-| `tui.startup` 名字（8-3） | 启动时打开 | On start, open | 起動時に開く |
-| 说明 | 终端界面启动时开一个新会话，还是接着最近的那一个。 | Whether the terminal interface starts a new session or picks up the most recent one. | 端末画面を起動したときに、新しいセッションを始めるか、最近のセッションを続けるかです。 |
+| `ui.startup` 名字（8-3，8-28 改名） | 启动时打开 | On start, open | 起動時に開く |
+| 说明（8-28 改成不点名哪个头） | 打开终端界面或网页时，开一个新会话，还是接着最近的那一个。 | Whether a terminal interface or the web page opens a new session or picks up the most recent one. | 端末画面やウェブを開いたときに、新しいセッションを始めるか、最近のセッションを続けるかです。 |
 | 选项 | `new` 新会话、`recent` 最近的会话 | A new session、The most recent session | 新しいセッション、最近のセッション |
 | `models.chat` 名字（8-6，主会话定） | 主对话的模型 | Chat model | 会話のモデル |
 | 说明（8-8 加了能写池那一句） | 新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash；也能写 @池。 | The model new sessions use, written as provider/model, for example deepseek/deepseek-flash, or @pool. | 新しいセッションが使うモデル。プロバイダー/モデル の形で書きます。例：deepseek/deepseek-flash。@プール でもかまいません。 |
@@ -1672,16 +1666,14 @@ currency = "USD"
 | `providers.<id>.models.<model>.temperature` 名字（8-22） | 默认的温度 | Default temperature | 既定の温度 |
 | 说明 | 这个模型默认的温度，0 到 2，越高回答越随意。不写的照供应商的默认；这个模型不收温度的不发。 | The temperature this model uses by default, from 0 to 2; higher gives looser answers. Left out, the provider decides. Not sent to models that do not take one. | このモデルが既定で使う温度。0 から 2 で、高いほど答えが自由になります。書かなければプロバイダーの既定に従います。温度を受け付けないモデルには送りません。 |
 
-页和组（`config.pages`、`config.groups`，编号到名字；资源里只放清单用到的，`permissions`、`sessions` 随 8-2 加，`interface`、`tui` 随 8-3 加）：
+页和组（`config.pages`、`config.groups`，编号到名字；资源里只放清单用到的，`permissions`、`sessions` 随 8-2 加；8-3 加过页 `interface`（界面）、组 `tui`（终端界面），8-28 `ui.startup` 挪进通用页以后没有项用它们，去掉了）：
 
 | 编号 | 中文 | 英文 | 日文 |
 |---|---|---|---|
 | 页 `general` | 通用 | General | 一般 |
-| 页 `interface` | 界面 | Interface | 画面 |
 | 页 `permissions` | 权限 | Permissions | 権限 |
 | 页 `advanced` | 高级 | Advanced | 詳細 |
 | 组 `display`（`general`） | 显示 | Display | 表示 |
-| 组 `tui`（`interface`） | 终端界面 | Terminal interface | 端末画面 |
 | 组 `sessions`（`permissions`） | 会话 | Sessions | セッション |
 | 页 `models`（8-6，主会话定） | 模型 | Models | モデル |
 | 组 `uses`（`models`） | 用途 | Uses | 用途 |
@@ -1939,7 +1931,7 @@ Options:
 | `crates/miyu-config/src/list/tests.rs` | 查清单：键重复、按段互为前缀（`ui.lang` 不算）、写法不对（一段、大写、别的字、空段、数字或 `_` 开头）、第一段 `ext`、默认值过不了校验、选项少于两个或写重、一层都没有或层写重，各一例；几处都错的全报 | 8-1 |
 | `crates/miyu-config/src/words/tests.rs` | 查资源的字：缺名字、说明、选项名，页和组没名字，资源里多了项、选项、页、组，各一例。几个里的一个怎么连（一个、两个、三个以上，值和字两种「或」）。一项说明后面那几句。缺了哪一句照实报 | 8-1 |
 | `crates/miyu-config/src/schema/tests.rs`、`reference/tests.rs`、`value/tests.rs` | 拿假的字和手写的几项：Schema 只有这一层的项、一层层的表、格照字母先后、这一层什么都没有的；参考文件表照名字排、表里的项照名字排、不重开同一张表、每一项两行注释、项间空一行、多行的字每一行都是注释；缺字报是哪一句。值写成 TOML（引号、反斜杠、控制字符转义）、写成 JSON | 8-1 |
-| `crates/miyu-core/tests/settings.rs` | 登记的全部清单过 `list::check`，照登记的先后（8-3 起有 `tui.startup`，8-6 起有模型那一块的六项）。中文、英文、日文三份（直接读文件）过 `words::check`。照源码树的资源生成的两份 Schema、参考文件和样本逐字节一样（中文、英文），日文生成得出来 | 8-1 |
+| `crates/miyu-core/tests/settings.rs` | 登记的全部清单过 `list::check`，照登记的先后（8-3 起有 `tui.startup`、8-28 改名 `ui.startup`，8-6 起有模型那一块的六项）。中文、英文、日文三份（直接读文件）过 `words::check`。照源码树的资源生成的两份 Schema、参考文件和样本逐字节一样（中文、英文），日文生成得出来 | 8-1 |
 | `crates/miyu-core/src/settings/tests.rs` | 起来时生成：字照系统的语言挑（日文、没有的照英文）。资源里缺字、读不懂的，三份各记一条 `WARN`，什么都不写 | 8-1 |
 | `crates/miyu/tests/settings.rs` | 真核心：照 `LANG` 写三份，和样本逐字节一样（中文、英文）；一样的不重写（修改时间不变），改过的写回来；该是目录的地方是个文件，三份各记一条 `WARN`，照样起来 | 8-1 |
 | `crates/miyu-store/src/generated/tests.rs` | 没有的写上、目录建上；一样的不写（修改时间不变）；不一样的换掉、不留临时文件；目录建不了报错；临时文件点开头、不重名 | 8-1 |
@@ -2146,7 +2138,7 @@ Options:
 | 日志的样本 `seq` 是 1 | 样本是一份新日志的第一行，测试照它逐字节比 | 照起草时的 3、5：测试得先垫几行 |
 | `trust.toml` 同一个仓库有几条的换最后一条，没有的加在末尾；新建的开头注释照这个连接的语言；读不懂、写不成的 `internal_error` | 读的时候最后一条算；回答的人就在这个连接上；手改坏了的不替人修 | 照管理员的 `ui.language` 另算一次：结果一样，多一段代码 |
 | 生效时机多一种 `head_start`，字是「下次打开界面时生效」 | 头自己读、启动时读一次，核心不管它；「界面」不说是哪一种头，网页以后也用得上 | 写成 `restart`：那是重启核心 |
-| `tui.startup` 先在 `miyu-core/src/settings.rs` 替终端界面声明；登记在 `ui` 后面，页排成通用、界面、权限、高级 | 终端界面还没进工作区，核心不用它；界面的设置挨着通用 | 放端点：端点也不用它；放最后：界面排到高级后面 |
+| `tui.startup` 先在 `miyu-core/src/settings.rs` 替终端界面声明；登记在 `ui` 后面，页排成通用、界面、权限、高级（8-28 改成 `ui.startup`，挪进 `UiSettings`，页「界面」去掉） | 终端界面还没进工作区，核心不用它；界面的设置挨着通用 | 放端点：端点也不用它；放最后：界面排到高级后面 |
 | 名字、说明：「启动时打开」「终端界面启动时开一个新会话，还是接着最近的那一个。」，选项「新会话」「最近的会话」，页「界面」、组「终端界面」（中英日） | 照施工单给的形状写，说的是做什么，不说怎么做 | |
 | 命令行的 `set --project`、不在终端里的 `edit` 连核心以前就拦下，退出码 2 | 参数不对不该拉起核心；没设 key 时也该是 2，不是 5 | 连上核心再说：没设 key 的先报 5 |
 | 人那一头做成 `Console` 接口（是不是终端、读一行、开编辑器），`config_on` 收它 | 测试不用真终端、真编辑器也走得到每一条路 | 测试里起伪终端：要加依赖，三个平台各一套 |
