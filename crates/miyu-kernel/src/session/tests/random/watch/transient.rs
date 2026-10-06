@@ -36,6 +36,10 @@ impl Watch {
             TransientBody::CompactionDone(done) => self.compaction_done(transient.turn, done),
             // 换模型的通知由会话 actor 推（施工 8-9），内核不推。
             TransientBody::ModelChanged(_) => panic!("种子 {seed}：内核推了 model.changed"),
+            // 随机测试里没有工具写待办（施工 D-3）：清单一直是空的，不该推。
+            TransientBody::TodosChanged(_) => {
+                panic!("种子 {seed}：没写过待办，却推了 todos.changed")
+            }
         }
     }
 }

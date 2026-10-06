@@ -15,6 +15,11 @@ fn rebuilding(tail: u64) -> Stage {
 
 /// 同 [`rebuilding`]，合计最多 `total`。
 fn rebuilding_up_to(tail: u64, total: u64) -> Stage {
+    rebuilding_with(tail, total, false)
+}
+
+/// 同 [`rebuilding_up_to`]，`todos` 的模板里有待办那一段（施工 D-3）。
+fn rebuilding_with(tail: u64, total: u64, todos: bool) -> Stage {
     let make = move || {
         let mut policy = policy();
         policy.compaction = Some(Compaction {
@@ -42,6 +47,7 @@ fn rebuilding_up_to(tail: u64, total: u64) -> Stage {
             files_more: template("<more {count}/>\n"),
             retrieve: template("<retrieve {upto}/>\n"),
             too_large: template("<too-large {files}/>\n"),
+            todos: todos.then(|| template("<todos>\n")),
             uncovered: None,
         });
         policy
@@ -314,4 +320,41 @@ fn a_checkpoint_that_counts_again_gets_its_reread_files_recalled() {
         "撤掉后来的一次，回到它"
     );
     assert_eq!(stage.recalls().len(), 3);
+}
+
+/// 当前的待办原样带上（施工 D-3，`compaction.md` 第八条）：第一轮她写了一份，第二轮一开头就压，检查点里代码写的几段在取回
+/// 指路后面多一段待办，一项一行；模板没有的（以前造的快照）不写。
+#[test]
+fn the_current_todos_follow_the_retrieve_line() {
+    use crate::event::{Todo, TodoStatus};
+    let todos = vec![
+        Todo {
+            content: "读代码".to_string(),
+            status: TodoStatus::Completed,
+        },
+        Todo {
+            content: "写测试".to_string(),
+            status: TodoStatus::InProgress,
+        },
+    ];
+    for with_template in [true, false] {
+        let mut stage = rebuilding_with(0, 30, with_template);
+        stage.model([
+            Line::calls("记一下。", &[("write", "{}")]),
+            Line::says("好。").reports(5_000),
+        ]);
+        stage.tools([Play::Writes(todos.clone())]);
+        stage.say("开工");
+        stage.limits(Some(120), None);
+        stage.model([Line::says("S1"), Line::says("嗯。")]);
+        stage.say("接着来");
+        let compacted = compacted(&stage);
+        let retrieve = format!("<retrieve {}/>\n", compacted.upto);
+        let want = if with_template {
+            format!("{retrieve}<todos>\n- [completed] 读代码\n- [in_progress] 写测试\n")
+        } else {
+            retrieve
+        };
+        assert_eq!(compacted.notes, want, "模板有没有：{with_template}");
+    }
 }

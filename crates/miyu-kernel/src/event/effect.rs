@@ -4,7 +4,7 @@
 //! 认识的六种读成对应的类型；不认识的（第三方的工具报来的）整块原样留着，内核不解读。`job.started` 是派出去一个
 //! 任务的记录（施工 7-1，`agents.md`）：派它的那次调用本身就在历史里，不另记事件。`job.messaged` 是给子代理留了言的
 //! 记录（施工 7-7）：它欠一份回报。`peer.watch` 是订了「空了告诉我」的记录（施工 C-1，`cross-session.md`）：账本照它算在
-//! 等哪几个会话。
+//! 等哪几个会话。`todo.written` 是 `todowrite` 换上的整份待办（施工 D-3）：有效历史照它算当前的清单。
 
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -34,6 +34,9 @@ pub enum Effect {
     /// 订了别的会话的「空了告诉我」（施工 C-1）。
     #[serde(rename = "peer.watch")]
     PeerWatch(PeerWatch),
+    /// 换上了一整份待办（施工 D-3）。
+    #[serde(rename = "todo.written")]
+    TodoWritten(TodoWritten),
     /// 不认识的种类：整块原样留着，写出去还是原样。
     #[serde(untagged)]
     Unknown(RawJson),
@@ -106,6 +109,35 @@ pub struct PeerWatch {
     pub session: SessionId,
 }
 
+/// `todo.written`：`todowrite` 换上的整份待办（施工 D-3，`docs/blueprint/tools/todowrite.md`）。全部做完的清空，是空列表。
+/// 有效历史照最近一份没撤掉的算当前的清单（`history/todos.rs`），交给头、压缩时写进检查点。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TodoWritten {
+    /// 照先后的每一项。
+    pub todos: Vec<Todo>,
+}
+
+/// 待办的一项。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Todo {
+    /// 一句话：要做的事。
+    pub content: String,
+    /// 做到哪了。
+    pub status: TodoStatus,
+}
+
+text_enum!(
+    /// 待办一项做到哪了（施工 D-3）。不认识的是新版本才有的，原样留着。
+    TodoStatus {
+        /// 还没开始。
+        Pending = "pending",
+        /// 正在做。
+        InProgress = "in_progress",
+        /// 做完了。
+        Completed = "completed",
+    }
+);
+
 text_enum!(
     /// 派出去的任务是什么。不认识的是新版本才有的，账本不查它带不带会话，两种回报都对不上它。
     JobKind {
@@ -129,6 +161,7 @@ impl<'de> Deserialize<'de> for Effect {
                     "job.started" => raw::parse(json).map(Effect::JobStarted),
                     "job.messaged" => raw::parse(json).map(Effect::JobMessaged),
                     "peer.watch" => raw::parse(json).map(Effect::PeerWatch),
+                    "todo.written" => raw::parse(json).map(Effect::TodoWritten),
                     _ => return None,
                 })
             },

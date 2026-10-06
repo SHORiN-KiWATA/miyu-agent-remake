@@ -1,8 +1,9 @@
 //! 给头看的会话的模型（施工 8-10；思考强度施工 8-18，`docs/blueprint/models.md`「协议」的 `subscribe`、「瞬时事件」的 `model.changed`）：限额，
 //! 和会话接下来请求的模型。actor 造会话、载入时，交了新的限额、回合开始重新解析完写一次，和 `Handle` 共用：`subscribe` 照它
-//! 答，`model.changed` 照它推，两边说的是同一份。
+//! 答，`model.changed` 照它推，两边说的是同一份。施工 D-3 起还有当前的待办：内核推 `todos.changed` 时跟着换，`subscribe` 照它
+//! 回 `todos`。
 
-use miyu_kernel::event::EffortInUse;
+use miyu_kernel::event::{EffortInUse, Todo};
 use miyu_kernel::origin::Model;
 use miyu_kernel::session::ContextLimits;
 
@@ -16,6 +17,8 @@ pub struct Shown {
     pub limits: ContextLimits,
     /// 会话接下来请求的模型（施工 8-10）。
     pub next: Next,
+    /// 当前的待办（施工 D-3）：造会话、载入时照内核的，内核推 `todos.changed` 时跟着换。
+    pub todos: Vec<Todo>,
 }
 
 /// 会话接下来请求的模型（施工 8-10）：`subscribe` 回应的 `model`，`model.changed` 的 `ref`、`endpoint`、`model`。

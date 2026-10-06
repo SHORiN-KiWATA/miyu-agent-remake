@@ -274,6 +274,7 @@ async fn only_a_local_main_session_has_it() {
                 "send_message",
                 "session_usage",
                 "ask_user",
+                "todowrite",
             ]),
         ),
     ] {

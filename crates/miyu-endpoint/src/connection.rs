@@ -321,6 +321,11 @@ async fn subscribe(
     if let Some(model) = crate::models::next(&handle.next()) {
         reply["model"] = model;
     }
+    // 当前的待办（施工 D-3）：没有的不写；之后变了照推送的 `todos.changed`。
+    let todos = handle.todos();
+    if !todos.is_empty() {
+        reply["todos"] = json!(todos);
+    }
     if let Some(after) = after {
         let upto = subscribe_after(core, subscriptions, &handle, &session, after, out).await?;
         reply["upto"] = json!(upto);

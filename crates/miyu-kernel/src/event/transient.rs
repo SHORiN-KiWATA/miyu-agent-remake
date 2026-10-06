@@ -46,6 +46,8 @@ pub enum TransientBody {
     /// `model.changed`：会话接下来请求的模型、限额变了（施工 8-9，`models.md`「瞬时事件」）。会话 actor 造，内核不推。装在
     /// 盒子里：它比别的种类大出一截，推送的队列里每一份都照最大的那一种占地方（clippy 的 `large_enum_variant`）。
     ModelChanged(Box<ModelChanged>),
+    /// `todos.changed`：当前的待办变了（施工 D-3，`docs/blueprint/kernel/session.md`「待办」）：写了、撤销、恢复。
+    TodosChanged(TodosChanged),
 }
 
 /// `model.changed` 的 `body`（施工 8-9）：会话接下来请求的模型、限额变了，头照它换底栏、限额，`why` 是 `failover` 的在
@@ -120,6 +122,14 @@ pub struct CompactionDone {
     /// 摘要请求从发出去到说完的毫秒数；没发出去的没有。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_ms: Option<u64>,
+}
+
+/// `todos.changed` 的 `body`：现在的整份待办（施工 D-3）。全部做完清空了、写过的都撤掉了的，是空列表。头照它换掉手里的那份，
+/// 不自己翻效果。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct TodosChanged {
+    /// 照先后的每一项。
+    pub todos: Vec<crate::event::Todo>,
 }
 
 /// `compaction.progress` 的 `body`：摘要请求收到了多少字，估计要写多少字，头照它画进度（`compaction.md`
@@ -207,6 +217,7 @@ impl TransientBody {
             TransientBody::CompactionProgress(_) => "compaction.progress",
             TransientBody::CompactionDone(_) => "compaction.done",
             TransientBody::ModelChanged(_) => "model.changed",
+            TransientBody::TodosChanged(_) => "todos.changed",
         }
     }
 }
@@ -258,6 +269,7 @@ impl Serialize for TransientBody {
             TransientBody::CompactionProgress(progress) => progress.serialize(s),
             TransientBody::CompactionDone(done) => done.serialize(s),
             TransientBody::ModelChanged(changed) => changed.serialize(s),
+            TransientBody::TodosChanged(changed) => changed.serialize(s),
         }
     }
 }

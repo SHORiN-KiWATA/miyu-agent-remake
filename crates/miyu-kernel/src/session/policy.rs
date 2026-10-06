@@ -89,6 +89,8 @@ pub struct Notes {
     pub retrieve: Template,
     /// 太大没重读的：字段 `files`。
     pub too_large: Template,
+    /// 待办那一段的头一行；下面一项一行由内核写（施工 D-3）。以前造的快照里没有的不写这一段。
+    pub todos: Option<Template>,
     /// 摘要请求截短过的，摘要没看到的那一段：字段 `from`、`to`（施工 6-6 中）。没有的不写。
     pub uncovered: Option<Template>,
 }
