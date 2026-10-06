@@ -305,15 +305,29 @@ export class Composer {
     this.input.focus();
   }
 
-  /** 撤销成了：撤掉的那句放回来、整段选中，直接打字就替换掉它；框里已经有字的不动（`tui.md`「输入框」第 7 条）。 */
-  putBack(said) {
-    if (this.input.value !== '') return;
+  /**
+   * 撤销成了：撤掉的那句放回来、整段选中，直接打字就替换掉它；带的附件回到框里那一排（核心存好的那一份，不用重新传）。框里已经有字、
+   * 有附件的不动（`tui.md`「输入框」第 7 条）。
+   * @param {string} said
+   * @param {{session: string, parts: Record<string, any>}|null} [carried] 跟着那句话的东西，照挂载位 `composer.payload` 的编号分开
+   */
+  putBack(said, carried = null) {
+    if (this.input.value !== '' || this.payload().some((p) => p.has())) return;
     // 在输入历史里找得到的（发出去的样子一样），照框里的样子放回来：块还是块
-    const hit = this.recall.items.find((x) => x.sent === said);
+    const hit = said ? this.recall.items.find((x) => x.sent === said) : null;
     for (const [label, path] of hit?.blocks ?? []) this.blocks.set(label, path);
     const text = hit ? hit.text : said;
     this.set(text);
     this.putBackText = text;
+    // 附件：照输入历史翻出来的那条路放回来，再留下（当成自己放的，翻历史不会把它们换掉）
+    if (carried) {
+      for (const p of this.payload()) {
+        const kept = carried.parts[p.id];
+        if (!kept?.length) continue;
+        p.recall?.({ session: carried.session, kept });
+        p.settle?.();
+      }
+    }
     this.input.select();
   }
 

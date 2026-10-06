@@ -94,7 +94,8 @@ export class TrayView {
     const x = h('button.attach-remove', { type: 'button', title: t('remove'), 'aria-label': t('remove'), onclick: () => this.remove(it.id) }, icon('x'));
     const busy = h('span.attach-busy', { title: t('uploading') }, icon('loader-circle'));
     const card = () => {
-      const sub = h('span.attach-sub', bytes(it.size));
+      // 大小不知道的（撤销放回来、这台设备的输入历史里查不到的）不写
+      const sub = h('span.attach-sub', it.size != null ? bytes(it.size) : '');
       if (kind === 'text') {
         this.files.text(it.file, this.config.count_lines_max).then((text) => {
           if (text != null) sub.textContent = t('lines', { count: lineCount(text) });

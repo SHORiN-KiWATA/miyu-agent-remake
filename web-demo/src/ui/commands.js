@@ -11,7 +11,7 @@
 import { h, replace } from './dom.js';
 import { show, hide } from '../lib/motion.js';
 import { res, t } from '../util/res.js';
-import { Menu, revertedSaid } from '../model/commands.js';
+import { Menu, revertedSaid, revertedMessage, keptAttachments } from '../model/commands.js';
 import { project } from '../model/transcript.js';
 import { copy } from '../markdown/build.js';
 import { Refusal } from '../core/connection.js';
@@ -293,7 +293,10 @@ export async function revertLatest(app, session) {
   const reply = await app.store.conn.request('session.revert', { session });
   const events = app.store.sessions.get(session)?.events ?? [];
   const said = revertedSaid(events, reply?.events?.[0]) ?? reply?.said ?? null;
-  if (said && app.current === session) app.composer.putBack(said);
+  // 那句话带的附件一起放回去（2026-10-07 项目主人要的，终端同一条）
+  const message = revertedMessage(events, reply?.events?.[0]);
+  const kept = message ? keptAttachments(message, app.composer.recall.items) : [];
+  if ((said || kept.length) && app.current === session) app.composer.putBack(said ?? '', kept.length ? { session, parts: { attachments: kept } } : null);
   // 撤掉的那几轮派出去、还在跑的任务一起停了（施工 7-8，回应的 `jobs`）：说一句
   const stopped = reply?.jobs?.length ?? 0;
   app.composer.say(stopped ? t('commands.undone_jobs', { count: stopped }) : t('commands.undone'));
