@@ -134,7 +134,7 @@ pub struct Read {
 }
 
 /// 认得的几种输入。
-const INPUTS: [&str; 3] = ["text", "image", "pdf"];
+const INPUTS: [&str; 5] = ["text", "image", "pdf", "audio", "video"];
 
 /// 一家供应商的原文：模型先不读，一个个读，坏一个不连累别的。
 #[derive(Deserialize)]

@@ -107,9 +107,9 @@ miyu_config::settings! {
             applies: next_turn,
             ui: { page: "models", group: "providers", control: number },
         },
-        /// 能收哪些输入（施工 8-7）。
+        /// 能收哪些输入（施工 8-7；音频、视频施工 8-27，2026-10-07 项目主人定：只是声明能收，驱动照旧不发）。
         inputs: Option<Vec<String>> = none {
-            kind: options ["text", "image", "pdf"],
+            kind: options ["text", "image", "pdf", "audio", "video"],
             layers: [System, Personal],
             applies: next_turn,
             ui: { page: "models", group: "providers", control: list },
