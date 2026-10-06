@@ -45,6 +45,8 @@ pub enum Play {
     },
     /// 开了个头就停住，等叫停。
     Holds,
+    /// 一个字都不出就停住，等叫停：没有正文、没有思考（终端界面测「她还没开口就打断」要它）。
+    Stalls,
     /// 端口自己的 bug：一叫它就 panic。
     Panics,
 }
@@ -267,6 +269,10 @@ impl ModelPort for Script {
                         .lock()
                         .unwrap_or_else(PoisonError::into_inner)
                         .push(seen);
+                }
+                Play::Stalls => {
+                    cancel.wait().await;
+                    lock(&cancelled).push(seen);
                 }
                 Play::Panics => unreachable!("上面已经 panic 了"),
             }
