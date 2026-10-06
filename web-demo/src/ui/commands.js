@@ -280,6 +280,16 @@ function opened(app) {
 async function undo(app) {
   const session = opened(app);
   if (!session) return;
+  await revertLatest(app, session);
+}
+
+/**
+ * 撤掉一个会话最近的一轮，那一轮里你说的话放回输入框（还看着这个会话、框里没字的才放），提示「已撤销」。`/undo` 和打断时她还没开始做事
+ * （蓝图「按键」两下 `Esc`）都走这里；拒了的照抛。
+ * @param {App} app
+ * @param {string} session
+ */
+export async function revertLatest(app, session) {
   const reply = await app.store.conn.request('session.revert', { session });
   const events = app.store.sessions.get(session)?.events ?? [];
   const said = revertedSaid(events, reply?.events?.[0]) ?? reply?.said ?? null;

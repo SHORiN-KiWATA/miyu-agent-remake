@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadRes, sampleLog, ev } from './support.js';
-import { summarize, rank, startupSession } from '../src/model/session.js';
+import { summarize, rank, startupSession, untouchedTurn } from '../src/model/session.js';
 
 loadRes();
 
@@ -71,4 +71,20 @@ test('打开页面时进哪个会话：ui.startup 是 recent 的进最近的那�
   assert.equal(startupSession({ items: { 'ui.startup': { value: 'new' } } }, ['b']), null);
   assert.equal(startupSession(null, ['b']), null, '读不出来（拒了）的照出厂的 new');
   assert.equal(startupSession({ items: {} }, ['b']), null);
+});
+
+test('打断时她还没开始做事：只在思考、在等模型的算没开始；写出了正文、调了工具（落盘的或在收的）算开始；没在跑的不算', () => {
+  const started = { seq: 42, kind: 'turn.started', turn: 42, body: { trigger: 41 } };
+  const said = { seq: 41, kind: 'message.user', by: { kind: 'person' }, body: { blocks: [{ type: 'text', text: '看看 src' }] } };
+  assert.equal(untouchedTurn([said, started], null), 42, '还在等模型');
+  assert.equal(untouchedTurn([said, started], { turn: 42, blocks: [{ kind: 'reasoning', text: '想一想' }] }), 42, '只在思考');
+  assert.equal(untouchedTurn([said, started], { turn: 42, blocks: [{ kind: 'text', text: '' }] }), 42, '正文块开了还没字');
+  assert.equal(untouchedTurn([said, started], { turn: 42, blocks: [{ kind: 'reasoning', text: '…' }, { kind: 'text', text: '我先' }] }), null, '写出了正文');
+  assert.equal(untouchedTurn([said, started], { turn: 42, blocks: [{ kind: 'tool_call', name: 'read', text: '' }] }), null, '在调工具');
+  const thought = { seq: 43, kind: 'message.assistant', turn: 42, body: { blocks: [{ type: 'reasoning', text: '…' }] } };
+  assert.equal(untouchedTurn([said, started, thought], null), 42, '落了盘的只有思考');
+  const call = { seq: 44, kind: 'message.assistant', turn: 42, body: { blocks: [{ type: 'tool_call', call_id: 'c', name: 'read', args: '{}' }] } };
+  assert.equal(untouchedTurn([said, started, call], null), null, '落了盘的调了工具');
+  assert.equal(untouchedTurn([said, started, { seq: 45, kind: 'turn.ended', turn: 42, body: {} }], null), null, '这一轮已经结束了');
+  assert.equal(untouchedTurn([], null), null);
 });

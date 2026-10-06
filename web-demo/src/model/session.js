@@ -73,3 +73,28 @@ export function attachments(e) {
 export function startupSession(reply, ranked) {
   return reply?.items?.['ui.startup']?.value === 'recent' ? ranked[0] ?? null : null;
 }
+
+/**
+ * 正在跑的那一轮她还没开始做事（蓝图「按键」两下 `Esc`）：交回这一轮的编号；没在跑、已经开始了的交 `null`。开始了 = 写出了正文、
+ * 调了工具（落了盘的 `message.assistant` 里有字的 `text` 块或 `tool_call` 块、这一轮的 `tool.result`；在收的块里有字的 `text`、
+ * `tool_call`）；只在思考（`reasoning`）、还在等模型都算没开始。
+ * @param {any[]} events 这个会话的日志
+ * @param {{turn: number, blocks: any[]}|null} live 在收的那一次回复（`core/store.js`）
+ * @returns {number|null}
+ */
+export function untouchedTurn(events, live) {
+  let turn = null;
+  for (const e of events) {
+    if (e.kind === 'turn.started') turn = e.turn ?? e.seq;
+    if (e.kind === 'turn.ended' && e.turn === turn) turn = null;
+  }
+  if (turn == null) return null;
+  const said = (b) => (b?.type === 'text' && String(b.text ?? '').trim()) || b?.type === 'tool_call';
+  for (const e of events) {
+    if (e.turn !== turn) continue;
+    if (e.kind === 'message.assistant' && (e.body?.blocks ?? []).some(said)) return null;
+    if (e.kind === 'tool.result') return null;
+  }
+  if (live?.turn === turn && (live.blocks ?? []).some((b) => b && ((b.kind === 'text' && b.text.trim()) || b.kind === 'tool_call'))) return null;
+  return turn;
+}

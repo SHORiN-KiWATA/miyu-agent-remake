@@ -18,10 +18,10 @@ import { Sidebar } from './sidebar.js';
 import { Chat } from './chat.js';
 import { Composer } from './composer.js';
 import { Artifacts } from './artifacts.js';
-import { runCommand, refusalText, redo, copyTurn, Commands } from './commands.js';
+import { runCommand, refusalText, redo, copyTurn, Commands, revertLatest } from './commands.js';
 import { project } from '../model/transcript.js';
 import { withRecaps, withChanges } from '../model/notes.js';
-import { rank, startupSession } from '../model/session.js';
+import { rank, startupSession, untouchedTurn } from '../model/session.js';
 import { footer, levelLabel, nextLevel, levelParams } from '../model/footer.js';
 import { levelOf } from '../model/transcript.js';
 import { copy } from '../markdown/build.js';
@@ -285,6 +285,8 @@ export class App {
     this.syncJump = syncJump;
     conn.onStatus((s) => this.sidebar.setStatus(s));
     store.on(() => this.schedule());
+    // 打断时她还没开始做事的那一轮：结束了就撤掉、把话放回框里（蓝图「按键」两下 `Esc`）
+    store.on(() => this.takeBackIfEnded());
     addEventListener('resize', () => this.schedule());
     ctx.on('theme.changed', () => this.sidebar.drawThemeButton());
     this.frame = 0;
@@ -383,11 +385,29 @@ export class App {
    */
   async interrupt() {
     if (!this.current) return;
+    const session = this.current;
+    // 她还没开始做事（没写正文、没调工具）、又没有排着的话：记下这一轮，结束了撤掉、把话放回框里（2026-10-07 项目主人定，终端同一条）
+    const s = this.store.sessions.get(session);
+    const turn = this.queuedNow?.length ? null : untouchedTurn(s?.events ?? [], s?.live ?? null);
     try {
-      await this.store.conn.request('session.interrupt', { session: this.current, queued: 'send' });
+      await this.store.conn.request('session.interrupt', { session, queued: 'send' });
+      if (turn != null) {
+        this.takeBack = { session, turn };
+        this.takeBackIfEnded();
+      }
     } catch (err) {
       this.composer.say(refusalText(err));
     }
+  }
+
+  /** 记着要撤的那一轮结束了（`turn.ended`）：撤掉、把话放回框里；撤不成的什么都不做。 */
+  takeBackIfEnded() {
+    const pending = this.takeBack;
+    if (!pending) return;
+    const events = this.store.sessions.get(pending.session)?.events ?? [];
+    if (!events.some((e) => e.kind === 'turn.ended' && e.turn === pending.turn)) return;
+    this.takeBack = null;
+    revertLatest(this, pending.session).catch(() => {});
   }
 
   /**
@@ -650,6 +670,8 @@ export class App {
     this.chat.setRunning(!!view.running);
     // 对话区画了一次：照它画的软件包（运行状态行这类）听这个事件；是状态事件，晚起来的包先拿到最后一份
     this.ctx.publish('view.changed', { session: s?.id ?? null, running: view.running, events, live: s?.live ?? null, retry: s?.retry ?? null, queued: view.queued });
+    // 排着的话（打断时有排着的不撤那一轮）
+    this.queuedNow = view.queued ?? [];
     const f = footer(events, s?.limits ?? {}, s?.compactStats, s?.model);
     // 框下面的模型（蓝图「换模型的菜单」第 1 条）：新会话、选过还没生效的、用着池的照引用写；别的照核心报的模型、端点
     const ref = this.modelRef();
