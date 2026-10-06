@@ -71,6 +71,9 @@ struct Args {
     timeout: Option<u64>,
     #[serde(default)]
     run_in_background: bool,
+    /// 这一次要在沙盒外跑（施工 D-4）：只报给权限策略和执行器，套不套沙盒照 `Call::sandbox`。
+    #[serde(default)]
+    outside_sandbox: bool,
 }
 
 impl Shell {
@@ -197,6 +200,17 @@ impl Shell {
 impl Tool for Shell {
     fn spec(&self) -> &Spec {
         &self.spec
+    }
+
+    fn outside_sandbox(&self, call: &Call) -> bool {
+        serde_json::from_str::<Args>(&call.args).is_ok_and(|args| args.outside_sandbox)
+    }
+
+    fn asking(&self, call: &Call) -> Vec<(&'static str, String)> {
+        serde_json::from_str::<Args>(&call.args).map_or_else(
+            |_| Vec::new(),
+            |args| vec![("command", args.command), ("title", args.description)],
+        )
     }
 
     fn run(&self, call: Call, progress: Progress) -> Running<'_> {
