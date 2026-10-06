@@ -13,6 +13,7 @@
     { "id": "pulse" },
     { "id": "attachments" },
     { "id": "jobs" },
+    { "id": "settings" },
     { "id": "mascot" }
   ],
   "seams": {}

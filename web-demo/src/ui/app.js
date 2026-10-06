@@ -21,7 +21,7 @@ import { Artifacts } from './artifacts.js';
 import { runCommand, refusalText, redo, copyTurn, Commands } from './commands.js';
 import { project } from '../model/transcript.js';
 import { withRecaps, withChanges } from '../model/notes.js';
-import { rank } from '../model/session.js';
+import { rank, startupSession } from '../model/session.js';
 import { footer, levelLabel, nextLevel, levelParams } from '../model/footer.js';
 import { levelOf } from '../model/transcript.js';
 import { copy } from '../markdown/build.js';
@@ -211,6 +211,9 @@ export class App {
     ctx.effect(() => mountList(this.composer.float, ctx.slots, 'composer.float', failedSlot));
     ctx.effect(() => mountList(this.composer.takeoverEl, ctx.slots, 'composer.takeover', failedSlot));
     ctx.effect(() => ctx.slots.watch('composer.payload', () => this.composer.syncButton()));
+    // 左栏底下一行靠右、换主题按钮左边的按钮（设置页这类软件包画，蓝图「左栏」的「底下一行」）
+    ctx.slots.declare('sidebar.actions', 'list');
+    ctx.effect(() => mountList(this.sidebar.actions, ctx.slots, 'sidebar.actions', failedSlot));
     // 框上面的一叠：挂进 `composer.above` 的（待办这类软件包）在流里、占着地方，下面是运行状态行，再下面是框
     this.dockAbove = h('div.dock-above');
     this.composer.box.before(this.dockAbove);
@@ -297,7 +300,13 @@ export class App {
   mount(el) {
     el.replaceChildren(this.root);
     this.sidebar.setStatus('online');
-    this.open(this.ranked()[0] ?? null);
+    // 打开页面时进哪个会话照共用的 `ui.startup`（蓝图「连核心」第 4 条）：先是新会话，读到 `recent` 再换到最近的那个；
+    // 这一会儿人已经动了（开了别的会话、打了字）的不换
+    this.open(null);
+    this.store.conn.request('config.get', { keys: ['ui.startup'] }).catch(() => null).then((reply) => {
+      const id = startupSession(reply, this.ranked());
+      if (id && this.current === null && !this.composer.input.value) this.open(id);
+    });
     this.composer.changed();
     this.composer.focus();
   }

@@ -149,6 +149,7 @@
 /* 底下一行：换主题，靠右 */
 .sidebar-footer { padding: 11px 12px max(12px, env(safe-area-inset-bottom)); }
 .sidebar-actions { display: flex; align-items: center; justify-content: flex-end; margin-top: 11px; gap: 2px; }
+.sidebar-slot { display: contents; }
 
 /* 对话区左上角：收起以后的展开按钮，窄屏上的菜单按钮 */
 .stage-float { position: absolute; top: 10px; left: 12px; z-index: 15; display: flex; gap: 4px; }

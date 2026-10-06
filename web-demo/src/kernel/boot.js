@@ -17,6 +17,7 @@ import { Registry, Fiber, useLanguage } from './context.js';
 import { Slots } from './slots.js';
 import { Seams } from './seams.js';
 import { Loader, rows } from './loader.js';
+import { resolve } from './config.js';
 import { loadResources, useTexts, res, t } from '../util/res.js';
 import { pick, settingOf, options, languageSpec, fromConfig } from './language.js';
 import { Connection } from '../core/connection.js';
@@ -228,6 +229,13 @@ export async function boot(root) {
         /** 每个包：状态，加上清单里的名字、种类（读不到清单的只有编号） */
         list: async () => Promise.all(loader.status().map(async (s) => ({ ...s, manifest: await manifestOf(s.id).catch(() => null) }))),
         status: () => loader.status(),
+        /** 一个包的设置项：清单里的、最终值、每一项来自哪一层（`default`、`distro`、`user`）、写错的（设置页用；停了的包也列） */
+        settings: async (id) => {
+          const manifest = await manifestOf(id);
+          const row = rows(distro.packages, storage.get(USER_LAYER, {})).find((r) => r.id === id);
+          const layers = [{ name: 'distro', values: row?.distro ?? {} }, { name: 'user', values: row?.user ?? {} }];
+          return { manifest, ...resolve(manifest.settings ?? {}, layers) };
+        },
         /** 改个人那一层给一个包的补丁（停用、启用、改配置），当场对账 */
         set: async (id, patch) => {
           const user = storage.get(USER_LAYER, {});

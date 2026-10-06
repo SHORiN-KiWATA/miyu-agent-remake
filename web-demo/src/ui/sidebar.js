@@ -56,6 +56,8 @@ export class Sidebar {
     /** 选中的那一块底：会话表里单独一层，换会话时从原来那一项滑过去（蓝图「左栏」的「选中的」） */
     this.pill = h('i.session-pill', { 'aria-hidden': 'true' });
     this.themeButton = h('button.icon-button', { type: 'button', onclick: on.theme });
+    /** 底下一行换主题左边：挂载位 `sidebar.actions` 里挂的按钮（设置这类，`ui/app.js` 画进来） */
+    this.actions = h('span.sidebar-slot');
     this.groupTitle = h('span', t('sidebar.sessions'));
     this.groupTools = h('span.session-group-tools');
     /** 「会话」那一行、「置顶」那一栏的头：画在会话表里（和会话的行一起排，挪动时一起滑，蓝图「左栏」组头） */
@@ -71,7 +73,7 @@ export class Sidebar {
         h('button.icon-button.sidebar-collapse-button', { type: 'button', title: t('sidebar.collapse'), onclick: on.collapse }, icon('panel-left-close')),
         h('button.icon-button.sidebar-close', { type: 'button', title: t('sidebar.collapse'), onclick: on.close }, icon('x'))),
       h('nav.session-list', h('div.session-track', this.pill, this.items)),
-      h('footer.sidebar-footer', h('div.sidebar-actions', this.themeButton)));
+      h('footer.sidebar-footer', h('div.sidebar-actions', this.actions, this.themeButton)));
     this.timer = 0;
     /** 开着菜单的那个会话；没开是 `null`。 */
     this.menuFor = /** @type {string|null} */ (null);

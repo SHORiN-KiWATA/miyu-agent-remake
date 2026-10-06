@@ -62,3 +62,14 @@ export function attachments(e) {
     name: b.name ?? null,
   }));
 }
+
+/**
+ * 打开页面时进哪个会话（蓝图「连核心」第 4 条）：共用的配置项 `ui.startup` 是 `recent` 的进最近动静的那个（一个都没有的是新会话），
+ * 别的（出厂的 `new`、读不出来的）是一个空的新会话。
+ * @param {any} reply `config.get {keys: ["ui.startup"]}` 的回应；读不出来的是 `null`
+ * @param {string[]} ranked 会话照最近动静排好的
+ * @returns {string|null} 会话编号，`null` 是新会话
+ */
+export function startupSession(reply, ranked) {
+  return reply?.items?.['ui.startup']?.value === 'recent' ? ranked[0] ?? null : null;
+}

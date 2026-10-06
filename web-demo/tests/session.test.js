@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadRes, sampleLog, ev } from './support.js';
-import { summarize, rank } from '../src/model/session.js';
+import { summarize, rank, startupSession } from '../src/model/session.js';
 
 loadRes();
 
@@ -62,4 +62,13 @@ test('先后：置顶的在最前，别的照最近活动从近到远；不知�
     { session: id(6000), pinned: true, active: 8000 },
   ];
   assert.deepEqual(rank(rows).map((r) => r.session), [id(6000), id(3000), id(1000), id(5000), id(2000)]);
+});
+
+test('打开页面时进哪个会话：ui.startup 是 recent 的进最近的那个，new、读不出来的（核心旧、没有这一项）是新会话', () => {
+  const recent = { items: { 'ui.startup': { value: 'recent', origin: { layer: 'personal' } } } };
+  assert.equal(startupSession(recent, ['b', 'a']), 'b');
+  assert.equal(startupSession(recent, []), null, '一个会话都没有的是新会话');
+  assert.equal(startupSession({ items: { 'ui.startup': { value: 'new' } } }, ['b']), null);
+  assert.equal(startupSession(null, ['b']), null, '读不出来（拒了）的照出厂的 new');
+  assert.equal(startupSession({ items: {} }, ['b']), null);
 });

@@ -135,14 +135,6 @@
       "run": "fake"
     },
     {
-      "name": "settings",
-      "summary": {
-        "zh": "打开设置",
-        "ja": "設定を開く"
-      },
-      "run": "fake"
-    },
-    {
       "name": "copy",
       "summary": {
         "zh": "复制她的上一段回答",
@@ -157,14 +149,6 @@
         "ja": "キー操作とコマンドを見る"
       },
       "run": "fake"
-    },
-    {
-      "name": "pkg",
-      "summary": {
-        "zh": "软件包：看状态、停用、启用",
-        "ja": "パッケージ：状態の確認・無効化・有効化"
-      },
-      "run": "packages"
     }
   ]
 }

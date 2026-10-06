@@ -5,6 +5,10 @@
     "zh": "mermaid 图",
     "ja": "mermaid 図"
   },
+  "summary": {
+    "zh": "把回答里的 mermaid 代码画成图",
+    "ja": "回答中の mermaid コードを図にする"
+  },
   "kind": "optional",
   "description": {
     "zh": "她回答里收齐了的 mermaid 代码块画成图（核心画 SVG），能切源码、复制、点开看大图；停用了、核心没带画图的软件包，照代码块写。"

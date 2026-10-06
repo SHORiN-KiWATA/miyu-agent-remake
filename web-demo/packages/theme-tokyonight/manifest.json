@@ -5,6 +5,10 @@
     "zh": "tokyonight",
     "ja": "tokyonight"
   },
+  "summary": {
+    "zh": "深色主题",
+    "ja": "ダークテーマ"
+  },
   "kind": "optional",
   "description": {
     "zh": "一套颜色：tokyonight（深色）。每个颜色都是设置项，能单改。"

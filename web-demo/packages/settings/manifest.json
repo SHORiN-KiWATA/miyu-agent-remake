@@ -1,0 +1,295 @@
+{
+  "id": "settings",
+  "version": "0.1.0",
+  "name": {
+    "zh": "设置页",
+    "ja": "設定"
+  },
+  "kind": "optional",
+  "description": {
+    "zh": "页面正中的弹窗：核心的配置和网页自己的设置都在这里改，改一项存一项（蓝图 web.md「设置页」）。"
+  },
+  "inject": [
+    "slots",
+    "core",
+    "host",
+    "packages",
+    "commands",
+    "theme~"
+  ],
+  "settings": {
+    "width": {
+      "type": "number",
+      "default": 920,
+      "min": 480,
+      "integer": true,
+      "name": {
+        "zh": "框最宽多少（px）"
+      }
+    },
+    "height": {
+      "type": "number",
+      "default": 680,
+      "min": 360,
+      "integer": true,
+      "name": {
+        "zh": "框最高多少（px）"
+      }
+    },
+    "narrow": {
+      "type": "number",
+      "default": 640,
+      "min": 320,
+      "integer": true,
+      "name": {
+        "zh": "框窄于这么宽（px）就占满整个窗口、分页点进去看"
+      }
+    },
+    "order": {
+      "type": "list",
+      "of": "text",
+      "default": [
+        "general",
+        "appearance",
+        "models",
+        "advanced",
+        "packages"
+      ],
+      "name": {
+        "zh": "分页的先后（编号；核心多出来的页接在 advanced 前面）"
+      },
+      "advanced": true
+    },
+    "merge": {
+      "type": "map",
+      "of": "text",
+      "default": {
+        "interface": "general",
+        "permissions": "general"
+      },
+      "name": {
+        "zh": "项少的核心页并进哪一页（页 → 页）"
+      },
+      "advanced": true
+    },
+    "move_groups": {
+      "type": "map",
+      "of": "text",
+      "default": {
+        "catalog": "advanced",
+        "cooldown": "advanced"
+      },
+      "name": {
+        "zh": "挪到别的页的组（组 → 页）"
+      },
+      "advanced": true
+    },
+    "hide_prefixes": {
+      "type": "list",
+      "of": "text",
+      "default": [
+        "tui."
+      ],
+      "name": {
+        "zh": "不列的别的头的项（键名的开头）"
+      },
+      "advanced": true
+    },
+    "icons": {
+      "type": "map",
+      "of": "text",
+      "default": {
+        "general": "sliders-horizontal",
+        "appearance": "palette",
+        "models": "cpu",
+        "advanced": "wrench",
+        "packages": "package"
+      },
+      "name": {
+        "zh": "分页的图标（Lucide 的名字；没配的用 sliders-horizontal）"
+      },
+      "advanced": true
+    }
+  },
+  "text": {
+    "zh": {
+      "title": "设置",
+      "open": "设置",
+      "command_settings": "打开设置",
+      "command_config": "打开设置：模型",
+      "command_pkg": "软件包：看状态、停用、启用",
+      "close": "关闭",
+      "search": "搜索设置",
+      "no_match": "没有找到「{query}」",
+      "loading": "正在读配置…",
+      "load_failed": "读不到配置：{reason}",
+      "pages": {
+        "appearance": "外观",
+        "packages": "软件包"
+      },
+      "layers": {
+        "default": "默认",
+        "factory": "出厂",
+        "system": "系统配置",
+        "personal": "个人设置",
+        "project": "项目配置",
+        "none": "没有设",
+        "distro": "发行版",
+        "user": "个人 · 这台设备"
+      },
+      "env_layer": "环境变量 {name} · 只管这一次启动",
+      "from_env": "来自环境变量 {name}",
+      "applies": {
+        "now": "当场生效",
+        "new_session": "以后开的会话生效",
+        "next_turn": "下一轮生效",
+        "restart": "重启核心后生效",
+        "head_start": "下次打开界面时生效",
+        "live": "当场生效",
+        "reload": "这个包重新加载"
+      },
+      "reset": "恢复默认",
+      "copied_path": "已复制路径",
+      "conflict": "别处改过了，现在是 {value}",
+      "default_mark": "默认",
+      "secret_set": "已设置",
+      "secret_unset": "未设置",
+      "add": "添加",
+      "advanced": "高级（{count}）",
+      "theme": "主题",
+      "follow_system": "跟随系统",
+      "pkg_missing": "缺 {names}",
+      "back": "设置",
+      "models": {
+        "tabs": {
+          "providers": "供应商和模型",
+          "chat": "默认文本模型",
+          "vision": "默认视觉模型",
+          "pools": "模型池"
+        },
+        "add_provider": "添加供应商",
+        "address": "地址",
+        "driver": "接口",
+        "key": "密钥",
+        "edit": "编辑",
+        "test": "测试连接",
+        "edit_todo": "样板：编辑供应商还没做",
+        "no_models": "这个供应商还没有模型",
+        "window": "窗口",
+        "inputs": "支持输入",
+        "effort": "默认思考强度",
+        "price": "价格 · 每百万 token",
+        "price_input": "输入",
+        "price_output": "输出",
+        "price_cache_read": "缓存读",
+        "price_cache_write": "缓存写",
+        "pool_empty": "空池用不了",
+        "new_pool": "新建模型池",
+        "pool_todo": "样板：模型池还只能看",
+        "strategies": {
+          "pin": "固定",
+          "rotate": "轮换"
+        },
+        "states": {
+          "no_key": "没有密钥：这一家的模型都用不了",
+          "cooling": "冷却中",
+          "ok": ""
+        },
+        "test_ok": "能用 · {model} · 首字 {ms} ms",
+        "price_currency": "币种"
+      },
+      "changed": "已改"
+    },
+    "ja": {
+      "title": "設定",
+      "open": "設定",
+      "command_settings": "設定を開く",
+      "command_config": "設定を開く：モデル",
+      "command_pkg": "パッケージ：状態の確認・無効化・有効化",
+      "close": "閉じる",
+      "search": "設定を検索",
+      "no_match": "「{query}」は見つかりません",
+      "loading": "設定を読み込み中…",
+      "load_failed": "設定を読み込めません：{reason}",
+      "pages": {
+        "appearance": "外観",
+        "packages": "パッケージ"
+      },
+      "layers": {
+        "default": "デフォルト",
+        "factory": "出荷時",
+        "system": "システム設定",
+        "personal": "個人設定",
+        "project": "プロジェクト設定",
+        "none": "未設定",
+        "distro": "ディストリビューション",
+        "user": "個人 · この端末"
+      },
+      "env_layer": "環境変数 {name} · 今回の起動のみ",
+      "from_env": "環境変数 {name} から",
+      "applies": {
+        "now": "すぐに反映",
+        "new_session": "新しいセッションから反映",
+        "next_turn": "次のターンから反映",
+        "restart": "コア再起動後に反映",
+        "head_start": "次に画面を開いたときに反映",
+        "live": "すぐに反映",
+        "reload": "このパッケージを再読み込み"
+      },
+      "reset": "デフォルトに戻す",
+      "copied_path": "パスをコピーしました",
+      "conflict": "ほかで変更されました。現在は {value}",
+      "default_mark": "デフォルト",
+      "secret_set": "設定済み",
+      "secret_unset": "未設定",
+      "add": "追加",
+      "advanced": "詳細（{count}）",
+      "theme": "テーマ",
+      "follow_system": "システムに合わせる",
+      "pkg_missing": "{names} が足りません",
+      "back": "設定",
+      "models": {
+        "tabs": {
+          "providers": "プロバイダーとモデル",
+          "chat": "既定のテキストモデル",
+          "vision": "既定のビジョンモデル",
+          "pools": "モデルプール"
+        },
+        "add_provider": "プロバイダーを追加",
+        "address": "アドレス",
+        "driver": "インターフェース",
+        "key": "キー",
+        "edit": "編集",
+        "test": "接続テスト",
+        "edit_todo": "サンプル：プロバイダーの編集はまだです",
+        "no_models": "このプロバイダーにはまだモデルがありません",
+        "window": "ウィンドウ",
+        "inputs": "対応入力",
+        "effort": "既定の思考強度",
+        "price": "価格 · 100 万トークンあたり",
+        "price_input": "入力",
+        "price_output": "出力",
+        "price_cache_read": "キャッシュ読み取り",
+        "price_cache_write": "キャッシュ書き込み",
+        "pool_empty": "空のプールは使えません",
+        "new_pool": "モデルプールを作成",
+        "pool_todo": "サンプル：モデルプールはまだ閲覧のみ",
+        "strategies": {
+          "pin": "固定",
+          "rotate": "ローテーション"
+        },
+        "states": {
+          "no_key": "キーがありません：このプロバイダーのモデルは使えません",
+          "cooling": "クールダウン中",
+          "ok": ""
+        },
+        "test_ok": "使用可能 · {model} · 最初の応答 {ms} ms",
+        "price_currency": "通貨"
+      },
+      "changed": "変更済み"
+    }
+  },
+  "styles": [
+    "style.css"
+  ]
+}
