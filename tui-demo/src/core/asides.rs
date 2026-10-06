@@ -52,6 +52,11 @@ pub(super) fn request(command: &Command) -> Option<(&'static str, Value, Option<
             json!({"session": session, "job": job, "tail": tail}),
             Some(Awaiting::Output(session.clone(), job.clone())),
         ),
+        Command::Ask {
+            tag,
+            method,
+            params,
+        } => (*method, params.clone(), Some(Awaiting::Ask(*tag))),
         _ => return None,
     })
 }

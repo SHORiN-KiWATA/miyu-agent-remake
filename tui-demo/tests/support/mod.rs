@@ -209,6 +209,8 @@ impl Tui {
             command.env_remove(name);
         }
         command.env("MIYU_HOME", home);
+        // 不切跑测试这台机器上的输入法（`ime.rs`）。
+        command.env("MIYU_TUI_IME", "0");
         command.env("MIYU_RESOURCES", resources());
         command.env("XDG_CACHE_HOME", home.join("cache"));
         command.env("TERM", "xterm-256color");

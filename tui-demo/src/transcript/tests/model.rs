@@ -50,11 +50,16 @@ fn a_failover_changes_the_model_and_says_why_in_a_dim_line() {
         ],
     );
     assert_eq!(
+        t.shown_model(),
+        Some(("@duo".into(), String::new())),
+        "用的是池：底栏一直写池名，换到哪个成员看那一行（2026-10-07 项目主人定）"
+    );
+    assert_eq!(
         t.model,
         Some(("glm-5.3-flash".into(), "bigmodel".into())),
-        "底栏当场换"
+        "回答末尾那一行照真用的写"
     );
-    assert_eq!(t.limits.window, Some(200_000));
+    assert_eq!(t.limits.window, Some(200_000), "限额照换");
     let notes: Vec<&str> = t
         .entries
         .iter()
@@ -67,6 +72,65 @@ fn a_failover_changes_the_model_and_says_why_in_a_dim_line() {
             "↻ 换了模型：deepseek/deepseek-v4 → bigmodel/glm-5.3-flash",
             "被限速了"
         ]
+    );
+}
+
+#[test]
+fn a_pool_stays_the_pool_in_the_footer_while_its_members_take_turns() {
+    // 「配置与模型」第 8 条（2026-10-07 项目主人定）：轮换到哪个成员，回答末尾已经写了，底栏不跟着变。
+    let texts = Config::builtin().unwrap().text;
+    let mut t = Transcript::default();
+    t.update(
+        Update::CurrentModel(Current {
+            endpoint: None,
+            model: None,
+            reference: "@daily".into(),
+            effort: None,
+        }),
+        &texts,
+    );
+    let pool = Some(("@daily".into(), String::new()));
+    assert_eq!(t.shown_model(), pool, "订阅回应：轮换的池只有引用");
+    apply(
+        &mut t,
+        vec![
+            Push::Model {
+                endpoint: "dev".into(),
+                model: "m1".into(),
+            },
+            Push::ModelChanged {
+                endpoint: Some("relay".into()),
+                model: Some("m2".into()),
+                limits: Some(Limits {
+                    window: Some(64_000),
+                    compaction_line: None,
+                }),
+                failover: false,
+                reference: Some("@daily".into()),
+                effort: Some("high".into()),
+            },
+        ],
+    );
+    assert_eq!(t.shown_model(), pool, "答话的成员、下一轮的成员都不换底栏");
+    assert_eq!(
+        t.model,
+        Some(("m2".into(), "relay".into())),
+        "回答末尾那一行照这一轮真用的写（2026-10-07 实测：写成了 /@daily）"
+    );
+    assert_eq!(t.limits.window, Some(64_000), "限额照这一轮的成员换");
+    assert_eq!(t.effort(), Some("high"), "思考强度照推来的");
+    t.update(Update::Configured("dev/m1".into()), &texts);
+    apply(
+        &mut t,
+        vec![Push::Model {
+            endpoint: "dev".into(),
+            model: "m1".into(),
+        }],
+    );
+    assert_eq!(
+        t.shown_model(),
+        Some(("m1".into(), "dev".into())),
+        "换回单个模型：照推来的写"
     );
 }
 

@@ -8,6 +8,10 @@ use crate::transcript::Kind;
 impl App {
     /// 收一条核心那边的消息。撤销成了、排队的消息被退回了，字放回输入框（`tui.md`「输入框」第 7、8 条）。
     pub fn core(&mut self, update: Update) {
+        // 配置页的回应归它；配置变了、断开、连上也告诉它（`settings.rs`）。
+        if self.settings_update(&update) {
+            return;
+        }
         // 命令的输出：记进任务表，不经正文（`output.rs`）。
         if let Update::Output {
             session,

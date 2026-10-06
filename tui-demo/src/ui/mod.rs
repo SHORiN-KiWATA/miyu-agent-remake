@@ -28,6 +28,7 @@ mod md_cache;
 pub mod model_list;
 mod panel;
 pub mod session_list;
+pub mod settings;
 mod sidebar;
 
 pub use history::{index_at as history_index_at, lines as history_lines};
@@ -220,6 +221,11 @@ fn text_width(area_width: u16, layout: &Layout) -> u16 {
 /// 画一帧。顺手把各块的位置记进 `app`，鼠标事件要用。
 pub fn draw(frame: &mut Frame, app: &mut App) {
     app.caret.begin();
+    // 配置页开着：整屏归它，对话不画（图片也不画），关了照原样画回来（蓝图「配置页」第 1 条）。
+    if let Some(page) = app.settings.as_mut() {
+        settings::draw(frame, page, &app.config, &mut app.caret);
+        return;
+    }
     // 不在首页、够宽时右边分出侧边栏，别的都画在主列里（`tui.md`「后台命令、子代理和侧边栏」第 7 条）。
     let home = app.home();
     let (main, sidebar) = if home {

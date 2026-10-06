@@ -1,4 +1,25 @@
 {
+  "ime": {
+    "detect_env": ["XMODIFIERS", "GTK_IM_MODULE", "QT_IM_MODULE"],
+    "word": "fcitx",
+    "query": ["fcitx5-remote"],
+    "active": "2",
+    "off": ["fcitx5-remote", "-c"],
+    "on": ["fcitx5-remote", "-o"]
+  },
+  "settings": {
+    "width_percent": 80,
+    "height_percent": 86,
+    "narrow_below": 100,
+    "provider_width": 24,
+    "org_width": 15,
+    "use_width": 30,
+    "pool_width": 26,
+    "column_gap": 3,
+    "popup_width": 66,
+    "popup_wide": 78,
+    "popup_height_percent": 86
+  },
   "width_percent": 90,
   "narrow_below": 20,
   "home_max_width": 80,

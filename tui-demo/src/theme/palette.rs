@@ -87,6 +87,12 @@ pub struct Palette {
     pub chip_bg: Tone,
     /// 悬停时小块的底色：亮一档。
     pub chip_hover_bg: Tone,
+    /// 配置页悬浮窗的底色：比页面浅一档（蓝图「配置页」第 14 条）。
+    pub panel_bg: Tone,
+    /// 配置页焦点那一栏选中的一行的底色。
+    pub row_bg: Tone,
+    /// 配置页别的栏选中的那一行的底色：浅一档。
+    pub row_dim_bg: Tone,
     /// 标题里的 `+N`。
     pub added: Tone,
     /// 标题里的 `-N`。

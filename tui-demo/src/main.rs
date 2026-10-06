@@ -20,6 +20,7 @@ mod frame_log;
 mod frame_output;
 mod history;
 mod human;
+mod ime;
 mod input;
 mod jobs;
 mod language;
@@ -40,6 +41,7 @@ mod pulse;
 mod reader;
 mod rng;
 mod session_list;
+mod settings;
 mod side_select;
 mod startup;
 mod theme;
@@ -69,7 +71,11 @@ type Screen =
     ratatui::Terminal<ratatui::backend::CrosstermBackend<frame_output::Output<io::Stdout>>>;
 
 fn main() -> io::Result<()> {
-    let resume = startup::resume(std::env::args().skip(1))?;
+    let launch = startup::launch(std::env::args().skip(1))?;
+    if launch.help {
+        println!("{}", startup::USAGE);
+        return Ok(());
+    }
     // 配置先读：读不懂就别进全屏，错误照原样打在终端里。
     // 界面语言照系统语言（蓝图「界面语言」）。
     let table = language::LanguageTable::builtin().map_err(io::Error::other)?;
@@ -103,7 +109,7 @@ fn main() -> io::Result<()> {
     }));
     // 问终端能不能显示图：进了全屏、还没开始读按键的时候问（蓝图「图片、公式和 mermaid 图」第 1 条）。
     let graphics = figures::terminal::probe();
-    let result = run(&mut terminal, config, graphics, keyboard, resume);
+    let result = run(&mut terminal, config, graphics, keyboard, launch);
     leave(keyboard)?;
     ratatui::restore();
     result
@@ -170,12 +176,12 @@ fn run(
     config: Config,
     graphics: Option<figures::Graphics>,
     keyboard: bool,
-    resume: Option<String>,
+    launch: startup::Launch,
 ) -> io::Result<()> {
     let (sender, incoming) = mpsc::channel();
     let to_core = sender.clone();
     let reconnect = config.layout.reconnect_ms;
-    let core = core::spawn(reconnect, resume, move |update| {
+    let core = core::spawn(reconnect, launch.start, move |update| {
         to_core.send(Incoming::Core(update)).is_ok()
     });
     let to_main = sender.clone();
@@ -194,6 +200,10 @@ fn run(
     ));
     let human = human::Human::default();
     let mut app = App::new(config, core, human, figures);
+    // `--page config`：一起来就停在配置页（蓝图「配置页」第 1 条）。
+    if launch.page == Some("config") {
+        app.open_settings(true);
+    }
     let mut pointer = pointer::Pointer::default();
     // 终端显示得了几种颜色，启动时看一次（蓝图「主题」第 5 条）。
     let depth = theme::Depth::detect(|name| std::env::var(name).ok());
@@ -254,6 +264,7 @@ fn run(
             pointer = pointer::Pointer::default();
         }
     }
+    app.finish();
     Ok(())
 }
 

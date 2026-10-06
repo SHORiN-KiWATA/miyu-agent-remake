@@ -154,6 +154,15 @@ pub enum Command {
     Recap,
     /// 改名（`session.set_meta`，`/rename`）：`None` 是去掉标题。
     Rename(Option<String>),
+    /// 不对着会话的一条请求，回应原样交回（[`Update::Answer`]）：配置页用（蓝图「配置页」第 23 条），不为每个方法再加一对命令。
+    Ask {
+        /// 界面自己的编号：回应照它认。
+        tag: u64,
+        /// 方法。
+        method: &'static str,
+        /// 参数。
+        params: serde_json::Value,
+    },
     /// 重做最后一轮（`session.redo`，`/redo`、`/edit`）：`text` 换开这一轮的那句字，`files` 换附件（空的是不要附件），
     /// 都是 `None` 的原样重来。
     Redo {
@@ -260,6 +269,15 @@ pub enum Update {
         /// 核心的原话。
         message: String,
     },
+    /// [`Command::Ask`] 的回应：成了是 `result`，拒了是原因码和原话。
+    Answer {
+        /// 界面发的时候给的编号。
+        tag: u64,
+        /// 回应。
+        result: Result<serde_json::Value, Refusal>,
+    },
+    /// 配置变了（推来的 `config.changed`，哪个头、哪一层改的都算）：开着配置页的重读（「配置页」第 25 条）。
+    ConfigChanged,
     /// 一条后台命令的输出（[`Command::Output`] 的回应）；读不了的（任务没了、是子代理）是 `None`。
     Output {
         /// 哪个会话派的。
@@ -269,6 +287,17 @@ pub enum Update {
         /// 读到的。
         output: Option<JobOutput>,
     },
+}
+
+/// 核心拒了一条请求：原因码（`data.reason`，没有的是 `None`）、原话，和 `data` 整个（`config_conflict` 的 `current` 在里面）。
+#[derive(Debug, Clone, PartialEq)]
+pub struct Refusal {
+    /// 原因码。
+    pub reason: Option<String>,
+    /// 核心照握手时的语言说的原话。
+    pub message: String,
+    /// 错误的 `data`。
+    pub data: serde_json::Value,
 }
 
 /// 连着核心的这一头，界面拿着它发命令。
@@ -284,11 +313,22 @@ impl Core {
     }
 }
 
+/// 启动时进哪个会话。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Start {
+    /// 照配置 `tui.startup`：`recent` 的进最近的那个，别的等第一句话再开。
+    Usual,
+    /// 进指定的会话（`--resume`）。
+    Resume(String),
+    /// 不进任何会话、不看 `tui.startup`（`--page config`，蓝图「配置页」第 1 条）。
+    Bare,
+}
+
 /// 起一个线程去连核心。`reconnect` 是连不上时隔多久再试（`layout.json` 的 `reconnect_ms`）；`notify` 把消息
 /// 交给界面，界面那头关了就交回 `false`，这边跟着停。
 pub fn spawn(
     reconnect: [u64; 2],
-    resume: Option<String>,
+    start: Start,
     notify: impl Fn(Update) -> bool + Send + 'static,
 ) -> Core {
     let (commands, receiver) = mpsc::unbounded_channel();
@@ -297,9 +337,7 @@ pub fn spawn(
             .enable_all()
             .build();
         match runtime {
-            Ok(runtime) => {
-                runtime.block_on(run(receiver, Backoff::new(reconnect), resume, &notify))
-            }
+            Ok(runtime) => runtime.block_on(run(receiver, Backoff::new(reconnect), start, &notify)),
             Err(e) => {
                 notify(Update::Failed(e.to_string()));
             }
@@ -318,9 +356,14 @@ enum Served {
 async fn run(
     mut commands: mpsc::UnboundedReceiver<Command>,
     mut wait: Backoff,
-    resume: Option<String>,
+    start: Start,
     notify: &impl Fn(Update) -> bool,
 ) {
+    let recent = start == Start::Usual;
+    let resume = match start {
+        Start::Resume(id) => Some(id),
+        Start::Usual | Start::Bare => None,
+    };
     // 主会话、另外订阅着的、命令对着哪个：断了重连也记着（`serve.rs`）。
     let mut link = serve::Link::default();
     // 启动时进最近的那个会话只在头一次连上时看（「会话列表」第 8 条）；之后重连、`/new` 照旧。
@@ -333,6 +376,7 @@ async fn run(
                     .as_deref()
                     .or(if first { resume.as_deref() } else { None }),
                 first,
+                recent,
             )
             .await
             {
@@ -379,6 +423,7 @@ async fn run(
 async fn open(
     session: Option<&str>,
     first: bool,
+    recent: bool,
 ) -> Result<(Rpc, Option<String>, Option<(Limits, Option<Current>)>), Update> {
     let mut rpc = connect().await?;
     if first && let Some(id) = session {
@@ -386,7 +431,7 @@ async fn open(
         subscribe(&mut rpc, id).await?;
         return Ok((rpc, Some(id.to_string()), None));
     }
-    if session.is_none() && first && switch::wants_recent(&mut rpc).await {
+    if session.is_none() && first && recent && switch::wants_recent(&mut rpc).await {
         let list = rpc
             .call("session.list", serde_json::json!({}))
             .await

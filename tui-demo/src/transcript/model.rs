@@ -61,9 +61,14 @@ impl Transcript {
         self.models.effort = effort;
         let current = self.model.as_ref().map(|(m, e)| format!("{e}/{m}"));
         let from = self.models.tried.take().or(current);
-        if let (Some(model), Some(endpoint)) = (model, endpoint) {
-            self.model = Some((model, endpoint));
-        }
+        let to = match (model, endpoint) {
+            (Some(model), Some(endpoint)) => {
+                let to = format!("{endpoint}/{model}");
+                self.show_model(model, endpoint);
+                Some(to)
+            }
+            _ => None,
+        };
         if let Some(limits) = limits {
             self.limits = limits;
         }
@@ -71,7 +76,6 @@ impl Transcript {
         if !failover {
             return;
         }
-        let to = self.model.as_ref().map(|(m, e)| format!("{e}/{m}"));
         let line = texts
             .models
             .failover
@@ -138,22 +142,38 @@ impl Transcript {
 
     /// 订阅回应里会话现在用的模型：底栏照它画，记下引用。
     pub(super) fn current_model(&mut self, current: Current) {
-        if let (Some(model), Some(endpoint)) = (current.model, current.endpoint) {
-            self.model = Some((model, endpoint));
-        }
         self.models.reference = Some(current.reference);
+        if let (Some(model), Some(endpoint)) = (current.model, current.endpoint) {
+            self.show_model(model, endpoint);
+        }
         self.models.effort = current.effort;
+    }
+
+    /// 推来的这一次用的端点、模型：记下（回答末尾那一行照它写）。
+    pub(super) fn show_model(&mut self, model: String, endpoint: String) {
+        self.model = Some((model, endpoint));
+    }
+
+    /// 底栏模型那一格写什么：会话用的是池的写池名，不跟着轮到的成员变（「配置与模型」第 8 条，2026-10-07 项目主人定：
+    /// 哪个成员答的，回答末尾那一行已经写了）；别的照推来的。
+    pub fn shown_model(&self) -> Option<(String, String)> {
+        match self.models.reference.as_ref().filter(|_| self.on_pool()) {
+            Some(pool) => Some((pool.clone(), String::new())),
+            None => self.model.clone(),
+        }
+    }
+
+    /// 会话用的是模型池（钉住的、轮换的都算）。
+    fn on_pool(&self) -> bool {
+        self.models
+            .reference
+            .as_deref()
+            .is_some_and(|r| r.starts_with('@'))
     }
 
     /// `/model` 换成了（下一个回合开始生效）：记下引用，底栏当场写成选的那个（`供应商/模型` 的分开写，池、挡位照写）。
     pub(super) fn configured(&mut self, reference: String) {
-        let shown = match reference.split_once('/') {
-            Some((endpoint, model)) if !reference.starts_with('@') => {
-                (model.to_string(), endpoint.to_string())
-            }
-            _ => (reference.clone(), String::new()),
-        };
-        self.model = Some(shown);
+        self.show_reference(&reference);
         self.models.reference = Some(reference);
         // 原来那个模型的思考强度不是这个的：先不写，等 `model.list`、推来的（池的照推来的）。
         self.models.effort = None;
@@ -169,6 +189,18 @@ impl Transcript {
                 .replace("{to}", &reference);
             self.note(Kind::Note, line);
         }
+        self.show_reference(&reference);
         self.models.reference = Some(reference);
+    }
+
+    /// 底栏照一个引用写：`供应商/模型` 的分开写，池照写。
+    fn show_reference(&mut self, reference: &str) {
+        let shown = match reference.split_once('/') {
+            Some((endpoint, model)) if !reference.starts_with('@') => {
+                (model.to_string(), endpoint.to_string())
+            }
+            _ => (reference.to_string(), String::new()),
+        };
+        self.model = Some(shown);
     }
 }

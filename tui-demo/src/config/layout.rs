@@ -13,6 +13,10 @@ use crate::core::Level;
 pub struct Layout {
     /// 输入框和正文占窗口宽度的百分之几，跟着窗口一起变宽。
     pub width_percent: u16,
+    /// 配置页的尺寸（蓝图「配置页」第 3、14 条）。
+    pub settings: crate::ui::settings::Look,
+    /// 输入法跟着打字状态切（蓝图「配置页」第 30 条）。
+    pub ime: crate::ime::Look,
     /// 终端窄到这个宽度以下，输入框不留边、占满整行。
     pub narrow_below: u16,
     /// 空会话的首页上，输入框（连边框）最宽几列（`tui.md`「空会话的首页」第 2 条）。

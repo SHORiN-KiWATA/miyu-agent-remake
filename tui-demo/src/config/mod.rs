@@ -77,6 +77,8 @@ pub struct Texts {
     pub jobs: JobTexts,
     /// 帮助框里的字（`/help`）。
     pub help: crate::ui::help::Texts,
+    /// 配置页的字（`/config`，蓝图「配置页」）。
+    pub settings: crate::settings::Texts,
     /// 确认和提问的抽屉上的字。
     pub drawer: crate::drawer::Texts,
     /// 输入框里粘贴块上写的，`{lines}` 行数。

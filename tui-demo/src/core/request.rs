@@ -73,6 +73,7 @@ pub(super) fn request(
         | Command::LinkPreview(_)
         | Command::FetchBlob(_)
         | Command::RenderMermaid(_)
+        | Command::Ask { .. }
         | Command::SetEffort { .. }
         | Command::Output { .. } => {
             return None;

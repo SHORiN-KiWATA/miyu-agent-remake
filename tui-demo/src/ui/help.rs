@@ -131,8 +131,13 @@ mod tests {
             "别名写在一起"
         );
         assert!(
-            !text.iter().any(|l| l.contains("/settings")),
+            !text.iter().any(|l| l.contains("/tools")),
             "还不做事的假命令不列"
+        );
+        assert!(
+            text.iter()
+                .any(|l| l.starts_with("  /config · /settings") && l.contains("打开配置")),
+            "配置页（2026-10-07 项目主人定）"
         );
         assert!(
             text.iter()

@@ -481,5 +481,355 @@
     "no_key": "キーなし",
     "refuse_cooling": "このモデルはクールダウン中です。{n} 分後に使えます",
     "refuse_no_key": "このモデルにはキーがありません"
+  },
+  "settings": {
+    "title": "設定",
+    "entry": "プロバイダとモデル",
+    "entry_note": "プロバイダ、既定モデル、モデルプール",
+    "pages": [
+      "プロバイダ",
+      "既定モデル",
+      "モデルプール"
+    ],
+    "cols": [
+      "プロバイダ",
+      "組織",
+      "モデル",
+      "用途",
+      "プール",
+      "メンバー"
+    ],
+    "orgs": [
+      "すべて",
+      "その他"
+    ],
+    "uses": [
+      "既定のテキストモデル",
+      "既定のビジョンモデル"
+    ],
+    "use_notes": [
+      "ターンでモデルを指定しないときに使う",
+      "会話モデルが画像を読めないときに使う"
+    ],
+    "detail": [
+      "現在",
+      "種類",
+      "メンバー",
+      "ウィンドウ",
+      "入力",
+      "用途"
+    ],
+    "pool_kind": "プール · {how}",
+    "tags": [
+      "画像",
+      "手動"
+    ],
+    "pool_tag": "{how} · {n}",
+    "empty_pool": "空",
+    "gone": "（存在しない）",
+    "options": {
+      "": "自動",
+      "rotate": "ローテーション",
+      "pin": "固定",
+      "secret": "API key",
+      "env": "環境変数",
+      "text": "テキスト",
+      "image": "画像",
+      "pdf": "PDF",
+      "effort_default": "既定"
+    },
+    "fields": {
+      "id": "ID",
+      "name": "表示名",
+      "base_url": "Base URL",
+      "driver": "API",
+      "auth": "認証",
+      "key": "API key",
+      "env_key": "変数名",
+      "model": "モデル",
+      "inputs": "入力",
+      "window": "コンテキスト長",
+      "effort": "既定の思考",
+      "temperature": "温度",
+      "price": "価格 · 100万トークンあたり",
+      "input": "入力",
+      "output": "出力",
+      "cache_read": "キャッシュ読み",
+      "cache_write": "キャッシュ書き",
+      "currency": "通貨",
+      "multiplier": "倍率",
+      "pool": "名前",
+      "strategy": "呼び出し方",
+      "members": "メンバー"
+    },
+    "hints": {
+      "id": "lowercase first; letters, digits, - and _",
+      "name": "Empty shows the ID",
+      "base_url": "リクエスト先のアドレス",
+      "key_set": "In the key store · leave empty to keep",
+      "key_unset": "Not set",
+      "env_key": "e.g. DEEPSEEK_API_KEY",
+      "model": "As the provider names it",
+      "pool": "e.g. daily",
+      "no_temperature": "This model takes no temperature",
+      "unknown": "unknown",
+      "empty": "empty",
+      "inherit": "inherited",
+      "temperature": "送らない（プロバイダの既定）",
+      "input": "不明",
+      "output": "不明",
+      "cache_read": "不明",
+      "cache_write": "不明",
+      "currency": "USD",
+      "window": "不明",
+      "multiplier": "1"
+    },
+    "sources": {
+      "catalog": "catalog",
+      "provider": "provider list",
+      "system": "system",
+      "personal": "yours",
+      "default": "default",
+      "id": "ID"
+    },
+    "titles": [
+      "Add provider",
+      "Edit provider · {name}",
+      "Add model · {name}",
+      "New pool",
+      "Edit pool · {name}"
+    ],
+    "buttons": [
+      "保存",
+      "キャンセル"
+    ],
+    "popup_hints": [
+      [
+        [
+          "j/k",
+          "移動"
+        ],
+        [
+          "Enter",
+          "編集"
+        ],
+        [
+          "←→",
+          "切替"
+        ],
+        [
+          "s",
+          "保存"
+        ],
+        [
+          "Esc",
+          "閉じる"
+        ]
+      ],
+      [
+        [
+          "Enter",
+          "keep"
+        ],
+        [
+          "Esc",
+          "undo"
+        ]
+      ],
+      [
+        [
+          "j/k",
+          "move"
+        ],
+        [
+          "Enter",
+          "pick"
+        ],
+        [
+          "/",
+          "search"
+        ],
+        [
+          "Esc",
+          "close"
+        ]
+      ],
+      [
+        [
+          "←→",
+          "choose"
+        ],
+        [
+          "Enter",
+          "confirm"
+        ],
+        [
+          "Esc",
+          "cancel"
+        ]
+      ]
+    ],
+    "pick": [
+      "Pools",
+      "Only models that see images",
+      "A member can't see images",
+      "Empty pool",
+      "/ search"
+    ],
+    "confirm": [
+      "プロバイダ {name} を削除しますか？",
+      "モデル {name} を削除しますか？",
+      "プール {name} を削除しますか？",
+      "{list} が使用中です。削除すると無効と表示されます",
+      "プール {name}",
+      "削除",
+      "、"
+    ],
+    "status": {
+      "loading": "設定を読み込み中…",
+      "fetched": "{n} 個のモデル",
+      "no_models": "No models yet · save, then press r",
+      "pools": "{n} pools",
+      "testing": "{name} をテスト中…（少し料金がかかります）",
+      "tested": "{name}：{n} 個のモデル",
+      "test_failed": "{name} に接続できません：{why}",
+      "save_first": "Save the new provider with s before testing",
+      "saved": "保存しました",
+      "saving": "保存中…",
+      "conflict": "Changed elsewhere just now (now {current}); your changes are kept, reopen and save again",
+      "offline": "コアに接続していません",
+      "not_custom": "Only models added with n can be deleted",
+      "in_system": "This is in the system config and can't be deleted here",
+      "members_hint": "Untick members in the pool editor (Enter)",
+      "nothing_here": "Nothing to delete on this page",
+      "no_new": "Nothing to add on this page",
+      "fetching": "{name} のモデル一覧を取得中…",
+      "fetch_failed": "{name} のモデル一覧を取得できません：r でテスト",
+      "no_driver": "API を判別できません：開いて openai-chat などを選んでください",
+      "no_base_url": "使えません：開いてリクエスト先のアドレスを入力してください"
+    },
+    "errors": {
+      "bad_id": "\"{name}\" can't be a name: lowercase first, only lowercase letters, digits, - and _, up to 64",
+      "taken": "{name} already exists",
+      "need_name": "The model name can't be empty",
+      "bad_number": "This needs a number",
+      "need_key": "Fill in the variable name, or switch to an API key"
+    },
+    "empty": [
+      "Nothing here",
+      "No match",
+      "No pools yet · a to add",
+      "Empty pool · Enter to add members"
+    ],
+    "key_hints": [
+      [
+        [
+          "j/k",
+          "move"
+        ],
+        [
+          "Enter",
+          "open"
+        ],
+        [
+          "Esc",
+          "back"
+        ]
+      ],
+      [
+        [
+          "h/l",
+          "column"
+        ],
+        [
+          "j/k",
+          "move"
+        ],
+        [
+          "Enter",
+          "edit"
+        ],
+        [
+          "a",
+          "add provider"
+        ],
+        [
+          "n",
+          "add model"
+        ],
+        [
+          "d",
+          "delete"
+        ],
+        [
+          "r",
+          "test"
+        ],
+        [
+          "/",
+          "search"
+        ]
+      ],
+      [
+        [
+          "j/k",
+          "move"
+        ],
+        [
+          "Enter",
+          "pick model"
+        ],
+        [
+          "h/l",
+          "edge turns page"
+        ]
+      ],
+      [
+        [
+          "h/l",
+          "column"
+        ],
+        [
+          "j/k",
+          "move"
+        ],
+        [
+          "Enter",
+          "edit"
+        ],
+        [
+          "a",
+          "new pool"
+        ],
+        [
+          "d",
+          "delete"
+        ],
+        [
+          "/",
+          "search"
+        ]
+      ],
+      [
+        [
+          ", .",
+          "ページ"
+        ],
+        [
+          "Esc",
+          "戻る"
+        ]
+      ],
+      [
+        [
+          "Enter",
+          "done"
+        ],
+        [
+          "Esc",
+          "clear"
+        ]
+      ]
+    ]
   }
 }

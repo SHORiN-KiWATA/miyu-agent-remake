@@ -325,6 +325,14 @@ async fn take(
         let reason = error["data"]["reason"].as_str().map(str::to_string);
         let message = error["message"].as_str().unwrap_or_default().to_string();
         return match kind {
+            Some(Awaiting::Ask(tag)) => notify(Update::Answer {
+                tag,
+                result: Err(super::Refusal {
+                    reason,
+                    message,
+                    data: error["data"].clone(),
+                }),
+            }),
             Some(Awaiting::Send | Awaiting::Redo) => notify(Update::Unsent { reason, message }),
             // 订阅不上（那个会话已经删了）：不用说。读不了配置（核心旧）：照系统语言，不用说。
             Some(
@@ -398,6 +406,10 @@ async fn take(
             return notify(Update::Efforts(super::EffortList::read(&message["result"])));
         }
         Some(Awaiting::Configure(reference)) => return notify(Update::Configured(reference)),
+        Some(Awaiting::Ask(tag)) => {
+            let result = Ok(message["result"].clone());
+            return notify(Update::Answer { tag, result });
+        }
         Some(Awaiting::Models) => {
             return notify(Update::CoolingUntil(super::models::earliest_cooling(
                 &message["result"],
@@ -444,6 +456,10 @@ async fn take(
     }
     // 配置流：动了界面语言的再读一次最终值；掉了队重新订阅、再读一次（「界面语言」）。
     let params = &message["params"];
+    // 配置页开着的要重读：哪一项变了都告诉界面（「配置页」第 25 条）。
+    if message["method"] == "config.changed" && !notify(Update::ConfigChanged) {
+        return false;
+    }
     let reread = match message["method"].as_str() {
         Some("config.changed") => config::touches_language(params),
         Some("resync") => params["stream"] == "config",

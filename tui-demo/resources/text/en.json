@@ -481,5 +481,355 @@
     "no_key": "no key",
     "refuse_cooling": "This model is cooling down, usable in {n} min",
     "refuse_no_key": "This model has no key"
+  },
+  "settings": {
+    "title": "Settings",
+    "entry": "Providers & models",
+    "entry_note": "Providers, default models, model pools",
+    "pages": [
+      "Providers",
+      "Default models",
+      "Pools"
+    ],
+    "cols": [
+      "Provider",
+      "Group",
+      "Model",
+      "Use",
+      "Pool",
+      "Members"
+    ],
+    "orgs": [
+      "All",
+      "Other"
+    ],
+    "uses": [
+      "Default text model",
+      "Default vision model"
+    ],
+    "use_notes": [
+      "Used when a turn names no model",
+      "Reads images when the chat model can't"
+    ],
+    "detail": [
+      "Now",
+      "Kind",
+      "Members",
+      "Window",
+      "Inputs",
+      "Used for"
+    ],
+    "pool_kind": "Pool · {how}",
+    "tags": [
+      "img",
+      "own"
+    ],
+    "pool_tag": "{how} · {n}",
+    "empty_pool": "empty",
+    "gone": " (gone)",
+    "options": {
+      "": "Auto",
+      "rotate": "Rotate",
+      "pin": "Pin",
+      "secret": "API key",
+      "env": "Env variable",
+      "text": "Text",
+      "image": "Image",
+      "pdf": "PDF",
+      "effort_default": "Default"
+    },
+    "fields": {
+      "id": "ID",
+      "name": "Display name",
+      "base_url": "Base URL",
+      "driver": "API",
+      "auth": "Auth",
+      "key": "API key",
+      "env_key": "Variable",
+      "model": "Model",
+      "inputs": "Inputs",
+      "window": "Context window",
+      "effort": "Default thinking",
+      "temperature": "Temperature",
+      "price": "Price · per 1M tokens",
+      "input": "Input",
+      "output": "Output",
+      "cache_read": "Cache read",
+      "cache_write": "Cache write",
+      "currency": "Currency",
+      "multiplier": "Multiplier",
+      "pool": "Name",
+      "strategy": "Strategy",
+      "members": "Members"
+    },
+    "hints": {
+      "id": "lowercase first; letters, digits, - and _",
+      "name": "Empty shows the ID",
+      "base_url": "Request target address",
+      "key_set": "In the key store · leave empty to keep",
+      "key_unset": "Not set",
+      "env_key": "e.g. DEEPSEEK_API_KEY",
+      "model": "As the provider names it",
+      "pool": "e.g. daily",
+      "no_temperature": "This model takes no temperature",
+      "unknown": "unknown",
+      "empty": "empty",
+      "inherit": "inherited",
+      "temperature": "Not sent; the provider decides",
+      "input": "unknown",
+      "output": "unknown",
+      "cache_read": "unknown",
+      "cache_write": "unknown",
+      "currency": "USD",
+      "window": "unknown",
+      "multiplier": "1"
+    },
+    "sources": {
+      "catalog": "catalog",
+      "provider": "provider list",
+      "system": "system",
+      "personal": "yours",
+      "default": "default",
+      "id": "ID"
+    },
+    "titles": [
+      "Add provider",
+      "Edit provider · {name}",
+      "Add model · {name}",
+      "New pool",
+      "Edit pool · {name}"
+    ],
+    "buttons": [
+      "Save",
+      "Cancel"
+    ],
+    "popup_hints": [
+      [
+        [
+          "j/k",
+          "move"
+        ],
+        [
+          "Enter",
+          "edit"
+        ],
+        [
+          "←→",
+          "change"
+        ],
+        [
+          "s",
+          "save"
+        ],
+        [
+          "Esc",
+          "close"
+        ]
+      ],
+      [
+        [
+          "Enter",
+          "keep"
+        ],
+        [
+          "Esc",
+          "undo"
+        ]
+      ],
+      [
+        [
+          "j/k",
+          "move"
+        ],
+        [
+          "Enter",
+          "pick"
+        ],
+        [
+          "/",
+          "search"
+        ],
+        [
+          "Esc",
+          "close"
+        ]
+      ],
+      [
+        [
+          "←→",
+          "choose"
+        ],
+        [
+          "Enter",
+          "confirm"
+        ],
+        [
+          "Esc",
+          "cancel"
+        ]
+      ]
+    ],
+    "pick": [
+      "Pools",
+      "Only models that see images",
+      "A member can't see images",
+      "Empty pool",
+      "/ search"
+    ],
+    "confirm": [
+      "Delete provider {name}?",
+      "Delete model {name}?",
+      "Delete pool {name}?",
+      "Used by {list}; they will show as gone",
+      "pool {name}",
+      "Delete",
+      ", "
+    ],
+    "status": {
+      "loading": "Reading settings…",
+      "fetched": "{n} models",
+      "no_models": "No models yet · save, then press r",
+      "pools": "{n} pools",
+      "testing": "Testing {name}… (uses a little quota)",
+      "tested": "{name}: {n} models",
+      "test_failed": "{name} failed: {why}",
+      "save_first": "Save the new provider with s before testing",
+      "saved": "Saved",
+      "saving": "Saving…",
+      "conflict": "Changed elsewhere just now (now {current}); your changes are kept, reopen and save again",
+      "offline": "Not connected to the core",
+      "not_custom": "Only models added with n can be deleted",
+      "in_system": "This is in the system config and can't be deleted here",
+      "members_hint": "Untick members in the pool editor (Enter)",
+      "nothing_here": "Nothing to delete on this page",
+      "no_new": "Nothing to add on this page",
+      "fetching": "Fetching models from {name}…",
+      "fetch_failed": "{name}: no model list; press r to test why",
+      "no_driver": "Can't tell the API: open it and pick one, e.g. openai-chat",
+      "no_base_url": "Unusable: open it and fill in the request target address"
+    },
+    "errors": {
+      "bad_id": "\"{name}\" can't be a name: lowercase first, only lowercase letters, digits, - and _, up to 64",
+      "taken": "{name} already exists",
+      "need_name": "The model name can't be empty",
+      "bad_number": "This needs a number",
+      "need_key": "Fill in the variable name, or switch to an API key"
+    },
+    "empty": [
+      "Nothing here",
+      "No match",
+      "No pools yet · a to add",
+      "Empty pool · Enter to add members"
+    ],
+    "key_hints": [
+      [
+        [
+          "j/k",
+          "move"
+        ],
+        [
+          "Enter",
+          "open"
+        ],
+        [
+          "Esc",
+          "back"
+        ]
+      ],
+      [
+        [
+          "h/l",
+          "column"
+        ],
+        [
+          "j/k",
+          "move"
+        ],
+        [
+          "Enter",
+          "edit"
+        ],
+        [
+          "a",
+          "add provider"
+        ],
+        [
+          "n",
+          "add model"
+        ],
+        [
+          "d",
+          "delete"
+        ],
+        [
+          "r",
+          "test"
+        ],
+        [
+          "/",
+          "search"
+        ]
+      ],
+      [
+        [
+          "j/k",
+          "move"
+        ],
+        [
+          "Enter",
+          "pick model"
+        ],
+        [
+          "h/l",
+          "edge turns page"
+        ]
+      ],
+      [
+        [
+          "h/l",
+          "column"
+        ],
+        [
+          "j/k",
+          "move"
+        ],
+        [
+          "Enter",
+          "edit"
+        ],
+        [
+          "a",
+          "new pool"
+        ],
+        [
+          "d",
+          "delete"
+        ],
+        [
+          "/",
+          "search"
+        ]
+      ],
+      [
+        [
+          ", .",
+          "page"
+        ],
+        [
+          "Esc",
+          "back"
+        ]
+      ],
+      [
+        [
+          "Enter",
+          "done"
+        ],
+        [
+          "Esc",
+          "clear"
+        ]
+      ]
+    ]
   }
 }

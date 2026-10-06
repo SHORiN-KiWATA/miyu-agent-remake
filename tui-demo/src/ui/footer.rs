@@ -148,9 +148,9 @@ fn left(app: &App) -> Vec<Span<'_>> {
             if let Some(word) = cooling {
                 spans.push(Span::styled(" · ", theme::dim()));
                 spans.push(Span::styled(word, theme::warn()));
-            } else if let Some((model, endpoint)) = &t.model {
+            } else if let Some((model, endpoint)) = t.shown_model() {
                 spans.push(Span::styled(" · ", theme::dim()));
-                spans.push(Span::styled(model.as_str(), theme::model()));
+                spans.push(Span::styled(model, theme::model()));
                 spans.push(Span::styled(format!(" {endpoint}"), theme::dim()));
                 // 思考强度（`/effort`）：什么都不发的不写。
                 if let Some(effort) = t.effort() {

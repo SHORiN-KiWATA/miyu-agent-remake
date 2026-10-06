@@ -165,13 +165,16 @@
       "run": "fake"
     },
     {
-      "name": "settings",
+      "name": "config",
+      "aliases": [
+        "settings"
+      ],
       "summary": {
-        "zh": "打开设置",
-        "en": "Open settings",
-        "ja": "設定を開く"
+        "zh": "打开配置：供应商、模型、模型池",
+        "en": "Open settings: providers, models, pools",
+        "ja": "設定を開く：プロバイダ、モデル、プール"
       },
-      "run": "fake"
+      "run": "config"
     },
     {
       "name": "copy",

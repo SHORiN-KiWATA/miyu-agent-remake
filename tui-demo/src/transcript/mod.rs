@@ -240,7 +240,9 @@ impl Transcript {
             | Update::Efforts(_)
             | Update::LinkCard { .. }
             | Update::BlobSaved { .. }
-            | Update::Mermaid { .. } => {}
+            | Update::Mermaid { .. }
+            | Update::Answer { .. }
+            | Update::ConfigChanged => {}
             Update::Failed(reason) => {
                 self.link = Link::Down(texts.core_failed.replace("{reason}", &reason));
             }
@@ -303,7 +305,7 @@ impl Transcript {
             Push::UndoLine => self.undo_line(crate::core::Report::default()),
             Push::UndoFiles(files) => self.undo_files(files),
             Push::UndoGone => self.undo_gone(),
-            Push::Model { endpoint, model } => self.model = Some((model, endpoint)),
+            Push::Model { endpoint, model } => self.show_model(model, endpoint),
             Push::Heard(seen) => self.heard(seen),
             Push::Clock(at) => self.clock.set(at),
             Push::Tried { endpoint, model } => self.tried(&endpoint, &model),

@@ -22,6 +22,7 @@ mod paste;
 mod redo;
 mod session;
 mod sessions;
+mod settings;
 mod switch;
 mod takeback;
 mod updates;
@@ -140,6 +141,10 @@ pub struct App {
     pub session_list: Option<crate::session_list::SessionList>,
     /// `/model` 开着时的框（`models.rs`）。
     pub model_list: Option<crate::model_list::ModelList>,
+    /// 开着的配置页（`/config`、`--page config`，蓝图「配置页」）：开着时整屏归它。
+    pub settings: Option<crate::settings::Settings>,
+    /// 输入法跟着打字状态切（`ime.rs`）。
+    ime: crate::ime::Ime,
     /// 链接卡片的账：排正文时记下要的卡片、图，主循环每一帧以后发（`cards.rs`）。
     pub cards: std::cell::RefCell<crate::link_cards::LinkCards>,
     /// mermaid 图的账：排正文时记下要画的，主循环每一帧以后交给核心（`diagrams.rs`）。
@@ -214,6 +219,7 @@ impl App {
         // 启动时的配置照系统语言读的（自动）：记下它，选回自动时用。
         let system_language = config.language.clone();
         let md_keep = config.layout.markdown_cache;
+        let ime = crate::ime::Ime::start(&config.layout.ime, |name| std::env::var(name).ok());
         // 照配置设主题；没有这一套的用出厂的第一套。
         let chosen = config
             .themes
@@ -290,6 +296,8 @@ impl App {
             panel: None,
             session_list: None,
             model_list: None,
+            settings: None,
+            ime,
             efforts: None,
             cards: std::cell::RefCell::new(crate::link_cards::LinkCards::cached()),
             diagrams: std::cell::RefCell::default(),
@@ -348,6 +356,11 @@ impl App {
             && self.view.select.is_none()
     }
 
+    /// 退出程序前收尾：输入法还原成进来时的样子（`ime.rs`）。
+    pub fn finish(&mut self) {
+        std::mem::take(&mut self.ime).finish();
+    }
+
     /// 处理一个终端事件。
     pub fn handle(&mut self, event: Event) {
         // 有人按键、动鼠标、粘贴：吉祥物停下待机的晃（`tui.md`「空会话的首页」第 8 条）。
@@ -363,6 +376,11 @@ impl App {
                 self.attention.pointed(Instant::now());
             }
             _ => {}
+        }
+        // 配置页开着：按键、鼠标、粘贴都归它（`settings.rs`）。
+        if self.settings.is_some() {
+            self.settings_event(event);
+            return;
         }
         let menu_open = self.menu_matches().is_some() || self.mention_found().is_some();
         let event = self.vim_keys(event, menu_open);
@@ -448,6 +466,12 @@ impl App {
 
     /// 到点了：收掉过期的提示。
     pub fn tick(&mut self) {
+        // 配置页里不在打字的时候输入法关成英文，打字时开回来；对话里的输入框一直算在打字（`ime.rs`）。
+        let typing = self
+            .settings
+            .as_ref()
+            .is_none_or(crate::settings::Settings::typing);
+        self.ime.typing(typing);
         self.advance_jobs();
         self.send_card_asks();
         self.send_diagram_asks();

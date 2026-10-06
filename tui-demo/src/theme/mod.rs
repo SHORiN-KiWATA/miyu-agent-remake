@@ -178,6 +178,21 @@ pub fn chip_ground() -> Style {
     Style::new().bg(pick(|p| p.chip_bg))
 }
 
+/// 配置页悬浮窗的底（蓝图「配置页」第 14 条）。
+pub fn panel() -> Style {
+    Style::new().bg(pick(|p| p.panel_bg))
+}
+
+/// 配置页焦点那一栏选中的一行：底色深一档，字照常。
+pub fn row_focus() -> Style {
+    Style::new().bg(pick(|p| p.row_bg))
+}
+
+/// 配置页别的栏选中的那一行：底色浅一档。
+pub fn row_dim() -> Style {
+    Style::new().bg(pick(|p| p.row_dim_bg))
+}
+
 /// 加了几行：绿。
 pub fn added() -> Style {
     fg(|p| p.added)
