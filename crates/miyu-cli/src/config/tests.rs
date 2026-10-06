@@ -7,7 +7,7 @@ use serde_json::json;
 
 use super::paths::{Places, planned};
 use super::render::{columns, explain, problem, toml, values};
-use super::{ConfigCommand, ConfigPlan};
+use super::{ConfigCommand, ConfigPlan, tidy};
 use crate::ask::Format;
 use crate::language::Language;
 
@@ -381,4 +381,99 @@ fn the_editor_runs_through_the_shell_with_the_file_as_one_argument() {
     assert!(status.success(), "{status:?}");
     assert_eq!(std::fs::read_to_string(&target).unwrap(), "a = 1\n");
     std::fs::remove_dir_all(&dir).unwrap();
+}
+
+// 施工 8-3 补：生效时机五种都照蓝图说（以前 `next_turn` 说成「当场生效」），认不出的不说；人敲的键照核心的写法规整，
+// 带多余引号的也找得到回应。
+
+#[test]
+fn every_applies_value_is_said_like_the_blueprint() {
+    let (zh, en) = (Language::Chinese, Language::English);
+    let key = "providers.dev.models.m-1.window";
+    let said = [
+        ("now", "当场生效", "takes effect at once"),
+        (
+            "new_session",
+            "以后开的会话生效",
+            "applies to sessions opened from now on",
+        ),
+        (
+            "head_start",
+            "下次打开界面时生效",
+            "takes effect the next time the interface opens",
+        ),
+        ("next_turn", "下一轮生效", "takes effect next turn"),
+        (
+            "restart",
+            "重启核心后生效",
+            "takes effect after the core restarts",
+        ),
+    ];
+    for (applies, chinese, english) in said {
+        assert_eq!(
+            zh.saved(key, "4096", "personal", applies),
+            format!("· {key} = 4096 写进了个人设置，{chinese}")
+        );
+        assert_eq!(
+            en.saved(key, "4096", "personal", applies),
+            format!("· {key} = 4096 saved to personal settings, {english}")
+        );
+        assert_eq!(zh.edit_saved(&[applies]), format!("· 存好了，{chinese}"));
+        assert_eq!(
+            zh.explain_header("窗口", key, "说明。", applies),
+            format!("窗口（{key}）：说明。{chinese}。")
+        );
+        let mut capital = english.chars();
+        let first = capital.next().map(|first| first.to_ascii_uppercase());
+        assert_eq!(
+            en.explain_header("Window", key, "About.", applies),
+            format!(
+                "Window ({key}): About. {}{}.",
+                first.unwrap_or_default(),
+                capital.as_str()
+            )
+        );
+    }
+    // 认不出的（核心比命令行新）：不说什么时候生效，不瞎说「当场」。
+    assert_eq!(
+        zh.saved(key, "4096", "personal", "someday"),
+        format!("· {key} = 4096 写进了个人设置")
+    );
+    assert_eq!(
+        en.saved(key, "4096", "personal", "someday"),
+        format!("· {key} = 4096 saved to personal settings")
+    );
+    assert_eq!(zh.edit_saved(&["someday"]), "· 存好了");
+    assert_eq!(
+        en.edit_saved(&["now", "someday"]),
+        "· Saved, takes effect at once"
+    );
+    assert_eq!(
+        zh.explain_header("窗口", key, "说明。", "someday"),
+        format!("窗口（{key}）：说明。")
+    );
+    assert_eq!(
+        en.explain_header("Window", key, "About.", "someday"),
+        format!("Window ({key}): About.")
+    );
+}
+
+#[test]
+fn a_typed_key_is_tidied_the_way_the_core_writes_it() {
+    // 多余的引号去掉；名字里有点的引号留着；拆不开的原样交，由核心报错。
+    assert_eq!(
+        tidy("providers.dev.models.\"deepseek-v4-flash\".temperature"),
+        "providers.dev.models.deepseek-v4-flash.temperature"
+    );
+    assert_eq!(
+        tidy("providers . dev .models.'m-1'.window"),
+        "providers.dev.models.m-1.window"
+    );
+    assert_eq!(
+        tidy("providers.dev.models.\"deepseek-v4.1-flash\".window"),
+        "providers.dev.models.\"deepseek-v4.1-flash\".window"
+    );
+    assert_eq!(tidy("ui.language"), "ui.language");
+    assert_eq!(tidy("ui..language"), "ui..language");
+    assert_eq!(tidy("ui.\"lang"), "ui.\"lang");
 }
