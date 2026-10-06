@@ -14,15 +14,17 @@ import { summarize } from '../model/session.js';
 /** @typedef {{turn: number, attempt: number, limit: number, message: string}} Retry 出了错、等着重试（瞬时的 `status`） */
 /**
  * @typedef {{seen: number, since: number, written: number, expected: number|null, done: {before: number, after: number}|null, note: number|null}} Compacting
- *   在压缩（瞬时的 `compaction.progress`）：压好了记下前后的用量（`compaction.done`），落了盘的那一条的序号（走满以前先不画）
+ *   在压缩（瞬时的 `compaction.progress`）：压好了记下前后的用量（`compaction.done`），落了盘的那一条的序号（走满以前先不画）。
+ *   提前压好、直接换上的（`prepared`，核心 6-11）没有进度那一行：前后的用量先放 `compactReady`，等落了盘的那一条 `context.compacted` 来了再记上
  * @typedef {{id: string, events: any[], live: Live|null, marks: Map<string, {start: number, end: number|null}>,
  *   limits: any, unread: boolean, replaying?: boolean, retry: Retry|null, compacting: Compacting|null, compactStats: Map<number, {before: number, after: number}>,
+ *   compactReady: {before: number, after: number}|null,
  *   changes: {after: number, at: string, body: any}[], model: {ref?: string, endpoint?: string, model?: string, effort?: {level: string, from: string}}|null}} Session
  */
 
 /** 一个刚知道、还没读的会话。 */
 export function emptySession(id) {
-  return /** @type {Session} */ ({ id, events: [], live: null, marks: new Map(), limits: {}, unread: false, retry: null, compacting: null, compactStats: new Map(), changes: [], model: null });
+  return /** @type {Session} */ ({ id, events: [], live: null, marks: new Map(), limits: {}, unread: false, retry: null, compacting: null, compactStats: new Map(), compactReady: null, changes: [], model: null });
 }
 
 export class Store {
@@ -214,9 +216,14 @@ export class Store {
       s.compactStats.set(e.seq, s.compacting.done);
       s.compacting.note = e.seq;
     }
+    if (e.kind === 'context.compacted' && !s.compacting && s.compactReady) {
+      if (e.body.trigger !== 'clear') s.compactStats.set(e.seq, s.compactReady);
+      s.compactReady = null;
+    }
     if (e.kind === 'model.called' && e.body.compaction && e.body.result === 'error') s.compacting = null;
     if (e.kind === 'turn.ended' && s.compacting && !s.compacting.done) s.compacting = null;
     if (e.kind === 'turn.ended') {
+      s.compactReady = null;
       if (s.live) closeAll(s.live, Date.parse(e.at));
       s.live = null;
       s.retry = null;
@@ -233,10 +240,12 @@ export class Store {
    * 来了、这一轮结束了就去掉（蓝图 `web.md`「运行状态行」、`kernel/events.md` 瞬时事件第 17 条）。
    */
   transient(s, e) {
-    // 压缩的进度：写了多少、估计多少；压好了记下前后的用量，等界面走满了再收（`finishCompaction`）
+    // 压缩的进度：写了多少、估计多少；压好了记下前后的用量，等界面走满了再收（`finishCompaction`）。写了的变少了是重来
+    // （提前压好的那次在线上失败了，换成当场的摘要请求，核心 6-11），从头走
     if (e.kind === 'compaction.progress') {
       const b = e.body;
-      if (!s.compacting || s.compacting.seen !== b.seen || s.compacting.done) {
+      const restart = (b.written ?? 0) < (s.compacting?.written ?? 0);
+      if (!s.compacting || s.compacting.seen !== b.seen || s.compacting.done || restart) {
         s.compacting = { seen: b.seen, since: Date.parse(e.at), written: 0, expected: b.expected ?? null, done: null, note: null };
       }
       s.compacting.written = b.written ?? s.compacting.written;
@@ -244,12 +253,19 @@ export class Store {
       return;
     }
     if (e.kind === 'compaction.done') {
-      if (!s.compacting) return;
-      s.compacting.done = { before: e.body.before, after: e.body.after };
+      const done = { before: e.body.before, after: e.body.after };
       // 落了盘的那一条先到了的（核心「同时」推，两条谁先到不一定）：补记上前后的用量
       const last = s.events.at(-1);
-      if (last?.kind === 'context.compacted' && last.body.trigger !== 'clear' && !s.compactStats.has(last.seq)) {
-        s.compactStats.set(last.seq, s.compacting.done);
+      const landed = last?.kind === 'context.compacted' && last.body.trigger !== 'clear' && !s.compactStats.has(last.seq);
+      // 提前压好、直接换上的（`prepared`，核心 6-11）前面没有进度那一行：只记用量，不出进度、不走满
+      if (!s.compacting) {
+        if (landed) s.compactStats.set(last.seq, done);
+        else s.compactReady = done;
+        return;
+      }
+      s.compacting.done = done;
+      if (landed) {
+        s.compactStats.set(last.seq, done);
         s.compacting.note = last.seq;
       }
       return;

@@ -121,6 +121,47 @@ test('压好了的两条谁先到不一定：落了盘的 context.compacted 先�
   assert.equal(s.compacting.note, 20);
 });
 
+test('提前压缩直接换上（6-11）：只来带 prepared 的 compaction.done、前面没有 progress，不出进度那一行，落了盘的那一条照样记上前后的用量', () => {
+  const store = fresh();
+  const s = store.sessions.get('S');
+  const transient = (at, kind, body) => { const { seq, ...e } = ev(0, at, kind, 9, body, { kind: 'kernel' }); return e; };
+  push(store, transient(3, 'compaction.done', { seen: 8, trigger: 'auto', before: 812345, after: 31020, prepared: true }));
+  assert.equal(s.compacting, null, '不出进度那一行');
+  push(store, ev(20, 3, 'context.compacted', 9, { upto: 8, summary: '摘要', trigger: 'auto' }));
+  assert.deepEqual(s.compactStats.get(20), { before: 812345, after: 31020 });
+  assert.equal(s.compacting, null);
+  // 两条谁先到不一定：落了盘的先到
+  push(store, ev(30, 4, 'context.compacted', 9, { upto: 25, summary: '摘要', trigger: 'auto' }));
+  push(store, transient(5, 'compaction.done', { seen: 25, trigger: 'auto', before: 400000, after: 30000, prepared: true }));
+  assert.deepEqual(s.compactStats.get(30), { before: 400000, after: 30000 });
+  assert.equal(s.compacting, null);
+});
+
+test('提前压好的在线上没写完、失败了换成当场的摘要请求（6-11）：written 变小了当重来，进度那一行从头走', () => {
+  const store = fresh();
+  const s = store.sessions.get('S');
+  const transient = (at, kind, body) => { const { seq, ...e } = ev(0, at, kind, 9, body, { kind: 'kernel' }); return e; };
+  push(store, transient(1, 'compaction.progress', { seen: 8, written: 9000, expected: 20000 }));
+  const first = s.compacting;
+  push(store, transient(2, 'compaction.progress', { seen: 8, written: 0, expected: 21000 }));
+  assert.notEqual(s.compacting, first, '重来的是新的一次');
+  assert.deepEqual([s.compacting.written, s.compacting.expected, s.compacting.since], [0, 21000, ms(2)]);
+  // 后台那次请求出错不带 compaction（只带 purpose）：进度那一行不收
+  push(store, ev(20, 3, 'model.called', 9, { seen: 8, result: 'error', purpose: 'compaction', error: { class: 'other', message: 'boom' } }));
+  assert.notEqual(s.compacting, null);
+});
+
+test('提前压缩直接换上以后清空的那一条不记用量；落了盘以前这一轮先结束了的不留到下一次', () => {
+  const store = fresh();
+  const s = store.sessions.get('S');
+  const transient = (at, kind, body) => { const { seq, ...e } = ev(0, at, kind, 9, body, { kind: 'kernel' }); return e; };
+  push(store, transient(3, 'compaction.done', { seen: 8, trigger: 'auto', before: 812345, after: 31020, prepared: true }));
+  push(store, ev(21, 3, 'turn.ended', 9, { reason: 'aborted' }));
+  push(store, ev(22, 4, 'context.compacted', 9, { upto: 8, trigger: 'clear' }));
+  push(store, ev(23, 5, 'context.compacted', 9, { upto: 8, summary: '摘要', trigger: 'manual' }));
+  assert.equal(s.compactStats.size, 0);
+});
+
 test('压缩没压成（落了盘的 model.called 带 compaction、出错）、这一轮先结束了：进度那一行收掉', () => {
   const store = fresh();
   const s = store.sessions.get('S');
