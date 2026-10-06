@@ -326,6 +326,58 @@ async fn expect_guards_against_a_change_made_elsewhere() {
     assert!(fine["result"].is_object(), "{fine}");
 }
 
+/// 小数的项照数值比 `expect`（施工 8-3 再补，2026-10-07 网页撞见）：文件里是 `1.0`，头发来的是 `1`（JS 的头写不出 `1.0`），
+/// 算对得上；数值真不一样的照旧 `config_conflict`。
+#[tokio::test]
+async fn expect_on_a_float_compares_the_number() {
+    let home = Home::new();
+    home.write(
+        PERSONAL,
+        "[providers.dev.models.m-1.price]\ninput = 1.0\noutput = 2.5\n",
+    );
+    // 价格那几项在模型的清单里：这一条另外登记上。
+    let items = [
+        miyu_models::settings::ProviderSettings::ITEMS,
+        miyu_models::settings::ModelSettings::ITEMS,
+        miyu_models::settings::PriceSettings::ITEMS,
+    ]
+    .concat();
+    let mut client = Client::connect(home.core_with_items(&Script::new([]), None, &[], &items));
+    client.hello().await;
+    let key = |name: &str| format!("providers.dev.models.m-1.price.{name}");
+    let stale = set(
+        &mut client,
+        "c1",
+        json!({"layer": "personal", "changes": [
+            {"key": key("output"), "unset": true, "expect": {"value": 2}},
+        ]}),
+    )
+    .await;
+    assert_eq!(reason(&stale), Some("config_conflict"), "2.5 和 2 不一样");
+    let fine = set(
+        &mut client,
+        "c2",
+        json!({"layer": "personal", "changes": [
+            {"key": key("input"), "unset": true, "expect": {"value": 1}},
+            {"key": key("output"), "value": 3, "expect": {"value": 2.5}},
+        ]}),
+    )
+    .await;
+    assert!(fine["result"].is_object(), "1 就是 1.0：{fine}");
+    let again = set(
+        &mut client,
+        "c3",
+        json!({"layer": "personal", "changes": [
+            {"key": key("output"), "value": 4, "expect": {"value": 3.0}},
+        ]}),
+    )
+    .await;
+    assert!(
+        again["result"].is_object(),
+        "写进去的 3 和 3.0 对得上：{again}"
+    );
+}
+
 #[tokio::test]
 async fn a_whole_new_text_needs_the_version_it_was_read_at_and_no_errors() {
     let home = Home::new();
