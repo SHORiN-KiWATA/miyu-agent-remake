@@ -9,8 +9,9 @@
  * @typedef {{label: string, description?: string, preview?: string, decision?: string}} Option
  * @typedef {{header?: string, question: string, options: Option[], multiple?: boolean}} Question
  * @typedef {{kind: 'ask'|'approve', id: string, who: string|null, body: any, questions: Question[], tab: number,
- *   cursor: number[], checked: Set<number>[], choice: (number|null)[], custom: string[], notes: string[], done: boolean[]}} Drawer
- *   `tab` 是第几道题，题数那一格是「确认」页（两道题及以上才有）；`choice` 单选选了哪一项；`custom` 自己写的；`notes` 补充的
+ *   cursor: number[], checked: Set<number>[], choice: (number|null)[], custom: string[], notes: string[], done: boolean[], reason: string}} Drawer
+ *   `tab` 是第几道题，题数那一格是「确认」页（两道题及以上才有）；`choice` 单选选了哪一项；`custom` 自己写的；`notes` 补充的；
+ *   `reason` 确认的「不允许」后面写着的理由（光标移走再回来还在）
  * @typedef {{kind: 'ask', answers: {picked: string[], text?: string, notes?: string}[]}|{kind: 'approve', decision: string, reason?: string}
  *   |{kind: 'ask'|'approve', cancelled: true}} Result
  * @typedef {{d: Drawer, done: Result|null, edit: 'other'|'note'|'reason'|null}} Step 按一下以后：新的抽屉、交出去的、要进编辑的
@@ -26,7 +27,7 @@ function make(kind, item, questions) {
   return {
     kind, id: item.body.call_id, who: item.who ?? null, body: item.body, questions, tab: 0,
     cursor: Array(n).fill(0), checked: questions.map(() => new Set()), choice: Array(n).fill(null),
-    custom: Array(n).fill(''), notes: Array(n).fill(''), done: Array(n).fill(false),
+    custom: Array(n).fill(''), notes: Array(n).fill(''), done: Array(n).fill(false), reason: '',
   };
 }
 
@@ -90,15 +91,27 @@ export function press(d, key) {
   if (key === 'space') return d.questions[d.tab].multiple && !onOther(d) ? { ...stay, d: toggle(d) } : stay;
   if (key !== 'enter') return stay;
   if (onOther(d)) return { ...stay, edit: 'other' };
+  // 确认：不允许也是按一下就交，理由照它后面写着的（2026-10-07 项目主人：原来要先按 Enter 开框、再按一次才交）
   if (d.kind === 'approve') {
     const decision = d.questions[0].options[at].decision ?? '';
-    return decision === 'deny' ? { ...stay, edit: 'reason' } : { ...stay, done: { kind: 'approve', decision } };
+    const reason = decision === 'deny' ? d.reason.trim() : '';
+    return { ...stay, done: { kind: 'approve', decision, ...(reason ? { reason } : {}) } };
   }
   const q = d.questions[d.tab];
   const answered = q.multiple
     ? next(d, { checked: d.checked[d.tab].size ? d.checked : put(d.checked, d.tab, new Set([at])) })
     : next(d, { choice: put(d.choice, d.tab, at), custom: put(d.custom, d.tab, '') });
   return advance(next(answered, { done: put(d.done, d.tab, true) }));
+}
+
+/** 光标在确认的「不允许」上。 @param {Drawer} d */
+export function onDeny(d) {
+  return d.kind === 'approve' && d.questions[0].options[d.cursor[0]]?.decision === 'deny';
+}
+
+/** 「不允许」后面的理由框里打了字：记下来（不交）。 @param {Drawer} d @param {string} text @returns {Drawer} */
+export function withReason(d, text) {
+  return next(d, { reason: text });
 }
 
 /**

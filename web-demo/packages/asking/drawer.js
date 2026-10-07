@@ -4,7 +4,7 @@
 //! 跟着字长高的框：`Enter` 保存、`Shift+Enter` 换行、`Esc` 退出编辑。
 
 import { h, icon, replace } from '../../src/lib/dom.js';
-import { press, saveEdit, cancel, hasReview, onOther, answerOf, approvalHead, multiReady, submitMulti } from './model.js';
+import { press, saveEdit, cancel, hasReview, onOther, answerOf, approvalHead, multiReady, submitMulti, onDeny, withReason } from './model.js';
 import { isNewline, insertNewline } from '../../src/lib/newline.js';
 
 /** 键 → `model.js` 的按键名 */
@@ -74,6 +74,23 @@ export class Drawer {
   key(e) {
     if (!this.d || e.isComposing || e.keyCode === 229) return;
     const inBox = /** @type {HTMLElement} */ (e.target).tagName === 'TEXTAREA';
+    // 「不允许」后面的理由框：Enter 交，↑↓ 移走（写的字留着），Esc 照旧是两下取消的一下（照终端，2026-10-07）
+    if (inBox && /** @type {HTMLElement} */ (e.target).classList.contains('asking-reason')) {
+      if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
+        e.preventDefault();
+        this.step(press(this.d, 'enter'));
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        this.step(press(this.d, e.key === 'ArrowUp' ? 'up' : 'down'));
+        this.el.focus({ preventScroll: true });
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        if (Date.now() - this.escAt < this.config.esc_window_ms) return this.cancel();
+        this.escAt = Date.now();
+        this.drawKeys();
+      }
+      return;
+    }
     if (inBox) {
       // Ctrl+J 换行（照 TUI，和输入框一样；Shift+Enter 由框自己换）
       if (e.ctrlKey && isNewline(e)) {
@@ -100,11 +117,26 @@ export class Drawer {
       this.drawKeys();
       return;
     }
+    // 光标在「不允许」上（悬停过去的，焦点还在抽屉上）直接打字：焦点进理由框，这个字照常打进去
+    if (onDeny(this.d) && e.key.length === 1 && !/^[1-9]$/.test(e.key)) {
+      this.focusReason();
+      return;
+    }
     const name = e.shiftKey && e.key === 'Tab' ? 'left' : /^[1-9]$/.test(e.key) ? e.key : KEYS[/** @type {keyof KEYS} */ (e.key)];
     if (!name || (e.shiftKey && e.key !== 'Tab')) return;
     e.preventDefault();
     this.escAt = 0;
     this.step(press(this.d, name));
+    // 光标落到「不允许」上：焦点进它后面的理由框，接着打的字就是理由
+    this.focusReason();
+  }
+
+  /** 理由框在的话焦点给它，光标放到末尾。 */
+  focusReason() {
+    const box = /** @type {HTMLTextAreaElement|null} */ (this.el.querySelector('.asking-reason'));
+    if (!box) return;
+    box.focus({ preventScroll: true });
+    box.setSelectionRange(box.value.length, box.value.length);
   }
 
   /** 编辑的框里按了 `Enter`。 @param {string} value */
@@ -222,7 +254,8 @@ export class Drawer {
     const selected = d.cursor[d.tab] === i;
     const picked = q.multiple ? d.checked[d.tab].has(i) : d.choice[d.tab] === i;
     const mark = q.multiple ? h(`span.asking-check${picked ? '.is-on' : ''}`, picked ? '✓' : '') : h('span.asking-num', String(i + 1));
-    const reason = d.kind === 'approve' && selected && this.editing === 'reason' ? this.editBox(this.text('reason_hint'), '') : null;
+    // 光标在「不允许」上：理由框就在它后面（不用先按 Enter 开），写的字移走再回来还在
+    const reason = selected && onDeny(d) ? this.reasonBox() : null;
     return h(`div.asking-option${selected ? '.is-selected' : ''}${picked ? '.is-picked' : ''}`, this.pointerProps(i),
       mark, h('div.asking-text', h('strong', label), description ? h('span.asking-desc', description) : null, reason));
   }
@@ -265,7 +298,8 @@ export class Drawer {
     return {
       onmousemove: (/** @type {MouseEvent} */ e) => {
         const at = `${e.clientX},${e.clientY}`;
-        if (at === this.pointer || !this.d || this.editing) return;
+        // 在理由框里写着字时悬停不换行（不然框跟着光标没了）
+        if (at === this.pointer || !this.d || this.editing || document.activeElement?.classList.contains('asking-reason')) return;
         this.pointer = at;
         if (this.d.cursor[this.d.tab] !== i) this.step({ d: { ...this.d, cursor: this.d.cursor.map((c, j) => (j === this.d?.tab ? i : c)) }, done: null, edit: null });
       },
@@ -276,6 +310,14 @@ export class Drawer {
         this.step(press(moved, q.multiple && i < q.options.length ? 'space' : 'enter'));
       },
     };
+  }
+
+  /** 「不允许」后面的理由框：打的字记进抽屉（不交）。 */
+  reasonBox() {
+    const box = this.editBox(this.text('reason_hint'), this.d?.reason ?? '');
+    box.classList.add('asking-reason');
+    box.addEventListener('input', () => { if (this.d) this.d = withReason(this.d, box.value); });
+    return box;
   }
 
   /** 编辑的框：跟着字长高。 @param {string} hint @param {string} value */

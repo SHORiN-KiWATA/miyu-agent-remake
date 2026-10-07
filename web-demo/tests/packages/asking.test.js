@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { openAsk, openApproval, press, saveEdit, approvalHead, report, pendingAsks, reportOf, multiReady, submitMulti } from '../../packages/asking/model.js';
+import { openAsk, openApproval, press, saveEdit, approvalHead, report, pendingAsks, reportOf, multiReady, submitMulti, withReason } from '../../packages/asking/model.js';
 
 const fake = JSON.parse(readFileSync(new URL('../../packages/asking/fake.json', import.meta.url), 'utf8'));
 const ask = (id) => fake.asks.find((a) => a.body.call_id === id);
@@ -63,16 +63,18 @@ test('n 补一句话：带在这一道的回答里（notes），不跳题', () =
   assert.deepEqual(press(saved.d, 'enter').done, { kind: 'ask', answers: [{ picked: ['删掉'], notes: '缓存留着' }] });
 });
 
-test('确认：提了放行规则的三项（工作区那一项核心还不收），没提的两项；允许交 decision，不允许进编辑写理由', () => {
+test('确认：提了放行规则的三项（工作区那一项核心还不收），没提的两项；允许交 decision；不允许按一下 Enter 就交，理由照光标在它上面时写的（2026-10-07）', () => {
   const full = openApproval(approval('demo_approve_1'));
   assert.deepEqual(full.questions[0].options.map((o) => o.decision), ['once', 'session', 'deny']);
   assert.deepEqual(keys(full, 'down', 'enter').done, { kind: 'approve', decision: 'session' });
   const bare = openApproval(approval('demo_approve_2'));
   assert.deepEqual(bare.questions[0].options.map((o) => o.decision), ['once', 'deny']);
-  const r = keys(bare, 'down', 'enter');
-  assert.equal(r.edit, 'reason');
-  assert.deepEqual(saveEdit(r.d, '').done, { kind: 'approve', decision: 'deny' });
-  assert.deepEqual(saveEdit(r.d, '别清').done, { kind: 'approve', decision: 'deny', reason: '别清' });
+  assert.deepEqual(keys(bare, 'down', 'enter').done, { kind: 'approve', decision: 'deny' }, '不用再按一次 Enter');
+  assert.deepEqual(keys(bare, '2').done, { kind: 'approve', decision: 'deny' }, '数字键也一样');
+  const onDeny = keys(bare, 'down').d;
+  assert.deepEqual(press(withReason(onDeny, ' 别清 '), 'enter').done, { kind: 'approve', decision: 'deny', reason: '别清' });
+  assert.deepEqual(keys(withReason(onDeny, '别清'), 'up', 'down').d.reason, '别清', '移走再回来，写的字留着');
+  assert.deepEqual(saveEdit(withReason(onDeny, '别清'), '别清了').done, { kind: 'approve', decision: 'deny', reason: '别清了' }, '理由框里按 Enter');
 });
 
 test('确认的问题行：写几个文件、家目录写 ~、工作区外的标出来；运行的写命令', () => {
