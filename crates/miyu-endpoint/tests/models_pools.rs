@@ -50,7 +50,7 @@ fn routed(home: &Home) -> Arc<Core> {
         client: miyu_http::client(miyu_http::Proxy::Off).expect("造得出客户端"),
         direct: miyu_http::client(miyu_http::Proxy::Off).expect("造得出客户端"),
         data: Arc::clone(&data),
-        idle: std::time::Duration::from_secs(5),
+        idle: std::time::Duration::from_secs(60),
     };
     built(home, Arc::new(routes), ToolCatalog::default(), data)
 }

@@ -37,7 +37,7 @@ fn pending() -> Arc<ModelData> {
 #[tokio::test]
 async fn a_session_waits_for_the_catalog_and_takes_its_window() {
     let data = pending();
-    let routes = routes_with(Arc::clone(&data), Duration::from_secs(5));
+    let routes = routes_with(Arc::clone(&data), Duration::from_secs(60));
     let mut home = Home::new();
     home.configs = configs(DEEPSEEK, &[]);
     let home = Arc::new(home);
@@ -59,7 +59,7 @@ async fn a_session_waits_for_the_catalog_and_takes_its_window() {
 async fn an_empty_catalog_still_lets_sessions_start() {
     let data = pending();
     data.loaded(None, Observed::default());
-    let routes = routes_with(data, Duration::from_secs(5));
+    let routes = routes_with(data, Duration::from_secs(60));
     let mut home = Home::new();
     home.configs = configs(DEEPSEEK, &[]);
     let handle = home.create(&routes).await;
@@ -70,7 +70,7 @@ async fn an_empty_catalog_still_lets_sessions_start() {
 async fn a_new_catalog_is_used_by_the_next_session() {
     let data = pending();
     data.loaded(None, Observed::default());
-    let routes = routes_with(Arc::clone(&data), Duration::from_secs(5));
+    let routes = routes_with(Arc::clone(&data), Duration::from_secs(60));
     let mut home = Home::new();
     home.configs = configs(DEEPSEEK, &[]);
     let before = home.create(&routes).await;

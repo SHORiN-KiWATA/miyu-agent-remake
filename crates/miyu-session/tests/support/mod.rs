@@ -439,7 +439,7 @@ pub fn say(words: &str) -> Command {
     }
 }
 
-/// 等到磁盘上会话 `session` 的日志满足 `done`，最多五秒；交回那时的日志。
+/// 等到磁盘上会话 `session` 的日志满足 `done`，最多 [`WAIT`]；交回那时的日志。
 pub async fn until_logged(
     home: &Home,
     session: &SessionId,

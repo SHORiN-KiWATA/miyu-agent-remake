@@ -68,7 +68,7 @@ async fn a_request_takes_the_configured_default_or_nothing() {
     );
     let mut home = Home::new();
     home.configs = configs(&config(&first, &second, ""), &[]);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = create(&home, &routes, "a/m").await;
     turn(&handle, "cmd-1").await;
     let a = sent(&first);
@@ -98,7 +98,7 @@ async fn each_member_of_a_rotating_pool_uses_its_own_config_default() {
     );
     let mut home = Home::new();
     home.configs = configs(&config(&first, &second, "temperature = 1.4\n"), &[]);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = create(&home, &routes, "@p").await;
     turn(&handle, "cmd-1").await;
     turn(&handle, "cmd-2").await;
@@ -136,7 +136,7 @@ async fn a_personal_setting_overrides_the_system_default_on_the_next_turn() {
     let (switching, receiving) = channel::channel(two_layers(&system, ""));
     let mut home = Home::new();
     home.configs = receiving;
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = create(&home, &routes, "a/m").await;
     turn(&handle, "cmd-1").await;
     assert_eq!(

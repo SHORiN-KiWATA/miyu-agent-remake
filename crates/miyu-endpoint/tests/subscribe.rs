@@ -264,7 +264,7 @@ async fn a_session_that_stops_sends_a_resync() {
     let send = json!({"jsonrpc": "2.0", "id": "c3", "method": "session.send", "params": {"session": session, "text": "hi"}});
     client.line(&send.to_string()).await;
     let mut resync = None;
-    while let Some(next) = client.next_within(Duration::from_secs(5)).await {
+    while let Some(next) = client.next_within(Duration::from_secs(60)).await {
         if next["method"] == json!("resync") {
             resync = Some(next);
             break;

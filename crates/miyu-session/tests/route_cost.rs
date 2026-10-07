@@ -32,7 +32,7 @@ async fn called(price: &str) -> ModelCalled {
     let server = Server::start(vec![hello()]).await;
     let mut home = Home::new();
     home.configs = configs(&config(&server.base_url, price), &[]);
-    let routes = Arc::new(routes(serde_json::json!({}), Duration::from_secs(5)));
+    let routes = Arc::new(routes(serde_json::json!({}), Duration::from_secs(60)));
     let handle = home.create(&*routes).await;
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");

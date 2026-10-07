@@ -48,7 +48,7 @@ async fn overflow(home: &mut Home, data: &Arc<ModelData>, limit: u64, window: &s
     replies.extend((0..6).map(|_| hello()));
     let server = Server::start(replies).await;
     home.configs = configs(&config(&server.base_url, window), &[]);
-    let routes = routes_with(Arc::clone(data), Duration::from_secs(5));
+    let routes = routes_with(Arc::clone(data), Duration::from_secs(60));
     let handle = home.create(&routes).await;
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
@@ -95,7 +95,7 @@ async fn a_stated_limit_is_learned_and_used_by_the_next_session() {
         "{lines:#?}"
     );
     // 新造的会话用上。
-    let routes = routes_with(Arc::clone(&data), Duration::from_secs(5));
+    let routes = routes_with(Arc::clone(&data), Duration::from_secs(60));
     assert_eq!(home.create(&routes).await.limits().window, Some(65_536));
     // 再报一个更大的上限：不记。
     overflow(&mut home, &data, 100_000, "").await;
@@ -108,7 +108,7 @@ async fn a_stated_limit_is_learned_and_used_by_the_next_session() {
     );
     // 手写的窗口比报的小：不记；手写的盖过用出来的。
     overflow(&mut home, &data, 60_000, "window = 50000").await;
-    let routes = routes_with(Arc::clone(&data), Duration::from_secs(5));
+    let routes = routes_with(Arc::clone(&data), Duration::from_secs(60));
     assert_eq!(
         data.with(|knowledge| knowledge
             .learned

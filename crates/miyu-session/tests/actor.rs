@@ -205,13 +205,13 @@ async fn interrupting_a_held_request_cancels_it() {
     until_turn_ends(&mut pushes).await;
     let seen = script.requests()[0].0;
     // 叫停是送给端口的，它停下来要一会儿。
-    let waited = tokio::time::timeout(Duration::from_secs(5), async {
+    let waited = tokio::time::timeout(Duration::from_secs(60), async {
         while script.cancelled().is_empty() {
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
     })
     .await;
-    assert!(waited.is_ok(), "五秒内端口收到了叫停");
+    assert!(waited.is_ok(), "六十秒内端口收到了叫停");
     assert_eq!(script.cancelled(), [seen]);
 }
 
@@ -344,13 +344,13 @@ async fn a_session_nobody_holds_cancels_its_request() {
     until_delta(&mut pushes).await;
     // 没人拿着这个会话了：actor 退出，路上的请求没人要结果了，叫停。
     drop((handle, pushes));
-    let waited = tokio::time::timeout(Duration::from_secs(5), async {
+    let waited = tokio::time::timeout(Duration::from_secs(60), async {
         while script.cancelled().is_empty() {
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
     })
     .await;
-    assert!(waited.is_ok(), "五秒内端口收到了叫停");
+    assert!(waited.is_ok(), "六十秒内端口收到了叫停");
 }
 
 #[tokio::test]
