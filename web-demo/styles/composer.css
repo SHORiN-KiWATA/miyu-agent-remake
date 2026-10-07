@@ -54,12 +54,13 @@
    字左对齐：框里的字离内边 18px，提示自己 1px 边加 11px 内边距，所以离内边 6px */
 .composer-notice {
   position: absolute; bottom: calc(100% + 7px); left: 6px; padding: 5px 11px;
-  border: 1px solid var(--line); border-radius: 10px; color: var(--text);
+  border-radius: 10px; color: var(--text);
   background: color-mix(in srgb, var(--surface-1) 86%, transparent); backdrop-filter: blur(14px) saturate(1.2);
   box-shadow: var(--card-shadow); font-size: 12.5px; white-space: nowrap; animation: rise-in var(--motion-in) var(--ease-out) both;
 }
 .composer-notice.is-leaving { animation: fade-out var(--motion-out) var(--ease-in) both; }
-.composer-notice.good { border-color: color-mix(in srgb, var(--t-good) 55%, var(--line)); }
+/* 好消息不画描边：底色淡淡带一点绿 */
+.composer-notice.good { background: color-mix(in srgb, color-mix(in srgb, var(--t-good) 12%, var(--surface-1)) 90%, transparent); }
 
 /* 框下面那一行：左右和框里的字对齐；等宽 13px，和收尾那一行一样（照 TUI 的终端字）；左边级别（级别的颜色、
    加粗，点一下换下一级）· 模型（加粗）端点，右边用量，都暗 */
