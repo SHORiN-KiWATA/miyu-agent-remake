@@ -1,6 +1,6 @@
 // @ts-check
 //! 全部会话（蓝图 `web.md`「全部会话」，照 Claude 网页端的 Chats 页）：左栏「查看全部」、`/sessions` 打开，占对话区那一块（左栏
-//! 照旧在）。大标题、搜索、多选、新会话；下面一个顶层会话一行：标题、什么时候开的。全部照 `session.list` 取，不读每个会话的日志；
+//! 照旧在）。大标题、搜索、多选、新会话；下面一个顶层会话一行：标题、什么时候开的。全部照会话表取（核心 9-5 的会话列表流），不读每个会话的日志；
 //! 读过的会话标题照左栏的（没改过标题的拿第一句话顶）；读过的会话写派过几个子代理（一层层往下），有后台任务在跑的写几个在跑。开着时在跑、后台任务的数
 //! 变了才重画（`refresh`）。多选照左栏：勾选框、`Shift` 连选、全选、删除（不问）、退出。`Esc` 关上。
 
@@ -13,7 +13,7 @@ import { rank } from '../model/session.js';
 
 /**
  * @typedef {{list: () => Promise<{session: string, title?: string, parent?: string|null, oneshot?: boolean}[]>,
- *   titleOf: (id: string) => string|null, active: (id: string) => number|null, loaded: (id: string) => boolean, running: (id: string) => boolean, jobs: (id: string) => number, agents: (id: string) => number,
+ *   titleOf: (id: string) => string|null, active: (id: string) => number|null, running: (id: string) => boolean, jobs: (id: string) => number, agents: (id: string) => number,
  *   open: (id: string) => void, newSession: () => void,
  *   removeMany: (ids: string[]) => Promise<string[]>, dropped: (id: string) => void}} PageActions
  */
@@ -123,9 +123,9 @@ export class SessionsPage {
     if (this.liveSig() !== this.live) this.draw();
   }
 
-  /** 在不在跑：读过日志的照日志（跟着推送变）；没读过的照列表里的 `busy`（C-3，打开这一页那一刻的）。 */
+  /** 在不在跑：读过日志的照日志，没读过的照会话表（都跟着推送变）。 */
   isRunning(r) {
-    return this.on.running(r.session) || (!this.on.loaded(r.session) && !!r.busy);
+    return this.on.running(r.session);
   }
 
   /** 这几行在不在跑、几个后台任务，拼成一串比。 */

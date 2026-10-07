@@ -161,29 +161,19 @@ export class App {
       },
       session: () => this.current,
       // 换模型的菜单（蓝图「换模型的菜单」）：每次打开问一次 `model.list`；选了下一轮生效
-      // 会话列表（`/sessions`，蓝图「会话列表」）：全部顶层会话照「全部会话」读；在不在跑、看没看过：读过日志的照日志，没读过的照列表里的 `busy`
-      sessions: (() => {
-        /** @type {Map<string, boolean>} 列表里说在跑的（打开那一刻的） */
-        const busy = new Map();
-        return {
-          rows: async () => {
-            const all = (await this.store.conn.request('session.list', {})).sessions ?? [];
-            busy.clear();
-            return all.filter((s) => !s.oneshot && !s.parent).map((s) => {
-              busy.set(s.session, !!s.busy);
-              return {
-                session: s.session, title: s.title ?? this.titleOf(s.session), pinned: !!s.pinned,
-                active: s.last_active ? Date.parse(s.last_active) : (this.store.sessions.has(s.session) ? this.store.summary(s.session).active : null),
-              };
-            });
-          },
-          current: () => this.current,
-          live: (/** @type {string} */ id) => (this.store.sessions.has(id)
-            ? { running: this.store.summary(id).running, unread: this.store.summary(id).unread }
-            : { running: busy.get(id) ?? false, unread: false }),
-          choose: (/** @type {string} */ id) => this.open(id, true),
-        };
-      })(),
+      // 会话列表（`/sessions`，蓝图「会话列表」）：全部顶层会话照会话表；在不在跑、看没看过：读过日志的照日志，没读过的照会话表
+      sessions: {
+        rows: async () => this.store.index.all().filter((s) => !s.oneshot && !s.parent).map((s) => {
+          const it = this.store.summary(s.session);
+          return { session: s.session, title: this.titleOf(s.session), pinned: it.pinned, active: it.active };
+        }),
+        current: () => this.current,
+        live: (/** @type {string} */ id) => {
+          const it = this.store.summary(id);
+          return { running: it.running, unread: it.unread };
+        },
+        choose: (/** @type {string} */ id) => this.open(id, true),
+      },
       models: {
         load: () => this.loadModels(),
         cached: () => this.models,
@@ -248,11 +238,11 @@ export class App {
     this.store.conn.onLost(() => show(this.lostBar));
     // 全部会话：占对话区那一块（左栏「查看全部」、`/sessions`）
     this.sessionsPage = new SessionsPage({
-      list: async () => (await this.store.conn.request('session.list', {})).sessions ?? [],
-      titleOf: (id) => (this.store.sessions.has(id) ? this.store.summary(id).title : null),
-      active: (id) => (this.store.sessions.has(id) ? this.store.summary(id).active : null),
-      loaded: (id) => this.store.sessions.has(id),
-      running: (id) => (this.store.sessions.has(id) ? this.store.summary(id).running : false),
+      // 全部会话照会话表（核心推的跟着变）；标题、最近活动、在不在跑读进来了的照日志，没读的照会话表
+      list: async () => this.store.index.all(),
+      titleOf: (id) => this.store.summary(id).title,
+      active: (id) => this.store.summary(id).active,
+      running: (id) => this.store.summary(id).running,
       jobs: (id) => runningDeep(id, (sid) => this.store.sessions.get(sid)?.events ?? null),
       agents: (id) => this.descendants(id).length,
       open: (id) => this.open(id, true),
@@ -261,6 +251,8 @@ export class App {
       dropped: (id) => this.sidebar.on.dropped(id),
     });
     this.root.querySelector('.stage')?.append(this.sessionsPage.el);
+    // 别处（终端、别的页面）删掉了读进来的会话：和这里删的一样收掉，正在看的换到下一个
+    this.store.removed = (id) => this.sidebar.on.dropped(id);
     // 对话区右边的挂载位：跳转条这类挂进来（软件包 rail）
     ctx.slots.declare('stage.right', 'list');
     // 正文末尾、最后一轮下面（确认和提问了结以后留的这类）
@@ -445,6 +437,9 @@ export class App {
    * @param {string} id
    */
   parentOf(id) {
+    // 会话表里有的照它（子会话的 `parent`），不用读进来
+    const entry = this.store.index.get(id);
+    if (entry) return entry.parent ?? null;
     const s = this.store.sessions.get(id);
     if (!s) {
       this.store.ensure(id).catch(() => {});
@@ -461,7 +456,7 @@ export class App {
     const parent = this.parentOf(id);
     const kid = parent ? this.kids(parent).find((k) => k.session === id) : null;
     if (kid) return kid.title;
-    return this.store.sessions.has(id) ? this.store.summary(id).title : null;
+    return this.store.summary(id).title;
   }
 
   /** 挂在一个会话下面的子代理的会话，一层层往下（照派它的会话的事件，`lib/jobs.js`）；同一个不算两遍。 */

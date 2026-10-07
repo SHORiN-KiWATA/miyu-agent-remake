@@ -1,5 +1,6 @@
 // @ts-check
-//! 头这边记着的会话：会话表、每个会话的持久事件、在收的那一次回复、限额、没看过的。
+//! 头这边记着的会话：会话表（核心的会话列表流，`session-index.js`）、读进来的会话的持久事件、在收的那一次回复、限额、没看过的。
+//! 不是每个会话都读日志：正在看的、在跑的、派过子代理的（左栏要画它下面那棵树）才读、订阅（蓝图 `web.md`「连核心」第 3 条）。
 //!
 //! 持久事件照序号接上；瞬时的 `model.delta` 只用来画「正在写」：这一次回复落了盘（`message.assistant` 的
 //! `seen` 对上了）就扔掉（`kernel/events.md`「瞬时事件」）。看着它流出来时顺手记下每一块什么时候开始、什么时候收全
@@ -8,6 +9,7 @@
 
 import { res } from '../util/res.js';
 import { summarize } from '../model/session.js';
+import { SessionIndex } from './session-index.js';
 
 /** @typedef {import('../model/timeline.js').Block} Block */
 /** @typedef {{turn: number, seen: number, blocks: Block[]}} Live */
@@ -17,14 +19,14 @@ import { summarize } from '../model/session.js';
  *   在压缩（瞬时的 `compaction.progress`）：压好了记下前后的用量（`compaction.done`），落了盘的那一条的序号（走满以前先不画）。
  *   提前压好、直接换上的（`prepared`，核心 6-11）没有进度那一行：前后的用量先放 `compactReady`，等落了盘的那一条 `context.compacted` 来了再记上
  * @typedef {{id: string, events: any[], live: Live|null, marks: Map<string, {start: number, end: number|null}>,
- *   limits: any, unread: boolean, replaying?: boolean, retry: Retry|null, compacting: Compacting|null, compactStats: Map<number, {before: number, after: number}>,
+ *   limits: any, replaying?: boolean, retry: Retry|null, compacting: Compacting|null, compactStats: Map<number, {before: number, after: number}>,
  *   compactReady: {before: number, after: number}|null, todos: {content: string, status: string}[], todosDone: {content: string, status: string}[]|null,
  *   changes: {after: number, at: string, body: any}[], model: {ref?: string, endpoint?: string, model?: string, effort?: {level: string, from: string}}|null}} Session
  */
 
 /** 一个刚知道、还没读的会话。 */
 export function emptySession(id) {
-  return /** @type {Session} */ ({ id, events: [], live: null, marks: new Map(), limits: {}, unread: false, retry: null, compacting: null, compactStats: new Map(), compactReady: null, changes: [], model: null, todos: [], todosDone: null });
+  return /** @type {Session} */ ({ id, events: [], live: null, marks: new Map(), limits: {}, retry: null, compacting: null, compactStats: new Map(), compactReady: null, changes: [], model: null, todos: [], todosDone: null });
 }
 
 export class Store {
@@ -33,12 +35,56 @@ export class Store {
     this.conn = conn;
     /** @type {Map<string, Session>} */
     this.sessions = new Map();
-    /** 会话的先后：新的在前（`session.list` 的先后，蓝图 `protocol.md`）。 */
-    this.order = /** @type {string[]} */ ([]);
+    /** 会话表：全部会话，照核心推的跟着变 */
+    this.index = new SessionIndex(conn);
+    /** 全部会话那一页开的老会话：最近活动排不进左栏的也列上 */
+    this.extra = /** @type {Set<string>} */ (new Set());
+    /** 没看过的：别的会话一轮结束了（读进来的照 `turn.ended`，没读的照会话表里 `busy` 去掉了） */
+    this.unread = /** @type {Set<string>} */ (new Set());
     /** 正在看的会话：别的会话一轮结束了才记成没看过。 */
     this.viewing = /** @type {string|null} */ (null);
+    /** 别处删掉了一个读进来的会话（不是这一页删的）：界面收掉它 @type {(id: string) => void} */
+    this.removed = () => {};
     this.listeners = new Set();
     conn.onPush((method, params) => this.push(method, params));
+    this.index.on((id, before, after) => this.entryChanged(id, before, after));
+  }
+
+  /**
+   * 左栏列哪些（蓝图 `web.md`「左栏」）：顶层的会话（不是一次性的、不是子会话）照最近活动的几个（`layout.json` 的 `listed_sessions`），
+   * 加上置顶的、全部会话那一页开过的；先后由界面排（`rank`）。
+   */
+  get order() {
+    const top = this.index.all().filter((e) => !e.oneshot && !e.parent);
+    const at = (e) => Date.parse(e.last_active ?? '') || 0;
+    const recent = [...top].sort((a, b) => at(b) - at(a)).slice(0, res.layout.listed_sessions).map((e) => e.session);
+    const pinned = top.filter((e) => e.pinned).map((e) => e.session);
+    return [...new Set([...recent, ...pinned, ...this.extra])];
+  }
+
+  /**
+   * 会话表里一项变了：一轮结束了（`busy` 去掉）、你没在看的记成没看过；开始跑的顶层会话读进来（在跑的才有时间线、子代理、后台命令）；
+   * 别处删掉了读进来的、不是这一页删的，交给界面收掉。
+   */
+  entryChanged(id, before, after) {
+    if (before?.busy && !after?.busy && id !== this.viewing) this.unread.add(id);
+    if (after?.busy && !after.parent && !after.oneshot && !this.sessions.has(id)) this.follow(id);
+    const s = this.sessions.get(id);
+    if (!after) {
+      this.unread.delete(id);
+      this.extra.delete(id);
+      if (s && !s.gone) this.removed(id);
+    }
+    this.changed();
+  }
+
+  /** 读进来一个会话，读不了的不留（原因记在控制台）。 */
+  follow(id) {
+    this.load(id).then(() => this.changed(), (err) => {
+      console.error(`会话 ${id} 读不了：${err.message}`);
+      this.sessions.delete(id);
+      this.changed();
+    });
   }
 
   /** 有变化就告诉界面。 */
@@ -47,29 +93,21 @@ export class Store {
   changed() { for (const fn of this.listeners) fn(); }
 
   /**
-   * 起来：列出会话，最近活动的几个（`layout.json` 的 `listed_sessions`，照 `last_active`）读日志、订阅（蓝图 `web.md`「连核心」第 3 条）。
+   * 起来：订阅会话表（在跑的会话由 `entryChanged` 读进来）；左栏里派过子代理的也读进来，好画它下面那棵树（蓝图 `web.md`「连核心」第 3 条）。
    *
    * # Errors
    * 核心拒绝列会话时抛出来；单个会话读不了的跳过。
    */
   async boot() {
-    const { sessions } = await this.conn.request('session.list', {});
-    // 一次性的（`miyu ask`）、子会话（`parent` 不是空的，子代理的）不列（蓝图 `web.md`「会话表的一项」）
-    // 照最近活动挑（`last_active`，C-3）：最近聊过的老会话也进左栏；旧核心没有这一格的照列出来的先后（编号倒着，最新开的在前）
-    const top = sessions.filter((s) => !s.oneshot && !s.parent);
-    const ranked = top.some((s) => s.last_active) ? [...top].sort((a, b) => Date.parse(b.last_active ?? 0) - Date.parse(a.last_active ?? 0)) : top;
-    const ids = ranked.slice(0, res.layout.listed_sessions).map((s) => s.session);
-    for (const id of ids) {
-      try {
-        await this.load(id);
-      } catch (err) {
-        // 读不了的会话不列，原因记在控制台
-        console.error(`会话 ${id} 读不了：${err.message}`);
-        this.sessions.delete(id);
-        this.order = this.order.filter((x) => x !== id);
-      }
-    }
+    await this.index.start();
+    this.followParents();
     this.changed();
+  }
+
+  /** 左栏里有子会话的（会话表里有谁的 `parent` 是它）还没读的，读进来。 */
+  followParents() {
+    const parents = new Set(this.index.all().map((e) => e.parent).filter(Boolean));
+    for (const id of this.order) if (parents.has(id) && !this.sessions.has(id)) this.follow(id);
   }
 
   /**
@@ -77,10 +115,9 @@ export class Store {
    * （施工 3-8 六补）；推来的照序号接上、去重（`persisted`）。补历史的那一段不记「没看过」。`listed` 为假的（子代理的会话）不进
    * 会话表的顶层。
    */
-  async load(id, listed = true) {
+  async load(id) {
     const s = emptySession(id);
     this.sessions.set(id, s);
-    if (listed && !this.order.includes(id)) this.order.push(id);
     await this.subscribe(s, 0);
   }
 
@@ -109,7 +146,8 @@ export class Store {
   async create(cwd, model = null) {
     // 还没开的新会话里选过模型的，开的时候带上（核心施工 8-8）
     const { session } = await this.conn.request('session.create', model ? { cwd, model } : { cwd });
-    this.order = [session, ...this.order.filter((x) => x !== session)];
+    // 推送还没到时先记上，左栏当场有它
+    this.index.seed(session, { cwd });
     await this.load(session);
     this.changed();
     return session;
@@ -124,17 +162,27 @@ export class Store {
   /** 删了的会话：从表里拿掉，不再列。 */
   drop(id) {
     this.sessions.delete(id);
-    this.order = this.order.filter((x) => x !== id);
+    this.extra.delete(id);
+    this.unread.delete(id);
     this.changed();
   }
 
   /** 说一句话；`extra` 是跟着发的（附件：`{attachments}`），合进参数。 */
   send(id, text, extra = {}) { return this.conn.request('session.send', { session: id, text, ...extra }); }
 
-  /** 左栏的一项。 */
+  /**
+   * 左栏的一项：读进来了的照日志（每条事件都跟着走），没读的照会话表（标题、没标题的拿第一句话的预览、在不在跑、置顶、最近活动）。
+   */
   summary(id) {
     const s = this.sessions.get(id);
-    return { ...summarize(id, s?.events ?? []), unread: !!s?.unread };
+    const e = this.index.get(id);
+    const log = summarize(id, s?.events ?? []);
+    const read = !!s?.events.length;
+    const listed = Date.parse(e?.last_active ?? '');
+    const active = Math.max(log.active ?? 0, Number.isNaN(listed) ? 0 : listed) || null;
+    return read
+      ? { ...log, active, unread: this.unread.has(id) }
+      : { ...log, title: e?.title ?? e?.preview ?? null, running: !!e?.busy, pinned: !!e?.pinned, active, unread: this.unread.has(id) };
   }
 
   /**
@@ -142,12 +190,12 @@ export class Store {
    * 进，排在最后。读过的不再读。
    */
   async ensure(id, listed = false) {
-    if (listed && !this.order.includes(id)) this.order.push(id);
+    if (listed) this.extra.add(id);
     if (this.sessions.has(id)) {
       if (listed) this.changed();
       return;
     }
-    await this.load(id, listed);
+    await this.load(id);
     this.changed();
   }
 
@@ -162,8 +210,7 @@ export class Store {
   /** 看这个会话：没看过的记号去掉。 */
   view(id) {
     this.viewing = id;
-    const s = id ? this.sessions.get(id) : null;
-    if (s) s.unread = false;
+    if (id) this.unread.delete(id);
     this.changed();
   }
 
@@ -183,18 +230,16 @@ export class Store {
   }
 
   /**
-   * 断了又连上了（蓝图 `web.md`「连核心」第 1 条）：读进来了的会话一个个重新订阅、补上漏掉的（和掉了队一样）；再列一遍会话，
-   * 断着时别处开的新会话（顶层的）读进来、排在最前面。单个会话补不上的跳过，原因记在控制台。
+   * 断了又连上了（蓝图 `web.md`「连核心」第 1 条）：读进来了的会话一个个重新订阅、补上漏掉的（和掉了队一样）；会话表重新订阅，
+   * 断着时别处开的、改的、删的照它跟上。单个会话补不上的跳过，原因记在控制台。
    */
   async resume() {
     for (const s of this.sessions.values()) {
       if (s.gone) continue;
       await this.catchUp(s).catch((err) => console.error(`会话 ${s.id} 重连以后补不上：${err.message}`));
     }
-    const { sessions } = await this.conn.request('session.list', {});
-    const fresh = sessions.filter((x) => !x.oneshot && !x.parent && !this.sessions.has(x.session)).map((x) => x.session);
-    for (const id of fresh) await this.load(id, false).catch((err) => console.error(`会话 ${id} 读不了：${err.message}`));
-    this.order = [...fresh.filter((id) => this.sessions.has(id)), ...this.order];
+    await this.index.start();
+    this.followParents();
     this.changed();
   }
 
@@ -230,7 +275,7 @@ export class Store {
       if (s.live) closeAll(s.live, Date.parse(e.at));
       s.live = null;
       s.retry = null;
-      if (s.id !== this.viewing && !s.replaying) s.unread = true;
+      if (s.id !== this.viewing && !s.replaying) this.unread.add(s.id);
     }
   }
 

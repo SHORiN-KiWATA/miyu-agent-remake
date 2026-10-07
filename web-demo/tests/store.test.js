@@ -194,30 +194,79 @@ test('读一个会话、掉了队补上：订阅带 after（0 从头，掉队的
   const s = store.sessions.get('S');
   assert.deepEqual(s.events.map((e) => e.seq), [1, 2, 3]);
   assert.deepEqual(s.limits, { window: 1000 });
-  assert.equal(s.unread, false, '补的是历史：一轮结束不记成没看过');
+  assert.equal(store.summary('S').unread, false, '补的是历史：一轮结束不记成没看过');
   await store.catchUp(s);
   assert.deepEqual(s.events.map((e) => e.seq), [1, 2, 3], '补回来的重复的去掉');
   assert.deepEqual(calls, [['subscribe', 0], ['subscribe', 3]]);
 });
 
-test('起来时读最近活动的那几个（session.list 的 last_active，C-3）；旧核心没有这一格的照列出来的先后（2026-10-01）', async () => {
-  const listed = [
-    { session: 'new', oneshot: false, parent: null, last_active: '2026-10-01T01:00:00.000Z' },
-    { session: 'old-but-busy', oneshot: false, parent: null, last_active: '2026-10-01T05:00:00.000Z' },
-    { session: 'mid', oneshot: false, parent: null, last_active: '2026-10-01T03:00:00.000Z' },
-    { session: 'child', oneshot: false, parent: 'mid', last_active: '2026-10-01T09:00:00.000Z' },
-  ];
+/** 一个假核心：会话表照 `listed`，订阅会话的记下来；推送由测试自己推（`push`）。 */
+function withIndex(listed) {
   const loaded = [];
+  /** @type {((method: string, params: any) => void)[]} */
+  const pushes = [];
   const conn = {
-    onPush() {},
+    onPush: (fn) => pushes.push(fn),
     request: async (method, params) => {
-      if (method === 'session.list') return { sessions: listed };
+      if (method === 'subscribe' && params.stream === 'sessions') return { sessions: listed };
       if (method === 'subscribe') loaded.push(params.session);
       return {};
     },
   };
   const store = new Store(/** @type {any} */ (conn));
+  return { store, loaded, push: (m, p) => { for (const fn of pushes) fn(m, p); } };
+}
+
+const tick = () => new Promise((r) => setTimeout(r, 0));
+
+test('起来时订阅会话表（9-5）：左栏照最近活动列顶层的，一次性的、子会话不列；只读在跑的、派过子代理的，别的不读日志', async () => {
+  const listed = [
+    { session: 'new', oneshot: false, parent: null, last_active: '2026-10-01T01:00:00.000Z' },
+    { session: 'busy', oneshot: false, parent: null, busy: true, last_active: '2026-10-01T05:00:00.000Z' },
+    { session: 'mid', oneshot: false, parent: null, last_active: '2026-10-01T03:00:00.000Z', title: '修 CI' },
+    { session: 'child', oneshot: false, parent: 'mid', last_active: '2026-10-01T09:00:00.000Z' },
+    { session: 'ask', oneshot: true, parent: null, last_active: '2026-10-01T09:30:00.000Z' },
+    { session: 'quiet', oneshot: false, parent: null, preview: '帮我看看这个报错', last_active: '2026-10-01T00:30:00.000Z' },
+  ];
+  const { store, loaded } = withIndex(listed);
   await store.boot();
-  assert.deepEqual(loaded, ['old-but-busy', 'mid', 'new'], '照最近活动，子代理的不列');
-  assert.deepEqual(store.order, ['old-but-busy', 'mid', 'new']);
+  await tick();
+  assert.deepEqual(store.order, ['busy', 'mid', 'new', 'quiet'], '照最近活动，子代理的、一次性的不列');
+  assert.deepEqual(loaded.sort(), ['busy', 'mid'], '在跑的、派过子代理的才读');
+  assert.equal(store.summary('quiet').title, '帮我看看这个报错', '没标题的拿第一句话的预览');
+  assert.equal(store.summary('mid').title, '修 CI');
+  assert.equal(store.summary('busy').running, true);
+});
+
+test('会话表推来变化（sessions.changed）：别处开的新会话当场列上；没读的会话一轮结束记成没看过、看了去掉；开始跑的读进来；别处删的交给界面收掉', async () => {
+  const { store, loaded, push } = withIndex([{ session: 'a', parent: null, last_active: '2026-10-01T01:00:00.000Z' }]);
+  const removed = [];
+  store.removed = (id) => removed.push(id);
+  await store.boot();
+  push('sessions.changed', { session: 'b', entry: { session: 'b', parent: null, last_active: '2026-10-01T02:00:00.000Z' } });
+  assert.deepEqual(store.order, ['b', 'a']);
+  push('sessions.changed', { session: 'a', entry: { session: 'a', parent: null, busy: true, last_active: '2026-10-01T03:00:00.000Z' } });
+  await tick();
+  assert.deepEqual(loaded, ['a'], '开始跑的读进来');
+  push('sessions.changed', { session: 'b', entry: { session: 'b', parent: null, busy: true, last_active: '2026-10-01T04:00:00.000Z' } });
+  store.view('a');
+  push('sessions.changed', { session: 'b', entry: { session: 'b', parent: null, last_active: '2026-10-01T05:00:00.000Z' } });
+  assert.equal(store.summary('b').unread, true, '没在看的一轮结束了');
+  store.view('b');
+  assert.equal(store.summary('b').unread, false);
+  push('sessions.changed', { session: 'a', removed: true });
+  assert.deepEqual(removed, ['a'], '读进来的、不是这一页删的');
+  store.leaving('b');
+  push('sessions.changed', { session: 'b', removed: true });
+  assert.deepEqual(removed, ['a'], '这一页正在删的不再交');
+  assert.deepEqual(store.order, []);
+});
+
+test('全部会话那一页开的老会话也列进左栏；置顶的排不进最近活动也列', async () => {
+  const listed = Array.from({ length: 35 }, (_, i) => ({ session: `s${i}`, parent: null, last_active: new Date(Date.UTC(2026, 9, 1, 0, 60 - i)).toISOString(), ...(i === 34 ? { pinned: true } : {}) }));
+  const { store } = withIndex(listed);
+  await store.boot();
+  assert.equal(store.order.length, 31, '最近的 30 个加上置顶的');
+  await store.ensure('s33', true);
+  assert.ok(store.order.includes('s33'));
 });
