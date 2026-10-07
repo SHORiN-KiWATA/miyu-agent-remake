@@ -235,13 +235,9 @@ async fn the_same_command_id_counts_once_even_after_a_restart() {
     let script = Script::new([]);
     let mut client = connected(&home, &script).await;
     let again = send(&mut client, "qq:bot:msg-1", said).await;
-    // 重启以后回应的是这个编号引起的全部事件（那一条 `message.user` 连同那一轮），不再只是那一条：内核原有的去重，记在施工单里。
-    let events = again["result"]["events"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default();
-    assert!(
-        events.contains(&first["result"]["events"][0]),
+    // 重启以后回应和头一次一样（施工 2-1 补统一了）。
+    assert_eq!(
+        again["result"]["events"], first["result"]["events"],
         "重启以后照样认得：{again}"
     );
     tokio::time::sleep(Duration::from_millis(100)).await;

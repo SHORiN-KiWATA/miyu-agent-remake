@@ -24,7 +24,7 @@ pub(super) fn some_stop_end(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> 
         0..=2 => Some(done(true, Vec::new())),
         3..=5 => Some(done(false, watch.some_effects())),
         6 => watch.stopping.wake.map(woke),
-        7 => Some(some_interrupt(rng, next_id)),
+        7 => Some(some_interrupt(rng, watch.seed, next_id)),
         _ => None,
     }
 }

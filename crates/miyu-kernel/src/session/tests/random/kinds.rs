@@ -30,10 +30,14 @@ kinds! {
     Interrupt,
     /// 打断，排着的退回。
     TakeBack,
+    /// 打断，排着的留着（施工 O-6）。
+    Keep,
     /// 切权限级别。
     SetPermission,
     /// 改标题、置顶（施工 3-8 三补）。
     SetMeta,
+    /// 记下用了一个斜杠命令（施工 O-6）。
+    Ran,
     /// 换模型（施工 8-10）。
     Configure,
     /// 回答确认。
@@ -115,8 +119,12 @@ impl InputKind {
                 Command::Interrupt {
                     queued: Queued::Return,
                 } => InputKind::TakeBack,
+                Command::Interrupt {
+                    queued: Queued::Keep,
+                } => InputKind::Keep,
                 Command::SetPermission { .. } => InputKind::SetPermission,
                 Command::SetMeta { .. } => InputKind::SetMeta,
+                Command::Ran { .. } => InputKind::Ran,
                 Command::Configure { .. } => InputKind::Configure,
                 Command::Answer {
                     answer: Answer::Approval { .. },

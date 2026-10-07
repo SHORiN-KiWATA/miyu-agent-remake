@@ -31,6 +31,11 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "这是通讯平台的场所会话，本机的头不能直接说话。",
             "This is a chat platform venue session; local heads cannot talk in it directly.",
         ),
+        "unknown_command" => ("没有这个命令。", "There is no such command."),
+        "command_not_allowed" => (
+            "只有主人和管理的人能用命令。",
+            "Only the owner and managers can use commands.",
+        ),
         "session_stopped" => (
             "这个会话停了，详情在运行日志里；再发一次会重新载入。",
             "This session has stopped; the runtime log has the details. Sending again reloads it.",

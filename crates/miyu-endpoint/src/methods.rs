@@ -29,6 +29,7 @@ use miyu_session::Handle;
 
 use crate::Core;
 use crate::attach;
+use crate::commands;
 use crate::config;
 use crate::files;
 use crate::from;
@@ -153,6 +154,7 @@ pub(crate) async fn call(
             let queued = match params.queued {
                 QueuedParam::Send => Queued::Send,
                 QueuedParam::Return => Queued::Return,
+                QueuedParam::Keep => Queued::Keep,
             };
             let session = session(&params.session)?;
             let found = core.sessions.get(core, &session, None, None).await?;
@@ -180,6 +182,7 @@ pub(crate) async fn call(
             let events = command_to(core, request, &session, &found.handle, command).await?;
             Ok(undo::reply(core, &session, &found.cwd, events).await)
         }
+        "command.run" => commands::run(core, &peer, &request.id, params(request)?).await,
         "session.redo" => {
             let params: RedoParams = params(request)?;
             let session = session(&params.session)?;

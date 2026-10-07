@@ -227,8 +227,15 @@ impl Session {
         queued: Queued,
     ) -> Vec<Event> {
         let mut events = Vec::new();
-        if queued == Queued::Return {
-            events.extend(self.withdraw_queued(at, by, cause));
+        match queued {
+            Queued::Return => events.extend(self.withdraw_queued(at, by, cause)),
+            // 留着：清掉队，回合结束时就不接着开；排着的那几条照样在日志里。
+            Queued::Keep => {
+                if let Some(turn) = self.turn.as_mut() {
+                    turn.queued.clear();
+                }
+            }
+            Queued::Send => {}
         }
         events.extend(self.finish_turn(
             at,
