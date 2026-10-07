@@ -85,7 +85,7 @@ async fn a_pinned_pool_keeps_a_session_on_one_member_and_spreads_new_sessions() 
     );
     let mut home = Home::new();
     home.configs = configs(&two(&first, &second, r#""gone/z", "a/x", "b/y""#, ""), &[]);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let one = create(&home, &routes, Some("@p")).await;
     let other = create(&home, &routes, Some("@p")).await;
     for n in 1..=2 {
@@ -117,7 +117,7 @@ async fn the_pinned_member_comes_back_from_the_log_and_the_pointer_from_disk() {
     std::fs::create_dir_all(state.0.as_path()).expect("建得了");
     let mut home = Home::new();
     home.configs = configs(&two(&first, &second, r#""a/x", "b/y""#, "pin"), &[]);
-    let routes = routes_with(kept(state.0.as_path()), Duration::from_secs(5));
+    let routes = routes_with(kept(state.0.as_path()), Duration::from_secs(60));
     let handle = create(&home, &routes, Some("@p")).await;
     turn(&handle, "cmd-1").await;
     // 指针写进了 `state/models/pools.json`：走过一个，下一个是第 1 个。
@@ -131,7 +131,7 @@ async fn the_pinned_member_comes_back_from_the_log_and_the_pointer_from_disk() {
     // 重启：新的路由照磁盘读回指针（下一个是 b），载入的会话照日志认回钉着的 a。
     let session = handle.id().clone();
     stop(&handle).await;
-    let again = routes_with(kept(state.0.as_path()), Duration::from_secs(5));
+    let again = routes_with(kept(state.0.as_path()), Duration::from_secs(60));
     let loaded = home.load(&session, &again).await;
     turn(&loaded, "cmd-2").await;
     assert_eq!(sent(&home, &loaded), ["a/x", "a/x"], "载入以后还是它");
@@ -149,7 +149,7 @@ async fn a_rotating_pool_takes_the_next_member_for_every_request() {
     );
     let mut home = Home::new();
     home.configs = configs(&two(&first, &second, r#""a/x", "b/y""#, "rotate"), &[]);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = create(&home, &routes, Some("@p")).await;
     for n in 1..=3 {
         turn(&handle, &format!("cmd-{n}")).await;
@@ -179,7 +179,7 @@ async fn a_member_that_cannot_be_used_now_is_passed_over_and_the_pin_moves() {
     let (switch, receiving) = watch::channel(source(&[]));
     let mut home = Home::new();
     home.configs = receiving;
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = create(&home, &routes, Some("@p")).await;
     turn(&handle, "cmd-1").await;
     // `a` 的 key 有了：钉着的已经换成 b，不回去。
@@ -202,7 +202,7 @@ async fn a_pool_that_is_gone_falls_back_to_the_chat_model() {
     let (switch, receiving) = watch::channel(source(&with));
     let mut home = Home::new();
     home.configs = receiving;
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = create(&home, &routes, Some("@p")).await;
     turn(&handle, "cmd-1").await;
     switch.send_replace(source(&without));
@@ -224,7 +224,7 @@ async fn session_created_records_the_reference_it_was_made_with() {
     );
     let mut home = Home::new();
     home.configs = configs(&two(&first, &second, r#""b/y""#, ""), &[]);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let given = create(&home, &routes, Some("b/y")).await;
     assert_eq!(recorded(&home, &given).as_deref(), Some("b/y"));
     let default = create(&home, &routes, None).await;

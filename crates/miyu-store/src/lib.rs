@@ -34,6 +34,7 @@ pub mod journal;
 pub mod log;
 pub mod logins;
 pub mod memory;
+pub mod personas;
 mod private_json;
 pub mod recall;
 pub mod resources;

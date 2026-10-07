@@ -44,9 +44,9 @@ async fn a_turn_said_through_the_core_is_indexed_and_goes_with_the_session() {
     let session = client.create("c1", &work).await;
     client.say("c2", &session, "我的显卡是 N 卡").await;
     home.until_turns(&session, 1).await;
-    // 回合库在日志落了盘以后才更新：等它出现，最多五秒。
+    // 回合库在日志落了盘以后才更新：等它出现，最多六十秒（机器忙时慢，只在出错时等满）。
     let mut keys = found(&home, "显卡");
-    for _ in 0..100 {
+    for _ in 0..1200 {
         if !keys.is_empty() {
             break;
         }

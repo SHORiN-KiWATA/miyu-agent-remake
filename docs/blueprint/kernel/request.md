@@ -79,7 +79,7 @@
 |---|---|---|
 | `Stable` | `tools` | 工具面 |
 | | `system` | 拼好的 system（`policy.md`），组装时不再拆开 |
-| | `demos` | 示范对话。照策略快照造的总是空的 |
+| | `demos` | 示范对话：快照里的一轮是一条 user、一条 assistant，各一块文字（施工 P-1 上，`personas.md`）；没有示范对话的人格是空的 |
 | `Texts` | `checkpoint_open`、`checkpoint_close`、`checkpoint_end`、`restored_open`、`restored_close` | 检查点包装的开头、摘要的收尾、包装的结尾（施工 6-5 拆开），重读的文件那一块的头尾 |
 | | `turn_ended` | `TurnEndedTexts`：`interrupted`、`error`、`step_limit`、`aborted`、`restarted` 五句 |
 | | `summarize_task`、`summarize_instructions`、`summarize_end` | 摘要指令的正文、要求前面那一行、最后那一句（`core/compaction/summarize-task.txt` 施工 6-2 上；另两份 `summarize-instructions.txt`、`summarize-end.txt` 施工 6-8 拆出来。以前造的快照里没有这两份，是空的：那时的正文里本来就带着最后那一句） |
@@ -116,7 +116,7 @@
 
 **组装**
 
-1. 请求 = 工具面 + system + 示范对话 + 渲染出来的消息。工具面在造组装器时照名字的字节序排好，稳定排序；同名的两件，造策略时就拒了（`policy.md`）。`stable` 是示范对话的条数，现在总是 0。
+1. 请求 = 工具面 + system + 示范对话 + 渲染出来的消息。工具面在造组装器时照名字的字节序排好，稳定排序；同名的两件，造策略时就拒了（`policy.md`）。`stable` 是示范对话的条数：人格没有示范对话的是 0（施工 P-1 上起有，`personas.md`）。
 2. 有检查点的（最近一次压缩），它是人这一边的第一块：`checkpoint_open`、摘要原文、`checkpoint_close`、代码写的几段（`notes`）、重读的文件（每个是 `restored_open`、原文、`restored_close`）、`checkpoint_end` 拼成一个文本块（施工 6-5）。摘要、重读的原文不转义：一个是模型写的多行正文，一个是文件本来的样子。重读的原文照 blob 从 `History` 取，取不到的那一份整块不写。清空的检查点（`trigger` 是 `clear`）什么都不出：她看到的上下文从这里起是空的，下一轮开头的环境、权限两块事实照常注入（施工 6-8 补，`compaction.md` 第十四条）。
 3. 然后照有效历史排好的先后一条条渲染：以回复为界切段，每段先是那条回复，再是它的工具结果（按调用的先后），再是别的（照日志的先后）。细节见 `kernel/history.md`。
 
@@ -560,7 +560,6 @@ Carry on from where the summary leaves off, without redoing work it records as d
 
 ### 还没有的
 
-- 示范对话：快照里还没有这一格，`stable` 总是 0（`26-提示词.md` 第四节，`16-人格与预设.md`）。
 - 压缩：检查点里由代码补上的部分、压后重建、压缩以后算一个边界（M6，`09-压缩.md` 第四节）。
 - 群里的发送者标签和群聊近况、模块用模板声明的事件（`08-上下文投影.md` 第四节第 6 条）。
 - 角色扮演提示，排在触发之后（C2 的例外，`26-提示词.md` J10）。

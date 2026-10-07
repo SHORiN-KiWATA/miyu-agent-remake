@@ -1,5 +1,5 @@
 //! 端点的配置项（`docs/blueprint/config.md`「M8 的配置项」）：界面语言 `ui.language`（施工 8-1），新会话开局只读
-//! `permission.start_read_only`（施工 8-2）。
+//! `permission.start_read_only`（施工 8-2），默认人格 `persona.default`（施工 P-1 上）。
 //!
 //! 核心起来时照 `ui.language` 的最终值挑生成的文件用哪种语言；握手时照它和头报的系统语言算这个连接的语言（第二条
 //! 第 8 条）。造会话时照 `permission.start_read_only` 的最终值（带上信任着的项目配置）定开局是不是只读（第二条第 9 条）。
@@ -22,6 +22,19 @@ miyu_config::settings! {
             layers: [System, Personal],
             applies: head_start,
             ui: { page: "general", group: "display", control: select },
+        },
+    }
+}
+
+miyu_config::settings! {
+    /// 人格的配置（施工 P-1 上，`docs/blueprint/personas.md`）。
+    pub struct PersonaSettings in "persona" {
+        /// 新会话默认用哪个人格：人格目录的编号。开会话时指定的、通讯平台的桥照场所规则交来的优先。
+        default: String = "engineer" {
+            kind: name,
+            layers: [System, Personal],
+            applies: new_session,
+            ui: { page: "general", group: "persona", control: text },
         },
     }
 }

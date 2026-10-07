@@ -24,6 +24,7 @@ use miyu_session::{
 use miyu_store::env::{Env, Platform};
 use miyu_store::index::{FILE, SessionIndex};
 use miyu_store::log::{read_events, read_segments};
+use miyu_store::memory::MemoryLogs;
 use miyu_store::recall::RecallIndexes;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
@@ -81,6 +82,8 @@ pub struct Home {
     pub configs: Configs,
     /// 回合库的登记（施工 R-2 上）：这个场地里造的、载入的主会话都往里写，和核心里一样。
     pub recall: Arc<RecallIndexes>,
+    /// 记忆日志的登记（施工 R-3 中）：三件工具经它记、忘、搜。
+    pub logs: Arc<MemoryLogs>,
 }
 
 /// 造会话时可以换的几样（施工 4-3 下）。
@@ -181,6 +184,7 @@ impl Home {
         let (usage, _) = UsageIndex::open(&root);
         Home {
             recall: Arc::new(RecallIndexes::new(&root)),
+            logs: Arc::new(MemoryLogs::new(&root)),
             usage: Arc::new(usage),
             scratch,
             root,
@@ -228,6 +232,12 @@ impl Home {
             resources: &self.resources,
             id: new_id(now()),
             persona: "engineer",
+            persona_texts: self
+                .resources
+                .sources("engineer")
+                .expect("出厂的软件工程师")
+                .persona,
+            memory_account: alice_account(),
             venue: lines.venue,
             owner: alice_account(),
             permission: opening.permission,
@@ -252,7 +262,7 @@ impl Home {
             usage: Some(Arc::clone(&self.usage)),
             configs: self.configs.clone(),
             model: lines.model,
-            recall: Some(Arc::clone(&self.recall)),
+            memory: Some(self.memory()),
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -296,6 +306,11 @@ impl Home {
         let loaded = load(Load {
             root: &self.root,
             owner: alice_account(),
+            personas: miyu_store::personas::Personas::new(
+                &self.resources,
+                &self.root,
+                &alice_account(),
+            ),
             id: session.clone(),
             environment: Environment {
                 cwd: cwd.to_string(),
@@ -312,9 +327,17 @@ impl Home {
             index: Some(Arc::clone(&self.index)),
             usage: Some(Arc::clone(&self.usage)),
             configs: self.configs.clone(),
-            recall: Some(Arc::clone(&self.recall)),
+            memory: Some(self.memory()),
         });
         within("载入", loaded).await.expect("载入得了会话")
+    }
+
+    /// 交给造的、载入的会话的记忆：这个场地的回合库登记和记忆日志登记（施工 R-3 中）。
+    pub fn memory(&self) -> Arc<miyu_session::Memory> {
+        Arc::new(miyu_session::Memory {
+            turns: Arc::clone(&self.recall),
+            logs: Arc::clone(&self.logs),
+        })
     }
 
     /// 磁盘上会话 `session` 的日志，照先后。
@@ -416,7 +439,7 @@ pub fn say(words: &str) -> Command {
     }
 }
 
-/// 等到磁盘上会话 `session` 的日志满足 `done`，最多五秒；交回那时的日志。
+/// 等到磁盘上会话 `session` 的日志满足 `done`，最多 [`WAIT`]；交回那时的日志。
 pub async fn until_logged(
     home: &Home,
     session: &SessionId,

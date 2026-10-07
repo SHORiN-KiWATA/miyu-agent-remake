@@ -5,6 +5,7 @@
 //! 几行施工 2-7 补加，权限那一行和本机文件的路径那一行，2026-10-01 主会话 A/B 实测过（`26-提示词.md` 第十节）。
 
 use crate::pause::PAUSE;
+use crate::persona::Demo;
 use crate::rebuild::REBUILD;
 use crate::recap::RECAP;
 use crate::shorten::SHORTEN;
@@ -35,12 +36,13 @@ pub struct Sources {
     pub persona: PersonaTexts,
 }
 
-/// 一个人格的字（`resources/personas/<编号>/prompts/`）。3-6（上）只有人设；示范对话、角色扮演
-/// 提示随 3-6（下）。
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// 一个人格的字（`<人格目录>/prompts/`，施工 P-1 上照几层叠好）。角色扮演提示随 P-1 下。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PersonaTexts {
-    /// 人设（`persona.md`）。
+    /// 人设（`persona.md`）：没有的是空的。
     pub persona: String,
+    /// 示范对话（`examples.md`，`crate::persona::read_examples` 读好的）：没有的是空的。
+    pub examples: Vec<Demo>,
 }
 
 /// 照 `26-提示词.md` 第四节拼出人格 `persona` 的快照。`attended` 是这个场所有没有人能确认。
@@ -48,6 +50,7 @@ pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
     Snapshot {
         persona: persona.to_string(),
         system: system(&[&sources.persona.persona]),
+        demos: sources.persona.examples,
         tools: Vec::new(),
         core: sources.core,
         step_limit: None,

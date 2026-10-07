@@ -106,6 +106,7 @@ fn call(args: Value, log: Option<Log>, minutes: i32) -> Call {
         sessions: None,
         usage: None,
         questions: None,
+        memory: None,
     }
 }
 

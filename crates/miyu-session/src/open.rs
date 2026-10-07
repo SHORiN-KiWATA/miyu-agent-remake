@@ -28,7 +28,6 @@ use crate::guard::Guard;
 use crate::handle::Handle;
 use crate::job_ids::JobIds;
 use crate::jobs::Roster;
-use crate::memory::Turns;
 use crate::port::ForSession;
 use crate::report::{Reporter, Upstream, wake_children};
 use crate::store::{Indexed, LogDir};
@@ -54,6 +53,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         resources,
         id,
         persona,
+        persona_texts,
+        memory_account,
         venue,
         owner,
         permission,
@@ -74,7 +75,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         usage,
         configs,
         model,
-        recall,
+        memory,
     } = setup;
     let span = actor::span(&id);
     let config = Turning::start(configs, environment.cwd.clone()).await;
@@ -104,9 +105,11 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
     let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
-    let (owner_of, id_of) = (owner.clone(), id.clone());
-    let (snapshot, policy, texts, run, guard, log, turns) = blocking(move || {
-        let sources = resources.sources(&name).map_err(CreateError::Persona)?;
+    let id_of = id.clone();
+    let (snapshot, policy, texts, run, guard, log, (turns, calls)) = blocking(move || {
+        let sources = resources
+            .sources_with(persona_texts)
+            .map_err(CreateError::Persona)?;
         let mut snapshot = compose(&name, sources, attended).with_tools(face);
         if child {
             let venue = resources.subagent_venue().map_err(CreateError::Persona)?;
@@ -120,7 +123,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         let guard = snapshot.guard_texts().map_err(CreateError::Policy)?;
         store.put(&snapshot.to_bytes()).map_err(CreateError::Disk)?;
         let log = SessionLog::create(&dir, SEGMENT_LIMIT).map_err(CreateError::Disk)?;
-        let turns = Turns::connect(recall.as_ref(), &owner_of, &name, &id_of, !child, &[]);
+        let turns =
+            crate::memory::connect(memory.as_ref(), &memory_account, &name, &id_of, !child, &[]);
         Ok((snapshot, policy, texts, run, guard, log, turns))
     })
     .await?;
@@ -227,6 +231,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             agents,
             ledger,
             asks,
+            memory: calls,
         },
         jobs,
         guard,
@@ -274,6 +279,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let Load {
         root,
         owner,
+        personas,
         id,
         environment,
         models,
@@ -286,7 +292,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         index,
         usage,
         configs,
-        recall,
+        memory,
     } = setup;
     let span = actor::span(&id);
     let config = Turning::start(configs, environment.cwd.clone()).await;
@@ -297,7 +303,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let store = blobs.clone();
     let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
     let (owner_of, id_of) = (owner.clone(), id.clone());
-    let (log, events, (created, command), (attended, pools), policy, texts, run, guard, turns) =
+    let (log, events, (created, command), (attended, pools), policy, texts, run, guard, wired) =
         blocking(move || {
             let (log, events) = SessionLog::open(&dir, SEGMENT_LIMIT).map_err(LoadError::Log)?;
             let (created, command) = match events.first() {
@@ -317,9 +323,9 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             // 能选的池照快照读回（施工 8-8 补）：造会话时拼的那一份，不重拼。
             let chosen = (snapshot.attended, Agents::pools_in(&snapshot.tools));
             let main = created.parent.is_none();
-            let turns = Turns::connect(
-                recall.as_ref(),
-                &owner_of,
+            let turns = crate::memory::connect(
+                memory.as_ref(),
+                &personas.memory_account(&snapshot.persona, &owner_of),
                 &snapshot.persona,
                 &id_of,
                 main,
@@ -338,6 +344,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             ))
         })
         .await?;
+    let (turns, calls) = wired;
     let upstream = Upstream::of(
         sessions.as_ref(),
         created.parent.as_ref(),
@@ -437,6 +444,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             agents,
             ledger,
             asks,
+            memory: calls,
         },
         jobs,
         guard,

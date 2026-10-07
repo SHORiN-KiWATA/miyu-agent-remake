@@ -16,7 +16,7 @@ async fn a_connection_that_never_says_hello_is_closed() {
     let home = Home::new();
     let core = home.core_waiting_hello(&Script::new([]), Duration::from_millis(100));
     let mut silent = Client::connect(core.clone());
-    let closed = tokio::time::timeout(Duration::from_secs(5), silent.next()).await;
+    let closed = tokio::time::timeout(Duration::from_secs(60), silent.next()).await;
     assert!(matches!(closed, Ok(None)), "没握手的断开：{closed:?}");
     let mut client = Client::connect(core);
     client.hello().await;

@@ -64,6 +64,7 @@ impl Open {
         let workspace = workspace(core, &cwd);
         let loaded = load(Load {
             root: &core.root,
+            personas: crate::personas::personas(core),
             owner: core.admin.clone(),
             id: id.clone(),
             environment: environment(workspace.clone(), dirs.clone()),
@@ -76,7 +77,7 @@ impl Open {
             jobs: &core.jobs,
             index: core.index_for(&core.admin),
             usage: core.usage_for(&core.admin),
-            recall: core.recall_for(&core.admin),
+            memory: core.memory_for(&core.admin),
             configs: core.hub.configs(),
         })
         .await;

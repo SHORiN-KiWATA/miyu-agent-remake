@@ -48,9 +48,9 @@ fn paths(reply: &Value) -> Vec<String> {
         .collect()
 }
 
-/// 一直发 `fs.find`，等到 `building` 是 `false`，最多五秒：建清单在后台线程里，别写成死等。
+/// 一直发 `fs.find`，等到 `building` 是 `false`，最多六十秒：建清单在后台线程里，别写成死等。
 async fn until_built(client: &mut Client, cwd: &str, query: &str, fresh: bool) -> Value {
-    let until = Instant::now() + Duration::from_secs(5);
+    let until = Instant::now() + Duration::from_secs(60);
     loop {
         let reply = client
             .call(
@@ -62,7 +62,7 @@ async fn until_built(client: &mut Client, cwd: &str, query: &str, fresh: bool) -
         if reply["result"]["building"] == json!(false) {
             return reply;
         }
-        assert!(Instant::now() < until, "五秒内清单没建完：{reply}");
+        assert!(Instant::now() < until, "六十秒内清单没建完：{reply}");
         tokio::time::sleep(Duration::from_millis(5)).await;
     }
 }

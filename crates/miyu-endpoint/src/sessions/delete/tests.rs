@@ -80,7 +80,7 @@ async fn no_one_wakes_the_child_between_its_stopped_report_and_its_deletion() {
         .create(
             &core,
             CommandId::parse("c1").unwrap(),
-            "engineer",
+            Some("engineer"),
             cwd,
             Vec::new(),
             opening,

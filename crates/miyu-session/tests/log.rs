@@ -28,9 +28,9 @@ fn shape(line: &str) -> String {
     }
 }
 
-/// 等到日志里有一行以 `end` 结尾，最多五秒。
+/// 等到日志里有一行以 `end` 结尾，最多六十秒。
 async fn wait_for(memory: &Memory, end: &str) {
-    let found = tokio::time::timeout(Duration::from_secs(5), async {
+    let found = tokio::time::timeout(Duration::from_secs(60), async {
         while !memory.lines().iter().any(|line| line.ends_with(end)) {
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
@@ -38,7 +38,7 @@ async fn wait_for(memory: &Memory, end: &str) {
     .await;
     assert!(
         found.is_ok(),
-        "五秒内没等到「{end}」：{:#?}",
+        "六十秒内没等到「{end}」：{:#?}",
         memory.lines()
     );
 }

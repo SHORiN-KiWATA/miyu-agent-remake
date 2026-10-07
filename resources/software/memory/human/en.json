@@ -1,0 +1,33 @@
+{
+  "tools": {
+    "remember": {
+      "name": "Remember",
+      "subject": "text",
+      "icon": "✎"
+    },
+    "forget": {
+      "name": "Forget",
+      "subject": "id",
+      "icon": "✎"
+    },
+    "memory_search": {
+      "name": "Memory",
+      "subject": "query",
+      "icon": "✱"
+    }
+  },
+  "said": {
+    "remember/saved": "Saved as {id}",
+    "remember/replaced": "Saved as {id}, replacing {old}",
+    "remember/too-long": "Too long, {chars} characters",
+    "remember/unknown-class": "Unknown class {class}",
+    "forget/retired": "Forgot {id}",
+    "memory_search/found": "Memories: {memories}, past turns: {turns}",
+    "memory_search/nothing": "Nothing found",
+    "common/bad-args": "Bad arguments: {error}",
+    "common/off": "Memory is off in this session",
+    "common/failed": "Memory unavailable: {error}",
+    "common/no-such": "No memory {id}",
+    "common/not-current": "{id} was already replaced or forgotten"
+  }
+}

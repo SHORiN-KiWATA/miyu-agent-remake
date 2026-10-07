@@ -130,6 +130,17 @@
       },
       "type": "object"
     },
+    "persona": {
+      "properties": {
+        "default": {
+          "default": "engineer",
+          "description": "The persona new sessions use, written as the persona directory name. A persona chosen when opening a session comes first, and so does one set by a chat platform venue rule. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to sessions opened from now on.",
+          "title": "Default persona",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "pools": {
       "additionalProperties": {
         "properties": {

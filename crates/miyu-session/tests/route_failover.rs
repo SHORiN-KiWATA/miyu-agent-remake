@@ -163,7 +163,7 @@ async fn a_429_moves_to_the_next_key_at_once_and_the_session_stays_on_it() {
     let server = Server::start(replies).await;
     let mut home = Home::new();
     home.configs = keyed_configs(&server.base_url, 2);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     routes.data.set_cooldown_rules(rules(rule(1, 1)));
     let handle = home.create(&routes).await;
     let pinned = keys::pinned(handle.id().as_str(), 2).expect("有 key");
@@ -202,7 +202,7 @@ async fn a_429_in_a_pinned_pool_moves_on_and_pins_the_member_that_worked() {
     );
     let mut home = Home::new();
     home.configs = configs(&pooled(&first, &second, "pin"), &[]);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = create(&home, &routes, Some("@p")).await;
     assert_eq!(handle.limits().window, Some(64_000), "先钉着 a 的");
     let pushed = turn(&handle, "cmd-1").await;
@@ -238,7 +238,7 @@ async fn a_rotating_pool_passes_over_a_cooling_member() {
     );
     let mut home = Home::new();
     home.configs = configs(&pooled(&first, &second, "rotate"), &[]);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = create(&home, &routes, Some("@p")).await;
     let mut pushed = Vec::new();
     for n in 1..=3 {
@@ -261,7 +261,7 @@ async fn a_reply_cut_midway_goes_back_to_the_same_endpoint() {
     let (first, second) = (Server::start(replies).await, Server::start(hellos(6)).await);
     let mut home = Home::new();
     home.configs = configs(&pooled(&first, &second, "pin"), &[]);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = create(&home, &routes, Some("@p")).await;
     let pushed = turn(&handle, "cmd-1").await;
     assert_eq!(failures(&home, &handle), ["retryable"]);
@@ -281,7 +281,7 @@ async fn a_single_candidate_is_asked_again_on_itself() {
     let server = Server::start(replies).await;
     let mut home = Home::new();
     home.configs = keyed_configs(&server.base_url, 1);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = home.create(&routes).await;
     let pushed = turn(&handle, "cmd-1").await;
     let status = statuses(&pushed);
@@ -295,7 +295,7 @@ async fn all_candidates_cooling_says_cooling_and_names_each_one() {
     let server = Server::start(vec![limited(), limited()]).await;
     let mut home = Home::new();
     home.configs = keyed_configs(&server.base_url, 2);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     // 冷却 10 分钟起：两个 key 都限速以后，要等的超过 2 分钟，内核不等。
     routes.data.set_cooldown_rules(rules(rule(600, 3600)));
     let handle = home.create(&routes).await;
@@ -329,7 +329,7 @@ async fn failovers_count_toward_the_five_retries() {
     let server = Server::start(vec![limited(); 7]).await;
     let mut home = Home::new();
     home.configs = keyed_configs(&server.base_url, 7);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = home.create(&routes).await;
     let pushed = turn(&handle, "cmd-1").await;
     assert_eq!(server.received().len(), 6, "一次，加上 5 次换端点");
@@ -351,7 +351,7 @@ async fn errors_that_do_not_fail_over_leave_no_cooling() {
     let server = Server::start(replies).await;
     let mut home = Home::new();
     home.configs = keyed_configs(&server.base_url, 2);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = home.create(&routes).await;
     let pushed = turn(&handle, "cmd-1").await;
     assert!(statuses(&pushed).is_empty(), "请求本身有错：不换、不再来");

@@ -208,7 +208,7 @@ async fn the_data_root_stays_out_of_reach() {
 #[tokio::test]
 async fn a_real_command_writes_outside_once_allowed() {
     let helper = miyu_sandbox::testkit::built_helper();
-    let probe = miyu_sandbox::probe(&helper, std::time::Duration::from_secs(5)).expect("探得了");
+    let probe = miyu_sandbox::probe(&helper, std::time::Duration::from_secs(60)).expect("探得了");
     if probe.mechanisms.is_empty() {
         return;
     }

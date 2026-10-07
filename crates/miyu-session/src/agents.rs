@@ -21,8 +21,8 @@ use miyu_kernel::origin::{By, Session};
 use miyu_kernel::session::{Command, Outcome};
 use miyu_policy::{Choice, JOB_DEPTH, ToolEntry};
 use miyu_tool::{
-    ASK_USER, AgentPort, Catalog, NotSpawned, SEND_MESSAGE, SESSION_USAGE, SESSIONS, SUBAGENT,
-    Spawned, Spawning, TODOWRITE, is_subagent,
+    ASK_USER, AgentPort, Catalog, FORGET, MEMORY_SEARCH, NotSpawned, REMEMBER, SEND_MESSAGE,
+    SESSION_USAGE, SESSIONS, SUBAGENT, Spawned, Spawning, TODOWRITE, is_subagent,
 };
 
 use crate::TARGET;
@@ -103,6 +103,11 @@ impl Agents {
             .filter(|spec| local || spec.name != SESSION_USAGE)
             .filter(|spec| asks || spec.name != ASK_USER)
             .filter(|spec| local || spec.name != TODOWRITE)
+            // 记忆的三件只给本机的主会话（施工 R-3 中，`memory.md`「工具」）：子代理不召回也不记（17 第二节），群随 O 线。
+            .filter(|spec| {
+                (local && lineage.is_none())
+                    || ![REMEMBER, FORGET, MEMORY_SEARCH].contains(&spec.name.as_str())
+            })
             .map(|spec| {
                 let mut entry = ToolEntry {
                     name: spec.name.clone(),

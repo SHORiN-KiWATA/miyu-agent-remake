@@ -4,14 +4,46 @@
 //!
 //! 回合库是派生的：更新失败记一行 `WARN memory index not updated`，会话照常；照到的位置没往前挪，下次载入照日志补。
 
+mod port;
+
+pub(crate) use port::Calls;
+
 use std::sync::{Arc, OnceLock};
 
 use miyu_kernel::event::Event;
 use miyu_kernel::id::{AccountId, SessionId};
 use miyu_recall::{Change, TurnFeed, key, replay};
+use miyu_store::memory::MemoryLogs;
 use miyu_store::recall::{Edit, Opened, RecallIndex, RecallIndexes};
 
 use crate::TARGET;
+
+/// 核心一份的记忆（施工 R-3 中）：回合库的登记、记忆日志的登记。会话表交给每个会话，主会话照它更新回合索引、给三件工具造
+/// 端口。
+#[derive(Debug)]
+pub struct Memory {
+    /// 回合库的登记（施工 R-2 上）。
+    pub turns: Arc<RecallIndexes>,
+    /// 记忆日志的登记（施工 R-3 上）。
+    pub logs: Arc<MemoryLogs>,
+}
+
+/// 接上会话 `session` 的记忆：回合索引（[`Turns::connect`]）和三件工具的端口（[`Calls`]）。主会话（`main`）才有，核心没交
+/// 记忆的（测试里自己造的）没有。在阻塞线程里调。
+pub(crate) fn connect(
+    memory: Option<&Arc<Memory>>,
+    owner: &AccountId,
+    persona: &str,
+    session: &SessionId,
+    main: bool,
+    events: &[Event],
+) -> (Option<Turns>, Option<Calls>) {
+    let Some(memory) = memory.filter(|_| main) else {
+        return (None, None);
+    };
+    let turns = Turns::connect(Some(&memory.turns), owner, persona, session, true, events);
+    (turns, Some(Calls::new(memory, owner, persona, session)))
+}
 
 /// 一个会话的回合索引：它的回合库（用到才开）、增量的 `TurnFeed`。
 pub(crate) struct Turns {

@@ -14,7 +14,9 @@ use miyu_kernel::id::{ContentHash, MediaType};
 use miyu_kernel::time::UtcOffset;
 use miyu_sandbox::Sandboxed;
 
-use crate::{AgentPort, JobPort, Log, MessagePort, QuestionPort, SessionsPort, Stop, UsagePort};
+use crate::{
+    AgentPort, JobPort, Log, MemoryPort, MessagePort, QuestionPort, SessionsPort, Stop, UsagePort,
+};
 
 /// 一次调用交给工具的：修正过的参数、这一轮的工作目录、系统的家目录、Miyu 的数据根、她看过的文件、要不要关进
 /// 沙盒、这个会话日志的只读入口、会话的时区、派子代理的端口、留言的端口、任务端口和列会话的端口。别的（身份）用到时再加。
@@ -58,6 +60,9 @@ pub struct Call {
     /// 提问的端口（施工 D-2）：执行器照这一次调用造一个，只有 `ask_user` 用。没人能回答的会话、测试里的假调用没有，
     /// `ask_user` 照「这里没人能回答」出错。
     pub questions: Option<Arc<dyn QuestionPort>>,
+    /// 记忆的端口（施工 R-3 中）：执行器照这一次调用造一个（这个会话、这一轮、属主、人格、听众），只有记忆的三件工具用。
+    /// 记忆没开的会话、测试里的假调用没有，三件照「记忆没开」出错。
+    pub memory: Option<Arc<dyn MemoryPort>>,
 }
 
 /// 她看过的文件（`10-自带软件.md` 第五节「她看过的」，施工 4-6 上）：换成真实位置以后的路径，和她最后一次看到的

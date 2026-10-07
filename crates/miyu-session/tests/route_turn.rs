@@ -116,7 +116,7 @@ async fn a_new_model_is_used_from_the_next_turn_and_announced_once() {
     );
     let mut home = Home::new();
     home.configs = configs(&config(&first, &second, 64_000, "a/m", false), &[]);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = create(&home, &routes, "a/m").await;
     turn(&handle, "cmd-1").await;
     configure(&handle, "cmd-2", "b/n").await;
@@ -166,7 +166,7 @@ async fn a_gone_model_falls_back_to_models_chat_and_stays_there() {
         channel::channel(source(&config(&first, &second, 64_000, "b/n", false)));
     let mut home = Home::new();
     home.configs = receiving;
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = create(&home, &routes, "a/m").await;
     turn(&handle, "cmd-1").await;
     switch.send_replace(source(&config(&first, &second, 64_000, "b/n", true)));
@@ -198,7 +198,7 @@ async fn nothing_is_recorded_when_models_chat_is_gone_too() {
         channel::channel(source(&config(&first, &second, 64_000, "a/m", false)));
     let mut home = Home::new();
     home.configs = receiving;
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = create(&home, &routes, "a/m").await;
     turn(&handle, "cmd-1").await;
     // 只剩 `b`，`models.chat` 还指着没了的 `a`。
@@ -226,7 +226,7 @@ async fn a_new_window_reaches_an_open_session_at_the_next_turn() {
         channel::channel(source(&config(&first, &second, 64_000, "a/m", false)));
     let mut home = Home::new();
     home.configs = receiving;
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = create(&home, &routes, "a/m").await;
     turn(&handle, "cmd-1").await;
     assert_eq!(handle.limits().window, Some(64_000));
@@ -248,7 +248,7 @@ async fn a_rotating_pool_is_announced_without_an_endpoint() {
     );
     let mut home = Home::new();
     home.configs = configs(&config(&first, &second, 64_000, "a/m", false), &[]);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = create(&home, &routes, "a/m").await;
     configure(&handle, "cmd-1", "@p").await;
     let pushed = turn(&handle, "cmd-2").await;
@@ -272,7 +272,7 @@ async fn a_loaded_session_speaks_of_the_model_it_was_switched_to() {
     );
     let mut home = Home::new();
     home.configs = configs(&config(&first, &second, 64_000, "a/m", false), &[]);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = create(&home, &routes, "a/m").await;
     configure(&handle, "cmd-1", "b/n").await;
     stop(&handle).await;

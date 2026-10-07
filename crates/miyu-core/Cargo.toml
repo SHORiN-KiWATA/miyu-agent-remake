@@ -43,6 +43,8 @@ miyu-sandbox = { path = "../miyu-sandbox" }
 miyu-store = { path = "../miyu-store" }
 # 基础系统：核心起来时登记进工具目录（施工 4-4 起）。
 miyu-basesystem = { path = "../miyu-basesystem" }
+# 记忆这个软件包的三件工具（施工 R-3 中）。
+miyu-memory = { path = "../miyu-memory" }
 # 工具目录：核心起来时登记，交给协议端点（施工 4-1）。
 miyu-tool = { path = "../miyu-tool" }
 # 模型资料的 JSON（施工 6-3 上）。

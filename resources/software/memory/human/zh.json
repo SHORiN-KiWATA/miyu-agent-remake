@@ -1,0 +1,33 @@
+{
+  "tools": {
+    "remember": {
+      "name": "记住",
+      "subject": "text",
+      "icon": "✎"
+    },
+    "forget": {
+      "name": "忘掉",
+      "subject": "id",
+      "icon": "✎"
+    },
+    "memory_search": {
+      "name": "翻记忆",
+      "subject": "query",
+      "icon": "✱"
+    }
+  },
+  "said": {
+    "remember/saved": "记成 {id}",
+    "remember/replaced": "记成 {id}，替换 {old}",
+    "remember/too-long": "太长，{chars} 个字",
+    "remember/unknown-class": "不认识的类 {class}",
+    "forget/retired": "忘掉了 {id}",
+    "memory_search/found": "找到 {memories} 条记忆、{turns} 段对话",
+    "memory_search/nothing": "没找到",
+    "common/bad-args": "参数不对：{error}",
+    "common/off": "这个会话没开记忆",
+    "common/failed": "记忆现在用不了：{error}",
+    "common/no-such": "没有 {id}",
+    "common/not-current": "{id} 已经改掉或忘掉了"
+  }
+}

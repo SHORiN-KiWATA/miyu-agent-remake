@@ -17,7 +17,7 @@ use miyu_store::blob::Blobs;
 use support::routing::cut_after;
 use support::{Home, alice_account, ask, say, until_turn_ends, watch, within};
 
-/// 发给假服务器的路由（施工 8-6 起照配置）：deepseek 的 deepseek-v4，OpenAI 兼容的写法，空闲超时五秒；`inputs` 照手写的
+/// 发给假服务器的路由（施工 8-6 起照配置）：deepseek 的 deepseek-v4，OpenAI 兼容的写法，空闲超时六十秒（机器忙时假服务器也可能停顿几秒，只测空闲超时的那一条另设短的）；`inputs` 照手写的
 /// 模型资料（施工 8-7），接着写的照 `continues` 用 DeepSeek 的那一套开关。会话的配置换成指到这台服务器的那一份。
 fn models(home: &mut Home, server: &Server, inputs: Inputs, continues: bool) -> Routes {
     let mut profile = serde_json::json!({});
