@@ -72,6 +72,11 @@ export function project(events, live = null, marks = new Map(), stats = new Map(
   const started = [];
   for (const e of events) {
     const b = e.body;
+    // 没在回答了还排着的：`/stop` 留着的（核心 O-6 的 `keep`）不会再开一轮。这一轮结束以后来了别的事（不是接着开的那一轮、不是退回），
+    // 先照日志的先后进正文，不压到后来的那几行（命令、清空）下面
+    if (queue.length && !(e.kind === 'turn.started' && b.trigger != null) && e.kind !== 'message.withdrawn' && ![...turns.values()].some((x) => !x.ended)) {
+      items.push(...queue.splice(0));
+    }
     switch (e.kind) {
       case 'session.created':
       case 'session.policy_changed':

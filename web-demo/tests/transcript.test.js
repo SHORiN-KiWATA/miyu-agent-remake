@@ -157,6 +157,20 @@ test('没在回答了还排着的（没接着开）：进正文，不一直挂�
   assert.equal(view.items.at(-1).text, '顺便看看 b');
 });
 
+test('/stop 留着的排着的话（O-6 的 keep）：这一轮结束以后来了别的事（命令记录、清空），照日志的先后进正文，不压到后来的那几行下面', () => {
+  const events = [...queuedLog(),
+    ev(7, 5, 'turn.ended', 3, { reason: 'interrupted' }),
+    ev(8, 5, 'command.ran', undefined, { text: '/stop', command: 'stop' }, { kind: 'person', account: 'admin' }),
+    ev(9, 6, 'turn.started', 9, {}),
+    ev(10, 6, 'context.compacted', 9, { upto: 8, summary: '', trigger: 'clear' }),
+    ev(11, 6, 'turn.ended', 9, { reason: 'completed' })];
+  const view = project(events);
+  const at = view.items.findIndex((it) => it.type === 'user' && it.text === '顺便看看 b');
+  const clear = view.items.findLastIndex((it) => it.type !== 'user');
+  assert.ok(at >= 0 && at < clear, `排着的那句在清空那一行前面：${view.items.map((it) => it.type).join(',')}`);
+  assert.deepEqual(view.queued, []);
+});
+
 test('你的话里的附件：图片、文件照先后，字照旧；只有附件的字是空的（蓝图「附件」第 6 条）', () => {
   const img = { type: 'image', blob: `sha256:${'a'.repeat(64)}`, media_type: 'image/png', width: 800, height: 600 };
   const file = { type: 'file', blob: `sha256:${'b'.repeat(64)}`, name: '报告.pdf', media_type: 'application/pdf' };

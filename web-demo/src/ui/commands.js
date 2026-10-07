@@ -181,13 +181,24 @@ const RUNS = {
     const session = opened(app);
     if (session) await app.store.conn.request('session.compact', words ? { session, instructions: words } : { session });
   },
-  // 清空上下文（`session.clear`，照 TUI）：还没开的新会话当场说「上下文为空」，不去开会话
+  // 清空上下文：交给核心的命令（`command.run`，施工 O-6，和通讯平台上同一条路）。回执不写：正文里有「上下文已清空」那一行。
+  // 还没开的新会话当场说「上下文为空」，不去开会话
   clear: async (app) => {
     if (!app.current) {
       app.composer.say(res.text.refusals.nothing_to_clear);
       return;
     }
-    await app.store.conn.request('session.clear', { session: app.current });
+    await app.store.conn.request('command.run', { session: app.current, text: '/clear' });
+  },
+  // 全部停下（`command.run` 的 `/stop`，O-6）：打断这一轮、排着的话留着不发，停掉后台命令和子代理；核心的回执写进提示。
+  // 还没开的新会话没什么可停
+  stop: async (app) => {
+    if (!app.current) {
+      app.composer.say(res.text.refusals.not_running);
+      return;
+    }
+    const got = await app.store.conn.request('command.run', { session: app.current, text: '/stop' });
+    if (got?.said) app.composer.say(got.said, true);
   },
   // 回顾（蓝图「回顾」）：提示「正在回顾…」；推来的 `session.recapped` 照日志画，`cached` 的照回应在正文末尾再画一次；
   // 还没开的新会话没什么可回顾，不去开会话
