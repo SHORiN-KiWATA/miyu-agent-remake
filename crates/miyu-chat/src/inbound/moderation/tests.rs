@@ -1,5 +1,5 @@
 //! 违规关键词（`chat.md` 第二条「守着它的」）：大小写、中文、空关键词、主人不查；base64 够长的、不够长的、解出来不可打印的、
-//! 只看前几个字符、关键词在 `max_chars` 之后的、带 `=` 的、长度不是 4 的倍数的、被别的字截开的。
+//! 读不成 UTF-8 的、只看前几个字符、关键词在 `max_chars` 之后的、带 `=` 的、长度不是 4 的倍数的、被别的字截开的。
 
 use crate::VenueKind;
 
@@ -233,9 +233,11 @@ fn base64_mostly_unprintable_is_skipped() {
 }
 
 #[test]
-fn base64_invalid_utf8_becomes_replacement_chars() {
-    // `\xffspam`：读不了的字节换成替换字符，它不是控制字符，算可打印。
-    assert!(flagged("/3NwYW0="));
+fn base64_invalid_utf8_is_skipped() {
+    // `\xffspam`：解出来的字节读不成 UTF-8，整段不要，不查（施工时定的第 20 条；O-5 原来换成替换字符照查）。
+    assert!(!flagged("/3NwYW0="));
+    // 读得成的照查：`spam`。
+    assert!(flagged("/3NwYW0= c3BhbQ=="));
 }
 
 #[test]

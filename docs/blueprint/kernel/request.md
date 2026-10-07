@@ -135,7 +135,7 @@
 
 4. 内容块里不认识的种类，不进请求。`context.compacted`、`turn.reverted`、`turn.unreverted`、`message.withdrawn` 已经由有效历史用掉了，渲染时碰不到。
 5. **人这一边合成一条 user**：碰到 assistant 或者 tool，攒着的块先合成一条 user，放在它前面；渲染完了，剩下的也合成一条；什么都没攒，不出消息。
-6. 合的时候照攒进来的先后，只有一处例外：**每个回合开始的地方**，放这个回合开始时注入的事实和触发它的那一条，先事实、后触发（当前要回应的那句话离生成位置最近）。
+6. 合的时候照攒进来的先后，只有一处例外：**每个回合开始的地方**，放这个回合开始时注入的事实和触发它的那一条，先事实、后触发（当前要回应的那句话离生成位置最近）。内核开始时注入的 `reminder` 反过来排在触发后面（C2 唯一的例外，施工 P-1 补）：这一轮第一次主请求的最后一块是它；模块注入的同类块照别的事实排。
    - 回合开始的地方：`turn.started` 那一刻已经攒了几块，就在那几块后面。
    - 开始时注入的事实：`turn.started` 以后、这个回合第一条回复或者 `turn.ended` 以前，带着这个回合编号的 `context.injected`，内核的、模块的都算。
    - 触发的那一条要在这一次合的块里，才挪过去；不在的（例如压缩掉了、没有认识的块、是模块的事件），事实照原来的先后。
@@ -143,7 +143,7 @@
    - 早到的触发也挪：回合中途就来、下一轮才轮到的那一句，还有打断了这一轮的那一句，日志里都排在上一轮结束的那一句前面；挪到回合开始的地方，它才排在最后。
    - 挪的是回合开始的那个位置，日志里它不动：发过的请求里排好的先后，以后不变。
    - 「开始时注入的」到这一轮有了回复、结束，或者第一次记下 `model.called` 为止（施工 4-9 再补三上）：第一次请求什么都没收到就出了可以重试的错、等的时候又切了级别的，到点查出的事实照先后排在触发后面，下一次请求接着上一次往后长。
-   - 排在检查点前面的 `model.called` 不算（施工 6-2 上）：那是被替代掉的那段的请求和摘要请求自己，压完的第一次请求前缀本来就从头来。回合开头压的，压完再注入的事实照样和触发的那句放在一起，这一轮第一次主请求的最后一块照旧是触发它的那句。
+   - 排在检查点前面的 `model.called` 不算（施工 6-2 上）：那是被替代掉的那段的请求和摘要请求自己，压完的第一次请求前缀本来就从头来。回合开头压的，压完再注入的事实照样和触发的那句放在一起，这一轮第一次主请求的最后一块照旧是触发它的那句（这一轮注入了角色扮演提示的，是提示）。
    - 带 `purpose` 的 `model.called`（回顾这类辅助请求，施工 3-8 四补）也不算：它不是这一轮请求过，不带回合编号，可以落在回合开始的那几块中间，算了就挪动了开始时注入的事实，前缀断开。
    - 回合中途注入的事实（第一条回复以后）照先后，排在那一步的工具结果后面。
 7. **接着写的记号**：有效历史照排好的先后倒着看，跳过 `model.called`、`session.recapped`（回顾不进上下文，中途要了照样接着写，施工 3-8 四补）、`session.meta_changed`（上一轮起的标题可能在这一轮中途回来，改标题也不进上下文，施工 3-8 五补）、`image.described`（图的转述不渲染，打断以前发出去的转述可能这时才回来，施工 8-17）、`command.ran`（施工 O-6）：最后一条是内核记的 `reply_cut` 事实，再往前一条是带 `interrupted` 的回复，`continuation` 就是真。这时最后一条 user 只有被打断的那一句，前面那条 assistant 是半截。那一句后面又来了别的（人的消息、别的事实），就是假。驱动怎么用它见 `drivers/openai-chat.md`。
@@ -228,14 +228,17 @@
 
 **事实**
 
-1. 四类，都是 `context.injected`，`by` 是内核，`cause` 是这一轮的：
+1. 五类，都是 `context.injected`，`by` 是内核，`cause` 是这一轮的：
 
 | `kind` | 什么时候查 | 字段 |
 |---|---|---|
 | `env` | 回合开始；这一轮切过级别以后的边界 | `time`、`timezone`、`cwd` |
 | `permission` | 同上 | `level`；切换那一份另有 `previous`（施工 2-7 补） |
 | `session` | 同上；快照里没有这份模板的不查（施工 1-13 再补） | `id` |
+| `reminder` | 只在回合开始；快照里没有 `reminder` 的不查（施工 P-1 补） | 没有：快照里拼好的一块，原样 |
 | `reply_cut` | 说到一半断了、要带着半截再请求 | 没有 |
+
+   `reminder` 是角色扮演提示（`08-上下文投影.md` C3、`26-提示词.md` J10）：有效历史里没有内核记的这一类，注入；有的，数它后面的 `turn.started`（这一轮的算在内），到 3 注入，所以是第 1、4、7……轮。压缩替掉的、撤掉的不在有效历史里，下一轮重来；模块注入的同类块不算。它不比原文，排在同一批的环境、权限、编号后面（`FactTemplates::reminder`）。
 
 2. **该不该注入**：`env`、`permission`、`session` 各和有效历史里同一个 `by`、同一个 `kind` 的最近一块比。`env`、`session` 比原文，逐字节相同就不注入（`changed`）；`permission` 比级别（下面）。
    - 比最近那一块：先是 A，一个边界变成 B，下一个边界又回到 A，要注入 A。
@@ -319,11 +322,13 @@
 |---|---|---|
 | `permission-rule.txt` | `A <permission> block gives the permission level from that point on. In read_only, neither file tools nor commands can write anything. In workspace, commands can write only inside the workspace and the temp directory, and file tools need the user's approval to write outside the workspace. In full, there are no limits. Only the user can change the level.` | system，核心的几行的第一行；工具面是空的会话不带（施工 2-7 补） |
 | `local-paths-rule.txt` | `When a reply links or embeds a local file, write its absolute path. Relative paths resolve against the session working directory.` | system，核心的几行的第二行（施工 2-7 补） |
+| `style-lock.txt` | `<style-lock>Stay in character across tool calls. Tool results are working material; they are not a reason to switch into an assistant reporting tone.</style-lock>` | system 的最后一块，只有带角色扮演提示的人格（施工 P-1 补，`policy.md` 的 `with_style_lock`） |
 | `facts/env.txt` | `<env time="{time}" timezone="{timezone}" cwd="{cwd}"/>` | 事实 `env` |
 | `facts/permission.txt` | `<permission level="{level}"/>` | 事实 `permission` |
 | `facts/session.txt` | `<session id="{id}"/>` | 事实 `session`（施工 1-13 再补） |
 | `facts/permission-changed.txt` | `<permission level="{level}" previous="{previous}">The user changed the permission level.</permission>` | 事实 `permission`：人切了级别以后的边界、她看到过上一块的（施工 2-7 补；原文等主会话 A/B 定） |
 | `facts/reply-cut.txt` | `<reply-cut>The reply above was cut off before it was finished. The user has already seen it. Continue from exactly where it stopped, without repeating it.</reply-cut>` | 事实 `reply_cut` |
+| `facts/reminder-open.txt`、`facts/reminder-close.txt` | `<persona-reminder>`、`</persona-reminder>`，各一行 | 事实 `reminder` 的开头、收尾：拼快照时和人格的原文拼成一块（施工 P-1 补，`policy.md`「拼」第 4 条） |
 | `turn-ended/interrupted.txt` | `<turn-ended reason="interrupted">The user interrupted this turn.</turn-ended>` | 人这一边 |
 | `turn-ended/error.txt` | `<turn-ended reason="error">This turn stopped on an error.</turn-ended>` | 人这一边 |
 | `turn-ended/step_limit.txt` | `<turn-ended reason="step_limit">This turn stopped at the step limit.</turn-ended>` | 人这一边 |
@@ -491,8 +496,8 @@ Carry on from where the summary leaves off, without redoing work it records as d
 
 - 结尾那份以一个换行开头，所以摘要后面换一行。
 - 结尾那一句是检查点的规则，施工 6-3 下挪进来的（`compaction.md` 第八条）：回合中途压完，这一轮的最后一条只有检查点和事实，没有它，她不知道这时该做什么，会把摘要里记着做完了的再做一遍核对。
-- system 由拼快照的一步拼好（`policy.md`「拼」），组装时原样用，不再拆开。新会话的 system 是人设、场所说明（子会话）、核心的几行，块和块之间空一行（`26-提示词.md` 第四节）。核心的几行施工 2-7 补加，一行一句，先 `permission-rule.txt`（工具面是空的会话不带）、后 `local-paths-rule.txt`；以前造的快照 system 里没有这一块，照快照发，前缀一字不变。
-- 样本：`docs/designs/samples/requests/second-step.json`（第一轮两块事实排在触发消息前面、调一次工具以后的那次请求）、`after-compaction.json`（压缩以后只剩检查点）；探针几张脸的 system 都以核心的几行结尾（施工 2-7 补）；`docs/designs/samples/probe/terminal/requests/` 是一段终端会话的每一次请求，第 7 次起带着切到只读的那一块（切换那一份，施工 2-7 补），第 11 次带接着写的记号；`docs/designs/samples/probe/reports/requests/` 是一段有回报的会话（施工 7-2）：第 3 次由子代理的回报开，第 5 次后台命令结束排在工具结果后面，第 7 次只记下的回报排在人那一句前面；`docs/designs/samples/probe/cleared/requests/` 是一段清空过的会话（施工 6-8 补）：第 3 次是清空以后的，只剩工具面、system、三块事实和那一句；`docs/designs/samples/probe/harness/requests/` 是一段有别的 harness 来话的会话（施工 7-10）：第 2 次由它开，第 4 次它在回合中途到、排在工具结果后面，和同一份剧本里换成人说的比，每次请求只多标签那两段；`docs/designs/samples/probe/peers/requests/` 是一段有别的会话来话的会话（施工 C-2）：第 2 次由它开，第 4 次它在回合中途到、排在工具结果后面，和同一份剧本里换成人说的比，每次请求只多标签那两段；`docs/designs/samples/probe/permission/requests/` 是一段人切了权限级别的会话（施工 2-7 补）：第 2 次开头是切到完全放开的那一块，第 3 轮开了只读又关掉、不注入，第 7 次切到只读的那一块排在工具结果后面。
+- system 由拼快照的一步拼好（`policy.md`「拼」），组装时原样用，不再拆开。新会话的 system 是人设、场所说明（子会话）、核心的几行，带角色扮演提示的人格最后还有风格锁（施工 P-1 补），块和块之间空一行（`26-提示词.md` 第四节）。核心的几行施工 2-7 补加，一行一句，先 `permission-rule.txt`（工具面是空的会话不带）、后 `local-paths-rule.txt`；以前造的快照 system 里没有这一块，照快照发，前缀一字不变。
+- 样本：`docs/designs/samples/requests/second-step.json`（第一轮两块事实排在触发消息前面、调一次工具以后的那次请求）、`after-compaction.json`（压缩以后只剩检查点）；探针几张脸的 system 都以核心的几行结尾（施工 2-7 补）；`docs/designs/samples/probe/terminal/requests/` 是一段终端会话的每一次请求，第 7 次起带着切到只读的那一块（切换那一份，施工 2-7 补），第 11 次带接着写的记号；`docs/designs/samples/probe/reports/requests/` 是一段有回报的会话（施工 7-2）：第 3 次由子代理的回报开，第 5 次后台命令结束排在工具结果后面，第 7 次只记下的回报排在人那一句前面；`docs/designs/samples/probe/cleared/requests/` 是一段清空过的会话（施工 6-8 补）：第 3 次是清空以后的，只剩工具面、system、三块事实和那一句；`docs/designs/samples/probe/harness/requests/` 是一段有别的 harness 来话的会话（施工 7-10）：第 2 次由它开，第 4 次它在回合中途到、排在工具结果后面，和同一份剧本里换成人说的比，每次请求只多标签那两段；`docs/designs/samples/probe/peers/requests/` 是一段有别的会话来话的会话（施工 C-2）：第 2 次由它开，第 4 次它在回合中途到、排在工具结果后面，和同一份剧本里换成人说的比，每次请求只多标签那两段；`docs/designs/samples/probe/permission/requests/` 是一段人切了权限级别的会话（施工 2-7 补）：第 2 次开头是切到完全放开的那一块，第 3 轮开了只读又关掉、不注入，第 7 次切到只读的那一块排在工具结果后面。`docs/designs/samples/probe/reminder/requests/` 是带角色扮演提示的人格聊五轮（施工 P-1 补）：system 以风格锁结尾，第 1、4 次的最后一块是提示、排在人说的那句后面，第 2、3、5 次的最后一块是人说的那句；去掉风格锁和提示，和不带提示的同一份剧本一字不差。
 
 ### 出错
 
@@ -562,7 +567,6 @@ Carry on from where the summary leaves off, without redoing work it records as d
 
 - 压缩：检查点里由代码补上的部分、压后重建、压缩以后算一个边界（M6，`09-压缩.md` 第四节）。
 - 群里的发送者标签和群聊近况、模块用模板声明的事件（`08-上下文投影.md` 第四节第 6 条）。
-- 角色扮演提示，排在触发之后（C2 的例外，`26-提示词.md` J10）。
 - 事实：到分钟的时间、没有工作目录的场所、场所的强制策略、工作区的文件清单、关掉的补一条「已关」（`08-上下文投影.md` 第五节）。
 - 按段记哈希、前缀改写的登记簿（`08-上下文投影.md` 第七节）。
 - 中途连上的头要的「到目前为止的内容」（`03-事件模型.md` 第五节，M8）。

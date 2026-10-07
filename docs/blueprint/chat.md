@@ -4,7 +4,7 @@
 
 通讯平台里和平台无关的那一层：场所规则、进站链、线路规程、主动回复判断、出站链与出站队列、并行的分派（`docs/designs/18-通讯平台.md` 第一节）。它是第 2 层的纯逻辑，进来的是字和事件，出去的是判定，不碰磁盘、网络、时钟。软件包 `miyu-onebot` 链接它；以后别的平台的桥也链接同一个库。
 
-状态：图纸，随施工 O-1 起草（2026-10-07）。第一条场所规则（O-1），第二条进站链与限流（O-5），第三条主动回复判断的上半（O-7），第四条顶替与分派（O-9），第五条出站链与纯文本（O-10），第六条判官的请求和回答（O-11），第七条和核心的接口（2026-10-07，O 线自查以后定）；O-12（上）照第七条把第一到第六条的编号和类型统一成内核的；其余各条随后面的步子补。
+状态：图纸，随施工 O-1 起草（2026-10-07）。第一条场所规则（O-1），第二条进站链与限流（O-5），第三条主动回复判断的上半（O-7），第四条顶替与分派（O-9），第五条出站链与纯文本（O-10），第六条判官的请求和回答（O-11），第七条和核心的接口（2026-10-07，O 线自查以后定）；O-12（上）照第七条把第一到第六条的编号和类型统一成内核的；O-12（下）交出「冲她来」和 base64 解出来的字，场所、限流、睡眠只能经构造函数或读造，插槽的名字删掉；其余各条随后面的步子补。
 
 ### 在哪
 
@@ -16,11 +16,13 @@
 | `crates/miyu-chat/src/rules/attrs.rs` | 规则能设的属性：名字、类型 |
 | `crates/miyu-chat/src/rules/forms.rs` | 配置清单没有的两种写法：限流 `rate`、睡眠 `sleep` |
 | `crates/miyu-chat/src/rules/resolve.rs` | 套到一个场所上：每一项的值和来处 |
-| `crates/miyu-chat/src/rules/ids.rs` | 编号的拼和解：场所、平台上的人（第七条第 1 条，施工 O-12） |
+| `crates/miyu-chat/src/rules/ids.rs` | 场所 `Venue`、`VenueKind`；编号的拼和解：场所、平台上的人（第七条第 1 条，施工 O-12） |
 | `crates/miyu-chat/src/inbound.rs` | 进站链：插槽、自带五条的先后、结果（施工 O-5） |
 | `crates/miyu-chat/src/inbound/` | 每条规则一个文件；违规关键词和 base64；限流的数法和回合闸 |
+| `crates/miyu-chat/src/inbound/addressed.rs` | 是不是冲她来的（施工 O-12 下） |
 | `crates/miyu-chat/src/chatty.rs` | 主动回复判断：两个插槽（加值项、门槛修正）、条件、走哪条路、算分（施工 O-7） |
-| `crates/miyu-chat/src/chatty/` | 每个加值项一个文件；抽样；冷静；顶替与分派（`dispatch`，施工 O-9） |
+| `crates/miyu-chat/src/chatty/` | 每个加值项一个文件；抽样；冷静 |
+| `crates/miyu-chat/src/chatty/supersede.rs`、`chatty/dispatch.rs` | 顶替、分派，各一个文件（施工 O-9，O-12 下分开） |
 | `crates/miyu-chat/src/outbound.rs`、`outbound/` | 出站链：插槽、自带三条（清理、去重、引用和 @）；纯文本：Markdown 转纯文本、按段拆开（施工 O-10） |
 | `crates/miyu-chat/src/judge.rs`、`judge/` | 判官：拼 `model.call` 的请求、读回答（施工 O-11） |
 | `resources/software/onebot/judge/` | 判官的说明，十三份原文（给模型看的字，登记在 `26-提示词.md` 第十节） |
@@ -79,11 +81,12 @@ Rust 这一边：
 | 名字 | 是什么 |
 |---|---|
 | `File { source, name, text }` | 一份规则文件：来自哪（`Source::Factory` 出厂、`Source::System` 系统），文件名，字 |
-| `Rules::parse(files) -> Read { rules, problems }` | 读一组文件。不会失败：坏的文件、坏的规则、坏的一项都变成问题，其余照收 |
-| `Venue { platform, kind, id }` | 一个场所：平台、`VenueKind::Group` 或 `Private`、平台里的编号 |
-| `Venue::id() -> Result<VenueId, FormatError>`、`Venue::parse(&VenueId) -> Option<Venue>` | 场所编号（内核的 `VenueId`）的拼和解：`<平台>:group:<群号>`、`<平台>:private:<对方的号>`（第七条第 1 条）。平台不是名字、号是空的或带空白和控制字符、拼出来超过 128 字节的拼不出，报内核的 `FormatError`；解不出的是 `None` |
+| `Rules::parse(files) -> Parsed { rules, problems }` | 读一组文件。不会失败：坏的文件、坏的规则、坏的一项都变成问题，其余照收 |
+| `Venue::new(platform, kind, number) -> Result<Venue, FormatError>` | 一个场所：平台、`VenueKind::Group` 或 `Private`、平台里的编号（群号或对方的号）。几格私有，只能这样造；读用 `platform()`、`kind()`、`number()`。平台不是名字、号是空的或带空白和控制字符、拼出来的编号超过 128 字节的造不出，报内核的 `FormatError` |
+| `Venue::id() -> &VenueId`、`Venue::parse(&VenueId) -> Option<Venue>` | 场所编号（内核的 `VenueId`）的拼和解：`<平台>:group:<群号>`、`<平台>:private:<对方的号>`（第七条第 1 条）。造的时候拼好、查过，`id()` 不会失败；解的照 `Venue::new` 的规矩查，解不出的是 `None` |
 | `person(platform, number) -> Result<ExternalId, FormatError>`、`parse_person(&ExternalId) -> Option<(&str, &str)>` | 平台上的人（内核的 `ExternalId`）的拼和解：`<平台>:<号>`，规矩同上；管理员的身份 `managers` 照同一份规矩查 |
-| `Rules::resolve(&venue) -> Resolved` | 套到一个场所上：每一项的值和来处，没有规则设到的不在里面 |
+| `Rules::resolve(&venue) -> Resolved { entries }` | 套到一个场所上：属性的名字到 `Entry`，没有规则设到的不在里面 |
+| `Entry { value, origin }` | 一项最后的样子：值（配置的 `Value`，过了校验）、最后设它的那一条规则的来处 |
 | `Origin { source, file, rule, line }` | 来处：哪一份、哪个文件、第几条规则（从 1 数）、那一项在第几行 |
 | `Problem { code, source, file, rule, key, at, got, suggest, why }` | 一个问题。`code` 用配置的原因码（`miyu_config::problem::Code`），严重程度跟着它 |
 
@@ -110,7 +113,7 @@ Rust 这一边：
 - 匹配：四种条件各自的对与不对；整数和字的编号一样；`group` 只配群、`user` 只配私聊；两个都写、空列表不匹配；不写 `match`、空表匹配所有。
 - 出问题：写法不对整份不用；最上面不认识的键；`match` 写错整条不用；属性写错只丢一项；不认识的键给最近的名字；BOM。
 - 两种写法：`rate` 的边界（`0`、`1/1s`、`10000/24h`、`10000/86400s`、`0/60s`、`5/0s`、`5/25h`、`5`、`+5/60s`、`a/60s`、`5/60x`）；`sleep` 的边界（跨午夜、`23:59`、`24:00`、`7:00-8:00`、开始等于结束、`off`）；`managers` 的写法。
-- 编号（`rules/ids/tests.rs`，O-12）：场所、平台上的人拼出来的样子、解得回原样；号里带 `:` 的；平台不是名字的、种类不认识的、号是空的或带空白的、正好 128 字节和多一个字节的。
+- 编号（`rules/ids/tests.rs`，O-12）：场所、平台上的人拼出来的样子、解得回原样；号里带 `:` 的；平台不是名字的、种类不认识的、号是空的或带空白的、正好 128 字节和多一个字节的；`Venue::new` 造不出这些非法的，造得出的 `id()` 和照写法拼出来的一样（O-12 下）。
 
 **施工时定的**（O-1）
 
@@ -129,7 +132,7 @@ Rust 这一边：
 | 11 | `extra_prompt` 先只收一行（文字的类型不收控制字符，换行也算） | 多行怎么进 system、怎么转义，随组装 system 的那一步定 | 现在就收多行 |
 | 12 | 值一律用配置的 `Value`：`rate`、`sleep` 照原文存成字，`managers` 是字的列表 | `venue show` 照原文印；真正用到它们的步子还没来，不先造类型 | 现在就解析成结构体 |
 | 13 | 编号的拼和解（O-12，O 线自查以后照第七条加）：拼的一方先查平台是名字、号合第 7 条的规矩，再交内核的编号查长度和控制字符，报内核的 `FormatError`；解的一方在前面的 `:` 处切开，种类只认 `group`、`private`（区分大小写），号里再有 `:` 的照收。管理员的身份照解平台上的人那一份查 | 平台是名字，里面没有 `:`，拼出来的一定解得回原样；一份规矩，三处用（场所、人、管理员） | 拼的时候不查，只交内核查（内核只查长度和控制字符，`QQ:group:1` 也收） |
-| 14 | `Venue::id` 会失败、交 `Result`：`Venue` 的几格还是公开的，造的时候不查 | 拼不出的如实报，不吞；构造函数随 O-12（下） | 拼不出时 panic |
+| 14 | 构造函数到位（O-12 下）：`Venue` 的几格私有，只能由 `Venue::new` 造，造的时候拼好编号、照第 13 条查过，`id()` 不会失败、交 `&VenueId`；`Venue::parse` 也经它造。平台里的编号那一格原来叫 `id`，改叫 `number` | 造不出非法的场所，拼不出的在造的那一刻如实报，用的时候不用再处理错；`id` 和 `id()` 撞名 | 几格公开、`id()` 交 `Result`（O-12 上的做法）；拼不出时 panic |
 
 ### 二、进站链与限流（施工 O-5）
 
@@ -140,14 +143,16 @@ Rust 这一边：
 | 名字 | 是什么 |
 |---|---|
 | `Standing::{Owner, Trusted, Member}` | 发的人是谁：主人（核心照 `external.bindings` 认出来的）、自己人、别的人 |
-| `Said { sender, standing, addressed }` | 一条消息的事实，进站链和第三条的 `Facts` 共用：发的人（平台上的人，内核的 `ExternalId`）、他是谁、是不是冲她来的（@ 她、回复她、叫到名字或触发词，由外面算好） |
+| `Said { sender, standing, addressed }` | 一条消息的事实，进站链和第三条的 `Facts` 共用：发的人（平台上的人，内核的 `ExternalId`）、他是谁、是不是冲她来的（外面用 `addressed` 算好） |
+| `addressed(kind, mentions_me, quotes_me, text, keywords) -> bool` | 是不是冲她来的（「怎么走」第 11 条）：场所是群还是私聊、@ 了她没有、引用的是不是她的消息、正文、场所规则的触发词 `keywords` |
 | `Inbound { kind, said, text }` | 一条进来的消息：场所是群还是私聊（`VenueKind`）、`Said`、正文 |
 | `Clock { now, offset }` | 此刻（内核的 `Timestamp`）；场所会话的时区（内核的 `UtcOffset`） |
 | `Ctx { rate, sleep, allow, muted, turns, notices, moderation }` | 这个场所的：限流 `Rate`（没有或不限是 `None`）、睡眠 `Sleep`（没有或 `off` 是 `None`）、能不能叫她、她被禁言没有、最近开过的回合（不算主人、自己人开的）的开始时刻、限流提示过的时刻（都是 `Timestamp`）、违规关键词的参数 |
-| `Rate { turns, window }`、`Rate::read` | 从 `rate` 的原文读出来：几个回合（不会是 0）、窗口多少毫秒（时长照旧是毫秒数）；不限、写错的读成 `None` |
-| `Sleep { start, end }`、`Sleep::read` | 从 `sleep` 的原文读出来：一天里的第几分钟开始、第几分钟结束；开始晚于结束的跨午夜；`off`、写错的读成 `None` |
+| `Rate::read(text) -> Option<Rate>` | 从 `rate` 的原文读出来：几个回合（不会是 0）、窗口多少毫秒（不会是 0，时长照旧是毫秒数）；不限、写错的读成 `None`。几格私有，只能这样造 |
+| `Sleep::read(text) -> Option<Sleep>` | 从 `sleep` 的原文读出来：一天里的第几分钟开始、第几分钟结束（不会相等）；开始晚于结束的跨午夜；`off`、写错的读成 `None`。几格私有，只能这样造 |
 | `Moderation { keywords, base64 }`、`Base64 { min_chars, max_chars, printable }` | 违规关键词，和 base64 的三个数：至少多长才去解、解出来最多看多少个字符、可打印的字符至少占几成（千分比） |
-| `InboundRule` | 进站链的插槽：一条规则有名字，`judge` 给出 `Step::Continue`、`Step::Flag(Flag)`（插旗、往下走）或 `Step::Stop(Outcome)` |
+| `Base64::reveal(text) -> Option<String>` | 正文里的 base64 解出来的字（「怎么走」第 10 条）：违规关键词查它，桥拿它填判官的 `Ask.decoded`（第六条）；一段都没有是 `None` |
+| `InboundRule` | 进站链的插槽：一条规则，`judge` 给出 `Step::Continue`、`Step::Flag(Flag)`（插旗、往下走）或 `Step::Stop(Outcome)` |
 | `Chain::builtin()`、`Chain::judge(&msg, &ctx, clock) -> Verdict` | 自带的五条照顺序过；`Verdict { outcome, flags }` |
 | `Outcome::{Pass, RecordOnly(Why), Notice(Why)}`、`Why::{Asleep, Muted, NotAllowed, RateLimited}` | 放行、只记下、拒绝并回一句；为什么 |
 | `Flag::Moderation` | 违规旗 |
@@ -160,7 +165,7 @@ Rust 这一边：
 2. **睡眠**：设了睡眠，此刻（照 `offset` 换成当地时间，取一天里的第几分钟：内核的 `Timestamp::local_minute` 交回的是字，这里照 `unix_millis`、`UtcOffset::minutes` 自己算，内核不加）落在 `[start, end)` 里算睡着；跨午夜的，落在 `[start, 1440)` 或 `[0, end)` 里。睡着时：主人继续；自己人在私聊里继续；别的一律 `RecordOnly(Asleep)`。
 3. **她被禁言**：谁说的都 `RecordOnly(Muted)`：她开不了口。
 4. **谁能叫她**：`allow` 是 `false` 时，主人继续；自己人在私聊里继续；别的 `RecordOnly(NotAllowed)`。没设 `allow` 当 `true`。
-5. **违规关键词**：主人发的不查。正文里出现任何一个关键词（子串；ASCII 的字母不分大小写，别的字照原样比；空的关键词不算），插 `Flag::Moderation`。没命中的，再找正文里的 base64：连续的 base64 字符（`A–Z`、`a–z`、`0–9`、`+`、`/`，末尾的 `=`）至少 `min_chars` 个的一段，解出来照 UTF-8 读（读不了的字节换成替换字符），只看前 `max_chars` 个字符，可打印的字符（不是控制字符的）占的千分比不低于 `printable` 的，照同样的办法查关键词。只插旗，不拦。
+5. **违规关键词**：主人发的不查。正文里出现任何一个关键词（子串；ASCII 的字母不分大小写，别的字照原样比；空的关键词不算），插 `Flag::Moderation`。没命中的，再看正文里的 base64 解出来的字（第 10 条），照同样的办法查关键词。只插旗，不拦。
 6. **限流**：
    - 主人、自己人继续：他们开的回合本来就不在 `turns` 里（外面交进来时就去掉了）。
    - 没有限流（`rate` 没设或 `0`）继续。
@@ -173,16 +178,23 @@ Rust 这一边：
    - 都不是：`Now`。两样都占时，取晚的那一个。
    - 要推迟到的时刻过了 9999 年、`Timestamp` 写不出的：`Later` 到此刻，问的一方到时候再问，还是推迟。
    - 「先记着」（`hold`）不在这里：只有桥没连着时由核心自己按它算（18 第十六节）。
-9. **读原文**：`Rate`、`Sleep` 由 `forms` 从场所规则的原文读出来，写法的规矩和第一条一样；第一条已经查过写法，这里读到写错的当没设。
+9. **读原文**：`Rate`、`Sleep` 由 `forms` 从场所规则的原文读出来，写法的规矩和第一条一样；第一条已经查过写法，这里读到写错的当没设。只能这样造：读出来的不会是 0 个回合、窗口不会是 0、开始不会等于结束。
+10. **base64 解出来的字**（`Base64::reveal`）：正文里连续的 base64 字符（`A–Z`、`a–z`、`0–9`、`+`、`/`，末尾的 `=`）至少 `min_chars` 个的一段，解出来的字节照 UTF-8 读，读不成的整段不要；读得成的只看前 `max_chars` 个字符，可打印的字符（不是控制字符的）占的千分比不低于 `printable` 的留下。留下的去掉重复的，照出现的先后用换行接起来；一段都没有是 `None`。违规关键词（第 5 条）查它；桥拿它填判官的 `Ask.decoded`：解得出来就给判官看，不只是命中关键词的时候（旧版 `decode_base64_text`）。
+11. **冲她来**（`addressed`，填 `Said::addressed`）：
+    - 私聊：一律是。私聊里每一条都是对她说的；旧版私聊不看唤醒词。
+    - 群：@ 了她（`mentions_me`）是；引用的是她的消息（`quotes_me`）是；正文去掉开头的空白以后，以某个触发词开头是（场所规则的 `keywords`；空的不算；区分大小写）。
+    - 触发词只认开头，不认中间：中间出现就算，「为什么」这类词会误叫（旧版 `group_trigger_text`，08-29 实测）。名字也算触发词，写在 `keywords` 里，出厂是空的。
 
 **守着它的**（`crates/miyu-chat/src/inbound/tests.rs` 等，O-5）
 
-- 先后：前面停了后面不看；旗和放行同时有；五条都过是放行。
+- 先后：前面停了后面不看；旗和放行同时有；五条都过是放行。比的是结果：相邻的两条同时成立时前面那条的结果胜出，调换任意相邻两条都有测试红（O-12 下）。
 - 睡眠：不跨午夜、跨午夜、正好在 `start`（睡着）、正好在 `end`（醒着）；时区差正的、负的、跨日；主人、私聊的自己人、群里的自己人、别的人。
 - 禁言、谁能叫她：各种人；没设 `allow`。
-- 违规关键词：大小写、中文、空关键词、主人不查；base64：够长的、不够长的、解出来不可打印的、只看前几个字符、关键词在 `max_chars` 之后的、带 `=` 的、长度不是 4 的倍数的。
+- 违规关键词：大小写、中文、空关键词、主人不查；base64：够长的、不够长的、解出来不可打印的、读不成 UTF-8 的（O-12 下）、只看前几个字符、关键词在 `max_chars` 之后的、带 `=` 的、长度不是 4 的倍数的。
 - 限流：边界（正好 `window` 以前的不算、`now` 那一刻的算）、不冲她来的、第一次满提示、再来只记下、降下去再满又提示、不限、主人和自己人。
 - `rate_full`、回合闸：只睡着、只满了、两样都占取晚的、跨午夜醒来的时刻、都不占是 `Now`；醒来、出窗口的时刻过了 9999 年的推迟到此刻（O-12）。
+- base64 解出来的字（`inbound/base64/tests.rs`，O-12 下）：没有、一段、两段、重复的只留一个、不够长的、不可打印的、读不成 UTF-8 的（长数字串；一段坏的、一段好的只留好的）、照出现的先后。
+- 冲她来（`inbound/addressed/tests.rs`，O-12 下）：私聊、@、引用、触发词在开头、开头有空白、触发词在中间不算、大小写不同不算、空的触发词不算。
 
 **施工时定的**（O-5）
 
@@ -200,6 +212,14 @@ Rust 这一边：
 | 10 | 现在只有 `Chain::builtin()`，没有往链里加规则的入口 | 加规则的是扩展，随插件那一步 | 先留一个入口 |
 | 11 | 时刻、时区用内核的 `Timestamp`、`UtcOffset`，窗口、时长照旧是毫秒数；进站链和第三条重复的三格（发的人、他是谁、是不是冲她来的）合成 `Said`，两边都用它，只有一边用的格（场所种类、正文）留在那一边（O-12，O 线自查以后改） | 和核心已有的类型重复、传错了编译器拦不下；接核心时照事件投影，一份类型少一层转换 | 各写各的 |
 | 12 | 回合闸推迟到的时刻写不出（过了 9999 年）的，`Later` 到此刻（O-12） | 闸只能推迟，不能放；这一刻一定写得出 | 当 `Now`；panic |
+| 13 | `Rate`、`Sleep` 的格私有，只能经 `Rate::read`、`Sleep::read` 造（O-12 下） | 读出来的不会是 0 个回合、窗口不会是 0、开始不会等于结束；开始等于结束时回合闸会推迟到已经过去的时刻，桥空转一分钟（O 线自查第 14 条） | 格公开，自己造的当整天睡着 |
+| 14 | 停下来不记是哪一条规则：四个插槽（`InboundRule`、`Bonus`、`Lift`、`OutboundRule`）的 `name()` 删掉；插件那一步重定结果的形状（带名字、种类开放）（O-12 下） | 自带的规则停下来，`Why`、`OutWhy`、`Kind` 已经说清是哪一条；`name()` 只有排先后的测试在用，记名字是给还没来的插件写的。排先后的测试改成比结果 | 结果里加一格名字 |
+| 15 | base64 解出来的字由 `Base64::reveal` 公开交出，不挂在旗上（O-12 下） | 旧版只要解得出来就给判官看，跟命中没命中关键词无关；挂在旗上就只有命中时才有 | 旗带上解出来的字 |
+| 16 | 冲她来的触发词开头比、区分大小写，名字写在触发词里（O-12 下） | 照旧版：中间出现就算会误叫（「为什么」这类词），旧版 08-29 实测过；Q4 效果照搬 | 子串；自动加上人格的名字 |
+| 17 | 私聊一律算冲她来（O-12 下） | 私聊里每一条都是对她说的；旧版私聊不看唤醒词。限流满了的私聊也该提示一次 | 照群一样看 @ 和触发词 |
+| 18 | 回合闸的 `Gate`、第四条的 `Pending` 和桥里私有的同名类型撞名，不改（O-12 下） | 桥的是私有的，路径分得开；桥合进来（O-8）时用到的地方写全路径 | 改群聊内核的公开名字 |
+| 19 | `Base64` 和 `reveal` 放在 `inbound/base64.rs`（O-12 下） | 解出来的字不只违规关键词用，判官也用；和找段、解码放在一起 | 留在违规关键词的文件里 |
+| 20 | 解出来的字节读不成 UTF-8 的，整段不要（O-12 下） | 解出来的字交给判官看，长数字串、哈希这类会解出乱码，白花判官的 token；照旧版 `decode_base64_text` | 换成替换字符（O-5 的做法） |
 
 ### 三、主动回复判断（上）：加值项、算分与冷静（施工 O-7）
 
@@ -212,13 +232,13 @@ Rust 这一边：
 | `Facts { venue, msg, said, mentions_others, quotes_other, textless, media_only }` | 一条消息的平台事实：场所编号（`VenueId`）、这条消息在场所主线会话日志里的序号（内核的 `Seq`，第七条第 1 条）、`Said`（第二条）、@ 了别人没有、引用的是不是别人的消息、是不是只有表情（没有字）、是不是只有图 |
 | `Reply { at, to }` | 她在这个场所真发出的一轮回复：时刻（`Timestamp`），回的是谁（平台上的人的列表，一轮可以回几个人；没有明确回谁的是空的）。一轮拆成几段发也只算一轮 |
 | `Chatty { … }` | 参数：抽样的千分比、基础门槛、五维的权重、`should_reply` 的调整、各加值项的加分和窗口、冷静的开关和曲线、违规的门槛。由外面交进来，代码里不写默认值 |
-| `Bonus` | 加值项的插槽：一个加值项有名字，`judge` 看这条消息成不成立，成立了给一笔 `Hit { kind, bonus }` |
+| `Bonus` | 加值项的插槽：`judge` 看这条消息成不成立，成立了给一笔 `Hit { kind, bonus }` |
 | `Kind::{Direct, Continuation, AfterSpeaking, Probability, Moderation}` | 触发条件的种类 |
 | `Hit { kind, bonus }`、`Conditions { hits }`、`Conditions::primary()` | 一个成立了的条件；成立了的条件，照插槽的先后；主触发 |
 | `conditions(&facts, flags, &replies, clock, &chatty) -> Conditions` | 算条件：自带的加值项照先后过 |
 | `Route::{Record, Commit, ModerationOnly, Judge}`、`route(&conditions, standing) -> Route` | 走哪条路：只记下、直接回、判官只查违规、交给判官打分 |
 | `Judgement { scores, should_reply, to_bot, severity, reason }` | 判官的回答：五维各 0 到 10、该不该回、是不是在跟她说话、违规的严重程度（0 到 10，没查是 `None`）、一句理由（只进日志，算分不看它；O-11 加） |
-| `Lift` | 门槛修正的插槽：一个修正有名字，给出抬多少 |
+| `Lift` | 门槛修正的插槽：`lift` 给出抬多少 |
 | `Score { raw, adjust, bonus, lift, threshold, total, reply }`、`score(&judgement, &conditions, &replies, clock, &chatty) -> Score` | 算分的每一项和结论 |
 | `pressure(&replies, clock, &chatty) -> f64` | 冷静的近期发言量 p |
 
@@ -254,7 +274,7 @@ Rust 这一边：
 
 **守着它的**（`crates/miyu-chat/src/chatty/tests.rs` 等，O-7）
 
-- 加值项：每一种成立和不成立；几个同时成立加分相加；窗口两头（正好 `window` 以前不算、此刻的算）；续聊只认最近一轮回的人，那一轮回了几个人的每个都算；@ 了别人、引用别人的不算续聊；只有表情的不算刚说过话；回谁是空的不算续聊、算刚说过话。
+- 加值项：每一种成立和不成立；几个同时成立加分相加；窗口两头（正好 `window` 以前不算、此刻的算）；续聊只认最近一轮回的人，那一轮回了几个人的每个都算；@ 了别人、引用别人的不算续聊；只有表情的不算刚说过话；回谁是空的不算续聊、算刚说过话。几样同时成立时 `Conditions.hits` 照插槽的先后排，抽样看得到前面的：调换相邻两个加值项有测试红（O-12 下）。
 - 抽样：两个种子钉死（拿 Python 的 hashlib 另算）；同样的场所、序号，结果一样；千分比 0 永不中、1000 必中；只有图的不抽；别的条件成立时不抽。
 - 主触发的先后；走哪条路的四种，包括主人 @、自己人 @、只有违规旗。
 - 算分：照 18 第七节的两个例子算出 0.785 对 0.92 不回、1.085 对 0.8 回；`adjust` 正负和 0；分超过 10；权重全 0；`total`、`threshold` 不低于 0；违规的门槛；只查违规的不打分。
@@ -276,6 +296,7 @@ Rust 这一边：
 | 10 | 插槽的形状：`Bonus::judge(&BonusCtx, before: &[Hit])`，抽样要看前面成立了什么；`Lift::lift(&LiftCtx) -> f64`；参数里 `Window { bonus, window }`、`Restraint { on, half_life, cap, k }`；五维的先后是相关、意愿、社交、时机、连贯 | 照 O-5 的插槽写法 | — |
 | 11 | 种子的第二段从平台的消息编号改成序号的十进制（O-12，照第七条第 1 条） | 序号在一个会话里唯一、回放时不变；场所日志还没有落地，改了不影响回放 | 照旧用平台的编号 |
 | 12 | `Reply::to` 是平台上的人的列表，续聊看「包含」（O-12，O 线自查以后改） | 一轮可以回几个人（`venue.delivered` 并成一笔时回的人取并集），回到的每个人接着说都是续聊 | 只记一个人 |
+| 13 | `Chatty` 这一步不加校验（半衰期是 0 时算出 NaN、门槛归零），随 O-15 读出厂参数时校验（O-12 下） | 第七条第 5 条定了参数「读进来时照类型校验」；`Chatty` 怎么造跟读出厂参数是一回事，拆开做会改两遍 | 现在就给 `Restraint` 加构造函数 |
 
 ### 四、主动回复判断（下）：顶替窗口与分派（施工 O-9）
 
@@ -285,8 +306,8 @@ Rust 这一边：
 
 | 名字 | 是什么 |
 |---|---|
-| `Pending { msg, absorbed, sender, at, status, hits }`、`Status::{Judging, Committed}` | 同一个场所里一条还没回完的：序号（`Seq`；几条一起判的是最后一条，判官请求挂在它上面）、它早先接过的几条的序号（照先后）、发的人（`ExternalId`）、`msg` 的时刻（`Timestamp`）、`Judging`（判官还在判）或 `Committed`（判过要回、还没回完）、它当时成立的条件（第三条的 `Conditions`，接过别的是合起来的） |
-| `Supersede::{None, Inherit { msg, hits }, Rejudge { cancel, msgs, hits }}`、`supersede(&facts, &hits, &pendings, clock, window) -> Supersede` | 顶替：没有顶替；接过去，不再判；取消在判的那一条、几条一起重判。编号都是序号（`Seq`），窗口是毫秒数 |
+| `Pending { msg, absorbed, sender, at, status, conditions }`、`Status::{Judging, Committed}` | 同一个场所里一条还没回完的：序号（`Seq`；几条一起判的是最后一条，判官请求挂在它上面）、它早先接过的几条的序号（照先后）、发的人（`ExternalId`）、`msg` 的时刻（`Timestamp`）、`Judging`（判官还在判）或 `Committed`（判过要回、还没回完）、它当时成立的条件（第三条的 `Conditions`，接过别的是合起来的） |
+| `Supersede::{None, Inherit { msg, conditions }, Rejudge { cancel, msgs, conditions }}`、`supersede(&facts, &conditions, &pendings, clock, window) -> Supersede` | 顶替：没有顶替；接过去，不再判；取消在判的那一条、几条一起重判。`conditions` 是合起来的条件（交进来的是这一条自己成立的）。编号都是序号（`Seq`），窗口是毫秒数 |
 | `Line::{Idle, Busy { targets }}` | 一条线（主线或者一条支线）：闲着，或者正在回哪几个人（`ExternalId` 的列表） |
 | `Lines { main, lanes, parallel }` | 这个场所的主线、正在跑的支线、最多几条支线（场所规则的 `parallel`） |
 | `Dispatch::{StartMain, JoinMain, JoinLane(index), Fork, Queue}`、`dispatch(&sender, &lines) -> Dispatch` | 分派：主线开一轮、并进主线这一轮、并进第几条支线、分叉一条支线、排到主线下一轮 |
@@ -306,7 +327,7 @@ Rust 这一边：
 6. **私聊**：`parallel` 出厂是 0，只有一个人，走不到 `Fork`。
 7. **不在这里的**：贴不贴表情、取消在判的那次判官请求、分叉以后支线怎么开、`reply-to` 和「另一条线正在回」怎么记，随桥和核心的那几步；`/stop` 停掉支线随第二批。
 
-**守着它的**（`crates/miyu-chat/src/chatty/dispatch/tests.rs` 等，O-9）
+**守着它的**（`crates/miyu-chat/src/chatty/supersede/tests.rs`、`chatty/dispatch/tests.rs`，O-9）
 
 - 顶替：同一个人在窗口里、正好 `window` 以前（不算）、别的人（不算）；取最晚的一条；`Committed` 接过去、`Judging` 重判；重判时把前一条接过的几条一起带上、按先后排；条件合起来同一种只留一个；主触发保留原来的。
 - 分派：五种各一；主线闲着时就算有支线在回这个人也开主线；几条支线都在回他取第一条；`parallel` 是 0 不分叉；支线满了排队。
@@ -323,6 +344,7 @@ Rust 这一边：
 | 6 | 窗口里同一个人有几条同一毫秒的，取交进来靠后的 | 和第三条施工时定的第 6 条一样，交进来的先后就是日志的先后 | 取靠前的 |
 | 7 | 合起来的条件：前一条的在前，这一条新添的种类照它自己的先后跟在后面；类型是第三条的 `Conditions` | 主触发和走路、算分不看先后；直接拿 `Conditions` 交给 `route`、`score` | 重排成插槽的先后 |
 | 8 | 消息用序号（`Seq`），人用 `ExternalId`，时刻用 `Timestamp`（O-12，O 线自查以后照第七条改） | 第七条第 1 条：群聊内核里的消息就是场所主线会话日志里的序号；投影时不用再转 | 平台的编号、带前缀的字 |
+| 9 | 条件那一格叫 `conditions`；顶替、分派各一个文件，测试跟着拆（O-12 下） | 原来叫 `hits`，读着是 `pending.hits.hits`；两样是两种职责 | 照旧 |
 
 ### 五、出站链与纯文本（施工 O-10）
 
@@ -338,7 +360,7 @@ Rust 这一边：
 | `Since { others, elapsed, last_is_own }` | 她回的那条消息之后：群里来了几条别人的（不算那个人自己的）、过了多少毫秒、群里最后一条是不是她自己的 |
 | `Outbound { quote_after, mention_after, min_bigrams, similar }` | 参数：隔几条别人的消息才引用（出厂 4）、隔多少毫秒才 @（出厂 15 秒）、去重时至少几个两字组才比相似度（出厂 16）、相似度不低于百分之几算重复（出厂 66） |
 | `OutCtx { sent, target, since, outbound }` | 出站链看的情形 |
-| `OutboundRule` | 出站链的插槽：一条规则有名字，`judge` 拿到前面交下来的这一条和 `Target`，给出 `OutStep::Continue { outgoing, target }`（可以改写）或 `OutStep::Drop(OutWhy)` |
+| `OutboundRule` | 出站链的插槽：一条规则，`judge` 拿到前面交下来的这一条和 `Target`，给出 `OutStep::Continue { outgoing, target }`（可以改写）或 `OutStep::Drop(OutWhy)` |
 | `OutChain::builtin()`、`OutChain::judge(outgoing, &ctx) -> Out` | 自带的三条照顺序过；`Out::{Send { outgoing, target }, Drop(OutWhy)}`，`OutWhy::{Leaked, Blank, Aside, Repeated}`（和进站链的 `Why` 分开起名） |
 | `plain(text) -> String` | Markdown 转纯文本 |
 | `split(text, max_chars) -> Vec<String>` | 按段拆开 |
@@ -371,6 +393,7 @@ Rust 这一边：
 
 **守着它的**（`crates/miyu-chat/src/outbound/tests.rs` 等，O-10）
 
+- 先后（O-12 下）：比的是结果，清理和去重同时成立时清理的结果胜出，调换这两条有测试红。去重和引用、@ 调换了结果也一样（引用和 @ 不丢、不看正文，去重不改 `Target`），先后只为读着顺，没有测试能分出来。
 - 清理：两种工具调用、没有收尾的、几段、去完以后是空的、零宽字符、只有括号旁白（套括号、括号外有字的不算、有图的不丢）。
 - 去重：一字不差、只差标点大小写、相似度正好 0.66、两字组 15 个的不比相似度、跨回合的不管、正文重复带图、图重复、同一条里两张一样的图。
 - 引用和 @：最后一条是她自己的、`quote_after` 是 0、正好 4 条、3 条；@ 正好 15 秒、14.999 秒、别人没说过话。
@@ -401,15 +424,15 @@ Rust 这一边：
 |---|---|
 | `JudgeSources` | 资源 `software/onebot/judge/` 下的十三份原文，读资源的一方原样读出来，字段都是字（`violations` 也是未读的字） |
 | `JudgeTexts::new(sources) -> Result<JudgeTexts, TemplateError>` | 查过的十三份：`violations.txt` 读成模板，拿一个门槛试换一次，写坏了、要了 `severity_min` 以外的字段都在这里报错。字段不公开，只能这样造 |
-| `Ask { persona, records, current, decoded, mode }` | 一次判断要的：人格的说明（`None` 是不带）、渲染好的群聊记录（触发这一条之前的几条，出厂 20 条）、这一条渲染好的样子、base64 解出来的字（没有是 `None`）、`Mode::{Reply, ModerationOnly}` |
-| `request(&texts, &ask, &chatty) -> Vec<Message>` | 拼成 `model.call` 的 `messages`：一条 `system`、一条 `user`，`Message { role, text }`；不会失败（`JudgeTexts` 造的时候查过） |
+| `Ask { persona, records, current, decoded, mode }` | 一次判断要的：人格的说明（`None` 是不带）、渲染好的群聊记录（触发这一条之前的几条，出厂 20 条）、这一条渲染好的样子、base64 解出来的字（第二条的 `Base64::reveal` 解的，没有是 `None`）、`Mode::{Reply, ModerationOnly}` |
+| `request(&texts, &ask, &chatty) -> Vec<JudgeMessage>` | 拼成 `model.call` 的 `messages`：一条 `system`、一条 `user`，`JudgeMessage { role, text }`，`JudgeRole::{System, User}`；不会失败（`JudgeTexts` 造的时候查过） |
 | `read(answer, mode, reason_chars) -> Result<Judgement, Unreadable>` | 读回答；`mode` 是这一次问的什么（只查违规的少了 `severity` 判不了）；`reason_chars` 是 `reason` 最多留几个字符，出厂 500，由外面交进来，代码里不写死。读不出来的是 `Unreadable::{NoObject, Dimension(名字), NoSeverity}`：找不到对象、五维少了一维或不是数、只查违规的没有 `severity` |
 
 **怎么走**
 
 1. **system 那一条**，照这个先后接起来，每份之间不加别的字（每份末尾自带的换行照留）：`system.txt`；有人格的，`persona-open.txt`、人格的说明（末尾没有换行的补一个）、`persona-close.txt`；`Mode::Reply` 接 `reply.txt`，`Mode::ModerationOnly` 接 `moderation-only.txt`；`violations.txt`（`{severity_min}` 换成第三条参数 `Chatty::severity_min` 那个门槛，照模板的规矩，`docs/designs/08-上下文投影.md` 第五节「模板与转义」）；`answer.txt`。
 2. **user 那一条**：`records-open.txt`、群聊记录、`records-close.txt`、`current-open.txt`、这一条、`current-close.txt`；有 base64 解出来的字的，再接 `decoded-open.txt`、解出来的字、`decoded-close.txt`。夹进标签的三样和人格的说明一样，末尾没有换行的补一个，收尾的标签落在自己那一行；空的不补，标签中间不多一个空行。群聊记录和这一条由渲染器转义过（一行一条，不可信的字段转成一行），这里不再转。
-3. **调用的其余几格由外面填**：`purpose` 是 `judge`；`model` 照场所规则（出厂是便宜的那档的池，没配的照 `models.chat`）；`max_tokens` 出厂 400。判官不带工具，不进任何会话（`model.call` 本来就不进），有自己的缓存状态，不碰主线（08 第六节「辅助请求隔离」）。
+3. **调用的其余几格由外面填**：`purpose` 是 `judge`；`model` 照出厂参数 `[judge]`（第七条第 5 条；出厂是便宜的那档的池，没配的照 `models.chat`），场所规则按场所改随 O-15；`max_tokens` 出厂 400。判官不带工具，不进任何会话（`model.call` 本来就不进），有自己的缓存状态，不碰主线（08 第六节「辅助请求隔离」）。
 4. **读回答**：
    - 从回答的字里找第一个 `{` 到最后一个 `}`，照 JSON 读成一个对象；包在 ` ```json ` 里的也这样认。找不到、读不成对象：`Unreadable`。
    - 五维（`relevance`、`willingness`、`social`、`timing`、`continuity`）都要有，是数；小于 0 的当 0，大于 10 的当 10。少了一维、不是数：`Unreadable`。
@@ -439,8 +462,9 @@ Rust 这一边：
 | 7 | 除了五维，类型不对的格照少了算；`severity` 四舍五入成整数 | 五维是算分离不开的，别的格都有不出错的默认；`Judgement::severity` 是 `u8` | 类型不对一律判不了 |
 | 8 | 夹进标签的字末尾没有换行的补一个，空的不补 | 收尾的标签落在自己那一行；空的补了会在标签中间多一个空行 | 只给人格、群聊记录补 |
 | 9 | `JudgeTexts` 只能由 `JudgeTexts::new` 造，造的时候 `violations.txt` 读成模板、拿 `severity_min` 试换一次，换不出就报错；`request` 因此不会失败 | 换不出就照空的写会让整段违规说明悄悄消失，是吞错误（O-11 自查）；读的时候报错，不等到请求里（08 第五节）。2026-10-07 改，原先认了「换不出照空的写」 | 照空的写；`request` 交 `Result` |
-| 10 | `Message { role: Role::{System, User}, text }` 写在 `miyu-chat` 里 | 判官只用到这两种角色、只用字；`model.call` 的那几格在 `miyu-endpoint`（第 4 层）里读，是私有的，桥照它写成协议上的 JSON | 借内核的 `request::Message`（带块，判官用不着） |
+| 10 | `JudgeMessage { role: JudgeRole::{System, User}, text }` 写在 `miyu-chat` 里；名字带 `Judge`（O-12 下改），免得和内核的 `request::Message`、两个 `Role` 撞 | 判官只用到这两种角色、只用字；`model.call` 的那几格在 `miyu-endpoint`（第 4 层）里读，是私有的，桥照它写成协议上的 JSON | 借内核的 `request::Message`（带块，判官用不着）；叫 `Message`、`Role` |
 | 11 | 违规的门槛只留一份，在第三条的 `Chatty::severity_min`；`Ask` 不另存，`request` 从 `Chatty` 拿（O-12，O 线自查以后改） | 两份会对不上：判官照一个门槛判，算分照另一个回 | `Ask` 里另存一份 |
+| 12 | 第三条的 `Route` 和这里的 `Mode` 不合成一个（O-12 下） | 判官只有两种问法，`Route` 的四种里两种根本不问判官；合成一个反而放得进非法值 | 合成一个 |
 
 ### 七、和核心的接口
 

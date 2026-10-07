@@ -129,11 +129,9 @@ pub enum OutStep {
 
 /// 出站链的插槽：一条规则。扩展往链里加规则也照它写（`18-通讯平台.md` 第十四节）。
 ///
-/// 规则只看交进来的，不碰 I/O、时钟：同样的一条、同样的情形，给出同样的一步。
+/// 规则只看交进来的，不碰 I/O、时钟：同样的一条、同样的情形，给出同样的一步。规则没有名字：自带的丢掉时，[`OutWhy`]
+/// 已经说清是哪一条（第二条施工时定的第 14 条）。
 pub trait OutboundRule {
-    /// 规则的名字，例如 `clean`：说清是哪一条丢的。
-    fn name(&self) -> &str;
-
     /// 看一条，给出一步。`target` 是前面的规则交下来的引用和 @，第一条拿到的是 [`OutCtx::target`]。
     fn judge(&self, outgoing: Outgoing, target: Target, ctx: &OutCtx) -> OutStep;
 }

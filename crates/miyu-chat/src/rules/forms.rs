@@ -70,8 +70,9 @@ fn read_rate(text: &str) -> Result<Option<Rate>, Code> {
 }
 
 impl Rate {
-    /// 从场所规则 `rate` 的原文读（`chat.md` 第二条「怎么走」第 9 条）。不限（`"0"`）是 `None`；写法不对的也是 `None`，
-    /// 当没设：读规则文件时已经报过了（第一条「怎么走」第 5 条），这里不再报。
+    /// 从场所规则 `rate` 的原文读（`chat.md` 第二条「怎么走」第 9 条）；`Rate` 只能这样造。不限（`"0"`）是 `None`；写法
+    /// 不对的也是 `None`，当没设：读规则文件时已经报过了（第一条「怎么走」第 5 条），这里不再报。读出来的回合数、窗口
+    /// 都不是 0。
     pub fn read(text: &str) -> Option<Self> {
         read_rate(text).ok().flatten()
     }
@@ -101,8 +102,8 @@ fn read_sleep(text: &str) -> Result<Option<Sleep>, Code> {
 }
 
 impl Sleep {
-    /// 从场所规则 `sleep` 的原文读（`chat.md` 第二条「怎么走」第 9 条）。不睡（`"off"`）是 `None`；写法不对的也是 `None`，
-    /// 当没设：读规则文件时已经报过了。读出来的开始、结束都在一天里、不相等。
+    /// 从场所规则 `sleep` 的原文读（`chat.md` 第二条「怎么走」第 9 条）；`Sleep` 只能这样造。不睡（`"off"`）是 `None`；
+    /// 写法不对的也是 `None`，当没设：读规则文件时已经报过了。读出来的开始、结束都在一天里、不相等。
     pub fn read(text: &str) -> Option<Self> {
         read_sleep(text).ok().flatten()
     }

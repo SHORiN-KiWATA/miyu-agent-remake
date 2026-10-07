@@ -13,10 +13,6 @@ use super::{OutCtx, OutStep, OutboundRule, Outgoing, Target};
 pub(super) struct Rule;
 
 impl OutboundRule for Rule {
-    fn name(&self) -> &str {
-        "target"
-    }
-
     fn judge(&self, outgoing: Outgoing, target: Target, ctx: &OutCtx) -> OutStep {
         let since = ctx.since;
         let params = ctx.outbound;

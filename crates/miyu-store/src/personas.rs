@@ -19,6 +19,9 @@ use crate::root::DataRoot;
 /// 人设在人格目录里的位置。
 pub const PERSONA_MD: &str = "prompts/persona.md";
 
+/// 角色扮演提示在人格目录里的位置（施工 P-1 补）。
+pub const REMINDERS_MD: &str = "prompts/reminders.md";
+
 /// 一层：人格从哪来。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Layer {
@@ -56,6 +59,8 @@ pub struct Found {
     pub persona_from: Option<Layer>,
     /// 示范对话来自哪一层，没有的是没有。
     pub examples_from: Option<Layer>,
+    /// 角色扮演提示来自哪一层，没有的是没有（施工 P-1 补）。
+    pub reminders_from: Option<Layer>,
     /// 它住在谁的家目录里：有家目录那一层的是那个账号，只有出厂、系统区的没有（记忆归哪个账号照它，`personas.md`）。
     pub home: Option<AccountId>,
 }
@@ -124,6 +129,7 @@ impl Personas {
             layers: Vec::new(),
             persona_from: None,
             examples_from: None,
+            reminders_from: None,
             home: None,
         };
         for (layer, dir) in &self.dirs {
@@ -148,6 +154,10 @@ impl Personas {
                 found.texts.examples = persona::read_examples(&text)
                     .map_err(|problem| PersonaError::Invalid(*layer, problem))?;
                 found.examples_from = Some(*layer);
+            }
+            if let Some(text) = read(&dir.join(REMINDERS_MD))? {
+                found.texts.reminders = text;
+                found.reminders_from = Some(*layer);
             }
         }
         if found.layers.is_empty() {

@@ -257,7 +257,7 @@
     "commands/cleared": "已清空上下文。",
     "commands/stopped": "已全部停下。",
     "persona-problems/syntax": "读不成 TOML：{detail}",
-    "persona-problems/unknown_table": "不认识的表 [{detail}]：persona.toml 里只能有 [persona]",
+    "persona-problems/unknown_table": "不认识的表 [{detail}]：persona.toml 里只能有 [persona]、[memory]",
     "persona-problems/not_a_table": "{detail} 要写成一张表 [{detail}]",
     "persona-problems/unknown_key": "不认识的键 {detail}",
     "persona-problems/not_phrases": "{detail} 要写成语言到一句话的表，语言是 zh、en、ja",

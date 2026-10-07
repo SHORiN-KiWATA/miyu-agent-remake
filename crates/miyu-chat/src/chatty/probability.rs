@@ -10,10 +10,6 @@ use super::{Bonus, BonusCtx, Hit, Kind};
 pub(super) struct Item;
 
 impl Bonus for Item {
-    fn name(&self) -> &str {
-        "probability"
-    }
-
     fn judge(&self, ctx: &BonusCtx<'_>, before: &[Hit]) -> Option<Hit> {
         let facts = ctx.facts;
         let holds = before.is_empty()

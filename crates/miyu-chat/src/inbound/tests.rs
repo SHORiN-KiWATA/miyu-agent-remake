@@ -6,7 +6,7 @@ use crate::VenueKind;
 use super::test_support::{
     MINUTE, PEOPLE, SECOND, at, clock, ctx, judge, member, msg, rate, sleep, utc,
 };
-use super::{Chain, Clock, Flag, Outcome, Standing, Verdict, Why};
+use super::{Clock, Flag, Outcome, Standing, Verdict, Why};
 
 fn pass() -> Verdict {
     Verdict {
@@ -23,16 +23,6 @@ fn record(why: Why) -> Verdict {
 }
 
 #[test]
-fn builtin_has_five_rules_in_order() {
-    let names: Vec<_> = Chain::builtin()
-        .rules
-        .iter()
-        .map(|rule| rule.name().to_string())
-        .collect();
-    assert_eq!(names, ["sleep", "muted", "allow", "moderation", "rate"]);
-}
-
-#[test]
 fn nothing_set_passes() {
     for (standing, kind) in PEOPLE {
         assert_eq!(judge(&msg(standing, kind), &ctx(), at(12, 0)), pass());
@@ -41,7 +31,8 @@ fn nothing_set_passes() {
 
 #[test]
 fn earlier_stop_hides_later_rules() {
-    // 睡着、被禁言、不让叫、命中关键词、限流满了，全占：睡眠先停，旗也没插。
+    // 排先后比的是结果（施工时定的第 14 条）：睡着、被禁言、不让叫、命中关键词、限流满了，全占，从前往后一样一样去掉。
+    // 每一步都是相邻的两条同时成立、前面那条的结果胜出，调换链里任意相邻两条，这里都有一步会红。
     let mut all = ctx();
     all.sleep = sleep("11:00-13:00");
     all.muted = true;

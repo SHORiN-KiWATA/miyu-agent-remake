@@ -8,6 +8,7 @@
 
 mod anchor;
 mod archive;
+pub mod reminder;
 mod sent;
 pub mod sight;
 mod texts;
@@ -159,7 +160,8 @@ pub fn lines(stage: &Stage) -> Vec<String> {
 
 /// 查每一次请求的五条性质：同样的日志出同样的字节（由调用的一方造两遍来比）之外的四条：
 /// 是上一次的前缀延伸，除非中间压缩过、撤销过；工具调用和结果成对，结果按调用的先后紧跟着；
-/// 没有连着的两条 user 消息；每个回合第一次请求的最后一块，是触发它的那条消息。
+/// 没有连着的两条 user 消息；每个回合第一次请求的最后一块，是触发它的那条消息（这一轮注入了角色扮演提示的，触发后面
+/// 跟着它，施工 P-1 补）。
 ///
 /// 前缀延伸在线上这一层也查：编码成 OpenAI 兼容接口的字节（[`wire`]），也是上一次的前缀延伸
 /// （施工 3-4 上）；编码成 Anthropic 消息接口的字节去掉打点（[`anthropic_wire`]、`anthropic::unmarked`）也是（施工 8-12）；编码成
@@ -176,7 +178,8 @@ pub fn check(sent: &[Sent]) -> Result<(), String> {
         paired(request).map_err(|why| format!("第 {number} 次请求：{why}"))?;
         no_users_in_a_row(request).map_err(|why| format!("第 {number} 次请求：{why}"))?;
         if let Some(trigger) = &now.trigger {
-            ends_with(request, trigger).map_err(|why| format!("第 {number} 次请求：{why}"))?;
+            ends_with(request, trigger, now.reminder.as_ref())
+                .map_err(|why| format!("第 {number} 次请求：{why}"))?;
         }
         if index > 0 && !now.rewritten {
             let then = &sent[index - 1];
@@ -411,10 +414,13 @@ fn no_users_in_a_row(request: &Request) -> Result<(), String> {
 }
 
 /// 请求的最后一块是 `trigger`：当前要回应的那句话离生成位置最近（08 C2）。
-fn ends_with(request: &Request, trigger: &Block) -> Result<(), String> {
+fn ends_with(request: &Request, trigger: &Block, reminder: Option<&Block>) -> Result<(), String> {
+    let tail: Vec<&Block> = [Some(trigger), reminder].into_iter().flatten().collect();
     match request.messages.last() {
-        Some(Message::User { blocks }) if blocks.last() == Some(trigger) => Ok(()),
-        _ => Err("最后一块不是触发这一回合的那条消息".to_string()),
+        Some(Message::User { blocks }) if blocks.iter().rev().take(tail.len()).rev().eq(tail) => {
+            Ok(())
+        }
+        _ => Err("最后一块不是触发这一回合的那条消息（有角色扮演提示的，后面跟着它）".to_string()),
     }
 }
 

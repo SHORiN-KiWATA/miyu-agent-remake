@@ -1,0 +1,1 @@
+<style-lock>Stay in character across tool calls. Tool results are working material; they are not a reason to switch into an assistant reporting tone.</style-lock>

@@ -253,6 +253,19 @@ A <permission> block gives the permission level from that point on. In read_only
 When a reply links or embeds a local file, write its absolute path. Relative paths resolve against the session working directory.
 ```
 
+### system 的最后一块（第四节第 7 块）
+
+#### `core/style-lock.txt`
+
+- 什么时候加进来：带角色扮演提示的人格的会话，每次请求（施工 P-1 补起；别的人格、以前造的快照不带）
+- token：34（2026-10-07 主会话在开发端点的 `deepseek-v4.1-flash` 上量，接在 system 后面空一行）
+- 为什么加：进了工具循环别切成助手播报的腔调。旧版原文一字不改（受 A/B 保护，第五节）：旧版 08-23 工具体制 A/B 每臂 12 次，探针全过 5/12 → 8/12，不换行 6/12 → 10/12。只给带角色扮演提示的人格（2026-10-07 项目主人定）：旧版只在提醒开着时测过它
+- 指纹：`a8b65d75`
+
+```text
+<style-lock>Stay in character across tool calls. Tool results are working material; they are not a reason to switch into an assistant reporting tone.</style-lock>
+```
+
 ### 事实
 
 #### `core/facts/env.txt`
@@ -308,6 +321,32 @@ When a reply links or embeds a local file, write its absolute path. Relative pat
 
 ```text
 <reply-cut>The reply above was cut off before it was finished. The user has already seen it. Continue from exactly where it stopped, without repeating it.</reply-cut>
+```
+
+### 事实：角色扮演提示那一块的开头，排在触发的那句后面（08 C2 唯一的例外）
+
+#### `core/facts/reminder-open.txt`
+
+- 什么时候加进来：带角色扮演提示（`prompts/reminders.md`）的人格，第 1、4、7……轮开头；压缩替掉、撤掉带着它的那一轮以后的下一轮
+- token：8（2026-10-07 主会话在开发端点的 `deepseek-v4.1-flash` 上量，带行尾换行；整块按提示原文 `Stay soft.` 填是 18）
+- 为什么加：包住人格写的提示（施工 P-1 补，J10）：她分得出这是提醒、不是人说的。旧版写成一行 `<persona-reminder>…</persona-reminder>`，照新版带标签的事实拆成开头一行、收尾一行（照搬的只是提示的内容，第五节）
+- 指纹：`eb1ea497`
+
+```text
+<persona-reminder>
+```
+
+### 事实：角色扮演提示那一块的收尾
+
+#### `core/facts/reminder-close.txt`
+
+- 什么时候加进来：同上
+- token：8（2026-10-07 主会话在开发端点的 `deepseek-v4.1-flash` 上量，带行尾换行）
+- 为什么加：那一块的收尾（施工 P-1 补）
+- 指纹：`9385c4b3`
+
+```text
+</persona-reminder>
 ```
 
 ### 图片的占位

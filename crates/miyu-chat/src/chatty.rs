@@ -1,7 +1,7 @@
 //! 主动回复判断的上半（`docs/blueprint/chat.md` 第三条，`docs/designs/18-通讯平台.md` 第七节、Q4、Q23，施工 O-7）：线路规程
 //! 「看情况插话」`chatty` 的核心。一条消息成立了哪些触发条件（[`conditions`]），走哪条路（[`route`]），拿到判官的回答
-//! 以后算分、跟门槛比（[`score()`]）；冷静机制抬门槛（[`pressure`]）。下半在 `dispatch`（`chat.md` 第四条，施工 O-9）：
-//! 顶替窗口（[`supersede`]）和主线、支线的分派（[`dispatch()`]）。
+//! 以后算分、跟门槛比（[`score()`]）；冷静机制抬门槛（[`pressure`]）。下半（`chat.md` 第四条，施工 O-9）在 `supersede`、
+//! `dispatch` 两个文件：顶替窗口（[`supersede()`]）和主线、支线的分派（[`dispatch()`]）。
 //!
 //! 照插件的形状写两个插槽（18 第十四节）：加值项 [`Bonus`]、门槛修正 [`Lift`]。自带五个加值项、一个门槛修正，每个一个
 //! 文件；现在没有往里加的入口，加的是扩展，随插件那一步。
@@ -18,10 +18,12 @@ mod probability;
 mod restraint;
 mod sample;
 mod score;
+mod supersede;
 
-pub use dispatch::{Dispatch, Line, Lines, Pending, Status, Supersede, dispatch, supersede};
+pub use dispatch::{Dispatch, Line, Lines, dispatch};
 pub use restraint::pressure;
 pub use score::{Judgement, Score, score};
+pub use supersede::{Pending, Status, Supersede, supersede};
 
 use miyu_kernel::id::{ExternalId, Seq, VenueId};
 use miyu_kernel::time::Timestamp;
@@ -107,7 +109,7 @@ pub struct Restraint {
 /// 触发条件的种类：每个加值项一种。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
-    /// 冲她来：@ 她、回复她、叫到名字或触发词。免冷静。
+    /// 冲她来：私聊里的每一条，群里 @ 她、引用她的消息、以触发词开头的（[`addressed()`](crate::addressed())）。免冷静。
     Direct,
     /// 续聊：她刚回过这个人，他接着说。
     Continuation,
@@ -131,7 +133,7 @@ pub struct Hit {
 /// 一条消息成立了的触发条件，是集合不是梯子：成立的都在，加分相加，不封顶（18 第七节）。
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Conditions {
-    /// 成立了的条件，照插槽的先后（冲她来、续聊、刚说过话、违规旗、抽样）。顶替合起来的（[`supersede`]），前一条的在前，
+    /// 成立了的条件，照插槽的先后（冲她来、续聊、刚说过话、违规旗、抽样）。顶替合起来的（[`supersede()`]），前一条的在前，
     /// 这一条新添的种类跟在后面。
     pub hits: Vec<Hit>,
 }
@@ -177,13 +179,11 @@ pub struct BonusCtx<'a> {
     pub chatty: &'a Chatty,
 }
 
-/// 加值项的插槽（18 第十四节）：一个加值项有名字，看一条消息成不成立，成立了给一笔。扩展加加值项也照它写。
+/// 加值项的插槽（18 第十四节）：看一条消息成不成立，成立了给一笔。扩展加加值项也照它写。
 ///
-/// 只看交进来的，不碰 I/O、时钟、随机源：同样的输入给出同样的回答。
+/// 只看交进来的，不碰 I/O、时钟、随机源：同样的输入给出同样的回答。没有名字：成立的那一笔的 [`Kind`] 已经说清是哪一项
+/// （第二条施工时定的第 14 条）。
 pub trait Bonus {
-    /// 名字，例如 `direct`：日志里说清是哪一项。
-    fn name(&self) -> &str;
-
     /// 这条消息成不成立；`before` 是插槽里排在前面、已经成立了的。
     fn judge(&self, ctx: &BonusCtx<'_>, before: &[Hit]) -> Option<Hit>;
 }
@@ -203,13 +203,10 @@ pub struct LiftCtx<'a> {
     pub chatty: &'a Chatty,
 }
 
-/// 门槛修正的插槽（18 第十四节）：一个修正有名字，给出门槛抬多少（负的是压低）。扩展加修正也照它写。
+/// 门槛修正的插槽（18 第十四节）：给出门槛抬多少（负的是压低）。扩展加修正也照它写。
 ///
 /// 只看交进来的，不碰 I/O、时钟、随机源。
 pub trait Lift {
-    /// 名字，例如 `restraint`。
-    fn name(&self) -> &str;
-
     /// 门槛抬多少。
     fn lift(&self, ctx: &LiftCtx<'_>) -> f64;
 }

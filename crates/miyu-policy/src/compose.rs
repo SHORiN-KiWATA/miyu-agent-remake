@@ -34,15 +34,29 @@ pub struct Sources {
     pub core: CoreTexts,
     /// 这个人格的字。
     pub persona: PersonaTexts,
+    /// 角色扮演提示的包装（`core/facts/reminder-open.txt`、`reminder-close.txt`，施工 P-1 补）：拼进快照的 `reminder`，
+    /// 不另存，没有角色扮演提示的快照字节不变。
+    pub reminder: Wrap,
 }
 
-/// 一个人格的字（`<人格目录>/prompts/`，施工 P-1 上照几层叠好）。角色扮演提示随 P-1 补。
+/// 包一段字的开头、收尾。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Wrap {
+    /// 开头。
+    pub open: String,
+    /// 收尾。
+    pub close: String,
+}
+
+/// 一个人格的字（`<人格目录>/prompts/`，施工 P-1 上照几层叠好）。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PersonaTexts {
     /// 人设（`persona.md`）：没有的是空的。
     pub persona: String,
     /// 示范对话（`examples.md`，`crate::persona::read_examples` 读好的）：没有的是空的。
     pub examples: Vec<Demo>,
+    /// 角色扮演提示（`reminders.md`，施工 P-1 补）：整份是一条；没有的是空的。
+    pub reminders: String,
 }
 
 /// 照 `26-提示词.md` 第四节拼出人格 `persona` 的快照。`attended` 是这个场所有没有人能确认。
@@ -62,16 +76,27 @@ pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
         title: Some(crate::title::TITLE),
         peers: Some(crate::peers::PEERS),
         memory: None,
+        reminder: reminder(&sources.persona.reminders, &sources.reminder),
     }
 }
 
-/// 核心的几行（`26-提示词.md` 第四节第 3 块，施工 2-7 补）：执行器从资源目录读好交进来，造会话时拼进 system。
+/// 角色扮演提示拼成的一块（施工 P-1 补）：开头、去掉末尾空白的原文、换行、收尾。原文不转义：是人格的作者写的。去掉末尾
+/// 空白以后是空的，没有。
+fn reminder(text: &str, wrap: &Wrap) -> Option<String> {
+    let text = text.trim_end();
+    (!text.is_empty()).then(|| format!("{}{text}\n{}", wrap.open, wrap.close))
+}
+
+/// 核心的几行（`26-提示词.md` 第四节第 3 块，施工 2-7 补）和风格锁（第 7 块，施工 P-1 补）：执行器从资源目录读好交进来，
+/// 造会话时拼进 system。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CoreLines {
     /// `<permission>` 那一块怎么读、每一级能做什么、只有人能切（`core/permission-rule.txt`）。没有工具的会话不带。
     pub permission: String,
     /// 回答里提到本机的文件写绝对路径（`core/local-paths-rule.txt`）。
     pub local_paths: String,
+    /// 风格锁（`core/style-lock.txt`）：只有带角色扮演提示的人格带（[`Snapshot::with_style_lock`]）。
+    pub style_lock: String,
 }
 
 impl Snapshot {
@@ -89,6 +114,16 @@ impl Snapshot {
             .collect::<Vec<_>>()
             .join("\n");
         self.system = system(&[&self.system, &block]);
+        self
+    }
+
+    /// 带上风格锁（施工 P-1 补）：system 的最后一块（26 第四节第 7 块），在 [`Snapshot::with_core_lines`] 以后调。只有带
+    /// 角色扮演提示的人格带（2026-10-07 项目主人定），别的 system 一字不变。
+    #[must_use]
+    pub fn with_style_lock(mut self, lock: &str) -> Snapshot {
+        if self.reminder.is_some() {
+            self.system = system(&[&self.system, lock]);
+        }
         self
     }
 
@@ -142,6 +177,7 @@ mod tests {
         CoreLines {
             permission: "Permission rule.\n".to_string(),
             local_paths: "Local paths rule.\n".to_string(),
+            style_lock: String::new(),
         }
     }
 
@@ -178,6 +214,71 @@ mod tests {
         assert_eq!(bare.system, format!("{persona}\n\nLocal paths rule."));
     }
 
+    /// 带角色扮演提示的人格：快照里是拼好的一块（包装、去掉末尾空白的原文、换行、收尾），造出的策略第一轮就注入它。
+    fn reminding(reminders: &str) -> Snapshot {
+        let mut sources = crate::test_support::sources();
+        sources.persona.reminders = reminders.to_string();
+        sources.reminder = Wrap {
+            open: "<persona-reminder>\n".to_string(),
+            close: "</persona-reminder>\n".to_string(),
+        };
+        compose("miyu", sources, true)
+    }
+
+    #[test]
+    fn a_reminder_is_wrapped_into_the_snapshot_and_reaches_the_facts() {
+        let snapshot = reminding("  Stay soft.\n\n");
+        let block = "<persona-reminder>\n  Stay soft.\n</persona-reminder>\n";
+        assert_eq!(snapshot.reminder.as_deref(), Some(block));
+        let fact = snapshot
+            .policy()
+            .unwrap()
+            .facts
+            .reminder(&miyu_kernel::history::History::default())
+            .unwrap();
+        assert_eq!(fact.text, block);
+        let read = Snapshot::from_bytes(&snapshot.to_bytes()).unwrap();
+        assert_eq!(read, snapshot, "存得回来");
+    }
+
+    #[test]
+    fn a_blank_reminder_is_none_and_the_snapshot_is_as_before() {
+        assert_eq!(reminding(" \n\t\n").reminder, None);
+        let engineer = crate::test_support::engineer();
+        assert_eq!(engineer.reminder, None);
+        let bytes = String::from_utf8(engineer.to_bytes()).unwrap();
+        assert!(!bytes.contains("reminder"), "没有的不写：{bytes}");
+        assert!(
+            engineer
+                .policy()
+                .unwrap()
+                .facts
+                .reminder(&miyu_kernel::history::History::default())
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn the_style_lock_ends_the_system_of_a_persona_with_a_reminder_only() {
+        let lock = "<style-lock>Stay.</style-lock>\n";
+        let main = reminding("Stay soft.")
+            .with_tools(vec![a_tool()])
+            .with_core_lines(&lines())
+            .with_style_lock(lock);
+        assert!(
+            main.system
+                .ends_with("Permission rule.\nLocal paths rule.\n\n<style-lock>Stay.</style-lock>"),
+            "{}",
+            main.system
+        );
+        let plain = crate::test_support::engineer().with_core_lines(&lines());
+        assert_eq!(
+            plain.clone().with_style_lock(lock).system,
+            plain.system,
+            "没有角色扮演提示的不带"
+        );
+    }
+
     #[test]
     fn without_the_core_lines_the_system_is_as_before() {
         let tooled = crate::test_support::engineer().with_tools(vec![a_tool()]);
@@ -185,6 +286,7 @@ mod tests {
         let empty = CoreLines {
             permission: "\n".to_string(),
             local_paths: String::new(),
+            style_lock: String::new(),
         };
         assert_eq!(
             tooled.clone().with_core_lines(&empty).system,

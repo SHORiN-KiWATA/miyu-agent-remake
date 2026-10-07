@@ -8,10 +8,6 @@ use super::{Bonus, BonusCtx, Hit, Kind, latest, within};
 pub(super) struct Item;
 
 impl Bonus for Item {
-    fn name(&self) -> &str {
-        "continuation"
-    }
-
     fn judge(&self, ctx: &BonusCtx<'_>, _before: &[Hit]) -> Option<Hit> {
         let facts = ctx.facts;
         let window = ctx.chatty.continuation;

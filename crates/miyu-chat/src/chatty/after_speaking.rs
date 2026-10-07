@@ -7,10 +7,6 @@ use super::{Bonus, BonusCtx, Hit, Kind, latest, within};
 pub(super) struct Item;
 
 impl Bonus for Item {
-    fn name(&self) -> &str {
-        "after_speaking"
-    }
-
     fn judge(&self, ctx: &BonusCtx<'_>, _before: &[Hit]) -> Option<Hit> {
         let window = ctx.chatty.after_speaking;
         let now = ctx.clock.now;

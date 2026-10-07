@@ -179,7 +179,9 @@ fn examples_go_after_the_system_and_before_the_history() {
         persona: PersonaTexts {
             persona: "You are Miyu.\n".to_string(),
             examples,
+            reminders: String::new(),
         },
+        reminder: Default::default(),
     };
     let snapshot = compose("miyu", sources, true);
     let request = snapshot

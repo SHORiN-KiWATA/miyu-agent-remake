@@ -10,6 +10,7 @@ fn found(home: Option<&str>) -> Found {
         layers: vec![Layer::Shipped],
         persona_from: None,
         examples_from: None,
+        reminders_from: None,
         home: home.map(|account| AccountId::parse(account).unwrap()),
     }
 }

@@ -257,7 +257,7 @@
     "commands/cleared": "コンテキストを消去しました。",
     "commands/stopped": "すべて止めました。",
     "persona-problems/syntax": "TOML として読めません：{detail}",
-    "persona-problems/unknown_table": "知らない表 [{detail}]：persona.toml に書けるのは [persona] だけです",
+    "persona-problems/unknown_table": "知らない表 [{detail}]：persona.toml に書けるのは [persona] と [memory] だけです",
     "persona-problems/not_a_table": "{detail} は表 [{detail}] として書きます",
     "persona-problems/unknown_key": "知らないキー {detail}",
     "persona-problems/not_phrases": "{detail} は言語（zh、en、ja）から一文への表として書きます",

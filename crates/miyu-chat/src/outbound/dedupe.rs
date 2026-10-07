@@ -14,10 +14,6 @@ use super::{OutCtx, OutStep, OutWhy, OutboundRule, Outgoing, Target};
 pub(super) struct Rule;
 
 impl OutboundRule for Rule {
-    fn name(&self) -> &str {
-        "dedupe"
-    }
-
     fn judge(&self, mut outgoing: Outgoing, target: Target, ctx: &OutCtx) -> OutStep {
         if repeats(&outgoing.text, ctx) {
             if outgoing.images.is_empty() {

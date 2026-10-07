@@ -118,7 +118,9 @@ fn the_switches_are_carried_as_given() {
         persona: PersonaTexts {
             persona: "x".to_string(),
             examples: Vec::new(),
+            reminders: String::new(),
         },
+        reminder: Default::default(),
     };
     let unattended = compose("engineer", sources, false);
     assert!(!unattended.attended);

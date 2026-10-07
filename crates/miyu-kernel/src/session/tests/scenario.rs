@@ -21,6 +21,7 @@ mod permission_changed;
 mod rebuild;
 mod recap;
 mod redo;
+mod reminder;
 mod reports;
 mod reports_undo;
 mod retrying;

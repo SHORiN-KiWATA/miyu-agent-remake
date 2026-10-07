@@ -9,13 +9,14 @@ use miyu_kernel::time::Timestamp;
 
 use super::{Clock, Ctx, Inbound, InboundRule, Outcome, Standing, Step, Why};
 
-/// 限流的额度：窗口里最多几个回合。从场所规则 `rate` 的原文读（[`Rate::read`]）；不限的读成 `None`，不在这里。
+/// 限流的额度：窗口里最多几个回合。只能从场所规则 `rate` 的原文读（[`Rate::read`]），格不公开：读出来的回合数不会是 0、
+/// 窗口不会是 0（施工时定的第 13 条）。不限的读成 `None`，不在这里。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rate {
     /// 窗口里最多几个回合，1 到 10000：到了这个数就是满了。
-    pub turns: NonZeroU32,
+    pub(crate) turns: NonZeroU32,
     /// 窗口多少毫秒，1 秒到 1 天：此刻往前这么长（不含正好那一刻），到此刻（含）。
-    pub window: i64,
+    pub(crate) window: i64,
 }
 
 /// 额度满了的情形。
@@ -56,10 +57,6 @@ pub fn rate_full(ctx: &Ctx, clock: Clock) -> bool {
 pub(super) struct Rule;
 
 impl InboundRule for Rule {
-    fn name(&self) -> &str {
-        "rate"
-    }
-
     fn judge(&self, msg: &Inbound, ctx: &Ctx, clock: Clock) -> Step {
         // 主人、自己人开的回合本来就不在 `turns` 里，他们也不受限。
         if msg.said.standing != Standing::Member {

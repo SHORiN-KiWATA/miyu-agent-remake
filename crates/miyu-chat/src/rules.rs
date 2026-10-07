@@ -19,8 +19,8 @@ mod forms;
 mod ids;
 mod resolve;
 
-pub use ids::{parse_person, person};
-pub use resolve::{Entry, Origin, Resolved, Venue, VenueKind};
+pub use ids::{Venue, VenueKind, parse_person, person};
+pub use resolve::{Entry, Origin, Resolved};
 
 use std::collections::BTreeMap;
 use std::ops::Range;
@@ -61,9 +61,10 @@ pub struct File {
     pub text: String,
 }
 
-/// 读好的一组规则文件。
+/// 读好的一组规则文件（[`Rules::parse`] 交回）。叫 `Parsed` 不叫 `Read`：门面里和判官读回答的 [`read`](crate::read) 撞名
+/// （施工 O-12 下）。
 #[derive(Debug, Clone, Default)]
-pub struct Read {
+pub struct Parsed {
     /// 用得上的规则，照先后排好。
     pub rules: Rules,
     /// 发现的问题，照文件的先后，同一个文件里照行、列。
@@ -118,7 +119,7 @@ struct Rule {
 
 impl Rules {
     /// 读一组文件（「怎么走」第 1 到 5、8 条）。不会失败：坏的文件、坏的规则、坏的一项都变成问题，其余照收。
-    pub fn parse(files: &[File]) -> Read {
+    pub fn parse(files: &[File]) -> Parsed {
         // 照文件名按字节排（`str` 的先后就是字节的先后）；同名的，来源排在后面的（系统）替换前面的，一样的后来的替换。
         let mut chosen: BTreeMap<&str, &File> = BTreeMap::new();
         for file in files {
@@ -129,7 +130,7 @@ impl Rules {
                 chosen.insert(&file.name, file);
             }
         }
-        let mut read = Read::default();
+        let mut parsed = Parsed::default();
         for file in chosen.into_values() {
             let mut reader = Reader {
                 file,
@@ -141,10 +142,10 @@ impl Rules {
             reader
                 .problems
                 .sort_by_key(|problem| problem.at.map(|at| (at.line, at.column)));
-            read.rules.rules.append(&mut reader.rules);
-            read.problems.append(&mut reader.problems);
+            parsed.rules.rules.append(&mut reader.rules);
+            parsed.problems.append(&mut reader.problems);
         }
-        read
+        parsed
     }
 }
 

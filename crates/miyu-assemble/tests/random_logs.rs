@@ -5,6 +5,7 @@
 //! 随机数是自己写的 SplitMix64，种子固定，每次跑都是同样的五百份。红了会打印种子和那份日志。
 //!
 //! 五个种子里有一个看不了图（施工 8-17）：人说的话偶尔带一张图（三张里挑一张），转述另用一串随机数排好，四回里一回没成。
+//! 三个种子里有一个带角色扮演提示（施工 P-1 补）：回合开头隔几轮注入一块，排在触发后面。
 
 mod support;
 
@@ -16,7 +17,7 @@ use miyu_kernel::origin::By;
 use miyu_kernel::session::Queued;
 use miyu_kernel::testkit::{Line, Play, Stage};
 use support::sight::{blind, described, picture};
-use support::{anchored, check, lines, sent, stage, summarizes};
+use support::{anchored, check, lines, sent, stage, stage_with, summarizes};
 
 /// SplitMix64：十来行的伪随机数，够造剧本用。
 struct Rng(u64);
@@ -292,7 +293,11 @@ fn random_session(seed: u64) -> Stage {
         read_only: false,
         sight: (seed % 5 == 3).then_some(Rng(seed ^ 0x5167_0817)),
     };
-    let mut s = stage();
+    // 三个种子里有一个带角色扮演提示（施工 P-1 补）。
+    let mut s = match seed % 3 {
+        1 => stage_with(support::reminder::policy),
+        _ => stage(),
+    };
     summarizes(&mut s);
     if let Some(sight) = writer.sight.as_mut() {
         // 转述事先排好，四回里一回没成；用不完的留着。
@@ -419,6 +424,9 @@ fn run(seeds: std::ops::Range<u64>) -> BTreeSet<&'static str> {
         if sent.iter().any(|sent| sent.trigger.is_some()) {
             seen.insert("查了回合第一次请求的最后一块");
         }
+        if sent.iter().filter(|sent| sent.reminder.is_some()).count() > 1 {
+            seen.insert("查了排在触发后面的角色扮演提示");
+        }
         if sent.iter().skip(1).any(|sent| !sent.rewritten) {
             seen.insert("查了前缀延伸");
         }
@@ -467,6 +475,7 @@ const EXPECTED_PATHS: &[&str] = &[
     "替它看图",
     "查了带转述的前缀",
     "转述没成写占位",
+    "查了排在触发后面的角色扮演提示",
 ];
 
 #[test]
