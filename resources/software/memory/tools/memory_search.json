@@ -1,0 +1,4 @@
+{
+  "description": "Search your memories and your past conversations in other sessions.",
+  "parameters": {"type":"object","properties":{"query":{"type":"string"},"forgotten":{"type":"boolean","description":"Include retired memories."}},"required":["query"]}
+}

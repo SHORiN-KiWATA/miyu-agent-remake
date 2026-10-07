@@ -8,7 +8,6 @@ use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::By;
 use miyu_store::index::SessionIndex;
-use miyu_store::recall::RecallIndexes;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_store::usage::UsageIndex;
@@ -73,9 +72,9 @@ pub struct Create<'a> {
     pub usage: Option<Arc<UsageIndex>>,
     /// 从哪取配置（施工 8-4）：回合开始时照它冻结这一轮的配置。没有配置服务的（测试里）给 [`crate::fixed`] 的一份。
     pub configs: Configs,
-    /// 回合库的登记（施工 R-2 上，`memory.md` 第一条）：主会话每落一批，把结束了的人开的回合放进这个人格的回合库。没有的
-    /// （测试里自己造的）不放。
-    pub recall: Option<Arc<RecallIndexes>>,
+    /// 核心一份的记忆（施工 R-2 上、R-3 中，`memory.md`）：主会话每落一批，把结束了的人开的回合放进这个人格的回合库；三件
+    /// 工具的端口照它造。没有的（测试里自己造的）不放、三件工具说记忆没开。
+    pub memory: Option<Arc<crate::Memory>>,
     /// 会话用哪个模型（施工 8-8）：已经查过的引用，模型或 `@池`（协议的 `session.create` 的 `model`、派子代理时照 `pool`
     /// 或父会话的）。没有的照这时的 `models.chat`。记进 `session.created` 的 `model`。
     pub model: Option<String>,
@@ -113,6 +112,6 @@ pub struct Load<'a> {
     pub usage: Option<Arc<UsageIndex>>,
     /// 同 [`Create::configs`]。
     pub configs: Configs,
-    /// 同 [`Create::recall`]：载入时照整份事件补上回合库落下的。
-    pub recall: Option<Arc<RecallIndexes>>,
+    /// 同 [`Create::memory`]：载入时照整份事件补上回合库落下的。
+    pub memory: Option<Arc<crate::Memory>>,
 }

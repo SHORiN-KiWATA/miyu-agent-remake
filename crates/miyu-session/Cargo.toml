@@ -49,6 +49,8 @@ testkit = []
 miyu-tool = { path = "../miyu-tool", features = ["testkit"] }
 # 测试里用真的基础系统（施工 4-4 上）。
 miyu-basesystem = { path = "../miyu-basesystem" }
+# 测试里的工具目录带上记忆的三件（施工 R-3 中）。
+miyu-memory = { path = "../miyu-memory" }
 # 自己的集成测试用上剧本端口。
 miyu-session = { path = ".", features = ["testkit"] }
 # 测试里的假服务器：本机回环上的 HTTP/1.1（施工 3-7 下）。

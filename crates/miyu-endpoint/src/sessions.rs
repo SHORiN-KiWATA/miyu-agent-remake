@@ -140,7 +140,7 @@ impl Sessions {
             jobs: &core.jobs,
             index: core.index_for(&core.admin),
             usage: core.usage_for(&core.admin),
-            recall: core.recall_for(&core.admin),
+            memory: core.memory_for(&core.admin),
             configs: core.hub.configs(),
             model: who.model,
         })
@@ -225,7 +225,7 @@ impl Sessions {
             sandbox_cache: core.sandbox_cache_of(&child.owner),
             index: core.index_for(&child.owner),
             usage: core.usage_for(&child.owner),
-            recall: core.recall_for(&child.owner),
+            memory: core.memory_for(&child.owner),
             configs: core.hub.configs(),
             owner: child.owner,
             permission: child.permission,

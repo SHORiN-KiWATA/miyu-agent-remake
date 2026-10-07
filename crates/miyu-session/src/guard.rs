@@ -132,6 +132,7 @@ impl Guard {
             sessions: None,
             usage: None,
             questions: None,
+            memory: None,
         };
         let asking = tool.asking(&call);
         let verdict = self.paths(tool.as_ref(), name, level, &call, dirs, grants, &asking);

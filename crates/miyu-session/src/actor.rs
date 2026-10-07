@@ -389,6 +389,7 @@ impl Actor {
                         subagents: self.session.subagents(),
                         inherit: Inherit::of(&*self.model),
                         usage,
+                        turn: self.session.turn_cause().map(|(turn, _)| turn),
                     },
                 )
             }

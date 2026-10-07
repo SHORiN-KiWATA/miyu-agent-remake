@@ -91,6 +91,10 @@ pub struct Hit {
     pub key: String,
     /// 第几名，从 0 起：以后几路照名次合并（`recall.md` 第三条）。
     pub rank: usize,
+    /// 放进来时的字（施工 R-3 中：搜以前的对话要给她看）。
+    pub text: String,
+    /// 放进来时的时刻。
+    pub at: Timestamp,
 }
 
 impl RecallIndex {
@@ -253,13 +257,27 @@ impl RecallIndex {
         };
         let limit = integer(limit as u64, "limit")?;
         let mut select = db.prepare(
-            "SELECT items.key FROM terms JOIN items ON items.id = terms.rowid
+            "SELECT items.key, items.text, items.at FROM terms JOIN items ON items.id = terms.rowid
              WHERE terms MATCH ?1 ORDER BY bm25(terms) LIMIT ?2",
         )?;
-        let keys = select.query_map(params![query, limit], |row| row.get::<_, String>(0))?;
+        let rows = select.query_map(params![query, limit], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, i64>(2)?,
+            ))
+        })?;
         let mut hits = Vec::new();
-        for (rank, key) in keys.enumerate() {
-            hits.push(Hit { key: key?, rank });
+        for (rank, row) in rows.enumerate() {
+            let (key, text, at) = row?;
+            let at = Timestamp::from_unix_millis(at)
+                .ok_or_else(|| DbError::Bad(format!("time {at}")))?;
+            hits.push(Hit {
+                key,
+                rank,
+                text,
+                at,
+            });
         }
         Ok(hits)
     }

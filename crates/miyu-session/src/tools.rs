@@ -20,7 +20,7 @@ use tracing::Instrument;
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Effect, Permission, Question, Response, Restored};
-use miyu_kernel::id::{CallId, ContentHash, JobId};
+use miyu_kernel::id::{CallId, ContentHash, JobId, TurnId};
 use miyu_kernel::session::{Input, Reread, Step, Subagent};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_policy::RunTexts;
@@ -73,6 +73,8 @@ pub(crate) struct ToolKit {
     pub(crate) ledger: Option<Ledger>,
     /// 能不能问人（施工 D-2，[`Agents::asks`]）：能的每次调用给一个提问的端口。
     pub(crate) asks: bool,
+    /// 记忆（施工 R-3 中）：主会话、核心交了记忆的才有，每次调用照它造记忆的端口。
+    pub(crate) memory: Option<crate::memory::Calls>,
 }
 
 /// 执行工具的端口：一个会话一份。
@@ -98,6 +100,8 @@ pub(crate) struct Tools {
     ledger: Option<Ledger>,
     /// 能不能问人（施工 D-2）。
     asks: bool,
+    /// 记忆（施工 R-3 中）。
+    memory: Option<crate::memory::Calls>,
     /// 在跑的调用：掐掉它的那一头、它的旗、开始跑的那一刻、工具名。
     running: BTreeMap<CallId, Running>,
     backs: mpsc::UnboundedSender<Back>,
@@ -160,6 +164,8 @@ pub(crate) struct Dispatch {
     pub(crate) inherit: Inherit,
     /// 派的是 `session_usage` 的：那一刻内核算的上下文、这一轮的 `usage.currency`（施工 8-15）。
     pub(crate) usage: Option<Asked>,
+    /// 这一次调用在哪一轮（施工 R-3 中）：记忆的端口记下的出处是它。
+    pub(crate) turn: Option<TurnId>,
 }
 
 impl Tools {
@@ -192,6 +198,7 @@ impl Tools {
             agents: kit.agents,
             ledger: kit.ledger,
             asks: kit.asks,
+            memory: kit.memory,
             running: BTreeMap::new(),
             backs,
         }
@@ -246,6 +253,7 @@ impl Tools {
             subagents,
             inherit,
             usage,
+            turn,
         } = dispatch;
         let stop = Stop::default();
         // 派子代理的端口照这一轮的目录、这一刻的权限抄（施工 7-5）：沙盒下面照样要用它们。
@@ -281,6 +289,10 @@ impl Tools {
             sessions,
             usage: crate::usage::for_call(self.ledger.as_ref(), usage),
             questions: questions::port(self.asks, call_id, &self.backs),
+            memory: self
+                .memory
+                .as_ref()
+                .map(|memory| memory.port(turn, call_id, at)),
         };
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name).cloned() else {
