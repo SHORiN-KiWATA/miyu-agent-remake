@@ -237,14 +237,14 @@ impl Home {
         read_events(&dir).unwrap_or_default()
     }
 
-    /// 等到磁盘上会话 `session` 说完了 `turns` 轮，最多十秒。
+    /// 等到磁盘上会话 `session` 说完了 `turns` 轮。
     pub async fn until_turns(&self, session: &str, turns: usize) {
         let ended = |log: &[Event]| {
             log.iter()
                 .filter(|event| matches!(event.body, Body::TurnEnded(_)))
                 .count()
         };
-        let waited = tokio::time::timeout(Duration::from_secs(10), async {
+        let waited = tokio::time::timeout(Duration::from_secs(60), async {
             while ended(&self.log(session)) < turns {
                 tokio::time::sleep(Duration::from_millis(5)).await;
             }
@@ -252,7 +252,7 @@ impl Home {
         .await;
         assert!(
             waited.is_ok(),
-            "十秒内没说完 {turns} 轮：{}",
+            "六十秒内没说完 {turns} 轮：{}",
             ended(&self.log(session))
         );
     }
@@ -314,12 +314,12 @@ impl Client {
             .expect("写得进");
     }
 
-    /// 读下一行，认成 JSON；对方关了的是 `None`。最多等十秒。
+    /// 读下一行，认成 JSON；对方关了的是 `None`。最多等六十秒（原来十秒，机器忙时会超过，2026-10-07）。
     pub async fn next(&mut self) -> Option<Value> {
         let mut line = String::new();
-        let read = tokio::time::timeout(Duration::from_secs(10), self.reader.read_line(&mut line))
+        let read = tokio::time::timeout(Duration::from_secs(60), self.reader.read_line(&mut line))
             .await
-            .expect("十秒内有回应")
+            .expect("六十秒内有回应")
             .expect("读得了");
         (read > 0).then(|| serde_json::from_str(&line).expect("回应是 JSON"))
     }
@@ -445,15 +445,15 @@ impl Client {
     }
 }
 
-/// 等到 `done` 成立，最多十秒。
+/// 等到 `done` 成立，最多六十秒。
 pub async fn until(what: &str, done: impl Fn() -> bool) {
-    let waited = tokio::time::timeout(Duration::from_secs(10), async {
+    let waited = tokio::time::timeout(Duration::from_secs(60), async {
         while !done() {
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
     })
     .await;
-    assert!(waited.is_ok(), "十秒内没等到{what}");
+    assert!(waited.is_ok(), "六十秒内没等到{what}");
 }
 
 /// 回应里的原因码；不是拒绝的是 `None`。

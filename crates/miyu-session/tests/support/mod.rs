@@ -323,11 +323,15 @@ impl Home {
     }
 }
 
-/// 等 `what` 最多十秒：actor 出了毛病，测试几秒内就红，说清卡在哪，不一直等下去。
+/// 测试里最多等多久：出了毛病时说清卡在哪，不一直等下去。原来十秒，几个会话同时编译、跑测试时机器忙，造一个会话都会
+/// 超过十秒（2026-10-07 通讯平台的会话报的 guard 测试红 13 个、单独重跑全过），放到六十秒：只在出错时等满，不让测试变慢。
+const WAIT: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// 等 `what` 最多 [`WAIT`]。
 pub async fn within<T>(what: &str, future: impl std::future::Future<Output = T>) -> T {
-    tokio::time::timeout(std::time::Duration::from_secs(10), future)
+    tokio::time::timeout(WAIT, future)
         .await
-        .unwrap_or_else(|_| panic!("十秒内没等到{what}"))
+        .unwrap_or_else(|_| panic!("六十秒内没等到{what}"))
 }
 
 /// 发命令 `command`，编号 `id`，等回应。
@@ -414,7 +418,7 @@ pub async fn until_logged(
     session: &SessionId,
     done: impl Fn(&[Event]) -> bool,
 ) -> Vec<Event> {
-    let waited = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+    let waited = tokio::time::timeout(WAIT, async {
         loop {
             let log = home.log(session);
             if done(&log) {
@@ -424,7 +428,7 @@ pub async fn until_logged(
         }
     })
     .await;
-    waited.unwrap_or_else(|_| panic!("十秒内磁盘上没等到：{:?}", kinds(&home.log(session))))
+    waited.unwrap_or_else(|_| panic!("六十秒内磁盘上没等到：{:?}", kinds(&home.log(session))))
 }
 
 /// 事件的种类，照先后。
