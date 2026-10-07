@@ -9,5 +9,7 @@
 //! 照 Lucene 的 CJKBigram 两两切（`docs/reviews/2026-10-07-记忆知识库embedding调研.md` 第三节）。
 
 mod terms;
+mod turns;
 
 pub use terms::{MAX_QUERY_TERMS, index_terms, query};
+pub use turns::{Change, TurnFeed, TurnItem, key, replay};

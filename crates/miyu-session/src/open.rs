@@ -28,6 +28,7 @@ use crate::guard::Guard;
 use crate::handle::Handle;
 use crate::job_ids::JobIds;
 use crate::jobs::Roster;
+use crate::memory::Turns;
 use crate::port::ForSession;
 use crate::report::{Reporter, Upstream, wake_children};
 use crate::store::{Indexed, LogDir};
@@ -73,6 +74,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         usage,
         configs,
         model,
+        recall,
     } = setup;
     let span = actor::span(&id);
     let config = Turning::start(configs, environment.cwd.clone()).await;
@@ -102,7 +104,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
     let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
-    let (snapshot, policy, texts, run, guard, log) = blocking(move || {
+    let (owner_of, id_of) = (owner.clone(), id.clone());
+    let (snapshot, policy, texts, run, guard, log, turns) = blocking(move || {
         let sources = resources.sources(&name).map_err(CreateError::Persona)?;
         let mut snapshot = compose(&name, sources, attended).with_tools(face);
         if child {
@@ -117,7 +120,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         let guard = snapshot.guard_texts().map_err(CreateError::Policy)?;
         store.put(&snapshot.to_bytes()).map_err(CreateError::Disk)?;
         let log = SessionLog::create(&dir, SEGMENT_LIMIT).map_err(CreateError::Disk)?;
-        Ok((snapshot, policy, texts, run, guard, log))
+        let turns = Turns::connect(recall.as_ref(), &owner_of, &name, &id_of, !child, &[]);
+        Ok((snapshot, policy, texts, run, guard, log, turns))
     })
     .await?;
     let kept = blobs.clone();
@@ -205,6 +209,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             &id,
             index,
             usage.map(|usage| (usage, who)),
+            turns,
         )),
         model,
         ToolKit {
@@ -281,6 +286,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         index,
         usage,
         configs,
+        recall,
     } = setup;
     let span = actor::span(&id);
     let config = Turning::start(configs, environment.cwd.clone()).await;
@@ -290,7 +296,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
     let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
-    let (log, events, (created, command), (attended, pools), policy, texts, run, guard) =
+    let (owner_of, id_of) = (owner.clone(), id.clone());
+    let (log, events, (created, command), (attended, pools), policy, texts, run, guard, turns) =
         blocking(move || {
             let (log, events) = SessionLog::open(&dir, SEGMENT_LIMIT).map_err(LoadError::Log)?;
             let (created, command) = match events.first() {
@@ -309,6 +316,15 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             let guard = snapshot.guard_texts().map_err(LoadError::Policy)?;
             // 能选的池照快照读回（施工 8-8 补）：造会话时拼的那一份，不重拼。
             let chosen = (snapshot.attended, Agents::pools_in(&snapshot.tools));
+            let main = created.parent.is_none();
+            let turns = Turns::connect(
+                recall.as_ref(),
+                &owner_of,
+                &snapshot.persona,
+                &id_of,
+                main,
+                &events,
+            );
             Ok((
                 log,
                 events,
@@ -318,6 +334,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
                 texts,
                 run,
                 guard,
+                turns,
             ))
         })
         .await?;
@@ -402,6 +419,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             &id,
             index,
             usage.map(|usage| (usage, who)),
+            turns,
         )),
         model,
         ToolKit {

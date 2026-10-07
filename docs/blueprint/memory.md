@@ -11,6 +11,8 @@
 
 状态：图纸（2026-10-07 起草，照 `docs/reviews/2026-10-07-记忆知识库embedding调研.md` 第八、九节项目主人的拍板）。每一节标着由哪一步做，步子见末尾「施工步子」。做完一步，这一页照做好的样子改写那几节。检索的底子另见 `recall.md`。
 
+做好了的：R-2（上）回合索引（第一条第 1 到 8 款）：`miyu-recall` 的 `TurnFeed`、`replay`、`key`；检索库的 `marks`、`apply`、`mark`、`forget`，回合库的登记 `RecallIndexes`（`miyu-store/src/recall/indexes.rs`）；会话的接线 `miyu-session/src/memory.rs`（`Indexed` 每落一批交给它，载入时铺回、补上）；核心一份登记，删会话时拿掉（`miyu-endpoint/src/sessions/delete.rs`）。
+
 ### 在哪
 
 施工时照这个放（细到文件的，各步的施工单里定）：
@@ -20,7 +22,9 @@
 | `crates/miyu-recall/` | 纯逻辑：切词、合并（`recall.md`）；回合索引里一条怎么取、记忆事件的类型、听众的判定、排名的分、摘要和联想怎么渲染、整理请求怎么拼、回答怎么读 | R-1 起 |
 | `crates/miyu-store/src/recall.rs` | 检索库（`recall.md`） | R-1 |
 | `crates/miyu-store/src/memory.rs` | 记忆日志：照 `SessionLog` 一样按段的 JSONL，追加、同步、读回 | R-3 |
-| `crates/miyu-session/src/memory/` | 执行器：会话写日志时顺手更新回合索引；挂接点上叫记忆；工具的端口；后台抽取、合并 | R-2 起 |
+| `crates/miyu-recall/src/turns.rs` | 回合索引里的一条怎么从日志算：`TurnFeed`（增量、载入时铺回）、`replay`（整份）、`key` | R-2 上 |
+| `crates/miyu-store/src/recall/indexes.rs` | 回合库的登记：照（账号、人格）开 `turns-<人格>.db`、留着；删会话时拿掉每一份里它的 | R-2 上 |
+| `crates/miyu-session/src/memory.rs` | 执行器：会话写日志时顺手更新回合索引、载入时补上（R-2 上）；以后挂接点上叫记忆、工具的端口、后台抽取、合并 | R-2 起 |
 | `crates/miyu-basesystem/src/memory/` | 三件工具：`memory_search`、`remember`、`forget` | R-3 |
 | `crates/miyu-endpoint/src/memory.rs` | 协议 `memory.*` | R-3 |
 | `crates/miyu-cli/src/memory.rs` | `miyu memory` | R-3 |
@@ -82,9 +86,9 @@
 1. **哪些回合**：主会话（没有父会话）里，`turn.started` 的 `trigger` 指的那条 `message.user` 的 `by` 是人（`person`、`external`）的回合。子代理的会话、别的 harness、别的会话、子代理发来的话开的，回报、通知叫醒的，重启以后接着干的，手动压缩、清空单开的（没有 `trigger`），都不收。
 2. **一条的字**：触发的那句人话（它的字块照先后用换行连起来、去掉前后空白），空一行，她这一轮最后一条字不空的回复（字块连起来、去掉前后空白）。只有一边有字的只写那一边；两边都没字的（只发了图、她一句没说）不收。回合中途进来、没有触发哪一轮的人话不算进去（R-2 先这样，以后要再说）。时刻是 `turn.started` 的。
 3. **什么时候收**：`turn.ended` 落了盘（哪种原因都收：被打断的也是聊过的）。键是 `会话编号/回合编号`（回合编号就是 `turn.started` 的序号）。
-4. **放在哪**：一个账号、一个人格一份检索库（`recall.md`）：`home/<账号>/index/recall/turns-<人格>.db`。人格照会话的策略快照（`Snapshot.persona`）。范围是 `session`、`off` 的会话随 R-3。
+4. **放在哪**：一个账号、一个人格一份检索库（`recall.md`）：`home/<账号>/index/recall/turns-<人格>.db`。人格照会话的策略快照（`Snapshot.persona`）。核心一份登记（`RecallIndexes`），用到哪一份才开、开了一直开着；新造的会话到第一次真要写时才开，造会话不多一次开库、建表、同步。范围是 `session`、`off` 的会话随 R-3。
 5. **增量**（`miyu_recall::TurnFeed`，纯逻辑）：会话 actor 每落一批（`Indexed`，照 `store/index.md` 第二条的那一路），把这一批一条条交给它，它交回要放进的、要拿掉的；`turn.reverted` 的那几轮拿掉；`turn.unreverted` 的那几轮它不记得字（省内存，只记还没结束的那一轮），交回「要读回」，执行器把这个会话的日志整份读一遍，照全部事件算出那几轮的字再放进去（恢复很少见）。
-6. **照到哪**：检索库另记每个来源照到了哪个序号（`marks`），和这一批的放进、拿掉在同一个事务里写。载入会话时内核本来就拿到整份事件：照它们先把 `TurnFeed` 的状态铺回来，照到的以后的才放进库，补上崩了、更新失败落下的那一截；一条都没照过的会话就是整份补。
+6. **照到哪**：检索库另记每个来源照到了哪个序号（`marks`），和这一批的放进、拿掉在同一个事务里写；一批里没有要改的不写（每落一批少写一次库），照到的位置落在后面不要紧，载入时多铺一截、交回的还是空的。载入会话时内核本来就拿到整份事件：照它们先把 `TurnFeed` 的状态铺回来，照到的以后的才放进库，补上崩了、更新失败落下的那一截；一条都没照过的会话就是整份补。
 7. **删会话**（进回收处）：拿掉这个账号各个回合库里这个会话的全部（键以 `会话编号/` 开头的）和它的 `marks`。
 8. **出错**：更新、补、拿掉失败，记一行 `WARN memory index not updated session=… error=…`，会话照常；照到的位置没往前挪，下次载入照日志补。库用不了（`Opened::Unusable`）的，什么都不写。
 9. **补齐旧会话**（R-2 下）：回合库是新建的、重建过的，后台照账号的会话一个个补（读日志，照第 6 条整份补），做的时候搜得到多少算多少；从回收处恢复的会话照样补。
@@ -166,7 +170,12 @@
 
 ### 守着它的
 
-各步施工时写。
+| 测试 | 守哪几条 |
+|---|---|
+| `crates/miyu-recall/src/turns/tests.rs` | 第一条第 1 到 5 款：人开的一轮结束收一条（字、时刻）；平台上的人也算；别的 harness、别的会话、内核开的、没有触发的不收；被打断的、出错的也收，两边都没字的不收；最后一条有字的回复才算；排着的几句照触发的那一句；撤销拿掉、恢复要读回；`replay` 照最后还在的；载入时铺回进行中的一轮、只交照到以后的；键的写法 |
+| `crates/miyu-store/tests/recall.rs` | 第一条第 6、7 款：一批和照到哪一起写、空的一批也挪；拿掉一个来源只拿它自己的（`s1` 不碰 `s10`）；回合库照（账号、人格）一份、开过的不再开，新的登记照样找得到磁盘上的每一份；R-1 的版本 1 删掉重建。量尺 `measure_priming_a_thousand_turns`（`#[ignore]`） |
+| `crates/miyu-session/tests/memory.rs` | 真会话：每一轮进库、撤销拿掉、恢复放回；载入时补上落下的、照到了的不重写；子会话不进 |
+| `crates/miyu-endpoint/tests/memory.rs` | 真核心：说过的一轮进软件工程师的回合库；删会话以后拿掉 |
 
 ### 出处
 
