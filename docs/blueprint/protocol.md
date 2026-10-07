@@ -481,7 +481,7 @@
 
 回应 `{"problems": [...]}`，一处一格：`kind`（`config`、`secrets`、`persona`、`preset`（施工 P-2 上）、`package`（施工 9-1 上））、`file`（照 `config.get` 的写法：数据根里的相对数据根，项目配置 `~/…`，出厂的人格写真的路径）、`code`、`level`（`error`、`warning`）、`message`（照这个连接的语言，带改法）；有行列的带 `line`、`column`（人格的只有 `line`），配置的另带 `key`、`got`、`suggest`、`using`，和 `config.get` 的问题一样。
 
-1. 不写 `file`：系统配置、管理员的个人设置、`cwd` 的项目配置（没写 `cwd` 的不查）照磁盘上现在的字查（还没有的跳过，读不了的报 `unreadable`、`too_big`、`not_utf8`）；密钥文件照核心手里的问题（字是密钥，不另读）；三层里每个人格的 `persona.toml`、`prompts/examples.md`、每一份预设（施工 P-2 上）各层各查各的，上面一层盖住了照样报；软件包清单（施工 9-1 上）。照这个先后：配置、密钥、人格（层、路径）、预设（层、路径）、清单。
+1. 不写 `file`：系统配置、管理员的个人设置、`cwd` 的项目配置（没写 `cwd` 的不查）照磁盘上现在的字查（还没有的跳过，读不了的报 `unreadable`、`too_big`、`not_utf8`）；密钥文件照核心手里的问题（字是密钥，不另读）；三层里每个人格的 `persona.toml`、`prompts/examples.md`、每一份预设（施工 P-2 上）各层各查各的，上面一层盖住了照样报；软件包清单（施工 9-1 上）；有 `[check]` 的包自己的检查（施工 9-2，`packages.md`「怎么走」第 6 条：核心照起来时读到的清单跑包里的程序，收它一行一个的问题；跑坏了、程序没找到、印了看不懂的行各报一条警告 `check_failed`、`check_unavailable`、`check_output`）。照这个先后：配置、密钥、人格（层、路径）、预设（层、路径）、清单、包自己的检查（包的编号）。
 2. 写了 `file`：照它的真实位置认是哪一种、只查那一份；某个目录下的 `.miyu/config.toml` 当项目配置查（不在 `cwd` 下面也行）；人格目录里写了文件、某一层 `presets/` 下的 `<编号>.toml`（施工 P-2 上），文件还没有的报 `unreadable`。认不出的：`unknown_file`。
 3. 人格的代码：`syntax`、`unknown_table`、`not_a_table`、`unknown_key`、`not_phrases`、`unknown_language`、`empty_phrase`、`first_line`、`take_turns`、`last_line`、`empty_line`；给人看的那一句在 `core/human/<语言>.json` 的 `persona-problems/<code>`，照 `detail`（表名、键、`persona.<格>.<语言>`，读不成 TOML 的是它的原话）填。
 4. 预设的代码（施工 P-2 上）：`syntax`、`unknown_table`、`not_a_table`、`unknown_key`、`not_phrases`、`unknown_language`、`empty_phrase`、`bad_persona`、`bad_unlisted`、`bad_software`、`not_bool`、`bad_tool`、`not_false`；给人看的那一句在 `preset-problems/<code>`，照 `detail`（表名、`<表>.<键>`、`preset.<格>.<语言>`）填。

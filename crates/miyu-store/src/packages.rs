@@ -119,6 +119,17 @@ impl Packages {
     }
 }
 
+/// 包里的程序 `program` 在哪（施工 9-2，`packages.md`「转交」）：主程序 `main` 真实位置旁边的（Windows 加 `.exe`，和
+/// `miyu web` 找 `miyu-web` 一个办法）；没有的是没有。不找 `PATH`：别的程序冒充不了（2026-10-01 项目主人定，第二节「拆 M9
+/// 时另带四样」第 4 条）。
+pub fn locate(program: &str, main: &Path) -> Option<PathBuf> {
+    let file = format!("{program}{}", std::env::consts::EXE_SUFFIX);
+    let real = std::fs::canonicalize(main).unwrap_or_else(|_| main.to_path_buf());
+    real.parent()
+        .map(|dir| dir.join(&file))
+        .filter(|path| path.is_file())
+}
+
 /// 一层目录里的清单：编号和路径。读不了的目录当没有。
 fn files(dir: &Path) -> Vec<(String, PathBuf)> {
     let Ok(entries) = std::fs::read_dir(dir) else {
