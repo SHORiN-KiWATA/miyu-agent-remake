@@ -30,14 +30,14 @@ pub use crate::sqlite::{DbError as IndexError, Opened};
 /// 索引的文件名，在账号的 `index/` 下（[`crate::root::DataRoot::index`]）。
 pub const FILE: &str = "sessions.db";
 
-/// 表的结构的版本，记在 SQLite 的 `user_version` 里：结构一变就加一，对不上的删掉重建。施工 9-5 多了 `preview`，是 2。
-const VERSION: i64 = 2;
+/// 表的结构的版本，记在 SQLite 的 `user_version` 里：结构一变就加一，对不上的删掉重建。施工 9-5 多了 `preview`，是 2；施工 O-3 多了 `venue`，是 3。
+const VERSION: i64 = 3;
 
 /// 表里的列，照这个先后读写（[`Row::from_sql`]、[`Row::to_sql`]）。
-const COLUMNS: &str = "id, owner, parent, oneshot, title, pinned, cwd, created, last_active, segment, bytes, next, preview";
+const COLUMNS: &str = "id, owner, parent, oneshot, title, pinned, cwd, created, last_active, segment, bytes, next, preview, venue";
 
 /// 写一行时的占位，个数照 [`COLUMNS`]。
-const VALUES: &str = "?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13";
+const VALUES: &str = "?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14";
 
 /// 建表。`segment`、`bytes`、`next` 是这一行照到日志的哪里（[`Mark`]）；时刻存成毫秒。
 const SCHEMA: &str = "CREATE TABLE sessions (
@@ -53,7 +53,8 @@ const SCHEMA: &str = "CREATE TABLE sessions (
     segment INTEGER NOT NULL,
     bytes INTEGER NOT NULL,
     next INTEGER NOT NULL,
-    preview TEXT NOT NULL
+    preview TEXT NOT NULL,
+    venue TEXT NOT NULL
 ) WITHOUT ROWID";
 
 /// 一个账号的会话列表的索引。
@@ -131,7 +132,7 @@ impl SessionIndex {
                 let [segment, bytes, next] = mark_values(was)?;
                 db.execute(
                     &format!(
-                        "{REPLACE} WHERE id = ?1 AND segment = ?14 AND bytes = ?15 AND next = ?16"
+                        "{REPLACE} WHERE id = ?1 AND segment = ?15 AND bytes = ?16 AND next = ?17"
                     ),
                     params_from_iter(values.into_iter().chain([segment, bytes, next])),
                 )?
@@ -212,7 +213,7 @@ impl SessionIndex {
 
 /// 换掉一整行，`WHERE` 由调的一方接上。
 const REPLACE: &str = "UPDATE sessions SET id = ?1, owner = ?2, parent = ?3, oneshot = ?4, title = ?5, pinned = ?6, \
-     cwd = ?7, created = ?8, last_active = ?9, segment = ?10, bytes = ?11, next = ?12, preview = ?13";
+     cwd = ?7, created = ?8, last_active = ?9, segment = ?10, bytes = ?11, next = ?12, preview = ?13, venue = ?14";
 
 /// 照到的位置写成三格。
 fn mark_values(mark: &Mark) -> Result<[rusqlite::types::Value; 3], IndexError> {

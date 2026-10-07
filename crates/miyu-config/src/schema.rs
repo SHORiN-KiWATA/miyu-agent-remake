@@ -43,6 +43,13 @@ fn insert(properties: &mut Map<String, Json>, segments: &[&str], leaf: Json) {
         [last] => {
             properties.insert((*last).to_string(), leaf);
         }
+        // 最后一段就是人起的名字（施工 O-3：`external.bindings.<external>`）：前一段的表里每一格都是这一项。
+        [table, named] if crate::key::is_placeholder(named) => {
+            properties.insert(
+                (*table).to_string(),
+                json!({"additionalProperties": leaf, "type": "object"}),
+            );
+        }
         [table, named, rest @ ..] if crate::key::is_placeholder(named) => {
             let node = properties
                 .entry((*table).to_string())

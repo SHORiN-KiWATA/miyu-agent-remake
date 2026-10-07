@@ -51,9 +51,7 @@ fn fields_are_written_in_the_drawing_order() {
         seq: Seq::new(41).unwrap(),
         at: Timestamp::parse("2026-09-25T07:04:05.123Z").unwrap(),
         turn: None,
-        by: By::Person(Person {
-            account: AccountId::parse("alice").unwrap(),
-        }),
+        by: By::Person(Person::new(AccountId::parse("alice").unwrap())),
         cause: Some(CommandId::parse("cmd-7f3a").unwrap()),
         body: Body::MessageUser(MessageUser {
             blocks: vec![Block::Text(Text {

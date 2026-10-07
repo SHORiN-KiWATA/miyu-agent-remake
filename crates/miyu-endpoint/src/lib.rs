@@ -49,6 +49,7 @@ mod subscriptions;
 mod undo;
 mod uploads;
 mod usage;
+mod venues;
 mod wire;
 
 pub use connection::serve;
@@ -132,6 +133,8 @@ pub struct Core {
     identity: login::Identity,
     /// 会话列表的推送（施工 9-5）：排队算一项、广播给订阅着的连接。
     listing: listing::Listing,
+    /// 找回、造场所会话排着来（施工 O-3）：同一个场所同时来两次，不造出两个主线会话。
+    venues: tokio::sync::Mutex<()>,
 }
 
 /// 空的模型资料：没有档案、没有目录，读完了。
@@ -161,6 +164,7 @@ impl Core {
         let items = [
             settings::UiSettings::ITEMS,
             settings::PermissionSettings::ITEMS,
+            settings::EXTERNAL_BINDINGS,
         ]
         .concat();
         let mut config = Config::defaults(&root, &admin, items);
@@ -194,6 +198,7 @@ impl Core {
             upload_idle: UPLOAD_IDLE,
             identity: login::Identity::new(login::CODE_TTL),
             listing: listing::Listing::default(),
+            venues: tokio::sync::Mutex::new(()),
         }
     }
 

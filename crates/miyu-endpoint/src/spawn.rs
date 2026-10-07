@@ -144,7 +144,8 @@ impl SessionPort for Table {
             let busy = core.sessions.busy_ids().await;
             let root = core.root.clone();
             let index = core.index_for(&owner);
-            let main = |row: &Row| row.parent.is_none();
+            // 场所会话不列（施工 O-3）：群里、QQ 私聊里的会话不给本机的她看，`history` 也读不到。
+            let main = |row: &Row| row.parent.is_none() && crate::list::local(row);
             let listed = tokio::task::spawn_blocking(move || {
                 scan(&root, &owner, index.as_deref(), &busy, main, None, &stop)
             })

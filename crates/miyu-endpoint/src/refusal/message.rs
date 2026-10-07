@@ -23,6 +23,14 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
         "bad_token" => ("本机令牌不对。", "The local token is wrong."),
         "unknown_persona" => ("没有这个人格。", "There is no such persona."),
         "session_not_found" => ("没有这个会话。", "There is no such session."),
+        "no_system_account" => (
+            "这个场所的会话要归系统账号，还没有装好系统账号。",
+            "This venue's session belongs to a system account, which is not set up yet.",
+        ),
+        "venue_session" => (
+            "这是通讯平台的场所会话，本机的头不能直接说话。",
+            "This is a chat platform venue session; local heads cannot talk in it directly.",
+        ),
         "session_stopped" => (
             "这个会话停了，详情在运行日志里；再发一次会重新载入。",
             "This session has stopped; the runtime log has the details. Sending again reloads it.",

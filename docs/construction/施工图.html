@@ -276,7 +276,7 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>210</b><span>/ 233 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>211</b><span>/ 233 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
     <li><b class="mono">b376721b</b><span>最近一步（8-3 <code>expect</code> 照数值比（再补））的提交</span></li>
   </ul>
@@ -594,7 +594,7 @@ a.step:hover{border-color:var(--primary)}
       <ol class="chips">
         <li><a class="step done" href="#sO-1"><span class="n">O-1</span>群聊内核的骨架和场所规则<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">O-2</span>核心：提供者</span></li>
-        <li><span class="step"><span class="n">O-3</span>核心：外部身份</span></li>
+        <li><a class="step done" href="#sO-3"><span class="n">O-3</span>核心：外部身份和场所会话<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">O-4</span>核心：系统账号</span></li>
         <li><a class="step done" href="#sO-5"><span class="n">O-5</span>进站链与限流的判定<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">O-6</span>核心：斜杠命令由核心解析</span></li>
@@ -13661,6 +13661,58 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/9-5-会话列表推送.md</code>；蓝图 <code>protocol.md</code>「会话列表的推送」、<code>session/actor.md</code>「推送和订阅」第 7 条、<code>store/index.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sO-3" aria-labelledby="h-sO3">
+  <div class="sheet-head"><h2 id="h-sO3"><span class="no">O-3</span>外部身份和场所会话</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">通讯平台的桥能把主人在 QQ 私聊里说的话交给核心：核心查主人对应表认出是本人，找回或者造这个私聊的主线会话，属主是主人的本机账号。场所会话不出现在本机的头上。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">外部身份和场所会话</span><span class="dir-note">O-3</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>主人对应表 <code>external.bindings</code>：按编号的表，键是平台身份；配置的占位多一种 <code>&lt;external&gt;</code>，可以是最后一段</li>
+              <li><code>venue.session</code>：一个场所一个主线会话，照场所加属主找回，重启以后照样；该归系统账号的先拒</li>
+              <li><code>session.send</code> 的 <code>as</code>：私聊里的主人记成本人带 <code>via</code>，别人记成外部身份带 <code>role</code>、对应的账号；场所会话只收带 <code>as</code> 的</li>
+              <li>会话列表、会话列表的推送、<code>sessions</code> 工具跳过场所会话；索引一行多 <code>venue</code>，版本 3</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">对应表照按编号的表写</span><span class="rl">2026-10-07 项目主人定</span></div>
+          <div class="tile new"><span class="nm">换了属主另造一个</span><span class="rl">旧的留在原来的属主名下</span></div>
+          <div class="tile new"><span class="nm">核心不解读场所编号</span><span class="rl">私聊还是群、对方是谁，桥照实报</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-3</dd></div>
+        <div><dt>名称</dt><dd>外部身份和场所会话</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">f9734a49</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试（协议七、配置二、内核二）；18 个手写变异全逮住；三台机器的 CI 和长跑全绿（run 1019）</span></li>
+        <li><span class="ok">✓</span><span>撞见内核原有的：同一个编号重启前后回应不一样，项目主人定统一，另做 2-1 补</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-3-外部身份和场所会话.md</code>；蓝图 <code>venues.md</code>、<code>config.md</code>、<code>kernel/ids.md</code>、<code>store/index.md</code>、<code>protocol.md</code>。</li>
       </ul>
     </div>
   </div>

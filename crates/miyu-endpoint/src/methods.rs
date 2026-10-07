@@ -44,6 +44,7 @@ use crate::secrets;
 use crate::sessions::{Opening, admin};
 use crate::undo;
 use crate::uploads::{self, Uploads};
+use crate::venues;
 use crate::wire::Request;
 
 mod params;
@@ -73,6 +74,7 @@ pub(crate) async fn call(
                 attended: peer.input,
                 oneshot: params.oneshot,
                 model,
+                venue: None,
             };
             let created = core
                 .sessions
@@ -97,10 +99,16 @@ pub(crate) async fn call(
             let sessions = list::list(core, params.oneshot, params.limit).await?;
             Ok(json!({"sessions": sessions}))
         }
+        "venue.session" => {
+            venues::session(core, request.id.clone(), PERSONA, params(request)?).await
+        }
         "session.send" => {
             let params: SendParams = params(request)?;
-            // 别的 harness 报的名字先查（施工 7-10）：不对的，会话里什么都不送。
-            let by = match &params.from {
+            // 别的 harness 报的名字先查（施工 7-10）：不对的，会话里什么都不送。代表外部的人（施工 O-3）和它不能同时写。
+            if params.from.is_some() && params.as_external.is_some() {
+                return Err(Refusal::BAD_PARAMS);
+            }
+            let mut by = match &params.from {
                 Some(name) => from::harness(name)?,
                 None => admin(core),
             };
@@ -122,6 +130,16 @@ pub(crate) async fn call(
                     params.dirs.as_deref(),
                 )
                 .await?;
+            // 场所会话只收代表外部的人说的话，本机的会话不收（施工 O-3，`venues.md`）。
+            let local = found.handle.venue().as_str() == list::LOCAL;
+            match (local, params.as_external) {
+                (true, None) => {}
+                (true, Some(_)) => return Err(Refusal::BAD_PARAMS),
+                (false, None) => return Err(Refusal::VENUE_SESSION),
+                (false, Some(speaking)) => {
+                    by = venues::speaker(core, found.handle.venue(), &core.admin, speaking)?;
+                }
+            }
             let events = command_by(core, request, &session, &found.handle, by, command).await?;
             let mut reply = json!({"events": events, "cwd": found.cwd});
             let untrusted = core.config().untrusted(&found.cwd);

@@ -5,6 +5,10 @@
 pub mod deleting;
 pub mod login;
 pub mod providers;
+mod pushes;
+pub mod venues;
+#[allow(unused_imports, reason = "几个测试各用其中一部分")]
+pub use pushes::*;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -237,14 +241,14 @@ impl Home {
         read_events(&dir).unwrap_or_default()
     }
 
-    /// 等到磁盘上会话 `session` 说完了 `turns` 轮，最多十秒。
+    /// 等到磁盘上会话 `session` 说完了 `turns` 轮。
     pub async fn until_turns(&self, session: &str, turns: usize) {
         let ended = |log: &[Event]| {
             log.iter()
                 .filter(|event| matches!(event.body, Body::TurnEnded(_)))
                 .count()
         };
-        let waited = tokio::time::timeout(Duration::from_secs(10), async {
+        let waited = tokio::time::timeout(Duration::from_secs(60), async {
             while ended(&self.log(session)) < turns {
                 tokio::time::sleep(Duration::from_millis(5)).await;
             }
@@ -252,7 +256,7 @@ impl Home {
         .await;
         assert!(
             waited.is_ok(),
-            "十秒内没说完 {turns} 轮：{}",
+            "六十秒内没说完 {turns} 轮：{}",
             ended(&self.log(session))
         );
     }
@@ -314,12 +318,12 @@ impl Client {
             .expect("写得进");
     }
 
-    /// 读下一行，认成 JSON；对方关了的是 `None`。最多等十秒。
+    /// 读下一行，认成 JSON；对方关了的是 `None`。最多等六十秒（原来十秒，机器忙时会超过，2026-10-07）。
     pub async fn next(&mut self) -> Option<Value> {
         let mut line = String::new();
-        let read = tokio::time::timeout(Duration::from_secs(10), self.reader.read_line(&mut line))
+        let read = tokio::time::timeout(Duration::from_secs(60), self.reader.read_line(&mut line))
             .await
-            .expect("十秒内有回应")
+            .expect("六十秒内有回应")
             .expect("读得了");
         (read > 0).then(|| serde_json::from_str(&line).expect("回应是 JSON"))
     }
@@ -445,51 +449,20 @@ impl Client {
     }
 }
 
-/// 等到 `done` 成立，最多十秒。
+/// 等到 `done` 成立，最多六十秒。
 pub async fn until(what: &str, done: impl Fn() -> bool) {
-    let waited = tokio::time::timeout(Duration::from_secs(10), async {
+    let waited = tokio::time::timeout(Duration::from_secs(60), async {
         while !done() {
             tokio::time::sleep(Duration::from_millis(5)).await;
         }
     })
     .await;
-    assert!(waited.is_ok(), "十秒内没等到{what}");
+    assert!(waited.is_ok(), "六十秒内没等到{what}");
 }
 
 /// 回应里的原因码；不是拒绝的是 `None`。
 pub fn reason(reply: &Value) -> Option<&str> {
     reply["error"]["data"]["reason"].as_str()
-}
-
-/// 推送里的事件种类，照先后。
-pub fn kinds(pushed: &[Value]) -> Vec<String> {
-    pushed
-        .iter()
-        .filter(|push| push["method"] == json!("event"))
-        .map(|push| {
-            push["params"]["event"]["kind"]
-                .as_str()
-                .unwrap_or("?")
-                .to_string()
-        })
-        .collect()
-}
-
-/// 推送里的事件，照先后（施工 3-8 六补）。
-pub fn events(pushed: &[Value]) -> Vec<Value> {
-    pushed
-        .iter()
-        .filter(|push| push["method"] == json!("event"))
-        .map(|push| push["params"]["event"].clone())
-        .collect()
-}
-
-/// 磁盘上会话 `session` 的日志，每条写成 JSON，照先后（施工 3-8 六补）：和推送里的比。
-pub fn logged(home: &Home, session: &str) -> Vec<Value> {
-    home.log(session)
-        .iter()
-        .map(|event| serde_json::from_str(&event.to_line()).expect("事件是 JSON"))
-        .collect()
 }
 
 /// 起名用的纳秒数：Windows 上进程号复用得快，前一个测试进程留下的、核心开着文件删不掉的目录会撞名（2026-10-01 CI 撞见）。

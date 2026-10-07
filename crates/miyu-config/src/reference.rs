@@ -53,8 +53,12 @@ pub fn render(items: &[Item], words: &dyn Words) -> Result<String, Missing> {
         );
         comment(&mut text, &words::facts(words, item)?);
         match &item.default {
-            Some(default) => text.push_str(&format!("{name} = {}\n", default.toml())),
-            None => text.push_str(&format!("# {name} =\n")),
+            Some(default) => text.push_str(&format!(
+                "{} = {}\n",
+                crate::key::join(&[name]),
+                default.toml()
+            )),
+            None => text.push_str(&format!("# {} =\n", crate::key::join(&[name]))),
         }
     }
     Ok(text)
