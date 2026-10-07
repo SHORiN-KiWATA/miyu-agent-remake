@@ -39,6 +39,7 @@ use crate::job_output;
 use crate::list;
 use crate::meta::MetaParams;
 use crate::models;
+use crate::personas;
 use crate::providers;
 use crate::refusal::Refusal;
 use crate::secrets;
@@ -52,9 +53,6 @@ mod params;
 
 use params::*;
 
-/// 没写人格时用的：出厂的软件工程师（施工 3-6 上）。
-const PERSONA: &str = "engineer";
-
 /// 照方法办一条请求：交回回应的 `result`，或者拒绝。
 pub(crate) async fn call(
     core: &Arc<Core>,
@@ -65,7 +63,6 @@ pub(crate) async fn call(
     match request.method.as_str() {
         "session.create" => {
             let params: CreateParams = params(request)?;
-            let persona = params.persona.as_deref().unwrap_or(PERSONA);
             // 解析不出的什么都不造（施工 8-8）。
             let model = params
                 .model
@@ -82,7 +79,7 @@ pub(crate) async fn call(
                 .create(
                     core,
                     request.id.clone(),
-                    persona,
+                    params.persona.as_deref(),
                     params.cwd,
                     params.dirs,
                     who,
@@ -95,14 +92,14 @@ pub(crate) async fn call(
             }
             Ok(reply)
         }
+        "persona.list" => personas::list(core, peer).await,
+        "persona.get" => personas::get(core, params(request)?).await,
         "session.list" => {
             let params: ListParams = params(request)?;
             let sessions = list::list(core, params.oneshot, params.limit).await?;
             Ok(json!({"sessions": sessions}))
         }
-        "venue.session" => {
-            venues::session(core, request.id.clone(), PERSONA, params(request)?).await
-        }
+        "venue.session" => venues::session(core, request.id.clone(), params(request)?).await,
         "session.send" => {
             let params: SendParams = params(request)?;
             // 别的 harness 报的名字先查（施工 7-10）：不对的，会话里什么都不送。代表外部的人（施工 O-3）和它不能同时写。

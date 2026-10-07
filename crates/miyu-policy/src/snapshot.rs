@@ -20,6 +20,7 @@ use crate::harness::HarnessTexts;
 use crate::jobs::{JobNumbers, JobTexts};
 use crate::pause::PauseNumbers;
 use crate::peers::{PeerNumbers, PeerTexts};
+use crate::persona::Demo;
 use crate::rebuild::{RebuildNumbers, RebuildTexts};
 use crate::recap::{RecapNumbers, RecapTexts};
 use crate::shorten::{ShortenNumbers, ShortenTexts};
@@ -34,6 +35,10 @@ pub struct Snapshot {
     pub persona: String,
     /// 拼好的 system（`26-提示词.md` 第四节）。
     pub system: String,
+    /// 示范对话（施工 P-1 上）：组装时排在 system 后面、历史前面。没有的不写：以前造的快照、没有示范对话的人格，字节和
+    /// 以前一样。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub demos: Vec<Demo>,
     /// 工具面（施工 4-1）：照名字排好，每件带访问类别。一件都没有的不写：没有工具的快照，字节和以前
     /// 一样，M3 造的会话照旧读得回来、哈希不变。
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -368,7 +373,7 @@ impl Snapshot {
         let stable = Stable {
             tools: face,
             system: self.system.clone(),
-            demos: Vec::new(),
+            demos: self.demos.iter().flat_map(Demo::messages).collect(),
         };
         let facts = core.facts.templates()?;
         Ok(Policy {

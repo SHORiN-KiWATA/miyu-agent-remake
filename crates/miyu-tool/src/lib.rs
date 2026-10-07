@@ -20,7 +20,9 @@
 mod agents;
 mod catalog;
 mod jobs;
+pub mod load;
 mod log;
+mod memory;
 mod messages;
 pub mod picture;
 mod questions;
@@ -38,6 +40,10 @@ pub use agents::{
 pub use catalog::{Catalog, CatalogError, Problem};
 pub use jobs::{Asking, Background, Exit, JobError, JobPort, Listed, Output, Process};
 pub use log::{Log, ReadLog};
+pub use memory::{
+    FORGET, FoundMemory, FoundTurn, MEMORIES, MEMORY_SEARCH, MemoryPort, Pending, REMEMBER,
+    Refused, Remember, Searched, TURNS,
+};
 pub use messages::{
     Delivered, MessagePort, NotSent, Recipient, SEND_MESSAGE, SEND_MESSAGE_FORMERLY, Sending,
 };

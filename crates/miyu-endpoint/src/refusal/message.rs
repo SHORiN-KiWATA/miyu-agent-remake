@@ -22,6 +22,10 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
         ),
         "bad_token" => ("本机令牌不对。", "The local token is wrong."),
         "unknown_persona" => ("没有这个人格。", "There is no such persona."),
+        "persona_invalid" => (
+            "这个人格的文件写错了，详情在 data.problem 里。",
+            "This persona's files have a mistake; data.problem says where.",
+        ),
         "session_not_found" => ("没有这个会话。", "There is no such session."),
         "no_system_account" => (
             "这个场所的会话要归系统账号，还没有装好系统账号。",

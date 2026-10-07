@@ -35,6 +35,10 @@
           "recent": "最近的会话"
         }
       },
+      "persona.default": {
+        "name": "默认人格",
+        "description": "新会话默认用哪个人格，写人格目录的名字。开会话时指定的优先；通讯平台的场所规则里写了的也优先。"
+      },
       "permission.start_read_only": {
         "name": "新会话开局只读",
         "description": "打开以后，新会话一开始就是只读。她只能查、写计划，要改文件时你再关掉只读。项目配置里只能把它打开。"
@@ -221,6 +225,7 @@
     },
     "groups": {
       "display": "显示",
+      "persona": "人格",
       "log": "运行日志",
       "sessions": "会话",
       "uses": "用途",

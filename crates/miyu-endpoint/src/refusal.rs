@@ -308,6 +308,15 @@ impl Refusal {
         Refusal::with("config_conflict", "version", serde_json::json!(version))
     }
 
+    /// 人格的文件写错了（施工 P-1 上，`personas.md`）：`data.problem` 写明哪一层、哪个文件第几行、错在哪。
+    pub(crate) fn persona_invalid(problem: String) -> Refusal {
+        Refusal::with(
+            "persona_invalid",
+            "problem",
+            serde_json::Value::String(problem),
+        )
+    }
+
     /// `model.call` 没有能用的模型（施工 8-20）：`data.message` 是原话。
     pub(crate) fn no_model(message: String) -> Refusal {
         Refusal::with("no_model", "message", serde_json::Value::String(message))

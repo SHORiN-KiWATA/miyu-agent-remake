@@ -1757,6 +1757,160 @@ Todo list updated: {done} of {total} done.
 All todos are done. The list is cleared.
 ```
 
+#### `software/memory/common/bad-args.txt`
+
+- 什么时候加进来：三件的参数读不懂（字段按 ``missing field `text` `` 填）
+- token：11（2026-10-07 量）
+- 为什么加：照基础系统 `common/bad-args.txt` 的说法：说清哪里不对，她下一次改（施工 R-3 中）
+- 指纹：`18997814`
+
+```text
+The arguments are not right: {error}.
+```
+
+#### `software/memory/common/off.txt`
+
+- 什么时候加进来：这个会话没有记忆的端口（记忆没开）
+- token：7（2026-10-07 量）
+- 为什么加：三件工具在工具面上、端口却没有时（测试、以后范围 `off`）说清楚，不当成别的错（施工 R-3 中）
+- 指纹：`e3341c4f`
+
+```text
+Memory is off in this session.
+```
+
+#### `software/memory/common/failed.txt`
+
+- 什么时候加进来：记忆日志、检索库读写出错（字段按 `disk full` 填）
+- token：10（2026-10-07 量）
+- 为什么加：不吞错误，如实说（施工 R-3 中）
+- 指纹：`e9be7ec3`
+
+```text
+Memory is not available right now: {error}.
+```
+
+#### `software/memory/common/no-such.txt`
+
+- 什么时候加进来：`replaces`、`forget` 的编号没有、写法不对、听众不合（字段按 `m12` 填）
+- token：7（2026-10-07 量）
+- 为什么加：不记、不作废，说清是编号不对；听众不合的也这么说，不让她知道有（施工 R-3 中）
+- 指纹：`df542511`
+
+```text
+There is no memory {id}.
+```
+
+#### `software/memory/common/not-current.txt`
+
+- 什么时候加进来：那一条已经被改掉、作废了
+- token：8（2026-10-07 量）
+- 为什么加：只改、只作废现在算数的那一条（施工 R-3 中）
+- 指纹：`8463f5b4`
+
+```text
+{id} was already replaced or retired.
+```
+
+#### `software/memory/remember/saved.txt`
+
+- 什么时候加进来：`remember` 记下了（字段按 `m12` 填）
+- token：5（2026-10-07 量）
+- 为什么加：交回编号，她以后改、作废照它（施工 R-3 中）
+- 指纹：`68286bd1`
+
+```text
+Saved as {id}.
+```
+
+#### `software/memory/remember/replaced.txt`
+
+- 什么时候加进来：`remember` 改了一条（字段按 `m12`、`m3` 填）
+- token：9（2026-10-07 量）
+- 为什么加：说清改了哪一条（施工 R-3 中）
+- 指纹：`2001de1d`
+
+```text
+Saved as {id}, replacing {old}.
+```
+
+#### `software/memory/remember/too-long.txt`
+
+- 什么时候加进来：`remember` 超过 120 字（字段按 `135`、`120` 填）
+- token：13（2026-10-07 量）
+- 为什么加：一条一句，旧版实测超长的多半是技术问答全文（调研第一节第 1 个坑）（施工 R-3 中）
+- 指纹：`e9a6378b`
+
+```text
+That is {chars} characters; keep a memory under {limit}.
+```
+
+#### `software/memory/remember/unknown-class.txt`
+
+- 什么时候加进来：`remember` 的类不是四类之一（字段按 `mood` 填）
+- token：13（2026-10-07 量）
+- 为什么加：参数格式里有 `enum`，模型照样可能写别的：说清能写哪四类（施工 R-3 中）
+- 指纹：`172bc8cf`
+
+```text
+Unknown class {class}; use user, feedback, episode or reference.
+```
+
+#### `software/memory/forget/retired.txt`
+
+- 什么时候加进来：`forget` 作废了（字段按 `m12` 填）
+- token：5（2026-10-07 量）
+- 为什么加：一句短话（施工 R-3 中）
+- 指纹：`73a52526`
+
+```text
+Retired {id}.
+```
+
+#### `software/memory/memory_search/memory.txt`
+
+- 什么时候加进来：`memory_search` 记下的一条一行（字段按 `m12`、`user`、`2026-10-07`、`用户用 N 卡` 填）
+- token：18（2026-10-07 量）
+- 为什么加：编号、类、日期、正文：她能接着改、作废，看得出多久以前（施工 R-3 中）
+- 指纹：`42e97fd1`
+
+```text
+{id} {class} {date}: {text}
+```
+
+#### `software/memory/memory_search/retired.txt`
+
+- 什么时候加进来：`memory_search` 带 `forgotten` 时作废的一条（字段同上）
+- token：21（2026-10-07 量）
+- 为什么加：和现在算数的分得开（施工 R-3 中）
+- 指纹：`dd447828`
+
+```text
+{id} {class} {date} (retired): {text}
+```
+
+#### `software/memory/memory_search/turn.txt`
+
+- 什么时候加进来：`memory_search` 以前的对话一条一行（字段按 `2026-10-06`、`22334455`、`我换了显卡 / 好的` 填）
+- token：20（2026-10-07 量）
+- 为什么加：日期、会话的短编号（她能用 `history` 带 `session` 读整段）、截到 300 字的字（施工 R-3 中）
+- 指纹：`b91837ae`
+
+```text
+{date} session {session}: {text}
+```
+
+#### `software/memory/memory_search/nothing.txt`
+
+- 什么时候加进来：`memory_search` 什么都没搜到
+- token：3（2026-10-07 量）
+- 为什么加：一句短话（施工 R-3 中）
+- 指纹：`1b14f4e8`
+
+```text
+Nothing found.
+```
+
 #### `software/basesystem/common/not-read.txt`
 
 - 什么时候加进来：`write`、`edit` 要改的文件已经在了、她这个会话里没看过
@@ -2606,6 +2760,48 @@ Placeholder for a tool this client is expected to send with the request; it is n
 {
   "description": "Keep this session's task list for multi-step work, which the user sees. Each call replaces the whole list. Mark an item in_progress when you start it and completed as soon as it is done.",
   "parameters": {"type":"object","properties":{"todos":{"type":"array","items":{"type":"object","properties":{"content":{"type":"string"},"status":{"type":"string","enum":["pending","in_progress","completed"]}},"required":["content","status"]}}},"required":["todos"]}
+}
+```
+
+#### `software/memory/tools/remember.json`
+
+- 什么时候加进来：会话的工具面里有 `remember`：本机的主会话有，子会话、群没有（每次请求都带）
+- token：149（2026-10-07 照开发端点量，十八件一起时的边际份量）
+- 为什么加：记一条或改一条：她能碰自己的记忆（施工 R-3 中，`17-记忆.md` L9、L11，`memory.md`「工具」）；人说「记住」「忘掉」她当场调（2026-10-07 项目主人定）。说明写四类各是什么、只记以后还用得上的；`text` 一句、120 字以内、日期写全（旧版实测：整理出来的超长的多半是技术问答全文，相对日期过了就看不懂）；`replaces` 改一条
+- 指纹：`8960cbcd`
+
+```json
+{
+  "description": "Save a memory you keep across sessions: about the user, how they want you to work (and why), something you went through together, or a lasting fact. Only what will matter later.",
+  "parameters": {"type":"object","properties":{"class":{"type":"string","enum":["user","feedback","episode","reference"]},"text":{"type":"string","description":"One sentence, at most 120 characters, dates written out."},"replaces":{"type":"string","description":"Id of a memory this corrects, like m12."}},"required":["class","text"]}
+}
+```
+
+#### `software/memory/tools/forget.json`
+
+- 什么时候加进来：会话的工具面里有 `forget`：本机的主会话有，子会话、群没有（每次请求都带）
+- token：66（2026-10-07 照开发端点量，十八件一起时的边际份量）
+- 为什么加：作废一条：她能碰自己的记忆（施工 R-3 中，`17-记忆.md` L9、L11，`memory.md`「工具」）；人说「记住」「忘掉」她当场调（2026-10-07 项目主人定）。一句：错了的、人要她忘的
+- 指纹：`e27e88a6`
+
+```json
+{
+  "description": "Retire a memory that is wrong or that the user wants forgotten.",
+  "parameters": {"type":"object","properties":{"id":{"type":"string"},"why":{"type":"string"}},"required":["id","why"]}
+}
+```
+
+#### `software/memory/tools/memory_search.json`
+
+- 什么时候加进来：会话的工具面里有 `memory_search`：本机的主会话有，子会话、群没有（每次请求都带）
+- token：70（2026-10-07 照开发端点量，十八件一起时的边际份量）
+- 为什么加：搜记下的和以前别的会话里的对话（回合索引，施工 R-2 上）：她能碰自己的记忆（施工 R-3 中，`17-记忆.md` L9、L11，`memory.md`「工具」）；人说「记住」「忘掉」她当场调（2026-10-07 项目主人定）。`forgotten` 连作废的一起
+- 指纹：`a8acd902`
+
+```json
+{
+  "description": "Search your memories and your past conversations in other sessions.",
+  "parameters": {"type":"object","properties":{"query":{"type":"string"},"forgotten":{"type":"boolean","description":"Include retired memories."}},"required":["query"]}
 }
 ```
 

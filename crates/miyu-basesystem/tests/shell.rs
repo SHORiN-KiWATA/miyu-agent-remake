@@ -76,6 +76,7 @@ fn shell_comes_from_the_resources_and_names_its_shell() {
         sessions: None,
         usage: None,
         questions: None,
+        memory: None,
     });
     assert!(targets.is_empty(), "执行命令不报路径");
 }
@@ -100,6 +101,7 @@ fn shell_says_when_it_wants_out_and_what_to_show() {
         sessions: None,
         usage: None,
         questions: None,
+        memory: None,
     };
     let out =
         call(json!({"command": "touch ~/x", "description": "Touch", "outside_sandbox": true}));
@@ -370,6 +372,7 @@ async fn the_output_is_pushed_to_the_heads_as_it_comes() {
         sessions: None,
         usage: None,
         questions: None,
+        memory: None,
     };
     let done = tool("shell").run(call, progress).await;
     assert!(!done.error, "{}", text(&done));
@@ -475,6 +478,7 @@ async fn a_tilde_working_directory_means_home() {
         sessions: None,
         usage: None,
         questions: None,
+        memory: None,
     };
     let done = tool("shell")
         .run(call, miyu_tool::Progress::new(|_| {}))

@@ -65,6 +65,11 @@ max = "5m"
 # Allowed: true or false. Only in the system config, personal settings or a project config. Applies to sessions opened from now on.
 start_read_only = false
 
+[persona]
+# Default persona: The persona new sessions use, written as the persona directory name. A persona chosen when opening a session comes first, and so does one set by a chat platform venue rule.
+# Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to sessions opened from now on.
+default = "engineer"
+
 [pools."<id>"]
 # Description for the model: One line she sees after the pool name when she starts a subagent. Write it in English.
 # Allowed: one line of English, at most 60 characters. Only in the system config or personal settings. Applies to sessions opened from now on.

@@ -1,0 +1,4 @@
+{
+  "description": "Retire a memory that is wrong or that the user wants forgotten.",
+  "parameters": {"type":"object","properties":{"id":{"type":"string"},"why":{"type":"string"}},"required":["id","why"]}
+}
