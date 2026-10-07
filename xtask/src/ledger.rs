@@ -39,6 +39,11 @@ const WEB: &str = "web";
 /// `software/mermaid/`、`software/net/` 整个是数据（字体、三种记号色、源码的上限；抓链接卡片的时限、上限、请求头），
 /// 不发给模型，不登记（施工 W-4，`mermaid.md`「样子」：「这条线不加给模型看的字」；施工 W-7，`net.md`）。
 const SOFTWARE_DIR: &str = "software/";
+
+/// 人格目录里的 `persona.toml` 是给人看的名字、说明和几项配置，不发给模型，不登记（施工 P-1 下，`personas.md`）；同一个目录里
+/// `prompts/` 下的照查。
+const PERSONAS_DIR: &str = "personas/";
+const PERSONA_TOML: &str = "persona.toml";
 const DATA_PACKAGES: [&str; 2] = ["mermaid", "net"];
 
 /// 查一遍，交回对不上的地方。
@@ -95,7 +100,10 @@ fn walk(dir: &Path, prefix: &str, files: &mut BTreeMap<String, Vec<u8>>) -> Resu
                 continue;
             }
             walk(&entry.path(), &format!("{path}/"), files)?;
-        } else {
+        } else if !(name == PERSONA_TOML
+            && prefix.starts_with(PERSONAS_DIR)
+            && prefix.matches('/').count() == 2)
+        {
             files.insert(path, std::fs::read(entry.path()).map_err(unreadable)?);
         }
     }
@@ -208,6 +216,9 @@ mod tests {
             ("software/net/link_preview.json", "{}"),
             ("software/x/mermaid/not_special_here.json", "{}"),
             ("software/x/net/not_special_here.json", "{}"),
+            ("personas/x/persona.toml", "[persona]"),
+            ("personas/x/prompts/persona.md", "p"),
+            ("personas/x/prompts/persona.toml", "q"),
         ] {
             let path = dir.join(path);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -217,7 +228,7 @@ mod tests {
         let walked = walk(&dir, "", &mut found);
         std::fs::remove_dir_all(&dir).unwrap();
         walked.unwrap();
-        // 给人看的字、最上一层的模型资料和网页软件、software/mermaid/、software/net/ 不登记，别的照查（别处叫 models、
+        // 给人看的字、最上一层的模型资料和网页软件、software/mermaid/、software/net/、人格目录的 persona.toml 不登记，别的照查（别处叫 models、
         // web、mermaid、net 的目录照查：只有正好最上一层、software/ 下这几处才豁免）。
         assert_eq!(
             found.keys().collect::<Vec<_>>(),
@@ -225,6 +236,8 @@ mod tests {
                 "core/a.txt",
                 "core/models/m.txt",
                 "core/web/w.txt",
+                "personas/x/prompts/persona.md",
+                "personas/x/prompts/persona.toml",
                 "software/x/mermaid/not_special_here.json",
                 "software/x/net/not_special_here.json",
                 "software/x/tools/t.json",

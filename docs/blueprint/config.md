@@ -1014,7 +1014,7 @@ max = "5m"
 start_read_only = false
 
 [persona]
-# 默认人格：新会话默认用哪个人格，写人格目录的名字。开会话时指定的优先；通讯平台的场所规则里写了的也优先。
+# 默认人格：新会话默认用哪个人格。
 # 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。
 default = "engineer"
 
@@ -1280,7 +1280,7 @@ currency = "USD"
       "properties": {
         "default": {
           "default": "engineer",
-          "description": "新会话默认用哪个人格，写人格目录的名字。开会话时指定的优先；通讯平台的场所规则里写了的也优先。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。",
+          "description": "新会话默认用哪个人格。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。",
           "title": "默认人格",
           "type": "string"
         }
@@ -1658,7 +1658,7 @@ currency = "USD"
 | 说明（8-28 改成不点名哪个头） | 打开终端界面或网页时，开一个新会话，还是接着最近的那一个。 | Whether a terminal interface or the web page opens a new session or picks up the most recent one. | 端末画面やウェブを開いたときに、新しいセッションを始めるか、最近のセッションを続けるかです。 |
 | 选项 | `new` 新会话、`recent` 最近的会话 | A new session、The most recent session | 新しいセッション、最近のセッション |
 | `persona.default` 名字（P-1 上，主会话定） | 默认人格 | Default persona | 既定のペルソナ |
-| 说明 | 新会话默认用哪个人格，写人格目录的名字。开会话时指定的优先；通讯平台的场所规则里写了的也优先。 | The persona new sessions use, written as the persona directory name. A persona chosen when opening a session comes first, and so does one set by a chat platform venue rule. | 新しいセッションで使うペルソナ。ペルソナのディレクトリ名で書きます。セッションを開くときに指定したもの、チャットプラットフォームの場所ルールで決めたものが優先されます。 |
+| 说明（2026-10-07 项目主人定：只留一句，选人格照 `persona.list` 的下拉，谁优先人用不到） | 新会话默认用哪个人格。 | The persona new sessions use. | 新しいセッションで使うペルソナ。 |
 | `models.chat` 名字（8-6，主会话定） | 主对话的模型 | Chat model | 会話のモデル |
 | 说明（8-8 加了能写池那一句） | 新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash；也能写 @池。 | The model new sessions use, written as provider/model, for example deepseek/deepseek-flash, or @pool. | 新しいセッションが使うモデル。プロバイダー/モデル の形で書きます。例：deepseek/deepseek-flash。@プール でもかまいません。 |
 | `providers.<id>.driver` 名字（8-6） | 驱动 | Driver | ドライバー |

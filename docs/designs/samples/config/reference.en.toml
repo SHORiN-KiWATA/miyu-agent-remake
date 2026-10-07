@@ -66,7 +66,7 @@ max = "5m"
 start_read_only = false
 
 [persona]
-# Default persona: The persona new sessions use, written as the persona directory name. A persona chosen when opening a session comes first, and so does one set by a chat platform venue rule.
+# Default persona: The persona new sessions use.
 # Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to sessions opened from now on.
 default = "engineer"
 

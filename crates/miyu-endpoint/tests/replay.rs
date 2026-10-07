@@ -43,7 +43,7 @@ async fn after_zero_replays_the_whole_log_before_the_reply() {
     let last = log.last().expect("有事件")["seq"].clone();
     assert_eq!(
         reply["result"],
-        json!({"limits": {}, "upto": last, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}}),
+        json!({"limits": {}, "upto": last, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}, "persona": "engineer"}),
         "{reply}"
     );
 
@@ -86,7 +86,7 @@ async fn after_the_last_seq_replays_nothing_and_goes_on_live() {
         assert_eq!(pushed, Vec::<Value>::new(), "什么都不补");
         assert_eq!(
             reply["result"],
-            json!({"limits": {}, "upto": log.len(), "model": {"endpoint": "deepseek", "model": "deepseek-v4"}}),
+            json!({"limits": {}, "upto": log.len(), "model": {"endpoint": "deepseek", "model": "deepseek-v4"}, "persona": "engineer"}),
             "upto 是日志里最后一条：{reply}"
         );
     }
@@ -119,7 +119,7 @@ async fn without_after_nothing_is_replayed() {
         let reply = client.call("c3", "subscribe", params).await;
         assert_eq!(
             reply["result"],
-            json!({"limits": {}, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}}),
+            json!({"limits": {}, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}, "persona": "engineer"}),
             "照旧，没有 upto：{reply}"
         );
         assert_eq!(

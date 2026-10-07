@@ -318,6 +318,7 @@ impl Snapshot {
             parent: None,
             depth: None,
             model: None,
+            persona: Some(self.persona.clone()),
         }
     }
 
