@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use miyu_kernel::id::{AccountId, SessionId};
+use miyu_recall::Source;
 
 use crate::root::DataRoot;
 
@@ -51,8 +52,9 @@ impl RecallIndexes {
         (index, Some(opened))
     }
 
-    /// 删会话（进回收处）时：拿掉这个账号每一份回合库里会话 `session` 的全部和它照到了哪。磁盘上有的都算，没开过的这时
-    /// 开（核心重启以后，别的人格的会话也删得掉）。
+    /// 删会话（进回收处）时：拿掉这个账号每一份回合库里会话 `session` 的全部和它照到了哪，埋一块整个会话的墓碑
+    /// `会话/`（施工 R-3 上：记忆的出处在它里面的都算死了）。磁盘上有的都算，没开过的这时开（核心重启以后，别的人格的
+    /// 会话也删得掉）。
     ///
     /// # Errors
     ///
@@ -77,12 +79,32 @@ impl RecallIndexes {
         }
         let source = session.to_string();
         let mut failed = None;
+        let tomb = format!("{source}/");
         for persona in personas {
-            if let Err(error) = self.turns(account, &persona).0.forget(&source) {
+            let (index, _) = self.turns(account, &persona);
+            if let Err(error) = index.forget(&source).and_then(|()| index.bury(&tomb)) {
                 failed = Some(error);
             }
         }
         failed.map_or(Ok(()), Err)
+    }
+
+    /// 记忆的一处出处 `source` 还活着（施工 R-3 上，`memory.md` 第二条第 4 款）：账号 `account`、人格 `persona` 的回合库里，
+    /// 那个会话没埋（没删）、那一轮没埋（没撤销）。
+    ///
+    /// # Errors
+    ///
+    /// 回合库读不了。
+    pub fn alive(
+        &self,
+        account: &AccountId,
+        persona: &str,
+        source: &Source,
+    ) -> Result<bool, DbError> {
+        let (index, _) = self.turns(account, persona);
+        let session = format!("{}/", source.session);
+        let turn = format!("{session}{}", source.turn.started().get());
+        Ok(!index.is_buried(&session)? && !index.is_buried(&turn)?)
     }
 
     /// 这个账号的检索库在哪个目录。

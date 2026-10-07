@@ -10,10 +10,10 @@ publish.workspace = true
 [dependencies]
 # 事件、编号、时刻：回合索引照会话日志算（施工 R-2 上）。
 miyu-kernel = { path = "../miyu-kernel" }
-
-[dev-dependencies]
-# 测试里照一行 JSON 造事件、写正文里的字。
+# 记忆事件的 `body` 照自己的格写成 JSON、读回来（施工 R-3 上）。
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
 
 [lints]
 workspace = true

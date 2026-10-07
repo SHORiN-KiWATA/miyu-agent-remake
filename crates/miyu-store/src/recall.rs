@@ -26,12 +26,15 @@ pub use indexes::RecallIndexes;
 mod indexes;
 
 /// 表的结构的版本，记在 SQLite 的 `user_version` 里：结构一变就加一，对不上的删掉重建，不写迁移。
-const VERSION: i64 = 2;
+const VERSION: i64 = 3;
 
 /// 建表（`recall.md`「库的结构」）。`terms` 是 contentless 的：词只进倒排索引，原文在 `items.text`；`contentless_delete`
 /// 让它能照 rowid 删（SQLite 3.43 起，`bundled` 带的是 3.53）。`at` 是毫秒，给以后的排名用。`marks` 是每个来源照到了哪个
-/// 序号（施工 R-2 上，版本 2）。
-const SCHEMA: &str = "CREATE TABLE marks (
+/// 序号（施工 R-2 上，版本 2）。`buried` 是墓碑：撤销了的回合、删掉了的会话，记忆的出处照它判活不活（施工 R-3 上，版本 3）。
+const SCHEMA: &str = "CREATE TABLE buried (
+    key TEXT PRIMARY KEY NOT NULL
+) WITHOUT ROWID;
+CREATE TABLE marks (
     source TEXT PRIMARY KEY NOT NULL,
     upto INTEGER NOT NULL
 ) WITHOUT ROWID;
@@ -66,6 +69,16 @@ pub enum Edit {
     },
     /// 拿掉一条，没有的不要紧。
     Remove {
+        /// 键。
+        key: String,
+    },
+    /// 埋一块墓碑（施工 R-3 上）：埋过的不要紧。
+    Bury {
+        /// 键：`会话/回合`，或者整个会话 `会话/`。
+        key: String,
+    },
+    /// 揭掉一块墓碑，没埋的不要紧。
+    Unbury {
         /// 键。
         key: String,
     },
@@ -136,6 +149,12 @@ impl RecallIndex {
                 match edit {
                     Edit::Put { key, text, at } => put(tx, key, text, *at)?,
                     Edit::Remove { key } => remove_key(tx, key)?,
+                    Edit::Bury { key } => {
+                        tx.execute("INSERT OR IGNORE INTO buried (key) VALUES (?1)", [key])?;
+                    }
+                    Edit::Unbury { key } => {
+                        tx.execute("DELETE FROM buried WHERE key = ?1", [key])?;
+                    }
                 }
             }
             tx.execute(
@@ -170,6 +189,34 @@ impl RecallIndex {
                 .ok_or_else(|| DbError::Bad(format!("mark {upto}")))
         })
         .transpose()
+    }
+
+    /// 埋一块墓碑，不碰照到哪（施工 R-3 上：删会话时埋整个会话 `会话/`）。埋过的不要紧。
+    ///
+    /// # Errors
+    ///
+    /// 写不进。
+    pub fn bury(&self, key: &str) -> Result<(), DbError> {
+        self.write(|tx| {
+            tx.execute("INSERT OR IGNORE INTO buried (key) VALUES (?1)", [key])?;
+            Ok(())
+        })
+    }
+
+    /// 键 `key` 埋了墓碑没有（施工 R-3 上）。库用不了的当没埋：记忆的出处照活的算，宁可多想起来，不吞掉人说过的。
+    ///
+    /// # Errors
+    ///
+    /// 读不了。
+    pub fn is_buried(&self, key: &str) -> Result<bool, DbError> {
+        let db = self.lock();
+        let Some(db) = db.as_ref() else {
+            return Ok(false);
+        };
+        Ok(db
+            .query_row("SELECT 1 FROM buried WHERE key = ?1", [key], |_| Ok(()))
+            .optional()?
+            .is_some())
     }
 
     /// 拿掉来源 `source` 的全部（键以 `source/` 开头的）和它照到了哪，在一个事务里（施工 R-2 上：删会话）。
