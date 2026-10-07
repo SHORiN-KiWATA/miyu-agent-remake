@@ -138,6 +138,7 @@
 | `session.clear` | 清空上下文：单开一轮压成一个空的检查点，不请求模型（施工 6-8 补） |
 | `session.recap` | 要一句回顾：这个会话在做什么、做完了什么、卡在哪（施工 3-8 四补） |
 | `persona.list`、`persona.get` | 列出人格、读一个人格叠好的样子（施工 P-1 上，`personas.md`） |
+| `package.list` | 列出起来时读到的软件包清单（施工 9-1 上，`packages.md`） |
 | `check` | 查人手写的文件：配置、密钥文件、人格，照磁盘上现在的字（施工 8-30，`cli/check.md`） |
 | `command.run` | 执行一条斜杠命令：头把人打的原文交过来，核心认、判谁能用、执行（施工 O-6） |
 | `session.answer` | 回答一次确认（允许这一次、本会话都允许、拒绝），或者一组题（施工 D-1） |
@@ -485,6 +486,10 @@
 **`persona.list`**（施工 P-1 上，`personas.md`「怎么走」第 7 条）
 
 没有参数。回应 `{"personas": [...]}`，照编号排，一个人格一格：`persona` 编号，`name`、`summary` 照这个连接的语言挑的一句（这种语言没写的照 `en`、`zh`、`ja` 的先后，都没写的是 `null`），`layers` 来自哪几层（`shipped`、`system`、`home`，从下往上）。文件写错的只有 `persona` 和 `problem`（同 `persona_invalid` 的 `data.problem`）。
+
+**`package.list`**（施工 9-1 上，`packages.md`「协议」）
+
+不带参数。回应 `{"packages": [...]}`：核心起来时读到的两层清单（出厂的、管理员家目录里的），照编号排。每一项的格子见 `packages.md` 的表：读成了的有 `kind`、`protocol`、`name`、`state`，写了的有 `version`、`summary`、`command`、`opens`、`pages_dir`、`process`、`check`；写错的、撞了的、读不了的只有 `package`、`layer`、`code`、`problem`（照连接的语言）和有的话 `line`；协议版本对不上的照样带全，多 `code: "protocol_mismatch"` 和 `problem`。名字、说明照连接的语言挑。装、卸、改了清单要重启核心才认。
 
 **`persona.get`**（施工 P-1 上，`personas.md`「怎么走」第 8 条）
 
@@ -904,6 +909,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `WARN` | `meta not read session=… error=…` | 列会话时后面的日志读不下去，标题、置顶照坏的那一段以前的算（施工 3-8 三补） |
 | `INFO` | `session index created` | 起来时会话列表的索引没有，新建了一份（施工 3-8 七补，`store/index.md`） |
 | `WARN` | `session index rebuilt reason=…` | 起来时索引读不了、坏了、版本不对，删掉换了一份空的 |
+| `WARN` | `package invalid package=… file=… error=…` | 起来时读到一份写错的、撞了的软件包清单（施工 9-1 上，`packages.md`）；照样起来 |
+| `WARN` | `package unreadable package=… file=… error=…` | 起来时一份软件包清单读不了（施工 9-1 上） |
 | `WARN` | `session index unusable error=…` | 删了重建也打不开：这一回每次列会话都整份读 |
 | `WARN` | `session index not read error=…` | 列会话时读出索引坏了：删掉重建，这一次整份读 |
 | `WARN` | `session index not updated session=… error=…` | 列会话时补好的一行写不回去 |

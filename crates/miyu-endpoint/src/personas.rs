@@ -117,7 +117,7 @@ fn layers(layers: &[Layer]) -> Vec<&'static str> {
 }
 
 /// 照连接的语言挑一句；这种语言没写的照 `en`、`zh`、`ja` 的先后挑，都没写的是 `null`。
-fn pick(phrases: &miyu_store::personas::Phrases, language: &str) -> Option<String> {
+pub(crate) fn pick(phrases: &miyu_store::personas::Phrases, language: &str) -> Option<String> {
     [language, "en", "zh", "ja"]
         .iter()
         .find_map(|language| phrases.get(*language).cloned())

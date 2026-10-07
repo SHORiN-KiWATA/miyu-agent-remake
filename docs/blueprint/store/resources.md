@@ -58,6 +58,7 @@
 │   ├── jobs/<哪一份>.txt                 两种回报的写法，11 份（施工 7-2）；回报截在中间的那一行（施工 7-6）；留言的标签，2 份（施工 7-7）；人停的那一句（施工 7-2 补）
 │   └── human/zh.json、en.json、ja.json   给人看的字
 ├── personas/<人格>/prompts/persona.md    人设；出厂的只有 engineer
+├── packages/<编号>.toml                  软件包清单：出厂的只有 web（施工 9-1 上，`packages.md`）
 └── software/<软件包>/                    出厂的有 basesystem、mermaid、net
     ├── tools/<工具>.json                 给模型看的说明和参数格式（basesystem）
     ├── <工具>/<名字>.txt、common/<名字>.txt  工具输出里给她看的几句（basesystem）

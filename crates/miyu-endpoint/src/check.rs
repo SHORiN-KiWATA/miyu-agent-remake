@@ -15,7 +15,8 @@ use serde_json::{Value, json};
 use miyu_config::{Layer, Words};
 use miyu_store::config_file::{self, ReadError};
 use miyu_store::human::Human;
-use miyu_store::personas::{Checked, Issue};
+use miyu_store::packages::Issue;
+use miyu_store::personas::{Checked, Issue as PersonaIssue};
 
 use crate::Core;
 use crate::config::methods::{check_text, said_at, words};
@@ -63,6 +64,11 @@ pub(crate) async fn check(core: &Core, peer: Peer, params: CheckParams) -> Resul
                 .await
                 .map_err(|_| Refusal::INTERNAL)?;
             problems.extend(checked.iter().map(|one| persona_problem(core, &words, one)));
+            problems.extend(
+                check_packages(core, &words, None)
+                    .await?
+                    .unwrap_or_default(),
+            );
         }
         Some(file) => {
             let path = real(&expand(&file, home.as_deref(), cwd.as_deref()));
@@ -72,6 +78,8 @@ pub(crate) async fn check(core: &Core, peer: Peer, params: CheckParams) -> Resul
                 problems.extend(check_config(core, &words, &file)?);
             } else if real(&secrets_path) == path {
                 problems.extend(secrets);
+            } else if let Some(found) = check_packages(core, &words, Some(&path)).await? {
+                problems.extend(found);
             } else {
                 let personas = personas(core);
                 let wanted = path.clone();
@@ -162,18 +170,85 @@ fn unreadable(words: &Human, shown: &str, kind: &str, error: &ReadError) -> Valu
     json!({"kind": kind, "file": shown, "code": code, "level": "error", "message": message.unwrap_or_default()})
 }
 
-/// 人格的一处。
-fn persona_problem(core: &Core, words: &Human, checked: &Checked) -> Value {
-    let shown = match checked.path.strip_prefix(core.root.path()) {
+/// 软件包清单（施工 9-1 上，`packages.md`）：照磁盘读两层。`wanted` 没写的交回全部的问题；写了的，它是某一层 `packages/`
+/// 下的 `<编号>.toml` 才交回这一份的（还没有的报读不了），不是的交回没有。
+async fn check_packages(
+    core: &Core,
+    words: &Human,
+    wanted: Option<&Path>,
+) -> Result<Option<Vec<Value>>, Refusal> {
+    let places = crate::packages::packages(core);
+    if let Some(path) = wanted {
+        let in_a_layer = path
+            .parent()
+            .is_some_and(|parent| places.dirs().any(|(_, dir)| real(dir) == parent));
+        let manifest = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .and_then(|name| name.strip_suffix(".toml"))
+            .is_some_and(miyu_store::personas::valid);
+        if !(in_a_layer && manifest) {
+            return Ok(None);
+        }
+    }
+    let found = tokio::task::spawn_blocking(move || places.read())
+        .await
+        .map_err(|_| Refusal::INTERNAL)?;
+    let mut problems = Vec::new();
+    let mut seen = false;
+    for one in found
+        .iter()
+        .filter(|one| wanted.is_none_or(|path| real(&one.path) == path))
+    {
+        seen = true;
+        let file = shown(core, &one.path);
+        match &one.read {
+            Ok(manifest) => {
+                if let Some(range) = crate::packages::mismatch(manifest) {
+                    let message = crate::packages::sentence(words, "protocol_mismatch", &range);
+                    problems.push(json!({"kind": "package", "file": file, "code": "protocol_mismatch", "level": "warning", "message": message.unwrap_or_default()}));
+                }
+            }
+            Err(Issue::Wrong(problem)) => {
+                let message =
+                    crate::packages::sentence(words, problem.code.as_str(), &problem.detail);
+                let mut said = json!({"kind": "package", "file": file, "code": problem.code.as_str(), "level": "error", "message": message.unwrap_or_else(|| problem.message.clone())});
+                if let Some(line) = problem.line {
+                    said["line"] = json!(line);
+                }
+                problems.push(said);
+            }
+            Err(Issue::Unreadable(error)) => {
+                let why =
+                    ReadError::Unreadable(std::io::Error::new(error.kind(), error.to_string()));
+                problems.push(unreadable(words, &file, "package", &why));
+            }
+        }
+    }
+    if let (Some(path), false) = (wanted, seen) {
+        let why = ReadError::Unreadable(std::io::Error::from(std::io::ErrorKind::NotFound));
+        problems.push(unreadable(words, &shown(core, path), "package", &why));
+    }
+    Ok(Some(problems))
+}
+
+/// 一份文件给人看的写法：数据根里的写相对数据根的（`/` 分隔），别的写真的路径。
+fn shown(core: &Core, path: &Path) -> String {
+    match path.strip_prefix(core.root.path()) {
         Ok(rest) => rest
             .iter()
             .map(|part| part.to_string_lossy())
             .collect::<Vec<_>>()
             .join("/"),
-        Err(_) => checked.path.to_string_lossy().into_owned(),
-    };
+        Err(_) => path.to_string_lossy().into_owned(),
+    }
+}
+
+/// 人格的一处。
+fn persona_problem(core: &Core, words: &Human, checked: &Checked) -> Value {
+    let shown = shown(core, &checked.path);
     match &checked.issue {
-        Issue::Wrong(problem) => {
+        PersonaIssue::Wrong(problem) => {
             let key = format!("persona-problems/{}", problem.code.as_str());
             let message = Words::sentence(words, &key, &[("detail", &problem.detail)]);
             let mut said = json!({
@@ -188,7 +263,7 @@ fn persona_problem(core: &Core, words: &Human, checked: &Checked) -> Value {
             }
             said
         }
-        Issue::Unreadable(error) => {
+        PersonaIssue::Unreadable(error) => {
             let why = ReadError::Unreadable(std::io::Error::new(error.kind(), error.to_string()));
             unreadable(words, &shown, "persona", &why)
         }
