@@ -1,0 +1,3 @@
+Answer with one JSON object and nothing else:
+{"relevance": 0, "willingness": 0, "social": 0, "timing": 0, "continuity": 0, "should_reply": false, "to_bot": false, "severity": 0, "reason": ""}
+reason is one short sentence: who the message is for, whether the bot is the expected responder, and why.

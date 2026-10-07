@@ -7,7 +7,7 @@ use crate::Clock;
 
 use super::{Chatty, Conditions, LiftCtx, Reply, lifts};
 
-/// 判官的回答。怎么请求、怎么从它的回答里读出来，随后面一步。
+/// 判官的回答：[`read`](crate::read) 从判官回的字里读出来（`chat.md` 第六条「怎么走」第 4 条，施工 O-11）。
 #[derive(Debug, Clone, PartialEq)]
 pub struct Judgement {
     /// 五维的分，各 0 到 10，照相关、意愿、社交、时机、连贯的先后，和 [`Chatty::weights`] 一一对上。超过 10 的当 10，
@@ -19,6 +19,9 @@ pub struct Judgement {
     pub to_bot: bool,
     /// 违规的严重程度，0 到 10；没查是 `None`。不低于 [`Chatty::severity_min`] 的，不管分数都回。
     pub severity: Option<u8>,
+    /// 判官的一句理由，最多 500 个字符。只进日志（`ext.chat.decided`），不进她的上下文，算分不看它（18 第七节「两边
+    /// 各看各的」）。
+    pub reason: String,
 }
 
 /// 算分的每一项和结论（「怎么走」第 9 条）。只查违规的不打分：数都是 0，`reply` 只看违规。

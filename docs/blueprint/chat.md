@@ -4,7 +4,7 @@
 
 通讯平台里和平台无关的那一层：场所规则、进站链、线路规程、主动回复判断、出站链与出站队列、并行的分派（`docs/designs/18-通讯平台.md` 第一节）。它是第 2 层的纯逻辑，进来的是字和事件，出去的是判定，不碰磁盘、网络、时钟。软件包 `miyu-onebot` 链接它；以后别的平台的桥也链接同一个库。
 
-状态：图纸，随施工 O-1 起草（2026-10-07）。第一条场所规则（O-1），第二条进站链与限流（O-5），第三条主动回复判断的上半（O-7），第四条顶替与分派（O-9），第五条出站链与纯文本（O-10）；其余各条随后面的步子补。
+状态：图纸，随施工 O-1 起草（2026-10-07）。第一条场所规则（O-1），第二条进站链与限流（O-5），第三条主动回复判断的上半（O-7），第四条顶替与分派（O-9），第五条出站链与纯文本（O-10），第六条判官的请求和回答（O-11），第七条和核心的接口（2026-10-07，O 线自查以后定）；其余各条随后面的步子补。
 
 ### 在哪
 
@@ -21,6 +21,8 @@
 | `crates/miyu-chat/src/chatty.rs` | 主动回复判断：两个插槽（加值项、门槛修正）、条件、走哪条路、算分（施工 O-7） |
 | `crates/miyu-chat/src/chatty/` | 每个加值项一个文件；抽样；冷静；顶替与分派（`dispatch`，施工 O-9） |
 | `crates/miyu-chat/src/outbound.rs`、`outbound/` | 出站链：插槽、自带三条（清理、去重、引用和 @）；纯文本：Markdown 转纯文本、按段拆开（施工 O-10） |
+| `crates/miyu-chat/src/judge.rs`、`judge/` | 判官：拼 `model.call` 的请求、读回答（施工 O-11） |
+| `resources/software/onebot/judge/` | 判官的说明，十三份原文（给模型看的字，登记在 `26-提示词.md` 第十节） |
 | `crates/miyu-config/src/parse.rs` | `read`：照配置清单的类型认一个 TOML 值，O-1 开成公开的，场所规则复用它 |
 
 ### 一、场所规则（施工 O-1）
@@ -204,7 +206,7 @@ Rust 这一边：
 | `Hit { kind, bonus }`、`Conditions { hits }`、`Conditions::primary()` | 一个成立了的条件；成立了的条件，照插槽的先后；主触发 |
 | `conditions(&facts, flags, &replies, clock, &chatty) -> Conditions` | 算条件：自带的加值项照先后过 |
 | `Route::{Record, Commit, ModerationOnly, Judge}`、`route(&conditions, standing) -> Route` | 走哪条路：只记下、直接回、判官只查违规、交给判官打分 |
-| `Judgement { scores, should_reply, to_bot, severity }` | 判官的回答：五维各 0 到 10、该不该回、是不是在跟她说话、违规的严重程度（0 到 10，没查是 `None`） |
+| `Judgement { scores, should_reply, to_bot, severity, reason }` | 判官的回答：五维各 0 到 10、该不该回、是不是在跟她说话、违规的严重程度（0 到 10，没查是 `None`）、一句理由（只进日志，算分不看它；O-11 加） |
 | `Lift` | 门槛修正的插槽：一个修正有名字，给出抬多少 |
 | `Score { raw, adjust, bonus, lift, threshold, total, reply }`、`score(&judgement, &conditions, &replies, clock, &chatty) -> Score` | 算分的每一项和结论 |
 | `pressure(&replies, clock, &chatty) -> f64` | 冷静的近期发言量 p |
@@ -373,6 +375,56 @@ Rust 这一边：
 | 6 | 硬切出来的每一块也去首尾空白、空的不出 | 和按段、按行装的一样；旧版硬切不去 | 照旧版 |
 | 7 | Markdown 链接先倒着扫一遍，记下每个位置后面最近的 `]`、`)` | 保持线性：旧版实测一串 16000 个 `[` 要 358 毫秒 | 每遇到 `[` 往后找 |
 | 8 | 规则拿到的是前面交下来的 `Target`，第一条拿 `OutCtx.target` | 链里前面的规则能改写它 | 每条都看 `OutCtx.target` |
+
+### 六、判官的请求和回答（施工 O-11）
+
+主动回复判断要问判官的那一次（`docs/designs/18-通讯平台.md` 第七节「判官和她各看各的」）：照 `model.call` 的形状拼请求，从回答里读出第三条的 `Judgement`。说明的原文在资源里，登记在 `docs/designs/26-提示词.md` 第十节。纯逻辑：人格的说明、渲染好的群聊记录、这一条，都由外面交进来；群聊记录一行一条的渲染器在核心的 `miyu-assemble`（18 第一节「代码放在哪一层」），随核心的第二批。
+
+**对外的样子**
+
+| 名字 | 是什么 |
+|---|---|
+| `JudgeSources` | 资源 `software/onebot/judge/` 下的十三份原文，读资源的一方原样读出来，字段都是字（`violations` 也是未读的字） |
+| `JudgeTexts::new(sources) -> Result<JudgeTexts, TemplateError>` | 查过的十三份：`violations.txt` 读成模板，拿一个门槛试换一次，写坏了、要了 `severity_min` 以外的字段都在这里报错。字段不公开，只能这样造 |
+| `Ask { persona, records, current, decoded, mode, severity_min }` | 一次判断要的：人格的说明（`None` 是不带）、渲染好的群聊记录（触发这一条之前的几条，出厂 20 条）、这一条渲染好的样子、base64 解出来的字（没有是 `None`）、`Mode::{Reply, ModerationOnly}`、违规的门槛 |
+| `request(&texts, &ask) -> Vec<Message>` | 拼成 `model.call` 的 `messages`：一条 `system`、一条 `user`，`Message { role, text }`；不会失败（`JudgeTexts` 造的时候查过） |
+| `read(answer, mode, reason_chars) -> Result<Judgement, Unreadable>` | 读回答；`mode` 是这一次问的什么（只查违规的少了 `severity` 判不了）；`reason_chars` 是 `reason` 最多留几个字符，出厂 500，由外面交进来，代码里不写死。读不出来的是 `Unreadable::{NoObject, Dimension(名字), NoSeverity}`：找不到对象、五维少了一维或不是数、只查违规的没有 `severity` |
+
+**怎么走**
+
+1. **system 那一条**，照这个先后接起来，每份之间不加别的字（每份末尾自带的换行照留）：`system.txt`；有人格的，`persona-open.txt`、人格的说明（末尾没有换行的补一个）、`persona-close.txt`；`Mode::Reply` 接 `reply.txt`，`Mode::ModerationOnly` 接 `moderation-only.txt`；`violations.txt`（`{severity_min}` 换成门槛，照模板的规矩，`docs/designs/08-上下文投影.md` 第五节「模板与转义」）；`answer.txt`。
+2. **user 那一条**：`records-open.txt`、群聊记录、`records-close.txt`、`current-open.txt`、这一条、`current-close.txt`；有 base64 解出来的字的，再接 `decoded-open.txt`、解出来的字、`decoded-close.txt`。夹进标签的三样和人格的说明一样，末尾没有换行的补一个，收尾的标签落在自己那一行；空的不补，标签中间不多一个空行。群聊记录和这一条由渲染器转义过（一行一条，不可信的字段转成一行），这里不再转。
+3. **调用的其余几格由外面填**：`purpose` 是 `judge`；`model` 照场所规则（出厂是便宜的那档的池，没配的照 `models.chat`）；`max_tokens` 出厂 400。判官不带工具，不进任何会话（`model.call` 本来就不进），有自己的缓存状态，不碰主线（08 第六节「辅助请求隔离」）。
+4. **读回答**：
+   - 从回答的字里找第一个 `{` 到最后一个 `}`，照 JSON 读成一个对象；包在 ` ```json ` 里的也这样认。找不到、读不成对象：`Unreadable`。
+   - 五维（`relevance`、`willingness`、`social`、`timing`、`continuity`）都要有，是数；小于 0 的当 0，大于 10 的当 10。少了一维、不是数：`Unreadable`。
+   - `should_reply`、`to_bot` 是布尔，少了当假。
+   - `severity` 是数，0 到 10，夹住，四舍五入成整数；少了当没查（`None`）。只查违规的那一次少了 `severity`：`Unreadable`。
+   - `reason` 是字，少了当空；超过 `reason_chars`（出厂 500）个字符的截到这个数，进 `Judgement::reason`。
+   - 除了五维，别的格类型不对的（写成字的布尔、`null` 的 `severity`）照少了算。只进日志（`ext.chat.decided`），不进她的上下文，她也看不到打分（18 第七节「两边各看各的」）。
+5. **读不出来、超时、出错的**，当判不了，照不回算（18 第七节）；记一笔 `ext.chat.decided`，写明为什么。重试一次、超时多少由外面管（出厂 60 秒，只查违规的 120 秒，重试 1 次）。
+6. **违规时给她看的那句预检结论**、回合开头那句「为什么叫你」：随桥接群的那一步，另放资源、另登记。
+
+**守着它的**（`crates/miyu-chat/src/judge/tests.rs` 等，O-11）
+
+- 拼请求：两种模式、带不带人格、带不带 base64、门槛换进 `violations.txt`、每份的先后、人格说明末尾没有换行的补上；资源原文改一个字，拼出来的跟着变（不是写死在代码里的）。
+- 造 `JudgeTexts`：`violations.txt` 写坏了、要了别的字段的报错，只要 `severity_min` 的、不要字段的造得出。
+- 读回答：干净的 JSON、包在代码块里的、前后有别的字的、理由里带花括号的、五维超出范围的、少一维的、不是数的、布尔少了的、`severity` 超出范围的和带小数的、`severity` 少了（两种模式各一）、`reason` 超长的（正好 500 个字符的不截；上限是交进来的参数，不是写死的）、根本不是 JSON 的、空字。
+
+**施工时定的**（O-11）
+
+| # | 定了什么 | 为什么 | 没选 |
+|---|---|---|---|
+| 1 | 说明照旧版的四段改写成英文短句（`26-提示词.md` J3），意思不变；去掉好感度（Q21）和「程序还会再加减分」（两边各看各的） | Q4 效果照搬 | 重写一套 |
+| 2 | 违规的回答只要 `severity` 和 `reason`；旧版的类别、证据、相关的人和消息不要 | 只有门槛和给她看的那句预检结论用得上；别的只进过旧版的日志 | 照旧版全要 |
+| 3 | 群聊记录、这一条、base64 解出来的字用标签包起来，标签的开头和收尾各是一份资源 | 给模型看的字都在资源里、都登记；照 `core/jobs` 开头收尾分开的先例 | 写在代码里 |
+| 4 | 判官看的事件元数据（旧版的 `mentioned_bot` 那一段 JSON）不另给 | @ 了谁、引用了谁在渲染器一行一条的格式里已经有 | 另给一段 JSON |
+| 5 | `Judgement` 加一格 `reason`，算分不看它；`read` 直接交出 `Judgement` | 桥记 `ext.chat.decided` 要它；一个类型最省（2026-10-07 主会话定） | 另起 `Answer { judgement, reason }` |
+| 6 | `read` 另收 `Mode` | 只查违规的少了 `severity` 判不了，这条规矩只写在读回答这一处 | 桥自己再查一遍 |
+| 7 | 除了五维，类型不对的格照少了算；`severity` 四舍五入成整数 | 五维是算分离不开的，别的格都有不出错的默认；`Judgement::severity` 是 `u8` | 类型不对一律判不了 |
+| 8 | 夹进标签的字末尾没有换行的补一个，空的不补 | 收尾的标签落在自己那一行；空的补了会在标签中间多一个空行 | 只给人格、群聊记录补 |
+| 9 | `JudgeTexts` 只能由 `JudgeTexts::new` 造，造的时候 `violations.txt` 读成模板、拿 `severity_min` 试换一次，换不出就报错；`request` 因此不会失败 | 换不出就照空的写会让整段违规说明悄悄消失，是吞错误（O-11 自查）；读的时候报错，不等到请求里（08 第五节）。2026-10-07 改，原先认了「换不出照空的写」 | 照空的写；`request` 交 `Result` |
+| 10 | `Message { role: Role::{System, User}, text }` 写在 `miyu-chat` 里 | 判官只用到这两种角色、只用字；`model.call` 的那几格在 `miyu-endpoint`（第 4 层）里读，是私有的，桥照它写成协议上的 JSON | 借内核的 `request::Message`（带块，判官用不着） |
 
 ### 七、和核心的接口
 
