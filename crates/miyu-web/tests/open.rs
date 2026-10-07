@@ -73,15 +73,15 @@ impl Browser for FakeBrowser {
 fn launch(home: &Home) -> Launch {
     let resources = home.dir.join("resources");
     std::fs::create_dir_all(resources.join("web")).expect("建得了");
-    let mut web: Value = serde_json::from_str(
-        &std::fs::read_to_string(
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources/web/web.json"),
-        )
-        .expect("出厂的读得到"),
-    )
-    .expect("是 JSON");
-    web["idle_seconds"] = json!(1);
-    std::fs::write(resources.join("web/web.json"), web.to_string()).expect("写得进");
+    std::fs::create_dir_all(resources.join("packages")).expect("建得了");
+    let shipped = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");
+    std::fs::copy(shipped.join("web/web.json"), resources.join("web/web.json")).expect("拷得了");
+    // 空闲多久照清单的默认值（施工 9-1 下）：这里改成 1 秒，测完很快就走。核心没在跑，`serve` 照默认起。
+    let manifest =
+        std::fs::read_to_string(shipped.join("packages/web.toml")).expect("出厂的读得到");
+    let quick = manifest.replace("default = 600\n", "default = 1\n");
+    assert_ne!(quick, manifest, "清单里有空闲的默认值");
+    std::fs::write(resources.join("packages/web.toml"), quick).expect("写得进");
     let data = home.root.path().to_path_buf();
     let pages = home.pages.clone();
     Launch {

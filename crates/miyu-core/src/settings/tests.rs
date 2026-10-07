@@ -59,7 +59,15 @@ fn generated(root: &DataRoot, resources: &ResourceRoot, locale: Option<&str>) ->
     let memory = Memory::new();
     tracing::subscriber::with_default(
         miyu_log::subscriber(memory.clone(), LevelFilter::INFO, None),
-        || generate(root, resources, locale, &Values::defaults(&items())),
+        || {
+            generate(
+                root,
+                resources,
+                locale,
+                &Values::defaults(&items()),
+                &Packaged::default(),
+            )
+        },
     );
     memory.lines()
 }
@@ -150,9 +158,22 @@ async fn a_changed_level_and_language_take_effect_right_away() {
     let has = |what: &str| memory.lines().iter().any(|line| line.contains(what));
 
     let first = config(&root, "[ui]\nlanguage = \"en\"\n", &[]);
-    generate(&root, &resources(), None, &first.resolved().values());
+    generate(
+        &root,
+        &resources(),
+        None,
+        &first.resolved().values(),
+        &Packaged::default(),
+    );
     let (sender, now) = watch::channel(Arc::new(first));
-    tokio::spawn(follow(now, levels.clone(), root.clone(), resources(), None));
+    tokio::spawn(follow(
+        now,
+        levels.clone(),
+        root.clone(),
+        resources(),
+        None,
+        Default::default(),
+    ));
     tracing::debug!(target: "miyu::core", "hidden before");
     let second = "[log]\nlevel = \"debug\"\n[ui]\nlanguage = \"zh\"\n";
     sender.send_replace(Arc::new(config(&root, second, &[])));
@@ -175,7 +196,14 @@ async fn a_changed_level_and_language_take_effect_right_away() {
     );
     levels.set(LevelFilter::WARN);
     let (sender, now) = watch::channel(Arc::new(pinned));
-    tokio::spawn(follow(now, levels, root.clone(), resources(), None));
+    tokio::spawn(follow(
+        now,
+        levels,
+        root.clone(),
+        resources(),
+        None,
+        Default::default(),
+    ));
     let loud = "[log]\nlevel = \"trace\"\n[ui]\nlanguage = \"en\"\n";
     sender.send_replace(Arc::new(config(&root, loud, &env)));
     // 语言那一样换了：这一份办完了。

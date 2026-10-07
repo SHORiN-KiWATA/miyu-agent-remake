@@ -13,12 +13,12 @@ use std::io::Write;
 use std::process::Command;
 use std::time::Duration;
 
-use serde_json::{Value, json};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, ReadHalf, WriteHalf};
+use serde_json::json;
 
-use miyu_ipc::{Connection, Ready};
+use miyu_ipc::Ready;
 use miyu_store::root::DataRoot;
 
+use crate::client::Core;
 use crate::serve::{CoreCommand, address, running};
 use crate::texts::Language;
 
@@ -81,7 +81,7 @@ pub async fn open(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> u8 {
-    let mut core = match Core::connect(root, launch).await {
+    let mut core = match Core::connect(root, &launch.core).await {
         Ok(core) => core,
         Err(reason) => {
             say(err, &Language::En.no_core(&reason));
@@ -198,80 +198,4 @@ async fn ensure(root: &DataRoot, port: Option<u16>, launch: &Launch) -> Result<S
         "run/{} not written",
         crate::serve::ADDRESS
     )))
-}
-
-/// 照终端的样子连着的核心：一问一答。
-struct Core {
-    lines: BufReader<ReadHalf<Connection>>,
-    write: WriteHalf<Connection>,
-    language: Language,
-}
-
-impl Core {
-    /// 连核心（没在跑就拉起来）、出示本机令牌握手。
-    async fn connect(root: &DataRoot, launch: &Launch) -> Result<Core, String> {
-        let (connection, token) = miyu_ipc::connect_or_start(root, || (launch.core)())
-            .await
-            .map_err(|error| error.to_string())?;
-        let (read, write) = tokio::io::split(connection);
-        let mut core = Core {
-            lines: BufReader::new(read),
-            write,
-            language: Language::En,
-        };
-        let hello = json!({
-            "protocol": [1, 1],
-            "head": {"kind": "miyu-web", "version": env!("CARGO_PKG_VERSION")},
-            "locale": locale(),
-            "token": token,
-        });
-        let shaken = core.call("hello", "hello", hello).await?;
-        core.language = Language::of(shaken["language"].as_str());
-        Ok(core)
-    }
-
-    /// 发一条请求、等它的回应：交回 `result`，拒绝的交回原话。
-    async fn call(&mut self, id: &str, method: &str, params: Value) -> Result<Value, String> {
-        let request = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
-        let sent = async {
-            self.write
-                .write_all(format!("{request}\n").as_bytes())
-                .await?;
-            self.write.flush().await
-        };
-        sent.await.map_err(|error| error.to_string())?;
-        loop {
-            let mut line = String::new();
-            let read =
-                tokio::time::timeout(Duration::from_secs(30), self.lines.read_line(&mut line))
-                    .await
-                    .map_err(|_| "no answer".to_string())?
-                    .map_err(|error| error.to_string())?;
-            if read == 0 {
-                return Err("core disconnected".to_string());
-            }
-            let Ok(reply) = serde_json::from_str::<Value>(&line) else {
-                continue;
-            };
-            if reply["id"] != json!(id) {
-                continue;
-            }
-            return match reply.get("result") {
-                Some(result) => Ok(result.clone()),
-                None => Err(reply["error"]["message"]
-                    .as_str()
-                    .unwrap_or("refused")
-                    .to_string()),
-            };
-        }
-    }
-}
-
-/// 这台机器的语言：`LC_ALL`、`LC_MESSAGES`、`LANG` 照先后（核心照它算 `auto` 的语言）。
-fn locale() -> String {
-    ["LC_ALL", "LC_MESSAGES", "LANG"]
-        .iter()
-        .filter_map(|name| std::env::var(name).ok())
-        .find(|value| !value.is_empty())
-        .unwrap_or_default()
 }

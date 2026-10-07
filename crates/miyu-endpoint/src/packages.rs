@@ -4,8 +4,10 @@
 
 use serde_json::{Value, json};
 
-use miyu_config::Words;
-use miyu_config::package::Manifest;
+use std::collections::BTreeSet;
+
+use miyu_config::package::{Code, Manifest, Problem, settings};
+use miyu_config::{Item, Words};
 use miyu_kernel::id::AccountId;
 use miyu_store::human::Human;
 use miyu_store::packages::{Found, Issue, Packages};
@@ -30,7 +32,7 @@ pub(crate) fn packages(core: &Core) -> Packages {
 }
 
 /// 核心起来时读一次：写错的、撞了的各记一行 `WARN package invalid`，读不了的 `WARN package unreadable`。
-pub(crate) fn load(resources: &ResourceRoot, root: &DataRoot, admin: &AccountId) -> Vec<Found> {
+pub fn load(resources: &ResourceRoot, root: &DataRoot, admin: &AccountId) -> Vec<Found> {
     let found = Packages::new(resources, root, admin).read();
     for one in &found {
         match &one.read {
@@ -133,6 +135,48 @@ pub(crate) fn mismatch(manifest: &Manifest) -> Option<String> {
         low.to_string()
     } else {
         format!("{low}–{high}")
+    })
+}
+
+/// 包的配置项（施工 9-1 下，`packages.md`「配置项」）：读成了的清单的 `[settings]` 拼成配置项，键是 `<包>.<名字>`。包的编号
+/// 是核心自己的某个模块（`core_items` 里键的第一段，「软件包」那一页的不算）的，那一份改报 `settings_taken`、一项都不收。
+/// 核心起来时调一次：拼出来的项一直用到退出（`miyu_config::package::settings::items`）。
+pub fn settle(found: &mut [Found], core_items: &[Item]) -> Vec<Item> {
+    let modules: BTreeSet<&str> = core_items
+        .iter()
+        .filter(|item| item.ui.page != settings::PAGE)
+        .filter_map(|item| item.key.split('.').next())
+        .collect();
+    let mut items = Vec::new();
+    for one in found.iter_mut() {
+        let Ok(manifest) = &one.read else {
+            continue;
+        };
+        if manifest.settings.is_empty() {
+            continue;
+        }
+        if modules.contains(one.id.as_str()) {
+            one.read = Err(Issue::Wrong(Problem {
+                line: None,
+                code: Code::SettingsTaken,
+                detail: one.id.clone(),
+                message: format!(
+                    "package {} has the same name as a core module and cannot declare settings",
+                    one.id
+                ),
+            }));
+            continue;
+        }
+        items.extend(settings::items(&one.id, &manifest.settings));
+    }
+    items
+}
+
+/// 读成了的清单：编号和样子（给人看的字照它并进包的配置项的名字）。
+pub(crate) fn manifests(found: &[Found]) -> impl Iterator<Item = (&str, &Manifest)> {
+    found.iter().filter_map(|one| match &one.read {
+        Ok(manifest) => Some((one.id.as_str(), manifest)),
+        Err(_) => None,
     })
 }
 

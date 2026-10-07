@@ -59,7 +59,7 @@ pub enum Issue {
 /// 软件包清单的两层。
 #[derive(Debug, Clone)]
 pub struct Packages {
-    dirs: [(Layer, PathBuf); 2],
+    dirs: Vec<(Layer, PathBuf)>,
     state: PathBuf,
 }
 
@@ -67,11 +67,19 @@ impl Packages {
     /// 照资源目录 `resources`、数据根 `root`、管理员 `admin` 定两层的位置。
     pub fn new(resources: &ResourceRoot, root: &DataRoot, admin: &AccountId) -> Packages {
         Packages {
-            dirs: [
+            dirs: vec![
                 (Layer::Shipped, resources.path().join("packages")),
                 (Layer::Home, root.account_dir(admin).join("packages")),
             ],
             state: root.state().join("packages"),
+        }
+    }
+
+    /// 只有出厂那一层（施工 9-1 下）：生成配置的样本照出厂带的包，和数据根无关。状态目录没有意义，是空的。
+    pub fn shipped(resources: &ResourceRoot) -> Packages {
+        Packages {
+            dirs: vec![(Layer::Shipped, resources.path().join("packages"))],
+            state: PathBuf::new(),
         }
     }
 

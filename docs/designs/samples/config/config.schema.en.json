@@ -455,7 +455,7 @@
         },
         "startup": {
           "default": "new",
-          "description": "Whether a terminal interface or the web page opens a new session or picks up the most recent one. Allowed: new or recent. Only in the system config or personal settings. Takes effect the next time the interface opens.",
+          "description": "Whether a terminal interface or the web page opens a new session or picks up the most recent one. Allowed: new or recent. Only in the system config or personal settings. Takes effect the next time the program starts.",
           "enum": [
             "new",
             "recent"
@@ -475,6 +475,43 @@
           "minLength": 1,
           "title": "Currency shown first",
           "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "web": {
+      "properties": {
+        "idle_seconds": {
+          "default": 600,
+          "description": "Quit after this many seconds with no browser connected and no media being served. Allowed: a whole number from 1 to 86400. Only in the system config. Takes effect the next time the program starts.",
+          "maximum": 86400,
+          "minimum": 1,
+          "title": "Idle seconds",
+          "type": "integer"
+        },
+        "most_tickets": {
+          "default": 4096,
+          "description": "At most this many /media tickets; the one unused longest goes first. Allowed: a whole number from 1 to 1000000. Only in the system config. Takes effect the next time the program starts.",
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "Most media tickets",
+          "type": "integer"
+        },
+        "port": {
+          "default": 8300,
+          "description": "Which local port the web interface listens on. Allowed: a whole number from 1 to 65535. Only in the system config. Takes effect the next time the program starts.",
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "Web port",
+          "type": "integer"
+        },
+        "ticket_idle_seconds": {
+          "default": 43200,
+          "description": "A /media ticket unused for this many seconds stops working. Allowed: a whole number from 1 to 2592000. Only in the system config. Takes effect the next time the program starts.",
+          "maximum": 2592000,
+          "minimum": 1,
+          "title": "Media ticket idle seconds",
+          "type": "integer"
         }
       },
       "type": "object"

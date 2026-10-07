@@ -1830,6 +1830,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "miyu-config",
  "miyu-ipc",
  "miyu-log",
  "miyu-store",

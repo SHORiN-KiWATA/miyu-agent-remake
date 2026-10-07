@@ -37,8 +37,10 @@ start = "manual"
 [check]
 args = ["check"]
 
-[settings.port]
-whatever = 1
+[settings.token]
+type = "secret"
+layers = ["system"]
+name = { en = "NapCat token" }
 "#;
 
 /// 读错了的：代码、第几行。
@@ -71,7 +73,7 @@ fn a_ui_package_reads_every_field() {
 }
 
 #[test]
-fn a_process_package_reads_its_start_and_check_and_keeps_settings_aside() {
+fn a_process_package_reads_its_start_check_and_settings() {
     let manifest = read(BRIDGE).unwrap();
     assert_eq!(manifest.kind, PackageKind::Process);
     assert_eq!(manifest.protocol, [1, 2]);
@@ -89,6 +91,8 @@ fn a_process_package_reads_its_start_and_check_and_keeps_settings_aside() {
             args: vec!["check".to_string()],
         })
     );
+    assert_eq!(manifest.settings.len(), 1);
+    assert_eq!(manifest.settings[0].kind, SettingKind::Secret);
     let always = BRIDGE.replace("start = \"manual\"", "start = \"always\"");
     assert_eq!(read(&always).unwrap().process.unwrap().start, Start::Always);
     let bare = BRIDGE.replace("args = [\"serve\"]\nstart = \"manual\"\n", "");

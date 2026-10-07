@@ -18,7 +18,7 @@ use miyu_log::settings::LogSettings;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
-use super::{generate, set_level};
+use super::{Packaged, generate, set_level};
 
 /// 当场生效的那几样现在是什么。
 #[derive(Debug, PartialEq, Eq)]
@@ -49,9 +49,10 @@ pub fn follow(
     root: DataRoot,
     resources: ResourceRoot,
     locale: Option<String>,
+    packaged: Arc<Packaged>,
 ) -> impl Future<Output = ()> + Send {
     let last = Applied::of(&now.borrow_and_update(), locale.as_deref());
-    watching(now, last, levels, root, resources, locale)
+    watching(now, last, levels, root, resources, locale, packaged)
 }
 
 /// 等配置换，照 [`follow()`] 说的办。
@@ -62,6 +63,7 @@ async fn watching(
     root: DataRoot,
     resources: ResourceRoot,
     locale: Option<String>,
+    packaged: Arc<Packaged>,
 ) {
     while now.changed().await.is_ok() {
         let config = Arc::clone(&now.borrow_and_update());
@@ -71,9 +73,9 @@ async fn watching(
         }
         if next.language != last.language {
             let (root, resources, locale) = (root.clone(), resources.clone(), locale.clone());
-            let values = config.resolved().values();
+            let (values, packaged) = (config.resolved().values(), Arc::clone(&packaged));
             let written = tokio::task::spawn_blocking(move || {
-                generate(&root, &resources, locale.as_deref(), &values);
+                generate(&root, &resources, locale.as_deref(), &values, &packaged);
             });
             if let Err(error) = written.await {
                 tracing::error!(target: super::TARGET, error = %error, "config schema writer panicked");

@@ -259,7 +259,7 @@ fn set_and_unset_lines_match_the_blueprint() {
     );
     assert_eq!(
         zh.saved("ui.startup", "\"recent\"", "personal", "head_start"),
-        "· ui.startup = \"recent\" 写进了个人设置，下次打开界面时生效"
+        "· ui.startup = \"recent\" 写进了个人设置，这个程序下次启动时生效"
     );
     assert_eq!(
         zh.saved_below("ui.language", "\"en\"", "system", "personal", "\"zh\""),
@@ -345,7 +345,7 @@ fn edit_and_trust_words_match_the_blueprint() {
     );
     assert_eq!(
         zh.explain_header("启动时打开", "ui.startup", "说明。", "head_start"),
-        "启动时打开（ui.startup）：说明。下次打开界面时生效。"
+        "启动时打开（ui.startup）：说明。这个程序下次启动时生效。"
     );
 }
 
@@ -399,8 +399,8 @@ fn every_applies_value_is_said_like_the_blueprint() {
         ),
         (
             "head_start",
-            "下次打开界面时生效",
-            "takes effect the next time the interface opens",
+            "这个程序下次启动时生效",
+            "takes effect the next time the program starts",
         ),
         ("next_turn", "下一轮生效", "takes effect next turn"),
         (

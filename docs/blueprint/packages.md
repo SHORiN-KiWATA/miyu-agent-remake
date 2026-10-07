@@ -4,16 +4,19 @@
 
 一个软件包一份清单：它是什么、哪个程序、给 `miyu` 加哪个子命令、界面认哪几页、核心怎么拉起它、`miyu check` 怎么查它自己的文件（`05-内核接口.md` 第二节、I9）。核心起来时读一次，头经 `package.list` 列得出装了哪些。之后的几步照它走：包的配置项并进配置清单（9-1 下），`miyu <名字>` 转交给包的程序（9-2），界面照清单找（9-3），核心拉起 `process` 包（9-4），预设按包开关（P-2）。
 
-状态：图纸，施工 9-1（上）做了（2026-10-07 主会话；方向是施工方案第三节 9-1 那一行和 I9，项目主人 2026-10-07 定；清单的形状和终端界面、通讯平台的会话对过）。`[settings]` 随 9-1（下），转交子命令、跑包的检查随 9-2，照清单找界面随 9-3，拉起 `process` 随 9-4。
+状态：图纸，施工 9-1（上）做了（2026-10-07 主会话；方向是施工方案第三节 9-1 那一行和 I9，项目主人 2026-10-07 定；清单的形状和终端界面、通讯平台的会话对过）。包的配置项施工 9-1（下）做了（2026-10-07 主会话；设置页的挂法和终端界面的会话对过）。转交子命令、跑包的检查随 9-2，照清单找界面随 9-3，拉起 `process` 随 9-4。
 
 ### 在哪
 
 | 文件 | 管什么 |
 |---|---|
 | `crates/miyu-config/src/package.rs`、`package/reader.rs` | 一份清单读成样子：每一格的写法，写错的报第一处，带代码、第几行（纯逻辑）；`reader.rs` 一张表一张表地读 |
+| `crates/miyu-config/src/package/settings.rs` | `[settings]` 的读法；拼成配置清单的项（施工 9-1 下） |
 | `crates/miyu-config/src/phrases.rs` | 「语言到一句话」那一格的读法，和人格的名字、说明共用 |
 | `crates/miyu-store/src/packages.rs` | 两层在哪、读出所有清单、同编号、子命令名撞了；包放状态的目录 |
-| `crates/miyu-endpoint/src/packages.rs` | 核心起来时读一次、记运行日志；`package.list` |
+| `crates/miyu-endpoint/src/packages.rs` | 核心起来时读一次、记运行日志；`package.list`；照核心自己的模块认撞没撞、拼包的配置项（`settle`，施工 9-1 下） |
+| `crates/miyu-core/src/settings.rs` | 起来时照清单拼好包的配置项（`Packaged`），读配置、生成 Schema 和参考文件时并进去（施工 9-1 下） |
+| `crates/miyu-store/src/human.rs` | 给人看的字并进包的配置项的名字、说明和组名（`Human::with_packages`，施工 9-1 下） |
 | `crates/miyu-endpoint/src/check.rs` | `miyu check` 照磁盘查清单 |
 | `resources/packages/web.toml` | 出厂的网页界面的清单 |
 
@@ -47,11 +50,33 @@ start = "manual"                 # manual：开关打开才拉起（默认）；
 [check]                          # 要有 [command]
 args = ["check"]                 # miyu check 跑 <program> <args…>（9-2）
 
-[settings]                       # 9-1（下）解读；这一步写了照收、不解读
+[settings.port]                  # 一项一张表，见下面「配置项」
+type = "int"
+min = 1
+max = 65535
+default = 8300
+layers = ["system"]
+name = { en = "Web port", zh = "网页的端口" }
 ```
 
 1. `name`、`summary`、`about` 照人格的写法：只认 `zh`、`en`、`ja`，每一句去掉前后空白不能是空的。
 2. `[check]` 的程序在标准输出上一行一处、每处一个 JSON，格子照 `check` 的回应（`kind`、`file`、`line`、`column`、`level`、`message`），可以多带 `key`、`rule`、`source`；`file` 照核心的写法：数据根里的写相对数据根的，资源目录里的写真的路径。只有警告时退出码 0，有错误 1（和通讯平台的会话 2026-10-07 对过）。
+
+**配置项**（`[settings.<名字>]`，施工 9-1 下）：
+
+| 格 | 是什么 |
+|---|---|
+| `type` | 必写：`bool`、`int`（可以带 `min`、`max`，不写是整数的全部范围）、`option`（带 `choices`，至少两个不重复的字）、`text`（可以带 `max`，最多几个字符，不写是 200）、`name`、`url`、`secret`（`{ secret = … }` 那种引用） |
+| `default` | 合这个类型的值；选项要在 `choices` 里；`secret` 不能写。没写的没有默认值 |
+| `layers` | `system`、`personal` 里的一个或两个；不写是两个。项目配置不给包用 |
+| `applies` | `now`、`new_session`、`next_turn`、`program_start`（这个程序下次启动时，协议上写 `head_start`）；不写是 `program_start` |
+| `name`、`description` | 语言到一句话，`name` 必写 |
+| `hidden` | `true` 的设置页不画：照样能写、能查、进 Schema |
+
+1. 名字：小写字母开头，只有小写字母、数字、`_`，最多 64 个。键是 `<包的编号>.<名字>`，例如 `web.port`。
+2. 核心起来时读清单那一次，读成了的清单的配置项接在核心自己的配置项后面，进配置清单：读配置、`miyu check`、`config.schema`、`config.get`、`config.set`、生成的 Schema 和参考文件都照它。装卸要重启核心。
+3. 包的编号是核心自己某一段配置的第一段（`ui`、`persona`、`permission`、`models`、`providers`、`log`、`usage`、`external` 这些，照核心起来时的配置清单认）、又声明了配置项的，这一份报 `settings_taken`，当写错了的列出，配置项一项都不收。
+4. 设置页：都在一页 `packages`（「软件包」），一个包一组，组的编号是包的编号、名字是包的名字；每一项的名字、说明用清单里的，照连接的语言挑（这种语言、`en`、`zh`、`ja`），不进 `core/human`。控件照类型：开关 `toggle`、整数 `number`、选项 `select`，别的 `text`。
 
 **两层怎么认**：一个包只有一份清单，不像人格那样一层层叠。同一个编号两层都有的，认出厂的，家目录那一份报 `duplicate`。两个包要同一个子命令名的，出厂的先于家目录、同一层照编号，先读到的得，后读到的那一份报 `command_taken`（报在子命令名那一行）。和内置子命令撞的，由 9-2 在命令行那一头拦。
 
@@ -91,6 +116,8 @@ args = ["check"]                 # miyu check 跑 <program> <args…>（9-2）
 | `not_phrases`、`unknown_language`、`empty_phrase` | 「语言到一句话」那一格写错 |
 | `bad_command_name`、`bad_program`、`bad_page`、`bad_pages_dir` | 子命令名、程序名、页名、页面目录的写法不对（`pages_dir` 不能是绝对路径、带 `..`、`\`、`:`） |
 | `duplicate`、`command_taken` | 两层同编号的家目录那一份；子命令名被先读到的占了 |
+| `bad_setting_name`、`bad_type`、`bad_default`、`bad_choices`、`bad_range`、`bad_layers`、`bad_applies`、`not_bool` | 配置项写错：名字、类型、默认值、选项、范围、几层、什么时候生效、`hidden`（施工 9-1 下） |
+| `settings_taken` | 包的编号和核心自己的配置撞了、又声明了配置项（施工 9-1 下） |
 | `protocol_mismatch` | 读成了，说的协议版本不包含 1（列表里照样带全；`miyu check` 是警告） |
 
 ### 守着它的
@@ -100,6 +127,8 @@ args = ["check"]                 # miyu check 跑 <program> <args…>（9-2）
 | `crates/miyu-config/src/package/tests.rs` | 两份样例（终端界面会话给的草稿、桥那种）每一格读对；最小的清单；每一种写错报对代码和行 |
 | `crates/miyu-config/src/phrases.rs` 的测试 | 语言到一句话的读法、第一处错 |
 | `crates/miyu-store/src/packages/tests.rs` | 两层照编号排、不是 `.toml` 的和编号不合写法的不算；空的；同编号认出厂的；子命令名先到先得、报在那一行；写错的照样列出；状态目录 |
+| `crates/miyu-config/src/package/settings/tests.rs` | 每一种类型、默认值、几层、什么时候生效、隐藏；每一种写错；拼成配置项的键、类型、界面提示（施工 9-1 下） |
+| `crates/miyu-endpoint/tests/package_settings.rs` | 包的配置项进 `config.schema`（「软件包」那一页、这个包那一组、名字说明照语言、隐藏的带标记）；最终值；写错的、写错层的 `check` 报；撞了核心的模块整份不收（施工 9-1 下） |
 | `crates/miyu-endpoint/tests/packages.rs` | `package.list` 的每一格、照语言挑；写错的、同编号、撞名、协议版本对不上、`process` 和 `check`；起来时读一次；`check` 查清单、写了文件的认得出、别的文件认不出 |
 
 ### 起草时定的
@@ -108,9 +137,10 @@ args = ["check"]                 # miyu check 跑 <program> <args…>（9-2）
 - 写错的照样列出、只有编号和问题：头看得到装了一个写错的包（2026-10-07 主会话，照 `persona.list`）。
 - 协议版本对不上的照样带全、多 `code`：不一样的头也许还能用一部分，核心不替它拿主意（2026-10-07 主会话）。
 - 桥算 `process`，`[process]` 的 `args`、`start` 照通讯平台的会话要的定（`18-通讯平台.md` Q17，2026-10-07）。
+- 包的配置项读的时候存自己的一份，只在核心起来时拼成配置项那一次把字留在进程里：配置清单的项是编译期常量的样子，`miyu check` 每次读盘，不能每次都留（2026-10-07 主会话，施工 9-1 下）。
+- 设置页一页「软件包」、一个包一组：主菜单不会随装的包越来越长（2026-10-07 和终端界面的会话对过）。
 
 ### 还没有的
 
-- `[settings]` 并进配置清单、网页那几项挪进来、`head_start` 的说法：9-1（下）。
 - 转交子命令、和内置子命令撞名、跑包的检查、`miyu -h` 列出子命令：9-2。界面照清单找：9-3。拉起 `process` 包、开关：9-4。
 - 装包、卸包、锁文件（`07-存储.md` 第二节）。

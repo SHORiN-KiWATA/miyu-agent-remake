@@ -1,6 +1,6 @@
 //! 软件包清单的读法（施工 9-1 上，`docs/blueprint/packages.md`「清单的格式」，`05-内核接口.md` 第二节）：一份 TOML 读成
 //! [`Manifest`]。只收图纸上的几张表、几个键，不认识的报错，免得写错了没人知道；报第一处，带代码、第几行、英文一句。
-//! `[settings]` 9-1（下）才解读，这一步只要它是一张表。纯逻辑，不碰磁盘：在哪找、两层怎么认在 `miyu-store`。
+//! `[settings]` 的读法在 `settings.rs`（施工 9-1 下）。纯逻辑，不碰磁盘：在哪找、两层怎么认在 `miyu-store`。
 
 use std::fmt;
 
@@ -9,6 +9,9 @@ use toml_edit::{Document, Item};
 use crate::phrases::Phrases;
 
 mod reader;
+pub mod settings;
+
+pub use settings::{Setting, SettingKind};
 
 use reader::{Reader, line_of};
 
@@ -33,6 +36,8 @@ pub struct Manifest {
     pub ui: Option<Pages>,
     /// `miyu check` 怎么查它自己的文件（9-2 跑）。
     pub check: Option<Check>,
+    /// 配置项（施工 9-1 下）：照写的先后；没有的是空的。
+    pub settings: Vec<Setting>,
 }
 
 /// 包的种类。
@@ -178,6 +183,24 @@ pub enum Code {
     Duplicate,
     /// 子命令名被先读到的包占了（`miyu-store` 认）。
     CommandTaken,
+    /// 配置项的名字写法不对。
+    BadSettingName,
+    /// 配置项的 `type` 不认识。
+    BadType,
+    /// 默认值不合类型、不在选项里，密钥写了默认值。
+    BadDefault,
+    /// 选项少于两个、有重复、不是字。
+    BadChoices,
+    /// `min`、`max` 不是整数、最小大于最大。
+    BadRange,
+    /// `layers` 不是 `system`、`personal` 里的一两个。
+    BadLayers,
+    /// `applies` 不认识。
+    BadApplies,
+    /// `hidden` 不是开关。
+    NotBool,
+    /// 包的编号和核心自己的模块撞了：它的配置项一项都不收（核心起来时、`miyu check` 认）。
+    SettingsTaken,
 }
 
 impl Code {
@@ -205,11 +228,20 @@ impl Code {
             Code::BadPagesDir => "bad_pages_dir",
             Code::Duplicate => "duplicate",
             Code::CommandTaken => "command_taken",
+            Code::BadSettingName => "bad_setting_name",
+            Code::BadType => "bad_type",
+            Code::BadDefault => "bad_default",
+            Code::BadChoices => "bad_choices",
+            Code::BadRange => "bad_range",
+            Code::BadLayers => "bad_layers",
+            Code::BadApplies => "bad_applies",
+            Code::NotBool => "not_bool",
+            Code::SettingsTaken => "settings_taken",
         }
     }
 
     /// 全部代码：给人看的字的门禁照它查三种语言都有。
-    pub const ALL: [Code; 21] = [
+    pub const ALL: [Code; 30] = [
         Code::Syntax,
         Code::UnknownTable,
         Code::NotATable,
@@ -231,6 +263,15 @@ impl Code {
         Code::BadPagesDir,
         Code::Duplicate,
         Code::CommandTaken,
+        Code::BadSettingName,
+        Code::BadType,
+        Code::BadDefault,
+        Code::BadChoices,
+        Code::BadRange,
+        Code::BadLayers,
+        Code::BadApplies,
+        Code::NotBool,
+        Code::SettingsTaken,
     ];
 }
 
@@ -304,6 +345,10 @@ pub fn read(text: &str) -> Result<Manifest, Problem> {
         }
         None => None,
     };
+    let settings = match root.get("settings") {
+        Some(node) => settings::read(&reader, node)?,
+        None => Vec::new(),
+    };
     Ok(Manifest {
         kind,
         version,
@@ -314,6 +359,7 @@ pub fn read(text: &str) -> Result<Manifest, Problem> {
         process,
         ui,
         check,
+        settings,
     })
 }
 

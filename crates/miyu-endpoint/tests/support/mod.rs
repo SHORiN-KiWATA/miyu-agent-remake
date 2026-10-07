@@ -216,7 +216,7 @@ impl Home {
         )
     }
 
-    fn core_full(
+    pub fn core_full(
         &self,
         script: &Script,
         tools: Catalog,

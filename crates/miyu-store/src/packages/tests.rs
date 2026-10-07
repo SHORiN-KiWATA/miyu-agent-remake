@@ -151,3 +151,25 @@ fn the_state_dir_is_under_the_state_root() {
             .ends_with("data/state/packages/tui")
     );
 }
+
+/// 每一种问题（加上协议版本对不上的那一句）三种语言都有给人看的一句，`{detail}` 换得进去（施工 9-1 上、下）。
+#[test]
+fn every_problem_code_is_said_in_three_languages() {
+    let resources =
+        ResourceRoot::at(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"));
+    let mut codes: Vec<&str> = Code::ALL.iter().map(|code| code.as_str()).collect();
+    let unique: std::collections::BTreeSet<&str> = codes.iter().copied().collect();
+    assert_eq!(unique.len(), codes.len(), "写法不重复");
+    codes.push("protocol_mismatch");
+    for language in ["zh", "en", "ja"] {
+        let human = crate::human::Human::load(&resources, language).unwrap();
+        for code in &codes {
+            let said = miyu_config::Words::sentence(
+                &human,
+                &format!("package-problems/{code}"),
+                &[("detail", "X")],
+            );
+            assert!(said.is_some(), "{language} 少了 {code}");
+        }
+    }
+}

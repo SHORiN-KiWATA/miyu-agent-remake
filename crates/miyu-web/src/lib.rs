@@ -8,6 +8,7 @@
 //!
 //! 不依赖核心：只用 `miyu-ipc`、`miyu-store`、`miyu-log`（分层照 `01-架构.md` 第九节第 5 层）。
 
+mod client;
 mod media;
 pub mod open;
 mod pages;
