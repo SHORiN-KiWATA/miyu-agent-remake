@@ -39,7 +39,10 @@ fn wrote(n: u64, turn: u64, content: &str) -> Event {
         n,
         turn,
         Body::ToolResult(ToolResult {
-            effects: vec![Effect::TodoWritten(TodoWritten { todos })],
+            effects: vec![Effect::TodoWritten(TodoWritten {
+                todos,
+                done: Vec::new(),
+            })],
             ..result
         }),
     )

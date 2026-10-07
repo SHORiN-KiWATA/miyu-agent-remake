@@ -239,7 +239,10 @@ impl Stage {
             Play::Writes(todos) => {
                 let mut done = self.done(call_id, false, "Todo list updated.");
                 if let Input::ToolDone { effects, .. } = &mut done {
-                    effects.push(Effect::TodoWritten(TodoWritten { todos }));
+                    effects.push(Effect::TodoWritten(TodoWritten {
+                        todos,
+                        done: Vec::new(),
+                    }));
                 }
                 vec![done]
             }

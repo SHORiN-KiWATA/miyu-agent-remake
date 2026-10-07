@@ -17,6 +17,8 @@ pub(super) struct Todos {
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Written {
     todos: Vec<Todo>,
+    /// 因为全部做完而清空的：做完的那一份（施工 D-3 补）。
+    done: Vec<Todo>,
     /// 写它的那一轮：撤销、恢复照它改 `undone`。
     turn: Option<TurnId>,
     /// 写它的那一轮撤掉了：还能恢复的、恢复不了的都算。恢复了就不算。
@@ -32,6 +34,7 @@ impl Todos {
                     if let Effect::TodoWritten(written) = effect {
                         self.written.push(Written {
                             todos: written.todos.clone(),
+                            done: written.done.clone(),
                             turn: event.turn,
                             undone: false,
                         });
@@ -51,6 +54,14 @@ impl Todos {
             .rev()
             .find(|written| !written.undone)
             .map(|written| written.todos.as_slice())
+    }
+
+    /// 最近写的那一份就是当前的、而且是因为全部做完而清空的：做完的那一份（施工 D-3 补）。撤掉了它、退回更早的一份的，是空的。
+    pub(super) fn finished(&self) -> &[Todo] {
+        match self.written.last() {
+            Some(written) if !written.undone => &written.done,
+            _ => &[],
+        }
     }
 
     /// 在这几轮里写的，标成撤掉了没有。

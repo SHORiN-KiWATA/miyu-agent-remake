@@ -87,7 +87,11 @@ impl Tool for TodoWrite {
                 .count();
             // 全部做完（连同空的）：清空。
             if done == todos.len() {
-                let effect = Effect::TodoWritten(TodoWritten { todos: Vec::new() });
+                // 做完的那一份带着（施工 D-3 补）：头让人看到最后一项打勾再收起。
+                let effect = Effect::TodoWritten(TodoWritten {
+                    todos: Vec::new(),
+                    done: todos,
+                });
                 return Done::ok(say(&texts.cleared, &[]))
                     .said(said("todowrite/cleared"))
                     .effect(effect);
@@ -100,7 +104,10 @@ impl Tool for TodoWrite {
                         .with("done", done)
                         .with("total", total),
                 )
-                .effect(Effect::TodoWritten(TodoWritten { todos }))
+                .effect(Effect::TodoWritten(TodoWritten {
+                    todos,
+                    done: Vec::new(),
+                }))
         })
     }
 }

@@ -130,6 +130,9 @@ pub struct CompactionDone {
 pub struct TodosChanged {
     /// 照先后的每一项。
     pub todos: Vec<crate::event::Todo>,
+    /// 这一次是因为全部做完而清空的（施工 D-3 补）：做完的那一份，`todo.written` 的 `done`。撤销、恢复退回的、她写空的不带。
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub done: Vec<crate::event::Todo>,
 }
 
 /// `compaction.progress` 的 `body`：摘要请求收到了多少字，估计要写多少字，头照它画进度（`compaction.md`

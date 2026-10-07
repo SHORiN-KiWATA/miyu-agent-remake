@@ -49,7 +49,8 @@ async fn the_whole_list_is_replaced_and_reported_in_one_line() {
                 todo("读代码", TodoStatus::Completed),
                 todo("写测试", TodoStatus::InProgress),
                 todo("跑门禁", TodoStatus::Pending),
-            ]
+            ],
+            done: Vec::new(),
         })]
     );
     let mut checked = Vec::new();
@@ -76,9 +77,14 @@ async fn all_done_or_empty_clears_the_list() {
             "All todos are done. The list is cleared.\n",
             "{args}"
         );
+        // 全部做完的带上做完的那一份（施工 D-3 补），空的就是空的。
+        let finished = serde_json::from_value(args["todos"].clone()).expect("照参数读回");
         assert_eq!(
             done.effects,
-            [Effect::TodoWritten(TodoWritten { todos: Vec::new() })],
+            [Effect::TodoWritten(TodoWritten {
+                todos: Vec::new(),
+                done: finished,
+            })],
             "{args}"
         );
         let mut checked = Vec::new();

@@ -31,12 +31,17 @@ impl Session {
             return None;
         }
         self.told_todos = todos.clone();
+        // 因为全部做完而清空的，带上做完的那一份（施工 D-3 补）。
+        let done = match todos.is_empty() {
+            true => self.history.todos_finished().to_vec(),
+            false => Vec::new(),
+        };
         Some(Action::PushTransient(Transient {
             at,
             turn: self.turn.as_ref().map(|turn| turn.id),
             by: By::Kernel,
             cause: None,
-            body: TransientBody::TodosChanged(TodosChanged { todos }),
+            body: TransientBody::TodosChanged(TodosChanged { todos, done }),
         }))
     }
 }
