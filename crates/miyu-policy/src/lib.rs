@@ -16,6 +16,7 @@ mod guard;
 mod harness;
 mod image_name;
 mod jobs;
+pub mod memory;
 mod pause;
 mod peers;
 pub mod persona;

@@ -61,6 +61,7 @@ pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
         recap: Some(RECAP),
         title: Some(crate::title::TITLE),
         peers: Some(crate::peers::PEERS),
+        memory: None,
     }
 }
 

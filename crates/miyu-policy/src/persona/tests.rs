@@ -34,11 +34,14 @@ fn a_wrong_toml_says_which_line() {
             2,
             "persona.name must map languages to text",
         ),
+        ("[knowledge]\nbases = []\n", 1, "unknown table [knowledge]"),
         (
-            "[memory]\nscope = \"persona\"\n",
-            1,
-            "unknown table [memory]",
+            "[memory]\nscope = \"off\"\n",
+            2,
+            "memory.scope must be persona or session",
         ),
+        ("[memory]\nkeep = 1\n", 2, "unknown key memory.keep"),
+        ("memory = 3\n", 1, "memory must be a table"),
         (
             "[persona]\n\nvoice = \"x\"\n",
             3,
@@ -74,10 +77,12 @@ fn an_upper_layer_overrides_per_language() {
     let shipped = PersonaFile {
         name: phrases(&[("en", "Engineer"), ("zh", "工程师")]),
         summary: phrases(&[("en", "Helps.")]),
+        memory: None,
     };
     let mine = PersonaFile {
         name: phrases(&[("zh", "我的工程师")]),
         summary: Phrases::new(),
+        memory: None,
     };
     let merged = mine.over(shipped);
     assert_eq!(
@@ -219,4 +224,26 @@ fn examples_go_after_the_system_and_before_the_history() {
             })
             .collect()
     }
+}
+
+#[test]
+fn the_memory_scope_is_persona_or_session_and_an_upper_layer_wins() {
+    let read = |text: &str| read_toml(text).unwrap().memory;
+    assert_eq!(
+        read("[memory]\nscope = \"persona\"\n"),
+        Some(MemoryScope::Persona)
+    );
+    assert_eq!(
+        read("[memory]\nscope = \"session\"\n"),
+        Some(MemoryScope::Session)
+    );
+    assert_eq!(read("[memory]\n"), None, "不写是没有，照 persona 算");
+    let lower = read_toml("[memory]\nscope = \"session\"\n").unwrap();
+    assert_eq!(
+        PersonaFile::default().over(lower.clone()).memory,
+        Some(MemoryScope::Session),
+        "上一层没写沿用下面的"
+    );
+    let upper = read_toml("[memory]\nscope = \"persona\"\n").unwrap();
+    assert_eq!(upper.over(lower).memory, Some(MemoryScope::Persona));
 }

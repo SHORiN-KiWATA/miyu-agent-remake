@@ -5,7 +5,6 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::io;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use miyu_kernel::id::{AccountId, SessionId};
@@ -13,11 +12,8 @@ use miyu_recall::Source;
 
 use crate::root::DataRoot;
 
-use super::{DbError, Opened, RecallIndex};
-
-/// 回合库文件名的前后：`turns-<人格>.db`。
-const PREFIX: &str = "turns-";
-const SUFFIX: &str = ".db";
+use super::room::{DB as SUFFIX, TURNS_PREFIX as PREFIX, recall_dir};
+use super::{DbError, Opened, RecallIndex, Room};
 
 /// 回合库的登记：照（账号、人格）开、留着。核心里一份，会话表交给每个会话（施工 R-2 上）。
 #[derive(Debug)]
@@ -25,7 +21,7 @@ pub struct RecallIndexes {
     /// 数据根：库在账号的 `index/recall/` 下。
     root: DataRoot,
     /// 开过的。
-    open: Mutex<BTreeMap<(AccountId, String), Arc<RecallIndex>>>,
+    open: Mutex<BTreeMap<Room, Arc<RecallIndex>>>,
 }
 
 impl RecallIndexes {
@@ -37,18 +33,17 @@ impl RecallIndexes {
         }
     }
 
-    /// 账号 `account`、人格 `persona` 的回合库。这一回第一次用、刚开的，另交回开库的情形（[`Opened`]），调的一方照它记
-    /// 运行日志；开过的交回同一份，情形是空的。用不了的照样交回一份：它什么都找不到、写什么都不写。
-    pub fn turns(&self, account: &AccountId, persona: &str) -> (Arc<RecallIndex>, Option<Opened>) {
+    /// 房间 `room` 的回合库（施工 R-3 下照房间开：跟着人格的、只在会话里的）。这一回第一次用、刚开的，另交回开库的情形
+    /// （[`Opened`]），调的一方照它记运行日志；开过的交回同一份，情形是空的。用不了的照样交回一份：它什么都找不到、写什么都
+    /// 不写。
+    pub fn turns(&self, room: &Room) -> (Arc<RecallIndex>, Option<Opened>) {
         let mut open = self.lock();
-        let slot = (account.clone(), persona.to_string());
-        if let Some(index) = open.get(&slot) {
+        if let Some(index) = open.get(room) {
             return (Arc::clone(index), None);
         }
-        let (index, opened) =
-            RecallIndex::open(&self.dir(account).join(format!("{PREFIX}{persona}{SUFFIX}")));
+        let (index, opened) = RecallIndex::open(&room.turns(&self.root));
         let index = Arc::new(index);
-        open.insert(slot, Arc::clone(&index));
+        open.insert(room.clone(), Arc::clone(&index));
         (index, Some(opened))
     }
 
@@ -61,7 +56,7 @@ impl RecallIndexes {
     /// 列不出目录；有一份写不进（其余的照样拿掉，报最后一个错）。
     pub fn forget_session(&self, account: &AccountId, session: &SessionId) -> Result<(), DbError> {
         let mut personas: Vec<String> = Vec::new();
-        match fs::read_dir(self.dir(account)) {
+        match fs::read_dir(recall_dir(&self.root, account)) {
             Ok(entries) => {
                 for entry in entries {
                     let name = entry?.file_name();
@@ -81,7 +76,7 @@ impl RecallIndexes {
         let mut failed = None;
         let tomb = format!("{source}/");
         for persona in personas {
-            let (index, _) = self.turns(account, &persona);
+            let (index, _) = self.turns(&Room::persona(account, &persona));
             if let Err(error) = index.forget(&source).and_then(|()| index.bury(&tomb)) {
                 failed = Some(error);
             }
@@ -89,31 +84,21 @@ impl RecallIndexes {
         failed.map_or(Ok(()), Err)
     }
 
-    /// 记忆的一处出处 `source` 还活着（施工 R-3 上，`memory.md` 第二条第 4 款）：账号 `account`、人格 `persona` 的回合库里，
-    /// 那个会话没埋（没删）、那一轮没埋（没撤销）。
+    /// 记忆的一处出处 `source` 还活着（施工 R-3 上，`memory.md` 第二条第 4 款）：房间 `room` 的回合库里，那个会话没埋（没删）、
+    /// 那一轮没埋（没撤销）。
     ///
     /// # Errors
     ///
     /// 回合库读不了。
-    pub fn alive(
-        &self,
-        account: &AccountId,
-        persona: &str,
-        source: &Source,
-    ) -> Result<bool, DbError> {
-        let (index, _) = self.turns(account, persona);
+    pub fn alive(&self, room: &Room, source: &Source) -> Result<bool, DbError> {
+        let (index, _) = self.turns(room);
         let session = format!("{}/", source.session);
         let turn = format!("{session}{}", source.turn.started().get());
         Ok(!index.is_buried(&session)? && !index.is_buried(&turn)?)
     }
 
-    /// 这个账号的检索库在哪个目录。
-    fn dir(&self, account: &AccountId) -> PathBuf {
-        self.root.index(account).join("recall")
-    }
-
     /// 拿锁。别的线程拿着锁崩了，登记还是好的（只是一张表），照常用。
-    fn lock(&self) -> MutexGuard<'_, BTreeMap<(AccountId, String), Arc<RecallIndex>>> {
+    fn lock(&self) -> MutexGuard<'_, BTreeMap<Room, Arc<RecallIndex>>> {
         self.open
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)

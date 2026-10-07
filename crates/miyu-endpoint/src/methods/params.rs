@@ -23,6 +23,9 @@ pub(super) struct CreateParams {
     /// 用哪个模型（施工 8-8）：模型或 `@池`；不写、写 `null` 的照这时的 `models.chat`。
     #[serde(default)]
     pub(super) model: Option<String>,
+    /// 记忆的范围（施工 R-3 下）：`persona`、`session`、`off`；不写、写 `null` 的照人格的 `persona.toml`。
+    #[serde(default)]
+    pub(super) memory: Option<String>,
 }
 
 /// `session.list` 的参数（施工 3-9 下）。

@@ -22,8 +22,10 @@ use crate::sqlite::{self, connect, integer, remove};
 
 pub use crate::sqlite::{DbError, Opened};
 pub use indexes::RecallIndexes;
+pub use room::Room;
 
 mod indexes;
+mod room;
 
 /// 表的结构的版本，记在 SQLite 的 `user_version` 里：结构一变就加一，对不上的删掉重建，不写迁移。
 const VERSION: i64 = 3;

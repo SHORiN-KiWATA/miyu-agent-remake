@@ -13,7 +13,7 @@ use miyu_kernel::origin::{By, Person, Tool};
 use miyu_kernel::time::Timestamp;
 use miyu_recall::{Entry, MemoryEvent, MemoryId, Retired, Saved, Source};
 use miyu_store::memory::{MemoryLog, Report};
-use miyu_store::recall::Opened;
+use miyu_store::recall::{Opened, Room};
 use miyu_tool::{
     FoundMemory, FoundTurn, MEMORIES, MemoryPort, Pending, Refused, Remember, Searched, TURNS,
 };
@@ -27,23 +27,26 @@ use super::Memory;
 #[derive(Clone)]
 pub(crate) struct Calls {
     memory: Arc<Memory>,
-    owner: AccountId,
+    /// 记忆放在哪一间（施工 R-3 下）。
+    room: Room,
+    /// 人格的编号：只用来记日志。
     persona: String,
     session: SessionId,
     hearers: Vec<By>,
 }
 
 impl Calls {
-    /// 会话 `session`（属主 `owner`、人格 `persona`）的记忆；听众是属主（本机的会话）。
+    /// 会话 `session`（属主 `owner`、人格 `persona`）的记忆，放在 `room` 那一间；听众是属主（本机的会话）。
     pub(crate) fn new(
         memory: &Arc<Memory>,
+        room: Room,
         owner: &AccountId,
         persona: &str,
         session: &SessionId,
     ) -> Calls {
         Calls {
             memory: Arc::clone(memory),
-            owner: owner.clone(),
+            room,
             persona: persona.to_string(),
             session: session.clone(),
             hearers: vec![By::Person(Person::new(owner.clone()))],
@@ -157,11 +160,7 @@ impl Inner {
                 retired: entry.retired.is_some(),
             })
             .collect();
-        let (turns, _) = self
-            .calls
-            .memory
-            .turns
-            .turns(&self.calls.owner, &self.calls.persona);
+        let (turns, _) = self.calls.memory.turns.turns(&self.calls.room);
         let own = format!("{}/", self.calls.session);
         let turns = turns
             .search(query, TURNS * 4)
@@ -183,13 +182,13 @@ impl Inner {
         Ok(Searched { memories, turns })
     }
 
-    /// 这个人格的记忆日志；这一回第一次开的记一行派生的情形。
+    /// 这一间的记忆日志；这一回第一次开的记一行派生的情形。
     fn log(&self) -> Result<Arc<MemoryLog>, Refused> {
         let (log, report) = self
             .calls
             .memory
             .logs
-            .open(&self.calls.owner, &self.calls.persona)
+            .open(&self.calls.room)
             .map_err(|error| Refused::Failed(error.to_string()))?;
         if let Some(report) = report {
             log_report(&self.calls.persona, &report);
@@ -242,7 +241,7 @@ impl Inner {
                 self.calls
                     .memory
                     .turns
-                    .alive(&self.calls.owner, &self.calls.persona, source)
+                    .alive(&self.calls.room, source)
                     .unwrap_or(true)
             })
     }

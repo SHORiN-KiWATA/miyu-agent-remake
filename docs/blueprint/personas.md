@@ -13,7 +13,7 @@
 
 | 文件 | 管什么 |
 |---|---|
-| `crates/miyu-policy/src/persona.rs` | 两份字怎么读：`persona.toml` 的名字、说明，`prompts/examples.md` 的示范对话；写错的写明哪个文件第几行（纯逻辑） |
+| `crates/miyu-policy/src/persona.rs` | 两份字怎么读：`persona.toml` 的名字、说明、记忆的默认范围（R-3 下），`prompts/examples.md` 的示范对话；写错的写明哪个文件第几行（纯逻辑） |
 | `crates/miyu-policy/src/compose.rs`、`snapshot.rs` | 人设进 system 第一块，示范对话进快照的 `demos`，组装时排在 system 后面、历史前面 |
 | `crates/miyu-store/src/personas.rs` | 三层在哪、怎么叠、列出编号 |
 | `crates/miyu-endpoint/src/personas.rs` | 造会话时照默认找人格、记忆归哪个账号、`persona.list`、`persona.get` |
@@ -27,7 +27,7 @@
 <资源目录>/personas/<编号>/      出厂的，只读
 system/personas/<编号>/          系统区
 home/<管理员>/personas/<编号>/   管理员自己的
-├── persona.toml                 名字、说明
+├── persona.toml                 名字、说明、记忆的默认范围
 └── prompts/
     ├── persona.md               人设
     └── examples.md              示范对话
@@ -43,9 +43,17 @@ home/<管理员>/personas/<编号>/   管理员自己的
 [persona]
 name = { zh = "美羽", en = "Miyu" }
 summary = { en = "My own persona." }
+
+[memory]
+scope = "session"
 ```
 
-只有 `[persona]` 一张表、里面只有 `name`、`summary`，各是语言到一句话的表（`zh`、`en`、`ja`），话不能是空的（去掉前后空白）。别的表、别的键报错：记忆的默认范围（`[memory]`）随 R-3（下）、声音、知识库随它们的软件包，到时候再加。
+两张表，都可以不写：
+
+- `[persona]` 里只有 `name`、`summary`，各是语言到一句话的表（`zh`、`en`、`ja`），话不能是空的（去掉前后空白）。
+- `[memory]` 里只有 `scope`：用这个人格的会话，记忆的默认范围，`persona`（跟着人格）或 `session`（只在这个会话里）；`off` 不能写在这里，不记是开会话时的事（施工 R-3 下，`memory.md`「范围」）。不写是 `persona`。上一层写了的盖下面的。
+
+别的表、别的键、别的值报错，写明第几行：`unknown table [<表>]`、`unknown key <表>.<键>`、`memory must be a table`、`memory.scope must be persona or session`。声音、知识库随它们的软件包，到时候再加。
 
 **`prompts/examples.md`**（照旧版 `miyu-dialogs.md` 的写法）：
 
@@ -92,7 +100,7 @@ assistant: 8640
 
 | 测试 | 守什么 |
 |---|---|
-| `crates/miyu-policy/src/persona/tests.rs` | `persona.toml` 三种语言、写错的六种写明第几行、读不成 TOML 也说第几行；逐种语言叠；示范对话照旧版写法读（大小写、冒号后的空格、接着的行、空行）、写错的七种写明第几行；示范对话进请求在 system 后面历史前面、`stable` 数对、软件工程师的快照里没有 `demos` |
+| `crates/miyu-policy/src/persona/tests.rs` | `persona.toml` 三种语言、写错的九种写明第几行（`[memory]` 的三种在内，R-3 下）、`[memory] scope` 两种、不写是没有、上一层盖下面的、读不成 TOML 也说第几行；逐种语言叠；示范对话照旧版写法读（大小写、冒号后的空格、接着的行、空行）、写错的七种写明第几行；示范对话进请求在 system 后面历史前面、`stable` 数对、软件工程师的快照里没有 `demos` |
 | `crates/miyu-store/src/personas/tests.rs` | 三层逐项、逐文件叠、来自哪一层；只有出厂、系统区的不住在谁家，空目录也算住在家里；没有的、编号不合写法的、是文件不是目录的；写错的写明哪一层；列编号不重复、照编号排 |
 | `crates/miyu-endpoint/src/personas/tests.rs` | 记忆归哪个账号；名字照语言挑、退回的先后 |
 | `crates/miyu-endpoint/tests/personas.rs` | 家目录里的人格进 system、示范对话排在前面；不写人格照默认、个人设置压着系统配置；没有的、编号不对的、写错的拒绝，默认人格指着没有的也拒，什么都不造；场所会话带人格造、找回时不看、新场所指着没有的不造；`persona.list`、`persona.get` |

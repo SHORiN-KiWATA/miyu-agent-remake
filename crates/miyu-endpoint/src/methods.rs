@@ -25,6 +25,7 @@ use miyu_kernel::event::Level;
 use miyu_kernel::id::{CallId, JobId, Seq, SessionId, TurnId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Outcome, Queued};
+use miyu_policy::memory::MemoryScope;
 use miyu_session::Handle;
 
 use crate::Core;
@@ -68,11 +69,16 @@ pub(crate) async fn call(
                 .model
                 .map(|text| models::record(core, &text))
                 .transpose()?;
+            let memory = params
+                .memory
+                .map(|text| MemoryScope::parse(&text).ok_or(Refusal::BAD_PARAMS))
+                .transpose()?;
             let who = Opening {
                 attended: peer.input,
                 oneshot: params.oneshot,
                 model,
                 venue: None,
+                memory,
             };
             let created = core
                 .sessions
