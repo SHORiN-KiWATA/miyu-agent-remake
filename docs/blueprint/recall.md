@@ -13,6 +13,8 @@
 
 状态：图纸（2026-10-07 起草，照 `docs/reviews/2026-10-07-记忆知识库embedding调研.md` 第八、九节项目主人的拍板）。每一节标着由哪一步做，步子见 `memory.md`「施工步子」。做完一步，这一页照做好的样子改写那几节。
 
+做好了的：R-1 切词、检索库（第一、二条，「对外的样子」照做好的写；FTS5 那一列叫 `words`）。
+
 ### 在哪
 
 | 代码 | 管什么 | 哪一步 |
@@ -38,11 +40,12 @@
 
 | 方法 | 做什么 |
 |---|---|
-| `open(路径) -> (Option<RecallIndex>, Opened)` | 照 `sqlite::open` 开：没有就建，坏了、版本不对删掉建空的，删了也打不开的交回 `None`。`Opened` 照会话索引那四种 |
+| `open(路径) -> (RecallIndex, Opened)` | 照 `sqlite::open` 开：没有就建，坏了、版本不对删掉建空的；删了也打不开的是 `Opened::Unusable`，这个库这一回找不到任何一条、写什么都不写。`Opened` 照会话索引那四种 |
+| `reset()` | 用着用着读出坏了的：关上、连同 `-wal`、`-shm` 删掉，建一份空的 |
 | `put(键, 字, 时刻)` | 放进一条；键已经有的整条换掉（字、时刻、词都换） |
 | `remove(键)` | 拿掉一条，没有的不要紧 |
 | `search(查询, 最多几条) -> Vec<Hit>` | 照关键词找，bm25 最相关的在前；`Hit { key, rank }`，`rank` 是第几名（从 0 起） |
-| `keys()` | 库里有哪些键：重建时和真相比，多的拿掉 |
+| `keys()` | 库里有哪些键，照键排：重建时和真相比，多的拿掉 |
 
 - 键是调的一方起的字符串（例如回合索引用 `会话编号/回合`），库不解读。
 - 一个库一个文件，一个核心开一个连接、一直开着，拿锁护着（`07-存储.md` 第六节：同一个进程里开了又关同一个库文件，会丢掉 SQLite 的文件锁）。
@@ -56,10 +59,10 @@ CREATE TABLE items (
   text TEXT NOT NULL,
   at   INTEGER NOT NULL
 );
-CREATE VIRTUAL TABLE terms USING fts5(terms, content='', contentless_delete=1, tokenize='unicode61');
+CREATE VIRTUAL TABLE terms USING fts5(words, content='', contentless_delete=1, tokenize='unicode61');
 ```
 
-- `terms` 的 rowid 就是 `items.id`。`contentless`：词只进倒排索引，不另存一份原文；原文在 `items.text`。
+- `terms` 的 rowid 就是 `items.id`，词在 `words` 那一列（列名不能和表同名：FTS5 有一列和表同名的隐藏列）。`contentless`：词只进倒排索引，不另存一份原文；原文在 `items.text`。
 - `at` 是毫秒，给以后的排名用（越老越靠后，`memory.md` 第八条）；R-1 只存不用。
 - 向量表随 R-5 加，版本跟着加一：派生的，删掉重建，不写迁移。
 
@@ -76,13 +79,13 @@ CREATE VIRTUAL TABLE terms USING fts5(terms, content='', contentless_delete=1, t
 5. `query`：
    - 照第 1、2 条切这一句。`CJK` 段长度不小于 2 的只出两两的词（单字在长的段里只是噪声）；只有一个字的段出那个字。别的段照 `unicode61` 的规矩切成词（字母、数字连着的算一个，转成小写）。
    - 去重，照先后留前 64 个：一句话再长，查询也有个上限。
-   - 每个词包上双引号（里面的双引号写两遍），用 ` OR ` 连起来：几个词里中了越多、越少见的，bm25 越靠前。
+   - 每个词包上双引号，用 ` OR ` 连起来：几个词里中了越多、越少见的，bm25 越靠前。双引号也让 `OR`、`NOT`、`NEAR` 只当普通的词；词里只有字母、数字、汉字假名，不会有双引号，不用转义。
    - 一个词都没有的（只有标点、空白）交回 `None`。
 
 **二、检索库**（R-1）
 
 1. **开**：照 `store/index.md` 第一条：版本 0 建表，1 跑 `quick_check`，别的删掉重建；WAL、`synchronous` `NORMAL`。
-2. **放进一条**（`put`）：一个事务里，键有旧的先从 `terms` 删掉旧的那一行、再换 `items` 那一行，然后照 `index_terms(字)` 写进 `terms`。
+2. **放进一条**（`put`）：一个事务里，键有旧的先从 `terms` 删掉旧的那一行、再换 `items` 那一行，然后照 `index_terms(字)` 写进 `terms` 的 `words`。
 3. **拿掉一条**：一个事务里从 `terms`、`items` 都删。
 4. **找**：`query` 是 `None` 的交回空的。否则：
 
@@ -115,12 +118,12 @@ CREATE VIRTUAL TABLE terms USING fts5(terms, content='', contentless_delete=1, t
 
 ### 守着它的
 
-施工时照这个写（R-1）：
+R-1 做好的：
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-recall/src/terms/tests.rs` | 第一条：两两切加单字、只有一个字的段、汉字假名连成一段、英文数字照 `unicode61`、查询只出两两的、去重、64 个上限、双引号写两遍、全是标点的是 `None` |
-| `crates/miyu-store/tests/recall.rs` | 第二条：建、重开、坏了删掉重建、版本不对重建；放进、换掉、拿掉以后搜不到；两个字的词搜得到（trigram 搜不到的那种）、一个字搜得到；中了越多的越靠前；中英混着的；`MIYU_HOME` 指到临时目录 |
+| `crates/miyu-recall/src/terms/tests.rs` | 第一条：两两切加单字、只有一个字的段、汉字假名连成一段、片假名的中点和标点断开一段、英文数字照 `unicode61`、查询只出两两的、英文转小写、去重、64 个上限、FTS5 的关键字照普通的词、全是标点的是 `None` |
+| `crates/miyu-store/tests/recall.rs` | 第二条：建、重开、坏了删掉重建、版本不对重建；放进、换掉、拿掉以后搜不到；两个字的词搜得到（trigram 搜不到的那种）、一个字搜得到；中了越多的越靠前，名次从 0 数；中英混着的；只给几条、切不出词的找不到；数据根在临时目录。量尺 `measure_ten_thousand_sentences`（`#[ignore]`） |
 
 ### 出处
 
