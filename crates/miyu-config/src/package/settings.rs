@@ -66,10 +66,12 @@ pub enum SettingKind {
     Url,
     /// 密钥的引用：没有默认值。
     Secret,
+    /// 列表：每一个照元素的类型，元素不能再是列表（施工 9-1 补）。
+    List(Box<SettingKind>),
 }
 
 impl SettingKind {
-    /// 不带借来的字的那几种，换成配置清单的类型；选项没有（要 `'static` 的字，[`items`] 那一次才换）。
+    /// 不带借来的字的那几种，换成配置清单的类型；选项、列表没有（要 `'static` 的字、元素，[`items`] 那一次才换）。
     fn plain(&self) -> Option<Kind> {
         Some(match self {
             SettingKind::Bool => Kind::Bool,
@@ -81,8 +83,17 @@ impl SettingKind {
             SettingKind::Name => Kind::Name,
             SettingKind::Url => Kind::Url,
             SettingKind::Secret => Kind::Secret,
-            SettingKind::Option(_) => return None,
+            SettingKind::Option(_) | SettingKind::List(_) => return None,
         })
+    }
+
+    /// 密钥、密钥的列表：不能写默认值。
+    fn holds_secrets(&self) -> bool {
+        match self {
+            SettingKind::Secret => true,
+            SettingKind::List(element) => element.holds_secrets(),
+            _ => false,
+        }
     }
 
     /// 设置页用的控件。
@@ -91,6 +102,7 @@ impl SettingKind {
             SettingKind::Bool => Control::Toggle,
             SettingKind::Int { .. } => Control::Number,
             SettingKind::Option(_) => Control::Select,
+            SettingKind::List(_) => Control::List,
             _ => Control::Text,
         }
     }
@@ -190,7 +202,8 @@ fn one(
     })
 }
 
-/// `type` 和它带的几格：`min`、`max`（整数）、`choices`（选项）、`max`（文字）。别的类型写了这几格的报不认识的键。
+/// `type` 和它带的几格：`min`、`max`（整数）、`choices`（选项）、`max`（文字）；列表多 `element`，这几格照元素的类型收。
+/// 别的类型写了这几格的报不认识的键。
 fn kind(
     reader: &Reader<'_>,
     at: &str,
@@ -198,9 +211,60 @@ fn kind(
     node: &Node,
 ) -> Result<SettingKind, Problem> {
     let item = reader.required(fields, node, at, "type")?;
-    let (kind, extra): (SettingKind, &[&str]) = match item.as_str() {
-        Some("bool") => (SettingKind::Bool, &[]),
-        Some("int") => {
+    let (kind, extra, list) = if item.as_str() == Some("list") {
+        let element = reader.required(fields, node, at, "element")?;
+        let bad = || {
+            reader.problem(
+                Some(element),
+                Code::BadElement,
+                &format!("{at}.element"),
+                format!("{at}.element must be bool, int, option, text, name, url or secret"),
+            )
+        };
+        let name = element.as_str().ok_or_else(bad)?;
+        let (inner, extra) = scalar(reader, at, fields, node, name)?.ok_or_else(bad)?;
+        (SettingKind::List(Box::new(inner)), extra, true)
+    } else {
+        let scalar = match item.as_str() {
+            Some(name) => scalar(reader, at, fields, node, name)?,
+            None => None,
+        };
+        let (kind, extra) = scalar.ok_or_else(|| {
+            reader.problem(
+                Some(item),
+                Code::BadType,
+                &format!("{at}.type"),
+                format!("{at}.type must be bool, int, option, text, name, url, secret or list"),
+            )
+        })?;
+        (kind, extra, false)
+    };
+    let common = [
+        "type",
+        "default",
+        "layers",
+        "applies",
+        "name",
+        "description",
+        "hidden",
+    ];
+    let element: &[&str] = if list { &["element"] } else { &[] };
+    let known: Vec<&str> = common.iter().chain(extra).chain(element).copied().collect();
+    reader.only(fields, at, &known)?;
+    Ok(kind)
+}
+
+/// 不是列表的那几种：`name` 是哪一种、它带的几格；不认识的是 `None`。
+fn scalar(
+    reader: &Reader<'_>,
+    at: &str,
+    fields: &dyn TableLike,
+    node: &Node,
+    name: &str,
+) -> Result<Option<(SettingKind, &'static [&'static str])>, Problem> {
+    Ok(Some(match name {
+        "bool" => (SettingKind::Bool, &[]),
+        "int" => {
             let bound = |key: &str, otherwise: i64| match fields.get(key) {
                 None => Ok(otherwise),
                 Some(item) => item.as_integer().ok_or_else(|| {
@@ -223,7 +287,7 @@ fn kind(
             }
             (SettingKind::Int { min, max }, &["min", "max"])
         }
-        Some("option") => {
+        "option" => {
             let bad = |item: Option<&Node>| {
                 reader.problem(
                     item.or(Some(node)),
@@ -250,7 +314,7 @@ fn kind(
             }
             (SettingKind::Option(choices), &["choices"])
         }
-        Some("text") => {
+        "text" => {
             let max = match fields.get("max") {
                 None => TEXT_MAX,
                 Some(item) => item
@@ -268,33 +332,14 @@ fn kind(
             };
             (SettingKind::Text { max }, &["max"])
         }
-        Some("name") => (SettingKind::Name, &[]),
-        Some("url") => (SettingKind::Url, &[]),
-        Some("secret") => (SettingKind::Secret, &[]),
-        _ => {
-            return Err(reader.problem(
-                Some(item),
-                Code::BadType,
-                &format!("{at}.type"),
-                format!("{at}.type must be bool, int, option, text, name, url or secret"),
-            ));
-        }
-    };
-    let common = [
-        "type",
-        "default",
-        "layers",
-        "applies",
-        "name",
-        "description",
-        "hidden",
-    ];
-    let known: Vec<&str> = common.iter().chain(extra).copied().collect();
-    reader.only(fields, at, &known)?;
-    Ok(kind)
+        "name" => (SettingKind::Name, &[]),
+        "url" => (SettingKind::Url, &[]),
+        "secret" => (SettingKind::Secret, &[]),
+        _ => return Ok(None),
+    }))
 }
 
-/// 默认值：照类型查；选项照列出的几个查；密钥不能有。
+/// 默认值：照类型查；选项照列出的几个查；列表照元素一个个查；密钥、密钥的列表不能有。
 fn default(
     reader: &Reader<'_>,
     at: &str,
@@ -310,18 +355,28 @@ fn default(
         )
     };
     let value = item.as_value().ok_or_else(bad)?;
+    if kind.holds_secrets() {
+        return Err(bad());
+    }
+    fits(kind, value).ok_or_else(bad)
+}
+
+/// 一个值合不合这个类型，合的读成配置的值。
+fn fits(kind: &SettingKind, value: &toml_edit::Value) -> Option<Value> {
     match kind {
-        SettingKind::Secret => Err(bad()),
         SettingKind::Option(choices) => value
             .as_str()
             .filter(|text| choices.iter().any(|choice| choice == text))
-            .map(|text| Value::Text(text.to_string().into()))
-            .ok_or_else(bad),
+            .map(|text| Value::Text(text.to_string().into())),
+        SettingKind::List(element) => value
+            .as_array()?
+            .iter()
+            .map(|value| fits(element, value))
+            .collect::<Option<Vec<_>>>()
+            .map(Value::List),
         plain => {
-            let kind = plain.plain().ok_or_else(bad)?;
-            parse::read(kind, value)
-                .filter(|value| kind.accepts(value))
-                .ok_or_else(bad)
+            let kind = plain.plain()?;
+            parse::read(kind, value).filter(|value| kind.accepts(value))
         }
     }
 }
@@ -372,16 +427,7 @@ pub fn items(package: &str, settings: &[Setting]) -> Vec<Item> {
         .iter()
         .map(|setting| Item {
             key: leak(&format!("{package}.{}", setting.name)),
-            kind: match &setting.kind {
-                SettingKind::Option(choices) => Kind::Option(Box::leak(
-                    choices
-                        .iter()
-                        .map(|choice| leak(choice))
-                        .collect::<Vec<_>>()
-                        .into_boxed_slice(),
-                )),
-                plain => plain.plain().unwrap_or(Kind::Bool),
-            },
+            kind: leaked(&setting.kind),
             default: setting.default.clone(),
             layers: Box::leak(setting.layers.clone().into_boxed_slice()),
             tighten: None,
@@ -396,6 +442,21 @@ pub fn items(package: &str, settings: &[Setting]) -> Vec<Item> {
             },
         })
         .collect()
+}
+
+/// 换成配置清单的类型：选项的字、列表的元素留在进程里。
+fn leaked(kind: &SettingKind) -> Kind {
+    match kind {
+        SettingKind::Option(choices) => Kind::Option(Box::leak(
+            choices
+                .iter()
+                .map(|choice| leak(choice))
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+        )),
+        SettingKind::List(element) => Kind::List(Box::leak(Box::new(leaked(element)))),
+        plain => plain.plain().unwrap_or(Kind::Bool),
+    }
 }
 
 /// 一段字留在进程里。

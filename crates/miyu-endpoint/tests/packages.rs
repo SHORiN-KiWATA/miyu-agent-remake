@@ -1,5 +1,8 @@
 //! 软件包清单（施工 9-1 上，`docs/blueprint/packages.md`）：真核心走一遍。`package.list` 列出出厂的、管理员家目录里的，
 //! 名字、说明照连接的语言挑；写错的、撞了的、协议版本对不上的带代码和给人看的一句；核心起来时读一次；`check` 查清单。
+//!
+//! 测试用的是仓库的资源目录：出厂的清单会越来越多（终端界面、桥），这里只断言出厂的网页和测试自己放的那几份，家目录里
+//! 放的编号、子命令名都避开出厂会有的。
 
 mod support;
 
@@ -9,8 +12,8 @@ use miyu_session::testkit::Script;
 
 use support::*;
 
-/// 终端界面的会话 2026-10-07 给的那份草稿。
-const TUI: &str = r#"[package]
+/// 终端界面的会话 2026-10-07 给的那份草稿：编号、子命令名改成 `term`，出厂以后才有的 `tui` 撞不上它。
+const TERM: &str = r#"[package]
 kind = "ui"
 version = "0.0.1"
 protocol = [1, 1]
@@ -18,7 +21,7 @@ name = { en = "Terminal interface", zh = "终端界面", ja = "ターミナル�
 summary = { en = "Chat with her in the terminal", zh = "在终端里和她对话" }
 
 [command]
-name = "tui"
+name = "term"
 program = "miyu-tui"
 about = { en = "Open the terminal interface", zh = "打开终端界面", ja = "ターミナル画面を開く" }
 
@@ -29,6 +32,15 @@ opens = ["config"]
 /// 管理员（测试里是 alice）家目录里的一份清单。
 fn mine(home: &Home, file: &str, text: &str) {
     home.write(&format!("home/alice/packages/{file}"), text);
+}
+
+/// 只留这几个编号的，照列出的先后。
+fn only(packages: &[Value], ids: &[&str]) -> Vec<Value> {
+    packages
+        .iter()
+        .filter(|package| ids.iter().any(|id| package["package"] == *id))
+        .cloned()
+        .collect()
 }
 
 async fn listed(home: &Home) -> Vec<Value> {
@@ -44,21 +56,21 @@ async fn listed(home: &Home) -> Vec<Value> {
 #[tokio::test]
 async fn shipped_and_home_packages_are_listed_in_the_connections_language() {
     let home = Home::new();
-    mine(&home, "tui.toml", TUI);
+    mine(&home, "term.toml", TERM);
     let packages = listed(&home).await;
-    let state = home.root.path().join("state").join("packages").join("tui");
+    let state = home.root.path().join("state").join("packages").join("term");
     assert_eq!(
-        packages,
+        only(&packages, &["term", "web"]),
         [
             json!({
-                "package": "tui",
+                "package": "term",
                 "layer": "home",
                 "kind": "ui",
                 "version": "0.0.1",
                 "protocol": [1, 1],
                 "name": "终端界面",
                 "summary": "在终端里和她对话",
-                "command": {"name": "tui", "program": "miyu-tui", "about": "打开终端界面"},
+                "command": {"name": "term", "program": "miyu-tui", "about": "打开终端界面"},
                 "opens": ["config"],
                 "state": state.to_string_lossy(),
             }),
@@ -83,13 +95,14 @@ async fn shipped_and_home_packages_are_listed_in_the_connections_language() {
 async fn broken_taken_and_mismatched_ones_carry_a_code_and_a_sentence() {
     let home = Home::new();
     mine(&home, "bad.toml", "[package]\nkind = \"daemon\"\n");
-    mine(&home, "web.toml", TUI);
-    mine(&home, "web2.toml", &TUI.replace("\"tui\"", "\"web\""));
+    mine(&home, "web.toml", TERM);
+    mine(&home, "web2.toml", &TERM.replace("\"term\"", "\"web\""));
     mine(
         &home,
         "later.toml",
-        &TUI.replace("[1, 1]", "[2, 3]")
-            .replace("\"tui\"", "\"later\""),
+        &TERM
+            .replace("[1, 1]", "[2, 3]")
+            .replace("\"term\"", "\"later\""),
     );
     mine(
         &home,
@@ -134,7 +147,7 @@ async fn broken_taken_and_mismatched_ones_carry_a_code_and_a_sentence() {
 async fn manifests_are_read_once_when_the_core_starts() {
     let home = Home::new();
     let core = home.core(&Script::new([]));
-    mine(&home, "tui.toml", TUI);
+    mine(&home, "term.toml", TERM);
     let mut client = Client::connect(core);
     client.hello().await;
     let reply = client.call("p1", "package.list", json!({})).await;
@@ -144,8 +157,9 @@ async fn manifests_are_read_once_when_the_core_starts() {
         .iter()
         .filter_map(|package| package["package"].as_str())
         .collect();
-    assert_eq!(ids, ["web"], "起来以后才放的，重启才认");
-    assert_eq!(listed(&home).await.len(), 2);
+    assert!(ids.contains(&"web"), "{reply}");
+    assert!(!ids.contains(&"term"), "起来以后才放的，重启才认：{reply}");
+    assert_eq!(only(&listed(&home).await, &["term"]).len(), 1);
 }
 
 #[tokio::test]
@@ -154,7 +168,7 @@ async fn check_reads_the_manifests_from_disk() {
     let mut client = Client::connect(home.core(&Script::new([])));
     client.hello().await;
     mine(&home, "bad.toml", "[package]\nkind = \"daemon\"\n");
-    mine(&home, "tui.toml", TUI);
+    mine(&home, "term.toml", TERM);
     let reply = client.call("c1", "check", json!({})).await;
     let packages: Vec<&Value> = reply["result"]["problems"]
         .as_array()
@@ -174,7 +188,7 @@ async fn check_reads_the_manifests_from_disk() {
         })],
         "{reply}"
     );
-    let file = home.root.path().join("home/alice/packages/tui.toml");
+    let file = home.root.path().join("home/alice/packages/term.toml");
     let reply = client
         .call("c2", "check", json!({"file": file.to_string_lossy()}))
         .await;
