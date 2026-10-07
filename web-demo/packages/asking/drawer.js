@@ -206,9 +206,9 @@ export class Drawer {
       ? h('div.asking-previews', q.options.map((o, i) => h(`pre.asking-preview${i === d.cursor[d.tab] ? '.is-shown' : ''}`, o.preview ?? '')))
       : null;
     return [
-      h('div.asking-question', head ? head.title : q.question),
-      head?.command != null ? h('div.asking-paths', h('div.asking-path', h('span.asking-command', head.command.split('\n').map((l) => `$ ${l}`).join('\n')),
-        head.outsideSandbox ? h('span.asking-outside', t('outside_sandbox')) : null)) : null,
+      // 「沙盒外」跟在短标题后面（2026-10-07 项目主人：原来接在命令末尾，命令长了离标题远）
+      h('div.asking-question', head ? head.title : q.question, head?.outsideSandbox ? h('span.asking-outside', t('outside_sandbox')) : null),
+      head?.command != null ? h('div.asking-paths', h('div.asking-path', h('span.asking-command', head.command.split('\n').map((l) => `$ ${l}`).join('\n')))) : null,
       head?.paths.length ? h('div.asking-paths', head.paths.map((p) => h('div.asking-path', h('span', p.path), p.outside ? h('span.asking-outside', t('outside')) : null))) : null,
       h(`div.asking-main${previews ? '.has-preview' : ''}`, h('div.asking-options', options), previews),
       d.kind === 'ask' ? this.notesRow() : null,

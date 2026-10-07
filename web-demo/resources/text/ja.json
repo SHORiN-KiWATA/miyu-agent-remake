@@ -211,7 +211,8 @@
     "undone_jobs": "取り消しました · {count} 件のタスクを停止しました",
     "language_changed": "表示言語：{name}",
     "language_unknown": "その言語はありません：{choices} を指定できます",
-    "recap_working": "振り返っています…"
+    "recap_working": "振り返っています…",
+    "stop_idle": "実行中ではありません"
   },
   "language": {
     "title": "表示言語",

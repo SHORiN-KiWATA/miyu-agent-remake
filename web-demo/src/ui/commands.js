@@ -194,7 +194,7 @@ const RUNS = {
   // 还没开的新会话没什么可停
   stop: async (app) => {
     if (!app.current) {
-      app.composer.say(res.text.refusals.not_running);
+      app.composer.say(t('commands.stop_idle'));
       return;
     }
     const got = await app.store.conn.request('command.run', { session: app.current, text: '/stop' });

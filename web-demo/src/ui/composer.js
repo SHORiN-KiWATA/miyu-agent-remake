@@ -22,6 +22,7 @@
 import { h, icon, replace } from './dom.js';
 import { res, t } from '../util/res.js';
 import { fit } from '../model/footer.js';
+import { noStop } from '../lib/format.js';
 import { read } from '../model/commands.js';
 import { CommandList } from './commands.js';
 import { Picker } from './picker.js';
@@ -575,9 +576,9 @@ export class Composer {
     this.backdrop.scrollTop = this.input.scrollTop;
   }
 
-  /** 提示：浮在输入框上面的小框，停一会儿；新的顶掉旧的。`good` 的框是绿的（`tui.md`「提示」）。 */
+  /** 提示：浮在输入框上面的小框，停一会儿；新的顶掉旧的。`good` 的底带一点绿（`tui.md`「提示」）。句末的句号去掉（核心的回执带着）。 */
   say(text, good = false) {
-    this.notice.textContent = text;
+    this.notice.textContent = noStop(text);
     this.notice.classList.toggle('good', good);
     // 出来从下面升上来，停一会儿淡出（蓝图「动效」）；新的顶掉旧的
     show(this.notice);

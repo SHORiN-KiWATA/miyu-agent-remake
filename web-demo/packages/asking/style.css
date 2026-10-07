@@ -19,6 +19,7 @@
 
 /* 中间自己滚：问题、选项；上面的标签、下面的按键提示钉着 */
 .asking-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.asking-question > .asking-outside { margin-left: 8px; vertical-align: 1px; font-weight: 400; }
 .asking-question { margin-bottom: 8px; color: var(--text); font-size: 14px; font-weight: 600; line-height: 1.45; }
 .asking-paths { display: grid; gap: 2px; margin: -4px 0 10px; }
 .asking-path { display: flex; align-items: center; gap: 8px; color: var(--text-soft); font-family: var(--mono); font-size: 12.5px; word-break: break-all; }

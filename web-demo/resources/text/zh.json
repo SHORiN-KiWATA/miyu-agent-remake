@@ -211,7 +211,8 @@
     "undone_jobs": "已撤销 · 停掉了 {count} 个任务",
     "language_changed": "界面语言：{name}",
     "language_unknown": "没有这种语言：能写 {choices}",
-    "recap_working": "正在回顾…"
+    "recap_working": "正在回顾…",
+    "stop_idle": "没在运行"
   },
   "language": {
     "title": "界面语言",

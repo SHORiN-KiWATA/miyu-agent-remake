@@ -89,3 +89,8 @@ export function bytes(n) {
   }
   return `${k === 0 ? n : trim(n.toFixed(1))} ${UNITS[k]}`;
 }
+
+/** 提示里不要句末的句号（2026-10-07 项目主人，终端同一条）：去掉一个「。」或「.」，省略号「…」「...」留着。 @param {string} text */
+export function noStop(text) {
+  return text.replace(/(?<!\.)[。.]$/u, '');
+}

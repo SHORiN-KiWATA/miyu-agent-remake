@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { short, hitRate, percentTenths, clock, seconds } from '../src/model/format.js';
-import { bytes } from '../src/lib/format.js';
+import { bytes, noStop } from '../src/lib/format.js';
 
 test('token 写短：一千以下照写，一千以上 k、一百万以上 M，一位小数，整的不写小数', () => {
   assert.equal(short(950), '950');
@@ -49,4 +49,12 @@ test('文件大小：1024 进一级，一位小数，整的不写小数；一千
   assert.equal(bytes(1536), '1.5 KB');
   assert.equal(bytes(1024 * 1024 * 3.25), '3.3 MB');
   assert.equal(bytes(1024 ** 3 * 2), '2 GB');
+});
+
+test('提示不要句末的句号：去掉一个「。」「.」，省略号留着', () => {
+  assert.equal(noStop('已全部停下。'), '已全部停下');
+  assert.equal(noStop('All stopped.'), 'All stopped');
+  assert.equal(noStop('正在回顾…'), '正在回顾…');
+  assert.equal(noStop('Loading...'), 'Loading...');
+  assert.equal(noStop('已复制 3 个字'), '已复制 3 个字');
 });

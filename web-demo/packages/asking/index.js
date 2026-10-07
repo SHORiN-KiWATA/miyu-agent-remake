@@ -24,8 +24,9 @@ export function apply(ctx) {
   });
   /** 演示出的，排在真的后面 @type {{d: import('./model.js').Drawer, session: string|null, demo: true}[]} */
   const demos = [];
-  /** 答了、取消了，等核心回应的调用：这时不再开 */
+  /** 答了、取消了，等核心回应的调用：这时不再开。调用编号只在一个会话里唯一（换个会话从头编），照「会话 + 调用」认 */
   const answering = new Set();
+  const keyOf = (/** @type {string|null} */ session, /** @type {string} */ call) => `${session ?? ''} ${call}`;
   /** 开着的这一个 @type {{d: import('./model.js').Drawer, session: string|null, demo: boolean}|null} */
   let showing = null;
   /** 最近一次对话区画的（事件 `view.changed`）：会话和日志 @type {{session: string|null, events: any[]}|null} */
@@ -53,7 +54,7 @@ export function apply(ctx) {
 
   /** 真的：答了发 `session.answer`，取消打断这一轮（核心把在等的这一问记成取消）；拒了写一句（别处先答了的不写）。 */
   const send = async (session, d, result) => {
-    answering.add(d.id);
+    answering.add(keyOf(session, d.id));
     try {
       if ('cancelled' in result) await ctx.chat.interrupt();
       else {
@@ -65,7 +66,7 @@ export function apply(ctx) {
     } catch (err) {
       if (err?.reason !== 'not_asking') ctx.composer.say(err?.message ?? String(err));
     } finally {
-      answering.delete(d.id);
+      answering.delete(keyOf(session, d.id));
       // 核心先推事件后回应：这时日志里已经有了结的那一条；拒了的照日志还没了结，再开
       if (view) sync(view);
     }
@@ -77,7 +78,7 @@ export function apply(ctx) {
   /** 开着的没有了，开下一个：正在看的会话里还没了结的（不算正在等回应的），再是演示的。 */
   const next = () => {
     if (drawer.open) return announce();
-    const real = view ? pendingAsks(view.events).find((d) => !answering.has(d.id)) : null;
+    const real = view ? pendingAsks(view.events).find((d) => !answering.has(keyOf(view?.session ?? null, d.id))) : null;
     const item = real ? { d: real, session: view?.session ?? null, demo: false } : demos.shift();
     if (!item) return announce();
     showing = item;
