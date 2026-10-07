@@ -64,8 +64,10 @@ struct Replay {
     ended: Option<Ended>,
     /// 连着几轮是被有计划的重启打断的：数的是被打断、接着干、又被打断的那一串，别的回合开了就从头数。
     restarts: u32,
-    /// 每个命令编号，和 `cause` 是它的那几条，照编号第一次出现的先后。
-    commands: Vec<(CommandId, Vec<Seq>)>,
+    /// 每个命令编号，和它的回应附的那几条，照编号第一次出现的先后（施工 2-1 补：和没重启时一样，「命令和回应」第 3 条）：
+    /// `cause` 是它的那几条，在它开的头一个 `turn.started` 前面截住；头一条就是 `turn.started` 的（手动压缩、清空）只留它。
+    /// 第三格是截住了没有。
+    commands: Vec<(CommandId, Vec<Seq>, bool)>,
     /// 编号在 `commands` 里排第几。
     index: BTreeMap<CommandId, usize>,
     /// 最后开的那个回合里，每条消息的 `cause`：接着干时，找触发它的那一条的 `cause`。
@@ -155,7 +157,7 @@ impl Session {
             return Err(LoadError::Empty);
         };
         let mut recent = Recent::default();
-        for (id, seqs) in std::mem::take(&mut replay.commands) {
+        for (id, seqs, _) in std::mem::take(&mut replay.commands) {
             recent.insert(id, seqs);
         }
         let mut session = Session {
@@ -317,11 +319,18 @@ impl Replay {
             _ => {}
         }
         if let Some(id) = &event.cause {
+            let opens = matches!(event.body, Body::TurnStarted(_));
             match self.index.get(id) {
-                Some(&k) => self.commands[k].1.push(event.seq),
+                Some(&k) => {
+                    let (_, seqs, closed) = &mut self.commands[k];
+                    *closed |= opens;
+                    if !*closed {
+                        seqs.push(event.seq);
+                    }
+                }
                 None => {
                     self.index.insert(id.clone(), self.commands.len());
-                    self.commands.push((id.clone(), vec![event.seq]));
+                    self.commands.push((id.clone(), vec![event.seq], opens));
                 }
             }
         }

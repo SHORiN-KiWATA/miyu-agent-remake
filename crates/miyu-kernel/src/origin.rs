@@ -40,6 +40,17 @@ pub enum By {
 pub struct Person {
     /// 这个人的账号。
     pub account: AccountId,
+    /// 经哪个平台身份认出来的本人（施工 O-3，`venues.md`）：主人在通讯平台的私聊里说的话，核心查主人对应表认出是这个账号
+    /// 本人。本机的头上说的没有。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub via: Option<ExternalId>,
+}
+
+impl Person {
+    /// 账号 `account` 本人，在本机的头上。
+    pub fn new(account: AccountId) -> Person {
+        Person { account, via: None }
+    }
 }
 
 /// 通讯平台上的人。
@@ -49,6 +60,23 @@ pub struct External {
     pub venue: VenueId,
     /// 平台上的身份编号，由桥担保，例如 `qq:10086`。
     pub id: ExternalId,
+    /// 主人对应表里对着的本机账号（施工 O-3）：群里的主人仍是外部身份，写的时候就记下是谁，以后对应表改了不跟着变。
+    /// 不在表里的没有。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub account: Option<AccountId>,
+    /// 桥报的这个人在场所里的身份（施工 O-3）：斜杠命令照它判谁能用（O-6）。没有 `owner`：主人照对应表认。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<Role>,
+}
+
+/// 桥报的场所里的身份（施工 O-3，`venues.md`）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Role {
+    /// 场所里管理的人：场所规则的 `managers`。
+    Manager,
+    /// 别的人。
+    Member,
 }
 
 /// 一个模型。

@@ -73,6 +73,16 @@ pub struct MetaChanged {
     pub pinned: Option<bool>,
 }
 
+/// `command.ran`：人用了一个斜杠命令（施工 O-6，`docs/blueprint/kernel/events-bodies.md`）。谁发的写在 `by`，`cause` 是派生的
+/// 命令编号（`<那个命令>/ran`）。只给人和聊天记录看，不进她的上下文；执行了的才记，被拒的什么都不记。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CommandRan {
+    /// 人打的原文，例如 `/reset`。
+    pub text: String,
+    /// 执行了哪个命令，照它的名字（别名换成正名），例如 `clear`。
+    pub command: String,
+}
+
 /// `session.recapped`：一句回顾（施工 3-8 四补，`docs/blueprint/kernel/session.md`「回顾」）。头要的，推给所有订阅着的头，
 /// 不进她的上下文；不带回合编号。`by` 是内核，`cause` 是要它的那个命令。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

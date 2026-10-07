@@ -119,9 +119,7 @@ fn done(config: &Config, cause: &CommandId, answer: &Answer<'_>) {
         trusted: answer.trusted,
         via: None,
     };
-    let by = By::Person(Person {
-        account: config.places.account.clone(),
-    });
+    let by = By::Person(Person::new(config.places.account.clone()));
     journal::record(
         &config.places.account_journal,
         &config.places.shown(miyu_store::journal::FILE),

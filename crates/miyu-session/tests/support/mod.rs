@@ -24,6 +24,7 @@ use miyu_session::{
 use miyu_store::env::{Env, Platform};
 use miyu_store::index::{FILE, SessionIndex};
 use miyu_store::log::{read_events, read_segments};
+use miyu_store::recall::RecallIndexes;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_store::usage::UsageIndex;
@@ -78,6 +79,8 @@ pub struct Home {
     pub usage: Arc<UsageIndex>,
     /// 造的、载入的会话从这里取配置（施工 8-4）：默认是全空的一份，测试换成自己的。
     pub configs: Configs,
+    /// 回合库的登记（施工 R-2 上）：这个场地里造的、载入的主会话都往里写，和核心里一样。
+    pub recall: Arc<RecallIndexes>,
 }
 
 /// 造会话时可以换的几样（施工 4-3 下）。
@@ -177,6 +180,7 @@ impl Home {
         let (index, _) = SessionIndex::open(&root.index(&alice_account()).join(FILE));
         let (usage, _) = UsageIndex::open(&root);
         Home {
+            recall: Arc::new(RecallIndexes::new(&root)),
             usage: Arc::new(usage),
             scratch,
             root,
@@ -248,6 +252,7 @@ impl Home {
             usage: Some(Arc::clone(&self.usage)),
             configs: self.configs.clone(),
             model: lines.model,
+            recall: Some(Arc::clone(&self.recall)),
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -307,6 +312,7 @@ impl Home {
             index: Some(Arc::clone(&self.index)),
             usage: Some(Arc::clone(&self.usage)),
             configs: self.configs.clone(),
+            recall: Some(Arc::clone(&self.recall)),
         });
         within("载入", loaded).await.expect("载入得了会话")
     }
@@ -323,11 +329,15 @@ impl Home {
     }
 }
 
-/// 等 `what` 最多十秒：actor 出了毛病，测试几秒内就红，说清卡在哪，不一直等下去。
+/// 测试里最多等多久：出了毛病时说清卡在哪，不一直等下去。原来十秒，几个会话同时编译、跑测试时机器忙，造一个会话都会
+/// 超过十秒（2026-10-07 通讯平台的会话报的 guard 测试红 13 个、单独重跑全过），放到六十秒：只在出错时等满，不让测试变慢。
+const WAIT: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// 等 `what` 最多 [`WAIT`]。
 pub async fn within<T>(what: &str, future: impl std::future::Future<Output = T>) -> T {
-    tokio::time::timeout(std::time::Duration::from_secs(10), future)
+    tokio::time::timeout(WAIT, future)
         .await
-        .unwrap_or_else(|_| panic!("十秒内没等到{what}"))
+        .unwrap_or_else(|_| panic!("六十秒内没等到{what}"))
 }
 
 /// 发命令 `command`，编号 `id`，等回应。
@@ -381,9 +391,7 @@ pub fn alice_account() -> AccountId {
 }
 
 pub fn alice() -> By {
-    By::Person(Person {
-        account: alice_account(),
-    })
+    By::Person(Person::new(alice_account()))
 }
 
 pub fn environment() -> Environment {
@@ -414,7 +422,7 @@ pub async fn until_logged(
     session: &SessionId,
     done: impl Fn(&[Event]) -> bool,
 ) -> Vec<Event> {
-    let waited = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+    let waited = tokio::time::timeout(WAIT, async {
         loop {
             let log = home.log(session);
             if done(&log) {
@@ -424,7 +432,7 @@ pub async fn until_logged(
         }
     })
     .await;
-    waited.unwrap_or_else(|_| panic!("十秒内磁盘上没等到：{:?}", kinds(&home.log(session))))
+    waited.unwrap_or_else(|_| panic!("六十秒内磁盘上没等到：{:?}", kinds(&home.log(session))))
 }
 
 /// 事件的种类，照先后。

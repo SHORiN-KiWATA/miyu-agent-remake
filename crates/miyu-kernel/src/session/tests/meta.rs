@@ -144,3 +144,34 @@ fn a_session_restoring_files_cannot_be_deleted() {
     logged.handle(stored(logged.last()));
     assert_eq!(logged.session.deletable(), Err(Reason::Restoring));
 }
+
+/// 记下用了一个斜杠命令（施工 O-6）：记一条 `command.ran`，`by`、`cause` 照命令，落了盘回应、附上它；同一个编号再来照上一次
+/// 回应。不进她的请求由 `miyu-assemble` 守着。
+#[test]
+fn a_slash_command_is_noted_and_kept_out_of_the_request() {
+    let mut logged = Logged::new();
+    let ran = Input::Command(Received {
+        id: id(2),
+        by: alice(),
+        at: at(2),
+        command: Command::Ran {
+            text: "/reset".to_string(),
+            command: "clear".to_string(),
+        },
+    });
+    let actions = logged.handle(ran.clone());
+    let events = appended_events(&actions);
+    assert_eq!(
+        events[0].body,
+        Body::CommandRan(crate::event::CommandRan {
+            text: "/reset".to_string(),
+            command: "clear".to_string(),
+        })
+    );
+    assert_eq!((&events[0].by, &events[0].cause), (&alice(), &Some(id(2))));
+    assert_eq!(
+        replies(&logged.handle(stored(2))),
+        [&accepted_reply(2, &[2])]
+    );
+    assert_eq!(logged.handle(ran), [accepted_reply(2, &[2])], "只记一次");
+}

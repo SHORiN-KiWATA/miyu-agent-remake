@@ -80,6 +80,30 @@ impl Refusal {
         reason: "session_not_found",
         data: None,
     };
+    /// 场所会话的属主该是系统账号，还没有（施工 O-3；系统账号随 O-4）。
+    pub(crate) const NO_SYSTEM_ACCOUNT: Refusal = Refusal {
+        code: REFUSED,
+        reason: "no_system_account",
+        data: None,
+    };
+    /// 场所会话只收代表外部的人说的话（施工 O-3，`venues.md`）：本机的头不能直接说话。
+    pub(crate) const VENUE_SESSION: Refusal = Refusal {
+        code: REFUSED,
+        reason: "venue_session",
+        data: None,
+    };
+    /// 斜杠命令认不出（施工 O-6，`command.run`）。
+    pub(crate) const UNKNOWN_COMMAND: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_command",
+        data: None,
+    };
+    /// 这个人不能用斜杠命令（施工 O-6）：群里既不是主人、也不是管理的人。
+    pub(crate) const COMMAND_NOT_ALLOWED: Refusal = Refusal {
+        code: REFUSED,
+        reason: "command_not_allowed",
+        data: None,
+    };
     /// 会话停了：写不进去、出了 bug。
     pub(crate) const STOPPED: Refusal = Refusal {
         code: REFUSED,

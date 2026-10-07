@@ -164,3 +164,18 @@ fn a_project_item_says_how_it_tightens_and_only_then() {
         vec!["permission.start_read_only：默认值 \"false\" 过不了自己的校验"]
     );
 }
+
+/// 人起的名字那一段可以是最后一段（施工 O-3：一张按名字的表），不能是第一段。
+#[test]
+fn a_placeholder_may_end_a_key_but_not_start_it() {
+    let mut last = item("external.bindings.<external>", &["a", "b"], "a");
+    last.default = None;
+    assert_eq!(one(last), Vec::<String>::new());
+    let first = item("<id>.bindings", &["a", "b"], "a");
+    assert!(
+        one(first)
+            .iter()
+            .any(|problem| problem.contains("不能是第一段")),
+        "第一段是占位的要报"
+    );
+}

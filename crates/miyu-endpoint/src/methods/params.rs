@@ -54,6 +54,9 @@ pub(super) struct SendParams {
     /// 别的 harness 报的名字（施工 7-10）：写了的，这一句是它说的；不写、写 `null` 的是本人。
     #[serde(default)]
     pub(super) from: Option<String>,
+    /// 代表通讯平台上的人（施工 O-3，`venues.md`）：只给场所会话，场所会话也只收带它的。
+    #[serde(default, rename = "as")]
+    pub(super) as_external: Option<crate::venues::AsParams>,
 }
 
 /// `session.interrupt` 的参数。
@@ -194,4 +197,5 @@ pub(super) struct JobStopParams {
 pub(super) enum QueuedParam {
     Send,
     Return,
+    Keep,
 }

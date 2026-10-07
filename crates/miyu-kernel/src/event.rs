@@ -44,7 +44,9 @@ pub use model::{
 pub use peer::{IdleReason, PeerIdle};
 pub use question::{Choice, Question, QuestionAnswered, QuestionAsked, Response, fits};
 pub use restore::{FilesRestored, RestoreAction, RestoreOutcome, Restored};
-pub use session::{Level, MetaChanged, Permission, PolicyChanged, SessionCreated, SessionRecapped};
+pub use session::{
+    CommandRan, Level, MetaChanged, Permission, PolicyChanged, SessionCreated, SessionRecapped,
+};
 pub use tool::{ApprovalDecided, ApprovalRequested, Decision, Said, ToolResult, ToolStatus};
 pub use transient::{
     ChangeWhy, CompactionDone, CompactionProgress, EffortInUse, EffortSource, ModelChanged,
@@ -131,6 +133,8 @@ bodies! {
     MetaChanged = "session.meta_changed",
     /// 一句回顾（施工 3-8 四补）。
     SessionRecapped = "session.recapped",
+    /// 人用了一个斜杠命令（施工 O-6）。
+    CommandRan = "command.ran",
     /// 回合开始。
     TurnStarted = "turn.started",
     /// 回合结束。

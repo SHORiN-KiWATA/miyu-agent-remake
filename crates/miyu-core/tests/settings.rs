@@ -44,6 +44,7 @@ fn the_registered_list_is_well_formed() {
             "ui.startup",
             "usage.currency",
             "permission.start_read_only",
+            "external.bindings.<external>",
             "models.chat",
             "models.vision",
             "pools.<id>.models",

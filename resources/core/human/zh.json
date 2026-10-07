@@ -207,6 +207,10 @@
       "models.cooldown.auth.max": {
         "name": "认证失败最多停用多久",
         "description": "整个 key 的停用翻倍到这么久为止。"
+      },
+      "external.bindings.<external>": {
+        "name": "主人的平台账号",
+        "description": "通讯平台上的哪个号是哪个本机账号本人。键写平台上的身份（例如 qq:10001），值写本机账号。私聊里，这个号就是那个账号本人。"
       }
     },
     "pages": {
@@ -223,7 +227,8 @@
       "pools": "池",
       "providers": "供应商",
       "catalog": "模型目录",
-      "cooldown": "冷却"
+      "cooldown": "冷却",
+      "external": "平台账号"
     }
   },
   "said": {
@@ -244,6 +249,8 @@
     "tool-results/crashed": "内部出错了，可能做了一部分",
     "permissions/forbidden": "这是 Miyu 自己的数据，谁都不能碰",
     "permissions/unresolvable": "说不清它指向哪里：{reason}",
+    "commands/cleared": "已清空上下文。",
+    "commands/stopped": "已全部停下。",
     "config/reference-header": "Miyu 的全部配置项和默认值。这份是生成的，改它没有用。",
     "config/reference-where": "系统配置写在 system/config.toml，个人设置写在 home/<账号>/settings.toml。",
     "config/reference-item": "{name}：{description}",

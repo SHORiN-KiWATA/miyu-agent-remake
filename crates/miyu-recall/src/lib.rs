@@ -8,6 +8,12 @@
 //! 中文、日文没有空格，SQLite 自带的 `unicode61` 会把一整句当一个词，`trigram` 搜不到两个字的词，所以连着的汉字、假名
 //! 照 Lucene 的 CJKBigram 两两切（`docs/reviews/2026-10-07-记忆知识库embedding调研.md` 第三节）。
 
+mod memory;
 mod terms;
+mod turns;
 
+pub use memory::{
+    CLASSES, Entry, MemoryBook, MemoryEvent, MemoryId, Retired, Saved, Source, from_event, to_event,
+};
 pub use terms::{MAX_QUERY_TERMS, index_terms, query};
+pub use turns::{Change, TurnFeed, TurnItem, key, replay};

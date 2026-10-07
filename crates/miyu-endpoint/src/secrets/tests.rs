@@ -46,9 +46,7 @@ fn a_secret_change_is_written_like_the_sample() {
         &file,
         "system/journal.jsonl",
         Timestamp::parse("2026-10-01T08:01:00.000Z").unwrap(),
-        By::Person(Person {
-            account: AccountId::parse("admin").unwrap(),
-        }),
+        By::Person(Person::new(AccountId::parse("admin").unwrap())),
         Some(&CommandId::parse("secret-9f2c4e1a7b3d5f60-1").unwrap()),
         "secret.changed",
         &SecretChanged {

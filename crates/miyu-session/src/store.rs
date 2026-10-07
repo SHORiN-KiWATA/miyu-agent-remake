@@ -5,7 +5,7 @@
 //! 交给 `history` 的日志只读入口也在这里（施工 6-4）：照会话的目录一段一段读。
 //!
 //! 平时写的是 [`Indexed`]：会话日志，每落一批顺手更新会话列表的索引里这个会话的那一行（施工 3-8 七补），写进用量汇总
-//! （施工 8-15）。
+//! （施工 8-15），更新回合索引（施工 R-2 上）。
 
 use std::io;
 use std::path::PathBuf;
@@ -19,6 +19,7 @@ use miyu_store::usage::{UsageIndex, Who};
 use miyu_tool::ReadLog;
 
 use crate::TARGET;
+use crate::memory::Turns;
 
 /// 一次写一批，返回时这一批都落了盘。在阻塞线程里用，所以要能挪到别的线程上。
 pub(crate) trait Store: Send + 'static {
@@ -62,28 +63,33 @@ pub(crate) struct Indexed {
     index: Option<Arc<SessionIndex>>,
     /// 用量汇总，和这个会话的属主、场所、父会话：没有的不写。
     usage: Option<(Arc<UsageIndex>, Who)>,
+    /// 回合索引（施工 R-2 上）：主会话、核心交了登记的才有。
+    turns: Option<Turns>,
 }
 
 impl Indexed {
-    /// 日志 `log` 落了盘的每一批，照会话 `id` 更新 `index` 里的那一行，写进用量汇总 `usage`（属主等照 `who`）。
+    /// 日志 `log` 落了盘的每一批，照会话 `id` 更新 `index` 里的那一行，写进用量汇总 `usage`（属主等照 `who`），更新回合
+    /// 索引 `turns`。
     pub(crate) fn new(
         log: SessionLog,
         id: &SessionId,
         index: Option<Arc<SessionIndex>>,
         usage: Option<(Arc<UsageIndex>, Who)>,
+        turns: Option<Turns>,
     ) -> Indexed {
         Indexed {
             log,
             id: id.clone(),
             index,
             usage,
+            turns,
         }
     }
 }
 
 impl Store for Indexed {
-    /// 先落盘，再更新索引、写用量汇总。更新失败只记一行 `session index not updated`、`usage not indexed`，照样算写成了：
-    /// 两样都是派生的，停在上一次照到的地方，下次列会话、查用量照日志补上。
+    /// 先落盘，再更新索引、写用量汇总、更新回合索引。更新失败只记一行 `session index not updated`、`usage not indexed`、
+    /// `memory index not updated`，照样算写成了：三样都是派生的，停在上一次照到的地方，下次照日志补上。
     fn append(&mut self, events: &[Event]) -> io::Result<()> {
         let before = self.log.mark();
         self.log.append(events)?;
@@ -100,6 +106,10 @@ impl Store for Indexed {
             && let Err(error) = usage.advance(&self.id, who, &before, events, &after)
         {
             tracing::warn!(target: TARGET, error = %error, "usage not indexed");
+        }
+        if let Some(turns) = &mut self.turns {
+            let log = &self.log;
+            turns.advance(events, || Store::events(log));
         }
         Ok(())
     }

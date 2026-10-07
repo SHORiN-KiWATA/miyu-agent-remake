@@ -9,7 +9,7 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 
 use miyu_kernel::event::{Event, Transient};
 use miyu_kernel::facts::Environment;
-use miyu_kernel::id::{CommandId, JobId, SessionId};
+use miyu_kernel::id::{CommandId, JobId, SessionId, VenueId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, ContextLimits, Outcome, Reason};
 use miyu_kernel::time::Timestamp;
@@ -23,6 +23,8 @@ use crate::shown::{Next, Shown};
 #[derive(Debug, Clone)]
 pub struct Handle {
     id: SessionId,
+    /// 场所（施工 O-3）：造好以后不变。
+    venue: VenueId,
     inbox: mpsc::UnboundedSender<Message>,
     /// 有没有在跑的回合：actor 每送完一批输入就写一次（施工 3-9 上）。
     busy: Arc<AtomicBool>,
@@ -112,6 +114,7 @@ pub(crate) enum Halt {
 impl Handle {
     pub(crate) fn new(
         id: SessionId,
+        venue: VenueId,
         inbox: mpsc::UnboundedSender<Message>,
         busy: Arc<AtomicBool>,
         oneshot: bool,
@@ -120,6 +123,7 @@ impl Handle {
     ) -> Handle {
         Handle {
             id,
+            venue,
             inbox,
             busy,
             oneshot,
@@ -146,6 +150,11 @@ impl Handle {
     /// 会话编号。
     pub fn id(&self) -> &SessionId {
         &self.id
+    }
+
+    /// 会话的场所：`session.created` 的 `venue`（施工 O-3）。本机的是 `local`，通讯平台的场所会话只收代表外部的人说的话。
+    pub fn venue(&self) -> &VenueId {
+        &self.venue
     }
 
     /// 给头看的限额：窗口、压缩线（施工 6-3 补）。协议照它回 `subscribe`（`docs/blueprint/protocol.md`）。会话中途变了的
@@ -365,6 +374,10 @@ impl Handle {
 
 /// 推给订阅者的一份。
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "一份份装在 Arc 里共享（施工 O-3 外部身份多了两格，瞬时事件变大）：大小不碍事"
+)]
 pub enum Pushed {
     /// 落了盘的几条事件，照先后。
     Events(Vec<Event>),

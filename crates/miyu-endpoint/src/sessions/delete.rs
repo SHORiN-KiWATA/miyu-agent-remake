@@ -12,7 +12,7 @@
 //! 5. 第 2 条那种，父会话照人停它记一条 `child.reported`（`stopped`，不带 `by_model`，叫醒父会话，`Handle::stopped_child`）：
 //!    回报在父会话的 actor 里当场记，不经会话表；
 //! 6. 目录挪进回收处，从最深的子会话起，它自己最后：半路崩了，它还在原处、列得出来，再删一次接着挪完。挪走一个，删掉它在
-//!    会话列表的索引里的那一行（施工 3-8 七补）。
+//!    会话列表的索引里的那一行（施工 3-8 七补），拿掉回合库里它的（施工 R-2 上）。
 
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
@@ -66,6 +66,7 @@ impl Sessions {
             .retain(|(_, session)| session != id && !family.contains(session));
         let (root, account, at) = (core.root.clone(), core.admin.clone(), now());
         let index = Arc::clone(&core.index);
+        let recall = Arc::clone(&core.recall);
         let order: Vec<SessionId> = family.into_iter().rev().chain([id.clone()]).collect();
         let listing = Arc::clone(core);
         let moved = tokio::task::spawn_blocking(move || {
@@ -74,6 +75,10 @@ impl Sessions {
                     .map_err(|error| (session.clone(), error))?;
                 // 挪走了才删那一行（施工 3-8 七补）：半路崩了，还在原处的照旧列得出来。
                 forget(&index, &session);
+                // 回合库里它的也拿掉（施工 R-2 上，`memory.md` 第一条第 7 款）：派生的，拿不掉只记一行，不挡删会话。
+                if let Err(error) = recall.forget_session(&account, &session) {
+                    tracing::warn!(target: "miyu::endpoint", session = session.as_str(), error = %error, "memory index not updated");
+                }
                 // 会话列表的推送（施工 9-5）：挪走一个报一个。
                 listing.listing.removed(&listing, session);
                 Ok(())

@@ -119,7 +119,7 @@ impl Sessions {
             resources: &core.resources,
             id: id.clone(),
             persona,
-            venue: local(),
+            venue: who.venue.clone().unwrap_or_else(local),
             owner: core.admin.clone(),
             permission: Permission {
                 level: Level::Workspace,
@@ -140,6 +140,7 @@ impl Sessions {
             jobs: &core.jobs,
             index: core.index_for(&core.admin),
             usage: core.usage_for(&core.admin),
+            recall: core.recall_for(&core.admin),
             configs: core.hub.configs(),
             model: who.model,
         })
@@ -224,6 +225,7 @@ impl Sessions {
             sandbox_cache: core.sandbox_cache_of(&child.owner),
             index: core.index_for(&child.owner),
             usage: core.usage_for(&child.owner),
+            recall: core.recall_for(&child.owner),
             configs: core.hub.configs(),
             owner: child.owner,
             permission: child.permission,
@@ -296,13 +298,13 @@ pub(crate) struct Opening {
     /// 用哪个模型（施工 8-8）：`session.create` 的 `model` 照这时的配置解析好的引用，模型或 `@池`；没写的是空的，照这时的
     /// `models.chat`。
     pub(crate) model: Option<String>,
+    /// 场所（施工 O-3）：通讯平台的场所会话写它，本机的是空的（`local`）。
+    pub(crate) venue: Option<VenueId>,
 }
 
 /// 管理员：本机连上来的都是他（`06-多用户与身份.md` 第二节）。
 pub(crate) fn admin(core: &Core) -> By {
-    By::Person(Person {
-        account: core.admin.clone(),
-    })
+    By::Person(Person::new(core.admin.clone()))
 }
 
 /// 核心重启以后补回去重的编号（施工 4-9 再补三上）：最新的 [`REMEMBERED`] 个会话，`session.created` 的 `cause` 就是

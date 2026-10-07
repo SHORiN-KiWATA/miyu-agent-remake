@@ -162,6 +162,19 @@ fn a_title_after_the_notice_still_continues() {
     assert!(assemble(&log).continuation);
 }
 
+/// 被打断的那一句后面人用了一个斜杠命令（施工 O-6）：记下的那一条不进上下文，照样接着写。
+#[test]
+fn a_slash_command_after_the_notice_still_continues() {
+    let mut log = cut_log();
+    notice(&mut log);
+    log.detached(
+        r#"{"kind":"person","account":"alice"}"#,
+        "command.ran",
+        r#"{"text":"/stop","command":"stop"}"#,
+    );
+    assert!(assemble(&log).continuation);
+}
+
 #[test]
 fn a_cut_without_the_notice_is_not_a_continuation() {
     // 人打断的：半截后面是回合结束，没有被打断的那一句。

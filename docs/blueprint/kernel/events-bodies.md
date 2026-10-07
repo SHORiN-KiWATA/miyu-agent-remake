@@ -8,7 +8,7 @@
 
 | 代码 | 管什么 |
 |---|---|
-| `crates/miyu-kernel/src/event/session.rs` | `session.created`、`session.policy_changed`、`session.meta_changed`、`session.recapped`（施工 3-8 四补）；权限 `Permission`、级别 `Level` |
+| `crates/miyu-kernel/src/event/session.rs` | `session.created`、`session.policy_changed`、`session.meta_changed`、`session.recapped`（施工 3-8 四补）、`command.ran`（施工 O-6）；权限 `Permission`、级别 `Level` |
 | `crates/miyu-kernel/src/event/turn.rs` | `turn.started`、`turn.ended`（`EndReason`）、`turn.reverted`、`turn.unreverted` |
 | `crates/miyu-kernel/src/event/restore.rs` | `files.restored`（`Restored`、`RestoreAction`、`RestoreOutcome`） |
 | `crates/miyu-kernel/src/event/message.rs` | `message.user`、`message.assistant`、`message.withdrawn` |
@@ -94,6 +94,13 @@
 
 - 有效历史里最近一条的 `upto` 和下一次要照到的一样，下一次 `session.recap` 直接交回它的 `text`，不再请求。
 - 它前面紧跟着那一次回顾请求的 `model.called`（`purpose` 是 `recap`），同一批追加。
+
+**`command.ran`**：人用了一个斜杠命令（施工 O-6，`protocol.md` 的 `command.run`，`kernel/session.md`「斜杠命令」）。执行了的才记，被拒的什么都不记；给人和聊天记录看，不进她的上下文（渲染时不出）。`by` 是说命令的人（本人、群里的外部身份），`cause` 是派生的命令编号 `<那个命令>/ran`；回合进行中记的带上那一轮。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `text` | 字符串 | 必有 | 人打的原文，例如 `/reset` |
+| `command` | 字符串 | 必有 | 执行了哪个命令的正名（别名换成正名）：`clear`、`stop` |
 
 **`turn.started`**：
 

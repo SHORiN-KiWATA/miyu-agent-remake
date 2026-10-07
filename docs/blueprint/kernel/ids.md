@@ -106,8 +106,8 @@
 
 | `kind` | 是谁 | 其余几格 | 例子 |
 |---|---|---|---|
-| `person` | 有账号的人 | `account`：账号 | `{"kind":"person","account":"alice"}` |
-| `external` | 通讯平台上的人，没有账号，由桥担保 | `venue`：在哪个场所说的；`id`：平台上的身份 | `{"kind":"external","venue":"qq:group:123456","id":"qq:10086"}` |
+| `person` | 有账号的人 | `account`：账号；`via`，可以没有：通讯平台的私聊里经哪个平台身份认出来的本人（施工 O-3，`venues.md`） | `{"kind":"person","account":"alice"}`、`{"kind":"person","account":"alice","via":"qq:10001"}` |
+| `external` | 通讯平台上的人，没有账号，由桥担保 | `venue`：在哪个场所说的；`id`：平台上的身份；`account`，可以没有：主人对应表里对着的本机账号，写的时候记下（施工 O-3）；`role`，可以没有：桥报的场所里的身份，`manager` 或 `member`，没有 `owner`（施工 O-3） | `{"kind":"external","venue":"qq:group:123456","id":"qq:10086","role":"member"}` |
 | `model` | 模型：它的回复，连同里面的工具调用 | `endpoint`：经哪个供应商；`model`：模型 | `{"kind":"model","endpoint":"deepseek","model":"deepseek-v4"}` |
 | `tool` | 一次工具调用：执行时引起的 | `call_id`：调用编号 | `{"kind":"tool","call_id":"call_44_1"}` |
 | `module` | 模块，包括扩展 | `id`：模块 | `{"kind":"module","id":"memory"}` |
@@ -199,7 +199,7 @@
     5. 认识的种类多出来的格不管：读进内存时丢掉，写出去不再有（日志里的原文留着，`kernel/events.md`）。
     6. 不认识的种类：整块原样留着（`By::Unknown`），写出去一字不差，空格、数字的写法都不变。
 20. 写：`kind` 在最前，其余几格照上表的先后；不认识的照原文写。
-21. 这一格取自连接，不取自正文：内核照执行器交进来的记。现在连上核心的只有本机，本机连上来的一律是管理员，`{"kind":"person","account":"admin"}`（`crates/miyu-endpoint/src/sessions.rs` 的 `admin`，`protocol.md`）。
+21. 这一格取自连接，不取自正文：内核照执行器交进来的记。现在连上核心的只有本机，本机连上来的一律是管理员，`{"kind":"person","account":"admin"}`（`crates/miyu-endpoint/src/sessions.rs` 的 `admin`，`protocol.md`）。代表外部的人说话的（`session.send` 的 `as`，施工 O-3）照 `venues.md` 记成本人带 `via`，或者外部身份。
 
 **用得上 `by` 的地方**：
 

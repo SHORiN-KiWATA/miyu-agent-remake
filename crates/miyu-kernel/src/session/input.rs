@@ -334,6 +334,13 @@ pub enum Command {
         /// 置顶还是取消置顶；不改就没有。
         pinned: Option<bool>,
     },
+    /// 记下人用了一个斜杠命令（施工 O-6，`command.run`）：命令本身已经照它自己的编号执行了，这一条只记 `command.ran`。
+    Ran {
+        /// 人打的原文。
+        text: String,
+        /// 执行了哪个命令的正名。
+        command: String,
+    },
     /// `session.interrupt`：打断正在进行的回合。
     Interrupt {
         /// 排着队的消息怎么办（`02-内核.md` 第六节「排队的消息」）。
@@ -406,6 +413,8 @@ pub enum Queued {
     Send,
     /// 退回：撤回来，交还给头，放回输入框。
     Return,
+    /// 留着（施工 O-6，`/stop` 全停）：不撤回，也不接着开一轮；照样在历史里，下一句话开的那一轮看得到。
+    Keep,
 }
 
 /// 一个模块在回合开始时交回来的一块注入。

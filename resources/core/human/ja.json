@@ -207,6 +207,10 @@
       "models.cooldown.auth.max": {
         "name": "認証失敗の停止の上限",
         "description": "キー全体の停止はここまでで倍にするのをやめます。"
+      },
+      "external.bindings.<external>": {
+        "name": "主人のプラットフォームのアカウント",
+        "description": "通信プラットフォームのどの番号がどのローカルアカウント本人かです。キーにプラットフォーム上の ID（例：qq:10001）、値にローカルアカウントを書きます。個人チャットでは、その番号がそのアカウント本人です。"
       }
     },
     "pages": {
@@ -223,7 +227,8 @@
       "pools": "プール",
       "providers": "プロバイダー",
       "catalog": "モデルカタログ",
-      "cooldown": "クールダウン"
+      "cooldown": "クールダウン",
+      "external": "プラットフォームのアカウント"
     }
   },
   "said": {
@@ -244,6 +249,8 @@
     "tool-results/crashed": "内部エラーが起きました。一部は実行されたかもしれません",
     "permissions/forbidden": "Miyu 自身のデータなので、誰も触れられません",
     "permissions/unresolvable": "どこを指しているか判断できません：{reason}",
+    "commands/cleared": "コンテキストを消去しました。",
+    "commands/stopped": "すべて止めました。",
     "config/reference-header": "Miyu のすべての設定項目と既定値です。このファイルは生成されたもので、編集しても効果はありません。",
     "config/reference-where": "システム設定は system/config.toml に、個人設定は home/<アカウント>/settings.toml に書きます。",
     "config/reference-item": "{name}：{description}",

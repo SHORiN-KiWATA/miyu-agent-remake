@@ -16,7 +16,7 @@ fn after_one_turn() -> Session {
 }
 
 /// 编号是 `n` 的命令：alice 要清空上下文。
-fn clear(n: u64) -> Input {
+pub(super) fn clear(n: u64) -> Input {
     Input::Command(Received {
         id: id(n),
         by: alice(),

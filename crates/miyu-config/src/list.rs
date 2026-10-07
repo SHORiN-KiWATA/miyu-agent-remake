@@ -55,7 +55,7 @@ pub fn check(items: &[Item]) -> Vec<String> {
 }
 
 /// 键的写法（第一条第 2 条）：至少两段；每一段小写字母开头，只有小写字母、数字、`_`，或者是人起的名字的占位
-/// `<id>`、`<model>`（施工 8-6，不能是第一段、不能是最后一段）；第一段不是 `ext`。
+/// `<id>`、`<model>`、`<external>`（施工 8-6、O-3，不能是第一段；O-3 起可以是最后一段）；第一段不是 `ext`。
 fn key_problem(key: &str) -> Option<&'static str> {
     let segments: Vec<&str> = key.split('.').collect();
     if segments.len() < 2 {
@@ -67,13 +67,13 @@ fn key_problem(key: &str) -> Option<&'static str> {
                 .chars()
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
     };
-    let last = segments.len() - 1;
+    // 最后一段是人起的名字的可以（施工 O-3：`external.bindings.<external>`，一张按名字的表，每一格就是这一项）；第一段不行：
+    // 第一段是声明它的模块。
     if segments
-        .iter()
-        .enumerate()
-        .any(|(at, segment)| crate::key::is_placeholder(segment) && (at == 0 || at == last))
+        .first()
+        .is_some_and(|segment| crate::key::is_placeholder(segment))
     {
-        return Some("人起的名字那一段不能是第一段、最后一段");
+        return Some("人起的名字那一段不能是第一段");
     }
     if !segments
         .iter()

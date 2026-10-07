@@ -69,9 +69,7 @@ fn say(text: &str) -> Command {
 }
 
 fn alice() -> By {
-    By::Person(Person {
-        account: AccountId::parse("alice").expect("账号合写法"),
-    })
+    By::Person(Person::new(AccountId::parse("alice").expect("账号合写法")))
 }
 
 fn id(text: &str) -> CommandId {
@@ -186,7 +184,15 @@ async fn a_write_that_fails_stops_the_session() {
         Ok(Outcome::Accepted { .. })
     ));
 
-    let handle = Handle::new(session.clone(), inbox, busy, false, watched, shown);
+    let handle = Handle::new(
+        session.clone(),
+        miyu_kernel::id::VenueId::parse("local").expect("合写法"),
+        inbox,
+        busy,
+        false,
+        watched,
+        shown,
+    );
     assert!(!handle.busy(), "刚造出来，没有回合");
     let first = within(
         "第一句的回应",
