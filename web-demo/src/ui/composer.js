@@ -26,6 +26,7 @@ import { noStop } from '../lib/format.js';
 import { read } from '../model/commands.js';
 import { CommandList } from './commands.js';
 import { Picker } from './picker.js';
+import { HelpPanel } from './help.js';
 import { SessionList } from './session-list.js';
 import { ModelMenu } from './model-menu.js';
 import { HistoryList } from './history.js';
@@ -69,7 +70,8 @@ export class Composer {
       spellcheck: 'false',
       placeholder: t('placeholder', { name: res.persona.name }),
       onkeydown: (ev) => this.key(ev),
-      oninput: () => this.changed(),
+      // 接着打字（输入法打的也算）：帮助让开
+      oninput: () => { this.help.close(); this.changed(); },
     }));
     // 一开始框里没字：先灰着（原来先是能发的蓝色，挂好了才变灰，刷新时右下角闪一下）
     this.sendButton = h('button.composer-send', { type: 'button', title: t('send'), disabled: true, onclick: () => this.submit() }, icon('arrow-up'));
@@ -108,6 +110,8 @@ export class Composer {
     this.input.addEventListener('scroll', () => { this.backdrop.scrollTop = this.input.scrollTop; });
     /** 选一样的浮层（`/language`）：和命令列表同一个位置 */
     this.picker = new Picker();
+    /** 帮助（`/help`）：和命令列表同一个位置 */
+    this.help = new HelpPanel();
     this.head = h('div.composer-head');
     this.tools = h('span.composer-tools');
     this.float = h('div.composer-float');
@@ -119,7 +123,7 @@ export class Composer {
     this.stashed = /** @type {import('../model/stash.js').Draft|null} */ (null);
     this.stashMark = h('span.composer-stash', { hidden: true, title: t('stash.hint') }, t('stash.mark'));
     this.field = h('div.composer-field', this.backdrop, this.input, this.stashMark);
-    this.box = h('div.composer', this.notice, this.jumpButton, this.takeoverEl, this.head, this.field, this.bar = h('div.composer-bar', this.tools, this.sendButton), this.menu.el, this.picker.el, this.historyList.el, this.sessionList.el, this.mention.el, this.float);
+    this.box = h('div.composer', this.notice, this.jumpButton, this.takeoverEl, this.head, this.field, this.bar = h('div.composer-bar', this.tools, this.sendButton), this.menu.el, this.picker.el, this.help.el, this.historyList.el, this.sessionList.el, this.mention.el, this.float);
     this.el = h('div.composer-dock', this.box, this.footer);
     this.parts = /** @type {{key: string, text: string}[]} */ ([]);
     /** 撤销时放回框里的那句：恢复时还没动过的收回去（`tui.md`「输入框」第 7 条）。 */
@@ -465,14 +469,26 @@ export class Composer {
       return;
     }
     this.picker.close();
+    this.help.close();
     this.menu.menu.dismiss(this.input.value);
     this.menu.update(this.input.value);
     this.historyList.show(this.recall.items);
   }
 
+  /** `/help`：开帮助（和别的浮层不同时开），列现在的全部命令和按键。 */
+  openHelp() {
+    this.picker.close();
+    this.historyList.close();
+    this.sessionList.close();
+    this.menu.menu.dismiss(this.input.value);
+    this.menu.update(this.input.value);
+    this.help.show(this.specs());
+  }
+
   /** `/sessions`：开会话列表（和命令列表、选语言、输入历史列表不同时开），带着 `/sessions 词` 的词搜。 */
   openSessions(query = '') {
     this.picker.close();
+    this.help.close();
     this.historyList.close();
     this.menu.menu.dismiss(this.input.value);
     this.menu.update(this.input.value);

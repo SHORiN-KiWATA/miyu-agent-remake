@@ -18,7 +18,7 @@
 .composer-dock.is-running .composer-notice { translate: 0 calc(-1 * (var(--pulse-row) * var(--pulse-lines, 1) + var(--pulse-gap))); }
 
 /* ── 命令列表、选语言的浮层、输入历史列表、@ 选文件的列表：浮在框上面，和框一样宽；半透明的 surface-1 加毛玻璃，一圈细线，浮起来的阴影 ── */
-.dock-commands, .dock-picker, .dock-history, .dock-mention, .dock-slist {
+.dock-commands, .dock-picker, .dock-help, .dock-history, .dock-mention, .dock-slist {
   position: absolute; z-index: 3; right: -1px; bottom: calc(100% + 1px + var(--list-gap)); left: -1px;
   padding: 6px; border: 1px solid var(--line); border-radius: 14px;
   background: color-mix(in srgb, var(--surface-1) 90%, transparent);
@@ -26,7 +26,7 @@
   box-shadow: var(--float-shadow);
   animation: rise-in var(--motion-in) var(--ease-out) both;
 }
-.dock-commands.is-leaving, .dock-picker.is-leaving, .dock-history.is-leaving, .dock-mention.is-leaving, .dock-slist.is-leaving { animation: sink-out var(--motion-out) var(--ease-in) both; }
+.dock-commands.is-leaving, .dock-picker.is-leaving, .dock-help.is-leaving, .dock-history.is-leaving, .dock-mention.is-leaving, .dock-slist.is-leaving { animation: sink-out var(--motion-out) var(--ease-in) both; }
 .commands-head { padding: 4px 10px 6px; color: var(--text-faint); font-size: 12px; line-height: 16px; }
 /* 最多露 --rows 条（layout.json 的 command_rows），多的在里面滚；名字一列照最长的对齐 */
 .commands-list {
@@ -54,6 +54,13 @@
 .picker-label { min-width: 0; flex: 1; overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .picker-row.is-selected .picker-label { color: var(--accent); }
 .picker-note { flex: none; color: var(--text-faint); font-size: 12px; }
+/* 帮助（/help）：两段，段名暗色加粗；一行左边命令、按键（等宽，一列对齐），右边说明；放不下自己滚 */
+.help-body { max-height: min(56vh, 460px); overflow-y: auto; overscroll-behavior: contain; padding: 0 10px 6px; }
+.help-section { margin: 8px 0 4px; color: var(--text-faint); font-size: 12px; font-weight: 700; }
+.help-section:first-child { margin-top: 0; }
+.help-grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 18px; row-gap: 2px; align-items: baseline; }
+.help-key { color: var(--text); font: 12.5px var(--mono); line-height: 22px; white-space: nowrap; }
+.help-what { color: var(--text-soft); font-size: 13px; line-height: 22px; }
 
 /* ── 输入历史列表（Ctrl+R，蓝图 web.md「输入历史」第 4 条）：头一行「历史 · N 条」和搜索框；最新的贴着底，最多露 --rows 行，多的在
    里面滚；一条一行，右边暗色写多久以前；命令的名字、对得上的字 accent（对得上的加下划线）；最下面一行暗色写按键 ── */
@@ -126,5 +133,5 @@
 .mention-hint { padding: 6px 10px 2px; color: var(--text-faint); font-size: 12px; line-height: 16px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .pulse-shine, .dock-commands, .dock-picker, .dock-history, .dock-mention, .dock-slist { animation: none; }
+  .pulse-shine, .dock-commands, .dock-picker, .dock-help, .dock-history, .dock-mention, .dock-slist { animation: none; }
 }

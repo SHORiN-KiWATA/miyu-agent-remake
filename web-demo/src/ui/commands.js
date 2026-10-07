@@ -260,7 +260,7 @@ const RUNS = {
     app.composer.focus();
   },
   copy: copyReply,
-  fake: (app, spec) => app.composer.say(t('commands.fake', { name: spec.name })),
+  help: (app) => app.composer.openHelp(),
 };
 
 /** `/redo`、`/edit` 能不能做：在回答时提示「回答进行中」，最新一轮不是你开的（或一轮都没有）提示「无法重做」。 */

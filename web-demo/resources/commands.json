@@ -1,5 +1,5 @@
 {
-  "note": "斜杠命令（蓝图 web.md「斜杠命令」）：照 TUI 演示的 commands.json，去掉网页用不上的 /icons、/exit 和别的演示命令（/demo-todo 2026-10-07 也删了）。run 是做什么：revert、unrevert、redo、edit、compact、recap、theme、new、copy、model、demo_todo 是真的，fake 只说一句。aliases 是别名，args 是名字后面能接参数。summary 每种语言各写一句（蓝图 web.md「界面语言」，照 TUI 那一份）。",
+  "note": "斜杠命令（蓝图 web.md「斜杠命令」）：照 TUI 演示的 commands.json，去掉网页用不上的 /icons、/exit 和别的演示命令（/demo-todo 2026-10-07 也删了）。run 是做什么（src/ui/commands.js 的 RUNS），都是真的（假命令 2026-10-07 删了，/help 做成真的）。aliases 是别名，args 是名字后面能接参数。summary 每种语言各写一句（蓝图 web.md「界面语言」，照 TUI 那一份）。",
   "commands": [
     {
       "name": "undo",
@@ -119,30 +119,6 @@
       "args": true
     },
     {
-      "name": "readonly",
-      "summary": {
-        "zh": "开关只读",
-        "ja": "読み取り専用を切り替える"
-      },
-      "run": "fake"
-    },
-    {
-      "name": "level",
-      "summary": {
-        "zh": "改常用的权限级别：工作区或完全放开",
-        "ja": "普段使う権限レベルを変更する：ワークスペースまたはフルアクセス"
-      },
-      "run": "fake"
-    },
-    {
-      "name": "tools",
-      "summary": {
-        "zh": "工具设置：哪些常驻、哪些按需加载",
-        "ja": "ツール設定：常に読み込むものとオンデマンドで読み込むもの"
-      },
-      "run": "fake"
-    },
-    {
       "name": "copy",
       "summary": {
         "zh": "复制她的上一段回答",
@@ -156,7 +132,7 @@
         "zh": "看看按键和命令",
         "ja": "キー操作とコマンドを見る"
       },
-      "run": "fake"
+      "run": "help"
     }
   ]
 }
