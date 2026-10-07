@@ -19,7 +19,8 @@
     "composer",
     "core",
     "commands",
-    "storage"
+    "storage",
+    "host"
   ],
   "styles": [
     "style.css"
@@ -32,8 +33,8 @@
       "persona_bad": "文件写错了",
       "default_workspace": "默认工作区",
       "recent": "最近用过",
-      "path_hint": "输入路径，回车用它（~/… 或 /…）",
-      "relative": "写 ~/ 或 / 开头的路径",
+      "path_hint": "输入路径，回车用它",
+      "relative": "写绝对路径，或者 ~ 开头的路径",
       "not_dir": "找不到这个目录",
       "forbidden": "这个目录不能用",
       "workspace_set": "工作区：{path}",
@@ -53,6 +54,16 @@
         "examples": "示范对话 {count} 轮",
         "no_examples": "没有示范对话",
         "default": "默认"
+      },
+      "menu_hint": "↑↓ 选 · Enter 确定 · Esc 关闭",
+      "folders": {
+        "open": "选择文件夹…",
+        "hint": "↑↓ 选 · Enter 进去 · ⌫ 上一级",
+        "up": "上一级",
+        "empty": "这里没有子文件夹",
+        "partial": "太多了，只列了一部分",
+        "cancel": "取消",
+        "choose": "选这个目录"
       }
     },
     "ja": {
@@ -62,8 +73,8 @@
       "persona_bad": "ファイルに誤りがあります",
       "default_workspace": "既定のワークスペース",
       "recent": "最近使った",
-      "path_hint": "パスを入力して Enter（~/… または /…）",
-      "relative": "~/ か / で始まるパスを書いてください",
+      "path_hint": "パスを入力して Enter",
+      "relative": "絶対パスか ~ で始まるパスを書いてください",
       "not_dir": "このディレクトリが見つかりません",
       "forbidden": "このディレクトリは使えません",
       "workspace_set": "ワークスペース：{path}",
@@ -83,6 +94,16 @@
         "examples": "お手本会話 {count} 往復",
         "no_examples": "お手本会話なし",
         "default": "既定"
+      },
+      "menu_hint": "↑↓ 選択 · Enter 決定 · Esc 閉じる",
+      "folders": {
+        "open": "フォルダを選ぶ…",
+        "hint": "↑↓ 選択 · Enter 開く · ⌫ 上へ",
+        "up": "上の階層",
+        "empty": "サブフォルダがありません",
+        "partial": "多すぎるため一部だけ表示",
+        "cancel": "キャンセル",
+        "choose": "このフォルダにする"
       }
     }
   }

@@ -9,6 +9,7 @@ import { h, icon, replace } from '../../src/lib/dom.js';
 import { Menu } from './menu.js';
 import { personaName, defaultUsable, dirName, readPath, remember, tilde } from './model.js';
 import { personaPage } from './page.js';
+import { browse } from './folders.js';
 
 const RECENT = 'setup.recent';
 
@@ -87,14 +88,18 @@ export function apply(ctx) {
   const openPersonas = () => {
     if (!personas) return;
     const chosen = chat.draft().persona ?? fallback;
-    menu.show(personaBtn, personas.map((p) => ({
-      title: personaName(p),
-      desc: p.problem ? t('persona_bad') : p.summary || (p.name ? p.persona : ''),
-      tip: p.problem ?? undefined,
-      current: p.persona === chosen && !p.problem,
-      off: !!p.problem,
-      pick: () => chat.setDraft({ persona: p.persona }),
-    })));
+    menu.show(personaBtn, {
+      title: t('choose_persona'),
+      hint: t('menu_hint'),
+      rows: personas.map((p) => ({
+        title: personaName(p),
+        desc: p.problem ? t('persona_bad') : p.summary || (p.name ? p.persona : ''),
+        tip: p.problem ?? undefined,
+        current: p.persona === chosen && !p.problem,
+        off: !!p.problem,
+        pick: () => chat.setDraft({ persona: p.persona }),
+      })),
+    });
   };
 
   /** 换到这个目录：空会话改选的工作区（默认的记成没选），开着的会话之后每句话带上；记进最近用过的。 @param {string} path */
@@ -122,16 +127,24 @@ export function apply(ctx) {
     return null;
   };
 
-  /** 工作区的菜单：默认工作区、最近用过的、最下面写路径。 @param {HTMLElement} anchor @param {boolean} below */
+  /** 工作区的菜单：默认工作区、最近用过的、「选择文件夹…」，最下面写路径。 @param {HTMLElement} anchor @param {boolean} below */
   const openWorkspaces = (anchor, below) => {
     const def = chat.defaultWorkdir();
     const now = chat.current() ? chat.workdir() : chat.draft().cwd ?? def;
     const others = recent().filter((p) => p !== def);
-    (below ? infoMenu : menu).show(anchor, [
-      { title: t('default_workspace'), desc: tilde(def, home()), current: now === def, pick: () => use(def) },
-      ...(others.length ? [{ section: t('recent') }] : []),
-      ...others.map((p) => ({ title: dirName(tilde(p, home())), desc: tilde(p, home()), current: now === p, pick: () => use(p) })),
-    ], { hint: t('path_hint'), submit: check }, below);
+    const which = below ? infoMenu : menu;
+    which.show(anchor, {
+      title: t('set_workspace'),
+      hint: t('menu_hint'),
+      below,
+      rows: [
+        { title: t('default_workspace'), desc: tilde(def, home()), current: now === def, pick: () => use(def) },
+        ...(others.length ? [{ section: t('recent') }] : []),
+        ...others.map((p) => ({ title: dirName(tilde(p, home())), desc: tilde(p, home()), current: now === p, pick: () => use(p) })),
+        { title: t('folders.open'), icon: 'folder-open', pick: () => browse(ctx, which, anchor, below, now, use, (p) => tilde(p, home())) },
+      ],
+      input: { hint: t('path_hint'), submit: check },
+    });
   };
 
   ctx.slots.mount('composer.above', { id: 'setup', order: 90, render: () => row });

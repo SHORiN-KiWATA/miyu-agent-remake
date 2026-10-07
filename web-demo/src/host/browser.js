@@ -204,6 +204,8 @@ export function browserHost() {
       refs,
       text: (/** @type {FileRef} */ ref, /** @type {number} */ max) => text(key, ref, max),
       read,
+      /** 选目录：浏览器给不了本机路径，交 `null`（用的地方自己画文件夹浏览器，照核心列；桌面端是系统的对话框） */
+      pickDir: async () => null,
     },
     /** 外面的链接：新标签页。 */
     open: (/** @type {string} */ url) => { window.open(url, '_blank', 'noopener'); },

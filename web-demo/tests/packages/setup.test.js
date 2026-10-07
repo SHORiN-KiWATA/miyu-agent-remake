@@ -28,6 +28,15 @@ test('路径：只认 ~、~/…、/…，去掉前后空白和末尾的 /；相�
   assert.equal(readPath(''), null);
 });
 
+test('路径在 Windows 上的写法也认（核心在哪个系统上都行）：C:\\…、C:/…、\\\\服务器\\…，盘符的根留着分隔符', () => {
+  assert.equal(readPath('C:\\Users\\a\\'), 'C:\\Users\\a');
+  assert.equal(readPath('C:\\'), 'C:\\');
+  assert.equal(readPath('D:/work/'), 'D:/work');
+  assert.equal(readPath('\\\\srv\\share'), '\\\\srv\\share');
+  assert.equal(dirName('C:\\Users\\a'), 'a');
+  assert.equal(tilde('C:\\Users\\a\\src', 'C:\\Users\\a'), '~\\src');
+});
+
 test('按钮上写目录名；家目录下的写成 ~/…', () => {
   assert.equal(dirName('~/Documents/github/Miyu'), 'Miyu');
   assert.equal(dirName('~'), '~');

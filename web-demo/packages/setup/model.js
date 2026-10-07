@@ -17,15 +17,21 @@ export function defaultUsable(list, def) {
 
 /** 目录名（按钮上写的）：路径最后一段，`~` 照写。 @param {string} path */
 export function dirName(path) {
-  const parts = path.replace(/\/+$/, '').split('/');
+  const parts = path.replace(/[\\/]+$/, '').split(/[\\/]/);
   return parts.at(-1) || path;
 }
 
-/** 输入框里写的路径：只认 `~`、`~/…`、`/…`（相对的不知道照谁接）；去掉前后空白和末尾的 `/`。不认的是 `null`。 @param {string} text */
+/**
+ * 输入框里写的路径：只认绝对的（`/…`；Windows 的 `C:\…`、`C:/…`、`\\服务器\…`）和 `~`、`~/…`（相对的不知道照谁接），核心在哪个系统上
+ * 都能用；去掉前后空白和末尾的分隔符（根目录本身留着）。不认的是 `null`。
+ * @param {string} text
+ */
 export function readPath(text) {
   const t = text.trim();
-  if (!(t === '~' || t.startsWith('~/') || t.startsWith('/'))) return null;
-  return t.length > 1 ? t.replace(/\/+$/, '') : t;
+  const ok = t === '~' || t.startsWith('~/') || t.startsWith('~\\') || t.startsWith('/') || /^[A-Za-z]:[\\/]/.test(t) || t.startsWith('\\\\');
+  if (!ok) return null;
+  const cut = t.replace(/[\\/]+$/, '');
+  return cut === '' || /^[A-Za-z]:$/.test(cut) ? t.slice(0, cut.length + 1) : cut;
 }
 
 /** 记一个最近用过的目录：排到最前，重复的去掉，最多 `max` 个；默认工作区不记。 @param {string[]} list @param {string} path @param {string} fallback @param {number} max */
@@ -38,5 +44,5 @@ export function remember(list, path, fallback, max) {
 export function tilde(path, home) {
   if (!home) return path;
   if (path === home) return '~';
-  return path.startsWith(`${home}/`) ? `~${path.slice(home.length)}` : path;
+  return path.startsWith(`${home}/`) || path.startsWith(`${home}\\`) ? `~${path.slice(home.length)}` : path;
 }
