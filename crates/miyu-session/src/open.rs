@@ -10,13 +10,13 @@ use miyu_kernel::event::SessionCreated;
 use miyu_kernel::id::{AccountId, SessionId};
 use miyu_kernel::session::{Input, Session};
 use miyu_models::provider::chat;
-use miyu_policy::compose;
 use miyu_store::blob::Blobs;
 use miyu_store::log::{SEGMENT_LIMIT, SessionLog, abandon};
 use miyu_store::usage::{UsageIndex, Who};
 use miyu_tool::{Log, Seen};
 
 use crate::TARGET;
+use crate::actor::persona::Refresh;
 use crate::actor::{self, Actor, JobKit};
 use crate::agents::{Agents, job_in};
 use crate::blocking::blocking;
@@ -29,6 +29,7 @@ use crate::jobs::Roster;
 use crate::memory::{self, connect};
 use crate::port::ForSession;
 use crate::report::{Reporter, Upstream};
+use crate::snapshot::{Parts, build};
 use crate::store::{Indexed, LogDir};
 use crate::tools::ToolKit;
 use crate::usage::Ledger;
@@ -55,6 +56,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         id,
         persona,
         persona_texts,
+        personas,
         memory_account,
         memory_scope,
         venue,
@@ -84,6 +86,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     // 没指定的照这时的 `models.chat`：记进 `session.created`，以后照它（施工 8-8）。
     let reference = model.or_else(|| chat(&config.current().resolved.values()));
     let (resources, name) = (resources.clone(), persona.to_string());
+    let shipped = resources.clone();
     let scope = memory::scope(lineage.is_some(), memory_scope);
     // 工具面照这时的配置拼：`subagent` 能选哪几个池（施工 8-8 补），以后照快照、载入不重拼。
     let face = Agents::face(
@@ -111,20 +114,15 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
     let (owner_of, id_of) = (owner.clone(), id.clone());
     let (snapshot, policy, texts, run, guard, log, (turns, calls)) = blocking(move || {
-        let sources = resources
-            .sources_with(persona_texts)
-            .map_err(CreateError::Persona)?;
-        let mut snapshot = compose(&name, sources, attended)
-            .with_tools(face)
-            .with_memory(scope);
-        if child {
-            let venue = resources.subagent_venue().map_err(CreateError::Persona)?;
-            snapshot = snapshot.with_venue(&venue);
-        }
-        let lines = resources.core_lines().map_err(CreateError::Persona)?;
-        let snapshot = snapshot
-            .with_core_lines(&lines)
-            .with_style_lock(&lines.style_lock);
+        let parts = Parts {
+            name: name.clone(),
+            texts: persona_texts,
+            attended,
+            face,
+            memory: Some(scope.as_str().to_string()),
+            child,
+        };
+        let snapshot = build(&resources, parts).map_err(CreateError::Persona)?;
         let policy = snapshot.policy().map_err(CreateError::Policy)?;
         let texts = snapshot.driver_texts().map_err(CreateError::Policy)?;
         let run = snapshot.run_texts().map_err(CreateError::Policy)?;
@@ -144,6 +142,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     })
     .await?;
     let kept = blobs.clone();
+    let stored = blobs.clone();
     models.ready().await;
     let model = models.port(ForSession {
         id: id.clone(),
@@ -257,6 +256,14 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     if let Some(upstream) = upstream {
         actor.report_to(Reporter::start(upstream, span.clone()));
     }
+    let (resources, blobs) = (shipped, stored);
+    actor.watch_persona(Refresh {
+        personas,
+        resources,
+        blobs,
+        snapshot,
+        child,
+    });
     let busy = actor.busy();
     let watched = actor.watched();
     let shown = actor.shown();

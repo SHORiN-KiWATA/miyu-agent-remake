@@ -7,7 +7,7 @@ use super::script::{Line, Play};
 use crate::block::{Block, Text};
 use crate::event::{Body, Decision, Event, Level, ModelCalled, Response, Transient};
 use crate::facts::Environment;
-use crate::id::{CallId, CommandId, HarnessName, Seq, SessionId, TurnId};
+use crate::id::{CallId, CommandId, ContentHash, HarnessName, Seq, SessionId, TurnId};
 use crate::origin::{By, Harness};
 use crate::request::Request;
 use crate::session::{
@@ -81,6 +81,8 @@ pub struct Stage {
     pub(super) routing: super::routing::Routing,
     /// 替它看图：剧本、交出来的转述请求、扣着的（施工 8-17，`sight.rs`）。
     pub(super) sight: super::sight::Sight,
+    /// 下一个回合开始时换上的策略和它的快照哈希（施工 P-1 再补，`swap.rs`）。
+    pub(super) swap: Option<(ContentHash, Box<dyn Fn() -> Policy>)>,
 }
 
 impl Stage {

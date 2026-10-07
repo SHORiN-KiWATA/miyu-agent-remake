@@ -73,6 +73,9 @@ pub struct Snapshot {
     /// 角色扮演提示拼好的一块（施工 P-1 补，`compose.rs`）：回合开始时隔几轮注入。没有的不写，旧快照的字节不变。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reminder: Option<String>,
+    /// 人格三份字的指纹（施工 P-1 再补，`compose.rs`）：回合开始时执行器照它认出人格的文件改了。以前造的没有：不换。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub persona_digest: Option<ContentHash>,
 }
 
 /// 压缩用的数（`compaction.md`「对外的样子」的策略数据）。

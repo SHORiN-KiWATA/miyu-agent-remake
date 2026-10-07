@@ -236,6 +236,30 @@ fn a_recap_is_not_an_anchor() {
     assert_eq!(anchor(&history).map(|a| a.seq), Seq::new(3));
 }
 
+/// 换过策略快照以后（施工 P-1 再补）：system、示范对话变了，它以前的不是锚；换了以后说完的又是。只写 `model` 的换模型不算。
+#[test]
+fn a_swapped_snapshot_drops_the_anchor_until_the_next_call() {
+    let swap =
+        r#"{"policy":"sha256:5ed1f2a0c3b4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e"}"#;
+    let mut events = vec![
+        event(1, None, ALICE, "message.user", r#"{"blocks":[]}"#),
+        event(2, Some(2), KERNEL, "turn.started", r#"{"trigger":1}"#),
+        called(3, 2, 1, Some(100), "ok"),
+        event(
+            4,
+            None,
+            ALICE,
+            "session.policy_changed",
+            r#"{"model":"a/m"}"#,
+        ),
+    ];
+    assert_eq!(anchor(&history(events.clone())).map(|a| a.seq), Seq::new(3));
+    events.push(event(5, None, KERNEL, "session.policy_changed", swap));
+    assert_eq!(anchor(&history(events.clone())), None);
+    events.push(called(6, 2, 3, Some(150), "ok"));
+    assert_eq!(anchor(&history(events)).map(|a| a.seq), Seq::new(6));
+}
+
 #[test]
 fn the_four_parts_of_the_usage_are_added_up() {
     let body = r#"{"seen":2,"endpoint":"deepseek","model":"deepseek-flash","messages":1,"usage":{"uncached":1,"cache_read":20,"cache_write":300,"output":4000},"result":"ok"}"#;

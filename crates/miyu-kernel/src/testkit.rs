@@ -22,6 +22,7 @@ mod routing;
 mod script;
 mod sight;
 mod stage;
+mod swap;
 
 pub use opening::{CHILD_SESSION, SESSION};
 pub use respond::model;

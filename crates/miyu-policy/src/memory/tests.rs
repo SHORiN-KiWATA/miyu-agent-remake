@@ -12,8 +12,7 @@ fn the_scope_goes_into_the_snapshot_and_comes_back() {
         assert_eq!(back.memory_scope(), scope);
         assert_eq!(back.to_bytes(), made.to_bytes());
         assert!(
-            String::from_utf8(made.to_bytes())
-                .unwrap()
+            crate::test_support::text_without_digest(&made)
                 .ends_with(&format!(",\"memory\":\"{scope}\"}}"))
         );
     }

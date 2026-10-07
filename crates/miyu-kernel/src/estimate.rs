@@ -94,7 +94,8 @@ pub struct Anchor {
 /// 知道发给了谁，不是辅助请求（施工 3-8 四补：回顾那一次不算）。
 ///
 /// 压缩那一条之前的不算：摘要请求自己那条、尾巴里压缩以前的请求，报的都是压缩前的大小。撤掉的回合里的
-/// 已经不在有效历史里了。一条都没有的，没有锚。
+/// 已经不在有效历史里了。一条都没有的，没有锚。它后面换过策略快照的（施工 P-1 再补）也没有锚：system、示范对话变了，
+/// 它盖不住，整份估到下一次说完。
 pub fn anchor(history: &History) -> Option<Anchor> {
     let after = history.checkpoint().map(|checkpoint| checkpoint.seq);
     history
@@ -102,6 +103,9 @@ pub fn anchor(history: &History) -> Option<Anchor> {
         .iter()
         .rev()
         .take_while(|event| after.is_none_or(|after| event.seq > after))
+        .take_while(|event| {
+            !matches!(&event.body, Body::PolicyChanged(changed) if changed.policy.is_some())
+        })
         .find_map(|event| {
             let Body::ModelCalled(called) = &event.body else {
                 return None;

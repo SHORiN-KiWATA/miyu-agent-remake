@@ -10,7 +10,8 @@ use super::Session;
 use super::action::Action;
 use super::breaker::Before;
 use super::call::Call;
-use super::input::{Injection, Replaced};
+use super::configure::Replaced;
+use super::input::Injection;
 use super::manual::Manual;
 use super::overflow::Passive;
 use super::step::Step;
@@ -180,15 +181,17 @@ impl Session {
         events
     }
 
-    /// 回合开始的挂接点跑完了：执行器退回了默认的，先记一条 `session.policy_changed`（施工 8-10，`configure.rs`）；再照
-    /// 交回来的先后追加成 `context.injected`，`by` 是各自的模块，然后回合往下走。回合对不上的、同一个回合第二次来的，不理：
-    /// 打断以后迟到的就是这种。
+    /// 回合开始的挂接点跑完了：执行器退回了默认的，先记一条 `session.policy_changed`（施工 8-10，`configure.rs`）；人格的
+    /// 文件改了、带着新快照的哈希的，再记一条、换上放着的策略（施工 P-1 再补，`policy.rs`）；再照交回来的先后追加成
+    /// `context.injected`，`by` 是各自的模块，然后回合往下走。回合对不上的、同一个回合第二次来的，不理：打断以后迟到的
+    /// 就是这种。
     pub(super) fn turn_start_hooked(
         &mut self,
         at: Timestamp,
         turn: TurnId,
         injected: Vec<Injection>,
         replaced: Option<Replaced>,
+        policy: Option<ContentHash>,
     ) -> Vec<Action> {
         let Some(current) = self.turn.as_mut() else {
             return Vec::new();
@@ -202,6 +205,7 @@ impl Session {
             .fall_back(at, cause.clone(), replaced)
             .into_iter()
             .collect();
+        events.extend(self.swap_policy(at, cause.clone(), policy));
         for injection in injected {
             let by = By::Module(Module {
                 id: injection.module,

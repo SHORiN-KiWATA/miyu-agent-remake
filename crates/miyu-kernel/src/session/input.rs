@@ -18,6 +18,8 @@ use crate::raw::RawJson;
 use crate::time::Timestamp;
 use crate::tool::Access;
 
+use super::configure::Replaced;
+
 /// 送进会话的一件事。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Input {
@@ -45,6 +47,9 @@ pub enum Input {
         /// 执行器照这一轮的配置重新解析会话的引用，钉着的没了、退回了默认的（施工 8-10，`models.md`「怎么走」第六条第 3
         /// 条）：原来的、退回的。内核在注入前面记一条 `session.policy_changed`。没退回的没有。
         replaced: Option<Replaced>,
+        /// 人格的文件改了，执行器照新的拼好的快照的哈希（施工 P-1 再补）：内核换上先放着的那一份策略
+        /// （[`crate::session::Session::stage_policy`]），记一条带 `policy` 的 `session.policy_changed`。没换的没有。
+        policy: Option<ContentHash>,
     },
     /// 请求发出去了（`02-内核.md` 第六节「回复怎么收、回合怎么结束」）。
     RequestSent {
@@ -424,15 +429,6 @@ pub struct Injection {
     pub module: ModuleId,
     /// 注入的那一块，原样追加。
     pub fact: ContextInjected,
-}
-
-/// 钉着的引用没了、执行器退回了默认（施工 8-10）：交回 [`Input::TurnStartHooksDone`] 的 `replaced`。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Replaced {
-    /// 原来的引用：回合开始时内核交出去的那一个。
-    pub from: String,
-    /// 退回的引用：这一轮的 `models.chat`。
-    pub to: String,
 }
 
 /// 会话要发给的模型的限额（`compaction.md`「对外的样子」模型的资料）：压缩线照它算。

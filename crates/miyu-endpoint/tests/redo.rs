@@ -126,6 +126,8 @@ async fn new_words_are_said_instead() {
         words_at(&home, &session, resent),
         json!([{"type": "text", "text": "换个说法"}])
     );
+    // 等重做开的那一轮说完再重做：不然撞上「有回合在进行」（施工 P-1 再补：回合开头多看一眼人格的文件，撞得更勤）。
+    home.until_turns(&session, 2).await;
     // 写 `null` 当没写：原样重做（这回重做的是换过的那一句）。
     let reply = client
         .call(
@@ -328,6 +330,8 @@ async fn attachments_go_along_or_are_replaced() {
         json!("再看看")
     );
     assert_eq!(widths(&home, &session, resent), [8]);
+    // 等重做开的那一轮说完再重做：不然撞上「有回合在进行」（施工 P-1 再补）。
+    home.until_turns(&session, 2).await;
     // 换附件：新的那张替掉原来的，话照原来的。
     let reply = client
         .call(
@@ -342,6 +346,7 @@ async fn attachments_go_along_or_are_replaced() {
         json!("再看看")
     );
     assert_eq!(widths(&home, &session, resent), [80]);
+    home.until_turns(&session, 3).await;
     // 不要附件：只剩话。
     let reply = client
         .call(

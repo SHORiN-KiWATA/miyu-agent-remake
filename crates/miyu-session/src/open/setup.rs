@@ -34,6 +34,8 @@ pub struct Create<'a> {
     pub persona: &'a str,
     /// 这个人格的字，几层叠好的（施工 P-1 上，`miyu_store::personas`）：造快照用。
     pub persona_texts: PersonaTexts,
+    /// 人格的几层（施工 P-1 再补）：回合开始时照它看人格的文件改了没有。
+    pub personas: Personas,
     /// 记忆归哪个账号（施工 P-1 上，`Personas::memory_account`）：回合库、记忆日志照它和人格开。
     pub memory_account: AccountId,
     /// 记忆的范围（施工 R-3 下，`memory.md`「范围」）：记进快照，以后照它。子会话不管交的是什么，一律 `off`。
@@ -95,8 +97,11 @@ pub struct Load<'a> {
     pub root: &'a DataRoot,
     /// 会话的属主。
     pub owner: AccountId,
-    /// 人格的几层（施工 P-1 上）：读出快照里的人格以后，照 [`Personas::memory_account`] 算记忆归哪个账号。
+    /// 人格的几层（施工 P-1 上）：读出快照里的人格以后，照 [`Personas::memory_account`] 算记忆归哪个账号；回合开始时照它
+    /// 看人格的文件改了没有（施工 P-1 再补）。
     pub personas: Personas,
+    /// 资源目录（施工 P-1 再补）：人格的文件改了，照它重拼快照。
+    pub resources: &'a ResourceRoot,
     /// 会话编号。
     pub id: SessionId,
     /// 会话所在的环境：时区、工作目录。

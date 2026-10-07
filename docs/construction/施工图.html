@@ -276,7 +276,7 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>229</b><span>/ 262 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>231</b><span>/ 263 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
     <li><b class="mono">b376721b</b><span>最近一步（8-3 <code>expect</code> 照数值比（再补））的提交</span></li>
   </ul>
@@ -640,7 +640,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sO-12b"><span class="n">O-12 下</span>整顿：结果和小处<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">O-13</span>核心：场所的格、事件和 events.append</span></li>
         <li><span class="step"><span class="n">O-14</span>核心：由桥开一轮</span></li>
-        <li><span class="step"><span class="n">O-15</span>出厂参数和按场所改</span></li>
+        <li><a class="step done" href="#sO-15a"><span class="n">O-15 上</span>出厂参数和按场所改<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">O-15 下</span>词表和名单</span></li>
         <li><span class="step"><span class="n">O-16</span>WebUI 的骨架和连接页（等浏览器验收）</span></li>
         <li><span class="step"><span class="n">O-17</span>WebUI 的主人与自己人页</span></li>
         <li><a class="step done" href="#sO-6"><span class="n">O-6</span>核心：斜杠命令由核心解析<span class="st">✓</span></a></li>
@@ -670,7 +671,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sP-1a"><span class="n">P-1</span>人格的文件和找法（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sP-1b"><span class="n">P-1</span>空人格、会话带上人格（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sP-1c"><span class="n">P-1</span>角色扮演提示（补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">P-1</span>改了人格下一回合换上（再补）</span></li>
+        <li><a class="step done" href="#sP-1d"><span class="n">P-1</span>改了人格下一回合换上（再补）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">P-2</span>预设</span></li>
         <li><span class="step"><span class="n">P-3</span>新建、改、删</span></li>
       </ol>
@@ -14425,6 +14426,60 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sP-1d" aria-labelledby="h-sP1d">
+  <div class="sheet-head"><h2 id="h-sP1d"><span class="no">P-1 再补</span>改了人格，下一个回合换上</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">主人改了 Miyu 的人设、示范对话或角色扮演提示，开着的会话下一轮就照新的说话，不用重开会话；前缀缓存在那一轮断一次（K3）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">改了人格，下一个回合换上</span><span class="dir-note">P-1 再补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>快照多一格 <code>persona_digest</code>：人格三份字的指纹</li>
+              <li>执行器每个回合开始重新找一遍人格、比指纹；改了的照造会话那一套重拼（<code>snapshot::build</code> 两边共用）</li>
+              <li>内核换上执行器放着的新策略，记一条内核的、带 <code>policy</code> 的 <code>session.policy_changed</code>；换上以后照新的再查一次角色扮演提示</li>
+              <li>载入照日志里最近换上的那一份快照；估用量的锚碰到换快照就整份估</li>
+              <li>以前造的、没有指纹的快照不换；程序升级过核心的字的不换；人格写错了、删了的照旧</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">K3</span><span class="rl">下一个回合开始时换，以事件记录</span></div>
+          <div class="tile new"><span class="nm">撤销不换回去</span><span class="rl">换快照不是对话的一部分，照换模型</span></div>
+          <div class="tile new"><span class="nm">只换人格那几格</span><span class="rl">别的格不一样就不换，免得两版字混用</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">P-1 再补</dd></div>
+        <div><dt>名称</dt><dd>改了人格，下一个回合换上</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">5a11374d</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 13/13、八项门禁、三台 CI 和长跑（run 1114）、真模型实测</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>改了人设下一轮 system 换成新的，新人格带的提示这一轮就有；没改的不再换</span></li>
+        <li><span class="ok">✓</span><span>写错了的照旧；重启以后照换上的那一份；以前造的快照、升级过的会话不换</span></li>
+        <li><span class="ok">✓</span><span>撤掉换快照那一轮不换回去</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/P-1-人格（再补）.md</code>；蓝图 <code>kernel/session.md</code>「换策略快照」、<code>kernel/events-bodies.md</code>、<code>session/actor.md</code>「换快照」、<code>policy.md</code>、<code>personas.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sR-2" aria-labelledby="h-sR2">
   <div class="sheet-head"><h2 id="h-sR2"><span class="no">R-2</span>回合索引（上）</h2><span class="pill done">已完成</span></div>
   <p class="purpose">新版的「日记」：主会话里人开的每一轮（人的话加她最后的回答）照会话日志派生成一条，放进这个人格的回合库，能按关键词找。不另存：撤销、恢复、删会话自动跟着走，自己造的回合进不来。</p>
@@ -14898,6 +14953,56 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/O-12-整顿群聊内核（下）.md</code>；蓝图 <code>chat.md</code> 第一到第六条；18 第七节。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sO-15a" aria-labelledby="h-sO15a">
+  <div class="sheet-head"><h2 id="h-sO15a"><span class="no">O-15 上</span>出厂参数和按场所改</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">群聊内核要的数有了出厂的一份数据，读进来照类型查；场所规则写同名的表，只改写了的几项。表的名字和每一项的类型只在群聊内核里声明一次。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">resources/software/onebot/defaults.toml</span><span class="dir-note">出厂</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>五张表 34 项：inbound、chatty、dispatch、judge、outbound</li>
+              <li>Params::read 读出厂的；有问题整份不用，是打包的错</li>
+              <li>规则里的表展开成 表.项，一项一项各自盖</li>
+              <li>参数类型只能经它造；判官的 model 不写，照 models.chat</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">出厂参数没有系统那一份</span><span class="rl">要改写场所规则，不写 match 就是所有场所</span></div>
+          <div class="tile new"><span class="nm">onebot.trusted 随 O-17</span><span class="rl">第一个用到它的那一步再声明</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-15 上</dd></div>
+        <div><dt>名称</dt><dd>出厂参数和按场所改</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">decce068</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>30 个新测试先红后绿，272 个全过；24 个手写变异全被逮住（两个是补了测试以后逮住的）；门禁八项全过；三台机器的 CI 和长跑全绿（run 1112）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-15-出厂参数和按场所改（上）.md</code>；蓝图 <code>chat.md</code> 第八条，第一到第七条参数那几格；18 第四节、第七节。</li>
       </ul>
     </div>
   </div>

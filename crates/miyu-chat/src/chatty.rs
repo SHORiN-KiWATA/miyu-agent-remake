@@ -6,8 +6,8 @@
 //! 照插件的形状写两个插槽（18 第十四节）：加值项 [`Bonus`]、门槛修正 [`Lift`]。自带五个加值项、一个门槛修正，每个一个
 //! 文件；现在没有往里加的入口，加的是扩展，随插件那一步。
 //!
-//! 纯逻辑：她最近回过谁（[`Reply`]）、此刻（[`Clock`]）、参数（[`Chatty`]），都由外面从场所会话的日志和出厂数据投影出来
-//! 交进来。抽样照哈希，不碰随机源（`02-内核.md` K1）：同一份日志回放出同样的结果。
+//! 纯逻辑：她最近回过谁（[`Reply`]）、此刻（[`Clock`]），由外面从场所会话的日志投影出来交进来；参数（[`Chatty`]）从
+//! `chat.md` 第八条的 [`Params`](crate::Params) 拿（施工 O-15）。抽样照哈希，不碰随机源（`02-内核.md` K1）：同一份日志回放出同样的结果。
 
 mod after_speaking;
 mod continuation;
@@ -60,50 +60,54 @@ pub struct Reply {
     pub to: Vec<ExternalId>,
 }
 
-/// 主动回复判断的参数：由外面交进来，代码里不写默认值（施工时定的第 5 条）。出厂的数随桥放进出厂数据，旧版的值见
-/// 18 第七节「旧版的默认值」。
+/// 主动回复判断的参数，代码里不写默认值（施工时定的第 5 条）：从 [`Params::chatty`](crate::Params::chatty) 拿，出厂的数
+/// 在出厂文件里（`chat.md` 第八条，旧版的值见 18 第七节「旧版的默认值」），场所规则能按场所改。
+///
+/// 格只在 crate 里可见，外面造不出：拿到的每一格都照第八条的声明查过，不会有半衰期是 0、`k` 是 0 这类算出 NaN 的值
+/// （自查第 14 条，施工 O-15）。
 #[derive(Debug, Clone, PartialEq)]
 pub struct Chatty {
     /// 抽样的千分比：`50` 是 5%，`0` 永不中，`1000` 及以上必中。
-    pub probability: u16,
+    pub(crate) probability: u16,
     /// 基础门槛：冷静抬高之前的门槛，旧版 `0.8`。
-    pub base: f64,
+    pub(crate) base: f64,
     /// 五维的权重，照相关、意愿、社交、时机、连贯的先后，和 [`Judgement::scores`] 一一对上。全是 0 的，`raw` 是 0。
-    pub weights: [f64; 5],
+    pub(crate) weights: [f64; 5],
     /// `should_reply` 的调整：是真加它，是假减它；`0` 就是关了。
-    pub adjust: f64,
+    pub(crate) adjust: f64,
     /// 冲她来的加分。
-    pub direct: f64,
+    pub(crate) direct: f64,
     /// 续聊的加分和窗口。
-    pub continuation: Window,
+    pub(crate) continuation: Window,
     /// 刚说过话的加分和窗口。
-    pub after_speaking: Window,
+    pub(crate) after_speaking: Window,
     /// 冷静的开关和曲线。
-    pub restraint: Restraint,
+    pub(crate) restraint: Restraint,
     /// 违规的门槛：判官给的严重程度不低于它，不管分数够不够都回。
-    pub severity_min: u8,
+    pub(crate) severity_min: u8,
 }
 
-/// 一个带窗口的加值项的参数。
+/// 一个带窗口的加值项的参数：[`Chatty`] 的一格，格只在 crate 里可见（施工 O-15）。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Window {
     /// 成立时加多少分。
-    pub bonus: f64,
+    pub(crate) bonus: f64,
     /// 窗口多少毫秒：离她最近一轮回复 `0 ≤ now − at < window` 才算（施工时定的第 2 条）。
-    pub window: i64,
+    pub(crate) window: i64,
 }
 
-/// 冷静的参数（「怎么走」第 10 条）：抬 `cap × p³ ÷ (p³ + k³)`。曲线只留开关，不上界面（18 第七节）。
+/// 冷静的参数（「怎么走」第 10 条）：抬 `cap × p³ ÷ (p³ + k³)`。曲线只留开关，不上界面（18 第七节）。[`Chatty`] 的一格，
+/// 格只在 crate 里可见：半衰期、`k` 不会是 0（施工 O-15）。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Restraint {
     /// 开没开：关着的不抬。
-    pub on: bool,
+    pub(crate) on: bool,
     /// 一轮回复的分量衰减一半要多少毫秒，出厂 3 分钟。
-    pub half_life: i64,
+    pub(crate) half_life: i64,
     /// 最多抬多少，出厂 `0.35`。
-    pub cap: f64,
+    pub(crate) cap: f64,
     /// 抬到一半时的近期发言量，出厂 `2.5`。
-    pub k: f64,
+    pub(crate) k: f64,
 }
 
 /// 触发条件的种类：每个加值项一种。

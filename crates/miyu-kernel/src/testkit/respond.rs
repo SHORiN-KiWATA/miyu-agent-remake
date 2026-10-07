@@ -34,11 +34,13 @@ impl Stage {
             }
             Action::RunTurnStartHooks { turn, model } => {
                 let replaced = self.routing.resolve(model);
+                let policy = self.swapped();
                 vec![Input::TurnStartHooksDone {
                     at: self.tick(),
                     turn,
                     injected: self.injections.pop_front().unwrap_or_default(),
                     replaced,
+                    policy,
                 }]
             }
             Action::CallModel { seen, request, .. } => self.call(seen, request),
