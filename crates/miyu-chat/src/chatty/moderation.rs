@@ -9,10 +9,6 @@ use super::{Bonus, BonusCtx, Hit, Kind};
 pub(super) struct Item;
 
 impl Bonus for Item {
-    fn name(&self) -> &str {
-        "moderation"
-    }
-
     fn judge(&self, ctx: &BonusCtx<'_>, _before: &[Hit]) -> Option<Hit> {
         ctx.flags.contains(&Flag::Moderation).then_some(Hit {
             kind: Kind::Moderation,

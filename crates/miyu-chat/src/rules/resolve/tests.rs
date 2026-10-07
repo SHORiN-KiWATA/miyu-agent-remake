@@ -21,11 +21,9 @@ fn matches(files: &[File], venue: &Venue) -> bool {
     value(files, venue, "allow").is_some()
 }
 
+/// 换到平台 `platform` 上的同一个场所。
 fn on(platform: &str, venue: Venue) -> Venue {
-    Venue {
-        platform: platform.to_string(),
-        ..venue
-    }
+    Venue::new(platform, venue.kind(), venue.number()).expect(platform)
 }
 
 #[test]

@@ -7,6 +7,7 @@
 //! 纯逻辑：此刻和时区（[`Clock`]）、她被禁言没有、最近开过哪些回合、限流提示过的时刻，都由外面交进来（[`Ctx`]），
 //! 这里不碰时钟和时区库（施工时定的第 6 条）。
 
+mod addressed;
 mod allow;
 mod base64;
 mod gate;
@@ -15,8 +16,10 @@ mod muted;
 mod rate;
 mod sleep;
 
+pub use addressed::addressed;
+pub use base64::Base64;
 pub use gate::{Gate, gate};
-pub use moderation::{Base64, Moderation};
+pub use moderation::Moderation;
 pub use rate::{Rate, rate_full};
 pub use sleep::Sleep;
 
@@ -40,12 +43,13 @@ pub enum Standing {
 /// 这几格，合成一份，两边都用它；只有一边用的格留在那一边（`chat.md` 第二条施工时定的第 11 条，施工 O-12）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Said {
-    /// 发的人：平台上的人的编号，例如 `qq:10002`（[`person`](crate::person) 拼）。自带的五条不看它，留给往链里加的规则；
-    /// 续聊、顶替拿它和她回过的人、还没回完的那一条比。
+    /// 发的人：平台上的人的编号，例如 `qq:10002`（[`person`](crate::person) 拼）。进站链自带的五条不看它；续聊、顶替拿它
+    /// 和她回过的人、还没回完的那一条比。
     pub sender: ExternalId,
     /// 发的人是谁。
     pub standing: Standing,
-    /// 是不是冲她来的：@ 她、回复她、叫到名字或触发词，由外面算好。限流满了只给冲她来的回一句；冲她来的加 `direct` 分。
+    /// 是不是冲她来的：私聊一律是，群里 @ 她、引用她的消息、以触发词开头（名字写在触发词里），由外面用 [`addressed()`]
+    /// 算好。限流满了只给冲她来的回一句；冲她来的加 `direct` 分。
     pub addressed: bool,
 }
 
@@ -141,11 +145,9 @@ pub struct Verdict {
 
 /// 进站链的插槽：一条规则。扩展往链里加规则也照它写（`18-通讯平台.md` 第十四节）。
 ///
-/// 规则只看交进来的，不碰 I/O、时钟：同样的消息、情形、此刻，给出同样的一步。
+/// 规则只看交进来的，不碰 I/O、时钟：同样的消息、情形、此刻，给出同样的一步。规则没有名字：自带的停下来，[`Why`]、
+/// [`Flag`] 已经说清是哪一条；插件要不要名字随插件那一步定（施工时定的第 14 条）。
 pub trait InboundRule {
-    /// 规则的名字，例如 `sleep`：说清是哪一条停下的、插的旗。
-    fn name(&self) -> &str;
-
     /// 看一条消息，给出一步。
     fn judge(&self, msg: &Inbound, ctx: &Ctx, clock: Clock) -> Step;
 }

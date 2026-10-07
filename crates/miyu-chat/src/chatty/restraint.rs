@@ -29,10 +29,6 @@ pub fn pressure(replies: &[Reply], clock: Clock, chatty: &Chatty) -> f64 {
 pub(super) struct Item;
 
 impl Lift for Item {
-    fn name(&self) -> &str {
-        "restraint"
-    }
-
     fn lift(&self, ctx: &LiftCtx<'_>) -> f64 {
         let restraint = ctx.chatty.restraint;
         let exempt = ctx.conditions.has(Kind::Direct) || ctx.judgement.to_bot;

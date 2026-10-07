@@ -1,12 +1,13 @@
 //! 加值项和走哪条路（`chat.md` 第三条「守着它的」）：每一种成立和不成立、几个同时成立加分相加、窗口两头、续聊只认最近
-//! 一轮回的人、@ 了别人和引用别人的不算续聊、只有表情的不算刚说过话、回谁是 `None` 的；抽样；主触发的先后；四条路。
+//! 一轮回的人、@ 了别人和引用别人的不算续聊、只有表情的不算刚说过话、回谁是 `None` 的；抽样；插槽的先后（比结果）；
+//! 主触发的先后；四条路。
 
 use miyu_kernel::id::VenueId;
 
 use crate::{Flag, Standing};
 
 use super::test_support::{OTHER, SECOND, SENDER, chatty, facts, hits, mills, now, reply, seq};
-use super::{Chatty, Conditions, Hit, Kind, Route, bonuses, conditions, lifts, route};
+use super::{Chatty, Conditions, Hit, Kind, Route, conditions, route};
 
 /// 成立了的种类，照插槽的先后。
 fn kinds(conditions: &Conditions) -> Vec<Kind> {
@@ -19,23 +20,28 @@ fn bonus(conditions: &Conditions) -> i64 {
 }
 
 #[test]
-fn builtin_slots_in_order() {
-    let names: Vec<_> = bonuses()
-        .iter()
-        .map(|bonus| bonus.name().to_string())
-        .collect();
+fn slots_keep_their_order() {
+    // 排先后比的是结果（第二条施工时定的第 14 条）。四样同时成立：照插槽的先后排，调换相邻的两个就红。
+    let mut msg = facts();
+    msg.said.addressed = true;
+    let replies = [reply(5 * SECOND, &[SENDER])];
+    let got = hits(&msg, &[Flag::Moderation], &replies, &chatty());
     assert_eq!(
-        names,
+        kinds(&got),
         [
-            "direct",
-            "continuation",
-            "after_speaking",
-            "moderation",
-            "probability"
+            Kind::Direct,
+            Kind::Continuation,
+            Kind::AfterSpeaking,
+            Kind::Moderation
         ]
     );
-    let names: Vec<_> = lifts().iter().map(|lift| lift.name().to_string()).collect();
-    assert_eq!(names, ["restraint"]);
+    // 抽样排最后、看得到前面的：违规旗成立了就不抽。排到违规旗前面，就会先抽中。
+    let always = Chatty {
+        probability: 1000,
+        ..chatty()
+    };
+    let got = hits(&facts(), &[Flag::Moderation], &[], &always);
+    assert_eq!(kinds(&got), [Kind::Moderation]);
 }
 
 #[test]

@@ -10,14 +10,15 @@ const MINUTE: i64 = 60_000;
 /// 一天的分钟数。
 const DAY: i64 = 24 * 60;
 
-/// 睡眠时间：从场所规则 `sleep` 的原文读（[`Sleep::read`]）。按场所会话的时区算，时区在 [`Clock::offset`]。
+/// 睡眠时间：只能从场所规则 `sleep` 的原文读（[`Sleep::read`]），格不公开：读出来的开始、结束都在一天里，不会相等
+/// （施工时定的第 13 条；相等的话回合闸会推迟到已经过去的时刻，桥空转一分钟）。按场所会话的时区算，时区在
+/// [`Clock::offset`]。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Sleep {
     /// 一天里的第几分钟开始睡，`0` 到 `1439`；这一分钟算睡着。
-    pub start: u16,
-    /// 一天里的第几分钟醒，`0` 到 `1439`；这一分钟算醒着。比 `start` 早的是跨午夜。不能等于 `start`：[`Sleep::read`]
-    /// 读出来的不会相等，自己造一个相等的算整天都睡着。
-    pub end: u16,
+    pub(crate) start: u16,
+    /// 一天里的第几分钟醒，`0` 到 `1439`；这一分钟算醒着。比 `start` 早的是跨午夜；不等于 `start`。
+    pub(crate) end: u16,
 }
 
 impl Sleep {
@@ -35,10 +36,6 @@ impl Sleep {
 pub(super) struct Rule;
 
 impl InboundRule for Rule {
-    fn name(&self) -> &str {
-        "sleep"
-    }
-
     fn judge(&self, msg: &Inbound, ctx: &Ctx, clock: Clock) -> Step {
         match wakes(ctx, clock).is_some() && !msg.excused() {
             true => Step::Stop(Outcome::RecordOnly(Why::Asleep)),

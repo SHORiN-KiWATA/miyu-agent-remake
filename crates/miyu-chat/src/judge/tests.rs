@@ -3,7 +3,7 @@
 //! 五维超出范围的、少一维的、不是数的、布尔少了的、`severity` 少了（两种模式各一）、`reason` 超长的、根本不是 JSON 的、空字。
 
 use super::test_support::{REASON_CHARS, ask, judge, texts};
-use super::{JudgeSources, JudgeTexts, Message, Mode, Role, Unreadable, read, request};
+use super::{JudgeMessage, JudgeRole, JudgeSources, JudgeTexts, Mode, Unreadable, read, request};
 use crate::chatty::test_support::chatty;
 use crate::{Chatty, Judgement};
 
@@ -26,11 +26,11 @@ fn violations(min: &str) -> String {
 
 #[test]
 fn one_system_then_one_user() {
-    let roles: Vec<Role> = request(&texts(), &ask(), &chatty())
+    let roles: Vec<JudgeRole> = request(&texts(), &ask(), &chatty())
         .iter()
         .map(|message| message.role)
         .collect();
-    assert_eq!(roles, [Role::System, Role::User]);
+    assert_eq!(roles, [JudgeRole::System, JudgeRole::User]);
 }
 
 #[test]
@@ -185,12 +185,12 @@ fn texts_come_from_what_is_handed_in() {
     assert_eq!(
         messages,
         [
-            Message {
-                role: Role::System,
+            JudgeMessage {
+                role: JudgeRole::System,
                 text: "S\nR\nV 7\nA\n".to_string(),
             },
-            Message {
-                role: Role::User,
+            JudgeMessage {
+                role: JudgeRole::User,
                 text: "<r>\n[1] 阿明: 晚上吃什么\n[2] 小红: 火锅？\n</r>\n<c>\n[3] 阿明: @Miyu 你想吃什么\n</c>\n"
                     .to_string(),
             },

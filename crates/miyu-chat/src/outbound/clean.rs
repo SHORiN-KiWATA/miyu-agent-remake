@@ -16,10 +16,6 @@ const LEAKS: [(&str, &str); 2] = [
 pub(super) struct Rule;
 
 impl OutboundRule for Rule {
-    fn name(&self) -> &str {
-        "clean"
-    }
-
     fn judge(&self, mut outgoing: Outgoing, target: Target, _ctx: &OutCtx) -> OutStep {
         let leaked = strip_leaks(&mut outgoing.text);
         let pictured = !outgoing.images.is_empty();

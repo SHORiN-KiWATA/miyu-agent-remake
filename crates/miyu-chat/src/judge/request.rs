@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use crate::Chatty;
 
-use super::{Ask, JudgeTexts, Message, Mode, Role};
+use super::{Ask, JudgeMessage, JudgeRole, JudgeTexts, Mode};
 
 /// 拼成 `model.call` 的 `messages`：一条 `system`、一条 `user`。
 ///
@@ -19,7 +19,7 @@ use super::{Ask, JudgeTexts, Message, Mode, Role};
 /// # Panics
 ///
 /// 不会：`violations` 换不换得出，[`JudgeTexts::new`] 造的时候已经试过；这里的 `expect` 只是那一步的证明。
-pub fn request(texts: &JudgeTexts, ask: &Ask, chatty: &Chatty) -> Vec<Message> {
+pub fn request(texts: &JudgeTexts, ask: &Ask, chatty: &Chatty) -> Vec<JudgeMessage> {
     let mut system = texts.system.clone();
     if let Some(persona) = &ask.persona {
         wrap(
@@ -62,12 +62,12 @@ pub fn request(texts: &JudgeTexts, ask: &Ask, chatty: &Chatty) -> Vec<Message> {
     }
 
     vec![
-        Message {
-            role: Role::System,
+        JudgeMessage {
+            role: JudgeRole::System,
             text: system,
         },
-        Message {
-            role: Role::User,
+        JudgeMessage {
+            role: JudgeRole::User,
             text: user,
         },
     ]

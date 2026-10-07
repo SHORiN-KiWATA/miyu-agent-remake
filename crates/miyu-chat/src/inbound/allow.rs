@@ -7,10 +7,6 @@ use super::{Clock, Ctx, Inbound, InboundRule, Outcome, Step, Why};
 pub(super) struct Rule;
 
 impl InboundRule for Rule {
-    fn name(&self) -> &str {
-        "allow"
-    }
-
     fn judge(&self, msg: &Inbound, ctx: &Ctx, _clock: Clock) -> Step {
         match ctx.allow == Some(false) && !msg.excused() {
             true => Step::Stop(Outcome::RecordOnly(Why::NotAllowed)),

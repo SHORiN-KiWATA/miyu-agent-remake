@@ -139,24 +139,26 @@ pub struct Ask {
     pub records: String,
     /// 这一条渲染好的样子。
     pub current: String,
-    /// 这一条里 base64 解出来的字（进站链解的）；没有是 `None`，那一段整个不出现。
+    /// 这一条里 base64 解出来的字：[`Base64::reveal`](crate::Base64::reveal) 解的，解得出来就给，不只是命中违规关键词的
+    /// 时候（`chat.md` 第二条施工时定的第 15 条）；没有是 `None`，那一段整个不出现。
     pub decoded: Option<String>,
     /// 打分还是只查违规。
     pub mode: Mode,
 }
 
-/// `model.call` 的一条消息（`docs/blueprint/protocol.md` 的 `messages`）：判官只用到字，不带图。
+/// `model.call` 的一条消息（`docs/blueprint/protocol.md` 的 `messages`）：判官只用到字，不带图。名字带 `Judge`，免得和内核的
+/// `request::Message` 撞（施工时定的第 10 条，O-12 下改名）。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Message {
+pub struct JudgeMessage {
     /// 谁说的。
-    pub role: Role,
+    pub role: JudgeRole,
     /// 这一条的字。
     pub text: String,
 }
 
-/// 一条消息的角色：判官的请求只有这两种。
+/// 一条消息的角色：判官的请求只有这两种。名字带 `Judge`，免得和内核的两个 `Role` 撞。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Role {
+pub enum JudgeRole {
     /// 协议上的 `system`。
     System,
     /// 协议上的 `user`。

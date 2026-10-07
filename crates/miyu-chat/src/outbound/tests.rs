@@ -5,17 +5,7 @@
 use super::test_support::{
     MENTION_AFTER, ctx, distinct, drop, image, judge, send, sent, text, with_images,
 };
-use super::{Out, OutChain, OutWhy, Target};
-
-#[test]
-fn builtin_has_three_rules_in_order() {
-    let names: Vec<_> = OutChain::builtin()
-        .rules
-        .iter()
-        .map(|rule| rule.name().to_string())
-        .collect();
-    assert_eq!(names, ["clean", "dedupe", "target"]);
-}
+use super::{Out, OutWhy, Target};
 
 #[test]
 fn plain_text_passes_untouched() {
@@ -27,7 +17,8 @@ fn plain_text_passes_untouched() {
 
 #[test]
 fn clean_runs_before_dedupe() {
-    // 漏了工具调用的、又和发过的一样：清理先丢。旁白也一样。
+    // 排先后比的是结果（第二条施工时定的第 14 条）。漏了工具调用的、又和发过的一样：清理先丢。旁白也一样。去重和引用、@
+    // 调换了结果一样（引用和 @ 不丢、不看正文，去重不改 `Target`），分不出来，不另写。
     let ctx = sent(&["<tool_call>x</tool_call>", "（笑）"]);
     assert_eq!(
         judge(text("<tool_call>x</tool_call>"), &ctx),
