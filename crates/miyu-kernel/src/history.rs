@@ -96,6 +96,11 @@ impl History {
         self.todos.current()
     }
 
+    /// 最近一次写是因为全部做完而清空的：做完的那一份（施工 D-3 补）。别的是空的。
+    pub fn todos_finished(&self) -> &[crate::event::Todo] {
+        self.todos.finished()
+    }
+
     /// 派出去过的任务照 `before` 那一份的（施工 7-2）：撤掉压缩时从读回的一段重建了有效历史，那一段以前派的只有原来那份
     /// 记着。
     pub fn jobs_from(&mut self, before: &History) {

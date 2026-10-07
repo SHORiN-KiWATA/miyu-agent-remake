@@ -22,6 +22,10 @@ use crate::jobs::Peek;
 
 /// 造子会话、给别的会话发命令。原因是英文的一句，执行器记进运行日志，不给她看。
 pub trait SessionPort: Send + Sync {
+    /// 会话 `session` 在会话列表里的那一项变了（施工 9-5，`protocol.md`「会话列表的推送」）：造了、改名置顶、一轮开始、
+    /// 空下来。只报「变了」，那一项由会话表照索引算。默认什么都不做。
+    fn listing(&self, _session: SessionId) {}
+
     /// 照 `child` 造一个子会话：`session.created` 落了盘、会话表里有了它才交回编号。
     fn create(&self, child: Child) -> Pending<'_, Result<SessionId, String>>;
 

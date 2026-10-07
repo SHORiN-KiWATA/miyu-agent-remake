@@ -242,3 +242,26 @@ fn an_unreadable_row_is_an_error_and_reset_empties_the_index() {
     index.reset().unwrap();
     assert!(index.rows().unwrap().is_empty());
 }
+
+fn said(seq: u64, blocks: &str) -> Event {
+    event(&format!(
+        r#"{{"seq":{seq},"at":"2026-09-25T09:00:00.000Z","kind":"message.user","by":{{"kind":"person","account":"alice"}},"cause":"c{seq}","body":{{"blocks":{blocks}}}}}"#
+    ))
+}
+
+/// 第一句话的第一行（施工 9-5）：跳过开头的空行、去掉前后空白、截到 50 个字；没有文字的不算，第二句盖不过第一句。
+#[test]
+fn the_preview_is_the_first_line_of_the_first_words() {
+    let mut row = Row::new(id(), &created()).unwrap();
+    assert_eq!(row.preview, "");
+    row.see(&said(2, r#"[{"type":"file","blob":"sha256:97f5f58cebf9e368ddcc668976ce5da07ceb80c7be52ac6d4edcf2ac8a639894","name":"a.pdf","media_type":"application/pdf"}]"#));
+    assert_eq!(row.preview, "", "只有附件的不算");
+    let long = "长".repeat(60);
+    row.see(&said(
+        3,
+        &format!(r#"[{{"type":"text","text":"\n  {long}  \n第二行"}}]"#),
+    ));
+    assert_eq!(row.preview, "长".repeat(50));
+    row.see(&said(4, r#"[{"type":"text","text":"后来的"}]"#));
+    assert_eq!(row.preview, "长".repeat(50), "第二句盖不过第一句");
+}

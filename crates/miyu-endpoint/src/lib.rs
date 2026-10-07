@@ -33,6 +33,7 @@ mod human;
 mod job_output;
 mod list;
 mod listen;
+mod listing;
 mod login;
 mod meta;
 mod methods;
@@ -129,6 +130,8 @@ pub struct Core {
     upload_idle: Duration,
     /// 身份（施工 W-8）：一次性码、登录失败的计数、作废登录令牌的广播。
     identity: login::Identity,
+    /// 会话列表的推送（施工 9-5）：排队算一项、广播给订阅着的连接。
+    listing: listing::Listing,
 }
 
 /// 空的模型资料：没有档案、没有目录，读完了。
@@ -190,6 +193,7 @@ impl Core {
             queries: Queries::default(),
             upload_idle: UPLOAD_IDLE,
             identity: login::Identity::new(login::CODE_TTL),
+            listing: listing::Listing::default(),
         }
     }
 

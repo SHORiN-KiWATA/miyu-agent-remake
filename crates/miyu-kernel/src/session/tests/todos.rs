@@ -18,8 +18,8 @@ fn list(items: &[(&str, TodoStatus)]) -> Vec<Todo> {
         .collect()
 }
 
-/// 调用 `call_id` 跑完了，换上 `todos`。
-fn wrote(call_id: CallId, todos: Vec<Todo>) -> Input {
+/// 调用 `call_id` 跑完了，换上 `written`。
+fn wrote(call_id: CallId, written: TodoWritten) -> Input {
     Input::ToolDone {
         at: at(50),
         call_id,
@@ -29,7 +29,7 @@ fn wrote(call_id: CallId, todos: Vec<Todo>) -> Input {
         })],
         duration_ms: Some(1),
         human: None,
-        effects: vec![Effect::TodoWritten(TodoWritten { todos })],
+        effects: vec![Effect::TodoWritten(written)],
         stopped: false,
     }
 }
@@ -48,17 +48,45 @@ fn changes(actions: &[Action]) -> Vec<Vec<Todo>> {
         .collect()
 }
 
+/// 推给头的 `todos.changed` 带的做完的清单（施工 D-3 补），照先后。
+fn dones(actions: &[Action]) -> Vec<Vec<Todo>> {
+    actions
+        .iter()
+        .filter_map(|action| match action {
+            Action::PushTransient(Transient {
+                body: TransientBody::TodosChanged(changed),
+                ..
+            }) => Some(changed.done.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
 /// 请求 `seen` 调一次 `todowrite`，换上 `todos`，都落了盘：交回这一路推的 `todos.changed` 和下一次请求的 `seen`。
 fn write(logged: &mut Logged, seen: u64, todos: Vec<Todo>) -> (Vec<Vec<Todo>>, u64) {
+    let (actions, seen) = written(
+        logged,
+        seen,
+        TodoWritten {
+            todos,
+            done: Vec::new(),
+        },
+    );
+    (changes(&actions), seen)
+}
+
+/// 同 [`write`]，换上的是 `written`，交回这一路推的动作。
+fn written(logged: &mut Logged, seen: u64, written: TodoWritten) -> (Vec<Action>, u64) {
     // 测试的策略里工具面只有常用的几件：工具名不要紧，内核只看效果。
     let actions = call_tools(&mut logged.session, seen, &[("write", "{}")]);
     logged.log.extend(appended_events(&actions));
     let actions = logged.allowing(stored(logged.last()));
     let call_id = ran(&actions)[0];
-    let mut pushed = changes(&logged.handle(wrote(call_id, todos)));
+    let mut pushed = logged.handle(wrote(call_id, written));
     let actions = logged.handle(stored(logged.last()));
-    pushed.extend(changes(&actions));
-    (pushed, calls(&actions).remove(0).0.get())
+    let seen = calls(&actions).remove(0).0.get();
+    pushed.extend(actions);
+    (pushed, seen)
 }
 
 /// 最近一条 `turn.started` 的序号：这一轮的编号。
@@ -152,9 +180,62 @@ fn a_list_not_yet_on_disk_is_not_pushed() {
     let ran = ran(&actions);
     logged.handle(done(ran[0], "read"));
     let first = logged.last();
-    logged.handle(wrote(ran[1], a.clone()));
+    logged.handle(wrote(
+        ran[1],
+        TodoWritten {
+            todos: a.clone(),
+            done: Vec::new(),
+        },
+    ));
     let actions = logged.handle(stored(first));
     assert!(changes(&actions).is_empty(), "换待办的那一条还没落盘");
     let actions = logged.handle(stored(logged.last()));
     assert_eq!(changes(&actions), std::slice::from_ref(&a));
+}
+
+/// 因为全部做完而清空的那一条带上做完的清单（施工 D-3 补）：头看得到最后一项打勾。撤销那一轮退回更早的一份，不带；恢复回来
+/// 又带。她写一份空的（不是因为做完）不带。
+#[test]
+fn clearing_because_all_is_done_carries_the_finished_list() {
+    let a = list(&[("一", TodoStatus::InProgress)]);
+    let finished = list(&[("一", TodoStatus::Completed)]);
+    let mut logged = Logged::new();
+    let seen = logged.ask(1, "第一轮");
+    let (_, seen) = write(&mut logged, seen, a.clone());
+    logged.say(seen, "好");
+    let seen = logged.ask(2, "第二轮");
+    let second = last_turn(&logged);
+    let (actions, seen) = written(
+        &mut logged,
+        seen,
+        TodoWritten {
+            todos: Vec::new(),
+            done: finished.clone(),
+        },
+    );
+    assert_eq!(changes(&actions), [Vec::<Todo>::new()]);
+    assert_eq!(dones(&actions), std::slice::from_ref(&finished));
+    logged.say(seen, "好");
+    logged.handle(revert(3, second));
+    let actions = logged.handle(stored(logged.last()));
+    assert_eq!(changes(&actions), std::slice::from_ref(&a));
+    assert_eq!(dones(&actions), [Vec::<Todo>::new()], "退回去的不带");
+    logged.handle(unrevert(4));
+    let actions = logged.handle(stored(logged.last()));
+    assert_eq!(
+        dones(&actions),
+        std::slice::from_ref(&finished),
+        "恢复回来又带"
+    );
+    let seen = logged.ask(5, "第三轮");
+    let (_, seen) = write(&mut logged, seen, a.clone());
+    let (actions, _) = written(
+        &mut logged,
+        seen,
+        TodoWritten {
+            todos: Vec::new(),
+            done: Vec::new(),
+        },
+    );
+    assert_eq!(dones(&actions), [Vec::<Todo>::new()], "写空的不带");
 }

@@ -42,7 +42,7 @@
 
 **结果**（给她看的）：还有没做完的 `Todo list updated: <做完几项> of <一共几项> done.`（`updated.txt`）；全部做完（连同空的）清空，`All todos are done. The list is cleared.`（`cleared.txt`）。不把清单原样回给她。
 
-**效果** `todo.written`：`{"todos": [{"content": …, "status": …}]}`，清空的是空列表（`kernel/events-bodies.md`）。头不翻效果，照 `subscribe` 的 `todos` 和推送的 `todos.changed`（`protocol.md`）。
+**效果** `todo.written`：`{"todos": [{"content": …, "status": …}]}`，清空的是空列表（`kernel/events-bodies.md`）。因为全部做完而清空的多一格 `done`：她这一次交的那一份（每一项都做完了）；她交了空的的不写（施工 D-3 补）。头不翻效果，照 `subscribe` 的 `todos` 和推送的 `todos.changed`（`protocol.md`）。
 
 ### 怎么走
 

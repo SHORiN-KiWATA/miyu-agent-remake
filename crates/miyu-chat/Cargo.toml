@@ -1,6 +1,6 @@
 [package]
 name = "miyu-chat"
-description = "群聊内核：通讯平台里和平台无关的那一层；现在有场所规则：读规则文件、套到一个场所上、说清哪里写错了（施工 O-1）；纯逻辑，不碰磁盘"
+description = "群聊内核：通讯平台里和平台无关的那一层；现在有场所规则（施工 O-1）和进站链与限流的判定（施工 O-5）；纯逻辑，不碰磁盘、时钟"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
