@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>236</b><span>/ 267 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>237</b><span>/ 267 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
-    <li><b class="mono">0535c945</b><span>最近一步（P-2 上 预设的文件、找法和造会话）的提交</span></li>
+    <li><b class="mono">61e466f3</b><span>最近一步（P-2 中 照预设挑工具面）的提交</span></li>
   </ul>
 </header>
 
@@ -642,7 +642,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sP-1c"><span class="n">P-1</span>角色扮演提示（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sP-1d"><span class="n">P-1</span>改了人格下一回合换上（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sP-2a"><span class="n">P-2 上</span>预设的文件、找法和造会话<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">P-2 中</span>照预设挑工具面</span></li>
+        <li><a class="step done" href="#sP-2b"><span class="n">P-2 中</span>照预设挑工具面<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">P-2 下</span>预设进配置、子代理选预设</span></li>
         <li><span class="step"><span class="n">P-3</span>新建、改、删</span></li>
       </ol>
@@ -14663,6 +14663,60 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/P-2-预设（上）.md</code>；蓝图 <code>presets.md</code>（新）、<code>protocol.md</code>、<code>config.md</code>、<code>personas.md</code>、<code>venues.md</code>、<code>cli/check.md</code>、<code>store/index.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sP-2b" aria-labelledby="h-sP2b">
+  <div class="sheet-head"><h2 id="h-sP2b"><span class="no">P-2 中</span>照预设挑工具面</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">预设真的管用：开发预设开出来的会话没有记忆的三件工具、不召回、没有角色扮演提示；在预设里关掉 shell 的，工具面上就没有它。装了、但这个预设没开的软件，她知道有、知道该换预设（Y8）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">照预设挑工具面</span><span class="dir-note">P-2 中</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>工具目录按包登记，记下每件工具归哪个包（基础系统、记忆）</li>
+              <li>工具面只有开着的包里、没被单独关掉的工具；记忆没开的范围一律 off</li>
+              <li>角色扮演算一个软件：没开的没有角色扮演提示和风格锁</li>
+              <li>装了没开的软件（角色扮演除外）写一行进 system，排在风格锁前面；都开着的一个字节不变</li>
+              <li>快照记预设；<code>preset.get</code> 多 <code>missing</code>：写了没装的</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">开不开记忆归预设</span><span class="rl">范围归开会话时（走查 E2）</span></div>
+          <div class="tile new"><span class="nm">那一行只陈述是什么</span><span class="rl">她自己会说换预设：真模型实测过</span></div>
+          <div class="tile new"><span class="nm">角色扮演不进那一行</span><span class="rl">它没有工具，列出来反倒像是不许演</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">P-2 中</dd></div>
+        <div><dt>名称</dt><dd>照预设挑工具面</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-08</dd></div>
+        <div><dt>提交</dt><dd class="mono">61e466f3</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 17/17、八项门禁、三台 CI 和长跑（run 1143）、真模型实测</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>开发预设没有记忆三件、范围 off，要了也没用；整包关掉的工具全没、写进那一行</span></li>
+        <li><span class="ok">✓</span><span>单件关掉的没有、不写那一行；角色扮演开着的有提示和风格锁、那一行在风格锁前面</span></li>
+        <li><span class="ok">✓</span><span>真模型：开发预设里让她记事，她说记忆在这个预设里关着、建议打开；功能全开的直接记</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/P-2-预设（中）.md</code>；蓝图 <code>presets.md</code>「照预设挑」、<code>policy.md</code>、<code>memory.md</code>、<code>personas.md</code>、<code>kernel/request.md</code>；登记簿 <code>core/preset-off.txt</code>。</li>
       </ul>
     </div>
   </div>
