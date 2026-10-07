@@ -598,6 +598,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sO-3"><span class="n">O-3</span>核心：外部身份和场所会话<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">O-4</span>核心：系统账号</span></li>
         <li><a class="step done" href="#sO-5"><span class="n">O-5</span>进站链与限流的判定<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sO-7"><span class="n">O-7</span>加值项、算分与冷静<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">O-6</span>核心：斜杠命令由核心解析</span></li>
       </ol>
     </li>
@@ -13984,6 +13985,57 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sO-7" aria-labelledby="h-sO7">
+  <div class="sheet-head"><h2 id="h-sO7"><span class="no">O-7</span>加值项、算分与冷静</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">主动回复判断的上半：一条消息成立了哪些触发条件、走哪条路，拿到判官的回答以后算分、跟门槛比；冷静机制抬门槛。两个插槽：加值项、门槛修正。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-chat/src/chatty</span><span class="dir-note">O-7</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>加值项：冲她来 +0.3、续聊 +0.1（15 秒，@ 了别人不算）、刚说过话 +0.1（30 秒）、违规旗、抽样；同时成立加分相加</li>
+              <li>抽样照「场所编号、换行、消息编号」的 SHA-256，回放出同样的结果</li>
+              <li>走哪条路：只记下、主人 @ 直接回、只查违规、交给判官</li>
+              <li>算分照 18 第七节；冷静 0.35·p³/(p³+2.5³)，冲她来或在跟她说话时不抬</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">别的条件都不成立才抽样</span><span class="rl">成立时反正交给判官</span></div>
+          <div class="tile new"><span class="nm">冷静数轮不数段</span><span class="rl">一轮拆几段发也只算一笔</span></div>
+          <div class="tile new"><span class="nm">参数从外面交进来</span><span class="rl">出厂的数随桥放进出厂数据</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-7</dd></div>
+        <div><dt>名称</dt><dd>加值项、算分与冷静</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">7c1f7a49</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试先写（32 个，只有骨架时 28 个红）；18 第七节的两个例子、冷静曲线都写成测试；23 个手写变异全逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 1013）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-7-加值项、算分与冷静.md</code>；蓝图 <code>chat.md</code> 第三条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -14161,6 +14213,7 @@ const TREE = {
 /* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
 const BUILD = {
   n_mem: { by: 'R-1', how: 'frame', note: '检索的底子（R-1）：miyu-recall 把中文、日文两两切成词，检索库是 SQLite 的 FTS5，照 bm25 找，坏了删掉重建。回合索引、记下的记忆、摘要、联想、向量随 R-2 起' },
+  n_ld: { by: 'O-7', how: 'frame', note: '主动回复判断的上半（O-7）：加值项（冲她来、续聊、刚说过话、违规旗、抽样）、走哪条路、算分、冷静。判官的请求、顶替和分派随后面几步' },
   n_inchain: { by: 'O-5', how: 'frame', note: '进站链与限流（O-5）：插槽和自带五条（睡眠、禁言、谁能叫她、违规关键词、限流），一回满了提示一次；回合闸的回答。从日志投影状态、出厂词表随桥那几步' },
   n_rules: { by: 'O-1', how: 'frame', note: '场所规则（O-1）：miyu-chat 读 venues.d，出厂和系统的照文件名排、同名的系统替换出厂的；匹配 platform、kind、group、user，写错整条不用；属性照 18 第四节，写错只丢一项；每一项记下来处。读磁盘、venue show 随桥那几步' },
   g_kernel: { by: '0-1', how: 'frame' },
