@@ -94,6 +94,8 @@ pub(crate) struct Listed {
     pub(crate) venue: String,
     /// 人格（施工 P-1 下）：以前的日志没有的是空的。
     pub(crate) persona: Option<String>,
+    /// 预设（施工 P-2 上）：以前的日志没有的是空的。
+    pub(crate) preset: Option<String>,
 }
 
 impl Listed {
@@ -111,6 +113,7 @@ impl Listed {
             preview: row.preview,
             venue: row.venue,
             persona: row.persona,
+            preset: row.preset,
         }
     }
 
@@ -137,6 +140,9 @@ impl Listed {
         }
         if let Some(persona) = &self.persona {
             item["persona"] = json!(persona);
+        }
+        if let Some(preset) = &self.preset {
+            item["preset"] = json!(preset);
         }
         item
     }

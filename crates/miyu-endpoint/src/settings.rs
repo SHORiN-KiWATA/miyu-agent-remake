@@ -40,6 +40,20 @@ miyu_config::settings! {
 }
 
 miyu_config::settings! {
+    /// 预设的配置（施工 P-2 上，`docs/blueprint/presets.md`）。
+    pub struct PresetSettings in "preset" {
+        /// 新会话默认用哪个预设：预设文件的编号。开会话时指定的、通讯平台的桥照场所规则交来的优先。指着没有的不悄悄换
+        /// （Y12）。
+        default: String = "full" {
+            kind: name,
+            layers: [System, Personal],
+            applies: new_session,
+            ui: { page: "general", group: "preset", control: text },
+        },
+    }
+}
+
+miyu_config::settings! {
     /// 权限的配置（施工 8-2）。
     pub struct PermissionSettings in "permission" {
         /// 新会话一开局就是只读：她只能查、写计划。项目配置只能把它打开。

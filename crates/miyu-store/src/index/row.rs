@@ -42,6 +42,8 @@ pub struct Row {
     pub venue: String,
     /// 人格（施工 P-1 下）：`session.created` 的 `persona`。以前的日志没有的是空的。
     pub persona: Option<String>,
+    /// 预设（施工 P-2 上）：`session.created` 的 `preset`。以前的日志没有的是空的。
+    pub preset: Option<String>,
 }
 
 /// `preview` 最多几个字（按 Unicode 的字数）。
@@ -72,6 +74,7 @@ impl Row {
             preview: String::new(),
             venue: created.venue.as_str().to_string(),
             persona: created.persona.clone(),
+            preset: created.preset.clone(),
         })
     }
 
@@ -127,11 +130,12 @@ impl Row {
             preview: row.get(12)?,
             venue: row.get(13)?,
             persona: row.get(14)?,
+            preset: row.get(15)?,
         })
     }
 
     /// 写进表里的几格，先后照 [`super::COLUMNS`]。数字超过 SQLite 的整数（`i64`）的报错：一段不会有那么长。
-    pub(super) fn to_sql(&self) -> Result<[rusqlite::types::Value; 15], IndexError> {
+    pub(super) fn to_sql(&self) -> Result<[rusqlite::types::Value; 16], IndexError> {
         use rusqlite::types::Value;
         let number = |n: u64| {
             i64::try_from(n)
@@ -156,6 +160,7 @@ impl Row {
             text(&self.preview),
             text(&self.venue),
             optional(self.persona.as_deref()),
+            optional(self.preset.as_deref()),
         ])
     }
 }

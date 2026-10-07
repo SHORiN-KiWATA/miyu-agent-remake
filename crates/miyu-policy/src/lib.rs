@@ -20,6 +20,7 @@ pub mod memory;
 mod pause;
 mod peers;
 pub mod persona;
+pub mod preset;
 mod rebuild;
 mod recap;
 mod shorten;

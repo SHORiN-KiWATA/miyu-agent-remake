@@ -138,6 +138,7 @@
 | `session.clear` | 清空上下文：单开一轮压成一个空的检查点，不请求模型（施工 6-8 补） |
 | `session.recap` | 要一句回顾：这个会话在做什么、做完了什么、卡在哪（施工 3-8 四补） |
 | `persona.list`、`persona.get` | 列出人格、读一个人格叠好的样子（施工 P-1 上，`personas.md`） |
+| `preset.list`、`preset.get` | 列出预设、读一个预设叠好的样子（施工 P-2 上，`presets.md`） |
 | `package.list` | 列出起来时读到的软件包清单（施工 9-1 上，`packages.md`） |
 | `check` | 查人手写的文件：配置、密钥文件、人格，照磁盘上现在的字（施工 8-30，`cli/check.md`） |
 | `command.run` | 执行一条斜杠命令：头把人打的原文交过来，核心认、判谁能用、执行（施工 O-6） |
@@ -182,7 +183,8 @@
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| `persona` | 字符串，可以不写 | 照哪个人格造；不写的照这时的 `persona.default`（施工 P-1 上，`personas.md`），都没写是出厂的 `engineer` |
+| `persona` | 字符串，可以不写 | 照哪个人格造；不写的照预设的 `default_persona`（施工 P-2 上），预设没写的照这时的 `persona.default`（施工 P-1 上，`personas.md`），都没写是出厂的 `engineer` |
+| `preset` | 字符串，可以不写 | 照哪个预设造（施工 P-2 上，`presets.md`）：不写、写 `null` 的照这时的 `preset.default`，都没写是出厂的 `full`。记进 `session.created` 的 `preset`，以后不改 |
 | `cwd` | 字符串，必写 | 头的工作目录，人看到的那种写法，例如 `~/src/miyu` |
 | `oneshot` | 布尔，不写是 `false` | 一次性的：`miyu ask` 开的写 `true`，记进 `session.created` |
 | `dirs` | 字符串的数组，可以不写 | 加进来的目录：和工作区一样能读能写（「加进来的目录」（施工 5-10 上））。不写是没有 |
@@ -196,7 +198,7 @@
 3. `session.created` 落了盘才回应。
 4. 同一个命令编号再发：记着最近 1024 个造会话的编号，是其中之一的，交回上一次造的那一个，不再造；`cwd` 照这一次报的算。核心重启以后，第一次造会话时，从最新的 1024 个会话的 `session.created` 里把编号补回来（它的 `cause` 就是造会话的命令编号，施工 4-9 再补三上），在阻塞线程里读。
 5. `memory` 不是这三种字符串之一（大小写也算）：`bad_params`，什么都不造（施工 R-3 下）。`model` 不是字符串：`bad_params`。解析不出（写法不对、没有这家供应商、没有这个池、池里一个成员都认不出）：`unknown_model`，什么都不造（施工 8-8，`models.md`「协议」）。先解析再找同一个命令编号造过的。
-6. 人格的编号不合写法（小写英文字母开头，只有小写字母、数字、`-`、`_`，最长 64 字节）：`bad_params`。三层（出厂、系统区、管理员家目录，`personas.md`）都没有这个人格：`unknown_persona`，默认人格指着没有的也一样，不悄悄换。人格的文件写错了：`persona_invalid`，`data.problem` 写明哪一层、哪个文件第几行（施工 P-1 上）。人格的文件、随核心附带的 `core/` 下的字读不了（安装坏了）：`internal_error`（施工 4-9 再补三上）。别的造不成（策略造不出来、磁盘上建不成、`session.created` 没落盘）：`internal_error`，原因记进运行日志。
+6. 人格的编号不合写法（小写英文字母开头，只有小写字母、数字、`-`、`_`，最长 64 字节）：`bad_params`。三层（出厂、系统区、管理员家目录，`personas.md`）都没有这个人格：`unknown_persona`，默认人格指着没有的也一样，不悄悄换。人格的文件写错了：`persona_invalid`，`data.problem` 写明哪一层、哪个文件第几行（施工 P-1 上）。预设照同样的规矩，先于人格找（施工 P-2 上，`presets.md`）：编号不合写法 `bad_params`，三层都没有（默认预设指着没有的也一样，Y12）`unknown_preset`，文件写错 `preset_invalid`（`data.problem` 写明哪一层、哪个文件第几行），都不造。人格的文件、随核心附带的 `core/` 下的字读不了（安装坏了）：`internal_error`（施工 4-9 再补三上）。别的造不成（策略造不出来、磁盘上建不成、`session.created` 没落盘）：`internal_error`，原因记进运行日志。
 
 **`session.list`**
 
@@ -205,7 +207,7 @@
 | `oneshot` | 布尔，不写是 `false` | `true` 只要一次性的 |
 | `limit` | 非负整数，可以不写 | 最多几个；不写是全部，`0` 是一个都不要 |
 
-回应：`{"sessions":[{"busy":true,"cwd":"<工作目录>","last_active":"<时刻>","oneshot":<布尔>,"parent":<编号或 null>,"pinned":true,"session":"<编号>","title":"<标题>"}, …]}`。没有标题、说过话的多一格 `preview`：第一句话的第一行，最多 50 个字，有标题就不带（施工 9-5，网页的侧边栏照它显示没起名的会话，`store/index.md`「一行记什么」）。`parent` 是子会话的父会话，主会话写 `null`（施工 7-5，`agents.md`）。`title`、`pinned` 照日志里的 `session.meta_changed` 算（施工 3-8 三补）：有标题的才写 `title`，置顶的才写 `pinned`（写 `true`），没有的不写。`cwd`、`last_active` 总有，`busy` 忙的才写（写 `true`）（施工 C-3，`cross-session.md`）。`persona` 是会话用哪个人格（施工 P-1 下，`session.created` 的那一格），以前的日志没有的不写；会话列表的推送 `sessions.changed` 的一项同样带它：
+回应：`{"sessions":[{"busy":true,"cwd":"<工作目录>","last_active":"<时刻>","oneshot":<布尔>,"parent":<编号或 null>,"pinned":true,"session":"<编号>","title":"<标题>"}, …]}`。没有标题、说过话的多一格 `preview`：第一句话的第一行，最多 50 个字，有标题就不带（施工 9-5，网页的侧边栏照它显示没起名的会话，`store/index.md`「一行记什么」）。`parent` 是子会话的父会话，主会话写 `null`（施工 7-5，`agents.md`）。`title`、`pinned` 照日志里的 `session.meta_changed` 算（施工 3-8 三补）：有标题的才写 `title`，置顶的才写 `pinned`（写 `true`），没有的不写。`cwd`、`last_active` 总有，`busy` 忙的才写（写 `true`）（施工 C-3，`cross-session.md`）。`persona` 是会话用哪个人格（施工 P-1 下，`session.created` 的那一格），`preset` 是用哪个预设（施工 P-2 上，同样照 `session.created`），以前的日志没有的不写；会话列表的推送 `sessions.changed` 的一项同样带它：
 
 ```json
 {"busy":true,"cwd":"~/src/miyu","last_active":"2026-10-01T06:03:12.345Z","oneshot":false,"parent":null,"session":"0192f3a0-2222-7abc-8def-5566778899aa","title":"修 CI"}
@@ -477,15 +479,28 @@
 | `cwd` | 字符串，可以不写 | 头现在的工作目录：照它找项目配置，相对的 `file` 照它接 |
 | `file` | 字符串，可以不写 | 只查这一份 |
 
-回应 `{"problems": [...]}`，一处一格：`kind`（`config`、`secrets`、`persona`）、`file`（照 `config.get` 的写法：数据根里的相对数据根，项目配置 `~/…`，出厂的人格写真的路径）、`code`、`level`（`error`、`warning`）、`message`（照这个连接的语言，带改法）；有行列的带 `line`、`column`（人格的只有 `line`），配置的另带 `key`、`got`、`suggest`、`using`，和 `config.get` 的问题一样。
+回应 `{"problems": [...]}`，一处一格：`kind`（`config`、`secrets`、`persona`、`preset`（施工 P-2 上）、`package`（施工 9-1 上））、`file`（照 `config.get` 的写法：数据根里的相对数据根，项目配置 `~/…`，出厂的人格写真的路径）、`code`、`level`（`error`、`warning`）、`message`（照这个连接的语言，带改法）；有行列的带 `line`、`column`（人格的只有 `line`），配置的另带 `key`、`got`、`suggest`、`using`，和 `config.get` 的问题一样。
 
-1. 不写 `file`：系统配置、管理员的个人设置、`cwd` 的项目配置（没写 `cwd` 的不查）照磁盘上现在的字查（还没有的跳过，读不了的报 `unreadable`、`too_big`、`not_utf8`）；密钥文件照核心手里的问题（字是密钥，不另读）；三层里每个人格的 `persona.toml`、`prompts/examples.md` 各层各查各的，上面一层盖住了照样报。照这个先后：配置、密钥、人格（层、路径）。
-2. 写了 `file`：照它的真实位置认是哪一种、只查那一份；某个目录下的 `.miyu/config.toml` 当项目配置查（不在 `cwd` 下面也行）；人格目录里写了文件、文件还没有的报 `unreadable`。认不出的：`unknown_file`。
+1. 不写 `file`：系统配置、管理员的个人设置、`cwd` 的项目配置（没写 `cwd` 的不查）照磁盘上现在的字查（还没有的跳过，读不了的报 `unreadable`、`too_big`、`not_utf8`）；密钥文件照核心手里的问题（字是密钥，不另读）；三层里每个人格的 `persona.toml`、`prompts/examples.md`、每一份预设（施工 P-2 上）各层各查各的，上面一层盖住了照样报；软件包清单（施工 9-1 上）。照这个先后：配置、密钥、人格（层、路径）、预设（层、路径）、清单。
+2. 写了 `file`：照它的真实位置认是哪一种、只查那一份；某个目录下的 `.miyu/config.toml` 当项目配置查（不在 `cwd` 下面也行）；人格目录里写了文件、某一层 `presets/` 下的 `<编号>.toml`（施工 P-2 上），文件还没有的报 `unreadable`。认不出的：`unknown_file`。
 3. 人格的代码：`syntax`、`unknown_table`、`not_a_table`、`unknown_key`、`not_phrases`、`unknown_language`、`empty_phrase`、`first_line`、`take_turns`、`last_line`、`empty_line`；给人看的那一句在 `core/human/<语言>.json` 的 `persona-problems/<code>`，照 `detail`（表名、键、`persona.<格>.<语言>`，读不成 TOML 的是它的原话）填。
+4. 预设的代码（施工 P-2 上）：`syntax`、`unknown_table`、`not_a_table`、`unknown_key`、`not_phrases`、`unknown_language`、`empty_phrase`、`bad_persona`、`bad_unlisted`、`bad_software`、`not_bool`、`bad_tool`、`not_false`；给人看的那一句在 `preset-problems/<code>`，照 `detail`（表名、`<表>.<键>`、`preset.<格>.<语言>`）填。
 
 **`persona.list`**（施工 P-1 上，`personas.md`「怎么走」第 7 条）
 
 没有参数。回应 `{"personas": [...]}`，照编号排，一个人格一格：`persona` 编号，`name`、`summary` 照这个连接的语言挑的一句（这种语言没写的照 `en`、`zh`、`ja` 的先后，都没写的是 `null`），`layers` 来自哪几层（`shipped`、`system`、`home`，从下往上）。文件写错的只有 `persona` 和 `problem`（同 `persona_invalid` 的 `data.problem`）。
+
+**`preset.list`**（施工 P-2 上，`presets.md`「协议」）
+
+没有参数。回应 `{"presets": [...]}`，照编号排，一个预设一格：`preset` 编号，`name`、`summary` 照这个连接的语言挑的一句（挑法同 `persona.list`），`layers` 来自哪几层（`shipped`、`system`、`home`，从下往上）。文件写错的只有 `preset` 和 `problem`（同 `preset_invalid` 的 `data.problem`）。
+
+**`preset.get`**（施工 P-2 上，`presets.md`「协议」）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `preset` | 字符串，必写 | 预设的编号 |
+
+回应 `{"preset", "name", "summary", "layers", "default_persona", "unlisted", "software", "tools"}`：`name`、`summary` 是语言到一句话的对象，原样给；`default_persona` 没写的是 `null`；`unlisted` 是叠好以后的 `on`、`off`（几层都没写的是 `on`）；`software` 是软件包的编号到 `true`、`false`；`tools` 是关掉的单件工具，值都是 `false`。编号不合写法的 `bad_params`，没有的 `unknown_preset`，写错的 `preset_invalid`。
 
 **`package.list`**（施工 9-1 上，`packages.md`「协议」）
 
@@ -687,7 +702,7 @@
 | `stream` | 字符串，必写 | `events` 会话的事件流；`config` 配置的推送（施工 8-4，`config.md`「订阅配置的推送」）；`sessions` 会话列表的推送（施工 9-5，下面「会话列表的推送」）。别的 `bad_params` |
 | `after` | 非负整数，可以不写 | 只有 `subscribe` 的 `events` 认（施工 3-8 六补，`config`、`sessions` 写了 `bad_params`）：先补发日志里序号大于它、落了盘的事件，`0` 是从头。见下面「补发」 |
 
-回应：`config` 的都是 `{}`；`sessions` 的 `subscribe` 是 `{"sessions": [<一项>, …]}`，`unsubscribe` 是 `{}`（施工 9-5）。`subscribe` 的是 `{"limits": <限额>, "model": <模型>}`，写了 `after` 的多一格 `upto`（补到哪一条）：`{"limits": <限额>, "model": <模型>, "upto": <序号>}`。当前的待办不空的多一格 `todos`（施工 D-3，照 `todo.written` 的写法）；会话用哪个人格写在 `persona`（施工 P-1 下，照日志第一条 `session.created` 读，以前的日志没有的不写）；之后变了照推送的瞬时事件 `todos.changed`，头只认这两样，不自己翻效果。`unsubscribe` 的是空对象 `{}`。
+回应：`config` 的都是 `{}`；`sessions` 的 `subscribe` 是 `{"sessions": [<一项>, …]}`，`unsubscribe` 是 `{}`（施工 9-5）。`subscribe` 的是 `{"limits": <限额>, "model": <模型>}`，写了 `after` 的多一格 `upto`（补到哪一条）：`{"limits": <限额>, "model": <模型>, "upto": <序号>}`。当前的待办不空的多一格 `todos`（施工 D-3，照 `todo.written` 的写法）；会话用哪个人格写在 `persona`（施工 P-1 下）、哪个预设写在 `preset`（施工 P-2 上），都照日志第一条 `session.created` 读，以前的日志没有的不写；之后变了照推送的瞬时事件 `todos.changed`，头只认这两样，不自己翻效果。`unsubscribe` 的是空对象 `{}`。
 
 **模型** `model`（施工 8-10，`models.md`「协议」）：会话接下来请求的。`ref` 是会话的引用（模型或 `@池`），`endpoint`、`model` 是接下来发给哪一家的哪个模型；轮换的池（每次都换）、解析不出的没有 `endpoint`、`model`，没配 `models.chat` 的会话没有 `ref`。一个都没有的不写这一格。回合开始重新解析过的、出错换了成员的是换了以后的。施工 8-18 多一格 `effort`：`{"level": <一档>, "from": "system" 或 "personal"}`，接下来那个模型真用的思考强度和从配置的哪一层来（8-18（补）起不再有 `session`）；请求里什么都不带的、轮换的池不写。
 
@@ -831,6 +846,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `bad_code`、`bad_login`、`bad_password`、`login_throttled`、`setup_first`、`local_only` | -32010 | 网页登录的几种（施工 W-8，`web-module.md`「出错」） |
 | `unknown_persona` | -32010 | 造会话、`persona.get` 时三层都没有这个人格（施工 P-1 上起三层，`personas.md`） |
 | `persona_invalid` | -32010 | 人格的文件写错了；`data.problem` 写明哪一层、哪个文件第几行（施工 P-1 上） |
+| `unknown_preset` | -32010 | 造会话、`preset.get` 时三层都没有这个预设，默认预设指着没有的也一样（施工 P-2 上，`presets.md`） |
+| `preset_invalid` | -32010 | 预设的文件写错了；`data.problem` 写明哪一层、哪个文件第几行（施工 P-2 上） |
 | `unknown_file` | -32010 | `check` 写的文件不是 Miyu 读的那几种（施工 8-30） |
 | `session_not_found` | -32010 | 没有这个会话，删了的也是 |
 | `no_system_account` | -32010 | 场所会话的属主该是系统账号，还没有（施工 O-3；系统账号随 O-4） |
@@ -959,7 +976,9 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `bad_code` 到 `local_only` | 照 `web-module.md`「给人看的字」（施工 W-8） | |
 | `unknown_persona` | 没有这个人格。 | There is no such persona. |
 | `persona_invalid` | 这个人格的文件写错了，详情在 data.problem 里。 | This persona's files have a mistake; data.problem says where. |
-| `unknown_file` | Miyu 不读这个文件：能查的是配置、密钥文件和人格目录里的 persona.toml、prompts/examples.md。 | Miyu does not read this file: it checks the config, the secrets file, and persona.toml and prompts/examples.md in persona directories. |
+| `unknown_preset` | 没有这个预设。 | There is no such preset. |
+| `preset_invalid` | 这个预设的文件写错了，详情在 data.problem 里。 | This preset's file has a mistake; data.problem says where. |
+| `unknown_file` | Miyu 不读这个文件：能查的是配置、密钥文件、人格目录里的 persona.toml 和 prompts/examples.md、预设、软件包清单。 | Miyu does not read this file: it checks the config, the secrets file, persona.toml and prompts/examples.md in persona directories, presets and package manifests. |
 | `session_not_found` | 没有这个会话。 | There is no such session. |
 | `no_system_account` | 这个场所的会话要归系统账号，还没有装好系统账号。 | This venue's session belongs to a system account, which is not set up yet. |
 | `venue_session` | 这是通讯平台的场所会话，本机的头不能直接说话。 | This is a chat platform venue session; local heads cannot talk in it directly. |
@@ -1025,6 +1044,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/restart.rs` | 核心重启以后：不带 `cwd` 载入的会话照最后一轮的工作目录、没开过回合的照造会话时的；重发的造会话交回原来那一个 |
 | `crates/miyu-endpoint/tests/check.rs`（施工 8-30） | `check`：不写文件的照磁盘上现在的字查配置、照核心手里的查密钥、人格每一层各查各的，先后、代码、级别、行对，给人看的那一句照连接的语言；写了文件的照位置认、只查那一份，项目配置照 `.miyu/config.toml` 认、相对的照 `cwd` 接，还没有的人格文件读不了，认不出的 `unknown_file`，多写格的参数不对 |
 | `crates/miyu-endpoint/tests/personas.rs`（施工 P-1 上） | 家目录里的人格进 system、示范对话排在前面；不写人格照默认、个人设置压着系统配置；没有的、编号不对的、写错的拒绝，默认人格指着没有的也拒；`venue.session` 带人格造、找回时不看；`persona.list`、`persona.get` |
+| `crates/miyu-endpoint/tests/presets.rs`（施工 P-2 上） | 不写预设照默认、个人设置压着系统配置、指定的压着默认；人格照「指定、预设的默认人格、`persona.default`」；没有的、编号不对的、写错的拒绝、什么都不造，默认预设指着没有的也拒；会话列表、`subscribe` 写 `preset`，以前的日志不写；`venue.session` 带预设造、找回时不看；`preset.list`、`preset.get`；`check` 查预设 |
 | `crates/miyu-endpoint/tests/edges.rs` | 不握手的到时断开、握手了的不受管；数组的 `params` 参数不对；握手被拒照它报的语言说；人格目录不存在是 `unknown_persona`、目录在而读不了是 `internal_error` |
 | `crates/miyu-endpoint/tests/list.rs` | 从新到旧、只要一次性的、`limit`、参数不对、空的；每一项带 `cwd`、合写法的 `last_active`，闲着的不写 `busy`（施工 C-3） |
 | `crates/miyu-endpoint/src/list/tests/indexed.rs`、`tests/index.rs`、`tests/index_log.rs`（施工 3-8 七补） | 读索引的和整份读的一字不差；补上、重读、重建；索引那一行跟着会话走、删会话删行；几行运行日志（`store/index.md`「守着它的」） |

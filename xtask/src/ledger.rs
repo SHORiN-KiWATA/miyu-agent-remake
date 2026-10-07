@@ -39,6 +39,9 @@ const WEB: &str = "web";
 /// 资源目录最上一层的这个目录放软件包清单（施工 9-1 上，`packages.md`）：给人看的名字、说明和程序名，不发给模型，不登记。
 const PACKAGES: &str = "packages";
 
+/// 资源目录最上一层的这个目录放出厂的预设（施工 P-2 上，`presets.md`）：给人看的名字、说明和开关表，不发给模型，不登记。
+const PRESETS: &str = "presets";
+
 /// `software/mermaid/`、`software/net/` 整个是数据（字体、三种记号色、源码的上限；抓链接卡片的时限、上限、请求头），
 /// 不发给模型，不登记（施工 W-4，`mermaid.md`「样子」：「这条线不加给模型看的字」；施工 W-7，`net.md`）。
 const SOFTWARE_DIR: &str = "software/";
@@ -105,7 +108,8 @@ fn walk(dir: &Path, prefix: &str, files: &mut BTreeMap<String, Vec<u8>>) -> Resu
             // 给人看的字、模型资料、mermaid 的 style.json、net 的 link_preview.json、网页软件的都不发给模型，不进登记簿
             // （26 第十节，施工 4-5 上、6-3 上、W-4、W-7、W-9）。
             if name == HUMAN
-                || (prefix.is_empty() && (name == DATA || name == WEB || name == PACKAGES))
+                || (prefix.is_empty()
+                    && (name == DATA || name == WEB || name == PACKAGES || name == PRESETS))
                 || (prefix == SOFTWARE_DIR && DATA_PACKAGES.contains(&name.as_str()))
             {
                 continue;
@@ -240,6 +244,8 @@ mod tests {
             ("software/x/moderation.txt", "m"),
             ("packages/web.toml", "[package]"),
             ("core/packages/p.txt", "p"),
+            ("presets/dev.toml", "[preset]"),
+            ("core/presets/p.txt", "p"),
         ] {
             let path = dir.join(path);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -249,7 +255,7 @@ mod tests {
         let walked = walk(&dir, "", &mut found);
         std::fs::remove_dir_all(&dir).unwrap();
         walked.unwrap();
-        // 给人看的字、最上一层的模型资料、网页软件和软件包清单、software/mermaid/、software/net/、人格目录的 persona.toml、群聊内核的
+        // 给人看的字、最上一层的模型资料、网页软件、软件包清单和出厂的预设、software/mermaid/、software/net/、人格目录的 persona.toml、群聊内核的
         // 出厂参数 software/onebot/defaults.toml、违规词表 moderation.txt、出厂的场所规则 venues.d/50-defaults.toml 不登记，别的照查
         // （别处叫 models、web、mermaid、net 的目录、别处的 defaults.toml 和 moderation.txt、venues.d/ 里别的文件照查：只有正好这几处才
         // 豁免）。
@@ -259,6 +265,7 @@ mod tests {
                 "core/a.txt",
                 "core/models/m.txt",
                 "core/packages/p.txt",
+                "core/presets/p.txt",
                 "core/web/w.txt",
                 "personas/x/prompts/persona.md",
                 "personas/x/prompts/persona.toml",

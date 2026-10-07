@@ -211,6 +211,17 @@
       },
       "type": "object"
     },
+    "preset": {
+      "properties": {
+        "default": {
+          "default": "full",
+          "description": "新会话默认用哪个预设。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。",
+          "title": "默认预设",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "providers": {
       "additionalProperties": {
         "properties": {

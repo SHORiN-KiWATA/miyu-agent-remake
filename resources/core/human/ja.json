@@ -39,6 +39,10 @@
         "name": "既定のペルソナ",
         "description": "新しいセッションで使うペルソナ。"
       },
+      "preset.default": {
+        "name": "既定のプリセット",
+        "description": "新しいセッションで使うプリセット。"
+      },
       "permission.start_read_only": {
         "name": "新しいセッションを読み取り専用で始める",
         "description": "オンにすると、新しいセッションは読み取り専用で始まります。調査と計画だけを行い、ファイルを変更するときに読み取り専用をオフにします。プロジェクト設定ではオンにすることしかできません。"
@@ -227,6 +231,7 @@
     "groups": {
       "display": "表示",
       "persona": "ペルソナ",
+      "preset": "プリセット",
       "log": "実行ログ",
       "sessions": "セッション",
       "uses": "用途",
@@ -269,6 +274,19 @@
     "persona-problems/take_turns": "user と assistant は交互に書きます",
     "persona-problems/last_line": "最後の行は assistant のものにします",
     "persona-problems/empty_line": "この行は空です",
+    "preset-problems/syntax": "TOML として読めません：{detail}",
+    "preset-problems/unknown_table": "知らない表 [{detail}]：プリセットに書けるのは [preset]、[software]、[tools] だけです",
+    "preset-problems/not_a_table": "{detail} は表 [{detail}] で書いてください",
+    "preset-problems/unknown_key": "知らないキー {detail}",
+    "preset-problems/not_phrases": "{detail} は言語（zh、en、ja）から文への表で書いてください",
+    "preset-problems/unknown_language": "{detail}：言語は zh、en、ja のどれかです",
+    "preset-problems/empty_phrase": "{detail} には空でない文を書いてください",
+    "preset-problems/bad_persona": "{detail} にはペルソナの ID を書いてください：英小文字で始まり、英小文字、数字、-、_ だけ",
+    "preset-problems/bad_unlisted": "{detail} は on か off です",
+    "preset-problems/bad_software": "{detail}：パッケージの ID は英小文字で始まり、英小文字、数字、-、_ だけです",
+    "preset-problems/not_bool": "{detail} は true か false です",
+    "preset-problems/bad_tool": "{detail}：ツール名は英字、数字、-、_ だけで、64 文字までです",
+    "preset-problems/not_false": "{detail} には false しか書けません：プリセットではツールを一つずつ無効にすることしかできません",
     "package-problems/syntax": "TOML として読めません：{detail}",
     "package-problems/unknown_table": "知らない表 [{detail}]：マニフェストに書けるのは [package]、[command]、[process]、[ui]、[check]、[settings] だけです",
     "package-problems/not_a_table": "{detail} は表 [{detail}] で書いてください",

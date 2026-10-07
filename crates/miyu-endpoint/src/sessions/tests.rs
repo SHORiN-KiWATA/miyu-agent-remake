@@ -59,6 +59,7 @@ async fn a_child_is_not_created_for_a_parent_gone_from_the_table() {
         cwd: dir.to_string_lossy().into_owned(),
         dirs: Vec::new(),
         model: None,
+        preset: None,
     };
     let refused = core.sessions.spawn(&core, child).await;
     assert_eq!(refused, Err("the parent session is gone".to_string()));

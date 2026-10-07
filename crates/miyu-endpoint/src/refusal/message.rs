@@ -26,6 +26,11 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "这个人格的文件写错了，详情在 data.problem 里。",
             "This persona's files have a mistake; data.problem says where.",
         ),
+        "unknown_preset" => ("没有这个预设。", "There is no such preset."),
+        "preset_invalid" => (
+            "这个预设的文件写错了，详情在 data.problem 里。",
+            "This preset's file has a mistake; data.problem says where.",
+        ),
         "session_not_found" => ("没有这个会话。", "There is no such session."),
         "no_system_account" => (
             "这个场所的会话要归系统账号，还没有装好系统账号。",
@@ -37,8 +42,8 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
         ),
         "unknown_command" => ("没有这个命令。", "There is no such command."),
         "unknown_file" => (
-            "Miyu 不读这个文件：能查的是配置、密钥文件和人格目录里的 persona.toml、prompts/examples.md。",
-            "Miyu does not read this file: it checks the config, the secrets file, and persona.toml and prompts/examples.md in persona directories.",
+            "Miyu 不读这个文件：能查的是配置、密钥文件、人格目录里的 persona.toml 和 prompts/examples.md、预设、软件包清单。",
+            "Miyu does not read this file: it checks the config, the secrets file, persona.toml and prompts/examples.md in persona directories, presets and package manifests.",
         ),
         "command_not_allowed" => (
             "只有主人和管理的人能用命令。",

@@ -1,0 +1,11 @@
+# 开发（施工 P-2 上，`16-人格与预设.md` 第八节、Y7，`10-自带软件.md` 第四节）：只开写代码必需的，默认人格是软件工程师。
+[preset]
+name = { zh = "开发", en = "Dev", ja = "開発" }
+summary = { zh = "只开写代码必需的：基础系统、联网、长期目标", en = "Only what coding needs: the base system, the web and goals", ja = "コーディングに要るものだけ：基本システム、ウェブ、長期目標" }
+default_persona = "engineer"
+unlisted = "off"
+
+[software]
+basesystem = true
+net = true
+goal = true

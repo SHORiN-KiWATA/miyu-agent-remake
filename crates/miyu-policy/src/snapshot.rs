@@ -325,6 +325,7 @@ impl Snapshot {
             depth: None,
             model: None,
             persona: Some(self.persona.clone()),
+            preset: None,
         }
     }
 

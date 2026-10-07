@@ -35,7 +35,7 @@
 | `crates/miyu-store/src/watch.rs` | 监视几份文件所在的目录（`notify`），照真实的位置和文件名认，只读的动静不理，一份 200 毫秒没有新的变动了才交出去；系统的监视起不来的退回轮询，交回原因 | 8-4 |
 | `crates/miyu-store/src/secrets.rs` | 密钥文件（8-5）：照配置文件的规矩读，另看组、别人读不读得到（`Stored::open`）；照配置文件的规矩写，Unix 上一律 0600，临时文件建的时候就是（`config_file::write_with` 的 `Mode::Private`、`durable::create_temp_with`） | 8-5 |
 | `crates/miyu-endpoint/src/config.rs`、`config/` | 配置服务：手里的几份文件、当前的最终值（8-2）；改、重读（8-3）；推送、推送的订阅（8-4）。它住在核心家底的一把锁里（`Core::config`）。`config/observe.rs` 监视看到手改、`config.set` 写之前的重读（8-4），`config/hub.rs` 换上新的一份交给会话、核心，推给订阅着的连接（8-4），`config/push.rs` 的 `config.changed`（8-4），`config/file.rs` 一份文件读好的样子（8-3 起连同字和 BOM），`config/project.rs` 往上找项目配置，`config/effort.rs` 模型的 `effort` 不在档位里的（8-18），`config/methods.rs` 三个查询，`config/set.rs` 的 `config.set`（8-3），`config/journal.rs` 留痕（8-3），`config/wire.rs` 协议上的写法 | 8-2 起 |
-| `crates/miyu-endpoint/src/settings.rs` | 端点自己的几项：`ui.language`（8-1 声明，`language_for` 照它和系统的语言算出用哪种语言）、`permission.start_read_only`（8-2）、`persona.default`（P-1 上，`personas.md`） | 8-1、8-2、P-1 上 |
+| `crates/miyu-endpoint/src/settings.rs` | 端点自己的几项：`ui.language`（8-1 声明，`language_for` 照它和系统的语言算出用哪种语言）、`permission.start_read_only`（8-2）、`persona.default`（P-1 上，`personas.md`）、`preset.default`（P-2 上，`presets.md`） | 8-1、8-2、P-1 上、P-2 上 |
 | `crates/miyu-endpoint/src/config/trust.rs`、`config/trusting.rs` | 项目配置的信任：读 `trust.toml`、照仓库和版本认信不信任（8-2），在字上记一个回答（`recorded`，8-3）；`trusting.rs` 是 `config.trust`（8-3） | 8-2、8-3 |
 | `crates/miyu-endpoint/src/secrets.rs`、`secrets/file.rs` | `secret.set`、`secret.delete`、`secret.list`，手改密钥文件被看到的（`observe`），留痕 `secret.changed`（8-5）。`secrets/file.rs` 是手里的那一份密钥文件（`SecretsFile`，住在配置服务里：`Config::secrets`），`Debug` 不印字 | 8-5 |
 | `crates/miyu-endpoint/src/config/environment.rs` | 核心的环境 `Environment`（8-5）：带 `env` 的项、`{ env = … }` 都照它取；核心照进程的，测试照手写的几个；`Debug` 不印值 | 8-5 |
@@ -253,7 +253,8 @@ miyu_config::settings! {
 | `permission.start_read_only` | 开关 | `false` | 系统、个人、项目 | `true_only` | `new_session` | 8-2 |
 | `external.bindings.<external>` | 名字（本机账号） | 没有 | 系统 | 不能写 | `now` | O-3：主人对应表（`venues.md`），一个号一行；对着不存在的账号的认的时候当没写、记一行运行日志 |
 | `ui.startup` | 选项 `new`、`recent` | `new`，开一个新会话 | 系统、个人 | 不能写 | `head_start` | 8-3（8-28 从 `tui.startup` 改名） |
-| `persona.default` | 名字（人格的编号） | `engineer` | 系统、个人 | 不能写 | `new_session` | P-1 上（`personas.md`）：没指定人格的新会话照它找；指着没有的人格，造会话回 `unknown_persona`，不悄悄换 |
+| `persona.default` | 名字（人格的编号） | `engineer` | 系统、个人 | 不能写 | `new_session` | P-1 上（`personas.md`）：没指定人格、预设也没写默认人格的新会话照它找；指着没有的人格，造会话回 `unknown_persona`，不悄悄换 |
+| `preset.default` | 名字（预设的编号） | `full` | 系统、个人 | 不能写 | `new_session` | P-2 上（`presets.md`）：没指定预设的新会话照它找；指着没有的预设，造会话回 `unknown_preset`，不悄悄换（Y12）。设置页在「通用」那一页的「预设」一组 |
 | `models.chat` | 引用 | 没有：`no_model` | 系统、个人 | 不能写 | `new_session` | 8-6 |
 | `models.vision` | 引用 | 没有 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
 | `pools.<id>.models` | 模型的列表，可以是空的 | 没有：这个池解析不出 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
@@ -1035,6 +1036,11 @@ default = "engineer"
 # 能写：true 或 false。只能写在系统配置或个人设置里。以后开的会话生效。
 subagent = false
 
+[preset]
+# 默认预设：新会话默认用哪个预设。
+# 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。
+default = "full"
+
 [providers."<id>"]
 # 地址：这家的接口地址，路径由驱动接在后面。认得出的供应商可以不写。
 # 能写：http:// 或 https:// 开头的网址 或 { env = "…" }。只能写在系统配置或个人设置里。下一轮生效。
@@ -1158,7 +1164,7 @@ port = 8300
 ticket_idle_seconds = 43200
 ```
 
-样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `models.chat`、`models.vision`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`models.cooldown.*`（8-9）、`permission.start_read_only`、`persona.default`（P-1 上）、`providers.<id>.*`、`ui.language`、`ui.startup`）：
+样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `models.chat`、`models.vision`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`models.cooldown.*`（8-9）、`permission.start_read_only`、`persona.default`（P-1 上）、`preset.default`（P-2 上）、`providers.<id>.*`、`ui.language`、`ui.startup`）：
 
 ```json
 {
@@ -1339,6 +1345,17 @@ ticket_idle_seconds = 43200
           }
         },
         "type": "object"
+      },
+      "type": "object"
+    },
+    "preset": {
+      "properties": {
+        "default": {
+          "default": "full",
+          "description": "新会话默认用哪个预设。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。",
+          "title": "默认预设",
+          "type": "string"
+        }
       },
       "type": "object"
     },
@@ -1676,6 +1693,8 @@ ticket_idle_seconds = 43200
 | 选项 | `new` 新会话、`recent` 最近的会话 | A new session、The most recent session | 新しいセッション、最近のセッション |
 | `persona.default` 名字（P-1 上，主会话定） | 默认人格 | Default persona | 既定のペルソナ |
 | 说明（2026-10-07 项目主人定：只留一句，选人格照 `persona.list` 的下拉，谁优先人用不到） | 新会话默认用哪个人格。 | The persona new sessions use. | 新しいセッションで使うペルソナ。 |
+| `preset.default` 名字（P-2 上，主会话定） | 默认预设 | Default preset | 既定のプリセット |
+| 说明（同 `persona.default`：只留一句，选预设照 `preset.list` 的下拉） | 新会话默认用哪个预设。 | The preset new sessions use. | 新しいセッションで使うプリセット。 |
 | `models.chat` 名字（8-6，主会话定） | 主对话的模型 | Chat model | 会話のモデル |
 | 说明（8-8 加了能写池那一句） | 新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash；也能写 @池。 | The model new sessions use, written as provider/model, for example deepseek/deepseek-flash, or @pool. | 新しいセッションが使うモデル。プロバイダー/モデル の形で書きます。例：deepseek/deepseek-flash。@プール でもかまいません。 |
 | `providers.<id>.driver` 名字（8-6） | 驱动 | Driver | ドライバー |

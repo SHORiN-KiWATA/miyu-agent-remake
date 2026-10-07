@@ -312,15 +312,18 @@ enum Stream {
     Sessions,
 }
 
-/// 会话 `session` 用哪个人格：日志第一条 `session.created` 的 `persona`，在阻塞线程里读一行。读不了、以前的日志没有的是没有。
-async fn persona_of(core: &Core, session: &SessionId) -> Option<String> {
+/// 会话 `session` 的 `session.created`：日志第一条，在阻塞线程里读一行。读不了、第一条不是它的是没有。
+async fn created_of(
+    core: &Core,
+    session: &SessionId,
+) -> Option<miyu_kernel::event::SessionCreated> {
     let dir = core.root.session_dir(&core.admin, session);
     let first = tokio::task::spawn_blocking(move || miyu_store::log::first_event(&dir))
         .await
         .ok()?
         .ok()?;
     match first.body {
-        miyu_kernel::event::Body::SessionCreated(created) => created.persona,
+        miyu_kernel::event::Body::SessionCreated(created) => Some(created),
         _ => None,
     }
 }
@@ -341,9 +344,14 @@ async fn subscribe(
     if let Some(model) = crate::models::next(&handle.next()) {
         reply["model"] = model;
     }
-    // 会话用哪个人格（施工 P-1 下）：照日志第一条 `session.created` 读，以前的日志没有的不写。
-    if let Some(persona) = persona_of(core, &session).await {
-        reply["persona"] = json!(persona);
+    // 会话用哪个人格（施工 P-1 下）、哪个预设（施工 P-2 上）：照日志第一条 `session.created` 读，以前的日志没有的不写。
+    if let Some(created) = created_of(core, &session).await {
+        if let Some(persona) = created.persona {
+            reply["persona"] = json!(persona);
+        }
+        if let Some(preset) = created.preset {
+            reply["preset"] = json!(preset);
+        }
     }
     // 当前的待办（施工 D-3）：没有的不写；之后变了照推送的 `todos.changed`。
     let todos = handle.todos();

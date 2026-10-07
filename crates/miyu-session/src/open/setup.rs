@@ -89,6 +89,9 @@ pub struct Create<'a> {
     /// 会话用哪个模型（施工 8-8）：已经查过的引用，模型或 `@池`（协议的 `session.create` 的 `model`、派子代理时照 `pool`
     /// 或父会话的）。没有的照这时的 `models.chat`。记进 `session.created` 的 `model`。
     pub model: Option<String>,
+    /// 会话用哪个预设（施工 P-2 上）：已经找到了的编号，记进 `session.created` 的 `preset`；子会话照父会话的。测试里自己造的
+    /// 可以没有。这一步预设还不改变请求。
+    pub preset: Option<String>,
 }
 
 /// 载入一个会话要的。

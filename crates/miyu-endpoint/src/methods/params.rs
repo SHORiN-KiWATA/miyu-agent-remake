@@ -13,6 +13,9 @@ use crate::refusal::Refusal;
 pub(super) struct CreateParams {
     #[serde(default)]
     pub(super) persona: Option<String>,
+    /// 用哪个预设（施工 P-2 上）：不写、写 `null` 的照这时的 `preset.default`。
+    #[serde(default)]
+    pub(super) preset: Option<String>,
     pub(super) cwd: String,
     /// 一次性的：`miyu ask` 开的（施工 3-9 下）。
     #[serde(default)]

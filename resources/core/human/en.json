@@ -39,6 +39,10 @@
         "name": "Default persona",
         "description": "The persona new sessions use."
       },
+      "preset.default": {
+        "name": "Default preset",
+        "description": "The preset new sessions use."
+      },
       "permission.start_read_only": {
         "name": "Start new sessions read-only",
         "description": "When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on."
@@ -227,6 +231,7 @@
     "groups": {
       "display": "Display",
       "persona": "Persona",
+      "preset": "Preset",
       "log": "Runtime log",
       "sessions": "Sessions",
       "uses": "Uses",
@@ -269,6 +274,19 @@
     "persona-problems/take_turns": "user and assistant must take turns",
     "persona-problems/last_line": "The last line must be the assistant's",
     "persona-problems/empty_line": "This line is empty",
+    "preset-problems/syntax": "Not valid TOML: {detail}",
+    "preset-problems/unknown_table": "Unknown table [{detail}]: a preset only takes [preset], [software] and [tools]",
+    "preset-problems/not_a_table": "{detail} must be a table [{detail}]",
+    "preset-problems/unknown_key": "Unknown key {detail}",
+    "preset-problems/not_phrases": "{detail} must map languages (zh, en, ja) to text",
+    "preset-problems/unknown_language": "{detail}: the language must be zh, en or ja",
+    "preset-problems/empty_phrase": "{detail} must be non-empty text",
+    "preset-problems/bad_persona": "{detail} must be a persona id: a lowercase letter first, then lowercase letters, digits, - and _",
+    "preset-problems/bad_unlisted": "{detail} must be on or off",
+    "preset-problems/bad_software": "{detail}: a package id starts with a lowercase letter and has only lowercase letters, digits, - and _",
+    "preset-problems/not_bool": "{detail} must be true or false",
+    "preset-problems/bad_tool": "{detail}: a tool name has only letters, digits, - and _, at most 64",
+    "preset-problems/not_false": "{detail} can only be false: a preset can only turn single tools off",
     "package-problems/syntax": "Not valid TOML: {detail}",
     "package-problems/unknown_table": "Unknown table [{detail}]: a manifest only takes [package], [command], [process], [ui], [check] and [settings]",
     "package-problems/not_a_table": "{detail} must be a table [{detail}]",

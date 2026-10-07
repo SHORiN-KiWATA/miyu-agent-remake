@@ -78,7 +78,7 @@
   recap                 一句话回顾：在做什么、做完了什么、卡在哪
   rename <标题>         给会话起名
   config <命令>         看配置、改配置、信任项目配置
-  check [文件]          查手写的文件有没有写错：配置、密钥、人格
+  check [文件]          查手写的文件有没有写错：配置、密钥、人格、预设、清单
   login [名字]          存一个供应商的 key；--list 列出哪几家设了
   logout [名字]         删掉一个供应商的 key
   setup                 接上第一个模型：找现成的 key，试通了写进配置
@@ -126,7 +126,7 @@ Commands:
   recap                 Recap the session: goal, progress, blockers
   rename <title>        Give the session a title
   config <command>      See and change settings, trust a project config
-  check [file]          Look for mistakes in config, secrets and personas
+  check [file]          Check config, secrets, personas, presets and packages
   login [name]          Save a provider's key; --list shows which are set
   logout [name]         Delete a provider's key
   setup                 Connect the first model: find a key, try it, save it

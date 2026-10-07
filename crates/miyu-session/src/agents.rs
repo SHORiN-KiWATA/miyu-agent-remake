@@ -56,6 +56,8 @@ pub(crate) struct Agents {
     pub(crate) reports: miyu_kernel::session::Reports,
     /// 派子代理能选的池（施工 8-8 补）：快照里 `subagent` 的 `pool` 的 `enum`（[`Agents::pools_in`]），没有的是空的。
     pub(crate) pools: Vec<String>,
+    /// 这个会话的预设（施工 P-2 上）：`session.created` 的，子会话照抄（C5 的默认，挑别的随 P-2 下）。以前的会话没有。
+    pub(crate) preset: Option<String>,
 }
 
 impl Agents {
@@ -236,6 +238,7 @@ impl AgentPort for Spawner {
                 cwd: self.cwd.clone(),
                 dirs: self.dirs.clone(),
                 model: self.inherit.model(pool),
+                preset: agents.preset.clone(),
             };
             let job_text = job.to_string();
             let session = agents.port.create(child).await.map_err(|error| {

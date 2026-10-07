@@ -89,6 +89,8 @@ pub struct Lines {
     pub memory: MemoryScope,
     /// 记忆归哪个账号（施工 P-1 上）：默认是属主 alice。
     pub memory_account: AccountId,
+    /// 预设（施工 P-2 上）：默认没有。
+    pub preset: Option<String>,
 }
 
 impl Default for Lines {
@@ -103,6 +105,7 @@ impl Default for Lines {
             model: None,
             memory: MemoryScope::Persona,
             memory_account: alice_account(),
+            preset: None,
         }
     }
 }
@@ -243,6 +246,7 @@ impl Home {
             configs: self.configs.clone(),
             model: lines.model,
             memory: Some(self.memory()),
+            preset: lines.preset,
         });
         within("造会话", created).await.expect("造得出会话")
     }

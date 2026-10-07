@@ -59,6 +59,7 @@
 │   └── human/zh.json、en.json、ja.json   给人看的字
 ├── personas/<人格>/prompts/persona.md    人设；出厂的只有 engineer
 ├── packages/<编号>.toml                  软件包清单：出厂的只有 web（施工 9-1 上，`packages.md`）
+├── presets/<编号>.toml                   预设：出厂的 full、dev（施工 P-2 上，`presets.md`）
 └── software/<软件包>/                    出厂的有 basesystem、mermaid、net
     ├── tools/<工具>.json                 给模型看的说明和参数格式（basesystem）
     ├── <工具>/<名字>.txt、common/<名字>.txt  工具输出里给她看的几句（basesystem）
@@ -216,7 +217,6 @@
 ### 还没有的
 
 - 同名覆盖：自己的家目录、系统区、出厂的三层，出厂的排在最后（`26-提示词.md` 第八节、J9，`16-人格与预设.md` 第四节）。现在只读资源目录这一处。
-- 人格目录里别的文件：`persona.toml`、示范对话、角色扮演提示，和预设（`16-人格与预设.md` 第三节）。
 - 网页这类资源（`12-进程形态与分发.md` 第三节）：`web/`，随 W-9。mermaid 要的字体、颜色这类已经有了（`software/mermaid/style.json`，施工 W-4）。
 
 **目录的快照怎么刷新**（施工 8-7）：下载原样的 `api.json`，旁边的 `meta` 写出处和服务器回的时刻（UTC），许可证照 models.dev 仓库的 `LICENSE` 原文：

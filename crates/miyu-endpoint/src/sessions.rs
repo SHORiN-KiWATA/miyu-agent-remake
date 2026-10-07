@@ -21,6 +21,7 @@ use miyu_store::log::first_event;
 
 use crate::Core;
 use crate::personas;
+use crate::presets;
 use crate::refusal::Refusal;
 use crate::settings::PermissionSettings;
 use crate::spawn;
@@ -78,8 +79,9 @@ pub(crate) struct Found {
 }
 
 impl Sessions {
-    /// 造一个会话：属主是管理员，在本机；有没有人能确认照 `attended`；`miyu ask` 开的是一次性的。人格是 `persona`，
-    /// 没写的照默认人格找（施工 P-1 上，`personas.rs`）。同一个命令编号重发，交回上一次造的那一个，人格不再找。
+    /// 造一个会话：属主是管理员，在本机；有没有人能确认照 `attended`；`miyu ask` 开的是一次性的。先找预设（`who.preset`，
+    /// 没写的照默认预设，施工 P-2 上，`presets.rs`），再找人格：`persona`，没写的照预设的默认人格，那也没写的照默认人格
+    /// （施工 P-1 上，`personas.rs`）。同一个命令编号重发，交回上一次造的那一个，预设、人格都不再找。
     pub(crate) async fn create(
         &self,
         core: &Arc<Core>,
@@ -114,7 +116,9 @@ impl Sessions {
             });
         }
         let read_only = PermissionSettings::from(&resolved.values()).start_read_only;
-        let persona = personas::resolve(core, persona).await?;
+        let preset = presets::resolve(core, who.preset.as_deref()).await?;
+        let persona =
+            personas::resolve(core, persona.or(preset.file.default_persona.as_deref())).await?;
         let id = new_id(now());
         let created = create(Create {
             root: &core.root,
@@ -152,6 +156,7 @@ impl Sessions {
             memory: core.memory_for(&core.admin),
             configs: core.hub.configs(),
             model: who.model,
+            preset: Some(preset.id),
         })
         .await;
         let handle = match created {
@@ -243,6 +248,7 @@ impl Sessions {
             sessions: Some(spawn::port(core)),
             jobs: &core.jobs,
             model: child.model,
+            preset: child.preset,
         })
         .await
         .map_err(|error| error.to_string())?;
@@ -303,6 +309,8 @@ pub(crate) struct Opening {
     pub(crate) venue: Option<VenueId>,
     /// 记忆的范围（施工 R-3 下）：`session.create` 的 `memory`；没写的照人格的 `persona.toml`，那也没写的跟着人格。
     pub(crate) memory: Option<MemoryScope>,
+    /// 用哪个预设（施工 P-2 上）：`session.create`、`venue.session` 的 `preset`；没写的照这时的 `preset.default`。
+    pub(crate) preset: Option<String>,
 }
 
 /// 管理员：本机连上来的都是他（`06-多用户与身份.md` 第二节）。

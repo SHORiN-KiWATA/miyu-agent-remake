@@ -445,7 +445,7 @@ async fn subscribe_says_which_model_the_session_asks_next() {
     let reply = client.subscribe("s3", &session).await;
     assert_eq!(
         reply["result"],
-        json!({"limits": {}, "persona": "engineer"}),
+        json!({"limits": {}, "persona": "engineer", "preset": "full"}),
         "{reply}"
     );
 }

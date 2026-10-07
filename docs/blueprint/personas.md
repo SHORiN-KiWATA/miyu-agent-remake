@@ -81,7 +81,7 @@ assistant: 8640
 
 ### 怎么走
 
-1. **新会话用哪个人格**：开会话时指定的（`session.create` 的 `persona`；场所会话是桥交来的 `venue.session` 的 `persona`），没有就照这一刻的 `persona.default`（个人设置压着系统配置，都没写是 `engineer`）。同一个命令编号再来，照上一次造的那个，不再找。
+1. **新会话用哪个人格**：开会话时指定的（`session.create` 的 `persona`；场所会话是桥交来的 `venue.session` 的 `persona`），没有就照这个会话的预设的 `default_persona`（施工 P-2 上，`presets.md`：开发预设是 `engineer`），预设也没写的照这一刻的 `persona.default`（个人设置压着系统配置，都没写是 `engineer`）。同一个命令编号再来，照上一次造的那个，不再找。
 2. **找**：在三层里照编号找、叠好。编号不合写法：`bad_params`；哪一层都没有：`unknown_persona`，指着没有的默认人格也一样，不悄悄换成别的；文件写错：`persona_invalid`，`data.problem` 写明哪一层、哪个文件第几行（例如 `home prompts/examples.md:2: user and assistant must take turns`）；读不了：内部出错，记一行运行日志。找好了才造会话，什么都没找成的什么都不造。
 3. **拼快照**：人设原样进 system 第一块，后面接场所说明、核心的几行（`26-提示词.md` 第四节）；示范对话进快照的 `demos`。没有示范对话的快照里不写这一格，以前造的会话、软件工程师的快照字节和以前一样。角色扮演提示拼成快照的 `reminder`（包装的开头、原文、收尾，`policy.md`「拼」第 4 条），有它的 system 最后空一行接上风格锁；内核回合开始时第 1、4、7……轮注入它，组装排在触发的那句后面（`kernel/request.md`「事实」，施工 P-1 补）。没有它的快照不写这一格，system 一字不变。
 4. **子会话**照执行器填的人格（现在是软件工程师）一样找、叠。

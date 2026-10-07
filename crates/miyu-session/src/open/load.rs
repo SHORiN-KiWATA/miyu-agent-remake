@@ -139,6 +139,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             attended,
             reports: policy.reports.clone(),
             pools,
+            preset: created.preset.clone(),
         })
     });
     let kept = blobs.clone();

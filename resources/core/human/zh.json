@@ -39,6 +39,10 @@
         "name": "默认人格",
         "description": "新会话默认用哪个人格。"
       },
+      "preset.default": {
+        "name": "默认预设",
+        "description": "新会话默认用哪个预设。"
+      },
       "permission.start_read_only": {
         "name": "新会话开局只读",
         "description": "打开以后，新会话一开始就是只读。她只能查、写计划，要改文件时你再关掉只读。项目配置里只能把它打开。"
@@ -227,6 +231,7 @@
     "groups": {
       "display": "显示",
       "persona": "人格",
+      "preset": "预设",
       "log": "运行日志",
       "sessions": "会话",
       "uses": "用途",
@@ -269,6 +274,19 @@
     "persona-problems/take_turns": "user 和 assistant 要一问一答交替",
     "persona-problems/last_line": "最后一句要是 assistant 的",
     "persona-problems/empty_line": "这一句是空的",
+    "preset-problems/syntax": "读不成 TOML：{detail}",
+    "preset-problems/unknown_table": "不认识的表 [{detail}]：预设文件里只能有 [preset]、[software]、[tools]",
+    "preset-problems/not_a_table": "{detail} 要写成一张表 [{detail}]",
+    "preset-problems/unknown_key": "不认识的键 {detail}",
+    "preset-problems/not_phrases": "{detail} 要写成语言到一句话的表，语言是 zh、en、ja",
+    "preset-problems/unknown_language": "{detail}：语言只能是 zh、en、ja",
+    "preset-problems/empty_phrase": "{detail} 要写一句不空的话",
+    "preset-problems/bad_persona": "{detail} 要写人格的编号：小写字母开头，只有小写字母、数字、-、_",
+    "preset-problems/bad_unlisted": "{detail} 只能是 on 或 off",
+    "preset-problems/bad_software": "{detail}：软件包的编号小写字母开头，只有小写字母、数字、-、_",
+    "preset-problems/not_bool": "{detail} 只能是 true 或 false",
+    "preset-problems/bad_tool": "{detail}：工具名只有字母、数字、-、_，最多 64 个",
+    "preset-problems/not_false": "{detail} 只能写 false：预设里只能关掉单件工具",
     "package-problems/syntax": "读不成 TOML：{detail}",
     "package-problems/unknown_table": "不认识的表 [{detail}]：清单里只能有 [package]、[command]、[process]、[ui]、[check]、[settings]",
     "package-problems/not_a_table": "{detail} 要写成一张表 [{detail}]",

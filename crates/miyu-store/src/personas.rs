@@ -13,6 +13,8 @@ use miyu_policy::PersonaTexts;
 use miyu_policy::persona;
 pub use miyu_policy::persona::{PersonaFile, Phrases, Problem};
 
+pub use crate::layers::{Layer, valid};
+use crate::layers::{read_text, real};
 use crate::resources::ResourceRoot;
 use crate::root::DataRoot;
 
@@ -21,28 +23,6 @@ pub const PERSONA_MD: &str = "prompts/persona.md";
 
 /// 角色扮演提示在人格目录里的位置（施工 P-1 补）。
 pub const REMINDERS_MD: &str = "prompts/reminders.md";
-
-/// 一层：人格从哪来。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Layer {
-    /// 随发行附带的，只读。
-    Shipped,
-    /// 系统区，管理员给大家的。
-    System,
-    /// 管理员自己的家目录。
-    Home,
-}
-
-impl Layer {
-    /// 协议里的写法。
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Layer::Shipped => "shipped",
-            Layer::System => "system",
-            Layer::Home => "home",
-        }
-    }
-}
 
 /// 叠好的一个人格。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -323,27 +303,9 @@ fn inside(dir: &Path, relative: &str) -> PathBuf {
         .fold(dir.to_path_buf(), |path, part| path.join(part))
 }
 
-/// 真的位置；换不成的照原样。
-fn real(path: &Path) -> PathBuf {
-    miyu_fs::resolve(Path::new("/"), None, &path.to_string_lossy())
-        .unwrap_or_else(|_| path.to_path_buf())
-}
-
 /// 读一个文件：没有的是没有。
 fn read(path: &Path) -> Result<Option<String>, PersonaError> {
-    match std::fs::read_to_string(path) {
-        Ok(text) => Ok(Some(text)),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(PersonaError::Unreadable(path.to_path_buf(), error)),
-    }
-}
-
-/// 人格的编号合不合写法：小写字母开头，小写字母、数字、`-`、`_`，最多 64 个。它是一层目录，不许带路径。
-pub fn valid(id: &str) -> bool {
-    let mut chars = id.chars();
-    chars.next().is_some_and(|first| first.is_ascii_lowercase())
-        && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
-        && id.len() <= 64
+    read_text(path).map_err(|error| PersonaError::Unreadable(path.to_path_buf(), error))
 }
 
 #[cfg(test)]
