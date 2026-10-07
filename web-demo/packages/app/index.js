@@ -44,8 +44,8 @@ export function apply(ctx) {
     setDraft: (patch) => app.setDraft(patch),
     /** `/workspace`：这个会话之后在哪个目录干活（事件 `workdir.changed`；核心退回了工作区的来 `workdir.adjusted`） */
     setWorkdir: (session, cwd) => app.setWorkdir(session, cwd),
-    /** 会话用的人格（`session.created` 的 `persona`，核心 P-1 下以后才有；没有的是 `null`） */
-    persona: (id) => app.store.sessions.get(id)?.events.find((e) => e.kind === 'session.created')?.body.persona ?? null,
+    /** 会话用的人格（核心 P-1 下：`session.created` 的 `persona`，没读进来的照会话表那一项的；以前的日志没有，是 `null`） */
+    persona: (id) => app.store.sessions.get(id)?.events.find((e) => e.kind === 'session.created')?.body.persona ?? app.store.index.get(id)?.persona ?? null,
   });
   // 输入框：提示、跟着发的东西变了、写字的那个框（附件这类包经它粘贴、提示）
   ctx.provide('composer', {
