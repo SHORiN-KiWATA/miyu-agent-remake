@@ -60,10 +60,10 @@ pub struct Since {
     pub last_is_own: bool,
 }
 
-/// 引用和 @、去重的参数，代码里不写死（施工时定的第 4 条）：从 [`Params::outbound`](crate::Params::outbound) 拿，出厂的数
-/// （4 条、15 秒、16、66）在出厂文件里（`chat.md` 第八条）。格只在 crate 里可见，外面造不出，拿到的都照声明查过（施工
-/// O-15）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 清理的两份名单、引用和 @、去重的参数，代码里不写死（施工时定的第 4、10 条）：从 [`Params::outbound`](crate::Params::outbound)
+/// 拿，出厂的数（4 条、15 秒、16、66）和名单在出厂文件里（`chat.md` 第八条）。格只在 crate 里可见，外面造不出，拿到的都照
+/// 声明查过，两份标记一样长（施工 O-15）。
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Outbound {
     /// 隔几条别人的消息才引用；`0` 是总引用。
     pub(crate) quote_after: u64,
@@ -73,6 +73,15 @@ pub struct Outbound {
     pub(crate) min_bigrams: usize,
     /// 去重：两字组的 Jaccard 相似度不低于这个百分比算重复（出厂 66，旧版实测）；用整数比，不碰小数的舍入。
     pub(crate) similar: u8,
+    /// 清理：不可见字符，判空时和空白一样算（出厂十五个：零宽空格、零宽连接符这一带、BOM、软连字号……）。只拿来判空，
+    /// 不拿来改正文：零宽连接符夹在表情里是有意义的。
+    pub(crate) invisible: Vec<char>,
+    /// 清理：漏进正文的工具调用从哪开始（出厂 `<tool_call>`、`<function=`），和 `leak_close` 照位置一一对上。每项都不空：
+    /// 空的开头、收尾会让清理停不下来，声明守着（第八条施工时定的第 20 条）。
+    pub(crate) leak_open: Vec<String>,
+    /// 清理：漏进正文的工具调用到哪结束（出厂 `</tool_call>`、`</function>`），和 `leak_open` 一样长（第八条「怎么走」
+    /// 第 7 条）。
+    pub(crate) leak_close: Vec<String>,
 }
 
 /// 出站链看的情形，由外面交进来。

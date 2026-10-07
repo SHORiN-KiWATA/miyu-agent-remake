@@ -1,10 +1,14 @@
 //! 违规关键词（`chat.md` 第二条「守着它的」）：大小写、中文、空关键词、主人不查；base64 够长的、不够长的、解出来不可打印的、
-//! 读不成 UTF-8 的、只看前几个字符、关键词在 `max_chars` 之后的、带 `=` 的、长度不是 4 的倍数的、被别的字截开的。
+//! 读不成 UTF-8 的、只看前几个字符、关键词在 `max_chars` 之后的、带 `=` 的、长度不是 4 的倍数的、被别的字截开的。违规词表的
+//! 读法（O-15 下）：一行一个、空行、注释、首尾空白、`\r\n`、重复、BOM；仓库里的出厂词表是旧版的 153 个词。
 
 use crate::VenueKind;
 
 use super::super::test_support::{at, ctx, judge, msg};
-use super::super::{Base64, Ctx, Flag, Outcome, Standing};
+use super::super::{Base64, Ctx, Flag, Moderation, Outcome, Standing};
+
+/// 仓库里的出厂词表（`include_str!` 读进来：数据改了，测试跟着变）。
+const FACTORY: &str = include_str!("../../../../../resources/software/onebot/moderation.txt");
 
 /// 违规关键词是 `keywords`、base64 的三个数是 `base64`，群里别的人发 `text`：插旗没有。旗只插一面，也不拦。
 fn flagged_with(keywords: &[&str], base64: Base64, standing: Standing, text: &str) -> bool {
@@ -273,5 +277,103 @@ fn base64_owner_is_not_checked() {
         usual(),
         Standing::Owner,
         "c3BhbQ=="
+    ));
+}
+
+/// 读违规词表的原文。
+fn words(text: &str) -> Vec<String> {
+    Moderation::parse_keywords(text)
+}
+
+#[test]
+fn keywords_are_one_per_line_trimmed_without_blanks_or_comments() {
+    let text = "# 注释\nspam\n\n  ham  \n\t# 缩进的也是注释\n违规\n   \n\t\n";
+    assert_eq!(words(text), ["spam", "ham", "违规"]);
+    // 中间的空白照留：词表里有 `rm -rf /*` 这样的。
+    assert_eq!(words(" rm -rf /* \n"), ["rm -rf /*"]);
+}
+
+#[test]
+fn a_hash_not_at_the_start_is_part_of_the_word() {
+    assert_eq!(words("c#\na # b\n#\n"), ["c#", "a # b"]);
+}
+
+#[test]
+fn carriage_returns_are_trimmed() {
+    assert_eq!(words("spam\r\nham\r\n\r\n# x\r\n"), ["spam", "ham"]);
+    // 最后一行没有换行、只剩一个 `\r` 的也去。
+    assert_eq!(words("spam\r\nham\r"), ["spam", "ham"]);
+}
+
+#[test]
+fn repeats_keep_the_first_and_case_variants_both_stay() {
+    assert_eq!(
+        words("spam\nham\nspam\n  spam\t\nSPAM\nham\n"),
+        ["spam", "ham", "SPAM"]
+    );
+}
+
+#[test]
+fn a_leading_bom_is_dropped() {
+    assert_eq!(words("\u{FEFF}# 注释\nspam\n"), ["spam"]);
+    assert_eq!(words("\u{FEFF}spam\n"), ["spam"]);
+    // 只有开头的那一个是 BOM。
+    assert_eq!(words("spam\n\u{FEFF}ham\n"), ["spam", "\u{FEFF}ham"]);
+}
+
+#[test]
+fn nothing_written_is_no_keywords() {
+    assert!(words("").is_empty());
+    assert!(words("\n\r\n  \n# 只有注释\n").is_empty());
+}
+
+#[test]
+fn the_factory_list_is_the_old_153_words() {
+    let read = words(FACTORY);
+    assert_eq!(read.len(), 153);
+    assert_eq!(read.first().map(String::as_str), Some(":(){ :|:& };:"));
+    assert_eq!(read.last().map(String::as_str), Some("飞行员"));
+    // 旧版那一份照字节排好、没有重复：照样严格递增，少了、多了、挪了、改了大小写的都看得出来。
+    assert!(read.windows(2).all(|pair| pair[0] < pair[1]));
+    for spaced in [
+        "> /dev/sda",
+        "chmod -R 777 /",
+        "dd if=/dev/zero",
+        "rm -rf /*",
+        "sub?target=",
+    ] {
+        assert!(read.iter().any(|word| word == spaced), "{spaced}");
+    }
+}
+
+#[test]
+fn the_factory_list_flags_what_it_lists() {
+    let read = words(FACTORY);
+    let factory: Vec<&str> = read.iter().map(String::as_str).collect();
+    assert!(flagged_with(
+        &factory,
+        usual(),
+        Standing::Member,
+        "跑一下 RM -RF /* 试试"
+    ));
+    assert!(flagged_with(
+        &factory,
+        usual(),
+        Standing::Member,
+        "加我微信领红包"
+    ));
+    // 旧版砍掉的必然误报的词不在里面：`OD` 中在 `model`、`code` 里。
+    assert!(!flagged_with(
+        &factory,
+        usual(),
+        Standing::Member,
+        "this model writes code"
+    ));
+    // 注释不是关键词：开头那几行里有一行只有 `#`，当成词的话带 `#` 的都中。
+    assert!(!flagged_with(
+        &factory,
+        usual(),
+        Standing::Member,
+        "C# 真好用"
     ));
 }

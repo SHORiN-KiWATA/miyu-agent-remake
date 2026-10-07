@@ -1,7 +1,8 @@
 //! 场所规则里参数的表（`chat.md` 第一条「守着它的」参数那一行、第八条「守着它的」）：行内表、`[rule.chatty]` 表头、点号
 //! 连着的键都认；改一项只盖那一项，两条规则改同一项后面的盖，改别的表不影响；来处的行是那一项的键所在的行；表名、项名
 //! 拼错给最近的名字；表写成别的、值写错的只丢那一张表、那一项。套上（`Params::at`）：只换改了的几项，别的属性不看，
-//! 手造的不合声明的跳过。
+//! 手造的不合声明的跳过。清理的名单（O-15 下）：两份标记一起写、一样长的照收，长度不同、只写一份、有一份写错的报对的问题、
+//! 都不收；`at` 碰到手造的长度不同的照套之前的；按场所改 `invisible` 只改那个场所。
 
 use std::collections::BTreeMap;
 
@@ -267,7 +268,7 @@ fn every_item_lands_in_its_own_field() {
          [rule.judge]\nmodel = \"@cheap\"\nrecords = 25\nmax_tokens = 26\ntimeout = \"27s\"\n\
          moderation_timeout = \"28s\"\nretries = 2\nreason_chars = 29\n\
          [rule.outbound]\nquote_after = 5\nmention_after = \"31s\"\nmin_bigrams = 17\nsimilar = 67\n\
-         split_chars = 3001\n",
+         split_chars = 3001\ninvisible = [\"a\", \"b\"]\nleak_open = [\"<c\"]\nleak_close = [\"c>\"]\n",
     );
     let expected = Params {
         base64: Base64 {
@@ -312,10 +313,144 @@ fn every_item_lands_in_its_own_field() {
             mention_after: 31_000,
             min_bigrams: 17,
             similar: 67,
+            invisible: vec!['a', 'b'],
+            leak_open: vec!["<c".to_string()],
+            leak_close: vec!["c>".to_string()],
         },
         split_chars: 3001,
     };
     let resolved = rules(&files).resolve(&group("1"));
     assert_eq!(resolved.entries.len(), crate::params::items::ITEMS.len());
     assert_eq!(defaults().at(&resolved), expected);
+}
+
+/// 字的列表的值。
+fn texts(items: &[&str]) -> Value {
+    Value::List(items.iter().map(|item| text(item)).collect())
+}
+
+#[test]
+fn markers_written_together_and_as_long_are_taken() {
+    let files = file("[[rule]]\noutbound = { leak_open = [\"<a\"], leak_close = [\"a>\"] }\n");
+    assert_eq!(set(&files, "outbound.leak_open"), Some(texts(&["<a"])));
+    assert_eq!(set(&files, "outbound.leak_close"), Some(texts(&["a>"])));
+    let params = defaults().at(&rules(&files).resolve(&group("1")));
+    assert_eq!(params.outbound.leak_open, ["<a"]);
+    assert_eq!(params.outbound.leak_close, ["a>"]);
+}
+
+#[test]
+fn markers_of_different_lengths_drop_both_and_blame_the_close() {
+    let files = file(
+        "[[rule]]\noutbound = { leak_open = [\"<a\"], leak_close = [\"a>\", \"b>\"], similar = 70 }\n",
+    );
+    let close = seen(
+        Code::BadFormat,
+        "outbound.leak_close",
+        2,
+        47,
+        "[\"a>\", \"b>\"]",
+        None,
+    );
+    assert_eq!(problems(&files), [close]);
+    assert_eq!(set(&files, "outbound.leak_open"), None);
+    assert_eq!(set(&files, "outbound.leak_close"), None);
+    // 同一张表里别的项照收。
+    assert_eq!(set(&files, "outbound.similar"), Some(Value::Int(70)));
+}
+
+#[test]
+fn a_marker_list_written_alone_is_reported_and_dropped() {
+    let files = file("[[rule]]\n[rule.outbound]\nleak_open = [\"<a\"]\nsimilar = 70\n");
+    let open = seen(
+        Code::BadFormat,
+        "outbound.leak_open",
+        3,
+        13,
+        "[\"<a\"]",
+        None,
+    );
+    assert_eq!(problems(&files), [open]);
+    assert_eq!(set(&files, "outbound.leak_open"), None);
+    assert_eq!(set(&files, "outbound.similar"), Some(Value::Int(70)));
+    let files = file("[[rule]]\noutbound.leak_close = [\"a>\"]\n");
+    let close = seen(
+        Code::BadFormat,
+        "outbound.leak_close",
+        2,
+        23,
+        "[\"a>\"]",
+        None,
+    );
+    assert_eq!(problems(&files), [close]);
+    assert_eq!(set(&files, "outbound.leak_close"), None);
+    // 两条规则各写一份也不算一起写：每一条各报各的。
+    let files = file(
+        "[[rule]]\noutbound = { leak_open = [\"<a\"] }\n[[rule]]\noutbound = { leak_close = [\"a>\"] }\n",
+    );
+    assert_eq!(problems(&files).len(), 2);
+}
+
+#[test]
+fn a_badly_written_marker_list_is_reported_once_and_its_partner_dropped() {
+    let files = file("[[rule]]\noutbound = { leak_open = [\"<a\"], leak_close = [\"\"] }\n");
+    let close = seen(
+        Code::BadFormat,
+        "outbound.leak_close",
+        2,
+        47,
+        "[\"\"]",
+        None,
+    );
+    assert_eq!(problems(&files), [close]);
+    assert_eq!(set(&files, "outbound.leak_open"), None);
+}
+
+#[test]
+fn at_keeps_the_markers_it_had_when_hand_made_ones_do_not_pair() {
+    let origin = Origin {
+        source: Source::System,
+        file: "a.toml".to_string(),
+        rule: 1,
+        line: 1,
+    };
+    let entry = |value: Value| Entry {
+        value,
+        origin: origin.clone(),
+    };
+    let factory = defaults();
+    // 出厂两对，只换一份成一个：长度不同，两份照套之前的；别的项照换。
+    let entries = BTreeMap::from([
+        ("outbound.leak_open", entry(texts(&["<a"]))),
+        ("outbound.similar", entry(Value::Int(70))),
+    ]);
+    let mut expected = factory.clone();
+    expected.outbound.similar = 70;
+    assert_eq!(factory.at(&Resolved { entries }), expected);
+    // 两份都换、长度不同：一样。
+    let entries = BTreeMap::from([
+        ("outbound.leak_open", entry(texts(&["<a"]))),
+        ("outbound.leak_close", entry(texts(&["a>", "b>"]))),
+    ]);
+    assert_eq!(factory.at(&Resolved { entries }), factory);
+    // 只换一份、长度一样：照换。
+    let entries = BTreeMap::from([("outbound.leak_open", entry(texts(&["<a", "<b"])))]);
+    let mut expected = factory.clone();
+    expected.outbound.leak_open = vec!["<a".to_string(), "<b".to_string()];
+    assert_eq!(factory.at(&Resolved { entries }), expected);
+}
+
+#[test]
+fn invisible_changed_for_one_venue_changes_only_that_venue() {
+    let files = [factory(
+        "50-defaults.toml",
+        "[[rule]]\nmatch = { group = [1] }\noutbound = { invisible = [\"~\"] }\n",
+    )];
+    let rules = rules(&files);
+    let factory = defaults();
+    assert_eq!(
+        factory.at(&rules.resolve(&group("1"))).outbound.invisible,
+        ['~']
+    );
+    assert_eq!(factory.at(&rules.resolve(&group("2"))), factory);
 }

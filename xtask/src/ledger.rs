@@ -45,9 +45,13 @@ const SOFTWARE_DIR: &str = "software/";
 const PERSONAS_DIR: &str = "personas/";
 const PERSONA_TOML: &str = "persona.toml";
 
-/// 群聊内核的出厂参数是数据（几张表的数），不发给模型，不登记（施工 O-15，`chat.md` 第八条施工时定的第 16 条）。只豁免这一份：
-/// 别处叫 `defaults.toml` 的照查。
-const CHAT_DEFAULTS: &str = "software/onebot/defaults.toml";
+/// 群聊内核的出厂数据不发给模型，不登记：出厂参数（几张表的数，施工 O-15，`chat.md` 第八条施工时定的第 16 条）、违规词表（只拿来
+/// 比子串）、出厂的场所规则（施工 O-15 下，第八条施工时定的第 21 条）。只豁免这几份：别处同名的、`venues.d/` 里别的文件照查。
+const CHAT_DATA: [&str; 3] = [
+    "software/onebot/defaults.toml",
+    "software/onebot/moderation.txt",
+    "software/onebot/venues.d/50-defaults.toml",
+];
 const DATA_PACKAGES: [&str; 2] = ["mermaid", "net"];
 
 /// 查一遍，交回对不上的地方。
@@ -107,7 +111,7 @@ fn walk(dir: &Path, prefix: &str, files: &mut BTreeMap<String, Vec<u8>>) -> Resu
         } else if !(name == PERSONA_TOML
             && prefix.starts_with(PERSONAS_DIR)
             && prefix.matches('/').count() == 2)
-            && path != CHAT_DEFAULTS
+            && !CHAT_DATA.contains(&path.as_str())
         {
             files.insert(path, std::fs::read(entry.path()).map_err(unreadable)?);
         }
@@ -227,6 +231,10 @@ mod tests {
             ("software/onebot/defaults.toml", "[chatty]"),
             ("software/onebot/judge/system.txt", "s"),
             ("software/x/defaults.toml", "d"),
+            ("software/onebot/moderation.txt", "spam"),
+            ("software/onebot/venues.d/50-defaults.toml", "[[rule]]"),
+            ("software/onebot/venues.d/60-more.toml", "[[rule]]"),
+            ("software/x/moderation.txt", "m"),
         ] {
             let path = dir.join(path);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -237,8 +245,8 @@ mod tests {
         std::fs::remove_dir_all(&dir).unwrap();
         walked.unwrap();
         // 给人看的字、最上一层的模型资料和网页软件、software/mermaid/、software/net/、人格目录的 persona.toml、群聊内核的出厂参数
-        // software/onebot/defaults.toml 不登记，别的照查（别处叫 models、web、mermaid、net 的目录、别处的 defaults.toml 照查：只有正好
-        // 这几处才豁免）。
+        // software/onebot/defaults.toml、违规词表 moderation.txt、出厂的场所规则 venues.d/50-defaults.toml 不登记，别的照查（别处叫
+        // models、web、mermaid、net 的目录、别处的 defaults.toml 和 moderation.txt、venues.d/ 里别的文件照查：只有正好这几处才豁免）。
         assert_eq!(
             found.keys().collect::<Vec<_>>(),
             [
@@ -248,8 +256,10 @@ mod tests {
                 "personas/x/prompts/persona.md",
                 "personas/x/prompts/persona.toml",
                 "software/onebot/judge/system.txt",
+                "software/onebot/venues.d/60-more.toml",
                 "software/x/defaults.toml",
                 "software/x/mermaid/not_special_here.json",
+                "software/x/moderation.txt",
                 "software/x/net/not_special_here.json",
                 "software/x/tools/t.json",
             ]
