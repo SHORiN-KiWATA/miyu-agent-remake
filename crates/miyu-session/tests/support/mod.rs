@@ -232,6 +232,12 @@ impl Home {
             resources: &self.resources,
             id: new_id(now()),
             persona: "engineer",
+            persona_texts: self
+                .resources
+                .sources("engineer")
+                .expect("出厂的软件工程师")
+                .persona,
+            memory_account: alice_account(),
             venue: lines.venue,
             owner: alice_account(),
             permission: opening.permission,
@@ -300,6 +306,11 @@ impl Home {
         let loaded = load(Load {
             root: &self.root,
             owner: alice_account(),
+            personas: miyu_store::personas::Personas::new(
+                &self.resources,
+                &self.root,
+                &alice_account(),
+            ),
             id: session.clone(),
             environment: Environment {
                 cwd: cwd.to_string(),

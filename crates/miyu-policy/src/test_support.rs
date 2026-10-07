@@ -250,6 +250,7 @@ pub(crate) fn engineer() -> Snapshot {
             persona: PersonaTexts {
                 persona: include_str!("../../../resources/personas/engineer/prompts/persona.md")
                     .to_string(),
+                examples: Vec::new(),
             },
         },
         true,

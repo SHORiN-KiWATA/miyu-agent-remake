@@ -1730,6 +1730,7 @@ dependencies = [
  "miyu-kernel",
  "serde",
  "serde_json",
+ "toml_edit",
 ]
 
 [[package]]

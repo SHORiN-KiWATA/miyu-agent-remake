@@ -35,6 +35,10 @@
           "recent": "The most recent session"
         }
       },
+      "persona.default": {
+        "name": "Default persona",
+        "description": "The persona new sessions use, written as the persona directory name. A persona chosen when opening a session comes first, and so does one set by a chat platform venue rule."
+      },
       "permission.start_read_only": {
         "name": "Start new sessions read-only",
         "description": "When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on."
@@ -221,6 +225,7 @@
     },
     "groups": {
       "display": "Display",
+      "persona": "Persona",
       "log": "Runtime log",
       "sessions": "Sessions",
       "uses": "Uses",

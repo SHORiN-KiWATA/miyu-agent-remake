@@ -29,6 +29,10 @@ pub(crate) struct VenueParams {
     peer: Option<String>,
     #[serde(default)]
     cwd: Option<String>,
+    /// 新造的会话用哪个人格（施工 P-1 上）：桥照场所规则算好交来，核心不读场所规则；不写的照默认人格。找回已有的会话时
+    /// 不看。
+    #[serde(default)]
+    persona: Option<String>,
 }
 
 /// 场所是私聊还是群。
@@ -78,7 +82,6 @@ pub(crate) fn bound(core: &Core, id: &ExternalId) -> Option<AccountId> {
 pub(crate) async fn session(
     core: &Arc<Core>,
     command: CommandId,
-    persona: &str,
     params: VenueParams,
 ) -> Result<Value, Refusal> {
     let venue = VenueId::parse(&params.venue).map_err(|_| Refusal::BAD_PARAMS)?;
@@ -109,7 +112,14 @@ pub(crate) async fn session(
         .unwrap_or_else(|| crate::list::NO_CWD.to_string());
     let created = core
         .sessions
-        .create(core, command, persona, cwd, Vec::new(), who)
+        .create(
+            core,
+            command,
+            params.persona.as_deref(),
+            cwd,
+            Vec::new(),
+            who,
+        )
         .await?;
     Ok(json!({"session": created.id.as_str(), "created": true}))
 }

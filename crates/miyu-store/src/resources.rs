@@ -145,14 +145,27 @@ impl ResourceRoot {
     ///
     /// 人格的编号不合写法；哪一份文件读不了，写明是哪一份。
     pub fn sources(&self, persona: &str) -> Result<Sources, SourceError> {
-        if !valid(persona) {
+        if !crate::personas::valid(persona) {
             return Err(SourceError::Persona(persona.to_string()));
         }
         Ok(Sources {
-            core: self.core()?,
+            core: self.core_texts()?,
             persona: PersonaTexts {
                 persona: self.read(&["personas", persona, "prompts", "persona.md"])?,
+                examples: Vec::new(),
             },
+        })
+    }
+
+    /// 随核心附带的字，配上已经叠好的人格的字 `persona`（施工 P-1 上，`personas.md`）：造会话用。
+    ///
+    /// # Errors
+    ///
+    /// `core/` 下哪一份读不了，写明是哪一份。
+    pub fn sources_with(&self, persona: PersonaTexts) -> Result<Sources, SourceError> {
+        Ok(Sources {
+            core: self.core_texts()?,
+            persona,
         })
     }
 
@@ -179,8 +192,12 @@ impl ResourceRoot {
         })
     }
 
-    /// 随核心附带的字。
-    fn core(&self) -> Result<CoreTexts, SourceError> {
+    /// 随核心附带的字（施工 P-1 上起，造会话时和几层叠好的人格的字拼成 [`Sources`]）。
+    ///
+    /// # Errors
+    ///
+    /// 哪一份文件读不了，写明是哪一份。
+    pub fn core_texts(&self) -> Result<CoreTexts, SourceError> {
         let core = |parts: &[&str]| {
             let mut path = vec!["core"];
             path.extend_from_slice(parts);
@@ -371,14 +388,6 @@ impl ResourceRoot {
             .fold(self.path.clone(), |path, part| path.join(part));
         std::fs::read_to_string(&path).map_err(|error| SourceError::Read { path, error })
     }
-}
-
-/// 人格的编号合不合写法：它是资源目录里的一层目录，不许带路径。
-fn valid(persona: &str) -> bool {
-    let mut chars = persona.chars();
-    chars.next().is_some_and(|first| first.is_ascii_lowercase())
-        && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
-        && persona.len() <= 64
 }
 
 #[cfg(test)]

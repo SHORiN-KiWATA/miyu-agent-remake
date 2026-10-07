@@ -15,11 +15,11 @@ use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{CommandId, SessionId, VenueId};
 use miyu_kernel::origin::{By, Person, Session};
 use miyu_kernel::time::{Timestamp, UtcOffset};
-use miyu_session::{Child, Create, CreateError, Handle, create, new_id};
+use miyu_session::{Child, Create, Handle, create, new_id};
 use miyu_store::log::first_event;
-use miyu_store::resources::SourceError;
 
 use crate::Core;
+use crate::personas;
 use crate::refusal::Refusal;
 use crate::settings::PermissionSettings;
 use crate::spawn;
@@ -77,13 +77,13 @@ pub(crate) struct Found {
 }
 
 impl Sessions {
-    /// 造一个会话：属主是管理员，在本机；有没有人能确认照 `attended`；`miyu ask` 开的是一次性的。
-    /// 同一个命令编号重发，交回上一次造的那一个。
+    /// 造一个会话：属主是管理员，在本机；有没有人能确认照 `attended`；`miyu ask` 开的是一次性的。人格是 `persona`，
+    /// 没写的照默认人格找（施工 P-1 上，`personas.rs`）。同一个命令编号重发，交回上一次造的那一个，人格不再找。
     pub(crate) async fn create(
         &self,
         core: &Arc<Core>,
         command: CommandId,
-        persona: &str,
+        persona: Option<&str>,
         cwd: String,
         dirs: Vec<String>,
         who: Opening,
@@ -113,12 +113,15 @@ impl Sessions {
             });
         }
         let read_only = PermissionSettings::from(&resolved.values()).start_read_only;
+        let persona = personas::resolve(core, persona).await?;
         let id = new_id(now());
         let created = create(Create {
             root: &core.root,
             resources: &core.resources,
             id: id.clone(),
-            persona,
+            persona: &persona.id,
+            persona_texts: persona.texts.clone(),
+            memory_account: personas::memory_account(&persona, &core.admin),
             venue: who.venue.clone().unwrap_or_else(local),
             owner: core.admin.clone(),
             permission: Permission {
@@ -147,22 +150,7 @@ impl Sessions {
         .await;
         let handle = match created {
             Ok(handle) => handle,
-            Err(CreateError::Persona(SourceError::Persona(_))) => return Err(Refusal::BAD_PARAMS),
-            // 人格的目录都没有：没有这个人格。目录在、里面或者 `core/` 下哪一份读不了（安装坏了），是内部出错
-            // （施工 4-9 再补三上）。
-            Err(CreateError::Persona(SourceError::Read { path, error })) => {
-                if !core
-                    .resources
-                    .path()
-                    .join("personas")
-                    .join(persona)
-                    .is_dir()
-                {
-                    return Err(Refusal::UNKNOWN_PERSONA);
-                }
-                tracing::warn!(target: "miyu::endpoint", path = %path.display(), error = %error, "resource unreadable");
-                return Err(Refusal::INTERNAL);
-            }
+            // 人格已经找好了：`core/` 下哪一份读不了（安装坏了），是内部出错（施工 4-9 再补三上）。
             Err(error) => {
                 tracing::warn!(target: "miyu::endpoint", error = %error, "create failed");
                 return Err(Refusal::INTERNAL);
@@ -216,11 +204,16 @@ impl Sessions {
         let parent = By::Session(Session {
             id: child.lineage.parent.clone(),
         });
+        let persona = personas::resolve(core, Some(&child.persona))
+            .await
+            .map_err(|refusal| format!("persona {}: {}", child.persona, refusal.reason))?;
         let handle = create(Create {
             root: &core.root,
             resources: &core.resources,
             id: id.clone(),
-            persona: &child.persona,
+            persona: &persona.id,
+            persona_texts: persona.texts.clone(),
+            memory_account: personas::memory_account(&persona, &child.owner),
             venue: child.venue,
             sandbox_cache: core.sandbox_cache_of(&child.owner),
             index: core.index_for(&child.owner),

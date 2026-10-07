@@ -18,6 +18,7 @@ mod image_name;
 mod jobs;
 mod pause;
 mod peers;
+pub mod persona;
 mod rebuild;
 mod recap;
 mod shorten;

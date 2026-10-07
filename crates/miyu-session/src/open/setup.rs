@@ -7,7 +7,9 @@ use miyu_kernel::event::Permission;
 use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::By;
+use miyu_policy::PersonaTexts;
 use miyu_store::index::SessionIndex;
+use miyu_store::personas::Personas;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_store::usage::UsageIndex;
@@ -23,12 +25,16 @@ use crate::spawn::{Lineage, SessionPort};
 pub struct Create<'a> {
     /// 数据根。
     pub root: &'a DataRoot,
-    /// 资源目录：人格的原文从这里读。
+    /// 资源目录：随核心附带的字从这里读。
     pub resources: &'a ResourceRoot,
     /// 会话编号，照 [`crate::new_id`] 造。
     pub id: SessionId,
-    /// 照哪个人格造。
+    /// 照哪个人格造：编号。
     pub persona: &'a str,
+    /// 这个人格的字，几层叠好的（施工 P-1 上，`miyu_store::personas`）：造快照用。
+    pub persona_texts: PersonaTexts,
+    /// 记忆归哪个账号（施工 P-1 上，`Personas::memory_account`）：回合库、记忆日志照它和人格开。
+    pub memory_account: AccountId,
     /// 在哪个场所。
     pub venue: VenueId,
     /// 会话的属主：会话、blob 都在他的家目录里。
@@ -86,6 +92,8 @@ pub struct Load<'a> {
     pub root: &'a DataRoot,
     /// 会话的属主。
     pub owner: AccountId,
+    /// 人格的几层（施工 P-1 上）：读出快照里的人格以后，照 [`Personas::memory_account`] 算记忆归哪个账号。
+    pub personas: Personas,
     /// 会话编号。
     pub id: SessionId,
     /// 会话所在的环境：时区、工作目录。

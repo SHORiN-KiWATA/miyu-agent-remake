@@ -13,6 +13,8 @@ miyu-assemble = { path = "../miyu-assemble" }
 miyu-drivers = { path = "../miyu-drivers" }
 # 内核的策略、事实模板、内核替工具写的几句、内容哈希。
 miyu-kernel = { path = "../miyu-kernel" }
+# 读人格的 `persona.toml`（施工 P-1 上），和配置同一个读法。
+toml_edit = { version = "0.25", default-features = false, features = ["parse"] }
 # 快照写成规范的 JSON、读回来。
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["raw_value"] }

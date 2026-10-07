@@ -64,6 +64,7 @@ impl Open {
         let workspace = workspace(core, &cwd);
         let loaded = load(Load {
             root: &core.root,
+            personas: crate::personas::personas(core),
             owner: core.admin.clone(),
             id: id.clone(),
             environment: environment(workspace.clone(), dirs.clone()),

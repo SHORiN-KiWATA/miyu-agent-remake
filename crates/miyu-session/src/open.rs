@@ -53,6 +53,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         resources,
         id,
         persona,
+        persona_texts,
+        memory_account,
         venue,
         owner,
         permission,
@@ -103,9 +105,11 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
     let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
-    let (owner_of, id_of) = (owner.clone(), id.clone());
+    let id_of = id.clone();
     let (snapshot, policy, texts, run, guard, log, (turns, calls)) = blocking(move || {
-        let sources = resources.sources(&name).map_err(CreateError::Persona)?;
+        let sources = resources
+            .sources_with(persona_texts)
+            .map_err(CreateError::Persona)?;
         let mut snapshot = compose(&name, sources, attended).with_tools(face);
         if child {
             let venue = resources.subagent_venue().map_err(CreateError::Persona)?;
@@ -119,7 +123,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         let guard = snapshot.guard_texts().map_err(CreateError::Policy)?;
         store.put(&snapshot.to_bytes()).map_err(CreateError::Disk)?;
         let log = SessionLog::create(&dir, SEGMENT_LIMIT).map_err(CreateError::Disk)?;
-        let turns = crate::memory::connect(memory.as_ref(), &owner_of, &name, &id_of, !child, &[]);
+        let turns =
+            crate::memory::connect(memory.as_ref(), &memory_account, &name, &id_of, !child, &[]);
         Ok((snapshot, policy, texts, run, guard, log, turns))
     })
     .await?;
@@ -274,6 +279,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let Load {
         root,
         owner,
+        personas,
         id,
         environment,
         models,
@@ -319,7 +325,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             let main = created.parent.is_none();
             let turns = crate::memory::connect(
                 memory.as_ref(),
-                &owner_of,
+                &personas.memory_account(&snapshot.persona, &owner_of),
                 &snapshot.persona,
                 &id_of,
                 main,

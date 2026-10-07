@@ -39,6 +39,7 @@ mod login;
 mod meta;
 mod methods;
 mod models;
+mod personas;
 mod providers;
 pub mod queries;
 mod refusal;
@@ -169,6 +170,7 @@ impl Core {
     ) -> Core {
         let items = [
             settings::UiSettings::ITEMS,
+            settings::PersonaSettings::ITEMS,
             settings::PermissionSettings::ITEMS,
             settings::EXTERNAL_BINDINGS,
         ]
