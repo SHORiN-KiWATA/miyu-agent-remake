@@ -20,10 +20,11 @@ use miyu_kernel::id::{AccountId, CommandId, JobId, SessionId, VenueId};
 use miyu_kernel::origin::{By, Session};
 use miyu_kernel::session::{Command, Outcome};
 use miyu_policy::memory::MemoryScope;
+use miyu_policy::preset::PresetFile;
 use miyu_policy::{Choice, JOB_DEPTH, ToolEntry};
 use miyu_tool::{
-    ASK_USER, AgentPort, Catalog, FORGET, MEMORY_SEARCH, NotSpawned, REMEMBER, SEND_MESSAGE,
-    SESSION_USAGE, SESSIONS, SUBAGENT, Spawned, Spawning, TODOWRITE, is_subagent,
+    ASK_USER, AgentPort, BASESYSTEM, Catalog, FORGET, MEMORY_SEARCH, NotSpawned, REMEMBER,
+    SEND_MESSAGE, SESSION_USAGE, SESSIONS, SUBAGENT, Spawned, Spawning, TODOWRITE, is_subagent,
 };
 
 use crate::TARGET;
@@ -86,7 +87,8 @@ impl Agents {
     /// 工具面造会话时定，一个会话里不变，给了只会被拒的不给（`agents.md` 第一条第 6 条）。
     /// `subagent` 的 `pool` 照这时的配置 `values` 填上能选的池（施工 8-8 补：`miyu_models::pools::offered`，一个都没有的拿掉
     /// 这个参数）。`ask_user` 只给能问人的会话（[`Agents::asks`]，施工 D-2）。`todowrite` 只给本机的会话（施工 D-3）：群里没人
-    /// 看她的清单。
+    /// 看她的清单。有预设的照它筛（施工 P-2 中）：工具所在的包没开的、单件关掉的不给（[`PresetFile::keeps`]）；目录里没记包的
+    /// 当基础系统。
     pub(crate) fn face(
         tools: &Catalog,
         venue: &VenueId,
@@ -94,6 +96,7 @@ impl Agents {
         values: &Values,
         attended: bool,
         memory: MemoryScope,
+        preset: Option<&PresetFile>,
     ) -> Vec<ToolEntry> {
         let spawns = Agents::allowed(venue, lineage);
         let local = venue.as_str() == LOCAL;
@@ -112,6 +115,12 @@ impl Agents {
             .filter(|spec| {
                 (local && memory != MemoryScope::Off)
                     || ![REMEMBER, FORGET, MEMORY_SEARCH].contains(&spec.name.as_str())
+            })
+            .filter(|spec| {
+                preset.is_none_or(|preset| {
+                    let package = tools.package_of(&spec.name).unwrap_or(BASESYSTEM);
+                    preset.keeps(package, &spec.name)
+                })
             })
             .map(|spec| {
                 let mut entry = ToolEntry {

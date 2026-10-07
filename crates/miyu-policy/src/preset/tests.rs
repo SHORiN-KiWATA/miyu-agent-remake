@@ -165,3 +165,33 @@ fn a_problem_reads_as_a_line_and_a_sentence() {
     assert_eq!(no_line.to_string(), "broken");
     assert_eq!(Code::ALL.len(), 13);
 }
+
+#[test]
+fn software_opens_as_written_and_unlisted_ones_follow_unlisted() {
+    let dev = read(DEV).unwrap();
+    assert!(dev.opens("basesystem"));
+    assert!(!dev.opens("memory"), "写了 false");
+    assert!(!dev.opens("roleplay"), "没写的照 unlisted = off");
+    let full = read("[software]\nmemory = false\n").unwrap();
+    assert!(full.opens("roleplay"), "没写的照 unlisted，几层都没写是 on");
+    assert!(!full.opens("memory"));
+    assert!(dev.keeps("basesystem", "read"));
+    assert!(!dev.keeps("basesystem", "shell"), "单件关掉的");
+    assert!(!dev.keeps("memory", "remember"), "包没开的");
+}
+
+#[test]
+fn chosen_lists_installed_software_that_is_off_in_order() {
+    let chosen = Chosen::new(
+        "dev".to_string(),
+        read(DEV).unwrap(),
+        ["roleplay", "basesystem", "memory", "net", "memory"],
+    );
+    assert_eq!(
+        chosen.off,
+        ["memory", "roleplay"],
+        "照编号排、不重复；开着的不算"
+    );
+    let full = Chosen::new("full".to_string(), PresetFile::default(), ["memory"]);
+    assert!(full.off.is_empty());
+}

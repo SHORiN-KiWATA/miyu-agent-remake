@@ -7,10 +7,17 @@ use std::fmt;
 
 use miyu_config::phrases::{self, PhraseError, Phrases};
 use miyu_config::secret::valid_name;
+use serde::{Deserialize, Serialize};
 use toml_edit::{Document, Item, TableLike};
 
 /// 工具名最多几个字符。
 const TOOL_CHARS: usize = 64;
+
+/// 记忆这个软件（施工 P-2 中，`10-自带软件.md` 第四节）：三件工具和回合开始的召回。和 `miyu_memory::PACKAGE` 是同一个编号。
+pub const MEMORY: &str = "memory";
+
+/// 角色扮演这个软件（施工 P-2 中）：人格的角色扮演提示和风格锁（`16-人格与预设.md` 第八节：开发预设不开）。它没有工具。
+pub const ROLEPLAY: &str = "roleplay";
 
 /// 没列在 `[software]` 里的软件（包括以后新装的）开不开（Y7）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,6 +71,60 @@ impl PresetFile {
     /// 没列出来的软件开不开：几层都没写的是开。功能全开是默认，`[tools]` 里只关一两件的写法也是建在「其余都开」上的。
     pub fn unlisted(&self) -> Unlisted {
         self.unlisted.unwrap_or(Unlisted::On)
+    }
+
+    /// 软件 `software` 开不开（施工 P-2 中，Y7）：`[software]` 写了的照写的，没写的照 `unlisted`。
+    pub fn opens(&self, software: &str) -> bool {
+        self.software
+            .get(software)
+            .copied()
+            .unwrap_or(self.unlisted() == Unlisted::On)
+    }
+
+    /// 包 `package` 里的工具 `tool` 留不留在工具面上：包开着，这一件也没被 `[tools]` 关掉（走查 C1）。
+    pub fn keeps(&self, package: &str, tool: &str) -> bool {
+        self.opens(package) && !self.tools_off.contains(tool)
+    }
+}
+
+/// 快照里记的预设（施工 P-2 中，`Snapshot::preset`）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PresetPin {
+    /// 预设的编号。
+    pub id: String,
+    /// 造会话时装了、这个预设没开的软件，照编号排。都开着的不写。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub off: Vec<String>,
+}
+
+/// 开会话时找好的预设（施工 P-2 中）：编号、叠好的文件，和这台机器上装了、这个预设没开的软件（照编号排；Y8 那一行照它写）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Chosen {
+    /// 编号。
+    pub id: String,
+    /// 叠好的文件。
+    pub file: PresetFile,
+    /// 装了、没开的软件。
+    pub off: Vec<String>,
+}
+
+impl Chosen {
+    /// 照装了的软件 `installed` 算好没开的那几个。
+    pub fn new<'a>(
+        id: String,
+        file: PresetFile,
+        installed: impl IntoIterator<Item = &'a str>,
+    ) -> Chosen {
+        let off: BTreeSet<String> = installed
+            .into_iter()
+            .filter(|software| !file.opens(software))
+            .map(str::to_string)
+            .collect();
+        Chosen {
+            id,
+            file,
+            off: off.into_iter().collect(),
+        }
     }
 }
 

@@ -93,7 +93,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             let guard = snapshot.guard_texts().map_err(LoadError::Policy)?;
             // 能选的池照快照读回（施工 8-8 补）：造会话时拼的那一份，不重拼。
             let pools = Agents::pools_in(&snapshot.tools);
-            let scope = memory::scope(created.parent.is_some(), snapshot.memory_scope());
+            // 快照里的范围已经照预设算过（施工 P-2 中），这里只再管子会话。
+            let scope = memory::scope(created.parent.is_some(), true, snapshot.memory_scope());
             let turns = connect(
                 memory.as_ref(),
                 scope,

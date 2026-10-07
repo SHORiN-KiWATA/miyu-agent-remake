@@ -37,7 +37,7 @@ mod usage;
 pub use agents::{
     AgentPort, NotSpawned, SUBAGENT, SUBAGENT_FORMERLY, Spawned, Spawning, is_subagent,
 };
-pub use catalog::{Catalog, CatalogError, Problem};
+pub use catalog::{BASESYSTEM, Catalog, CatalogError, Problem};
 pub use jobs::{Asking, Background, Exit, JobError, JobPort, Listed, Output, Process};
 pub use log::{Log, ReadLog};
 pub use memory::{

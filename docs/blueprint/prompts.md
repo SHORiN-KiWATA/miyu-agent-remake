@@ -266,6 +266,19 @@ When a reply links or embeds a local file, write its absolute path. Relative pat
 <style-lock>Stay in character across tool calls. Tool results are working material; they are not a reason to switch into an assistant reporting tone.</style-lock>
 ```
 
+### system，核心的几行后面、风格锁前面（第四节第 5 块）
+
+#### `core/preset-off.txt`
+
+- 什么时候加进来：预设里有装了、没开的软件的会话，每次请求（施工 P-2 中起；功能全开的、以前造的快照不带，一个字节不变）。角色扮演不列：它没有工具
+- token：12（只有 `memory` 一个时，2026-10-08 主会话在开发端点的 `deepseek-v4.1-flash` 上量，接在 system 后面空一行；单独接在 `hi` 和一个换行后面是 13；每多一个包约多 2）
+- 为什么加：装了、但这个预设没开的软件只列一行名字（`16-人格与预设.md` Y8，走查 C4，2026-10-07 项目主人定照推荐）：旧版终端里没有 QQ 的工具，她用 curl 去猜平台的接口、猜错了还下结论说平台不支持（旧版 issue #49）。只陈述是什么，不写该怎么做：没开的原因摆在那里，她自己会说换预设。`{packages}` 换成逗号隔开的编号
+- 指纹：`26a37d40`
+
+```text
+Installed but off in this session's preset: {packages}.
+```
+
 ### 事实
 
 #### `core/facts/env.txt`

@@ -89,8 +89,8 @@ pub struct Lines {
     pub memory: MemoryScope,
     /// 记忆归哪个账号（施工 P-1 上）：默认是属主 alice。
     pub memory_account: AccountId,
-    /// 预设（施工 P-2 上）：默认没有。
-    pub preset: Option<String>,
+    /// 预设（施工 P-2 上、中）：默认没有，全开。
+    pub preset: Option<miyu_policy::preset::Chosen>,
 }
 
 impl Default for Lines {

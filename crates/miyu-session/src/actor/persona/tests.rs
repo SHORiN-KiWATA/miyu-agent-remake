@@ -20,6 +20,15 @@ impl Drop for Scratch {
 
 /// 一个临时数据根，Miyu 住在管理员 alice 的家目录，人设是 `persona`；和照这一刻的文件拼好快照的 `Refresh`。
 fn setup(name: &str, persona: &str) -> (Scratch, DataRoot, Refresh) {
+    setup_with(name, persona, None)
+}
+
+/// 同 [`setup`]，快照记着预设 `preset`（施工 P-2 中）。
+fn setup_with(
+    name: &str,
+    persona: &str,
+    preset: Option<miyu_policy::PresetPin>,
+) -> (Scratch, DataRoot, Refresh) {
     let scratch =
         Scratch(std::env::temp_dir().join(format!("miyu-persona-{name}-{}", std::process::id())));
     let env = Env {
@@ -44,6 +53,7 @@ fn setup(name: &str, persona: &str) -> (Scratch, DataRoot, Refresh) {
         face: Vec::new(),
         memory: None,
         child: false,
+        preset,
     };
     let snapshot = build(&resources, parts).expect("拼得成");
     let refresh = Refresh {
@@ -100,4 +110,31 @@ fn a_broken_persona_is_unreadable_and_kept() {
     let (_scratch, root, refresh) = setup("broken", "You are Miyu.\n");
     write(&root, "examples.md", "user: a\n");
     assert!(matches!(look(&refresh), Seen::Unreadable(_)));
+}
+
+/// 预设没开角色扮演的（施工 P-2 中）：换人格时照旧没有角色扮演提示和风格锁；指纹照人格原来的字算，换过以后不会每轮都当成
+/// 改过。
+#[test]
+fn roleplay_stays_off_across_a_swap() {
+    let pin = miyu_policy::PresetPin {
+        id: "dev".to_string(),
+        off: vec!["memory".to_string(), "roleplay".to_string()],
+    };
+    let (_scratch, root, mut refresh) =
+        setup_with("roleplay", "You are Miyu.\n", Some(pin.clone()));
+    write(&root, "reminders.md", "Stay soft.\n");
+    let Seen::Swapped(snapshot, _, _) = look(&refresh) else {
+        panic!("多了角色扮演提示也算改了");
+    };
+    assert_eq!(snapshot.reminder, None, "预设没开角色扮演");
+    assert!(
+        snapshot
+            .system
+            .ends_with("Installed but off in this session's preset: memory."),
+        "没开的那一行照旧在最后，没有风格锁：{}",
+        snapshot.system
+    );
+    assert_eq!(snapshot.preset, Some(pin));
+    refresh.snapshot = *snapshot;
+    assert!(matches!(look(&refresh), Seen::Same), "换过以后不再换");
 }

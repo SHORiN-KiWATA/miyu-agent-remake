@@ -89,6 +89,7 @@ fn look(refresh: &Refresh) -> Seen {
         face: old.tools.clone(),
         memory: old.memory.clone(),
         child: refresh.child,
+        preset: old.preset.clone(),
     };
     let new = match build(&refresh.resources, parts) {
         Ok(new) => new,

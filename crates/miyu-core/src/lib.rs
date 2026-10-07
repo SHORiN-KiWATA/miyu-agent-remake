@@ -144,10 +144,15 @@ pub fn main(options: Options) -> ExitCode {
 ///
 /// 哪一份字读不出来、写法不对；登记时查不过（重名、名字或参数格式不合写法）。
 pub fn tools(resources: &ResourceRoot) -> Result<Catalog, String> {
-    let mut tools = miyu_basesystem::tools(resources.path()).map_err(|error| error.to_string())?;
+    let basesystem = miyu_basesystem::tools(resources.path()).map_err(|error| error.to_string())?;
     // 记忆这个软件包的三件（施工 R-3 中，`memory.md`「工具」）：工具面上只给本机的主会话。
-    tools.extend(miyu_memory::tools(resources.path()).map_err(|error| error.to_string())?);
-    Catalog::new(tools).map_err(|error| error.to_string())
+    let memory = miyu_memory::tools(resources.path()).map_err(|error| error.to_string())?;
+    // 照软件包登记（施工 P-2 中）：预设照包开关。
+    Catalog::in_packages([
+        (miyu_tool::BASESYSTEM, basesystem),
+        (miyu_memory::PACKAGE, memory),
+    ])
+    .map_err(|error| error.to_string())
 }
 
 /// 运行中配置换了当场生效要的（施工 8-4）：换运行日志级别的把手，核心这边的系统语言；起来时读的软件包清单和照它拼的

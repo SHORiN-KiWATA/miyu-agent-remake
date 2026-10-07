@@ -10,6 +10,8 @@ use miyu_kernel::event::SessionCreated;
 use miyu_kernel::id::{AccountId, SessionId};
 use miyu_kernel::session::{Input, Session};
 use miyu_models::provider::chat;
+use miyu_policy::PresetPin;
+use miyu_policy::preset::MEMORY;
 use miyu_store::blob::Blobs;
 use miyu_store::log::{SEGMENT_LIMIT, SessionLog, abandon};
 use miyu_store::usage::{UsageIndex, Who};
@@ -88,8 +90,12 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let reference = model.or_else(|| chat(&config.current().resolved.values()));
     let (resources, name) = (resources.clone(), persona.to_string());
     let shipped = resources.clone();
-    let scope = memory::scope(lineage.is_some(), memory_scope);
-    // 工具面照这时的配置拼：`subagent` 能选哪几个池（施工 8-8 补），以后照快照、载入不重拼。
+    // 预设没开记忆的，范围一律 `off`（施工 P-2 中，走查 E2：开不开记忆归预设）。
+    let opened = preset
+        .as_ref()
+        .is_none_or(|chosen| chosen.file.opens(MEMORY));
+    let scope = memory::scope(lineage.is_some(), opened, memory_scope);
+    // 工具面照这时的配置拼：`subagent` 能选哪几个池（施工 8-8 补），以后照快照、载入不重拼。照预设筛（施工 P-2 中）。
     let face = Agents::face(
         tools,
         &venue,
@@ -97,7 +103,13 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         &config.current().resolved.values(),
         attended,
         scope,
+        preset.as_ref().map(|chosen| &chosen.file),
     );
+    let pin = preset.as_ref().map(|chosen| PresetPin {
+        id: chosen.id.clone(),
+        off: chosen.off.clone(),
+    });
+    let preset = preset.map(|chosen| chosen.id);
     let asks = Agents::asks(
         &venue,
         lineage.as_ref().map(|lineage| &lineage.parent),
@@ -122,6 +134,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             face,
             memory: Some(scope.as_str().to_string()),
             child,
+            preset: pin,
         };
         let snapshot = build(&resources, parts).map_err(CreateError::Persona)?;
         let policy = snapshot.policy().map_err(CreateError::Policy)?;

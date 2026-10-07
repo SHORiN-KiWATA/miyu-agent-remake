@@ -224,7 +224,11 @@ async fn parent(home: &Home, script: &Script, table: &Arc<Table>) -> Handle {
     };
     let lines = Lines {
         sessions: Some(Arc::clone(table) as Arc<dyn SessionPort>),
-        preset: Some("dev".to_string()),
+        preset: Some(miyu_policy::preset::Chosen::new(
+            "dev".to_string(),
+            miyu_policy::preset::PresetFile::default(),
+            [],
+        )),
         ..Lines::default()
     };
     home.create_full(script, &basesystem(home), opening, lines)
