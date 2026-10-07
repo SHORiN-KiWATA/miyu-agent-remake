@@ -125,3 +125,46 @@ fn forms_written_as_another_type_are_wrong_type() {
     let read = Rules::parse(&[system("a.toml", "[[rule]]\nmanagers = []\n")]);
     assert!(read.problems.is_empty());
 }
+
+#[test]
+fn rate_reads_turns_and_window_in_milliseconds() {
+    let read = |text| crate::Rate::read(text).map(|rate| (rate.turns.get(), rate.window));
+    assert_eq!(read("5/300s"), Some((5, 300_000)));
+    assert_eq!(read("30/1m"), Some((30, 60_000)));
+    assert_eq!(read("30/60"), Some((30, 60_000)));
+    assert_eq!(read("1/1s"), Some((1, 1_000)));
+    assert_eq!(read("10000/24h"), Some((10_000, 86_400_000)));
+    assert_eq!(read("05/060s"), Some((5, 60_000)));
+}
+
+#[test]
+fn rate_reads_unlimited_and_bad_forms_as_unset() {
+    for unset in [
+        "0",
+        "0/60s",
+        "5/0s",
+        "5/25h",
+        "10001/60s",
+        "a/60s",
+        "5",
+        "+5/60s",
+        "",
+    ] {
+        assert_eq!(crate::Rate::read(unset), None, "{unset}");
+    }
+}
+
+#[test]
+fn sleep_reads_minutes_of_the_day() {
+    let read = |text| crate::Sleep::read(text).map(|sleep| (sleep.start, sleep.end));
+    assert_eq!(read("23:00-07:00"), Some((1380, 420)));
+    assert_eq!(read("00:00-23:59"), Some((0, 1439)));
+    assert_eq!(read("12:30-12:31"), Some((750, 751)));
+}
+
+#[test]
+fn sleep_reads_off_and_bad_forms_as_unset() {
+    for unset in ["off", "24:00-07:00", "07:00-07:00", "7:00-8:00", "Off", ""] {
+        assert_eq!(crate::Sleep::read(unset), None, "{unset}");
+    }
+}
