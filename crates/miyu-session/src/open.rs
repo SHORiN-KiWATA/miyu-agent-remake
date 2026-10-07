@@ -10,8 +10,7 @@ use miyu_kernel::event::SessionCreated;
 use miyu_kernel::id::{AccountId, SessionId};
 use miyu_kernel::session::{Input, Session};
 use miyu_models::provider::chat;
-use miyu_policy::PresetPin;
-use miyu_policy::preset::MEMORY;
+use miyu_policy::preset::{Chosen, MEMORY};
 use miyu_store::blob::Blobs;
 use miyu_store::log::{SEGMENT_LIMIT, SessionLog, abandon};
 use miyu_store::usage::{UsageIndex, Who};
@@ -42,7 +41,7 @@ mod setup;
 
 pub use error::{CreateError, LoadError};
 pub use load::load;
-pub use setup::{Create, Load};
+pub use setup::{Create, Load, PresetPlaces};
 
 /// 造一个会话：先把策略快照存成 blob（先落 blob，再写引用它的事件），再建会话目录和日志，交给内核
 /// 造会话；`session.created` 落了盘，才交回 [`Handle`]。子会话（带着 [`Create::lineage`]）的 system 接上场所说明
@@ -83,6 +82,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         model,
         memory,
         preset,
+        presets,
     } = setup;
     let span = actor::span(&id);
     let config = Turning::start(configs, environment.cwd.clone()).await;
@@ -105,10 +105,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         scope,
         preset.as_ref().map(|chosen| &chosen.file),
     );
-    let pin = preset.as_ref().map(|chosen| PresetPin {
-        id: chosen.id.clone(),
-        off: chosen.off.clone(),
-    });
+    let pin = preset.as_ref().map(Chosen::pin);
     let preset = preset.map(|chosen| chosen.id);
     let asks = Agents::asks(
         &venue,
@@ -279,6 +276,10 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         blobs,
         snapshot,
         child,
+        presets,
+        tools: tools.clone(),
+        venue: venue.clone(),
+        lineage: lineage.clone(),
     });
     let busy = actor.busy();
     let watched = actor.watched();

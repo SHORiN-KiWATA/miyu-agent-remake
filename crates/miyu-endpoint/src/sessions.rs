@@ -157,6 +157,7 @@ impl Sessions {
             configs: core.hub.configs(),
             model: who.model,
             preset: Some(presets::chosen(core, preset)),
+            presets: Some(presets::places(core)),
         })
         .await;
         let handle = match created {
@@ -259,6 +260,7 @@ impl Sessions {
             jobs: &core.jobs,
             model: child.model,
             preset,
+            presets: Some(presets::places(core)),
         })
         .await
         .map_err(|error| error.to_string())?;

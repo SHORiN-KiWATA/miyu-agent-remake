@@ -12,6 +12,7 @@ use miyu_policy::memory::MemoryScope;
 use miyu_policy::preset::Chosen;
 use miyu_store::index::SessionIndex;
 use miyu_store::personas::Personas;
+use miyu_store::presets::Presets;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_store::usage::UsageIndex;
@@ -22,6 +23,15 @@ use crate::jobs::Jobs;
 use crate::port::Models;
 use crate::sandbox::SandboxCache;
 use crate::spawn::{Lineage, SessionPort};
+
+/// 预设的几层和这台机器上装了的软件（施工 P-2 下）：回合开始时照它看预设的文件改了没有。
+#[derive(Debug, Clone)]
+pub struct PresetPlaces {
+    /// 几层。
+    pub presets: Presets,
+    /// 装了的软件的编号。
+    pub installed: Vec<String>,
+}
 
 /// 造一个会话要的。
 pub struct Create<'a> {
@@ -93,6 +103,8 @@ pub struct Create<'a> {
     /// 会话用哪个预设（施工 P-2 上、中）：已经找好的，编号记进 `session.created` 的 `preset`；子会话照父会话的。工具面照它
     /// 筛，记忆没开的范围一律 `off`，记进快照（[`miyu_policy::PresetPin`]）。测试里自己造的可以没有：全开。
     pub preset: Option<Chosen>,
+    /// 预设的几层和装了的软件（施工 P-2 下）：改了预设的文件下一个回合换上。没有的（测试里自己造的）不看。
+    pub presets: Option<PresetPlaces>,
 }
 
 /// 载入一个会话要的。
@@ -134,4 +146,6 @@ pub struct Load<'a> {
     pub configs: Configs,
     /// 同 [`Create::memory`]：载入时照整份事件补上回合库落下的。
     pub memory: Option<Arc<crate::Memory>>,
+    /// 同 [`Create::presets`]。
+    pub presets: Option<PresetPlaces>,
 }

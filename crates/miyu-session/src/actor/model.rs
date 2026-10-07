@@ -128,7 +128,8 @@ impl Actor {
         if self.shown_now() != before {
             self.announce(ChangeWhy::Turn);
         }
-        let policy = self.refresh_persona().await;
+        let values = self.config.current().resolved.values();
+        let policy = self.refresh_persona(values).await;
         Input::TurnStartHooksDone {
             policy,
             at: self.clock.now(),

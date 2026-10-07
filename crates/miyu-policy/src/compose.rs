@@ -138,13 +138,16 @@ impl Snapshot {
     }
 
     /// 能不能换成 `new`（施工 P-1 再补）：除了 system、示范对话、角色扮演提示和人格的指纹，别的格都一样。不一样的说明程序
-    /// 升级过、执行器照旧快照造的那几份字（驱动的占位、权限策略的几句）还是旧的，换一半会让两版字混着用。
+    /// 升级过、执行器照旧快照造的那几份字（驱动的占位、权限策略的几句）还是旧的，换一半会让两版字混着用。工具面、预设也
+    /// 不比（施工 P-2 下）：换预设时重新筛过，以前就有的那几件是旧快照里的原样，新打开的照现在的目录拿。
     pub fn swappable(&self, new: &Snapshot) -> bool {
         let rest = |snapshot: &Snapshot| Snapshot {
             system: String::new(),
             demos: Vec::new(),
+            tools: Vec::new(),
             reminder: None,
             persona_digest: None,
+            preset: None,
             ..snapshot.clone()
         };
         rest(self) == rest(new)
@@ -359,7 +362,7 @@ mod tests {
 
     /// 换快照只许人格的那几格不一样（施工 P-1 再补）：核心的字、工具面、人格编号变了的都不算。
     #[test]
-    fn only_the_persona_parts_may_differ_for_a_swap() {
+    fn only_the_persona_and_preset_parts_may_differ_for_a_swap() {
         let old = crate::test_support::engineer()
             .with_tools(vec![a_tool()])
             .with_core_lines(&lines());
@@ -376,7 +379,21 @@ mod tests {
         assert!(!old.swappable(&core), "核心的字变了");
         let mut tools = new.clone();
         tools.tools.clear();
-        assert!(!old.swappable(&tools), "工具面变了");
+        tools.preset = Some(crate::preset::PresetPin {
+            id: "dev".to_string(),
+            off: vec!["basesystem".to_string()],
+            digest: None,
+        });
+        assert!(
+            old.swappable(&tools),
+            "工具面、预设可以变（施工 P-2 下：换预设时重新筛过）"
+        );
+        let mut memory = new.clone();
+        memory.memory = Some("off".to_string());
+        assert!(!old.swappable(&memory), "记忆的范围钉在会话上");
+        let mut attended = new.clone();
+        attended.attended = false;
+        assert!(!old.swappable(&attended));
         let mut other = new;
         other.persona = "miyu".to_string();
         assert!(!old.swappable(&other), "不是同一个人格");

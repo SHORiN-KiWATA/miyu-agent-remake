@@ -8,6 +8,7 @@ use serde_json::{Value, json};
 
 use miyu_config::package::PackageKind;
 use miyu_policy::preset::{Chosen, ROLEPLAY};
+use miyu_session::PresetPlaces;
 use miyu_store::presets::{Found, Layer, PresetError, Presets};
 
 use crate::Core;
@@ -49,6 +50,14 @@ pub(crate) fn installed(core: &Core) -> BTreeSet<String> {
         _ => None,
     }));
     installed
+}
+
+/// 交给会话的预设的几层和装了的软件（施工 P-2 下）：改了预设的文件，开着的会话下一个回合换上。
+pub(crate) fn places(core: &Core) -> PresetPlaces {
+    PresetPlaces {
+        presets: presets(core),
+        installed: installed(core).into_iter().collect(),
+    }
 }
 
 /// 找好的预设换成造会话要的：算好装了、没开的那几个。

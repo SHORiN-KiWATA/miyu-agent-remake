@@ -1,21 +1,18 @@
 //! 看一遍人格改了没有（施工 P-1 再补）：没改的不换；改了的换，新快照存进 blob；以前造的快照没有指纹的不换；程序升级过、
 //! 核心的字和旧快照不一样的不换；人格写错了的照旧。人格放在临时数据根里管理员家目录那一层。
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use miyu_kernel::id::AccountId;
-use miyu_store::env::{Env, Platform};
+use miyu_config::Values;
+use miyu_kernel::id::{AccountId, VenueId};
 use miyu_store::root::DataRoot;
 
+use super::test_support::{Scratch, scratch_root, write};
 use super::*;
 
-/// 临时目录：用完删掉。
-struct Scratch(PathBuf);
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        drop(std::fs::remove_dir_all(&self.0));
-    }
+/// 照全是默认值的配置看一遍。
+fn seen(refresh: &Refresh) -> Seen {
+    look(refresh, &Values::default())
 }
 
 /// 一个临时数据根，Miyu 住在管理员 alice 的家目录，人设是 `persona`；和照这一刻的文件拼好快照的 `Refresh`。
@@ -29,20 +26,7 @@ fn setup_with(
     persona: &str,
     preset: Option<miyu_policy::PresetPin>,
 ) -> (Scratch, DataRoot, Refresh) {
-    let scratch =
-        Scratch(std::env::temp_dir().join(format!("miyu-persona-{name}-{}", std::process::id())));
-    let env = Env {
-        platform: Platform::current(),
-        miyu_home: Some(scratch.0.join("data").into_os_string()),
-        home: None,
-        xdg_cache_home: None,
-        local_app_data: None,
-        miyu_resources: None,
-        exe: None,
-    };
-    let root = DataRoot::locate(&env).expect("MIYU_HOME 是绝对路径");
-    root.prepare().expect("临时目录里建得了骨架");
-    write(&root, "persona.md", persona);
+    let (scratch, root) = scratch_root(name, persona);
     let alice = AccountId::parse("alice").expect("账号合写法");
     let resources = ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"));
     let personas = Personas::new(&resources, &root, &alice);
@@ -62,23 +46,20 @@ fn setup_with(
         blobs: Blobs::new(root.blobs(&alice)),
         snapshot,
         child: false,
+        presets: None,
+        tools: Catalog::default(),
+        venue: VenueId::parse("local").expect("场所合写法"),
+        lineage: None,
     };
     (scratch, root, refresh)
-}
-
-/// 写 Miyu 的一份字。
-fn write(root: &DataRoot, file: &str, text: &str) {
-    let dir = root.path().join("home/alice/personas/miyu/prompts");
-    std::fs::create_dir_all(&dir).expect("建得了人格目录");
-    std::fs::write(dir.join(file), text).expect("写得进");
 }
 
 #[test]
 fn an_unchanged_persona_is_the_same_and_a_changed_one_swaps() {
     let (_scratch, root, refresh) = setup("swap", "You are Miyu.\n");
-    assert!(matches!(look(&refresh), Seen::Same));
+    assert!(matches!(seen(&refresh), Seen::Same));
     write(&root, "persona.md", "You are Miyu, softly.\n");
-    let Seen::Swapped(snapshot, _, hash) = look(&refresh) else {
+    let Seen::Swapped(snapshot, _, hash) = seen(&refresh) else {
         panic!("改了要换");
     };
     assert!(snapshot.system.starts_with("You are Miyu, softly."));
@@ -94,7 +75,7 @@ fn an_older_snapshot_without_a_digest_is_never_swapped() {
     let (_scratch, root, mut refresh) = setup("older", "You are Miyu.\n");
     refresh.snapshot.persona_digest = None;
     write(&root, "persona.md", "You are Miyu, softly.\n");
-    assert!(matches!(look(&refresh), Seen::Same));
+    assert!(matches!(seen(&refresh), Seen::Same));
 }
 
 #[test]
@@ -102,14 +83,14 @@ fn a_session_made_before_an_upgrade_keeps_its_snapshot() {
     let (_scratch, root, mut refresh) = setup("upgraded", "You are Miyu.\n");
     refresh.snapshot.core.facts.env = "<env/>\n".to_string();
     write(&root, "persona.md", "You are Miyu, softly.\n");
-    assert!(matches!(look(&refresh), Seen::Kept(_)));
+    assert!(matches!(seen(&refresh), Seen::Kept(_)));
 }
 
 #[test]
 fn a_broken_persona_is_unreadable_and_kept() {
     let (_scratch, root, refresh) = setup("broken", "You are Miyu.\n");
     write(&root, "examples.md", "user: a\n");
-    assert!(matches!(look(&refresh), Seen::Unreadable(_)));
+    assert!(matches!(seen(&refresh), Seen::Unreadable(_)));
 }
 
 /// 预设没开角色扮演的（施工 P-2 中）：换人格时照旧没有角色扮演提示和风格锁；指纹照人格原来的字算，换过以后不会每轮都当成
@@ -119,11 +100,12 @@ fn roleplay_stays_off_across_a_swap() {
     let pin = miyu_policy::PresetPin {
         id: "dev".to_string(),
         off: vec!["memory".to_string(), "roleplay".to_string()],
+        digest: None,
     };
     let (_scratch, root, mut refresh) =
         setup_with("roleplay", "You are Miyu.\n", Some(pin.clone()));
     write(&root, "reminders.md", "Stay soft.\n");
-    let Seen::Swapped(snapshot, _, _) = look(&refresh) else {
+    let Seen::Swapped(snapshot, _, _) = seen(&refresh) else {
         panic!("多了角色扮演提示也算改了");
     };
     assert_eq!(snapshot.reminder, None, "预设没开角色扮演");
@@ -136,5 +118,5 @@ fn roleplay_stays_off_across_a_swap() {
     );
     assert_eq!(snapshot.preset, Some(pin));
     refresh.snapshot = *snapshot;
-    assert!(matches!(look(&refresh), Seen::Same), "换过以后不再换");
+    assert!(matches!(seen(&refresh), Seen::Same), "换过以后不再换");
 }

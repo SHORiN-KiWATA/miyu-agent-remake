@@ -247,6 +247,7 @@ impl Home {
             model: lines.model,
             memory: Some(self.memory()),
             preset: lines.preset,
+            presets: None,
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -313,6 +314,7 @@ impl Home {
             usage: Some(Arc::clone(&self.usage)),
             configs: self.configs.clone(),
             memory: Some(self.memory()),
+            presets: None,
         });
         within("载入", loaded).await.expect("载入得了会话")
     }

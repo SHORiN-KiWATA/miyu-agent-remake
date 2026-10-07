@@ -79,6 +79,7 @@ impl Open {
             index: core.index_for(&core.admin),
             usage: core.usage_for(&core.admin),
             memory: core.memory_for(&core.admin),
+            presets: Some(crate::presets::places(core)),
             configs: core.hub.configs(),
         })
         .await;
