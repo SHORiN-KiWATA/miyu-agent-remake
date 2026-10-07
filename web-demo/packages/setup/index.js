@@ -148,13 +148,12 @@ export function apply(ctx) {
   };
 
   ctx.slots.mount('composer.above', { id: 'setup', order: 90, render: () => row });
-  // 设置页：「人格」一页；通用页的「默认人格」照人格列表给下拉的选项，只有一个人格时不列（没得选）
+  // 设置页：「人格」一页；通用页的「默认人格」照人格列表给下拉的选项（只有一个人格时也列，2026-10-07 项目主人）
   ctx.slots.mount('settings.section', { id: 'personas', name: t('page.title'), render: () => personaPage(ctx, () => fallback) });
   ctx.slots.mount('settings.editor', {
     id: 'setup',
     key: 'persona.default',
     options: () => (personas ?? []).filter((p) => !p.problem).map((p) => ({ value: p.persona, name: personaName(p) })),
-    hidden: () => !!personas && personas.filter((p) => !p.problem).length <= 1,
   });
   ctx.slots.mount('stage.info', { id: 'setup', order: 10, render: () => infoWrap });
   ctx.on('view.changed', () => draw());
