@@ -8,6 +8,7 @@
 import { h, replace } from './dom.js';
 import { show, hide } from '../lib/motion.js';
 import { res, t } from '../util/res.js';
+import { fitAbove } from './fit.js';
 import { sessionList } from '../model/session-list.js';
 import { ago } from '../model/ago.js';
 
@@ -103,6 +104,7 @@ export class SessionList {
     const now = Date.now();
     const empty = this.rows ? t('session_list.no_match') : t('session_list.loading');
     replace(this.list, this.items.length ? this.items.map((it, i) => this.row(it, i, now)) : [h('div.slist-empty', empty)]);
+    fitAbove(this.el, this.list);
     this.mark();
     if (this.items.some((it) => it.mark === 'running')) this.startSpin();
     else this.stopSpin();

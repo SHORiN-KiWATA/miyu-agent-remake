@@ -8,11 +8,10 @@
 import { h, replace } from './dom.js';
 import { show, hide } from '../lib/motion.js';
 import { res, t } from '../util/res.js';
+import { fitAbove } from './fit.js';
 
 /** 滚一行多高（和一行的行高一样） */
 const LINE = 24;
-/** 框顶上至少离窗口上沿多远：吉祥物站得下 */
-const TOP_ROOM = 72;
 
 export class HelpPanel {
   constructor() {
@@ -47,13 +46,10 @@ export class HelpPanel {
     const keys = /** @type {[string, string][]} */ (res.text.help.keys).flatMap(([key, what]) => [h('kbd.help-key', key), h('span.help-what', what)]);
     replace(this.body, section(t('help.commands'), commands), section(t('help.keys_title'), keys));
     this.body.scrollTop = 0;
-    this.body.style.maxHeight = '';
     this.isOpen = true;
     show(this.el);
-    // 输入框在窗口中间时（空会话）上面没那么多地方：顶出窗口上沿的那一截从框里扣掉，标题一直看得到；上面再留出吉祥物站的地方
-    // （她站在开着的浮层顶上，留少了就被挤进框里）
-    const over = TOP_ROOM - this.el.getBoundingClientRect().top;
-    if (over > 0) this.body.style.maxHeight = `${Math.max(LINE * 3, this.body.clientHeight - over)}px`;
+    // 输入框在窗口中间时（空会话）放不下：框里矮下去，顶上留出吉祥物站的地方（`fit.js`）
+    fitAbove(this.el, this.body, LINE * 3, false);
     document.addEventListener('keydown', this.onKey, true);
     document.addEventListener('pointerdown', this.onDown, true);
   }

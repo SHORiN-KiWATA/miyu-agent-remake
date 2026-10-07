@@ -11,6 +11,7 @@
 import { h, replace } from './dom.js';
 import { show, hide } from '../lib/motion.js';
 import { res, t } from '../util/res.js';
+import { fitAbove } from './fit.js';
 import { Menu, revertedSaid, revertedMessage, keptAttachments } from '../model/commands.js';
 import { project } from '../model/transcript.js';
 import { copy } from '../markdown/build.js';
@@ -84,6 +85,7 @@ export class CommandList {
     show(this.el);
     this.head.textContent = t('commands.header', { count: this.matches.length });
     replace(this.list, this.matches.map((spec, i) => this.row(spec, i)));
+    fitAbove(this.el, this.list);
     this.mark(true);
   }
 
