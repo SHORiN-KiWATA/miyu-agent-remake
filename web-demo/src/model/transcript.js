@@ -72,11 +72,9 @@ export function project(events, live = null, marks = new Map(), stats = new Map(
   const started = [];
   for (const e of events) {
     const b = e.body;
-    // 没在回答了还排着的：`/stop` 留着的（核心 O-6 的 `keep`）不会再开一轮。这一轮结束以后来了别的事（不是接着开的那一轮、不是退回），
-    // 先照日志的先后进正文，不压到后来的那几行（命令、清空）下面
-    if (queue.length && !(e.kind === 'turn.started' && b.trigger != null) && e.kind !== 'message.withdrawn' && ![...turns.values()].some((x) => !x.ended)) {
-      items.push(...queue.splice(0));
-    }
+    // `/stop` 留着的排着的话（核心 O-6 的 `keep`）不会再开一轮：照它记下的 `command.ran`（排在那一轮结束后面）进正文，不压到后来的
+    // 那几行（清空这些）下面。只认这一条：接着开下一轮之前也会先来标题这类事件，那时排着的是下一轮的开头（照终端，2026-10-07）
+    if (e.kind === 'command.ran' && queue.length && ![...turns.values()].some((x) => !x.ended)) items.push(...queue.splice(0));
     switch (e.kind) {
       case 'session.created':
       case 'session.policy_changed':

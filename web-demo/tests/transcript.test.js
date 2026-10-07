@@ -157,6 +157,16 @@ test('没在回答了还排着的（没接着开）：进正文，不一直挂�
   assert.equal(view.items.at(-1).text, '顺便看看 b');
 });
 
+test('这一轮结束和接着开下一轮之间先来了别的事（起了标题）：排着的照旧是下一轮的开头，不提前进正文', () => {
+  const events = [...queuedLog(),
+    ev(7, 5, 'turn.ended', 3, { reason: 'interrupted' }),
+    ev(8, 5, 'session.meta_changed', undefined, { title: '看文件' }),
+    ev(9, 5, 'turn.started', 9, { trigger: 6 })];
+  const view = project(events);
+  assert.deepEqual(view.items.map((it) => `${it.type}:${it.turn ?? ''}`), ['user:3', 'steps:3', 'done:3', 'user:9', 'waiting:9']);
+  assert.equal(view.items[3].opens, true, '开下一轮的那一句');
+});
+
 test('/stop 留着的排着的话（O-6 的 keep）：这一轮结束以后来了别的事（命令记录、清空），照日志的先后进正文，不压到后来的那几行下面', () => {
   const events = [...queuedLog(),
     ev(7, 5, 'turn.ended', 3, { reason: 'interrupted' }),
