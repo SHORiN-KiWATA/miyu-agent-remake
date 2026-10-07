@@ -70,7 +70,7 @@ impl InboundRule for Rule {
     fn judge(&self, msg: &Inbound, ctx: &Ctx, _clock: Clock) -> Step {
         let moderation = &ctx.moderation;
         let base64 = moderation.base64;
-        let hit = msg.standing != Standing::Owner
+        let hit = msg.said.standing != Standing::Owner
             && (moderation.hits(&msg.text)
                 || segments(&msg.text)
                     .into_iter()

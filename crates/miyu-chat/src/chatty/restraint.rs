@@ -19,7 +19,7 @@ pub fn pressure(replies: &[Reply], clock: Clock, chatty: &Chatty) -> f64 {
         .iter()
         .filter(|reply| reply.at <= clock.now)
         .map(|reply| {
-            let age = clock.now.saturating_sub(reply.at) as f64;
+            let age = (clock.now.unix_millis() - reply.at.unix_millis()) as f64;
             0.5_f64.powf(age / half_life)
         })
         .sum()

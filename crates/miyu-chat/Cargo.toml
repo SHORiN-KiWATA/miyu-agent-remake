@@ -8,13 +8,14 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
-# 判官的 `violations.txt` 照模板的规矩换门槛（`docs/blueprint/chat.md` 第六条「怎么走」第 1 条，08 第五节「模板与转义」）。
+# 编号、时刻、内容哈希用内核的类型（`docs/blueprint/chat.md` 第七条第 1 条，施工 O-12）；判官的 `violations.txt` 照模板的
+# 规矩换门槛（第六条「怎么走」第 1 条，08 第五节「模板与转义」）。
 miyu-kernel = { path = "../miyu-kernel" }
 # 名字、选项、整数、文字照配置清单的类型认，问题用配置的原因码和位置（`docs/blueprint/chat.md` 施工时定的第 4 条）。
 miyu-config = { path = "../miyu-config" }
 # 读规则文件的 TOML，记下每一项在第几行；只开 `parse`，同 miyu-config。
 toml_edit = { version = "0.25", default-features = false, features = ["parse"] }
-# 主动回复判断的抽样照「场所加消息编号」的 SHA-256 算种子，同一份日志回放出同样的结果（`chat.md` 第三条「怎么走」第 6 条）。
+# 主动回复判断的抽样照「场所编号加序号」的 SHA-256 算种子，同一份日志回放出同样的结果（`chat.md` 第三条「怎么走」第 6 条、第七条第 1 条）。
 sha2 = { version = "0.11", default-features = false }
 # 读判官的回答：回答里的 JSON 对象（`chat.md` 第六条「怎么走」第 4 条）。
 serde_json = "1.0"

@@ -32,6 +32,31 @@ pub enum VenueKind {
     Private,
 }
 
+/// 群的写法：匹配条件的 `kind`、场所编号的中间一段（`chat.md` 第七条第 1 条）。
+const GROUP: &str = "group";
+
+/// 私聊的写法。
+const PRIVATE: &str = "private";
+
+impl VenueKind {
+    /// 写法：`group`、`private`。
+    pub(super) fn as_str(self) -> &'static str {
+        match self {
+            VenueKind::Group => GROUP,
+            VenueKind::Private => PRIVATE,
+        }
+    }
+
+    /// 照写法认：只认 `group`、`private`，区分大小写。
+    pub(super) fn parse(text: &str) -> Option<VenueKind> {
+        match text {
+            GROUP => Some(VenueKind::Group),
+            PRIVATE => Some(VenueKind::Private),
+            _ => None,
+        }
+    }
+}
+
 /// 套到一个场所上的结果：每一项属性的值和来处。没有规则设到的项不在里面（「怎么走」第 7 条）：默认值是出厂的规则文件，
 /// 代码里不写死。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -96,11 +121,8 @@ impl Match {
                 self.platform = Some(String::from(&platform));
             }
             "kind" => {
-                self.kind = Some(match value.as_str().ok_or(Code::WrongType)? {
-                    "group" => VenueKind::Group,
-                    "private" => VenueKind::Private,
-                    _ => return Err(Code::NotAnOption),
-                });
+                let kind = value.as_str().ok_or(Code::WrongType)?;
+                self.kind = Some(VenueKind::parse(kind).ok_or(Code::NotAnOption)?);
             }
             "group" => self.group = Some(ids(value)?),
             _ => self.user = Some(ids(value)?),

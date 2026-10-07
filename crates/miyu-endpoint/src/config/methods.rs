@@ -404,7 +404,7 @@ pub(super) fn selected<'a>(
                     key: Some(key.clone()),
                     got: None,
                     why: None,
-                    suggest: nearest(items, key),
+                    suggest: nearest(items.iter().map(|item| item.key), key),
                     current: None,
                     name: None,
                 };

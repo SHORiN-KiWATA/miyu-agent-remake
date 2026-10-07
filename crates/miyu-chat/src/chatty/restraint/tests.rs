@@ -37,7 +37,7 @@ fn lift(judgement: &Judgement, conditions: &Conditions, replies: &[Reply], chatt
 
 /// 此刻刚发出的 `count` 轮：近期发言量正好是 `count`。
 fn fresh(count: usize) -> Vec<Reply> {
-    vec![reply(0, Some(OTHER)); count]
+    vec![reply(0, &[OTHER]); count]
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn curve() {
 fn pressure_halves_every_half_life() {
     let params = chatty();
     let at = |ago: &[i64]| -> i64 {
-        let replies: Vec<Reply> = ago.iter().map(|&ago| reply(ago, None)).collect();
+        let replies: Vec<Reply> = ago.iter().map(|&ago| reply(ago, &[])).collect();
         mills(pressure(&replies, now(), &params))
     };
     assert_eq!(at(&[]), 0);
@@ -90,14 +90,14 @@ fn pressure_halves_every_half_life() {
         },
         ..chatty()
     };
-    let replies = [reply(6 * MINUTE, None)];
+    let replies = [reply(6 * MINUTE, &[])];
     assert_eq!(mills(pressure(&replies, now(), &slow)), 500);
 }
 
 #[test]
 fn future_replies_do_not_lift() {
     let (judgement, conditions) = chiming();
-    let later: Vec<Reply> = vec![reply(-1, None); 5];
+    let later: Vec<Reply> = vec![reply(-1, &[]); 5];
     assert_eq!(lift(&judgement, &conditions, &later, &chatty()), 0.0);
 }
 

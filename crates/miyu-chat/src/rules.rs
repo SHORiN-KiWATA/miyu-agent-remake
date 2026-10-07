@@ -16,15 +16,18 @@
 
 mod attrs;
 mod forms;
+mod ids;
 mod resolve;
 
+pub use ids::{parse_person, person};
 pub use resolve::{Entry, Origin, Resolved, Venue, VenueKind};
 
 use std::collections::BTreeMap;
 use std::ops::Range;
 
 use miyu_config::Value;
-use miyu_config::problem::{At, Code, got};
+use miyu_config::parse::why;
+use miyu_config::problem::{At, Code, got, nearest};
 use toml_edit::{Document, Item as Node, Key, TableLike};
 
 use resolve::{CONDITIONS, Match};
@@ -181,7 +184,7 @@ impl Reader<'_> {
                 self.rules(key, node);
             } else {
                 let mut problem = self.item(Code::UnknownKey, None, name, key, node, true);
-                problem.suggest = attrs::nearest([RULE], name).map(String::from);
+                problem.suggest = nearest([RULE], name).map(String::from);
                 self.problems.push(problem);
             }
         }
@@ -224,7 +227,7 @@ impl Reader<'_> {
             let Some((known, form)) = attrs::find(name) else {
                 let mut problem = self.item(Code::UnknownKey, Some(number), name, key, node, true);
                 let names = attrs::ATTRS.iter().map(|(known, _)| *known);
-                problem.suggest = attrs::nearest(names, name).map(String::from);
+                problem.suggest = nearest(names, name).map(String::from);
                 self.problems.push(problem);
                 continue;
             };
@@ -272,7 +275,7 @@ impl Reader<'_> {
                 let unknown = code == Code::UnknownKey;
                 let mut problem = self.item(code, Some(number), &full, key, node, unknown);
                 if unknown {
-                    problem.suggest = attrs::nearest(CONDITIONS.iter().copied(), name)
+                    problem.suggest = nearest(CONDITIONS.iter().copied(), name)
                         .map(|near| format!("{MATCH}.{near}"));
                 }
                 self.problems.push(problem);
@@ -339,17 +342,6 @@ impl Reader<'_> {
             At::of(self.text, span.start)
         })
     }
-}
-
-/// `toml_edit` 的原话只取最后一行（为什么），不带它印出来的原文：照配置的 `parse` 的做法（它的那个不公开，这里五行自己写）。
-fn why(message: &str) -> String {
-    message
-        .trim_end()
-        .lines()
-        .next_back()
-        .unwrap_or_default()
-        .trim()
-        .to_string()
 }
 
 #[cfg(test)]

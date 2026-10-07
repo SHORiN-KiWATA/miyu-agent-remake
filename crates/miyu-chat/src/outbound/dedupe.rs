@@ -6,6 +6,8 @@
 
 use std::collections::BTreeSet;
 
+use miyu_kernel::id::ContentHash;
+
 use super::{OutCtx, OutStep, OutWhy, OutboundRule, Outgoing, Target};
 
 /// 去重这条规则。
@@ -24,7 +26,7 @@ impl OutboundRule for Rule {
             outgoing.text.clear();
         }
         // 发过的去掉，同一条里重复的只留第一张；先后照原样。
-        let mut seen: BTreeSet<String> = ctx.sent.images.iter().cloned().collect();
+        let mut seen: BTreeSet<ContentHash> = ctx.sent.images.iter().cloned().collect();
         let pictured = !outgoing.images.is_empty();
         outgoing.images.retain(|image| seen.insert(image.clone()));
         match pictured && outgoing.images.is_empty() && outgoing.text.is_empty() {

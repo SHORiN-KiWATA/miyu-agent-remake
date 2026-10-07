@@ -1,5 +1,7 @@
 //! 测试共用的几样：造要发的一条、造情形、过自带的链。参数照出厂的数（4 条、15 秒），只在测试里写。
 
+use miyu_kernel::id::ContentHash;
+
 use super::{Out, OutChain, OutCtx, OutWhy, Outbound, Outgoing, Sent, Since, Target};
 
 /// 出厂的「隔几条别人的消息才引用」。
@@ -16,11 +18,16 @@ pub(crate) fn text(body: &str) -> Outgoing {
     }
 }
 
-/// 一条有正文、有图的。
+/// 一张图的哈希：拿名字当内容算，同一个名字是同一张图。
+pub(crate) fn image(name: &str) -> ContentHash {
+    ContentHash::of(name.as_bytes())
+}
+
+/// 一条有正文、有图的：图照名字算哈希（[`image`]）。
 pub(crate) fn with_images(body: &str, images: &[&str]) -> Outgoing {
     Outgoing {
         text: body.to_string(),
-        images: images.iter().map(|image| image.to_string()).collect(),
+        images: images.iter().map(|name| image(name)).collect(),
     }
 }
 

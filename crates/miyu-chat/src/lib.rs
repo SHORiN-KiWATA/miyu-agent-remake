@@ -7,9 +7,11 @@
 //! - 场所规则（`chat.md` 第一条，施工 O-1）：[`Rules::parse`] 读一组规则文件（[`File`]，出厂的和系统的），照文件名排好
 //!   先后，写错的变成 [`Problem`]，其余照收；[`Rules::resolve`] 套到一个场所（[`Venue`]）上，得出每一项的值和来处
 //!   （[`Resolved`]、[`Origin`]）。读文件、文件大小、是不是 UTF-8 由读文件的一方管（`chat.md` 施工时定的第 5 条）。
-//! - 进站链与限流（`chat.md` 第二条，施工 O-5）：[`Chain::judge`] 让一条进来的消息（[`Inbound`]）照顺序过自带的五条
-//!   规则，给出 [`Verdict`]；[`rate_full`] 说额度满了没有；[`gate()`] 回答核心自己开的回合现在开还是推迟。限流、睡眠从
-//!   场所规则的原文读（[`Rate::read`]、[`Sleep::read`]）。
+//!   编号的拼和解也在这里（`chat.md` 第七条第 1 条，施工 O-12）：场所 [`Venue::id`]、[`Venue::parse`]，平台上的人
+//!   [`person`]、[`parse_person`]。
+//! - 进站链与限流（`chat.md` 第二条，施工 O-5）：[`Chain::judge`] 让一条进来的消息（[`Inbound`]，和主动回复判断共用的
+//!   那几格在 [`Said`]）照顺序过自带的五条规则，给出 [`Verdict`]；[`rate_full`] 说额度满了没有；[`gate()`] 回答核心自己
+//!   开的回合现在开还是推迟。限流、睡眠从场所规则的原文读（[`Rate::read`]、[`Sleep::read`]）。
 //!
 //! - 主动回复判断的上半（`chat.md` 第三条，施工 O-7）：[`conditions`] 算一条消息（[`Facts`]）成立了哪些触发条件，
 //!   [`route`] 定走哪条路，[`score()`] 拿判官的回答（[`Judgement`]）算分、跟门槛比；冷静机制照近期发言量（[`pressure`]）
@@ -40,12 +42,15 @@ pub use chatty::{
 };
 
 pub use inbound::{
-    Base64, Chain, Clock, Ctx, Flag, Gate, Inbound, InboundRule, Moderation, Outcome, Rate, Sleep,
-    Standing, Step, Verdict, Why, gate, rate_full,
+    Base64, Chain, Clock, Ctx, Flag, Gate, Inbound, InboundRule, Moderation, Outcome, Rate, Said,
+    Sleep, Standing, Step, Verdict, Why, gate, rate_full,
 };
 pub use judge::{Ask, JudgeSources, JudgeTexts, Message, Mode, Role, Unreadable, read, request};
 pub use outbound::{
     Out, OutChain, OutCtx, OutStep, OutWhy, Outbound, OutboundRule, Outgoing, Sent, Since, Target,
     plain, split,
 };
-pub use rules::{Entry, File, Origin, Problem, Read, Resolved, Rules, Source, Venue, VenueKind};
+pub use rules::{
+    Entry, File, Origin, Problem, Read, Resolved, Rules, Source, Venue, VenueKind, parse_person,
+    person,
+};
