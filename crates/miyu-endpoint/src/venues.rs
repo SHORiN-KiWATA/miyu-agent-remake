@@ -106,6 +106,7 @@ pub(crate) async fn session(
         oneshot: false,
         model: None,
         venue: Some(venue),
+        memory: None,
     };
     let cwd = params
         .cwd

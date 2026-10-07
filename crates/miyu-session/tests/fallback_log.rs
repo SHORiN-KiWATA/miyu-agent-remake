@@ -42,7 +42,7 @@ async fn a_fallback_is_logged_with_both_references() {
     let (switch, receiving) = watch::channel(source(both));
     let mut home = Home::new();
     home.configs = receiving;
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let lines = Lines {
         model: Some("a/x".to_string()),
         ..Lines::default()

@@ -22,7 +22,7 @@ use miyu_tool::{Call, Catalog, Done, Progress, Running, Spec, Target, Tool};
 
 use support::*;
 
-/// 报路径时停住的工具：进来了说一声，等测试放它走，最多等五秒；放走了没有记下来。
+/// 报路径时停住的工具：进来了说一声，等测试放它走，最多等六十秒；放走了没有记下来。
 struct Slow {
     spec: Spec,
     entered: tokio::sync::mpsc::UnboundedSender<()>,
@@ -41,7 +41,7 @@ impl Tool for Slow {
             .release
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .recv_timeout(Duration::from_secs(5));
+            .recv_timeout(Duration::from_secs(60));
         self.released.store(waited.is_ok(), Ordering::SeqCst);
         vec![Target {
             path: "a.txt".to_string(),
@@ -99,7 +99,7 @@ async fn the_async_thread_is_free_while_the_guard_judges() {
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
     // 工具在报路径：权限策略正在判。测试这边跑得到这里、放得了它，是因为判的时候异步线程空着。原来当场在 actor 里
-    // 判，单线程的运行时整个卡住，要等工具自己等满五秒。
+    // 判，单线程的运行时整个卡住，要等工具自己等满六十秒。
     within("开始判", entered.recv()).await;
     release.send(()).expect("工具在等");
     until_turn_ends(&mut pushes).await;

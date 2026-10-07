@@ -250,6 +250,9 @@ async fn session(
             if let Some(model) = &plan.model {
                 params["model"] = json!(model);
             }
+            if plan.no_memory {
+                params["memory"] = json!("off");
+            }
             let result =
                 link::request(rpc, "session.create", params, &plan.language, screen.err).await?;
             let session = result["session"].as_str().unwrap_or_default().to_string();

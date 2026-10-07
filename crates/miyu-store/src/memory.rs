@@ -1,5 +1,6 @@
-//! 记忆日志的登记（施工 R-3 上，`docs/blueprint/memory.md`「对外的样子」的记忆日志、底账、记忆库）：一个账号、一个人格一份
-//! 记忆日志，`home/<账号>/modules/memory/<人格>/`，照会话日志的外壳和写法（[`SessionLog`]：崩了截掉半行、同步、按段）。
+//! 记忆日志的登记（施工 R-3 上，`docs/blueprint/memory.md`「对外的样子」的记忆日志、底账、记忆库）：一处记忆（房间，[`Room`]，
+//! 施工 R-3 下）一份记忆日志，跟着人格的在 `home/<账号>/modules/memory/<人格>/`，只在会话里的在会话目录的 `memory/log/`，照会话
+//! 日志的外壳和写法（[`SessionLog`]：崩了截掉半行、同步、按段）。
 //!
 //! - 几个会话同时往一份里写：核心一份登记，一份日志一把锁，序号在锁里领，所以连续不重。
 //! - 底账（`miyu_recall::MemoryBook`）跟着日志在内存里，打开时照日志算一遍：一个人格的记忆几百到几千条，不多背。
@@ -7,29 +8,28 @@
 //!   追加，交回给调的一方记日志（[`Appended::indexed`]）；打开时照到的位置比日志短就照日志补。
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use miyu_kernel::event::Event;
-use miyu_kernel::id::{AccountId, Seq};
+use miyu_kernel::id::Seq;
 use miyu_kernel::origin::By;
 use miyu_kernel::time::Timestamp;
 use miyu_recall::{MemoryBook, MemoryEvent, MemoryId, from_event, to_event};
 
 use crate::log::{OpenError, SEGMENT_LIMIT, SessionLog};
-use crate::recall::{DbError, Edit, Opened, RecallIndex};
+use crate::recall::{DbError, Edit, Opened, RecallIndex, Room};
 use crate::root::DataRoot;
 
 /// 记忆库里照到的来源：整份记忆日志只有这一个。
 const SOURCE: &str = "log";
 
-/// 记忆日志的登记：照（账号、人格）开、留着。核心里一份。
+/// 记忆日志的登记：照房间开、留着。核心里一份。
 #[derive(Debug)]
 pub struct MemoryLogs {
     /// 数据根。
     root: DataRoot,
     /// 开过的。
-    open: Mutex<BTreeMap<(AccountId, String), Arc<MemoryLog>>>,
+    open: Mutex<BTreeMap<Room, Arc<MemoryLog>>>,
 }
 
 /// 一份记忆日志，连同它的底账、记忆库。
@@ -89,28 +89,17 @@ impl MemoryLogs {
         }
     }
 
-    /// 账号 `account`、人格 `persona` 的记忆日志：开过的交回同一份；没有的建一份空的。这一回第一次开的另交回派生的那些是
-    /// 什么情形（[`Report`]）。
+    /// 房间 `room` 的记忆日志：开过的交回同一份；没有的建一份空的。这一回第一次开的另交回派生的那些是什么情形（[`Report`]）。
     ///
     /// # Errors
     ///
     /// 日志坏在中间、读写出错：这一份这一回用不了，下次再开再试。
-    pub fn open(
-        &self,
-        account: &AccountId,
-        persona: &str,
-    ) -> Result<(Arc<MemoryLog>, Option<Report>), MemoryError> {
+    pub fn open(&self, room: &Room) -> Result<(Arc<MemoryLog>, Option<Report>), MemoryError> {
         let mut open = self.lock();
-        let slot = (account.clone(), persona.to_string());
-        if let Some(log) = open.get(&slot) {
+        if let Some(log) = open.get(room) {
             return Ok((Arc::clone(log), None));
         }
-        let dir = self
-            .root
-            .account_dir(account)
-            .join("modules")
-            .join("memory")
-            .join(persona);
+        let dir = room.log(&self.root);
         let (log, events) = match SessionLog::open(&dir, SEGMENT_LIMIT) {
             Ok(opened) => opened,
             Err(OpenError::Missing(_)) => (
@@ -126,7 +115,7 @@ impl MemoryLogs {
                 unreadable.push((event.seq, why));
             }
         }
-        let (index, opened) = RecallIndex::open(&self.index_path(account, persona));
+        let (index, opened) = RecallIndex::open(&room.memories(&self.root));
         let (filled, caught_up) = match catch_up(&index, &events) {
             Ok(filled) => (filled, None),
             Err(error) => (0, Some(error)),
@@ -135,7 +124,7 @@ impl MemoryLogs {
             inner: Mutex::new(Inner { log, book }),
             index,
         });
-        open.insert(slot, Arc::clone(&log));
+        open.insert(room.clone(), Arc::clone(&log));
         Ok((
             log,
             Some(Report {
@@ -147,15 +136,7 @@ impl MemoryLogs {
         ))
     }
 
-    /// 记忆库在哪。
-    fn index_path(&self, account: &AccountId, persona: &str) -> PathBuf {
-        self.root
-            .index(account)
-            .join("recall")
-            .join(format!("memory-{persona}.db"))
-    }
-
-    fn lock(&self) -> MutexGuard<'_, BTreeMap<(AccountId, String), Arc<MemoryLog>>> {
+    fn lock(&self) -> MutexGuard<'_, BTreeMap<Room, Arc<MemoryLog>>> {
         self.open
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)

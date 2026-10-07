@@ -92,6 +92,7 @@ ask 的选项：
       --timeout <时长>    最多等多久，到了就不等了：30s、10m、1h
       --from <名字>       别的 harness 用：写上它的名字，例如 claude-code
       --model <模型>      用这个模型说；接着的会话以后都用它
+      --no-memory         不召回、也不记；只管新开的会话
 
 undo、restore、redo、compact、recap、rename 的选项：
   -s, --session <编号>  哪个会话；不写就是上一次 miyu ask 开的
@@ -138,6 +139,7 @@ ask options:
       --timeout <time>    Stop waiting after this long: 30s, 10m, 1h
       --from <name>       For another harness: its name, e.g. claude-code
       --model <model>     Use this model; a continued session keeps it
+      --no-memory         Don't recall or remember; new sessions only
 
 undo, restore, redo, compact, recap, rename options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened

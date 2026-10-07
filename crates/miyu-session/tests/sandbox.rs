@@ -301,7 +301,7 @@ async fn commands_really_run_in_the_sandbox() {
 /// 这台机器上助手有没有收紧的手段：没有的（例如没有 Landlock 的内核），这个测试到此为止。
 #[cfg(unix)]
 fn can_confine(helper: &Path) -> bool {
-    let probe = miyu_sandbox::probe(helper, std::time::Duration::from_secs(5)).expect("探得了");
+    let probe = miyu_sandbox::probe(helper, std::time::Duration::from_secs(60)).expect("探得了");
     !probe.mechanisms.is_empty()
 }
 

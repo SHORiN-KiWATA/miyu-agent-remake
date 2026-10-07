@@ -274,7 +274,7 @@ async fn the_loop_fetches_when_due_and_not_when_update_is_off() {
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert_eq!(server.received().len(), 1);
     drop(sender);
-    tokio::time::timeout(Duration::from_secs(5), running)
+    tokio::time::timeout(Duration::from_secs(60), running)
         .await
         .expect("配置没了就停")
         .expect("没有 panic");

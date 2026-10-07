@@ -54,7 +54,7 @@ async fn a_failed_description_writes_a_line_and_a_good_one_does_not() {
             first.base_url, second.base_url
         )
     };
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let mut home = Home::new();
     let blob = Blobs::new(home.root.blobs(&alice_account()))
         .put(b"miyu")

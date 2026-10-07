@@ -9,6 +9,8 @@ use miyu_kernel::request::Message;
 use serde::{Deserialize, Serialize};
 use toml_edit::{Document, Item, TableLike};
 
+use crate::memory::MemoryScope;
+
 /// `persona.toml` 在人格目录里的名字。
 pub const TOML: &str = "persona.toml";
 /// 示范对话在人格目录里的位置。
@@ -26,6 +28,8 @@ pub struct PersonaFile {
     pub name: Phrases,
     /// 一句说明。
     pub summary: Phrases,
+    /// 记忆的默认范围（`[memory] scope`，施工 R-3 下）：只能是 `persona`、`session`；没写的是没有，照 `persona` 算。
+    pub memory: Option<MemoryScope>,
 }
 
 impl PersonaFile {
@@ -34,6 +38,7 @@ impl PersonaFile {
     pub fn over(self, mut lower: PersonaFile) -> PersonaFile {
         lower.name.extend(self.name);
         lower.summary.extend(self.summary);
+        lower.memory = self.memory.or(lower.memory);
         lower
     }
 }
@@ -86,8 +91,8 @@ impl fmt::Display for Problem {
     }
 }
 
-/// 读 `persona.toml`：只有 `[persona]` 一张表，里面只有 `name`、`summary`，各是一张语言到一句话的表（`zh`、`en`、`ja`），
-/// 话不能是空的。整个文件、这张表、这两格都可以没有。
+/// 读 `persona.toml`：`[persona]` 一张表，里面只有 `name`、`summary`，各是一张语言到一句话的表（`zh`、`en`、`ja`），话不能是
+/// 空的；`[memory]` 一张表，里面只有 `scope`（`persona` 或 `session`，施工 R-3 下）。整个文件、这两张表、每一格都可以没有。
 ///
 /// # Errors
 ///
@@ -101,6 +106,10 @@ pub fn read_toml(text: &str) -> Result<PersonaFile, Problem> {
     let at = |item: &Item| item.span().map(|span| line_of(text, span.start));
     let mut file = PersonaFile::default();
     for (key, item) in document.as_table().iter() {
+        if key == "memory" {
+            file.memory = read_memory(item, &at)?;
+            continue;
+        }
         if key != "persona" {
             return Err(problem(at(item), format!("unknown table [{key}]")));
         }
@@ -117,6 +126,32 @@ pub fn read_toml(text: &str) -> Result<PersonaFile, Problem> {
         }
     }
     Ok(file)
+}
+
+/// `[memory]`：只有 `scope`，`persona` 或 `session`。`off` 不在这里：不开记忆是开会话时、预设的事。
+fn read_memory(
+    item: &Item,
+    at: &dyn Fn(&Item) -> Option<usize>,
+) -> Result<Option<MemoryScope>, Problem> {
+    let Some(table) = item.as_table_like() else {
+        return Err(problem(at(item), "memory must be a table".to_string()));
+    };
+    let mut scope = None;
+    for (key, item) in table.iter() {
+        if key != "scope" {
+            return Err(problem(at(item), format!("unknown key memory.{key}")));
+        }
+        scope = match item.as_str().and_then(MemoryScope::parse) {
+            Some(MemoryScope::Off) | None => {
+                return Err(problem(
+                    at(item),
+                    "memory.scope must be persona or session".to_string(),
+                ));
+            }
+            found => found,
+        };
+    }
+    Ok(scope)
 }
 
 /// 一张语言到一句话的表。

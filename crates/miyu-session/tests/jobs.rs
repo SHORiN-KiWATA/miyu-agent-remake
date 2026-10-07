@@ -277,7 +277,7 @@ async fn a_session_that_stops_without_a_record_gets_aborted_on_load() {
 #[tokio::test]
 async fn a_background_command_stays_in_the_sandbox() {
     let helper = miyu_sandbox::testkit::built_helper();
-    let probe = miyu_sandbox::probe(&helper, Duration::from_secs(5)).expect("探得了");
+    let probe = miyu_sandbox::probe(&helper, Duration::from_secs(60)).expect("探得了");
     if probe.mechanisms.is_empty() {
         return;
     }

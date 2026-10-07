@@ -8,7 +8,8 @@
 
 | 代码 | 管什么 |
 |---|---|
-| `crates/miyu-session/src/open.rs` | 造会话、载入：备好磁盘上的，交给内核，起 actor |
+| `crates/miyu-session/src/open.rs` | 造会话：备好磁盘上的，交给内核，起 actor |
+| `crates/miyu-session/src/open/load.rs` | 载入：打开日志，照快照造策略，交给内核重建，起 actor（施工 R-3 下从 `open.rs` 挪出来：那边放不下了） |
 | `crates/miyu-session/src/open/error.rs` | 造不成、载入不了的几种（施工 3-8 七补从 `open.rs` 挪出来） |
 | `crates/miyu-session/src/actor.rs` | actor 本身：收件箱、一批批送进内核、每个动作怎么回、停下 |
 | `crates/miyu-session/src/actor/mail.rs` | 人的那条收件箱里的一封怎么办；数着拿着订阅的头，交内核 `Watched`（施工 7-9 从 `actor.rs` 挪出来） |
@@ -56,7 +57,7 @@
 | `Jobs` | 执行器的任务表，核心里一张：`Jobs::new()`，`running()` 有没有在跑的后台命令（结束了、记录还没落盘的也算，施工 7-3） |
 | `Unreadable` | 头读不了这个任务的输出：`Unknown` 没有这个任务，`Agent` 是子代理（施工 7-4 补） |
 
-`Create` 的格：数据根 `root`、资源目录 `resources`（随核心附带的字）、会话编号 `id`、人格 `persona`（编号）和叠好的人格的字 `persona_texts`（施工 P-1 上：端点照 `personas.md` 找好交进来，会话不再自己读人格目录）、记忆归哪个账号 `memory_account`（施工 P-1 上，`personas.md`「怎么走」第 5 条：回合库、记忆日志照它和人格开）、场所 `venue`、属主 `owner`、开始时的权限 `permission`、有没有人能确认 `attended`、一次性的 `oneshot`、环境 `environment`（时区、工作目录）、造会话的命令编号 `command`、谁发的 `by`、造端口的 `models`、工具目录 `tools`、系统的家目录 `home`（读不出来的是空的）、沙盒的助手 `sandbox`（这台机器上的沙盒能用才有，施工 5-4 上）、沙盒的缓存 `sandbox_cache`（`<缓存目录>/sandbox/<属主>`，核心算不出缓存目录的没有，施工 5-4 下）、父会话和第几层 `lineage`（子会话才有，施工 7-5）、造子会话的端口 `sessions`（会话表交进来的，测试里自己造的没有，施工 7-5）、任务表 `jobs`（核心里那一张，施工 7-3）、属主的会话列表的索引 `index`（会话表交进来的，测试里自己造的可以没有，施工 3-8 七补，`store/index.md`）、核心一份的记忆 `memory`（回合库的登记和记忆日志的登记，施工 R-2 上、R-3 中，`memory.md`）。`Load` 的格：`root`、`owner`、`memory_account`（端点照会话的人格和属主同一条规则算，施工 P-1 上）、`id`、`environment`、`models`、`tools`、`home`、`sandbox`、`sandbox_cache`、`sessions`、`jobs`、`index`、`memory`。
+`Create` 的格：数据根 `root`、资源目录 `resources`（随核心附带的字）、会话编号 `id`、人格 `persona`（编号）和叠好的人格的字 `persona_texts`（施工 P-1 上：端点照 `personas.md` 找好交进来，会话不再自己读人格目录）、记忆归哪个账号 `memory_account`（施工 P-1 上，`personas.md`「怎么走」第 5 条：回合库、记忆日志照它和人格开）、记忆的范围 `memory_scope`（施工 R-3 下，`memory.md`「范围」：记进快照的 `memory`；子会话不管交的是什么都写 `off`）、场所 `venue`、属主 `owner`、开始时的权限 `permission`、有没有人能确认 `attended`、一次性的 `oneshot`、环境 `environment`（时区、工作目录）、造会话的命令编号 `command`、谁发的 `by`、造端口的 `models`、工具目录 `tools`、系统的家目录 `home`（读不出来的是空的）、沙盒的助手 `sandbox`（这台机器上的沙盒能用才有，施工 5-4 上）、沙盒的缓存 `sandbox_cache`（`<缓存目录>/sandbox/<属主>`，核心算不出缓存目录的没有，施工 5-4 下）、父会话和第几层 `lineage`（子会话才有，施工 7-5）、造子会话的端口 `sessions`（会话表交进来的，测试里自己造的没有，施工 7-5）、任务表 `jobs`（核心里那一张，施工 7-3）、属主的会话列表的索引 `index`（会话表交进来的，测试里自己造的可以没有，施工 3-8 七补，`store/index.md`）、核心一份的记忆 `memory`（回合库的登记和记忆日志的登记，施工 R-2 上、R-3 中，`memory.md`）。`Load` 的格：`root`、`owner`、`memory_account`（端点照会话的人格和属主同一条规则算，施工 P-1 上）、`id`、`environment`、`models`、`tools`、`home`、`sandbox`、`sandbox_cache`、`sessions`、`jobs`、`index`、`memory`。
 
 | `Handle` 的方法 | 做什么 |
 |---|---|
@@ -199,7 +200,7 @@
 5. 写不进去（磁盘满了、没有权限这类）：记一行 `write failed, stopped`，`kind` 写出错的种类，会话停下（第 9 条）。没落盘的不算发生：没回应过，也没推送过，下次载入照磁盘上的来。不在原地重试：内存里的会话已经往前走了，和磁盘对不上。
 6. 写盘的线程 panic 了：记一行 `panicked, stopped`，会话停下。
 7. 会话列表的索引（施工 3-8 七补，`store/index.md`「怎么走」第 2 条）：这一批落了盘，在同一个阻塞线程里顺手更新这个会话在索引里的那一行：`session.created` 新起一行；别的，那一行照到的正好是这一批之前的，才照这一批盖上最近一次动静、工作目录、标题、置顶，照到这一批之后。更新失败只记一行 `session index not updated`，照样算落了盘，送「落盘了」：索引是派生的，那一行停在原处，下次列会话照日志补上。没有索引的（`Create::index` 是空的）不更新。写盘的阻塞线程带着会话的 span，这一行也有会话编号。
-8. 回合索引（施工 R-2 上，`memory.md`「怎么走」第一条）：用量汇总之后，同一个阻塞线程里把这一批交给会话的 `TurnFeed`，结束了的人开的回合放进这个人格的回合库、撤销的拿掉、恢复的读整份日志放回，连同照到了这一批的最后一条，一个事务；这一批没有要改的不写。失败只记一行 `memory index not updated`，照样算落了盘。只有主会话、`Create::memory` 不是空的才有；载入时照整份事件铺回状态、补上照到以后的。
+8. 回合索引（施工 R-2 上，`memory.md`「怎么走」第一条）：用量汇总之后，同一个阻塞线程里把这一批交给会话的 `TurnFeed`，结束了的人开的回合放进这个人格的回合库、撤销的拿掉、恢复的读整份日志放回，连同照到了这一批的最后一条，一个事务；这一批没有要改的不写。失败只记一行 `memory index not updated`，照样算落了盘。只有范围不是 `off`（照快照；以前造的子会话快照里没有范围，照有没有父会话判）、`Create::memory` 不是空的才有；范围是 `session` 的写进会话目录里那一间（施工 R-3 下）。载入时照整份事件铺回状态、补上照到以后的。
 8. 用量汇总（施工 8-15，`models.md`「怎么走」第九条第 4 条）：同一个阻塞线程里接着写这一批里发出去了的请求（`model.called` 带 `endpoint`、`model` 的），属主、场所、父会话照 `session.created`（造会话时照 `Create`，载入时照日志第一条）；记到的位置正好是这一批之前的才挪到这一批之后，这一批从第 1 条起的新起一行。写不进去只记一行 `usage not indexed`，照样算落了盘。没有汇总的（`Create::usage` 是空的）不写。
 
 **6. 推送和订阅**

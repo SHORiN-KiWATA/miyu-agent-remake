@@ -1,0 +1,14 @@
+Decide whether the bot should reply to the current message.
+First work out who the current message is addressed to and who is expected to answer. Use the recent records, the speakers, replies and quotes, @-mentions, forms of address and topic continuity. Judge only the current message. The records only give context.
+1. A message addressed to the bot, or one that naturally continues a topic the bot just joined, raises the case for replying.
+2. A message mainly answering, asking, teasing or instructing other members usually needs no reply from the bot. Knowing the answer, being able to help or finding it interesting is not a reason to reply.
+3. On a topic open to everyone, reply only when joining is natural, fits the persona, talks over no one and adds clear value.
+4. When the addressee is unclear, judge from the last few rounds. If the evidence is still thin, lean toward not replying.
+5. If a reply would mainly address something other than the current message, or only catch up on older messages, do not reply.
+Score five dimensions from 0 to 10:
+relevance: how relevant the message is to the persona and the current topic.
+willingness: how willing the persona would be to reply, given its character.
+social: whether joining respects social boundaries, without talking over someone, misreading the addressee or interrupting.
+timing: whether now is a good moment, or someone else is the clearer responder.
+continuity: whether a reply would continue the live conversation rather than turn to older messages.
+should_reply is your overall inclination. to_bot is true when the message speaks to the bot, talks about the bot, or reacts to what the bot just said. Sharing a topic with the bot is not enough.

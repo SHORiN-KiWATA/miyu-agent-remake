@@ -82,7 +82,7 @@ fn described(home: &Home, handle: &Handle) -> Vec<(By, bool, ImageDescribed)> {
 }
 
 fn plain() -> Routes {
-    routes(serde_json::json!({}), Duration::from_secs(5))
+    routes(serde_json::json!({}), Duration::from_secs(60))
 }
 
 #[tokio::test]

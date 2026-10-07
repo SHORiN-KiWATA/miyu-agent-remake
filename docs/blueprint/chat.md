@@ -4,7 +4,7 @@
 
 通讯平台里和平台无关的那一层：场所规则、进站链、线路规程、主动回复判断、出站链与出站队列、并行的分派（`docs/designs/18-通讯平台.md` 第一节）。它是第 2 层的纯逻辑，进来的是字和事件，出去的是判定，不碰磁盘、网络、时钟。软件包 `miyu-onebot` 链接它；以后别的平台的桥也链接同一个库。
 
-状态：图纸，随施工 O-1 起草（2026-10-07）。第一条场所规则（O-1），第二条进站链与限流（O-5），第三条主动回复判断的上半（O-7），第四条顶替与分派（O-9），第五条出站链与纯文本（O-10）；其余各条随后面的步子补。
+状态：图纸，随施工 O-1 起草（2026-10-07）。第一条场所规则（O-1），第二条进站链与限流（O-5），第三条主动回复判断的上半（O-7），第四条顶替与分派（O-9），第五条出站链与纯文本（O-10），第六条判官的请求和回答（O-11），第七条和核心的接口（2026-10-07，O 线自查以后定）；其余各条随后面的步子补。
 
 ### 在哪
 
@@ -21,6 +21,8 @@
 | `crates/miyu-chat/src/chatty.rs` | 主动回复判断：两个插槽（加值项、门槛修正）、条件、走哪条路、算分（施工 O-7） |
 | `crates/miyu-chat/src/chatty/` | 每个加值项一个文件；抽样；冷静；顶替与分派（`dispatch`，施工 O-9） |
 | `crates/miyu-chat/src/outbound.rs`、`outbound/` | 出站链：插槽、自带三条（清理、去重、引用和 @）；纯文本：Markdown 转纯文本、按段拆开（施工 O-10） |
+| `crates/miyu-chat/src/judge.rs`、`judge/` | 判官：拼 `model.call` 的请求、读回答（施工 O-11） |
+| `resources/software/onebot/judge/` | 判官的说明，十三份原文（给模型看的字，登记在 `26-提示词.md` 第十节） |
 | `crates/miyu-config/src/parse.rs` | `read`：照配置清单的类型认一个 TOML 值，O-1 开成公开的，场所规则复用它 |
 
 ### 一、场所规则（施工 O-1）
@@ -204,7 +206,7 @@ Rust 这一边：
 | `Hit { kind, bonus }`、`Conditions { hits }`、`Conditions::primary()` | 一个成立了的条件；成立了的条件，照插槽的先后；主触发 |
 | `conditions(&facts, flags, &replies, clock, &chatty) -> Conditions` | 算条件：自带的加值项照先后过 |
 | `Route::{Record, Commit, ModerationOnly, Judge}`、`route(&conditions, standing) -> Route` | 走哪条路：只记下、直接回、判官只查违规、交给判官打分 |
-| `Judgement { scores, should_reply, to_bot, severity }` | 判官的回答：五维各 0 到 10、该不该回、是不是在跟她说话、违规的严重程度（0 到 10，没查是 `None`） |
+| `Judgement { scores, should_reply, to_bot, severity, reason }` | 判官的回答：五维各 0 到 10、该不该回、是不是在跟她说话、违规的严重程度（0 到 10，没查是 `None`）、一句理由（只进日志，算分不看它；O-11 加） |
 | `Lift` | 门槛修正的插槽：一个修正有名字，给出抬多少 |
 | `Score { raw, adjust, bonus, lift, threshold, total, reply }`、`score(&judgement, &conditions, &replies, clock, &chatty) -> Score` | 算分的每一项和结论 |
 | `pressure(&replies, clock, &chatty) -> f64` | 冷静的近期发言量 p |
@@ -373,3 +375,119 @@ Rust 这一边：
 | 6 | 硬切出来的每一块也去首尾空白、空的不出 | 和按段、按行装的一样；旧版硬切不去 | 照旧版 |
 | 7 | Markdown 链接先倒着扫一遍，记下每个位置后面最近的 `]`、`)` | 保持线性：旧版实测一串 16000 个 `[` 要 358 毫秒 | 每遇到 `[` 往后找 |
 | 8 | 规则拿到的是前面交下来的 `Target`，第一条拿 `OutCtx.target` | 链里前面的规则能改写它 | 每条都看 `OutCtx.target` |
+
+### 六、判官的请求和回答（施工 O-11）
+
+主动回复判断要问判官的那一次（`docs/designs/18-通讯平台.md` 第七节「判官和她各看各的」）：照 `model.call` 的形状拼请求，从回答里读出第三条的 `Judgement`。说明的原文在资源里，登记在 `docs/designs/26-提示词.md` 第十节。纯逻辑：人格的说明、渲染好的群聊记录、这一条，都由外面交进来；群聊记录一行一条的渲染器在核心的 `miyu-assemble`（18 第一节「代码放在哪一层」），随核心的第二批。
+
+**对外的样子**
+
+| 名字 | 是什么 |
+|---|---|
+| `JudgeSources` | 资源 `software/onebot/judge/` 下的十三份原文，读资源的一方原样读出来，字段都是字（`violations` 也是未读的字） |
+| `JudgeTexts::new(sources) -> Result<JudgeTexts, TemplateError>` | 查过的十三份：`violations.txt` 读成模板，拿一个门槛试换一次，写坏了、要了 `severity_min` 以外的字段都在这里报错。字段不公开，只能这样造 |
+| `Ask { persona, records, current, decoded, mode, severity_min }` | 一次判断要的：人格的说明（`None` 是不带）、渲染好的群聊记录（触发这一条之前的几条，出厂 20 条）、这一条渲染好的样子、base64 解出来的字（没有是 `None`）、`Mode::{Reply, ModerationOnly}`、违规的门槛 |
+| `request(&texts, &ask) -> Vec<Message>` | 拼成 `model.call` 的 `messages`：一条 `system`、一条 `user`，`Message { role, text }`；不会失败（`JudgeTexts` 造的时候查过） |
+| `read(answer, mode, reason_chars) -> Result<Judgement, Unreadable>` | 读回答；`mode` 是这一次问的什么（只查违规的少了 `severity` 判不了）；`reason_chars` 是 `reason` 最多留几个字符，出厂 500，由外面交进来，代码里不写死。读不出来的是 `Unreadable::{NoObject, Dimension(名字), NoSeverity}`：找不到对象、五维少了一维或不是数、只查违规的没有 `severity` |
+
+**怎么走**
+
+1. **system 那一条**，照这个先后接起来，每份之间不加别的字（每份末尾自带的换行照留）：`system.txt`；有人格的，`persona-open.txt`、人格的说明（末尾没有换行的补一个）、`persona-close.txt`；`Mode::Reply` 接 `reply.txt`，`Mode::ModerationOnly` 接 `moderation-only.txt`；`violations.txt`（`{severity_min}` 换成门槛，照模板的规矩，`docs/designs/08-上下文投影.md` 第五节「模板与转义」）；`answer.txt`。
+2. **user 那一条**：`records-open.txt`、群聊记录、`records-close.txt`、`current-open.txt`、这一条、`current-close.txt`；有 base64 解出来的字的，再接 `decoded-open.txt`、解出来的字、`decoded-close.txt`。夹进标签的三样和人格的说明一样，末尾没有换行的补一个，收尾的标签落在自己那一行；空的不补，标签中间不多一个空行。群聊记录和这一条由渲染器转义过（一行一条，不可信的字段转成一行），这里不再转。
+3. **调用的其余几格由外面填**：`purpose` 是 `judge`；`model` 照场所规则（出厂是便宜的那档的池，没配的照 `models.chat`）；`max_tokens` 出厂 400。判官不带工具，不进任何会话（`model.call` 本来就不进），有自己的缓存状态，不碰主线（08 第六节「辅助请求隔离」）。
+4. **读回答**：
+   - 从回答的字里找第一个 `{` 到最后一个 `}`，照 JSON 读成一个对象；包在 ` ```json ` 里的也这样认。找不到、读不成对象：`Unreadable`。
+   - 五维（`relevance`、`willingness`、`social`、`timing`、`continuity`）都要有，是数；小于 0 的当 0，大于 10 的当 10。少了一维、不是数：`Unreadable`。
+   - `should_reply`、`to_bot` 是布尔，少了当假。
+   - `severity` 是数，0 到 10，夹住，四舍五入成整数；少了当没查（`None`）。只查违规的那一次少了 `severity`：`Unreadable`。
+   - `reason` 是字，少了当空；超过 `reason_chars`（出厂 500）个字符的截到这个数，进 `Judgement::reason`。
+   - 除了五维，别的格类型不对的（写成字的布尔、`null` 的 `severity`）照少了算。只进日志（`ext.chat.decided`），不进她的上下文，她也看不到打分（18 第七节「两边各看各的」）。
+5. **读不出来、超时、出错的**，当判不了，照不回算（18 第七节）；记一笔 `ext.chat.decided`，写明为什么。重试一次、超时多少由外面管（出厂 60 秒，只查违规的 120 秒，重试 1 次）。
+6. **违规时给她看的那句预检结论**、回合开头那句「为什么叫你」：随桥接群的那一步，另放资源、另登记。
+
+**守着它的**（`crates/miyu-chat/src/judge/tests.rs` 等，O-11）
+
+- 拼请求：两种模式、带不带人格、带不带 base64、门槛换进 `violations.txt`、每份的先后、人格说明末尾没有换行的补上；资源原文改一个字，拼出来的跟着变（不是写死在代码里的）。
+- 造 `JudgeTexts`：`violations.txt` 写坏了、要了别的字段的报错，只要 `severity_min` 的、不要字段的造得出。
+- 读回答：干净的 JSON、包在代码块里的、前后有别的字的、理由里带花括号的、五维超出范围的、少一维的、不是数的、布尔少了的、`severity` 超出范围的和带小数的、`severity` 少了（两种模式各一）、`reason` 超长的（正好 500 个字符的不截；上限是交进来的参数，不是写死的）、根本不是 JSON 的、空字。
+
+**施工时定的**（O-11）
+
+| # | 定了什么 | 为什么 | 没选 |
+|---|---|---|---|
+| 1 | 说明照旧版的四段改写成英文短句（`26-提示词.md` J3），意思不变；去掉好感度（Q21）和「程序还会再加减分」（两边各看各的） | Q4 效果照搬 | 重写一套 |
+| 2 | 违规的回答只要 `severity` 和 `reason`；旧版的类别、证据、相关的人和消息不要 | 只有门槛和给她看的那句预检结论用得上；别的只进过旧版的日志 | 照旧版全要 |
+| 3 | 群聊记录、这一条、base64 解出来的字用标签包起来，标签的开头和收尾各是一份资源 | 给模型看的字都在资源里、都登记；照 `core/jobs` 开头收尾分开的先例 | 写在代码里 |
+| 4 | 判官看的事件元数据（旧版的 `mentioned_bot` 那一段 JSON）不另给 | @ 了谁、引用了谁在渲染器一行一条的格式里已经有 | 另给一段 JSON |
+| 5 | `Judgement` 加一格 `reason`，算分不看它；`read` 直接交出 `Judgement` | 桥记 `ext.chat.decided` 要它；一个类型最省（2026-10-07 主会话定） | 另起 `Answer { judgement, reason }` |
+| 6 | `read` 另收 `Mode` | 只查违规的少了 `severity` 判不了，这条规矩只写在读回答这一处 | 桥自己再查一遍 |
+| 7 | 除了五维，类型不对的格照少了算；`severity` 四舍五入成整数 | 五维是算分离不开的，别的格都有不出错的默认；`Judgement::severity` 是 `u8` | 类型不对一律判不了 |
+| 8 | 夹进标签的字末尾没有换行的补一个，空的不补 | 收尾的标签落在自己那一行；空的补了会在标签中间多一个空行 | 只给人格、群聊记录补 |
+| 9 | `JudgeTexts` 只能由 `JudgeTexts::new` 造，造的时候 `violations.txt` 读成模板、拿 `severity_min` 试换一次，换不出就报错；`request` 因此不会失败 | 换不出就照空的写会让整段违规说明悄悄消失，是吞错误（O-11 自查）；读的时候报错，不等到请求里（08 第五节）。2026-10-07 改，原先认了「换不出照空的写」 | 照空的写；`request` 交 `Result` |
+| 10 | `Message { role: Role::{System, User}, text }` 写在 `miyu-chat` 里 | 判官只用到这两种角色、只用字；`model.call` 的那几格在 `miyu-endpoint`（第 4 层）里读，是私有的，桥照它写成协议上的 JSON | 借内核的 `request::Message`（带块，判官用不着） |
+
+### 七、和核心的接口
+
+状态：定稿，2026-10-07 起草，核心的主会话对过两轮（改名 `venue.recalled`、`mentions_me`，开一轮的原语叫 `session.respond`，能算出来的不存，`events.append` 的限制，抄进支线的那一份怎么记），项目主人 2026-10-07 过目、照推荐定。起因是 O 线的自查（2026-10-07）：第二到第六条的输入都写着「由外面交进来」，可它们要从场所会话的日志投影出来，而要投影的事件、编号的写法、开回合的办法都还没定；不先定，几块都会返工。这一条定下桥写什么、核心记什么、每块的输入从哪几种事件投影出来、参数放在哪。定了以后，核心那一半随它的第二批，群聊内核那一半随整顿的那一步（O-12）。
+
+**1. 编号**
+
+| 什么 | 写法 | 谁拼、谁解 |
+|---|---|---|
+| 场所 | `<平台>:group:<群号>`、`<平台>:private:<对方的号>`，内核的 `VenueId` | 群聊内核的 `Venue::id()` 拼、`Venue::parse()` 解；桥不手拼，`"qq"` 只在桥的一处常量里 |
+| 平台上的人 | `<平台>:<号>`，内核的 `ExternalId` | 同上，`Venue` 旁边一对 |
+| 群聊内核里的一条消息 | 这条 `message.user` 在场所的主线会话日志里的序号（内核的 `Seq`） | 核心记下时交回；抽样的种子、顶替、承诺都用它 |
+| 平台上的一条消息 | 平台给的编号，原样记进 `message.user` 的场所那几格（下面第 2 条），引用、撤回、贴表情时用 | 桥 |
+| 命令编号（去重） | `<平台>:<机器人的号>:<平台消息编号>:<平台给的时刻>` | 桥；加上时刻，是防 NapCat 重置本地库以后消息编号重号，把新消息当成重发的吞掉（自查第 17 条，待真机查实） |
+
+- **场所的消息只记在主线会话里**：支线要接这个人后来说的话（分派里的「并进支线」），桥把那条抄一份经 `session.send` 发进支线；主线那一份才算数，聊天记录、记忆、序号都只认主线的。支线短命，抄的那一份随支线封存。抄的那一份：命令编号另拼（原编号后面加 `/branch`），不然会被当成同一条去重吞掉；`by` 照原来的人；`venue` 格照抄，但不带 `ambient`（它在支线里就是触发）。支线是带 `parent` 的子会话，回合索引、记忆只收主会话，抄的那份不会进记忆，也不会重复进搜索。撤回只认主线那一份：主线记 `venue.recalled`，支线只跑一轮，不追着改。
+- 群聊内核里的消息用序号，不用平台的编号：序号在一个会话里唯一、回放时不变；平台的编号只在一个账号里唯一，还可能重号。抽样的种子随之改成 `SHA-256(场所编号 + "\n" + 序号的十进制)`：日志还没有落地的旧数据，现在改不影响回放。
+
+**2. 事件**
+
+照「谁要读」分两类：核心的组装要渲染的，是核心认识的种类和格；只有桥自己读的，用 `ext.` 开头的命名空间（`03-事件模型.md` E6）。
+
+| 事件 | 谁写 | 谁读 | 记什么 |
+|---|---|---|---|
+| `message.user` 多一个可选的对象 `venue` | 桥经 `session.send` 带上 | 核心（群聊近况的一行）、桥 | `msg` 平台的编号；`reply_to` 引用的平台编号；`mentions` @ 了谁（平台身份的列表）；`mentions_me` @ 了她没有；`media` 带的图、文件、语音、视频、表情（种类、平台的编号；懒下载，不进内容块）；`ambient` 旁听（核心第二批第 5 项）；`asleep` 睡着时收到的（不进群聊近况，18 第五节）。「只有表情」「只有图」从内容块和 `media` 算，不另存 |
+| `venue.recalled` | 桥 | 核心（标明撤回、谁撤的）、桥 | 被撤的平台编号、谁撤的。不叫 `withdrawn`：内核的 `message.withdrawn` 是排着队的消息退回给头，挨得太近 |
+| `venue.delivered` | 桥 | 核心（`[you]` 行：这条线历史里没有的才渲染，18 第八节）、桥 | 哪条线（主线或支线的会话编号）、哪一轮、回的是谁（平台身份的列表）、平台的编号、正文、图的哈希。和 `message.assistant` 重的正文以谁为准：`[you]` 行照它（实际发出去的、出站链洗过的），她自己的上下文照 `message.assistant` |
+| `turn.started` 多一格 `triggers` | 核心，由下面第 3 条的原语开回合时记 | 桥 | 这一轮由哪几条旁听消息触发（序号的列表）；原来的 `trigger` 照旧是最后一条，旧日志照读。账本查：每一条都是这个会话里旁听的 `message.user`，还没被别的轮当过触发 |
+| `ext.chat.decided` | 桥 | 桥（WebUI、回放验收） | 判的是哪几条（序号的列表，顶替重判的一起）、成立的条件和加分、走的路、判官的回答和理由、算分的每一项、结论；判不了的写为什么；用的模型、耗时 |
+| `ext.venues.queued`、`ext.venues.failed` | 桥 | 桥 | 出站队列：入队（种类：回复、提示、回执、定时）、失败和为什么 |
+| `ext.venues.muted`、`ext.venues.unmuted` | 桥 | 桥 | 她被禁言到什么时候、解禁了 |
+
+**3. 核心要多给的三样**（在核心第二批的五项以外）
+
+1. **照已经记下的几条开一轮**：`session.respond {session, to, facts}`，内核里的新命令 `Respond`。它不新记消息，是拿已经记下的几条（`to`，序号的列表）当触发开一轮，所以不是 `session.send` 多一格；名字也不带 `venue`：以后定时、跨会话也可能用。`facts` 是几块事实，照 `context.injected` 的格（`kind`、`text`，`text` 是带好标签外壳的原文），排在触发前面（`08-上下文投影.md` C2），`by` 是桥这个模块；每块最多 4 KiB。它们是给模型看的字：模板在桥的资源里、登记进 26 第十节，核心只原样记、不拼。会话正在跑一轮的，`to` 在下一步的边界并进去（分派里的「并进主线」），和回合中途来的回报排队同一个办法。桥自己判过了，不再过回合闸。
+2. **写自己命名空间的事件**：`events.append {session, kind, body}`。`kind` 必须是 `ext.<包>.<名字>`：9-4 以后 `<包>` 必须是连接自报的包名，9-4 以前本机连接 `ext.` 开头的都收；`body` 是 JSON 对象，最多 16 KiB。记成不带回合编号的事件，不渲染，撤销、压缩都不动它，回应交回序号。要 `events.write` 能力（`05-内核接口.md` 第三节）。
+3. **核心认识的场所格和种类**：上面表里 `message.user.venue`、`venue.recalled`、`venue.delivered`、`turn.started.triggers`；组装群聊近况时照它们渲染（18 第九节）。
+
+核心那一半并进它的第二批，拆两步：先做事件的格和 `events.append`（只是记录），再做 `session.respond`（碰回合状态机）。
+
+**4. 投影：每块的输入从哪来**
+
+| 输入 | 从哪几种事件 | 怎么算 |
+|---|---|---|
+| 进站链 `Ctx.turns` | `turn.started` | 窗口里的回合，去掉触发它的人全是主人或自己人的；没有 `triggers` 的（回报、后台命令、定时）照算 |
+| 进站链 `Ctx.notices` | `ext.venues.queued` | 种类是提示、原因是限流的那几条的时刻 |
+| 进站链 `Ctx.muted` | `ext.venues.muted`、`unmuted` | 最后一条 |
+| 发的人是谁 `Standing` | `message.user` 的 `by`、系统配置 | 私聊里 `person` 带 `via`、群里 `external` 带 `account`：主人；编号在 `onebot.trusted` 里：自己人；别的：别人 |
+| 算分 `Reply` | `venue.delivered` | 一轮一笔：同一条线、同一轮的几条并成一笔，时刻取第一条，回的人取并集 |
+| 顶替 `Pending` | `ext.chat.decided`、`turn.started.triggers` | 判过要回、还没进哪一轮 `triggers` 的：`Committed`。前提是桥先记 `ext.chat.decided`、再 `session.respond`，桥保证这个先后。`Judging` 只在桥的内存里，桥重启就丢，丢了不补判（窗口只有 7 秒） |
+| 分派 `Lines` | `turn.started`、`turn.ended`、分叉出的子会话 | 主线开着的那一轮，回的人是它 `triggers` 的发的人；支线同理 |
+| 出站 `Sent` | `venue.delivered` | 这一轮的正文和图的哈希 |
+| 出站 `Since` | `message.user`、`venue.delivered` | 她回的那条之后别人的消息条数、过了多久、最后一条是不是她的 |
+
+**5. 参数和数据**
+
+- **出厂参数**：`resources/software/onebot/defaults.toml`，几张表：`[inbound]`（base64 的三个数）、`[chatty]`（第三条的全部）、`[dispatch]`（顶替窗口）、`[judge]`（用哪个模型、看几条记录、最多输出、超时、重试、理由最长几个字）、`[outbound]`（第五条的四个数、拆段的长度）。读进来时照类型校验（半衰期不能是 0、睡眠开始不能等于结束……），校验不过的报出来、不用（自查第 14 条）。
+- **按场所改**：场所规则里写同名的表，例如 `chatty = { probability = 80 }`，只覆盖写了的几项（18 Q26）。表的名字和每一项的类型只在群聊内核里声明一次，出厂文件、场所规则都照它查。
+- **违规关键词**：`resources/software/onebot/moderation.txt`，一行一个；系统里放同名的文件替换出厂的（和场所规则一个办法）。
+- **自己人**：系统配置的 `onebot.trusted`，平台身份的列表，只能写在系统配置（2026-10-07 项目主人定）。
+- **给人看的字**：`resources/software/onebot/human/{zh,en,ja}.json`，照软件包的规矩（`store/resources.md`）；桥里不写死。
+- **判官的说明**：`resources/software/onebot/judge/`（O-11）。以后别的平台的桥要用时，再挪到群聊内核自己的资源目录。
+
+**6. 已知的代价**：`ext.chat.decided` 一条群消息记一条，场所会话的日志会长得快；压缩照样不删日志。可以接受，写进 18 第七节。
+
+**7. 不在这一条里的**：桥接群、贴表情、出站队列的实现、WebUI。

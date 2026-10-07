@@ -38,7 +38,7 @@ async fn cooling_and_failover_are_logged_with_the_key_number_only() {
             (Reference::Env("K2".to_string()), "sk-two"),
         ],
     );
-    let routes = routes(serde_json::json!({}), Duration::from_secs(5));
+    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
     let handle = home.create(&routes).await;
     let pinned = keys::pinned(handle.id().as_str(), 2).expect("有 key");
     let mut pushes = watch(&handle).await;

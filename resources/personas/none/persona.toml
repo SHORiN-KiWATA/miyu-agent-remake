@@ -1,0 +1,4 @@
+# 空人格（施工 P-1 下，`16-人格与预设.md` Y11）：不用人格时选它。没有人设、没有示范对话，system 里不带人设。
+[persona]
+name = { zh = "不用人格", en = "No persona", ja = "ペルソナなし" }
+summary = { zh = "不带人设，照原样说话", en = "No character prompt", ja = "人格設定なし" }

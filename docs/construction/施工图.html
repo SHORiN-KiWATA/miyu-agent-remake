@@ -276,7 +276,7 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>222</b><span>/ 250 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>225</b><span>/ 258 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
     <li><b class="mono">b376721b</b><span>最近一步（8-3 <code>expect</code> 照数值比（再补））的提交</span></li>
   </ul>
@@ -604,6 +604,10 @@ a.step:hover{border-color:var(--primary)}
         <li><span class="step"><span class="n">O-8</span>桥的骨架和主人私聊（等真机）</span></li>
         <li><a class="step done" href="#sO-9"><span class="n">O-9</span>顶替窗口与分派<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-10"><span class="n">O-10</span>出站链<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sO-11"><span class="n">O-11</span>判官的请求和回答<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">O-12</span>整顿群聊内核</span></li>
+        <li><span class="step"><span class="n">O-13</span>核心：场所的格、事件和 events.append</span></li>
+        <li><span class="step"><span class="n">O-14</span>核心：由桥开一轮</span></li>
         <li><a class="step done" href="#sO-6"><span class="n">O-6</span>核心：斜杠命令由核心解析<span class="st">✓</span></a></li>
       </ol>
     </li>
@@ -615,7 +619,8 @@ a.step:hover{border-color:var(--primary)}
         <li><span class="step"><span class="n">R-2</span>补齐旧会话（下）</span></li>
         <li><a class="step done" href="#sR-3"><span class="n">R-3</span>记忆日志和底账（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-3b"><span class="n">R-3</span>三件工具（中）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">R-3</span>范围和对外（下）</span></li>
+        <li><a class="step done" href="#sR-3c"><span class="n">R-3</span>范围（下）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">R-3</span>对外（补）</span></li>
         <li><span class="step"><span class="n">R-4</span>常驻的摘要</span></li>
         <li><span class="step"><span class="n">R-5</span>embedding</span></li>
         <li><span class="step"><span class="n">R-6</span>抽取</span></li>
@@ -628,7 +633,9 @@ a.step:hover{border-color:var(--primary)}
       <div class="ms-head"><span class="ms-id">P</span><span class="ms-name">人格与预设</span><span class="ms-goal">人格管内容、预设管开关；Miyu 住在主人自己的数据根（2026-10-07 走查后拆）</span></div>
       <ol class="chips">
         <li><a class="step done" href="#sP-1a"><span class="n">P-1</span>人格的文件和找法（上）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">P-1</span>角色扮演提示、改了下一回合换上（下）</span></li>
+        <li><a class="step done" href="#sP-1b"><span class="n">P-1</span>空人格、会话带上人格（下）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">P-1</span>角色扮演提示（补）</span></li>
+        <li><span class="step"><span class="n">P-1</span>改了人格下一回合换上（再补）</span></li>
         <li><span class="step"><span class="n">P-2</span>预设</span></li>
         <li><span class="step"><span class="n">P-3</span>新建、改、删</span></li>
       </ol>
@@ -642,6 +649,7 @@ a.step:hover{border-color:var(--primary)}
         <li><span class="step"><span class="n">9-4</span>扩展进程</span></li>
         <li><a class="step done" href="#s9-5"><span class="n">9-5</span>会话列表推送<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">9-6</span>历史按页读</span></li>
+        <li><span class="step"><span class="n">9-7</span>工作区是会话的属性</span></li>
       </ol>
       <p class="later">头几步 2026-10-07 拆了，其余到了跟前再拆。终端界面以演示为蓝本并进主仓库，「显示什么」改由核心的视图投影给。</p>
     </li>
@@ -14219,6 +14227,60 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sP-1b" aria-labelledby="h-sP1b">
+  <div class="sheet-head"><h2 id="h-sP1b"><span class="no">P-1 下</span>空人格、会话带上人格</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头能显示一个会话用的是哪个人格，也能开一个「不用人格」的会话。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">空人格、会话带上人格</span><span class="dir-note">P-1 下</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>出厂空人格 <code>none</code>（不用人格），没有提示词</li>
+              <li><code>session.created</code> 多 <code>persona</code></li>
+              <li>会话列表的索引多一列，版本 4；会话列表、推送、<code>subscribe</code> 的回应带上 <code>persona</code></li>
+              <li>登记簿门禁不再扫 <code>persona.toml</code>（给人看的）</li>
+              <li>「默认人格」的说明只留一句（项目主人定）</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">空人格</span><span class="rl">普通的出厂人格，没有特判（16 Y11）</span></div>
+          <div class="tile new"><span class="nm">不动 open.rs</span><span class="rl">人格在快照里填，订阅照日志第一条读</span></div>
+          <div class="tile new"><span class="nm">以前的日志</span><span class="rl">没有这一格的不写</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">P-1 下</dd></div>
+        <div><dt>名称</dt><dd>空人格、会话带上人格</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">c7f309a1</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 8/8、八项门禁、三台 CI 和长跑（run 1083）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>空人格的 system 里没有人设，<code>session.created</code> 记着 <code>none</code></span></li>
+        <li><span class="ok">✓</span><span>会话列表、<code>subscribe</code> 写着人格；以前的日志不写</span></li>
+        <li><span class="ok">✓</span><span>索引写回的占位挪对了（测试撞出来的）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/P-1-人格（下）.md</code>；蓝图 <code>personas.md</code>、<code>store/index.md</code>、<code>protocol.md</code>、<code>kernel/events-bodies.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sR-2" aria-labelledby="h-sR2">
   <div class="sheet-head"><h2 id="h-sR2"><span class="no">R-2</span>回合索引（上）</h2><span class="pill done">已完成</span></div>
   <p class="purpose">新版的「日记」：主会话里人开的每一轮（人的话加她最后的回答）照会话日志派生成一条，放进这个人格的回合库，能按关键词找。不另存：撤销、恢复、删会话自动跟着走，自己造的回合进不来。</p>
@@ -14439,6 +14501,64 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sR-3c" aria-labelledby="h-sR3c">
+  <div class="sheet-head"><h2 id="h-sR3c"><span class="no">R-3</span>范围（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">每个会话开局时定下记忆的范围：跟着人格（默认）、只在这个会话里、不开。默认写在人格的 <code>persona.toml</code> 里，<code>session.create</code> 能换，<code>miyu ask --no-memory</code> 就是不开；记进策略快照，以后不改。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-policy · miyu-store</span><span class="dir-note">R-3</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>MemoryScope</code> 三种，快照多一格 <code>memory</code>：以前造的没有，照跟着人格，字节不变</li>
+              <li><code>persona.toml</code> 多一张 <code>[memory]</code>，<code>scope</code> 只收 persona、session</li>
+              <li>一间记忆 <code>Room</code>：跟着人格的在记忆账号的家目录，只在会话里的在会话目录 <code>memory/</code> 下</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-session · miyu-endpoint · miyu-cli</span><span class="dir-note">R-3</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>off</code> 的不接回合索引、工具面上没有三件；子会话一律 <code>off</code></li>
+              <li>听众照属主，放在哪照记忆账号；载入照快照</li>
+              <li><code>session.create</code> 的 <code>memory</code>、<code>miyu ask --no-memory</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">会话那一间在会话目录里</span><span class="rl">删、进回收处、恢复都跟着目录走</span></div>
+          <div class="tile new"><span class="nm">认不出的范围照 off</span><span class="rl">不往不知道的地方写</span></div>
+          <div class="tile new"><span class="nm">载入挪进 load.rs</span><span class="rl">open.rs 放不下了</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-3</dd></div>
+        <div><dt>名称</dt><dd>范围（下）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">7c36f667</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新测试：快照 3 条、人格的文件 1 条、会话 4 条、协议 2 条、命令行 2 条；18 个手写变异全逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 37593287039）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-3-范围（下）.md</code>；蓝图 <code>memory.md</code>「范围」、<code>personas.md</code>、<code>policy.md</code>、<code>protocol.md</code> 的 <code>session.create</code>、<code>cli/ask.md</code>、<code>session/actor.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sO-10" aria-labelledby="h-sO10">
   <div class="sheet-head"><h2 id="h-sO10"><span class="no">O-10</span>出站链</h2><span class="pill done">已完成</span></div>
   <p class="purpose">她要说出去的先过出站链：清理、去重、引用和 @；再照纯文本的形态发：Markdown 转纯文本、太长的按段拆开。群聊内核里不依赖核心的纯逻辑到这里都齐了。</p>
@@ -14484,6 +14604,56 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/O-10-出站链.md</code>；蓝图 <code>chat.md</code> 第五条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sO-11" aria-labelledby="h-sO11">
+  <div class="sheet-head"><h2 id="h-sO11"><span class="no">O-11</span>判官的请求和回答</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">主动回复判断问判官的那一次：照 model.call 的形状拼请求，从回答里读出五维、该不该回、是不是在跟她说话、违规和理由。判官的说明十三份放进资源、登记、量过 token。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-chat/src/judge</span><span class="dir-note">O-11</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>说明照旧版的四段改写成英文短句，去掉好感度和「程序还会加减分」</li>
+              <li>system 一条、user 一条；两种模式（打分、只查违规）</li>
+              <li>读回答宽：包在代码块里、前后有别的字的都认；读不出的当判不了、照不回算</li>
+              <li>说明读进来时先校验：门槛换不进去当场报错，不悄悄丢一段</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">打分那一次的说明 648 token</span><span class="rl">只在判官的辅助请求里，不进主对话</span></div>
+          <div class="tile new"><span class="nm">违规只要严重程度和理由</span><span class="rl">旧版的类别、证据只进过日志</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-11</dd></div>
+        <div><dt>名称</dt><dd>判官的请求和回答</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">0182240f</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、原文 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试先写（31 个）；21 个手写变异全逮住；token 照开发端点实测、整块核对；门禁八项全过；三台机器的 CI 和长跑全绿（run 1058、1067）；项目主人过目原文</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-11-判官的请求和回答.md</code>；蓝图 <code>chat.md</code> 第六条；<code>26-提示词.md</code> 第十节十三行。</li>
       </ul>
     </div>
   </div>
@@ -14665,7 +14835,7 @@ const TREE = {
 
 /* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
 const BUILD = {
-  n_mem: { by: 'R-1', how: 'frame', note: '检索的底子（R-1）：中文、日文两两切词，FTS5 照 bm25 找。回合索引（R-2 上）：人开的每一轮照日志进人格的回合库。记忆日志和底账（R-3 上）：只追加，墓碑判出处活不活。三件工具（R-3 中）：remember、forget、memory_search，软件包 miyu-memory，只给本机主会话。摘要、联想、向量随 R-4 起' },
+  n_mem: { by: 'R-1', how: 'frame', note: '检索的底子（R-1）：中文、日文两两切词，FTS5 照 bm25 找。回合索引（R-2 上）：人开的每一轮照日志进人格的回合库。记忆日志和底账（R-3 上）：只追加，墓碑判出处活不活。三件工具（R-3 中）：remember、forget、memory_search，软件包 miyu-memory，只给本机主会话。范围（R-3 下）：跟着人格、只在会话里、不开，记进快照。摘要、联想、向量随 R-4 起' },
   n_ld: { by: 'O-7', how: 'frame', note: '主动回复判断的上半（O-7）：加值项（冲她来、续聊、刚说过话、违规旗、抽样）、走哪条路、算分、冷静。判官的请求、顶替和分派随后面几步' },
   n_out: { by: 'O-10', how: 'frame', note: '出站链（O-10）：清理、去重、引用和 @，纯文本的形态（Markdown 转纯文本、拆段）。出站队列、长文转图随桥' },
   n_dispatch: { by: 'O-9', how: 'frame', note: '顶替与分派（O-9）：同一个人 7 秒内补发接过去或重判；分派到主线、支线或排队。从日志投影谁在判、各条线在回谁随桥' },

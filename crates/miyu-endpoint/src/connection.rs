@@ -312,6 +312,19 @@ enum Stream {
     Sessions,
 }
 
+/// 会话 `session` 用哪个人格：日志第一条 `session.created` 的 `persona`，在阻塞线程里读一行。读不了、以前的日志没有的是没有。
+async fn persona_of(core: &Core, session: &SessionId) -> Option<String> {
+    let dir = core.root.session_dir(&core.admin, session);
+    let first = tokio::task::spawn_blocking(move || miyu_store::log::first_event(&dir))
+        .await
+        .ok()?
+        .ok()?;
+    match first.body {
+        miyu_kernel::event::Body::SessionCreated(created) => created.persona,
+        _ => None,
+    }
+}
+
 /// 订阅会话的事件流：没在跑的照样先载入；已经订阅着的，还是那一个。回应带会话的限额（施工 6-3 补）、会话接下来请求的模型
 /// （施工 8-10，一个都没有的不写）：订阅着的也从会话表拿，在跑的直接用，不多载入。写了 `after` 的，先补之前的事件（[`subscribe_after`]）。交回回应，和回应经哪个订阅写出去：
 /// 补了的经新的订阅，排在补的后面；别的直接写。
@@ -327,6 +340,10 @@ async fn subscribe(
     let mut reply = json!({"limits": handle.limits()});
     if let Some(model) = crate::models::next(&handle.next()) {
         reply["model"] = model;
+    }
+    // 会话用哪个人格（施工 P-1 下）：照日志第一条 `session.created` 读，以前的日志没有的不写。
+    if let Some(persona) = persona_of(core, &session).await {
+        reply["persona"] = json!(persona);
     }
     // 当前的待办（施工 D-3）：没有的不写；之后变了照推送的 `todos.changed`。
     let todos = handle.todos();

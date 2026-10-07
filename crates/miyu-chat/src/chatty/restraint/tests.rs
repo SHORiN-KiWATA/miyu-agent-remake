@@ -12,6 +12,7 @@ fn chiming() -> (Judgement, Conditions) {
         should_reply: true,
         to_bot: false,
         severity: None,
+        reason: String::new(),
     };
     let conditions = Conditions {
         hits: vec![Hit {

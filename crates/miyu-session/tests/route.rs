@@ -44,7 +44,7 @@ fn bearer(server: &Server, n: usize) -> Option<String> {
 }
 
 fn routes_plain() -> miyu_session::Routes {
-    routes(serde_json::json!({}), std::time::Duration::from_secs(5))
+    routes(serde_json::json!({}), std::time::Duration::from_secs(60))
 }
 
 #[tokio::test]

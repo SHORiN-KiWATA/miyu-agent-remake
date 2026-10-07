@@ -36,6 +36,10 @@ pub struct SessionCreated {
     /// 引用怎么认在 `miyu-models`。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
+    /// 会话用哪个人格（施工 P-1 下）：人格的编号，造会话时钉上，之后不换（`16-人格与预设.md` Y5）。头照它显示用的是谁；
+    /// 拼请求照快照，不看它。以前的日志没有这一格，照没有读。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub persona: Option<String>,
 }
 
 /// `session.policy_changed`：换了策略快照，或者换了权限，或者换了模型，也可以一起换。

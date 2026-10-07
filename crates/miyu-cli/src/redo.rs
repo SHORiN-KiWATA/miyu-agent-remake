@@ -207,6 +207,7 @@ fn printing(plan: &RedoPlan) -> Plan {
         timeout: None,
         from: None,
         model: None,
+        no_memory: false,
     }
 }
 

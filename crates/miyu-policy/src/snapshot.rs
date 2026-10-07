@@ -66,6 +66,10 @@ pub struct Snapshot {
     /// 防刷屏的数（施工 C-2，`peers.rs`）。以前造的快照里没有，读成没有：照出厂的数。没有的不写，旧快照的字节不变。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub peers: Option<PeerNumbers>,
+    /// 记忆的范围（施工 R-3 下，`memory.rs`）：`persona`、`session`、`off`。以前造的快照里没有，读成跟着人格；没有的不写，
+    /// 旧快照的字节不变。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub memory: Option<String>,
 }
 
 /// 压缩用的数（`compaction.md`「对外的样子」的策略数据）。
@@ -314,6 +318,7 @@ impl Snapshot {
             parent: None,
             depth: None,
             model: None,
+            persona: Some(self.persona.clone()),
         }
     }
 

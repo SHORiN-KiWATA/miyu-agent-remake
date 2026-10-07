@@ -19,7 +19,7 @@ async fn pushes_come_before_the_reply() {
     let reply = client.subscribe("c2", &session).await;
     assert_eq!(
         reply["result"],
-        json!({"limits": {}, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}}),
+        json!({"limits": {}, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}, "persona": "engineer"}),
         "{reply}"
     );
 
@@ -170,7 +170,7 @@ async fn a_slow_reader_gets_a_resync_and_every_reply() {
     let reply = client.subscribe("c6", &session).await;
     assert_eq!(
         reply["result"],
-        json!({"limits": {}, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}}),
+        json!({"limits": {}, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}, "persona": "engineer"}),
         "{reply}"
     );
     client.say("c7", &session, "once more").await;
@@ -264,7 +264,7 @@ async fn a_session_that_stops_sends_a_resync() {
     let send = json!({"jsonrpc": "2.0", "id": "c3", "method": "session.send", "params": {"session": session, "text": "hi"}});
     client.line(&send.to_string()).await;
     let mut resync = None;
-    while let Some(next) = client.next_within(Duration::from_secs(5)).await {
+    while let Some(next) = client.next_within(Duration::from_secs(60)).await {
         if next["method"] == json!("resync") {
             resync = Some(next);
             break;

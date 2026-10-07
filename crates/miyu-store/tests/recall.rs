@@ -7,7 +7,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use miyu_kernel::id::Seq;
-use miyu_store::recall::{Edit, Hit, Opened, RecallIndex};
+use miyu_store::recall::{Edit, Hit, Opened, RecallIndex, Room};
 
 use support::*;
 
@@ -249,9 +249,9 @@ fn turn_indexes_are_one_per_account_and_persona_and_forgetting_a_session_reaches
     let scratch = Scratch::new("recall-indexes");
     let root = root_in(&scratch);
     let indexes = RecallIndexes::new(&root);
-    let (engineer, opened) = indexes.turns(&admin(), "engineer");
+    let (engineer, opened) = indexes.turns(&Room::persona(&admin(), "engineer"));
     assert!(matches!(opened, Some(Opened::Created)), "{opened:?}");
-    let (again, opened) = indexes.turns(&admin(), "engineer");
+    let (again, opened) = indexes.turns(&Room::persona(&admin(), "engineer"));
     assert!(opened.is_none(), "开过的不再开：{opened:?}");
     assert!(std::sync::Arc::ptr_eq(&engineer, &again));
     assert!(
@@ -263,7 +263,7 @@ fn turn_indexes_are_one_per_account_and_persona_and_forgetting_a_session_reaches
 
     let session = SessionId::parse("0192f3a0-1111-7abc-8def-001122334455").unwrap();
     let other = SessionId::parse("0192f3a0-2222-7abc-8def-001122334455").unwrap();
-    let (miyu, _) = indexes.turns(&admin(), "miyu");
+    let (miyu, _) = indexes.turns(&Room::persona(&admin(), "miyu"));
     for index in [&engineer, &miyu] {
         for id in [&session, &other] {
             let edit = Edit::Put {
@@ -279,7 +279,7 @@ fn turn_indexes_are_one_per_account_and_persona_and_forgetting_a_session_reaches
     let indexes = RecallIndexes::new(&root);
     indexes.forget_session(&admin(), &session).unwrap();
     for persona in ["engineer", "miyu"] {
-        let (index, _) = indexes.turns(&admin(), persona);
+        let (index, _) = indexes.turns(&Room::persona(&admin(), persona));
         assert_eq!(index.keys().unwrap(), [format!("{other}/3")], "{persona}");
     }
 }
@@ -393,7 +393,7 @@ fn a_source_is_alive_unless_its_turn_or_its_session_is_buried() {
         session: session.clone(),
         turn: TurnId::new(seq(n)),
     };
-    let (turns, _) = indexes.turns(&admin(), "engineer");
+    let (turns, _) = indexes.turns(&Room::persona(&admin(), "engineer"));
     turns
         .apply(
             &session.to_string(),
@@ -405,25 +405,25 @@ fn a_source_is_alive_unless_its_turn_or_its_session_is_buried() {
         .unwrap();
     assert!(
         !indexes
-            .alive(&admin(), "engineer", &at_turn(&session, 3))
+            .alive(&Room::persona(&admin(), "engineer"), &at_turn(&session, 3))
             .unwrap(),
         "撤销了的那一轮"
     );
     assert!(
         indexes
-            .alive(&admin(), "engineer", &at_turn(&session, 8))
+            .alive(&Room::persona(&admin(), "engineer"), &at_turn(&session, 8))
             .unwrap()
     );
     indexes.forget_session(&admin(), &other).unwrap();
     assert!(
         !indexes
-            .alive(&admin(), "engineer", &at_turn(&other, 8))
+            .alive(&Room::persona(&admin(), "engineer"), &at_turn(&other, 8))
             .unwrap(),
         "删掉了的会话"
     );
     assert!(
         indexes
-            .alive(&admin(), "miyu", &at_turn(&session, 3))
+            .alive(&Room::persona(&admin(), "miyu"), &at_turn(&session, 3))
             .unwrap(),
         "别的人格的回合库里没埋"
     );

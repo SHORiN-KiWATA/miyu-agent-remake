@@ -15,6 +15,7 @@ use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{CommandId, SessionId, VenueId};
 use miyu_kernel::origin::{By, Person, Session};
 use miyu_kernel::time::{Timestamp, UtcOffset};
+use miyu_policy::memory::MemoryScope;
 use miyu_session::{Child, Create, Handle, create, new_id};
 use miyu_store::log::first_event;
 
@@ -122,6 +123,10 @@ impl Sessions {
             persona: &persona.id,
             persona_texts: persona.texts.clone(),
             memory_account: personas::memory_account(&persona, &core.admin),
+            memory_scope: who
+                .memory
+                .or(persona.file.memory)
+                .unwrap_or(MemoryScope::Persona),
             venue: who.venue.clone().unwrap_or_else(local),
             owner: core.admin.clone(),
             permission: Permission {
@@ -214,6 +219,7 @@ impl Sessions {
             persona: &persona.id,
             persona_texts: persona.texts.clone(),
             memory_account: personas::memory_account(&persona, &child.owner),
+            memory_scope: MemoryScope::Off,
             venue: child.venue,
             sandbox_cache: core.sandbox_cache_of(&child.owner),
             index: core.index_for(&child.owner),
@@ -293,6 +299,8 @@ pub(crate) struct Opening {
     pub(crate) model: Option<String>,
     /// 场所（施工 O-3）：通讯平台的场所会话写它，本机的是空的（`local`）。
     pub(crate) venue: Option<VenueId>,
+    /// 记忆的范围（施工 R-3 下）：`session.create` 的 `memory`；没写的照人格的 `persona.toml`，那也没写的跟着人格。
+    pub(crate) memory: Option<MemoryScope>,
 }
 
 /// 管理员：本机连上来的都是他（`06-多用户与身份.md` 第二节）。

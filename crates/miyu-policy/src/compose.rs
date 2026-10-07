@@ -36,7 +36,7 @@ pub struct Sources {
     pub persona: PersonaTexts,
 }
 
-/// 一个人格的字（`<人格目录>/prompts/`，施工 P-1 上照几层叠好）。角色扮演提示随 P-1 下。
+/// 一个人格的字（`<人格目录>/prompts/`，施工 P-1 上照几层叠好）。角色扮演提示随 P-1 补。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PersonaTexts {
     /// 人设（`persona.md`）：没有的是空的。
@@ -61,6 +61,7 @@ pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
         recap: Some(RECAP),
         title: Some(crate::title::TITLE),
         peers: Some(crate::peers::PEERS),
+        memory: None,
     }
 }
 

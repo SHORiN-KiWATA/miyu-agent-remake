@@ -5,10 +5,12 @@
 
 pub mod calling;
 pub mod routing;
+mod scratch;
+
+pub use scratch::Scratch;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Body, Event, Level, Permission, TransientBody};
@@ -17,6 +19,7 @@ use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::{By, Person};
 use miyu_kernel::session::{Command, Outcome};
 use miyu_kernel::time::{Timestamp, UtcOffset};
+use miyu_policy::memory::MemoryScope;
 use miyu_session::{
     Configs, Create, Handle, Jobs, Lineage, Load, Models, Pushed, SandboxCache, SessionPort,
     Stopped, Subscription, create, load, new_id,
@@ -30,41 +33,6 @@ use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_store::usage::UsageIndex;
 use miyu_tool::{Catalog, Log, ReadLog};
-
-/// 一个用完就删的临时目录。
-pub struct Scratch(pub PathBuf);
-
-impl Scratch {
-    pub fn new() -> Scratch {
-        Scratch::under(&std::env::temp_dir())
-    }
-
-    /// 放在 cargo 给集成测试的 `target/tmp` 下面，不在系统的临时目录里（施工 4-3 下）：临时目录整个能读能写，
-    /// 放在里面就造不出「边界以外」。
-    pub fn outside_temp() -> Scratch {
-        Scratch::under(Path::new(env!("CARGO_TARGET_TMPDIR")))
-    }
-
-    fn under(dir: &Path) -> Scratch {
-        static NEXT: AtomicU64 = AtomicU64::new(0);
-        let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        Scratch(dir.join(format!(
-            "miyu-session-{}-{}-{n}",
-            std::process::id(),
-            stamp()
-        )))
-    }
-}
-
-impl Drop for Scratch {
-    #[expect(
-        clippy::let_underscore_must_use,
-        reason = "删不掉就留在临时目录里，不影响测试"
-    )]
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
 
 /// 一个临时的数据根，建好了骨架；源码树里的资源目录；一个假的系统家目录（施工 4-3 下）。
 pub struct Home {
@@ -117,6 +85,10 @@ pub struct Lines {
     pub oneshot: bool,
     /// 用哪个模型（施工 8-8）：解析好的引用；默认没有，照这时的 `models.chat`。
     pub model: Option<String>,
+    /// 记忆的范围（施工 R-3 下）：默认跟着人格。
+    pub memory: MemoryScope,
+    /// 记忆归哪个账号（施工 P-1 上）：默认是属主 alice。
+    pub memory_account: AccountId,
 }
 
 impl Default for Lines {
@@ -129,6 +101,8 @@ impl Default for Lines {
             command: None,
             oneshot: false,
             model: None,
+            memory: MemoryScope::Persona,
+            memory_account: alice_account(),
         }
     }
 }
@@ -237,7 +211,8 @@ impl Home {
                 .sources("engineer")
                 .expect("出厂的软件工程师")
                 .persona,
-            memory_account: alice_account(),
+            memory_account: lines.memory_account,
+            memory_scope: lines.memory,
             venue: lines.venue,
             owner: alice_account(),
             permission: opening.permission,
@@ -439,7 +414,7 @@ pub fn say(words: &str) -> Command {
     }
 }
 
-/// 等到磁盘上会话 `session` 的日志满足 `done`，最多五秒；交回那时的日志。
+/// 等到磁盘上会话 `session` 的日志满足 `done`，最多 [`WAIT`]；交回那时的日志。
 pub async fn until_logged(
     home: &Home,
     session: &SessionId,
@@ -487,11 +462,4 @@ pub async fn until_turn_ends(subscription: &mut Subscription) -> Vec<Arc<Pushed>
             return pushed;
         }
     }
-}
-
-/// 纳秒时刻：临时目录名里加上它，Windows 很快复用进程号，光靠进程号和序号会撞上前一个测试进程留下的目录。
-fn stamp() -> u128 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |since| since.as_nanos())
 }

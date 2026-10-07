@@ -24,6 +24,7 @@ ask options:
       --timeout <time>    Stop waiting after this long: 30s, 10m, 1h
       --from <name>       For another harness: its name, e.g. claude-code
       --model <model>     Use this model; a continued session keeps it
+      --no-memory         Don't recall or remember; new sessions only
 
 undo, restore, redo, compact, recap, rename options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened

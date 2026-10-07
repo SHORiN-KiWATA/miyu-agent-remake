@@ -37,7 +37,7 @@
       },
       "persona.default": {
         "name": "Default persona",
-        "description": "The persona new sessions use, written as the persona directory name. A persona chosen when opening a session comes first, and so does one set by a chat platform venue rule."
+        "description": "The persona new sessions use."
       },
       "permission.start_read_only": {
         "name": "Start new sessions read-only",

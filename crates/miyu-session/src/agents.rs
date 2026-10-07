@@ -19,6 +19,7 @@ use miyu_kernel::event::Permission;
 use miyu_kernel::id::{AccountId, CommandId, JobId, SessionId, VenueId};
 use miyu_kernel::origin::{By, Session};
 use miyu_kernel::session::{Command, Outcome};
+use miyu_policy::memory::MemoryScope;
 use miyu_policy::{Choice, JOB_DEPTH, ToolEntry};
 use miyu_tool::{
     ASK_USER, AgentPort, Catalog, FORGET, MEMORY_SEARCH, NotSpawned, REMEMBER, SEND_MESSAGE,
@@ -90,6 +91,7 @@ impl Agents {
         lineage: Option<&Lineage>,
         values: &Values,
         attended: bool,
+        memory: MemoryScope,
     ) -> Vec<ToolEntry> {
         let spawns = Agents::allowed(venue, lineage);
         let local = venue.as_str() == LOCAL;
@@ -103,9 +105,10 @@ impl Agents {
             .filter(|spec| local || spec.name != SESSION_USAGE)
             .filter(|spec| asks || spec.name != ASK_USER)
             .filter(|spec| local || spec.name != TODOWRITE)
-            // 记忆的三件只给本机的主会话（施工 R-3 中，`memory.md`「工具」）：子代理不召回也不记（17 第二节），群随 O 线。
+            // 记忆的三件只给本机、记忆开着的会话（施工 R-3 中、下，`memory.md`「工具」）：子会话的范围一律 `off`（17 第二节），
+            // 群随 O 线。
             .filter(|spec| {
-                (local && lineage.is_none())
+                (local && memory != MemoryScope::Off)
                     || ![REMEMBER, FORGET, MEMORY_SEARCH].contains(&spec.name.as_str())
             })
             .map(|spec| {

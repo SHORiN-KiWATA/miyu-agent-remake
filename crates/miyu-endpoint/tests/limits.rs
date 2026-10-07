@@ -14,7 +14,7 @@ use support::*;
 
 /// 限额是 `limits` 的那一份回应：模型是替身的 deepseek 的 deepseek-v4，没有引用。
 fn reply_of(limits: serde_json::Value) -> serde_json::Value {
-    json!({"limits": limits, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}})
+    json!({"limits": limits, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}, "persona": "engineer"})
 }
 
 /// 窗口是 `window` 的替身，一句都不用答。
@@ -37,7 +37,7 @@ async fn the_reply_is_the_drawing_example() {
     let reply = client.subscribe("c2", &session).await;
     assert_eq!(
         serde_json::to_string(&reply).expect("写得成 JSON"),
-        r#"{"id":"c2","jsonrpc":"2.0","result":{"limits":{"compaction_line":967000,"window":1000000},"model":{"endpoint":"deepseek","model":"deepseek-v4","ref":"deepseek/deepseek-v4"}}}"#
+        r#"{"id":"c2","jsonrpc":"2.0","result":{"limits":{"compaction_line":967000,"window":1000000},"model":{"endpoint":"deepseek","model":"deepseek-v4","ref":"deepseek/deepseek-v4"},"persona":"engineer"}}"#
     );
 }
 
