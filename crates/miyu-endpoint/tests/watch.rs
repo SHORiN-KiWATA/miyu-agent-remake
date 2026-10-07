@@ -138,6 +138,25 @@ fn notices(log: &[Event]) -> Vec<(IdleReason, Option<String>)> {
         .collect()
 }
 
+/// 等会话表说 `session` 不忙了（`session.list` 的 `busy`，最多十秒）。
+async fn until_idle(client: &mut Client, session: &str) {
+    for n in 0..2000 {
+        let reply = client
+            .call(&format!("idle-{n}"), "session.list", serde_json::json!({}))
+            .await;
+        let busy = reply["result"]["sessions"]
+            .as_array()
+            .expect("有会话")
+            .iter()
+            .any(|item| item["session"] == session && item["busy"] == true);
+        if !busy {
+            return;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    }
+    panic!("十秒内 {session} 没空下来");
+}
+
 /// 日志里开了几轮。
 fn turns(log: &[Event]) -> usize {
     log.iter()
@@ -167,6 +186,8 @@ async fn watching_alone_opens_no_turn_there_and_waits_for_its_next_turn_there() 
     let b = client.create("c2", &work).await;
     client.say("c3", &b, "做点事").await;
     home.until_turns(&b, 1).await;
+    // 日志里有了 `turn.ended` 不等于会话已经空了：落盘以后还要更新派生的索引，才标成空闲。照会话表说的等它空下来。
+    until_idle(&mut client, &b).await;
     client.say("c4", &a, &format!("订 {b}")).await;
     home.until_turns(&a, 1).await;
     assert!(

@@ -339,7 +339,7 @@ async fn an_idle_session_waits_for_its_next_turn_to_send() {
     ]);
     let handle = session(&home, &script, &table).await;
     turn(&home, &handle, 1).await;
-    // 起算时刻在忙完以后才取，落进「已经空着」那一支。
+    until("它真空下来再取起算时刻", || !handle.busy()).await;
     tokio::time::sleep(Duration::from_millis(20)).await;
     let since = support::now();
     handle.watch(sid(WAITER), since).expect("在跑");
