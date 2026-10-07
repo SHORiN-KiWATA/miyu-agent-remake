@@ -1,5 +1,6 @@
 //! 回合索引（施工 R-2 上，`docs/blueprint/memory.md`「怎么走」第一条）：主会话每落一批，把结束了的人开的回合放进这个人格的
-//! 回合库，撤销的拿掉、恢复的读回，载入时照整份事件补上落下的。怎么算是纯逻辑（`miyu_recall::TurnFeed`），这里只管接线和写库。
+//! 回合库，撤销的拿掉、恢复的读回，载入时照整份事件补上落下的。撤销的每一轮另埋一块墓碑、恢复的揭掉，记忆的出处照它判
+//! 活不活（施工 R-3 上，第二条第 4 款）。怎么算是纯逻辑（`miyu_recall::TurnFeed`），这里只管接线和写库。
 //!
 //! 回合库是派生的：更新失败记一行 `WARN memory index not updated`，会话照常；照到的位置没往前挪，下次载入照日志补。
 
@@ -110,9 +111,17 @@ impl Turns {
                     text: item.text,
                     at: item.at,
                 }),
-                Change::Remove(turn) => edits.push(Edit::Remove {
-                    key: key(&self.session, turn),
-                }),
+                // 撤销的那一轮拿掉，再埋一块墓碑：记忆的出处在它里面的照它判死了（施工 R-3 上）。
+                Change::Remove(turn) => {
+                    let key = key(&self.session, turn);
+                    edits.push(Edit::Remove { key: key.clone() });
+                    edits.push(Edit::Bury { key });
+                }
+                Change::Restored(turns) => {
+                    edits.extend(turns.into_iter().map(|turn| Edit::Unbury {
+                        key: key(&self.session, turn),
+                    }))
+                }
                 Change::Lost(turns) => lost.extend(turns),
             }
         }

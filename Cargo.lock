@@ -1724,6 +1724,7 @@ name = "miyu-recall"
 version = "0.0.0"
 dependencies = [
  "miyu-kernel",
+ "serde",
  "serde_json",
 ]
 

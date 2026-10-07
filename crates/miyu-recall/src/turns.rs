@@ -34,8 +34,11 @@ pub struct TurnItem {
 pub enum Change {
     /// 放进这一条（键照 [`key`]）。
     Put(TurnItem),
-    /// 拿掉这一轮的（撤销了）。
+    /// 拿掉这一轮的（撤销了）。撤销的每一轮都交，人开的、不是人开的都算：写的一方另埋一块墓碑，记忆的出处照它判
+    /// （`memory.md` 第二条第 4 款）。
     Remove(TurnId),
+    /// 这几轮恢复了：揭掉墓碑。人开的、不是人开的都交；有字可放的另交 `Put` 或 `Lost`，跟在它后面。
+    Restored(Vec<TurnId>),
     /// 这几轮恢复了，可增量的时候不记得它们的字：读整份日志，照 [`replay`] 放回还在的。
     Lost(Vec<TurnId>),
 }
@@ -141,14 +144,20 @@ impl TurnFeed {
             Body::TurnReverted(reverted) => {
                 reverted.turns.iter().copied().map(Change::Remove).collect()
             }
-            Body::TurnUnreverted(unreverted) => match &self.ended {
-                Some(ended) => unreverted
-                    .turns
-                    .iter()
-                    .filter_map(|turn| ended.get(turn).cloned().map(Change::Put))
-                    .collect(),
-                None => vec![Change::Lost(unreverted.turns.clone())],
-            },
+            Body::TurnUnreverted(unreverted) => {
+                let restored = Change::Restored(unreverted.turns.clone());
+                match &self.ended {
+                    Some(ended) => std::iter::once(restored)
+                        .chain(
+                            unreverted
+                                .turns
+                                .iter()
+                                .filter_map(|turn| ended.get(turn).cloned().map(Change::Put)),
+                        )
+                        .collect(),
+                    None => vec![restored, Change::Lost(unreverted.turns.clone())],
+                }
+            }
             _ => Vec::new(),
         }
     }
@@ -166,7 +175,7 @@ pub fn replay(events: &[Event]) -> Vec<TurnItem> {
             Change::Remove(turn) => {
                 kept.remove(&turn);
             }
-            Change::Lost(_) => {}
+            Change::Restored(_) | Change::Lost(_) => {}
         }
     }
     kept.into_values().collect()

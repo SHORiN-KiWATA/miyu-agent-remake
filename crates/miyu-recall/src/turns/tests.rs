@@ -215,6 +215,7 @@ fn reverting_removes_and_unreverting_asks_for_the_log() {
         [
             Change::Remove(turn(3)),
             Change::Remove(turn(8)),
+            Change::Restored(vec![turn(3), turn(8)]),
             Change::Lost(vec![turn(3), turn(8)])
         ]
     );
@@ -258,7 +259,7 @@ fn priming_restores_the_open_turn_and_gives_only_what_comes_after() {
     assert_eq!(changes, [Change::Put(item(3, "第一句\n\n第一答"))]);
     assert_eq!(
         feed.see(&unreverted(11, &[3])),
-        [Change::Lost(vec![turn(3)])]
+        [Change::Restored(vec![turn(3)]), Change::Lost(vec![turn(3)])]
     );
 }
 
@@ -286,4 +287,28 @@ fn queued_words_are_dropped_once_a_turn_starts() {
     assert!(feed.said.is_empty(), "{:?}", feed.said);
     feed.see(&said(5, ALICE, "三"));
     assert_eq!(feed.said.len(), 1);
+}
+
+#[test]
+fn priming_through_an_undo_and_restore_gives_the_restore_and_the_item() {
+    // 不是人开的那一轮（别的 harness）撤销了也要埋、恢复了也要揭：交 `Restored`，没有字可放。
+    let mut events = one_turn(
+        2,
+        r#"{"kind":"harness","name":"claude-code"}"#,
+        "跑测试",
+        "跑过了",
+    );
+    events.extend(one_turn(7, ALICE, "第二句", "第二答"));
+    events.push(reverted(12, &[3, 8]));
+    events.push(unreverted(13, &[3, 8]));
+    let (_, changes) = TurnFeed::primed(&events, Some(Seq::new(11).unwrap()));
+    assert_eq!(
+        changes,
+        [
+            Change::Remove(turn(3)),
+            Change::Remove(turn(8)),
+            Change::Restored(vec![turn(3), turn(8)]),
+            Change::Put(item(8, "第二句\n\n第二答"))
+        ]
+    );
 }

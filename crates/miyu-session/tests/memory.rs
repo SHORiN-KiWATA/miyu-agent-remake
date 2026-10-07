@@ -5,6 +5,7 @@ mod support;
 
 use miyu_kernel::id::{SessionId, TurnId};
 use miyu_kernel::session::Command;
+use miyu_recall::Source;
 use miyu_session::Handle;
 use miyu_session::Lineage;
 use miyu_session::testkit::{Play, Script};
@@ -58,10 +59,22 @@ async fn each_turn_goes_in_and_undo_and_restore_follow() {
     assert_eq!(found(&home, "樱花"), [key(&id, first)]);
     assert_eq!(found(&home, "爬山"), [key(&id, second)]);
 
+    let alive = |turn: TurnId| {
+        let source = Source {
+            session: id.clone(),
+            turn,
+        };
+        home.recall
+            .alive(&alice_account(), "engineer", &source)
+            .expect("读得了")
+    };
+    assert!(alive(first) && alive(second));
+
     let undone = ask(&handle, "cmd-3", Command::Revert { turn: Some(second) }).await;
     assert!(undone.is_ok(), "{undone:?}");
     assert!(found(&home, "爬山").is_empty(), "撤销的拿掉");
     assert_eq!(found(&home, "樱花"), [key(&id, first)], "前一轮还在");
+    assert!(alive(first) && !alive(second), "撤销的那一轮埋了墓碑");
 
     let restored = ask(&handle, "cmd-4", Command::Unrevert).await;
     assert!(restored.is_ok(), "{restored:?}");
@@ -70,6 +83,7 @@ async fn each_turn_goes_in_and_undo_and_restore_follow() {
         [key(&id, second)],
         "恢复的读回日志放回"
     );
+    assert!(alive(second), "恢复的揭掉墓碑");
 }
 
 #[tokio::test]

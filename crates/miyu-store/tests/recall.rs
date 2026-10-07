@@ -338,3 +338,88 @@ fn measure_priming_a_thousand_turns() {
     let applied = started.elapsed();
     println!("prime 4000 events: {primed:?}, apply 1000 turns: {applied:?}");
 }
+
+#[test]
+fn tombstones_are_buried_and_unburied_with_a_batch() {
+    let scratch = Scratch::new("recall-buried");
+    let (index, _) = RecallIndex::open(&place(&scratch));
+    assert!(!index.is_buried("s1/3").unwrap());
+    index
+        .apply(
+            "s1",
+            &[
+                Edit::Bury { key: "s1/3".into() },
+                Edit::Bury { key: "s1/8".into() },
+            ],
+            seq(9),
+        )
+        .unwrap();
+    assert!(index.is_buried("s1/3").unwrap() && index.is_buried("s1/8").unwrap());
+    index
+        .apply("s1", &[Edit::Unbury { key: "s1/3".into() }], seq(10))
+        .unwrap();
+    assert!(!index.is_buried("s1/3").unwrap());
+    assert!(index.is_buried("s1/8").unwrap(), "揭的只是那一块");
+    // 埋两次、揭没埋的都不碍事。
+    index
+        .apply(
+            "s1",
+            &[
+                Edit::Bury { key: "s1/8".into() },
+                Edit::Unbury { key: "s9/1".into() },
+            ],
+            seq(11),
+        )
+        .unwrap();
+    assert!(index.is_buried("s1/8").unwrap());
+}
+
+#[test]
+fn a_source_is_alive_unless_its_turn_or_its_session_is_buried() {
+    use miyu_kernel::id::{SessionId, TurnId};
+    use miyu_recall::Source;
+    use miyu_store::recall::RecallIndexes;
+    let scratch = Scratch::new("recall-alive");
+    let root = root_in(&scratch);
+    let indexes = RecallIndexes::new(&root);
+    let session = SessionId::parse("0192f3a0-1111-7abc-8def-001122334455").unwrap();
+    let other = SessionId::parse("0192f3a0-2222-7abc-8def-001122334455").unwrap();
+    let at_turn = |session: &SessionId, n: u64| Source {
+        session: session.clone(),
+        turn: TurnId::new(seq(n)),
+    };
+    let (turns, _) = indexes.turns(&admin(), "engineer");
+    turns
+        .apply(
+            &session.to_string(),
+            &[Edit::Bury {
+                key: format!("{session}/3"),
+            }],
+            seq(4),
+        )
+        .unwrap();
+    assert!(
+        !indexes
+            .alive(&admin(), "engineer", &at_turn(&session, 3))
+            .unwrap(),
+        "撤销了的那一轮"
+    );
+    assert!(
+        indexes
+            .alive(&admin(), "engineer", &at_turn(&session, 8))
+            .unwrap()
+    );
+    indexes.forget_session(&admin(), &other).unwrap();
+    assert!(
+        !indexes
+            .alive(&admin(), "engineer", &at_turn(&other, 8))
+            .unwrap(),
+        "删掉了的会话"
+    );
+    assert!(
+        indexes
+            .alive(&admin(), "miyu", &at_turn(&session, 3))
+            .unwrap(),
+        "别的人格的回合库里没埋"
+    );
+}

@@ -11,7 +11,7 @@
 
 状态：图纸（2026-10-07 起草，照 `docs/reviews/2026-10-07-记忆知识库embedding调研.md` 第八、九节项目主人的拍板）。每一节标着由哪一步做，步子见末尾「施工步子」。做完一步，这一页照做好的样子改写那几节。检索的底子另见 `recall.md`。
 
-做好了的：R-2（上）回合索引（第一条第 1 到 8 款）：`miyu-recall` 的 `TurnFeed`、`replay`、`key`；检索库的 `marks`、`apply`、`mark`、`forget`，回合库的登记 `RecallIndexes`（`miyu-store/src/recall/indexes.rs`）；会话的接线 `miyu-session/src/memory.rs`（`Indexed` 每落一批交给它，载入时铺回、补上）；核心一份登记，删会话时拿掉（`miyu-endpoint/src/sessions/delete.rs`）。
+做好了的：R-3（上）记忆日志和底账：`miyu-recall` 的 `Saved`、`Retired`、`Source`、`MemoryId`、`to_event`、`from_event`、`MemoryBook`；`miyu-store` 的 `MemoryLogs`（一份一把锁，第一次开交回 `Report`：记忆库开得怎么样、补没补上、读不懂的几条），追加交回 `Appended`（记忆库没写上的说出来，不挡追加）；回合库的墓碑（第二条第 4 款），`RecallIndexes::alive`。还没有人往里写：R-3（中）的工具第一个用。R-2（上）回合索引（第一条第 1 到 8 款）：`miyu-recall` 的 `TurnFeed`、`replay`、`key`；检索库的 `marks`、`apply`、`mark`、`forget`，回合库的登记 `RecallIndexes`（`miyu-store/src/recall/indexes.rs`）；会话的接线 `miyu-session/src/memory.rs`（`Indexed` 每落一批交给它，载入时铺回、补上）；核心一份登记，删会话时拿掉（`miyu-endpoint/src/sessions/delete.rs`）。
 
 ### 在哪
 
@@ -181,8 +181,10 @@
 |---|---|
 | `crates/miyu-recall/src/turns/tests.rs` | 第一条第 1 到 5 款：人开的一轮结束收一条（字、时刻）；平台上的人也算；别的 harness、别的会话、内核开的、没有触发的不收；被打断的、出错的也收，两边都没字的不收；最后一条有字的回复才算；排着的几句照触发的那一句；撤销拿掉、恢复要读回；`replay` 照最后还在的；载入时铺回进行中的一轮、只交照到以后的；键的写法 |
 | `crates/miyu-store/tests/recall.rs` | 第一条第 6、7 款：一批和照到哪一起写、空的一批也挪；拿掉一个来源只拿它自己的（`s1` 不碰 `s10`）；回合库照（账号、人格）一份、开过的不再开，新的登记照样找得到磁盘上的每一份；R-1 的版本 1 删掉重建。量尺 `measure_priming_a_thousand_turns`（`#[ignore]`） |
-| `crates/miyu-session/tests/memory.rs` | 真会话：每一轮进库、撤销拿掉、恢复放回；载入时补上落下的、照到了的不重写；子会话不进 |
-| `crates/miyu-endpoint/tests/memory.rs` | 真核心：说过的一轮进软件工程师的回合库；删会话以后拿掉 |
+| `crates/miyu-session/tests/memory.rs` | 真会话：每一轮进库、撤销拿掉并埋墓碑（出处死了）、恢复放回并揭掉（活回来）；载入时补上落下的、照到了的不重写；子会话不进 |
+| `crates/miyu-endpoint/tests/memory.rs` | 真核心：说过的一轮进软件工程师的回合库；删会话以后拿掉，整个会话埋了墓碑 |
+| `crates/miyu-recall/src/memory/tests.rs` | 「对外的样子」的记忆日志、底账：`saved`、`retired` 写成事件、读回一字不差，写出的行逐字节比；不是记忆的是 `None`、读不懂的说为什么；不认识的类原样留着；编号的写法；底账记、改（旧的标成被改掉）、作废、改和作废一条不存在的不碍事 |
+| `crates/miyu-store/tests/memory.rs` | 记忆日志的登记：记了、重开还在、搜得到（作废的也搜得到）；最后半行坏了截掉、接着它写；八个线程同时记两百条，编号连续不重；记忆库删了照日志补；人格、账号各一份；第一次开交回情形、读不懂的说出来。量尺 `measure_a_thousand_memories`（`#[ignore]`） |
 
 ### 出处
 

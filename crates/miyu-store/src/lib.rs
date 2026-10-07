@@ -33,6 +33,7 @@ pub mod jobs;
 pub mod journal;
 pub mod log;
 pub mod logins;
+pub mod memory;
 mod private_json;
 pub mod recall;
 pub mod resources;

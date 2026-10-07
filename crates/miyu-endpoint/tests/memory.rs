@@ -61,4 +61,20 @@ async fn a_turn_said_through_the_core_is_indexed_and_goes_with_the_session() {
         .await;
     assert_eq!(reply["result"], json!({}), "{reply}");
     assert!(found(&home, "显卡").is_empty(), "删会话拿掉");
+    let path = home
+        .root
+        .index(&alice())
+        .join("recall")
+        .join("turns-engineer.db");
+    let db =
+        rusqlite::Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+            .expect("回合库在");
+    let buried: i64 = db
+        .query_row(
+            "SELECT count(*) FROM buried WHERE key = ?1",
+            [format!("{session}/")],
+            |row| row.get(0),
+        )
+        .expect("查得了");
+    assert_eq!(buried, 1, "整个会话埋了墓碑：记忆的出处在它里面的都算死了");
 }
