@@ -2640,14 +2640,14 @@ Placeholder for a tool this client is expected to send with the request; it is n
 #### `software/basesystem/tools/shell.json`
 
 - 什么时候加进来：会话的工具面里有 `shell`（每次请求都带）
-- token：220（2026-10-07 主会话照开发端点量，十四件一起时的边际份量；以前 DeepSeek 官方量的 183）
-- 为什么加：`shell` 的说明和参数，照 Claude Code：`command` 看名字就懂，不写说明；`timeout` 是毫秒、上限和默认值写在那一句里。说明三句：用哪种 shell（`{shell}` 在核心起来时换成 `bash`、`zsh`、`PowerShell 7`、`Windows PowerShell 5.1`，会话里不变），编译、测试、git 用它、读搜改文件用专用的工具，每次从工作目录起、`cd` 不带到下一次（施工 4-8）。施工 4-13 加必填的 `description`：这条命令在做什么的短标题，前端显示用，名字照 Claude Code、opencode（2026-09-28 项目主人定，+30）。施工 7-3 声明 `run_in_background`，一句：放到后台、不管超时、当场交回编号；「结束了会告诉你」是调用之后才用得上的，写进结果那一句（2026-09-30 量，+31；和 `agent` 一起九件时重量，照样 183）。施工 D-4 加 `outside_sandbox`，一句：在沙盒外跑、人允许以后、只在沙盒挡下以后（2026-10-07 主会话照开发端点量，十四件一起时 185 → 220，+35）
-- 指纹：`e293d5ef`
+- token：237（2026-10-07 主会话照开发端点量，十五件一起时的边际份量；施工 D-4 时十四件一起是 220，以前 DeepSeek 官方量的 183）
+- 为什么加：`shell` 的说明和参数，照 Claude Code：`command` 看名字就懂，不写说明；`timeout` 是毫秒、上限和默认值写在那一句里。说明三句：用哪种 shell（`{shell}` 在核心起来时换成 `bash`、`zsh`、`PowerShell 7`、`Windows PowerShell 5.1`，会话里不变），编译、测试、git 用它、读搜改文件用专用的工具，每次从工作目录起、`cd` 不带到下一次（施工 4-8）。施工 4-13 加必填的 `description`：这条命令在做什么的短标题，前端显示用，名字照 Claude Code、opencode（2026-09-28 项目主人定，+30）。施工 7-3 声明 `run_in_background`，一句：放到后台、不管超时、当场交回编号；「结束了会告诉你」是调用之后才用得上的，写进结果那一句（2026-09-30 量，+31；和 `agent` 一起九件时重量，照样 183）。施工 D-4 加 `outside_sandbox`，一句：在沙盒外跑、人允许以后、只在沙盒挡下以后（2026-10-07 主会话照开发端点量，十四件一起时 185 → 220，+35）。施工 D-4 补改成两句：重跑沙盒挡下的命令，被挡下就直接带它重跑、别先问，带上它就是在问人（2026-10-07 项目主人定，照 Claude Code「don't ask, just do it」；原来的「once the user approves」被读成要先在聊天里拿到同意；十五件一起时 218 → 237，+19）
+- 指纹：`b66bcfbe`
 
 ```json
 {
   "description": "Execute a command with {shell} and return its output. Use it for builds, tests, git and other programs, not to read, search or edit files. Every call starts in the working directory, so cd does not carry over to the next call.",
-  "parameters": {"type":"object","properties":{"command":{"type":"string"},"description":{"type":"string","description":"Short title of what the command does, in a few words."},"timeout":{"type":"integer","description":"Milliseconds before the command is stopped, up to 600000. Default 120000."},"run_in_background":{"type":"boolean","description":"Run it in the background with no timeout and return a job id at once."},"outside_sandbox":{"type":"boolean","description":"Run it outside the sandbox once the user approves, only after the sandbox blocked it."}},"required":["command","description"]}
+  "parameters": {"type":"object","properties":{"command":{"type":"string"},"description":{"type":"string","description":"Short title of what the command does, in a few words."},"timeout":{"type":"integer","description":"Milliseconds before the command is stopped, up to 600000. Default 120000."},"run_in_background":{"type":"boolean","description":"Run it in the background with no timeout and return a job id at once."},"outside_sandbox":{"type":"boolean","description":"Rerun a command the sandbox blocked. When the sandbox blocks a command, retry with this right away instead of asking first, because setting it is what asks the user."}},"required":["command","description"]}
 }
 ```
 
