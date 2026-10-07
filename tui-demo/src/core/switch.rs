@@ -42,18 +42,18 @@ pub(super) fn finish(link: &mut Link, session: &str) -> Vec<Push> {
         .unwrap_or_default()
 }
 
-/// 启动时进最近的那个会话：配置项 `tui.startup` 是 `recent`（第 8 条，核心 8-3 登记，`config.get` 读最终值）。读不出来的
+/// 启动时进最近的那个会话：配置项 `ui.startup` 是 `recent`（第 8 条，核心 8-3 登记，`config.get` 读最终值）。读不出来的
 /// （核心旧、没登记这一项）照 `new`。
 pub(super) async fn wants_recent(rpc: &mut Rpc) -> bool {
     let asked = rpc
-        .call("config.get", json!({"keys": ["tui.startup"]}))
+        .call("config.get", json!({"keys": ["ui.startup"]}))
         .await;
     asked.is_ok_and(|got| startup_is_recent(&got))
 }
 
-/// `config.get` 的回应里 `tui.startup` 是不是 `recent`。
+/// `config.get` 的回应里 `ui.startup` 是不是 `recent`。
 fn startup_is_recent(got: &Value) -> bool {
-    got["items"]["tui.startup"]["value"] == "recent"
+    got["items"]["ui.startup"]["value"] == "recent"
 }
 
 /// 最近动静的那个主会话：有 `last_active` 的照它，没有的照核心交回的先后（新的在前）。一个都没有是 `None`。
@@ -75,7 +75,7 @@ mod tests {
     #[test]
     fn only_a_recent_startup_enters_the_last_session() {
         let got =
-            |v: &str| json!({"items":{"tui.startup":{"origin":{"layer":"personal"},"value":v}}});
+            |v: &str| json!({"items":{"ui.startup":{"origin":{"layer":"personal"},"value":v}}});
         assert!(startup_is_recent(&got("recent")));
         assert!(!startup_is_recent(&got("new")));
         assert!(!startup_is_recent(&json!({"items":{}})), "没登记的照 new");

@@ -24,7 +24,14 @@ pub(super) fn draw_box(frame: &mut Frame, areas: Areas, app: &mut App, home: boo
                 .border_style(theme::dim()),
             areas.frame,
         );
-        app.drawer_rows = drawer::draw(frame, areas.text, d, texts, &mut app.caret);
+        app.drawer_rows = drawer::draw(
+            frame,
+            areas.text,
+            d,
+            texts,
+            &app.config.layout.drawer_preview,
+            &mut app.caret,
+        );
         return;
     }
     app.drawer_rows.clear();

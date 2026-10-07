@@ -67,6 +67,15 @@ pub struct Detail {
     /// 哪件工具。
     #[serde(default)]
     pub tool: Option<String>,
+    /// 跑命令的：短标题（她调 shell 时写的 `description`，核心 D-4 起带）。
+    #[serde(default)]
+    pub title: Option<String>,
+    /// 跑命令的：命令原文（核心 D-4 起带）。
+    #[serde(default)]
+    pub command: Option<String>,
+    /// 跑命令的：这一次在不在沙盒里跑；`false` 的抽屉写出来（核心 D-4）。
+    #[serde(default)]
+    pub sandbox: Option<bool>,
 }
 
 /// 碰到的一个路径。

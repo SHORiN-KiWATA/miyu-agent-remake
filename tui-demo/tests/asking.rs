@@ -111,6 +111,12 @@ fn a_command_approval_shows_its_short_title_and_the_command() {
     );
     assert!(screen.contains("$ uname -a"), "命令原文：\n{screen}");
     assert!(!screen.contains("要用 shell"), "{screen}");
+    // 测试里的核心没有沙盒助手：命令不在沙盒里跑，核心 D-4 的 `detail.sandbox` 是 `false`。
+    assert!(screen.contains("沙盒外运行"), "{screen}");
+    assert!(
+        !screen.contains("这个会话都允许"),
+        "跑命令的没有放行规则：{screen}"
+    );
     tui.key(b"\r");
     tui.wait_for("看完了。");
 }
@@ -149,4 +155,61 @@ fn ask_user_opens_the_question_drawer_and_the_answers_reach_her() {
     assert!(screen.contains("已回答"), "{screen}");
     assert!(screen.contains("语言：Rust（推荐）"), "{screen}");
     assert!(screen.contains("测试：不要（补充：以后再说）"), "{screen}");
+}
+
+#[test]
+fn asking_to_run_outside_the_sandbox_shows_the_line_and_allow_once_runs_it() {
+    // 核心 D-4：她带 `outside_sandbox` 请求在沙盒外跑一条，弹确认，允许这一次照办。
+    let args = serde_json::json!({
+        "command": "echo outside", "description": "在沙盒外试一下", "outside_sandbox": true
+    })
+    .to_string();
+    let script = Script::new([
+        Play::Calls(vec![("shell".into(), args)]),
+        Play::Says("跑完了。"),
+    ]);
+    let home = Home::with_tools(script, "");
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("试试");
+    tui.wait_for("在沙盒外试一下");
+    let screen = tui.lines().join("\n");
+    assert!(screen.contains("$ echo outside"), "{screen}");
+    assert!(screen.contains("沙盒外运行"), "{screen}");
+    tui.key(b"\r");
+    tui.wait_for("跑完了。");
+}
+
+#[test]
+fn the_same_call_id_in_a_new_session_still_asks() {
+    // 调用编号只在一个会话里唯一：前一个会话了结过的 `call_…`，`/new` 以后新会话又问同一个编号，照样开抽屉
+    // （2026-10-07 项目主人报：接上旧会话、`/new` 以后让她在沙盒外跑一条 echo，没弹确认，看着卡住了）。
+    let outside = outside("same-call");
+    let first = outside.join("one.txt");
+    let second = outside.join("two.txt");
+    let write = |path: &std::path::Path| {
+        let args = serde_json::json!({"file_path": path, "content": "hi"}).to_string();
+        Play::Calls(vec![("write".into(), args)])
+    };
+    let script = Script::new([
+        write(&first),
+        Play::Says("写好了。"),
+        write(&second),
+        Play::Says("又写好了。"),
+    ]);
+    let home = Home::with_tools(script, "");
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("写个文件");
+    tui.wait_for("允许这一次");
+    tui.key(b"\r");
+    tui.wait_for("写好了。");
+    tui.say("/new");
+    tui.pump(Duration::from_millis(300));
+    tui.say("写个文件");
+    tui.wait_for("允许这一次");
+    tui.key(b"\r");
+    wait(&mut tui, "第二个文件写出来", || second.exists());
+    tui.wait_for("又写好了。");
+    std::fs::remove_dir_all(&outside).expect("删得掉测试建的目录");
 }

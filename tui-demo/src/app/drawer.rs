@@ -132,8 +132,10 @@ impl App {
                 {
                     fields.remove("reason");
                 }
+                // 交给问的那个会话：`/new`、切会话以后还开着的抽屉也不会交错地方。
+                let owner = Some(drawer.owner.clone()).filter(|o| !o.is_empty());
                 self.core.send(Command::Answer {
-                    session: drawer.session.clone(),
+                    session: owner.or_else(|| drawer.session.clone()),
                     call: drawer.call_id.clone(),
                     body,
                 });

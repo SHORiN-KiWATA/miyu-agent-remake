@@ -46,7 +46,7 @@ pub(super) fn request(
             params["session"] = json!(session);
             ("session.set_permission_level", params)
         }
-        Command::Clear => ("session.clear", json!({"session": session})),
+        Command::Run(text) => ("command.run", json!({"session": session, "text": text})),
         Command::Recap => ("session.recap", json!({"session": session})),
         Command::Configure(reference) => (
             "session.configure",

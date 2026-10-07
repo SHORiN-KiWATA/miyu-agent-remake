@@ -242,8 +242,10 @@ impl Transcript {
             | Update::BlobSaved { .. }
             | Update::Mermaid { .. }
             | Update::Answer { .. }
+            | Update::CommandRan { .. }
             | Update::AnswerRefused { .. }
-            | Update::ConfigChanged => {}
+            | Update::ConfigChanged
+            | Update::SessionChanged(_) => {}
             Update::Failed(reason) => {
                 self.link = Link::Down(texts.core_failed.replace("{reason}", &reason));
             }
@@ -398,6 +400,8 @@ impl Transcript {
             Push::Recapped(text) => self.recap(&text, texts),
             // 确认、提问归抽屉（`app/asking.rs`）：正文里的结果由那边写。
             Push::Asking(_) => {}
+            // 待办归待办表（`app/sessions.rs`）。
+            Push::Todos { .. } => {}
             Push::Speed { output, ms } => {
                 self.speed = Some(output as f64 * 1000.0 / ms as f64);
             }
@@ -418,6 +422,7 @@ impl Transcript {
                 );
             }
             Push::TurnEnded(reason) => self.end(reason, texts),
+            Push::CommandRan => self.settle(),
         }
     }
 

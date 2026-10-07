@@ -34,6 +34,7 @@ impl SessionList {
                 query.is_empty()
                     || s.title
                         .as_deref()
+                        .or(s.preview.as_deref())
                         .is_some_and(|t| t.to_lowercase().contains(&query))
                     || short(&s.session).contains(&query)
             })
@@ -171,6 +172,7 @@ mod tests {
             cwd: None,
             busy: false,
             last_active: active.map(|a| a.parse().unwrap()),
+            preview: None,
         }
     }
 

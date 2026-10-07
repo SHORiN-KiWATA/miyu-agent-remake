@@ -127,6 +127,8 @@ pub enum Push {
     JobEnded(JobEnd),
     /// 这几条排着队的消息被退回了（`message.withdrawn`），照序号。
     Withdrawn(Vec<u64>),
+    /// 别处、这里用了一条斜杠命令（`command.ran`，核心 O-6）：不画；`/stop` 留着的排队话照它放进正文。
+    CommandRan,
     /// 这几轮被撤掉了（`turn.reverted`）。
     Reverted(Vec<u64>),
     /// 这几轮恢复了（`turn.unreverted`）。
@@ -187,6 +189,14 @@ pub enum Push {
     },
     /// 确认、提问（核心 D-1、D-2）：开、收抽屉，写结果。
     Asking(Asking),
+    /// 待办换了（`todos.changed`，订阅回应里的也照它交，核心 D-3）：整份，空的是清空了；做完最后一项清空时 `done`
+    /// 是刚做完的那几项（D-3 补）。
+    Todos {
+        /// 现在的待办。
+        todos: Vec<super::TodoItem>,
+        /// 刚做完的。
+        done: Vec<super::TodoItem>,
+    },
     /// 一次请求的用量（`model.called` 的 `usage`，供应商没报的没有这一条）。
     Usage(Usage),
     /// 辅助请求（回顾这类，`model.called` 带 `purpose`）的用量：算进累计，不算上下文、缓存、速度（蓝图「回顾」第 5 条）。
@@ -292,6 +302,7 @@ pub fn read(event: &Value, mine: &dyn Fn(&str) -> bool) -> Vec<Push> {
         )),
         "message.user" => out.extend(jobs::said(event, mine)),
         "job.reported" | "child.reported" => out.push(jobs::reported(body)),
+        "command.ran" => out.push(Push::CommandRan),
         "message.withdrawn" => out.push(Push::Withdrawn(turns(&body["messages"]))),
         // 认不出的级别（新版本才有的）不画，照旧显示上一次的。
         "session.policy_changed" => {
@@ -379,6 +390,10 @@ pub fn read(event: &Value, mine: &dyn Fn(&str) -> bool) -> Vec<Push> {
                 .collect();
             out.push(Push::Calls(calls));
         }
+        "todos.changed" => out.extend(super::todos::read(body).map(|todos| Push::Todos {
+            todos,
+            done: super::todos::done(body),
+        })),
         kind @ ("question.asked"
         | "tool.approval_requested"
         | "question.answered"

@@ -281,6 +281,7 @@ impl App {
             | Run::Unrevert
             | Run::Compact
             | Run::Clear
+            | Run::Stop
             | Run::Redo
             | Run::Edit
             | Run::Recap
@@ -293,6 +294,7 @@ impl App {
             | Run::Unrevert
             | Run::Compact
             | Run::Clear
+            | Run::Stop
             | Run::Redo
             | Run::Edit
             | Run::Recap
@@ -303,7 +305,8 @@ impl App {
             }
             Run::Redo => self.redo(),
             Run::Edit => self.edit_last(),
-            Run::Clear => self.core.send(Command::Clear),
+            Run::Clear => self.core.send(Command::Run("/clear".into())),
+            Run::Stop => self.core.send(Command::Run("/stop".into())),
             Run::Recap => {
                 self.core.send(Command::Recap);
                 let note = self.config.text.recap.working.clone();

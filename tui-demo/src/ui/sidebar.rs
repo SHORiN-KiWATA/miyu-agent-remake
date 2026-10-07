@@ -39,7 +39,7 @@ pub fn todo_lines(
 ) -> Vec<Line<'static>> {
     let words = &config.text.jobs;
     let marks = &config.layout.todo_marks;
-    let Some((done, total)) = board.todo_progress().filter(|(done, total)| done < total) else {
+    let Some((done, total)) = board.todo_shown(std::time::Instant::now()) else {
         return Vec::new();
     };
     let title = words

@@ -4,7 +4,7 @@
 use std::collections::{BTreeSet, HashMap};
 use std::io;
 
-use serde_json::{Value, json};
+use serde_json::json;
 use tokio::sync::mpsc;
 
 use super::awaiting::Awaiting;
@@ -15,7 +15,7 @@ use super::request::request;
 use super::rpc::Rpc;
 use super::sessions;
 use super::switch;
-use super::{Command, JobOutput, Level, Report, Served, Update, upload};
+use super::{Command, Level, Served, Update, upload};
 use super::{asides, config};
 
 /// 跨重连都记着的：主会话、会话还没开时切的权限级别、另外订阅着的会话、命令对着哪个会话。
@@ -58,6 +58,11 @@ pub(super) async fn serve(
     // 订阅配置流、读一次界面语言（「界面语言」）。
     match config::follow(rpc).await {
         Ok(id) => awaiting.insert(id, Awaiting::UiLanguage),
+        Err(_) => return Served::Lost,
+    };
+    // 订阅会话列表（核心 9-5）：`/sessions`、别处来的话写来处都照这一份，变了推过来（「会话列表」）。
+    match sessions::follow(rpc).await {
+        Ok(id) => awaiting.insert(id, Awaiting::SessionsStream),
         Err(_) => return Served::Lost,
     };
     // 启动时进最近的那个会话：连上以后带 `after` 订阅，以前的补发过来（「会话列表」第 8 条）。
@@ -214,7 +219,7 @@ pub(super) async fn serve(
             }
             message = rpc.next() => {
                 let Some(message) = message else { return Served::Lost };
-                if !take(rpc, link, &message, &mut awaiting, notify).await {
+                if !super::take::take(rpc, link, &message, &mut awaiting, notify).await {
                     return Served::Quit;
                 }
             }
@@ -251,7 +256,15 @@ async fn send(
         Command::Recap => Some(Awaiting::Recap),
         Command::Configure(ref reference) => Some(Awaiting::Configure(reference.clone())),
         Command::Rename(ref title) => Some(Awaiting::Rename(title.clone())),
-        Command::Answer { ref call, .. } => Some(Awaiting::Answer(call.clone())),
+        Command::Answer {
+            session: ref asker,
+            ref call,
+            ..
+        } => Some(Awaiting::Answer(
+            asker.clone().unwrap_or_else(|| session.to_string()),
+            call.clone(),
+        )),
+        Command::Run(_) => Some(Awaiting::CommandRun),
         _ => None,
     };
     let files = match &command {
@@ -311,205 +324,4 @@ async fn watch(rpc: &mut Rpc, session: &str) -> io::Result<String> {
 async fn unsubscribe(rpc: &mut Rpc, session: &str) -> io::Result<String> {
     let params = json!({"session": session, "stream": "events"});
     rpc.send("unsubscribe", params).await
-}
-
-/// 处理一条读进来的：推送、回应。交回界面还在不在。
-async fn take(
-    rpc: &mut Rpc,
-    link: &mut Link,
-    message: &Value,
-    awaiting: &mut HashMap<String, Awaiting>,
-    notify: &impl Fn(Update) -> bool,
-) -> bool {
-    let kind = message["id"].as_str().and_then(|id| awaiting.remove(id));
-    if let Some(error) = message.get("error") {
-        let reason = error["data"]["reason"].as_str().map(str::to_string);
-        let message = error["message"].as_str().unwrap_or_default().to_string();
-        return match kind {
-            Some(Awaiting::Answer(call)) => notify(Update::AnswerRefused {
-                call,
-                reason,
-                message,
-            }),
-            Some(Awaiting::Ask(tag)) => notify(Update::Answer {
-                tag,
-                result: Err(super::Refusal {
-                    reason,
-                    message,
-                    data: error["data"].clone(),
-                }),
-            }),
-            Some(Awaiting::Send | Awaiting::Redo) => notify(Update::Unsent { reason, message }),
-            // 订阅不上（那个会话已经删了）：不用说。读不了配置（核心旧）：照系统语言，不用说。
-            Some(
-                Awaiting::Watch(_) | Awaiting::UiLanguage | Awaiting::Human | Awaiting::Models,
-            ) => true,
-            Some(Awaiting::Choices) => notify(Update::Choices(Vec::new())),
-            Some(Awaiting::Efforts) => notify(Update::Efforts(super::EffortList::default())),
-            Some(Awaiting::LinkPreview(url)) => notify(Update::LinkCard { url, card: None }),
-            Some(Awaiting::Blob(blob, _)) => notify(Update::BlobSaved { blob, path: None }),
-            // 画不出、太长、核心没编进 mermaid（`unknown_method`）：写源码。
-            Some(Awaiting::Mermaid(source)) => notify(Update::Mermaid { source, svg: None }),
-            Some(Awaiting::Files(word)) => notify(Update::Files { word, result: None }),
-            // 切过去订阅不上（会话删了、日志坏了）：不再当它在补发，照一般的拒绝说。
-            Some(Awaiting::Replay(session)) => {
-                link.replays.remove(&session);
-                notify(Update::Refused { reason, message })
-            }
-            // 读不了输出（任务没了、是子代理）：不用说，界面不再等它。
-            Some(Awaiting::Output(session, job)) => notify(Update::Output {
-                session,
-                job,
-                output: None,
-            }),
-            _ => notify(Update::Refused { reason, message }),
-        };
-    }
-    match kind {
-        Some(Awaiting::Revert | Awaiting::Unrevert) => {
-            let restore = kind == Some(Awaiting::Unrevert);
-            let report = Report::read(&message["result"]);
-            return notify(Update::Undone { restore, report });
-        }
-        // 说的话、重做成了：落盘、开轮都照推送来，回应不用管。
-        Some(Awaiting::Send | Awaiting::Redo) => return true,
-        // 回顾：写成了的已经照推送（`session.recapped`）画过；交回上一句的核心不推，照回应画（蓝图「回顾」第 3 条）。
-        Some(Awaiting::Recap) => {
-            let result = &message["result"];
-            let text = result["text"].as_str().unwrap_or_default();
-            return !(result["cached"].as_bool() == Some(true) && !text.is_empty())
-                || notify(Update::Recap(text.to_string()));
-        }
-        Some(Awaiting::Rename(title)) => return notify(Update::Renamed(title)),
-        Some(Awaiting::Output(session, job)) => {
-            let output = Some(JobOutput::read(&message["result"]));
-            return notify(Update::Output {
-                session,
-                job,
-                output,
-            });
-        }
-        // 要不到一行行的（核心旧、出错）：交回空的，框里写没有。
-        Some(Awaiting::Choices) => {
-            return notify(Update::Choices(super::models::choices(&message["result"])));
-        }
-        Some(Awaiting::Files(word)) => {
-            let result = Some(message["result"].clone());
-            return notify(Update::Files { word, result });
-        }
-        Some(Awaiting::LinkPreview(url)) => {
-            let card = super::links::card(&message["result"]);
-            return notify(Update::LinkCard { url, card });
-        }
-        Some(Awaiting::Mermaid(source)) => {
-            let svg = super::mermaid::read(&message["result"]);
-            return notify(Update::Mermaid { source, svg });
-        }
-        Some(Awaiting::Blob(blob, got)) => {
-            return super::links::chunk(rpc, blob, got, &message["result"], awaiting, notify).await;
-        }
-        Some(Awaiting::Efforts) => {
-            return notify(Update::Efforts(super::EffortList::read(&message["result"])));
-        }
-        Some(Awaiting::Configure(reference)) => return notify(Update::Configured(reference)),
-        // 答成了不用说：抽屉照推来的 `question.answered`、`tool.approval_decided` 收、写结果。
-        Some(Awaiting::Answer(_)) => return true,
-        Some(Awaiting::Ask(tag)) => {
-            let result = Ok(message["result"].clone());
-            return notify(Update::Answer { tag, result });
-        }
-        Some(Awaiting::Models) => {
-            return notify(Update::CoolingUntil(super::models::earliest_cooling(
-                &message["result"],
-            )));
-        }
-        Some(Awaiting::Human) => {
-            return notify(Update::Human(crate::human::Human::from_reply(
-                &message["result"],
-            )));
-        }
-        Some(Awaiting::UiLanguage) => {
-            return notify(Update::UiLanguage(config::language(&message["result"])));
-        }
-        Some(Awaiting::List) => {
-            return notify(Update::Sessions(sessions::read(&message["result"])));
-        }
-        // 补完了：还记着的读出来、钟回到现在，再交限额（「会话列表」第 5 条）。
-        Some(Awaiting::Replay(session)) => {
-            let wrap = |update: Update| Update::Elsewhere {
-                session: session.clone(),
-                update: Box::new(update),
-            };
-            let pushes = switch::finish(link, &session);
-            // 切过去的会话现在用的模型（核心 8-10）。
-            if let Some(current) = super::models::current(&message["result"])
-                && !notify(wrap(Update::CurrentModel(current)))
-            {
-                return false;
-            }
-            return pushes.into_iter().all(|p| notify(wrap(Update::Push(p))))
-                && Limits::of(message).is_none_or(|limits| notify(wrap(Update::Limits(limits))));
-        }
-        Some(Awaiting::Watch(session)) => {
-            return Limits::of(message).is_none_or(|limits| {
-                let update = Box::new(Update::Limits(limits));
-                notify(Update::Elsewhere { session, update })
-            });
-        }
-        None => {}
-    }
-    // 掉队后重新订阅主会话的回应：限额照样带着，照它更新（核心重启以后载入的也是这样）。
-    if let Some(limits) = Limits::of(message) {
-        return notify(Update::Limits(limits));
-    }
-    // 配置流：动了界面语言的再读一次最终值；掉了队重新订阅、再读一次（「界面语言」）。
-    let params = &message["params"];
-    // 配置页开着的要重读：哪一项变了都告诉界面（「配置页」第 25 条）。
-    if message["method"] == "config.changed" && !notify(Update::ConfigChanged) {
-        return false;
-    }
-    let reread = match message["method"].as_str() {
-        Some("config.changed") => config::touches_language(params),
-        Some("resync") => params["stream"] == "config",
-        _ => false,
-    };
-    if reread {
-        let sent = if message["method"] == "resync" {
-            config::follow(rpc).await
-        } else {
-            config::read_language(rpc).await
-        };
-        if let Ok(id) = sent {
-            awaiting.insert(id, Awaiting::UiLanguage);
-        }
-        return true;
-    }
-    let Some(session) = message["params"]["session"].as_str() else {
-        return true;
-    };
-    // 只收主会话和另外订阅着的：`/new` 以后，旧会话退订之前推来的不要（蓝图「斜杠命令」`/new`）。
-    let main = link.main.as_deref() == Some(session);
-    if !main && !link.watched.contains(session) {
-        return true;
-    }
-    // 一律带上是哪个会话的，界面照它分（`app/sessions.rs` 的 `route`）：切会话的那一下，原来那个会话在路上的推送
-    // 不会画进新的正文（「会话列表」第 4 条）。
-    let wrap = |update: Update| Update::Elsewhere {
-        session: session.to_string(),
-        update: Box::new(update),
-    };
-    match message["method"].as_str() {
-        Some("event") => switch::event(link, session, &message["params"]["event"])
-            .into_iter()
-            .all(|p| notify(wrap(Update::Push(p)))),
-        // 掉了队：带上读到的最后一个序号重新订阅，掉了的补回来（「会话列表」第 7 条）。发不出去是连接断了，下一条读不到，
-        // 照断开重连。
-        Some("resync") => {
-            if let Ok(id) = switch::replay(rpc, link, session).await {
-                awaiting.insert(id, Awaiting::Replay(session.to_string()));
-            }
-            true
-        }
-        _ => true,
-    }
 }

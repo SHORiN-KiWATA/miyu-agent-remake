@@ -119,6 +119,22 @@ mod tests {
     }
 
     #[test]
+    fn every_tool_the_core_ships_has_a_nerd_icon() {
+        // 2026-10-07 项目主人：工具的图标别忘了加。核心基础系统的每件工具（`resources/software/basesystem/tools/`）在
+        // Nerd Font 那一套里都要有自己的一个，核心加了新工具这里当场红。
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../resources/software/basesystem/tools");
+        let nerd = &builtin().unwrap()[0];
+        let mut missing: Vec<String> = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|e| e.ok()?.path().file_stem()?.to_str().map(str::to_string))
+            .filter(|name| !nerd.tools.contains_key(name))
+            .collect();
+        missing.sort();
+        assert!(missing.is_empty(), "这几件工具没有图标：{missing:?}");
+    }
+
+    #[test]
     fn an_unknown_name_falls_back_to_the_first_set() {
         let sets = builtin().unwrap();
         assert_eq!(pick(&sets, "plain").unwrap().name, "plain");

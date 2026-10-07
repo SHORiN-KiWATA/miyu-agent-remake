@@ -157,6 +157,7 @@
     "nothing_to_recap": "まだ振り返る内容がありません",
     "recap_failed": "振り返りを作れませんでした。もう一度試してください",
     "nothing_to_compact": "コンテキストが少なすぎます",
+    "nothing_to_stop": "実行中のものはありません",
     "nothing_to_clear": "コンテキストは空です",
     "not_redoable": "やり直せません",
     "empty_message": "編集後に何も残りませんでした",
@@ -381,6 +382,8 @@
   },
   "drawer": {
     "asking": "{who}が質問しています",
+    "preview": "プレビュー",
+    "unsandboxed": "サンドボックスの外で実行します",
     "agent": "サブエージェント {name}",
     "answered_tab": " ✓",
     "review_tab": "確認",

@@ -60,6 +60,7 @@
   "tick_mark": "✓ ",
   "history_preview_rows": 12,
   "history_keep": 1000,
+  "todo_linger_ms": 5000,
   "level_icons": {
     "workspace": "▣ ",
     "full": "⏵⏵ ",
@@ -79,6 +80,12 @@
   "undo_left_mark": "✗ ",
   "esc_window_ms": 1500,
   "drawer_keep_rows": 6,
+  "drawer_preview": {
+    "side_min": 86,
+    "gap": 3,
+    "divider": "│",
+    "pad": 0
+  },
   "dots": {
     "mark": ".",
     "count": 3

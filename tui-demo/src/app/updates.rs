@@ -81,6 +81,11 @@ impl App {
             self.sessions_listed(all);
             return;
         }
+        // 会话列表变了（核心 9-5）：改手上这一份，框开着的跟着变。
+        if let Update::SessionChanged(change) = update {
+            self.session_changed(change);
+            return;
+        }
         // 照会话分：别的会话的交给停放着的那一份；任务的几种、别处来的话照任务表、正文先办（`sessions.rs`）。
         let Some(update) = self.route(update) else {
             return;
@@ -112,6 +117,15 @@ impl App {
             && let Some(hint) = self.config.text.refusal_hints.get(reason)
         {
             self.hint(hint.clone(), false);
+            return;
+        }
+        // 命令的回执弹提示，去掉句末的句号，和别的提示一样；`/clear` 不弹，正文里已有「上下文已清空」那一行（蓝图
+        // 「斜杠命令」`/stop`，2026-10-07 项目主人：提示框里不要句号）。
+        if let Update::CommandRan { command, said } = &update {
+            let said = said.trim_end().trim_end_matches(['。', '.']);
+            if command != "clear" && !said.is_empty() {
+                self.hint(said.to_string(), false);
+            }
             return;
         }
         if let Update::Renamed(title) = &update {

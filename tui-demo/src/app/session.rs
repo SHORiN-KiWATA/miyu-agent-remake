@@ -78,6 +78,7 @@ impl App {
             Run::Revert => "nothing_to_revert",
             Run::Unrevert => "nothing_to_unrevert",
             Run::Clear => "nothing_to_clear",
+            Run::Stop => "nothing_to_stop",
             Run::Redo | Run::Edit => "not_redoable",
             Run::Recap => "nothing_to_recap",
             Run::Rename => "nothing_to_rename",

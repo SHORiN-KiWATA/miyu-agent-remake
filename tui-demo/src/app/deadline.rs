@@ -29,6 +29,8 @@ impl App {
             .chain(self.mascot_deadline(Instant::now()))
             .chain(self.jobs_deadline())
             .chain(self.drawer_deadline())
+            // 做完的待办全打勾露着：到点醒来收（「后台命令、子代理和侧边栏」第 4 条）。
+            .chain(self.board.todos_until())
             // 核心的清单在建：到点再问（「`@` 文件列表」第 2 条）。
             .chain(self.mention.deadline())
             // 链接卡片、mermaid 图的单子上有没发的：马上醒来发（`cards.rs`、`diagrams.rs`）。

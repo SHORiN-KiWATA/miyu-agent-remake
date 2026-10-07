@@ -157,6 +157,7 @@
     "nothing_to_recap": "Nothing to recap yet",
     "recap_failed": "The recap could not be written, try again",
     "nothing_to_compact": "Not enough context",
+    "nothing_to_stop": "Nothing is running",
     "nothing_to_clear": "The context is empty",
     "not_redoable": "Can't redo",
     "empty_message": "Nothing left after the edit",
@@ -381,6 +382,8 @@
   },
   "drawer": {
     "asking": "{who} is asking",
+    "preview": "Preview",
+    "unsandboxed": "Runs outside the sandbox",
     "agent": "Subagent {name}",
     "answered_tab": " ✓",
     "review_tab": "Review",

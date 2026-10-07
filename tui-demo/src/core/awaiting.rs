@@ -23,6 +23,8 @@ pub(super) enum Awaiting {
     Replay(String),
     /// 列出会话：回应交给界面。
     List,
+    /// 订阅会话列表（核心 9-5）：回应的整张列表交给界面；老核心不认的不说。
+    SessionsStream,
     /// 读界面语言：回应交给界面。
     UiLanguage,
     /// 要给人看的字：回应交给界面。
@@ -45,6 +47,8 @@ pub(super) enum Awaiting {
     Configure(String),
     /// 配置页的一条请求：界面给的编号。
     Ask(u64),
-    /// 回答确认、提问：调用编号（拒了要告诉界面）。
-    Answer(String),
+    /// 斜杠命令（`command.run`）：回执交给界面。
+    CommandRun,
+    /// 回答确认、提问：问的会话、调用编号（拒了要告诉界面）。
+    Answer(String, String),
 }

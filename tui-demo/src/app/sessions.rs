@@ -97,6 +97,13 @@ impl App {
                     board.messaged(job);
                 }
             }
+            // 待办换了（核心 D-3）：整份换上，空的是清空了。
+            Push::Todos { todos, done } => {
+                let linger = std::time::Duration::from_millis(self.config.layout.todo_linger_ms);
+                if let Some((_, board)) = self.slot(session) {
+                    board.set_todos(todos, done, now, linger);
+                }
+            }
             Push::JobEnded(end) => {
                 let mut command = false;
                 if let Some((transcript, board)) = self.slot(session)

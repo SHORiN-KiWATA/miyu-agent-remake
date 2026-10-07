@@ -62,6 +62,30 @@ impl Transcript {
         }
     }
 
+    /// 留着的排队话（`/stop`，核心 O-6 的 `keep`）不再接着发：用了命令（`command.ran`）、没在回答的时候挪到正文末尾，
+    /// 一条条照你说的画。`command.ran` 在日志里、排在那一轮结束后面，补发时也照这样
+    /// （蓝图「斜杠命令」`/stop`）。
+    pub(super) fn settle(&mut self) {
+        if self.running.is_none() {
+            self.unqueue_to_end();
+        }
+    }
+
+    /// 还排着的话一条条挪到正文末尾、照你说的画（接在收尾、打断、断开那一行后面），不归到哪一轮。
+    pub(super) fn unqueue_to_end(&mut self) {
+        let leftover: Vec<usize> = (0..self.entries.len())
+            .filter(|&j| self.entries[j].queued)
+            .collect();
+        let mut moved = Vec::with_capacity(leftover.len());
+        for &j in leftover.iter().rev() {
+            let mut entry = self.entries.remove(j);
+            self.removed(j);
+            entry.queued = false;
+            moved.push(entry);
+        }
+        self.entries.extend(moved.into_iter().rev());
+    }
+
     /// 这一轮是排着的话开的、她还没开口（没说字、没做步，只在想也算没开口）：交回开它的那几句（字和粘贴块）。
     /// Ctrl+C 打断以后撤掉这一轮，那几句放回输入框（蓝图 `tui.md`「按键」`Ctrl+C`，2026-09-30 项目主人定只退回排着的）。
     pub fn takeback(&self) -> Option<Vec<(String, Vec<Chip>)>> {

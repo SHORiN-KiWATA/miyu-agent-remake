@@ -77,8 +77,11 @@ pub enum Step {
 pub struct Drawer {
     /// 谁在问：子代理、后台命令问的才有。
     pub who: Option<String>,
-    /// 问的是哪个会话：主会话的是 `None`，子会话的是它的编号（作答交给它，第 8 条）。
+    /// 问的是哪个会话：主会话的是 `None`，子会话的是它的编号（第 8 条）。
     pub session: Option<String>,
+    /// 问的那个会话的整个编号，主会话的也写：作答交给它，调用编号只在一个会话里唯一，认抽屉要连它一起认
+    /// （2026-10-07 项目主人报：`/new` 以后新会话的 `call_31_1` 被当成旧会话了结过的，没开抽屉）。演示的是空的。
+    pub owner: String,
     /// 演示的假事件（`/demo-ask`、`/demo-approve`）：作答不发给核心，结果当场写。
     pub demo: bool,
     /// 确认要跑的那条命令：短标题（她调 shell 时写的几个字，当问题行）、原文（下面暗色一行行写），没有的是 `None`。
@@ -121,14 +124,25 @@ impl Drawer {
         Self::new(who, asked.call_id, Ask::Questions(asked.questions), checked)
     }
 
-    /// 权限确认。
+    /// 权限确认。跑命令的，短标题、命令照核心的 `detail`（核心 D-4）。
     pub fn approval(who: Option<String>, approval: Approval) -> Self {
-        Self::new(
+        let command = approval.detail.as_ref().and_then(|d| {
+            let command = d.command.clone()?;
+            Some((d.title.clone().filter(|t| !t.trim().is_empty()), command))
+        });
+        let mut drawer = Self::new(
             who,
             approval.call_id.clone(),
             Ask::Approval(approval),
             vec![Vec::new()],
-        )
+        );
+        drawer.command = command;
+        drawer
+    }
+
+    /// 这一次确认的命令不在沙盒里跑（`detail.sandbox` 是 `false`）：抽屉写一行出来。
+    pub fn unsandboxed(&self) -> bool {
+        matches!(&self.ask, Ask::Approval(a) if a.detail.as_ref().and_then(|d| d.sandbox) == Some(false))
     }
 
     fn new(who: Option<String>, call_id: String, ask: Ask, checked: Vec<Vec<bool>>) -> Self {
@@ -136,6 +150,7 @@ impl Drawer {
         Self {
             who,
             session: None,
+            owner: String::new(),
             demo: false,
             command: None,
             call_id,
@@ -287,9 +302,10 @@ impl Drawers {
     }
 
     /// 这一次调用了结了（别的头答了、打断了、补发里一问一答都在）：开着的收起、排着的拿掉；交回收起的是不是开着的那个。
-    pub fn settle(&mut self, call_id: &str) -> bool {
-        self.queue.retain(|d| d.call_id != call_id);
-        if self.current.as_ref().is_some_and(|d| d.call_id == call_id) {
+    pub fn settle(&mut self, owner: &str, call_id: &str) -> bool {
+        let this = |d: &Drawer| d.owner == owner && d.call_id == call_id;
+        self.queue.retain(|d| !this(d));
+        if self.current.as_ref().is_some_and(this) {
             self.current = self.queue.pop_front();
             return true;
         }

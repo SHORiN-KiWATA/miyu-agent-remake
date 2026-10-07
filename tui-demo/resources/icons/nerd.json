@@ -11,7 +11,10 @@
     "subagent": "",
     "jobs": "\uf0ae",
     "send_message": "\uf0e5",
-    "sessions": "\uf03a"
+    "sessions": "\uf03a",
+    "ask_user": "\uf128",
+    "todowrite": "\uf046",
+    "session_usage": "\uf080"
   },
   "tool": "",
   "think": "󰝨",

@@ -339,3 +339,22 @@ fn landing_on_deny_opens_the_reason_and_one_enter_submits() {
         "Esc 照旧算两下取消的第一下"
     );
 }
+
+#[test]
+fn a_command_ask_takes_its_title_and_command_from_the_core_and_says_when_unsandboxed() {
+    // 核心 D-4：跑命令的确认 `detail` 带短标题、命令、`sandbox`；子会话问的也有，不用翻时间线。
+    let texts = Config::builtin().unwrap().text.drawer;
+    let approval: Approval = serde_json::from_value(serde_json::json!({
+        "call_id": "c1", "access": "execute",
+        "detail": {"command": "rm -rf build", "sandbox": false, "title": "清掉构建目录", "tool": "shell"}
+    }))
+    .unwrap();
+    let d = Drawer::approval(None, approval);
+    assert_eq!(d.title(&texts), "清掉构建目录");
+    assert_eq!(
+        d.command.as_ref().map(|(_, c)| c.as_str()),
+        Some("rm -rf build")
+    );
+    assert!(d.unsandboxed(), "sandbox:false 要写出来");
+    assert_eq!(d.items(0).len(), 2, "没有 rule：只有允许这一次、不允许");
+}

@@ -188,7 +188,11 @@ fn head_width(info: &SessionInfo, config: &Config) -> usize {
 
 /// 标题（没起名的写「未命名会话」，和起了名的一个颜色：2026-10-01 项目主人）。
 fn title<'a>(info: &'a SessionInfo, config: &'a Config) -> &'a str {
-    info.title.as_deref().unwrap_or(&config.text.untitled)
+    // 没起名的写核心给的预览（第一句话开头，核心 9-5），都没有的才写「未命名会话」。
+    info.title
+        .as_deref()
+        .or(info.preview.as_deref())
+        .unwrap_or(&config.text.untitled)
 }
 
 /// 标题那一列：置顶的记号、标题，截到 `column` 列、补空格对齐。
@@ -281,6 +285,7 @@ mod tests {
             cwd: Some(cwd.into()),
             busy: false,
             last_active: None,
+            preview: None,
         }
     }
 

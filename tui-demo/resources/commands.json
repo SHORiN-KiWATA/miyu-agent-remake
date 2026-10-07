@@ -40,6 +40,15 @@
       "run": "edit"
     },
     {
+      "name": "stop",
+      "summary": {
+        "zh": "全停：打断这一轮，停掉后台命令和子代理，排着的话留着不发",
+        "en": "Stop everything: interrupt this turn, stop background commands and subagents, keep queued messages unsent",
+        "ja": "すべて停止：このターンを中断し、バックグラウンドのコマンドとサブエージェントを止める。キューのメッセージは送らずに残す"
+      },
+      "run": "stop"
+    },
+    {
       "name": "clear",
       "aliases": [
         "reset"

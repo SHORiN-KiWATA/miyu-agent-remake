@@ -58,14 +58,14 @@ fn wait_rows(tui: &mut Tui, count: usize) {
 
 #[test]
 fn starting_in_the_most_recent_session_draws_what_was_said_before() {
-    // 2026-10-01 项目主人要的：启动时进最近的那个会话（第 8 条），以前的对话照补发来的画出来。配置项 `tui.startup`
-    // （核心 8-3），照个人设置读。
+    // 2026-10-01 项目主人要的：启动时进最近的那个会话（第 8 条），以前的对话照补发来的画出来。配置项 `ui.startup`
+    // （核心 8-3 登记，8-28 起从 `tui.startup` 改名，几个头共用），照个人设置读。
     let home = Home::with_settings(
         Script::new([Play::Thinks {
             thinking: "想一想。",
             text: "以前的回答。",
         }]),
-        "[tui]\nstartup = \"recent\"\n",
+        "[ui]\nstartup = \"recent\"\n",
     );
     let mut first = home.tui("zh_CN.UTF-8");
     first.wait_for("工作区");
@@ -244,4 +244,31 @@ fn missing_explicit_session_does_not_fall_back_to_recent() {
         "{}",
         resumed.lines().join("\n")
     );
+}
+
+#[test]
+fn an_open_list_follows_changes_from_elsewhere_and_shows_a_preview_for_untitled_ones() {
+    // 核心 9-5：订一次会话列表，`sessions.changed` 推过来，框开着跟着变；没标题的写第一句话的开头。
+    let home = Home::new(Script::new([Play::Says("好。"), Play::Says("嗯。")]));
+    let mut tui = home.tui("zh_CN.UTF-8");
+    tui.wait_for("工作区");
+    tui.say("这一个终端的话");
+    tui.wait_for("好。");
+    tui.say("/sessions");
+    wait_rows(&mut tui, 1);
+    // 另一个终端开一个新会话说话：这一个的框不用重开就多一行，接着写上它的第一句。
+    let mut other = home.tui("zh_CN.UTF-8");
+    other.wait_for("工作区");
+    other.say("另一个终端说的第一句");
+    other.wait_for("嗯。");
+    wait_rows(&mut tui, 2);
+    let until = Instant::now() + support::WAIT;
+    while !tui.shows("另一个终端说的第一句") {
+        assert!(
+            Instant::now() < until,
+            "没标题的写预览：\n{}",
+            tui.lines().join("\n")
+        );
+        tui.pump(Duration::from_millis(50));
+    }
 }

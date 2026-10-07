@@ -477,6 +477,8 @@ impl App {
 
     /// 到点了：收掉过期的提示。
     pub fn tick(&mut self) {
+        // 做完的待办全打勾露够了：收掉（「后台命令、子代理和侧边栏」第 4 条）。
+        self.board.expire_todos(Instant::now());
         // 配置页里不在打字的时候输入法关成英文，打字时开回来；对话里的输入框一直算在打字（`ime.rs`）。
         let typing = self
             .settings

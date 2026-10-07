@@ -157,6 +157,7 @@
     "nothing_to_recap": "还没有可回顾的内容",
     "recap_failed": "回顾没写成，再要一次就是",
     "nothing_to_compact": "上下文过少",
+    "nothing_to_stop": "没在运行",
     "nothing_to_clear": "上下文为空",
     "not_redoable": "无法重做",
     "empty_message": "改完一个字都不剩了",
@@ -381,6 +382,8 @@
   },
   "drawer": {
     "asking": "{who} 在问",
+    "preview": "预览",
+    "unsandboxed": "沙盒外运行",
     "agent": "子代理 {name}",
     "answered_tab": " ✓",
     "review_tab": "确认",

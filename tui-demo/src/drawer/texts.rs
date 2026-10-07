@@ -10,6 +10,10 @@ use serde::Deserialize;
 pub struct Texts {
     /// 顶上一行谁在问，`{who}`。
     pub asking: String,
+    /// 跑命令的确认不在沙盒里跑时写的那一行（核心 D-4）。
+    pub unsandboxed: String,
+    /// 选项预览面板第一行。
+    pub preview: String,
     /// 子会话问的，`{who}` 怎么写：`子代理 {name}`。
     pub agent: String,
     /// 答过的标签后面接的。

@@ -8,7 +8,7 @@ use crate::core::Start;
 /// `-h` 印的用法（`miyu tui -h` 原样转给它，核心 I9：要完整）。
 pub const USAGE: &str = "Usage: miyu-tui-demo [--resume <session UUID> | --page <page> | config]
 
-  (no arguments)        start as configured (tui.startup: new or recent session)
+  (no arguments)        start as configured (ui.startup: new or recent session)
   --resume <UUID>       open this session; fail if it can't be loaded
   --page config, config open the settings page without a session; Esc on its menu exits
   -h, --help            print this help

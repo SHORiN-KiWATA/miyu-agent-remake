@@ -25,6 +25,8 @@ mod rpc;
 mod serve;
 mod sessions;
 mod switch;
+mod take;
+mod todos;
 mod undo;
 mod upload;
 
@@ -46,7 +48,8 @@ pub use push::{
     Asking, Block, CallError, Compaction, JobEnd, JobReason, JobStart, Push, Sender, Usage,
 };
 use rpc::Rpc;
-pub use sessions::SessionInfo;
+pub use sessions::{Change as SessionChange, SessionInfo, apply as apply_session_change};
+pub use todos::TodoItem;
 pub use undo::{Report, UndoFile};
 
 /// 界面要核心做的事。
@@ -150,8 +153,8 @@ pub enum Command {
     },
     /// 切权限级别（`session.set_permission_level`）：切到这一级。会话还没开的记着，开了再发。
     Level(Level),
-    /// 清空上下文（`session.clear`，`/clear`）。
-    Clear,
+    /// 一条斜杠命令交给核心办（`command.run`，核心 O-6）：`/stop`、`/clear`，原文照规范的名字。
+    Run(String),
     /// 要一段回顾（`session.recap`，`/recap`）。
     Recap,
     /// 改名（`session.set_meta`，`/rename`）：`None` 是去掉标题。
@@ -257,6 +260,13 @@ pub enum Update {
     Sessions(Vec<SessionInfo>),
     /// 改名成了（`None` 是去掉了标题）：弹一句提示，标题照推送换（蓝图「改名」第 3 条）。
     Renamed(Option<String>),
+    /// 斜杠命令办了（`command.run` 的回应）：规范的命令名、照连接语言写好的回执。
+    CommandRan {
+        /// `stop`、`clear`。
+        command: String,
+        /// 回执那一句；读不出来的是空的。
+        said: String,
+    },
     /// 回顾交回的是上一句（`cached`：上次回顾以后没有新内容，核心不推 `session.recapped`），照它画（蓝图「回顾」第 3 条）。
     Recap(String),
     /// 撤销（`restore` 为假）或恢复成了：核心算好的给人看的几样（`protocol/undo.md`）。
@@ -290,6 +300,8 @@ pub enum Update {
     },
     /// 回答确认、提问被拒（[`Command::Answer`]）：调用编号、原因码、原话。`not_asking` 是已经答过、了结了。
     AnswerRefused {
+        /// 问的那个会话（整个编号）。
+        session: String,
         /// 调用编号。
         call: String,
         /// 原因码。
@@ -297,6 +309,8 @@ pub enum Update {
         /// 核心的原话。
         message: String,
     },
+    /// 会话列表变了（`sessions.changed`，核心 9-5）：整项换、删掉。
+    SessionChanged(SessionChange),
     /// 配置变了（推来的 `config.changed`，哪个头、哪一层改的都算）：开着配置页的重读（「配置页」第 25 条）。
     ConfigChanged,
     /// 一条后台命令的输出（[`Command::Output`] 的回应）；读不了的（任务没了、是子代理）是 `None`。
@@ -337,11 +351,11 @@ impl Core {
 /// 启动时进哪个会话。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Start {
-    /// 照配置 `tui.startup`：`recent` 的进最近的那个，别的等第一句话再开。
+    /// 照配置 `ui.startup`：`recent` 的进最近的那个，别的等第一句话再开。
     Usual,
     /// 进指定的会话（`--resume`）。
     Resume(String),
-    /// 不进任何会话、不看 `tui.startup`（`--page config`，蓝图「配置页」第 1 条）。
+    /// 不进任何会话、不看 `ui.startup`（`--page config`，蓝图「配置页」第 1 条）。
     Bare,
 }
 
@@ -438,7 +452,7 @@ async fn run(
 }
 
 /// 连上；有会话的订阅它。还没有的（刚启动、`/new` 以后）不开，和 `/new` 一样等第一句话时才开（蓝图「连核心」第 4 条：
-/// 没说话就退出的不留空会话）。`first`：头一次连上，配置 `tui.startup` 是 `recent` 的进最近的那个已有会话，不在这里
+/// 没说话就退出的不留空会话）。`first`：头一次连上，配置 `ui.startup` 是 `recent` 的进最近的那个已有会话，不在这里
 /// 订阅（限额交回 `None`），收发时带 `after` 订阅；一个都没有的照样等第一句话。显式恢复的先验证 ID，
 /// 成功后从头补发，失败不回退到 recent。交回连接、会话和限额。
 async fn open(
@@ -469,37 +483,4 @@ async fn open(
 }
 
 #[cfg(test)]
-mod tests {
-    use serde_json::json;
-
-    use super::request::request;
-    use super::{Command, Level};
-
-    #[test]
-    fn switching_the_level_writes_only_what_changes() {
-        // 「权限级别」第 2 条：工作区、开放权限写常用的那一级、关掉只读；只读只开只读。
-        let (method, params) = request(Command::Level(Level::Full), "s1", ".").unwrap();
-        assert_eq!(method, "session.set_permission_level");
-        assert_eq!(
-            params,
-            json!({"session": "s1", "level": "full", "read_only": false})
-        );
-        let (_, params) = request(Command::Level(Level::ReadOnly), "s1", ".").unwrap();
-        assert_eq!(params, json!({"session": "s1", "read_only": true}));
-        let (_, params) = request(Command::Level(Level::Workspace), "s1", ".").unwrap();
-        assert_eq!(
-            params,
-            json!({"session": "s1", "level": "workspace", "read_only": false})
-        );
-    }
-
-    #[test]
-    fn clear_asks_for_session_clear_and_new_asks_for_nothing() {
-        let (method, params) = request(Command::Clear, "s1", ".").unwrap();
-        assert_eq!(
-            (method, params),
-            ("session.clear", json!({"session": "s1"}))
-        );
-        assert!(request(Command::New { keep: false }, "s1", ".").is_none());
-    }
-}
+mod tests;

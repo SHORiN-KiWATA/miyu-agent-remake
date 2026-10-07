@@ -67,6 +67,8 @@ pub struct Layout {
     pub esc_window_ms: u64,
     /// 抽屉带文字画时可以高过半屏，但屏幕顶上至少留这么多行（蓝图「确认和提问的抽屉」第 2 条）。
     pub drawer_keep_rows: u16,
+    /// 提问抽屉里选项预览的面板怎么摆（蓝图「确认和提问的抽屉」第 3 条）。
+    pub drawer_preview: crate::ui::PreviewLook,
     /// 输入框左上方的提示停多久，毫秒。
     pub notice_ms: u64,
     /// 最多每多少毫秒画一帧：这中间来的推送攒着，到点一起画（蓝图「每一帧」）。
@@ -113,6 +115,8 @@ pub struct Layout {
     pub history_preview_rows: usize,
     /// 输入历史文件里留最近几条（「输入历史列表」第 8 条）。
     pub history_keep: usize,
+    /// 待办做完以后全打勾留多久再收，毫秒（「后台命令、子代理和侧边栏」第 4 条）。
+    pub todo_linger_ms: u64,
     /// 正文里用户说的话前面那根竖线，连同它后面的空格。
     pub user_bar: String,
     /// 回顾前面的记号，连同它后面的空格（`tui.md`「回顾」第 2 条）。

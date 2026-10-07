@@ -134,6 +134,8 @@ pub struct Board {
     pub jobs: Vec<Job>,
     /// 待办，照模型写的先后。
     pub todos: Vec<Todo>,
+    /// 做完了、全打勾露到什么时候（`set_todos`）。
+    linger: Option<Instant>,
     next_id: u64,
 }
 
@@ -216,6 +218,51 @@ impl Board {
         self.jobs
             .iter_mut()
             .find(|j| j.session.as_deref() == Some(session))
+    }
+
+    /// 核心推来的待办整份换上（`pending`、`in_progress`、`completed`，认不得的当没做）。清空时带着刚做完的（`done`）的，
+    /// 先照全打勾露 `linger` 再收（2026-10-07 项目主人：做完之后保留一会）。
+    pub fn set_todos(
+        &mut self,
+        todos: &[crate::core::TodoItem],
+        done: &[crate::core::TodoItem],
+        now: Instant,
+        linger: Duration,
+    ) {
+        let lingering = todos.is_empty() && !done.is_empty();
+        let shown = if lingering { done } else { todos };
+        self.todos = shown
+            .iter()
+            .map(|t| Todo {
+                text: t.content.clone(),
+                state: match t.status.as_str() {
+                    "in_progress" => TodoState::Active,
+                    "completed" => TodoState::Done,
+                    _ => TodoState::Pending,
+                },
+            })
+            .collect();
+        self.linger = lingering.then_some(now + linger);
+    }
+
+    /// 待办露不露、做了几项：没做完的露着；全做完的只在保留的那一会儿里露（`set_todos`）。
+    pub fn todo_shown(&self, now: Instant) -> Option<(usize, usize)> {
+        let lingering = self.linger.is_some_and(|until| now < until);
+        self.todo_progress()
+            .filter(|(done, total)| done < total || lingering)
+    }
+
+    /// 全打勾露到什么时候（主循环到点醒来收）。
+    pub fn todos_until(&self) -> Option<Instant> {
+        self.linger
+    }
+
+    /// 到点了：保留着的那一份收掉。
+    pub fn expire_todos(&mut self, now: Instant) {
+        if self.linger.is_some_and(|until| now >= until) {
+            self.linger = None;
+            self.todos.clear();
+        }
     }
 
     /// 在跑的后台命令有几条。

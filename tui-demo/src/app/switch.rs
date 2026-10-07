@@ -24,9 +24,24 @@ impl App {
         if let Some(seen) = self.sessions_seen.clone() {
             list.replace(seen);
         }
+        // 订着会话列表（核心 9-5）的，手上这一份一直是新的，不用再要；还没有的（老核心）照旧要一次。
+        let fresh = self.sessions_seen.is_some();
         self.session_list = Some(list);
         self.panel = Some(Panel::Sessions);
-        self.core.send(Command::ListSessions);
+        if !fresh {
+            self.core.send(Command::ListSessions);
+        }
+    }
+
+    /// 会话列表推来一条变化（核心 9-5）。
+    pub(super) fn session_changed(&mut self, change: crate::core::SessionChange) {
+        let Some(seen) = self.sessions_seen.as_mut() else {
+            return;
+        };
+        crate::core::apply_session_change(seen, change);
+        if let Some(list) = &mut self.session_list {
+            list.replace(seen.clone());
+        }
     }
 
     /// 核心交回了列表。

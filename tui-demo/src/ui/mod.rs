@@ -11,6 +11,7 @@ mod compaction_rows;
 mod diff_rows;
 mod done_row;
 mod drawer;
+pub use drawer::PreviewLook;
 pub mod effort_list;
 mod figure_rows;
 mod footer;
@@ -289,7 +290,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
         _ => half,
     };
     let box_rows = |w: u16| match open_drawer {
-        Some(d) => drawer::rows(d, texts, w, drawer_max),
+        Some(d) => drawer::rows(d, texts, &app.config.layout.drawer_preview, w, drawer_max),
         None => app.input.rows(w),
     };
     // 空会话是首页：整组上下居中，吉祥物在中间（`tui.md`「空会话的首页」）。列表占几行交给 `place` 定位。

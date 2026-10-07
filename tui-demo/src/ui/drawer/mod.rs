@@ -5,6 +5,8 @@
 mod items;
 mod preview;
 
+pub use preview::Look as PreviewLook;
+
 #[cfg(test)]
 mod tests;
 
@@ -43,7 +45,7 @@ impl View {
 }
 
 /// 排成的全部行（还没按高度裁）。
-pub fn view(d: &Drawer, texts: &Texts, width: u16) -> View {
+pub fn view(d: &Drawer, texts: &Texts, look: &PreviewLook, width: u16) -> View {
     let mut v = View::default();
     if let Some(who) = &d.who {
         let who = texts.asking.replace("{who}", who);
@@ -62,7 +64,7 @@ pub fn view(d: &Drawer, texts: &Texts, width: u16) -> View {
     if d.on_review() {
         items::review(d, texts, width, &mut v);
     } else {
-        preview::body(d, texts, width, &mut v);
+        preview::body(d, texts, look, width, &mut v);
         items::notes(d, texts, width, &mut v);
     }
     v.push(Line::default(), None);
@@ -140,6 +142,10 @@ fn head(d: &Drawer, texts: &Texts, width: u16, v: &mut View) {
             }
         }
     }
+    // 这一次不在沙盒里跑（核心 D-4 的 `detail.sandbox` 是 `false`）：黄字写一行。
+    if d.unsandboxed() {
+        v.push(Line::styled(texts.unsandboxed.clone(), theme::warn()), None);
+    }
     for (path, mark) in d.paths(texts) {
         let mut spans = vec![Span::styled(clip(&path, width), theme::dim())];
         if let Some(mark) = mark {
@@ -151,8 +157,8 @@ fn head(d: &Drawer, texts: &Texts, width: u16, v: &mut View) {
 }
 
 /// 抽屉要几行：排出来的行数，最多 `max`。
-pub fn rows(d: &Drawer, texts: &Texts, width: u16, max: u16) -> u16 {
-    let n = view(d, texts, width).lines.len();
+pub fn rows(d: &Drawer, texts: &Texts, look: &PreviewLook, width: u16, max: u16) -> u16 {
+    let n = view(d, texts, look, width).lines.len();
     u16::try_from(n).unwrap_or(u16::MAX).min(max).max(1)
 }
 
@@ -219,9 +225,10 @@ pub fn draw(
     area: Rect,
     d: &mut Drawer,
     texts: &Texts,
+    look: &PreviewLook,
     caret: &mut Caret,
 ) -> Vec<Option<usize>> {
-    let v = view(d, texts, area.width);
+    let v = view(d, texts, look, area.width);
     let v = fit(v, usize::from(area.height), &mut d.scroll);
     if let Some((row, col)) = v.cursor {
         let x = area.x + col.min(area.width.saturating_sub(1));
