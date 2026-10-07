@@ -36,6 +36,14 @@ min = 1
 default = 600
 hidden = true
 name = { en = "Idle seconds" }
+
+[settings.zones]
+type = "list"
+element = "text"
+max = 40
+default = ["UTC"]
+layers = ["system"]
+name = { en = "Time zones", zh = "时区" }
 "#;
 
 /// 照 `miyu-core` 起来时那样造核心：清单读一次，照核心自己的几项 `settle`，拼进配置清单。
@@ -101,6 +109,14 @@ async fn package_settings_join_the_schema_on_the_packages_page() {
     assert_eq!(idle["hidden"], true);
     assert_eq!(idle["name"], "Idle seconds", "没写中文的照英文");
     assert_eq!(idle["description"], "");
+    let zones = item(&schema, "clock.zones");
+    assert_eq!(
+        (zones["type"].clone(), zones["element"].clone()),
+        (json!("list"), json!("text")),
+        "列表照核心自己的列表写（施工 9-1 补）"
+    );
+    assert_eq!(zones["control"], "list");
+    assert_eq!(zones["default"], json!(["UTC"]));
     assert!(
         schema["pages"]
             .as_array()
@@ -125,21 +141,38 @@ async fn package_settings_have_final_values_and_wrong_ones_are_checked() {
         .call(
             "g1",
             "config.get",
-            json!({"keys": ["clock.port", "clock.idle_seconds"]}),
+            json!({"keys": ["clock.port", "clock.idle_seconds", "clock.zones"]}),
         )
         .await;
     let values = got["result"]["items"].clone();
     assert_eq!(values["clock.port"]["value"], 9000, "{got}");
     assert_eq!(values["clock.idle_seconds"]["value"], 600, "{got}");
-    home.write("system/config.toml", "[clock]\nport = 70000\n");
-    let checked = client.call("c1", "check", json!({})).await;
-    let problems = checked["result"]["problems"].as_array().expect("有");
-    assert!(
-        problems
-            .iter()
-            .any(|problem| problem["file"] == "system/config.toml" && problem["kind"] == "config"),
-        "{checked}"
+    assert_eq!(values["clock.zones"]["value"], json!(["UTC"]), "{got}");
+    home.write(
+        "system/config.toml",
+        "[clock]\nzones = [\"UTC\", \"Asia/Tokyo\"]\n",
     );
+    let mut client = connected(&home).await;
+    let got = client
+        .call("g2", "config.get", json!({"keys": ["clock.zones"]}))
+        .await;
+    assert_eq!(
+        got["result"]["items"]["clock.zones"]["value"],
+        json!(["UTC", "Asia/Tokyo"]),
+        "{got}"
+    );
+    for wrong in ["port = 70000", "zones = [\"UTC\", 1]"] {
+        home.write("system/config.toml", &format!("[clock]\n{wrong}\n"));
+        let checked = client.call("c1", "check", json!({})).await;
+        let problems = checked["result"]["problems"].as_array().expect("有");
+        assert!(
+            problems
+                .iter()
+                .any(|problem| problem["file"] == "system/config.toml"
+                    && problem["kind"] == "config"),
+            "{wrong}：{checked}"
+        );
+    }
     home.write("home/alice/settings.toml", "[clock]\nport = 9000\n");
     let checked = client
         .call(

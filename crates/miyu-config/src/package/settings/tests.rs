@@ -86,6 +86,89 @@ fn every_type_reads() {
 }
 
 #[test]
+fn a_list_reads_its_element_and_checks_the_default_one_by_one() {
+    let list = |kind: SettingKind| SettingKind::List(Box::new(kind));
+    let text = |text: &str| Value::Text(text.to_string().into());
+    let cases = [
+        (
+            "element = \"text\"\ndefault = [\"qq:1\", \"qq:2\"]",
+            list(SettingKind::Text { max: 200 }),
+            Some(Value::List(vec![text("qq:1"), text("qq:2")])),
+        ),
+        (
+            "element = \"int\"\nmin = 1\nmax = 9\ndefault = [1, 9]",
+            list(SettingKind::Int { min: 1, max: 9 }),
+            Some(Value::List(vec![Value::Int(1), Value::Int(9)])),
+        ),
+        (
+            "element = \"option\"\nchoices = [\"a\", \"b\"]\ndefault = [\"b\"]",
+            list(SettingKind::Option(vec!["a".to_string(), "b".to_string()])),
+            Some(Value::List(vec![text("b")])),
+        ),
+        (
+            "element = \"text\"\nmax = 8\ndefault = []",
+            list(SettingKind::Text { max: 8 }),
+            Some(Value::List(Vec::new())),
+        ),
+        ("element = \"bool\"", list(SettingKind::Bool), None),
+        ("element = \"name\"", list(SettingKind::Name), None),
+        ("element = \"url\"", list(SettingKind::Url), None),
+        ("element = \"secret\"", list(SettingKind::Secret), None),
+    ];
+    for (body, kind, default) in cases {
+        let one = setting(&format!(
+            "[settings.x]\ntype = \"list\"\n{body}\nname = {{ en = \"X\" }}\n"
+        ));
+        assert_eq!((one.kind, one.default), (kind, default), "{body}");
+    }
+}
+
+#[test]
+fn every_wrong_list_says_what() {
+    let x =
+        |body: &str| format!("[settings.x]\ntype = \"list\"\n{body}\nname = {{ en = \"X\" }}\n");
+    assert_eq!(wrong(&x("")), Code::MissingKey, "少了 element");
+    assert_eq!(wrong(&x("element = \"list\"")), Code::BadElement);
+    assert_eq!(wrong(&x("element = \"float\"")), Code::BadElement);
+    assert_eq!(wrong(&x("element = 1")), Code::BadElement);
+    assert_eq!(
+        wrong(&x("element = \"int\"\nmax = 9\ndefault = [1, 10]")),
+        Code::BadDefault,
+        "每一个照元素查"
+    );
+    assert_eq!(
+        wrong(&x("element = \"int\"\ndefault = 1")),
+        Code::BadDefault,
+        "不是数组"
+    );
+    assert_eq!(
+        wrong(&x("element = \"secret\"\ndefault = []")),
+        Code::BadDefault,
+        "密钥的列表不能有默认值"
+    );
+    assert_eq!(
+        wrong(&x("element = \"option\"\nchoices = [\"a\"]")),
+        Code::BadChoices
+    );
+    assert_eq!(
+        wrong(&x(
+            "element = \"option\"\nchoices = [\"a\", \"b\"]\ndefault = [\"a\", \"c\"]"
+        )),
+        Code::BadDefault
+    );
+    assert_eq!(
+        wrong(&x("element = \"bool\"\nchoices = [\"a\", \"b\"]")),
+        Code::UnknownKey,
+        "元素带的几格照元素的类型收"
+    );
+    assert_eq!(
+        wrong("[settings.x]\ntype = \"text\"\nelement = \"text\"\nname = { en = \"X\" }\n"),
+        Code::UnknownKey,
+        "element 只有列表能写"
+    );
+}
+
+#[test]
 fn layers_applies_and_hidden_read() {
     let one = setting(
         "[settings.idle_seconds]\ntype = \"int\"\nlayers = [\"system\", \"personal\"]\napplies = \"now\"\nhidden = true\nname = { en = \"Idle\" }\n",
@@ -205,6 +288,16 @@ fn settings_become_config_items_under_the_package() {
     let item = &items_of(&option)[0];
     assert_eq!(item.kind, Kind::Option(&["a", "b"]));
     assert_eq!(item.ui.control, Control::Select);
+    let lists = read(&web(
+        "[settings.trusted]
+type = \"list\"\nelement = \"text\"\nname = { en = \"Trusted\" }\n\n[settings.modes]\ntype = \"list\"\nelement = \"option\"\nchoices = [\"a\", \"b\"]\nname = { en = \"Modes\" }\n",
+    ))
+    .unwrap();
+    let items = items_of(&lists);
+    assert_eq!(items[0].kind, Kind::List(&Kind::Text { max: 200 }));
+    assert_eq!(items[0].ui.control, Control::List);
+    assert_eq!(items[1].kind, Kind::List(&Kind::Option(&["a", "b"])));
+    assert_eq!(items[1].ui.control, Control::List);
 }
 
 fn items_of(manifest: &crate::package::Manifest) -> Vec<Item> {

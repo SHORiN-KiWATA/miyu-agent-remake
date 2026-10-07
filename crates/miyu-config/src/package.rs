@@ -187,6 +187,8 @@ pub enum Code {
     BadSettingName,
     /// 配置项的 `type` 不认识。
     BadType,
+    /// 列表的 `element` 不认识、是列表、不是字（施工 9-1 补）。
+    BadElement,
     /// 默认值不合类型、不在选项里，密钥写了默认值。
     BadDefault,
     /// 选项少于两个、有重复、不是字。
@@ -230,6 +232,7 @@ impl Code {
             Code::CommandTaken => "command_taken",
             Code::BadSettingName => "bad_setting_name",
             Code::BadType => "bad_type",
+            Code::BadElement => "bad_element",
             Code::BadDefault => "bad_default",
             Code::BadChoices => "bad_choices",
             Code::BadRange => "bad_range",
@@ -241,7 +244,7 @@ impl Code {
     }
 
     /// 全部代码：给人看的字的门禁照它查三种语言都有。
-    pub const ALL: [Code; 30] = [
+    pub const ALL: [Code; 31] = [
         Code::Syntax,
         Code::UnknownTable,
         Code::NotATable,
@@ -265,6 +268,7 @@ impl Code {
         Code::CommandTaken,
         Code::BadSettingName,
         Code::BadType,
+        Code::BadElement,
         Code::BadDefault,
         Code::BadChoices,
         Code::BadRange,
