@@ -98,6 +98,7 @@ pub(crate) async fn call(
             }
             Ok(reply)
         }
+        "check" => crate::check::check(core, peer, params(request)?).await,
         "persona.list" => personas::list(core, peer).await,
         "persona.get" => personas::get(core, params(request)?).await,
         "session.list" => {

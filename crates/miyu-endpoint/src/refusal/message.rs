@@ -36,6 +36,10 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "This is a chat platform venue session; local heads cannot talk in it directly.",
         ),
         "unknown_command" => ("没有这个命令。", "There is no such command."),
+        "unknown_file" => (
+            "Miyu 不读这个文件：能查的是配置、密钥文件和人格目录里的 persona.toml、prompts/examples.md。",
+            "Miyu does not read this file: it checks the config, the secrets file, and persona.toml and prompts/examples.md in persona directories.",
+        ),
         "command_not_allowed" => (
             "只有主人和管理的人能用命令。",
             "Only the owner and managers can use commands.",

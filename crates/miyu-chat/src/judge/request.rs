@@ -2,12 +2,15 @@
 
 use std::collections::BTreeMap;
 
+use crate::Chatty;
+
 use super::{Ask, JudgeTexts, Message, Mode, Role};
 
 /// 拼成 `model.call` 的 `messages`：一条 `system`、一条 `user`。
 ///
 /// - system：`system.txt`；有人格的，人格的说明夹在 `persona-open.txt`、`persona-close.txt` 中间；打分的接 `reply.txt`，
-///   只查违规的接 `moderation-only.txt`；`violations.txt`（`{severity_min}` 换成门槛）；`answer.txt`。
+///   只查违规的接 `moderation-only.txt`；`violations.txt`（`{severity_min}` 换成 `chatty` 里的违规门槛，门槛只有这一份）；
+///   `answer.txt`。
 /// - user：群聊记录、这一条各夹在自己的标签中间；有 base64 解出来的字的，最后再夹一段。
 ///
 /// 夹进标签的字末尾没有换行的补一个，收尾的标签才落在自己那一行；空的不补，免得标签中间多一个空行。夹进来的字
@@ -16,7 +19,7 @@ use super::{Ask, JudgeTexts, Message, Mode, Role};
 /// # Panics
 ///
 /// 不会：`violations` 换不换得出，[`JudgeTexts::new`] 造的时候已经试过；这里的 `expect` 只是那一步的证明。
-pub fn request(texts: &JudgeTexts, ask: &Ask) -> Vec<Message> {
+pub fn request(texts: &JudgeTexts, ask: &Ask, chatty: &Chatty) -> Vec<Message> {
     let mut system = texts.system.clone();
     if let Some(persona) = &ask.persona {
         wrap(
@@ -30,7 +33,7 @@ pub fn request(texts: &JudgeTexts, ask: &Ask) -> Vec<Message> {
         Mode::Reply => &texts.reply,
         Mode::ModerationOnly => &texts.moderation_only,
     });
-    let min = ask.severity_min.to_string();
+    let min = chatty.severity_min.to_string();
     let fields = BTreeMap::from([("severity_min", min.as_str())]);
     // `JudgeTexts::new` 拿这个字段试换过，这里换得出。
     system.push_str(&texts.violations.render(&fields).expect("造的时候试换过"));

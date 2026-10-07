@@ -51,6 +51,8 @@ pub(super) fn toml(value: &Value) -> String {
 pub(super) fn problem(file: &str, problem: &Value, language: Language) -> Line {
     let place = match (problem["line"].as_u64(), problem["column"].as_u64()) {
         (Some(line), Some(column)) => format!("{file}:{line}:{column} "),
+        // 人格的只说到第几行（施工 8-30）。
+        (Some(line), None) => format!("{file}:{line} "),
         _ => format!("{file} "),
     };
     let level = problem["level"].as_str().unwrap_or("error");

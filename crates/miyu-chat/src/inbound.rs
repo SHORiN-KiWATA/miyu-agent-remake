@@ -4,7 +4,7 @@
 //! 或者停下给结果（[`Step`]）。自带五条（[`Chain::builtin`]）：睡眠、她被禁言、谁能叫她、违规关键词、限流，每条一个文件。
 //! 核心自己开的回合不过链，先问回合闸（[`gate()`]）。
 //!
-//! 纯逻辑：此刻和时区差（[`Clock`]）、她被禁言没有、最近开过哪些回合、限流提示过的时刻，都由外面交进来（[`Ctx`]），
+//! 纯逻辑：此刻和时区（[`Clock`]）、她被禁言没有、最近开过哪些回合、限流提示过的时刻，都由外面交进来（[`Ctx`]），
 //! 这里不碰时钟和时区库（施工时定的第 6 条）。
 
 mod allow;
@@ -20,6 +20,9 @@ pub use moderation::{Base64, Moderation};
 pub use rate::{Rate, rate_full};
 pub use sleep::Sleep;
 
+use miyu_kernel::id::ExternalId;
+use miyu_kernel::time::{Timestamp, UtcOffset};
+
 use crate::VenueKind;
 
 /// 发消息的人是谁（`18-通讯平台.md` 第三节）。
@@ -33,29 +36,37 @@ pub enum Standing {
     Member,
 }
 
+/// 一条消息的事实：谁发的、他是谁、是不是冲她来的。进站链（[`Inbound`]）和主动回复判断（[`Facts`](crate::Facts)）都看
+/// 这几格，合成一份，两边都用它；只有一边用的格留在那一边（`chat.md` 第二条施工时定的第 11 条，施工 O-12）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Said {
+    /// 发的人：平台上的人的编号，例如 `qq:10002`（[`person`](crate::person) 拼）。自带的五条不看它，留给往链里加的规则；
+    /// 续聊、顶替拿它和她回过的人、还没回完的那一条比。
+    pub sender: ExternalId,
+    /// 发的人是谁。
+    pub standing: Standing,
+    /// 是不是冲她来的：@ 她、回复她、叫到名字或触发词，由外面算好。限流满了只给冲她来的回一句；冲她来的加 `direct` 分。
+    pub addressed: bool,
+}
+
 /// 进来的一条消息，桥照驱动报上来的填好交进来。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Inbound {
     /// 场所是群还是私聊：自己人只在私聊里豁免睡眠和谁能叫她。
     pub kind: VenueKind,
-    /// 发的人，带平台前缀的编号，例如 `qq:10002`。自带的五条不看它，留给往链里加的规则。
-    pub sender: String,
-    /// 发的人是谁。
-    pub standing: Standing,
+    /// 谁发的、他是谁、是不是冲她来的。
+    pub said: Said,
     /// 正文：违规关键词查它。
     pub text: String,
-    /// 是不是冲她来的：@ 她、回复她、叫到名字或触发词，由外面算好（施工单「不做什么」第 1 条）。限流满了只给冲她来的
-    /// 回一句。
-    pub addressed: bool,
 }
 
 /// 此刻，外面交进来。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Clock {
-    /// 自 Unix 纪元起的毫秒，可以是负的。
-    pub now: i64,
-    /// 场所会话的时区离 UTC 差几分钟，东边是正的（北京 `480`，纽约冬天 `-300`）。睡眠照它换成当地时间。
-    pub offset: i32,
+    /// 此刻。
+    pub now: Timestamp,
+    /// 场所会话的时区（北京 `UTC+08:00`，纽约冬天 `UTC-05:00`）。睡眠照它换成当地时间。
+    pub offset: UtcOffset,
 }
 
 /// 这个场所此刻的情形，由外面从场所规则和场所会话的日志投影出来交进来。
@@ -69,11 +80,10 @@ pub struct Ctx {
     pub allow: Option<bool>,
     /// 她在这个场所被禁言了没有。
     pub muted: bool,
-    /// 最近开过的回合的开始时刻（毫秒），不算主人、自己人开的：外面交进来时就去掉了。先后不要紧；只看窗口里的，交多了
-    /// 不要紧。
-    pub turns: Vec<i64>,
-    /// 限流提示过的时刻（毫秒，`ext.venues.rate_noticed`）。先后不要紧。
-    pub notices: Vec<i64>,
+    /// 最近开过的回合的开始时刻，不算主人、自己人开的：外面交进来时就去掉了。先后不要紧；只看窗口里的，交多了不要紧。
+    pub turns: Vec<Timestamp>,
+    /// 限流提示过的时刻（`ext.venues.queued` 里种类是提示、原因是限流的）。先后不要紧。
+    pub notices: Vec<Timestamp>,
     /// 违规关键词的参数。
     pub moderation: Moderation,
 }
@@ -180,7 +190,7 @@ impl Chain {
 impl Inbound {
     /// 睡眠、谁能叫她都豁免的人：主人在哪都豁免，自己人只在私聊里（施工时定的第 2 条）。
     fn excused(&self) -> bool {
-        match self.standing {
+        match self.said.standing {
             Standing::Owner => true,
             Standing::Trusted => self.kind == VenueKind::Private,
             Standing::Member => false,

@@ -8,6 +8,8 @@
 //! 纯逻辑：这一回合已经发出去的（[`Sent`]）、她回的那条之后群里的动静（[`Since`]）、参数（[`Outbound`]），都由外面交进来
 //! （[`OutCtx`]）；出站队列（禁言暂停、过期作废、回执撤回、退信）随桥（「怎么走」第 7 条）。
 
+use miyu_kernel::id::ContentHash;
+
 mod clean;
 mod dedupe;
 mod plain;
@@ -22,8 +24,8 @@ pub use split::split;
 pub struct Outgoing {
     /// 正文。清理时整条是空白的、去重时正文重复而带图的，正文变成空的。
     pub text: String,
-    /// 几张图，每张是内容的哈希（例如 blob 的编号），照字比；去重看它。先后就是发的先后。
-    pub images: Vec<String>,
+    /// 几张图，每张是内容的哈希（内核的 `ContentHash`，blob 的编号）；去重看它。先后就是发的先后。
+    pub images: Vec<ContentHash>,
 }
 
 /// 这一回合已经发出去的：去重只看这一回合（施工时定的第 1 条），外面换回合时清空。
@@ -32,7 +34,7 @@ pub struct Sent {
     /// 发出去的正文，原文；归一化在这里做。
     pub texts: Vec<String>,
     /// 发出去的图的哈希。
-    pub images: Vec<String>,
+    pub images: Vec<ContentHash>,
 }
 
 /// 引用、@ 那个人：这一条要不要。

@@ -87,6 +87,7 @@ assistant: 8640
 6. **钉在会话上**：`session.created` 记下人格的编号（施工 P-1 下），会话列表、`subscribe` 的回应照它写 `persona`，头显示用的是谁；拼好的快照存成 blob，载入照快照，不再读人格目录。文件改了，以后造的会话用新的；已经开着的会话下一个回合换上随 P-1（再补）（K3）。
 7. **`persona.list`**：几层里所有的编号（目录名不合写法的、不是目录的不算），照编号排，一个一个找；名字、说明照这个连接的语言挑，这种语言没写的照 `en`、`zh`、`ja` 的先后，都没写的是 `null`；写错了的只带 `problem`。
 8. **`persona.get {persona}`**：叠好的 `persona.toml` 各种语言原样给，人设、示范对话来自哪一层（没有的是 `null`），示范对话几轮。提示词原文不经协议交出去。
+9. **`miyu check`**（施工 8-30，`cli/check.md`）：每一层里每个人格的 `persona.toml`、`prompts/examples.md` 各查各的，上面一层盖住了照样报；给人看的那一句照 `persona-problems/<code>`，照连接的语言。
 
 ### 出错
 

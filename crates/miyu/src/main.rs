@@ -52,6 +52,8 @@ enum Command {
     Sandbox(miyu_cli::Sandbox),
     /// 看配置、改配置、信任项目配置（施工 8-2、8-3）。
     Config(miyu_cli::Config),
+    /// 查手写的文件有没有写错：配置、密钥文件、人格（施工 8-30）。
+    Check(miyu_cli::Check),
     /// 存一个供应商的 key，`--list` 列出哪几个设了（施工 8-5）。
     Login(miyu_cli::Login),
     /// 删掉一个供应商的 key（施工 8-5）。
@@ -103,15 +105,16 @@ fn main() -> ExitCode {
             setup.override_help(page(language, Page::Setup))
         })
         .mut_subcommand("web", |web| web.override_help(page(language, Page::Web)))
+        .mut_subcommand("check", |check| {
+            check.override_help(page(language, Page::Check))
+        })
         .mut_subcommand("config", |config| {
             let help = page(language, Page::Config);
-            [
-                "get", "check", "explain", "path", "set", "unset", "edit", "trust",
-            ]
-            .into_iter()
-            .fold(config.override_help(help), |config, name| {
-                config.mut_subcommand(name, |sub| sub.override_help(help))
-            })
+            ["get", "explain", "path", "set", "unset", "edit", "trust"]
+                .into_iter()
+                .fold(config.override_help(help), |config, name| {
+                    config.mut_subcommand(name, |sub| sub.override_help(help))
+                })
         })
         .mut_subcommand("sandbox", |sandbox| {
             let help = page(language, Page::Sandbox);
@@ -137,6 +140,7 @@ fn main() -> ExitCode {
         Some(Command::Rename(args)) => miyu_cli::rename(args, core),
         Some(Command::Sandbox(args)) => miyu_cli::sandbox(args),
         Some(Command::Config(args)) => miyu_cli::config(args, core),
+        Some(Command::Check(args)) => miyu_cli::check(args, core),
         Some(Command::Login(args)) => miyu_cli::login(args.into(), core),
         Some(Command::Logout(args)) => miyu_cli::login(args.into(), core),
         Some(Command::Setup(args)) => miyu_cli::setup(args, core),

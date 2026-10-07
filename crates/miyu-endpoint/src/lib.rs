@@ -24,6 +24,7 @@
 //!   （施工 W-5，`uploads.rs`）。连接断了、60 秒没写都作废。
 
 mod attach;
+mod check;
 mod commands;
 pub mod config;
 mod connection;

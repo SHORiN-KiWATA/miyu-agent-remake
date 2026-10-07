@@ -3,7 +3,7 @@
 //! 图重复、同一条里两张一样的图）；引用和 @（最后一条是她自己的、`quote_after` 是 0、正好 4 条、3 条、@ 的时间和人）。
 
 use super::test_support::{
-    MENTION_AFTER, ctx, distinct, drop, judge, send, sent, text, with_images,
+    MENTION_AFTER, ctx, distinct, drop, image, judge, send, sent, text, with_images,
 };
 use super::{Out, OutChain, OutWhy, Target};
 
@@ -255,7 +255,7 @@ fn repeated_text_with_image_keeps_the_image() {
 #[test]
 fn repeated_images_are_removed() {
     let mut ctx = sent(&[]);
-    ctx.sent.images = vec!["img-a".to_string()];
+    ctx.sent.images = vec![image("img-a")];
     let outgoing = with_images("再来一张", &["img-a", "img-b"]);
     assert_eq!(
         judge(outgoing, &ctx),
@@ -268,7 +268,7 @@ fn repeated_images_are_removed() {
 #[test]
 fn all_images_repeated_and_no_text_is_dropped() {
     let mut ctx = sent(&["画好了"]);
-    ctx.sent.images = vec!["img-a".to_string()];
+    ctx.sent.images = vec![image("img-a")];
     assert_eq!(
         judge(with_images("", &["img-a"]), &ctx),
         drop(OutWhy::Repeated)

@@ -40,26 +40,31 @@ fn said(problem: &Problem, using: Option<&Using>) -> Told {
     tell(problem, &items(), using, &words(&items())).expect("字齐全")
 }
 
+/// 清单里离得最近的键：照配置的调法，交清单每一项的键。
+fn near(items: &[Item], key: &str) -> Option<&'static str> {
+    nearest(items.iter().map(|item| item.key), key)
+}
+
 #[test]
 fn the_nearest_key_is_close_enough_and_first_on_ties() {
     let items = items();
     assert_eq!(
-        nearest(&items, "ui.langauge"),
+        near(&items, "ui.langauge"),
         Some("ui.language"),
         "换位算一次"
     );
-    assert_eq!(nearest(&items, "ui.languag"), Some("ui.language"));
-    assert_eq!(nearest(&items, "log.levle"), Some("log.level"));
-    assert_eq!(nearest(&items, "UI.LANGUAGE"), None, "差太多");
-    assert_eq!(nearest(&items, "ui.x"), None);
+    assert_eq!(near(&items, "ui.languag"), Some("ui.language"));
+    assert_eq!(near(&items, "log.levle"), Some("log.level"));
+    assert_eq!(near(&items, "UI.LANGUAGE"), None, "差太多");
+    assert_eq!(near(&items, "ui.x"), None);
     assert_eq!(
-        nearest(&items, "lo.lev"),
+        near(&items, "lo.lev"),
         None,
         "差 3 个字，超过这个键长的三分之一"
     );
     let short = [item("ab.cd", &["x", "y"], "x")];
     assert_eq!(
-        nearest(&short, "ba.cd"),
+        near(&short, "ba.cd"),
         Some("ab.cd"),
         "换位算一次：短键上差两个字就太远了"
     );
@@ -67,7 +72,7 @@ fn the_nearest_key_is_close_enough_and_first_on_ties() {
         item("a.bc", &["x", "y"], "x"),
         item("a.bd", &["x", "y"], "x"),
     ];
-    assert_eq!(nearest(&tied, "a.bb"), Some("a.bc"), "一样近的取前面的");
+    assert_eq!(near(&tied, "a.bb"), Some("a.bc"), "一样近的取前面的");
 }
 
 #[test]

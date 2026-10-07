@@ -80,8 +80,8 @@ pub fn parse(items: &[Item], layer: Layer, text: &str) -> Result<Parsed, Box<Pro
     Ok(reader.parsed)
 }
 
-/// `toml_edit` 的原话只取最后一行（为什么），不带它印出来的原文。
-pub(crate) fn why(message: &str) -> String {
+/// `toml_edit` 的原话只取最后一行（为什么），不带它印出来的原文。群聊内核的场所规则也用它（施工 O-12）。
+pub fn why(message: &str) -> String {
     message
         .trim_end()
         .lines()
@@ -161,7 +161,7 @@ impl Reader<'_> {
         } else {
             let raw = self.raw(node, key);
             let mut problem = Problem::item(Code::UnknownKey, self.layer, &full, key_at, &raw);
-            problem.suggest = nearest(self.items, &full);
+            problem.suggest = nearest(self.items.iter().map(|item| item.key), &full);
             self.parsed.problems.push(problem);
         }
     }

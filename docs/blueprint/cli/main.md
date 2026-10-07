@@ -28,7 +28,8 @@
 | `compact` | 把当前会话的上下文压缩成摘要，可以附上要求（施工 6-8，命令名 2026-09-29 项目主人定） | `cli/compact.md` |
 | `recap` | 一句话回顾当前会话：在做什么、做完了什么、卡在哪（施工 3-8 四补） | `cli/recap.md` |
 | `rename` | 给当前会话起名（施工 3-8 五补） | `cli/rename.md` |
-| `config` | `get`、`check`、`explain`、`path`：看配置（施工 8-2）；`set`、`unset`、`edit`、`trust`：改配置、信任项目配置（施工 8-3） | `cli/config.md` |
+| `check` | 查手写的文件有没有写错：配置、密钥文件、人格（施工 8-30） | `cli/check.md` |
+| `config` | `get`、`explain`、`path`：看配置（施工 8-2，`check` 施工 8-30 挪成 `miyu check`）；`set`、`unset`、`edit`、`trust`：改配置、信任项目配置（施工 8-3） | `cli/config.md` |
 | `login`、`logout` | 存、列、删供应商的 key（施工 8-5） | `cli/login.md` |
 | `setup` | 接上第一个模型：找现成的 key 和本机的服务，或者搜目录、贴 key，试通了写进系统配置（施工 8-11） | `cli/setup.md` |
 | `sandbox` | `setup`、`remove`：Windows 上装好、撤掉沙盒用户，要管理员权限；别的平台上说一句不用装 | `sandbox/windows.md` |
@@ -77,6 +78,7 @@
   recap                 一句话回顾：在做什么、做完了什么、卡在哪
   rename <标题>         给会话起名
   config <命令>         看配置、改配置、信任项目配置
+  check [文件]          查手写的文件有没有写错：配置、密钥、人格
   login [名字]          存一个供应商的 key；--list 列出哪几家设了
   logout [名字]         删掉一个供应商的 key
   setup                 接上第一个模型：找现成的 key，试通了写进配置
@@ -124,6 +126,7 @@ Commands:
   recap                 Recap the session: goal, progress, blockers
   rename <title>        Give the session a title
   config <command>      See and change settings, trust a project config
+  check [file]          Look for mistakes in config, secrets and personas
   login [name]          Save a provider's key; --list shows which are set
   logout [name]         Delete a provider's key
   setup                 Connect the first model: find a key, try it, save it

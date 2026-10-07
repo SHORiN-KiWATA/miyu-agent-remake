@@ -276,7 +276,7 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>225</b><span>/ 258 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>227</b><span>/ 262 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
     <li><b class="mono">b376721b</b><span>最近一步（8-3 <code>expect</code> 照数值比（再补））的提交</span></li>
   </ul>
@@ -579,7 +579,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s8-27"><span class="n">8-27</span>支持输入加上音频、视频<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-28"><span class="n">8-28</span>「启动时打开」改成共用的 <code>ui.startup</code><span class="st">✓</span></a></li>
         <li><a class="step done" href="#s8-29"><span class="n">8-29</span>开发用的 key 改名<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">8-30</span>统一检查 miyu check</span></li>
+        <li><a class="step done" href="#s8-30"><span class="n">8-30</span>统一检查 miyu check<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -636,9 +636,13 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sO-9"><span class="n">O-9</span>顶替窗口与分派<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-10"><span class="n">O-10</span>出站链<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-11"><span class="n">O-11</span>判官的请求和回答<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">O-12</span>整顿群聊内核</span></li>
+        <li><a class="step done" href="#sO-12a"><span class="n">O-12 上</span>整顿：编号和类型<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">O-12 下</span>整顿：结果和小处</span></li>
         <li><span class="step"><span class="n">O-13</span>核心：场所的格、事件和 events.append</span></li>
         <li><span class="step"><span class="n">O-14</span>核心：由桥开一轮</span></li>
+        <li><span class="step"><span class="n">O-15</span>出厂参数和按场所改</span></li>
+        <li><span class="step"><span class="n">O-16</span>WebUI 的骨架和连接页（等浏览器验收）</span></li>
+        <li><span class="step"><span class="n">O-17</span>WebUI 的主人与自己人页</span></li>
         <li><a class="step done" href="#sO-6"><span class="n">O-6</span>核心：斜杠命令由核心解析<span class="st">✓</span></a></li>
       </ol>
     </li>
@@ -12544,6 +12548,60 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s8-30" aria-labelledby="h-s830">
+  <div class="sheet-head"><h2 id="h-s830"><span class="no">8-30</span>统一检查 <code>miyu check</code></h2><span class="pill done">已完成</span></div>
+  <p class="purpose">人改了配置、放了人格文件，敲一个 <code>miyu check</code> 一次查完：哪个文件、第几行第几列、错在哪、怎么改，有错退出码 1。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">统一检查 <code>miyu check</code></span><span class="dir-note">8-30</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>核心新方法 <code>check {cwd?, file?}</code>：照磁盘上现在的字查系统配置、个人设置、项目配置、密钥文件、三层里每个人格的两份字</li>
+              <li>人格的错带代码和三种语言的说法（<code>persona-problems/&lt;code&gt;</code>）</li>
+              <li>写了文件的照它在哪认是哪一种，只查那一份；认不出的 <code>unknown_file</code></li>
+              <li>命令行 <code>miyu check</code> 只印：一处一行、合计、<code>--format json</code>；<code>miyu config check</code> 去掉</li>
+              <li>两边都换成真的路径再比：macOS 的 <code>/var</code> 是链接、Windows 带 <code>\\?\</code>、人格目录还没建的照最近一层在的上级换</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">核心查、命令行印</span><span class="rl">以后的预设、软件包一个口子接进来</span></div>
+          <div class="tile new"><span class="nm">按层报</span><span class="rl">上面一层盖住了，下面那层写错照样报</span></div>
+          <div class="tile new"><span class="nm"><code>config.check</code> 留着</span><span class="rl">头保存以前查一段字用</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">8-30</dd></div>
+        <div><dt>名称</dt><dd>统一检查 <code>miyu check</code></dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">a0569bb8</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 13/13、八项门禁、三台 CI 和长跑（run 1097）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>三份配置、密钥、人格每一层的问题都报，文件、行列、级别对</span></li>
+        <li><span class="ok">✓</span><span>写了文件的只查那一份；经链接写的、目录还没建的照样认得</span></li>
+        <li><span class="ok">✓</span><span><code>miyu config check</code> 照未知子命令报；原来的测试挪过来照旧过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/8-30-统一检查.md</code>；蓝图 <code>cli/check.md</code>（新）、<code>cli/config.md</code>、<code>protocol.md</code>、<code>config.md</code>、<code>personas.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sC-1" aria-labelledby="h-sC1">
   <div class="sheet-head"><h2 id="h-sC1"><span class="no">C-1</span>跨会话的事件和编号</h2><span class="pill done">已完成</span></div>
   <p class="purpose">跨会话这条线的第一步，和 M8 并行：会话的短编号，事件 <code>peer.idle</code>、效果 <code>peer.watch</code> 的类型、读写、样本，账本认得在等哪几个会话。这一步不收话、不列、不读、不发、不订，她和头都还看不到变化。</p>
@@ -14685,6 +14743,56 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/O-11-判官的请求和回答.md</code>；蓝图 <code>chat.md</code> 第六条；<code>26-提示词.md</code> 第十节十三行。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sO-12a" aria-labelledby="h-sO12a">
+  <div class="sheet-head"><h2 id="h-sO12a"><span class="no">O-12 上</span>整顿群聊内核：编号和类型</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">O 线自查以后照「和核心的接口」整顿：群聊内核几块的输入类型统一成内核的，编号只有一处拼和解，免得接上核心时返工。行为不变。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-chat</span><span class="dir-note">O-12 上</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>时刻、时区、场所编号、平台上的人、内容哈希换成内核的类型</li>
+              <li>场所编号只由 Venue 拼和解；消息用日志的序号认，抽样的种子跟着改</li>
+              <li>一轮回复的对象可以有几个人；重复的消息事实合成 Said；违规门槛只留一份</li>
+              <li>「离得最近的键名」和配置共用一份</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">种子：场所编号、换行、序号</span><span class="rl">日志还没落地，现在改不影响回放</span></div>
+          <div class="tile new"><span class="nm">内核缺的不改内核</span><span class="rl">照公开方法自己算，图纸记一句</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-12 上</dd></div>
+        <div><dt>名称</dt><dd>整顿群聊内核：编号和类型</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">bfcc0888</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>原有测试照新类型改、行为不变；新格先写测试；20 个手写变异全逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 1087）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-12-整顿群聊内核（上）.md</code>；蓝图 <code>chat.md</code> 第一到第六条；18 第一节、第四节。</li>
       </ul>
     </div>
   </div>

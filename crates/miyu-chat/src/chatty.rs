@@ -23,22 +23,20 @@ pub use dispatch::{Dispatch, Line, Lines, Pending, Status, Supersede, dispatch, 
 pub use restraint::pressure;
 pub use score::{Judgement, Score, score};
 
-use crate::{Clock, Flag, Standing};
+use miyu_kernel::id::{ExternalId, Seq, VenueId};
+use miyu_kernel::time::Timestamp;
+
+use crate::{Clock, Flag, Said, Standing};
 
 /// 一条消息的平台事实：桥照驱动报上来的填好交进来（18 第七节那张流程图的第二格）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Facts {
-    /// 场所编号：桥给场所会话起的编号，照原样进抽样的种子（「怎么走」第 6 条）。同一个场所要一直是同一个字，换了写法，
-    /// 旧日志回放出的抽样就变了。
-    pub venue: String,
-    /// 消息编号：平台给这条消息的编号，照原样进抽样的种子。
-    pub msg: String,
-    /// 发的人，带平台前缀的编号，例如 `qq:10002`：续聊拿它和 [`Reply::to`] 照字比。
-    pub sender: String,
-    /// 发的人是谁：主人冲她来的不过判官（[`route`]）。
-    pub standing: Standing,
-    /// 是不是冲她来的：@ 她、回复她、叫到名字或触发词，由外面算好。
-    pub addressed: bool,
+    /// 场所编号（[`Venue::id`](crate::Venue::id) 拼），照原样进抽样的种子（「怎么走」第 6 条）。
+    pub venue: VenueId,
+    /// 这条消息：它在场所主线会话日志里的序号（`chat.md` 第七条第 1 条），进抽样的种子；顶替、承诺也认它。
+    pub msg: Seq,
+    /// 谁发的、他是谁、是不是冲她来的：和进站链共用一份（[`Said`]）。主人冲她来的不过判官（[`route`]）。
+    pub said: Said,
     /// @ 了别人没有：@ 了别人的不算续聊。
     pub mentions_others: bool,
     /// 引用的是不是别人的消息：引用别人的不算续聊。
@@ -49,13 +47,15 @@ pub struct Facts {
     pub media_only: bool,
 }
 
-/// 她在这个场所真发出的一轮回复，外面从场所会话的日志投影出来交进来。一轮拆成几段发也只算一轮（施工时定的第 4 条）。
+/// 她在这个场所真发出的一轮回复，外面从场所会话的日志（`venue.delivered`）投影出来交进来。一轮拆成几段发也只算一轮
+/// （施工时定的第 4 条）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Reply {
-    /// 发出的时刻：自 Unix 纪元起的毫秒。
-    pub at: i64,
-    /// 回的是谁，带平台前缀的编号；没有明确回谁的是 `None`，不算谁的续聊。
-    pub to: Option<String>,
+    /// 发出的时刻：这一轮第一条发出的时刻。
+    pub at: Timestamp,
+    /// 回的是谁：平台上的人的编号，一轮可以回几个人（第七条第 4 条的投影，几条的并集）；没有明确回谁的是空的，不算谁的
+    /// 续聊。
+    pub to: Vec<ExternalId>,
 }
 
 /// 主动回复判断的参数：由外面交进来，代码里不写默认值（施工时定的第 5 条）。出厂的数随桥放进出厂数据，旧版的值见
@@ -282,20 +282,21 @@ pub fn route(conditions: &Conditions, standing: Standing) -> Route {
 }
 
 /// 她不晚于此刻的回复里最近的一轮：同一毫秒的几轮取交进来靠后的那一轮。晚于此刻的不看，交多了不要紧。
-fn latest(replies: &[Reply], now: i64) -> Option<&Reply> {
+fn latest(replies: &[Reply], now: Timestamp) -> Option<&Reply> {
     replies
         .iter()
         .filter(|reply| reply.at <= now)
         .max_by_key(|reply| reply.at)
 }
 
-/// `at` 落在此刻的窗口里没有：`0 ≤ now − at < window`，正好 `window` 以前的不算（施工时定的第 2 条）。
-fn within(at: i64, now: i64, window: i64) -> bool {
-    let age = now.saturating_sub(at);
+/// `at` 落在此刻的窗口里没有：`0 ≤ now − at < window`（毫秒），正好 `window` 以前的不算（施工时定的第 2 条）。
+fn within(at: Timestamp, now: Timestamp, window: i64) -> bool {
+    // 时刻只到 9999 年，相减不会溢出。
+    let age = now.unix_millis() - at.unix_millis();
     (0..window).contains(&age)
 }
 
 #[cfg(test)]
-mod test_support;
+pub(crate) mod test_support;
 #[cfg(test)]
 mod tests;

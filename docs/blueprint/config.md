@@ -434,7 +434,7 @@ miyu_config::settings! {
 7. 收下的：写盘（第五条）、记日志（第六条）、推 `config.changed`（给订阅着的连接，发这一条的那个连接先见推送、后见回应，8-4），再回应。写了盘的都推，整份换只动了注释的也推（`keys` 是空的）：头手里的版本跟着换。第 3 到 6 条都在第五条第 2 条第 1 款重读过的文件上查：手改过的照新的字。替换前发现这一瞬间有人手改了，从头再来，三次还不行的：`config_conflict`，`data.version` 是现在的版本（第五条第 6 条）。
 8. 先落盘，后回应：回应到的时候，文件已经写好、同步过了。配置服务同时换上新的最终值：之后握手的连接、造的会话照新的；已经连着的连接下一句照新的语言说，开着的会话下一个回合照新的（第八条，8-4）。
 
-**`config.check`**（查询，8-2）：校验一段配置的字，不生效。给 `miyu config edit`、`miyu config check` 和编辑器插件用。
+**`config.check`**（查询，8-2）：校验一段配置的字，不生效。给 `miyu config edit`、编辑器插件用；`check`（施工 8-30）也照它查每一份配置文件磁盘上现在的字。
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
@@ -575,9 +575,9 @@ miyu_config::settings! {
 
 | 选项 | 做什么 | 哪几个子命令认 |
 |---|---|---|
-| `--system` | 系统配置 | `set`、`unset`、`edit`、`check`、`path` |
-| `--project` | 当前目录的项目配置 | `edit`、`check`、`path`；`set` 也认，认了说项目配置只能手改、退出码 2 |
-| `--format text\|json` | `text` 给人看（默认），`json` 给脚本 | `get`、`check`、`explain` |
+| `--system` | 系统配置 | `set`、`unset`、`edit`、`path` |
+| `--project` | 当前目录的项目配置 | `edit`、`path`；`set` 也认，认了说项目配置只能手改、退出码 2 |
+| `--format text\|json` | `text` 给人看（默认），`json` 给脚本 | `get`、`explain`；`miyu check` 也有 |
 | `--yes`、`--no` | 信任、不信任，不问 | `trust` |
 
 - 查询类的三个有 `--format json`（`22-命令行.md` 第二节）。
@@ -639,7 +639,7 @@ miyu_config::settings! {
 4. 一份文件里有错，照这样用（G8，2026-10-01 项目主人定只丢写错的那一项）：
    - 一项的问题：只丢这一项，照下面几层合出来的，下面都没写的就是默认值。别的项照常生效。
    - 整份的问题（`unreadable`、`too_big`、`not_utf8`、`syntax`）：TOML 读不懂，这份文件整份照上一次读好的用。起来时就读不好的，照空的。
-   - 两种都记成问题，所有的头都看得到：`config.get` 的 `problems`、推送、握手的 `config_errors`、`miyu config check`。
+   - 两种都记成问题，所有的头都看得到：`config.get` 的 `problems`、推送、握手的 `config_errors`、`miyu check`（施工 8-30 前是 `miyu config check`）。
 5. 合并（`merge.rs`）：默认值、系统配置、个人设置、项目配置，上面的盖掉下面的，每一项记下来源（「最终值和来源」）。带 `env` 的项，环境变量设了、不是空的、读得懂的，最后盖上去：去掉前后空白，选项不分大小写（交回清单里的写法，`MIYU_LOG` 原来就不分），开关只认 `true`、`false`。读不懂的当没设，照配置，记一条 `WARN MIYU_LOG not understood, using config value=…`（`log.md` 第 2 条跟着改）。环境变量只在核心起来时读一次。
 6. 配置服务（`miyu-endpoint` 的 `Config`，放在核心的家底里）手里有：每份文件在哪、版本、解析好的项、问题，信任的记录，起来时的环境变量，不算项目配置的最终值 `Resolved`。8-2 起来以后就不变：造会话时照它和项目配置合一次。8-4 起每换上一份新的（`config.set` 写成了、手改被看到的、`config.trust` 记下了），整份放进 `tokio::sync::watch` 交给会话、核心（`config/hub.rs`）：会话在回合开始时从里面取（第八条第 3 条），核心照它换级别、重写生成的文件。读不进来的文件照上一次读好的项用（`last_good`）。
 7. `log.level`：运行日志装上时照 `MIYU_LOG`（没设、读不懂的是 `INFO`）。读完配置，照 `log.level` 的最终值换（`Guard::set_level`，`log.md`）：`MIYU_LOG` 设了、读得懂的就是它；读不懂的先记那一条 `WARN`。再记一条 `INFO log level level=… from=…`，`from` 是 `env`、`config`、`default`。
@@ -743,7 +743,7 @@ miyu_config::settings! {
    - 字节一样的什么都不做。变了的重读，变了的名字每个记一条 `secret.changed`（`via` 是 `file`），照名字的先后；交给会话、核心，不推（密钥的推送随界面，「还没有的」）。
    - TOML 读不懂的：报整份的问题（`syntax` 只取 `toml_edit` 原话的最后一行，不带它印的原文），照上一次读好的用（`last_good`），不记日志。
    - 写错的一行只丢这一行（G8）：名字不合写法的报 `bad_format`，值不是去掉前后空白不空的字（数、表、空的）报 `wrong_type`，都是错误、不带 `got`、不说「现在照什么用着」。手写的值去掉前后空白就用，不另查控制字符、长短。
-   - 这些问题和配置文件的一起出现在 `config.get` 的 `problems`（`file` 是 `system/secrets.toml`）、握手的 `config_errors`、`miyu config check` 里。
+   - 这些问题和配置文件的一起出现在 `config.get` 的 `problems`（`file` 是 `system/secrets.toml`）、握手的 `config_errors`、`miyu check` 里。
 4. 写：`secret.set`、`secret.delete` 拿着配置服务的锁，先照第 3 条重读（那一瞬间之前的手改，先当手改记），读不进来的回 `config_file_broken`。照第五条写盘，只改那一行（`miyu_config::edit::apply`，它 8-5 起认只有一段、放在最上面那张表里的键：新的一行接在最后一个值后面，还没有值的放在第一张表的表头前面），注释、别的行一个字节不动；替换前有人手改，从重读重来，最多三次，还不行的 `internal_error`。落了盘记 `secret.changed`、`INFO secret changed`，换上，再回应。
 5. 配置里引用密钥（类型 `secret`）：
    - `{ secret = "<名字>" }`：照名字到密钥文件里取。M8 只有系统的密钥文件。
@@ -799,12 +799,12 @@ miyu_config::settings! {
 
 ### 样子
 
-**报错一条一行**（`miyu config check`、`edit`、`trust` 印的，一行的开头是 `路径:行:列`，2026-10-01 主会话定：编辑器、很多终端能照它点过去）：`<文件>:<行>:<列> <级别>：<那一句>`。文件照家目录写成 `~/…`。「错误」红、「警告」黄（`ESC[33m`），别的原色。上色的规矩照 `cli/ask.md`「上色」。
+**报错一条一行**（`miyu check`（施工 8-30 前是 `miyu config check`）、`edit`、`trust` 印的，一行的开头是 `路径:行:列`，2026-10-01 主会话定：编辑器、很多终端能照它点过去）：`<文件>:<行>:<列> <级别>：<那一句>`。文件照家目录写成 `~/…`。「错误」红、「警告」黄（`ESC[33m`），别的原色。上色的规矩照 `cli/ask.md`「上色」。
 
 例子（中文）：
 
 ```text
-$ miyu config check
+$ miyu check
 ~/.miyu/home/admin/settings.toml:7:1 警告：没有 ui.langauge 这一项。是不是想写 ui.language？这一行先不管，原样留着。
 ~/.miyu/system/config.toml:2:9 错误：log.level 只能是 error、warn、info、debug、trace 或 off，写的是 "verbose"。改成其中一个，例如 log.level = "info"。这一项先照 "info" 用着（默认值）。
 ~/src/app/.miyu/config.toml:3:19 错误：项目配置只能让限制更严。permission.start_read_only 现在是 true，这里写的 false 更宽，不算。
@@ -814,7 +814,7 @@ $ miyu config check
 例子（英文）：
 
 ```text
-$ miyu config check
+$ miyu check
 ~/.miyu/home/admin/settings.toml:7:1 warning: There is no ui.langauge. Did you mean ui.language? The line is ignored and kept as it is.
 ~/.miyu/system/config.toml:2:9 error: log.level must be error, warn, info, debug, trace or off, not "verbose". Write one of them, e.g. log.level = "info". Using "info" (the default) for now.
 ~/src/app/.miyu/config.toml:3:19 error: A project config can only make limits stricter. permission.start_read_only is true, and false here is looser, so it does not count.
@@ -918,7 +918,7 @@ A project config can only make limits stricter. Trust this one? [y/N] y
 **`miyu ask` 起头那两行**（标准错误，灰，只在有的时候印）：
 
 ```text
-· 配置里有 1 处错误：miyu config check 看是哪里
+· 配置里有 1 处错误：miyu check 看是哪里
 · 这里的项目配置 ~/src/app/.miyu/config.toml 还没信任，这次没用它：miyu config trust 看一眼再定
 ```
 
@@ -1609,7 +1609,7 @@ currency = "USD"
 
 | 什么时候 | 怎么办 |
 |---|---|
-| 配置文件读不进来、有错 | 照第二条第 4 条用，起得来。问题留着，`config.get`、推送、握手的 `config_errors`、`miyu config check` 都看得到 |
+| 配置文件读不进来、有错 | 照第二条第 4 条用，起得来。问题留着，`config.get`、推送、握手的 `config_errors`、`miyu check` 都看得到 |
 | 写不成 | `internal_error`，什么都没变 |
 | 日志写不进去 | 配置照改，记 `WARN` |
 | 监视起不来 | 退回轮询，记 `WARN` |
@@ -1815,7 +1815,7 @@ currency = "USD"
 | `explain` 生效的那一行（8-2） | ← 生效；环境变量的：← 生效，只管这一次启动 | ← in effect；环境变量的：← in effect, for this launch only |
 | `explain` 不算的那一行（8-2） | ← 不算：还没信任、比下面几层宽、不能写在这一层 | ← does not count: not trusted yet、looser than the layers below、not allowed in this layer |
 | `set --project` | 项目配置只能手改：miyu config edit --project | A project config is edited by hand: miyu config edit --project |
-| `miyu ask` 起头：配置有错 | · 配置里有 <n> 处错误：miyu config check 看是哪里 | · <n> errors in the config: run miyu config check to see them（1 处时 `· 1 error in the config: run miyu config check to see it`） |
+| `miyu ask` 起头：配置有错 | · 配置里有 <n> 处错误：miyu check 看是哪里 | · <n> errors in the config: run miyu check to see them（1 处时 `· 1 error in the config: run miyu check to see it`） |
 | `miyu ask` 起头：项目配置没信任 | · 这里的项目配置 <文件> 还没信任，这次没用它：miyu config trust 看一眼再定 | · The project config at <file> is not trusted yet, so it was not used: run miyu config trust to review it |
 | `trust` 没有项目配置 | 这里没有项目配置 | There is no project config here |
 | `trust` 列出 | <文件> 会改这几项： | <file> would set: |
