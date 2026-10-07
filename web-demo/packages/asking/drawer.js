@@ -127,8 +127,8 @@ export class Drawer {
     e.preventDefault();
     this.escAt = 0;
     this.step(press(this.d, name));
-    // 光标落到「不允许」上：焦点进它后面的理由框，接着打的字就是理由
-    this.focusReason();
+    // 光标落到「不允许」上：焦点进它下面的理由框，接着打的字就是理由
+    if (this.d && onDeny(this.d)) this.focusReason();
   }
 
   /** 理由框在的话焦点给它，光标放到末尾。 */
@@ -137,6 +137,7 @@ export class Drawer {
     if (!box) return;
     box.focus({ preventScroll: true });
     box.setSelectionRange(box.value.length, box.value.length);
+    grow(box);
   }
 
   /** 编辑的框里按了 `Enter`。 @param {string} value */
@@ -179,7 +180,8 @@ export class Drawer {
         h('span.asking-foot-right', h('button.asking-cancel', { type: 'button', onclick: () => this.cancel() }, t('cancel')), review ? null : this.nextButton())));
     this.drawKeys();
     scroll.querySelector('.asking-option.is-selected')?.scrollIntoView({ block: 'nearest' });
-    const box = /** @type {HTMLTextAreaElement|null} */ (this.el.querySelector('textarea'));
+    // 正在写的框（自己写的答案、补充）给焦点、量高度；「不允许」下面常驻的理由框不算（这时抽屉可能还没露出来，量到的是 0）
+    const box = /** @type {HTMLTextAreaElement|null} */ (this.el.querySelector('textarea:not(.asking-reason)'));
     if (box) {
       box.focus();
       box.setSelectionRange(box.value.length, box.value.length);
@@ -254,8 +256,8 @@ export class Drawer {
     const selected = d.cursor[d.tab] === i;
     const picked = q.multiple ? d.checked[d.tab].has(i) : d.choice[d.tab] === i;
     const mark = q.multiple ? h(`span.asking-check${picked ? '.is-on' : ''}`, picked ? '✓' : '') : h('span.asking-num', String(i + 1));
-    // 光标在「不允许」上：理由框就在它后面（不用先按 Enter 开），写的字移走再回来还在
-    const reason = selected && onDeny(d) ? this.reasonBox() : null;
+    // 「不允许」下面一直有理由框（2026-10-07 项目主人：点框是写字，点选项才交）；写的字移走再回来还在
+    const reason = d.kind === 'approve' && q.options[i]?.decision === 'deny' ? this.reasonBox() : null;
     return h(`div.asking-option${selected ? '.is-selected' : ''}${picked ? '.is-picked' : ''}`, this.pointerProps(i),
       mark, h('div.asking-text', h('strong', label), description ? h('span.asking-desc', description) : null, reason));
   }
@@ -317,6 +319,13 @@ export class Drawer {
     const box = this.editBox(this.text('reason_hint'), this.d?.reason ?? '');
     box.classList.add('asking-reason');
     box.addEventListener('input', () => { if (this.d) this.d = withReason(this.d, box.value); });
+    // 点进框里（光标不在「不允许」上时）：光标移到「不允许」，接着写，Enter 交的就是它
+    box.addEventListener('focus', () => {
+      if (!this.d || onDeny(this.d)) return;
+      const at = this.d.questions[0].options.findIndex((o) => o.decision === 'deny');
+      this.step({ d: { ...this.d, cursor: [at] }, done: null, edit: null });
+      this.focusReason();
+    });
     return box;
   }
 
