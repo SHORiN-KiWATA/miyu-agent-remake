@@ -6,24 +6,33 @@ mod support;
 use serde_json::json;
 
 use miyu_session::testkit::{Play, Script};
-use miyu_store::recall::RecallIndex;
 
 use support::*;
 
-/// 另开一个连接，在软件工程师的回合库里搜 `words`，交回键。
+/// 另开一个只读的连接，在软件工程师的回合库里搜 `words`，交回键。回合库是核心用到才建的：还没有的是什么都没找到。不能
+/// 用 `RecallIndex::open` 去开：它会建库、碰到核心正在建的那一半当成坏了删掉重建（一个库只该有一个连接写）。
 fn found(home: &Home, words: &str) -> Vec<String> {
     let path = home
         .root
         .index(&alice())
         .join("recall")
         .join("turns-engineer.db");
-    let (index, _) = RecallIndex::open(&path);
-    index
-        .search(words, 10)
-        .expect("搜得了")
-        .into_iter()
-        .map(|hit| hit.key)
-        .collect()
+    let Ok(db) =
+        rusqlite::Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+    else {
+        return Vec::new();
+    };
+    let query = miyu_recall::query(words).expect("切得出词");
+    let Ok(mut select) = db.prepare(
+        "SELECT items.key FROM terms JOIN items ON items.id = terms.rowid WHERE terms MATCH ?1",
+    ) else {
+        return Vec::new();
+    };
+    select
+        .query_map([query], |row| row.get::<_, String>(0))
+        .expect("查得了")
+        .collect::<Result<_, _>>()
+        .expect("读得出")
 }
 
 #[tokio::test]
