@@ -595,6 +595,7 @@ a.step:hover{border-color:var(--primary)}
         <li><span class="step"><span class="n">O-2</span>核心：提供者</span></li>
         <li><span class="step"><span class="n">O-3</span>核心：外部身份</span></li>
         <li><span class="step"><span class="n">O-4</span>核心：系统账号</span></li>
+        <li><a class="step done" href="#sO-5"><span class="n">O-5</span>进站链与限流的判定<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -13650,6 +13651,57 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sO-5" aria-labelledby="h-sO5">
+  <div class="sheet-head"><h2 id="h-sO5"><span class="no">O-5</span>进站链与限流的判定</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">群聊内核第二块：进来的每条消息先过进站链，给出放行、只记下、拒绝并回一句；核心自己开的回合，给出回合闸的回答。进站链照插件的形状写：一个插槽、自带五条。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-chat/src/inbound</span><span class="dir-note">O-5</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>五条照先后：睡眠、她被禁言、谁能叫她、违规关键词、限流；停了就不往下看，插旗的接着走</li>
+              <li>违规关键词：子串、ASCII 不分大小写；base64 自己解，够长、可打印的才查，只插旗</li>
+              <li>限流数回合、滑动窗口，主人和自己人不计；一回满了只提示一次，降下去再满再提示</li>
+              <li>回合闸：睡着推迟到醒来那一分钟，满了推迟到最早那一轮出窗口，两样取晚的</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">「这一回满了」从早往晚数第 N 个</span><span class="rl">起草时写成倒数，分身查出来改正</span></div>
+          <div class="tile new"><span class="nm">主人不查违规关键词</span><span class="rl">自己人只在私聊里豁免睡眠和谁能叫她</span></div>
+          <div class="tile new"><span class="nm">时刻、时区由外面交进来</span><span class="rl">第 2 层不碰时钟</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-5</dd></div>
+        <div><dt>名称</dt><dd>进站链与限流的判定</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">43c52def</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试先写（89 个，只有骨架时 46 个红）；26 个手写变异全逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 997）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-5-进站链与限流的判定.md</code>；蓝图 <code>chat.md</code> 第二条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -13826,6 +13878,7 @@ const TREE = {
 
 /* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
 const BUILD = {
+  n_inchain: { by: 'O-5', how: 'frame', note: '进站链与限流（O-5）：插槽和自带五条（睡眠、禁言、谁能叫她、违规关键词、限流），一回满了提示一次；回合闸的回答。从日志投影状态、出厂词表随桥那几步' },
   n_rules: { by: 'O-1', how: 'frame', note: '场所规则（O-1）：miyu-chat 读 venues.d，出厂和系统的照文件名排、同名的系统替换出厂的；匹配 platform、kind、group、user，写错整条不用；属性照 18 第四节，写错只丢一项；每一项记下来处。读磁盘、venue show 随桥那几步' },
   g_kernel: { by: '0-1', how: 'frame' },
   k_log: { by: '1-1', how: 'frame', note: '18 种事件的写法、瞬时事件、追加时的检查' },
