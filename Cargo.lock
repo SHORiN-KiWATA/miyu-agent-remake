@@ -1493,6 +1493,7 @@ name = "miyu-chat"
 version = "0.0.0"
 dependencies = [
  "miyu-config",
+ "sha2",
  "toml_edit",
 ]
 
@@ -1583,6 +1584,7 @@ dependencies = [
  "miyu-log",
  "miyu-models",
  "miyu-policy",
+ "miyu-recall",
  "miyu-sandbox",
  "miyu-session",
  "miyu-store",
@@ -1720,6 +1722,11 @@ dependencies = [
 [[package]]
 name = "miyu-recall"
 version = "0.0.0"
+dependencies = [
+ "miyu-kernel",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "miyu-sandbox"
@@ -1750,6 +1757,7 @@ dependencies = [
  "miyu-log",
  "miyu-models",
  "miyu-policy",
+ "miyu-recall",
  "miyu-sandbox",
  "miyu-session",
  "miyu-store",

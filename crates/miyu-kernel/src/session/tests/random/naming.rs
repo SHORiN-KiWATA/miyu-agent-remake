@@ -20,3 +20,16 @@ pub(super) fn some_meta(seed: u64, next_id: &mut u64) -> Input {
         },
     })
 }
+
+/// 记下用了一个斜杠命令（施工 O-6）：照改标题的办法，每一例最后另送一次；什么时候来都收。
+pub(super) fn some_ran(next_id: &mut u64) -> Input {
+    Input::Command(Received {
+        id: id(next_command(next_id)),
+        by: alice(),
+        at: at(31),
+        command: Command::Ran {
+            text: "/reset".to_string(),
+            command: "clear".to_string(),
+        },
+    })
+}

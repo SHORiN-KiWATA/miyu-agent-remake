@@ -1,0 +1,2 @@
+{"seq":146,"at":"2026-09-25T21:10:00.000Z","kind":"command.ran","by":{"kind":"person","account":"alice"},"cause":"cmd-7f39/ran","body":{"text":"/clear","command":"clear"}}
+{"seq":147,"at":"2026-09-25T21:20:00.000Z","kind":"command.ran","by":{"kind":"person","account":"alice","via":"qq:10001"},"cause":"qq:bot:msg-9/ran","body":{"text":"/reset","command":"clear"}}

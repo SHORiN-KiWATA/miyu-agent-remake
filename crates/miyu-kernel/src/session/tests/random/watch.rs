@@ -79,6 +79,8 @@ pub(super) struct Watch {
     queued: Vec<Seq>,
     /// 正在送进去的那次新的打断，排着队的怎么办。
     interrupting: Option<Queued>,
+    /// 回合开着时收下的、最近一次打断是「留着」（施工 O-6）：等停着的那一批先清掉了 `stopping`，回合结束时照它认。
+    keeping: bool,
     /// 现在的权限，和看守照规矩推出来的实际生效的那一级。
     permission: Permission,
     effective: Permission,
@@ -147,6 +149,7 @@ impl Watch {
             writing: false,
             queued: Vec::new(),
             interrupting: None,
+            keeping: false,
             permission: lookup::created_permission(),
             effective: lookup::created_permission(),
             approvals: approval::Approvals::new(),
@@ -228,6 +231,11 @@ impl Watch {
             _ => None,
         };
         self.interrupting = fresh_interrupt;
+        if let Some(queued) = fresh_interrupt
+            && self.turn_open()
+        {
+            self.keeping = queued == Queued::Keep;
+        }
         let was_open = self.turn_open();
         let command = match &input {
             Input::Command(command) => Some(command.id.clone()),

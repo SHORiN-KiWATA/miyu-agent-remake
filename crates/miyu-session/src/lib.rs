@@ -34,6 +34,7 @@ mod job_ids;
 mod jobs;
 mod kinds;
 mod lines;
+mod memory;
 mod messages;
 mod open;
 mod peers;

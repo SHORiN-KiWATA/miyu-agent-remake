@@ -276,7 +276,7 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>211</b><span>/ 233 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>216</b><span>/ 238 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
     <li><b class="mono">b376721b</b><span>最近一步（8-3 <code>expect</code> 照数值比（再补））的提交</span></li>
   </ul>
@@ -347,6 +347,7 @@ a.step:hover{border-color:var(--primary)}
       <div class="ms-head"><span class="ms-id">M2</span><span class="ms-name">回合可信</span><span class="ms-goal">一轮对话的各种走法都在内存里跑通</span></div>
       <ol class="chips">
         <li><a class="step done" href="#s2-1"><span class="n">2-1</span>输入、动作、命令<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s2-1b"><span class="n">2-1</span>重启前后同一个编号回应一样（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-2"><span class="n">2-2</span>流式累积器<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-3a"><span class="n">2-3</span>最简单的一轮（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s2-3b"><span class="n">2-3</span>最简单的一轮（下）<span class="st">✓</span></a></li>
@@ -597,15 +598,19 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sO-3"><span class="n">O-3</span>核心：外部身份和场所会话<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">O-4</span>核心：系统账号</span></li>
         <li><a class="step done" href="#sO-5"><span class="n">O-5</span>进站链与限流的判定<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">O-6</span>核心：斜杠命令由核心解析</span></li>
+        <li><a class="step done" href="#sO-7"><span class="n">O-7</span>加值项、算分与冷静<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sO-6"><span class="n">O-6</span>核心：斜杠命令由核心解析<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
       <div class="ms-head"><span class="ms-id">R</span><span class="ms-name">记忆</span><span class="ms-goal">回合索引、记下的四类、常驻摘要、联想、后台整理；本机 embedding 用 bge-small-zh（2026-10-07 项目主人定方向）</span></div>
       <ol class="chips">
         <li><a class="step done" href="#sR-1"><span class="n">R-1</span>检索的底子<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">R-2</span>回合索引</span></li>
-        <li><span class="step"><span class="n">R-3</span>记下的记忆</span></li>
+        <li><a class="step done" href="#sR-2"><span class="n">R-2</span>回合索引（上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">R-2</span>补齐旧会话（下）</span></li>
+        <li><a class="step done" href="#sR-3"><span class="n">R-3</span>记忆日志和底账（上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">R-3</span>三件工具（中）</span></li>
+        <li><span class="step"><span class="n">R-3</span>范围和对外（下）</span></li>
         <li><span class="step"><span class="n">R-4</span>常驻的摘要</span></li>
         <li><span class="step"><span class="n">R-5</span>embedding</span></li>
         <li><span class="step"><span class="n">R-6</span>抽取</span></li>
@@ -1982,6 +1987,53 @@ a.step:hover{border-color:var(--primary)}
       <ul>
         <li><code>docs/designs/02-内核.md</code> 第四节「输入、动作、命令怎么写」。</li>
         <li><code>docs/construction/2-1-输入、动作、命令.md</code>：施工单。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s2-1b" aria-labelledby="h-s21b">
+  <div class="sheet-head"><h2 id="h-s21b"><span class="no">2-1</span>重启前后同一个编号回应一样（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">同一个命令编号再发只生效一次，重启以后照样；可回应附的序号前后不一样：重启以后连它开的那一轮也算进去了。改成照日志重建的回应和没重启时一字不差。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">重启前后同一个编号回应一样（补）</span><span class="dir-note">2-1</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>载入时，一个编号的事件在它开的头一个 <code>turn.started</code> 前面截住</li>
+              <li>头一条就是 <code>turn.started</code> 的（手动压缩、清空）只留它</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">和「命令和回应」第 3 条对得上</span><span class="rl">发消息、回报、撤销、重做、压缩、清空各回各的</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">2-1</dd></div>
+        <div><dt>名称</dt><dd>重启前后同一个编号回应一样（补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">639d4e81</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试先写（载入前后发消息、清空的回应一字不差，改之前红）；3 个手写变异全逮住；三台机器的 CI 和长跑全绿（run 1021）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/2-1-输入、动作、命令（补）.md</code>；蓝图 <code>kernel/session.md</code>「命令和回应」第 4 条。</li>
       </ul>
     </div>
   </div>
@@ -13936,6 +13988,227 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sO-7" aria-labelledby="h-sO7">
+  <div class="sheet-head"><h2 id="h-sO7"><span class="no">O-7</span>加值项、算分与冷静</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">主动回复判断的上半：一条消息成立了哪些触发条件、走哪条路，拿到判官的回答以后算分、跟门槛比；冷静机制抬门槛。两个插槽：加值项、门槛修正。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-chat/src/chatty</span><span class="dir-note">O-7</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>加值项：冲她来 +0.3、续聊 +0.1（15 秒，@ 了别人不算）、刚说过话 +0.1（30 秒）、违规旗、抽样；同时成立加分相加</li>
+              <li>抽样照「场所编号、换行、消息编号」的 SHA-256，回放出同样的结果</li>
+              <li>走哪条路：只记下、主人 @ 直接回、只查违规、交给判官</li>
+              <li>算分照 18 第七节；冷静 0.35·p³/(p³+2.5³)，冲她来或在跟她说话时不抬</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">别的条件都不成立才抽样</span><span class="rl">成立时反正交给判官</span></div>
+          <div class="tile new"><span class="nm">冷静数轮不数段</span><span class="rl">一轮拆几段发也只算一笔</span></div>
+          <div class="tile new"><span class="nm">参数从外面交进来</span><span class="rl">出厂的数随桥放进出厂数据</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-7</dd></div>
+        <div><dt>名称</dt><dd>加值项、算分与冷静</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">7c1f7a49</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试先写（32 个，只有骨架时 28 个红）；18 第七节的两个例子、冷静曲线都写成测试；23 个手写变异全逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 1013）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-7-加值项、算分与冷静.md</code>；蓝图 <code>chat.md</code> 第三条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sO-6" aria-labelledby="h-sO6">
+  <div class="sheet-head"><h2 id="h-sO6"><span class="no">O-6</span>核心：斜杠命令由核心解析</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">人在 QQ、终端、网页打 <code>/clear</code>、<code>/stop</code>，头把原文交给核心：核心认命令、判谁能用、执行，回执那一句照语言写好交回去。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">核心：斜杠命令由核心解析</span><span class="dir-note">O-6</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>协议 <code>command.run {session, text, as?}</code>：认 <code>/clear</code>（别名 <code>/reset</code>）、<code>/stop</code>，回 <code>{command, events, said}</code></li>
+              <li>判谁能用：本人、群里的主人、管理的人；别人 <code>command_not_allowed</code>，认不出的 <code>unknown_command</code></li>
+              <li><code>/stop</code> 全停：打断这一轮（排着的留着，新的 <code>Queued::Keep</code>），再停后台命令和子代理</li>
+              <li>新事件 <code>command.ran</code>：执行了的才记，派生编号 <code>&lt;编号&gt;/ran</code>，不进她的上下文</li>
+              <li>回执三种语言（<code>said</code> 的 <code>commands/*</code>）；<code>session.interrupt</code> 收 <code>keep</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">单开方法</span><span class="rl">命令走 <code>command.run</code>，<code>session.send</code> 的原文永远是一句话</span></div>
+          <div class="tile new"><span class="nm">/stop 全停</span><span class="rl">排着的留在历史里不回、不撤回（项目主人定）</span></div>
+          <div class="tile new"><span class="nm">名字</span><span class="rl"><code>/clear</code> 正名、<code>/reset</code> 别名，各处一套（项目主人定）</span></div>
+          <div class="tile new"><span class="nm">只记执行了的</span><span class="rl">被拒的什么都不记</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-6</dd></div>
+        <div><dt>名称</dt><dd>核心：斜杠命令由核心解析</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">2ff7420b</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 20/20、八项门禁、三台 CI 和长跑</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>内核：留着的打断不撤回不接着开、记下命令带起因只记一次；随机测试多两种输入一条路</span></li>
+        <li><span class="ok">✓</span><span>组装：<code>command.ran</code> 不渲染、不改接着写的记号</span></li>
+        <li><span class="ok">✓</span><span>协议 <code>tests/commands.rs</code> 六条：清空和别名、认不出和参数不对、内核拒的照原因回和同一个编号只算一次（重启以后照样）、全停（子代理停了、排着的留着）、场所里谁能用、<code>session.interrupt</code> 收 <code>keep</code>；单元测试守群里的主人</span></li>
+        <li><span class="ok">✓</span><span>手写变异 20 个全被逮住；三台 CI 和长跑全绿（run 1034）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-6-斜杠命令由核心解析.md</code>；蓝图 <code>protocol.md</code>「<code>command.run</code>」、<code>venues.md</code>「斜杠命令」、<code>kernel/session.md</code>「斜杠命令」、<code>kernel/events-bodies.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sR-2" aria-labelledby="h-sR2">
+  <div class="sheet-head"><h2 id="h-sR2"><span class="no">R-2</span>回合索引（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">新版的「日记」：主会话里人开的每一轮（人的话加她最后的回答）照会话日志派生成一条，放进这个人格的回合库，能按关键词找。不另存：撤销、恢复、删会话自动跟着走，自己造的回合进不来。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-recall/src/turns.rs</span><span class="dir-note">R-2</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>TurnFeed</code>：只收 <code>trigger</code> 是人说的那一轮，<code>turn.ended</code> 时交出一条；撤销拿掉，恢复交回「要读回」</li>
+              <li>载入时照整份事件铺回状态，只交照到以后的；<code>replay</code> 整份算最后还在的</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-store · miyu-session · miyu-endpoint</span><span class="dir-note">R-2</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>检索库多 <code>marks</code>：一批和照到哪一个事务写；回合库一个账号一个人格一份，用到才开</li>
+              <li>会话每落一批顺手更新，载入时补上落下的，删会话拿掉</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">增量只记进行中的那一轮</span><span class="rl">恢复时读整份日志，长会话不在内存里多背</span></div>
+          <div class="tile new"><span class="nm">用到才开回合库</span><span class="rl">造会话不多一次建库、同步</span></div>
+          <div class="tile new"><span class="nm">没改动的一批不写库</span><span class="rl">照到的位置落后不要紧</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-2</dd></div>
+        <div><dt>名称</dt><dd>回合索引（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">a86043e4</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试先写（纯逻辑 13 条、检索库 4 条、会话 3 条、真核心 1 条）；15 个手写变异全逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 37563759988）</span></li>
+        <li><span class="ok">✓</span><span>量尺：一千轮的会话载入时铺回 0.5 毫秒、整份补 11 毫秒</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-2-回合索引（上）.md</code>；蓝图 <code>memory.md</code> 第一条、<code>recall.md</code>、<code>session/actor.md</code> 第 5 条第 8 点。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sR-3" aria-labelledby="h-sR3">
+  <div class="sheet-head"><h2 id="h-sR3"><span class="no">R-3</span>记忆日志和底账（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">记下的记忆有了真相和底账：一个账号、一个人格一份记忆日志，只追加；照它算出每一条现在的样子，派生一份能按关键词找的记忆库；回合库里记着撤销的回合、删掉的会话，一条记忆的出处活不活照它判，不写撤回。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-recall/src/memory.rs</span><span class="dir-note">R-3</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>ext.memory.saved</code>（写了 <code>replaces</code> 的是改一条）、<code>ext.memory.retired</code>；编号 <code>m&lt;序号&gt;</code></li>
+              <li>底账 <code>MemoryBook</code>：每一条现在的样子，被谁改掉、作废了没有</li>
+            </ol>
+          </div>
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-store · miyu-session</span><span class="dir-note">R-3</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>MemoryLogs</code>：一份一把锁，编号在锁里领；派生的记忆库落后了照日志补</li>
+              <li>回合库多墓碑：撤销的回合、删掉的会话；<code>alive</code> 判出处活不活</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">改一条是新写一条</span><span class="rl">不另立 revised，原文一直在日志里</span></div>
+          <div class="tile new"><span class="nm">派生的写不进不挡追加</span><span class="rl">交回给调的一方记日志</span></div>
+          <div class="tile new"><span class="nm">墓碑不碰照到哪</span><span class="rl">删会话单埋一块</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-3</dd></div>
+        <div><dt>名称</dt><dd>记忆日志和底账（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">0918b319</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试先写（纯逻辑 6 条、检索库墓碑 2 条、记忆日志 6 条，会话、真核心各加墓碑的断言）；15 个手写变异全逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 37568405071）</span></li>
+        <li><span class="ok">✓</span><span>量尺：一千条记忆的日志 340 KB，打开一次 3.6 毫秒</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-3-记忆日志和底账（上）.md</code>；蓝图 <code>memory.md</code> 的记忆日志、底账、记忆库、第二条第 4 款，<code>recall.md</code> 的墓碑。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -14112,7 +14385,8 @@ const TREE = {
 
 /* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
 const BUILD = {
-  n_mem: { by: 'R-1', how: 'frame', note: '检索的底子（R-1）：miyu-recall 把中文、日文两两切成词，检索库是 SQLite 的 FTS5，照 bm25 找，坏了删掉重建。回合索引、记下的记忆、摘要、联想、向量随 R-2 起' },
+  n_mem: { by: 'R-1', how: 'frame', note: '检索的底子（R-1）：中文、日文两两切词，SQLite 的 FTS5 照 bm25 找。回合索引（R-2 上）：主会话人开的每一轮照日志派生进人格的回合库，撤销、恢复、删会话跟着走。记忆日志和底账（R-3 上）：ext.memory.saved、retired，一份一把锁，派生的记忆库；墓碑判出处活不活。工具、摘要、联想、向量随 R-3 中起' },
+  n_ld: { by: 'O-7', how: 'frame', note: '主动回复判断的上半（O-7）：加值项（冲她来、续聊、刚说过话、违规旗、抽样）、走哪条路、算分、冷静。判官的请求、顶替和分派随后面几步' },
   n_inchain: { by: 'O-5', how: 'frame', note: '进站链与限流（O-5）：插槽和自带五条（睡眠、禁言、谁能叫她、违规关键词、限流），一回满了提示一次；回合闸的回答。从日志投影状态、出厂词表随桥那几步' },
   n_rules: { by: 'O-1', how: 'frame', note: '场所规则（O-1）：miyu-chat 读 venues.d，出厂和系统的照文件名排、同名的系统替换出厂的；匹配 platform、kind、group、user，写错整条不用；属性照 18 第四节，写错只丢一项；每一项记下来处。读磁盘、venue show 随桥那几步' },
   g_kernel: { by: '0-1', how: 'frame' },

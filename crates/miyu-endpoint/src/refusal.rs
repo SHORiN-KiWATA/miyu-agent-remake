@@ -92,6 +92,18 @@ impl Refusal {
         reason: "venue_session",
         data: None,
     };
+    /// 斜杠命令认不出（施工 O-6，`command.run`）。
+    pub(crate) const UNKNOWN_COMMAND: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_command",
+        data: None,
+    };
+    /// 这个人不能用斜杠命令（施工 O-6）：群里既不是主人、也不是管理的人。
+    pub(crate) const COMMAND_NOT_ALLOWED: Refusal = Refusal {
+        code: REFUSED,
+        reason: "command_not_allowed",
+        data: None,
+    };
     /// 会话停了：写不进去、出了 bug。
     pub(crate) const STOPPED: Refusal = Refusal {
         code: REFUSED,

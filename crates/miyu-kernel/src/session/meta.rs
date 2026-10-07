@@ -3,7 +3,7 @@
 
 use super::action::Action;
 use super::{Session, accepted};
-use crate::event::{Body, MetaChanged};
+use crate::event::{Body, CommandRan, MetaChanged};
 use crate::id::CommandId;
 use crate::origin::By;
 use crate::time::Timestamp;
@@ -50,6 +50,22 @@ impl Session {
         }
         self.meta.note(&changed);
         let event = self.record(at, by, Some(id.clone()), Body::MetaChanged(changed));
+        self.accept(id, vec![event.seq]);
+        vec![Action::Append(vec![event])]
+    }
+
+    /// 记下人用了一个斜杠命令（施工 O-6）：记一条 `command.ran`，回合进行中的带上这个回合；落了盘回应，附上这一条。不影响回合：
+    /// 它不进请求。
+    pub(super) fn ran(
+        &mut self,
+        id: CommandId,
+        by: By,
+        at: Timestamp,
+        text: String,
+        command: String,
+    ) -> Vec<Action> {
+        let body = Body::CommandRan(CommandRan { text, command });
+        let event = self.record(at, by, Some(id.clone()), body);
         self.accept(id, vec![event.seq]);
         vec![Action::Append(vec![event])]
     }

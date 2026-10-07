@@ -24,6 +24,7 @@ use miyu_session::{
 use miyu_store::env::{Env, Platform};
 use miyu_store::index::{FILE, SessionIndex};
 use miyu_store::log::{read_events, read_segments};
+use miyu_store::recall::RecallIndexes;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_store::usage::UsageIndex;
@@ -78,6 +79,8 @@ pub struct Home {
     pub usage: Arc<UsageIndex>,
     /// 造的、载入的会话从这里取配置（施工 8-4）：默认是全空的一份，测试换成自己的。
     pub configs: Configs,
+    /// 回合库的登记（施工 R-2 上）：这个场地里造的、载入的主会话都往里写，和核心里一样。
+    pub recall: Arc<RecallIndexes>,
 }
 
 /// 造会话时可以换的几样（施工 4-3 下）。
@@ -177,6 +180,7 @@ impl Home {
         let (index, _) = SessionIndex::open(&root.index(&alice_account()).join(FILE));
         let (usage, _) = UsageIndex::open(&root);
         Home {
+            recall: Arc::new(RecallIndexes::new(&root)),
             usage: Arc::new(usage),
             scratch,
             root,
@@ -248,6 +252,7 @@ impl Home {
             usage: Some(Arc::clone(&self.usage)),
             configs: self.configs.clone(),
             model: lines.model,
+            recall: Some(Arc::clone(&self.recall)),
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -307,6 +312,7 @@ impl Home {
             index: Some(Arc::clone(&self.index)),
             usage: Some(Arc::clone(&self.usage)),
             configs: self.configs.clone(),
+            recall: Some(Arc::clone(&self.recall)),
         });
         within("载入", loaded).await.expect("载入得了会话")
     }

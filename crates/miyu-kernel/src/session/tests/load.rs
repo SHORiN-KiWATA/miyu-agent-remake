@@ -244,11 +244,8 @@ fn commands_seen_before_a_crash_are_not_applied_again() {
     let seen = logged.ask(1, "hi");
     logged.say(seen, "好");
     let (mut loaded, _) = load(logged.log.clone());
-    // 照日志重建：回应附上 cause 是它的那几条。
-    assert_eq!(
-        loaded.handle(send(1, "hi")),
-        [accepted_reply(1, &[2, 3, 4, 5, 6, 7, 8])]
-    );
+    // 照日志重建，和没重启时一样：发消息的只有 `message.user` 那一条，它开的那一轮不在里面（施工 2-1 补）。
+    assert_eq!(loaded.handle(send(1, "hi")), [accepted_reply(1, &[2])]);
     assert_eq!(appended(&loaded.handle(send(2, "新的"))), seqs(&[9, 10]));
 }
 
@@ -318,4 +315,23 @@ fn a_checkpoint_with_reread_files_recalls_them_first() {
         matches!(&actions[1..], [Action::Append(events)] if matches!(events.last().map(|event| &event.body), Some(Body::TurnEnded(_)))),
         "崩了的那一轮收尾排在后面：{actions:?}"
     );
+}
+
+/// 接受过的编号再来，重启前后回应一样（施工 2-1 补，`kernel/session.md`「命令和回应」第 3、4 条）：发消息的只有那一条，清空的
+/// 是那一轮的 `turn.started`。载入时照日志重建：一个编号的事件在它开的头一个 `turn.started` 前面截住，头一条就是
+/// `turn.started` 的（手动压缩、清空）只留它。
+#[test]
+fn a_command_sent_again_gets_the_same_reply_before_and_after_a_reload() {
+    use super::clear::clear;
+    let mut logged = Logged::new();
+    let seen = logged.ask(1, "hi");
+    logged.say(seen, "好");
+    let said = logged.handle(send(1, "hi"));
+    logged.handle(clear(2));
+    logged.handle(stored(logged.last()));
+    let cleared = logged.handle(clear(2));
+    assert_eq!(said, [accepted_reply(1, &[2])], "没重启：只有那一条");
+    let (mut loaded, _) = load(logged.log.clone());
+    assert_eq!(loaded.handle(send(1, "hi")), said);
+    assert_eq!(loaded.handle(clear(2)), cleared);
 }

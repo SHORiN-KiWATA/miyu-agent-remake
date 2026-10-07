@@ -18,6 +18,8 @@ miyu-kernel = { path = "../miyu-kernel" }
 miyu-policy = { path = "../miyu-policy" }
 # 数据根、会话日志、blob、资源目录。
 miyu-store = { path = "../miyu-store" }
+# 回合索引怎么算（施工 R-2 上，`memory.md` 第一条）。
+miyu-recall = { path = "../miyu-recall" }
 # 工具目录：造会话时照它存下工具面（施工 4-1）。
 miyu-tool = { path = "../miyu-tool" }
 # 权限策略：换成真实的位置、查边界（施工 4-3 下）。

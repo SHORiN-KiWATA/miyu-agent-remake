@@ -6,24 +6,39 @@
 //! 护着：同一个进程里开了又关同一个库文件会丢掉 SQLite 的文件锁（07 第六节）。
 //!
 //! 一段字怎么切成词、查询怎么拼，是纯逻辑，在 `miyu-recall`。
+//!
+//! 每个来源（例如一个会话）照到了哪个序号记在 `marks` 里，和那一批放进、拿掉在同一个事务里写（[`RecallIndex::apply`]，
+//! 施工 R-2 上）：没往前挪的，下次照真相补。键以 `来源/` 开头，拿掉一个来源照它（[`RecallIndex::forget`]）。
 
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, Transaction, params};
 
+use miyu_kernel::id::Seq;
 use miyu_kernel::time::Timestamp;
 
 use crate::sqlite::{self, connect, integer, remove};
 
 pub use crate::sqlite::{DbError, Opened};
+pub use indexes::RecallIndexes;
+
+mod indexes;
 
 /// 表的结构的版本，记在 SQLite 的 `user_version` 里：结构一变就加一，对不上的删掉重建，不写迁移。
-const VERSION: i64 = 1;
+const VERSION: i64 = 3;
 
 /// 建表（`recall.md`「库的结构」）。`terms` 是 contentless 的：词只进倒排索引，原文在 `items.text`；`contentless_delete`
-/// 让它能照 rowid 删（SQLite 3.43 起，`bundled` 带的是 3.53）。`at` 是毫秒，给以后的排名用。
-const SCHEMA: &str = "CREATE TABLE items (
+/// 让它能照 rowid 删（SQLite 3.43 起，`bundled` 带的是 3.53）。`at` 是毫秒，给以后的排名用。`marks` 是每个来源照到了哪个
+/// 序号（施工 R-2 上，版本 2）。`buried` 是墓碑：撤销了的回合、删掉了的会话，记忆的出处照它判活不活（施工 R-3 上，版本 3）。
+const SCHEMA: &str = "CREATE TABLE buried (
+    key TEXT PRIMARY KEY NOT NULL
+) WITHOUT ROWID;
+CREATE TABLE marks (
+    source TEXT PRIMARY KEY NOT NULL,
+    upto INTEGER NOT NULL
+) WITHOUT ROWID;
+CREATE TABLE items (
     id INTEGER PRIMARY KEY,
     key TEXT NOT NULL UNIQUE,
     text TEXT NOT NULL,
@@ -38,6 +53,35 @@ pub struct RecallIndex {
     path: PathBuf,
     /// 开着的连接：用不了的（删了重建也打不开）是空的，这时找不到任何一条、写什么都不写。
     db: Mutex<Option<Connection>>,
+}
+
+/// 一批里的一处改动（[`RecallIndex::apply`]）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Edit {
+    /// 放进一条，键已经有的整条换掉。
+    Put {
+        /// 键：`来源/…`。
+        key: String,
+        /// 字。
+        text: String,
+        /// 时刻。
+        at: Timestamp,
+    },
+    /// 拿掉一条，没有的不要紧。
+    Remove {
+        /// 键。
+        key: String,
+    },
+    /// 埋一块墓碑（施工 R-3 上）：埋过的不要紧。
+    Bury {
+        /// 键：`会话/回合`，或者整个会话 `会话/`。
+        key: String,
+    },
+    /// 揭掉一块墓碑，没埋的不要紧。
+    Unbury {
+        /// 键。
+        key: String,
+    },
 }
 
 /// 找到的一条。
@@ -80,41 +124,7 @@ impl RecallIndex {
     ///
     /// 写不进。
     pub fn put(&self, key: &str, text: &str, at: Timestamp) -> Result<(), DbError> {
-        let mut db = self.lock();
-        let Some(db) = db.as_mut() else {
-            return Ok(());
-        };
-        let at = at.unix_millis();
-        let terms = miyu_recall::index_terms(text);
-        let tx = db.transaction()?;
-        let old: Option<i64> = tx
-            .query_row("SELECT id FROM items WHERE key = ?1", [key], |row| {
-                row.get(0)
-            })
-            .optional()?;
-        let id = match old {
-            Some(id) => {
-                tx.execute("DELETE FROM terms WHERE rowid = ?1", [id])?;
-                tx.execute(
-                    "UPDATE items SET text = ?2, at = ?3 WHERE id = ?1",
-                    params![id, text, at],
-                )?;
-                id
-            }
-            None => {
-                tx.execute(
-                    "INSERT INTO items (key, text, at) VALUES (?1, ?2, ?3)",
-                    params![key, text, at],
-                )?;
-                tx.last_insert_rowid()
-            }
-        };
-        tx.execute(
-            "INSERT INTO terms (rowid, words) VALUES (?1, ?2)",
-            params![id, terms],
-        )?;
-        tx.commit()?;
-        Ok(())
+        self.write(|tx| put(tx, key, text, at))
     }
 
     /// 拿掉一条，没有的不要紧，在一个事务里。
@@ -123,22 +133,112 @@ impl RecallIndex {
     ///
     /// 写不进。
     pub fn remove(&self, key: &str) -> Result<(), DbError> {
-        let mut db = self.lock();
-        let Some(db) = db.as_mut() else {
-            return Ok(());
+        self.write(|tx| remove_key(tx, key))
+    }
+
+    /// 来源 `source` 的一批改动，照先后做，连同它照到了 `upto`，在一个事务里写（施工 R-2 上）：要么都写上，要么都没写、
+    /// 照到的位置也不动，下次照真相补。
+    ///
+    /// # Errors
+    ///
+    /// 写不进。
+    pub fn apply(&self, source: &str, edits: &[Edit], upto: Seq) -> Result<(), DbError> {
+        let upto = integer(upto.get(), "upto")?;
+        self.write(|tx| {
+            for edit in edits {
+                match edit {
+                    Edit::Put { key, text, at } => put(tx, key, text, *at)?,
+                    Edit::Remove { key } => remove_key(tx, key)?,
+                    Edit::Bury { key } => {
+                        tx.execute("INSERT OR IGNORE INTO buried (key) VALUES (?1)", [key])?;
+                    }
+                    Edit::Unbury { key } => {
+                        tx.execute("DELETE FROM buried WHERE key = ?1", [key])?;
+                    }
+                }
+            }
+            tx.execute(
+                "INSERT OR REPLACE INTO marks (source, upto) VALUES (?1, ?2)",
+                params![source, upto],
+            )?;
+            Ok(())
+        })
+    }
+
+    /// 来源 `source` 照到了哪个序号；没照过的没有（施工 R-2 上）。库用不了的也没有：调的一方照真相整份补，写也写不进。
+    ///
+    /// # Errors
+    ///
+    /// 读不了；记着的不是一个序号。
+    pub fn mark(&self, source: &str) -> Result<Option<Seq>, DbError> {
+        let db = self.lock();
+        let Some(db) = db.as_ref() else {
+            return Ok(None);
         };
-        let tx = db.transaction()?;
-        let old: Option<i64> = tx
-            .query_row("SELECT id FROM items WHERE key = ?1", [key], |row| {
-                row.get(0)
-            })
+        let upto: Option<i64> = db
+            .query_row(
+                "SELECT upto FROM marks WHERE source = ?1",
+                [source],
+                |row| row.get(0),
+            )
             .optional()?;
-        if let Some(id) = old {
-            tx.execute("DELETE FROM terms WHERE rowid = ?1", [id])?;
-            tx.execute("DELETE FROM items WHERE id = ?1", [id])?;
-        }
-        tx.commit()?;
-        Ok(())
+        upto.map(|upto| {
+            u64::try_from(upto)
+                .ok()
+                .and_then(Seq::new)
+                .ok_or_else(|| DbError::Bad(format!("mark {upto}")))
+        })
+        .transpose()
+    }
+
+    /// 埋一块墓碑，不碰照到哪（施工 R-3 上：删会话时埋整个会话 `会话/`）。埋过的不要紧。
+    ///
+    /// # Errors
+    ///
+    /// 写不进。
+    pub fn bury(&self, key: &str) -> Result<(), DbError> {
+        self.write(|tx| {
+            tx.execute("INSERT OR IGNORE INTO buried (key) VALUES (?1)", [key])?;
+            Ok(())
+        })
+    }
+
+    /// 键 `key` 埋了墓碑没有（施工 R-3 上）。库用不了的当没埋：记忆的出处照活的算，宁可多想起来，不吞掉人说过的。
+    ///
+    /// # Errors
+    ///
+    /// 读不了。
+    pub fn is_buried(&self, key: &str) -> Result<bool, DbError> {
+        let db = self.lock();
+        let Some(db) = db.as_ref() else {
+            return Ok(false);
+        };
+        Ok(db
+            .query_row("SELECT 1 FROM buried WHERE key = ?1", [key], |_| Ok(()))
+            .optional()?
+            .is_some())
+    }
+
+    /// 拿掉来源 `source` 的全部（键以 `source/` 开头的）和它照到了哪，在一个事务里（施工 R-2 上：删会话）。
+    ///
+    /// # Errors
+    ///
+    /// 写不进。
+    pub fn forget(&self, source: &str) -> Result<(), DbError> {
+        let prefix = format!("{source}/");
+        let length = integer(prefix.chars().count() as u64, "prefix")?;
+        self.write(|tx| {
+            tx.execute(
+                "DELETE FROM terms WHERE rowid IN (SELECT id FROM items WHERE substr(key, 1, ?2) = ?1)",
+                params![prefix, length],
+            )?;
+            tx.execute(
+                "DELETE FROM items WHERE substr(key, 1, ?2) = ?1",
+                params![prefix, length],
+            )?;
+            tx.execute("DELETE FROM marks WHERE source = ?1", [source])?;
+            Ok(())
+        })
     }
 
     /// 照关键词找 `text`，最多 `limit` 条，bm25 最相关的在前。切不出词的（只有标点、空白）找不到任何一条。
@@ -179,10 +279,71 @@ impl RecallIndex {
         Ok(keys.collect::<Result<_, _>>()?)
     }
 
+    /// 在一个事务里写；库用不了的什么都不做。
+    fn write(
+        &self,
+        body: impl FnOnce(&Transaction<'_>) -> Result<(), DbError>,
+    ) -> Result<(), DbError> {
+        let mut db = self.lock();
+        let Some(db) = db.as_mut() else {
+            return Ok(());
+        };
+        let tx = db.transaction()?;
+        body(&tx)?;
+        tx.commit()?;
+        Ok(())
+    }
+
     /// 拿锁。别的线程拿着锁崩了，库还是好的（写都在事务里），照常用。
     fn lock(&self) -> MutexGuard<'_, Option<Connection>> {
         self.db
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
+}
+
+/// 放进一条：键有旧的先从 `terms` 删掉旧的那一行、再换 `items` 那一行，然后写进新的词。
+fn put(tx: &Transaction<'_>, key: &str, text: &str, at: Timestamp) -> Result<(), DbError> {
+    let at = at.unix_millis();
+    let words = miyu_recall::index_terms(text);
+    let id = match id_of(tx, key)? {
+        Some(id) => {
+            tx.execute("DELETE FROM terms WHERE rowid = ?1", [id])?;
+            tx.execute(
+                "UPDATE items SET text = ?2, at = ?3 WHERE id = ?1",
+                params![id, text, at],
+            )?;
+            id
+        }
+        None => {
+            tx.execute(
+                "INSERT INTO items (key, text, at) VALUES (?1, ?2, ?3)",
+                params![key, text, at],
+            )?;
+            tx.last_insert_rowid()
+        }
+    };
+    tx.execute(
+        "INSERT INTO terms (rowid, words) VALUES (?1, ?2)",
+        params![id, words],
+    )?;
+    Ok(())
+}
+
+/// 拿掉一条，没有的不要紧。
+fn remove_key(tx: &Transaction<'_>, key: &str) -> Result<(), DbError> {
+    if let Some(id) = id_of(tx, key)? {
+        tx.execute("DELETE FROM terms WHERE rowid = ?1", [id])?;
+        tx.execute("DELETE FROM items WHERE id = ?1", [id])?;
+    }
+    Ok(())
+}
+
+/// 键是 `key` 的那一行的 `id`。
+fn id_of(tx: &Transaction<'_>, key: &str) -> Result<Option<i64>, DbError> {
+    Ok(tx
+        .query_row("SELECT id FROM items WHERE key = ?1", [key], |row| {
+            row.get(0)
+        })
+        .optional()?)
 }

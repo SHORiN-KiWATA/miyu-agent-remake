@@ -129,7 +129,7 @@
 | `message.assistant` | 一条 assistant，内容块原样 |
 | `tool.result` | 一条 tool：`call_id`；状态不是 `ok` 的（包括不认识的状态），`error` 是真；内容块 |
 | `job.reported`、`child.reported` | 一个文本块，带标签的事实（下面「回报」），攒进人这一边；派它的那一轮撤掉了的、没派过的、快照里没有写法的，不出（施工 7-2） |
-| `session.*`、`tool.approval_*`、`question.*`、`model.called`、`files.restored`、不认识的种类 | 不渲染。`session.recapped` 也在这里（施工 3-8 四补）：回顾不进她的上下文；内核起的标题（`session.meta_changed`）也一样（施工 3-8 五补） |
+| `session.*`、`tool.approval_*`、`question.*`、`model.called`、`files.restored`、不认识的种类 | 不渲染。`session.recapped` 也在这里（施工 3-8 四补）：回顾不进她的上下文；内核起的标题（`session.meta_changed`）也一样（施工 3-8 五补）。`command.ran` 也不渲染（施工 O-6） |
 | `peer.idle` | 一个文本块，带标签的事实（下面「空了的通知」），攒进人这一边；快照里没有通知的字的，不出（施工 C-6） |
 | `image.described` | 不渲染：转述经请求的 `described` 进请求，驱动把图的位置换成它（施工 8-17，下面「替它看的图」） |
 
@@ -146,7 +146,7 @@
    - 排在检查点前面的 `model.called` 不算（施工 6-2 上）：那是被替代掉的那段的请求和摘要请求自己，压完的第一次请求前缀本来就从头来。回合开头压的，压完再注入的事实照样和触发的那句放在一起，这一轮第一次主请求的最后一块照旧是触发它的那句。
    - 带 `purpose` 的 `model.called`（回顾这类辅助请求，施工 3-8 四补）也不算：它不是这一轮请求过，不带回合编号，可以落在回合开始的那几块中间，算了就挪动了开始时注入的事实，前缀断开。
    - 回合中途注入的事实（第一条回复以后）照先后，排在那一步的工具结果后面。
-7. **接着写的记号**：有效历史照排好的先后倒着看，跳过 `model.called`、`session.recapped`（回顾不进上下文，中途要了照样接着写，施工 3-8 四补）、`session.meta_changed`（上一轮起的标题可能在这一轮中途回来，改标题也不进上下文，施工 3-8 五补）、`image.described`（图的转述不渲染，打断以前发出去的转述可能这时才回来，施工 8-17）：最后一条是内核记的 `reply_cut` 事实，再往前一条是带 `interrupted` 的回复，`continuation` 就是真。这时最后一条 user 只有被打断的那一句，前面那条 assistant 是半截。那一句后面又来了别的（人的消息、别的事实），就是假。驱动怎么用它见 `drivers/openai-chat.md`。
+7. **接着写的记号**：有效历史照排好的先后倒着看，跳过 `model.called`、`session.recapped`（回顾不进上下文，中途要了照样接着写，施工 3-8 四补）、`session.meta_changed`（上一轮起的标题可能在这一轮中途回来，改标题也不进上下文，施工 3-8 五补）、`image.described`（图的转述不渲染，打断以前发出去的转述可能这时才回来，施工 8-17）、`command.ran`（施工 O-6）：最后一条是内核记的 `reply_cut` 事实，再往前一条是带 `interrupted` 的回复，`continuation` 就是真。这时最后一条 user 只有被打断的那一句，前面那条 assistant 是半截。那一句后面又来了别的（人的消息、别的事实），就是假。驱动怎么用它见 `drivers/openai-chat.md`。
 
 **回报**（施工 7-2，`agents.md` 第九条）
 
@@ -516,7 +516,7 @@ Carry on from where the summary leaves off, without redoing work it records as d
 | `crates/miyu-kernel/src/request/tests.rs` | 同样的请求字节、哈希一样；参数格式一个字节不改；消息以角色开头；第一处不同的四种情形 |
 | `crates/miyu-kernel/tests/request_sample.rs` | 样本 `second-step.json` 就是规范的字节；哈希是它的 SHA-256 |
 | `crates/miyu-assemble/src/tests.rs` | 工具面照名字排；示范对话在前、算进 `stable`；接着写的记号什么时候真、什么时候假 |
-| `crates/miyu-assemble/src/render/tests.rs` | 每种事件渲染成什么；回合开始的事实和触发放到回合开始的地方；等重试时切了级别，事实排在触发后面；早到的触发；重启以后接着干；检查点在最前、摘要不转义；回合没走完的五句；没有触发的那一轮出错、打断、崩了、重启都不出那一句（施工 6-8）；清空的检查点不出字，压缩过再清空的摘要也跟着没了（`render/tests/clear.rs`，施工 6-8 补）；不认识的块和不进上下文的种类 |
+| `crates/miyu-assemble/src/render/tests.rs` | 每种事件渲染成什么；回合开始的事实和触发放到回合开始的地方；等重试时切了级别，事实排在触发后面；早到的触发；重启以后接着干；检查点在最前、摘要不转义；回合没走完的五句；没有触发的那一轮出错、打断、崩了、重启都不出那一句（施工 6-8）；清空的检查点不出字，压缩过再清空的摘要也跟着没了（`render/tests/clear.rs`，施工 6-8 补）；不认识的块和不进上下文的种类（`command.ran` 也在里面，施工 O-6） |
 | `crates/miyu-assemble/tests/sample_session.rs` | 样本会话组装出两份样本请求；撤回的、确认和提问的事件不进请求；样本里的两种回报渲染成带标签的事实（施工 7-2） |
 | `crates/miyu-assemble/tests/probe.rs` | 一段八轮的终端会话由真内核跑出来，每次请求和存档（`requests/`、`openai-chat/`）逐字节一样；五条性质；什么都没收到的再来一字不差。有回报的会话（施工 7-2）一样和存档比、查五条性质；回报开的那一轮最后一块是那条回报，回合中途到的单独一条 user 排在工具结果后面，只记下的在人那一句前面。清空过的会话（施工 6-8 补）一样和存档比、查五条性质；清空以后的那一次算改写过，只剩工具面、system 和一条 user：三块事实、那一句。子代理的会话（施工 7-5）和同一份剧本的主会话比，只多 system 里的场所说明，会话编号那一块写的是它自己的（施工 1-13 再补）。有别的 harness 来话的会话（施工 7-10，`tests/probe_harness.rs`）一样和存档比、查五条性质，和换成人说的同一份剧本比，每次请求只多标签那两段。有别的会话来话的会话（施工 C-2，`tests/probe_peers.rs`）一样：和存档比、查五条性质，和换成人说的同一份剧本比，每次请求只多标签那两段。人切了权限级别的会话（施工 2-7 补，`tests/probe_permission.rs`）一样和存档比、查五条性质；切换那一块在第二轮开头、紧挨着那句话，回合中途切的单独一条 user 排在工具结果后面；和以前造的快照（没有切换那一份）跑同一份剧本比，每次请求只差切换那几块，换回平常那一份一字不差 |
 | `crates/miyu-assemble/src/jobs/tests.rs` | 两种回报（施工 7-2）：出厂的字渲染出来和样本逐字节一样（每种原因、截过的、人插过话的、没说话的；停掉的分她停的、人停的，施工 7-2 补）；人停的那一句紧跟标签那一行；旧快照没有那一句的，人停的照原来的写；负的退出码照原样、没存下输出的不写字数；标题照规矩转义；开这一轮的那条挪到回合开始的地方、事实在前；回合中途到的排在那一步的工具结果后面；派它的那一轮撤掉了的不渲染；派它的那一条压缩掉了照样有标题；旧快照没有写法的不渲染 |

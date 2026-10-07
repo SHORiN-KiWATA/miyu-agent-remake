@@ -197,4 +197,5 @@ pub(super) struct JobStopParams {
 pub(super) enum QueuedParam {
     Send,
     Return,
+    Keep,
 }

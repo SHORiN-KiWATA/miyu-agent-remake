@@ -45,8 +45,23 @@ impl Watch {
                     "种子 {seed}：重启、崩了结束的，排着队的也不接着开"
                 );
                 self.queued.clear();
+                self.keeping = false;
+            }
+            // 留着的打断（施工 O-6）：排着的不撤回、也不接着开，下一句话开的那一轮里看得到它们。
+            Body::TurnEnded(ended) if ended.reason == EndReason::Interrupted && self.keeping => {
+                self.keeping = false;
+                let next = events.get(k + 1).map(|event| &event.body);
+                assert!(
+                    !matches!(next, Some(Body::TurnStarted(_))),
+                    "种子 {seed}：留着的打断不接着开"
+                );
+                if !self.queued.is_empty() {
+                    self.seen_paths.insert("打断后排队的留着");
+                }
+                self.queued.clear();
             }
             Body::TurnEnded(ended) => {
+                self.keeping = false;
                 let next = events.get(k + 1).map(|event| &event.body);
                 let message = self.queued.last().copied();
                 let report = self.report_trigger(&ended.reason);

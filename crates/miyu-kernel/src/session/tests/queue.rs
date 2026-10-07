@@ -177,6 +177,35 @@ fn interrupting_with_return_takes_the_queued_back() {
     assert!(!calls[0].1.contains("message.withdrawn"));
 }
 
+/// 打断时排着的「留着」（施工 O-6，`/stop` 全停）：这一轮结束，排着的不撤回、也不接着开一轮；下一句话开的那一轮里看得到它们。
+#[test]
+fn interrupting_with_keep_leaves_the_queued_for_the_next_turn() {
+    let mut session = asking();
+    allowing(&mut session, send(2, "顺便把 README 也看了"));
+    allowing(&mut session, send(4, "还有 Cargo.toml"));
+    let actions = allowing(&mut session, stop_with(5, at(47), Queued::Keep));
+    let events = appended_events(&actions);
+    assert_eq!(
+        appended(&actions),
+        seqs(&[8, 9]),
+        "记录、结束；不撤回、不接着开"
+    );
+    assert_eq!(reason_of(&events[1]), &EndReason::Interrupted);
+    assert!(
+        events
+            .iter()
+            .all(|event| !matches!(event.body, Body::MessageWithdrawn(_)))
+    );
+    allowing(&mut session, stored(9));
+    allowing(&mut session, send(6, "接着来"));
+    allowing(&mut session, stored(11));
+    let calls = calls(&allowing(
+        &mut session,
+        hooks_done(TurnId::new(seq(11)), Vec::new()),
+    ));
+    assert!(calls[0].1.contains("6 message.user") && calls[0].1.contains("7 message.user"));
+}
+
 #[test]
 fn returning_with_nothing_queued_writes_no_withdrawal() {
     let mut session = asking();

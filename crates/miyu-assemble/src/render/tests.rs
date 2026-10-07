@@ -309,6 +309,12 @@ fn events_outside_the_context_are_not_rendered() {
         "ext.weather",
         r#"{"sky":"clear"}"#,
     );
+    // 斜杠命令的那一句只给人看（施工 O-6）。
+    log.push(
+        r#"{"kind":"person","account":"alice"}"#,
+        "command.ran",
+        r#"{"text":"/reset","command":"clear"}"#,
+    );
     let hi = log.say("hi");
     log.start(hi);
     assert_eq!(rendered(&log), ["user: hi"]);

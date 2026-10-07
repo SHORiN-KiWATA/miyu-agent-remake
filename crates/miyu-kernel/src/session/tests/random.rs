@@ -86,7 +86,7 @@ use asking::{some_answer, some_question, some_reply, some_verdict};
 use compacting::{random_policy, some_clear, some_compact, some_limits, some_overflow};
 use endings::some_ending;
 use kinds::InputKind;
-use naming::some_meta;
+use naming::{some_meta, some_ran};
 use paths::{EXPECTED_PATHS, LONG_PATHS};
 use recapping::{finish_recap, some_recap};
 use replies::some_injections;
@@ -143,7 +143,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
     }
     // 写文件的种子：写的调用在跑，常被打断，停着的才走得到（施工 4-9 再补一）。
     if watch.writing && watch.write_running() && rng.below(3) == 0 {
-        return some_interrupt(rng, next_id);
+        return some_interrupt(rng, watch.seed, next_id);
     }
     // 交给了链的，多半很快有结论；在等人的，偶尔回答。
     if !watch.approvals.guarding.is_empty() && rng.below(3) > 0 {
@@ -155,7 +155,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
     if !watch.questions.asking.is_empty() {
         match rng.below(8) {
             0 | 1 => return some_reply(rng, watch, next_id),
-            2..=4 if !watch.calm => return some_interrupt(rng, next_id),
+            2..=4 if !watch.calm => return some_interrupt(rng, watch.seed, next_id),
             _ => {}
         }
     }
@@ -168,7 +168,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
             5..=14
         };
         match rng.below(30) {
-            0 | 1 if !watch.calm => return some_interrupt(rng, next_id),
+            0 | 1 if !watch.calm => return some_interrupt(rng, watch.seed, next_id),
             1..=4 => return progress(watch.some_call(rng)),
             k if asks.contains(&k) => return some_question(rng, watch),
             _ => {}
@@ -236,7 +236,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
                 stopped: watch.running.contains(&call_id) && rng.below(4) == 0,
             }
         }
-        26 if !watch.calm || rng.below(10) == 0 => some_interrupt(rng, next_id),
+        26 if !watch.calm || rng.below(10) == 0 => some_interrupt(rng, watch.seed, next_id),
         26 => send(next_command(next_id), "hi"),
         27 if rng.below(2) == 0 => urgent(next_command(next_id), "等等"),
         27 => send(next_command(next_id), "hi"),
@@ -263,13 +263,14 @@ fn progress(call_id: CallId) -> Input {
     }
 }
 
-/// 一次打断：一半接着发，一半退回。
-fn some_interrupt(rng: &mut Rng, next_id: &mut u64) -> Input {
+/// 一次打断：一半接着发，一半退回。种子除以 4 余 1 的，退回换成留着（施工 O-6）：随机数照旧只取一次，别的种子的输入
+/// 一字不差，订别的会话的那批种子（除以 16 余 15，`random/peering.rs`）也不在里面，长跑里难得走到的路照样走得到。
+fn some_interrupt(rng: &mut Rng, seed: u64, next_id: &mut u64) -> Input {
     let n = next_command(next_id);
-    if rng.below(2) == 0 {
-        interrupt(n)
-    } else {
-        take_back(n)
+    match (rng.below(2), seed % 4) {
+        (0, _) => interrupt(n),
+        (_, 1) => stop_with(n, at(n % 60), Queued::Keep),
+        _ => take_back(n),
     }
 }
 
@@ -418,6 +419,7 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         }
         // 改标题、置顶放在最后，为什么见 `random/naming.rs`（施工 3-8 三补）。
         watch.feed(&mut session, some_meta(seed, &mut next_id));
+        watch.feed(&mut session, some_ran(&mut next_id));
         let last = watch.last();
         watch.feed(&mut session, stored(last));
         assert_eq!(

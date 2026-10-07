@@ -249,6 +249,8 @@
     "tool-results/crashed": "crashed, may be partly done",
     "permissions/forbidden": "Miyu's own data, off limits",
     "permissions/unresolvable": "can't tell where it points: {reason}",
+    "commands/cleared": "Context cleared.",
+    "commands/stopped": "Everything stopped.",
     "config/reference-header": "Every Miyu setting and its default. This file is generated. Editing it has no effect.",
     "config/reference-where": "Write the system config in system/config.toml and personal settings in home/<account>/settings.toml.",
     "config/reference-item": "{name}: {description}",

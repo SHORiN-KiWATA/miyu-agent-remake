@@ -45,6 +45,7 @@
 | `session.policy_changed` | 换了策略快照，或者换了权限，或者换了模型（施工 8-10） | 切权限、换模型的人；钉着的模型没了、退回默认的是内核 | 回合进行中切的、换的带上；退回默认的带上那一轮 | `session.policy_changed.jsonl` |
 | `session.meta_changed` | 改了标题、置顶；内核自己起的标题也是它（施工 3-8 五补，`kernel/session.md`「起标题」） | 改的人；内核起的是内核 | 人在回合进行中改的带上；内核起的不带（它不属于哪一轮） | `session.meta_changed.jsonl`；内核起的样子见探针存档 `docs/designs/samples/probe/title/log.jsonl` |
 | `session.recapped` | 一句回顾（施工 3-8 四补，`kernel/session.md`「回顾」）：推给头，不进上下文 | 内核 | 不带：它不属于哪一轮，撤哪一轮都不会跟着拿走（和回报一样） | `session.recapped.jsonl` |
+| `command.ran` | 人用了一个斜杠命令（施工 O-6，`kernel/session.md`「斜杠命令」）：不进上下文 | 说命令的人 | 回合进行中记的带上 | `command.ran.jsonl` |
 | `turn.started` | 回合开始 | 内核 | 它自己的序号 | `turn.started.jsonl` |
 | `turn.ended` | 回合结束 | 内核；被打断的，是打断的人 | 必带 | `turn.ended.jsonl` |
 | `turn.reverted` | 撤销了几个回合 | 撤销的人 | 不带：有回合在进行时撤不了 | `turn.reverted.jsonl` |

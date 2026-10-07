@@ -13,7 +13,7 @@
 
 状态：图纸（2026-10-07 起草，照 `docs/reviews/2026-10-07-记忆知识库embedding调研.md` 第八、九节项目主人的拍板）。每一节标着由哪一步做，步子见 `memory.md`「施工步子」。做完一步，这一页照做好的样子改写那几节。
 
-做好了的：R-1 切词、检索库（第一、二条，「对外的样子」照做好的写；FTS5 那一列叫 `words`）。
+做好了的：R-1 切词、检索库（第一、二条，「对外的样子」照做好的写；FTS5 那一列叫 `words`）。R-2（上）检索库多 `marks` 表（版本 2）、`apply`、`mark`、`forget`。R-3（上）多墓碑表 `buried`（版本 3）、`Edit::Bury`、`Unbury`、`bury`、`is_buried`。
 
 ### 在哪
 
@@ -23,7 +23,7 @@
 | `crates/miyu-recall/src/terms.rs` | 一段字切成存进索引的词、拼成查询（`index_terms`、`query`） | R-1 |
 | `crates/miyu-recall/src/fuse.rs` | 加权的 RRF：几路名次合成一个 | R-5 |
 | `crates/miyu-recall/src/vector.rs` | 向量写成字节、读回来、点积 | R-5 |
-| `crates/miyu-store/src/recall.rs` | 一个检索库：开（坏了删掉重建）、放进一条、拿掉一条、照关键词找 | R-1 |
+| `crates/miyu-store/src/recall.rs` | 一个检索库：开（坏了删掉重建）、放进一条、拿掉一条、照关键词找（R-1）；一批和照到哪一起写、拿掉一个来源（R-2 上） | R-1 |
 | `crates/miyu-store/src/recall/vectors.rs` | 向量表：放、照模型读出来逐条算 | R-5 |
 | `crates/miyu-embed/` | 本机 embedding 的小程序：ONNX Runtime 静态链接在里面 | R-5 |
 
@@ -49,6 +49,7 @@
 | `apply(来源, 几处改动, 照到)` | R-2：一批放进、拿掉，连同这个来源照到了哪个序号，在一个事务里写 |
 | `mark(来源)` | R-2：这个来源照到了哪个序号，没照过的没有 |
 | `forget(来源)` | R-2：拿掉键以 `来源/` 开头的全部和它的照到哪 |
+| `bury(键)`、`is_buried(键)` | R-3 上：单埋一块墓碑（不碰照到哪，删会话时用）、这个键埋了没有。`Edit` 多 `Bury { key }`、`Unbury { key }`，在 `apply` 里一起写；回合库照它判记忆的出处活不活（`memory.md` 第二条第 4 款） |
 
 - 键是调的一方起的字符串（例如回合索引用 `会话编号/回合`），库不解读。
 - 一个库一个文件，一个核心开一个连接、一直开着，拿锁护着（`07-存储.md` 第六节：同一个进程里开了又关同一个库文件，会丢掉 SQLite 的文件锁）。
@@ -68,6 +69,7 @@ CREATE VIRTUAL TABLE terms USING fts5(words, content='', contentless_delete=1, t
 - `terms` 的 rowid 就是 `items.id`，词在 `words` 那一列（列名不能和表同名：FTS5 有一列和表同名的隐藏列）。`contentless`：词只进倒排索引，不另存一份原文；原文在 `items.text`。
 - `at` 是毫秒，给以后的排名用（越老越靠后，`memory.md` 第八条）；R-1 只存不用。
 - R-2 加一张 `marks(source TEXT PRIMARY KEY, upto INTEGER NOT NULL)`：每个来源（例如一个会话）照到了哪个序号，版本加一成 2。
+- R-3 上加一张 `buried(key TEXT PRIMARY KEY)`：墓碑，版本加一成 3。
 - 向量表随 R-5 加，版本跟着加一：派生的，删掉重建，不写迁移。
 
 ### 怎么走
@@ -127,7 +129,7 @@ R-1 做好的：
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-recall/src/terms/tests.rs` | 第一条：两两切加单字、只有一个字的段、汉字假名连成一段、片假名的中点和标点断开一段、英文数字照 `unicode61`、查询只出两两的、英文转小写、去重、64 个上限、FTS5 的关键字照普通的词、全是标点的是 `None` |
-| `crates/miyu-store/tests/recall.rs` | 第二条：建、重开、坏了删掉重建、版本不对重建；放进、换掉、拿掉以后搜不到；两个字的词搜得到（trigram 搜不到的那种）、一个字搜得到；中了越多的越靠前，名次从 0 数；中英混着的；只给几条、切不出词的找不到；数据根在临时目录。量尺 `measure_ten_thousand_sentences`（`#[ignore]`） |
+| `crates/miyu-store/tests/recall.rs` | 第二条（R-3 上加墓碑：一批里埋、揭，埋两次、揭没埋的不碍事；出处活不活：撤销的那一轮、删掉的会话、别的人格的库里没埋）：建、重开、坏了删掉重建、版本不对重建；放进、换掉、拿掉以后搜不到；两个字的词搜得到（trigram 搜不到的那种）、一个字搜得到；中了越多的越靠前，名次从 0 数；中英混着的；只给几条、切不出词的找不到；数据根在临时目录。量尺 `measure_ten_thousand_sentences`（`#[ignore]`） |
 
 ### 出处
 
