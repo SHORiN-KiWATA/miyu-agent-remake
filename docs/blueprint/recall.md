@@ -13,7 +13,7 @@
 
 状态：图纸（2026-10-07 起草，照 `docs/reviews/2026-10-07-记忆知识库embedding调研.md` 第八、九节项目主人的拍板）。每一节标着由哪一步做，步子见 `memory.md`「施工步子」。做完一步，这一页照做好的样子改写那几节。
 
-做好了的：R-1 切词、检索库（第一、二条，「对外的样子」照做好的写；FTS5 那一列叫 `words`）。
+做好了的：R-1 切词、检索库（第一、二条，「对外的样子」照做好的写；FTS5 那一列叫 `words`）。R-2（上）检索库多 `marks` 表（版本 2）、`apply`、`mark`、`forget`。
 
 ### 在哪
 
@@ -23,7 +23,7 @@
 | `crates/miyu-recall/src/terms.rs` | 一段字切成存进索引的词、拼成查询（`index_terms`、`query`） | R-1 |
 | `crates/miyu-recall/src/fuse.rs` | 加权的 RRF：几路名次合成一个 | R-5 |
 | `crates/miyu-recall/src/vector.rs` | 向量写成字节、读回来、点积 | R-5 |
-| `crates/miyu-store/src/recall.rs` | 一个检索库：开（坏了删掉重建）、放进一条、拿掉一条、照关键词找 | R-1 |
+| `crates/miyu-store/src/recall.rs` | 一个检索库：开（坏了删掉重建）、放进一条、拿掉一条、照关键词找（R-1）；一批和照到哪一起写、拿掉一个来源（R-2 上） | R-1 |
 | `crates/miyu-store/src/recall/vectors.rs` | 向量表：放、照模型读出来逐条算 | R-5 |
 | `crates/miyu-embed/` | 本机 embedding 的小程序：ONNX Runtime 静态链接在里面 | R-5 |
 

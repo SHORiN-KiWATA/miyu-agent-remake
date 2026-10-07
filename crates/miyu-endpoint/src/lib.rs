@@ -67,6 +67,7 @@ use miyu_models::profile::Profiles;
 use miyu_sandbox::{Availability, Unusable};
 use miyu_session::{Jobs, ModelData, Models, Observed, SandboxCache};
 use miyu_store::index::SessionIndex;
+use miyu_store::recall::RecallIndexes;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_store::usage::UsageIndex;
@@ -106,6 +107,9 @@ pub struct Core {
     /// 用量汇总（施工 8-15，`state/usage.db`）：起来时开一次，一直开着；会话落盘时写、一次性入口记账（交给模型资料）、
     /// `usage.query` 和 `session_usage` 查之前补。
     usage: Arc<UsageIndex>,
+    /// 回合库的登记（施工 R-2 上，`memory.md` 第一条）：起来时建一份空的，用到哪个人格的回合库才开；会话落盘时更新、删会话
+    /// 时拿掉。
+    recall: Arc<RecallIndexes>,
     /// 执行器的任务表（施工 7-3）：所有会话的后台命令，核心里一张。
     jobs: Arc<Jobs>,
     /// 连着几个连接：`serve` 开始时加一，走的时候减一（施工 3-9 上）。
@@ -174,6 +178,7 @@ impl Core {
         let usage = Arc::new(usage::open(&root));
         model_data.keep_ledger(Arc::clone(&usage));
         Core {
+            recall: Arc::new(RecallIndexes::new(&root)),
             index,
             usage,
             hub: Hub::new(&config),
@@ -311,6 +316,11 @@ impl Core {
     /// 账号 `owner` 的会话写哪份用量汇总（施工 8-15）：核心一份，现在只有管理员的会话写。
     pub(crate) fn usage_for(&self, owner: &AccountId) -> Option<Arc<UsageIndex>> {
         (*owner == self.admin).then(|| Arc::clone(&self.usage))
+    }
+
+    /// 账号 `owner` 的回合库的登记，交给造的、载入的会话（施工 R-2 上）：现在只有管理员的会话写。
+    pub(crate) fn recall_for(&self, owner: &AccountId) -> Option<Arc<RecallIndexes>> {
+        (*owner == self.admin).then(|| Arc::clone(&self.recall))
     }
 
     /// 连着几个连接。
