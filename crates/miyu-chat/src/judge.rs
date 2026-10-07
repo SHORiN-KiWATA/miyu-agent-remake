@@ -117,6 +117,30 @@ impl JudgeTexts {
     }
 }
 
+/// 判官的几项参数（`chat.md` 第八条那张表的 `[judge]`，施工 O-15）：从 [`Params::judge`](crate::Params::judge) 拿。
+///
+/// 格公开：这几项都是桥用的（调 `model.call`、管超时和重试），或者交给只收数的函数（[`read()`] 的 `reason_chars`），
+/// 造坏了只坏桥自己；要守住的参数类型（[`Chatty`](crate::Chatty) 这些）格收在 crate 里（第八条施工时定的第 14 条）。全局
+/// 并发、排队等多久是桥这个进程的，不在这里（第八条施工时定的第 5 条）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Judge {
+    /// 用哪个模型：配置的引用（`<供应商>/<模型>` 或 `@<池>`），只查过写法，指的在不在由桥调用时照核心的回答说。`None`
+    /// 是出厂文件和场所规则都没写，照 `models.chat`（第八条施工时定的第 6 条）。
+    pub model: Option<String>,
+    /// 判官看触发这一条之前的几条记录（[`Ask::records`]）。
+    pub records: usize,
+    /// 判官最多输出多少 token（`model.call` 的 `max_tokens`）。
+    pub max_tokens: u32,
+    /// 打分那一次的超时，毫秒。
+    pub timeout: i64,
+    /// 只查违规那一次（[`Mode::ModerationOnly`]）的超时，毫秒。
+    pub moderation_timeout: i64,
+    /// 判不了（读不出来、超时、出错）重试几次。
+    pub retries: u32,
+    /// 判官的理由最多留几个字符：交给 [`read()`]。
+    pub reason_chars: usize,
+}
+
 /// 这一次问判官要做什么（`chat.md` 第三条「走哪条路」）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
@@ -166,6 +190,6 @@ pub enum JudgeRole {
 }
 
 #[cfg(test)]
-mod test_support;
+pub(crate) mod test_support;
 #[cfg(test)]
 mod tests;

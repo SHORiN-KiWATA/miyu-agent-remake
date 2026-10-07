@@ -6,7 +6,8 @@
 
 use super::{Base64, Clock, Ctx, Flag, Inbound, InboundRule, Standing, Step};
 
-/// 违规关键词的参数。出厂的词表和三个数随桥那一步放进出厂的数据，代码里不写死。
+/// 违规关键词的参数，代码里不写死：出厂的词表随 O-15（下）放进出厂的数据；base64 的三个数从 `chat.md` 第八条的
+/// [`Params::base64`](crate::Params::base64) 拿。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Moderation {
     /// 关键词：子串；ASCII 的字母不分大小写，别的字照原样比；空的不算。

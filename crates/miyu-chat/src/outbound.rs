@@ -60,17 +60,19 @@ pub struct Since {
     pub last_is_own: bool,
 }
 
-/// 引用和 @ 的两个参数。出厂的数（4 条、15 秒）随桥放进出厂数据，代码里不写死（施工时定的第 4 条）。
+/// 引用和 @、去重的参数，代码里不写死（施工时定的第 4 条）：从 [`Params::outbound`](crate::Params::outbound) 拿，出厂的数
+/// （4 条、15 秒、16、66）在出厂文件里（`chat.md` 第八条）。格只在 crate 里可见，外面造不出，拿到的都照声明查过（施工
+/// O-15）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Outbound {
     /// 隔几条别人的消息才引用；`0` 是总引用。
-    pub quote_after: u64,
+    pub(crate) quote_after: u64,
     /// 隔多少毫秒才 @。
-    pub mention_after: i64,
+    pub(crate) mention_after: i64,
     /// 去重：这一条的两字组至少这么多个才比相似度，太短的句子换几个字就差很多，比了只会误杀（出厂 16，旧版实测）。
-    pub min_bigrams: usize,
+    pub(crate) min_bigrams: usize,
     /// 去重：两字组的 Jaccard 相似度不低于这个百分比算重复（出厂 66，旧版实测）；用整数比，不碰小数的舍入。
-    pub similar: u8,
+    pub(crate) similar: u8,
 }
 
 /// 出站链看的情形，由外面交进来。
@@ -175,6 +177,6 @@ impl OutChain {
 }
 
 #[cfg(test)]
-mod test_support;
+pub(crate) mod test_support;
 #[cfg(test)]
 mod tests;

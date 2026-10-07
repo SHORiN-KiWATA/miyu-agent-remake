@@ -34,7 +34,7 @@ pub enum Unreadable {
 /// - `should_reply`、`to_bot` 不是布尔（包括没有）的当假。
 /// - `severity` 是数的夹到 0 到 10、四舍五入成整数；不是数（包括没有）的当没查（`None`）。
 /// - `reason` 不是字（包括没有）的当空；超过 `reason_chars` 个字符的截到 `reason_chars`（出厂 500：只进日志，太长的截掉，免得一条日志被撑大，
-///   「怎么走」第 4 条；数由外面交进来，这里不写死）。
+///   「怎么走」第 4 条；数由外面交进来，从第八条的 `Params::judge` 拿，这里不写死）。
 ///
 /// `mode` 是这一次问的是什么：[`Mode::ModerationOnly`] 问的就是违规，没有 `severity` 判不了。
 ///

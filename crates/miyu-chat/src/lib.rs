@@ -2,7 +2,7 @@
 //! 纯逻辑。进来的是字和事件，出去的是判定，不碰磁盘、网络、时钟；软件包 `miyu-onebot` 链接它，以后别的平台的桥也链接
 //! 同一个库，它不编进核心（`docs/designs/01-架构.md` 第九节）。
 //!
-//! 现在有六块：
+//! 现在有七块：
 //!
 //! - 场所规则（`chat.md` 第一条，施工 O-1）：[`Rules::parse`] 读一组规则文件（[`File`]，出厂的和系统的），照文件名排好
 //!   先后，写错的变成 [`Problem`]，其余照收（[`Parsed`]）；[`Rules::resolve`] 套到一个场所（[`Venue`]）上，得出每一项的值
@@ -29,12 +29,17 @@
 //!   （[`JudgeMessage`]），说明的原文由外面交进来（[`JudgeTexts`]）；[`read()`] 从判官的回答里读出 [`Judgement`]，读不出来的是
 //!   [`Unreadable`]。
 //!
+//! - 出厂参数和按场所改（`chat.md` 第八条，施工 O-15）：[`Params::read`] 照声明读出厂文件，有一条问题就整份不用；
+//!   [`Params::at`] 套上场所规则改的几项（场所规则里写同名的表，展开成一项一项）。第二到第六条的参数（[`Base64`]、
+//!   [`Chatty`]、[`Outbound`]）只能从它拿，判官的几项在 [`Judge`]。
+//!
 //! 出站队列随后面的 O 步加。
 
 mod chatty;
 mod inbound;
 mod judge;
 mod outbound;
+mod params;
 mod rules;
 
 pub use chatty::{
@@ -48,12 +53,13 @@ pub use inbound::{
     Sleep, Standing, Step, Verdict, Why, addressed, gate, rate_full,
 };
 pub use judge::{
-    Ask, JudgeMessage, JudgeRole, JudgeSources, JudgeTexts, Mode, Unreadable, read, request,
+    Ask, Judge, JudgeMessage, JudgeRole, JudgeSources, JudgeTexts, Mode, Unreadable, read, request,
 };
 pub use outbound::{
     Out, OutChain, OutCtx, OutStep, OutWhy, Outbound, OutboundRule, Outgoing, Sent, Since, Target,
     plain, split,
 };
+pub use params::Params;
 pub use rules::{
     Entry, File, Origin, Parsed, Problem, Resolved, Rules, Source, Venue, VenueKind, parse_person,
     person,

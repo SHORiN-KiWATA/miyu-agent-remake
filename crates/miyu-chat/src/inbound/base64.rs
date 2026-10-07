@@ -7,15 +7,16 @@
 
 use std::collections::BTreeSet;
 
-/// 正文里的 base64 的三个数：怎么解、解出来的怎么筛。出厂的数随桥那一步放进出厂的数据，代码里不写死。
+/// 正文里的 base64 的三个数：怎么解、解出来的怎么筛。代码里不写死：从 [`Params::base64`](crate::Params::base64) 拿，出厂的
+/// 数在出厂文件里（`chat.md` 第八条）。格只在 crate 里可见，外面造不出，拿到的都照声明查过（施工 O-15）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Base64 {
     /// 一段至少多少个字符才去解，连末尾的 `=` 一起数。太短的大多是普通的词。
-    pub min_chars: usize,
+    pub(crate) min_chars: usize,
     /// 解出来最多看前多少个字符：可打印的比例、关键词、给判官看的都只有这些。
-    pub max_chars: usize,
+    pub(crate) max_chars: usize,
     /// 可打印的字符（不是控制字符的）至少占几成，千分比：低于它的当乱码，不要。
-    pub printable: u16,
+    pub(crate) printable: u16,
 }
 
 impl Base64 {

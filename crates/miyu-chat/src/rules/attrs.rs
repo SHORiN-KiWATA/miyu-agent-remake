@@ -2,7 +2,8 @@
 //! 类型。拼错的名字找离得最近的那一个，和配置共用 `miyu_config::problem::nearest`（施工 O-12）。
 //!
 //! 能照配置清单的类型认的，用 [`Kind`]，读和查都照配置（`miyu_config::parse::read`、[`Kind::check`]），原因码一样；配置清单
-//! 没有的三种写法（限流、睡眠、管理员的身份）在 [`super::forms`] 里认（施工时定的第 3 条）。插件的参数随各插件那一步加。
+//! 没有的三种写法（限流、睡眠、管理员的身份）在 [`super::forms`] 里认（施工时定的第 3 条）。群聊内核自带的参数是几张表，
+//! 声明在 `params/items.rs`，读法在 `rules/tables.rs`（第八条，施工 O-15）；插件自己的参数随插件那一步加。
 
 use miyu_config::problem::Code;
 use miyu_config::{Kind, Value};

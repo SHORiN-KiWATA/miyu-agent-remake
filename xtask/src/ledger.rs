@@ -44,6 +44,10 @@ const SOFTWARE_DIR: &str = "software/";
 /// `prompts/` 下的照查。
 const PERSONAS_DIR: &str = "personas/";
 const PERSONA_TOML: &str = "persona.toml";
+
+/// 群聊内核的出厂参数是数据（几张表的数），不发给模型，不登记（施工 O-15，`chat.md` 第八条施工时定的第 16 条）。只豁免这一份：
+/// 别处叫 `defaults.toml` 的照查。
+const CHAT_DEFAULTS: &str = "software/onebot/defaults.toml";
 const DATA_PACKAGES: [&str; 2] = ["mermaid", "net"];
 
 /// 查一遍，交回对不上的地方。
@@ -103,6 +107,7 @@ fn walk(dir: &Path, prefix: &str, files: &mut BTreeMap<String, Vec<u8>>) -> Resu
         } else if !(name == PERSONA_TOML
             && prefix.starts_with(PERSONAS_DIR)
             && prefix.matches('/').count() == 2)
+            && path != CHAT_DEFAULTS
         {
             files.insert(path, std::fs::read(entry.path()).map_err(unreadable)?);
         }
@@ -219,6 +224,9 @@ mod tests {
             ("personas/x/persona.toml", "[persona]"),
             ("personas/x/prompts/persona.md", "p"),
             ("personas/x/prompts/persona.toml", "q"),
+            ("software/onebot/defaults.toml", "[chatty]"),
+            ("software/onebot/judge/system.txt", "s"),
+            ("software/x/defaults.toml", "d"),
         ] {
             let path = dir.join(path);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -228,8 +236,9 @@ mod tests {
         let walked = walk(&dir, "", &mut found);
         std::fs::remove_dir_all(&dir).unwrap();
         walked.unwrap();
-        // 给人看的字、最上一层的模型资料和网页软件、software/mermaid/、software/net/、人格目录的 persona.toml 不登记，别的照查（别处叫 models、
-        // web、mermaid、net 的目录照查：只有正好最上一层、software/ 下这几处才豁免）。
+        // 给人看的字、最上一层的模型资料和网页软件、software/mermaid/、software/net/、人格目录的 persona.toml、群聊内核的出厂参数
+        // software/onebot/defaults.toml 不登记，别的照查（别处叫 models、web、mermaid、net 的目录、别处的 defaults.toml 照查：只有正好
+        // 这几处才豁免）。
         assert_eq!(
             found.keys().collect::<Vec<_>>(),
             [
@@ -238,6 +247,8 @@ mod tests {
                 "core/web/w.txt",
                 "personas/x/prompts/persona.md",
                 "personas/x/prompts/persona.toml",
+                "software/onebot/judge/system.txt",
+                "software/x/defaults.toml",
                 "software/x/mermaid/not_special_here.json",
                 "software/x/net/not_special_here.json",
                 "software/x/tools/t.json",
