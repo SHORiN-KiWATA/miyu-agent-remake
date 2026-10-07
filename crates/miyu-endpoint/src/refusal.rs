@@ -92,6 +92,12 @@ impl Refusal {
         reason: "venue_session",
         data: None,
     };
+    /// `check` 写的文件不是 Miyu 读的那几种（施工 8-30）。
+    pub(crate) const UNKNOWN_FILE: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_file",
+        data: None,
+    };
     /// 斜杠命令认不出（施工 O-6，`command.run`）。
     pub(crate) const UNKNOWN_COMMAND: Refusal = Refusal {
         code: REFUSED,

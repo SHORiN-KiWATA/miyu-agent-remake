@@ -242,7 +242,7 @@ async fn config_check_reports_a_bad_secrets_file_without_its_values() {
     let (held, _) = within("拉起", connect_or_start(&home.root, || home.core()))
         .await
         .expect("拉得起");
-    let checked = run(&root, "C", &["config", "check"], "").await;
+    let checked = run(&root, "C", &["check"], "").await;
     let (code, out, _) = seen(&checked);
     assert_eq!(code, Some(1), "{checked:?}");
     assert!(
@@ -250,10 +250,10 @@ async fn config_check_reports_a_bad_secrets_file_without_its_values() {
         "{out}"
     );
     assert!(out.ends_with("1 error\n"), "{out}");
-    let project = run(&root, "C", &["config", "check", "--project"], "").await;
-    assert!(
-        !text(&project.stdout).contains("secrets.toml"),
-        "--project 不查密钥文件"
-    );
+    // 只查密钥文件的：照核心手里的问题，只有它（施工 8-30）。
+    let secrets_only = run(&root, "C", &["check", &secrets.to_string_lossy()], "").await;
+    let (_, out, _) = seen(&secrets_only);
+    assert!(out.contains("secrets.toml:2:1 error"), "{out}");
+    assert!(out.ends_with("1 error\n"), "{out}");
     drop(held);
 }

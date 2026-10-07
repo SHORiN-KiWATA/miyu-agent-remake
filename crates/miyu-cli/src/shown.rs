@@ -27,7 +27,7 @@ pub(crate) enum Ink {
     Gray,
     Red,
     Green,
-    /// 警告（施工 8-2，`miyu config check`）。
+    /// 警告（施工 8-2，`miyu check`）。
     Yellow,
 }
 

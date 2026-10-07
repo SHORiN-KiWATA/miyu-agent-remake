@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 
 use miyu_store::config_file::{self, WriteError};
 
-use super::check::Only;
+use super::Only;
 use super::console::Console;
 use super::paths::{self, Places};
 use super::render;

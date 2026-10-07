@@ -213,3 +213,103 @@ fn memory_goes_to_the_home_the_persona_lives_in() {
     );
     assert_eq!(personas.home_of("engineer"), None);
 }
+
+/// `miyu check` 用的查法（施工 8-30）：每一层各查各的，上面一层盖住了照样报；只查一份文件的照它在哪认。
+#[test]
+fn every_layer_is_checked_on_its_own() {
+    let places = Places::new();
+    places.write(Layer::Shipped, "miyu", "persona.toml", "[voice]\n");
+    places.write(Layer::Home, "miyu", "persona.toml", "[persona]\n");
+    places.write(Layer::Home, "miyu", "prompts/examples.md", "user: a\n");
+    places.write(Layer::System, "fine", "prompts/persona.md", "x\n");
+    let found = places.personas.check();
+    let seen: Vec<(Layer, String, &'static str)> = found
+        .iter()
+        .map(|checked| {
+            // 照路径的各段比，三个平台一样。
+            let file = checked
+                .path
+                .strip_prefix(places.scratch.path())
+                .unwrap()
+                .iter()
+                .map(|part| part.to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+                .join("/");
+            let code = match &checked.issue {
+                Issue::Wrong(problem) => problem.code.as_str(),
+                Issue::Unreadable(_) => "unreadable",
+            };
+            (checked.layer, file, code)
+        })
+        .collect();
+    assert_eq!(
+        seen,
+        [
+            (
+                Layer::Shipped,
+                "res/personas/miyu/persona.toml".to_string(),
+                "unknown_table"
+            ),
+            (
+                Layer::Home,
+                "data/home/admin/personas/miyu/prompts/examples.md".to_string(),
+                "last_line"
+            ),
+        ],
+        "出厂的被家目录的盖住了也报"
+    );
+    let one = places
+        .scratch
+        .path()
+        .join("data/home/admin/personas/miyu/prompts/examples.md");
+    let checked = places.personas.check_file(&one).expect("是人格的文件");
+    assert_eq!(checked.len(), 1);
+    let fine = places
+        .scratch
+        .path()
+        .join("data/home/admin/personas/miyu/persona.toml");
+    assert!(
+        places
+            .personas
+            .check_file(&fine)
+            .expect("是人格的文件")
+            .is_empty()
+    );
+    let missing = places
+        .scratch
+        .path()
+        .join("data/system/personas/fine/persona.toml");
+    let checked = places.personas.check_file(&missing).expect("是人格的文件");
+    assert!(
+        matches!(checked[0].issue, Issue::Unreadable(_)),
+        "写了文件的，没有就是读不了"
+    );
+    // 经链接传的路径照样认得（macOS 的 `/var` 是链接，CI 撞见过）。
+    #[cfg(unix)]
+    {
+        let link = places.scratch.path().join("link");
+        std::os::unix::fs::symlink(places.scratch.path().join("data"), &link).unwrap();
+        let through = link.join("home/admin/personas/miyu/prompts/examples.md");
+        let checked = places
+            .personas
+            .check_file(&through)
+            .expect("经链接也是人格的文件");
+        assert_eq!(checked.len(), 1);
+        let fresh = link.join("home/admin/personas/fresh/persona.toml");
+        assert!(
+            places.personas.check_file(&fresh).is_some(),
+            "还没建的人格目录也认"
+        );
+    }
+    let other = places
+        .scratch
+        .path()
+        .join("data/home/admin/personas/miyu/prompts/persona.md");
+    assert!(places.personas.check_file(&other).is_none(), "人设不查");
+    assert!(
+        places
+            .personas
+            .check_file(&places.scratch.path().join("elsewhere.toml"))
+            .is_none()
+    );
+}

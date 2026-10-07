@@ -44,30 +44,6 @@ impl Language {
         }
     }
 
-    /// 命令行自己读文件时的整份问题（`check`）：读不了、太大、不是 UTF-8。话和核心的同一句。
-    pub(crate) fn unreadable_config(&self, why: &str) -> String {
-        match self {
-            Language::Chinese => format!("读不了这份文件：{why}。"),
-            Language::English => format!("Cannot read this file: {why}."),
-        }
-    }
-
-    /// 太大的。
-    pub(crate) fn config_too_big(&self) -> &'static str {
-        match self {
-            Language::Chinese => "这份文件超过 1 MiB，不读。",
-            Language::English => "The file is over 1 MiB and is not read.",
-        }
-    }
-
-    /// 不是 UTF-8 的。
-    pub(crate) fn config_not_utf8(&self) -> &'static str {
-        match self {
-            Language::Chinese => "这份文件不是 UTF-8。",
-            Language::English => "The file is not UTF-8.",
-        }
-    }
-
     /// `explain` 第一行：名字、键、说明、什么时候生效。认不出的生效时机不说（[`Language::applies`]）。
     pub(crate) fn explain_header(
         &self,
@@ -185,12 +161,12 @@ impl Language {
     /// `miyu ask` 起头：配置里有几处错误。
     pub(crate) fn config_errors(&self, errors: u64) -> String {
         match (self, errors) {
-            (Language::Chinese, n) => format!("· 配置里有 {n} 处错误：miyu config check 看是哪里"),
+            (Language::Chinese, n) => format!("· 配置里有 {n} 处错误：miyu check 看是哪里"),
             (Language::English, 1) => {
-                "· 1 error in the config: run miyu config check to see it".to_string()
+                "· 1 error in the config: run miyu check to see it".to_string()
             }
             (Language::English, n) => {
-                format!("· {n} errors in the config: run miyu config check to see them")
+                format!("· {n} errors in the config: run miyu check to see them")
             }
         }
     }
