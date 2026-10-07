@@ -73,10 +73,11 @@
 
 | 名字 | 做什么 |
 |---|---|
-| `compose(人格, Sources, attended)` | 拼一份快照。`Sources` 是读好的原文：`core`（`CoreTexts`）、`persona`（`PersonaTexts { persona }`，人设的原文） |
+| `compose(人格, Sources, attended)` | 拼一份快照。`Sources` 是读好的原文：`core`（`CoreTexts`）、`persona`（`PersonaTexts { persona, examples, reminders }`：人设、示范对话、角色扮演提示的原文）、`reminder`（角色扮演提示的包装 `Wrap { open, close }`，施工 P-1 补） |
 | `Snapshot::with_tools(工具)` | 带上工具面 |
 | `Snapshot::with_venue(说明)` | 带上场所说明：system 的第二块，接在人设后面（施工 7-5）。现在只有子会话有 |
-| `Snapshot::with_core_lines(&CoreLines)` | 带上核心的几行（施工 2-7 补）：system 的第三块，所以在 `with_tools`、`with_venue` 以后最后调。`CoreLines` 有两格：`permission`（`permission-rule.txt`）、`local_paths`（`local-paths-rule.txt`）。一行一句，先权限、后路径；工具面是空的不带权限那一句 |
+| `Snapshot::with_core_lines(&CoreLines)` | 带上核心的几行（施工 2-7 补）：system 的第三块，所以在 `with_tools`、`with_venue` 以后调。`CoreLines` 有三格：`permission`（`permission-rule.txt`）、`local_paths`（`local-paths-rule.txt`）、`style_lock`（`style-lock.txt`，施工 P-1 补，交给 `with_style_lock`）。一行一句，先权限、后路径；工具面是空的不带权限那一句 |
+| `Snapshot::with_style_lock(风格锁)` | 带上风格锁（施工 P-1 补）：system 的最后一块（`26-提示词.md` 第四节第 7 块），在 `with_core_lines` 以后调。快照有 `reminder` 的才带，别的 system 一字不变 |
 | `REPORT_CHARS` | 策略数据 `jobs.report_chars` 的出厂值 30000（施工 7-6）：拼快照时写进 `jobs` |
 | `JOB_DEPTH` | 策略数据 `jobs.depth` 的出厂值 2（`agents.md`「对外的样子」，施工 7-5）：造会话定工具面时用，不进快照 |
 | `RECAP` | 回顾用的数的出厂值：8 轮、8192 个 token（施工 3-8 四补）：拼快照时写进 `recap` |
@@ -95,13 +96,15 @@
 
 1. 人格的编号要合写法：小写字母开头，只有小写字母、数字、`-`、`_`，最长 64 个字符。它是一层目录的名字，不许带路径。
 2. 读 `CoreTexts` 表里的每一份，再读 `personas/<编号>/prompts/persona.md`。原文照抄，行尾的换行也算。
-3. 核心的几行 `core/permission-rule.txt`、`core/local-paths-rule.txt` 另读（`ResourceRoot::core_lines`，施工 2-7 补），交给 `with_core_lines`；它们只拼进 system，不另存进快照的 `core`。
+3. 核心的几行 `core/permission-rule.txt`、`core/local-paths-rule.txt` 另读（`ResourceRoot::core_lines`，施工 2-7 补），交给 `with_core_lines`；它们只拼进 system，不另存进快照的 `core`。风格锁 `core/style-lock.txt` 和它们一起读（施工 P-1 补）。
+4. 角色扮演提示的包装 `core/facts/reminder-open.txt`、`reminder-close.txt` 读进 `Sources.reminder`（施工 P-1 补）：拼进快照的 `reminder`，也不另存进 `core`，没有角色扮演提示的快照字节不变。
 
 **拼**（`compose`）
 
 1. `system` 照 `26-提示词.md` 第四节的先后拼：每一块去掉末尾的空白，空的块不要，块和块之间空一行（`\n\n`）。开头的空白是人格自己写的，照留。现在只有人设这一块，所以软件工程师的 system 就是 `You are a helpful software engineer.`；子会话多一块场所说明（`core/jobs/subagent-venue.txt`），`with_venue` 照同样的规矩接在人设后面（施工 7-5，`agents.md` 第九条第 3 条）。造会话时最后接上核心的几行（`with_core_lines`，施工 2-7 补）：`You are a helpful software engineer.`、空一行、权限那一句、换行、路径那一句。以前造的快照 system 已经拼好存着，载入照它发，前缀一字不变。
 2. `tools` 先是空的；`with_tools` 带上工具面，照名字的字节序排，稳定排序：交进来的先后不影响字节。
 3. `step_limit` 是 `null`，`resumes` 是 3，`attended` 照交进来的，`compaction` 是出厂的四个数，`recap` 是出厂的两个数（施工 3-8 四补），`title` 是出厂的三个数（施工 3-8 五补），`peers` 是出厂的五个数（施工 C-2、C-6），`memory` 不写（造会话时 `with_memory` 写上，施工 R-3 下）。
+4. `reminder`（施工 P-1 补）：人格的角色扮演提示去掉末尾空白，是空的不写；不空的拼成一块：包装的开头、原文、换行、包装的收尾。原文不转义：是人格的作者写的。`policy()` 把它交给内核的事实模板（`FactTemplates::with_reminder`），回合开始时隔几轮注入（`kernel/request.md`「事实」）。造会话时最后带上风格锁（`with_style_lock`）：有 `reminder` 的 system 末尾空一行接上 `core/style-lock.txt`。
 
 **字节和哈希**
 

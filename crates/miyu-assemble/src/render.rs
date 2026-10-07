@@ -5,12 +5,14 @@
 //! 人这一边的块（检查点、事实、人的消息）先攒着，碰到模型的回复或工具的结果，再合成一条
 //! user 消息放在它前面：照攒进来的先后，只有一处例外，每个回合开始的地方，放这一回合开始时
 //! 注入的事实和触发它的那条，先事实、后触发。「开始时注入的」到这一轮有了回复、结束，或者第一次
-//! 记下模型调用为止（施工 4-9 再补三上）：出错了等着重试时再注入的，照先后放，前缀才接得上。
+//! 记下模型调用为止（施工 4-9 再补三上）：出错了等着重试时再注入的，照先后放，前缀才接得上。内核开始时注入的角色扮演提示
+//! 是唯一的例外，排在触发后面（施工 P-1 补，08 C2）。
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Body, CompactTrigger, ContextCompacted, ToolStatus};
+use miyu_kernel::facts::REMINDER;
 use miyu_kernel::history::History;
 use miyu_kernel::id::{Seq, TurnId};
 use miyu_kernel::origin::By;
@@ -29,7 +31,7 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
     {
         transcript.add(
             checkpoint.seq,
-            None,
+            Place::Here,
             vec![text_block(checkpoint_block(history, compacted, texts))],
         );
     }
@@ -37,11 +39,16 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
         match &event.body {
             Body::MessageUser(message) => {
                 let blocks = said(history, &event.by, known(&message.blocks), texts);
-                transcript.add(event.seq, None, blocks);
+                transcript.add(event.seq, Place::Here, blocks);
             }
             Body::ContextInjected(fact) => {
-                let before = transcript.trigger_of(event.turn);
-                transcript.add(event.seq, before, vec![text_block(fact.text.clone())]);
+                let reminder = event.by == By::Kernel && fact.kind.as_str() == REMINDER;
+                let place = match transcript.trigger_of(event.turn) {
+                    Some(trigger) if reminder => Place::After(trigger),
+                    Some(trigger) => Place::Before(trigger),
+                    None => Place::Here,
+                };
+                transcript.add(event.seq, place, vec![text_block(fact.text.clone())]);
             }
             Body::TurnStarted(started) => match started.trigger {
                 Some(trigger) => transcript.start(event.turn, trigger),
@@ -61,7 +68,7 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
                 if let Some(said) = texts.turn_ended.for_reason(&ended.reason)
                     && !transcript.silent(event.turn)
                 {
-                    transcript.add(event.seq, None, vec![text_block(said.to_string())]);
+                    transcript.add(event.seq, Place::Here, vec![text_block(said.to_string())]);
                 }
             }
             Body::MessageAssistant(reply) => {
@@ -77,19 +84,19 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
                     .jobs
                     .as_ref()
                     .and_then(|jobs| jobs::command(history, reported, jobs));
-                transcript.add(event.seq, None, block.into_iter().map(text_block).collect());
+                transcript.add(event.seq, Place::Here, block.into_iter().map(text_block).collect());
             }
             Body::ChildReported(reported) => {
                 let block = texts
                     .jobs
                     .as_ref()
                     .and_then(|jobs| jobs::subagent(history, reported, jobs));
-                transcript.add(event.seq, None, block.into_iter().map(text_block).collect());
+                transcript.add(event.seq, Place::Here, block.into_iter().map(text_block).collect());
             }
             // 空了的通知（施工 C-6，`peers.rs`）：不带回合编号，照回报排。
             Body::PeerIdle(notice) => {
                 let block = peers::idle(notice, texts.peers.as_ref());
-                transcript.add(event.seq, None, block.into_iter().map(text_block).collect());
+                transcript.add(event.seq, Place::Here, block.into_iter().map(text_block).collect());
             }
             Body::ToolResult(result) => transcript.push(Message::Tool {
                 call_id: result.call_id,
@@ -187,17 +194,28 @@ struct Transcript {
 struct Piece {
     /// 它是哪一条事件的。
     seq: Seq,
-    /// 回合开始时注入的事实，和触发这一回合的那一条放在一起；别的块是 `None`。
-    before: Option<Seq>,
+    /// 放在哪。
+    place: Place,
     /// 块本身。
     block: Block,
 }
 
+/// 一块放在哪：回合开始时注入的事实，和触发这一回合的那一条放在一起。
+#[derive(Clone, Copy)]
+enum Place {
+    /// 照攒进来的先后。
+    Here,
+    /// 排在触发的第几条前面：回合开始时注入的事实。
+    Before(Seq),
+    /// 排在触发的第几条后面：内核回合开始时注入的角色扮演提示（施工 P-1 补，08 C2 唯一的例外）。
+    After(Seq),
+}
+
 impl Transcript {
     /// 攒下第 `seq` 条事件的几块。
-    fn add(&mut self, seq: Seq, before: Option<Seq>, blocks: Vec<Block>) {
+    fn add(&mut self, seq: Seq, place: Place, blocks: Vec<Block>) {
         self.pending
-            .extend(blocks.into_iter().map(|block| Piece { seq, before, block }));
+            .extend(blocks.into_iter().map(|block| Piece { seq, place, block }));
     }
 
     /// 回合开始了，由第 `trigger` 条触发。记下开始的地方。
@@ -237,8 +255,8 @@ impl Transcript {
     }
 
     /// 人这一边攒着的块合成一条 user 消息：照攒进来的先后；每个回合开始的地方，放这一回合
-    /// 开始时注入的事实和触发它的那条，先事实、后触发（08 C2）。触发的那一条不在这一段里，
-    /// 事实就照原来的先后。什么都没攒就不出消息。
+    /// 开始时注入的事实和触发它的那条，先事实、后触发（08 C2），角色扮演提示接在触发后面（施工 P-1 补）。触发的那一条
+    /// 不在这一段里，事实就照原来的先后。什么都没攒就不出消息。
     ///
     /// 挪到的是回合开始的那个位置，日志里它不会动。所以发过的请求里已经排好的先后，以后也
     /// 不会变，前缀接得上。
@@ -258,9 +276,12 @@ impl Transcript {
         let mut groups: BTreeMap<Seq, Group> = BTreeMap::new();
         let mut rest = Vec::new();
         for (index, piece) in pending.into_iter().enumerate() {
-            match piece.before {
-                Some(trigger) if placed.contains(&trigger) => {
+            match piece.place {
+                Place::Before(trigger) if placed.contains(&trigger) => {
                     groups.entry(trigger).or_default().facts.push(piece.block);
+                }
+                Place::After(trigger) if placed.contains(&trigger) => {
+                    groups.entry(trigger).or_default().after.push(piece.block);
                 }
                 _ if placed.contains(&piece.seq) => {
                     groups
@@ -297,20 +318,23 @@ impl Transcript {
     }
 }
 
-/// 一个回合开始时的那一组：开始时注入的事实，和触发它的那一条。
+/// 一个回合开始时的那一组：开始时注入的事实，触发它的那一条，和排在触发后面的角色扮演提示。
 #[derive(Default)]
 struct Group {
     /// 回合开始时注入的事实。
     facts: Vec<Block>,
     /// 触发这一回合的那一条。
     trigger: Vec<Block>,
+    /// 排在触发后面的（施工 P-1 补）。
+    after: Vec<Block>,
 }
 
 impl Group {
-    /// 放进消息里：先事实，后触发。
+    /// 放进消息里：先事实，再触发，最后是排在触发后面的。
     fn put(self, blocks: &mut Vec<Block>) {
         blocks.extend(self.facts);
         blocks.extend(self.trigger);
+        blocks.extend(self.after);
     }
 }
 

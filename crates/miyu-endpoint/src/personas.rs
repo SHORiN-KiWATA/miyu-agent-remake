@@ -93,7 +93,8 @@ pub(crate) struct GetParams {
     persona: String,
 }
 
-/// `persona.get`：叠好的样子。名字、说明的几种语言原样给，人设、示范对话来自哪一层（没有的是 `null`），示范对话几轮。
+/// `persona.get`：叠好的样子。名字、说明的几种语言原样给，人设、示范对话、角色扮演提示来自哪一层（没有的是 `null`），
+/// 示范对话几轮。
 /// 提示词原文不经协议给。
 pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal> {
     let found = resolve(core, Some(&params.persona)).await?;
@@ -105,6 +106,7 @@ pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal
         "prompts": {
             "persona": found.persona_from.map(Layer::as_str),
             "examples": found.examples_from.map(Layer::as_str),
+            "reminders": found.reminders_from.map(Layer::as_str),
         },
         "examples": found.texts.examples.len(),
     }))

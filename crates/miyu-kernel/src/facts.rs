@@ -14,6 +14,9 @@
 //!
 //! 还有一块不是环境和状态，是发生了的事：回复被出错打断了（`reply_cut`，施工 3-5 下）。它跟在
 //! 半截回复后面，每次都注入，不和以前的比。
+//!
+//! 有角色扮演提示的人格还有一块 `reminder`（施工 P-1 补，`08-上下文投影.md` C3、`26-提示词.md` J10）：只在回合开始查，
+//! 隔几轮一条，不比原文。组装把回合开始时注入的这一块排在触发的那句后面（C2 唯一的例外）。
 
 use std::collections::BTreeMap;
 
@@ -42,7 +45,15 @@ pub struct FactTemplates {
     /// 切了级别以后的权限那一块，字段是 `level`、`previous`（施工 2-7 补）。以前造的快照里没有这份模板，是没有：那些会话
     /// 切了照旧用 `permission` 那一份，前缀一字不变。
     permission_changed: Option<Template>,
+    /// 角色扮演提示那一块的原文，拼好的（施工 P-1 补）。没有的不注入。
+    reminder: Option<String>,
 }
+
+/// 角色扮演提示这一类的名字。组装照它把回合开始时注入的这一块排在触发的那句后面（`08-上下文投影.md` C2 唯一的例外）。
+pub const REMINDER: &str = "reminder";
+
+/// 角色扮演提示隔几轮一条：连这一轮数，到这个数注入（`08-上下文投影.md` C3，旧版实测的间隔）。
+pub const REMINDER_EVERY: usize = 3;
 
 /// 权限那一块写得出的几级，写法照 [`effective_level`]。认上一块说的是哪一级时，照这个先后试。
 const LEVELS: [&str; 3] = ["read_only", "workspace", "full"];
@@ -80,6 +91,7 @@ impl FactTemplates {
             reply_cut: Template::parse(reply_cut)?,
             session: session.map(Template::parse).transpose()?,
             permission_changed: permission_changed.map(Template::parse).transpose()?,
+            reminder: None,
         };
         templates.env.render(&env_fields("", "", ""))?;
         templates.permission.render(&permission_fields(""))?;
@@ -113,6 +125,38 @@ impl FactTemplates {
         .into_iter()
         .flatten()
         .collect()
+    }
+
+    /// 带上角色扮演提示那一块的原文（施工 P-1 补）：造策略时拼好交进来，冻结在会话上。`None` 的不注入。
+    #[must_use]
+    pub fn with_reminder(mut self, text: Option<String>) -> FactTemplates {
+        self.reminder = text;
+        self
+    }
+
+    /// 回合开始时要不要注入角色扮演提示（施工 P-1 补，`kernel/request.md`「事实」第 1 条）：有效历史里没有内核记的这一块，
+    /// 注入；有的，数它后面开了几轮（这一轮的 `turn.started` 已经记下），到 [`REMINDER_EVERY`] 注入。压缩替掉的、撤掉的
+    /// 不在有效历史里，下一轮重来。不比原文：同一段字隔几轮再说一次，就是它的用处。
+    pub fn reminder(&self, history: &History) -> Option<ContextInjected> {
+        let text = self.reminder.as_ref()?;
+        let kind = kind(REMINDER);
+        let mut turns = 0;
+        for event in history.events().iter().rev() {
+            match &event.body {
+                Body::TurnStarted(_) => turns += 1,
+                Body::ContextInjected(fact) if event.by == By::Kernel && fact.kind == kind => {
+                    if turns < REMINDER_EVERY {
+                        return None;
+                    }
+                    break;
+                }
+                _ => {}
+            }
+        }
+        Some(ContextInjected {
+            kind,
+            text: text.clone(),
+        })
     }
 
     /// 回复被出错打断的那一块：跟在半截回复后面（施工 3-5 下）。

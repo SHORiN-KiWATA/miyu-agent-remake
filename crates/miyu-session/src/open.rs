@@ -122,7 +122,9 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             snapshot = snapshot.with_venue(&venue);
         }
         let lines = resources.core_lines().map_err(CreateError::Persona)?;
-        let snapshot = snapshot.with_core_lines(&lines);
+        let snapshot = snapshot
+            .with_core_lines(&lines)
+            .with_style_lock(&lines.style_lock);
         let policy = snapshot.policy().map_err(CreateError::Policy)?;
         let texts = snapshot.driver_texts().map_err(CreateError::Policy)?;
         let run = snapshot.run_texts().map_err(CreateError::Policy)?;

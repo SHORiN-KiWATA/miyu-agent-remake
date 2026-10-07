@@ -257,7 +257,7 @@
     "commands/cleared": "Context cleared.",
     "commands/stopped": "Everything stopped.",
     "persona-problems/syntax": "Not valid TOML: {detail}",
-    "persona-problems/unknown_table": "Unknown table [{detail}]: persona.toml only takes [persona]",
+    "persona-problems/unknown_table": "Unknown table [{detail}]: persona.toml only takes [persona] and [memory]",
     "persona-problems/not_a_table": "{detail} must be a table [{detail}]",
     "persona-problems/unknown_key": "Unknown key {detail}",
     "persona-problems/not_phrases": "{detail} must map languages (zh, en, ja) to text",

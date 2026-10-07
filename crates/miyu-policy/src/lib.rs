@@ -32,7 +32,7 @@ mod vision;
 #[cfg(test)]
 mod test_support;
 
-pub use compose::{CoreLines, PersonaTexts, Sources, compose};
+pub use compose::{CoreLines, PersonaTexts, Sources, Wrap, compose};
 pub use drivers::DriverPlaceholders;
 pub use facts::FactTexts;
 pub use guard::GuardTexts;

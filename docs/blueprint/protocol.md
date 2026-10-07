@@ -492,7 +492,7 @@
 |---|---|---|
 | `persona` | 字符串，必写 | 人格的编号 |
 
-回应 `{"persona", "name", "summary", "layers", "prompts": {"persona", "examples"}, "examples"}`：`name`、`summary` 是语言到一句话的对象，原样给；`prompts` 里是人设、示范对话来自哪一层，没有的是 `null`；`examples` 是示范对话几轮。提示词原文不经协议交出去。编号不合写法的 `bad_params`，没有的 `unknown_persona`，写错的 `persona_invalid`。
+回应 `{"persona", "name", "summary", "layers", "prompts": {"persona", "examples", "reminders"}, "examples"}`：`name`、`summary` 是语言到一句话的对象，原样给；`prompts` 里是人设、示范对话、角色扮演提示（施工 P-1 补）来自哪一层，没有的是 `null`；`examples` 是示范对话几轮。提示词原文不经协议交出去。编号不合写法的 `bad_params`，没有的 `unknown_persona`，写错的 `persona_invalid`。
 
 **`session.recap`**（施工 3-8 四补，`04-核心协议.md` 第九节，`kernel/session.md`「回顾」）
 

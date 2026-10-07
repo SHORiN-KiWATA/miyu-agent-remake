@@ -1,6 +1,7 @@
 //! 人格（施工 P-1 上，`docs/blueprint/personas.md`）：真核心走一遍。家目录里的人格叠在出厂的上面，人设进 system、示范对话
 //! 排在 system 后面历史前面；没写人格的照 `persona.default`（个人设置压着系统配置）；`venue.session` 带人格造、找回时不看；
-//! 没有的 `unknown_persona`，编号不合写法的参数不对，写错了的 `persona_invalid` 带问题；`persona.list`、`persona.get`。
+//! 没有的 `unknown_persona`，编号不合写法的参数不对，写错了的 `persona_invalid` 带问题；`persona.list`、`persona.get`；
+//! 角色扮演提示排在人说的那句后面、system 带风格锁（施工 P-1 补）。
 
 mod support;
 
@@ -99,6 +100,58 @@ async fn a_persona_in_the_home_speaks_with_its_examples() {
         last.ends_with("hi"),
         "历史里人说的那句在示范对话后面：{last}"
     );
+}
+
+/// 角色扮演提示（施工 P-1 补）：带着它的人格，第一轮的请求以它结尾（排在人说的那句后面），system 以风格锁结尾；第二轮
+/// 不再注入，第一轮那一块照原样留着，前缀接得上。软件工程师两样都没有。
+#[tokio::test]
+async fn a_persona_with_a_reminder_gets_it_after_the_message_and_the_style_lock() {
+    let home = Home::new();
+    mine(&home, "miyu", "prompts/persona.md", "You are Miyu.\n");
+    mine(&home, "miyu", "prompts/reminders.md", "Stay soft.\n\n");
+    let script = Script::new([Play::Says("嗯。"), Play::Says("好。"), Play::Says("在。")]);
+    let mut client = connected(configured(&home, &script)).await;
+    let reply = create(&mut client, "c1", json!({"cwd": "~", "persona": "miyu"})).await;
+    let session = reply["result"]["session"]
+        .as_str()
+        .expect("造出来了")
+        .to_string();
+    client.say("s1", &session, "hi").await;
+    home.until_turns(&session, 1).await;
+    client.say("s2", &session, "再说").await;
+    home.until_turns(&session, 2).await;
+    let requests = script.requests();
+    let lock = include_str!("../../../resources/core/style-lock.txt");
+    assert!(
+        requests[0].1.system.ends_with(lock.trim_end()),
+        "{}",
+        requests[0].1.system
+    );
+    let first = said(&requests[0].1);
+    let block = "<persona-reminder>\nStay soft.\n</persona-reminder>\n";
+    assert!(first[0].1.ends_with(&format!("hi{block}")), "{first:?}");
+    let second = said(&requests[1].1);
+    assert_eq!(second[0], first[0], "第一轮那一块照原样留着");
+    assert_eq!(
+        second.last(),
+        Some(&("user", "再说".to_string())),
+        "{second:?}"
+    );
+    let reply = create(
+        &mut client,
+        "c2",
+        json!({"cwd": "~", "persona": "engineer"}),
+    )
+    .await;
+    let engineer = reply["result"]["session"]
+        .as_str()
+        .expect("造出来了")
+        .to_string();
+    client.say("s3", &engineer, "hi").await;
+    home.until_turns(&engineer, 1).await;
+    let plain = &script.requests()[2].1;
+    assert!(!plain.system.contains("style-lock"), "{}", plain.system);
+    assert!(!said(plain)[0].1.contains("persona-reminder"));
 }
 
 #[tokio::test]
@@ -231,6 +284,9 @@ async fn personas_are_listed_and_read_by_layer() {
         "[persona]\nsummary = { zh = \"我的工程师\" }\n",
     );
     mine(&home, "broken", "persona.toml", "[voice]\n");
+    mine(&home, "miyu", "prompts/reminders.md", "Stay soft.\n");
+    // 软件工程师只在家目录多一份提示：示范对话没有，两样来自哪一层分得开。
+    mine(&home, "engineer", "prompts/reminders.md", "Stay.\n");
     let script = Script::new([]);
     let mut client = connected(configured(&home, &script)).await;
     let listed = client.call("l1", "persona.list", json!({})).await;
@@ -254,14 +310,17 @@ async fn personas_are_listed_and_read_by_layer() {
             "name": {"en": "Miyu", "zh": "美羽"},
             "summary": {"en": "Mine."},
             "layers": ["home"],
-            "prompts": {"persona": null, "examples": "home"},
+            "prompts": {"persona": null, "examples": "home", "reminders": "home"},
             "examples": 2,
         })
     );
     let got = client
         .call("g2", "persona.get", json!({"persona": "engineer"}))
         .await;
-    assert_eq!(got["result"]["prompts"]["persona"], "shipped");
+    assert_eq!(
+        got["result"]["prompts"],
+        json!({"persona": "shipped", "examples": null, "reminders": "home"})
+    );
     let got = client
         .call("g3", "persona.get", json!({"persona": "nobody"}))
         .await;

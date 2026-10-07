@@ -70,6 +70,9 @@ pub struct Snapshot {
     /// 旧快照的字节不变。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub memory: Option<String>,
+    /// 角色扮演提示拼好的一块（施工 P-1 补，`compose.rs`）：回合开始时隔几轮注入。没有的不写，旧快照的字节不变。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reminder: Option<String>,
 }
 
 /// 压缩用的数（`compaction.md`「对外的样子」的策略数据）。
@@ -380,7 +383,7 @@ impl Snapshot {
             system: self.system.clone(),
             demos: self.demos.iter().flat_map(Demo::messages).collect(),
         };
-        let facts = core.facts.templates()?;
+        let facts = core.facts.templates()?.with_reminder(self.reminder.clone());
         Ok(Policy {
             assembler: Box::new(DefaultAssembler::new(stable, texts)),
             facts,
