@@ -11,6 +11,7 @@ mod awaiting;
 mod backoff;
 mod config;
 mod connect;
+mod cost;
 mod efforts;
 mod kinds;
 mod limits;
@@ -37,6 +38,8 @@ use tokio::sync::mpsc;
 use backoff::Backoff;
 use connect::{connect, subscribe};
 
+pub use config::HeadConfig;
+pub use cost::{Bill, Cost, UsageAsk, UsageKind, UsageRow};
 pub use efforts::{EffortList, Efforts};
 pub use kinds::{EndReason, Level, ToolStatus};
 pub use limits::Limits;
@@ -153,6 +156,8 @@ pub enum Command {
     },
     /// 切权限级别（`session.set_permission_level`）：切到这一级。会话还没开的记着，开了再发。
     Level(Level),
+    /// 查用量（`usage.query`，`/usage`）。
+    Usage(UsageAsk),
     /// 一条斜杠命令交给核心办（`command.run`，核心 O-6）：`/stop`、`/clear`，原文照规范的名字。
     Run(String),
     /// 要一段回顾（`session.recap`，`/recap`）。
@@ -254,12 +259,19 @@ pub enum Update {
     CoolingUntil(Option<jiff::Timestamp>),
     /// 给人看的字（[`Command::FetchHuman`] 的回应）。
     Human(crate::human::Human),
-    /// 配置里界面语言的最终值（`ui.language`：`auto` 或者语言代码）：连上时读一次，别处改了再读（「界面语言」）。
-    UiLanguage(String),
+    /// 配置里头要的几项（界面语言、金额排最前的币种）：连上时读一次，别处改了再读（「界面语言」）。
+    HeadConfig(HeadConfig),
     /// 会话列表（[`Command::ListSessions`] 的回应）：只有主会话，照核心交回的先后。
     Sessions(Vec<SessionInfo>),
     /// 改名成了（`None` 是去掉了标题）：弹一句提示，标题照推送换（蓝图「改名」第 3 条）。
     Renamed(Option<String>),
+    /// `usage.query` 的回应（`/usage`）：哪一样、一行行；拒了的是核心的原话。
+    UsageRows {
+        /// 哪一样。
+        kind: UsageKind,
+        /// 一行行，或者拒绝的原话。
+        rows: Result<Vec<UsageRow>, String>,
+    },
     /// 斜杠命令办了（`command.run` 的回应）：规范的命令名、照连接语言写好的回执。
     CommandRan {
         /// `stop`、`clear`。

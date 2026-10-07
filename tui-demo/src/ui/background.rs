@@ -35,7 +35,8 @@ pub fn lines(
             | Panel::Language { .. }
             | Panel::Sessions
             | Panel::Models
-            | Panel::Effort { .. },
+            | Panel::Effort { .. }
+            | Panel::Usage { .. },
         ) => (Chrome::default(), Vec::new(), Vec::new()),
         Some(Panel::Background {
             selected,

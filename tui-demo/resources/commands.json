@@ -195,6 +195,15 @@
       "run": "connect"
     },
     {
+      "name": "usage",
+      "summary": {
+        "zh": "这台机器上的用量和花费：按天、按模型",
+        "en": "Usage and spending on this machine, by day and by model",
+        "ja": "このマシンの使用量と費用（日別・モデル別）"
+      },
+      "run": "usage"
+    },
+    {
       "name": "copy",
       "summary": {
         "zh": "复制她上一轮的回答",

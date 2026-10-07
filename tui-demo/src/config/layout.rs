@@ -67,6 +67,10 @@ pub struct Layout {
     pub esc_window_ms: u64,
     /// 抽屉带文字画时可以高过半屏，但屏幕顶上至少留这么多行（蓝图「确认和提问的抽屉」第 2 条）。
     pub drawer_keep_rows: u16,
+    /// 金额前面写的币种符号（蓝图「配置与模型」第 5 条）；表里没有的写在数后面（`1.30 HKD`）。
+    pub currencies: std::collections::HashMap<String, String>,
+    /// `/usage` 框里几样图的尺寸（蓝图「配置与模型」第 5 条）。
+    pub usage: crate::ui::usage::Look,
     /// 提问抽屉里选项预览的面板怎么摆（蓝图「确认和提问的抽屉」第 3 条）。
     pub drawer_preview: crate::ui::PreviewLook,
     /// 输入框左上方的提示停多久，毫秒。

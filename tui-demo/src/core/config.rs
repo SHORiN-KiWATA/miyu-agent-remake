@@ -1,5 +1,5 @@
-//! 头这边用的配置（蓝图 `tui.md`「界面语言」，核心 8-2、8-3、8-4）：读 `ui.language` 的最终值、写进个人设置、
-//! 订阅配置流跟着变。
+//! 头这边用的配置（蓝图 `tui.md`「界面语言」，核心 8-2、8-3、8-4）：读 `ui.language`、`usage.currency`（金额哪种币排
+//! 最前，核心 8-15）的最终值、写进个人设置、订阅配置流跟着变。
 
 use std::io;
 
@@ -9,29 +9,49 @@ use super::rpc::Rpc;
 
 /// 界面语言的配置项。
 const LANGUAGE: &str = "ui.language";
+/// 金额哪种币排最前的配置项。
+const CURRENCY: &str = "usage.currency";
+
+/// 头要的几项配置的最终值。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HeadConfig {
+    /// 界面语言：`auto` 或者语言代码。
+    pub language: String,
+    /// 金额排最前的币种，没有的是 `USD`。
+    pub currency: String,
+}
 
 /// 连上以后：订阅配置流（别处改了推 `config.changed`），读一次界面语言。交回读的那条请求的编号。
 pub(super) async fn follow(rpc: &mut Rpc) -> io::Result<String> {
     rpc.send("subscribe", json!({"stream": "config"})).await?;
-    read_language(rpc).await
+    read(rpc).await
 }
 
-/// 读 `ui.language` 的最终值。交回请求编号。
-pub(super) async fn read_language(rpc: &mut Rpc) -> io::Result<String> {
-    rpc.send("config.get", json!({"keys": [LANGUAGE]})).await
+/// 读头要的几项的最终值。交回请求编号。
+pub(super) async fn read(rpc: &mut Rpc) -> io::Result<String> {
+    rpc.send("config.get", json!({"keys": [LANGUAGE, CURRENCY]}))
+        .await
 }
 
-/// `config.get` 的回应里界面语言的最终值；没有的是 `auto`。
-pub(super) fn language(result: &Value) -> String {
-    result["items"][LANGUAGE]["value"]
-        .as_str()
-        .unwrap_or("auto")
-        .to_string()
+/// `config.get` 的回应里那几项；界面语言没有的是 `auto`，币种没有的是 `USD`。
+pub(super) fn head(result: &Value) -> HeadConfig {
+    let value = |key: &str, default: &str| {
+        result["items"][key]["value"]
+            .as_str()
+            .unwrap_or(default)
+            .to_string()
+    };
+    HeadConfig {
+        language: value(LANGUAGE, "auto"),
+        currency: value(CURRENCY, "USD"),
+    }
 }
 
-/// 推来的 `config.changed` 动了界面语言。
-pub(super) fn touches_language(params: &Value) -> bool {
-    params["keys"].get(LANGUAGE).is_some()
+/// 推来的 `config.changed` 动了头要的哪一项。
+pub(super) fn touches(params: &Value) -> bool {
+    [LANGUAGE, CURRENCY]
+        .iter()
+        .any(|key| params["keys"].get(key).is_some())
 }
 
 /// 新会话默认用哪个（手动换的模型，`/model`）：写进个人设置的 `models.chat`。
@@ -57,18 +77,21 @@ pub(super) fn set_language(code: &str) -> Value {
 mod tests {
     use serde_json::json;
 
-    use super::{language, set_language, touches_language};
+    use super::{head, set_language, touches};
 
     #[test]
     fn the_language_is_read_written_and_noticed_by_its_key() {
         let got = json!({"items":{"ui.language":{"origin":{"layer":"personal"},"value":"ja"}}});
-        assert_eq!(language(&got), "ja");
-        assert_eq!(language(&json!({"items":{}})), "auto", "没有的当自动");
-        assert!(touches_language(
+        assert_eq!(head(&got).language, "ja");
+        assert_eq!(head(&json!({"items":{}})).language, "auto", "没有的当自动");
+        assert_eq!(head(&json!({"items":{}})).currency, "USD");
+        let cny = json!({"items":{"usage.currency":{"value":"CNY"}}});
+        assert_eq!(head(&cny).currency, "CNY");
+        assert!(touches(
             &json!({"keys":{"ui.language":{"value":"en"}},"layer":"personal"})
         ));
         assert!(
-            !touches_language(&json!({"keys":{},"layer":"personal"})),
+            !touches(&json!({"keys":{},"layer":"personal"})),
             "只改了注释"
         );
         assert_eq!(

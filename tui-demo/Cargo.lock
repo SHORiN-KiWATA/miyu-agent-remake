@@ -1961,6 +1961,7 @@ dependencies = [
  "miyu-ipc",
  "miyu-kernel",
  "miyu-log",
+ "miyu-memory",
  "miyu-mermaid",
  "miyu-models",
  "miyu-net",
@@ -2068,6 +2069,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-memory"
+version = "0.0.0"
+dependencies = [
+ "miyu-kernel",
+ "miyu-recall",
+ "miyu-tool",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "miyu-mermaid"
 version = "0.0.0"
 dependencies = [
@@ -2123,6 +2135,7 @@ dependencies = [
  "miyu-kernel",
  "serde",
  "serde_json",
+ "toml_edit",
 ]
 
 [[package]]
@@ -2194,7 +2207,9 @@ version = "0.0.0"
 dependencies = [
  "imagesize 0.15.0",
  "miyu-kernel",
+ "miyu-recall",
  "miyu-sandbox",
+ "serde",
  "serde_json",
 ]
 
@@ -2209,6 +2224,7 @@ dependencies = [
  "miyu-endpoint",
  "miyu-ipc",
  "miyu-kernel",
+ "miyu-models",
  "miyu-session",
  "miyu-store",
  "miyu-tool",

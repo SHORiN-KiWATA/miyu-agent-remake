@@ -7,7 +7,7 @@ use crate::human::Human;
 use unicode_width::UnicodeWidthChar;
 
 use crate::config::JobTexts;
-use crate::core::Usage;
+use crate::core::{Bill, Usage};
 use crate::jobs::{Board, JobKind, JobState};
 use crate::meter;
 use crate::transcript::{Entry, JobMark, Kind, StepKind, Transcript};
@@ -202,21 +202,39 @@ pub(super) fn untrusted(name: &str) -> String {
 /// `own` 加上 `board` 里派出去的子代理（一层层往下）停放着的正文里用的（`App::usage_total`）。
 pub(super) fn tree_usage(own: Usage, board: &Board, parked: &super::Lot) -> Usage {
     let mut total = own;
+    for child in tree(board, parked) {
+        let usage = child.total;
+        total.uncached += usage.uncached;
+        total.cache_read += usage.cache_read;
+        total.cache_write += usage.cache_write;
+        total.output += usage.output;
+        total.aux += usage.aux;
+    }
+    total
+}
+
+/// `own` 加上子代理们花的（`App::bill_total`，和用量一个算法，核心 8-15）。
+pub(super) fn tree_bill(own: &Bill, board: &Board, parked: &super::Lot) -> Bill {
+    let mut total = own.clone();
+    for child in tree(board, parked) {
+        total.merge(&child.bill);
+    }
+    total
+}
+
+/// `board` 里派出去的子代理（一层层往下）停放着的正文。
+fn tree<'a>(board: &'a Board, parked: &'a super::Lot) -> Vec<&'a Transcript> {
+    let mut out = Vec::new();
     let mut boards = vec![board];
     while let Some(board) = boards.pop() {
         for child in board.jobs.iter().filter_map(|j| j.session.as_deref()) {
             if let Some(p) = parked.get(child) {
-                let usage = p.transcript.total;
-                total.uncached += usage.uncached;
-                total.cache_read += usage.cache_read;
-                total.cache_write += usage.cache_write;
-                total.output += usage.output;
-                total.aux += usage.aux;
+                out.push(&p.transcript);
                 boards.push(&p.board);
             }
         }
     }
-    total
+    out
 }
 
 #[cfg(test)]

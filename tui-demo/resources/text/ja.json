@@ -24,6 +24,8 @@
   "side_hit": "キャッシュヒット {percent}%",
   "side_compactions": "圧縮 {n} 回",
   "side_breaks": "キャッシュ断絶 {n} 回",
+  "side_cost": "費用 {amounts}",
+  "side_unpriced": "価格のないリクエスト {n} 件",
   "copied": "{count} 文字をコピーしました",
   "copy_failed": "コピーに失敗：{reason}",
   "nothing_to_copy": "コピーできる返信がまだありません",
@@ -238,6 +240,63 @@
     "hours": "{n} 時間前",
     "days": "{n} 日前",
     "none": "送信履歴がありません"
+  },
+  "usage": {
+    "title": "使用量",
+    "tabs": [
+      "概要",
+      "直近 30 日",
+      "モデル別",
+      "セッション別"
+    ],
+    "total": "合計 {amounts}",
+    "today": "今日",
+    "requests": "{n} 件",
+    "unpriced": "価格なし {n} 件",
+    "loading": "使用量を読み込み中…",
+    "empty": "まだ使用量がありません",
+    "failed": "使用量を読めません：{reason}",
+    "hint": "Tab 切り替え · t トークン/費用 · ↑/↓ スクロール · Esc 閉じる",
+    "lifetime": "累計",
+    "peak": "1 日の最高",
+    "streak": "連続使用",
+    "streak_days": "{n} 日",
+    "streak_best": "最長 {n} 日",
+    "longest": "最長のセッション",
+    "less": "少",
+    "more": "多",
+    "by_tokens": "トークン",
+    "by_money": "費用",
+    "weekdays": [
+      "月",
+      "",
+      "水",
+      "",
+      "金",
+      "",
+      "日"
+    ],
+    "months": [
+      "1月",
+      "2月",
+      "3月",
+      "4月",
+      "5月",
+      "6月",
+      "7月",
+      "8月",
+      "9月",
+      "10月",
+      "11月",
+      "12月"
+    ],
+    "recent_peak": "最高 {tokens}",
+    "main_purpose": "会話",
+    "purposes": {
+      "title": "タイトル",
+      "recap": "振り返り",
+      "vision": "画像"
+    }
   },
   "help": {
     "title": "ヘルプ",

@@ -73,10 +73,16 @@ pub struct Texts {
     pub side_compactions: String,
     /// 意外断过几次缓存，`{n}`；没断过不写。
     pub side_breaks: String,
+    /// 花了多少，`{amounts}`（`$0.42 + ¥1.30`，核心 8-15）；一笔都算不出的不写。
+    pub side_cost: String,
+    /// 有几次请求没有价格，`{n}`；都有价格的不写。
+    pub side_unpriced: String,
     /// 后台命令、子代理、待办的字。
     pub jobs: JobTexts,
     /// 帮助框里的字（`/help`）。
     pub help: crate::ui::help::Texts,
+    /// 用量框里的字（`/usage`）。
+    pub usage: crate::ui::usage::Texts,
     /// 配置页的字（`/config`，蓝图「配置页」）。
     pub settings: crate::settings::Texts,
     /// 确认和提问的抽屉上的字。

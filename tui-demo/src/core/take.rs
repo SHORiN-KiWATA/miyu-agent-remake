@@ -40,6 +40,10 @@ pub(super) async fn take(
                 }),
             }),
             Some(Awaiting::Send | Awaiting::Redo) => notify(Update::Unsent { reason, message }),
+            Some(Awaiting::Usage(kind)) => notify(Update::UsageRows {
+                kind,
+                rows: Err(message),
+            }),
             // 订阅不上（那个会话已经删了）：不用说。读不了配置（核心旧）：照系统语言，不用说。
             Some(
                 Awaiting::Watch(_)
@@ -85,6 +89,10 @@ pub(super) async fn take(
                 || notify(Update::Recap(text.to_string()));
         }
         Some(Awaiting::Rename(title)) => return notify(Update::Renamed(title)),
+        Some(Awaiting::Usage(kind)) => {
+            let rows = Ok(super::cost::rows(&message["result"]));
+            return notify(Update::UsageRows { kind, rows });
+        }
         Some(Awaiting::CommandRun) => {
             let text = |key: &str| {
                 message["result"][key]
@@ -145,7 +153,7 @@ pub(super) async fn take(
             )));
         }
         Some(Awaiting::UiLanguage) => {
-            return notify(Update::UiLanguage(config::language(&message["result"])));
+            return notify(Update::HeadConfig(config::head(&message["result"])));
         }
         Some(Awaiting::List | Awaiting::SessionsStream) => {
             return notify(Update::Sessions(sessions::read(&message["result"])));
@@ -214,7 +222,7 @@ pub(super) async fn take(
         return true;
     }
     let reread = match message["method"].as_str() {
-        Some("config.changed") => config::touches_language(params),
+        Some("config.changed") => config::touches(params),
         Some("resync") => params["stream"] == "config",
         _ => false,
     };
@@ -222,7 +230,7 @@ pub(super) async fn take(
         let sent = if message["method"] == "resync" {
             config::follow(rpc).await
         } else {
-            config::read_language(rpc).await
+            config::read(rpc).await
         };
         if let Ok(id) = sent {
             awaiting.insert(id, Awaiting::UiLanguage);

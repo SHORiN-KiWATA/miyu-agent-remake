@@ -56,6 +56,7 @@ rustix = { version = "1", features = ["stdio", "process"] }
 [dev-dependencies]
 miyu-core = { path = "../crates/miyu-core" }
 miyu-endpoint = { path = "../crates/miyu-endpoint" }
+miyu-models = { path = "../crates/miyu-models" }
 miyu-session = { path = "../crates/miyu-session", features = ["testkit"] }
 miyu-tool = { path = "../crates/miyu-tool" }
 portable-pty = "0.9"

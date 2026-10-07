@@ -13,6 +13,7 @@
   "panel_bg": "#24283b",
   "row_bg": "#3d59a1",
   "row_dim_bg": "#222538",
+  "heat": ["#292e42", "#2d4a6b", "#3d6aa8", "#5a8fe0", "#9cc2ff"],
   "added": "#9ece6a",
   "removed": "#f7768e",
   "diff_added_fg": "#9ece6a",

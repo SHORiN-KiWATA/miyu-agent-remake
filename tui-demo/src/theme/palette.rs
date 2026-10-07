@@ -93,6 +93,8 @@ pub struct Palette {
     pub row_bg: Tone,
     /// 配置页别的栏选中的那一行的底色：浅一档。
     pub row_dim_bg: Tone,
+    /// `/usage` 热度图的五档：没用的最暗，往后越用越多越亮（蓝图「配置与模型」第 5 条）。
+    pub heat: [Tone; 5],
     /// 标题里的 `+N`。
     pub added: Tone,
     /// 标题里的 `-N`。

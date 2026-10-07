@@ -183,6 +183,11 @@ pub fn panel() -> Style {
     Style::new().bg(pick(|p| p.panel_bg))
 }
 
+/// `/usage` 热度图、柱状图、占比条的第 `level` 档（0 到 4，越大越亮）。
+pub fn heat(level: usize) -> Style {
+    fg(|p| p.heat[level.min(4)])
+}
+
 /// 配置页焦点那一栏选中的一行：底色深一档，字照常。
 pub fn row_focus() -> Style {
     Style::new().bg(pick(|p| p.row_bg))

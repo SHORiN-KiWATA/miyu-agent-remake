@@ -230,6 +230,21 @@ pub fn info_lines(
     (out, id_row)
 }
 
+/// 花了多少：「花费 $0.42 + ¥1.30」，有没价格的再一行暗色「N 次请求没有价格」；一笔都算不出的只写暗色那一行。
+fn spent_lines((amounts, unpriced): (Option<String>, u64), config: &Config) -> Vec<Line<'static>> {
+    let text = &config.text;
+    let mut out = Vec::new();
+    if let Some(amounts) = amounts {
+        let line = text.side_cost.replace("{amounts}", &amounts);
+        out.push(Line::styled(format!("  {line}"), theme::dim()));
+    }
+    if unpriced > 0 {
+        let line = text.side_unpriced.replace("{n}", &unpriced.to_string());
+        out.push(Line::styled(format!("  {line}"), theme::dim()));
+    }
+    out
+}
+
 /// 上下文那根进度条：用了的强调色、没用的暗；压缩线落在的那一格换成警示色（黄），字不变（2026-09-30 项目主人定）。
 /// `line` 是核心给的压缩线，没给的不标。
 pub(super) fn bar(
@@ -338,7 +353,9 @@ pub fn draw(frame: &mut Frame, area: Rect, app: &mut App) {
         top = mascot.bottom() + 1;
     }
     let total = app.usage_total();
-    let (info, id_row) = info_lines(&app.transcript, &total, &app.config, inner, &app.cwd);
+    let (mut info, id_row) = info_lines(&app.transcript, &total, &app.config, inner, &app.cwd);
+    // 「用量」那一段最后接花了多少（核心 8-15）：用量那一段在最后，接在后面就是。
+    info.extend(spent_lines(app.spent(), &app.config));
     let tall = u16::try_from(info.len()).unwrap_or(u16::MAX);
     let at = Rect::new(area.x + 1, top, inner, tall).intersection(area);
     // 写了字的行记下来，给侧边栏的选字用（第 7 条）。

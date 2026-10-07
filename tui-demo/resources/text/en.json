@@ -24,6 +24,8 @@
   "side_hit": "Cache hits {percent}%",
   "side_compactions": "Compactions: {n}",
   "side_breaks": "Cache breaks: {n}",
+  "side_cost": "Spent {amounts}",
+  "side_unpriced": "{n} requests without a price",
   "copied": "Copied {count} character(s)",
   "copy_failed": "Couldn't copy: {reason}",
   "nothing_to_copy": "No reply to copy yet",
@@ -238,6 +240,63 @@
     "hours": "{n} h ago",
     "days": "{n}d ago",
     "none": "Nothing sent yet"
+  },
+  "usage": {
+    "title": "Usage",
+    "tabs": [
+      "Overview",
+      "Last 30 days",
+      "By model",
+      "By session"
+    ],
+    "total": "Total {amounts}",
+    "today": "today",
+    "requests": "{n} req",
+    "unpriced": "{n} without a price",
+    "loading": "Reading usage…",
+    "empty": "No usage yet",
+    "failed": "Can't read usage: {reason}",
+    "hint": "Tab switch · t tokens/spend · ↑/↓ scroll · Esc close",
+    "lifetime": "Lifetime",
+    "peak": "Peak day",
+    "streak": "Streak",
+    "streak_days": "{n} days",
+    "streak_best": "best {n} days",
+    "longest": "Longest session",
+    "less": "less",
+    "more": "more",
+    "by_tokens": "tokens",
+    "by_money": "spend",
+    "weekdays": [
+      "Mo",
+      "",
+      "We",
+      "",
+      "Fr",
+      "",
+      "Su"
+    ],
+    "months": [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec"
+    ],
+    "recent_peak": "peak {tokens}",
+    "main_purpose": "chat",
+    "purposes": {
+      "title": "titles",
+      "recap": "recaps",
+      "vision": "vision"
+    }
   },
   "help": {
     "title": "Help",

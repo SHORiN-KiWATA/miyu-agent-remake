@@ -47,6 +47,8 @@ pub(super) enum Awaiting {
     Configure(String),
     /// 配置页的一条请求：界面给的编号。
     Ask(u64),
+    /// 查用量（`/usage`）：哪一样。
+    Usage(super::UsageKind),
     /// 斜杠命令（`command.run`）：回执交给界面。
     CommandRun,
     /// 回答确认、提问：问的会话、调用编号（拒了要告诉界面）。

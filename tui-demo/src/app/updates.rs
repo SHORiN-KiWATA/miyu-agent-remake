@@ -40,11 +40,15 @@ impl App {
         }
         // 配置里的界面语言：照它换（`language.rs`）。
         // 连上核心都会读一次界面语言：顺手要一次模型资料，底栏照它写模型和思考强度（`effort.rs`）。
-        if matches!(update, Update::UiLanguage(_)) {
-            self.refresh_effort();
+        // `/usage` 的三样：交给框（`usage.rs`）。
+        if let Update::UsageRows { kind, rows } = update {
+            self.usage_rows(kind, rows);
+            return;
         }
-        if let Update::UiLanguage(code) = update {
-            self.language_from_config(&code);
+        if let Update::HeadConfig(head) = update {
+            self.refresh_effort();
+            self.currency = head.currency;
+            self.language_from_config(&head.language);
             return;
         }
         // `/model` 的一行行：交给开着的框（`models.rs`）。

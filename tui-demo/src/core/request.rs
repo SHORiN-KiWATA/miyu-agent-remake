@@ -84,6 +84,7 @@ pub(super) fn request(
         | Command::FetchBlob(_)
         | Command::RenderMermaid(_)
         | Command::Ask { .. }
+        | Command::Usage(_)
         | Command::SetEffort { .. }
         | Command::Output { .. } => {
             return None;

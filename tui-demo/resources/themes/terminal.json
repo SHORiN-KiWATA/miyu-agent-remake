@@ -13,6 +13,7 @@
   "panel_bg": "idx:236",
   "row_bg": "idx:60",
   "row_dim_bg": "idx:235",
+  "heat": ["idx:236", "idx:24", "idx:25", "idx:33", "idx:117"],
   "added": "green",
   "removed": "red",
   "diff_added_fg": "idx:157",

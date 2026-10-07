@@ -152,6 +152,18 @@ impl Home {
         Tui::spawn(&self.dir, &self.work, lang, &[], args)
     }
 
+    /// 同 [`Home::tui`]，终端开 `cols` 列宽（看侧边栏要够 `layout.json` 的 `sidebar_from`）。
+    pub fn tui_wide(&self, lang: &str, cols: u16) -> Tui {
+        Tui::program_sized(
+            (&self.dir, &self.work),
+            lang,
+            &[],
+            &[],
+            env!("CARGO_BIN_EXE_miyu-tui-demo"),
+            cols,
+        )
+    }
+
     /// 同 [`Home::tui`]，另外带几个环境变量。
     pub fn tui_with(&self, lang: &str, env: &[(&str, &str)]) -> Tui {
         Tui::spawn(&self.dir, &self.work, lang, env, &[])
@@ -168,6 +180,8 @@ impl Drop for Home {
 /// 伪终端里跑着的界面。
 pub struct Tui {
     screen: vt100::Parser,
+    /// 终端几列宽。
+    cols: u16,
     /// 录着的界面写出来的原样字节（[`Tui::record`]）。
     recording: Option<Vec<u8>>,
     bytes: Receiver<Vec<u8>>,
@@ -197,10 +211,22 @@ impl Tui {
         args: &[&str],
         program: &str,
     ) -> Tui {
+        Self::program_sized((home, work), lang, env, args, program, COLS)
+    }
+
+    /// 同 [`Tui::program`]，终端开 `cols` 列宽。
+    fn program_sized(
+        (home, work): (&Path, &Path),
+        lang: &str,
+        env: &[(&str, &str)],
+        args: &[&str],
+        program: &str,
+        cols: u16,
+    ) -> Tui {
         let pty = native_pty_system()
             .openpty(PtySize {
                 rows: ROWS,
-                cols: COLS,
+                cols,
                 pixel_width: 0,
                 pixel_height: 0,
             })
@@ -246,7 +272,8 @@ impl Tui {
             }
         });
         Tui {
-            screen: vt100::Parser::new(ROWS, COLS, 0),
+            screen: vt100::Parser::new(ROWS, cols, 0),
+            cols,
             recording: None,
             bytes,
             writer,
@@ -325,7 +352,7 @@ impl Tui {
 
     /// 从现在起录，交回现在的屏幕：交给 [`frames`] 一帧一帧重放录下的字节（只读屏幕看不到中间闪过的帧）。
     pub fn record_from_here(&mut self) -> vt100::Parser {
-        let mut start = vt100::Parser::new(ROWS, COLS, 0);
+        let mut start = vt100::Parser::new(ROWS, self.cols, 0);
         start.process(&self.screen.screen().contents_formatted());
         self.record();
         start
@@ -335,7 +362,7 @@ impl Tui {
     pub fn lines(&self) -> Vec<String> {
         self.screen
             .screen()
-            .rows(0, COLS)
+            .rows(0, self.cols)
             .map(|l| l.trim_end().to_string())
             .collect()
     }

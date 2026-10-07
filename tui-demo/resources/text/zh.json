@@ -24,6 +24,8 @@
   "side_hit": "缓存命中 {percent}%",
   "side_compactions": "压缩 {n} 次",
   "side_breaks": "缓存断裂 {n} 次",
+  "side_cost": "花费 {amounts}",
+  "side_unpriced": "{n} 次请求没有价格",
   "copied": "已复制 {count} 个字",
   "copy_failed": "复制失败：{reason}",
   "nothing_to_copy": "还没有能复制的回答",
@@ -238,6 +240,63 @@
     "hours": "{n} 小时前",
     "days": "{n} 天前",
     "none": "历史发送为空"
+  },
+  "usage": {
+    "title": "用量",
+    "tabs": [
+      "总览",
+      "最近 30 天",
+      "按模型",
+      "按会话"
+    ],
+    "total": "共 {amounts}",
+    "today": "今天",
+    "requests": "{n} 次",
+    "unpriced": "{n} 次没有价格",
+    "loading": "正在读用量…",
+    "empty": "还没有用量",
+    "failed": "读不了用量：{reason}",
+    "hint": "Tab 换页 · t token/花费 · ↑/↓ 滚动 · Esc 关闭",
+    "lifetime": "累计",
+    "peak": "单日最高",
+    "streak": "连续使用",
+    "streak_days": "{n} 天",
+    "streak_best": "最长 {n} 天",
+    "longest": "最长的会话",
+    "less": "少",
+    "more": "多",
+    "by_tokens": "token",
+    "by_money": "花费",
+    "weekdays": [
+      "一",
+      "",
+      "三",
+      "",
+      "五",
+      "",
+      "日"
+    ],
+    "months": [
+      "1月",
+      "2月",
+      "3月",
+      "4月",
+      "5月",
+      "6月",
+      "7月",
+      "8月",
+      "9月",
+      "10月",
+      "11月",
+      "12月"
+    ],
+    "recent_peak": "最高 {tokens}",
+    "main_purpose": "主对话",
+    "purposes": {
+      "title": "起标题",
+      "recap": "回顾",
+      "vision": "看图"
+    }
   },
   "help": {
     "title": "帮助",

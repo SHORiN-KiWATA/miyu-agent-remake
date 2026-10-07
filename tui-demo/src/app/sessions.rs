@@ -8,7 +8,7 @@ use std::time::Instant;
 use super::App;
 use crate::body_view::BodyView;
 use crate::config::JobTexts;
-use crate::core::{Command, JobStart, Push, Sender, Update, Usage};
+use crate::core::{Bill, Command, JobStart, Push, Sender, Update, Usage};
 use crate::jobs::{Board, Job, JobKind};
 use crate::transcript::Transcript;
 
@@ -323,6 +323,18 @@ impl App {
     /// 子代理用的也算进主会话）。子代理的照它停放着的正文，订阅上以前用的看不到。
     pub fn usage_total(&self) -> Usage {
         notes::tree_usage(self.transcript.total, &self.board, &self.parked)
+    }
+
+    /// 花了多少：连同子代理的，和 [`App::usage_total`] 一个算法（蓝图「配置与模型」第 5 条）。
+    pub fn bill_total(&self) -> Bill {
+        notes::tree_bill(&self.transcript.bill, &self.board, &self.parked)
+    }
+
+    /// 花了多少写成字（`$0.42 + ¥1.30`，一笔都算不出的是 `None`），和没有价格的几次：侧边栏、框下面那一行用。
+    pub fn spent(&self) -> (Option<String>, u64) {
+        let bill = self.bill_total();
+        let amounts = crate::money::amounts(&bill, &self.currency, &self.config.layout.currencies);
+        (amounts, bill.unpriced)
     }
 
     /// 正在看的子会话；看着主会话是 `None`。

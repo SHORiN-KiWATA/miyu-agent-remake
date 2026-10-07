@@ -28,9 +28,11 @@ mod mascot_view;
 mod md_cache;
 pub mod model_list;
 mod panel;
+mod panels;
 pub mod session_list;
 pub mod settings;
 mod sidebar;
+pub mod usage;
 
 pub use history::{index_at as history_index_at, lines as history_lines};
 pub use menu::{index_at as menu_index_at, rows as menu_rows};
@@ -346,58 +348,9 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     } else {
         Default::default()
     };
-    // 后台面板排成的行（第 3 条）；帮助框（`/help`）一样放在这个位置，点它哪一行都不算点中。
-    let (panel_chrome, panel_lines, panel_rows) = match app.panel {
-        Some(crate::app::Panel::Help { scroll }) => {
-            let (chrome, lines) = help::lines(&app.config, width, scroll, usize::from(inner));
-            let map = vec![None; lines.len()];
-            (chrome, lines, map)
-        }
-        Some(crate::app::Panel::Models) => match &app.model_list {
-            Some(list) => model_list::lines(
-                list,
-                app.transcript.model_ref(),
-                &app.config,
-                width,
-                usize::from(inner),
-            ),
-            None => Default::default(),
-        },
-        Some(crate::app::Panel::Sessions) => match &app.session_list {
-            Some(list) => session_list::lines(
-                list,
-                app.main_session().as_deref(),
-                &app.cwd,
-                &app.config,
-                width,
-                usize::from(inner),
-                spin_frame(app),
-            ),
-            None => Default::default(),
-        },
-        Some(crate::app::Panel::Effort { selected }) => effort_list::lines(
-            app.efforts.as_ref(),
-            selected,
-            &app.config,
-            width,
-            usize::from(inner),
-        ),
-        Some(crate::app::Panel::Language { selected }) => languages::lines(
-            &app.config,
-            &app.system_language,
-            selected,
-            width,
-            usize::from(inner),
-        ),
-        _ => background::lines(
-            app.panel,
-            &app.board,
-            &app.config,
-            width,
-            now,
-            usize::from(inner),
-        ),
-    };
+    // 后台面板排成的行（第 3 条）；帮助框（`/help`）这些框一样放在这个位置（`panels.rs`）。
+    let (panel_chrome, panel_lines, panel_rows) =
+        panels::content(app, width, now, usize::from(inner));
     let menu_shown = menu::rows(app.config.layout.menu_rows, inner);
     // 框里的几条，放得下框的加上上下两条边（`tui.md`「斜杠命令列表」第 3 条）。
     let items = if app.panel.is_some() {

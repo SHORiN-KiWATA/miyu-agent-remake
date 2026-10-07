@@ -43,6 +43,15 @@ pub enum Panel {
         /// 选中第几行。
         selected: usize,
     },
+    /// 用量（`/usage`）：第几页、往下滚了几行、热度图照花费（`t`）；读回来的在 [`App::usage`](super::App) 上。
+    Usage {
+        /// 第几页：总览、最近 30 天、按模型、按会话。
+        tab: usize,
+        /// 往下滚了几行。
+        scroll: usize,
+        /// 热度图照花费分档，不照 token。
+        money: bool,
+    },
 }
 
 impl App {
@@ -189,6 +198,9 @@ impl App {
             Panel::Sessions => return self.sessions_key(key),
             Panel::Models => return self.models_key(key),
             Panel::Effort { selected } => return self.effort_key(selected, key),
+            Panel::Usage { tab, scroll, money } => {
+                return self.usage_key((tab, scroll, money), key);
+            }
         };
         let items = self.board.panel_items(all);
         let at = |selected| {

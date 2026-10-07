@@ -80,6 +80,18 @@
   "undo_left_mark": "✗ ",
   "esc_window_ms": 1500,
   "drawer_keep_rows": 6,
+  "currencies": {
+    "USD": "$",
+    "CNY": "¥",
+    "EUR": "€",
+    "GBP": "£"
+  },
+  "usage": {
+    "recent_days": 30,
+    "weeks": 52,
+    "bar_rows": 6,
+    "share_cells": 20
+  },
   "drawer_preview": {
     "side_min": 86,
     "gap": 3,

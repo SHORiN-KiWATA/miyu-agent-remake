@@ -39,7 +39,15 @@ pub fn draw(frame: &mut Frame, area: Rect, app: &App) -> Rect {
     let room = usize::from(area.width).saturating_sub(left.width() + GAP + button_w);
     frame.render_widget(Paragraph::new(left.clone()), area);
     let total = app.usage_total();
-    let right = Line::from(fit(right(&app.transcript, &total, &app.config), room));
+    let mut cells = right(&app.transcript, &total, &app.config);
+    // 花了多少：接在累计后面，只写算得出的那部分（2026-10-07 项目主人定）。
+    if let (Some(amounts), _) = app.spent() {
+        cells.push(Part {
+            keep: 2,
+            spans: vec![Span::styled(amounts, theme::dim())],
+        });
+    }
+    let right = Line::from(fit(cells, room));
     let right_w = right.width();
     frame.render_widget(Paragraph::new(right.right_aligned()), area);
     let none = Rect::new(area.x, area.y, 0, 0);

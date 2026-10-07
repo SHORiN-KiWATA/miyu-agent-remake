@@ -73,6 +73,8 @@ pub enum Run {
     Clear,
     /// 全停：打断这一轮、排着的留着、停掉后台的（核心 `command.run` 的 `/stop`，蓝图「斜杠命令」`/stop`）。
     Stop,
+    /// 这台机器上的用量和花费（`usage.query`，蓝图「配置与模型」第 5 条）。
+    Usage,
     /// 复制她上一轮的回答（蓝图「斜杠命令」`/copy`）。
     Copy,
     /// 换下一套主题。

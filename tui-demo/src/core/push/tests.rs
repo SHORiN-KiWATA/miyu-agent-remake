@@ -157,8 +157,27 @@ fn a_call_reports_its_usage() {
         output: 5,
         aux: 0,
     };
-    assert_eq!(read_mine(&event), vec![Push::Usage(usage), Push::CallOk]);
+    // 没有 `cost` 的：算一次没有价格（核心 8-15）。
+    assert_eq!(
+        read_mine(&event),
+        vec![Push::Usage(usage), Push::Billed(None), Push::CallOk]
+    );
     assert_eq!(usage.input(), 40);
+    let priced = json!({"kind": "model.called", "by": {"kind": "kernel"},
+        "body": {"result": "ok", "usage": {"uncached": 1, "cache_read": 0, "cache_write": 0, "output": 1},
+                 "cost": {"amount": 0.0002, "currency": "USD", "multiplier": 1, "source": "local"}}});
+    let cost = crate::core::Cost {
+        amount: 0.0002,
+        currency: "USD".into(),
+    };
+    assert!(read_mine(&priced).contains(&Push::Billed(Some(cost))));
+    let interrupted = json!({"kind": "model.called", "by": {"kind": "kernel"}, "body": {"result": "interrupted"}});
+    assert!(
+        !read_mine(&interrupted)
+            .iter()
+            .any(|p| matches!(p, Push::Billed(_))),
+        "没报用量的不算一次请求的钱"
+    );
 }
 
 #[test]

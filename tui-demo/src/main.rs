@@ -33,6 +33,7 @@ mod mention;
 mod menu;
 mod meter;
 mod model_list;
+mod money;
 mod notify;
 mod open;
 mod pacing;
@@ -48,6 +49,7 @@ mod theme;
 mod tips;
 mod transcript;
 mod ui;
+mod usage;
 
 use std::io::{self, Write, stdout};
 use std::sync::mpsc::{self, RecvTimeoutError};

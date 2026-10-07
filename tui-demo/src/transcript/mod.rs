@@ -19,6 +19,7 @@ mod queue;
 mod recap;
 mod redo;
 mod reply;
+mod spent;
 mod steps;
 mod turn;
 mod undo;
@@ -31,7 +32,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 use crate::config::Texts;
-use crate::core::{CallError, EndReason, Level, Limits, Push, ToolStatus, Update, Usage};
+use crate::core::{Bill, CallError, EndReason, Level, Limits, Push, ToolStatus, Update, Usage};
 
 pub use cache::CacheWatch;
 pub use chips::Chip;
@@ -87,6 +88,8 @@ pub struct Transcript {
     pub level: Level,
     /// 这个会话从开到现在，每次请求的用量加起来。
     pub total: Usage,
+    /// 这个会话花了多少：每次有用量的请求的金额照币种加起来，算不出的数几次（核心 8-15）。
+    pub bill: Bill,
     /// 这一轮每次请求的用量加起来：收尾行写它（`tui.md`「正文」第 4 条）。
     turn_usage: Usage,
     /// 这一轮开始时的权限级别：收尾行打头的图标照它，之后换了级别也不变。
@@ -140,6 +143,7 @@ impl Default for Transcript {
             title: None,
             level: Level::Workspace,
             total: Usage::default(),
+            bill: Bill::default(),
             turn_usage: Usage::default(),
             turn_level: Level::Workspace,
             context: 0,
@@ -230,7 +234,7 @@ impl Transcript {
             | Update::Output { .. }
             | Update::Renamed(_)
             | Update::Sessions(_)
-            | Update::UiLanguage(_)
+            | Update::HeadConfig(_)
             | Update::Human(_) => {}
             Update::CoolingUntil(until) => self.cooling_until(until),
             Update::CurrentModel(current) => self.current_model(current),
@@ -243,6 +247,7 @@ impl Transcript {
             | Update::Mermaid { .. }
             | Update::Answer { .. }
             | Update::CommandRan { .. }
+            | Update::UsageRows { .. }
             | Update::AnswerRefused { .. }
             | Update::ConfigChanged
             | Update::SessionChanged(_) => {}
@@ -372,17 +377,8 @@ impl Transcript {
             | Push::JobMessaged(_)
             | Push::JobEnded(_)
             | Push::PeerIdle { .. } => {}
-            Push::Usage(usage) => {
-                self.total.uncached += usage.uncached;
-                self.total.cache_read += usage.cache_read;
-                self.total.cache_write += usage.cache_write;
-                self.total.output += usage.output;
-                self.turn_usage.uncached += usage.uncached;
-                self.turn_usage.cache_read += usage.cache_read;
-                self.turn_usage.cache_write += usage.cache_write;
-                self.turn_usage.output += usage.output;
-                self.context = usage.input() + usage.output;
-            }
+            Push::Usage(usage) => self.used(usage),
+            Push::Billed(cost) => self.bill.add(cost.as_ref()),
             Push::Sent {
                 seen,
                 changed,
