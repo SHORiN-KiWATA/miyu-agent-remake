@@ -137,8 +137,11 @@ async fn entry(core: &Core, session: &SessionId) -> Option<Value> {
     let busy = core.sessions.busy_ids().await.contains(session);
     let (root, admin, index) = (core.root.clone(), core.admin.clone(), core.index.clone());
     let session = session.clone();
+    // 场所会话不推（施工 O-3）：它不在本机的头上。
     tokio::task::spawn_blocking(move || {
-        one(&root, &admin, &index, &session, busy).map(|listed| listed.to_json())
+        one(&root, &admin, &index, &session, busy)
+            .filter(|listed| listed.venue == crate::list::LOCAL)
+            .map(|listed| listed.to_json())
     })
     .await
     .ok()

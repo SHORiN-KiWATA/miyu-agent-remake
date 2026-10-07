@@ -7,7 +7,11 @@ use crate::test_support::{rejected, round_trip};
 fn every_kind_from_the_drawing_round_trips() {
     for json in [
         r#"{"kind":"person","account":"alice"}"#,
+        // 施工 O-3：私聊里认出的本人带 `via`；群里的外部身份带对应的账号、桥报的身份。
+        r#"{"kind":"person","account":"alice","via":"qq:10001"}"#,
         r#"{"kind":"external","venue":"qq:group:123456","id":"qq:10086"}"#,
+        r#"{"kind":"external","venue":"qq:group:123456","id":"qq:10001","account":"alice","role":"manager"}"#,
+        r#"{"kind":"external","venue":"qq:group:123456","id":"qq:10086","role":"member"}"#,
         r#"{"kind":"model","endpoint":"deepseek","model":"deepseek-v4"}"#,
         r#"{"kind":"tool","call_id":"call_44_1"}"#,
         r#"{"kind":"module","id":"memory"}"#,
@@ -25,7 +29,7 @@ fn every_kind_from_the_drawing_round_trips() {
 fn each_kind_reads_into_its_own_variant() {
     let by: By = serde_json::from_str(r#"{"kind":"person","account":"alice"}"#).unwrap();
     let account = AccountId::parse("alice").unwrap();
-    assert_eq!(by, By::Person(Person { account }));
+    assert_eq!(by, By::Person(Person::new(account)));
     let by: By = serde_json::from_str(r#"{"kind":"kernel"}"#).unwrap();
     assert_eq!(by, By::Kernel);
     let by: By = serde_json::from_str(r#"{"kind":"harness","name":"claude-code"}"#).unwrap();
@@ -67,4 +71,13 @@ fn broken_by_is_an_error() {
         &format!(r#"{{"kind":"harness","name":"{}"}}"#, "h".repeat(129)),
         "128 bytes",
     );
+}
+
+/// 桥报的身份只有两种（施工 O-3）：没有 `owner`，主人照对应表认。
+#[test]
+fn a_role_other_than_manager_or_member_is_refused() {
+    let read = serde_json::from_str::<By>(
+        r#"{"kind":"external","venue":"qq:group:1","id":"qq:1","role":"owner"}"#,
+    );
+    assert!(read.is_err(), "{read:?}");
 }

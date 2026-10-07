@@ -44,9 +44,7 @@ impl Drop for Scratch {
 }
 
 fn admin() -> By {
-    By::Person(Person {
-        account: AccountId::parse("admin").unwrap(),
-    })
+    By::Person(Person::new(AccountId::parse("admin").unwrap()))
 }
 
 #[test]

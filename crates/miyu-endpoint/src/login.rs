@@ -362,7 +362,5 @@ fn login_expires(now: Timestamp) -> Timestamp {
 
 /// 记进系统日志的人：现在只有管理员。
 fn by(core: &Core) -> By {
-    By::Person(Person {
-        account: core.admin.clone(),
-    })
+    By::Person(Person::new(core.admin.clone()))
 }

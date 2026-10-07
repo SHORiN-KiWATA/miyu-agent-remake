@@ -16,6 +16,10 @@ pub const ID: &str = "<id>";
 /// 占位：模型名，照供应商那边的叫法：1 到 128 字节，没有控制字符。
 pub const MODEL: &str = "<model>";
 
+/// 占位：通讯平台上的身份（施工 O-3，主人对应表 `external.bindings.<external>`），照短名字的写法：1 到 128 字节，没有控制字符，
+/// 和 [`MODEL`] 一个规矩（`kernel/ids.md` 的 `ExternalId`）。
+pub const EXTERNAL: &str = "<external>";
+
 /// Windows 上这些名字建不了同名的文件（`kernel/ids.md`）。
 const WINDOWS_RESERVED: [&str; 22] = [
     "con", "nul", "aux", "prn", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8",
@@ -24,7 +28,7 @@ const WINDOWS_RESERVED: [&str; 22] = [
 
 /// 一段是不是占位。
 pub fn is_placeholder(segment: &str) -> bool {
-    segment == ID || segment == MODEL
+    segment == ID || segment == MODEL || segment == EXTERNAL
 }
 
 /// 样子 `pattern` 里有没有占位：没有的是写死的键，一项只有一个值。
@@ -43,7 +47,9 @@ pub fn valid(placeholder: &str, name: &str) -> bool {
                     .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
                 && !WINDOWS_RESERVED.contains(&name)
         }
-        MODEL => !name.is_empty() && name.len() <= 128 && !name.chars().any(char::is_control),
+        MODEL | EXTERNAL => {
+            !name.is_empty() && name.len() <= 128 && !name.chars().any(char::is_control)
+        }
         _ => false,
     }
 }

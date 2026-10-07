@@ -38,6 +38,8 @@ pub struct Row {
     /// 第一句话的第一行（施工 9-5）：第一条 `message.user` 的文字，去掉前后空白，最多 50 个字（`PREVIEW_CHARS`）；还没人说过话、
     /// 第一句没有字的是空的。没有标题的会话，头照它显示。
     pub preview: String,
+    /// 场所（施工 O-3）：`session.created` 的 `venue`。本机的是 `local`；通讯平台的场所会话照它找回，列会话时跳过。
+    pub venue: String,
 }
 
 /// `preview` 最多几个字（按 Unicode 的字数）。
@@ -66,6 +68,7 @@ impl Row {
                 next: first.seq,
             },
             preview: String::new(),
+            venue: created.venue.as_str().to_string(),
         })
     }
 
@@ -119,11 +122,12 @@ impl Row {
                 next: miyu_kernel::id::Seq::new(number(next)?).ok_or_else(|| bad("mark"))?,
             },
             preview: row.get(12)?,
+            venue: row.get(13)?,
         })
     }
 
     /// 写进表里的几格，先后照 [`super::COLUMNS`]。数字超过 SQLite 的整数（`i64`）的报错：一段不会有那么长。
-    pub(super) fn to_sql(&self) -> Result<[rusqlite::types::Value; 13], IndexError> {
+    pub(super) fn to_sql(&self) -> Result<[rusqlite::types::Value; 14], IndexError> {
         use rusqlite::types::Value;
         let number = |n: u64| {
             i64::try_from(n)
@@ -146,6 +150,7 @@ impl Row {
             number(self.mark.bytes)?,
             number(self.mark.next.get())?,
             text(&self.preview),
+            text(&self.venue),
         ])
     }
 }

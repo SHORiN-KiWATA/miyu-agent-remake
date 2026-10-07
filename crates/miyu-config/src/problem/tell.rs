@@ -139,7 +139,7 @@ pub fn tell(
         Code::BadSegment => {
             let name = problem.name.as_deref().unwrap_or_default();
             let expected = match why {
-                crate::key::MODEL => "config/expected/model-name",
+                crate::key::MODEL | crate::key::EXTERNAL => "config/expected/model-name",
                 _ => "config/expected/id",
             };
             let expected = sentence(words, expected, &[])?;

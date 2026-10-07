@@ -15,9 +15,7 @@ use crate::test_support::Scratch;
 fn entry(n: u32) -> Entry {
     Entry {
         at: Timestamp::parse("2026-10-01T08:00:00.000Z").unwrap(),
-        by: By::Person(Person {
-            account: AccountId::parse("admin").unwrap(),
-        }),
+        by: By::Person(Person::new(AccountId::parse("admin").unwrap())),
         cause: Some(CommandId::parse(&format!("config-9f2c4e1a7b3d5f60-{n}")).unwrap()),
         kind: EventKind::parse("config.changed").unwrap(),
         body: serde_json::from_str::<RawJson>(&format!("{{\"n\":{n}}}")).unwrap(),

@@ -28,6 +28,14 @@ pub(crate) use miyu_store::index::cwd;
 /// 日志里一条工作目录都没记的（很早以前的日志）照这个算：当头报来的是 `~`（`protocol.md`「会话表」第 5 条）。
 pub(crate) const NO_CWD: &str = "~";
 
+/// 本机的场所。通讯平台的场所会话（施工 O-3，`venues.md`「不在本机的头上」）不进会话列表、会话列表的推送、`sessions` 工具。
+pub(crate) const LOCAL: &str = "local";
+
+/// 这一行是不是本机的会话。
+pub(crate) fn local(row: &Row) -> bool {
+    row.venue == LOCAL
+}
+
 /// 管理员的会话，从新到旧，最多 `limit` 个：`[{busy?, cwd, last_active, oneshot, parent, pinned?, session, title?}]`。
 pub(crate) async fn list(
     core: &Core,
@@ -38,7 +46,7 @@ pub(crate) async fn list(
     let admin = core.admin.clone();
     let index = core.index.clone();
     let busy = core.sessions.busy_ids().await;
-    let pick = move |row: &Row| !oneshot || row.oneshot;
+    let pick = move |row: &Row| local(row) && (!oneshot || row.oneshot);
     let scanned = tokio::task::spawn_blocking(move || {
         scan(
             &root,
@@ -82,6 +90,8 @@ pub(crate) struct Listed {
     pub(crate) last_active: Timestamp,
     /// 第一句话的第一行（施工 9-5）：空的是没有。
     pub(crate) preview: String,
+    /// 场所（施工 O-3）：本机的是 [`LOCAL`]。
+    pub(crate) venue: String,
 }
 
 impl Listed {
@@ -97,6 +107,7 @@ impl Listed {
             busy,
             last_active: row.last_active,
             preview: row.preview,
+            venue: row.venue,
         }
     }
 

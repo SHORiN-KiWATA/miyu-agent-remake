@@ -164,9 +164,7 @@ fn change(
             Ok(()) => {
                 let written = file.written(text, config_file::version(&bytes));
                 config.secrets = written;
-                let by = By::Person(Person {
-                    account: config.places.account.clone(),
-                });
+                let by = By::Person(Person::new(config.places.account.clone()));
                 record(&config, name, action, "set", by, Some(cause));
                 core.hub.publish(&config, None);
                 return Ok(action);

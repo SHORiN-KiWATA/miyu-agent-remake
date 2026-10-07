@@ -385,9 +385,7 @@ pub fn alice_account() -> AccountId {
 }
 
 pub fn alice() -> By {
-    By::Person(Person {
-        account: alice_account(),
-    })
+    By::Person(Person::new(alice_account()))
 }
 
 pub fn environment() -> Environment {

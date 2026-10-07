@@ -242,7 +242,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     });
     actor::spawn(actor, first, span);
     match answer.await {
-        Ok(_) => Ok(Handle::new(id, inbox, busy, oneshot, watched, shown)),
+        Ok(_) => Ok(Handle::new(id, venue, inbox, busy, oneshot, watched, shown)),
         Err(_) => {
             // 造会话那一条没落盘：只剩空的第一段的会话目录删掉；快照的 blob 留着，按内容存，别的会话可能也在用
             // （施工 4-9 再补四下：原来都留在磁盘上）。
@@ -329,6 +329,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     );
     let port = sessions.clone();
     let who = Who::of(&created);
+    let venue = created.venue.clone();
     let asks = Agents::asks(&created.venue, created.parent.as_ref(), attended);
     let agents = sessions.map(|port| {
         Arc::new(Agents {
@@ -440,6 +441,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     actor::spawn(actor, first, span);
     Ok(Handle::new(
         id,
+        venue,
         inbox,
         busy,
         created.oneshot,

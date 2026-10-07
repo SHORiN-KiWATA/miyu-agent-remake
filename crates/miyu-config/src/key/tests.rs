@@ -147,3 +147,22 @@ fn names_lists_what_fills_the_next_placeholder() {
     );
     assert!(names(keys, "providers.<id>.models.<model>", &["deepseek"]).is_empty());
 }
+
+/// 平台身份的占位（施工 O-3）：照短名字的写法，冒号也行；空的、太长的、有控制字符的不行。
+#[test]
+fn an_external_identity_is_short_text() {
+    for good in ["qq:10001", "a", &"q".repeat(128)] {
+        assert!(valid(EXTERNAL, good), "{good}");
+    }
+    for bad in ["", "qq:\u{7}1", &"q".repeat(129)] {
+        assert!(!valid(EXTERNAL, bad), "{bad}");
+    }
+    assert!(is_placeholder(EXTERNAL));
+    assert_eq!(
+        fit(
+            "external.bindings.<external>",
+            &segments(&["external", "bindings", "qq:10001"])
+        ),
+        Fit::Yes(vec!["qq:10001".to_string()])
+    );
+}

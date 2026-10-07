@@ -358,9 +358,7 @@ fn done(
     let version = new.version.clone();
     let changes = differences(&old, &new);
     config.replace(new);
-    let by = By::Person(Person {
-        account: config.places.account.clone(),
-    });
+    let by = By::Person(Person::new(config.places.account.clone()));
     record(config, layer, via, by.clone(), Some(cause), &changes);
     let keys: Vec<String> = changes.iter().map(|(key, _, _)| key.clone()).collect();
     let listed = push::keys(config, layer, &keys);
