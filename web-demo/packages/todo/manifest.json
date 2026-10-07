@@ -11,11 +11,10 @@
   },
   "kind": "optional",
   "description": {
-    "zh": "输入框上面常驻一块待办（照 TUI 窄屏）；核心还没有待办，/demo-todo 推一份演示的。"
+    "zh": "输入框上面常驻一块待办（照 TUI 窄屏）；照核心推的清单（D-3），全做完了停一下再收掉。"
   },
   "inject": [
     "slots",
-    "commands",
     "chat"
   ],
   "settings": {
@@ -46,31 +45,6 @@
       "name": {
         "zh": "全做完了停多久再收掉"
       }
-    },
-    "demo_items": {
-      "type": "list",
-      "of": "text",
-      "default": [
-        "读蓝图里时间线的规则",
-        "先写会报红的测试",
-        "改时间线的连接线：出错的那一步从预览的竖线一路红到下一步的标题行，别的步照旧暗色",
-        "跑测试和 clippy",
-        "真机走查：宽屏、窄屏、首页各看一遍",
-        "把走查的截图贴进蓝图",
-        "更新 next-release-note",
-        "等项目主人验收",
-        "提交"
-      ],
-      "name": {
-        "zh": "演示的待办"
-      }
-    },
-    "every_ms": {
-      "type": "duration",
-      "default": 3000,
-      "name": {
-        "zh": "演示几毫秒推进一项"
-      }
     }
   },
   "styles": [
@@ -81,15 +55,13 @@
       "title": "待办 {done}/{total}",
       "folded": "做完 {count} 项",
       "more": "… 还有 {count} 项",
-      "toggle": "点一下展开、收起",
-      "command": "演示：推一份假的待办"
+      "toggle": "点一下展开、收起"
     },
     "ja": {
       "title": "ToDo {done}/{total}",
       "folded": "{count} 件完了",
       "more": "… 他 {count} 件",
-      "toggle": "クリックで展開・折りたたみ",
-      "command": "デモ：仮の ToDo を表示する"
+      "toggle": "クリックで展開・折りたたみ"
     }
   }
 }

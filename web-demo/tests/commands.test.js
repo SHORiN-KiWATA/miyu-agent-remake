@@ -11,7 +11,7 @@ const res = loadRes();
 const list = res.commands.commands;
 const names = (specs) => specs.map((s) => s.name);
 
-test('出厂的清单照蓝图：去掉 /icons、/exit，加 /clear、/stop（O-6，2026-10-07）、/recap、/language、/redo、/edit（/demo-todo 由软件包 todo 登记，/settings、/config、/pkg 由软件包 settings 登记）；/compact、/sessions（带着搜的词，2026-10-02）、/language、/model 带参数；真的几条各有各的做法（/model 2026-10-01 起是真的）', () => {
+test('出厂的清单照蓝图：去掉 /icons、/exit，加 /clear、/stop（O-6，2026-10-07）、/recap、/language、/redo、/edit（/settings、/config、/pkg 由软件包 settings 登记）；/compact、/sessions（带着搜的词，2026-10-02）、/language、/model 带参数；真的几条各有各的做法（/model 2026-10-01 起是真的）', () => {
   assert.deepEqual(names(list), ['undo', 'restore', 'redo', 'edit', 'compact', 'clear', 'stop', 'recap', 'theme', 'new', 'sessions', 'language', 'model', 'readonly', 'level',
     'tools', 'copy', 'help']);
   assert.deepEqual(list.filter((s) => s.args).map((s) => s.name), ['compact', 'sessions', 'language', 'model']);

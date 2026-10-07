@@ -16,7 +16,7 @@ export function apply(ctx) {
   // 对话区：别的包经它拿滚的那一层、正文那一列、你说的话
   // Markdown 的代码块、复制：mermaid 这类包经它用
   ctx.provide('markdown', { codeBlock, copy });
-  // 斜杠命令：别的包登记自己的（`/demo-todo` 这类）
+  // 斜杠命令：别的包登记自己的（`/settings`、`/pkg` 这类）
   ctx.provide('commands', app.commands);
   ctx.provide('chat', {
     /** 正在看的会话（还没开的新会话是 `null`） */

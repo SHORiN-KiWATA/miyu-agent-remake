@@ -199,11 +199,11 @@ flowchart TB
 | `rail` | 可选 | `slots`、`chat` | — | — | `stage.right` | `min_prompts`、`current_at`、`jump_margin`、`gutter`、`close_ms` |
 | `mermaid` | 可选 | `slots`、`core`、`host`、`markdown`、`lightbox~` | — | — | `markdown.code`（键 `mermaid`） | `max_height` |
 | `lightbox` | 可选 | — | `lightbox` | — | — | — |
-| `todo` | 可选 | `slots`、`commands`、`chat` | — | — | `composer.above`（order 10） | `rows`、`marks`、`hold_ms`、`demo_items`、`every_ms`；登记 `/demo-todo` |
+| `todo` | 可选 | `slots`、`chat` | — | — | `composer.above`（order 10） | `rows`、`marks`、`hold_ms` |
 | `pulse` | 可选 | `slots` | — | — | `composer.above`（order 20） | `sweep_seconds`、`dim`、`lift`、`dot_mark`、`dot_count`、`tick_ms`、`words`（json） |
 | `attachments` | 可选 | `slots`、`core`、`host`、`composer` | — | — | `composer.bar`、`composer.head`、`composer.payload`；拖文件进来的那一层盖在整页上（挂在 `body` 上，和灯箱一样） | `max_files`、`max_mib`、`count_lines_max` |
 | `jobs` | 可选 | `slots`、`core`、`sessions`、`chat`、`composer` | — | — | `composer.footer`、`composer.float` | `tick_ms` |
-| `asking` | 可选 | `slots`、`commands`、`chat`、`composer` | — | — | `composer.takeover`；结果照服务 `chat` 的 `anchor` 钉在答的那一刻 | `max_vh`、`preview_min_width`、`esc_window_ms`；登记 `/demo-ask`、`/demo-approve` |
+| `asking` | 可选 | `slots`、`chat`、`composer`、`core` | — | — | `composer.takeover`；了结以后留下的经 `chat.item`（键 `asking`）画在她那一轮里 | `max_vh`、`preview_min_width`、`esc_window_ms` |
 | `mascot` | 可选 | `slots`、`composer`、`chat`、`sessions` | — | — | —（整页最前面一层，挂在 `body` 上，和灯箱一样；台子照输入框、命令列表、后台任务浮层量） | 模型的数（形状、脸、灯光）、`pixel`、`cols`、`rows`、平常站在哪、重力、落地、被带着走、拖、待机、走动、跳、动作、手里的东西的像素图（模型照 TUI 的 `mascot.json`） |
 
 服务 `chat`：`current()` 正在看的会话、`scroller` 对话区滚的那一层、`list` 正文那一列、`onPrompts(fn)` 你说的话（先给现在的一份，以后每画一次给一份）、`open(id)` 看另一个会话（子代理的会话第一次看时才读）、`running()` 正在看的会话在不在回答、`home()` 家目录、`interrupt()` 打断正在看的会话（照两下 `Esc`）、`reveal()` 正文末尾（`chat.tail`）来了新的，回到跟着最新的、露出它、`anchor(node)` 把一个节点钉在这时正文里最后一块的后面（交回钉在哪，之后的接在它下面）、`place(where, node)` 照交回的位置再钉一次（换了会话回来）。服务 `markdown`：`codeBlock`、`copy`。服务 `lightbox`：`open({url, name, workspace, vector})`。服务 `theme`：`current()`、`dark()`、`next()`。服务 `commands`：`register(规格, 做法)`（跟着登记的包撤回）、`list()`。事件：`view.changed`（对话区画了一次：`{session, running, events, live, retry, queued}`）、`session.opened`（看哪个会话，`null` 是还没开的新会话）、`session.created`（`{from, to}`：新会话第一句话发出去、会话开了）、`theme.changed`。挂载位 `markdown.code` 的一件：`render({text, say})` 交回一个节点；挂的变了，回答整个重画，滚到哪留着。服务 `composer`：`say(字, 好消息)` 提示一句、`changed()` 跟着发的东西变了（发送按钮重看一遍）、`input` 写字的那个框、`focus()`、`takeover(开不开)` 挂载位 `composer.takeover` 占不占着框（框的高度缓过去，收回时焦点回到写字的地方）。挂载位 `composer.payload` 的一件不画：`has()` 有没有要跟着发的、`busy()` 还在准备（这时不能发）、`take()` 交出来并清掉（`{attachments: […]}` 这样的一块，合进 `session.send` 的参数）、`putBack(交出去的)` 核心拒了，放回来。

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { openAsk, openApproval, press, saveEdit, approvalHead, report, pendingAsks, reportOf, multiReady, submitMulti, withReason } from '../../packages/asking/model.js';
 
-const fake = JSON.parse(readFileSync(new URL('../../packages/asking/fake.json', import.meta.url), 'utf8'));
+const fake = JSON.parse(readFileSync(new URL('../fixtures/asking.json', import.meta.url), 'utf8'));
 const ask = (id) => fake.asks.find((a) => a.body.call_id === id);
 const approval = (id) => fake.approvals.find((a) => a.body.call_id === id);
 

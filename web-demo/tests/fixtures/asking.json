@@ -1,5 +1,5 @@
 {
-  "note": "演示用的假数据（蓝图 web.md「确认和提问」）：照 TUI 演示的 resources/fake.json 的 asks、approvals 拷过来，形状就是核心推的 question.asked、tool.approval_requested 的 body；who 是谁在问（子代理、后台命令，她自己问的不写）。核心能推了以后这份就不用了。",
+  "note": "测试用的样本（软件包 asking 的测试读）：照 TUI 演示的 resources/fake.json 的 asks、approvals 拷过来，形状就是核心推的 question.asked、tool.approval_requested 的 body；who 是谁在问（子代理、后台命令，她自己问的不写）。原来也给 /demo-ask、/demo-approve 用，2026-10-07 真的验收以后演示删了。",
   "asks": [
     {
       "body": {

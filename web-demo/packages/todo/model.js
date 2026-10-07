@@ -1,8 +1,6 @@
 // @ts-check
-//! 待办：演示怎么推进、收成几行（蓝图 `web.md`「待办」，规矩照 `tui.md`「后台命令、子代理和侧边栏」第 4 条，
-//! 做法照 TUI 演示的 `jobs/fake.rs`、`ui/sidebar.rs` 的 `todo_lines`；软件包 `todo`）。纯函数。
-//!
-//! 核心还没有待办：`/demo-todo` 推一份演示的（这个包的设置项 `demo_items`），核心有了以后只换数据源，收成几行照旧。
+//! 待办：核心的清单换成这里的样子、收成几行（蓝图 `web.md`「待办」，规矩照 `tui.md`「后台命令、子代理和侧边栏」第 4 条，
+//! 做法照 TUI 演示的 `ui/sidebar.rs` 的 `todo_lines`；软件包 `todo`）。纯函数。
 
 /** @typedef {'pending'|'active'|'done'} TodoState 没做、在做、做完 */
 /** @typedef {{text: string, state: TodoState}} Todo 一项 */
@@ -10,22 +8,6 @@
  * @typedef {{kind: 'item', todo: Todo}|{kind: 'folded', count: number}|{kind: 'more', count: number}} Row
  *   一行：一项；做完的收成的一行（`☑ 做完 N 项`）；放不下的收成的最后一行（`… 还有 N 项`）
  */
-
-/** 推一份：第一项在做，别的没做。 */
-export function startTodos(texts) {
-  return texts.map((text, i) => /** @type {Todo} */ ({ text, state: i === 0 ? 'active' : 'pending' }));
-}
-
-/** 推进一项：在做的做完，下一项接着做；都做完了原样交回。交回新的一份，不改原来的。 */
-export function advance(todos) {
-  const at = todos.findIndex((x) => x.state === 'active');
-  if (at < 0) return todos;
-  return todos.map((x, i) => {
-    if (i === at) return { ...x, state: /** @type {TodoState} */ ('done') };
-    if (i === at + 1) return { ...x, state: /** @type {TodoState} */ ('active') };
-    return x;
-  });
-}
 
 /** 做完几项、一共几项（头一行的 `待办 2/5`）。 */
 export function progress(todos) {

@@ -1,11 +1,11 @@
 // @ts-check
 //! 待办（蓝图 `web.md`「待办」，照 `tui.md`「后台命令、子代理和侧边栏」第 4 条和 TUI 演示 `ui/sidebar.rs` 的 `todo_lines`）：
-//! 演示怎么推进、做完几项、收成几行。
+//! 做完几项、收成几行。
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { startTodos, advance, progress, allDone, fold } from '../../packages/todo/model.js';
+import { progress, allDone, fold } from '../../packages/todo/model.js';
 
 /** 这个包的设置项的出厂值 */
 const config = Object.fromEntries(Object.entries(JSON.parse(readFileSync(new URL('../../packages/todo/manifest.json', import.meta.url), 'utf8')).settings).map(([k, s]) => [k, s.default]));
@@ -14,30 +14,16 @@ const config = Object.fromEntries(Object.entries(JSON.parse(readFileSync(new URL
 /** 收成的几行写成字：记号照状态，收起的、还有的照种类。 */
 const show = (rows) => rows.map((r) => (r.kind === 'item' ? `${r.todo.state}:${r.todo.text}` : `${r.kind}:${r.count}`));
 
-/** `n` 项，推进 `steps` 次。 */
+/** `n` 项，前 `steps` 项做完、下一项在做、别的没做。 */
 function todos(n, steps = 0) {
-  let list = startTodos(Array.from({ length: n }, (_, i) => `第${i + 1}项`));
-  for (let i = 0; i < steps; i++) list = advance(list);
-  return list;
+  return Array.from({ length: n }, (_, i) => ({ text: `第${i + 1}项`, state: i < steps ? 'done' : i === steps ? 'active' : 'pending' }));
 }
 
-test('推一份：第一项在做，别的没做；每推进一次，在做的做完、下一项接着做', () => {
-  let list = todos(3);
-  assert.deepEqual(list.map((x) => x.state), ['active', 'pending', 'pending']);
-  assert.deepEqual(progress(list), { done: 0, total: 3 });
-  list = advance(list);
-  assert.deepEqual(list.map((x) => x.state), ['done', 'active', 'pending']);
-  list = advance(advance(list));
-  assert.deepEqual(list.map((x) => x.state), ['done', 'done', 'done']);
-  assert.ok(allDone(list));
-  assert.deepEqual(advance(list), list, '都做完了再推不动');
+test('做完几项、一共几项；全做完了才算做完，没有待办不算', () => {
+  assert.deepEqual(progress(todos(3, 1)), { done: 1, total: 3 });
+  assert.ok(!allDone(todos(3, 2)));
+  assert.ok(allDone(todos(3, 3)));
   assert.ok(!allDone([]), '没有待办不算做完');
-});
-
-test('推进不改原来那一份', () => {
-  const list = todos(2);
-  advance(list);
-  assert.equal(list[0].state, 'active');
 });
 
 test('放得下的一项一行', () => {
@@ -71,10 +57,9 @@ test('展开：全部列出', () => {
   assert.deepEqual(fold([], 5, false), []);
 });
 
-test('演示的数据照 TUI：9 项、3 秒推进一项', () => {
-  assert.equal(config.demo_items.length, 9);
-  assert.equal(config.every_ms, 3000);
+test('出厂露 5 行（照 TUI），全做完了停 1.5 秒再收', () => {
   assert.equal(config.rows, 5);
+  assert.equal(config.hold_ms, 1500);
 });
 
 test('核心的清单换成这一块的样子：pending 没做、in_progress 在做、completed 做完，不认识的当没做；空的是空的', async () => {

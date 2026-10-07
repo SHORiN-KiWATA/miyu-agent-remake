@@ -1,5 +1,5 @@
 {
-  "note": "斜杠命令（蓝图 web.md「斜杠命令」）：照 TUI 演示的 commands.json，去掉网页用不上的 /icons、/exit 和别的演示命令，留 /demo-todo。run 是做什么：revert、unrevert、redo、edit、compact、recap、theme、new、copy、model、demo_todo 是真的，fake 只说一句。aliases 是别名，args 是名字后面能接参数。summary 每种语言各写一句（蓝图 web.md「界面语言」，照 TUI 那一份）。",
+  "note": "斜杠命令（蓝图 web.md「斜杠命令」）：照 TUI 演示的 commands.json，去掉网页用不上的 /icons、/exit 和别的演示命令（/demo-todo 2026-10-07 也删了）。run 是做什么：revert、unrevert、redo、edit、compact、recap、theme、new、copy、model、demo_todo 是真的，fake 只说一句。aliases 是别名，args 是名字后面能接参数。summary 每种语言各写一句（蓝图 web.md「界面语言」，照 TUI 那一份）。",
   "commands": [
     {
       "name": "undo",
