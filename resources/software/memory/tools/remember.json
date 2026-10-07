@@ -1,0 +1,4 @@
+{
+  "description": "Save a memory you keep across sessions: about the user, how they want you to work (and why), something you went through together, or a lasting fact. Only what will matter later.",
+  "parameters": {"type":"object","properties":{"class":{"type":"string","enum":["user","feedback","episode","reference"]},"text":{"type":"string","description":"One sentence, at most 120 characters, dates written out."},"replaces":{"type":"string","description":"Id of a memory this corrects, like m12."}},"required":["class","text"]}
+}

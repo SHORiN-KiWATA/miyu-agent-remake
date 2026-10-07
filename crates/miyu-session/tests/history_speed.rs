@@ -83,6 +83,7 @@ async fn how_long_fifty_thousand_events_take() {
             sessions: None,
             usage: None,
             questions: None,
+            memory: None,
         };
         let started = Instant::now();
         let done = history.run(call, Progress::new(|_| {})).await;

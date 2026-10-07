@@ -276,6 +276,7 @@ impl Site {
             sessions: None,
             usage: None,
             questions: None,
+            memory: None,
         }
     }
 }

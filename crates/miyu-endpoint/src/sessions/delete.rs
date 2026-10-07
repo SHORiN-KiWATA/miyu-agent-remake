@@ -66,7 +66,7 @@ impl Sessions {
             .retain(|(_, session)| session != id && !family.contains(session));
         let (root, account, at) = (core.root.clone(), core.admin.clone(), now());
         let index = Arc::clone(&core.index);
-        let recall = Arc::clone(&core.recall);
+        let recall = Arc::clone(&core.memory.turns);
         let order: Vec<SessionId> = family.into_iter().rev().chain([id.clone()]).collect();
         let listing = Arc::clone(core);
         let moved = tokio::task::spawn_blocking(move || {

@@ -103,6 +103,11 @@ fn more_matched_terms_rank_first_and_ranks_count_from_zero() {
     let hits = index.search("周末去爬山看樱花", 10).unwrap();
     assert_eq!(keys(&hits), ["both", "one"]);
     assert_eq!(hits.iter().map(|hit| hit.rank).collect::<Vec<_>>(), [0, 1]);
+    assert_eq!(
+        (hits[0].text.as_str(), hits[0].at),
+        ("周末打算去爬山，顺便看樱花", at(2)),
+        "带回放进来时的字和时刻"
+    );
 }
 
 #[test]
