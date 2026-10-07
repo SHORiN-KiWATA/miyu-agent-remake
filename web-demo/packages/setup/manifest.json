@@ -1,0 +1,89 @@
+{
+  "id": "setup",
+  "version": "0.1.0",
+  "name": {
+    "zh": "人格与工作区",
+    "ja": "人格とワークスペース"
+  },
+  "summary": {
+    "zh": "新会话选人格、工作区；会话左上角写着用的哪个",
+    "ja": "新しいセッションで人格とワークスペースを選ぶ。セッション左上に表示"
+  },
+  "kind": "optional",
+  "description": {
+    "zh": "空会话里输入框上面两个按钮「选择人格」「设置工作区」，没选的照默认；默认的人格用不了时锁住输入框。开着的会话左上角写人格、工作目录；/workspace 换工作区。"
+  },
+  "inject": [
+    "slots",
+    "chat",
+    "composer",
+    "core",
+    "commands",
+    "storage"
+  ],
+  "styles": [
+    "style.css"
+  ],
+  "text": {
+    "zh": {
+      "choose_persona": "选择人格",
+      "set_workspace": "设置工作区",
+      "locked": "先选一个人格",
+      "persona_bad": "文件写错了",
+      "default_workspace": "默认工作区",
+      "recent": "最近用过",
+      "path_hint": "输入路径，回车用它（~/… 或 /…）",
+      "relative": "写 ~/ 或 / 开头的路径",
+      "not_dir": "找不到这个目录",
+      "forbidden": "这个目录不能用",
+      "workspace_set": "工作区：{path}",
+      "workspace_adjusted": "这个目录太宽，在 {path} 里干活",
+      "command": "换工作区：之后的话在这个目录里干活，不写路径的开菜单选",
+      "page": {
+        "title": "人格",
+        "loading": "正在读人格…",
+        "none": "还没有人格",
+        "note": "新建、修改人格等核心下一步（P-3）；记忆跟着谁、能查哪些知识库等记忆那一步接上再列。",
+        "layers": {
+          "shipped": "出厂",
+          "system": "系统",
+          "home": "个人"
+        },
+        "prompt_from": "人设：{layer}",
+        "examples": "示范对话 {count} 轮",
+        "no_examples": "没有示范对话",
+        "default": "默认"
+      }
+    },
+    "ja": {
+      "choose_persona": "人格を選ぶ",
+      "set_workspace": "ワークスペースを設定",
+      "locked": "先に人格を選んでください",
+      "persona_bad": "ファイルに誤りがあります",
+      "default_workspace": "既定のワークスペース",
+      "recent": "最近使った",
+      "path_hint": "パスを入力して Enter（~/… または /…）",
+      "relative": "~/ か / で始まるパスを書いてください",
+      "not_dir": "このディレクトリが見つかりません",
+      "forbidden": "このディレクトリは使えません",
+      "workspace_set": "ワークスペース：{path}",
+      "workspace_adjusted": "このディレクトリは広すぎるため {path} で作業します",
+      "command": "ワークスペースを変える：以降の発言はこのディレクトリで作業。パスなしならメニューで選ぶ",
+      "page": {
+        "title": "人格",
+        "loading": "人格を読み込み中…",
+        "none": "人格がありません",
+        "note": "人格の新規作成・編集はコアの次の段階（P-3）で。記憶の範囲や検索できるナレッジベースは記憶の段階で表示します。",
+        "layers": {
+          "shipped": "出荷時",
+          "system": "システム",
+          "home": "個人"
+        },
+        "prompt_from": "人設：{layer}",
+        "examples": "お手本会話 {count} 往復",
+        "no_examples": "お手本会話なし",
+        "default": "既定"
+      }
+    }
+  }
+}

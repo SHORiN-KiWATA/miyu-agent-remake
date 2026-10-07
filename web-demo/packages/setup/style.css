@@ -1,0 +1,64 @@
+/* 人格、工作区（软件包 setup，蓝图 web.md「人格、预设、工作区」）：空会话输入框上面一排按钮；开着的会话左上角一小条；弹出的小菜单。
+   控件不画描边：底色一块，悬停深一点；浮起来的菜单照换模型的菜单（半透明、毛玻璃、一圈细线、浮起来的影） */
+.setup-row { position: relative; display: flex; flex-wrap: wrap; gap: 6px; margin: 0 2px 8px; }
+.setup-row[hidden] { display: none; }
+.setup-btn {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 320px; height: 28px; padding: 0 11px; border: 0; border-radius: 999px;
+  background: var(--surface-2); color: var(--text-soft); font: 12.5px var(--sans); cursor: pointer;
+}
+.setup-btn:hover { background: var(--surface-3); color: var(--text); }
+.setup-btn.is-set { color: var(--text); }
+.setup-btn.is-need { color: var(--t-warn); }
+.setup-btn .icon { width: 14px; height: 14px; flex: none; color: var(--text-faint); }
+.setup-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.setup-info-wrap { position: relative; min-width: 0; }
+.setup-info {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 26px; padding: 0 10px; border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  color: var(--text-faint); font-size: 12px;
+}
+.setup-info[hidden] { display: none; }
+.setup-info-part { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.setup-info-part .icon { width: 13px; height: 13px; flex: none; }
+.setup-info-part b { color: var(--text-soft); font-weight: 600; white-space: nowrap; }
+.setup-info-part.is-path { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.setup-info-part.is-path:hover { color: var(--text-soft); }
+.setup-info-part span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.setup-info-sep { opacity: 0.5; }
+
+.setup-menu {
+  position: absolute; z-index: 9; bottom: calc(100% + 6px); width: 360px; max-width: calc(100vw - 32px); padding: 6px;
+  border: 1px solid var(--line); border-radius: 12px; background: color-mix(in srgb, var(--surface-1) 92%, transparent);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: var(--float-shadow);
+}
+.setup-menu.is-below { top: calc(100% + 6px); bottom: auto; }
+.setup-menu[hidden] { display: none; }
+.setup-menu-section { padding: 6px 8px 2px; color: var(--text-faint); font-size: 11.5px; font-weight: 600; }
+.setup-menu-row { display: flex; align-items: center; gap: 8px; min-height: 42px; padding: 4px 8px; border-radius: 8px; cursor: pointer; }
+.setup-menu-row.is-selected { background: var(--surface-2); }
+.setup-menu-row.is-off { cursor: default; opacity: 0.5; }
+.setup-menu-text { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.setup-menu-title { overflow: hidden; color: var(--text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.setup-menu-desc { overflow: hidden; color: var(--text-faint); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.setup-menu-row > .icon { width: 15px; height: 15px; flex: none; color: var(--accent); opacity: 0; }
+.setup-menu-row.is-current > .icon { opacity: 1; }
+.setup-menu-input { margin-top: 4px; }
+.setup-input {
+  width: 100%; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; outline: 0; background: var(--surface-2);
+  color: var(--text); font: 13px var(--sans);
+}
+.setup-input:focus { background: var(--surface-1); box-shadow: var(--card-shadow); }
+.setup-menu-error { padding: 4px 10px 0; color: var(--t-danger); font-size: 12px; }
+
+/* 设置页的「人格」页：一个人格一块，底色一块不画描边 */
+.setup-cards { display: grid; gap: 10px; margin-top: 4px; }
+.setup-card { padding: 14px 16px; border-radius: 12px; background: var(--surface-2); }
+.setup-card h4 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 4px; color: var(--text); font-size: 14px; }
+.setup-card h4 code { color: var(--text-faint); font: 12px var(--mono); font-weight: 400; }
+.setup-card p { margin: 0 0 8px; color: var(--text-soft); font-size: 13px; }
+.setup-card .setup-card-problem { margin: 0; color: var(--t-danger); font: 12px var(--mono); word-break: break-all; }
+.setup-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.setup-tag { padding: 2px 8px; border-radius: 999px; background: var(--surface-3); color: var(--text-soft); font-size: 11.5px; }
+.setup-note, .setup-empty { margin: 10px 0 0; color: var(--text-faint); font-size: 12px; }
+.setup-empty.is-bad { color: var(--t-danger); }

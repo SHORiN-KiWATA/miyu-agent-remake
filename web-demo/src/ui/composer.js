@@ -244,7 +244,16 @@ export class Composer {
    * 回车、点发送：斜杠命令执行它；像命令、没有这个命令的提示「命令不存在」，字留着；别的照普通的话发（蓝图「命令列表」第 4、5 条）。
    * 跟着发的（附件）交出来合进参数；还在准备的不发；核心拒了的放回去（蓝图「附件」第 4 条）。
    */
+  /** 锁住（占位字换成 `text`，打不了字、发不了话），`null` 解锁照原来的占位字。 @param {string|null} text */
+  lock(text) {
+    this.locked = text;
+    this.input.disabled = !!text;
+    this.input.placeholder = text ?? t('placeholder', { name: res.persona.name });
+    this.syncButton();
+  }
+
   async submit() {
+    if (this.locked) return this.say(this.locked);
     const text = this.input.value;
     const line = read(this.specs(), text);
     if (line.kind === 'command') {

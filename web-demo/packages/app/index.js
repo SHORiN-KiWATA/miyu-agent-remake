@@ -36,6 +36,16 @@ export function apply(ctx) {
     /** 钉一个节点在这时正文里最后一块的后面，交回钉在哪；照交回的位置再钉（换了会话回来） */
     anchor: (node) => app.chat.anchor(node),
     place: (where, node) => app.chat.place(where, node),
+    /** 正在看的会话在哪个目录干活；账号的工作区（握手回应的 `host.workspace`，新会话默认在这里） */
+    workdir: () => app.workdir(),
+    defaultWorkdir: () => app.cwd,
+    /** 还没开的新会话选的人格、工作区：开会话时带上（事件 `draft.changed`） */
+    draft: () => ({ ...app.draft }),
+    setDraft: (patch) => app.setDraft(patch),
+    /** `/workspace`：这个会话之后在哪个目录干活（事件 `workdir.changed`；核心退回了工作区的来 `workdir.adjusted`） */
+    setWorkdir: (session, cwd) => app.setWorkdir(session, cwd),
+    /** 会话用的人格（`session.created` 的 `persona`，核心 P-1 下以后才有；没有的是 `null`） */
+    persona: (id) => app.store.sessions.get(id)?.events.find((e) => e.kind === 'session.created')?.body.persona ?? null,
   });
   // 输入框：提示、跟着发的东西变了、写字的那个框（附件这类包经它粘贴、提示）
   ctx.provide('composer', {
@@ -47,6 +57,8 @@ export function apply(ctx) {
     focus: () => app.composer.focus(),
     /** 挂载位 `composer.takeover` 占不占着框（确认和提问的抽屉） */
     takeover: (open) => app.composer.takeover(open),
+    /** 锁住输入框（`text` 是占位字，`null` 解锁）：默认的人格没了、还没选的时候（软件包 `setup`） */
+    lock: (text) => app.composer.lock(text),
   });
   ctx.effect(() => () => ctx.page.root.replaceChildren());
 }

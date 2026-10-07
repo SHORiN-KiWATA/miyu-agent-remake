@@ -98,3 +98,14 @@ export function untouchedTurn(events, live) {
   if (live?.turn === turn && (live.blocks ?? []).some((b) => b && ((b.kind === 'text' && b.text.trim()) || b.kind === 'tool_call'))) return null;
   return turn;
 }
+
+/**
+ * 一个会话现在在哪个目录干活（蓝图「人格、预设、工作区」第 5 条）：最后一条带 `cwd` 的 `turn.started`（头报的写法），没有的照
+ * `session.created` 的；都没有的是 `null`。
+ * @param {any[]} events
+ * @returns {string|null}
+ */
+export function sessionCwd(events) {
+  const turn = events.findLast((e) => e.kind === 'turn.started' && typeof e.body?.cwd === 'string');
+  return turn?.body.cwd ?? events.find((e) => e.kind === 'session.created')?.body.cwd ?? null;
+}

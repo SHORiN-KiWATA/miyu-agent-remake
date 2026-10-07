@@ -246,3 +246,12 @@
   padding: 9px 16px; background: color-mix(in srgb, var(--t-warn) 10%, var(--surface)); color: var(--t-warn); font-size: 13px; text-align: center;
   animation: drop-in var(--motion-in) var(--ease-out) both;
 }
+
+/* 对话区左上角浮着的一小条（挂载位 stage.info，软件包 setup 画人格、工作区，蓝图 web.md「人格、预设、工作区」第 5 条）：
+   左栏收起、窄屏时让开左上角的按钮；看着子代理时顶上有路径那一行，接在那一行的右边 */
+.stage-info { position: absolute; z-index: 14; top: 12px; left: 16px; display: flex; max-width: calc(100% - 96px); pointer-events: none; }
+.stage-info:empty { display: none; }
+.stage-info > * { pointer-events: auto; }
+.app-shell.is-sidebar-collapsed .stage-info { left: 56px; }
+.chat-crumbs:not([hidden]) + .stage-info { top: 7px; right: 16px; left: auto; max-width: 45%; }
+@media (max-width: 836px) { .stage-info { left: 56px; } }

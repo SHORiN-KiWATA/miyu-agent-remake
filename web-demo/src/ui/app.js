@@ -21,7 +21,7 @@ import { Artifacts } from './artifacts.js';
 import { runCommand, refusalText, redo, copyTurn, Commands, revertLatest } from './commands.js';
 import { project } from '../model/transcript.js';
 import { withRecaps, withChanges } from '../model/notes.js';
-import { rank, startupSession, untouchedTurn } from '../model/session.js';
+import { rank, startupSession, untouchedTurn, sessionCwd } from '../model/session.js';
 import { footer, levelLabel, nextLevel, levelParams } from '../model/footer.js';
 import { levelOf } from '../model/transcript.js';
 import { copy } from '../markdown/build.js';
@@ -59,6 +59,12 @@ export class App {
     this.pendingLevel = /** @type {string|null} */ (null);
     /** 还没开的新会话里选的模型（换模型的菜单、`/model`）：开会话时带上 */
     this.pendingModel = /** @type {string|null} */ (null);
+    /** 还没开的新会话里选的人格、工作区（软件包 `setup` 经服务 `chat` 改）：开会话时带上，没选的照默认 */
+    this.draft = /** @type {{persona: string|null, cwd: string|null}} */ ({ persona: null, cwd: null });
+    /** 会话 → `/workspace` 换的目录：之后每句话带上（核心 2026-10-07：不出专门的方法） */
+    this.cwdNext = /** @type {Map<string, string>} */ (new Map());
+    /** 会话 → 核心回应里实际在哪干活（换的目录太宽、退回工作区的照它） */
+    this.cwdActual = /** @type {Map<string, string>} */ (new Map());
     /** 会话 → 选过、还没生效的模型（下一轮才换）和那时开过几轮：开了新的一轮就照核心推的 */
     this.picked = /** @type {Map<string, {ref: string, turns: number}>} */ (new Map());
     /** 会话（新会话是空的）→ 模型 → 选过、还没生效的思考强度和那时开过几轮（核心施工 8-18：强度是这个会话里这一个模型的一格） */
@@ -231,6 +237,8 @@ export class App {
           h('button.icon-button.mobile-menu-button', { type: 'button', title: t('sidebar.expand'), onclick: () => this.drawer(true) }, icon('panel-left'))),
         this.lostBar = h('div.bridge-lost', { hidden: true, role: 'alert' }, t('boot.lost')),
         this.crumbs.el,
+        // 对话区左上角浮着的一小条（挂载位 `stage.info`：软件包 `setup` 画人格、工作区）
+        this.stageInfo = h('div.stage-info'),
         this.chat.el,
         this.stageRight = h('div.stage-right'),
         this.composer.el));
@@ -259,6 +267,8 @@ export class App {
     ctx.slots.declare('chat.tail', 'list');
     ctx.effect(() => mountList(this.chat.tail, ctx.slots, 'chat.tail', failedSlot));
     ctx.effect(() => mountList(this.stageRight, ctx.slots, 'stage.right', failedSlot));
+    ctx.slots.declare('stage.info', 'list');
+    ctx.effect(() => mountList(this.stageInfo, ctx.slots, 'stage.info', failedSlot));
     this.root.classList.toggle('is-sidebar-collapsed', !!ctx.storage.get(COLLAPSED, false));
     const expand = /** @type {HTMLElement} */ (this.root.querySelector('.sidebar-expand-button'));
     this.menuButton = /** @type {HTMLElement} */ (this.root.querySelector('.mobile-menu-button'));
@@ -333,6 +343,7 @@ export class App {
   open(id, listed = false) {
     this.pendingLevel = null;
     this.pendingModel = null;
+    this.draft = { persona: null, cwd: null };
     this.current = id;
     this.sessionsPage?.close();
     // 没读过的会话第一次打开时才读、订阅：子代理的不进会话表的顶层；全部会话那一页开的老会话进（`listed`）
@@ -349,23 +360,56 @@ export class App {
    * 说一句话：新会话第一句话发出去时才开会话。`extra` 是跟着发的（附件）。交回核心收没收。
    * 核心拒绝的，在输入框上面提示一句：认得的原因码照 `refusals` 写，别的照核心的原话。
    */
-  /** 正在看的会话在哪个目录里干活（开它时的 `cwd`）；还没开的新会话是账号的工作区。 */
+  /**
+   * 正在看的会话在哪个目录里干活：核心回应里实际的、`/workspace` 换了还没发出去的、日志里最后报的（`sessionCwd`）；
+   * 还没开的新会话是选的工作区，没选的是账号的工作区。
+   */
   workdir() {
-    const events = this.current ? this.store.sessions.get(this.current)?.events ?? [] : [];
-    return events.find((e) => e.kind === 'session.created')?.body.cwd ?? this.cwd;
+    if (!this.current) return this.draft.cwd ?? this.cwd;
+    const events = this.store.sessions.get(this.current)?.events ?? [];
+    return this.cwdNext.get(this.current) ?? this.cwdActual.get(this.current) ?? sessionCwd(events) ?? this.cwd;
+  }
+
+  /** 还没开的新会话改人格、工作区（软件包 `setup`）：告诉软件包（`draft.changed`），重画（`@` 照它列文件）。 @param {Partial<{persona: string|null, cwd: string|null}>} patch */
+  setDraft(patch) {
+    this.draft = { ...this.draft, ...patch };
+    this.ctx.emit('draft.changed', { ...this.draft });
+    this.schedule();
+  }
+
+  /** `/workspace`：这个会话之后在哪个目录干活，之后每句话带上；还没开的新会话改选的工作区。 @param {string|null} session @param {string} cwd */
+  setWorkdir(session, cwd) {
+    if (!session) return this.setDraft({ cwd });
+    this.cwdNext.set(session, cwd);
+    this.cwdActual.delete(session);
+    this.ctx.emit('workdir.changed', { session, cwd });
+    this.schedule();
   }
 
   async send(text, extra = {}) {
     try {
       if (!this.current) {
-        this.current = await this.store.create(this.cwd, this.pendingModel);
+        this.current = await this.store.create(this.draft.cwd ?? this.cwd, this.pendingModel, this.draft.persona);
         this.pendingModel = null;
+        this.draft = { persona: null, cwd: null };
         this.store.view(this.current);
         // 还是这一段对话：跟着新会话走的软件包（演示待办）跟过去
         this.ctx.emit('session.created', { from: null, to: this.current });
         await this.applyPending();
       }
-      await this.store.send(this.current, text, extra);
+      // 在哪个目录干活：`/workspace` 换过的、日志里最后报的，每句都带上（不带的话核心照开会话时的）
+      const session = this.current;
+      const asked = this.cwdNext.get(session) ?? sessionCwd(this.store.sessions.get(session)?.events ?? []);
+      const got = await this.store.send(session, text, { ...extra, ...(asked ? { cwd: asked } : {}) });
+      // 核心照「工作目录太宽」退回了工作区：照实际的写、之后照实际的报（不然每句都退一次），告诉软件包（提示一句）
+      if (typeof got?.cwd === 'string') {
+        if (asked && got.cwd !== asked && this.cwdNext.has(session)) {
+          this.cwdNext.set(session, got.cwd);
+          this.ctx.emit('workdir.adjusted', { session, asked, cwd: got.cwd });
+        }
+        this.cwdActual.set(session, got.cwd);
+        this.schedule();
+      }
       return true;
     } catch (err) {
       const why = refusalText(err);

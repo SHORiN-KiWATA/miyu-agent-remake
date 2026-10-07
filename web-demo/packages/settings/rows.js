@@ -11,7 +11,11 @@ import { noteOf, envRef, inputText, layerFor, writtenIn } from './model.js';
  * @param {string} name
  * @param {Node[]} rows
  */
-export const groupBlock = (name, rows) => h('section.set-group', h('h3.set-group-name', name), h('div.set-rows', rows));
+/** 一组：组名、几行；一行都没有的（专门的编辑器把行都藏了）整组不画。 */
+export const groupBlock = (name, rows) => {
+  const shown = rows.filter(Boolean);
+  return shown.length ? h('section.set-group', h('h3.set-group-name', name), h('div.set-rows', shown)) : null;
+};
 
 /** 对不上哪一项的问题：那一页顶上一条横幅。 */
 export const banner = (p) => h(`div.set-banner.is-${p.level === 'error' ? 'error' : 'warn'}`, icon(p.level === 'error' ? 'circle-alert' : 'triangle-alert'), h('span', p.message));
@@ -83,6 +87,9 @@ async function copyPath(dialog, file) {
  */
 export function coreRow(dialog, item, opts = {}) {
   const ctx = dialog.ctx;
+  // 专门的编辑器（挂载位 `settings.editor`，照键）：别的包给这一项的选项（默认人格照人格列表），也可以把这一行藏了（没得选的）
+  const editor = ctx.slots.pick('settings.editor', item.key);
+  if (editor?.hidden?.()) return null;
   const value = item.entry?.value ?? item.fact?.value;
   /** @type {ReturnType<typeof shell>} */
   let row;
@@ -98,7 +105,7 @@ export function coreRow(dialog, item, opts = {}) {
     description: opts.compact ? '' : item.description,
     source: sourceLine(dialog, item, opts.compact),
     problems: item.problems,
-    control: control(dialog, item, value, save),
+    control: editor?.options ? control(dialog, { ...item, control: 'select', options: editor.options() }, value, save) : control(dialog, item, value, save),
     reset: written ? () => save({ unset: true }) : null,
     resetTitle: ctx.text('reset'),
   });

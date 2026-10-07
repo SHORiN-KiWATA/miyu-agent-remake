@@ -59,6 +59,7 @@
       "of": "text",
       "default": [
         "general",
+        "personas",
         "appearance",
         "models",
         "advanced",
@@ -109,6 +110,7 @@
       "of": "text",
       "default": {
         "general": "sliders-horizontal",
+        "personas": "user-round",
         "appearance": "palette",
         "models": "cpu",
         "advanced": "wrench",

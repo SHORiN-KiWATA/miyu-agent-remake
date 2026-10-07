@@ -143,9 +143,9 @@ export class Store {
    * # Errors
    * 核心拒绝时抛出来。
    */
-  async create(cwd, model = null) {
-    // 还没开的新会话里选过模型的，开的时候带上（核心施工 8-8）
-    const { session } = await this.conn.request('session.create', model ? { cwd, model } : { cwd });
+  async create(cwd, model = null, persona = null) {
+    // 还没开的新会话里选过模型（核心施工 8-8）、选过人格（P-1）的，开的时候带上；人格不写的照配置项 `persona.default`
+    const { session } = await this.conn.request('session.create', { cwd, ...(model ? { model } : {}), ...(persona ? { persona } : {}) });
     // 推送还没到时先记上，左栏当场有它
     this.index.seed(session, { cwd });
     await this.load(session);
@@ -167,7 +167,7 @@ export class Store {
     this.changed();
   }
 
-  /** 说一句话；`extra` 是跟着发的（附件：`{attachments}`），合进参数。 */
+  /** 说一句话；`extra` 是跟着发的（附件 `{attachments}`、在哪个目录干活 `{cwd}`），合进参数；交回核心的回应（`cwd` 是实际在哪干活）。 */
   send(id, text, extra = {}) { return this.conn.request('session.send', { session: id, text, ...extra }); }
 
   /**
