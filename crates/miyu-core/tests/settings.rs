@@ -58,6 +58,7 @@ fn the_registered_list_is_well_formed() {
             "ui.language",
             "ui.startup",
             "persona.default",
+            "preset.default",
             "usage.currency",
             "permission.start_read_only",
             "external.bindings.<external>",

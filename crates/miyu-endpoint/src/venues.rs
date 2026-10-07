@@ -33,6 +33,9 @@ pub(crate) struct VenueParams {
     /// 不看。
     #[serde(default)]
     persona: Option<String>,
+    /// 新造的会话用哪个预设（施工 P-2 上）：同 `persona`，桥照场所规则算好交来；不写的照默认预设。找回已有的会话时不看。
+    #[serde(default)]
+    preset: Option<String>,
 }
 
 /// 场所是私聊还是群。
@@ -107,6 +110,7 @@ pub(crate) async fn session(
         model: None,
         venue: Some(venue),
         memory: None,
+        preset: params.preset,
     };
     let cwd = params
         .cwd

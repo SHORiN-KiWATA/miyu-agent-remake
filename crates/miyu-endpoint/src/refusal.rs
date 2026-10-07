@@ -74,6 +74,12 @@ impl Refusal {
         reason: "unknown_persona",
         data: None,
     };
+    /// 没有这个预设（施工 P-2 上）。
+    pub(crate) const UNKNOWN_PRESET: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_preset",
+        data: None,
+    };
     /// 没有这个会话。
     pub(crate) const NOT_FOUND: Refusal = Refusal {
         code: REFUSED,
@@ -318,6 +324,15 @@ impl Refusal {
     pub(crate) fn persona_invalid(problem: String) -> Refusal {
         Refusal::with(
             "persona_invalid",
+            "problem",
+            serde_json::Value::String(problem),
+        )
+    }
+
+    /// 预设的文件写错了（施工 P-2 上，`presets.md`）：`data.problem` 写明哪一层、哪个文件第几行、错在哪。
+    pub(crate) fn preset_invalid(problem: String) -> Refusal {
+        Refusal::with(
+            "preset_invalid",
             "problem",
             serde_json::Value::String(problem),
         )

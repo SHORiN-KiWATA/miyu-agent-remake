@@ -80,6 +80,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         configs,
         model,
         memory,
+        preset,
     } = setup;
     let span = actor::span(&id);
     let config = Turning::start(configs, environment.cwd.clone()).await;
@@ -171,6 +172,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             attended,
             reports: policy.reports.clone(),
             pools,
+            preset: preset.clone(),
         })
     });
     let created = SessionCreated {
@@ -179,6 +181,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         parent: lineage.as_ref().map(|lineage| lineage.parent.clone()),
         depth: lineage.as_ref().map(|lineage| lineage.depth),
         model: reference,
+        preset,
         ..snapshot.session_created(owner.clone(), venue.clone(), permission)
     };
     let (mut session, first) = Session::create(

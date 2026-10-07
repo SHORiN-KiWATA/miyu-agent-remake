@@ -2,9 +2,10 @@
 //!
 //! 照磁盘上现在的字查，不是核心手里的那一份：人刚改完、核心还没重读的也查得到。不写文件的查全部：系统配置、管理员的
 //! 个人设置、`cwd` 的项目配置（没写 `cwd` 的不查）、密钥文件（照核心手里的问题：它的字是密钥，不另读）、三层里每个
-//! 人格的两份字（每一层各查各的）。写了文件的照它在哪认是哪一种，只查那一份；认不出的 `unknown_file`。
+//! 人格的两份字、每一份预设（每一层各查各的，预设施工 P-2 上）、软件包清单（施工 9-1 上）。写了文件的照它在哪认是哪一种，
+//! 只查那一份；认不出的 `unknown_file`。
 //!
-//! 一处一格：`kind`（`config`、`secrets`、`persona`）、`file`（照 `config.get` 的写法：数据根里的写成相对数据根的，
+//! 一处一格：`kind`（`config`、`secrets`、`persona`、`preset`、`package`）、`file`（照 `config.get` 的写法：数据根里的写成相对数据根的，
 //! 项目配置写成 `~/…`，出厂的人格写真的路径）、`code`、`level`、`message`（照这个连接的语言），有行列的带上。
 
 use std::path::{Path, PathBuf};
@@ -17,11 +18,13 @@ use miyu_store::config_file::{self, ReadError};
 use miyu_store::human::Human;
 use miyu_store::packages::Issue;
 use miyu_store::personas::{Checked, Issue as PersonaIssue};
+use miyu_store::presets::{Checked as PresetChecked, Issue as PresetIssue};
 
 use crate::Core;
 use crate::config::methods::{check_text, said_at, words};
 use crate::hello::Peer;
 use crate::personas::personas;
+use crate::presets::presets;
 use crate::refusal::Refusal;
 
 /// `check` 的参数。
@@ -64,6 +67,11 @@ pub(crate) async fn check(core: &Core, peer: Peer, params: CheckParams) -> Resul
                 .await
                 .map_err(|_| Refusal::INTERNAL)?;
             problems.extend(checked.iter().map(|one| persona_problem(core, &words, one)));
+            let presets = presets(core);
+            let checked = tokio::task::spawn_blocking(move || presets.check())
+                .await
+                .map_err(|_| Refusal::INTERNAL)?;
+            problems.extend(checked.iter().map(|one| preset_problem(core, &words, one)));
             problems.extend(
                 check_packages(core, &words, None)
                     .await?
@@ -79,6 +87,8 @@ pub(crate) async fn check(core: &Core, peer: Peer, params: CheckParams) -> Resul
             } else if real(&secrets_path) == path {
                 problems.extend(secrets);
             } else if let Some(found) = check_packages(core, &words, Some(&path)).await? {
+                problems.extend(found);
+            } else if let Some(found) = check_preset(core, &words, &path).await? {
                 problems.extend(found);
             } else {
                 let personas = personas(core);
@@ -250,26 +260,88 @@ fn shown(core: &Core, path: &Path) -> String {
 fn persona_problem(core: &Core, words: &Human, checked: &Checked) -> Value {
     let shown = shown(core, &checked.path);
     match &checked.issue {
-        PersonaIssue::Wrong(problem) => {
-            let key = format!("persona-problems/{}", problem.code.as_str());
-            let message = Words::sentence(words, &key, &[("detail", &problem.detail)]);
-            let mut said = json!({
-                "kind": "persona",
-                "file": shown,
-                "code": problem.code.as_str(),
-                "level": "error",
-                "message": message.unwrap_or_else(|| problem.message.clone()),
-            });
-            if let Some(line) = problem.line {
-                said["line"] = json!(line);
-            }
-            said
-        }
-        PersonaIssue::Unreadable(error) => {
-            let why = ReadError::Unreadable(std::io::Error::new(error.kind(), error.to_string()));
-            unreadable(words, &shown, "persona", &why)
-        }
+        PersonaIssue::Wrong(problem) => wrong(
+            words,
+            "persona",
+            shown,
+            Wrong {
+                code: problem.code.as_str(),
+                detail: &problem.detail,
+                message: &problem.message,
+                line: problem.line,
+            },
+        ),
+        PersonaIssue::Unreadable(error) => unreadable_io(words, &shown, "persona", error),
     }
+}
+
+/// 写了文件、它是某一层 `presets/` 下的 `<编号>.toml`（施工 P-2 上）：查这一份（还没有的报读不了）；不是的交回没有。
+async fn check_preset(
+    core: &Core,
+    words: &Human,
+    path: &Path,
+) -> Result<Option<Vec<Value>>, Refusal> {
+    let presets = presets(core);
+    let wanted = path.to_path_buf();
+    let checked = tokio::task::spawn_blocking(move || presets.check_file(&wanted))
+        .await
+        .map_err(|_| Refusal::INTERNAL)?;
+    Ok(checked.map(|checked| {
+        checked
+            .iter()
+            .map(|one| preset_problem(core, words, one))
+            .collect()
+    }))
+}
+
+/// 预设的一处（施工 P-2 上）。
+fn preset_problem(core: &Core, words: &Human, checked: &PresetChecked) -> Value {
+    let shown = shown(core, &checked.path);
+    match &checked.issue {
+        PresetIssue::Wrong(problem) => wrong(
+            words,
+            "preset",
+            shown,
+            Wrong {
+                code: problem.code.as_str(),
+                detail: &problem.detail,
+                message: &problem.message,
+                line: problem.line,
+            },
+        ),
+        PresetIssue::Unreadable(error) => unreadable_io(words, &shown, "preset", error),
+    }
+}
+
+/// 一处写错了的：代码、错的那一处、英文那一句（没有给人看的字时用）、第几行。
+struct Wrong<'a> {
+    code: &'a str,
+    detail: &'a str,
+    message: &'a str,
+    line: Option<usize>,
+}
+
+/// 人格、预设写错了的一条：给人看的那一句照 `<种类>-problems/<code>`。
+fn wrong(words: &Human, kind: &str, file: String, problem: Wrong<'_>) -> Value {
+    let key = format!("{kind}-problems/{}", problem.code);
+    let message = Words::sentence(words, &key, &[("detail", problem.detail)]);
+    let mut said = json!({
+        "kind": kind,
+        "file": file,
+        "code": problem.code,
+        "level": "error",
+        "message": message.unwrap_or_else(|| problem.message.to_string()),
+    });
+    if let Some(line) = problem.line {
+        said["line"] = json!(line);
+    }
+    said
+}
+
+/// 读不了的一条：照核心的说法。
+fn unreadable_io(words: &Human, shown: &str, kind: &str, error: &std::io::Error) -> Value {
+    let why = ReadError::Unreadable(std::io::Error::new(error.kind(), error.to_string()));
+    unreadable(words, shown, kind, &why)
 }
 
 /// `~`、`~/` 开头的照家目录接，相对的照 `cwd` 接，绝对的照原样。

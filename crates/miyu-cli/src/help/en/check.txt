@@ -1,10 +1,11 @@
 Usage: miyu check [file] [options]
 
 Look for mistakes in the files you write by hand: the system config, your
-personal settings, the project config here, the secrets file, and
-persona.toml and prompts/examples.md in each persona directory. Each one
-is printed with its file, line, what is wrong and how to fix it. The exit
-code is 1 when there are errors.
+personal settings, the project config here, the secrets file,
+persona.toml and prompts/examples.md in each persona directory, every
+preset and every package manifest. Each one is printed with its file,
+line, what is wrong and how to fix it. The exit code is 1 when there are
+errors.
 
 With a file, only that file is checked.
 

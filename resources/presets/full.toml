@@ -1,0 +1,5 @@
+# 功能全开（施工 P-2 上，`16-人格与预设.md` 第八节、Y7）：装了的软件全部打开，以后新装的也打开。出厂的默认预设（`preset.default`）。
+[preset]
+name = { zh = "功能全开", en = "Everything", ja = "すべて有効" }
+summary = { zh = "装了的软件全部打开，以后新装的也打开", en = "Every installed package is on, including ones installed later", ja = "入っているソフトをすべて有効にします。あとから入れたものも有効です" }
+unlisted = "on"

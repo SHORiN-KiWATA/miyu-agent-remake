@@ -2,7 +2,7 @@
 
 ### 是什么
 
-一个命令查完人手写的、Miyu 读的文件：系统配置、个人设置、当前目录的项目配置、密钥文件，三层里每个人格的 `persona.toml`、`prompts/examples.md`，两层里每一份软件包清单（施工 9-1 上，`packages.md`）。每一处印出文件、第几行、错在哪、怎么改，有错误退出码是 1，像 `nginx -t`（施工 8-30，2026-10-07 项目主人提、定）。只留这一个检查：原来的 `miyu config check` 并进来去掉了，人格、以后的预设、软件包都不另开分开的 check 命令。
+一个命令查完人手写的、Miyu 读的文件：系统配置、个人设置、当前目录的项目配置、密钥文件，三层里每个人格的 `persona.toml`、`prompts/examples.md`，三层里每一份预设（施工 P-2 上，`presets.md`），两层里每一份软件包清单（施工 9-1 上，`packages.md`）。每一处印出文件、第几行、错在哪、怎么改，有错误退出码是 1，像 `nginx -t`（施工 8-30，2026-10-07 项目主人提、定）。只留这一个检查：原来的 `miyu config check` 并进来去掉了，人格、以后的预设、软件包都不另开分开的 check 命令。
 
 它只是协议的客户端（`22-命令行.md` O5）：连上核心，问 `check`（`protocol.md`），照回应印。查什么、怎么查由核心定：命令行不认识每一种文件。
 
@@ -19,7 +19,7 @@
 
 | 参数 | 是什么 |
 |---|---|
-| `[文件]` | 只查这一份；相对的照当前目录接。照它在哪认是哪一种：`system/config.toml`、个人设置、某个目录下的 `.miyu/config.toml`、密钥文件、某一层人格目录里的 `persona.toml` 或 `prompts/examples.md`、某一层 `packages/` 下的 `<编号>.toml`（施工 9-1 上）。认不出的照核心的原话报（`unknown_file`） |
+| `[文件]` | 只查这一份；相对的照当前目录接。照它在哪认是哪一种：`system/config.toml`、个人设置、某个目录下的 `.miyu/config.toml`、密钥文件、某一层人格目录里的 `persona.toml` 或 `prompts/examples.md`、某一层 `presets/` 下的 `<编号>.toml`（施工 P-2 上）、某一层 `packages/` 下的 `<编号>.toml`（施工 9-1 上）。认不出的照核心的原话报（`unknown_file`） |
 | `--format text\|json` | `text` 给人看（默认），`json` 给脚本：核心的回应原样，`{"problems":[…]}` |
 
 退出码：0 没有错误（只有警告也是 0）；1 有错误、核心拒绝了、连不上核心；2 参数不对。

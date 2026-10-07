@@ -42,6 +42,7 @@ mod methods;
 mod models;
 pub mod packages;
 mod personas;
+mod presets;
 mod providers;
 pub mod queries;
 mod refusal;
@@ -175,6 +176,7 @@ impl Core {
         let items = [
             settings::UiSettings::ITEMS,
             settings::PersonaSettings::ITEMS,
+            settings::PresetSettings::ITEMS,
             settings::PermissionSettings::ITEMS,
             settings::EXTERNAL_BINDINGS,
         ]

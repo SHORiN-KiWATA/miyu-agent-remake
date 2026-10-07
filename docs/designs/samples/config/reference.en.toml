@@ -87,6 +87,11 @@ default = "engineer"
 # Allowed: true or false. Only in the system config or personal settings. Applies to sessions opened from now on.
 subagent = false
 
+[preset]
+# Default preset: The preset new sessions use.
+# Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to sessions opened from now on.
+default = "full"
+
 [providers."<id>"]
 # Address: The address of this provider's API; the driver adds the path. Known providers can leave it out.
 # Allowed: an address starting with http:// or https:// or { env = "…" }. Only in the system config or personal settings. Takes effect next turn.

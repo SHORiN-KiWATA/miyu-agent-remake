@@ -67,6 +67,9 @@ async fn a_broken_persona_is_an_internal_error() {
     let home = Home::new();
     let resources = home.work.join("resources");
     std::fs::create_dir_all(resources.join("personas/broken")).expect("建得了目录");
+    // 默认预设要在（施工 P-2 上）：不然先报 unknown_preset，走不到人格。
+    std::fs::create_dir_all(resources.join("presets")).expect("建得了目录");
+    std::fs::write(resources.join("presets/full.toml"), "").expect("写得了");
     let mut client = Client::connect(home.core_with_resources(&Script::new([]), resources));
     client.hello().await;
     let create = |persona: &str| json!({"cwd": "~", "persona": persona});

@@ -51,6 +51,7 @@ fn core(home: &Home) -> Arc<Core> {
     let core_items = [
         miyu_endpoint::settings::UiSettings::ITEMS,
         miyu_endpoint::settings::PersonaSettings::ITEMS,
+        miyu_endpoint::settings::PresetSettings::ITEMS,
         miyu_endpoint::settings::PermissionSettings::ITEMS,
     ]
     .concat();
