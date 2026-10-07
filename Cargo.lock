@@ -1728,6 +1728,7 @@ name = "miyu-policy"
 version = "0.0.0"
 dependencies = [
  "miyu-assemble",
+ "miyu-config",
  "miyu-drivers",
  "miyu-kernel",
  "serde",

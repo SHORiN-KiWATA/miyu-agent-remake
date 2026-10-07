@@ -1,6 +1,6 @@
 //! 套到一个场所上（`chat.md` 第一条「守着它的」）：后面的规则盖前面的，来处的来源、文件、第几条、第几行都对；没设到的不在
 //! 结果里；四种匹配条件各自的对与不对，都写了的要同时满足；整数和字的编号一样；`group` 只配群、`user` 只配私聊；两个都写、
-//! 空列表不匹配；不写 `match`、空表匹配所有。
+//! 空列表不匹配；不写 `match`、空表匹配所有。仓库里的出厂规则文件读得出、零问题，套到群、私聊上的值对（O-15 下）。
 
 use miyu_config::Value;
 
@@ -20,6 +20,10 @@ fn allow_when(condition: &str) -> [File; 1] {
 fn matches(files: &[File], venue: &Venue) -> bool {
     value(files, venue, "allow").is_some()
 }
+
+/// 仓库里的出厂规则文件（`include_str!` 读进来：数据改了，测试跟着变）。
+const FACTORY: &str =
+    include_str!("../../../../../resources/software/onebot/venues.d/50-defaults.toml");
 
 /// 换到平台 `platform` 上的同一个场所。
 fn on(platform: &str, venue: Venue) -> Venue {
@@ -210,4 +214,37 @@ fn every_written_condition_must_hold() {
     let files = allow_when("match = { kind = \"private\", group = [1] }");
     assert!(!matches(&files, &group("1")));
     assert!(!matches(&files, &private("1")));
+}
+
+#[test]
+fn the_repository_factory_rules_set_groups_and_private_chats() {
+    let files = [factory("50-defaults.toml", FACTORY)];
+    let rules = rules(&files);
+    let set = |venue: &Venue| {
+        let resolved = rules.resolve(venue);
+        for entry in resolved.entries.values() {
+            assert_eq!(entry.origin.source, Source::Factory);
+            assert_eq!(entry.origin.file, "50-defaults.toml");
+        }
+        resolved
+            .entries
+            .into_iter()
+            .map(|(key, entry)| (key, entry.value))
+            .collect::<Vec<_>>()
+    };
+    let group_set = [
+        ("discipline", text("chatty")),
+        ("parallel", Value::Int(1)),
+        ("rate", text("5/300s")),
+    ];
+    let private_set = [
+        ("discipline", text("every-message")),
+        ("parallel", Value::Int(0)),
+        ("rate", text("5/300s")),
+    ];
+    // 不写 `persona`、`preset`、参数：跟着核心的默认和出厂参数走（第一条施工时定的第 16 条）。平台不挑。
+    for platform in ["qq", "tg"] {
+        assert_eq!(set(&on(platform, group("1"))), group_set);
+        assert_eq!(set(&on(platform, private("1"))), private_set);
+    }
 }

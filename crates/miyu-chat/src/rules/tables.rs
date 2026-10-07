@@ -2,12 +2,15 @@
 //! `chatty = { … }` 和出厂文件里的 `[chatty]` 读法一样，一份。展开成一项一项（`表.项`），每一项照第八条的声明
 //! （`params/items.rs`）查；表写成别的只丢那一张表，项写错的只丢那一项。问题照第一条的规矩报，位置、原文取法一样。
 //!
+//! 两份照位置对上的标记（`leak_open`、`leak_close`）在同一张表里一起写、一样长，不成对的都不收（第八条「怎么走」第 7 条，
+//! 施工 O-15 下）：读场所规则时不知道出厂的有几对，要求一起写，套出来的一定成对。
+//!
 //! 出厂文件另有两条（[`defaults`]）：最上面只认声明里的表；每一项都得写，缺了的报 `wrong_type`（配置的原因码里没有
 //! 「缺了」，不改配置，第八条施工时定的第 9 条）。
 
 use miyu_config::Value;
 use miyu_config::problem::{Code, nearest};
-use toml_edit::{Item as Node, Key};
+use toml_edit::{Item as Node, Key, TableLike};
 
 use crate::params::items::{self, Item};
 
@@ -59,12 +62,44 @@ impl Reader<'_> {
                 }
             }
         }
+        self.pair(rule, items, &mut found);
         found
+    }
+
+    /// 两份照位置对上的标记（[`items::PAIRED`]，第八条「怎么走」第 7 条）：`table` 是一张表写的样子，`found` 是从里面读对了的。
+    ///
+    /// 两份都读对了、长度不同的，报收尾 `bad_format`；只写了一份的，报那一份；另一份写了、写错了的，已经报过，不再报。不成对的
+    /// 两份都从 `found` 里拿掉。别的表里两份都不在，什么都不做。
+    fn pair(&mut self, rule: Option<usize>, table: &dyn TableLike, found: &mut Vec<Found>) {
+        let (open, close) = items::PAIRED;
+        let length = |key: &str| {
+            found
+                .iter()
+                .find(|(item, ..)| item.key == key)
+                .map(|(_, value, _)| items::length(value))
+        };
+        let written =
+            |key: &str| items::find(key).is_some_and(|item| table.contains_key(item.name()));
+        let blamed = match (length(open), length(close)) {
+            (None, None) => return,
+            (Some(opens), Some(closes)) if opens == closes => return,
+            (Some(_), Some(_)) => Some(close),
+            (Some(_), None) => (!written(close)).then_some(open),
+            (None, Some(_)) => (!written(open)).then_some(close),
+        };
+        if let Some(item) = blamed.and_then(items::find)
+            && let Some((key, node)) = table.get_key_value(item.name())
+        {
+            let problem = self.item(Code::BadFormat, rule, item.key, key, node, false);
+            self.problems.push(problem);
+        }
+        found.retain(|(item, ..)| item.key != open && item.key != close);
     }
 }
 
 /// 读出厂参数的文件（第八条「怎么走」第 2 条）：最上面只认声明里的表，表里每一项照 [`Reader::table`] 读；读完照行、列排好
-/// 问题，再照声明的先后查缺了的。写了但写错的、整张表写成别的，已经报过，不再报缺（第八条「怎么走」第 2 条）。
+/// 问题，再照声明的先后查缺了的：文件里没写的。写了但写错的、不成对的、整张表写成别的，已经报过，不再报缺（第八条「怎么走」
+/// 第 2、7 条）。
 ///
 /// # Errors
 ///
@@ -90,20 +125,19 @@ pub(crate) fn defaults(file: &File) -> Result<Vec<(&'static Item, Value)>, Vec<P
         }
     }
     reader.sort();
-    let reported = |problems: &[Problem], key: &str| {
-        problems
-            .iter()
-            .any(|problem| problem.key.as_deref() == Some(key))
+    // 照文件里写没写算缺，不照读没读对：不成对拿掉的标记写了，不算缺。表写成别的（不是表）的已经报过（第八条施工时定的
+    // 第 22 条）。
+    let missing = |item: &&Item| {
+        !item.optional
+            && root.get(item.table()).is_none_or(|table| {
+                table
+                    .as_table_like()
+                    .is_some_and(|t| !t.contains_key(item.name()))
+            })
     };
-    for item in items::ITEMS.iter().filter(|item| !item.optional) {
-        let written = found.iter().any(|(found, ..)| found.key == item.key);
-        if !written
-            && !reported(&reader.problems, item.key)
-            && !reported(&reader.problems, item.table())
-        {
-            let missing = reader.problem(Code::WrongType, None, Some(item.key.to_string()));
-            reader.problems.push(missing);
-        }
+    for item in items::ITEMS.iter().filter(missing) {
+        let missing = reader.problem(Code::WrongType, None, Some(item.key.to_string()));
+        reader.problems.push(missing);
     }
     match reader.problems.is_empty() {
         true => Ok(found

@@ -13,7 +13,8 @@
 //!   那几格在 [`Said`]）照顺序过自带的五条规则，给出 [`Verdict`]；[`rate_full`] 说额度满了没有；[`gate()`] 回答核心自己
 //!   开的回合现在开还是推迟。限流、睡眠只能从场所规则的原文读（[`Rate::read`]、[`Sleep::read`]）。桥要的两样也在这里
 //!   （施工 O-12 下）：[`addressed()`] 算一条消息是不是冲她来的，填 [`Said::addressed`]；[`Base64::reveal`] 交出正文里
-//!   的 base64 解出来的字，违规关键词查它，判官也看它（[`Ask::decoded`]）。
+//!   的 base64 解出来的字，违规关键词查它，判官也看它（[`Ask::decoded`]）。违规词表的原文由 [`Moderation::parse_keywords`]
+//!   读（施工 O-15 下）。
 //!
 //! - 主动回复判断的上半（`chat.md` 第三条，施工 O-7）：[`conditions`] 算一条消息（[`Facts`]）成立了哪些触发条件，
 //!   [`route`] 定走哪条路，[`score()`] 拿判官的回答（[`Judgement`]）算分、跟门槛比；冷静机制照近期发言量（[`pressure`]）

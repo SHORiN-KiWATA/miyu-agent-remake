@@ -43,6 +43,13 @@ const BIGRAMS: Kind = Kind::Int {
     max: 10_000,
 };
 
+/// 不可见字符：文字的列表，每项最多 1 个字符；配置的文字不收空的，也就是正好一个（施工时定的第 19 条）。
+const ONE_CHAR_EACH: Kind = Kind::List(&Kind::Text { max: 1 });
+
+/// 漏进来的工具调用的标记：文字的列表，每项 1 到 64 个字符（同触发词的上限，只防写错）。空的不收：空的开头、收尾会让清理
+/// 停不下来（施工时定的第 20 条）。
+const MARKERS: Kind = Kind::List(&Kind::Text { max: 64 });
+
 /// 窗口、半衰期、@ 的间隔：1 秒到 1 天，同场所规则 `rate` 的时长。时长不收 0（配置的时长写法）。
 const WINDOW: Kind = Kind::Duration { min: 1, max: DAY };
 
@@ -57,6 +64,10 @@ const DAY: u64 = 24 * HOUR;
 
 /// 一小时的秒数。
 const HOUR: u64 = 60 * 60;
+
+/// 照位置一一对上的两份：漏进来的工具调用的开头和收尾（第八条「怎么走」第 7 条，施工时定的第 18 条）。同一张表里要一起写、
+/// 一样长，读表的时候查（`rules/tables.rs`）；[`Params::at`] 套完不成对的照套之前的。
+pub(crate) const PAIRED: (&str, &str) = ("outbound.leak_open", "outbound.leak_close");
 
 /// 一项参数的声明。
 pub(crate) struct Item {
@@ -194,6 +205,16 @@ pub(crate) const ITEMS: &[Item] = &[
     item("outbound.split_chars", CHARS_OR_NONE, |p, v| {
         p.split_chars = count(v)
     }),
+    // 清理的两份名单（O-15 下）。两份标记照位置对上（[`PAIRED`]）。
+    item("outbound.invisible", ONE_CHAR_EACH, |p, v| {
+        p.outbound.invisible = texts(v).iter().filter_map(|c| c.chars().next()).collect()
+    }),
+    item("outbound.leak_open", MARKERS, |p, v| {
+        p.outbound.leak_open = texts(v)
+    }),
+    item("outbound.leak_close", MARKERS, |p, v| {
+        p.outbound.leak_close = texts(v)
+    }),
 ];
 
 impl Item {
@@ -295,6 +316,22 @@ fn float(value: &Value) -> f64 {
     match value {
         Value::Float(number) => number.get(),
         _ => 0.0,
+    }
+}
+
+/// 列表有几项；不是列表的当 0。
+pub(crate) fn length(value: &Value) -> usize {
+    match value {
+        Value::List(values) => values.len(),
+        _ => 0,
+    }
+}
+
+/// 文字的列表：每项照原样。
+fn texts(value: &Value) -> Vec<String> {
+    match value {
+        Value::List(values) => values.iter().map(String::from).collect(),
+        _ => Vec::new(),
     }
 }
 

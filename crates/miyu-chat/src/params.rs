@@ -61,7 +61,8 @@ impl Params {
     /// 换上去；别的属性（`persona`、`rate`……）不看。
     ///
     /// 不合声明的跳过：[`Rules::resolve`](crate::Rules::resolve) 交出的都查过，只有手造的 [`Resolved`] 里会有，照配置
-    /// `Setting` 的先例照「没有」读（施工时定的第 13 条）。
+    /// `Setting` 的先例照「没有」读（施工时定的第 13 条）。两份标记套完长度不同的也一样，两份照套之前的（第八条「怎么走」
+    /// 第 7 条）：读场所规则时要求一起写、一样长，套出来的本来就成对。
     pub fn at(&self, resolved: &Resolved) -> Params {
         let mut params = self.clone();
         for (key, entry) in &resolved.entries {
@@ -70,6 +71,16 @@ impl Params {
             {
                 item.put(&mut params, &entry.value);
             }
+        }
+        if params.outbound.leak_open.len() != params.outbound.leak_close.len() {
+            params
+                .outbound
+                .leak_open
+                .clone_from(&self.outbound.leak_open);
+            params
+                .outbound
+                .leak_close
+                .clone_from(&self.outbound.leak_close);
         }
         params
     }
@@ -119,11 +130,16 @@ fn blank() -> Params {
             mention_after: 0,
             min_bigrams: 0,
             similar: 0,
+            invisible: Vec::new(),
+            leak_open: Vec::new(),
+            leak_close: Vec::new(),
         },
         split_chars: 0,
     }
 }
 
+#[cfg(test)]
+mod lists_tests;
 #[cfg(test)]
 pub(crate) mod test_support;
 #[cfg(test)]

@@ -1,13 +1,13 @@
 //! 人格目录里的两份字怎么读（施工 P-1 上，`docs/blueprint/personas.md`）：`persona.toml` 的名字、说明，`prompts/examples.md`
 //! 的示范对话。纯逻辑：进来的是文件里的字，出去的是读好的样子，或者写明哪个文件第几行错在哪。找哪几层、读盘由存储做。
 
-use std::collections::BTreeMap;
 use std::fmt;
 
+use miyu_config::phrases::{self, PhraseError};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::request::Message;
 use serde::{Deserialize, Serialize};
-use toml_edit::{Document, Item, TableLike};
+use toml_edit::{Document, Item};
 
 use crate::memory::MemoryScope;
 
@@ -16,10 +16,7 @@ pub const TOML: &str = "persona.toml";
 /// 示范对话在人格目录里的位置。
 pub const EXAMPLES: &str = "prompts/examples.md";
 /// 认得的语言：名字、说明各写这几种里的几种。
-pub const LANGUAGES: [&str; 3] = ["zh", "en", "ja"];
-
-/// 一句话的几种语言：语言代码到那一句。
-pub type Phrases = BTreeMap<String, String>;
+pub use miyu_config::phrases::{LANGUAGES, Phrases};
 
 /// `persona.toml` 读好的样子。每一格都可以没有。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -213,7 +210,7 @@ pub fn read_toml(text: &str) -> Result<PersonaFile, Problem> {
                     ));
                 }
             };
-            *phrases = read_phrases(key, item, &at)?;
+            *phrases = read_phrases(key, item, text)?;
         }
     }
     Ok(file)
@@ -258,44 +255,28 @@ fn read_memory(
 }
 
 /// 一张语言到一句话的表。
-fn read_phrases(
-    field: &str,
-    item: &Item,
-    at: &dyn Fn(&Item) -> Option<usize>,
-) -> Result<Phrases, Problem> {
-    let Some(table) = item.as_table_like() else {
-        return Err(problem(
-            at(item),
+fn read_phrases(field: &str, item: &Item, text: &str) -> Result<Phrases, Problem> {
+    let line_at = |offset: usize| line_of(text, offset);
+    phrases::read(item).map_err(|error| match error {
+        PhraseError::NotPhrases(span) => problem(
+            span.map(|span| line_at(span.start)),
             Code::NotPhrases,
             &format!("persona.{field}"),
             format!("persona.{field} must map languages to text"),
-        ));
-    };
-    let mut phrases = Phrases::new();
-    for (language, value) in TableLike::iter(table) {
-        if !LANGUAGES.contains(&language) {
-            return Err(problem(
-                at(value),
-                Code::UnknownLanguage,
-                &format!("persona.{field}.{language}"),
-                format!("persona.{field}.{language}: language must be zh, en or ja"),
-            ));
-        }
-        match value.as_str().map(str::trim) {
-            Some(text) if !text.is_empty() => {
-                phrases.insert(language.to_string(), text.to_string());
-            }
-            _ => {
-                return Err(problem(
-                    at(value),
-                    Code::EmptyPhrase,
-                    &format!("persona.{field}.{language}"),
-                    format!("persona.{field}.{language} must be non-empty text"),
-                ));
-            }
-        }
-    }
-    Ok(phrases)
+        ),
+        PhraseError::UnknownLanguage(language, span) => problem(
+            span.map(|span| line_at(span.start)),
+            Code::UnknownLanguage,
+            &format!("persona.{field}.{language}"),
+            format!("persona.{field}.{language}: language must be zh, en or ja"),
+        ),
+        PhraseError::Empty(language, span) => problem(
+            span.map(|span| line_at(span.start)),
+            Code::EmptyPhrase,
+            &format!("persona.{field}.{language}"),
+            format!("persona.{field}.{language} must be non-empty text"),
+        ),
+    })
 }
 
 fn problem(line: Option<usize>, code: Code, detail: &str, message: String) -> Problem {

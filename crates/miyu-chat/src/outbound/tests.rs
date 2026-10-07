@@ -1,11 +1,22 @@
 //! 出站链（`chat.md` 第五条「守着它的」）：先后；清理（两种工具调用、没有收尾的、几段、去完以后是空的、零宽字符、括号
-//! 旁白）；去重（一字不差、只差标点大小写、相似度正好 0.66、两字组 15 个的不比、只看交进来的这一回合、正文重复带图、
-//! 图重复、同一条里两张一样的图）；引用和 @（最后一条是她自己的、`quote_after` 是 0、正好 4 条、3 条、@ 的时间和人）。
+//! 旁白）；清理照参数走（换一份标记、换一份不可见字符、名单是空的、照位置对上、收尾是开头的一段）；去重（一字不差、只差
+//! 标点大小写、相似度正好 0.66、两字组 15 个的不比、只看交进来的这一回合、正文重复带图、图重复、同一条里两张一样的图）；
+//! 引用和 @（最后一条是她自己的、`quote_after` 是 0、正好 4 条、3 条、@ 的时间和人）。
 
 use super::test_support::{
-    MENTION_AFTER, ctx, distinct, drop, image, judge, send, sent, text, with_images,
+    INVISIBLE, LEAKS, MENTION_AFTER, ctx, distinct, drop, image, judge, send, sent, text,
+    with_images,
 };
-use super::{Out, OutWhy, Target};
+use super::{Out, OutCtx, OutWhy, Target};
+
+/// 清理的两份名单换成 `invisible`、`leaks`（开头和收尾一对一对写）的情形。
+fn cleaning(invisible: &[char], leaks: &[(&str, &str)]) -> OutCtx {
+    let mut ctx = ctx();
+    ctx.outbound.invisible = invisible.to_vec();
+    ctx.outbound.leak_open = leaks.iter().map(|(open, _)| open.to_string()).collect();
+    ctx.outbound.leak_close = leaks.iter().map(|(_, close)| close.to_string()).collect();
+    ctx
+}
 
 #[test]
 fn plain_text_passes_untouched() {
@@ -159,6 +170,56 @@ fn text_outside_the_parentheses_is_not_an_aside() {
 fn aside_with_image_is_kept() {
     let aside = with_images("（递给你）", &["img-a"]);
     assert_eq!(judge(aside.clone(), &ctx()), send(aside));
+}
+
+#[test]
+fn other_markers_are_stripped_and_the_factory_ones_no_longer() {
+    let ctx = cleaning(&INVISIBLE, &[("[[call", "]]")]);
+    assert_eq!(judge(text("好[[call x]]的"), &ctx), send(text("好的")));
+    assert_eq!(judge(text("好的[[call x"), &ctx), send(text("好的")));
+    assert_eq!(judge(text("[[call x]]"), &ctx), drop(OutWhy::Leaked));
+    // 出厂的标记不在这一份里：照原样发。
+    let factory = "好<tool_call>x</tool_call>的";
+    assert_eq!(judge(text(factory), &ctx), send(text(factory)));
+}
+
+#[test]
+fn markers_pair_by_position() {
+    // 第一对的开头遇上第二对的收尾，不算收尾：去到末尾。
+    let ctx = cleaning(&INVISIBLE, &[("<a>", "</a>"), ("<b>", "</b>")]);
+    assert_eq!(judge(text("x<a>1</b>y"), &ctx), send(text("x")));
+    assert_eq!(judge(text("x<b>1</a>y"), &ctx), send(text("x")));
+    assert_eq!(judge(text("x<b>1</b>y<a>2</a>z"), &ctx), send(text("xyz")));
+}
+
+#[test]
+fn a_close_inside_the_open_is_looked_for_after_the_open() {
+    // 收尾是开头的一段：从开头处找，只去掉半个开头，里面的字漏出去（施工时定的第 11 条）。
+    let ctx = cleaning(&INVISIBLE, &[("```tool", "```")]);
+    let fenced = "好```tool\n{\"q\":1}\n```的";
+    assert_eq!(judge(text(fenced), &ctx), send(text("好的")));
+    assert_eq!(judge(text("好```tool```的"), &ctx), send(text("好的")));
+}
+
+#[test]
+fn other_invisible_chars_count_as_blank_and_the_factory_ones_no_longer() {
+    let ctx = cleaning(&['~'], &LEAKS);
+    assert_eq!(judge(text(" ~ ~\n"), &ctx), drop(OutWhy::Blank));
+    assert_eq!(
+        judge(text("<tool_call>x</tool_call>~"), &ctx),
+        drop(OutWhy::Leaked)
+    );
+    // 零宽空格不在这一份里：照发。
+    assert_eq!(judge(text("\u{200B}"), &ctx), send(text("\u{200B}")));
+}
+
+#[test]
+fn empty_lists_strip_nothing_and_only_whitespace_is_blank() {
+    let ctx = cleaning(&[], &[]);
+    let leaky = "好<tool_call>x</tool_call>的";
+    assert_eq!(judge(text(leaky), &ctx), send(text(leaky)));
+    assert_eq!(judge(text(" \n\t"), &ctx), drop(OutWhy::Blank));
+    assert_eq!(judge(text("\u{200B}"), &ctx), send(text("\u{200B}")));
 }
 
 #[test]
