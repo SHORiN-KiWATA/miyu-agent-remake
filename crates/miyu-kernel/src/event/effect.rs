@@ -115,6 +115,9 @@ pub struct PeerWatch {
 pub struct TodoWritten {
     /// 照先后的每一项。
     pub todos: Vec<Todo>,
+    /// 因为全部做完而清空的（施工 D-3 补）：清空前那一份，每一项都做完了。头照它让人看到最后一项打勾。别的写法是空的，不写。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub done: Vec<Todo>,
 }
 
 /// 待办的一项。

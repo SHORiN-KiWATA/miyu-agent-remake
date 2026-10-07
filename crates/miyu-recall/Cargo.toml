@@ -1,0 +1,13 @@
+[package]
+name = "miyu-recall"
+description = "检索的纯逻辑：中文、日文两两切词，拼 FTS5 的查询（施工 R-1，docs/blueprint/recall.md）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

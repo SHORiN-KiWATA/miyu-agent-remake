@@ -1,1 +1,2 @@
 {"at":"2026-09-25T07:31:00.000Z","kind":"todos.changed","turn":65,"by":{"kind":"kernel"},"body":{"todos":[{"content":"读代码","status":"completed"},{"content":"写测试","status":"in_progress"},{"content":"跑门禁","status":"pending"}]}}
+{"at":"2026-09-25T07:31:00.000Z","kind":"todos.changed","turn":65,"by":{"kind":"kernel"},"body":{"todos":[],"done":[{"content":"读代码","status":"completed"},{"content":"写测试","status":"completed"}]}}

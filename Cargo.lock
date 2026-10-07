@@ -1718,6 +1718,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-recall"
+version = "0.0.0"
+
+[[package]]
 name = "miyu-sandbox"
 version = "0.0.0"
 dependencies = [
@@ -1767,6 +1771,7 @@ dependencies = [
  "miyu-fs",
  "miyu-kernel",
  "miyu-policy",
+ "miyu-recall",
  "notify",
  "rusqlite",
  "serde",

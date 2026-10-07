@@ -325,7 +325,22 @@ fn the_todos_changed_sample_is_written_exactly() {
                 todo("写测试", TodoStatus::InProgress),
                 todo("跑门禁", TodoStatus::Pending),
             ],
+            done: Vec::new(),
         }),
     };
-    assert_eq!(lines("transient/todos.changed.jsonl"), [changed.to_line()]);
+    // 因为全部做完而清空的那一条带着做完的那一份（施工 D-3 补）。
+    let cleared = Transient {
+        body: TransientBody::TodosChanged(TodosChanged {
+            todos: Vec::new(),
+            done: vec![
+                todo("读代码", TodoStatus::Completed),
+                todo("写测试", TodoStatus::Completed),
+            ],
+        }),
+        ..changed.clone()
+    };
+    assert_eq!(
+        lines("transient/todos.changed.jsonl"),
+        [changed.to_line(), cleared.to_line()]
+    );
 }
