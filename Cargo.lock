@@ -1493,6 +1493,7 @@ name = "miyu-chat"
 version = "0.0.0"
 dependencies = [
  "miyu-config",
+ "sha2",
  "toml_edit",
 ]
 
