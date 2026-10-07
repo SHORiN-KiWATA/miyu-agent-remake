@@ -29,6 +29,7 @@ fn ask(words: &[&str]) -> Ask {
         timeout: None,
         from: None,
         model: None,
+        no_memory: false,
     }
 }
 
@@ -166,4 +167,21 @@ fn from_takes_any_name_but_a_blank_one() {
     };
     let plan = plan(from, &env(resources, None), Language::Chinese);
     assert_eq!(plan.from.as_deref(), Some("claude-code"));
+}
+
+/// `--no-memory`（施工 R-3 下）：只管新开的会话，和 `-c`、`-s` 一起写的读参数时就拒。
+#[test]
+fn no_memory_is_for_a_new_session_only() {
+    use clap::Parser;
+
+    #[derive(Parser)]
+    struct Line {
+        #[command(flatten)]
+        ask: Ask,
+    }
+    let parsed = |words: &[&str]| Line::try_parse_from(words).map(|line| line.ask.no_memory);
+    assert_eq!(parsed(&["ask", "--no-memory", "在吗"]).ok(), Some(true));
+    assert_eq!(parsed(&["ask", "在吗"]).ok(), Some(false));
+    assert!(parsed(&["ask", "--no-memory", "-c", "在吗"]).is_err());
+    assert!(parsed(&["ask", "--no-memory", "-s", "x", "在吗"]).is_err());
 }

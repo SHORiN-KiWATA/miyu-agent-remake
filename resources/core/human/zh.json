@@ -37,7 +37,7 @@
       },
       "persona.default": {
         "name": "默认人格",
-        "description": "新会话默认用哪个人格，写人格目录的名字。开会话时指定的优先；通讯平台的场所规则里写了的也优先。"
+        "description": "新会话默认用哪个人格。"
       },
       "permission.start_read_only": {
         "name": "新会话开局只读",

@@ -240,6 +240,7 @@ async fn personas_are_listed_and_read_by_layer() {
             {"persona": "broken", "problem": "home persona.toml:1: unknown table [voice]"},
             {"persona": "engineer", "name": null, "summary": "我的工程师", "layers": ["shipped", "home"]},
             {"persona": "miyu", "name": "美羽", "summary": "Mine.", "layers": ["home"]},
+            {"persona": "none", "name": "不用人格", "summary": "不带人设，照原样说话", "layers": ["shipped"]},
         ]),
         "握手说的是中文，挑中文，没有中文的照英文"
     );
@@ -267,4 +268,95 @@ async fn personas_are_listed_and_read_by_layer() {
     assert_eq!(reason(&got), Some("unknown_persona"), "{got}");
     let got = client.call("g4", "persona.get", json!({})).await;
     assert_eq!(reason(&got), Some("bad_params"), "{got}");
+}
+
+/// 空人格和会话带上人格（施工 P-1 下）：选 `none` 的 system 里没有人设；`session.created`、会话列表、`subscribe` 的回应都写
+/// 着用的是哪个人格。
+#[tokio::test]
+async fn the_empty_persona_says_nothing_and_every_view_names_the_persona() {
+    let home = Home::new();
+    let script = Script::new([Play::Says("嗯。"), Play::Says("好。")]);
+    let mut client = connected(configured(&home, &script)).await;
+    let reply = create(&mut client, "c1", json!({"cwd": "~", "persona": "none"})).await;
+    let empty = reply["result"]["session"]
+        .as_str()
+        .expect("造出来了")
+        .to_string();
+    client.say("s1", &empty, "hi").await;
+    home.until_turns(&empty, 1).await;
+    let engineer = client.create("c2", "~").await;
+    client.say("s2", &engineer, "hi").await;
+    home.until_turns(&engineer, 1).await;
+    let requests = script.requests();
+    assert!(
+        !requests[0].1.system.contains("software engineer"),
+        "空人格不带人设：{}",
+        requests[0].1.system
+    );
+    assert!(
+        requests[1]
+            .1
+            .system
+            .starts_with("You are a helpful software engineer.")
+    );
+    let created = home
+        .log(&empty)
+        .into_iter()
+        .find_map(|event| match event.body {
+            miyu_kernel::event::Body::SessionCreated(created) => Some(created),
+            _ => None,
+        })
+        .expect("有造会话那一条");
+    assert_eq!(created.persona.as_deref(), Some("none"));
+    let listed = client.call("l1", "session.list", json!({})).await;
+    let personas: Vec<(String, String)> = listed["result"]["sessions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| {
+            (
+                item["session"].as_str().unwrap().to_string(),
+                item["persona"].as_str().unwrap_or_default().to_string(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        personas,
+        [
+            (engineer.clone(), "engineer".to_string()),
+            (empty.clone(), "none".to_string())
+        ]
+    );
+    let subscribed = client.subscribe("w1", &empty).await;
+    assert_eq!(subscribed["result"]["persona"], "none", "{subscribed}");
+}
+
+/// 以前的日志没有 `persona`：会话列表、`subscribe` 都不写这一格（施工 P-1 下）。
+#[tokio::test]
+async fn sessions_from_older_logs_name_no_persona() {
+    let home = Home::new();
+    let script = Script::new([Play::Says("嗯。")]);
+    let mut client = connected(configured(&home, &script)).await;
+    let session = client.create("c1", "~").await;
+    client.say("s1", &session, "hi").await;
+    home.until_turns(&session, 1).await;
+    // 把造会话那一条改回以前的样子：去掉 persona。
+    let dir = home.root.path().join("home/alice/sessions").join(&session);
+    let first = dir.join("000000000001.jsonl");
+    let text = std::fs::read_to_string(&first).unwrap();
+    let old = text.replacen(",\"persona\":\"engineer\"", "", 1);
+    assert_ne!(old, text, "写过 persona");
+    std::fs::write(&first, old).unwrap();
+    let script = Script::new([]);
+    let mut client = connected(configured(&home, &script)).await;
+    let subscribed = client.subscribe("w1", &session).await;
+    assert!(
+        subscribed["result"].get("persona").is_none(),
+        "{subscribed}"
+    );
+    let listed = client.call("l1", "session.list", json!({})).await;
+    assert!(
+        listed["result"]["sessions"][0].get("persona").is_none(),
+        "{listed}"
+    );
 }

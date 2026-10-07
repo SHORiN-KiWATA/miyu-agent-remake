@@ -92,6 +92,8 @@ pub(crate) struct Listed {
     pub(crate) preview: String,
     /// 场所（施工 O-3）：本机的是 [`LOCAL`]。
     pub(crate) venue: String,
+    /// 人格（施工 P-1 下）：以前的日志没有的是空的。
+    pub(crate) persona: Option<String>,
 }
 
 impl Listed {
@@ -108,6 +110,7 @@ impl Listed {
             last_active: row.last_active,
             preview: row.preview,
             venue: row.venue,
+            persona: row.persona,
         }
     }
 
@@ -131,6 +134,9 @@ impl Listed {
         }
         if self.busy {
             item["busy"] = json!(true);
+        }
+        if let Some(persona) = &self.persona {
+            item["persona"] = json!(persona);
         }
         item
     }

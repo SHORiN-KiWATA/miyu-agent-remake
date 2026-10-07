@@ -11,7 +11,7 @@
 
 状态：图纸（2026-10-07 起草，照 `docs/reviews/2026-10-07-记忆知识库embedding调研.md` 第八、九节项目主人的拍板）。每一节标着由哪一步做，步子见末尾「施工步子」。做完一步，这一页照做好的样子改写那几节。检索的底子另见 `recall.md`。
 
-做好了的：R-3（中）三件工具：软件包 `miyu-memory`（`remember`、`forget`、`memory_search`，字在 `resources/software/memory/`），端口 `miyu_tool::MemoryPort`（每次调用由执行器照这个会话、这一轮、属主、人格、听众造，`miyu-session/src/memory/port.rs`），读工具字的函数挪进 `miyu_tool::load`；工具面上只给本机的主会话；核心的工具目录登记它们，会话表交 `Memory`（两份登记）。听众照人比：有账号的照账号、平台上的照平台身份（主人在平台私聊里说的带 `via`，还是这个账号本人）。做好了的：R-3（上）记忆日志和底账：`miyu-recall` 的 `Saved`、`Retired`、`Source`、`MemoryId`、`to_event`、`from_event`、`MemoryBook`；`miyu-store` 的 `MemoryLogs`（一份一把锁，第一次开交回 `Report`：记忆库开得怎么样、补没补上、读不懂的几条），追加交回 `Appended`（记忆库没写上的说出来，不挡追加）；回合库的墓碑（第二条第 4 款），`RecallIndexes::alive`。还没有人往里写：R-3（中）的工具第一个用。R-2（上）回合索引（第一条第 1 到 8 款）：`miyu-recall` 的 `TurnFeed`、`replay`、`key`；检索库的 `marks`、`apply`、`mark`、`forget`，回合库的登记 `RecallIndexes`（`miyu-store/src/recall/indexes.rs`）；会话的接线 `miyu-session/src/memory.rs`（`Indexed` 每落一批交给它，载入时铺回、补上）；核心一份登记，删会话时拿掉（`miyu-endpoint/src/sessions/delete.rs`）。
+做好了的：R-3（下）范围：`MemoryScope`（`miyu-policy/src/memory.rs`）记进快照的 `memory`，`persona.toml` 的 `[memory] scope`，`session.create` 的 `memory`，`miyu ask --no-memory`；记忆放在哪一间照 `Room`（`miyu-store/src/recall/room.rs`），两份登记都照它开；听众照属主、放在哪照记忆账号。做好了的：R-3（中）三件工具：软件包 `miyu-memory`（`remember`、`forget`、`memory_search`，字在 `resources/software/memory/`），端口 `miyu_tool::MemoryPort`（每次调用由执行器照这个会话、这一轮、属主、人格、听众造，`miyu-session/src/memory/port.rs`），读工具字的函数挪进 `miyu_tool::load`；工具面上只给本机的主会话；核心的工具目录登记它们，会话表交 `Memory`（两份登记）。听众照人比：有账号的照账号、平台上的照平台身份（主人在平台私聊里说的带 `via`，还是这个账号本人）。做好了的：R-3（上）记忆日志和底账：`miyu-recall` 的 `Saved`、`Retired`、`Source`、`MemoryId`、`to_event`、`from_event`、`MemoryBook`；`miyu-store` 的 `MemoryLogs`（一份一把锁，第一次开交回 `Report`：记忆库开得怎么样、补没补上、读不懂的几条），追加交回 `Appended`（记忆库没写上的说出来，不挡追加）；回合库的墓碑（第二条第 4 款），`RecallIndexes::alive`。还没有人往里写：R-3（中）的工具第一个用。R-2（上）回合索引（第一条第 1 到 8 款）：`miyu-recall` 的 `TurnFeed`、`replay`、`key`；检索库的 `marks`、`apply`、`mark`、`forget`，回合库的登记 `RecallIndexes`（`miyu-store/src/recall/indexes.rs`）；会话的接线 `miyu-session/src/memory.rs`（`Indexed` 每落一批交给它，载入时铺回、补上）；核心一份登记，删会话时拿掉（`miyu-endpoint/src/sessions/delete.rs`）。
 
 ### 在哪
 
@@ -22,9 +22,11 @@
 | `crates/miyu-recall/` | 纯逻辑：切词、合并（`recall.md`）；回合索引里一条怎么取、记忆事件的类型、听众的判定、排名的分、摘要和联想怎么渲染、整理请求怎么拼、回答怎么读 | R-1 起 |
 | `crates/miyu-store/src/recall.rs` | 检索库（`recall.md`） | R-1 |
 | `crates/miyu-recall/src/memory.rs` | 记忆事件的格（`Saved`、`Retired`、`Source`）、写成事件、读回；底账 `MemoryBook` | R-3 上 |
-| `crates/miyu-store/src/memory.rs` | 记忆日志的登记：照（账号、人格）开日志、一份一把锁，追加、读回，维护底账和记忆库 | R-3 上 |
+| `crates/miyu-store/src/memory.rs` | 记忆日志的登记：照房间开日志、一份一把锁，追加、读回，维护底账和记忆库 | R-3 上 |
+| `crates/miyu-store/src/recall/room.rs` | 一间记忆（`Room`）：跟着人格的、只在这个会话里的，各自的记忆日志、回合库、记忆库在哪 | R-3 下 |
+| `crates/miyu-policy/src/memory.rs` | 范围 `MemoryScope` 的三种写法；快照的 `memory` 怎么写、怎么读（没有的照 `persona`，认不出的照 `off`） | R-3 下 |
 | `crates/miyu-recall/src/turns.rs` | 回合索引里的一条怎么从日志算：`TurnFeed`（增量、载入时铺回）、`replay`（整份）、`key` | R-2 上 |
-| `crates/miyu-store/src/recall/indexes.rs` | 回合库的登记：照（账号、人格）开 `turns-<人格>.db`、留着；删会话时拿掉每一份里它的 | R-2 上 |
+| `crates/miyu-store/src/recall/indexes.rs` | 回合库的登记：照房间开回合库、留着；删会话时拿掉人格那几间里它的（会话那一间跟着目录走） | R-2 上 |
 | `crates/miyu-session/src/memory.rs` | 执行器：会话写日志时顺手更新回合索引、载入时补上（R-2 上）；以后挂接点上叫记忆、工具的端口、后台抽取、合并 | R-2 起 |
 | `crates/miyu-memory/` | 记忆这个软件包（可选、能关，`10-自带软件.md` 第三节）：三件工具 `memory_search`、`remember`、`forget`，经端口碰记忆日志和检索库；不放进基础系统 | R-3 中 |
 | `crates/miyu-endpoint/src/memory.rs` | 协议 `memory.*` | R-3 |
@@ -35,9 +37,9 @@
 
 **范围**（`17-记忆.md` L2、L3，R-3 下）：会话开局时定，之后不改。三种：`persona`（跟着人格）、`session`（只在这个会话里）、`off`（不召回也不记）。
 
-- 默认照人格的 `persona.toml` 的 `[memory] scope`（`persona` 或 `session`，出厂写 `persona`；不写是 `persona`；别的值照人格的文件写错了报，`personas.md`）。开会话时能换：`session.create` 多一格 `memory`（`persona`、`session`、`off`，不写照人格的；别的值 `bad_params`）；`miyu ask --no-memory` 就是 `off`。人格与预设走查 E1（2026-10-07）。
-- 记进策略快照的 `memory`（开局定、之后不改，正是快照管的；内核不认识「记忆」这个词，不进 `session.created`）。以前造的快照里没有的照 `persona`。
-- 子代理一律 `off`（17 第二节，走查 C5）：快照照写 `off`，派的时候能指定，随 P-2。开不开记忆归预设（走查 E2，随 P-2）：在那之前本机的主会话照范围开。
+- 默认照人格的 `persona.toml` 的 `[memory] scope`（`persona` 或 `session`；不写是 `persona`，出厂的软件工程师不写；别的值照人格的文件写错了报，`personas.md`）。开会话时能换：`session.create` 多一格 `memory`（`persona`、`session`、`off`，不写照人格的；别的值 `bad_params`）；`miyu ask --no-memory` 就是 `off`。人格与预设走查 E1（2026-10-07）。
+- 记进策略快照的 `memory`（开局定、之后不改，正是快照管的；内核不认识「记忆」这个词，不进 `session.created`）。新造的都写明，`persona` 也写；以前造的快照里没有的照 `persona`，字节不变；认不出的照 `off`（宁可不记，不往不知道的地方写）。载入时照快照。
+- 子代理一律 `off`（17 第二节，走查 C5）：造子会话时不管交的是什么，快照照写 `off`；以前造的子会话快照里没有这一格，载入时照有没有父会话判。派的时候能指定，随 P-2。开不开记忆归预设（走查 E2，随 P-2）：在那之前本机的主会话照范围开。
 - `off`：不接回合索引，工具面上没有三件工具（`miyu ask --no-memory` 的会话前缀因此少 285 个 token）。
 - 每个范围一处记忆（一个「房间」）：
   - `persona`：记忆归哪个账号（`memory_account`，P-1 上：人格住在谁的家目录就归谁，出厂、系统区的归会话的属主）下，`modules/memory/<人格>/` 的记忆日志，`index/recall/turns-<人格>.db`、`memory-<人格>.db`。
@@ -55,9 +57,9 @@
 | 听众 | 这一轮会被谁看到：本机的会话是会话的属主；群里的是那个场所组（O 线接上以后） |
 
 - 只收**人开的回合**：触发它的 `message.user` 的 `by` 是人（本机的人、群里的人）。别的 harness、子代理、别的会话发来的话开的，回报、通知叫醒的，重启以后接着干的，手动压缩、清空单开的，都不收（旧版自己造的回合进了日记，调研第一节第 3 个坑）。
-- 一个库一个人格一个账号：`home/<账号>/index/recall/turns-<人格>.db`。范围是 `session` 的会话进不了它，只在自己的会话里搜（另起一个库还是同一个库带范围那一列，施工时定）。
+- 一个库一间：跟着人格的是 `home/<账号>/index/recall/turns-<人格>.db`；范围是 `session` 的会话进不了它，另起一个库在会话目录里（`sessions/<会话>/memory/turns.db`），只在自己的会话里搜（R-3 下定：另起一个库，删会话跟着目录走，不用带范围那一列）。
 
-**记忆日志**（R-3 上）：一个账号、一个人格一份，`home/<账号>/modules/memory/<人格>/` 下按段存，照会话日志的外壳和写法（`kernel/events.md`、`SessionLog`：崩了截掉半行、同步、按段），`by` 是写它的那一方（她经工具记的是那次调用 `tool`，后台整理的是模块 `memory`，人在界面上记的是 `person`）。真相，要备份（`07-存储.md` S1）。几个会话同时往一份里写：核心一份登记，一份日志一把锁、一个写的。范围是 `session` 的会话随 R-3 下。
+**记忆日志**（R-3 上）：一个账号、一个人格一份，`home/<账号>/modules/memory/<人格>/` 下按段存，照会话日志的外壳和写法（`kernel/events.md`、`SessionLog`：崩了截掉半行、同步、按段），`by` 是写它的那一方（她经工具记的是那次调用 `tool`，后台整理的是模块 `memory`，人在界面上记的是 `person`）。真相，要备份（`07-存储.md` S1）。几个会话同时往一份里写：核心一份登记，一份日志一把锁、一个写的。范围是 `session` 的会话的记忆日志在会话目录的 `memory/log/` 下（「范围」）。
 
 | 事件 | 什么时候 | `body` 的格 | 哪一步 |
 |---|---|---|---|
@@ -65,7 +67,7 @@
 | `ext.memory.retired` | 作废一条，原文还在日志里 | `id`、`why` | R-3 上 |
 | `ext.memory.summary` | 合并重写的摘要 | `text`、`from`（用了哪几条） | R-7 |
 | `ext.memory.extracted` | 一个会话抽到了哪个序号 | `session`、`upto` | R-6 |
-| `ext.memory.cleared` | 人清空了一层 | `scope` | R-3 下 |
+| `ext.memory.cleared` | 人清空了一层 | `scope` | R-3 补 |
 
 - `class` 四类（2026-10-07 项目主人定）：`user` 关于你、`feedback` 你要她怎样（正文带「为什么」）、`episode` 经历、`reference` 长期有效的事实。不认识的原样留着、照常列出。
 - `sources`：几处 `{"session": 会话编号, "turn": 回合编号}`；人在界面上记的是空的。
@@ -87,7 +89,7 @@
 | `forget` | 作废一条 | `id`、`why` |
 | `memory_search` | 搜记下的和以前的对话（回合索引） | `query`、`forgotten`（连作废的一起，可以不写） |
 
-- 只给本机的主会话（没有父会话、场所是本机）；子代理、群没有。范围 `off` 的会话随 R-3 下。
+- 只给本机、范围不是 `off` 的会话（子代理的范围一律 `off`）；群没有，随 O 线。
 - 访问类别 `read`：只碰她自己的记忆，只读开着也能记（照 `todowrite`）。
 - 结果：`remember` 说记成了哪个编号（改的另说改了哪一条）；超过 120 字、`replaces` 没有这一条、那一条已经改掉或作废了，不记，说一句。`forget` 说作废了哪一条。`memory_search` 记下的一条一行（编号、类、记下的日期、正文），以前的对话一条一行（日期、会话的短编号、截到 300 字的字），记下的最多 10 条在前、对话最多 5 条在后；只给现在算数的、出处还活着的、听众合的（第二条、第九条）；什么都没有说一句。原文见「样子」，施工时定。
 - 她当场记的那一段，后台不再抽（第六条第 3 款，R-6）。
@@ -103,7 +105,7 @@
 1. **哪些回合**：主会话（没有父会话）里，`turn.started` 的 `trigger` 指的那条 `message.user` 的 `by` 是人（`person`、`external`）的回合。子代理的会话、别的 harness、别的会话、子代理发来的话开的，回报、通知叫醒的，重启以后接着干的，手动压缩、清空单开的（没有 `trigger`），都不收。
 2. **一条的字**：触发的那句人话（它的字块照先后用换行连起来、去掉前后空白），空一行，她这一轮最后一条字不空的回复（字块连起来、去掉前后空白）。只有一边有字的只写那一边；两边都没字的（只发了图、她一句没说）不收。回合中途进来、没有触发哪一轮的人话不算进去（R-2 先这样，以后要再说）。时刻是 `turn.started` 的。
 3. **什么时候收**：`turn.ended` 落了盘（哪种原因都收：被打断的也是聊过的）。键是 `会话编号/回合编号`（回合编号就是 `turn.started` 的序号）。
-4. **放在哪**：一个账号、一个人格一份检索库（`recall.md`）：`home/<账号>/index/recall/turns-<人格>.db`。人格照会话的策略快照（`Snapshot.persona`），账号照记忆归哪个账号 `memory_account`（施工 P-1 上，`personas.md`「怎么走」第 5 条：人格住在谁的家目录就是谁，出厂、系统区的人格是会话的属主；造会话时端点照叠好的人格算好交进来，载入时照快照里的人格再算一遍）。核心一份登记（`RecallIndexes`），用到哪一份才开、开了一直开着；新造的会话到第一次真要写时才开，造会话不多一次开库、建表、同步。范围是 `session`、`off` 的会话随 R-3。
+4. **放在哪**：一个账号、一个人格一份检索库（`recall.md`）：`home/<账号>/index/recall/turns-<人格>.db`。人格照会话的策略快照（`Snapshot.persona`），账号照记忆归哪个账号 `memory_account`（施工 P-1 上，`personas.md`「怎么走」第 5 条：人格住在谁的家目录就是谁，出厂、系统区的人格是会话的属主；造会话时端点照叠好的人格算好交进来，载入时照快照里的人格再算一遍）。核心一份登记（`RecallIndexes`），用到哪一份才开、开了一直开着；新造的会话到第一次真要写时才开，造会话不多一次开库、建表、同步。范围是 `session` 的放在会话目录里，`off` 的不接（「范围」）。
 5. **增量**（`miyu_recall::TurnFeed`，纯逻辑）：会话 actor 每落一批（`Indexed`，照 `store/index.md` 第二条的那一路），把这一批一条条交给它，它交回要放进的、要拿掉的；`turn.reverted` 的那几轮拿掉；`turn.unreverted` 的那几轮它不记得字（省内存，只记还没结束的那一轮），交回「要读回」，执行器把这个会话的日志整份读一遍，照全部事件算出那几轮的字再放进去（恢复很少见）。撤销的每一轮（人开的、不是人开的都算）另埋一块墓碑，恢复时 `TurnFeed` 交 `Restored`，揭掉（R-3 上，第二条第 4 款）。
 6. **照到哪**：检索库另记每个来源照到了哪个序号（`marks`），和这一批的放进、拿掉在同一个事务里写；一批里没有要改的不写（每落一批少写一次库），照到的位置落在后面不要紧，载入时多铺一截、交回的还是空的。载入会话时内核本来就拿到整份事件：照它们先把 `TurnFeed` 的状态铺回来，照到的以后的才放进库，补上崩了、更新失败落下的那一截；一条都没照过的会话就是整份补。
 7. **删会话**（进回收处）：拿掉这个账号各个回合库里这个会话的全部（键以 `会话编号/` 开头的）和它的 `marks`。
@@ -112,11 +114,11 @@
 
 **二、记下的记忆**（R-3 上、中、下）
 
-1. 她调 `remember`（R-3 中）：查过类、长度，追加一条 `ext.memory.saved`，出处是这一轮，听众是这一轮的；结果里写编号。写了 `replaces` 的是改那一条。人在界面、协议上记的（R-3 下），出处空的，听众是那个人。
+1. 她调 `remember`（R-3 中）：查过类、长度，追加一条 `ext.memory.saved`，出处是这一轮，听众是这一轮的；结果里写编号。写了 `replaces` 的是改那一条。人在界面、协议上记的（R-3 补），出处空的，听众是那个人。
 2. `forget`、`memory.forget`：追加 `ext.memory.retired`；作废的照样搜得到（`memory_search` 带上忘了的），不会再被想起来。
 3. **出处死了就看不见，不写撤回**：一条记忆的出处全被撤销了、全在删掉的会话里，召回、列出、搜的时候都当它不在；恢复了又在。只有一部分出处死了的照常（17 L7 的落地）。人记的没有出处，一直算活的。
 4. **出处活不活怎么知道**（R-3 上）：回合库里另记两样墓碑，都是会话落盘时顺手照日志写的派生数据：撤销了的回合（`turn.reverted` 的每一轮，人开的、不是人开的都算；恢复了拿掉），删掉了的会话（删会话时记下，从回收处恢复的随 R-2 下拿掉）。一处出处 `{session, turn}` 活着：会话没删、这一轮没撤销。
-5. 清空（17 第八节三种，R-3 下）：追加 `ext.memory.cleared`，那以前的都不算；整理到一半、记在清空以前的作废（旧版的 generation 照序号算，不另记代数）。
+5. 清空（17 第八节三种，R-3 补）：追加 `ext.memory.cleared`，那以前的都不算；整理到一半、记在清空以前的作废（旧版的 generation 照序号算，不另记代数）。
 
 **三、常驻的记忆摘要**（R-4）
 
@@ -191,14 +193,17 @@
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-recall/src/turns/tests.rs` | 第一条第 1 到 5 款：人开的一轮结束收一条（字、时刻）；平台上的人也算；别的 harness、别的会话、内核开的、没有触发的不收；被打断的、出错的也收，两边都没字的不收；最后一条有字的回复才算；排着的几句照触发的那一句；撤销拿掉、恢复要读回；`replay` 照最后还在的；载入时铺回进行中的一轮、只交照到以后的；键的写法 |
-| `crates/miyu-store/tests/recall.rs` | 第一条第 6、7 款：一批和照到哪一起写、空的一批也挪；拿掉一个来源只拿它自己的（`s1` 不碰 `s10`）；回合库照（账号、人格）一份、开过的不再开，新的登记照样找得到磁盘上的每一份；R-1 的版本 1 删掉重建。量尺 `measure_priming_a_thousand_turns`（`#[ignore]`） |
+| `crates/miyu-store/tests/recall.rs` | 第一条第 6、7 款：一批和照到哪一起写、空的一批也挪；拿掉一个来源只拿它自己的（`s1` 不碰 `s10`）；回合库照房间一份、开过的不再开，新的登记照样找得到磁盘上的每一份；R-1 的版本 1 删掉重建。量尺 `measure_priming_a_thousand_turns`（`#[ignore]`） |
 | `crates/miyu-session/tests/memory.rs` | 真会话：每一轮进库、撤销拿掉并埋墓碑（出处死了）、恢复放回并揭掉（活回来）；载入时补上落下的、照到了的不重写；子会话不进 |
 | `crates/miyu-memory/tests/tools.rs` | 「工具」：三件都在、访问类别是读；记、改的结果和给人看的说法；超长（121 字不记、120 字记）、类不认识、少参数、编号写错；端口拒的三种对三件；作废；搜的一行一条逐字节比（作废的标出来、对话换行写成 ` / `、截到 300 字接 `…`）；没端口说记忆没开 |
 | `crates/miyu-memory/tests/budget.rs` | 记忆这个软件包的工具面预算：三份说明不超过 1100 字节 |
 | `crates/miyu-session/tests/memory_tools.rs` | 真会话、真记忆日志：只有本机的主会话工具面上有三件；记下的出处是这一轮、`by` 是那次调用、听众是属主；别的会话搜得到记下的和那一轮对话（自己的不算）；撤销那一轮看不见、恢复看得见；作废的只在 `forgotten` 时出来 |
 | `crates/miyu-endpoint/tests/memory.rs` | 真核心：说过的一轮进软件工程师的回合库；删会话以后拿掉，整个会话埋了墓碑 |
+| `crates/miyu-policy/src/memory/tests.rs` | 「范围」：三种写进快照读回一字不差、排在最后；以前造的没有这一格，字节不变、照 `persona`；认不出的照 `off`；三种的写法 |
+| `crates/miyu-session/tests/memory_scope.rs` | 「范围」：`off` 的工具面上没有三件、说过的不进回合库，载入以后照旧；`session` 的记在会话目录里（记忆日志、回合库），人格那一间没有，别的会话搜不到，载入以后接着记在那里；子会话交了 `persona` 快照也写 `off`，主会话写明 |
+| `crates/miyu-endpoint/tests/memory_scope.rs` | 「范围」：`session.create` 的 `memory` 三种和 `null` 照写的记、写错的三种 `bad_params` 不造；不写的照人格的 `persona.toml`，写了的压着它 |
 | `crates/miyu-recall/src/memory/tests.rs` | 「对外的样子」的记忆日志、底账：`saved`、`retired` 写成事件、读回一字不差，写出的行逐字节比；不是记忆的是 `None`、读不懂的说为什么；不认识的类原样留着；编号的写法；底账记、改（旧的标成被改掉）、作废、改和作废一条不存在的不碍事 |
-| `crates/miyu-store/tests/memory.rs` | 记忆日志的登记：记了、重开还在、搜得到（作废的也搜得到）；最后半行坏了截掉、接着它写；八个线程同时记两百条，编号连续不重；记忆库删了照日志补；人格、账号各一份；第一次开交回情形、读不懂的说出来。量尺 `measure_a_thousand_memories`（`#[ignore]`） |
+| `crates/miyu-store/tests/memory.rs` | 记忆日志的登记：记了、重开还在、搜得到（作废的也搜得到）；最后半行坏了截掉、接着它写；八个线程同时记两百条，编号连续不重；记忆库删了照日志补；人格、账号各一份；会话那一间在会话目录里，和人格那一间互不相干；第一次开交回情形、读不懂的说出来。量尺 `measure_a_thousand_memories`（`#[ignore]`） |
 
 ### 出处
 

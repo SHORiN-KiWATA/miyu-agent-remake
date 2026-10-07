@@ -12,6 +12,7 @@ use miyu_kernel::request::Request;
 use miyu_kernel::session::Command;
 use miyu_session::testkit::{Play, Script};
 use miyu_session::{Handle, Lineage};
+use miyu_store::recall::Room;
 use miyu_tool::Catalog;
 
 use support::*;
@@ -139,7 +140,7 @@ async fn what_she_remembers_comes_from_this_turn_and_is_found_from_another_sessi
     let turn = last_turn(&log);
     let (memories, _) = home
         .logs
-        .open(&alice_account(), "engineer")
+        .open(&Room::persona(&alice_account(), "engineer"))
         .expect("开得了");
     let entry = memories
         .book(|book| book.all().next().cloned())
@@ -253,7 +254,7 @@ async fn replaced_ones_others_and_her_own_session_stay_out() {
     // 一条听众是别人的（比如别人私聊里说的）：她在这里搜不到，也改不了。
     let (memories, _) = home
         .logs
-        .open(&alice_account(), "engineer")
+        .open(&Room::persona(&alice_account(), "engineer"))
         .expect("开得了");
     let someone: By = serde_json::from_str(r#"{"kind":"person","account":"bob"}"#).expect("合写法");
     let private = Saved {

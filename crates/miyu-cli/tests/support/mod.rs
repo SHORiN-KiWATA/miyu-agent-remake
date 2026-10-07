@@ -457,6 +457,7 @@ pub fn plan(text: &str) -> Plan {
         timeout: None,
         from: None,
         model: None,
+        no_memory: false,
     }
 }
 

@@ -8,6 +8,7 @@ use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::By;
 use miyu_policy::PersonaTexts;
+use miyu_policy::memory::MemoryScope;
 use miyu_store::index::SessionIndex;
 use miyu_store::personas::Personas;
 use miyu_store::resources::ResourceRoot;
@@ -35,6 +36,8 @@ pub struct Create<'a> {
     pub persona_texts: PersonaTexts,
     /// 记忆归哪个账号（施工 P-1 上，`Personas::memory_account`）：回合库、记忆日志照它和人格开。
     pub memory_account: AccountId,
+    /// 记忆的范围（施工 R-3 下，`memory.md`「范围」）：记进快照，以后照它。子会话不管交的是什么，一律 `off`。
+    pub memory_scope: MemoryScope,
     /// 在哪个场所。
     pub venue: VenueId,
     /// 会话的属主：会话、blob 都在他的家目录里。

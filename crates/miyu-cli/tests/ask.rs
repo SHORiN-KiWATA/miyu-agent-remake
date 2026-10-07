@@ -145,6 +145,38 @@ async fn model_makes_a_new_session_with_it_and_switches_a_continued_one() {
     assert_eq!(kinds(&home), ["说", "@small", "说"], "换不成的不发话");
 }
 
+/// `--no-memory`（施工 R-3 下）：新开的会话 `session.create` 带 `"memory": "off"`，记进快照；不写的不带，照人格的。
+#[tokio::test]
+async fn no_memory_makes_an_off_session() {
+    let script = Script::new([Play::Says("一。"), Play::Says("二。")]);
+    let home = Home::new(Arc::new(script));
+    let snapshot = |home: &Home, session: &miyu_kernel::id::SessionId| -> String {
+        let dir = home.root.session_dir(&AccountIdOf::admin(), session);
+        let created = first_event(&dir).expect("读得到");
+        let Body::SessionCreated(created) = &created.body else {
+            panic!("第 1 条应该是造会话");
+        };
+        let bytes = miyu_store::blob::Blobs::new(home.root.blobs(&AccountIdOf::admin()))
+            .get(&created.policy)
+            .expect("快照在 blob 里");
+        String::from_utf8(bytes).expect("是字")
+    };
+    let off = Plan {
+        no_memory: true,
+        ..plan("第一句")
+    };
+    let Asked { code, err, .. } = home.ask(&off).await;
+    assert_eq!(code, 0, "{err}");
+    let Asked { code, err, .. } = home.ask(&plan("第二句")).await;
+    assert_eq!(code, 0, "{err}");
+    let sessions = home.sessions();
+    let scopes: Vec<bool> = sessions
+        .iter()
+        .map(|session| snapshot(&home, session).contains(r#""memory":"off""#))
+        .collect();
+    assert_eq!(scopes.iter().filter(|off| **off).count(), 1, "{sessions:?}");
+}
+
 #[tokio::test]
 async fn without_a_model_it_is_exit_code_5() {
     // 核心照出厂的档案造路由，配置里什么都没写：每次请求都是 `no_model`（施工 8-6）。

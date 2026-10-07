@@ -20,6 +20,8 @@ miyu-config = { path = "../miyu-config" }
 toml_edit = { version = "0.25", default-features = false, features = ["parse"] }
 # 模型这一块：`model.list` 照它算资料、来源（施工 8-7）。
 miyu-models = { path = "../miyu-models" }
+# 记忆的范围（施工 R-3 下）：`session.create` 的 `memory` 照它读；测试里读会话的策略快照。
+miyu-policy = { path = "../miyu-policy" }
 # 会话 actor：造会话、载入、发命令（施工 3-7）。
 miyu-session = { path = "../miyu-session" }
 # 这台机器上的沙盒能不能用：握手时报给头，能用的把助手交给会话（施工 5-4 下）。
@@ -53,8 +55,6 @@ miyu-basesystem = { path = "../miyu-basesystem" }
 miyu-tool = { path = "../miyu-tool", features = ["testkit"] }
 # 测试里的配置清单带上 `log.level`（施工 8-2）：和核心登记的一样。
 miyu-log = { path = "../miyu-log" }
-# 测试里读会话的策略快照：有没有人能确认。
-miyu-policy = { path = "../miyu-policy" }
 # 测试里的假服务器：`model.list` 带 `refresh` 去拉供应商的列表（施工 8-7）。
 miyu-http = { path = "../miyu-http", features = ["testkit"] }
 # 测试里请求模型照剧本回（施工 3-8 上）。

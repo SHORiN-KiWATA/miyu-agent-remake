@@ -23,6 +23,7 @@
 | `crates/miyu-policy/src/vision.rs` | 替看不了图的模型看图的字（施工 8-17）：转述请求的两份 `VisionTexts`、图的位置的三句标签 `ImageDescriptionTexts`，交给组装器、驱动的样子 |
 | `crates/miyu-policy/src/title.rs` | 起标题的字 `TitleTexts`、数 `TitleNumbers` 和出厂的数 `TITLE`，交给组装器、内核的样子（施工 3-8 五补） |
 | `crates/miyu-policy/src/jobs.rs` | 回报的写法、任务用的数；子会话回报的正文怎么截（`reports()`，施工 3-8 五补从 `snapshot.rs` 挪来，那边放不下了） |
+| `crates/miyu-policy/src/memory.rs` | 记忆的范围 `MemoryScope`，快照的 `memory` 怎么写（`with_memory`）、怎么读（`memory_scope`，施工 R-3 下） |
 | `crates/miyu-policy/src/peers.rs` | 别的会话发来的话：防刷屏的数 `PeerNumbers` 和出厂的数 `PEERS`，交给内核的样子；标签的两份 `PeerTexts`，交给组装器的样子（施工 C-2）。「空了告诉我」的两个数和通知的五份字 `PeerIdleTexts`，作废那一句照快照的小时数换好（施工 C-6） |
 | `crates/miyu-store/src/resources.rs` | 从资源目录读原文（`store/resources.md`） |
 | `crates/miyu-store/src/blob.rs` | 存 blob、取 blob（`store.md`） |
@@ -45,7 +46,8 @@
 | `jobs` | 对象 | 任务用的数（施工 7-6）：`report_chars` 子会话回报的正文最多几个字，现在是 30000（`agents.md`「对外的样子」）。以前造的快照里没有，读成没有、不写：照出厂的 30000 截 |
 | `recap` | 对象 | 回顾用的数（施工 3-8 四补，`kernel/request.md`「回顾的请求」）：`turns` 最多喂几轮她答过的、`tokens` 整份最多约多少 token，现在是 8、8192（2026-10-01 项目主人定，照 codex）。以前造的快照里没有，读成没有、不写：不做回顾 |
 | `title` | 对象 | 起标题用的数（施工 3-8 五补，`kernel/request.md`「起标题的请求」、`kernel/session.md`「起标题」）：`tokens` 整份请求最多约多少 token、`chars` 标题最多几个字、`tries` 一个会话最多试几次，现在是 1024、50、2（1024 照回顾的截法施工时定；50 是 2026-10-01 项目主人定；2 是施工单定的）。以前造的快照里没有，读成没有、不写：不起标题 |
-| `peers` | 对象 | 别的会话发来的话怎么防刷屏（施工 C-2，`cross-session.md`「对外的样子」）：`burst` 同一个发话方一个窗口里最多几句、`window` 窗口多少秒、`unread` 没听到的最多几句，现在是 5、600、50（数是估的，待 C-7 实测）。排在 `title` 后面、最后。以前造的快照里没有，读成没有、不写：照出厂的数，防刷屏不能因为会话旧就不管。施工 C-6 加两格，排在后面：`watch_hours` 订了多久没等到就作废（小时，出厂 12）、`status_chars` 通知那一行最多几个字（出厂 200）；C-2 时造的快照里没有这两格，读成没有、不写，照出厂的数 |
+| `peers` | 对象 | 别的会话发来的话怎么防刷屏（施工 C-2，`cross-session.md`「对外的样子」）：`burst` 同一个发话方一个窗口里最多几句、`window` 窗口多少秒、`unread` 没听到的最多几句，现在是 5、600、50（数是估的，待 C-7 实测）。排在 `title` 后面。以前造的快照里没有，读成没有、不写：照出厂的数，防刷屏不能因为会话旧就不管。施工 C-6 加两格，排在后面：`watch_hours` 订了多久没等到就作废（小时，出厂 12）、`status_chars` 通知那一行最多几个字（出厂 200）；C-2 时造的快照里没有这两格，读成没有、不写，照出厂的数 |
+| `memory` | 字符串 | 记忆的范围（施工 R-3 下，`memory.md`「范围」）：`persona`、`session`、`off`，造会话时定（`with_memory`），新造的都写明；排在 `peers` 后面、最后。以前造的快照里没有，读成没有、不写，照 `persona`；认不出的照 `off` |
 
 **`ToolEntry`**：`name`、`description`、`parameters`（参数的 JSON Schema，原样的 JSON）、`access`（`read`、`write`、`execute`、`network`、`outbound`，不认识的原样留着），照这个先后。
 
@@ -99,7 +101,7 @@
 
 1. `system` 照 `26-提示词.md` 第四节的先后拼：每一块去掉末尾的空白，空的块不要，块和块之间空一行（`\n\n`）。开头的空白是人格自己写的，照留。现在只有人设这一块，所以软件工程师的 system 就是 `You are a helpful software engineer.`；子会话多一块场所说明（`core/jobs/subagent-venue.txt`），`with_venue` 照同样的规矩接在人设后面（施工 7-5，`agents.md` 第九条第 3 条）。造会话时最后接上核心的几行（`with_core_lines`，施工 2-7 补）：`You are a helpful software engineer.`、空一行、权限那一句、换行、路径那一句。以前造的快照 system 已经拼好存着，载入照它发，前缀一字不变。
 2. `tools` 先是空的；`with_tools` 带上工具面，照名字的字节序排，稳定排序：交进来的先后不影响字节。
-3. `step_limit` 是 `null`，`resumes` 是 3，`attended` 照交进来的，`compaction` 是出厂的四个数，`recap` 是出厂的两个数（施工 3-8 四补），`title` 是出厂的三个数（施工 3-8 五补），`peers` 是出厂的五个数（施工 C-2、C-6）。
+3. `step_limit` 是 `null`，`resumes` 是 3，`attended` 照交进来的，`compaction` 是出厂的四个数，`recap` 是出厂的两个数（施工 3-8 四补），`title` 是出厂的三个数（施工 3-8 五补），`peers` 是出厂的五个数（施工 C-2、C-6），`memory` 不写（造会话时 `with_memory` 写上，施工 R-3 下）。
 
 **字节和哈希**
 
@@ -201,6 +203,7 @@
 | `crates/miyu-policy/src/snapshot/tests/title.rs`（施工 3-8 五补） | 起标题进快照：出厂的快照带着指令和三个数，造出的组装器起得出标题、内核拿到 `tries`、`chars`；字、数少一样都不起，没有回顾的标签的组装器也不起；快照里的数照快照的；以前造的快照没有这两格，读进来再写出去一字不差，不起 |
 | `crates/miyu-policy/src/snapshot/tests/jobs.rs`（施工 3-8 五补从 `tests.rs` 挪出来） | 子会话回报的正文怎么截：出厂的 30000 和截在中间的那一行；以前造的快照没有，读成出厂的数、空的那一行，读写一字不差；快照里的数照快照的 |
 | `crates/miyu-policy/src/peers/tests.rs`（施工 C-2、C-6） | 空了的通知（C-6）：出厂的快照多两个数、通知的五份字（平铺在 `core.peers` 里），作废那一句照快照的小时数换；通知的字坏了照名字报；C-2 时造的快照没有这几格，数照出厂的、通知不出、读回写出一字不差。别的会话发来的话进快照：出厂的快照带着三个数（排在最后）和两份标签，造出的策略照出厂的数、组装器渲染出带短编号的标签；快照里的数照快照的；标签坏了照名字报；以前造的快照没有这两格，读进来再写出去一字不差，照出厂的数防刷屏，那种话和人的话一字不差 |
+| `crates/miyu-policy/src/memory/tests.rs`（施工 R-3 下） | 记忆的范围进快照：三种写进去读回一字不差、排在最后；以前造的快照没有这一格，字节不变、照 `persona`；认不出的照 `off` |
 | `crates/miyu-policy/src/jobs/tests.rs` | 人停的那一句：出厂的快照带着、交给组装器；以前造的快照没有，读成空的，读回来一字不差（施工 7-2 补） |
 | `crates/miyu-policy/src/guard/tests.rs` | 三句带路径和原因、转义；说法；坏的说是哪一类；缺了 `permissions` 的快照读成空的 |
 | `crates/miyu-store/tests/snapshot.rs` | 从源码树的资源拼出快照，存成 blob，哈希就是快照的哈希；取回来一样；两份策略跑同一个剧本，每一次请求逐字节一样 |

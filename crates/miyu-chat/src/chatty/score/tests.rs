@@ -12,6 +12,7 @@ fn judged() -> Judgement {
         should_reply: true,
         to_bot: false,
         severity: None,
+        reason: String::new(),
     }
 }
 

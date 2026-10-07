@@ -12,9 +12,10 @@ use std::sync::{Arc, OnceLock};
 
 use miyu_kernel::event::Event;
 use miyu_kernel::id::{AccountId, SessionId};
+use miyu_policy::memory::MemoryScope;
 use miyu_recall::{Change, TurnFeed, key, replay};
 use miyu_store::memory::MemoryLogs;
-use miyu_store::recall::{Edit, Opened, RecallIndex, RecallIndexes};
+use miyu_store::recall::{Edit, Opened, RecallIndex, RecallIndexes, Room};
 
 use crate::TARGET;
 
@@ -28,30 +29,49 @@ pub struct Memory {
     pub logs: Arc<MemoryLogs>,
 }
 
-/// 接上会话 `session` 的记忆：回合索引（[`Turns::connect`]）和三件工具的端口（[`Calls`]）。主会话（`main`）才有，核心没交
-/// 记忆的（测试里自己造的）没有。在阻塞线程里调。
+/// 接上会话 `session` 的记忆：回合索引（[`Turns::connect`]）和三件工具的端口（[`Calls`]）。范围是 `off` 的（子会话、
+/// `--no-memory`）不接，核心没交记忆的（测试里自己造的）没有。在阻塞线程里调。
+///
+/// 记忆放在哪照范围（`memory.md`「范围」）：跟着人格的在记忆账号 `account` 的那一间，只在这个会话里的在会话自己的目录
+/// 里（属主 `owner` 的）。听众照属主，不照记忆账号：出厂人格的记忆归属主，系统账号开的会话归管理员，听的人还是属主。
 pub(crate) fn connect(
     memory: Option<&Arc<Memory>>,
+    scope: MemoryScope,
+    account: &AccountId,
     owner: &AccountId,
     persona: &str,
     session: &SessionId,
-    main: bool,
     events: &[Event],
 ) -> (Option<Turns>, Option<Calls>) {
-    let Some(memory) = memory.filter(|_| main) else {
+    let room = match scope {
+        MemoryScope::Persona => Room::persona(account, persona),
+        MemoryScope::Session => Room::session(owner, session),
+        MemoryScope::Off => return (None, None),
+    };
+    let Some(memory) = memory else {
         return (None, None);
     };
-    let turns = Turns::connect(Some(&memory.turns), owner, persona, session, true, events);
-    (turns, Some(Calls::new(memory, owner, persona, session)))
+    let turns = Turns::connect(&memory.turns, &room, persona, session, events);
+    (
+        turns,
+        Some(Calls::new(memory, room, owner, persona, session)),
+    )
+}
+
+/// 会话的记忆的范围：子会话（`child`）不管交的、快照里的是什么都是 `off`（17 第二节，以前造的子会话快照里没有这一格）；
+/// 主会话照交的 `given`。
+pub(crate) fn scope(child: bool, given: MemoryScope) -> MemoryScope {
+    if child { MemoryScope::Off } else { given }
 }
 
 /// 一个会话的回合索引：它的回合库（用到才开）、增量的 `TurnFeed`。
 pub(crate) struct Turns {
     /// 会话编号：键的前一半，`marks` 里的来源。
     session: SessionId,
-    /// 核心的登记，和这个会话的属主、人格：回合库照它们开。
+    /// 核心的登记，和这个会话的那一间：回合库照它开。
     recall: Arc<RecallIndexes>,
-    owner: AccountId,
+    room: Room,
+    /// 人格的编号：只用来记日志。
     persona: String,
     /// 开了的回合库：新造的会话到第一次真要写的时候才开，造会话不多一次开库、建表、同步。
     index: OnceLock<Arc<RecallIndex>>,
@@ -60,23 +80,21 @@ pub(crate) struct Turns {
 }
 
 impl Turns {
-    /// 接上会话 `session` 的回合索引：主会话（`main`）才接，没有登记的（测试里自己造的）不接。在阻塞线程里调。
+    /// 接上会话 `session` 的回合索引，放在 `room` 那一间。在阻塞线程里调。
     ///
     /// `events` 是载入时读到的整份事件：照它铺回 `TurnFeed`，照回合库记着的照到哪以后的补上（一条都没照过的整份补）；
     /// 新造的会话是空的，这时不开库。
     pub(crate) fn connect(
-        recall: Option<&Arc<RecallIndexes>>,
-        owner: &AccountId,
+        recall: &Arc<RecallIndexes>,
+        room: &Room,
         persona: &str,
         session: &SessionId,
-        main: bool,
         events: &[Event],
     ) -> Option<Turns> {
-        let recall = recall.filter(|_| main)?;
         let mut turns = Turns {
             session: session.clone(),
             recall: Arc::clone(recall),
-            owner: owner.clone(),
+            room: room.clone(),
             persona: persona.to_string(),
             index: OnceLock::new(),
             feed: TurnFeed::default(),
@@ -102,7 +120,7 @@ impl Turns {
     /// 这个会话的回合库：第一次用时照登记开，这一回第一次开的记一行。
     fn index(&self) -> &RecallIndex {
         self.index.get_or_init(|| {
-            let (index, opened) = self.recall.turns(&self.owner, &self.persona);
+            let (index, opened) = self.recall.turns(&self.room);
             if let Some(opened) = opened {
                 log_opened(&self.persona, &opened);
             }

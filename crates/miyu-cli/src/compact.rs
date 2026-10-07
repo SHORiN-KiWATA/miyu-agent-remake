@@ -185,6 +185,7 @@ fn printing(language: Language) -> Plan {
         timeout: None,
         from: None,
         model: None,
+        no_memory: false,
     }
 }
 

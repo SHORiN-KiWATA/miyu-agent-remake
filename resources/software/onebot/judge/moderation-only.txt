@@ -1,0 +1,1 @@
+This call only checks the current message for violations. Do not judge whether the bot should reply. Give 0 for all five dimensions and false for should_reply and to_bot.
