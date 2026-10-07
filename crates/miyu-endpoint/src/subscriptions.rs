@@ -11,9 +11,11 @@
 //! 带 `after` 订阅的（施工 3-8 六补），转发任务先把补发的那一截一条条放进写队列，再转推送、回应：订阅的回应也交给它，
 //! 排在补的后面。换掉原来那一个时，先等它把交给它的都放完、交回它的订阅（[`Subscriptions::take`]），补的才不和它的交错。
 //!
-//! 配置的推送另有一个订阅（施工 8-4，`subscriptions/config.rs`）：一个连接至多一个，`config.set` 的回应经它写出去。
+//! 配置的推送另有一个订阅（施工 8-4，`subscriptions/config.rs`）：一个连接至多一个，`config.set` 的回应经它写出去。会话列表
+//! 的推送也是（施工 9-5，`subscriptions/sessions.rs`）：订阅的回应经它写出去，排在推送前面。
 
 mod config;
+mod sessions;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -28,12 +30,14 @@ use miyu_session::{Ended, Pushed, Subscription};
 
 use crate::Core;
 use config::ConfigForwarder;
+use sessions::SessionsForwarder;
 
 /// 一个连接上的订阅：一个会话一个，配置的至多一个（施工 8-4）。
 #[derive(Debug, Default)]
 pub(crate) struct Subscriptions {
     live: BTreeMap<SessionId, Forwarder>,
     config: Option<ConfigForwarder>,
+    sessions: Option<SessionsForwarder>,
 }
 
 /// 一条回应经哪个订阅写出去。
@@ -43,6 +47,8 @@ pub(crate) enum Target {
     Session(SessionId),
     /// `config.set`：经配置的订阅，排在这一次的推送后面（施工 8-4）。
     Config,
+    /// 会话列表的订阅的回应：经它写出去，排在之后的推送前面（施工 9-5）。
+    Sessions,
 }
 
 /// 一个订阅的转发任务，交回应给它的那一头，和这个订阅还在不在推。
@@ -129,6 +135,28 @@ impl Subscriptions {
         self.config = None;
     }
 
+    /// 订阅会话列表的推送（施工 9-5）：先拿收推送的一头，再要一份列表（排在这之前的变化后面算），起一个新的转发任务替掉原来
+    /// 的；交回订阅的回应 `{"sessions": […]}`，它经 [`Target::Sessions`] 交给新的转发任务写出去。
+    pub(crate) async fn add_sessions(
+        &mut self,
+        core: &Arc<Core>,
+        out: &mpsc::Sender<String>,
+    ) -> Result<serde_json::Value, crate::refusal::Refusal> {
+        let pushes = core.listing.subscribe();
+        let snapshot = core.listing.snapshot(core).await?;
+        self.sessions = Some(SessionsForwarder::start(
+            pushes,
+            snapshot.number,
+            out.clone(),
+        ));
+        Ok(serde_json::json!({"sessions": snapshot.sessions}))
+    }
+
+    /// 取消订阅会话列表的推送：转发任务当场停。
+    pub(crate) fn remove_sessions(&mut self) {
+        self.sessions = None;
+    }
+
     /// 写一条回应：`target` 订阅着的，交给它的转发任务，排在已经到了的推送后面；没订阅的直接放进写
     /// 队列。写队列关了（连接断了），交回 `false`。
     pub(crate) async fn reply(
@@ -142,6 +170,13 @@ impl Subscriptions {
                 Some(forwarder) => match forwarder.replies.send(line) {
                     Ok(()) => return true,
                     Err(mpsc::error::SendError(line)) => line,
+                },
+                None => line,
+            },
+            Some(Target::Sessions) => match &mut self.sessions {
+                Some(forwarder) => match forwarder.reply(line) {
+                    Ok(()) => return true,
+                    Err(line) => line,
                 },
                 None => line,
             },

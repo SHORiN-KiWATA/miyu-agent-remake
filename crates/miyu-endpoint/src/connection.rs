@@ -185,6 +185,10 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
                         subscriptions.add_config(&core, system, &out);
                         (Ok(json!({})), None)
                     }
+                    Ok(Stream::Sessions) => match subscriptions.add_sessions(&core, &out).await {
+                        Ok(result) => (Ok(result), Some(Target::Sessions)),
+                        Err(refusal) => (Err(refusal), None),
+                    },
                     Ok(Stream::Events(session)) => {
                         match subscribe(&core, &mut subscriptions, &request, session, &out).await {
                             Ok((result, target)) => (Ok(result), target.map(Target::Session)),
@@ -222,6 +226,7 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
                     match stream {
                         Stream::Events(session) => subscriptions.remove(&session),
                         Stream::Config => subscriptions.remove_config(),
+                        Stream::Sessions => subscriptions.remove_sessions(),
                     }
                     json!({})
                 });
@@ -303,6 +308,8 @@ enum Stream {
     Events(SessionId),
     /// 配置的推送（施工 8-4）。
     Config,
+    /// 会话列表的推送（施工 9-5）。
+    Sessions,
 }
 
 /// 订阅会话的事件流：没在跑的照样先载入；已经订阅着的，还是那一个。回应带会话的限额（施工 6-3 补）、会话接下来请求的模型
@@ -375,7 +382,7 @@ fn after_of(request: &Request) -> Result<Option<u64>, Refusal> {
     }
 }
 
-/// 订阅的参数：`events` 带会话编号；`config` 不带会话、不带 `after`，带了是参数不对（施工 8-4）。
+/// 订阅的参数：`events` 带会话编号；`config`、`sessions` 不带会话、不带 `after`，带了是参数不对（施工 8-4、9-5）。
 fn stream_of(request: &Request) -> Result<Stream, Refusal> {
     let params: StreamParams =
         serde_json::from_value(request.params.clone()).map_err(|_| Refusal::BAD_PARAMS)?;
@@ -384,6 +391,7 @@ fn stream_of(request: &Request) -> Result<Stream, Refusal> {
             .map(Stream::Events)
             .map_err(|_| Refusal::BAD_PARAMS),
         ("config", None) if request.params.get("after").is_none() => Ok(Stream::Config),
+        ("sessions", None) if request.params.get("after").is_none() => Ok(Stream::Sessions),
         _ => Err(Refusal::BAD_PARAMS),
     }
 }

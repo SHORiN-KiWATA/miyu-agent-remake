@@ -80,6 +80,8 @@ pub(crate) struct Listed {
     pub(crate) busy: bool,
     /// 日志最后一条事件的时刻（施工 C-3）。
     pub(crate) last_active: Timestamp,
+    /// 第一句话的第一行（施工 9-5）：空的是没有。
+    pub(crate) preview: String,
 }
 
 impl Listed {
@@ -94,11 +96,13 @@ impl Listed {
             cwd: row.cwd.unwrap_or_else(|| NO_CWD.to_string()),
             busy,
             last_active: row.last_active,
+            preview: row.preview,
         }
     }
 
-    /// `session.list` 的一项：有标题的才写 `title`，置顶的、忙的才写 `pinned`、`busy`（写 `true`）。
-    fn to_json(&self) -> Value {
+    /// `session.list` 的一项：有标题的才写 `title`，没标题、说过话的写 `preview`（施工 9-5），置顶的、忙的才写 `pinned`、`busy`
+    /// （写 `true`）。
+    pub(crate) fn to_json(&self) -> Value {
         let mut item = json!({
             "session": self.id.as_str(),
             "oneshot": self.oneshot,
@@ -108,6 +112,8 @@ impl Listed {
         });
         if !self.title.is_empty() {
             item["title"] = json!(self.title);
+        } else if !self.preview.is_empty() {
+            item["preview"] = json!(self.preview);
         }
         if self.pinned {
             item["pinned"] = json!(true);
@@ -166,6 +172,28 @@ pub(crate) fn scan(
         }
     }
     Ok(found)
+}
+
+/// 只算会话 `id` 的一项（施工 9-5，会话列表的推送）：照索引的那一行补到日志现在的末尾，没有那一行、对不上的整份读，和
+/// [`scan`] 里一个会话的算法一样；`busy` 是它这时忙不忙。会话目录没了（删了、挪进回收处）、没有日志、第一条读不出来的交回空。
+pub(crate) fn one(
+    root: &DataRoot,
+    account: &AccountId,
+    index: &SessionIndex,
+    id: &SessionId,
+    busy: bool,
+) -> Option<Listed> {
+    let dir = root.session_dir(account, id);
+    if !dir.is_dir() {
+        return None;
+    }
+    let all = |_: &Row| true;
+    let row = match index.rows().ok().and_then(|mut rows| rows.remove(id)) {
+        Some(row) => caught_up(&dir, &row, Some(index))
+            .or_else(|| whole(&dir, id.clone(), Some(&row.mark), Some(index), &all)),
+        None => whole(&dir, id.clone(), None, Some(index), &all),
+    }?;
+    Some(Listed::new(row, busy))
 }
 
 /// 索引里的一行补到日志现在的末尾（施工 3-8 七补）：只读它照到的地方后面多出来的那一截，一条条盖上去；多出来了的写回去，

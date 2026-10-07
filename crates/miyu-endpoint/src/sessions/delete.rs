@@ -67,12 +67,15 @@ impl Sessions {
         let (root, account, at) = (core.root.clone(), core.admin.clone(), now());
         let index = Arc::clone(&core.index);
         let order: Vec<SessionId> = family.into_iter().rev().chain([id.clone()]).collect();
+        let listing = Arc::clone(core);
         let moved = tokio::task::spawn_blocking(move || {
             order.into_iter().try_for_each(|session| {
                 trash::discard(&root, &account, &session, at)
                     .map_err(|error| (session.clone(), error))?;
                 // 挪走了才删那一行（施工 3-8 七补）：半路崩了，还在原处的照旧列得出来。
                 forget(&index, &session);
+                // 会话列表的推送（施工 9-5）：挪走一个报一个。
+                listing.listing.removed(&listing, session);
                 Ok(())
             })
         })

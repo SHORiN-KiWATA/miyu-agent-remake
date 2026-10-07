@@ -199,7 +199,7 @@
 | `oneshot` | 布尔，不写是 `false` | `true` 只要一次性的 |
 | `limit` | 非负整数，可以不写 | 最多几个；不写是全部，`0` 是一个都不要 |
 
-回应：`{"sessions":[{"busy":true,"cwd":"<工作目录>","last_active":"<时刻>","oneshot":<布尔>,"parent":<编号或 null>,"pinned":true,"session":"<编号>","title":"<标题>"}, …]}`。`parent` 是子会话的父会话，主会话写 `null`（施工 7-5，`agents.md`）。`title`、`pinned` 照日志里的 `session.meta_changed` 算（施工 3-8 三补）：有标题的才写 `title`，置顶的才写 `pinned`（写 `true`），没有的不写。`cwd`、`last_active` 总有，`busy` 忙的才写（写 `true`）（施工 C-3，`cross-session.md`）：
+回应：`{"sessions":[{"busy":true,"cwd":"<工作目录>","last_active":"<时刻>","oneshot":<布尔>,"parent":<编号或 null>,"pinned":true,"session":"<编号>","title":"<标题>"}, …]}`。没有标题、说过话的多一格 `preview`：第一句话的第一行，最多 50 个字，有标题就不带（施工 9-5，网页的侧边栏照它显示没起名的会话，`store/index.md`「一行记什么」）。`parent` 是子会话的父会话，主会话写 `null`（施工 7-5，`agents.md`）。`title`、`pinned` 照日志里的 `session.meta_changed` 算（施工 3-8 三补）：有标题的才写 `title`，置顶的才写 `pinned`（写 `true`），没有的不写。`cwd`、`last_active` 总有，`busy` 忙的才写（写 `true`）（施工 C-3，`cross-session.md`）：
 
 ```json
 {"busy":true,"cwd":"~/src/miyu","last_active":"2026-10-01T06:03:12.345Z","oneshot":false,"parent":null,"session":"0192f3a0-2222-7abc-8def-5566778899aa","title":"修 CI"}
@@ -630,11 +630,11 @@
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| `session` | 字符串 | 哪个会话：`events` 必写，`config` 不写（写了 `bad_params`） |
-| `stream` | 字符串，必写 | `events` 会话的事件流；`config` 配置的推送（施工 8-4，`config.md`「订阅配置的推送」）。别的 `bad_params` |
-| `after` | 非负整数，可以不写 | 只有 `subscribe` 的 `events` 认（施工 3-8 六补，`config` 写了 `bad_params`）：先补发日志里序号大于它、落了盘的事件，`0` 是从头。见下面「补发」 |
+| `session` | 字符串 | 哪个会话：`events` 必写，`config`、`sessions` 不写（写了 `bad_params`） |
+| `stream` | 字符串，必写 | `events` 会话的事件流；`config` 配置的推送（施工 8-4，`config.md`「订阅配置的推送」）；`sessions` 会话列表的推送（施工 9-5，下面「会话列表的推送」）。别的 `bad_params` |
+| `after` | 非负整数，可以不写 | 只有 `subscribe` 的 `events` 认（施工 3-8 六补，`config`、`sessions` 写了 `bad_params`）：先补发日志里序号大于它、落了盘的事件，`0` 是从头。见下面「补发」 |
 
-回应：`config` 的都是 `{}`。`subscribe` 的是 `{"limits": <限额>, "model": <模型>}`，写了 `after` 的多一格 `upto`（补到哪一条）：`{"limits": <限额>, "model": <模型>, "upto": <序号>}`。当前的待办不空的多一格 `todos`（施工 D-3，照 `todo.written` 的写法）；之后变了照推送的瞬时事件 `todos.changed`，头只认这两样，不自己翻效果。`unsubscribe` 的是空对象 `{}`。
+回应：`config` 的都是 `{}`；`sessions` 的 `subscribe` 是 `{"sessions": [<一项>, …]}`，`unsubscribe` 是 `{}`（施工 9-5）。`subscribe` 的是 `{"limits": <限额>, "model": <模型>}`，写了 `after` 的多一格 `upto`（补到哪一条）：`{"limits": <限额>, "model": <模型>, "upto": <序号>}`。当前的待办不空的多一格 `todos`（施工 D-3，照 `todo.written` 的写法）；之后变了照推送的瞬时事件 `todos.changed`，头只认这两样，不自己翻效果。`unsubscribe` 的是空对象 `{}`。
 
 **模型** `model`（施工 8-10，`models.md`「协议」）：会话接下来请求的。`ref` 是会话的引用（模型或 `@池`），`endpoint`、`model` 是接下来发给哪一家的哪个模型；轮换的池（每次都换）、解析不出的没有 `endpoint`、`model`，没配 `models.chat` 的会话没有 `ref`。一个都没有的不写这一格。回合开始重新解析过的、出错换了成员的是换了以后的。施工 8-18 多一格 `effort`：`{"level": <一档>, "from": "system" 或 "personal"}`，接下来那个模型真用的思考强度和从配置的哪一层来（8-18（补）起不再有 `session`）；请求里什么都不带的、轮换的池不写。
 
@@ -678,12 +678,23 @@
 9. 读不了日志的（坏了、读的时候会话被删了）：`session_broken`，记一行运行日志 `replay not read`，什么都没订阅（原来订阅着的也停了）。没有要补的（第 3 条）不读日志。
 10. 会话停了、没在跑的，照「会话表」：停了的回 `session_stopped`，下一次再载入；没在跑的（核心重启过、停下过全部会话）先载入，再照样补。
 
+**会话列表的推送**（施工 9-5，2026-10-07 项目主人批准 M9 头几步时定、提到 O 线前面：网页的侧边栏要对每个会话订阅整份日志才画得出标题、在跑，会话一多就慢；形状先给终端界面、网页看过）
+
+1. `subscribe` 的 `sessions`：回应 `{"sessions": […]}`，每一项和 `session.list` 的一样（`busy`、`cwd`、`last_active`、`oneshot`、`parent`、`pinned`、`session`、`title`，有的才写照那边），从新到旧，全部：一次性的、子会话都在。一个连接至多一个；再订阅换一个新的（交回一份新的列表，旧的停掉）。`unsubscribe` 停掉它，没订阅过的也回 `{}`。
+2. 之后推 `sessions.changed`：`{"session": <编号>, "entry": <一项>}`，头照编号整项替换；删掉的是 `{"session": <编号>, "removed": true}`。
+3. 什么时候推：造了会话（主会话、子会话、一次性的）；改名、置顶（人改的、内核起的标题都算）；一轮开始（`busy`、`cwd`、`last_active` 跟着变）；一轮结束、会话空下来（`busy` 去掉，`last_active` 跟着变）；删了。`last_active` 只在这几个时刻跟着走，不是每条事件都推。「未读」由头自己拿 `last_active` 和自己看过的比。
+4. 先后：一项一项照核心里一个排队的任务算，一个接一个；订阅的回应里的列表也由它算。所以回应里的列表包含回应之前的每一次变化，之后推的每一条都比它新，旧的一项盖不住新的。推送和别的命令（例如 `session.create`）的回应之间不保证先后：推的是整项，晚到的照样对。
+5. 读得太慢、掉了队：推 `resync`（`{"stream": "sessions"}`），这个订阅停了，头重新订阅。
+6. 场所会话以后也不进这个流（`18-通讯平台.md` 第十一节）。
+7. 怎么知道变了（`session/actor.md`「推送和订阅」第 7 条）：会话每送完一批，照这一批推过的事件（`session.created`、`session.meta_changed`、`turn.started`、`turn.ended`）和忙不忙变没变，经会话表的端口报一声「这个会话的那一项变了」（`SessionPort::listing`）；端点照会话列表的索引只算这一个会话的一项（和 `session.list` 同一个函数）。造会话、删会话由会话表自己报。不靠订阅每个会话的事件流：订阅着就算有头在看着它（`subscribe` 第 8 条）。
+
 #### 推送
 
 | 方法 | `params` | 什么时候 |
 |---|---|---|
 | `event` | `{"session": <编号>, "event": <事件>}` | 订阅着的会话的每一条事件，一条一个；补发的也是它（施工 3-8 六补） |
-| `resync` | `{"session": <编号>, "stream": "events"}`；配置的是 `{"stream": "config"}`（施工 8-4） | 读得太慢，掉了队：这个订阅停了 |
+| `resync` | `{"session": <编号>, "stream": "events"}`；配置的是 `{"stream": "config"}`（施工 8-4），会话列表的是 `{"stream": "sessions"}`（施工 9-5） | 读得太慢，掉了队：这个订阅停了 |
+| `sessions.changed` | `{"session": <编号>, "entry": <一项>}`，删了的 `{"session": <编号>, "removed": true}`（施工 9-5） | 订阅着会话列表的：上面「会话列表的推送」第 3 条那几种时刻 |
 | `config.changed` | 见 `config.md`「推送 `config.changed`」（施工 8-4） | 订阅着配置的：系统配置、个人设置每变一次 |
 
 推送的事件不都由这个连接的命令引起：内核自己起的标题（`session.set_meta` 第 6 条，施工 3-8 五补）一轮答完以后自己来，没有 `cause`。
@@ -950,6 +961,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/src/list/tests/indexed.rs`、`tests/index.rs`、`tests/index_log.rs`（施工 3-8 七补） | 读索引的和整份读的一字不差；补上、重读、重建；索引那一行跟着会话走、删会话删行；几行运行日志（`store/index.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/sessions.rs`、`src/list/tests.rs`（施工 C-3） | 工作目录跟着头报的换、忙着的写 `busy`（子会话也算）、最近一次动静是日志最后一条；工作目录照最后一条带 `cwd` 的、不带的不盖、一条都没记的写 `~`，哪种事件都算动静，叫停的旗举了一个都不读；她用 `sessions` 列的和它是同一份（`tools/sessions.md`） |
 | `crates/miyu-endpoint/tests/meta.rs` | 改标题、置顶（施工 3-8 三补）：改名去掉空白、只写改了的那一格、推送在回应前面、`by`、`cause`；置顶、取消、两样一起；`null` 去掉标题记成空的；和现在一样的六种什么都不记；200 个字收、201 个字和空白的不收；两格都不写（含 `pinned` 写 `null`、会话没有的）、类型不对、会话编号不对是参数不对，没有的会话找不到；回合进行中改的带上回合；`session.list` 带标题、置顶，取消了、去掉了的不写，核心重启以后照样，载入以后照日志接着比；日志坏了的照样列出来，工作目录、最近一次动静照第一条（施工 C-3） |
+| `crates/miyu-endpoint/tests/sessions_changed.rs`、`src/listing/tests.rs`、`src/subscriptions/sessions/tests.rs`（施工 9-5） | 订阅的回应是整张列表、没标题的带 `preview`；造会话、一轮开始、空下来、改名、置顶、删会话各推一项，整项和 `session.list` 的一样，有标题就不带预览；内核起的标题也推；取消以后不推；`sessions` 带 `session`、`after` 是参数不对；另一个连接一直改名时订阅，回应以后推来的不比回应里的旧；列表记的号盖住它前面的变化；转发任务先写回应、丢掉号不大于它的、掉队推 `resync` 停下 |
 | `crates/miyu-endpoint/tests/delete.rs` | 删除会话（施工 3-8 三补）：空闲的整个目录挪进回收处、日志不变、`deleted_at` 是删的时刻，列不出来，再发命令、订阅、改名、打断、再删都是没有这个会话，重发造它的那一条另造一个；回合进行中的拒绝、什么都没动，打断以后删得掉；核心重启以后没在跑的不载入就删（被重启打断的那一轮不接着干）；参数不对、没有的会话 |
 | `crates/miyu-endpoint/src/sessions/delete/tests.rs`（施工 7-8） | 删子会话在表的锁里停它、父会话记回报：父会话一记下它停了就去叫醒它，拿到表的锁时它已经删掉了，删得掉（挪进锁以前，这时它又开了一轮，删的时候说有回合在进行） |
 | `crates/miyu-endpoint/tests/orphans.rs`（施工 7-8） | 真核心：父会话派出去一个子代理，没来得及记下 `job.started` 就崩了（日志截在派它的那条回复后面），再载入父会话时子会话挪进回收处；一次派两个、只记下一个的只收那一个；记下了的照留 |
@@ -1017,7 +1029,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 
 - 第九节表里的其余方法：`session.fork`、`command.run`、查询、账号……（`04-核心协议.md` 第九节）。
 - blob 的一般回收（删会话以后没人引用的、`blob.put` 自己崩溃留下的那种临时文件）：`store.md`「还没有的」。
-- 视图流、会话列表流，`view.*`、`sessions.changed` 这些推送；核心决定「显示什么」（第五节、P3）。改名、置顶、删除现在只推给订阅着那个会话的头（删除是 `resync`），别的头要重新列。
+- 视图流，`view.*` 这些推送；核心决定「显示什么」（第五节、P3）。会话列表流 `sessions.changed` 施工 9-5 做了。
 - 找回删了的会话、自动起标题（照第一句话生成，要请求模型）：以后（施工 3-8 三补）。回收处里的文件留着，找回时挪回去。
 - 队列紧张时先合并同一条目的连续增量（第七节）。
 - 头发现核心比自己旧，请求它空闲时重启（第八节，`kernel.restart_when_idle`）。
