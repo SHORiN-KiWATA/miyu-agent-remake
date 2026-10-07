@@ -1,6 +1,7 @@
 //! 主动回复判断的上半（`docs/blueprint/chat.md` 第三条，`docs/designs/18-通讯平台.md` 第七节、Q4、Q23，施工 O-7）：线路规程
 //! 「看情况插话」`chatty` 的核心。一条消息成立了哪些触发条件（[`conditions`]），走哪条路（[`route`]），拿到判官的回答
-//! 以后算分、跟门槛比（[`score()`]）；冷静机制抬门槛（[`pressure`]）。
+//! 以后算分、跟门槛比（[`score()`]）；冷静机制抬门槛（[`pressure`]）。下半在 `dispatch`（`chat.md` 第四条，施工 O-9）：
+//! 顶替窗口（[`supersede`]）和主线、支线的分派（[`dispatch()`]）。
 //!
 //! 照插件的形状写两个插槽（18 第十四节）：加值项 [`Bonus`]、门槛修正 [`Lift`]。自带五个加值项、一个门槛修正，每个一个
 //! 文件；现在没有往里加的入口，加的是扩展，随插件那一步。
@@ -11,12 +12,14 @@
 mod after_speaking;
 mod continuation;
 mod direct;
+mod dispatch;
 mod moderation;
 mod probability;
 mod restraint;
 mod sample;
 mod score;
 
+pub use dispatch::{Dispatch, Line, Lines, Pending, Status, Supersede, dispatch, supersede};
 pub use restraint::pressure;
 pub use score::{Judgement, Score, score};
 
@@ -128,7 +131,8 @@ pub struct Hit {
 /// 一条消息成立了的触发条件，是集合不是梯子：成立的都在，加分相加，不封顶（18 第七节）。
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Conditions {
-    /// 成立了的条件，照插槽的先后（冲她来、续聊、刚说过话、违规旗、抽样）。
+    /// 成立了的条件，照插槽的先后（冲她来、续聊、刚说过话、违规旗、抽样）。顶替合起来的（[`supersede`]），前一条的在前，
+    /// 这一条新添的种类跟在后面。
     pub hits: Vec<Hit>,
 }
 
