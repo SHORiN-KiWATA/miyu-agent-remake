@@ -36,6 +36,7 @@ use crate::tools::{Dispatch, ToolKit, Tools};
 
 mod back;
 mod halt;
+mod listing;
 mod mail;
 mod model;
 mod stop;
@@ -97,6 +98,8 @@ pub(crate) struct Actor {
     finished_at: Option<Timestamp>,
     /// 「空了告诉我」被等的这一边：谁在等这个会话空下来（施工 C-6，`watchers.rs`）。
     waiters: watchers::Waiters,
+    /// 这一批推过会让会话列表那一项变的事件（施工 9-5，`listing.rs`）。
+    listed: bool,
     /// 上一次交给内核的限额（施工 8-9，`model.rs`）：请求说完了、回合开始重新解析完和端口的比，变了再交。
     handed: Limits,
     /// 给头看的限额和会话接下来请求的模型，和 `Handle` 共用（施工 8-9、8-10）：交了新的限额、回合开始解析完写一次。
@@ -189,6 +192,7 @@ impl Actor {
             busy_seen,
             finished_at: None,
             waiters: watchers::Waiters::new(),
+            listed: false,
             handed,
             shown,
         }
@@ -280,7 +284,7 @@ impl Actor {
         self.jobs.land();
         // 「空了告诉我」（施工 C-6）：先订、先把通知交出去，再写没有在跑的回合。
         self.after_batch();
-        self.busy.store(!self.session.idle(), Ordering::Release);
+        self.settle_busy();
         Ok(())
     }
 
@@ -453,15 +457,6 @@ impl Actor {
         if let Some(reply) = first {
             answer(reply, outcome);
         }
-    }
-
-    /// 推给订阅了的头。
-    #[expect(
-        clippy::let_underscore_must_use,
-        reason = "没有订阅者就没人收，照常往下走"
-    )]
-    fn push(&self, pushed: Pushed) {
-        let _ = self.pushes.send(Arc::new(pushed));
     }
 
     /// 到点叫醒：起一个定时的任务，到 `at` 这一刻送回「到点了」。

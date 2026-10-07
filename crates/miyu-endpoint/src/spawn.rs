@@ -44,6 +44,12 @@ impl Table {
 }
 
 impl SessionPort for Table {
+    fn listing(&self, session: SessionId) {
+        if let Ok(core) = self.core() {
+            core.listing.changed(&core, session);
+        }
+    }
+
     fn create(&self, child: Child) -> Pending<'_, Result<SessionId, String>> {
         Box::pin(async move {
             let core = self.core()?;

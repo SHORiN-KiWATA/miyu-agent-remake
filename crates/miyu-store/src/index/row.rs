@@ -4,6 +4,7 @@
 
 use rusqlite::Row as SqlRow;
 
+use miyu_kernel::block::Block;
 use miyu_kernel::event::{Body, Event};
 use miyu_kernel::id::{AccountId, SessionId};
 use miyu_kernel::time::Timestamp;
@@ -34,7 +35,13 @@ pub struct Row {
     pub last_active: Timestamp,
     /// 照到日志的哪里。
     pub mark: Mark,
+    /// 第一句话的第一行（施工 9-5）：第一条 `message.user` 的文字，去掉前后空白，最多 50 个字（`PREVIEW_CHARS`）；还没人说过话、
+    /// 第一句没有字的是空的。没有标题的会话，头照它显示。
+    pub preview: String,
 }
+
+/// `preview` 最多几个字（按 Unicode 的字数）。
+const PREVIEW_CHARS: usize = 50;
 
 impl Row {
     /// 照日志的第一条起一行：`session.created` 的属主、父会话、是不是一次性的、工作目录，时刻既是造的时刻也是最近一次
@@ -58,6 +65,7 @@ impl Row {
                 bytes: 0,
                 next: first.seq,
             },
+            preview: String::new(),
         })
     }
 
@@ -68,6 +76,11 @@ impl Row {
         self.last_active = event.at;
         if let Some(cwd) = cwd(event) {
             self.cwd = Some(cwd.to_string());
+        }
+        if let Body::MessageUser(message) = &event.body
+            && self.preview.is_empty()
+        {
+            self.preview = preview(&message.blocks);
         }
         if let Body::MetaChanged(changed) = &event.body {
             if let Some(title) = &changed.title {
@@ -105,11 +118,12 @@ impl Row {
                 bytes: number(row.get(10)?)?,
                 next: miyu_kernel::id::Seq::new(number(next)?).ok_or_else(|| bad("mark"))?,
             },
+            preview: row.get(12)?,
         })
     }
 
     /// 写进表里的几格，先后照 [`super::COLUMNS`]。数字超过 SQLite 的整数（`i64`）的报错：一段不会有那么长。
-    pub(super) fn to_sql(&self) -> Result<[rusqlite::types::Value; 12], IndexError> {
+    pub(super) fn to_sql(&self) -> Result<[rusqlite::types::Value; 13], IndexError> {
         use rusqlite::types::Value;
         let number = |n: u64| {
             i64::try_from(n)
@@ -131,6 +145,7 @@ impl Row {
             number(self.mark.segment)?,
             number(self.mark.bytes)?,
             number(self.mark.next.get())?,
+            text(&self.preview),
         ])
     }
 }
@@ -143,4 +158,17 @@ pub fn cwd(event: &Event) -> Option<&str> {
         Body::SessionCreated(created) => created.cwd.as_deref(),
         _ => None,
     }
+}
+
+/// 一句话的预览（施工 9-5）：头一块文字的第一行，去掉前后空白，最多 [`PREVIEW_CHARS`] 个字。没有文字的是空的。
+fn preview(blocks: &[Block]) -> String {
+    blocks
+        .iter()
+        .find_map(|block| match block {
+            Block::Text(text) => Some(text.text.as_str()),
+            _ => None,
+        })
+        .and_then(|text| text.lines().map(str::trim).find(|line| !line.is_empty()))
+        .map(|line| line.chars().take(PREVIEW_CHARS).collect())
+        .unwrap_or_default()
 }
