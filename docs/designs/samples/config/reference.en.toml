@@ -184,10 +184,27 @@ keys = []
 language = "auto"
 
 # On start, open: Whether a terminal interface or the web page opens a new session or picks up the most recent one.
-# Allowed: new or recent. Only in the system config or personal settings. Takes effect the next time the interface opens.
+# Allowed: new or recent. Only in the system config or personal settings. Takes effect the next time the program starts.
 startup = "new"
 
 [usage]
 # Currency shown first: Amounts are added up per currency, never converted. This one is listed first, the others by code. Three capital letters such as USD or CNY.
 # Allowed: text of at most 3 characters. Only in the system config or personal settings. Takes effect at once.
 currency = "USD"
+
+[web]
+# Idle seconds: Quit after this many seconds with no browser connected and no media being served.
+# Allowed: a whole number from 1 to 86400. Only in the system config. Takes effect the next time the program starts.
+idle_seconds = 600
+
+# Most media tickets: At most this many /media tickets; the one unused longest goes first.
+# Allowed: a whole number from 1 to 1000000. Only in the system config. Takes effect the next time the program starts.
+most_tickets = 4096
+
+# Web port: Which local port the web interface listens on.
+# Allowed: a whole number from 1 to 65535. Only in the system config. Takes effect the next time the program starts.
+port = 8300
+
+# Media ticket idle seconds: A /media ticket unused for this many seconds stops working.
+# Allowed: a whole number from 1 to 2592000. Only in the system config. Takes effect the next time the program starts.
+ticket_idle_seconds = 43200

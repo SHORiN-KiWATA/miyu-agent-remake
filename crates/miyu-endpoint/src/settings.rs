@@ -89,5 +89,6 @@ pub const EXTERNAL_BINDINGS: &[miyu_config::Item] = &[miyu_config::Item {
         group: "external",
         common: false,
         control: miyu_config::Control::Text,
+        hidden: false,
     },
 }];

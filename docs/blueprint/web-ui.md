@@ -20,7 +20,8 @@
 | `crates/miyu-web/src/media/link.rs` | 照登录令牌连核心：一个令牌一条，同时问、照编号分回去，60 秒没人用就关 |
 | `crates/miyu-web/src/media/range.rs` | `Range` 要哪一段；下载的名字照 RFC 5987 转义 |
 | `crates/miyu-web/src/open.rs`、`texts.rs` | `open`：确保 `serve` 在跑；要一次性码；开浏览器；给人看的字 |
-| `crates/miyu-web/src/settings.rs`、`resources/web/web.json` | 出厂的端口（8300）、空闲多久、内容安全策略、页面的媒体类型；票据多久不用作废、最多几张（W-10） |
+| `crates/miyu-web/src/settings.rs`、`resources/web/web.json`、`resources/packages/web.toml` | 端口（出厂 8300）、空闲多久、票据多久不用作废、最多几张是配置项（`web.port`、`web.idle_seconds`、`web.ticket_idle_seconds`、`web.most_tickets`），声明在网页自己的清单里，默认值照清单读，起来时问核心拿最终值（施工 9-1 下）；内容安全策略、页面的媒体类型是常量，在 `web.json` |
+| `crates/miyu-web/src/client.rs` | 照终端的样子连着核心一问一答：`open` 要一次性码、`serve` 起来时问配置（施工 9-1 下从 `open.rs` 挪出来） |
 | `resources/web/pages/` | 页面文件。M9 的网页搬进主仓库以前是空的，开发时设 `MIYU_WEB_PAGES` 指到网页演示的 `web-demo/` |
 | `crates/miyu-cli/src/web.rs`、`help/{zh,en}/web.txt` | 主程序的 `miyu web` 和它的帮助页 |
 | `crates/miyu-ipc/src/start.rs` 的 `spawn_detached` | 拉起、跟终端脱开、等那一行：核心和 `serve` 共用 |
@@ -34,8 +35,8 @@
 **一、起停、端口、页面、WebSocket**（W-9，原来是 `web-module.md` 第九条）
 
 1. 单实例：`miyu-web serve` 先拿 `run/web.lock`，拿不到写 `running` 走。拿到了听端口，把地址写进 `run/web`（先写临时文件再改名），往标准输出写一行 `ready`，和核心那一行同一个写法（`ipc.md`「那一行」，复用 `miyu-ipc` 的 `Ready`）。端口被占了写 `error port <端口> in use`（`open` 认这个写法，照人的语言说，「施工时定的」第 5 条），别的起不来写 `error <原因>`。
-2. 端口：照 `--port`，没写照 `resources/web/web.json` 的出厂值（固定端口，第 2 题）；`0` 是系统挑一个空的。只听回环地址 `127.0.0.1`，不听别的网卡。端口被占了：`miyu web` 照人的语言说哪个端口被占了、怎么换。出厂端口 8300（「施工时定的」第 1 条）。
-3. 空闲退出：没有 WebSocket 连着、没有 `/media` 在给，连续 10 分钟就退出（`web.json` 的出厂值），先删 `run/web`、再放锁。收到停的信号照样先删再放。
+2. 端口：照 `--port`，没写照配置 `web.port`（施工 9-1 下：只能写在系统配置，设置页「软件包」那一页露；改了下次起网页界面时生效）。`serve` 起来时核心在跑的就问它 `config.get` 拿 `web.*` 四项的最终值，不为这个拉起核心：`miyu web` 先经 `open` 连上核心才拉起 `serve`；核心没在跑的照清单的默认值起，记一行 `INFO web config from defaults`，连上了却被拒的记 `WARN web config not read`（固定端口，第 2 题）；`0` 是系统挑一个空的。只听回环地址 `127.0.0.1`，不听别的网卡。端口被占了：`miyu web` 照人的语言说哪个端口被占了、怎么换。出厂端口 8300（「施工时定的」第 1 条）。
+3. 空闲退出：没有 WebSocket 连着、没有 `/media` 在给，连续 10 分钟就退出（配置 `web.idle_seconds`，出厂 600，设置页不露），先删 `run/web`、再放锁。收到停的信号照样先删再放。
 4. 每个请求先核对 Host：只认 `127.0.0.1:<端口>`、`localhost:<端口>`、`[::1]:<端口>`，别的回 403。别的网站把自己的域名解析到回环地址也进不来（DNS rebinding）。
 5. 页面文件：`GET /` 给 `index.html`，别的照路径在页面目录里找。带 `..` 的、换成真实位置以后跑到页面目录外的、不是普通文件的，404。类型照扩展名（`web.json` 的表）。响应头一律带：`X-Content-Type-Options: nosniff`、`Referrer-Policy: no-referrer`、`Cache-Control: no-cache`、`Content-Security-Policy`（照 `web.json`，至少有 `connect-src 'self'`、`frame-ancestors 'none'`）。从来不设 cookie（「起草时定的」第 13 条）。
 6. 页面目录：`MIYU_WEB_PAGES` 设了照它，不然是资源目录下的 `web/pages/`。资源目录照 `store/resources.md` 第 1 条找，和核心同一个办法。
@@ -119,4 +120,4 @@
 | 13 | `Range` 只认一段（`bytes=a-b`、`bytes=a-`、`bytes=-n`）；好几段的、写法不对的照没写，回全部（RFC 9110 允许不理）；超出的 416 带 `Content-Range: bytes */<大小>`；回应都带 `Accept-Ranges: bytes` | 浏览器放音视频只发一段；好几段要拼 multipart，没人用 | 好几段的回 416 |
 | 14 | `GET` 时再问一次大小，照这时的大小算 `Range`、`Content-Length`；给得比说的少就断开连接 | 票据活 12 小时，文件可能变了 | 照换票据时记下的大小 |
 | 15 | 握手被拒（令牌作废了、过期了）：`POST`、`GET` 都回 401，这个令牌的票据一起作废 | 退出登录、`miyu web --logout` 以后，旧票据不该还能拿到东西 | 票据活到 12 小时 |
-| 16 | 票据多久不用、最多几张写进 `web.json`（`ticket_idle_seconds`、`most_tickets`），连核心的 60 秒写在代码里 | 「起草时定的」第 25 条：网页软件的数放在 `web.json`；60 秒只是省一条连接，不是给人调的 | 都写进 `web.json` |
+| 16 | 票据多久不用、最多几张写进 `web.json`（`ticket_idle_seconds`、`most_tickets`），连核心的 60 秒写在代码里；施工 9-1 下起这两项挪成配置项 `web.ticket_idle_seconds`、`web.most_tickets`（设置页不露） | 「起草时定的」第 25 条：网页软件的数放在 `web.json`；60 秒只是省一条连接，不是给人调的 | 都写进 `web.json` |

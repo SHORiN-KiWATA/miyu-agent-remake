@@ -423,7 +423,7 @@
         },
         "startup": {
           "default": "new",
-          "description": "Whether a terminal interface or the web page opens a new session or picks up the most recent one. Allowed: new or recent. Only in the system config or personal settings. Takes effect the next time the interface opens.",
+          "description": "Whether a terminal interface or the web page opens a new session or picks up the most recent one. Allowed: new or recent. Only in the system config or personal settings. Takes effect the next time the program starts.",
           "enum": [
             "new",
             "recent"

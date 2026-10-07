@@ -137,7 +137,7 @@ trusted = true
 | `tighten` | 项目配置怎么收紧，只有 `layers` 里有 `Project` 的才写，必写（下面「收紧」），`list::check` 查。8-2 加 |
 | `env` | 这一次启动由哪个环境变量压过。只有两项有：`log.level` 的 `MIYU_LOG`（`28-运行日志.md` LG2），`models.catalog.update` 的 `MIYU_CATALOG_UPDATE`（施工 8-7，2026-10-01 主会话定：离线的机器、测试拉起的核心不去拉目录）。读不懂的当没设，照配置 |
 | `applies` | 什么时候生效，下面「生效时机」 |
-| `ui` | 界面提示：`page` 在哪一页，`group` 哪一组，`common` 是不是常用项（排在前面，不写是 `false`），`control` 用什么控件 |
+| `ui` | 界面提示：`page` 在哪一页，`group` 哪一组，`common` 是不是常用项（排在前面，不写是 `false`），`control` 用什么控件，`hidden` 设置页不画（照样能写、能查、进 Schema；核心自己的项都是 `false`，软件包能声明，施工 9-1 下） |
 
 - 名字和说明给人看，跟着界面语言，不在 Rust 里：放在资源目录的 `core/human/<语言>.json` 的 `config` 那一格，中文、英文、日文三份（下面「给人看的字」）。
 - 「谁能改」不另写一格：M8 只有管理员一个人，系统配置由管理员改，个人设置由本人改。按管理能力细分随多用户那一段（`06-多用户与身份.md` 第四节），那时清单加一格、协议的回应加一格，字段只加不改。
@@ -371,7 +371,7 @@ miyu_config::settings! {
 {"groups":[{"id":"display","name":"显示","page":"general"}],"items":[{"applies":"now","common":true,"control":"select","default":"auto","description":"终端、网页、命令行给你看的字用哪种话。auto 跟着终端或浏览器的语言。","group":"display","key":"ui.language","layers":["system","personal"],"name":"界面语言","options":[{"name":"跟随系统","value":"auto"},{"name":"中文","value":"zh"},{"name":"English","value":"en"},{"name":"日本語","value":"ja"}],"page":"general","type":"option"}],"pages":[{"id":"general","name":"通用"}]}
 ```
 
-- 每一项的格：`key`、`type`，照类型带 `options`（选项：`value` 和给人看的 `name`）、`min`、`max`、`max_chars`、`element`，再是 `default`、`layers`、`tighten`（没有不写）、`env`（没有不写）、`applies`、`name`、`description`、`page`、`group`、`common`、`control`。
+- 每一项的格：`key`、`type`，照类型带 `options`（选项：`value` 和给人看的 `name`）、`min`、`max`、`max_chars`、`element`，再是 `default`、`layers`、`tighten`（没有不写）、`env`（没有不写）、`applies`、`name`、`description`、`page`、`group`、`common`、`control`，设置页不画的再带 `hidden: true`（施工 9-1 下：网页的空闲、票据那几项）。
 - 写了清单里没有的键：`unknown_config_key`，`data.problems` 里每个不认识的一条：`code` 是 `unknown_key`，`level` 是 `error`（请求写错了，不是文件里的警告），`key`、`message`，有最近的键名的带 `suggest`，没有行列。
 - 名字、说明这种语言里没有的，照英文（`store/resources.md` 第 3 条的退法），英文也没有的名字照键、说明是空的；页、组的名字同样，都没有的照编号。
 
@@ -607,7 +607,7 @@ miyu_config::settings! {
 
 **一、清单和生成的文件**（8-1）
 
-1. 清单是各模块 `ITEMS` 登记成的一张表（`miyu-core/src/settings.rs` 的 `MODULES`），照登记的先后，一个模块里照声明的先后。核心起来时合成一次，之后不变。
+1. 清单是各模块 `ITEMS` 登记成的一张表（`miyu-core/src/settings.rs` 的 `MODULES`），照登记的先后，一个模块里照声明的先后；后面接着软件包清单里声明的配置项（`Packaged`，施工 9-1 下，`packages.md`「配置项」）：键是 `<包的编号>.<名字>`，都在「软件包」那一页、一个包一组，名字、说明从清单来。核心起来时合成一次，之后不变；装卸软件包要重启核心。
 2. 键：至少两段，每一段是小写字母开头，只有小写字母、数字、`_`。第一段是声明它的模块的编号，`ext` 留给扩展，内置的不许用。
 3. 两个键不指同一件事：键不重复。一个键也不能是另一个键按段数的前缀（有了 `ui.language` 就不能再有一项叫 `ui`，不然 `ui` 那一格是表还是值说不清）。照段比：`ui.lang` 不是 `ui.language` 的前缀。
 4. 每一项的默认值要过它自己的校验（选项：是列出的之一，区分大小写）。选项至少两个、不重复，至少能放一层、层不写重。整数、小数、时长必写范围，文字必写最多几个字，随这几种类型加。
@@ -878,7 +878,7 @@ ui.startup = "new"
 | 删掉了 | `· 从个人设置里删掉了 ui.language，现在是 "en"（系统配置）` | `· Removed ui.language from personal settings. It is now "en" (system config)` |
 | 本来就没写 | `· 个人设置里本来就没写 ui.language` | `· Personal settings did not have ui.language` |
 
-「当场生效」按 `applies` 换：`当场生效`、`以后开的会话生效`、`下次打开界面时生效`、`下一轮生效`、`重启核心后生效`（`takes effect at once`、`applies to sessions opened from now on`、`takes effect the next time the interface opens`、`takes effect next turn`、`takes effect after the core restarts`）。M8 用得上前四种（`head_start` 8-3 加，`next_turn` 8-6 起）。认不出的（核心比命令行新）不说什么时候生效：`· providers.dev.models.m-1.window = 4096 写进了个人设置`（施工 8-3 补）。
+「当场生效」按 `applies` 换：`当场生效`、`以后开的会话生效`、`这个程序下次启动时生效`、`下一轮生效`、`重启核心后生效`（`takes effect at once`、`applies to sessions opened from now on`、`takes effect the next time the program starts`、`takes effect next turn`、`takes effect after the core restarts`）。M8 用得上前四种（`head_start` 8-3 加，`next_turn` 8-6 起）。认不出的（核心比命令行新）不说什么时候生效：`· providers.dev.models.m-1.window = 4096 写进了个人设置`（施工 8-3 补）。
 
 - 上面一层压着的，那一层照句子里的叫法：个人设置、系统配置、环境变量（`personal settings say`、`the system config says`、`the environment says`）。
 - 删掉了以后括号里是现在那个值从哪一层来：默认值、系统配置、个人设置（`default`、`system config`、`personal settings`），和 `explain` 的层名一样。
@@ -1132,13 +1132,30 @@ keys = []
 language = "auto"
 
 # 启动时打开：打开终端界面或网页时，开一个新会话，还是接着最近的那一个。
-# 能写：new 或 recent。只能写在系统配置或个人设置里。下次打开界面时生效。
+# 能写：new 或 recent。只能写在系统配置或个人设置里。这个程序下次启动时生效。
 startup = "new"
 
 [usage]
 # 显示的币种：用量的金额照币种各加各的，不换算；这一种排在最前，别的照代码的字母先后。三个大写字母，例如 USD、CNY。
 # 能写：最多 3 个字的文字。只能写在系统配置或个人设置里。当场生效。
 currency = "USD"
+
+[web]
+# 空闲多久退出（秒）：没有浏览器连着、没有媒体在给，连续这么多秒就退出。
+# 能写：1 到 86400 之间的整数。只能写在系统配置里。这个程序下次启动时生效。
+idle_seconds = 600
+
+# 最多几张媒体票据：/media 的票据最多几张，满了丢最久没用的。
+# 能写：1 到 1000000 之间的整数。只能写在系统配置里。这个程序下次启动时生效。
+most_tickets = 4096
+
+# 网页的端口：网页界面听本机的哪个端口。
+# 能写：1 到 65535 之间的整数。只能写在系统配置里。这个程序下次启动时生效。
+port = 8300
+
+# 媒体票据多久作废（秒）：/media 的票据这么多秒没用过就作废。
+# 能写：1 到 2592000 之间的整数。只能写在系统配置里。这个程序下次启动时生效。
+ticket_idle_seconds = 43200
 ```
 
 样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `models.chat`、`models.vision`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`models.cooldown.*`（8-9）、`permission.start_read_only`、`persona.default`（P-1 上）、`providers.<id>.*`、`ui.language`、`ui.startup`）：
@@ -1569,7 +1586,7 @@ currency = "USD"
         },
         "startup": {
           "default": "new",
-          "description": "打开终端界面或网页时，开一个新会话，还是接着最近的那一个。能写：new 或 recent。只能写在系统配置或个人设置里。下次打开界面时生效。",
+          "description": "打开终端界面或网页时，开一个新会话，还是接着最近的那一个。能写：new 或 recent。只能写在系统配置或个人设置里。这个程序下次启动时生效。",
           "enum": [
             "new",
             "recent"
@@ -1758,7 +1775,7 @@ currency = "USD"
 | `config/using-nothing` | | 这份文件先不用 | The file is not used for now |
 | `config/layer/default`、`project`、`env`（`system`、`personal` 8-1 就有；编号照层的写法） | | 默认值、项目配置、环境变量 | the default、a project config、the environment |
 | `config/expected/bool`、`option`、`int`、`float`、`text`、`list`、`table` | | true 或 false、其中一个、整数、数、带引号的字、列表、一张表 | true or false、one of them、a whole number、a number、quoted text、a list、a table |
-| `config/applies/new_session`、`head_start`、`next_turn`、`restart`（`now` 8-1 就有；编号照 `applies` 的写法，程序照它拼） | | 以后开的会话生效、下次打开界面时生效、下一轮生效、重启核心后生效 | Applies to sessions opened from now on、Takes effect the next time the interface opens、Takes effect next turn、Takes effect after the core restarts |
+| `config/applies/new_session`、`head_start`、`next_turn`、`restart`（`now` 8-1 就有；编号照 `applies` 的写法，程序照它拼） | | 以后开的会话生效、这个程序下次启动时生效、下一轮生效、重启核心后生效 | Applies to sessions opened from now on、Takes effect the next time the program starts、Takes effect next turn、Takes effect after the core restarts |
 | `config/secrets-header` | | Miyu 的密钥：只经 Miyu 写入、替换、删除。不要把这份文件贴给别人。 | Miyu's secrets: written, replaced and deleted only through Miyu. Do not share this file. |
 | `config/trust-header` | | Miyu 记着的项目配置的信任：哪个仓库、哪一份内容、信不信任。 | Which project configs Miyu trusts: the repository, the exact content, and the answer. |
 | `config/bad-format`（8-6） | `key`、`expected`、`got` | {key} 要写 {expected}，写的是 {got} | {key} needs {expected}, not {got} |
@@ -1780,7 +1797,7 @@ currency = "USD"
 
 一句由几段接成时（第四条第 7 条）：不是以 `config/stops` 里的字结尾的段照 `config/sentence` 补上句号，段和段照 `config/then` 接。中文、日文补「。」、段和段直接接，英文补「.」、段和段之间空一格。
 
-8-2 加进资源的是用得上的几句：上表里除了 `config/out-of-range`、`config/unknown-secret`、`config/env-not-set`、`config/untrusted`、`config/secrets-header`、`config/trust-header`，`config/expected/` 只有 `bool`、`table`，`config/applies/` 只有 `new_session`；别的随用到它的那一步（8-3、8-5、第一项有范围的那一步）。日文的一份照中文写（施工 8-2）。8-3 加了 `config/trust-header`、`config/applies/head_start`（日文照中文写：「Miyu が記録しているプロジェクト設定の信頼：どのリポジトリの、どの内容を、信頼するかどうか。」「次に画面を開いたときに反映されます」）。8-5 加了 `config/secrets-header`、`config/unknown-secret`、`config/env-not-set`、`config/bad-secret-name`、`config/bad-secret-value`（后两句 2026-10-01 主会话定；日文照中文写）。类型是密钥的一项写错了（`wrong_type`）：期望照 `config/or-values` 把两种写法连起来（`{ secret = "…" } 或 { env = "…" }`），不另说改法，不加新的字。8-6 加了 `config/applies/next_turn`、`config/out-of-range`、`config/bad-format`、`config/bad-segment`、`config/expected/` 的 `int`、`url`、`name`、`reference`、`list`、`id`、`model-name`（施工员照推荐写、日文照中文写）：`int` 带上范围、`list` 带上元素，期望说得出能写什么（参考文件、Schema 的说明里「能写：…」也照它）。8-7 加了 `config/expected/` 的 `float`、`text`、`duration`（施工员照推荐写、日文照中文写）：小数、时长带上范围（时长的范围写成 `1h`、`720h` 这样），文字带上最多几个字。
+8-2 加进资源的是用得上的几句：上表里除了 `config/out-of-range`、`config/unknown-secret`、`config/env-not-set`、`config/untrusted`、`config/secrets-header`、`config/trust-header`，`config/expected/` 只有 `bool`、`table`，`config/applies/` 只有 `new_session`；别的随用到它的那一步（8-3、8-5、第一项有范围的那一步）。日文的一份照中文写（施工 8-2）。8-3 加了 `config/trust-header`、`config/applies/head_start`（日文照中文写：「Miyu が記録しているプロジェクト設定の信頼：どのリポジトリの、どの内容を、信頼するかどうか。」「このプログラムを次に起動したときに反映されます」）。8-5 加了 `config/secrets-header`、`config/unknown-secret`、`config/env-not-set`、`config/bad-secret-name`、`config/bad-secret-value`（后两句 2026-10-01 主会话定；日文照中文写）。类型是密钥的一项写错了（`wrong_type`）：期望照 `config/or-values` 把两种写法连起来（`{ secret = "…" } 或 { env = "…" }`），不另说改法，不加新的字。8-6 加了 `config/applies/next_turn`、`config/out-of-range`、`config/bad-format`、`config/bad-segment`、`config/expected/` 的 `int`、`url`、`name`、`reference`、`list`、`id`、`model-name`（施工员照推荐写、日文照中文写）：`int` 带上范围、`list` 带上元素，期望说得出能写什么（参考文件、Schema 的说明里「能写：…」也照它）。8-7 加了 `config/expected/` 的 `float`、`text`、`duration`（施工员照推荐写、日文照中文写）：小数、时长带上范围（时长的范围写成 `1h`、`720h` 这样），文字带上最多几个字。
 
 **协议拒绝时的话**（`protocol.md`「给人看的字」多的几行）：
 
@@ -2163,7 +2180,7 @@ Options:
 | 日志每追加一条都重新打开、读整份拿最后一行；`cause` 是这条命令的编号，时刻照核心的钟 | 改配置很少；不用留着开着的文件，手改过的也认得；和会话日志一样查得到是哪一次命令 | 开着文件、只读末尾：多一份要管的状态 |
 | 日志的样本 `seq` 是 1 | 样本是一份新日志的第一行，测试照它逐字节比 | 照起草时的 3、5：测试得先垫几行 |
 | `trust.toml` 同一个仓库有几条的换最后一条，没有的加在末尾；新建的开头注释照这个连接的语言；读不懂、写不成的 `internal_error` | 读的时候最后一条算；回答的人就在这个连接上；手改坏了的不替人修 | 照管理员的 `ui.language` 另算一次：结果一样，多一段代码 |
-| 生效时机多一种 `head_start`，字是「下次打开界面时生效」 | 头自己读、启动时读一次，核心不管它；「界面」不说是哪一种头，网页以后也用得上 | 写成 `restart`：那是重启核心 |
+| 生效时机多一种 `head_start`，字是「这个程序下次启动时生效」 | 头自己读、启动时读一次，核心不管它；「界面」不说是哪一种头，网页以后也用得上 | 写成 `restart`：那是重启核心 |
 | `tui.startup` 先在 `miyu-core/src/settings.rs` 替终端界面声明；登记在 `ui` 后面，页排成通用、界面、权限、高级（8-28 改成 `ui.startup`，挪进 `UiSettings`，页「界面」去掉） | 终端界面还没进工作区，核心不用它；界面的设置挨着通用 | 放端点：端点也不用它；放最后：界面排到高级后面 |
 | 名字、说明：「启动时打开」「终端界面启动时开一个新会话，还是接着最近的那一个。」，选项「新会话」「最近的会话」，页「界面」、组「终端界面」（中英日） | 照施工单给的形状写，说的是做什么，不说怎么做 | |
 | 命令行的 `set --project`、不在终端里的 `edit` 连核心以前就拦下，退出码 2 | 参数不对不该拉起核心；没设 key 时也该是 2，不是 5 | 连上核心再说：没设 key 的先报 5 |

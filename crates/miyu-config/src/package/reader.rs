@@ -50,7 +50,7 @@ impl Reader<'_> {
     }
 
     /// 必写的一格：没有的报在表头那一行。
-    fn required<'t>(
+    pub(super) fn required<'t>(
         &self,
         table: &'t dyn TableLike,
         at: &Item,
@@ -310,7 +310,7 @@ impl Reader<'_> {
     }
 
     /// 一格「语言到一句话」。
-    fn phrases(&self, item: &Item, key: &str) -> Result<Phrases, Problem> {
+    pub(super) fn phrases(&self, item: &Item, key: &str) -> Result<Phrases, Problem> {
         phrases::read(item).map_err(|error| {
             let line = |span: Option<std::ops::Range<usize>>| {
                 span.map(|span| line_of(self.text, span.start))

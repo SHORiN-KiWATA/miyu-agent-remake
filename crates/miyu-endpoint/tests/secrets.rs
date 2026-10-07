@@ -40,6 +40,7 @@ fn secret_item(key: &'static str) -> Item {
             group: "display",
             common: false,
             control: Control::Select,
+            hidden: false,
         },
     }
 }

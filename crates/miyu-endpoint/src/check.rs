@@ -191,9 +191,11 @@ async fn check_packages(
             return Ok(None);
         }
     }
-    let found = tokio::task::spawn_blocking(move || places.read())
+    let mut found = tokio::task::spawn_blocking(move || places.read())
         .await
         .map_err(|_| Refusal::INTERNAL)?;
+    // 编号撞了核心自己的模块、又声明了配置项的，照起来时那样报（施工 9-1 下）。拼出来的项不用：这里只查。
+    let _ = crate::packages::settle(&mut found, core.config().items());
     let mut problems = Vec::new();
     let mut seen = false;
     for one in found

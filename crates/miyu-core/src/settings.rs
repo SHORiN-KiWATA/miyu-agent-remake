@@ -10,6 +10,7 @@
 use std::path::Path;
 
 use miyu_config::merge::Origin;
+use miyu_config::package::Manifest;
 use miyu_config::{Item, Layer, Missing, Values, Words, reference, schema};
 use miyu_endpoint::config::{Config, Environment};
 use miyu_endpoint::settings::{EXTERNAL_BINDINGS, PermissionSettings, PersonaSettings, UiSettings};
@@ -22,6 +23,7 @@ use miyu_models::settings::{
 };
 use miyu_store::generated;
 use miyu_store::human::Human;
+use miyu_store::packages::Found;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
@@ -52,6 +54,39 @@ const MODULES: [&[Item]; 15] = [
 /// 生成的三份放在状态区的这个目录里：`state/config/`。
 const DIR: &str = "config";
 
+/// 软件包的配置项和读成了的清单（施工 9-1 下，`packages.md`「配置项」）：核心起来时照清单拼好一次，读配置、生成 Schema
+/// 和参考文件时并进去。
+#[derive(Debug, Clone, Default)]
+pub struct Packaged {
+    /// 包的配置项，接在登记的后面。
+    pub items: Vec<Item>,
+    /// 读成了的清单：编号和样子，配置项的名字、说明照它。
+    pub manifests: Vec<(String, Manifest)>,
+}
+
+impl Packaged {
+    /// 照两层清单拼：编号撞了核心自己的模块的，那一份改报 `settings_taken`（[`miyu_endpoint::packages::settle`]）。
+    pub fn of(found: &mut [Found]) -> Packaged {
+        let items = miyu_endpoint::packages::settle(found, &items());
+        let manifests = found
+            .iter()
+            .filter_map(|one| match &one.read {
+                Ok(manifest) => Some((one.id.clone(), manifest.clone())),
+                Err(_) => None,
+            })
+            .collect();
+        Packaged { items, manifests }
+    }
+
+    /// 登记的全部配置项，接上包的。
+    pub fn all(&self) -> Vec<Item> {
+        items()
+            .into_iter()
+            .chain(self.items.iter().cloned())
+            .collect()
+    }
+}
+
 /// 登记的全部配置项。核心起来时合成一次，之后不变。
 pub fn items() -> Vec<Item> {
     MODULES
@@ -79,8 +114,13 @@ pub fn render(items: &[Item], words: &dyn Words) -> [Result<String, Missing>; 3]
 
 /// 核心起来时读配置（第二条第 1 条）：系统配置、管理员 `admin` 的个人设置、信任的记录、密钥文件（施工 8-5），照登记的
 /// 全部清单认，带 `env` 的项、`{ env = … }` 照进程的环境变量。`home` 是系统的家目录。读不进来不影响起不起得来：有问题的每份记一条 `WARN`。
-pub fn read(root: &DataRoot, admin: &AccountId, home: Option<&Path>) -> Config {
-    Config::load(root, admin, home, items(), Environment::process())
+pub fn read(
+    root: &DataRoot,
+    admin: &AccountId,
+    home: Option<&Path>,
+    packaged: &Packaged,
+) -> Config {
+    Config::load(root, admin, home, packaged.all(), Environment::process())
 }
 
 /// 读完配置，照 `log.level` 的最终值换运行日志的级别（第二条第 7 条，`log.md`）：`MIYU_LOG` 设了、读得懂的照它（装日志时
@@ -112,11 +152,23 @@ fn set_level(config: &Config, levels: &Levels) {
 
 /// 核心起来时写生成的三份：字照 `ui.language` 的最终值 `values`，`auto` 的照系统的语言 `locale`。写不成的一份记一条
 /// `WARN`，不影响起不起得来。
-pub fn generate(root: &DataRoot, resources: &ResourceRoot, locale: Option<&str>, values: &Values) {
-    let items = items();
+pub fn generate(
+    root: &DataRoot,
+    resources: &ResourceRoot,
+    locale: Option<&str>,
+    values: &Values,
+    packaged: &Packaged,
+) {
+    let items = packaged.all();
     let ui = UiSettings::from(values);
-    let texts = match Human::load(resources, ui.language_for(locale)) {
-        Ok(words) => render(&items, &words).map(|text| text.map_err(|error| error.to_string())),
+    let language = ui.language_for(locale);
+    let manifests = packaged
+        .manifests
+        .iter()
+        .map(|(id, manifest)| (id.as_str(), manifest));
+    let texts = match Human::load(resources, language) {
+        Ok(words) => render(&items, &words.with_packages(manifests, language))
+            .map(|text| text.map_err(|error| error.to_string())),
         Err(error) => FILES.map(|_| Err(error.to_string())),
     };
     let dir = root.state().join(DIR);

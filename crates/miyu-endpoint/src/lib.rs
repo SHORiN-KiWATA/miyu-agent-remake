@@ -40,7 +40,7 @@ mod login;
 mod meta;
 mod methods;
 mod models;
-mod packages;
+pub mod packages;
 mod personas;
 mod providers;
 pub mod queries;
@@ -270,6 +270,14 @@ impl Core {
     #[must_use]
     pub fn with_code_ttl(mut self, ttl: Duration) -> Core {
         self.identity = login::Identity::new(ttl);
+        self
+    }
+
+    /// 同一份家底，软件包清单照 `packages`（施工 9-1 下）：核心起来时读好、照核心自己的模块认过撞没撞（`packages::settle`）
+    /// 交进来，`package.list`、包的配置项的字照它。没设的是 `Core::new` 自己读的那一份。
+    #[must_use]
+    pub fn with_packages(mut self, packages: Vec<miyu_store::packages::Found>) -> Core {
+        self.packages = packages;
         self
     }
 

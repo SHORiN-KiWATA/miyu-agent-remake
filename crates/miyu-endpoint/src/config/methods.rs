@@ -170,6 +170,9 @@ fn schema_item(item: &Item, said: Option<&miyu_config::ItemWords>) -> Value {
     map.insert("group".to_string(), json!(item.ui.group));
     map.insert("common".to_string(), json!(item.ui.common));
     map.insert("control".to_string(), json!(item.ui.control.as_str()));
+    if item.ui.hidden {
+        map.insert("hidden".to_string(), json!(true));
+    }
     Value::Object(map)
 }
 
@@ -380,10 +383,12 @@ pub(super) fn told(
 
 /// 这个连接的语言的字。读不懂是装坏了：内部出错。
 pub(crate) fn words(core: &Core, language: &str) -> Result<Human, Refusal> {
-    Human::load(&core.resources, language).map_err(|error| {
-        tracing::warn!(target: TARGET, error = %error, "resource unreadable");
-        Refusal::INTERNAL
-    })
+    Human::load(&core.resources, language)
+        .map(|human| human.with_packages(crate::packages::manifests(&core.packages), language))
+        .map_err(|error| {
+            tracing::warn!(target: TARGET, error = %error, "resource unreadable");
+            Refusal::INTERNAL
+        })
 }
 
 /// 请求里的 `keys` 挑出的几项和真的键，照清单的先后；不写的是全部写死的项（键里有人起的名字的项，`config.schema` 用它的样子）。
