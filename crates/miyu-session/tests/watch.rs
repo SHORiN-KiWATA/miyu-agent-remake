@@ -339,11 +339,7 @@ async fn an_idle_session_waits_for_its_next_turn_to_send() {
     ]);
     let handle = session(&home, &script, &table).await;
     turn(&home, &handle, 1).await;
-    // 起算时刻在忙完以后才取，落进「已经空着」那一支。日志里有了 `turn.ended` 不等于已经空了：落盘以后还要更新派生的
-    // 索引，才标成空闲。照它自己说的等它空下来，再过一会儿取起算时刻。
-    while handle.busy() {
-        tokio::time::sleep(Duration::from_millis(1)).await;
-    }
+    until("它真空下来再取起算时刻", || !handle.busy()).await;
     tokio::time::sleep(Duration::from_millis(20)).await;
     let since = support::now();
     handle.watch(sid(WAITER), since).expect("在跑");
