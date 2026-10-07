@@ -434,7 +434,7 @@ flowchart LR
 | R-2 上 | 回合索引 | 人开的回合照会话日志派生成一条：会话写日志时顺手更新，撤销、恢复跟着变，载入时照整份事件补上落下的，删会话拿掉（`memory.md` 第一条第 1 到 8 款）。施工单见 `R-2-回合索引（上）.md` |
 | R-2 下 | 补齐旧会话 | 回合库新建、重建以后后台补齐账号的旧会话，回收处恢复的补上（`memory.md` 第一条第 9 款） |
 | R-3 上 | 记忆日志和底账 | `ext.memory.saved`、`retired`；记忆日志的登记（一份一把锁）、底账 `MemoryBook`、派生的记忆库；回合库里的墓碑：撤销的回合、删掉的会话，出处活不活照它判（`memory.md` 第二条）。施工单见 `R-3-记忆日志和底账（上）.md` |
-| R-3 中 | 三件工具 | 软件包 `miyu-memory`：`remember`、`forget`、`memory_search`，经端口碰日志和检索库；量 token、登记、工具面的预算（`memory.md`「工具」） |
+| R-3 中 | 三件工具 | 软件包 `miyu-memory`：`remember`、`forget`、`memory_search`，经端口碰日志和检索库；读工具字的函数挪进 `miyu-tool`；量 token、登记、工具面的预算（`memory.md`「工具」）。施工单见 `R-3-三件工具（中）.md` |
 | R-3 下 | 范围和对外 | `session.create` 的 `memory`（`persona`、`session`、`off`，记进策略快照）、`miyu ask --no-memory`、范围 `session`；`memory.*`、`miyu memory`、三种清空（`memory.md` 第二、九条） |
 | R-4 | 常驻的摘要 | 回合开始的挂接点（接口先发核心的主会话）、`context.injected` 的 `refs`、排名；第一轮、压缩以后注入（`memory.md` 第三、八条） |
 | R-5 | embedding | `miyu-embed`（ONNX Runtime 静态链接，bge-small-zh-v1.5，清单能换）、下载和校验、`models.embedding`、远程 `/v1/embeddings`、向量一路和两路合并（`recall.md` 第三、四条）。和 R-2 到 R-4 不碰同一片代码，能并行 |
