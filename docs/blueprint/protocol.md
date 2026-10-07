@@ -127,6 +127,7 @@
 | 方法 | 做什么 |
 |---|---|
 | `session.create` | 造会话 |
+| `venue.session` | 找回或者造一个通讯平台场所的主线会话（施工 O-3，`venues.md`） |
 | `session.list` | 列出会话 |
 | `session.send` | 说一句话 |
 | `session.interrupt` | 打断在进行的回合 |
@@ -205,7 +206,7 @@
 {"busy":true,"cwd":"~/src/miyu","last_active":"2026-10-01T06:03:12.345Z","oneshot":false,"parent":null,"session":"0192f3a0-2222-7abc-8def-5566778899aa","title":"修 CI"}
 ```
 
-1. 只列管理员的会话，从新到旧：照编号倒着排，编号照造的先后。子会话也列，和主会话排在一起。删了的（挪进了回收处）不列。
+1. 只列管理员的本机会话（通讯平台的场所会话不列，施工 O-3，`venues.md`），从新到旧：照编号倒着排，编号照造的先后。子会话也列，和主会话排在一起。删了的（挪进了回收处）不列。
 2. 读每个会话日志的第一条，只读不写。跳过：目录名不合会话编号写法的、没有日志的（第一行还没写完的也算没有）、第一条读不出来的（记一条运行日志）、第一条不是 `session.created` 的。
 3. 列进去的，再只读地把整份日志读一遍（`store.md` 第 7 条），`session.meta_changed` 一条条盖上去：写了 `title` 的换成它（空的是去掉），写了 `pinned` 的换成它；撤掉的回合里改的也算，改名不是对话的一部分。后面读不下去的（日志坏了）：记一条运行日志，照坏的那一段以前的算（一段查过了才交出来，只有一段的就当没有），照样列。
    - 第 2 到 4 条照日志算的，读会话列表的索引（施工 3-8 七补，`store/index.md`「怎么走」第 3 条）：索引里有这一行、照到的就是日志现在的末尾的，直接用，不读第一条、不整份读；日志比它长的只读多出来的那一截；没有这一行、对不上的（日志比记的短了、段对不上），这一个会话照上面整份读，读完写进索引。结果和整份读的一字不差。
@@ -226,6 +227,7 @@
 | `dirs` | 字符串的数组，可以不写 | 加进来的目录（施工 5-10 上）。不写的照旧；写了的，这一句以后开的回合照它，空的就是没有 |
 | `attachments` | 数组，可以不写 | 附件（施工 3-9 三补）：`blob.put` 的回应，照先后。每一项要 `blob`、`name`、`media_type`，别的格不看 |
 | `from` | 字符串，可以不写 | 别的 harness 报的自己的名字（施工 7-10，`agents.md` 第十一条第 4 条）：写了的，这一句是它说的，不是本人 |
+| `as` | 对象，可以不写 | 代表通讯平台上的人（施工 O-3，`venues.md`）：`{"external": <平台身份>, "role": "manager"|"member"}`。只给场所会话，场所会话也只收带它的（不带的回 `venue_session`）；和 `from` 不能一起写 |
 
 回应：`events` 是 `[<这一句 message.user 的序号>]`；`cwd` 是收下这一句的 `cwd` 以后，会话实际在哪个目录里干活；`untrusted_project` 照 `session.create` 的写法，照这时实际干活的目录找（施工 8-2）。
 
@@ -778,6 +780,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `bad_code`、`bad_login`、`bad_password`、`login_throttled`、`setup_first`、`local_only` | -32010 | 网页登录的几种（施工 W-8，`web-module.md`「出错」） |
 | `unknown_persona` | -32010 | 造会话时人格的目录不存在 |
 | `session_not_found` | -32010 | 没有这个会话，删了的也是 |
+| `no_system_account` | -32010 | 场所会话的属主该是系统账号，还没有（施工 O-3；系统账号随 O-4） |
+| `venue_session` | -32010 | 场所会话只收代表外部的人说的话：不带 `as` 的 `session.send`（施工 O-3） |
 | `session_stopped` | -32010 | 会话停了：写不进去、出了 bug |
 | `session_broken` | -32010 | 会话载入不了：日志、策略快照坏了、读不了 |
 | `empty_message` | -32010 | `session.send` 的 `text` 是空的、又没有附件；`session.redo` 换过的那一句一块都不剩 |
@@ -898,6 +902,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `bad_code` 到 `local_only` | 照 `web-module.md`「给人看的字」（施工 W-8） | |
 | `unknown_persona` | 没有这个人格。 | There is no such persona. |
 | `session_not_found` | 没有这个会话。 | There is no such session. |
+| `no_system_account` | 这个场所的会话要归系统账号，还没有装好系统账号。 | This venue's session belongs to a system account, which is not set up yet. |
+| `venue_session` | 这是通讯平台的场所会话，本机的头不能直接说话。 | This is a chat platform venue session; local heads cannot talk in it directly. |
 | `session_stopped` | 这个会话停了，详情在运行日志里；再发一次会重新载入。 | This session has stopped; the runtime log has the details. Sending again reloads it. |
 | `session_broken` | 这个会话载入不了：它的日志或者策略快照坏了。 | This session cannot be loaded: its log or policy snapshot is broken. |
 | `empty_message` | 消息是空的。 | The message is empty. |

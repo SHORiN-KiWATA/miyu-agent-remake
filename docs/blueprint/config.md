@@ -130,7 +130,7 @@ trusted = true
 
 | 格 | 是什么 |
 |---|---|
-| `key` | 键，恒为英文，照 `.` 分成几段，例如 `ui.language`。第一段是声明它的模块的编号。第三方扩展的放在 `ext.<扩展>` 下，随扩展那一步。人起的名字那一段写成占位 `<id>`、`<model>`（8-6，下面「人起的名字」），例如 `providers.<id>.base_url` |
+| `key` | 键，恒为英文，照 `.` 分成几段，例如 `ui.language`。第一段是声明它的模块的编号。第三方扩展的放在 `ext.<扩展>` 下，随扩展那一步。人起的名字那一段写成占位 `<id>`、`<model>`、`<external>`（8-6、O-3，下面「人起的名字」），例如 `providers.<id>.base_url` |
 | `kind` | 类型，下面「类型」那张表 |
 | `default` | 默认值，就是推荐值。必写，宏里不写编译不过。没有默认值的写 `none`（8-6：`models.chat`、供应商的地址这类）：不写就是没有，最终值里没有这一项，用它的一方自己说没有怎么办 |
 | `layers` | 能放在哪几层：`System`、`Personal`、`Project`，至少一层。8-1 有前两种，8-2 加了 `Project` |
@@ -164,7 +164,7 @@ trusted = true
 | 表 `table` | `[a.b]`，或者 `{ … }` | 键照名字的写法，值照元素的类型查 | 同上 |
 
 - 类型照「不为以后写代码」一样一样加：哪一步第一次有一项用到它，哪一步加。8-1 只有选项，8-2 加开关，8-5 加密钥，8-6 加整数、网址、名字、引用、列表，8-7 加小数、文字、时长，8-8 补加给模型看的字，列表的元素可以是选项（宏里写 `options [..]`，`config.schema` 照样带 `options`，选项的名字照样要有字）、文字（`texts [..]`）。路径、表随用到它的那一步。
-- **人起的名字**（8-6，`miyu_config::key`）：键里可以有一段是人起的名字，清单里写成占位：`<id>` 照「路径里的名字」（`kernel/ids.md`：小写字母开头，只有小写字母、数字、`-`、`_`，最长 32 个字符，不是 Windows 的保留名，它要当 `state/` 下的文件名），`<model>` 照「短名字」（1 到 128 字节，没有控制字符）。占位不能是第一段、最后一段。文件里、协议上、最终值里的是真的键，照 TOML 点号连着的键写：能裸着写的一段（只有字母、数字、`-`、`_`）照写，别的带双引号，例如 `providers.dev.models."deepseek-v4.1-flash".window`。哪一层写了哪几个名字，每个名字各合各的；没有默认值、哪一层都没写的，最终值里没有它。名字写法不对的那一段报一条 `bad_format`（原因码一样，话是「<键> 里的 <名字> 不能当名字：…」），底下的都不收。键里有人起的名字的项不能由环境变量压过。
+- **人起的名字**（8-6，`miyu_config::key`）：键里可以有一段是人起的名字，清单里写成占位：`<id>` 照「路径里的名字」（`kernel/ids.md`：小写字母开头，只有小写字母、数字、`-`、`_`，最长 32 个字符，不是 Windows 的保留名，它要当 `state/` 下的文件名），`<model>` 照「短名字」（1 到 128 字节，没有控制字符），`<external>` 是通讯平台上的身份，写法同 `<model>`（施工 O-3，主人对应表）。占位不能是第一段；O-3 起可以是最后一段：一张按名字的表，每一格就是这一项（`external.bindings."qq:10001" = "admin"`），Schema 里写成那张表的 `additionalProperties`，参考文件里写成 `# "<external>" =`。文件里、协议上、最终值里的是真的键，照 TOML 点号连着的键写：能裸着写的一段（只有字母、数字、`-`、`_`）照写，别的带双引号，例如 `providers.dev.models."deepseek-v4.1-flash".window`。哪一层写了哪几个名字，每个名字各合各的；没有默认值、哪一层都没写的，最终值里没有它。名字写法不对的那一段报一条 `bad_format`（原因码一样，话是「<键> 里的 <名字> 不能当名字：…」），底下的都不收。键里有人起的名字的项不能由环境变量压过。
 
 **生效时机** `applies`（G7）：
 
@@ -251,6 +251,7 @@ miyu_config::settings! {
 | `usage.currency` | 文字，最多 3 个字符 | `USD` | 系统、个人 | 不能写 | `now`：下一次 `usage.query` 照新的排；`session_usage` 照这一轮冻结的 | 8-15（`models.md`「对外的样子」） |
 | `log.level` | 选项 `error`、`warn`、`info`、`debug`、`trace`、`off` | `info` | 系统 | 不能写 | `now`，`MIYU_LOG` 压过 | 8-1 声明，8-2 读，8-4 当场换 |
 | `permission.start_read_only` | 开关 | `false` | 系统、个人、项目 | `true_only` | `new_session` | 8-2 |
+| `external.bindings.<external>` | 名字（本机账号） | 没有 | 系统 | 不能写 | `now` | O-3：主人对应表（`venues.md`），一个号一行；对着不存在的账号的认的时候当没写、记一行运行日志 |
 | `ui.startup` | 选项 `new`、`recent` | `new`，开一个新会话 | 系统、个人 | 不能写 | `head_start` | 8-3（8-28 从 `tui.startup` 改名） |
 | `models.chat` | 引用 | 没有：`no_model` | 系统、个人 | 不能写 | `new_session` | 8-6 |
 | `models.vision` | 引用 | 没有 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
@@ -946,6 +947,11 @@ $ miyu logout bigmodel-2
 ```toml
 # Miyu 的全部配置项和默认值。这份是生成的，改它没有用。
 # 系统配置写在 system/config.toml，个人设置写在 home/<账号>/settings.toml。
+
+[external.bindings]
+# 主人的平台账号：通讯平台上的哪个号是哪个本机账号本人。键写平台上的身份（例如 qq:10001），值写本机账号。私聊里，这个号就是那个账号本人。
+# 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置里。当场生效。
+# "<external>" =
 
 [log]
 # 运行日志的级别：运行日志记到哪一级。排查问题时调成 debug。设了环境变量 MIYU_LOG 的，那一次启动照它。
@@ -1959,7 +1965,7 @@ Options:
 | `crates/miyu-core/src/settings/tests.rs` | 运行中换了配置：`log.level` 当场换级别、记 `INFO log level`，`ui.language` 变了重写生成的文件；`MIYU_LOG` 设了的，配置怎么改都不换级别 | 8-4 |
 | `crates/miyu-endpoint/src/config/journal/tests.rs`、`config/tests/trust.rs` | 手改被看到的日志：`by` 是内核、没有 `cause`，`trust.changed` 多 `via`。手改的信任记录只报回答变了的、新加的仓库，照最后一条算 | 8-4 |
 | `crates/miyu-config/src/secret/tests.rs` | 名字的写法；引用的两种写法（TOML、JSON、人敲的）认得出、别的不认；`Secret` 的 `Debug` 不印值；`secret.set` 收的值去掉前后空白、空的、控制字符、16 KiB 的边；密钥文件写错的一行报问题、不带 `got`；TOML 写错的几种报的话里没有 key；改一行只动那一行（接在后面、换、删、删到只剩一行或者空了、表头前面、`\r\n`、引号转义、写成表的放不进去）；引用取不到的报警告、说成话；类型是密钥的一项读、说、合并、生成 Schema | 8-5 |
-| `crates/miyu-config/src/key/tests.rs` | 两种占位的写法；真的键拆开接上互为来回、要的才带引号、写不对的拆不开；对样子（对上交回名字、名字写法不对的指出第几段、段数不对的对不上）、对一组的开头；填名字；列出下一个占位填过的名字 | 8-6 |
+| `crates/miyu-config/src/key/tests.rs` | 三种占位的写法（`<external>` 施工 O-3）；真的键拆开接上互为来回、要的才带引号、写不对的拆不开；对样子（对上交回名字、名字写法不对的指出第几段、段数不对的对不上）、对一组的开头；填名字；列出下一个占位填过的名字 | 8-6 |
 | `crates/miyu-config/src/named_tests.rs` | 人起的名字和 8-6 的几种类型走一遍：照真的键读进来、记下样子和行；名字写错的表只报一条、底下不收、点号连着写的一样；每种类型报自己的问题（选项、网址、列表、名字、范围、引用、写成了别的类型）；引用、网址、整数的校验；分层照真的键合、没写又没默认值的没有、设置类型照名字读、默认值里没有它们；列表里的引用一个个查取不到的、`used_by`；带引号的键改一项、换、删、照类型读人敲的和 JSON；Schema 里的 `additionalProperties`、`format`、`minimum`、没有默认值不写、参考文件的表头和注释那一行、读得懂；几种新问题说成话、没有默认值的选项照第一个举例 | 8-6 |
 | `crates/miyu-store/src/secrets/tests.rs` | 没有的是空的；新建、替换都是 0600，临时文件建的时候就是；手改松了的写一次收回；组、别人读得到的说出来；顺着链接写；`Debug` 不印字；读了以后变了的不盖 | 8-5 |
 | `crates/miyu-endpoint/tests/secrets.rs`、`src/secrets/tests.rs` | 写、换、删、列（`used_by` 照最终值、没设的也列）；参数不对的九种；0600；回应、拒绝、系统日志里没有值，日志一条一条照样本、只记名字；引用取不到的报警告、设了就不报，`{ env }` 照核心的环境；密钥文件写错的算进 `config_errors`、写不了（`config_file_broken`，照上一次读好的用）；写之前的手改先记；监视看到手改（新设、换掉、删掉） | 8-5 |
