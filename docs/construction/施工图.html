@@ -604,6 +604,8 @@ a.step:hover{border-color:var(--primary)}
         <li><span class="step"><span class="n">O-8</span>桥的骨架和主人私聊（等真机）</span></li>
         <li><a class="step done" href="#sO-9"><span class="n">O-9</span>顶替窗口与分派<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-10"><span class="n">O-10</span>出站链<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sO-11"><span class="n">O-11</span>判官的请求和回答<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">O-12</span>整顿群聊内核</span></li>
         <li><span class="step"><span class="n">O-13</span>核心：场所的格、事件和 events.append</span></li>
         <li><span class="step"><span class="n">O-14</span>核心：由桥开一轮</span></li>
         <li><a class="step done" href="#sO-6"><span class="n">O-6</span>核心：斜杠命令由核心解析<span class="st">✓</span></a></li>
@@ -14487,6 +14489,56 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/O-10-出站链.md</code>；蓝图 <code>chat.md</code> 第五条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sO-11" aria-labelledby="h-sO11">
+  <div class="sheet-head"><h2 id="h-sO11"><span class="no">O-11</span>判官的请求和回答</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">主动回复判断问判官的那一次：照 model.call 的形状拼请求，从回答里读出五维、该不该回、是不是在跟她说话、违规和理由。判官的说明十三份放进资源、登记、量过 token。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-chat/src/judge</span><span class="dir-note">O-11</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>说明照旧版的四段改写成英文短句，去掉好感度和「程序还会加减分」</li>
+              <li>system 一条、user 一条；两种模式（打分、只查违规）</li>
+              <li>读回答宽：包在代码块里、前后有别的字的都认；读不出的当判不了、照不回算</li>
+              <li>说明读进来时先校验：门槛换不进去当场报错，不悄悄丢一段</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">打分那一次的说明 648 token</span><span class="rl">只在判官的辅助请求里，不进主对话</span></div>
+          <div class="tile new"><span class="nm">违规只要严重程度和理由</span><span class="rl">旧版的类别、证据只进过日志</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-11</dd></div>
+        <div><dt>名称</dt><dd>判官的请求和回答</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">0182240f</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、原文 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试先写（31 个）；21 个手写变异全逮住；token 照开发端点实测、整块核对；门禁八项全过；三台机器的 CI 和长跑全绿（run 1058、1067）；项目主人过目原文</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-11-判官的请求和回答.md</code>；蓝图 <code>chat.md</code> 第六条；<code>26-提示词.md</code> 第十节十三行。</li>
       </ul>
     </div>
   </div>
