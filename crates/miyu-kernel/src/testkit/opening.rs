@@ -142,6 +142,7 @@ impl Stage {
             held_title: None,
             routing: super::routing::Routing::default(),
             sight: super::sight::Sight::default(),
+            swap: None,
         };
         stage.settle(actions);
         stage

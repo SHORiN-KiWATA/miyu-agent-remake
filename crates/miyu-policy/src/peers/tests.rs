@@ -75,7 +75,7 @@ fn the_numbers_and_the_tags_go_in() {
         "{}",
         rendered(&snapshot, PEER)
     );
-    let text = String::from_utf8(snapshot.to_bytes()).unwrap();
+    let text = crate::test_support::text_without_digest(&snapshot);
     assert!(
         text.contains(r#""peers":{"message_open":"<session-message from=\"{id}\">\n","message_close":"</session-message>\n","#),
         "{text}"

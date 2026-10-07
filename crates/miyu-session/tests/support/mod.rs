@@ -211,6 +211,11 @@ impl Home {
                 .sources("engineer")
                 .expect("出厂的软件工程师")
                 .persona,
+            personas: miyu_store::personas::Personas::new(
+                &self.resources,
+                &self.root,
+                &alice_account(),
+            ),
             memory_account: lines.memory_account,
             memory_scope: lines.memory,
             venue: lines.venue,
@@ -286,6 +291,7 @@ impl Home {
                 &self.root,
                 &alice_account(),
             ),
+            resources: &self.resources,
             id: session.clone(),
             environment: Environment {
                 cwd: cwd.to_string(),

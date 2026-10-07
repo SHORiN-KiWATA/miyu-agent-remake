@@ -29,6 +29,7 @@ mod session_fact;
 mod shorten;
 mod spans;
 mod stopping;
+mod swap;
 mod tail;
 mod title;
 mod undo_jobs;

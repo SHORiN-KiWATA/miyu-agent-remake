@@ -39,6 +39,7 @@ mod halt;
 mod listing;
 mod mail;
 mod model;
+pub(crate) mod persona;
 mod stop;
 mod store;
 mod watchers;
@@ -104,6 +105,8 @@ pub(crate) struct Actor {
     handed: Limits,
     /// 给头看的限额和会话接下来请求的模型，和 `Handle` 共用（施工 8-9、8-10）：交了新的限额、回合开始解析完写一次。
     shown: Arc<Mutex<Shown>>,
+    /// 人格的文件改了，下一个回合换上（施工 P-1 再补，`persona.rs`）：造会话、载入时交，测试里造的没有。
+    persona: Option<persona::Refresh>,
 }
 
 /// 会话停了：写不进去。
@@ -195,6 +198,7 @@ impl Actor {
             listed: false,
             handed,
             shown,
+            persona: None,
         }
     }
 

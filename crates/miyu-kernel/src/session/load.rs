@@ -168,7 +168,7 @@ impl Session {
             stored: replay.last,
             waiting: Vec::new(),
             recent,
-            policy,
+            policy: super::policy::Held::new(policy),
             environment,
             permission: permission.clone(),
             effective: permission,

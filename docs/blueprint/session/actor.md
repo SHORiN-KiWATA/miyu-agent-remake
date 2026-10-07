@@ -57,7 +57,7 @@
 | `Jobs` | 执行器的任务表，核心里一张：`Jobs::new()`，`running()` 有没有在跑的后台命令（结束了、记录还没落盘的也算，施工 7-3） |
 | `Unreadable` | 头读不了这个任务的输出：`Unknown` 没有这个任务，`Agent` 是子代理（施工 7-4 补） |
 
-`Create` 的格：数据根 `root`、资源目录 `resources`（随核心附带的字）、会话编号 `id`、人格 `persona`（编号）和叠好的人格的字 `persona_texts`（施工 P-1 上：端点照 `personas.md` 找好交进来，会话不再自己读人格目录）、记忆归哪个账号 `memory_account`（施工 P-1 上，`personas.md`「怎么走」第 5 条：回合库、记忆日志照它和人格开）、记忆的范围 `memory_scope`（施工 R-3 下，`memory.md`「范围」：记进快照的 `memory`；子会话不管交的是什么都写 `off`）、场所 `venue`、属主 `owner`、开始时的权限 `permission`、有没有人能确认 `attended`、一次性的 `oneshot`、环境 `environment`（时区、工作目录）、造会话的命令编号 `command`、谁发的 `by`、造端口的 `models`、工具目录 `tools`、系统的家目录 `home`（读不出来的是空的）、沙盒的助手 `sandbox`（这台机器上的沙盒能用才有，施工 5-4 上）、沙盒的缓存 `sandbox_cache`（`<缓存目录>/sandbox/<属主>`，核心算不出缓存目录的没有，施工 5-4 下）、父会话和第几层 `lineage`（子会话才有，施工 7-5）、造子会话的端口 `sessions`（会话表交进来的，测试里自己造的没有，施工 7-5）、任务表 `jobs`（核心里那一张，施工 7-3）、属主的会话列表的索引 `index`（会话表交进来的，测试里自己造的可以没有，施工 3-8 七补，`store/index.md`）、核心一份的记忆 `memory`（回合库的登记和记忆日志的登记，施工 R-2 上、R-3 中，`memory.md`）。`Load` 的格：`root`、`owner`、`memory_account`（端点照会话的人格和属主同一条规则算，施工 P-1 上）、`id`、`environment`、`models`、`tools`、`home`、`sandbox`、`sandbox_cache`、`sessions`、`jobs`、`index`、`memory`。
+`Create` 的格：数据根 `root`、资源目录 `resources`（随核心附带的字）、会话编号 `id`、人格 `persona`（编号）和叠好的人格的字 `persona_texts`（施工 P-1 上：端点照 `personas.md` 找好交进来，会话不再自己读人格目录）、人格的几层 `personas`（施工 P-1 再补：回合开始时照它看人格的文件改了没有，「换快照」）、记忆归哪个账号 `memory_account`（施工 P-1 上，`personas.md`「怎么走」第 5 条：回合库、记忆日志照它和人格开）、记忆的范围 `memory_scope`（施工 R-3 下，`memory.md`「范围」：记进快照的 `memory`；子会话不管交的是什么都写 `off`）、场所 `venue`、属主 `owner`、开始时的权限 `permission`、有没有人能确认 `attended`、一次性的 `oneshot`、环境 `environment`（时区、工作目录）、造会话的命令编号 `command`、谁发的 `by`、造端口的 `models`、工具目录 `tools`、系统的家目录 `home`（读不出来的是空的）、沙盒的助手 `sandbox`（这台机器上的沙盒能用才有，施工 5-4 上）、沙盒的缓存 `sandbox_cache`（`<缓存目录>/sandbox/<属主>`，核心算不出缓存目录的没有，施工 5-4 下）、父会话和第几层 `lineage`（子会话才有，施工 7-5）、造子会话的端口 `sessions`（会话表交进来的，测试里自己造的没有，施工 7-5）、任务表 `jobs`（核心里那一张，施工 7-3）、属主的会话列表的索引 `index`（会话表交进来的，测试里自己造的可以没有，施工 3-8 七补，`store/index.md`）、核心一份的记忆 `memory`（回合库的登记和记忆日志的登记，施工 R-2 上、R-3 中，`memory.md`）。`Load` 的格：`root`、`owner`、`personas` 和资源目录 `resources`（施工 P-1 再补：回合开始时看人格改了没有、照新的重拼）、`memory_account`（端点照会话的人格和属主同一条规则算，施工 P-1 上）、`id`、`environment`、`models`、`tools`、`home`、`sandbox`、`sandbox_cache`、`sessions`、`jobs`、`index`、`memory`。
 
 | `Handle` 的方法 | 做什么 |
 |---|---|
@@ -257,6 +257,13 @@
 | 拿着 `Handle` 的都放下了 | 记一行 `closed`，actor 退出 |
 | 写不进去、写盘的线程 panic 了 | 第 5 条 |
 | actor 自己 panic 了（内核的 bug、端口的 bug） | 看着它的任务记一行 `panicked, stopped`，别的会话照常 |
+
+**换快照**（施工 P-1 再补，`actor/persona.rs`、`snapshot.rs`，`kernel/session.md`「换策略快照」）：
+
+1. 造会话、载入时交给 actor 一份 `Refresh`：人格的几层、资源目录、存 blob 的地方、现在的快照、是不是子会话。载入照整份日志里最近一条带 `policy` 的 `session.policy_changed` 取快照，没有的照 `session.created` 的。
+2. 每个回合开始的挂接点（换模型解析完以后），在阻塞线程里照快照的人格编号把几层重新找一遍，算三份字的指纹（`PersonaTexts::digest`），和快照的 `persona_digest` 比：一样的、快照没有指纹的（以前造的），什么都不做。
+3. 不一样的照造会话的那一套重拼（`snapshot::build`，和 `open.rs` 共用）：工具面、记忆的范围那一格、有没有人能确认照旧快照，子会话照样接场所说明，随核心附带的字读这一刻的。拼出来以后照 `Snapshot::swappable` 比：除了 system、示范对话、角色扮演提示、指纹，别的格都一样才换（不一样说明程序升级过，驱动的占位、权限策略的几句还是照旧快照造的），存成 blob，策略交给内核放着（`Session::stage_policy`），`TurnStartHooksDone` 带上新快照的哈希，`Refresh` 里的快照换成新的；运行日志 `INFO persona swapped`。
+4. 人格找不着、写错了、读不了：照旧，`WARN persona unreadable`。换不了（程序升级过、拼不成、存不进）：照旧，`WARN persona not swapped`。新开的会话照新的。
 
 actor 退出以后：等着回应的命令、要订阅的、要停下的，都收到「会话停了」；订阅读完剩下的是 `Ended::Stopped`；路上的请求被叫停；在跑的工具被掐掉；这个会话还在任务表里的后台命令整组杀掉、不记（再载入时内核补 `aborted`，施工 7-3）；不再算在跑。协议端点照「会话停了」把它从表里拿掉，下次用到再从磁盘载入（`protocol.md`）。
 

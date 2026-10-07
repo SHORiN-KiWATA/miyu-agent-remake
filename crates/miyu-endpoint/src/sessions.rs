@@ -122,6 +122,7 @@ impl Sessions {
             id: id.clone(),
             persona: &persona.id,
             persona_texts: persona.texts.clone(),
+            personas: personas::personas(core),
             memory_account: personas::memory_account(&persona, &core.admin),
             memory_scope: who
                 .memory
@@ -218,6 +219,7 @@ impl Sessions {
             id: id.clone(),
             persona: &persona.id,
             persona_texts: persona.texts.clone(),
+            personas: personas::personas(core),
             memory_account: personas::memory_account(&persona, &child.owner),
             memory_scope: MemoryScope::Off,
             venue: child.venue,

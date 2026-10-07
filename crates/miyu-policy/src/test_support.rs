@@ -255,6 +255,22 @@ pub(crate) fn sources() -> Sources {
     }
 }
 
+/// 快照的字节，去掉人格的指纹那一格（施工 P-1 再补）：它排在最后，以前几步的测试照「哪一格排在最后」查字节、拿掉几格
+/// 当成以前造的快照读回来。
+pub(crate) fn text_without_digest(snapshot: &Snapshot) -> String {
+    let text = String::from_utf8(snapshot.to_bytes()).unwrap();
+    match &snapshot.persona_digest {
+        Some(digest) => {
+            let field = format!(
+                ",\"persona_digest\":{}",
+                serde_json::to_string(digest).unwrap()
+            );
+            text.replacen(&field, "", 1)
+        }
+        None => text,
+    }
+}
+
 /// 软件工程师的快照，有人能确认。
 pub(crate) fn engineer() -> Snapshot {
     compose("engineer", sources(), true)

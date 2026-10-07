@@ -52,9 +52,8 @@ mod tools;
 mod turn;
 
 pub use action::{Action, Outcome, Reason};
-pub use input::{
-    Answer, Command, Injection, Input, Limits, Queued, Received, Replaced, Reread, Verdict,
-};
+pub use configure::Replaced;
+pub use input::{Answer, Command, Injection, Input, Limits, Queued, Received, Reread, Verdict};
 pub use limits::ContextLimits;
 pub use load::LoadError;
 pub use messages::Subagent;
@@ -93,8 +92,8 @@ pub struct Session {
     waiting: Vec<(CommandId, Vec<Seq>, Outcome)>,
     /// 最近接受的命令编号。
     recent: Recent,
-    /// 冻结在会话上的策略。
-    policy: Policy,
+    /// 冻结在会话上的策略，和执行器先放着、回合开始时换上的新的一份（施工 P-1 再补，`policy.rs`）。
+    policy: policy::Held,
     /// 会话所在的环境：时区、工作目录。
     environment: Environment,
     /// 现在的权限：人最近一次切成的。
@@ -168,7 +167,7 @@ impl Session {
             stored: None,
             waiting: Vec::new(),
             recent: Recent::default(),
-            policy,
+            policy: policy::Held::new(policy),
             environment,
             permission: created.permission.clone(),
             effective: created.permission.clone(),
@@ -262,7 +261,8 @@ impl Session {
                 turn,
                 injected,
                 replaced,
-            } => self.turn_start_hooked(at, turn, injected, replaced),
+                policy,
+            } => self.turn_start_hooked(at, turn, injected, replaced, policy),
             Input::RequestSent {
                 at,
                 seen,

@@ -1,13 +1,21 @@
-//! 冻结在会话上的策略（`docs/designs/02-内核.md` K3，第六节「回合怎么开、请求怎么发」第 7 条）。
+//! 冻结在会话上的策略（`docs/designs/02-内核.md` K3，第六节「回合怎么开、请求怎么发」第 7 条），和回合开始时换上新的一份
+//! （施工 P-1 再补，`docs/blueprint/kernel/session.md`「换策略快照」）。
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::ops::Deref;
 
 use crate::assemble::Assembler;
 use crate::estimate::Flat;
+use crate::event::{Body, Event, PolicyChanged};
 use crate::facts::FactTemplates;
+use crate::id::{CommandId, ContentHash};
+use crate::origin::By;
 use crate::template::Template;
+use crate::time::Timestamp;
 use crate::tool::{ToolRule, ToolTexts};
+
+use super::Session;
 
 /// 冻结在会话上的策略：造会话时由执行器照策略快照造好交进来（施工 3-6），会话里不再变。
 pub struct Policy {
@@ -166,5 +174,64 @@ impl fmt::Debug for Policy {
             .field("reports", &self.reports)
             .field("peers", &self.peers)
             .finish_non_exhaustive()
+    }
+}
+
+/// 会话手里的策略（施工 P-1 再补）：现在用的那一份，和执行器先放着、回合开始的挂接点跑完时换上的新的一份。解引用成
+/// 现在用的那一份。
+#[derive(Debug)]
+pub(super) struct Held {
+    current: Policy,
+    staged: Option<Policy>,
+}
+
+impl Held {
+    /// 造会话、载入时交进来的那一份。
+    pub(super) fn new(policy: Policy) -> Held {
+        Held {
+            current: policy,
+            staged: None,
+        }
+    }
+}
+
+impl Deref for Held {
+    type Target = Policy;
+
+    fn deref(&self) -> &Policy {
+        &self.current
+    }
+}
+
+impl Session {
+    /// 先放着一份新的策略（施工 P-1 再补）：人格的文件改了，执行器照新的拼好快照、造好策略，在交回这一轮的
+    /// [`super::Input::TurnStartHooksDone`] 以前交进来；那一条带着新快照的哈希时换上，没带的扔掉。再交一份盖掉前一份。
+    pub fn stage_policy(&mut self, policy: Policy) {
+        self.policy.staged = Some(policy);
+    }
+
+    /// 回合开始的挂接点跑完了：带着新快照的哈希 `hash`、又有放着的那一份的，换上它，记一条 `session.policy_changed`（只写
+    /// `policy`，`by` 是内核，`cause` 是回合的）。回合开头的事实是照旧的那一份查的：照新的再查一次角色扮演提示，到了轮数
+    /// 的跟着记（旧人格没有提示、新的有，这一轮就带上）。缺一样的什么都不记，放着的扔掉。
+    pub(super) fn swap_policy(
+        &mut self,
+        at: Timestamp,
+        cause: Option<CommandId>,
+        hash: Option<ContentHash>,
+    ) -> Vec<Event> {
+        let staged = self.policy.staged.take();
+        let (Some(hash), Some(policy)) = (hash, staged) else {
+            return Vec::new();
+        };
+        self.policy.current = policy;
+        let body = Body::PolicyChanged(PolicyChanged {
+            policy: Some(hash),
+            ..PolicyChanged::default()
+        });
+        let mut events = vec![self.record(at, By::Kernel, cause.clone(), body)];
+        if let Some(fact) = self.policy.facts.reminder(&self.history) {
+            events.push(self.record(at, By::Kernel, cause, Body::ContextInjected(fact)));
+        }
+        events
     }
 }

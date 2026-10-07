@@ -47,6 +47,7 @@ mod route;
 mod sandbox;
 mod sessions;
 mod shown;
+mod snapshot;
 mod spawn;
 mod store;
 #[cfg(feature = "testkit")]

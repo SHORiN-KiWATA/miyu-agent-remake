@@ -4,6 +4,8 @@
 //! 施工 3-6（上）时只有人设。别的块跟着各自的功能来，按 J12 先实测证明不加不行：场所说明施工 7-5 加（子会话）；核心的
 //! 几行施工 2-7 补加，权限那一行和本机文件的路径那一行，2026-10-01 主会话 A/B 实测过（`26-提示词.md` 第十节）。
 
+use miyu_kernel::id::ContentHash;
+
 use crate::pause::PAUSE;
 use crate::persona::Demo;
 use crate::rebuild::REBUILD;
@@ -61,6 +63,7 @@ pub struct PersonaTexts {
 
 /// 照 `26-提示词.md` 第四节拼出人格 `persona` 的快照。`attended` 是这个场所有没有人能确认。
 pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
+    let digest = sources.persona.digest();
     Snapshot {
         persona: persona.to_string(),
         system: system(&[&sources.persona.persona]),
@@ -77,6 +80,19 @@ pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
         peers: Some(crate::peers::PEERS),
         memory: None,
         reminder: reminder(&sources.persona.reminders, &sources.reminder),
+        persona_digest: Some(digest),
+    }
+}
+
+impl PersonaTexts {
+    /// 三份字的指纹（施工 P-1 再补）：拼进快照的 `persona_digest`，回合开始时执行器照它认出人格的文件改了。
+    ///
+    /// # Panics
+    ///
+    /// 实际不会 panic：字和示范对话总写得成 JSON。
+    pub fn digest(&self) -> ContentHash {
+        let texts = (&self.persona, &self.examples, &self.reminders);
+        ContentHash::of(&serde_json::to_vec(&texts).expect("字和示范对话写得成 JSON"))
     }
 }
 
@@ -115,6 +131,19 @@ impl Snapshot {
             .join("\n");
         self.system = system(&[&self.system, &block]);
         self
+    }
+
+    /// 能不能换成 `new`（施工 P-1 再补）：除了 system、示范对话、角色扮演提示和人格的指纹，别的格都一样。不一样的说明程序
+    /// 升级过、执行器照旧快照造的那几份字（驱动的占位、权限策略的几句）还是旧的，换一半会让两版字混着用。
+    pub fn swappable(&self, new: &Snapshot) -> bool {
+        let rest = |snapshot: &Snapshot| Snapshot {
+            system: String::new(),
+            demos: Vec::new(),
+            reminder: None,
+            persona_digest: None,
+            ..snapshot.clone()
+        };
+        rest(self) == rest(new)
     }
 
     /// 带上风格锁（施工 P-1 补）：system 的最后一块（26 第四节第 7 块），在 [`Snapshot::with_core_lines`] 以后调。只有带
@@ -277,6 +306,49 @@ mod tests {
             plain.system,
             "没有角色扮演提示的不带"
         );
+    }
+
+    /// 人格的指纹（施工 P-1 再补）：同样的字同样的指纹，三份里改了哪一份都变；拼进快照。
+    #[test]
+    fn the_digest_follows_the_three_persona_texts() {
+        let base = crate::test_support::sources().persona;
+        let digest = base.digest();
+        assert_eq!(base.clone().digest(), digest);
+        let mut persona = base.clone();
+        persona.persona.push('x');
+        let mut examples = base.clone();
+        examples.examples = crate::persona::read_examples("user: a\nassistant: b\n").unwrap();
+        let mut reminders = base.clone();
+        reminders.reminders = "Stay.".to_string();
+        for changed in [persona, examples, reminders] {
+            assert_ne!(changed.digest(), digest);
+        }
+        assert_eq!(crate::test_support::engineer().persona_digest, Some(digest));
+    }
+
+    /// 换快照只许人格的那几格不一样（施工 P-1 再补）：核心的字、工具面、人格编号变了的都不算。
+    #[test]
+    fn only_the_persona_parts_may_differ_for_a_swap() {
+        let old = crate::test_support::engineer()
+            .with_tools(vec![a_tool()])
+            .with_core_lines(&lines());
+        let mut sources = crate::test_support::sources();
+        sources.persona.persona = "You are Miyu.\n".to_string();
+        sources.persona.reminders = "Stay.".to_string();
+        let new = compose("engineer", sources, true)
+            .with_tools(vec![a_tool()])
+            .with_core_lines(&lines())
+            .with_style_lock("<lock/>");
+        assert!(old.swappable(&new));
+        let mut core = new.clone();
+        core.core.facts.env = "<e/>\n".to_string();
+        assert!(!old.swappable(&core), "核心的字变了");
+        let mut tools = new.clone();
+        tools.tools.clear();
+        assert!(!old.swappable(&tools), "工具面变了");
+        let mut other = new;
+        other.persona = "miyu".to_string();
+        assert!(!old.swappable(&other), "不是同一个人格");
     }
 
     #[test]

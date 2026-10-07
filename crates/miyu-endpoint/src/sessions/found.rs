@@ -65,6 +65,7 @@ impl Open {
         let loaded = load(Load {
             root: &core.root,
             personas: crate::personas::personas(core),
+            resources: &core.resources,
             owner: core.admin.clone(),
             id: id.clone(),
             environment: environment(workspace.clone(), dirs.clone()),
