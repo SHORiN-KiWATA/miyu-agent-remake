@@ -600,6 +600,8 @@ a.step:hover{border-color:var(--primary)}
         <li><span class="step"><span class="n">O-4</span>核心：系统账号</span></li>
         <li><a class="step done" href="#sO-5"><span class="n">O-5</span>进站链与限流的判定<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-7"><span class="n">O-7</span>加值项、算分与冷静<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">O-8</span>桥的骨架和主人私聊（等真机）</span></li>
+        <li><a class="step done" href="#sO-9"><span class="n">O-9</span>顶替窗口与分派<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-6"><span class="n">O-6</span>核心：斜杠命令由核心解析<span class="st">✓</span></a></li>
       </ol>
     </li>
@@ -14218,6 +14220,55 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sO-9" aria-labelledby="h-sO9">
+  <div class="sheet-head"><h2 id="h-sO9"><span class="no">O-9</span>顶替窗口与分派</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">主动回复判断的下半：同一个人 7 秒内补发，接过前一条或者带着它重判；承诺要回的一条分派到主线还是支线。群聊内核里「要不要开口、谁来回」的判定到这里都齐了。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-chat/src/chatty/dispatch</span><span class="dir-note">O-9</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>顶替：同一个人、不到 7 秒；判过要回的接过去，还在判的取消、几条一起重判</li>
+              <li>条件合起来同一种只留一个，主触发保留原来的</li>
+              <li>分派五种：开主线、并进主线、并进支线、分叉支线、排到主线下一轮</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">自己没有条件也顶替</span><span class="rl">照旧版：补发的那句常常没 @ 她</span></div>
+          <div class="tile new"><span class="nm">顶替不是一种触发条件</span><span class="rl">是合并条件的办法</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-9</dd></div>
+        <div><dt>名称</dt><dd>顶替窗口与分派</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-07</dd></div>
+        <div><dt>提交</dt><dd class="mono">7abb9ed1</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测试先写（15 个，只有骨架时 13 个红）；18 个手写变异全逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 1043）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-9-顶替窗口与分派.md</code>；蓝图 <code>chat.md</code> 第四条；18 第七节的流程图。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <footer class="foot">
   <p>这张图跟着施工走：一步合进 main，它的那张图就跟着定稿，标题栏里写上提交号。源文件是仓库里的 <code>docs/construction/施工图.html</code>，浏览器直接打开就能看。</p>
 </footer>
@@ -14396,6 +14447,7 @@ const TREE = {
 const BUILD = {
   n_mem: { by: 'R-1', how: 'frame', note: '检索的底子（R-1）：中文、日文两两切词，SQLite 的 FTS5 照 bm25 找。回合索引（R-2 上）：主会话人开的每一轮照日志派生进人格的回合库，撤销、恢复、删会话跟着走。记忆日志和底账（R-3 上）：ext.memory.saved、retired，一份一把锁，派生的记忆库；墓碑判出处活不活。工具、摘要、联想、向量随 R-3 中起' },
   n_ld: { by: 'O-7', how: 'frame', note: '主动回复判断的上半（O-7）：加值项（冲她来、续聊、刚说过话、违规旗、抽样）、走哪条路、算分、冷静。判官的请求、顶替和分派随后面几步' },
+  n_dispatch: { by: 'O-9', how: 'frame', note: '顶替与分派（O-9）：同一个人 7 秒内补发接过去或重判；分派到主线、支线或排队。从日志投影谁在判、各条线在回谁随桥' },
   n_inchain: { by: 'O-5', how: 'frame', note: '进站链与限流（O-5）：插槽和自带五条（睡眠、禁言、谁能叫她、违规关键词、限流），一回满了提示一次；回合闸的回答。从日志投影状态、出厂词表随桥那几步' },
   n_rules: { by: 'O-1', how: 'frame', note: '场所规则（O-1）：miyu-chat 读 venues.d，出厂和系统的照文件名排、同名的系统替换出厂的；匹配 platform、kind、group、user，写错整条不用；属性照 18 第四节，写错只丢一项；每一项记下来处。读磁盘、venue show 随桥那几步' },
   g_kernel: { by: '0-1', how: 'frame' },
