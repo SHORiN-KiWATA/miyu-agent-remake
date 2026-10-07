@@ -27,7 +27,7 @@
 ```json
 {
   "description": "Start a subagent in a new session to do one task in the background; its report arrives as a message when it finishes. It sees nothing of this conversation, so the prompt must stand on its own: background, what is already known, the goal and what to report.",
-  "parameters": {"type":"object","properties":{"description":{"type":"string","description":"A short title for the task, 3 to 5 words."},"prompt":{"type":"string","description":"The task for the subagent to perform."},"pool":{"type":"string","description":"Model pool for the task. Default: your own model."}},"required":["description","prompt"]}
+  "parameters": {"type":"object","properties":{"description":{"type":"string","description":"A short title for the task, 3 to 5 words."},"prompt":{"type":"string","description":"The task for the subagent to perform."},"pool":{"type":"string","description":"Model pool for the task. Default: your own model."},"persona":{"type":"string","description":"Persona for the subagent. Default: engineer."}},"required":["description","prompt"]}
 }
 ```
 
@@ -35,9 +35,10 @@
 |---|---|---|
 | `description` | 是 | 短标题：记进 `job.started` 的 `title`，头显示用，不交给子会话 |
 | `prompt` | 是 | 整段交代：原样送进子会话，不加包装 |
+| `persona` | 否 | 人格的编号（施工 P-2 补，走查 C5）：只能是这个会话列着的（端口的 `personas()`，同 `pool`：开会话时照这台机器上三层里的人格填进 `enum`，进快照）。交给端口，子会话照它造；不写、写 `null` 的是软件工程师 `engineer`。写错的同 `pool`，照参数不对列出能写的几个 |
 | `pool` | 否 | 池的名字，不带 `@`：只能是这个会话列着的（施工 8-8 补，端口的 `pools()`）。交给端口，子会话记 `@<池>`；不写、写 `null` 的，子会话用父会话这时用的（`models.md`「怎么走」第三条第 4 条）。这个会话一个池都没列的，参数格式里没有它 |
 
-- 别的参数不认，也不报错。以前的会话快照里冻着 `tier`（施工 8-8 造的），她照旧写的不报错、不理它，照不写办。人格、预设两个参数随配置和预设那一步（「还没有的」）。
+- 别的参数不认，也不报错。以前的会话快照里冻着 `tier`（施工 8-8 造的），她照旧写的不报错、不理它，照不写办。没有 `preset`：子会话一律照父会话的预设，写了也不理（2026-10-08 项目主人定：子代理只看得到池和人格）。
 
 **会话开局时拼 `pool`**（施工 8-8 补，`models.md`「工具」，2026-10-01 项目主人定、技术细节主会话定）：
 
@@ -127,4 +128,4 @@ Started subagent j1: "查导出".
 
 ### 还没有的
 
-- `persona`、`preset` 两个参数：随配置和预设那一步，加的时候工具面变一次（`16-人格与预设.md`）。`tier` 施工 8-8 加了，施工 8-8 补换成 `pool`。
+- `persona` 施工 P-2 补加了；`preset` 不加（2026-10-08 项目主人定）。`tier` 施工 8-8 加了，施工 8-8 补换成 `pool`。

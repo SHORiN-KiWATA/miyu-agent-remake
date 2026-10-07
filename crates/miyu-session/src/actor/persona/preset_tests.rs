@@ -51,7 +51,7 @@ fn setup(name: &str, text: &str) -> (Scratch, DataRoot, Refresh) {
         &tools,
         &venue,
         None,
-        &Values::default(),
+        &Offers::of(&Values::default(), Vec::new()),
         true,
         scope,
         Some(&chosen.file),

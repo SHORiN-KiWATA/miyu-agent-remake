@@ -120,7 +120,8 @@ pub(crate) struct GetParams {
 
 /// `preset.get`：叠好的样子。名字、说明的几种语言原样给；默认人格没写的是 `null`；`unlisted` 是叠好以后的（几层都没写的是
 /// `on`）；`software` 是包到开不开，`tools` 是关掉的单件工具，都是 `false`；`missing` 是 `[software]` 里写了、这台机器上没装的
-/// （施工 P-2 中，照编号排）。
+/// （施工 P-2 中，照编号排）；`switches` 是这台机器上装了的每一个软件叠好以后开不开（施工 P-2 补：预设是全部功能的开关，界面
+/// 照它一项一个开关画，2026-10-08 项目主人定）。
 pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal> {
     let found = resolve(core, Some(&params.preset)).await?;
     let installed = installed(core);
@@ -129,6 +130,10 @@ pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal
         .software
         .keys()
         .filter(|software| !installed.contains(*software))
+        .collect();
+    let switches: serde_json::Map<String, Value> = installed
+        .iter()
+        .map(|software| (software.clone(), json!(found.file.opens(software))))
         .collect();
     let tools: serde_json::Map<String, Value> = found
         .file
@@ -146,6 +151,7 @@ pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal
         "software": found.file.software,
         "tools": tools,
         "missing": missing,
+        "switches": switches,
     }))
 }
 

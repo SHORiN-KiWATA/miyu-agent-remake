@@ -207,10 +207,19 @@ async fn preset_get_names_software_that_is_not_installed() {
         .call("g1", "preset.get", json!({"preset": "dev"}))
         .await;
     assert_eq!(dev["result"]["missing"], json!(["goal", "net"]), "{dev}");
+    assert_eq!(
+        dev["result"]["switches"],
+        json!({"basesystem": true, "memory": false, "roleplay": false}),
+        "装了的每一个都有开关（施工 P-2 补）"
+    );
     let full = client
         .call("g2", "preset.get", json!({"preset": "full"}))
         .await;
     assert_eq!(full["result"]["missing"], json!([]));
+    assert_eq!(
+        full["result"]["switches"],
+        json!({"basesystem": true, "memory": true, "roleplay": true})
+    );
 }
 
 #[tokio::test]

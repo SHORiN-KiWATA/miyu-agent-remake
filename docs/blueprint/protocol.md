@@ -500,7 +500,7 @@
 |---|---|---|
 | `preset` | 字符串，必写 | 预设的编号 |
 
-回应 `{"preset", "name", "summary", "layers", "default_persona", "unlisted", "software", "tools"}`：`name`、`summary` 是语言到一句话的对象，原样给；`default_persona` 没写的是 `null`；`unlisted` 是叠好以后的 `on`、`off`（几层都没写的是 `on`）；`software` 是软件包的编号到 `true`、`false`；`tools` 是关掉的单件工具，值都是 `false`。编号不合写法的 `bad_params`，没有的 `unknown_preset`，写错的 `preset_invalid`。
+回应 `{"preset", "name", "summary", "layers", "default_persona", "unlisted", "software", "tools", "missing", "switches"}`：`name`、`summary` 是语言到一句话的对象，原样给；`default_persona` 没写的是 `null`；`unlisted` 是叠好以后的 `on`、`off`（几层都没写的是 `on`）；`software` 是软件包的编号到 `true`、`false`；`tools` 是关掉的单件工具，值都是 `false`；`missing` 是 `[software]` 里写了、这台机器上没装的（施工 P-2 中）；`switches` 是这台机器上装了的每一个软件叠好以后开不开（施工 P-2 补）。编号不合写法的 `bad_params`，没有的 `unknown_preset`，写错的 `preset_invalid`。
 
 **`package.list`**（施工 9-1 上，`packages.md`「协议」）
 

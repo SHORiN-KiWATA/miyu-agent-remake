@@ -19,7 +19,7 @@ use miyu_tool::{Log, Seen};
 use crate::TARGET;
 use crate::actor::persona::Refresh;
 use crate::actor::{self, Actor, JobKit};
-use crate::agents::{Agents, job_in};
+use crate::agents::{Agents, Offers, job_in};
 use crate::blocking::blocking;
 use crate::clock::Clock;
 use crate::config::Turning;
@@ -95,12 +95,14 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         .as_ref()
         .is_none_or(|chosen| chosen.file.opens(MEMORY));
     let scope = memory::scope(lineage.is_some(), opened, memory_scope);
-    // 工具面照这时的配置拼：`subagent` 能选哪几个池（施工 8-8 补），以后照快照、载入不重拼。照预设筛（施工 P-2 中）。
+    // 工具面照这时的配置拼：`subagent` 能选哪几个池（施工 8-8 补）、哪几个人格（施工 P-2 补），以后照快照、载入不重拼。
+    // 照预设筛（施工 P-2 中）。
+    let offers = Offers::of(&config.current().resolved.values(), personas.ids());
     let face = Agents::face(
         tools,
         &venue,
         lineage.as_ref(),
-        &config.current().resolved.values(),
+        &offers,
         attended,
         scope,
         preset.as_ref().map(|chosen| &chosen.file),
@@ -113,6 +115,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         attended,
     );
     let pools = Agents::pools_in(&face);
+    let agents_personas = Agents::personas_in(&face);
     let child = lineage.is_some();
     let count = face.len();
     let dir = root.session_dir(&owner, &id);
@@ -183,6 +186,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             reports: policy.reports.clone(),
             pools,
             preset: preset.clone(),
+            personas: agents_personas,
         })
     });
     let created = SessionCreated {

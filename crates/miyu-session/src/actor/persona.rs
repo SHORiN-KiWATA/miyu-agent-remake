@@ -16,7 +16,7 @@ use miyu_tool::Catalog;
 
 use super::Actor;
 use crate::TARGET;
-use crate::agents::Agents;
+use crate::agents::{Agents, Offers};
 use crate::blocking::blocking;
 use crate::open::PresetPlaces;
 use crate::snapshot::{Parts, build};
@@ -157,7 +157,7 @@ fn refaced(refresh: &Refresh, values: &Values, file: &PresetFile) -> Vec<ToolEnt
         &refresh.tools,
         &refresh.venue,
         refresh.lineage.as_ref(),
-        values,
+        &Offers::of(values, refresh.personas.ids()),
         old.attended,
         old.memory_scope(),
         Some(file),

@@ -13,7 +13,7 @@ use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{JobKind, JobStarted};
 use miyu_kernel::id::{JobId, SessionId};
 use miyu_kernel::tool::Access;
-use miyu_tool::{AgentPort, Done, Effect, NotSpawned, Spawned, Spawning};
+use miyu_tool::{AgentPort, Done, Effect, NotSpawned, Order, Spawned, Spawning};
 
 use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
@@ -23,13 +23,15 @@ use support::{Site, check, human, readable, resources, said, tool};
 /// 子会话的编号。
 const CHILD: &str = "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91";
 
-/// 假的端口：记下交给它的每一次标题和交代、池（施工 8-8 补）；`session` 有的派得出去，编号照第几次派从 `j1` 数起，没有的
-/// 一律派不了。这个会话列着的池是 `pools`。
+/// 假的端口：记下交给它的每一次标题和交代、池（施工 8-8 补）、人格（施工 P-2 补）；`session` 有的派得出去，编号照第几次派
+/// 从 `j1` 数起，没有的一律派不了。这个会话列着的池是 `pools`，人格是 `engineer`、`miyu`。
 struct Port {
     session: Option<SessionId>,
     pools: Vec<String>,
+    personas: Vec<String>,
     asked: Mutex<Vec<(String, String)>>,
     chosen: Mutex<Vec<Option<String>>>,
+    picked: Mutex<Vec<Option<String>>>,
 }
 
 impl Port {
@@ -41,9 +43,18 @@ impl Port {
         Arc::new(Port {
             session: session.map(|session| SessionId::parse(session).expect("会话编号合写法")),
             pools: pools.iter().map(|pool| pool.to_string()).collect(),
+            personas: vec!["engineer".to_string(), "miyu".to_string()],
             asked: Mutex::new(Vec::new()),
             chosen: Mutex::new(Vec::new()),
+            picked: Mutex::new(Vec::new()),
         })
+    }
+
+    fn picked(&self) -> Vec<Option<String>> {
+        self.picked
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 
     fn asked(&self) -> Vec<(String, String)> {
@@ -62,18 +73,17 @@ impl Port {
 }
 
 impl AgentPort for Port {
-    fn spawn<'a>(
-        &'a self,
-        description: &'a str,
-        prompt: &'a str,
-        pool: Option<&'a str>,
-    ) -> Spawning<'a> {
+    fn spawn<'a>(&'a self, order: Order<'a>) -> Spawning<'a> {
         let mut asked = self.asked.lock().unwrap_or_else(PoisonError::into_inner);
-        asked.push((description.to_string(), prompt.to_string()));
+        asked.push((order.description.to_string(), order.prompt.to_string()));
         self.chosen
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .push(pool.map(str::to_string));
+            .push(order.pool.map(str::to_string));
+        self.picked
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(order.persona.map(str::to_string));
         let job = JobId::new(asked.len() as u64).expect("从 1 数起");
         let answer = match &self.session {
             Some(session) => Ok(Spawned {
@@ -87,6 +97,10 @@ impl AgentPort for Port {
 
     fn pools(&self) -> &[String] {
         &self.pools
+    }
+
+    fn personas(&self) -> &[String] {
+        &self.personas
     }
 }
 
@@ -111,12 +125,21 @@ fn it_declares_a_title_the_task_and_a_pool() {
         .unwrap()
         .keys()
         .collect();
-    assert_eq!(names, ["description", "pool", "prompt"]);
+    assert_eq!(names, ["description", "persona", "pool", "prompt"]);
     assert_eq!(parameters["required"], json!(["description", "prompt"]));
     assert_eq!(
         parameters["properties"]["pool"],
         json!({"type": "string", "description": "Model pool for the task. Default: your own model."}),
         "资源里没有 enum：会话开局时照配置拼（施工 8-8 补）"
+    );
+    assert_eq!(
+        parameters["properties"]["persona"],
+        json!({"type": "string", "description": "Persona for the subagent. Default: engineer."}),
+        "资源里没有 enum：会话开局时照这台机器上有的拼（施工 P-2 补，同池）"
+    );
+    assert!(
+        parameters["properties"].get("preset").is_none(),
+        "预设不给她挑（2026-10-08 项目主人定）"
     );
     assert!(
         spec.description
@@ -294,4 +317,35 @@ fn both_names_show_the_same_to_people() {
         let now = words.tool("subagent").expect("有 subagent 的显示名");
         assert_eq!(words.tool("agent"), Some(now), "{language}");
     }
+}
+
+/// 人格（施工 P-2 补）：只认端口列着的，写对的交给端口，不写的交没有；写错的照参数不对、端口不派，原话照 `serde` 列出能写的
+/// 几个。写了 `preset` 的不理（预设不给她挑）。
+#[tokio::test]
+async fn a_persona_is_one_the_port_lists_and_goes_to_the_port() {
+    use serde::de::Error as _;
+    let site = Site::new();
+    let port = Port::new(Some(CHILD));
+    for args in [
+        json!({"description": "查", "prompt": "Read.", "persona": "miyu"}),
+        json!({"description": "查", "prompt": "Read."}),
+        json!({"description": "查", "prompt": "Read.", "persona": null, "preset": "dev"}),
+    ] {
+        let done = site
+            .done_with_agents("subagent", args.clone(), Some(port.clone()))
+            .await;
+        assert!(!done.error, "{args}：{}", text(&done));
+    }
+    assert_eq!(port.picked(), [Some("miyu".to_string()), None, None]);
+    let args = json!({"description": "查", "prompt": "Read.", "persona": "kiki"});
+    let done = site
+        .done_with_agents("subagent", args, Some(port.clone()))
+        .await;
+    assert!(done.error);
+    let error = serde_json::Error::unknown_variant("kiki", &["engineer", "miyu"]);
+    assert_eq!(
+        text(&done),
+        format!("The arguments are not right: {error}.\n")
+    );
+    assert_eq!(port.picked().len(), 3, "写错的端口不派");
 }

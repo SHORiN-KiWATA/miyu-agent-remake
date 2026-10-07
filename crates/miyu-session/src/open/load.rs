@@ -137,6 +137,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         depth: created.depth.unwrap_or(1),
     });
     let asks = Agents::asks(&created.venue, created.parent.as_ref(), attended);
+    // 能选的人格同池，照快照读回（施工 P-2 补）。
+    let agents_personas = Agents::personas_in(&snapshot.tools);
     let agents = sessions.map(|port| {
         Arc::new(Agents {
             port,
@@ -149,6 +151,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             reports: policy.reports.clone(),
             pools,
             preset: created.preset.clone(),
+            personas: agents_personas,
         })
     });
     let kept = blobs.clone();
