@@ -59,10 +59,12 @@
       "of": "text",
       "default": [
         "general",
-        "personas",
-        "appearance",
         "models",
+        "permissions",
+        "personas",
+        "presets",
         "advanced",
+        "appearance",
         "packages"
       ],
       "name": {
@@ -74,8 +76,7 @@
       "type": "map",
       "of": "text",
       "default": {
-        "interface": "general",
-        "permissions": "general"
+        "interface": "general"
       },
       "name": {
         "zh": "项少的核心页并进哪一页（页 → 页）"
@@ -113,6 +114,7 @@
         "personas": "user-round",
         "appearance": "palette",
         "models": "cpu",
+        "permissions": "shield",
         "advanced": "wrench",
         "packages": "package"
       },
