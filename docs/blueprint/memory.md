@@ -33,7 +33,16 @@
 
 ### 对外的样子
 
-**范围**（`17-记忆.md` L2、L3）：会话开局时定，之后不改。`session.create` 多一格 `memory`：`persona`（跟着人格，默认）、`session`（只在这个会话里）、`off`（不召回也不记，`miyu ask --no-memory` 就是它）。没有预设以前，出厂的软件工程师也开着（2026-10-07 项目主人定）。子代理一律 `off`（17 第二节）；群里的支线照主线（`18-通讯平台.md` 第八节）。范围记进策略快照（开局定、之后不改，正是快照管的；内核不认识「记忆」这个词，不进 `session.created`），以前造的快照里没有的照 `persona`。R-3 做；R-2 时主会话都算 `persona`。
+**范围**（`17-记忆.md` L2、L3，R-3 下）：会话开局时定，之后不改。三种：`persona`（跟着人格）、`session`（只在这个会话里）、`off`（不召回也不记）。
+
+- 默认照人格的 `persona.toml` 的 `[memory] scope`（`persona` 或 `session`，出厂写 `persona`；不写是 `persona`；别的值照人格的文件写错了报，`personas.md`）。开会话时能换：`session.create` 多一格 `memory`（`persona`、`session`、`off`，不写照人格的；别的值 `bad_params`）；`miyu ask --no-memory` 就是 `off`。人格与预设走查 E1（2026-10-07）。
+- 记进策略快照的 `memory`（开局定、之后不改，正是快照管的；内核不认识「记忆」这个词，不进 `session.created`）。以前造的快照里没有的照 `persona`。
+- 子代理一律 `off`（17 第二节，走查 C5）：快照照写 `off`，派的时候能指定，随 P-2。开不开记忆归预设（走查 E2，随 P-2）：在那之前本机的主会话照范围开。
+- `off`：不接回合索引，工具面上没有三件工具（`miyu ask --no-memory` 的会话前缀因此少 285 个 token）。
+- 每个范围一处记忆（一个「房间」）：
+  - `persona`：记忆归哪个账号（`memory_account`，P-1 上：人格住在谁的家目录就归谁，出厂、系统区的归会话的属主）下，`modules/memory/<人格>/` 的记忆日志，`index/recall/turns-<人格>.db`、`memory-<人格>.db`。
+  - `session`：会话自己的目录 `home/<属主>/sessions/<会话>/memory/` 下：`log/` 记忆日志，`turns.db`、`memory.db`。删会话、进回收处、从回收处恢复都跟着目录走，不另写一行。17 第七节原来写的是「记在这个会话自己的日志里」：会话日志只有会话 actor 一个写的人，工具绕不过它，所以单开一处，放在会话目录里（2026-10-07 施工 R-3 下定）。
+- 听众照会话的属主（本机的会话），记忆放在哪照房间：两样分开，多用户以后不混。
 
 **回合索引的一条**（R-2）：
 
@@ -199,6 +208,7 @@
 
 ### 还没有的
 
+- 删会话照管理员去回合库里拿掉：以后记忆归别的账号的会话，照它的 `memory_account` 去拿（多用户、O-4 以后）。
 - 预设：有了以后开不开记忆照预设（`16-人格与预设.md` 第八节要照 2026-10-07 的「软件工程师出厂开」重议）。
 - 一般知识那一层（`system/personas/<人格>/` 下，群里公开说的）：随 O 线接群聊。
 - 记忆页（终端界面、网页）：随 M9。
@@ -212,7 +222,8 @@
 | R-2 下 | 回合库新建、重建以后补齐旧会话，回收处恢复的补上（第一条第 9 款） |
 | R-3 上 | 记忆日志和底账：`ext.memory.saved`、`retired`，记忆日志的登记（一份一把锁），`MemoryBook`，派生的记忆库，回合库里的墓碑（撤销的回合、删掉的会话） |
 | R-3 中 | 三件工具：`miyu-memory` 软件包、端口、`remember`、`forget`、`memory_search`；量 token、登记、工具面的预算 |
-| R-3 下 | 范围和对外：`session.create` 的 `memory`（记进策略快照）、`miyu ask --no-memory`、范围 `session`、`memory.*`、`miyu memory`、清空 |
+| R-3 下 | 范围：`persona.toml` 的 `[memory] scope`、`session.create` 的 `memory`（记进策略快照）、`miyu ask --no-memory`、范围 `session` 的房间在会话目录里、`off` 不接；听众和记忆账号分开 |
+| R-3 补 | 对外：`memory.*`、`miyu memory`、三种清空 |
 | R-4 | 常驻的摘要：回合开始的挂接点（接口先发核心的主会话）、`refs`、排名 |
 | R-5 | embedding：`miyu-embed`、清单和下载、`models.embedding`、远程接口、向量一路接进来（和 R-2 到 R-4 不碰同一片代码，能并行） |
 | R-6 | 抽取 |
