@@ -160,6 +160,8 @@ pub(crate) fn spoken(
 ) -> Vec<Block> {
     match (&message.venue, &texts.group) {
         (Some(venue), Some(chat)) => group::line(event.at, &event.by, venue, blocks, chat),
+        // 不在群里、只有带的东西的（施工 O-13 补）：写成记号，不然她看到的是空的。
+        (Some(venue), None) if blocks.is_empty() => group::bare(venue).into_iter().collect(),
         _ => said(history, &event.by, blocks, texts),
     }
 }

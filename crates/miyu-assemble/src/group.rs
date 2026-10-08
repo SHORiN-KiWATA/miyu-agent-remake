@@ -112,15 +112,30 @@ fn content(words: &[Block], media: &[Media], no_text: &str) -> String {
     if !text.is_empty() {
         parts.push(escape(text));
     }
-    parts.extend(media.iter().map(|item| match &item.name {
-        Some(name) => format!("[{}: {}]", item.kind.as_str(), escape(name)),
-        None => format!("[{}]", item.kind.as_str()),
-    }));
+    parts.extend(media.iter().map(marker));
     if parts.is_empty() {
         no_text.to_string()
     } else {
         parts.join(" ")
     }
+}
+
+/// 带的一样东西的记号：`[image]`，有名字的 `[file: 名字]`，名字照模板的规矩转义。
+fn marker(item: &Media) -> String {
+    match &item.name {
+        Some(name) => format!("[{}: {}]", item.kind.as_str(), escape(name)),
+        None => format!("[{}]", item.kind.as_str()),
+    }
+}
+
+/// 不在群里的一条场所消息、没有内容块的（施工 O-13 补）：带的东西的记号一个文本块，空一格隔开；带的东西也没有的，没有。
+pub(crate) fn bare(venue: &VenueMessage) -> Option<Block> {
+    let markers: Vec<String> = venue.media.iter().map(marker).collect();
+    (!markers.is_empty()).then(|| {
+        Block::Text(Text {
+            text: markers.join(" "),
+        })
+    })
 }
 
 /// 缩进的 @ 那一行的内容：`@all`（@ 了全体成员）、`[you]`（@ 了她），看得到身份的再列 @ 了的人的平台身份；都没有的没有。

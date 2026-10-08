@@ -249,7 +249,7 @@
 
 1. 没有回合在进行的，这一句开一轮；有的，排队，`urgent` 的插进下一步（`kernel/session.md`）。带 `from` 的照第 7 条。
 2. 开的那一轮，`turn.started` 的 `cause` 是这一条的 `id`：头照它认出自己的那一轮。
-3. `text` 是空的、又没有附件：`empty_message`。先找会话，找不到的回的是找不到。只有附件、`text` 是空的，也是一句话。
+3. `text` 是空的、又没有附件、也没带场所的东西（`venue.media`）：`empty_message`。先找会话，找不到的回的是找不到。只有附件、`text` 是空的，也是一句话；只有 `venue.media` 的场所消息也是（施工 O-13 补：群里只发一张图、一个表情）。
 4. 附件变成内容块，照先后接在文字那一块后面（施工 3-9 三补）：核心照 blob 的内容照 `blob.put` 第 4 条再认一遍，同一份代码。图片是图片块，宽、高、媒体类型照这一次量的，头交回来的 `kind`、`width`、`height` 不算，`name` 照交回来的（施工 3-9 四补：一句话附了几张图，她分得清哪张是哪个文件）；文件是文件块，`name` 照交回来的，媒体类型照交回来的再过一遍第 4 条（内容是 PDF 的写 `application/pdf`，交回来写成 PDF、图片而内容不是的照内容认）。
 5. 附件先查，再找会话：一项缺了格、格不合写法（`kernel/ids.md`）：`bad_params`；blob 不在管理员的 blob 里：`unknown_attachment`；读不出来（坏了、读不了）：`internal_error`，记一条运行日志；是超了上限的图（不是 `blob.put` 传的 blob 才会有）：`attachment_too_big`。拒了的，会话里什么都不送。
 6. `from`（施工 7-10）：写了的，这条 `message.user` 的 `by` 记成 `{"kind":"harness","name":<名字>}`；不写的、写 `null` 的照旧记成本人。名字照短名字的规矩收（`kernel/ids.md`）：先去掉控制字符（Unicode 的 Cc 类），再截到 128 字节以内，不截断一个字；剩下是空的，`bad_params`。不是字符串的（数字、数组……）也是 `bad_params`。名字不核对，照它报的记；给模型看之前照不可信的文本转义（`kernel/request.md`「别的 harness 发来的话」）。它先查，查在附件前面：拒了的什么都不送。
@@ -972,7 +972,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `owner_only` | -32010 | `command.run`：这个命令只有主人本人能用，管理的人也不行（`/workspace`，施工 9-7 下） |
 | `session_stopped` | -32010 | 会话停了：写不进去、出了 bug |
 | `session_broken` | -32010 | 会话载入不了：日志、策略快照坏了、读不了 |
-| `empty_message` | -32010 | `session.send` 的 `text` 是空的、又没有附件；`session.redo` 换过的那一句一块都不剩 |
+| `empty_message` | -32010 | `session.send` 的 `text` 是空的、又没有附件、也没带场所的东西（施工 O-13 补）；`session.redo` 换过的那一句一块都不剩 |
 | `dir_too_wide` | -32010 | 加进来的目录太宽（「加进来的目录」（施工 5-10 上）） |
 | `attachment_unreadable` | -32010 | `blob.put` 读不了 `path`：换不成真实的位置、没有、不是普通文件、没有权限（施工 3-9 三补） |
 | `attachment_too_big` | -32010 | 附件超过 20 MiB；图片超过 5 MiB，或者哪一边超过 8000 像素（施工 3-9 三补）；`blob.open` 的 `size` 超过 20 MiB（施工 W-5） |

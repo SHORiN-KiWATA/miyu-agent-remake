@@ -225,3 +225,24 @@ fn the_recap_reads_the_same_line() {
     let texts: Vec<&str> = entries.iter().map(|entry| entry.text.as_str()).collect();
     assert_eq!(texts, ["[15:00] 小林 [msg=8850]: 今天谁值班"]);
 }
+
+/// 不在群里、只有带的东西的一条（施工 O-13 补）：写成记号；有内容块的照原样。
+#[test]
+fn outside_a_group_a_message_with_only_media_reads_as_its_markers() {
+    let mut log = Log::new();
+    log.push(
+        OWNER,
+        "message.user",
+        r#"{"blocks":[],"venue":{"msg":"8860","media":[{"kind":"image","id":"i-1"},{"kind":"sticker","id":"s-1","name":"<狗头>"}]}}"#,
+    );
+    heard(
+        &mut log,
+        OWNER,
+        "在吗",
+        r#"{"msg":"8861","media":[{"kind":"image","id":"i-2"}]}"#,
+    );
+    assert_eq!(
+        shape(&render(log.history(), &texts())),
+        ["user: [image] [sticker: \\u003c狗头\\u003e] | 在吗"]
+    );
+}

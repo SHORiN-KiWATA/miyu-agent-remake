@@ -149,3 +149,45 @@ fn the_history_knows_its_own_session() {
     );
     assert_eq!(logged.session.history.own(), Some(&session_id()));
 }
+
+/// 编号是 `n` 的命令：一个字都没有，只带着 `venue` 的东西（施工 O-13 补）。
+fn bare(n: u64, venue: VenueMessage) -> Input {
+    Input::Command(Received {
+        id: id(n),
+        by: alice(),
+        at: at(n % 60),
+        command: Command::Send {
+            blocks: Vec::new(),
+            urgent: false,
+            venue: Some(venue),
+        },
+    })
+}
+
+/// 只有带的东西（图、表情、文件）、没有字的消息照样记下（施工 O-13 补）：开一轮的开、旁听的只记下；带的东西也没有的照旧拒。
+#[test]
+fn a_message_with_only_media_is_kept_and_nothing_at_all_is_not() {
+    let mut session = session();
+    let actions = session.handle(bare(1, venue("8810", true)));
+    let events = appended_events(&actions);
+    assert_eq!(events.len(), 1, "旁听的只记下：{events:?}");
+    assert!(
+        matches!(&events[0].body, Body::MessageUser(message) if message.blocks.is_empty()),
+        "{events:?}"
+    );
+    let actions = session.handle(bare(2, venue("8811", false)));
+    assert!(
+        appended_events(&actions)
+            .iter()
+            .any(|event| matches!(event.body, Body::TurnStarted(_))),
+        "开一轮"
+    );
+    let nothing = VenueMessage {
+        media: Vec::new(),
+        ..venue("8812", true)
+    };
+    assert_eq!(
+        session.handle(bare(3, nothing)),
+        [rejected(id(3), Reason::EmptyMessage)]
+    );
+}

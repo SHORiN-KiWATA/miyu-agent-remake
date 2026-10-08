@@ -11,7 +11,7 @@ use crate::origin::By;
 use crate::time::Timestamp;
 
 impl Session {
-    /// 发一条消息：一块内容都没有的拒绝，`empty_message`。别处来的（子代理的留言，施工 7-7；别的 harness 发来的话，
+    /// 发一条消息：一块内容都没有、也没带场所的东西的拒绝，`empty_message`。别处来的（子代理的留言，施工 7-7；别的 harness 发来的话，
     /// 施工 7-10；别的会话发来的话，施工 C-2）照回报的规矩到。空闲时追加 `message.user`、同一批开一个回合；回合进行中
     /// 追加、带上这个回合、排进队，这一步里在等人的调用作废，急着插话的再跳过还没跑的，叫停的 `CancelTool` 排在 `Append`
     /// 后面。
@@ -23,7 +23,8 @@ impl Session {
         (blocks, venue): (Vec<Block>, Option<VenueMessage>),
         urgent: bool,
     ) -> Vec<Action> {
-        if blocks.is_empty() {
+        // 只有带的东西（图、表情、文件）、没有字的场所消息照样收（施工 O-13 补）：内容块和带的东西都没有才是空的。
+        if blocks.is_empty() && venue.as_ref().is_none_or(|venue| venue.media.is_empty()) {
             return vec![rejected(id, Reason::EmptyMessage)];
         }
         if let Some(waker) = self.elsewhere(&by) {

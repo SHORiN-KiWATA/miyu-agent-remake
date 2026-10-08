@@ -77,6 +77,26 @@ async fn a_venue_message_is_kept_as_written_and_an_ambient_one_opens_no_turn() {
     home.until_turns(&session, 1).await;
 }
 
+/// 只有带的东西、没有字的（施工 O-13 补）：`text` 空的照收，记一条没有内容块的；带的东西也没有的照旧 `empty_message`。
+#[tokio::test]
+async fn a_message_with_only_media_is_kept() {
+    let home = Home::new();
+    let (mut client, session) = owners_chat(&home, &Script::new([])).await;
+    let only = json!({"session": session, "text": "", "as": {"external": "qq:10001"},
+        "venue": {"msg": "8820", "ambient": true, "media": [{"kind": "sticker", "id": "s-1", "name": "狗头"}]}});
+    let reply = client.call("m1", "session.send", only).await;
+    assert!(reply.get("error").is_none(), "{reply}");
+    let kept = home.log(&session);
+    let Body::MessageUser(message) = &kept.last().expect("记下了").body else {
+        panic!("应该是 message.user");
+    };
+    assert!(message.blocks.is_empty());
+    let nothing = json!({"session": session, "text": "", "as": {"external": "qq:10001"},
+        "venue": {"msg": "8821", "ambient": true}});
+    let reply = client.call("m2", "session.send", nothing).await;
+    assert_eq!(reason(&reply), Some("empty_message"), "{reply}");
+}
+
 #[tokio::test]
 async fn a_bad_venue_records_nothing() {
     let home = Home::new();
