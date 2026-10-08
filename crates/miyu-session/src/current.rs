@@ -28,6 +28,9 @@ pub struct Tally {
     pub requests: u64,
     /// 用量，四项各加各的。
     pub usage: Usage,
+    /// 只算主请求的用量（施工 9-6 上补）：`purpose` 是空的，压缩的摘要请求也算；回顾、起标题这些辅助请求不算。头照它算命中率、
+    /// 上下文，和终端的底栏一个口径。
+    pub main: Usage,
     /// 金额，照币种各加各的。
     pub amounts: BTreeMap<String, f64>,
     /// 有用量、没金额的几次。
@@ -38,17 +41,21 @@ pub struct Tally {
     pub cache_breaks: u64,
 }
 
+/// 什么都没用。
+const NOTHING: Usage = Usage {
+    uncached: 0,
+    cache_read: 0,
+    cache_write: 0,
+    output: 0,
+};
+
 impl Default for Tally {
     /// 什么都没有。
     fn default() -> Tally {
         Tally {
             requests: 0,
-            usage: Usage {
-                uncached: 0,
-                cache_read: 0,
-                cache_write: 0,
-                output: 0,
-            },
+            usage: NOTHING,
+            main: NOTHING,
             amounts: BTreeMap::new(),
             unpriced: 0,
             compactions: 0,
@@ -78,10 +85,10 @@ impl Tally {
                     }
                     self.requests += 1;
                     if let Some(usage) = called.usage {
-                        self.usage.uncached += usage.uncached;
-                        self.usage.cache_read += usage.cache_read;
-                        self.usage.cache_write += usage.cache_write;
-                        self.usage.output += usage.output;
+                        plus(&mut self.usage, usage);
+                        if called.purpose.is_none() {
+                            plus(&mut self.main, usage);
+                        }
                     }
                     match called.cost.as_deref() {
                         Some(cost) => {
@@ -97,6 +104,14 @@ impl Tally {
             }
         }
     }
+}
+
+/// 四项各加各的。
+fn plus(total: &mut Usage, usage: Usage) {
+    total.uncached += usage.uncached;
+    total.cache_read += usage.cache_read;
+    total.cache_write += usage.cache_write;
+    total.output += usage.output;
 }
 
 #[cfg(test)]
