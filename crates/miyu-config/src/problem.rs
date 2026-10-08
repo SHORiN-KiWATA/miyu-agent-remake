@@ -8,7 +8,7 @@ mod tell;
 
 pub use tell::{Told, Using, tell};
 
-use crate::item::{Item, Layer};
+use crate::item::Layer;
 use crate::value::Value;
 
 /// 收到的原文最多照抄几个字符，多了截掉加 `…`（「报错」的 `got`）。
@@ -222,19 +222,22 @@ pub fn got(raw: &str) -> String {
     }
 }
 
-/// 清单里和 `key` 离得最近的键（「怎么走」第四条第 2 条）：编辑距离照插入、删除、替换一个字，相邻两个字换位，都算 1；
-/// 不超过 3、也不超过 `key` 长度的三分之一的才给；几个一样近的，取清单里排在前面的。
-pub fn nearest(items: &[Item], key: &str) -> Option<&'static str> {
+/// `names` 里和 `key` 离得最近的名字（「怎么走」第四条第 2 条）：编辑距离照插入、删除、替换一个字，相邻两个字换位，都算 1；
+/// 不超过 3、也不超过 `key` 长度的三分之一的才给；几个一样近的，取排在前面的。
+///
+/// 收一串名字，不只收清单的项：配置清单交 `items.iter().map(|item| item.key)`，群聊内核的场所规则交它自己的属性名
+/// （`docs/blueprint/chat.md` 第一条施工时定的第 3 条旁边那一句，施工 O-12），一份算法两处用。
+pub fn nearest<'a>(names: impl IntoIterator<Item = &'a str>, key: &str) -> Option<&'a str> {
     let written: Vec<char> = key.chars().collect();
-    let mut best: Option<(usize, &'static str)> = None;
-    for item in items {
-        let distance = distance(&written, &item.key.chars().collect::<Vec<_>>());
+    let mut best: Option<(usize, &'a str)> = None;
+    for name in names {
+        let distance = distance(&written, &name.chars().collect::<Vec<_>>());
         let close = distance <= NEAREST && distance * 3 <= written.len();
         if close && best.is_none_or(|(so_far, _)| distance < so_far) {
-            best = Some((distance, item.key));
+            best = Some((distance, name));
         }
     }
-    best.map(|(_, key)| key)
+    best.map(|(_, name)| name)
 }
 
 /// 编辑距离，相邻两个字换位算一次（optimal string alignment）。

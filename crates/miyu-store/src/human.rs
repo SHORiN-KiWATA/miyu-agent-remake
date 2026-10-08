@@ -29,6 +29,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use miyu_config::package::Manifest;
+use miyu_config::phrases::Phrases;
 use miyu_config::{ConfigWords, ItemWords, Words};
 use miyu_kernel::event::Said;
 use miyu_kernel::template::Template;
@@ -210,6 +212,36 @@ impl Human {
             .map(|(field, value)| (field.as_str(), value.as_str()))
             .collect();
         phrase.template.fill(&fields, clean).ok()
+    }
+
+    /// 并进软件包的配置项的字（施工 9-1 下，`packages.md`「配置项」）：每个包一组，组名是包的名字；每一项的名字、说明用
+    /// 清单里的。照语言 `language` 挑，这种语言没写的照 `en`、`zh`、`ja` 的先后，都没写的名字是键、说明是空的。
+    #[must_use]
+    pub fn with_packages<'a>(
+        mut self,
+        packages: impl IntoIterator<Item = (&'a str, &'a Manifest)>,
+        language: &str,
+    ) -> Human {
+        let pick = |phrases: &Phrases| {
+            [language, "en", "zh", "ja"]
+                .iter()
+                .find_map(|language| phrases.get(*language).cloned())
+        };
+        for (id, manifest) in packages {
+            if let Some(name) = pick(&manifest.name) {
+                self.config.groups.insert(id.to_string(), name);
+            }
+            for setting in &manifest.settings {
+                let key = format!("{id}.{}", setting.name);
+                let words = ItemWords {
+                    name: pick(&setting.label).unwrap_or_else(|| key.clone()),
+                    description: pick(&setting.description).unwrap_or_default(),
+                    options: BTreeMap::new(),
+                };
+                self.config.items.insert(key, words);
+            }
+        }
+        self
     }
 
     /// 设置页编号 `id` 那一页的名字；没有的是空的（施工 8-2，`config.schema`）。

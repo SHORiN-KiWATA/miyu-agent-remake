@@ -19,7 +19,7 @@ pub fn pressure(replies: &[Reply], clock: Clock, chatty: &Chatty) -> f64 {
         .iter()
         .filter(|reply| reply.at <= clock.now)
         .map(|reply| {
-            let age = clock.now.saturating_sub(reply.at) as f64;
+            let age = (clock.now.unix_millis() - reply.at.unix_millis()) as f64;
             0.5_f64.powf(age / half_life)
         })
         .sum()
@@ -29,10 +29,6 @@ pub fn pressure(replies: &[Reply], clock: Clock, chatty: &Chatty) -> f64 {
 pub(super) struct Item;
 
 impl Lift for Item {
-    fn name(&self) -> &str {
-        "restraint"
-    }
-
     fn lift(&self, ctx: &LiftCtx<'_>) -> f64 {
         let restraint = ctx.chatty.restraint;
         let exempt = ctx.conditions.has(Kind::Direct) || ctx.judgement.to_bot;

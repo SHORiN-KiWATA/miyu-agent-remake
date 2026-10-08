@@ -1,4 +1,5 @@
-//! 载入（`docs/designs/07-存储.md` 第七节）：打开日志，照第一条的策略哈希取回快照，交给内核从日志重建，再起 actor。
+//! 载入（`docs/designs/07-存储.md` 第七节）：打开日志，照第一条的策略哈希取回快照，交给内核从日志重建，再起 actor。换过
+//! 快照的（施工 P-1 再补）照最近换上的那一份。
 
 use std::path::Path;
 use std::sync::Arc;
@@ -6,6 +7,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use miyu_kernel::event::{Body, Event};
+use miyu_kernel::id::ContentHash;
 use miyu_kernel::origin::Model;
 use miyu_kernel::session::{Input, Session};
 use miyu_policy::Snapshot;
@@ -15,6 +17,7 @@ use miyu_store::usage::Who;
 use miyu_tool::Log;
 
 use crate::TARGET;
+use crate::actor::persona::Refresh;
 use crate::actor::{self, Actor, JobKit};
 use crate::agents::{Agents, job_in};
 use crate::blocking::blocking;
@@ -28,6 +31,7 @@ use crate::jobs::Roster;
 use crate::memory::{self, connect};
 use crate::port::ForSession;
 use crate::report::{Reporter, Upstream, wake_children};
+use crate::spawn::Lineage;
 use crate::store::{Indexed, LogDir};
 use crate::tools::ToolKit;
 
@@ -44,6 +48,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         root,
         owner,
         personas,
+        resources,
         id,
         environment,
         models,
@@ -57,6 +62,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         usage,
         configs,
         memory,
+        presets,
     } = setup;
     let span = actor::span(&id);
     let config = Turning::start(configs, environment.cwd.clone()).await;
@@ -65,9 +71,10 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let offset = environment.offset;
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
+    let (watching, shipped, stored) = (personas.clone(), resources.clone(), blobs.clone());
     let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
     let (owner_of, id_of) = (owner.clone(), id.clone());
-    let (log, events, (created, command), (attended, pools), policy, texts, run, guard, wired) =
+    let (log, events, (created, command), (snapshot, pools), policy, texts, run, guard, wired) =
         blocking(move || {
             let (log, events) = SessionLog::open(&dir, SEGMENT_LIMIT).map_err(LoadError::Log)?;
             let (created, command) = match events.first() {
@@ -78,15 +85,18 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
                 }) => (created.clone(), cause.clone()),
                 _ => return Err(LoadError::NotCreated),
             };
-            let bytes = store.get(&created.policy).map_err(LoadError::Blob)?;
+            let bytes = store
+                .get(current_policy(&events).unwrap_or(&created.policy))
+                .map_err(LoadError::Blob)?;
             let snapshot = Snapshot::from_bytes(&bytes).map_err(LoadError::Snapshot)?;
             let policy = snapshot.policy().map_err(LoadError::Policy)?;
             let texts = snapshot.driver_texts().map_err(LoadError::Policy)?;
             let run = snapshot.run_texts().map_err(LoadError::Policy)?;
             let guard = snapshot.guard_texts().map_err(LoadError::Policy)?;
             // 能选的池照快照读回（施工 8-8 补）：造会话时拼的那一份，不重拼。
-            let chosen = (snapshot.attended, Agents::pools_in(&snapshot.tools));
-            let scope = memory::scope(created.parent.is_some(), snapshot.memory_scope());
+            let pools = Agents::pools_in(&snapshot.tools);
+            // 快照里的范围已经照预设算过（施工 P-2 中），这里只再管子会话。
+            let scope = memory::scope(created.parent.is_some(), true, snapshot.memory_scope());
             let turns = connect(
                 memory.as_ref(),
                 scope,
@@ -100,7 +110,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
                 log,
                 events,
                 (created, command),
-                chosen,
+                (snapshot, pools),
                 policy,
                 texts,
                 run,
@@ -110,6 +120,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         })
         .await?;
     let (turns, calls) = wired;
+    let attended = snapshot.attended;
     let upstream = Upstream::of(
         sessions.as_ref(),
         created.parent.as_ref(),
@@ -119,7 +130,15 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let port = sessions.clone();
     let who = Who::of(&created);
     let venue = created.venue.clone();
+    // 换预设时重新筛工具面要的（施工 P-2 下）：场所、父会话和第几层，照 `session.created`。
+    let refresh_venue = created.venue.clone();
+    let refresh_lineage = created.parent.clone().map(|parent| Lineage {
+        parent,
+        depth: created.depth.unwrap_or(1),
+    });
     let asks = Agents::asks(&created.venue, created.parent.as_ref(), attended);
+    // 能选的人格同池，照快照读回（施工 P-2 补）。
+    let agents_personas = Agents::personas_in(&snapshot.tools);
     let agents = sessions.map(|port| {
         Arc::new(Agents {
             port,
@@ -131,6 +150,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             attended,
             reports: policy.reports.clone(),
             pools,
+            preset: created.preset.clone(),
+            personas: agents_personas,
         })
     });
     let kept = blobs.clone();
@@ -223,6 +244,17 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     if let Some(upstream) = upstream {
         actor.report_to(Reporter::start(upstream, span.clone()));
     }
+    actor.watch_persona(Refresh {
+        personas: watching,
+        resources: shipped,
+        blobs: stored,
+        snapshot,
+        child: created.parent.is_some(),
+        presets,
+        tools: tools.clone(),
+        venue: refresh_venue,
+        lineage: refresh_lineage,
+    });
     span.in_scope(|| {
         tracing::info!(target: TARGET, events = count, "loaded");
     });
@@ -239,6 +271,15 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         watched,
         shown,
     ))
+}
+
+/// 现在的快照（施工 P-1 再补）：整份日志里最近一条带 `policy` 的 `session.policy_changed`，撤掉的回合里的也算（换快照不是
+/// 对话的一部分）；没换过的没有，照 `session.created` 的。
+fn current_policy(events: &[Event]) -> Option<&ContentHash> {
+    events.iter().rev().find_map(|event| match &event.body {
+        Body::PolicyChanged(changed) => changed.policy.as_ref(),
+        _ => None,
+    })
 }
 
 /// 最近一条发出去了的 `model.called` 发给了谁（施工 8-8）：钉住的池载入时照它认钉着的成员（「起草时定的」第 2 条）。

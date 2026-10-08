@@ -71,7 +71,7 @@ async fn a_core_with_three_layers_says_where_each_value_came_from() {
     assert_eq!(
         stdout(&all),
         // 测试拉起的核心带着 `MIYU_CATALOG_UPDATE=false`（施工 8-7）：环境变量压过的那一项照它。
-        "log.level = \"debug\"\nmodels.catalog.every = \"24h\"\nmodels.catalog.update = false\nmodels.catalog.url = \"https://models.dev/api.json\"\nmodels.cooldown.auth.base = \"10m\"\nmodels.cooldown.auth.max = \"2h\"\nmodels.cooldown.rate_limited.base = \"30s\"\nmodels.cooldown.rate_limited.max = \"10m\"\nmodels.cooldown.retryable.base = \"10s\"\nmodels.cooldown.retryable.max = \"5m\"\npermission.start_read_only = false\npersona.default = \"engineer\"\nui.language = \"zh\"\nui.startup = \"new\"\nusage.currency = \"USD\"\n"
+        "log.level = \"debug\"\nmodels.catalog.every = \"24h\"\nmodels.catalog.update = false\nmodels.catalog.url = \"https://models.dev/api.json\"\nmodels.cooldown.auth.base = \"10m\"\nmodels.cooldown.auth.max = \"2h\"\nmodels.cooldown.rate_limited.base = \"30s\"\nmodels.cooldown.rate_limited.max = \"10m\"\nmodels.cooldown.retryable.base = \"10s\"\nmodels.cooldown.retryable.max = \"5m\"\npermission.start_read_only = false\npersona.default = \"engineer\"\npreset.default = \"full\"\nui.language = \"zh\"\nui.startup = \"new\"\nusage.currency = \"USD\"\nweb.idle_seconds = 600\nweb.most_tickets = 4096\nweb.port = 8300\nweb.ticket_idle_seconds = 43200\n"
     );
     let json = run(
         &root,
@@ -144,7 +144,7 @@ async fn check_reports_each_problem_on_a_line_and_the_total() {
         .await
         .expect("拉得起");
     let cwd = std::env::temp_dir();
-    let checked = run(&root, &cwd, "zh_CN.UTF-8", &["config", "check"]).await;
+    let checked = run(&root, &cwd, "zh_CN.UTF-8", &["check"]).await;
     assert_eq!(checked.status.code(), Some(1), "有错误：{checked:?}");
     let text = stdout(&checked);
     let lines: Vec<&str> = text.lines().collect();
@@ -161,47 +161,52 @@ async fn check_reports_each_problem_on_a_line_and_the_total() {
     );
     assert_eq!(lines[2], "1 error, 1 warning");
 
-    let file = std::env::temp_dir().join(format!("miyu-check-{}.toml", std::process::id()));
-    write(&file, "log.level = \"verbose\"\n");
-    let one = run(
-        &root,
-        &cwd,
-        "C",
-        &["config", "check", "--system", &file.to_string_lossy()],
-    )
-    .await;
+    // 写了文件的只查那一份，照它在哪认是哪一层（施工 8-30：不再有 --system、--project）。
+    let system = root.join("system").join("config.toml");
+    write(&system, "log.level = \"verbose\"\n");
+    let one = run(&root, &cwd, "C", &["check", &system.to_string_lossy()]).await;
     assert_eq!(one.status.code(), Some(1));
     assert!(stdout(&one).contains(":1:13 error: log.level must be error, warn, info, debug, trace or off, not \"verbose\"."), "{one:?}");
-    let personal = run(
-        &root,
-        &cwd,
-        "C",
-        &["config", "check", &file.to_string_lossy()],
-    )
-    .await;
+    let settings = root.join("home").join("admin").join("settings.toml");
+    write(&settings, "log.level = \"info\"\n");
+    let personal = run(&root, &cwd, "C", &["check", &settings.to_string_lossy()]).await;
     assert!(
         stdout(&personal).contains("log.level belongs in the system config."),
-        "照个人设置查"
+        "照个人设置查：{personal:?}"
     );
-    write(&file, "ui.language = \"zh\"\n");
+    // 干净的一份照旧写英文：改成别的语言，后面查人格那一句印成哪种语言，就看核心有没有赶在前面重读（Windows CI 撞见过）。
+    write(&settings, "ui.language = \"en\"\n");
     let clean = run(
         &root,
         &cwd,
         "C",
-        &[
-            "config",
-            "check",
-            "--format",
-            "json",
-            &file.to_string_lossy(),
-        ],
+        &["check", "--format", "json", &settings.to_string_lossy()],
     )
     .await;
     assert_eq!(
         (clean.status.code(), stdout(&clean)),
         (Some(0), "{\"problems\":[]}\n".to_string())
     );
-    std::fs::remove_file(&file).expect("删得掉");
+    // 人格的文件也查（施工 8-30）。
+    let examples = root
+        .join("home")
+        .join("admin")
+        .join("personas")
+        .join("miyu")
+        .join("prompts")
+        .join("examples.md");
+    write(&examples, "user: a\n");
+    let persona = run(&root, &cwd, "C", &["check"]).await;
+    assert_eq!(persona.status.code(), Some(1));
+    assert!(
+        stdout(&persona).contains("examples.md:1 error: The last line must be the assistant's"),
+        "{persona:?}"
+    );
+    let elsewhere = std::env::temp_dir().join(format!("miyu-check-{}.toml", std::process::id()));
+    write(&elsewhere, "x = 1\n");
+    let unknown = run(&root, &cwd, "C", &["check", &elsewhere.to_string_lossy()]).await;
+    assert_eq!(unknown.status.code(), Some(1), "{unknown:?}");
+    std::fs::remove_file(&elsewhere).expect("删得掉");
     drop(held);
 }
 
@@ -226,7 +231,7 @@ async fn ask_first_says_the_config_has_errors_and_path_says_where_a_project_conf
         .unwrap_or_default()
         .to_string();
     assert_eq!(
-        first, "· 1 error in the config: run miyu config check to see it",
+        first, "· 1 error in the config: run miyu check to see it",
         "系统配置定了英文：{asked:?}"
     );
     // 施工 8-3：这里有一份还没信任的项目配置，接着说一句。

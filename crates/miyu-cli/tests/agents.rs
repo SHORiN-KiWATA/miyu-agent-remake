@@ -242,7 +242,9 @@ async fn a_subagent_from_before_is_waited_for_once_messaged_like_the_sample() {
 #[tokio::test]
 async fn a_background_command_is_not_waited_for_and_says_it_went_to_the_background() {
     let work = support::outside::Outside::new();
-    let args = json!({"command": "sleep 2", "description": "睡一会", "run_in_background": true});
+    // 睡 6 秒：Windows 的 CI 上从起 shell 到命令行退出会超过 2 秒，睡 2 秒的退出前就跑完了（2026-10-07 run 1130）；后面等它结束
+    // 的 `within` 是 10 秒，不能睡得比它长。
+    let args = json!({"command": "sleep 6", "description": "睡一会", "run_in_background": true});
     let router = Router::new(
         "后台睡一会",
         [
@@ -262,7 +264,7 @@ async fn a_background_command_is_not_waited_for_and_says_it_went_to_the_backgrou
     assert_eq!(code, 0, "{err}");
     assert_eq!(
         screen,
-        "$ sleep 2 · 放到后台了：j1\n\n放到后台了。\n· 输入 200 · 命中缓存 80（40%）· 输出 20\n",
+        "$ sleep 6 · 放到后台了：j1\n\n放到后台了。\n· 输入 200 · 命中缓存 80（40%）· 输出 20\n",
         "不印给模型看的英文回执；不等它"
     );
     let main = home.oneshot().await;

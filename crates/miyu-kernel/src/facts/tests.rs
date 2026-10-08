@@ -1,8 +1,9 @@
 //! 事实的测试：模板造的时候就查；三块的写法；一个边界上查哪几块、先后；以前的快照没有会话编号的模板；该不该注入：
 //! 第一次、一样、变了、隔着边界变回去、别的来源和别的类不算、压缩以后、撤销以后。日志都先交给账本查过（[`Log`]）。
-//! 权限那一块比级别、切了用哪份模板在 `tests/permission.rs`（施工 2-7 补）。
+//! 权限那一块比级别、切了用哪份模板在 `tests/permission.rs`（施工 2-7 补）；角色扮演提示在 `tests/reminder.rs`（施工 P-1 补）。
 
 mod permission;
+mod reminder;
 
 use super::*;
 use crate::event::Event;

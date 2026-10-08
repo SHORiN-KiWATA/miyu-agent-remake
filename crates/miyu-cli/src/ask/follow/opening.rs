@@ -12,7 +12,7 @@ use super::Follow;
 use crate::shown::Line;
 
 impl Follow<'_> {
-    /// 握手的回应说配置里有几处错误（施工 8-2）：说一句，`miyu config check` 看是哪里。
+    /// 握手的回应说配置里有几处错误（施工 8-2）：说一句，`miyu check` 看是哪里（施工 8-30 起）。
     pub(crate) fn config_errors(&mut self, errors: u64, screen: &mut Screen<'_>) {
         if self.plan.format == Format::Text {
             self.aside(

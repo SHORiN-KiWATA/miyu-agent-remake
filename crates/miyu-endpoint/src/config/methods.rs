@@ -170,6 +170,9 @@ fn schema_item(item: &Item, said: Option<&miyu_config::ItemWords>) -> Value {
     map.insert("group".to_string(), json!(item.ui.group));
     map.insert("common".to_string(), json!(item.ui.common));
     map.insert("control".to_string(), json!(item.ui.control.as_str()));
+    if item.ui.hidden {
+        map.insert("hidden".to_string(), json!(true));
+    }
     Value::Object(map)
 }
 
@@ -279,14 +282,23 @@ fn files(config: &Config, project: Option<&Project>) -> Value {
 /// `config.check`：把 `text` 当成一层的文件查，不生效。项目配置照「收紧」和另外几层合出来的比，不看信没信任。
 pub(crate) fn check(core: &Core, peer: Peer, params: CheckParams) -> Result<Value, Refusal> {
     let words = words(core, peer.language)?;
+    let problems = check_text(core, &words, params.layer.layer(), &params.text)?;
+    Ok(json!({ "problems": problems }))
+}
+
+/// 把 `text` 当成 `layer` 那一层的文件查，交回给人看的问题（`config.check`；施工 8-30 起 `check` 也用它）。
+pub(crate) fn check_text(
+    core: &Core,
+    words: &Human,
+    layer: Layer,
+    text: &str,
+) -> Result<Vec<Value>, Refusal> {
     let config = &*core.config();
-    let layer = params.layer.layer();
-    let parsed = match parse(config.items(), layer, &params.text) {
+    let parsed = match parse(config.items(), layer, text) {
         Ok(parsed) => parsed,
         Err(problem) => {
             let layers = config.layers(None);
-            let said = said(config, &layers, &problem, None, &words)?;
-            return Ok(json!({"problems": [said]}));
+            return Ok(vec![said(config, &layers, &problem, None, words)?]);
         }
     };
     let mut layers = config.layers(None);
@@ -305,9 +317,9 @@ pub(crate) fn check(core: &Core, peer: Peer, params: CheckParams) -> Result<Valu
     }
     let mut problems = Vec::new();
     for problem in found {
-        problems.push(said(config, &layers, problem, None, &words)?);
+        problems.push(said(config, &layers, problem, None, words)?);
     }
-    Ok(json!({ "problems": problems }))
+    Ok(problems)
 }
 
 /// 一条问题写成协议上的样子，话照 `words`。现在照什么用着：一项的问题照这一项在它那一层下面几层合出来的；整份的问题
@@ -371,10 +383,12 @@ pub(super) fn told(
 
 /// 这个连接的语言的字。读不懂是装坏了：内部出错。
 pub(crate) fn words(core: &Core, language: &str) -> Result<Human, Refusal> {
-    Human::load(&core.resources, language).map_err(|error| {
-        tracing::warn!(target: TARGET, error = %error, "resource unreadable");
-        Refusal::INTERNAL
-    })
+    Human::load(&core.resources, language)
+        .map(|human| human.with_packages(crate::packages::manifests(&core.packages), language))
+        .map_err(|error| {
+            tracing::warn!(target: TARGET, error = %error, "resource unreadable");
+            Refusal::INTERNAL
+        })
 }
 
 /// 请求里的 `keys` 挑出的几项和真的键，照清单的先后；不写的是全部写死的项（键里有人起的名字的项，`config.schema` 用它的样子）。
@@ -404,7 +418,7 @@ pub(super) fn selected<'a>(
                     key: Some(key.clone()),
                     got: None,
                     why: None,
-                    suggest: nearest(items, key),
+                    suggest: nearest(items.iter().map(|item| item.key), key),
                     current: None,
                     name: None,
                 };

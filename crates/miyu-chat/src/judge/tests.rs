@@ -3,19 +3,20 @@
 //! 五维超出范围的、少一维的、不是数的、布尔少了的、`severity` 少了（两种模式各一）、`reason` 超长的、根本不是 JSON 的、空字。
 
 use super::test_support::{REASON_CHARS, ask, judge, texts};
-use super::{JudgeSources, JudgeTexts, Message, Mode, Role, Unreadable, read, request};
-use crate::Judgement;
+use super::{JudgeMessage, JudgeRole, JudgeSources, JudgeTexts, Mode, Unreadable, read, request};
+use crate::chatty::test_support::chatty;
+use crate::{Chatty, Judgement};
 
 /// 拼出来的 system 那一条的字。
 fn system(ask: &super::Ask) -> String {
-    let messages = request(&texts(), ask);
+    let messages = request(&texts(), ask, &chatty());
     assert_eq!(messages.len(), 2, "一条 system、一条 user");
     messages[0].text.clone()
 }
 
 /// 拼出来的 user 那一条的字。
 fn user(ask: &super::Ask) -> String {
-    request(&texts(), ask)[1].text.clone()
+    request(&texts(), ask, &chatty())[1].text.clone()
 }
 
 /// 门槛换好的 `violations.txt`。
@@ -25,11 +26,11 @@ fn violations(min: &str) -> String {
 
 #[test]
 fn one_system_then_one_user() {
-    let roles: Vec<Role> = request(&texts(), &ask())
+    let roles: Vec<JudgeRole> = request(&texts(), &ask(), &chatty())
         .iter()
         .map(|message| message.role)
         .collect();
-    assert_eq!(roles, [Role::System, Role::User]);
+    assert_eq!(roles, [JudgeRole::System, JudgeRole::User]);
 }
 
 #[test]
@@ -101,11 +102,12 @@ fn no_persona_no_persona_tags() {
 
 #[test]
 fn severity_min_is_filled_into_violations() {
-    let ask = super::Ask {
+    // 门槛从算分的参数拿，只有这一份。
+    let strict = Chatty {
         severity_min: 9,
-        ..ask()
+        ..chatty()
     };
-    let system = system(&ask);
+    let system = request(&texts(), &ask(), &strict)[0].text.clone();
     assert!(system.contains(&violations("9")));
     assert!(!system.contains("{severity_min}"));
 }
@@ -179,16 +181,16 @@ fn texts_come_from_what_is_handed_in() {
     texts.records_close = "</r>\n".to_string();
     texts.current_open = "<c>\n".to_string();
     texts.current_close = "</c>\n".to_string();
-    let messages = request(&texts, &ask());
+    let messages = request(&texts, &ask(), &chatty());
     assert_eq!(
         messages,
         [
-            Message {
-                role: Role::System,
+            JudgeMessage {
+                role: JudgeRole::System,
                 text: "S\nR\nV 7\nA\n".to_string(),
             },
-            Message {
-                role: Role::User,
+            JudgeMessage {
+                role: JudgeRole::User,
                 text: "<r>\n[1] 阿明: 晚上吃什么\n[2] 小红: 火锅？\n</r>\n<c>\n[3] 阿明: @Miyu 你想吃什么\n</c>\n"
                     .to_string(),
             },

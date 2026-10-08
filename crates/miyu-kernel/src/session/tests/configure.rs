@@ -164,6 +164,7 @@ fn a_fallback_that_does_not_match_the_reference_is_ignored() {
     session.handle(stored(6));
     // 交来的原来的不是现在的引用：不记。
     let actions = session.handle(Input::TurnStartHooksDone {
+        policy: None,
         at: at(30),
         turn: TurnId::new(seq(4)),
         injected: Vec::new(),

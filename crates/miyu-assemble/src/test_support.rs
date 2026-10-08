@@ -231,6 +231,12 @@ impl Log {
         self.push(KERNEL, "context.injected", &body);
     }
 
+    /// `by` 注入一块 `kind` 类的事实（施工 P-1 补：角色扮演提示排在哪，看来源和类别）。
+    pub(crate) fn fact_by(&mut self, by: &str, kind: &str, fact: &str) {
+        let body = format!(r#"{{"kind":"{kind}","text":{}}}"#, quoted(fact));
+        self.push(by, "context.injected", &body);
+    }
+
     /// 记一次没等到回复就出了可以重试的错的请求：它看到了上一条为止。
     pub(crate) fn failed(&mut self) {
         let seen = self.next() - 1;

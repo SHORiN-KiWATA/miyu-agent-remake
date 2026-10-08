@@ -95,6 +95,7 @@ async fn serve(root: DataRoot, env: &Env, port: Option<u16>) -> u8 {
         miyu_log::LevelFilter::INFO,
         env.home.as_deref(),
     );
+    let settings = settings.from_core(&root).await;
     let serve = Serve {
         root,
         port: port.unwrap_or(settings.port),

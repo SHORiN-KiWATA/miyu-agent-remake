@@ -224,6 +224,11 @@ async fn parent(home: &Home, script: &Script, table: &Arc<Table>) -> Handle {
     };
     let lines = Lines {
         sessions: Some(Arc::clone(table) as Arc<dyn SessionPort>),
+        preset: Some(miyu_policy::preset::Chosen::new(
+            "dev".to_string(),
+            miyu_policy::preset::PresetFile::default(),
+            [],
+        )),
         ..Lines::default()
     };
     home.create_full(script, &basesystem(home), opening, lines)
@@ -263,6 +268,7 @@ async fn the_child_copies_the_parent_and_gets_the_task_from_it() {
             cwd: "/w".to_string(),
             dirs: vec!["/extra".to_string()],
             model: None,
+            preset: Some("dev".to_string()),
         }
     );
     // 交代原样、作为父会话发来的话送进子会话，开它的第一轮。
@@ -359,6 +365,11 @@ async fn numbers_go_on_after_a_failure_and_a_reload() {
     assert!(last.permission.read_only, "载入以后照日志里的权限");
     assert!(!last.attended, "载入以后照快照里的能不能确认");
     assert_eq!(last.lineage.depth, 1);
+    assert_eq!(
+        last.preset.as_deref(),
+        Some("dev"),
+        "载入以后照 session.created 里的预设（施工 P-2 上）"
+    );
 }
 
 #[tokio::test]

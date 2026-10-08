@@ -143,6 +143,7 @@ macro_rules! settings {
                             group: $group,
                             common: $crate::__settings_common!($($common)?),
                             control: $crate::__settings_control!($control),
+                            hidden: false,
                         },
                     },
                 )*

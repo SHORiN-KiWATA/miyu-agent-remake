@@ -3,7 +3,7 @@
 
 use crate::VenueKind;
 
-use super::super::test_support::{PEOPLE, SECOND, at, ctx, judge, member, msg, rate};
+use super::super::test_support::{PEOPLE, SECOND, at, clock, ctx, judge, member, msg, plus, rate};
 use super::super::{Clock, Ctx, Inbound, Outcome, Why, rate_full};
 
 /// 此刻：那一天 UTC 12:00。
@@ -15,15 +15,15 @@ fn now() -> Clock {
 fn limited(text: &str, ago: &[i64], noticed: &[i64]) -> Ctx {
     let mut limited = ctx();
     limited.rate = rate(text);
-    limited.turns = ago.iter().map(|ago| now().now - ago).collect();
-    limited.notices = noticed.iter().map(|ago| now().now - ago).collect();
+    limited.turns = ago.iter().map(|ago| plus(now().now, -ago)).collect();
+    limited.notices = noticed.iter().map(|ago| plus(now().now, -ago)).collect();
     limited
 }
 
 /// 群里别的人冲她来的一条消息。
 fn addressed() -> Inbound {
     let mut addressed = member();
-    addressed.addressed = true;
+    addressed.said.addressed = true;
     addressed
 }
 
@@ -71,7 +71,7 @@ fn not_addressed_is_only_recorded() {
     let full = limited("1/60s", &[0], &[]);
     assert_eq!(outcome(&member(), &full), LIMITED);
     let mut private = msg(crate::Standing::Member, VenueKind::Private);
-    private.addressed = false;
+    private.said.addressed = false;
     assert_eq!(outcome(&private, &full), LIMITED);
 }
 
@@ -121,10 +121,7 @@ fn full_again_after_dropping_gives_another_notice() {
     again.notices.push(now().now);
     assert_eq!(outcome(&addressed(), &again), LIMITED);
     // 降下去之前（10 秒以前）看：还是上一回，提示过了。
-    let before = Clock {
-        now: now().now - 10 * SECOND,
-        offset: 0,
-    };
+    let before = clock(now().now.unix_millis() - 10 * SECOND, 0);
     let mut earlier = limited("3/145s", &ago[..3], &[129 * SECOND]);
     assert!(rate_full(&earlier, before));
     assert_eq!(judge(&addressed(), &earlier, before).outcome, LIMITED);
@@ -156,7 +153,7 @@ fn owner_and_trusted_are_not_limited() {
     let expected = [Outcome::Pass, Outcome::Pass, Outcome::Pass, NOTICE, NOTICE];
     for ((standing, kind), expected) in PEOPLE.into_iter().zip(expected) {
         let mut sent = msg(standing, kind);
-        sent.addressed = true;
+        sent.said.addressed = true;
         assert_eq!(outcome(&sent, &full), expected, "{standing:?} {kind:?}");
     }
 }

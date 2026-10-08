@@ -36,6 +36,12 @@ const DATA: &str = "models";
 /// 资源目录最上一层的这个目录放网页软件的设置（`web.json`）和页面，给浏览器的，不发给模型，不登记（施工 W-9，`web-ui.md`）。
 const WEB: &str = "web";
 
+/// 资源目录最上一层的这个目录放软件包清单（施工 9-1 上，`packages.md`）：给人看的名字、说明和程序名，不发给模型，不登记。
+const PACKAGES: &str = "packages";
+
+/// 资源目录最上一层的这个目录放出厂的预设（施工 P-2 上，`presets.md`）：给人看的名字、说明和开关表，不发给模型，不登记。
+const PRESETS: &str = "presets";
+
 /// `software/mermaid/`、`software/net/` 整个是数据（字体、三种记号色、源码的上限；抓链接卡片的时限、上限、请求头），
 /// 不发给模型，不登记（施工 W-4，`mermaid.md`「样子」：「这条线不加给模型看的字」；施工 W-7，`net.md`）。
 const SOFTWARE_DIR: &str = "software/";
@@ -44,6 +50,14 @@ const SOFTWARE_DIR: &str = "software/";
 /// `prompts/` 下的照查。
 const PERSONAS_DIR: &str = "personas/";
 const PERSONA_TOML: &str = "persona.toml";
+
+/// 群聊内核的出厂数据不发给模型，不登记：出厂参数（几张表的数，施工 O-15，`chat.md` 第八条施工时定的第 16 条）、违规词表（只拿来
+/// 比子串）、出厂的场所规则（施工 O-15 下，第八条施工时定的第 21 条）。只豁免这几份：别处同名的、`venues.d/` 里别的文件照查。
+const CHAT_DATA: [&str; 3] = [
+    "software/onebot/defaults.toml",
+    "software/onebot/moderation.txt",
+    "software/onebot/venues.d/50-defaults.toml",
+];
 const DATA_PACKAGES: [&str; 2] = ["mermaid", "net"];
 
 /// 查一遍，交回对不上的地方。
@@ -94,7 +108,8 @@ fn walk(dir: &Path, prefix: &str, files: &mut BTreeMap<String, Vec<u8>>) -> Resu
             // 给人看的字、模型资料、mermaid 的 style.json、net 的 link_preview.json、网页软件的都不发给模型，不进登记簿
             // （26 第十节，施工 4-5 上、6-3 上、W-4、W-7、W-9）。
             if name == HUMAN
-                || (prefix.is_empty() && (name == DATA || name == WEB))
+                || (prefix.is_empty()
+                    && (name == DATA || name == WEB || name == PACKAGES || name == PRESETS))
                 || (prefix == SOFTWARE_DIR && DATA_PACKAGES.contains(&name.as_str()))
             {
                 continue;
@@ -103,6 +118,7 @@ fn walk(dir: &Path, prefix: &str, files: &mut BTreeMap<String, Vec<u8>>) -> Resu
         } else if !(name == PERSONA_TOML
             && prefix.starts_with(PERSONAS_DIR)
             && prefix.matches('/').count() == 2)
+            && !CHAT_DATA.contains(&path.as_str())
         {
             files.insert(path, std::fs::read(entry.path()).map_err(unreadable)?);
         }
@@ -219,6 +235,17 @@ mod tests {
             ("personas/x/persona.toml", "[persona]"),
             ("personas/x/prompts/persona.md", "p"),
             ("personas/x/prompts/persona.toml", "q"),
+            ("software/onebot/defaults.toml", "[chatty]"),
+            ("software/onebot/judge/system.txt", "s"),
+            ("software/x/defaults.toml", "d"),
+            ("software/onebot/moderation.txt", "spam"),
+            ("software/onebot/venues.d/50-defaults.toml", "[[rule]]"),
+            ("software/onebot/venues.d/60-more.toml", "[[rule]]"),
+            ("software/x/moderation.txt", "m"),
+            ("packages/web.toml", "[package]"),
+            ("core/packages/p.txt", "p"),
+            ("presets/dev.toml", "[preset]"),
+            ("core/presets/p.txt", "p"),
         ] {
             let path = dir.join(path);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -228,17 +255,25 @@ mod tests {
         let walked = walk(&dir, "", &mut found);
         std::fs::remove_dir_all(&dir).unwrap();
         walked.unwrap();
-        // 给人看的字、最上一层的模型资料和网页软件、software/mermaid/、software/net/、人格目录的 persona.toml 不登记，别的照查（别处叫 models、
-        // web、mermaid、net 的目录照查：只有正好最上一层、software/ 下这几处才豁免）。
+        // 给人看的字、最上一层的模型资料、网页软件、软件包清单和出厂的预设、software/mermaid/、software/net/、人格目录的 persona.toml、群聊内核的
+        // 出厂参数 software/onebot/defaults.toml、违规词表 moderation.txt、出厂的场所规则 venues.d/50-defaults.toml 不登记，别的照查
+        // （别处叫 models、web、mermaid、net 的目录、别处的 defaults.toml 和 moderation.txt、venues.d/ 里别的文件照查：只有正好这几处才
+        // 豁免）。
         assert_eq!(
             found.keys().collect::<Vec<_>>(),
             [
                 "core/a.txt",
                 "core/models/m.txt",
+                "core/packages/p.txt",
+                "core/presets/p.txt",
                 "core/web/w.txt",
                 "personas/x/prompts/persona.md",
                 "personas/x/prompts/persona.toml",
+                "software/onebot/judge/system.txt",
+                "software/onebot/venues.d/60-more.toml",
+                "software/x/defaults.toml",
                 "software/x/mermaid/not_special_here.json",
+                "software/x/moderation.txt",
                 "software/x/net/not_special_here.json",
                 "software/x/tools/t.json",
             ]

@@ -23,21 +23,14 @@ pub(crate) fn system(name: &str, text: &str) -> File {
     }
 }
 
-/// `qq` 上的一个群。
-pub(crate) fn group(id: &str) -> Venue {
-    Venue {
-        platform: "qq".to_string(),
-        kind: VenueKind::Group,
-        id: id.to_string(),
-    }
+/// `qq` 上的一个群，群号是 `number`，断定合写法。
+pub(crate) fn group(number: &str) -> Venue {
+    Venue::new("qq", VenueKind::Group, number).expect(number)
 }
 
-/// `qq` 上的一个私聊。
-pub(crate) fn private(id: &str) -> Venue {
-    Venue {
-        kind: VenueKind::Private,
-        ..group(id)
-    }
+/// `qq` 上的一个私聊，对方的号是 `number`，断定合写法。
+pub(crate) fn private(number: &str) -> Venue {
+    Venue::new("qq", VenueKind::Private, number).expect(number)
 }
 
 /// 一个字的值。

@@ -6,8 +6,9 @@
 use std::path::{Path, PathBuf};
 
 use miyu_config::ConfigWords;
-use miyu_core::settings::{FILES, items, render};
+use miyu_core::settings::{FILES, Packaged, items, render};
 use miyu_store::human::Human;
+use miyu_store::packages::Packages;
 use miyu_store::resources::ResourceRoot;
 
 /// 出厂带的语言。
@@ -18,10 +19,24 @@ fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-/// 这种语言的字，照源码树的资源目录读。
+/// 出厂带的软件包拼好的配置项（施工 9-1 下）：真核心起来时也带着它们。
+fn shipped() -> Packaged {
+    let mut found = Packages::shipped(&ResourceRoot::at(repository().join("resources"))).read();
+    Packaged::of(&mut found)
+}
+
+/// 这种语言的字，照源码树的资源目录读，并进出厂的包的字。
 fn words(language: &str) -> Human {
+    let packaged = shipped();
     Human::load(&ResourceRoot::at(repository().join("resources")), language)
         .unwrap_or_else(|error| panic!("{language} 的字读得出来：{error}"))
+        .with_packages(
+            packaged
+                .manifests
+                .iter()
+                .map(|(id, manifest)| (id.as_str(), manifest)),
+            language,
+        )
 }
 
 /// 生成的文件 `name` 在这种语言下的样本：`config.schema.json` 的中文是 `config.schema.zh.json`。
@@ -43,6 +58,7 @@ fn the_registered_list_is_well_formed() {
             "ui.language",
             "ui.startup",
             "persona.default",
+            "preset.default",
             "usage.currency",
             "permission.start_read_only",
             "external.bindings.<external>",
@@ -98,21 +114,41 @@ fn every_language_names_every_item_and_nothing_more() {
         let json: serde_json::Value = serde_json::from_str(&text).expect("是 JSON");
         let config: ConfigWords =
             serde_json::from_value(json["config"].clone()).expect("配置那一格写法对");
-        assert_eq!(
-            miyu_config::words::check(&items(), &config),
-            Vec::<String>::new(),
-            "{language}"
+        // 出厂的包的项一起查：它们用到的页（「软件包」）资源里要有名字；它们自己的名字、说明和组名在清单里，资源里没有不算。
+        let packaged = shipped();
+        let mut own: Vec<String> = packaged
+            .items
+            .iter()
+            .map(|item| item.key.to_string())
+            .collect();
+        own.extend(
+            packaged
+                .manifests
+                .iter()
+                .map(|(id, _)| format!("组 {id}：")),
         );
+        let listed: Vec<_> = items()
+            .into_iter()
+            .chain(packaged.items.iter().cloned())
+            .collect();
+        let mut problems = miyu_config::words::check(&listed, &config);
+        problems.retain(|problem| !own.iter().any(|own| problem.contains(own.as_str())));
+        assert_eq!(problems, Vec::<String>::new(), "{language}");
     }
 }
 
 #[test]
 fn generated_files_match_the_samples_byte_for_byte() {
     for language in ["zh", "en"] {
-        let rendered = render(&items(), &words(language));
+        let rendered = render(&shipped().all(), &words(language));
         for (name, text) in FILES.into_iter().zip(rendered) {
             let text = text.unwrap_or_else(|error| panic!("{language} {name}：{error}"));
             let path = sample(name, language);
+            // 样本照真核心起来时那样生成（施工 9-1 下起带出厂的包）；有意改了的，设 `MIYU_SAMPLE_WRITE=1` 跑一遍重写。
+            if std::env::var_os("MIYU_SAMPLE_WRITE").is_some() {
+                std::fs::write(&path, &text).expect("写得进样本");
+                continue;
+            }
             let expected = std::fs::read_to_string(&path)
                 .unwrap_or_else(|error| panic!("{} 读不到：{error}", path.display()));
             assert_eq!(text, expected, "{language} {name} 和样本不一样");
@@ -122,7 +158,7 @@ fn generated_files_match_the_samples_byte_for_byte() {
 
 #[test]
 fn japanese_has_every_sentence_the_files_need() {
-    for text in render(&items(), &words("ja")) {
+    for text in render(&shipped().all(), &words("ja")) {
         let text = text.expect("日文的字齐全");
         assert!(text.contains("表示言語"), "{text}");
     }

@@ -9,7 +9,6 @@
 //! 里有的，照样读得进，只是不再拼进来，`event/session.rs`）。
 
 use super::action::Action;
-use super::input::Replaced;
 use super::{Session, accepted};
 use crate::event::{Body, Event, PolicyChanged};
 use crate::id::{CommandId, Seq};
@@ -102,4 +101,13 @@ impl Session {
         });
         Some(self.record(at, By::Kernel, cause, body))
     }
+}
+
+/// 钉着的引用没了、执行器退回了默认（施工 8-10）：交回 [`super::Input::TurnStartHooksDone`] 的 `replaced`。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Replaced {
+    /// 原来的引用：回合开始时内核交出去的那一个。
+    pub from: String,
+    /// 退回的引用：这一轮的 `models.chat`。
+    pub to: String,
 }

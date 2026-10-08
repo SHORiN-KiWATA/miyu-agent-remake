@@ -47,6 +47,7 @@ pub(crate) fn item(
             group: "display",
             common: false,
             control: Control::Select,
+            hidden: false,
         },
     }
 }

@@ -2,15 +2,12 @@
 //! 就是结构体里的先后，同样的内容字节一定一样。装的是发请求要用的全部：人格、拼好的 system、随核心
 //! 附带的字、几样开关。模型和供应商不在里面：同一份快照可以交给不同的端点，发请求时才定。
 
-use std::fmt;
-
 use miyu_assemble::{DefaultAssembler, Stable, Texts};
 use miyu_drivers::DriverTexts;
 use miyu_kernel::estimate::Flat;
 use miyu_kernel::event::{Permission, SessionCreated};
 use miyu_kernel::id::{AccountId, ContentHash, VenueId};
 use miyu_kernel::session::{Compaction, Notes, Policy};
-use miyu_kernel::template::TemplateError;
 use miyu_kernel::tool::{ToolTextSources, ToolTexts};
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +18,7 @@ use crate::jobs::{JobNumbers, JobTexts};
 use crate::pause::PauseNumbers;
 use crate::peers::{PeerNumbers, PeerTexts};
 use crate::persona::Demo;
+use crate::preset::PresetPin;
 use crate::rebuild::{RebuildNumbers, RebuildTexts};
 use crate::recap::{RecapNumbers, RecapTexts};
 use crate::shorten::{ShortenNumbers, ShortenTexts};
@@ -70,6 +68,16 @@ pub struct Snapshot {
     /// 旧快照的字节不变。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub memory: Option<String>,
+    /// 角色扮演提示拼好的一块（施工 P-1 补，`compose.rs`）：回合开始时隔几轮注入。没有的不写，旧快照的字节不变。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reminder: Option<String>,
+    /// 人格三份字的指纹（施工 P-1 再补，`compose.rs`）：回合开始时执行器照它认出人格的文件改了。以前造的没有：不换。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub persona_digest: Option<ContentHash>,
+    /// 会话的预设（施工 P-2 中，`compose.rs`）：编号，和造会话时装了、这个预设没开的软件。工具面、记忆的范围已经照它筛过，
+    /// 换人格重拼时照它去掉角色扮演提示、写「装了没开」那一行。以前造的没有：全开。没有的不写，旧快照的字节不变。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preset: Option<PresetPin>,
 }
 
 /// 压缩用的数（`compaction.md`「对外的样子」的策略数据）。
@@ -239,43 +247,6 @@ pub struct ToolResultTexts {
     pub crashed: String,
 }
 
-/// 快照的字节读不回来：不是这个版本写的，或者坏了。还没发布，格式改了不背兼容。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SnapshotError(String);
-
-impl fmt::Display for SnapshotError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "policy snapshot not readable: {}", self.0)
-    }
-}
-
-impl std::error::Error for SnapshotError {}
-
-/// 照快照造不出策略。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum BuildError {
-    /// 随核心附带的哪一份字用不了。
-    Texts {
-        /// 哪一类：事实的模板、内核替工具写的几句、驱动的占位。
-        which: &'static str,
-        /// 哪里坏了。
-        error: TemplateError,
-    },
-    /// 工具面上有两件叫这个名字的（施工 4-1）：她调的是哪一件，说不清。
-    DuplicateTool(String),
-}
-
-impl fmt::Display for BuildError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            BuildError::Texts { which, error } => write!(f, "bundled {which} not usable: {error}"),
-            BuildError::DuplicateTool(name) => write!(f, "two tools named {name:?}"),
-        }
-    }
-}
-
-impl std::error::Error for BuildError {}
-
 impl Snapshot {
     /// 规范的字节：紧凑的 JSON，字段照结构体的先后。
     ///
@@ -319,6 +290,7 @@ impl Snapshot {
             depth: None,
             model: None,
             persona: Some(self.persona.clone()),
+            preset: None,
         }
     }
 
@@ -380,7 +352,7 @@ impl Snapshot {
             system: self.system.clone(),
             demos: self.demos.iter().flat_map(Demo::messages).collect(),
         };
-        let facts = core.facts.templates()?;
+        let facts = core.facts.templates()?.with_reminder(self.reminder.clone());
         Ok(Policy {
             assembler: Box::new(DefaultAssembler::new(stable, texts)),
             facts,
@@ -488,6 +460,9 @@ impl Snapshot {
         })
     }
 }
+
+mod error;
+pub use error::{BuildError, SnapshotError};
 
 #[cfg(test)]
 mod tests;

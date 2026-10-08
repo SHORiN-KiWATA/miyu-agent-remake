@@ -106,7 +106,9 @@ pub fn main(options: Options) -> ExitCode {
         Ok(resources) => resources,
         Err(error) => return failed("resources", error.to_string()),
     };
-    let config = settings::read(&root, &admin(), env.home.as_deref());
+    let mut found = miyu_endpoint::packages::load(&resources, &root, &admin());
+    let packaged = settings::Packaged::of(&mut found);
+    let config = settings::read(&root, &admin(), env.home.as_deref(), &packaged);
     settings::log_level(&config, &level, &log);
     let locale = miyu_store::env::locale();
     settings::generate(
@@ -114,10 +116,13 @@ pub fn main(options: Options) -> ExitCode {
         &resources,
         locale.as_deref(),
         &config.resolved().values(),
+        &packaged,
     );
     let live = Live {
         levels: log.levels(),
         locale,
+        found,
+        packaged,
     };
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .worker_threads(WORKERS)
@@ -139,16 +144,24 @@ pub fn main(options: Options) -> ExitCode {
 ///
 /// 哪一份字读不出来、写法不对；登记时查不过（重名、名字或参数格式不合写法）。
 pub fn tools(resources: &ResourceRoot) -> Result<Catalog, String> {
-    let mut tools = miyu_basesystem::tools(resources.path()).map_err(|error| error.to_string())?;
+    let basesystem = miyu_basesystem::tools(resources.path()).map_err(|error| error.to_string())?;
     // 记忆这个软件包的三件（施工 R-3 中，`memory.md`「工具」）：工具面上只给本机的主会话。
-    tools.extend(miyu_memory::tools(resources.path()).map_err(|error| error.to_string())?);
-    Catalog::new(tools).map_err(|error| error.to_string())
+    let memory = miyu_memory::tools(resources.path()).map_err(|error| error.to_string())?;
+    // 照软件包登记（施工 P-2 中）：预设照包开关。
+    Catalog::in_packages([
+        (miyu_tool::BASESYSTEM, basesystem),
+        (miyu_memory::PACKAGE, memory),
+    ])
+    .map_err(|error| error.to_string())
 }
 
-/// 运行中配置换了当场生效要的（施工 8-4）：换运行日志级别的把手，核心这边的系统语言。
+/// 运行中配置换了当场生效要的（施工 8-4）：换运行日志级别的把手，核心这边的系统语言；起来时读的软件包清单和照它拼的
+/// 配置项（施工 9-1 下）：交给核心，语言换了重写生成的文件时也用。
 struct Live {
     levels: miyu_log::Levels,
     locale: Option<String>,
+    found: Vec<miyu_store::packages::Found>,
+    packaged: settings::Packaged,
 }
 
 /// 后半段，在运行时里：在套接字上等连接，说「好了」，接连接，直到停下。`env` 是起来时读的那一份环境快照，`config` 是
@@ -196,6 +209,7 @@ async fn run(
     )
     .with_sandbox(sandbox)
     .with_config(config)
+    .with_packages(live.found)
     .with_model_data(Arc::clone(&model_data))
     .with_queries(queries);
     if let Some((cache, cargo_home)) = sandbox_cache {
@@ -208,6 +222,7 @@ async fn run(
         generated,
         words,
         live.locale,
+        Arc::new(live.packaged),
     ));
     models::follow_cooldown(core.config_now(), Arc::clone(&model_data));
     // 监视配置文件（第七条）：拿着它一直到停，丢掉就不看了。

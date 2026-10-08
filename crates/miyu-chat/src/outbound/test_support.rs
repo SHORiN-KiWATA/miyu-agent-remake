@@ -1,4 +1,6 @@
-//! 测试共用的几样：造要发的一条、造情形、过自带的链。参数照出厂的数（4 条、15 秒），只在测试里写。
+//! 测试共用的几样：造要发的一条、造情形、过自带的链。参数照出厂的数（4 条、15 秒）和名单，只在测试里写。
+
+use miyu_kernel::id::ContentHash;
 
 use super::{Out, OutChain, OutCtx, OutWhy, Outbound, Outgoing, Sent, Since, Target};
 
@@ -8,6 +10,18 @@ pub(crate) const QUOTE_AFTER: u64 = 4;
 /// 出厂的「隔多少毫秒才 @」：15 秒。
 pub(crate) const MENTION_AFTER: i64 = 15_000;
 
+/// 出厂的不可见字符：U+200B 到 U+200F、U+2060 到 U+2064、BOM、软连字号、U+180E、U+2028、U+2029。
+pub(crate) const INVISIBLE: [char; 15] = [
+    '\u{200B}', '\u{200C}', '\u{200D}', '\u{200E}', '\u{200F}', '\u{2060}', '\u{2061}', '\u{2062}',
+    '\u{2063}', '\u{2064}', '\u{FEFF}', '\u{00AD}', '\u{180E}', '\u{2028}', '\u{2029}',
+];
+
+/// 出厂的漏进正文的工具调用：开头和收尾。
+pub(crate) const LEAKS: [(&str, &str); 2] = [
+    ("<tool_call>", "</tool_call>"),
+    ("<function=", "</function>"),
+];
+
 /// 一条只有正文、没有图的。
 pub(crate) fn text(body: &str) -> Outgoing {
     Outgoing {
@@ -16,11 +30,16 @@ pub(crate) fn text(body: &str) -> Outgoing {
     }
 }
 
-/// 一条有正文、有图的。
+/// 一张图的哈希：拿名字当内容算，同一个名字是同一张图。
+pub(crate) fn image(name: &str) -> ContentHash {
+    ContentHash::of(name.as_bytes())
+}
+
+/// 一条有正文、有图的：图照名字算哈希（[`image`]）。
 pub(crate) fn with_images(body: &str, images: &[&str]) -> Outgoing {
     Outgoing {
         text: body.to_string(),
-        images: images.iter().map(|image| image.to_string()).collect(),
+        images: images.iter().map(|name| image(name)).collect(),
     }
 }
 
@@ -39,6 +58,9 @@ pub(crate) fn ctx() -> OutCtx {
             mention_after: MENTION_AFTER,
             min_bigrams: 16,
             similar: 66,
+            invisible: INVISIBLE.to_vec(),
+            leak_open: LEAKS.iter().map(|(open, _)| open.to_string()).collect(),
+            leak_close: LEAKS.iter().map(|(_, close)| close.to_string()).collect(),
         },
     }
 }

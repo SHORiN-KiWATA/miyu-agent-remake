@@ -1,0 +1,79 @@
+# 群聊内核的出厂参数（docs/blueprint/chat.md 第八条）。
+#
+# 这份是软件包的出厂数据：五张表，每一项都得写（[judge] 的 model 除外），类型、范围照群聊内核里的声明查，写错一处整份不用、
+# 桥拒绝启动。出厂的值是旧版的默认值（docs/designs/18-通讯平台.md 第七节「旧版的默认值」、第十节）。
+#
+# 不要改这份：要改，写场所规则（venues.d/ 里的规则文件），写同名的表，只改写了的几项，没写的照这里：
+#
+#     [[rule]]                            # 不写 match：所有场所
+#     judge = { model = "@cheap" }
+#
+#     [[rule]]
+#     match = { group = [123456] }
+#     [rule.chatty]
+#     probability = 80
+#
+# 写法照配置清单：时长写成 "15s"、"3m"、"1h"（不写单位是秒，0 不是时长）；小数也收整数。
+
+# 进站链（第二条）：正文里的 base64。
+[inbound]
+base64_min_chars = 24     # 一段至少多少个字符才去解，连末尾的 = 一起数
+base64_max_chars = 5000   # 解出来最多看前多少个字符
+base64_printable = 850    # 可打印的字符至少占多少，千分比
+
+# 主动回复判断（第三条）：抽样、算分、加值项、冷静、违规的门槛。
+[chatty]
+probability = 50                # 抽样，千分比：别的条件都不成立时抽中的机会
+base = 0.8                      # 基础门槛
+relevance = 0.25                # 五维的权重：相关
+willingness = 0.25              # 意愿
+social = 0.15                   # 社交
+timing = 0.15                   # 时机
+continuity = 0.20               # 连贯
+adjust = 0.2                    # 判官说该回加它，说不该回减它；0 是关了
+direct = 0.3                    # 冲她来的加分
+continuation = 0.1              # 续聊的加分
+continuation_window = "15s"     # 续聊的窗口
+after_speaking = 0.1            # 刚说过话的加分
+after_speaking_window = "30s"   # 刚说过话的窗口
+restraint = true                # 冷静开没开
+restraint_half_life = "3m"      # 冷静：一轮回复的分量衰减一半要多久
+restraint_cap = 0.35            # 冷静：门槛最多抬多少
+restraint_k = 2.5               # 冷静：抬到一半时的近期发言量，大于 0
+severity_min = 7                # 判官给的违规严重程度不低于它，不管分数够不够都回
+
+# 顶替与分派（第四条）。
+[dispatch]
+supersede_window = "7s"   # 同一个人在这么久里补发，接过前一条
+
+# 判官（第六条）。model 不写：照 models.chat；要用便宜的，场所规则里写 judge = { model = "@池" }。
+[judge]
+records = 20                  # 判官看触发这一条之前的几条记录
+max_tokens = 400              # 判官最多输出多少 token
+timeout = "60s"               # 打分那一次的超时
+moderation_timeout = "120s"   # 只查违规那一次的超时
+retries = 1                   # 判不了重试几次
+reason_chars = 500            # 判官的理由最多留几个字符（只进日志）
+
+# 出站链与纯文本（第五条）。
+[outbound]
+quote_after = 4           # 隔几条别人的消息才引用；0 是总引用
+mention_after = "15s"     # 隔多久才 @
+min_bigrams = 16          # 去重：至少几个两字组才比相似度
+similar = 66              # 去重：相似度不低于百分之几算重复
+split_chars = 3000        # 太长的按段拆开，一段最多几个字符；0 是不拆
+
+# 清理（第五条「怎么走」第 2 条）的两份名单，照旧版。
+# 去掉漏进来的工具调用以后，正文只剩空白和这些看不见的字、又没有图，整条不发。一个字一项，写成 TOML 的转义。
+invisible = [
+    "\u200B", "\u200C", "\u200D", "\u200E", "\u200F",   # 零宽空格、零宽不连字、零宽连接符、从左到右和从右到左的标记
+    "\u2060", "\u2061", "\u2062", "\u2063", "\u2064",   # 词连接符、几个看不见的数学符号
+    "\uFEFF",                                           # BOM（零宽不换行空格）
+    "\u00AD",                                           # 软连字号
+    "\u180E",                                           # 蒙古文元音分隔符
+    "\u2028", "\u2029",                                 # 行分隔符、段分隔符
+]
+# 漏进正文的工具调用：从 leak_open 的一项起，到它后面 leak_close 同一位置的那一项止，整段去掉；找不到收尾的去到末尾。
+# 两份照位置一一对上，要一样长。
+leak_open = ["<tool_call>", "<function="]
+leak_close = ["</tool_call>", "</function>"]

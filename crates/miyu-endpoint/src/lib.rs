@@ -24,6 +24,7 @@
 //!   （施工 W-5，`uploads.rs`）。连接断了、60 秒没写都作废。
 
 mod attach;
+mod check;
 mod commands;
 pub mod config;
 mod connection;
@@ -39,7 +40,9 @@ mod login;
 mod meta;
 mod methods;
 mod models;
+pub mod packages;
 mod personas;
+mod presets;
 mod providers;
 pub mod queries;
 mod refusal;
@@ -142,6 +145,8 @@ pub struct Core {
     listing: listing::Listing,
     /// 找回、造场所会话排着来（施工 O-3）：同一个场所同时来两次，不造出两个主线会话。
     venues: tokio::sync::Mutex<()>,
+    /// 软件包清单（施工 9-1 上，`packages.rs`）：起来时读一次，装卸要重启。
+    packages: Vec<miyu_store::packages::Found>,
 }
 
 /// 空的模型资料：没有档案、没有目录，读完了。
@@ -171,6 +176,7 @@ impl Core {
         let items = [
             settings::UiSettings::ITEMS,
             settings::PersonaSettings::ITEMS,
+            settings::PresetSettings::ITEMS,
             settings::PermissionSettings::ITEMS,
             settings::EXTERNAL_BINDINGS,
         ]
@@ -179,6 +185,7 @@ impl Core {
         let model_data = empty_model_data();
         config.set_models(Arc::clone(&model_data));
         let index = Arc::new(list::open_index(&root, &admin));
+        let found = packages::load(&resources, &root, &admin);
         let usage = Arc::new(usage::open(&root));
         model_data.keep_ledger(Arc::clone(&usage));
         Core {
@@ -211,6 +218,7 @@ impl Core {
             identity: login::Identity::new(login::CODE_TTL),
             listing: listing::Listing::default(),
             venues: tokio::sync::Mutex::new(()),
+            packages: found,
         }
     }
 
@@ -264,6 +272,14 @@ impl Core {
     #[must_use]
     pub fn with_code_ttl(mut self, ttl: Duration) -> Core {
         self.identity = login::Identity::new(ttl);
+        self
+    }
+
+    /// 同一份家底，软件包清单照 `packages`（施工 9-1 下）：核心起来时读好、照核心自己的模块认过撞没撞（`packages::settle`）
+    /// 交进来，`package.list`、包的配置项的字照它。没设的是 `Core::new` 自己读的那一份。
+    #[must_use]
+    pub fn with_packages(mut self, packages: Vec<miyu_store::packages::Found>) -> Core {
+        self.packages = packages;
         self
     }
 

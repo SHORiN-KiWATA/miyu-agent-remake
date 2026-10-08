@@ -37,7 +37,7 @@ pub(crate) fn texts() -> JudgeTexts {
     .expect("出厂的模板合写法")
 }
 
-/// 一次典型的打分：不带人格、没有 base64，记录两行（末尾带换行），这一条一行（末尾不带），门槛 7。
+/// 一次典型的打分：不带人格、没有 base64，记录两行（末尾带换行），这一条一行（末尾不带）。违规的门槛照算分的测试参数，是 7。
 pub(crate) fn ask() -> Ask {
     Ask {
         persona: None,
@@ -45,6 +45,5 @@ pub(crate) fn ask() -> Ask {
         current: "[3] 阿明: @Miyu 你想吃什么".to_string(),
         decoded: None,
         mode: Mode::Reply,
-        severity_min: 7,
     }
 }

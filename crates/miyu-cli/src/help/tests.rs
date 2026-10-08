@@ -174,8 +174,8 @@ fn each_page_lists_exactly_the_options_there_are() {
         }
         assert_eq!(
             config.get_subcommands().count(),
-            8,
-            "get、check、explain、path、set、unset、edit、trust"
+            7,
+            "get、explain、path、set、unset、edit、trust（check 施工 8-30 挪成 miyu check）"
         );
         assert_eq!(
             listed(page(language, Page::Config)),
@@ -234,6 +234,7 @@ fn each_page_is_its_own_file() {
             (Page::Rename, "rename"),
             (Page::Sandbox, "sandbox"),
             (Page::Config, "config"),
+            (Page::Check, "check"),
             (Page::Login, "login"),
             (Page::Logout, "logout"),
             (Page::Setup, "setup"),
@@ -274,6 +275,7 @@ fn pages_fit_in_eighty_columns_and_end_with_one_newline() {
             Page::Recap,
             Page::Sandbox,
             Page::Config,
+            Page::Check,
             Page::Login,
             Page::Logout,
             Page::Setup,

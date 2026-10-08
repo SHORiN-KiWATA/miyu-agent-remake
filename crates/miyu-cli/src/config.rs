@@ -63,18 +63,12 @@ pub enum ConfigCommand {
         #[arg(long, value_enum, default_value = "text")]
         format: Format,
     },
-    /// 检查配置有没有写错。
+    /// `miyu check`（施工 8-30）：不在 `miyu config` 下面，由主程序的 `check` 换成它，借这一套连核心、握手。
+    #[command(skip)]
     Check {
-        /// 查这一份文件；不写的查现在的几份。
+        /// 查这一份文件；不写的查全部。
         file: Option<PathBuf>,
-        /// 当成系统配置查（只查系统配置）。
-        #[arg(long, conflicts_with = "project")]
-        system: bool,
-        /// 当成项目配置查（只查当前目录的项目配置）。
-        #[arg(long)]
-        project: bool,
         /// 输出的格式。
-        #[arg(long, value_enum, default_value = "text")]
         format: Format,
     },
     /// 这一项每一层写的什么、哪一个生效。
@@ -133,6 +127,57 @@ pub enum ConfigCommand {
         #[arg(long)]
         no: bool,
     },
+}
+
+/// 只改、只开哪一份（`edit`）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Only {
+    /// 个人设置。
+    All,
+    /// 系统配置。
+    System,
+    /// 项目配置。
+    Project,
+}
+
+impl Only {
+    /// 照两个选项：`--system`、`--project` 最多写一个（clap 拦着）。
+    pub(super) fn of(system: bool, project: bool) -> Only {
+        match (system, project) {
+            (true, _) => Only::System,
+            (_, true) => Only::Project,
+            _ => Only::All,
+        }
+    }
+}
+
+/// `miyu check` 的参数（施工 8-30）：给人看的说明在帮助页里。
+#[derive(Debug, Clone, Args)]
+pub struct Check {
+    /// 只查这一份文件。
+    pub file: Option<PathBuf>,
+    /// 输出的格式。
+    #[arg(long, value_enum, default_value = "text")]
+    pub format: Format,
+}
+
+/// 跑一次 `miyu check`（施工 8-30），交回退出码：借 `miyu config` 的那一套连核心。
+pub fn check(args: Check, start: impl FnOnce() -> Command) -> ExitCode {
+    let file = args.file.map(|file| match file.is_absolute() {
+        true => file,
+        false => std::env::current_dir()
+            .map(|cwd| cwd.join(&file))
+            .unwrap_or(file),
+    });
+    config(
+        Config {
+            command: ConfigCommand::Check {
+                file,
+                format: args.format,
+            },
+        },
+        start,
+    )
 }
 
 /// 这一次做什么、在哪、怎么印。
@@ -249,21 +294,15 @@ pub async fn config_on(
             explain(&mut talk, &tidy(key), *format, out).await
         }
         ConfigCommand::Path { system, project } => path(&mut talk, *system, *project, out).await,
-        ConfigCommand::Check {
-            file,
-            system,
-            project,
-            format,
-        } => {
-            let only = check::Only::of(*system, *project);
-            check::check(&mut talk, file.as_deref(), only, *format, out).await
+        ConfigCommand::Check { file, format } => {
+            check::check(&mut talk, file.as_deref(), *format, out).await
         }
         ConfigCommand::Set {
             key, value, system, ..
         } => set::set(&mut talk, &tidy(key), value, *system).await,
         ConfigCommand::Unset { key, system } => set::unset(&mut talk, &tidy(key), *system).await,
         ConfigCommand::Edit { system, project } => {
-            edit::edit(&mut talk, check::Only::of(*system, *project), console).await
+            edit::edit(&mut talk, Only::of(*system, *project), console).await
         }
         ConfigCommand::Trust { yes, no } => {
             let answer = match (yes, no) {

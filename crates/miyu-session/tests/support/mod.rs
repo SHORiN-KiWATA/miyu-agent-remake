@@ -89,6 +89,8 @@ pub struct Lines {
     pub memory: MemoryScope,
     /// 记忆归哪个账号（施工 P-1 上）：默认是属主 alice。
     pub memory_account: AccountId,
+    /// 预设（施工 P-2 上、中）：默认没有，全开。
+    pub preset: Option<miyu_policy::preset::Chosen>,
 }
 
 impl Default for Lines {
@@ -103,6 +105,7 @@ impl Default for Lines {
             model: None,
             memory: MemoryScope::Persona,
             memory_account: alice_account(),
+            preset: None,
         }
     }
 }
@@ -211,6 +214,11 @@ impl Home {
                 .sources("engineer")
                 .expect("出厂的软件工程师")
                 .persona,
+            personas: miyu_store::personas::Personas::new(
+                &self.resources,
+                &self.root,
+                &alice_account(),
+            ),
             memory_account: lines.memory_account,
             memory_scope: lines.memory,
             venue: lines.venue,
@@ -238,6 +246,8 @@ impl Home {
             configs: self.configs.clone(),
             model: lines.model,
             memory: Some(self.memory()),
+            preset: lines.preset,
+            presets: None,
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -286,6 +296,7 @@ impl Home {
                 &self.root,
                 &alice_account(),
             ),
+            resources: &self.resources,
             id: session.clone(),
             environment: Environment {
                 cwd: cwd.to_string(),
@@ -303,6 +314,7 @@ impl Home {
             usage: Some(Arc::clone(&self.usage)),
             configs: self.configs.clone(),
             memory: Some(self.memory()),
+            presets: None,
         });
         within("载入", loaded).await.expect("载入得了会话")
     }

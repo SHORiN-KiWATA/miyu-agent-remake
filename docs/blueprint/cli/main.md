@@ -2,7 +2,7 @@
 
 ### 是什么
 
-一个程序，像 busybox 那样按子命令分发：`ask`、`undo`（别名 `rewind`）、`restore`、`redo`、`compact`、`recap`、`rename`、`config`、`login`、`logout`、`sandbox` 是命令行的头，`core` 是核心进程。不认识的子命令就报错，绝不当成对话发给核心。给人看的话跟着界面语言。
+一个程序，像 busybox 那样按子命令分发：`ask`、`undo`（别名 `rewind`）、`restore`、`redo`、`compact`、`recap`、`rename`、`config`、`login`、`logout`、`sandbox` 是命令行的头，`core` 是核心进程。装了的软件包加的子命令照清单转交给包里的程序（施工 9-2，`packages.md`「转交」）。不认识的子命令就报错，绝不当成对话发给核心。给人看的话跟着界面语言。
 
 ### 在哪
 
@@ -28,7 +28,8 @@
 | `compact` | 把当前会话的上下文压缩成摘要，可以附上要求（施工 6-8，命令名 2026-09-29 项目主人定） | `cli/compact.md` |
 | `recap` | 一句话回顾当前会话：在做什么、做完了什么、卡在哪（施工 3-8 四补） | `cli/recap.md` |
 | `rename` | 给当前会话起名（施工 3-8 五补） | `cli/rename.md` |
-| `config` | `get`、`check`、`explain`、`path`：看配置（施工 8-2）；`set`、`unset`、`edit`、`trust`：改配置、信任项目配置（施工 8-3） | `cli/config.md` |
+| `check` | 查手写的文件有没有写错：配置、密钥文件、人格（施工 8-30） | `cli/check.md` |
+| `config` | `get`、`explain`、`path`：看配置（施工 8-2，`check` 施工 8-30 挪成 `miyu check`）；`set`、`unset`、`edit`、`trust`：改配置、信任项目配置（施工 8-3） | `cli/config.md` |
 | `login`、`logout` | 存、列、删供应商的 key（施工 8-5） | `cli/login.md` |
 | `setup` | 接上第一个模型：找现成的 key 和本机的服务，或者搜目录、贴 key，试通了写进系统配置（施工 8-11） | `cli/setup.md` |
 | `sandbox` | `setup`、`remove`：Windows 上装好、撤掉沙盒用户，要管理员权限；别的平台上说一句不用装 | `sandbox/windows.md` |
@@ -50,6 +51,10 @@
 
 ### 怎么走
 
+0. **软件包加的子命令**（施工 9-2，`crates/miyu-cli/src/packages.rs`，`packages.md`「转交」）：第一个词不是内置的子命令（名字、别名都算，连 `help`），或者是 `help`、选项、没写，才照磁盘读两层的清单（不连核心）：
+   1. 第一个词是某个包 `[command]` 的名字：照那份清单找程序（只找 `miyu` 真实位置旁边的，不找 `PATH`），参数（第一个词以后的全部）、环境、标准输入输出原样交给它，Unix 上换成它，Windows 上起它、等它、这期间不理 Ctrl+C；退出码照它的。`help <名字>` 转成 `<程序> --help`。程序没找到：标准错误上说没找到、哪一份清单说这个子命令由它跑，退出码 1。
+   2. 主程序的帮助页在「命令」那一节后面多一节「软件包加的命令」（`Commands from packages:`），一个一行，名字照命令那一列对齐，说明照界面语言挑；没有的不写这一节。撞了内置子命令的不转交、不列：内置的优先（出厂网页那一份的 `web` 照旧走内置的，照清单找网页随 9-3）。
+   3. 别的照下面走。
 1. 先照界面语言给主程序和 `ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename`、`config`（连同它的八个子命令）、`login`、`logout`、`setup`、`sandbox`（连同它的 `setup`、`remove`）换上帮助页（clap 的 `override_help`；`rewind` 是 `undo` 的别名，用同一页），再解析参数。
 2. 解析参数，不对的：
    1. 不认识的子命令：标准错误上说「没有 <名字> 这个子命令。想和她对话，用 miyu ask "…"」，退出码 2。不连核心，不拉起，什么都不发。
@@ -77,6 +82,7 @@
   recap                 一句话回顾：在做什么、做完了什么、卡在哪
   rename <标题>         给会话起名
   config <命令>         看配置、改配置、信任项目配置
+  check [文件]          查手写的文件有没有写错：配置、密钥、人格、预设、清单
   login [名字]          存一个供应商的 key；--list 列出哪几家设了
   logout [名字]         删掉一个供应商的 key
   setup                 接上第一个模型：找现成的 key，试通了写进配置
@@ -124,6 +130,7 @@ Commands:
   recap                 Recap the session: goal, progress, blockers
   rename <title>        Give the session a title
   config <command>      See and change settings, trust a project config
+  check [file]          Check config, secrets, personas, presets and packages
   login [name]          Save a provider's key; --list shows which are set
   logout [name]         Delete a provider's key
   setup                 Connect the first model: find a key, try it, save it

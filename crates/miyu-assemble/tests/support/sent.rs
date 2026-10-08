@@ -1,7 +1,8 @@
 //! 替身发过的每一次请求，和发它时的情形（施工 1-14、2-9 下；施工 C-2 从 `mod.rs` 挪出来）：[`super::check`] 照它查五条性质。
 
-use miyu_kernel::block::Block;
+use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Body, Event};
+use miyu_kernel::facts::REMINDER;
 use miyu_kernel::history::History;
 use miyu_kernel::id::{ContentHash, Seq};
 use miyu_kernel::origin::By;
@@ -19,6 +20,8 @@ pub struct Sent {
     pub rewritten: bool,
     /// 这是一个回合的第一次请求，由人的一句话触发：那句话的最后一块。
     pub trigger: Option<Block>,
+    /// 同上，这一轮开始时内核注入了角色扮演提示：那一块，排在触发后面（施工 P-1 补）。
+    pub reminder: Option<Block>,
     /// 这是压缩的摘要请求：最后一块是摘要指令（施工 6-2 上）。
     pub summary: bool,
 }
@@ -48,7 +51,7 @@ pub fn sent(stage: &Stage) -> Vec<Sent> {
             _ => false,
         });
         let summary = is_summary(request);
-        let trigger = log
+        let opened = log
             .iter()
             .filter(|event| event.seq <= *seen)
             .rev()
@@ -57,7 +60,8 @@ pub fn sent(stage: &Stage) -> Vec<Sent> {
                 _ => None,
             })
             .filter(|_| !summary)
-            .filter(|(turn, _)| before_main.is_none_or(|before| before < *turn))
+            .filter(|(turn, _)| before_main.is_none_or(|before| before < *turn));
+        let trigger = opened
             .and_then(|(_, trigger)| log.iter().find(|event| Some(event.seq) == trigger))
             // 别的 harness、别的会话发来的话渲染时包了一层标签（施工 7-10、C-2）：最后一块照它们自己的探针查
             // （`probe_harness.rs`、`probe_peers.rs`）。
@@ -70,11 +74,28 @@ pub fn sent(stage: &Stage) -> Vec<Sent> {
                 Body::MessageUser(message) => message.blocks.last().cloned(),
                 _ => None,
             });
+        let reminder = trigger.as_ref().and(opened).and_then(|(turn, _)| {
+            log.iter()
+                .filter(|event| {
+                    event.seq <= *seen && event.turn.map(|id| id.started()) == Some(turn)
+                })
+                .find_map(|event| match &event.body {
+                    Body::ContextInjected(fact)
+                        if event.by == By::Kernel && fact.kind.as_str() == REMINDER =>
+                    {
+                        Some(Block::Text(Text {
+                            text: fact.text.clone(),
+                        }))
+                    }
+                    _ => None,
+                })
+        });
         sent.push(Sent {
             summary,
             request: request.clone(),
             rewritten,
             trigger,
+            reminder,
         });
         before = Some(*mark);
         if !summary {

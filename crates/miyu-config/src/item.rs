@@ -129,6 +129,8 @@ pub struct Ui {
     pub common: bool,
     /// 用什么控件。
     pub control: Control,
+    /// 设置页不画（施工 9-1 下：网页的空闲、票据那几项）：照样能写、能查、进 Schema。
+    pub hidden: bool,
 }
 
 /// 设置页用的控件。密钥、头自己做的专门编辑器随第一项用到它的那一步。

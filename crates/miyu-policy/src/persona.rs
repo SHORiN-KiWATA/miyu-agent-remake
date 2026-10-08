@@ -1,13 +1,13 @@
 //! 人格目录里的两份字怎么读（施工 P-1 上，`docs/blueprint/personas.md`）：`persona.toml` 的名字、说明，`prompts/examples.md`
 //! 的示范对话。纯逻辑：进来的是文件里的字，出去的是读好的样子，或者写明哪个文件第几行错在哪。找哪几层、读盘由存储做。
 
-use std::collections::BTreeMap;
 use std::fmt;
 
+use miyu_config::phrases::{self, PhraseError};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::request::Message;
 use serde::{Deserialize, Serialize};
-use toml_edit::{Document, Item, TableLike};
+use toml_edit::{Document, Item};
 
 use crate::memory::MemoryScope;
 
@@ -16,10 +16,7 @@ pub const TOML: &str = "persona.toml";
 /// 示范对话在人格目录里的位置。
 pub const EXAMPLES: &str = "prompts/examples.md";
 /// 认得的语言：名字、说明各写这几种里的几种。
-pub const LANGUAGES: [&str; 3] = ["zh", "en", "ja"];
-
-/// 一句话的几种语言：语言代码到那一句。
-pub type Phrases = BTreeMap<String, String>;
+pub use miyu_config::phrases::{LANGUAGES, Phrases};
 
 /// `persona.toml` 读好的样子。每一格都可以没有。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -71,15 +68,87 @@ impl Demo {
     }
 }
 
-/// 人格的文件写错了：哪个文件、第几行（从 1 数，说不出的没有）、错在哪。错在哪是给人看的英文短句。
+/// 人格的文件写错了：哪个文件、第几行（从 1 数，说不出的没有）、哪一种错、错的那一处，和一句英文短句（日志、协议的
+/// `data.problem` 用）。给人看的那一句照 `code` 和 `detail` 用 `core/human/<语言>.json` 的 `persona-problems/<code>` 写
+/// （施工 8-30）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Problem {
     /// 人格目录里的相对位置，例如 `persona.toml`。
     pub file: &'static str,
     /// 第几行。
     pub line: Option<usize>,
-    /// 错在哪。
+    /// 哪一种错。
+    pub code: Code,
+    /// 错的那一处：表名、键（`persona.<键>`、`memory.<键>`）、`persona.<格>.<语言>`、`memory.scope`，读不成 TOML 的是它的
+    /// 原话；示范对话的是空的。
+    pub detail: String,
+    /// 错在哪，英文短句。
     pub message: String,
+}
+
+/// 人格的文件错在哪一种（施工 8-30）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Code {
+    /// 读不成 TOML。
+    Syntax,
+    /// 多了 `[persona]` 以外的表。
+    UnknownTable,
+    /// `persona` 不是表。
+    NotATable,
+    /// `[persona]` 里多了 `name`、`summary` 以外的键。
+    UnknownKey,
+    /// `name`、`summary` 不是语言到一句话的表。
+    NotPhrases,
+    /// 语言不是 `zh`、`en`、`ja`。
+    UnknownLanguage,
+    /// 一句话是空的、不是字。
+    EmptyPhrase,
+    /// `[memory]` 的 `scope` 不是 `persona`、`session`（施工 R-3 下加的读法）。
+    BadMemoryScope,
+    /// 示范对话第一行不是人说的。
+    FirstLine,
+    /// 示范对话没有一问一答交替。
+    TakeTurns,
+    /// 示范对话最后一句不是她答的。
+    LastLine,
+    /// 示范对话有一句是空的。
+    EmptyLine,
+}
+
+impl Code {
+    /// 稳定的写法：协议、给人看的字的键用它。
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Code::Syntax => "syntax",
+            Code::UnknownTable => "unknown_table",
+            Code::NotATable => "not_a_table",
+            Code::UnknownKey => "unknown_key",
+            Code::NotPhrases => "not_phrases",
+            Code::UnknownLanguage => "unknown_language",
+            Code::EmptyPhrase => "empty_phrase",
+            Code::BadMemoryScope => "bad_memory_scope",
+            Code::FirstLine => "first_line",
+            Code::TakeTurns => "take_turns",
+            Code::LastLine => "last_line",
+            Code::EmptyLine => "empty_line",
+        }
+    }
+
+    /// 全部，照先后。
+    pub const ALL: [Code; 12] = [
+        Code::Syntax,
+        Code::UnknownTable,
+        Code::NotATable,
+        Code::UnknownKey,
+        Code::NotPhrases,
+        Code::UnknownLanguage,
+        Code::EmptyPhrase,
+        Code::BadMemoryScope,
+        Code::FirstLine,
+        Code::TakeTurns,
+        Code::LastLine,
+        Code::EmptyLine,
+    ];
 }
 
 impl fmt::Display for Problem {
@@ -101,6 +170,8 @@ pub fn read_toml(text: &str) -> Result<PersonaFile, Problem> {
     let document = Document::parse(text).map_err(|error| Problem {
         file: TOML,
         line: error.span().map(|span| line_of(text, span.start)),
+        code: Code::Syntax,
+        detail: error.message().trim().to_string(),
         message: error.message().trim().to_string(),
     })?;
     let at = |item: &Item| item.span().map(|span| line_of(text, span.start));
@@ -111,18 +182,35 @@ pub fn read_toml(text: &str) -> Result<PersonaFile, Problem> {
             continue;
         }
         if key != "persona" {
-            return Err(problem(at(item), format!("unknown table [{key}]")));
+            return Err(problem(
+                at(item),
+                Code::UnknownTable,
+                key,
+                format!("unknown table [{key}]"),
+            ));
         }
         let Some(table) = item.as_table_like() else {
-            return Err(problem(at(item), "persona must be a table".to_string()));
+            return Err(problem(
+                at(item),
+                Code::NotATable,
+                "persona",
+                "persona must be a table".to_string(),
+            ));
         };
         for (key, item) in table.iter() {
             let phrases = match key {
                 "name" => &mut file.name,
                 "summary" => &mut file.summary,
-                other => return Err(problem(at(item), format!("unknown key persona.{other}"))),
+                other => {
+                    return Err(problem(
+                        at(item),
+                        Code::UnknownKey,
+                        &format!("persona.{other}"),
+                        format!("unknown key persona.{other}"),
+                    ));
+                }
             };
-            *phrases = read_phrases(key, item, &at)?;
+            *phrases = read_phrases(key, item, text)?;
         }
     }
     Ok(file)
@@ -134,17 +222,29 @@ fn read_memory(
     at: &dyn Fn(&Item) -> Option<usize>,
 ) -> Result<Option<MemoryScope>, Problem> {
     let Some(table) = item.as_table_like() else {
-        return Err(problem(at(item), "memory must be a table".to_string()));
+        return Err(problem(
+            at(item),
+            Code::NotATable,
+            "memory",
+            "memory must be a table".to_string(),
+        ));
     };
     let mut scope = None;
     for (key, item) in table.iter() {
         if key != "scope" {
-            return Err(problem(at(item), format!("unknown key memory.{key}")));
+            return Err(problem(
+                at(item),
+                Code::UnknownKey,
+                &format!("memory.{key}"),
+                format!("unknown key memory.{key}"),
+            ));
         }
         scope = match item.as_str().and_then(MemoryScope::parse) {
             Some(MemoryScope::Off) | None => {
                 return Err(problem(
                     at(item),
+                    Code::BadMemoryScope,
+                    "memory.scope",
                     "memory.scope must be persona or session".to_string(),
                 ));
             }
@@ -155,44 +255,36 @@ fn read_memory(
 }
 
 /// 一张语言到一句话的表。
-fn read_phrases(
-    field: &str,
-    item: &Item,
-    at: &dyn Fn(&Item) -> Option<usize>,
-) -> Result<Phrases, Problem> {
-    let Some(table) = item.as_table_like() else {
-        return Err(problem(
-            at(item),
+fn read_phrases(field: &str, item: &Item, text: &str) -> Result<Phrases, Problem> {
+    let line_at = |offset: usize| line_of(text, offset);
+    phrases::read(item).map_err(|error| match error {
+        PhraseError::NotPhrases(span) => problem(
+            span.map(|span| line_at(span.start)),
+            Code::NotPhrases,
+            &format!("persona.{field}"),
             format!("persona.{field} must map languages to text"),
-        ));
-    };
-    let mut phrases = Phrases::new();
-    for (language, value) in TableLike::iter(table) {
-        if !LANGUAGES.contains(&language) {
-            return Err(problem(
-                at(value),
-                format!("persona.{field}.{language}: language must be zh, en or ja"),
-            ));
-        }
-        match value.as_str().map(str::trim) {
-            Some(text) if !text.is_empty() => {
-                phrases.insert(language.to_string(), text.to_string());
-            }
-            _ => {
-                return Err(problem(
-                    at(value),
-                    format!("persona.{field}.{language} must be non-empty text"),
-                ));
-            }
-        }
-    }
-    Ok(phrases)
+        ),
+        PhraseError::UnknownLanguage(language, span) => problem(
+            span.map(|span| line_at(span.start)),
+            Code::UnknownLanguage,
+            &format!("persona.{field}.{language}"),
+            format!("persona.{field}.{language}: language must be zh, en or ja"),
+        ),
+        PhraseError::Empty(language, span) => problem(
+            span.map(|span| line_at(span.start)),
+            Code::EmptyPhrase,
+            &format!("persona.{field}.{language}"),
+            format!("persona.{field}.{language} must be non-empty text"),
+        ),
+    })
 }
 
-fn problem(line: Option<usize>, message: String) -> Problem {
+fn problem(line: Option<usize>, code: Code, detail: &str, message: String) -> Problem {
     Problem {
         file: TOML,
         line,
+        code,
+        detail: detail.to_string(),
         message,
     }
 }
@@ -222,10 +314,10 @@ pub fn read_examples(text: &str) -> Result<Vec<Demo>, Problem> {
                 if let Some((last, _, _)) = said.last()
                     && *last == who
                 {
-                    return Err(example(number, "user and assistant must take turns"));
+                    return Err(example(number, Code::TakeTurns));
                 }
                 if said.is_empty() && who == Speaker::Assistant {
-                    return Err(example(number, "the first line must start with user:"));
+                    return Err(example(number, Code::FirstLine));
                 }
                 said.push((who, number, rest.to_string()));
             }
@@ -235,12 +327,12 @@ pub fn read_examples(text: &str) -> Result<Vec<Demo>, Problem> {
                     text.push('\n');
                     text.push_str(line);
                 }
-                None => return Err(example(number, "the first line must start with user:")),
+                None => return Err(example(number, Code::FirstLine)),
             },
         }
     }
     if let Some((Speaker::User, number, _)) = said.last() {
-        return Err(example(*number, "the last line must be the assistant's"));
+        return Err(example(*number, Code::LastLine));
     }
     let mut demos = Vec::new();
     for pair in said.chunks(2) {
@@ -249,7 +341,7 @@ pub fn read_examples(text: &str) -> Result<Vec<Demo>, Problem> {
         };
         for (number, text) in [(first, user), (second, assistant)] {
             if text.trim().is_empty() {
-                return Err(example(*number, "a line must say something"));
+                return Err(example(*number, Code::EmptyLine));
             }
         }
         demos.push(Demo {
@@ -279,10 +371,18 @@ fn speaker(line: &str) -> Option<(Speaker, &str)> {
     Some((who, rest))
 }
 
-fn example(line: usize, message: &str) -> Problem {
+fn example(line: usize, code: Code) -> Problem {
+    let message = match code {
+        Code::FirstLine => "the first line must start with user:",
+        Code::TakeTurns => "user and assistant must take turns",
+        Code::LastLine => "the last line must be the assistant's",
+        _ => "a line must say something",
+    };
     Problem {
         file: EXAMPLES,
         line: Some(line),
+        code,
+        detail: String::new(),
         message: message.to_string(),
     }
 }

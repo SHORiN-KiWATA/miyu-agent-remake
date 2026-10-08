@@ -4,8 +4,11 @@
 //! 施工 3-6（上）时只有人设。别的块跟着各自的功能来，按 J12 先实测证明不加不行：场所说明施工 7-5 加（子会话）；核心的
 //! 几行施工 2-7 补加，权限那一行和本机文件的路径那一行，2026-10-01 主会话 A/B 实测过（`26-提示词.md` 第十节）。
 
+use miyu_kernel::id::ContentHash;
+
 use crate::pause::PAUSE;
 use crate::persona::Demo;
+use crate::preset::{PresetPin, ROLEPLAY};
 use crate::rebuild::REBUILD;
 use crate::recap::RECAP;
 use crate::shorten::SHORTEN;
@@ -34,19 +37,34 @@ pub struct Sources {
     pub core: CoreTexts,
     /// 这个人格的字。
     pub persona: PersonaTexts,
+    /// 角色扮演提示的包装（`core/facts/reminder-open.txt`、`reminder-close.txt`，施工 P-1 补）：拼进快照的 `reminder`，
+    /// 不另存，没有角色扮演提示的快照字节不变。
+    pub reminder: Wrap,
 }
 
-/// 一个人格的字（`<人格目录>/prompts/`，施工 P-1 上照几层叠好）。角色扮演提示随 P-1 补。
+/// 包一段字的开头、收尾。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Wrap {
+    /// 开头。
+    pub open: String,
+    /// 收尾。
+    pub close: String,
+}
+
+/// 一个人格的字（`<人格目录>/prompts/`，施工 P-1 上照几层叠好）。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PersonaTexts {
     /// 人设（`persona.md`）：没有的是空的。
     pub persona: String,
     /// 示范对话（`examples.md`，`crate::persona::read_examples` 读好的）：没有的是空的。
     pub examples: Vec<Demo>,
+    /// 角色扮演提示（`reminders.md`，施工 P-1 补）：整份是一条；没有的是空的。
+    pub reminders: String,
 }
 
 /// 照 `26-提示词.md` 第四节拼出人格 `persona` 的快照。`attended` 是这个场所有没有人能确认。
 pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
+    let digest = sources.persona.digest();
     Snapshot {
         persona: persona.to_string(),
         system: system(&[&sources.persona.persona]),
@@ -62,16 +80,43 @@ pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
         title: Some(crate::title::TITLE),
         peers: Some(crate::peers::PEERS),
         memory: None,
+        reminder: reminder(&sources.persona.reminders, &sources.reminder),
+        persona_digest: Some(digest),
+        preset: None,
     }
 }
 
-/// 核心的几行（`26-提示词.md` 第四节第 3 块，施工 2-7 补）：执行器从资源目录读好交进来，造会话时拼进 system。
+impl PersonaTexts {
+    /// 三份字的指纹（施工 P-1 再补）：拼进快照的 `persona_digest`，回合开始时执行器照它认出人格的文件改了。
+    ///
+    /// # Panics
+    ///
+    /// 实际不会 panic：字和示范对话总写得成 JSON。
+    pub fn digest(&self) -> ContentHash {
+        let texts = (&self.persona, &self.examples, &self.reminders);
+        ContentHash::of(&serde_json::to_vec(&texts).expect("字和示范对话写得成 JSON"))
+    }
+}
+
+/// 角色扮演提示拼成的一块（施工 P-1 补）：开头、去掉末尾空白的原文、换行、收尾。原文不转义：是人格的作者写的。去掉末尾
+/// 空白以后是空的，没有。
+fn reminder(text: &str, wrap: &Wrap) -> Option<String> {
+    let text = text.trim_end();
+    (!text.is_empty()).then(|| format!("{}{text}\n{}", wrap.open, wrap.close))
+}
+
+/// 核心的几行（`26-提示词.md` 第四节第 3 块，施工 2-7 补）和风格锁（第 7 块，施工 P-1 补）：执行器从资源目录读好交进来，
+/// 造会话时拼进 system。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CoreLines {
     /// `<permission>` 那一块怎么读、每一级能做什么、只有人能切（`core/permission-rule.txt`）。没有工具的会话不带。
     pub permission: String,
     /// 回答里提到本机的文件写绝对路径（`core/local-paths-rule.txt`）。
     pub local_paths: String,
+    /// 风格锁（`core/style-lock.txt`）：只有带角色扮演提示的人格带（[`Snapshot::with_style_lock`]）。
+    pub style_lock: String,
+    /// 装了、这个预设没开的软件那一行（`core/preset-off.txt`，施工 P-2 中，Y8）：`{packages}` 换成逗号隔开的编号。
+    pub preset_off: String,
 }
 
 impl Snapshot {
@@ -89,6 +134,58 @@ impl Snapshot {
             .collect::<Vec<_>>()
             .join("\n");
         self.system = system(&[&self.system, &block]);
+        self
+    }
+
+    /// 能不能换成 `new`（施工 P-1 再补）：除了 system、示范对话、角色扮演提示和人格的指纹，别的格都一样。不一样的说明程序
+    /// 升级过、执行器照旧快照造的那几份字（驱动的占位、权限策略的几句）还是旧的，换一半会让两版字混着用。工具面、预设也
+    /// 不比（施工 P-2 下）：换预设时重新筛过，以前就有的那几件是旧快照里的原样，新打开的照现在的目录拿。
+    pub fn swappable(&self, new: &Snapshot) -> bool {
+        let rest = |snapshot: &Snapshot| Snapshot {
+            system: String::new(),
+            demos: Vec::new(),
+            tools: Vec::new(),
+            reminder: None,
+            persona_digest: None,
+            preset: None,
+            ..snapshot.clone()
+        };
+        rest(self) == rest(new)
+    }
+
+    /// 带上预设（施工 P-2 中，Y8）：记进快照；没开角色扮演的去掉角色扮演提示（人格的指纹照旧算原来的字，回合开始时不会
+    /// 当成改过）；装了没开的软件写成一行接在 system 后面（26 第四节第 5 块），在 [`Snapshot::with_core_lines`] 以后、
+    /// [`Snapshot::with_style_lock`] 以前调。角色扮演不进这一行：它没有工具，她不会去用它，列出来反倒像是不许演。都开着的
+    /// 不写这一行，system 一字不变。
+    #[must_use]
+    pub fn with_preset(mut self, pin: Option<PresetPin>, line: &str) -> Snapshot {
+        let Some(pin) = pin else {
+            return self;
+        };
+        if pin.off.iter().any(|software| software == ROLEPLAY) {
+            self.reminder = None;
+        }
+        let listed: Vec<&str> = pin
+            .off
+            .iter()
+            .map(String::as_str)
+            .filter(|software| *software != ROLEPLAY)
+            .collect();
+        if !listed.is_empty() {
+            let line = line.replace("{packages}", &listed.join(", "));
+            self.system = system(&[&self.system, &line]);
+        }
+        self.preset = Some(pin);
+        self
+    }
+
+    /// 带上风格锁（施工 P-1 补）：system 的最后一块（26 第四节第 7 块），在 [`Snapshot::with_core_lines`] 以后调。只有带
+    /// 角色扮演提示的人格带（2026-10-07 项目主人定），别的 system 一字不变。
+    #[must_use]
+    pub fn with_style_lock(mut self, lock: &str) -> Snapshot {
+        if self.reminder.is_some() {
+            self.system = system(&[&self.system, lock]);
+        }
         self
     }
 
@@ -142,6 +239,8 @@ mod tests {
         CoreLines {
             permission: "Permission rule.\n".to_string(),
             local_paths: "Local paths rule.\n".to_string(),
+            style_lock: String::new(),
+            preset_off: String::new(),
         }
     }
 
@@ -178,6 +277,128 @@ mod tests {
         assert_eq!(bare.system, format!("{persona}\n\nLocal paths rule."));
     }
 
+    /// 带角色扮演提示的人格：快照里是拼好的一块（包装、去掉末尾空白的原文、换行、收尾），造出的策略第一轮就注入它。
+    fn reminding(reminders: &str) -> Snapshot {
+        let mut sources = crate::test_support::sources();
+        sources.persona.reminders = reminders.to_string();
+        sources.reminder = Wrap {
+            open: "<persona-reminder>\n".to_string(),
+            close: "</persona-reminder>\n".to_string(),
+        };
+        compose("miyu", sources, true)
+    }
+
+    #[test]
+    fn a_reminder_is_wrapped_into_the_snapshot_and_reaches_the_facts() {
+        let snapshot = reminding("  Stay soft.\n\n");
+        let block = "<persona-reminder>\n  Stay soft.\n</persona-reminder>\n";
+        assert_eq!(snapshot.reminder.as_deref(), Some(block));
+        let fact = snapshot
+            .policy()
+            .unwrap()
+            .facts
+            .reminder(&miyu_kernel::history::History::default())
+            .unwrap();
+        assert_eq!(fact.text, block);
+        let read = Snapshot::from_bytes(&snapshot.to_bytes()).unwrap();
+        assert_eq!(read, snapshot, "存得回来");
+    }
+
+    #[test]
+    fn a_blank_reminder_is_none_and_the_snapshot_is_as_before() {
+        assert_eq!(reminding(" \n\t\n").reminder, None);
+        let engineer = crate::test_support::engineer();
+        assert_eq!(engineer.reminder, None);
+        let bytes = String::from_utf8(engineer.to_bytes()).unwrap();
+        assert!(!bytes.contains("reminder"), "没有的不写：{bytes}");
+        assert!(
+            engineer
+                .policy()
+                .unwrap()
+                .facts
+                .reminder(&miyu_kernel::history::History::default())
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn the_style_lock_ends_the_system_of_a_persona_with_a_reminder_only() {
+        let lock = "<style-lock>Stay.</style-lock>\n";
+        let main = reminding("Stay soft.")
+            .with_tools(vec![a_tool()])
+            .with_core_lines(&lines())
+            .with_style_lock(lock);
+        assert!(
+            main.system
+                .ends_with("Permission rule.\nLocal paths rule.\n\n<style-lock>Stay.</style-lock>"),
+            "{}",
+            main.system
+        );
+        let plain = crate::test_support::engineer().with_core_lines(&lines());
+        assert_eq!(
+            plain.clone().with_style_lock(lock).system,
+            plain.system,
+            "没有角色扮演提示的不带"
+        );
+    }
+
+    /// 人格的指纹（施工 P-1 再补）：同样的字同样的指纹，三份里改了哪一份都变；拼进快照。
+    #[test]
+    fn the_digest_follows_the_three_persona_texts() {
+        let base = crate::test_support::sources().persona;
+        let digest = base.digest();
+        assert_eq!(base.clone().digest(), digest);
+        let mut persona = base.clone();
+        persona.persona.push('x');
+        let mut examples = base.clone();
+        examples.examples = crate::persona::read_examples("user: a\nassistant: b\n").unwrap();
+        let mut reminders = base.clone();
+        reminders.reminders = "Stay.".to_string();
+        for changed in [persona, examples, reminders] {
+            assert_ne!(changed.digest(), digest);
+        }
+        assert_eq!(crate::test_support::engineer().persona_digest, Some(digest));
+    }
+
+    /// 换快照只许人格的那几格不一样（施工 P-1 再补）：核心的字、工具面、人格编号变了的都不算。
+    #[test]
+    fn only_the_persona_and_preset_parts_may_differ_for_a_swap() {
+        let old = crate::test_support::engineer()
+            .with_tools(vec![a_tool()])
+            .with_core_lines(&lines());
+        let mut sources = crate::test_support::sources();
+        sources.persona.persona = "You are Miyu.\n".to_string();
+        sources.persona.reminders = "Stay.".to_string();
+        let new = compose("engineer", sources, true)
+            .with_tools(vec![a_tool()])
+            .with_core_lines(&lines())
+            .with_style_lock("<lock/>");
+        assert!(old.swappable(&new));
+        let mut core = new.clone();
+        core.core.facts.env = "<e/>\n".to_string();
+        assert!(!old.swappable(&core), "核心的字变了");
+        let mut tools = new.clone();
+        tools.tools.clear();
+        tools.preset = Some(crate::preset::PresetPin {
+            id: "dev".to_string(),
+            off: vec!["basesystem".to_string()],
+            digest: None,
+        });
+        assert!(
+            old.swappable(&tools),
+            "工具面、预设可以变（施工 P-2 下：换预设时重新筛过）"
+        );
+        let mut memory = new.clone();
+        memory.memory = Some("off".to_string());
+        assert!(!old.swappable(&memory), "记忆的范围钉在会话上");
+        let mut attended = new.clone();
+        attended.attended = false;
+        assert!(!old.swappable(&attended));
+        let mut other = new;
+        other.persona = "miyu".to_string();
+        assert!(!old.swappable(&other), "不是同一个人格");
+    }
+
     #[test]
     fn without_the_core_lines_the_system_is_as_before() {
         let tooled = crate::test_support::engineer().with_tools(vec![a_tool()]);
@@ -185,6 +406,8 @@ mod tests {
         let empty = CoreLines {
             permission: "\n".to_string(),
             local_paths: String::new(),
+            style_lock: String::new(),
+            preset_off: String::new(),
         };
         assert_eq!(
             tooled.clone().with_core_lines(&empty).system,

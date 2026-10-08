@@ -8,6 +8,8 @@
 //! 纯逻辑：这一回合已经发出去的（[`Sent`]）、她回的那条之后群里的动静（[`Since`]）、参数（[`Outbound`]），都由外面交进来
 //! （[`OutCtx`]）；出站队列（禁言暂停、过期作废、回执撤回、退信）随桥（「怎么走」第 7 条）。
 
+use miyu_kernel::id::ContentHash;
+
 mod clean;
 mod dedupe;
 mod plain;
@@ -22,8 +24,8 @@ pub use split::split;
 pub struct Outgoing {
     /// 正文。清理时整条是空白的、去重时正文重复而带图的，正文变成空的。
     pub text: String,
-    /// 几张图，每张是内容的哈希（例如 blob 的编号），照字比；去重看它。先后就是发的先后。
-    pub images: Vec<String>,
+    /// 几张图，每张是内容的哈希（内核的 `ContentHash`，blob 的编号）；去重看它。先后就是发的先后。
+    pub images: Vec<ContentHash>,
 }
 
 /// 这一回合已经发出去的：去重只看这一回合（施工时定的第 1 条），外面换回合时清空。
@@ -32,7 +34,7 @@ pub struct Sent {
     /// 发出去的正文，原文；归一化在这里做。
     pub texts: Vec<String>,
     /// 发出去的图的哈希。
-    pub images: Vec<String>,
+    pub images: Vec<ContentHash>,
 }
 
 /// 引用、@ 那个人：这一条要不要。
@@ -58,17 +60,28 @@ pub struct Since {
     pub last_is_own: bool,
 }
 
-/// 引用和 @ 的两个参数。出厂的数（4 条、15 秒）随桥放进出厂数据，代码里不写死（施工时定的第 4 条）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 清理的两份名单、引用和 @、去重的参数，代码里不写死（施工时定的第 4、10 条）：从 [`Params::outbound`](crate::Params::outbound)
+/// 拿，出厂的数（4 条、15 秒、16、66）和名单在出厂文件里（`chat.md` 第八条）。格只在 crate 里可见，外面造不出，拿到的都照
+/// 声明查过，两份标记一样长（施工 O-15）。
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Outbound {
     /// 隔几条别人的消息才引用；`0` 是总引用。
-    pub quote_after: u64,
+    pub(crate) quote_after: u64,
     /// 隔多少毫秒才 @。
-    pub mention_after: i64,
+    pub(crate) mention_after: i64,
     /// 去重：这一条的两字组至少这么多个才比相似度，太短的句子换几个字就差很多，比了只会误杀（出厂 16，旧版实测）。
-    pub min_bigrams: usize,
+    pub(crate) min_bigrams: usize,
     /// 去重：两字组的 Jaccard 相似度不低于这个百分比算重复（出厂 66，旧版实测）；用整数比，不碰小数的舍入。
-    pub similar: u8,
+    pub(crate) similar: u8,
+    /// 清理：不可见字符，判空时和空白一样算（出厂十五个：零宽空格、零宽连接符这一带、BOM、软连字号……）。只拿来判空，
+    /// 不拿来改正文：零宽连接符夹在表情里是有意义的。
+    pub(crate) invisible: Vec<char>,
+    /// 清理：漏进正文的工具调用从哪开始（出厂 `<tool_call>`、`<function=`），和 `leak_close` 照位置一一对上。每项都不空：
+    /// 空的开头、收尾会让清理停不下来，声明守着（第八条施工时定的第 20 条）。
+    pub(crate) leak_open: Vec<String>,
+    /// 清理：漏进正文的工具调用到哪结束（出厂 `</tool_call>`、`</function>`），和 `leak_open` 一样长（第八条「怎么走」
+    /// 第 7 条）。
+    pub(crate) leak_close: Vec<String>,
 }
 
 /// 出站链看的情形，由外面交进来。
@@ -127,11 +140,9 @@ pub enum OutStep {
 
 /// 出站链的插槽：一条规则。扩展往链里加规则也照它写（`18-通讯平台.md` 第十四节）。
 ///
-/// 规则只看交进来的，不碰 I/O、时钟：同样的一条、同样的情形，给出同样的一步。
+/// 规则只看交进来的，不碰 I/O、时钟：同样的一条、同样的情形，给出同样的一步。规则没有名字：自带的丢掉时，[`OutWhy`]
+/// 已经说清是哪一条（第二条施工时定的第 14 条）。
 pub trait OutboundRule {
-    /// 规则的名字，例如 `clean`：说清是哪一条丢的。
-    fn name(&self) -> &str;
-
     /// 看一条，给出一步。`target` 是前面的规则交下来的引用和 @，第一条拿到的是 [`OutCtx::target`]。
     fn judge(&self, outgoing: Outgoing, target: Target, ctx: &OutCtx) -> OutStep;
 }
@@ -175,6 +186,6 @@ impl OutChain {
 }
 
 #[cfg(test)]
-mod test_support;
+pub(crate) mod test_support;
 #[cfg(test)]
 mod tests;

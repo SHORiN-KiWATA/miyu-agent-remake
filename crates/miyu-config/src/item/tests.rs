@@ -77,6 +77,7 @@ fn a_switch_is_declared_with_how_a_project_tightens_it() {
                 group: "sessions",
                 common: false,
                 control: Control::Toggle,
+                hidden: false,
             },
         }]
     );
@@ -134,6 +135,7 @@ fn the_items_follow_the_fields_in_order() {
                     group: "display",
                     common: true,
                     control: Control::Select,
+                    hidden: false,
                 },
             },
             Item {
@@ -149,6 +151,7 @@ fn the_items_follow_the_fields_in_order() {
                     group: "log",
                     common: false,
                     control: Control::Select,
+                    hidden: false,
                 },
             },
         ]

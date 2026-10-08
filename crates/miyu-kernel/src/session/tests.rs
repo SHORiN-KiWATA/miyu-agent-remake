@@ -146,6 +146,7 @@ fn turn3() -> TurnId {
 /// 回合开始的挂接点跑完了，交回这几块注入。
 fn hooks_done(turn: TurnId, injected: Vec<Injection>) -> Input {
     Input::TurnStartHooksDone {
+        policy: None,
         at: at(30),
         turn,
         injected,

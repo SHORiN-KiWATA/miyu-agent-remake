@@ -179,7 +179,9 @@ fn examples_go_after_the_system_and_before_the_history() {
         persona: PersonaTexts {
             persona: "You are Miyu.\n".to_string(),
             examples,
+            reminders: String::new(),
         },
+        reminder: Default::default(),
     };
     let snapshot = compose("miyu", sources, true);
     let request = snapshot
@@ -246,4 +248,70 @@ fn the_memory_scope_is_persona_or_session_and_an_upper_layer_wins() {
     );
     let upper = read_toml("[memory]\nscope = \"persona\"\n").unwrap();
     assert_eq!(upper.over(lower).memory, Some(MemoryScope::Persona));
+}
+
+/// 每一种错有自己的代码，错的那一处另放一格：给人看的那一句照它们写（施工 8-30）。
+#[test]
+fn each_mistake_carries_its_code_and_where() {
+    for (text, code, detail) in [
+        ("[persona\n", Code::Syntax, None),
+        ("[voice]\n", Code::UnknownTable, Some("voice")),
+        ("memory = 1\n", Code::NotATable, Some("memory")),
+        (
+            "[memory]\nkind = 1\n",
+            Code::UnknownKey,
+            Some("memory.kind"),
+        ),
+        (
+            "[memory]\nscope = \"off\"\n",
+            Code::BadMemoryScope,
+            Some("memory.scope"),
+        ),
+        ("persona = 3\n", Code::NotATable, Some("persona")),
+        (
+            "[persona]\nvoice = 1\n",
+            Code::UnknownKey,
+            Some("persona.voice"),
+        ),
+        (
+            "[persona]\nname = 1\n",
+            Code::NotPhrases,
+            Some("persona.name"),
+        ),
+        (
+            "[persona]\nname = { fr = \"x\" }\n",
+            Code::UnknownLanguage,
+            Some("persona.name.fr"),
+        ),
+        (
+            "[persona]\nsummary = { en = \"\" }\n",
+            Code::EmptyPhrase,
+            Some("persona.summary.en"),
+        ),
+    ] {
+        let problem = read_toml(text).unwrap_err();
+        assert_eq!(problem.code, code, "{text:?}");
+        if let Some(detail) = detail {
+            assert_eq!(problem.detail, detail, "{text:?}");
+        } else {
+            assert!(!problem.detail.is_empty(), "读不成 TOML 的带它的原话");
+        }
+    }
+    for (text, code) in [
+        ("assistant: a\n", Code::FirstLine),
+        ("user: a\nuser: b\n", Code::TakeTurns),
+        ("user: a\n", Code::LastLine),
+        ("user: \nassistant: b\n", Code::EmptyLine),
+    ] {
+        let problem = read_examples(text).unwrap_err();
+        assert_eq!(
+            (problem.code, problem.detail.as_str()),
+            (code, ""),
+            "{text:?}"
+        );
+    }
+    let names: Vec<&str> = Code::ALL.iter().map(|code| code.as_str()).collect();
+    let mut unique = names.clone();
+    unique.dedup();
+    assert_eq!(names.len(), unique.len(), "写法不重复");
 }

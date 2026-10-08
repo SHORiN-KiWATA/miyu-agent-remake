@@ -79,6 +79,7 @@ pub(crate) async fn call(
                 model,
                 venue: None,
                 memory,
+                preset: params.preset,
             };
             let created = core
                 .sessions
@@ -98,8 +99,12 @@ pub(crate) async fn call(
             }
             Ok(reply)
         }
+        "check" => crate::check::check(core, peer, params(request)?).await,
         "persona.list" => personas::list(core, peer).await,
+        "package.list" => crate::packages::list(core, peer),
         "persona.get" => personas::get(core, params(request)?).await,
+        "preset.list" => crate::presets::list(core, peer).await,
+        "preset.get" => crate::presets::get(core, params(request)?).await,
         "session.list" => {
             let params: ListParams = params(request)?;
             let sessions = list::list(core, params.oneshot, params.limit).await?;

@@ -1,13 +1,15 @@
-//! 违规关键词（`docs/blueprint/chat.md` 第二条「怎么走」第 5 条，`18-通讯平台.md` 第六节）：正文里出现关键词，或者正文里
-//! 一段 base64 解出来出现关键词，插一面违规旗，交给线路规程让判官认真查一眼。只插旗，不拦。主人发的不查（施工时定的
-//! 第 1 条）。
+//! 违规关键词（`docs/blueprint/chat.md` 第二条「怎么走」第 5、12 条，`18-通讯平台.md` 第六节）：正文里出现关键词，或者正文里
+//! 的 base64 解出来的字（[`Base64::reveal`]）出现关键词，插一面违规旗，交给线路规程让判官认真查一眼。只插旗，不拦。主人发的
+//! 不查（施工时定的第 1 条）。
 //!
 //! 关键词按子串比，短的 ASCII 词是灾难（旧版 `OD` 一个词 7 天误报 447 次）：词表是数据，改了拿真实聊天记录审一遍。
 
-use super::base64::{decode, segments};
-use super::{Clock, Ctx, Flag, Inbound, InboundRule, Standing, Step};
+use std::collections::BTreeSet;
 
-/// 违规关键词的参数。出厂的词表和三个数随桥那一步放进出厂的数据，代码里不写死。
+use super::{Base64, Clock, Ctx, Flag, Inbound, InboundRule, Standing, Step};
+
+/// 违规关键词的参数，代码里不写死：关键词从违规词表读（[`Moderation::parse_keywords`]，出厂的词表是软件包资源里的
+/// `moderation.txt`，施工 O-15 下）；base64 的三个数从 `chat.md` 第八条的 [`Params::base64`](crate::Params::base64) 拿。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Moderation {
     /// 关键词：子串；ASCII 的字母不分大小写，别的字照原样比；空的不算。
@@ -16,18 +18,23 @@ pub struct Moderation {
     pub base64: Base64,
 }
 
-/// 正文里的 base64 的三个数。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Base64 {
-    /// 一段至少多少个字符才去解，连末尾的 `=` 一起数。太短的大多是普通的词。
-    pub min_chars: usize,
-    /// 解出来最多看前多少个字符：可打印的比例、关键词都只看这些。
-    pub max_chars: usize,
-    /// 可打印的字符（不是控制字符的）至少占几成，千分比：低于它的当乱码，不查。
-    pub printable: u16,
-}
-
 impl Moderation {
+    /// 读违规词表的原文（`chat.md` 第二条「怎么走」第 12 条）：开头的 BOM 去掉；一行一个，每一行去掉首尾的空白（`\r` 也去）；
+    /// 去完是空的、以 `#` 开头的不要；一字不差重复的只留第一个，照出现的先后。
+    ///
+    /// 不会失败：一行一个字，没什么能写错的。`#` 照去掉空白以后的看，缩进的注释也是注释；只差 ASCII 大小写的两个都留，
+    /// 查起来结果一样（施工时定的第 22 条）。叫这个名字不叫 `keywords`：和格 [`Moderation::keywords`] 同名，文档的链接分
+    /// 不清（施工时定的第 21 条）。读文件、系统里的同名文件替换出厂的那一份，由读文件的一方管。
+    pub fn parse_keywords(text: &str) -> Vec<String> {
+        let text = text.strip_prefix('\u{FEFF}').unwrap_or(text);
+        let mut seen = BTreeSet::new();
+        text.lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty() && !line.starts_with('#') && seen.insert(*line))
+            .map(String::from)
+            .collect()
+    }
+
     /// `text` 里出现任何一个关键词没有。
     fn hits(&self, text: &str) -> bool {
         // 按字节比：关键词是完整的 UTF-8，非 ASCII 的字节都不小于 0x80、不受 ASCII 大小写影响，只能从字的开头对上。
@@ -42,41 +49,19 @@ impl Moderation {
     }
 }
 
-impl Base64 {
-    /// 一段 base64 解出来要查的字：照 UTF-8 读（读不了的字节换成替换字符），只留前 `max_chars` 个字符；可打印的不够
-    /// `printable` 的、空的是 `None`。
-    fn reveal(self, segment: &str) -> Option<String> {
-        let bytes = decode(segment);
-        let shown: String = String::from_utf8_lossy(&bytes)
-            .chars()
-            .take(self.max_chars)
-            .collect();
-        let total = shown.chars().count();
-        let printable = shown.chars().filter(|c| !c.is_control()).count();
-        let enough =
-            printable.saturating_mul(1000) >= total.saturating_mul(usize::from(self.printable));
-        (total > 0 && enough).then_some(shown)
-    }
-}
-
 /// 违规关键词这条规则。
 pub(super) struct Rule;
 
 impl InboundRule for Rule {
-    fn name(&self) -> &str {
-        "moderation"
-    }
-
     fn judge(&self, msg: &Inbound, ctx: &Ctx, _clock: Clock) -> Step {
         let moderation = &ctx.moderation;
-        let base64 = moderation.base64;
-        let hit = msg.standing != Standing::Owner
+        // 解出来的几段用换行接着：关键词一行一个、里面没有换行，不会跨两段对上。
+        let hit = msg.said.standing != Standing::Owner
             && (moderation.hits(&msg.text)
-                || segments(&msg.text)
-                    .into_iter()
-                    .filter(|segment| segment.len() >= base64.min_chars)
-                    .filter_map(|segment| base64.reveal(segment))
-                    .any(|shown| moderation.hits(&shown)));
+                || moderation
+                    .base64
+                    .reveal(&msg.text)
+                    .is_some_and(|shown| moderation.hits(&shown)));
         match hit {
             true => Step::Flag(Flag::Moderation),
             false => Step::Continue,

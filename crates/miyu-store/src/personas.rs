@@ -13,33 +13,16 @@ use miyu_policy::PersonaTexts;
 use miyu_policy::persona;
 pub use miyu_policy::persona::{PersonaFile, Phrases, Problem};
 
+pub use crate::layers::{Layer, valid};
+use crate::layers::{read_text, real};
 use crate::resources::ResourceRoot;
 use crate::root::DataRoot;
 
 /// 人设在人格目录里的位置。
 pub const PERSONA_MD: &str = "prompts/persona.md";
 
-/// 一层：人格从哪来。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Layer {
-    /// 随发行附带的，只读。
-    Shipped,
-    /// 系统区，管理员给大家的。
-    System,
-    /// 管理员自己的家目录。
-    Home,
-}
-
-impl Layer {
-    /// 协议里的写法。
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Layer::Shipped => "shipped",
-            Layer::System => "system",
-            Layer::Home => "home",
-        }
-    }
-}
+/// 角色扮演提示在人格目录里的位置（施工 P-1 补）。
+pub const REMINDERS_MD: &str = "prompts/reminders.md";
 
 /// 叠好的一个人格。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,6 +39,8 @@ pub struct Found {
     pub persona_from: Option<Layer>,
     /// 示范对话来自哪一层，没有的是没有。
     pub examples_from: Option<Layer>,
+    /// 角色扮演提示来自哪一层，没有的是没有（施工 P-1 补）。
+    pub reminders_from: Option<Layer>,
     /// 它住在谁的家目录里：有家目录那一层的是那个账号，只有出厂、系统区的没有（记忆归哪个账号照它，`personas.md`）。
     pub home: Option<AccountId>,
 }
@@ -124,6 +109,7 @@ impl Personas {
             layers: Vec::new(),
             persona_from: None,
             examples_from: None,
+            reminders_from: None,
             home: None,
         };
         for (layer, dir) in &self.dirs {
@@ -135,19 +121,23 @@ impl Personas {
             if *layer == Layer::Home {
                 found.home = Some(self.admin.clone());
             }
-            if let Some(text) = read(&dir.join(persona::TOML))? {
+            if let Some(text) = read(&inside(&dir, persona::TOML))? {
                 let file = persona::read_toml(&text)
                     .map_err(|problem| PersonaError::Invalid(*layer, problem))?;
                 found.file = file.over(std::mem::take(&mut found.file));
             }
-            if let Some(text) = read(&dir.join(PERSONA_MD))? {
+            if let Some(text) = read(&inside(&dir, PERSONA_MD))? {
                 found.texts.persona = text;
                 found.persona_from = Some(*layer);
             }
-            if let Some(text) = read(&dir.join(persona::EXAMPLES))? {
+            if let Some(text) = read(&inside(&dir, persona::EXAMPLES))? {
                 found.texts.examples = persona::read_examples(&text)
                     .map_err(|problem| PersonaError::Invalid(*layer, problem))?;
                 found.examples_from = Some(*layer);
+            }
+            if let Some(text) = read(&dir.join(REMINDERS_MD))? {
+                found.texts.reminders = text;
+                found.reminders_from = Some(*layer);
             }
         }
         if found.layers.is_empty() {
@@ -186,21 +176,136 @@ impl Personas {
     }
 }
 
-/// 读一个文件：没有的是没有。
-fn read(path: &Path) -> Result<Option<String>, PersonaError> {
-    match std::fs::read_to_string(path) {
-        Ok(text) => Ok(Some(text)),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(PersonaError::Unreadable(path.to_path_buf(), error)),
+/// 查出来的一处（施工 8-30，`miyu check`）：哪一层、哪个文件（真的路径）、错在哪。
+#[derive(Debug)]
+pub struct Checked {
+    /// 哪一层。
+    pub layer: Layer,
+    /// 文件真的路径。
+    pub path: PathBuf,
+    /// 写错了，还是读不了。
+    pub issue: Issue,
+}
+
+/// 一处的错。
+#[derive(Debug)]
+pub enum Issue {
+    /// 写错了。
+    Wrong(Problem),
+    /// 读不了：原因。
+    Unreadable(io::Error),
+}
+
+impl Personas {
+    /// 查每一层里每个人格的两份字（施工 8-30）：各层各查各的，上面一层盖住了照样报；没有的文件不算。照层、编号、
+    /// 文件的先后。
+    pub fn check(&self) -> Vec<Checked> {
+        let mut found = Vec::new();
+        for id in self.ids() {
+            for (layer, dir) in &self.dirs {
+                let dir = dir.join(&id);
+                if dir.is_dir() {
+                    found.extend(check_dir(*layer, &dir));
+                }
+            }
+        }
+        found.sort_by(|a, b| (a.layer, &a.path).cmp(&(b.layer, &b.path)));
+        found
+    }
+
+    /// `path` 是不是某一层里某个人格的 `persona.toml` 或 `prompts/examples.md`：是的查它（没有这个文件的报读不了），
+    /// 不是的没有。两边都照真的位置比（[`miyu_fs::resolve`]，还没有的照最近一层在的上级换）。
+    pub fn check_file(&self, path: &Path) -> Option<Vec<Checked>> {
+        let path = real(path);
+        let path = path.as_path();
+        for (layer, dir) in &self.dirs {
+            let dir = real(dir);
+            let Ok(rest) = path.strip_prefix(&dir) else {
+                continue;
+            };
+            let mut parts = rest.iter().map(|part| part.to_string_lossy().into_owned());
+            let id = parts.next()?;
+            let within: Vec<String> = parts.collect();
+            if !valid(&id) {
+                return None;
+            }
+            let which = match within.join("/").as_str() {
+                persona::TOML => persona::TOML,
+                persona::EXAMPLES => persona::EXAMPLES,
+                _ => return None,
+            };
+            let checked = match read(path) {
+                Ok(Some(text)) => check_text(which, &text)
+                    .map(|problem| Checked {
+                        layer: *layer,
+                        path: path.to_path_buf(),
+                        issue: Issue::Wrong(problem),
+                    })
+                    .into_iter()
+                    .collect(),
+                Ok(None) => vec![Checked {
+                    layer: *layer,
+                    path: path.to_path_buf(),
+                    issue: Issue::Unreadable(io::Error::from(io::ErrorKind::NotFound)),
+                }],
+                Err(PersonaError::Unreadable(path, error)) => vec![Checked {
+                    layer: *layer,
+                    path,
+                    issue: Issue::Unreadable(error),
+                }],
+                Err(_) => Vec::new(),
+            };
+            return Some(checked);
+        }
+        None
     }
 }
 
-/// 人格的编号合不合写法：小写字母开头，小写字母、数字、`-`、`_`，最多 64 个。它是一层目录，不许带路径。
-pub fn valid(id: &str) -> bool {
-    let mut chars = id.chars();
-    chars.next().is_some_and(|first| first.is_ascii_lowercase())
-        && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '_')
-        && id.len() <= 64
+/// 一层里一个人格目录的两份字。
+fn check_dir(layer: Layer, dir: &Path) -> Vec<Checked> {
+    let mut found = Vec::new();
+    for which in [persona::TOML, persona::EXAMPLES] {
+        let path = inside(dir, which);
+        match read(&path) {
+            Ok(Some(text)) => {
+                if let Some(problem) = check_text(which, &text) {
+                    found.push(Checked {
+                        layer,
+                        path,
+                        issue: Issue::Wrong(problem),
+                    });
+                }
+            }
+            Ok(None) => {}
+            Err(PersonaError::Unreadable(path, error)) => found.push(Checked {
+                layer,
+                path,
+                issue: Issue::Unreadable(error),
+            }),
+            Err(_) => {}
+        }
+    }
+    found
+}
+
+/// 照是哪一份查一段字。
+fn check_text(which: &str, text: &str) -> Option<Problem> {
+    match which {
+        persona::TOML => persona::read_toml(text).err(),
+        _ => persona::read_examples(text).err(),
+    }
+}
+
+/// 人格目录 `dir` 里的 `relative`（用 `/` 分开的几段）：逐段接，Windows 上不混着两种分隔符。
+fn inside(dir: &Path, relative: &str) -> PathBuf {
+    relative
+        .split('/')
+        .fold(dir.to_path_buf(), |path, part| path.join(part))
+}
+
+/// 读一个文件：没有的是没有。
+fn read(path: &Path) -> Result<Option<String>, PersonaError> {
+    read_text(path).map_err(|error| PersonaError::Unreadable(path.to_path_buf(), error))
 }
 
 #[cfg(test)]

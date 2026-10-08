@@ -211,6 +211,17 @@
       },
       "type": "object"
     },
+    "preset": {
+      "properties": {
+        "default": {
+          "default": "full",
+          "description": "新会话默认用哪个预设。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。",
+          "title": "默认预设",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "providers": {
       "additionalProperties": {
         "properties": {
@@ -455,7 +466,7 @@
         },
         "startup": {
           "default": "new",
-          "description": "打开终端界面或网页时，开一个新会话，还是接着最近的那一个。能写：new 或 recent。只能写在系统配置或个人设置里。下次打开界面时生效。",
+          "description": "打开终端界面或网页时，开一个新会话，还是接着最近的那一个。能写：new 或 recent。只能写在系统配置或个人设置里。这个程序下次启动时生效。",
           "enum": [
             "new",
             "recent"
@@ -475,6 +486,43 @@
           "minLength": 1,
           "title": "显示的币种",
           "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "web": {
+      "properties": {
+        "idle_seconds": {
+          "default": 600,
+          "description": "没有浏览器连着、没有媒体在给，连续这么多秒就退出。能写：1 到 86400 之间的整数。只能写在系统配置里。这个程序下次启动时生效。",
+          "maximum": 86400,
+          "minimum": 1,
+          "title": "空闲多久退出（秒）",
+          "type": "integer"
+        },
+        "most_tickets": {
+          "default": 4096,
+          "description": "/media 的票据最多几张，满了丢最久没用的。能写：1 到 1000000 之间的整数。只能写在系统配置里。这个程序下次启动时生效。",
+          "maximum": 1000000,
+          "minimum": 1,
+          "title": "最多几张媒体票据",
+          "type": "integer"
+        },
+        "port": {
+          "default": 8300,
+          "description": "网页界面听本机的哪个端口。能写：1 到 65535 之间的整数。只能写在系统配置里。这个程序下次启动时生效。",
+          "maximum": 65535,
+          "minimum": 1,
+          "title": "网页的端口",
+          "type": "integer"
+        },
+        "ticket_idle_seconds": {
+          "default": 43200,
+          "description": "/media 的票据这么多秒没用过就作废。能写：1 到 2592000 之间的整数。只能写在系统配置里。这个程序下次启动时生效。",
+          "maximum": 2592000,
+          "minimum": 1,
+          "title": "媒体票据多久作废（秒）",
+          "type": "integer"
         }
       },
       "type": "object"

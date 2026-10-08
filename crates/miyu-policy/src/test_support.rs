@@ -1,7 +1,7 @@
 //! 测试的夹具：出厂的随核心附带的字、软件工程师的快照。随核心附带的字用仓库里出厂的那一份（编译时
 //! 拿进来，不是读文件）。
 
-use crate::compose::{PersonaTexts, Sources, compose};
+use crate::compose::{PersonaTexts, Sources, Wrap, compose};
 use crate::drivers::DriverPlaceholders;
 use crate::facts::FactTexts;
 use crate::snapshot::{
@@ -241,20 +241,39 @@ fn jobs() -> crate::JobTexts {
     }
 }
 
+/// 软件工程师的原文：出厂的人设，没有示范对话、角色扮演提示；角色扮演提示的包装是空的。
+pub(crate) fn sources() -> Sources {
+    Sources {
+        core: core(),
+        persona: PersonaTexts {
+            persona: include_str!("../../../resources/personas/engineer/prompts/persona.md")
+                .to_string(),
+            examples: Vec::new(),
+            reminders: String::new(),
+        },
+        reminder: Wrap::default(),
+    }
+}
+
+/// 快照的字节，去掉人格的指纹那一格（施工 P-1 再补）：它排在最后，以前几步的测试照「哪一格排在最后」查字节、拿掉几格
+/// 当成以前造的快照读回来。
+pub(crate) fn text_without_digest(snapshot: &Snapshot) -> String {
+    let text = String::from_utf8(snapshot.to_bytes()).unwrap();
+    match &snapshot.persona_digest {
+        Some(digest) => {
+            let field = format!(
+                ",\"persona_digest\":{}",
+                serde_json::to_string(digest).unwrap()
+            );
+            text.replacen(&field, "", 1)
+        }
+        None => text,
+    }
+}
+
 /// 软件工程师的快照，有人能确认。
 pub(crate) fn engineer() -> Snapshot {
-    compose(
-        "engineer",
-        Sources {
-            core: core(),
-            persona: PersonaTexts {
-                persona: include_str!("../../../resources/personas/engineer/prompts/persona.md")
-                    .to_string(),
-                examples: Vec::new(),
-            },
-        },
-        true,
-    )
+    compose("engineer", sources(), true)
 }
 
 /// 出厂快照字节里防刷屏的数那一格，排在最后（施工 C-2）；任务、回顾、起标题的几格在 `snapshot/tests.rs`。

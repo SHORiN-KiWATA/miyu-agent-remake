@@ -130,4 +130,6 @@ pub struct Child {
     /// 子会话用哪个模型（施工 8-8）：模型或 `@池`，记进它的 `session.created`。她写了池的是 `@<池>`（施工 8-8 补），没写的是
     /// 父会话这时生效的；都没有的是空的，子会话照它造出来那时的 `models.chat`。
     pub model: Option<String>,
+    /// 子会话的预设（施工 P-2 上）：父会话的（C5 的默认）；父会话以前造的、没有预设的是空的。
+    pub preset: Option<String>,
 }

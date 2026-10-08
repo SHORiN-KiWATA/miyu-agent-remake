@@ -39,7 +39,7 @@
 
 - 默认照人格的 `persona.toml` 的 `[memory] scope`（`persona` 或 `session`；不写是 `persona`，出厂的软件工程师不写；别的值照人格的文件写错了报，`personas.md`）。开会话时能换：`session.create` 多一格 `memory`（`persona`、`session`、`off`，不写照人格的；别的值 `bad_params`）；`miyu ask --no-memory` 就是 `off`。人格与预设走查 E1（2026-10-07）。
 - 记进策略快照的 `memory`（开局定、之后不改，正是快照管的；内核不认识「记忆」这个词，不进 `session.created`）。新造的都写明，`persona` 也写；以前造的快照里没有的照 `persona`，字节不变；认不出的照 `off`（宁可不记，不往不知道的地方写）。载入时照快照。
-- 子代理一律 `off`（17 第二节，走查 C5）：造子会话时不管交的是什么，快照照写 `off`；以前造的子会话快照里没有这一格，载入时照有没有父会话判。派的时候能指定，随 P-2。开不开记忆归预设（走查 E2，随 P-2）：在那之前本机的主会话照范围开。
+- 子代理一律 `off`（17 第二节，走查 C5）：造子会话时不管交的是什么，快照照写 `off`；以前造的子会话快照里没有这一格，载入时照有没有父会话判。派的时候能指定，随 P-2（下）。开不开记忆归预设（走查 E2，施工 P-2 中，`presets.md`）：预设没开 `memory` 的会话，范围一律 `off`，不管 `session.create` 的 `memory` 写了什么；三件工具不在工具面上，回合开始不召回。
 - `off`：不接回合索引，工具面上没有三件工具（`miyu ask --no-memory` 的会话前缀因此少 285 个 token）。
 - 每个范围一处记忆（一个「房间」）：
   - `persona`：记忆归哪个账号（`memory_account`，P-1 上：人格住在谁的家目录就归谁，出厂、系统区的归会话的属主）下，`modules/memory/<人格>/` 的记忆日志，`index/recall/turns-<人格>.db`、`memory-<人格>.db`。

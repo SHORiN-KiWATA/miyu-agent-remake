@@ -82,9 +82,9 @@ pub struct Config {
     /// 核心的环境：`{ env = … }` 照它取（施工 8-5）。
     environment: Environment,
     /// 系统配置。
-    system: File,
+    pub(crate) system: File,
     /// 管理员的个人设置。
-    personal: File,
+    pub(crate) personal: File,
     /// 信任的记录。
     trust: Vec<trust::Record>,
     /// 密钥文件（施工 8-5）。

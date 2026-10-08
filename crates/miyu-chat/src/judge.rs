@@ -6,7 +6,7 @@
 //! 查过的是 [`JudgeTexts`]），
 //! 登记在 `docs/designs/26-提示词.md` 第十节；代码里一个给模型看的字都不写。
 //!
-//! 纯逻辑：说明的原文、人格的说明、渲染好的群聊记录和这一条，都由外面交进来（[`Ask`]）。调用的其余几格（`purpose`、
+//! 纯逻辑：说明的原文、人格的说明、渲染好的群聊记录和这一条，都由外面交进来（[`Ask`]）；违规的门槛从算分的参数拿。调用的其余几格（`purpose`、
 //! `model`、`max_tokens`）、超时、重试、记 `ext.chat.decided`，由桥管（「怎么走」第 3、5 条）。
 
 mod read;
@@ -117,6 +117,30 @@ impl JudgeTexts {
     }
 }
 
+/// 判官的几项参数（`chat.md` 第八条那张表的 `[judge]`，施工 O-15）：从 [`Params::judge`](crate::Params::judge) 拿。
+///
+/// 格公开：这几项都是桥用的（调 `model.call`、管超时和重试），或者交给只收数的函数（[`read()`] 的 `reason_chars`），
+/// 造坏了只坏桥自己；要守住的参数类型（[`Chatty`](crate::Chatty) 这些）格收在 crate 里（第八条施工时定的第 14 条）。全局
+/// 并发、排队等多久是桥这个进程的，不在这里（第八条施工时定的第 5 条）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Judge {
+    /// 用哪个模型：配置的引用（`<供应商>/<模型>` 或 `@<池>`），只查过写法，指的在不在由桥调用时照核心的回答说。`None`
+    /// 是出厂文件和场所规则都没写，照 `models.chat`（第八条施工时定的第 6 条）。
+    pub model: Option<String>,
+    /// 判官看触发这一条之前的几条记录（[`Ask::records`]）。
+    pub records: usize,
+    /// 判官最多输出多少 token（`model.call` 的 `max_tokens`）。
+    pub max_tokens: u32,
+    /// 打分那一次的超时，毫秒。
+    pub timeout: i64,
+    /// 只查违规那一次（[`Mode::ModerationOnly`]）的超时，毫秒。
+    pub moderation_timeout: i64,
+    /// 判不了（读不出来、超时、出错）重试几次。
+    pub retries: u32,
+    /// 判官的理由最多留几个字符：交给 [`read()`]。
+    pub reason_chars: usize,
+}
+
 /// 这一次问判官要做什么（`chat.md` 第三条「走哪条路」）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
@@ -126,7 +150,8 @@ pub enum Mode {
     ModerationOnly,
 }
 
-/// 一次判断要的：都由外面交进来。
+/// 一次判断要的：都由外面交进来。违规的门槛不在这里：只留一份，在 [`Chatty::severity_min`](crate::Chatty)，[`request()`]
+/// 从它拿（施工 O-12）。
 ///
 /// 群聊记录、这一条由核心的渲染器渲染好（一行一条，不可信的字段转义成一行，`docs/designs/18-通讯平台.md` 第一节），
 /// 这里原样夹进标签里，不再转义。
@@ -138,26 +163,26 @@ pub struct Ask {
     pub records: String,
     /// 这一条渲染好的样子。
     pub current: String,
-    /// 这一条里 base64 解出来的字（进站链解的）；没有是 `None`，那一段整个不出现。
+    /// 这一条里 base64 解出来的字：[`Base64::reveal`](crate::Base64::reveal) 解的，解得出来就给，不只是命中违规关键词的
+    /// 时候（`chat.md` 第二条施工时定的第 15 条）；没有是 `None`，那一段整个不出现。
     pub decoded: Option<String>,
     /// 打分还是只查违规。
     pub mode: Mode,
-    /// 违规的门槛，换进 `violations.txt` 的 `{severity_min}`；和 [`Chatty::severity_min`](crate::Chatty) 是同一个数。
-    pub severity_min: u8,
 }
 
-/// `model.call` 的一条消息（`docs/blueprint/protocol.md` 的 `messages`）：判官只用到字，不带图。
+/// `model.call` 的一条消息（`docs/blueprint/protocol.md` 的 `messages`）：判官只用到字，不带图。名字带 `Judge`，免得和内核的
+/// `request::Message` 撞（施工时定的第 10 条，O-12 下改名）。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Message {
+pub struct JudgeMessage {
     /// 谁说的。
-    pub role: Role,
+    pub role: JudgeRole,
     /// 这一条的字。
     pub text: String,
 }
 
-/// 一条消息的角色：判官的请求只有这两种。
+/// 一条消息的角色：判官的请求只有这两种。名字带 `Judge`，免得和内核的两个 `Role` 撞。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Role {
+pub enum JudgeRole {
     /// 协议上的 `system`。
     System,
     /// 协议上的 `user`。
@@ -165,6 +190,6 @@ pub enum Role {
 }
 
 #[cfg(test)]
-mod test_support;
+pub(crate) mod test_support;
 #[cfg(test)]
 mod tests;

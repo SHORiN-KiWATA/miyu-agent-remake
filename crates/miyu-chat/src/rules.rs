@@ -13,20 +13,28 @@
 //! - 问题照文件的先后，同一个文件里照行、列。
 //!
 //! 问题用自己的类型 [`Problem`]，原因码用配置的（施工时定的第 4 条）：配置的问题带一层 `Layer`，规则文件不是一层。
+//!
+//! 参数的表（`chatty = { … }`，第八条）在 `tables` 里读，出厂参数的文件也照那一份读（施工 O-15）。
 
 mod attrs;
 mod forms;
+mod ids;
 mod resolve;
+mod tables;
 
-pub use resolve::{Entry, Origin, Resolved, Venue, VenueKind};
+pub use ids::{Venue, VenueKind, parse_person, person};
+pub use resolve::{Entry, Origin, Resolved};
+pub(crate) use tables::defaults;
 
 use std::collections::BTreeMap;
 use std::ops::Range;
 
 use miyu_config::Value;
-use miyu_config::problem::{At, Code, got};
+use miyu_config::parse::why;
+use miyu_config::problem::{At, Code, got, nearest};
 use toml_edit::{Document, Item as Node, Key, TableLike};
 
+use crate::params::items;
 use resolve::{CONDITIONS, Match};
 
 /// 开头的 UTF-8 BOM。
@@ -58,9 +66,10 @@ pub struct File {
     pub text: String,
 }
 
-/// 读好的一组规则文件。
+/// 读好的一组规则文件（[`Rules::parse`] 交回）。叫 `Parsed` 不叫 `Read`：门面里和判官读回答的 [`read`](crate::read) 撞名
+/// （施工 O-12 下）。
 #[derive(Debug, Clone, Default)]
-pub struct Read {
+pub struct Parsed {
     /// 用得上的规则，照先后排好。
     pub rules: Rules,
     /// 发现的问题，照文件的先后，同一个文件里照行、列。
@@ -76,14 +85,14 @@ pub struct Problem {
     pub source: Source,
     /// 哪一份文件。
     pub file: String,
-    /// 第几条规则，从 1 数。整份文件的问题、最上面的键没有。
+    /// 第几条规则，从 1 数。整份文件的问题、最上面的键、出厂参数的文件（第八条）没有。
     pub rule: Option<usize>,
-    /// 哪一项的键，原样：属性写名字（`rate`），匹配条件带上 `match.`（`match.group`），最上面的写它自己（`rule`）。写法不对
-    /// （`syntax`）的没有。
+    /// 哪一项的键，原样：属性写名字（`rate`），匹配条件带上 `match.`（`match.group`），参数写 `表.项`（`chatty.probability`，
+    /// 整张表的问题写表名），最上面的写它自己（`rule`）。写法不对（`syntax`）的没有。
     pub key: Option<String>,
-    /// 在哪：值写错的指到值，不认识的键指到键。写法不对的照 `toml_edit` 报的位置，它没给的没有。
+    /// 在哪：值写错的指到值，不认识的键指到键。写法不对的照 `toml_edit` 报的位置，它没给的没有；出厂参数缺了的项没有。
     pub at: Option<At>,
-    /// 收到了什么：原文照抄，最多 80 个字符（`miyu_config::problem::got`）；写成表头的是键。写法不对的没有。
+    /// 收到了什么：原文照抄，最多 80 个字符（`miyu_config::problem::got`）；写成表头的是键。写法不对的、缺了的没有。
     pub got: Option<String>,
     /// 不认识的键：离得最近的那一个，写法和 `key` 一样；太远的没有。
     pub suggest: Option<String>,
@@ -109,13 +118,13 @@ struct Rule {
     number: usize,
     /// 匹配条件。
     matcher: Match,
-    /// 写对了的属性：名字到值和键所在的行。
+    /// 写对了的属性：名字到值和键所在的行。参数的表展开成一项一项，名字是 `表.项`。
     attrs: BTreeMap<&'static str, (Value, usize)>,
 }
 
 impl Rules {
     /// 读一组文件（「怎么走」第 1 到 5、8 条）。不会失败：坏的文件、坏的规则、坏的一项都变成问题，其余照收。
-    pub fn parse(files: &[File]) -> Read {
+    pub fn parse(files: &[File]) -> Parsed {
         // 照文件名按字节排（`str` 的先后就是字节的先后）；同名的，来源排在后面的（系统）替换前面的，一样的后来的替换。
         let mut chosen: BTreeMap<&str, &File> = BTreeMap::new();
         for file in files {
@@ -126,22 +135,15 @@ impl Rules {
                 chosen.insert(&file.name, file);
             }
         }
-        let mut read = Read::default();
+        let mut parsed = Parsed::default();
         for file in chosen.into_values() {
-            let mut reader = Reader {
-                file,
-                text: file.text.strip_prefix(BOM).unwrap_or(&file.text),
-                rules: Vec::new(),
-                problems: Vec::new(),
-            };
+            let mut reader = Reader::new(file);
             reader.document();
-            reader
-                .problems
-                .sort_by_key(|problem| problem.at.map(|at| (at.line, at.column)));
-            read.rules.rules.append(&mut reader.rules);
-            read.problems.append(&mut reader.problems);
+            reader.sort();
+            parsed.rules.rules.append(&mut reader.rules);
+            parsed.problems.append(&mut reader.problems);
         }
-        read
+        parsed
     }
 }
 
@@ -157,11 +159,21 @@ struct Reader<'a> {
     problems: Vec<Problem>,
 }
 
-impl Reader<'_> {
-    /// 读整份：写法不对报 `syntax`，什么规则也不收。
-    fn document(&mut self) {
-        let document = match Document::parse(self.text) {
-            Ok(document) => document,
+impl<'a> Reader<'a> {
+    /// 开始读一份文件：开头的 BOM 去掉，位置照去掉以后的字算。
+    fn new(file: &'a File) -> Reader<'a> {
+        Reader {
+            file,
+            text: file.text.strip_prefix(BOM).unwrap_or(&file.text),
+            rules: Vec::new(),
+            problems: Vec::new(),
+        }
+    }
+
+    /// 照 TOML 读这份文件的字：写法不对报一条 `syntax`，交回空的，这份文件整份不用。
+    fn parse(&mut self) -> Option<Document<&'a str>> {
+        match Document::parse(self.text) {
+            Ok(document) => Some(document),
             Err(error) => {
                 let at = error.span().map(|span| At::of(self.text, span.start));
                 self.problems.push(Problem {
@@ -169,8 +181,21 @@ impl Reader<'_> {
                     why: Some(why(error.message())),
                     ..self.problem(Code::Syntax, None, None)
                 });
-                return;
+                None
             }
+        }
+    }
+
+    /// 问题照行、列排（「怎么走」第 8 条）；没有位置的排在最前，同一处的照报的先后。
+    fn sort(&mut self) {
+        self.problems
+            .sort_by_key(|problem| problem.at.map(|at| (at.line, at.column)));
+    }
+
+    /// 读整份：写法不对报 `syntax`，什么规则也不收。
+    fn document(&mut self) {
+        let Some(document) = self.parse() else {
+            return;
         };
         let root = document.as_table();
         for (name, _) in root.iter() {
@@ -181,7 +206,7 @@ impl Reader<'_> {
                 self.rules(key, node);
             } else {
                 let mut problem = self.item(Code::UnknownKey, None, name, key, node, true);
-                problem.suggest = attrs::nearest([RULE], name).map(String::from);
+                problem.suggest = nearest([RULE], name).map(String::from);
                 self.problems.push(problem);
             }
         }
@@ -221,10 +246,18 @@ impl Reader<'_> {
                 matcher = self.matcher(number, key, node);
                 continue;
             }
+            // 参数的表（第八条）：展开成一项一项，各自记下（施工时定的第 15 条）。
+            if let Some(table) = items::table(name) {
+                for (item, value, line) in self.table(Some(number), table, key, node) {
+                    attrs.insert(item.key, (value, line));
+                }
+                continue;
+            }
             let Some((known, form)) = attrs::find(name) else {
                 let mut problem = self.item(Code::UnknownKey, Some(number), name, key, node, true);
+                // 表名拼错的也在这里：最近的名字从属性名和表名里一起找。
                 let names = attrs::ATTRS.iter().map(|(known, _)| *known);
-                problem.suggest = attrs::nearest(names, name).map(String::from);
+                problem.suggest = nearest(names.chain(items::tables()), name).map(String::from);
                 self.problems.push(problem);
                 continue;
             };
@@ -272,7 +305,7 @@ impl Reader<'_> {
                 let unknown = code == Code::UnknownKey;
                 let mut problem = self.item(code, Some(number), &full, key, node, unknown);
                 if unknown {
-                    problem.suggest = attrs::nearest(CONDITIONS.iter().copied(), name)
+                    problem.suggest = nearest(CONDITIONS.iter().copied(), name)
                         .map(|near| format!("{MATCH}.{near}"));
                 }
                 self.problems.push(problem);
@@ -339,17 +372,6 @@ impl Reader<'_> {
             At::of(self.text, span.start)
         })
     }
-}
-
-/// `toml_edit` 的原话只取最后一行（为什么），不带它印出来的原文：照配置的 `parse` 的做法（它的那个不公开，这里五行自己写）。
-fn why(message: &str) -> String {
-    message
-        .trim_end()
-        .lines()
-        .next_back()
-        .unwrap_or_default()
-        .trim()
-        .to_string()
 }
 
 #[cfg(test)]

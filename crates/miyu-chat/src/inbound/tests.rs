@@ -3,8 +3,10 @@
 
 use crate::VenueKind;
 
-use super::test_support::{MINUTE, PEOPLE, SECOND, at, ctx, judge, member, msg, rate, sleep, utc};
-use super::{Chain, Clock, Flag, Outcome, Standing, Verdict, Why};
+use super::test_support::{
+    MINUTE, PEOPLE, SECOND, at, clock, ctx, judge, member, msg, rate, sleep, utc,
+};
+use super::{Clock, Flag, Outcome, Standing, Verdict, Why};
 
 fn pass() -> Verdict {
     Verdict {
@@ -21,16 +23,6 @@ fn record(why: Why) -> Verdict {
 }
 
 #[test]
-fn builtin_has_five_rules_in_order() {
-    let names: Vec<_> = Chain::builtin()
-        .rules
-        .iter()
-        .map(|rule| rule.name().to_string())
-        .collect();
-    assert_eq!(names, ["sleep", "muted", "allow", "moderation", "rate"]);
-}
-
-#[test]
 fn nothing_set_passes() {
     for (standing, kind) in PEOPLE {
         assert_eq!(judge(&msg(standing, kind), &ctx(), at(12, 0)), pass());
@@ -39,7 +31,8 @@ fn nothing_set_passes() {
 
 #[test]
 fn earlier_stop_hides_later_rules() {
-    // 睡着、被禁言、不让叫、命中关键词、限流满了，全占：睡眠先停，旗也没插。
+    // 排先后比的是结果（施工时定的第 14 条）：睡着、被禁言、不让叫、命中关键词、限流满了，全占，从前往后一样一样去掉。
+    // 每一步都是相邻的两条同时成立、前面那条的结果胜出，调换链里任意相邻两条，这里都有一步会红。
     let mut all = ctx();
     all.sleep = sleep("11:00-13:00");
     all.muted = true;
@@ -95,10 +88,7 @@ fn sleep_within_one_day() {
     assert!(!asleep(span, at(12, 59)));
     assert!(asleep(span, at(13, 0)), "正好在 start 是睡着的");
     assert!(asleep(span, at(13, 30)));
-    let last = Clock {
-        now: at(14, 0).now - 1,
-        offset: 0,
-    };
+    let last = clock(at(14, 0).now.unix_millis() - 1, 0);
     assert!(asleep(span, last), "end 前一毫秒还睡着");
     assert!(!asleep(span, at(14, 0)), "正好在 end 是醒着的");
     assert!(!asleep(span, at(23, 0)));
@@ -147,13 +137,10 @@ fn sleep_uses_local_time() {
 #[test]
 fn sleep_before_the_epoch() {
     // 纪元前一毫秒是 1969-12-31 23:59:59.999，不是 00:00。
-    let before = Clock { now: -1, offset: 0 };
+    let before = clock(-1, 0);
     assert!(asleep("23:00-07:00", before));
     assert!(!asleep("00:00-01:00", before));
-    let night = Clock {
-        now: -30 * MINUTE,
-        offset: 0,
-    };
+    let night = clock(-30 * MINUTE, 0);
     assert!(asleep("23:30-23:31", night));
 }
 
@@ -184,7 +171,7 @@ fn muted_records_everyone() {
     muted.muted = true;
     for (standing, kind) in PEOPLE {
         let mut addressed = msg(standing, kind);
-        addressed.addressed = true;
+        addressed.said.addressed = true;
         assert_eq!(judge(&addressed, &muted, at(12, 0)), record(Why::Muted));
     }
 }
@@ -225,11 +212,8 @@ fn awake_hours_do_not_stop_anyone() {
     let mut day = ctx();
     day.sleep = sleep("23:00-07:00");
     let mut addressed = member();
-    addressed.addressed = true;
+    addressed.said.addressed = true;
     assert_eq!(judge(&addressed, &day, utc(7, 0, 0)), pass());
-    let late = Clock {
-        now: utc(22, 59, 0).now + 59 * SECOND,
-        offset: 0,
-    };
+    let late = clock(utc(22, 59, 0).now.unix_millis() + 59 * SECOND, 0);
     assert_eq!(judge(&addressed, &day, late), pass());
 }

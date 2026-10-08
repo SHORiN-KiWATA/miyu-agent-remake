@@ -40,6 +40,10 @@ pub struct SessionCreated {
     /// 拼请求照快照，不看它。以前的日志没有这一格，照没有读。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub persona: Option<String>,
+    /// 会话用哪个预设（施工 P-2 上）：预设的编号，造会话时钉上，之后不换（Y5）。头照它显示用的是哪个；这一步预设还不改变
+    /// 请求。以前的日志没有这一格，照没有读。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preset: Option<String>,
 }
 
 /// `session.policy_changed`：换了策略快照，或者换了权限，或者换了模型，也可以一起换。

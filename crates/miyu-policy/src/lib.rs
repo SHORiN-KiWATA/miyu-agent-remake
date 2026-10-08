@@ -20,6 +20,7 @@ pub mod memory;
 mod pause;
 mod peers;
 pub mod persona;
+pub mod preset;
 mod rebuild;
 mod recap;
 mod shorten;
@@ -32,7 +33,7 @@ mod vision;
 #[cfg(test)]
 mod test_support;
 
-pub use compose::{CoreLines, PersonaTexts, Sources, compose};
+pub use compose::{CoreLines, PersonaTexts, Sources, Wrap, compose};
 pub use drivers::DriverPlaceholders;
 pub use facts::FactTexts;
 pub use guard::GuardTexts;
@@ -41,6 +42,7 @@ pub use image_name::ImageNameTexts;
 pub use jobs::{DEPTH as JOB_DEPTH, JobNumbers, JobTexts, REPORT_CHARS};
 pub use pause::{PAUSE, PauseNumbers};
 pub use peers::{PEERS, PeerIdleTexts, PeerNumbers, PeerTexts};
+pub use preset::PresetPin;
 pub use rebuild::{REBUILD, RebuildNumbers, RebuildTexts};
 pub use recap::{RECAP, RecapNumbers, RecapTexts};
 pub use shorten::{SHORTEN, ShortenNumbers, ShortenTexts};

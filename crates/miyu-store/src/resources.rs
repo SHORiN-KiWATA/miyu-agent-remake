@@ -15,7 +15,7 @@ use miyu_policy::{
     CompactionTexts, CoreLines, CoreTexts, DriverPlaceholders, FactTexts, HarnessTexts,
     ImageDescriptionTexts, ImageNameTexts, JobTexts, PeerIdleTexts, PeerTexts, PermissionTexts,
     PersonaTexts, RebuildTexts, RecapTexts, ShortenTexts, Sources, TextFileTexts, TitleTexts,
-    ToolResultTexts, TurnEndedTexts, VisionTexts,
+    ToolResultTexts, TurnEndedTexts, VisionTexts, Wrap,
 };
 
 use crate::env::Env;
@@ -153,7 +153,9 @@ impl ResourceRoot {
             persona: PersonaTexts {
                 persona: self.read(&["personas", persona, "prompts", "persona.md"])?,
                 examples: Vec::new(),
+                reminders: String::new(),
             },
+            reminder: self.reminder_wrap()?,
         })
     }
 
@@ -166,6 +168,15 @@ impl ResourceRoot {
         Ok(Sources {
             core: self.core_texts()?,
             persona,
+            reminder: self.reminder_wrap()?,
+        })
+    }
+
+    /// 角色扮演提示的包装（施工 P-1 补）：`core/facts/reminder-open.txt`、`reminder-close.txt` 的原文，造会话时拼进快照。
+    fn reminder_wrap(&self) -> Result<Wrap, SourceError> {
+        Ok(Wrap {
+            open: self.read(&["core", "facts", "reminder-open.txt"])?,
+            close: self.read(&["core", "facts", "reminder-close.txt"])?,
         })
     }
 
@@ -180,7 +191,8 @@ impl ResourceRoot {
     }
 
     /// 核心的几行（施工 2-7 补，`26-提示词.md` 第四节第 3 块）：`core/permission-rule.txt`、`core/local-paths-rule.txt` 的
-    /// 原文，造会话时拼进 system（`Snapshot::with_core_lines`）。只在造会话时读：以前造的快照 system 里没有它们。
+    /// 原文，造会话时拼进 system（`Snapshot::with_core_lines`）。只在造会话时读：以前造的快照 system 里没有它们。风格锁
+    /// `core/style-lock.txt` 一起读（第 7 块，施工 P-1 补，`Snapshot::with_style_lock`）。
     ///
     /// # Errors
     ///
@@ -189,6 +201,8 @@ impl ResourceRoot {
         Ok(CoreLines {
             permission: self.read(&["core", "permission-rule.txt"])?,
             local_paths: self.read(&["core", "local-paths-rule.txt"])?,
+            style_lock: self.read(&["core", "style-lock.txt"])?,
+            preset_off: self.read(&["core", "preset-off.txt"])?,
         })
     }
 

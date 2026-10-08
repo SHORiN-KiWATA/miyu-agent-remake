@@ -26,21 +26,34 @@ pub fn is_subagent(name: &str) -> bool {
     name == SUBAGENT || name == SUBAGENT_FORMERLY
 }
 
-/// 派子代理：交标题、整段交代和池，拿回任务编号和子会话的编号。
+/// 一次派子代理她交的几样：`description` 是短标题，`prompt` 是整段交代，原样送进子会话。`pool` 是她选的池（施工 8-8 补，
+/// 不带 `@`，工具已经照 [`AgentPort::pools`] 查过），子会话记 `@<池>`；没写的用父会话这时用的。`persona` 是她选的人格（施工
+/// P-2 补，工具已经照 [`AgentPort::personas`] 查过），没写的是软件工程师（走查 C5）。预设不给她挑：子会话一律照父会话的
+/// （2026-10-08 项目主人定）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Order<'a> {
+    /// 短标题。
+    pub description: &'a str,
+    /// 整段交代。
+    pub prompt: &'a str,
+    /// 池。
+    pub pool: Option<&'a str>,
+    /// 人格。
+    pub persona: Option<&'a str>,
+}
+
+/// 派子代理：交 [`Order`]，拿回任务编号和子会话的编号。
 pub trait AgentPort: Send + Sync {
-    /// 派一个子代理：`description` 是短标题，`prompt` 是整段交代，原样送进子会话。`pool` 是她选的池（施工 8-8 补，不带
-    /// `@`，工具已经照 [`AgentPort::pools`] 查过），子会话记 `@<池>`；没写的用父会话这时用的。子会话造好、交代送进去（它的
-    /// 第一轮开了）才交回，不等它做完。
-    fn spawn<'a>(
-        &'a self,
-        description: &'a str,
-        prompt: &'a str,
-        pool: Option<&'a str>,
-    ) -> Spawning<'a>;
+    /// 派一个子代理。子会话造好、交代送进去（它的第一轮开了）才交回，不等它做完。
+    fn spawn<'a>(&'a self, order: Order<'a>) -> Spawning<'a>;
 
     /// 这个会话能选的池（施工 8-8 补，`docs/blueprint/models.md`「工具」）：会话开局时拼进工具面的 `pool` 的 `enum`，照快照
     /// 读回，整个会话不变。一个都没列的是空的。
     fn pools(&self) -> &[String];
+
+    /// 这个会话能选的人格（施工 P-2 补）：同 [`AgentPort::pools`]，会话开局时拼进工具面的 `persona` 的 `enum`，照快照读回，
+    /// 整个会话不变。
+    fn personas(&self) -> &[String];
 }
 
 /// 派出去一个子代理的 future。

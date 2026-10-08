@@ -9,9 +9,10 @@
 
 use std::num::NonZeroU32;
 
+use miyu_config::duration;
 use miyu_config::problem::Code;
-use miyu_config::{Kind, Value, duration};
 
+use super::ids::split_person;
 use crate::{Rate, Sleep};
 
 /// 限流最多几个回合（`rate` 的 `<回合数>`，`chat.md` 第一条）。
@@ -69,8 +70,9 @@ fn read_rate(text: &str) -> Result<Option<Rate>, Code> {
 }
 
 impl Rate {
-    /// 从场所规则 `rate` 的原文读（`chat.md` 第二条「怎么走」第 9 条）。不限（`"0"`）是 `None`；写法不对的也是 `None`，
-    /// 当没设：读规则文件时已经报过了（第一条「怎么走」第 5 条），这里不再报。
+    /// 从场所规则 `rate` 的原文读（`chat.md` 第二条「怎么走」第 9 条）；`Rate` 只能这样造。不限（`"0"`）是 `None`；写法
+    /// 不对的也是 `None`，当没设：读规则文件时已经报过了（第一条「怎么走」第 5 条），这里不再报。读出来的回合数、窗口
+    /// 都不是 0。
     pub fn read(text: &str) -> Option<Self> {
         read_rate(text).ok().flatten()
     }
@@ -100,8 +102,8 @@ fn read_sleep(text: &str) -> Result<Option<Sleep>, Code> {
 }
 
 impl Sleep {
-    /// 从场所规则 `sleep` 的原文读（`chat.md` 第二条「怎么走」第 9 条）。不睡（`"off"`）是 `None`；写法不对的也是 `None`，
-    /// 当没设：读规则文件时已经报过了。读出来的开始、结束都在一天里、不相等。
+    /// 从场所规则 `sleep` 的原文读（`chat.md` 第二条「怎么走」第 9 条）；`Sleep` 只能这样造。不睡（`"off"`）是 `None`；
+    /// 写法不对的也是 `None`，当没设：读规则文件时已经报过了。读出来的开始、结束都在一天里、不相等。
     pub fn read(text: &str) -> Option<Self> {
         read_sleep(text).ok().flatten()
     }
@@ -127,19 +129,14 @@ fn two_digits(text: &str) -> Result<u16, Code> {
     }
 }
 
-/// 管理员的一个身份 `<平台>:<编号>`：在第一个 `:` 处切开，平台照配置清单的名字的写法（小写字母开头，只有小写字母、数字、
+/// 管理员的一个身份 `<平台>:<编号>`，和平台上的人的编号一份规矩（[`split_person`]）：在第一个 `:` 处切开，平台照配置清单的名字的写法（小写字母开头，只有小写字母、数字、
 /// `-`、`_`），编号照 [`id`]。编号里还有 `:` 的照收：编号是平台的，这里不管它长什么样。
 ///
 /// # Errors
 ///
 /// 写法不对 `bad_format`。
 pub(crate) fn manager(text: &str) -> Result<(), Code> {
-    let (platform, number) = text.split_once(':').ok_or(Code::BadFormat)?;
-    let platform = Value::Text(platform.to_string().into());
-    match Kind::Name.check(&platform).is_ok() && id(number) {
-        true => Ok(()),
-        false => Err(Code::BadFormat),
-    }
+    split_person(text).map(drop).ok_or(Code::BadFormat)
 }
 
 /// 平台里的一个编号：不空，没有空白和控制字符。管理员的身份、匹配条件里写成字的群号和对方的号都照它查。

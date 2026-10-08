@@ -13,13 +13,9 @@ use super::{OutCtx, OutStep, OutboundRule, Outgoing, Target};
 pub(super) struct Rule;
 
 impl OutboundRule for Rule {
-    fn name(&self) -> &str {
-        "target"
-    }
-
     fn judge(&self, outgoing: Outgoing, target: Target, ctx: &OutCtx) -> OutStep {
         let since = ctx.since;
-        let params = ctx.outbound;
+        let params = &ctx.outbound;
         // 图纸写的「`quote_after` 是 0」不另写一条：`others` 是无符号的，不少于 0 恒成立。
         let quote = target.quote && (since.last_is_own || since.others >= params.quote_after);
         let mention = target.mention && since.elapsed >= params.mention_after && since.others > 0;

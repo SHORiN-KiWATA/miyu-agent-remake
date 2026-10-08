@@ -33,6 +33,7 @@ pub(super) fn some_configure(rng: &mut Rng, ids: &mut u64) -> Option<Input> {
 pub(super) fn with_fallback(rng: &mut Rng, watch: &Watch, input: Input) -> Input {
     match input {
         Input::TurnStartHooksDone {
+            policy: None,
             at,
             turn,
             injected,
@@ -43,6 +44,7 @@ pub(super) fn with_fallback(rng: &mut Rng, watch: &Watch, input: Input) -> Input
                 _ => watch.reference().unwrap_or("b/n"),
             };
             Input::TurnStartHooksDone {
+                policy: None,
                 at,
                 turn,
                 injected,

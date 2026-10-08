@@ -1,29 +1,19 @@
 //! 清理（`docs/blueprint/chat.md` 第五条「怎么走」第 2 条）：去掉漏进正文的工具调用；整条是空的、整条是括号旁白的丢掉。
-//! 数和字的范围照旧版（施工时定的第 2 条）。
+//! 两份名单（漏进来的标记、不可见字符）是数据，从 [`Outbound`] 拿，出厂的照旧版（施工时定的第 2、10 条，第八条）。
 //!
 //! 漏进来的样子是旧版线上取的证：模型复读退化时把 `<tool_call><function=…>` 当正文吐出来，中转站的解析器不认，原样落进
 //! 正文发到群里；流式截断的只剩开头，没有收尾。
 
-use super::{OutCtx, OutStep, OutWhy, OutboundRule, Outgoing, Target};
-
-/// 漏进正文的工具调用：开头和收尾。
-const LEAKS: [(&str, &str); 2] = [
-    ("<tool_call>", "</tool_call>"),
-    ("<function=", "</function>"),
-];
+use super::{OutCtx, OutStep, OutWhy, Outbound, OutboundRule, Outgoing, Target};
 
 /// 清理这条规则。
 pub(super) struct Rule;
 
 impl OutboundRule for Rule {
-    fn name(&self) -> &str {
-        "clean"
-    }
-
-    fn judge(&self, mut outgoing: Outgoing, target: Target, _ctx: &OutCtx) -> OutStep {
-        let leaked = strip_leaks(&mut outgoing.text);
+    fn judge(&self, mut outgoing: Outgoing, target: Target, ctx: &OutCtx) -> OutStep {
+        let leaked = strip_leaks(&mut outgoing.text, &ctx.outbound);
         let pictured = !outgoing.images.is_empty();
-        if blank(&outgoing.text) {
+        if blank(&outgoing.text, &ctx.outbound.invisible) {
             match (pictured, leaked) {
                 (false, true) => return OutStep::Drop(OutWhy::Leaked),
                 (false, false) => return OutStep::Drop(OutWhy::Blank),
@@ -38,41 +28,36 @@ impl OutboundRule for Rule {
     }
 }
 
-/// 一段一段去掉漏进来的工具调用，直到没有：每次去最早开头的一段，从开头到它自己的收尾，找不到收尾的去到末尾。去掉过
-/// 东西的是 `true`。
-fn strip_leaks(text: &mut String) -> bool {
+/// 一段一段去掉漏进来的工具调用，直到没有：开头、收尾照位置一一对上（[`Outbound`] 的 `leak_open`、`leak_close`）；每次去
+/// 最早开头的一段，从开头到它后面的第一个收尾，找不到收尾的去到末尾。去掉过东西的是 `true`。
+///
+/// 收尾从开头的后面找起：收尾可能是开头的一段（开头 ` ```tool `、收尾 ` ``` `），从开头处找只去掉半个开头（施工时定的
+/// 第 11 条）。开头都不空（声明守着），每一轮至少去掉一个开头，停得下来。
+fn strip_leaks(text: &mut String, outbound: &Outbound) -> bool {
     let mut stripped = false;
-    while let Some((start, close)) = LEAKS
+    while let Some((start, open, close)) = outbound
+        .leak_open
         .iter()
-        .filter_map(|(open, close)| text.find(open).map(|at| (at, *close)))
-        .min_by_key(|(at, _)| *at)
+        .zip(&outbound.leak_close)
+        .filter_map(|(open, close)| text.find(open.as_str()).map(|at| (at, open, close)))
+        .min_by_key(|(at, ..)| *at)
     {
+        let after = start + open.len();
         let end = text
-            .get(start..)
-            .and_then(|rest| rest.find(close))
-            .map_or(text.len(), |at| start + at + close.len());
+            .get(after..)
+            .and_then(|rest| rest.find(close.as_str()))
+            .map_or(text.len(), |at| after + at + close.len());
         text.replace_range(start..end, "");
         stripped = true;
     }
     stripped
 }
 
-/// 看起来是空的：只有空白和不可见字符。模型「什么都不想说」时常吐一个零宽空格，`trim` 不认它，发出去是一个空气泡。
-/// 只拿来判空，不拿来改正文：零宽连接符夹在表情里是有意义的。
-fn blank(text: &str) -> bool {
-    text.chars().all(|c| {
-        c.is_whitespace()
-            || matches!(
-                c,
-                '\u{200B}'..='\u{200F}'
-                    | '\u{2060}'..='\u{2064}'
-                    | '\u{FEFF}'
-                    | '\u{00AD}'
-                    | '\u{180E}'
-                    | '\u{2028}'
-                    | '\u{2029}'
-            )
-    })
+/// 看起来是空的：只有空白和 `invisible` 里的字。模型「什么都不想说」时常吐一个零宽空格，`trim` 不认它，发出去是一个空
+/// 气泡。只拿来判空，不拿来改正文：零宽连接符夹在表情里是有意义的。
+fn blank(text: &str, invisible: &[char]) -> bool {
+    text.chars()
+        .all(|c| c.is_whitespace() || invisible.contains(&c))
 }
 
 /// 整条是一对中文括号括起来的旁白：以 `（` 开头、和它配对的 `）` 在末尾，里面可以再套括号，括号外没有别的字。`text`

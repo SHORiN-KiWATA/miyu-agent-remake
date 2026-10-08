@@ -60,8 +60,12 @@ pub(crate) fn connect(
 
 /// 会话的记忆的范围：子会话（`child`）不管交的、快照里的是什么都是 `off`（17 第二节，以前造的子会话快照里没有这一格）；
 /// 主会话照交的 `given`。
-pub(crate) fn scope(child: bool, given: MemoryScope) -> MemoryScope {
-    if child { MemoryScope::Off } else { given }
+pub(crate) fn scope(child: bool, opened: bool, given: MemoryScope) -> MemoryScope {
+    if child || !opened {
+        MemoryScope::Off
+    } else {
+        given
+    }
 }
 
 /// 一个会话的回合索引：它的回合库（用到才开）、增量的 `TurnFeed`。

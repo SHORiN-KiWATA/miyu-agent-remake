@@ -7,30 +7,11 @@ use miyu_config::problem::Code;
 use miyu_config::{Kind, Value};
 use toml_edit::Value as TomlValue;
 
+use super::ids::{Venue, VenueKind};
 use super::{Rules, Source, forms};
 
 /// 匹配条件的键，照 `chat.md` 那张表的先后：拼错的找离得最近的那一个。
 pub(super) const CONDITIONS: &[&str] = &["platform", "kind", "group", "user"];
-
-/// 一个场所：通讯平台上的一个群或者一个私聊（`18-通讯平台.md` 第四节）。由桥照驱动报上来的填。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Venue {
-    /// 平台，例如 `qq`：和规则的 `match.platform` 照字比。
-    pub platform: String,
-    /// 群还是私聊。
-    pub kind: VenueKind,
-    /// 平台里的编号：群是群号，私聊是对方的号。照十进制写成字，不带平台前缀；和规则的 `match.group`、`match.user` 照字比。
-    pub id: String,
-}
-
-/// 场所是群还是私聊。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum VenueKind {
-    /// 群：`match.kind = "group"`，`match.group` 只配它。
-    Group,
-    /// 私聊：`match.kind = "private"`，`match.user` 只配它。
-    Private,
-}
 
 /// 套到一个场所上的结果：每一项属性的值和来处。没有规则设到的项不在里面（「怎么走」第 7 条）：默认值是出厂的规则文件，
 /// 代码里不写死。
@@ -96,11 +77,8 @@ impl Match {
                 self.platform = Some(String::from(&platform));
             }
             "kind" => {
-                self.kind = Some(match value.as_str().ok_or(Code::WrongType)? {
-                    "group" => VenueKind::Group,
-                    "private" => VenueKind::Private,
-                    _ => return Err(Code::NotAnOption),
-                });
+                let kind = value.as_str().ok_or(Code::WrongType)?;
+                self.kind = Some(VenueKind::parse(kind).ok_or(Code::NotAnOption)?);
             }
             "group" => self.group = Some(ids(value)?),
             _ => self.user = Some(ids(value)?),
@@ -112,12 +90,12 @@ impl Match {
     fn matches(&self, venue: &Venue) -> bool {
         let listed = |ids: &Option<Vec<String>>, kind| {
             ids.as_ref()
-                .is_none_or(|ids| venue.kind == kind && ids.contains(&venue.id))
+                .is_none_or(|ids| venue.kind() == kind && ids.iter().any(|id| id == venue.number()))
         };
         self.platform
             .as_ref()
-            .is_none_or(|platform| *platform == venue.platform)
-            && self.kind.is_none_or(|kind| kind == venue.kind)
+            .is_none_or(|platform| platform == venue.platform())
+            && self.kind.is_none_or(|kind| kind == venue.kind())
             && listed(&self.group, VenueKind::Group)
             && listed(&self.user, VenueKind::Private)
     }

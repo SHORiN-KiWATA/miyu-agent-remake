@@ -7,10 +7,6 @@ use super::{Clock, Ctx, Inbound, InboundRule, Outcome, Step, Why};
 pub(super) struct Rule;
 
 impl InboundRule for Rule {
-    fn name(&self) -> &str {
-        "muted"
-    }
-
     fn judge(&self, _msg: &Inbound, ctx: &Ctx, _clock: Clock) -> Step {
         match ctx.muted {
             true => Step::Stop(Outcome::RecordOnly(Why::Muted)),

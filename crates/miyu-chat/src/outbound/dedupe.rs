@@ -2,9 +2,11 @@
 //! 只看这一回合（[`super::Sent`] 由外面交进来，换回合清空）；旧版另有一道两分钟内跨回合的，不搬（施工时定的第 1 条）。
 //!
 //! 正文先归一化（只留字母和数字、转小写）比一字不差，短句也算；不一样的再比两字组的 Jaccard 相似度：同一句话换个说法，
-//! 用词高度重叠，两字组便宜又够用。两个数（至少几个两字组、相似度的百分比）由外面交进来（[`super::Outbound`]），出厂的 16、66 照旧版实测（施工时定的第 2 条），测试钉在正好压线的例子上。
+//! 用词高度重叠，两字组便宜又够用。两个数（至少几个两字组、相似度的百分比）由外面交进来（[`super::Outbound`]），出厂的 16、66 照旧版实测（施工时定的第 2 条），在出厂文件里（第八条），测试钉在正好压线的例子上。
 
 use std::collections::BTreeSet;
+
+use miyu_kernel::id::ContentHash;
 
 use super::{OutCtx, OutStep, OutWhy, OutboundRule, Outgoing, Target};
 
@@ -12,10 +14,6 @@ use super::{OutCtx, OutStep, OutWhy, OutboundRule, Outgoing, Target};
 pub(super) struct Rule;
 
 impl OutboundRule for Rule {
-    fn name(&self) -> &str {
-        "dedupe"
-    }
-
     fn judge(&self, mut outgoing: Outgoing, target: Target, ctx: &OutCtx) -> OutStep {
         if repeats(&outgoing.text, ctx) {
             if outgoing.images.is_empty() {
@@ -24,7 +22,7 @@ impl OutboundRule for Rule {
             outgoing.text.clear();
         }
         // 发过的去掉，同一条里重复的只留第一张；先后照原样。
-        let mut seen: BTreeSet<String> = ctx.sent.images.iter().cloned().collect();
+        let mut seen: BTreeSet<ContentHash> = ctx.sent.images.iter().cloned().collect();
         let pictured = !outgoing.images.is_empty();
         outgoing.images.retain(|image| seen.insert(image.clone()));
         match pictured && outgoing.images.is_empty() && outgoing.text.is_empty() {

@@ -179,6 +179,17 @@
       },
       "type": "object"
     },
+    "preset": {
+      "properties": {
+        "default": {
+          "default": "full",
+          "description": "The preset new sessions use. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to sessions opened from now on.",
+          "title": "Default preset",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "providers": {
       "additionalProperties": {
         "properties": {
@@ -423,7 +434,7 @@
         },
         "startup": {
           "default": "new",
-          "description": "Whether a terminal interface or the web page opens a new session or picks up the most recent one. Allowed: new or recent. Only in the system config or personal settings. Takes effect the next time the interface opens.",
+          "description": "Whether a terminal interface or the web page opens a new session or picks up the most recent one. Allowed: new or recent. Only in the system config or personal settings. Takes effect the next time the program starts.",
           "enum": [
             "new",
             "recent"

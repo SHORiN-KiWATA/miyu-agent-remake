@@ -32,6 +32,7 @@ pub mod language;
 mod link;
 mod login;
 mod misuse;
+pub mod packages;
 mod recap;
 mod redo;
 mod rename;
@@ -44,7 +45,9 @@ mod web;
 
 pub use ask::{Ask, Format, Plan, Screen, Target, ask, exit, talk};
 pub use compact::{Compact, CompactPlan, compact, compact_on};
-pub use config::{Config, ConfigCommand, ConfigPlan, Console, Terminal, config, config_on};
+pub use config::{
+    Check, Config, ConfigCommand, ConfigPlan, Console, Terminal, check, config, config_on,
+};
 pub use login::{KeyCommand, Login, LoginPlan, Logout, login, login_on};
 pub use misuse::misuse;
 pub use recap::{Recap, RecapPlan, recap, recap_on};

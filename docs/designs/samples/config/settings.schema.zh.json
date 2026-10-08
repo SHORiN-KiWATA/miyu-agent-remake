@@ -179,6 +179,17 @@
       },
       "type": "object"
     },
+    "preset": {
+      "properties": {
+        "default": {
+          "default": "full",
+          "description": "新会话默认用哪个预设。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。",
+          "title": "默认预设",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "providers": {
       "additionalProperties": {
         "properties": {
@@ -423,7 +434,7 @@
         },
         "startup": {
           "default": "new",
-          "description": "打开终端界面或网页时，开一个新会话，还是接着最近的那一个。能写：new 或 recent。只能写在系统配置或个人设置里。下次打开界面时生效。",
+          "description": "打开终端界面或网页时，开一个新会话，还是接着最近的那一个。能写：new 或 recent。只能写在系统配置或个人设置里。这个程序下次启动时生效。",
           "enum": [
             "new",
             "recent"

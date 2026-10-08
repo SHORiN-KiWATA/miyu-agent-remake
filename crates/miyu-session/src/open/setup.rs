@@ -9,8 +9,10 @@ use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::By;
 use miyu_policy::PersonaTexts;
 use miyu_policy::memory::MemoryScope;
+use miyu_policy::preset::Chosen;
 use miyu_store::index::SessionIndex;
 use miyu_store::personas::Personas;
+use miyu_store::presets::Presets;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_store::usage::UsageIndex;
@@ -21,6 +23,15 @@ use crate::jobs::Jobs;
 use crate::port::Models;
 use crate::sandbox::SandboxCache;
 use crate::spawn::{Lineage, SessionPort};
+
+/// 预设的几层和这台机器上装了的软件（施工 P-2 下）：回合开始时照它看预设的文件改了没有。
+#[derive(Debug, Clone)]
+pub struct PresetPlaces {
+    /// 几层。
+    pub presets: Presets,
+    /// 装了的软件的编号。
+    pub installed: Vec<String>,
+}
 
 /// 造一个会话要的。
 pub struct Create<'a> {
@@ -34,6 +45,8 @@ pub struct Create<'a> {
     pub persona: &'a str,
     /// 这个人格的字，几层叠好的（施工 P-1 上，`miyu_store::personas`）：造快照用。
     pub persona_texts: PersonaTexts,
+    /// 人格的几层（施工 P-1 再补）：回合开始时照它看人格的文件改了没有。
+    pub personas: Personas,
     /// 记忆归哪个账号（施工 P-1 上，`Personas::memory_account`）：回合库、记忆日志照它和人格开。
     pub memory_account: AccountId,
     /// 记忆的范围（施工 R-3 下，`memory.md`「范围」）：记进快照，以后照它。子会话不管交的是什么，一律 `off`。
@@ -87,6 +100,11 @@ pub struct Create<'a> {
     /// 会话用哪个模型（施工 8-8）：已经查过的引用，模型或 `@池`（协议的 `session.create` 的 `model`、派子代理时照 `pool`
     /// 或父会话的）。没有的照这时的 `models.chat`。记进 `session.created` 的 `model`。
     pub model: Option<String>,
+    /// 会话用哪个预设（施工 P-2 上、中）：已经找好的，编号记进 `session.created` 的 `preset`；子会话照父会话的。工具面照它
+    /// 筛，记忆没开的范围一律 `off`，记进快照（[`miyu_policy::PresetPin`]）。测试里自己造的可以没有：全开。
+    pub preset: Option<Chosen>,
+    /// 预设的几层和装了的软件（施工 P-2 下）：改了预设的文件下一个回合换上。没有的（测试里自己造的）不看。
+    pub presets: Option<PresetPlaces>,
 }
 
 /// 载入一个会话要的。
@@ -95,8 +113,11 @@ pub struct Load<'a> {
     pub root: &'a DataRoot,
     /// 会话的属主。
     pub owner: AccountId,
-    /// 人格的几层（施工 P-1 上）：读出快照里的人格以后，照 [`Personas::memory_account`] 算记忆归哪个账号。
+    /// 人格的几层（施工 P-1 上）：读出快照里的人格以后，照 [`Personas::memory_account`] 算记忆归哪个账号；回合开始时照它
+    /// 看人格的文件改了没有（施工 P-1 再补）。
     pub personas: Personas,
+    /// 资源目录（施工 P-1 再补）：人格的文件改了，照它重拼快照。
+    pub resources: &'a ResourceRoot,
     /// 会话编号。
     pub id: SessionId,
     /// 会话所在的环境：时区、工作目录。
@@ -125,4 +146,6 @@ pub struct Load<'a> {
     pub configs: Configs,
     /// 同 [`Create::memory`]：载入时照整份事件补上回合库落下的。
     pub memory: Option<Arc<crate::Memory>>,
+    /// 同 [`Create::presets`]。
+    pub presets: Option<PresetPlaces>,
 }

@@ -118,7 +118,8 @@ impl Actor {
     /// 回合开始（`turn.started` 已经落了盘）：冻结这一轮的配置，带上会话这时的目录的项目配置（施工 8-4）；叫端口照它重新
     /// 解析内核交来的引用 `reference`（施工 8-10，`models.md`「怎么走」第六条第 3 条）。限额变了交给内核；头看得到的（引用、
     /// 接下来发给谁、思考强度、窗口、压缩线）变了推一条 `model.changed`，`why` 是 `turn`（「施工时定的」8-10）。交回挂接点跑完了，带着
-    /// 退回了默认的那一次：现在没有模块挂回合开始。给头看的那一档（照新的配置算）变了也推 `model.changed`。
+    /// 退回了默认的那一次：现在没有模块挂回合开始。给头看的那一档（照新的配置算）变了也推 `model.changed`。人格的文件改了的，
+    /// 带上新快照的哈希（施工 P-1 再补，`persona.rs`）。
     pub(super) async fn turn_start(&mut self, turn: TurnId, reference: Option<String>) -> Input {
         self.config.turn(self.session.cwd().to_string()).await;
         let before = self.shown_now();
@@ -127,7 +128,10 @@ impl Actor {
         if self.shown_now() != before {
             self.announce(ChangeWhy::Turn);
         }
+        let values = self.config.current().resolved.values();
+        let policy = self.refresh_persona(values).await;
         Input::TurnStartHooksDone {
+            policy,
             at: self.clock.now(),
             turn,
             injected: Vec::new(),

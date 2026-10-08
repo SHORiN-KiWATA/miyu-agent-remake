@@ -47,7 +47,8 @@
 | `kind` | 字符串，必写 | `private` 或 `group` |
 | `peer` | 字符串 | 私聊的对方，平台身份，`private` 必写，`group` 写了是参数不对 |
 | `cwd` | 字符串，可以不写 | 造的时候用；找回的不看 |
-| `persona` | 字符串，可以不写 | 造的时候用哪个人格（施工 P-1 上，`personas.md`）：桥照场所规则算好交来，核心不读场所规则；不写的照默认人格。找回的不看。指着没有的人格回 `unknown_persona`，什么都不造 |
+| `persona` | 字符串，可以不写 | 造的时候用哪个人格（施工 P-1 上，`personas.md`）：桥照场所规则算好交来，核心不读场所规则；不写的照预设的默认人格，那也没写的照默认人格（施工 P-2 上）。找回的不看。指着没有的人格回 `unknown_persona`，什么都不造 |
+| `preset` | 字符串，可以不写 | 造的时候用哪个预设（施工 P-2 上，`presets.md`）：同 `persona`，桥照场所规则算好交来；不写的照 `preset.default`。找回的不看。指着没有的回 `unknown_preset`、写错的回 `preset_invalid`，什么都不造 |
 
 回应：`{"session": <编号>, "created": <布尔>}`。
 

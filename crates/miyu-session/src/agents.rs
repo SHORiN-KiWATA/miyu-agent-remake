@@ -20,10 +20,11 @@ use miyu_kernel::id::{AccountId, CommandId, JobId, SessionId, VenueId};
 use miyu_kernel::origin::{By, Session};
 use miyu_kernel::session::{Command, Outcome};
 use miyu_policy::memory::MemoryScope;
+use miyu_policy::preset::PresetFile;
 use miyu_policy::{Choice, JOB_DEPTH, ToolEntry};
 use miyu_tool::{
-    ASK_USER, AgentPort, Catalog, FORGET, MEMORY_SEARCH, NotSpawned, REMEMBER, SEND_MESSAGE,
-    SESSION_USAGE, SESSIONS, SUBAGENT, Spawned, Spawning, TODOWRITE, is_subagent,
+    ASK_USER, AgentPort, BASESYSTEM, Catalog, FORGET, MEMORY_SEARCH, NotSpawned, Order, REMEMBER,
+    SEND_MESSAGE, SESSION_USAGE, SESSIONS, SUBAGENT, Spawned, Spawning, TODOWRITE, is_subagent,
 };
 
 use crate::TARGET;
@@ -56,6 +57,32 @@ pub(crate) struct Agents {
     pub(crate) reports: miyu_kernel::session::Reports,
     /// 派子代理能选的池（施工 8-8 补）：快照里 `subagent` 的 `pool` 的 `enum`（[`Agents::pools_in`]），没有的是空的。
     pub(crate) pools: Vec<String>,
+    /// 这个会话的预设（施工 P-2 上）：`session.created` 的，子会话没选的照抄（C5 的默认）。以前的会话没有。
+    pub(crate) preset: Option<String>,
+    /// 派子代理能选的人格（施工 P-2 补）：同 `pools`，快照里 `subagent` 的 `persona` 的 `enum`（[`Agents::personas_in`]）。
+    pub(crate) personas: Vec<String>,
+}
+
+/// 工具面上 `subagent` 那两个参数能选的（施工 8-8 补、P-2 补）：池照这时的配置，人格照这台机器上这时有的。
+pub(crate) struct Offers {
+    pub(crate) pools: Vec<Choice>,
+    pub(crate) personas: Vec<Choice>,
+}
+
+impl Offers {
+    /// 照这时的配置 `values`、人格的编号 `personas`（照编号排）。人格只填名字，不带说明：说明是人格的作者写的，不一定是英文。
+    pub(crate) fn of(values: &Values, personas: Vec<String>) -> Offers {
+        Offers {
+            pools: choices(values),
+            personas: personas
+                .into_iter()
+                .map(|name| Choice {
+                    name,
+                    description: None,
+                })
+                .collect(),
+        }
+    }
 }
 
 impl Agents {
@@ -83,15 +110,17 @@ impl Agents {
     /// （[`Agents::lists_sessions`]）。`session_usage` 只给本机的会话（施工 8-15）：群里的人不可信，花了多少钱是属主的事。
     /// 工具面造会话时定，一个会话里不变，给了只会被拒的不给（`agents.md` 第一条第 6 条）。
     /// `subagent` 的 `pool` 照这时的配置 `values` 填上能选的池（施工 8-8 补：`miyu_models::pools::offered`，一个都没有的拿掉
-    /// 这个参数）。`ask_user` 只给能问人的会话（[`Agents::asks`]，施工 D-2）。`todowrite` 只给本机的会话（施工 D-3）：群里没人
-    /// 看她的清单。
+    /// 这个参数）；`persona` 照 `offers` 填上这台机器上有的人格（施工 P-2 补）。`ask_user` 只给能问人的会话（[`Agents::asks`]，施工 D-2）。`todowrite` 只给本机的会话（施工 D-3）：群里没人
+    /// 看她的清单。有预设的照它筛（施工 P-2 中）：工具所在的包没开的、单件关掉的不给（[`PresetFile::keeps`]）；目录里没记包的
+    /// 当基础系统。
     pub(crate) fn face(
         tools: &Catalog,
         venue: &VenueId,
         lineage: Option<&Lineage>,
-        values: &Values,
+        offers: &Offers,
         attended: bool,
         memory: MemoryScope,
+        preset: Option<&PresetFile>,
     ) -> Vec<ToolEntry> {
         let spawns = Agents::allowed(venue, lineage);
         let local = venue.as_str() == LOCAL;
@@ -111,6 +140,12 @@ impl Agents {
                 (local && memory != MemoryScope::Off)
                     || ![REMEMBER, FORGET, MEMORY_SEARCH].contains(&spec.name.as_str())
             })
+            .filter(|spec| {
+                preset.is_none_or(|preset| {
+                    let package = tools.package_of(&spec.name).unwrap_or(BASESYSTEM);
+                    preset.keeps(package, &spec.name)
+                })
+            })
             .map(|spec| {
                 let mut entry = ToolEntry {
                     name: spec.name.clone(),
@@ -120,7 +155,8 @@ impl Agents {
                 };
                 // 以前的名字也填：只在测试里拿改名以前的目录造会话时碰得到，照同一个规矩，两张工具面只差名字。
                 if is_subagent(&spec.name) {
-                    entry.offer(POOL, &choices(values));
+                    entry.offer(POOL, &offers.pools);
+                    entry.offer(PERSONA_PARAMETER, &offers.personas);
                 }
                 entry
             })
@@ -133,6 +169,14 @@ impl Agents {
         face.iter()
             .find(|entry| is_subagent(&entry.name))
             .map(|entry| entry.offered(POOL))
+            .unwrap_or_default()
+    }
+
+    /// 快照的工具面 `face` 上派子代理能选的人格（施工 P-2 补）：同 [`Agents::pools_in`]，`persona` 的 `enum`。
+    pub(crate) fn personas_in(face: &[ToolEntry]) -> Vec<String> {
+        face.iter()
+            .find(|entry| is_subagent(&entry.name))
+            .map(|entry| entry.offered(PERSONA_PARAMETER))
             .unwrap_or_default()
     }
 
@@ -189,6 +233,9 @@ impl Inherit {
 /// `subagent` 上填池的那个参数（施工 8-8 补）。
 const POOL: &str = "pool";
 
+/// `subagent` 上填人格的那个参数（施工 P-2 补）。
+const PERSONA_PARAMETER: &str = "persona";
+
 /// 照这时的配置 `values`，派子代理能选的池写成工具面要的样子。
 fn choices(values: &Values) -> Vec<Choice> {
     miyu_models::pools::offered(values)
@@ -211,13 +258,14 @@ struct Spawner {
 }
 
 impl AgentPort for Spawner {
-    /// 标题不交给子会话：它只给头看，记在 `job.started` 里（工具报）。
-    fn spawn<'a>(
-        &'a self,
-        _description: &'a str,
-        prompt: &'a str,
-        pool: Option<&'a str>,
-    ) -> Spawning<'a> {
+    /// 标题不交给子会话：它只给头看，记在 `job.started` 里（工具报）。人格没挑的是软件工程师（走查 C5），预设照父会话的。
+    fn spawn<'a>(&'a self, order: Order<'a>) -> Spawning<'a> {
+        let Order {
+            prompt,
+            pool,
+            persona,
+            ..
+        } = order;
         Box::pin(async move {
             let job = self.ids.next();
             let agents = &self.agents;
@@ -228,7 +276,7 @@ impl AgentPort for Spawner {
                     depth: agents.depth + 1,
                 },
                 command: command_id(parent, &job, ""),
-                persona: PERSONA.to_string(),
+                persona: persona.unwrap_or(PERSONA).to_string(),
                 owner: agents.owner.clone(),
                 venue: agents.venue.clone(),
                 permission: self.permission.clone(),
@@ -236,6 +284,7 @@ impl AgentPort for Spawner {
                 cwd: self.cwd.clone(),
                 dirs: self.dirs.clone(),
                 model: self.inherit.model(pool),
+                preset: agents.preset.clone(),
             };
             let job_text = job.to_string();
             let session = agents.port.create(child).await.map_err(|error| {
@@ -276,6 +325,10 @@ impl AgentPort for Spawner {
 
     fn pools(&self) -> &[String] {
         &self.agents.pools
+    }
+
+    fn personas(&self) -> &[String] {
+        &self.agents.personas
     }
 }
 

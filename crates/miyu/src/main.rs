@@ -7,6 +7,7 @@
 //! 不认识的子命令就报错，退出码 2，绝不当成对话发给核心（R4，`22-命令行.md` 第二节）。帮助页、参数写错时说的
 //! 那一句都是自己写的，跟着界面语言（施工 4-11，`docs/blueprint/cli/main.md`）。
 
+use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::time::Duration;
@@ -52,6 +53,8 @@ enum Command {
     Sandbox(miyu_cli::Sandbox),
     /// 看配置、改配置、信任项目配置（施工 8-2、8-3）。
     Config(miyu_cli::Config),
+    /// 查手写的文件有没有写错：配置、密钥文件、人格（施工 8-30）。
+    Check(miyu_cli::Check),
     /// 存一个供应商的 key，`--list` 列出哪几个设了（施工 8-5）。
     Login(miyu_cli::Login),
     /// 删掉一个供应商的 key（施工 8-5）。
@@ -71,9 +74,30 @@ enum Command {
 
 fn main() -> ExitCode {
     let language = language::current();
+    // 软件包加的子命令（施工 9-2）：第一个词不是内置的（不认识的、`help`、选项）才照清单找，`miyu core`、`miyu ask` 不多读盘。
+    let args: Vec<OsString> = std::env::args_os().collect();
+    let builtins = builtins();
+    let first = args.get(1).and_then(|first| first.to_str());
+    let added = match first {
+        Some(first) if first != "help" && builtins.iter().any(|name| name == first) => Vec::new(),
+        _ => {
+            let names: Vec<&str> = builtins.iter().map(String::as_str).collect();
+            miyu_cli::packages::installed(&miyu_core::admin(), &names)
+        }
+    };
+    let main = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("miyu"));
+    if let Some(code) =
+        miyu_cli::packages::forward(&args, &added, &main, language, &mut std::io::stderr())
+    {
+        return ExitCode::from(code);
+    }
+    let section = miyu_cli::packages::help_section(language, &added);
     // 帮助页换成自己写的（施工 4-11）：`-h`、`--help`、`miyu help <子命令>` 都印它们，clap 生成的一个字都不印。
     let command = Cli::command()
-        .override_help(page(language, Page::Miyu))
+        .override_help(miyu_cli::packages::with_section(
+            page(language, Page::Miyu),
+            &section,
+        ))
         .mut_subcommand("ask", |ask| ask.override_help(page(language, Page::Ask)))
         .mut_subcommand("undo", |undo| {
             undo.override_help(page(language, Page::Undo))
@@ -103,15 +127,16 @@ fn main() -> ExitCode {
             setup.override_help(page(language, Page::Setup))
         })
         .mut_subcommand("web", |web| web.override_help(page(language, Page::Web)))
+        .mut_subcommand("check", |check| {
+            check.override_help(page(language, Page::Check))
+        })
         .mut_subcommand("config", |config| {
             let help = page(language, Page::Config);
-            [
-                "get", "check", "explain", "path", "set", "unset", "edit", "trust",
-            ]
-            .into_iter()
-            .fold(config.override_help(help), |config, name| {
-                config.mut_subcommand(name, |sub| sub.override_help(help))
-            })
+            ["get", "explain", "path", "set", "unset", "edit", "trust"]
+                .into_iter()
+                .fold(config.override_help(help), |config, name| {
+                    config.mut_subcommand(name, |sub| sub.override_help(help))
+                })
         })
         .mut_subcommand("sandbox", |sandbox| {
             let help = page(language, Page::Sandbox);
@@ -137,6 +162,7 @@ fn main() -> ExitCode {
         Some(Command::Rename(args)) => miyu_cli::rename(args, core),
         Some(Command::Sandbox(args)) => miyu_cli::sandbox(args),
         Some(Command::Config(args)) => miyu_cli::config(args, core),
+        Some(Command::Check(args)) => miyu_cli::check(args, core),
         Some(Command::Login(args)) => miyu_cli::login(args.into(), core),
         Some(Command::Logout(args)) => miyu_cli::login(args.into(), core),
         Some(Command::Setup(args)) => miyu_cli::setup(args, core),
@@ -149,6 +175,19 @@ fn main() -> ExitCode {
             ExitCode::from(USAGE)
         }
     }
+}
+
+/// 内置的子命令（施工 9-2）：每一个的名字、别名，加上 `help`。软件包的子命令撞了它们的不转交、不列。
+fn builtins() -> Vec<String> {
+    let command = Cli::command();
+    command
+        .get_subcommands()
+        .flat_map(|sub| {
+            std::iter::once(sub.get_name().to_string())
+                .chain(sub.get_all_aliases().map(str::to_string))
+        })
+        .chain(std::iter::once("help".to_string()))
+        .collect()
 }
 
 /// 拉起核心的命令：自己这个程序，加上 `core`。

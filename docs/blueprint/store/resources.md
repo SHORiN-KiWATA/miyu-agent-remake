@@ -47,8 +47,10 @@
 ├── core/                                随核心附带的
 │   ├── checkpoint-open.txt、checkpoint-close.txt、checkpoint-end.txt
 │   ├── permission-rule.txt、local-paths-rule.txt  核心的几行，拼进 system（施工 2-7 补）
+│   ├── style-lock.txt                    风格锁，带角色扮演提示的人格拼在 system 最后（施工 P-1 补）
 │   ├── turn-ended/<原因>.txt             5 份
 │   ├── facts/env.txt、permission.txt、reply-cut.txt、session.txt、permission-changed.txt
+│   ├── facts/reminder-open.txt、reminder-close.txt  角色扮演提示的包装（施工 P-1 补）
 │   ├── tool-results/<哪一句>.txt         15 份
 │   ├── permissions/forbidden.txt、unresolvable.txt
 │   ├── drivers/<哪一句>.txt              5 份
@@ -56,6 +58,8 @@
 │   ├── jobs/<哪一份>.txt                 两种回报的写法，11 份（施工 7-2）；回报截在中间的那一行（施工 7-6）；留言的标签，2 份（施工 7-7）；人停的那一句（施工 7-2 补）
 │   └── human/zh.json、en.json、ja.json   给人看的字
 ├── personas/<人格>/prompts/persona.md    人设；出厂的只有 engineer
+├── packages/<编号>.toml                  软件包清单：出厂的只有 web（施工 9-1 上，`packages.md`）
+├── presets/<编号>.toml                   预设：出厂的 full、dev（施工 P-2 上，`presets.md`）
 └── software/<软件包>/                    出厂的有 basesystem、mermaid、net
     ├── tools/<工具>.json                 给模型看的说明和参数格式（basesystem）
     ├── <工具>/<名字>.txt、common/<名字>.txt  工具输出里给她看的几句（basesystem）
@@ -66,9 +70,9 @@
 
 | 哪几份 | 谁读 | 什么时候 |
 |---|---|---|
-| `core/` 下的 `.txt`（两份 `*-rule.txt`、`jobs/subagent-venue.txt` 除外）、`personas/<人格>/prompts/persona.md` | `ResourceRoot::sources` | 造会话时，拼进策略快照 |
+| `core/` 下的 `.txt`（两份 `*-rule.txt`、`style-lock.txt`、`jobs/subagent-venue.txt` 除外）、`personas/<人格>/prompts/persona.md` | `ResourceRoot::sources` | 造会话时，拼进策略快照；`facts/reminder-*.txt` 只拼进快照的 `reminder`，不另存（施工 P-1 补） |
 | `core/jobs/subagent-venue.txt` | `ResourceRoot::subagent_venue` | 造子会话时，接进 system（施工 7-5） |
-| `core/permission-rule.txt`、`core/local-paths-rule.txt` | `ResourceRoot::core_lines` | 造会话时，接在 system 最后（施工 2-7 补，`policy.md` 的 `with_core_lines`） |
+| `core/permission-rule.txt`、`core/local-paths-rule.txt`、`core/style-lock.txt` | `ResourceRoot::core_lines` | 造会话时，接在 system 最后（施工 2-7 补，`policy.md` 的 `with_core_lines`）；风格锁再接在它们后面，只有带角色扮演提示的人格（施工 P-1 补，`with_style_lock`） |
 | `core/human/`、`software/<软件包>/human/` | `Human::load` | `miyu ask` 起来时读一次，印每一步用（`cli/ask.md`）；核心起来时照系统的语言读一次，生成配置的 Schema 和参考文件（施工 8-1，`config.md`） |
 | `software/basesystem/` 下别的 | `miyu-basesystem` | 核心起来时登记工具（`tools/*.md`） |
 | `software/mermaid/style.json` | `miyu-mermaid` | `mermaid.render` 第一次调时读一次，之后留着（施工 W-4，`mermaid.md`） |
@@ -213,7 +217,6 @@
 ### 还没有的
 
 - 同名覆盖：自己的家目录、系统区、出厂的三层，出厂的排在最后（`26-提示词.md` 第八节、J9，`16-人格与预设.md` 第四节）。现在只读资源目录这一处。
-- 人格目录里别的文件：`persona.toml`、示范对话、角色扮演提示，和预设（`16-人格与预设.md` 第三节）。
 - 网页这类资源（`12-进程形态与分发.md` 第三节）：`web/`，随 W-9。mermaid 要的字体、颜色这类已经有了（`software/mermaid/style.json`，施工 W-4）。
 
 **目录的快照怎么刷新**（施工 8-7）：下载原样的 `api.json`，旁边的 `meta` 写出处和服务器回的时刻（UTC），许可证照 models.dev 仓库的 `LICENSE` 原文：

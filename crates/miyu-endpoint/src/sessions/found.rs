@@ -65,6 +65,7 @@ impl Open {
         let loaded = load(Load {
             root: &core.root,
             personas: crate::personas::personas(core),
+            resources: &core.resources,
             owner: core.admin.clone(),
             id: id.clone(),
             environment: environment(workspace.clone(), dirs.clone()),
@@ -78,6 +79,7 @@ impl Open {
             index: core.index_for(&core.admin),
             usage: core.usage_for(&core.admin),
             memory: core.memory_for(&core.admin),
+            presets: Some(crate::presets::places(core)),
             configs: core.hub.configs(),
         })
         .await;

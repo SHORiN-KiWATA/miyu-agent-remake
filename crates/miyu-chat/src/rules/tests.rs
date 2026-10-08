@@ -361,7 +361,7 @@ fn bad_attribute_drops_only_that_item() {
 fn unknown_attribute_suggests_the_nearest_name_and_the_rest_count() {
     let files = [system(
         "a.toml",
-        "[[rule]]\nrat = \"0\"\nshowids = true\nchatty = { probability = 0.08 }\nallow = true\n",
+        "[[rule]]\nrat = \"0\"\nshowids = true\nmemes = { on = true }\nallow = true\n",
     )];
     let suggests: Vec<_> = problems(&files)
         .into_iter()
@@ -379,7 +379,7 @@ fn unknown_attribute_suggests_the_nearest_name_and_the_rest_count() {
         [
             unknown("rat", Some("rate")),
             unknown("showids", Some("show_ids")),
-            unknown("chatty", None)
+            unknown("memes", None)
         ]
     );
     let resolved = Rules::parse(&files).rules.resolve(&group("1"));

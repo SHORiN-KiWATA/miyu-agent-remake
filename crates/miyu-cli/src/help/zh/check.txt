@@ -1,0 +1,15 @@
+用法：miyu check [文件] [选项]
+
+查你手写的文件有没有写错：系统配置、个人设置、当前目录的项目配置、密钥文件，
+每个人格目录里的 persona.toml、prompts/examples.md，每一份预设和软件包清单。
+每一处印出文件、第几行、错在哪、怎么改；有错误时退出码是 1。
+
+写了文件的只查那一份。
+
+选项：
+      --format text|json  text 给人看（默认），json 给脚本
+  -h, --help              印帮助
+
+例子：
+  miyu check
+  miyu check ~/.miyu/home/admin/personas/miyu/prompts/examples.md

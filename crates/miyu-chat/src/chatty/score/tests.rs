@@ -18,7 +18,7 @@ fn judged() -> Judgement {
 
 /// 她此刻刚回了别人两轮：刚说过话成立，近期发言量 p = 2。
 fn twice() -> Vec<Reply> {
-    vec![reply(0, Some(OTHER)), reply(0, Some(OTHER))]
+    vec![reply(0, &[OTHER]), reply(0, &[OTHER])]
 }
 
 fn scored(
@@ -61,7 +61,7 @@ fn example_addressed_goes_through() {
     // 同一句话 @ 了她：再加 0.3 成 1.085，免冷静，门槛 0.8，回。
     let replies = twice();
     let mut msg = facts();
-    msg.addressed = true;
+    msg.said.addressed = true;
     let conditions = hits(&msg, &[], &replies, &chatty());
     let got = scored(&judged(), &conditions, &replies, &chatty());
     assert_eq!(mills(got.total), 1085);

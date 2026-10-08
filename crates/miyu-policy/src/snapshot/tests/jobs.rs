@@ -14,7 +14,7 @@ fn report_numbers_and_the_omitted_line_go_in_and_older_snapshots_lack_them() {
         reports.omitted.render(&count).unwrap(),
         "[... 12 characters omitted ...]\n"
     );
-    let text = String::from_utf8(snapshot.to_bytes()).unwrap();
+    let text = crate::test_support::text_without_digest(&snapshot);
     let tail = format!("{JOB_NUMBERS}{RECAP_NUMBERS}{TITLE_NUMBERS}{PEER_NUMBERS}}}");
     assert!(text.ends_with(&tail), "{text}");
     let omitted = r#","subagent_omitted":"[... {count} characters omitted ...]\n""#;

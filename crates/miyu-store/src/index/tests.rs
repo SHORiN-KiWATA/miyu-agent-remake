@@ -20,7 +20,7 @@ fn event(line: &str) -> Event {
 
 fn created() -> Event {
     event(
-        r#"{"seq":1,"at":"2026-09-25T07:00:00.000Z","kind":"session.created","by":{"kind":"person","account":"alice"},"cause":"c1","body":{"owner":"alice","venue":"local","policy":"sha256:97f5f58cebf9e368ddcc668976ce5da07ceb80c7be52ac6d4edcf2ac8a639894","permission":{"level":"workspace","read_only":false},"oneshot":true,"cwd":"~/a"}}"#,
+        r#"{"seq":1,"at":"2026-09-25T07:00:00.000Z","kind":"session.created","by":{"kind":"person","account":"alice"},"cause":"c1","body":{"owner":"alice","venue":"local","policy":"sha256:97f5f58cebf9e368ddcc668976ce5da07ceb80c7be52ac6d4edcf2ac8a639894","permission":{"level":"workspace","read_only":false},"oneshot":true,"cwd":"~/a","persona":"engineer","preset":"dev"}}"#,
     )
 }
 
@@ -89,6 +89,11 @@ fn batches_are_laid_on_the_row_one_after_another() {
     assert_eq!(first.title, "");
     assert_eq!(first.created, first.last_active);
     assert_eq!(first.mark, mark(100, 2));
+    assert_eq!(
+        (first.persona.as_deref(), first.preset.as_deref()),
+        (Some("engineer"), Some("dev")),
+        "人格、预设照 session.created 存进表、读得回来（施工 P-2 上）"
+    );
     let batch = [renamed(2, "发版", true), moved(3, "~/b")];
     assert!(
         index
