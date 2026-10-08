@@ -158,6 +158,16 @@ async fn wrong_places_are_refused_on_the_spot() {
             .any(|event| matches!(event.body, Body::WorkspaceChanged(_))),
         "拒绝的什么都没记"
     );
+    // `~` 本身总是太宽：读不出家目录（这个核心没有）也退回账号的工作区，同造会话（施工 9-7 下）。
+    let own = home.root.workspace(&alice()).to_string_lossy().into_owned();
+    let wide = client
+        .call(
+            "w",
+            "session.set_workspace",
+            json!({"session": session, "cwd": "~"}),
+        )
+        .await;
+    assert_eq!(wide["result"]["cwd"], json!(own), "{wide}");
 }
 
 #[tokio::test]

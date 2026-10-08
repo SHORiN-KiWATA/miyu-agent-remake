@@ -2,7 +2,8 @@
 //! 原文交过来，核心认命令、判谁能用、执行、记一条 `command.ran`，回执的那一句照连接的语言写好交回去。
 //!
 //! 头一批两个命令（2026-10-07 项目主人定）：`/clear`（别名 `/reset`）清空上下文；`/stop` 全停：打断这一轮（排着的话留着，
-//! 不撤回、不接着开），再停掉她派出去的后台命令和子代理。终端、网页、通讯平台用同一套名字。
+//! 不撤回、不接着开），再停掉她派出去的后台命令和子代理。终端、网页、通讯平台用同一套名字。施工 9-7 下加 `/workspace`
+//! （`workspace.rs`）：换会话在哪个目录干活，只有主人本人能用。
 //!
 //! 命令本身照请求的编号交给内核，内核照编号只生效一次；`command.ran` 用派生的编号 `<编号>/ran` 记，执行了的才记。
 
@@ -33,6 +34,9 @@ pub(crate) struct RunParams {
     text: String,
     #[serde(default, rename = "as")]
     as_external: Option<AsParams>,
+    /// 头所在的目录：只用来接 `/workspace` 后面相对的路径（施工 9-7 下）。
+    #[serde(default)]
+    cwd: Option<String>,
 }
 
 /// 认得出的命令。
@@ -40,6 +44,7 @@ pub(crate) struct RunParams {
 enum Slash {
     Clear,
     Stop,
+    Workspace,
 }
 
 impl Slash {
@@ -48,6 +53,7 @@ impl Slash {
         match name {
             "clear" | "reset" => Some(Slash::Clear),
             "stop" => Some(Slash::Stop),
+            "workspace" => Some(Slash::Workspace),
             _ => None,
         }
     }
@@ -57,14 +63,23 @@ impl Slash {
         match self {
             Slash::Clear => "clear",
             Slash::Stop => "stop",
+            Slash::Workspace => "workspace",
         }
     }
+}
 
-    /// 回执那一句的键（`core/human/<语言>.json` 的 `said`）。
-    fn said(self) -> &'static str {
-        match self {
-            Slash::Clear => "commands/cleared",
-            Slash::Stop => "commands/stopped",
+/// 回执那一句：`core/human/<语言>.json` 的键，和要填的字。
+struct Said {
+    key: &'static str,
+    fields: Vec<(&'static str, String)>,
+}
+
+impl Said {
+    /// 不用填字的一句。
+    fn plain(key: &'static str) -> Said {
+        Said {
+            key,
+            fields: Vec::new(),
         }
     }
 }
@@ -76,11 +91,18 @@ pub(crate) async fn run(
     id: &CommandId,
     params: RunParams,
 ) -> Result<Value, Refusal> {
-    let slash = parse(&params.text)?;
+    let (slash, rest) = parse(&params.text)?;
+    if params
+        .cwd
+        .as_deref()
+        .is_some_and(|cwd| !workspace::head_cwd_ok(cwd))
+    {
+        return Err(Refusal::BAD_PARAMS);
+    }
     let noted = CommandId::parse(&format!("{id}/ran")).map_err(|_| Refusal::BAD_PARAMS)?;
     let session = SessionId::parse(&params.session).map_err(|_| Refusal::BAD_PARAMS)?;
     let found = core.sessions.get(core, &session).await?;
-    let handle = found.handle;
+    let handle = found.handle.clone();
     let local = handle.venue().as_str() == LOCAL;
     let by = match (local, params.as_external) {
         (true, None) => admin(core),
@@ -91,11 +113,22 @@ pub(crate) async fn run(
     if !may_run(&by) {
         return Err(Refusal::COMMAND_NOT_ALLOWED);
     }
+    // 换工作区动的是沙盒能写的地方：管理的人不行，只有主人本人。
+    if slash == Slash::Workspace && !is_owner(&by) {
+        return Err(Refusal::OWNER_ONLY);
+    }
     let mut events = Vec::new();
-    match slash {
+    let said = match slash {
         Slash::Clear => {
             let outcome = command(core, &session, &handle, id, &by, Command::Clear).await?;
             events.extend(accepted(outcome)?);
+            Said::plain("commands/cleared")
+        }
+        Slash::Workspace => {
+            let head = params.cwd.as_deref();
+            let (moved, said) = workspace::run(core, &session, &found, id, &by, rest, head).await?;
+            events.extend(moved);
+            said
         }
         Slash::Stop => {
             let interrupt = Command::Interrupt {
@@ -112,8 +145,9 @@ pub(crate) async fn run(
                 core.sessions.forget(&session).await;
                 return Err(Refusal::STOPPED);
             }
+            Said::plain("commands/stopped")
         }
-    }
+    };
     let note = Command::Ran {
         text: params.text,
         command: slash.name().to_string(),
@@ -121,21 +155,20 @@ pub(crate) async fn run(
     events.extend(accepted(
         command(core, &session, &handle, &noted, &by, note).await?,
     )?);
-    let said = said(core, peer, slash).await;
+    let said = words(core, peer, &said).await;
     Ok(json!({"command": slash.name(), "events": events, "said": said}))
 }
 
-/// 原文的头一个词是命令名：开头的空白不算，`/` 开头，名字紧跟着 `/`、到空白为止，后面跟的字不理。不是 `/` 开头的参数
-/// 不对，认不出的 `unknown_command`。
-fn parse(text: &str) -> Result<Slash, Refusal> {
-    let name = text
+/// 原文的头一个词是命令名：开头的空白不算，`/` 开头，名字紧跟着 `/`、到空白为止。交回命令和后面跟的字（去掉前后空白；
+/// 只有 `/workspace` 用它）。不是 `/` 开头的参数不对，认不出的 `unknown_command`。
+fn parse(text: &str) -> Result<(Slash, &str), Refusal> {
+    let after = text
         .trim_start()
         .strip_prefix('/')
-        .ok_or(Refusal::BAD_PARAMS)?
-        .split(char::is_whitespace)
-        .next()
-        .unwrap_or_default();
-    Slash::of(name).ok_or(Refusal::UNKNOWN_COMMAND)
+        .ok_or(Refusal::BAD_PARAMS)?;
+    let (name, rest) = after.split_once(char::is_whitespace).unwrap_or((after, ""));
+    let slash = Slash::of(name).ok_or(Refusal::UNKNOWN_COMMAND)?;
+    Ok((slash, rest.trim()))
 }
 
 /// 谁能用（`18-通讯平台.md` 第十二节）：本人（本机的头、私聊里对应表认出的本人），对应表里有的外部身份（群里的主人），场所里
@@ -146,6 +179,15 @@ fn may_run(by: &By) -> bool {
         By::External(external) => {
             external.account.is_some() || external.role == Some(Role::Manager)
         }
+        _ => false,
+    }
+}
+
+/// 主人本人：本机的头、私聊里对应表认出的本人、对应表里有的外部身份（群里的主人）。
+fn is_owner(by: &By) -> bool {
+    match by {
+        By::Person(_) => true,
+        By::External(external) => external.account.is_some(),
         _ => false,
     }
 }
@@ -178,12 +220,17 @@ fn accepted(outcome: Outcome) -> Result<Vec<u64>, Refusal> {
 }
 
 /// 回执那一句，照这个连接的语言；资源读不出来的是空的，记一行运行日志。
-async fn said(core: &Core, peer: &Peer, slash: Slash) -> String {
+async fn words(core: &Core, peer: &Peer, said: &Said) -> String {
     let resources = core.resources.clone();
     let language = peer.language.to_string();
     let loaded = tokio::task::spawn_blocking(move || Human::load(&resources, &language)).await;
+    let fields: Vec<(&str, &str)> = said
+        .fields
+        .iter()
+        .map(|(name, value)| (*name, value.as_str()))
+        .collect();
     match loaded {
-        Ok(Ok(human)) => Words::sentence(&human, slash.said(), &[]).unwrap_or_default(),
+        Ok(Ok(human)) => Words::sentence(&human, said.key, &fields).unwrap_or_default(),
         _ => {
             tracing::warn!(target: "miyu::endpoint", "command receipt words not read");
             String::new()
@@ -193,3 +240,4 @@ async fn said(core: &Core, peer: &Peer, slash: Slash) -> String {
 
 #[cfg(test)]
 mod tests;
+mod workspace;
