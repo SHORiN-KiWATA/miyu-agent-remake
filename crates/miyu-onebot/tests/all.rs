@@ -10,6 +10,7 @@ mod calls;
 mod commands;
 mod control;
 mod core;
+mod dependencies;
 mod ids;
 mod listen;
 mod logs;

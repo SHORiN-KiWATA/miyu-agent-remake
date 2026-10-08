@@ -27,8 +27,8 @@ pub async fn on_free_ports<T>(attempt: impl AsyncFn(u16, u16) -> Result<T, Taken
     panic!("试了 {TRIES} 组端口，桥都说被占了");
 }
 
-/// 桥说的 `said`（标准错误）里有没有说 `listen`、`web` 被占了。三种语言的那两句都认：说哪种看配置和握手，没写 `ui.language`
-/// 的照系统的语言说（测试里是英文）。
+/// 桥说的 `said`（标准错误）里有没有说 `listen`、`web` 被占了。三种语言的那两句都认：照握手回的语言说（施工 O-20），看测试
+/// 当的核心回的是哪种。
 pub fn taken(said: &str, listen: u16, web: u16) -> bool {
     ["zh", "en", "ja"].into_iter().any(|language| {
         let texts = Texts::load(ResourceRoot::at(resources()), language).expect("读得出来");

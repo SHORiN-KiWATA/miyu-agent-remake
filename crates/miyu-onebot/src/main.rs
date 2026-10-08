@@ -7,22 +7,22 @@
 //! - `web [--print]`：打开桥的 WebUI（第二条，施工 O-16，[`open`]）。
 //! - `-h`、`--help`：用法印在标准输出上，退出码 0（`miyu help onebot` 转成 `--help`）。
 //!
-//! 先找资源目录、读给人看的字（[`Texts`]），之后说给人听的都照它。`serve` 再装运行日志 `state/logs/onebot.log`，读三项配置
-//! （端口读不出来的照实说、退出码 1；令牌没设的照样往下走，NapCat 连进来 401，设了不用重启，O-16 补、补二）和
-//! `bridge.json`，交给 [`run`]。说话的语言：读配置以前照系统的语言，读了配置照 `ui.language`，握手以后照核心回的语言。找不到
-//! 资源目录、给人看的字读不懂，这时还没有字可用，印原话。
+//! 先找资源目录、读给人看的字（[`Texts`]，照系统的语言），之后说给人听的都照它。`serve` 再装运行日志
+//! `state/logs/onebot.log`，读 `bridge.json` 和清单里两个端口的默认值（[`Defaults`]），交给 [`run`]：配置由核心在握手的回应里
+//! 交、变了推过来，桥不读系统配置（施工 O-20）。握手以前不说话：起不来的照系统的语言说一句；运行日志装不上的那一句等握手回了
+//! 语言再说；握手回了语言就照它说，端口被占那一句也是（「施工时定的」第 42 条）。`start`、`stop`、`restart`、`status`、`web`
+//! 握手以后照核心回的语言说，`logs` 照系统的语言。找不到资源目录、给人看的字读不懂，这时还没有字可用，印原话。
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use miyu_endpoint::config::Environment;
 use miyu_onebot::control::{Control, control};
 use miyu_onebot::logs::logs;
-use miyu_onebot::open::{Open, SystemBrowser, open};
+use miyu_onebot::open::{Open, SystemBrowser, open, port};
 use miyu_onebot::serve::{CoreCommand, Failure, Notice, Pipe, Serve, run};
-use miyu_onebot::settings::{Settings, load, system_language};
-use miyu_onebot::texts::Texts;
+use miyu_onebot::settings::Defaults;
+use miyu_onebot::texts::{Texts, system_language};
 use miyu_onebot::tuning::Tuning;
 use miyu_onebot::{PROGRAM, TARGET};
 use miyu_store::env::Env;
@@ -53,7 +53,7 @@ fn main() -> ExitCode {
     let texts = ResourceRoot::locate(&env)
         .map_err(|error| error.to_string())
         .and_then(|resources| {
-            Texts::load(resources, &system_language(locale.as_deref()))
+            Texts::load(resources, system_language(locale.as_deref()))
                 .map_err(|error| error.to_string())
         });
     let mut texts = match texts {
@@ -101,7 +101,6 @@ fn main() -> ExitCode {
     let code = match command {
         Command::Serve => runtime.block_on(serve(root, &env, locale, &mut texts)),
         Command::Control(which) => {
-            speak(&root, &env, locale.as_deref(), &mut texts);
             let core: CoreCommand = Arc::new(core);
             runtime.block_on(control(
                 &root,
@@ -113,7 +112,6 @@ fn main() -> ExitCode {
             ))
         }
         Command::Logs { follow } => {
-            speak(&root, &env, locale.as_deref(), &mut texts);
             let every = match follow.then(|| Tuning::load(texts.resources().path())) {
                 None => None,
                 Some(Ok(tuning)) => Some(tuning.follow()),
@@ -127,57 +125,26 @@ fn main() -> ExitCode {
                 &mut std::io::stderr(),
             )
         }
-        Command::Web(wanted) => runtime.block_on(web(root, &env, locale, &wanted, &mut texts)),
+        Command::Web(wanted) => runtime.block_on(web(root, &wanted, &mut texts)),
     };
     // 标准输入在阻塞线程里读（`serve` 的管道）：核心还开着它时，等那个线程会一直等下去，不等它，进程退出时一起收掉。
     runtime.shutdown_background();
     ExitCode::from(code)
 }
 
-/// 照配置里的 `ui.language` 说话（`start`、`stop`、`restart`、`status`、`logs`）：只要语言，端口读不出来也不拦。那种语言的
-/// 字读不懂的，说一行原话，接着照原来的说。
-fn speak(root: &DataRoot, env: &Env, locale: Option<&str>, texts: &mut Texts) {
-    let loaded = load(root, env.home.as_deref(), locale, Environment::process());
-    if let Err(error) = texts.speak(&loaded.language) {
-        eprintln!("{PROGRAM}: {error}");
-    }
-}
-
-/// 读配置（三项、说话的语言）：端口读不出来的照实说。令牌没设不算：交给后面（`serve` 只开 WebUI，`web` 照常打开）。交回
-/// 三项，或者交回退出码。
-fn read(
-    root: &DataRoot,
-    env: &Env,
-    locale: Option<&str>,
-    texts: &mut Texts,
-) -> Result<Settings, u8> {
-    let loaded = load(root, env.home.as_deref(), locale, Environment::process());
-    if let Err(error) = texts.speak(&loaded.language) {
-        eprintln!("{PROGRAM}: {error}");
-        return Err(FAILED);
-    }
-    loaded.settings.map_err(|unready| {
-        eprintln!("{}", texts.unready(&unready));
-        FAILED
-    })
-}
-
-/// `web`：读 `onebot.web`，照 [`open`] 开浏览器。交回退出码。
-async fn web(
-    root: DataRoot,
-    env: &Env,
-    locale: Option<String>,
-    wanted: &Open,
-    texts: &mut Texts,
-) -> u8 {
-    let settings = match read(&root, env, locale.as_deref(), texts) {
-        Ok(settings) => settings,
-        Err(code) => return code,
+/// `web`：桥的网页的端口照状态文件，没有的照清单的默认值（[`port`]），照 [`open`] 开浏览器。交回退出码。
+async fn web(root: DataRoot, wanted: &Open, texts: &mut Texts) -> u8 {
+    let fallback = match Defaults::load(texts.resources()) {
+        Ok(defaults) => defaults.web,
+        Err(reason) => {
+            eprintln!("{}", texts.failure(&Failure::Start(reason)));
+            return FAILED;
+        }
     };
     let core: CoreCommand = Arc::new(core);
     open(
         &root,
-        settings.web,
+        port(&root, fallback),
         wanted,
         &core,
         &SystemBrowser,
@@ -188,7 +155,7 @@ async fn web(
     .await
 }
 
-/// 装运行日志、读配置和 `bridge.json`、跑到停。`locale` 是系统的语言。交回退出码。
+/// 装运行日志、读 `bridge.json` 和清单里两个端口的默认值、跑到停。`locale` 是系统的语言。交回退出码。
 async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Texts) -> u8 {
     let log = miyu_log::install(
         &root.state().join("logs"),
@@ -196,65 +163,63 @@ async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Te
         miyu_log::LevelFilter::INFO,
         env.home.as_deref(),
     );
-    if let Err(error) = &log {
-        eprintln!("{}", texts.no_log(&error.to_string()));
-    }
-    let settings = match read(&root, env, locale.as_deref(), texts) {
-        Ok(settings) => settings,
-        Err(code) => return code,
-    };
-    let tuning = match Tuning::load(texts.resources().path()) {
-        Ok(tuning) => tuning,
+    // 运行日志装不上的那一句先欠着：握手回了语言照它说；握手以前就起不来的，说起不来的原因以前先说（「施工时定的」第 42 条）。
+    let owed = Arc::new(Mutex::new(log.err().map(|error| error.to_string())));
+    let loaded = Tuning::load(texts.resources().path())
+        .and_then(|tuning| Defaults::load(texts.resources()).map(|defaults| (tuning, defaults)));
+    let (tuning, defaults) = match loaded {
+        Ok(loaded) => loaded,
         Err(reason) => {
+            settle(texts, &owed);
             eprintln!("{}", texts.failure(&Failure::Start(reason)));
             return FAILED;
         }
     };
-    // NapCat 的令牌对不上时、WebUI 的 `/status`、`/token`、`/apply` 照起来时的数据根、家目录、系统的语言和环境重读配置
-    // （O-16 补二）。
-    let reload = {
-        let (root, home, locale) = (root.clone(), env.home.clone(), locale.clone());
-        Arc::new(move || {
-            load(
-                &root,
-                home.as_deref(),
-                locale.as_deref(),
-                Environment::process(),
-            )
-            .settings
-        })
-    };
     let serve = Serve {
         root,
-        settings,
         pipe: Pipe::new(tokio::io::stdin(), tokio::io::stdout()),
         core: Arc::new(core),
         locale,
         tuning,
         resources: texts.resources().clone(),
-        reload,
+        defaults,
     };
     let speaking = Arc::new(Mutex::new(texts.clone()));
-    let telling = Arc::clone(&speaking);
-    let tell = move |notice: Notice| {
-        let mut texts = telling.lock().unwrap_or_else(PoisonError::into_inner);
-        if let Notice::Listening { language, .. } = &notice
-            && let Err(error) = texts.speak(language)
-        {
-            // 握手回的那种语言的字读不懂：照实说一行、记进运行日志，接着照原来的语言说。
-            tracing::warn!(target: TARGET, error = %error, "human texts not read");
-            eprintln!("{PROGRAM}: {error}");
+    let shaken = {
+        let (speaking, owed) = (Arc::clone(&speaking), Arc::clone(&owed));
+        move |language: &str| {
+            let mut texts = lock(&speaking);
+            if let Err(error) = texts.speak(language) {
+                // 握手回的那种语言的字读不懂：照实说一行、记进运行日志，接着照原来的语言说。
+                tracing::warn!(target: TARGET, error = %error, "human texts not read");
+                eprintln!("{PROGRAM}: {error}");
+            }
+            settle(&texts, &owed);
         }
-        eprintln!("{}", texts.notice(&notice));
     };
-    match run(serve, tell, stopped()).await {
+    let telling = Arc::clone(&speaking);
+    let tell = move |notice: Notice| eprintln!("{}", lock(&telling).notice(&notice));
+    match run(serve, shaken, tell, stopped()).await {
         Ok(()) => 0,
         Err(failure) => {
-            let texts = speaking.lock().unwrap_or_else(PoisonError::into_inner);
+            let texts = lock(&speaking);
+            settle(&texts, &owed);
             eprintln!("{}", texts.failure(&failure));
             FAILED
         }
     }
+}
+
+/// 欠着的「运行日志写不了」照 `texts` 说出来，只说一次。
+fn settle(texts: &Texts, owed: &Mutex<Option<String>>) {
+    if let Some(reason) = lock(owed).take() {
+        eprintln!("{}", texts.no_log(&reason));
+    }
+}
+
+/// 锁里不 `await`、不会崩；真崩了，里面的照样能用。
+fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 /// 拉起核心：自己真实位置旁边的主程序 `miyu` 加 `core`（照网页软件）。WebUI、`start` 这几样连核心时用。

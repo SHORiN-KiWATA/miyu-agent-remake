@@ -131,6 +131,44 @@ fn a_command_name_is_taken_by_whoever_is_read_first() {
     assert_eq!(problem.line, Some(7), "报在子命令名那一行");
 }
 
+/// 一份最小的扩展清单，声明了系统账号。
+fn served(command: &str) -> String {
+    format!(
+        "{}\n[process]\nsystem_account = true\n",
+        ui(command).replace("kind = \"ui\"", "kind = \"process\"")
+    )
+}
+
+/// 系统账号（施工 O-4 下）：读成了的、声明了的包各一个，账号名是编号；编号是管理员的那一份报 `account_taken`、整份不收。
+#[test]
+fn a_package_declaring_a_system_account_gets_one_named_after_it() {
+    let places = Places::new();
+    places.write(Layer::Shipped, "onebot.toml", &served("onebot"));
+    places.write(Layer::Home, "admin.toml", &served("boss"));
+    places.write(Layer::Home, "tui.toml", &ui("tui"));
+    places.write(Layer::Home, "zz.toml", "[package]\nkind = \"daemon\"\n");
+    let found = places.packages.read();
+    assert_eq!(
+        brief(&found),
+        [
+            ("admin".to_string(), Layer::Home, Some(Code::AccountTaken)),
+            ("onebot".to_string(), Layer::Shipped, None),
+            ("tui".to_string(), Layer::Home, None),
+            ("zz".to_string(), Layer::Home, Some(Code::BadKind)),
+        ]
+    );
+    assert_eq!(
+        system_accounts(&found),
+        [AccountId::parse("onebot").unwrap()],
+        "没声明的、写错的不算"
+    );
+    let Err(Issue::Wrong(problem)) = &found[0].read else {
+        panic!("撞了管理员");
+    };
+    assert_eq!(problem.detail, "admin");
+    assert_eq!(problem.line, None);
+}
+
 #[test]
 fn a_broken_manifest_is_listed_with_its_problem() {
     let places = Places::new();

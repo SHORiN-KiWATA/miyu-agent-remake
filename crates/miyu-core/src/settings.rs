@@ -36,8 +36,9 @@ const TARGET: &str = "miyu::config";
 /// 登记的模块，照这个先后，一个模块里照声明的先后。加一个模块只加一行。设置页的页照第一次出现的先后排：通用、界面、
 /// 权限、模型、高级（施工 8-2、8-3、8-6）；模型那一页先「用途」、再「供应商」、再「目录」（施工 8-7），「池」排在「用途」
 /// 后面（施工 8-8；「挡位」8-8 补去掉了），「冷却」排在「目录」后面（施工 8-9）；高级那一页先「压缩」再「运行日志」（施工
-/// 6-11 上）。通讯平台的桥的几项排在最后，高级页里「运行日志」后面（施工 O-8；O-16 加端口，O-17 加自己人）。
-const MODULES: [&[Item]; 18] = [
+/// 6-11 上）。施工 O-8 到 O-20 最后还有通讯平台的桥的几项（`OnebotSettings`）：O-20 挪进桥自己的清单 `[settings]`
+/// （`docs/blueprint/onebot.md` 第一条「软件包清单」），在「软件包」那一页。
+const MODULES: [&[Item]; 17] = [
     UiSettings::ITEMS,
     PersonaSettings::ITEMS,
     PresetSettings::ITEMS,
@@ -55,52 +56,7 @@ const MODULES: [&[Item]; 18] = [
     AuthCooldown::ITEMS,
     CompactionSettings::ITEMS,
     LogSettings::ITEMS,
-    OnebotSettings::ITEMS,
 ];
-
-miyu_config::settings! {
-    /// 通讯平台的桥 `miyu-onebot` 的配置（施工 O-8，`docs/blueprint/onebot.md` 第一条）。权宜：照 `tui.startup`（施工 8-3）的
-    /// 先例，软件包的清单还不能声明配置项，先由核心替桥声明、登记；桥自己读系统配置，核心不管它：起来时读一次，之后在 NapCat
-    /// 的令牌对不上时、桥的 WebUI 问的时候重读（施工 O-16 补二）。施工 9-1 有了软件包的清单以后挪进桥自己的清单。
-    pub struct OnebotSettings in "onebot" {
-        /// NapCat 反连进来的端口，只听本机 `127.0.0.1`。8301 挨着网页软件的 8300（`onebot.md`「施工时定的」第 2 条）。桥起来时
-        /// 读；在桥的 WebUI 上改、保存的当场换（`/apply`，O-16 补二），命令行改的桥下次起来时生效。
-        listen: Option<i64> = 8301 {
-            kind: int [1024, 65535],
-            layers: [System],
-            applies: head_start,
-            ui: { page: "advanced", group: "onebot", control: number },
-        },
-        /// 桥自己的 WebUI 的端口，只听本机 `127.0.0.1`。8302 挨着网页软件的 8300、NapCat 的 8301（施工 O-16，`onebot.md`
-        /// 第二条「对外的样子」）。生效同 `listen`。
-        web: Option<i64> = 8302 {
-            kind: int [1024, 65535],
-            layers: [System],
-            applies: head_start,
-            ui: { page: "advanced", group: "onebot", control: number },
-        },
-        /// NapCat 连进来时出示的访问令牌：`{ secret = … }` 或 `{ env = … }`。没设、取不到的，桥照样起来，NapCat 连进来一律
-        /// 401（「施工时定的」第 3 条）。改了当场生效：NapCat 下一次连进来，桥对不上就重读，照新的比（O-16 补二，`onebot.md`
-        /// 第一条「怎么走」第 2 条）。
-        token: Option<miyu_config::secret::Reference> = none {
-            kind: secret,
-            layers: [System],
-            applies: now,
-            ui: { page: "advanced", group: "onebot", control: text },
-        },
-        /// 自己人：平台身份的列表（`qq:20017`），私聊里能叫她、不限流、睡着时私聊也放行（施工 O-17，`chat.md`「发的人是谁」，
-        /// `onebot.md` 第二条「怎么走」第 4 条）。在桥的 WebUI「主人与自己人」页上整张写回。元素最多 128 个字，和主人对应表的
-        /// `<external>` 一样长；没有默认值，不写的就是没有自己人（「施工时定的」第 36 条）。现在桥还不读，桥接群、算「发的人
-        /// 是谁」时读，到时照 O-16 的办法当场重读，所以生效时机写 `now`。以后桥的配置整体挪进软件包清单的 `[settings]` 时，
-        /// 写成 `type = "list", element = "text", layers = ["system"]`，同一个提交删掉这一项。
-        trusted: Option<Vec<String>> = none {
-            kind: texts [128],
-            layers: [System],
-            applies: now,
-            ui: { page: "advanced", group: "onebot", control: list },
-        },
-    }
-}
 
 /// 生成的三份放在状态区的这个目录里：`state/config/`。
 const DIR: &str = "config";

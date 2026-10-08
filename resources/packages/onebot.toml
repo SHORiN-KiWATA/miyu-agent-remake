@@ -18,3 +18,44 @@ start = "manual"
 # 要的扩展能力（施工 9-4 下上，05-内核接口.md 第三节）：venue.session、session.send 是操作会话，带 as 是代平台上的人发话，
 # subscribe 是读会话，开本机的两个端口、NapCat 连进来是联网。出厂的包算批过的，不用人批。
 capabilities = ["sessions.drive", "act_for_external", "events.read", "network"]
+# 自己的系统账号 onebot（施工 O-4 下，06-多用户与身份.md U14）：群、陌生人私聊的场所会话归它，桥以它的身份连进来。
+system_account = true
+
+# 桥的配置（施工 O-20，docs/blueprint/onebot.md 第一条「软件包清单」）：O-8 起由核心替桥声明（OnebotSettings），这一步挪过来。
+# 都只能写系统配置、当场生效：核心拉起桥时在握手的回应里交最终值，变了推 extension.config，桥照新的用。
+
+[settings.listen]
+type = "int"
+min = 1024
+max = 65535
+default = 8301
+layers = ["system"]
+applies = "now"
+name = { en = "QQ bridge port", zh = "QQ 桥的端口", ja = "QQ ブリッジのポート" }
+description = { en = "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws.", zh = "NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/ws。", ja = "NapCat のリバース WebSocket が接続してくるポートです。このマシンからだけ受け付けます。NapCat 側のアドレスは ws://127.0.0.1:<ポート>/ws です。" }
+
+[settings.web]
+type = "int"
+min = 1024
+max = 65535
+default = 8302
+layers = ["system"]
+applies = "now"
+name = { en = "QQ bridge web port", zh = "QQ 桥网页的端口", ja = "QQ ブリッジの Web ページのポート" }
+description = { en = "The port of the QQ bridge's own web page (NapCat connection, token), local only. Open it with miyu-onebot web.", zh = "QQ 桥自己的网页（连接 NapCat、换令牌）的端口，只听本机。用 miyu-onebot web 打开。", ja = "QQ ブリッジ自身の Web ページ（NapCat の接続、トークン）のポートです。このマシンからだけ受け付けます。miyu-onebot web で開きます。" }
+
+[settings.token]
+type = "secret"
+layers = ["system"]
+applies = "now"
+name = { en = "QQ bridge token", zh = "QQ 桥的令牌", ja = "QQ ブリッジのトークン" }
+description = { en = "The access token NapCat shows when it connects; set the same one in NapCat. Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Without it the QQ bridge still starts but refuses NapCat; you can generate one on the QQ bridge web page. After a change, NapCat's next connection uses the new one.", zh = 'NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。写 { secret = "名字" }（用 miyu login 存）或 { env = "环境变量" }。没设的，QQ 桥照样起来，NapCat 连进来会被拒；在 QQ 桥的网页上能生成一个。改了以后，NapCat 下一次连进来就照新的。', ja = 'NapCat が接続するときに示すアクセストークンです。NapCat 側にも同じものを設定します。{ secret = "名前" }（miyu login で保存）か { env = "環境変数" } を書きます。未設定でも QQ ブリッジは起動しますが、NapCat の接続は拒否します。QQ ブリッジの Web ページで生成できます。変えると、NapCat の次の接続から新しいものを使います。' }
+
+[settings.trusted]
+type = "list"
+element = "text"
+max = 128
+layers = ["system"]
+applies = "now"
+name = { en = "QQ bridge friends", zh = "QQ 桥的自己人", ja = "QQ ブリッジの仲間" }
+description = { en = 'People who can call her in private chat, with no rate limit, even while she sleeps: a list of platform identities, for example ["qq:20017"]. Edit it on the QQ bridge web page. The QQ bridge uses it once groups are connected.', zh = '私聊里能叫她、不限流、睡着时私聊也放行的人，写平台上的身份的列表，例如 ["qq:20017"]。在 QQ 桥的网页上改。QQ 桥接通群以后才照它认人。', ja = '個人チャットで呼べて、回数制限がなく、寝ている間も個人チャットが通る人です。プラットフォーム上の ID のリストで書きます。例：["qq:20017"]。QQ ブリッジの Web ページで変えます。QQ ブリッジがグループにつながってから、これで人を見分けます。' }

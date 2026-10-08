@@ -12,7 +12,7 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use miyu_kernel::id::SessionId;
+use miyu_kernel::id::{AccountId, SessionId};
 use miyu_kernel::session::Command;
 
 use crate::Core;
@@ -46,15 +46,16 @@ pub(crate) async fn set(
     if params.cwd.is_none() && params.dirs.is_none() {
         return Err(Refusal::BAD_PARAMS);
     }
-    let checked_cwd = params
-        .cwd
-        .as_deref()
-        .map(|cwd| checked(core, cwd))
-        .transpose()?;
     if let Some(dirs) = &params.dirs {
         check_dirs(core, dirs)?;
     }
     let found = core.sessions.get(core, &session).await?;
+    // 落在数据根里的照会话的属主认它自己的工作区（施工 O-4 下）。
+    let checked_cwd = params
+        .cwd
+        .as_deref()
+        .map(|cwd| checked(core, found.handle.owner(), cwd))
+        .transpose()?;
     // 没写工作目录的：照会话现在的。
     let cwd = checked_cwd.unwrap_or_else(|| found.cwd.clone());
     let command = Command::SetWorkspace {
@@ -77,11 +78,12 @@ pub(crate) fn home(core: &Core) -> Option<PathBuf> {
         .and_then(|home| std::fs::canonicalize(home).ok())
 }
 
-/// 查一个人明着要换去的工作目录，交回实际用的：见模块的说明。`/workspace` 也照它查（施工 9-7 下）。
-pub(crate) fn checked(core: &Core, cwd: &str) -> Result<String, Refusal> {
+/// 查一个人明着要换去的工作目录，交回实际用的：见模块的说明。`/workspace` 也照它查（施工 9-7 下）。账号自己的工作区照会话的
+/// 属主 `owner`（施工 O-4 下）。
+pub(crate) fn checked(core: &Core, owner: &AccountId, cwd: &str) -> Result<String, Refusal> {
     // `~` 本身总是太宽：读不出家目录也照造会话的退回，不当读不了。
     if cwd.trim() == "~" {
-        return Ok(workspace(core, cwd));
+        return Ok(workspace(core, owner, cwd));
     }
     let home = home(core);
     let real = miyu_fs::resolve(Path::new("/"), home.as_deref(), cwd)
@@ -92,11 +94,11 @@ pub(crate) fn checked(core: &Core, cwd: &str) -> Result<String, Refusal> {
     }
     let data_root =
         std::fs::canonicalize(core.root.path()).unwrap_or_else(|_| core.root.path().to_path_buf());
-    let own = core.root.workspace(&core.admin);
+    let own = core.root.workspace(owner);
     let own = std::fs::canonicalize(&own).unwrap_or(own);
     if real.starts_with(&data_root) && !real.starts_with(&own) {
         return Err(Refusal::PATH_FORBIDDEN);
     }
     // 太宽的照旧退回账号的工作区；不太宽的照人写的原样。
-    Ok(workspace(core, cwd))
+    Ok(workspace(core, owner, cwd))
 }

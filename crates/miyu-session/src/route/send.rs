@@ -4,7 +4,7 @@
 //! 的 `route/ended.rs`，会话自己的几样在这里），出错换了端点的照「换了端点」报。
 //!
 //! 会话自己记的（`docs/blueprint/models.md`「怎么走」第四条第 3、5、6 条）：
-//! - 成了：钉住的池，钉着的成员换成它（限额跟着换成它的）；会话的 key 换成它；主请求的「说到一半断了」放开。
+//! - 成了：钉住的池，钉着的成员换成它（限额跟着换成它的）；主请求的「说到一半断了」放开。
 //! - 出错：收到过增量才出错的，主请求记下它，下一次主请求还发给它；别的放开。
 //! - 被叫停：什么都不记，主请求的「说到一半断了」放开。
 
@@ -123,6 +123,11 @@ async fn ask(chosen: Chosen, request: Request, reports: Reports, cancel: Cancel)
         } => (usage, classified),
     };
     let class = &classified.error.class;
+    // 池的成员回了 404：后台确认它是不是下架了（施工 8-23）。
+    chosen
+        .tried
+        .picked
+        .check_gone(&chosen.tried.config, classified.error.status);
     let switch = chosen
         .tried
         .failed(class, classified.retry_after_ms, received);

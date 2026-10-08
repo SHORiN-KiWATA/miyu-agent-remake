@@ -70,6 +70,7 @@ async fn no_one_wakes_the_child_between_its_stopped_report_and_its_deletion() {
         "token".to_string(),
     ));
     let opening = Opening {
+        owner: admin_account.clone(),
         attended: false,
         oneshot: false,
         model: None,

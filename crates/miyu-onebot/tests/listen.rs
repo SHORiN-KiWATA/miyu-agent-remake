@@ -84,6 +84,6 @@ async fn a_port_in_use_is_named() {
         .expect("挑得到");
     let port = taken.local_addr().expect("有地址").port();
     let serve = serve(home.root.clone(), Settings { port, ..settings() });
-    let ran = within("起不来", run(serve, |_| {}, std::future::pending())).await;
+    let ran = within("起不来", run(serve, |_| {}, |_| {}, std::future::pending())).await;
     assert_eq!(ran, Err(Failure::PortInUse(port)));
 }

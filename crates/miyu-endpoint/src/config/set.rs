@@ -103,12 +103,24 @@ struct Wanted {
     expect: Option<Option<Json>>,
 }
 
-/// `config.set`：改好了交回改了的几项和新的版本。`cause` 是这条命令的编号，记进日志。
+/// `config.set`：改好了交回改了的几项和新的版本。`cause` 是这条命令的编号，记进日志。改的人是这个连接的账号。
 pub(crate) fn set(
     core: &Core,
     peer: Peer,
     cause: &CommandId,
     params: SetParams,
+) -> Result<Json, Refusal> {
+    let by = By::Person(Person::new(core.config().places.account.clone()));
+    set_by(core, peer, cause, params, by)
+}
+
+/// 同 [`set`]，改的人是 `by`：核心自己改的（施工 8-23：下架的模型移出池）记成内核。
+pub(crate) fn set_by(
+    core: &Core,
+    peer: Peer,
+    cause: &CommandId,
+    params: SetParams,
+    by: By,
 ) -> Result<Json, Refusal> {
     let words = words(core, peer.language)?;
     let layer = match params.layer {
@@ -135,7 +147,7 @@ pub(crate) fn set(
                     text,
                     bom: file.bom,
                 };
-                return Ok(done(core, &mut config, layer, written, via, cause));
+                return Ok(done(core, &mut config, layer, written, (via, by), cause));
             }
             Err(WriteError::Changed) => {}
             Err(WriteError::Io(error)) => {
@@ -350,7 +362,7 @@ fn done(
     config: &mut Config,
     layer: Layer,
     written: ConfigText,
-    via: Via,
+    (via, by): (Via, By),
     cause: &CommandId,
 ) -> Json {
     let old = config.file(layer).clone();
@@ -358,7 +370,6 @@ fn done(
     let version = new.version.clone();
     let changes = differences(&old, &new);
     config.replace(new);
-    let by = By::Person(Person::new(config.places.account.clone()));
     record(config, layer, via, by.clone(), Some(cause), &changes);
     let keys: Vec<String> = changes.iter().map(|(key, _, _)| key.clone()).collect();
     let listed = push::keys(config, layer, &keys);

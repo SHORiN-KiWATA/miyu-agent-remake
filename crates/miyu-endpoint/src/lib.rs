@@ -54,6 +54,7 @@ mod sessions;
 pub mod settings;
 mod spawn;
 mod subscriptions;
+mod system_accounts;
 mod toml_changes;
 mod undo;
 mod uploads;
@@ -114,6 +115,8 @@ pub struct Core {
     sessions: Sessions,
     /// 管理员的会话列表的索引（施工 3-8 七补）：起来时开一次，一直开着；会话落盘时更新、删会话时删行、列会话时读。
     index: Arc<SessionIndex>,
+    /// 系统账号各自的会话列表的索引（施工 O-4 下）：在它们自己的家目录下，拉起扩展前开（`system_accounts::prepare`）。
+    system_indexes: std::sync::OnceLock<std::collections::BTreeMap<AccountId, Arc<SessionIndex>>>,
     /// 用量汇总（施工 8-15，`state/usage.db`）：起来时开一次，一直开着；会话落盘时写、一次性入口记账（交给模型资料）、
     /// `usage.query` 和 `session_usage` 查之前补。
     usage: Arc<UsageIndex>,
@@ -201,6 +204,7 @@ impl Core {
         Core {
             memory: Memory::new(&root, summary),
             index,
+            system_indexes: std::sync::OnceLock::new(),
             usage,
             hub: Hub::new(&config),
             config: std::sync::Mutex::new(config),
@@ -346,19 +350,24 @@ impl Core {
             })
     }
 
-    /// 账号 `owner` 的会话列表的索引，交给造的、载入的会话（施工 3-8 七补）：现在只开了管理员的，别的账号的没有。
+    /// 账号 `owner` 的会话列表的索引，交给造的、载入的会话（施工 3-8 七补）：管理员的，和系统账号各自的（施工 O-4 下，在它
+    /// 自己的家目录下）；别的账号的、还没开的没有，列会话时照目录读。
     pub(crate) fn index_for(&self, owner: &AccountId) -> Option<Arc<SessionIndex>> {
-        (*owner == self.admin).then(|| Arc::clone(&self.index))
+        if *owner == self.admin {
+            return Some(Arc::clone(&self.index));
+        }
+        self.system_indexes.get()?.get(owner).map(Arc::clone)
     }
 
-    /// 账号 `owner` 的会话写哪份用量汇总（施工 8-15）：核心一份，现在只有管理员的会话写。
+    /// 账号 `owner` 的会话写哪份用量汇总（施工 8-15）：核心一份、行里带属主，管理员和系统账号的会话写（施工 O-4 下）。
     pub(crate) fn usage_for(&self, owner: &AccountId) -> Option<Arc<UsageIndex>> {
-        (*owner == self.admin).then(|| Arc::clone(&self.usage))
+        self.knows(owner).then(|| Arc::clone(&self.usage))
     }
 
-    /// 账号 `owner` 的记忆，交给造的、载入的会话（施工 R-2 上、R-3 中）：现在只有管理员的会话写。
+    /// 账号 `owner` 的会话用的记忆的登记，交给造的、载入的会话（施工 R-2 上、R-3 中）：管理员和系统账号的会话有（施工 O-4
+    /// 下）；记忆归哪个账号另照 [`Core::memory_owner`] 算，系统账号的归管理员。
     pub(crate) fn memory_for(&self, owner: &AccountId) -> Option<Arc<Memory>> {
-        (*owner == self.admin).then(|| Arc::clone(&self.memory))
+        self.knows(owner).then(|| Arc::clone(&self.memory))
     }
 
     /// 连着几个连接。

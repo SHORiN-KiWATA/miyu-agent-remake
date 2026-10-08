@@ -238,7 +238,6 @@ async fn the_run_log_names_the_command_and_the_reason_but_not_the_words() {
     let script = Script::new([]);
     let (home, listen) = on_free_ports(async |listen, web| {
         let home = Home::spawning(&script, &ports_config(listen, web));
-        store_token(&home.root, TOKEN);
         let started = cli(&home.root, &["start"]).await;
         assert_eq!(started.status.code(), Some(0), "{}", text(&started.stderr));
         bridge_up(&home.root, listen, web, None).await?;

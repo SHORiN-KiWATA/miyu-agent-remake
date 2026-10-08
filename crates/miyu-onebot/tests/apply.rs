@@ -1,20 +1,15 @@
-//! `/apply` 和令牌当场生效（施工 O-16 补二，`onebot.md` 第一条「怎么走」第 2 条，第二条「对外的样子」「施工时定的」第 18、19
-//! 条）：要登录令牌；桥重读配置，令牌照新的，两个端口里变了的开新的、关旧的，回实际听的两个端口；新端口被占回 409 和是哪个，
-//! 两个都不换、旧的照旧；换了令牌，旧的不收、新的收，已经连着的那一条还在。NapCat 拿错的令牌一直连，配置隔一阵才重读一次。
-//! 换了 NapCat 的端口，状态文件跟着换（施工 O-18）。核心是替身，重读的配置由测试给。
+//! 推来的配置当场生效和 `/apply`（施工 O-16 补二、O-20，`onebot.md` 第一条「怎么走」第 1、2 条、「施工时定的」第 39、45 条，
+//! 第二条「对外的样子」「施工时定的」第 19 条）：核心推来 `extension.config`，桥不重启就照新的：令牌换了，旧的不收、新的收，
+//! 已经连着的那一条还在；令牌没了一律 401；端口变了照 `/apply` 的办法换，旧的关了，状态文件跟着换。新端口被占的两个都不换、
+//! 旧的照旧，`/apply`（要登录令牌）再试一次，还被占回 409 和是哪个，空出来了就换上。核心是替身，推送由测试照核心的样子写。
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use serde_json::json;
+use serde_json::{Value, json};
 use tokio::net::TcpStream;
 
-use miyu_onebot::serve::Serve;
-use miyu_onebot::settings::Settings;
 use miyu_onebot::status_file;
-use miyu_onebot::tuning::Tuning;
 use miyu_store::root::DataRoot;
 
 use crate::support::fake_core::{FakeCore, LOGIN, fake_core};
@@ -26,46 +21,44 @@ use crate::support::*;
 /// 换上的新令牌。
 const NEW: &str = "napcat-new-token";
 
-/// 跑着的桥，重读配置读到的是 `now` 里放着的（测试改它），数得出读了几次。
+/// 跑着的桥（握手交的两个端口是 0、令牌是 [`TOKEN`]），推配置的那一头。
 struct Changing {
     bridge: Bridge,
-    now: Arc<Mutex<Settings>>,
-    reads: Arc<AtomicUsize>,
+    push: Relay,
     dir: PathBuf,
     root: DataRoot,
     _core: FakeCore,
 }
 
 impl Changing {
-    /// 照 `tuning` 起一个桥：起来时是 [`settings`]，重读的起先也是它。
-    async fn start(tuning: Tuning) -> Changing {
+    /// 起一个桥：握手交的是 [`settings`]。
+    async fn start() -> Changing {
         let (dir, root) = temp_root();
         let core = fake_core(&root);
-        let now = Arc::new(Mutex::new(settings()));
-        let reads = Arc::new(AtomicUsize::new(0));
-        let (reading, counting) = (Arc::clone(&now), Arc::clone(&reads));
-        let bridge = start(Serve {
-            tuning,
-            reload: Arc::new(move || {
-                counting.fetch_add(1, Ordering::SeqCst);
-                Ok(reading.lock().expect("没 panic").clone())
-            }),
-            ..serve(root.clone(), settings())
-        })
-        .await;
+        let (serve, push) = serve_pushing(root.clone(), settings());
+        let bridge = start(serve).await;
         Changing {
             bridge,
-            now,
-            reads,
+            push,
             dir,
             root,
             _core: core,
         }
     }
 
-    /// 改重读读到的配置。
-    fn set(&self, change: impl FnOnce(&mut Settings)) {
-        change(&mut self.now.lock().expect("没 panic"));
+    /// 等状态文件里的 `field`（`listen`、`web`）合 `wanted`：交回那时的端口。状态文件是换了端口以后另一个任务写的，比
+    /// `/apply` 的回应、`/status` 晚（`status_file.rs`）：等「换成别的」以前先等它写上现在的，不然会读到更早的那一个。
+    async fn written(&self, field: &str, wanted: impl Fn(u64) -> bool) -> u16 {
+        within("状态文件跟着换", async {
+            loop {
+                let port = status_file::read(&self.root).and_then(|file| file[field].as_u64());
+                if let Some(port) = port.filter(|port| wanted(*port)) {
+                    return u16::try_from(port).expect("是端口");
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
     }
 
     /// 叫桥停下，删掉临时目录。
@@ -84,26 +77,23 @@ async fn apply(web: u16) -> Answer {
     request(web, "POST", "/apply", &host, &[("Authorization", &bearer)]).await
 }
 
-/// 挑一个空端口、照 `change` 写进重读读到的配置，再 `/apply`：交回挑的端口和回应。桥说挑的这个被占了（409，`in_use` 是它：
-/// 挑来放掉以后被别人先拿走了，`support/ports.rs`）的，换一个再来，最多 [`TRIES`] 次。
-async fn apply_free(
-    changing: &Changing,
-    web: u16,
-    change: impl Fn(&mut Settings, u16),
-) -> (u16, Answer) {
-    for _ in 0..TRIES {
-        let new = free_port();
-        changing.set(|settings| change(settings, new));
-        let answer = apply(web).await;
-        if (answer.status, answer.json()) != (409, json!({"in_use": new})) {
-            return (new, answer);
+/// 一直 `POST /apply`，直到回应合 `wanted`（推来的还没到桥的，`/apply` 照手里旧的答）：交回那一次的状态码和正文。
+async fn until_applied(web: u16, wanted: impl Fn(u16, &Value) -> bool) -> (u16, Value) {
+    within("/apply 照推来的", async {
+        loop {
+            let answer = apply(web).await;
+            let body = answer.json();
+            if wanted(answer.status, &body) {
+                return (answer.status, body);
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
         }
-    }
-    panic!("试了 {TRIES} 个端口，桥都说被占了");
+    })
+    .await
 }
 
 /// 带着登录令牌取一次 `/status`。
-async fn status(web: u16) -> serde_json::Value {
+async fn status(web: u16) -> Value {
     let bearer = format!("Bearer {LOGIN}");
     let answer = get(web, "/status", &[("Authorization", &bearer)]).await;
     assert_eq!(answer.status, 200);
@@ -120,9 +110,69 @@ async fn closed(port: u16) {
     .await;
 }
 
+/// 拿 `token` 连 `port`（不报号：不顶掉连着的那一条），直到被拒（401）。
+async fn refused(port: u16, token: &str) {
+    within("NapCat 被拒", async {
+        loop {
+            match napcat(port, "/ws", Auth::Bearer(token), None).await {
+                Err(401) => return,
+                Ok(napcat) => napcat.close().await,
+                Err(status) => panic!("回的不是 401：{status}"),
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await;
+}
+
+/// 系统挑一个端口、一直拿着：桥开不了它。
+fn held() -> (std::net::TcpListener, u16) {
+    let held = std::net::TcpListener::bind("127.0.0.1:0").expect("挑得到");
+    let port = held.local_addr().expect("有地址").port();
+    (held, port)
+}
+
+/// 推来一个被占着的端口当 `key`（`onebot.listen`、`onebot.web`）：两个都不换、旧的照旧（`/status` 照旧说 `before` 这两个，
+/// NapCat 照旧连得进旧的），`/apply` 再试一次也是 409、说的是它。放开以后再 `/apply`：交回放开的端口和那一次的回应。放开以后
+/// 被别人先拿走了的（409 说的还是它：负载高时这个号又被别的测试、别的连接拿去，`support/ports.rs`）换一个再来，最多 [`TRIES`]
+/// 次。`web` 是问 `/apply` 的那个 WebUI 端口。
+async fn taken_then_freed(
+    changing: &Changing,
+    web: u16,
+    key: &str,
+    before: (u16, u16),
+) -> (u16, Answer) {
+    for _ in 0..TRIES {
+        let (taken, port) = held();
+        changing.push.config(json!({key: port}));
+        until_applied(web, |status, body| {
+            status == 409 && body["in_use"] == json!(port)
+        })
+        .await;
+        let now = status(web).await;
+        assert_eq!(
+            (&now["listen"], &now["web"]),
+            (&json!(before.0), &json!(before.1)),
+            "旧的照旧"
+        );
+        napcat(before.0, "/ws", Auth::Bearer(TOKEN), None)
+            .await
+            .expect("旧的端口照旧收")
+            .close()
+            .await;
+        // 空出来了：`/apply` 再试一次就换上（配置没再变，核心不会再推）。
+        drop(taken);
+        let applied = apply(web).await;
+        if (applied.status, applied.json()) != (409, json!({"in_use": port})) {
+            return (port, applied);
+        }
+    }
+    panic!("试了 {TRIES} 个端口，放开以后都被别人先拿走了");
+}
+
 #[tokio::test]
 async fn applying_needs_the_login_token() {
-    let changing = Changing::start(tuning()).await;
+    let changing = Changing::start().await;
     let web = changing.bridge.web;
     let host = format!("127.0.0.1:{web}");
     assert_eq!(
@@ -149,121 +199,128 @@ async fn applying_needs_the_login_token() {
 }
 
 #[tokio::test]
-async fn a_new_napcat_port_takes_over() {
-    let changing = Changing::start(tuning()).await;
-    let (old, web) = (changing.bridge.port, changing.bridge.web);
-    let (new, applied) = apply_free(&changing, web, |settings, new| settings.port = new).await;
-    assert_eq!(applied.status, 200);
-    assert_eq!(applied.json(), json!({"listen": new, "web": web}));
-    // NapCat 连进来以前：只有换端口这一件叫状态文件再写。
-    within("状态文件跟着换", async {
-        while status_file::read(&changing.root).is_none_or(|file| file["listen"] != new) {
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-    })
-    .await;
-    owner_napcat(new).await.close().await;
-    closed(old).await;
-    assert_eq!(status(web).await["listen"], new);
+async fn a_pushed_napcat_port_takes_over_once_it_can() {
+    let changing = Changing::start().await;
+    let (first, web) = (changing.bridge.port, changing.bridge.web);
+    let _open = owner_napcat(first).await;
+    let (port, applied) = taken_then_freed(&changing, web, "onebot.listen", (first, web)).await;
+    assert_eq!(
+        (applied.status, applied.json()),
+        (200, json!({"listen": port, "web": web}))
+    );
+    closed(first).await;
+    changing
+        .written("listen", |now| now == u64::from(port))
+        .await;
+    // 再推一次（0：让系统挑）：不用 `/apply` 就换。
+    changing.push.config(json!({"onebot.listen": 0}));
+    let moved = changing
+        .written("listen", |now| now != u64::from(port))
+        .await;
+    closed(port).await;
+    napcat(moved, "/ws", Auth::Bearer(TOKEN), None)
+        .await
+        .expect("新的端口收")
+        .close()
+        .await;
+    assert_eq!(status(web).await["listen"], moved);
+    let napcat_status = status(web).await["napcat"].clone();
+    assert_eq!(
+        (&napcat_status["connected"], &napcat_status["self_id"]),
+        (&json!(true), &json!(BOT.to_string())),
+        "换端口不断连着的那一条"
+    );
     let again = apply(web).await;
     assert_eq!(
         (again.status, again.json()),
-        (200, json!({"listen": new, "web": web})),
-        "配置没再变：再照一次什么都不换"
+        (200, json!({"listen": moved, "web": web})),
+        "推来的已经换好：再照一次什么都不换"
     );
-    owner_napcat(new).await.close().await;
     changing.stop().await;
 }
 
 #[tokio::test]
-async fn a_new_web_port_takes_over() {
-    let changing = Changing::start(tuning()).await;
-    let old = changing.bridge.web;
-    let (new, applied) = apply_free(&changing, old, |settings, new| settings.web = new).await;
-    assert_eq!(applied.status, 200);
+async fn a_pushed_web_port_takes_over_once_it_can() {
+    let changing = Changing::start().await;
+    let (listen, first) = (changing.bridge.port, changing.bridge.web);
+    let (port, applied) = taken_then_freed(&changing, first, "onebot.web", (listen, first)).await;
     assert_eq!(
-        applied.json(),
-        json!({"listen": changing.bridge.port, "web": new})
+        (applied.status, applied.json()),
+        (200, json!({"listen": listen, "web": port})),
+        "回应走的是旧端口上接进来的这一条"
     );
-    assert_eq!(get(new, "/", &[]).await.status, 200, "新地址上有页面");
-    assert_eq!(status(new).await["web"], new);
-    closed(old).await;
+    closed(first).await;
+    assert_eq!(get(port, "/", &[]).await.status, 200, "新地址上有页面");
+    assert_eq!(status(port).await["web"], port);
+    // 状态文件是换完以后另一个任务照这一刻写的，比 `/apply` 的回应、`/status` 晚：先等它写上新端口，下面等「不是它」的才
+    // 等的是推来的那一次（不然读到的还是最早的那个端口，它早就关了）。
+    changing.written("web", |now| now == u64::from(port)).await;
+    changing.push.config(json!({"onebot.web": 0}));
+    let moved = changing.written("web", |now| now != u64::from(port)).await;
+    closed(port).await;
+    assert_eq!(
+        get(moved, "/", &[]).await.status,
+        200,
+        "推来的不用 /apply 就换"
+    );
+    assert_eq!(status(moved).await["web"], moved);
     changing.stop().await;
 }
 
 #[tokio::test]
-async fn a_taken_port_is_refused_and_the_old_ones_stay() {
-    let changing = Changing::start(tuning()).await;
+async fn when_one_pushed_port_is_taken_neither_changes() {
+    let changing = Changing::start().await;
     let (listen, web) = (changing.bridge.port, changing.bridge.web);
-    let held = std::net::TcpListener::bind("127.0.0.1:0").expect("挑得到");
-    let taken = held.local_addr().expect("有地址").port();
-    changing.set(|settings| settings.port = taken);
-    let refused = apply(web).await;
-    assert_eq!(refused.status, 409);
-    assert_eq!(refused.json(), json!({"in_use": taken}));
-    owner_napcat(listen).await.close().await;
-    changing.set(|settings| {
-        settings.port = 0;
-        settings.web = taken;
-    });
-    let refused = apply(web).await;
-    assert_eq!(refused.status, 409);
-    assert_eq!(refused.json(), json!({"in_use": taken}));
-    assert_eq!(get(web, "/", &[]).await.status, 200, "WebUI 照旧");
-    // 两个都变、WebUI 的被占：NapCat 的也不换，开好的新端口放掉。
-    let (new, refused) = apply_free(&changing, web, |settings, new| {
-        settings.port = new;
-        settings.web = taken;
-    })
-    .await;
-    assert_eq!(refused.status, 409);
-    assert_eq!(refused.json(), json!({"in_use": taken}));
-    assert_eq!(status(web).await["listen"], listen, "NapCat 的端口也没换");
-    closed(new).await;
-    owner_napcat(listen).await.close().await;
-    changing.stop().await;
+    let (_taken, port) = held();
+    // 两个都变、WebUI 的被占：NapCat 的也不换，开好的新端口放掉。挑的 NapCat 端口被别人先拿走了（409 说的是它）的换一个再来。
+    for _ in 0..TRIES {
+        let new = free_port();
+        changing
+            .push
+            .config(json!({"onebot.listen": new, "onebot.web": port}));
+        // 推来的还没到的，`/apply` 照手里旧的答（200）；上一回挑的那个的 409 也不算。
+        let (_, body) = until_applied(web, |status, body| {
+            status == 409 && (body["in_use"] == json!(new) || body["in_use"] == json!(port))
+        })
+        .await;
+        if body == json!({"in_use": new}) {
+            continue;
+        }
+        assert_eq!(body, json!({"in_use": port}));
+        assert_eq!(status(web).await["listen"], listen, "NapCat 的端口也没换");
+        closed(new).await;
+        owner_napcat(listen).await.close().await;
+        changing.stop().await;
+        return;
+    }
+    panic!("试了 {TRIES} 个端口，桥都说被占了");
 }
 
 #[tokio::test]
-async fn a_new_token_takes_over_once_applied() {
-    let changing = Changing::start(tuning()).await;
+async fn a_pushed_token_takes_over_and_the_open_connection_stays() {
+    let changing = Changing::start().await;
     let (port, web) = (changing.bridge.port, changing.bridge.web);
     let _open = owner_napcat(port).await;
-    changing.set(|settings| *settings = with_token(Some(NEW)));
-    assert_eq!(apply(web).await.status, 200);
+    changing.push.config(json!({"onebot.token": NEW}));
+    // 不报号：不顶掉连着的那一条。
+    admitted(port, "/ws", Auth::Bearer(NEW), None)
+        .await
+        .close()
+        .await;
     let old = napcat(port, "/ws", Auth::Bearer(TOKEN), None).await;
     assert_eq!(old.err(), Some(401), "旧的不收");
-    let fresh = napcat(port, "/ws", Auth::Bearer(NEW), None)
-        .await
-        .expect("新的进得来");
     let napcat_status = status(web).await["napcat"].clone();
     assert_eq!(
         (&napcat_status["connected"], &napcat_status["self_id"]),
         (&json!(true), &json!(BOT.to_string())),
         "已经连着的那一条还在"
     );
-    fresh.close().await;
-    changing.stop().await;
-}
-
-#[tokio::test]
-async fn a_wrong_token_reloads_the_config_at_most_once_a_while() {
-    let mut slow = tuning();
-    reload_every(&mut slow, 3600);
-    let changing = Changing::start(slow).await;
-    let port = changing.bridge.port;
-    for _ in 0..5 {
-        let refused = napcat(port, "/ws", Auth::Bearer("wrong"), None).await;
-        assert_eq!(refused.err(), Some(401));
-    }
-    assert_eq!(changing.reads.load(Ordering::SeqCst), 1, "对不上的只读一次");
-    owner_napcat(port).await.close().await;
-    assert_eq!(changing.reads.load(Ordering::SeqCst), 1, "对得上的不读");
-    assert_eq!(apply(changing.bridge.web).await.status, 200);
-    assert_eq!(
-        changing.reads.load(Ordering::SeqCst),
-        2,
-        "/apply 照读，不管隔了多久"
-    );
+    assert_eq!(status(web).await["token"], "set");
+    // 令牌没了：一律 401，`/status` 说没设。
+    changing.push.config(json!({"onebot.token": null}));
+    refused(port, NEW).await;
+    assert_eq!(status(web).await["token"], "none");
+    let nothing = napcat(port, "/ws", Auth::Nothing, None).await;
+    assert_eq!(nothing.err(), Some(401));
     changing.stop().await;
 }

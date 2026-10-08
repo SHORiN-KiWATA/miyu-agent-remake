@@ -166,7 +166,7 @@
       "properties": {
         "listen": {
           "default": 8301,
-          "description": "NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/ws。在 QQ 桥的网页上改、保存的，当场生效。能写：1024 到 65535 之间的整数。只能写在系统配置里。这个程序下次启动时生效。",
+          "description": "NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/ws。能写：1024 到 65535 之间的整数。只能写在系统配置里。当场生效。",
           "maximum": 65535,
           "minimum": 1024,
           "title": "QQ 桥的端口",
@@ -214,7 +214,7 @@
         },
         "web": {
           "default": 8302,
-          "description": "QQ 桥自己的网页（连接 NapCat、换令牌）的端口，只听本机。用 miyu-onebot web 打开。在这个网页上改、保存的，当场生效。能写：1024 到 65535 之间的整数。只能写在系统配置里。这个程序下次启动时生效。",
+          "description": "QQ 桥自己的网页（连接 NapCat、换令牌）的端口，只听本机。用 miyu-onebot web 打开。能写：1024 到 65535 之间的整数。只能写在系统配置里。当场生效。",
           "maximum": 65535,
           "minimum": 1024,
           "title": "QQ 桥网页的端口",

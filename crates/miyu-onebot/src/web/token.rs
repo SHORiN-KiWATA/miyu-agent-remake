@@ -1,5 +1,5 @@
-//! `/token`（`onebot.md` 第二条「对外的样子」「施工时定的」第 17 条，施工 O-16 补二）：要登录令牌（`super::login`）。重读一次
-//! 配置，回桥手里的令牌 `{"token": "<值>"}`，没有的 `{"token": null}`。
+//! `/token`（`onebot.md` 第二条「对外的样子」「施工时定的」第 17 条，施工 O-16 补二）：要登录令牌（`super::login`）。回桥手里
+//! 最新的令牌 `{"token": "<值>"}`，没有的 `{"token": null}`；不读盘（施工 O-20：核心推来的就是最新的）。
 //!
 //! 令牌是桥自己的凭据，桥手里本来就有：由桥交给登录了的管理员看、复制，不经核心协议交出去（`config.md` 第九条管的是核心
 //! 协议）。运行日志只记取过，不记值；回应不让缓存。
@@ -22,11 +22,10 @@ pub(super) async fn get(request: &Request<Incoming>, web: &Web) -> Response<Body
     if let Some(refused) = login::refused(request, web).await {
         return refused;
     }
-    web.current.reload().await;
     let token = web.current.token();
     tracing::info!(target: TARGET, "web token read");
     reply(
         StatusCode::OK,
-        &json!({"token": token.secret().map(Secret::expose)}),
+        &json!({"token": token.as_ref().map(Secret::expose)}),
     )
 }

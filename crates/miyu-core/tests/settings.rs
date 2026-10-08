@@ -102,11 +102,7 @@ fn the_registered_list_is_well_formed() {
             "models.cooldown.auth.base",
             "models.cooldown.auth.max",
             "compaction.prepare",
-            "log.level",
-            "onebot.listen",
-            "onebot.web",
-            "onebot.token",
-            "onebot.trusted"
+            "log.level"
         ],
         "照登记的先后"
     );
@@ -203,29 +199,33 @@ fn tiers_are_unknown_now_and_pools_take_the_two_new_items() {
     assert_eq!(codes, [Code::BadFormat], "说明要写英文");
 }
 
-/// 施工 O-17：自己人 `onebot.trusted`（`onebot.md` 第二条「对外的样子」，`config.md` 配置项表）是平台身份的列表：读得出，
-/// 不写是没有；只能写在系统配置、当场生效、界面在高级页「QQ 桥」组的列表；不是列表的、元素不是字的、空的、超过 128 个字的
-/// 报问题，128 个字的照收。
+/// 施工 O-17：自己人 `onebot.trusted`（`onebot.md` 第二条「对外的样子」）是平台身份的列表：读得出，不写是没有；只能写在系统
+/// 配置、当场生效、界面是列表；不是列表的、元素不是字的、空的、超过 128 个字的报问题，128 个字的照收。施工 O-20 起它在 QQ 桥
+/// 自己的清单 `[settings]` 里（`onebot.md` 第一条「软件包清单」），照出厂的包拼进来，在「软件包」那一页、这个包那一组；核心
+/// 自己不再声明 `onebot.` 开头的项（声明了，清单的 `[settings]` 整份报 `settings_taken`）。
 #[test]
 fn onebot_trusted_is_a_system_list_of_identities() {
     use miyu_config::problem::Code;
-    use miyu_config::{Applies, Control, Kind, Layer, Values};
-    use miyu_core::settings::OnebotSettings;
-    let listed = items();
+    use miyu_config::{Applies, Control, Kind, Layer, Value, Values};
+    assert!(
+        items().iter().all(|item| !item.key.starts_with("onebot.")),
+        "核心不再替桥声明"
+    );
+    let listed = shipped().all();
     let item = listed
         .iter()
         .find(|item| item.key == "onebot.trusted")
-        .expect("登记了");
+        .expect("出厂的桥声明了");
     assert_eq!(item.kind, Kind::List(&Kind::Text { max: 128 }));
     assert_eq!(item.default, None);
     assert_eq!(item.layers, [Layer::System]);
     assert_eq!(item.applies, Applies::Now);
     assert_eq!(
         (item.ui.page, item.ui.group, item.ui.control),
-        ("advanced", "onebot", Control::List)
+        ("packages", "onebot", Control::List)
     );
     let parse = |layer: Layer, source: &str| {
-        miyu_config::parse::parse(&items(), layer, source).expect("写法对")
+        miyu_config::parse::parse(&listed, layer, source).expect("写法对")
     };
     let codes = |layer: Layer, source: &str| -> Vec<Code> {
         parse(layer, source)
@@ -234,19 +234,19 @@ fn onebot_trusted_is_a_system_list_of_identities() {
             .map(|problem| problem.code)
             .collect()
     };
-    let mut values = Values::defaults(&items());
-    assert_eq!(OnebotSettings::from(&values).trusted, None, "不写是没有");
+    let values = Values::defaults(&listed);
+    assert_eq!(values.get("onebot.trusted"), None, "不写是没有");
     let parsed = parse(
         Layer::System,
         "[onebot]\ntrusted = [\"qq:20017\", \"qq:10002\"]\n",
     );
     assert!(parsed.problems.is_empty(), "{:?}", parsed.problems);
-    for (key, entry) in parsed.entries {
-        values.set(&key, entry.value);
-    }
     assert_eq!(
-        OnebotSettings::from(&values).trusted,
-        Some(vec!["qq:20017".to_string(), "qq:10002".to_string()])
+        parsed.entries["onebot.trusted"].value,
+        Value::List(vec![
+            Value::Text("qq:20017".into()),
+            Value::Text("qq:10002".into())
+        ])
     );
     assert_eq!(
         codes(Layer::System, "[onebot]\ntrusted = []\n"),

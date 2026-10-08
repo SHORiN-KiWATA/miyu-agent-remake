@@ -237,7 +237,7 @@ async fn a_venue_session_is_made_with_the_given_preset_and_found_again_without_i
     let found = client.call("v2", "venue.session", again).await;
     assert_eq!(
         found["result"],
-        json!({"session": session, "created": false}),
+        json!({"session": session, "created": false, "account": "alice"}),
         "找回时不看预设"
     );
     let other = json!({"venue": "qq:private:10001x", "kind": "private", "peer": "qq:10001", "preset": "nobody"});

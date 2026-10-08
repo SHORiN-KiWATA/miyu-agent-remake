@@ -2,10 +2,10 @@
 //! 101，升级好以后在同一个任务里接着当 WebSocket 用（`connection`）。
 //!
 //! - 只认 `bridge.json` 的 `paths`（出厂是 `/onebot/v11/ws`、`/ws`），别的 404。
-//! - 令牌照 `Authorization: Bearer <令牌>`、`Authorization: Token <令牌>`、查询参数 `access_token` 的先后取，和桥手里的按常数
-//!   时间比（长短不一样直接不对，一样长的每个字节都比，照核心比本机令牌的规矩，`protocol.md`「握手」第 3 条）。对不上、桥手里
-//!   还没有的，重读一次配置再比（有节流，`crate::current`，施工 O-16 补二）：令牌刚在 WebUI 或命令行里设、换的，不用重启
-//!   就认。还对不上、没出示的 401。查询参数照原样比，不做百分号解码：NapCat 用头出示。
+//! - 令牌照 `Authorization: Bearer <令牌>`、`Authorization: Token <令牌>`、查询参数 `access_token` 的先后取，和桥手里最新的
+//!   （`crate::current`：握手交来的，核心推来新的就换上，施工 O-20）按常数时间比（长短不一样直接不对，一样长的每个字节都比，
+//!   照核心比本机令牌的规矩，`protocol.md`「握手」第 3 条）：令牌刚在 WebUI 或命令行里设、换、删的，不用重启就照新的。对不上、
+//!   桥手里没有、没出示的 401。查询参数照原样比，不做百分号解码：NapCat 用头出示。
 //! - 不是 WebSocket 的升级请求：400。算出来的 `Sec-WebSocket-Accept` 放不进回应的头：也是 400，不升级。
 //! - 机器人的号照 `X-Self-ID` 头取，没有的等第一条事件的 `self_id`。
 //!
@@ -20,7 +20,6 @@ mod tests;
 use std::convert::Infallible;
 use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, Mutex, PoisonError};
-use std::time::Instant;
 
 use http_body_util::Empty;
 use hyper::body::{Bytes, Incoming};
@@ -36,13 +35,12 @@ use crate::TARGET;
 use crate::current::Current;
 use crate::onebot::{Private, number};
 use crate::serve::Notice;
-use crate::settings::Token;
 use crate::tuning::Tuning;
 use bots::Bots;
 
 /// 各个连接共用的：桥手里的令牌、桥自己的数、连着的号、读出来的私聊交给谁、说给人听的。
 pub(crate) struct Gate {
-    /// NapCat 要出示的令牌在这里（和 WebUI 共用，重读配置时换上新的）。
+    /// NapCat 要出示的令牌在这里（和 WebUI 共用，核心推来新的就换上，施工 O-20）。
     pub(crate) current: Arc<Current>,
     /// 认哪几个路径、调用等多久、写队列多长（`bridge.json`）。
     pub(crate) tuning: Tuning,
@@ -100,7 +98,7 @@ async fn handle(
         return empty(StatusCode::NOT_FOUND);
     }
     let presented = presented(&request).map(str::to_string);
-    if !admitted(gate, presented.as_deref()).await {
+    if !admitted(gate, presented.as_deref()) {
         tracing::warn!(target: TARGET, path = request.uri().path(), "token refused");
         return empty(StatusCode::UNAUTHORIZED);
     }
@@ -145,21 +143,12 @@ fn switching(accept: &str) -> Response<Empty<Bytes>> {
     response
 }
 
-/// 出示的 `presented` 对得上桥手里的令牌。对不上（手里还没有也算）的，该重读的（节流，`crate::current`）重读一次配置再比：
-/// 令牌刚设、刚换的不用重启就认。
-async fn admitted(gate: &Gate, presented: Option<&str>) -> bool {
-    let fits = |token: &Token| match (presented, token.secret()) {
+/// 出示的 `presented` 对得上桥手里最新的令牌。手里没有、没出示的对不上。
+fn admitted(gate: &Gate, presented: Option<&str>) -> bool {
+    match (presented, gate.current.token()) {
         (Some(presented), Some(token)) => same(presented.as_bytes(), token.expose().as_bytes()),
         _ => false,
-    };
-    if fits(&gate.current.token()) {
-        return true;
     }
-    if !gate.current.due(Instant::now()) {
-        return false;
-    }
-    gate.current.reload().await;
-    fits(&gate.current.token())
 }
 
 /// 出示的令牌：`Authorization` 头（`Bearer`、`Token`，不分大小写）在前，查询参数 `access_token` 在后。都没有的是空的。

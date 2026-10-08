@@ -166,7 +166,7 @@
       "properties": {
         "listen": {
           "default": 8301,
-          "description": "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws. Changes saved on the QQ bridge web page take effect at once. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect the next time the program starts.",
+          "description": "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect at once.",
           "maximum": 65535,
           "minimum": 1024,
           "title": "QQ bridge port",
@@ -214,7 +214,7 @@
         },
         "web": {
           "default": 8302,
-          "description": "The port of the QQ bridge's own web page (NapCat connection, token), local only. Open it with miyu-onebot web. Changes saved on that page take effect at once. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect the next time the program starts.",
+          "description": "The port of the QQ bridge's own web page (NapCat connection, token), local only. Open it with miyu-onebot web. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect at once.",
           "maximum": 65535,
           "minimum": 1024,
           "title": "QQ bridge web port",
