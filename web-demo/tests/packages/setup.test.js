@@ -104,7 +104,7 @@ test('示范对话：去掉空白和两头都空的；只写了一头的那一�
   assert.equal(halfPair(pairs.slice(0, 2)), -1);
 });
 
-test('人格点「保存」发什么：只发变了的，提示词带读进来的版本；清空的发空字；什么都没变是 null；名字清空不发；说明清空去掉这一项', () => {
+test('人格点「保存」发什么：只发变了的，提示词带读进来的版本；清空的发空字；什么都没变是 null；名字清空不发；说明清空发空字', () => {
   const before = { name: 'Miyu', summary: '陪你聊天', persona: '你是 Miyu', reminders: '', pairs: [{ user: '累', assistant: '歇会儿' }], versions: { persona: 'sha256:a', reminders: null, examples: 'sha256:e' } };
   assert.equal(personaSave(before, { ...before, persona: '你是 Miyu  ', pairs: [...before.pairs, { user: '', assistant: '' }] }), null);
   assert.deepEqual(personaSave(before, { ...before, name: '小美' }), { changes: [{ key: 'persona.name', value: '小美' }] });
@@ -114,5 +114,5 @@ test('人格点「保存」发什么：只发变了的，提示词带读进来�
   assert.deepEqual(personaSave(before, { ...before, pairs: [] }), { prompts: { examples: { pairs: [], expect: 'sha256:e' } } });
   assert.equal(personaSave(before, { ...before, name: '  ' }), null);
   assert.deepEqual(personaSave(before, { ...before, summary: '写代码的帮手' }), { changes: [{ key: 'persona.summary', value: '写代码的帮手' }] });
-  assert.deepEqual(personaSave(before, { ...before, summary: ' ' }), { changes: [{ key: 'persona.summary', unset: true }] });
+  assert.deepEqual(personaSave(before, { ...before, summary: ' ' }), { changes: [{ key: 'persona.summary', value: '' }] });
 });

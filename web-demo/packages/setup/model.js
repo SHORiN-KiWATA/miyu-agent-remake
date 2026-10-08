@@ -92,13 +92,14 @@ export function tilde(path, home) {
 /** `persona.set`、`preset.set` 的一项改动。 @typedef {{key: string, value?: string, unset?: true}} Change */
 
 /**
- * 说明改了发什么：写了的发字，清空了去掉这一项（说明不收空字）；没变的什么都不发。
+ * 说明改了发什么：写了的发字，清空了发空字（就是没有说明，盖住出厂的那句；核心 P-3 再补）；没变的什么都不发。
+ * 2026-10-08 项目主人：说明要能清空（原来发 `unset`，出厂的回到出厂那句，看着清不掉）。
  * @param {'persona'|'preset'} kind @param {string} before @param {string} after @returns {Change[]}
  */
 export function summaryChange(kind, before, after) {
   const text = after.trim();
   if (text === before.trim()) return [];
-  return [text ? { key: `${kind}.summary`, value: text } : { key: `${kind}.summary`, unset: true }];
+  return [{ key: `${kind}.summary`, value: text }];
 }
 
 /**
@@ -119,7 +120,7 @@ export function halfPair(pairs) {
 /**
  * 点「保存」发什么（`persona.set` 的 `changes`、`prompts`）：和读进来的比，变了的才发；提示词带读进来时的版本。
  * 人设、角色扮演提示清空了发空字（人要的是「不要这一段」，`unset` 在出厂人格上会回到出厂的字）；示范对话没有了发空的一对对。
- * 说明清空了去掉这一项（说明不收空字）。
+ * 说明清空了发空字（没有说明）。
  * @param {PersonaDraft} before @param {PersonaDraft} after
  * @returns {{changes?: Change[], prompts?: Record<string, any>}|null} 什么都没变是 `null`
  */
