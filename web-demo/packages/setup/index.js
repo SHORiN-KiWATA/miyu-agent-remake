@@ -41,13 +41,10 @@ export function apply(ctx) {
     const p = catalog.presets?.find((x) => x.preset === id);
     return p ? presetName(p) : id;
   };
-  /** 空会话里实际会用的预设、人格（没选的照默认算；人格要看预设写的默认人格，预设的细节没读到以前先不算它） */
+  /** 空会话里实际会用的预设、人格（没选的照默认算；预设不再带默认人格，2026-10-08 项目主人） */
   const inUse = () => {
     const draft = chat.draft();
-    const preset = presetInUse(draft.preset, catalog.presetDefault);
-    const detail = catalog.known(preset);
-    if (detail === undefined) catalog.preset(preset).then(() => draw(true));
-    return { preset, persona: personaInUse(draft.persona, detail?.default_persona ?? null, catalog.personaDefault, catalog.personas ?? []) };
+    return { preset: presetInUse(draft.preset, catalog.presetDefault), persona: personaInUse(draft.persona, catalog.personaDefault, catalog.personas ?? []) };
   };
 
   /** 读人格、预设的列表和默认的（进空会话时读一次，读完重画）。 */
@@ -124,7 +121,7 @@ export function apply(ctx) {
     });
   };
 
-  /** 预设的菜单：照 `preset.list`，一行名字、一行说明；写错的暗着。选了读它的细节（预设写的默认人格），重画。 */
+  /** 预设的菜单：照 `preset.list`，一行一个名字（预设不写说明）；写错的暗着。 */
   const openPresets = () => {
     if (!catalog.presets) return;
     const chosen = inUse().preset;

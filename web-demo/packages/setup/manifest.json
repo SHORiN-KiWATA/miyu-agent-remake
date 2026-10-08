@@ -83,9 +83,6 @@
         "restore_again": "再点一次恢复出厂",
         "deleted": "删掉了",
         "restored": "恢复成出厂的样子了",
-        "default_persona": "默认人格",
-        "default_persona_desc": "没选人格时用它",
-        "no_default": "不指定（用通用页的默认人格）",
         "features": "功能",
         "no_features": "没有可以开关的功能",
         "not_installed": "没安装"
@@ -165,9 +162,6 @@
         "restore_again": "もう一度押して出荷時に戻す",
         "deleted": "削除しました",
         "restored": "出荷時の状態に戻しました",
-        "default_persona": "既定の人格",
-        "default_persona_desc": "人格を選ばなかったとき",
-        "no_default": "指定しない（一般ページの既定の人格）",
         "features": "機能",
         "no_features": "切り替えられる機能がありません",
         "not_installed": "未インストール"

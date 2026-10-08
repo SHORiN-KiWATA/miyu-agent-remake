@@ -68,17 +68,16 @@ test('预设：名字照显示名、没有的写编号；默认的能不能用�
   assert.equal(defaultUsable(presets, 'nope', 'preset'), false);
 });
 
-test('没选时实际用哪个：预设照 preset.default、没写是 full；人格照选的 → 预设写的默认人格 → persona.default，指着没有的当没设，都没有是没有人格；选了「无人格」是没有', () => {
+test('没选时实际用哪个：预设照 preset.default、没写是 full；人格照选的 → persona.default，指着没有的当没设，都没有是没有人格；选了「无人格」是没有；预设不参与', () => {
   assert.equal(presetInUse('dev', 'full'), 'dev');
   assert.equal(presetInUse(null, 'dev'), 'dev');
   assert.equal(presetInUse(null, null), 'full');
-  assert.equal(personaInUse('miyu', 'engineer', 'miyu', list), 'miyu');
-  assert.equal(personaInUse(null, 'engineer', 'miyu', list), 'engineer');
-  assert.equal(personaInUse(null, 'gone', 'miyu', list), 'miyu', '预设写的人格没了：照 persona.default');
-  assert.equal(personaInUse(null, null, 'gone', list), null, '默认人格没了：没有人格，不锁');
-  assert.equal(personaInUse(null, null, null, list), null, '出厂不带人格');
-  assert.equal(personaInUse(false, 'engineer', 'miyu', list), null, '明着选了无人格');
-  assert.equal(personaInUse(null, null, 'bad', list), 'bad', '写错的照样算出来，由锁那边管');
+  assert.equal(personaInUse('miyu', 'engineer', list), 'miyu');
+  assert.equal(personaInUse(null, 'miyu', list), 'miyu');
+  assert.equal(personaInUse(null, 'gone', list), null, '默认人格没了：没有人格，不锁');
+  assert.equal(personaInUse(null, null, list), null, '出厂不带人格');
+  assert.equal(personaInUse(false, 'miyu', list), null, '明着选了无人格');
+  assert.equal(personaInUse(null, 'bad', list), 'bad', '写错的照样算出来，由锁那边管');
 });
 
 test('写错的人格、预设：照 check 的文件认是谁的（哪一层都算、Windows 的分隔符也认），只挑这一种、这一个；文件只留人格目录里的那一截', () => {

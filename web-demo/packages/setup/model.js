@@ -45,15 +45,15 @@ export function defaultUsable(list, id, key = 'persona') {
 export const presetInUse = (chosen, fallback) => chosen ?? fallback ?? 'full';
 
 /**
- * 实际用哪个人格（`presets.md`「怎么走」第 3 条）：选了的；明着不用人格（`false`）的是没有；没选的照预设写的默认人格，再是配置项
- * `persona.default`，指着没有的当没设（核心 2026-10-08）；都没有是没有人格（出厂不带人格，2026-10-08 项目主人）。
- * @param {string|false|null} chosen @param {string|null} fromPreset @param {string|null} fallback @param {Persona[]} list
+ * 实际用哪个人格：选了的；明着不用人格（`false`）的是没有；没选的照配置项 `persona.default`，指着没有的当没设（核心 2026-10-08）；
+ * 都没有是没有人格（出厂不带人格）。预设不再带默认人格（2026-10-08 项目主人：人格、预设互不引用）。
+ * @param {string|false|null} chosen @param {string|null} fallback @param {Persona[]} list
  * @returns {string|null}
  */
-export function personaInUse(chosen, fromPreset, fallback, list) {
+export function personaInUse(chosen, fallback, list) {
   if (chosen === false) return null;
   if (chosen) return chosen;
-  return [fromPreset, fallback].find((id) => id && list.some((p) => p.persona === id)) ?? null;
+  return fallback && list.some((p) => p.persona === fallback) ? fallback : null;
 }
 
 /** 目录名（按钮上写的）：路径最后一段，`~` 照写。 @param {string} path */
