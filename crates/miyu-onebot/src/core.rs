@@ -1,5 +1,6 @@
-//! 跟核心的那一头（`onebot.md` 第一条「怎么走」第 1、7 到 11 条）：用本机套接字连核心，没在跑就拉起（照终端的头，
-//! `connect_or_start`），出示本机令牌握手；之后在这一条连接上说 JSON-RPC，一行一条（`protocol.md`）。
+//! 跟核心的那一头（`onebot.md` 第一条「怎么走」第 1、7 到 11 条）：在给的管道（[`Pipe`]：程序里是核心亲手给的标准输入输出，
+//! 施工 O-18；测试里是内存里的管道）上握手，不带凭据（`protocol.md`「握手」第 3 条）；之后说 JSON-RPC，一行一条。管道上只有
+//! 协议：桥别处不往标准输出写。握手等回应有期限（`bridge.json` 的 `hello_seconds`）：从终端跑起来的等不到就退。
 //!
 //! 一条连接只有一个用的人（`route`）：它发一条请求、等到回应才发下一条；等回应时来的推送留着，之后照先后交出去，一条都
 //! 不丢（照终端的头的 `rpc.rs`）。命令编号自己编的（`venue.session`、`subscribe`）带一段随机前缀：同一个编号再发，核心交回
@@ -11,30 +12,22 @@ pub(crate) mod route;
 use std::collections::VecDeque;
 
 use serde_json::{Value, json};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, ReadHalf, WriteHalf};
+use std::time::Duration;
+
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
-use miyu_ipc::Connection;
-use miyu_store::root::DataRoot;
+use crate::serve::{Failure, Pipe};
 
-use crate::serve::{CoreCommand, Failure};
-
-/// 核心断开了、写不出去：桥照第 11 条退出。
+/// 核心关了管道、写不出去：桥照第 11 条好好停下。
 #[derive(Debug)]
 pub(crate) struct Gone;
-
-/// 核心断了，桥照 [`Failure::CoreGone`] 退出。
-impl From<Gone> for Failure {
-    fn from(Gone: Gone) -> Failure {
-        Failure::CoreGone
-    }
-}
 
 /// 连着核心的一头。
 pub(crate) struct Core {
     /// 写的一头。
-    writer: WriteHalf<Connection>,
+    writer: Box<dyn AsyncWrite + Send + Unpin>,
     /// 读进来的回应和推送，照先后。
     incoming: mpsc::UnboundedReceiver<Value>,
     /// 等回应时来的推送。
@@ -50,28 +43,26 @@ pub(crate) struct Core {
 }
 
 impl Core {
-    /// 连核心（没在跑的照 `start` 拉起来），握手：哪个头、系统的语言 `locale`、没有人能当场回答。
+    /// 在管道 `pipe` 上握手：哪个头、系统的语言 `locale`、没有人能当场回答，不带凭据（管道是核心亲手给的）。回应最多等
+    /// `wait`。
     ///
     /// # Errors
     ///
-    /// 连不上、拉不起来，握手被拒、核心断开，握手的回应没带 `language`：[`Failure::Core`]，带原因。
+    /// `wait` 里等不到回应：[`Failure::NotSpawned`]（从终端跑起来的）。被拒、握手时管道关了、回应没带 `language`：
+    /// [`Failure::Core`]，带原因。
     pub(crate) async fn connect(
-        root: &DataRoot,
-        start: CoreCommand,
+        pipe: Pipe,
         locale: Option<&str>,
+        wait: Duration,
     ) -> Result<Core, Failure> {
-        let (connection, token) = miyu_ipc::connect_or_start(root, || start())
-            .await
-            .map_err(|error| Failure::Core(error.to_string()))?;
-        let (reader, writer) = tokio::io::split(connection);
         let (sender, incoming) = mpsc::unbounded_channel();
         let mut core = Core {
-            writer,
+            writer: pipe.write,
             incoming,
             held: VecDeque::new(),
             prefix: format!("onebot-{}", prefix()),
             next: 0,
-            reading: tokio::spawn(read_all(BufReader::new(reader), sender)),
+            reading: tokio::spawn(read_all(BufReader::new(pipe.read), sender)),
             language: String::new(),
         };
         let hello = json!({
@@ -79,10 +70,12 @@ impl Core {
             "head": {"kind": "onebot", "version": env!("CARGO_PKG_VERSION")},
             "locale": locale,
             "caps": {"input": false},
-            "token": token,
         });
         let gone = || Failure::Core("disconnected during hello".to_string());
-        let reply = core.call("hello", hello).await.map_err(|Gone| gone())?;
+        let reply = tokio::time::timeout(wait, core.call("hello", hello))
+            .await
+            .map_err(|_| Failure::NotSpawned)?
+            .map_err(|Gone| gone())?;
         if let Some(message) = reply["error"]["message"].as_str() {
             return Err(Failure::Core(message.to_string()));
         }
@@ -168,9 +161,9 @@ fn prefix() -> String {
     }
 }
 
-/// 读的一头：一行一条，读不懂的不要。读完了（核心断开）就停：`incoming` 跟着关，用的一方看到的是断开。
+/// 读的一头：一行一条，读不懂的不要。读到头（核心关了管道）就停：`incoming` 跟着关，用的一方看到的是断开。
 async fn read_all(
-    mut reader: BufReader<ReadHalf<Connection>>,
+    mut reader: BufReader<Box<dyn AsyncRead + Send + Unpin>>,
     sender: mpsc::UnboundedSender<Value>,
 ) {
     let mut line = String::new();

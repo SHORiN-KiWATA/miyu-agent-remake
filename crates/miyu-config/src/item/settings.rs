@@ -111,7 +111,8 @@ macro_rules! settings {
                         page: $page:literal,
                         group: $group:literal,
                         $(common: $common:literal,)?
-                        control: $control:ident $(,)?
+                        control: $control:ident
+                        $(, hidden: $hidden:literal)? $(,)?
                     } $(,)?
                 }
             ),* $(,)?
@@ -143,7 +144,7 @@ macro_rules! settings {
                             group: $group,
                             common: $crate::__settings_common!($($common)?),
                             control: $crate::__settings_control!($control),
-                            hidden: false,
+                            hidden: $crate::__settings_hidden!($($hidden)?),
                         },
                     },
                 )*
@@ -305,6 +306,19 @@ macro_rules! __settings_common {
     };
     ($common:literal) => {
         $common
+    };
+}
+
+/// [`settings!`](crate::settings) 里 `ui` 的 `hidden` 那一格（施工 8-11 四补）：设置页不画，照样能写、能查、进 Schema；
+/// 不写是 `false`。
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __settings_hidden {
+    () => {
+        false
+    };
+    ($hidden:literal) => {
+        $hidden
     };
 }
 

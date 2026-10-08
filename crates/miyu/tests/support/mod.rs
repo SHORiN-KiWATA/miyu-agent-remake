@@ -75,7 +75,7 @@ impl Home {
         std::fs::read_to_string(self.root.state().join("logs").join("core.log")).unwrap_or_default()
     }
 
-    /// 等核心走：连不上了，锁也放开了。最多十秒。
+    /// 等核心走：连不上了，锁也放开了。最多六十秒。
     pub async fn until_stopped(&self) {
         within("核心走了", async {
             loop {
@@ -131,11 +131,11 @@ pub fn resources() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources")
 }
 
-/// 等 `future`，最多十秒。
+/// 等 `future`，最多六十秒（test-waits 补：正向的等待放到六十秒，负载高的 CI 上十秒不够）。
 pub async fn within<T>(what: &str, future: impl Future<Output = T>) -> T {
-    tokio::time::timeout(Duration::from_secs(10), future)
+    tokio::time::timeout(Duration::from_secs(60), future)
         .await
-        .unwrap_or_else(|_| panic!("十秒内没等到{what}"))
+        .unwrap_or_else(|_| panic!("六十秒内没等到{what}"))
 }
 
 /// 在连接上握手，交回回应。

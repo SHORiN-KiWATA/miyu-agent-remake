@@ -1,7 +1,7 @@
 //! `/apply` 和令牌当场生效（施工 O-16 补二，`onebot.md` 第一条「怎么走」第 2 条，第二条「对外的样子」「施工时定的」第 18、19
 //! 条）：要登录令牌；桥重读配置，令牌照新的，两个端口里变了的开新的、关旧的，回实际听的两个端口；新端口被占回 409 和是哪个，
 //! 两个都不换、旧的照旧；换了令牌，旧的不收、新的收，已经连着的那一条还在。NapCat 拿错的令牌一直连，配置隔一阵才重读一次。
-//! 核心是替身，重读的配置由测试给。
+//! 换了 NapCat 的端口，状态文件跟着换（施工 O-18）。核心是替身，重读的配置由测试给。
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -13,7 +13,9 @@ use tokio::net::TcpStream;
 
 use miyu_onebot::serve::Serve;
 use miyu_onebot::settings::Settings;
+use miyu_onebot::status_file;
 use miyu_onebot::tuning::Tuning;
+use miyu_store::root::DataRoot;
 
 use crate::support::fake_core::{FakeCore, LOGIN, fake_core};
 use crate::support::http::*;
@@ -28,6 +30,7 @@ struct Changing {
     now: Arc<Mutex<Settings>>,
     reads: Arc<AtomicUsize>,
     dir: PathBuf,
+    root: DataRoot,
     _core: FakeCore,
 }
 
@@ -45,7 +48,7 @@ impl Changing {
                 counting.fetch_add(1, Ordering::SeqCst);
                 Ok(reading.lock().expect("没 panic").clone())
             }),
-            ..serve(root, settings())
+            ..serve(root.clone(), settings())
         })
         .await;
         Changing {
@@ -53,6 +56,7 @@ impl Changing {
             now,
             reads,
             dir,
+            root,
             _core: core,
         }
     }
@@ -139,6 +143,13 @@ async fn a_new_napcat_port_takes_over() {
     let applied = apply(web).await;
     assert_eq!(applied.status, 200);
     assert_eq!(applied.json(), json!({"listen": new, "web": web}));
+    // NapCat 连进来以前：只有换端口这一件叫状态文件再写。
+    within("状态文件跟着换", async {
+        while status_file::read(&changing.root).is_none_or(|file| file["listen"] != new) {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await;
     owner_napcat(new).await.close().await;
     closed(old).await;
     assert_eq!(status(web).await["listen"], new);

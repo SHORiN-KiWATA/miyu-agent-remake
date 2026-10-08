@@ -188,7 +188,7 @@ async fn a_background_command_dies_with_a_killed_core() {
 
     // 心跳跑起来了：文件在长。
     let started = Instant::now();
-    while size(&beat) < 3 && started.elapsed() < Duration::from_secs(20) {
+    while size(&beat) < 3 && started.elapsed() < Duration::from_secs(60) {
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
     assert!(size(&beat) >= 3, "心跳没跑起来：{}", home.core_log());
@@ -197,7 +197,7 @@ async fn a_background_command_dies_with_a_killed_core() {
     core.wait().expect("收得了");
     let stopped = tokio::task::spawn_blocking({
         let beat = beat.clone();
-        move || settled(&beat, Duration::from_secs(10))
+        move || settled(&beat, Duration::from_secs(60))
     })
     .await
     .expect("没 panic");

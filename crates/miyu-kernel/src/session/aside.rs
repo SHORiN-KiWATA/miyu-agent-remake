@@ -7,6 +7,7 @@
 
 use super::Session;
 use super::action::Action;
+use super::compaction::Written;
 use super::spans::millis;
 use crate::accumulate::{Accumulator, Delta};
 use crate::block::Block;
@@ -32,6 +33,8 @@ pub(super) struct Aside {
     accumulator: Accumulator,
     /// 增量对不上、还没发出去就来了增量：记下，说完了照出错收。
     broken: Option<CallError>,
+    /// 收到的正文字数（施工 6-11 下：等提前压的那一次时照它推进度）。
+    written: Written,
 }
 
 /// 说完了的一次辅助请求：记账的那条 `model.called`（还没编序号），和写成了的正文或者没写成的错。
@@ -52,7 +55,13 @@ impl Aside {
             first_token: None,
             accumulator: Accumulator::default(),
             broken: None,
+            written: Written::default(),
         }
+    }
+
+    /// 到这时收到的正文字数（施工 6-11 下）。
+    pub(super) fn written(&self) -> u64 {
+        self.written.chars()
     }
 
     /// 发出去了：记下什么时候、发给了谁。报两次的，只认第一次。
@@ -60,19 +69,22 @@ impl Aside {
         self.sent.get_or_insert((at, model, request));
     }
 
-    /// 一段增量：交给累积器。对不上的记下错，说完了照出错收。
-    fn delta(&mut self, at: Timestamp, delta: Delta) {
+    /// 一段增量：交给累积器。对不上的记下错，说完了照出错收。收下了一段正文的字交回真（施工 6-11 下）。
+    fn delta(&mut self, at: Timestamp, delta: Delta) -> bool {
         if self.broken.is_some() {
-            return;
+            return false;
         }
         if self.sent.is_none() {
             self.broken = Some(bad_stream("请求还没发出去就来了增量"));
-            return;
+            return false;
         }
         self.first_token.get_or_insert(at);
+        let wrote = self.written.take(&delta);
         if let Err(error) = self.accumulator.apply(delta) {
             self.broken = Some(bad_stream(&error.to_string()));
+            return false;
         }
+        wrote
     }
 
     /// 说完了：正文块连起来、去掉前后空白，思考、工具调用不要。出错的、还没发出去的、没有正文的（`empty` 是那一句原话）
@@ -188,7 +200,8 @@ impl Session {
         Vec::new()
     }
 
-    /// 辅助请求的一段增量：交给累积器，不推给头。不是在路上的那一次的不理。
+    /// 辅助请求的一段增量：交给累积器，不推给头；回合正在等的那一次提前压，收下了正文的字推一次进度（施工 6-11 下，
+    /// [`Session::awaited_progress`]）。不是在路上的那一次的不理。
     pub(super) fn aside_delta(
         &mut self,
         at: Timestamp,
@@ -196,10 +209,13 @@ impl Session {
         upto: Seq,
         delta: Delta,
     ) -> Vec<Action> {
-        if let Some(aside) = self.aside(purpose, upto) {
-            aside.delta(at, delta);
+        let wrote = self
+            .aside(purpose, upto)
+            .is_some_and(|aside| aside.delta(at, delta));
+        match (wrote, purpose) {
+            (true, Purpose::Compaction) => self.awaited_progress(at, upto),
+            _ => Vec::new(),
         }
-        Vec::new()
     }
 
     /// 辅助请求说完了：照用途交给回顾、起标题各自收。不是在路上的那一次的不理。

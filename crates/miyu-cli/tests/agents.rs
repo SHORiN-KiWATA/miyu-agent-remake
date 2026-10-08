@@ -341,8 +341,9 @@ async fn the_timeout_while_waiting_leaves_with_3() {
     let home = home(router);
     let (_press, presses) = mpsc::channel(1);
     let plan = Plan {
-        // 第一轮要在这之前说完：慢的机器上也够。
-        timeout: Some(Duration::from_secs(3)),
+        // 第一轮要在这之前说完，到时的是等回报的那一段（子代理一直不回）。三秒在 Windows 的 CI 上不够（test-waits 再补：
+        // 第一轮还没说完就到时了），放到二十秒；这条测试照样要等满这么久，和别的测试一起跑。
+        timeout: Some(Duration::from_secs(20)),
         ..plan("派 A 去查")
     };
     let Asked {

@@ -54,15 +54,19 @@ where
 }
 
 /// 同 [`serve`]，对面是核心亲手拉起的扩展（施工 9-4 上）：握手不看凭据，握成了往 `shook` 说一声。
-pub(crate) async fn serve_spawned<S>(stream: S, core: Arc<Core>, shook: oneshot::Sender<()>)
-where
+pub(crate) async fn serve_spawned<S>(
+    stream: S,
+    core: Arc<Core>,
+    shook: oneshot::Sender<()>,
+    package: String,
+) where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    serve_from(stream, core, Some(shook)).await;
+    serve_from(stream, core, Some((shook, package))).await;
 }
 
-/// 两种连接共用的：`spawned` 有的是核心亲手拉起的扩展。
-async fn serve_from<S>(stream: S, core: Arc<Core>, spawned: Option<oneshot::Sender<()>>)
+/// 两种连接共用的：`spawned` 有的是核心亲手拉起的扩展：握成了告诉看管的那一头，和它是哪个包（施工 9-4 下下）。
+async fn serve_from<S>(stream: S, core: Arc<Core>, spawned: Option<(oneshot::Sender<()>, String)>)
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
@@ -91,9 +95,12 @@ async fn read_all<R: AsyncRead + Unpin>(
     read: R,
     core: Arc<Core>,
     out: mpsc::Sender<String>,
-    mut spawned: Option<oneshot::Sender<()>>,
+    mut spawned: Option<(oneshot::Sender<()>, String)>,
 ) {
     let from_core = spawned.is_some();
+    // 核心拉起的扩展是哪个包（施工 9-4 下下）：握手交它自己的配置，之后变了推。
+    let package = spawned.as_ref().map(|(_, package)| package.clone());
+    let mut handing: Option<Handing> = None;
     // 这个连接说话时还带着工作目录（施工 9-7 上：不再换工作区，照收不理）：第一次记一行，看得出谁还在发。
     let mut told_cwd = false;
     let mut reader = BufReader::new(read);
@@ -212,11 +219,16 @@ async fn read_all<R: AsyncRead + Unpin>(
         let id = || Value::String(request.id.as_str().to_string());
         let (answer, target, close) = match (request.method.as_str(), peer) {
             ("hello", _) => match hello(&core, request.params.clone(), from_core).await {
-                Ok((shook, by, result)) => {
-                    if let Some(ready) = spawned.take()
+                Ok((shook, by, mut result)) => {
+                    if let Some((ready, _)) = spawned.take()
                         && ready.send(()).is_err()
                     {
                         // 看管它的那一头不等了：不用说。
+                    }
+                    if let Some(package) = &package {
+                        let given = Handing::now(&core, package);
+                        result["config"] = json!(given.handed);
+                        handing = Some(given);
                     }
                     shaken = Some(shook);
                     revoked = by.login().map(|_| core.identity.revoked());
@@ -297,7 +309,12 @@ async fn read_all<R: AsyncRead + Unpin>(
                 (answer(&request, result, locale), target(&request), false)
             }
         };
-        if !subscriptions.reply(target.as_ref(), answer, &out).await || close {
+        // 握手的回应写出去了，才起推包自己的配置的任务（施工 9-4 下下）：推送不会跑到回应前面。
+        let replied = subscriptions.reply(target.as_ref(), answer, &out).await;
+        if let Some(given) = handing.take() {
+            subscriptions.add_extension_config(given.package, given.handed, given.current, &out);
+        }
+        if !replied || close {
             break;
         }
     }
@@ -391,4 +408,26 @@ fn people_only(method: &str) -> bool {
             method,
             "preset.set" | "preset.delete" | "persona.set" | "persona.delete"
         )
+}
+
+/// 握手时交给核心拉起的扩展的那份（施工 9-4 下下）：包、交出去的键到值、握手时拿的盯配置的那一头。
+struct Handing {
+    package: String,
+    handed: std::collections::BTreeMap<String, Value>,
+    current: tokio::sync::watch::Receiver<Arc<crate::config::Config>>,
+}
+
+impl Handing {
+    /// 照这一刻的配置算包 `package` 的那份，盯配置的那一头记成看过这一份。
+    fn now(core: &Core, package: &str) -> Handing {
+        let mut current = core.config_now();
+        let config = Arc::clone(&current.borrow_and_update());
+        let handed = crate::extensions::config::own(&config, package);
+        tracing::debug!(target: "miyu::endpoint", package, keys = handed.len(), "extension config handed");
+        Handing {
+            package: package.to_string(),
+            handed,
+            current,
+        }
+    }
 }

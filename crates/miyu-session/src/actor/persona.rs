@@ -20,7 +20,7 @@ use crate::TARGET;
 use crate::agents::{Agents, Offers};
 use crate::blocking::blocking;
 use crate::open::PresetPlaces;
-use crate::snapshot::{Parts, build};
+use crate::snapshot::{Parts, build, tooled};
 use crate::spawn::Lineage;
 
 /// 换快照要的：人格的几层、资源目录、存快照的地方，现在的快照，是不是子会话；预设的几层和装了的软件，重新筛工具面要的目录、
@@ -119,6 +119,7 @@ fn look(refresh: &Refresh, values: &Values) -> Seen {
         memory: old.memory.clone(),
         child: refresh.child,
         preset: pin,
+        tooled: tooled(&refresh.tools),
     };
     let new = match build(&refresh.resources, parts) {
         Ok(new) => new,

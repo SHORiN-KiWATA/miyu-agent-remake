@@ -1,4 +1,5 @@
-//! 扩展的开关 `system/extensions.json`（`docs/blueprint/extensions.md`「对外的样子」，施工 9-4 上）：哪几个 `process` 包开着。
+//! 扩展的开关 `system/extensions.json`（`docs/blueprint/extensions.md`「对外的样子」，施工 9-4 上）：哪几个 `process` 包开着，
+//! 批过哪些扩展能力（施工 9-4 下上）。
 //! 没写的照清单的 `start`，由用它的一方定；这里只存人明着开、关过的。放在 `system/`、不放 `state/`：`state/` 是派生的、
 //! 能删掉重建，开关是人做的决定。读写照只给自己看的 JSON 小文件的规矩。
 
@@ -28,6 +29,10 @@ pub struct Switches {
     pub version: u32,
     /// 包的编号到开没开：人明着开、关过的才有。
     pub on: BTreeMap<String, bool>,
+    /// 包的编号到批过的扩展能力（施工 9-4 下上，`extensions.md`「能力」）：批的时候它声明的全部，照能力表的先后。一个都没
+    /// 批过的不写这一格，以前的文件读进来是空的。
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub approved: BTreeMap<String, Vec<String>>,
 }
 
 impl Default for Switches {
@@ -35,6 +40,7 @@ impl Default for Switches {
         Switches {
             version: VERSION,
             on: BTreeMap::new(),
+            approved: BTreeMap::new(),
         }
     }
 }

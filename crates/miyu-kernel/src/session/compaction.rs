@@ -4,9 +4,8 @@
 //! 摘要请求也是一次在路上的请求（[`super::call::Call`]），多记一格 [`Compacting`]：发出去、收增量、打断、重启都走
 //! 同一条路，只有推给头的和说完了以后不一样。
 
-use std::collections::BTreeSet;
-
 mod cut;
+mod written;
 
 use super::Session;
 use super::action::Action;
@@ -14,7 +13,7 @@ use super::call::Call;
 use super::input::Reread;
 use super::summary::Summarized;
 use super::turn::Stage;
-use crate::accumulate::{Delta, Kind};
+use crate::accumulate::Delta;
 use crate::estimate::{self, Price, WithImages};
 use crate::event::{
     Body, CompactTrigger, CompactionDone, CompactionProgress, ContextCompacted, EndReason, Event,
@@ -27,10 +26,16 @@ use crate::request::Request;
 use crate::time::Timestamp;
 use cut::tail_upto;
 pub(super) use cut::{cuts, settle};
+pub(super) use written::Written;
 
 /// 进度的 `expected` 夹在这两头之间：压缩前的用量折成字数，输出约是输入的四分之一、一个 token 约四个字符，两下
 /// 相抵就是用量本身（openclaude 的做法）。
 const EXPECTED: (u64, u64) = (20_000, 80_000);
+
+/// 进度的 `expected`：压之前的用量夹在 [`EXPECTED`] 两头之间。当场压的、等提前压的那一次（施工 6-11 下）一样算。
+pub(super) fn expected(used: u64) -> u64 {
+    used.clamp(EXPECTED.0, EXPECTED.1)
+}
 
 /// 要压：替代到哪、压之前的用量、压完很快又到线连着的第几次（施工 6-6 上，`breaker.rs`）、为什么压（施工 6-7：被动压缩
 /// 是 `overflow`；施工 6-8：手动压缩是 `manual`，`manual.rs`）、人附的要求（施工 6-8）。
@@ -58,10 +63,8 @@ pub(super) struct Compacting {
     before: u64,
     /// 估计要写多少字。
     expected: u64,
-    /// 到这时收到的正文字数。
-    written: u64,
-    /// 正文块的编号：只数它们的字，思考不数。
-    texts: BTreeSet<usize>,
+    /// 到这时收到的正文字数，只数正文块的。
+    written: Written,
     /// 交给执行器重读的候选，真实的位置（施工 6-5）；没交的是空的。
     paths: Vec<String>,
     /// 执行器送回的重读结果，和 `paths` 一个对一个；没收到的没有。
@@ -139,25 +142,11 @@ impl Compacting {
 
     /// 收到一段增量：正文块的字记上。是正文的一段字，交回要推给头的进度。
     pub(super) fn take(&mut self, delta: &Delta) -> Option<CompactionProgress> {
-        match delta {
-            Delta::Start {
-                index,
-                kind: Kind::Text,
-            } => {
-                self.texts.insert(*index);
-                None
-            }
-            Delta::Text { index, text } if self.texts.contains(index) => {
-                let chars = u64::try_from(text.chars().count()).unwrap_or(u64::MAX);
-                self.written = self.written.saturating_add(chars);
-                Some(CompactionProgress {
-                    seen: self.upto,
-                    written: self.written,
-                    expected: self.expected,
-                })
-            }
-            _ => None,
-        }
+        self.written.take(delta).then(|| CompactionProgress {
+            seen: self.upto,
+            written: self.written.chars(),
+            expected: self.expected,
+        })
     }
 }
 
@@ -351,9 +340,8 @@ impl Session {
             instructions,
             refills,
             before: used,
-            expected: used.clamp(EXPECTED.0, EXPECTED.1),
-            written: 0,
-            texts: BTreeSet::new(),
+            expected: expected(used),
+            written: Written::default(),
             paths: paths.clone(),
             reread: None,
             cut,

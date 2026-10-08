@@ -41,9 +41,18 @@ async fn subscribers_get_the_whole_list_then_each_change() {
     let subscribed = client
         .call("sub", "subscribe", json!({"stream": "extensions"}))
         .await;
+    // 出厂的清单里也有 `process` 包（施工 O-18 起有桥）：只看测试装的这一个。
+    let mine: Vec<_> = subscribed["result"]["extensions"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{subscribed}"))
+        .iter()
+        .filter(|one| one["package"] == "echo")
+        .collect();
     assert_eq!(
-        subscribed["result"],
-        json!({"extensions": [{"package": "echo", "name": "回声", "start": "manual", "on": false, "state": "off", "failures": 0}]}),
+        mine,
+        [
+            &json!({"package": "echo", "name": "回声", "start": "manual", "on": false, "state": "off", "failures": 0})
+        ],
         "回应是整份，名字照连接的语言"
     );
     client

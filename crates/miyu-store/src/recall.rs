@@ -21,7 +21,7 @@ use miyu_kernel::time::Timestamp;
 use crate::sqlite::{self, connect, integer, remove};
 
 pub use crate::sqlite::{DbError, Opened};
-pub use indexes::RecallIndexes;
+pub use indexes::{Opener, RecallIndexes};
 pub use room::Room;
 
 mod indexes;
@@ -143,7 +143,9 @@ impl RecallIndex {
     }
 
     /// 来源 `source` 的一批改动，照先后做，连同它照到了 `upto`，在一个事务里写（施工 R-2 上）：要么都写上，要么都没写、
-    /// 照到的位置也不动，下次照真相补。
+    /// 照到的位置也不动，下次照真相补。这个来源照到的位置已经在 `upto` 以后的、整个来源埋了墓碑 `来源/` 的（删掉了），整批
+    /// 不写（施工 R-2 下）：后台补旧会话读日志在前、写在后，会话自己这时可能已经往前写了、可能刚被删掉，落后的一批不该把
+    /// 撤销了的、删掉的又放回去。
     ///
     /// # Errors
     ///
@@ -151,6 +153,25 @@ impl RecallIndex {
     pub fn apply(&self, source: &str, edits: &[Edit], upto: Seq) -> Result<(), DbError> {
         let upto = integer(upto.get(), "upto")?;
         self.write(|tx| {
+            let got: Option<i64> = tx
+                .query_row(
+                    "SELECT upto FROM marks WHERE source = ?1",
+                    [source],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            if got.is_some_and(|got| got > upto) {
+                return Ok(());
+            }
+            // 整个来源埋了墓碑的（会话删掉了）不再写：补的一批读日志在前，删会话可能夹在中间。
+            let tomb = format!("{source}/");
+            let buried = tx
+                .query_row("SELECT 1 FROM buried WHERE key = ?1", [&tomb], |_| Ok(()))
+                .optional()?
+                .is_some();
+            if buried {
+                return Ok(());
+            }
             for edit in edits {
                 match edit {
                     Edit::Put { key, text, at } => put(tx, key, text, *at)?,

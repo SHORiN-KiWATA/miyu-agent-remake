@@ -80,6 +80,39 @@ async fn enabling_starts_it_in_its_own_directory_and_it_shakes_hands_without_a_t
 }
 
 #[tokio::test]
+async fn it_runs_with_the_cores_data_root_and_resources() {
+    // 施工 O-18：拉起时把 `MIYU_HOME`、`MIYU_RESOURCES` 设成核心手上的数据根、资源目录，不管测试程序自己的环境里是什么。
+    let home = Home::new();
+    let program = Program::new();
+    let (path, keep) = record(&home, "echo");
+    let args = [
+        keep.as_str(),
+        "env:MIYU_HOME",
+        "env:MIYU_RESOURCES",
+        "hello",
+        "wait",
+    ];
+    install(&home, "echo", &program.name(), "always", &steps(&args));
+    let core = core(&home, quick());
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
+    while read(&path).lines().count() < 3 {
+        assert!(tokio::time::Instant::now() < deadline, "{}", read(&path));
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    let recorded = read(&path);
+    let lines: Vec<&str> = recorded.lines().collect();
+    assert_eq!(
+        lines[1],
+        format!("MIYU_HOME={}", home.root.path().display())
+    );
+    assert_eq!(
+        lines[2],
+        format!("MIYU_RESOURCES={}", default_resources().display())
+    );
+    core.stop_extensions().await;
+}
+
+#[tokio::test]
 async fn always_ones_start_with_the_core_and_a_new_core_follows_the_switches() {
     let home = Home::new();
     let program = Program::new();

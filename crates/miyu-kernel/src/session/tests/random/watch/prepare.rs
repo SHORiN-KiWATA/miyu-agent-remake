@@ -1,9 +1,10 @@
-//! 看守查提前压好（施工 6-11 上，`docs/blueprint/compaction.md` 第十五条）：
+//! 看守查提前压好（施工 6-11 上、下，`docs/blueprint/compaction.md` 第十五条）：
 //!
 //! - 旁路请求只在这一轮开着时发，一次至多一次在路上；请求是有效历史到 N 的清单加 `summarize`；
 //! - 它的 `model.called`：不带回合编号、不带 `compaction`，`seen` 是 N，写没写成和替身送的算出来的一样；
 //! - 换上：没有摘要请求就写下的压缩，替代到最近压好的那一份的 N，摘要是它的正文，`trigger` 照这一次的；交了重读的，后面
 //!   不跟摘要请求；推的压好了带 `prepared`，当场压的不带；
+//! - 到线时在路上的（施工 6-11 下）：等它，推的进度是它的、字数是替身送过的正文字数；等的时候什么都不请求；
 //! - 载入以后全忘：内核只在内存里记着。
 
 use super::*;
@@ -26,6 +27,8 @@ pub(in super::super) struct Prepares {
     pub(super) summarized: bool,
     /// 刚换上：推的压好了带 `prepared`。
     swapped: bool,
+    /// 回合在等在路上的那一次（施工 6-11 下）：推过它的进度，它还没说完、这一轮还没结束。
+    awaiting: bool,
 }
 
 /// 在路上的那一次，和替身送过的回报。
@@ -117,6 +120,7 @@ impl Watch {
                         let text = flight.text.trim().to_string();
                         let written = error.is_none() && !flight.broken && flight.sent;
                         flight.ended = Some((written && !text.is_empty()).then_some(text));
+                        self.prepares.awaiting = false;
                     }
                     _ => {}
                 }
@@ -230,9 +234,48 @@ impl Watch {
         assert_eq!(done.prepared, swapped, "种子 {}", self.seed);
     }
 
-    /// 这一轮结束了：正在换上的扔掉（打断、重启的收拾）。
+    /// 这一轮结束了：正在换上的扔掉（打断、重启的收拾），不再等。
     pub(super) fn prepare_turn_ended(&mut self) {
         self.prepares.swapping = None;
+        self.prepares.awaiting = false;
+    }
+
+    /// 推了进度，却没有在路上的摘要请求（施工 6-11 下）：是回合在等在路上的那一次提前压，进度是它的，字数是替身送过的
+    /// 正文字数。
+    pub(super) fn awaited_progress(&mut self, seen: Seq, written: u64) {
+        let seed = self.seed;
+        let flight = self
+            .prepares
+            .flight
+            .as_ref()
+            .filter(|flight| flight.upto == seen && flight.ended.is_none())
+            .unwrap_or_else(|| {
+                panic!("种子 {seed}：没有在路上的摘要请求、也没在等提前压，却推了进度")
+            });
+        let chars = u64::try_from(flight.text.chars().count()).unwrap_or(u64::MAX);
+        assert_eq!(
+            written, chars,
+            "种子 {seed}：等的时候的字数是它收到的正文字数"
+        );
+        self.seen_paths.insert(match self.prepares.awaiting {
+            false => "到线时等在路上的提前压",
+            true => "等的时候推了它的进度",
+        });
+        self.prepares.awaiting = true;
+    }
+
+    /// 回合在等在路上的那一次提前压（施工 6-11 下，`random/preparing.rs` 的慢的照它说完）。
+    pub(in super::super) fn awaiting(&self) -> bool {
+        self.prepares.awaiting
+    }
+
+    /// 交出了请求（施工 6-11 下）：在等提前压的那一次时不该有。
+    pub(super) fn not_awaiting(&self) {
+        assert!(
+            !self.prepares.awaiting,
+            "种子 {}：等在路上的提前压时发了请求",
+            self.seed
+        );
     }
 
     /// 载入了：内核只在内存里记着，全忘。

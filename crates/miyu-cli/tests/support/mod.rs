@@ -235,7 +235,7 @@ impl Home {
         read_events(&self.root.session_dir(&AccountIdOf::admin(), session)).unwrap_or_default()
     }
 
-    /// `miyu ask` 开的那一个一次性会话：子会话不是一次性的（施工 7-9）。等它造出来，最多十秒。
+    /// `miyu ask` 开的那一个一次性会话：子会话不是一次性的（施工 7-9）。等它造出来，最多六十秒。
     pub async fn oneshot(&self) -> SessionId {
         within("造出一次性会话", async {
             loop {
@@ -253,7 +253,7 @@ impl Home {
         .await
     }
 
-    /// 等核心那边只剩 `left` 个连接，最多十秒：都断了（`left` 是 0），头的订阅都放下了，会话知道没人看着了（施工 7-9）；一个
+    /// 等核心那边只剩 `left` 个连接，最多六十秒：都断了（`left` 是 0），头的订阅都放下了，会话知道没人看着了（施工 7-9）；一个
     /// 连接上的请求一条条办，断开时它发过的都办完了（施工 7-10）。
     pub async fn until_connections(&self, left: usize) {
         within("连接断到只剩那几个", async {
@@ -264,7 +264,7 @@ impl Home {
         .await;
     }
 
-    /// 等会话 `session` 的日志里结束了 `turns` 轮，最多十秒（施工 7-9）。
+    /// 等会话 `session` 的日志里结束了 `turns` 轮，最多六十秒（施工 7-9）。
     pub async fn until_ended(&self, session: &SessionId, turns: usize) {
         let ended = |log: &[Event]| {
             log.iter()
@@ -279,7 +279,7 @@ impl Home {
         .await;
     }
 
-    /// 等到有一个会话开了回合，交回它。最多十秒。
+    /// 等到有一个会话开了回合，交回它。最多六十秒。
     pub async fn until_a_turn_starts(&self) -> SessionId {
         within("开了回合", async {
             loop {
@@ -468,9 +468,9 @@ pub fn plan(text: &str) -> Plan {
     }
 }
 
-/// 等 `future`，最多十秒。
+/// 等 `future`，最多六十秒（test-waits 补：正向的等待放到六十秒，负载高的 CI 上十秒不够）。
 pub async fn within<T>(what: &str, future: impl Future<Output = T>) -> T {
-    tokio::time::timeout(Duration::from_secs(10), future)
+    tokio::time::timeout(Duration::from_secs(60), future)
         .await
-        .unwrap_or_else(|_| panic!("十秒内没等到{what}"))
+        .unwrap_or_else(|_| panic!("六十秒内没等到{what}"))
 }

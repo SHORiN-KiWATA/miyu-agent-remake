@@ -74,6 +74,10 @@ listen = 8301
 # Allowed: { secret = "…" } or { env = "…" }. Only in the system config. Takes effect at once.
 # token =
 
+# QQ bridge friends: People who can call her in private chat, with no rate limit, even while she sleeps: a list of platform identities, for example ["qq:20017"]. Edit it on the QQ bridge web page. The QQ bridge uses it once groups are connected.
+# Allowed: a list of text of at most 128 characters. Only in the system config. Takes effect at once.
+# trusted =
+
 # QQ bridge web port: The port of the QQ bridge's own web page (NapCat connection, token), local only. Open it with miyu-onebot web. Changes saved on that page take effect at once.
 # Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect the next time the program starts.
 web = 8302
@@ -213,6 +217,10 @@ language = "auto"
 # On start, open: Whether a terminal interface or the web page opens a new session or picks up the most recent one.
 # Allowed: new or recent. Only in the system config or personal settings. Takes effect the next time the program starts.
 startup = "new"
+
+# First-run guide done: This account has finished the first-run guide; the terminal and web pages no longer open it.
+# Allowed: true or false. Only in personal settings. Takes effect at once.
+welcomed = false
 
 [usage]
 # Currency shown first: Amounts are added up per currency, never converted. This one is listed first, the others by code. Three capital letters such as USD or CNY.

@@ -169,30 +169,6 @@ fn only_one_is_prepared_at_a_time() {
 }
 
 #[test]
-fn one_still_on_its_way_at_the_line_is_not_waited_for() {
-    let mut stage = preparing(60);
-    stage.prepare_model([Line::says("P1").held()]);
-    two_turns(&mut stage, 330, 390);
-    // 第三轮过了线，它还在路上：照现在的办法当场压，推进度。
-    stage.model([Line::says("S1"), Line::says("好")]);
-    stage.say(&words(10));
-    let compacted = compactions(&stage);
-    assert_eq!(compacted.len(), 1);
-    assert_eq!(compacted[0].summary, "S1");
-    assert_eq!(done(&stage), [false]);
-    assert!(progress(&stage) > 0, "当场压的推进度");
-    // 晚到的只记那一条，扔掉：不再写压缩。
-    stage.release_prepare();
-    assert_eq!(compactions(&stage).len(), 1);
-    let calls = stage
-        .model_calls()
-        .into_iter()
-        .filter(|called| called.purpose == Some(Purpose::Compaction))
-        .count();
-    assert_eq!(calls, 1);
-}
-
-#[test]
 fn a_tail_grown_past_t_plus_g_compacts_as_before() {
     // 第二轮回了 120 个 token：N 以后的尾巴 140，超了 T + G = 100。
     let mut stage = preparing(60);

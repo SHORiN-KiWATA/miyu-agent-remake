@@ -41,6 +41,10 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "这个扩展关着，先打开它。",
             "This extension is off; turn it on first.",
         ),
+        "needs_approval" => (
+            "这个扩展要的能力还没批准。",
+            "This extension's capabilities are not approved yet.",
+        ),
         "session_not_found" => ("没有这个会话。", "There is no such session."),
         "no_system_account" => (
             "这个场所的会话要归系统账号，还没有装好系统账号。",

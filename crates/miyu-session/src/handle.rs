@@ -7,7 +7,6 @@ use std::sync::{Arc, Mutex, PoisonError};
 use tokio::sync::{broadcast, mpsc, oneshot};
 
 use miyu_kernel::event::{Event, Transient};
-use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{CommandId, JobId, SessionId, VenueId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, ContextLimits, Outcome, Reason};
@@ -69,8 +68,6 @@ pub(crate) enum Message {
         force: bool,
         reply: oneshot::Sender<Result<(), Reason>>,
     },
-    /// 环境变了：工作目录、时区。
-    Environment(Environment),
     /// 停掉派出去的任务（施工 7-4）。
     Halt(Halt),
     /// 头读一条后台命令的输出（施工 7-4 补）：不进内核、不写盘。
@@ -322,16 +319,6 @@ impl Handle {
         let (reply, answer) = oneshot::channel();
         self.send(Message::Delete { force, reply })?;
         answer.await.map_err(|_| Stopped)
-    }
-
-    /// 环境变了：头报上来的工作目录换了，或者时区换了。不当场注入，到下一个边界再查
-    /// （`08-上下文投影.md` C10）。
-    ///
-    /// # Errors
-    ///
-    /// 会话停了。
-    pub fn environment(&self, environment: Environment) -> Result<(), Stopped> {
-        self.send(Message::Environment(environment))
     }
 
     /// 人停掉任务 `job`（施工 7-4，协议的 `job.stop`）：`by` 是停它的人，`cause` 是那条命令。后台命令整组杀掉，记

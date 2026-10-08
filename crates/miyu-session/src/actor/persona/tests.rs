@@ -2,10 +2,14 @@
 //! 核心的字和旧快照不一样的不换；人格写错了的照旧。人格放在临时数据根里管理员家目录那一层。
 
 use std::path::Path;
+use std::sync::Arc;
 
 use miyu_config::Values;
 use miyu_kernel::id::{AccountId, VenueId};
+use miyu_kernel::tool::Access;
 use miyu_store::root::DataRoot;
+use miyu_tool::Tool;
+use miyu_tool::testkit::{Act, Fake};
 
 use super::test_support::{Scratch, scratch_root, write};
 use super::*;
@@ -30,6 +34,9 @@ fn setup_with(
     let alice = AccountId::parse("alice").expect("账号合写法");
     let resources = ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"));
     let personas = Personas::new(&resources, &root, &alice);
+    // 记忆有一件工具（装了没开的那一行只列有工具的包，施工 O-18）；工具面是空的。
+    let remember: Arc<dyn Tool> = Fake::new("remember", Access::Read, Act::Echo);
+    let tools = Catalog::in_packages([("memory", vec![remember])]).expect("合写法");
     let parts = Parts {
         name: Some("miyu".to_string()),
         texts: personas.find("miyu").expect("找得到 Miyu").texts,
@@ -38,6 +45,7 @@ fn setup_with(
         memory: None,
         child: false,
         preset,
+        tooled: tooled(&tools),
     };
     let snapshot = build(&resources, parts).expect("拼得成");
     let refresh = Refresh {
@@ -47,7 +55,7 @@ fn setup_with(
         snapshot,
         child: false,
         presets: None,
-        tools: Catalog::default(),
+        tools,
         venue: VenueId::parse("local").expect("场所合写法"),
         lineage: None,
     };

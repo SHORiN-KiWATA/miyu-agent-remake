@@ -5,7 +5,7 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::io;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 
 use miyu_kernel::id::{AccountId, SessionId};
 use miyu_recall::Source;
@@ -15,13 +15,27 @@ use crate::root::DataRoot;
 use super::room::{DB as SUFFIX, TURNS_PREFIX as PREFIX, recall_dir};
 use super::{DbError, Opened, RecallIndex, Room};
 
-/// 回合库的登记：照（账号、人格）开、留着。核心里一份，会话表交给每个会话（施工 R-2 上）。
-#[derive(Debug)]
+/// 一份回合库这一回第一次开时叫的（施工 R-2 下）：哪一间、开得怎么样。会话那一层照它记运行日志、补齐旧会话。在开库的那个
+/// 线程里叫，登记的锁已经放开（它可以再来开库）。
+pub type Opener = Box<dyn Fn(&Room, &Opened) + Send + Sync>;
+
+/// 回合库的登记：照房间开、留着。核心里一份，会话表交给每个会话（施工 R-2 上）。
 pub struct RecallIndexes {
     /// 数据根：库在账号的 `index/recall/` 下。
     root: DataRoot,
     /// 开过的。
     open: Mutex<BTreeMap<Room, Arc<RecallIndex>>>,
+    /// 第一次开时叫的（[`RecallIndexes::when_opened`]）；没登记的不叫。
+    opener: OnceLock<Opener>,
+}
+
+impl std::fmt::Debug for RecallIndexes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RecallIndexes")
+            .field("root", &self.root)
+            .field("open", &self.open)
+            .finish_non_exhaustive()
+    }
 }
 
 impl RecallIndexes {
@@ -30,20 +44,32 @@ impl RecallIndexes {
         RecallIndexes {
             root: root.clone(),
             open: Mutex::new(BTreeMap::new()),
+            opener: OnceLock::new(),
         }
     }
 
+    /// 登记第一次开一份库时叫谁（施工 R-2 下）。只认第一次登记的：交回 `false` 的是已经有了，这一个没登记上。
+    pub fn when_opened(&self, opener: Opener) -> bool {
+        self.opener.set(opener).is_ok()
+    }
+
     /// 房间 `room` 的回合库（施工 R-3 下照房间开：跟着人格的、只在会话里的）。这一回第一次用、刚开的，另交回开库的情形
-    /// （[`Opened`]），调的一方照它记运行日志；开过的交回同一份，情形是空的。用不了的照样交回一份：它什么都找不到、写什么都
+    /// （[`Opened`]），也叫登记过的 [`Opener`]（施工 R-2 下）；开过的交回同一份，情形是空的。用不了的照样交回一份：它什么都找不到、写什么都
     /// 不写。
     pub fn turns(&self, room: &Room) -> (Arc<RecallIndex>, Option<Opened>) {
-        let mut open = self.lock();
-        if let Some(index) = open.get(room) {
-            return (Arc::clone(index), None);
+        let (index, opened) = {
+            let mut open = self.lock();
+            if let Some(index) = open.get(room) {
+                return (Arc::clone(index), None);
+            }
+            let (index, opened) = RecallIndex::open(&room.turns(&self.root));
+            let index = Arc::new(index);
+            open.insert(room.clone(), Arc::clone(&index));
+            (index, opened)
+        };
+        if let Some(opener) = self.opener.get() {
+            opener(room, &opened);
         }
-        let (index, opened) = RecallIndex::open(&room.turns(&self.root));
-        let index = Arc::new(index);
-        open.insert(room.clone(), Arc::clone(&index));
         (index, Some(opened))
     }
 
@@ -77,7 +103,8 @@ impl RecallIndexes {
         let tomb = format!("{source}/");
         for persona in personas {
             let (index, _) = self.turns(&Room::persona(account, &persona));
-            if let Err(error) = index.forget(&source).and_then(|()| index.bury(&tomb)) {
+            // 先埋再拿掉（施工 R-2 下）：埋了以后补进来的一批写不进（`apply`），拿掉以后不会又多出来。
+            if let Err(error) = index.bury(&tomb).and_then(|()| index.forget(&source)) {
                 failed = Some(error);
             }
         }

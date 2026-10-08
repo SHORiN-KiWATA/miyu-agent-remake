@@ -58,6 +58,7 @@ fn the_registered_list_is_well_formed() {
             "ui.language",
             "ui.startup",
             "ui.head",
+            "ui.welcomed",
             "persona.default",
             "preset.default",
             "usage.currency",
@@ -104,7 +105,8 @@ fn the_registered_list_is_well_formed() {
             "log.level",
             "onebot.listen",
             "onebot.web",
-            "onebot.token"
+            "onebot.token",
+            "onebot.trusted"
         ],
         "照登记的先后"
     );
@@ -199,4 +201,89 @@ fn tiers_are_unknown_now_and_pools_take_the_two_new_items() {
     let parsed = parse("[pools.p]\nmodels = []\ndescription = \"快速查东西的池\"\n");
     let codes: Vec<Code> = parsed.problems.iter().map(|problem| problem.code).collect();
     assert_eq!(codes, [Code::BadFormat], "说明要写英文");
+}
+
+/// 施工 O-17：自己人 `onebot.trusted`（`onebot.md` 第二条「对外的样子」，`config.md` 配置项表）是平台身份的列表：读得出，
+/// 不写是没有；只能写在系统配置、当场生效、界面在高级页「QQ 桥」组的列表；不是列表的、元素不是字的、空的、超过 128 个字的
+/// 报问题，128 个字的照收。
+#[test]
+fn onebot_trusted_is_a_system_list_of_identities() {
+    use miyu_config::problem::Code;
+    use miyu_config::{Applies, Control, Kind, Layer, Values};
+    use miyu_core::settings::OnebotSettings;
+    let listed = items();
+    let item = listed
+        .iter()
+        .find(|item| item.key == "onebot.trusted")
+        .expect("登记了");
+    assert_eq!(item.kind, Kind::List(&Kind::Text { max: 128 }));
+    assert_eq!(item.default, None);
+    assert_eq!(item.layers, [Layer::System]);
+    assert_eq!(item.applies, Applies::Now);
+    assert_eq!(
+        (item.ui.page, item.ui.group, item.ui.control),
+        ("advanced", "onebot", Control::List)
+    );
+    let parse = |layer: Layer, source: &str| {
+        miyu_config::parse::parse(&items(), layer, source).expect("写法对")
+    };
+    let codes = |layer: Layer, source: &str| -> Vec<Code> {
+        parse(layer, source)
+            .problems
+            .iter()
+            .map(|problem| problem.code)
+            .collect()
+    };
+    let mut values = Values::defaults(&items());
+    assert_eq!(OnebotSettings::from(&values).trusted, None, "不写是没有");
+    let parsed = parse(
+        Layer::System,
+        "[onebot]\ntrusted = [\"qq:20017\", \"qq:10002\"]\n",
+    );
+    assert!(parsed.problems.is_empty(), "{:?}", parsed.problems);
+    for (key, entry) in parsed.entries {
+        values.set(&key, entry.value);
+    }
+    assert_eq!(
+        OnebotSettings::from(&values).trusted,
+        Some(vec!["qq:20017".to_string(), "qq:10002".to_string()])
+    );
+    assert_eq!(
+        codes(Layer::System, "[onebot]\ntrusted = []\n"),
+        Vec::<Code>::new(),
+        "空表照收"
+    );
+    assert_eq!(
+        codes(Layer::Personal, "[onebot]\ntrusted = [\"qq:20017\"]\n"),
+        [Code::WrongLayer],
+        "只能写在系统配置"
+    );
+    assert_eq!(
+        codes(Layer::System, "[onebot]\ntrusted = \"qq:20017\"\n"),
+        [Code::WrongType]
+    );
+    assert_eq!(
+        codes(Layer::System, "[onebot]\ntrusted = [20017]\n"),
+        [Code::WrongType]
+    );
+    assert_eq!(
+        codes(Layer::System, "[onebot]\ntrusted = [\"\"]\n"),
+        [Code::BadFormat]
+    );
+    let longest = format!("qq:{}", "1".repeat(125));
+    assert_eq!(
+        codes(
+            Layer::System,
+            &format!("[onebot]\ntrusted = [\"{longest}\"]\n")
+        ),
+        Vec::<Code>::new()
+    );
+    assert_eq!(
+        codes(
+            Layer::System,
+            &format!("[onebot]\ntrusted = [\"{longest}1\"]\n")
+        ),
+        [Code::BadFormat],
+        "超过 128 个字"
+    );
 }

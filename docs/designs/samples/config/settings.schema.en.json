@@ -457,6 +457,12 @@
           ],
           "title": "On start, open",
           "type": "string"
+        },
+        "welcomed": {
+          "default": false,
+          "description": "This account has finished the first-run guide; the terminal and web pages no longer open it. Allowed: true or false. Only in personal settings. Takes effect at once.",
+          "title": "First-run guide done",
+          "type": "boolean"
         }
       },
       "type": "object"

@@ -66,10 +66,6 @@ impl Actor {
             Message::Stop(reply) => Mail::Stop(reply),
             Message::Halt(halt) => Mail::Halt(halt),
             Message::Delete { force, reply } => Mail::Delete(force, reply),
-            Message::Environment(environment) => {
-                self.tools.locate(environment.offset);
-                Mail::Input(Input::Environment(environment))
-            }
             Message::Output { job, reply } => {
                 // 是什么当场照名册看；开文件另起一个任务，不在收件箱里等（施工 7-4 补）。
                 let reading = self.jobs.command_output(job);

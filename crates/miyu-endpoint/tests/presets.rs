@@ -296,8 +296,9 @@ async fn presets_are_listed_and_read_by_layer() {
             ("goal", "长期目标", true),
             ("memory", "人格记忆", true),
             ("roleplay", "角色扮演", false),
+            ("onebot", "QQ 桥", false),
         ],
-        "内置的照固定的先后、照连接的语言写名字（施工 P-3 补）"
+        "内置的照固定的先后、照连接的语言写名字（施工 P-3 补）；清单装的桥照它的清单写名字（施工 O-18）"
     );
     assert_eq!(got["software"][4]["installed"], true, "角色扮演一直装着");
     assert_eq!(got["software"][4]["summary"], "照人格的设定演下去，不出戏");

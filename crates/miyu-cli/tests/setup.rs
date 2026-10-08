@@ -65,7 +65,7 @@ async fn a_key_in_the_environment_is_referenced_never_copied() {
     assert_eq!(asked.code, 0, "{}", asked.screen);
     assert_eq!(
         steady(&asked.screen),
-        "· 这个终端里设了 OPENAI_API_KEY，核心看不到：核心是别处拉起的，看不到后来设的环境变量。等核心空闲了自己退出（没有界面连着、没有在跑的活），再在这个终端里运行 miyu setup；或者选这一家、把 key 贴进来。\n\
+        "· 核心未读到 OPENAI_API_KEY（核心启动后才设置）。核心空闲退出后重新运行 miyu setup，或选这一家贴 key。\n\
          选一家：\n\
          \x20 1  DeepSeek      已找到 key\n\
          \x20    OpenAI        用不了：目录里没有它的地址\n\
