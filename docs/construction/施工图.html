@@ -276,7 +276,7 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>289</b><span>/ 305 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>290</b><span>/ 305 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
     <li><b class="mono">f42f5c33</b><span>最近一步（O-2 上 提供者登记工具、核心反向调用）的提交</span></li>
   </ul>
@@ -629,7 +629,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sO-20"><span class="n">O-20</span>桥用核心交的配置<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-21"><span class="n">O-21</span>桥读场所规则和出厂数据<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-22"><span class="n">O-22</span>群消息记进场所会话<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">O-23 上</span>群里叫她就回</span></li>
+        <li><a class="step done" href="#sO-23a"><span class="n">O-23 上</span>群里叫她就回<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">O-23 下</span>判官接上</span></li>
         <li><span class="step"><span class="n">O-25</span>出站</span></li>
         <li><a class="step done" href="#sO-6"><span class="n">O-6</span>核心：斜杠命令由核心解析<span class="st">✓</span></a></li>
@@ -17982,6 +17982,56 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/O-22-群消息记进场所会话.md</code>；蓝图 <code>onebot.md</code> 第一条「群消息」「撤回」；18 第五节。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sO-23a" aria-labelledby="h-sO23a">
+  <div class="sheet-head"><h2 id="h-sO23a"><span class="no">O-23 上</span>群里叫她就回</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">接群的第二步：群消息记下以后照群聊内核判一次，主人冲她来的经 session.respond 开一轮，她的回话发回群里。要问判官的两条路只记判断、不回（等 O-23 下）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-onebot/src/core/route/</span><span class="dir-note">O-23 上</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>订阅群会话，照日志投影；桥重启照日志重建，旧回话不再发</li>
+              <li>主人照核心记的 by 认；过进站链、加值项、走哪条路</li>
+              <li>主人冲她来开一轮；限流满了别人冲她来回一句提示</li>
+              <li>她的回话纯文本拆段发回群里，照发的先后记 venue.delivered</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">主人是谁照核心记下的 by</span><span class="rl">对应表是核心的配置，桥不另存</span></div>
+          <div class="tile new"><span class="nm">CI 抓出的真 bug</span><span class="rl">拆段的回话原来会记反先后，改成照写队列的先后</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-23 上</dd></div>
+        <div><dt>名称</dt><dd>群里叫她就回</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">9db17f15</dd></div>
+        <div><dt>验收</dt><dd>真跑、变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>临时数据根真跑：主人 @、叫名字回话，别人 @ 只记判断，限流满了回一句提示、主人照回；21 个手写变异全被逮住；两个提交各自门禁八项全过；三台机器的 CI 和长跑全绿（run 1333）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-23-群里叫她就回（上）.md</code>；蓝图 <code>onebot.md</code> 第一条「群里怎么叫她」；<code>chat.md</code> 第七条第 4 条。</li>
       </ul>
     </div>
   </div>
