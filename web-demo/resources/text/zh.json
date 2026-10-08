@@ -339,7 +339,8 @@
       "unknown": "会话 {id} · {reason}"
     },
     "changed": "换到 {to}：原来的出错了",
-    "model_replaced": "{from} 没了，换回 {to}"
+    "model_replaced": "{from} 没了，换回 {to}",
+    "workspace": "工作区：{path}"
   },
   "ago": {
     "now": "刚才",

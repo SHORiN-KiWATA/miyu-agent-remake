@@ -10,7 +10,7 @@ import { h, icon, replace } from '../../src/lib/dom.js';
 import { Menu } from './menu.js';
 import { personaName, presetName, defaultUsable, presetInUse, personaInUse, dirName, readPath, remember, tilde } from './model.js';
 import { Catalog } from './catalog.js';
-import { personaPage, presetPage } from './page.js';
+import { personaPage, presetPage, problemText } from './page.js';
 import { browse } from './folders.js';
 
 const RECENT = 'setup.recent';
@@ -111,7 +111,7 @@ export function apply(ctx) {
       rows: catalog.personas.map((p) => ({
         title: personaName(p),
         desc: p.problem ? t('persona_bad') : p.summary ?? '',
-        tip: p.problem ?? undefined,
+        tip: p.problem ? catalog.problemOf('persona', p).map((x) => problemText(ctx, x)).join('\n') : undefined,
         current: p.persona === chosen && !p.problem,
         off: !!p.problem,
         pick: () => chat.setDraft({ persona: p.persona }),
@@ -129,7 +129,7 @@ export function apply(ctx) {
       rows: catalog.presets.map((p) => ({
         title: presetName(p),
         desc: p.problem ? t('preset_bad') : p.summary ?? '',
-        tip: p.problem ?? undefined,
+        tip: p.problem ? catalog.problemOf('preset', p).map((x) => problemText(ctx, x)).join('\n') : undefined,
         current: p.preset === chosen && !p.problem,
         off: !!p.problem,
         pick: () => chat.setDraft({ preset: p.preset }),
@@ -155,9 +155,9 @@ export function apply(ctx) {
         await ctx.core.request('fs.list', { cwd: path, dir: '' });
         chat.setDraft({ cwd: path === def ? null : path });
       } else {
-        const actual = await chat.setWorkdir(session, path);
-        // 太宽退回了工作区的，`workdir.adjusted` 那边提示
-        if (actual === path) ctx.composer.say(t('workspace_set', { path: tilde(path, home()) }), true);
+        // 换成了的正文里多一行「工作区：路径」（照核心推来的 `session.workspace_changed`），这里不再另提示；太宽退回了工作区的，
+        // `workdir.adjusted` 那边提示
+        await chat.setWorkdir(session, path);
       }
     } catch (err) {
       return refused(err);

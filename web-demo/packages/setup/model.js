@@ -12,6 +12,27 @@ export const personaName = (p) => p.name || p.persona;
 export const presetName = (p) => p.name || p.preset;
 
 /**
+ * `check` 的问题里属于这个人格、预设的（照文件在 `personas/<编号>/`、`presets/<编号>.toml` 下认，哪一层都算）。
+ * `persona.list` 的 `problem` 是给日志的英文原话，人看的那一句（照连接的语言）在 `check` 里（项目主人 2026-10-08 定：写中文）。
+ * @param {{kind: string, file?: string, line?: number, message: string}[]} problems @param {'persona'|'preset'} kind @param {string} id
+ * 文件只留人格目录里的那一截（`persona.toml`、`prompts/examples.md`）、预设的文件名：在哪一层、数据根在哪是核心怎么存，不往界面上露
+ * （项目主人 2026-10-08）；手改文件的人知道自己改的是哪个人格。
+ * @returns {{line: number|null, message: string, file: string}[]}
+ */
+export function problemsOf(problems, kind, id) {
+  const tail = kind === 'persona' ? `personas/${id}/` : `presets/${id}.toml`;
+  return problems
+    .filter((p) => p.kind === kind && typeof p.file === 'string')
+    .map((p) => ({ p, f: /** @type {string} */ (p.file).replace(/\\/g, '/') }))
+    .filter(({ f }) => f.startsWith(tail) || f.includes(`/${tail}`))
+    .map(({ p, f }) => ({
+      line: Number.isInteger(p.line) ? /** @type {number} */ (p.line) : null,
+      message: p.message,
+      file: kind === 'persona' ? f.slice(f.lastIndexOf(tail) + tail.length) : `${id}.toml`,
+    }));
+}
+
+/**
  * 默认的能不能用（第 2 条：没了、文件写错的锁住输入框）：指着的那一项在列表里、没写错。
  * @param {(Persona|Preset)[]} list @param {string|null} id @param {'persona'|'preset'} [key]
  */

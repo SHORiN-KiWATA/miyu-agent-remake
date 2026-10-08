@@ -37,7 +37,6 @@
       "relative": "写绝对路径，或者 ~ 开头的路径",
       "not_dir": "找不到这个目录",
       "forbidden": "这个目录不能用",
-      "workspace_set": "工作区：{path}",
       "workspace_adjusted": "这个目录太宽，在 {path} 里干活",
       "command": "换工作区：之后的话在这个目录里干活，不写路径的开菜单选",
       "page": {
@@ -45,8 +44,9 @@
         "loading": "正在读人格…",
         "none": "还没有人格",
         "note": "新建、修改人格等核心下一步（P-3）；记忆跟着谁、能查哪些知识库等记忆那一步接上再列。",
-        "examples": "示范对话 {count} 轮",
-        "default": "默认"
+        "default": "默认",
+        "problem_line": "{file} 第 {line} 行：{message}",
+        "problem_file": "{file}：{message}"
       },
       "menu_hint": "↑↓ 选 · Enter 确定 · Esc 关闭",
       "folders": {
@@ -64,9 +64,6 @@
       "presets": {
         "title": "预设",
         "none": "还没有预设",
-        "persona": "默认人格：{name}",
-        "missing": "没安装：{list}",
-        "readonly": "改开关等核心下一步（P-3）",
         "note": "新建、修改预设等核心下一步（P-3）。"
       },
       "not_a_dir": "这不是一个目录"
@@ -82,7 +79,6 @@
       "relative": "絶対パスか ~ で始まるパスを書いてください",
       "not_dir": "このディレクトリが見つかりません",
       "forbidden": "このディレクトリは使えません",
-      "workspace_set": "ワークスペース：{path}",
       "workspace_adjusted": "このディレクトリは広すぎるため {path} で作業します",
       "command": "ワークスペースを変える：以降の発言はこのディレクトリで作業。パスなしならメニューで選ぶ",
       "page": {
@@ -90,8 +86,9 @@
         "loading": "人格を読み込み中…",
         "none": "人格がありません",
         "note": "人格の新規作成・編集はコアの次の段階（P-3）で。記憶の範囲や検索できるナレッジベースは記憶の段階で表示します。",
-        "examples": "お手本会話 {count} 往復",
-        "default": "既定"
+        "default": "既定",
+        "problem_line": "{file} {line} 行目：{message}",
+        "problem_file": "{file}：{message}"
       },
       "menu_hint": "↑↓ 選択 · Enter 決定 · Esc 閉じる",
       "folders": {
@@ -109,9 +106,6 @@
       "presets": {
         "title": "プリセット",
         "none": "プリセットがありません",
-        "persona": "既定の人格：{name}",
-        "missing": "未インストール：{list}",
-        "readonly": "切り替えはコアの次の段階（P-3）で",
         "note": "プリセットの新規作成・編集はコアの次の段階（P-3）で。"
       },
       "not_a_dir": "これはディレクトリではありません"

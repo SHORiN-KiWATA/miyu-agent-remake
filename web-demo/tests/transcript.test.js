@@ -11,8 +11,9 @@ loadRes();
 /** 条目写成一行字，好比对。 */
 const brief = (items) => items.map((it) => `${it.type}: ${it.type === 'steps' ? it.steps.map((s) => s.name ?? s.kind).join(',') : it.slot ? `[${it.slot}] ${it.event.kind}` : it.text}`);
 
-test('一个会话的条目：撤销掉的那一轮不见了；撤回的话不见了；收尾那一行照 TUI 写；压缩那一行照先后在；确认和提问了结的夹在问的那一步后面', () => {
+test('一个会话的条目：换了工作区一行；撤销掉的那一轮不见了；撤回的话不见了；收尾那一行照 TUI 写；压缩那一行照先后在；确认和提问了结的夹在问的那一步后面', () => {
   assert.deepEqual(brief(project(sampleLog()).items), [
+    'note: 工作区：~/src/miyu',
     'note: 上下文已压缩',
     'user: 再看看 tests 目录',
     'done: ⏸ 已中断',
@@ -252,4 +253,16 @@ test('按页读：派后台命令的那条还在没读的页里，回报那一�
   const withSeed = JSON.stringify(project([seed, reported]).items);
   assert.ok(!without.includes('后台睡三秒'), '没有名单时拿不到标题');
   assert.ok(withSeed.includes('后台睡三秒'));
+});
+
+test('换了工作区：一行「工作区：路径」，不属于哪一轮，路径照原样带着（家目录由画的那一头写成 ~）', () => {
+  const log = [
+    ev(1, 0, 'session.created', null, { cwd: '/home/u/a' }),
+    ev(2, 5, 'session.workspace_changed', null, { cwd: '/home/u/b' }, { kind: 'account', account: 'admin' }),
+  ];
+  const notes = project(log).items.filter((it) => it.type === 'note');
+  assert.equal(notes.length, 1);
+  assert.equal(notes[0].text, '工作区：/home/u/b');
+  assert.equal(notes[0].path, '/home/u/b');
+  assert.equal(notes[0].turn, null);
 });

@@ -339,7 +339,8 @@
       "unknown": "セッション {id} · {reason}"
     },
     "changed": "{to} に切り替えました：元のモデルでエラー",
-    "model_replaced": "{from} がなくなったため {to} に戻しました"
+    "model_replaced": "{from} がなくなったため {to} に戻しました",
+    "workspace": "ワークスペース：{path}"
   },
   "ago": {
     "now": "たった今",

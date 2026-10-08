@@ -209,6 +209,16 @@ export function modelNote(e) {
 }
 
 /**
+ * 换了工作区那一行（蓝图「人格、预设、工作区」第 5 条，2026-10-08 项目主人定要）：「工作区：路径」，暗点；不属于哪一轮，哪个头换的都画。
+ * 路径照原样带在 `path` 上，家目录写成 `~` 由画的那一头做（照时间线一步里的路径，`ui/steps.js`）。
+ * @param {any} e `session.workspace_changed`
+ */
+export function workspaceNote(e) {
+  const path = String(e.body?.cwd ?? '');
+  return { type: 'note', key: `w${e.seq}`, seq: e.seq, turn: null, tone: 'stopped', mark: res.layout.note_marks.stopped ?? '', text: t('notes.workspace', { path }), path };
+}
+
+/**
  * 换了模型那一行（蓝图「后台命令、子代理的回报」那张表）：「换到 端点/模型：原来的出错了」，暗点；不属于哪一轮。
  * @param {any} e `withChanges` 插进来的
  */

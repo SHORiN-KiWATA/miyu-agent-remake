@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { personaName, presetName, defaultUsable, presetInUse, personaInUse, dirName, readPath, remember, tilde } from '../../packages/setup/model.js';
+import { personaName, presetName, defaultUsable, presetInUse, personaInUse, dirName, readPath, remember, tilde, problemsOf } from '../../packages/setup/model.js';
 import { sessionCwd } from '../../src/model/session.js';
 
 const list = [{ persona: 'engineer', name: null }, { persona: 'miyu', name: 'Miyu' }, { persona: 'bad', problem: 'persona.toml:2: …' }];
@@ -76,4 +76,20 @@ test('没选时实际用哪个：预设照 preset.default、没写是 full；人
   assert.equal(personaInUse(null, 'engineer', 'none'), 'engineer');
   assert.equal(personaInUse(null, null, 'none'), 'none');
   assert.equal(personaInUse(null, null, null), 'engineer');
+});
+
+test('写错的人格、预设：照 check 的文件认是谁的（哪一层都算、Windows 的分隔符也认），只挑这一种、这一个；文件只留人格目录里的那一截', () => {
+  const problems = [
+    { kind: 'config', file: 'system/config.toml', line: 6, message: '环境变量没设' },
+    { kind: 'persona', file: 'home/admin/personas/broken/persona.toml', line: 3, message: '不认识的键 persona.color' },
+    { kind: 'persona', file: '/opt/miyu/personas/broken/prompts/examples.md', message: '示范对话要一问一答' },
+    { kind: 'persona', file: 'home/admin/personas/broken2/persona.toml', line: 1, message: '别的' },
+    { kind: 'preset', file: 'C:\\miyu\\home\\admin\\presets\\dev.toml', line: 2, message: '不是开关' },
+  ];
+  assert.deepEqual(problemsOf(problems, 'persona', 'broken'), [
+    { line: 3, message: '不认识的键 persona.color', file: 'persona.toml' },
+    { line: null, message: '示范对话要一问一答', file: 'prompts/examples.md' },
+  ]);
+  assert.deepEqual(problemsOf(problems, 'preset', 'dev'), [{ line: 2, message: '不是开关', file: 'dev.toml' }]);
+  assert.deepEqual(problemsOf(problems, 'persona', 'dev'), []);
 });

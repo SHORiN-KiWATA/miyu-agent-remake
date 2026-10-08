@@ -58,7 +58,7 @@
   color: var(--text); font: 13px var(--sans);
 }
 .setup-input:focus { background: var(--surface-1); box-shadow: var(--card-shadow); }
-.setup-menu-error { padding: 4px 10px 0; color: var(--t-danger); font-size: 12px; }
+.setup-menu-error { padding: 4px 10px 0; color: var(--danger); font-size: 12px; }
 .setup-menu-foot { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; padding-top: 6px; }
 .setup-menu-btn { height: 28px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--surface-2); color: var(--text); font: 12.5px var(--sans); cursor: pointer; }
 .setup-menu-btn:hover { background: var(--surface-3); }
@@ -71,11 +71,12 @@
 .setup-card h4 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 4px; color: var(--text); font-size: 14px; }
 .setup-card h4 code { color: var(--text-faint); font: 12px var(--mono); font-weight: 400; }
 .setup-card p { margin: 0 0 8px; color: var(--text-soft); font-size: 13px; }
-.setup-card .setup-card-problem { margin: 0; color: var(--t-danger); font: 12px var(--mono); word-break: break-all; }
+.setup-card .setup-card-problem { margin: 0; color: var(--danger); font-size: 13px; }
+.setup-card .setup-card-problem + .setup-card-problem { margin-top: 4px; }
 .setup-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .setup-tag { padding: 2px 8px; border-radius: 999px; background: var(--surface-3); color: var(--text-soft); font-size: 11.5px; }
 .setup-note, .setup-empty { margin: 10px 0 0; color: var(--text-faint); font-size: 12px; }
-.setup-empty.is-bad { color: var(--t-danger); }
+.setup-empty.is-bad { color: var(--danger); }
 .setup-menu-btn:disabled { cursor: default; opacity: 0.45; filter: none; }
 
 /* 预设页：一个软件一个开关（先只看），没装的写一行 */

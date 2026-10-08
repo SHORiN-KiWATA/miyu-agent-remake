@@ -17,7 +17,7 @@ import { res, t } from '../util/res.js';
 import { short, hitRate, seconds, hhmm } from './format.js';
 import { text, attachments } from './session.js';
 import { Timeline } from './timeline.js';
-import { noteJobs, speakerOf, reportNote, peerNote, changeNote, modelNote, compactedNote, failureText, recapNote, compactFailedNote } from './notes.js';
+import { noteJobs, speakerOf, reportNote, peerNote, changeNote, modelNote, compactedNote, failureText, recapNote, compactFailedNote, workspaceNote } from './notes.js';
 import { tasksOf, running as runningJobs } from '../lib/jobs.js';
 
 /** 权限：只读开着是只读，关着照常用的那一级（`kernel/events-bodies.md`「权限」）。 */
@@ -177,6 +177,11 @@ export function project(events, live = null, marks = new Map(), stats = new Map(
         if (e.body?.why !== 'failover') break;
         timeline.speak(Date.parse(e.at));
         items.push(changeNote(e));
+        break;
+      case 'session.workspace_changed':
+        // 换了工作区（核心 9-7）：一行「工作区：路径」，回合中途换的也一样，前面那段收起
+        timeline.speak(Date.parse(e.at));
+        items.push(workspaceNote(e));
         break;
       case 'peer.idle':
         // 别的会话空下来了、等不到了（C-6）：和回报一样不属于哪一轮
