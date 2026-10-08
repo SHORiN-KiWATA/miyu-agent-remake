@@ -53,6 +53,8 @@ GPL-3.0-or-later，见 `LICENSE`。
 
 ### 依赖记录
 
+- 施工 R-5 上给 `miyu-embed`（新 crate，本机 embedding 的小程序，`recall.md` 第四条）加了 `ort` 2.0.0-rc.13（MIT OR Apache-2.0，钉死版本，关掉默认功能只开 `std`、`download-binaries`、`tls-rustls`），它带进来的 `ort-sys`（MIT OR Apache-2.0）、`ndarray` 0.17、`matrixmultiply`、`num-complex`、`num-integer`、`rawpointer`（MIT 或 Apache-2.0）；`ort-sys` 编译时下预编好的 ONNX Runtime 用的 `ureq`、`ureq-proto`、`utf8-zero`（MIT OR Apache-2.0）、`lzma-rust2`（Apache-2.0）、`hmac-sha256`（ISC）、`socks`（MIT/Apache-2.0）、`byteorder`（Unlicense OR MIT）、`winapi` 和它的两个 `*-pc-windows-gnu`（MIT/Apache-2.0），`rustls` 那一串原来就有。分词加了 `unicode-general-category` 1.1（Apache-2.0，没有别的依赖）；`toml_edit` 多开 `serde`，带进来 `serde_spanned`（MIT OR Apache-2.0）。都在能用的名单里，门禁过了。
+  - ONNX Runtime 本身（MIT，微软）由 `ort-sys` 编译时从 pyke 的地址下预编好的静态库，静态链接进 `miyu-embed`，主程序不带：编这个 crate 要联网，没网的机器设 `ORT_LIB_PATH` 指到自己放好的库（`ort-sys` 的 `build/vars.rs`）。ONNX Runtime 静态库里还有它自己的第三方代码（protobuf、abseil、Eigen 等，BSD、Apache-2.0、MPL-2.0 这几种，都能和 GPL-3.0 合在一起发），发行包带上 `miyu-embed` 时随它发 ONNX Runtime 的 `ThirdPartyNotices.txt`（随发布那一步）。
 - 施工 W-10 给 `miyu-web` 直接加了 `getrandom` 0.4（票据的 32 个随机字节）、`base64` 0.22（核心一块块给的内容是 base64）：两个本来就在依赖图里，和别的 crate 用的同一份，没给图里添新的第三方包。门禁过了。
 - 施工 W-9 给 `miyu-web`（新 crate，网页软件，`web-ui.md`）直接用了 `hyper` 1（MIT，开 `server`、`http1`：只听本机的 HTTP 端口）、`hyper-util`（开 `tokio`）、`http-body-util`、`futures-util`、`tokio`、`serde`、`serde_json`、`tracing`（都原来就在依赖图里）；新加 `tokio-tungstenite` 0.29（MIT，关掉默认功能只开 `handshake`：WebSocket 一帧一帧收发），它带进来的 `tungstenite`（MIT OR Apache-2.0）、`sha1` 0.10 和它的 `digest`、`block-buffer`、`crypto-common`、`generic-array`、`cpufeatures`（MIT 或 Apache-2.0）、`data-encoding`（MIT）、`httpdate`（MIT OR Apache-2.0）、`rand` 0.9、`rand_chacha`、`rand_core`、`ppv-lite86`、`zerocopy`（MIT 或 Apache-2.0，`zerocopy` 另可选 BSD-2-Clause）、`getrandom` 0.3（MIT OR Apache-2.0）。`getrandom` 0.3 在 wasm、UEFI 上才要的 `wasip2`、`wit-bindgen`、`r-efi` 不在发布的四个平台的依赖图里。都在能用的名单里，门禁过了。
 - 施工 W-8 给 `miyu-store` 加了 `argon2` 0.6（MIT OR Apache-2.0，网页登录的密码哈希，`web-module.md`「怎么走」第一条），关掉默认功能、只开 `alloc`、`password-hash`，盐由原来就有的 `getrandom` 给；它带进来的 `password-hash`、`phc`、`base64ct`、`blake2`、`ctutils`、`cmov`（都是 MIT OR Apache-2.0）。都在能用的名单里。开发、测试编的也给 `argon2`、`blake2` 开优化（工作区 `Cargo.toml` 的 `[profile.dev.package.*]`），不然算一次要零点几秒。
@@ -71,6 +73,7 @@ GPL-3.0-or-later，见 `LICENSE`。
 
 | 文件 | 从哪来 | 许可证 | 怎么守 |
 |---|---|---|---|
+| `crates/miyu-embed/tests/fixtures/bge-vocab.txt` | bge-small-zh-v1.5 的词表（施工 R-5 上，分词的测试用） | MIT（FlagEmbedding 仓库的 `LICENSE`：模型卡写明 bge 模型照它发布，可免费商用） | 原文放在旁边的 `bge-vocab.LICENSE`。只在测试里，不随安装包发；模型文件本身不进仓库，放在 Release `models-bge-small-zh-v1.5`，同一份许可证跟着 |
 | `resources/models/models-dev.json` | models.dev 的 `api.json`（模型目录，施工 8-7） | MIT（models.dev 仓库的 `LICENSE`，2025 models.dev） | 原文放在旁边的 `models-dev.LICENSE`，跟着快照一起发。MIT 能和 GPL-3.0 合在一起发 |
 
 - 施工 8-7 定的（2026-10-01，施工员确认，主会话同意照图纸带快照）：快照约 5.3 MB，进仓库压缩以后约 0.5 MB，仓库的包原来约 13.5 MB，涨不到 4%。刷新一次快照是一次替换，照「怎么刷新」（`store/resources.md`）做。

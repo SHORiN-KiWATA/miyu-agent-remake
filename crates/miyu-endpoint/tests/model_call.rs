@@ -177,12 +177,15 @@ async fn each_failure_has_its_reason_and_data() {
     let limited = || Reply::error(429, &[], r#"{"error":{"message":"slow down"}}"#);
     let server = Server::start(vec![unauthorized, limited(), limited()]).await;
     let home = Home::new();
-    let two_keys = format!(
-        "{}\n[providers.b]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\nkeys = [{{ env = \"K1\" }}, {{ env = \"K2\" }}]\n",
+    // 池里两家（施工 8-25 起一家一个 key，几个候选只来自池）。
+    let two = format!(
+        "{}\n[providers.b1]\ndriver = \"openai-chat\"\nbase_url = \"{url}\"\nkey = {{ env = \"K1\" }}\n\n\
+         [providers.b2]\ndriver = \"openai-chat\"\nbase_url = \"{url}\"\nkey = {{ env = \"K2\" }}\n\n\
+         [pools.q]\nmodels = [\"b1/m\", \"b2/m\"]\nstrategy = \"pin\"\n",
         config(&server),
-        server.base_url
+        url = server.base_url
     );
-    home.write("system/config.toml", &two_keys);
+    home.write("system/config.toml", &two);
     let core = routed(
         &home,
         &[("K1", "sk-1"), ("K2", "sk-2")],
@@ -204,12 +207,12 @@ async fn each_failure_has_its_reason_and_data() {
         "{reply}"
     );
     let mut on_b = asked("hi");
-    on_b["model"] = json!("b/m");
+    on_b["model"] = json!("@q");
     let reply = client.call("c2", "model.call", on_b.clone()).await;
     assert_eq!(
         reason(&reply),
         Some("model_failed"),
-        "两个 key 都限速：{reply}"
+        "池里两家都限速：{reply}"
     );
     assert_eq!(reply["error"]["data"]["class"], "rate_limited");
     let reply = client.call("c3", "model.call", on_b).await;
@@ -218,7 +221,7 @@ async fn each_failure_has_its_reason_and_data() {
     assert!(
         data["message"]
             .as_str()
-            .is_some_and(|said| said.starts_with("all candidates cooling: b/m key ")),
+            .is_some_and(|said| said.starts_with("all candidates cooling: ")),
         "{reply}"
     );
     assert!(

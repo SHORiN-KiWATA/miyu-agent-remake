@@ -76,9 +76,9 @@ fn core(home: &Home) -> Arc<Core> {
 
 /// 三家各配一个模型：`deepseek-flash` 0.7，`gpt-5` 0.2（不收），`claude-sonnet-4-5` 1.5（超过 1）。
 const CONFIG: &str = "[ui]\nlanguage = \"en\"\n\n\
-[providers.deepseek]\nkeys = []\n\n[providers.deepseek.models.\"deepseek-flash\"]\ntemperature = 0.7\n\n\
-[providers.openai]\nkeys = []\n\n[providers.openai.models.\"gpt-5\"]\ntemperature = 0.2\n\n\
-[providers.anthropic]\nkeys = []\n\n[providers.anthropic.models.\"claude-sonnet-4-5\"]\ntemperature = 1.5\n";
+[providers.deepseek]\nlocal = false\n\n[providers.deepseek.models.\"deepseek-flash\"]\ntemperature = 0.7\n\n\
+[providers.openai]\nlocal = false\n\n[providers.openai.models.\"gpt-5\"]\ntemperature = 0.2\n\n\
+[providers.anthropic]\nlocal = false\n\n[providers.anthropic.models.\"claude-sonnet-4-5\"]\ntemperature = 1.5\n";
 
 /// `model.list` 里 `provider` 这一家的 `model` 的 `facts`。
 fn facts(reply: &Value, provider: &str, model: &str) -> Value {
@@ -193,7 +193,10 @@ async fn a_temperature_the_model_cannot_use_is_reported() {
 #[tokio::test]
 async fn a_temperature_set_applies_next_turn_and_stays_in_bounds() {
     let home = Home::new();
-    home.write("system/config.toml", "[providers.deepseek]\nkeys = []\n");
+    home.write(
+        "system/config.toml",
+        "[providers.deepseek]\nlocal = false\n",
+    );
     let mut client = Client::connect(core(&home));
     client.hello().await;
     let key = "providers.deepseek.models.deepseek-flash.temperature";

@@ -1,22 +1,27 @@
 //! 冷却表两个入口共用（`docs/blueprint/models.md`「怎么走」第十二条第 1 条，施工 8-20）：会话撞了 429 记的冷却，同一个
-//! 路由的一次性入口立刻避开那个 key；一次性的撞了，会话的下一次请求也避开。
+//! 路由的一次性入口立刻避开那一家；一次性的撞了，会话的下一次请求也避开。
 //!
-//! 一台假服务器、一家两个 key。一次性调用的用途挑成和会话钉着同一个 key 的，看它被冷却挤到另一个 key 上。
+//! 一台假服务器、两家（施工 8-25 起一家一个 key，几个候选只来自池）。会话用钉住的池 `p`，一次性的用另一个钉住的池 `q`，
+//! 成员一样、各有各的指针，都从第一家起：避开只能是因为冷却表是一份。
 
 use std::time::Duration;
 
 use serde_json::json;
 
-use crate::support::calling::{asking, bearer, blobs, entry, frozen, keyed, limited, purpose_on};
+use crate::support::calling::{asking, bearer, blobs, entry, frozen, keyed, limited};
 use crate::support::routing::{configs, hellos, routes, turn};
 use crate::support::{Home, ask, say, until_turn_ends, watch};
 use miyu_config::secret::Reference;
 use miyu_http::testkit::Server;
-use miyu_models::keys;
 
-/// 照 [`keyed`] 的配置的字、取得到的密钥（两个都取得到）。
+/// 两家 `a1`、`a2`（照 [`keyed`]，key 都取得到），再加一个成员一样的池 `q` 给一次性的用。
 fn two_keys(base_url: &str) -> (String, Vec<(Reference, String)>) {
-    keyed(base_url, 2, &[1, 2])
+    let (text, secrets) = keyed(base_url, 2, &[1, 2]);
+    let text = text.replace(
+        "[models]",
+        "[pools.q]\nmodels = [\"a1/m\", \"a2/m\"]\nstrategy = \"pin\"\n\n[models]",
+    );
+    (text, secrets)
 }
 
 /// 借出来的密钥。
@@ -27,7 +32,7 @@ fn borrowed(secrets: &[(Reference, String)]) -> Vec<(Reference, &str)> {
         .collect()
 }
 
-/// 第 `at` 个（从 0 数）key 的认证头。
+/// 池里第 `at` 家（从 0 数）的 key 的认证头。
 fn key(at: usize) -> Option<String> {
     Some(format!("Bearer sk-{}", at + 1))
 }
@@ -42,19 +47,18 @@ async fn a_rate_limit_hit_by_a_session_is_avoided_by_a_one_shot_call_at_once() {
     home.configs = configs(&text, &borrowed(&secrets));
     let routes = routes(json!({}), Duration::from_secs(60));
     let handle = home.create(&routes).await;
-    let pinned = keys::pinned(handle.id().as_str(), 2).expect("有 key");
     turn(&handle, "cmd-1").await;
     assert_eq!(
         bearer(&server, 0),
-        key(pinned),
-        "会话先发给钉着的，撞了 429"
+        key(0),
+        "会话先发给池里的第一家，撞了 429"
     );
     let (_scratch, blobs) = blobs();
     let answered = entry(&routes)
         .call(
             &frozen(&text, &borrowed(&secrets)),
             &blobs,
-            asking(None, &purpose_on(pinned, 2), "one-shot ping"),
+            asking(Some("@q"), "platform", "one-shot ping"),
         )
         .await;
     assert!(answered.is_ok(), "{answered:?}");
@@ -64,11 +68,7 @@ async fn a_rate_limit_hit_by_a_session_is_avoided_by_a_one_shot_call_at_once() {
         .filter(|request| String::from_utf8_lossy(&request.body).contains("one-shot ping"))
         .map(|request| request.header("authorization").map(str::to_string))
         .collect();
-    assert_eq!(
-        mine,
-        vec![key(1 - pinned)],
-        "一次性的照用途也钉着它：在冷却，避开"
-    );
+    assert_eq!(mine, vec![key(1)], "一次性的也从第一家起：在冷却，避开");
 }
 
 #[tokio::test]
@@ -81,19 +81,18 @@ async fn a_rate_limit_hit_by_a_one_shot_call_is_avoided_by_the_session() {
     home.configs = configs(&text, &borrowed(&secrets));
     let routes = routes(json!({}), Duration::from_secs(60));
     let handle = home.create(&routes).await;
-    let pinned = keys::pinned(handle.id().as_str(), 2).expect("有 key");
     let (_scratch, blobs) = blobs();
     let answered = entry(&routes)
         .call(
             &frozen(&text, &borrowed(&secrets)),
             &blobs,
-            asking(None, &purpose_on(pinned, 2), "one-shot ping"),
+            asking(Some("@q"), "platform", "one-shot ping"),
         )
         .await;
     assert!(answered.is_ok(), "{answered:?}");
     assert_eq!(
         (bearer(&server, 0), bearer(&server, 1)),
-        (key(pinned), key(1 - pinned)),
+        (key(0), key(1)),
         "一次性的撞了 429，当场换"
     );
     let mut pushes = watch(&handle).await;
@@ -101,6 +100,6 @@ async fn a_rate_limit_hit_by_a_one_shot_call_is_avoided_by_the_session() {
         .await
         .expect("会话在跑");
     until_turn_ends(&mut pushes).await;
-    // 会话的主请求是第三个（起标题的在这一轮答完以后）：钉着的那个在冷却，发给另一个。
-    assert_eq!(bearer(&server, 2), key(1 - pinned));
+    // 会话的主请求是第三个（起标题的在这一轮答完以后）：第一家在冷却，发给另一家。
+    assert_eq!(bearer(&server, 2), key(1));
 }

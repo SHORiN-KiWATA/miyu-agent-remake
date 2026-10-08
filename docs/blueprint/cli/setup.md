@@ -57,7 +57,7 @@
    - 没成：说「不通（<哪一步>）：<分类>：<原话>」（没有原话的不写第二个冒号以后；HTTP 状态在原话里，驱动写的 `HTTP 401: …`，和 `miyu ask` 出错那一行一样）。哪一步：`config` 是「配置」，`list` 是「列模型」，`request` 是「发请求」；分类照 `cli/ask.md` 出错那一行的说法。在终端里的回到上一步：贴的 key（自定义的也是）回到贴 key，别的回到第 3 条选一家（写了 `--provider` 的没有上一步，退出码 1）。不在终端里的，退出码 1。
 8. **存 key**（贴的 key 试通了）：`secret.set`，`name` 是这一家在配置里的编号（第 10 条）。成了：灰字照 `miyu login` 说「· <编号> 的 key 存好了」或「· 换掉了 <编号> 的 key」。被拒绝的：印核心的原话，退出码 1。
 9. **选模型**（没写 `--model`、没在第 7 条填模型名）：`provider.test` 列出的模型，试的那一个排第一、后面接「（推荐）」，别的照列出的先后。标准错误上一行头「选主对话的模型：」，一个一行 `  编号  模型`，最多列 20 个；多的再说一句「还有 <n> 个，敲名字也行。」。问「选一个编号，直接回车用推荐的：」。敲的是编号、列出来的模型名（列了的、没列的都算）：就是它；直接回车：推荐的；读到头：「没选」，退出码 1；别的：说「<敲的> 不在列表里」，再问。不在终端里的不问，用推荐的。
-10. **写**：`config.set` 写系统配置：`providers.<编号>.keys`（找到的、`--env` 的是 `[{ env }]`，贴的是 `[{ secret = "<编号>" }]`，本机的是 `[]`）和 `models.chat` 是 `<编号>/<模型>`；自定义的另写 `driver`、`base_url`，`keys` 是贴了的 `[{ secret = "<编号>" }]`、空的 `[]`；已经配好的那一家只写 `models.chat`（编号照配置里的）。配置里一个池都没有的，同一次一起写三个预设的池（施工 8-8 补，`models.md` 第七条第 5 条第 7 款）：写之前问一次 `config.get`（不带 `cwd`、`keys`），`items` 里没有 `pools.` 开头的键才写；`pools.lite`、`pools.standard`、`pools.flagship` 各写 `models = []`、`subagent = true`，不带说明。屏幕上照旧只说 `models.chat` 那一行。配置里的编号就是目录里的编号；目录里的编号不合「路径里的名字」写法的（`302ai`、`wafer.ai`），别的字换成 `-`、不是字母开头的前面加 `p-`（`p-302ai`、`wafer-ai`），另写 `catalog = "<目录里的编号>"`。成了：说「写好了：models.chat = <编号>/<模型>」，退出码 0。被拒绝的：印核心的原话，退出码 1。
+10. **写**：`config.set` 写系统配置：`providers.<编号>.key`（施工 8-25：一家一个；找到的、`--env` 的是 `{ env }`，贴的是 `{ secret = "<编号>" }`；本机的服务不要 key，写 `providers.<编号>.local = true`，这一家因此算配好了）和 `models.chat` 是 `<编号>/<模型>`；自定义的另写 `driver`、`base_url`，贴了 key 的写 `key = { secret = "<编号>" }`、没贴的不写；已经配好的那一家只写 `models.chat`（编号照配置里的）。配置里一个池都没有的，同一次一起写三个预设的池（施工 8-8 补，`models.md` 第七条第 5 条第 7 款）：写之前问一次 `config.get`（不带 `cwd`、`keys`），`items` 里没有 `pools.` 开头的键才写；`pools.lite`、`pools.standard`、`pools.flagship` 各写 `models = []`、`subagent = true`，不带说明。屏幕上照旧只说 `models.chat` 那一行。配置里的编号就是目录里的编号；目录里的编号不合「路径里的名字」写法的（`302ai`、`wafer.ai`），别的字换成 `-`、不是字母开头的前面加 `p-`（`p-302ai`、`wafer-ai`），另写 `catalog = "<目录里的编号>"`。成了：说「写好了：models.chat = <编号>/<模型>」，退出码 0。被拒绝的：印核心的原话，退出码 1。
 11. **核心断开**：说「核心断开了」，退出码 1。
 
 ### 样子
@@ -120,7 +120,7 @@ Key（不显示，可以空）：
 [providers.example]
 driver = "openai-chat"
 base_url = "https://api.example.com/v1"
-keys = [{ secret = "example" }]
+key = { secret = "example" }
 
 [models]
 chat = "example/deepseek-v4.1-flash"
@@ -243,8 +243,8 @@ Outside a terminal, give --provider and pipe the key in:
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-cli/src/setup/pick/tests.rs` | 编号表照样子（对齐、用不了的不编号且是灰的、最后一行 `0` 只和编号对齐）；敲的编号、`0`、别的字、超出的、直接回车、读到头；目录里的编号在配置里写成什么（`p-302ai`、`wafer-ai`） |
-| `crates/miyu-cli/tests/setup.rs` | 空的配置里写出三个预设的池（空成员、开关开着），已经有池的不写（施工 8-8 补）；在进程里起核心（真目录裁出来的一份，本机的服务和供应商是假服务器）、假终端照剧本回，走一遍（Unix 和 Windows 一样跑）：选一家那张表（常用的几家照先后、已找到 key、已配好、用不了的不编号、本机、最后一行自定义，施工 8-11 再补）；环境变量里的 key 只引用不复制（配置里是 `{ env }`，密钥文件里没有）；贴的 key 先试、通了存成密钥；试不通回到上一步（贴错一次再贴对）；本机的服务 `keys = []`；已经配好的只写 `models.chat`；核心看不到的变量说清是哪个、不复制；写出的配置对；推荐的排第一、敲编号换一个；没选、没收到 key；贴 key 那一步取消了（照剧本回的假终端报 `Ctrl+C`），退出码 130，配置文件、密钥文件都没动（施工 8-5 补）；屏幕上、日志里从头到尾没有 key；`miyu ask` 没模型：终端里先走 setup 再说，不是终端的退出码 5、不造会话 |
-| `crates/miyu-cli/tests/setup_custom.rs`、`crates/miyu-cli/src/setup/custom/tests.rs` | 自定义（施工 8-11 再补）：问地址（不是 http、https 开头的再问）、接口协议、key，写 `driver`、`base_url`、`keys`，贴的 key 存成密钥；编号照主机名起（本机、IP 是 `local`，通用的二级域名往前一段，不合写法的加 `p-`），配置里有了的往后加 `-2`；空 key 不存、`keys = []`、不带认证头；列不出模型的印「未获取到模型列表」、问模型名、拿它再试、通了不再列不再问；模型名、地址直接回车是没选、什么都不写 |
+| `crates/miyu-cli/tests/setup.rs` | 空的配置里写出三个预设的池（空成员、开关开着），已经有池的不写（施工 8-8 补）；在进程里起核心（真目录裁出来的一份，本机的服务和供应商是假服务器）、假终端照剧本回，走一遍（Unix 和 Windows 一样跑）：选一家那张表（常用的几家照先后、已找到 key、已配好、用不了的不编号、本机、最后一行自定义，施工 8-11 再补）；环境变量里的 key 只引用不复制（配置里是 `{ env }`，密钥文件里没有）；贴的 key 先试、通了存成密钥；试不通回到上一步（贴错一次再贴对）；本机的服务写 `local = true`（施工 8-25）；已经配好的只写 `models.chat`；核心看不到的变量说清是哪个、不复制；写出的配置对；推荐的排第一、敲编号换一个；没选、没收到 key；贴 key 那一步取消了（照剧本回的假终端报 `Ctrl+C`），退出码 130，配置文件、密钥文件都没动（施工 8-5 补）；屏幕上、日志里从头到尾没有 key；`miyu ask` 没模型：终端里先走 setup 再说，不是终端的退出码 5、不造会话 |
+| `crates/miyu-cli/tests/setup_custom.rs`、`crates/miyu-cli/src/setup/custom/tests.rs` | 自定义（施工 8-11 再补）：问地址（不是 http、https 开头的再问）、接口协议、key，写 `driver`、`base_url`、`key`（施工 8-25），贴的 key 存成密钥；编号照主机名起（本机、IP 是 `local`，通用的二级域名往前一段，不合写法的加 `p-`），配置里有了的往后加 `-2`；空 key 不存、不写 `key`、不带认证头；列不出模型的印「未获取到模型列表」、问模型名、拿它再试、通了不再列不再问；模型名、地址直接回车是没选、什么都不写 |
 | `crates/miyu-cli/tests/setup_skip.rs` | 每一步都能用参数跳过：`--provider`、`--env`、`--model` 全写的不问一句；不在终端里的从管道读 key、用推荐的模型；不在终端里又没写 `--provider` 的退出码 2、不连核心；`--provider` 不是目录里能用的退出码 2；不在终端里试不通退出码 1 |
 | `crates/miyu-cli/src/help/tests.rs` | 两页列的选项和程序真有的对得上，最宽 80 列 |
 | `crates/miyu/tests/setup.rs` | 真跑主程序：帮助页跟着界面语言；不在终端里又没写 `--provider` 退出码 2、不拉起核心 |

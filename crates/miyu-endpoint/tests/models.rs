@@ -54,11 +54,11 @@ fn data() -> Arc<ModelData> {
 /// 三家：只写了 key 的 DeepSeek、地址指到 `relay` 的中转、什么都推不出来的一家。
 fn config(relay: &str) -> String {
     format!(
-        "[providers.deepseek]\nkeys = [{{ env = \"DEEPSEEK_API_KEY\" }}, {{ env = \"DEEPSEEK_2\" }}]\n\n\
-         [providers.newapi]\ndriver = \"openai-chat\"\nbase_url = \"{relay}\"\nkeys = [{{ env = \"NEWAPI_KEY\" }}]\nprice_multiplier = 0.5\nlocal = false\n\n\
+        "[providers.deepseek]\nkey = {{ env = \"DEEPSEEK_API_KEY\" }}\n\n\
+         [providers.newapi]\ndriver = \"openai-chat\"\nbase_url = \"{relay}\"\nkey = {{ env = \"NEWAPI_KEY\" }}\nprice_multiplier = 0.5\nlocal = false\n\n\
          [providers.newapi.models.\"claude-sonnet-4-5\"]\nwindow = 100000\n\n\
          [providers.newapi.models.x]\ncatalog = \"deepseek/nope\"\n\n\
-         [providers.broken]\nkeys = []\n\n\
+         [providers.broken]\nlocal = false\n\n\
          [models]\nchat = \"deepseek/deepseek-flash\"\n"
     )
 }
@@ -127,7 +127,7 @@ async fn the_list_has_providers_models_facts_and_states() {
     assert_eq!(
         providers[0],
         json!({"id": "broken", "name": {"value": "broken", "from": "id", "key": "providers.broken.name"},
-               "driver": null, "base_url": null, "keys": [], "models": [],
+               "driver": null, "base_url": null, "models": [],
                "problem": "provider \"broken\" needs base_url: it matches nothing in the catalog"})
     );
     // DeepSeek：档案推出驱动、地址，编号认出目录里的那一家，模型是目录里那一家的四个；key 的值不交出去。
@@ -139,9 +139,8 @@ async fn the_list_has_providers_models_facts_and_states() {
     );
     assert_eq!(deepseek["base_url"], "https://api.deepseek.com");
     assert_eq!(
-        deepseek["keys"],
-        json!([{"ref": "env:DEEPSEEK_API_KEY", "set": true, "state": "ok"},
-               {"ref": "env:DEEPSEEK_2", "set": false, "state": "ok"}])
+        deepseek["key"],
+        json!({"ref": "env:DEEPSEEK_API_KEY", "set": true, "state": "ok"})
     );
     assert_eq!(
         deepseek["catalog"],
@@ -345,7 +344,7 @@ async fn an_env_based_address_never_leaves_model_list_or_config_get() {
     let home = Home::new();
     home.write(
         "system/config.toml",
-        "[providers.relay]\ndriver = \"openai-chat\"\nbase_url = { env = \"RELAY_URL\" }\nkeys = []\n\n[models]\nchat = \"relay/m\"\n",
+        "[providers.relay]\ndriver = \"openai-chat\"\nbase_url = { env = \"RELAY_URL\" }\n\n[models]\nchat = \"relay/m\"\n",
     );
     let secret_address = "https://secret-relay.example.invalid/v1";
     let with_env = core(&home, &[("RELAY_URL", secret_address)], data());
@@ -389,7 +388,7 @@ async fn fetching_the_provider_list_resolves_an_env_based_address() {
     let home = Home::new();
     home.write(
         "system/config.toml",
-        "[providers.relay]\ndriver = \"openai-chat\"\nbase_url = { env = \"RELAY_URL\" }\nkeys = []\n\n[models]\nchat = \"relay/m\"\n",
+        "[providers.relay]\ndriver = \"openai-chat\"\nbase_url = { env = \"RELAY_URL\" }\n\n[models]\nchat = \"relay/m\"\n",
     );
     let reply = list(
         &home,
@@ -406,11 +405,11 @@ async fn fetching_the_provider_list_resolves_an_env_based_address() {
     assert!(!reply.to_string().contains(&server.base_url), "{reply}");
 }
 
-/// 冷却（施工 8-9，`models.md`「协议」`model.list` 的 `state`）：模型的状态照它能用的 key（取得到值的）里最好的那个，
-/// 都在冷却的是 `cooling`，带最早恢复的 `until` 和那一个的 `class`；认证失败停了整个 key 的，那个 key 也是 `cooling`。
-/// 取不到值的 key 不算：`DEEPSEEK_2` 没设的时候，只看第一个 key。
+/// 冷却（施工 8-9，`models.md`「协议」`model.list` 的 `state`；施工 8-25 起一家一个 key）：限速停这一家的这个模型，模型是
+/// `cooling`，带 `until`、`class`，别的模型照常；认证失败停整家，key 和这一家的每个模型都是 `cooling`、`class` 是 `auth`。
+/// 写了 key、取不到值的，模型都是 `no_key`。
 #[tokio::test]
-async fn cooling_shows_on_models_and_keys() {
+async fn cooling_shows_on_models_and_the_key() {
     use miyu_kernel::event::ErrorClass;
     use miyu_models::cooldown::Candidate;
 
@@ -421,56 +420,61 @@ async fn cooling_shows_on_models_and_keys() {
     );
     let data = data();
     let now = wall_now();
-    let fail = |key: &str, model: &str, class: ErrorClass| {
+    let fail = |model: &str, class: ErrorClass| {
         data.cooldown(|table, rules| {
             table
-                .fail(
-                    &Candidate::new("deepseek", Some(key), model),
-                    &class,
-                    None,
-                    rules,
-                    now,
-                )
+                .fail(&Candidate::new("deepseek", model), &class, None, rules, now)
                 .expect("记了")
                 .until
         })
     };
-    let limited = fail(
-        "env:DEEPSEEK_API_KEY",
-        "deepseek-flash",
-        ErrorClass::RateLimited,
-    );
-    let stopped = fail("env:DEEPSEEK_2", "deepseek-v4-pro", ErrorClass::Auth);
-    let both = [("DEEPSEEK_API_KEY", "sk-1"), ("DEEPSEEK_2", "sk-2")];
+    let set = [("DEEPSEEK_API_KEY", "sk-1")];
+    let limited = fail("deepseek-flash", ErrorClass::RateLimited);
     let reply = list(
         &home,
-        &both,
+        &set,
         Arc::clone(&data),
         json!({"provider": "deepseek"}),
     )
     .await;
     let deepseek = &reply["result"]["providers"][0];
     assert_eq!(
-        deepseek["keys"],
-        json!([{"ref": "env:DEEPSEEK_API_KEY", "set": true, "state": "ok"},
-               {"ref": "env:DEEPSEEK_2", "set": true, "state": "cooling", "until": stopped, "class": "auth"}]),
-        "认证失败停了整个 key"
+        deepseek["key"],
+        json!({"ref": "env:DEEPSEEK_API_KEY", "set": true, "state": "ok"}),
+        "限速只停这个模型"
     );
     let flash = model(deepseek, "deepseek-flash");
     assert_eq!(
         (&flash["state"], &flash["until"], &flash["class"]),
-        (&json!("cooling"), &json!(limited), &json!("rate_limited")),
-        "两个 key 都不能用：最早恢复的那一个"
+        (&json!("cooling"), &json!(limited), &json!("rate_limited"))
     );
-    let pro = model(deepseek, "deepseek-v4-pro");
-    assert_eq!(pro["state"], "ok", "第一个 key 能用");
-    assert!(pro.get("until").is_none(), "{pro}");
-    // 第二个 key 取不到值：只看第一个，pro 照样能用，flash 照第一个 key 的冷却。
-    let one = [("DEEPSEEK_API_KEY", "sk-1")];
-    let reply = list(&home, &one, data, json!({"provider": "deepseek"})).await;
+    assert_eq!(model(deepseek, "deepseek-v4-pro")["state"], "ok");
+
+    let stopped = fail("deepseek-v4-pro", ErrorClass::Auth);
+    let reply = list(
+        &home,
+        &set,
+        Arc::clone(&data),
+        json!({"provider": "deepseek"}),
+    )
+    .await;
     let deepseek = &reply["result"]["providers"][0];
-    assert_eq!(model(deepseek, "deepseek-flash")["until"], json!(limited));
-    assert_eq!(model(deepseek, "deepseek-v4-flash")["state"], "ok");
+    assert_eq!(
+        deepseek["key"],
+        json!({"ref": "env:DEEPSEEK_API_KEY", "set": true, "state": "cooling", "until": stopped, "class": "auth"}),
+        "认证失败停了整家"
+    );
+    let flash_now = model(deepseek, "deepseek-v4-flash");
+    assert_eq!(
+        (&flash_now["state"], &flash_now["class"]),
+        (&json!("cooling"), &json!("auth")),
+        "这一家别的模型也停"
+    );
+
+    let reply = list(&home, &[], data, json!({"provider": "deepseek"})).await;
+    let deepseek = &reply["result"]["providers"][0];
+    assert_eq!(deepseek["key"]["set"], false);
+    assert_eq!(model(deepseek, "deepseek-flash")["state"], "no_key");
 }
 
 /// 现在，照系统时间。

@@ -28,7 +28,7 @@ fn anthropic_hellos(n: usize) -> Vec<Reply> {
 /// 后面：模型手写的资料。
 fn config(base_url: &str, models: &str) -> String {
     format!(
-        "[providers.claude]\ndriver = \"anthropic\"\nbase_url = \"{base_url}\"\nkeys = [{{ env = \"CLAUDE_KEY\" }}]\n\n{models}\n[models]\nchat = \"claude/m\"\n"
+        "[providers.claude]\ndriver = \"anthropic\"\nbase_url = \"{base_url}\"\nkey = {{ env = \"CLAUDE_KEY\" }}\n\n{models}\n[models]\nchat = \"claude/m\"\n"
     )
 }
 

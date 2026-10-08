@@ -37,7 +37,7 @@ async fn the_reply_is_the_drawing_example() {
     let home = Home::new();
     home.write(
         "system/config.toml",
-        "[providers.deepseek]\nkeys = []\n\n[models]\nchat = \"deepseek/deepseek-v4\"\n",
+        "[providers.deepseek]\nlocal = false\n\n[models]\nchat = \"deepseek/deepseek-v4\"\n",
     );
     let items = [ProviderSettings::ITEMS, UseSettings::ITEMS].concat();
     let mut client = Client::connect(home.core_with_items(&script(1_000_000), None, &[], &items));

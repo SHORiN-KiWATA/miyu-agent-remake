@@ -250,8 +250,7 @@ fn a_candidate_is_worked_out_like_the_config_it_would_write() {
     };
     assert_eq!(candidate.id(), "deepseek");
     let tried = provider(&candidate.values(), &held.knowledge(), "deepseek").expect("推得出");
-    let written =
-        resolved("[providers.deepseek]\nkeys = [{ env = \"DEEPSEEK_API_KEY\" }]\n").values();
+    let written = resolved("[providers.deepseek]\nkey = { env = \"DEEPSEEK_API_KEY\" }\n").values();
     let real = provider(&written, &held.knowledge(), "deepseek").expect("推得出");
     assert_eq!(tried, real, "试的和写进配置以后真用的一样");
 
@@ -260,8 +259,8 @@ fn a_candidate_is_worked_out_like_the_config_it_would_write() {
         ..Candidate::default()
     };
     let ollama = provider(&local.values(), &held.knowledge(), "ollama").expect("档案推得出");
-    assert!(ollama.keys.is_empty() && ollama.local);
-    let written = resolved("[providers.ollama]\nkeys = []\n").values();
+    assert!(ollama.key.is_none() && ollama.local);
+    let written = resolved("[providers.ollama]\nlocal = true\n").values();
     assert_eq!(
         Some(ollama),
         provider(&written, &held.knowledge(), "ollama").ok()
@@ -276,7 +275,7 @@ fn a_candidate_is_worked_out_like_the_config_it_would_write() {
     assert_eq!(custom.id(), CANDIDATE);
     let relay = provider(&custom.values(), &held.knowledge(), CANDIDATE).expect("手写的");
     assert_eq!(relay.driver, Driver::OpenAiChat);
-    assert_eq!(relay.keys, [value_key()]);
+    assert_eq!(relay.key, Some(value_key()));
     let bare = Candidate::default();
     let problem = provider(&bare.values(), &held.knowledge(), CANDIDATE).expect_err("推不出");
     assert!(problem.0.contains("needs base_url"), "{problem:?}");

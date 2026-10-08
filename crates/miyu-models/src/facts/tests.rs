@@ -36,7 +36,7 @@ fn file(layer: Layer) -> String {
     format!("{}/config.toml", layer.as_str())
 }
 
-const DEEPSEEK: &str = "[providers.deepseek]\nkeys = []\n";
+const DEEPSEEK: &str = "[providers.deepseek]\nlocal = false\n";
 
 #[test]
 fn every_fact_from_the_catalog_carries_its_entry_layer_and_date() {
@@ -77,7 +77,7 @@ fn every_fact_from_the_catalog_carries_its_entry_layer_and_date() {
 /// 每一格各查各的：手写了窗口的，最大输出照样从目录借；手写的来源写文件和行。
 #[test]
 fn each_fact_is_looked_up_on_its_own() {
-    let source = "[providers.deepseek]\nkeys = []\n\n[providers.deepseek.models.\"deepseek-flash\"]\nwindow = 60000\ninputs = [\"text\"]\ntools = false\nreasoning = [\"high\"]\n";
+    let source = "[providers.deepseek]\nlocal = false\n\n[providers.deepseek.models.\"deepseek-flash\"]\nwindow = 60000\ninputs = [\"text\"]\ntools = false\nreasoning = [\"high\"]\n";
     let (facts, _) = facts_of(&held(), source, "deepseek", "deepseek-flash");
     assert_eq!(facts.window.value, Some(60_000));
     assert_eq!(
@@ -114,7 +114,7 @@ fn reasoning_levels_follow_the_profile_and_the_default_must_be_one_of_them() {
     );
     let (plain, _) = facts_of(&held(), DEEPSEEK, "deepseek", "deepseek-flash");
     assert_eq!(plain.levels(), ["low", "high", "max"], "档案没写开关：不加");
-    let written = "[providers.deepseek]\nkeys = []\n\n[providers.deepseek.models.\"deepseek-flash\"]\neffort = \"none\"\n";
+    let written = "[providers.deepseek]\nlocal = false\n\n[providers.deepseek.models.\"deepseek-flash\"]\neffort = \"none\"\n";
     let (facts, _) = facts_of(&toggled, written, "deepseek", "deepseek-flash");
     assert_eq!(facts.effort.value.as_deref(), Some("off"));
     assert_eq!(
@@ -127,7 +127,7 @@ fn reasoning_levels_follow_the_profile_and_the_default_must_be_one_of_them() {
         (None, Source::Default),
         "没有开关就没有 off：照没写"
     );
-    let own = "[providers.deepseek]\nkeys = []\n\n[providers.deepseek.models.\"deepseek-flash\"]\nreasoning = [\"disabled\", \"turbo\"]\neffort = \"turbo\"\n";
+    let own = "[providers.deepseek]\nlocal = false\n\n[providers.deepseek.models.\"deepseek-flash\"]\nreasoning = [\"disabled\", \"turbo\"]\neffort = \"turbo\"\n";
     let (facts, _) = facts_of(&toggled, own, "deepseek", "deepseek-flash");
     assert_eq!(facts.levels(), ["off", "turbo"], "手写的盖过目录，照样规整");
     assert_eq!(facts.effort.value.as_deref(), Some("turbo"));
@@ -209,7 +209,7 @@ fn effort_default_is_personal_over_system_or_whichever_is_written() {
 #[test]
 fn facts_json_says_which_config_layer_a_value_came_from() {
     let held = held();
-    let system = "[providers.deepseek]\nkeys = []\n\n[providers.deepseek.models.\"deepseek-flash\"]\nwindow = 60000\n";
+    let system = "[providers.deepseek]\nlocal = false\n\n[providers.deepseek.models.\"deepseek-flash\"]\nwindow = 60000\n";
     let personal = "[providers.deepseek.models.\"deepseek-flash\"]\nwindow = 70000\n";
 
     let window_of = |system: &str, personal: &str| {
@@ -410,7 +410,7 @@ fn a_missing_hand_pick_borrows_nothing() {
         driver: crate::provider::Driver::OpenAiChat,
         base_url: miyu_config::Address::Literal("https://api.deepseek.com".to_string()),
         compat: miyu_drivers::openai_chat::Compat::default(),
-        keys: Vec::new(),
+        key: None,
         images: None,
         catalog: "deepseek".to_string(),
         recognized: None,
@@ -441,9 +441,9 @@ fn anthropic_can_switch_thinking_off_without_a_profile() {
         source: crate::catalog::CatalogSource::Snapshot,
         fetched: "2026-10-03T00:00:00.000Z".to_string(),
     });
-    let source = "[providers.anthropic]\ndriver = \"anthropic\"\nbase_url = \"https://api.anthropic.com/v1\"\nkeys = []\n\n\
-        [providers.relay]\ndriver = \"openai-chat\"\nbase_url = \"https://relay.invalid/v1\"\ncatalog = \"anthropic\"\nkeys = []\n\n\
-        [providers.gpt]\ndriver = \"openai-responses\"\nbase_url = \"https://gpt.invalid/v1\"\ncatalog = \"anthropic\"\nkeys = []\n";
+    let source = "[providers.anthropic]\ndriver = \"anthropic\"\nbase_url = \"https://api.anthropic.com/v1\"\n\n\
+        [providers.relay]\ndriver = \"openai-chat\"\nbase_url = \"https://relay.invalid/v1\"\ncatalog = \"anthropic\"\n\n\
+        [providers.gpt]\ndriver = \"openai-responses\"\nbase_url = \"https://gpt.invalid/v1\"\ncatalog = \"anthropic\"\n";
     let (claude, _) = facts_of(&held, source, "anthropic", "claude-sonnet-5");
     assert_eq!(claude.levels(), ["off", "low", "high"]);
     assert_eq!(claude.max_output.value, Some(128_000));

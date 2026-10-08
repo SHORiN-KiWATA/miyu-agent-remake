@@ -100,9 +100,9 @@
         "name": "Address",
         "description": "The address of this provider's API; the driver adds the path. Known providers can leave it out."
       },
-      "providers.<id>.keys": {
-        "name": "Keys",
-        "description": "Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Each session sticks to one of them. Empty means no auth header."
+      "providers.<id>.key": {
+        "name": "Key",
+        "description": "Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. One per provider; to use several quotas together, set up several providers and put them in a pool. Without one, no auth header is sent."
       },
       "providers.<id>.name": {
         "name": "Display name",
@@ -222,11 +222,11 @@
       },
       "models.cooldown.auth.base": {
         "name": "Auth failure pause",
-        "description": "How long a whole key rests the first time it fails to authenticate or runs out of quota. It doubles each time in a row."
+        "description": "How long a whole provider rests the first time it fails to authenticate or runs out of quota. It doubles each time in a row."
       },
       "models.cooldown.auth.max": {
         "name": "Auth failure pause cap",
-        "description": "The pause for a whole key stops doubling here."
+        "description": "The pause for a whole provider stops doubling here."
       },
       "external.bindings.<external>": {
         "name": "Owner's platform accounts",

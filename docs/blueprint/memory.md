@@ -275,7 +275,9 @@
 | R-3 再补 | 命令行 `miyu memory` |
 | R-4 上 | 常驻的摘要：回合开始的挂接点（接口先发核心的主会话）、`refs`、`present`，交最新的几条（第三条） |
 | R-4 下 | 摘要的排名：半衰期、用到几次（照 `refs`）、类 |
-| R-5 | embedding：`miyu-embed`、清单和下载、`models.embedding`、远程接口、向量一路接进来（和 R-2 到 R-4 不碰同一片代码，能并行） |
+| R-5 上 | 本机 embedding 的小程序 `miyu-embed`：清单、WordPiece 分词、ONNX Runtime 静态链接，一行一句进、一行一个向量出（`recall.md` 第四条第 2、4、5 款） |
+| R-5 中 | 核心接上小程序：`models.embedding`、照清单下载和核对、按需拉起、空闲退出 |
+| R-5 下 | 向量一路：向量表、补、照模型和字的哈希缓存、两路合并，远程的 `/v1/embeddings`（`recall.md` 第三条） |
 | R-6 | 抽取 |
 | R-7 | 合并、重写摘要 |
 | R-8 | 联想（测评集上定门槛） |

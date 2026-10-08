@@ -203,7 +203,7 @@ async fn session_create_records_the_resolved_model_or_refuses_it() {
     let bare = Home::new();
     bare.write(
         "system/config.toml",
-        "[providers.a]\nkeys = []\n\n[pools.lite]\nmodels = [\"a/x\"]\n",
+        "[providers.a]\nlocal = false\n\n[pools.lite]\nmodels = [\"a/x\"]\n",
     );
     let (mut client, _) = connect(&bare).await;
     let reply = create(&mut client, "lite", json!("lite")).await;
@@ -219,7 +219,7 @@ async fn a_reference_to_what_is_not_configured_is_a_bad_reference() {
     let home = Home::new();
     home.write(
         "system/config.toml",
-        "[ui]\nlanguage = \"en\"\n\n[providers.a]\nkeys = []\n\n[models]\nchat = \"c/m\"\nvision = \"@nope\"\n\n[pools.p]\nmodels = [\"a/x\", \"d/y\"]\n",
+        "[ui]\nlanguage = \"en\"\n\n[providers.a]\nlocal = false\n\n[models]\nchat = \"c/m\"\nvision = \"@nope\"\n\n[pools.p]\nmodels = [\"a/x\", \"d/y\"]\n",
     );
     let (mut client, hello) = connect(&home).await;
     assert_eq!(hello["result"]["config_errors"], 3, "{hello}");
@@ -254,7 +254,7 @@ async fn a_reference_to_what_is_not_configured_is_a_bad_reference() {
         .call(
             "c",
             "config.check",
-            json!({"layer": "system", "text": "[providers.c]\nkeys = []\n\n[models]\nchat = \"c/m\"\n"}),
+            json!({"layer": "system", "text": "[providers.c]\nlocal = false\n\n[models]\nchat = \"c/m\"\n"}),
         )
         .await;
     assert_eq!(checked["result"]["problems"], json!([]), "{checked}");

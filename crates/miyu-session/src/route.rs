@@ -55,7 +55,6 @@ pub use once::{Answer, Ask, OneShot, Unanswered};
 pub use probe::{Probe, Probed, Stage, probe};
 pub use shared::{ModelData, Observed, read_observed};
 
-use std::collections::BTreeMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
@@ -134,7 +133,6 @@ impl Models for Routes {
                 member,
                 last: limits.model.clone(),
                 limits,
-                moved: BTreeMap::new(),
                 sticky: None,
                 config: session.config,
             })),
@@ -185,8 +183,6 @@ struct Pinned {
     last: Model,
     /// 交给内核的限额：造端口时定，钉住的池钉着的成员换了跟着换（施工 8-9）。
     limits: Limits,
-    /// 出错换过去、成了的 key（施工 8-9，第一条第 6 条）：供应商的编号 → key 的名字。以后这一家先用它，只在内存里。
-    moved: BTreeMap<String, String>,
     /// 上一次主请求收到过增量、然后出错的那一个（施工 8-9，第四条第 3 条）：下一次主请求不挑，还发给它。说完了就放开。
     sticky: Option<Candidate>,
     /// 最近一次定下的配置：造端口时的、回合开始冻结的（施工 8-18）。给头看的那一档照它查配置的默认。
@@ -281,7 +277,6 @@ impl Route {
         };
         let seat = Seat {
             seed: self.session.as_str(),
-            moved: &pinned.moved,
             held: pinned.member.as_ref(),
             sticky: pinned.sticky.as_ref().filter(|_| main),
         };

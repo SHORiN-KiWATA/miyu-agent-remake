@@ -2,7 +2,8 @@
 //! 写成一份最终值，交给和会话的路由同一个 [`crate::provider::provider`] 推，试的和写进去以后真用的不会不一样。
 //!
 //! - 编号是 `catalog`（`miyu setup` 写配置时用的就是它），没写的是 [`CANDIDATE`]。`catalog` 不另写成一格：编号就是它。
-//! - `keys` 总写（没有 key 的是空的列表）：这一家因此算配好了。
+//! - `key` 有的才写（一家一个，施工 8-25）；没有 key、也没写驱动和地址的是本机的服务，写 `local = true`：这一家因此算配好了，
+//!   和 `miyu setup` 写进配置的一样（施工 8-25 以前靠总写一个可能是空的 `keys`）。
 //! - `{value}` 的 key 只在这一次的内存里：最终值里写成 [`value_key`] 这个引用，取值的一方只认它。它不合密钥名字的写法，
 //!   和密钥文件里真的名字撞不上。
 
@@ -51,8 +52,13 @@ impl Candidate {
         if let Some(base_url) = &self.base_url {
             values.set(&at("base_url"), text(base_url));
         }
-        let keys = self.key.iter().cloned().map(Value::Secret).collect();
-        values.set(&at("keys"), Value::List(keys));
+        match &self.key {
+            Some(key) => values.set(&at("key"), Value::Secret(key.clone())),
+            None if self.driver.is_none() && self.base_url.is_none() => {
+                values.set(&at("local"), Value::Bool(true));
+            }
+            None => {}
+        }
         values
     }
 }

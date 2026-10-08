@@ -78,7 +78,7 @@ pub fn routes_with(data: Arc<ModelData>, idle: Duration) -> Routes {
 /// `models.chat` 指着它，模型手写的资料另写 `model` 那几行。档案里 `deepseek` 那一段是 `profile`，空闲超时六十秒。
 pub fn served(base_url: &str, profile: serde_json::Value, model: &str) -> (Routes, Configs) {
     let source = format!(
-        "[providers.deepseek]\ndriver = \"openai-chat\"\nbase_url = \"{base_url}\"\nkeys = [{{ env = \"TEST_KEY\" }}]\n\n[providers.deepseek.models.\"deepseek-v4\"]\n{model}\n[models]\nchat = \"deepseek/deepseek-v4\"\n"
+        "[providers.deepseek]\ndriver = \"openai-chat\"\nbase_url = \"{base_url}\"\nkey = {{ env = \"TEST_KEY\" }}\n\n[providers.deepseek.models.\"deepseek-v4\"]\n{model}\n[models]\nchat = \"deepseek/deepseek-v4\"\n"
     );
     let configs = configs(
         &source,

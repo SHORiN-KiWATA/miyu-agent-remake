@@ -32,8 +32,8 @@ fn held(catalog: bool) -> Held {
 }
 
 #[test]
-fn a_known_provider_needs_only_its_keys() {
-    let values = values("[providers.deepseek]\nkeys = [{ env = \"DEEPSEEK_API_KEY\" }]\n");
+fn a_known_provider_needs_only_its_key() {
+    let values = values("[providers.deepseek]\nkey = { env = \"DEEPSEEK_API_KEY\" }\n");
     let held = held(false);
     let deepseek = provider(&values, &held.knowledge(), "deepseek").expect("档案推得出");
     assert_eq!(deepseek.driver, Driver::OpenAiChat);
@@ -41,7 +41,10 @@ fn a_known_provider_needs_only_its_keys() {
         deepseek.base_url,
         Address::Literal("https://api.deepseek.com".to_string())
     );
-    assert_eq!(deepseek.keys, [KeyRef::Env("DEEPSEEK_API_KEY".to_string())]);
+    assert_eq!(
+        deepseek.key,
+        Some(KeyRef::Env("DEEPSEEK_API_KEY".to_string()))
+    );
     assert_eq!(deepseek.images, Some(ImageTokens::DeepSeek));
     assert_ne!(deepseek.compat, Compat::default(), "开关照档案");
     assert_eq!(deepseek.catalog, "deepseek");
@@ -69,7 +72,7 @@ fn hand_written_values_win_and_the_profile_is_found_by_catalog() {
             .map(|c| c.compat())
     );
     assert_eq!(dev.catalog, "deepseek");
-    assert!(dev.keys.is_empty(), "没写 key 的不带认证头");
+    assert!(dev.key.is_none(), "没写 key 的不带认证头");
     let plain = provider(&values, &held.knowledge(), "plain").expect("手写的");
     assert_eq!(
         (plain.compat, plain.images),
@@ -83,8 +86,8 @@ fn hand_written_values_win_and_the_profile_is_found_by_catalog() {
 #[test]
 fn a_relay_with_only_an_address_speaks_openai_chat() {
     let values = values(
-        "[providers.lan]\nbase_url = \"http://relay.example.invalid:3425/v1\"\nkeys = []\n\n\
-         [providers.written]\ndriver = \"anthropic\"\nbase_url = \"http://relay.example.invalid:3425\"\nkeys = []\n",
+        "[providers.lan]\nbase_url = \"http://relay.example.invalid:3425/v1\"\n\n\
+         [providers.written]\ndriver = \"anthropic\"\nbase_url = \"http://relay.example.invalid:3425\"\n",
     );
     let held = held(true);
     let lan = provider(&values, &held.knowledge(), "lan").expect("有地址就能用");
@@ -101,7 +104,7 @@ fn a_relay_with_only_an_address_speaks_openai_chat() {
 
 #[test]
 fn a_provider_that_cannot_be_worked_out_says_why() {
-    let values = values("[providers.newapi]\nkeys = []\n\n[providers.gemini]\nkeys = []\n");
+    let values = values("[providers.newapi]\nlocal = false\n\n[providers.gemini]\nlocal = false\n");
     let held = held(true);
     assert_eq!(
         provider(&values, &held.knowledge(), "newapi"),
@@ -126,7 +129,7 @@ fn a_provider_that_cannot_be_worked_out_says_why() {
 #[test]
 fn the_catalog_fills_in_what_the_profile_lacks() {
     let values = values(
-        "[providers.opencodego]\nkeys = []\n\n[providers.anthropic]\nkeys = []\n\n[providers.aihubmix]\nkeys = []\n",
+        "[providers.opencodego]\nlocal = false\n\n[providers.anthropic]\nlocal = false\n\n[providers.aihubmix]\nlocal = false\n",
     );
     let held = held(true);
     let go = provider(&values, &held.knowledge(), "opencodego").expect("目录推得出");
@@ -196,7 +199,7 @@ fn resolving_the_address_follows_the_reference_or_fails_cleanly() {
         driver: Driver::OpenAiChat,
         base_url: Address::Literal("https://a.invalid".to_string()),
         compat: Compat::default(),
-        keys: Vec::new(),
+        key: None,
         images: None,
         catalog: "a".to_string(),
         recognized: None,
@@ -255,7 +258,7 @@ fn anthropic_and_responses_are_drivers_now() {
     assert!(Driver::Anthropic.needs_max_output());
     assert!(!Driver::OpenAiChat.needs_max_output());
     let values = values(
-        "[providers.claude]\ndriver = \"anthropic\"\nbase_url = \"https://api.anthropic.com/v1\"\nkeys = []\n\n[providers.deepseek]\nkeys = []\n",
+        "[providers.claude]\ndriver = \"anthropic\"\nbase_url = \"https://api.anthropic.com/v1\"\n\n[providers.deepseek]\nlocal = false\n",
     );
     let held = held(false);
     let claude = provider(&values, &held.knowledge(), "claude").expect("认得了");
@@ -317,7 +320,7 @@ fn each_model_speaks_through_its_own_driver() {
     let held = go_held(true);
     let npm = &held.profiles.npm;
     let values = values(
-        "[providers.opencode-go]\nkeys = []\n\n[providers.fixed]\ndriver = \"openai-chat\"\nbase_url = \"https://opencode.ai/zen/go/v1\"\nkeys = []\n",
+        "[providers.opencode-go]\nlocal = false\n\n[providers.fixed]\ndriver = \"openai-chat\"\nbase_url = \"https://opencode.ai/zen/go/v1\"\n",
     );
     let go = provider(&values, &held.knowledge(), "opencode-go").expect("目录推得出");
     assert_eq!(go.driver, Driver::OpenAiChat, "这一家的包名");
@@ -368,7 +371,7 @@ fn each_model_speaks_through_its_own_driver() {
     assert!(anthropic.switchable(), "能不能关思考照模型的驱动");
     assert!(anthropic.driver.needs_max_output());
     assert_eq!(anthropic.id, go.id, "别的照这一家");
-    assert_eq!(anthropic.keys, go.keys);
+    assert_eq!(anthropic.key, go.key);
 }
 
 /// 交错思考（施工 8-14）：走 openai-chat 的照目录的字段回传、`always` 是真的；档案写了 `reasoning` 的照档案；认不出的字段、
@@ -378,7 +381,7 @@ fn interleaved_thinking_is_replayed_unless_the_profile_says_otherwise() {
     let held = go_held(false);
     let npm = &held.profiles.npm;
     let written = values(
-        "[providers.opencode-go]\ndriver = \"openai-chat\"\nbase_url = \"https://opencode.ai/zen/go/v1\"\nkeys = []\n\n[providers.deepseek]\ndriver = \"openai-chat\"\nbase_url = \"https://api.deepseek.com\"\nkeys = []\n",
+        "[providers.opencode-go]\ndriver = \"openai-chat\"\nbase_url = \"https://opencode.ai/zen/go/v1\"\n\n[providers.deepseek]\ndriver = \"openai-chat\"\nbase_url = \"https://api.deepseek.com\"\n",
     );
     let go = provider(&written, &held.knowledge(), "opencode-go").expect("手写的");
     assert!(!go.reasoning_written);
@@ -429,7 +432,7 @@ fn interleaved_thinking_is_replayed_unless_the_profile_says_otherwise() {
         }
     );
     let free = provider(
-        &values("[providers.opencode-go]\nkeys = []\n"),
+        &values("[providers.opencode-go]\nlocal = false\n"),
         &go_held(true).knowledge(),
         "opencode-go",
     )
@@ -452,7 +455,8 @@ fn interleaved_thinking_is_replayed_unless_the_profile_says_otherwise() {
 #[test]
 fn headers_come_from_the_profile_and_fill_with_the_seed() {
     let held = go_held(true);
-    let values = values("[providers.opencode-go]\nkeys = []\n\n[providers.deepseek]\nkeys = []\n");
+    let values =
+        values("[providers.opencode-go]\nlocal = false\n\n[providers.deepseek]\nlocal = false\n");
     let go = provider(&values, &held.knowledge(), "opencode-go").expect("目录推得出");
     assert_eq!(
         go.headers("ses-1"),

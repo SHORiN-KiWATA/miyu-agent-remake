@@ -218,7 +218,7 @@ pub(crate) fn snapshot(core: &Core) -> Snapshot {
                 Some(miyu_config::Address::Env(name)) => Some(Reference::Env(name)),
                 _ => None,
             };
-            settings.keys.into_iter().chain(base_url)
+            settings.key.into_iter().chain(base_url)
         })
         .map(|reference| {
             let secret = config.secret(&reference);

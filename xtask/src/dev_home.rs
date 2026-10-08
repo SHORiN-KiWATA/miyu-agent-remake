@@ -90,7 +90,7 @@ impl Vars {
              driver = \"openai-chat\"\n\
              base_url = {{ env = \"{BASE_URL}\" }}\n\
              catalog = \"deepseek\"\n\
-             keys = [{{ env = \"{KEY_ENV}\" }}]\n"
+             key = {{ env = \"{KEY_ENV}\" }}\n"
         );
         if let Some(window) = self.window {
             text.push_str(&format!(

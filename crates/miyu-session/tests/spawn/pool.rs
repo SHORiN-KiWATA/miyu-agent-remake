@@ -13,12 +13,12 @@ use super::*;
 use crate::support::routing::{configs, resolved};
 
 /// 一家 `a`，`models.chat` 是 `a/main`。池 `fast` 开着、带说明，`slow` 关着，`off` 没写开关，`lite` 开着、没成员。
-const CONFIG: &str = "[providers.a]\nkeys = []\n\n[models]\nchat = \"a/main\"\n\n\
+const CONFIG: &str = "[providers.a]\nlocal = false\n\n[models]\nchat = \"a/main\"\n\n\
 [pools.fast]\nmodels = [\"a/x\"]\nsubagent = true\ndescription = \"Quick lookups.\"\n\n\
 [pools.slow]\nmodels = [\"a/y\"]\n\n[pools.off]\nmodels = [\"a/z\"]\n\n[pools.lite]\nmodels = []\nsubagent = true\n";
 
 /// 同一份，后来改了：`slow` 打开了、带说明，`fast` 的说明换了。
-const CHANGED: &str = "[providers.a]\nkeys = []\n\n[models]\nchat = \"a/main\"\n\n\
+const CHANGED: &str = "[providers.a]\nlocal = false\n\n[models]\nchat = \"a/main\"\n\n\
 [pools.fast]\nmodels = [\"a/x\"]\nsubagent = true\ndescription = \"Changed.\"\n\n\
 [pools.slow]\nmodels = [\"a/y\"]\nsubagent = true\ndescription = \"Big model, slow.\"\n\n\
 [pools.off]\nmodels = [\"a/z\"]\n\n[pools.lite]\nmodels = []\nsubagent = true\n";
@@ -243,7 +243,7 @@ async fn without_pools_to_offer_there_is_no_pool_parameter() {
     let handle = parent_on(
         &mut home,
         configs(
-            "[providers.a]\nkeys = []\n\n[pools.lite]\nmodels = []\nsubagent = true\n",
+            "[providers.a]\nlocal = false\n\n[pools.lite]\nmodels = []\nsubagent = true\n",
             &[],
         ),
         &script,

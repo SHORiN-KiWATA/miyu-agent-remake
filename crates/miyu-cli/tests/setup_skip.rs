@@ -37,7 +37,7 @@ async fn every_step_skipped_asks_nothing() {
     let body: serde_json::Value = serde_json::from_slice(&server.received()[1].body).expect("JSON");
     assert_eq!(body["model"], "deepseek-v4-pro", "试写了的那个");
     let config = home.system_config();
-    assert!(config.contains("keys = [{ env = \"MY_KEY\" }]"), "{config}");
+    assert!(config.contains("key = { env = \"MY_KEY\" }"), "{config}");
     assert!(
         config.contains("chat = \"deepseek/deepseek-v4-pro\""),
         "{config}"
@@ -81,7 +81,7 @@ async fn a_found_key_is_used_for_the_named_provider() {
     assert_eq!(typist.all, 0, "不读管道");
     assert!(
         home.system_config()
-            .contains("keys = [{ env = \"DEEPSEEK_API_KEY\" }]")
+            .contains("key = { env = \"DEEPSEEK_API_KEY\" }")
     );
     assert_eq!(home.secrets(), "");
 }
