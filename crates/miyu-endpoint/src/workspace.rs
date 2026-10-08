@@ -6,7 +6,7 @@
 //! 又不是账号自己的工作区的 `path_forbidden`。只有太宽的（系统的家目录、根目录、包含数据根的）照旧退回账号的工作区，回应写
 //! 实际用的（2026-10-07 项目主人定：太宽照旧在换的时候判、回实际的）。加进来的目录照造会话的规矩查（`dir_too_wide`）。
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde::Deserialize;
@@ -70,12 +70,20 @@ pub(crate) async fn set(
     Ok(json!({"cwd": cwd, "dirs": dirs}))
 }
 
-/// 查一个人明着要换去的工作目录，交回实际用的：见模块的说明。
-fn checked(core: &Core, cwd: &str) -> Result<String, Refusal> {
-    let home = core
-        .home
+/// 核心所在的机器上人的家目录，真实的位置；没有的、换不成的没有。
+pub(crate) fn home(core: &Core) -> Option<PathBuf> {
+    core.home
         .as_deref()
-        .and_then(|home| std::fs::canonicalize(home).ok());
+        .and_then(|home| std::fs::canonicalize(home).ok())
+}
+
+/// 查一个人明着要换去的工作目录，交回实际用的：见模块的说明。`/workspace` 也照它查（施工 9-7 下）。
+pub(crate) fn checked(core: &Core, cwd: &str) -> Result<String, Refusal> {
+    // `~` 本身总是太宽：读不出家目录也照造会话的退回，不当读不了。
+    if cwd.trim() == "~" {
+        return Ok(workspace(core, cwd));
+    }
+    let home = home(core);
     let real = miyu_fs::resolve(Path::new("/"), home.as_deref(), cwd)
         .map_err(|_| Refusal::PATH_UNREADABLE)?;
     let meta = std::fs::metadata(&real).map_err(|_| Refusal::PATH_UNREADABLE)?;

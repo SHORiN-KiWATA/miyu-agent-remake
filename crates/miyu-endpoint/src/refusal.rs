@@ -140,6 +140,12 @@ impl Refusal {
         reason: "command_not_allowed",
         data: None,
     };
+    /// 这个命令只有主人本人能用（施工 9-7 下，`/workspace`）：管理的人也不行。
+    pub(crate) const OWNER_ONLY: Refusal = Refusal {
+        code: REFUSED,
+        reason: "owner_only",
+        data: None,
+    };
     /// 会话停了：写不进去、出了 bug。
     pub(crate) const STOPPED: Refusal = Refusal {
         code: REFUSED,

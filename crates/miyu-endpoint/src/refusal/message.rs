@@ -59,6 +59,10 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "只有主人和管理的人能用命令。",
             "Only the owner and managers can use commands.",
         ),
+        "owner_only" => (
+            "只有主人能用这个命令。",
+            "Only the owner can use this command.",
+        ),
         "session_stopped" => (
             "这个会话停了，详情在运行日志里；再发一次会重新载入。",
             "This session has stopped; the runtime log has the details. Sending again reloads it.",
