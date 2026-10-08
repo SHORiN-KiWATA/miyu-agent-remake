@@ -68,6 +68,7 @@
     "problem/out-of-range": "{key} 超出范围：{got}",
     "problem/bad-format": "{key} 写法不对：{got}",
     "problem/other": "{key}：{code}",
+    "group/rate-limited": "这会儿叫的人太多了，过几分钟再来吧。",
     "web/brand": "miyu-onebot",
     "web/loading": "正在连 QQ 桥…",
     "web/core-lost": "和核心断开了，正在重连…",

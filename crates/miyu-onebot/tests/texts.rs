@@ -1,7 +1,7 @@
 //! 说给人听的字（施工 O-8，`onebot.md` 第一条「给人看的字」）：字在 `resources/software/onebot/human/`，三种语言里桥说的
 //! 每一句都换得出来（换不出来的会印出说法的编号），字段换进去；中文照图纸；日文照英文；换语言照新的说；握手以前照系统的
 //! 语言（施工 O-20：不读配置）。O-18 多了 `start`、`stop`、`restart`、`status`、`logs` 说的；O-21 多了 `venue show` 说的、
-//! 出厂的数据有问题、问题说成话。
+//! 出厂的数据有问题、问题说成话；O-23 多了限流满了发进群里的那一句。
 
 use miyu_chat::{Entry, Origin, Problem, Source};
 use miyu_config::Value;
@@ -85,7 +85,11 @@ fn problems() -> Vec<Problem> {
 /// 桥说的每一句：用法、日志、起来连上断开、起不来停了、`miyu-onebot web`、开关和状态、`logs` 的标题、`venue show` 的
 /// 每一句和每一种问题。
 fn everything(texts: &Texts) -> Vec<String> {
-    let mut said = vec![texts.usage(), texts.no_log("disk full")];
+    let mut said = vec![
+        texts.usage(),
+        texts.no_log("disk full"),
+        texts.rate_limited(),
+    ];
     for notice in [
         Notice::Listening { port: 8301 },
         Notice::Connected { bot: Some(30003) },
@@ -252,6 +256,7 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
         "QQ 桥关了：核心停下它，以后不再拉起。"
     );
     assert_eq!(texts.report(&Report::Restarted), "QQ 桥重新拉起了。");
+    assert_eq!(texts.rate_limited(), "这会儿叫的人太多了，过几分钟再来吧。");
     assert_eq!(
         texts.report(&Report::Off),
         "QQ 桥关着。用 miyu onebot start 打开。"

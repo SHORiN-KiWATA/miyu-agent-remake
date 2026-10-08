@@ -5,13 +5,14 @@
 //!   O-4 中以后陌生人的会话归系统账号，「施工时定的」第 49 条）：不接，会话编号不记、不订阅。问到了订阅（第 9 条）。
 //! - 群：`venue.session {venue, kind: "group", persona?, preset?, cwd?}`（照场所规则，`applied`）；群的会话本来就归桥自己的
 //!   系统账号，不照属主认陌生人。规则写了不存在的人格、预设（`unknown_persona`、`unknown_preset`、`preset_invalid`）：不接。
-//!   不订阅：这一步群里不开回合（「施工时定的」第 64 条）。
+//!   问到了从头订阅（`after: 0`，施工 O-23，「群里怎么叫她」第 1 条）：补来的收进这个群的投影；会话不在了连投影一起忘掉。
 //! - 不接的同一个场所只记一行运行日志（桥起来以后；「施工时定的」第 66 条）。
 
 use miyu_chat::Venue;
 use miyu_kernel::id::ExternalId;
 use serde_json::{Value, json};
 
+use super::projection::Projection;
 use super::{Message, Peer, Route};
 use crate::TARGET;
 use crate::core::{Gone, reason};
@@ -119,6 +120,7 @@ impl Route {
                 )
             {
                 self.venues.remove(venue);
+                self.groups.remove(&session);
                 continue;
             }
             return Ok(Some((session, reply)));
@@ -126,8 +128,8 @@ impl Route {
         Ok(None)
     }
 
-    /// 找回场所 `place` 的会话，私聊的再订阅它（第 7、9 条，「群消息」第 3 条）。不接的、问不到的、订阅不上的是空的（记一行
-    /// 运行日志）。
+    /// 找回场所 `place` 的会话，私聊的再订阅它，群的从头订阅（第 7、9 条，「群消息」第 3 条，「群里怎么叫她」第 1 条）。不接的、
+    /// 问不到的、订阅不上的是空的（记一行运行日志）。
     async fn find(&mut self, place: &Place) -> Result<Option<String>, Gone> {
         let venue = &place.peer.venue;
         let reply = self
@@ -163,11 +165,39 @@ impl Route {
             tracing::warn!(target: TARGET, venue = %venue, "venue session without an id");
             return Ok(None);
         };
-        if place.private_chat() && !self.subscribe(&session).await? {
+        let subscribed = if place.private_chat() {
+            self.subscribe(&session).await?
+        } else {
+            // 补来的有她正在说的话的（订阅时有一轮在跑），照这里发回群里。
+            self.peers.insert(session.clone(), place.peer.clone());
+            self.follow(&session, 0).await?
+        };
+        if !subscribed {
             return Ok(None);
         }
         self.venues.insert(venue.to_string(), session.clone());
         Ok(Some(session))
+    }
+
+    /// 订阅群会话 `session` 的事件流，补 `after` 以后的（施工 O-23，「群里怎么叫她」第 1 条）：头一次是 0，从头补；掉了队的是
+    /// 收到的最后一条。补来的照先后收进这个群的投影，序号不大于回应的 `upto` 的她的话不发。订阅不上的记一行、交回假，这个群的
+    /// 会话和投影都忘掉：下一条照第 7 条再找、从头订阅（掉了队再订阅不上的，投影不再跟着日志走，留着会判错）。
+    pub(super) async fn follow(&mut self, session: &str, after: u64) -> Result<bool, Gone> {
+        let params = json!({"session": session, "stream": "events", "after": after});
+        let reply = self.core.call("subscribe", params).await?;
+        if let Some(reason) = reason(&reply) {
+            tracing::warn!(target: TARGET, session, reason, "not subscribed");
+            self.groups.remove(session);
+            self.venues.retain(|_, found| found != session);
+            return Ok(false);
+        }
+        let upto = reply["result"]["upto"].as_u64().unwrap_or(after);
+        self.groups
+            .entry(session.to_string())
+            .or_insert_with(|| Projection::new(upto))
+            .caught_up(upto);
+        self.catch_up(session).await;
+        Ok(true)
     }
 
     /// 订阅会话 `session` 的事件流，不写 `after`（第 9 条）：只要以后的新事件。订阅不上的记一行、交回假。

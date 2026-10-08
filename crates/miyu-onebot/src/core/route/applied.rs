@@ -6,10 +6,11 @@
 //! - `show_ids`。
 //! - 此刻睡没睡：照群聊内核的回合闸问（`gate()`），只交睡眠，闸说推迟就是睡着；时区照本机此刻的偏移（「施工时定的」
 //!   第 65 条）。
+//! - 进站链要的（施工 O-23，「群里怎么叫她」第 4、5 条）：限流、睡眠、能不能叫她、触发词，此刻（本机的钟和时区）。
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use miyu_chat::{Clock, Ctx, Gate, Moderation, Sleep, gate};
+use miyu_chat::{Clock, Ctx, Gate, Moderation, Rate, Sleep, gate};
 use miyu_config::Value;
 use miyu_kernel::id::ExternalId;
 use miyu_kernel::time::{Timestamp, UtcOffset};
@@ -53,7 +54,7 @@ pub(super) fn show_ids(applied: &Applied) -> bool {
 /// 此刻落在规则的睡觉时间里没有：没设、写成 `off` 的醒着。照群聊内核的回合闸问：只交睡眠（不限流、没禁言），闸说推迟就是
 /// 睡着。本机的钟读不出（早于 1970 年、晚于 9999 年）的当醒着。
 pub(super) fn asleep(applied: &Applied) -> bool {
-    let (Some(sleep), Some(now)) = (text(applied, "sleep").and_then(Sleep::read), now()) else {
+    let (Some(sleep), Some(clock)) = (sleep(applied), clock()) else {
         return false;
     };
     let ctx = Ctx {
@@ -68,11 +69,47 @@ pub(super) fn asleep(applied: &Applied) -> bool {
             base64: applied.params.base64,
         },
     };
-    let clock = Clock {
-        now,
-        offset: offset(),
-    };
     matches!(gate(&ctx, clock), Gate::Later(_))
+}
+
+/// 规则的限流（施工 O-23）：没设、`"0"`、写错的是空的（[`Rate::read`]）。
+pub(super) fn rate(applied: &Applied) -> Option<Rate> {
+    text(applied, "rate").and_then(Rate::read)
+}
+
+/// 规则的睡觉时间：没设、`off`、写错的是空的（[`Sleep::read`]）。
+pub(super) fn sleep(applied: &Applied) -> Option<Sleep> {
+    text(applied, "sleep").and_then(Sleep::read)
+}
+
+/// 规则的 `allow`（施工 O-23）：没设的是空的，进站链当能叫她。
+pub(super) fn allow(applied: &Applied) -> Option<bool> {
+    match entry(applied, "allow") {
+        Some(Value::Bool(allow)) => Some(*allow),
+        _ => None,
+    }
+}
+
+/// 规则的触发词 `keywords`（施工 O-23，「群里怎么叫她」第 4 条）：没设的是空的。
+pub(super) fn keywords(applied: &Applied) -> Vec<String> {
+    match entry(applied, "keywords") {
+        Some(Value::List(keywords)) => keywords
+            .iter()
+            .filter_map(|keyword| match keyword {
+                Value::Text(keyword) => Some(keyword.to_string()),
+                _ => None,
+            })
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// 此刻：本机的钟，时区照本机此刻的偏移（「施工时定的」第 65 条）。钟读不出（早于 1970 年、晚于 9999 年）的是空的。
+pub(super) fn clock() -> Option<Clock> {
+    Some(Clock {
+        now: now()?,
+        offset: offset(),
+    })
 }
 
 /// 规则设到的一项：没有规则设到的是空的。

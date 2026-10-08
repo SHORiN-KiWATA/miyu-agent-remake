@@ -1,17 +1,19 @@
-//! 群消息（`onebot.md` 第一条「群消息」，施工 O-22）：群里的每一条消息都记进这个群的场所会话，一律旁听，不开回合（18 第五
-//! 节；开回合随 O-23）。
+//! 群消息（`onebot.md` 第一条「群消息」，施工 O-22）：群里的每一条消息都记进这个群的场所会话，一律旁听，交的时候不开回合
+//! （18 第五节）；记下了交给 `called` 判要不要叫她（施工 O-23，「群里怎么叫她」）。
 //!
 //! 1. 场所、平台上的人经群聊内核拼（`onebot::venue`、`onebot::person`），拼不出的记一行、这条不送。
 //! 2. 场所规则套到这个群上（`applied`）：找会话带的人格、预设、工作区，发的人是不是管理的人，睡没睡，看不看得到号。
 //! 3. 发的人的名字顺手记进群成员的缓存；正文里的 @ 写成名字（`names`）。
 //! 4. 正文空白、又没有带的东西的不送；只有带的东西的照样交（「施工时定的」第 67 条）。
 //! 5. 照私聊的办法交（`Route::submit`）：`/` 开头的先当斜杠命令，回执发回群里；别的 `session.send` 带场所的格。
+//! 6. 核心记下了（回应交回序号）的交给 `called` 判（施工 O-23）。
 
 use std::time::Instant;
 
 use miyu_chat::VenueKind;
 use serde_json::json;
 
+use super::called::Heard;
 use super::fields::{Flags, fields};
 use super::session::Place;
 use super::{Message, Route, applied};
@@ -62,6 +64,29 @@ impl Route {
             place: Place::group(&venue, &applied, posted.bot, group),
             text,
         };
-        self.submit(message).await
+        let heard = Heard {
+            id: message.id.clone(),
+            number: message.number,
+            venue,
+            sender: external,
+            text: message.text.clone(),
+            mentions_me: flags.mentions_me,
+            mentions_others: !mentions.is_empty(),
+            reply_to: posted.segments.reply_to.clone(),
+            media: posted
+                .segments
+                .media
+                .iter()
+                .map(|media| media.kind)
+                .collect(),
+        };
+        let Some((session, reply)) = self.submit(message).await? else {
+            return Ok(());
+        };
+        // 被拒的（例如只有带的东西的，「施工时定的」第 67 条）没有序号，不判。
+        match reply["result"]["events"][0].as_u64() {
+            Some(seq) => self.called(&session, seq, heard).await,
+            None => Ok(()),
+        }
     }
 }

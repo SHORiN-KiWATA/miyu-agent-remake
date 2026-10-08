@@ -68,6 +68,7 @@
     "problem/out-of-range": "{key} is out of range: {got}",
     "problem/bad-format": "{key} is not written right: {got}",
     "problem/other": "{key}: {code}",
+    "group/rate-limited": "Too many calls right now; please try again in a few minutes.",
     "web/brand": "miyu-onebot",
     "web/loading": "Connecting to the QQ bridge…",
     "web/core-lost": "Lost the core; reconnecting…",

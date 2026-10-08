@@ -4,18 +4,11 @@
 //! 运行日志；群里的斜杠命令照私聊的办法交，回执发回群里；撤回记 `venue.recalled`。挑的空端口在桥起来以前被别人占了的，
 //! 换一组从头再来（`support/ports.rs`）。
 
-use std::time::Duration;
-
 use serde_json::{Value, json};
 
-use miyu_kernel::id::AccountId;
 use miyu_session::testkit::{Play, Script};
-use miyu_store::log::read_events;
-use miyu_store::root::DataRoot;
 
 use crate::support::group::*;
-use crate::support::ports::on_free_ports;
-use crate::support::spawning::*;
 use crate::support::*;
 
 /// 规则里 `show_ids`、`managers` 都设了的群。
@@ -48,9 +41,6 @@ const MEMBERS: &[Member] = &[
 const STOPPED: &str = "已全部停下。";
 const NOT_ALLOWED: &str = "只有主人和管理的人能用命令。";
 
-/// 正向的等待最多多久：真的程序、真的核心，负载高时慢。
-const WAIT: Duration = Duration::from_secs(60);
-
 /// 系统的场所规则：[`GROUP`] 写 `show_ids`、`managers`，[`SLEEPY`] 的睡觉时间盖住此刻（前后各一个小时，照本机的时区），
 /// [`BROKEN`] 写一个不存在的人格。
 fn rules() -> String {
@@ -69,92 +59,10 @@ fn rules() -> String {
     )
 }
 
-/// 起一个照开关拉起桥的核心，系统的场所规则照 [`rules`] 写好，桥起来、假 NapCat 连上交给任务应答。
-async fn started(script: &Script) -> (Home, Answering) {
-    let (home, listen) = on_free_ports(async |listen, web| {
-        let home = Home::spawning(script, &ports_config(listen, web));
-        let dir = home.root.system().join("venues.d");
-        std::fs::create_dir_all(&dir).expect("建得了目录");
-        std::fs::write(dir.join("80-test.toml"), rules()).expect("写得进");
-        let started = cli(&home.root, &["start"]).await;
-        assert_eq!(started.status.code(), Some(0), "{}", text(&started.stderr));
-        bridge_up(&home.root, listen, web, None).await?;
-        Ok((home, listen))
-    })
-    .await;
-    let napcat = owner_napcat(listen).await.answering(MEMBERS);
-    (home, napcat)
-}
-
-/// 停下桥、核心拉起的扩展。
-async fn stopped(home: Home) {
-    let stopped = cli(&home.root, &["stop"]).await;
-    assert_eq!(stopped.status.code(), Some(0), "{}", text(&stopped.stderr));
-    home.stop_extensions().await;
-}
-
-/// 系统账号 `onebot` 名下、场所是 `venue` 的那个会话的事件，写成 JSON；还没有的是空的。
-fn venue_events(root: &DataRoot, venue: &str) -> Vec<Value> {
-    let system = AccountId::parse("onebot").expect("合写法");
-    root.sessions(&system)
-        .unwrap_or_default()
-        .iter()
-        .map(|session| {
-            read_events(&root.session_dir(&system, session))
-                .unwrap_or_default()
-                .iter()
-                .map(|event| serde_json::to_value(event).expect("写得成 JSON"))
-                .collect::<Vec<Value>>()
-        })
-        .find(|events| {
-            events
-                .first()
-                .is_some_and(|first| first["body"]["venue"] == venue)
-        })
-        .unwrap_or_default()
-}
-
-/// 等到场所 `venue` 的会话里有合 `wanted` 的事件：交回那时的全部事件。
-async fn until_event(root: &DataRoot, venue: &str, wanted: impl Fn(&Value) -> bool) -> Vec<Value> {
-    let deadline = tokio::time::Instant::now() + WAIT;
-    loop {
-        let events = venue_events(root, venue);
-        if events.iter().any(&wanted) {
-            return events;
-        }
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "{venue} 等不到：{events:#?}"
-        );
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
-}
-
-/// 事件里人说的话（`message.user`），照先后。
-fn said(events: &[Value]) -> Vec<Value> {
-    events
-        .iter()
-        .filter(|event| event["kind"] == "message.user")
-        .cloned()
-        .collect()
-}
-
-/// 一条人说的话的字。
-fn words(said: &Value) -> &str {
-    said["body"]["blocks"][0]["text"]
-        .as_str()
-        .unwrap_or_default()
-}
-
-/// 运行日志。
-fn run_log(root: &DataRoot) -> String {
-    std::fs::read_to_string(root.state().join("logs").join("onebot.log")).unwrap_or_default()
-}
-
 #[tokio::test]
 async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
     let script = Script::new([]);
-    let (home, napcat) = started(&script).await;
+    let (home, napcat, _) = started(&script, &rules(), "", MEMBERS).await;
     let venue = format!("qq:group:{GROUP}");
     // 1、2：名字取群名片，空白的取昵称。
     napcat.send(group_frame(
@@ -359,7 +267,7 @@ async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
 #[tokio::test]
 async fn slash_commands_in_a_group_answer_in_the_group() {
     let script = Script::new([Play::Says("不会说的")]);
-    let (home, mut napcat) = started(&script).await;
+    let (home, mut napcat, _) = started(&script, &rules(), "", MEMBERS).await;
     let venue = format!("qq:group:{GROUP}");
     napcat.send(group_frame(
         GROUP,
