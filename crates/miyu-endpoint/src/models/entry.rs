@@ -27,9 +27,8 @@ use miyu_kernel::time::Timestamp;
 use miyu_models::cooldown::{Candidate, Cooling};
 use miyu_models::effort;
 use miyu_models::facts::facts;
-use miyu_models::keys;
 use miyu_models::matching::Found;
-use miyu_models::provider::{self, NoModel};
+use miyu_models::provider::{self, NoModel, key_name};
 use miyu_models::reference::named;
 use miyu_models::settings::ProviderSettings;
 use miyu_models::temperature;
@@ -41,42 +40,37 @@ use super::Snapshot;
 pub(crate) fn provider(data: &ModelData, snapshot: &Snapshot, id: &str, now: Timestamp) -> Value {
     let values = snapshot.resolved.values();
     let settings = ProviderSettings::at(&values, &[id]);
-    let keys: Vec<Value> = settings
-        .keys
-        .iter()
-        .map(|reference| {
-            let name = keys::name(reference);
-            let cooling = data.cooldown(|table, _| table.key_cooling(id, Some(&name), now));
-            let mut key = json!({
-                "ref": name,
-                "set": snapshot.secret(reference).is_some(),
-            });
-            state(&mut key, cooling.as_ref());
-            key
-        })
-        .collect();
-    // 能用的 key：取得到值的；没写 key 的是那一个（没有 key）。
-    let usable: Vec<Option<String>> = match settings.keys.is_empty() {
-        true => vec![None],
-        false => settings
-            .keys
-            .iter()
-            .filter(|reference| snapshot.secret(reference).is_some())
-            .map(|reference| Some(keys::name(reference)))
-            .collect(),
-    };
-    let no_key = usable.is_empty();
+    // 这一家的 key（施工 8-25：一家一个）：引用的写法、取不取得到、这一家整个冷不冷（认证失败停的）。没写的没有这一格。
+    let key: Option<Value> = settings.key.as_ref().map(|reference| {
+        let cooling = data.cooldown(|table, _| table.provider_cooling(id, now));
+        let mut key = json!({
+            "ref": key_name(reference),
+            "set": snapshot.secret(reference).is_some(),
+        });
+        state(&mut key, cooling.as_ref());
+        key
+    });
+    // 写了 key、取不到值的：这一家的模型都是 `no_key`。
+    let no_key = settings
+        .key
+        .as_ref()
+        .is_some_and(|reference| snapshot.secret(reference).is_none());
     data.with(
         |knowledge| match provider::provider(&values, knowledge, id) {
-            Err(NoModel(problem)) => json!({
-                "id": id,
-                "name": name(snapshot, id, None),
-                "driver": settings.driver,
-                "base_url": settings.base_url.as_ref().map(address_json),
-                "keys": keys,
-                "problem": problem,
-                "models": [],
-            }),
+            Err(NoModel(problem)) => {
+                let mut entry = json!({
+                    "id": id,
+                    "name": name(snapshot, id, None),
+                    "driver": settings.driver,
+                    "base_url": settings.base_url.as_ref().map(address_json),
+                    "problem": problem,
+                    "models": [],
+                });
+                if let Some(key) = &key {
+                    entry["key"] = key.clone();
+                }
+                entry
+            }
             Ok(found) => {
                 let mut listed: BTreeMap<String, BTreeSet<&str>> = BTreeMap::new();
                 for model in written_models(&values, id) {
@@ -120,7 +114,10 @@ pub(crate) fn provider(data: &ModelData, snapshot: &Snapshot, id: &str, now: Tim
                         match no_key {
                             true => entry["state"] = json!("no_key"),
                             false => {
-                                state(&mut entry, best(data, id, &usable, &model, now).as_ref())
+                                let candidate = Candidate::new(id, &model);
+                                let cooling =
+                                    data.cooldown(|table, _| table.cooling(&candidate, now));
+                                state(&mut entry, cooling.as_ref());
                             }
                         }
                         if let Found::Missing(missing) = matched {
@@ -140,9 +137,11 @@ pub(crate) fn provider(data: &ModelData, snapshot: &Snapshot, id: &str, now: Tim
                     "driver": driver,
                     "driver_from": found.driver_from.as_str(),
                     "base_url": address_json(&found.base_url),
-                    "keys": keys,
                     "models": models,
                 });
+                if let Some(key) = &key {
+                    entry["key"] = key.clone();
+                }
                 if let Some(recognized) = recognized {
                     entry["catalog"] =
                         json!({"provider": recognized.provider, "how": recognized.how.as_str()});
@@ -186,29 +185,6 @@ fn state(entry: &mut Value, cooling: Option<&Cooling>) {
             entry["class"] = json!(cooling.class.as_str());
         }
     }
-}
-
-/// 模型 `model` 照能用的 key `usable` 里最好的那个：有一个不在冷却的就没有冷却；都在冷却的取最早恢复的那一个。
-fn best(
-    data: &ModelData,
-    id: &str,
-    usable: &[Option<String>],
-    model: &str,
-    now: Timestamp,
-) -> Option<Cooling> {
-    data.cooldown(|table, _| {
-        let each: Vec<Option<Cooling>> = usable
-            .iter()
-            .map(|key| table.cooling(&Candidate::new(id, key.as_deref(), model), now))
-            .collect();
-        match each.iter().any(Option::is_none) {
-            true => None,
-            false => each
-                .into_iter()
-                .flatten()
-                .min_by_key(|cooling| cooling.until),
-        }
-    })
 }
 
 /// 地址照配置写的样子交：写死的就是地址本身，引用就交引用（`{"env": "…"}`），不交解出来的地址（施工 8-6b）。

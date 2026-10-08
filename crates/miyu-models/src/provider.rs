@@ -5,7 +5,7 @@
 //!    编号）。档案也没有的，看它对上的目录里那一家（[`crate::matching::recognize`]）的 `api` 和 `npm`，`npm` 照档案的
 //!    `[npm]` 表换成驱动（8-7）。都没有的，这一家用不了，别的照常。
 //! 2. 开关：档案的，没有的用驱动的默认（手写的 `compat` 随用到它的那一步）。
-//! 3. key：照写的先后。取不到值的不当候选（由执行器取，这里只排先后，[`crate::keys`]）。
+//! 3. key：一家一个（施工 8-25）。取不到值的这一家不当候选（由执行器取）。
 //! 4. 本机的服务：手写的 `local`，没写的照地址在不在本机（第二条第 12 条，8-7）。手写的地址是环境变量的引用时查不出来，
 //!    照不在本机算，想算本机的自己写 `local = true`（施工 8-6b）。
 //! 5. 没有模型：`models.chat` 没配、引用解析不出，交 [`NoModel`]，原话照「出错」那张表。引用指到一个模型还是一个池，在
@@ -94,8 +94,8 @@ pub struct Provider {
     pub base_url: Address,
     /// `openai-chat` 的开关。
     pub compat: Compat,
-    /// 几个 key，照写的先后。空的不带认证头。
-    pub keys: Vec<KeyRef>,
+    /// key（施工 8-25：一家一个）。没写的不带认证头。
+    pub key: Option<KeyRef>,
     /// 一张图怎么算。
     pub images: Option<ImageTokens>,
     /// 查档案时照哪一家：写了 `catalog` 的是它，没写的是编号。
@@ -230,6 +230,14 @@ pub fn configured(values: &Values) -> Vec<String> {
     miyu_config::key::names(values.keys(), "providers.<id>", &[])
 }
 
+/// key 的名字：引用的写法 `secret:<名字>`、`env:<变量>`。`model.list` 的 `ref` 用它（施工 8-9 起；8-25 从 `keys` 挪来）。
+pub fn key_name(reference: &KeyRef) -> String {
+    match reference {
+        KeyRef::Secret(name) => format!("secret:{name}"),
+        KeyRef::Env(name) => format!("env:{name}"),
+    }
+}
+
 /// 编号 `id` 这一家这一轮的样子，照手头的资料 `knowledge`（档案、目录）推。
 ///
 /// # Errors
@@ -310,7 +318,7 @@ pub fn provider(values: &Values, knowledge: &Knowledge<'_>, id: &str) -> Result<
             .as_ref()
             .map(|compat| compat.compat())
             .unwrap_or_default(),
-        keys: settings.keys,
+        key: settings.key,
         images: profile.image_tokens,
         catalog,
         recognized,

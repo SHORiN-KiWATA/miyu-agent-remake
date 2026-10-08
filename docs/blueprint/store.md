@@ -61,6 +61,7 @@
 | `prepare_home(账号)` | 建 `home/<账号>/` 和里面的 `workspace/`，已经有的不动 |
 | `sessions(账号)` | 这个账号的会话编号，从新到旧 |
 | `session_dir(账号, 会话)` | `home/<账号>/sessions/<会话编号>/` |
+| `owner_of(会话)` | 会话是哪个账号的：`home/<账号>/sessions/<会话编号>/` 在的那个账号，不合账号写法的目录不算，几个都有的照账号名的先后取第一个（施工 O-4 上） |
 | `trashed_sessions(账号)` | 回收处 `home/<账号>/trash/sessions/`（施工 3-8 三补） |
 | `trashed_personas(账号)` | 删掉的人格 `home/<账号>/trash/personas/`（施工 P-3 下） |
 | `blobs(账号)` | `home/<账号>/blobs/` |

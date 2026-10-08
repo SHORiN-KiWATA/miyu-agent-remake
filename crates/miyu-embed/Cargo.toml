@@ -1,0 +1,32 @@
+[package]
+name = "miyu-embed"
+description = "本机 embedding 的小程序 miyu-embed：照清单读一份模型，一行一句话进、一行一个向量出（施工 R-5 上，docs/blueprint/recall.md 第四条）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+autotests = false
+
+[[bin]]
+name = "miyu-embed"
+path = "src/main.rs"
+
+[[test]]
+name = "all"
+path = "tests/all.rs"
+
+[dependencies]
+# 跑模型（施工 R-5 上）：ONNX Runtime 的 Rust 封装，钉死版本（还是 RC）。只开这三样：编译时下 pyke 预编好的静态库、静态
+# 链接，主程序不带；`tls-rustls` 是下载那一步用的。MIT OR Apache-2.0；ONNX Runtime 本身 MIT（`licenses.md`）。
+ort = { version = "=2.0.0-rc.13", default-features = false, features = ["std", "download-binaries", "tls-rustls"] }
+# 协议一行一个 JSON；清单照 serde 的格读。
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# 分词要 Unicode 的类别：去掉控制、格式字符，标点单独成词（`wordpiece.rs`）。Apache-2.0，没有别的依赖。
+unicode-general-category = "1.1"
+# 清单是 TOML（`resources/embed/`），和配置、软件包清单用的是同一个库。
+toml_edit = { version = "0.25", default-features = false, features = ["parse", "serde"] }
+
+[lints]
+workspace = true

@@ -4,7 +4,7 @@
 //! - 都先等目录读完（核心写了 `ready` 以后才读）。
 //! - `provider.detect` 照核心的环境（配置服务手里的那一份，测试换成手写的）查变量有没有设，值不看、不交；本机的服务交给
 //!   会话那一层一起探（`miyu_session::find_local`），探之前放开配置服务的锁。
-//! - 已经配好的：`keys` 里引用了这个变量的、推出来的地址和本机服务的一样的，写上那一家的编号（编号照字节排第一的）。
+//! - 已经配好的：`key` 引用了这个变量的（施工 8-25：一家一个 key）、推出来的地址和本机服务的一样的，写上那一家的编号（编号照字节排第一的）。
 
 mod trial;
 
@@ -147,17 +147,15 @@ async fn featured(core: &Core, language: &str) -> Result<Value, Refusal> {
     Ok(json!({ "providers": providers }))
 }
 
-/// 已经配好的几家：`keys` 里引用的环境变量 → 编号，推出来的地址（去掉末尾的 `/`）→ 编号；照编号排，先占的算。
+/// 已经配好的几家：`key` 引用的环境变量 → 编号（施工 8-25：一家一个 key），推出来的地址（去掉末尾的 `/`）→ 编号；照编号排，先占的算。
 fn configured_by(
     data: &miyu_session::ModelData,
     values: &miyu_config::Values,
 ) -> (BTreeMap<String, String>, BTreeMap<String, String>) {
     let (mut by_env, mut by_url) = (BTreeMap::new(), BTreeMap::new());
     for id in configured(values) {
-        for key in ProviderSettings::at(values, &[&id]).keys {
-            if let Reference::Env(name) = key {
-                by_env.entry(name).or_insert_with(|| id.clone());
-            }
+        if let Some(Reference::Env(name)) = ProviderSettings::at(values, &[&id]).key {
+            by_env.entry(name).or_insert_with(|| id.clone());
         }
         let found = data.with(|knowledge| provider::provider(values, knowledge, &id));
         if let Ok(Address::Literal(url)) = found.map(|provider| provider.base_url) {

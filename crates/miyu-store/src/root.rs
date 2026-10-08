@@ -140,6 +140,31 @@ impl DataRoot {
         Ok(sessions)
     }
 
+    /// 会话 `session` 是哪个账号的（施工 O-4 上）：`home/<账号>/sessions/<会话编号>/` 在的那个账号。不合账号写法的目录不算；
+    /// 会话编号是 UUIDv7，不会两个账号各有一个，真有的照账号名的先后取第一个。都没有的没有。
+    ///
+    /// # Errors
+    ///
+    /// 读不了 `home/`。
+    pub fn owner_of(&self, session: &SessionId) -> io::Result<Option<AccountId>> {
+        let entries = match fs::read_dir(self.homes()) {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(error),
+        };
+        let mut accounts = Vec::new();
+        for entry in entries {
+            let name = entry?.file_name();
+            if let Some(account) = name.to_str().and_then(|name| AccountId::parse(name).ok()) {
+                accounts.push(account);
+            }
+        }
+        accounts.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+        Ok(accounts
+            .into_iter()
+            .find(|account| self.session_dir(account, session).is_dir()))
+    }
+
     /// 一个会话的目录：`home/<账号>/sessions/<会话编号>/`（`07-存储.md` 第三节）。
     pub fn session_dir(&self, account: &AccountId, session: &SessionId) -> PathBuf {
         self.account_dir(account)

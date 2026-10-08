@@ -59,11 +59,6 @@ impl Tried {
         if self.main {
             pinned.sticky = None;
         }
-        if let Some(key) = &picked.who.key {
-            pinned
-                .moved
-                .insert(picked.who.provider.clone(), key.clone());
-        }
         if let Some(limits) = limits {
             pinned.member.clone_from(&picked.member);
             pinned.limits = limits;

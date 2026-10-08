@@ -10,21 +10,25 @@ use miyu_onebot::serve::Notice;
 use miyu_onebot::texts::Texts;
 use miyu_store::resources::ResourceRoot;
 
-use crate::support::spawning::{free_port, program, served, text, until_port};
+use crate::support::ports::on_free_ports;
+use crate::support::spawning::{program, served_up, text};
 use crate::support::*;
 
 #[tokio::test]
 async fn serve_speaks_only_the_protocol_on_stdout_and_stops_when_stdin_ends() {
     let (dir, root) = temp_root();
-    let (listen, web) = (free_port(), free_port());
     let system = root.path().join("system");
     std::fs::create_dir_all(&system).expect("建得了");
-    std::fs::write(
-        system.join("config.toml"),
-        format!("[onebot]\nlisten = {listen}\nweb = {web}\n"),
-    )
-    .expect("写得进");
-    let mut served = served(&root).await;
+    // 挑的空端口被别人先占了的换一组再来（`support/ports.rs`）；回来的时候两个端口都听上了。
+    let (mut served, listen) = on_free_ports(async |listen, web| {
+        std::fs::write(
+            system.join("config.toml"),
+            format!("[onebot]\nlisten = {listen}\nweb = {web}\n"),
+        )
+        .expect("写得进");
+        Ok((served_up(&root, listen, web).await?, listen))
+    })
+    .await;
     let hello = &served.hello;
     assert_eq!(hello["method"], "hello", "{hello}");
     assert_eq!(hello["params"]["head"]["kind"], "onebot", "{hello}");
@@ -35,8 +39,6 @@ async fn serve_speaks_only_the_protocol_on_stdout_and_stops_when_stdin_ends() {
             "标准输入输出是核心亲手给的，不带凭据：{hello}"
         );
     }
-    until_port(listen, true).await;
-    until_port(web, true).await;
     // 核心请它退出：关它的标准输入。
     drop(served.stdin.take());
     let exited = tokio::time::timeout(Duration::from_secs(5), served.child.wait_with_output())

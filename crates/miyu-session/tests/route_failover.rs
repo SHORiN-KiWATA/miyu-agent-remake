@@ -1,7 +1,7 @@
 //! 会话的路由出错换端点（`docs/blueprint/models.md`「守着它的」`route.rs`、`route_pools.rs` 那一行 8-9 的一半，「怎么走」
-//! 第四条、第五条，施工 8-9）：假服务器回 429，换到别的 key、池里的下一个当场再来，成了以后会话钉在它上面；说到一半断了的
+//! 第四条、第五条，施工 8-9）：假服务器回 429，换到池里的下一个当场再来，成了以后会话钉在它上面；说到一半断了的
 //! 还发给原来那一个；只有一个候选的照旧在它上面再来；全在冷却的不发、交 `cooling`、原话列出每个候选；换端点数进 5 次；
-//! 不换的几类不记冷却；钉着的成员换了推 `model.changed`、限额跟着换，换 key 不推。
+//! 不换的几类不记冷却；钉着的成员换了推 `model.changed`、限额跟着换。施工 8-25 起一家一个 key，不再换 key。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -12,23 +12,13 @@ use miyu_config::secret::Reference;
 use miyu_http::testkit::{Reply, Server};
 use miyu_kernel::event::{Body, ChangeWhy, ErrorClass, ModelChanged, Status, TransientBody};
 use miyu_models::cooldown::{Rule, Rules};
-use miyu_models::keys;
 use miyu_session::{Handle, Models, Pushed};
 use miyu_tool::Catalog;
 
-/// 一家 `a` 在 `base_url`，`count` 个 key 照 `{ env = "K<n>" }` 写，值是 `sk-<n>`，都取得到；`models.chat` 是 `a/m`。
+/// 几个候选的配置：照 [`crate::support::calling::keyed`]，`count` 个都取得到。
 fn keyed(base_url: &str, count: usize) -> (String, Vec<(Reference, String)>) {
-    let refs: Vec<String> = (1..=count)
-        .map(|n| format!("{{ env = \"K{n}\" }}"))
-        .collect();
-    let text = format!(
-        "[providers.a]\ndriver = \"openai-chat\"\nbase_url = \"{base_url}\"\nkeys = [{}]\n\n[models]\nchat = \"a/m\"\n",
-        refs.join(", ")
-    );
-    let secrets = (1..=count)
-        .map(|n| (Reference::Env(format!("K{n}")), format!("sk-{n}")))
-        .collect();
-    (text, secrets)
+    let set: Vec<usize> = (1..=count).collect();
+    crate::support::calling::keyed(base_url, count, &set)
 }
 
 /// 照 [`keyed`] 的配置。
@@ -155,44 +145,6 @@ fn failures(home: &Home, handle: &Handle) -> Vec<String> {
 }
 
 #[tokio::test]
-async fn a_429_moves_to_the_next_key_at_once_and_the_session_stays_on_it() {
-    let mut replies = vec![limited()];
-    replies.extend(hellos(6));
-    let server = Server::start(replies).await;
-    let mut home = Home::new();
-    home.configs = keyed_configs(&server.base_url, 2);
-    let routes = routes(serde_json::json!({}), Duration::from_secs(60));
-    routes.data.set_cooldown_rules(rules(rule(1, 1)));
-    let handle = home.create(&routes).await;
-    let pinned = keys::pinned(handle.id().as_str(), 2).expect("有 key");
-    let (own, other) = (
-        format!("Bearer sk-{}", pinned + 1),
-        format!("Bearer sk-{}", 2 - pinned),
-    );
-    let pushed = turn(&handle, "cmd-1").await;
-    let status = statuses(&pushed);
-    assert_eq!(status.len(), 1);
-    assert!(status[0].retry.failover, "换了端点的状态带 failover");
-    assert_eq!(status[0].retry.wait_ms, 0, "当场再来");
-    assert_eq!(status[0].retry.class, ErrorClass::RateLimited);
-    assert!(
-        changes(&pushed).is_empty(),
-        "换 key、模型没变的不推 model.changed"
-    );
-    assert_eq!(failures(&home, &handle), ["rate_limited"]);
-    // 钉着的那个冷却 1 秒；过了冷却，这个会话还用换过去的那一个（成了才换，换了就一直用它）。
-    tokio::time::sleep(Duration::from_millis(1100)).await;
-    turn(&handle, "cmd-2").await;
-    let bearers = bearers(&server);
-    assert_eq!(bearers[0], own, "先发给照会话编号钉着的");
-    assert!(bearers.len() >= 3);
-    assert!(
-        bearers[1..].iter().all(|bearer| *bearer == other),
-        "换过去以后一直是它：{bearers:?}"
-    );
-}
-
-#[tokio::test]
 async fn a_429_in_a_pinned_pool_moves_on_and_pins_the_member_that_worked() {
     let (first, second) = (
         Server::start(vec![limited()]).await,
@@ -285,7 +237,7 @@ async fn a_single_candidate_is_asked_again_on_itself() {
     let status = statuses(&pushed);
     assert!(!status[0].retry.failover, "只有一个候选：不算换");
     assert_eq!(status[0].retry.wait_ms, 1000, "照供应商说的等");
-    assert_eq!(sent(&home, &handle), ["a/m", "a/m"], "冷却着也照发它");
+    assert_eq!(sent(&home, &handle), ["a1/m", "a1/m"], "冷却着也照发它");
 }
 
 #[tokio::test]
@@ -294,11 +246,11 @@ async fn all_candidates_cooling_says_cooling_and_names_each_one() {
     let mut home = Home::new();
     home.configs = keyed_configs(&server.base_url, 2);
     let routes = routes(serde_json::json!({}), Duration::from_secs(60));
-    // 冷却 10 分钟起：两个 key 都限速以后，要等的超过 2 分钟，内核不等。
+    // 冷却 10 分钟起：两个成员都限速以后，要等的超过 2 分钟，内核不等。
     routes.data.set_cooldown_rules(rules(rule(600, 3600)));
     let handle = home.create(&routes).await;
     let pushed = turn(&handle, "cmd-1").await;
-    assert!(statuses(&pushed)[0].retry.failover, "先换到另一个 key");
+    assert!(statuses(&pushed)[0].retry.failover, "先换到池里的另一个");
     assert_eq!(failures(&home, &handle), ["rate_limited", "rate_limited"]);
     turn(&handle, "cmd-2").await;
     assert_eq!(server.received().len(), 2, "全在冷却：不发");
@@ -308,17 +260,12 @@ async fn all_candidates_cooling_says_cooling_and_names_each_one() {
     assert_eq!(error.class, ErrorClass::Cooling);
     assert_eq!(last.endpoint, None, "没发出去，没有端点");
     assert!(
-        error
-            .message
-            .starts_with("all candidates cooling: a/m key "),
+        error.message.starts_with("all candidates cooling: a1/m "),
         "{}",
         error.message
     );
-    for key in [
-        "a/m key 1 rate_limited until 20",
-        "a/m key 2 rate_limited until 20",
-    ] {
-        assert!(error.message.contains(key), "{}", error.message);
+    for each in ["a1/m rate_limited until 20", "a2/m rate_limited until 20"] {
+        assert!(error.message.contains(each), "{}", error.message);
     }
 }
 

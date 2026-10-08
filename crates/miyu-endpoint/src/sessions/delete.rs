@@ -34,8 +34,10 @@ impl Sessions {
     pub(crate) async fn delete(&self, core: &Arc<Core>, id: &SessionId) -> Result<(), Refusal> {
         let mut open = self.open.lock().await;
         let running = open.running.get(id).map(|running| running.handle.clone());
-        let family = family(core, id, running.is_none()).await?;
-        let parent = open.parent_of(core, id).await;
+        // 照属主的家目录办（施工 O-4 上）：哪个账号的家目录下都没有的是没有这个会话。
+        let owner = open.owner(core, id).await.ok_or(Refusal::NOT_FOUND)?;
+        let family = family(core, &owner, id, running.is_none()).await?;
+        let parent = open.parent_of(core, &owner, id).await;
         if let Some(handle) = running {
             let stopped = match parent {
                 Some(_) => handle.discard().await.map(Ok),
@@ -64,7 +66,7 @@ impl Sessions {
         // 重发的造会话不再交回删了的会话。
         open.created
             .retain(|(_, session)| session != id && !family.contains(session));
-        let (root, account, at) = (core.root.clone(), core.admin.clone(), now());
+        let (root, account, at) = (core.root.clone(), owner, now());
         let index = Arc::clone(&core.index);
         let recall = Arc::clone(&core.memory.turns);
         let order: Vec<SessionId> = family.into_iter().rev().chain([id.clone()]).collect();
@@ -103,8 +105,13 @@ impl Open {
     /// 会话 `id` 是一个子会话、父会话还在的（施工 3-8 三补，施工 7-8 挪进表的锁里）：交回父会话和这个子代理的任务编号。父会话
     /// 照表的规矩找，没在跑的载入。不是子会话的、造它的命令编号读不出任务编号的、父会话已经不在（删了）或者载入不了的，没有：
     /// 删照常往下走。
-    async fn parent_of(&mut self, core: &Arc<Core>, id: &SessionId) -> Option<(Handle, JobId)> {
-        let dir = core.root.session_dir(&core.admin, id);
+    async fn parent_of(
+        &mut self,
+        core: &Arc<Core>,
+        owner: &AccountId,
+        id: &SessionId,
+    ) -> Option<(Handle, JobId)> {
+        let dir = core.root.session_dir(owner, id);
         let Ok(Ok(first)) = tokio::task::spawn_blocking(move || first_event(&dir)).await else {
             return None;
         };
@@ -135,8 +142,13 @@ impl Open {
 
 /// 会话 `id` 派出去的子会话，子、孙一层层往下，照磁盘上各个会话 `session.created` 的 `parent` 认。`check` 是真的，先看
 /// 它自己在不在磁盘上：没有日志（第一行还没写完的也算）的是没有这个会话。在阻塞线程里读。
-async fn family(core: &Core, id: &SessionId, check: bool) -> Result<Vec<SessionId>, Refusal> {
-    let (root, account, id) = (core.root.clone(), core.admin.clone(), id.clone());
+async fn family(
+    core: &Core,
+    owner: &AccountId,
+    id: &SessionId,
+    check: bool,
+) -> Result<Vec<SessionId>, Refusal> {
+    let (root, account, id) = (core.root.clone(), owner.clone(), id.clone());
     match tokio::task::spawn_blocking(move || descendants(&root, &account, &id, check)).await {
         Ok(found) => found,
         Err(error) => {

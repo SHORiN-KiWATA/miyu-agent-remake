@@ -39,11 +39,11 @@ update = true
 url = "https://models.dev/api.json"
 
 [models.cooldown.auth]
-# Auth failure pause: How long a whole key rests the first time it fails to authenticate or runs out of quota. It doubles each time in a row.
+# Auth failure pause: How long a whole provider rests the first time it fails to authenticate or runs out of quota. It doubles each time in a row.
 # Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
 base = "10m"
 
-# Auth failure pause cap: The pause for a whole key stops doubling here.
+# Auth failure pause cap: The pause for a whole provider stops doubling here.
 # Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
 max = "2h"
 
@@ -131,9 +131,9 @@ default = "full"
 # Allowed: openai-chat, anthropic or openai-responses. Only in the system config or personal settings. Takes effect next turn.
 # driver =
 
-# Keys: Write { secret = "name" } (saved with miyu login) or { env = "VARIABLE" }. Each session sticks to one of them. Empty means no auth header.
-# Allowed: a list of { secret = "…" } or { env = "…" }. Only in the system config or personal settings. Takes effect next turn.
-keys = []
+# Key: Write { secret = "name" } (saved with miyu login) or { env = "VARIABLE" }. One per provider; to use several quotas together, set up several providers and put them in a pool. Without one, no auth header is sent.
+# Allowed: { secret = "…" } or { env = "…" }. Only in the system config or personal settings. Takes effect next turn.
+# key =
 
 # Local service: A model service on this machine, counted as free. Left out, it follows the address: on this machine means yes.
 # Allowed: true or false. Only in the system config or personal settings. Takes effect next turn.
@@ -204,6 +204,11 @@ keys = []
 # Output price: Price per million output tokens.
 # Allowed: a number from 0 to 1000000. Only in the system config or personal settings. Takes effect next turn.
 # output =
+
+[tui]
+# Icons: Which icon set the terminal interface draws: Nerd Font glyphs, or plain characters for fonts without them.
+# Allowed: nerd or plain. Only in the system config or personal settings. Takes effect at once.
+icons = "nerd"
 
 [ui]
 # Default interface: The interface plain miyu opens.

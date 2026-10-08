@@ -19,7 +19,7 @@
 | `crates/miyu-store/src/human.rs` | 给人看的字并进包的配置项的名字、说明和组名（`Human::with_packages`，施工 9-1 下） |
 | `crates/miyu-endpoint/src/check.rs` | `miyu check` 照磁盘查清单 |
 | `resources/packages/web.toml` | 出厂的网页界面的清单 |
-| `resources/packages/tui.toml` | 出厂的终端界面的清单（9-3 补：终端的会话给的，和 proto 上的一字不差；程序 `miyu-tui` 随 M9） |
+| `resources/packages/tui.toml` | 出厂的终端界面的清单（9-3 补：终端的会话给的，和 proto 上的一字不差；程序 `miyu-tui` 随 M9）；9-3 再补多配置项 `tui.icons`（图标：`nerd`、`plain`，第一次打开的引导写它） |
 
 ### 对外的样子
 

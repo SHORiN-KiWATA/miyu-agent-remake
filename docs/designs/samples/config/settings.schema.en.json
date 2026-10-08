@@ -66,14 +66,14 @@
               "properties": {
                 "base": {
                   "default": "10m",
-                  "description": "How long a whole key rests the first time it fails to authenticate or runs out of quota. It doubles each time in a row. Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "description": "How long a whole provider rests the first time it fails to authenticate or runs out of quota. It doubles each time in a row. Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
                   "pattern": "^[0-9]+[smh]?$",
                   "title": "Auth failure pause",
                   "type": "string"
                 },
                 "max": {
                   "default": "2h",
-                  "description": "The pause for a whole key stops doubling here. Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "description": "The pause for a whole provider stops doubling here. Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
                   "pattern": "^[0-9]+[smh]?$",
                   "title": "Auth failure pause cap",
                   "type": "string"
@@ -250,39 +250,35 @@
             "title": "Driver",
             "type": "string"
           },
-          "keys": {
-            "default": [],
-            "description": "Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Each session sticks to one of them. Empty means no auth header. Allowed: a list of { secret = \"…\" } or { env = \"…\" }. Only in the system config or personal settings. Takes effect next turn.",
-            "items": {
-              "oneOf": [
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "secret": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "secret"
-                  ],
-                  "type": "object"
+          "key": {
+            "description": "Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. One per provider; to use several quotas together, set up several providers and put them in a pool. Without one, no auth header is sent. Allowed: { secret = \"…\" } or { env = \"…\" }. Only in the system config or personal settings. Takes effect next turn.",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "secret": {
+                    "type": "string"
+                  }
                 },
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "env": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "env"
-                  ],
-                  "type": "object"
-                }
-              ]
-            },
-            "title": "Keys",
-            "type": "array"
+                "required": [
+                  "secret"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "env": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "env"
+                ],
+                "type": "object"
+              }
+            ],
+            "title": "Key"
           },
           "local": {
             "description": "A model service on this machine, counted as free. Left out, it follows the address: on this machine means yes. Allowed: true or false. Only in the system config or personal settings. Takes effect next turn.",
@@ -425,6 +421,21 @@
           }
         },
         "type": "object"
+      },
+      "type": "object"
+    },
+    "tui": {
+      "properties": {
+        "icons": {
+          "default": "nerd",
+          "description": "Which icon set the terminal interface draws: Nerd Font glyphs, or plain characters for fonts without them. Allowed: nerd or plain. Only in the system config or personal settings. Takes effect at once.",
+          "enum": [
+            "nerd",
+            "plain"
+          ],
+          "title": "Icons",
+          "type": "string"
+        }
       },
       "type": "object"
     },

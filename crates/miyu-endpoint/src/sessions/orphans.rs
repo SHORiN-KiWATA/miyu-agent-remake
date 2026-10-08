@@ -25,8 +25,13 @@ use crate::list::forget;
 impl Open {
     /// 收掉会话 `parent` 派到一半的空子会话，表的锁在调的一方手里：在跑的停下（不问忙不忙，它们派的一起），目录挪进回收处，
     /// 最深的在前。认不出来、挪不走的记一行运行日志，不耽误载入。
-    pub(super) async fn sweep_orphans(&mut self, core: &Core, parent: &SessionId) {
-        let (root, account, id) = (core.root.clone(), core.admin.clone(), parent.clone());
+    pub(super) async fn sweep_orphans(
+        &mut self,
+        core: &Core,
+        owner: &AccountId,
+        parent: &SessionId,
+    ) {
+        let (root, account, id) = (core.root.clone(), owner.clone(), parent.clone());
         let orphans = match tokio::task::spawn_blocking(move || orphans(&root, &account, &id)).await
         {
             Ok(orphans) => orphans,
@@ -47,8 +52,7 @@ impl Open {
         }
         self.created
             .retain(|(_, session)| !orphans.contains(session));
-        let (root, account, at, parent) =
-            (core.root.clone(), core.admin.clone(), now(), parent.clone());
+        let (root, account, at, parent) = (core.root.clone(), owner.clone(), now(), parent.clone());
         let index = Arc::clone(&core.index);
         let moved = tokio::task::spawn_blocking(move || {
             for orphan in orphans {

@@ -19,7 +19,7 @@
 | `crates/miyu-endpoint/src/job_output.rs` | `job.output`：取最后几行、量上限（施工 7-4 补） |
 | `crates/miyu-endpoint/src/meta.rs` | `session.set_meta` 的参数：标题去掉前后空白、量长短，`null` 是去掉标题（施工 3-8 三补） |
 | `crates/miyu-endpoint/src/sessions.rs` | 会话表：造会话、找会话；工作目录太宽的退回工作区；造子会话（施工 7-5） |
-| `crates/miyu-endpoint/src/sessions/found.rs` | 找会话、载入（施工 7-8 从 `sessions.rs` 挪出来：表的锁在调的一方手里） |
+| `crates/miyu-endpoint/src/sessions/found.rs` | 找会话、载入（施工 7-8 从 `sessions.rs` 挪出来：表的锁在调的一方手里）。会话认自己的属主（施工 O-4 上）：在跑的照把手（`Handle::owner`），没在跑的照哪个账号的家目录下有它（`DataRoot::owner_of`）；载入、读页、订阅补的日志、撤销、删会话（回收处、子会话、收空子会话）、派子代理读子会话的日志都照属主的家目录。造会话、连接的身份、列会话照旧是管理员 |
 | `crates/miyu-endpoint/src/sessions/orphans.rs` | 载入时收掉派到一半的空子会话（施工 7-8，「会话表」第 8 条） |
 | `crates/miyu-endpoint/src/sessions/delete.rs` | 会话表删会话：认出它派的子会话、停下、挪进回收处（施工 3-8 三补）；删子会话照人停掉它、父会话记回报，都在表的锁里（施工 7-8） |
 | `crates/miyu-endpoint/src/from.rs` | `session.send` 的 `from`：去掉控制字符、截到 128 字节，记成 `harness`（施工 7-10） |

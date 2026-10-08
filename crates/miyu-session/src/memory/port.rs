@@ -6,9 +6,11 @@
 
 use std::sync::Arc;
 
+use miyu_kernel::facts::Present;
 use miyu_kernel::id::{AccountId, CallId, SessionId, TurnId};
 use miyu_kernel::origin::{By, Person, Tool};
-use miyu_kernel::time::Timestamp;
+use miyu_kernel::session::Injection;
+use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_recall::{MemoryId, Source};
 use miyu_store::recall::Room;
 use miyu_tool::{FoundMemory, MEMORIES, MemoryPort, Pending, Refused, Remember, Searched, TURNS};
@@ -42,6 +44,16 @@ impl Calls {
     /// 记忆放在哪一间：交给 [`crate::Handle`]，协议照它找这个会话的记忆（施工 R-3 补）。
     pub(crate) fn room(&self) -> &Room {
         self.keeper.room()
+    }
+
+    /// 回合开始要不要交常驻的摘要、交什么（施工 R-4 上，`summary.rs`）：日期照会话的时区 `offset`，在阻塞线程里读。
+    pub(crate) async fn summary(
+        &self,
+        offset: UtcOffset,
+        present: Vec<Present>,
+    ) -> Option<Injection> {
+        let keeper = self.keeper.clone();
+        blocking(move || keeper.summary(offset, &present)).await
     }
 
     /// 这一次调用的端口：第 `turn` 轮（没有在跑的回合的没有）、调用 `call_id`、派出去的时刻 `at`。

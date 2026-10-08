@@ -34,7 +34,7 @@ async fn a_call_is_one_line_either_way_and_the_key_is_nowhere() {
     home.write(
         "system/config.toml",
         &format!(
-            "[providers.a]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\nkeys = [{{ env = \"A_KEY\" }}]\n\n[models]\nchat = \"a/m\"\n",
+            "[providers.a]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\nkey = {{ env = \"A_KEY\" }}\n\n[models]\nchat = \"a/m\"\n",
             server.base_url
         ),
     );

@@ -72,9 +72,10 @@ fn zh(opening: &Opening) -> String {
 async fn without_a_running_bridge_it_says_to_start_one() {
     let (dir, root) = temp_root();
     let _core = fake_core(&root);
-    let free = std::net::TcpListener::bind("127.0.0.1:0").expect("挑得到");
-    let port = free.local_addr().expect("有地址").port();
-    drop(free);
+    // 没人听的端口：系统挑一个、绑着不听，用完才放。挑来马上放掉的号，负载高时可能被别的测试拿去听（`support/ports.rs`）。
+    let unheard = tokio::net::TcpSocket::new_v4().expect("开得了");
+    unheard.bind(([127, 0, 0, 1], 0).into()).expect("挑得到");
+    let port = unheard.local_addr().expect("有地址").port();
     let (code, out, err, opened) = run(&root, port, false, true).await;
     assert_eq!(code, 1);
     assert_eq!(out, "");

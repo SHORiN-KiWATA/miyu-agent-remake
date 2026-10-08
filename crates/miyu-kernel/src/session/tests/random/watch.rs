@@ -21,6 +21,7 @@ mod overflow;
 mod peers;
 mod permission;
 mod prepare;
+mod present;
 mod question;
 mod queue;
 mod rebuild;
@@ -331,8 +332,13 @@ impl Watch {
                 *self.replied.entry(id.clone()).or_default() += 1;
                 self.replied_at_most_received(&id);
             }
-            Action::RunTurnStartHooks { turn, model } => {
+            Action::RunTurnStartHooks {
+                turn,
+                model,
+                present,
+            } => {
                 self.start_hooks(turn);
+                self.hooks_present(&present);
                 self.hooks_model(model.as_deref());
             }
             Action::CallModel { seen, request, .. } => self.called(seen, &request),

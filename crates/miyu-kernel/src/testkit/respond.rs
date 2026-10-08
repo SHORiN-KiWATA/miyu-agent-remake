@@ -32,7 +32,12 @@ impl Stage {
                 self.transients.push(transient);
                 Vec::new()
             }
-            Action::RunTurnStartHooks { turn, model } => {
+            Action::RunTurnStartHooks {
+                turn,
+                model,
+                present,
+            } => {
+                self.presents.push(present);
                 let replaced = self.routing.resolve(model);
                 let policy = self.swapped();
                 vec![Input::TurnStartHooksDone {

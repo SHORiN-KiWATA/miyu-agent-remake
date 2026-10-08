@@ -27,8 +27,9 @@
 | `crates/miyu-policy/src/memory.rs` | 范围 `MemoryScope` 的三种写法；快照的 `memory` 怎么写、怎么读（没有的照 `persona`，认不出的照 `off`） | R-3 下 |
 | `crates/miyu-recall/src/turns.rs` | 回合索引里的一条怎么从日志算：`TurnFeed`（增量、载入时铺回）、`replay`（整份）、`key` | R-2 上 |
 | `crates/miyu-store/src/recall/indexes.rs` | 回合库的登记：照房间开回合库、留着；删会话时拿掉人格那几间里它的（会话那一间跟着目录走） | R-2 上 |
-| `crates/miyu-session/src/memory.rs` | 执行器：会话写日志时顺手更新回合索引、载入时补上（R-2 上）；`Memory::new` 登记第一次开回合库时记日志、补齐（R-2 下）；以后挂接点上叫记忆、工具的端口、后台抽取、合并 | R-2 起 |
+| `crates/miyu-session/src/memory.rs` | 执行器：会话写日志时顺手更新回合索引、载入时补上（R-2 上）；`Memory::new` 登记第一次开回合库时记日志、补齐（R-2 下）；以后后台抽取、合并 | R-2 起 |
 | `crates/miyu-session/src/memory/backfill.rs` | 补齐旧会话：照账号的会话一个个读日志、照载入时的判法补（第一条第 9 款） | R-2 下 |
+| `crates/miyu-session/src/memory/summary.rs` | 常驻的摘要：交不交、交什么、上限，外壳的字（`SummaryTexts`）；`memory/port.rs` 在阻塞线程里读，`actor/model.rs` 的 `hooks` 在回合开始问它、限时（第三条） | R-4 上 |
 | `crates/miyu-session/src/memory/keeper.rs` | 一间记忆和这次的听众（`Keeper`）：记、改、忘、清空、搜、列、搜以前的对话，她的工具和协议共用；`memory/port.rs` 是她的工具的端口，只管出处是这一轮、`by` 是那次调用 | R-3 中、补 |
 | `crates/miyu-memory/` | 记忆这个软件包（可选、能关，`10-自带软件.md` 第三节）：三件工具 `memory_search`、`remember`、`forget`，经端口碰记忆日志和检索库；不放进基础系统 | R-3 中 |
 | `crates/miyu-endpoint/src/memory.rs`、`memory/params.rs` | 协议 `memory.*`：找哪一间、读参数、写回应；`/remember` 记一条（`commands.rs` 调它） | R-3 补 |
@@ -142,17 +143,28 @@
 4. **出处活不活怎么知道**（R-3 上）：回合库里另记两样墓碑，都是会话落盘时顺手照日志写的派生数据：撤销了的回合（`turn.reverted` 的每一轮，人开的、不是人开的都算；恢复了拿掉），删掉了的会话（删会话时记下，从回收处恢复的随 R-2 下拿掉）。一处出处 `{session, turn}` 活着：会话没删、这一轮没撤销。
 5. 清空（17 第八节，R-3 补先做两种）：追加 `ext.memory.cleared`。不带 `session` 的：那以前的全都清掉。带 `session` 的：那以前出处全在这个会话里的清掉，还有别的出处的不动（照 17 第六节撤回的规矩），人记的（没有出处）不动；会话那一间清这个会话的就是整间。清掉的哪里都不出来（`forgotten` 也不），改、作废它说已经不算了；记忆库里的字跟着删。整理到一半、记在清空以前的作废（R-6 起，旧版的 generation 照序号算，不另记代数）。
 
-**三、常驻的记忆摘要**（R-4）
+**三、常驻的记忆摘要**（R-4 上、下）
 
-1. 会话的第一轮、压缩以后的第一轮（有效历史里没有记忆模块注入的摘要那一块），回合开始的挂接点交回一块事实：`kind` 是 `memory`，原文是外壳加最新的 `ext.memory.summary`（听众不合的条目不进，第九条）。和会话编号那一块一个道理：一个会话一份，会话中途不重发（`kernel/request.md`「事实」第 2 条）。
-2. 硬上限（起点 1000 token，照字节/4 折算）；超了截在一条的边界上，最后一行写明截了。
-3. 还没有摘要的（新装、还没合并过），交最近的、最常用到的几条，同一个上限。一条都没有的不注入。
-4. 整理改了摘要，跑着的会话不跟：压缩以后、新会话才换。
-5. 挂接点的接口这一步画，画好先发给核心的主会话（它的回合闸也挂在这里，2026-10-07 两边定的）：
-   - 内核交给挂接点：这一轮的回合、触发它的那句人话（字）和谁说的、有效历史里各模块已经注入过哪几块（模块、类别、带的编号）。
-   - 挂接点交回：几块 `ContextInjected`，照现在的 `TurnStartHooksDone`。
-   - `context.injected` 多一格可以没有的 `refs`：这一块带着哪几条记忆的编号，不进请求，给去重和「用到没有」算数用。
-   - 有时限（起点 300 毫秒，测出来定）：过了就交回已经拿到的，不挡回合。
+1. **什么时候交**：回合开始，执行器问挂接点（`actor/model.rs` 的 `hooks`），记忆看内核交来的 `present`（有效历史里模块注入过的那几块）：没有模块 `memory`、类别 `memory` 的一块就交，有了不交。所以交在会话的第一轮、压缩以后、清空以后、撤掉带着它的那一轮以后的第一轮。回合中途压缩、那一块被压掉的，这一轮余下的请求里没有，下一轮开头再交；压的那一轮开头交的在留下的那一截里，不重交。和会话编号那一块一个道理：一个会话一份，会话中途不重发（`kernel/request.md`「事实」第 2 条）。范围 `off` 的、没接记忆的会话不问；一条都没有的不交。
+2. **交什么**：一块 `context.injected`，`kind` 是 `memory`，`by` 是模块 `memory`，`refs` 是这一块里那几条的编号。原文是外壳加一条一行：
+
+   ```text
+   <memories>
+   m12 feedback 2026-10-08: 回答先说结论
+   m7 user 2026-10-07: 用户养了一只猫
+   </memories>
+   ```
+
+   一行和 `memory_search` 的一行一个写法（`resources/software/memory/memory_search/memory.txt`），正文里的换行换成空格，日期照会话的时区。交这一间里现在算数的（没作废、没被改掉、没清掉）、出处活着的、听众合的（第九条），新的在前（R-4 上）。排名（半衰期、用到几次、类）随 R-4 下；合并出来的 `ext.memory.summary` 随 R-7，有了以后交它。
+3. **上限**：整块不超过 3000 字节（`memory/summary.rs` 的 `LIMIT`）。起点是约 1000 token；中文为主的一块照字节/4 折算会少算，2026-10-08 在开发端点量过 4000 字节 1298 token、3000 字节 964 token，所以取 3000。超了截在一条的边界上，最后一行写还有几条：`…and 12 more; memory_search finds them.`。
+4. **时限**：挂接点限时 300 毫秒（起点，`actor/model.rs` 的 `HOOKS`）。过了当这一轮没交，记一行 `DEBUG turn start hook timed out module=memory`；那次读在阻塞线程里照样读完，交回的丢掉；下一轮 `present` 里还没有，再问。现在只有这一个挂接点；第二个来了再并行问、照模块编号排。
+5. **读字**：外壳和截了的那一句（`resources/software/memory/summary/` 的 `open.txt`、`close.txt`、`more.txt`，登记簿）核心起来时照 `miyu_tool::load` 读好，交给 `Memory`（`SummaryTexts`）。读不出来的（安装坏了）这个核心不交摘要，记一行 `WARN memory summary texts unreadable error=…`；列记忆出错的那一轮不交，记一行 `WARN memory summary not read error=…`。
+6. 整理改了摘要，跑着的会话不跟：压缩以后、新会话才换（R-7）。
+7. **内核的接口**（R-4 上，2026-10-08 和核心的主会话定）：
+   - `context.injected` 多一格可以没有的 `refs`（`kernel/events-bodies.md`）：内核不解读、不进请求，原样记、原样交回，给去重和「用到没有」算数用。
+   - `RunTurnStartHooks` 多 `present`（`kernel/session.md`）：有效历史里由模块注入的每一块的模块、类别、`refs`，照日志的先后（`miyu_kernel::facts::present`）。
+   - 挂接点交回几块 `ContextInjected`，照原来的 `TurnStartHooksDone`。
+   - 触发它的那句人话和谁说的，联想（R-8）用到时再加。
 
 **四、联想**（R-8，单独一步实测后再开，2026-10-07 项目主人定）
 
@@ -187,7 +199,7 @@
 4. 失败不动真相，下次再来；同一批连着失败 3 次跳过。
 5. 模型照 `memory.organizer`，默认 `models.chat`（2026-10-07 项目主人定；旧版最便宜那一挡把整理做坏了）。
 
-**八、遗忘和排名**（R-4 起）
+**八、遗忘和排名**（R-4 下起）
 
 1. 不存会变的「强度」。排名时照这几样算一个分：记下或最近一次用到离现在多久（半衰期，起点 30 天）、被用到几次（对数）、类（`feedback`、`user` 衰得慢）。
 2. 「用到」：联想带过去的、摘要里带着的、她 `memory_search` 搜到的，照会话日志里的 `refs` 和工具结果算，派生数，不另存。
@@ -222,7 +234,7 @@
 | `crates/miyu-memory/tests/tools.rs` | 「工具」：三件都在、访问类别是读；记、改的结果和给人看的说法；超长（121 字不记、120 字记）、类不认识、少参数、编号写错；端口拒的三种对三件；作废；搜的一行一条逐字节比（作废的标出来、对话换行写成 ` / `、截到 300 字接 `…`）；没端口说记忆没开 |
 | `crates/miyu-memory/tests/budget.rs` | 记忆这个软件包的工具面预算：三份说明不超过 1100 字节 |
 | `crates/miyu-session/tests/memory_tools.rs` | 真会话、真记忆日志：只有本机的主会话工具面上有三件；记下的出处是这一轮、`by` 是那次调用、听众是属主；别的会话搜得到记下的和那一轮对话（自己的不算）；撤销那一轮看不见、恢复看得见；作废的只在 `forgotten` 时出来 |
-| `crates/miyu-endpoint/tests/memory.rs` | 真核心：说过的一轮进软件工程师的回合库；删会话以后拿掉，整个会话埋了墓碑 |
+| `crates/miyu-endpoint/tests/memory.rs` | 真核心：说过的一轮进软件工程师的回合库；删会话以后拿掉，整个会话埋了墓碑。第三条第 5 款（R-4 上）：核心读好摘要的字，人经协议记了一条，新会话第一轮的请求里有那一块 |
 | `crates/miyu-policy/src/memory/tests.rs` | 「范围」：三种写进快照读回一字不差、排在最后；以前造的没有这一格，字节不变、照 `persona`；认不出的照 `off`；三种的写法 |
 | `crates/miyu-session/tests/memory_scope.rs` | 「范围」：`off` 的工具面上没有三件、说过的不进回合库，载入以后照旧；`session` 的记在会话目录里（记忆日志、回合库），人格那一间没有，别的会话搜不到，载入以后接着记在那里；子会话交了 `persona` 快照也写 `off`，主会话写明 |
 | `crates/miyu-endpoint/tests/memory_scope.rs` | 「范围」：`session.create` 的 `memory` 三种和 `null` 照写的记、写错的三种 `bad_params` 不造；不写的照人格的 `persona.toml`，写了的压着它 |
@@ -231,6 +243,9 @@
 | `crates/miyu-endpoint/tests/memory_api.rs` | 「协议」：五个方法各走一遍（新的在前、照类、`limit`、搜、改了旧的不出来、类照旧、作废的只在 `forgotten` 时出来）；写错的几种（超长带 `data`、120 字记得下、类不认识、空白、两样都写、`as`、人格编号、没有的人格、没有的会话、`limit` 出范围、`from` 写错），什么都没记；默认人格、会话那一间、跟着人格的会话、`off` 的 `memory_unavailable`；同一个命令编号记、改、作废、清空再发只算一次，重启以后也是；没设默认人格的不写人格就没有记忆、不带人格的会话里 `/remember` 不记，明着写了人格的照样能记 |
 | `crates/miyu-endpoint/tests/memory_clear.rs` | 清空：她记的和人记的一起清，清一个会话的回一条、清掉的作废的里也没有，清整间回两条、搜不到、改它说不算了；会话那一间清会话的就是整间 |
 | `crates/miyu-endpoint/tests/remember_command.rs` | `/remember`：记进会话那一间、`by` 是人、出处空、回执带编号、记 `command.ran`、不请求模型；空的、只有空白的、超长的不记；`off` 的、场所会话里 `memory_unavailable` |
+| `crates/miyu-session/tests/memory_summary.rs` | 第三条：真会话、真记忆日志，第一轮的请求里有那一块、在触发的那句前面、新的在前、一行逐字节对、`refs` 是那几条；第二轮不再交、第一轮那一块原样还在；清空以后又交一次；一条都没有的、范围 `off` 的不交；听众不合的、作废的、改掉的不进；正文的换行换成空格，日期照会话的时区（UTC 的 7 日 20 点在东九区写 8 日）；六十条截在一条的边界上、不超过 3000 字节、说还有几条；另一个线程握着记忆日志的锁，这一轮过了时限照常请求、不带，下一轮交了 |
+| `crates/miyu-kernel/src/session/tests/present.rs` | 第三条第 7 款：模块交的一块下一轮在 `present` 里、`refs` 原样记原样交回；清空、撤掉带着它的那一轮以后不在；内核自己的两块不算；旧的 `context.injected`（没有 `refs`）读进来写出去一字不差。随机测试的看守（`random/watch/present.rs`）照自己的有效历史对一遍 |
+| `crates/miyu-assemble/tests/sample_session.rs`（R-4 上的一条） | 第三条第 7 款：样本第 151 条，记忆交的一块进请求只有原文，`refs` 不进 |
 | `crates/miyu-recall/src/memory/tests.rs` | 「对外的样子」的记忆日志、底账：`saved`、`retired` 写成事件、读回一字不差，写出的行逐字节比；不是记忆的是 `None`、读不懂的说为什么；不认识的类原样留着；编号的写法；底账记、改（旧的标成被改掉）、作废、改和作废一条不存在的不碍事 |
 | `crates/miyu-store/tests/memory.rs` | 记忆日志的登记：记了、重开还在、搜得到（作废的也搜得到）；最后半行坏了截掉、接着它写；八个线程同时记两百条，编号连续不重；记忆库删了照日志补；人格、账号各一份；会话那一间在会话目录里，和人格那一间互不相干；第一次开交回情形、读不懂的说出来。量尺 `measure_a_thousand_memories`（`#[ignore]`） |
 
@@ -258,8 +273,11 @@
 | R-3 下 | 范围：`persona.toml` 的 `[memory] scope`、`session.create` 的 `memory`（记进策略快照）、`miyu ask --no-memory`、范围 `session` 的房间在会话目录里、`off` 不接；听众和记忆账号分开 |
 | R-3 补 | 协议和清空：`memory.*`、`ext.memory.cleared`、清空两种、`/remember` |
 | R-3 再补 | 命令行 `miyu memory` |
-| R-4 | 常驻的摘要：回合开始的挂接点（接口先发核心的主会话）、`refs`、排名 |
-| R-5 | embedding：`miyu-embed`、清单和下载、`models.embedding`、远程接口、向量一路接进来（和 R-2 到 R-4 不碰同一片代码，能并行） |
+| R-4 上 | 常驻的摘要：回合开始的挂接点（接口先发核心的主会话）、`refs`、`present`，交最新的几条（第三条） |
+| R-4 下 | 摘要的排名：半衰期、用到几次（照 `refs`）、类 |
+| R-5 上 | 本机 embedding 的小程序 `miyu-embed`：清单、WordPiece 分词、ONNX Runtime 静态链接，一行一句进、一行一个向量出（`recall.md` 第四条第 2、4、5 款） |
+| R-5 中 | 核心接上小程序：`models.embedding`、照清单下载和核对、按需拉起、空闲退出 |
+| R-5 下 | 向量一路：向量表、补、照模型和字的哈希缓存、两路合并，远程的 `/v1/embeddings`（`recall.md` 第三条） |
 | R-6 | 抽取 |
 | R-7 | 合并、重写摘要 |
 | R-8 | 联想（测评集上定门槛） |

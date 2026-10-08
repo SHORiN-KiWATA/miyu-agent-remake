@@ -156,7 +156,7 @@ async fn a_loopback_provider_is_reached_even_with_the_proxy_pointed_at_a_dead_po
     let work: PathBuf = home.dir.join("work");
     std::fs::create_dir_all(&work).expect("建得了");
     let providers = format!(
-        "[providers.dev]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\nkeys = [{{ env = \"MIYU_TEST_KEY\" }}]\n",
+        "[providers.dev]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\nkey = {{ env = \"MIYU_TEST_KEY\" }}\n",
         server.base_url
     );
     // 代理的环境变量指到一台没人听的本机端口：直连才连得上，不写代码会卡在连不上代理（连接被拒绝，不是超时）上。
@@ -191,7 +191,7 @@ async fn a_non_loopback_provider_still_goes_through_the_proxy() {
     std::fs::create_dir_all(&work).expect("建得了");
     // 地址不是回环：`example.invalid` 保留给测试用，解不出来也不要紧——代理替它连。
     let providers =
-        "[providers.dev]\ndriver = \"openai-chat\"\nbase_url = \"http://example.invalid/v1\"\nkeys = [{ env = \"MIYU_TEST_KEY\" }]\n"
+        "[providers.dev]\ndriver = \"openai-chat\"\nbase_url = \"http://example.invalid/v1\"\nkey = { env = \"MIYU_TEST_KEY\" }\n"
             .to_string();
     let mut core = start(
         &home,
@@ -225,7 +225,7 @@ async fn provider_test_reaches_a_loopback_provider_even_with_a_dead_proxy() {
     let server = Server::start(vec![listing(&["deepseek-chat"]), said("OK")]).await;
     let home = Home::new();
     let providers = format!(
-        "[providers.dev]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\nkeys = [{{ env = \"MIYU_TEST_KEY\" }}]\n",
+        "[providers.dev]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\nkey = {{ env = \"MIYU_TEST_KEY\" }}\n",
         server.base_url
     );
     let mut core = start(

@@ -160,7 +160,7 @@ trusted = true
 | 模型 `model` | `"deepseek/deepseek-v4"` | 只能是 `<供应商>/<模型>`：池、写法不对的 `bad_format`。指的供应商在不在同引用 | 8-8（池的成员：宏里写 `models`，模型的列表） |
 | 给模型看的字 `english` | `"Small model for quick lookups."` | 必写最多几个字符，宏里写 `english [60]`；空的、超了的、有控制字符（连同换行：只能一行）的 `bad_format`；CJK 的字（汉字、假名、谚文、全角的标点和字母）数乘二不小于总字数的也是 `bad_format`：给模型看的字一律英文（`26-提示词.md` J3），期望说「一行英文」。协议上 `config.schema` 照文字一样带 `max` | 8-8 补（池的 `description`） |
 | 密钥 `secret` | `{ secret = "deepseek" }`、`{ env = "DEEPSEEK_API_KEY" }`，行内表、有表头的表都认 | 正好一格；`secret` 的照名字的写法，`env` 的不是空的、没有 `=`；写错的 `wrong_type`。不由环境变量压过（第九条） | 8-5（类型加了，清单里用它的项随 8-6） |
-| 列表 `list` | `[…]` | 每一个照元素的类型查，元素不能再是列表；宏里写 `secrets` 是密钥的列表 | 8-6（供应商的 `keys`） |
+| 列表 `list` | `[…]` | 每一个照元素的类型查，元素不能再是列表；宏里写 `secrets` 是密钥的列表 | 8-6（供应商的 `keys`，8-25 改成一个 `key`；软件包的列表配置项还用） |
 | 表 `table` | `[a.b]`，或者 `{ … }` | 键照名字的写法，值照元素的类型查 | 同上 |
 
 - 类型照「不为以后写代码」一样一样加：哪一步第一次有一项用到它，哪一步加。8-1 只有选项，8-2 加开关，8-5 加密钥，8-6 加整数、网址、名字、引用、列表，8-7 加小数、文字、时长，8-8 补加给模型看的字，列表的元素可以是选项（宏里写 `options [..]`，`config.schema` 照样带 `options`，选项的名字照样要有字）、文字（`texts [..]`）。路径、表随用到它的那一步。
@@ -271,7 +271,7 @@ miyu_config::settings! {
 | `providers.<id>.name` | 文字，最多 64 个字符 | 没有：照目录里那一家的名字，再没有的照编号 | 系统、个人 | 不能写 | `now`（只给界面看，不进请求） | 8-21 |
 | `providers.<id>.driver` | 选项 `openai-chat`、`anthropic`、`openai-responses` | 没有：照档案推 | 系统、个人 | 不能写 | `next_turn` | 8-6 |
 | `providers.<id>.base_url` | 网址 | 没有：照档案推 | 系统、个人 | 不能写 | `next_turn` | 8-6 |
-| `providers.<id>.keys` | 密钥的列表 | `[]`：不带认证头 | 系统、个人 | 不能写 | `next_turn` | 8-6 |
+| `providers.<id>.key` | 密钥 | 没有：不带认证头 | 系统、个人 | 不能写 | `next_turn` | 8-6（8-25 从 `keys` 列表改成一个，`15-模型与供应商.md` M10） |
 | `providers.<id>.catalog` | 名字 | 没有：照编号 | 系统、个人 | 不能写 | `next_turn` | 8-6 |
 | `providers.<id>.models.<model>.window` | 整数 1 到 100000000 | 没有：照模型资料 | 系统、个人 | 不能写 | `next_turn`（施工 8-10 起：开着的会话下一个回合开始时用上） | 8-6 |
 | `providers.<id>.price_multiplier`、`providers.<id>.models.<model>.price_multiplier` | 小数 0 到 1000 | 没有：1 | 系统、个人 | 不能写 | `next_turn` | 8-7 |
@@ -510,7 +510,7 @@ miyu_config::settings! {
 **`secret.list`**（查询，8-5）：不带参数。只列名字和是否已设置，从不交出值：
 
 ```json
-{"secrets":[{"name":"bigmodel-2","set":false,"used_by":["providers.bigmodel.keys"]},{"name":"deepseek","set":true,"used_by":["providers.deepseek.keys"]}]}
+{"secrets":[{"name":"bigmodel-2","set":false,"used_by":["providers.bigmodel.key"]},{"name":"deepseek","set":true,"used_by":["providers.deepseek.key"]}]}
 ```
 
 - 列的是设了的，和配置里引用了、还没设的，照名字排。
@@ -936,14 +936,14 @@ A project config can only make limits stricter. Trust this one? [y/N] y
 ```text
 $ miyu login
 配置里用到的密钥：
-  1  deepseek    providers.deepseek.keys  已设置
-  2  bigmodel-2  providers.bigmodel.keys  未设置
+  1  deepseek    providers.deepseek.key  已设置
+  2  bigmodel-2  providers.bigmodel.key  未设置
 选一个编号，或者敲一个新名字：2
 粘贴 bigmodel-2 的 key（不显示）：
 · bigmodel-2 的 key 存好了
 $ miyu login --list
-deepseek    已设置  providers.deepseek.keys
-bigmodel-2  已设置  providers.bigmodel.keys
+deepseek    已设置  providers.deepseek.key
+bigmodel-2  已设置  providers.bigmodel.key
 $ miyu logout bigmodel-2
 · 删掉了 bigmodel-2 的 key
 ```
@@ -996,11 +996,11 @@ update = true
 url = "https://models.dev/api.json"
 
 [models.cooldown.auth]
-# 认证失败先停用多久：认证失败、额度用完时，整个 key 第一次停用这么久，连着再失败就翻倍。
+# 认证失败先停用多久：认证失败、额度用完时，整家供应商第一次停用这么久，连着再失败就翻倍。
 # 能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
 base = "10m"
 
-# 认证失败最多停用多久：整个 key 的停用翻倍到这么久为止。
+# 认证失败最多停用多久：整家供应商的停用翻倍到这么久为止。
 # 能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
 max = "2h"
 
@@ -1088,9 +1088,9 @@ default = "full"
 # 能写：openai-chat、anthropic 或 openai-responses。只能写在系统配置或个人设置里。下一轮生效。
 # driver =
 
-# key：写 { secret = "名字" }（用 miyu login 存）或 { env = "环境变量" }，一个会话钉在其中一个上。空的不带认证头。
-# 能写：{ secret = "…" } 或 { env = "…" } 的列表。只能写在系统配置或个人设置里。下一轮生效。
-keys = []
+# key：写 { secret = "名字" }（用 miyu login 存）或 { env = "环境变量" }。一家一个，几份额度一起用的配成几家、放进池里。不写的不带认证头。
+# 能写：{ secret = "…" } 或 { env = "…" }。只能写在系统配置或个人设置里。下一轮生效。
+# key =
 
 # 本机的服务：本机跑的模型服务，价格当 0。不写的照地址：在本机的是。
 # 能写：true 或 false。只能写在系统配置或个人设置里。下一轮生效。
@@ -1162,6 +1162,11 @@ keys = []
 # 能写：0 到 1000000 之间的数。只能写在系统配置或个人设置里。下一轮生效。
 # output =
 
+[tui]
+# 图标：终端界面用哪一套图标：Nerd Font 的图标，或者没装这种字体时用的普通字符。
+# 能写：nerd 或 plain。只能写在系统配置或个人设置里。当场生效。
+icons = "nerd"
+
 [ui]
 # 默认界面：直接敲 miyu 时打开哪个界面。
 # 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。这个程序下次启动时生效。
@@ -1202,7 +1207,7 @@ port = 8300
 ticket_idle_seconds = 43200
 ```
 
-样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `compaction.prepare`（6-11 上）、`models.chat`、`models.vision`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`models.cooldown.*`（8-9）、`permission.start_read_only`、`persona.default`（P-1 上）、`preset.default`（P-2 上）、`providers.<id>.*`、`ui.language`、`ui.startup`）：
+样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `compaction.prepare`（6-11 上）、`models.chat`、`models.vision`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`models.cooldown.*`（8-9）、`permission.start_read_only`、`persona.default`（P-1 上）、`preset.default`（P-2 上）、`providers.<id>.*`、`tui.icons`（9-3 再补，终端界面的清单声明的）、`ui.language`、`ui.startup`）：
 
 ```json
 {
@@ -1273,14 +1278,14 @@ ticket_idle_seconds = 43200
               "properties": {
                 "base": {
                   "default": "10m",
-                  "description": "认证失败、额度用完时，整个 key 第一次停用这么久，连着再失败就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "description": "认证失败、额度用完时，整家供应商第一次停用这么久，连着再失败就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
                   "pattern": "^[0-9]+[smh]?$",
                   "title": "认证失败先停用多久",
                   "type": "string"
                 },
                 "max": {
                   "default": "2h",
-                  "description": "整个 key 的停用翻倍到这么久为止。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "description": "整家供应商的停用翻倍到这么久为止。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
                   "pattern": "^[0-9]+[smh]?$",
                   "title": "认证失败最多停用多久",
                   "type": "string"
@@ -1457,39 +1462,35 @@ ticket_idle_seconds = 43200
             "title": "驱动",
             "type": "string"
           },
-          "keys": {
-            "default": [],
-            "description": "写 { secret = \"名字\" }（用 miyu login 存）或 { env = \"环境变量\" }，一个会话钉在其中一个上。空的不带认证头。能写：{ secret = \"…\" } 或 { env = \"…\" } 的列表。只能写在系统配置或个人设置里。下一轮生效。",
-            "items": {
-              "oneOf": [
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "secret": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "secret"
-                  ],
-                  "type": "object"
+          "key": {
+            "description": "写 { secret = \"名字\" }（用 miyu login 存）或 { env = \"环境变量\" }。一家一个，几份额度一起用的配成几家、放进池里。不写的不带认证头。能写：{ secret = \"…\" } 或 { env = \"…\" }。只能写在系统配置或个人设置里。下一轮生效。",
+            "oneOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "secret": {
+                    "type": "string"
+                  }
                 },
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "env": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "env"
-                  ],
-                  "type": "object"
-                }
-              ]
-            },
-            "title": "key",
-            "type": "array"
+                "required": [
+                  "secret"
+                ],
+                "type": "object"
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "env": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "env"
+                ],
+                "type": "object"
+              }
+            ],
+            "title": "key"
           },
           "local": {
             "description": "本机跑的模型服务，价格当 0。不写的照地址：在本机的是。能写：true 或 false。只能写在系统配置或个人设置里。下一轮生效。",
@@ -1635,6 +1636,21 @@ ticket_idle_seconds = 43200
       },
       "type": "object"
     },
+    "tui": {
+      "properties": {
+        "icons": {
+          "default": "nerd",
+          "description": "终端界面用哪一套图标：Nerd Font 的图标，或者没装这种字体时用的普通字符。能写：nerd 或 plain。只能写在系统配置或个人设置里。当场生效。",
+          "enum": [
+            "nerd",
+            "plain"
+          ],
+          "title": "图标",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "ui": {
       "properties": {
         "head": {
@@ -1764,7 +1780,7 @@ ticket_idle_seconds = 43200
 | 选项 | `openai-chat` OpenAI 兼容的对话接口、`anthropic` Anthropic 消息接口、`openai-responses` OpenAI Responses 接口 | OpenAI-compatible chat、Anthropic Messages、OpenAI Responses | OpenAI 互換のチャット、Anthropic Messages、OpenAI Responses |
 | `providers.<id>.base_url` 名字（8-6） | 地址 | Address | アドレス |
 | 说明 | 这家的接口地址，路径由驱动接在后面。认得出的供应商可以不写。 | The address of this provider's API; the driver adds the path. Known providers can leave it out. | このプロバイダーの API のアドレス。パスはドライバーが付けます。知っているプロバイダーなら書かなくてもかまいません。 |
-| `providers.<id>.keys` 名字（8-6） | key | Keys | キー |
+| `providers.<id>.key` 名字（8-6，8-25 从 `keys` 改） | key | Key | キー |
 | 说明 | 写 { secret = "名字" }（用 miyu login 存）或 { env = "环境变量" }，一个会话钉在其中一个上。空的不带认证头。 | Write { secret = "name" } (saved with miyu login) or { env = "VARIABLE" }. Each session sticks to one of them. Empty means no auth header. | { secret = "名前" }（miyu login で保存）か { env = "環境変数" } を書きます。セッションはそのうちの一つを使い続けます。空なら認証ヘッダーを付けません。 |
 | `providers.<id>.catalog` 名字（8-6） | 对应的供应商 | Catalog provider | 対応するプロバイダー |
 | 说明 | 这家对应资料里的哪一家，例如只转 DeepSeek 的中转写 deepseek。 | Which provider in the model data this one is, for example deepseek for a relay that only forwards DeepSeek. | モデル資料のどのプロバイダーに当たるか。DeepSeek だけを中継するなら deepseek と書きます。 |
@@ -2122,7 +2138,7 @@ Options:
 - `28-运行日志.md` 第三节、LG2：`log.level`，`MIYU_LOG` 管这一次启动。
 - `02-内核.md` K3：影响请求的，下一个回合开始时生效。
 - `04-核心协议.md` 第九节：配置与密钥的方法、`config.changed`。
-- `15-模型与供应商.md` 第二节：`keys = [{ secret = … }]`、`{ env = … }`。
+- `15-模型与供应商.md` 第二节：`key = { secret = … }`、`{ env = … }`（8-25 起一家一个，原来是 `keys` 列表）。
 - 施工方案第三节 M8：2026-10-01 项目主人定项目配置只做收紧、M8 只有管理员一个人。
 - 别家：`git config --show-origin`（说得出来源），visudo（先查再存），dconf 的 locks，direnv 的 `allow`、`deny`（信任），opencode 的 `auth login`、`auth list`、`auth logout` 和 codex 的 `login`、`logout`（管密钥的命令），Taplo 的 `#:schema`，Claude Code 的项目设置、codex 的 `config.toml`（找项目配置的范围）。
 

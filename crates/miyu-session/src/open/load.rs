@@ -26,7 +26,7 @@ use crate::config::Turning;
 use crate::current::Tally;
 use crate::effects;
 use crate::guard::Guard;
-use crate::handle::Handle;
+use crate::handle::{Handle, Ids};
 use crate::job_ids::JobIds;
 use crate::jobs::Roster;
 use crate::memory::{self, connect};
@@ -268,7 +268,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         wake_children(port, waiting, &span);
     }
     actor::spawn(actor, first, span);
-    Ok(Handle::new(id, venue, inbox, busy, created.oneshot, watched, shown).with_memory(room))
+    let ids = Ids { id, venue, owner };
+    Ok(Handle::new(ids, inbox, busy, created.oneshot, watched, shown).with_memory(room))
 }
 
 /// 现在的快照（施工 P-1 再补）：整份日志里最近一条带 `policy` 的 `session.policy_changed`，撤掉的回合里的也算（换快照不是

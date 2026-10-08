@@ -19,6 +19,8 @@ use miyu_store::root::DataRoot;
 
 use crate::support::fake_core::{FakeCore, LOGIN, fake_core};
 use crate::support::http::*;
+use crate::support::ports::TRIES;
+use crate::support::spawning::free_port;
 use crate::support::*;
 
 /// 换上的新令牌。
@@ -75,17 +77,29 @@ impl Changing {
     }
 }
 
-/// 一个空着的端口：系统挑一个，马上放掉。
-fn free_port() -> u16 {
-    let free = std::net::TcpListener::bind("127.0.0.1:0").expect("挑得到");
-    free.local_addr().expect("有地址").port()
-}
-
 /// 带着登录令牌 `POST /apply`。
 async fn apply(web: u16) -> Answer {
     let bearer = format!("Bearer {LOGIN}");
     let host = format!("127.0.0.1:{web}");
     request(web, "POST", "/apply", &host, &[("Authorization", &bearer)]).await
+}
+
+/// 挑一个空端口、照 `change` 写进重读读到的配置，再 `/apply`：交回挑的端口和回应。桥说挑的这个被占了（409，`in_use` 是它：
+/// 挑来放掉以后被别人先拿走了，`support/ports.rs`）的，换一个再来，最多 [`TRIES`] 次。
+async fn apply_free(
+    changing: &Changing,
+    web: u16,
+    change: impl Fn(&mut Settings, u16),
+) -> (u16, Answer) {
+    for _ in 0..TRIES {
+        let new = free_port();
+        changing.set(|settings| change(settings, new));
+        let answer = apply(web).await;
+        if (answer.status, answer.json()) != (409, json!({"in_use": new})) {
+            return (new, answer);
+        }
+    }
+    panic!("试了 {TRIES} 个端口，桥都说被占了");
 }
 
 /// 带着登录令牌取一次 `/status`。
@@ -138,9 +152,7 @@ async fn applying_needs_the_login_token() {
 async fn a_new_napcat_port_takes_over() {
     let changing = Changing::start(tuning()).await;
     let (old, web) = (changing.bridge.port, changing.bridge.web);
-    let new = free_port();
-    changing.set(|settings| settings.port = new);
-    let applied = apply(web).await;
+    let (new, applied) = apply_free(&changing, web, |settings, new| settings.port = new).await;
     assert_eq!(applied.status, 200);
     assert_eq!(applied.json(), json!({"listen": new, "web": web}));
     // NapCat 连进来以前：只有换端口这一件叫状态文件再写。
@@ -167,9 +179,7 @@ async fn a_new_napcat_port_takes_over() {
 async fn a_new_web_port_takes_over() {
     let changing = Changing::start(tuning()).await;
     let old = changing.bridge.web;
-    let new = free_port();
-    changing.set(|settings| settings.web = new);
-    let applied = apply(old).await;
+    let (new, applied) = apply_free(&changing, old, |settings, new| settings.web = new).await;
     assert_eq!(applied.status, 200);
     assert_eq!(
         applied.json(),
@@ -201,12 +211,13 @@ async fn a_taken_port_is_refused_and_the_old_ones_stay() {
     assert_eq!(refused.json(), json!({"in_use": taken}));
     assert_eq!(get(web, "/", &[]).await.status, 200, "WebUI 照旧");
     // 两个都变、WebUI 的被占：NapCat 的也不换，开好的新端口放掉。
-    let new = free_port();
-    changing.set(|settings| {
+    let (new, refused) = apply_free(&changing, web, |settings, new| {
         settings.port = new;
         settings.web = taken;
-    });
-    assert_eq!(apply(web).await.status, 409);
+    })
+    .await;
+    assert_eq!(refused.status, 409);
+    assert_eq!(refused.json(), json!({"in_use": taken}));
     assert_eq!(status(web).await["listen"], listen, "NapCat 的端口也没换");
     closed(new).await;
     owner_napcat(listen).await.close().await;

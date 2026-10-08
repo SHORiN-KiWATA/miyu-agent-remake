@@ -284,33 +284,36 @@ impl<'a> Flow<'a> {
         Ok(())
     }
 
-    /// 写系统配置：这一家的 `keys`（已经配好的那一家不写）和 `models.chat`；自定义的另写 `driver`、`base_url`（`stored` 是
-    /// 存了贴的 key）；配置里一个池都没有的，同一次一起写三个预设的池。
+    /// 写系统配置：这一家的 `key`（已经配好的那一家不写；施工 8-25 起一家一个）和 `models.chat`；自定义的另写 `driver`、
+    /// `base_url`（`stored` 是存了贴的 key）；不要 key 的本机服务写 `local = true`，这一家因此算配好了；配置里一个池都没有的，
+    /// 同一次一起写三个预设的池。
     async fn write_config(&mut self, chosen: &Chosen, stored: bool, model: &str) -> Result<(), u8> {
         let (id, mut changes) = match (&chosen.key, &chosen.custom) {
             (Key::Configured(id), _) => (id.clone(), Vec::new()),
             (_, Some(custom)) => {
                 let id = chosen.id.clone();
-                let keys = match stored {
-                    true => json!([{"secret": id}]),
-                    false => json!([]),
-                };
-                let changes = vec![
+                let mut changes = vec![
                     json!({"key": format!("providers.{id}.driver"), "value": custom.driver}),
                     json!({"key": format!("providers.{id}.base_url"), "value": custom.base_url}),
-                    json!({"key": format!("providers.{id}.keys"), "value": keys}),
                 ];
+                if stored {
+                    changes.push(
+                        json!({"key": format!("providers.{id}.key"), "value": {"secret": id}}),
+                    );
+                }
                 (id, changes)
             }
             (key, None) => {
                 let id = config_id(&chosen.id);
-                let keys = match key {
-                    Key::Env(name) => json!([{"env": name}]),
-                    Key::Paste | Key::Optional => json!([{"secret": id}]),
-                    _ => json!([]),
-                };
-                let mut changes =
-                    vec![json!({"key": format!("providers.{id}.keys"), "value": keys})];
+                let mut changes = vec![match key {
+                    Key::Env(name) => {
+                        json!({"key": format!("providers.{id}.key"), "value": {"env": name}})
+                    }
+                    Key::Paste | Key::Optional => {
+                        json!({"key": format!("providers.{id}.key"), "value": {"secret": id}})
+                    }
+                    _ => json!({"key": format!("providers.{id}.local"), "value": true}),
+                }];
                 if id != chosen.id {
                     changes.push(
                         json!({"key": format!("providers.{id}.catalog"), "value": chosen.id}),

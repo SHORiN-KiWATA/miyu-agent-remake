@@ -82,6 +82,9 @@ pub(super) fn some_injections(rng: &mut Rng) -> Vec<Injection> {
         .map(|k| Injection {
             module: ModuleId::parse(&format!("m{k}")).unwrap(),
             fact: ContextInjected {
+                // 第二块带编号：内核原样记、原样交回挂接点（施工 R-4 上），看守照日志对。照第几块定、不再取随机数，别的
+                // 输入的那一串随机数不变（走到的路照旧走得到）。
+                refs: (0..k).map(|r| format!("r{r}")).collect(),
                 kind: FactKind::parse("memory").unwrap(),
                 text: format!("<memory n=\"{k}\"/>"),
             },

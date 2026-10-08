@@ -252,7 +252,12 @@ impl Session {
                 let turn = turn.id;
                 // 执行器先照这一轮的配置重新解析会话的引用（施工 8-10）。
                 let model = self.reference().map(str::to_string);
-                vec![Action::RunTurnStartHooks { turn, model }]
+                let present = crate::facts::present(&self.history);
+                vec![Action::RunTurnStartHooks {
+                    turn,
+                    model,
+                    present,
+                }]
             }
             Stage::Ready if self.unstored.is_empty() => self.ask(at),
             _ => Vec::new(),

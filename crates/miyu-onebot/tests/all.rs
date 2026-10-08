@@ -7,6 +7,7 @@ mod support;
 
 mod apply;
 mod calls;
+mod commands;
 mod control;
 mod core;
 mod ids;

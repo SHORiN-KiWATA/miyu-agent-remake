@@ -2,6 +2,8 @@
 //! 回报、等不到的「空了告诉我」（施工 C-6）、替它看图的转述（施工 8-17），照 actor 的时钟记下到的时刻，写成内核的输入。施工 C-6 从 `actor.rs` 挪出来
 //! （那个文件到了行数上限）。
 
+use tokio::sync::mpsc;
+
 use miyu_kernel::session::Input;
 
 use super::Actor;
@@ -67,4 +69,13 @@ impl Actor {
             },
         })
     }
+}
+
+/// 送回 actor。会话停了就送不进去，丢掉。
+#[expect(
+    clippy::let_underscore_must_use,
+    reason = "会话停了：到点了也没人要，丢掉"
+)]
+pub(super) fn answer_back(backs: &mpsc::UnboundedSender<Back>, back: Back) {
+    let _ = backs.send(back);
 }

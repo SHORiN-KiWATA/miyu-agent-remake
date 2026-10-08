@@ -83,7 +83,7 @@ async fn a_configured_provider_works_its_list_is_kept_and_it_stops_at_the_first_
     home.write(
         "system/config.toml",
         &format!(
-            "[providers.deepseek]\nbase_url = \"{}\"\nkeys = [{{ env = \"DEEPSEEK_API_KEY\" }}]\n",
+            "[providers.deepseek]\nbase_url = \"{}\"\nkey = {{ env = \"DEEPSEEK_API_KEY\" }}\n",
             server.base_url
         ),
     );
@@ -139,7 +139,7 @@ async fn the_probe_takes_the_configured_temperature_of_the_model() {
     home.write(
         "system/config.toml",
         &format!(
-            "[providers.deepseek]\nbase_url = \"{}\"\nkeys = []\n\n[providers.deepseek.models.\"deepseek-flash\"]\ntemperature = 0.6\n",
+            "[providers.deepseek]\nbase_url = \"{}\"\n\n[providers.deepseek.models.\"deepseek-flash\"]\ntemperature = 0.6\n",
             server.base_url
         ),
     );
@@ -284,7 +284,7 @@ async fn what_cannot_be_worked_out_is_the_config_stage() {
     let home = Home::new();
     home.write(
         "system/config.toml",
-        "[providers.deepseek]\nkeys = [{ env = \"DEEPSEEK_API_KEY\" }]\n",
+        "[providers.deepseek]\nkey = { env = \"DEEPSEEK_API_KEY\" }\n",
     );
     let reply = test(&home, &[], fresh(), json!({"candidate": {}})).await;
     assert_eq!(reply["result"]["stage"], "config", "{reply}");
@@ -315,7 +315,7 @@ async fn wrong_params_and_unknown_providers_are_refused() {
     let home = Home::new();
     home.write(
         "system/config.toml",
-        "[providers.deepseek]\nkeys = [{ env = \"DEEPSEEK_API_KEY\" }]\n",
+        "[providers.deepseek]\nkey = { env = \"DEEPSEEK_API_KEY\" }\n",
     );
     for params in [
         json!({}),
@@ -352,7 +352,7 @@ async fn the_probe_speaks_through_the_model_driver_with_the_profile_headers() {
     home.write(
         "system/config.toml",
         &format!(
-            "[providers.opencode-go]\nbase_url = \"{0}\"\nkeys = [{{ env = \"GO_KEY\" }}]\n\n[providers.opencode]\nbase_url = \"{0}\"\nkeys = [{{ env = \"GO_KEY\" }}]\n",
+            "[providers.opencode-go]\nbase_url = \"{0}\"\nkey = {{ env = \"GO_KEY\" }}\n\n[providers.opencode]\nbase_url = \"{0}\"\nkey = {{ env = \"GO_KEY\" }}\n",
             server.base_url
         ),
     );

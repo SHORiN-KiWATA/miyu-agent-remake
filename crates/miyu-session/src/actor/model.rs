@@ -2,29 +2,34 @@
 //! 收场（`28-运行日志.md` 第三节）。辅助请求（施工 3-8 四补的回顾、五补的起标题）也在这里：同一个端口，回报另走一路。
 //! 说完了跟着端口的限额（施工 8-9，[`Actor::follow_limits`]）：变了交给内核，模型变了推 `model.changed`。回合开始时叫端口照
 //! 这一轮的配置重新解析会话的引用（施工 8-10，[`Actor::turn_start`]）：限额变了交给内核，头看得到的变了推 `model.changed`。
-//! 思考强度（施工 8-18）给头看的那一档也算头看得到的一格。替看不了图的模型看图也在这里交给端口（施工 8-17）。
+//! 思考强度（施工 8-18）给头看的那一档也算头看得到的一格。回合开始还问挂接点（施工 R-4 上，`hooks`）。替看不了图的模型看图也在这里交给端口（施工 8-17）。
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use tokio::sync::oneshot;
 
 use miyu_kernel::event::{
     CallError, ChangeWhy, ModelChanged, Purpose, Transient, TransientBody, Usage,
 };
+use miyu_kernel::facts::Present;
 use miyu_kernel::id::{ContentHash, Seq, TurnId};
 use miyu_kernel::origin::By;
 use miyu_kernel::request::{Difference, Request};
-use miyu_kernel::session::{Input, Limits};
-use miyu_kernel::time::Timestamp;
+use miyu_kernel::session::{Injection, Input, Limits};
+use miyu_kernel::time::{Timestamp, UtcOffset};
 
 use super::{Actor, answer};
 use crate::TARGET;
 use crate::handle::Pushed;
 use crate::lines::{millis, where_};
+use crate::memory::Calls;
 use crate::port::{Cancel, Report, Reports, Sight};
 use crate::route::NONE;
 use crate::settings::CompactionSettings;
 use crate::shown::{Next, Shown};
+
+/// 回合开始问挂接点最多等多久（施工 R-4 上定的起点）：过了当这一轮没交。读的是本机的小库，平常几毫秒。
+const HOOKS: Duration = Duration::from_millis(300);
 
 impl Actor {
     /// 请求模型：交给端口，记下叫停它的那一头和这一刻。前缀和上一次比变了的，运行日志里写上第一处不同在哪
@@ -118,10 +123,15 @@ impl Actor {
 
     /// 回合开始（`turn.started` 已经落了盘）：冻结这一轮的配置，带上会话这时的目录的项目配置（施工 8-4）；叫端口照它重新
     /// 解析内核交来的引用 `reference`（施工 8-10，`models.md`「怎么走」第六条第 3 条）。限额变了交给内核；头看得到的（引用、
-    /// 接下来发给谁、思考强度、窗口、压缩线）变了推一条 `model.changed`，`why` 是 `turn`（「施工时定的」8-10）。交回挂接点跑完了，带着
-    /// 退回了默认的那一次：现在没有模块挂回合开始。给头看的那一档（照新的配置算）变了也推 `model.changed`。人格的文件改了的，
-    /// 带上新快照的哈希（施工 P-1 再补，`persona.rs`）。
-    pub(super) async fn turn_start(&mut self, turn: TurnId, reference: Option<String>) -> Input {
+    /// 接下来发给谁、思考强度、窗口、压缩线）变了推一条 `model.changed`，`why` 是 `turn`（「施工时定的」8-10）。给头看的那一档（照新的
+    /// 配置算）变了也推 `model.changed`。人格的文件改了的，带上新快照的哈希（施工 P-1 再补，`persona.rs`）。问挂接点（施工
+    /// R-4 上，`hooks`），交回跑完了，带着退回了默认的那一次和挂接点交的。
+    pub(super) async fn turn_start(
+        &mut self,
+        turn: TurnId,
+        reference: Option<String>,
+        present: Vec<Present>,
+    ) -> Input {
         self.config.turn(self.session.cwd().to_string()).await;
         let before = self.shown_now();
         let replaced = self.model.turn(self.config.current(), reference.as_deref());
@@ -132,12 +142,13 @@ impl Actor {
         let values = self.config.current().resolved.values();
         let prepare = CompactionSettings::from(&values).prepare;
         let policy = self.refresh_persona(values).await;
+        let injected = hooks(self.tools.memory(), present).await;
         Input::TurnStartHooksDone {
             policy,
             prepare,
             at: self.clock.now(),
             turn,
-            injected: Vec::new(),
+            injected,
             replaced,
         }
     }
@@ -301,5 +312,21 @@ fn finished(
             out = usage.map(|usage| usage.output),
             "{what}ended"
         ),
+    }
+}
+
+/// 问回合开始的挂接点（施工 R-4 上，`memory.md` 第三条）：现在只有记忆一个（`memory` 是它的端口和会话的时区），交常驻的
+/// 摘要；`present` 是内核交来的这一段上下文里模块注入过的。限时 [`HOOKS`]：过了当这一轮没交，记一行 `DEBUG`（那次读在阻塞
+/// 线程里照样读完，交回的丢掉）。第二个挂接点来了再并行问、照模块编号排。
+async fn hooks(memory: Option<(Calls, UtcOffset)>, present: Vec<Present>) -> Vec<Injection> {
+    let Some((memory, offset)) = memory else {
+        return Vec::new();
+    };
+    match tokio::time::timeout(HOOKS, memory.summary(offset, present)).await {
+        Ok(injected) => injected.into_iter().collect(),
+        Err(_) => {
+            tracing::debug!(target: TARGET, module = "memory", "turn start hook timed out");
+            Vec::new()
+        }
     }
 }

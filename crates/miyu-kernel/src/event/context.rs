@@ -17,6 +17,10 @@ pub struct ContextInjected {
     pub kind: FactKind,
     /// 发给模型的原文：标签外壳、不可信字段的转义都已经做好（C7）。投影只管放，不再改写。
     pub text: String,
+    /// 这一块带着哪几样东西的编号（施工 R-4 上：记忆的摘要带着的那几条，`m12` 这种）。内核不解读、不进请求，原样记、原样
+    /// 交回挂接点（[`crate::facts::Present`]），给模块去重、算「用到没有」。以前的日志里没有、没带的是空的，不写这一格。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub refs: Vec<String>,
 }
 
 /// `context.compacted`：压缩的检查点。三种压缩方式都写这一种（`09-压缩.md` 第三节）。

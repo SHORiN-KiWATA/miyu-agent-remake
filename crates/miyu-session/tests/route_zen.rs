@@ -61,7 +61,7 @@ fn zen_routes() -> Routes {
 /// `opencode-go`、`opencode` 两家都在 `base_url`，只写 key；`models.chat` 是 `chat`。
 fn source(base_url: &str, chat: &str) -> String {
     format!(
-        "[providers.opencode-go]\nbase_url = \"{base_url}\"\nkeys = [{{ env = \"GO_KEY\" }}]\n\n[providers.opencode]\nbase_url = \"{base_url}\"\nkeys = [{{ env = \"GO_KEY\" }}]\n\n[models]\nchat = \"{chat}\"\n"
+        "[providers.opencode-go]\nbase_url = \"{base_url}\"\nkey = {{ env = \"GO_KEY\" }}\n\n[providers.opencode]\nbase_url = \"{base_url}\"\nkey = {{ env = \"GO_KEY\" }}\n\n[models]\nchat = \"{chat}\"\n"
     )
 }
 

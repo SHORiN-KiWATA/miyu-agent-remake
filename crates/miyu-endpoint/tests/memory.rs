@@ -76,3 +76,30 @@ async fn a_turn_said_through_the_core_is_indexed_and_goes_with_the_session() {
         .expect("查得了");
     assert_eq!(buried, 1, "整个会话埋了墓碑：记忆的出处在它里面的都算死了");
 }
+
+/// 常驻的摘要接在核心上（施工 R-4 上，`memory.md` 第三条第 5 款）：核心起来时读好外壳的字交给记忆；人经协议记了一条，新会话
+/// 第一轮的请求里有那一块。
+#[tokio::test]
+async fn a_new_session_starts_with_what_was_remembered() {
+    let home = Home::new();
+    let script = Script::new([Play::Says("好。")]);
+    let mut client = crate::support::memories::connected(&home, &script).await;
+    let reply = client
+        .call(
+            "c1",
+            "memory.remember",
+            json!({"class": "user", "text": "用户养了一只猫"}),
+        )
+        .await;
+    assert_eq!(reply["result"], json!({"id": "m1"}), "{reply}");
+    let work = home.work.to_string_lossy().into_owned();
+    let session = client.create_as("c2", &work, "engineer").await;
+    client.say("c3", &session, "在吗").await;
+    home.until_turns(&session, 1).await;
+    let request = format!("{:?}", script.requests()[0].1);
+    assert!(
+        request.contains(r"<memories>\nm1 user ")
+            && request.contains(r": 用户养了一只猫\n</memories>"),
+        "{request}"
+    );
+}

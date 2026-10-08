@@ -263,7 +263,7 @@ SSE 分帧共用 `sse.rs`（`drivers/openai-chat.md`「解码」）。一条事�
 合并前主会话做，结果记进施工单：
 
 1. **要什么**：一个 Anthropic 官方的 key（或者 opencode Zen 的 key，走 Zen 上的 Claude，收费）。这两样仓库里都没有，要项目主人给一个 key 或者端点。没有的时候能先做的：DeepSeek 的 Anthropic 兼容接口（地址写 `https://api.deepseek.com/anthropic/v1`，用现成的 DeepSeek key）测通编码、解码、工具、思考；它的缓存是自动的，不认打点，测不了第 3 条。
-2. **怎么配**：`[providers.anthropic]` 写 `driver = "anthropic"`、地址 `https://api.anthropic.com/v1`、`keys = [{ secret = "anthropic" }]`，`miyu login anthropic` 存 key；`models.chat` 指一个现役的模型。临时的 `MIYU_HOME`，不碰真实数据。
+2. **怎么配**：`[providers.anthropic]` 写 `driver = "anthropic"`、地址 `https://api.anthropic.com/v1`、`key = { secret = "anthropic" }`，`miyu login anthropic` 存 key；`models.chat` 指一个现役的模型。临时的 `MIYU_HOME`，不碰真实数据。
 3. **缓存命中**：终端里一个带工具的会话跑三轮，每轮让她读一两个文件。照 `model.called` 的用量填一张表：每次请求的没命中、命中、写入。要看到：同一轮工具循环里，后一次的命中约等于前一次的整个输入；第二、三轮的第一次请求命中约等于上一轮最后一次的整个输入；写入只是新加的那一截。命中掉成 0 的，拿两次请求的字节去掉打点比，找第一处不同。
 4. **思考**：给模型配一档（例如 `low`），跑一轮工具循环：不报 400（签名原样回传了），头上看得到思考的摘要。有开关的模型（Sonnet 5）配 `off`，确认不思考。
 5. **附件**：人附一张图、一个 PDF；让她用 `read` 读一张图（工具结果里的图）。

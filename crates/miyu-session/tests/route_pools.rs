@@ -169,7 +169,7 @@ async fn a_member_that_cannot_be_used_now_is_passed_over_and_the_pin_moves() {
     );
     let text = two(&first, &second, r#""a/x", "b/y""#, "pin").replace(
         "[providers.a.models.x]",
-        "keys = [{ env = \"KA\" }]\n\n[providers.a.models.x]",
+        "key = { env = \"KA\" }\n\n[providers.a.models.x]",
     );
     let source = |secrets: &[(Reference, &str)]| -> Arc<dyn ConfigSource> {
         Arc::clone(&*configs(&text, secrets).borrow())

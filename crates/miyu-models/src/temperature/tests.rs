@@ -87,7 +87,7 @@ fn model_of(source: &str) -> impl Fn(&str, &str) -> Option<(Option<bool>, Driver
 
 #[test]
 fn a_written_temperature_the_model_cannot_use_is_reported_where_it_is_written() {
-    let source = "[providers.deepseek]\nkeys = []\n\n[providers.deepseek.models.\"deepseek-flash\"]\ntemperature = 0.7\n\n[providers.openai]\nkeys = []\n\n[providers.openai.models.\"gpt-5\"]\ntemperature = 0.2\n\n[providers.anthropic]\nkeys = []\n\n[providers.anthropic.models.\"claude-sonnet-4-5\"]\ntemperature = 1.5\n\n[providers.anthropic.models.\"claude-haiku-9\"]\ntemperature = 1\n\n[providers.broken.models.x]\ntemperature = 2\n";
+    let source = "[providers.deepseek]\nlocal = false\n\n[providers.deepseek.models.\"deepseek-flash\"]\ntemperature = 0.7\n\n[providers.openai]\nlocal = false\n\n[providers.openai.models.\"gpt-5\"]\ntemperature = 0.2\n\n[providers.anthropic]\nlocal = false\n\n[providers.anthropic.models.\"claude-sonnet-4-5\"]\ntemperature = 1.5\n\n[providers.anthropic.models.\"claude-haiku-9\"]\ntemperature = 1\n\n[providers.broken.models.x]\ntemperature = 2\n";
     let parsed = parse(&items(), Layer::System, source).expect("写法对");
     let found = unusable(&parsed, Layer::System, &model_of(source));
     assert_eq!(found.len(), 2, "{found:?}");
@@ -114,7 +114,7 @@ fn a_written_temperature_the_model_cannot_use_is_reported_where_it_is_written() 
 fn a_temperature_written_where_it_does_not_count_is_not_checked() {
     let source = "[providers.openai.models.\"gpt-5\"]\ntemperature = 0.2\n";
     let parsed = parse(&items(), Layer::Project, source).expect("写法对");
-    let config = "[providers.openai]\nkeys = []\n";
+    let config = "[providers.openai]\nlocal = false\n";
     assert!(
         unusable(&parsed, Layer::Project, &model_of(config)).is_empty(),
         "项目配置里写的本来就不算（wrong_layer 报过了）"
@@ -128,7 +128,7 @@ fn the_default_temperature_counts_only_where_the_model_can_take_it() {
     let held = held();
     let at = |id: &str, model: &str, value: &str| {
         let source = format!(
-            "[providers.{id}]\nkeys = []\n\n[providers.{id}.models.\"{model}\"]\ntemperature = {value}\n"
+            "[providers.{id}]\nlocal = false\n\n[providers.{id}.models.\"{model}\"]\ntemperature = {value}\n"
         );
         let resolved = resolved(&source);
         let knowledge = held.knowledge();

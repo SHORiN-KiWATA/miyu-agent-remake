@@ -100,9 +100,9 @@
         "name": "地址",
         "description": "这家的接口地址，路径由驱动接在后面。认得出的供应商可以不写。"
       },
-      "providers.<id>.keys": {
+      "providers.<id>.key": {
         "name": "key",
-        "description": "写 { secret = \"名字\" }（用 miyu login 存）或 { env = \"环境变量\" }，一个会话钉在其中一个上。空的不带认证头。"
+        "description": "写 { secret = \"名字\" }（用 miyu login 存）或 { env = \"环境变量\" }。一家一个，几份额度一起用的配成几家、放进池里。不写的不带认证头。"
       },
       "providers.<id>.name": {
         "name": "显示名",
@@ -222,11 +222,11 @@
       },
       "models.cooldown.auth.base": {
         "name": "认证失败先停用多久",
-        "description": "认证失败、额度用完时，整个 key 第一次停用这么久，连着再失败就翻倍。"
+        "description": "认证失败、额度用完时，整家供应商第一次停用这么久，连着再失败就翻倍。"
       },
       "models.cooldown.auth.max": {
         "name": "认证失败最多停用多久",
-        "description": "整个 key 的停用翻倍到这么久为止。"
+        "description": "整家供应商的停用翻倍到这么久为止。"
       },
       "external.bindings.<external>": {
         "name": "主人的平台账号",
