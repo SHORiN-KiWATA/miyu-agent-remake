@@ -39,13 +39,15 @@ export function apply(ctx) {
     /** 正在看的会话在哪个目录干活；账号的工作区（握手回应的 `host.workspace`，新会话默认在这里） */
     workdir: () => app.workdir(),
     defaultWorkdir: () => app.cwd,
-    /** 还没开的新会话选的人格、工作区：开会话时带上（事件 `draft.changed`） */
+    /** 还没开的新会话选的人格、预设、工作区：开会话时带上（事件 `draft.changed`） */
     draft: () => ({ ...app.draft }),
     setDraft: (patch) => app.setDraft(patch),
     /** `/workspace`：这个会话之后在哪个目录干活（事件 `workdir.changed`；核心退回了工作区的来 `workdir.adjusted`） */
     setWorkdir: (session, cwd) => app.setWorkdir(session, cwd),
     /** 会话用的人格（核心 P-1 下：`session.created` 的 `persona`，没读进来的照会话表那一项的；以前的日志没有，是 `null`） */
     persona: (id) => app.store.sessions.get(id)?.events.find((e) => e.kind === 'session.created')?.body.persona ?? app.store.index.get(id)?.persona ?? null,
+    /** 会话用的预设（核心 P-2：`session.created` 的 `preset`，没读进来的照会话表；以前的会话没有，是 `null`） */
+    preset: (id) => app.store.sessions.get(id)?.events.find((e) => e.kind === 'session.created')?.body.preset ?? app.store.index.get(id)?.preset ?? null,
   });
   // 输入框：提示、跟着发的东西变了、写字的那个框（附件这类包经它粘贴、提示）
   ctx.provide('composer', {

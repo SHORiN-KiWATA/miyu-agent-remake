@@ -77,3 +77,13 @@
 .setup-note, .setup-empty { margin: 10px 0 0; color: var(--text-faint); font-size: 12px; }
 .setup-empty.is-bad { color: var(--t-danger); }
 .setup-menu-btn:disabled { cursor: default; opacity: 0.45; filter: none; }
+
+/* 预设页：一个软件一个开关（先只看），没装的写一行 */
+.setup-switches { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px 16px; margin-top: 10px; }
+.setup-switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 28px; }
+.setup-switch code { color: var(--text-soft); font: 12.5px var(--mono); }
+.setup-toggle { position: relative; flex: none; width: 32px; height: 18px; border-radius: 999px; background: var(--surface-3); cursor: default; }
+.setup-toggle i { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface-1); box-shadow: var(--card-shadow); }
+.setup-toggle.is-on { background: var(--accent); }
+.setup-toggle.is-on i { left: 16px; }
+.setup-missing { margin: 8px 0 0; color: var(--t-warn); font-size: 12px; }

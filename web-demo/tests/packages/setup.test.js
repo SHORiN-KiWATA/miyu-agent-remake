@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { personaName, defaultUsable, dirName, readPath, remember, tilde } from '../../packages/setup/model.js';
+import { personaName, presetName, defaultUsable, presetInUse, personaInUse, dirName, readPath, remember, tilde } from '../../packages/setup/model.js';
 import { sessionCwd } from '../../src/model/session.js';
 
 const list = [{ persona: 'engineer', name: null }, { persona: 'miyu', name: 'Miyu' }, { persona: 'bad', problem: 'persona.toml:2: …' }];
@@ -57,4 +57,23 @@ test('会话在哪干活：最后一条带 cwd 的 turn.started，没有的照 s
   assert.equal(sessionCwd([created]), '/w');
   assert.equal(sessionCwd([created, { kind: 'turn.started', body: { cwd: '~/a' } }, { kind: 'turn.started', body: {} }]), '~/a');
   assert.equal(sessionCwd([]), null);
+});
+
+test('预设：名字照显示名、没有的写编号；默认的能不能用照 preset 那一格认（P-2）', () => {
+  const presets = [{ preset: 'dev', name: '开发' }, { preset: 'full', name: null }, { preset: 'bad', problem: 'x' }];
+  assert.equal(presetName(presets[0]), '开发');
+  assert.equal(presetName(presets[1]), 'full');
+  assert.equal(defaultUsable(presets, 'dev', 'preset'), true);
+  assert.equal(defaultUsable(presets, 'bad', 'preset'), false);
+  assert.equal(defaultUsable(presets, 'nope', 'preset'), false);
+});
+
+test('没选时实际用哪个：预设照 preset.default、没写是 full；人格照选的 → 预设写的默认人格 → persona.default → engineer', () => {
+  assert.equal(presetInUse('dev', 'full'), 'dev');
+  assert.equal(presetInUse(null, 'dev'), 'dev');
+  assert.equal(presetInUse(null, null), 'full');
+  assert.equal(personaInUse('miyu', 'engineer', 'none'), 'miyu');
+  assert.equal(personaInUse(null, 'engineer', 'none'), 'engineer');
+  assert.equal(personaInUse(null, null, 'none'), 'none');
+  assert.equal(personaInUse(null, null, null), 'engineer');
 });

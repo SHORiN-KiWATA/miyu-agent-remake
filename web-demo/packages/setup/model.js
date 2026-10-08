@@ -1,19 +1,33 @@
 // @ts-check
-//! 人格、工作区（软件包 `setup`，蓝图 `web.md`「人格、预设、工作区」）：按钮上写什么、默认的人格能不能用、最近用过的目录。纯函数。
+//! 人格、预设、工作区（软件包 `setup`，蓝图 `web.md`「人格、预设、工作区」）：按钮上写什么、实际会用哪个、默认的能不能用、最近用过的目录。
+//! 纯函数。
 
 /** `persona.list` 的一项：写错的只有 `persona`、`problem`。 @typedef {{persona: string, name?: string|null, summary?: string|null, layers?: string[], problem?: string}} Persona */
+/** `preset.list` 的一项：写错的只有 `preset`、`problem`。 @typedef {{preset: string, name?: string|null, summary?: string|null, layers?: string[], problem?: string}} Preset */
 
 /** 人格写给人看的名字：没有显示名的写编号。 @param {Persona} p */
 export const personaName = (p) => p.name || p.persona;
 
+/** 预设写给人看的名字：没有显示名的写编号。 @param {Preset} p */
+export const presetName = (p) => p.name || p.preset;
+
 /**
- * 默认的人格能不能用（第 2 条：没了、文件写错的锁住输入框）：配置项 `persona.default` 指着的那一项在列表里、没写错。
- * @param {Persona[]} list @param {string|null} def
+ * 默认的能不能用（第 2 条：没了、文件写错的锁住输入框）：指着的那一项在列表里、没写错。
+ * @param {(Persona|Preset)[]} list @param {string|null} id @param {'persona'|'preset'} [key]
  */
-export function defaultUsable(list, def) {
-  const hit = def ? list.find((p) => p.persona === def) : null;
+export function defaultUsable(list, id, key = 'persona') {
+  const hit = id ? list.find((p) => /** @type {any} */ (p)[key] === id) : null;
   return !!hit && !hit.problem;
 }
+
+/** 没选预设时用哪个：配置项 `preset.default`，没写的是出厂的 `full`（`protocol.md` 的 `session.create`）。 @param {string|null} chosen @param {string|null} fallback */
+export const presetInUse = (chosen, fallback) => chosen ?? fallback ?? 'full';
+
+/**
+ * 没选人格时用哪个（`presets.md`「怎么走」第 3 条）：预设写的默认人格，再是配置项 `persona.default`，都没写是出厂的 `engineer`。
+ * @param {string|null} chosen @param {string|null} fromPreset @param {string|null} fallback
+ */
+export const personaInUse = (chosen, fromPreset, fallback) => chosen ?? fromPreset ?? fallback ?? 'engineer';
 
 /** 目录名（按钮上写的）：路径最后一段，`~` 照写。 @param {string} path */
 export function dirName(path) {

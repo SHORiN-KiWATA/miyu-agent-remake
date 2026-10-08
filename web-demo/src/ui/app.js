@@ -59,8 +59,8 @@ export class App {
     this.pendingLevel = /** @type {string|null} */ (null);
     /** 还没开的新会话里选的模型（换模型的菜单、`/model`）：开会话时带上 */
     this.pendingModel = /** @type {string|null} */ (null);
-    /** 还没开的新会话里选的人格、工作区（软件包 `setup` 经服务 `chat` 改）：开会话时带上，没选的照默认 */
-    this.draft = /** @type {{persona: string|null, cwd: string|null}} */ ({ persona: null, cwd: null });
+    /** 还没开的新会话里选的人格、预设、工作区（软件包 `setup` 经服务 `chat` 改）：开会话时带上，没选的照默认 */
+    this.draft = /** @type {{persona: string|null, preset: string|null, cwd: string|null}} */ ({ persona: null, preset: null, cwd: null });
     /** 会话 → `/workspace` 换的目录：之后每句话带上（核心 2026-10-07：不出专门的方法） */
     this.cwdNext = /** @type {Map<string, string>} */ (new Map());
     /** 会话 → 核心回应里实际在哪干活（换的目录太宽、退回工作区的照它） */
@@ -343,7 +343,7 @@ export class App {
   open(id, listed = false) {
     this.pendingLevel = null;
     this.pendingModel = null;
-    this.draft = { persona: null, cwd: null };
+    this.draft = { persona: null, preset: null, cwd: null };
     this.current = id;
     this.sessionsPage?.close();
     // 没读过的会话第一次打开时才读、订阅：子代理的不进会话表的顶层；全部会话那一页开的老会话进（`listed`）
@@ -370,7 +370,7 @@ export class App {
     return this.cwdNext.get(this.current) ?? this.cwdActual.get(this.current) ?? sessionCwd(events) ?? this.cwd;
   }
 
-  /** 还没开的新会话改人格、工作区（软件包 `setup`）：告诉软件包（`draft.changed`），重画（`@` 照它列文件）。 @param {Partial<{persona: string|null, cwd: string|null}>} patch */
+  /** 还没开的新会话改人格、预设、工作区（软件包 `setup`）：告诉软件包（`draft.changed`），重画（`@` 照它列文件）。 @param {Partial<{persona: string|null, preset: string|null, cwd: string|null}>} patch */
   setDraft(patch) {
     this.draft = { ...this.draft, ...patch };
     this.ctx.emit('draft.changed', { ...this.draft });
@@ -389,9 +389,9 @@ export class App {
   async send(text, extra = {}) {
     try {
       if (!this.current) {
-        this.current = await this.store.create(this.draft.cwd ?? this.cwd, this.pendingModel, this.draft.persona);
+        this.current = await this.store.create(this.draft.cwd ?? this.cwd, this.pendingModel, this.draft.persona, this.draft.preset);
         this.pendingModel = null;
-        this.draft = { persona: null, cwd: null };
+        this.draft = { persona: null, preset: null, cwd: null };
         this.store.view(this.current);
         // 还是这一段对话：跟着新会话走的软件包（演示待办）跟过去
         this.ctx.emit('session.created', { from: null, to: this.current });

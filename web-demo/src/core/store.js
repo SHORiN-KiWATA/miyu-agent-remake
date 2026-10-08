@@ -143,9 +143,9 @@ export class Store {
    * # Errors
    * 核心拒绝时抛出来。
    */
-  async create(cwd, model = null, persona = null) {
-    // 还没开的新会话里选过模型（核心施工 8-8）、选过人格（P-1）的，开的时候带上；人格不写的照配置项 `persona.default`
-    const { session } = await this.conn.request('session.create', { cwd, ...(model ? { model } : {}), ...(persona ? { persona } : {}) });
+  async create(cwd, model = null, persona = null, preset = null) {
+    // 还没开的新会话里选过模型（核心施工 8-8）、人格（P-1）、预设（P-2）的，开的时候带上；不写的核心照默认（预设的默认人格、配置项）
+    const { session } = await this.conn.request('session.create', { cwd, ...(model ? { model } : {}), ...(persona ? { persona } : {}), ...(preset ? { preset } : {}) });
     // 推送还没到时先记上，左栏当场有它
     this.index.seed(session, { cwd });
     await this.load(session);
