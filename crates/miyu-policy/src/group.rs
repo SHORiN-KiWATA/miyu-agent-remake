@@ -40,7 +40,7 @@ impl GroupChat {
     /// # Errors
     ///
     /// 时区超出了 −14:00 到 +14:00：快照坏了。
-    pub(crate) fn texts(&self) -> Result<miyu_assemble::GroupChat, BuildError> {
+    pub fn texts(&self) -> Result<miyu_assemble::GroupChat, BuildError> {
         let offset = UtcOffset::from_minutes(self.offset).ok_or(BuildError::Offset(self.offset))?;
         let recent = self.recent.as_ref().map(GroupRecent::texts).transpose()?;
         Ok(miyu_assemble::GroupChat {

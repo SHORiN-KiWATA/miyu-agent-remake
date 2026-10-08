@@ -1617,6 +1617,7 @@ dependencies = [
  "base64 0.22.1",
  "getrandom 0.4.3",
  "jiff",
+ "miyu-assemble",
  "miyu-basesystem",
  "miyu-config",
  "miyu-drivers",

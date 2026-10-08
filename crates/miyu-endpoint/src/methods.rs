@@ -131,6 +131,7 @@ pub(crate) async fn call(
         "session.respond" => {
             crate::responding::respond(core, caller, request, params(request)?).await
         }
+        "venue.records" => venues::records(core, params(request)?).await,
         "venue.session" => {
             venues::session(core, &caller.account, request.id.clone(), params(request)?).await
         }

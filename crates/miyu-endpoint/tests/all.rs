@@ -92,6 +92,7 @@ mod undo;
 mod undo_jobs;
 mod uploads;
 mod usage;
+mod venue_judge;
 mod venue_records;
 mod venues;
 mod view_page;

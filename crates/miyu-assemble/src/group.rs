@@ -9,7 +9,7 @@
 //! 开一轮的那条前面的群聊近况在 `recent.rs`（施工 O-13 下）：两次触发之间的旁听、别的线替她发的话，一行一条。
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::{Media, VenueMessage};
+use miyu_kernel::event::{Event, Media, VenueDelivered, VenueMessage};
 use miyu_kernel::id::ExternalId;
 use miyu_kernel::origin::{By, Role};
 use miyu_kernel::template::escape;
@@ -166,9 +166,41 @@ fn cut(text: &str, limit: usize) -> &str {
     &text[..end]
 }
 
+/// 撤回的记号：发的人自己撤的、看不到身份的写 ` (recalled)`；别人撤的、看得到身份的写是谁撤的。
+fn recall_mark(sender: &By, by: &ExternalId, show_ids: bool) -> String {
+    let own = matches!(sender, By::External(external) if external.id == *by);
+    if own || !show_ids {
+        " (recalled)".to_string()
+    } else {
+        format!(" (recalled by {})", escape(by.as_str()))
+    }
+}
+
+/// 别的线替她发进群里的一条：`[时刻] [you] [msg=编号]: 正文`，带的图每张一个 `[image]`。
+fn you(event: &Event, delivered: &VenueDelivered, texts: &GroupChat) -> String {
+    let mut parts = Vec::new();
+    let text = cut(delivered.text.trim(), TEXT_LIMIT);
+    if !text.is_empty() {
+        parts.push(escape(text));
+    }
+    parts.extend(delivered.images.iter().map(|_| "[image]".to_string()));
+    let content = if parts.is_empty() {
+        texts.no_text.clone()
+    } else {
+        parts.join(" ")
+    };
+    format!(
+        "[{}] [you] [msg={}]: {content}",
+        event.at.local_clock(texts.offset),
+        escape(&delivered.msg),
+    )
+}
+
 mod recent;
+mod records;
 
 pub(crate) use recent::recent;
+pub use records::{Records, records};
 
 #[cfg(test)]
 mod tests;

@@ -6,13 +6,11 @@
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use miyu_kernel::event::{Body, Event, VenueDelivered};
+use miyu_kernel::event::{Body, Event};
 use miyu_kernel::history::History;
 use miyu_kernel::id::{ExternalId, Seq};
-use miyu_kernel::origin::By;
-use miyu_kernel::template::escape;
 
-use super::{TEXT_LIMIT, cut, record};
+use super::{recall_mark, record, you};
 use crate::texts::GroupChat;
 
 /// 第 `before` 条开始一轮，上一个由人的消息开的回合从第 `after` 条开始（没有的是没有）：这一块近况，当过触发的
@@ -102,36 +100,6 @@ fn one(
         }
         _ => None,
     }
-}
-
-/// 撤回的记号：发的人自己撤的、看不到身份的写 ` (recalled)`；别人撤的、看得到身份的写是谁撤的。
-fn recall_mark(sender: &By, by: &ExternalId, show_ids: bool) -> String {
-    let own = matches!(sender, By::External(external) if external.id == *by);
-    if own || !show_ids {
-        " (recalled)".to_string()
-    } else {
-        format!(" (recalled by {})", escape(by.as_str()))
-    }
-}
-
-/// 别的线替她发进群里的一条：`[时刻] [you] [msg=编号]: 正文`，带的图每张一个 `[image]`。
-fn you(event: &Event, delivered: &VenueDelivered, texts: &GroupChat) -> String {
-    let mut parts = Vec::new();
-    let text = cut(delivered.text.trim(), TEXT_LIMIT);
-    if !text.is_empty() {
-        parts.push(escape(text));
-    }
-    parts.extend(delivered.images.iter().map(|_| "[image]".to_string()));
-    let content = if parts.is_empty() {
-        texts.no_text.clone()
-    } else {
-        parts.join(" ")
-    };
-    format!(
-        "[{}] [you] [msg={}]: {content}",
-        event.at.local_clock(texts.offset),
-        escape(&delivered.msg),
-    )
 }
 
 #[cfg(test)]

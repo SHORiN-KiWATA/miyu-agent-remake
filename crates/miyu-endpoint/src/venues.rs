@@ -17,8 +17,10 @@ use crate::refusal::Refusal;
 use crate::sessions::Opening;
 
 mod message;
+mod records;
 
 pub(crate) use message::{VenueMessageParams, platform_id};
+pub(crate) use records::records;
 
 /// 主人对应表在配置里的样子（`settings::EXTERNAL_BINDINGS`）。
 const BINDINGS: &str = "external.bindings.<external>";
