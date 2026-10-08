@@ -288,6 +288,53 @@ async fn presets_are_listed_and_read_by_layer() {
     assert_eq!(reason(&reply), Some("preset_invalid"), "{reply}");
 }
 
+/// 以谁为底（施工 P-3 上）：`preset.get` 带 `base`、各格叠在底上，`layers` 只算自己的；绕圈、底没有的 `preset_invalid`。
+#[tokio::test]
+async fn a_preset_on_a_base_reads_through_it() {
+    let home = Home::new();
+    mine(
+        &home,
+        "mine",
+        "[preset]\nbase = \"dev\"\nname = { zh = \"我的\" }\n\n[software]\nmemory = true\n",
+    );
+    mine(&home, "loop", "[preset]\nbase = \"loop\"\n");
+    mine(&home, "lost", "[preset]\nbase = \"nowhere\"\n");
+    let mut client = connected(configured(&home, &Script::new([]))).await;
+    let got = client
+        .call("g1", "preset.get", json!({"preset": "mine"}))
+        .await;
+    let got = &got["result"];
+    assert_eq!(got["base"], "dev", "{got}");
+    assert_eq!(got["layers"], json!(["home"]));
+    assert_eq!(
+        (&got["name"]["zh"], &got["name"]["en"]),
+        (&json!("我的"), &json!("Dev"))
+    );
+    assert_eq!(got["default_persona"], "engineer");
+    assert_eq!(got["unlisted"], "off");
+    assert_eq!(
+        got["software"],
+        json!({"basesystem": true, "goal": true, "memory": true, "net": true})
+    );
+    let plain = client
+        .call("g2", "preset.get", json!({"preset": "dev"}))
+        .await;
+    assert!(plain["result"].get("base").is_none(), "没写底的不写");
+    for (n, (id, problem)) in [
+        ("loop", "base cycle: loop -> loop"),
+        ("lost", r#"base "nowhere" of "lost" not found"#),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let reply = client
+            .call(&format!("b{n}"), "preset.get", json!({"preset": id}))
+            .await;
+        assert_eq!(reason(&reply), Some("preset_invalid"), "{reply}");
+        assert_eq!(reply["error"]["data"]["problem"], problem);
+    }
+}
+
 #[tokio::test]
 async fn check_reads_presets_from_disk() {
     let home = Home::new();

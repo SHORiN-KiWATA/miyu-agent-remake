@@ -78,13 +78,16 @@ fn an_upper_layer_overrides_per_language() {
         name: phrases(&[("en", "Engineer"), ("zh", "工程师")]),
         summary: phrases(&[("en", "Helps.")]),
         memory: None,
+        base: Some("plain".to_string()),
     };
     let mine = PersonaFile {
         name: phrases(&[("zh", "我的工程师")]),
         summary: Phrases::new(),
         memory: None,
+        base: None,
     };
     let merged = mine.over(shipped);
+    assert_eq!(merged.base.as_deref(), Some("plain"), "底没写的沿用下面的");
     assert_eq!(
         merged.name,
         phrases(&[("en", "Engineer"), ("zh", "我的工程师")])

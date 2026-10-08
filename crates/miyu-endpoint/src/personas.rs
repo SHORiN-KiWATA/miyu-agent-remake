@@ -5,7 +5,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use miyu_kernel::id::AccountId;
-use miyu_store::personas::{Found, Layer, PersonaError, Personas};
+use miyu_store::personas::{Found, Layer, Origin, PersonaError, Personas};
 
 use crate::Core;
 use crate::hello::Peer;
@@ -41,7 +41,10 @@ fn refusal(error: &PersonaError) -> Refusal {
     match error {
         PersonaError::BadId(_) => Refusal::BAD_PARAMS,
         PersonaError::NotFound(_) => Refusal::UNKNOWN_PERSONA,
-        PersonaError::Invalid(..) => Refusal::persona_invalid(error.to_string()),
+        PersonaError::Invalid(..)
+        | PersonaError::BaseCycle(_)
+        | PersonaError::BaseMissing(..)
+        | PersonaError::BaseInvalid(..) => Refusal::persona_invalid(error.to_string()),
         PersonaError::Unreadable(..) => {
             tracing::warn!(target: TARGET, error = %error, "persona unreadable");
             Refusal::INTERNAL
@@ -93,23 +96,37 @@ pub(crate) struct GetParams {
     persona: String,
 }
 
-/// `persona.get`：叠好的样子。名字、说明的几种语言原样给，人设、示范对话、角色扮演提示来自哪一层（没有的是 `null`），
-/// 示范对话几轮。
+/// `persona.get`：叠好的样子。名字、说明的几种语言原样给，人设、示范对话、角色扮演提示来自哪一层（没有的是 `null`，来自底的
+/// 写成 `base:<编号>/<层>`），示范对话几轮；写了底的带 `base`（施工 P-3 上）。
 /// 提示词原文不经协议给。
 pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal> {
     let found = resolve(core, Some(&params.persona)).await?;
-    Ok(json!({
+    let from = |origin: &Option<Origin>| origin.as_ref().map(|origin| origin_of(&found.id, origin));
+    let mut reply = json!({
         "persona": found.id,
         "name": found.file.name,
         "summary": found.file.summary,
         "layers": layers(&found.layers),
         "prompts": {
-            "persona": found.persona_from.map(Layer::as_str),
-            "examples": found.examples_from.map(Layer::as_str),
-            "reminders": found.reminders_from.map(Layer::as_str),
+            "persona": from(&found.persona_from),
+            "examples": from(&found.examples_from),
+            "reminders": from(&found.reminders_from),
         },
         "examples": found.texts.examples.len(),
-    }))
+    });
+    if let Some(base) = &found.base {
+        reply["base"] = json!(base);
+    }
+    Ok(reply)
+}
+
+/// 一份字来自哪儿，`persona.get` 的写法：人格 `id` 自己的是那一层，来自底的是 `base:<编号>/<层>`。
+fn origin_of(id: &str, origin: &Origin) -> String {
+    if origin.persona == id {
+        origin.layer.as_str().to_string()
+    } else {
+        format!("base:{}/{}", origin.persona, origin.layer.as_str())
+    }
 }
 
 fn layers(layers: &[Layer]) -> Vec<&'static str> {

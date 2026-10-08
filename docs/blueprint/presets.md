@@ -42,6 +42,7 @@ name = { zh = "开发", en = "Dev", ja = "開発" }
 summary = { zh = "只开写代码必需的", en = "Only what coding needs" }
 default_persona = "engineer"   # 不指定人格时用哪个人格
 unlisted = "off"               # 没列在 [software] 里的软件开不开：on、off
+# base = "full"                # 以哪个预设为底（施工 P-3 上）
 
 [software]                     # 软件包的编号 = 开不开
 basesystem = true
@@ -58,6 +59,7 @@ shell = false
 4. `[software]` 的键是软件的编号，写法同包的编号。现在装了的：基础系统 `basesystem`、记忆 `memory`（三件工具和回合开始的召回）、角色扮演 `roleplay`（人格的角色扮演提示和风格锁），和清单装的 `process` 包（桥）；联网 `net`、长期目标 `goal` 等它们做出来。写了没装的不报错（这台机器上以后可能装），`preset.get` 写进 `missing`。
 5. `[tools]` 的键是工具名：字母、数字、`-`、`_`，最多 64 个。单件打开某个包里的一件先不做（走查 C1），写 `true` 报错。
 6. 权限级别、压缩模板、强调色这些配置值随 P-2（下）（D1、C3）。
+7. `base`（施工 P-3 上，16 第四节 Y3）：以哪个预设为底，写法同编号。先把底照同样的办法找好、叠好，再把自己的几层逐格盖上去；`base` 本身也照几层叠，底再写了底的接着找。绕成了圈（含指着自己）、底哪一层都没有，`preset_invalid`：`base cycle: a -> b -> a`、`base "<底>" of "<自己>" not found`；底的文件写错照它自己的那一句（带底的编号）。叠好的文件的指纹不算 `base` 这一格（底的各格已经叠进来了），没写底的预设指纹和以前一个字节不差。
 
 **出厂的两个**（Y6、Y7，`10-自带软件.md` 第四节）：
 
@@ -107,6 +109,7 @@ shell = false
 | `bad_persona`、`bad_unlisted` | `default_persona` 不是合写法的编号；`unlisted` 不是 `on`、`off` |
 | `bad_software`、`not_bool` | `[software]` 的键不合包编号的写法；值不是开关 |
 | `bad_tool`、`not_false` | `[tools]` 的键不是工具名的写法；值不是 `false` |
+| `bad_base` | `base` 不是合写法的编号（施工 P-3 上） |
 
 ### 守着它的
 
@@ -114,6 +117,7 @@ shell = false
 |---|---|
 | `crates/miyu-policy/src/preset/tests.rs` | 每一格读对；空文件什么都没有、`unlisted` 照 `on`；逐格叠；每一种写错报对代码和行；工具名的写法 |
 | `crates/miyu-store/src/presets/tests.rs` | 三层逐格叠；一层也行、空文件也算；没有的、编号不合写法的、写错的写明哪一层；编号照文件名、不重复、照编号排；`check` 每一层各查、写了文件的认得出；出厂两份读得出、零问题、三种语言齐；每一种代码三种语言都有给人看的一句 |
+| `crates/miyu-store/src/presets/tests/base.rs`（施工 P-3 上） | 盖在底上逐格（底的几层也叠进来）、底的底、没写底的指纹不变；绕两个的圈、指着自己、底没有、底写错了说底的文件、`base` 写错 |
 | `crates/miyu-store/src/index/tests.rs` | 索引里存得下、读得回人格和预设 |
 | `crates/miyu-endpoint/tests/presets.rs` | 不写预设照默认、个人设置压着系统配置、指定的压着默认；找人格的先后；没有的、编号不对的、写错的拒绝、什么都不造，默认预设指着没有的也拒；会话列表、`subscribe` 写 `preset`，以前的日志不写；`venue.session` 带预设造、找回时不看；`preset.list`、`preset.get`；`check` 查预设 |
 | `crates/miyu-session/tests/spawn.rs` | 子会话照父会话的预设，父会话载入以后也照 |
@@ -144,4 +148,5 @@ shell = false
 
 - 预设里写配置值（D1：配置清单每一项标跟着人格、预设还是人）：先放着。2026-10-08 项目主人说「预设需要有所有功能的开关，这就是把功能设计成软件的意义」，预设先只做开关；哪一项真要跟着预设走时再定。
 - 强调色（`[preset]` 的 `color`）：随 D1 以后。
-- 新建、改、删、`base`：P-3。
+- 新建、改、删：P-3（中、下）。
+- `miyu check` 只查每一份文件自己，底绕成圈、底没有的不查：开会话、`preset.get` 时报。

@@ -504,7 +504,7 @@
 |---|---|---|
 | `preset` | 字符串，必写 | 预设的编号 |
 
-回应 `{"preset", "name", "summary", "layers", "default_persona", "unlisted", "software", "tools", "missing", "switches"}`：`name`、`summary` 是语言到一句话的对象，原样给；`default_persona` 没写的是 `null`；`unlisted` 是叠好以后的 `on`、`off`（几层都没写的是 `on`）；`software` 是软件包的编号到 `true`、`false`；`tools` 是关掉的单件工具，值都是 `false`；`missing` 是 `[software]` 里写了、这台机器上没装的（施工 P-2 中）；`switches` 是这台机器上装了的每一个软件叠好以后开不开（施工 P-2 补）。编号不合写法的 `bad_params`，没有的 `unknown_preset`，写错的 `preset_invalid`。
+回应 `{"preset", "name", "summary", "layers", "default_persona", "unlisted", "software", "tools", "missing", "switches"}`：`name`、`summary` 是语言到一句话的对象，原样给；`default_persona` 没写的是 `null`；`unlisted` 是叠好以后的 `on`、`off`（几层都没写的是 `on`）；`software` 是软件包的编号到 `true`、`false`；`tools` 是关掉的单件工具，值都是 `false`；`missing` 是 `[software]` 里写了、这台机器上没装的（施工 P-2 中）；`switches` 是这台机器上装了的每一个软件叠好以后开不开（施工 P-2 补）。写了底的多一格 `base`（施工 P-3 上），各格是叠在底上以后的；`layers` 只算自己的。编号不合写法的 `bad_params`，没有的 `unknown_preset`，写错的、底绕成圈、底没有的 `preset_invalid`。
 
 **`package.list`**（施工 9-1 上，`packages.md`「协议」）
 
@@ -520,7 +520,7 @@
 |---|---|---|
 | `persona` | 字符串，必写 | 人格的编号 |
 
-回应 `{"persona", "name", "summary", "layers", "prompts": {"persona", "examples", "reminders"}, "examples"}`：`name`、`summary` 是语言到一句话的对象，原样给；`prompts` 里是人设、示范对话、角色扮演提示（施工 P-1 补）来自哪一层，没有的是 `null`；`examples` 是示范对话几轮。提示词原文不经协议交出去。编号不合写法的 `bad_params`，没有的 `unknown_persona`，写错的 `persona_invalid`。
+回应 `{"persona", "name", "summary", "layers", "prompts": {"persona", "examples", "reminders"}, "examples"}`：`name`、`summary` 是语言到一句话的对象，原样给；`prompts` 里是人设、示范对话、角色扮演提示（施工 P-1 补）来自哪一层，没有的是 `null`，来自底的写成 `base:<编号>/<层>`（施工 P-3 上）；`examples` 是示范对话几轮；写了底的多一格 `base`，`layers` 只算自己的。提示词原文不经协议交出去。编号不合写法的 `bad_params`，没有的 `unknown_persona`，写错的、底绕成圈、底没有、底写错的 `persona_invalid`。
 
 **`session.recap`**（施工 3-8 四补，`04-核心协议.md` 第九节，`kernel/session.md`「回顾」）
 
