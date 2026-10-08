@@ -23,6 +23,7 @@ use crate::agents::{Agents, job_in};
 use crate::blocking::blocking;
 use crate::clock::Clock;
 use crate::config::Turning;
+use crate::current::Tally;
 use crate::effects;
 use crate::guard::Guard;
 use crate::handle::Handle;
@@ -165,6 +166,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let seen = effects::seen_in(&events);
     let roster = Roster::from_events(&events);
     let sent = last_sent(&events);
+    // 累计的用量和计数（施工 9-6 上）：订阅的回应照它答，之后每落一批盘加上这一批。
+    let tally = Tally::of(&events);
     let (mut session, first) = Session::load(id.clone(), events, clock.now(), policy, environment)
         .map_err(LoadError::Kernel)?;
     // 路由照内核从日志算的引用造（施工 8-10）：换过模型的是换过以后的。
@@ -238,6 +241,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         clock,
         config,
     );
+    actor.count_from(tally);
     let busy = actor.busy();
     let watched = actor.watched();
     let shown = actor.shown();

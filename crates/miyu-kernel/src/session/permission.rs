@@ -11,6 +11,12 @@ use crate::origin::By;
 use crate::time::Timestamp;
 
 impl Session {
+    /// 人这一刻设的权限级别：`session.created` 的，之后每一条带 `permission` 的 `session.policy_changed` 换掉它，撤销、恢复跟着
+    /// 有效历史走。放宽了还没到下一次请求的，这里已经是放宽的（头照它画）。协议照它回 `subscribe`（施工 9-6 上）。
+    pub fn permission(&self) -> &Permission {
+        &self.permission
+    }
+
     /// 切权限级别：照现在的合出新的，记一条 `session.policy_changed`。收紧的当场生效，收紧成
     /// 只读的，这一步里还没派的写文件调用当场拦下；放宽的等下一次请求。回合进行中切的，下一次
     /// 请求之前把事实查一遍，这时正要请求的当场查。和现在一样的，接受，什么都不记。

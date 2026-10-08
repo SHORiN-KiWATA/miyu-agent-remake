@@ -38,6 +38,11 @@ pub(super) enum Waker {
 }
 
 impl Session {
+    /// 还在跑的后台命令和子代理，照编号，每一个照派它的 `job.started` 的几格（施工 9-6 上）：协议照它回 `subscribe`。
+    pub fn running_started(&self) -> Vec<crate::event::JobStarted> {
+        self.ledger.running_started()
+    }
+
     /// 日志里用过的任务编号最后一段最大的数（施工 7-5；照最后一段数，施工 7-1 补）：撤掉的回合里派的也算，一个都没派过的
     /// 是 0。纯查询：会话 actor 造会话、载入以后照它建领号的，新派的任务从下一个数起（`session/tools.md`「任务编号」）。施工
     /// 8-9 从 `session.rs` 挪来，那边放不下了。

@@ -4,7 +4,6 @@ use std::fmt;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
-use tokio::sync::broadcast::error::{RecvError, TryRecvError};
 use tokio::sync::{broadcast, mpsc, oneshot};
 
 use miyu_kernel::event::{Event, Transient};
@@ -16,8 +15,13 @@ use miyu_kernel::time::Timestamp;
 use miyu_tool::{JobError, Log, Output};
 
 use crate::backlog::Backlog;
+
+mod subscription;
+
 use crate::jobs::Unreadable;
 use crate::shown::{Next, Shown};
+use subscription::Watching;
+pub use subscription::{Ended, Subscription};
 
 /// 一个会话：它的 actor 的收件箱。可以复制，几个头一起拿着。
 #[derive(Debug, Clone)]
@@ -50,6 +54,8 @@ pub(crate) enum Message {
     },
     /// 要订阅：从这一刻起的推送都交给它。一个订阅算一个在看着的头（施工 7-9）。
     Subscribe(oneshot::Sender<Taken>),
+    /// 要这一刻「当前的」几样（施工 9-6 上）：已经订阅着的头再订阅一次时，不另起订阅。
+    Current(oneshot::Sender<crate::current::Current>),
     /// 放下了一个订阅（施工 7-9）：订阅被丢掉时由它自己送来，连同要订阅、没等到回答就不等了的。
     Unsubscribed,
     /// 有计划地停下：它的事件都落了盘，actor 退出以前交回一声。
@@ -83,6 +89,8 @@ pub(crate) struct Taken {
     pub(crate) pushes: broadcast::Receiver<Arc<Pushed>>,
     pub(crate) upto: u64,
     pub(crate) log: Log,
+    /// 这一刻「当前的」几样（施工 9-6 上）。
+    pub(crate) current: crate::current::Current,
 }
 
 /// 停掉派出去的任务（施工 7-4，`docs/blueprint/session/actor.md`「停掉任务」）。
@@ -207,6 +215,18 @@ impl Handle {
         answer.await.map_err(|_| Stopped)
     }
 
+    /// 这一刻「当前的」几样（施工 9-6 上）：已经订阅着、再订阅一次（协议上「还是那一个」）的，回应照它答。和那个订阅不在
+    /// 同一步：头已经收着推送，这一份可能比它收到的新一点。
+    ///
+    /// # Errors
+    ///
+    /// 会话停了。
+    pub async fn current(&self) -> Result<crate::current::Current, Stopped> {
+        let (reply, answer) = oneshot::channel();
+        self.send(Message::Current(reply))?;
+        answer.await.map_err(|_| Stopped)
+    }
+
     /// 订阅：从这一刻起，落了盘的事件和瞬时事件照先后交过来。在发命令之前订阅的，这个命令产生的
     /// 事件一定先于它的回应到（`04-核心协议.md` 第六节第 2 条）。
     ///
@@ -238,11 +258,13 @@ impl Handle {
         self.send(Message::Subscribe(reply))?;
         // 送进去了才算数：等回答的时候不等了（这个 future 被丢掉），它照样放下、告诉 actor，一来一去对得上。
         let watching = Watching(self.inbox.downgrade());
-        let Taken { pushes, upto, log } = answer.await.map_err(|_| Stopped)?;
-        let subscription = Subscription {
-            _watching: Some(watching),
-            ..Subscription::new(pushes)
-        };
+        let Taken {
+            pushes,
+            upto,
+            log,
+            current,
+        } = answer.await.map_err(|_| Stopped)?;
+        let subscription = Subscription::new(pushes).watched(watching, current);
         Ok((subscription, upto, log))
     }
 
@@ -396,92 +418,6 @@ impl fmt::Display for Stopped {
 }
 
 impl std::error::Error for Stopped {}
-
-/// 一个订阅。
-#[derive(Debug)]
-pub struct Subscription {
-    pushes: broadcast::Receiver<Arc<Pushed>>,
-    /// 掉过队了：这个订阅作废，头重新订阅。
-    lagged: bool,
-    /// 放下时告诉 actor 少了一个看着的头（施工 7-9）；测试里直接造的没有。只为了它放下的那一刻拿着，不读。
-    _watching: Option<Watching>,
-}
-
-/// 一个看着会话的头：跟着订阅走，放下时往 actor 的收件箱送一声（施工 7-9）。拿的是弱的一头：不因为还有订阅，就不让
-/// 拿着 `Handle` 的都放下以后 actor 退出（`docs/blueprint/session/actor.md` 第 9 条）。
-#[derive(Debug)]
-struct Watching(mpsc::WeakUnboundedSender<Message>);
-
-impl Drop for Watching {
-    #[expect(
-        clippy::let_underscore_must_use,
-        reason = "actor 已经退出了：没人要知道少了一个头，丢掉"
-    )]
-    fn drop(&mut self) {
-        if let Some(inbox) = self.0.upgrade() {
-            let _ = inbox.send(Message::Unsubscribed);
-        }
-    }
-}
-
-/// 订阅断了。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Ended {
-    /// 读得太慢，掉了队：中间漏了推送，这个订阅作废，要重新订阅（`04-核心协议.md` 第七节的 resync）。
-    Lagged,
-    /// 会话停了。
-    Stopped,
-}
-
-impl Subscription {
-    pub(crate) fn new(pushes: broadcast::Receiver<Arc<Pushed>>) -> Subscription {
-        Subscription {
-            pushes,
-            lagged: false,
-            _watching: None,
-        }
-    }
-
-    /// 下一份推送。
-    ///
-    /// # Errors
-    ///
-    /// 掉了队，或者会话停了。掉过一次队，以后一直是 [`Ended::Lagged`]。
-    pub async fn next(&mut self) -> Result<Arc<Pushed>, Ended> {
-        if self.lagged {
-            return Err(Ended::Lagged);
-        }
-        match self.pushes.recv().await {
-            Ok(pushed) => Ok(pushed),
-            Err(RecvError::Lagged(_)) => {
-                self.lagged = true;
-                Err(Ended::Lagged)
-            }
-            Err(RecvError::Closed) => Err(Ended::Stopped),
-        }
-    }
-
-    /// 不等：已经到了的下一份；还没到的，交回 `None`。协议端点收到命令的回应时，先把已经到了的
-    /// 推送都写出去，再写回应（`04-核心协议.md` 第六节第 2 条）。
-    ///
-    /// # Errors
-    ///
-    /// 同 [`Subscription::next`]。
-    pub fn try_next(&mut self) -> Option<Result<Arc<Pushed>, Ended>> {
-        if self.lagged {
-            return Some(Err(Ended::Lagged));
-        }
-        match self.pushes.try_recv() {
-            Ok(pushed) => Some(Ok(pushed)),
-            Err(TryRecvError::Empty) => None,
-            Err(TryRecvError::Lagged(_)) => {
-                self.lagged = true;
-                Some(Err(Ended::Lagged))
-            }
-            Err(TryRecvError::Closed) => Some(Err(Ended::Stopped)),
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests;

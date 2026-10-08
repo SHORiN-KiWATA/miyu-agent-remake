@@ -15,9 +15,9 @@ use crate::event::{
 use crate::id::{CommandId, JobId, Seq, SessionId};
 use crate::origin::{By, Session};
 
-/// 派出去过的任务，照编号。
+/// 派出去过的任务，照编号；和它们的标题（施工 9-6 上：订阅的回应交出还在跑的任务，头不用再翻整份日志找 `job.started`）。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(super) struct Jobs(BTreeMap<JobId, Job>);
+pub(super) struct Jobs(BTreeMap<JobId, Job>, BTreeMap<JobId, String>);
 
 /// 从账本读任务的几样（施工 7-3 起）：执行器领号、载入补报、撤销停任务都照它们。
 impl Ledger {
@@ -35,6 +35,11 @@ impl Ledger {
     /// 还在跑的任务，照编号（施工 7-8）：还没报过结束的后台命令，欠着一份回报、没被停掉的子代理。撤掉的回合里派的也在。
     pub fn running_jobs(&self) -> Vec<JobId> {
         self.jobs.running()
+    }
+
+    /// 还在跑的任务的样子，照编号（施工 9-6 上）：和派它的 `job.started` 一样的几格，和 [`Ledger::running_jobs`] 是同一批。
+    pub fn running_started(&self) -> Vec<JobStarted> {
+        self.jobs.running_started()
     }
 
     /// 派出去、一次都还没回报过的子代理的子会话，照任务编号（施工 7-6）。
@@ -186,6 +191,26 @@ impl Jobs {
             .collect()
     }
 
+    /// 还在跑的任务的样子（[`Jobs::running`] 那一批）：种类、子会话照账本记的，标题照派它的那一条；不认识的种类不在里面。
+    pub(super) fn running_started(&self) -> Vec<JobStarted> {
+        self.running()
+            .into_iter()
+            .filter_map(|job| {
+                let (what, session) = match self.0.get(&job)? {
+                    Job::Command { .. } => (JobKind::Command, None),
+                    Job::Agent { session, .. } => (JobKind::Agent, Some(session.clone())),
+                    Job::Other => return None,
+                };
+                Some(JobStarted {
+                    title: self.1.get(&job).cloned().unwrap_or_default(),
+                    job,
+                    what,
+                    session,
+                })
+            })
+            .collect()
+    }
+
     /// 欠着一份回报的子代理的子会话，照编号：派出去一次都还没回报过的（施工 7-6），和最近一次回报以后又给它留过言的（施工
     /// 7-7）。派了孙代理的子会话等它们都报完再向上报；载入以后执行器把它们叫起来，崩了的补报（`agents.md` 第八条）。被停掉的
     /// 报过了，不在里面。
@@ -249,6 +274,7 @@ impl Jobs {
                         _ => Job::Other,
                     };
                     self.0.insert(started.job.clone(), job);
+                    self.1.insert(started.job.clone(), started.title.clone());
                 }
                 // 留言送到、这次调用的结果还没记下，它就做完报上来了（这次调用发出以后到的回报）：算回了这句留言，不再等。
                 // 不这样，父会话会一直等一份不会再来的回报；这样错的一边只是早报一次（施工 7-7）。
