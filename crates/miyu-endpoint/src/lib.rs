@@ -53,6 +53,7 @@ mod sessions;
 pub mod settings;
 mod spawn;
 mod subscriptions;
+mod toml_changes;
 mod undo;
 mod uploads;
 mod usage;

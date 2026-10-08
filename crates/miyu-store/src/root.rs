@@ -153,6 +153,11 @@ impl DataRoot {
         self.account_dir(account).join("trash").join("sessions")
     }
 
+    /// 一个账号删掉的人格：`home/<账号>/trash/personas/`（施工 P-3 下，`crate::trash::personas`）。
+    pub fn trashed_personas(&self, account: &AccountId) -> PathBuf {
+        self.account_dir(account).join("trash").join("personas")
+    }
+
     /// 一个账号的 blob：`home/<账号>/blobs/`（`07-存储.md` 第五节）。按账号分开存，不跨账号
     /// 去重（S5）。
     pub fn blobs(&self, account: &AccountId) -> PathBuf {

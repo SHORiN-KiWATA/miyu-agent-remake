@@ -22,6 +22,7 @@
 | `crates/miyu-store/src/blob.rs` | blob：存、取、核对哈希；分块暂存、改名进位置、扔掉、核心起来时清（施工 W-5）；读一段（施工 W-6） |
 | `crates/miyu-store/src/jobs.rs` | 会话目录下后台命令的输出：`jobs/<编号>.out`（施工 7-3） |
 | `crates/miyu-store/src/trash.rs` | 回收处：删掉的会话挪进来、满了时限的真删（施工 3-8 三补）；真删之前往账号日志留用量的底（施工 8-15） |
+| `crates/miyu-store/src/trash/personas.rs` | 删掉的人格：家目录里的人格目录挪进来、满了时限的真删（施工 P-3 下，`personas.md`「改」） |
 | `crates/miyu-store/src/resources.rs`、`human.rs` | 资源目录、给人看的字（`store/resources.md`） |
 | `crates/miyu-store/src/index.rs`、`index/` | 会话列表的索引（`store/index.md`，施工 3-8 七补） |
 | `crates/miyu-store/src/usage.rs`、`usage/` | 用量汇总 `state/usage.db`（施工 8-15，`models.md`「怎么走」第九条第 4、5 条） |
@@ -61,6 +62,7 @@
 | `sessions(账号)` | 这个账号的会话编号，从新到旧 |
 | `session_dir(账号, 会话)` | `home/<账号>/sessions/<会话编号>/` |
 | `trashed_sessions(账号)` | 回收处 `home/<账号>/trash/sessions/`（施工 3-8 三补） |
+| `trashed_personas(账号)` | 删掉的人格 `home/<账号>/trash/personas/`（施工 P-3 下） |
 | `blobs(账号)` | `home/<账号>/blobs/` |
 | `index(账号)` | `home/<账号>/index/`：派生数据，会话列表的索引放在这里（施工 3-8 七补，`store/index.md`） |
 
