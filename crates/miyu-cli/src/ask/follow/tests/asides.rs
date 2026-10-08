@@ -151,9 +151,10 @@ fn a_directory_too_wide_is_said_once() {
         cwd: under(&["home"]).to_string_lossy().into_owned(),
         ..plan(Format::Text, Language::Chinese)
     };
+    // 新会话：造会话的回应说了一次，说话的回应一样的不再说。
     let mut messages = vec![accepted(&used), accepted(&used)];
     messages.extend(a_turn("completed"));
-    let Fed { step, screen, .. } = feed(&plan, false, &messages);
+    let Fed { step, screen, .. } = feed_after(&plan, false, None, Some(&used), &messages);
     assert_eq!(step, Step::Done(exit::OK));
     assert_eq!(
         screen,
@@ -212,7 +213,8 @@ fn an_unusable_sandbox_is_said_first_and_right_before_the_directory() {
     };
     let mut messages = vec![accepted(&used)];
     messages.extend(a_turn("completed"));
-    let Fed { step, screen, .. } = feed_after(&plan, false, Some("helper_missing"), &messages);
+    let Fed { step, screen, .. } =
+        feed_after(&plan, false, Some("helper_missing"), Some(&used), &messages);
     assert_eq!(step, Step::Done(exit::OK));
     assert_eq!(
         screen,
@@ -226,6 +228,25 @@ fn an_unusable_sandbox_is_said_first_and_right_before_the_directory() {
         format: Format::Json,
         ..plan
     };
-    let Fed { err, .. } = feed_after(&plan, false, Some("helper_missing"), &messages);
+    let Fed { err, .. } = feed_after(&plan, false, Some("helper_missing"), None, &messages);
     assert_eq!(err, "");
+}
+
+#[test]
+fn a_session_working_elsewhere_is_said_once() {
+    // 接着说的会话（施工 9-7 上）：工作区是它自己的，说话的回应里和敲命令时的目录不一样，说一句它在哪，只说一次。
+    let sep = MAIN_SEPARATOR;
+    let used = under(&["home", "src", "proj"]);
+    let plan = Plan {
+        cwd: under(&["home"]).to_string_lossy().into_owned(),
+        ..plan(Format::Text, Language::Chinese)
+    };
+    let mut messages = vec![accepted(&used), accepted(&used)];
+    messages.extend(a_turn("completed"));
+    let Fed { screen, .. } = feed(&plan, false, &messages);
+    assert!(
+        screen.starts_with(&format!("· 这个会话在 ~{sep}src{sep}proj 里干活\n\n想一想")),
+        "{screen}"
+    );
+    assert_eq!(screen.matches("这个会话在").count(), 1, "{screen}");
 }

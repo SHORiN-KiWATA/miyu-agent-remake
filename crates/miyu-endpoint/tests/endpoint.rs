@@ -272,7 +272,7 @@ async fn a_line_too_long_is_refused_and_closes() {
 }
 
 #[tokio::test]
-async fn the_working_directory_follows_the_head() {
+async fn the_working_directory_stays_with_the_session() {
     let home = Home::new();
     let script = Script::new([Play::Says("好。"), Play::Says("好。")]);
     let mut client = Client::connect(home.core(&script));
@@ -296,9 +296,16 @@ async fn the_working_directory_follows_the_head() {
     home.until_turns(&session, 2).await;
     let requests = script.requests();
     let text = |n: usize| String::from_utf8(requests[n].1.canonical_bytes()).expect("请求是 UTF-8");
+    // 工作区是会话的属性（施工 9-7 上）：说话带着的目录照收不理，换工作区另走 `session.set_workspace`。
     assert!(text(0).contains("~/src/one"), "{}", text(0));
-    assert!(!text(0).contains("~/src/two"), "{}", text(0));
-    assert!(text(1).contains("~/src/two"), "{}", text(1));
+    assert!(!text(1).contains("~/src/two"), "{}", text(1));
+    assert!(
+        !home
+            .log(&session)
+            .iter()
+            .any(|event| matches!(event.body, Body::WorkspaceChanged(_))),
+        "什么都没换"
+    );
 }
 
 #[tokio::test]

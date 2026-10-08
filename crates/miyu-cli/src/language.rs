@@ -113,6 +113,14 @@ impl Language {
         }
     }
 
+    /// 接着说的会话在别处干活（施工 9-7 上）：工作区是会话的，`used` 是它在的目录。
+    pub(crate) fn elsewhere(&self, used: &str) -> String {
+        match self {
+            Language::Chinese => format!("· 这个会话在 {used} 里干活"),
+            Language::English => format!("· This session works in {used}"),
+        }
+    }
+
     /// 工作目录太宽，核心退回了账号的工作区：`given` 是敲命令时的目录，`used` 是实际干活的。
     pub(crate) fn moved(&self, given: &str, used: &str) -> String {
         match self {

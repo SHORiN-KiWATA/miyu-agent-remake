@@ -77,7 +77,7 @@ async fn she_lists_the_other_main_sessions_the_way_the_head_does() {
     std::fs::create_dir_all(&sub).expect("建得了");
     let sub = sub.to_string_lossy().into_owned();
 
-    // B：起了标题，头换到 `sub` 里说了一句，停在请求上。
+    // B：起了标题，换到 `sub` 里说了一句，停在请求上。
     let b = client.create("c1", &work).await;
     let reply = client
         .call(
@@ -87,12 +87,17 @@ async fn she_lists_the_other_main_sessions_the_way_the_head_does() {
         )
         .await;
     assert_eq!(reply["result"], json!({}), "{reply}");
+    // 换工作区走 `session.set_workspace`（施工 9-7 上：说话不再换它）。
     let reply = client
         .call(
-            "s1",
-            "session.send",
-            json!({"session": b, "text": "忙着", "cwd": sub}),
+            "w1",
+            "session.set_workspace",
+            json!({"session": b, "cwd": sub}),
         )
+        .await;
+    assert_eq!(reply["result"]["cwd"], json!(sub), "{reply}");
+    let reply = client
+        .call("s1", "session.send", json!({"session": b, "text": "忙着"}))
         .await;
     assert!(reply["result"].is_object(), "{reply}");
     // D：删掉了。
@@ -105,7 +110,7 @@ async fn she_lists_the_other_main_sessions_the_way_the_head_does() {
     home.until_turns(&a, 1).await;
     let child = started_child(&home.log(&a)).expect("派出去了子代理");
 
-    // `session.list`：B 的工作目录是后来报的、忙着；A 闲着；子会话挂在 A 下面；D 不在。
+    // `session.list`：B 的工作目录是后来换的、忙着；A 闲着；子会话挂在 A 下面；D 不在。
     let mut n = 0;
     let listed = loop {
         n += 1;

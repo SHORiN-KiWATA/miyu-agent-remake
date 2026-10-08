@@ -92,6 +92,8 @@ async fn read_all<R: AsyncRead + Unpin>(
     mut spawned: Option<oneshot::Sender<()>>,
 ) {
     let from_core = spawned.is_some();
+    // 这个连接说话时还带着工作目录（施工 9-7 上：不再换工作区，照收不理）：第一次记一行，看得出谁还在发。
+    let mut told_cwd = false;
     let mut reader = BufReader::new(read);
     let mut shaken: Option<Shaken> = None;
     // 这个连接是怎么认出来的（施工 W-8）：用登录令牌、密码连上的另收作废的广播。
@@ -173,6 +175,13 @@ async fn read_all<R: AsyncRead + Unpin>(
                 break;
             }
             continue;
+        }
+        if !told_cwd
+            && request.method == "session.send"
+            && (request.params.get("cwd").is_some() || request.params.get("dirs").is_some())
+        {
+            told_cwd = true;
+            tracing::warn!(target: "miyu::endpoint", "session.send cwd ignored");
         }
         // 扩展不能开关、重启扩展（施工 9-4 上）：那是人的事。
         if via == Some(Via::Spawned) && request.method.starts_with("extension.") {

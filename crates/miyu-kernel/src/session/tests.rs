@@ -39,6 +39,7 @@ mod title;
 mod todos;
 mod tools;
 mod turn;
+mod workspace;
 
 use std::collections::BTreeMap;
 

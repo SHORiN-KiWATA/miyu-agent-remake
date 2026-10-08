@@ -123,11 +123,18 @@ struct Fed {
 
 /// 一条条喂给跟着第 3 轮的。
 fn feed(plan: &Plan, gray: bool, messages: &[Value]) -> Fed {
-    feed_after(plan, gray, None, messages)
+    feed_after(plan, gray, None, None, messages)
 }
 
-/// 同 [`feed`]；握手的回应说沙盒用不了、原因是 `unsandboxed` 的，先照 `talk` 说那一句（施工 5-4 下）。
-fn feed_after(plan: &Plan, gray: bool, unsandboxed: Option<&str>, messages: &[Value]) -> Fed {
+/// 同 [`feed`]；握手的回应说沙盒用不了、原因是 `unsandboxed` 的，先照 `talk` 说那一句（施工 5-4 下）；新会话、造会话的回应说
+/// 实际在 `created` 里干活的，接着照 `talk` 说目录太宽那一句（施工 9-7 上：说话的回应不再说它）。
+fn feed_after(
+    plan: &Plan,
+    gray: bool,
+    unsandboxed: Option<&str>,
+    created: Option<&Path>,
+    messages: &[Value],
+) -> Fed {
     let tape = Tape::default();
     let (mut out, mut err) = (
         Pen {
@@ -148,6 +155,9 @@ fn feed_after(plan: &Plan, gray: bool, unsandboxed: Option<&str>, messages: &[Va
     let mut follow = Follow::new("s1", "ask-4", plan);
     if let Some(reason) = unsandboxed {
         follow.unsandboxed(reason, &mut screen);
+    }
+    if let Some(used) = created {
+        follow.moved(&used.to_string_lossy(), &mut screen);
     }
     let mut step = Step::Going;
     for message in messages {

@@ -49,11 +49,6 @@ pub(super) struct SendParams {
     pub(super) text: String,
     #[serde(default)]
     pub(super) urgent: bool,
-    #[serde(default)]
-    pub(super) cwd: Option<String>,
-    /// 加进来的目录（施工 5-10 上）：不写的照旧。
-    #[serde(default)]
-    pub(super) dirs: Option<Vec<String>>,
     /// 附件（施工 3-9 三补）：`blob.put` 的回应，照先后接在文字后面；不写、写 `null` 的是没有。
     #[serde(default)]
     pub(super) attachments: Option<Vec<Attachment>>,

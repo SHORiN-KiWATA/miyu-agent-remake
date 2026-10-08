@@ -50,6 +50,7 @@ mod title;
 mod todos;
 mod tools;
 mod turn;
+mod workspace;
 
 pub use action::{Action, Outcome, Reason};
 pub use configure::Replaced;
@@ -391,6 +392,7 @@ impl Session {
             Command::Send { blocks, urgent } => self.send(id, by, at, blocks, urgent),
             Command::Interrupt { queued } => self.interrupt(id, by, at, queued),
             Command::SetMeta { title, pinned } => self.set_meta(id, by, at, title, pinned),
+            Command::SetWorkspace { cwd, dirs } => self.set_workspace(id, by, at, cwd, dirs),
             Command::Ran { text, command } => self.ran(id, by, at, text, command),
             Command::Configure { model } => self.configure(id, by, at, model),
             Command::SetPermission { level, read_only } => {

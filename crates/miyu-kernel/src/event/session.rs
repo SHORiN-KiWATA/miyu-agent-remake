@@ -81,6 +81,18 @@ pub struct MetaChanged {
     pub pinned: Option<bool>,
 }
 
+/// `session.workspace_changed`：人换了会话在哪个目录干活（施工 9-7 上，`docs/blueprint/kernel/events-bodies.md`）。工作区是会话的
+/// 属性：只有人明确换才变（`session.set_workspace`、`/workspace`），头每句话报的目录不再换它。`by` 是换的人；回合进行中换的带上
+/// 这个回合，这一轮里照旧用原来的，下一轮开始照新的。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WorkspaceChanged {
+    /// 新的工作目录：协议那一头判过太不太宽、换成了实际用的，人看到的那种写法。
+    pub cwd: String,
+    /// 新的加进来的目录：写了的整份换掉（空的是去掉全部），没写的照旧。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dirs: Option<Vec<String>>,
+}
+
 /// `command.ran`：人用了一个斜杠命令（施工 O-6，`docs/blueprint/kernel/events-bodies.md`）。谁发的写在 `by`，`cause` 是派生的
 /// 命令编号（`<那个命令>/ran`）。只给人和聊天记录看，不进她的上下文；执行了的才记，被拒的什么都不记。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

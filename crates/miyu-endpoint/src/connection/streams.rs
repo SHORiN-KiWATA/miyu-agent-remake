@@ -62,7 +62,7 @@ pub(super) async fn subscribe(
     out: &mpsc::Sender<String>,
 ) -> Result<(Value, Option<SessionId>), Refusal> {
     let after = after_of(request)?;
-    let handle = core.sessions.get(core, &session, None, None).await?.handle;
+    let handle = core.sessions.get(core, &session).await?.handle;
     let mut reply = json!({"limits": handle.limits()});
     if let Some(model) = crate::models::next(&handle.next()) {
         reply["model"] = model;
@@ -115,6 +115,8 @@ fn now(core: &Core, reply: &mut Value, current: Option<&miyu_session::Current>) 
     reply["usage"] = crate::usage::tallied(core, &current.tally);
     reply["permission"] = json!(current.permission);
     reply["jobs"] = json!(current.jobs);
+    // 会话在哪个目录干活（施工 9-7 上）：之后照推过来的 `session.workspace_changed` 换。
+    reply["workspace"] = json!({"cwd": current.cwd, "dirs": current.dirs});
 }
 
 /// 带 `after` 订阅（施工 3-8 六补）：总是换一个新的。原来有一个的，先等它把交给它的推送、回应都放完、拿回它的订阅，补的

@@ -258,10 +258,12 @@ async fn an_unusable_sandbox_is_said_before_anything_else() {
 
 /// 加进来的目录（施工 5-10 上）：造会话、说话都带着，记进这一轮；`--continue` 时不写 `--add-dir` 的，这一轮就没有。
 #[tokio::test]
-async fn added_dirs_go_with_each_ask() {
+async fn added_dirs_stay_with_the_session() {
+    // 施工 9-7 上起加进来的目录是会话的属性：接着说不写 `--add-dir` 的照旧，写了的整份换掉。
     let home = Home::new(Arc::new(Script::new([
         Play::Says("一。"),
         Play::Says("二。"),
+        Play::Says("三。"),
     ])));
     let with = Plan {
         dirs: vec!["/elsewhere".to_string()],
@@ -276,6 +278,13 @@ async fn added_dirs_go_with_each_ask() {
     };
     let Asked { code, err, .. } = home.ask(&again).await;
     assert_eq!(code, 0, "{err}");
+    let other = Plan {
+        target: Target::Continue,
+        dirs: vec!["/other".to_string()],
+        ..plan("第三句")
+    };
+    let Asked { code, err, .. } = home.ask(&other).await;
+    assert_eq!(code, 0, "{err}");
     let dirs: Vec<Vec<String>> = home
         .log(&session)
         .into_iter()
@@ -284,7 +293,14 @@ async fn added_dirs_go_with_each_ask() {
             _ => None,
         })
         .collect();
-    assert_eq!(dirs, [vec!["/elsewhere".to_string()], Vec::new()]);
+    assert_eq!(
+        dirs,
+        [
+            vec!["/elsewhere".to_string()],
+            vec!["/elsewhere".to_string()],
+            vec!["/other".to_string()]
+        ]
+    );
 }
 
 /// 加进来的目录太宽（施工 5-10 上）：造会话时就被拒，照握手时的语言说，退出码 1，不留下一个空的会话。

@@ -46,6 +46,7 @@ pub use question::{Choice, Question, QuestionAnswered, QuestionAsked, Response, 
 pub use restore::{FilesRestored, RestoreAction, RestoreOutcome, Restored};
 pub use session::{
     CommandRan, Level, MetaChanged, Permission, PolicyChanged, SessionCreated, SessionRecapped,
+    WorkspaceChanged,
 };
 pub use tool::{ApprovalDecided, ApprovalRequested, Decision, Said, ToolResult, ToolStatus};
 pub use transient::{
@@ -131,6 +132,8 @@ bodies! {
     PolicyChanged = "session.policy_changed",
     /// 改了标题、置顶。
     MetaChanged = "session.meta_changed",
+    /// 换了会话在哪个目录干活（施工 9-7 上）。
+    WorkspaceChanged = "session.workspace_changed",
     /// 一句回顾（施工 3-8 四补）。
     SessionRecapped = "session.recapped",
     /// 人用了一个斜杠命令（施工 O-6）。

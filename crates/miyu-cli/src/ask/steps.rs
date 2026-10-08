@@ -223,6 +223,12 @@ pub(crate) fn moved(plan: &Plan, used: &str) -> Line {
     Line::gray(plan.language.moved(&given, &used))
 }
 
+/// 接着说的会话在别处干活时的那一句（施工 9-7 上）：工作区是会话的，在 `used` 里。
+pub(crate) fn elsewhere(plan: &Plan, used: &str) -> Line {
+    let used = clean(&tilde(used, plan.home.as_deref()));
+    Line::gray(plan.language.elsewhere(&used))
+}
+
 /// 参数 `subject` 的值，写成给人看的：只取第一行，有第二行的加 `…`；路径写短；控制字符换掉；太长的截断，
 /// 路径留后面（文件名在后面），别的留前面。没有这个参数、不是字符串、是空的，都没有。
 fn value_of(args: &Value, subject: &str, cwd: &str, home: Option<&Path>) -> Option<String> {

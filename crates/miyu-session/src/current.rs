@@ -17,6 +17,10 @@ pub struct Current {
     pub permission: Permission,
     /// 还在跑的后台命令和子代理，照编号。
     pub jobs: Vec<JobStarted>,
+    /// 会话在哪个目录干活（施工 9-7 上）：工作目录。
+    pub cwd: String,
+    /// 加进来的目录。
+    pub dirs: Vec<String>,
     /// 这个会话累计的。
     pub tally: Tally,
 }

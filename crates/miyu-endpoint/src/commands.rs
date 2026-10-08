@@ -79,7 +79,7 @@ pub(crate) async fn run(
     let slash = parse(&params.text)?;
     let noted = CommandId::parse(&format!("{id}/ran")).map_err(|_| Refusal::BAD_PARAMS)?;
     let session = SessionId::parse(&params.session).map_err(|_| Refusal::BAD_PARAMS)?;
-    let found = core.sessions.get(core, &session, None, None).await?;
+    let found = core.sessions.get(core, &session).await?;
     let handle = found.handle;
     let local = handle.venue().as_str() == LOCAL;
     let by = match (local, params.as_external) {

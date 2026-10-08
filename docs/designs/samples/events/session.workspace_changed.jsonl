@@ -1,0 +1,1 @@
+{"seq":40,"at":"2026-09-25T07:03:00.000Z","kind":"session.workspace_changed","by":{"kind":"person","account":"alice"},"cause":"cmd-5c1e","body":{"cwd":"~/src/miyu","dirs":["~/notes"]}}

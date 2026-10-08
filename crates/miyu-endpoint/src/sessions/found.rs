@@ -16,51 +16,22 @@ use crate::spawn;
 
 impl Open {
     /// 找会话 `id`，表的锁在调的一方手里（[`super::Sessions::get`]）：在跑的直接交回；没在跑的从磁盘载入，载入以后收掉它
-    /// 派到一半的空子会话（施工 7-8）。头报上来的工作目录 `cwd`、加进来的目录 `dirs` 和会话现在的不一样，先送进会话。
+    /// 派到一半的空子会话（施工 7-8）。
     pub(super) async fn found(
         &mut self,
         core: &Arc<Core>,
         id: &SessionId,
-        cwd: Option<&str>,
-        dirs: Option<&[String]>,
     ) -> Result<Found, Refusal> {
-        if let Some(running) = self.running.get_mut(id) {
-            let moved = cwd.is_some_and(|cwd| cwd != running.cwd);
-            let added = dirs.is_some_and(|dirs| dirs != running.dirs.as_slice());
-            if moved || added {
-                let workspace = match cwd {
-                    Some(cwd) if moved => workspace(core, cwd),
-                    _ => running.workspace.clone(),
-                };
-                let dirs = dirs.map_or_else(|| running.dirs.clone(), <[String]>::to_vec);
-                if running
-                    .handle
-                    .environment(environment(workspace.clone(), dirs.clone()))
-                    .is_err()
-                {
-                    self.running.remove(id);
-                    return Err(Refusal::STOPPED);
-                }
-                if let Some(cwd) = cwd {
-                    running.cwd = cwd.to_string();
-                }
-                running.workspace = workspace;
-                running.dirs = dirs;
-            }
+        if let Some(running) = self.running.get(id) {
             return Ok(Found {
                 handle: running.handle.clone(),
                 cwd: running.workspace.clone(),
             });
         }
-        // 没有报来的（打断、撤销、恢复、订阅载入的）：照日志里最后一次记下的工作目录，都没有才退回 `~`（施工 4-9
-        // 再补三上）。
-        let (last_cwd, last_dirs) = remembered(core, id).await;
-        let cwd = match cwd {
-            Some(cwd) => cwd.to_string(),
-            None => last_cwd.unwrap_or_else(|| NO_CWD.to_string()),
-        };
-        // 加进来的目录没报来的，照最后一轮的（施工 5-10 上）。
-        let dirs = dirs.map_or(last_dirs, <[String]>::to_vec);
+        // 照日志里最后一次记下的工作目录，都没有才退回 `~`（施工 4-9 再补三上）；加进来的目录照最后一次记下的（施工 5-10
+        // 上）。施工 9-7 上起换工作区的事件也算。
+        let (last_cwd, dirs) = remembered(core, id).await;
+        let cwd = last_cwd.unwrap_or_else(|| NO_CWD.to_string());
         let workspace = workspace(core, &cwd);
         let loaded = load(Load {
             root: &core.root,
@@ -96,7 +67,6 @@ impl Open {
             id.clone(),
             Running {
                 handle: handle.clone(),
-                cwd,
                 workspace: workspace.clone(),
                 dirs,
             },
@@ -126,6 +96,8 @@ async fn remembered(core: &Core, id: &SessionId) -> (Option<String>, Vec<String>
             .rev()
             .find_map(|event| match &event.body {
                 Body::TurnStarted(started) => Some(started.dirs.clone()),
+                // 换工作区写了加进来的目录的（施工 9-7 上）；没写的照更早的。
+                Body::WorkspaceChanged(changed) => changed.dirs.clone(),
                 _ => None,
             })
             .unwrap_or_default();

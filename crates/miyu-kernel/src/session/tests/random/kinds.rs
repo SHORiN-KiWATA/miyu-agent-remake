@@ -36,6 +36,8 @@ kinds! {
     SetPermission,
     /// 改标题、置顶（施工 3-8 三补）。
     SetMeta,
+    /// 换工作区（施工 9-7 上）。
+    SetWorkspace,
     /// 记下用了一个斜杠命令（施工 O-6）。
     Ran,
     /// 换模型（施工 8-10）。
@@ -124,6 +126,7 @@ impl InputKind {
                 } => InputKind::Keep,
                 Command::SetPermission { .. } => InputKind::SetPermission,
                 Command::SetMeta { .. } => InputKind::SetMeta,
+                Command::SetWorkspace { .. } => InputKind::SetWorkspace,
                 Command::Ran { .. } => InputKind::Ran,
                 Command::Configure { .. } => InputKind::Configure,
                 Command::Answer {

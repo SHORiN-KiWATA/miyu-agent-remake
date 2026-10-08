@@ -18,6 +18,8 @@ impl Actor {
         Current {
             permission: self.session.permission().clone(),
             jobs: self.session.running_started(),
+            cwd: self.session.cwd().to_string(),
+            dirs: self.session.dirs().to_vec(),
             tally: self.counted().tally.clone(),
         }
     }
