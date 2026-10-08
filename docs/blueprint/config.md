@@ -137,7 +137,7 @@ trusted = true
 | `tighten` | 项目配置怎么收紧，只有 `layers` 里有 `Project` 的才写，必写（下面「收紧」），`list::check` 查。8-2 加 |
 | `env` | 这一次启动由哪个环境变量压过。只有两项有：`log.level` 的 `MIYU_LOG`（`28-运行日志.md` LG2），`models.catalog.update` 的 `MIYU_CATALOG_UPDATE`（施工 8-7，2026-10-01 主会话定：离线的机器、测试拉起的核心不去拉目录）。读不懂的当没设，照配置 |
 | `applies` | 什么时候生效，下面「生效时机」 |
-| `ui` | 界面提示：`page` 在哪一页，`group` 哪一组，`common` 是不是常用项（排在前面，不写是 `false`），`control` 用什么控件，`hidden` 设置页不画（照样能写、能查、进 Schema；核心自己的项都是 `false`，软件包能声明，施工 9-1 下） |
+| `ui` | 界面提示：`page` 在哪一页，`group` 哪一组，`common` 是不是常用项（排在前面，不写是 `false`），`control` 用什么控件，`hidden` 设置页不画（照样能写、能查、进 Schema；软件包能声明，施工 9-1 下；核心自己的项只有 `ui.welcomed` 是 `true`，施工 8-11 四补） |
 
 - 名字和说明给人看，跟着界面语言，不在 Rust 里：放在资源目录的 `core/human/<语言>.json` 的 `config` 那一格，中文、英文、日文三份（下面「给人看的字」）。
 - 「谁能改」不另写一格：M8 只有管理员一个人，系统配置由管理员改，个人设置由本人改。按管理能力细分随多用户那一段（`06-多用户与身份.md` 第四节），那时清单加一格、协议的回应加一格，字段只加不改。
@@ -254,6 +254,7 @@ miyu_config::settings! {
 | `external.bindings.<external>` | 名字（本机账号） | 没有 | 系统 | 不能写 | `now` | O-3：主人对应表（`venues.md`），一个号一行；对着不存在的账号的认的时候当没写、记一行运行日志 |
 | `ui.startup` | 选项 `new`、`recent` | `new`，开一个新会话 | 系统、个人 | 不能写 | `head_start` | 8-3（8-28 从 `tui.startup` 改名） |
 | `ui.head` | 名字（软件包的编号） | `tui` | 系统、个人 | 不能写 | `head_start` | 9-3（`cli/main.md`「怎么走」第 3 条）：直接敲 `miyu`、`miyu config` 时打开哪个界面；主程序每次敲的时候经 `config.get` 读，照清单找这个包的程序。界面提示：通用页的「显示」组，文字 |
+| `ui.welcomed` | 布尔 | `false` | 个人 | 不能写 | `now` | 8-11 四补（2026-10-08 终端、网页两个头要的，`cli/setup.md` 以外的第一次引导）：这个账号走完了第一次引导。头走完写 `true`（`config.set` 个人设置），以后不再进引导，缺什么去配置页补；进不进只看它，不看有没有模型。核心不读它。设置页不画（`hidden`） |
 | `compaction.prepare` | 开关 | `true` | 系统、个人 | 不能写 | `next_turn` | 6-11 上（`compaction.md` 第十五条）：提前压好，会话 actor 回合开始时读、交给内核。设置页在「高级」那一页的「压缩」一组，排在「运行日志」前面 |
 | `persona.default` | 名字（人格的编号） | 没有 | 系统、个人 | 不能写 | `new_session` | P-1 上（`personas.md`）：没指定人格的新会话照它找；没设的无人格，指着没有的人格当没设（施工 P-4 上：出厂不设，原来是 `engineer`；预设不再管默认人格） |
 | `preset.default` | 名字（预设的编号） | `full` | 系统、个人 | 不能写 | `new_session` | P-2 上（`presets.md`）：没指定预设的新会话照它找；指着没有的预设，造会话回 `unknown_preset`，不悄悄换（Y12）。设置页在「通用」那一页的「预设」一组 |
@@ -1174,6 +1175,10 @@ language = "auto"
 # 能写：new 或 recent。只能写在系统配置或个人设置里。这个程序下次启动时生效。
 startup = "new"
 
+# 第一次引导走过了：这个账号已经走完第一次引导，终端、网页不再打开引导。
+# 能写：true 或 false。只能写在个人设置里。当场生效。
+welcomed = false
+
 [usage]
 # 显示的币种：用量的金额照币种各加各的，不换算；这一种排在最前，别的照代码的字母先后。三个大写字母，例如 USD、CNY。
 # 能写：最多 3 个字的文字。只能写在系统配置或个人设置里。当场生效。
@@ -1659,6 +1664,12 @@ ticket_idle_seconds = 43200
           ],
           "title": "启动时打开",
           "type": "string"
+        },
+        "welcomed": {
+          "default": false,
+          "description": "这个账号已经走完第一次引导，终端、网页不再打开引导。能写：true 或 false。只能写在个人设置里。当场生效。",
+          "title": "第一次引导走过了",
+          "type": "boolean"
         }
       },
       "type": "object"

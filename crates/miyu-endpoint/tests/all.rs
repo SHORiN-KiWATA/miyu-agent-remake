@@ -91,6 +91,7 @@ mod usage;
 mod venues;
 mod view_page;
 mod watch;
+mod welcomed;
 mod workspace;
 mod workspace_command;
 mod workspace_property;

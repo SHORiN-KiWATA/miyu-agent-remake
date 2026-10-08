@@ -7,6 +7,7 @@ fn chosen(language: &str) -> UiSettings {
         language: language.to_string(),
         startup: "new".to_string(),
         head: "tui".to_string(),
+        welcomed: false,
     }
 }
 

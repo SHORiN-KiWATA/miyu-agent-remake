@@ -457,6 +457,12 @@
           ],
           "title": "启动时打开",
           "type": "string"
+        },
+        "welcomed": {
+          "default": false,
+          "description": "这个账号已经走完第一次引导，终端、网页不再打开引导。能写：true 或 false。只能写在个人设置里。当场生效。",
+          "title": "第一次引导走过了",
+          "type": "boolean"
         }
       },
       "type": "object"

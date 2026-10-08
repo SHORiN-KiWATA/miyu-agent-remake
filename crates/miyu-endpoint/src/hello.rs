@@ -245,6 +245,7 @@ fn system(locale: Option<&str>) -> &'static str {
         language: "auto".to_string(),
         startup: "new".to_string(),
         head: "tui".to_string(),
+        welcomed: false,
     };
     match auto.language_for(locale) {
         "zh" => "zh",

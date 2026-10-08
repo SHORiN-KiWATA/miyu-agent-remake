@@ -43,6 +43,10 @@
         "name": "Default interface",
         "description": "The interface plain miyu opens."
       },
+      "ui.welcomed": {
+        "name": "First-run guide done",
+        "description": "This account has finished the first-run guide; the terminal and web pages no longer open it."
+      },
       "persona.default": {
         "name": "Default persona",
         "description": "The persona new sessions use. When unset, new sessions have no persona: no character prompt, and memory is off."

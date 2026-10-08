@@ -218,6 +218,10 @@ language = "auto"
 # Allowed: new or recent. Only in the system config or personal settings. Takes effect the next time the program starts.
 startup = "new"
 
+# First-run guide done: This account has finished the first-run guide; the terminal and web pages no longer open it.
+# Allowed: true or false. Only in personal settings. Takes effect at once.
+welcomed = false
+
 [usage]
 # Currency shown first: Amounts are added up per currency, never converted. This one is listed first, the others by code. Three capital letters such as USD or CNY.
 # Allowed: text of at most 3 characters. Only in the system config or personal settings. Takes effect at once.
