@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex, PoisonError};
 use tokio::sync::{broadcast, mpsc, oneshot};
 
 use miyu_kernel::event::{Event, Transient};
-use miyu_kernel::id::{CommandId, JobId, SessionId, VenueId};
+use miyu_kernel::id::{AccountId, CommandId, JobId, SessionId, VenueId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, ContextLimits, Outcome, Reason};
 use miyu_kernel::time::Timestamp;
@@ -29,6 +29,8 @@ pub struct Handle {
     id: SessionId,
     /// 场所（施工 O-3）：造好以后不变。
     venue: VenueId,
+    /// 会话的属主（施工 O-4 上）：日志、blob、回收处在它的家目录下。造好以后不变。
+    owner: AccountId,
     inbox: mpsc::UnboundedSender<Message>,
     /// 有没有在跑的回合：actor 每送完一批输入就写一次（施工 3-9 上）。
     busy: Arc<AtomicBool>,
@@ -119,19 +121,28 @@ pub(crate) enum Halt {
     },
 }
 
+/// 会话是哪一个、在哪个场所、谁的（施工 O-4 上）：造把手时一起交，造好以后都不变。
+#[derive(Debug, Clone)]
+pub(crate) struct Ids {
+    pub(crate) id: SessionId,
+    pub(crate) venue: VenueId,
+    pub(crate) owner: AccountId,
+}
+
 impl Handle {
     pub(crate) fn new(
-        id: SessionId,
-        venue: VenueId,
+        ids: Ids,
         inbox: mpsc::UnboundedSender<Message>,
         busy: Arc<AtomicBool>,
         oneshot: bool,
         watched: Arc<AtomicBool>,
         shown: Arc<Mutex<Shown>>,
     ) -> Handle {
+        let Ids { id, venue, owner } = ids;
         Handle {
             id,
             venue,
+            owner,
             inbox,
             busy,
             oneshot,
@@ -171,6 +182,11 @@ impl Handle {
     /// 会话编号。
     pub fn id(&self) -> &SessionId {
         &self.id
+    }
+
+    /// 会话的属主（施工 O-4 上）：日志、blob、回收处在 `home/<它>/` 下。
+    pub fn owner(&self) -> &AccountId {
+        &self.owner
     }
 
     /// 会话的场所：`session.created` 的 `venue`（施工 O-3）。本机的是 `local`，通讯平台的场所会话只收代表外部的人说的话。

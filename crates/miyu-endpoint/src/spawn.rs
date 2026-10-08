@@ -124,7 +124,12 @@ impl SessionPort for Table {
     fn peek(&self, session: SessionId) -> Pending<'_, Result<Peek, String>> {
         Box::pin(async move {
             let core = self.core()?;
-            let dir = core.root.session_dir(&core.admin, &session);
+            let owner = core
+                .sessions
+                .owner(&core, &session)
+                .await
+                .ok_or_else(|| format!("session {session} not found"))?;
+            let dir = core.root.session_dir(&owner, &session);
             let events = tokio::task::spawn_blocking(move || read_events(&dir))
                 .await
                 .map_err(|error| error.to_string())?
@@ -170,7 +175,13 @@ impl SessionPort for Table {
     fn read_log(&self, session: SessionId) -> Pending<'_, Result<Log, String>> {
         Box::pin(async move {
             let core = self.core()?;
-            let dir = core.root.session_dir(&core.admin, &session);
+            // 照属主的家目录（施工 O-4 上）；哪个账号下都没有的照管理员的算目录，读的时候说没有。
+            let owner = core
+                .sessions
+                .owner(&core, &session)
+                .await
+                .unwrap_or_else(|| core.admin.clone());
+            let dir = core.root.session_dir(&owner, &session);
             Ok(Log::new(Dir(dir)))
         })
     }

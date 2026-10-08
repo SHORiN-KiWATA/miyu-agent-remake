@@ -24,7 +24,7 @@ use crate::blocking::blocking;
 use crate::clock::Clock;
 use crate::config::Turning;
 use crate::guard::Guard;
-use crate::handle::Handle;
+use crate::handle::{Handle, Ids};
 use crate::job_ids::JobIds;
 use crate::jobs::Roster;
 use crate::memory::{self, connect};
@@ -301,7 +301,10 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     });
     actor::spawn(actor, first, span);
     match answer.await {
-        Ok(_) => Ok(Handle::new(id, venue, inbox, busy, oneshot, watched, shown).with_memory(room)),
+        Ok(_) => {
+            let ids = Ids { id, venue, owner };
+            Ok(Handle::new(ids, inbox, busy, oneshot, watched, shown).with_memory(room))
+        }
         Err(_) => {
             // 造会话那一条没落盘：只剩空的第一段的会话目录删掉；快照的 blob 留着，按内容存，别的会话可能也在用
             // （施工 4-9 再补四下：原来都留在磁盘上）。
