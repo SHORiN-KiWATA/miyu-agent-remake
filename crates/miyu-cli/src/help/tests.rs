@@ -102,6 +102,7 @@ fn each_page_lists_exactly_the_options_there_are() {
         ("MODEL", "<模型>"),
         ("ID", "<编号>"),
         ("VAR", "<变量>"),
+        ("REASON", "<原因>"),
     ];
     let english = [
         ("SESSION", "<id>"),
@@ -112,6 +113,7 @@ fn each_page_lists_exactly_the_options_there_are() {
         ("MODEL", "<model>"),
         ("ID", "<id>"),
         ("VAR", "<var>"),
+        ("REASON", "<reason>"),
     ];
     for (language, id) in [(Language::Chinese, &chinese), (Language::English, &english)] {
         assert_eq!(
@@ -181,6 +183,13 @@ fn each_page_lists_exactly_the_options_there_are() {
             listed(page(language, Page::Config)),
             options,
             "{language:?} config"
+        );
+        // `memory` 那一页（施工 R-3 再补）：选项都是全局的，写在 `memory` 上，子命令的都是位置参数。
+        let memory = crate::Memory::augment_args(Command::new("memory"));
+        assert_eq!(
+            listed(page(language, Page::Memory)),
+            real(&memory, id),
+            "{language:?} memory"
         );
         // `login`、`logout` 两页（施工 8-5）：名字是位置参数，不算选项。
         let login = Login::augment_args(Command::new("login"));

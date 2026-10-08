@@ -151,8 +151,8 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
         ),
         "nothing_to_revert" => ("没有能撤销的回合。", "There is no turn to undo."),
         "memory_unavailable" => (
-            "这个会话里没有记忆：记忆关着，或者是通讯平台的会话。",
-            "This session has no memory: it is off, or this is a platform session.",
+            "这里没有记忆：没有人格、记忆关着，或者是通讯平台的会话。",
+            "No memory here: no persona, memory is off, or this is a platform session.",
         ),
         "unknown_memory" => ("没有这一条记忆。", "There is no such memory."),
         "memory_not_current" => (

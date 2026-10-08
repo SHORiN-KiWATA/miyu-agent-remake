@@ -12,6 +12,7 @@ mod compact;
 mod config;
 mod from;
 mod login;
+mod memory;
 mod recap;
 mod redo;
 mod rename;

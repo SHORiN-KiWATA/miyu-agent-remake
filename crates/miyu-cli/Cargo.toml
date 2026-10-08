@@ -13,6 +13,8 @@ autotests = false
 clap = { version = "4", features = ["derive"] }
 # 请求编号的随机前缀：两次 miyu ask 不撞号。
 getrandom = { version = "0.4", features = ["std"] }
+# `miyu memory` 把时刻照这台机器此刻的时区换成那一天（施工 R-3 再补）：和核心给会话的环境用的是同一个。
+jiff = "0.2"
 # 连上核心，没在跑就拉起来（施工 3-8 下、3-9 上）。
 miyu-ipc = { path = "../miyu-ipc" }
 # 工具结果里给人看的说法（施工 4-5 下）。

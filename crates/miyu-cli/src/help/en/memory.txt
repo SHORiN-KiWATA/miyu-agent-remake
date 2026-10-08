@@ -1,0 +1,24 @@
+Usage: miyu memory [command] [options]
+
+See what she remembers about you; search, add, edit, forget, clear.
+Without a command it is list.
+
+Commands:
+  list                    List memories, newest first
+  search <words>          Search memories
+  add <text>              Remember one thing
+  edit <id> <text>        Change one; prints the new id
+  forget <id>             Forget one
+  clear session [<id>]    Clear what this session remembered; default is
+                          the session the last miyu ask opened
+  clear me                Clear everything she remembers about you
+
+Options:
+      --persona <id>      Whose memory; default is the default persona
+  -s, --session <id>      The memory this session uses
+      --forgotten         list, search: include forgotten ones
+      --class user|feedback|episode|reference
+                          list: only this class; add: save as it (default user)
+      --why <reason>      forget: why
+      --format text|json  list, search: json for scripts
+  -h, --help              Print help

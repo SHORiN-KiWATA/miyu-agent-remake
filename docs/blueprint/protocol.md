@@ -1009,7 +1009,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `no_model` | -32010 | `model.call` 没有能用的模型：没写 `model`、`models.chat` 也没配，那一家用不了、key 取不到；`data.message` 是原话（施工 8-20） |
 | `cooling` | -32010 | `model.call` 的候选全在冷却，没发；`data.message` 是原话，`data.wait_ms` 是最早恢复的那一个还要多久（施工 8-20） |
 | `model_failed` | -32010 | `model.call` 发了、出错了：`data.class`、`data.status`（有状态码的才写）、`data.message`，和 `model.called` 的 `error` 一样（施工 8-20） |
-| `memory_unavailable` | -32010 | 这个会话里没有记忆：范围 `off`、场所会话（施工 R-3 补，`memory.*`、`/remember`） |
+| `memory_unavailable` | -32010 | 这里没有记忆：不带人格（没写人格、又没设默认人格的也是）、范围 `off`、场所会话（施工 R-3 补，`memory.*`、`/remember`；施工 R-3 再补那句话也说没有人格） |
 | `unknown_memory` | -32010 | 没有这一条记忆，或者听众不合（施工 R-3 补） |
 | `memory_not_current` | -32010 | 那一条记忆已经改掉、作废、清掉了（施工 R-3 补） |
 | `memory_too_long` | -32010 | 一条记忆超过 120 字；`data.chars`、`data.limit`（施工 R-3 补） |
@@ -1153,7 +1153,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `cooling` | 模型都在冷却，稍后再试。 | All models are cooling down; try again later. |
 | `model_failed` | 请求模型出错了。 | The model request failed. |
 | `recap_failed` | 回顾没写成：请求模型出错了。 | The recap could not be written: the model request failed. |
-| `memory_unavailable` | 这个会话里没有记忆：记忆关着，或者是通讯平台的会话。 | This session has no memory: it is off, or this is a platform session. |
+| `memory_unavailable` | 这里没有记忆：没有人格、记忆关着，或者是通讯平台的会话。 | No memory here: no persona, memory is off, or this is a platform session. |
 | `unknown_memory` | 没有这一条记忆。 | There is no such memory. |
 | `memory_not_current` | 这一条已经改掉、作废或者清掉了。 | That memory was already replaced, forgotten or cleared. |
 | `memory_too_long` | 一条记忆太长了，字数和上限在 data 里。 | The memory is too long; data has its length and the limit. |

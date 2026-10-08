@@ -192,6 +192,11 @@ impl Home {
 
     /// 在协议上直接造一个普通的（不是一次性的）会话，交回编号：好看 `--continue` 会不会跳过它。
     pub async fn create_plain(&self) -> String {
+        self.create_with(serde_json::json!({"cwd": "/work"})).await
+    }
+
+    /// 在协议上照 `params` 造一个会话（`session.create` 的参数，施工 R-3 再补：带 `memory`），交回编号。
+    pub async fn create_with(&self, params: serde_json::Value) -> String {
         use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
         let (connection, token) = miyu_ipc::connect(&self.root).await.expect("连得上");
         let (read, mut write) = tokio::io::split(connection);
@@ -200,7 +205,7 @@ impl Home {
             serde_json::json!({"jsonrpc": "2.0", "id": "plain-1", "method": "hello", "params": {
                 "protocol": [1, 1], "head": {"kind": "test", "version": "0"}, "token": token}}),
             serde_json::json!({"jsonrpc": "2.0", "id": "plain-2", "method": "session.create",
-                "params": {"cwd": "/work"}}),
+                "params": params}),
         ];
         let mut reply = serde_json::Value::Null;
         for line in lines {

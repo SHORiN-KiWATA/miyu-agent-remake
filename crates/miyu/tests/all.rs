@@ -17,6 +17,7 @@ mod heads;
 mod link_preview;
 mod login;
 mod login_tty;
+mod memory;
 mod no_proxy;
 mod packages;
 mod recap;

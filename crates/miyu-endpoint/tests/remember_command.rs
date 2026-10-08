@@ -85,7 +85,7 @@ async fn remember_saves_in_the_sessions_room_without_asking_the_model() {
     assert_eq!(reason(&reply), Some("memory_unavailable"), "{reply}");
     assert_eq!(
         reply["error"]["message"],
-        "这个会话里没有记忆：记忆关着，或者是通讯平台的会话。"
+        "这里没有记忆：没有人格、记忆关着，或者是通讯平台的会话。"
     );
 }
 

@@ -55,6 +55,8 @@ enum Command {
     Config(miyu_cli::Config),
     /// 查手写的文件有没有写错：配置、密钥文件、人格（施工 8-30）。
     Check(miyu_cli::Check),
+    /// 看她记了你什么，搜、记、改、忘、清空（施工 R-3 再补）。
+    Memory(miyu_cli::Memory),
     /// 存一个供应商的 key，`--list` 列出哪几个设了（施工 8-5）。
     Login(miyu_cli::Login),
     /// 删掉一个供应商的 key（施工 8-5）。
@@ -136,6 +138,20 @@ fn main() -> ExitCode {
                     config.mut_subcommand(name, |sub| sub.override_help(help))
                 })
         })
+        .mut_subcommand("memory", |memory| {
+            let help = page(language, Page::Memory);
+            let memory = ["list", "search", "add", "edit", "forget"]
+                .into_iter()
+                .fold(memory.override_help(help), |memory, name| {
+                    memory.mut_subcommand(name, |sub| sub.override_help(help))
+                });
+            memory.mut_subcommand("clear", |clear| {
+                clear
+                    .override_help(help)
+                    .mut_subcommand("session", |session| session.override_help(help))
+                    .mut_subcommand("me", |me| me.override_help(help))
+            })
+        })
         .mut_subcommand("sandbox", |sandbox| {
             let help = page(language, Page::Sandbox);
             sandbox
@@ -168,6 +184,7 @@ fn main() -> ExitCode {
         }
         Some(Command::Config(args)) => miyu_cli::config(args, core),
         Some(Command::Check(args)) => miyu_cli::check(args, core),
+        Some(Command::Memory(args)) => miyu_cli::memory(args, core),
         Some(Command::Login(args)) => miyu_cli::login(args.into(), core),
         Some(Command::Logout(args)) => miyu_cli::login(args.into(), core),
         Some(Command::Setup(args)) => miyu_cli::setup(args, core),
