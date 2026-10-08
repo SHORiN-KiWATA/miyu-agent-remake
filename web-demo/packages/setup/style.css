@@ -81,7 +81,8 @@
 
 /* 人格、预设的详情：在列表里原地展开，铺在页面底色上、不用白卡片，照设置页编辑供应商的表单（2026-10-08 项目主人）：左边字段名、右边灰底的框；
    上下各一条细分隔和列表的块分开。控件照设置页的（`settings/kit.js`），不画描边 */
-.setup-bar { display: flex; justify-content: flex-end; margin: -4px 0 0; }
+.setup-bar { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin: -4px 0 0; }
+.setup-bar .setup-intro { flex: 1; margin: 0; color: var(--text-faint); font-size: 12.5px; }
 .setup-new { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--surface-2); color: var(--text); font: 13px var(--sans); cursor: pointer; }
 .setup-new:hover { background: var(--surface-3); }
 .setup-new svg { width: 14px; height: 14px; }

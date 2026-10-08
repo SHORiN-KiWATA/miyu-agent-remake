@@ -33,7 +33,7 @@ export function problemsOf(problems, kind, id) {
 }
 
 /**
- * 默认的能不能用（第 2 条：没了、文件写错的锁住输入框）：指着的那一项在列表里、没写错。
+ * 默认的能不能用（第 2 条：预设没了、文件写错的锁住输入框；人格只看写错的，没了的当没设）：指着的那一项在列表里、没写错。
  * @param {(Persona|Preset)[]} list @param {string|null} id @param {'persona'|'preset'} [key]
  */
 export function defaultUsable(list, id, key = 'persona') {
@@ -45,10 +45,16 @@ export function defaultUsable(list, id, key = 'persona') {
 export const presetInUse = (chosen, fallback) => chosen ?? fallback ?? 'full';
 
 /**
- * 没选人格时用哪个（`presets.md`「怎么走」第 3 条）：预设写的默认人格，再是配置项 `persona.default`，都没写是出厂的 `engineer`。
- * @param {string|null} chosen @param {string|null} fromPreset @param {string|null} fallback
+ * 实际用哪个人格（`presets.md`「怎么走」第 3 条）：选了的；明着不用人格（`false`）的是没有；没选的照预设写的默认人格，再是配置项
+ * `persona.default`，指着没有的当没设（核心 2026-10-08）；都没有是没有人格（出厂不带人格，2026-10-08 项目主人）。
+ * @param {string|false|null} chosen @param {string|null} fromPreset @param {string|null} fallback @param {Persona[]} list
+ * @returns {string|null}
  */
-export const personaInUse = (chosen, fromPreset, fallback) => chosen ?? fromPreset ?? fallback ?? 'engineer';
+export function personaInUse(chosen, fromPreset, fallback, list) {
+  if (chosen === false) return null;
+  if (chosen) return chosen;
+  return [fromPreset, fallback].find((id) => id && list.some((p) => p.persona === id)) ?? null;
+}
 
 /** 目录名（按钮上写的）：路径最后一段，`~` 照写。 @param {string} path */
 export function dirName(path) {

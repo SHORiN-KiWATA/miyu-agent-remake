@@ -47,7 +47,7 @@ export function apply(ctx) {
     const preset = presetInUse(draft.preset, catalog.presetDefault);
     const detail = catalog.known(preset);
     if (detail === undefined) catalog.preset(preset).then(() => draw(true));
-    return { preset, persona: personaInUse(draft.persona, detail?.default_persona ?? null, catalog.personaDefault) };
+    return { preset, persona: personaInUse(draft.persona, detail?.default_persona ?? null, catalog.personaDefault, catalog.personas ?? []) };
   };
 
   /** 读人格、预设的列表和默认的（进空会话时读一次，读完重画）。 */
@@ -72,17 +72,17 @@ export function apply(ctx) {
       infoMenu.close();
       row.hidden = false;
       personaBtn.hidden = !catalog.personas;
-      replace(personaBtn, icon('user-round'), h('span', draft.persona ? nameOf(draft.persona) : t('choose_persona')));
-      personaBtn.classList.toggle('is-set', !!draft.persona);
+      replace(personaBtn, icon('user-round'), h('span', draft.persona === false ? t('no_persona') : draft.persona ? nameOf(draft.persona) : t('choose_persona')));
+      personaBtn.classList.toggle('is-set', draft.persona != null);
       presetBtn.hidden = !catalog.presets;
       replace(presetBtn, icon('toggle-right'), h('span', draft.preset ? presetNameOf(draft.preset) : t('choose_preset')));
       presetBtn.classList.toggle('is-set', !!draft.preset);
       replace(workBtn, icon('folder'), h('span', draft.cwd ? dirName(tilde(draft.cwd, home())) : t('set_workspace')));
       workBtn.classList.toggle('is-set', !!draft.cwd);
       workBtn.title = tilde(draft.cwd ?? chat.defaultWorkdir(), home());
-      // 没选、默认的又用不了：锁住输入框（第 2 条）。预设一定要有（Y12）；人格照预设算出来的默认人格
+      // 没选、默认的又用不了：锁住输入框（第 2 条）。预设一定要有（Y12）；人格可以没有，只有算出来的默认人格文件写错了才锁
       const needPreset = !!catalog.presets && !draft.preset && !defaultUsable(catalog.presets, used?.preset ?? null, 'preset');
-      const needPersona = !!catalog.personas && !draft.persona && !defaultUsable(catalog.personas, used?.persona ?? null);
+      const needPersona = !!catalog.personas && draft.persona == null && !!used?.persona && !defaultUsable(catalog.personas, used.persona);
       presetBtn.classList.toggle('is-need', needPreset);
       personaBtn.classList.toggle('is-need', needPersona);
       ctx.composer.lock(needPreset ? t('locked_preset') : needPersona ? t('locked') : null);
@@ -108,7 +108,10 @@ export function apply(ctx) {
     menu.show(personaBtn, {
       title: t('choose_persona'),
       hint: t('menu_hint'),
-      rows: catalog.personas.map((p) => ({
+      rows: [
+        // 第一行「空白」：不带人格（2026-10-08 项目主人：人格可以留空，这一项叫「空白」；没有人格的会话记忆、知识库不生效）
+        { title: t('no_persona'), desc: t('no_persona_desc'), current: chosen == null, pick: () => chat.setDraft({ persona: false }) },
+        ...catalog.personas.map((p) => ({
         title: personaName(p),
         desc: p.problem ? t('persona_bad') : p.summary ?? '',
         tip: p.problem ? catalog.problemOf('persona', p).map((x) => problemText(ctx, x)).join('\n') : undefined,
@@ -116,6 +119,7 @@ export function apply(ctx) {
         off: !!p.problem,
         pick: () => chat.setDraft({ persona: p.persona }),
       })),
+      ],
     });
   };
 
@@ -203,7 +207,8 @@ export function apply(ctx) {
   ctx.slots.mount('settings.editor', {
     id: 'setup-persona',
     key: 'persona.default',
-    options: () => (catalog.personas ?? []).filter((p) => !p.problem).map((p) => ({ value: p.persona, name: personaName(p) })),
+    // 「空白」：新会话默认不带人格（写成删掉这一项）
+    options: () => [{ value: null, name: t('default_none') }, ...(catalog.personas ?? []).filter((p) => !p.problem).map((p) => ({ value: p.persona, name: personaName(p) }))],
   });
   ctx.slots.mount('settings.editor', {
     id: 'setup-preset',

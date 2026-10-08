@@ -206,8 +206,10 @@ export class Store {
    * 核心拒绝时抛出来。
    */
   async create(cwd, model = null, persona = null, preset = null) {
-    // 还没开的新会话里选过模型（核心施工 8-8）、人格（P-1）、预设（P-2）的，开的时候带上；不写的核心照默认（预设的默认人格、配置项）
-    const { session } = await this.conn.request('session.create', { cwd, ...(model ? { model } : {}), ...(persona ? { persona } : {}), ...(preset ? { preset } : {}) });
+    // 还没开的新会话里选过模型（核心施工 8-8）、人格（P-1）、预设（P-2）的，开的时候带上；不写的核心照默认（预设的默认人格、配置项）。
+    // 人格是 `false` 的是明着不用人格，发 `null`（核心：不看预设、默认人格；2026-10-08 项目主人：人格可以留空）
+    const who = persona === false ? { persona: null } : persona ? { persona } : {};
+    const { session } = await this.conn.request('session.create', { cwd, ...(model ? { model } : {}), ...who, ...(preset ? { preset } : {}) });
     // 推送还没到时先记上，左栏当场有它
     this.index.seed(session, { cwd });
     await this.load(session);

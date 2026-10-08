@@ -60,7 +60,8 @@ export class App {
     /** 还没开的新会话里选的模型（换模型的菜单、`/model`）：开会话时带上 */
     this.pendingModel = /** @type {string|null} */ (null);
     /** 还没开的新会话里选的人格、预设、工作区（软件包 `setup` 经服务 `chat` 改）：开会话时带上，没选的照默认 */
-    this.draft = /** @type {{persona: string|null, preset: string|null, cwd: string|null}} */ ({ persona: null, preset: null, cwd: null });
+    // 人格 `null` 是没选（照默认的），`false` 是明着不用人格
+    this.draft = /** @type {{persona: string|false|null, preset: string|null, cwd: string|null}} */ ({ persona: null, preset: null, cwd: null });
     /** 会话 → 选过、还没生效的模型（下一轮才换）和那时开过几轮：开了新的一轮就照核心推的 */
     this.picked = /** @type {Map<string, {ref: string, turns: number}>} */ (new Map());
     /** 会话（新会话是空的）→ 模型 → 选过、还没生效的思考强度和那时开过几轮（核心施工 8-18：强度是这个会话里这一个模型的一格） */
@@ -382,7 +383,7 @@ export class App {
     return sessionCwd(s?.events ?? [], s?.base ?? null) ?? this.cwd;
   }
 
-  /** 还没开的新会话改人格、预设、工作区（软件包 `setup`）：告诉软件包（`draft.changed`），重画（`@` 照它列文件）。 @param {Partial<{persona: string|null, preset: string|null, cwd: string|null}>} patch */
+  /** 还没开的新会话改人格、预设、工作区（软件包 `setup`）：告诉软件包（`draft.changed`），重画（`@` 照它列文件）。 @param {Partial<{persona: string|false|null, preset: string|null, cwd: string|null}>} patch */
   setDraft(patch) {
     this.draft = { ...this.draft, ...patch };
     this.ctx.emit('draft.changed', { ...this.draft });

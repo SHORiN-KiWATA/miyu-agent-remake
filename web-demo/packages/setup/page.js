@@ -26,12 +26,12 @@ function badCard(ctx, id, problems) {
 /** 人格页、预设页不一样的那几处。 */
 const KINDS = {
   persona: {
-    list: (c) => c.personas, fallback: (c) => c.personaDefault, name: personaName, none: 'page.none', add: 'edit.new_persona',
+    list: (c) => c.personas, fallback: (c) => c.personaDefault, name: personaName, none: 'page.none', add: 'edit.new_persona', intro: 'page.intro',
     create: (core, name) => core.request('persona.set', { changes: [{ key: 'persona.name', value: name }] }).then((r) => r?.persona),
     editor: (ctx, kit, catalog, id, hooks) => new PersonaEditor(ctx, kit, id, hooks),
   },
   preset: {
-    list: (c) => c.presets, fallback: (c) => c.presetDefault ?? 'full', name: presetName, none: 'presets.none', add: 'edit.new_preset',
+    list: (c) => c.presets, fallback: (c) => c.presetDefault ?? 'full', name: presetName, none: 'presets.none', add: 'edit.new_preset', intro: null,
     create: (core, name) => core.request('preset.set', { changes: [{ key: 'preset.name', value: name }] }).then((r) => r?.preset),
     editor: (ctx, kit, catalog, id, hooks) => new PresetEditor(ctx, kit, catalog, id, hooks),
   },
@@ -90,7 +90,8 @@ export class ListPage {
       });
       return card;
     });
-    const add = h('div.setup-bar', h('button.setup-new', { type: 'button', onclick: () => this.startNew() }, icon('plus'), h('span', t(this.k.add))));
+    // 顶上一行：这一页管什么（人格页，2026-10-08 项目主人），右边「＋ 新建」
+    const add = h('div.setup-bar', this.k.intro ? h('p.setup-intro', t(this.k.intro)) : null, h('button.setup-new', { type: 'button', onclick: () => this.startNew() }, icon('plus'), h('span', t(this.k.add))));
     replace(this.el, add, this.creating, cards.length ? cards : h('p.setup-empty', t(this.k.none)));
   }
 
