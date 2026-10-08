@@ -1,6 +1,7 @@
 //! 预设在哪、几层怎么叠（施工 P-2 上，`docs/blueprint/presets.md`，`16-人格与预设.md` 第三、四节）：出厂的
 //! `<资源目录>/presets/<编号>.toml`、系统区 `system/presets/<编号>.toml`、管理员家目录 `home/<管理员>/presets/<编号>.toml`，同名的
-//! 后面的叠在前面的上面，逐格盖。文件怎么读成样子在 `miyu_policy::preset`。
+//! 后面的叠在前面的上面，逐格盖。写了 `base` 的，自己的几层盖在底叠好的样子上（施工 P-3 上，16 第四节），底也照这样找；
+//! 绕成圈、指着没有的报错。文件怎么读成样子在 `miyu_policy::preset`。
 
 use std::collections::BTreeSet;
 use std::fmt;
@@ -25,8 +26,10 @@ pub struct Found {
     pub id: String,
     /// 叠好的文件。
     pub file: PresetFile,
-    /// 有它的几层，从下往上。
+    /// 有它的几层，从下往上（不算底的）。
     pub layers: Vec<Layer>,
+    /// 以哪个预设为底（施工 P-3 上）：叠好的 `base`，没有的是没有。
+    pub base: Option<String>,
 }
 
 /// 找预设出了错。
@@ -40,6 +43,10 @@ pub enum PresetError {
     Invalid(Layer, String, Problem),
     /// 读不了：哪个文件。
     Unreadable(PathBuf, io::Error),
+    /// 以谁为底绕成了圈（施工 P-3 上）：从要找的那个起，一路到又回来的那个。
+    BaseCycle(Vec<String>),
+    /// 底没有：哪个预设、写的底是什么。
+    BaseMissing(String, String),
 }
 
 impl fmt::Display for PresetError {
@@ -57,6 +64,8 @@ impl fmt::Display for PresetError {
             PresetError::Unreadable(path, error) => {
                 write!(f, "cannot read {}: {error}", path.display())
             }
+            PresetError::BaseCycle(chain) => write!(f, "base cycle: {}", chain.join(" -> ")),
+            PresetError::BaseMissing(id, base) => write!(f, "base {base:?} of {id:?} not found"),
         }
     }
 }
@@ -81,12 +90,74 @@ impl Presets {
         }
     }
 
-    /// 找预设 `id`，几层叠好。
+    /// 找预设 `id`，几层叠好；写了 `base` 的叠在底上。
     ///
     /// # Errors
     ///
-    /// 编号不合写法、哪一层都没有、文件写错了、读不了。
+    /// 编号不合写法、哪一层都没有、文件写错了、读不了；底绕成了圈、底没有，底的文件写错了、读不了。
     pub fn find(&self, id: &str) -> Result<Found, PresetError> {
+        self.find_from(id, &mut Vec::new(), None)
+    }
+
+    /// 同 [`Presets::find`]，只是家目录那一层的 `id` 照 `home` 这段字算，不读盘（施工 P-3 中）：`preset.set` 写之前照它查
+    /// 改完的一份叠不叠得成（写错、底绕圈、底没有）。
+    ///
+    /// # Errors
+    ///
+    /// 同 [`Presets::find`]。
+    pub fn find_with(&self, id: &str, home: &str) -> Result<Found, PresetError> {
+        self.find_from(id, &mut Vec::new(), Some(home))
+    }
+
+    /// 家目录那一层里预设 `id` 的文件（施工 P-3 中）：`preset.set` 写它、`preset.delete` 删它。编号由调用的一方查过。
+    ///
+    /// # Panics
+    ///
+    /// 实际不会 panic：[`Presets::new`] 总排上家目录那一层。
+    pub fn home_file(&self, id: &str) -> PathBuf {
+        let (_, dir) = self
+            .dirs
+            .iter()
+            .find(|(layer, _)| *layer == Layer::Home)
+            .expect("几层里总有家目录那一层");
+        file_of(dir, id)
+    }
+
+    /// 有没有哪一层有预设 `id` 的文件（施工 P-3 中，`preset.delete` 删完看还剩不剩）。不读文件。
+    pub fn exists(&self, id: &str) -> bool {
+        valid(id) && self.dirs.iter().any(|(_, dir)| file_of(dir, id).is_file())
+    }
+
+    /// 同 [`Presets::find`]，`chain` 是一路找过来的那几个（找底的时候查绕圈），`home` 见 [`Presets::find_with`]：只用在
+    /// 要找的那一个上，底照盘上的找。
+    fn find_from(
+        &self,
+        id: &str,
+        chain: &mut Vec<String>,
+        home: Option<&str>,
+    ) -> Result<Found, PresetError> {
+        let mut found = self.stack(id, home)?;
+        let Some(base) = found.file.base.clone() else {
+            return Ok(found);
+        };
+        chain.push(id.to_string());
+        if chain.contains(&base) {
+            chain.push(base);
+            return Err(PresetError::BaseCycle(std::mem::take(chain)));
+        }
+        let below = match self.find_from(&base, chain, None) {
+            Err(PresetError::NotFound(_)) => {
+                return Err(PresetError::BaseMissing(id.to_string(), base));
+            }
+            below => below?,
+        };
+        found.file = found.file.over(below.file);
+        found.base = Some(base);
+        Ok(found)
+    }
+
+    /// 预设 `id` 自己的几层叠好，不管底；`home` 是写了的，家目录那一层照它算。
+    fn stack(&self, id: &str, home: Option<&str>) -> Result<Found, PresetError> {
         if !valid(id) {
             return Err(PresetError::BadId(id.to_string()));
         }
@@ -94,14 +165,21 @@ impl Presets {
             id: id.to_string(),
             file: PresetFile::default(),
             layers: Vec::new(),
+            base: None,
         };
         for (layer, dir) in &self.dirs {
-            let path = file_of(dir, id);
-            if !path.is_file() {
-                continue;
-            }
-            let Some(text) = read(&path)? else {
-                continue;
+            let text = match home {
+                Some(text) if *layer == Layer::Home => text.to_string(),
+                _ => {
+                    let path = file_of(dir, id);
+                    if !path.is_file() {
+                        continue;
+                    }
+                    let Some(text) = read(&path)? else {
+                        continue;
+                    };
+                    text
+                }
             };
             let file = preset::read(&text)
                 .map_err(|problem| PresetError::Invalid(*layer, id.to_string(), problem))?;

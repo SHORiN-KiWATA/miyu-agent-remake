@@ -53,10 +53,17 @@ scope = "session"
 
 两张表，都可以不写：
 
-- `[persona]` 里只有 `name`、`summary`，各是语言到一句话的表（`zh`、`en`、`ja`），话不能是空的（去掉前后空白）。
+- `[persona]` 里只有 `name`、`summary`、`base`：前两个各是语言到一句话的表（`zh`、`en`、`ja`），话不能是空的（去掉前后空白）；`base` 是以哪个人格为底（施工 P-3 上，见下一条），写法同编号。
 - `[memory]` 里只有 `scope`：用这个人格的会话，记忆的默认范围，`persona`（跟着人格）或 `session`（只在这个会话里）；`off` 不能写在这里，不记是开会话时的事（施工 R-3 下，`memory.md`「范围」）。不写是 `persona`。上一层写了的盖下面的。
 
-别的表、别的键、别的值报错，写明第几行：`unknown table [<表>]`、`unknown key <表>.<键>`、`memory must be a table`、`memory.scope must be persona or session`。声音、知识库随它们的软件包，到时候再加。
+别的表、别的键、别的值报错，写明第几行：`unknown table [<表>]`、`unknown key <表>.<键>`、`memory must be a table`、`memory.scope must be persona or session`、`persona.base must be a persona id`。声音、知识库随它们的软件包，到时候再加。
+
+**以谁为底**（施工 P-3 上，16 第四节 Y3）：写了 `base` 的，先把底照同样的办法找好、叠好，再把自己的几层盖上去：`persona.toml` 逐项盖；提示词自己的几层有的用自己的，没有的沿用底的。`base` 本身也照几层叠（最上面写了的算），底再写了底的接着找。
+
+1. 绕成了圈（含指着自己）：`persona_invalid`，`data.problem` 是 `base cycle: a -> b -> a`。
+2. 底哪一层都没有：`base "<底>" of "<自己>" not found`。
+3. 底的文件写错：`base <底>: <层> <文件>:<行>: <错在哪>`，说明是哪个底。
+4. 记忆归哪个账号照旧只看自己有没有家目录那一层，不看底。快照的指纹照叠好的字算：底的人设改了，用它的会话下一个回合照样换上。
 
 **`prompts/examples.md`**（照旧版 `miyu-dialogs.md` 的写法）：
 
@@ -91,6 +98,14 @@ assistant: 8640
 8. **`persona.get {persona}`**：叠好的 `persona.toml` 各种语言原样给，人设、示范对话、角色扮演提示来自哪一层（没有的是 `null`，角色扮演提示施工 P-1 补），示范对话几轮。提示词原文不经协议交出去。
 9. **`miyu check`**（施工 8-30，`cli/check.md`）：每一层里每个人格的 `persona.toml`、`prompts/examples.md` 各查各的，上面一层盖住了照样报；给人看的那一句照 `persona-problems/<code>`，照连接的语言。
 
+### 改（施工 P-3 下）
+
+- `persona.set`、`persona.read`、`persona.delete`（`protocol.md`）：只写管理员家目录那一层的人格目录。对还没有的编号写就是新建（一次带上 `persona.base`、名字、提示词），改出厂的、系统区的就是建同名覆盖、只写改了的（16 第四节 Y3）。
+- `persona.toml` 照 `changes` 改（`crate::toml_changes`，同预设）；提示词整份换，`unset` 删你那一层的。写之前照改完的叠一遍（`Personas::find_with`：家目录那一层的几份照改完的算，删掉的当没有，没改的读盘），写错、底绕圈、底没有的什么都不写。
+- 提示词防覆盖（终端的会话要的）：`persona.read` 给原文和你那一层这一份的版本，`persona.set` 带回来当 `expect`。写盘照配置文件的规矩，一份一份写，只试一次：几份里写到一半撞上手改的，前面写了的不撤、回 `persona_conflict`（重来时前面那几份已经是改完的样子，不再写）。
+- 删：整个目录挪进 `home/<账号>/trash/personas/<编号>.<删的时刻，毫秒>/`（`miyu_store::trash::personas`），里面多一个 `deleted_at`；核心起来时和会话一起清，满 7 天的真删。开着的会话照旧用快照里的；默认人格指着它的，以后开会话照旧拒（不悄悄换）。
+- 运行日志 `INFO persona saved`、`persona deleted`。不推 `persona.changed`：两个头都是每次打开重新读。
+
 ### 出错
 
 | 情形 | 原因码 |
@@ -98,6 +113,7 @@ assistant: 8640
 | 编号不合写法 | `bad_params` |
 | 哪一层都没有 | `unknown_persona` |
 | `persona.toml`、`examples.md` 写错 | `persona_invalid`，`data.problem` |
+| 底绕成了圈、底没有、底的文件写错（施工 P-3 上） | `persona_invalid`，`data.problem` |
 | 读不了（权限、坏盘） | `internal_error`，运行日志 `WARN persona unreadable` |
 
 ### 守着它的
@@ -105,6 +121,9 @@ assistant: 8640
 | 测试 | 守什么 |
 |---|---|
 | `crates/miyu-policy/src/persona/tests.rs` | `persona.toml` 三种语言、写错的九种写明第几行（`[memory]` 的三种在内，R-3 下）、`[memory] scope` 两种、不写是没有、上一层盖下面的、读不成 TOML 也说第几行；逐种语言叠；示范对话照旧版写法读（大小写、冒号后的空格、接着的行、空行）、写错的七种写明第几行；示范对话进请求在 system 后面历史前面、`stable` 数对、软件工程师的快照里没有 `demos` |
+| `crates/miyu-endpoint/tests/persona_set.rs`（施工 P-3 下） | 新建、读原文和版本、防覆盖、删提示词、写错的什么都不写、参数不对、删了挪进回收处（`protocol.md` 测试表） |
+| `crates/miyu-store/src/trash/personas/tests.rs`（施工 P-3 下） | 挪进回收处整个目录不变、多 `deleted_at`、原处没了、同一个编号删两次各是各的、不在的报错；清的时候正好满的删、没满的留、读不出删的时刻的留并报出来、没有回收处什么都不做 |
+| `crates/miyu-store/src/personas/tests/base.rs`（施工 P-3 上） | 盖在底上：名字逐种语言、记忆范围沿用底的，人设、示范对话沿用底的并写明来自底的哪一层，自己有的用自己的；绕三个的圈、底没有、底写错了说是哪个底、`base` 写错 |
 | `crates/miyu-store/src/personas/tests.rs` | 三层逐项、逐文件叠、来自哪一层；只有出厂、系统区的不住在谁家，空目录也算住在家里；没有的、编号不合写法的、是文件不是目录的；写错的写明哪一层；列编号不重复、照编号排 |
 | `crates/miyu-endpoint/src/personas/tests.rs` | 记忆归哪个账号；名字照语言挑、退回的先后 |
 | `crates/miyu-endpoint/tests/personas.rs` | 家目录里的人格进 system、示范对话排在前面；不写人格照默认、个人设置压着系统配置；没有的、编号不对的、写错的拒绝，默认人格指着没有的也拒，什么都不造；场所会话带人格造、找回时不看、新场所指着没有的不造；`persona.list`、`persona.get`；角色扮演提示排在人说的那句后面、第二轮不再注入、system 带风格锁，软件工程师都没有（施工 P-1 补） |
@@ -124,6 +143,7 @@ assistant: 8640
 
 - 预设关掉角色扮演提示（开发预设）：P-2。
 - 预设、`unlisted`、装了没开的那一行：P-2。
-- 新建、改、删、`base`：P-3。
+- 系统区那一层（大家共用的）的新建、改、删：等多用户那次专门讨论。
+- `miyu check` 只查每一份文件自己，底绕成圈、底没有的不查：开会话、`persona.get` 时报。
 - 记忆的默认范围、能查的知识库、声音：R-3（下）、知识库、语音。
 - 分享给组、给指定的人，系统账号的会话：多用户、O-4。

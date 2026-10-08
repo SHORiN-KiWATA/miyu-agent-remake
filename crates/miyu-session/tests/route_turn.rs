@@ -206,7 +206,11 @@ async fn nothing_is_recorded_when_models_chat_is_gone_too() {
     turn(&handle, "cmd-2").await;
     assert!(model_changes(&home, &handle).is_empty(), "不记");
     let calls = called(&home, &handle);
-    let last = calls.last().expect("有一条");
+    // 第一轮以后的起标题请求在后台跑，忙的时候可能落在这一轮的请求后面：只看主请求的最后一条。
+    let last = calls
+        .iter()
+        .rfind(|called| called.purpose.is_none())
+        .expect("有一条");
     assert_eq!(
         last.error.as_ref().map(|error| error.class.clone()),
         Some(ErrorClass::NoModel),

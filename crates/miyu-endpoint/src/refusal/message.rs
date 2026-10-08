@@ -59,6 +59,22 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "只有主人和管理的人能用命令。",
             "Only the owner and managers can use commands.",
         ),
+        "nothing_to_delete" => (
+            "你这一层本来就没有，没有可删的。",
+            "There is nothing of yours to delete here.",
+        ),
+        "persona_conflict" => (
+            "这个人格刚被别处改过，重新读一遍再改。",
+            "This persona was just changed elsewhere; read it again and retry.",
+        ),
+        "preset_conflict" => (
+            "这个预设刚被别处改过，重新读一遍再改。",
+            "This preset was just changed elsewhere; read it again and retry.",
+        ),
+        "owner_only" => (
+            "只有主人能用这个命令。",
+            "Only the owner can use this command.",
+        ),
         "session_stopped" => (
             "这个会话停了，详情在运行日志里；再发一次会重新载入。",
             "This session has stopped; the runtime log has the details. Sending again reloads it.",

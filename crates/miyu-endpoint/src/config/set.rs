@@ -376,7 +376,7 @@ fn done(
 
 /// `expect` 对不对得上现在的值（施工 8-3 再补）：两边都是数字的照数值比，文件里的 `1.0` 和头发来的 `1` 算一样：JS 的头
 /// 写不出 `1.0`（2026-10-07 网页撞见）；别的照 JSON 一字不差地比。
-fn same(now: Option<&Json>, expected: Option<&Json>) -> bool {
+pub(crate) fn same(now: Option<&Json>, expected: Option<&Json>) -> bool {
     match (now, expected) {
         (Some(Json::Number(a)), Some(Json::Number(b))) => a.as_f64() == b.as_f64(),
         _ => now == expected,

@@ -108,8 +108,13 @@ pub(crate) async fn call(
         "extension.disable" => crate::extensions::disable(core, peer, params(request)?).await,
         "extension.restart" => crate::extensions::restart(core, peer, params(request)?).await,
         "persona.get" => personas::get(core, params(request)?).await,
+        "persona.set" => personas::write::set(core, params(request)?).await,
+        "persona.read" => personas::write::read_prompt(core, params(request)?).await,
+        "persona.delete" => personas::write::delete(core, params(request)?).await,
         "preset.list" => crate::presets::list(core, peer).await,
         "preset.get" => crate::presets::get(core, params(request)?).await,
+        "preset.set" => crate::presets::write::set(core, params(request)?).await,
+        "preset.delete" => crate::presets::write::delete(core, params(request)?).await,
         "session.list" => {
             let params: ListParams = params(request)?;
             let sessions = list::list(core, params.oneshot, params.limit).await?;

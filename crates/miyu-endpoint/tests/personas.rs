@@ -329,6 +329,58 @@ async fn personas_are_listed_and_read_by_layer() {
     assert_eq!(reason(&got), Some("bad_params"), "{got}");
 }
 
+/// 以谁为底（施工 P-3 上）：`persona.get` 带 `base`，提示词来自底的写成 `base:<编号>/<层>`；绕圈的 `persona_invalid`。
+#[tokio::test]
+async fn a_persona_on_a_base_reads_through_it() {
+    let home = Home::new();
+    mine(&home, "engineer", "prompts/reminders.md", "Stay.\n");
+    mine(
+        &home,
+        "mine",
+        "persona.toml",
+        "[persona]\nbase = \"engineer\"\nname = { zh = \"我的\" }\n",
+    );
+    mine(
+        &home,
+        "mine",
+        "prompts/examples.md",
+        "user: a\nassistant: b\n",
+    );
+    mine(
+        &home,
+        "loop",
+        "persona.toml",
+        "[persona]\nbase = \"loop\"\n",
+    );
+    let script = Script::new([]);
+    let mut client = connected(configured(&home, &script)).await;
+    let got = client
+        .call("g1", "persona.get", json!({"persona": "mine"}))
+        .await;
+    assert_eq!(got["result"]["base"], "engineer", "{got}");
+    assert_eq!(got["result"]["layers"], json!(["home"]));
+    assert_eq!(
+        got["result"]["prompts"],
+        json!({
+            "persona": "base:engineer/shipped",
+            "examples": "home",
+            "reminders": "base:engineer/home",
+        })
+    );
+    let plain = client
+        .call("g2", "persona.get", json!({"persona": "engineer"}))
+        .await;
+    assert!(plain["result"].get("base").is_none(), "没写底的不写");
+    let looped = client
+        .call("g3", "persona.get", json!({"persona": "loop"}))
+        .await;
+    assert_eq!(reason(&looped), Some("persona_invalid"), "{looped}");
+    assert_eq!(
+        looped["error"]["data"]["problem"],
+        "base cycle: loop -> loop"
+    );
+}
+
 /// 空人格和会话带上人格（施工 P-1 下）：选 `none` 的 system 里没有人设；`session.created`、会话列表、`subscribe` 的回应都写
 /// 着用的是哪个人格。
 #[tokio::test]

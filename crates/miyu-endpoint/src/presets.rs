@@ -17,6 +17,8 @@ use crate::personas::pick;
 use crate::refusal::Refusal;
 use crate::settings::PresetSettings;
 
+pub(crate) mod write;
+
 const TARGET: &str = "miyu::endpoint";
 
 /// 这个核心的几层预设：出厂、系统区、管理员的家目录。
@@ -72,7 +74,9 @@ fn refusal(error: &PresetError) -> Refusal {
     match error {
         PresetError::BadId(_) => Refusal::BAD_PARAMS,
         PresetError::NotFound(_) => Refusal::UNKNOWN_PRESET,
-        PresetError::Invalid(..) => Refusal::preset_invalid(error.to_string()),
+        PresetError::Invalid(..) | PresetError::BaseCycle(_) | PresetError::BaseMissing(..) => {
+            Refusal::preset_invalid(error.to_string())
+        }
         PresetError::Unreadable(..) => {
             tracing::warn!(target: TARGET, error = %error, "preset unreadable");
             Refusal::INTERNAL
@@ -121,9 +125,14 @@ pub(crate) struct GetParams {
 /// `preset.get`：叠好的样子。名字、说明的几种语言原样给；默认人格没写的是 `null`；`unlisted` 是叠好以后的（几层都没写的是
 /// `on`）；`software` 是包到开不开，`tools` 是关掉的单件工具，都是 `false`；`missing` 是 `[software]` 里写了、这台机器上没装的
 /// （施工 P-2 中，照编号排）；`switches` 是这台机器上装了的每一个软件叠好以后开不开（施工 P-2 补：预设是全部功能的开关，界面
-/// 照它一项一个开关画，2026-10-08 项目主人定）。
+/// 照它一项一个开关画，2026-10-08 项目主人定）；写了底的带 `base`，各格是叠在底上以后的（施工 P-3 上）。
 pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal> {
     let found = resolve(core, Some(&params.preset)).await?;
+    Ok(describe(core, &found))
+}
+
+/// 叠好的一个预设照 `preset.get` 写（`preset.set` 的回应也是它，施工 P-3 中）。
+fn describe(core: &Core, found: &Found) -> Value {
     let installed = installed(core);
     let missing: Vec<&String> = found
         .file
@@ -141,7 +150,7 @@ pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal
         .iter()
         .map(|tool| (tool.clone(), json!(false)))
         .collect();
-    Ok(json!({
+    let mut reply = json!({
         "preset": found.id,
         "name": found.file.name,
         "summary": found.file.summary,
@@ -152,7 +161,11 @@ pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal
         "tools": tools,
         "missing": missing,
         "switches": switches,
-    }))
+    });
+    if let Some(base) = &found.base {
+        reply["base"] = json!(base);
+    }
+    reply
 }
 
 fn layers(layers: &[Layer]) -> Vec<&'static str> {

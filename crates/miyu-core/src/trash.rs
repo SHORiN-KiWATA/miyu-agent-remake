@@ -1,5 +1,6 @@
 //! 核心起来时清一次回收处（施工 3-8 三补，`docs/blueprint/core.md`「起来的先后」第 14 条）：管理员的回收处里删了满
-//! [`KEEP`] 的会话真删掉（`store.md` 第 12 条）。写了 `ready` 以后在阻塞线程里清，不耽误头连上来；核心走之前等它清完。
+//! [`KEEP`] 的会话真删掉（`store.md` 第 12 条），人格也是（施工 P-3 下）。写了 `ready` 以后在阻塞线程里清，不耽误头连
+//! 上来；核心走之前等它清完。
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -17,16 +18,30 @@ pub(crate) const KEEP: Duration = Duration::from_secs(7 * 24 * 3600);
 
 /// 在阻塞线程里清一次账号 `account` 的回收处，照现在的钟。交回等它清完的那一头。
 pub(crate) fn purge(root: DataRoot, account: AccountId) -> JoinHandle<()> {
-    tokio::task::spawn_blocking(move || match trash::purge(&root, &account, now(), KEEP) {
-        Ok(purged) => {
-            if purged.removed > 0 {
-                tracing::info!(target: TARGET, removed = purged.removed, "trash purged");
+    tokio::task::spawn_blocking(move || {
+        let now = now();
+        match trash::purge(&root, &account, now, KEEP) {
+            Ok(purged) => {
+                if purged.removed > 0 {
+                    tracing::info!(target: TARGET, removed = purged.removed, "trash purged");
+                }
+                for (session, error) in purged.failed {
+                    tracing::warn!(target: TARGET, session = session.as_str(), error = %error, "trash entry kept");
+                }
             }
-            for (session, error) in purged.failed {
-                tracing::warn!(target: TARGET, session = session.as_str(), error = %error, "trash entry kept");
-            }
+            Err(error) => tracing::warn!(target: TARGET, error = %error, "trash not read"),
         }
-        Err(error) => tracing::warn!(target: TARGET, error = %error, "trash not read"),
+        match trash::personas::purge(&root, &account, now, KEEP) {
+            Ok(purged) => {
+                if purged.removed > 0 {
+                    tracing::info!(target: TARGET, removed = purged.removed, "persona trash purged");
+                }
+                for (name, error) in purged.failed {
+                    tracing::warn!(target: TARGET, entry = %name, error = %error, "persona trash entry kept");
+                }
+            }
+            Err(error) => tracing::warn!(target: TARGET, error = %error, "persona trash not read"),
+        }
     })
 }
 

@@ -139,6 +139,8 @@
 | `session.recap` | 要一句回顾：这个会话在做什么、做完了什么、卡在哪（施工 3-8 四补） |
 | `persona.list`、`persona.get` | 列出人格、读一个人格叠好的样子（施工 P-1 上，`personas.md`） |
 | `preset.list`、`preset.get` | 列出预设、读一个预设叠好的样子（施工 P-2 上，`presets.md`） |
+| `preset.set`、`preset.delete` | 新建、改一个预设（只写你家目录那一层），删掉你那一层（施工 P-3 中，`presets.md`「改」） |
+| `persona.set`、`persona.read`、`persona.delete` | 新建、改一个人格（只写你家目录那一层），读一份提示词的原文和版本，删掉你那一层（挪进回收处）（施工 P-3 下，`personas.md`「改」） |
 | `package.list` | 列出起来时读到的软件包清单（施工 9-1 上，`packages.md`） |
 | `extension.status`、`extension.enable`、`extension.disable`、`extension.restart` | 核心拉起的扩展：列状态、开、关、重启（施工 9-4 上，`extensions.md`） |
 | `check` | 查人手写的文件：配置、密钥文件、人格，照磁盘上现在的字（施工 8-30，`cli/check.md`） |
@@ -464,15 +466,17 @@
 | `session` | 字符串，必写 | 哪个会话 |
 | `text` | 字符串，必写 | 人打的原文，例如 `/stop` |
 | `as` | 对象，可以不写 | 代表通讯平台上的人，同 `session.send` 的 `as`：只给场所会话，场所会话也只收带它的 |
+| `cwd` | 字符串，可以不写 | 头所在的目录，绝对的或者 `~` 开头的：只用来接 `/workspace` 后面相对的路径（施工 9-7 下） |
 
-回应 `{"command": "clear"|"stop", "events": [...], "said": "<回执>"}`：`command` 是正名（别名换成了正名），`events` 是这一次追加的全部事件的序号、最后一条是记下的 `command.ran`，`said` 是回执那一句，照这个连接的语言（`ui.language`），头原样发给人。
+回应 `{"command": "clear"|"stop"|"workspace", "events": [...], "said": "<回执>"}`：`command` 是正名（别名换成了正名），`events` 是这一次追加的全部事件的序号、最后一条是记下的 `command.ran`，`said` 是回执那一句，照这个连接的语言（`ui.language`），头原样发给人。
 
-1. 认法：开头的空白不算，原文要以 `/` 开头（不是的回 `bad_params`），名字紧跟着 `/`、到空白为止，后面跟的字不理。认得的：`clear`（别名 `reset`）、`stop`。认不出的回 `unknown_command`，`/` 后面是空白的也是。
-2. 谁能用：本机的会话（本机的头就是管理员本人）；场所会话里主人对应表认出的本人（记成带 `via` 的本人）、对应表里有的外部身份（群里的主人，`account`）、`role` 是 `manager` 的。别人回 `command_not_allowed`。先查参数、再找会话、再判身份。
+1. 认法：开头的空白不算，原文要以 `/` 开头（不是的回 `bad_params`），名字紧跟着 `/`、到空白为止，后面跟的字去掉前后空白，只有 `/workspace` 用。认得的：`clear`（别名 `reset`）、`stop`、`workspace`（施工 9-7 下）。认不出的回 `unknown_command`，`/` 后面是空白的也是。`cwd` 不是绝对的、也不是 `~` 开头的回 `bad_params`。
+2. 谁能用：本机的会话（本机的头就是管理员本人）；场所会话里主人对应表认出的本人（记成带 `via` 的本人）、对应表里有的外部身份（群里的主人，`account`）、`role` 是 `manager` 的。别人回 `command_not_allowed`。`/workspace` 动的是沙盒能写的地方，只有主人本人能用（本机的会话、对应表认出的本人、群里的主人），管理的人回 `owner_only`。先查参数、再找会话、再判身份。
 3. `/clear` 同 `session.clear`：内核拒的照原因回（`turn_running`、`nothing_to_clear`、`restoring`）。
 4. `/stop` 全停：打断这一轮，排着的照 `keep` 留着；没有回合在进行的照样往下走。再停掉这个会话派出去的后台命令和子代理（同 `job.stop`，停的人记成说命令的人）。
-5. 执行了的记一条 `command.ran`（`kernel/events-bodies.md`），`cause` 是 `<id>/ran`；被拒的什么都不记。它不进模型的请求。
-6. 同一个 `id` 再发只算一次，核心重启以后也是：回应和头一次一样。
+5. `/workspace <路径>` 同 `session.set_workspace` 只换工作目录，加进来的目录照旧（施工 9-7 下）：绝对的、`~` 开头的照原样；相对的照 `cwd` 接成真实的位置（`/workspace .` 就是头所在的目录），没带 `cwd` 的照会话现在的工作区接；路径里的空白照留，不认引号。写错的照那几种原因拒绝（`path_unreadable`、`not_a_directory`、`path_forbidden`）；太宽的退回账号的工作区，回执说一声（「~ 太宽，工作区换到了 …」）；和现在一样的不记换，照样记下命令。不带路径的什么都不换，回执说现在在哪。
+6. 执行了的记一条 `command.ran`（`kernel/events-bodies.md`），`cause` 是 `<id>/ran`；被拒的什么都不记。它不进模型的请求。
+7. 同一个 `id` 再发只算一次，核心重启以后也是：回应和头一次一样。
 
 **`check`**（施工 8-30，`cli/check.md`）
 
@@ -502,7 +506,42 @@
 |---|---|---|
 | `preset` | 字符串，必写 | 预设的编号 |
 
-回应 `{"preset", "name", "summary", "layers", "default_persona", "unlisted", "software", "tools", "missing", "switches"}`：`name`、`summary` 是语言到一句话的对象，原样给；`default_persona` 没写的是 `null`；`unlisted` 是叠好以后的 `on`、`off`（几层都没写的是 `on`）；`software` 是软件包的编号到 `true`、`false`；`tools` 是关掉的单件工具，值都是 `false`；`missing` 是 `[software]` 里写了、这台机器上没装的（施工 P-2 中）；`switches` 是这台机器上装了的每一个软件叠好以后开不开（施工 P-2 补）。编号不合写法的 `bad_params`，没有的 `unknown_preset`，写错的 `preset_invalid`。
+回应 `{"preset", "name", "summary", "layers", "default_persona", "unlisted", "software", "tools", "missing", "switches"}`：`name`、`summary` 是语言到一句话的对象，原样给；`default_persona` 没写的是 `null`；`unlisted` 是叠好以后的 `on`、`off`（几层都没写的是 `on`）；`software` 是软件包的编号到 `true`、`false`；`tools` 是关掉的单件工具，值都是 `false`；`missing` 是 `[software]` 里写了、这台机器上没装的（施工 P-2 中）；`switches` 是这台机器上装了的每一个软件叠好以后开不开（施工 P-2 补）。写了底的多一格 `base`（施工 P-3 上），各格是叠在底上以后的；`layers` 只算自己的。编号不合写法的 `bad_params`，没有的 `unknown_preset`，写错的、底绕成圈、底没有的 `preset_invalid`。
+
+**`preset.set`**（施工 P-3 中，`presets.md`「改」）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `preset` | 字符串，必写 | 预设的编号：还没有的就是新建 |
+| `changes` | 数组，必写、不能是空的 | 每一项 `{"key", "value" \| "unset": true, "expect"?}`，照 `config.set` 的 `changes`：`key` 是文件里的键（`preset.name.zh`、`preset.summary.en`、`preset.default_persona`、`preset.unlisted`、`preset.base`、`software.<包>`、`tools.<工具>`），`value` 是字、开关、数，`expect` 是你那一层里这一项现在应当是什么（`{"value": …}` 或者 `{}` 没写） |
+
+回应同 `preset.get`：改完叠好的样子。只写管理员家目录那一层的 `<编号>.toml`：改出厂的、系统区的就是建同名覆盖，只写改了的项。
+
+1. 一项项在原来的字上改，注释、顺序、别的字节照原样；你那一层本来就是这个值的、本来就没写又要删的不动。一项都没变的不写。
+2. 改完的一份照预设的规矩读一遍、连同叠好以后（底、绕圈）再查：有错整条不收、什么都不写，`preset_invalid`，`data.problem` 是头一处（写法同 `preset.get`）。
+3. `expect` 对不上：`preset_conflict`，`data.current` 是你那一层里这一项现在的样子，什么都不写。写的那一瞬间有人手改、重来三次还不行：`preset_conflict`，不带 `data.current`。
+4. 编号不合写法、`changes` 是空的、同一个键写了两次、一项里 `value` 和 `unset` 不是正好一个、`unset` 不是 `true`、`value` 不是字开关数、`expect` 不是那两种：`bad_params`。
+5. 写盘照配置文件的规矩：顺着链接写、先写临时文件再替换。开着的会话下一个回合照新的（P-2 下）。扩展进程调回 `local_only`。
+
+**`preset.delete`**（施工 P-3 中，`presets.md`「改」）：`{"preset"}` → `{"remains": <下面几层还有没有>}`。删掉你家目录那一层的文件：下面还有出厂、系统区的回到它们的样子（`true`，界面写「恢复出厂」），没有了的这个预设就没了（`false`）。你那一层本来就没有的 `nothing_to_delete`；编号不合写法的 `bad_params`；扩展进程调回 `local_only`。会话钉着的、默认指着的也能删：开着的会话照旧用快照里的，默认指着没有的照旧拒开会话（Y12）。
+
+**`persona.set`**（施工 P-3 下，`personas.md`「改」）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `persona` | 字符串，必写 | 人格的编号：还没有的就是新建 |
+| `changes` | 数组，可以不写 | 改 `persona.toml`，写法同 `preset.set` 的 `changes`；键是 `persona.name.<语言>`、`persona.summary.<语言>`、`persona.base`、`memory.scope` |
+| `prompts` | 对象，可以不写 | 提示词名（`persona`、`examples`、`reminders`）到 `{"text": "<整份>"}` 或 `{"unset": true}`，可带 `"expect": "<版本>" \| null`（照 `persona.read` 给的） |
+
+`changes`、`prompts` 至少写一样。回应同 `persona.get`：改完叠好的样子。只写管理员家目录那一层：改出厂的、系统区的就是建同名覆盖，提示词整份换你那一层的那一份，`unset` 删掉你那一层的、回到下面的。
+
+1. 几样一起查：`persona.toml` 改完的一份、示范对话、连同叠好以后（底、绕圈）；有错什么都不写，`persona_invalid`，`data.problem` 是头一处（写法同 `persona.get`）。和你那一层现在一样的不写，一样都没变的什么都不写。
+2. `changes` 的 `expect` 对不上、提示词的 `expect` 和你那一层这一份现在的版本对不上（`null` 是「还没有」）：`persona_conflict`，`data.current` 是 `{"value": …}`/`{}`（`changes` 的）或者现在的版本、`null`（提示词的），什么都不写。几份一份一份地写，只试一次：写到一半撞上有人手改的，前面写了的不撤，`persona_conflict`、不带 `data.current`，头重读再来。
+3. 编号不合写法、两样都没写、提示词名不认识、一份里 `text` 和 `unset` 不是正好一个、`unset` 不是 `true`、`expect` 不是字也不是 `null`，`changes` 同 `preset.set` 的那几种：`bad_params`。扩展进程调回 `local_only`。
+
+**`persona.read`**（施工 P-3 下）：`{"persona", "prompt": "persona" | "examples" | "reminders"}` → `{"text", "from", "version"}`。`text` 是叠好的那一份的原文，`from` 是它来自哪儿 `{"layer"}`（来自底的多 `"base": "<编号>"`，编号是这份字真住在的那个人格），`version` 是你家目录那一层这一份的版本（`sha256:…`，照 `config.get` 的写法）；没有的都是 `null`。编辑器照它在原文上改，存的时候把 `version` 当 `expect` 带回去。编号、名字不对的 `bad_params`，没有这个人格的 `unknown_persona`，写错的 `persona_invalid`。
+
+**`persona.delete`**（施工 P-3 下）：`{"persona"}` → `{"remains"}`，同 `preset.delete`；你家目录里这个人格的整个目录挪进回收处 `home/<账号>/trash/personas/<编号>.<删的时刻，毫秒>/`，留 7 天（同会话）。
 
 **`package.list`**（施工 9-1 上，`packages.md`「协议」）
 
@@ -518,7 +557,7 @@
 |---|---|---|
 | `persona` | 字符串，必写 | 人格的编号 |
 
-回应 `{"persona", "name", "summary", "layers", "prompts": {"persona", "examples", "reminders"}, "examples"}`：`name`、`summary` 是语言到一句话的对象，原样给；`prompts` 里是人设、示范对话、角色扮演提示（施工 P-1 补）来自哪一层，没有的是 `null`；`examples` 是示范对话几轮。提示词原文不经协议交出去。编号不合写法的 `bad_params`，没有的 `unknown_persona`，写错的 `persona_invalid`。
+回应 `{"persona", "name", "summary", "layers", "prompts": {"persona", "examples", "reminders"}, "examples"}`：`name`、`summary` 是语言到一句话的对象，原样给；`prompts` 里是人设、示范对话、角色扮演提示（施工 P-1 补）来自哪一层，没有的是 `null`，来自底的写成 `base:<编号>/<层>`（施工 P-3 上）；`examples` 是示范对话几轮；写了底的多一格 `base`，`layers` 只算自己的。提示词原文不经协议交出去。编号不合写法的 `bad_params`，没有的 `unknown_persona`，写错的、底绕成圈、底没有、底写错的 `persona_invalid`。
 
 **`session.recap`**（施工 3-8 四补，`04-核心协议.md` 第九节，`kernel/session.md`「回顾」）
 
@@ -884,19 +923,23 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `hello_first` | -32010 | 握手以前发了别的方法 |
 | `protocol_mismatch` | -32010 | 头支持的主版本里没有 1（之后断开） |
 | `bad_token` | -32010 | 凭据一种都没写、本机令牌不对（之后断开） |
-| `bad_code`、`bad_login`、`bad_password`、`login_throttled`、`setup_first`、`local_only` | -32010 | 网页登录的几种（施工 W-8，`web-module.md`「出错」）；扩展调 `extension.*` 也回 `local_only`（施工 9-4 上） |
+| `bad_code`、`bad_login`、`bad_password`、`login_throttled`、`setup_first`、`local_only` | -32010 | 网页登录的几种（施工 W-8，`web-module.md`「出错」）；扩展调 `extension.*` 也回 `local_only`（施工 9-4 上），调 `preset.set`、`preset.delete` 也是（施工 P-3 中），`persona.set`、`persona.delete` 也是（施工 P-3 下） |
 | `unknown_persona` | -32010 | 造会话、`persona.get` 时三层都没有这个人格（施工 P-1 上起三层，`personas.md`） |
 | `persona_invalid` | -32010 | 人格的文件写错了；`data.problem` 写明哪一层、哪个文件第几行（施工 P-1 上） |
 | `unknown_preset` | -32010 | 造会话、`preset.get` 时三层都没有这个预设，默认预设指着没有的也一样（施工 P-2 上，`presets.md`） |
-| `preset_invalid` | -32010 | 预设的文件写错了；`data.problem` 写明哪一层、哪个文件第几行（施工 P-2 上） |
+| `preset_invalid` | -32010 | 预设的文件写错了；`data.problem` 写明哪一层、哪个文件第几行（施工 P-2 上）；`preset.set` 改完的一份写错、叠不成（施工 P-3 中） |
+| `preset_conflict` | -32010 | `preset.set` 的 `expect` 对不上（`data.current`），写的那一瞬间有人手改、重来三次都不行（施工 P-3 中） |
+| `persona_conflict` | -32010 | `persona.set` 的 `expect` 对不上（`data.current`），写到一半撞上有人手改（施工 P-3 下） |
+| `nothing_to_delete` | -32010 | `preset.delete`、`persona.delete` 删的在你家目录那一层本来就没有（施工 P-3 中、下） |
 | `unknown_file` | -32010 | `check` 写的文件不是 Miyu 读的那几种（施工 8-30） |
-| `not_a_directory` | -32010 | `session.set_workspace` 换到的是文件（施工 9-7 上） |
+| `not_a_directory` | -32010 | `session.set_workspace` 换到的是文件（施工 9-7 上）；`/workspace` 也一样（施工 9-7 下） |
 | `unknown_package`、`not_an_extension`、`extension_off` | -32010 | `extension.*`：没有这个包、清单读不成；是界面包；重启一个关着的（施工 9-4 上，`extensions.md`） |
 | `session_not_found` | -32010 | 没有这个会话，删了的也是 |
 | `no_system_account` | -32010 | 场所会话的属主该是系统账号，还没有（施工 O-3；系统账号随 O-4） |
 | `venue_session` | -32010 | 场所会话只收代表外部的人说的话：不带 `as` 的 `session.send`（施工 O-3）、`command.run`（施工 O-6） |
 | `unknown_command` | -32010 | `command.run` 认不出这个命令（施工 O-6） |
 | `command_not_allowed` | -32010 | `command.run`：场所里既不是主人、也不是管理的人（施工 O-6） |
+| `owner_only` | -32010 | `command.run`：这个命令只有主人本人能用，管理的人也不行（`/workspace`，施工 9-7 下） |
 | `session_stopped` | -32010 | 会话停了：写不进去、出了 bug |
 | `session_broken` | -32010 | 会话载入不了：日志、策略快照坏了、读不了 |
 | `empty_message` | -32010 | `session.send` 的 `text` 是空的、又没有附件；`session.redo` 换过的那一句一块都不剩 |
@@ -905,8 +948,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `attachment_too_big` | -32010 | 附件超过 20 MiB；图片超过 5 MiB，或者哪一边超过 8000 像素（施工 3-9 三补）；`blob.open` 的 `size` 超过 20 MiB（施工 W-5） |
 | `attachment_in_data_root` | -32010 | `blob.put` 的 `path` 在数据根里、管理员的工作区以外（施工 3-9 三补） |
 | `unknown_attachment` | -32010 | `session.send`、`session.redo` 附的 blob 这个核心里没有（施工 3-9 三补）；`model.call` 的图这个账号的 blob 里没有（施工 8-20） |
-| `path_unreadable` | -32010 | `fs.list`、`fs.find` 换不成真实的位置、不在、该是目录的不是目录、没有权限（施工 W-2）；`fs.realpath` 换不成真实的位置——一层都不在、路上的链接指向不存在的地方、没有家目录（施工 W-3）；`fs.read` 换不成真实的位置、没有、不是普通文件、没有权限（施工 W-6） |
-| `path_forbidden` | -32010 | `fs.list`、`fs.find` 的目录落在数据根里、又不在这个账号的工作区里（施工 W-2）；`fs.read` 的路径也一样（施工 W-6） |
+| `path_unreadable` | -32010 | `fs.list`、`fs.find` 换不成真实的位置、不在、该是目录的不是目录、没有权限（施工 W-2）；`fs.realpath` 换不成真实的位置——一层都不在、路上的链接指向不存在的地方、没有家目录（施工 W-3）；`fs.read` 换不成真实的位置、没有、不是普通文件、没有权限（施工 W-6）；`session.set_workspace`、`/workspace` 换不成真实的位置、不在、读不了（施工 9-7 上、下） |
+| `path_forbidden` | -32010 | `fs.list`、`fs.find` 的目录落在数据根里、又不在这个账号的工作区里（施工 W-2）；`fs.read` 的路径也一样（施工 W-6）；`session.set_workspace`、`/workspace` 换去的目录也一样，账号自己的工作区可以（施工 9-7 上、下） |
 | `mermaid_too_long` | -32010 | `mermaid.render` 的源码超过 64 KiB（施工 W-4） |
 | `mermaid_failed` | -32010 | `mermaid.render` 画不出；`data.detail` 是画图的库的原话（施工 W-4） |
 | `too_many_uploads` | -32010 | 这个连接同时开着 4 个分块上传（施工 W-5） |
@@ -1021,6 +1064,9 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `persona_invalid` | 这个人格的文件写错了，详情在 data.problem 里。 | This persona's files have a mistake; data.problem says where. |
 | `unknown_preset` | 没有这个预设。 | There is no such preset. |
 | `preset_invalid` | 这个预设的文件写错了，详情在 data.problem 里。 | This preset's file has a mistake; data.problem says where. |
+| `preset_conflict` | 这个预设刚被别处改过，重新读一遍再改。 | This preset was just changed elsewhere; read it again and retry. |
+| `persona_conflict` | 这个人格刚被别处改过，重新读一遍再改。 | This persona was just changed elsewhere; read it again and retry. |
+| `nothing_to_delete` | 你这一层本来就没有，没有可删的。 | There is nothing of yours to delete here. |
 | `unknown_file` | Miyu 不读这个文件：能查的是配置、密钥文件、人格目录里的 persona.toml 和 prompts/examples.md、预设、软件包清单。 | Miyu does not read this file: it checks the config, the secrets file, persona.toml and prompts/examples.md in persona directories, presets and package manifests. |
 | `not_a_directory` | 这不是一个目录。 | This is not a directory. |
 | `unknown_package` | 没有这个软件包。 | There is no such package. |
@@ -1031,6 +1077,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `venue_session` | 这是通讯平台的场所会话，本机的头不能直接说话。 | This is a chat platform venue session; local heads cannot talk in it directly. |
 | `unknown_command` | 没有这个命令。 | There is no such command. |
 | `command_not_allowed` | 只有主人和管理的人能用命令。 | Only the owner and managers can use commands. |
+| `owner_only` | 只有主人能用这个命令。 | Only the owner can use this command. |
 | `session_stopped` | 这个会话停了，详情在运行日志里；再发一次会重新载入。 | This session has stopped; the runtime log has the details. Sending again reloads it. |
 | `session_broken` | 这个会话载入不了：它的日志或者策略快照坏了。 | This session cannot be loaded: its log or policy snapshot is broken. |
 | `empty_message` | 消息是空的。 | The message is empty. |
@@ -1091,6 +1138,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/restart.rs` | 核心重启以后：不带 `cwd` 载入的会话照最后一轮的工作目录、没开过回合的照造会话时的；重发的造会话交回原来那一个 |
 | `crates/miyu-endpoint/tests/check.rs`（施工 8-30） | `check`：不写文件的照磁盘上现在的字查配置、照核心手里的查密钥、人格每一层各查各的，先后、代码、级别、行对，给人看的那一句照连接的语言；写了文件的照位置认、只查那一份，项目配置照 `.miyu/config.toml` 认、相对的照 `cwd` 接，还没有的人格文件读不了，认不出的 `unknown_file`，多写格的参数不对 |
 | `crates/miyu-endpoint/tests/personas.rs`（施工 P-1 上） | 家目录里的人格进 system、示范对话排在前面；不写人格照默认、个人设置压着系统配置；没有的、编号不对的、写错的拒绝，默认人格指着没有的也拒；`venue.session` 带人格造、找回时不看；`persona.list`、`persona.get` |
+| `crates/miyu-endpoint/tests/persona_set.rs`（施工 P-3 下） | 新人格一次建好（底、名字、示范对话）、开会话用得上、读得出示范对话和没有的角色扮演提示、一样的字不再写；读原文：出厂的、没有的、改了以后来自家目录有版本、旧版本再存撞上什么都不写、新版本存得上、来自底的写明底；删提示词回到下面的、删没有的不出错；写错的示范对话、`memory.scope`、底绕圈什么都不写；参数不对的七种、读的两种、没有的人格；删了挪进回收处、整个目录、读不到了，盖在出厂上的回到出厂、本来没有的、编号不对的 |
+| `crates/miyu-endpoint/tests/preset_set.rs`（施工 P-3 中） | 新的编号一次建好、开会话用得上；改出厂的只写改了的项；注释、顺序、行内表照原样；删一项回到下面的；`expect` 对不上的两种、对得上的照写；写错的值、不认识的键、底绕圈、底没有的整条不收、什么都不写；参数不对的八种；删你那一层回到下面的、只有你那一层的就没了、本来没有的、编号不对的；一样的值不写 |
 | `crates/miyu-endpoint/tests/presets.rs`（施工 P-2 上） | 不写预设照默认、个人设置压着系统配置、指定的压着默认；人格照「指定、预设的默认人格、`persona.default`」；没有的、编号不对的、写错的拒绝、什么都不造，默认预设指着没有的也拒；会话列表、`subscribe` 写 `preset`，以前的日志不写；`venue.session` 带预设造、找回时不看；`preset.list`、`preset.get`；`check` 查预设 |
 | `crates/miyu-endpoint/tests/edges.rs` | 不握手的到时断开、握手了的不受管；数组的 `params` 参数不对；握手被拒照它报的语言说；人格目录不存在是 `unknown_persona`、目录在而读不了是 `internal_error` |
 | `crates/miyu-endpoint/tests/list.rs` | 从新到旧、只要一次性的、`limit`、参数不对、空的；每一项带 `cwd`、合写法的 `last_active`，闲着的不写 `busy`（施工 C-3） |
@@ -1117,6 +1166,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/recap.rs`（施工 3-8 四补） | 协议上要回顾：回应是那一句、照到的、不是交回的；推送里先有回顾的 `model.called`、`session.recapped`，都不带回合编号、`cause` 是这一条，再是回应，别的头也收到；请求是一条 user、没有 system 和工具面；没有新内容再要一次交回上一句、不请求；有回合在进行时照收、照到的是这一轮那句话；没有能回顾的、没写成的两种拒绝，中文、英文，没写成的不再来；会话编号不对、没写、不是字符串的参数不对，没有的会话找不到 |
 | `crates/miyu-endpoint/tests/title.rs`（施工 3-8 五补） | 自动起标题：第一轮答完，订阅着的头收到起标题的 `model.called`（`purpose: "title"`）和 `session.meta_changed`，`by` 是内核、不带回合编号和 `cause`；请求是一条 user、没有 system 和工具面，只喂第一轮；`session.list` 带上标题，核心重启以后照样；第二轮不再起；人先起过名的不起 |
 | `crates/miyu-endpoint/tests/commands.rs`（施工 O-6） | `command.run`：`/clear`、别名 `/reset`（开头空白、后面跟的字照认）清空并记 `command.ran`，回执是中文那一句；`/stop` 打断、排着的留在日志里不接着开、子代理停了，没有回合也照样记；认不出的、`/` 后面是空白的 `unknown_command`，不以 `/` 开头的、多写格的参数不对，都什么都不写；内核拒的照原因回；同一个编号再发、重启以后再发回应一样、只记一次；场所里主人、管理的人能用，别人 `command_not_allowed`，不带 `as` 的 `venue_session`，本机的会话带 `as` 参数不对；`session.interrupt` 收 `keep` |
+| `crates/miyu-endpoint/tests/workspace_command.rs`（施工 9-7 下） | `/workspace <路径>` 同 `set_workspace` 只换工作目录、加进来的目录照旧，回执是中文那一句，一样的不记换；相对的照 `cwd` 接、没带的照会话的接，路径里的空白照留，`cwd` 不是绝对的参数不对；不带路径的只说现在在哪；不在的、文件、数据根里的照原因拒绝、什么都不记；`~` 太宽退回账号的工作区、回执说一声；场所里管理的人 `owner_only`，主人能换 |
 | `crates/miyu-endpoint/tests/clear.rs` | 协议上清空（施工 6-8 补）：回应是那一轮的开头、订阅的推送里是那一批三条、不请求模型；下一次请求里没有清空以前的；撤掉那一轮回应里撤掉了一次压缩、没有 `said`，再问看得到了；有回合在进行、本来就空的两种拒绝，中文、英文；会话编号不对、没写的参数不对 |
 | `crates/miyu-endpoint/src/sessions/tests.rs` | 父会话不在会话表里的不再造子会话、什么都没建（施工 3-8 三补） |
 | `crates/miyu-endpoint/tests/workspace.rs` | 太宽的五种（`~`、家目录、根目录、数据根、数据根里面）和读不出家目录时的 `~`；项目目录、账号的工作区照旧；回应里的 `cwd`、重发的造会话 |
