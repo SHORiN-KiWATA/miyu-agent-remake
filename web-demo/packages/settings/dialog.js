@@ -77,7 +77,11 @@ export class SettingsDialog {
   /** 读核心的配置清单、最终值；模型列表另读（可能慢：核心要去供应商那边拉），读完了模型页跟着重画。 */
   async load() {
     const core = this.ctx.core;
-    const [schema, got] = await Promise.all([core.request('config.schema', {}), core.request('config.get', { all: true })]);
+    const [schema, got, packages] = await Promise.all([core.request('config.schema', {}), core.request('config.get', { all: true }),
+      // 核心的软件包（9-1）：「默认界面」的选项照它列（读不到的旧核心是空的）
+      core.request('package.list', {}).then((r) => r?.packages ?? [], () => [])]);
+    /** 能直接敲 `miyu` 打开的界面（`kind` 是 `ui`、有命令的包，核心 9-3） */
+    this.heads = packages.filter((p) => p.kind === 'ui' && p.command);
     this.schema = schema;
     this.got = got;
     const cfg = this.ctx.config;

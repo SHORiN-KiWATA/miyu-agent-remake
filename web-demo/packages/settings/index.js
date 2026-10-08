@@ -22,6 +22,12 @@ export function apply(ctx) {
     dialog.open(page);
   };
   ctx.effect(() => () => dialog?.close());
+  // 「默认界面」（`ui.head`，核心 9-3）：下拉的选项照核心的软件包清单（界面包），名字照清单
+  ctx.slots.mount('settings.editor', {
+    id: 'settings-head',
+    key: 'ui.head',
+    options: () => (dialog?.heads ?? []).map((p) => ({ value: p.package, name: p.name ?? p.package })),
+  });
 
   ctx.commands.register({ name: 'settings', summary: ctx.text('command_settings') }, () => open(null));
   ctx.commands.register({ name: 'config', summary: ctx.text('command_config') }, () => open('models'));
