@@ -23,8 +23,8 @@ use std::sync::Arc;
 use miyu_tool::Tool;
 use miyu_tool::load::LoadError;
 
-/// 这个软件包在资源目录里的名字。
-const PACKAGE: &str = "memory";
+/// 这个软件包的编号：资源目录里的名字，也是预设里开关它的那个键（施工 P-2 中）。
+pub const PACKAGE: &str = "memory";
 
 /// 一条记忆最多几个字（数 Unicode 字符）：旧版实测，整理出来的超过 120 字的多半是技术问答的全文（调研第一节第 1 个坑）。
 /// 出厂值只在这一处，照 `jobs.output_chars` 的放法，不进快照；以后要改再进配置。

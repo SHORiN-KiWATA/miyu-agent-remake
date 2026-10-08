@@ -156,7 +156,8 @@ impl Sessions {
             memory: core.memory_for(&core.admin),
             configs: core.hub.configs(),
             model: who.model,
-            preset: Some(preset.id),
+            preset: Some(presets::chosen(core, preset)),
+            presets: Some(presets::places(core)),
         })
         .await;
         let handle = match created {
@@ -218,6 +219,16 @@ impl Sessions {
         let persona = personas::resolve(core, Some(&child.persona))
             .await
             .map_err(|refusal| format!("persona {}: {}", child.persona, refusal.reason))?;
+        // 子会话照父会话的预设（施工 P-2 中）：照它的编号重新找；找不到、写错了的不造，同人格。
+        let preset = match &child.preset {
+            Some(id) => Some(presets::chosen(
+                core,
+                presets::resolve(core, Some(id))
+                    .await
+                    .map_err(|refusal| format!("preset {id}: {}", refusal.reason))?,
+            )),
+            None => None,
+        };
         let handle = create(Create {
             root: &core.root,
             resources: &core.resources,
@@ -248,7 +259,8 @@ impl Sessions {
             sessions: Some(spawn::port(core)),
             jobs: &core.jobs,
             model: child.model,
-            preset: child.preset,
+            preset,
+            presets: Some(presets::places(core)),
         })
         .await
         .map_err(|error| error.to_string())?;

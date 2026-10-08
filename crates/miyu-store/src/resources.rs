@@ -202,6 +202,7 @@ impl ResourceRoot {
             permission: self.read(&["core", "permission-rule.txt"])?,
             local_paths: self.read(&["core", "local-paths-rule.txt"])?,
             style_lock: self.read(&["core", "style-lock.txt"])?,
+            preset_off: self.read(&["core", "preset-off.txt"])?,
         })
     }
 

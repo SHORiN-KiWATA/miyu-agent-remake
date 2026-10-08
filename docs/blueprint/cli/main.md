@@ -2,7 +2,7 @@
 
 ### 是什么
 
-一个程序，像 busybox 那样按子命令分发：`ask`、`undo`（别名 `rewind`）、`restore`、`redo`、`compact`、`recap`、`rename`、`config`、`login`、`logout`、`sandbox` 是命令行的头，`core` 是核心进程。不认识的子命令就报错，绝不当成对话发给核心。给人看的话跟着界面语言。
+一个程序，像 busybox 那样按子命令分发：`ask`、`undo`（别名 `rewind`）、`restore`、`redo`、`compact`、`recap`、`rename`、`config`、`login`、`logout`、`sandbox` 是命令行的头，`core` 是核心进程。装了的软件包加的子命令照清单转交给包里的程序（施工 9-2，`packages.md`「转交」）。不认识的子命令就报错，绝不当成对话发给核心。给人看的话跟着界面语言。
 
 ### 在哪
 
@@ -51,6 +51,10 @@
 
 ### 怎么走
 
+0. **软件包加的子命令**（施工 9-2，`crates/miyu-cli/src/packages.rs`，`packages.md`「转交」）：第一个词不是内置的子命令（名字、别名都算，连 `help`），或者是 `help`、选项、没写，才照磁盘读两层的清单（不连核心）：
+   1. 第一个词是某个包 `[command]` 的名字：照那份清单找程序（只找 `miyu` 真实位置旁边的，不找 `PATH`），参数（第一个词以后的全部）、环境、标准输入输出原样交给它，Unix 上换成它，Windows 上起它、等它、这期间不理 Ctrl+C；退出码照它的。`help <名字>` 转成 `<程序> --help`。程序没找到：标准错误上说没找到、哪一份清单说这个子命令由它跑，退出码 1。
+   2. 主程序的帮助页在「命令」那一节后面多一节「软件包加的命令」（`Commands from packages:`），一个一行，名字照命令那一列对齐，说明照界面语言挑；没有的不写这一节。撞了内置子命令的不转交、不列：内置的优先（出厂网页那一份的 `web` 照旧走内置的，照清单找网页随 9-3）。
+   3. 别的照下面走。
 1. 先照界面语言给主程序和 `ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename`、`config`（连同它的八个子命令）、`login`、`logout`、`setup`、`sandbox`（连同它的 `setup`、`remove`）换上帮助页（clap 的 `override_help`；`rewind` 是 `undo` 的别名，用同一页），再解析参数。
 2. 解析参数，不对的：
    1. 不认识的子命令：标准错误上说「没有 <名字> 这个子命令。想和她对话，用 miyu ask "…"」，退出码 2。不连核心，不拉起，什么都不发。

@@ -18,7 +18,12 @@ pub struct Catalog {
     tools: BTreeMap<String, Arc<dyn Tool>>,
     /// 以前的名字到现在的名字（施工 7-5 再补）。
     formerly: BTreeMap<String, String>,
+    /// 每件工具现在的名字到它的软件包（施工 P-2 中）：预设照包开关。
+    packages: BTreeMap<String, String>,
 }
+
+/// 基础系统的编号（`10-自带软件.md` 第三节）：只交一串工具的老写法，全算它。
+pub const BASESYSTEM: &str = "basesystem";
 
 /// 一件工具登记不上：是哪一件，哪一条没过。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,38 +54,73 @@ impl Catalog {
     ///
     /// 有两件同名的（以前的名字也算）、名字不合写法的、参数格式不是对象的。
     pub fn new(tools: impl IntoIterator<Item = Arc<dyn Tool>>) -> Result<Catalog, CatalogError> {
+        Catalog::in_packages([(BASESYSTEM, tools.into_iter().collect::<Vec<_>>())])
+    }
+
+    /// 照软件包登记（施工 P-2 中）：每一组是一个包的编号和它的几件，记下每件归哪个包；查法同 [`Catalog::new`]，两个包里
+    /// 同名的也算重名。
+    ///
+    /// # Errors
+    ///
+    /// 同 [`Catalog::new`]。
+    pub fn in_packages<'a>(
+        groups: impl IntoIterator<Item = (&'a str, Vec<Arc<dyn Tool>>)>,
+    ) -> Result<Catalog, CatalogError> {
         let mut catalog = Catalog::default();
-        for tool in tools {
-            let spec = tool.spec();
-            let problem = if !name_is_valid(&spec.name) {
-                Some(Problem::Name)
-            } else if !takes_an_object(spec) {
-                Some(Problem::Parameters)
-            } else if catalog.taken(&spec.name) {
-                Some(Problem::Duplicate)
-            } else {
-                None
-            };
-            if let Some(problem) = problem {
-                return Err(CatalogError {
-                    tool: spec.name.clone(),
-                    problem,
-                });
+        for (package, tools) in groups {
+            for tool in tools {
+                catalog.add(package, tool)?;
             }
-            for former in tool.formerly() {
-                if catalog.taken(former) {
-                    return Err(CatalogError {
-                        tool: (*former).to_string(),
-                        problem: Problem::Duplicate,
-                    });
-                }
-                catalog
-                    .formerly
-                    .insert((*former).to_string(), spec.name.clone());
-            }
-            catalog.tools.insert(spec.name.clone(), tool);
         }
         Ok(catalog)
+    }
+
+    /// 登记一件：查过了放进目录，记下它的包。
+    fn add(&mut self, package: &str, tool: Arc<dyn Tool>) -> Result<(), CatalogError> {
+        let spec = tool.spec();
+        let problem = if !name_is_valid(&spec.name) {
+            Some(Problem::Name)
+        } else if !takes_an_object(spec) {
+            Some(Problem::Parameters)
+        } else if self.taken(&spec.name) {
+            Some(Problem::Duplicate)
+        } else {
+            None
+        };
+        if let Some(problem) = problem {
+            return Err(CatalogError {
+                tool: spec.name.clone(),
+                problem,
+            });
+        }
+        for former in tool.formerly() {
+            if self.taken(former) {
+                return Err(CatalogError {
+                    tool: (*former).to_string(),
+                    problem: Problem::Duplicate,
+                });
+            }
+            self.formerly
+                .insert((*former).to_string(), spec.name.clone());
+        }
+        self.packages.insert(spec.name.clone(), package.to_string());
+        self.tools.insert(spec.name.clone(), tool);
+        Ok(())
+    }
+
+    /// 叫 `name` 的那一件归哪个包（以前的名字也算）；没有这件的没有。
+    pub fn package_of(&self, name: &str) -> Option<&str> {
+        let now = self.formerly.get(name).map_or(name, String::as_str);
+        self.packages.get(now).map(String::as_str)
+    }
+
+    /// 有工具的几个包，照编号排、不重复。
+    pub fn packages(&self) -> impl Iterator<Item = &str> {
+        self.packages
+            .values()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
     }
 
     /// `name` 已经有主了：是一件工具现在的名字，或者以前的名字。

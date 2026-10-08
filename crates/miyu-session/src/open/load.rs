@@ -31,6 +31,7 @@ use crate::jobs::Roster;
 use crate::memory::{self, connect};
 use crate::port::ForSession;
 use crate::report::{Reporter, Upstream, wake_children};
+use crate::spawn::Lineage;
 use crate::store::{Indexed, LogDir};
 use crate::tools::ToolKit;
 
@@ -61,6 +62,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         usage,
         configs,
         memory,
+        presets,
     } = setup;
     let span = actor::span(&id);
     let config = Turning::start(configs, environment.cwd.clone()).await;
@@ -93,7 +95,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             let guard = snapshot.guard_texts().map_err(LoadError::Policy)?;
             // 能选的池照快照读回（施工 8-8 补）：造会话时拼的那一份，不重拼。
             let pools = Agents::pools_in(&snapshot.tools);
-            let scope = memory::scope(created.parent.is_some(), snapshot.memory_scope());
+            // 快照里的范围已经照预设算过（施工 P-2 中），这里只再管子会话。
+            let scope = memory::scope(created.parent.is_some(), true, snapshot.memory_scope());
             let turns = connect(
                 memory.as_ref(),
                 scope,
@@ -127,7 +130,15 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let port = sessions.clone();
     let who = Who::of(&created);
     let venue = created.venue.clone();
+    // 换预设时重新筛工具面要的（施工 P-2 下）：场所、父会话和第几层，照 `session.created`。
+    let refresh_venue = created.venue.clone();
+    let refresh_lineage = created.parent.clone().map(|parent| Lineage {
+        parent,
+        depth: created.depth.unwrap_or(1),
+    });
     let asks = Agents::asks(&created.venue, created.parent.as_ref(), attended);
+    // 能选的人格同池，照快照读回（施工 P-2 补）。
+    let agents_personas = Agents::personas_in(&snapshot.tools);
     let agents = sessions.map(|port| {
         Arc::new(Agents {
             port,
@@ -140,6 +151,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             reports: policy.reports.clone(),
             pools,
             preset: created.preset.clone(),
+            personas: agents_personas,
         })
     });
     let kept = blobs.clone();
@@ -238,6 +250,10 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         blobs: stored,
         snapshot,
         child: created.parent.is_some(),
+        presets,
+        tools: tools.clone(),
+        venue: refresh_venue,
+        lineage: refresh_lineage,
     });
     span.in_scope(|| {
         tracing::info!(target: TARGET, events = count, "loaded");

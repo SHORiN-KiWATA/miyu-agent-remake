@@ -161,6 +161,8 @@ fn every_problem_code_is_said_in_three_languages() {
     let unique: std::collections::BTreeSet<&str> = codes.iter().copied().collect();
     assert_eq!(unique.len(), codes.len(), "写法不重复");
     codes.push("protocol_mismatch");
+    // 跑包自己的检查时出的（施工 9-2，`miyu-endpoint` 的 `check/run.rs`）。
+    codes.extend(["check_failed", "check_unavailable", "check_output"]);
     for language in ["zh", "en", "ja"] {
         let human = crate::human::Human::load(&resources, language).unwrap();
         for code in &codes {

@@ -32,6 +32,7 @@ pub mod language;
 mod link;
 mod login;
 mod misuse;
+pub mod packages;
 mod recap;
 mod redo;
 mod rename;

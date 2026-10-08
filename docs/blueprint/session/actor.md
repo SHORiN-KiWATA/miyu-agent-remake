@@ -260,10 +260,10 @@
 
 **换快照**（施工 P-1 再补，`actor/persona.rs`、`snapshot.rs`，`kernel/session.md`「换策略快照」）：
 
-1. 造会话、载入时交给 actor 一份 `Refresh`：人格的几层、资源目录、存 blob 的地方、现在的快照、是不是子会话。载入照整份日志里最近一条带 `policy` 的 `session.policy_changed` 取快照，没有的照 `session.created` 的。
-2. 每个回合开始的挂接点（换模型解析完以后），在阻塞线程里照快照的人格编号把几层重新找一遍，算三份字的指纹（`PersonaTexts::digest`），和快照的 `persona_digest` 比：一样的、快照没有指纹的（以前造的），什么都不做。
-3. 不一样的照造会话的那一套重拼（`snapshot::build`，和 `open.rs` 共用）：工具面、记忆的范围那一格、有没有人能确认照旧快照，子会话照样接场所说明，随核心附带的字读这一刻的。拼出来以后照 `Snapshot::swappable` 比：除了 system、示范对话、角色扮演提示、指纹，别的格都一样才换（不一样说明程序升级过，驱动的占位、权限策略的几句还是照旧快照造的），存成 blob，策略交给内核放着（`Session::stage_policy`），`TurnStartHooksDone` 带上新快照的哈希，`Refresh` 里的快照换成新的；运行日志 `INFO persona swapped`。
-4. 人格找不着、写错了、读不了：照旧，`WARN persona unreadable`。换不了（程序升级过、拼不成、存不进）：照旧，`WARN persona not swapped`。新开的会话照新的。
+1. 造会话、载入时交给 actor 一份 `Refresh`：人格的几层、资源目录、存 blob 的地方、现在的快照、是不是子会话；预设的几层和装了的软件（`Create.presets`、`Load.presets`，端点交）、工具目录、场所、父会话（施工 P-2 下，重新筛工具面用）。载入照整份日志里最近一条带 `policy` 的 `session.policy_changed` 取快照，没有的照 `session.created` 的。
+2. 每个回合开始的挂接点（换模型解析完以后），在阻塞线程里照快照的人格编号把几层重新找一遍，算三份字的指纹（`PersonaTexts::digest`），和快照的 `persona_digest` 比；预设照快照里 `preset` 的编号重新找、算没开的那几个（记忆照开会话时的，`Chosen::keeping_memory`），和快照里那一份比（施工 P-2 下）。都一样的、快照没有指纹的（以前造的），什么都不做。
+3. 不一样的照造会话的那一套重拼（`snapshot::build`，和 `open.rs` 共用）：记忆的范围那一格、有没有人能确认照旧快照；工具面预设没变的照旧，变了的照新的预设重新筛（`Agents::face`，场所、子会话、能不能确认、范围照旧），以前就有的那几件照旧快照里的原样，新打开的照现在的目录拿、能选的池照这一轮的配置（施工 P-2 下）；子会话照样接场所说明，随核心附带的字读这一刻的。拼出来以后照 `Snapshot::swappable` 比：除了 system、示范对话、工具面、角色扮演提示、人格的指纹、预设，别的格都一样才换（不一样说明程序升级过，驱动的占位、权限策略的几句还是照旧快照造的），存成 blob，策略交给内核放着（`Session::stage_policy`），`TurnStartHooksDone` 带上新快照的哈希，`Refresh` 里的快照换成新的；运行日志 `INFO persona swapped`。
+4. 人格、预设找不着、写错了、读不了：照旧，`WARN persona unreadable`（预设的也记在这一行，`error` 写明）。换不了（程序升级过、拼不成、存不进）：照旧，`WARN persona not swapped`。新开的会话照新的。
 
 actor 退出以后：等着回应的命令、要订阅的、要停下的，都收到「会话停了」；订阅读完剩下的是 `Ended::Stopped`；路上的请求被叫停；在跑的工具被掐掉；这个会话还在任务表里的后台命令整组杀掉、不记（再载入时内核补 `aborted`，施工 7-3）；不再算在跑。协议端点照「会话停了」把它从表里拿掉，下次用到再从磁盘载入（`protocol.md`）。
 

@@ -7,10 +7,18 @@ use std::fmt;
 
 use miyu_config::phrases::{self, PhraseError, Phrases};
 use miyu_config::secret::valid_name;
+use miyu_kernel::id::ContentHash;
+use serde::{Deserialize, Serialize};
 use toml_edit::{Document, Item, TableLike};
 
 /// 工具名最多几个字符。
 const TOOL_CHARS: usize = 64;
+
+/// 记忆这个软件（施工 P-2 中，`10-自带软件.md` 第四节）：三件工具和回合开始的召回。和 `miyu_memory::PACKAGE` 是同一个编号。
+pub const MEMORY: &str = "memory";
+
+/// 角色扮演这个软件（施工 P-2 中）：人格的角色扮演提示和风格锁（`16-人格与预设.md` 第八节：开发预设不开）。它没有工具。
+pub const ROLEPLAY: &str = "roleplay";
 
 /// 没列在 `[software]` 里的软件（包括以后新装的）开不开（Y7）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,6 +73,111 @@ impl PresetFile {
     pub fn unlisted(&self) -> Unlisted {
         self.unlisted.unwrap_or(Unlisted::On)
     }
+
+    /// 软件 `software` 开不开（施工 P-2 中，Y7）：`[software]` 写了的照写的，没写的照 `unlisted`。
+    pub fn opens(&self, software: &str) -> bool {
+        self.software
+            .get(software)
+            .copied()
+            .unwrap_or(self.unlisted() == Unlisted::On)
+    }
+
+    /// 包 `package` 里的工具 `tool` 留不留在工具面上：包开着，这一件也没被 `[tools]` 关掉（走查 C1）。
+    pub fn keeps(&self, package: &str, tool: &str) -> bool {
+        self.opens(package) && !self.tools_off.contains(tool)
+    }
+
+    /// 叠好的文件的指纹（施工 P-2 下）：记进快照，回合开始时执行器照它认出预设的文件改了。
+    ///
+    /// # Panics
+    ///
+    /// 实际不会 panic：几格总写得成 JSON。
+    pub fn digest(&self) -> ContentHash {
+        let fields = (
+            &self.name,
+            &self.summary,
+            &self.default_persona,
+            self.unlisted.map(Unlisted::as_str),
+            &self.software,
+            &self.tools_off,
+        );
+        ContentHash::of(&serde_json::to_vec(&fields).expect("预设的几格写得成 JSON"))
+    }
+}
+
+/// 快照里记的预设（施工 P-2 中，`Snapshot::preset`）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PresetPin {
+    /// 预设的编号。
+    pub id: String,
+    /// 造会话时装了、这个预设没开的软件，照编号排。都开着的不写。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub off: Vec<String>,
+    /// 叠好的文件的指纹（施工 P-2 下，[`PresetFile::digest`]）：回合开始时照它认出预设改了。P-2（中）造的没有：不换。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub digest: Option<ContentHash>,
+}
+
+/// 开会话时找好的预设（施工 P-2 中）：编号、叠好的文件，和这台机器上装了、这个预设没开的软件（照编号排；Y8 那一行照它写）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Chosen {
+    /// 编号。
+    pub id: String,
+    /// 叠好的文件。
+    pub file: PresetFile,
+    /// 装了、没开的软件。
+    pub off: Vec<String>,
+    /// 文件的指纹（施工 P-2 下）：照找到的那一份算，[`Chosen::keeping_memory`] 改了记忆那一格也不变。
+    pub digest: ContentHash,
+}
+
+impl Chosen {
+    /// 照装了的软件 `installed` 算好没开的那几个。
+    pub fn new<'a>(
+        id: String,
+        file: PresetFile,
+        installed: impl IntoIterator<Item = &'a str>,
+    ) -> Chosen {
+        let digest = file.digest();
+        let off = off(&file, installed);
+        Chosen {
+            id,
+            file,
+            off,
+            digest,
+        }
+    }
+
+    /// 换预设时记忆照开会话时的（施工 P-2 下，L3）：`memory` 开不开改成 `open`，没开的那几个照 `installed` 重新算，指纹不变。
+    #[must_use]
+    pub fn keeping_memory<'a>(
+        mut self,
+        open: bool,
+        installed: impl IntoIterator<Item = &'a str>,
+    ) -> Chosen {
+        self.file.software.insert(MEMORY.to_string(), open);
+        self.off = off(&self.file, installed);
+        self
+    }
+
+    /// 记进快照的那一份。
+    pub fn pin(&self) -> PresetPin {
+        PresetPin {
+            id: self.id.clone(),
+            off: self.off.clone(),
+            digest: Some(self.digest.clone()),
+        }
+    }
+}
+
+/// 装了的 `installed` 里 `file` 没开的，照编号排、不重复。
+fn off<'a>(file: &PresetFile, installed: impl IntoIterator<Item = &'a str>) -> Vec<String> {
+    let off: BTreeSet<String> = installed
+        .into_iter()
+        .filter(|software| !file.opens(software))
+        .map(str::to_string)
+        .collect();
+    off.into_iter().collect()
 }
 
 /// 预设文件写错了：第几行（从 1 数，说不出的没有）、哪一种错、错的那一处，和一句英文短句（日志、协议的 `data.problem` 用）。

@@ -21,6 +21,8 @@ use miyu_store::personas::{Checked, Issue as PersonaIssue};
 use miyu_store::presets::{Checked as PresetChecked, Issue as PresetIssue};
 
 use crate::Core;
+
+mod run;
 use crate::config::methods::{check_text, said_at, words};
 use crate::hello::Peer;
 use crate::personas::personas;
@@ -77,6 +79,8 @@ pub(crate) async fn check(core: &Core, peer: Peer, params: CheckParams) -> Resul
                     .await?
                     .unwrap_or_default(),
             );
+            // 包自己的检查（施工 9-2）：照起来时读到的清单跑，接在核心自己查的后面。
+            problems.extend(run::packages(core, &words).await);
         }
         Some(file) => {
             let path = real(&expand(&file, home.as_deref(), cwd.as_deref()));

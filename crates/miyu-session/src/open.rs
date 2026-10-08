@@ -10,6 +10,7 @@ use miyu_kernel::event::SessionCreated;
 use miyu_kernel::id::{AccountId, SessionId};
 use miyu_kernel::session::{Input, Session};
 use miyu_models::provider::chat;
+use miyu_policy::preset::{Chosen, MEMORY};
 use miyu_store::blob::Blobs;
 use miyu_store::log::{SEGMENT_LIMIT, SessionLog, abandon};
 use miyu_store::usage::{UsageIndex, Who};
@@ -18,7 +19,7 @@ use miyu_tool::{Log, Seen};
 use crate::TARGET;
 use crate::actor::persona::Refresh;
 use crate::actor::{self, Actor, JobKit};
-use crate::agents::{Agents, job_in};
+use crate::agents::{Agents, Offers, job_in};
 use crate::blocking::blocking;
 use crate::clock::Clock;
 use crate::config::Turning;
@@ -40,7 +41,7 @@ mod setup;
 
 pub use error::{CreateError, LoadError};
 pub use load::load;
-pub use setup::{Create, Load};
+pub use setup::{Create, Load, PresetPlaces};
 
 /// 造一个会话：先把策略快照存成 blob（先落 blob，再写引用它的事件），再建会话目录和日志，交给内核
 /// 造会话；`session.created` 落了盘，才交回 [`Handle`]。子会话（带着 [`Create::lineage`]）的 system 接上场所说明
@@ -81,6 +82,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         model,
         memory,
         preset,
+        presets,
     } = setup;
     let span = actor::span(&id);
     let config = Turning::start(configs, environment.cwd.clone()).await;
@@ -88,22 +90,32 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let reference = model.or_else(|| chat(&config.current().resolved.values()));
     let (resources, name) = (resources.clone(), persona.to_string());
     let shipped = resources.clone();
-    let scope = memory::scope(lineage.is_some(), memory_scope);
-    // 工具面照这时的配置拼：`subagent` 能选哪几个池（施工 8-8 补），以后照快照、载入不重拼。
+    // 预设没开记忆的，范围一律 `off`（施工 P-2 中，走查 E2：开不开记忆归预设）。
+    let opened = preset
+        .as_ref()
+        .is_none_or(|chosen| chosen.file.opens(MEMORY));
+    let scope = memory::scope(lineage.is_some(), opened, memory_scope);
+    // 工具面照这时的配置拼：`subagent` 能选哪几个池（施工 8-8 补）、哪几个人格（施工 P-2 补），以后照快照、载入不重拼。
+    // 照预设筛（施工 P-2 中）。
+    let offers = Offers::of(&config.current().resolved.values(), personas.ids());
     let face = Agents::face(
         tools,
         &venue,
         lineage.as_ref(),
-        &config.current().resolved.values(),
+        &offers,
         attended,
         scope,
+        preset.as_ref().map(|chosen| &chosen.file),
     );
+    let pin = preset.as_ref().map(Chosen::pin);
+    let preset = preset.map(|chosen| chosen.id);
     let asks = Agents::asks(
         &venue,
         lineage.as_ref().map(|lineage| &lineage.parent),
         attended,
     );
     let pools = Agents::pools_in(&face);
+    let agents_personas = Agents::personas_in(&face);
     let child = lineage.is_some();
     let count = face.len();
     let dir = root.session_dir(&owner, &id);
@@ -122,6 +134,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             face,
             memory: Some(scope.as_str().to_string()),
             child,
+            preset: pin,
         };
         let snapshot = build(&resources, parts).map_err(CreateError::Persona)?;
         let policy = snapshot.policy().map_err(CreateError::Policy)?;
@@ -173,6 +186,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             reports: policy.reports.clone(),
             pools,
             preset: preset.clone(),
+            personas: agents_personas,
         })
     });
     let created = SessionCreated {
@@ -266,6 +280,10 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         blobs,
         snapshot,
         child,
+        presets,
+        tools: tools.clone(),
+        venue: venue.clone(),
+        lineage: lineage.clone(),
     });
     let busy = actor.busy();
     let watched = actor.watched();

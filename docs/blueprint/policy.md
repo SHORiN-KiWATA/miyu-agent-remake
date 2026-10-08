@@ -77,7 +77,8 @@
 | `Snapshot::with_tools(工具)` | 带上工具面 |
 | `Snapshot::with_venue(说明)` | 带上场所说明：system 的第二块，接在人设后面（施工 7-5）。现在只有子会话有 |
 | `Snapshot::with_core_lines(&CoreLines)` | 带上核心的几行（施工 2-7 补）：system 的第三块，所以在 `with_tools`、`with_venue` 以后调。`CoreLines` 有三格：`permission`（`permission-rule.txt`）、`local_paths`（`local-paths-rule.txt`）、`style_lock`（`style-lock.txt`，施工 P-1 补，交给 `with_style_lock`）。一行一句，先权限、后路径；工具面是空的不带权限那一句 |
-| `Snapshot::swappable(新的)` | 能不能换成 `新的`（施工 P-1 再补）：除了 `system`、`demos`、`reminder`、`persona_digest`，别的格都一样 |
+| `Snapshot::swappable(新的)` | 能不能换成 `新的`（施工 P-1 再补）：除了 `system`、`demos`、`tools`、`reminder`、`persona_digest`、`preset`（后两格施工 P-2 下：换预设时工具面重新筛过，留着的那几件是原样），别的格都一样 |
+| `Snapshot::with_preset(预设, 那一行)` | 带上预设（施工 P-2 中）：记进快照的 `preset`（编号、装了没开的软件）；没开角色扮演的去掉 `reminder`；装了没开的软件（角色扮演除外）写成一行接在 system 后面（`26-提示词.md` 第四节第 5 块，`core/preset-off.txt`）。在 `with_core_lines` 以后、`with_style_lock` 以前调；没有预设、都开着的 system 一字不变 |
 | `Snapshot::with_style_lock(风格锁)` | 带上风格锁（施工 P-1 补）：system 的最后一块（`26-提示词.md` 第四节第 7 块），在 `with_core_lines` 以后调。快照有 `reminder` 的才带，别的 system 一字不变 |
 | `REPORT_CHARS` | 策略数据 `jobs.report_chars` 的出厂值 30000（施工 7-6）：拼快照时写进 `jobs` |
 | `JOB_DEPTH` | 策略数据 `jobs.depth` 的出厂值 2（`agents.md`「对外的样子」，施工 7-5）：造会话定工具面时用，不进快照 |
@@ -97,7 +98,7 @@
 
 1. 人格的编号要合写法：小写字母开头，只有小写字母、数字、`-`、`_`，最长 64 个字符。它是一层目录的名字，不许带路径。
 2. 读 `CoreTexts` 表里的每一份，再读 `personas/<编号>/prompts/persona.md`。原文照抄，行尾的换行也算。
-3. 核心的几行 `core/permission-rule.txt`、`core/local-paths-rule.txt` 另读（`ResourceRoot::core_lines`，施工 2-7 补），交给 `with_core_lines`；它们只拼进 system，不另存进快照的 `core`。风格锁 `core/style-lock.txt` 和它们一起读（施工 P-1 补）。
+3. 核心的几行 `core/permission-rule.txt`、`core/local-paths-rule.txt` 另读（`ResourceRoot::core_lines`，施工 2-7 补），交给 `with_core_lines`；它们只拼进 system，不另存进快照的 `core`。风格锁 `core/style-lock.txt` 和它们一起读（施工 P-1 补），装了没开的那一行 `core/preset-off.txt` 也是（施工 P-2 中）。
 4. 角色扮演提示的包装 `core/facts/reminder-open.txt`、`reminder-close.txt` 读进 `Sources.reminder`（施工 P-1 补）：拼进快照的 `reminder`，也不另存进 `core`，没有角色扮演提示的快照字节不变。
 
 **拼**（`compose`）
@@ -106,6 +107,7 @@
 2. `tools` 先是空的；`with_tools` 带上工具面，照名字的字节序排，稳定排序：交进来的先后不影响字节。
 3. `step_limit` 是 `null`，`resumes` 是 3，`attended` 照交进来的，`compaction` 是出厂的四个数，`recap` 是出厂的两个数（施工 3-8 四补），`title` 是出厂的三个数（施工 3-8 五补），`peers` 是出厂的五个数（施工 C-2、C-6），`memory` 不写（造会话时 `with_memory` 写上，施工 R-3 下）。
 4. `reminder`（施工 P-1 补）：人格的角色扮演提示去掉末尾空白，是空的不写；不空的拼成一块：包装的开头、原文、换行、包装的收尾。原文不转义：是人格的作者写的。`policy()` 把它交给内核的事实模板（`FactTemplates::with_reminder`），回合开始时隔几轮注入（`kernel/request.md`「事实」）。造会话时最后带上风格锁（`with_style_lock`）：有 `reminder` 的 system 末尾空一行接上 `core/style-lock.txt`。
+6. `preset`（施工 P-2 中）：会话的预设，`{"id", "off", "digest"}`，`off` 是造会话时装了、这个预设没开的软件，照编号排，都开着的不写；`digest` 是叠好的预设文件的指纹（`PresetFile::digest`，施工 P-2 下），回合开始时执行器照它认出预设改了，P-2（中）造的没有、不换。工具面、记忆的范围造会话时已经照预设筛过；换人格重拼时照它（`with_preset`）去掉角色扮演提示、写那一行，所以人格的指纹照旧算人格原来的字，不会每轮都当成改过。以前造的快照没有：全开。
 5. `persona_digest`（施工 P-1 再补）：人格三份字（人设、示范对话、角色扮演提示，叠好的）的 SHA-256（`PersonaTexts::digest`，三样写成一个 JSON 数组再算）。回合开始时执行器照它认出人格的文件改了（`session/actor.md`「换快照」）。以前造的快照没有，读成没有、不写：那些会话不换。
 
 **字节和哈希**
@@ -228,7 +230,7 @@
 ### 还没有的
 
 - 示范对话：快照里还没有这一格（`03-事件模型.md` E5，`16-人格与预设.md`）。
-- system 只有人设和子会话的场所说明：别的场所的说明、核心和软件包的几行、技能与知识库的列表、没开的软件、子代理能选的人格、风格锁（`26-提示词.md` 第四节）。
+- system 还没有的几块：别的场所的说明、软件包的几行、技能与知识库的列表、子代理能选的人格（`26-提示词.md` 第四节）。
 - 没人盯着的场所（例如群聊）的步数上限，随预设定；出厂不设（`02-内核.md` 第六节「工具怎么调、下一步怎么走」第 6 条）。
 - 预设、人格的覆盖链：自己的家目录、系统区、出厂的（`16-人格与预设.md` 第四节）；现在只读资源目录。
 - 会话中途换快照：`session.policy_changed` 带新的 `policy`，下一个回合开始时换（`02-内核.md` K3，`03-事件模型.md` 第三节）。

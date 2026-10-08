@@ -89,8 +89,8 @@ pub struct Lines {
     pub memory: MemoryScope,
     /// 记忆归哪个账号（施工 P-1 上）：默认是属主 alice。
     pub memory_account: AccountId,
-    /// 预设（施工 P-2 上）：默认没有。
-    pub preset: Option<String>,
+    /// 预设（施工 P-2 上、中）：默认没有，全开。
+    pub preset: Option<miyu_policy::preset::Chosen>,
 }
 
 impl Default for Lines {
@@ -247,6 +247,7 @@ impl Home {
             model: lines.model,
             memory: Some(self.memory()),
             preset: lines.preset,
+            presets: None,
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -313,6 +314,7 @@ impl Home {
             usage: Some(Arc::clone(&self.usage)),
             configs: self.configs.clone(),
             memory: Some(self.memory()),
+            presets: None,
         });
         within("载入", loaded).await.expect("载入得了会话")
     }

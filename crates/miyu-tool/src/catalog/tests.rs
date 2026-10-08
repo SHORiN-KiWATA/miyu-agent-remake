@@ -156,3 +156,39 @@ fn an_old_name_that_clashes_is_refused() {
     let later = Catalog::new([former("subagent", &["agent"]), object("agent")]);
     assert_eq!(later.unwrap_err(), duplicate("agent"));
 }
+
+#[test]
+fn tools_remember_which_package_they_came_in() {
+    let catalog = Catalog::in_packages([
+        (
+            "basesystem",
+            vec![object("read"), former("subagent", &["agent"])],
+        ),
+        ("memory", vec![object("remember")]),
+    ])
+    .unwrap();
+    assert_eq!(catalog.package_of("read"), Some("basesystem"));
+    assert_eq!(catalog.package_of("remember"), Some("memory"));
+    assert_eq!(
+        catalog.package_of("agent"),
+        Some("basesystem"),
+        "以前的名字照现在的那一件"
+    );
+    assert_eq!(catalog.package_of("nope"), None);
+    assert_eq!(
+        catalog.packages().collect::<Vec<_>>(),
+        ["basesystem", "memory"]
+    );
+    let plain = Catalog::new([object("read")]).unwrap();
+    assert_eq!(
+        plain.package_of("read"),
+        Some(BASESYSTEM),
+        "只交一串工具的全算基础系统"
+    );
+    let clash = Catalog::in_packages([
+        ("basesystem", vec![object("read")]),
+        ("other", vec![object("read")]),
+    ])
+    .unwrap_err();
+    assert_eq!(clash.problem, Problem::Duplicate, "两个包里同名的照样拒");
+}

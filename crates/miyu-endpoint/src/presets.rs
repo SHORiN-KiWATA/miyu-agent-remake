@@ -1,9 +1,14 @@
 //! 预设（施工 P-2 上，`docs/blueprint/presets.md`）：造会话时照「开会话时指定、个人设置、系统配置」找预设、几层叠好；
 //! `preset.list`、`preset.get`。找哪几层、怎么叠在 `miyu_store::presets`。
 
+use std::collections::BTreeSet;
+
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+use miyu_config::package::PackageKind;
+use miyu_policy::preset::{Chosen, ROLEPLAY};
+use miyu_session::PresetPlaces;
 use miyu_store::presets::{Found, Layer, PresetError, Presets};
 
 use crate::Core;
@@ -33,6 +38,32 @@ pub(crate) async fn resolve(core: &Core, wanted: Option<&str>) -> Result<Found, 
         Ok(Err(error)) => Err(refusal(&error)),
         Err(_) => Err(Refusal::INTERNAL),
     }
+}
+
+/// 这台机器上装了的软件（施工 P-2 中，`presets.md`「照预设挑」）：工具目录里有工具的包、角色扮演，和清单装的 `process` 包
+/// （桥，读成了的）。界面包是头，不算。
+pub(crate) fn installed(core: &Core) -> BTreeSet<String> {
+    let mut installed: BTreeSet<String> = core.tools.packages().map(str::to_string).collect();
+    installed.insert(ROLEPLAY.to_string());
+    installed.extend(core.packages.iter().filter_map(|found| match &found.read {
+        Ok(manifest) if manifest.kind == PackageKind::Process => Some(found.id.clone()),
+        _ => None,
+    }));
+    installed
+}
+
+/// 交给会话的预设的几层和装了的软件（施工 P-2 下）：改了预设的文件，开着的会话下一个回合换上。
+pub(crate) fn places(core: &Core) -> PresetPlaces {
+    PresetPlaces {
+        presets: presets(core),
+        installed: installed(core).into_iter().collect(),
+    }
+}
+
+/// 找好的预设换成造会话要的：算好装了、没开的那几个。
+pub(crate) fn chosen(core: &Core, found: Found) -> Chosen {
+    let installed = installed(core);
+    Chosen::new(found.id, found.file, installed.iter().map(String::as_str))
 }
 
 /// 找预设出的错照协议说：编号不合写法的参数不对，哪一层都没有的 `unknown_preset`，写错了的 `preset_invalid`（`data.problem`
@@ -88,9 +119,22 @@ pub(crate) struct GetParams {
 }
 
 /// `preset.get`：叠好的样子。名字、说明的几种语言原样给；默认人格没写的是 `null`；`unlisted` 是叠好以后的（几层都没写的是
-/// `on`）；`software` 是包到开不开，`tools` 是关掉的单件工具，都是 `false`。
+/// `on`）；`software` 是包到开不开，`tools` 是关掉的单件工具，都是 `false`；`missing` 是 `[software]` 里写了、这台机器上没装的
+/// （施工 P-2 中，照编号排）；`switches` 是这台机器上装了的每一个软件叠好以后开不开（施工 P-2 补：预设是全部功能的开关，界面
+/// 照它一项一个开关画，2026-10-08 项目主人定）。
 pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal> {
     let found = resolve(core, Some(&params.preset)).await?;
+    let installed = installed(core);
+    let missing: Vec<&String> = found
+        .file
+        .software
+        .keys()
+        .filter(|software| !installed.contains(*software))
+        .collect();
+    let switches: serde_json::Map<String, Value> = installed
+        .iter()
+        .map(|software| (software.clone(), json!(found.file.opens(software))))
+        .collect();
     let tools: serde_json::Map<String, Value> = found
         .file
         .tools_off
@@ -106,6 +150,8 @@ pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal
         "unlisted": found.file.unlisted().as_str(),
         "software": found.file.software,
         "tools": tools,
+        "missing": missing,
+        "switches": switches,
     }))
 }
 

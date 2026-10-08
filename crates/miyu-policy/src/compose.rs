@@ -8,6 +8,7 @@ use miyu_kernel::id::ContentHash;
 
 use crate::pause::PAUSE;
 use crate::persona::Demo;
+use crate::preset::{PresetPin, ROLEPLAY};
 use crate::rebuild::REBUILD;
 use crate::recap::RECAP;
 use crate::shorten::SHORTEN;
@@ -81,6 +82,7 @@ pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
         memory: None,
         reminder: reminder(&sources.persona.reminders, &sources.reminder),
         persona_digest: Some(digest),
+        preset: None,
     }
 }
 
@@ -113,6 +115,8 @@ pub struct CoreLines {
     pub local_paths: String,
     /// 风格锁（`core/style-lock.txt`）：只有带角色扮演提示的人格带（[`Snapshot::with_style_lock`]）。
     pub style_lock: String,
+    /// 装了、这个预设没开的软件那一行（`core/preset-off.txt`，施工 P-2 中，Y8）：`{packages}` 换成逗号隔开的编号。
+    pub preset_off: String,
 }
 
 impl Snapshot {
@@ -134,16 +138,45 @@ impl Snapshot {
     }
 
     /// 能不能换成 `new`（施工 P-1 再补）：除了 system、示范对话、角色扮演提示和人格的指纹，别的格都一样。不一样的说明程序
-    /// 升级过、执行器照旧快照造的那几份字（驱动的占位、权限策略的几句）还是旧的，换一半会让两版字混着用。
+    /// 升级过、执行器照旧快照造的那几份字（驱动的占位、权限策略的几句）还是旧的，换一半会让两版字混着用。工具面、预设也
+    /// 不比（施工 P-2 下）：换预设时重新筛过，以前就有的那几件是旧快照里的原样，新打开的照现在的目录拿。
     pub fn swappable(&self, new: &Snapshot) -> bool {
         let rest = |snapshot: &Snapshot| Snapshot {
             system: String::new(),
             demos: Vec::new(),
+            tools: Vec::new(),
             reminder: None,
             persona_digest: None,
+            preset: None,
             ..snapshot.clone()
         };
         rest(self) == rest(new)
+    }
+
+    /// 带上预设（施工 P-2 中，Y8）：记进快照；没开角色扮演的去掉角色扮演提示（人格的指纹照旧算原来的字，回合开始时不会
+    /// 当成改过）；装了没开的软件写成一行接在 system 后面（26 第四节第 5 块），在 [`Snapshot::with_core_lines`] 以后、
+    /// [`Snapshot::with_style_lock`] 以前调。角色扮演不进这一行：它没有工具，她不会去用它，列出来反倒像是不许演。都开着的
+    /// 不写这一行，system 一字不变。
+    #[must_use]
+    pub fn with_preset(mut self, pin: Option<PresetPin>, line: &str) -> Snapshot {
+        let Some(pin) = pin else {
+            return self;
+        };
+        if pin.off.iter().any(|software| software == ROLEPLAY) {
+            self.reminder = None;
+        }
+        let listed: Vec<&str> = pin
+            .off
+            .iter()
+            .map(String::as_str)
+            .filter(|software| *software != ROLEPLAY)
+            .collect();
+        if !listed.is_empty() {
+            let line = line.replace("{packages}", &listed.join(", "));
+            self.system = system(&[&self.system, &line]);
+        }
+        self.preset = Some(pin);
+        self
     }
 
     /// 带上风格锁（施工 P-1 补）：system 的最后一块（26 第四节第 7 块），在 [`Snapshot::with_core_lines`] 以后调。只有带
@@ -207,6 +240,7 @@ mod tests {
             permission: "Permission rule.\n".to_string(),
             local_paths: "Local paths rule.\n".to_string(),
             style_lock: String::new(),
+            preset_off: String::new(),
         }
     }
 
@@ -328,7 +362,7 @@ mod tests {
 
     /// 换快照只许人格的那几格不一样（施工 P-1 再补）：核心的字、工具面、人格编号变了的都不算。
     #[test]
-    fn only_the_persona_parts_may_differ_for_a_swap() {
+    fn only_the_persona_and_preset_parts_may_differ_for_a_swap() {
         let old = crate::test_support::engineer()
             .with_tools(vec![a_tool()])
             .with_core_lines(&lines());
@@ -345,7 +379,21 @@ mod tests {
         assert!(!old.swappable(&core), "核心的字变了");
         let mut tools = new.clone();
         tools.tools.clear();
-        assert!(!old.swappable(&tools), "工具面变了");
+        tools.preset = Some(crate::preset::PresetPin {
+            id: "dev".to_string(),
+            off: vec!["basesystem".to_string()],
+            digest: None,
+        });
+        assert!(
+            old.swappable(&tools),
+            "工具面、预设可以变（施工 P-2 下：换预设时重新筛过）"
+        );
+        let mut memory = new.clone();
+        memory.memory = Some("off".to_string());
+        assert!(!old.swappable(&memory), "记忆的范围钉在会话上");
+        let mut attended = new.clone();
+        attended.attended = false;
+        assert!(!old.swappable(&attended));
         let mut other = new;
         other.persona = "miyu".to_string();
         assert!(!old.swappable(&other), "不是同一个人格");
@@ -359,6 +407,7 @@ mod tests {
             permission: "\n".to_string(),
             local_paths: String::new(),
             style_lock: String::new(),
+            preset_off: String::new(),
         };
         assert_eq!(
             tooled.clone().with_core_lines(&empty).system,
