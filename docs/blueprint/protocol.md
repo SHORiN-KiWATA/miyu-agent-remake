@@ -108,6 +108,7 @@
 | `host` | `{"home": <系统的家目录>, "platform": "linux" 或 "macos" 或 "windows", "workspace": <这个账号的工作区>}`，总有（施工 W-3，`web-module.md`「四、路径」）：`home` 是核心起来时拿到的系统的家目录，照原样，读不出来的是 `null`；`platform` 是核心所在的平台；`workspace` 是这个账号的工作区，换成真实的位置（管理员的工作区核心起来时就建好了，`core.md`；握手不另外建） |
 | `language` | `zh`、`en`、`ja` 之一：这个连接给人看的字用哪种（施工 8-2，`config.md` 第二条第 8 条）。`ui.language` 的最终值（默认值、系统配置、个人设置）定了的就是它，`auto` 的照 `locale`。`ui.language` 改了，连接下一句就照新的说，不用再握手（施工 8-4）：回应里这一格只是握手那一刻的。核心拒绝时的话只有中文、英文，`ja` 的照英文；配置的名字、说明、报错的话有日文 |
 | `config_errors` | 系统配置、个人设置、密钥文件（施工 8-5）里现在有几处错误（不算警告，施工 8-2）。没有的不写 |
+| `config` | 只有核心拉起的扩展的连接有（施工 9-4 下下，`extensions.md`「配置」）：这个包自己的配置项的最终值，密钥是真值；之后变了推 `extension.config`（`{"keys": {键: 新值或 null}}`） |
 | `setup` | `true`：用一次性码连上的，只能设用户名和密码（施工 W-8）。别的不写 |
 | `login` | `{"expires": <时刻>, "token": <登录令牌>}`：用用户名、密码连上的才有（施工 W-8） |
 | `sandbox` | 这台机器上的沙盒能不能用（核心起来时探的，`sandbox.md`）：`{"usable": true}`，或者 `{"usable": false, "reason": <原因>}`。原因是 `helper_missing`（主程序旁边没有助手）、`helper_failed`（助手跑不起来、超时、说的读不懂）、`no_mechanism`（探成了，这台机器上却没有能用的手段）之一（施工 5-4 下） |

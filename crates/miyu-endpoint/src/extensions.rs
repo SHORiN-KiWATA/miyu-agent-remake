@@ -6,6 +6,7 @@
 //! 在 `stderr.rs`。
 
 mod approval;
+pub(crate) mod config;
 mod methods;
 mod stderr;
 mod supervise;

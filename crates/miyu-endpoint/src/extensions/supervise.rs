@@ -139,7 +139,7 @@ pub(super) async fn run(
             return;
         };
         let (ready, shook) = oneshot::channel();
-        let serving = serve_spawned(tokio::io::join(output, input), owner, ready);
+        let serving = serve_spawned(tokio::io::join(output, input), owner, ready, id.to_string());
         let watched = Watched {
             shared: &shared,
             id,

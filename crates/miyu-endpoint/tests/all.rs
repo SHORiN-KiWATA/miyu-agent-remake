@@ -22,6 +22,7 @@ mod dirs;
 mod edges;
 mod endpoint;
 mod extension_approval;
+mod extension_config;
 mod extension_stream;
 mod extensions;
 mod files;

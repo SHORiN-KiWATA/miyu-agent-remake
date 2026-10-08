@@ -101,6 +101,37 @@ pub fn quick() -> Timing {
     }
 }
 
+/// 同 [`core`]，配置清单照 `miyu-core` 起来时那样拼进包的配置项（施工 9-4 下下：握手交包自己的配置）。
+pub fn core_with_settings(home: &Home, timing: Timing) -> Arc<Core> {
+    let core_items = [
+        miyu_endpoint::settings::UiSettings::ITEMS,
+        miyu_endpoint::settings::PersonaSettings::ITEMS,
+        miyu_endpoint::settings::PresetSettings::ITEMS,
+        miyu_endpoint::settings::PermissionSettings::ITEMS,
+    ]
+    .concat();
+    let resources = miyu_store::resources::ResourceRoot::at(super::default_resources());
+    let alice = miyu_kernel::id::AccountId::parse("alice").expect("账号合写法");
+    let mut found = miyu_endpoint::packages::load(&resources, &home.root, &alice);
+    let packaged = miyu_endpoint::packages::settle(&mut found, &core_items);
+    let items = core_items.into_iter().chain(packaged).collect();
+    let config = miyu_endpoint::config::Config::load(
+        &home.root,
+        &alice,
+        None,
+        items,
+        miyu_endpoint::config::Environment::of(&[]),
+    );
+    let core = Arc::new(
+        home.core_full(&Script::new([]), Catalog::default(), None, TOKEN)
+            .with_extension_timing(timing)
+            .with_config(config)
+            .with_packages(found),
+    );
+    core.start_extensions();
+    core
+}
+
 /// 一份核心：清单装好了再造（核心起来时读一次），照开关拉起开着的。
 pub fn core(home: &Home, timing: Timing) -> Arc<Core> {
     let core = Arc::new(

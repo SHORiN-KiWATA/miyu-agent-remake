@@ -9,6 +9,7 @@
 //! - `hello`：发握手（不带凭据），读一行回应记下；
 //! - `call:<方法>`：发一条不带参数的请求，读一行回应记下；
 //! - `wait`：读标准输入直到读到头；
+//! - `listen`：读标准输入直到读到头，读到的每一行都记下（施工 9-4 下下：核心推来的 `extension.config`）；
 //! - `hang`：不管标准输入，一直睡；
 //! - `exit:<数>`：以这个退出码退出。
 //!
@@ -49,6 +50,14 @@ fn main() {
             keep(&mut record, &read(&mut input));
         } else if step == "wait" {
             while !read(&mut input).is_empty() {}
+        } else if step == "listen" {
+            loop {
+                let line = read(&mut input);
+                if line.is_empty() {
+                    break;
+                }
+                keep(&mut record, &line);
+            }
         } else if step == "hang" {
             loop {
                 std::thread::sleep(Duration::from_secs(60));

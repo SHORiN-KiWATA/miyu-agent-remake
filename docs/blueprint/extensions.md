@@ -71,6 +71,13 @@
 2. 之后一个包的 `state`、`on`、`failures`、`reason` 变了推 `extension.changed`：`{"entry": <一个>}`，头照 `package` 整项替换。推的那一项照这一刻的状态、这个连接这一刻的语言算，晚到的、重复的都对，不编号。
 3. 读得太慢、掉了队：推 `resync`（`{"stream": "extensions"}`），这个订阅停了，头重新订阅。
 
+**配置**（施工 9-4 下下；项目主人 2026-10-08 照推荐定，形状和通讯平台的会话对过）：核心拉起的扩展不自己读系统配置、密钥文件，要的值由核心交给它。只在核心亲手拉起、走标准输入输出的连接上，只给这个包自己的键：`config.md` 第九条「密钥不进协议的回应」的例外。
+
+1. **哪些键**：「包的编号加点」开头的配置项（核心替它声明的、它清单里 `[settings]` 声明的都算；带 `<…>` 的模板键不算）。
+2. **握手**：`hello` 的回应多 `config`：`{"onebot.listen": 8301, "onebot.token": "<真值>", …}`。值是最终值（没写的照默认值，系统配置、个人设置合出来的，不看项目配置），密钥引用（`{ secret }`、`{ env }`）解成真值的字；没设、没默认值、引用取不到的那一键不放。头的连接没有这一格。
+3. **变了推** `extension.config`：`{"keys": {"onebot.token": "<新真值>"}}`。握手的回应写出去以后，核心盯着配置服务交给核心的那一份（配置文件改了、`secret.set` 换了值、手改了密钥文件，都会换上新的一份），把这个包自己的那份重算一遍，跟上一次交给它的比，变了推，只放变了的键；变成没设、取不到的写 `null`。不用订阅。不叫 `config.changed`：那是头订阅的推送，形状带 `origin`、`applies`（通讯平台的会话提的，主会话定）。
+4. **不留痕**：值不进运行日志、不进事件；运行日志只记 `DEBUG extension config handed package=… keys=<几个>`、`extension config pushed`，不带值。
+
 ### 怎么走
 
 1. **拉起**：程序照 9-2 的找法（`miyu_store::packages::locate`，只找 `miyu` 真实位置旁边的，不走 `PATH`），参数是清单的 `[process] args`，环境照核心的，另把 `MIYU_HOME`、`MIYU_RESOURCES` 设成核心手上正在用的数据根、资源目录的路径（施工 O-18：扩展和核心认同一份，不管核心是怎么找到它们的；测试里的核心跑在测试程序里，环境里没有临时的数据根，靠它把扩展指过去），工作目录是这个包放状态的目录（`state/packages/<编号>/`，没有的建）。标准输入、输出接管道，交给协议的连接；标准错误直接接到 `state/logs/<编号>.stderr` 上（追加，拉起前超过 1 MiB 的先挪成 `<编号>.stderr.old`）。核心丢下它时杀掉（`kill_on_drop`），兜底。Windows 上不开新的控制台窗口。
@@ -98,6 +105,7 @@
 | `crates/miyu-endpoint/tests/extensions.rs` | 真核心、真进程（测试用的小程序 `miyu-test-extension`，`crates/miyu-endpoint/src/bin/`，三个平台一样，拷在测试程序旁边）：`manual` 的开了才拉起、工作目录、握手不出示凭据、扩展调 `extension.*` 被拒、标准错误进日志、开关的文件；`always` 的不用开、新核心照开关拉起、随核心退出；有开着的核心不空闲；退出码 1 停下带标准错误的最后几行；别的退出连续 5 次停下；不握手也算失败；关了标准输入不退的到时杀掉；`restart` 换一个新进程、关着的拒绝；程序没找到、协议版本对不上、界面包、没有的包、参数不对；拉起的环境里 `MIYU_HOME`、`MIYU_RESOURCES` 是核心的数据根、资源目录（施工 O-18）。夹具（测试用的扩展、装清单、造核心、等状态）在 `tests/support/extensions.rs` |
 | `crates/miyu-endpoint/tests/extension_stream.rs`（施工 9-4 补） | 订阅回整份、名字照语言；开了推到在跑、关了推到关着；带 `after` 和会话的参数不对；取消了不推 |
 | `crates/miyu-endpoint/tests/extension_approval.rs`、`crates/miyu-config/src/package/tests.rs`、`crates/miyu-store/src/extensions/tests.rs`（施工 9-4 下上） | 清单的能力照表的先后、不认识的和重复的报 `bad_capability`；开关文件的 `approved` 读写、以前的文件当没批过、没批的不写这一格；管理员装的：不带 `approve` 拒绝 `needs_approval`、只批一部分说剩下的、不是声明的名字 `bad_params`、批了开起来、记下、关了不清；`always` 的没批不拉起、不拦空闲、`restart` 拒绝、批了拉起；升级多了的只问多的；出厂的桥不用批；名字照连接的语言 |
+| `crates/miyu-endpoint/tests/extension_config.rs`、`src/extensions/config/tests.rs`（施工 9-4 下下） | 握手交自己的键（默认值、密钥真值、没设的不放），头的连接没有；改了自己的项推、`secret.set` 换了值推新真值、去掉了推 `null`、别的项变了不推；只放变了的键 |
 
 ### 起草时定的
 
@@ -111,7 +119,6 @@
 
 ### 还没有的
 
-- 握手时把包自己的配置交给它、它的键变了推 `config.changed`：9-4（下下）。
 - 装包时批能力：有了装包那一步，审批挪到装的时候。
 - 扩展的身份是系统账号：O-4。能力的强制执行、沙盒里跑：随多用户、沙盒那一段。
 - 扩展提供工具、命令、挂接点：O-2。
