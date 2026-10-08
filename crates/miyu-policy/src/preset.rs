@@ -357,6 +357,8 @@ impl Reader<'_> {
             match key {
                 "name" => file.name = Some(self.label(key, item)?),
                 "summary" => file.summary = Some(self.label(key, item)?),
+                // P-3 上那几个小时里写进去的「以谁为底」：认出来就当没写（施工 P-3 再补），下一次写这份文件时去掉。
+                crate::persona::BASE => {}
                 "default_persona" => {
                     let persona = item.as_str().filter(|id| valid_name(id)).ok_or_else(|| {
                         self.problem(
@@ -406,7 +408,12 @@ impl Reader<'_> {
     fn label(&self, field: &str, item: &Item) -> Result<Label, Problem> {
         let line =
             |span: Option<std::ops::Range<usize>>| span.map(|span| line_of(self.text, span.start));
-        phrases::read_label(item).map_err(|error| match error {
+        // 说明可以是空的字（施工 P-3 再补）：没有说明，盖住下面那一层的。
+        let read = match field {
+            "summary" => phrases::read_summary,
+            _ => phrases::read_label,
+        };
+        read(item).map_err(|error| match error {
             PhraseError::NotPhrases(span) => Problem {
                 line: line(span),
                 code: Code::NotPhrases,

@@ -365,3 +365,92 @@ async fn the_same_value_writes_nothing() {
     assert_eq!(reason(&ghost), Some("unknown_preset"), "{ghost}");
     assert_eq!(mine(&home, "ghost"), None);
 }
+
+/// P-3 上那几个小时里建的预设写着 `base`（施工 P-3 再补）：照常列出、能用，下一次 `preset.set` 写这份文件时顺手去掉；写错了的
+/// 一项，列表里的 `problem` 照连接的语言说、带第几行。
+#[tokio::test]
+async fn an_old_base_is_ignored_and_dropped_on_the_next_save() {
+    let home = Home::new();
+    let dir = home.root.path().join("home/alice/presets");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("old.toml"),
+        "[preset]\nbase = \"full\"\nname = \"我的\"\n",
+    )
+    .unwrap();
+    std::fs::write(dir.join("broken.toml"), "[preset]\nvoice = 1\n").unwrap();
+    let mut client = connected(&home).await;
+    let listed = client.call("l", "preset.list", json!({})).await;
+    let presets = listed["result"]["presets"].as_array().unwrap();
+    let find = |id: &str| {
+        presets
+            .iter()
+            .find(|one| one["preset"] == id)
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(find("old")["name"], "我的", "{listed}");
+    assert!(find("old").get("problem").is_none(), "{listed}");
+    let broken = find("broken");
+    assert_eq!(broken["problem"], "不认识的键 preset.voice", "{listed}");
+    assert_eq!(broken["line"], 2, "{listed}");
+    let reply = set(
+        &mut client,
+        "s",
+        "old",
+        json!([{"key": "preset.summary", "value": "改过"}]),
+    )
+    .await;
+    assert!(reply.get("error").is_none(), "{reply}");
+    assert_eq!(
+        mine(&home, "old").as_deref(),
+        Some("[preset]\nname = \"我的\"\nsummary = \"改过\"\n")
+    );
+}
+
+/// 说明能写空的字（施工 P-3 再补，2026-10-08 项目主人：「为什么说明不让为空？」）：就是没有说明，盖住出厂的那句，`*.get`、
+/// `*.list` 给 `null`；`unset` 才回到出厂的那句。名字照旧不收空的。
+#[tokio::test]
+async fn an_empty_summary_means_none_and_covers_the_factory_one() {
+    let home = Home::new();
+    let mut client = connected(&home).await;
+    let reply = set(
+        &mut client,
+        "s",
+        "full",
+        json!([{"key": "preset.summary", "value": ""}]),
+    )
+    .await;
+    assert!(reply.get("error").is_none(), "{reply}");
+    assert_eq!(reply["result"]["summary"], Value::Null, "{reply}");
+    assert_eq!(
+        mine(&home, "full").as_deref(),
+        Some("[preset]\nsummary = \"\"\n")
+    );
+    let listed = client.call("l", "preset.list", json!({})).await;
+    let full = listed["result"]["presets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|one| one["preset"] == "full")
+        .unwrap()
+        .clone();
+    assert_eq!(full["summary"], Value::Null, "{listed}");
+    assert!(full["name"].is_string(), "{listed}");
+    let back = set(
+        &mut client,
+        "u",
+        "full",
+        json!([{"key": "preset.summary", "unset": true}]),
+    )
+    .await;
+    assert!(back["result"]["summary"].is_string(), "{back}");
+    let named = set(
+        &mut client,
+        "n",
+        "full",
+        json!([{"key": "preset.name", "value": " "}]),
+    )
+    .await;
+    assert_eq!(reason(&named), Some("preset_invalid"), "{named}");
+}

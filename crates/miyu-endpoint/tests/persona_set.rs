@@ -405,3 +405,68 @@ async fn deleting_moves_your_layer_into_the_trash() {
         .await;
     assert_eq!(reason(&reply), Some("bad_params"), "{reply}");
 }
+
+/// P-3 上那几个小时里建的人格写着 `base`（施工 P-3 再补）：照常列出、能用，下一次 `persona.set` 写这份文件时顺手去掉；写错了的
+/// 一项，列表里的 `problem` 照连接的语言说、带第几行。
+#[tokio::test]
+async fn an_old_base_is_ignored_and_dropped_on_the_next_save() {
+    let home = Home::new();
+    let dir = home.root.path().join("home/alice/personas");
+    std::fs::create_dir_all(dir.join("old")).unwrap();
+    std::fs::write(
+        dir.join("old/persona.toml"),
+        "[persona]\nbase = \"none\"\nname = \"阿米\"\n",
+    )
+    .unwrap();
+    std::fs::create_dir_all(dir.join("broken")).unwrap();
+    std::fs::write(dir.join("broken/persona.toml"), "[persona]\n\nvoice = 1\n").unwrap();
+    let mut client = connected(&home).await;
+    let listed = client.call("l", "persona.list", json!({})).await;
+    let personas = listed["result"]["personas"].as_array().unwrap();
+    let find = |id: &str| {
+        personas
+            .iter()
+            .find(|one| one["persona"] == id)
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(find("old")["name"], "阿米", "{listed}");
+    assert!(find("old").get("problem").is_none(), "{listed}");
+    let broken = find("broken");
+    assert_eq!(broken["problem"], "不认识的键 persona.voice", "{listed}");
+    assert_eq!(broken["line"], 3, "{listed}");
+    let reply = set(
+        &mut client,
+        "s",
+        json!({"persona": "old", "changes": [{"key": "persona.summary", "value": "我的"}]}),
+    )
+    .await;
+    assert!(reply.get("error").is_none(), "{reply}");
+    assert_eq!(
+        mine(&home, "old", "persona.toml").as_deref(),
+        Some("[persona]\nname = \"阿米\"\nsummary = \"我的\"\n")
+    );
+}
+
+/// 说明能写空的字（施工 P-3 再补）：就是没有说明，盖住下面那一层的，`persona.get` 给 `null`；名字照旧不收空的。
+#[tokio::test]
+async fn an_empty_summary_means_none() {
+    let home = Home::new();
+    let mut client = connected(&home).await;
+    let reply = set(
+        &mut client,
+        "s",
+        json!({"persona": "engineer", "changes": [{"key": "persona.summary", "value": ""}]}),
+    )
+    .await;
+    assert!(reply.get("error").is_none(), "{reply}");
+    assert_eq!(reply["result"]["summary"], Value::Null, "{reply}");
+    assert!(reply["result"]["name"].is_string(), "{reply}");
+    let named = set(
+        &mut client,
+        "n",
+        json!({"persona": "engineer", "changes": [{"key": "persona.name", "value": ""}]}),
+    )
+    .await;
+    assert_eq!(reason(&named), Some("persona_invalid"), "{named}");
+}

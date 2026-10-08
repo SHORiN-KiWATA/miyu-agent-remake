@@ -494,11 +494,11 @@
 
 **`persona.list`**（施工 P-1 上，`personas.md`「怎么走」第 7 条）
 
-没有参数。回应 `{"personas": [...]}`，照编号排，一个人格一格：`persona` 编号，`name`、`summary` 一句字（施工 P-3 补：写成一句的就是它；以前写成语言表的、出厂的几个照这个连接的语言挑，这种语言没写的照 `en`、`zh`、`ja` 的先后，都没写的是 `null`）。来自哪几层不给（施工 P-3 补，2026-10-08 项目主人：人看的是名字）。文件写错的只有 `persona` 和 `problem`（同 `persona_invalid` 的 `data.problem`）。
+没有参数。回应 `{"personas": [...]}`，照编号排，一个人格一格：`persona` 编号，`name`、`summary` 一句字（施工 P-3 补：写成一句的就是它；以前写成语言表的、出厂的几个照这个连接的语言挑，这种语言没写的照 `en`、`zh`、`ja` 的先后，都没写的是 `null`；说明写成空的字的也是 `null`，施工 P-3 再补）。来自哪几层不给（施工 P-3 补，2026-10-08 项目主人：人看的是名字）。文件写错的只有 `persona`、`problem` 和知道第几行的 `line`：`problem` 照这个连接的语言说哪里写错了，同 `persona.*` 里 `persona_invalid` 的 `data.message`、`data.line`（施工 P-3 再补：原来是给排查看的英文原话，项目主人看不懂）。
 
 **`preset.list`**（施工 P-2 上，`presets.md`「协议」）
 
-没有参数。回应 `{"presets": [...]}`，照编号排，一个预设一格：`preset` 编号，`name`、`summary` 一句字（挑法同 `persona.list`）。文件写错的只有 `preset` 和 `problem`（同 `preset_invalid` 的 `data.problem`）。
+没有参数。回应 `{"presets": [...]}`，照编号排，一个预设一格：`preset` 编号，`name`、`summary` 一句字（挑法同 `persona.list`）。文件写错的只有 `preset`、`problem` 和知道第几行的 `line`，写法同 `persona.list`（施工 P-3 再补）。
 
 **`preset.get`**（施工 P-2 上，`presets.md`「协议」）
 
@@ -517,7 +517,7 @@
 | `preset` | 字符串，可以不写 | 预设的编号；不写的是新建，编号由核心起 `preset-<n>`（几层里都还没有的最小的 n，施工 P-3 补，2026-10-08 项目主人定：新建不填编号） |
 | `changes` | 数组，必写、不能是空的 | 每一项 `{"key", "value" \| "unset": true, "expect"?}`，照 `config.set` 的 `changes`：`key` 是文件里的键（`preset.name`、`preset.summary`、`preset.default_persona`、`preset.unlisted`、`software.<包>`、`tools.<工具>`），`value` 是字、开关、数，`expect` 是你那一层里这一项现在应当是什么（`{"value": …}` 或者 `{}` 没写） |
 
-回应同 `preset.get`：改完叠好的样子（带着编号）。只写管理员家目录那一层的 `<编号>.toml`：改出厂的、系统区的就是建同名覆盖，只写改了的项。名字、说明写成一句字（施工 P-3 补，2026-10-08 项目主人：不分语言），以前写成语言表的整格换成一句。新建的什么开关都不写，就是全开（`unlisted` 没写是开）。
+回应同 `preset.get`：改完叠好的样子（带着编号）。只写管理员家目录那一层的 `<编号>.toml`：改出厂的、系统区的就是建同名覆盖，只写改了的项。名字、说明写成一句字（施工 P-3 补，2026-10-08 项目主人：不分语言），以前写成语言表的整格换成一句。说明能写空的字（`"value": ""`）：就是没有说明，盖住出厂的那句，`unset` 才回到出厂的（施工 P-3 再补）；名字照旧不收空的。人格同样。新建的什么开关都不写，就是全开（`unlisted` 没写是开）。
 
 1. 一项项在原来的字上改，注释、顺序、别的字节照原样；你那一层本来就是这个值的、本来就没写又要删的不动。一项都没变的不写。
 2. 改完的一份照预设的规矩读一遍、连同叠好以后再查：有错整条不收、什么都不写，`preset_invalid`，`data.problem` 是头一处（写法同 `preset.get`），`data.message`、`data.line` 照连接的语言说（施工 P-3 补）。

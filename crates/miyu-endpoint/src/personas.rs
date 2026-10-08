@@ -7,6 +7,7 @@ use serde_json::{Value, json};
 use miyu_config::Words;
 use miyu_config::phrases::Label;
 use miyu_kernel::id::AccountId;
+use miyu_policy::persona::Problem;
 use miyu_store::human::Human;
 use miyu_store::personas::{Found, Layer, PersonaError, Personas};
 
@@ -61,12 +62,31 @@ pub(crate) fn told(error: &PersonaError, words: Option<&Human>) -> Refusal {
     let refused = refusal(error);
     match (error, words) {
         (PersonaError::Invalid(_, problem), Some(words)) => {
-            let key = format!("persona-problems/{}", problem.code.as_str());
-            let message = Words::sentence(words, &key, &[("detail", problem.detail.as_str())]);
-            refused.telling(message, problem.line)
+            refused.telling(sentence(problem, words), problem.line)
         }
         _ => refused,
     }
+}
+
+/// 写错了的那一处照 `words` 的语言说（施工 P-3 补；再补起 `persona.list` 也用）。
+fn sentence(problem: &Problem, words: &Human) -> Option<String> {
+    let key = format!("persona-problems/{}", problem.code.as_str());
+    Words::sentence(words, &key, &[("detail", problem.detail.as_str())])
+}
+
+/// 列表里写错了的一项（施工 P-3 再补）：`problem` 照 `words` 的语言说，知道第几行的带 `line`，同 `data.message`、`data.line`；
+/// 没有字的、读不了的照原话。
+fn listed_problem(id: &str, error: &PersonaError, words: Option<&Human>) -> Value {
+    let mut item = json!({"persona": id, "problem": error.to_string()});
+    if let (PersonaError::Invalid(_, problem), Some(words)) = (error, words) {
+        if let Some(message) = sentence(problem, words) {
+            item["problem"] = json!(message);
+        }
+        if let Some(line) = problem.line {
+            item["line"] = json!(line);
+        }
+    }
+    item
 }
 
 /// 删了会怎样（施工 P-3 补，`*.get` 的 `remove`）：有家目录那一层、下面还有的是 `restore`（回到出厂的样子），只有家目录那
@@ -85,9 +105,10 @@ pub(crate) fn memory_account(found: &Found, owner: &AccountId) -> AccountId {
     found.home.clone().unwrap_or_else(|| owner.clone())
 }
 
-/// `persona.list`：几层里所有的人格，照编号排。每个带名字、说明（照这个连接的语言挑）；写错了的带 `problem`、不带名字和
-/// 说明。来自哪几层不往外给（施工 P-3 补：人看的是名字）。
+/// `persona.list`：几层里所有的人格，照编号排。每个带名字、说明（照这个连接的语言挑）；写错了的带 `problem`（照这个连接的
+/// 语言说，知道第几行的带 `line`，施工 P-3 再补）、不带名字和说明。来自哪几层不往外给（施工 P-3 补：人看的是名字）。
 pub(crate) async fn list(core: &Core, peer: Peer) -> Result<Value, Refusal> {
+    let said = words(core, peer.language).ok();
     let personas = personas(core);
     let read = tokio::task::spawn_blocking(move || {
         personas
@@ -109,7 +130,7 @@ pub(crate) async fn list(core: &Core, peer: Peer) -> Result<Value, Refusal> {
                 "name": label(found.file.name.as_ref(), peer.language),
                 "summary": label(found.file.summary.as_ref(), peer.language),
             }),
-            Err(error) => json!({"persona": id, "problem": error.to_string()}),
+            Err(error) => listed_problem(&id, &error, said.as_ref()),
         })
         .collect();
     Ok(json!({"personas": listed}))
