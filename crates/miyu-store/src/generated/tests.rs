@@ -88,3 +88,39 @@ fn temp_names_hide_and_never_repeat() {
     assert!(one.ends_with(".tmp"), "{one}");
     assert_ne!(one, two);
 }
+
+/// 边写边落盘的（施工 R-5 中）：提交了才出现、内容是写进去的那几块，旁边不留临时文件；盖掉原来的。
+#[test]
+fn a_staged_file_appears_only_when_committed() {
+    let temp = Scratch::new();
+    let path = temp.path().join("embed").join("m").join("model.onnx");
+    let mut staged = Staged::create(&path).expect("建得了");
+    staged.write(b"abc").expect("写得进");
+    assert!(!path.exists(), "没提交以前不在");
+    staged.write(b"def").expect("写得进");
+    staged.commit().expect("提交得了");
+    assert_eq!(fs::read(&path).unwrap(), b"abcdef");
+    assert!(others(path.parent().unwrap(), "model.onnx").is_empty());
+
+    let mut again = Staged::create(&path).expect("建得了");
+    again.write(b"new").expect("写得进");
+    again.commit().expect("提交得了");
+    assert_eq!(fs::read(&path).unwrap(), b"new", "盖掉原来的");
+}
+
+/// 没提交就放下的（下到一半出错、核对不上）：临时文件删掉，原来的不动。
+#[test]
+fn a_staged_file_dropped_before_commit_leaves_nothing() {
+    let temp = Scratch::new();
+    let path = temp.path().join("model.onnx");
+    fs::create_dir_all(temp.path()).unwrap();
+    fs::write(&path, b"old").unwrap();
+    let mut staged = Staged::create(&path).expect("建得了");
+    staged.write(b"half").expect("写得进");
+    drop(staged);
+    assert_eq!(fs::read(&path).unwrap(), b"old", "原来的不动");
+    assert!(
+        others(temp.path(), "model.onnx").is_empty(),
+        "临时文件删掉了"
+    );
+}

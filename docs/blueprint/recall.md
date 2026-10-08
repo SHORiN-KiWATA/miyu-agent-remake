@@ -25,10 +25,14 @@
 | `crates/miyu-recall/src/vector.rs` | 向量写成字节、读回来、点积 | R-5 下 |
 | `crates/miyu-store/src/recall.rs` | 一个检索库：开（坏了删掉重建）、放进一条、拿掉一条、照关键词找（R-1）；一批和照到哪一起写、拿掉一个来源（R-2 上） | R-1 |
 | `crates/miyu-store/src/recall/vectors.rs` | 向量表：放、照模型读出来逐条算 | R-5 下 |
-| `crates/miyu-embed/src/manifest.rs` | 本机模型的清单：读、查（第四条第 2 款） | R-5 上 |
+| `crates/miyu-recall/src/embedding.rs` | 本机模型的清单：照原文读、查（第四条第 2 款；R-5 中从 `miyu-embed` 挪进来，核心不能依赖 `miyu-embed`） | R-5 上、中 |
+| `crates/miyu-embed/src/manifest.rs` | 小程序读清单的文件 | R-5 上 |
 | `crates/miyu-embed/src/wordpiece.rs` | BERT 的 WordPiece 分词（第四条第 5 款） | R-5 上 |
 | `crates/miyu-embed/src/model.rs` | 照清单载入模型、算一句的向量：ONNX Runtime 静态链接在这个小程序里 | R-5 上 |
 | `crates/miyu-embed/src/serve.rs`、`main.rs` | 小程序 `miyu-embed` 的协议和参数（第四条第 4 款） | R-5 上 |
+| `crates/miyu-session/src/embed.rs` | 核心一份的 `Embedder`：备齐文件、按需拉起、一条一条问、空闲退出、连着起不来就不再拉起（第四条第 3、4 款） | R-5 中 |
+| `crates/miyu-session/src/embed/fetch.rs` | 照清单核对、下载模型的文件：清单以外的删掉，对不上的删掉重下，边下边写、边算 SHA-256 | R-5 中 |
+| `crates/miyu-session/src/embed/worker.rs` | 和跑着的 `miyu-embed` 说话：拉起、等 `ready`、一条一条问、编号对不上、时限、关掉 | R-5 中 |
 | `resources/models/embed/bge-small-zh-v1.5.toml` | 出厂的清单（模型资料，不给模型看，不进登记簿） | R-5 上 |
 
 `miyu-recall` 只用白名单里的 crate（`01-架构.md` 第九节），不碰 I/O。SQLite 的那一半放在 `miyu-store`：它已经有 `rusqlite` 和开库的规矩（`sqlite.rs`，`store/index.md`），检索库照同一套开、坏了删、版本不对删。
@@ -120,10 +124,22 @@ CREATE VIRTUAL TABLE terms USING fts5(words, content='', contentless_delete=1, t
 2. **清单**（R-5 上）：本机模型照一份 TOML 认，出厂的在 `resources/models/embed/bge-small-zh-v1.5.toml`，配置 `embedding.local` 换成别的清单就换了模型：做成可更换的（2026-10-07 项目主人定）。几格：
    - `id`：模型的名字，向量的模型编号写成 `local:<id>`；`dims`：几维；`pooling`：怎么取一句的向量，现在只认 `cls`（取 `[CLS]` 那一格）；`max_tokens`：一句最多几个词（连 `[CLS]`、`[SEP]`），至少 2。
    - `[[files]]`：每个文件的 `role`（`model`、`vocab` 各正好一个）、`name`（一个单纯的文件名，不带目录）、`url`、`sha256`、`size`。
-   - 少格、多格、不认识的取法、`role` 重了或缺了、`dims` 是 0、文件名带目录的都拒，说哪里不对。向量一律归一化。WordPiece 以外的分词、`cls` 以外的取法，换到那样的模型时再加。
+   - 少格、多格、不认识的取法、`role` 重了或缺了、`dims` 是 0、`id` 或文件名带目录的都拒，说哪里不对。向量一律归一化。WordPiece 以外的分词、`cls` 以外的取法，换到那样的模型时再加。
    - 出厂的是 bge-small-zh-v1.5 的 8 位量化 ONNX（`model_quantized.onnx`，24 MB，512 维，MIT）：十句和原版 fp32 的余弦平均 0.991，`model_int8.onnx` 只有 0.970，一样快（2026-10-09 量）。
-3. 模型文件第一次用时下载到系统的缓存目录，地址出厂指到 Miyu 自己的 GitHub Release（项目主人定；Release `models-bge-small-zh-v1.5`，预发布，2026-10-09 建，放模型、`vocab.txt`、FlagEmbedding 的 MIT 许可证、`SHA256SUMS`），配置能改；SHA-256 对不上的不用、删掉（R-5 中）。
-4. **`miyu-embed`**：核心按需拉起，空闲 600 秒退出（R-5 中）。小程序本身（R-5 上）：
+3. **下载**（R-5 中）：模型文件第一次用时下载到系统的缓存目录，地址出厂指到 Miyu 自己的 GitHub Release（项目主人定；Release `models-bge-small-zh-v1.5`，预发布，2026-10-09 建，放模型、`vocab.txt`、FlagEmbedding 的 MIT 许可证、`SHA256SUMS`），换清单就换了地址：
+   - 放在缓存目录（`store.md` 第 3 条）的 `embed/<id>/<文件名>`；`id` 和文件名都是单纯的名字（清单查过）。
+   - 第一次要向量时在后台备：目录里清单以外的删掉（崩了留下的临时文件、换下来的旧文件）；已经有的照大小、SHA-256 核对，对不上的删掉（`WARN embedding model mismatch file=…`）；没有的下。备着的时候交回「还在备」，要的一方照只有关键词走，不等。
+   - 下：走 `miyu_http::fetcher`，代理照环境变量；一个文件最多 10 分钟；边下边写旁边的临时文件（`generated::Staged`）、边算 SHA-256，超过清单的 `size` 当场停；SHA-256 对得上才改名成正式的，对不上的不留（少了的 SHA-256 一样对不上，不另比大小）。一个不成就停，记一行 `WARN embedding model not downloaded model=… error=…`，这一回 1 小时内不再试（照模型目录的 `RETRY`），之间要的交回用不了。下成一个记一行 `INFO embedding model downloaded model=… file=… bytes=… took_ms=…`。
+   - 2026-10-09 照 Release 真下一次（`crates/miyu-session/tests/embed.rs` 的量尺）：下 24 MB、核对、第一次拉起、算一条合计 2.3 秒，之后一条 2.1 毫秒。
+4. **`miyu-embed`**：核心这边（R-5 中，`Embedder`）：
+   - 在主程序真实位置的旁边找（照沙盒助手的找法）；没有的、缓存目录算不出的、清单读不了的，造的时候记一行 `WARN embedder unavailable reason=…`，以后每一条都交回用不了。
+   - 要用时拉起，等 `ready` 最多 30 秒；一次一条，同时来的排队；一条最多等 10 秒。它回一句错的，这一条算不出、它接着用；它退出了、回的编号对不上、读不懂、过了时限的，当它坏了：关掉，这一条算不出（`WARN embedder failed error=…`、`INFO embedder stopped reason=failed`），下一条再拉起。起来了记一行 `INFO embedder started model=… took_ms=…`。
+   - 这一回起不来过三次，就不再拉起，以后每一条都交回用不了（核心重起来再数）。
+   - 600 秒没有新的请求就关它的标准输入、等它退出（最多 5 秒，没退的杀掉），记一行 `INFO embedder stopped reason=idle`；下一条再拉起。
+   - 它跟着核心走：核心放下它就杀掉（`kill_on_drop`）；核心整个没了，Windows 上作业对象收掉它，Unix 上它读到标准输入关了自己退出。它不算核心「忙」：核心空闲退出照旧。
+   - 交回的三种：还在备、用不了（这一阵）、这一条算不出；原话是英文短句，进运行日志。
+
+   小程序本身（R-5 上）：
    - `miyu-embed --manifest <清单> --dir <模型文件的目录>`：照 `role` 在目录里找文件，下载、核对是核心的事。
    - 载入成了，标准输出印一行 `{"ready":{"model":"local:<id>","dims":<维数>}}`；清单读不懂、文件没有、模型载入不了，印一行 `{"error":"…"}`，退出码 1；参数写错，标准错误印用法，退出码 2。
    - 之后标准输入一行 `{"id":"…","text":"…"}`，标准输出回一行 `{"id":"…","vector":[…]}`（f32，JSON 的最短写法，读回 f32 一位不差）；读不懂的、不是 UTF-8 的、算不出的回 `{"id":"…","error":"…"}`（读不出 `id` 的写 `null`），接着读下一行；行尾的 `\r` 不算。标准输入关了退出码 0；读不了标准输入、写不进标准输出的，原因写到标准错误，退出码 1。
@@ -141,15 +157,24 @@ CREATE VIRTUAL TABLE terms USING fts5(words, content='', contentless_delete=1, t
 
 - 库读写出错：`DbError`，照第二条第 5 款。
 - 切不出词：`query` 交回 `None`，不算出错。
+- 本机 embedding 用不了、算不出：照第四条第 3、4 款交回三种之一、记日志（目标 `miyu::session`），不停下，要的一方照只有关键词走（第三条第 3 款）。
 
 ### 守着它的
+
+R-5 中做好的：
+
+| 测试 | 守哪几条 |
+|---|---|
+| `crates/miyu-session/tests/embed.rs` | 第四条第 3、4 款，假服务器给手造的小模型、真的 `miyu-embed`、缓存目录在临时目录里：第一次交回「还在备」、下完算得出、和小程序直接算的一样、不留临时文件；有了的、核对过的不再下，清单以外的删掉；对不上的只重下那一个；下坏了的（大小不对、超过大小、404）不留、一小时内不再试；没有小程序、没有缓存目录、清单读不了的用不了、不下；两个一起要的都拿到；闲了退出、下一条再拉起；起不来过三次以后不再拉起。量尺 `measure_the_real_model`（`#[ignore]`，联网照 Release 真下一次） |
+| `crates/miyu-session/src/embed/worker/tests.rs` | 和小程序说话，对面是内存里的管道：`ready` 报模型编号、报错、退出了、过了时限；回的照编号收；回一句错的照收、接着问；编号对不上、读不懂、没有向量、退出了、不回话的当它坏了 |
+| `crates/miyu-recall/src/embedding/tests.rs` | 第四条第 2 款：清单的原文怎么读、怎么查（R-5 中从 `miyu-embed` 挪过来，多一条：`id` 带目录的拒） |
 
 R-5 上做好的：
 
 | 测试 | 守哪几条 |
 |---|---|
 | `crates/miyu-embed/tests/tokens.rs` | 第四条第 5 款：真词表上 39 句照 `tokenizers` 0.23.2 的结果逐个比（空的、空白、汉字、全角标点、大写英文、带重音的、片假名、韩文、emoji、零宽空格、BOM、控制字符、`U+FFFD`、不间断空格、100 和 101 个字的词、扩展区和兼容区的汉字、全角字母、`##` 开头的）；截断留住 `[SEP]`；字里的 `[CLS]` 照普通的字；词表少了特殊的词、写了两行的拒；`\r\n` 的词表也认 |
-| `crates/miyu-embed/tests/manifest.rs` | 第四条第 2 款：出厂的清单读得出；少格、多格、取法不认识、`role` 重了、缺了、`dims` 是 0、`max_tokens` 小于 2、文件名带目录、不是 TOML 的都拒，说哪里不对；文件读不了说是哪个 |
+| `crates/miyu-embed/tests/manifest.rs` | 第四条第 2 款：出厂的清单读得出、每一格对；文件读不了说是哪个（原文的读法 R-5 中挪进 `miyu-recall`） |
 | `crates/miyu-embed/tests/protocol.rs` | 第四条第 4 款，手造的小模型（`fixtures/tiny/`，`fixtures/make.py` 造）：`ready`；向量和 Python 的 ONNX Runtime 算的每格差不过 1e-6；超长截断、空字也有向量；不是 JSON、没有 `id`、`id` 不是字、没有 `text`、空行、不是 UTF-8 的回错，接着读下一行；行尾的 `\r`；标准输入关了退出码 0；清单读不了、文件不在、模型是坏的退出码 1；清单的 `dims` 和模型对不上的每一句回错；参数写错（少了、多了、写了两次）退出码 2、印用法 |
 | `crates/miyu-embed/tests/real.rs` | 真模型（`#[ignore]`，`MIYU_EMBED_MODEL_DIR` 指到 Release 的文件）：四句的向量和 Python 的 ONNX Runtime 算的余弦不低于 0.999 |
 
@@ -169,6 +194,6 @@ R-1 做好的：
 
 ### 还没有的
 
-- 第三条（向量、两路合并）、第四条的第 1、3 款和拉起、空闲退出（`models.embedding`、下载、核心怎么用小程序）：R-5 中、下。
+- 第三条（向量、两路合并）、第四条第 1 款（`models.embedding`、换清单的配置项、远程的 `/v1/embeddings`）：R-5 下。`Embedder` 现在只有测试在用，R-5 下接进 `memory_search`。
 - 知识库的切块、文件监视：知识库那条线。
 - `history` 改用全文索引：照 `tools/history.md`，慢了再做。

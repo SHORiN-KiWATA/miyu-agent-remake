@@ -1603,10 +1603,10 @@ dependencies = [
 name = "miyu-embed"
 version = "0.0.0"
 dependencies = [
+ "miyu-recall",
  "ort",
  "serde",
  "serde_json",
- "toml_edit",
  "unicode-general-category",
 ]
 
@@ -1813,6 +1813,7 @@ dependencies = [
  "miyu-kernel",
  "serde",
  "serde_json",
+ "toml_edit",
 ]
 
 [[package]]
@@ -1852,6 +1853,7 @@ dependencies = [
  "miyu-tool",
  "rusqlite",
  "serde_json",
+ "sha2",
  "tokio",
  "tracing",
  "uuid",
