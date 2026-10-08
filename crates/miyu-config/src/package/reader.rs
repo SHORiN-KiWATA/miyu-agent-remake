@@ -2,7 +2,7 @@
 
 use toml_edit::{Item, TableLike};
 
-use super::{Code, Command, PackageKind, Pages, Problem, Process, Start};
+use super::{Capability, Code, Command, PackageKind, Pages, Problem, Process, Start};
 use crate::phrases::{self, PhraseError, Phrases};
 
 /// 照原文算行号。
@@ -165,7 +165,7 @@ impl Reader<'_> {
 
     /// `[process]`。
     pub(super) fn process(&self, table: &dyn TableLike) -> Result<Process, Problem> {
-        self.only(table, "process", &["args", "start"])?;
+        self.only(table, "process", &["args", "start", "capabilities"])?;
         let start = match table.get("start") {
             None => Start::Manual,
             Some(item) => match item.as_str() {
@@ -184,7 +184,35 @@ impl Reader<'_> {
         Ok(Process {
             args: self.texts(table, "process", "args")?,
             start,
+            capabilities: self.capabilities(table)?,
         })
+    }
+
+    /// `[process] capabilities`（施工 9-4 下上）：字的列表，每个都是认识的能力名、不重复；照表的先后排好。
+    fn capabilities(&self, table: &dyn TableLike) -> Result<Vec<Capability>, Problem> {
+        let names = self.texts(table, "process", "capabilities")?;
+        let mut capabilities = Vec::new();
+        for name in &names {
+            match Capability::parse(name) {
+                Some(capability) if !capabilities.contains(&capability) => {
+                    capabilities.push(capability);
+                }
+                found => {
+                    let why = match found {
+                        Some(_) => "is listed twice",
+                        None => "is not a known capability",
+                    };
+                    return Err(self.problem(
+                        table.get("capabilities"),
+                        Code::BadCapability,
+                        name,
+                        format!("process.capabilities: \"{name}\" {why}"),
+                    ));
+                }
+            }
+        }
+        capabilities.sort_unstable();
+        Ok(capabilities)
     }
 
     /// `[ui]`。

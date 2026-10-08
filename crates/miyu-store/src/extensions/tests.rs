@@ -25,6 +25,35 @@ fn a_missing_file_has_no_switches_and_a_written_one_reads_back() {
     );
 }
 
+/// 批过的能力（施工 9-4 下上）：一个都没批过的不写这一格，文件和以前一字不差；写了的读回来一样；以前的文件当一个都没批过。
+#[test]
+fn approvals_are_kept_beside_the_switches() {
+    let temp = Scratch::new();
+    let path = temp.path().join(FILE);
+    let mut switches = Switches::default();
+    switches.on.insert("echo".to_string(), true);
+    write(&path, &switches, None).expect("写得进");
+    assert_eq!(
+        fs::read_to_string(&path).expect("在"),
+        "{\"version\":1,\"on\":{\"echo\":true}}\n"
+    );
+    let read_back = read(&path).expect("读得回");
+    assert!(
+        read_back.switches.approved.is_empty(),
+        "以前的写法：一个都没批过"
+    );
+    switches.approved.insert(
+        "echo".to_string(),
+        vec!["events.read".to_string(), "network".to_string()],
+    );
+    write(&path, &switches, read_back.version.as_deref()).expect("写得进");
+    assert_eq!(
+        fs::read_to_string(&path).expect("在"),
+        "{\"version\":1,\"on\":{\"echo\":true},\"approved\":{\"echo\":[\"events.read\",\"network\"]}}\n"
+    );
+    assert_eq!(read(&path).expect("读得回").switches, switches);
+}
+
 #[test]
 fn a_broken_or_unknown_file_is_reported() {
     let temp = Scratch::new();
@@ -33,7 +62,8 @@ fn a_broken_or_unknown_file_is_reported() {
     for text in [
         "not json",
         "{\"version\":1}",
-        "{\"version\":1,\"on\":{},\"approved\":{}}",
+        "{\"version\":1,\"on\":{},\"approved\":{\"x\":\"network\"}}",
+        "{\"version\":1,\"on\":{},\"later\":{}}",
         "{\"version\":1,\"on\":{\"onebot\":\"yes\"}}",
     ] {
         fs::write(&path, text).expect("写得进");

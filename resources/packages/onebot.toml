@@ -15,3 +15,6 @@ about = { en = "Start, stop and look at the QQ bridge", zh = "开、关、查看
 [process]
 args = ["serve"]
 start = "manual"
+# 要的扩展能力（施工 9-4 下上，05-内核接口.md 第三节）：venue.session、session.send 是操作会话，带 as 是代平台上的人发话，
+# subscribe 是读会话，开本机的两个端口、NapCat 连进来是联网。出厂的包算批过的，不用人批。
+capabilities = ["sessions.drive", "act_for_external", "events.read", "network"]

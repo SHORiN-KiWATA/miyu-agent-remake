@@ -5,6 +5,7 @@
 //! 核心不算空闲。开、关、重启经协议（`methods.rs`），一件件办。看管一个包怎么拉起、退避、停下在 `supervise.rs`，标准错误的文件
 //! 在 `stderr.rs`。
 
+mod approval;
 mod methods;
 mod stderr;
 mod supervise;
@@ -87,6 +88,8 @@ pub(crate) enum Reason {
     CannotStart,
     /// 清单说的协议版本不包含核心的。
     ProtocolMismatch,
+    /// 要的能力还有没批的（施工 9-4 下上）：批了（`extension.enable` 带 `approve`）才拉起。
+    NeedsApproval,
 }
 
 impl Reason {
@@ -98,6 +101,7 @@ impl Reason {
             Reason::NotInstalled => "not_installed",
             Reason::CannotStart => "cannot_start",
             Reason::ProtocolMismatch => "protocol_mismatch",
+            Reason::NeedsApproval => "needs_approval",
         }
     }
 }
@@ -205,10 +209,9 @@ impl Extensions {
             .any(|slot| slot.status.get().state.busy())
     }
 
-    /// 拉起包 `id`（清单是 `manifest`）：在跑、在等的不动；程序没找到、协议版本对不上的直接停下。
-    fn launch(&self, core: &Arc<Core>, id: &str, manifest: &Manifest) {
-        let mut slots = self.slots();
-        let slot = slots.entry(id.to_string()).or_insert_with(|| Slot {
+    /// 包 `id` 那一格：没有的照关着建一格。
+    fn slot<'a>(&self, slots: &'a mut BTreeMap<String, Slot>, id: &str) -> &'a mut Slot {
+        slots.entry(id.to_string()).or_insert_with(|| Slot {
             status: Arc::new(Cell {
                 id: id.to_string(),
                 status: Mutex::new(Status {
@@ -218,7 +221,21 @@ impl Extensions {
                 changed: self.changed.clone(),
             }),
             task: None,
-        });
+        })
+    }
+
+    /// 开着、不拉起的包 `id`（施工 9-4 下上：要的能力还有没批的）：记成停下，`reason` 照交的。
+    fn hold(&self, id: &str, reason: Reason) {
+        let mut slots = self.slots();
+        self.slot(&mut slots, id)
+            .status
+            .set(State::Stopped(reason), 0);
+    }
+
+    /// 拉起包 `id`（清单是 `manifest`）：在跑、在等的不动；程序没找到、协议版本对不上的直接停下。
+    fn launch(&self, core: &Arc<Core>, id: &str, manifest: &Manifest) {
+        let mut slots = self.slots();
+        let slot = self.slot(&mut slots, id);
         if slot
             .task
             .as_ref()
@@ -292,12 +309,17 @@ impl Extensions {
 }
 
 impl Core {
-    /// 照开关拉起开着的扩展（施工 9-4 上）：核心起来、开始接连接之前调一次。要在 tokio 的运行时里调。
+    /// 照开关拉起开着的扩展（施工 9-4 上）：核心起来、开始接连接之前调一次。要在 tokio 的运行时里调。要的能力还有没批的
+    /// 不拉起，记成停下（`needs_approval`，施工 9-4 下上）。
     pub fn start_extensions(self: &Arc<Self>) {
         let (switches, _) = read_switches(self);
         for (id, manifest) in processes(self) {
-            if on(&switches, id, manifest) {
-                self.extensions.launch(self, id, manifest);
+            if !on(&switches, id, manifest) {
+                continue;
+            }
+            match approval::unapproved(self, id, manifest, &switches).is_empty() {
+                true => self.extensions.launch(self, id, manifest),
+                false => self.extensions.hold(id, Reason::NeedsApproval),
             }
         }
     }

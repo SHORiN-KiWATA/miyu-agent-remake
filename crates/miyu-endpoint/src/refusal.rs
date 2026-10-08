@@ -406,6 +406,11 @@ impl Refusal {
         }
     }
 
+    /// 开一个扩展，它要的能力还有没批的（施工 9-4 下上，`extensions.md`「能力」）：`data.capabilities` 是没批的那几个。
+    pub(crate) fn needs_approval(capabilities: serde_json::Value) -> Refusal {
+        Refusal::with("needs_approval", "capabilities", capabilities)
+    }
+
     /// Miyu 的拒绝，`data` 里除了 `reason` 多一格 `field`。
     fn with(reason: &'static str, field: &str, value: serde_json::Value) -> Refusal {
         let mut data = serde_json::Map::new();

@@ -62,11 +62,30 @@ impl Drop for Program {
 
 /// 管理员（测试里是 alice）家目录里的一份 `process` 清单：程序 `program`，参数 `args`，`start` 照写。
 pub fn install(home: &Home, id: &str, program: &str, start: &str, args: &[String]) {
+    install_asking(home, id, program, start, args, &[]);
+}
+
+/// 同 [`install`]，清单声明要 `capabilities` 这几个扩展能力（施工 9-4 下上）；空的不写这一行。
+pub fn install_asking(
+    home: &Home,
+    id: &str,
+    program: &str,
+    start: &str,
+    args: &[String],
+    capabilities: &[&str],
+) {
     let args: Vec<String> = args.iter().map(|arg| format!("{arg:?}")).collect();
+    let asking = match capabilities {
+        [] => String::new(),
+        names => {
+            let names: Vec<String> = names.iter().map(|name| format!("{name:?}")).collect();
+            format!("capabilities = [{}]\n", names.join(", "))
+        }
+    };
     home.write(
         &format!("home/alice/packages/{id}.toml"),
         &format!(
-            "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"Echo\", zh = \"回声\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"E\" }}\n\n[process]\nargs = [{}]\nstart = \"{start}\"\n",
+            "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"Echo\", zh = \"回声\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"E\" }}\n\n[process]\nargs = [{}]\nstart = \"{start}\"\n{asking}",
             args.join(", ")
         ),
     );

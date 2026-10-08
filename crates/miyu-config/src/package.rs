@@ -8,9 +8,11 @@ use toml_edit::{Document, Item};
 
 use crate::phrases::Phrases;
 
+mod capability;
 mod reader;
 pub mod settings;
 
+pub use capability::Capability;
 pub use settings::{Setting, SettingKind};
 
 use reader::{Reader, line_of};
@@ -79,6 +81,8 @@ pub struct Process {
     pub args: Vec<String>,
     /// 什么时候拉起。
     pub start: Start,
+    /// 要哪些扩展能力（施工 9-4 下上）：照 [`Capability::ALL`] 的先后，不重复；没写的是空的。
+    pub capabilities: Vec<Capability>,
 }
 
 /// 什么时候拉起。
@@ -203,6 +207,8 @@ pub enum Code {
     NotBool,
     /// 包的编号和核心自己的模块撞了：它的配置项一项都不收（核心起来时、`miyu check` 认）。
     SettingsTaken,
+    /// `[process] capabilities` 里有不认识的、重复的名字（施工 9-4 下上）。
+    BadCapability,
 }
 
 impl Code {
@@ -240,11 +246,12 @@ impl Code {
             Code::BadApplies => "bad_applies",
             Code::NotBool => "not_bool",
             Code::SettingsTaken => "settings_taken",
+            Code::BadCapability => "bad_capability",
         }
     }
 
     /// 全部代码：给人看的字的门禁照它查三种语言都有。
-    pub const ALL: [Code; 31] = [
+    pub const ALL: [Code; 32] = [
         Code::Syntax,
         Code::UnknownTable,
         Code::NotATable,
@@ -276,6 +283,7 @@ impl Code {
         Code::BadApplies,
         Code::NotBool,
         Code::SettingsTaken,
+        Code::BadCapability,
     ];
 }
 
