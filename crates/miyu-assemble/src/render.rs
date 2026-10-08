@@ -21,6 +21,10 @@ use miyu_kernel::request::Message;
 use crate::texts::Texts;
 use crate::{group, harness, jobs, peers};
 
+mod opening;
+
+use opening::{Opened, opening};
+
 /// 渲染有效历史：检查点和历史，照先后排好的消息。稳定区不在这里。
 pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
     let mut transcript = Transcript::default();
@@ -41,16 +45,7 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
             // 旁听的场所消息这一步先不进上下文，O-13 下渲染成群聊近况（施工 O-13 上）。
             Body::MessageUser(message) if message.venue.as_ref().is_some_and(|venue| venue.ambient) => {}
             Body::MessageUser(message) => {
-                // 群会话里开一轮的那条，前面先放群聊近况（施工 O-13 下）：和它一起挪到回合开始的地方，排在事实后面。
-                let mut blocks: Vec<Block> = texts
-                    .group
-                    .as_ref()
-                    .zip(opened.window(event.seq))
-                    .and_then(|(chat, after)| group::recent(history, after, event.seq, chat))
-                    .map(text_block)
-                    .into_iter()
-                    .collect();
-                blocks.extend(spoken(history, event, message, known(&message.blocks), texts));
+                let blocks = spoken(history, event, message, known(&message.blocks), texts);
                 transcript.add(event.seq, Place::Here, blocks);
             }
             Body::ContextInjected(fact) => {
@@ -63,7 +58,7 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
                 transcript.add(event.seq, place, vec![text_block(fact.text.clone())]);
             }
             Body::TurnStarted(started) => match started.trigger {
-                Some(trigger) => transcript.start(event.turn, trigger),
+                Some(_) => opening(&mut transcript, history, event, started, &opened, texts),
                 // 手动压缩单开的那一轮（施工 6-8）：不是哪一句引起的，她也没看到过它。
                 None => transcript.silence(event.turn),
             },
@@ -177,38 +172,6 @@ fn said(history: &History, by: &By, blocks: Vec<Block>, texts: &Texts) -> Vec<Bl
     }
 }
 
-/// 由人的消息开的回合，各由哪一条开的（施工 O-13 下）：群聊近况收两次这样的触发之间的。手动压缩单开的那一轮、回报开的
-/// 回合不算。
-struct Opened(Vec<Seq>);
-
-impl Opened {
-    fn of(history: &History) -> Opened {
-        let said: BTreeSet<Seq> = history
-            .events()
-            .iter()
-            .filter(|event| matches!(event.body, Body::MessageUser(_)))
-            .map(|event| event.seq)
-            .collect();
-        let mut triggers: Vec<Seq> = history
-            .events()
-            .iter()
-            .filter_map(|event| match &event.body {
-                Body::TurnStarted(started) => started.trigger,
-                _ => None,
-            })
-            .filter(|trigger| said.contains(trigger))
-            .collect();
-        triggers.sort_unstable();
-        Opened(triggers)
-    }
-
-    /// 第 `seq` 条开了一轮的，交回上一个这样的触发（没有的是没有）；没开的没有。
-    fn window(&self, seq: Seq) -> Option<Option<Seq>> {
-        let at = self.0.binary_search(&seq).ok()?;
-        Some(at.checked_sub(1).map(|before| self.0[before]))
-    }
-}
-
 /// 第 `seq` 条排在检查点前面：被动压缩、回合开头压缩留下的尾巴里的，和摘要请求自己的 `model.called`。
 /// 检查点那一块（`kernel/request.md`「组装」第 2 条）：包装的开头、摘要、摘要的收尾、代码写的几段、重读的文件、包装的
 /// 结尾。摘要、重读的原文原样放，不转义：一个是模型自己写的多行正文，一个是文件本来的样子。重读的原文照 blob 从有效
@@ -271,6 +234,8 @@ enum Place {
     Here,
     /// 排在触发的第几条前面：回合开始时注入的事实。
     Before(Seq),
+    /// 排在事实后面、触发的第几条前面：群聊近况（施工 O-14 上）。
+    Lead(Seq),
     /// 排在触发的第几条后面：内核回合开始时注入的角色扮演提示（施工 P-1 补，08 C2 唯一的例外）。
     After(Seq),
 }
@@ -344,6 +309,9 @@ impl Transcript {
                 Place::Before(trigger) if placed.contains(&trigger) => {
                     groups.entry(trigger).or_default().facts.push(piece.block);
                 }
+                Place::Lead(trigger) if placed.contains(&trigger) => {
+                    groups.entry(trigger).or_default().lead.push(piece.block);
+                }
                 Place::After(trigger) if placed.contains(&trigger) => {
                     groups.entry(trigger).or_default().after.push(piece.block);
                 }
@@ -387,6 +355,8 @@ impl Transcript {
 struct Group {
     /// 回合开始时注入的事实。
     facts: Vec<Block>,
+    /// 群聊近况（施工 O-14 上）。
+    lead: Vec<Block>,
     /// 触发这一回合的那一条。
     trigger: Vec<Block>,
     /// 排在触发后面的（施工 P-1 补）。
@@ -397,6 +367,7 @@ impl Group {
     /// 放进消息里：先事实，再触发，最后是排在触发后面的。
     fn put(self, blocks: &mut Vec<Block>) {
         blocks.extend(self.facts);
+        blocks.extend(self.lead);
         blocks.extend(self.trigger);
         blocks.extend(self.after);
     }

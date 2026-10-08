@@ -110,7 +110,8 @@ fn an_undo_that_changed_files_waits_for_them_before_replying() {
                 actions.as_slice(),
                 [Action::Reply {
                     outcome: Outcome::Rejected {
-                        reason: Reason::Restoring
+                        reason: Reason::Restoring,
+                        ..
                     },
                     ..
                 }]

@@ -117,7 +117,8 @@ fn without_a_reply_there_is_nothing_to_recap() {
     assert_eq!(
         stage.outcome(&asked),
         Some(&Outcome::Rejected {
-            reason: Reason::NothingToRecap
+            reason: Reason::NothingToRecap,
+            about: Vec::new(),
         })
     );
     stage.model([Line::fails(ErrorClass::Auth, "401")]);
@@ -126,7 +127,8 @@ fn without_a_reply_there_is_nothing_to_recap() {
     assert_eq!(
         stage.outcome(&again),
         Some(&Outcome::Rejected {
-            reason: Reason::NothingToRecap
+            reason: Reason::NothingToRecap,
+            about: Vec::new(),
         }),
         "说了一句、没回复的也没有"
     );
@@ -147,7 +149,8 @@ fn a_failed_recap_is_refused_and_not_tried_again() {
         assert_eq!(
             stage.outcome(&asked),
             Some(&Outcome::Rejected {
-                reason: Reason::RecapFailed
+                reason: Reason::RecapFailed,
+                about: Vec::new(),
             }),
             "出错、没有正文都没写成，不再来"
         );

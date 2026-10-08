@@ -45,6 +45,7 @@ impl Session {
         let instructions = instructions.filter(|text| !text.trim().is_empty());
         let body = Body::TurnStarted(TurnStarted {
             trigger: None,
+            triggers: Vec::new(),
             cwd: Some(self.environment.cwd.clone()),
             dirs: self.environment.dirs.clone(),
         });

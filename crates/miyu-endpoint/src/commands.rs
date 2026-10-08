@@ -143,6 +143,7 @@ pub(crate) async fn run(
                 // 没有在进行的回合：照样往下停后台的。
                 Outcome::Rejected {
                     reason: Reason::NotRunning,
+                    ..
                 } => {}
                 outcome => events.extend(accepted(outcome)?),
             }
@@ -226,7 +227,7 @@ async fn command(
 fn accepted(outcome: Outcome) -> Result<Vec<u64>, Refusal> {
     match outcome {
         Outcome::Accepted { events } => Ok(events.iter().map(|seq| seq.get()).collect()),
-        Outcome::Rejected { reason } => Err(Refusal::kernel(reason)),
+        Outcome::Rejected { reason, .. } => Err(Refusal::kernel(reason)),
         _ => Err(Refusal::INTERNAL),
     }
 }

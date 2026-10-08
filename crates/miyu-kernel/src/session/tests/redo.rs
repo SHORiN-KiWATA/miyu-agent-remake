@@ -119,7 +119,8 @@ fn a_redo_that_changed_files_restores_them_before_saying_it_again() {
             actions.as_slice(),
             [Action::Reply {
                 outcome: Outcome::Rejected {
-                    reason: Reason::Restoring
+                    reason: Reason::Restoring,
+                    ..
                 },
                 ..
             }]

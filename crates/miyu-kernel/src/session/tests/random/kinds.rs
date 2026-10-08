@@ -30,6 +30,8 @@ kinds! {
     Overheard,
     /// 桥记的一条（施工 O-13 上）。
     Appended,
+    /// 照记下的几条开一轮（施工 O-14 上）。
+    Respond,
     /// 打断，排着的接着发。
     Interrupt,
     /// 打断，排着的退回。
@@ -131,6 +133,7 @@ impl InputKind {
                 Command::Interrupt {
                     queued: Queued::Keep,
                 } => InputKind::Keep,
+                Command::Respond { .. } => InputKind::Respond,
                 Command::SetPermission { .. } => InputKind::SetPermission,
                 Command::SetMeta { .. } => InputKind::SetMeta,
                 Command::SetWorkspace { .. } => InputKind::SetWorkspace,

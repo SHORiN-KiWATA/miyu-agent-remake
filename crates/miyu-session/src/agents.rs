@@ -313,7 +313,7 @@ impl AgentPort for Spawner {
                     tracing::info!(target: TARGET, job = job_text.as_str(), child = session.as_str(), "subagent started");
                     return Ok(Spawned { job, session });
                 }
-                Ok(Outcome::Rejected { reason }) => {
+                Ok(Outcome::Rejected { reason, .. }) => {
                     format!("the task was refused: {}", reason.code())
                 }
                 Err(error) => error,

@@ -107,6 +107,7 @@ impl Session {
         let outcome = match text {
             Err(_) => Outcome::Rejected {
                 reason: Reason::RecapFailed,
+                about: Vec::new(),
             },
             Ok(text) => {
                 let body = Body::SessionRecapped(SessionRecapped {

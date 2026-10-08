@@ -47,9 +47,11 @@ fn ms(n: i64) -> Timestamp {
 }
 
 fn refused() -> Option<&'static Outcome> {
-    Some(&Outcome::Rejected {
+    static REFUSED: Outcome = Outcome::Rejected {
         reason: Reason::UnknownWatch,
-    })
+        about: Vec::new(),
+    };
+    Some(&REFUSED)
 }
 
 #[test]
@@ -271,7 +273,8 @@ fn the_turn_a_notice_opened_cannot_be_redone() {
     assert_eq!(
         s.outcome(&redo),
         Some(&Outcome::Rejected {
-            reason: Reason::NotRedoable
+            reason: Reason::NotRedoable,
+            about: Vec::new(),
         }),
         "不是人说的话开的"
     );

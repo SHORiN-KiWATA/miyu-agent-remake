@@ -14,6 +14,7 @@
 | `crates/miyu-kernel/src/assemble.rs` | 组装的接口 `Assembler` |
 | `crates/miyu-assemble/src/lib.rs` | 默认的组装器：稳定区、`stable`、接着写的记号 |
 | `crates/miyu-assemble/src/render.rs` | 有效历史渲染成消息；人这一边的块合成一条 user |
+| `crates/miyu-assemble/src/render/opening.rs` | 回合开始的那一组：群聊近况排在事实后面、触发前面，照记下的几条开的回合那几条在这里渲染（施工 O-13 下、O-14 上，下面「群聊近况」） |
 | `crates/miyu-assemble/src/texts.rs` | 检查点的包装、回合没走完的五句、回报的写法、别的 harness 发来的话的标签（施工 7-10）、别的会话发来的话的标签（施工 C-2）、空了的通知（施工 C-6） |
 | `crates/miyu-assemble/src/jobs.rs` | 两种回报渲染成带标签的事实（施工 7-2）；子代理发来的留言包一层标签（施工 7-7） |
 | `crates/miyu-assemble/src/harness.rs` | 别的 harness 发来的话包一层带名字的标签（施工 7-10） |
@@ -525,7 +526,8 @@ Carry on from where the summary leaves off, without redoing work it records as d
 [14:02] [you] [msg=8812]: 我看看排班表
 ```
 
-- 收的是上一个由人的消息开的回合的触发之后、这一条之前的：旁听的 `message.user`（睡着时收到的不收），别的线替她发进群里的话（`venue.delivered` 的 `line` 不是有效历史的 `own()`：主线自己的回复已经是 assistant 消息）。手动压缩单开的、回报开的回合不算界：回合进行中到的旁听也归下一块。
+- 照记下的几条开的回合（`turn.started.triggers`，施工 O-14 上）：那几条旁听的话在回合开始的地方渲染（群会话里一行一条，别的照原样），不在它们自己的位置：它们记下时是旁听的，以前的请求里没有。近况在回合开始那一组里单占一格，排在事实后面、触发前面。
+- 收的是上一个由人的消息开的回合开始以后、这一轮开始以前的（施工 O-14 上起照回合开始的那一条算界；`session.send` 开的回合和照触发算一字不差），当过触发的不收：旁听的 `message.user`（睡着时收到的不收），别的线替她发进群里的话（`venue.delivered` 的 `line` 不是有效历史的 `own()`：主线自己的回复已经是 assistant 消息）。手动压缩单开的、回报开的回合不算界：回合进行中到的旁听也归下一块。
 - 一行照「群里的一行」，只要字：图片块不接进来。别的线的写 `[you]`，带的图每张一个 `[image]`。
 - 这一条以前记下的 `venue.recalled` 撤了哪一条，在编号后面写 `(recalled)`；别人撤的、这一条看得到身份的写 `(recalled by 身份)`。之后才撤的不改。
 - 从最新往前装，一行连换行算字节，超了预算就停；有没装下的，块头下面接缺口提示，`count` 是没装下的条数。一条都没有的不出。
@@ -568,6 +570,7 @@ Carry on from where the summary leaves off, without redoing work it records as d
 | `crates/miyu-assemble/tests/probe_title.rs`（施工 3-8 五补） | 起标题这张脸：真内核照剧本跑，起标题的请求（`titles/`）和主请求一样和存档（`docs/designs/samples/probe/title/`）逐字节比；它是单独的一次，一条 user，指令接第一轮的话和回答，工具的输出、中间一步说的不在里面；只起一次；主请求照查五条性质，第二轮接着第一轮往后长 |
 | `crates/miyu-assemble/src/group/tests.rs`（施工 O-13 中） | 群里的一行：钟点照会话的时区、名字、`id=` 跟着这一条的 `show_ids`、只写 `owner` 和 `manager`、没名字的写身份；带的东西、图片块接在后面、空的写那一句；引用和 @ 两行（`@all`、`[you]`、看得到身份的列身份）；转义成一行；4096 字节截在字的边界；旁听的不进、私聊的照原样；回顾里也是这一行 |
 | `crates/miyu-assemble/src/group/recent/tests.rs`（施工 O-13 下） | 群聊近况：收两次触发之间的旁听、不收睡着的，回合中途到的归下一块；排在事实后面、触发前面；别的线的 `[you]` 行、自己这条线的不收；撤回的标记（自己撤的、别人撤的、看不到身份的），触发以后才撤的不标；预算从老的去掉、写缺口提示，正好装下的不写；没有的、私聊的、O-13 中的快照不出；回报开的回合不算界；以后的请求里一字不差 |
+| `crates/miyu-assemble/src/render/tests/respond.rs`（施工 O-14 上） | 照记下的几条开的回合：那几条在回合开始的地方、事实和近况在前，群会话里一行一条、别的照原样；以后的近况不收当过触发的；以前的请求一字不差 |
 | `crates/miyu-assemble/src/vision/tests.rs`（施工 8-17） | 转述的请求：一条 user、没有 system 和工具面，指令在前、图在后、图去掉了名字；有人的话的接那一行和原话、原样不转义；快照里没有字的没有 |
 | `crates/miyu-kernel/src/request/tests.rs` 的转述那几条（施工 8-17） | `described` 空的不写进字节、哈希不变，有的写在最后；不算进指纹 |
 | `crates/miyu-assemble/tests/probe_vision.rs`（施工 8-17） | 看不了图的那张脸：真内核照剧本跑，人附了一张图、她又读出一张，各转述一次，主请求和存档（`docs/designs/samples/probe/vision/`）逐字节比、线上的字节里图的位置是带标签的转述；第二轮不再转述，前缀照查五条性质 |

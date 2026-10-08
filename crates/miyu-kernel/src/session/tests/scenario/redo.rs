@@ -69,7 +69,7 @@ fn shape(s: &Stage, k: usize) -> Vec<String> {
 
 /// 被拒绝，原因码是 `reason`。
 fn refused(reason: Reason) -> Outcome {
-    Outcome::Rejected { reason }
+    Outcome::rejected(reason)
 }
 
 #[test]

@@ -4,7 +4,7 @@
 //! 只看这一条以前的日志：撤回的标记只认这以前记下的，这一轮开了以后哪几条、写什么就定了，以后每次请求一字不差。从最新往
 //! 前装，装不下的写一行缺口提示。
 
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use miyu_kernel::event::{Body, Event, VenueDelivered};
 use miyu_kernel::history::History;
@@ -15,12 +15,14 @@ use miyu_kernel::template::escape;
 use super::{TEXT_LIMIT, cut, record};
 use crate::texts::GroupChat;
 
-/// 第 `before` 条开一轮，上一个这样的触发是第 `after` 条（没有的是没有）：这一块近况。一条都没有、快照里没有近况的字的，
+/// 第 `before` 条开始一轮，上一个由人的消息开的回合从第 `after` 条开始（没有的是没有）：这一块近况，当过触发的
+/// （`answered`）不收。一条都没有、快照里没有近况的字的，
 /// 没有。
 pub(crate) fn recent(
     history: &History,
     after: Option<Seq>,
     before: Seq,
+    answered: &BTreeSet<Seq>,
     texts: &GroupChat,
 ) -> Option<String> {
     let words = texts.recent.as_ref()?;
@@ -38,6 +40,7 @@ pub(crate) fn recent(
         .events()
         .iter()
         .filter(|event| after.is_none_or(|after| event.seq > after) && event.seq < before)
+        .filter(|event| !answered.contains(&event.seq))
         .filter_map(|event| one(history, event, &recalled, texts))
         .collect();
     // 从最新往前装，装不下就停。

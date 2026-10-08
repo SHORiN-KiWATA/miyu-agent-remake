@@ -95,3 +95,23 @@ pub(super) fn some_appended(seed: u64, next_id: &mut u64) -> Input {
         command: Command::Append { event },
     })
 }
+
+/// 照记下的几条开一轮（施工 O-14 上）：照改标题的办法，每一例最后另送一次，照着刚旁听的那一条 `overheard`；随便挑多带一条不是
+/// 旁听的、或者一条都不带，内核照规矩拒。闲着的开一轮，正忙的拒。
+pub(super) fn some_respond(seed: u64, overheard: u64, next_id: &mut u64) -> Input {
+    let mut rng = Rng(seed ^ 0x0E14_0000);
+    let to = match rng.below(3) {
+        0 => vec![seq(overheard)],
+        1 => vec![seq(overheard), seq(1)],
+        _ => Vec::new(),
+    };
+    Input::Command(Received {
+        id: id(next_command(next_id)),
+        by: alice(),
+        at: at(34),
+        command: Command::Respond {
+            to,
+            facts: Vec::new(),
+        },
+    })
+}

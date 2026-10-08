@@ -76,7 +76,7 @@ impl MessagePort for Messenger {
                         Delivered::Sent
                     })
                 }
-                Ok(Outcome::Rejected { reason }) => {
+                Ok(Outcome::Rejected { reason, .. }) => {
                     let why = format!("refused: {}", reason.code());
                     tracing::warn!(target: TARGET, to = label.as_str(), error = why.as_str(), "message not delivered");
                     Err(match reason {

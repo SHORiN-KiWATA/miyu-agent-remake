@@ -38,6 +38,7 @@ mod record;
 mod redo;
 mod replies;
 mod report;
+mod respond;
 mod restart;
 mod restore;
 mod retry;
@@ -397,6 +398,7 @@ impl Session {
                 venue,
             } => self.send(id, by, at, (blocks, venue), urgent),
             Command::Append { event } => self.append(id, by, at, event),
+            Command::Respond { to, facts } => self.respond(id, by, at, to, facts),
             Command::Interrupt { queued } => self.interrupt(id, by, at, queued),
             Command::SetMeta { title, pinned } => self.set_meta(id, by, at, title, pinned),
             Command::SetWorkspace { cwd, dirs } => self.set_workspace(id, by, at, cwd, dirs),
@@ -464,7 +466,15 @@ fn accepted(id: CommandId, events: Vec<Seq>) -> Action {
 fn rejected(id: CommandId, reason: Reason) -> Action {
     Action::Reply {
         id,
-        outcome: Outcome::Rejected { reason },
+        outcome: Outcome::rejected(reason),
+    }
+}
+
+/// 拒绝，带上针对的是哪几条（施工 O-14 上）。
+fn rejected_about(id: CommandId, reason: Reason, about: Vec<Seq>) -> Action {
+    Action::Reply {
+        id,
+        outcome: Outcome::Rejected { reason, about },
     }
 }
 

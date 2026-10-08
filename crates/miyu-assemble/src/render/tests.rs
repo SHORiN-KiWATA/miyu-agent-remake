@@ -8,6 +8,7 @@ use crate::test_support::*;
 mod clear;
 mod recap;
 mod reminder;
+mod respond;
 mod venue;
 
 fn rendered(log: &Log) -> Vec<String> {

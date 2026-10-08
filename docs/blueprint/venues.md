@@ -22,6 +22,8 @@
 | `crates/miyu-endpoint/src/venues.rs` | `venue.session`：照场所加属主找回或者造；`as` 怎么认、记成谁（照会话的属主比，施工 O-4 下） |
 | `crates/miyu-endpoint/src/venues/message.rs`、`crates/miyu-kernel/src/event/venue.rs` | `session.send` 的 `venue` 怎么查、记成什么（施工 O-13 上） |
 | `crates/miyu-endpoint/src/appending.rs` | `events.append`：种类、大小、格怎么查，记成谁（施工 O-13 上） |
+| `crates/miyu-endpoint/src/responding.rs` | `session.respond`：参数怎么查，交给内核的 `Respond`（施工 O-14 上） |
+| `crates/miyu-endpoint/tests/respond.rs` | 照旁听的几条开一轮、`triggers` 排好去重、事实接在后面；写错的什么都不记；`not_ambient`、`already_answered` 带上是哪几条；同一个编号再发只算一次（施工 O-14 上） |
 | `crates/miyu-endpoint/tests/venue_records.rs` | `venue` 原样记下、旁听的不开回合、写错的什么都不记；`events.append` 收的三类、回应带序号、不带回合编号，拒的几种；扩展只能写自己的包那一段（`system_account.rs`）（施工 O-13 上） |
 | `crates/miyu-endpoint/src/system_accounts.rs` | 系统账号（施工 O-4 下，`packages.md`「`[process]`」）：这次起来认的有哪些、连接是谁、记忆照谁算；起来时建它们的家目录 |
 | `crates/miyu-endpoint/src/list.rs` | 列会话、推会话列表时跳过场所会话 |
@@ -97,6 +99,13 @@
 | `show_ids` | 布尔，不写是假 | 渲染这一条时写不写发的人的平台身份（施工 O-13 中）：桥照这时的场所规则每条带上，规则改了从下一条起照新的 |
 
 写错的、不带 `as` 的：`bad_params`，什么都不记。
+
+**照记下的几条开一轮**（施工 O-14 上，chat.md 第七条第 3 条第 1 项，形状 2026-10-09 和通讯平台的会话对过）：`session.respond {session, to, facts}`，回应 `{"events": [...]}`（`turn.started` 和事实的序号，同 `session.send`）。
+
+1. `to`：序号的列表，1 到 64 条，核心照序号排好、去重；`facts`：可以不写，每块 `{kind, text}`，`kind` 照事实类别的写法，`text` 最多 4 KiB，原样记成 `context.injected`，排在触发前面。写错的 `bad_params`，什么都不记。
+2. 记成谁同下面的 `events.append`。同一个命令编号再发只算一次，回应和头一次一样。
+3. 正在跑一轮的 `turn_running`（O-14 下改成并进这一轮）；`to` 里有不是这个会话里旁听的 `message.user` 的 `not_ambient`，有已经当过触发的 `already_answered`，`data.messages` 是不合的那几条。
+4. 开的那一轮 `turn.started` 带 `triggers`，那几条在回合开始的地方渲染（群会话里一行一条），以后的群聊近况不再收它们。
 
 **桥记的事件**（施工 O-13 上，chat.md 第七条第 3 条第 2 项）：`events.append {session, kind, body}`，回应 `{"seq": n}`。记成不带回合编号的事件，任何时候都收，不开回合、不打断；记成谁：核心拉起的扩展是那个包（模块），本机的头是管理员。
 

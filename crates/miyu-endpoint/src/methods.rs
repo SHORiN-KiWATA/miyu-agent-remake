@@ -128,6 +128,9 @@ pub(crate) async fn call(
             Ok(json!({"sessions": sessions}))
         }
         "events.append" => crate::appending::append(core, caller, request, params(request)?).await,
+        "session.respond" => {
+            crate::responding::respond(core, caller, request, params(request)?).await
+        }
         "venue.session" => {
             venues::session(core, &caller.account, request.id.clone(), params(request)?).await
         }
@@ -412,7 +415,7 @@ async fn outcome(
     command: Command,
 ) -> Result<Outcome, Refusal> {
     match handle.command(request.id.clone(), by, command).await {
-        Ok(Outcome::Rejected { reason }) => Err(Refusal::kernel(reason)),
+        Ok(Outcome::Rejected { reason, about }) => Err(Refusal::kernel_about(reason, &about)),
         Ok(outcome) => Ok(outcome),
         Err(_) => {
             core.sessions.forget(session).await;

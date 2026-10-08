@@ -157,8 +157,20 @@ impl Session {
         trigger: Seq,
         cause: Option<CommandId>,
     ) -> Vec<Event> {
+        self.open_turn_on(at, trigger, Vec::new(), cause)
+    }
+
+    /// 同 [`Session::open_turn`]，照记下的几条开（施工 O-14 上）：`triggers` 排好的序号，`trigger` 是最后一条；别的回合是空的。
+    pub(super) fn open_turn_on(
+        &mut self,
+        at: Timestamp,
+        trigger: Seq,
+        triggers: Vec<Seq>,
+        cause: Option<CommandId>,
+    ) -> Vec<Event> {
         let body = Body::TurnStarted(TurnStarted {
             trigger: Some(trigger),
+            triggers,
             cwd: Some(self.environment.cwd.clone()),
             dirs: self.environment.dirs.clone(),
         });

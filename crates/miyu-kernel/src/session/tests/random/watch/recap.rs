@@ -164,7 +164,8 @@ impl Watch {
                     [Action::Reply {
                         id,
                         outcome: Outcome::Rejected {
-                            reason: Reason::NothingToRecap
+                            reason: Reason::NothingToRecap,
+                            about: Vec::new(),
                         },
                     }],
                     "种子 {seed}：没有能回顾的该被拒"
@@ -292,6 +293,7 @@ impl Watch {
                 );
                 let outcome = Outcome::Rejected {
                     reason: Reason::RecapFailed,
+                    about: Vec::new(),
                 };
                 (events[k].seq, outcome)
             }
@@ -323,7 +325,8 @@ impl Watch {
             outcome,
             Outcome::Recapped { .. }
                 | Outcome::Rejected {
-                    reason: Reason::RecapFailed
+                    reason: Reason::RecapFailed,
+                    ..
                 }
         ) {
             return;

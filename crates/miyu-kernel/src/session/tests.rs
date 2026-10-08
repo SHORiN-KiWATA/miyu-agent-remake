@@ -31,6 +31,7 @@ mod random;
 mod recap;
 mod redo;
 mod reply;
+mod respond;
 mod restart;
 mod restore;
 mod revert;
@@ -390,7 +391,8 @@ fn an_empty_message_is_rejected_on_the_spot() {
         [Action::Reply {
             id: id(1),
             outcome: Outcome::Rejected {
-                reason: Reason::EmptyMessage
+                reason: Reason::EmptyMessage,
+                about: Vec::new(),
             },
         }]
     );

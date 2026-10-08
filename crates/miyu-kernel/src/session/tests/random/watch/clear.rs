@@ -75,7 +75,10 @@ impl Watch {
                     actions,
                     [Action::Reply {
                         id: command,
-                        outcome: Outcome::Rejected { reason },
+                        outcome: Outcome::Rejected {
+                            reason,
+                            about: Vec::new()
+                        },
                     }],
                     "种子 {seed}：清空该被拒"
                 );

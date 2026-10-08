@@ -73,16 +73,21 @@ pub(crate) async fn append(
     if venue_only && found.handle.venue().as_str() == list::LOCAL {
         return Err(Refusal::BAD_PARAMS);
     }
-    let by = match &caller.package {
-        Some(package) => By::Module(Module {
-            id: ModuleId::parse(package).map_err(|_| Refusal::INTERNAL)?,
-        }),
-        None => admin(core),
-    };
+    let by = recorder(core, caller)?;
     let command = Command::Append { event };
     let events = command_by(core, request, &session, &found.handle, by, command).await?;
     let seq = events.first().copied().ok_or(Refusal::INTERNAL)?;
     Ok(json!({ "seq": seq }))
+}
+
+/// 记成谁：核心拉起的扩展是那个包（模块），别的是管理员（`session.respond` 同，施工 O-14 上）。
+pub(crate) fn recorder(core: &Core, caller: &Caller) -> Result<By, Refusal> {
+    Ok(match &caller.package {
+        Some(package) => By::Module(Module {
+            id: ModuleId::parse(package).map_err(|_| Refusal::INTERNAL)?,
+        }),
+        None => admin(core),
+    })
 }
 
 /// 照种类查 `body`，交回要记的那一条和它是不是只收场所会话的。

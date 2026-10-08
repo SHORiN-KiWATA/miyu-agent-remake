@@ -13,6 +13,10 @@ pub struct TurnStarted {
     /// 施工 6-8）：它只做压缩，载入时不接着干，渲染时不进上下文。以前的日志里都有。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trigger: Option<Seq>,
+    /// 照记下的几条开的一轮（施工 O-13 下的 `session.respond`，施工 O-14 上）：开这一轮的那几条旁听消息，照序号排好；
+    /// `trigger` 是最后一条。别的回合没有，不写。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub triggers: Vec<Seq>,
     /// 这一轮开始时会话的工作目录，照会话的环境，人看到的那种写法（施工 4-9 再补三上）。核心重启以后载入会话，
     /// 照它找回会话在哪个目录里干活：日志是真相，不另放文件。之前的日志没有这一格。
     #[serde(default, skip_serializing_if = "Option::is_none")]

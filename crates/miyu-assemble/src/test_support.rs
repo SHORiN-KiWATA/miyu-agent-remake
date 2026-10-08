@@ -248,6 +248,18 @@ impl Log {
         );
     }
 
+    /// 照记下的几条开一个回合（施工 O-14 上）：`triggers` 照序号排好，最后一条是 `trigger`。
+    pub(crate) fn start_on(&mut self, triggers: &[u64]) {
+        self.turn = Some(self.next());
+        let last = triggers.last().expect("至少一条");
+        let list: Vec<String> = triggers.iter().map(u64::to_string).collect();
+        self.push(
+            KERNEL,
+            "turn.started",
+            &format!(r#"{{"trigger":{last},"triggers":[{}]}}"#, list.join(",")),
+        );
+    }
+
     /// 开一个没有触发的回合：手动压缩单开的那一轮（施工 6-8）。
     pub(crate) fn start_untriggered(&mut self) {
         self.turn = Some(self.next());

@@ -337,7 +337,8 @@ fn right_after_a_compaction_there_is_nothing_to_compact() {
     assert_eq!(
         stage.outcome(&again),
         Some(&Outcome::Rejected {
-            reason: Reason::NothingToCompact
+            reason: Reason::NothingToCompact,
+            about: Vec::new(),
         })
     );
     assert_eq!(stage.log().len(), before, "拒绝的什么都不写");

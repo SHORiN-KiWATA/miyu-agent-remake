@@ -178,7 +178,7 @@ impl Watch {
                 }
                 // 读回来才拒的，读回的时候到的后台命令结束跟在后面照常记（`revert.rs`）。
                 assert!(
-                    matches!(actions.first(), Some(Action::Reply { outcome: Outcome::Rejected { reason: got }, .. }) if *got == reason),
+                    matches!(actions.first(), Some(Action::Reply { outcome: Outcome::Rejected { reason: got, .. }, .. }) if *got == reason),
                     "种子 {seed}：重做应该拒绝，原因码 {}：{actions:?}",
                     reason.code()
                 );

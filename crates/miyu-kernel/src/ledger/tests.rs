@@ -10,6 +10,7 @@ mod manual;
 mod model;
 mod peers;
 mod said;
+mod triggers;
 mod undo;
 
 const CREATED: &str = r#"{"owner":"alice","venue":"local","policy":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","permission":{"level":"workspace","read_only":false}}"#;

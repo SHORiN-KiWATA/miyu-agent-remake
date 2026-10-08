@@ -431,6 +431,19 @@ impl Refusal {
         }
     }
 
+    /// 内核拒了这个命令，拒的是哪几条事件（施工 O-14 上：`session.respond` 的 `not_ambient`、`already_answered`）：
+    /// `data.messages` 是它们的序号；没有的同 [`Refusal::kernel`]。
+    pub(crate) fn kernel_about(reason: Reason, about: &[miyu_kernel::id::Seq]) -> Refusal {
+        if about.is_empty() {
+            return Refusal::kernel(reason);
+        }
+        let seqs: Vec<u64> = about.iter().map(|seq| seq.get()).collect();
+        Refusal {
+            data: Refusal::with(reason.code(), "messages", serde_json::json!(seqs)).data,
+            ..Refusal::kernel(reason)
+        }
+    }
+
     /// 给人看的话，照头的语言。
     pub(crate) fn message(&self, locale: Locale) -> &'static str {
         let (zh, en) = message::of(self.reason);

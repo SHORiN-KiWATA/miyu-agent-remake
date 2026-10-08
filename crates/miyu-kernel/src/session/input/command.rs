@@ -2,10 +2,11 @@
 
 use crate::block::Block;
 use crate::event::{
-    Body, ChildReported, Decision, Level, Response, VenueDelivered, VenueMessage, VenueRecalled,
+    Body, ChildReported, ContextInjected, Decision, Level, Response, VenueDelivered, VenueMessage,
+    VenueRecalled,
 };
 use crate::id::EventKind;
-use crate::id::{CallId, TurnId};
+use crate::id::{CallId, Seq, TurnId};
 use crate::raw::RawJson;
 
 /// 发给会话的意图（`02-内核.md` 第三节）。结局只有两种：被接受并产生事件，或被拒绝并附原因。
@@ -20,6 +21,14 @@ pub enum Command {
         urgent: bool,
         /// 通讯平台上的一条消息（施工 O-13 上）：原样记进 `message.user`。旁听的只记下，不开回合，回合进行中也不排进这一轮。
         venue: Option<VenueMessage>,
+    },
+    /// `session.respond`：照已经记下的几条旁听消息开一轮（施工 O-14 上，`docs/blueprint/chat.md` 第七条第 3 条第 1 项）。
+    /// 不新记消息；`facts` 原样记成 `context.injected`，排在触发前面。
+    Respond {
+        /// 开这一轮的那几条的序号：都要是这个会话里旁听的 `message.user`、没当过触发的。
+        to: Vec<Seq>,
+        /// 几块事实，`by` 是发命令的一方。
+        facts: Vec<ContextInjected>,
     },
     /// `events.append`：记一条不带回合编号的事件（施工 O-13 上），任何时候都收，不开回合、不打断。
     Append {

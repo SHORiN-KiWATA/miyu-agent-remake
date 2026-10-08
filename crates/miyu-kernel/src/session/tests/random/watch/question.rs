@@ -72,7 +72,7 @@ impl Watch {
                     self.seen_paths.insert("回答对不上被拒");
                 }
                 assert!(
-                    matches!(actions, [Action::Reply { outcome: Outcome::Rejected { reason: got }, .. }] if *got == reason),
+                    matches!(actions, [Action::Reply { outcome: Outcome::Rejected { reason: got, .. }, .. }] if *got == reason),
                     "种子 {seed}：这个回答应该被拒，原因码 {}：{actions:?}",
                     reason.code()
                 );

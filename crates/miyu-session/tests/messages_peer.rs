@@ -234,7 +234,13 @@ async fn the_three_peer_refusals_translate_to_their_own_sayings() {
             format!("{OTHER} has too many unread messages. Send again after it has read them.\n"),
         ),
     ] {
-        let table = Arc::new(Table::new(Outcome::Rejected { reason }, false));
+        let table = Arc::new(Table::new(
+            Outcome::Rejected {
+                reason,
+                about: Vec::new(),
+            },
+            false,
+        ));
         let script = Script::new([message_to_other("1"), Play::Says("好。")]);
         let handle = session(&home, &script, &table).await;
         let log = one_turn(&home, &handle, 1).await;

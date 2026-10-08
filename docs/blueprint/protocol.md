@@ -129,6 +129,7 @@
 |---|---|
 | `session.create` | 造会话 |
 | `venue.session` | 找回或者造一个通讯平台场所的主线会话（施工 O-3，`venues.md`） |
+| `session.respond` | 照已经旁听记下的几条开一轮，带几块事实（施工 O-14 上，`venues.md`「照记下的几条开一轮」） |
 | `events.append` | 往会话里记一条不带回合编号的事件：扩展自己的 `ext.*`、场所的 `venue.recalled`、`venue.delivered`（施工 O-13 上，`venues.md`） |
 | `session.list` | 列出会话 |
 | `session.send` | 说一句话 |
@@ -998,6 +999,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `not_redoable` | -32010 | 重做时最后一轮不是人说的话开的，或者一轮都没有（施工 4-7 再补） |
 | `nothing_to_recap` | -32010 | 回顾时她一个带正文的回复都还没有；以前造的快照里没有回顾的字（施工 3-8 四补） |
 | `not_asking` | -32010 | `session.answer` 回答的调用没在等回答：答过了、了结了、等的不是这一种（施工 D-1） |
+| `not_ambient` | -32010 | `session.respond` 的 `to` 里有不是这个会话里旁听的 `message.user` 的；`data.messages` 是那几条（施工 O-14 上） |
+| `already_answered` | -32010 | `session.respond` 的 `to` 里有已经当过触发的；`data.messages` 是那几条（施工 O-14 上） |
 | `no_rule` | -32010 | `session.answer` 选了本会话都允许，请求却没提放行规则（施工 D-1） |
 | `unexpected_reason` | -32010 | `session.answer` 允许却带了理由（施工 D-1） |
 | `bad_answer` | -32010 | `session.answer` 的回答和题目对不上：条数不对、选了题目里没有的、单选的选了几项、选重了（施工 D-1） |
@@ -1143,6 +1146,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `not_redoable` | 无法重做 | Cannot redo. |
 | `nothing_to_recap` | 还没有可回顾的内容 | There is nothing to recap yet. |
 | `not_asking` | 它没在等回答：已经答过，或者已经了结了。 | It is not waiting for an answer: it was answered or settled already. |
+| `not_ambient` | 不是旁听记下的消息 | Not an overheard message. |
+| `already_answered` | 已经回过 | Already answered. |
 | `no_rule` | 这一次只能允许这一次，或者拒绝。 | This one can only be allowed once or denied. |
 | `unexpected_reason` | 只有拒绝能带理由。 | Only a denial can carry a reason. |
 | `bad_answer` | 回答和题目对不上：几道题几条，只能选题目里的选项。 | The answers do not fit the questions: one per question, picking only their options. |

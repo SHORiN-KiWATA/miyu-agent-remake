@@ -73,6 +73,7 @@ mod remember_command;
 mod replay;
 mod replay_race;
 mod reports;
+mod respond;
 mod restart;
 mod revert;
 mod secrets;

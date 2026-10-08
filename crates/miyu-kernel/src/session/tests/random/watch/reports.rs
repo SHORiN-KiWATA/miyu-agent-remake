@@ -107,7 +107,8 @@ impl Watch {
                         actions,
                         [Action::Reply {
                             outcome: Outcome::Rejected {
-                                reason: Reason::UnknownJob
+                                reason: Reason::UnknownJob,
+                                ..
                             },
                             ..
                         }]
