@@ -19,7 +19,7 @@ use miyu_tool::{Log, Seen};
 use crate::TARGET;
 use crate::actor::persona::Refresh;
 use crate::actor::{self, Actor, JobKit};
-use crate::agents::{Agents, Offers, job_in};
+use crate::agents::{Agents, Offers, Site, job_in};
 use crate::blocking::blocking;
 use crate::clock::Clock;
 use crate::config::Turning;
@@ -104,7 +104,10 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let offers = Offers::of(&config.current().resolved.values(), personas.ids());
     let face = Agents::face(
         tools,
-        &venue,
+        Site {
+            venue: &venue,
+            group,
+        },
         lineage.as_ref(),
         &offers,
         attended,
@@ -257,6 +260,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         )),
         model,
         ToolKit {
+            session: id.clone(),
             catalog: tools.clone(),
             texts: run,
             home: home.map(Path::to_path_buf),

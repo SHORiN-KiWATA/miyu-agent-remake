@@ -185,6 +185,9 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
         "not_redoable" => ("无法重做", "Cannot redo."),
         // 施工 O-14 上：`session.respond` 的两个。
         "not_ambient" => ("不是旁听记下的消息", "Not an overheard message."),
+        // 施工 O-2 上：`provide` 的两个。
+        "not_a_provider" => ("只有扩展能提供工具", "Only extensions can provide tools."),
+        "bad_tool" => ("工具规格不对", "Bad tool spec."),
         "already_answered" => ("已经回过", "Already answered."),
         // 施工 D-1：`session.answer` 碰得到的四个（`unknown_decision` 协议上碰不到，`protocol.md`「出错」）。
         "not_asking" => (

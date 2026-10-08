@@ -17,7 +17,7 @@ use miyu_tool::Catalog;
 
 use super::Actor;
 use crate::TARGET;
-use crate::agents::{Agents, Offers};
+use crate::agents::{Agents, Offers, Site};
 use crate::blocking::blocking;
 use crate::open::PresetPlaces;
 use crate::snapshot::{Parts, build, tooled};
@@ -166,7 +166,10 @@ fn refaced(refresh: &Refresh, values: &Values, file: &PresetFile) -> Vec<ToolEnt
     let old = &refresh.snapshot;
     Agents::face(
         &refresh.tools,
-        &refresh.venue,
+        Site {
+            venue: &refresh.venue,
+            group: old.group.is_some(),
+        },
         refresh.lineage.as_ref(),
         &Offers::of(values, refresh.personas.ids()),
         old.attended,

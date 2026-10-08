@@ -222,6 +222,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         )),
         model,
         ToolKit {
+            session: id.clone(),
             catalog: tools.clone(),
             texts: run,
             home: home.map(Path::to_path_buf),

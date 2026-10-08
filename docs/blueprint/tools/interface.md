@@ -46,6 +46,7 @@
 | `spec()` | 交出规格 |
 | `targets(&Call)` | 这次调用要碰的路径、是读是写；默认一条都没有 |
 | `run(Call, Progress)` | 执行一次调用，交回 `Running`：一个交回 `Done` 的 future |
+| `venues()` | 给哪种会话（`Venues`：本机的、私聊、群）：提供者的工具照它挑；核心自带的没有，照工具面自己的规矩挑（施工 O-2 上，`providers.md`） |
 | `formerly()` | 以前的名字：改过名的工具，改名以前造的会话快照里冻着旧名字，她照旧名字调；默认没有（施工 7-5 再补，`tools/subagent.md`「以前的名字」） |
 
 **一次调用交给工具的** `Call`：
@@ -108,7 +109,7 @@
 
 **执行中的输出** `Progress`：`Progress::new(收的那一头)`，`push(一段字)`。
 
-**工具目录** `Catalog`：`Catalog::new(几件)` 登记，`specs()` 照名字的先后交出每件的规格，`get(名字)` 找那一件，照以前的名字也找得到（施工 7-5 再补）；`Catalog::default()` 是空的；`Debug` 写成名字的列表。登记不上是 `CatalogError`：哪一件（`tool`）、哪一条（`problem`）。
+**工具目录** `Catalog`：`Catalog::new(几件)` 登记，`specs()` 照名字的先后交出每件的规格，`get(名字)` 找那一件，照以前的名字也找得到（施工 7-5 再补）；`Catalog::default()` 是空的；`replacing(包, 几件)` 换掉一个包的工具、交回新的一份，原来那份不动（施工 O-2 上：提供者再登记一次，`providers.md`）；`Debug` 写成名字的列表。执行时交给工具的 `Call` 多一格 `ids`：哪个会话的哪一次调用，提供者的工具照它发 `tool.call`；测试里的假调用、执行前的链没有（施工 O-2 上）。登记不上是 `CatalogError`：哪一件（`tool`）、哪一条（`problem`）。
 
 ### 怎么走
 

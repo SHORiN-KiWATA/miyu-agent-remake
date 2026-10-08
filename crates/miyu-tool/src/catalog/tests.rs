@@ -192,3 +192,33 @@ fn tools_remember_which_package_they_came_in() {
     .unwrap_err();
     assert_eq!(clash.problem, Problem::Duplicate, "两个包里同名的照样拒");
 }
+
+/// 换掉一个包的工具（施工 O-2 上：提供者再登记一次）：交回新的一份，原来那份不动；别的包的照留；撞上别的包的、写法不对的
+/// 整个不收。
+#[test]
+fn replacing_a_package_keeps_the_others_and_checks_the_new_ones() {
+    let catalog = Catalog::in_packages([
+        ("basesystem", vec![object("read")]),
+        ("onebot", vec![object("send")]),
+    ])
+    .unwrap();
+    let swapped = catalog
+        .replacing("onebot", vec![object("send_group"), object("recall")])
+        .unwrap();
+    assert_eq!(names(&swapped), ["read", "recall", "send_group"]);
+    assert_eq!(swapped.package_of("recall"), Some("onebot"));
+    assert_eq!(names(&catalog), ["read", "send"], "原来那份不动");
+    let fresh = catalog.replacing("voice", vec![object("speak")]).unwrap();
+    assert_eq!(names(&fresh), ["read", "send", "speak"], "新的包加进来");
+    let taken = catalog
+        .replacing("onebot", vec![object("read")])
+        .unwrap_err();
+    assert_eq!(
+        (taken.tool.as_str(), taken.problem),
+        ("read", Problem::Duplicate)
+    );
+    let bad = catalog
+        .replacing("onebot", vec![object("bad name")])
+        .unwrap_err();
+    assert_eq!(bad.problem, Problem::Name);
+}

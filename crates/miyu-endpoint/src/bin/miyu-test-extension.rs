@@ -12,6 +12,8 @@
 //!   的会话编号（施工 O-4 下：造了场所会话接着对它说话）；
 //! - `wait`：读标准输入直到读到头；
 //! - `listen`：读标准输入直到读到头，读到的每一行都记下（施工 9-4 下下：核心推来的 `extension.config`）；
+//! - `serve`：读标准输入直到读到头，每一行都记下；是核心发来的 `tool.call` 的，照工具名答（施工 O-2 上）：`boom` 回一个错误，
+//!   `garbled` 回写法不对的结果，`oops` 回一段字、说出了错，别的回一段字 `served <工具名>`；
 //! - `hang`：不管标准输入，一直睡；
 //! - `exit:<数>`：以这个退出码退出。
 //!
@@ -73,6 +75,19 @@ fn main() {
                 }
                 keep(&mut record, &line);
             }
+        } else if step == "serve" {
+            loop {
+                let line = read(&mut input);
+                if line.is_empty() {
+                    break;
+                }
+                keep(&mut record, &line);
+                if line.contains(r#""method":"tool.call""#)
+                    && let Some(id) = field(&line, "id")
+                {
+                    send(&served(&id, &field(&line, "tool").unwrap_or_default()));
+                }
+            }
         } else if step == "hang" {
             loop {
                 std::thread::sleep(Duration::from_secs(60));
@@ -104,9 +119,30 @@ fn read(input: &mut impl BufRead) -> String {
 
 /// 一行回应里 `"session":"…"` 的那个编号；没有的是没有。只用标准库，不解析整份 JSON。
 fn session_in(line: &str) -> Option<String> {
-    let (_, rest) = line.split_once(r#""session":""#)?;
-    let (id, _) = rest.split_once('"')?;
-    Some(id.to_string())
+    field(line, "session")
+}
+
+/// 一行里 `"<name>":"…"` 的那个字；没有的是没有。只用标准库，不解析整份 JSON。
+fn field(line: &str, name: &str) -> Option<String> {
+    let (_, rest) = line.split_once(&format!(r#""{name}":""#))?;
+    let (value, _) = rest.split_once('"')?;
+    Some(value.to_string())
+}
+
+/// 答编号是 `id`、工具是 `tool` 的那一次 `tool.call`（施工 O-2 上）。
+fn served(id: &str, tool: &str) -> String {
+    match tool {
+        "boom" => {
+            format!(r#"{{"jsonrpc":"2.0","id":"{id}","error":{{"code":-32000,"message":"boom"}}}}"#)
+        }
+        "garbled" => format!(r#"{{"jsonrpc":"2.0","id":"{id}","result":{{"nothing":1}}}}"#),
+        "oops" => format!(
+            r#"{{"jsonrpc":"2.0","id":"{id}","result":{{"blocks":[{{"type":"text","text":"oops"}}],"error":true}}}}"#
+        ),
+        _ => format!(
+            r#"{{"jsonrpc":"2.0","id":"{id}","result":{{"blocks":[{{"type":"text","text":"served {tool}"}}]}}}}"#
+        ),
+    }
 }
 
 /// 记下一行。

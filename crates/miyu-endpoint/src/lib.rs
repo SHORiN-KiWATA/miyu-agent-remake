@@ -47,10 +47,12 @@ mod models;
 pub mod packages;
 mod personas;
 mod presets;
+mod provide;
 mod providers;
 pub mod queries;
 mod refusal;
 mod responding;
+mod reverse;
 mod secrets;
 mod sessions;
 pub mod settings;
@@ -99,8 +101,10 @@ pub struct Core {
     resources: ResourceRoot,
     /// 给会话造请求模型的端口。
     models: Arc<dyn Models>,
-    /// 工具目录：造会话时照它存下工具面（施工 4-1）。
-    tools: Catalog,
+    /// 工具目录：造会话时照它存下工具面（施工 4-1）。提供者登记了换一份（施工 O-2 上，[`Core::tools`]）。
+    tools: std::sync::RwLock<Catalog>,
+    /// 哪个包现在由哪个连接提供工具（施工 O-2 上，`provide.rs`）。
+    provided: Arc<provide::Provided>,
     /// 系统的家目录：权限策略照它换 `~`，头报来的工作目录是它的就退回管理员的工作区（施工 4-3 下）。
     home: Option<PathBuf>,
     /// 这台机器上的沙盒能不能用（核心起来时探的）：握手时报给头（施工 5-4 下）；能用的，造会话、载入时把助手交给会话
@@ -174,6 +178,24 @@ const HELLO_WAIT: Duration = Duration::from_secs(10);
 const UPLOAD_IDLE: Duration = Duration::from_secs(60);
 
 impl Core {
+    /// 现在的工具目录（施工 O-2 上：提供者登记了会换）：造会话、载入时照它。
+    pub(crate) fn tools(&self) -> Catalog {
+        self.tools
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+    }
+
+    /// 换上新的工具目录（施工 O-2 上，`provide`）。
+    pub(crate) fn set_tools(&self, tools: Catalog) {
+        *self
+            .tools
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = tools;
+    }
+}
+
+impl Core {
     /// 一份家底：会话表是空的，会话用到时再载入；打开管理员的会话列表的索引（施工 3-8 七补），坏了的删掉重建。
     pub fn new(
         root: DataRoot,
@@ -213,7 +235,8 @@ impl Core {
             root,
             resources,
             models,
-            tools,
+            tools: std::sync::RwLock::new(tools),
+            provided: Arc::default(),
             home,
             sandbox: Availability::Unusable(Unusable::HelperMissing),
             sandbox_cache: None,

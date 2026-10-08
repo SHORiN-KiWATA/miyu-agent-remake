@@ -45,7 +45,7 @@ impl Open {
             id: id.clone(),
             environment: environment(workspace.clone(), dirs.clone()),
             models: &*core.models,
-            tools: &core.tools,
+            tools: &core.tools(),
             home: core.home.as_deref(),
             sandbox: core.sandbox.helper(),
             sandbox_cache: core.sandbox_cache_of(&owner),

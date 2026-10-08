@@ -20,12 +20,12 @@ use tracing::Instrument;
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Effect, Permission, Question, Response, Restored};
-use miyu_kernel::id::{CallId, ContentHash, JobId, TurnId};
+use miyu_kernel::id::{CallId, ContentHash, JobId, SessionId, TurnId};
 use miyu_kernel::session::{Input, Reread, Step, Subagent};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_policy::RunTexts;
 use miyu_store::blob::Blobs;
-use miyu_tool::{Call, Catalog, Done, JobPort, Log, Progress, Seen, Stop};
+use miyu_tool::{Call, CallIds, Catalog, Done, JobPort, Log, Progress, Seen, Stop};
 
 use crate::TARGET;
 use crate::agents::{Agents, Inherit};
@@ -45,6 +45,8 @@ mod questions;
 
 /// 执行工具要的：工具目录、替工具写的两句、系统的家目录（施工 4-4 上，交给每次调用）。
 pub(crate) struct ToolKit {
+    /// 这个会话（施工 O-2 上）：每次调用带上，提供者的工具照它发 `tool.call`。
+    pub(crate) session: SessionId,
     /// 工具目录。
     pub(crate) catalog: Catalog,
     /// 替工具写的两句。
@@ -79,6 +81,8 @@ pub(crate) struct ToolKit {
 
 /// 执行工具的端口：一个会话一份。
 pub(crate) struct Tools {
+    /// 这个会话（施工 O-2 上）。
+    session: SessionId,
     catalog: Catalog,
     texts: RunTexts,
     home: Option<PathBuf>,
@@ -190,6 +194,7 @@ impl Tools {
             )
         });
         Tools {
+            session: kit.session,
             catalog: kit.catalog,
             texts: kit.texts,
             home: kit.home,
@@ -293,6 +298,10 @@ impl Tools {
                 .memory
                 .as_ref()
                 .map(|memory| memory.port(turn, call_id, at)),
+            ids: Some(CallIds {
+                session: self.session.clone(),
+                call: call_id,
+            }),
         };
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name).cloned() else {

@@ -49,7 +49,10 @@ fn setup(name: &str, text: &str) -> (Scratch, DataRoot, Refresh) {
     let tools = catalog();
     let face = Agents::face(
         &tools,
-        &venue,
+        crate::agents::Site {
+            venue: &venue,
+            group: false,
+        },
         None,
         &Offers::of(&Values::default(), Vec::new()),
         true,

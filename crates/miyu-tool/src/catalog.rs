@@ -75,6 +75,40 @@ impl Catalog {
         Ok(catalog)
     }
 
+    /// 换掉包 `package` 的工具（施工 O-2 上，提供者再登记一次）：交回新的一份，别的包的照留，原来这份不动；没有这个包的是
+    /// 加进来。查法同 [`Catalog::new`]，撞上别的包的也算重名。
+    ///
+    /// # Errors
+    ///
+    /// 同 [`Catalog::new`]。
+    pub fn replacing(
+        &self,
+        package: &str,
+        tools: Vec<Arc<dyn Tool>>,
+    ) -> Result<Catalog, CatalogError> {
+        let mut catalog = self.clone();
+        catalog.take_out(package);
+        for tool in tools {
+            catalog.add(package, tool)?;
+        }
+        Ok(catalog)
+    }
+
+    /// 拿掉包 `package` 的工具和它们以前的名字。
+    fn take_out(&mut self, package: &str) {
+        let names: Vec<String> = self
+            .packages
+            .iter()
+            .filter(|(_, owner)| *owner == package)
+            .map(|(name, _)| name.clone())
+            .collect();
+        for name in &names {
+            self.tools.remove(name);
+            self.packages.remove(name);
+        }
+        self.formerly.retain(|_, now| !names.contains(now));
+    }
+
     /// 登记一件：查过了放进目录，记下它的包。
     fn add(&mut self, package: &str, tool: Arc<dyn Tool>) -> Result<(), CatalogError> {
         let spec = tool.spec();

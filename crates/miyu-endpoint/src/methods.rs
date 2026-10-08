@@ -128,6 +128,7 @@ pub(crate) async fn call(
             Ok(json!({"sessions": sessions}))
         }
         "events.append" => crate::appending::append(core, caller, request, params(request)?).await,
+        "provide" => crate::provide::provide(core, caller, params(request)?).await,
         "session.respond" => {
             crate::responding::respond(core, caller, request, params(request)?).await
         }

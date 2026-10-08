@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{JobMessaged, JobStarted, PeerWatch, Said, TodoWritten};
-use miyu_kernel::id::{ContentHash, MediaType};
+use miyu_kernel::id::{CallId, ContentHash, MediaType, SessionId};
 use miyu_kernel::time::UtcOffset;
 use miyu_sandbox::Sandboxed;
 
@@ -63,6 +63,17 @@ pub struct Call {
     /// 记忆的端口（施工 R-3 中）：执行器照这一次调用造一个（这个会话、这一轮、属主、人格、听众），只有记忆的三件工具用。
     /// 记忆没开的会话、测试里的假调用没有，三件照「记忆没开」出错。
     pub memory: Option<Arc<dyn MemoryPort>>,
+    /// 这次调用是哪个会话的哪一次（施工 O-2 上）：提供者的工具照它发 `tool.call`。测试里的假调用、执行前的链报路径时没有。
+    pub ids: Option<CallIds>,
+}
+
+/// 一次调用是哪个会话的哪一次（施工 O-2 上）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CallIds {
+    /// 会话。
+    pub session: SessionId,
+    /// 调用的编号。
+    pub call: CallId,
 }
 
 /// 她看过的文件（`10-自带软件.md` 第五节「她看过的」，施工 4-6 上）：换成真实位置以后的路径，和她最后一次看到的

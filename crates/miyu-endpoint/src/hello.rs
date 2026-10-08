@@ -121,6 +121,8 @@ pub(crate) struct Caller {
     pub(crate) account: AccountId,
     /// 核心拉起的扩展是哪个包：`events.append` 的 `ext.<包>.` 照它查、记成这个模块写的。
     pub(crate) package: Option<String>,
+    /// 核心往这个连接发请求的一头（施工 O-2 上）：`provide` 照它记下这个包由谁提供。
+    pub(crate) reverse: crate::reverse::Peer,
 }
 
 /// 这一刻的这个连接。
