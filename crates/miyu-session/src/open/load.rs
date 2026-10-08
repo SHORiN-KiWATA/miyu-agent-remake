@@ -96,14 +96,15 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             let guard = snapshot.guard_texts().map_err(LoadError::Policy)?;
             // 能选的池照快照读回（施工 8-8 补）：造会话时拼的那一份，不重拼。
             let pools = Agents::pools_in(&snapshot.tools);
-            // 快照里的范围已经照预设算过（施工 P-2 中），这里只再管子会话。
+            // 快照里的范围已经照预设、有没有人格算过（施工 P-2 中、P-4 上），这里只再管子会话。
+            let persona = snapshot.persona.as_deref().unwrap_or_default();
             let scope = memory::scope(created.parent.is_some(), true, snapshot.memory_scope());
             let turns = connect(
                 memory.as_ref(),
                 scope,
-                &personas.memory_account(&snapshot.persona, &owner_of),
+                &personas.memory_account(persona, &owner_of),
                 &owner_of,
-                &snapshot.persona,
+                persona,
                 &id_of,
                 &events,
             );

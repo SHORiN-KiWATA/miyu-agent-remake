@@ -45,7 +45,7 @@
       },
       "persona.default": {
         "name": "默认人格",
-        "description": "新会话默认用哪个人格。"
+        "description": "新会话默认用哪个人格。不设的话，新会话无人格：不带人设，记忆不生效。"
       },
       "preset.default": {
         "name": "默认预设",
@@ -313,7 +313,6 @@
     "preset-problems/not_phrases": "{detail} 要写一句字",
     "preset-problems/unknown_language": "{detail}：语言只能是 zh、en、ja",
     "preset-problems/empty_phrase": "{detail} 要写一句不空的话",
-    "preset-problems/bad_persona": "{detail} 要写人格的编号：小写字母开头，只有小写字母、数字、-、_",
     "preset-problems/bad_unlisted": "{detail} 只能是 on 或 off",
     "preset-problems/bad_software": "{detail}：软件包的编号小写字母开头，只有小写字母、数字、-、_",
     "preset-problems/not_bool": "{detail} 只能是 true 或 false",

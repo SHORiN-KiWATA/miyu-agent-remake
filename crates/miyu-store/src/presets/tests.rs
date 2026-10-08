@@ -74,7 +74,6 @@ fn the_layers_stack_field_by_field() {
         Some("大家的开发"),
         "写了名字的一层整格换掉（施工 P-3 补）"
     );
-    assert_eq!(found.file.default_persona.as_deref(), Some("engineer"));
     assert_eq!(found.file.unlisted(), Unlisted::On);
     assert_eq!(found.file.software.get("net"), Some(&false));
     assert_eq!(found.file.software.get("basesystem"), Some(&true));
@@ -207,7 +206,6 @@ fn the_shipped_presets_read_cleanly() {
     assert!(full.file.software.is_empty());
     let dev = presets.find("dev").unwrap();
     assert_eq!(dev.file.unlisted(), Unlisted::Off);
-    assert_eq!(dev.file.default_persona.as_deref(), Some("engineer"));
     assert_eq!(
         dev.file
             .software

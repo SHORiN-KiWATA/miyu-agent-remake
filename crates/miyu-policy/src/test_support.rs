@@ -273,7 +273,7 @@ pub(crate) fn text_without_digest(snapshot: &Snapshot) -> String {
 
 /// 软件工程师的快照，有人能确认。
 pub(crate) fn engineer() -> Snapshot {
-    compose("engineer", sources(), true)
+    compose(Some("engineer"), sources(), true)
 }
 
 /// 出厂快照字节里防刷屏的数那一格，排在最后（施工 C-2）；任务、回顾、起标题的几格在 `snapshot/tests.rs`。

@@ -144,8 +144,7 @@
     "persona": {
       "properties": {
         "default": {
-          "default": "engineer",
-          "description": "The persona new sessions use. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to sessions opened from now on.",
+          "description": "The persona new sessions use. When unset, new sessions have no persona: no character prompt, and memory is off. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to sessions opened from now on.",
           "title": "Default persona",
           "type": "string"
         }

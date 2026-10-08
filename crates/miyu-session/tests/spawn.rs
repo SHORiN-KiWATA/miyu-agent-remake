@@ -255,7 +255,7 @@ async fn the_child_copies_the_parent_and_gets_the_task_from_it() {
                 depth: 1
             },
             command: CommandId::parse(&format!("{parent}/j1")).unwrap(),
-            persona: "engineer".to_string(),
+            persona: None,
             owner: alice_account(),
             venue: VenueId::parse("local").unwrap(),
             permission: Permission {

@@ -14,7 +14,7 @@ use crate::test_support::*;
 #[test]
 fn the_engineer_system_is_the_one_sentence() {
     let snapshot = engineer();
-    assert_eq!(snapshot.persona, "engineer");
+    assert_eq!(snapshot.persona.as_deref(), Some("engineer"));
     assert_eq!(snapshot.system, "You are a helpful software engineer.");
     assert_eq!(snapshot.step_limit, None);
     assert_eq!(snapshot.resumes, 3);
@@ -128,7 +128,7 @@ fn the_switches_are_carried_as_given() {
         },
         reminder: Default::default(),
     };
-    let unattended = compose("engineer", sources, false);
+    let unattended = compose(Some("engineer"), sources, false);
     assert!(!unattended.attended);
     assert!(!unattended.policy().unwrap().attended);
     // 步数上限照快照的带：不限的是不限，定了的是那个数。

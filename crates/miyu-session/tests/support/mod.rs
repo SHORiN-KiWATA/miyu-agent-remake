@@ -208,7 +208,7 @@ impl Home {
             root: &self.root,
             resources: &self.resources,
             id: new_id(now()),
-            persona: "engineer",
+            persona: Some("engineer"),
             persona_texts: self
                 .resources
                 .sources("engineer")

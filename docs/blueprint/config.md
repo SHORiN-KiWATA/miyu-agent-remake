@@ -255,7 +255,7 @@ miyu_config::settings! {
 | `ui.startup` | 选项 `new`、`recent` | `new`，开一个新会话 | 系统、个人 | 不能写 | `head_start` | 8-3（8-28 从 `tui.startup` 改名） |
 | `ui.head` | 名字（软件包的编号） | `tui` | 系统、个人 | 不能写 | `head_start` | 9-3（`cli/main.md`「怎么走」第 3 条）：直接敲 `miyu`、`miyu config` 时打开哪个界面；主程序每次敲的时候经 `config.get` 读，照清单找这个包的程序。界面提示：通用页的「显示」组，文字 |
 | `compaction.prepare` | 开关 | `true` | 系统、个人 | 不能写 | `next_turn` | 6-11 上（`compaction.md` 第十五条）：提前压好，会话 actor 回合开始时读、交给内核。设置页在「高级」那一页的「压缩」一组，排在「运行日志」前面 |
-| `persona.default` | 名字（人格的编号） | `engineer` | 系统、个人 | 不能写 | `new_session` | P-1 上（`personas.md`）：没指定人格、预设也没写默认人格的新会话照它找；指着没有的人格，造会话回 `unknown_persona`，不悄悄换 |
+| `persona.default` | 名字（人格的编号） | 没有 | 系统、个人 | 不能写 | `new_session` | P-1 上（`personas.md`）：没指定人格的新会话照它找；没设的无人格，指着没有的人格当没设（施工 P-4 上：出厂不设，原来是 `engineer`；预设不再管默认人格） |
 | `preset.default` | 名字（预设的编号） | `full` | 系统、个人 | 不能写 | `new_session` | P-2 上（`presets.md`）：没指定预设的新会话照它找；指着没有的预设，造会话回 `unknown_preset`，不悄悄换（Y12）。设置页在「通用」那一页的「预设」一组 |
 | `onebot.listen` | 整数 1024 到 65535 | 8301 | 系统 | 不能写 | `head_start`：桥下次起来时 | O-8：通讯平台的桥 `miyu-onebot` 的端口（`onebot.md`），权宜，照 `tui.startup` 的先例由核心声明，9-1 挪进软件包的清单 |
 | `onebot.token` | 密钥 | 没有：桥不起来 | 系统 | 不能写 | `head_start`：桥下次起来时 | O-8：NapCat 连进来时出示的访问令牌（`onebot.md`），同上 |
@@ -1033,9 +1033,9 @@ listen = 8301
 start_read_only = false
 
 [persona]
-# 默认人格：新会话默认用哪个人格。
+# 默认人格：新会话默认用哪个人格。不设的话，新会话无人格：不带人设，记忆不生效。
 # 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。
-default = "engineer"
+# default =
 
 [pools."<id>"]
 # 给模型看的说明：她派子代理时看到的一句，接在池名后面。用英文写，一行。
@@ -1335,8 +1335,7 @@ ticket_idle_seconds = 43200
     "persona": {
       "properties": {
         "default": {
-          "default": "engineer",
-          "description": "新会话默认用哪个人格。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。",
+          "description": "新会话默认用哪个人格。不设的话，新会话无人格：不带人设，记忆不生效。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。",
           "title": "默认人格",
           "type": "string"
         }

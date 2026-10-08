@@ -80,9 +80,9 @@ listen = 8301
 start_read_only = false
 
 [persona]
-# Default persona: The persona new sessions use.
+# Default persona: The persona new sessions use. When unset, new sessions have no persona: no character prompt, and memory is off.
 # Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to sessions opened from now on.
-default = "engineer"
+# default =
 
 [pools."<id>"]
 # Description for the model: One line she sees after the pool name when she starts a subagent. Write it in English.

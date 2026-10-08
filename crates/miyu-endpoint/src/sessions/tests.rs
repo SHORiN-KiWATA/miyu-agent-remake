@@ -48,7 +48,7 @@ async fn a_child_is_not_created_for_a_parent_gone_from_the_table() {
     let child = Child {
         command: CommandId::parse(&format!("{parent}/j1")).expect("合写法"),
         lineage: Lineage { parent, depth: 1 },
-        persona: "engineer".to_string(),
+        persona: Some("engineer".to_string()),
         owner: admin.clone(),
         venue: local(),
         permission: Permission {

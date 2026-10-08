@@ -93,7 +93,7 @@ async fn a_write_that_fails_stops_the_session() {
     ));
     let resources = ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"));
     let snapshot = compose(
-        "engineer",
+        Some("engineer"),
         resources
             .sources("engineer")
             .expect("出厂的软件工程师读得出来"),

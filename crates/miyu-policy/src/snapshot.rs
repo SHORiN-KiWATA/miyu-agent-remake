@@ -29,8 +29,10 @@ use crate::vision::VisionTexts;
 /// 一份策略快照。字段的先后就是字节里的先后：改了先后，快照的字节就变了。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Snapshot {
-    /// 人格的编号，就是资源目录里 `personas/` 下那一层目录的名字。
-    pub persona: String,
+    /// 人格的编号，就是资源目录里 `personas/` 下那一层目录的名字。无人格的会话没有（施工 P-4 上，2026-10-08 项目主人：
+    /// 「人格允许为空」）：不写，带人格的快照字节和以前一样。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub persona: Option<String>,
     /// 拼好的 system（`26-提示词.md` 第四节）。
     pub system: String,
     /// 示范对话（施工 P-1 上）：组装时排在 system 后面、历史前面。没有的不写：以前造的快照、没有示范对话的人格，字节和
@@ -300,7 +302,7 @@ impl Snapshot {
             parent: None,
             depth: None,
             model: None,
-            persona: Some(self.persona.clone()),
+            persona: self.persona.clone(),
             preset: None,
         }
     }

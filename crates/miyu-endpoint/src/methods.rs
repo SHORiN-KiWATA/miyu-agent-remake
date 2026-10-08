@@ -86,7 +86,7 @@ pub(crate) async fn call(
                 .create(
                     core,
                     request.id.clone(),
-                    params.persona.as_deref(),
+                    params.persona.as_ref().map(Option::as_deref),
                     params.cwd,
                     params.dirs,
                     who,

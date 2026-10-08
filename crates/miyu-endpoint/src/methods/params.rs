@@ -11,8 +11,9 @@ use crate::refusal::Refusal;
 /// `session.create` 的参数。
 #[derive(Debug, Deserialize)]
 pub(super) struct CreateParams {
-    #[serde(default)]
-    pub(super) persona: Option<String>,
+    /// 用哪个人格：不写的照 `persona.default`，写 `null` 的明着无人格（施工 P-4 上）。
+    #[serde(default, deserialize_with = "crate::personas::written")]
+    pub(super) persona: Option<Option<String>>,
     /// 用哪个预设（施工 P-2 上）：不写、写 `null` 的照这时的 `preset.default`。
     #[serde(default)]
     pub(super) preset: Option<String>,

@@ -39,7 +39,7 @@ async fn creating_stores_the_snapshot_and_the_first_event() {
     let blobs = Blobs::new(home.root.blobs(&alice_account()));
     let bytes = blobs.get(&created.policy).expect("快照在 blob 里");
     let snapshot = Snapshot::from_bytes(&bytes).expect("读得懂");
-    assert_eq!(snapshot.persona, "engineer");
+    assert_eq!(snapshot.persona.as_deref(), Some("engineer"));
     assert_eq!(snapshot.hash(), created.policy);
 }
 

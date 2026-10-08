@@ -78,13 +78,13 @@ pub(crate) struct Found {
 
 impl Sessions {
     /// 造一个会话：属主是管理员，在本机；有没有人能确认照 `attended`；`miyu ask` 开的是一次性的。先找预设（`who.preset`，
-    /// 没写的照默认预设，施工 P-2 上，`presets.rs`），再找人格：`persona`，没写的照预设的默认人格，那也没写的照默认人格
-    /// （施工 P-1 上，`personas.rs`）。同一个命令编号重发，交回上一次造的那一个，预设、人格都不再找。
+    /// 没写的照默认预设，施工 P-2 上，`presets.rs`），再找人格：`persona` 照 [`personas::resolve`]，预设不再参与（施工 P-4
+    /// 上，2026-10-08 项目主人：只去掉预设的「默认人格」）。同一个命令编号重发，交回上一次造的那一个，预设、人格都不再找。
     pub(crate) async fn create(
         &self,
         core: &Arc<Core>,
         command: CommandId,
-        persona: Option<&str>,
+        persona: Option<Option<&str>>,
         cwd: String,
         dirs: Vec<String>,
         who: Opening,
@@ -115,20 +115,22 @@ impl Sessions {
         }
         let read_only = PermissionSettings::from(&resolved.values()).start_read_only;
         let preset = presets::resolve(core, who.preset.as_deref()).await?;
-        let persona =
-            personas::resolve(core, persona.or(preset.file.default_persona.as_deref())).await?;
+        let persona = personas::resolve(core, persona).await?;
         let id = new_id(now());
         let created = create(Create {
             root: &core.root,
             resources: &core.resources,
             id: id.clone(),
-            persona: &persona.id,
-            persona_texts: persona.texts.clone(),
+            persona: persona.as_ref().map(|found| found.id.as_str()),
+            persona_texts: persona
+                .as_ref()
+                .map(|found| found.texts.clone())
+                .unwrap_or_default(),
             personas: personas::personas(core),
-            memory_account: personas::memory_account(&persona, &core.admin),
+            memory_account: personas::memory_account(persona.as_ref(), &core.admin),
             memory_scope: who
                 .memory
-                .or(persona.file.memory)
+                .or(persona.as_ref().and_then(|found| found.file.memory))
                 .unwrap_or(MemoryScope::Persona),
             venue: who.venue.clone().unwrap_or_else(local),
             owner: core.admin.clone(),
@@ -221,9 +223,10 @@ impl Sessions {
         let parent = By::Session(Session {
             id: child.lineage.parent.clone(),
         });
-        let persona = personas::resolve(core, Some(&child.persona))
+        // 没挑人格的子代理无人格（施工 P-4 上），不照默认人格。
+        let persona = personas::resolve(core, Some(child.persona.as_deref()))
             .await
-            .map_err(|refusal| format!("persona {}: {}", child.persona, refusal.reason))?;
+            .map_err(|refusal| format!("persona {:?}: {}", child.persona, refusal.reason))?;
         // 子会话照父会话的预设（施工 P-2 中）：照它的编号重新找；找不到、写错了的不造，同人格。
         let preset = match &child.preset {
             Some(id) => Some(presets::chosen(
@@ -238,10 +241,13 @@ impl Sessions {
             root: &core.root,
             resources: &core.resources,
             id: id.clone(),
-            persona: &persona.id,
-            persona_texts: persona.texts.clone(),
+            persona: persona.as_ref().map(|found| found.id.as_str()),
+            persona_texts: persona
+                .as_ref()
+                .map(|found| found.texts.clone())
+                .unwrap_or_default(),
             personas: personas::personas(core),
-            memory_account: personas::memory_account(&persona, &child.owner),
+            memory_account: personas::memory_account(persona.as_ref(), &child.owner),
             memory_scope: MemoryScope::Off,
             venue: child.venue,
             sandbox_cache: core.sandbox_cache_of(&child.owner),

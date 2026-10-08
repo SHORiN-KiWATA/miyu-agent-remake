@@ -45,7 +45,7 @@
       },
       "persona.default": {
         "name": "Default persona",
-        "description": "The persona new sessions use."
+        "description": "The persona new sessions use. When unset, new sessions have no persona: no character prompt, and memory is off."
       },
       "preset.default": {
         "name": "Default preset",
@@ -313,7 +313,6 @@
     "preset-problems/not_phrases": "{detail} must be text",
     "preset-problems/unknown_language": "{detail}: the language must be zh, en or ja",
     "preset-problems/empty_phrase": "{detail} must be non-empty text",
-    "preset-problems/bad_persona": "{detail} must be a persona id: a lowercase letter first, then lowercase letters, digits, - and _",
     "preset-problems/bad_unlisted": "{detail} must be on or off",
     "preset-problems/bad_software": "{detail}: a package id starts with a lowercase letter and has only lowercase letters, digits, - and _",
     "preset-problems/not_bool": "{detail} must be true or false",

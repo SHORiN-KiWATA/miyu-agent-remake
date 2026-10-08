@@ -45,7 +45,7 @@
       },
       "persona.default": {
         "name": "既定のペルソナ",
-        "description": "新しいセッションで使うペルソナ。"
+        "description": "新しいセッションで使うペルソナ。設定しない場合、新しいセッションはペルソナなしになり、人格設定がなく、記憶は無効です。"
       },
       "preset.default": {
         "name": "既定のプリセット",
@@ -313,7 +313,6 @@
     "preset-problems/not_phrases": "{detail} には一文を書いてください",
     "preset-problems/unknown_language": "{detail}：言語は zh、en、ja のどれかです",
     "preset-problems/empty_phrase": "{detail} には空でない文を書いてください",
-    "preset-problems/bad_persona": "{detail} にはペルソナの ID を書いてください：英小文字で始まり、英小文字、数字、-、_ だけ",
     "preset-problems/bad_unlisted": "{detail} は on か off です",
     "preset-problems/bad_software": "{detail}：パッケージの ID は英小文字で始まり、英小文字、数字、-、_ だけです",
     "preset-problems/not_bool": "{detail} は true か false です",

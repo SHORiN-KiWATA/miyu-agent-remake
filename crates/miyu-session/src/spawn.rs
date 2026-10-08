@@ -113,8 +113,8 @@ pub struct Child {
     pub lineage: Lineage,
     /// 造它的命令编号：`session.created` 的 `cause`，`by` 是父会话。
     pub command: CommandId,
-    /// 人格：现在总是软件工程师，挑人格随预设那一步。
-    pub persona: String,
+    /// 人格：派的时候挑的（施工 P-2 补）；没挑的是无人格（施工 P-4 上）。
+    pub persona: Option<String>,
     /// 属主：父会话的属主。
     pub owner: AccountId,
     /// 场所：父会话的。
