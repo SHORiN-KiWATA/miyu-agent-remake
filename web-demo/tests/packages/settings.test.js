@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { buildPages, noteOf, duplicates, layerFor, expectFor, writtenIn, sourceOf, envRef, inputText, search, pagesWithErrors, splitKey, templateOf, realKey, itemFor, shortCount } from '../../packages/settings/model.js';
+import { buildPages, noteOf, duplicates, layerFor, expectFor, writtenIn, envRef, inputText, search, pagesWithErrors, splitKey, templateOf, realKey, itemFor, shortCount } from '../../packages/settings/model.js';
 import { problems } from '../../src/kernel/config.js';
 
 const schema = {
@@ -69,9 +69,7 @@ test('写在哪一层：能写个人设置的写个人设置，只能写系统�
   assert.equal(writtenIn(got.items['ui.language'], 'personal'), false);
 });
 
-test('来源、环境变量引用、控件里的字', () => {
-  assert.deepEqual(sourceOf(got.items['models.chat']), { file: 'home/admin/settings.toml', layer: 'personal', line: 7 });
-  assert.deepEqual(sourceOf(null), { layer: 'none' });
+test('环境变量引用、控件里的字', () => {
   assert.equal(envRef({ env: 'MIYU_DEV_BASE_URL' }), 'MIYU_DEV_BASE_URL');
   assert.equal(envRef('https://x'), null);
   assert.deepEqual([inputText(null), inputText('10m'), inputText(3), inputText(true), inputText(['a'])], ['', '10m', '3', 'true', '["a"]']);
@@ -107,7 +105,7 @@ test('大数写短', () => {
 test('清单合法：出厂值过得了自己的校验；有用到的字', () => {
   const manifest = JSON.parse(readFileSync(new URL('../../packages/settings/manifest.json', import.meta.url), 'utf8'));
   assert.deepEqual(problems(manifest.settings), []);
-  assert.ok(manifest.text.zh.layers.factory && manifest.text.zh.models.tabs.pools);
+  assert.ok(manifest.text.zh.layers.none && manifest.text.zh.models.tabs.pools);
 });
 
 test('项少的页并进别的页、个别组挪页；并掉的页不单列，空了的页不列', () => {
@@ -119,13 +117,11 @@ test('项少的页并进别的页、个别组挪页；并掉的页不单列，�
   assert.deepEqual(none.map((p) => p.id), ['general'], '一项都没有、也没有问题的页不列');
 });
 
-test('名字下面那一行小字：默认又当场生效的整行不出；只写不一样的那部分', () => {
-  assert.equal(noteOf(got.items['ui.language'], 'now'), null, '默认值、当场生效');
-  assert.deepEqual(noteOf(got.items['ui.language'], 'next_turn'), { source: null, applies: 'next_turn' });
-  assert.deepEqual(noteOf(got.items['models.chat'], 'live')?.source?.layer, 'personal');
-  assert.equal(noteOf(got.items['models.chat'], 'live')?.applies, null);
-  assert.equal(noteOf(null, 'now'), null, '没设的（模型目录给的值）不写来源');
-  assert.deepEqual(noteOf({ origin: { layer: 'default', env: 'MIYU_LOG' }, value: 'debug' }, 'now')?.source?.env, 'MIYU_LOG', '环境变量压着的要写');
+test('名字下面那一行小字：只写什么时候生效，当场生效的整行不出；来自哪一层不写（2026-10-08 项目主人）', () => {
+  assert.equal(noteOf('now'), null);
+  assert.equal(noteOf('live'), null);
+  assert.equal(noteOf('next_turn'), 'next_turn');
+  assert.equal(noteOf('new_session'), 'new_session');
 });
 
 test('同一家里重了的显示名', () => {

@@ -142,16 +142,8 @@
         "packages": "软件包"
       },
       "layers": {
-        "default": "默认",
-        "factory": "出厂",
-        "system": "系统配置",
-        "personal": "个人设置",
-        "project": "项目配置",
-        "none": "没有设",
-        "distro": "发行版",
-        "user": "个人 · 这台设备"
+        "none": "没有设"
       },
-      "env_layer": "环境变量 {name} · 只管这一次启动",
       "from_env": "来自环境变量 {name}",
       "applies": {
         "now": "当场生效",
@@ -163,7 +155,6 @@
         "reload": "这个包重新加载"
       },
       "reset": "恢复默认",
-      "copied_path": "已复制路径",
       "conflict": "别处改过了，现在是 {value}",
       "default_mark": "默认",
       "secret_set": "已设置",
@@ -269,16 +260,8 @@
         "packages": "パッケージ"
       },
       "layers": {
-        "default": "デフォルト",
-        "factory": "出荷時",
-        "system": "システム設定",
-        "personal": "個人設定",
-        "project": "プロジェクト設定",
-        "none": "未設定",
-        "distro": "ディストリビューション",
-        "user": "個人 · この端末"
+        "none": "未設定"
       },
-      "env_layer": "環境変数 {name} · 今回の起動のみ",
       "from_env": "環境変数 {name} から",
       "applies": {
         "now": "すぐに反映",
@@ -290,7 +273,6 @@
         "reload": "このパッケージを再読み込み"
       },
       "reset": "デフォルトに戻す",
-      "copied_path": "パスをコピーしました",
       "conflict": "ほかで変更されました。現在は {value}",
       "default_mark": "デフォルト",
       "secret_set": "設定済み",

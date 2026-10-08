@@ -51,16 +51,11 @@ export function buildPages(schema, got, opts = {}) {
 }
 
 /**
- * 名字下面那一行小字（蓝图第 7 条）：只留和「默认、当场生效」不一样的部分；两样都一样的交 `null`（整行不出现）。
- * @param {Entry|null} entry @param {string} applies
- * @returns {{source: ReturnType<typeof sourceOf>|null, applies: string|null}|null}
+ * 名字下面那一行小字（蓝图第 7 条）：只写什么时候生效，当场生效的交 `null`（整行不出现）。值来自哪一层不写（2026-10-08 项目主人：
+ * 「默认」「个人设置」这类来处是核心怎么存，用户用不上）。
+ * @param {string} applies @returns {string|null}
  */
-export function noteOf(entry, applies) {
-  const src = sourceOf(entry);
-  const source = src.env || !['default', 'none'].includes(src.layer) ? src : null;
-  const when = applies === 'now' || applies === 'live' ? null : applies;
-  return source || when ? { source, applies: when } : null;
-}
+export const noteOf = (applies) => (applies === 'now' || applies === 'live' ? null : applies);
 
 /** 一个真键对得上哪一项带占位的（`providers.dev.base_url` → `providers.<id>.base_url`）。 */
 export function templateOf(key, items) {
@@ -106,16 +101,6 @@ export function expectFor(entry, layer) {
 
 /** 这一层写了这一项没有：写了的能「恢复默认」。 */
 export const writtenIn = (entry, layer) => !!entry?.layers?.some((l) => l.origin.layer === layer);
-
-/**
- * 来源那一行小字要的：哪一层、文件、第几行、压着的环境变量。没有最终值的（没默认值、哪一层都没写）是 `none`。
- * @param {Entry|null} entry
- * @returns {{layer: string, file?: string, line?: number, env?: string}}
- */
-export function sourceOf(entry) {
-  if (!entry?.origin) return { layer: 'none' };
-  return { ...entry.origin };
-}
 
 /** 值是环境变量引用（`{env: X}`）：交回名字，不是的交 `null`。 */
 export const envRef = (value) => (value && typeof value === 'object' && !Array.isArray(value) && typeof value.env === 'string' ? value.env : null);

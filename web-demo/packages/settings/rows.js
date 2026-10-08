@@ -50,33 +50,13 @@ export function shell(o) {
 }
 
 /**
- * 名字下面那一行小字（第 7 条）：值不是默认的写来自哪一层（悬停看文件和第几行，点了复制路径），不是当场生效的写什么时候生效；
- * 两样都没有的交 `null`。
- * @param {any} dialog
- * @param {import('./model.js').Item} item
+ * 名字下面那一行小字（第 7 条）：不是当场生效的写什么时候生效，当场生效的交 `null`；精简的（模型详情：每一项都是下一轮生效）不写。
+ * 值来自哪一层不写（2026-10-08 项目主人）。
+ * @param {any} dialog @param {import('./model.js').Item} item @param {boolean} [compact]
  */
-function sourceLine(dialog, item, compact) {
-  const ctx = dialog.ctx;
-  // 精简的（模型详情）：每一项都一样的生效时机不写，只写改过的来源
-  const note = noteOf(item.entry, compact ? 'now' : item.applies);
-  if (!note) return null;
-  const parts = [];
-  const src = note.source;
-  if (src) {
-    const where = src.file ? `${src.file}${src.line ? `:${src.line}` : ''}` : '';
-    const layer = src.env ? ctx.text('env_layer', { name: src.env }) : ctx.text(`layers.${src.layer}`);
-    parts.push(h(where ? 'button.set-origin' : 'span', where ? { type: 'button', title: where, onclick: () => copyPath(dialog, src.file ?? '') } : {}, layer));
-  }
-  if (note.applies) parts.push(parts.length ? ' · ' : '', ctx.text(`applies.${note.applies}`));
-  return h('span', parts);
-}
-
-/** 点来源：桌面端以后用系统里的程序打开（宿主 `openPath`），浏览器复制路径（第 7 条）。 */
-async function copyPath(dialog, file) {
-  const host = dialog.ctx.host;
-  if (typeof host.openPath === 'function' && (await host.openPath(file))) return;
-  await host.clipboard?.write(file);
-  dialog.toast(dialog.ctx.text('copied_path'));
+function appliesLine(dialog, item, compact) {
+  const when = compact ? null : noteOf(item.applies);
+  return when ? dialog.ctx.text(`applies.${when}`) : null;
 }
 
 /**
@@ -103,7 +83,7 @@ export function coreRow(dialog, item, opts = {}) {
   row = shell({
     name: item.name,
     description: opts.compact ? '' : item.description,
-    source: sourceLine(dialog, item, opts.compact),
+    source: appliesLine(dialog, item, opts.compact),
     problems: item.problems,
     control: editor?.options ? control(dialog, { ...item, control: 'select', options: editor.options() }, value, save) : control(dialog, item, value, save),
     reset: written ? () => save({ unset: true }) : null,
@@ -123,7 +103,7 @@ function control(dialog, item, value, save) {
   const ctx = dialog.ctx;
   if (item.control === 'toggle') return toggle(!!value, (on) => save({ value: on }));
   if (item.control === 'select') {
-    const options = (item.options ?? []).map((o) => ({ value: o.value, name: o.name, note: o.value === item.default ? ctx.text('default_mark') : '' }));
+    const options = (item.options ?? []).map((o) => ({ value: o.value, name: o.name }));
     // 选了值是 `null` 的那一项（「默认」）：从这一层删掉
     return select(dialog, options, value ?? null, (v) => save(v === null ? { unset: true } : { value: v }));
   }
