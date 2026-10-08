@@ -25,10 +25,11 @@ pub enum Label {
 }
 
 impl Label {
-    /// 照语言 `language` 挑一句：一句字的就是它；语言表的照 `language`、`en`、`zh`、`ja` 的先后挑，都没写的没有。
+    /// 照语言 `language` 挑一句：一句字的就是它，空的字（没有说明，施工 P-3 再补）没有；语言表的照 `language`、`en`、
+    /// `zh`、`ja` 的先后挑，都没写的没有。
     pub fn pick(&self, language: &str) -> Option<&str> {
         match self {
-            Label::One(text) => Some(text),
+            Label::One(text) => Some(text.as_str()).filter(|text| !text.is_empty()),
             Label::Each(phrases) => [language, "en", "zh", "ja"]
                 .iter()
                 .find_map(|language| phrases.get(*language))
@@ -47,6 +48,19 @@ pub fn read_label(item: &Item) -> Result<Label, PhraseError> {
         Some(text) if !text.is_empty() => Ok(Label::One(text.to_string())),
         Some(_) => Err(PhraseError::Empty(String::new(), item.span())),
         None => read(item).map(Label::Each),
+    }
+}
+
+/// 读一格说明（施工 P-3 再补，2026-10-08 项目主人：「为什么说明不让为空？」）：空的字（去掉前后空白是空的）就是没有说明，
+/// 盖住下面那一层的；别的同 [`read_label`]。
+///
+/// # Errors
+///
+/// 同 [`read_label`]，空的字除外。
+pub fn read_summary(item: &Item) -> Result<Label, PhraseError> {
+    match item.as_str().map(str::trim) {
+        Some("") => Ok(Label::One(String::new())),
+        _ => read_label(item),
     }
 }
 
@@ -111,6 +125,20 @@ mod tests {
             read_label(&item("x = 3")),
             Err(PhraseError::NotPhrases(_))
         ));
+    }
+
+    /// 说明可以是空的字：就是没有说明，挑不出一句（施工 P-3 再补）；语言表里的一句照旧不能空，名字照旧不收空的。
+    #[test]
+    fn a_summary_may_be_empty_and_then_picks_nothing() {
+        let empty = read_summary(&item("x = \"  \"")).unwrap();
+        assert_eq!(empty, Label::One(String::new()));
+        assert_eq!(empty.pick("zh"), None);
+        assert_eq!(
+            read_summary(&item("x = \" 写代码 \"")).unwrap(),
+            Label::One("写代码".to_string())
+        );
+        assert!(read_summary(&item("x = { en = \" \" }")).is_err());
+        assert!(read_label(&item("x = \"\"")).is_err());
     }
 
     fn item(text: &str) -> Item {

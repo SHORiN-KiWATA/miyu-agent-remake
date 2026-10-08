@@ -291,7 +291,7 @@ async fn personas_are_listed_and_read() {
     assert_eq!(
         listed["result"]["personas"],
         json!([
-            {"persona": "broken", "problem": "home persona.toml:1: unknown table [voice]"},
+            {"persona": "broken", "problem": "不认识的表 [voice]：persona.toml 里只能有 [persona]、[memory]", "line": 1},
             {"persona": "engineer", "name": "软件工程师", "summary": "我的工程师"},
             {"persona": "miyu", "name": "美羽", "summary": "Mine."},
             {"persona": "none", "name": "空白", "summary": "不带人设，照原样说话"},

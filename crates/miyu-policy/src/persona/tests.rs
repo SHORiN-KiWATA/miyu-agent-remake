@@ -371,3 +371,19 @@ fn examples_are_written_back_and_read_the_same() {
     assert_eq!(write_examples(&clash), Err(2), "第二对有一行像 user: 开头");
     assert_eq!(write_examples(&[]), Ok(String::new()));
 }
+
+/// P-3 上那几个小时里建的人格写着 `base`（施工 P-3 再补）：认出来当没写，写成什么样都不算写错，别的照读。
+#[test]
+fn a_base_written_by_p3_is_read_as_unwritten() {
+    let plain = read_toml("[persona]\nname = \"阿米\"\n").unwrap();
+    for text in [
+        "[persona]\nbase = \"none\"\nname = \"阿米\"\n",
+        "[persona]\nname = \"阿米\"\nbase = 3\n",
+    ] {
+        assert_eq!(read_toml(text).unwrap(), plain, "{text:?}");
+    }
+    assert!(
+        read_toml("[memory]\nbase = \"none\"\n").is_err(),
+        "别的表里照旧不认"
+    );
+}
