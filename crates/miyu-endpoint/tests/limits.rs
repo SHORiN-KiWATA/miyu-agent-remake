@@ -12,9 +12,13 @@ use miyu_models::settings::{ProviderSettings, UseSettings};
 use miyu_session::testkit::Script;
 use support::*;
 
-/// 限额是 `limits` 的那一份回应：模型是替身的 deepseek 的 deepseek-v4，没有引用。
+/// 限额是 `limits` 的那一份回应：模型是替身的 deepseek 的 deepseek-v4，没有引用。新会话的「当前的」三格（施工 9-6 上）：
+/// 什么都没花、权限是出厂的、没有在跑的任务。
 fn reply_of(limits: serde_json::Value) -> serde_json::Value {
-    json!({"limits": limits, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}, "persona": "engineer", "preset": "full"})
+    json!({"jobs": [], "limits": limits, "model": {"endpoint": "deepseek", "model": "deepseek-v4"},
+        "permission": {"level": "workspace", "read_only": false}, "persona": "engineer", "preset": "full",
+        "usage": {"amounts": [], "cache_breaks": 0, "compactions": 0, "requests": 0, "unpriced": 0,
+            "usage": {"cache_read": 0, "cache_write": 0, "output": 0, "uncached": 0}}})
 }
 
 /// 窗口是 `window` 的替身，一句都不用答。
@@ -37,7 +41,7 @@ async fn the_reply_is_the_drawing_example() {
     let reply = client.subscribe("c2", &session).await;
     assert_eq!(
         serde_json::to_string(&reply).expect("写得成 JSON"),
-        r#"{"id":"c2","jsonrpc":"2.0","result":{"limits":{"compaction_line":967000,"window":1000000},"model":{"endpoint":"deepseek","model":"deepseek-v4","ref":"deepseek/deepseek-v4"},"persona":"engineer","preset":"full"}}"#
+        r#"{"id":"c2","jsonrpc":"2.0","result":{"jobs":[],"limits":{"compaction_line":967000,"window":1000000},"model":{"endpoint":"deepseek","model":"deepseek-v4","ref":"deepseek/deepseek-v4"},"permission":{"level":"workspace","read_only":false},"persona":"engineer","preset":"full","usage":{"amounts":[],"cache_breaks":0,"compactions":0,"requests":0,"unpriced":0,"usage":{"cache_read":0,"cache_write":0,"output":0,"uncached":0}}}}"#
     );
 }
 

@@ -9,7 +9,7 @@ use std::time::Duration;
 use serde_json::{Value, json};
 
 use miyu_session::testkit::{Play, Script};
-use support::{Client, Home, events, kinds, logged, reason};
+use support::{Client, Home, apart_from_now, events, kinds, logged, reason};
 
 /// 造一个会话，说完一轮，交回会话编号和磁盘上的日志。
 async fn one_turn(home: &Home, client: &mut Client) -> (String, Vec<Value>) {
@@ -42,7 +42,7 @@ async fn after_zero_replays_the_whole_log_before_the_reply() {
     );
     let last = log.last().expect("有事件")["seq"].clone();
     assert_eq!(
-        reply["result"],
+        apart_from_now(&reply["result"]),
         json!({"limits": {}, "upto": last, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}, "persona": "engineer", "preset": "full"}),
         "{reply}"
     );
@@ -85,7 +85,7 @@ async fn after_the_last_seq_replays_nothing_and_goes_on_live() {
         let (pushed, reply) = client.subscribe_after(id, &session, json!(after)).await;
         assert_eq!(pushed, Vec::<Value>::new(), "什么都不补");
         assert_eq!(
-            reply["result"],
+            apart_from_now(&reply["result"]),
             json!({"limits": {}, "upto": log.len(), "model": {"endpoint": "deepseek", "model": "deepseek-v4"}, "persona": "engineer", "preset": "full"}),
             "upto 是日志里最后一条：{reply}"
         );
@@ -118,7 +118,7 @@ async fn without_after_nothing_is_replayed() {
         }
         let reply = client.call("c3", "subscribe", params).await;
         assert_eq!(
-            reply["result"],
+            apart_from_now(&reply["result"]),
             json!({"limits": {}, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}, "persona": "engineer", "preset": "full"}),
             "照旧，没有 upto：{reply}"
         );

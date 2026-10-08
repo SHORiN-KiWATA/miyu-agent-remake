@@ -53,9 +53,14 @@ impl Actor {
                     pushes: self.pushes.subscribe(),
                     upto: self.session.landed().map_or(0, Seq::get),
                     log: self.tools.log(),
+                    current: self.current(),
                 };
                 answer(reply, taken);
                 self.watch(true)
+            }
+            Message::Current(reply) => {
+                answer(reply, self.current());
+                Mail::Done
             }
             Message::Unsubscribed => self.watch(false),
             Message::Stop(reply) => Mail::Stop(reply),

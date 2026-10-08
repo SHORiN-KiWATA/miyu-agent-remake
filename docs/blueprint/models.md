@@ -409,6 +409,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 
 - 参数不对（不认识的分组、时刻和时区写法不对、会话编号写法不对、类型不对）回 `bad_params`；查不到的会话回空的。不认识的格不理，「可以不写」的写 `null` 等于没写。
 - 先补再查（第九条第 4 条）；汇总读出坏了的，删掉重建再补一次，还不行回 `internal`。`usage.currency` 照这一刻的配置。
+- 订阅一个会话的回应里的 `usage`（施工 9-6 上，`protocol.md` 的 `subscribe`）和 `{"session": <它>}` 的这一行同一个写法、同一个口径，由会话 actor 随落盘累计，不经汇总；另加 `compactions`、`cache_breaks`。
 - 例子：`{"group":["purpose","model"]}` 回 `{"rows":[{"purpose":"vision","model":"deepseek/deepseek-flash","requests":2,"usage":{"uncached":1624,"cache_read":0,"cache_write":0,"output":18},"amounts":[{"currency":"USD","amount":0.0002544}],"unpriced":0}]}`。
 
 **原因码**多这几个：

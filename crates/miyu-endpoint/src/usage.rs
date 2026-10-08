@@ -178,5 +178,26 @@ fn row(group: &[Group], total: Total, first: &str) -> Value {
     Value::Object(map)
 }
 
+/// 订阅的回应里这个会话累计的（施工 9-6 上，`protocol.md` 的 `subscribe`）：和 `usage.query {"session": <它>}` 那一行同一个
+/// 写法、同一个口径（金额照这一刻的 `usage.currency` 排），另加压缩过几次、缓存断了几次。
+pub(crate) fn tallied(core: &Core, tally: &miyu_session::Tally) -> Value {
+    let currency = UsageSettings::from(&core.config().resolved().values()).currency;
+    let total = Total {
+        keys: Vec::new(),
+        requests: tally.requests,
+        usage: tally.usage,
+        amounts: tally
+            .amounts
+            .iter()
+            .map(|(currency, amount)| (currency.clone(), *amount))
+            .collect(),
+        unpriced: tally.unpriced,
+    };
+    let mut value = row(&[], total, &currency);
+    value["compactions"] = json!(tally.compactions);
+    value["cache_breaks"] = json!(tally.cache_breaks);
+    value
+}
+
 #[cfg(test)]
 mod tests;

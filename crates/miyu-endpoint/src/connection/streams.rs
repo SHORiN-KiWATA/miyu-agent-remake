@@ -82,23 +82,44 @@ pub(super) async fn subscribe(
         reply["todos"] = json!(todos);
     }
     if let Some(after) = after {
-        let upto = subscribe_after(core, subscriptions, &handle, &session, after, out).await?;
+        let (upto, current) =
+            subscribe_after(core, subscriptions, &handle, &session, after, out).await?;
         reply["upto"] = json!(upto);
+        now(core, &mut reply, current.as_ref());
         return Ok((reply, Some(session)));
     }
-    if !subscriptions.has(&session) {
-        let Ok(subscription) = handle.subscribe().await else {
-            core.sessions.forget(&session).await;
-            return Err(Refusal::STOPPED);
-        };
-        subscriptions.add(session, subscription, Vec::new(), out.clone());
-    }
+    let current = match subscriptions.has(&session) {
+        // 还是那一个（第 2 条）：不另起订阅，另要一份这一刻的。
+        true => handle.current().await.ok(),
+        false => {
+            let Ok(subscription) = handle.subscribe().await else {
+                core.sessions.forget(&session).await;
+                return Err(Refusal::STOPPED);
+            };
+            let current = subscription.current().cloned();
+            subscriptions.add(session, subscription, Vec::new(), out.clone());
+            current
+        }
+    };
+    now(core, &mut reply, current.as_ref());
     Ok((reply, None))
+}
+
+/// 回应里「当前的」三格（施工 9-6 上）：这个会话累计的用量和计数（`usage`，写法同 `usage.query` 的一行），人设的权限
+/// （`permission`），还在跑的后台命令和子代理（`jobs`，照 `job.started` 的写法）。和订阅在会话 actor 的同一步里拿；会话停了、
+/// 拿不到的不写。
+fn now(core: &Core, reply: &mut Value, current: Option<&miyu_session::Current>) {
+    let Some(current) = current else {
+        return;
+    };
+    reply["usage"] = crate::usage::tallied(core, &current.tally);
+    reply["permission"] = json!(current.permission);
+    reply["jobs"] = json!(current.jobs);
 }
 
 /// 带 `after` 订阅（施工 3-8 六补）：总是换一个新的。原来有一个的，先等它把交给它的推送、回应都放完、拿回它的订阅，补的
 /// 就不和它的交错；新的拿到了才放下旧的，这个头一直算看着（施工 7-9）。补发的那一截和新的订阅在会话 actor 的同一步里拿，
-/// 在这里读完（会话照常跑，推送攒在新的订阅里），交给新的转发任务先写。交回补到哪一条。
+/// 在这里读完（会话照常跑，推送攒在新的订阅里），交给新的转发任务先写。交回补到哪一条，和同一步里拿的「当前的」几样。
 async fn subscribe_after(
     core: &Arc<Core>,
     subscriptions: &mut Subscriptions,
@@ -106,7 +127,7 @@ async fn subscribe_after(
     session: &SessionId,
     after: u64,
     out: &mpsc::Sender<String>,
-) -> Result<u64, Refusal> {
+) -> Result<(u64, Option<miyu_session::Current>), Refusal> {
     let old = subscriptions.take(session).await;
     let Ok((subscription, backlog)) = handle.subscribe_after(after).await else {
         core.sessions.forget(session).await;
@@ -118,8 +139,9 @@ async fn subscribe_after(
         tracing::warn!(target: "miyu::endpoint", session = session.as_str(), error = %error, "replay not read");
         Refusal::BROKEN
     })?;
+    let current = subscription.current().cloned();
     subscriptions.add(session.clone(), subscription, backlog, out.clone());
-    Ok(upto)
+    Ok((upto, current))
 }
 
 /// `subscribe` 的 `after`（施工 3-8 六补）：可以不写，写 `null` 等于没写；写了要是非负整数，别的 `bad_params`。
