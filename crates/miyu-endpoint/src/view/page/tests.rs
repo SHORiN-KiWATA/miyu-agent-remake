@@ -16,6 +16,15 @@ fn event(seq: u64, kind: &str, turn: u64) -> Event {
         "end" => format!(
             r#"{{"seq":{seq},"at":"2026-10-08T01:00:00.000Z","kind":"turn.ended","turn":{turn},"by":{{"kind":"kernel"}},"body":{{"reason":"completed"}}}}"#
         ),
+        "started" => format!(
+            r#"{{"seq":{seq},"at":"2026-10-08T01:00:00.000Z","kind":"tool.result","turn":{turn},"by":{{"kind":"tool","call_id":"call_{seq}_1"}},"body":{{"call_id":"call_{seq}_1","status":"ok","blocks":[],"effects":[{{"kind":"job.started","job":"j1","what":"command","title":"dev server"}},{{"kind":"job.started","job":"j2","what":"agent","title":"look","session":"01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91"}},{{"kind":"job.started","job":"j3","what":"command","title":"watch"}}]}}}}"#
+        ),
+        "child" => format!(
+            r#"{{"seq":{seq},"at":"2026-10-08T01:00:00.000Z","kind":"child.reported","by":{{"kind":"session","id":"01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91"}},"body":{{"job":"j2","session":"01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91","reason":"done","text":"ok"}}}}"#
+        ),
+        "reported" => format!(
+            r#"{{"seq":{seq},"at":"2026-10-08T01:00:00.000Z","kind":"job.reported","by":{{"kind":"tool","call_id":"call_4_1"}},"body":{{"job":"j1","reason":"exited","exit_code":0}}}}"#
+        ),
         _ => format!(
             r#"{{"seq":{seq},"at":"2026-10-08T01:00:00.000Z","kind":"session.meta_changed","by":{{"kind":"person","account":"alice"}},"body":{{"title":"t"}}}}"#
         ),
@@ -114,4 +123,63 @@ fn a_log_without_turns_and_an_empty_range() {
         (seqs(&empty), empty.first, empty.last, empty.more),
         (Vec::new(), None, None, false)
     );
+}
+
+#[test]
+fn jobs_started_before_the_cut_and_reported_in_the_page_come_along() {
+    // 第一轮派了 j1、j2、j3（第 4 条），第三轮里 j1、j2 报完了（第 11、12 条），j3 还跑着。
+    let events = vec![
+        event(1, "meta", 0),
+        event(2, "said", 0),
+        event(3, "start", 0),
+        event(4, "started", 3),
+        event(5, "end", 3),
+        event(6, "said", 0),
+        event(7, "start", 0),
+        event(8, "end", 7),
+        event(9, "said", 0),
+        event(10, "start", 0),
+        event(11, "reported", 0),
+        event(12, "child", 0),
+        event(13, "end", 10),
+    ];
+    let newest = page(&events, None, 1, 1 << 20, ten);
+    let jobs: Vec<(String, &str)> = newest
+        .jobs
+        .iter()
+        .map(|started| (started.job.to_string(), started.title.as_str()))
+        .collect();
+    assert_eq!(
+        jobs,
+        [("j1".to_owned(), "dev server"), ("j2".to_owned(), "look")],
+        "派它的在切点前：带上，还跑着的不带"
+    );
+    let whole = page(&events, None, 20, 1 << 20, ten);
+    assert!(whole.jobs.is_empty(), "派它的在这一页里：不另带");
+}
+
+#[test]
+fn a_report_that_triggers_the_turn_counts_too() {
+    // 跑完的回报（第 9 条）引起第三轮：在切点前，当触发消息带进来。
+    let events = vec![
+        event(1, "said", 0),
+        event(2, "start", 0),
+        event(3, "started", 2),
+        event(4, "end", 2),
+        event(5, "said", 0),
+        event(6, "start", 0),
+        event(7, "end", 6),
+        event(8, "meta", 0),
+        event(9, "reported", 0),
+        event(10, "start", 0),
+        event(11, "end", 10),
+    ];
+    let newest = page(&events, None, 1, 1 << 20, ten);
+    assert_eq!(seqs(&newest), [9, 10, 11]);
+    let jobs: Vec<String> = newest
+        .jobs
+        .iter()
+        .map(|started| started.job.to_string())
+        .collect();
+    assert_eq!(jobs, ["j1"]);
 }
