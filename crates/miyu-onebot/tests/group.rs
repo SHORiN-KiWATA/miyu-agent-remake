@@ -1,8 +1,8 @@
 //! 群消息记进场所会话（施工 O-22，`onebot.md` 第一条「群消息」「撤回」）：真核心照开关拉起真的桥，假 NapCat 发群消息。群里的
 //! 每一条都记进 `qq:group:<群号>` 那个会话（属主是系统账号 `onebot`），一律旁听、不开回合；名字、@、引用、@全体、带的东西
 //! 各自记进场所的格；`show_ids`、`managers`、睡觉时间照场所规则；机器人自己发的不记；规则写了不存在的人格的群不记、只记一行
-//! 运行日志；群里的斜杠命令照私聊的办法交，回执发回群里；撤回记 `venue.recalled`。挑的空端口在桥起来以前被别人占了的，
-//! 换一组从头再来（`support/ports.rs`）。
+//! 运行日志；群里的斜杠命令照私聊的办法交，回执发回群里；撤回记 `venue.recalled`；只有一张图、只有一个表情的也记得进（核心
+//! O-13 补以后）。挑的空端口在桥起来以前被别人占了的，换一组从头再来（`support/ports.rs`）。
 
 use serde_json::{Value, json};
 
@@ -339,5 +339,40 @@ async fn slash_commands_in_a_group_answer_in_the_group() {
     );
     assert!(napcat.pending().is_none(), "认不出的不回");
     assert!(script.requests().is_empty(), "不请求模型");
+    stopped(home).await;
+}
+
+#[tokio::test]
+async fn a_message_with_only_an_image_or_a_sticker_is_recorded() {
+    let script = Script::new([]);
+    let (home, napcat, _) = started(&script, &rules(), "", MEMBERS).await;
+    let venue = format!("qq:group:{GROUP}");
+    let image =
+        json!([{"type": "image", "data": {"file": "only.jpg", "sub_type": 0, "summary": ""}}]);
+    napcat.send(group_frame(GROUP, LIN, 1, image, ("小林", "lin")));
+    let sticker = json!([{"type": "face", "data": {"id": "14", "raw": {"faceText": "/微笑"}}}]);
+    napcat.send(group_frame(GROUP, JIE, 2, sticker, ("阿杰", "jie")));
+    // 等桥办完第 2 条（记了判断）再看运行日志：「message sent in」那一行在核心的回应到了以后才写，核心记下第 2 条的时候它
+    // 可能还没写；判断记在它后面，运行日志是同步写进文件的。
+    let decided = format!("qq:{BOT}:2:{TIME}/decided");
+    let events = until_event(&home.root, &venue, |event| event["cause"] == decided).await;
+    let said = said(&events);
+    assert_eq!(said.len(), 2, "{events:#?}");
+    assert_eq!(said[0]["body"]["blocks"], json!([]), "没有字就没有内容块");
+    assert_eq!(
+        said[0]["body"]["venue"]["media"],
+        json!([{"kind": "image", "id": "only.jpg"}])
+    );
+    assert_eq!(said[1]["body"]["blocks"], json!([]));
+    assert_eq!(
+        said[1]["body"]["venue"]["media"],
+        json!([{"kind": "sticker", "id": "14", "name": "/微笑"}])
+    );
+    let log = run_log(&home.root);
+    assert!(
+        !log.contains("message refused"),
+        "核心收了，没有 WARN：{log}"
+    );
+    assert_eq!(log.matches("message sent in").count(), 2, "{log}");
     stopped(home).await;
 }

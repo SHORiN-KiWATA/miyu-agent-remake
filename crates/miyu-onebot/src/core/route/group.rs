@@ -83,7 +83,7 @@ impl Route {
         let Some((session, reply)) = self.submit(message).await? else {
             return Ok(());
         };
-        // 被拒的（例如只有带的东西的，「施工时定的」第 67 条）没有序号，不判。
+        // 被拒的没有序号，不判。
         match reply["result"]["events"][0].as_u64() {
             Some(seq) => self.called(&session, seq, heard).await,
             None => Ok(()),
