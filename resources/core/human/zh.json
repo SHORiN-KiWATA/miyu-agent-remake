@@ -283,6 +283,7 @@
     "commands/workspace": "工作区换到了 {cwd}。",
     "commands/workspace-too-wide": "{asked} 太宽，工作区换到了 {cwd}。",
     "commands/workspace-is": "现在的工作区是 {cwd}。",
+    "commands/remembered": "记下了：{id}。",
     "software/basesystem": "基础系统",
     "software/basesystem/summary": "读写文件、跑命令、查以前说过的话",
     "software/net": "联网",

@@ -5,6 +5,7 @@
 pub mod deleting;
 pub mod extensions;
 pub mod login;
+pub mod memories;
 pub mod providers;
 mod pushes;
 pub mod venues;

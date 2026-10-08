@@ -23,6 +23,11 @@ pub const MEMORIES: usize = 10;
 /// `memory_search` 最多给几段以前的对话。
 pub const TURNS: usize = 5;
 
+/// 一条记忆最多几个字（数 Unicode 字符）：旧版实测，整理出来的超过 120 字的多半是技术问答的全文（调研第一节第 1 个坑）。
+/// 她的工具和人经协议、斜杠命令记的照同一个数（施工 R-3 补从 `miyu-memory` 挪来）。出厂值只在这一处，照 `jobs.output_chars`
+/// 的放法，不进快照；以后要改再进配置。
+pub const TEXT_CHARS: usize = 120;
+
 /// 记忆的端口。
 pub trait MemoryPort: Send + Sync {
     /// 记一条：出处是这一轮，听众是这一轮的，`by` 是这次调用；写了 `replaces` 的是改那一条。交回它的编号。

@@ -283,6 +283,7 @@
     "commands/workspace": "The workspace is now {cwd}.",
     "commands/workspace-too-wide": "{asked} is too broad, so the workspace is now {cwd}.",
     "commands/workspace-is": "The workspace is {cwd}.",
+    "commands/remembered": "Remembered as {id}.",
     "software/basesystem": "Base system",
     "software/basesystem/summary": "Read and edit files, run commands, look up earlier talk",
     "software/net": "Web",

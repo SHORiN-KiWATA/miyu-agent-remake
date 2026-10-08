@@ -150,6 +150,19 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "An undo or restore is still in progress; try again when it is done.",
         ),
         "nothing_to_revert" => ("没有能撤销的回合。", "There is no turn to undo."),
+        "memory_unavailable" => (
+            "这个会话里没有记忆：记忆关着，或者是通讯平台的会话。",
+            "This session has no memory: it is off, or this is a platform session.",
+        ),
+        "unknown_memory" => ("没有这一条记忆。", "There is no such memory."),
+        "memory_not_current" => (
+            "这一条已经改掉、作废或者清掉了。",
+            "That memory was already replaced, forgotten or cleared.",
+        ),
+        "memory_too_long" => (
+            "一条记忆太长了，字数和上限在 data 里。",
+            "The memory is too long; data has its length and the limit.",
+        ),
         "unknown_job" => (
             "没有这个任务，或者它已经结束了。",
             "There is no such job, or it has already ended.",

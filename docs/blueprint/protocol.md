@@ -31,7 +31,7 @@
 | `crates/miyu-endpoint/src/attach.rs` | 附件（施工 3-9 三补）：`blob.put` 读、存；`session.send`、`session.redo` 的附件变成内容块；认是什么、文件名和媒体类型怎么查、存好了怎么拼回应，和分块上传共用（施工 W-5）；`model.call` 的图照哈希变成图片块（`images`，施工 8-20） |
 | `crates/miyu-endpoint/src/attach/kind.rs` | 认一个附件是什么：图片、PDF、别的文件，媒体类型 |
 | `crates/miyu-endpoint/src/uploads.rs` | `blob.open`、`blob.write`、`blob.close`：跟着连接走的上传表，60 秒不写、连接断了都作废（施工 W-5） |
-| `crates/miyu-endpoint/src/refusal.rs` | 拒绝：错误码、原因码、中英文的话 |
+| `crates/miyu-endpoint/src/refusal.rs`、`refusal/` | 拒绝：错误码、原因码、中英文的话；改人格、预设的两种在 `refusal/edits.rs`，人碰记忆的四种在 `refusal/memory.rs`（施工 R-3 补） |
 | `crates/miyu-endpoint/src/settings.rs` | 端点的配置项：界面语言 `ui.language`，`auto` 照系统的语言算出 `zh`、`en`、`ja`（施工 8-1 声明，8-2 握手时用）；新会话开局只读 `permission.start_read_only`（施工 8-2） |
 | `crates/miyu-endpoint/src/config.rs`、`config/` | 配置服务：起来时读的几份配置、最终值，照目录找项目配置、认信不信任；`config.schema`、`config.get`、`config.check`（施工 8-2，`config.md`）；`config.set`、`config.trust`，住在核心家底的一把锁里（施工 8-3）；监视配置文件、推 `config.changed`（施工 8-4）；密钥文件也住在这里（施工 8-5） |
 | `crates/miyu-endpoint/src/secrets.rs`、`secrets/` | `secret.set`、`secret.delete`、`secret.list`：只能写、删、列名字，从不交出值；手改密钥文件被看到的、留痕（施工 8-5，`config.md` 第九条） |
@@ -144,6 +144,7 @@
 | `package.list` | 列出起来时读到的软件包清单（施工 9-1 上，`packages.md`） |
 | `extension.status`、`extension.enable`、`extension.disable`、`extension.restart` | 核心拉起的扩展：列状态、开、关、重启（施工 9-4 上，`extensions.md`） |
 | `check` | 查人手写的文件：配置、密钥文件、人格，照磁盘上现在的字（施工 8-30，`cli/check.md`） |
+| `memory.list`、`memory.search`、`memory.remember`、`memory.update`、`memory.forget` | 人不经过她列、搜、记、改、忘和清空记忆（施工 R-3 补，`memory.md`「协议」） |
 | `command.run` | 执行一条斜杠命令：头把人打的原文交过来，核心认、判谁能用、执行（施工 O-6） |
 | `session.answer` | 回答一次确认（允许这一次、本会话都允许、拒绝），或者一组题（施工 D-1） |
 | `job.stop` | 停掉一个后台命令或者子代理（施工 7-4） |
@@ -468,15 +469,16 @@
 | `as` | 对象，可以不写 | 代表通讯平台上的人，同 `session.send` 的 `as`：只给场所会话，场所会话也只收带它的 |
 | `cwd` | 字符串，可以不写 | 头所在的目录，绝对的或者 `~` 开头的：只用来接 `/workspace` 后面相对的路径（施工 9-7 下） |
 
-回应 `{"command": "clear"|"stop"|"workspace", "events": [...], "said": "<回执>"}`：`command` 是正名（别名换成了正名），`events` 是这一次追加的全部事件的序号、最后一条是记下的 `command.ran`，`said` 是回执那一句，照这个连接的语言（`ui.language`），头原样发给人。
+回应 `{"command": "clear"|"stop"|"workspace"|"remember", "events": [...], "said": "<回执>"}`：`command` 是正名（别名换成了正名），`events` 是这一次追加的全部事件的序号、最后一条是记下的 `command.ran`，`said` 是回执那一句，照这个连接的语言（`ui.language`），头原样发给人。
 
-1. 认法：开头的空白不算，原文要以 `/` 开头（不是的回 `bad_params`），名字紧跟着 `/`、到空白为止，后面跟的字去掉前后空白，只有 `/workspace` 用。认得的：`clear`（别名 `reset`）、`stop`、`workspace`（施工 9-7 下）。认不出的回 `unknown_command`，`/` 后面是空白的也是。`cwd` 不是绝对的、也不是 `~` 开头的回 `bad_params`。
+1. 认法：开头的空白不算，原文要以 `/` 开头（不是的回 `bad_params`），名字紧跟着 `/`、到空白为止，后面跟的字去掉前后空白，只有 `/workspace`、`/remember` 用。认得的：`clear`（别名 `reset`）、`stop`、`workspace`（施工 9-7 下）、`remember`（施工 R-3 补）。认不出的回 `unknown_command`，`/` 后面是空白的也是。`cwd` 不是绝对的、也不是 `~` 开头的回 `bad_params`。
 2. 谁能用：本机的会话（本机的头就是管理员本人）；场所会话里主人对应表认出的本人（记成带 `via` 的本人）、对应表里有的外部身份（群里的主人，`account`）、`role` 是 `manager` 的。别人回 `command_not_allowed`。`/workspace` 动的是沙盒能写的地方，只有主人本人能用（本机的会话、对应表认出的本人、群里的主人），管理的人回 `owner_only`。先查参数、再找会话、再判身份。
 3. `/clear` 同 `session.clear`：内核拒的照原因回（`turn_running`、`nothing_to_clear`、`restoring`）。
 4. `/stop` 全停：打断这一轮，排着的照 `keep` 留着；没有回合在进行的照样往下走。再停掉这个会话派出去的后台命令和子代理（同 `job.stop`，停的人记成说命令的人）。
 5. `/workspace <路径>` 同 `session.set_workspace` 只换工作目录，加进来的目录照旧（施工 9-7 下）：绝对的、`~` 开头的照原样；相对的照 `cwd` 接成真实的位置（`/workspace .` 就是头所在的目录），没带 `cwd` 的照会话现在的工作区接；路径里的空白照留，不认引号。写错的照那几种原因拒绝（`path_unreadable`、`not_a_directory`、`path_forbidden`）；太宽的退回账号的工作区，回执说一声（「~ 太宽，工作区换到了 …」）；和现在一样的不记换，照样记下命令。不带路径的什么都不换，回执说现在在哪。
 6. 执行了的记一条 `command.ran`（`kernel/events-bodies.md`），`cause` 是 `<id>/ran`；被拒的什么都不记。它不进模型的请求。
 7. 同一个 `id` 再发只算一次，核心重启以后也是：回应和头一次一样。
+8. `/remember <话>`（施工 R-3 补，`memory.md`「协议」）：名字后面跟的字是那一条，类 `user`，记进这个会话那一间，`by` 是打命令的人，出处空，听众是这个人；回执带编号（`commands/remembered`）。不请求模型。场所会话、范围 `off` 的回 `memory_unavailable`；空的 `bad_params`，超过 120 字的 `memory_too_long`。先判身份，再查这个会话有没有记忆，再查字。同一个 `id` 再发只记一次（记忆事件的 `cause`，`memory.*` 第 5 条）。
 
 **`check`**（施工 8-30，`cli/check.md`）
 
@@ -563,6 +565,24 @@
 | `persona` | 字符串，必写 | 人格的编号 |
 
 回应 `{"persona", "name", "summary", "prompts": {"persona", "reminders"}, "examples", "remove"}`（施工 P-3 补：只给人要看的）：`name`、`summary` 一句字（挑法同 `persona.list`）；`prompts` 里是人设、角色扮演提示有没有字（`true`、`false`）；`examples` 是示范对话几轮；`remove` 是删了会怎样（同 `preset.get`）。原文照 `persona.read` 给。编号不合写法的 `bad_params`，没有的 `unknown_persona`，写错的 `persona_invalid`（带 `data.message`、`data.line`）。
+
+**`memory.*`**（施工 R-3 补，`memory.md`「协议」）
+
+五个方法都收 `persona`（字符串）或 `session`（会话编号）指哪一间，最多写一个，都不写照默认人格（同 `session.create`），没设默认人格的 `memory_unavailable`（不带人格记忆不生效）；人格编号的写法、找不到的照 `session.create` 第 6 条，会话找不到的 `session_not_found`，会话那一间没有（范围 `off`、不带人格、场所会话）的 `memory_unavailable`。写了 `as` 的 `bad_params`。听众是这个连接的人（本机的是管理员）。
+
+| 方法 | 参数 | 回应 |
+|---|---|---|
+| `memory.list` | `class`（字符串）、`from`（会话编号：出处在它里面的）、`forgotten`（布尔，不写是 `false`）、`limit`（1 到 500，不写 50），都可以不写 | `{"memories": [...]}`，新的在前 |
+| `memory.search` | `query`（字符串，必写、不能是空白）、`forgotten`、`limit`（1 到 500，不写 10） | `{"memories": [...]}`，最相关的在前 |
+| `memory.remember` | `class`（`user`、`feedback`、`episode`、`reference`，必写）、`text`（必写） | `{"id": "m<序号>"}` |
+| `memory.update` | `id`、`text`，必写 | `{"id"}`：新记的那一条 |
+| `memory.forget` | `id`（可以带 `why`，不写是空的）；或者 `clear`：`session`（这时 `session` 必写）、`me` | 作废的 `{}`，清空的 `{"cleared": <几条>}` |
+
+1. 一条：`{"at", "by", "class", "id", "retired", "sources", "text"}`（照名字排）：`by` 是 `person` 或 `tool`，`sources` 是 `[{"session", "turn"}]`，`retired` 是作废的原因、没作废的 `null`，`at` 是记下的时刻。
+2. `text` 去掉前后空白再记；空的 `bad_params`，超过 120 字（数 Unicode 字符）的 `memory_too_long`，`data.chars`、`data.limit`。`class` 不是那四种、`id` 不合 `m<序号>` 的写法、`limit` 出了范围、`id` 和 `clear` 都写或都不写、`clear` 不是那两种：`bad_params`。
+3. `id` 没有这一条、听众不合：`unknown_memory`；已经改掉、作废、清掉了：`memory_not_current`。
+4. 记、改、作废、清空落了盘才回应；写不进记忆日志的 `internal_error`，原因记一行 `WARN memory failed`。
+5. 记、改、作废、清空，同一个 `id` 再发只算一次，核心重启以后也是：回应和头一次一样（编号记在记忆事件的 `cause` 里，`memory.md`）。先认编号，再查参数。清空的 `cleared` 不算改掉的旧版本。
 
 **`session.recap`**（施工 3-8 四补，`04-核心协议.md` 第九节，`kernel/session.md`「回顾」）
 
@@ -989,6 +1009,10 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `no_model` | -32010 | `model.call` 没有能用的模型：没写 `model`、`models.chat` 也没配，那一家用不了、key 取不到；`data.message` 是原话（施工 8-20） |
 | `cooling` | -32010 | `model.call` 的候选全在冷却，没发；`data.message` 是原话，`data.wait_ms` 是最早恢复的那一个还要多久（施工 8-20） |
 | `model_failed` | -32010 | `model.call` 发了、出错了：`data.class`、`data.status`（有状态码的才写）、`data.message`，和 `model.called` 的 `error` 一样（施工 8-20） |
+| `memory_unavailable` | -32010 | 这个会话里没有记忆：范围 `off`、场所会话（施工 R-3 补，`memory.*`、`/remember`） |
+| `unknown_memory` | -32010 | 没有这一条记忆，或者听众不合（施工 R-3 补） |
+| `memory_not_current` | -32010 | 那一条记忆已经改掉、作废、清掉了（施工 R-3 补） |
+| `memory_too_long` | -32010 | 一条记忆超过 120 字；`data.chars`、`data.limit`（施工 R-3 补） |
 | `restoring` | -32010 | 撤销、恢复还没做完（正在读回更早的日志、正在改回文件）时来的命令、删会话。兜底：会话做完才接下一个命令，照常碰不到 |
 
 - 从 `empty_message` 起，除了 `dir_too_wide`、附件的四个和 `not_a_command`，十三个是内核拒命令时给的原因码（`kernel/session.md`）；施工 D-1 起加上 `session.answer` 的四个（`not_asking`、`no_rule`、`unexpected_reason`、`bad_answer`），十七个。
@@ -1006,6 +1030,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `WARN` | `line too long, closed` | 一行太长 |
 | `INFO` | `disconnected` | 握过手的连接断了 |
 | `WARN` | `accept failed error=…` | 接不了连接 |
+| `WARN` | `memory failed error=…` | `memory.*`、`/remember` 写不进、读不了记忆日志（施工 R-3 补） |
 | `ERROR` | `connection task failed error=…` | 一个连接的任务崩了 |
 | `WARN` | `create failed error=…`、`load failed session=… error=…` | 造不成、载入不了 |
 | `WARN` | `lagged, resync session=…` | 掉了队 |
@@ -1128,6 +1153,10 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `cooling` | 模型都在冷却，稍后再试。 | All models are cooling down; try again later. |
 | `model_failed` | 请求模型出错了。 | The model request failed. |
 | `recap_failed` | 回顾没写成：请求模型出错了。 | The recap could not be written: the model request failed. |
+| `memory_unavailable` | 这个会话里没有记忆：记忆关着，或者是通讯平台的会话。 | This session has no memory: it is off, or this is a platform session. |
+| `unknown_memory` | 没有这一条记忆。 | There is no such memory. |
+| `memory_not_current` | 这一条已经改掉、作废或者清掉了。 | That memory was already replaced, forgotten or cleared. |
+| `memory_too_long` | 一条记忆太长了，字数和上限在 data 里。 | The memory is too long; data has its length and the limit. |
 | 别的 | 被拒绝了。 | Refused. |
 
 ### 守着它的

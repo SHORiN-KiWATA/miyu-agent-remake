@@ -16,7 +16,7 @@ use std::fmt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use miyu_kernel::event::{Body, Event};
-use miyu_kernel::id::{EventKind, Seq, SessionId, TurnId};
+use miyu_kernel::id::{CommandId, EventKind, Seq, SessionId, TurnId};
 use miyu_kernel::origin::By;
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::time::Timestamp;
@@ -25,6 +25,8 @@ use miyu_kernel::time::Timestamp;
 const SAVED: &str = "ext.memory.saved";
 /// 作废一条。
 const RETIRED: &str = "ext.memory.retired";
+/// 清空（施工 R-3 补）。
+const CLEARED: &str = "ext.memory.cleared";
 
 /// 出厂认识的四类（2026-10-07 项目主人定）：关于你、你要她怎样、经历、长期有效的事实。日志里别的类原样留着、照常列出；
 /// 她经工具记的照这张名单查（R-3 中）。
@@ -112,6 +114,15 @@ pub struct Retired {
     pub why: String,
 }
 
+/// `ext.memory.cleared` 的 `body`：人清空了（施工 R-3 补，`memory.md` 第二条第 5 款）。那以前的、合条件的都清掉，原文还在
+/// 日志里。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Cleared {
+    /// 只清从这个会话来的（出处全在它里面的）；没有的是整间。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session: Option<SessionId>,
+}
+
 /// 记忆日志里的一条事件。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MemoryEvent {
@@ -119,6 +130,8 @@ pub enum MemoryEvent {
     Saved(Saved),
     /// 作废一条。
     Retired(Retired),
+    /// 清空（施工 R-3 补）。
+    Cleared(Cleared),
 }
 
 /// 写成记忆日志里的一条事件：第 `seq` 条，时刻 `at`，`by` 写它的那一方。
@@ -130,6 +143,7 @@ pub fn to_event(seq: Seq, at: Timestamp, by: By, event: &MemoryEvent) -> Result<
     let (kind, json) = match event {
         MemoryEvent::Saved(saved) => (SAVED, serde_json::to_string(saved)),
         MemoryEvent::Retired(retired) => (RETIRED, serde_json::to_string(retired)),
+        MemoryEvent::Cleared(cleared) => (CLEARED, serde_json::to_string(cleared)),
     };
     let json = json.map_err(|error| error.to_string())?;
     let body: RawJson = serde_json::from_str(&json).map_err(|error| error.to_string())?;
@@ -152,6 +166,7 @@ pub fn from_event(event: &Event) -> Option<Result<MemoryEvent, String>> {
     let read = match kind.as_str() {
         SAVED => serde_json::from_str(body.get()).map(MemoryEvent::Saved),
         RETIRED => serde_json::from_str(body.get()).map(MemoryEvent::Retired),
+        CLEARED => serde_json::from_str(body.get()).map(MemoryEvent::Cleared),
         _ => return None,
     };
     Some(read.map_err(|error| format!("body of {kind} not readable: {error}")))
@@ -180,12 +195,14 @@ pub struct Entry {
     pub replaced_by: Option<MemoryId>,
     /// 作废了的为什么。
     pub retired: Option<String>,
+    /// 清掉了（施工 R-3 补）：哪里都不出来，作废的一起也不出来。
+    pub cleared: bool,
 }
 
 impl Entry {
-    /// 现在还算数：没被改掉、没作废。出处活不活另看（回合库的墓碑，`memory.md` 第二条第 4 款）。
+    /// 现在还算数：没被改掉、没作废、没清掉。出处活不活另看（回合库的墓碑，`memory.md` 第二条第 4 款）。
     pub fn current(&self) -> bool {
-        self.replaced_by.is_none() && self.retired.is_none()
+        self.replaced_by.is_none() && self.retired.is_none() && !self.cleared
     }
 }
 
@@ -193,17 +210,36 @@ impl Entry {
 #[derive(Debug, Default)]
 pub struct MemoryBook {
     entries: BTreeMap<MemoryId, Entry>,
+    /// 带命令编号（`cause`）的每一条做成了什么：那一条的编号、清掉几条（施工 R-3 补，04 第六节第 1 条：同一个编号只生效一次）。
+    done: BTreeMap<CommandId, (MemoryId, usize)>,
 }
 
 impl MemoryBook {
-    /// 看一条事件。不是记忆的跳过。
+    /// 看一条事件，交回清掉了几条（清空的；不算改掉的旧版本，别的是 0）。不是记忆的跳过。
     ///
     /// # Errors
     ///
     /// 是记忆的、`body` 读不懂：交回为什么，调的一方记日志，底账照旧。
-    pub fn see(&mut self, event: &Event) -> Result<(), String> {
+    pub fn see(&mut self, event: &Event) -> Result<usize, String> {
+        let Some(cleared) = self.apply(event)? else {
+            return Ok(0);
+        };
+        if let Some(cause) = &event.cause {
+            self.done
+                .insert(cause.clone(), (MemoryId::new(event.seq), cleared));
+        }
+        Ok(cleared)
+    }
+
+    /// 命令编号 `cause` 做过的：那一条的编号、清掉几条；没做过的是 `None`。
+    pub fn done(&self, cause: &CommandId) -> Option<(MemoryId, usize)> {
+        self.done.get(cause).copied()
+    }
+
+    /// 算一条，交回清掉了几条（不是清空的是 0）；不是记忆的交回 `None`。
+    fn apply(&mut self, event: &Event) -> Result<Option<usize>, String> {
         match from_event(event) {
-            None => Ok(()),
+            None => Ok(None),
             Some(Err(why)) => Err(why),
             Some(Ok(MemoryEvent::Saved(saved))) => {
                 let id = MemoryId::new(event.seq);
@@ -223,17 +259,49 @@ impl MemoryBook {
                         by: event.by.clone(),
                         replaced_by: None,
                         retired: None,
+                        cleared: false,
                     },
                 );
-                Ok(())
+                Ok(Some(0))
             }
             Some(Ok(MemoryEvent::Retired(retired))) => {
                 if let Some(entry) = self.entries.get_mut(&retired.id) {
                     entry.retired = Some(retired.why);
                 }
-                Ok(())
+                Ok(Some(0))
+            }
+            Some(Ok(MemoryEvent::Cleared(cleared))) => {
+                // 交回的条数不算改掉的旧版本：它们本来就看不见，人数的是看得见的那些（作废的带 `forgotten` 看得见）。
+                let mut shown = 0;
+                for id in self.clears(&cleared) {
+                    if let Some(entry) = self.entries.get_mut(&id) {
+                        entry.cleared = true;
+                        shown += usize::from(entry.replaced_by.is_none());
+                    }
+                }
+                Ok(Some(shown))
             }
         }
+    }
+
+    /// 现在追加 `cleared` 会清掉哪几条，照编号：还没清掉的里，整间的是全部；带会话的是出处全在这个会话里的（照 17 第六节
+    /// 撤回的规矩：还有别的出处的不动），人记的（没有出处）不动。记忆库照它删字。
+    pub fn clears(&self, cleared: &Cleared) -> Vec<MemoryId> {
+        self.entries
+            .values()
+            .filter(|entry| !entry.cleared)
+            .filter(|entry| match &cleared.session {
+                None => true,
+                Some(session) => {
+                    !entry.sources.is_empty()
+                        && entry
+                            .sources
+                            .iter()
+                            .all(|source| &source.session == session)
+                }
+            })
+            .map(|entry| entry.id)
+            .collect()
     }
 
     /// 编号 `id` 的那一条；没有的是 `None`。
@@ -241,8 +309,8 @@ impl MemoryBook {
         self.entries.get(&id)
     }
 
-    /// 全部，照编号：改掉的、作废的也在。
-    pub fn all(&self) -> impl Iterator<Item = &Entry> {
+    /// 全部，照编号：改掉的、作废的、清掉的也在。
+    pub fn all(&self) -> impl DoubleEndedIterator<Item = &Entry> {
         self.entries.values()
     }
 }

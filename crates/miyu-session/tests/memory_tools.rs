@@ -264,7 +264,7 @@ async fn replaced_ones_others_and_her_own_session_stay_out() {
         about: None,
     };
     memories
-        .append(now(), someone, &MemoryEvent::Saved(private))
+        .append(now(), someone, None, &MemoryEvent::Saved(private))
         .expect("记得下");
     let script = Script::new([
         call(

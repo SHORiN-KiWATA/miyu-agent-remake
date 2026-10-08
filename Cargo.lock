@@ -1585,6 +1585,7 @@ dependencies = [
  "miyu-ipc",
  "miyu-kernel",
  "miyu-log",
+ "miyu-memory",
  "miyu-models",
  "miyu-policy",
  "miyu-recall",

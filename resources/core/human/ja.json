@@ -283,6 +283,7 @@
     "commands/workspace": "作業ディレクトリを {cwd} に変えました。",
     "commands/workspace-too-wide": "{asked} は広すぎるので、作業ディレクトリを {cwd} にしました。",
     "commands/workspace-is": "作業ディレクトリは {cwd} です。",
+    "commands/remembered": "覚えました：{id}。",
     "software/basesystem": "基本システム",
     "software/basesystem/summary": "ファイルの読み書き、コマンドの実行、前の話の検索",
     "software/net": "ウェブ",

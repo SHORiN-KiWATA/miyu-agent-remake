@@ -4,8 +4,10 @@
 //!
 //! 回合库是派生的：更新失败记一行 `WARN memory index not updated`，会话照常；照到的位置没往前挪，下次载入照日志补。
 
+mod keeper;
 mod port;
 
+pub use keeper::{Filter, Keeper, Stamp};
 pub(crate) use port::Calls;
 
 use std::sync::{Arc, OnceLock};
@@ -52,10 +54,7 @@ pub(crate) fn connect(
         return (None, None);
     };
     let turns = Turns::connect(&memory.turns, &room, persona, session, events);
-    (
-        turns,
-        Some(Calls::new(memory, room, owner, persona, session)),
-    )
+    (turns, Some(Calls::new(memory, room, owner, session)))
 }
 
 /// 会话的记忆的范围：子会话（`child`）不管交的、快照里的是什么都是 `off`（17 第二节，以前造的子会话快照里没有这一格）；
