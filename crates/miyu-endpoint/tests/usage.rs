@@ -1,17 +1,15 @@
 //! `usage.query`（施工 8-15，`docs/blueprint/models.md`「协议」`usage.query`）：会话的请求、一次性调用都记得进，照分组加起来；
 //! 金额照币种各加各的，照 `usage.currency` 排；一次性调用照用途分组、写进账号日志、没有会话；参数不对的 `bad_params`。
 
-mod support;
-
 use serde_json::{Value, json};
 
+use crate::support::providers::{data, profiles, routed, scripted};
+use crate::support::*;
 use miyu_http::testkit::{Reply, Server};
 use miyu_models::catalog::{Price, Rates};
 use miyu_models::price::Tariff;
 use miyu_session::testkit::{Play, Script};
 use miyu_store::journal;
-use support::providers::{data, profiles, routed, scripted};
-use support::*;
 
 /// 一家 `a` 在假服务器上：`a/m` 每百万输入 1、输出 2 人民币，`a/f` 没价格；`models.chat` 是 `a/m`。还有 `usage` 那一段。
 /// 假服务器在回环地址上，不写 `local = false` 会当本机的服务，没写价格的照免费算。
@@ -24,7 +22,7 @@ fn config(server: &Server, usage: &str) -> String {
 
 /// 假服务器说一句，报 12 输入、3 输出。
 fn said(text: &str) -> Reply {
-    support::providers::said(text)
+    crate::support::providers::said(text)
 }
 
 /// 问一句，用途 `purpose`，模型 `model`。

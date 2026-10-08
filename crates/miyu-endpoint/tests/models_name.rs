@@ -2,8 +2,6 @@
 //! 多一格 `name`。写了的照写的，带文件、行、层；只有空白的当没写；没写的、对上了目录的照目录里那一家的名字；都没有的照
 //! 编号；用不了的那一家也有。`key` 是完整的配置键名，头照抄它发 `config.set`。改了当场就照新的答。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -19,7 +17,7 @@ use miyu_session::{ModelData, Observed};
 use miyu_store::resources::ResourceRoot;
 use miyu_tool::Catalog as ToolCatalog;
 
-use support::*;
+use crate::support::*;
 
 /// 带上真目录裁出来的一份的模型资料：目录里 `deepseek` 那一家叫「DeepSeek」。
 fn data() -> Arc<ModelData> {

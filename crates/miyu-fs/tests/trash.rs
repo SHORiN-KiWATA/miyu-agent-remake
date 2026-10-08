@@ -1,14 +1,12 @@
 //! 系统的回收站（施工 4-7 上）：放进去再移回来。Linux 上回收站在场地的假家目录里，移回来以后 `.trashinfo` 删了，
 //! 上级目录没了的建上；macOS、Windows 上放进系统真的回收站再移回来（在 CI 上跑）。
 
-mod support;
-
 use std::fs;
 use std::path::Path;
 
 use miyu_fs::trash::{put, restore};
 
-use support::Scratch;
+use crate::support::Scratch;
 
 /// 把 `real` 放进回收站，交回它在回收站里的位置。
 fn kept(real: &Path, home: Option<&Path>) -> String {
@@ -18,7 +16,7 @@ fn kept(real: &Path, home: Option<&Path>) -> String {
 #[cfg(target_os = "linux")]
 mod linux {
     use super::*;
-    use support::file;
+    use crate::support::file;
 
     /// 场地里的假家目录，交给回收站的就是它：不会碰到真的回收站。
     fn home(scratch: &Scratch) -> std::path::PathBuf {
@@ -86,8 +84,8 @@ mod linux {
 #[test]
 fn files_and_directories_come_back_from_the_system_trash() {
     let scratch = Scratch::new();
-    support::file(&scratch.0.join("work/a.txt"), "old\n");
-    support::file(&scratch.0.join("work/dir/inner.txt"), "in\n");
+    crate::support::file(&scratch.0.join("work/a.txt"), "old\n");
+    crate::support::file(&scratch.0.join("work/dir/inner.txt"), "in\n");
     for name in ["a.txt", "dir"] {
         let real = fs::canonicalize(scratch.0.join("work").join(name)).expect("在");
         let kept = kept(&real, None);

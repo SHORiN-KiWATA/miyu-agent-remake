@@ -1,23 +1,21 @@
 //! 真跑 `miyu rename`（施工 3-8 五补，`docs/blueprint/cli/rename.md`）：说明跟着界面语言；核心在跑的，给上一次 `miyu ask`
 //! 开的那个会话起名，什么都不印、退出码 0，几个词用空格连起来；`-s` 和 `--session` 起名的是写的那个；没写标题的是参数不对。
 
-mod support;
-
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+use crate::support::{Home, MIYU, within};
 use miyu_cli::help::{Page, page};
 use miyu_cli::language::Language;
 use miyu_ipc::connect_or_start;
-use support::{Home, MIYU, within};
 
 /// 在数据根 `root` 上跑 `miyu <args>`：界面语言是 `lang`。
 fn miyu(root: &Path, lang: &str, args: &[&str]) -> Output {
     Command::new(MIYU)
         .args(args)
         .env("MIYU_HOME", root)
-        .envs(support::offline(root))
-        .env("MIYU_RESOURCES", support::resources())
+        .envs(crate::support::offline(root))
+        .env("MIYU_RESOURCES", crate::support::resources())
         .env("LANG", lang)
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")
@@ -63,7 +61,7 @@ fn the_help_is_the_page_in_the_language() {
 #[tokio::test]
 async fn the_last_ask_or_the_given_session_is_the_one_renamed() {
     let home = Home::new();
-    home.system_config(support::UNUSABLE_MODEL);
+    home.system_config(crate::support::UNUSABLE_MODEL);
     let (held, _) = within("拉起", connect_or_start(&home.root, || home.core()))
         .await
         .expect("拉得起");

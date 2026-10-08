@@ -1,8 +1,6 @@
 //! `edit`（施工 4-6 中）：参数的几种写法；几处一起改、对照的是原文件；重叠的、有一处出错的一处都不改；CRLF、BOM、
 //! UTF-16 照原来的；宽松对上只换那一段；不改的几种；没对上给最接近的几行，不唯一给行号；`replace_all`；效果和说法。
 
-mod support;
-
 use serde_json::{Value, json};
 
 use miyu_kernel::block::Block;
@@ -11,7 +9,7 @@ use miyu_kernel::id::ContentHash;
 use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Effect, Seen};
 
-use support::{Site, native, tool};
+use crate::support::{Site, native, tool};
 
 /// 基础系统的说法。
 fn said(key: &str) -> Said {

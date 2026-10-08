@@ -3,11 +3,10 @@
 //! 有计划地停下，后台命令先记 `restarted` 再杀；没设 key 的，每次请求都回「没有可用的模型」。在进程里跑，请求模型照
 //! 剧本回，后台命令是假的（`miyu_tool::testkit::Held`）。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::support::{Head, Home, within};
 use miyu_core::{Stopped, models, serve};
 use miyu_ipc::{ConnectError, Lock};
 use miyu_kernel::event::{Body, CallResult, EndReason, ErrorClass, JobReason};
@@ -16,7 +15,6 @@ use miyu_kernel::tool::Access;
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake, Held};
 use miyu_tool::{Catalog, Exit, Tool};
-use support::{Head, Home, within};
 
 /// 只有一件假工具 `start`：把 `held` 交给任务表。
 fn starting(held: &Arc<Held>) -> Catalog {

@@ -2,8 +2,6 @@
 //! 的 `cost`，落了盘写进用量汇总；她调 `session_usage` 看到的就是这个会话到这时的用量、金额，上下文照内核的估算、窗口、
 //! 压缩线。
 
-mod support;
-
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Body, Event, Real};
 use miyu_kernel::session::Command;
@@ -14,7 +12,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_store::usage::Query;
 use miyu_tool::Catalog;
 
-use support::*;
+use crate::support::*;
 
 fn basesystem(home: &Home) -> Catalog {
     Catalog::new(miyu_basesystem::tools(home.resources.path()).expect("读得出")).expect("合写法")

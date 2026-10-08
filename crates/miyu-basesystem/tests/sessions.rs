@@ -1,8 +1,6 @@
 //! `sessions`（`docs/blueprint/tools/sessions.md`，施工 C-3）：输出逐字节比；第一行是她自己，最近有动静的在前；没标题的；分页、
 //! 过了结尾、没有别的；短编号撞了放长；参数不对的不问端口；没有端口、列不出来、叫停。给人看的说法三种语言都换得出字。
 
-mod support;
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -16,7 +14,7 @@ use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
 use miyu_tool::{Done, Listing, MainSession, Opening, SessionsPort, Stop};
 
-use support::{Site, check, human, readable, resources, said, tool};
+use crate::support::{Site, check, human, readable, resources, said, tool};
 
 /// 她自己：短编号 `22334455`。
 const THIS: &str = "0192f3a0-1111-7abc-8def-001122334455";

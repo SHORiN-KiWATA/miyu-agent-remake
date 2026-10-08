@@ -4,14 +4,12 @@
 
 #![cfg(unix)]
 
-mod support;
-
 use serde_json::json;
 
 use miyu_kernel::block::Block;
 use miyu_sandbox::{Sandboxed, Spec};
 
-use support::{Site, Taken};
+use crate::support::{Site, Taken};
 
 /// 交回的字。
 fn text(done: &miyu_tool::Done) -> String {

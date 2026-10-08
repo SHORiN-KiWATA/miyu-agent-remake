@@ -1,15 +1,13 @@
 //! 接着写被打断的回复（`docs/designs/05-内核接口.md` 第七节「接着写被打断的回复」，施工 3-5 再补）：
 //! 带着记号、供应商又会接着写的，最后那句提示不发，半截那条加上字段，发到另一条路径；别的一字不变。
 
-mod support;
-
 use std::collections::BTreeMap;
 
+use crate::support::{call, deepseek, sample, text, texts, thought};
 use miyu_drivers::Inputs;
 use miyu_drivers::openai_chat::{Compat, Continuation, ContinuationField, Encoded, PATH, encode};
 use miyu_kernel::request::{Message, Request};
 use serde_json::Value;
-use support::{call, deepseek, sample, text, texts, thought};
 
 /// 被打断的那一句，照资源里的写。
 const NOTICE: &str = "<reply-cut>The reply above was cut off before it was finished. The user has already seen it. Continue from exactly where it stopped, without repeating it.</reply-cut>\n";

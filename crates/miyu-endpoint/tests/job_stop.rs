@@ -2,15 +2,13 @@
 //! 父会话记下 `child.reported`（`stopped`，不是她停的）；回应是 `{}`。没有这个任务、已经结束了的拒绝，`unknown_job`，中文、英文
 //! 各一句；任务编号不合写法的参数不对。
 
-mod support;
-
 use serde_json::{Value, json};
 
+use crate::support::{Client, Home, TOKEN, default_resources, reason, until};
 use miyu_kernel::event::{Body, ChildReason, EndReason, Event};
 use miyu_kernel::origin::{By, Session};
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
-use support::{Client, Home, TOKEN, default_resources, reason, until};
 
 /// 父会话派出去的子会话的编号。
 fn started_child(log: &[Event]) -> String {

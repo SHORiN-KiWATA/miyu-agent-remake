@@ -2,8 +2,6 @@
 //! 假的，看执行器交给它的子会话抄对了父会话的每一样、交代记成父会话发的、一步里调几次派几个；编号接着日志往下数，领了没派成
 //! 的不回收；工具面上什么时候有 `subagent`（本机、没到深度上限），子会话的 system 接上场所说明；没有端口的派不了。
 
-mod support;
-
 use std::sync::{Arc, Mutex, PoisonError};
 
 use miyu_kernel::block::{Block, Text};
@@ -16,7 +14,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_session::{Child, Handle, Lineage, Pending, SessionPort};
 use miyu_tool::Catalog;
 
-use support::*;
+use crate::support::*;
 
 /// 派子代理的那件改名 `subagent`，以前造的会话照旧认 `agent`（施工 7-5 再补）。
 #[path = "spawn/renamed.rs"]

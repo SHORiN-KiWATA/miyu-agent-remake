@@ -3,8 +3,6 @@
 //! 参数不对、要放后台的不跑。Unix 上：放到后台的在命令退出以后停了，叫停时整组停了，被信号杀掉的写明信号。
 //! 三个平台都跑（macOS、Windows 在 CI 上）。
 
-mod support;
-
 use std::time::{Duration, Instant};
 
 use serde_json::json;
@@ -14,7 +12,7 @@ use miyu_kernel::event::Said;
 use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done};
 
-use support::{Site, tool};
+use crate::support::{Site, tool};
 
 /// 基础系统的说法。
 fn said(key: &str) -> Said {

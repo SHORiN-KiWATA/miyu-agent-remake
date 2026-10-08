@@ -2,8 +2,6 @@
 //! 「`fs.list`」「`fs.find`」）：真核心上数据根不列不找、账号的工作区照样列；清单没建完先给一部分、`building`；
 //! `fresh` 隔一段时间才重建；最多记几份、多了丢最久没用的；`path` 一律用 `/`。
 
-mod support;
-
 use std::path::Path;
 use std::time::{Duration, Instant};
 
@@ -11,7 +9,7 @@ use serde_json::{Value, json};
 
 use miyu_session::testkit::Script;
 
-use support::*;
+use crate::support::*;
 
 /// 连上、握手（中文），交回客户端。
 async fn client(home: &Home) -> Client {

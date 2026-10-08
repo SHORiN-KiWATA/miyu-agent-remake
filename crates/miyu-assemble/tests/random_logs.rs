@@ -7,17 +7,15 @@
 //! 五个种子里有一个看不了图（施工 8-17）：人说的话偶尔带一张图（三张里挑一张），转述另用一串随机数排好，四回里一回没成。
 //! 三个种子里有一个带角色扮演提示（施工 P-1 补）：回合开头隔几轮注入一块，排在触发后面。
 
-mod support;
-
 use std::collections::BTreeSet;
 
+use crate::support::sight::{blind, described, picture};
+use crate::support::{anchored, check, lines, sent, stage, stage_with, summarizes};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Body, CompactTrigger, ErrorClass, Event, ToolStatus};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::Queued;
 use miyu_kernel::testkit::{Line, Play, Stage};
-use support::sight::{blind, described, picture};
-use support::{anchored, check, lines, sent, stage, stage_with, summarizes};
 
 /// SplitMix64：十来行的伪随机数，够造剧本用。
 struct Rng(u64);
@@ -295,7 +293,7 @@ fn random_session(seed: u64) -> Stage {
     };
     // 三个种子里有一个带角色扮演提示（施工 P-1 补）。
     let mut s = match seed % 3 {
-        1 => stage_with(support::reminder::policy),
+        1 => stage_with(crate::support::reminder::policy),
         _ => stage(),
     };
     summarizes(&mut s);

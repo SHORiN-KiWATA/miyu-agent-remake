@@ -1,13 +1,11 @@
 //! 订阅时补发之前的事件（施工 3-8 六补，`docs/blueprint/session/actor.md` 第 6 条）：补发的那一截和订阅在 actor 的同一步
 //! 里拿。补到那一步落了盘的最后一条；之后追加的只从订阅推过来，补的时候日志里已经多了也不读进来：不重不漏。
 
-mod support;
-
 use miyu_kernel::event::Event;
 use miyu_session::Pushed;
 use miyu_session::testkit::{Play, Script};
 
-use support::*;
+use crate::support::*;
 
 /// 推过来的落了盘的事件，照先后。
 fn persisted(pushed: &[std::sync::Arc<Pushed>]) -> Vec<Event> {

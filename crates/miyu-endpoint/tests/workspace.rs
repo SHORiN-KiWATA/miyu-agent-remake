@@ -2,16 +2,14 @@
 //! 数据根、落在数据根里的，退回管理员的工作区 `home/<账号>/workspace/`；项目目录照旧。造会话、说话的回应
 //! 说会话实际在哪个目录里干活（施工 4-5 下）。施工 9-7 上起说话不再换工作区，换的是 `session.set_workspace`。
 
-mod support;
-
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde_json::{Value, json};
 
+use crate::support::{Client, Home, alice};
 use miyu_kernel::template::escape;
 use miyu_session::testkit::{Play, Script};
-use support::{Client, Home, alice};
 
 /// 一个用完就删的临时目录：假的家、项目目录放在数据根外面。
 struct Outside(PathBuf);

@@ -18,16 +18,14 @@
 //! 已经测过了（`blob.open`、`blob.write`、`blob.close`），这里只管「起来时清掉上一回留下的」这一步真的接进了
 //! 起来的先后里。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::support::{Head, Home, resources, within};
 use miyu_endpoint::queries::Queries;
 use miyu_session::testkit::Script;
 use miyu_store::blob::Blobs;
 use serde_json::json;
-use support::{Head, Home, resources, within};
 
 /// 测试里的空闲时限：这组测试都自己连着头，不等它空闲退出。
 const IDLE: Duration = Duration::from_secs(60);

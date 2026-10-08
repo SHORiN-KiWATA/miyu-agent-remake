@@ -6,6 +6,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
+autotests = false
 
 # 测试用的扩展（施工 9-4 上）：端点的测试把它当成 `process` 包的程序让核心拉起，三个平台都能真跑。不随发行带出去。
 [[bin]]
@@ -75,3 +76,32 @@ tokio = { version = "1", features = ["io-util", "macros", "rt", "sync", "time"] 
 
 [lints]
 workspace = true
+
+# 集成测试并成一个程序（施工 0-3 三补）；自己装日志订阅者的另列。
+[[test]]
+name = "all"
+path = "tests/all.rs"
+
+[[test]]
+name = "config_watch_log"
+path = "tests/config_watch_log.rs"
+
+[[test]]
+name = "index_log"
+path = "tests/index_log.rs"
+
+[[test]]
+name = "login_log"
+path = "tests/login_log.rs"
+
+[[test]]
+name = "model_call_log"
+path = "tests/model_call_log.rs"
+
+[[test]]
+name = "providers_log"
+path = "tests/providers_log.rs"
+
+[[test]]
+name = "secrets_log"
+path = "tests/secrets_log.rs"

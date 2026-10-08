@@ -2,17 +2,15 @@
 //! 几个词用一个空格连起来，什么都不印，退出码 0，日志里记一条人改的 `session.meta_changed`；`--session` 起名的是指定的那个；
 //! 核心不收的（全是空白的）照核心的话说、退出码 1；一个会话都没有的说清楚、退出码 1。
 
-mod support;
-
 use std::sync::Arc;
 
+use crate::support::{Asked, Home, Tape, plan, within};
 use miyu_cli::language::Language;
 use miyu_cli::{RenamePlan, rename_on};
 use miyu_kernel::event::{Body, MetaChanged};
 use miyu_kernel::id::SessionId;
 use miyu_kernel::origin::By;
 use miyu_session::testkit::{Play, Script};
-use support::{Asked, Home, Tape, plan, within};
 
 /// 给 `session`（没有的是上一次 `miyu ask` 开的）起名 `title`，界面是中文。
 fn renaming(session: Option<&SessionId>, title: &str) -> RenamePlan {

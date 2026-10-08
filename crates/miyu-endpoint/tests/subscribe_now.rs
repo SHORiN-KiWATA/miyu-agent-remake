@@ -2,16 +2,14 @@
 //! `usage.query {"session"}` 那一行一样，另带压缩、缓存断了几次；人设的权限；还在跑的后台命令和子代理。核心重启、会话重新
 //! 载入以后照日志算出来的还是那一份。
 
-mod support;
-
 use serde_json::{Value, json};
 
+use crate::support::providers::{data, profiles, scripted};
+use crate::support::*;
 use miyu_models::catalog::{Price, Rates};
 use miyu_models::price::Tariff;
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
-use support::providers::{data, profiles, scripted};
-use support::*;
 
 /// 剧本端口的价格：每百万输入 1、读缓存 0.5、输出 2 美元。剧本一次报 60 没命中、40 命中、10 输出。
 fn usd() -> Tariff {

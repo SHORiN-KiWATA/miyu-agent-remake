@@ -3,13 +3,13 @@
 //!
 //! 两台假服务器，档案是空的、没有目录：没有目录说不收，温度都当能调。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::watch as channel;
 
+use crate::support::routing::{configs, hellos, items, routes};
+use crate::support::{Home, Lines, Opening, ask, say, until_turn_ends, watch};
 use miyu_config::Layer;
 use miyu_config::merge::{Layers, Resolved, merge};
 use miyu_config::parse::parse;
@@ -18,8 +18,6 @@ use miyu_kernel::session::Command;
 use miyu_session::{ConfigSource, Handle, Models, fixed_with};
 use miyu_tool::Catalog;
 use serde_json::Value;
-use support::routing::{configs, hellos, items, routes};
-use support::{Home, Lines, Opening, ask, say, until_turn_ends, watch};
 
 /// 两家 `a`、`b`，都不带 key。`a` 的 `m` 默认 0.7；`b` 的 `n` 没写。池 `p` 是两个都有的轮换。`models.chat` 是 `a/m`。
 fn config(first: &Server, second: &Server, extra: &str) -> String {

@@ -1,13 +1,11 @@
 //! `read`（施工 4-4 上，施工 4-4 下改到规范上）：从资源目录造出来；读文件带行号、翻页；读目录、一样翻页；
 //! 读不了的说清楚，找不到的列出相近的名字。
 
-mod support;
-
 use miyu_kernel::id::ContentHash;
 use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Effect};
 
-use support::{Site, resources, tool};
+use crate::support::{Site, resources, tool};
 
 #[test]
 fn read_comes_from_the_resources_with_its_schema_as_written() {
@@ -270,7 +268,7 @@ async fn a_missing_file_lists_similar_names_next_to_it() {
         text,
         format!(
             "There is no file or directory at \"src/main.ts\".\nDid you mean \"{}\"?\n",
-            support::native("src/main.rs").replace('\\', "\\\\")
+            crate::support::native("src/main.rs").replace('\\', "\\\\")
         )
     );
     // 一个相近的都没有：只说没有。

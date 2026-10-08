@@ -2,14 +2,12 @@
 //! 大于它、落了盘的，都在回应前面，回应带 `upto`；不写的照旧；写错的 `bad_params`；瞬时事件不补；要载入的会话照样补；
 //! 已经订阅着的换一个新的。掉了队带 `after` 补回来、补的同时会话在追加，在 `replay_race.rs`。
 
-mod support;
-
 use std::time::Duration;
 
 use serde_json::{Value, json};
 
+use crate::support::{Client, Home, apart_from_now, events, kinds, logged, reason};
 use miyu_session::testkit::{Play, Script};
-use support::{Client, Home, apart_from_now, events, kinds, logged, reason};
 
 /// 造一个会话，说完一轮，交回会话编号和磁盘上的日志。
 async fn one_turn(home: &Home, client: &mut Client) -> (String, Vec<Value>) {
@@ -265,7 +263,7 @@ async fn an_unreadable_log_refuses_only_when_there_is_something_to_replay() {
     let mut client = Client::connect(home.core(&script));
     let (session, log) = one_turn(&home, &mut client).await;
     let id = miyu_kernel::id::SessionId::parse(&session).expect("合写法");
-    let segment = std::fs::read_dir(home.root.session_dir(&support::alice(), &id))
+    let segment = std::fs::read_dir(home.root.session_dir(&crate::support::alice(), &id))
         .expect("会话目录在")
         .map(|entry| entry.expect("读得了").path())
         .filter(|path| path.extension().is_some_and(|ext| ext == "jsonl"))

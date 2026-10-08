@@ -1,17 +1,15 @@
 //! 路由照模型资料（施工 8-7，`docs/blueprint/models.md`「怎么走」第二条）：目录在写了 `ready` 以后才读完，造会话先等它；
 //! 窗口、最大输出照目录交给内核；换上的新目录，新会话当场用。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::support::Home;
+use crate::support::routing::{configs, routes_with};
 use miyu_models::catalog::{Catalog, CatalogSource, Loaded};
 use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
 use miyu_session::{ModelData, Observed};
-use support::Home;
-use support::routing::{configs, routes_with};
 
 /// 真目录裁出来的一份（`miyu-models` 的测试也用它）。
 fn trimmed() -> Loaded {

@@ -2,8 +2,6 @@
 //! `multiple`、`preview` 带着）；回答一道一行写成结果，逐字节比；参数不对的、一道题都没有的，端口一次都不问；没有端口的说这里
 //! 没人能回答；没答到就了结的照叫停收场。
 
-mod support;
-
 use std::sync::{Arc, Mutex};
 
 use serde_json::json;
@@ -13,7 +11,7 @@ use miyu_kernel::event::{Choice, Question, Response};
 use miyu_kernel::tool::Access;
 use miyu_tool::{Answering, Done, QuestionPort};
 
-use support::{Site, check, human, readable, said, tool};
+use crate::support::{Site, check, human, readable, said, tool};
 
 /// 交回的那一段字。
 fn text(done: &Done) -> &str {

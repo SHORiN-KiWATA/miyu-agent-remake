@@ -3,11 +3,11 @@
 //! 还发给原来那一个；只有一个候选的照旧在它上面再来；全在冷却的不发、交 `cooling`、原话列出每个候选；换端点数进 5 次；
 //! 不换的几类不记冷却；钉着的成员换了推 `model.changed`、限额跟着换，换 key 不推。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::support::routing::{called, configs, cut_after, hellos, routes};
+use crate::support::{Home, Lines, Opening, ask, say, until_turn_ends, watch};
 use miyu_config::secret::Reference;
 use miyu_http::testkit::{Reply, Server};
 use miyu_kernel::event::{Body, ChangeWhy, ErrorClass, ModelChanged, Status, TransientBody};
@@ -15,8 +15,6 @@ use miyu_models::cooldown::{Rule, Rules};
 use miyu_models::keys;
 use miyu_session::{Handle, Models, Pushed};
 use miyu_tool::Catalog;
-use support::routing::{called, configs, cut_after, hellos, routes};
-use support::{Home, Lines, Opening, ask, say, until_turn_ends, watch};
 
 /// 一家 `a` 在 `base_url`，`count` 个 key 照 `{ env = "K<n>" }` 写，值是 `sk-<n>`，都取得到；`models.chat` 是 `a/m`。
 fn keyed(base_url: &str, count: usize) -> (String, Vec<(Reference, String)>) {

@@ -2,15 +2,13 @@
 //! 收到起标题的 `model.called`（`purpose: "title"`）和 `session.meta_changed`，`by` 是内核、不带回合编号和 `cause`；
 //! `session.list` 里带上这个标题，核心重启以后照样；请求是单独的一次，没有 system、工具面，只喂第一轮；人先起过名的不起。
 
-mod support;
-
 use serde_json::{Value, json};
 
 use miyu_kernel::block::Block;
 use miyu_kernel::request::Message;
 use miyu_session::testkit::{Play, Script};
 
-use support::*;
+use crate::support::*;
 
 /// 读推送，读到会话 `session` 的 `session.meta_changed` 为止，交回读到的事件，照先后。
 async fn until_renamed(client: &mut Client, session: &str) -> Vec<Value> {

@@ -1,16 +1,14 @@
 //! 协议端点（`docs/construction/3-8-协议端点（上）.md` 验收第 2 条）：在内存里的管道上连核心，握手、造会话、
 //! 说话、打断；会话表载入这次运行里没在跑的会话；读不懂的、不是请求的、太长的各回 JSON-RPC 标准的错。
 
-mod support;
-
 use serde_json::json;
 use tokio::io::AsyncWriteExt;
 
+use crate::support::{Client, Home, alice, reason, until};
 use miyu_kernel::event::Body;
 use miyu_policy::Snapshot;
 use miyu_session::testkit::{Play, Script};
 use miyu_store::blob::Blobs;
-use support::{Client, Home, alice, reason, until};
 
 /// 一行的上限：和核心的一样，1 MiB。
 const LINE_LIMIT: usize = 1024 * 1024;
@@ -57,7 +55,7 @@ async fn hello_comes_first_and_is_checked() {
         .call(
             "h1",
             "hello",
-            json!({"protocol": [1, 1], "head": {"kind": "test", "version": "0"}, "token": &support::TOKEN[..5]}),
+            json!({"protocol": [1, 1], "head": {"kind": "test", "version": "0"}, "token": &crate::support::TOKEN[..5]}),
         )
         .await;
     assert_eq!(reason(&reply), Some("bad_token"), "{reply}");
@@ -68,7 +66,7 @@ async fn hello_comes_first_and_is_checked() {
         .call(
             "h1",
             "hello",
-            json!({"protocol": [2, 3], "head": {"kind": "test", "version": "0"}, "token": support::TOKEN}),
+            json!({"protocol": [2, 3], "head": {"kind": "test", "version": "0"}, "token": crate::support::TOKEN}),
         )
         .await;
     assert_eq!(reason(&reply), Some("protocol_mismatch"), "{reply}");

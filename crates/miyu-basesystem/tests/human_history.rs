@@ -1,8 +1,6 @@
 //! `history` 交回的给人看的说法（施工 6-4）：找到几条、读了第几到第几条、没有找到、读不了记录；读别的会话找不到、
 //! 对得上不止一个、这个会话不能读别的会话（施工 C-4）；中文、英文两份字里都有，换得出字，显示名也有。
 
-mod support;
-
 use std::sync::Arc;
 
 use miyu_kernel::event::{Event, Said};
@@ -12,7 +10,7 @@ use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
 use miyu_tool::{Listing, MainSession, Opening, SessionsPort, Stop};
 
-use support::{Site, check, human, readable, resources, said};
+use crate::support::{Site, check, human, readable, resources, said};
 
 /// 假的列会话、开日志的端口：只用来走到「找不到」「对得上不止一个」两种拒绝，一步都不会真的开日志。
 struct Peers {

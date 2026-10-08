@@ -1,16 +1,14 @@
 //! `miyu ask --file`（施工 3-9 三补，`docs/blueprint/cli/ask.md`「附件」）：在进程里起一个核心，在真的套接字上走一遍：
 //! 附件照写的先后传上去、跟着这一句发出去；传不上的说是哪个文件、为什么，不发话、不留下空的会话，退出码 1。
 
-mod support;
-
 use std::sync::Arc;
 
+use crate::support::outside::Outside;
+use crate::support::{Asked, Home, plan};
 use miyu_cli::Plan;
 use miyu_kernel::block::Block;
 use miyu_kernel::event::Body;
 use miyu_session::testkit::{Play, Script};
-use support::outside::Outside;
-use support::{Asked, Home, plan};
 
 /// 一张 2 × 3 的 PNG 的开头：签名和 IHDR，量宽高只看它。
 fn png() -> Vec<u8> {

@@ -3,10 +3,9 @@
 //! 父子之间、别的会话走的是同一行代码，由 `messages_log.rs` 守着，这里不重复。两个主会话之间真的来回收发由
 //! `crates/miyu-endpoint/tests/peers.rs` 守着，这里只测执行器自己翻译的那一段。
 
-mod support;
-
 use std::sync::{Arc, Mutex, PoisonError};
 
+use crate::support::{Home, Lines, Opening, ask, say};
 use miyu_kernel::id::{AccountId, CommandId, SessionId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Outcome, Reason};
@@ -14,7 +13,6 @@ use miyu_kernel::time::Timestamp;
 use miyu_session::testkit::{Play, Script};
 use miyu_session::{Child, Handle, Pending, SessionPort};
 use miyu_tool::MainSession;
-use support::{Home, Lines, Opening, ask, say};
 
 /// 别的会话：短编号 `5a7c2d91`。
 const OTHER: &str = "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91";
@@ -147,7 +145,7 @@ async fn session(home: &Home, script: &Script, table: &Arc<Table>) -> Handle {
 async fn one_turn(home: &Home, handle: &Handle, turns: usize) -> Vec<miyu_kernel::event::Event> {
     let id = format!("cmd-{turns}");
     ask(handle, &id, say("去发")).await.expect("会话在跑");
-    support::until_logged(home, handle.id(), |log| {
+    crate::support::until_logged(home, handle.id(), |log| {
         log.iter()
             .filter(|event| matches!(event.body, miyu_kernel::event::Body::TurnEnded(_)))
             .count()

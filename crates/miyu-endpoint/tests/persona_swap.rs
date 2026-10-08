@@ -2,8 +2,6 @@
 //! 下一轮的 system 就是新的，日志里一条内核记的、带 `policy` 的 `session.policy_changed`；新人格带了角色扮演提示的这一轮就
 //! 有；没改的不记；写错了的照旧用原来的；重启以后照换上的那一份。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::json;
@@ -15,8 +13,8 @@ use miyu_kernel::request::Request;
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
 
-use support::venues::configured_core;
-use support::*;
+use crate::support::venues::configured_core;
+use crate::support::*;
 
 /// 管理员（测试里是 alice）家目录里 Miyu 的一个文件。
 fn mine(home: &Home, file: &str, text: &str) {

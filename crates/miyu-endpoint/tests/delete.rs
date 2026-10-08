@@ -2,15 +2,13 @@
 //! `home/<账号>/trash/sessions/<会话编号>/`，写下 `deleted_at`，回应 `{}`；删了的列不出来，再发命令是没有这个会话。有回合在
 //! 进行的拒绝、什么都不动。没在跑的会话不载入就删：被重启打断的那一轮不接着干。子会话的几种在 `delete_children.rs`。
 
-mod support;
-
 use serde_json::json;
 
 use miyu_kernel::time::Timestamp;
 use miyu_session::testkit::{Play, Script};
 
-use support::deleting::*;
-use support::*;
+use crate::support::deleting::*;
+use crate::support::*;
 
 /// 这个时刻：`deleted_at` 照它比。
 fn now() -> Timestamp {

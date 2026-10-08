@@ -3,10 +3,8 @@
 //! 图只收五种、最多 3 MiB。假服务器在回环上，用测试的口子（`testkit`）把回环当公网、把 `site.test` 解析到回环。
 //! 代理、没开口子时的闸在 `proxy.rs`。gzip/br、`</head>` 后面的 `og:title` 在这个文件最后（W-7 补）。
 
-mod support;
-
+use crate::support::{PNG, Reply, Site, Store, card, local, miss, page, previewer};
 use miyu_net::{Preview, Why};
-use support::{PNG, Reply, Site, Store, card, local, miss, page, previewer};
 
 #[tokio::test]
 async fn a_page_on_the_fake_server_becomes_a_card_with_its_pictures_stored() {
@@ -310,9 +308,11 @@ async fn a_small_gzip_bomb_is_capped_at_two_mib_decoded_not_fully_inflated() {
     // 不是读到压过的字节就直接放弃）；标题在填料后面的（总共远超 2 MiB）找不到（证明上限照解开以后的字节算，
     // 不是照 Content-Length 这个压过的小数）。
     let huge_filler = "x".repeat(20 * 1024 * 1024);
-    let early = support::gzip(format!("<html><head><title>Early</title>{huge_filler}").as_bytes());
-    let late =
-        support::gzip(format!("<html><head>{huge_filler}<title>Too late</title>").as_bytes());
+    let early =
+        crate::support::gzip(format!("<html><head><title>Early</title>{huge_filler}").as_bytes());
+    let late = crate::support::gzip(
+        format!("<html><head>{huge_filler}<title>Too late</title>").as_bytes(),
+    );
     for compressed in [&early, &late] {
         assert!(
             compressed.len() < 200 * 1024,

@@ -1,12 +1,10 @@
 //! `read` 读图片（施工 4-13）：四种格式交回图片、不另写字，扩展名不算数；太大的拦下，照样报读过；量不出宽高的当
 //! 二进制；`offset`、`limit` 不管。
 
-mod support;
-
 use miyu_kernel::id::{ContentHash, MediaType};
 use miyu_tool::{Done, Effect};
 
-use support::{Site, tool};
+use crate::support::{Site, tool};
 
 /// 一个 PNG 的开头：签名、IHDR 里的宽高。后面的字节量宽高用不上。
 fn png(width: u32, height: u32) -> Vec<u8> {

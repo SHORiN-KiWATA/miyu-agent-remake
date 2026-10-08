@@ -2,8 +2,6 @@
 //! 没有的、写错的不造；人格照「指定、预设的默认人格、`persona.default`」找；`session.created`、会话列表、`subscribe` 带上预设；
 //! `venue.session` 带预设；`preset.list`、`preset.get`；`check` 查预设。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -12,8 +10,8 @@ use miyu_endpoint::Core;
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
 
-use support::venues::{BINDINGS, configured_core};
-use support::*;
+use crate::support::venues::{BINDINGS, configured_core};
+use crate::support::*;
 
 /// 管理员（测试里是 alice）家目录里的预设 `id`。
 fn mine(home: &Home, id: &str, text: &str) {
@@ -254,8 +252,8 @@ async fn presets_are_listed_and_read_by_layer() {
         listed["result"]["presets"],
         json!([
             {"preset": "broken", "problem": "home broken.toml:1: unknown table [colors]"},
-            {"preset": "dev", "name": "大家的开发", "summary": "只开写代码必需的：基础系统、联网、长期目标", "layers": ["shipped", "system", "home"]},
-            {"preset": "full", "name": "功能全开", "summary": "装了的软件全部打开，以后新装的也打开", "layers": ["shipped"]},
+            {"preset": "dev", "name": "大家的开发", "summary": "只开写代码必需的：基础系统、联网、长期目标"},
+            {"preset": "full", "name": "功能全开", "summary": "装了的软件全部打开，以后新装的也打开"},
         ]),
         "照连接的语言挑"
     );
@@ -263,15 +261,35 @@ async fn presets_are_listed_and_read_by_layer() {
         .call("g1", "preset.get", json!({"preset": "dev"}))
         .await;
     let got = &got["result"];
-    assert_eq!(got["name"]["zh"], "大家的开发");
-    assert_eq!(got["name"]["en"], "Dev", "各种语言原样给");
-    assert_eq!(got["layers"], json!(["shipped", "system", "home"]));
+    assert_eq!(got["name"], "大家的开发", "照连接的语言挑一句");
+    assert!(got.get("layers").is_none(), "来自哪几层不给（施工 P-3 补）");
     assert_eq!(got["default_persona"], "engineer");
     assert_eq!(got["unlisted"], "off");
+    let software: Vec<(&str, &str, bool)> = got["software"]
+        .as_array()
+        .expect("是一个个软件")
+        .iter()
+        .map(|one| {
+            (
+                one["id"].as_str().unwrap_or_default(),
+                one["name"].as_str().unwrap_or_default(),
+                one["on"].as_bool().unwrap_or_default(),
+            )
+        })
+        .collect();
     assert_eq!(
-        got["software"],
-        json!({"basesystem": true, "goal": true, "memory": true, "net": true})
+        software,
+        [
+            ("basesystem", "基础系统", true),
+            ("net", "联网", true),
+            ("goal", "长期目标", true),
+            ("memory", "记忆", true),
+            ("roleplay", "角色扮演", false),
+        ],
+        "内置的照固定的先后、照连接的语言写名字（施工 P-3 补）"
     );
+    assert_eq!(got["software"][4]["installed"], true, "角色扮演一直装着");
+    assert_eq!(got["software"][4]["summary"], "照人格的设定演下去，不出戏");
     assert_eq!(got["tools"], json!({"trash": false}));
     let full = client
         .call("g2", "preset.get", json!({"preset": "full"}))
@@ -286,53 +304,6 @@ async fn presets_are_listed_and_read_by_layer() {
         .call("g4", "preset.get", json!({"preset": "broken"}))
         .await;
     assert_eq!(reason(&reply), Some("preset_invalid"), "{reply}");
-}
-
-/// 以谁为底（施工 P-3 上）：`preset.get` 带 `base`、各格叠在底上，`layers` 只算自己的；绕圈、底没有的 `preset_invalid`。
-#[tokio::test]
-async fn a_preset_on_a_base_reads_through_it() {
-    let home = Home::new();
-    mine(
-        &home,
-        "mine",
-        "[preset]\nbase = \"dev\"\nname = { zh = \"我的\" }\n\n[software]\nmemory = true\n",
-    );
-    mine(&home, "loop", "[preset]\nbase = \"loop\"\n");
-    mine(&home, "lost", "[preset]\nbase = \"nowhere\"\n");
-    let mut client = connected(configured(&home, &Script::new([]))).await;
-    let got = client
-        .call("g1", "preset.get", json!({"preset": "mine"}))
-        .await;
-    let got = &got["result"];
-    assert_eq!(got["base"], "dev", "{got}");
-    assert_eq!(got["layers"], json!(["home"]));
-    assert_eq!(
-        (&got["name"]["zh"], &got["name"]["en"]),
-        (&json!("我的"), &json!("Dev"))
-    );
-    assert_eq!(got["default_persona"], "engineer");
-    assert_eq!(got["unlisted"], "off");
-    assert_eq!(
-        got["software"],
-        json!({"basesystem": true, "goal": true, "memory": true, "net": true})
-    );
-    let plain = client
-        .call("g2", "preset.get", json!({"preset": "dev"}))
-        .await;
-    assert!(plain["result"].get("base").is_none(), "没写底的不写");
-    for (n, (id, problem)) in [
-        ("loop", "base cycle: loop -> loop"),
-        ("lost", r#"base "nowhere" of "lost" not found"#),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let reply = client
-            .call(&format!("b{n}"), "preset.get", json!({"preset": id}))
-            .await;
-        assert_eq!(reason(&reply), Some("preset_invalid"), "{reply}");
-        assert_eq!(reply["error"]["data"]["problem"], problem);
-    }
 }
 
 #[tokio::test]

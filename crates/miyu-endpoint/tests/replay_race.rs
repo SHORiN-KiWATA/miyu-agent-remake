@@ -1,16 +1,14 @@
 //! 订阅时补发（施工 3-8 六补）：掉了队的头带上最后看到的序号重新订阅，掉的那一截补得回来；补的同时会话一直在追加，
 //! 补的和之后推的合起来就是日志，不丢不重（真核心走一遍）。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::{Value, json};
 
+use crate::support::{Client, Home, events, logged};
 use miyu_endpoint::Core;
 use miyu_session::testkit::{Play, Script};
-use support::{Client, Home, events, logged};
 
 #[tokio::test]
 async fn a_lagged_head_catches_up_with_after() {

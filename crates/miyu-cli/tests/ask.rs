@@ -1,18 +1,16 @@
 //! `miyu ask` 的对话（`docs/construction/3-9-miyu-ask（下）.md`）：在进程里起一个核心，在真的套接字上走一遍：
 //! 新开一次性会话、边收边打、用量一行；`--continue`、`--session`；没有模型；`--model`（施工 8-10）；Ctrl+C。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::Value;
 use tokio::sync::mpsc;
 
+use crate::support::{AccountIdOf, Asked, Home, plan, within};
 use miyu_cli::{Format, Plan, Target};
 use miyu_kernel::event::Body;
 use miyu_session::testkit::{Play, Script};
 use miyu_store::log::first_event;
-use support::{AccountIdOf, Asked, Home, plan, within};
 
 #[tokio::test]
 async fn a_new_oneshot_session_answers_and_shows_the_usage() {
@@ -180,7 +178,7 @@ async fn no_memory_makes_an_off_session() {
 #[tokio::test]
 async fn without_a_model_it_is_exit_code_5() {
     // 核心照出厂的档案造路由，配置里什么都没写：每次请求都是 `no_model`（施工 8-6）。
-    let home = Home::new(miyu_core::models::routes(&support::resources()).expect("造得出"));
+    let home = Home::new(miyu_core::models::routes(&crate::support::resources()).expect("造得出"));
     let Asked { code, out, err, .. } = home.ask(&plan("在吗")).await;
     assert_eq!(code, 5, "{err}");
     assert_eq!(out, "");

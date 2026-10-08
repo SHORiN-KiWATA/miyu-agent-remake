@@ -1,23 +1,21 @@
 //! 真跑 `miyu undo`（别名 `miyu rewind`）、`miyu restore`（`docs/construction/4-7-miyu undo、miyu redo（下）.md`，改名施工
 //! 4-7 补）：说明跟着界面语言；核心在跑的，撤掉上一次 `miyu ask` 的那一轮、再恢复它，几条命令各接对了自己的那一个。`miyu redo` 施工 4-7 再补又有了，是重做（`tests/redo.rs`）。
 
-mod support;
-
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+use crate::support::{Home, MIYU, within};
 use miyu_cli::help::{Page, page};
 use miyu_cli::language::Language;
 use miyu_ipc::connect_or_start;
-use support::{Home, MIYU, within};
 
 /// 在数据根 `root` 上跑 `miyu <args>`：界面语言是 `lang`。
 fn miyu(root: &Path, lang: &str, args: &[&str]) -> Output {
     Command::new(MIYU)
         .args(args)
         .env("MIYU_HOME", root)
-        .envs(support::offline(root))
-        .env("MIYU_RESOURCES", support::resources())
+        .envs(crate::support::offline(root))
+        .env("MIYU_RESOURCES", crate::support::resources())
         .env("LANG", lang)
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")
@@ -61,7 +59,7 @@ fn the_help_is_the_page_in_the_language() {
 #[tokio::test]
 async fn undo_and_restore_the_last_ask() {
     let home = Home::new();
-    home.system_config(support::UNUSABLE_MODEL);
+    home.system_config(crate::support::UNUSABLE_MODEL);
     let (held, _) = within("拉起", connect_or_start(&home.root, || home.core()))
         .await
         .expect("拉得起");

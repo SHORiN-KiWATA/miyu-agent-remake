@@ -1,8 +1,6 @@
 //! `jobs`（`docs/blueprint/tools/jobs.md`，施工 7-4）：三个动作的输出逐字节比；读输出照 `read` 分页；停交给端口，没有、结束了
 //! 的出错；参数不对的照共用的那一句。给人看的说法两种语言都换得出字。
 
-mod support;
-
 use std::io::{Cursor, Read};
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -14,7 +12,7 @@ use miyu_kernel::id::JobId;
 use miyu_kernel::tool::Access;
 use miyu_tool::{Asking, Background, Done, JobError, JobPort, Listed, Output};
 
-use support::{Site, check, human, readable, said, tool};
+use crate::support::{Site, check, human, readable, said, tool};
 
 /// 假的任务端口：列出来的照给的；`j1` 是后台命令、`j2` 是子代理，输出照给的；停 `j1` 停得了，`j2` 已经结束了，别的没有。
 struct Port {

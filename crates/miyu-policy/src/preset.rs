@@ -5,7 +5,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
-use miyu_config::phrases::{self, PhraseError, Phrases};
+use miyu_config::phrases::{self, Label, PhraseError};
 use miyu_config::secret::valid_name;
 use miyu_kernel::id::ContentHash;
 use serde::{Deserialize, Serialize};
@@ -42,10 +42,10 @@ impl Unlisted {
 /// 一份预设文件读好的样子。每一格都可以没有：同名覆盖只写改了的。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PresetFile {
-    /// 名字。
-    pub name: Phrases,
-    /// 一句说明。
-    pub summary: Phrases,
+    /// 名字：一句字（施工 P-3 补），以前写成语言表的照样认。
+    pub name: Option<Label>,
+    /// 一句说明，写法同名字。
+    pub summary: Option<Label>,
     /// 不指定人格时用哪个人格（人格的编号；在不在开会话时查）。
     pub default_persona: Option<String>,
     /// 没列出来的软件开不开；几层都没写的照 [`Unlisted::On`]（[`PresetFile::unlisted`]）。
@@ -54,21 +54,18 @@ pub struct PresetFile {
     pub software: BTreeMap<String, bool>,
     /// 关掉的单件工具（开着的包里的）。
     pub tools_off: BTreeSet<String>,
-    /// 以哪个预设为底（施工 P-3 上，16 第四节）：自己的几层逐格盖在它叠好的样子上。底怎么找在 `miyu_store::presets`。
-    pub base: Option<String>,
 }
 
 impl PresetFile {
-    /// 叠在 `lower` 上面（同名覆盖，16 第四节）：逐格盖，名字、说明逐种语言盖，`[software]` 逐个键盖，关掉的工具叠在一起。
+    /// 叠在 `lower` 上面（同名覆盖，16 第四节）：逐格盖，名字、说明写了的整格换掉，`[software]` 逐个键盖，关掉的工具叠在一起。
     #[must_use]
     pub fn over(self, mut lower: PresetFile) -> PresetFile {
-        lower.name.extend(self.name);
-        lower.summary.extend(self.summary);
+        lower.name = self.name.or(lower.name);
+        lower.summary = self.summary.or(lower.summary);
         lower.default_persona = self.default_persona.or(lower.default_persona);
         lower.unlisted = self.unlisted.or(lower.unlisted);
         lower.software.extend(self.software);
         lower.tools_off.extend(self.tools_off);
-        lower.base = self.base.or(lower.base);
         lower
     }
 
@@ -90,16 +87,16 @@ impl PresetFile {
         self.opens(package) && !self.tools_off.contains(tool)
     }
 
-    /// 叠好的文件的指纹（施工 P-2 下）：记进快照，回合开始时执行器照它认出预设的文件改了。`base` 不算进去（施工 P-3 上）：
-    /// 底的各格已经叠进来了，算进去会让以前的快照全都对不上、开着的会话白白换一次快照。
+    /// 叠好的文件的指纹（施工 P-2 下）：记进快照，回合开始时执行器照它认出预设的文件改了。名字、说明照以前的写法算
+    /// （施工 P-3 补：没写的是空表、语言表照原样，一句字的是那句字）：以前造的快照照旧对得上，开着的会话不白白换一次快照。
     ///
     /// # Panics
     ///
     /// 实际不会 panic：几格总写得成 JSON。
     pub fn digest(&self) -> ContentHash {
         let fields = (
-            &self.name,
-            &self.summary,
+            label_json(self.name.as_ref()),
+            label_json(self.summary.as_ref()),
             &self.default_persona,
             self.unlisted.map(Unlisted::as_str),
             &self.software,
@@ -209,7 +206,7 @@ pub enum Code {
     NotATable,
     /// `[preset]` 里多了别的键。
     UnknownKey,
-    /// `name`、`summary` 不是语言到一句话的表。
+    /// `name`、`summary` 不是一句字，也不是语言到一句话的表（以前的写法）。
     NotPhrases,
     /// 语言不是 `zh`、`en`、`ja`。
     UnknownLanguage,
@@ -227,8 +224,6 @@ pub enum Code {
     BadTool,
     /// `[tools]` 的值不是 `false`：单件打开某个包里的一件先不做。
     NotFalse,
-    /// `base` 不是合写法的预设编号（施工 P-3 上）。
-    BadBase,
 }
 
 impl Code {
@@ -248,12 +243,11 @@ impl Code {
             Code::NotBool => "not_bool",
             Code::BadTool => "bad_tool",
             Code::NotFalse => "not_false",
-            Code::BadBase => "bad_base",
         }
     }
 
     /// 全部，照先后：给人看的字的门禁照它查三种语言都有。
-    pub const ALL: [Code; 14] = [
+    pub const ALL: [Code; 13] = [
         Code::Syntax,
         Code::UnknownTable,
         Code::NotATable,
@@ -267,7 +261,6 @@ impl Code {
         Code::NotBool,
         Code::BadTool,
         Code::NotFalse,
-        Code::BadBase,
     ];
 }
 
@@ -362,8 +355,8 @@ impl Reader<'_> {
     fn preset(&self, table: &dyn TableLike, file: &mut PresetFile) -> Result<(), Problem> {
         for (key, item) in table.iter() {
             match key {
-                "name" => file.name = self.phrases(key, item)?,
-                "summary" => file.summary = self.phrases(key, item)?,
+                "name" => file.name = Some(self.label(key, item)?),
+                "summary" => file.summary = Some(self.label(key, item)?),
                 "default_persona" => {
                     let persona = item.as_str().filter(|id| valid_name(id)).ok_or_else(|| {
                         self.problem(
@@ -374,17 +367,6 @@ impl Reader<'_> {
                         )
                     })?;
                     file.default_persona = Some(persona.to_string());
-                }
-                "base" => {
-                    let base = item.as_str().filter(|id| valid_name(id)).ok_or_else(|| {
-                        self.problem(
-                            item,
-                            Code::BadBase,
-                            "preset.base",
-                            "preset.base must be a preset id".to_string(),
-                        )
-                    })?;
-                    file.base = Some(base.to_string());
                 }
                 "unlisted" => {
                     file.unlisted = Some(match item.as_str() {
@@ -420,16 +402,22 @@ impl Reader<'_> {
         })
     }
 
-    /// 一张语言到一句话的表。
-    fn phrases(&self, field: &str, item: &Item) -> Result<Phrases, Problem> {
+    /// 名字、说明：一句字，或者以前的语言表。
+    fn label(&self, field: &str, item: &Item) -> Result<Label, Problem> {
         let line =
             |span: Option<std::ops::Range<usize>>| span.map(|span| line_of(self.text, span.start));
-        phrases::read(item).map_err(|error| match error {
+        phrases::read_label(item).map_err(|error| match error {
             PhraseError::NotPhrases(span) => Problem {
                 line: line(span),
                 code: Code::NotPhrases,
                 detail: format!("preset.{field}"),
-                message: format!("preset.{field} must map languages to text"),
+                message: format!("preset.{field} must be text"),
+            },
+            PhraseError::Empty(language, span) if language.is_empty() => Problem {
+                line: line(span),
+                code: Code::EmptyPhrase,
+                detail: format!("preset.{field}"),
+                message: format!("preset.{field} must be non-empty text"),
             },
             PhraseError::UnknownLanguage(language, span) => Problem {
                 line: line(span),
@@ -453,6 +441,15 @@ impl Reader<'_> {
             detail: detail.to_string(),
             message,
         }
+    }
+}
+
+/// 名字、说明照以前的写法写成 JSON（[`PresetFile::digest`]）：没写的是空表，语言表照原样，一句字的是那句字。
+fn label_json(label: Option<&Label>) -> serde_json::Value {
+    match label {
+        None => serde_json::json!({}),
+        Some(Label::Each(phrases)) => serde_json::json!(phrases),
+        Some(Label::One(text)) => serde_json::json!(text),
     }
 }
 

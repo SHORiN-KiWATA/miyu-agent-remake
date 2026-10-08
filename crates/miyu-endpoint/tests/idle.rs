@@ -1,14 +1,12 @@
 //! 空闲（施工 3-9 上）：没有连接、也没有在跑的回合，核心才算空闲；头走了但回合还在跑的，不算。
 
-mod support;
-
 use std::time::Duration;
 
 use serde_json::json;
 
+use crate::support::{Client, Home};
 use miyu_endpoint::Core;
 use miyu_session::testkit::{Play, Script};
-use support::{Client, Home};
 
 /// 等到 `done` 成立，最多十秒。
 async fn until_core(what: &str, core: &Core, done: impl AsyncFn(&Core) -> bool) {

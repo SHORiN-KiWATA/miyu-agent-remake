@@ -1,20 +1,18 @@
 //! 命令行的规矩（`docs/designs/22-命令行.md` 第二节，施工 3-9 上）：不认识的子命令就报错、退出码 2，绝不当成
 //! 对话发给核心；给人看的话跟着界面语言。
 
-mod support;
-
 use std::process::{Command, Output};
 
+use crate::support::{Home, MIYU};
 use miyu_cli::help::{Page, page};
 use miyu_cli::language::Language;
-use support::{Home, MIYU};
 
 /// 在临时的数据根上跑 `miyu <args>`，界面语言是 `lang`。
 fn miyu(home: &Home, lang: &str, args: &[&str]) -> Output {
     Command::new(MIYU)
         .args(args)
         .env("MIYU_HOME", home.root.path())
-        .envs(support::offline(home.root.path()))
+        .envs(crate::support::offline(home.root.path()))
         .env("LANG", lang)
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")
@@ -215,7 +213,7 @@ fn the_program_calls_itself_miyu_whatever_its_file_is_called() {
     let output = Command::new(&renamed)
         .arg("sandbox")
         .env("MIYU_HOME", home.root.path())
-        .envs(support::offline(home.root.path()))
+        .envs(crate::support::offline(home.root.path()))
         .env("LANG", "C")
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")

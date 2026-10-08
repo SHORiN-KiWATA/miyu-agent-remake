@@ -5,11 +5,9 @@
 //! 代理照测试的口子给的值（`Testing::proxy`），不改环境变量：同一个进程里别的测试不跟着变。读环境变量那一半在
 //! `crates/miyu/tests/link_preview.rs`，真的核心、子进程。
 
-mod support;
-
+use crate::support::{PNG, Reply, Site, Store, card, ip, miss, page, previewer, resources};
 use miyu_net::testkit::Testing;
 use miyu_net::{LinkPreview, Why};
-use support::{PNG, Reply, Site, Store, card, ip, miss, page, previewer, resources};
 
 /// 测试的口子：代理照 `proxy`，`NO_PROXY` 照 `no_proxy`；`public.test` 解析到测性能的段（当公网，从本机连不上，
 /// 只有经代理才到得了），`inner.test` 解析到内网，`site.test` 解析到回环。回环当不当公网照 `loopback_public`。

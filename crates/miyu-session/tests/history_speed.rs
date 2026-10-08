@@ -1,8 +1,6 @@
 //! 量尺（施工 6-4）：`history` 每次从头读整份日志，一个五万条事件的日志要多久。只量不断言，跑法：
 //! `cargo test --release -p miyu-session --test history_speed -- --ignored --nocapture`。
 
-mod support;
-
 use std::path::Path;
 use std::time::Instant;
 
@@ -11,7 +9,7 @@ use miyu_kernel::time::UtcOffset;
 use miyu_store::log::{SEGMENT_LIMIT, SessionLog, read_segments};
 use miyu_tool::{Call, Log, Progress, ReadLog};
 
-use support::Scratch;
+use crate::support::Scratch;
 
 /// 照会话的目录一段一段读，和执行器交给调用的是同一个读法。
 struct Dir(std::path::PathBuf);

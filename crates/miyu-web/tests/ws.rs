@@ -1,8 +1,6 @@
 //! `/ws`（施工 W-9，`web-module.md`「怎么走」第九条第 7 到 9 款）：Origin 对上了才接；两头一帧一行照转，一个字节都不改；
 //! 二进制 1003、超过 1 MiB 1009、核心断了 1012；连不上核心发 `web.error` 再关；网页软件的代码里不读本机令牌。
 
-mod support;
-
 use std::time::Duration;
 
 use futures_util::{SinkExt, StreamExt};
@@ -15,7 +13,7 @@ use tokio_tungstenite::{WebSocketStream, client_async};
 
 use miyu_web::serve::address;
 
-use support::*;
+use crate::support::*;
 
 type Browser = WebSocketStream<TcpStream>;
 

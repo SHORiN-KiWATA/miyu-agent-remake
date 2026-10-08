@@ -2,8 +2,6 @@
 //! `/stop` 打断这一轮（排着的话留着）、停掉子代理；执行了的记一条 `command.ran`，回执照连接的语言。认不出的回
 //! `unknown_command`，不是 `/` 开头的参数不对；场所里只有主人、管理的人能用；内核拒了的照原因回、什么都不记；同一个编号只算一次。
 
-mod support;
-
 use std::time::Duration;
 
 use serde_json::{Value, json};
@@ -13,8 +11,8 @@ use miyu_kernel::origin::By;
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
 
-use support::venues::bound_core;
-use support::*;
+use crate::support::venues::bound_core;
+use crate::support::*;
 
 async fn run(client: &mut Client, id: &str, params: Value) -> Value {
     client.call(id, "command.run", params).await

@@ -6,6 +6,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
+autotests = false
 
 [dependencies]
 # 驱动：请求编码成字节、读回来的分片解码（施工 3-7 下）。
@@ -64,3 +65,76 @@ miyu-sandbox = { path = "../miyu-sandbox", features = ["testkit"] }
 
 [lints]
 workspace = true
+
+# 集成测试并成一个程序（施工 0-3 三补）；自己装日志订阅者的另列。
+[[test]]
+name = "all"
+path = "tests/all.rs"
+
+[[test]]
+name = "blocking_log"
+path = "tests/blocking_log.rs"
+
+[[test]]
+name = "compaction_log"
+path = "tests/compaction_log.rs"
+
+[[test]]
+name = "failover_log"
+path = "tests/failover_log.rs"
+
+[[test]]
+name = "fallback_log"
+path = "tests/fallback_log.rs"
+
+[[test]]
+name = "http_log"
+path = "tests/http_log.rs"
+
+[[test]]
+name = "index_log"
+path = "tests/index_log.rs"
+
+[[test]]
+name = "log"
+path = "tests/log.rs"
+
+[[test]]
+name = "manual_compaction_log"
+path = "tests/manual_compaction_log.rs"
+
+[[test]]
+name = "messages_log"
+path = "tests/messages_log.rs"
+
+[[test]]
+name = "read_back_log"
+path = "tests/read_back_log.rs"
+
+[[test]]
+name = "recap_log"
+path = "tests/recap_log.rs"
+
+[[test]]
+name = "route_learned"
+path = "tests/route_learned.rs"
+
+[[test]]
+name = "sandbox_log"
+path = "tests/sandbox_log.rs"
+
+[[test]]
+name = "spawn_log"
+path = "tests/spawn_log.rs"
+
+[[test]]
+name = "title_log"
+path = "tests/title_log.rs"
+
+[[test]]
+name = "tool_log"
+path = "tests/tool_log.rs"
+
+[[test]]
+name = "vision_log"
+path = "tests/vision_log.rs"

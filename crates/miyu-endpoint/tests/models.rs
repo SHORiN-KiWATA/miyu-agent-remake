@@ -2,8 +2,6 @@
 //! `provider` 只看一家、不是配好了的 `unknown_provider`。目录是真目录裁出来的一份，供应商是本机的假服务器。地址是环境变量
 //! 的引用时（施工 8-6b）：`model.list`、`config.get` 都照写的样子交引用，不交解出来的地址。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -24,7 +22,7 @@ use miyu_session::{ModelData, Observed};
 use miyu_store::resources::ResourceRoot;
 use miyu_tool::Catalog as ToolCatalog;
 
-use support::*;
+use crate::support::*;
 
 /// 档案：`[npm]` 和 DeepSeek 那一段，照出厂的写。
 fn profiles() -> Profiles {

@@ -1,13 +1,12 @@
-//! 新建、改、删人格，读提示词的原文（施工 P-3 下，`docs/blueprint/personas.md`「改」）：真核心走一遍。只写家目录那一层；
-//! 一次就建好、带着提示词；`persona.read` 给叠好的原文、来自哪儿、你那一层的版本，`persona.set` 照版本防覆盖；有错的什么
-//! 都不写；删了的挪进回收处，下面还有的回到它们的样子。
-
-mod support;
+//! 新建、改、删人格，读提示词的原文（施工 P-3 下、P-3 补，`docs/blueprint/personas.md`「改」）：真核心走一遍。只写家目录那
+//! 一层；不写编号的是新建、编号由核心起，一次就建好、带着提示词和一对一对的示范对话；`persona.read` 给叠好的原文和你那一层的
+//! 版本，`persona.set` 照版本防覆盖；空的字就是这一段是空的；有错的什么都不写、照连接的语言说一句；删了的挪进回收处，下面
+//! 还有的回到它们的样子。
 
 use serde_json::{Value, json};
 
+use crate::support::*;
 use miyu_session::testkit::Script;
-use support::*;
 
 async fn connected(home: &Home) -> Client {
     let mut client = Client::connect(home.core(&Script::new([])));
@@ -42,49 +41,59 @@ async fn read(client: &mut Client, id: &str, persona: &str, prompt: &str) -> Val
 }
 
 #[tokio::test]
-async fn a_new_persona_is_made_with_its_prompts_in_one_call() {
+async fn a_new_persona_is_made_in_one_call_with_its_prompts() {
     let home = Home::new();
     let mut client = connected(&home).await;
     let made = set(
         &mut client,
         "s1",
         json!({
-            "persona": "mine",
-            "changes": [
-                {"key": "persona.base", "value": "engineer"},
-                {"key": "persona.name.zh", "value": "我的"},
-            ],
-            "prompts": {"examples": {"text": "user: a\nassistant: b\n"}},
+            "changes": [{"key": "persona.name", "value": "我的"}],
+            "prompts": {
+                "persona": {"text": "Be brief.\n"},
+                "examples": {"pairs": [{"user": "a", "assistant": "b"}, {"user": "c", "assistant": "d\n\ne"}]},
+                "reminders": {"text": "Stay.\n"},
+            },
         }),
     )
     .await;
-    let made = &made["result"];
-    assert_eq!(made["base"], "engineer", "{made}");
-    assert_eq!(made["layers"], json!(["home"]));
     assert_eq!(
-        made["prompts"],
-        json!({"persona": "base:engineer/shipped", "examples": "home", "reminders": null})
+        made["result"],
+        json!({
+            "persona": "persona-1",
+            "name": "我的",
+            "summary": null,
+            "prompts": {"persona": true, "reminders": true},
+            "examples": 2,
+            "remove": "delete",
+        }),
+        "{made}"
     );
-    assert_eq!(made["examples"], 1);
     assert_eq!(
-        mine(&home, "mine", "persona.toml").as_deref(),
-        Some("[persona]\nbase = \"engineer\"\n\n[persona.name]\nzh = \"我的\"\n")
+        mine(&home, "persona-1", "persona.toml").as_deref(),
+        Some("[persona]\nname = \"我的\"\n")
     );
     assert_eq!(
-        mine(&home, "mine", "prompts/examples.md").as_deref(),
-        Some("user: a\nassistant: b\n")
+        mine(&home, "persona-1", "prompts/examples.md").as_deref(),
+        Some("user: a\nassistant: b\n\nuser: c\nassistant: d\ne\n"),
+        "核心写成文件的写法，一句里的空行去掉"
     );
-    let examples = read(&mut client, "r1", "mine", "examples").await;
+    let examples = read(&mut client, "r1", "persona-1", "examples").await;
     assert_eq!(
-        (&examples["text"], &examples["from"]),
-        (&json!("user: a\nassistant: b\n"), &json!({"layer": "home"}))
+        examples["pairs"],
+        json!([{"user": "a", "assistant": "b"}, {"user": "c", "assistant": "d\ne"}])
     );
-    let reminders = read(&mut client, "r2", "mine", "reminders").await;
+    assert!(
+        examples["version"]
+            .as_str()
+            .is_some_and(|version| version.starts_with("sha256:"))
+    );
+    let reminders = read(&mut client, "r2", "persona-1", "reminders").await;
     assert_eq!(
         reminders,
-        json!({"text": null, "from": null, "version": null}),
-        "有示范对话、没有角色扮演提示"
+        json!({"text": "Stay.\n", "version": reminders["version"]})
     );
+    assert!(reminders.get("pairs").is_none(), "只有示范对话带 pairs");
 
     // 一样的字不再写：文件还是原来那一个。
     #[cfg(unix)]
@@ -93,13 +102,13 @@ async fn a_new_persona_is_made_with_its_prompts_in_one_call() {
         let path = home
             .root
             .path()
-            .join("home/alice/personas/mine/prompts/examples.md");
+            .join("home/alice/personas/persona-1/prompts/reminders.md");
         std::fs::metadata(path).expect("在").ino()
     };
     let same = set(
         &mut client,
         "s2",
-        json!({"persona": "mine", "prompts": {"examples": {"text": "user: a\nassistant: b\n"}}}),
+        json!({"persona": "persona-1", "prompts": {"reminders": {"text": "Stay.\n"}}}),
     )
     .await;
     assert!(same.get("error").is_none(), "{same}");
@@ -109,37 +118,57 @@ async fn a_new_persona_is_made_with_its_prompts_in_one_call() {
         let path = home
             .root
             .path()
-            .join("home/alice/personas/mine/prompts/examples.md");
+            .join("home/alice/personas/persona-1/prompts/reminders.md");
         assert_eq!(std::fs::metadata(path).expect("在").ino(), before, "没重写");
     }
 
+    let second = set(
+        &mut client,
+        "s3",
+        json!({"changes": [{"key": "persona.name", "value": "又一个"}]}),
+    )
+    .await;
+    assert_eq!(second["result"]["persona"], "persona-2", "{second}");
+    let nothing = set(
+        &mut client,
+        "s4",
+        json!({"prompts": {"persona": {"unset": true}}}),
+    )
+    .await;
+    assert_eq!(
+        reason(&nothing),
+        Some("bad_params"),
+        "新建只删不写：{nothing}"
+    );
     let created = client
         .call(
             "c1",
             "session.create",
-            json!({"cwd": home.work.to_string_lossy(), "persona": "mine"}),
+            json!({"cwd": home.work.to_string_lossy(), "persona": "persona-1"}),
         )
         .await;
     assert!(created["result"]["session"].is_string(), "{created}");
 }
 
 #[tokio::test]
-async fn read_gives_the_text_where_it_comes_from_and_your_version() {
+async fn read_gives_the_text_and_your_version_which_guards_saving() {
     let home = Home::new();
     let mut client = connected(&home).await;
     let shipped = read(&mut client, "r1", "engineer", "persona").await;
     assert_eq!(
         shipped,
-        json!({
-            "text": "You are a helpful software engineer.\n",
-            "from": {"layer": "shipped"},
-            "version": null,
-        })
+        json!({"text": "You are a helpful software engineer.\n", "version": null}),
+        "来自哪一层不给（施工 P-3 补）"
     );
     let nothing = read(&mut client, "r2", "engineer", "reminders").await;
+    assert_eq!(nothing, json!({"text": null, "version": null}));
+    let untouched = client
+        .call("g0", "persona.get", json!({"persona": "engineer"}))
+        .await;
     assert_eq!(
-        nothing,
-        json!({"text": null, "from": null, "version": null})
+        untouched["result"]["remove"],
+        Value::Null,
+        "没改过的出厂没什么可删"
     );
 
     // 改出厂的：你那一层还没有，版本写 null。
@@ -149,12 +178,9 @@ async fn read_gives_the_text_where_it_comes_from_and_your_version() {
         json!({"persona": "engineer", "prompts": {"persona": {"text": "Be terse.\n", "expect": null}}}),
     )
     .await;
-    assert_eq!(saved["result"]["prompts"]["persona"], "home", "{saved}");
+    assert_eq!(saved["result"]["remove"], "restore", "{saved}");
     let now = read(&mut client, "r3", "engineer", "persona").await;
-    assert_eq!(
-        (&now["text"], &now["from"]),
-        (&json!("Be terse.\n"), &json!({"layer": "home"}))
-    );
+    assert_eq!(now["text"], "Be terse.\n");
     let version = now["version"].as_str().expect("有版本").to_string();
     assert!(version.starts_with("sha256:"), "{version}");
 
@@ -171,28 +197,18 @@ async fn read_gives_the_text_where_it_comes_from_and_your_version() {
         mine(&home, "engineer", "prompts/persona.md").as_deref(),
         Some("Be terse.\n")
     );
-    let fresh = set(
+    // 空的字：这一段是空的，不回到出厂的。
+    let emptied = set(
         &mut client,
         "s3",
-        json!({"persona": "engineer", "prompts": {"persona": {"text": "Be kind.\n", "expect": version}}}),
+        json!({"persona": "engineer", "prompts": {"persona": {"text": "", "expect": version}}}),
     )
     .await;
-    assert!(fresh.get("error").is_none(), "{fresh}");
-
-    // 来自底的，写明底是谁。
-    set(
-        &mut client,
-        "s4",
-        json!({"persona": "mine", "changes": [{"key": "persona.base", "value": "engineer"}]}),
-    )
-    .await;
-    let through = read(&mut client, "r4", "mine", "persona").await;
+    assert_eq!(emptied["result"]["prompts"]["persona"], false, "{emptied}");
     assert_eq!(
-        through["from"],
-        json!({"layer": "home", "base": "engineer"})
+        mine(&home, "engineer", "prompts/persona.md").as_deref(),
+        Some("")
     );
-    assert_eq!(through["text"], "Be kind.\n");
-    assert_eq!(through["version"], Value::Null, "mine 自己那一层没有这一份");
 }
 
 #[tokio::test]
@@ -215,28 +231,49 @@ async fn unsetting_goes_back_to_the_lower_layer() {
     )
     .await;
     assert_eq!(
-        back["result"]["prompts"]["persona"], "shipped",
-        "没有的那一份删了也不出错：{back}"
+        back["result"]["prompts"]["persona"], true,
+        "回到出厂的那一句，没有的删了也不出错：{back}"
     );
     assert_eq!(mine(&home, "engineer", "prompts/persona.md"), None);
+    let shipped = read(&mut client, "r1", "engineer", "persona").await;
+    assert_eq!(shipped["text"], "You are a helpful software engineer.\n");
+
+    // 空的 pairs 等于删掉。
+    set(
+        &mut client,
+        "s3",
+        json!({"persona": "engineer", "prompts": {"examples": {"pairs": [{"user": "a", "assistant": "b"}]}}}),
+    )
+    .await;
+    let cleared = set(
+        &mut client,
+        "s4",
+        json!({"persona": "engineer", "prompts": {"examples": {"pairs": []}}}),
+    )
+    .await;
+    assert_eq!(cleared["result"]["examples"], 0, "{cleared}");
+    assert_eq!(mine(&home, "engineer", "prompts/examples.md"), None);
 }
 
 #[tokio::test]
-async fn mistakes_write_nothing() {
+async fn mistakes_write_nothing_and_say_why_in_the_peer_language() {
     let home = Home::new();
     let mut client = connected(&home).await;
-    for (n, (params, problem)) in [
+    for (n, (params, problem, line)) in [
         (
             json!({"persona": "mine", "prompts": {"examples": {"text": "assistant: hi\n"}}}),
             "home prompts/examples.md:1: ",
+            Some(1),
         ),
         (
             json!({"persona": "mine", "changes": [{"key": "memory.scope", "value": "off"}]}),
             "home persona.toml:",
+            Some(2),
         ),
         (
-            json!({"persona": "mine", "changes": [{"key": "persona.base", "value": "mine"}]}),
-            "base cycle: mine -> mine",
+            json!({"persona": "mine", "prompts": {"examples": {"pairs": [{"user": "a", "assistant": "照这样：\nuser: 你好"}]}}}),
+            "prompts/examples.md: pair 1: ",
+            None,
         ),
     ]
     .into_iter()
@@ -244,10 +281,11 @@ async fn mistakes_write_nothing() {
     {
         let reply = set(&mut client, &format!("i{n}"), params.clone()).await;
         assert_eq!(reason(&reply), Some("persona_invalid"), "{params}：{reply}");
-        let said = reply["error"]["data"]["problem"]
-            .as_str()
-            .unwrap_or_default();
-        assert!(said.starts_with(problem), "{said}");
+        let data = &reply["error"]["data"];
+        assert!(data["problem"].as_str().unwrap_or_default().starts_with(problem), "{reply}");
+        let told = data["message"].as_str().unwrap_or_default();
+        assert!(!told.is_empty() && !told.contains("home"), "照连接的语言、不带层：{reply}");
+        assert_eq!(data["line"].as_u64(), line.map(|line: u64| line), "{reply}");
     }
     assert!(
         !home.root.path().join("home/alice/personas/mine").exists(),
@@ -255,11 +293,14 @@ async fn mistakes_write_nothing() {
     );
     for (n, params) in [
         json!({"persona": "mine"}),
-        json!({"persona": "mine", "changes": [], "prompts": {}}),
+        json!({"changes": [], "prompts": {}}),
         json!({"persona": "mine", "prompts": {"voice": {"text": "x"}}}),
         json!({"persona": "mine", "prompts": {"persona": {"text": "x", "unset": true}}}),
         json!({"persona": "mine", "prompts": {"persona": {"unset": false}}}),
         json!({"persona": "mine", "prompts": {"persona": {"text": "x", "expect": 3}}}),
+        json!({"persona": "mine", "prompts": {"persona": {"pairs": [{"user": "a", "assistant": "b"}]}}}),
+        json!({"persona": "mine", "prompts": {"examples": {"pairs": [{"user": " ", "assistant": "b"}]}}}),
+        json!({"persona": "mine", "prompts": {"examples": {"pairs": [{"user": "a", "assistant": "b", "x": 1}]}}}),
         json!({"persona": "Mine", "prompts": {"persona": {"text": "x"}}}),
     ]
     .into_iter()
@@ -294,12 +335,16 @@ async fn mistakes_write_nothing() {
 async fn deleting_moves_your_layer_into_the_trash() {
     let home = Home::new();
     let mut client = connected(&home).await;
-    set(
+    let made = set(
         &mut client,
         "s1",
-        json!({"persona": "mine", "prompts": {"persona": {"text": "Mine.\n"}}}),
+        json!({"prompts": {"persona": {"text": "Mine.\n"}}}),
     )
     .await;
+    let id = made["result"]["persona"]
+        .as_str()
+        .expect("起了编号")
+        .to_string();
     set(
         &mut client,
         "s2",
@@ -308,7 +353,7 @@ async fn deleting_moves_your_layer_into_the_trash() {
     .await;
 
     let gone = client
-        .call("d1", "persona.delete", json!({"persona": "mine"}))
+        .call("d1", "persona.delete", json!({"persona": id}))
         .await;
     assert_eq!(gone["result"], json!({"remains": false}), "{gone}");
     let trash = home.root.path().join("home/alice/trash/personas");
@@ -323,14 +368,14 @@ async fn deleting_moves_your_layer_into_the_trash() {
         })
         .collect();
     assert_eq!(trashed.len(), 1);
-    assert!(trashed[0].starts_with("mine."), "{trashed:?}");
+    assert!(trashed[0].starts_with(&format!("{id}.")), "{trashed:?}");
     assert_eq!(
         std::fs::read_to_string(trash.join(&trashed[0]).join("prompts/persona.md")).expect("在"),
         "Mine.\n",
         "整个目录挪过去"
     );
     let got = client
-        .call("g1", "persona.get", json!({"persona": "mine"}))
+        .call("g1", "persona.get", json!({"persona": id}))
         .await;
     assert_eq!(reason(&got), Some("unknown_persona"), "{got}");
 
@@ -339,13 +384,21 @@ async fn deleting_moves_your_layer_into_the_trash() {
         .await;
     assert_eq!(back["result"], json!({"remains": true}), "{back}");
     let shipped = read(&mut client, "r1", "engineer", "persona").await;
-    assert_eq!(shipped["from"], json!({"layer": "shipped"}));
+    assert_eq!(shipped["text"], "You are a helpful software engineer.\n");
 
-    for (n, id) in ["engineer", "nobody"].into_iter().enumerate() {
+    for (n, persona) in ["engineer", "nobody"].into_iter().enumerate() {
         let reply = client
-            .call(&format!("n{n}"), "persona.delete", json!({"persona": id}))
+            .call(
+                &format!("n{n}"),
+                "persona.delete",
+                json!({"persona": persona}),
+            )
             .await;
-        assert_eq!(reason(&reply), Some("nothing_to_delete"), "{id}：{reply}");
+        assert_eq!(
+            reason(&reply),
+            Some("nothing_to_delete"),
+            "{persona}：{reply}"
+        );
     }
     let reply = client
         .call("x", "persona.delete", json!({"persona": "Bad"}))

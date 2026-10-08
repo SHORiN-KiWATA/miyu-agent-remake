@@ -2,15 +2,13 @@
 //! `miyu core`：照系统的语言写进 `state/config/`，和样本逐字节一样；一样的不重写（修改时间不变），改坏了的写回来；
 //! 写不成的记 `WARN`，照样起来。
 
-mod support;
-
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, SystemTime};
 
+use crate::support::{Home, count, hello, within};
 use miyu_ipc::connect_or_start;
-use support::{Home, count, hello, within};
 
 /// 生成的三份，和它们中文、英文的样本。
 const FILES: [(&str, &str); 3] = [

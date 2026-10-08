@@ -3,13 +3,13 @@
 //! `state/models/pools.json`；轮换的每次请求换下一个；这时用不了的成员跳过、钉到下一个；池没了退回 `models.chat`；限额照
 //! 钉着的成员，轮换的取小的；`session.created` 记下会话的引用。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::watch;
 
+use crate::support::routing::{called, configs, hellos, routes, routes_with, turn};
+use crate::support::{Home, Lines, Opening, Scratch, stop, within};
 use miyu_config::secret::Reference;
 use miyu_http::testkit::Server;
 use miyu_kernel::event::Body;
@@ -17,8 +17,6 @@ use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
 use miyu_session::{ConfigSource, Handle, ModelData, Models, read_observed};
 use miyu_tool::Catalog;
-use support::routing::{called, configs, hellos, routes, routes_with, turn};
-use support::{Home, Lines, Opening, Scratch, stop, within};
 
 /// 两家：`a` 在 `first`、`b` 在 `second`，都不带 key。池 `p` 的成员照 `members` 写，分法照 `strategy`（空的不写）；
 /// `models.chat` 是 `a/m`。`a` 的 `x` 窗口 64000、最大输出 8000，`b` 的 `y` 窗口 32000、最大输出 16000。

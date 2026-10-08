@@ -1,11 +1,11 @@
 //! 经驱动和 HTTP 请求模型（`docs/construction/3-7-会话actor（下）.md` 验收第 2 条）：本机的假服务器照样本
 //! 的流回；限速了等够再请求；打断了断开连接；编码要的 blob 取不出来，出错、不发。
 
-mod support;
-
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use crate::support::routing::cut_after;
+use crate::support::{Home, alice_account, ask, say, until_turn_ends, watch, within};
 use miyu_drivers::Inputs;
 use miyu_http::testkit::{Piece, Reply, Server};
 use miyu_kernel::block::{Block, Image, Text};
@@ -14,8 +14,6 @@ use miyu_kernel::id::{ContentHash, MediaType, ModelName, ProviderId};
 use miyu_kernel::session::{Command, Outcome, Queued};
 use miyu_session::Routes;
 use miyu_store::blob::Blobs;
-use support::routing::cut_after;
-use support::{Home, alice_account, ask, say, until_turn_ends, watch, within};
 
 /// 发给假服务器的路由（施工 8-6 起照配置）：deepseek 的 deepseek-v4，OpenAI 兼容的写法，空闲超时六十秒（机器忙时假服务器也可能停顿几秒，只测空闲超时的那一条另设短的）；`inputs` 照手写的
 /// 模型资料（施工 8-7），接着写的照 `continues` 用 DeepSeek 的那一套开关。会话的配置换成指到这台服务器的那一份。
@@ -31,7 +29,7 @@ fn models(home: &mut Home, server: &Server, inputs: Inputs, continues: bool) -> 
             "continuation": {"field": "prefix", "path": "/beta/chat/completions"}
         });
     }
-    let (routes, configs) = support::routing::served(&server.base_url, profile, model);
+    let (routes, configs) = crate::support::routing::served(&server.base_url, profile, model);
     home.configs = configs;
     routes
 }

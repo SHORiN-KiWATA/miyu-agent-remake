@@ -2,15 +2,13 @@
 //! 各记一条 `session.meta_changed`（只写改了的那几格）、推给订阅着的头，回应是 `{}`；和现在一样的什么都不记；两格都不写、
 //! 标题空的、太长的、格的值不对是参数不对；没有的会话是找不到。`session.list` 每一项带上标题、置顶，核心重启以后照样。
 
-mod support;
-
 use serde_json::{Value, json};
 
 use miyu_kernel::event::{Body, Event, MetaChanged};
 use miyu_kernel::origin::{By, Person};
 use miyu_session::testkit::{Play, Script};
 
-use support::*;
+use crate::support::*;
 
 /// 改标题、置顶，交回回应之前读到的推送和回应：订阅着的会话，推送排在回应前面。
 async fn set_meta(client: &mut Client, id: &str, params: Value) -> (Vec<Value>, Value) {

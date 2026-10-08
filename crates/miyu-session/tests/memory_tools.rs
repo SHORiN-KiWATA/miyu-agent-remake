@@ -2,8 +2,6 @@
 //! 替身照剧本调工具，数据根在临时目录。只有本机的主会话工具面上有；她记下的出处是这一轮、`by` 是那次调用；别的会话搜得到
 //! 记下的和以前的对话；撤销那一轮，那一条跟着看不见、恢复又看得见；作废的只在带 `forgotten` 时出来。
 
-mod support;
-
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Body, Event};
 use miyu_kernel::id::{SessionId, TurnId, VenueId};
@@ -15,7 +13,7 @@ use miyu_session::{Handle, Lineage};
 use miyu_store::recall::Room;
 use miyu_tool::Catalog;
 
-use support::*;
+use crate::support::*;
 
 /// 基础系统加记忆的三件，和核心里一样。
 fn catalog(home: &Home) -> Catalog {

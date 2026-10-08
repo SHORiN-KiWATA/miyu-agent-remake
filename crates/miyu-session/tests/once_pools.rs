@@ -1,15 +1,13 @@
 //! 一次性入口叫池（`docs/blueprint/models.md`「怎么走」第十二条第 4 条、第三条第 6 条，施工 8-20）：钉住的池每次照指针取
 //! 一个成员、指针加一（和新造的会话一样），出错当场换下一个成员；轮换的池一次走一个，在冷却的跳过。
 
-mod support;
-
 use std::time::Duration;
 
 use serde_json::json;
 
+use crate::support::calling::{asking, blobs, entry, frozen, limited};
+use crate::support::routing::{hellos, routes};
 use miyu_http::testkit::Server;
-use support::calling::{asking, blobs, entry, frozen, limited};
-use support::routing::{hellos, routes};
 
 /// 几家：`a`、`b`、`c` 照先后在 `servers` 上，都不带 key。池 `p` 是 `a/x`、`b/y`、`c/z` 里的前几个，分法 `strategy`。
 fn pooled(servers: &[&Server], strategy: &str) -> String {

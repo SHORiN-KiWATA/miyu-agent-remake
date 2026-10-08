@@ -3,8 +3,6 @@
 //! 60 秒不写作废并删暂存；超过 20 MiB 当场拒；同时最多 4 个；参数不对的几种；图片照 `blob.put` 的规矩认；
 //! 核心起来时清掉留下的暂存。
 
-mod support;
-
 use std::fs;
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,7 +18,7 @@ use miyu_store::blob::Blobs;
 use miyu_store::resources::ResourceRoot;
 use miyu_tool::Catalog;
 
-use support::*;
+use crate::support::*;
 
 /// 一份核心，分块上传多久没写就作废照 `idle`（施工 W-5）：测试里设短的，不用真等 60 秒。`support/mod.rs`
 /// 已经在门禁的行数上限上，这个只有这里用得上的构造就不往那张共用的表里加了。

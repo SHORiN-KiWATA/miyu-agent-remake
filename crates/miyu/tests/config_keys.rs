@@ -1,11 +1,9 @@
 //! 真核心上 `miyu config` 认人敲的键（施工 8-3 补，`docs/blueprint/cli/config.md`「怎么走」第 8 条）：带多余引号的模型键
 //! 照核心的写法规整，`set`、`explain`、`unset` 找得到回应；模型那一块是 `next_turn`，说「下一轮生效」。
 
-mod support;
-
+use crate::support::cli::{run, stderr, stdout};
+use crate::support::{Home, within};
 use miyu_ipc::connect_or_start;
-use support::cli::{run, stderr, stdout};
-use support::{Home, within};
 
 /// 施工 8-3 补：人敲带多余引号的键（模型名里没有点），`set`、`explain`、`unset` 照规整过的键找得到核心的回应、印出来；
 /// 模型那一块是 `next_turn`，说「下一轮生效」，不说「当场生效」。

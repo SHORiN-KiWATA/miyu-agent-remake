@@ -3,20 +3,18 @@
 //! 写了 `--add-dir` 才带 `dirs`；往正忙的会话里发，平常的和 `--from` 都跟住听到它的那一轮；`--from` 按 Ctrl+C、到了
 //! `--timeout` 只是不等了，不打断她那一轮。
 
-mod support;
-
 use std::time::Duration;
 
 use serde_json::json;
 use tokio::sync::mpsc;
 
+use crate::support::router::Router;
+use crate::support::{Asked, Home, ask_at, plan};
 use miyu_cli::{Plan, Target};
 use miyu_kernel::event::{Body, Event};
 use miyu_kernel::id::SessionId;
 use miyu_kernel::origin::By;
 use miyu_session::testkit::{Play, Script};
-use support::router::Router;
-use support::{Asked, Home, ask_at, plan};
 
 /// 别的 harness 说的那一句。
 const SAID: &str = "CI 修好了。";
@@ -138,7 +136,11 @@ async fn with_continue_and_alone() {
 }
 
 /// 往正忙的会话里发：先有人说「跑个长活」，那一次请求停在闸上；另一个 `miyu ask -s` 说的这一句落了盘再放行。
-async fn into_a_busy_session(router: Router, gate: support::router::Gate, second: Plan) -> String {
+async fn into_a_busy_session(
+    router: Router,
+    gate: crate::support::router::Gate,
+    second: Plan,
+) -> String {
     let home = Home::new(std::sync::Arc::new(router));
     let (_press, presses) = mpsc::channel(1);
     let long = plan("跑个长活");
@@ -152,7 +154,7 @@ async fn into_a_busy_session(router: Router, gate: support::router::Gate, second
         let (_press, presses) = mpsc::channel(1);
         let asking = ask_at(&home.root, &second, presses);
         let opening = async {
-            support::within("这一句落了盘", async {
+            crate::support::within("这一句落了盘", async {
                 while speakers(&home.log(&session)).len() < 2 {
                     tokio::time::sleep(Duration::from_millis(5)).await;
                 }
@@ -208,7 +210,7 @@ async fn leaving_a_busy_session(timeout: Option<Duration>) -> (Asked, Asked, Vec
             if timeout.is_some() {
                 return;
             }
-            support::within("这一句落了盘", async {
+            crate::support::within("这一句落了盘", async {
                 while speakers(&home.log(&session)).len() < 2 {
                     tokio::time::sleep(Duration::from_millis(5)).await;
                 }

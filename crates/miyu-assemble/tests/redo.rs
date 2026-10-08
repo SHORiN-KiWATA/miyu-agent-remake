@@ -2,12 +2,10 @@
 //! 请求和撤掉的那一轮的第一次请求一字不差：统一的请求的规范字节、编码成 OpenAI 兼容接口的字节都一样，内核也记不出第一
 //! 处不同（缓存照样命中）。空闲时说的一句、由上一轮排着接过来的几句，两种都比；探针的几条性质照样成立。
 
-mod support;
-
+use crate::support::{anchored, check, sent, stage, wire};
 use miyu_kernel::event::{Body, ModelCalled};
 use miyu_kernel::request::Request;
 use miyu_kernel::testkit::{Line, Stage};
-use support::{anchored, check, sent, stage, wire};
 
 /// 第 `k` 次请求。
 fn request(stage: &Stage, k: usize) -> &Request {

@@ -2,8 +2,6 @@
 //! 读、停；后台命令用假的（`miyu_tool::testkit::Held`，三个平台一样），子代理的会话表换成假的（停、看它都记下，回报照样送回
 //! 父会话）。她停的只记下、不叫醒她，人停的叫醒；停和自己退出撞在一起只认先到的；父会话停下时连它派的一起停，都不叫醒。
 
-mod support;
-
 use std::path::Path;
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
@@ -17,7 +15,7 @@ use miyu_session::{Child, Handle, Peek, Pending, SessionPort};
 use miyu_tool::testkit::{Act, Fake, Held};
 use miyu_tool::{Catalog, Exit, JobError, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 子代理的那几条：停掉它、人停它、父会话停下时连它派的一起停。
 #[path = "jobs_stop/agents.rs"]

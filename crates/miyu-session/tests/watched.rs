@@ -2,8 +2,6 @@
 //! `Watched`。一次性的会话有头订阅着，后台命令结束叫醒她；几个头走了一个，照样叫醒；订阅都放下了，只记下。造会话以后
 //! 没人订阅过的，当没人看着。假的后台命令（`miyu_tool::testkit::Held`）什么时候结束由测试定。
 
-mod support;
-
 use std::sync::Arc;
 
 use miyu_kernel::event::{Body, Event};
@@ -14,7 +12,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake, Held};
 use miyu_tool::{Catalog, Exit, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 两件假工具 `start`、`again`：各把一条假的后台命令交给任务端口。
 fn starting(first: &Arc<Held>, second: &Arc<Held>) -> Catalog {

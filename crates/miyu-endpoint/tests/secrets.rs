@@ -2,15 +2,13 @@
 //! 却没设的也列）；参数不对的几种；Unix 上 0600；值不进回应、报错、系统日志；引用的密钥、环境变量取不到的报警告，
 //! `{ env }` 照核心起来时的环境；密钥文件写错的算进 `config_errors`、写不了；手改被看到；写之前的手改先记。
 
-mod support;
-
 use serde_json::{Value, json};
 
 use miyu_config::secret::Reference;
 use miyu_config::{Applies, Control, Item, Kind, Layer, Ui, Value as ConfigValue};
 use miyu_session::testkit::Script;
 
-use support::*;
+use crate::support::*;
 
 /// 一眼看得出是假的 key。
 const FAKE: &str = "sk-FAKE-KEY-FOR-TESTS-0001";

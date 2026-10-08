@@ -3,8 +3,6 @@
 //! 说明照连接的语言从清单来，隐藏的带标记；写进系统配置读得到最终值，写错 `check` 报；编号撞了核心自己的模块的，整份报
 //! `settings_taken`、一项都不收。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -13,7 +11,7 @@ use miyu_endpoint::Core;
 use miyu_endpoint::config::{Config, Environment};
 use miyu_session::testkit::Script;
 
-use support::*;
+use crate::support::*;
 
 /// 一个带两项配置的界面包。
 const CLOCK: &str = r#"[package]

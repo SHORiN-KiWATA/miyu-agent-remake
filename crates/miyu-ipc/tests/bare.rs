@@ -1,12 +1,10 @@
 //! 不读本机令牌地连核心（施工 W-8，`web-module.md`「起草时定的」第 4 条）：网页软件转发浏览器的连接用它。`run/token` 不在了，
 //! `connect` 连不上，`connect_bare` 照样连得上、说得上话；三个平台都一样。
 
-mod support;
-
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+use crate::support::{Home, within};
 use miyu_ipc::{connect, connect_bare, open};
-use support::{Home, within};
 
 #[tokio::test]
 async fn a_bare_connection_never_reads_the_token() {

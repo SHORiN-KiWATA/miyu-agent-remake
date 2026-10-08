@@ -1,14 +1,12 @@
 //! 核心重启以后（施工 4-9 再补三上）：不带 `cwd` 载入的会话，工作目录照日志里最后记下的；重发的造会话认得出来。
 //! 同一个数据根上换一份核心，就像重启过。
 
-mod support;
-
 use std::path::Path;
 
 use serde_json::json;
 
+use crate::support::*;
 use miyu_session::testkit::{Play, Script};
-use support::*;
 
 /// 给人看的路径：Windows 上去掉 `\\?\` 这个前缀，和回应里写的一样。
 fn plain(path: &Path) -> String {

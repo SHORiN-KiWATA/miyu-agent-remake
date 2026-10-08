@@ -2,8 +2,6 @@
 //! 载入以后逐字节一样；她调工具时，会话照名字在目录里找到那一件，在这一轮的工作目录里跑，结果落盘，
 //! 她接着说。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -22,7 +20,7 @@ use miyu_store::blob::Blobs;
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Spec, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 这几件假工具的目录。
 fn catalog(tools: &[&Arc<Fake>]) -> Catalog {

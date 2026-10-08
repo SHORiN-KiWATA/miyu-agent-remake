@@ -10,13 +10,12 @@
 //!
 //! 模型是照请求答的替身：每一次照请求里最新的那一段字决定说什么、调什么。
 
-mod support;
-
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use serde_json::json;
 
+use crate::support::{Client, Home, default_resources, until};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Body, Event, IdleReason};
 use miyu_kernel::id::Seq;
@@ -25,7 +24,6 @@ use miyu_kernel::request::{Message, Request};
 use miyu_session::testkit::{Play, Script};
 use miyu_session::{Cancel, ForSession, ModelPort, Models, Reports};
 use miyu_tool::Catalog;
-use support::{Client, Home, default_resources, until};
 
 /// 照请求里最新的那一段字答的替身。`held` 是「慢慢做」停住了。
 #[derive(Clone, Default)]

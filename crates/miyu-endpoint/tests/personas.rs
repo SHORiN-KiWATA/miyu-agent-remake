@@ -3,8 +3,6 @@
 //! 没有的 `unknown_persona`，编号不合写法的参数不对，写错了的 `persona_invalid` 带问题；`persona.list`、`persona.get`；
 //! 角色扮演提示排在人说的那句后面、system 带风格锁（施工 P-1 补）。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -15,8 +13,8 @@ use miyu_kernel::request::{Message, Request};
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
 
-use support::venues::{BINDINGS, configured_core};
-use support::*;
+use crate::support::venues::{BINDINGS, configured_core};
+use crate::support::*;
 
 /// 管理员（测试里是 alice）家目录里的人格 `id` 的一个文件。
 fn mine(home: &Home, id: &str, file: &str, text: &str) {
@@ -263,7 +261,7 @@ async fn a_venue_session_is_made_with_the_given_persona_and_found_again_without_
 }
 
 #[tokio::test]
-async fn personas_are_listed_and_read_by_layer() {
+async fn personas_are_listed_and_read() {
     let home = Home::new();
     mine(
         &home,
@@ -285,7 +283,7 @@ async fn personas_are_listed_and_read_by_layer() {
     );
     mine(&home, "broken", "persona.toml", "[voice]\n");
     mine(&home, "miyu", "prompts/reminders.md", "Stay soft.\n");
-    // 软件工程师只在家目录多一份提示：示范对话没有，两样来自哪一层分得开。
+    // 软件工程师只在家目录多一份提示：示范对话没有。
     mine(&home, "engineer", "prompts/reminders.md", "Stay.\n");
     let script = Script::new([]);
     let mut client = connected(configured(&home, &script)).await;
@@ -294,11 +292,11 @@ async fn personas_are_listed_and_read_by_layer() {
         listed["result"]["personas"],
         json!([
             {"persona": "broken", "problem": "home persona.toml:1: unknown table [voice]"},
-            {"persona": "engineer", "name": null, "summary": "我的工程师", "layers": ["shipped", "home"]},
-            {"persona": "miyu", "name": "美羽", "summary": "Mine.", "layers": ["home"]},
-            {"persona": "none", "name": "不用人格", "summary": "不带人设，照原样说话", "layers": ["shipped"]},
+            {"persona": "engineer", "name": "软件工程师", "summary": "我的工程师"},
+            {"persona": "miyu", "name": "美羽", "summary": "Mine."},
+            {"persona": "none", "name": "空白", "summary": "不带人设，照原样说话"},
         ]),
-        "握手说的是中文，挑中文，没有中文的照英文"
+        "握手说的是中文，挑中文，没有中文的照英文；来自哪几层不给（施工 P-3 补）"
     );
     let got = client
         .call("g1", "persona.get", json!({"persona": "miyu"}))
@@ -307,11 +305,11 @@ async fn personas_are_listed_and_read_by_layer() {
         got["result"],
         json!({
             "persona": "miyu",
-            "name": {"en": "Miyu", "zh": "美羽"},
-            "summary": {"en": "Mine."},
-            "layers": ["home"],
-            "prompts": {"persona": null, "examples": "home", "reminders": "home"},
+            "name": "美羽",
+            "summary": "Mine.",
+            "prompts": {"persona": false, "reminders": true},
             "examples": 2,
+            "remove": "delete",
         })
     );
     let got = client
@@ -319,7 +317,7 @@ async fn personas_are_listed_and_read_by_layer() {
         .await;
     assert_eq!(
         got["result"]["prompts"],
-        json!({"persona": "shipped", "examples": null, "reminders": "home"})
+        json!({"persona": true, "reminders": true})
     );
     let got = client
         .call("g3", "persona.get", json!({"persona": "nobody"}))
@@ -327,58 +325,6 @@ async fn personas_are_listed_and_read_by_layer() {
     assert_eq!(reason(&got), Some("unknown_persona"), "{got}");
     let got = client.call("g4", "persona.get", json!({})).await;
     assert_eq!(reason(&got), Some("bad_params"), "{got}");
-}
-
-/// 以谁为底（施工 P-3 上）：`persona.get` 带 `base`，提示词来自底的写成 `base:<编号>/<层>`；绕圈的 `persona_invalid`。
-#[tokio::test]
-async fn a_persona_on_a_base_reads_through_it() {
-    let home = Home::new();
-    mine(&home, "engineer", "prompts/reminders.md", "Stay.\n");
-    mine(
-        &home,
-        "mine",
-        "persona.toml",
-        "[persona]\nbase = \"engineer\"\nname = { zh = \"我的\" }\n",
-    );
-    mine(
-        &home,
-        "mine",
-        "prompts/examples.md",
-        "user: a\nassistant: b\n",
-    );
-    mine(
-        &home,
-        "loop",
-        "persona.toml",
-        "[persona]\nbase = \"loop\"\n",
-    );
-    let script = Script::new([]);
-    let mut client = connected(configured(&home, &script)).await;
-    let got = client
-        .call("g1", "persona.get", json!({"persona": "mine"}))
-        .await;
-    assert_eq!(got["result"]["base"], "engineer", "{got}");
-    assert_eq!(got["result"]["layers"], json!(["home"]));
-    assert_eq!(
-        got["result"]["prompts"],
-        json!({
-            "persona": "base:engineer/shipped",
-            "examples": "home",
-            "reminders": "base:engineer/home",
-        })
-    );
-    let plain = client
-        .call("g2", "persona.get", json!({"persona": "engineer"}))
-        .await;
-    assert!(plain["result"].get("base").is_none(), "没写底的不写");
-    let looped = client
-        .call("g3", "persona.get", json!({"persona": "loop"}))
-        .await;
-    assert_eq!(reason(&looped), Some("persona_invalid"), "{looped}");
-    assert_eq!(
-        looped["error"]["data"]["problem"],
-        "base cycle: loop -> loop"
-    );
 }
 
 /// 空人格和会话带上人格（施工 P-1 下）：选 `none` 的 system 里没有人设；`session.created`、会话列表、`subscribe` 的回应都写

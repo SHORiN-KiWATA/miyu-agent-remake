@@ -33,6 +33,13 @@ pub(crate) struct Wanted {
     expect: Option<Option<Json>>,
 }
 
+impl Wanted {
+    /// 这一项是写一个值（不是删）：新建的至少要有一项（施工 P-3 补）。
+    pub(crate) fn writes(&self) -> bool {
+        self.value.is_some()
+    }
+}
+
 /// 查参数：同一个键不写两次，`value`、`unset` 正好一个，值是字、开关、数，`expect` 是 `{"value": …}` 或 `{}`。空的由调用的
 /// 一方判。
 pub(crate) fn wanted(changes: Vec<ChangeParams>) -> Result<Vec<Wanted>, Refusal> {

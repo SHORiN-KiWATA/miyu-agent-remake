@@ -2,11 +2,9 @@
 //! `probe` 跑的程序就是 `miyu` 自己（它在 `miyu` 旁边）：参数原样交过去、退出码照它的；`miyu help probe` 转成 `--help`；
 //! `miyu -h` 多一节，撞了内置的不列；没装的程序说没装、退出码 1；不认识的照旧退出码 2，不拉起核心。
 
-mod support;
-
 use std::process::{Command, Output};
 
-use support::{Home, MIYU};
+use crate::support::{Home, MIYU};
 
 /// 一份清单：子命令 `name` 跑 `program`。
 fn manifest(name: &str, program: &str, about: &str) -> String {
@@ -26,8 +24,8 @@ fn miyu(home: &Home, lang: &str, args: &[&str]) -> Output {
     Command::new(MIYU)
         .args(args)
         .env("MIYU_HOME", home.root.path())
-        .env("MIYU_RESOURCES", support::resources())
-        .envs(support::offline(home.root.path()))
+        .env("MIYU_RESOURCES", crate::support::resources())
+        .envs(crate::support::offline(home.root.path()))
         .env("LANG", lang)
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")

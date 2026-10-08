@@ -3,8 +3,6 @@
 //! 照握手的语言；`language` 不合写法是参数不对；回应里没有 `config` 那一格；读不懂是内部出错；改了资源，下一次调
 //! 就是新的；真核心照源码树的资源，三种语言都交得出来。
 
-mod support;
-
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -14,7 +12,7 @@ use miyu_session::testkit::Script;
 use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
 
-use support::*;
+use crate::support::*;
 
 /// 一个用完就删的临时资源目录。
 struct Scratch(PathBuf);

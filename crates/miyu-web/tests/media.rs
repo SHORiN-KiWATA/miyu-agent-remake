@@ -3,7 +3,6 @@
 
 #[path = "media/fake.rs"]
 mod fake;
-mod support;
 
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -11,9 +10,9 @@ use std::time::Duration;
 
 use serde_json::{Value, json};
 
+use crate::support::*;
 use fake::{CHUNK, Core, LOGIN};
 use miyu_web::serve::address;
-use support::*;
 
 const SMALL: &[u8] = b"hello, media";
 const SANDBOX: &str =

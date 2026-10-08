@@ -1,14 +1,12 @@
 //! 订阅事件流（`docs/construction/3-8-协议端点（中）.md` 验收第 2 条）：先见结果、后见回应；两个会话不串；
 //! 取消订阅以后不再推；读得慢的掉队，推一条 `resync`；取消订阅时已经交给转发任务的回应照样到（施工 4-9 再补三上）。
 
-mod support;
-
 use std::time::Duration;
 
 use serde_json::json;
 
+use crate::support::{Client, Home, apart_from_now, kinds, reason};
 use miyu_session::testkit::{Play, Script};
-use support::{Client, Home, apart_from_now, kinds, reason};
 
 #[tokio::test]
 async fn pushes_come_before_the_reply() {

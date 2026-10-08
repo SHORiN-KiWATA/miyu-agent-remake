@@ -5,14 +5,12 @@
 //! 只写 `models.chat`；核心看不到的变量说清是哪个；屏幕上从头到尾没有 key；`miyu ask` 没模型时先走一遍。配置里一个池都没有的，
 //! 一起写三个预设的池（施工 8-8 补）。
 
-mod support;
-
 use serde_json::json;
 
+use crate::support::Home;
+use crate::support::onboarding::{Typist, plan, remote};
 use miyu_cli::Setup;
 use miyu_http::testkit::{Piece, Reply, Server};
-use support::Home;
-use support::onboarding::{Typist, plan, remote};
 
 /// 一眼看得出是假的 key。
 const FAKE: &str = "sk-FAKE-KEY-FOR-TESTS-0001";

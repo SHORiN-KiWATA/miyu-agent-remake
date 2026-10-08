@@ -4,12 +4,11 @@
 //!
 //! 几个会话同时请求模型，谁先到、留言和回报谁先到都不一定：替身照请求里看到了什么答（[`Brain`]），不照先后排剧本。
 
-mod support;
-
 use std::sync::{Arc, Mutex, PoisonError};
 
 use serde_json::json;
 
+use crate::support::{Client, Home, default_resources, until};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Body, ChildReported, Effect, Event, JobMessaged, Purpose};
 use miyu_kernel::id::{JobId, Seq, SessionId};
@@ -18,7 +17,6 @@ use miyu_kernel::request::{Message, Request};
 use miyu_session::testkit::{Play, Script};
 use miyu_session::{Cancel, ForSession, ModelPort, Models, Reports};
 use miyu_tool::Catalog;
-use support::{Client, Home, default_resources, until};
 
 /// 照请求里看到了什么答的替身，记下每一次请求。
 #[derive(Clone, Default)]

@@ -3,12 +3,11 @@
 //! 回话，照第五条第 6 款，连续发到第 6 句（限速 `peers.burst` 是 5）就会被拒，链自然断掉：A 比 B 先发，发得也比 B 多一句，
 //! 第 6 句轮到 A 被拒，B 永远收不到第 6 句、停在它的第 5 轮。
 
-mod support;
-
 use std::sync::{Arc, Mutex, PoisonError};
 
 use serde_json::json;
 
+use crate::support::{Client, Home, default_resources, until};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Body, Event, Purpose};
 use miyu_kernel::id::{Seq, SessionId};
@@ -17,7 +16,6 @@ use miyu_kernel::request::{Message, Request};
 use miyu_session::testkit::{Play, Script};
 use miyu_session::{Cancel, ForSession, ModelPort, Models, Reports};
 use miyu_tool::Catalog;
-use support::{Client, Home, default_resources, until};
 
 /// 照请求里看到了什么答的替身，记下每一次请求。
 #[derive(Clone, Default)]

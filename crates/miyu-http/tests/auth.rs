@@ -1,18 +1,16 @@
 //! 认证头照驱动（`docs/blueprint/models.md`「驱动要守的约定」第 2 条，施工 8-6）：HTTP 执行器不自己写 `Bearer`，驱动交回
 //! 什么头就带什么头；没有 key 的端点一个认证头都不带；运行日志、调试输出里没有 key。
 
-mod support;
-
 use std::collections::BTreeSet;
 use std::time::Duration;
 
+use crate::support::{BODY, driver, sample};
 use miyu_drivers::classify::{Classified, Failure};
 use miyu_drivers::{BlobBytes, Call, Decode, Driver, EncodeError, Encoded, OpenAiChat};
 use miyu_http::testkit::{Piece, Reply, Server};
 use miyu_http::{Attempt, Endpoint, Outcome, Proxy, client, send};
 use miyu_kernel::id::ContentHash;
 use miyu_kernel::request::Request;
-use support::{BODY, driver, sample};
 
 /// 一个照 Anthropic 那样带 `x-api-key` 和版本头的驱动：别的照 OpenAI 兼容的。
 struct ApiKey(OpenAiChat);

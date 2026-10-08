@@ -6,10 +6,10 @@
 //! 两台假服务器：`a` 是会话的模型 `a/m`（没写 `inputs`，看不了图），`b` 是看图的 `b/v`（`inputs` 有 `image`）。档案是空的、
 //! 没有目录。
 
-mod support;
-
 use std::time::Duration;
 
+use crate::support::routing::{configs, hellos, routes};
+use crate::support::{Home, alice_account, ask, until_turn_ends, watch};
 use miyu_http::testkit::Server;
 use miyu_kernel::block::{Block, Image, Text};
 use miyu_kernel::event::{Body, ImageDescribed};
@@ -18,8 +18,6 @@ use miyu_kernel::origin::By;
 use miyu_kernel::session::Command;
 use miyu_session::{Handle, Routes};
 use miyu_store::blob::Blobs;
-use support::routing::{configs, hellos, routes};
-use support::{Home, alice_account, ask, until_turn_ends, watch};
 
 /// `a/m` 是会话的模型；`m_inputs` 是它那一段另写的（看得了图的写 `inputs`）；`extra` 接在 `[models]` 那一段最后。
 fn config(first: &Server, second: &Server, m_inputs: &str, extra: &str) -> String {
@@ -212,7 +210,7 @@ async fn a_pool_with_one_blind_member_is_blind() {
 /// 图照样先转述。
 #[tokio::test]
 async fn a_pinned_pool_is_blind_again_next_turn_after_moving_to_a_member_that_sees() {
-    let mut replies = vec![support::calling::limited()];
+    let mut replies = vec![crate::support::calling::limited()];
     replies.extend(hellos(4));
     let (first, second) = (Server::start(replies).await, Server::start(hellos(1)).await);
     let mut home = Home::new();
@@ -226,7 +224,7 @@ async fn a_pinned_pool_is_blind_again_next_turn_after_moving_to_a_member_that_se
     let routes = plain();
     let handle = home.create(&routes).await;
     let mut pushes = watch(&handle).await;
-    ask(&handle, "cmd-1", support::say("hi"))
+    ask(&handle, "cmd-1", crate::support::say("hi"))
         .await
         .expect("会话在跑");
     until_turn_ends(&mut pushes).await;

@@ -2,8 +2,6 @@
 //! 人附的要求原样到了摘要请求里、记进了压缩，撤掉那一轮的回应里没有人说的话；有回合在进行、没有能压的，照头的语言
 //! 拒绝；要求不是字的是参数不对。
 
-mod support;
-
 use serde_json::json;
 
 use miyu_kernel::block::Block;
@@ -11,7 +9,7 @@ use miyu_kernel::event::{Body, CompactTrigger};
 use miyu_kernel::request::Message;
 use miyu_session::testkit::{Play, Script};
 
-use support::*;
+use crate::support::*;
 
 /// 窗口大到不会自动压：第一轮说一句，第二次请求（摘要请求）交回一段摘要。出厂的尾巴是 16000 token，说得短的全在尾巴里，
 /// 没有能压的：第一句说七万个字，一组就超了尾巴，压得掉它。

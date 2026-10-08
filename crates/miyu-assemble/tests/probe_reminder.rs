@@ -3,13 +3,11 @@
 //! 和存档（`docs/designs/samples/probe/reminder/`）逐字节比，查五条性质；和同一份剧本在不带提示的策略上跑的比，每一次请求
 //! 只差风格锁和提示那几块：去掉它们就一字不差。
 
-mod support;
-
+use crate::support::reminder::{STYLE_LOCK, block};
+use crate::support::{check, files, matches_the_archive, sent, stage, stage_with};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::request::{Message, Request};
 use miyu_kernel::testkit::{Line, Stage};
-use support::reminder::{STYLE_LOCK, block};
-use support::{check, files, matches_the_archive, sent, stage, stage_with};
 
 /// 剧本，在替身 `s` 上跑：五轮闲聊。
 fn script(mut s: Stage) -> Stage {
@@ -57,18 +55,21 @@ fn plain_again(request: &Request) -> (Request, usize) {
 
 #[test]
 fn the_reminder_session_matches_the_archive() {
-    matches_the_archive("reminder", &script(stage_with(support::reminder::policy)));
+    matches_the_archive(
+        "reminder",
+        &script(stage_with(crate::support::reminder::policy)),
+    );
 }
 
 #[test]
 fn the_same_script_gives_the_same_bytes() {
-    let run = || files(&script(stage_with(support::reminder::policy)));
+    let run = || files(&script(stage_with(crate::support::reminder::policy)));
     assert_eq!(run(), run());
 }
 
 #[test]
 fn the_reminder_session_keeps_the_properties() {
-    let session = script(stage_with(support::reminder::policy));
+    let session = script(stage_with(crate::support::reminder::policy));
     if let Err(why) = check(&sent(&session)) {
         panic!("{why}");
     }
@@ -95,7 +96,7 @@ fn the_reminder_session_keeps_the_properties() {
 #[test]
 fn it_differs_from_a_persona_without_one_only_by_the_lock_and_the_blocks() {
     let (now, plain) = (
-        script(stage_with(support::reminder::policy)),
+        script(stage_with(crate::support::reminder::policy)),
         script(stage()),
     );
     assert_eq!(now.requests().len(), plain.requests().len());

@@ -3,8 +3,6 @@
 //! 和她用 `jobs` 读到的一样；只交最后 `tail` 行，`lines` 数一共几行，前面还有没交的 `truncated`；超了上限的从前面按整行去掉；
 //! 空的；没有这个任务、编号不合写法、`tail` 不对、是子代理的各一种拒绝，中文、英文。
 
-mod support;
-
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
@@ -19,7 +17,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake, Held};
 use miyu_tool::{Catalog, Exit, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 基础系统的工具（有 `jobs`、`agent`），加一件假的 `start`：把 `held` 交给任务端口。
 fn tools(held: &Arc<Held>) -> Catalog {

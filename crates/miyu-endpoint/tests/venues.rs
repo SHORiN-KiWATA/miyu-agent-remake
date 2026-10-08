@@ -2,8 +2,6 @@
 //! 以后照样）、参数不对、该归系统账号的回 `no_system_account`；`as` 记成本人（带 `via`）或者外部身份（带 `account`、`role`）；
 //! 本机的会话不收 `as`，场所会话只收带 `as` 的；场所会话不进 `session.list`、会话列表的推送；同一个命令编号再发只生效一次。
 
-mod support;
-
 use std::time::Duration;
 
 use serde_json::{Value, json};
@@ -14,9 +12,9 @@ use miyu_session::testkit::{Play, Script};
 
 use miyu_tool::Catalog;
 
-use support::deleting::base_tools;
-use support::venues::bound_core;
-use support::*;
+use crate::support::deleting::base_tools;
+use crate::support::venues::bound_core;
+use crate::support::*;
 
 /// 照对应表起来的核心（`support::venues`），连上、握手。
 async fn connected(home: &Home, script: &Script) -> Client {

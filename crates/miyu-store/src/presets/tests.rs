@@ -7,8 +7,6 @@ use crate::env::{Env, Platform};
 use crate::test_support::Scratch;
 use miyu_policy::preset::{Code, Unlisted};
 
-mod base;
-
 /// 一个临时的资源目录和数据根：`res/`、`data/`。
 struct Places {
     scratch: Scratch,
@@ -72,10 +70,10 @@ fn the_layers_stack_field_by_field() {
     assert_eq!(found.id, "dev");
     assert_eq!(found.layers, [Layer::Shipped, Layer::System, Layer::Home]);
     assert_eq!(
-        found.file.name.get("zh").map(String::as_str),
-        Some("大家的开发")
+        found.file.name.as_ref().and_then(|name| name.pick("en")),
+        Some("大家的开发"),
+        "写了名字的一层整格换掉（施工 P-3 补）"
     );
-    assert_eq!(found.file.name.get("en").map(String::as_str), Some("Dev"));
     assert_eq!(found.file.default_persona.as_deref(), Some("engineer"));
     assert_eq!(found.file.unlisted(), Unlisted::On);
     assert_eq!(found.file.software.get("net"), Some(&false));
@@ -218,15 +216,17 @@ fn the_shipped_presets_read_cleanly() {
             .collect::<Vec<_>>(),
         ["basesystem", "goal", "net"]
     );
+    // 出厂的照旧写三种语言：界面照连接的语言显示（施工 P-3 补）。
+    let speaks = |label: &Option<miyu_config::phrases::Label>, language: &str| matches!(label, Some(miyu_config::phrases::Label::Each(phrases)) if phrases.contains_key(language));
     for found in [&full, &dev] {
         for language in ["zh", "en", "ja"] {
             assert!(
-                found.file.name.contains_key(language),
+                speaks(&found.file.name, language),
                 "{} {language}",
                 found.id
             );
             assert!(
-                found.file.summary.contains_key(language),
+                speaks(&found.file.summary, language),
                 "{} {language}",
                 found.id
             );

@@ -2,15 +2,13 @@
 //! 的假服务器。回应的形状；不造会话、不进会话日志；参数校验；图照这个账号的 blob 认；几种出错的 `data`；照剧本回的核心
 //! 没有一次性入口，答 `no_model`。
 
-mod support;
-
 use serde_json::{Value, json};
 
+use crate::support::providers::{core, data, profiles, routed, said};
+use crate::support::*;
 use miyu_http::testkit::{Reply, Server};
 use miyu_kernel::id::AccountId;
 use miyu_store::blob::Blobs;
-use support::providers::{core, data, profiles, routed, said};
-use support::*;
 
 /// 一家 `a` 在假服务器上，不带 key；`a/v` 收图；`models.chat` 是 `a/m`。
 fn config(server: &Server) -> String {

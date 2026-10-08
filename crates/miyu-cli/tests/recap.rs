@@ -2,16 +2,14 @@
 //! 回顾上一次 `miyu ask` 开的那个会话，标准输出上只有那一句，退出码 0；中间没有新内容再要一次，还是那一句、不请求；`--session`
 //! 回顾的是指定的那个；没写成的照核心的话说，退出码 1；一个会话都没有的，说清楚，退出码 1。
 
-mod support;
-
 use std::sync::Arc;
 
+use crate::support::{Asked, Home, Tape, plan, within};
 use miyu_cli::language::Language;
 use miyu_cli::{RecapPlan, recap_on};
 use miyu_kernel::event::ErrorClass;
 use miyu_kernel::id::SessionId;
 use miyu_session::testkit::{Play, Script};
-use support::{Asked, Home, Tape, plan, within};
 
 /// 回顾 `session`（没有的是上一次 `miyu ask` 开的），界面是 `language`。
 fn recapping(session: Option<&SessionId>, language: Language) -> RecapPlan {

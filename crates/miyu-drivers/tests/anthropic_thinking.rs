@@ -1,16 +1,14 @@
 //! Anthropic 的思考（`docs/blueprint/drivers/anthropic.md`「怎么走：编码」第 5 条、「思考强度」，施工 8-12）：思考块回传，
 //! 带签名的、只有签名的、`redacted` 的原样，断了没签名的、别家的丢掉；思考强度四种写法，接在最后，没写的一个字节不加。
 
-mod support;
-
 use std::collections::BTreeMap;
 
+use crate::support::{anthropic_sample, claude, private_thought, text, texts, thought};
 use miyu_drivers::anthropic::encode;
 use miyu_drivers::{Call, EFFORT_OFF, EFFORT_ON, Inputs};
 use miyu_kernel::block::Block;
 use miyu_kernel::request::{Message, Request};
 use serde_json::{Value, json};
-use support::{anthropic_sample, claude, private_thought, text, texts, thought};
 
 fn request(reply: Vec<Block>) -> Request {
     Request {

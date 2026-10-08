@@ -5,13 +5,11 @@
 //! title/` 的 `titles/`）逐字节比。主请求照样查五条性质、和存档比：标题的两条夹在两轮中间，第二轮的请求照旧接着第一轮的
 //! 往后长。
 
-mod support;
-
+use crate::support::{check, files, matches_the_archive, sent, title, titled_stage};
 use miyu_kernel::block::Block;
 use miyu_kernel::event::Body;
 use miyu_kernel::request::Message;
 use miyu_kernel::testkit::{Line, Play, Stage};
-use support::{check, files, matches_the_archive, sent, title, titled_stage};
 
 /// 剧本。
 fn script() -> Stage {

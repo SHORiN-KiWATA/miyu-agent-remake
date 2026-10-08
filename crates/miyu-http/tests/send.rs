@@ -1,17 +1,15 @@
 //! 发一次请求（`docs/designs/05-内核接口.md` 第七节「HTTP 执行器」）：照剧本回的假服务器，查发出去的、
 //! 读回来的、空闲超时、打断、连不上、说到一半断开。
 
-mod support;
-
 use std::time::Duration;
 
+use crate::support::{BODY, driver, sample};
 use miyu_drivers::openai_chat::Decoder;
 use miyu_http::testkit::{Piece, Reply, Server};
 use miyu_http::{Attempt, Endpoint, Outcome, Progress, Proxy, client, send};
 use miyu_kernel::accumulate::Delta;
 use miyu_kernel::event::ErrorClass;
 use miyu_kernel::id::ContentHash;
-use support::{BODY, driver, sample};
 
 /// 发一次，收集交出来的和收场。
 async fn run(

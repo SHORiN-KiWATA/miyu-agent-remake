@@ -1,8 +1,6 @@
 //! 真的 `read`（施工 4-4 上，4-4 下改了参数名和行号）：会话里她调它，工作区里的读得到、带行号，下一次请求里有；边界以外
 //! 的也读得到，没人能确认也不用问（施工 5-4 上，原来被拒）；数据根里的被拒。
 
-mod support;
-
 use std::path::Path;
 
 use miyu_kernel::block::Block;
@@ -12,7 +10,7 @@ use miyu_kernel::request::Message;
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
 
-use support::*;
+use crate::support::*;
 
 fn base_system() -> Catalog {
     let resources = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");

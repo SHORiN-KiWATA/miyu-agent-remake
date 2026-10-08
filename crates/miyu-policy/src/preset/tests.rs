@@ -25,8 +25,11 @@ fn wrong(text: &str) -> (Code, Option<usize>) {
 #[test]
 fn every_field_reads() {
     let file = read(DEV).unwrap();
-    assert_eq!(file.name.get("zh").map(String::as_str), Some("开发"));
-    assert_eq!(file.summary.len(), 1);
+    assert_eq!(
+        file.name.as_ref().and_then(|name| name.pick("zh")),
+        Some("开发")
+    );
+    assert!(file.summary.is_some());
     assert_eq!(file.default_persona.as_deref(), Some("engineer"));
     assert_eq!(file.unlisted, Some(Unlisted::Off));
     assert_eq!(
@@ -60,11 +63,10 @@ fn an_upper_layer_overrides_field_by_field() {
     )
     .unwrap();
     let file = upper.over(lower);
-    assert_eq!(file.name.get("zh").map(String::as_str), Some("我的开发"));
     assert_eq!(
-        file.name.get("en").map(String::as_str),
-        Some("Dev"),
-        "没写的语言沿用"
+        file.name.as_ref().and_then(|name| name.pick("en")),
+        Some("我的开发"),
+        "名字写了的整格换掉，没写的语言不再沿用"
     );
     assert_eq!(
         file.default_persona.as_deref(),
@@ -97,10 +99,7 @@ fn every_wrong_one_says_which_line() {
         wrong("[preset]\ncolor = \"red\"\n"),
         (Code::UnknownKey, Some(2))
     );
-    assert_eq!(
-        wrong("[preset]\nname = \"Dev\"\n"),
-        (Code::NotPhrases, Some(2))
-    );
+    assert_eq!(wrong("[preset]\nname = 3\n"), (Code::NotPhrases, Some(2)));
     assert_eq!(
         wrong("[preset]\nname = { fr = \"Dév\" }\n"),
         (Code::UnknownLanguage, Some(2))
@@ -149,10 +148,6 @@ fn tool_names_take_letters_digits_dashes_and_underscores() {
     assert_eq!(file.tools_off.len(), 3);
     let long = format!("[tools]\n{} = false\n", "a".repeat(65));
     assert_eq!(wrong(&long).0, Code::BadTool);
-    assert_eq!(
-        wrong("[preset]\nbase = \"Dev\"\n"),
-        (Code::BadBase, Some(2))
-    );
 }
 
 #[test]
@@ -167,7 +162,7 @@ fn a_problem_reads_as_a_line_and_a_sentence() {
         message: "broken".to_string(),
     };
     assert_eq!(no_line.to_string(), "broken");
-    assert_eq!(Code::ALL.len(), 14);
+    assert_eq!(Code::ALL.len(), 13);
 }
 
 #[test]
@@ -198,4 +193,19 @@ fn chosen_lists_installed_software_that_is_off_in_order() {
     );
     let full = Chosen::new("full".to_string(), PresetFile::default(), ["memory"]);
     assert!(full.off.is_empty());
+}
+
+#[test]
+fn old_style_names_keep_the_digest_they_had() {
+    // P-3 补以前算的值：名字、说明照以前的写法算，以前造的快照照旧对得上（`PresetFile::digest`）。
+    let dev = read(DEV).unwrap();
+    assert_eq!(
+        dev.digest().as_str(),
+        "sha256:f91563cc16871e165d4b0d70890275bf9f77a88661e74ca8e9531ad79eaa5731"
+    );
+    let empty = PresetFile::default();
+    assert_eq!(
+        empty.digest().as_str(),
+        "sha256:49ff2847b261e037c53a2873ddd7ca9ccf1267bb9f6dc134bd3c7889896594cb"
+    );
 }

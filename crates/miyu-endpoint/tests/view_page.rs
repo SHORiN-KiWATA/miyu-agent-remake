@@ -2,20 +2,18 @@
 //! 拼起来就是整份日志；最新一页的 `last` 接 `subscribe {"after"}`，什么都不补。后台命令跑完的回报在这一页、派它的在更早
 //! 一页的，带上派出时的样子（施工 9-6 再补）。参数不对、没有这个会话的拒绝。
 
-mod support;
-
 use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::Arc;
 
 use serde_json::{Value, json};
 
+use crate::support::*;
 use miyu_kernel::event::{Body, Effect};
 use miyu_kernel::tool::Access;
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake, Held};
 use miyu_tool::{Catalog, Exit, Tool};
-use support::*;
 
 /// 一页的回应。
 async fn page(client: &mut Client, id: &str, params: Value) -> Value {

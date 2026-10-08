@@ -2,8 +2,6 @@
 //! 没设过密码、`--reset` 的网址带 `#setup=<一次性码>`，别的不带；`--print` 印网址和提醒；交不给浏览器的照 `--print` 办；
 //! `--logout` 说作废了几个。核心是替身：照方法名答。
 
-mod support;
-
 use std::path::Path;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
@@ -11,9 +9,9 @@ use std::sync::{Arc, Mutex};
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
+use crate::support::*;
 use miyu_ipc::Listener;
 use miyu_web::open::{Browser, Launch, Open, open};
-use support::*;
 
 const CODE: &str = "9f03b21c9f03b21c9f03b21c9f03b21c9f03b21c9f03b21c9f03b21c9f03b21c";
 

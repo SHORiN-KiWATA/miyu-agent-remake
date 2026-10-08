@@ -3,8 +3,6 @@
 //! 变量；整组杀掉（Unix 上连它放到后台的）；没有任务端口的不跑；端口收不下的说起不来。Unix 上：被信号杀掉的交回信号，
 //! 自己退出以后组里剩下的也停了。经沙盒的助手起的在 `shell_sandbox.rs`。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -15,7 +13,7 @@ use miyu_kernel::event::{JobKind, JobStarted, Said};
 use miyu_kernel::id::JobId;
 use miyu_tool::{Background, Done, Effect, Exit, JobPort};
 
-use support::{Site, Taken};
+use crate::support::{Site, Taken};
 
 /// 基础系统的说法。
 fn said(key: &str) -> Said {

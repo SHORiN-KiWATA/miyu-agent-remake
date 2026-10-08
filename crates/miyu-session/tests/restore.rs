@@ -2,8 +2,6 @@
 //! 现在的哈希；她看过的照有效历史走。新建的、删掉的要进出回收站，回收站在场地的假家目录里，只在 Linux 上跑：别的
 //! 平台进的是系统真的回收站。
 
-mod support;
-
 use std::path::Path;
 
 use miyu_kernel::event::{
@@ -15,7 +13,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_store::blob::Blobs;
 use miyu_tool::Catalog;
 
-use support::*;
+use crate::support::*;
 
 fn base_system() -> Catalog {
     let resources = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");

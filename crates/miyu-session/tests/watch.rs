@@ -7,11 +7,10 @@
 //! - 等的这边：效果落了盘才订（订的时刻就是那条结果的时刻）；那个会话不在了记 `gone`；载入再订；已经到点的载入时不订、当场
 //!   作废；撤销以后不订、恢复撤销再订。
 
-mod support;
-
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
+use crate::support::{Home, Lines, Opening, ask, say, stop, until_logged, within};
 use miyu_kernel::event::{Body, ChildReason, ChildReported, Event, IdleReason};
 use miyu_kernel::id::{AccountId, CommandId, JobId, SessionId};
 use miyu_kernel::origin::{By, Session};
@@ -20,7 +19,6 @@ use miyu_kernel::time::Timestamp;
 use miyu_session::testkit::{Play, Script};
 use miyu_session::{Child, Handle, NotWatched, Pending, SessionPort};
 use miyu_tool::MainSession;
-use support::{Home, Lines, Opening, ask, say, stop, until_logged, within};
 
 /// 被等的会话：短编号 `9f03b21c`。
 const OTHER: &str = "0192f3a0-2222-7abc-8def-55669f03b21c";
@@ -341,7 +339,7 @@ async fn an_idle_session_waits_for_its_next_turn_to_send() {
     turn(&home, &handle, 1).await;
     until("它真空下来再取起算时刻", || !handle.busy()).await;
     tokio::time::sleep(Duration::from_millis(20)).await;
-    let since = support::now();
+    let since = crate::support::now();
     handle.watch(sid(WAITER), since).expect("在跑");
     a_while().await;
     assert!(table.notices().is_empty(), "订进来的时候已经空着：不当场发");
@@ -366,7 +364,7 @@ async fn watching_since_before_an_already_finished_turn_sends_at_once() {
     let script = Script::new([Play::Says("CI 修好了。")]);
     let handle = session(&home, &script, &table).await;
     // 起算时刻在这一轮开始之前取，模拟「带话又订」这边手慢：那边先忙完才 `add_waiter`，照样当场发。
-    let since = support::now();
+    let since = crate::support::now();
     turn(&home, &handle, 1).await;
     handle.watch(sid(WAITER), since).expect("在跑");
     until("通知", || table.notices().len() == 1).await;
@@ -474,7 +472,7 @@ async fn a_session_waiting_for_its_subagent_is_not_idle() {
 
 /// 把会话 `id` 的日志里每一条的时刻往前挪 `hours` 小时。
 fn age(home: &Home, id: &SessionId, hours: i64) {
-    let dir = home.root.session_dir(&support::alice_account(), id);
+    let dir = home.root.session_dir(&crate::support::alice_account(), id);
     for entry in std::fs::read_dir(&dir).expect("读得了会话目录") {
         let path = entry.expect("读得了").path();
         if path

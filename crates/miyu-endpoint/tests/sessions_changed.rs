@@ -4,15 +4,13 @@
 //!
 //! 一个连接订阅列表、只看推送，另一个连接造会话、说话、改名：推送不靠发命令的那个连接。等推送一律有上限（十秒）。
 
-mod support;
-
 use std::time::Duration;
 
 use serde_json::{Value, json};
 
 use miyu_session::testkit::{Play, Script};
 
-use support::*;
+use crate::support::*;
 
 /// 连上、握手、订阅会话列表，交回连接和回应里的列表。
 async fn watching(home: &Home, script: &Script) -> (Client, Client, Vec<Value>) {

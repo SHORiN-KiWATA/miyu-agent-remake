@@ -2,8 +2,6 @@
 //! `preview` 原样）、等；人回答（带 `notes`），回答落了盘送回工具，成了这次调用的结果。等的时候打断，这次调用只有一条结果。
 //! 没人能回答的会话不给端口。
 
-mod support;
-
 use std::sync::Arc;
 
 use miyu_kernel::event::{Body, Choice, Event, Question, Response, ToolStatus};
@@ -15,7 +13,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 一道单选题，第一个选项带预览。
 fn questions() -> Vec<Question> {
