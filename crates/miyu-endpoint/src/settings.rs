@@ -23,6 +23,14 @@ miyu_config::settings! {
             applies: head_start,
             ui: { page: "general", group: "display", control: select },
         },
+        /// 直接敲 `miyu`、`miyu config` 时打开哪个界面：软件包的编号（施工 9-3，`packages.md`「入口」）。主程序每次敲的时候经
+        /// `config.get` 读，照清单找这个包的程序。
+        head: String = "tui" {
+            kind: name,
+            layers: [System, Personal],
+            applies: head_start,
+            ui: { page: "general", group: "display", control: text },
+        },
     }
 }
 

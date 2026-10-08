@@ -1,6 +1,6 @@
-//! `miyu web`（`docs/blueprint/web-module.md`「怎么走」第十一条第 1 款，施工 W-9）：主程序里不放网页的代码，只找主程序真实
-//! 位置旁边的网页软件 `miyu-web`（Windows 上是 `miyu-web.exe`），把参数原样交给它的 `open`，等它退出，退出码照它的。没装的
-//! 说怎么装，退出码 1。有了软件包的清单（M9）以后照清单找。
+//! `miyu web`（`docs/blueprint/web-module.md`「怎么走」第十一条第 1 款，施工 W-9）：主程序里不放网页的代码，照清单找网页
+//! 软件（施工 9-3：子命令是 `web` 的那个包的程序，出厂那一份是 `miyu-web`），只找主程序真实位置旁边的（Windows 上加
+//! `.exe`），把参数原样交给它的 `open`，等它退出，退出码照它的。没装的说怎么装，退出码 1。
 
 #[cfg(test)]
 mod tests;
@@ -11,7 +11,16 @@ use std::process::{Command, ExitCode};
 
 use clap::Args;
 
+use miyu_kernel::id::AccountId;
+use miyu_store::env::Env;
+use miyu_store::packages::{Packages, locate};
+use miyu_store::resources::ResourceRoot;
+use miyu_store::root::DataRoot;
+
 use crate::language::{self, Language};
+
+/// 清单里找不到网页那一份时照它找：出厂的网页软件。
+const PROGRAM: &str = "miyu-web";
 
 /// `miyu web` 的参数：照原样交给网页软件。给人看的说明在帮助页里（[`crate::help`]）。
 #[derive(Debug, Clone, Default, Args)]
@@ -50,21 +59,46 @@ impl Web {
     }
 }
 
-/// 跑一次 `miyu web`。
-pub fn web(args: Web) -> ExitCode {
+/// 跑一次 `miyu web`：照管理员 `admin` 那两层的清单找网页软件。
+pub fn web(args: Web, admin: &AccountId) -> ExitCode {
     let main = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("miyu"));
-    ExitCode::from(web_on(&args, &main, language::current(), &mut io::stderr()))
+    let program = program(&Env::current(), admin);
+    ExitCode::from(web_on(
+        &args,
+        &main,
+        &program,
+        language::current(),
+        &mut io::stderr(),
+    ))
 }
 
-/// 同 [`web`]：主程序在 `main`，没装时照 `language` 说在 `err` 上。交回退出码。
-pub fn web_on(args: &Web, main: &Path, language: Language, err: &mut dyn Write) -> u8 {
-    let program = sibling(main, "miyu-web");
-    if !program.is_file() {
+/// 网页软件的程序名：两层清单里子命令是 `web` 的那一份的（施工 9-3）；没有的照出厂的 [`PROGRAM`]。
+fn program(env: &Env, admin: &AccountId) -> String {
+    let (Ok(root), Ok(resources)) = (DataRoot::locate(env), ResourceRoot::locate(env)) else {
+        return PROGRAM.to_string();
+    };
+    Packages::new(&resources, &root, admin)
+        .read()
+        .into_iter()
+        .filter_map(|found| found.read.ok()?.command)
+        .find(|command| command.name == "web")
+        .map_or_else(|| PROGRAM.to_string(), |command| command.program)
+}
+
+/// 同 [`web`]：主程序在 `main`，网页软件叫 `program`，没装时照 `language` 说在 `err` 上。交回退出码。
+pub fn web_on(
+    args: &Web,
+    main: &Path,
+    program: &str,
+    language: Language,
+    err: &mut dyn Write,
+) -> u8 {
+    let Some(program) = locate(program, main) else {
         if writeln!(err, "{}", not_installed(language)).is_err() {
             // 标准错误关了：没有别处可说。
         }
         return 1;
-    }
+    };
     match Command::new(&program).args(args.args()).status() {
         Ok(status) => status
             .code()
@@ -77,14 +111,6 @@ pub fn web_on(args: &Web, main: &Path, language: Language, err: &mut dyn Write) 
             1
         }
     }
-}
-
-/// `program` 真实位置旁边叫 `name` 的程序（Windows 上加 `.exe`）。
-pub fn sibling(program: &Path, name: &str) -> PathBuf {
-    let real = std::fs::canonicalize(program).unwrap_or_else(|_| program.to_path_buf());
-    let file = format!("{name}{}", std::env::consts::EXE_SUFFIX);
-    real.parent()
-        .map_or_else(|| PathBuf::from(&file), |dir| dir.join(&file))
 }
 
 /// 没装网页界面：怎么装。
