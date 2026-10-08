@@ -32,6 +32,7 @@ pub mod help;
 pub mod language;
 mod link;
 mod login;
+mod memory;
 mod misuse;
 pub mod packages;
 mod recap;
@@ -50,6 +51,7 @@ pub use config::{
     Check, Config, ConfigCommand, ConfigPlan, Console, Terminal, check, config, config_on,
 };
 pub use login::{KeyCommand, Login, LoginPlan, Logout, login, login_on};
+pub use memory::{Clear as MemoryClear, Memory, MemoryCommand, MemoryPlan, memory, memory_on};
 pub use misuse::misuse;
 pub use recap::{Recap, RecapPlan, recap, recap_on};
 pub use redo::{Redo, RedoPlan, redo, redo_on};

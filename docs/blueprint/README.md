@@ -70,6 +70,7 @@
 | `presets.md` | 预设：在哪、格式、三层怎么叠、默认预设、找人格的先后、`preset.list`、`preset.get`（施工 P-2 上起） |
 | `web-module.md` | 网页界面这个软件和核心给它的通用方法：网页软件 `miyu-web`（端口、页面、WebSocket 照转、一次性登录、媒体地址），核心给所有头的 `human.get`、`fs.*`、`mermaid.render`、分块传和读 blob、`link.preview`：图纸，2026-10-01 项目主人批准；W-1 到 W-7 现在做，身份、网页软件等用户系统 |
 | `web-ui.md` | 网页软件 `miyu-web`：起停、端口（8300）、页面、WebSocket 照转、`miyu web`（施工 W-9，从 `web-module.md` 搬出来独立成页）；媒体地址随 W-10 |
+| `webserve.md` | 只听本机的网页端口共用的底子 `miyu-webserve`：给页面文件、核对 Host 和 Origin、`/ws` 原样转给核心、带一次性码开浏览器；网页软件和 QQ 桥的 WebUI 共用，从 `miyu-web` 搬来的搬家表（施工 O-16） |
 | `mermaid.md` | mermaid 源码画成 SVG：可选软件包 `mermaid`、crate `miyu-mermaid`、`mermaid.render`，懒初始化、缓存、三种记号色（施工 W-4，2026-10-02 从 `web-module.md` 搬出来独立成页） |
 | `onebot.md` | 通讯平台的桥 `miyu-onebot`：骨架和主人的私聊（施工 O-8 起），以后的群、图片、斜杠命令、出站、开关、WebUI：图纸，O 线随步子补 |
 | `chat.md` | 群聊内核 `miyu-chat`：场所规则（施工 O-1 起），以后的进站链、线路规程、主动回复判断、出站链与出站队列、并行的分派：图纸，O 线随步子补 |

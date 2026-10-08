@@ -1,13 +1,13 @@
-//! `/ws`（`web-module.md`「怎么走」第九条第 7 到 9 款）：Origin 对上了才接；接了以后连核心（`connect_or_start_bare`，不读
+//! `/ws`（`web-ui.md`「怎么走」第一条第 7 到 9 款）：Origin 对上了才接；接了以后连核心（`connect_or_start_bare`，不读
 //! 本机令牌，核心没在跑就拉起来），两头照转：文字帧加一个 `\n` 是一行，一行去掉 `\n` 是一个文字帧，不读、不改、不加。
 //!
 //! - 二进制帧：关，1003。一帧超过 1 MiB：关，1009（核心那头一行也就这么长）。
 //! - 核心那头断了：关，1012，页面照自己的规矩重连。浏览器那头断了：核心的连接跟着关。
 //! - 连不上核心：发一条 `web.error` 通知，再关。
 //!
-//! 一个标签页一条核心连接，不合并（「起草时定的」第 3 条）。往浏览器写的都经一个写的任务：两头都可能要关它。
+//! 一个标签页一条核心连接，不合并（`web-module.md`「起草时定的」第 3 条）。往浏览器写的都经一个写的任务：两头都可能要关它。
 //!
-//! 关了以后不马上放掉套接字：先关写的一半，把浏览器还在发的读掉、扔掉（最多等 [`LINGER`]），读到头再放。带着没读的数据
+//! 关了以后不马上放掉套接字：先关写的一半，把浏览器还在发的读掉、扔掉（最多等 `LINGER`），读到头再放。带着没读的数据
 //! 关，系统回的是 RST，刚写出去的关闭帧可能被对面丢掉：一帧超过 1 MiB 时帧的正文没读，Windows 上浏览器只看到连接被重置，
 //! 收不到 1009（W-9 验收时 CI 上查出来的）。
 
@@ -26,8 +26,8 @@ use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use tokio_tungstenite::tungstenite::protocol::{CloseFrame, Role, WebSocketConfig};
 use tokio_tungstenite::tungstenite::{Error, Message};
 
-use crate::TARGET;
-use crate::serve::{Body, Site, empty};
+use crate::respond::{Body, empty};
+use crate::{Site, TARGET};
 
 /// 一帧最大多少字节：核心那头一行最长 1 MiB（`protocol.md`「一行一条」）。
 const LIMIT: usize = 1 << 20;
@@ -36,7 +36,7 @@ const LIMIT: usize = 1 << 20;
 const LINGER: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// 接一个 WebSocket：Origin 不对 403，不是升级请求 400；对的回 101，升级好以后在别的任务里转。
-pub(crate) fn accept(request: Request<Incoming>, site: Arc<Site>) -> Response<Body> {
+pub fn accept<S: Site>(request: Request<Incoming>, site: Arc<S>) -> Response<Body> {
     let headers = request.headers();
     let origin = headers
         .get(header::ORIGIN)
@@ -93,9 +93,9 @@ fn close(code: CloseCode) -> Message {
 }
 
 /// 两头照转，直到一头断了。
-async fn bridge<S>(io: S, site: Arc<Site>)
+async fn bridge<I, S: Site>(io: I, site: Arc<S>)
 where
-    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    I: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
     let _busy = site.busy();
     let config = WebSocketConfig::default()
@@ -117,7 +117,7 @@ where
         }
         sink
     });
-    let core = match miyu_ipc::connect_or_start_bare(&site.root, || (site.core)()).await {
+    let core = match miyu_ipc::connect_or_start_bare(site.root(), || (site.core())()).await {
         Ok(core) => core,
         Err(error) => {
             tracing::warn!(target: TARGET, error = %error, "core unreachable");

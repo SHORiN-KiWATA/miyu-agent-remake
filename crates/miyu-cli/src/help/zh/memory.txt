@@ -1,0 +1,22 @@
+用法：miyu memory [命令] [选项]
+
+看她记了你什么，搜、记、改、忘、清空。不写命令就是 list。
+
+命令：
+  list                    列出记下的，新的在前
+  search <词>             搜记下的
+  add <话>                记一条
+  edit <编号> <话>        改一条，印出新的编号
+  forget <编号>           忘掉一条
+  clear session [<会话>]  清掉这个会话记下的；不写是上一次 miyu ask 开的
+  clear me                清掉她关于你的全部记忆
+
+选项：
+      --persona <编号>    哪个人格的记忆；不写是默认人格
+  -s, --session <编号>    这个会话用的那一份记忆
+      --forgotten         list、search：连忘掉的一起
+      --class user|feedback|episode|reference
+                          list：只要这一类；add：记成这一类，不写是 user
+      --why <原因>        forget：为什么忘
+      --format text|json  list、search：json 给脚本
+  -h, --help              印帮助

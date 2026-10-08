@@ -39,6 +39,7 @@ mod list;
 mod listen;
 mod listing;
 mod login;
+mod memory;
 mod meta;
 mod methods;
 mod models;

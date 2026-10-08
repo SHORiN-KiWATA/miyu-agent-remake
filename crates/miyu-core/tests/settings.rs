@@ -103,6 +103,7 @@ fn the_registered_list_is_well_formed() {
             "compaction.prepare",
             "log.level",
             "onebot.listen",
+            "onebot.web",
             "onebot.token"
         ],
         "照登记的先后"

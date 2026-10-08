@@ -38,6 +38,7 @@ use crate::hello::Peer;
 use crate::human;
 use crate::job_output;
 use crate::list;
+use crate::memory;
 use crate::meta::MetaParams;
 use crate::models;
 use crate::personas;
@@ -115,6 +116,9 @@ pub(crate) async fn call(
         "preset.get" => crate::presets::get(core, peer, params(request)?).await,
         "preset.set" => crate::presets::write::set(core, peer, params(request)?).await,
         "preset.delete" => crate::presets::write::delete(core, params(request)?).await,
+        "memory.list" | "memory.search" | "memory.remember" | "memory.update" | "memory.forget" => {
+            memory::call(core, &request.method, &request.id, &request.params).await
+        }
         "session.list" => {
             let params: ListParams = params(request)?;
             let sessions = list::list(core, params.oneshot, params.limit).await?;
@@ -297,7 +301,7 @@ pub(crate) async fn call(
         "secret.list" => Ok(secrets::list(core)),
         "model.list" => models::list(core, params(request)?).await,
         "provider.detect" => providers::detect(core).await,
-        "provider.catalog" => providers::catalog(core, params(request)?).await,
+        "provider.catalog" => providers::catalog(core, peer, params(request)?).await,
         "provider.test" => providers::test(core, params(request)?).await,
         "model.call" => models::call(core, params(request)?).await,
         "usage.query" => crate::usage::query(core, params(request)?).await,

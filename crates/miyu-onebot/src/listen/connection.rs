@@ -1,11 +1,12 @@
 //! 一条 NapCat 的连接（`onebot.md` 第一条「怎么走」第 2 到 6 条）：一帧一条 JSON，回应交给在等的调用，私聊交给跟核心的
-//! 那一头，别的事件记一行调试日志就丢。连上就调一次 `get_version_info`，把实现的名字和版本记进运行日志（第 3 条）。
+//! 那一头，别的事件记一行调试日志就丢。连上就调一次 `get_version_info`，把实现的名字和版本记进运行日志（第 3 条），也记在
+//! 这条连接上，WebUI 的 `/status` 照它说（施工 O-16）。
 //!
 //! 往 NapCat 写的都经一个写的任务（回话、`get_version_info`、被顶掉时的关闭帧）。断开时：在等的调用都算失败，号还是这一条
 //! 的拿掉，说一行；桥不退，等 NapCat 自己重连（第 11 条）。
 
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::{Arc, OnceLock};
 
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
@@ -15,7 +16,7 @@ use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::protocol::Role;
 
 use super::Gate;
-use super::bots::Link;
+use super::bots::{Link, Peer};
 use crate::TARGET;
 use crate::onebot::{self, Calls, Frame};
 use crate::serve::Notice;
@@ -45,13 +46,14 @@ where
         serial: gate.serial.fetch_add(1, Ordering::Relaxed),
         out: out.clone(),
         calls: Arc::clone(&calls),
+        peer: Arc::new(OnceLock::new()),
     };
     if let Some(bot) = bot {
         register(gate, bot, &link);
     }
     tracing::info!(target: TARGET, bot, "napcat connected");
     (gate.tell)(Notice::Connected { bot });
-    let probe = version(Arc::clone(&calls), out.clone());
+    let probe = version(Arc::clone(&calls), out.clone(), Arc::clone(&link.peer));
     tokio::pin!(probe);
     let mut probed = false;
     loop {
@@ -125,11 +127,18 @@ fn register(gate: &Gate, bot: i64, link: &Link) {
     tracing::info!(target: TARGET, bot, "napcat connection replaced");
 }
 
-/// 问对端是谁（第 3 条）：实现的名字、版本、协议版本记进运行日志。
-async fn version(calls: Arc<Calls>, out: mpsc::Sender<Message>) {
+/// 问对端是谁（第 3 条）：实现的名字、版本、协议版本记进运行日志；名字和版本记进 `peer`。
+async fn version(calls: Arc<Calls>, out: mpsc::Sender<Message>, peer: Arc<OnceLock<Peer>>) {
     match calls.call(&out, "get_version_info", json!({})).await {
         Ok(reply) => {
             let data = &reply["data"];
+            let known = Peer {
+                implementation: data["app_name"].as_str().unwrap_or_default().to_string(),
+                version: data["app_version"].as_str().unwrap_or_default().to_string(),
+            };
+            if peer.set(known).is_err() {
+                // 一条连接只问一次：不会已经有了。
+            }
             tracing::info!(
                 target: TARGET,
                 app_name = data["app_name"].as_str().unwrap_or_default(),

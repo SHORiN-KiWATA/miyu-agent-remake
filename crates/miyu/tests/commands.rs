@@ -204,13 +204,20 @@ fn the_sandbox_help_is_its_page() {
 #[test]
 fn the_program_calls_itself_miyu_whatever_its_file_is_called() {
     // Windows 上可执行文件叫 `miyu.exe`，clap 默认照文件名说话，会说成「miyu.exe sandbox …」（施工 5-8 在 CI 上查出来的）。
-    // 拷一份改个名字跑，这台机器上也照得出来。
+    // 换个名字跑，这台机器上也照得出来。换名字用硬链接，放在主程序旁边（test-ext 补）：拷的时候开着写的句柄，别的测试这时
+    // 拉起的子进程在 exec 以前也开着它，接着跑刚拷好的这个，Linux 回 `ETXTBSY`。临时目录可能和主程序不在一个文件系统上
+    // （tmpfs），连不成，所以放主程序旁边；连不成的才拷。
     let home = Home::new();
-    let renamed = home
-        .dir
-        .join(format!("renamed-miyu{}", std::env::consts::EXE_SUFFIX));
-    std::fs::copy(MIYU, &renamed).expect("拷得了主程序");
-    let output = Command::new(&renamed)
+    let renamed = Renamed(std::path::Path::new(MIYU).with_file_name(format!(
+        "renamed-miyu-{}{}",
+        std::process::id(),
+        std::env::consts::EXE_SUFFIX
+    )));
+    let renamed = &renamed.0;
+    if std::fs::hard_link(MIYU, renamed).is_err() {
+        std::fs::copy(MIYU, renamed).expect("拷得了主程序");
+    }
+    let output = Command::new(renamed)
         .arg("sandbox")
         .env("MIYU_HOME", home.root.path())
         .envs(crate::support::offline(home.root.path()))
@@ -224,4 +231,13 @@ fn the_program_calls_itself_miyu_whatever_its_file_is_called() {
         String::from_utf8_lossy(&output.stderr),
         "miyu sandbox needs one of: setup or remove\n"
     );
+}
+
+/// 换了名字的主程序：用完删掉。
+struct Renamed(std::path::PathBuf);
+
+impl Drop for Renamed {
+    fn drop(&mut self) {
+        drop(std::fs::remove_file(&self.0));
+    }
 }

@@ -5,6 +5,7 @@
 //! - 只在这个会话里的：会话自己的目录 `sessions/<会话>/memory/` 下，`log/`、`turns.db`、`memory.db`。删会话、进回收处、恢复
 //!   都跟着目录走，不另写一行。
 
+use std::fmt;
 use std::path::PathBuf;
 
 use miyu_kernel::id::{AccountId, SessionId};
@@ -33,6 +34,16 @@ pub enum Room {
         /// 会话编号。
         session: SessionId,
     },
+}
+
+/// 写进运行日志的样子：`persona <账号>/<人格>`、`session <账号>/<会话>`。
+impl fmt::Display for Room {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Room::Persona { account, persona } => write!(f, "persona {account}/{persona}"),
+            Room::Session { account, session } => write!(f, "session {account}/{session}"),
+        }
+    }
 }
 
 impl Room {

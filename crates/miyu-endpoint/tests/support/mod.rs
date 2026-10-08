@@ -5,6 +5,7 @@
 pub mod deleting;
 pub mod extensions;
 pub mod login;
+pub mod memories;
 pub mod providers;
 mod pushes;
 pub mod venues;
@@ -63,6 +64,8 @@ impl Home {
         };
         let root = DataRoot::locate(&env).expect("MIYU_HOME 是绝对路径");
         root.prepare().expect("临时目录里建得了骨架");
+        // 出厂不带人格（施工 P-4 下）：样本的软件工程师装进系统区那一层，测试照旧用 `engineer`。
+        miyu_session::testkit::install_sample_persona(&root);
         let work = std::env::temp_dir().join(format!(
             "miyu-endpoint-work-{}-{}-{n}",
             std::process::id(),

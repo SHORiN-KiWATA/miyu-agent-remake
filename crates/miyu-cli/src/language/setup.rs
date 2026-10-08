@@ -4,38 +4,6 @@
 use super::Language;
 
 impl Language {
-    /// 找到的那张表的头一行。
-    pub(crate) fn found_heading(&self) -> &'static str {
-        match self {
-            Language::Chinese => "找到这些现成的：",
-            Language::English => "Found these ready to use:",
-        }
-    }
-
-    /// 找到的 key 在哪。
-    pub(crate) fn found_key(&self, env: &str) -> String {
-        match self {
-            Language::Chinese => format!("环境变量 {env}"),
-            Language::English => format!("environment variable {env}"),
-        }
-    }
-
-    /// 找到的本机服务在哪。
-    pub(crate) fn found_local(&self, base_url: &str, models: usize) -> String {
-        match self {
-            Language::Chinese => format!("本机 {base_url}，{models} 个模型"),
-            Language::English => format!("this machine {base_url}, {models} models"),
-        }
-    }
-
-    /// 已经配好了，接在「在哪」后面。
-    pub(crate) fn already_set_up(&self, id: &str) -> String {
-        match self {
-            Language::Chinese => format!("，已经配好（{id}）"),
-            Language::English => format!(", already set up ({id})"),
-        }
-    }
-
     /// 用不了：`after` 的接在「在哪」后面，带开头的逗号。
     pub(crate) fn unusable(&self, why: &str, after: bool) -> String {
         match (self, after) {
@@ -58,14 +26,6 @@ impl Language {
         }
     }
 
-    /// 都不要。
-    pub(crate) fn none_of_these(&self) -> &'static str {
-        match self {
-            Language::Chinese => "都不要，从目录里找一家",
-            Language::English => "None of these: find one in the catalog",
-        }
-    }
-
     /// 问编号。
     pub(crate) fn pick_number(&self) -> &'static str {
         match self {
@@ -82,61 +42,17 @@ impl Language {
         }
     }
 
-    /// 什么都没找到。
-    pub(crate) fn found_nothing(&self) -> &'static str {
-        match self {
-            Language::Chinese => "没找到现成的 key 和本机的模型服务。",
-            Language::English => "No key or local model service found.",
-        }
-    }
-
     /// 头看得到、核心看不到的变量：几个名字连起来。
     pub(crate) fn core_cannot_see(&self, names: &[&str]) -> String {
         match self {
             Language::Chinese => format!(
-                "· 这个终端里设了 {}，核心看不到：核心是别处拉起的，看不到后来设的环境变量。等核心空闲了自己退出（没有界面连着、没有在跑的活），再在这个终端里运行 miyu setup；或者从目录里选这一家、把 key 贴进来。",
+                "· 这个终端里设了 {}，核心看不到：核心是别处拉起的，看不到后来设的环境变量。等核心空闲了自己退出（没有界面连着、没有在跑的活），再在这个终端里运行 miyu setup；或者选这一家、把 key 贴进来。",
                 names.join("、")
             ),
             Language::English => format!(
-                "· {} is set in this terminal, but the core cannot see it: the core was started elsewhere and does not see variables set later. Wait until the core is idle and exits by itself (no interface connected, nothing running), then run miyu setup in this terminal again; or pick that provider from the catalog and paste the key.",
+                "· {} is set in this terminal, but the core cannot see it: the core was started elsewhere and does not see variables set later. Wait until the core is idle and exits by itself (no interface connected, nothing running), then run miyu setup in this terminal again; or pick that provider and paste the key.",
                 names.join(", ")
             ),
-        }
-    }
-
-    /// 问搜什么。
-    pub(crate) fn search_for(&self) -> &'static str {
-        match self {
-            Language::Chinese => "搜一家供应商（编号或者名字里的一截，直接回车列出全部）：",
-            Language::English => {
-                "Search for a provider (part of its id or name; Enter lists all): "
-            }
-        }
-    }
-
-    /// 没对上。
-    pub(crate) fn nothing_matches(&self) -> &'static str {
-        match self {
-            Language::Chinese => "没有对上的。",
-            Language::English => "Nothing matches.",
-        }
-    }
-
-    /// 列满了。
-    pub(crate) fn only_first(&self, count: usize) -> String {
-        match self {
-            Language::Chinese => format!("只列了前 {count} 家，搜得细一点能看到别的。"),
-            Language::English => {
-                format!("Only the first {count} are listed; search more narrowly to see others.")
-            }
-        }
-    }
-
-    /// 选或者再搜。
-    pub(crate) fn pick_or_search(&self) -> &'static str {
-        match self {
-            Language::Chinese => "选一个编号，或者再搜一次：",
-            Language::English => "Pick a number, or search again: ",
         }
     }
 
@@ -261,6 +177,104 @@ impl Language {
         match self {
             Language::Chinese => "还没有模型，先接上一个。",
             Language::English => "No model is set up yet. Let's connect one first.",
+        }
+    }
+
+    /// 选一家那张表的头一行（施工 8-11 再补）。
+    pub(crate) fn pick_provider(&self) -> &'static str {
+        match self {
+            Language::Chinese => "选一家：",
+            Language::English => "Pick a provider:",
+        }
+    }
+
+    /// 环境变量里找到了这一家的 key（施工 8-11 再补）。
+    pub(crate) fn key_found(&self) -> &'static str {
+        match self {
+            Language::Chinese => "已找到 key",
+            Language::English => "key found",
+        }
+    }
+
+    /// 这一家配置里已经有了（施工 8-11 再补）。
+    pub(crate) fn set_up_mark(&self) -> &'static str {
+        match self {
+            Language::Chinese => "已配好",
+            Language::English => "set up",
+        }
+    }
+
+    /// 本机跑着的服务（施工 8-11 再补）。
+    pub(crate) fn local_mark(&self, base_url: &str) -> String {
+        match self {
+            Language::Chinese => format!("本机 {base_url}"),
+            Language::English => format!("local {base_url}"),
+        }
+    }
+
+    /// 最后一行：自定义（施工 8-11 再补）。
+    pub(crate) fn custom(&self) -> &'static str {
+        match self {
+            Language::Chinese => "自定义",
+            Language::English => "Custom",
+        }
+    }
+
+    /// 问自定义的地址。
+    pub(crate) fn base_url(&self) -> &'static str {
+        match self {
+            Language::Chinese => "Base URL：",
+            Language::English => "Base URL: ",
+        }
+    }
+
+    /// 地址不是 http、https 的。
+    pub(crate) fn not_a_url(&self) -> &'static str {
+        match self {
+            Language::Chinese => "要以 http:// 或 https:// 开头",
+            Language::English => "Must start with http:// or https://",
+        }
+    }
+
+    /// 接口协议那张表的头一行。
+    pub(crate) fn protocol_heading(&self) -> &'static str {
+        match self {
+            Language::Chinese => "接口协议：",
+            Language::English => "API protocol:",
+        }
+    }
+
+    /// 一种接口协议叫什么：驱动的写法 `driver`。
+    pub(crate) fn protocol(&self, driver: &str) -> &'static str {
+        match (self, driver) {
+            (Language::Chinese, "openai-chat") => "OpenAI 兼容",
+            (Language::English, "openai-chat") => "OpenAI compatible",
+            (_, "anthropic") => "Anthropic",
+            _ => "OpenAI Responses",
+        }
+    }
+
+    /// 问自定义的 key：可以空。
+    pub(crate) fn paste_key_optional(&self) -> &'static str {
+        match self {
+            Language::Chinese => "Key（不显示，可以空）：",
+            Language::English => "Key (hidden, may be empty): ",
+        }
+    }
+
+    /// 取不到模型列表（2026-10-08 项目主人定的说法）。
+    pub(crate) fn no_model_list(&self) -> &'static str {
+        match self {
+            Language::Chinese => "未获取到模型列表",
+            Language::English => "Could not get the model list",
+        }
+    }
+
+    /// 问模型名。
+    pub(crate) fn model_name(&self) -> &'static str {
+        match self {
+            Language::Chinese => "模型名：",
+            Language::English => "Model name: ",
         }
     }
 }

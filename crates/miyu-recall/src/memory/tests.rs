@@ -189,3 +189,156 @@ fn the_book_follows_saves_replacements_and_retirements() {
         ["m1", "m2", "m3", "m5"]
     );
 }
+
+fn from(session: &str, turn: u64) -> Source {
+    Source {
+        session: SessionId::parse(session).expect("合写法"),
+        turn: TurnId::new(seq(turn)),
+    }
+}
+
+const S: &str = "0192f3a0-1111-7abc-8def-001122334455";
+const T: &str = "0192f3a0-2222-7abc-8def-001122334455";
+
+/// 清空（施工 R-3 补，`memory.md` 第二条第 5 款）：带会话的、整间的都写成事件、读回一字不差。
+#[test]
+fn a_clearing_round_trips_with_or_without_a_session() {
+    for (body, json) in [
+        (Cleared { session: None }, r#""body":{}}"#),
+        (
+            Cleared {
+                session: Some(SessionId::parse(S).expect("合写法")),
+            },
+            r#""body":{"session":"0192f3a0-1111-7abc-8def-001122334455"}}"#,
+        ),
+    ] {
+        let event =
+            to_event(seq(9), at(1), admin(), &MemoryEvent::Cleared(body.clone())).expect("写得出");
+        assert_eq!(event.body.kind(), "ext.memory.cleared");
+        assert!(event.to_line().ends_with(json), "{}", event.to_line());
+        let back = Event::from_line(&event.to_line()).expect("读得回");
+        assert_eq!(from_event(&back), Some(Ok(MemoryEvent::Cleared(body))));
+    }
+}
+
+/// 清掉一个会话的：出处全在它里面的才清，还有别的出处的、人记的不动；整间的：那以前的全清，以后记的照常。清掉的不算数。
+#[test]
+fn clearing_takes_what_came_only_from_the_session_or_everything_before() {
+    let mut book = MemoryBook::default();
+    let save = |n: u64, sources: Vec<Source>| {
+        let mut body = saved(&format!("第 {n} 条"), None);
+        body.sources = sources;
+        to_event(seq(n), at(n as i64), tool(), &MemoryEvent::Saved(body)).expect("写得出")
+    };
+    let clear = |n: u64, session: Option<&str>| {
+        let body = Cleared {
+            session: session.map(|session| SessionId::parse(session).expect("合写法")),
+        };
+        (
+            body.clone(),
+            to_event(seq(n), at(n as i64), admin(), &MemoryEvent::Cleared(body)).expect("写得出"),
+        )
+    };
+    let ids = |list: Vec<MemoryId>| list.iter().map(ToString::to_string).collect::<Vec<_>>();
+    for event in [
+        save(1, vec![from(S, 3)]),
+        save(2, vec![from(S, 3), from(T, 5)]),
+        save(3, Vec::new()),
+        save(4, vec![from(T, 7)]),
+        save(5, vec![from(S, 4), from(S, 9)]),
+    ] {
+        book.see(&event).expect("读得懂");
+    }
+    let (body, event) = clear(6, Some(S));
+    assert_eq!(ids(book.clears(&body)), ["m1", "m5"]);
+    book.see(&event).expect("读得懂");
+    let current = |book: &MemoryBook| {
+        book.all()
+            .filter(|entry| entry.current())
+            .map(|entry| entry.id.to_string())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(current(&book), ["m2", "m3", "m4"]);
+    assert!(book.get(MemoryId::new(seq(1))).expect("在").cleared);
+    assert_eq!(
+        ids(book.clears(&body)),
+        Vec::<String>::new(),
+        "清过的不再算"
+    );
+
+    book.see(&save(7, vec![from(S, 12)])).expect("读得懂");
+    let (body, event) = clear(8, None);
+    assert_eq!(ids(book.clears(&body)), ["m2", "m3", "m4", "m7"]);
+    book.see(&event).expect("读得懂");
+    book.see(&save(9, vec![from(S, 13)])).expect("读得懂");
+    assert_eq!(current(&book), ["m9"], "清空以后记的照常");
+}
+
+/// 人经协议、斜杠命令写的带着命令编号（`cause`，04 第六节第 1 条）：底账记下每个编号做成了什么——哪一条、清掉几条，同一个
+/// 编号再发照它回答，核心重启以后照日志算回来。
+#[test]
+fn the_book_remembers_what_each_command_did() {
+    use miyu_kernel::id::CommandId;
+    let cause = |text: &str| CommandId::parse(text).expect("合写法");
+    let mut book = MemoryBook::default();
+    let mut save = to_event(
+        seq(1),
+        at(1),
+        admin(),
+        &MemoryEvent::Saved(saved("一", None)),
+    )
+    .expect("写得出");
+    save.cause = Some(cause("c1"));
+    book.see(&save).expect("读得懂");
+    let untold = to_event(
+        seq(2),
+        at(2),
+        tool(),
+        &MemoryEvent::Saved(saved("二", None)),
+    )
+    .expect("写得出");
+    book.see(&untold).expect("读得懂");
+    let mut clear = to_event(
+        seq(3),
+        at(3),
+        admin(),
+        &MemoryEvent::Cleared(Cleared { session: None }),
+    )
+    .expect("写得出");
+    clear.cause = Some(cause("c2"));
+    book.see(&clear).expect("读得懂");
+    assert_eq!(book.done(&cause("c1")), Some((MemoryId::new(seq(1)), 0)));
+    assert_eq!(book.done(&cause("c2")), Some((MemoryId::new(seq(3)), 2)));
+    assert_eq!(book.done(&cause("c3")), None);
+}
+
+/// 清空交回的条数不算改掉的旧版本：人看得见的才算（施工 R-3 补）。
+#[test]
+fn clearing_counts_what_could_be_seen() {
+    let mut book = MemoryBook::default();
+    for event in [
+        to_event(
+            seq(1),
+            at(1),
+            tool(),
+            &MemoryEvent::Saved(saved("用 A 卡", None)),
+        ),
+        to_event(
+            seq(2),
+            at(2),
+            tool(),
+            &MemoryEvent::Saved(saved("用 N 卡", Some(MemoryId::new(seq(1))))),
+        ),
+        to_event(
+            seq(3),
+            at(3),
+            admin(),
+            &MemoryEvent::Cleared(Cleared { session: None }),
+        ),
+    ] {
+        let event = event.expect("写得出");
+        let cleared = book.see(&event).expect("读得懂");
+        assert_eq!(cleared, usize::from(event.seq == seq(3)));
+    }
+    assert!(book.all().all(|entry| entry.cleared), "旧版本也标成清掉");
+}

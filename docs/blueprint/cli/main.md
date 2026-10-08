@@ -9,9 +9,9 @@
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu/src/main.rs` | 子命令；换上帮助页；参数不对时交给 `misuse`；拉起核心用的命令 |
-| `crates/miyu-cli/src/help.rs`、`help/{zh,en}/{miyu,ask,undo,restore,redo,compact,recap,rename,sandbox,config,login,logout,setup,web}.txt` | 帮助页：一种语言十四页，编进程序（施工 4-11；`web` 那一页施工 W-9，`setup` 那一页施工 8-11，`sandbox` 那一页施工 5-8，`compact` 那一页施工 6-8，`redo` 那一页施工 4-7 再补，`recap` 那一页施工 3-8 四补，`rename` 那一页施工 3-8 五补，`config` 那一页施工 8-2，`login`、`logout` 两页施工 8-5） |
+| `crates/miyu-cli/src/help.rs`、`help/{zh,en}/{miyu,ask,undo,restore,redo,compact,recap,rename,memory,sandbox,config,login,logout,setup,web}.txt` | 帮助页：一种语言十四页，编进程序（施工 4-11；`web` 那一页施工 W-9，`setup` 那一页施工 8-11，`sandbox` 那一页施工 5-8，`compact` 那一页施工 6-8，`redo` 那一页施工 4-7 再补，`recap` 那一页施工 3-8 四补，`rename` 那一页施工 3-8 五补，`config` 那一页施工 8-2，`login`、`logout` 两页施工 8-5） |
 | `crates/miyu-cli/src/misuse.rs` | 参数写错时说的那一句，不认识的子命令也在这里（施工 4-11）；少了子命令、嵌着的子命令写错、成对的选项少了一个（施工 5-8） |
-| `crates/miyu-cli/src/lib.rs` | 命令行的头对外的几样：`Ask`、`ask`、`talk`、`Format`、`Plan`、`Screen`、`Target`、`exit`，`Undo`、`undo`、`undo_on`、`Direction`、`UndoPlan`，`Compact`、`compact`（施工 6-8），`Recap`、`recap`、`recap_on`、`RecapPlan`（施工 3-8 四补），`Rename`、`rename`、`rename_on`、`RenamePlan`（施工 3-8 五补），`Redo`、`redo`、`redo_on`、`RedoPlan`（施工 4-7 再补），`Setup`、`setup`、`setup_on`、`SetupPlan`、`HeadEnv`、`model_ready_on`（施工 8-11），`Sandbox`、`sandbox`，`Web`、`web`、`web_on`（施工 W-9），`help`、`misuse`、`language` |
+| `crates/miyu-cli/src/lib.rs` | 命令行的头对外的几样：`Ask`、`ask`、`talk`、`Format`、`Plan`、`Screen`、`Target`、`exit`，`Undo`、`undo`、`undo_on`、`Direction`、`UndoPlan`，`Compact`、`compact`（施工 6-8），`Recap`、`recap`、`recap_on`、`RecapPlan`（施工 3-8 四补），`Rename`、`rename`、`rename_on`、`RenamePlan`（施工 3-8 五补），`Memory`、`MemoryCommand`、`MemoryClear`、`memory`、`memory_on`、`MemoryPlan`（施工 R-3 再补），`Redo`、`redo`、`redo_on`、`RedoPlan`（施工 4-7 再补），`Setup`、`setup`、`setup_on`、`SetupPlan`、`HeadEnv`、`model_ready_on`（施工 8-11），`Sandbox`、`sandbox`，`Web`、`web`、`web_on`（施工 W-9），`help`、`misuse`、`language` |
 | `crates/miyu-cli/src/language.rs` | 界面语言；这一页和 `miyu ask` 给人看的字 |
 | `crates/miyu-cli/src/language/undo.rs` | `miyu undo`、`miyu restore` 给人看的字（`cli/undo.md`） |
 | `crates/miyu-cli/src/sandbox.rs`、`sandbox/flow.rs`、`language/sandbox.rs` | `miyu sandbox setup`、`remove`（`sandbox/windows.md`，施工 5-8） |
@@ -28,6 +28,7 @@
 | `compact` | 把当前会话的上下文压缩成摘要，可以附上要求（施工 6-8，命令名 2026-09-29 项目主人定） | `cli/compact.md` |
 | `recap` | 一句话回顾当前会话：在做什么、做完了什么、卡在哪（施工 3-8 四补） | `cli/recap.md` |
 | `rename` | 给当前会话起名（施工 3-8 五补） | `cli/rename.md` |
+| `memory` | 看她记了你什么，搜、记、改、忘、清空（施工 R-3 再补） | `cli/memory.md` |
 | `check` | 查手写的文件有没有写错：配置、密钥文件、人格（施工 8-30） | `cli/check.md` |
 | `config` | `get`、`explain`、`path`：看配置（施工 8-2，`check` 施工 8-30 挪成 `miyu check`）；`set`、`unset`、`edit`、`trust`：改配置、信任项目配置（施工 8-3） | `cli/config.md` |
 | `login`、`logout` | 存、列、删供应商的 key（施工 8-5） | `cli/login.md` |
@@ -55,7 +56,7 @@
    1. 第一个词是某个包 `[command]` 的名字：照那份清单找程序（只找 `miyu` 真实位置旁边的，不找 `PATH`），参数（第一个词以后的全部）、环境、标准输入输出原样交给它，Unix 上换成它，Windows 上起它、等它、这期间不理 Ctrl+C；退出码照它的。`help <名字>` 转成 `<程序> --help`。程序没找到：标准错误上说没找到、哪一份清单说这个子命令由它跑，退出码 1。
    2. 主程序的帮助页在「命令」那一节后面多一节「软件包加的命令」（`Commands from packages:`），一个一行，名字照命令那一列对齐，说明照界面语言挑；没有的不写这一节。撞了内置子命令的不转交、不列：内置的优先（出厂网页那一份的 `web` 照旧走内置的，照清单找网页随 9-3）。
    3. 别的照下面走。
-1. 先照界面语言给主程序和 `ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename`、`config`（连同它的八个子命令）、`login`、`logout`、`setup`、`sandbox`（连同它的 `setup`、`remove`）换上帮助页（clap 的 `override_help`；`rewind` 是 `undo` 的别名，用同一页），再解析参数。
+1. 先照界面语言给主程序和 `ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename`、`memory`（连同它的子命令，施工 R-3 再补）、`config`（连同它的八个子命令）、`login`、`logout`、`setup`、`sandbox`（连同它的 `setup`、`remove`）换上帮助页（clap 的 `override_help`；`rewind` 是 `undo` 的别名，用同一页），再解析参数。
 2. 解析参数，不对的：
    1. 不认识的子命令：标准错误上说「没有 <名字> 这个子命令。想和她对话，用 miyu ask "…"」，退出码 2。不连核心，不拉起，什么都不发。
    2. `-h`、`--help`、`help`、`help <子命令>`：把那一页原样印在标准输出上，退出码 0。`-V`、`--version`：印 `miyu <版本>`，退出码 0。
@@ -63,7 +64,7 @@
 3. 没写子命令（施工 9-3，`crates/miyu-cli/src/head.rs`）：标准输入、标准输出都是终端的，连上核心（没在跑就拉起）问 `config.get` 拿 `ui.head`（出厂 `tui`），照两层清单找这个编号的界面包（`kind = "ui"`、有 `[command]`），程序只找 `miyu` 旁边的，换成它、不带参数，退出码照它的。没有这个界面（没清单、不是界面、没有子命令）：标准错误上说没装哪一个、装了的界面有哪几个、`miyu config set ui.head <编号>` 换一个（一个都没装的说先用 `miyu ask`），退出码 1。有清单、程序不在旁边的（出厂带了终端的清单，程序随 M9；9-3 补）：说这个界面的程序叫什么、不在 `miyu` 旁边，后半句同上，退出码 1。「装了的界面」只算程序在 `miyu` 旁边的：只有清单的列出来也打不开。不在终端里（被脚本调、接管道）：把主程序的帮助页印在标准输出上，退出码 2，不连核心。
    - `config` 不写它的子命令（原来的 8-24）：在终端里、`ui.head` 那个界面的清单 `[ui] opens` 里有 `config` 的，同上拉起它、带 `--page config`；没有这一页的、不在终端里的，把 `config` 的帮助页印在标准输出上，退出码 2。
    - `web`：照清单找网页软件（`web-ui.md`「怎么走」第二条）。
-4. `ask`、`undo`（`rewind`）、`restore`、`redo`、`compact`、`recap`、`rename`、`config`、`login`、`logout`、`setup`：交给命令行的头（`cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`、`cli/config.md`、`cli/login.md`、`cli/setup.md`），连同拉起核心用的命令。
+4. `ask`、`undo`（`rewind`）、`restore`、`redo`、`compact`、`recap`、`rename`、`memory`、`config`、`login`、`logout`、`setup`：交给命令行的头（`cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`、`cli/memory.md`、`cli/config.md`、`cli/login.md`、`cli/setup.md`），连同拉起核心用的命令。
 5. 拉起核心用的命令：自己这个程序（`std::env::current_exe`，拿不到的用 `miyu`，照 `PATH` 找），加上 `core`。别的参数、环境变量不加；工作目录、标准输入输出、跟终端脱开，由拉起的那一边接（`ipc.md`）。
 6. `core`：跑核心进程，`--idle-seconds <秒>` 是空闲多少秒退出，不写是 600（`core.md`）。
 7. `sandbox setup`、`sandbox remove`：交给命令行的头（`sandbox/windows.md`）。
@@ -83,11 +84,12 @@
   compact [要求]        把上下文压缩成摘要，可以附上要求
   recap                 一句话回顾：在做什么、做完了什么、卡在哪
   rename <标题>         给会话起名
+  memory [命令]         看她记了你什么，搜、记、改、忘、清空
   config <命令>         看配置、改配置、信任项目配置
   check [文件]          查手写的文件有没有写错：配置、密钥、人格、预设、清单
   login [名字]          存一个供应商的 key；--list 列出哪几家设了
   logout [名字]         删掉一个供应商的 key
-  setup                 接上第一个模型：找现成的 key，试通了写进配置
+  setup                 接上第一个模型：选一家、贴 key，试通了写进配置
   web                   打开网页界面
   sandbox setup|remove  装好、撤掉沙盒用户（Windows，要管理员权限）
 
@@ -131,11 +133,12 @@ Commands:
   compact [words]       Compact the context into a summary
   recap                 Recap the session: goal, progress, blockers
   rename <title>        Give the session a title
+  memory [command]      See what she remembers; search, add, edit, forget, clear
   config <command>      See and change settings, trust a project config
   check [file]          Check config, secrets, personas, presets and packages
   login [name]          Save a provider's key; --list shows which are set
   logout [name]         Delete a provider's key
-  setup                 Connect the first model: find a key, try it, save it
+  setup                 Connect the first model: pick a provider and try it
   web                   Open the web UI
   sandbox setup|remove  Set up or remove the sandbox user (Windows, needs admin)
 

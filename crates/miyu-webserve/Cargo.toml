@@ -1,0 +1,28 @@
+[package]
+name = "miyu-webserve"
+description = "只听本机的网页端口共用的底子：给页面文件、核对 Host 和 Origin、/ws 原样转给核心、带一次性码开浏览器（施工 O-16，webserve.md）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+# 连核心：转发浏览器的连接不读本机令牌（connect_or_start_bare）；要一次性码那一下照终端出示（connect_or_start）。
+miyu-ipc = { path = "../miyu-ipc" }
+# 数据根。
+miyu-store = { path = "../miyu-store" }
+# HTTP/1 的回应、请求的类型（照网页软件，本来就在依赖图里）。MIT。
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }
+http-body-util = "0.1"
+# WebSocket：一帧一条消息。只开握手（算 Sec-WebSocket-Accept），连接由 hyper 升级好交给它。MIT。
+tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+# 连不上核心时那一条 `web.error` 通知；一问一答的 JSON-RPC。
+serde_json = "1.0"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time", "fs"] }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+
+[lints]
+workspace = true

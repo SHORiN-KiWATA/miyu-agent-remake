@@ -15,6 +15,8 @@ serde = { version = "1.0", features = ["derive"] }
 # 目录一个模型一个模型地读，坏一个不连累别的（施工 8-7）：先借着原文，再各自读。
 serde_json = { version = "1.0", features = ["raw_value"] }
 sha2 = { version = "0.11", default-features = false }
+# 常用的几家（`resources/models/featured.toml`，施工 8-11 再补）：名字照 `miyu_config::phrases` 读，同一个 TOML 库。
+toml_edit = { version = "0.25", default-features = false, features = ["parse"] }
 
 [dev-dependencies]
 # 档案里 DeepSeek 那一套和测试用的 `Compat::deepseek()` 比。

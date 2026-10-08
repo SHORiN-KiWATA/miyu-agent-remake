@@ -38,7 +38,7 @@ async fn a_subagent_takes_the_chosen_persona_and_preset_or_the_defaults() {
     let tools = Catalog::new(miyu_basesystem::tools(&default_resources()).unwrap()).unwrap();
     let plain = json!({"description": "照常", "prompt": "Read."}).to_string();
     let chosen =
-        json!({"description": "挑了", "prompt": "Read.", "persona": "none", "preset": "dev"})
+        json!({"description": "挑了", "prompt": "Read.", "persona": "engineer", "preset": "dev"})
             .to_string();
     let wrong = json!({"description": "写错", "prompt": "Read.", "persona": "kiki"}).to_string();
     // 父会话一轮里连着调三次；两个子会话各答一句，谁先到不一定。
@@ -85,12 +85,12 @@ async fn a_subagent_takes_the_chosen_persona_and_preset_or_the_defaults() {
     let some = |text: &str| Some(text.to_string());
     assert_eq!(
         picks,
-        [(None, some("full")), (some("none"), some("full"))],
+        [(None, some("full")), (some("engineer"), some("full"))],
         "没挑的是无人格（施工 P-4 上）；预设一律照父会话的"
     );
     let said = serde_json::to_string(&log).expect("写得成 JSON");
     assert!(
-        said.contains("unknown variant `kiki`, expected `engineer` or `none`"),
+        said.contains("unknown variant `kiki`, expected `engineer`"),
         "写错的照参数不对，列出能写的"
     );
     let (_, first) = script.requests().into_iter().next().expect("发了请求");
@@ -103,7 +103,7 @@ async fn a_subagent_takes_the_chosen_persona_and_preset_or_the_defaults() {
         serde_json::from_str(subagent.parameters.get()).expect("参数是 JSON");
     assert_eq!(
         parameters["properties"]["persona"]["enum"],
-        json!(["engineer", "none"]),
+        json!(["engineer"]),
         "能挑的人格同池，进 enum"
     );
 }

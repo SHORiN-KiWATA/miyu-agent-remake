@@ -11,7 +11,7 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use miyu_kernel::event::Event;
-use miyu_kernel::id::Seq;
+use miyu_kernel::id::{CommandId, Seq};
 use miyu_kernel::origin::By;
 use miyu_kernel::time::Timestamp;
 use miyu_recall::{MemoryBook, MemoryEvent, MemoryId, from_event, to_event};
@@ -67,6 +67,8 @@ pub struct Appended {
     pub id: MemoryId,
     /// 记忆库写上了没有：派生的，没写上不挡住追加，下次打开时照日志补。
     pub indexed: Result<(), DbError>,
+    /// 清空的清掉了几条（施工 R-3 补）：不算改掉的旧版本；别的是 0。
+    pub cleared: usize,
 }
 
 /// 记忆日志出错。
@@ -116,7 +118,7 @@ impl MemoryLogs {
             }
         }
         let (index, opened) = RecallIndex::open(&room.memories(&self.root));
-        let (filled, caught_up) = match catch_up(&index, &events) {
+        let (filled, caught_up) = match catch_up(&index, &events, &book) {
             Ok(filled) => (filled, None),
             Err(error) => (0, Some(error)),
         };
@@ -144,7 +146,8 @@ impl MemoryLogs {
 }
 
 impl MemoryLog {
-    /// 追加一条：时刻 `at`，`by` 写它的那一方。先落盘，再算底账、写记忆库。
+    /// 追加一条：时刻 `at`，`by` 写它的那一方，`cause` 是人经协议、斜杠命令写的那条命令的编号（她经工具写的没有）。先落盘，
+    /// 再算底账、写记忆库。同一个编号做过的不再写，照底账交回头一次的编号和清掉几条（04 第六节第 1 条，施工 R-3 补）。
     ///
     /// # Errors
     ///
@@ -153,19 +156,31 @@ impl MemoryLog {
         &self,
         at: Timestamp,
         by: By,
+        cause: Option<&CommandId>,
         event: &MemoryEvent,
     ) -> Result<Appended, MemoryError> {
         let mut inner = self.lock();
+        if let Some((id, cleared)) = cause.and_then(|cause| inner.book.done(cause)) {
+            return Ok(Appended {
+                id,
+                indexed: Ok(()),
+                cleared,
+            });
+        }
         let seq = inner.log.next_seq();
-        let line = to_event(seq, at, by, event).map_err(MemoryError::Encode)?;
+        let mut line = to_event(seq, at, by, event).map_err(MemoryError::Encode)?;
+        line.cause = cause.cloned();
         inner
             .log
             .append(std::slice::from_ref(&line))
             .map_err(MemoryError::Write)?;
+        // 清掉哪几条照追加以前的底账算：记忆库照它删字，改掉的旧版本也删。
+        let cleared = match event {
+            MemoryEvent::Cleared(cleared) => inner.book.clears(cleared),
+            _ => Vec::new(),
+        };
         // 刚写成的一定读得懂：读不懂的是 bug，照样不挡住，底账照旧。
-        if let Err(why) = inner.book.see(&line) {
-            return Err(MemoryError::Encode(why));
-        }
+        let shown = inner.book.see(&line).map_err(MemoryError::Encode)?;
         let indexed = match event {
             MemoryEvent::Saved(saved) => self.index.apply(
                 SOURCE,
@@ -178,10 +193,13 @@ impl MemoryLog {
             ),
             // 作废的不用改记忆库：搜得到，挑不挑是用的一方照底账判。
             MemoryEvent::Retired(_) => Ok(()),
+            // 清掉的人不要了：字不留在派生的库里。
+            MemoryEvent::Cleared(_) => self.index.apply(SOURCE, &removals(&cleared), seq),
         };
         Ok(Appended {
             id: MemoryId::new(seq),
             indexed,
+            cleared: shown,
         })
     }
 
@@ -211,16 +229,18 @@ impl MemoryLog {
     }
 }
 
-/// 照日志补记忆库：照到的位置以后记下的，放进去，照到最后一条。交回补了几条；跟得上的补 0 条（只挪一下照到哪，打开时
-/// 一次）。
-fn catch_up(index: &RecallIndex, events: &[Event]) -> Result<usize, DbError> {
+/// 照日志补记忆库：照到的位置以后记下的、没清掉的，放进去，照到最后一条；清掉的（照整份算好的底账 `book`）一律删一遍，
+/// 清空写进日志、没来得及删字的也补上（删没有的不碍事）。交回补了几条；跟得上的补 0 条（只挪一下照到哪，打开时一次）。
+fn catch_up(index: &RecallIndex, events: &[Event], book: &MemoryBook) -> Result<usize, DbError> {
     let Some(last) = events.last() else {
         return Ok(0);
     };
     let mark = index.mark(SOURCE)?;
-    let edits: Vec<Edit> = events
+    let cleared = |id: MemoryId| book.get(id).is_some_and(|entry| entry.cleared);
+    let mut edits: Vec<Edit> = events
         .iter()
         .filter(|event| mark.is_none_or(|mark| event.seq > mark))
+        .filter(|event| !cleared(MemoryId::new(event.seq)))
         .filter_map(|event| match from_event(event) {
             Some(Ok(MemoryEvent::Saved(saved))) => Some(Edit::Put {
                 key: MemoryId::new(event.seq).to_string(),
@@ -230,8 +250,24 @@ fn catch_up(index: &RecallIndex, events: &[Event]) -> Result<usize, DbError> {
             _ => None,
         })
         .collect();
+    let filled = edits.len();
+    let gone: Vec<MemoryId> = book
+        .all()
+        .filter(|entry| entry.cleared)
+        .map(|entry| entry.id)
+        .collect();
+    edits.extend(removals(&gone));
     index.apply(SOURCE, &edits, last.seq)?;
-    Ok(edits.len())
+    Ok(filled)
+}
+
+/// 从记忆库里删掉这几条。
+fn removals(ids: &[MemoryId]) -> Vec<Edit> {
+    ids.iter()
+        .map(|id| Edit::Remove {
+            key: id.to_string(),
+        })
+        .collect()
 }
 
 impl std::fmt::Display for MemoryError {

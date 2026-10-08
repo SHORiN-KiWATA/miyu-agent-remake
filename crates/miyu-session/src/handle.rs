@@ -12,6 +12,7 @@ use miyu_kernel::id::{CommandId, JobId, SessionId, VenueId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, ContextLimits, Outcome, Reason};
 use miyu_kernel::time::Timestamp;
+use miyu_store::recall::Room;
 use miyu_tool::{JobError, Log, Output};
 
 use crate::backlog::Backlog;
@@ -40,6 +41,8 @@ pub struct Handle {
     /// 给头看的限额和会话接下来请求的模型：造会话、载入时交完限额向内核要的（施工 6-3 补）。和 actor 共用：钉住的池出错换了
     /// 成员（施工 8-9）、回合开始重新解析（施工 8-10），actor 写一次。
     shown: Arc<Mutex<Shown>>,
+    /// 这个会话的记忆放在哪一间（施工 R-3 补）：协议、`/remember` 照它找；范围 `off` 的、核心没交记忆的没有。造好以后不变。
+    memory: Option<Room>,
 }
 
 /// 发给 actor 的。
@@ -137,7 +140,20 @@ impl Handle {
             oneshot,
             watched,
             shown,
+            memory: None,
         }
+    }
+
+    /// 带上这个会话的记忆的那一间（施工 R-3 补）。
+    #[must_use]
+    pub(crate) fn with_memory(mut self, memory: Option<Room>) -> Handle {
+        self.memory = memory;
+        self
+    }
+
+    /// 这个会话的记忆放在哪一间（施工 R-3 补，`memory.md`「协议」）：范围 `off` 的没有。
+    pub fn memory_room(&self) -> Option<&Room> {
+        self.memory.as_ref()
     }
 
     /// 有没有在跑的回合：核心看它决定能不能空闲退出（施工 3-9 上）。会话停了的，不算在跑。

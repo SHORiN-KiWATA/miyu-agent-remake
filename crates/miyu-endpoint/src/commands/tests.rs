@@ -49,6 +49,11 @@ fn names_and_aliases() {
         Some((Slash::Workspace, "~/a b"))
     );
     assert_eq!(
+        parse("/remember  用户 喜欢猫 ").ok(),
+        Some((Slash::Remember, "用户 喜欢猫"))
+    );
+    assert_eq!(parse("/remember").ok(), Some((Slash::Remember, "")));
+    assert_eq!(
         parse("/Stop").err().map(|refusal| refusal.reason),
         Some("unknown_command")
     );

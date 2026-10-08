@@ -42,7 +42,7 @@ pub use jobs::{Asking, Background, Exit, JobError, JobPort, Listed, Output, Proc
 pub use log::{Log, ReadLog};
 pub use memory::{
     FORGET, FoundMemory, FoundTurn, MEMORIES, MEMORY_SEARCH, MemoryPort, Pending, REMEMBER,
-    Refused, Remember, Searched, TURNS,
+    Refused, Remember, Searched, TEXT_CHARS, TURNS,
 };
 pub use messages::{
     Delivered, MessagePort, NotSent, Recipient, SEND_MESSAGE, SEND_MESSAGE_FORMERLY, Sending,

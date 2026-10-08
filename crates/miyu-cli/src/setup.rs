@@ -9,6 +9,7 @@
 //! 退出码：0 写好了；1 没选、没收到 key、试不通（不在终端里，或者没有上一步可回）、核心拒绝了、连不上；2 参数不对。
 
 mod choose;
+mod custom;
 mod flow;
 mod model;
 mod pick;

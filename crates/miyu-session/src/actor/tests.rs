@@ -95,8 +95,8 @@ async fn a_write_that_fails_stops_the_session() {
     let snapshot = compose(
         Some("engineer"),
         resources
-            .sources("engineer")
-            .expect("出厂的软件工程师读得出来"),
+            .sources_with(crate::testkit::sample_persona_texts())
+            .expect("核心的字读得出来"),
         true,
     );
     let mut clock = Clock::default();

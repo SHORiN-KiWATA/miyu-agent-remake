@@ -5,13 +5,19 @@
 
 mod support;
 
+mod apply;
 mod calls;
 mod core;
 mod ids;
 mod listen;
+mod no_token;
+mod open;
 mod private;
 mod replies;
 mod settings;
+mod status;
 mod text;
 mod texts;
+mod token;
 mod tuning;
+mod web;

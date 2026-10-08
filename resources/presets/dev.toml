@@ -1,7 +1,6 @@
-# 开发（施工 P-2 上，`16-人格与预设.md` 第八节、Y7，`10-自带软件.md` 第四节）：只开写代码必需的。预设不再管默认人格（施工 P-4 上）。
+# 基础功能（施工 P-2 上，`16-人格与预设.md` 第八节、Y7，`10-自带软件.md` 第四节；原来叫「开发」，施工 P-4 下改名、不写说明）：只开写代码必需的。预设不再管默认人格（施工 P-4 上）。
 [preset]
-name = { zh = "开发", en = "Dev", ja = "開発" }
-summary = { zh = "只开写代码必需的：基础系统、联网、长期目标", en = "Only what coding needs: the base system, the web and goals", ja = "コーディングに要るものだけ：基本システム、ウェブ、長期目標" }
+name = { zh = "基础功能", en = "Basics", ja = "基本機能" }
 unlisted = "off"
 
 [software]

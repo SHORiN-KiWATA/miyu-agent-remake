@@ -26,9 +26,8 @@ use miyu_tool::load::LoadError;
 /// 这个软件包的编号：资源目录里的名字，也是预设里开关它的那个键（施工 P-2 中）。
 pub const PACKAGE: &str = "memory";
 
-/// 一条记忆最多几个字（数 Unicode 字符）：旧版实测，整理出来的超过 120 字的多半是技术问答的全文（调研第一节第 1 个坑）。
-/// 出厂值只在这一处，照 `jobs.output_chars` 的放法，不进快照；以后要改再进配置。
-pub const TEXT_CHARS: usize = 120;
+/// 一条记忆最多几个字：和协议、斜杠命令记的照同一个数，住在 `miyu-tool`（施工 R-3 补）。
+pub use miyu_tool::TEXT_CHARS;
 
 /// 一段以前的对话最多给几个字，截了的末尾接 `…`：要整段她用 `history` 带 `session` 去读。
 pub const TURN_CHARS: usize = 300;

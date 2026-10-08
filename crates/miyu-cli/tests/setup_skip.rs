@@ -5,33 +5,9 @@
 use serde_json::json;
 
 use crate::support::Home;
-use crate::support::onboarding::{Typist, plan, remote};
+use crate::support::onboarding::{FAKE, Typist, answer, deepseek_at, listing, plan};
 use miyu_cli::Setup;
-use miyu_http::testkit::{Piece, Reply, Server};
-
-/// 一眼看得出是假的 key。
-const FAKE: &str = "sk-FAKE-KEY-FOR-TESTS-0001";
-
-fn listing(models: &[&str]) -> Reply {
-    let data: Vec<_> = models.iter().map(|id| json!({"id": id})).collect();
-    Reply::stream(vec![Piece::Bytes(
-        json!({"object": "list", "data": data})
-            .to_string()
-            .into_bytes(),
-    )])
-}
-
-fn answer() -> Reply {
-    let event = json!({"id": "c1", "object": "chat.completion.chunk", "model": "x",
-        "choices": [{"index": 0, "delta": {"content": "OK"}, "finish_reason": "stop"}]});
-    Reply::stream(vec![Piece::Bytes(
-        format!("data: {event}\n\ndata: [DONE]\n\n").into_bytes(),
-    )])
-}
-
-fn deepseek_at(server: &Server) -> serde_json::Value {
-    json!({"deepseek": {"driver": "openai-chat", "base_url": remote(server)}})
-}
+use miyu_http::testkit::{Reply, Server};
 
 fn skip(provider: Option<&str>, env: Option<&str>, model: Option<&str>) -> Setup {
     Setup {

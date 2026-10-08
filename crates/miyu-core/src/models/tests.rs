@@ -2,7 +2,11 @@
 //! `Compat::deepseek()`）；TOML 怎么变成 JSON；出厂的目录快照、认原厂的表读得进来、对得上。
 
 use miyu_drivers::openai_chat::Compat;
-use miyu_models::catalog::Catalog;
+use std::collections::BTreeMap;
+
+use miyu_models::Knowledge;
+use miyu_models::catalog::{Catalog, CatalogSource, Loaded};
+use miyu_models::observed::Learned;
 use miyu_models::profile::ImageTokens;
 
 use super::*;
@@ -144,4 +148,43 @@ fn the_bundled_catalog_and_vendor_table_read() {
         assert!(catalog.provider(id).is_some(), "原厂 {id} 在目录里");
     }
     assert!(vendors("gpt = 1\n").is_err());
+}
+
+/// 出厂的常用几家（施工 8-11 再补）读得进来，写的每一个编号（`catalog`、`catalog_zh`）照出厂的目录快照、档案都是能用的：写错了
+/// 这一家就从 `miyu setup`、第一次引导里不声不响地消失，推不出驱动的标成用不了（OpenRouter 曾这样，档案补了驱动）。
+#[test]
+fn every_featured_provider_is_usable_with_the_bundled_data() {
+    let featured =
+        miyu_models::onboard::featured(include_str!("../../../../resources/models/featured.toml"))
+            .expect("读得进来");
+    let loaded = Loaded {
+        catalog: Catalog::parse(include_str!("../../../../resources/models/models-dev.json"))
+            .expect("读得出来")
+            .catalog,
+        source: CatalogSource::Snapshot,
+        fetched: String::new(),
+    };
+    let profiles = profiles(include_str!("../../../../resources/models/profiles.toml"))
+        .expect("出厂的档案读得进来");
+    let vendors =
+        vendors(include_str!("../../../../resources/models/vendors.toml")).expect("读得进来");
+    let knowledge = Knowledge {
+        profiles: &profiles,
+        vendors: &vendors,
+        catalog: Some(&loaded),
+        learned: &Learned::default(),
+        lists: &BTreeMap::new(),
+    };
+    let listed = miyu_models::onboard::listed(&knowledge);
+    assert_eq!(featured.len(), 8, "项目主人定的八家");
+    for one in &featured {
+        for id in std::iter::once(&one.catalog).chain(&one.catalog_zh) {
+            let entry = listed.iter().find(|entry| &entry.id == id);
+            assert!(
+                entry.is_some_and(|entry| entry.supported),
+                "{id} 用不了：{entry:?}"
+            );
+        }
+        assert!(one.name.pick("zh").is_some() && one.name.pick("en").is_some());
+    }
 }

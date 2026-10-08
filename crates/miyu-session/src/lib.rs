@@ -64,7 +64,7 @@ pub use config::{ConfigSource, Configs, Turn, TurnConfig, fixed, fixed_with};
 pub use current::{Current, Tally};
 pub use handle::{Ended, Handle, Pushed, Stopped, Subscription};
 pub use jobs::{Jobs, Peek, Unreadable, peek};
-pub use memory::Memory;
+pub use memory::{Filter, Keeper, Memory, Stamp};
 pub use open::{Create, CreateError, Load, LoadError, PresetPlaces, create, load};
 pub use port::{Cancel, ForSession, ModelPort, Models, Reports, Sight};
 pub use route::{

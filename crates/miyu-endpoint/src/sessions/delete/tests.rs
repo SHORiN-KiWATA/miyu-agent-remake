@@ -47,6 +47,7 @@ async fn no_one_wakes_the_child_between_its_stopped_report_and_its_deletion() {
     })
     .expect("MIYU_HOME 是绝对路径");
     root.prepare().expect("建得了骨架");
+    miyu_session::testkit::install_sample_persona(&root);
     let resources = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");
     let tools =
         Catalog::new(miyu_basesystem::tools(&resources).expect("出厂的工具")).expect("合写法");

@@ -123,6 +123,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         .await?;
     let (turns, calls) = wired;
     let attended = snapshot.attended;
+    let room = calls.as_ref().map(|calls| calls.room().clone());
     let upstream = Upstream::of(
         sessions.as_ref(),
         created.parent.as_ref(),
@@ -267,15 +268,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         wake_children(port, waiting, &span);
     }
     actor::spawn(actor, first, span);
-    Ok(Handle::new(
-        id,
-        venue,
-        inbox,
-        busy,
-        created.oneshot,
-        watched,
-        shown,
-    ))
+    Ok(Handle::new(id, venue, inbox, busy, created.oneshot, watched, shown).with_memory(room))
 }
 
 /// 现在的快照（施工 P-1 再补）：整份日志里最近一条带 `policy` 的 `session.policy_changed`，撤掉的回合里的也算（换快照不是
