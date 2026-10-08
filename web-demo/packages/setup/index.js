@@ -77,7 +77,9 @@ export function apply(ctx) {
       presetBtn.hidden = !catalog.presets;
       replace(presetBtn, icon('toggle-right'), h('span', draft.preset ? presetNameOf(draft.preset) : t('choose_preset')));
       presetBtn.classList.toggle('is-set', !!draft.preset);
-      replace(workBtn, icon('folder'), h('span', draft.cwd ? dirName(tilde(draft.cwd, home())) : t('set_workspace')));
+      // 选了默认工作区的写「默认工作区」：它的目录名是数据目录里的 `workspace`，写出来像没翻译的字（2026-10-08 项目主人）
+      const workLabel = !draft.cwd ? t('set_workspace') : draft.cwd === chat.defaultWorkdir() ? t('default_workspace') : dirName(tilde(draft.cwd, home()));
+      replace(workBtn, icon('folder'), h('span', workLabel));
       workBtn.classList.toggle('is-set', !!draft.cwd);
       workBtn.title = tilde(draft.cwd ?? chat.defaultWorkdir(), home());
       // 没选、默认的又用不了：锁住输入框（第 2 条）。预设一定要有（Y12）；人格可以没有，只有算出来的默认人格文件写错了才锁
