@@ -723,14 +723,15 @@
 | `before` | 正整数，可以不写 | 只要序号小于它的；不写的是最新一页。往前翻拿上一页的 `first` |
 | `turns` | 整数 1 到 50，可以不写 | 最多几轮，不写是 20 |
 
-回应 `{"events", "more"}`，有事件的再带 `first`、`last`，因为字节少给了轮数的带 `capped: true`。`events` 是原始事件，写法同补发（`event` 推送里的那一个），照序号；核心不做视图投影。
+回应 `{"events", "more"}`，有事件的再带 `first`、`last`，因为字节少给了轮数的带 `capped: true`，这一页里报完了、在更早派出去的任务带 `jobs`。`events` 是原始事件，写法同补发（`event` 推送里的那一个），照序号；核心不做视图投影。
 
 1. 页的边界落在回合之间：从 `before` 往前数 `turn.started`，每一轮从它的 `turn.started` 起，到下一轮的 `turn.started` 之前；不在回合里的事件（改标题、回顾、斜杠命令、撤销）跟着它们所在的位置走。数到第一轮的，连它前面的（`session.created` 这些）一起给，`more` 是假。
 2. 数够 `turns` 轮，或者再加一轮就超过 1 MiB（照事件写成一行的字节数），停；至少给一整轮，一轮自己超了也整轮给。因为字节停的带 `capped: true`。
 3. 这一页里每一轮的触发消息（`turn.started` 的 `trigger`）在切点前的，也带上，排在最前面：可能和更早的一页重复，头照序号去重。`first` 照切点算，不算带进来的这几条。
-4. `last` 是这一页最后一条：最新一页的 `last` 就是读的那一刻落了盘的最后一条，头接着 `subscribe {"after": last}`，只接新的。压缩、撤销照原样在页里，头照有效历史自己画：先拿到的总是更新的页，撤销总比被撤的那几轮先到。
-5. 只读地读会话目录里的日志，不为翻历史载入会话；读的时候会话照常跑，正在写的那半行不算。
-6. 会话编号不合写法、`before` 是 0 或不是正整数、`turns` 不在 1 到 50、写了别的格：`bad_params`。没有这个会话（删了的也是）：`session_not_found`。日志读不了：`session_broken`，记一行 `WARN page not read`。
+4. 这一页里报完了的任务（`job.reported`、`child.reported`，带进来的触发消息也算：后台命令跑完常引起下一轮），派它的 `job.started` 在切点前的，带在 `jobs` 里：照派出的先后，每一个照 `job.started` 的写法（`job`、`what`、`title`，子代理带 `session`），没有的不写这一格。头照它写「后台命令跑完了」那一行，不用为找标题往前翻（施工 9-6 再补）。
+5. `last` 是这一页最后一条：最新一页的 `last` 就是读的那一刻落了盘的最后一条，头接着 `subscribe {"after": last}`，只接新的。压缩、撤销照原样在页里，头照有效历史自己画：先拿到的总是更新的页，撤销总比被撤的那几轮先到。
+6. 只读地读会话目录里的日志，不为翻历史载入会话；读的时候会话照常跑，正在写的那半行不算。
+7. 会话编号不合写法、`before` 是 0 或不是正整数、`turns` 不在 1 到 50、写了别的格：`bad_params`。没有这个会话（删了的也是）：`session_not_found`。日志读不了：`session_broken`，记一行 `WARN page not read`。
 
 **`subscribe`、`unsubscribe`**
 
@@ -740,7 +741,7 @@
 | `stream` | 字符串，必写 | `events` 会话的事件流；`config` 配置的推送（施工 8-4，`config.md`「订阅配置的推送」）；`sessions` 会话列表的推送（施工 9-5，下面「会话列表的推送」）；`extensions` 扩展的状态的推送（施工 9-4 补，`extensions.md`「推送」）。别的 `bad_params` |
 | `after` | 非负整数，可以不写 | 只有 `subscribe` 的 `events` 认（施工 3-8 六补，`config`、`sessions`、`extensions` 写了 `bad_params`）：先补发日志里序号大于它、落了盘的事件，`0` 是从头。见下面「补发」 |
 
-回应：`config` 的都是 `{}`；`sessions` 的 `subscribe` 是 `{"sessions": [<一项>, …]}`，`unsubscribe` 是 `{}`（施工 9-5）；`extensions` 的 `subscribe` 是 `{"extensions": [<一个>, …]}`，`unsubscribe` 是 `{}`（施工 9-4 补）。`subscribe` 的是 `{"limits": <限额>, "model": <模型>}`，写了 `after` 的多一格 `upto`（补到哪一条）：`{"limits": <限额>, "model": <模型>, "upto": <序号>}`。当前的待办不空的多一格 `todos`（施工 D-3，照 `todo.written` 的写法）；会话用哪个人格写在 `persona`（施工 P-1 下）、哪个预设写在 `preset`（施工 P-2 上），都照日志第一条 `session.created` 读，以前的日志没有的不写；之后变了照推送的瞬时事件 `todos.changed`，头只认这两样，不自己翻效果。施工 9-6 上起再多三格「当前的」，和订阅在会话 actor 的同一步里拿，头之后照推过来的事件往上加、不重不漏：`usage` 这个会话（不带子会话）累计的，写法、口径同 `usage.query {"session": <它>}` 那一行（`requests`、`usage`、`amounts`、`unpriced`），另加 `main`（只算主请求的四项用量：`purpose` 是空的，压缩的摘要请求也算，回顾、起标题这些辅助请求不算；头照它算命中率、上下文，施工 9-6 上补）、`compactions`（压缩的检查点有几个）、`cache_breaks`（带 `first_difference` 的请求有几次）；`permission` 人这一刻设的权限 `{"level", "read_only"}`；`jobs` 还在跑的后台命令和子代理，照编号，每一个照 `job.started` 的写法（`job`、`what`、`title`，子代理带 `session`）。施工 9-7 上起再多 `workspace`：`{"cwd", "dirs"}`，会话在哪个目录干活，之后照推过来的 `session.workspace_changed` 换。已经订阅着、再订阅一次不带 `after` 的（「还是那一个」），这几格另要一份这一刻的。`unsubscribe` 的是空对象 `{}`。
+回应：`config` 的都是 `{}`；`sessions` 的 `subscribe` 是 `{"sessions": [<一项>, …]}`，`unsubscribe` 是 `{}`（施工 9-5）；`extensions` 的 `subscribe` 是 `{"extensions": [<一个>, …]}`，`unsubscribe` 是 `{}`（施工 9-4 补）。`subscribe` 的是 `{"limits": <限额>, "model": <模型>}`，写了 `after` 的多一格 `upto`（补到哪一条）：`{"limits": <限额>, "model": <模型>, "upto": <序号>}`。当前的待办不空的多一格 `todos`（施工 D-3，照 `todo.written` 的写法）；会话用哪个人格写在 `persona`（施工 P-1 下）、哪个预设写在 `preset`（施工 P-2 上），都照日志第一条 `session.created` 读，以前的日志没有的不写；之后变了照推送的瞬时事件 `todos.changed`，头只认这两样，不自己翻效果。施工 9-6 上起再多三格「当前的」，和订阅在会话 actor 的同一步里拿，头之后照推过来的事件往上加、不重不漏：`usage` 这个会话（不带子会话）累计的，写法、口径同 `usage.query {"session": <它>}` 那一行（`requests`、`usage`、`amounts`、`unpriced`），另加 `main`（只算主请求的四项用量：`purpose` 是空的，压缩的摘要请求也算，回顾、起标题这些辅助请求不算；头照它算命中率、上下文，施工 9-6 上补）、`compactions`（压缩的检查点有几个）、`cache_breaks`（意外断了缓存的主请求有几次：带 `first_difference`、`purpose` 是空的；压缩的摘要请求（带 `compaction`，或者看到的比之前的主请求少）不算；压缩、撤销以后的头一个主请求本来就会断，也不算；口径同终端，施工 9-6 再补）；`permission` 人这一刻设的权限 `{"level", "read_only"}`；`jobs` 还在跑的后台命令和子代理，照编号，每一个照 `job.started` 的写法（`job`、`what`、`title`，子代理带 `session`）。施工 9-7 上起再多 `workspace`：`{"cwd", "dirs"}`，会话在哪个目录干活，之后照推过来的 `session.workspace_changed` 换。已经订阅着、再订阅一次不带 `after` 的（「还是那一个」），这几格另要一份这一刻的。`unsubscribe` 的是空对象 `{}`。
 
 **模型** `model`（施工 8-10，`models.md`「协议」）：会话接下来请求的。`ref` 是会话的引用（模型或 `@池`），`endpoint`、`model` 是接下来发给哪一家的哪个模型；轮换的池（每次都换）、解析不出的没有 `endpoint`、`model`，没配 `models.chat` 的会话没有 `ref`。一个都没有的不写这一格。回合开始重新解析过的、出错换了成员的是换了以后的。施工 8-18 多一格 `effort`：`{"level": <一档>, "from": "system" 或 "personal"}`，接下来那个模型真用的思考强度和从配置的哪一层来（8-18（补）起不再有 `session`）；请求里什么都不带的、轮换的池不写。
 
@@ -878,7 +879,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `parse_error` | -32700 | 不是 JSON；一行太长（之后断开） |
 | `invalid_request` | -32600 | 是 JSON，不是请求（「请求」的表） |
 | `unknown_method` | -32601 | 握手以后，没有这个方法 |
-| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`、`config`，`config` 带了 `session`、`after`（施工 8-4）；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；`session.send` 的 `from` 不是字符串、去掉控制字符以后是空的（施工 7-10）；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字；`job.stop`、`job.output` 的任务编号不合写法（施工 7-4），`job.output` 的 `tail` 不是 1 到 2000 的整数（施工 7-4 补）；`human.get` 的 `language` 不合写法（施工 W-1）；`fs.realpath` 的 `path` 是相对的、没给 `cwd`（施工 W-3）；`mermaid.render` 的源码是空的（去掉前后空白以后，施工 W-4）；`blob.write` 的 `data` 不是 base64、解出来超过 512 KiB、加上它超过 `size`（施工 W-5）；`model.call` 的 `purpose` 不合写法、`messages` 不是那个样子、`max_tokens` 是 0 或者太大、`model` 是空字、图的 blob 不是图（施工 8-20）；`fs.read` 的 `path` 是相对的；`blob.get`、`fs.read` 的 `length` 超过 512 KiB（施工 W-6）；`link.preview` 的 `url` 没写、不是字符串（施工 W-7）；`usage.query` 的分组不认识、时刻和时区写法不对、会话编号不合写法、类型不对（施工 8-15）；`session.answer` 的 `decision`、`answers` 两样都写或都不写、`decision` 不是那三种、回答提问带了 `reason`、`call` 不合写法（施工 D-1）；`command.run` 的 `text` 不以 `/` 开头、本机的会话带了 `as`（施工 O-6）；`view.page` 第 6 条那几种（施工 9-6 下） |
+| `bad_params` | -32602 | 参数读不成、类型不对；会话编号、人格编号不合写法；`turn` 写了 0；`stream` 不是 `events`、`config`，`config` 带了 `session`、`after`（施工 8-4）；切权限级别两格都不写、`level` 不是 `workspace`、`full`；`blob.put` 第 1 条那几种；`session.send`、`session.redo` 的附件缺了格、格不合写法；`session.send` 的 `from` 不是字符串、去掉控制字符以后是空的（施工 7-10）；改标题两格都不写，标题去掉空白以后是空的、超过 200 个字；`job.stop`、`job.output` 的任务编号不合写法（施工 7-4），`job.output` 的 `tail` 不是 1 到 2000 的整数（施工 7-4 补）；`human.get` 的 `language` 不合写法（施工 W-1）；`fs.realpath` 的 `path` 是相对的、没给 `cwd`（施工 W-3）；`mermaid.render` 的源码是空的（去掉前后空白以后，施工 W-4）；`blob.write` 的 `data` 不是 base64、解出来超过 512 KiB、加上它超过 `size`（施工 W-5）；`model.call` 的 `purpose` 不合写法、`messages` 不是那个样子、`max_tokens` 是 0 或者太大、`model` 是空字、图的 blob 不是图（施工 8-20）；`fs.read` 的 `path` 是相对的；`blob.get`、`fs.read` 的 `length` 超过 512 KiB（施工 W-6）；`link.preview` 的 `url` 没写、不是字符串（施工 W-7）；`usage.query` 的分组不认识、时刻和时区写法不对、会话编号不合写法、类型不对（施工 8-15）；`session.answer` 的 `decision`、`answers` 两样都写或都不写、`decision` 不是那三种、回答提问带了 `reason`、`call` 不合写法（施工 D-1）；`command.run` 的 `text` 不以 `/` 开头、本机的会话带了 `as`（施工 O-6）；`view.page` 第 7 条那几种（施工 9-6 下） |
 | `internal_error` | -32603 | 造会话时装坏了、磁盘上建不成、`session.created` 没落盘；列会话时读不了放会话的目录、崩了；附件存不下来、读不出来；删会话时读不了放会话的目录、挪不进回收处、崩了；读后台命令的输出时崩了（施工 7-4 补）；给人看的字读不懂（施工 W-1）；画图的库初始化不了：`style.json` 读不懂，或者这台机器上一种字体都读不到（施工 W-4）；分块上传的暂存文件建不了、写不进（施工 W-5）；`link_preview.json` 读不懂（施工 W-7） |
 | `hello_first` | -32010 | 握手以前发了别的方法 |
 | `protocol_mismatch` | -32010 | 头支持的主版本里没有 1（之后断开） |

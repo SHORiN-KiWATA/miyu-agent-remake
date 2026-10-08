@@ -5,13 +5,16 @@
 //! - 数够 `turns` 轮，或者再加一轮就超过 `cap` 字节，停；至少给一整轮，一轮自己超了也整轮给。因为字节停的记 `capped`。
 //! - 切点前的触发消息（这一页里每一轮 `turn.started` 的 `trigger`）也带上，排在最前面：可能和更早一页重复，头照序号去重。
 //!   `first` 照切点算，不算带进来的触发消息：往前翻拿它当 `before`。
+//! - 这一页里报完了的任务（`job.reported`、`child.reported`），派它的 `job.started` 在切点前的，带上它派出时的样子（施工 9-6
+//!   再补）：头照它写「后台命令 xxx 跑完了」那一行。
 
 #[cfg(test)]
 mod tests;
 
 use std::collections::BTreeSet;
 
-use miyu_kernel::event::{Body, Event};
+use miyu_kernel::event::{Body, Effect, Event, JobStarted};
+use miyu_kernel::id::JobId;
 
 /// 切出来的一页。
 #[derive(Debug, PartialEq)]
@@ -26,6 +29,8 @@ pub(super) struct Page<'a> {
     pub(super) more: bool,
     /// 因为字节的上限少给了轮数。
     pub(super) capped: bool,
+    /// 这一页里报完了、在切点前派出去的任务，照派出的先后。
+    pub(super) jobs: Vec<&'a JobStarted>,
 }
 
 /// 从 `events`（整份日志，照序号）里切 `before` 之前的一页（没有的是最新一页）：最多 `turns` 轮、`cap` 字节，一条事件多少
@@ -55,13 +60,40 @@ pub(super) fn page<'a>(
     let earlier = events[..cut]
         .iter()
         .filter(|event| triggers.contains(&event.seq.get()));
+    let page: Vec<&Event> = earlier.chain(&events[cut..end]).collect();
     Page {
-        events: earlier.chain(&events[cut..end]).collect(),
+        jobs: started_before(&events[..cut], &page),
+        events: page,
         first,
         last: end.checked_sub(1).map(|index| events[index].seq.get()),
         more: cut > 0,
         capped,
     }
+}
+
+/// `page` 里报完了的任务，派它的 `job.started` 在 `before` 里的，照派出的先后（也就是编号）。回报常是下一轮的触发消息，在
+/// 切点前、照样算。
+fn started_before<'a>(before: &'a [Event], page: &[&Event]) -> Vec<&'a JobStarted> {
+    let reported: BTreeSet<&JobId> = page
+        .iter()
+        .filter_map(|event| match &event.body {
+            Body::JobReported(reported) => Some(&reported.job),
+            Body::ChildReported(reported) => Some(&reported.job),
+            _ => None,
+        })
+        .collect();
+    before
+        .iter()
+        .filter_map(|event| match &event.body {
+            Body::ToolResult(result) => Some(result.effects.iter()),
+            _ => None,
+        })
+        .flatten()
+        .filter_map(|effect| match effect {
+            Effect::JobStarted(started) if reported.contains(&started.job) => Some(started),
+            _ => None,
+        })
+        .collect()
 }
 
 /// 切点：`events` 里从哪一条起给；和是不是因为字节停的。`starts` 是每一轮 `turn.started` 的位置。

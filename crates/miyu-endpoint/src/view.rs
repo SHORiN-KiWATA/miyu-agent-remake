@@ -39,7 +39,8 @@ pub(crate) struct PageParams {
     turns: Option<usize>,
 }
 
-/// `view.page`：回应 `{"events", "more"}`，有事件的再带 `first`、`last`，因为字节少给了轮数的带 `capped: true`。
+/// `view.page`：回应 `{"events", "more"}`，有事件的再带 `first`、`last`，因为字节少给了轮数的带 `capped: true`，这一页里报完了、
+/// 在切点前派出去的任务带 `jobs`。
 pub(crate) async fn page(core: &Core, params: PageParams) -> Result<Value, Refusal> {
     let session = SessionId::parse(&params.session).map_err(|_| Refusal::BAD_PARAMS)?;
     let turns = params.turns.unwrap_or(TURNS);
@@ -68,6 +69,10 @@ pub(crate) async fn page(core: &Core, params: PageParams) -> Result<Value, Refus
     }
     if cut.capped {
         reply["capped"] = json!(true);
+    }
+    // 这一页里报完了、在切点前派出去的任务（施工 9-6 再补）：没有的不写。
+    if !cut.jobs.is_empty() {
+        reply["jobs"] = json!(cut.jobs);
     }
     Ok(reply)
 }

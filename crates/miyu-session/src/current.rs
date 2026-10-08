@@ -8,7 +8,7 @@
 
 use std::collections::BTreeMap;
 
-use miyu_kernel::event::{Body, Event, JobStarted, Permission, Usage};
+use miyu_kernel::event::{Body, Event, JobStarted, ModelCalled, Permission, Usage};
 
 /// 订阅那一刻的几样。
 #[derive(Debug, Clone, PartialEq)]
@@ -41,8 +41,14 @@ pub struct Tally {
     pub unpriced: u64,
     /// 压缩的检查点（`context.compacted`）有几个。
     pub compactions: u64,
-    /// 和上一次请求比有不同的请求（`model.called` 带 `first_difference` 的）有几次：缓存断在哪的那几次。
+    /// 意外断了几次缓存（施工 9-6 再补，口径照终端的侧边栏）：只看主请求（`purpose` 空的）；压缩的摘要请求（带 `compaction`，
+    /// 以前的日志照「看到的比之前最远的少」认）不算、也不用掉免数；压缩、撤销以后的第一个主请求本来就会断，不算；别的带
+    /// `first_difference` 的主请求算一次。
     pub cache_breaks: u64,
+    /// 刚压缩、撤销过：下一个主请求本来就会断，不算。
+    excused: bool,
+    /// 之前的主请求最多看到第几条。
+    furthest: Option<u64>,
 }
 
 /// 什么都没用。
@@ -64,6 +70,8 @@ impl Default for Tally {
             unpriced: 0,
             compactions: 0,
             cache_breaks: 0,
+            excused: false,
+            furthest: None,
         }
     }
 }
@@ -81,8 +89,8 @@ impl Tally {
         for event in events {
             match &event.body {
                 Body::ModelCalled(called) => {
-                    if called.first_difference.is_some() {
-                        self.cache_breaks += 1;
+                    if called.purpose.is_none() {
+                        self.watch(called);
                     }
                     if called.endpoint.is_none() || called.model.is_none() {
                         continue;
@@ -103,10 +111,29 @@ impl Tally {
                         None => {}
                     }
                 }
-                Body::ContextCompacted(_) => self.compactions += 1,
+                Body::ContextCompacted(_) => {
+                    self.compactions += 1;
+                    self.excused = true;
+                }
+                Body::TurnReverted(_) => self.excused = true,
                 _ => {}
             }
         }
+    }
+}
+
+impl Tally {
+    /// 一次主请求：断没断照 [`Tally::cache_breaks`] 的口径数。
+    fn watch(&mut self, called: &ModelCalled) {
+        let seen = called.seen.get();
+        if called.compaction.is_some() || self.furthest.is_some_and(|furthest| seen < furthest) {
+            return;
+        }
+        if called.first_difference.is_some() && !self.excused {
+            self.cache_breaks += 1;
+        }
+        self.excused = false;
+        self.furthest = Some(seen);
     }
 }
 
