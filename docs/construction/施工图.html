@@ -276,7 +276,7 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>261</b><span>/ 284 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>262</b><span>/ 284 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
     <li><b class="mono">8ede12c8</b><span>最近一步（6-11 下 到线时在路上的等它）的提交</span></li>
   </ul>
@@ -614,7 +614,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sO-15a"><span class="n">O-15 上</span>出厂参数和按场所改<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-15b"><span class="n">O-15 下</span>词表和名单<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-16"><span class="n">O-16</span>WebUI 的骨架和连接页<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">O-17</span>WebUI 的主人与自己人页</span></li>
+        <li><a class="step done" href="#sO-17"><span class="n">O-17</span>WebUI 的主人与自己人页<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">O-18</span>桥由核心拉起</span></li>
         <li><span class="step"><span class="n">O-19</span>斜杠命令</span></li>
         <li><a class="step done" href="#sO-6"><span class="n">O-6</span>核心：斜杠命令由核心解析<span class="st">✓</span></a></li>
@@ -16546,6 +16546,56 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/O-16-WebUI的骨架和连接页.md</code>；蓝图 <code>onebot.md</code> 第二条、<code>webserve.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sO-17" aria-labelledby="h-sO17">
+  <div class="sheet-head"><h2 id="h-sO17"><span class="no">O-17</span>WebUI 的主人与自己人页</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">在 QQ 桥的网页上加、删主人的 QQ 号和自己人，接 QQ 从头到尾不用手改配置文件。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">resources/software/onebot/web/people.js</span><span class="dir-note">O-17</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>主人：external.bindings."qq:&lt;号&gt;"，删的恢复默认，核心当场照新的认</li>
+              <li>自己人：onebot.trusted 整张写回，桥接群以后才照它认人</li>
+              <li>号写错、重复的当场标出来；核心回的问题照原话说</li>
+              <li>空表写清先做什么；「号被盗的代价」折在主人表下面</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">onebot.trusted 先由核心代声明</span><span class="rl">桥的配置以后整体挪进清单</span></div>
+          <div class="tile new"><span class="nm">账号的下拉</span><span class="rl">协议没有列账号的方法，先列登录的和表里已有的</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-17</dd></div>
+        <div><dt>名称</dt><dd>WebUI 的主人与自己人页</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-08</dd></div>
+        <div><dt>提交</dt><dd class="mono">7337034e</dd></div>
+        <div><dt>验收</dt><dd>变异、CI · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真核心加真桥：照页面的办法加主人、存进去，仿 NapCat 的私聊以这个号发进来认成管理员本人；12 个手写变异全被逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 1232）；项目主人让主会话自己看截图</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-17-WebUI的主人与自己人页.md</code>；蓝图 <code>onebot.md</code> 第二条、<code>config.md</code> 配置项表。</li>
       </ul>
     </div>
   </div>
