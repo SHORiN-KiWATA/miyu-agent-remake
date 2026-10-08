@@ -65,19 +65,41 @@ fn requests_usage_and_amounts_follow_the_usage_index() {
 }
 
 #[test]
-fn compactions_and_cache_breaks_are_counted_from_their_events() {
+fn compactions_are_counted_and_only_unexpected_cache_breaks() {
+    // 口径照终端的侧边栏（施工 9-6 再补）。
+    let diff = r#","first_difference":{"part":"message","index":0,"role":"user"}"#;
     let compacted = event(
-        r#"{"seq":20,"at":"2026-10-08T01:00:00.000Z","kind":"context.compacted","by":{"kind":"kernel"},"body":{"upto":19,"summary":"s"}}"#,
+        r#"{"seq":6,"at":"2026-10-08T01:00:00.000Z","kind":"context.compacted","by":{"kind":"kernel"},"body":{"upto":5,"summary":"s"}}"#,
     );
-    let broke = called(
-        22,
-        r#","endpoint":"deepseek","model":"deepseek-v4","first_difference":{"part":"message","index":0,"role":"user"}"#,
+    let reverted = event(
+        r#"{"seq":16,"at":"2026-10-08T01:00:00.000Z","kind":"turn.reverted","by":{"kind":"person","account":"alice"},"body":{"turns":[12]}}"#,
     );
-    let unsent_broke = called(24, r#","first_difference":{"part":"tools"}"#);
-    let tally = Tally::of(&[compacted.clone(), broke, unsent_broke, compacted]);
-    assert_eq!(tally.compactions, 2);
-    assert_eq!(tally.cache_breaks, 2, "带 first_difference 的都算");
-    assert_eq!(tally.requests, 1);
+    let events = [
+        called(3, ""),
+        called(5, diff),
+        compacted,
+        called(8, &format!(r#"{diff},"compaction":"auto""#)),
+        called(10, diff),
+        called(12, diff),
+        called(14, &format!(r#"{diff},"purpose":"recap""#)),
+        called(9, diff),
+        reverted,
+        called(18, diff),
+        called(20, diff),
+    ];
+    let tally = Tally::of(&events);
+    assert_eq!(tally.compactions, 1);
+    assert_eq!(
+        tally.cache_breaks, 3,
+        "第 5 条断了算；摘要请求不算、不用掉免数；压缩以后第一个（第 10 条）免；第 12 条算；回顾不算；看到的比之前少的\
+         （老日志的摘要请求）不算；撤销以后第一个（第 18 条）免；第 20 条算"
+    );
+    let mut split = Tally::of(&events[..5]);
+    split.add(&events[5..]);
+    assert_eq!(
+        split, tally,
+        "一批批加和从头算一样：免数、最远看到第几条跨批记着"
+    );
 }
 
 #[test]
