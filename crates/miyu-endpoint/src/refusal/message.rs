@@ -59,6 +59,14 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "只有主人和管理的人能用命令。",
             "Only the owner and managers can use commands.",
         ),
+        "nothing_to_delete" => (
+            "你这一层本来就没有，没有可删的。",
+            "There is nothing of yours to delete here.",
+        ),
+        "preset_conflict" => (
+            "这个预设刚被别处改过，重新读一遍再改。",
+            "This preset was just changed elsewhere; read it again and retry.",
+        ),
         "owner_only" => (
             "只有主人能用这个命令。",
             "Only the owner can use this command.",
