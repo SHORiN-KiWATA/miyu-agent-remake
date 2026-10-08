@@ -1,6 +1,7 @@
 //! 模型调用口的一次性入口（`docs/blueprint/models.md`「怎么走」第十二条，施工 8-20）：模型、`@池`、不写照 `models.chat`；
 //! system 和几条消息照先后发、不带工具、`max_tokens` 照写的发；带图照字节发、模型不收图的不发；四种出错；配置的默认强度、温度（施工 8-22）；
-//! key 照用途钉、取不到的跳过；429 当场换下一个 key、说到一半断了也换、只有一个候选的不再来、最多换 5 次。
+//! 取不到 key 的当场 `no_model`；429 当场换池里的下一个、说到一半断了也换、只有一个候选的不再来、最多换 5 次（施工 8-25 起一家
+//! 一个 key，几个候选只来自池）。
 //!
 //! 假服务器在本机回环上，档案是空的、没有目录：资料全照手写的。
 
@@ -9,7 +10,7 @@ use std::time::Duration;
 use serde_json::json;
 
 use crate::support::calling::{
-    asking, bearer, blobs, body, entry, frozen, keyed_config, limited, purpose_on, user,
+    asking, bearer, blobs, body, entry, frozen, keyed_config, limited, user,
 };
 use crate::support::routing::{cut_after, hellos, routes};
 use miyu_http::testkit::{Reply, Server};
@@ -189,14 +190,14 @@ async fn unknown_model_and_no_model_are_said_without_sending() {
             "no model configured: set models.chat".to_string()
         ))
     );
-    let unset = keyed_config(&first.base_url, 2, &[]);
+    let unset = keyed_config(&first.base_url, 1, &[]);
     let answered = entry
         .call(&unset, &blobs, asking(None, "platform", "hi"))
         .await;
     assert_eq!(
         answered,
         Err(Unanswered::NoModel(
-            "provider \"a\" has no usable key".to_string()
+            "provider \"a1\" has no usable key".to_string()
         ))
     );
     assert!(first.received().is_empty() && second.received().is_empty());
@@ -225,7 +226,7 @@ async fn a_failure_with_one_candidate_is_handed_back_and_all_cooling_is_not_sent
     );
     assert!(error.message.contains("bad key"), "{error:?}");
     assert_eq!(lone.received().len(), 1);
-    // 两个 key 都撞了 429：换了一次以后只剩等，不等、交回；再叫一次，全在冷却，不发。
+    // 池里两家都撞了 429：换了一次以后只剩等，不等、交回；再叫一次，全在冷却，不发。
     let pair = Server::start(vec![limited(), limited(), limited()]).await;
     let entry = entry(&plain());
     let two = keyed_config(&pair.base_url, 2, &[1, 2]);
@@ -244,7 +245,9 @@ async fn a_failure_with_one_candidate_is_handed_back_and_all_cooling_is_not_sent
         panic!("全在冷却：{answered:?}");
     };
     assert!(
-        message.starts_with("all candidates cooling: a/m key "),
+        message.starts_with("all candidates cooling: ")
+            && message.contains("a1/m rate_limited until ")
+            && message.contains("a2/m rate_limited until "),
         "{message}"
     );
     assert!(wait_ms > 0);
@@ -283,35 +286,8 @@ async fn the_default_temperature_of_the_model_goes_out() {
 }
 
 #[tokio::test]
-async fn the_key_follows_the_purpose_and_an_unset_one_is_skipped() {
-    let server = Server::start(hellos(5)).await;
-    let routes = plain();
-    let (_scratch, blobs) = blobs();
-    let entry = entry(&routes);
-    let config = keyed_config(&server.base_url, 3, &[1, 2, 3]);
-    let (on_first, on_third) = (purpose_on(0, 3), purpose_on(2, 3));
-    for purpose in [&on_first, &on_third, &on_first] {
-        entry
-            .call(&config, &blobs, asking(None, purpose, "hi"))
-            .await
-            .expect("答得上来");
-    }
-    let sent: Vec<Option<String>> = (0..3).map(|at| bearer(&server, at)).collect();
+async fn a_rate_limit_or_a_cut_reply_switches_to_the_next_member_at_once() {
     let key = |n: usize| Some(format!("Bearer sk-{n}"));
-    assert_eq!(sent, vec![key(1), key(3), key(1)], "同一个用途同一个 key");
-    // 第三个取不到：照写的先后取下一个，绕回第一个。
-    let unset = keyed_config(&server.base_url, 3, &[1, 2]);
-    entry
-        .call(&unset, &blobs, asking(None, &on_third, "hi"))
-        .await
-        .expect("答得上来");
-    assert_eq!(bearer(&server, 3), key(1));
-}
-
-#[tokio::test]
-async fn a_rate_limit_or_a_cut_reply_switches_to_the_next_key_at_once() {
-    let key = |n: usize| Some(format!("Bearer sk-{n}"));
-    let on_first = purpose_on(0, 2);
     let (_scratch, blobs) = blobs();
     for first in [limited(), cut_after(2)] {
         let mut replies = vec![first];
@@ -319,9 +295,9 @@ async fn a_rate_limit_or_a_cut_reply_switches_to_the_next_key_at_once() {
         let server = Server::start(replies).await;
         let config = keyed_config(&server.base_url, 2, &[1, 2]);
         let answered = entry(&plain())
-            .call(&config, &blobs, asking(None, &on_first, "hi"))
+            .call(&config, &blobs, asking(None, "platform", "hi"))
             .await;
-        // 说到一半断了的：半截不要，换到另一个 key 整段重来。
+        // 说到一半断了的：半截不要，换到池里的另一个整段重来。
         assert_eq!(answered.map(|answer| answer.text), Ok("你好！".to_string()));
         assert_eq!(server.received().len(), 2);
         assert_eq!((bearer(&server, 0), bearer(&server, 1)), (key(1), key(2)));
@@ -368,7 +344,7 @@ async fn a_success_clears_the_cooling_for_both_entries() {
     let routes = plain();
     let entry = entry(&routes);
     let (_scratch, blobs) = blobs();
-    // 只有一个 key：撞了 429 记冷却（30 秒）；只有一个候选，冷着也照发，成了就清掉。
+    // 只有一家：撞了 429 记冷却（30 秒）；只有一个候选，冷着也照发，成了就清掉。
     let one = keyed_config(&server.base_url, 1, &[1]);
     for expected_ok in [false, true] {
         let answered = entry
@@ -376,10 +352,10 @@ async fn a_success_clears_the_cooling_for_both_entries() {
             .await;
         assert_eq!(answered.is_ok(), expected_ok, "{answered:?}");
     }
-    // 两个 key、用途钉着第一个：第一个已经不在冷却了，照钉着的发。
+    // 池里两家、钉着的是第一家（就是上面那一家）：已经不在冷却了，照钉着的发。
     let two = keyed_config(&server.base_url, 2, &[1, 2]);
     entry
-        .call(&two, &blobs, asking(None, &purpose_on(0, 2), "hi"))
+        .call(&two, &blobs, asking(None, "platform", "hi"))
         .await
         .expect("答得上来");
     assert_eq!(bearer(&server, 2), Some("Bearer sk-1".to_string()));

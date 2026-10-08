@@ -1,5 +1,5 @@
-//! 会话的路由（`docs/blueprint/models.md`「守着它的」`route.rs` 那一行 8-6 的一半，施工 8-6）：两台假服务器，key 照会话编号
-//! 挑、重启还是它；取不到的 key 跳过；一个都取不到、没配 `models.chat` 的当场 `no_model`，不发；没写 key 的不带认证头；
+//! 会话的路由（`docs/blueprint/models.md`「守着它的」`route.rs` 那一行 8-6 的一半，施工 8-6）：假服务器收到这一家的 key（施工
+//! 8-25：一家一个 key），重启还是它；老的 `keys` 列表不认；取不到 key、没配 `models.chat` 的当场 `no_model`，不发；没写 key 的不带认证头；
 //! 会话钉着造它时的模型，`models.chat` 改了只影响新会话；造的时候没配的，配好以后下一轮就用上；窗口照配置。地址是环境变量
 //! 的引用时（施工 8-6b）：设了照它连，没设当场 `no_model`，和取不到 key 一样。
 
@@ -7,22 +7,25 @@ use std::sync::Arc;
 
 use tokio::sync::watch;
 
-use crate::support::routing::{called, configs, hellos, routes, turn};
+use crate::support::routing::{called, configs, hellos, items, routes, turn};
 use crate::support::{Home, stop};
+use miyu_config::Layer;
+use miyu_config::merge::{Layers, merge};
+use miyu_config::parse::parse;
+use miyu_config::problem::Code;
 use miyu_config::secret::Reference;
 use miyu_http::testkit::Server;
 use miyu_kernel::event::ErrorClass;
-use miyu_models::keys;
 use miyu_session::{ConfigSource, Handle};
 
-/// 一家 `a` 在 `base_url`，几个 key 照 `{ env = "K<n>" }` 写，`models.chat` 是 `a/m`。
-fn provider(base_url: &str, keys: usize) -> String {
-    let keys: Vec<String> = (1..=keys)
-        .map(|n| format!("{{ env = \"K{n}\" }}"))
-        .collect();
+/// 一家 `a` 在 `base_url`，有 key 的照 `{ env = "K1" }` 写，`models.chat` 是 `a/m`。
+fn provider(base_url: &str, key: bool) -> String {
+    let key = match key {
+        true => "key = { env = \"K1\" }\n",
+        false => "",
+    };
     format!(
-        "[providers.a]\ndriver = \"openai-chat\"\nbase_url = \"{base_url}\"\nkeys = [{}]\n\n[models]\nchat = \"a/m\"\n",
-        keys.join(", ")
+        "[providers.a]\ndriver = \"openai-chat\"\nbase_url = \"{base_url}\"\n{key}\n[models]\nchat = \"a/m\"\n"
     )
 }
 
@@ -46,62 +49,62 @@ fn routes_plain() -> miyu_session::Routes {
 }
 
 #[tokio::test]
-async fn the_key_follows_the_session_id_and_survives_a_restart() {
-    let routes = routes_plain();
+async fn the_one_key_is_sent_and_still_after_a_restart() {
+    let server = Server::start(hellos(4)).await;
     let mut home = Home::new();
-    for n in 0..4 {
-        // 一个会话一台服务器：回合以后还有起标题的请求，几个会话的请求不混在一起。
-        let server = Server::start(hellos(4)).await;
-        home.configs = configs(&provider(&server.base_url, 3), &set(&[1, 2, 3]));
-        let handle = home.create(&routes).await;
-        turn(&handle, &format!("cmd-{}", n + 1)).await;
-        let pinned = keys::pinned(handle.id().as_str(), 3).expect("有 key");
-        let wanted = Some(format!("Bearer sk-{}", pinned + 1));
-        assert!(!server.received().is_empty());
-        for at in 0..server.received().len() {
-            assert_eq!(bearer(&server, at), wanted, "照会话编号挑");
-        }
-        if n == 3 {
-            // 重启：停掉再载入，换一个新的路由、一台新的服务器，还是它。
-            let session = handle.id().clone();
-            stop(&handle).await;
-            let again = Server::start(hellos(4)).await;
-            home.configs = configs(&provider(&again.base_url, 3), &set(&[1, 2, 3]));
-            let handle = home.load(&session, &routes_plain()).await;
-            turn(&handle, "cmd-again").await;
-            assert_eq!(bearer(&again, 0), wanted, "重启还是它");
-            let calls = called(&home, &handle);
-            assert!(calls.len() >= 2);
-            for call in calls {
-                assert_eq!(
-                    (
-                        call.endpoint.as_ref().map(|e| e.as_str()),
-                        call.model.as_ref().map(|m| m.as_str())
-                    ),
-                    (Some("a"), Some("m")),
-                    "记进 model.called 的是这一家、这个模型"
-                );
-            }
-        }
+    home.configs = configs(&provider(&server.base_url, true), &set(&[1]));
+    let handle = home.create(&routes_plain()).await;
+    turn(&handle, "cmd-1").await;
+    assert!(!server.received().is_empty());
+    for at in 0..server.received().len() {
+        assert_eq!(bearer(&server, at), Some("Bearer sk-1".to_string()));
+    }
+    // 重启：停掉再载入，换一个新的路由、一台新的服务器，还是它。
+    let session = handle.id().clone();
+    stop(&handle).await;
+    let again = Server::start(hellos(4)).await;
+    home.configs = configs(&provider(&again.base_url, true), &set(&[1]));
+    let handle = home.load(&session, &routes_plain()).await;
+    turn(&handle, "cmd-again").await;
+    assert_eq!(bearer(&again, 0), Some("Bearer sk-1".to_string()));
+    let calls = called(&home, &handle);
+    assert!(calls.len() >= 2);
+    for call in calls {
+        assert_eq!(
+            (
+                call.endpoint.as_ref().map(|e| e.as_str()),
+                call.model.as_ref().map(|m| m.as_str())
+            ),
+            (Some("a"), Some("m")),
+            "记进 model.called 的是这一家、这个模型"
+        );
     }
 }
 
-#[tokio::test]
-async fn a_key_that_is_not_set_is_skipped_in_written_order() {
-    let server = Server::start(hellos(1)).await;
-    let mut home = Home::new();
-    // 先造一个会话看它钉着第几个，再只把那一个设成取不到。
-    home.configs = configs(&provider(&server.base_url, 3), &set(&[1, 2, 3]));
-    let probe = home.create(&routes_plain()).await;
-    let pinned = keys::pinned(probe.id().as_str(), 3).expect("有 key");
-    let others: Vec<usize> = (1..=3).filter(|n| *n != pinned + 1).collect();
-    home.configs = configs(&provider(&server.base_url, 3), &set(&others));
-    // 同一个编号的会话载入时照新的配置：钉着的那个取不到，照写的先后取下一个。
-    let session = probe.id().clone();
-    stop(&probe).await;
-    let handle = home.load(&session, &routes_plain()).await;
-    turn(&handle, "cmd-1").await;
-    assert_eq!(bearer(&server, 0), Some(format!("Bearer sk-{}", others[0])));
+/// 一家一个 key（施工 8-25）：老的 `keys` 列表不认，报不认识的键，最终值里没有它（这一家照没写 key 办）。
+#[test]
+fn an_old_keys_list_is_not_read() {
+    let parsed = parse(
+        &items(),
+        Layer::System,
+        "[providers.a]\ndriver = \"openai-chat\"\nkeys = [{ env = \"K1\" }]\n",
+    )
+    .expect("写法对");
+    let found: Vec<(Code, Option<&str>)> = parsed
+        .problems
+        .iter()
+        .map(|problem| (problem.code, problem.key.as_deref()))
+        .collect();
+    assert_eq!(found, [(Code::UnknownKey, Some("providers.a.keys"))]);
+    let layers = Layers {
+        system: Some(&parsed),
+        ..Layers::default()
+    };
+    let values = merge(&items(), &layers, &|_| None).values();
+    assert!(
+        values.keys().all(|key| !key.ends_with(".keys")),
+        "{values:?}"
+    );
 }
 
 #[tokio::test]
@@ -114,7 +117,7 @@ async fn no_model_is_said_at_once_and_nothing_is_sent() {
             "no model configured: set models.chat",
         ),
         (
-            provider(&server.base_url, 2),
+            provider(&server.base_url, true),
             set(&[]),
             r#"provider "a" has no usable key"#,
         ),
@@ -130,7 +133,7 @@ async fn no_model_is_said_at_once_and_nothing_is_sent() {
             r#"no provider "b""#,
         ),
         (
-            "[providers.x]\nkeys = []\n\n[models]\nchat = \"x/m\"\n".to_string(),
+            "[providers.x]\nlocal = true\n\n[models]\nchat = \"x/m\"\n".to_string(),
             set(&[]),
             r#"provider "x" needs base_url: it matches nothing in the catalog"#,
         ),
@@ -156,7 +159,7 @@ async fn no_model_is_said_at_once_and_nothing_is_sent() {
 async fn a_provider_without_keys_sends_no_auth_header() {
     let server = Server::start(hellos(1)).await;
     let mut home = Home::new();
-    home.configs = configs(&provider(&server.base_url, 0), &[]);
+    home.configs = configs(&provider(&server.base_url, false), &[]);
     let handle = home.create(&routes_plain()).await;
     turn(&handle, "cmd-1").await;
     assert_eq!(server.received().len(), 1);
@@ -168,7 +171,7 @@ async fn a_provider_without_keys_sends_no_auth_header() {
 async fn an_address_from_the_environment_connects_like_a_literal_one() {
     let server = Server::start(hellos(1)).await;
     let mut home = Home::new();
-    let source = "[providers.a]\ndriver = \"openai-chat\"\nbase_url = { env = \"RELAY_URL\" }\nkeys = [{ env = \"K1\" }]\n\n[models]\nchat = \"a/m\"\n";
+    let source = "[providers.a]\ndriver = \"openai-chat\"\nbase_url = { env = \"RELAY_URL\" }\nkey = { env = \"K1\" }\n\n[models]\nchat = \"a/m\"\n";
     home.configs = configs(
         source,
         &[

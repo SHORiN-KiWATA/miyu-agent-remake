@@ -11,7 +11,6 @@
 //!
 //! 底子不认会话，只认「谁在挑」（[`Seat`]）：会话交它自己的，一次性的种子是用途，别的都没有。
 
-use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -36,10 +35,8 @@ use crate::config::TurnConfig;
 
 /// 谁在挑（施工 8-20）：底子只认这四样。
 pub(super) struct Seat<'a> {
-    /// key 照它钉：会话编号，或者一次性调用的用途（`miyu_models::keys::order`）。
+    /// 档案另配的头照它换（施工 8-14）：会话编号，或者一次性调用的用途。
     pub(super) seed: &'a str,
-    /// 出错换过去、成了的 key：供应商的编号 → key 的名字，这一家先用它。一次性的是空的。
-    pub(super) moved: &'a BTreeMap<String, String>,
     /// 钉住的池钉着的成员：从它起排。没有的（一次性的第一次、还没钉上的）取指针指的。
     pub(super) held: Option<&'a Member>,
     /// 说到一半断了的那一个：不挑，还发给它。只有会话的主请求有。

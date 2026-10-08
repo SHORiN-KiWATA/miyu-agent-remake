@@ -65,21 +65,32 @@ pub fn bearer(server: &Server, at: usize) -> Option<String> {
         .map(str::to_string)
 }
 
-/// 一家 `a` 在 `base_url`，`count` 个 key 照 `{ env = "K<n>" }` 写，值是 `sk-<n>`；`models.chat` 是 `a/m`。交回配置的字和
-/// 取得到的几个（`set` 里的，从 1 数）。
+/// 几个候选的配置（施工 8-25 起一家一个 key，几个候选只来自池）：`a1`……`a<count>` 几家都在 `base_url`，key 照
+/// `{ env = "K<n>" }` 写，值是 `sk-<n>`。一家的 `models.chat` 是 `a1/m`；几家的放进钉住的池 `p`（照这个先后），`models.chat`
+/// 是 `@p`。交回配置的字和取得到的几个（`set` 里的，从 1 数）。
 pub fn keyed(base_url: &str, count: usize, set: &[usize]) -> (String, Vec<(Reference, String)>) {
-    let refs: Vec<String> = (1..=count)
-        .map(|n| format!("{{ env = \"K{n}\" }}"))
+    let providers: String = (1..=count)
+        .map(|n| {
+            format!(
+                "[providers.a{n}]\ndriver = \"openai-chat\"\nbase_url = \"{base_url}\"\nkey = {{ env = \"K{n}\" }}\n\n"
+            )
+        })
         .collect();
-    let text = format!(
-        "[providers.a]\ndriver = \"openai-chat\"\nbase_url = \"{base_url}\"\nkeys = [{}]\n\n[models]\nchat = \"a/m\"\n",
-        refs.join(", ")
-    );
+    let chat = match count {
+        1 => "[models]\nchat = \"a1/m\"\n".to_string(),
+        _ => {
+            let members: Vec<String> = (1..=count).map(|n| format!("\"a{n}/m\"")).collect();
+            format!(
+                "[pools.p]\nmodels = [{}]\nstrategy = \"pin\"\n\n[models]\nchat = \"@p\"\n",
+                members.join(", ")
+            )
+        }
+    };
     let secrets = set
         .iter()
         .map(|n| (Reference::Env(format!("K{n}")), format!("sk-{n}")))
         .collect();
-    (text, secrets)
+    (format!("{providers}{chat}"), secrets)
 }
 
 /// 照 [`keyed`] 冻结一份。
@@ -95,12 +106,4 @@ pub fn keyed_config(base_url: &str, count: usize, set: &[usize]) -> TurnConfig {
 /// 一次限速：429，没说等多久。
 pub fn limited() -> Reply {
     Reply::error(429, &[], r#"{"error":{"message":"Rate limit reached"}}"#)
-}
-
-/// 一个照它钉 key 正好是第 `wanted` 个（从 0 数，共 `count` 个）的用途。
-pub fn purpose_on(wanted: usize, count: usize) -> String {
-    (0..1000)
-        .map(|n| format!("p{n}"))
-        .find(|purpose| miyu_models::keys::pinned(purpose, count) == Some(wanted))
-        .expect("一千个里总有一个")
 }

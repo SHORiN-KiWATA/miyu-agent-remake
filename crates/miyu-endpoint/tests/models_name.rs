@@ -83,7 +83,7 @@ async fn a_written_name_then_the_catalog_then_the_id() {
     let home = Home::new();
     home.write(
         "system/config.toml",
-        "[providers.deepseek]\nkeys = []\n\n\
+        "[providers.deepseek]\nlocal = false\n\n\
          [providers.relay]\nname = \"  我的中转 \"\ndriver = \"openai-chat\"\nbase_url = \"https://relay.example.invalid/v1\"\n\n\
          [providers.plain]\ndriver = \"openai-chat\"\nbase_url = \"https://plain.example.invalid/v1\"\n\n\
          [providers.blank]\nname = \"   \"\ndriver = \"openai-chat\"\nbase_url = \"https://blank.example.invalid/v1\"\n\n\
@@ -128,7 +128,10 @@ async fn a_written_name_then_the_catalog_then_the_id() {
 #[tokio::test]
 async fn a_name_set_now_shows_at_once_and_stays_in_bounds() {
     let home = Home::new();
-    home.write("system/config.toml", "[providers.deepseek]\nkeys = []\n");
+    home.write(
+        "system/config.toml",
+        "[providers.deepseek]\nlocal = false\n",
+    );
     let mut client = Client::connect(core(&home));
     client.hello().await;
     let set = client

@@ -73,7 +73,7 @@ fn the_registered_list_is_well_formed() {
             "providers.<id>.name",
             "providers.<id>.driver",
             "providers.<id>.base_url",
-            "providers.<id>.keys",
+            "providers.<id>.key",
             "providers.<id>.catalog",
             "providers.<id>.price_multiplier",
             "providers.<id>.local",

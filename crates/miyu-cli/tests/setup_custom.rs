@@ -64,7 +64,7 @@ async fn a_custom_provider_asks_address_protocol_and_key_and_is_named_after_its_
     );
     let config = home.system_config();
     let wanted = format!(
-        "[providers.local]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\nkeys = [{{ secret = \"local\" }}]\n",
+        "[providers.local]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\nkey = {{ secret = \"local\" }}\n",
         remote(&server)
     );
     assert!(config.contains(&wanted), "{config}");
@@ -84,8 +84,7 @@ async fn a_custom_provider_asks_address_protocol_and_key_and_is_named_after_its_
 #[tokio::test]
 async fn a_taken_id_gets_a_number_and_an_empty_key_stores_nothing() {
     let server = Server::start(vec![listing(&["m-small"]), answer()]).await;
-    let config =
-        "[providers.local]\ndriver = \"anthropic\"\nbase_url = \"http://127.0.0.1:1\"\nkeys = []\n";
+    let config = "[providers.local]\ndriver = \"anthropic\"\nbase_url = \"http://127.0.0.1:1\"\n";
     let home = Home::onboarding(config, &[], json!({}));
     let base_url = leak(remote(&server));
     let mut typist = Typist::at_terminal(&[CUSTOM, base_url, "1", ""], &["  "]);
@@ -93,9 +92,8 @@ async fn a_taken_id_gets_a_number_and_an_empty_key_stores_nothing() {
     assert_eq!(asked.code, 0, "{}", asked.screen);
     let written = home.system_config();
     assert!(written.starts_with(config), "原来的一个字没动：{written}");
-    let wanted = format!(
-        "[providers.local-2]\ndriver = \"openai-chat\"\nbase_url = \"{base_url}\"\nkeys = []\n"
-    );
+    let wanted =
+        format!("[providers.local-2]\ndriver = \"openai-chat\"\nbase_url = \"{base_url}\"\n");
     assert!(written.contains(&wanted), "{written}");
     assert!(written.contains("chat = \"local-2/m-small\""), "{written}");
     assert_eq!(home.secrets(), "", "空 key 不存");

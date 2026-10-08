@@ -2,7 +2,7 @@
 //! 一家供应商 `[providers.<id>]`、一个模型手写的资料 `[providers.<id>.models."<model>"]`、用途 `[models]`、池
 //! `[pools.<名字>]`。
 //!
-//! 8-6 只声明用得上的几格：驱动、地址、几个 key、对应目录里的哪一家、模型的窗口、主对话的模型。8-7 加上模型资料要的
+//! 8-6 只声明用得上的几格：驱动、地址、key（8-25 起一家一个，原来是几个）、对应目录里的哪一家、模型的窗口、主对话的模型。8-7 加上模型资料要的
 //! （`models.md`「模型的资料」）：供应商的倍率、本机；模型手写的资料（对目录里的哪一个、最大输出、能收什么、能不能调工具、
 //! 思考强度、价格、倍率）；目录怎么更新 `[models.catalog]`。8-8 加上看图的模型、池，供应商的缓存类别（池不写分法时照它
 //! 定，[`crate::pools`]）；8-8 的四个挡位 8-8 补去掉了，池多派子代理能不能选、给模型看的说明两项。别的格（另配的头、开关、占位工具、模型的驱动）随用到它的那一步加（「施工时定的」
@@ -43,12 +43,13 @@ miyu_config::settings! {
             applies: next_turn,
             ui: { page: "models", group: "providers", control: text },
         },
-        /// 几个 key：`{ secret = … }` 或 `{ env = … }`。一个会话钉在其中一个上（[`crate::keys`]）。空的不带认证头。
-        keys: Vec<Reference> = [] {
-            kind: secrets,
+        /// key：`{ secret = … }` 或 `{ env = … }`。一家一个（施工 8-25，`15-模型与供应商.md` M10）：几份额度要一起用的配成几家、
+        /// 放进池里。不写的不带认证头。
+        key: Option<Reference> = none {
+            kind: secret,
             layers: [System, Personal],
             applies: next_turn,
-            ui: { page: "models", group: "providers", control: list },
+            ui: { page: "models", group: "providers", control: text },
         },
         /// 手写指定这一家对应目录里的哪一家：照它找档案、认目录（`models.md`「怎么走」第二条第 4 条第 2 层）。
         catalog: Option<String> = none {
@@ -335,7 +336,7 @@ miyu_config::settings! {
 }
 
 miyu_config::settings! {
-    /// 认证失败（额度用完的也在这一类）的冷却（施工 8-9）：停整个 key，算法同 [`RateLimitedCooldown`]。
+    /// 认证失败（额度用完的也在这一类）的冷却（施工 8-9）：停整家供应商（施工 8-25：一家一个 key），算法同 [`RateLimitedCooldown`]。
     pub struct AuthCooldown in "models.cooldown.auth" {
         /// 第一次冷却多久。
         base: Duration = "10m" {

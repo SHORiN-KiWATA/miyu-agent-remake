@@ -129,9 +129,9 @@ async fn run(
         .with(|knowledge| provider::provider(probe.values, knowledge, probe.id))
         .map_err(config)?;
     let base_url = provider::resolve_base_url(&provider, probe.secret).map_err(config)?;
-    let key = match provider.keys.is_empty() {
-        true => None,
-        false => Some(provider.keys.iter().find_map(probe.secret).ok_or_else(|| {
+    let key = match &provider.key {
+        None => None,
+        Some(reference) => Some((probe.secret)(reference).ok_or_else(|| {
             config(NoModel(format!(
                 "provider {:?} has no usable key",
                 probe.id

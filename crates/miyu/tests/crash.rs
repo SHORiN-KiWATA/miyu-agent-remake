@@ -123,7 +123,7 @@ impl Rpc {
 /// 拉起核心：模型是 `server`（照 `cargo xtask dev-home` 造的那样写一份系统配置，施工 8-6），等它写来 `ready`。
 fn start(home: &Home, server: &Server) -> Child {
     let config = format!(
-        "[providers.dev]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\ncatalog = \"deepseek\"\nkeys = [{{ env = \"MIYU_TEST_KEY\" }}]\n\n[models]\nchat = \"dev/deepseek-chat\"\n",
+        "[providers.dev]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\ncatalog = \"deepseek\"\nkey = {{ env = \"MIYU_TEST_KEY\" }}\n\n[models]\nchat = \"dev/deepseek-chat\"\n",
         server.base_url
     );
     std::fs::write(home.root.path().join("system").join("config.toml"), config).expect("写得进");

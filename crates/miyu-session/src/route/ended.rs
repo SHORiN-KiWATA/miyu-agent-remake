@@ -1,7 +1,7 @@
 //! 一次请求说完了以后底子记什么（`docs/blueprint/models.md`「怎么走」第四条第 5 条，第五条，施工 8-9；施工 8-20 起是底子的
 //! 一块，两个入口共用，会话自己记的那几样在 `route/send.rs` 的 `Tried`）。
 //!
-//! - 成了：这个候选的失败次数清零，key 整个的认证失败次数也清零。
+//! - 成了：这个候选的失败次数清零，这一家整个的认证失败次数也清零。
 //! - 出错：限速、可重试、认证失败三类照分类记冷却，记一行 `INFO endpoint cooling`。别的分类不记、不换。
 //!   - 收到过增量才出错的（说到一半断了，挑的一方说了算）：不换。
 //!   - 只有这一个候选的：不换，照旧交供应商说的要等多久。
@@ -12,7 +12,9 @@ use miyu_kernel::event::ErrorClass;
 use miyu_kernel::time::Timestamp;
 
 use super::Routes;
-use super::choice::{Choice, Who, name, until};
+use miyu_models::cooldown::Candidate;
+
+use super::choice::{Choice, name, until};
 use crate::TARGET;
 use crate::clock::wall_now;
 
@@ -23,7 +25,7 @@ pub(in crate::route) struct Picked {
     /// 发给的那一个。
     pub(in crate::route) choice: Choice,
     /// 别的候选，照先后。
-    pub(in crate::route) others: Vec<Who>,
+    pub(in crate::route) others: Vec<Candidate>,
 }
 
 /// 出错以后交给挑的一方的：换没换端点、要等多久。
@@ -58,7 +60,6 @@ impl Picked {
             tracing::info!(
                 target: TARGET,
                 provider = picked.who.provider.as_str(),
-                key = picked.at.map(|at| at + 1),
                 model = picked.who.model.as_str(),
                 class = class.as_str(),
                 for_ms = recorded.for_ms,
@@ -77,11 +78,10 @@ impl Picked {
             let next = self
                 .others
                 .iter()
-                .find(|other| table.cooling(&other.who, now).is_none());
+                .find(|other| table.cooling(other, now).is_none());
             let earliest = self
                 .others
                 .iter()
-                .map(|other| &other.who)
                 .chain([&picked.who])
                 .filter_map(|who| table.cooling(who, now))
                 .map(|cooling| cooling.until)
@@ -110,24 +110,13 @@ fn wait(now: Timestamp, earliest: Option<Timestamp>, said_ms: Option<u64>) -> u6
     earliest.max(said_ms.unwrap_or(0))
 }
 
-/// 记一行换端点：从哪个到哪个；只换 key、模型没变的写换到第几个 key（「施工时定的」8-9）。
-fn failover(from: &Choice, to: &Who, class: &ErrorClass) {
-    let same = to.who.provider == from.who.provider && to.who.model == from.who.model;
-    let from_name = format!("{}/{}", from.who.provider, from.who.model);
-    match (same, to.at) {
-        (true, Some(at)) => tracing::info!(
-            target: TARGET,
-            from = from_name.as_str(),
-            key = at + 1,
-            class = class.as_str(),
-            "failover"
-        ),
-        _ => tracing::info!(
-            target: TARGET,
-            from = from_name.as_str(),
-            to = name(&to.who, None).as_str(),
-            class = class.as_str(),
-            "failover"
-        ),
-    }
+/// 记一行换端点：从哪个到哪个。
+fn failover(from: &Choice, to: &Candidate, class: &ErrorClass) {
+    tracing::info!(
+        target: TARGET,
+        from = name(&from.who).as_str(),
+        to = name(to).as_str(),
+        class = class.as_str(),
+        "failover"
+    );
 }

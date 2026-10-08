@@ -27,7 +27,7 @@ fn hellos(n: usize) -> Vec<Reply> {
 /// 一家 `gpt` 在 `base_url`，驱动 `openai-responses`，key 是 `{ env = "GPT_KEY" }`；`models.chat` 是 `gpt/m`。`models` 接在后面。
 fn config(base_url: &str, models: &str) -> String {
     format!(
-        "[providers.gpt]\ndriver = \"openai-responses\"\nbase_url = \"{base_url}\"\nkeys = [{{ env = \"GPT_KEY\" }}]\n\n{models}\n[models]\nchat = \"gpt/m\"\n"
+        "[providers.gpt]\ndriver = \"openai-responses\"\nbase_url = \"{base_url}\"\nkey = {{ env = \"GPT_KEY\" }}\n\n{models}\n[models]\nchat = \"gpt/m\"\n"
     )
 }
 

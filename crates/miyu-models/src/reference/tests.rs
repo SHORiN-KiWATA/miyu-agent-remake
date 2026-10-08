@@ -172,7 +172,7 @@ fn a_session_records_the_model_or_pool_a_reference_resolves_to_now() {
         assert_eq!(record(text), Err(NoModel(why.to_string())), "{text}");
     }
     let bare =
-        resolved("[providers.a]\nkeys = []\n\n[pools.empty]\nmodels = [\"gone/y\"]\n").values();
+        resolved("[providers.a]\nlocal = false\n\n[pools.empty]\nmodels = [\"gone/y\"]\n").values();
     assert_eq!(
         crate::reference::record(&bare, "@empty"),
         Err(NoModel(r#"pool "empty" has no models"#.to_string()))

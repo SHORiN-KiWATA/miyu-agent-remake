@@ -42,7 +42,7 @@ async fn keys_are_found_in_the_core_environment_and_their_values_never_leave() {
     let home = Home::new();
     home.write(
         "system/config.toml",
-        "[providers.ds]\nkeys = [{ env = \"DEEPSEEK_API_KEY\" }]\n\n[providers.zz]\nkeys = [{ env = \"DEEPSEEK_API_KEY\" }]\n",
+        "[providers.ds]\nkey = { env = \"DEEPSEEK_API_KEY\" }\n\n[providers.zz]\nkey = { env = \"DEEPSEEK_API_KEY\" }\n",
     );
     let env = [
         ("DEEPSEEK_API_KEY", FAKE),
@@ -125,7 +125,7 @@ async fn local_services_are_probed_together_and_slow_ones_count_as_none() {
     let home = Home::new();
     home.write(
         "system/config.toml",
-        "[providers.mine]\ncatalog = \"lab-b\"\nkeys = []\n",
+        "[providers.mine]\ncatalog = \"lab-b\"\n",
     );
     let reply = ask(&home, &[], extra, "provider.detect", json!({})).await;
     let found = &reply["result"]["local"];

@@ -12,7 +12,7 @@ fn the_wire_comes_only_from_the_first_two_layers() {
                        "@ai-sdk/openai": "openai-responses"}}),
         true,
     );
-    let go = "[providers.opencode-go]\nkeys = []\n";
+    let go = "[providers.opencode-go]\nlocal = false\n";
     let (flash, _) = facts_of(&held, go, "opencode-go", "deepseek-v4.1-flash");
     assert_eq!(
         flash.wire,
@@ -29,11 +29,12 @@ fn the_wire_comes_only_from_the_first_two_layers() {
         "走 anthropic：开关是接口自带的"
     );
     // 手写指定（第 1 层）也取。
-    let pointed = "[providers.relay]\ndriver = \"openai-chat\"\nbase_url = \"https://relay.invalid/v1\"\nkeys = []\n\n[providers.relay.models.m]\ncatalog = \"opencode-go/minimax-m3\"\n";
+    let pointed = "[providers.relay]\ndriver = \"openai-chat\"\nbase_url = \"https://relay.invalid/v1\"\n\n[providers.relay.models.m]\ncatalog = \"opencode-go/minimax-m3\"\n";
     let (pointed, _) = facts_of(&held, pointed, "relay", "m");
     assert_eq!(pointed.wire.npm.as_deref(), Some("@ai-sdk/anthropic"));
     // 认不出的中转按名字对上（第 3 层）：不取。
-    let relay = "[providers.relay]\ndriver = \"openai-chat\"\nbase_url = \"https://relay.invalid/v1\"\nkeys = []\n";
+    let relay =
+        "[providers.relay]\ndriver = \"openai-chat\"\nbase_url = \"https://relay.invalid/v1\"\n";
     let (named, found) = facts_of(&held, relay, "relay", "deepseek-v4.1-flash");
     assert!(
         matches!(&found, Found::Matched(matched) if matched.layer == 3),

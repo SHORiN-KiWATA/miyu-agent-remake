@@ -15,7 +15,7 @@ fn config(members: &str, strategy: &str) -> Values {
         written => format!("strategy = \"{written}\"\n"),
     };
     values(&format!(
-        "[providers.a]\nkeys = []\n\n[providers.b]\nkeys = []\ncache = \"per_request\"\n\n[pools.p]\nmodels = [{members}]\n{strategy}"
+        "[providers.a]\nlocal = false\n\n[providers.b]\ncache = \"per_request\"\n\n[pools.p]\nmodels = [{members}]\n{strategy}"
     ))
 }
 
@@ -63,7 +63,7 @@ fn unknown_members_are_skipped_and_an_empty_pool_does_not_resolve() {
         pool(&config(r#""gone/x""#, ""), "p"),
         Err(NoModel(r#"pool "p" has no models"#.to_string()))
     );
-    let unwritten = values("[providers.a]\nkeys = []\n\n[pools.p]\nstrategy = \"pin\"\n");
+    let unwritten = values("[providers.a]\nlocal = false\n\n[pools.p]\nstrategy = \"pin\"\n");
     assert_eq!(
         pool(&unwritten, "p"),
         Err(NoModel(r#"pool "p" has no models"#.to_string())),
@@ -110,7 +110,7 @@ fn the_pointer_walks_round_and_follows_a_changed_member_count() {
 #[test]
 fn subagents_are_offered_switched_on_pools_with_members_by_name() {
     let config = values(
-        "[providers.a]\nkeys = []\n\n\
+        "[providers.a]\nlocal = false\n\n\
          [pools.zeta]\nmodels = [\"a/z\"]\nsubagent = true\n\n\
          [pools.alpha]\nmodels = [\"a/x\"]\nsubagent = true\ndescription = \"Quick lookups.\"\n\n\
          [pools.off]\nmodels = [\"a/y\"]\n\n\
@@ -132,7 +132,7 @@ fn subagents_are_offered_switched_on_pools_with_members_by_name() {
 #[test]
 fn offered_names_sort_by_bytes() {
     let config = values(
-        "[providers.a]\nkeys = []\n\n[pools.b]\nmodels = [\"a/x\"]\nsubagent = true\n\n\
+        "[providers.a]\nlocal = false\n\n[pools.b]\nmodels = [\"a/x\"]\nsubagent = true\n\n\
          [pools.a-1]\nmodels = [\"a/x\"]\nsubagent = true\n\n[pools.a_1]\nmodels = [\"a/x\"]\nsubagent = true\n",
     );
     let names: Vec<String> = offered(&config)

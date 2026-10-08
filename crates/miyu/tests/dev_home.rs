@@ -117,8 +117,8 @@ fn the_config_reads_without_a_single_problem() {
         "地址是引用，不是地址本身（施工 8-6b）"
     );
     assert_eq!(
-        value("providers.dev.keys").as_deref(),
-        Some(r#"[{ env = "MIYU_DEV_API_KEY" }]"#)
+        value("providers.dev.key").as_deref(),
+        Some(r#"{ env = "MIYU_DEV_API_KEY" }"#)
     );
     assert_eq!(
         value(r#"providers.dev.models."deepseek-v4.1-flash".window"#).as_deref(),

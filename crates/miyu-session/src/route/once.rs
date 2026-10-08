@@ -17,8 +17,6 @@
 
 mod reply;
 
-use std::collections::BTreeMap;
-
 use miyu_kernel::block::Block;
 use miyu_kernel::event::{CallError, ErrorClass, Usage};
 use miyu_kernel::id::AccountId;
@@ -205,13 +203,11 @@ impl OneShot {
             described: Default::default(),
         };
         let texts = listing_texts().map_err(|why| Unanswered::Failed(other(why)))?;
-        let moved = BTreeMap::new();
         let mut held: Option<Member> = None;
         let mut switched = 0;
         loop {
             let seat = Seat {
                 seed: &ask.purpose,
-                moved: &moved,
                 held: held.as_ref(),
                 sticky: None,
             };

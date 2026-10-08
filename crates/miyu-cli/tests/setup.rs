@@ -82,7 +82,7 @@ async fn a_key_in_the_environment_is_referenced_never_copied() {
     );
     let config = home.system_config();
     assert!(
-        config.contains("keys = [{ env = \"DEEPSEEK_API_KEY\" }]"),
+        config.contains("key = { env = \"DEEPSEEK_API_KEY\" }"),
         "只引用：{config}"
     );
     assert!(
@@ -138,7 +138,7 @@ async fn a_pasted_key_is_tried_first_and_kept_only_once_it_works() {
     assert!(!secrets.contains(WRONG), "错的那个没存过：{secrets}");
     let config = home.system_config();
     assert!(
-        config.contains("keys = [{ secret = \"deepseek\" }]"),
+        config.contains("key = { secret = \"deepseek\" }"),
         "{config}"
     );
     assert!(
@@ -190,9 +190,10 @@ async fn a_local_service_needs_no_key() {
     assert_eq!(typist.hidden, 0, "不要 key");
     let config = home.system_config();
     assert!(
-        config.contains("[providers.lab]") && config.contains("keys = []"),
-        "{config}"
+        config.contains("[providers.lab]\nlocal = true\n"),
+        "本机的服务不要 key：写 local = true 算配好了（施工 8-25）：{config}"
     );
+    assert!(!config.contains("key"), "{config}");
     assert!(config.contains("chat = \"lab/qwen3-8b\""), "{config}");
     assert_eq!(server.received()[1].header("authorization"), None);
 }
@@ -200,7 +201,7 @@ async fn a_local_service_needs_no_key() {
 #[tokio::test]
 async fn a_provider_already_set_up_only_gets_models_chat() {
     let server = Server::start(vec![listing(&["deepseek-flash"]), answer()]).await;
-    let config = "[providers.ds]\ncatalog = \"deepseek\"\nkeys = [{ env = \"DEEPSEEK_API_KEY\" }, { secret = \"spare\" }]\nprice_multiplier = 0.5\n";
+    let config = "[providers.ds]\ncatalog = \"deepseek\"\nkey = { env = \"DEEPSEEK_API_KEY\" }\nprice_multiplier = 0.5\n";
     let home = Home::onboarding(config, &[("DEEPSEEK_API_KEY", FAKE)], deepseek_at(&server));
     let mut typist = Typist::at_terminal(&["1", ""], &[]);
     let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;

@@ -153,7 +153,7 @@ fn levels_of(source: &str) -> impl Fn(&str, &str) -> Option<Vec<String>> {
 
 #[test]
 fn a_written_level_the_model_does_not_have_is_reported_where_it_is_written() {
-    let source = "[providers.deepseek]\nkeys = []\n\n[providers.deepseek.models.\"deepseek-flash\"]\neffort = \"medium\"\n\n[providers.deepseek.models.\"deepseek-v4-pro\"]\neffort = \"off\"\n\n[providers.deepseek.models.gone]\neffort = \"high\"\n\n[providers.broken.models.x]\neffort = \"high\"\n";
+    let source = "[providers.deepseek]\nlocal = false\n\n[providers.deepseek.models.\"deepseek-flash\"]\neffort = \"medium\"\n\n[providers.deepseek.models.\"deepseek-v4-pro\"]\neffort = \"off\"\n\n[providers.deepseek.models.gone]\neffort = \"high\"\n\n[providers.broken.models.x]\neffort = \"high\"\n";
     let parsed = parse(&items(), Layer::System, source).expect("写法对");
     let found = unknown(&parsed, Layer::System, &levels_of(source));
     assert_eq!(found.len(), 2, "{found:?}");
@@ -174,7 +174,7 @@ fn a_written_level_the_model_does_not_have_is_reported_where_it_is_written() {
     // 在档位里的（off 是开关加出来的一档）、那一家用不了的（broken 推不出驱动）不报。
     let none = "[providers.deepseek.models.\"deepseek-flash\"]\neffort = \"none\"\n";
     let parsed = parse(&items(), Layer::System, none).expect("写法对");
-    let source = format!("[providers.deepseek]\nkeys = []\n\n{none}");
+    let source = format!("[providers.deepseek]\nlocal = false\n\n{none}");
     assert!(
         unknown(&parsed, Layer::System, &levels_of(&source)).is_empty(),
         "none 读成 off，照样在档位里"
@@ -185,7 +185,7 @@ fn a_written_level_the_model_does_not_have_is_reported_where_it_is_written() {
 fn a_level_written_where_it_does_not_count_is_not_checked() {
     let source = "[providers.deepseek.models.\"deepseek-flash\"]\neffort = \"medium\"\n";
     let parsed = parse(&items(), Layer::Project, source).expect("写法对");
-    let config = "[providers.deepseek]\nkeys = []\n";
+    let config = "[providers.deepseek]\nlocal = false\n";
     assert!(
         unknown(&parsed, Layer::Project, &levels_of(config)).is_empty(),
         "项目配置里写的本来就不算（wrong_layer 报过了）"

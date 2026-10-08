@@ -101,7 +101,7 @@ async fn an_unknown_session_is_refused_in_the_heads_language() {
 /// 施工 8-8 补）照核心的原话说，退出码 1，不发话。
 #[tokio::test]
 async fn model_makes_a_new_session_with_it_and_switches_a_continued_one() {
-    const CONFIG: &str = "[providers.a]\nkeys = []\n\n[providers.b]\nkeys = []\n\n[models]\nchat = \"a/m\"\n\n[pools.small]\nmodels = [\"b/small\"]\n";
+    const CONFIG: &str = "[providers.a]\nlocal = false\n\n[providers.b]\nlocal = false\n\n[models]\nchat = \"a/m\"\n\n[pools.small]\nmodels = [\"b/small\"]\n";
     let script = Script::new([Play::Says("一。"), Play::Says("二。")]);
     let home = Home::configured(Arc::new(script), CONFIG);
     let first = Plan {

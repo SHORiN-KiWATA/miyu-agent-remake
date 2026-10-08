@@ -69,15 +69,13 @@ async fn fetch(
         .with(|knowledge| provider::provider(values, knowledge, id))
         .map_err(|NoModel(why)| why)?;
     let driver = provider.build(listing_texts()?);
-    let headers = if provider.keys.is_empty() {
-        Vec::new()
-    } else {
-        let key = provider
-            .keys
-            .iter()
-            .find_map(secret)
-            .ok_or_else(|| format!("provider {id:?} has no usable key"))?;
-        driver.auth(key.expose())
+    let headers = match &provider.key {
+        None => Vec::new(),
+        Some(reference) => {
+            let key =
+                secret(reference).ok_or_else(|| format!("provider {id:?} has no usable key"))?;
+            driver.auth(key.expose())
+        }
     };
     // 地址也可能是环境变量的引用（施工 8-6b），照同一个 `secret` 取。
     let base_url = provider::resolve_base_url(&provider, secret).map_err(|NoModel(why)| why)?;

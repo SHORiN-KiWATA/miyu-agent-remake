@@ -209,7 +209,7 @@ SSE 分帧共用 `sse.rs`。这一家没有 `[DONE]`：说完是 `response.compl
 合并前主会话做，结果记进施工单：
 
 1. **要什么**：一个 OpenAI 官方的 key，或者 opencode Zen 的 key（Zen 上的 GPT 走这个驱动；它的免费模型里也有走这种写法的，免费名单常变，到时候照目录挑）。仓库里都没有，要项目主人给一个 key 或者端点。走 Zen 的要等 8-14 的头和占位工具，或者先在配置里手写固定的 `x-opencode-*` 头、在带 `shell`、`read` 的终端会话里测。
-2. **怎么配**：`[providers.openai]` 写 `driver = "openai-responses"`、地址 `https://api.openai.com/v1`、`keys = [{ secret = "openai" }]`，`miyu login openai`；`models.chat` 指一个现役的会思考的模型。临时的 `MIYU_HOME`。
+2. **怎么配**：`[providers.openai]` 写 `driver = "openai-responses"`、地址 `https://api.openai.com/v1`、`key = { secret = "openai" }`，`miyu login openai`；`models.chat` 指一个现役的会思考的模型。临时的 `MIYU_HOME`。
 3. **缓存命中**：带工具的会话跑三轮（system 加工具面够 1024 token），照 `model.called` 的用量填表：后一次请求的命中约等于前一次的输入（按 128 取整）。命中掉了的，拿两次请求的字节比，找第一处不同。
 4. **思考**：配一档（例如 `low`），跑一轮工具循环：不报 400（加密的思考原样回传了，没有「找不到这一项」的错），头上看得到摘要；配 `off`（目录写 `none` 的模型），确认不思考。
 5. **附件**：人附一张图、一个 PDF；让她用 `read` 读一张图。
