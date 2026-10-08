@@ -15,7 +15,11 @@ use miyu_tool::Catalog;
 
 use super::{Client, Home, TOKEN};
 
-/// 测试用的扩展，拷在测试程序旁边、名字各用各的。用完删掉。
+/// 测试用的扩展，放在测试程序旁边、名字各用各的。用完删掉。
+///
+/// 放的是硬链接，不是拷贝（test-ext 补）：拷的时候开着写的句柄，同一个测试程序里别的测试这时拉起子进程，子进程在 exec 以前
+/// 也开着它；核心接着拉起刚拷好的这个，Linux 回 `ETXTBSY`（Text file busy），扩展就成了 `cannot_start`。负载下 60 趟红 7 趟。
+/// 硬链接不写字节，没有写的句柄。连不成的（不在一个文件系统上）才拷。
 pub struct Program(PathBuf);
 
 impl Program {
@@ -33,7 +37,10 @@ impl Program {
             std::process::id(),
             std::env::consts::EXE_SUFFIX
         ));
-        std::fs::copy(env!("CARGO_BIN_EXE_miyu-test-extension"), &path).expect("拷得了");
+        let built = env!("CARGO_BIN_EXE_miyu-test-extension");
+        if std::fs::hard_link(built, &path).is_err() {
+            std::fs::copy(built, &path).expect("拷得了");
+        }
         Program(path)
     }
 

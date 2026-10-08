@@ -332,3 +332,30 @@ fn every_layer_is_checked_on_its_own() {
             .is_none()
     );
 }
+
+/// 出厂一个人格都不带（施工 P-4 下，2026-10-08 项目主人：「软件默认不自带任何人格」）：照仓库里真的资源目录、一个空的数据根，
+/// 一个人格都列不出来，原来出厂的两个找不到。
+#[test]
+fn nothing_ships_with_the_core() {
+    let scratch = Scratch::new();
+    let resources =
+        ResourceRoot::at(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"));
+    let env = Env {
+        platform: Platform::current(),
+        miyu_home: Some(scratch.path().join("data").into_os_string()),
+        home: None,
+        xdg_cache_home: None,
+        local_app_data: None,
+        miyu_resources: None,
+        exe: None,
+    };
+    let root = DataRoot::locate(&env).unwrap();
+    let personas = Personas::new(&resources, &root, &AccountId::parse("admin").unwrap());
+    assert!(personas.ids().is_empty(), "{:?}", personas.ids());
+    for gone in ["engineer", "none"] {
+        assert!(
+            matches!(personas.find(gone), Err(PersonaError::NotFound(_))),
+            "{gone}"
+        );
+    }
+}

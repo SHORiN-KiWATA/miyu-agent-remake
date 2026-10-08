@@ -29,6 +29,21 @@ fn the_shipped_numbers_are_the_blueprints() {
     assert_eq!(tuning.write_queue, 64);
     assert_eq!(tuning.inbound_queue, 256);
     assert_eq!(tuning.accept_retry(), Duration::from_millis(100));
+    // 令牌对不上时最多一秒重读一次配置（施工 O-16 补二）。
+    assert_eq!(tuning.reload(), Duration::from_secs(1));
+    // WebUI（施工 O-16）：页面只有三种文件；内容安全策略只许连自己、不许被框起来；验过的登录令牌记 60 秒。
+    assert_eq!(
+        tuning.web.types.keys().collect::<Vec<_>>(),
+        ["css", "html", "js"]
+    );
+    for must in [
+        "default-src 'self'",
+        "connect-src 'self'",
+        "frame-ancestors 'none'",
+    ] {
+        assert!(tuning.web.csp.contains(must), "{must}");
+    }
+    assert_eq!(tuning.web.status_cache(), Duration::from_secs(60));
 }
 
 #[test]
@@ -45,8 +60,23 @@ fn a_bad_file_is_not_read_and_named() {
         ),
         ("unknown", good.replacen('{', "{\"extra\": 1,", 1)),
         (
+            "web-unknown",
+            good.replace(
+                "\"status_cache_seconds\"",
+                "\"extra\": 1, \"status_cache_seconds\"",
+            ),
+        ),
+        (
+            "web-missing",
+            good.replace("\"status_cache_seconds\"", "\"cache\""),
+        ),
+        (
             "missing",
             good.replace("\"accept_retry_millis\": 100", "\"x\": 1"),
+        ),
+        (
+            "reload-missing",
+            good.replace("\"reload_seconds\": 1", "\"y\": 1"),
         ),
         ("not-json", "nope".to_string()),
     ] {

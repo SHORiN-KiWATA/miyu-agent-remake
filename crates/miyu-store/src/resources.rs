@@ -67,8 +67,6 @@ impl std::error::Error for ResourceError {}
 /// 读不出一个人格要用的原文。
 #[derive(Debug)]
 pub enum SourceError {
-    /// 人格的编号不合写法：小写字母开头，只有小写字母、数字、`-`、`_`，最长 64 个字符。
-    Persona(String),
     /// 读不了这一份文件。
     Read {
         /// 哪一份。
@@ -81,10 +79,6 @@ pub enum SourceError {
 impl fmt::Display for SourceError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SourceError::Persona(persona) => write!(
-                f,
-                "persona id {persona:?} is not valid: it starts with a lowercase letter and has only lowercase letters, digits, - and _"
-            ),
             SourceError::Read { path, error } => {
                 write!(f, "cannot read {}: {error}", path.display())
             }
@@ -138,27 +132,6 @@ impl ResourceRoot {
         &self.path
     }
 
-    /// 读出人格 `persona` 要用的原文：随核心附带的字（`core/`），这个人格的人设
-    /// （`personas/<编号>/prompts/persona.md`）。原文照抄，行尾的换行也算。
-    ///
-    /// # Errors
-    ///
-    /// 人格的编号不合写法；哪一份文件读不了，写明是哪一份。
-    pub fn sources(&self, persona: &str) -> Result<Sources, SourceError> {
-        if !crate::personas::valid(persona) {
-            return Err(SourceError::Persona(persona.to_string()));
-        }
-        Ok(Sources {
-            core: self.core_texts()?,
-            persona: PersonaTexts {
-                persona: self.read(&["personas", persona, "prompts", "persona.md"])?,
-                examples: Vec::new(),
-                reminders: String::new(),
-            },
-            reminder: self.reminder_wrap()?,
-        })
-    }
-
     /// 随核心附带的字，配上已经叠好的人格的字 `persona`（施工 P-1 上，`personas.md`）：造会话用。
     ///
     /// # Errors
@@ -188,6 +161,15 @@ impl ResourceRoot {
     /// 读不了这份文件，写明是哪一份。
     pub fn subagent_venue(&self) -> Result<String, SourceError> {
         self.read(&["core", "jobs", "subagent-venue.txt"])
+    }
+
+    /// 常用的几家（施工 8-11 再补）：`models/featured.toml` 的原文，`provider.catalog {"featured": true}` 每次照它列。
+    ///
+    /// # Errors
+    ///
+    /// 读不了这份文件，写明是哪一份。
+    pub fn featured_providers(&self) -> Result<String, SourceError> {
+        self.read(&["models", "featured.toml"])
     }
 
     /// 核心的几行（施工 2-7 补，`26-提示词.md` 第四节第 3 块）：`core/permission-rule.txt`、`core/local-paths-rule.txt` 的

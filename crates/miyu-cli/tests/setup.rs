@@ -1,46 +1,19 @@
 //! `miyu setup`（施工 8-11，`docs/blueprint/cli/setup.md`）：在进程里起核心（真目录裁出来的一份，供应商、本机的服务是假
 //! 服务器），假终端照剧本回，在真的套接字上走一遍。三个平台一样跑：人那一头是照剧本回的 `Console`（`cli/login.md` 的先例）。
 //!
-//! 环境变量里的 key 只引用不复制；搜目录、贴的 key 先试、通了存成密钥；试不通回到上一步；本机的服务不要 key；已经配好的
-//! 只写 `models.chat`；核心看不到的变量说清是哪个；屏幕上从头到尾没有 key；`miyu ask` 没模型时先走一遍。配置里一个池都没有的，
-//! 一起写三个预设的池（施工 8-8 补）。
+//! 常用的几家、本机的服务、自定义列成一张表（施工 8-11 再补）；环境变量里的 key 只引用不复制；贴的 key 先试、通了存成密钥；
+//! 试不通回到上一步；本机的服务不要 key；已经配好的只写 `models.chat`；核心看不到的变量说清是哪个；屏幕上从头到尾没有 key；
+//! `miyu ask` 没模型时先走一遍。配置里一个池都没有的，一起写三个预设的池（施工 8-8 补）。自定义的、取不到模型列表的在
+//! `setup_custom.rs`。
 
 use serde_json::json;
 
 use crate::support::Home;
-use crate::support::onboarding::{Typist, plan, remote};
+use crate::support::onboarding::{FAKE, Typist, answer, deepseek_at, listing, plan};
 use miyu_cli::Setup;
-use miyu_http::testkit::{Piece, Reply, Server};
+use miyu_http::testkit::{Reply, Server};
 
-/// 一眼看得出是假的 key。
-const FAKE: &str = "sk-FAKE-KEY-FOR-TESTS-0001";
 const WRONG: &str = "sk-FAKE-WRONG-KEY-0002";
-
-/// 列出 `models` 的回应。
-fn listing(models: &[&str]) -> Reply {
-    let data: Vec<_> = models.iter().map(|id| json!({"id": id})).collect();
-    Reply::stream(vec![Piece::Bytes(
-        json!({"object": "list", "data": data})
-            .to_string()
-            .into_bytes(),
-    )])
-}
-
-/// 回一句 OK、说完。
-fn answer() -> Reply {
-    let chunk = |delta: serde_json::Value, finish: serde_json::Value| {
-        let event = json!({"id": "c1", "object": "chat.completion.chunk", "model": "x",
-            "choices": [{"index": 0, "delta": delta, "finish_reason": finish}]});
-        format!("data: {event}\n\n")
-    };
-    let text = [
-        chunk(json!({"role": "assistant", "content": "OK"}), json!(null)),
-        chunk(json!({}), json!("stop")),
-        "data: [DONE]\n\n".to_string(),
-    ]
-    .concat();
-    Reply::stream(vec![Piece::Bytes(text.into_bytes())])
-}
 
 /// 认证失败。
 fn unauthorized() -> Reply {
@@ -49,11 +22,6 @@ fn unauthorized() -> Reply {
         &[],
         r#"{"error":{"message":"Authentication Fails (no such user)"}}"#,
     )
-}
-
-/// DeepSeek 的档案指到假服务器（当成外面的供应商）。
-fn deepseek_at(server: &Server) -> serde_json::Value {
-    json!({"deepseek": {"driver": "openai-chat", "base_url": remote(server)}})
 }
 
 /// 屏幕上「N 毫秒」的数换成 N：每次不一样。
@@ -97,10 +65,13 @@ async fn a_key_in_the_environment_is_referenced_never_copied() {
     assert_eq!(asked.code, 0, "{}", asked.screen);
     assert_eq!(
         steady(&asked.screen),
-        "· 这个终端里设了 OPENAI_API_KEY，核心看不到：核心是别处拉起的，看不到后来设的环境变量。等核心空闲了自己退出（没有界面连着、没有在跑的活），再在这个终端里运行 miyu setup；或者从目录里选这一家、把 key 贴进来。\n\
-         找到这些现成的：\n\
-         \x20 1  DeepSeek  环境变量 DEEPSEEK_API_KEY\n\
-         \x20 0  都不要，从目录里找一家\n\
+        "· 这个终端里设了 OPENAI_API_KEY，核心看不到：核心是别处拉起的，看不到后来设的环境变量。等核心空闲了自己退出（没有界面连着、没有在跑的活），再在这个终端里运行 miyu setup；或者选这一家、把 key 贴进来。\n\
+         选一家：\n\
+         \x20 1  DeepSeek      已找到 key\n\
+         \x20    OpenAI        用不了：目录里没有它的地址\n\
+         \x20    Anthropic     用不了：目录里没有它的地址\n\
+         \x20 2  opencode Zen\n\
+         \x20 3  自定义\n\
          选一个编号：试一下 DeepSeek……\n\
          · 通了：试的 deepseek-flash，N 毫秒收到第一个字。\n\
          选主对话的模型：\n\
@@ -137,16 +108,18 @@ async fn a_pasted_key_is_tried_first_and_kept_only_once_it_works() {
     ])
     .await;
     let home = Home::onboarding("", &[], deepseek_at(&server));
-    let mut typist = Typist::at_terminal(&["deep", "1", "2"], &[WRONG, FAKE]);
+    let mut typist = Typist::at_terminal(&["1", "2"], &[WRONG, FAKE]);
     let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;
     assert_eq!(asked.code, 0, "{}", asked.screen);
     assert_eq!(
         steady(&asked.screen),
-        "没找到现成的 key 和本机的模型服务。\n\
-         搜一家供应商（编号或者名字里的一截，直接回车列出全部）：\
-         \x20 1  DeepSeek    deepseek\n\
-         \x20    Deep Infra  deepinfra  用不了：认不出它的接口\n\
-         选一个编号，或者再搜一次：粘贴 deepseek 的 key（不显示）：试一下 DeepSeek……\n\
+        "选一家：\n\
+         \x20 1  DeepSeek\n\
+         \x20    OpenAI        用不了：目录里没有它的地址\n\
+         \x20    Anthropic     用不了：目录里没有它的地址\n\
+         \x20 2  opencode Zen\n\
+         \x20 3  自定义\n\
+         选一个编号：粘贴 deepseek 的 key（不显示）：试一下 DeepSeek……\n\
          不通（发请求）：认证失败：HTTP 401: Authentication Fails (no such user)\n\
          粘贴 deepseek 的 key（不显示）：试一下 DeepSeek……\n\
          · 通了：试的 deepseek-flash，N 毫秒收到第一个字。\n\
@@ -182,7 +155,7 @@ async fn a_pasted_key_is_tried_first_and_kept_only_once_it_works() {
 async fn cancelling_the_key_paste_writes_nothing() {
     let server = Server::start(vec![]).await;
     let home = Home::onboarding("", &[], deepseek_at(&server));
-    let mut typist = Typist::at_terminal(&["deep", "1"], &[]);
+    let mut typist = Typist::at_terminal(&["1"], &[]);
     typist.cancel_key = true;
     let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;
     assert_eq!(asked.code, 130, "{}", asked.screen);
@@ -203,13 +176,14 @@ async fn a_local_service_needs_no_key() {
     let profiles =
         json!({"lab": {"name": "Lab", "driver": "openai-chat", "base_url": server.base_url}});
     let home = Home::onboarding("", &[], profiles);
-    let mut typist = Typist::at_terminal(&["1", ""], &[]);
+    let mut typist = Typist::at_terminal(&["3", ""], &[]);
     let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;
     assert_eq!(asked.code, 0, "{}", asked.screen);
     assert!(
-        asked
-            .screen
-            .contains(&format!("  1  Lab  本机 {}，1 个模型\n", server.base_url)),
+        asked.screen.contains(&format!(
+            "  2  opencode Zen\n  3  Lab           本机 {}\n  4  自定义\n",
+            server.base_url
+        )),
         "{}",
         asked.screen
     );
@@ -232,9 +206,7 @@ async fn a_provider_already_set_up_only_gets_models_chat() {
     let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;
     assert_eq!(asked.code, 0, "{}", asked.screen);
     assert!(
-        asked
-            .screen
-            .contains("  1  DeepSeek  环境变量 DEEPSEEK_API_KEY，已经配好（ds）\n"),
+        asked.screen.contains("  1  DeepSeek      已配好\n"),
         "{}",
         asked.screen
     );
@@ -268,7 +240,8 @@ async fn nothing_picked_or_no_key_ends_with_1() {
         asked.screen
     );
 
-    let mut typist = Typist::at_terminal(&["0", "deepseek", "1"], &["  "]);
+    // opencode Zen：环境里没有它的 key，要贴（DeepSeek 找到了 key，选它就真的发出去了）。
+    let mut typist = Typist::at_terminal(&["2"], &["  "]);
     let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;
     assert_eq!(asked.code, 1);
     assert!(
@@ -295,7 +268,7 @@ async fn ask_without_a_model_goes_through_setup_first_at_a_terminal() {
     assert!(
         asked
             .screen
-            .starts_with("还没有模型，先接上一个。\n找到这些现成的：\n"),
+            .starts_with("还没有模型，先接上一个。\n选一家：\n"),
         "{}",
         asked.screen
     );

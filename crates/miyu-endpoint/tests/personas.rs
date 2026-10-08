@@ -296,7 +296,6 @@ async fn personas_are_listed_and_read() {
             {"persona": "broken", "problem": "不认识的表 [voice]：persona.toml 里只能有 [persona]、[memory]", "line": 1},
             {"persona": "engineer", "name": "软件工程师", "summary": "我的工程师"},
             {"persona": "miyu", "name": "美羽", "summary": "Mine."},
-            {"persona": "none", "name": "空白", "summary": "不带人设，照原样说话"},
         ]),
         "握手说的是中文，挑中文，没有中文的照英文；来自哪几层不给（施工 P-3 补）"
     );

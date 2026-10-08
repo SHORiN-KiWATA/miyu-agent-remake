@@ -86,13 +86,14 @@ pub(crate) async fn request(
     language: &Language,
     err: &mut dyn Write,
 ) -> Result<Value, u8> {
-    request_saying(rpc, method, params, language, err, |reason| {
-        language.refused(reason)
+    request_saying(rpc, method, params, language, err, |error| {
+        language.refused(error["message"].as_str().unwrap_or_default())
     })
     .await
 }
 
-/// 同 [`request`]，只是被拒绝时说的那一句由 `refused` 照核心的原话写（施工 3-9 三补：附件传不上，先说是哪个文件）。
+/// 同 [`request`]，只是被拒绝时说的那一句由 `refused` 照核心回的 `error` 写：原话在 `message`，原因码和多带的几格在 `data`
+/// （施工 3-9 三补：附件传不上，先说是哪个文件；施工 R-3 再补：记忆太长的照 `data` 说几个字、上限几个）。
 ///
 /// # Errors
 ///
@@ -103,14 +104,13 @@ pub(crate) async fn request_saying(
     params: Value,
     language: &Language,
     err: &mut dyn Write,
-    refused: impl FnOnce(&str) -> String,
+    refused: impl FnOnce(&Value) -> String,
 ) -> Result<Value, u8> {
     match rpc.call(method, params).await {
         Ok(Some(reply)) => match reply.get("error") {
             None => Ok(reply["result"].clone()),
             Some(error) => {
-                let reason = error["message"].as_str().unwrap_or_default();
-                say(err, &refused(reason));
+                say(err, &refused(error));
                 Err(exit::ERROR)
             }
         },

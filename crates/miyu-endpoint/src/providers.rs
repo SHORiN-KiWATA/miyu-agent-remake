@@ -24,6 +24,7 @@ use miyu_models::settings::ProviderSettings;
 use miyu_session::find_local;
 
 use crate::Core;
+use crate::hello::Peer;
 use crate::refusal::Refusal;
 
 /// `provider.catalog` 不写 `limit` 时最多几家。
@@ -36,6 +37,9 @@ struct CatalogParams {
     query: Option<String>,
     #[serde(default)]
     limit: Option<u64>,
+    /// 只要常用的几家（施工 8-11 再补）：照资源目录 `models/featured.toml` 的先后，不看 `query`、`limit`。
+    #[serde(default)]
+    featured: Option<bool>,
 }
 
 /// `provider.detect`：没有参数，写了的不看（参数是不是对象，读请求时已经查过）。
@@ -93,9 +97,13 @@ pub(crate) async fn detect(core: &Core) -> Result<Value, Refusal> {
     }))
 }
 
-/// `provider.catalog`：编号、名字里有 `query` 的，能用的在前，最多 `limit` 家。
-pub(crate) async fn catalog(core: &Core, params: Value) -> Result<Value, Refusal> {
+/// `provider.catalog`：编号、名字里有 `query` 的，能用的在前，最多 `limit` 家。写了 `featured` 的交回常用的几家（施工
+/// 8-11 再补，[`featured`]）。
+pub(crate) async fn catalog(core: &Core, peer: Peer, params: Value) -> Result<Value, Refusal> {
     let params: CatalogParams = serde_json::from_value(params).map_err(|_| Refusal::BAD_PARAMS)?;
+    if params.featured == Some(true) {
+        return featured(core, peer.language).await;
+    }
     let limit = match params.limit.unwrap_or(LIMIT) {
         0 => return Err(Refusal::BAD_PARAMS),
         limit => usize::try_from(limit).unwrap_or(usize::MAX),
@@ -106,6 +114,35 @@ pub(crate) async fn catalog(core: &Core, params: Value) -> Result<Value, Refusal
     let providers: Vec<Value> = onboard::search(&listed, params.query.as_deref(), limit)
         .into_iter()
         .map(Listed::json)
+        .collect();
+    Ok(json!({ "providers": providers }))
+}
+
+/// 常用的几家（施工 8-11 再补，`models.md`「协议」）：照 `featured.toml` 的先后，目录、档案里有的才交，写法同一家目录，
+/// `name` 换成它写的（照连接的语言 `language` 挑），编号照语言挑（中文的有国内的用国内的）。资源读不了、写错了的是内部出错，
+/// 记一行运行日志。
+async fn featured(core: &Core, language: &str) -> Result<Value, Refusal> {
+    let read = core
+        .resources
+        .featured_providers()
+        .map_err(|error| error.to_string())
+        .and_then(|text| onboard::featured(&text));
+    let wanted = read.map_err(|error| {
+        tracing::warn!(target: "miyu::endpoint", error = error.as_str(), "featured providers unreadable");
+        Refusal::INTERNAL
+    })?;
+    let data = Arc::clone(&core.model_data);
+    data.wait().await;
+    let listed = data.with(onboard::listed);
+    let providers: Vec<Value> = wanted
+        .iter()
+        .filter_map(|one| {
+            let id = one.id(language);
+            let found = listed.iter().find(|entry| entry.id == id)?;
+            let mut item = found.json();
+            item["name"] = json!(one.name.pick(language).unwrap_or(&found.name));
+            Some(item)
+        })
         .collect();
     Ok(json!({ "providers": providers }))
 }

@@ -9,6 +9,7 @@ mod config;
 mod config_write;
 mod harness;
 mod login;
+mod memory;
 mod sandbox;
 mod setup;
 mod undo;

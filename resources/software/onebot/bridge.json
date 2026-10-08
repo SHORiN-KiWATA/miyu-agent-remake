@@ -3,5 +3,15 @@
   "call_timeout_seconds": 10,
   "write_queue": 64,
   "inbound_queue": 256,
-  "accept_retry_millis": 100
+  "accept_retry_millis": 100,
+  "reload_seconds": 1,
+  "web": {
+    "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+    "types": {
+      "html": "text/html; charset=utf-8",
+      "js": "text/javascript; charset=utf-8",
+      "css": "text/css; charset=utf-8"
+    },
+    "status_cache_seconds": 60
+  }
 }

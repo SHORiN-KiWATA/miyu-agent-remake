@@ -1,8 +1,10 @@
-//! 桥起来时读的两项配置（施工 O-8，`onebot.md` 第一条「怎么走」第 1 条）：令牌没设、取不到的起不来；设了的照密钥文件、
-//! 环境变量取；端口不写是 8301。语言照 `ui.language`，`auto` 的照系统的语言。
+//! 桥读的几项配置（施工 O-8，`onebot.md` 第一条「怎么走」第 1 条）：令牌读成三种：没写引用、写了引用取不到（密钥没存、环境
+//! 变量没设）、取到了，都照样读得出来（O-16 补、补二：桥照样起来，NapCat 连进来 401）；设了的照密钥文件、环境变量取；端口
+//! 不写是 8301。语言照 `ui.language`，`auto` 的照系统的语言。
 
+use miyu_config::secret::Secret;
 use miyu_endpoint::config::Environment;
-use miyu_onebot::settings::{Unready, load};
+use miyu_onebot::settings::{Token, load};
 use miyu_session::testkit::Script;
 
 use crate::support::Home;
@@ -13,11 +15,15 @@ fn write(home: &Home, relative: &str, text: &str) {
 }
 
 #[tokio::test]
-async fn without_a_token_the_bridge_does_not_start() {
+async fn without_a_token_the_settings_still_load() {
     let home = Home::new(&Script::new([]));
     let loaded = load(&home.root, None, Some("zh_CN.UTF-8"), Environment::of(&[]));
     assert_eq!(loaded.language, "zh");
-    assert_eq!(loaded.settings.err(), Some(Unready::NoToken));
+    let settings = loaded.settings.expect("没设令牌也读得出来");
+    assert_eq!(
+        (settings.port, settings.web, settings.token),
+        (8301, 8302, Token::Unset)
+    );
     write(
         &home,
         "system/config.toml",
@@ -26,9 +32,20 @@ async fn without_a_token_the_bridge_does_not_start() {
     let loaded = load(&home.root, None, Some("en_US"), Environment::of(&[]));
     assert_eq!(loaded.language, "en");
     assert_eq!(
-        loaded.settings.err(),
-        Some(Unready::NoToken),
+        loaded.settings.expect("读得出来").token,
+        Token::Missing,
         "引用的密钥没存"
+    );
+    write(
+        &home,
+        "system/config.toml",
+        "[onebot]\ntoken = { env = \"NAPCAT_TOKEN\" }\n",
+    );
+    let loaded = load(&home.root, None, None, Environment::of(&[]));
+    assert_eq!(
+        loaded.settings.expect("读得出来").token,
+        Token::Missing,
+        "引用的环境变量没设"
     );
 }
 
@@ -44,12 +61,19 @@ async fn the_token_comes_from_the_secrets_file_or_the_environment() {
     let loaded = load(&home.root, None, Some("zh_CN"), Environment::of(&[]));
     assert_eq!(loaded.language, "ja");
     let settings = loaded.settings.expect("起得来");
-    assert_eq!(settings.port, 8301);
-    assert_eq!(settings.token.expose(), "from-file");
+    assert_eq!(
+        (settings.port, settings.web),
+        (8301, 8302),
+        "出厂的两个端口"
+    );
+    assert_eq!(
+        settings.token.secret().map(Secret::expose),
+        Some("from-file")
+    );
     write(
         &home,
         "system/config.toml",
-        "[onebot]\nlisten = 9000\ntoken = { env = \"NAPCAT_TOKEN\" }\n",
+        "[onebot]\nlisten = 9000\nweb = 9001\ntoken = { env = \"NAPCAT_TOKEN\" }\n",
     );
     let loaded = load(
         &home.root,
@@ -58,5 +82,12 @@ async fn the_token_comes_from_the_secrets_file_or_the_environment() {
         Environment::of(&[("NAPCAT_TOKEN", "from-env")]),
     );
     let settings = loaded.settings.expect("起得来");
-    assert_eq!((settings.port, settings.token.expose()), (9000, "from-env"));
+    assert_eq!(
+        (
+            settings.port,
+            settings.web,
+            settings.token.secret().map(Secret::expose)
+        ),
+        (9000, 9001, Some("from-env"))
+    );
 }

@@ -214,7 +214,8 @@ fn the_shipped_presets_read_cleanly() {
             .collect::<Vec<_>>(),
         ["basesystem", "goal", "net"]
     );
-    // 出厂的照旧写三种语言：界面照连接的语言显示（施工 P-3 补）。
+    // 出厂的名字照旧写三种语言：界面照连接的语言显示（施工 P-3 补）；不写说明（施工 P-4 下，2026-10-08 项目主人：「描述
+    // 可以不要，没什么意义」）。
     let speaks = |label: &Option<miyu_config::phrases::Label>, language: &str| matches!(label, Some(miyu_config::phrases::Label::Each(phrases)) if phrases.contains_key(language));
     for found in [&full, &dev] {
         for language in ["zh", "en", "ja"] {
@@ -223,13 +224,16 @@ fn the_shipped_presets_read_cleanly() {
                 "{} {language}",
                 found.id
             );
-            assert!(
-                speaks(&found.file.summary, language),
-                "{} {language}",
-                found.id
-            );
         }
+        assert_eq!(found.file.summary, None, "{}", found.id);
     }
+    assert_eq!(
+        (
+            full.file.name.as_ref().and_then(|name| name.pick("zh")),
+            dev.file.name.as_ref().and_then(|name| name.pick("zh"))
+        ),
+        (Some("全部功能"), Some("基础功能"))
+    );
 }
 
 /// 每一种问题三种语言都有给人看的一句，`{detail}` 换得进去。

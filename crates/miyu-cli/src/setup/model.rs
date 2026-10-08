@@ -12,7 +12,8 @@ const SHOWN: usize = 20;
 impl Flow<'_> {
     /// 照 `tried` 选一个，交回模型名。
     pub(super) fn pick_model(&mut self, tried: &Tried) -> Result<String, u8> {
-        if !self.console.terminal() {
+        // 不在终端里的不问；取不到列表、自己填了模型名的不再问（施工 8-11 再补）。
+        if !self.console.terminal() || tried.models.is_empty() {
             return Ok(tried.model.clone());
         }
         let language = self.plan.language;

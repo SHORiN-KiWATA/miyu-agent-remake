@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use miyu_kernel::id::{Seq, SessionId, TurnId};
 use miyu_kernel::origin::By;
-use miyu_recall::{MemoryEvent, MemoryId, Retired, Saved, Source};
+use miyu_recall::{Cleared, MemoryEvent, MemoryId, Retired, Saved, Source};
 use miyu_store::memory::MemoryLogs;
 use miyu_store::recall::Room;
 
@@ -46,13 +46,13 @@ fn what_is_saved_is_there_after_reopening_and_found_by_words() {
         .expect("开得了")
         .0;
     assert_eq!(
-        log.append(at(1), tool(), &saved("用户用 N 卡"))
+        log.append(at(1), tool(), None, &saved("用户用 N 卡"))
             .expect("记得下")
             .id,
         id(1)
     );
     assert_eq!(
-        log.append(at(2), tool(), &saved("周末喜欢爬山"))
+        log.append(at(2), tool(), None, &saved("周末喜欢爬山"))
             .expect("记得下")
             .id,
         id(2)
@@ -62,7 +62,9 @@ fn what_is_saved_is_there_after_reopening_and_found_by_words() {
         why: "说错了".into(),
     });
     assert_eq!(
-        log.append(at(3), tool(), &retired).expect("记得下").id,
+        log.append(at(3), tool(), None, &retired)
+            .expect("记得下")
+            .id,
         id(3)
     );
     drop((log, logs));
@@ -106,7 +108,7 @@ fn a_torn_last_line_is_cut_off() {
     logs.open(&Room::persona(&admin(), "engineer"))
         .expect("开得了")
         .0
-        .append(at(1), tool(), &saved("养了一只猫"))
+        .append(at(1), tool(), None, &saved("养了一只猫"))
         .expect("记得下");
     drop(logs);
     let segment = root
@@ -121,7 +123,7 @@ fn a_torn_last_line_is_cut_off() {
         .expect("截掉半行照样开")
         .0;
     assert_eq!(
-        log.append(at(2), tool(), &saved("猫叫团子"))
+        log.append(at(2), tool(), None, &saved("猫叫团子"))
             .expect("记得下")
             .id,
         id(2),
@@ -145,9 +147,14 @@ fn saves_from_several_threads_get_distinct_consecutive_numbers() {
                     .0;
                 (0..25)
                     .map(|n| {
-                        log.append(at(n), tool(), &saved(&format!("第 {t} 个线程的第 {n} 条")))
-                            .expect("记得下")
-                            .id
+                        log.append(
+                            at(n),
+                            tool(),
+                            None,
+                            &saved(&format!("第 {t} 个线程的第 {n} 条")),
+                        )
+                        .expect("记得下")
+                        .id
                     })
                     .collect::<Vec<_>>()
             })
@@ -175,9 +182,9 @@ fn a_missing_or_lagging_memory_index_is_filled_from_the_log() {
         .open(&Room::persona(&admin(), "engineer"))
         .expect("开得了")
         .0;
-    log.append(at(1), tool(), &saved("用户用 N 卡"))
+    log.append(at(1), tool(), None, &saved("用户用 N 卡"))
         .expect("记得下");
-    log.append(at(2), tool(), &saved("喜欢吃火锅"))
+    log.append(at(2), tool(), None, &saved("喜欢吃火锅"))
         .expect("记得下");
     drop((log, logs));
     let index = root.index(&admin()).join("recall/memory-engineer.db");
@@ -216,14 +223,14 @@ fn personas_and_accounts_have_their_own_logs() {
     logs.open(&Room::persona(&admin(), "engineer"))
         .expect("开得了")
         .0
-        .append(at(1), tool(), &saved("写代码用 Rust"))
+        .append(at(1), tool(), None, &saved("写代码用 Rust"))
         .expect("记得下");
     let miyu = logs
         .open(&Room::persona(&admin(), "miyu"))
         .expect("开得了")
         .0;
     assert_eq!(
-        miyu.append(at(2), tool(), &saved("喜欢猫"))
+        miyu.append(at(2), tool(), None, &saved("喜欢猫"))
             .expect("记得下")
             .id,
         id(1),
@@ -255,7 +262,7 @@ fn the_first_opening_reports_and_an_unreadable_memory_is_named() {
             .is_none(),
         "开过的不再交"
     );
-    log.append(at(1), tool(), &saved("用户用 N 卡"))
+    log.append(at(1), tool(), None, &saved("用户用 N 卡"))
         .expect("记得下");
     drop((log, logs));
     // 外壳是好的、记忆的 body 读不懂的一行：底账跳过它、说出来，别的照常。
@@ -276,7 +283,7 @@ fn the_first_opening_reports_and_an_unreadable_memory_is_named() {
     assert_eq!(report.unreadable[0].0, Seq::new(2).expect("从 1 起"));
     assert_eq!(log.book(|book| book.all().count()), 1);
     assert_eq!(
-        log.append(at(3), tool(), &saved("喜欢猫"))
+        log.append(at(3), tool(), None, &saved("喜欢猫"))
             .expect("记得下")
             .id,
         id(3)
@@ -298,6 +305,7 @@ fn measure_a_thousand_memories() {
         log.append(
             at(n),
             tool(),
+            None,
             &saved(&format!(
                 "第 {n} 条：用户周末喜欢去爬山，顺便吃个火锅，最近在学 Rust"
             )),
@@ -333,7 +341,7 @@ fn a_session_room_lives_in_the_session_directory_apart_from_the_persona() {
     let logs = MemoryLogs::new(&root);
     let (log, _) = logs.open(&room).expect("开得了");
     assert_eq!(
-        log.append(at(1), tool(), &saved("只在这个会话里记得"))
+        log.append(at(1), tool(), None, &saved("只在这个会话里记得"))
             .expect("记得下")
             .id,
         id(1)
@@ -371,4 +379,89 @@ fn a_session_room_lives_in_the_session_directory_apart_from_the_persona() {
     // 删会话照旧只碰人格那几间，会话那一间跟着目录走。
     turns.forget_session(&admin(), &session).expect("拿得掉");
     assert_eq!(turns.turns(&room).0.keys().expect("读得了").len(), 1);
+}
+
+/// 清空（施工 R-3 补，`memory.md` 第二条第 5 款）：清掉的那几行从记忆库里删掉，追加交回清掉几条；以后记的照常搜得到；记忆库
+/// 删了照日志重建，清掉的也不放回去。
+#[test]
+fn cleared_memories_leave_the_memory_index_and_stay_out_when_it_is_rebuilt() {
+    let scratch = Scratch::new("memory-cleared");
+    let root = root_in(&scratch);
+    let room = Room::persona(&admin(), "engineer");
+    let logs = MemoryLogs::new(&root);
+    let log = logs.open(&room).expect("开得了").0;
+    log.append(at(1), tool(), None, &saved("用户用 N 卡"))
+        .expect("记得下");
+    log.append(at(2), tool(), None, &saved("喜欢吃火锅"))
+        .expect("记得下");
+    let clear = MemoryEvent::Cleared(Cleared { session: None });
+    let appended = log.append(at(3), tool(), None, &clear).expect("记得下");
+    assert_eq!(appended.cleared, 2);
+    assert!(appended.indexed.is_ok());
+    assert!(log.search("火锅", 10).expect("搜得了").is_empty());
+    log.append(at(4), tool(), None, &saved("周末去爬山"))
+        .expect("记得下");
+    assert_eq!(log.search("爬山", 10).expect("搜得了"), [id(4)]);
+    let again = log.append(at(5), tool(), None, &clear).expect("记得下");
+    assert_eq!(again.cleared, 1, "清过的不再算");
+    log.append(at(6), tool(), None, &saved("喜欢喝茶"))
+        .expect("记得下");
+    drop((log, logs));
+
+    let index = root.index(&admin()).join("recall/memory-engineer.db");
+    for suffix in ["", "-wal", "-shm"] {
+        let mut name = index.clone().into_os_string();
+        name.push(suffix);
+        match fs::remove_file(name) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => panic!("{error}"),
+        }
+    }
+    let logs = MemoryLogs::new(&root);
+    let (log, report) = logs.open(&room).expect("开得了");
+    assert_eq!(report.expect("第一次开交回情形").filled, 1, "只补没清掉的");
+    for words in ["火锅", "N卡", "爬山"] {
+        assert!(log.search(words, 10).expect("搜得了").is_empty(), "{words}");
+    }
+    assert_eq!(log.search("喝茶", 10).expect("搜得了"), [id(6)]);
+}
+
+/// 同一个命令编号再追加只算一次（04 第六节第 1 条）：交回头一次的编号和清掉几条，日志里不多一行；重开照日志认得。
+#[test]
+fn the_same_command_appends_once_even_after_reopening() {
+    use miyu_kernel::id::CommandId;
+    let scratch = Scratch::new("memory-cause");
+    let root = root_in(&scratch);
+    let room = Room::persona(&admin(), "engineer");
+    let cause = CommandId::parse("c1").expect("合写法");
+    let logs = MemoryLogs::new(&root);
+    let log = logs.open(&room).expect("开得了").0;
+    let first = log
+        .append(at(1), tool(), Some(&cause), &saved("用户用 N 卡"))
+        .expect("记得下");
+    let again = log
+        .append(at(2), tool(), Some(&cause), &saved("用户用 A 卡"))
+        .expect("记得下");
+    assert_eq!((first.id, again.id), (id(1), id(1)));
+    assert_eq!(log.book(|book| book.all().count()), 1, "不多记一条");
+    let clear = MemoryEvent::Cleared(Cleared { session: None });
+    let cleared = CommandId::parse("c2").expect("合写法");
+    assert_eq!(
+        log.append(at(3), tool(), Some(&cleared), &clear)
+            .expect("记得下")
+            .cleared,
+        1
+    );
+    drop((log, logs));
+    let logs = MemoryLogs::new(&root);
+    let log = logs.open(&room).expect("开得了").0;
+    let again = log
+        .append(at(4), tool(), Some(&cleared), &clear)
+        .expect("记得下");
+    assert_eq!((again.id, again.cleared), (id(2), 1), "重开以后照日志认得");
+    let next = log
+        .append(at(5), tool(), None, &saved("喜欢喝茶"))
+        .expect("记得下");
+    assert_eq!(next.id, id(3), "日志里只有两行");
 }

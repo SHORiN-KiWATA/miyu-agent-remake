@@ -101,13 +101,15 @@ fn nowhere_says_where_it_looked() {
     assert_eq!(unknown, ResourceError::NotFound(Vec::new()));
 }
 
+/// 随核心附带的字照原文读进来；人格的字照交来的（施工 P-4 下：出厂不带人格，资源目录里没有人格可读）。
 #[test]
-fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
-    let sources = repo().sources("engineer").unwrap();
-    assert_eq!(
-        sources.persona.persona,
-        "You are a helpful software engineer.\n"
-    );
+fn the_core_texts_are_read_and_the_persona_texts_are_as_given() {
+    let given = PersonaTexts {
+        persona: "You are a helpful software engineer.\n".to_string(),
+        ..PersonaTexts::default()
+    };
+    let sources = repo().sources_with(given.clone()).unwrap();
+    assert_eq!(sources.persona, given);
     assert!(sources.core.facts.reply_cut.starts_with("<reply-cut>"));
     // 会话编号的模板（施工 1-13 再补）。
     assert_eq!(
@@ -251,33 +253,19 @@ fn the_engineer_reads_its_one_sentence_and_the_core_texts() {
     );
 }
 
+/// 资源目录里缺了一份核心的字：说是哪一份，英文，写进运行日志（施工 4-9 再补四中）。
 #[test]
-fn a_missing_persona_names_the_file_and_a_bad_id_is_refused() {
-    let error = repo().sources("nobody").unwrap_err();
+fn a_missing_core_text_names_the_file() {
+    let empty = std::env::temp_dir().join(format!("miyu-resources-empty-{}", std::process::id()));
+    std::fs::create_dir_all(&empty).unwrap();
+    let error = ResourceRoot::at(empty.clone())
+        .sources_with(PersonaTexts::default())
+        .unwrap_err();
     match &error {
-        SourceError::Read { path, .. } => {
-            assert!(
-                path.ends_with(Path::new("personas/nobody/prompts/persona.md")),
-                "{path:?}"
-            );
-        }
-        other => panic!("该是读不了：{other:?}"),
+        SourceError::Read { path, .. } => assert!(path.starts_with(&empty), "{path:?}"),
     }
-    // 说的是英文，写进运行日志（施工 4-9 再补四中）。
     assert!(error.to_string().starts_with("cannot read "), "{error}");
-    for bad in ["../core", "Engineer", "", "a/b", "1st"] {
-        let refused = repo().sources(bad);
-        assert!(
-            matches!(refused, Err(SourceError::Persona(_))),
-            "「{bad}」该被拒"
-        );
-        let said = refused
-            .err()
-            .map(|error| error.to_string())
-            .unwrap_or_default();
-        assert!(said.starts_with("persona id "), "{said}");
-        assert!(said.is_ascii(), "{said}");
-    }
+    std::fs::remove_dir_all(&empty).unwrap();
 }
 
 /// 子会话的场所说明（施工 7-5）：读的是 `core/jobs/subagent-venue.txt` 的原文；没有这份的说是哪一份。
@@ -299,7 +287,6 @@ fn the_subagent_venue_note_is_its_own_file() {
                 "{path:?}"
             );
         }
-        other => panic!("该是读不了：{other:?}"),
     }
 }
 
@@ -323,6 +310,5 @@ fn the_core_lines_are_their_own_files() {
                 "{path:?}"
             );
         }
-        other => panic!("该是读不了：{other:?}"),
     }
 }

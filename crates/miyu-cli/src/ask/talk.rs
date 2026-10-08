@@ -248,7 +248,10 @@ async fn attach(rpc: &mut Rpc, plan: &Plan, screen: &mut Screen<'_>) -> Result<V
             params,
             &plan.language,
             screen.err,
-            |reason| plan.language.not_attached(file, reason),
+            |error| {
+                let reason = error["message"].as_str().unwrap_or_default();
+                plan.language.not_attached(file, reason)
+            },
         );
         attached.push(put.await?);
     }

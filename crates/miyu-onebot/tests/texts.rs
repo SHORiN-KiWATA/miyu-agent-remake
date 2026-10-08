@@ -1,6 +1,7 @@
 //! 说给人听的字（施工 O-8，`onebot.md` 第一条「给人看的字」）：字在 `resources/software/onebot/human/`，三种语言里桥说的
 //! 每一句都换得出来（换不出来的会印出说法的编号），字段换进去；中文照图纸；日文照英文；换语言照新的说。
 
+use miyu_onebot::open::Opening;
 use miyu_onebot::serve::{Failure, Notice};
 use miyu_onebot::settings::{Unready, system_language};
 use miyu_onebot::texts::Texts;
@@ -11,7 +12,7 @@ fn resources() -> ResourceRoot {
     ResourceRoot::at(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"))
 }
 
-/// 桥说的每一句：用法、日志、起来连上断开、起不来停了、读配置起不来。
+/// 桥说的每一句：用法、日志、起来连上断开、起不来停了、读配置起不来、`miyu-onebot web`。
 fn everything(texts: &Texts) -> Vec<String> {
     let mut said = vec![texts.usage(), texts.no_log("disk full")];
     for notice in [
@@ -23,6 +24,8 @@ fn everything(texts: &Texts) -> Vec<String> {
         Notice::Connected { bot: None },
         Notice::Disconnected { bot: Some(30003) },
         Notice::Disconnected { bot: None },
+        Notice::Web { port: 8302 },
+        Notice::NoToken,
     ] {
         said.push(texts.notice(&notice));
     }
@@ -30,13 +33,24 @@ fn everything(texts: &Texts) -> Vec<String> {
         Failure::Core("refused".to_string()),
         Failure::CoreGone,
         Failure::PortInUse(8301),
+        Failure::WebPortInUse(8302),
         Failure::Crashed("boom".to_string()),
         Failure::Start("nope".to_string()),
     ] {
         said.push(texts.failure(&failure));
     }
-    for unready in [Unready::NoToken, Unready::BadPort] {
+    for unready in [Unready::BadPort, Unready::BadWebPort] {
         said.push(texts.unready(&unready));
+    }
+    for opening in [
+        Opening::NotRunning(8302),
+        Opening::First,
+        Opening::Opened("http://127.0.0.1:8302".to_string()),
+        Opening::PrintHint,
+        Opening::OpenThis,
+        Opening::CodeWarning,
+    ] {
+        said.push(texts.opening(&opening));
     }
     said
 }
@@ -75,10 +89,25 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
         "连不上核心：refused"
     );
     assert_eq!(
-        texts.unready(&Unready::NoToken),
-        "还没设 QQ 桥的令牌（onebot.token）。先存一个：miyu login onebot，再写进系统配置：miyu config set --system onebot.token '{ secret = \"onebot\" }'。NapCat 那边填同一个令牌。"
+        texts.notice(&Notice::NoToken),
+        "还没设令牌（onebot.token），NapCat 连进来会被拒。到 WebUI 的「连接」页生成一个，填进 NapCat，几秒内就连上。"
     );
-    assert_eq!(texts.usage(), "用法：miyu-onebot serve");
+    assert_eq!(
+        texts.usage(),
+        "用法：miyu-onebot serve | miyu-onebot web [--print]"
+    );
+    assert_eq!(
+        texts.notice(&Notice::Web { port: 8302 }),
+        "QQ 桥的网页在 http://127.0.0.1:8302，用 miyu-onebot web 打开。"
+    );
+    assert_eq!(
+        texts.failure(&Failure::WebPortInUse(8302)),
+        "端口 8302 被占了。换一个：miyu config set --system onebot.web <端口>。"
+    );
+    assert_eq!(
+        texts.opening(&Opening::NotRunning(8302)),
+        "127.0.0.1:8302 上没有 QQ 桥的网页。先运行 miyu-onebot serve；改过 onebot.web 的，重启它。"
+    );
 }
 
 #[test]
@@ -86,7 +115,10 @@ fn japanese_reads_as_english_and_the_language_can_change() {
     let english = Texts::load(resources(), "en").expect("读得出来");
     let mut texts = Texts::load(resources(), "ja").expect("读得出来");
     assert_eq!(everything(&texts), everything(&english));
-    assert_eq!(texts.usage(), "usage: miyu-onebot serve");
+    assert_eq!(
+        texts.usage(),
+        "usage: miyu-onebot serve | miyu-onebot web [--print]"
+    );
     texts.speak("zh").expect("读得出来");
     assert_eq!(texts.failure(&Failure::CoreGone), "核心不在了，QQ 桥停下。");
 }

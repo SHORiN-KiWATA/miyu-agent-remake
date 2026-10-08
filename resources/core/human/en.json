@@ -230,11 +230,15 @@
       },
       "onebot.listen": {
         "name": "QQ bridge port",
-        "description": "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/onebot/v11/ws."
+        "description": "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws. Changes saved on the QQ bridge web page take effect at once."
+      },
+      "onebot.web": {
+        "name": "QQ bridge web port",
+        "description": "The port of the QQ bridge's own web page (NapCat connection, token), local only. Open it with miyu-onebot web. Changes saved on that page take effect at once."
       },
       "onebot.token": {
         "name": "QQ bridge token",
-        "description": "The access token NapCat shows when it connects; set the same one in NapCat. Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Without it the QQ bridge does not start."
+        "description": "The access token NapCat shows when it connects; set the same one in NapCat. Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Without it the QQ bridge still starts but refuses NapCat; you can generate one on the QQ bridge web page. After a change, NapCat's next connection uses the new one."
       }
     },
     "pages": {
@@ -283,13 +287,14 @@
     "commands/workspace": "The workspace is now {cwd}.",
     "commands/workspace-too-wide": "{asked} is too broad, so the workspace is now {cwd}.",
     "commands/workspace-is": "The workspace is {cwd}.",
+    "commands/remembered": "Remembered as {id}.",
     "software/basesystem": "Base system",
     "software/basesystem/summary": "Read and edit files, run commands, look up earlier talk",
     "software/net": "Web",
     "software/net/summary": "Search the web and open pages",
     "software/goal": "Goals",
     "software/goal/summary": "Keep working on one thing until it is done",
-    "software/memory": "Memory",
+    "software/memory": "Persona memory",
     "software/memory/summary": "Remember what you said and recall it later",
     "software/roleplay": "Role-play",
     "software/roleplay/summary": "Stay in the persona's character",

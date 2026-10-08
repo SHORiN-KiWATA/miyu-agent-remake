@@ -1,5 +1,7 @@
 //! 假的 NapCat：照反向 WebSocket 的样子连进桥，发 OneBot v11 的事件，收桥调的动作、照样回。
 
+use std::time::Duration;
+
 use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
 use tokio::net::TcpStream;
@@ -67,6 +69,21 @@ pub async fn napcat(
         Err(Error::Http(response)) => Err(response.status().as_u16()),
         Err(error) => panic!("握手出了别的错：{error}"),
     }
+}
+
+/// 照 `auth` 一直连，直到进得去（施工 O-16 补二：令牌刚设、刚换的，桥对不上时隔 `reload_seconds` 才重读一次配置）；回的不是
+/// 401 的不再连。最多等十秒。
+pub async fn admitted(port: u16, path: &str, auth: Auth<'_>, self_id: Option<i64>) -> NapCat {
+    within("NapCat 进得去", async {
+        loop {
+            match napcat(port, path, auth, self_id).await {
+                Ok(napcat) => return napcat,
+                Err(401) => tokio::time::sleep(Duration::from_millis(100)).await,
+                Err(status) => panic!("回的不是 401：{status}"),
+            }
+        }
+    })
+    .await
 }
 
 /// 一条私聊事件，照 NapCat 发的样子：`user` 发的、编号 `message_id`，时刻是 [`TIME`]。要改时刻、去掉时刻的，拿去改了再
@@ -149,6 +166,33 @@ impl NapCat {
             if action["action"] != "get_version_info" {
                 return action;
             }
+        }
+    }
+
+    /// 等桥连上就调的 `get_version_info`，照 NapCat 的样子回（施工 O-16：`/status` 照它说是哪个实现）。最多等十秒。
+    pub async fn version(&mut self) {
+        loop {
+            let frame = within("桥问版本", self.ws.next())
+                .await
+                .expect("连接没断")
+                .expect("读得到");
+            let Message::Text(text) = frame else {
+                continue;
+            };
+            let action: Value = serde_json::from_str(&text).expect("是 JSON");
+            if action["action"] != "get_version_info" {
+                continue;
+            }
+            self.send(json!({
+                "status": "ok",
+                "retcode": 0,
+                "data": {"app_name": "NapCat.Onebot", "app_version": "4.8.0", "protocol_version": "v11"},
+                "message": "",
+                "wording": "",
+                "echo": action["echo"],
+            }))
+            .await;
+            return;
         }
     }
 

@@ -21,9 +21,12 @@ fn duplicate() -> BuildError {
 #[test]
 fn creating_says_it_in_english() {
     assert_eq!(
-        CreateError::Persona(SourceError::Persona("Bad".to_string())).to_string(),
-        "persona not readable: persona id \"Bad\" is not valid: it starts with a lowercase letter \
-         and has only lowercase letters, digits, - and _"
+        CreateError::Persona(SourceError::Read {
+            path: std::path::PathBuf::from("core/facts/session.txt"),
+            error: io::Error::other("gone"),
+        })
+        .to_string(),
+        "persona not readable: cannot read core/facts/session.txt: gone"
     );
     assert_eq!(
         CreateError::Policy(duplicate()).to_string(),

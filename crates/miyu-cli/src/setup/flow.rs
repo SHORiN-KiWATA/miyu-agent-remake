@@ -1,5 +1,6 @@
-//! `miyu setup` 一步步怎么走（`docs/blueprint/cli/setup.md`「怎么走」第 3 到 11 条，施工 8-11）：选一家（`choose.rs`），
-//! 拿 key，试，试不通回到上一步，贴的 key 试通了才存，选模型（`model.rs`），写配置。
+//! `miyu setup` 一步步怎么走（`docs/blueprint/cli/setup.md`「怎么走」第 3 到 11 条，施工 8-11、8-11 再补）：选一家
+//! （`choose.rs`，自定义的在 `custom.rs`），拿 key，试；取不到模型列表的印「未获取到模型列表」、让人填模型名再试；试不通回到
+//! 上一步，贴的 key 试通了才存，选模型（`model.rs`），写配置。
 //!
 //! 贴的 key 只在内存里：先照 `{value}` 试，通了才 `secret.set`（「施工时定的」8-11：试不通的不留下，也不盖掉原来的同名
 //! 密钥）。从不印出来。
@@ -33,12 +34,21 @@ pub(super) struct Flow<'a> {
 /// 选了的一家。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Chosen {
-    /// 目录、档案里的编号。
+    /// 目录、档案里的编号；自定义的是照主机名起的，试通了再照配置里有没有撞改（`custom.rs`）。
     pub(super) id: String,
     /// 给人看的名字。
     pub(super) name: String,
     /// key 从哪来。
     pub(super) key: Key,
+    /// 自定义的（施工 8-11 再补）：地址、驱动。目录、档案里的没有。
+    pub(super) custom: Option<Custom>,
+}
+
+/// 自定义的一家：地址、驱动的写法。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct Custom {
+    pub(super) base_url: String,
+    pub(super) driver: String,
 }
 
 /// key 从哪来。
@@ -48,6 +58,8 @@ pub(super) enum Key {
     Env(String),
     /// 要人贴（不在终端里的从管道读）。
     Paste,
+    /// 自定义的：要人贴，直接回车是不要 key（施工 8-11 再补）。
+    Optional,
     /// 不要 key：本机的服务。
     Nothing,
     /// 已经配好的那一家（配置里的编号）：照配置试，只写 `models.chat`。
@@ -58,6 +70,28 @@ pub(super) enum Key {
 pub(super) struct Tried {
     pub(super) models: Vec<String>,
     pub(super) model: String,
+}
+
+/// `provider.test` 的参数：配好了的照配置，自定义的带驱动、地址，别的照目录里的编号；贴的 key 照 `{value}` 交（不存、不记），
+/// 写了模型的试它。
+fn test_params(chosen: &Chosen, pasted: Option<&str>, model: Option<&str>) -> Value {
+    let mut params = match (&chosen.key, &chosen.custom) {
+        (Key::Configured(id), _) => json!({"provider": id}),
+        (_, Some(custom)) => {
+            json!({"candidate": {"driver": custom.driver, "base_url": custom.base_url}})
+        }
+        (Key::Env(name), None) => {
+            json!({"candidate": {"catalog": chosen.id, "key": {"env": name}}})
+        }
+        (_, None) => json!({"candidate": {"catalog": chosen.id}}),
+    };
+    if let (Some(key), Some(candidate)) = (pasted, params.get_mut("candidate")) {
+        candidate["key"] = json!({"value": key});
+    }
+    if let Some(model) = model {
+        params["model"] = json!(model);
+    }
+    params
 }
 
 /// 试一次的结局。
@@ -98,7 +132,7 @@ impl<'a> Flow<'a> {
             Some(id) => Some(self.chosen_by_param(&id, &detected).await?),
             None => None,
         };
-        let (chosen, pasted, tried) = loop {
+        let (mut chosen, pasted, tried) = loop {
             let chosen = match &fixed {
                 Some(chosen) => chosen.clone(),
                 None => self.choose(&detected).await?,
@@ -108,6 +142,10 @@ impl<'a> Flow<'a> {
                 Attempted::Again => {}
             }
         };
+        if chosen.custom.is_some() {
+            chosen.id = self.fresh_id(&chosen.id).await?;
+        }
+        let stored = pasted.is_some();
         if let Some(key) = pasted {
             self.store(&chosen.id, key).await?;
         }
@@ -115,79 +153,111 @@ impl<'a> Flow<'a> {
             Some(model) => model,
             None => self.pick_model(&tried)?,
         };
-        self.write_config(&chosen, &model).await
+        self.write_config(&chosen, stored, &model).await
     }
 
-    /// 拿 key、试；不通的在终端里回到上一步：贴的 key 回到贴 key，别的回到选一家（`fixed` 的没有上一步）。
+    /// 拿 key、试；取不到模型列表的问模型名、拿它再试（施工 8-11 再补）；不通的在终端里回到上一步：贴的 key 回到贴 key，别的
+    /// 回到选一家（`fixed` 的没有上一步）。
     async fn attempt(&mut self, chosen: &Chosen, fixed: bool) -> Result<Attempted, u8> {
         let language = self.plan.language;
         loop {
             let pasted = match chosen.key {
-                Key::Paste => Some(self.read_key(&config_id(&chosen.id))?),
+                Key::Paste => Some(self.read_key(&config_id(&chosen.id), false)?),
+                Key::Optional => Some(self.read_key(&config_id(&chosen.id), true)?)
+                    .filter(|key| !key.trim().is_empty()),
                 _ => None,
             };
-            say(self.err, &language.trying(&chosen.name));
-            let mut params = match &chosen.key {
-                Key::Configured(id) => json!({"provider": id}),
-                Key::Env(name) => {
-                    json!({"candidate": {"catalog": chosen.id, "key": {"env": name}}})
+            let mut model = self.plan.setup.model.clone();
+            loop {
+                say(self.err, &language.trying(&chosen.name));
+                let params = test_params(chosen, pasted.as_deref(), model.as_deref());
+                let tested = self.request("provider.test", params).await?;
+                if tested["ok"] == json!(true) {
+                    let typed = model.is_some() && self.plan.setup.model.is_none();
+                    return Ok(Attempted::Worked(pasted, self.worked(&tested, typed)));
                 }
-                Key::Paste => {
-                    json!({"candidate": {"catalog": chosen.id, "key": {"value": pasted}}})
+                if tested["stage"] == json!("list") && model.is_none() && self.console.terminal() {
+                    say(self.err, language.no_model_list());
+                    match self
+                        .ask(language.model_name())
+                        .map(|line| line.trim().to_string())
+                    {
+                        Some(name) if !name.is_empty() => {
+                            model = Some(name);
+                            continue;
+                        }
+                        _ => return self.not_picked(),
+                    }
                 }
-                Key::Nothing => json!({"candidate": {"catalog": chosen.id}}),
-            };
-            if let Some(model) = &self.plan.setup.model {
-                params["model"] = json!(model);
-            }
-            let tested = self.request("provider.test", params).await?;
-            if tested["ok"] == json!(true) {
-                let model = tested["model"].as_str().unwrap_or_default().to_string();
-                let ms = tested["first_token_ms"].as_u64().unwrap_or_default();
-                self.gray(language.it_works(&model, ms));
-                if tested["listed"] == json!("catalog") {
-                    self.gray(language.listed_from_catalog().to_string());
+                let error = &tested["error"];
+                say(
+                    self.err,
+                    &language.did_not_work(
+                        tested["stage"].as_str().unwrap_or_default(),
+                        error["class"].as_str().unwrap_or_default(),
+                        error["message"].as_str().unwrap_or_default(),
+                    ),
+                );
+                match (self.console.terminal(), &chosen.key, fixed) {
+                    (false, _, _) => return Err(exit::ERROR),
+                    (true, Key::Paste | Key::Optional, _) => break,
+                    (true, _, true) => return Err(exit::ERROR),
+                    (true, _, false) => return Ok(Attempted::Again),
                 }
-                let models = tested["models"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .filter_map(Value::as_str)
-                    .map(str::to_string)
-                    .collect();
-                return Ok(Attempted::Worked(pasted, Tried { models, model }));
-            }
-            let error = &tested["error"];
-            say(
-                self.err,
-                &language.did_not_work(
-                    tested["stage"].as_str().unwrap_or_default(),
-                    error["class"].as_str().unwrap_or_default(),
-                    error["message"].as_str().unwrap_or_default(),
-                ),
-            );
-            match (self.console.terminal(), &chosen.key, fixed) {
-                (false, _, _) => return Err(exit::ERROR),
-                (true, Key::Paste, _) => {}
-                (true, _, true) => return Err(exit::ERROR),
-                (true, _, false) => return Ok(Attempted::Again),
             }
         }
     }
 
-    /// 读贴的 key：标准输入是终端的关掉回显读一行，不是的整份读。去掉前后空白是空的：说「没收到 key」。按了
-    /// `Ctrl+C`、或者空行按了 `Ctrl+D`：取消，整个 `miyu setup` 照取消办（施工 8-5 补）。
-    fn read_key(&mut self, name: &str) -> Result<String, u8> {
+    /// 试通了：印一行灰字，交回列出来的模型和试的那一个。`typed` 的（取不到列表、人填了模型名的）不再列、不再问：交回的
+    /// 列表是空的。
+    fn worked(&mut self, tested: &Value, typed: bool) -> Tried {
+        let language = self.plan.language;
+        let model = tested["model"].as_str().unwrap_or_default().to_string();
+        let ms = tested["first_token_ms"].as_u64().unwrap_or_default();
+        self.gray(language.it_works(&model, ms));
+        if typed {
+            return Tried {
+                models: Vec::new(),
+                model,
+            };
+        }
+        if tested["listed"] == json!("catalog") {
+            self.gray(language.listed_from_catalog().to_string());
+        }
+        let models = tested["models"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .map(str::to_string)
+            .collect();
+        Tried { models, model }
+    }
+
+    /// 说「没选」，交回退出码 1。
+    pub(super) fn not_picked<T>(&mut self) -> Result<T, u8> {
+        say(self.err, self.plan.language.not_picked());
+        Err(exit::ERROR)
+    }
+
+    /// 读贴的 key：标准输入是终端的关掉回显读一行，不是的整份读。去掉前后空白是空的：`optional` 的（自定义的，施工 8-11
+    /// 补）是不要 key，别的说「没收到 key」。按了 `Ctrl+C`、或者空行按了 `Ctrl+D`：取消，整个 `miyu setup` 照取消办（施工
+    /// 8-5 补）。
+    fn read_key(&mut self, name: &str, optional: bool) -> Result<String, u8> {
         let language = self.plan.language;
         let read = match self.console.typed() {
             true => {
-                write(self.err, &language.paste_key(name));
+                let prompt = match optional {
+                    true => language.paste_key_optional().to_string(),
+                    false => language.paste_key(name),
+                };
+                write(self.err, &prompt);
                 self.console.hidden().map(Option::unwrap_or_default)
             }
             false => self.console.all(),
         };
         match read {
-            Ok(key) if !key.trim().is_empty() => Ok(key),
+            Ok(key) if optional || !key.trim().is_empty() => Ok(key),
             Ok(_) => {
                 say(self.err, language.no_key_given());
                 Err(exit::ERROR)
@@ -214,15 +284,29 @@ impl<'a> Flow<'a> {
         Ok(())
     }
 
-    /// 写系统配置：这一家的 `keys`（已经配好的那一家不写）和 `models.chat`；配置里一个池都没有的，同一次一起写三个预设的池。
-    async fn write_config(&mut self, chosen: &Chosen, model: &str) -> Result<(), u8> {
-        let (id, mut changes) = match &chosen.key {
-            Key::Configured(id) => (id.clone(), Vec::new()),
-            key => {
+    /// 写系统配置：这一家的 `keys`（已经配好的那一家不写）和 `models.chat`；自定义的另写 `driver`、`base_url`（`stored` 是
+    /// 存了贴的 key）；配置里一个池都没有的，同一次一起写三个预设的池。
+    async fn write_config(&mut self, chosen: &Chosen, stored: bool, model: &str) -> Result<(), u8> {
+        let (id, mut changes) = match (&chosen.key, &chosen.custom) {
+            (Key::Configured(id), _) => (id.clone(), Vec::new()),
+            (_, Some(custom)) => {
+                let id = chosen.id.clone();
+                let keys = match stored {
+                    true => json!([{"secret": id}]),
+                    false => json!([]),
+                };
+                let changes = vec![
+                    json!({"key": format!("providers.{id}.driver"), "value": custom.driver}),
+                    json!({"key": format!("providers.{id}.base_url"), "value": custom.base_url}),
+                    json!({"key": format!("providers.{id}.keys"), "value": keys}),
+                ];
+                (id, changes)
+            }
+            (key, None) => {
                 let id = config_id(&chosen.id);
                 let keys = match key {
                     Key::Env(name) => json!([{"env": name}]),
-                    Key::Paste => json!([{"secret": id}]),
+                    Key::Paste | Key::Optional => json!([{"secret": id}]),
                     _ => json!([]),
                 };
                 let mut changes =

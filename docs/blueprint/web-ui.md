@@ -10,18 +10,19 @@
 
 | 文件 | 管什么 |
 |---|---|
-| `crates/miyu-web/`（第 5 层，头） | 程序 `miyu-web`：只依赖 `miyu-ipc`、`miyu-store`、`miyu-log`，不依赖核心 |
+| `crates/miyu-web/`（第 5 层，头） | 程序 `miyu-web`：只依赖 `miyu-ipc`、`miyu-store`、`miyu-log`、`miyu-webserve`，不依赖核心 |
 | `crates/miyu-web/src/main.rs` | 子命令 `open`、`serve`；找自己旁边的主程序拉起核心 |
-| `crates/miyu-web/src/serve.rs` | 单实例、听端口、写 `run/web` 和那一行、空闲退出；核对 Host、给页面 |
-| `crates/miyu-web/src/pages.rs` | 页面文件：`/` 是 `index.html`，不出页面目录 |
-| `crates/miyu-web/src/ws.rs` | 核对 Origin；WebSocket 和核心连接两头照转 |
+| `crates/miyu-web/src/serve.rs` | 单实例、听端口、写 `run/web` 和那一行、空闲退出；每个请求分给谁：Host 不对的记一行、回 403，`/ws`、`/media`、页面文件。网页软件的 `Site` 实现 `miyu_webserve::Site`（数忙照空闲退出） |
+| `crates/miyu-webserve/src/lib.rs`（施工 O-16 搬过去，`webserve.md`「搬家表」） | 核对 Host、Origin 的三种写法（`Site::hosts`、`host_allowed`） |
+| `crates/miyu-webserve/src/pages.rs`（同上，原来是 `crates/miyu-web/src/pages.rs` 和 `serve.rs` 的一段） | 页面文件：`/` 是 `index.html`，不出页面目录；类型照 `web.json` 的表、四个响应头 |
+| `crates/miyu-webserve/src/ws.rs`（同上，原来是 `crates/miyu-web/src/ws.rs`） | 核对 Origin；WebSocket 和核心连接两头照转 |
+| `crates/miyu-webserve/src/respond.rs`（同上，原来在 `crates/miyu-web/src/serve.rs`） | 回应的正文、`nosniff`、`no-referrer` |
 | `crates/miyu-web/src/media.rs` | `/media`：换票据、照票据一块块给、响应头（施工 W-10） |
 | `crates/miyu-web/src/media/tickets.rs` | 票据：造、找、作废、过期、上限 |
 | `crates/miyu-web/src/media/link.rs` | 照登录令牌连核心：一个令牌一条，同时问、照编号分回去，60 秒没人用就关 |
 | `crates/miyu-web/src/media/range.rs` | `Range` 要哪一段；下载的名字照 RFC 5987 转义 |
-| `crates/miyu-web/src/open.rs`、`texts.rs` | `open`：确保 `serve` 在跑；要一次性码；开浏览器；给人看的字 |
+| `crates/miyu-web/src/open.rs`、`texts.rs` | `open`：确保 `serve` 在跑；要一次性码；开浏览器；给人看的字。照终端的样子连核心一问一答（`open` 要一次性码、`serve` 起来时问配置）、开浏览器的那两样在 `crates/miyu-webserve/src/open.rs`（施工 9-1 下从 `open.rs` 挪进 `client.rs`，施工 O-16 搬过去） |
 | `crates/miyu-web/src/settings.rs`、`resources/web/web.json`、`resources/packages/web.toml` | 端口（出厂 8300）、空闲多久、票据多久不用作废、最多几张是配置项（`web.port`、`web.idle_seconds`、`web.ticket_idle_seconds`、`web.most_tickets`），声明在网页自己的清单里，默认值照清单读，起来时问核心拿最终值（施工 9-1 下）；内容安全策略、页面的媒体类型是常量，在 `web.json` |
-| `crates/miyu-web/src/client.rs` | 照终端的样子连着核心一问一答：`open` 要一次性码、`serve` 起来时问配置（施工 9-1 下从 `open.rs` 挪出来） |
 | `resources/web/pages/` | 页面文件。M9 的网页搬进主仓库以前是空的，开发时设 `MIYU_WEB_PAGES` 指到网页演示的 `web-demo/` |
 | `crates/miyu-cli/src/web.rs`、`help/{zh,en}/web.txt` | 主程序的 `miyu web` 和它的帮助页 |
 | `crates/miyu-ipc/src/start.rs` 的 `spawn_detached` | 拉起、跟终端脱开、等那一行：核心和 `serve` 共用 |
@@ -90,7 +91,7 @@
 | 测试 | 守着什么 |
 |---|---|
 | `crates/miyu-web/tests/serve.rs` | 单实例、`run/web`、那一行；端口被占说清楚；Host 只认三种写法；页面文件不出页面目录（`..`、`%2e%2e`、链接、目录）；响应头一个不少、从不设 cookie；`HEAD`、别的方法 405；空闲到点退出、删 `run/web`、放锁 |
-| `crates/miyu-web/tests/ws.rs` | 一帧一行两头照转，一个字节不改（凭据、中文、空白、很长的一行）；Origin 不对 403；二进制 1003、超过 1 MiB 1009，照原始字节发的超长帧读得到 1009、读到头不是被重置；核心断了 1012；连不上核心发 `web.error` 再关；转发的代码里不读本机令牌（照源码查） |
+| `crates/miyu-web/tests/ws.rs` | 一帧一行两头照转，一个字节不改（凭据、中文、空白、很长的一行）；Origin 不对 403；二进制 1003、超过 1 MiB 1009，照原始字节发的超长帧读得到 1009、读到头不是被重置；核心断了 1012；连不上核心发 `web.error` 再关；转发的代码里不读本机令牌（照源码查，施工 O-16 起连同搬进 `miyu-webserve` 的那几份） |
 | `crates/miyu-web/tests/media.rs` | 核心用替身（照登录令牌握手、答 `blob.get`、`fs.read`，同一条连接上乱序答）：换票据要登录令牌（没带、带错 401）；正文 `blob`、`path` 正好一个，不对 400；没有的 404、数据根里的 403、连不上核心 502；同一个令牌、资源、三格交回同一张，连接复用；全部、`Range` 206 和 `Content-Range`、超出 416、好几段和写法不对的照没写；一块不超过 512 KiB、拼起来一个字节不差；同一条连接上同时几问各拿各的；类型照表、表里没有的不认、`sandbox`、`nosniff`、`private, no-cache`；下载的名字；令牌作废了 401、票据一起作废；在给不算空闲；票据过期、满了丢最久没用的 |
 | `crates/miyu-web/src/media/tests.rs` | `Range` 每种写法（大小写、超出、好几段、写法不对、空的资源）；下载的名字只留最后一段、`attr-char` 以外都转义 |
 | `crates/miyu-web/tests/open.rs` | 拉起真的 `miyu-web serve`；没设过密码、`--reset` 的带 `#setup=`，别的不带；`--print`、交不给浏览器的印网址和提醒；`--logout`；端口被占照人的语言说 |

@@ -68,8 +68,15 @@ fn a_stored_snapshot_reads_back_and_gives_the_same_requests() {
     let snapshot = compose(
         Some("engineer"),
         resources()
-            .sources("engineer")
-            .expect("出厂的软件工程师读得出来"),
+            .sources_with(miyu_policy::PersonaTexts {
+                persona: std::fs::read_to_string(
+                    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                        .join("../../docs/designs/samples/personas/engineer/prompts/persona.md"),
+                )
+                .expect("样本人格读得出来"),
+                ..miyu_policy::PersonaTexts::default()
+            })
+            .expect("核心的字读得出来"),
         true,
     );
     let blobs = Blobs::new(scratch.0.join("blobs"));

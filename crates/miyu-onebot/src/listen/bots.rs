@@ -1,8 +1,8 @@
 //! 连着的机器人号（`onebot.md` 第一条「怎么走」第 2、10 条）：一个号一条连接，同一个号再连进来，新的顶掉旧的（旧的关掉）；
-//! 回话照号找它现在的连接。
+//! 回话照号找它现在的连接。WebUI 的 `/status` 照这里说连着哪个号、是哪个实现（施工 O-16）。
 
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
@@ -18,6 +18,17 @@ pub(crate) struct Link {
     pub(crate) out: mpsc::Sender<Message>,
     /// 这条连接上在等回应的调用。
     pub(crate) calls: Arc<Calls>,
+    /// 对端是哪个实现：连上以后问 `get_version_info`，回了才有（第 3 条）。
+    pub(crate) peer: Arc<OnceLock<Peer>>,
+}
+
+/// 对端是哪个实现：`get_version_info` 回的 `app_name`、`app_version`。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Peer {
+    /// 实现的名字，例如 `NapCat.Onebot`。
+    pub(crate) implementation: String,
+    /// 实现的版本。
+    pub(crate) version: String,
 }
 
 /// 号到连接。
@@ -35,6 +46,14 @@ impl Bots {
     /// 号 `bot` 现在的连接。
     pub(crate) fn get(&self, bot: i64) -> Option<Link> {
         self.lock().get(&bot).cloned()
+    }
+
+    /// 连着的号里最小的那一个和它的连接：`/status` 只说一个（`onebot.md` 第二条「对外的样子」）。没有连着的是空的。
+    pub(crate) fn first(&self) -> Option<(i64, Link)> {
+        self.lock()
+            .iter()
+            .min_by_key(|(bot, _)| **bot)
+            .map(|(bot, link)| (*bot, link.clone()))
     }
 
     /// 序号是 `serial` 的那一条断开了：号 `bot` 现在还是它的，拿掉；已经被顶掉的不动。

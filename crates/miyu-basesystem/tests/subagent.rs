@@ -132,7 +132,7 @@ fn it_declares_a_title_the_task_and_a_pool() {
     );
     assert_eq!(
         parameters["properties"]["persona"],
-        json!({"type": "string", "description": "Persona for the subagent. Default: engineer."}),
+        json!({"type": "string", "description": "Persona for the subagent. Default: no persona."}),
         "资源里没有 enum：会话开局时照这台机器上有的拼（施工 P-2 补，同池）"
     );
     assert!(

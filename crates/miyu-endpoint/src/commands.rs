@@ -3,7 +3,8 @@
 //!
 //! 头一批两个命令（2026-10-07 项目主人定）：`/clear`（别名 `/reset`）清空上下文；`/stop` 全停：打断这一轮（排着的话留着，
 //! 不撤回、不接着开），再停掉她派出去的后台命令和子代理。终端、网页、通讯平台用同一套名字。施工 9-7 下加 `/workspace`
-//! （`workspace.rs`）：换会话在哪个目录干活，只有主人本人能用。
+//! （`workspace.rs`）：换会话在哪个目录干活，只有主人本人能用。`/remember <话>` 直接记一条记忆（施工 R-3 补，`memory.md`
+//! 「协议」）：不经过模型，只在本机的会话里。
 //!
 //! 命令本身照请求的编号交给内核，内核照编号只生效一次；`command.ran` 用派生的编号 `<编号>/ran` 记，执行了的才记。
 
@@ -22,6 +23,7 @@ use miyu_store::human::Human;
 use crate::Core;
 use crate::hello::Peer;
 use crate::list::LOCAL;
+use crate::memory;
 use crate::refusal::Refusal;
 use crate::sessions::admin;
 use crate::venues::{self, AsParams};
@@ -45,6 +47,7 @@ enum Slash {
     Clear,
     Stop,
     Workspace,
+    Remember,
 }
 
 impl Slash {
@@ -54,6 +57,7 @@ impl Slash {
             "clear" | "reset" => Some(Slash::Clear),
             "stop" => Some(Slash::Stop),
             "workspace" => Some(Slash::Workspace),
+            "remember" => Some(Slash::Remember),
             _ => None,
         }
     }
@@ -64,6 +68,7 @@ impl Slash {
             Slash::Clear => "clear",
             Slash::Stop => "stop",
             Slash::Workspace => "workspace",
+            Slash::Remember => "remember",
         }
     }
 }
@@ -146,6 +151,13 @@ pub(crate) async fn run(
                 return Err(Refusal::STOPPED);
             }
             Said::plain("commands/stopped")
+        }
+        Slash::Remember => {
+            let remembered = memory::remember_in(core, &handle, id, by.clone(), rest).await?;
+            Said {
+                key: "commands/remembered",
+                fields: vec![("id", remembered.to_string())],
+            }
         }
     };
     let note = Command::Ran {

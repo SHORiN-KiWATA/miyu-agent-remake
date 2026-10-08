@@ -4,6 +4,7 @@
 use miyu_kernel::session::Reason;
 
 mod edits;
+mod memory;
 mod message;
 
 /// 一次拒绝：JSON-RPC 的错误码，和原因码。

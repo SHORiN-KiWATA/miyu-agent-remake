@@ -23,6 +23,9 @@ miyu-log = { path = "../miyu-log" }
 # 文件，只读。两项由核心替桥声明（权宜，9-1 挪进桥的清单）。不要核心的可选软件包。
 miyu-core = { path = "../miyu-core", default-features = false }
 miyu-endpoint = { path = "../miyu-endpoint" }
+# WebUI（施工 O-16）：给页面、核对 Host 和 Origin、`/ws` 原样转给核心、照终端的样子连核心和开浏览器，和网页软件共用的底子
+# （webserve.md）。
+miyu-webserve = { path = "../miyu-webserve" }
 # 给人看的字照说法换（`Said`，`Human::say`）；场所、平台上的人的编号是内核的 `VenueId`、`ExternalId`。
 miyu-kernel = { path = "../miyu-kernel" }
 # 群聊内核（第 2 层）：场所、平台上的人的编号经它拼，桥不手拼（`chat.md` 第七条第 1 条）。
@@ -38,6 +41,8 @@ tokio-tungstenite = { version = "0.29", default-features = false, features = ["h
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 # 跟核心说的命令编号的随机前缀：桥重启以后不撞上一次的编号（`venue.session` 同一个编号交回上一次的那一个）。
 getrandom = { version = "0.4", features = ["std"] }
+# WebUI 的 `/status` 验过的登录令牌只记 SHA-256（和别的 crate 用的同一份，只开要的）。
+sha2 = { version = "0.11", default-features = false }
 # OneBot 和核心协议都是 JSON；读 `bridge.json`。
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
