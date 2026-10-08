@@ -1,6 +1,6 @@
 [package]
 name = "miyu-onebot"
-description = "通讯平台的桥：经 OneBot v11 的反向 WebSocket 接 NapCat，把 QQ 上主人的私聊送进场所会话，把她的回复发回 QQ（施工 O-8，onebot.md）"
+description = "通讯平台的桥：经 OneBot v11 的反向 WebSocket 接 NapCat，把 QQ 上主人的私聊、群消息送进场所会话，把她的回复发回 QQ（施工 O-8、O-22，onebot.md）"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -47,6 +47,9 @@ serde_json = "1.0"
 # `io-std`：`serve` 的标准输入输出是跟核心说协议的管道（施工 O-18）。
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "io-std", "sync", "time", "signal"] }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
+# 本机此刻的时区偏移：群里的睡觉时间照它换成当地时间（施工 O-22，和核心造会话时钉下时区的办法一样）。本来就在依赖图里
+# （`miyu-log` 用它）。Unlicense 或 MIT。
+jiff = "0.2"
 
 [lints]
 workspace = true

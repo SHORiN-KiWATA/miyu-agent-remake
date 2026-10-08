@@ -1,26 +1,37 @@
-//! 私聊进来、回话出去（`onebot.md` 第一条「怎么走」第 6 到 10 条）：一个任务拿着跟核心的连接，一边收 NapCat 那头读出来的
-//! 私聊，一边收核心推来的事件。私聊一条条照先后办（找会话、订阅、发进去），办的时候来的推送由 [`Core`] 留着、办完再看。
+//! 消息进来、回话出去（`onebot.md` 第一条「怎么走」第 6 到 10 条，「群消息」「撤回」）：一个任务拿着跟核心的连接，一边收
+//! NapCat 那头读出来的消息和撤回，一边收核心推来的事件。一件件照先后办（套场所规则、找会话、发进去），办的时候来的推送由
+//! [`Core`] 留着、办完再看。
 //!
-//! - 场所、平台上的人经群聊内核拼（`onebot::private_venue`、`onebot::person`），拼不出来的（照说不会）记一行、这条不送。
-//! - 「场所 → 会话编号」只记在内存里：每个场所桥起来以后第一次来消息时问一次 `venue.session`，问到了订阅它（不写 `after`）。
-//! - 会话不在了（`session_not_found`、`session_stopped`）：忘掉，再问一次、再发一次，只重来一次。
-//! - 不是主人（`no_system_account`），或者会话的属主是桥自己（核心 O-4 中以后陌生人的会话归系统账号，「施工时定的」第 49
-//!   条）：接群以前私聊只接主人，这一步不接，同一个人只记一行运行日志，会话编号不记、不订阅。
+//! - 私聊（这里）：场所、平台上的人经群聊内核拼（`onebot::venue`、`onebot::person`），拼不出来的（照说不会）记一行、这条
+//!   不送；带上场所的格（施工 O-22，`fields`），`show_ids` 照这个私聊套出来的场所规则（`applied`）。
+//! - 群消息（`group`，施工 O-22）：一律旁听；正文里的 @ 写成名字（`names`）；场所规则管人格、预设、工作区、谁是管理的人、
+//!   睡没睡、看不看得到号。撤回（`recall`，施工 O-22）记 `venue.recalled`。
+//! - 找会话（`session`）：「场所 → 会话编号」只记在内存里，每个场所桥起来以后第一次要用时问一次 `venue.session`；私聊的
+//!   问到了订阅（不写 `after`），群的不订阅（「施工时定的」第 64 条）。会话不在了（`session_not_found`、`session_stopped`）
+//!   忘掉，再问一次、再交一次，只重来一次。私聊不是主人的（`no_system_account`，或者会话的属主是桥自己，「施工时定的」第
+//!   49 条）、群的规则写错的不接，同一个场所只记一行运行日志。
 //! - `/` 开头的先当斜杠命令交 `command.run`（`command`，O-19，第 7、8 条之间的「斜杠命令」），核心说不是命令的才照普通的话发。
 //! - 她的回话：`message.assistant` 的文字块接起来，不空就交给收进这个会话的那个机器人号现在的连接；`begin` 在这里照先后放进
 //!   写队列，等回应的那一步交给别的任务。
 //! - 核心推来的 `extension.config`（施工 O-20）：`keys` 原样交给 `serve`，它换上手里的配置、端口变了照 `/apply` 的办法换
 //!   （「施工时定的」第 45 条）：这里够不着监听。
 
+mod applied;
 mod command;
+mod fields;
+mod group;
+mod names;
+mod recall;
+mod session;
 #[cfg(test)]
 mod tests;
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Instant;
 
-use miyu_kernel::FormatError;
-use miyu_kernel::id::{ExternalId, VenueId};
+use miyu_chat::{Venue, VenueKind};
+use miyu_kernel::id::VenueId;
 use serde_json::{Map, Value, json};
 use tokio::sync::mpsc;
 use tokio::task::{JoinError, JoinSet};
@@ -28,35 +39,50 @@ use tokio::task::{JoinError, JoinSet};
 use crate::TARGET;
 use crate::core::{Core, Gone, reason};
 use crate::listen::bots::Bots;
-use crate::onebot::{Private, command_id, person, private_message, private_venue};
+use crate::onebot::{Event, Members, Posted, To, command_id, message_to, person, venue};
+use crate::rules::{Applied, Venues};
 use crate::serve::Failure;
+use fields::{Flags, fields};
+use session::Place;
 
-/// 一个场所会话的回话发到哪：收进它的机器人号、对方的号；场所只拿来记运行日志。
+/// 一个场所会话的回执、回话发到哪：收进它的机器人号、私聊的对方或者群；场所只拿来记运行日志。
 #[derive(Debug, Clone)]
 struct Peer {
     bot: i64,
-    user: i64,
+    to: To,
     venue: VenueId,
 }
 
-/// 一条要交给核心的私聊：命令编号（第 8 条）、场所和对方在平台上的身份（第 7 条），和私聊本身。
+/// 一条要交给核心的消息（私聊的、群的）。
 struct Message {
+    /// 命令编号（第 8 条）。
     id: String,
-    venue: VenueId,
-    external: ExternalId,
-    private: Private,
+    /// 平台的消息编号：只记运行日志。
+    number: i64,
+    /// 交给核心的正文。
+    text: String,
+    /// `as`：发的人的平台身份，群里另带 `role`（「群消息」第 4 条）。
+    acting: Value,
+    /// `session.send` 的 `venue`（施工 O-22，`fields`）。
+    fields: Value,
+    /// 它的场所：怎么找会话、回执发到哪。
+    place: Place,
 }
 
 /// 拿着跟核心的连接的那一个。
 pub(crate) struct Route {
     core: Core,
     bots: Arc<Bots>,
+    /// 场所规则和出厂数据（施工 O-21）：每一条消息照它套场所（施工 O-22）。
+    rules: Venues,
+    /// 群成员的名字（施工 O-22，「群消息」第 5 条）。
+    members: Members,
     /// 场所 → 会话编号（第 7 条）。键是场所编号的原文：内核的 `VenueId` 不能做散列表的键。
     venues: HashMap<String, String>,
-    /// 会话编号 → 回话发到哪（第 10 条）。
+    /// 会话编号 → 回执、回话发到哪（第 10 条）。
     peers: HashMap<String, Peer>,
-    /// 记过一行「不是主人」的号（第 7 条）：`no_system_account` 的、会话属主是桥自己的。
-    refused: HashSet<i64>,
+    /// 记过一行「不接」的场所（第 7 条、「群消息」第 3 条）：私聊不是主人的，群的规则写错的。
+    refused: HashSet<String>,
     /// 在等 NapCat 回应的回话：放下 `Route` 时一起停。
     sending: JoinSet<()>,
     /// 推来的配置变化交给 `serve`（施工 O-20）。
@@ -64,15 +90,20 @@ pub(crate) struct Route {
 }
 
 impl Route {
-    /// 拿着连接 `core`，回话照 `bots` 找连接，推来的配置变化交给 `configured`。
+    /// 拿着连接 `core`，回话照 `bots` 找连接，场所规则照 `rules`，群成员的名字记进 `members`，推来的配置变化交给
+    /// `configured`。
     pub(crate) fn new(
         core: Core,
         bots: Arc<Bots>,
+        rules: Venues,
+        members: Members,
         configured: mpsc::UnboundedSender<Map<String, Value>>,
     ) -> Route {
         Route {
             core,
             bots,
+            rules,
+            members,
             venues: HashMap::new(),
             peers: HashMap::new(),
             refused: HashSet::new(),
@@ -84,12 +115,12 @@ impl Route {
     /// 一直办，直到办不下去：核心关了管道、写不出去（核心请它退出、核心不在了，第 11 条），交回空的，桥好好停下；发回话
     /// 的任务崩了，交回 [`Failure::Crashed`]（「施工时定的」第 14 条），桥照它退出。`inbound` 关了就只看核心：桥在停、
     /// 读 NapCat 的那一头都放下了。
-    pub(crate) async fn run(mut self, mut inbound: mpsc::Receiver<Private>) -> Option<Failure> {
+    pub(crate) async fn run(mut self, mut inbound: mpsc::Receiver<Event>) -> Option<Failure> {
         let mut open = true;
         loop {
             let handled = tokio::select! {
-                private = inbound.recv(), if open => match private {
-                    Some(private) => self.private(private).await.map_err(|Gone| None),
+                event = inbound.recv(), if open => match event {
+                    Some(event) => self.event(event).await.map_err(|Gone| None),
                     None => {
                         open = false;
                         Ok(())
@@ -107,35 +138,59 @@ impl Route {
         }
     }
 
+    /// NapCat 那头读出来的一件事。
+    async fn event(&mut self, event: Event) -> Result<(), Gone> {
+        match event {
+            Event::Private(posted) => self.private(posted).await,
+            Event::Group { group, posted } => self.group(group, posted).await,
+            Event::Recalled(recall) => self.recalled(recall).await,
+        }
+    }
+
     /// 一条私聊（第 6 到 8 条，中间是「斜杠命令」）。
-    async fn private(&mut self, private: Private) -> Result<(), Gone> {
-        let (venue, external) = match addressed(private.user) {
-            Ok(addressed) => addressed,
+    async fn private(&mut self, posted: Posted) -> Result<(), Gone> {
+        let made = venue(VenueKind::Private, posted.user)
+            .and_then(|venue| Ok((venue, person(posted.user)?)));
+        let (venue, external) = match made {
+            Ok(made) => made,
             Err(error) => {
-                tracing::warn!(target: TARGET, user = private.user, message = private.message_id, error = %error, "venue not made, message dropped");
+                tracing::warn!(target: TARGET, user = posted.user, message = posted.message_id, error = %error, "venue not made, message dropped");
                 return Ok(());
             }
         };
-        if private.text.trim().is_empty() {
-            tracing::debug!(target: TARGET, venue = %venue, message = private.message_id, "nothing to send");
+        if posted.text.trim().is_empty() {
+            tracing::debug!(target: TARGET, venue = %venue.id(), message = posted.message_id, "nothing to send");
             return Ok(());
         }
+        // 私聊每一条都开回合：不写 `ambient`、`asleep`（「施工时定的」第 68 条）。
+        let flags = Flags {
+            show_ids: applied::show_ids(&self.applied(&venue)),
+            ..Flags::default()
+        };
         let message = Message {
-            id: command_id(private.bot, private.message_id, private.time),
-            venue,
-            external,
-            private,
+            id: command_id(posted.bot, posted.message_id, posted.time),
+            number: posted.message_id,
+            text: posted.text.clone(),
+            acting: json!({"external": external}),
+            fields: fields(&posted, &[], flags),
+            place: Place::private(&venue, &external, posted.bot, posted.user),
         };
-        if command::looks_like(&message.private.text) && self.command(&message).await? {
+        self.submit(message).await
+    }
+
+    /// 交一条消息：`/` 开头的先当斜杠命令交（「斜杠命令」），办完了的不再发；别的照 `session.send` 发（第 8 条，「群消息」
+    /// 第 6 条）。
+    async fn submit(&mut self, message: Message) -> Result<(), Gone> {
+        if command::looks_like(&message.text) && self.command(&message).await? {
             return Ok(());
         }
-        let Some((_, reply)) = self.deliver(&message, "session.send").await? else {
+        let Some((_, reply)) = self.deliver(&message, session::SEND).await? else {
             return Ok(());
         };
-        let (venue, number) = (&message.venue, message.private.message_id);
+        let (venue, number) = (&message.place.peer.venue, message.number);
         match reason(&reply) {
             None => {
-                let chars = message.private.text.chars().count();
+                let chars = message.text.chars().count();
                 tracing::info!(target: TARGET, venue = %venue, message = number, chars, "message sent in");
             }
             Some(other) => {
@@ -145,103 +200,9 @@ impl Route {
         Ok(())
     }
 
-    /// 把私聊 `message` 照 `method`（`session.send`、`command.run`）交给它那个场所的会话：`{session, text, as}`，编号是
-    /// 这条消息的命令编号（第 8 条）。会话不在了（`session_not_found`、`session_stopped`）忘掉、再找、再交，只重来一次。
-    /// 交回会话编号和最后一次的回应（接受的、拒绝的都原样），这时记下这个会话的回话发给谁（「施工时定的」第 36 条）；
-    /// 不接的、找不到会话的是空的（已经记了运行日志）。
-    async fn deliver(
-        &mut self,
-        message: &Message,
-        method: &str,
-    ) -> Result<Option<(String, Value)>, Gone> {
-        let Message {
-            id,
-            venue,
-            external,
-            private,
-        } = message;
-        for retried in [false, true] {
-            let session = match self.venues.get(venue.as_str()) {
-                Some(session) => session.clone(),
-                None => match self.find(venue, external, private.user).await? {
-                    Some(session) => session,
-                    None => return Ok(None),
-                },
-            };
-            let params = json!({
-                "session": session,
-                "text": private.text,
-                "as": {"external": external},
-            });
-            let reply = self.core.call_as(id, method, params).await?;
-            if !retried
-                && matches!(
-                    reason(&reply),
-                    Some("session_not_found" | "session_stopped")
-                )
-            {
-                self.venues.remove(venue.as_str());
-                continue;
-            }
-            let peer = Peer {
-                bot: private.bot,
-                user: private.user,
-                venue: venue.clone(),
-            };
-            self.peers.insert(session.clone(), peer);
-            return Ok(Some((session, reply)));
-        }
-        Ok(None)
-    }
-
-    /// 找回场所 `venue` 的会话、订阅它（第 7、9 条）：对方是平台上的 `peer`，号是 `user`。不接的（不是主人、会话属主是桥
-    /// 自己）、问不到的、订阅不上的是空的（记一行运行日志）。
-    async fn find(
-        &mut self,
-        venue: &VenueId,
-        peer: &ExternalId,
-        user: i64,
-    ) -> Result<Option<String>, Gone> {
-        let params = json!({"venue": venue, "kind": "private", "peer": peer});
-        let reply = self.core.call("venue.session", params).await?;
-        // 回应带了会话的属主、正是桥自己的账号：陌生人（核心 O-4 中以后照常造会话，属主是系统账号）。接群以前私聊只接主人，
-        // 照 `no_system_account` 办（「施工时定的」第 49 条）。没带属主的照常接。
-        let own = reply["result"]["account"]
-            .as_str()
-            .is_some_and(|owner| Some(owner) == self.core.account.as_deref());
-        match reason(&reply) {
-            None if !own => {}
-            None | Some("no_system_account") => {
-                if self.refused.insert(user) {
-                    tracing::info!(target: TARGET, venue = %venue, "not the owner, not taken");
-                }
-                return Ok(None);
-            }
-            Some(other) => {
-                tracing::warn!(target: TARGET, venue = %venue, reason = other, "venue session not found");
-                return Ok(None);
-            }
-        }
-        let Some(session) = reply["result"]["session"].as_str().map(str::to_string) else {
-            tracing::warn!(target: TARGET, venue = %venue, "venue session without an id");
-            return Ok(None);
-        };
-        if !self.subscribe(&session).await? {
-            return Ok(None);
-        }
-        self.venues.insert(venue.to_string(), session.clone());
-        Ok(Some(session))
-    }
-
-    /// 订阅会话 `session` 的事件流，不写 `after`（第 9 条）：只要以后的新事件。订阅不上的记一行、交回假。
-    async fn subscribe(&mut self, session: &str) -> Result<bool, Gone> {
-        let params = json!({"session": session, "stream": "events"});
-        let reply = self.core.call("subscribe", params).await?;
-        if let Some(reason) = reason(&reply) {
-            tracing::warn!(target: TARGET, session, reason, "not subscribed");
-            return Ok(false);
-        }
-        Ok(true)
+    /// 这一刻套到场所 `venue` 上的场所规则（「场所规则和出厂数据」第 3、5 条）。
+    fn applied(&mut self, venue: &Venue) -> Applied {
+        self.rules.current(Instant::now()).at(venue)
     }
 
     /// 核心推来的一条：配置变了的（`extension.config`）交给 `serve`（施工 O-20）；她的回话发回去（第 10 条）；掉了队、会话停了的
@@ -273,9 +234,9 @@ impl Route {
         Ok(())
     }
 
-    /// 把回话 `text` 发回会话 `session` 的那个私聊：空的不发；那个号没连着的记一行、丢掉。
+    /// 把回话、回执 `text` 发回会话 `session` 的那个私聊、群：空的不发；那个号没连着的记一行、丢掉。
     async fn send_back(&mut self, session: &str, text: &str) {
-        let Some(Peer { bot, user, venue }) = self.peers.get(session).cloned() else {
+        let Some(Peer { bot, to, venue }) = self.peers.get(session).cloned() else {
             return;
         };
         let text = text.trim();
@@ -287,10 +248,8 @@ impl Route {
             tracing::info!(target: TARGET, venue = %venue, bot, chars, "bot not connected, reply dropped");
             return;
         };
-        let begun = link
-            .calls
-            .begin(&link.out, "send_private_msg", private_message(user, text))
-            .await;
+        let (action, params) = message_to(to, text);
+        let begun = link.calls.begin(&link.out, action, params).await;
         let pending = match begun {
             Ok(pending) => pending,
             Err(error) => {
@@ -307,11 +266,6 @@ impl Route {
             }
         });
     }
-}
-
-/// 和号 `user` 的私聊的场所编号、对方在平台上的身份（第 7 条），都经群聊内核拼。
-fn addressed(user: i64) -> Result<(VenueId, ExternalId), FormatError> {
-    Ok((private_venue(user)?, person(user)?))
 }
 
 /// 一个发回话的任务结束了。崩了（是 bug：任务里只等回应、记日志）照实交上去，桥照「施工时定的」第 14 条停下，不装作

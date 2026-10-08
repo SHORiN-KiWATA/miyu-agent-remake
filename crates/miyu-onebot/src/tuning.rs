@@ -22,7 +22,7 @@ pub struct Tuning {
     pub call_timeout_seconds: u64,
     /// 往一条 NapCat 的连接写，最多攒几帧没写出去；满了，写的一方等着。至少 1。
     pub write_queue: usize,
-    /// 读出来的私聊最多攒几条没交给跟核心的那一头；满了，读 NapCat 的那一头等着。至少 1。
+    /// 读出来的消息、撤回（施工 O-22 起群的也算）最多攒几条没交给跟核心的那一头；满了，读 NapCat 的那一头等着。至少 1。
     pub inbound_queue: usize,
     /// 接不了 TCP 连接（打开的文件太多这类）时，歇几毫秒再接，不空转（照核心的规矩）。
     pub accept_retry_millis: u64,
@@ -32,6 +32,8 @@ pub struct Tuning {
     pub follow_millis: u64,
     /// 要用场所规则时，隔几毫秒才看一眼系统的两处变没变（施工 O-21，`onebot.md`「场所规则和出厂数据」第 3 条）。
     pub rules_check_millis: u64,
+    /// 群成员的名字记几秒（施工 O-22，`onebot.md`「群消息」第 5 条）。
+    pub member_names_seconds: u64,
     /// WebUI 的数（施工 O-16，`onebot.md` 第二条）。
     pub web: WebTuning,
 }
@@ -97,5 +99,10 @@ impl Tuning {
     /// 隔多久才看一眼系统的场所规则变没变。
     pub fn rules_check(&self) -> Duration {
         Duration::from_millis(self.rules_check_millis)
+    }
+
+    /// 群成员的名字记多久。
+    pub fn member_names(&self) -> Duration {
+        Duration::from_secs(self.member_names_seconds)
     }
 }

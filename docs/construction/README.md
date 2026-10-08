@@ -426,6 +426,7 @@ flowchart LR
 | O-19 | 斜杠命令 | 桥认出 `/` 开头的消息，原样交给核心的 `command.run`（O-6），回执发回 QQ；`/clear`、`/stop`、`/workspace`、`/remember` 在 QQ 私聊里能用，认不出的当普通的话。施工单见 `O-19-斜杠命令.md` |
 | O-20 | 桥用核心交的配置 | 去掉 O-8 起桥自己读配置的权宜：握手回应的 `config`、推送 `extension.config`（9-4 下下）；不再依赖 `miyu-core`、`miyu-endpoint`；`onebot.*` 挪进清单的 `[settings]`，同一个提交删掉核心的 `OnebotSettings`。施工单见 `O-20-桥用核心交的配置.md` |
 | O-21 | 桥读场所规则和出厂数据 | 桥读出厂、系统两份场所规则（`venues.d`）、出厂参数、违规词表（系统那一份在 `system/modules/onebot/`），照场所套好、改了自动重读；`miyu onebot venue show`。施工单见 `O-21-桥读场所规则和出厂数据.md` |
+| O-22 | 群消息记进场所会话 | 群里的每条消息记进这个群的场所会话（属主 onebot），一律旁听、不开回合；带上名字、@、引用、媒体、睡没睡、`show_ids`；私聊也带上这几格；撤回记 `venue.recalled`；群里的斜杠命令接上。施工单见 `O-22-群消息记进场所会话.md` |
 
 **有界面（M9）的头几步**（2026-10-07 项目主人批准；草稿先给终端界面、网页、onebot 三个会话看过，意见并进来了。M9 其余的步子到了跟前再拆）
 

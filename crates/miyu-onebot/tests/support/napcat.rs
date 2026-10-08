@@ -26,7 +26,8 @@ pub enum Auth<'a> {
 
 /// 连上了的假 NapCat。
 pub struct NapCat {
-    ws: WebSocketStream<TcpStream>,
+    /// 连着桥的 WebSocket：群里的假 NapCat 拿去交给应答的任务（`group.rs`）。
+    pub(super) ws: WebSocketStream<TcpStream>,
 }
 
 /// 连 `path`，令牌照 `auth` 出示，`X-Self-ID` 是 `self_id`（有的话）。被拒的交回 HTTP 状态码。

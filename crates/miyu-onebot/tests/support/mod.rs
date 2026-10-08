@@ -6,6 +6,7 @@
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
 
 pub mod fake_core;
+pub mod group;
 pub mod http;
 pub mod napcat;
 pub mod pipe;

@@ -7,6 +7,7 @@
   "hello_seconds": 10,
   "follow_millis": 500,
   "rules_check_millis": 1000,
+  "member_names_seconds": 600,
   "web": {
     "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
     "types": {

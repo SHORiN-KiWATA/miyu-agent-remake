@@ -1,8 +1,8 @@
-//! 斜杠命令（施工 O-19，`onebot.md` 第一条「怎么走」第 7、8 条之间的「斜杠命令」，`venues.md`「斜杠命令」）：私聊的文字
-//! 去掉开头的空白以后以 `/` 开头的，先原样交核心的 `command.run`，和发消息同一个命令编号。核心认命令、判谁能用、执行、照
-//! 连接的语言写好回执；桥只分三种回应：成了的回执发回去，核心认不出的（`unknown_command`）交回给 `Route::private` 照普通的
-//! 话发，别的被拒把核心拒绝时那一句（`error.message`，照连接的语言写好的，「施工时定的」第 31 条）发回去、不交给她。运行日志
-//! 只记正名和原因码，不记原文。
+//! 斜杠命令（施工 O-19，`onebot.md` 第一条「怎么走」第 7、8 条之间的「斜杠命令」，`venues.md`「斜杠命令」）：私聊、群（施工
+//! O-22，「群消息」第 7 条）的文字去掉开头的空白以后以 `/` 开头的，先原样交核心的 `command.run`，和发消息同一个命令编号。
+//! 核心认命令、判谁能用、执行、照连接的语言写好回执；桥只分三种回应：成了的回执发回去，核心认不出的（`unknown_command`）
+//! 交回给 `Route::submit` 照普通的话发，别的被拒把核心拒绝时那一句（`error.message`，照连接的语言写好的，「施工时定的」
+//! 第 31 条）发回去（群里的发回群里）、不交给她。运行日志只记正名和原因码，不记原文。
 
 use serde_json::Value;
 
@@ -21,7 +21,7 @@ impl Route {
         let Some((session, reply)) = self.deliver(message, "command.run").await? else {
             return Ok(true);
         };
-        let (venue, number) = (&message.venue, message.private.message_id);
+        let (venue, number) = (&message.place.peer.venue, message.number);
         let said = match reason(&reply) {
             None => {
                 let command = reply["result"]["command"].as_str().unwrap_or_default();

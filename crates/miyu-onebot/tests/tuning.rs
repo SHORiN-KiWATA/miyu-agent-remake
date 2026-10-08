@@ -34,6 +34,8 @@ fn the_shipped_numbers_are_the_blueprints() {
     assert_eq!(tuning.follow(), Duration::from_millis(500));
     // 要用场所规则时，隔一秒才看一眼系统的变没变（施工 O-21）。
     assert_eq!(tuning.rules_check(), Duration::from_secs(1));
+    // 群成员的名字记十分钟（施工 O-22）。
+    assert_eq!(tuning.member_names(), Duration::from_secs(600));
     // WebUI（施工 O-16）：页面只有三种文件；内容安全策略只许连自己、不许被框起来；验过的登录令牌记 60 秒。
     assert_eq!(
         tuning.web.types.keys().collect::<Vec<_>>(),
@@ -96,6 +98,10 @@ fn a_bad_file_is_not_read_and_named() {
         (
             "rules-check-missing",
             good.replace("\"rules_check_millis\": 1000", "\"v\": 1"),
+        ),
+        (
+            "member-names-missing",
+            good.replace("\"member_names_seconds\": 600", "\"u\": 1"),
         ),
         ("not-json", "nope".to_string()),
     ] {

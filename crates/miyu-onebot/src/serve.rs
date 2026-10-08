@@ -4,7 +4,8 @@
 //! 1. 在 [`Pipe`] 上握手（`core`）：程序里是标准输入输出，核心拉起桥时接好的（施工 O-18，`extensions.md`），不带凭据。等不到
 //!    回应：[`Failure::NotSpawned`]；被拒、管道关了：[`Failure::Core`]。握手回了语言先告诉调的一方（之后说的都照它，端口被占
 //!    那一句也是，施工 O-20，「施工时定的」第 42 条）；回应里的 `config` 读成两个端口、令牌（[`Settings::handed`]，没交的端口
-//!    照清单的默认值）。握手以后读一次系统的场所规则，问题记运行日志（施工 O-21，[`Venues`]）。
+//!    照清单的默认值）。握手以后读一次系统的场所规则，问题记运行日志（施工 O-21，[`Venues`]），交给跟核心的那一头，每一条
+//!    消息照它套场所（施工 O-22）。
 //! 2. 只听 `127.0.0.1` 的 `onebot.listen`。被占了：[`Failure::PortInUse`]。再听 `127.0.0.1` 的 `onebot.web`（WebUI，施工
 //!    O-16，第二条「怎么走」第 1 条）。被占了：[`Failure::WebPortInUse`]。听上了各说一行（[`Notice::Listening`]、
 //!    [`Notice::Web`]）。令牌没设的两个也照开，NapCat 连进来一律 401，人在 WebUI 里生成令牌，NapCat 下一次连就通
@@ -37,6 +38,7 @@ use crate::core::route::Route;
 use crate::current::Current;
 use crate::listen::bots::Bots;
 use crate::listen::{self, Gate};
+use crate::onebot::Members;
 use crate::rules::{Factory, Venues};
 use crate::settings::{Defaults, Settings};
 use crate::status_file;
@@ -154,9 +156,8 @@ pub async fn run(
 ) -> Result<(), Failure> {
     let core = Core::connect(serve.pipe, serve.locale.as_deref(), serve.tuning.hello()).await?;
     shaken(&core.language);
-    // 场所规则和出厂数据（施工 O-21）：读一次系统的，问题记进运行日志。用到它们的（进站链、主动回复判断、出站）随接群的
-    // 几步，现在只有起来时这一次（「施工时定的」第 54 条）。
-    let _venues = Venues::new(
+    // 场所规则和出厂数据（施工 O-21）：读一次系统的，问题记进运行日志。跟核心的那一头每一条消息照它套场所（施工 O-22）。
+    let venues = Venues::new(
         serve.factory,
         &serve.root,
         serve.tuning.rules_check(),
@@ -207,7 +208,8 @@ pub async fn run(
     // 跟核心的那一头停了，交回为什么（空的是核心关了管道、发回话的任务崩了是那个原因）；接连接的、写状态文件的停了不要紧。
     let mut tasks = JoinSet::new();
     let (configured, mut configs) = mpsc::unbounded_channel();
-    let route = Route::new(core, bots, configured);
+    let members = Members::new(gate.tuning.member_names());
+    let route = Route::new(core, bots, venues, members, configured);
     let route = tasks.spawn(async move { route.run(received).await }).id();
     tasks.spawn(status_file::keep(
         status_file::path(&serve.root),
