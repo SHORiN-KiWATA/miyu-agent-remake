@@ -241,7 +241,7 @@ miyu_config::settings! {
 - `LogSettings::ITEMS`：清单里的这几项，照声明的先后。
 - `LogSettings::from(&最终值)`（`From<&Values>`）：带类型的设置，代码只经它读值，不自己读文件、不另写常量（`14-配置.md` 第十节）。最终值 `Values` 是键到值，8-2 的分层合并交出它；8-1 还不读配置，用的是 `Values::defaults(清单)`，全是默认值。最终值里没有的项照默认值，最终值都校验过，这一步不会出错。字段的类型要能从值变过来（`From<&Value>`）：选项用 `String`，拿到的就是那个选项。
 
-**登记**（`crates/miyu-core/src/settings.rs`）：`MODULES` 一个模块一行，照这个先后：`UiSettings::ITEMS`、`UsageSettings::ITEMS`（`miyu-models`，8-15：`usage.currency`，通用页的「显示」组，排在界面语言后面）（8-3 到 8-28 这里还有 `TuiSettings::ITEMS`，替终端界面声明 `tui.startup`；8-28 改成 `UiSettings` 里的 `ui.startup`）、`PermissionSettings::ITEMS`（`miyu-endpoint`，8-2）、`UseSettings::ITEMS`、`PoolSettings::ITEMS`（8-8；8-8 的 `TierSettings::ITEMS` 8-8 补去掉了）、`ProviderSettings::ITEMS`、`ModelSettings::ITEMS`（`miyu-models`，8-6）、`PriceSettings::ITEMS`、`CatalogSettings::ITEMS`（8-7）、`LogSettings::ITEMS`（`miyu-log`）、`OnebotSettings::ITEMS`（O-8：核心替通讯平台的桥声明 `onebot.listen`、`onebot.token`，O-16 加 `onebot.web`，照 8-3 `TuiSettings` 的先例，9-1 挪进桥的清单；高级页「QQ 桥」组，排在「运行日志」后面）。`items()` 把它们接成一张表。设置页的页照第一次出现的先后排：通用、权限、模型、高级（8-3 到 8-28 通用后面还有一页「界面」）；模型那一页先「用途」、再「池」（8-8；「挡位」那一组 8-8 补去掉了）、再「供应商」、再「目录」。
+**登记**（`crates/miyu-core/src/settings.rs`）：`MODULES` 一个模块一行，照这个先后：`UiSettings::ITEMS`、`UsageSettings::ITEMS`（`miyu-models`，8-15：`usage.currency`，通用页的「显示」组，排在界面语言后面）（8-3 到 8-28 这里还有 `TuiSettings::ITEMS`，替终端界面声明 `tui.startup`；8-28 改成 `UiSettings` 里的 `ui.startup`）、`PermissionSettings::ITEMS`（`miyu-endpoint`，8-2）、`UseSettings::ITEMS`、`PoolSettings::ITEMS`（8-8；8-8 的 `TierSettings::ITEMS` 8-8 补去掉了）、`ProviderSettings::ITEMS`、`ModelSettings::ITEMS`（`miyu-models`，8-6）、`PriceSettings::ITEMS`、`CatalogSettings::ITEMS`（8-7）、`LogSettings::ITEMS`（`miyu-log`）、`OnebotSettings::ITEMS`（O-8：核心替通讯平台的桥声明 `onebot.listen`、`onebot.token`，O-16 加 `onebot.web`，O-17 加 `onebot.trusted`，照 8-3 `TuiSettings` 的先例，9-1 挪进桥的清单；高级页「QQ 桥」组，排在「运行日志」后面）。`items()` 把它们接成一张表。设置页的页照第一次出现的先后排：通用、权限、模型、高级（8-3 到 8-28 通用后面还有一页「界面」）；模型那一页先「用途」、再「池」（8-8；「挡位」那一组 8-8 补去掉了）、再「供应商」、再「目录」。
 
 **M8 的配置项**：
 
@@ -260,6 +260,7 @@ miyu_config::settings! {
 | `onebot.listen` | 整数 1024 到 65535 | 8301 | 系统 | 不能写 | `head_start`：桥下次起来时；在桥的 WebUI 上改、保存的当场换（O-16 补二，`onebot.md` 第二条 `/apply`） | O-8：通讯平台的桥 `miyu-onebot` 的端口（`onebot.md`），权宜，照 `tui.startup` 的先例由核心声明，9-1 挪进软件包的清单 |
 | `onebot.token` | 密钥 | 没有：桥照样起来，NapCat 连进来一律 401 | 系统 | 不能写 | `now`：NapCat 下一次连进来照新的（桥对不上时重读配置，O-16 补二，`onebot.md` 第一条「怎么走」第 2 条） | O-8：NapCat 连进来时出示的访问令牌（`onebot.md`），同上 |
 | `onebot.web` | 整数 1024 到 65535 | 8302 | 系统 | 不能写 | 同 `onebot.listen` | O-16：桥自己的 WebUI 的端口（`onebot.md` 第二条），同上 |
+| `onebot.trusted` | 文字的列表，每个最多 128 个字符：平台上的身份（`qq:20017`） | 没有：没有自己人 | 系统 | 不能写 | `now`：现在桥还不读，桥接群以后读的时候照新的（`onebot.md` 第二条「怎么走」第 4 条） | O-17：自己人（`chat.md`「发的人是谁」），在桥的 WebUI「主人与自己人」页上整张写回；界面在高级页「QQ 桥」组，列表；同上 |
 | `models.chat` | 引用 | 没有：`no_model` | 系统、个人 | 不能写 | `new_session` | 8-6 |
 | `models.vision` | 引用 | 没有 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
 | `pools.<id>.models` | 模型的列表，可以是空的 | 没有：这个池解析不出 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
@@ -1028,6 +1029,10 @@ listen = 8301
 # 能写：{ secret = "…" } 或 { env = "…" }。只能写在系统配置里。当场生效。
 # token =
 
+# QQ 桥的自己人：私聊里能叫她、不限流、睡着时私聊也放行的人，写平台上的身份的列表，例如 ["qq:20017"]。在 QQ 桥的网页上改。QQ 桥接通群以后才照它认人。
+# 能写：最多 128 个字的文字 的列表。只能写在系统配置里。当场生效。
+# trusted =
+
 # QQ 桥网页的端口：QQ 桥自己的网页（连接 NapCat、换令牌）的端口，只听本机。用 miyu-onebot web 打开。在这个网页上改、保存的，当场生效。
 # 能写：1024 到 65535 之间的整数。只能写在系统配置里。这个程序下次启动时生效。
 web = 8302
@@ -1777,6 +1782,8 @@ ticket_idle_seconds = 43200
 | 说明 | QQ 桥自己的网页（连接 NapCat、换令牌）的端口，只听本机。用 miyu-onebot web 打开。在这个网页上改、保存的，当场生效。 | The port of the QQ bridge's own web page (NapCat connection, token), local only. Open it with miyu-onebot web. Changes saved on that page take effect at once. | QQ ブリッジ自身の Web ページ（NapCat の接続、トークン）のポートです。このマシンからだけ受け付けます。miyu-onebot web で開きます。そのページで変えて保存すると、すぐ反映されます。 |
 | `onebot.token` 名字（O-8） | QQ 桥的令牌 | QQ bridge token | QQ ブリッジのトークン |
 | 说明 | NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。写 { secret = "名字" }（用 miyu login 存）或 { env = "环境变量" }。没设的，QQ 桥照样起来，NapCat 连进来会被拒；在 QQ 桥的网页上能生成一个。改了以后，NapCat 下一次连进来就照新的。 | The access token NapCat shows when it connects; set the same one in NapCat. Write { secret = "name" } (saved with miyu login) or { env = "VARIABLE" }. Without it the QQ bridge still starts but refuses NapCat; you can generate one on the QQ bridge web page. After a change, NapCat's next connection uses the new one. | NapCat が接続するときに示すアクセストークンです。NapCat 側にも同じものを設定します。{ secret = "名前" }（miyu login で保存）か { env = "環境変数" } を書きます。未設定でも QQ ブリッジは起動しますが、NapCat の接続は拒否します。QQ ブリッジの Web ページで生成できます。変えると、NapCat の次の接続から新しいものを使います。 |
+| `onebot.trusted` 名字（O-17） | QQ 桥的自己人 | QQ bridge friends | QQ ブリッジの仲間 |
+| 说明 | 私聊里能叫她、不限流、睡着时私聊也放行的人，写平台上的身份的列表，例如 ["qq:20017"]。在 QQ 桥的网页上改。QQ 桥接通群以后才照它认人。 | People who can call her in private chat, with no rate limit, even while she sleeps: a list of platform identities, for example ["qq:20017"]. Edit it on the QQ bridge web page. The QQ bridge uses it once groups are connected. | 個人チャットで呼べて、回数制限がなく、寝ている間も個人チャットが通る人です。プラットフォーム上の ID のリストで書きます。例：["qq:20017"]。QQ ブリッジの Web ページで変えます。QQ ブリッジがグループにつながってから、これで人を見分けます。 |
 
 页和组（`config.pages`、`config.groups`，编号到名字；资源里只放清单用到的，`permissions`、`sessions` 随 8-2 加；8-3 加过页 `interface`（界面）、组 `tui`（终端界面），8-28 `ui.startup` 挪进通用页以后没有项用它们，去掉了）：
 
@@ -2045,7 +2052,7 @@ Options:
 | `crates/miyu-config/src/list/tests.rs` | 查清单：键重复、按段互为前缀（`ui.lang` 不算）、写法不对（一段、大写、别的字、空段、数字或 `_` 开头）、第一段 `ext`、默认值过不了校验、选项少于两个或写重、一层都没有或层写重，各一例；几处都错的全报 | 8-1 |
 | `crates/miyu-config/src/words/tests.rs` | 查资源的字：缺名字、说明、选项名，页和组没名字，资源里多了项、选项、页、组，各一例。几个里的一个怎么连（一个、两个、三个以上，值和字两种「或」）。一项说明后面那几句。缺了哪一句照实报 | 8-1 |
 | `crates/miyu-config/src/schema/tests.rs`、`reference/tests.rs`、`value/tests.rs` | 拿假的字和手写的几项：Schema 只有这一层的项、一层层的表、格照字母先后、这一层什么都没有的；参考文件表照名字排、表里的项照名字排、不重开同一张表、每一项两行注释、项间空一行、多行的字每一行都是注释；缺字报是哪一句。值写成 TOML（引号、反斜杠、控制字符转义）、写成 JSON | 8-1 |
-| `crates/miyu-core/tests/settings.rs` | 登记的全部清单过 `list::check`，照登记的先后（8-3 起有 `tui.startup`、8-28 改名 `ui.startup`，8-6 起有模型那一块的六项，O-8 起最后是 `onebot.listen`、`onebot.token`，O-16 在两项中间加 `onebot.web`）。中文、英文、日文三份（直接读文件）过 `words::check`。照源码树的资源生成的两份 Schema、参考文件和样本逐字节一样（中文、英文），日文生成得出来 | 8-1 |
+| `crates/miyu-core/tests/settings.rs` | 登记的全部清单过 `list::check`，照登记的先后（8-3 起有 `tui.startup`、8-28 改名 `ui.startup`，8-6 起有模型那一块的六项，O-8 起最后是 `onebot.listen`、`onebot.token`，O-16 在两项中间加 `onebot.web`，O-17 在最后加 `onebot.trusted`）。`onebot.trusted` 的类型、层、生效、界面照表，读得出、不写是没有，写进个人设置、不是列表、元素不是字、空的、超过 128 个字的报问题（O-17）。中文、英文、日文三份（直接读文件）过 `words::check`。照源码树的资源生成的两份 Schema、参考文件和样本逐字节一样（中文、英文），日文生成得出来 | 8-1 |
 | `crates/miyu-core/src/settings/tests.rs` | 起来时生成：字照系统的语言挑（日文、没有的照英文）。资源里缺字、读不懂的，三份各记一条 `WARN`，什么都不写 | 8-1 |
 | `crates/miyu/tests/settings.rs` | 真核心：照 `LANG` 写三份，和样本逐字节一样（中文、英文）；一样的不重写（修改时间不变），改过的写回来；该是目录的地方是个文件，三份各记一条 `WARN`，照样起来 | 8-1 |
 | `crates/miyu-store/src/generated/tests.rs` | 没有的写上、目录建上；一样的不写（修改时间不变）；不一样的换掉、不留临时文件；目录建不了报错；临时文件点开头、不重名 | 8-1 |

@@ -1,6 +1,7 @@
 //! `/status`（施工 O-16，`onebot.md` 第二条「对外的样子」「施工时定的」第 3、6 条）：要 `Authorization: Bearer <登录令牌>`，
 //! 桥拿它和核心握手验，不带的、带错的 401；验过的记一阵（只记哈希），这一阵里不再握手、过了再握手；回 NapCat 连没连上、
-//! 是哪个实现、两个端口、令牌设没设（补二：`token` 的三种由 `no_token.rs` 照配置文件守着）。核心是替身，数得出握了几次手。
+//! 是哪个实现、两个端口、令牌设没设（补二：`token` 的三种由 `no_token.rs` 照配置文件守着）、平台的名字（O-17：「主人与
+//! 自己人」页照它拼 `qq:<号>`）。核心是替身，数得出握了几次手。
 
 use std::time::Duration;
 
@@ -48,7 +49,7 @@ async fn without_the_right_login_token_there_is_no_status() {
     assert_eq!(answer.header("cache-control"), Some("no-store"));
     assert_eq!(
         answer.json(),
-        json!({"napcat": {"connected": false}, "listen": bridge.port, "web": port, "token": "set"})
+        json!({"napcat": {"connected": false}, "listen": bridge.port, "web": port, "token": "set", "platform": "qq"})
     );
     // 认了的之后再带错的：照样 401，不因为前面有人验过就放过。
     assert_eq!(status(port, "wrong").await.status, 401);

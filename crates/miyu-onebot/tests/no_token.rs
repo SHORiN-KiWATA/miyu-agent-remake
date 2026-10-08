@@ -65,7 +65,7 @@ async fn without_a_token_both_ports_listen_and_napcat_is_refused() {
     }
     assert_eq!(
         ask(bridge.web, "/status").await,
-        json!({"napcat": {"connected": false}, "listen": bridge.port, "web": bridge.web, "token": "none"})
+        json!({"napcat": {"connected": false}, "listen": bridge.port, "web": bridge.web, "token": "none", "platform": "qq"})
     );
     bridge.stop().await.expect("停得下");
     if std::fs::remove_dir_all(&dir).is_err() {
@@ -163,7 +163,7 @@ async fn the_program_runs_without_a_token_and_takes_one_without_a_restart() {
     .await;
     assert_eq!(
         ask(web, "/status").await,
-        json!({"napcat": {"connected": false}, "listen": listen, "web": web, "token": "none"})
+        json!({"napcat": {"connected": false}, "listen": listen, "web": web, "token": "none", "platform": "qq"})
     );
     let refused = napcat(listen, "/ws", Auth::Bearer(TOKEN), Some(BOT)).await;
     assert_eq!(refused.err(), Some(401), "NapCat 的端口开着，没令牌一律拒");

@@ -202,6 +202,16 @@
           ],
           "title": "QQ bridge token"
         },
+        "trusted": {
+          "description": "People who can call her in private chat, with no rate limit, even while she sleeps: a list of platform identities, for example [\"qq:20017\"]. Edit it on the QQ bridge web page. The QQ bridge uses it once groups are connected. Allowed: a list of text of at most 128 characters. Only in the system config. Takes effect at once.",
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "QQ bridge friends",
+          "type": "array"
+        },
         "web": {
           "default": 8302,
           "description": "The port of the QQ bridge's own web page (NapCat connection, token), local only. Open it with miyu-onebot web. Changes saved on that page take effect at once. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect the next time the program starts.",

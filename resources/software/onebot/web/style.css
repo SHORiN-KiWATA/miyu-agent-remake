@@ -60,7 +60,7 @@ body {
   font: 14px/1.5 var(--sans);
   -webkit-font-smoothing: antialiased;
 }
-button, input { font: inherit; color: inherit; }
+button, input, select { font: inherit; color: inherit; }
 [hidden] { display: none !important; }
 h1 { margin: 0 0 16px; font-size: 20px; font-weight: 600; }
 h2 { margin: 0 0 12px; font-size: 14px; font-weight: 600; color: var(--text-soft); }
@@ -76,16 +76,17 @@ code { font-family: var(--mono); font-size: 13px; word-break: break-all; }
 .button.primary { border-color: var(--accent); background: var(--accent); color: var(--on-primary); }
 .button.primary:hover { background: color-mix(in srgb, var(--accent) 88%, var(--text)); }
 .button:disabled { opacity: 0.55; cursor: default; }
-button:focus-visible, input:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; }
 .icon-button {
   display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0;
   border: 0; border-radius: var(--radius); background: transparent; color: var(--text-soft); cursor: pointer;
 }
 .icon-button:hover { background: color-mix(in srgb, var(--text) 6%, transparent); color: var(--text); }
-input {
+input, select {
   width: 100%; padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: var(--radius);
   background: var(--surface-1);
 }
+input[aria-invalid="true"] { border-color: var(--danger); }
 
 /* 在线的圆点：连着绿，没连着红，不知道金（照网页软件的 .status-dot） */
 .status-dot { display: inline-block; width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--danger); }
@@ -151,7 +152,10 @@ dialog.confirm .actions { gap: 8px; }
   border-right: 1px solid var(--line); background: var(--sidebar-bg); overflow-y: auto;
 }
 .nav-item { padding: 7px 12px; border-radius: var(--radius); }
-.nav-item.is-on { background: var(--sidebar-active); font-weight: 600; }
+/* 点得进的几页是按钮（施工 O-17）：去掉按钮的底和边，照左栏的一行画 */
+button.nav-item { border: 0; background: transparent; text-align: left; cursor: pointer; }
+button.nav-item:hover { background: color-mix(in srgb, var(--text) 5%, transparent); }
+.nav-item.is-on, button.nav-item.is-on { background: var(--sidebar-active); font-weight: 600; }
 /* 以后才有的几页：灰的、点不了 */
 .nav-item.is-off { color: var(--text-faint); cursor: not-allowed; }
 .nav-sep {
@@ -191,6 +195,25 @@ dialog.confirm .actions { gap: 8px; }
 .note:empty { display: none; }
 .note.error { color: var(--danger); }
 
+/* 「主人与自己人」页（施工 O-17）：一行是号、账号的下拉、「删」、旁边一句；号不对的描红、那一句是红的。表空着时一句先做
+   什么；「号被盗的代价」折起来 */
+.card > .hint { margin: -6px 0 10px; }
+.empty { margin: 4px 0 12px; color: var(--text-soft); }
+.people-rows { display: grid; gap: 8px; margin: 4px 0 12px; }
+.people-rows:empty { display: none; }
+.people-head, .people-row { display: grid; grid-template-columns: minmax(0, 200px) auto 1fr; align-items: center; gap: 8px 10px; }
+/* 主人表多一列账号：表头和每一行的列一样宽，对得齐 */
+.people-owners .people-head, .people-owners .people-row { grid-template-columns: minmax(0, 200px) 120px auto 1fr; }
+.people-head { margin-top: 4px; color: var(--text-soft); font-size: 13px; }
+.aside { color: var(--text-soft); font-size: 13px; }
+.aside:empty { display: none; }
+.aside.error { color: var(--danger); }
+.people-actions { display: flex; justify-content: space-between; gap: 8px; }
+.risk { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--text-soft); }
+.risk summary { color: var(--text); cursor: pointer; }
+.risk summary::marker { color: var(--gold); }
+.risk ul { display: grid; gap: 6px; margin: 10px 0 0; padding-left: 20px; }
+
 /* 窄屏：左栏收成抽屉，顶栏左边多一个按钮开它 */
 @media (max-width: 720px) {
   .top .icon-button { display: inline-grid; }
@@ -203,6 +226,10 @@ dialog.confirm .actions { gap: 8px; }
   .page { padding: 16px 16px 40px; }
   .label { width: 100%; padding-top: 0; }
   .value { padding-top: 0; }
+  /* 号那一列占满剩下的，旁边那一句挪到下一行 */
+  .people-head, .people-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .people-owners .people-head, .people-owners .people-row { grid-template-columns: minmax(0, 1fr) 104px auto; }
+  .aside { grid-column: 1 / -1; margin-top: -4px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

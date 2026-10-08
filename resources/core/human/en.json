@@ -239,6 +239,10 @@
       "onebot.token": {
         "name": "QQ bridge token",
         "description": "The access token NapCat shows when it connects; set the same one in NapCat. Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Without it the QQ bridge still starts but refuses NapCat; you can generate one on the QQ bridge web page. After a change, NapCat's next connection uses the new one."
+      },
+      "onebot.trusted": {
+        "name": "QQ bridge friends",
+        "description": "People who can call her in private chat, with no rate limit, even while she sleeps: a list of platform identities, for example [\"qq:20017\"]. Edit it on the QQ bridge web page. The QQ bridge uses it once groups are connected."
       }
     },
     "pages": {

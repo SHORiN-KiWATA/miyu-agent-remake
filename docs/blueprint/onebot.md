@@ -4,7 +4,7 @@
 
 软件包 `miyu-onebot`：经 OneBot v11 接 QQ 的桥，和终端界面、网页平级的一个头（`docs/designs/18-通讯平台.md` 第三节、Q17）。它把 QQ 上的人接进场所会话，把她的回复发回 QQ；要不要开口、限流、出站这些和平台无关的部分在群聊内核 `miyu-chat`（`chat.md`），这里只管 QQ 这一头和跟核心的那一头。
 
-状态：图纸，随施工 O-8 起草（2026-10-07）。O-8 只有骨架：主人的私聊、只有文字（第一条）；O-8 补照 `chat.md` 第七条第 1 条改了编号的拼法（第一条第 7、8 条）；WebUI（第二条）随 O-16、O-17 起草，O-16 做了骨架和「连接」页。群、图片和文件、斜杠命令、出站链与出站队列、`start/stop/status/logs`、WebUI 随后面的步子。
+状态：图纸，随施工 O-8 起草（2026-10-07）。O-8 只有骨架：主人的私聊、只有文字（第一条）；O-8 补照 `chat.md` 第七条第 1 条改了编号的拼法（第一条第 7、8 条）；WebUI（第二条）随 O-16、O-17 起草，O-16 做了骨架和「连接」页，O-17 做了「主人与自己人」页。群、图片和文件、斜杠命令、出站链与出站队列、`start/stop/status/logs`、WebUI 随后面的步子。
 
 ### 在哪
 
@@ -18,7 +18,7 @@
 | `crates/miyu-onebot/src/current.rs`（O-16 补二） | 桥手里的令牌：起来时读到的那个；每次重读配置（`/status`、`/token`、`/apply`、NapCat 对不上时）照读到的换上；NapCat 对不上时的重读有节流 |
 | `crates/miyu-onebot/src/web.rs`（O-16） | WebUI：核对 Host，`/ws` 原样转给核心、`/status`、`/token`、`/apply`（补二）、`/human`、页面文件；底子是共用的 `miyu-webserve`（`webserve.md`） |
 | `crates/miyu-onebot/src/web/login.rs`、`web/checked.rs`（O-16） | 登录令牌拿去和核心握手验、验过的记一阵（只记哈希）；`/status`、`/token`、`/apply` 都照它（补二从 `status.rs` 挪出来） |
-| `crates/miyu-onebot/src/web/status.rs`、`web/token.rs`、`web/apply.rs`（O-16，后两个补二） | `/status`：NapCat 的状态、两个端口、令牌设没设；`/token`：令牌的值；`/apply`：重读配置、换端口 |
+| `crates/miyu-onebot/src/web/status.rs`、`web/token.rs`、`web/apply.rs`（O-16，后两个补二） | `/status`：NapCat 的状态、两个端口、令牌设没设、平台的名字（O-17）；`/token`：令牌的值；`/apply`：重读配置、换端口 |
 | `crates/miyu-onebot/src/web/human.rs`（O-16） | `/human`：登录以前页面要的字 |
 | `crates/miyu-onebot/src/open.rs`（O-16） | `miyu-onebot web`：桥在不在跑、要一次性码、开浏览器 |
 | `crates/miyu-onebot/src/listen.rs` | NapCat 反连进来的那一下：路径、令牌（对不上时重读配置再比，O-16 补二）、升级 |
@@ -27,12 +27,12 @@
 | `crates/miyu-onebot/src/core.rs`、`core/route.rs` | 跟核心的那一头：握手、`venue.session`、带 `as` 的 `session.send`、订阅、她的回复发回去 |
 | `crates/miyu-onebot/src/texts.rs` | 说给人听的字：挑哪一句、换进什么字段，字照 `Human::load` 读（「给人看的字」） |
 | `resources/software/onebot/bridge.json` | 桥自己的数：认的路径、调用等多久、两个队列多长、接不了连接歇多久、令牌对不上时多久才重读（「对外的样子」） |
-| `resources/software/onebot/human/{zh,en,ja}.json` | 桥说给人听的字（「给人看的字」）；WebUI 页面的字（`web/` 开头，O-16，第二条「给人看的字」） |
-| `resources/software/onebot/web/`（O-16） | WebUI 的页面：`index.html`、`app.js`、`style.css`，原生 JS |
+| `resources/software/onebot/human/{zh,en,ja}.json` | 桥说给人听的字（「给人看的字」）；WebUI 页面的字（`web/` 开头，O-16；`web/people/` 开头的 O-17，第二条「给人看的字」） |
+| `resources/software/onebot/web/`（O-16） | WebUI 的页面：`index.html`、`app.js`（登录、骨架、「连接」页）、`people.js`（「主人与自己人」页，O-17）、`style.css`，原生 JS 的模块（第二条「施工时定的」第 25 条） |
 | `xtask/src/ledger.rs` | 登记簿门禁豁免 `software/onebot/bridge.json` 这一份文件：是数据，不发给模型；O-16 再豁免 `software/onebot/web/` 这一个目录：给浏览器的 |
-| `crates/miyu-core/src/settings.rs` | `onebot.listen`、`onebot.web`（O-16）、`onebot.token` 三项配置（`OnebotSettings`）：权宜，照 `tui.startup` 的先例先由核心声明，9-1 挪进软件包的清单；生效时机：两个端口 `head_start`，令牌 `now`（O-16 补二） |
+| `crates/miyu-core/src/settings.rs` | `onebot.listen`、`onebot.web`（O-16）、`onebot.token`、`onebot.trusted`（O-17）四项配置（`OnebotSettings`）：权宜，照 `tui.startup` 的先例先由核心声明，以后桥的配置整体挪进软件包清单的 `[settings]` 时，同一个提交删掉核心这一份；生效时机：两个端口 `head_start`，令牌、自己人 `now`（O-16 补二、O-17） |
 | `crates/miyu-config/src/item/settings.rs`、`value.rs` | `settings!` 里整数可以写默认值；单个密钥的设置类型 `Option<Reference>`（O-8 加，两项要用） |
-| `resources/core/human/{zh,en,ja}.json` | 三项配置给人看的字（`config.items`）、组 `onebot`（`config.groups`）；补二：地址写 `/ws`，端口说明补「在 QQ 桥的网页上改、保存的，当场生效」，令牌说明改成没设照样起来、NapCat 下一次连进来照新的 |
+| `resources/core/human/{zh,en,ja}.json` | 四项配置给人看的字（`config.items`，`onebot.trusted` 随 O-17）、组 `onebot`（`config.groups`）；补二：地址写 `/ws`，端口说明补「在 QQ 桥的网页上改、保存的，当场生效」，令牌说明改成没设照样起来、NapCat 下一次连进来照新的 |
 
 ### 一、骨架：主人的私聊（施工 O-8）
 
@@ -162,7 +162,7 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 
 `miyu-onebot` 自己的配置页（`docs/designs/18-通讯平台.md` 第三节、Q18）：桥进程开一个只听本机的 HTTP 端口，给页面、把 `/ws` 原样转给核心。页面自己说核心协议：用户名、密码登录（核心验，`web-module.md` 第一条 W-8），改配置、存密钥调核心现成的 `config.set`、`secret.set`，校验只在核心那一处。只有桥自己知道的由桥另给：只读的 `/status`（NapCat 连没连上、是哪个实现、令牌设没设）、`/token`（令牌的值），和让桥当场照新配置的 `/apply`（O-16 补二）。终端界面、网页软件的设置页里只有一行「QQ：打开 miyu-onebot」，不画 QQ 的配置。
 
-状态：图纸，2026-10-07 起草，项目主人过目（登录用 Miyu 网页的账号、先做两页，照推荐定）。O-16 做好了骨架和「连接」页（施工时补的见「施工时定的」第 7 到 13 条；没设令牌也起来、在「连接」页生成第一个，见第 14 到 16 条）。2026-10-08 项目主人在自己的 NapCat 上试过以后改了四处（补二，第 17 到 24 条）：令牌随时能看能复制、没令牌时页顶写清三步、改了令牌和端口当场生效不用重启、地址写短的 `/ws`。O-17 做「主人与自己人」页；场所和规则、平台工具、插件、日志几页等群接通以后再做。
+状态：图纸，2026-10-07 起草，项目主人过目（登录用 Miyu 网页的账号、先做两页，照推荐定）。O-16 做好了骨架和「连接」页（施工时补的见「施工时定的」第 7 到 13 条；没设令牌也起来、在「连接」页生成第一个，见第 14 到 16 条）。2026-10-08 项目主人在自己的 NapCat 上试过以后改了四处（补二，第 17 到 24 条）：令牌随时能看能复制、没令牌时页顶写清三步、改了令牌和端口当场生效不用重启、地址写短的 `/ws`。O-17 做好了「主人与自己人」页（施工时补的见「施工时定的」第 25 到 36 条）；场所和规则、平台工具、插件、日志几页等群接通以后再做。
 
 **共用的底子**：给页面文件、核对 Host 和 Origin、`/ws` 原样转给核心、安全响应头、带一次性码打开浏览器，这几样网页软件（`web-ui.md` 第一条、第二条）已经写好了，从 `miyu-web` 抽进一个第 3 层的新 crate，`miyu-web` 和 `miyu-onebot` 都用它，`miyu-web` 的行为一个字节不变（18 第三节「抽成两边共用的库，不抄一份」）。这个 crate 叫 `miyu-webserve`，在第 3 层，交出什么、从哪搬来见 `webserve.md`（「施工时定的」第 1 条）。
 
@@ -171,9 +171,10 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 | 什么 | 说明 |
 |---|---|
 | 配置 `onebot.web` | WebUI 的端口，整数 1024 到 65535，出厂 8302（网页软件 8300、NapCat 8301，挨着好记），只能写在系统配置；在「连接」页保存当场换（`/apply`），命令行改的桥下次起来时生效（O-16 补二）。照 `onebot.listen` 的先例先由核心声明，9-1 挪进清单 |
+| 配置 `onebot.trusted`（O-17） | 自己人：平台身份的列表（`["qq:20017"]`），元素是文字、最多 128 个字；没有默认值，不写的当没有自己人；只能写在系统配置；生效时机 `now`。在「主人与自己人」页上整张写回。现在桥还不读（桥接群、算「发的人是谁」时读，`chat.md`「发的人是谁」），照 `onebot.listen` 的先例先由核心声明 |
 | `GET /` 和页面文件 | 页面在 `resources/software/onebot/web/`，规矩照网页软件（`..`、跑到目录外的、不是普通文件的 404；类型照扩展名；响应头带 `nosniff`、`no-referrer`、`no-cache`、内容安全策略） |
 | `GET /ws` | 原样转给核心，和网页软件的 `/ws` 一样（一帧一行、Origin 要对、1 MiB 上限、核心断了关 1012） |
-| `GET /status` | 只读，`Authorization: Bearer <登录令牌>`；桥拿这个令牌去和核心握手，核心认了才回，不认 401；连不上核心 502；`GET` 以外 405。每次重读一次配置（`Config::load`），桥手里的令牌照读到的换上（第一条第 2 条）。回 `{"napcat": {"connected": 布尔, "implementation": 字, "version": 字, "self_id": 字}, "listen": 端口, "web": 端口, "token": "set" \| "none" \| "missing"}`，`Cache-Control: no-store`；没连着的 `napcat` 只有 `connected: false`；连着、还没问到是哪个实现的，没有 `implementation`、`version`。连着几个号的，说号最小的那一个。`listen`、`web` 是实际听的端口（`/apply` 换过的照换过的）。`token`：取到了值、没写引用、写了引用取不到（引用的密钥没存、环境变量没设）；配置读不出来（走不到）的照桥手里的说（O-16 补二：去掉 `restart_needed`，`listen` 不再有 `null`，「施工时定的」第 6、14 条） |
+| `GET /status` | 只读，`Authorization: Bearer <登录令牌>`；桥拿这个令牌去和核心握手，核心认了才回，不认 401；连不上核心 502；`GET` 以外 405。每次重读一次配置（`Config::load`），桥手里的令牌照读到的换上（第一条第 2 条）。回 `{"napcat": {"connected": 布尔, "implementation": 字, "version": 字, "self_id": 字}, "listen": 端口, "web": 端口, "token": "set" \| "none" \| "missing", "platform": "qq"}`，`Cache-Control: no-store`；没连着的 `napcat` 只有 `connected: false`；连着、还没问到是哪个实现的，没有 `implementation`、`version`。连着几个号的，说号最小的那一个。`listen`、`web` 是实际听的端口（`/apply` 换过的照换过的）。`token`：取到了值、没写引用、写了引用取不到（引用的密钥没存、环境变量没设）；配置读不出来（走不到）的照桥手里的说（O-16 补二：去掉 `restart_needed`，`listen` 不再有 `null`，「施工时定的」第 6、14 条）。`platform` 是桥的平台名（第一条的 `PLATFORM`），「主人与自己人」页照它拼 `qq:<号>`（O-17，「施工时定的」第 26 条） |
 | `GET /token` | 要登录，和 `/status` 一样（不带、带错 401，连不上核心 502，`GET` 以外 405）。重读一次配置，回桥手里的令牌 `{"token": "<值>"}`，没有的 `{"token": null}`；`Cache-Control: no-store`；运行日志只记一行 `INFO web token read`，不记值（O-16 补二，「施工时定的」第 17 条） |
 | `POST /apply` | 要登录，同上；`POST` 以外 405。桥重读配置，令牌照新的；两个端口里和上一次照的（配置里写的那个）不一样的，先开新的，都开上了才关旧的、换上新的，回 `{"listen": 端口, "web": 端口}`（实际听的）。新的开不了的回 409 `{"in_use": 端口}`，两个端口都不换、旧的照旧开着，令牌照样换上；配置读不出来（走不到）回 500。已经连着的（NapCat 的那一条、页面正在用的连接）不断（O-16 补二，「施工时定的」第 19 条） |
 | `GET /human` | 登录以前页面要的字（O-16 施工时补，「施工时定的」第 7 条）：不要登录，`{"language": <桥的语言>, "said": {<编号>: <模板>}}`，只有 `software/onebot/web/` 开头的；`GET` 以外 405 |
@@ -233,17 +234,32 @@ NapCat 那边要填的
 ```
 主人与自己人（O-17）
 
-主人        这些号的私聊就是本机账号本人；在群里多管理命令的权限
-  QQ 号            本机账号
-  [ 10001     ]    admin          [删]
-  [ 10002     ]    admin          [删]
-  [+ 加一个]                                   [保存]
+┌ 主人 ──────────────────────────────────────────────────┐
+│ 这些号的私聊就是本机账号本人；在群里多管理命令的权限。     │
+│  QQ 号            本机账号                               │
+│  [ 10001     ]    [ admin ▾ ]   [删]                     │
+│  [ 1000x     ]    [ admin ▾ ]   [删]  号只能是数字，不以 0 开头 │
+│  [ 10001     ]    [ admin ▾ ]   [删]  这个号重复了        │
+│  [加一个]                                       [保存]   │
+│  没成：<核心的原话>                                      │
+│  ▸ 主人的号就是你本人：先知道这三条代价（点开是 18 第三节的三条） │
+└─────────────────────────────────────────────────────────┘
+┌ 自己人 ────────────────────────────────────────────────┐
+│ 私聊里能叫她，不限流，睡着时私聊也放行。                  │
+│ QQ 桥接通群以后才照这张表认人，现在先记下。               │
+│  [ 20017     ]   [删]                                    │
+│  [ 10001     ]   [删]  已经是主人                        │
+│  [加一个]                                       [保存]   │
+└─────────────────────────────────────────────────────────┘
+```
 
-  ⚠ 号被盗，就等于这台机器在你的权限下被人用（18 第三节的三条代价，折起来）
+```
+表空着时（O-17）
 
-自己人      私聊里能叫她，不限流，睡着时私聊也放行
-  [ 20017     ]   [删]
-  [+ 加一个]                                   [保存]
+主人      还没有主人。按「加一个」，填上你自己的 QQ 号，再按「保存」：以后你私聊她，她就认得是你。
+          [加一个]                                  [保存]（灰着）
+自己人    还没有自己人。
+          [加一个]                                  [保存]（灰着）
 ```
 
 **怎么走**
@@ -256,7 +272,15 @@ NapCat 那边要填的
    - 地址照 `ws://127.0.0.1:<onebot.listen>/ws` 拼（短的那个，O-16 补二），「复制」把它放进剪贴板。
    - 令牌照 `/status` 的 `token`（O-16 补二，「施工时定的」第 16、17 条）：`set` 的那一行「已设 ········」（照环境变量的写「照环境变量 <名字>」），三个按钮：「显示」取 `/token` 把值显示在那一行（按钮变「收起」，再按收起）；「复制」取 `/token` 放进剪贴板；「换一个」先在页面里的对话框问一句（NapCat 那边也要跟着换；「取消」「换一个」，先停在「取消」上）再生成。`none`、`missing` 的那一行说没设、引用的取不到，只有一个主按钮「生成」，不先问。生成：页面生成 32 个随机字节（十六进制），`secret.set` 存成 `onebot`，`config.set` 把 `onebot.token` 写成 `{ secret = "onebot" }`，再取 `/token` 显示出来：取的时候桥重读配置，令牌当场照新的（第一条第 2 条）。
    - 端口：`config.set` 写 `onebot.listen`、`onebot.web`；写错的核心回问题，页面照原话说。写好了调 `/apply`：NapCat 的端口换了，说一句去 NapCat 里改地址；WebUI 的端口换了，先说一句（登录记在浏览器里、按地址分，到新地址要重新登录一次），再跳到新地址；被占了说哪个端口被占、桥照旧用原来的（O-16 补二，「施工时定的」第 21 条）。
-4. **主人与自己人页**（O-17）：主人对应表照 `config.get` 读 `external.bindings`，一行一个号对一个账号（第一版账号只有 `admin`，下拉里只有它）；加、删以后 `config.set`，键是 `external.bindings."qq:<号>"`。自己人是 `onebot.trusted`（O-15 先声明这一项）。号只收数字，平台前缀由页面照桥的平台名拼。
+4. **主人与自己人页**（O-17）：
+   - 进这一页时 `config.get` 读一遍（不写 `keys`：全部，键里有人起的名字的照真的键列；「连接」页也照它）。平台的名字照 `/status` 的 `platform`；还没取到 `/status` 的先说「正在连」，取到了再画（「施工时定的」第 26、33 条）。
+   - **主人**：`external.bindings` 下键是 `<平台>:<号>` 的每一格，一行一个号对一个账号；别的平台的不画、不碰。号只收数字，平台前缀由页面照桥的平台名拼（`qq:<号>`）。账号的下拉：协议里没有列账号的方法，下拉里是握手回的账号（核心里固定是 `admin`），加上表里已经写着的别的账号（手写的照原样留着，「施工时定的」第 27 条）；新加的一行照握手回的账号。保存时照改动发一条 `config.set`（`layer: "system"`，几项一起）：加的、改了账号的写 `external.bindings."qq:<号>" = "<账号>"`，删的恢复默认（`unset: true`，去掉这一格）。只写系统配置。
+   - **自己人**：`onebot.trusted`，平台身份的列表，一行一个号；保存时整张写回（`value` 是整张列表；别的平台的身份照原样留在前面，「施工时定的」第 29 条）。同一个号也在主人表里的（照主人表里现在的行，没存的也算），那一行旁边说一句「已经是主人」，照样能存：主人的权限包含自己人的，不拦，免得改表时卡住。
+   - 号：去掉前后的空白；空着的行不算（保存时当没有这一行，也不标）；不是 1 到 20 位数字、以 0 开头的标出来；同一张表里号重复的都标出来；有标着的不让存（「施工时定的」第 28 条）。表里手写的 `qq:` 后面不是数字的照样画出来、标着，删掉或者改对了才能存。
+   - 两张表各有一个「保存」，没改动、有标着的行时灰着。存好了在那一张表下面说「存好了」，照 `config.get` 重读，只重画这一张表，另一张没存的改动留着（第 31 条）。核心回问题（`config_invalid`、还没设好密码的 `setup_first` 这些）照原话说在那一张表下面（`web/failed`），表里的东西不丢。
+   - 表空着时：主人表写一句先做什么（「加一个」、填上自己的号、「保存」），自己人表写「还没有自己人」。主人表下面折起来一段「号被盗的代价」（`<details>`，18 第三节的三条），给人看的字。
+   - 生效：`external.bindings` 核心当场照新的认（`config.md` 那一行的 `now`）；`onebot.trusted` 现在桥还不读（桥接群、算「发的人是谁」时才读），生效时机写 `now`，到时桥照 O-16 的办法当场重读，自己人那张表下面先写一句「QQ 桥接通群以后才照这张表认人」（第 32 条），桥接群那一步去掉。页面都不提示重启。
+   - 左栏的「主人与自己人」点得进，「连接」点得回；在哪一页只记在页面里，重新载入回到「连接」（第 34 条）。窄屏点了左栏的一页，抽屉收起。
 5. **运行日志**：照桥的 `state/logs/onebot.log`，只记 WebUI 起来、登录成功或失败的次数、取过令牌（`/token`，O-16 补二）、`/apply` 换了哪个端口，不记密码、令牌、一次性码。
 
 **在哪**、**改了谁**：见第一条「在哪」标 O-16 的几行；共用的底子 `crates/miyu-webserve/`（`webserve.md`，第 3 层，从 `miyu-web` 原样搬来，搬家表在那一页）。
@@ -291,9 +315,30 @@ NapCat 那边要填的
 | `open/open-this` | `--print` | 在浏览器里打开： | Open this in a browser: |
 | `open/code-warning` | `--print` 带了码 | 这个链接 5 分钟内有效，只能用一次，别发给别人。 | This link works once within 5 minutes. Do not share it. |
 
-页面的字（`web/…`，中文；英文见 `resources/software/onebot/human/en.json`）：登录（`web/login/*`：登录、用户名、密码、「还没设过密码的，在终端里运行 miyu-onebot web。」）、设密码（`web/setup/*`）、`web/loading`、`web/core-lost`、`web/retry`、左栏（`web/nav/*`、`web/later`、`web/not-yet`）、`web/menu`、`web/sign-out`、没令牌时的三步（`web/guide/*`，O-16 补二）、NapCat 的状态（`web/napcat/*`：已连上、没连上、看不到桥的状态，`{implementation} {version} · 机器人 {bot}`）、要填的（`web/fill/*`，地址的写法 `ws://127.0.0.1:{port}/ws` 也在这里）、令牌（`web/token/*`：已设、没设、引用的取不到、照环境变量、显示、收起、换一个、生成、换之前问一句）、对话框的「取消」（`web/cancel`）、端口（`web/ports/*`：两格的名字，NapCat 的端口换了、WebUI 的端口换了要重新登录、被占了）、`web/copy`、`web/copied`、`web/save`、`web/saved`、`web/failed`、`web/brand`。补二去掉了 `web/napcat/closed`（没开端口）、`web/token/new`、`web/token/new-hint`（只显示这一次）、`web/restart`（重启以后生效）。
+页面的字（`web/…`，中文；英文见 `resources/software/onebot/human/en.json`）：登录（`web/login/*`：登录、用户名、密码、「还没设过密码的，在终端里运行 miyu-onebot web。」）、设密码（`web/setup/*`）、`web/loading`、`web/core-lost`、`web/retry`、左栏（`web/nav/*`、`web/later`、`web/not-yet`）、`web/menu`、`web/sign-out`、没令牌时的三步（`web/guide/*`，O-16 补二）、NapCat 的状态（`web/napcat/*`：已连上、没连上、看不到桥的状态，`{implementation} {version} · 机器人 {bot}`）、要填的（`web/fill/*`，地址的写法 `ws://127.0.0.1:{port}/ws` 也在这里）、令牌（`web/token/*`：已设、没设、引用的取不到、照环境变量、显示、收起、换一个、生成、换之前问一句）、对话框的「取消」（`web/cancel`）、端口（`web/ports/*`：两格的名字，NapCat 的端口换了、WebUI 的端口换了要重新登录、被占了）、`web/copy`、`web/copied`、`web/save`、`web/saved`、`web/failed`、`web/brand`；「主人与自己人」页（`web/people/*`，O-17，中文照下表，存好了、没成照上面的 `web/saved`、`web/failed`）。补二去掉了 `web/napcat/closed`（没开端口）、`web/token/new`、`web/token/new-hint`（只显示这一次）、`web/restart`（重启以后生效）。
 
-**样子**的实际：宽屏顶栏「miyu-onebot ● NapCat 已连上 … admin ▾」，`admin ▾` 里是「退出登录」；左栏「连接」，「主人与自己人」和「以后」下面四页是灰的、点不了；「连接」页三张卡片（NapCat、NapCat 那边要填的、端口）。令牌没设的（O-16 补、补二）：页顶多一张「先做这三步」的卡片，令牌那一行「没设」、一个主按钮「生成」；生成以后令牌那一行变「已设」，值直接显示在那一行（按钮是「收起」「复制」「换一个」），三步的第一步打勾，NapCat 连上以后三步收起。窄屏（720px 以下）左栏收成抽屉，顶栏左边一个按钮开它。亮暗两色跟着系统（`prefers-color-scheme`），颜色照网页软件的「晨光」和「tokyonight」。图里的「回到 Miyu」O-16 没画（「施工时定的」第 12 条）。
+| 编号（`web/people/` 后面） | 中文 | 英文 |
+|---|---|---|
+| `owners/title` | 主人 | Owners |
+| `owners/hint` | 这些号的私聊就是本机账号本人；在群里多管理命令的权限。 | Private chats from these accounts are the local account itself; in groups they also get the admin commands. |
+| `owners/empty` | 还没有主人。按「加一个」，填上你自己的 QQ 号，再按「保存」：以后你私聊她，她就认得是你。 | No owners yet. Press Add, enter your own QQ number and press Save: from then on she knows it is you in private chat. |
+| `number` | QQ 号 | QQ number |
+| `account` | 本机账号 | Local account |
+| `add` | 加一个 | Add |
+| `remove` | 删 | Remove |
+| `bad-number` | 号只能是数字，不以 0 开头 | Digits only, not starting with 0 |
+| `duplicate` | 这个号重复了 | This number is listed twice |
+| `already-owner` | 已经是主人 | Already an owner |
+| `trusted/title` | 自己人 | Friends |
+| `trusted/hint` | 私聊里能叫她，不限流，睡着时私聊也放行。 | They can call her in private chat, with no rate limit, even while she sleeps. |
+| `trusted/later` | QQ 桥接通群以后才照这张表认人，现在先记下。 | The QQ bridge uses this list once groups are connected; it is kept until then. |
+| `trusted/empty` | 还没有自己人。 | No friends yet. |
+| `risk/title` | 主人的号就是你本人：先知道这三条代价 | An owner account is you: know these three costs |
+| `risk/stolen` | QQ 号被盗，就等于这台机器在你的权限下被别人用。 | If the QQ account is stolen, someone else uses this machine with your permissions. |
+| `risk/forged` | 「这是主人发的」只能听 NapCat 报上来的：NapCat 被人拿下、或者本身不怀好意，就能冒充你的私聊。 | "This is from the owner" rests on what NapCat reports: a compromised or malicious NapCat can fake your private chats. |
+| `risk/injection` | 网页、文件里藏着的提示词注入，能让她在沙盒允许的范围里乱改工作区的文件；越过沙盒的操作在私聊里一律做不了。 | Prompt injection hidden in web pages or files can make her change workspace files within what the sandbox allows; nothing beyond the sandbox can be done from a private chat. |
+
+**样子**的实际：宽屏顶栏「miyu-onebot ● NapCat 已连上 … admin ▾」，`admin ▾` 里是「退出登录」；左栏「连接」「主人与自己人」两页点得进（O-17），「以后」下面四页是灰的、点不了；「连接」页三张卡片（NapCat、NapCat 那边要填的、端口）。令牌没设的（O-16 补、补二）：页顶多一张「先做这三步」的卡片，令牌那一行「没设」、一个主按钮「生成」；生成以后令牌那一行变「已设」，值直接显示在那一行（按钮是「收起」「复制」「换一个」），三步的第一步打勾，NapCat 连上以后三步收起。窄屏（720px 以下）左栏收成抽屉，顶栏左边一个按钮开它。亮暗两色跟着系统（`prefers-color-scheme`），颜色照网页软件的「晨光」和「tokyonight」。图里的「回到 Miyu」O-16 没画（「施工时定的」第 12 条）。
 
 **守着它的**（`crates/miyu-onebot/tests/`，O-16；核心是 `miyu-ipc` 的监听当替身，照网页软件）
 
@@ -305,9 +350,10 @@ NapCat 那边要填的
 - 验过的登录令牌：记一阵、到点就忘、别的令牌不算；只记 SHA-256，没有原文。（`src/web/tests.rs`）
 - `miyu-onebot web`：桥不在跑说先 `serve`、退出码 1、不开浏览器；没设过密码的带 `#setup=`，设过的不带；`--print`、交不给浏览器的印网址和提醒。（`open.rs`）
 - 出厂的 `bridge.json` 的 `web`：三种类型、策略只连自己不许被框、60 秒；多一格少一格读不进来。（`tuning.rs`）读配置：`onebot.web` 不写是 8302。（`settings.rs`）新加的每一句三种语言都换得出来。（`texts.rs`）
-- 页面没有自动测试：`node --check` 查 `app.js` 的写法；无头浏览器截图（补二：没令牌时的三步、显示令牌、换令牌的确认，亮暗各一套）；项目主人在浏览器里试一次（施工单验收第 6 条）。
+- 「主人与自己人」页（O-17，`people.rs`；真的核心加真的桥，浏览器经 `/ws` 照页面的样子发）：还没设好密码的连接（一次性码）改系统配置回 `setup_first`、什么都没写；设好以后加一个主人（`external.bindings."qq:<号>"`）、删一个主人（恢复默认）、整张写回自己人，换一条连接 `config.get` 读得回，桥收到新主人的私聊、记成管理员本人；自己人写进个人设置、写成一个字、元素是空的字，`config_invalid`，什么都没变。`/status` 带 `platform`（`status.rs`）。`onebot.trusted` 读得出、不写是没有、只能写系统配置、写错的报问题（`crates/miyu-core/tests/settings.rs`）。
+- 页面没有自动测试：`node --check` 查 `app.js`、`people.js` 的写法；无头浏览器截图（补二：没令牌时的三步、显示令牌、换令牌的确认，亮暗各一套；O-17：两张表空着、填了几行（号不对、重复、已经是主人）、核心回问题、窄屏，亮暗各一套）；项目主人在浏览器里试一次（O-16 施工单验收第 6 条、O-17 第 5 条）。
 
-**施工时定的**（O-16，2026-10-07；补二，2026-10-08）
+**施工时定的**（O-16，2026-10-07；补二，2026-10-08；O-17 第 25 到 36 条，2026-10-08）
 
 | # | 定了什么 | 为什么 | 没选 |
 |---|---|---|---|
@@ -335,3 +381,15 @@ NapCat 那边要填的
 | 22 | 没令牌时页顶的三步：`/status` 的 `token` 不是 `set` 时出来，出来了就留到 NapCat 连上（令牌设好了第一步打勾）；令牌早就设好、只是没连上的不出来（补二，2026-10-08） | 生成以后还有两步要做，这时收起，人不知道下一步；设好过的人不用再看一遍 | 只看 `token`（生成完就收起）；只看连没连上（设好过、NapCat 暂时断了也出来） |
 | 23 | 换令牌之前问的那一句用页面里的对话框（`<dialog>`），不用浏览器的 `confirm`（补二，2026-10-08） | 跟着页面的亮暗色、字体，和页面是一家；截图看得到（浏览器自己的对话框不进页面的截图） | 浏览器的 `confirm`（O-16 原来的做法） |
 | 24 | 配置清单里 `onebot.token` 的生效时机改 `now`，说明写「改了以后，NapCat 下一次连进来就照新的」；`onebot.listen`、`onebot.web` 留 `head_start`，说明补「在 QQ 桥的网页上改、保存的，当场生效」；地址的说法写 `/ws`；没设令牌那一句改成「QQ 桥照样起来，NapCat 连进来会被拒」（补二，2026-10-08 主会话定；`OnebotSettings` 是 O-8 权宜放在核心里的，核心同意过由桥这边改） | 令牌改了确实当场生效（第 18 条），说「下次启动时」会让人白重启；命令行改的端口还是要重启或在网页上按保存，`head_start` 照实说，网页上的另补一句 | 令牌留 `head_start`（说得不对）；端口改 `now`（命令行改的不会当场换） |
+| 25 | 页面拆成模块：`app.js`（登录、骨架、「连接」页）、`people.js`（「主人与自己人」页，`app.js` 引进来）；`index.html` 照 `type="module"` 载 `app.js`（O-17） | 一页一个文件，不出包揽一切的大文件；原生的模块不用构建工具，内容安全策略 `script-src 'self'` 照样放行，`.js` 的类型表里本来就有 | 都写在 `app.js` 里（八百多行）；两个普通脚本经全局变量共用 |
+| 26 | 平台的名字照 `/status` 多的一格 `platform`（第一条的 `PLATFORM`）；页面拼 `<平台>:<号>`，认的也只认这个平台的（O-17） | 平台的名字只写一处（第一条「施工时定的」第 16 条）；页面本来每 5 秒取 `/status` | 页面里再写一份 `qq` |
+| 27 | 账号的下拉：握手回的账号，加上表里已经写着的别的账号；新加的一行照握手回的（O-17） | 协议里没有列账号的方法，核心现在只有 `admin`（第 4 条），照实；手写的别的账号不能因为页面不认就被改掉 | 请核心加 `account.list`（多用户那一段的事）；写死 `admin` |
+| 28 | 号去掉前后空白，照 `1` 到 `9` 开头、一共 1 到 20 位数字认；空着的行不算、不标；同一张表里重复的标出来；有标着的不让存（O-17） | 桥照整数拼 `qq:<号>`，`0123` 写进去永远对不上；刚按「加一个」的空行就标红扰人 | 收任意字；空行也标；以 0 开头的也收 |
+| 29 | 只画、只改这个平台的：主人表里别的平台的键不画、不碰；自己人整张写回时，别的平台的身份照原样留在前面。手写的 `qq:` 后面不是数字的照样画出来、标着（O-17） | 页面只管这个桥的平台，不把别处写的冲掉；坏的那一格让人看见、改对或者删掉 | 整张写回时只写页面上的（别的平台的被冲掉）；坏的不画（存的时候被悄悄删掉） |
+| 30 | 「已经是主人」照主人表里现在的行（没存的也算）（O-17） | 人改着两张表时当场看得到 | 只照存好的 |
+| 31 | 存好了照 `config.get` 重读，只重画存的那一张表；另一张没存的改动留着（O-17） | 两张表各存各的 | 整页重读（另一张没存的改动丢了） |
+| 32 | 自己人那张表下面写一句「QQ 桥接通群以后才照这张表认人，现在先记下」，桥接群那一步去掉（O-17） | 现在桥还不读 `onebot.trusted`（O-8 只接主人的私聊），不说的话人加了自己人、私聊没反应，以为坏了 | 不说 |
+| 33 | 读配置的 `load` 不写 `keys`（全部），两页共用一份（O-17，「连接」页原来只要三项） | 主人表有哪些号事先不知道，只能全要；一份 `items` 两页都用，不各读各的 | 两页各读各的；主人表照 `config.schema` 先问有哪些键（没有这种问法） |
+| 34 | 在哪一页只记在页面里，重新载入回到「连接」（O-17） | 朴素；地址栏的 `#` 给一次性码用 | 照地址栏的 `#people` 记 |
+| 35 | 「不是管理员的账号改系统配置被拒」照实测：核心现在只有管理员一个账号（第 4 条），没有这种账号；测的是还没设好密码的连接（一次性码）改系统配置回 `setup_first`、什么都没写，页面照原话说在表下面（O-17） | 照核心现在的样子测，不为测造一个核心里没有的账号；多用户那一段有了别的账号再补 | 造一个假的账号（核心里没有） |
+| 36 | `onebot.trusted` 的元素是文字，最多 128 个字（和主人表的 `<external>` 一样长）；没有默认值（`none`），不写的页面当空表（O-17） | 元素是平台身份，照 `<external>` 的长度；宏里只有密钥的列表认 `[]` 当默认值，要 `[]` 得改 `miyu-config` | 默认值 `[]`；照号只收数字（规矩在页面，平台无关的规矩在桥那边，施工单「要定的」第 4 条） |

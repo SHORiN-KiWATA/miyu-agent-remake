@@ -81,6 +81,24 @@
     "web/ports/listen-moved": "NapCat's port is now {port}: change the URL in NapCat to the one above.",
     "web/ports/web-moved": "The web UI moved to port {port} and opens there now. Sign-ins are kept per address, so sign in again at the new one.",
     "web/ports/in-use": "Port {port} is in use, so the bridge keeps its old ports. Pick another one and save again.",
-    "web/cancel": "Cancel"
+    "web/cancel": "Cancel",
+    "web/people/owners/title": "Owners",
+    "web/people/owners/hint": "Private chats from these accounts are the local account itself; in groups they also get the admin commands.",
+    "web/people/owners/empty": "No owners yet. Press Add, enter your own QQ number and press Save: from then on she knows it is you in private chat.",
+    "web/people/number": "QQ number",
+    "web/people/account": "Local account",
+    "web/people/add": "Add",
+    "web/people/remove": "Remove",
+    "web/people/bad-number": "Digits only, not starting with 0",
+    "web/people/duplicate": "This number is listed twice",
+    "web/people/already-owner": "Already an owner",
+    "web/people/trusted/title": "Friends",
+    "web/people/trusted/hint": "They can call her in private chat, with no rate limit, even while she sleeps.",
+    "web/people/trusted/later": "The QQ bridge uses this list once groups are connected; it is kept until then.",
+    "web/people/trusted/empty": "No friends yet.",
+    "web/people/risk/title": "An owner account is you: know these three costs",
+    "web/people/risk/stolen": "If the QQ account is stolen, someone else uses this machine with your permissions.",
+    "web/people/risk/forged": "\"This is from the owner\" rests on what NapCat reports: a compromised or malicious NapCat can fake your private chats.",
+    "web/people/risk/injection": "Prompt injection hidden in web pages or files can make her change workspace files within what the sandbox allows; nothing beyond the sandbox can be done from a private chat."
   }
 }

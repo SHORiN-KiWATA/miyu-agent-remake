@@ -239,6 +239,10 @@
       "onebot.token": {
         "name": "QQ 桥的令牌",
         "description": "NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。写 { secret = \"名字\" }（用 miyu login 存）或 { env = \"环境变量\" }。没设的，QQ 桥照样起来，NapCat 连进来会被拒；在 QQ 桥的网页上能生成一个。改了以后，NapCat 下一次连进来就照新的。"
+      },
+      "onebot.trusted": {
+        "name": "QQ 桥的自己人",
+        "description": "私聊里能叫她、不限流、睡着时私聊也放行的人，写平台上的身份的列表，例如 [\"qq:20017\"]。在 QQ 桥的网页上改。QQ 桥接通群以后才照它认人。"
       }
     },
     "pages": {

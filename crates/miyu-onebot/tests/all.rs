@@ -12,6 +12,7 @@ mod ids;
 mod listen;
 mod no_token;
 mod open;
+mod people;
 mod private;
 mod replies;
 mod settings;
