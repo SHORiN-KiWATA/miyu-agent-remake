@@ -227,6 +227,14 @@
       "external.bindings.<external>": {
         "name": "主人的平台账号",
         "description": "通讯平台上的哪个号是哪个本机账号本人。键写平台上的身份（例如 qq:10001），值写本机账号。私聊里，这个号就是那个账号本人。"
+      },
+      "onebot.listen": {
+        "name": "QQ 桥的端口",
+        "description": "NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/onebot/v11/ws。"
+      },
+      "onebot.token": {
+        "name": "QQ 桥的令牌",
+        "description": "NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。写 { secret = \"名字\" }（用 miyu login 存）或 { env = \"环境变量\" }。没设的，QQ 桥不起来。"
       }
     },
     "pages": {
@@ -248,7 +256,8 @@
       "providers": "供应商",
       "catalog": "模型目录",
       "cooldown": "冷却",
-      "external": "平台账号"
+      "external": "平台账号",
+      "onebot": "QQ 桥"
     }
   },
   "said": {

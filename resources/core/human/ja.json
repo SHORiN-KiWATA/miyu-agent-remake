@@ -227,6 +227,14 @@
       "external.bindings.<external>": {
         "name": "主人のプラットフォームのアカウント",
         "description": "通信プラットフォームのどの番号がどのローカルアカウント本人かです。キーにプラットフォーム上の ID（例：qq:10001）、値にローカルアカウントを書きます。個人チャットでは、その番号がそのアカウント本人です。"
+      },
+      "onebot.listen": {
+        "name": "QQ ブリッジのポート",
+        "description": "NapCat のリバース WebSocket が接続してくるポートです。このマシンからだけ受け付けます。NapCat 側のアドレスは ws://127.0.0.1:<ポート>/onebot/v11/ws です。"
+      },
+      "onebot.token": {
+        "name": "QQ ブリッジのトークン",
+        "description": "NapCat が接続するときに示すアクセストークンです。NapCat 側にも同じものを設定します。{ secret = \"名前\" }（miyu login で保存）か { env = \"環境変数\" } を書きます。未設定なら QQ ブリッジは起動しません。"
       }
     },
     "pages": {
@@ -248,7 +256,8 @@
       "providers": "プロバイダー",
       "catalog": "モデルカタログ",
       "cooldown": "クールダウン",
-      "external": "プラットフォームのアカウント"
+      "external": "プラットフォームのアカウント",
+      "onebot": "QQ ブリッジ"
     }
   },
   "said": {

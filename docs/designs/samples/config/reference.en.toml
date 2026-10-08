@@ -65,6 +65,15 @@ base = "10s"
 # Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
 max = "5m"
 
+[onebot]
+# QQ bridge port: The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/onebot/v11/ws.
+# Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect the next time the program starts.
+listen = 8301
+
+# QQ bridge token: The access token NapCat shows when it connects; set the same one in NapCat. Write { secret = "name" } (saved with miyu login) or { env = "VARIABLE" }. Without it the QQ bridge does not start.
+# Allowed: { secret = "…" } or { env = "…" }. Only in the system config. Takes effect the next time the program starts.
+# token =
+
 [permission]
 # Start new sessions read-only: When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on.
 # Allowed: true or false. Only in the system config, personal settings or a project config. Applies to sessions opened from now on.

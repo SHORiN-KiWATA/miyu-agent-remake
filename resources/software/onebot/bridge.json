@@ -1,0 +1,7 @@
+{
+  "paths": ["/onebot/v11/ws", "/ws"],
+  "call_timeout_seconds": 10,
+  "write_queue": 64,
+  "inbound_queue": 256,
+  "accept_retry_millis": 100
+}

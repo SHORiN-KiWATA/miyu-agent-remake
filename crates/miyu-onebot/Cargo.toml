@@ -1,0 +1,62 @@
+[package]
+name = "miyu-onebot"
+description = "通讯平台的桥：经 OneBot v11 的反向 WebSocket 接 NapCat，把 QQ 上主人的私聊送进场所会话，把她的回复发回 QQ（施工 O-8，onebot.md）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+autotests = false
+
+[[bin]]
+name = "miyu-onebot"
+path = "src/main.rs"
+
+[dependencies]
+# 连核心，没在跑就拉起来；出示本机令牌握手（照终端的头，connect_or_start）。
+miyu-ipc = { path = "../miyu-ipc" }
+# 数据根；系统的语言；资源目录和给人看的字（`Human::load`）。
+miyu-store = { path = "../miyu-store" }
+# 运行日志 `state/logs/onebot.log`，满了照核心的换法。
+miyu-log = { path = "../miyu-log" }
+# 读系统配置的两项（`onebot.listen`、`onebot.token`）：照核心登记的全部清单读（`miyu_core::settings::items`），连同密钥
+# 文件，只读。两项由核心替桥声明（权宜，9-1 挪进桥的清单）。不要核心的可选软件包。
+miyu-core = { path = "../miyu-core", default-features = false }
+miyu-endpoint = { path = "../miyu-endpoint" }
+# 给人看的字照说法换（`Said`，`Human::say`）；场所、平台上的人的编号是内核的 `VenueId`、`ExternalId`。
+miyu-kernel = { path = "../miyu-kernel" }
+# 群聊内核（第 2 层）：场所、平台上的人的编号经它拼，桥不手拼（`chat.md` 第七条第 1 条）。
+miyu-chat = { path = "../miyu-chat" }
+# 令牌是取出来的密钥（`Debug` 只印 `Secret(…)`）。
+miyu-config = { path = "../miyu-config" }
+# HTTP/1 的服务端：NapCat 反连进来的那一下是 HTTP 升级（照网页软件，本来就在依赖图里）。MIT。
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }
+http-body-util = "0.1"
+# WebSocket：一帧一条 OneBot 的事件或动作。只开握手（算 Sec-WebSocket-Accept），连接由 hyper 升级好交给它。MIT。
+tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+# 跟核心说的命令编号的随机前缀：桥重启以后不撞上一次的编号（`venue.session` 同一个编号交回上一次的那一个）。
+getrandom = { version = "0.4", features = ["std"] }
+# OneBot 和核心协议都是 JSON；读 `bridge.json`。
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time", "signal"] }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+# 测试里在进程里起一个真的核心：协议端点、请求模型照剧本回、读会话日志。
+miyu-endpoint = { path = "../miyu-endpoint" }
+miyu-session = { path = "../miyu-session", features = ["testkit"] }
+miyu-tool = { path = "../miyu-tool" }
+# 测试里的假 NapCat 是一个 WebSocket 客户端（客户端的握手）。
+tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time", "test-util"] }
+
+# 集成测试并成一个程序（施工 0-3 三补）；自己装日志订阅者的另列。
+[[test]]
+name = "all"
+path = "tests/all.rs"

@@ -212,3 +212,44 @@ fn layers_and_timings_are_written_as_on_the_wire() {
     assert_eq!(Kind::Bool.as_str(), "bool");
     assert_eq!(Kind::Option(&["a", "b"]).as_str(), "option");
 }
+
+crate::settings! {
+    /// 测试用的整数带默认值、单个密钥（施工 O-8：`onebot.listen`、`onebot.token` 的写法）。
+    pub struct Bridge in "bridge" {
+        /// 端口。
+        listen: Option<i64> = 8301 {
+            kind: int [1024, 65535],
+            layers: [System],
+            applies: head_start,
+            ui: { page: "advanced", group: "onebot", control: number },
+        },
+        /// 令牌。
+        token: Option<crate::secret::Reference> = none {
+            kind: secret,
+            layers: [System],
+            applies: head_start,
+            ui: { page: "advanced", group: "onebot", control: text },
+        },
+    }
+}
+
+#[test]
+fn an_integer_has_a_default_and_a_single_secret_reads_its_reference() {
+    assert_eq!(Bridge::ITEMS[0].default, Some(Value::Int(8301)));
+    assert_eq!(crate::list::check(Bridge::ITEMS), Vec::<String>::new());
+    let defaults = Bridge::from(&Values::default());
+    assert_eq!(defaults.listen, Some(8301));
+    assert_eq!(defaults.token, None);
+    let mut values = Values::default();
+    values.set("bridge.listen", Value::Int(9000));
+    values.set(
+        "bridge.token",
+        Value::Secret(crate::secret::Reference::Secret("onebot".into())),
+    );
+    let set = Bridge::from(&values);
+    assert_eq!(set.listen, Some(9000));
+    assert_eq!(
+        set.token,
+        Some(crate::secret::Reference::Secret("onebot".into()))
+    );
+}

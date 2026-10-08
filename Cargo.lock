@@ -1716,6 +1716,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-onebot"
+version = "0.0.0"
+dependencies = [
+ "futures-util",
+ "getrandom 0.4.3",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "miyu-chat",
+ "miyu-config",
+ "miyu-core",
+ "miyu-endpoint",
+ "miyu-ipc",
+ "miyu-kernel",
+ "miyu-log",
+ "miyu-session",
+ "miyu-store",
+ "miyu-tool",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+]
+
+[[package]]
 name = "miyu-pipe"
 version = "0.0.0"
 dependencies = [
