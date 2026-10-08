@@ -14,7 +14,7 @@ use std::sync::atomic::Ordering;
 
 use hyper::body::Incoming;
 use hyper::{Method, Request, Response, StatusCode};
-use serde_json::{Map, Value, json};
+use serde_json::json;
 
 use miyu_webserve::respond::{Body, empty};
 
@@ -37,26 +37,11 @@ pub(super) async fn get(request: &Request<Incoming>, web: &Web) -> Response<Body
         Token::Missing => "missing",
     };
     let status = json!({
-        "napcat": napcat(web),
+        "napcat": web.bots.napcat(),
         "listen": web.listen.load(Ordering::Relaxed),
         "web": web.port.load(Ordering::Relaxed),
         "token": token,
         "platform": PLATFORM,
     });
     reply(StatusCode::OK, &status)
-}
-
-/// NapCat 连没连上、是哪个号、哪个实现。
-fn napcat(web: &Web) -> Value {
-    let Some((bot, link)) = web.bots.first() else {
-        return json!({"connected": false});
-    };
-    let mut napcat = Map::new();
-    napcat.insert("connected".into(), json!(true));
-    napcat.insert("self_id".into(), json!(bot.to_string()));
-    if let Some(peer) = link.peer.get() {
-        napcat.insert("implementation".into(), json!(peer.implementation));
-        napcat.insert("version".into(), json!(peer.version));
-    }
-    Value::Object(napcat)
 }

@@ -120,7 +120,8 @@ async fn the_dev_preset_drops_memory_and_says_so() {
     );
     let pin = snapshot.preset.expect("记了预设");
     assert_eq!(pin.id, "dev");
-    assert_eq!(pin.off, ["memory", "roleplay"]);
+    // 出厂的桥（施工 O-18）装了、这个预设没开：快照照记，那一行不列（它没有工具）。
+    assert_eq!(pin.off, ["memory", "onebot", "roleplay"]);
     // 开会话时要了记忆也没用：开不开归预设。
     let (session, _) = first_request(
         &home,
@@ -132,6 +133,35 @@ async fn the_dev_preset_drops_memory_and_says_so() {
 
 fn memory_of(home: &Home, session: &str) -> Option<String> {
     snapshot(home, session).memory
+}
+
+/// 装了没开的那一行只列有工具的包（施工 O-18，2026-10-08 主会话定，`presets.md`「照预设挑」）：没有工具的 `process` 包她用
+/// 不上，桥这种又是核心拉起、不随会话的预设，写「这次的预设里关着」是假话。快照照旧记它没开。
+#[tokio::test]
+async fn software_without_tools_is_pinned_off_but_left_out_of_the_line() {
+    let home = Home::new();
+    home.write(
+        "home/alice/packages/quiet.toml",
+        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = { en = \"Quiet\" }\n\n[command]\nname = \"quiet\"\nprogram = \"miyu-quiet\"\nabout = { en = \"Q\" }\n\n[process]\nargs = []\n",
+    );
+    home.write(
+        "home/alice/presets/lean.toml",
+        "[preset]\nname = { en = \"Lean\" }\n\n[software]\nquiet = false\nmemory = false\n",
+    );
+    let (session, request) = first_request(
+        &home,
+        json!({"cwd": "~", "persona": "engineer", "preset": "lean"}),
+    )
+    .await;
+    assert!(
+        request
+            .system
+            .ends_with("Installed but off in this session's preset: memory."),
+        "有工具的照列，没有工具的不列：{}",
+        request.system
+    );
+    let pin = snapshot(&home, &session).preset.expect("记了预设");
+    assert_eq!(pin.off, ["memory", "quiet"], "快照照旧记全部没开的");
 }
 
 #[tokio::test]
@@ -216,8 +246,9 @@ async fn preset_get_names_software_that_is_not_installed() {
             ("goal", true, false),
             ("memory", false, true),
             ("roleplay", false, true),
+            ("onebot", false, true),
         ],
-        "装了的每一个都有开关（施工 P-2 补），写了没装的标着没装，内置的照固定的先后（施工 P-3 补）：{dev}"
+        "装了的每一个都有开关（施工 P-2 补），写了没装的标着没装，内置的照固定的先后（施工 P-3 补）；清单装的桥接在后面（施工 O-18）：{dev}"
     );
     let full = client
         .call("g2", "preset.get", json!({"preset": "full"}))
@@ -228,6 +259,7 @@ async fn preset_get_names_software_that_is_not_installed() {
             ("basesystem", true, true),
             ("memory", true, true),
             ("roleplay", true, true),
+            ("onebot", true, true),
         ]
     );
 }

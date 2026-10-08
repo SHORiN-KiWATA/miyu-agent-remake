@@ -4,6 +4,8 @@
 //! 施工 3-6（上）时只有人设。别的块跟着各自的功能来，按 J12 先实测证明不加不行：场所说明施工 7-5 加（子会话）；核心的
 //! 几行施工 2-7 补加，权限那一行和本机文件的路径那一行，2026-10-01 主会话 A/B 实测过（`26-提示词.md` 第十节）。
 
+use std::collections::BTreeSet;
+
 use miyu_kernel::id::ContentHash;
 
 use crate::pause::PAUSE;
@@ -158,10 +160,17 @@ impl Snapshot {
 
     /// 带上预设（施工 P-2 中，Y8）：记进快照；没开角色扮演的去掉角色扮演提示（人格的指纹照旧算原来的字，回合开始时不会
     /// 当成改过）；装了没开的软件写成一行接在 system 后面（26 第四节第 5 块），在 [`Snapshot::with_core_lines`] 以后、
-    /// [`Snapshot::with_style_lock`] 以前调。角色扮演不进这一行：它没有工具，她不会去用它，列出来反倒像是不许演。都开着的
-    /// 不写这一行，system 一字不变。
+    /// [`Snapshot::with_style_lock`] 以前调。这一行只列 `tooled` 里的：会给工具面带来工具的包（照完整的工具目录算，不照这次
+    /// 的预设筛）。没有工具的她用不上：角色扮演列出来反倒像是不许演；通讯平台的桥是核心拉起的，不随会话的预设，写「这次的
+    /// 预设里关着」是假话（施工 O-18，2026-10-08 主会话定，`presets.md`「照预设挑」）。快照记的 `pin.off` 照旧是全部没开的。
+    /// 都开着、没开的都没有工具的不写这一行，system 一字不变。
     #[must_use]
-    pub fn with_preset(mut self, pin: Option<PresetPin>, line: &str) -> Snapshot {
+    pub fn with_preset(
+        mut self,
+        pin: Option<PresetPin>,
+        line: &str,
+        tooled: &BTreeSet<String>,
+    ) -> Snapshot {
         let Some(pin) = pin else {
             return self;
         };
@@ -171,8 +180,8 @@ impl Snapshot {
         let listed: Vec<&str> = pin
             .off
             .iter()
+            .filter(|software| tooled.contains(*software))
             .map(String::as_str)
-            .filter(|software| *software != ROLEPLAY)
             .collect();
         if !listed.is_empty() {
             let line = line.replace("{packages}", &listed.join(", "));

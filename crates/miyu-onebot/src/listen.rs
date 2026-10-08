@@ -29,7 +29,7 @@ use hyper::upgrade::OnUpgrade;
 use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpStream;
-use tokio::sync::mpsc;
+use tokio::sync::{Notify, mpsc};
 use tokio_tungstenite::tungstenite::handshake::derive_accept_key;
 
 use crate::TARGET;
@@ -54,6 +54,8 @@ pub(crate) struct Gate {
     pub(crate) tell: Arc<dyn Fn(Notice) + Send + Sync>,
     /// 下一条连接的序号（`bots::Link::serial`）。
     pub(crate) serial: AtomicU64,
+    /// NapCat 连上、断开、认出号、问到是哪个实现时叫一声：状态文件照这一刻再写（`crate::status_file`，施工 O-18）。
+    pub(crate) changed: Arc<Notify>,
 }
 
 /// 升级了的一个：hyper 交出连接的那一头、`X-Self-ID` 报的号。

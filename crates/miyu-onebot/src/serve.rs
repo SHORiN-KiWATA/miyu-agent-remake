@@ -1,22 +1,25 @@
-//! `miyu-onebot serve`（`onebot.md` 第一条「怎么走」第 1、2、11 条）：连核心、握手，再开监听，把几样接起来，跑到停的信号
-//! 或者核心断开。
+//! `miyu-onebot serve`（`onebot.md` 第一条「怎么走」第 1、2、11 条）：在核心亲手给的管道上握手，再开监听，把几样接起来，跑到
+//! 停的信号或者核心关了管道。
 //!
-//! 1. 用本机套接字连核心，没在跑就拉起（`core`）。连不上：[`Failure::Core`]。
+//! 1. 在 [`Pipe`] 上握手（`core`）：程序里是标准输入输出，核心拉起桥时接好的（施工 O-18，`extensions.md`），不带凭据。等不到
+//!    回应：[`Failure::NotSpawned`]；被拒、管道关了：[`Failure::Core`]。
 //! 2. 只听 `127.0.0.1` 的 `onebot.listen`。被占了：[`Failure::PortInUse`]。再听 `127.0.0.1` 的 `onebot.web`（WebUI，施工
 //!    O-16，第二条「怎么走」第 1 条）。被占了：[`Failure::WebPortInUse`]。听上了各说一行（[`Notice::Listening`] 带握手回的
 //!    语言，[`Notice::Web`]）。令牌没设的两个也照开，NapCat 连进来一律 401，人在 WebUI 里生成令牌，NapCat 下一次连就通
 //!    （O-16 补、补二，18 第三节「还没配好就 `start`」）：在两句中间说 [`Notice::NoToken`]，记一行运行日志。
-//! 3. 每个 TCP 连接一个任务（NapCat 的交给 `listen`，WebUI 的交给 `web`），跟核心的那一头一个任务（`core/route.rs`），都在
-//!    一组里：停下时一起停。WebUI 的 `/apply` 开好的新监听经 `Swap` 送过来，换掉旧的，旧的随之关掉；已经接进来的连接不断
-//!    （O-16 补二，第二条「施工时定的」第 19 条）。
-//! 4. 核心断了：[`Failure::CoreGone`]，桥退出（「施工时定的」第 5 条：9-4 以后核心拉起它，桥里不另写一套重连）。跟核心的
-//!    那一头、发回话的任务崩了：[`Failure::Crashed`]，也退（第 14 条）。NapCat 断了不退。
+//! 3. 每个 TCP 连接一个任务（NapCat 的交给 `listen`，WebUI 的交给 `web`），跟核心的那一头一个任务（`core/route.rs`），写状态
+//!    文件的一个任务（`crate::status_file`，施工 O-18），都在一组里：停下时一起停。WebUI 的 `/apply` 开好的新监听经 `Swap`
+//!    送过来，换掉旧的，旧的随之关掉，状态文件跟着写；已经接进来的连接不断（O-16 补二，第二条「施工时定的」第 19 条）。
+//! 4. 核心关了管道（标准输入读到头：核心请它退出，或者核心不在了）：好好停下，交回 `Ok`，退出码 0（第 11 条，「施工时定的」
+//!    第 5、21 条：崩了由核心退避重启，桥里不另写一套重连）。跟核心的那一头、发回话的任务崩了：[`Failure::Crashed`]，退出
+//!    （第 14 条）。NapCat 断了不退。
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU16, AtomicU64};
 
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpListener;
-use tokio::sync::mpsc;
+use tokio::sync::{Notify, mpsc};
 use tokio::task::JoinSet;
 
 use miyu_store::resources::ResourceRoot;
@@ -29,10 +32,32 @@ use crate::current::Current;
 use crate::listen::bots::Bots;
 use crate::listen::{self, Gate};
 use crate::settings::{Reload, Settings};
+use crate::status_file;
 use crate::tuning::Tuning;
 use crate::web::{self, Web};
 
 pub use miyu_webserve::CoreCommand;
+
+/// 跟核心说协议的管道：读的一头、写的一头（施工 O-18）。程序里是核心拉起桥时接好的标准输入输出；测试里是内存里的管道。
+pub struct Pipe {
+    /// 核心说的：一行一条。读到头是核心请它退出，或者核心不在了。
+    pub read: Box<dyn AsyncRead + Send + Unpin>,
+    /// 说给核心的：一行一条，只有协议。
+    pub write: Box<dyn AsyncWrite + Send + Unpin>,
+}
+
+impl Pipe {
+    /// 把读的一头 `read`、写的一头 `write` 接成一条管道。
+    pub fn new(
+        read: impl AsyncRead + Send + Unpin + 'static,
+        write: impl AsyncWrite + Send + Unpin + 'static,
+    ) -> Pipe {
+        Pipe {
+            read: Box::new(read),
+            write: Box::new(write),
+        }
+    }
+}
 
 /// 起一个桥要的。
 pub struct Serve {
@@ -40,7 +65,9 @@ pub struct Serve {
     pub root: DataRoot,
     /// 起来时读到的两个端口、令牌（`settings`）。
     pub settings: Settings,
-    /// 核心没在跑时怎么拉起来。
+    /// 跟核心说协议的管道（施工 O-18）。
+    pub pipe: Pipe,
+    /// WebUI 连核心（`/ws`、验登录令牌，经本机套接字）时，核心没在跑怎么拉起来。
     pub core: CoreCommand,
     /// 系统的语言：握手时报给核心，`ui.language` 是 `auto` 的照它定说话的语言。
     pub locale: Option<String>,
@@ -92,10 +119,10 @@ pub(crate) enum Swap {
 /// 起不来、跑着跑着停了的（「出错」，退出码都是 1）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Failure {
-    /// 连不上核心、拉不起来、握手被拒：原因。
+    /// 连不上核心、握手被拒、握手时管道关了：原因。
     Core(String),
-    /// 核心断了。
-    CoreGone,
+    /// 握手等不到回应（`bridge.json` 的 `hello_seconds`）：不是核心拉起的，例如人在终端里跑的（施工 O-18）。
+    NotSpawned,
     /// NapCat 的端口被占了。
     PortInUse(u16),
     /// WebUI 的端口被占了。
@@ -106,22 +133,17 @@ pub enum Failure {
     Crashed(String),
 }
 
-/// 跑起来，直到 `stop` 到了（停的信号）。说给人听的交给 `tell`。
+/// 跑起来，直到 `stop` 到了（停的信号）或者核心关了管道。说给人听的交给 `tell`。
 ///
 /// # Errors
 ///
-/// 连不上核心、两个端口被占、听不了；跑着跑着核心断了。
+/// 握手不成（等不到、被拒、管道关了）、两个端口被占、听不了；跑着跑着跟核心的那一头、发回话的任务崩了。
 pub async fn run(
     serve: Serve,
     tell: impl Fn(Notice) + Send + Sync + 'static,
     stop: impl Future<Output = ()>,
 ) -> Result<(), Failure> {
-    let core = Core::connect(
-        &serve.root,
-        Arc::clone(&serve.core),
-        serve.locale.as_deref(),
-    )
-    .await?;
+    let core = Core::connect(serve.pipe, serve.locale.as_deref(), serve.tuning.hello()).await?;
     let (mut napcat, listen) = bind(serve.settings.port, Failure::PortInUse).await?;
     let (mut pages, web_port) = bind(serve.settings.web, Failure::WebPortInUse).await?;
     let tell: Arc<dyn Fn(Notice) + Send + Sync> = Arc::new(tell);
@@ -159,6 +181,7 @@ pub async fn run(
         applied: tokio::sync::Mutex::new((serve.settings.port, serve.settings.web)),
         swap,
     });
+    let changed = Arc::new(Notify::new());
     let gate = Arc::new(Gate {
         current,
         tuning: serve.tuning,
@@ -166,13 +189,17 @@ pub async fn run(
         inbound,
         tell,
         serial: AtomicU64::new(0),
+        changed: Arc::clone(&changed),
     });
-    // 跟核心的那一头停了，交回为什么（核心断了、发回话的任务崩了）；接连接的停了不要紧。
+    // 跟核心的那一头停了，交回为什么（空的是核心关了管道、发回话的任务崩了是那个原因）；接连接的、写状态文件的停了不要紧。
     let mut tasks = JoinSet::new();
     let route = Route::new(core, bots);
-    let route = tasks
-        .spawn(async move { Some(route.run(received).await) })
-        .id();
+    let route = tasks.spawn(async move { route.run(received).await }).id();
+    tasks.spawn(status_file::keep(
+        status_file::path(&serve.root),
+        Arc::clone(&web),
+        Arc::clone(&changed),
+    ));
     tokio::pin!(stop);
     loop {
         tokio::select! {
@@ -204,14 +231,21 @@ pub async fn run(
                 }
             },
             // 发的一头在 `web` 里，跑着时一直在：收不到空的。
-            Some(swapped) = swaps.recv() => match swapped {
-                Swap::Napcat(listener) => napcat = listener,
-                Swap::Web(listener) => pages = listener,
+            Some(swapped) = swaps.recv() => {
+                match swapped {
+                    Swap::Napcat(listener) => napcat = listener,
+                    Swap::Web(listener) => pages = listener,
+                }
+                changed.notify_one();
             },
             Some(ended) = tasks.join_next_with_id() => match ended {
                 Ok((_, Some(failure))) => {
                     tracing::warn!(target: TARGET, failure = ?failure, "route ended");
                     return Err(failure);
+                }
+                Ok((id, None)) if id == route => {
+                    tracing::info!(target: TARGET, "core closed, stopping");
+                    return Ok(());
                 }
                 Ok((_, None)) => {}
                 Err(error) if error.id() == route => {

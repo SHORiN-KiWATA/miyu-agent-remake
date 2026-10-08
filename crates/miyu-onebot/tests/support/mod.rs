@@ -1,11 +1,14 @@
 //! 桥的测试共用的（施工 O-8，`onebot.md`「守着它的」）：临时的数据根里起一个真的核心（请求模型照剧本回，系统配置里
-//! `qq:10001` 是管理员本人），起一个桥（端口 0 让系统挑），假的 NapCat 是一个 WebSocket 客户端。
+//! `qq:10001` 是管理员本人），起一个桥（端口 0 让系统挑），假的 NapCat 是一个 WebSocket 客户端。在进程里跑的桥经内存里的
+//! 管道连核心（`pipe`，施工 O-18）；真核心拉起真桥、跑真的程序的在 `spawning`。
 
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
 
 pub mod fake_core;
 pub mod http;
 pub mod napcat;
+pub mod pipe;
+pub mod spawning;
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -19,6 +22,7 @@ use tokio::task::JoinHandle;
 use miyu_config::secret::Secret;
 use miyu_endpoint::Core;
 use miyu_endpoint::config::{Config, Environment};
+use miyu_endpoint::extensions::Timing;
 use miyu_kernel::id::{AccountId, SessionId};
 use miyu_onebot::serve::{Failure, Notice, Serve, run};
 use miyu_onebot::settings::{Reload, Settings, Token, load};
@@ -102,10 +106,29 @@ pub fn temp_root() -> (PathBuf, DataRoot) {
 impl Home {
     /// 起一个核心：请求模型照 `script`，没有工具，系统配置是主人对应表。
     pub fn new(script: &Script) -> Home {
+        Home::with_config(script, CONFIG, None)
+    }
+
+    /// 起一个照开关拉起扩展的核心（施工 O-18）：系统配置是主人对应表接着 `more`（端口、令牌、语言），退避从 20 毫秒起、
+    /// 最多 100 毫秒，请扩展退出以后照出厂的等 5 秒再杀（等的时候桥得自己退）。出厂的清单里有桥：开了就拉起测试程序旁边的
+    /// `miyu-onebot`（[`spawning::linked`]）。
+    pub fn spawning(script: &Script, more: &str) -> Home {
+        spawning::linked();
+        let timing = Timing {
+            grace: Duration::from_secs(5),
+            stable: Duration::from_secs(60),
+            backoff: Duration::from_millis(20),
+            longest: Duration::from_millis(100),
+        };
+        Home::with_config(script, &format!("{CONFIG}{more}"), Some(timing))
+    }
+
+    /// 起一个核心：系统配置写成 `config`；`extensions` 有的照它等、退避，照开关拉起扩展。
+    fn with_config(script: &Script, config: &str, extensions: Option<Timing>) -> Home {
         let (dir, root) = temp_root();
         let file = root.path().join("system").join("config.toml");
         std::fs::create_dir_all(file.parent().expect("有上一级")).expect("建得了目录");
-        std::fs::write(&file, CONFIG).expect("写得进");
+        std::fs::write(&file, config).expect("写得进");
         let dirs = miyu_ipc::Dirs {
             runtime_dir: None,
             ..miyu_ipc::Dirs::current()
@@ -128,8 +151,12 @@ impl Home {
                 admin(),
                 opened.token.clone(),
             )
-            .with_config(config),
+            .with_config(config)
+            .with_extension_timing(extensions.unwrap_or_default()),
         );
+        if extensions.is_some() {
+            core.start_extensions();
+        }
         let running = tokio::spawn(miyu_endpoint::run(opened.listener, Arc::clone(&core)));
         Home {
             dir,
@@ -137,6 +164,11 @@ impl Home {
             core,
             running,
         }
+    }
+
+    /// 请核心拉起的扩展都退出，等它们退出（施工 O-18）。
+    pub async fn stop_extensions(&self) {
+        self.core.stop_extensions().await;
     }
 
     /// 管理员名下的会话（场所会话也在这里）。
@@ -209,9 +241,14 @@ impl Bridge {
         }
         within("桥停下", &mut self.task).await.expect("没崩")
     }
+
+    /// 不叫它停，等它自己停下（施工 O-18：核心关了管道）。
+    pub async fn ended(mut self) -> Result<(), Failure> {
+        within("桥自己停下", &mut self.task).await.expect("没崩")
+    }
 }
 
-/// 拉不起来的核心：命令不存在。测试里核心已经在跑，用不上。
+/// 拉不起来的核心：命令不存在。测试里核心已经在跑，用不上（WebUI、`start` 这几样连核心时才要）。
 pub fn no_core() -> std::process::Command {
     std::process::Command::new("/nonexistent/miyu-core-for-tests")
 }
@@ -287,10 +324,11 @@ pub fn same(settings: Settings) -> Reload {
     Arc::new(move || Ok(settings.clone()))
 }
 
-/// 在数据根 `root` 上起一个桥要的：设置照 `settings`，拉不起核心，说中文，出厂的 `bridge.json` 和资源目录，重读配置读到的
-/// 和起来时一样。
+/// 在数据根 `root` 上起一个桥要的：设置照 `settings`，经内存里的管道连 `root` 上的那个核心（[`pipe::pipe_to`]，施工 O-18），
+/// WebUI 拉不起核心，说中文，出厂的 `bridge.json` 和资源目录，重读配置读到的和起来时一样。
 pub fn serve(root: DataRoot, settings: Settings) -> Serve {
     Serve {
+        pipe: pipe::pipe_to(&root),
         root,
         settings: settings.clone(),
         core: Arc::new(no_core),

@@ -61,28 +61,28 @@ impl Route {
         }
     }
 
-    /// 一直办，直到办不下去，交回为什么，桥照它退出：核心断开（[`Failure::CoreGone`]，第 11 条）；发回话的任务崩了
-    /// （[`Failure::Crashed`]，「施工时定的」第 14 条）。`inbound` 关了就只看核心：令牌没设、没开 NapCat 的监听时，发的
-    /// 一头一开始就放下了。
-    pub(crate) async fn run(mut self, mut inbound: mpsc::Receiver<Private>) -> Failure {
+    /// 一直办，直到办不下去：核心关了管道、写不出去（核心请它退出、核心不在了，第 11 条），交回空的，桥好好停下；发回话
+    /// 的任务崩了，交回 [`Failure::Crashed`]（「施工时定的」第 14 条），桥照它退出。`inbound` 关了就只看核心：桥在停、
+    /// 读 NapCat 的那一头都放下了。
+    pub(crate) async fn run(mut self, mut inbound: mpsc::Receiver<Private>) -> Option<Failure> {
         let mut open = true;
         loop {
             let handled = tokio::select! {
                 private = inbound.recv(), if open => match private {
-                    Some(private) => self.private(private).await.map_err(Failure::from),
+                    Some(private) => self.private(private).await.map_err(|Gone| None),
                     None => {
                         open = false;
                         Ok(())
                     }
                 },
                 pushed = self.core.next() => match pushed {
-                    Some(pushed) => self.pushed(pushed).await.map_err(Failure::from),
-                    None => Err(Failure::CoreGone),
+                    Some(pushed) => self.pushed(pushed).await.map_err(|Gone| None),
+                    None => Err(None),
                 },
-                Some(joined) = self.sending.join_next(), if !self.sending.is_empty() => sent(joined),
+                Some(joined) = self.sending.join_next(), if !self.sending.is_empty() => sent(joined).map_err(Some),
             };
-            if let Err(failure) = handled {
-                return failure;
+            if let Err(ended) = handled {
+                return ended;
             }
         }
     }

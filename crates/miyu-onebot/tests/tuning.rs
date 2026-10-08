@@ -1,5 +1,5 @@
 //! 桥自己的数（施工 O-8，`onebot.md`「施工时定的」第 15 条）：出厂的 `bridge.json` 读得出来，数和图纸写的一样；队列写 0、
-//! 多出不认识的格、读不了的，读不进来，说是哪个文件。
+//! 多出不认识的格、少了一格、读不了的，读不进来，说是哪个文件。
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -31,6 +31,9 @@ fn the_shipped_numbers_are_the_blueprints() {
     assert_eq!(tuning.accept_retry(), Duration::from_millis(100));
     // 令牌对不上时最多一秒重读一次配置（施工 O-16 补二）。
     assert_eq!(tuning.reload(), Duration::from_secs(1));
+    // 跟核心握手最多等 10 秒；`logs -f` 半秒看一次（施工 O-18）。
+    assert_eq!(tuning.hello(), Duration::from_secs(10));
+    assert_eq!(tuning.follow(), Duration::from_millis(500));
     // WebUI（施工 O-16）：页面只有三种文件；内容安全策略只许连自己、不许被框起来；验过的登录令牌记 60 秒。
     assert_eq!(
         tuning.web.types.keys().collect::<Vec<_>>(),
@@ -77,6 +80,14 @@ fn a_bad_file_is_not_read_and_named() {
         (
             "reload-missing",
             good.replace("\"reload_seconds\": 1", "\"y\": 1"),
+        ),
+        (
+            "hello-missing",
+            good.replace("\"hello_seconds\": 10", "\"z\": 1"),
+        ),
+        (
+            "follow-missing",
+            good.replace("\"follow_millis\": 500", "\"w\": 1"),
         ),
         ("not-json", "nope".to_string()),
     ] {
