@@ -494,11 +494,11 @@
 
 **`persona.list`**（施工 P-1 上，`personas.md`「怎么走」第 7 条）
 
-没有参数。回应 `{"personas": [...]}`，照编号排，一个人格一格：`persona` 编号，`name`、`summary` 照这个连接的语言挑的一句（这种语言没写的照 `en`、`zh`、`ja` 的先后，都没写的是 `null`），`layers` 来自哪几层（`shipped`、`system`、`home`，从下往上）。文件写错的只有 `persona` 和 `problem`（同 `persona_invalid` 的 `data.problem`）。
+没有参数。回应 `{"personas": [...]}`，照编号排，一个人格一格：`persona` 编号，`name`、`summary` 一句字（施工 P-3 补：写成一句的就是它；以前写成语言表的、出厂的几个照这个连接的语言挑，这种语言没写的照 `en`、`zh`、`ja` 的先后，都没写的是 `null`）。来自哪几层不给（施工 P-3 补，2026-10-08 项目主人：人看的是名字）。文件写错的只有 `persona` 和 `problem`（同 `persona_invalid` 的 `data.problem`）。
 
 **`preset.list`**（施工 P-2 上，`presets.md`「协议」）
 
-没有参数。回应 `{"presets": [...]}`，照编号排，一个预设一格：`preset` 编号，`name`、`summary` 照这个连接的语言挑的一句（挑法同 `persona.list`），`layers` 来自哪几层（`shipped`、`system`、`home`，从下往上）。文件写错的只有 `preset` 和 `problem`（同 `preset_invalid` 的 `data.problem`）。
+没有参数。回应 `{"presets": [...]}`，照编号排，一个预设一格：`preset` 编号，`name`、`summary` 一句字（挑法同 `persona.list`）。文件写错的只有 `preset` 和 `problem`（同 `preset_invalid` 的 `data.problem`）。
 
 **`preset.get`**（施工 P-2 上，`presets.md`「协议」）
 
@@ -506,22 +506,25 @@
 |---|---|---|
 | `preset` | 字符串，必写 | 预设的编号 |
 
-回应 `{"preset", "name", "summary", "layers", "default_persona", "unlisted", "software", "tools", "missing", "switches"}`：`name`、`summary` 是语言到一句话的对象，原样给；`default_persona` 没写的是 `null`；`unlisted` 是叠好以后的 `on`、`off`（几层都没写的是 `on`）；`software` 是软件包的编号到 `true`、`false`；`tools` 是关掉的单件工具，值都是 `false`；`missing` 是 `[software]` 里写了、这台机器上没装的（施工 P-2 中）；`switches` 是这台机器上装了的每一个软件叠好以后开不开（施工 P-2 补）。写了底的多一格 `base`（施工 P-3 上），各格是叠在底上以后的；`layers` 只算自己的。编号不合写法的 `bad_params`，没有的 `unknown_preset`，写错的、底绕成圈、底没有的 `preset_invalid`。
+回应 `{"preset", "name", "summary", "default_persona", "unlisted", "software", "tools", "remove"}`（施工 P-3 补：只给人要看的）：`name`、`summary` 一句字（挑法同 `persona.list`）；`default_persona` 没写的是 `null`；`unlisted` 是叠好以后的 `on`、`off`（几层都没写的是 `on`）；`tools` 是关掉的单件工具，值都是 `false`；`remove` 是删了会怎样：`restore`（有你那一层、下面还有：删了回到出厂的样子）、`delete`（只有你那一层：删了就没了）、`null`（没有你那一层，没什么可删）。
+- `software` 是一个个软件 `[{"id", "name", "summary", "on", "installed"}, …]`（施工 P-3 补，2026-10-08 项目主人：「显示名称呢？都是英文谁看得懂？」）：这台机器上装了的，加上 `[software]` 里写了、没装的（`installed: false`）。`name`、`summary` 照这个连接的语言：内置的（基础系统、联网、长期目标、记忆、角色扮演）照给人看的字 `software/<编号>`、`software/<编号>/summary`，清单装的包照它清单的 `name`、`summary`，都没有的名字是编号、说明是 `null`。`on` 是叠好以后开不开。先后：内置的照上面那个先后，再是装了的别的、没装的，各照编号。`id` 是 `preset.set` 写 `software.<id>` 用的，不往界面上露。
+- 编号不合写法的 `bad_params`，没有的 `unknown_preset`，写错的 `preset_invalid`（`data.message` 照这个连接的语言说一句、`data.line` 第几行，施工 P-3 补）。
 
 **`preset.set`**（施工 P-3 中，`presets.md`「改」）
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| `preset` | 字符串，必写 | 预设的编号：还没有的就是新建 |
-| `changes` | 数组，必写、不能是空的 | 每一项 `{"key", "value" \| "unset": true, "expect"?}`，照 `config.set` 的 `changes`：`key` 是文件里的键（`preset.name.zh`、`preset.summary.en`、`preset.default_persona`、`preset.unlisted`、`preset.base`、`software.<包>`、`tools.<工具>`），`value` 是字、开关、数，`expect` 是你那一层里这一项现在应当是什么（`{"value": …}` 或者 `{}` 没写） |
+| `preset` | 字符串，可以不写 | 预设的编号；不写的是新建，编号由核心起 `preset-<n>`（几层里都还没有的最小的 n，施工 P-3 补，2026-10-08 项目主人定：新建不填编号） |
+| `changes` | 数组，必写、不能是空的 | 每一项 `{"key", "value" \| "unset": true, "expect"?}`，照 `config.set` 的 `changes`：`key` 是文件里的键（`preset.name`、`preset.summary`、`preset.default_persona`、`preset.unlisted`、`software.<包>`、`tools.<工具>`），`value` 是字、开关、数，`expect` 是你那一层里这一项现在应当是什么（`{"value": …}` 或者 `{}` 没写） |
 
-回应同 `preset.get`：改完叠好的样子。只写管理员家目录那一层的 `<编号>.toml`：改出厂的、系统区的就是建同名覆盖，只写改了的项。
+回应同 `preset.get`：改完叠好的样子（带着编号）。只写管理员家目录那一层的 `<编号>.toml`：改出厂的、系统区的就是建同名覆盖，只写改了的项。名字、说明写成一句字（施工 P-3 补，2026-10-08 项目主人：不分语言），以前写成语言表的整格换成一句。新建的什么开关都不写，就是全开（`unlisted` 没写是开）。
 
 1. 一项项在原来的字上改，注释、顺序、别的字节照原样；你那一层本来就是这个值的、本来就没写又要删的不动。一项都没变的不写。
-2. 改完的一份照预设的规矩读一遍、连同叠好以后（底、绕圈）再查：有错整条不收、什么都不写，`preset_invalid`，`data.problem` 是头一处（写法同 `preset.get`）。
+2. 改完的一份照预设的规矩读一遍、连同叠好以后再查：有错整条不收、什么都不写，`preset_invalid`，`data.problem` 是头一处（写法同 `preset.get`），`data.message`、`data.line` 照连接的语言说（施工 P-3 补）。
 3. `expect` 对不上：`preset_conflict`，`data.current` 是你那一层里这一项现在的样子，什么都不写。写的那一瞬间有人手改、重来三次还不行：`preset_conflict`，不带 `data.current`。
-4. 编号不合写法、`changes` 是空的、同一个键写了两次、一项里 `value` 和 `unset` 不是正好一个、`unset` 不是 `true`、`value` 不是字开关数、`expect` 不是那两种：`bad_params`。
-5. 写盘照配置文件的规矩：顺着链接写、先写临时文件再替换。开着的会话下一个回合照新的（P-2 下）。扩展进程调回 `local_only`。
+4. 编号不合写法、`changes` 是空的、同一个键写了两次、一项里 `value` 和 `unset` 不是正好一个、`unset` 不是 `true`、`value` 不是字开关数、`expect` 不是那两种、新建的一项都不写（只删）：`bad_params`。
+5. 新建：挑一个没用过的编号写一份新文件，写的那一瞬间别处占了这个编号的换下一个。
+6. 写盘照配置文件的规矩：顺着链接写、先写临时文件再替换。开着的会话下一个回合照新的（P-2 下）。扩展进程调回 `local_only`。
 
 **`preset.delete`**（施工 P-3 中，`presets.md`「改」）：`{"preset"}` → `{"remains": <下面几层还有没有>}`。删掉你家目录那一层的文件：下面还有出厂、系统区的回到它们的样子（`true`，界面写「恢复出厂」），没有了的这个预设就没了（`false`）。你那一层本来就没有的 `nothing_to_delete`；编号不合写法的 `bad_params`；扩展进程调回 `local_only`。会话钉着的、默认指着的也能删：开着的会话照旧用快照里的，默认指着没有的照旧拒开会话（Y12）。
 
@@ -529,17 +532,19 @@
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| `persona` | 字符串，必写 | 人格的编号：还没有的就是新建 |
-| `changes` | 数组，可以不写 | 改 `persona.toml`，写法同 `preset.set` 的 `changes`；键是 `persona.name.<语言>`、`persona.summary.<语言>`、`persona.base`、`memory.scope` |
-| `prompts` | 对象，可以不写 | 提示词名（`persona`、`examples`、`reminders`）到 `{"text": "<整份>"}` 或 `{"unset": true}`，可带 `"expect": "<版本>" \| null`（照 `persona.read` 给的） |
+| `persona` | 字符串，可以不写 | 人格的编号；不写的是新建，编号由核心起 `persona-<n>`（同 `preset.set`，施工 P-3 补） |
+| `changes` | 数组，可以不写 | 改 `persona.toml`，写法同 `preset.set` 的 `changes`；键是 `persona.name`、`persona.summary`、`memory.scope` |
+| `prompts` | 对象，可以不写 | 提示词名（`persona`、`examples`、`reminders`）到 `{"text": "<整份>"}`、`{"unset": true}`，示范对话另可写 `{"pairs": [{"user", "assistant"}, …]}`（施工 P-3 补）；都可带 `"expect": "<版本>" \| null`（照 `persona.read` 给的） |
 
-`changes`、`prompts` 至少写一样。回应同 `persona.get`：改完叠好的样子。只写管理员家目录那一层：改出厂的、系统区的就是建同名覆盖，提示词整份换你那一层的那一份，`unset` 删掉你那一层的、回到下面的。
+`changes`、`prompts` 至少写一样。回应同 `persona.get`：改完叠好的样子（带着编号）。只写管理员家目录那一层：改出厂的、系统区的就是建同名覆盖，提示词整份换你那一层的那一份，`unset` 删掉你那一层的、回到下面的；空的字（`{"text": ""}`）就是这一段是空的（空的人设不进 system，空的角色扮演提示等于没有）。
 
-1. 几样一起查：`persona.toml` 改完的一份、示范对话、连同叠好以后（底、绕圈）；有错什么都不写，`persona_invalid`，`data.problem` 是头一处（写法同 `persona.get`）。和你那一层现在一样的不写，一样都没变的什么都不写。
-2. `changes` 的 `expect` 对不上、提示词的 `expect` 和你那一层这一份现在的版本对不上（`null` 是「还没有」）：`persona_conflict`，`data.current` 是 `{"value": …}`/`{}`（`changes` 的）或者现在的版本、`null`（提示词的），什么都不写。几份一份一份地写，只试一次：写到一半撞上有人手改的，前面写了的不撤，`persona_conflict`、不带 `data.current`，头重读再来。
-3. 编号不合写法、两样都没写、提示词名不认识、一份里 `text` 和 `unset` 不是正好一个、`unset` 不是 `true`、`expect` 不是字也不是 `null`，`changes` 同 `preset.set` 的那几种：`bad_params`。扩展进程调回 `local_only`。
+1. 几样一起查：`persona.toml` 改完的一份、示范对话、连同叠好以后；有错什么都不写，`persona_invalid`，`data.problem` 是头一处（写法同 `persona.get`），`data.message`、`data.line` 照连接的语言说（施工 P-3 补）。和你那一层现在一样的不写，一样都没变的什么都不写。
+2. `pairs`（施工 P-3 补：界面里一对一对地编，格式留在核心）：核心写成 `user:` / `assistant:` 开头、对与对之间空一行的写法；一句里的空行去掉；空的 `pairs` 等于删掉。每一句去掉前后空白不能是空的（`bad_params`）；一句里有一行看起来像 `user:`、`assistant:` 开头、写了读不回原样的，`persona_invalid`（`data.message` 说是第几对）。
+3. `changes` 的 `expect` 对不上、提示词的 `expect` 和你那一层这一份现在的版本对不上（`null` 是「还没有」）：`persona_conflict`，`data.current` 是 `{"value": …}`/`{}`（`changes` 的）或者现在的版本、`null`（提示词的），什么都不写。几份一份一份地写，只试一次：写到一半撞上有人手改的，前面写了的不撤，`persona_conflict`、不带 `data.current`，头重读再来。
+4. 编号不合写法、两样都没写、提示词名不认识、一份里 `text`、`unset`、`pairs` 不是正好一个、`pairs` 写在示范对话以外、`unset` 不是 `true`、`expect` 不是字也不是 `null`、新建的一样都不写（只删），`changes` 同 `preset.set` 的那几种：`bad_params`。扩展进程调回 `local_only`。
+5. 新建：挑一个没用过的编号、先建它的目录占住（别处同时建了同一个的换下一个），再照常写；写不成的把空目录删掉。
 
-**`persona.read`**（施工 P-3 下）：`{"persona", "prompt": "persona" | "examples" | "reminders"}` → `{"text", "from", "version"}`。`text` 是叠好的那一份的原文，`from` 是它来自哪儿 `{"layer"}`（来自底的多 `"base": "<编号>"`，编号是这份字真住在的那个人格），`version` 是你家目录那一层这一份的版本（`sha256:…`，照 `config.get` 的写法）；没有的都是 `null`。编辑器照它在原文上改，存的时候把 `version` 当 `expect` 带回去。编号、名字不对的 `bad_params`，没有这个人格的 `unknown_persona`，写错的 `persona_invalid`。
+**`persona.read`**（施工 P-3 下）：`{"persona", "prompt": "persona" | "examples" | "reminders"}` → `{"text", "version"}`。`text` 是叠好的那一份的原文，`version` 是你家目录那一层这一份的版本（`sha256:…`，照 `config.get` 的写法）；没有的都是 `null`。示范对话另带 `pairs: [{"user", "assistant"}, …]`（读好的一对一对，施工 P-3 补）。来自哪一层不给（施工 P-3 补）。编辑器照它在原文上改，存的时候把 `version` 当 `expect` 带回去。编号、名字不对的 `bad_params`，没有这个人格的 `unknown_persona`，写错的 `persona_invalid`（带 `data.message`、`data.line`）。
 
 **`persona.delete`**（施工 P-3 下）：`{"persona"}` → `{"remains"}`，同 `preset.delete`；你家目录里这个人格的整个目录挪进回收处 `home/<账号>/trash/personas/<编号>.<删的时刻，毫秒>/`，留 7 天（同会话）。
 
@@ -557,7 +562,7 @@
 |---|---|---|
 | `persona` | 字符串，必写 | 人格的编号 |
 
-回应 `{"persona", "name", "summary", "layers", "prompts": {"persona", "examples", "reminders"}, "examples"}`：`name`、`summary` 是语言到一句话的对象，原样给；`prompts` 里是人设、示范对话、角色扮演提示（施工 P-1 补）来自哪一层，没有的是 `null`，来自底的写成 `base:<编号>/<层>`（施工 P-3 上）；`examples` 是示范对话几轮；写了底的多一格 `base`，`layers` 只算自己的。提示词原文不经协议交出去。编号不合写法的 `bad_params`，没有的 `unknown_persona`，写错的、底绕成圈、底没有、底写错的 `persona_invalid`。
+回应 `{"persona", "name", "summary", "prompts": {"persona", "reminders"}, "examples", "remove"}`（施工 P-3 补：只给人要看的）：`name`、`summary` 一句字（挑法同 `persona.list`）；`prompts` 里是人设、角色扮演提示有没有字（`true`、`false`）；`examples` 是示范对话几轮；`remove` 是删了会怎样（同 `preset.get`）。原文照 `persona.read` 给。编号不合写法的 `bad_params`，没有的 `unknown_persona`，写错的 `persona_invalid`（带 `data.message`、`data.line`）。
 
 **`session.recap`**（施工 3-8 四补，`04-核心协议.md` 第九节，`kernel/session.md`「回顾」）
 
@@ -925,9 +930,9 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `bad_token` | -32010 | 凭据一种都没写、本机令牌不对（之后断开） |
 | `bad_code`、`bad_login`、`bad_password`、`login_throttled`、`setup_first`、`local_only` | -32010 | 网页登录的几种（施工 W-8，`web-module.md`「出错」）；扩展调 `extension.*` 也回 `local_only`（施工 9-4 上），调 `preset.set`、`preset.delete` 也是（施工 P-3 中），`persona.set`、`persona.delete` 也是（施工 P-3 下） |
 | `unknown_persona` | -32010 | 造会话、`persona.get` 时三层都没有这个人格（施工 P-1 上起三层，`personas.md`） |
-| `persona_invalid` | -32010 | 人格的文件写错了；`data.problem` 写明哪一层、哪个文件第几行（施工 P-1 上） |
+| `persona_invalid` | -32010 | 人格的文件写错了；`data.problem` 写明哪一层、哪个文件第几行（施工 P-1 上）；`persona.*` 里另带 `data.message`（照连接的语言）、`data.line`（施工 P-3 补） |
 | `unknown_preset` | -32010 | 造会话、`preset.get` 时三层都没有这个预设，默认预设指着没有的也一样（施工 P-2 上，`presets.md`） |
-| `preset_invalid` | -32010 | 预设的文件写错了；`data.problem` 写明哪一层、哪个文件第几行（施工 P-2 上）；`preset.set` 改完的一份写错、叠不成（施工 P-3 中） |
+| `preset_invalid` | -32010 | 预设的文件写错了；`data.problem` 写明哪一层、哪个文件第几行（施工 P-2 上）；`preset.set` 改完的一份写错（施工 P-3 中）；`preset.*` 里另带 `data.message`、`data.line`（施工 P-3 补） |
 | `preset_conflict` | -32010 | `preset.set` 的 `expect` 对不上（`data.current`），写的那一瞬间有人手改、重来三次都不行（施工 P-3 中） |
 | `persona_conflict` | -32010 | `persona.set` 的 `expect` 对不上（`data.current`），写到一半撞上有人手改（施工 P-3 下） |
 | `nothing_to_delete` | -32010 | `preset.delete`、`persona.delete` 删的在你家目录那一层本来就没有（施工 P-3 中、下） |
@@ -1138,8 +1143,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/restart.rs` | 核心重启以后：不带 `cwd` 载入的会话照最后一轮的工作目录、没开过回合的照造会话时的；重发的造会话交回原来那一个 |
 | `crates/miyu-endpoint/tests/check.rs`（施工 8-30） | `check`：不写文件的照磁盘上现在的字查配置、照核心手里的查密钥、人格每一层各查各的，先后、代码、级别、行对，给人看的那一句照连接的语言；写了文件的照位置认、只查那一份，项目配置照 `.miyu/config.toml` 认、相对的照 `cwd` 接，还没有的人格文件读不了，认不出的 `unknown_file`，多写格的参数不对 |
 | `crates/miyu-endpoint/tests/personas.rs`（施工 P-1 上） | 家目录里的人格进 system、示范对话排在前面；不写人格照默认、个人设置压着系统配置；没有的、编号不对的、写错的拒绝，默认人格指着没有的也拒；`venue.session` 带人格造、找回时不看；`persona.list`、`persona.get` |
-| `crates/miyu-endpoint/tests/persona_set.rs`（施工 P-3 下） | 新人格一次建好（底、名字、示范对话）、开会话用得上、读得出示范对话和没有的角色扮演提示、一样的字不再写；读原文：出厂的、没有的、改了以后来自家目录有版本、旧版本再存撞上什么都不写、新版本存得上、来自底的写明底；删提示词回到下面的、删没有的不出错；写错的示范对话、`memory.scope`、底绕圈什么都不写；参数不对的七种、读的两种、没有的人格；删了挪进回收处、整个目录、读不到了，盖在出厂上的回到出厂、本来没有的、编号不对的 |
-| `crates/miyu-endpoint/tests/preset_set.rs`（施工 P-3 中） | 新的编号一次建好、开会话用得上；改出厂的只写改了的项；注释、顺序、行内表照原样；删一项回到下面的；`expect` 对不上的两种、对得上的照写；写错的值、不认识的键、底绕圈、底没有的整条不收、什么都不写；参数不对的八种；删你那一层回到下面的、只有你那一层的就没了、本来没有的、编号不对的；一样的值不写 |
+| `crates/miyu-endpoint/tests/persona_set.rs`（施工 P-3 下、补） | 不写编号新建、核心起 `persona-1`、`persona-2`，一次带名字、人设、一对一对的示范对话、角色扮演提示，写成文件的写法、空行去掉，开会话用得上，一样的字不再写，只删不写的新建参数不对；读原文和版本、不给来处，出厂的没改过 `remove` 是空的、改过是 `restore`，旧版本存撞上什么都不写，空的字是这一段空的；删提示词回到下面的、删没有的不出错；写错的示范对话、`memory.scope`、写不回原样的 `pairs` 什么都不写、带照连接语言的 `message` 和行；参数不对的十种、读的两种、没有的人格；删了挪进回收处、整个目录、读不到了，盖在出厂上的回到出厂、本来没有的、编号不对的 |
+| `crates/miyu-endpoint/tests/preset_set.rs`（施工 P-3 中、补） | 不写编号新建、核心起 `preset-1`、`preset-2`，别的照旧全开，`remove` 是 `delete`，开会话用得上，只删不写的新建参数不对；改出厂的只写改了的项、`remove` 是 `restore`，没改过的是空的；注释、顺序照原样，以前的语言表换成一句字；删一项回到下面的；`expect` 对不上的两种、对得上的照写；写错的值、不认识的键、空的名字、默认人格写法不对的整条不收、什么都不写、带照连接语言的 `message`；参数不对的九种；删你那一层回到下面的、只有你那一层的就没了、本来没有的、编号不对的；一样的值不写 |
 | `crates/miyu-endpoint/tests/presets.rs`（施工 P-2 上） | 不写预设照默认、个人设置压着系统配置、指定的压着默认；人格照「指定、预设的默认人格、`persona.default`」；没有的、编号不对的、写错的拒绝、什么都不造，默认预设指着没有的也拒；会话列表、`subscribe` 写 `preset`，以前的日志不写；`venue.session` 带预设造、找回时不看；`preset.list`、`preset.get`；`check` 查预设 |
 | `crates/miyu-endpoint/tests/edges.rs` | 不握手的到时断开、握手了的不受管；数组的 `params` 参数不对；握手被拒照它报的语言说；人格目录不存在是 `unknown_persona`、目录在而读不了是 `internal_error` |
 | `crates/miyu-endpoint/tests/list.rs` | 从新到旧、只要一次性的、`limit`、参数不对、空的；每一项带 `cwd`、合写法的 `last_active`，闲着的不写 `busy`（施工 C-3） |

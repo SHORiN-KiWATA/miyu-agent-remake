@@ -3,6 +3,7 @@
 
 use miyu_kernel::session::Reason;
 
+mod edits;
 mod message;
 
 /// 一次拒绝：JSON-RPC 的错误码，和原因码。
@@ -372,19 +373,6 @@ impl Refusal {
             "problem",
             serde_json::Value::String(problem),
         )
-    }
-
-    /// 改人格、预设撞上了别人先改（施工 P-3 中）：`expect` 对不上的 `data.current` 是你那一层现在的样子；写的那一瞬间
-    /// 有人手改、重来三次还不行的不带。
-    pub(crate) fn conflict(reason: &'static str, current: Option<serde_json::Value>) -> Refusal {
-        match current {
-            Some(current) => Refusal::with(reason, "current", current),
-            None => Refusal {
-                code: REFUSED,
-                reason,
-                data: None,
-            },
-        }
     }
 
     /// `model.call` 没有能用的模型（施工 8-20）：`data.message` 是原话。

@@ -1,14 +1,25 @@
 use super::*;
 
-fn phrases(pairs: &[(&str, &str)]) -> Phrases {
-    pairs
-        .iter()
-        .map(|(language, text)| (language.to_string(), text.to_string()))
-        .collect()
+fn phrases(pairs: &[(&str, &str)]) -> Option<Label> {
+    Some(Label::Each(
+        pairs
+            .iter()
+            .map(|(language, text)| (language.to_string(), text.to_string()))
+            .collect(),
+    ))
+}
+
+fn one(text: &str) -> Option<Label> {
+    Some(Label::One(text.to_string()))
 }
 
 #[test]
-fn the_toml_has_names_and_summaries_in_three_languages() {
+fn names_are_one_line_and_old_language_tables_still_read() {
+    let file = read_toml("[persona]\nname = \"  我的工程师 \"\nsummary = \"写代码\"\n").unwrap();
+    assert_eq!(
+        (file.name, file.summary),
+        (one("我的工程师"), one("写代码"))
+    );
     let file = read_toml(
         "[persona]\nname = { en = \"Software Engineer\", zh = \"软件工程师\" }\n\n[persona.summary]\nja = \"  エンジニア \"\n",
     )
@@ -22,6 +33,13 @@ fn the_toml_has_names_and_summaries_in_three_languages() {
         phrases(&[("ja", "エンジニア")]),
         "去掉前后空白"
     );
+    let empty = read_toml("[persona]\nname = \"  \"\n").unwrap_err();
+    assert_eq!(
+        (empty.code, empty.detail.as_str()),
+        (Code::EmptyPhrase, "persona.name")
+    );
+    let number = read_toml("[persona]\nname = 3\n").unwrap_err();
+    assert_eq!(number.code, Code::NotPhrases);
     assert_eq!(read_toml("").unwrap(), PersonaFile::default(), "空的文件");
     assert_eq!(read_toml("[persona]\n").unwrap(), PersonaFile::default());
 }
@@ -29,11 +47,7 @@ fn the_toml_has_names_and_summaries_in_three_languages() {
 #[test]
 fn a_wrong_toml_says_which_line() {
     for (text, line, message) in [
-        (
-            "[persona]\nname = 1\n",
-            2,
-            "persona.name must map languages to text",
-        ),
+        ("[persona]\nname = 1\n", 2, "persona.name must be text"),
         ("[knowledge]\nbases = []\n", 1, "unknown table [knowledge]"),
         (
             "[memory]\nscope = \"off\"\n",
@@ -73,25 +87,19 @@ fn a_wrong_toml_says_which_line() {
 }
 
 #[test]
-fn an_upper_layer_overrides_per_language() {
+fn an_upper_layer_replaces_what_it_writes() {
     let shipped = PersonaFile {
         name: phrases(&[("en", "Engineer"), ("zh", "工程师")]),
         summary: phrases(&[("en", "Helps.")]),
         memory: None,
-        base: Some("plain".to_string()),
     };
     let mine = PersonaFile {
-        name: phrases(&[("zh", "我的工程师")]),
-        summary: Phrases::new(),
+        name: one("我的工程师"),
+        summary: None,
         memory: None,
-        base: None,
     };
     let merged = mine.over(shipped);
-    assert_eq!(merged.base.as_deref(), Some("plain"), "底没写的沿用下面的");
-    assert_eq!(
-        merged.name,
-        phrases(&[("en", "Engineer"), ("zh", "我的工程师")])
-    );
+    assert_eq!(merged.name, one("我的工程师"), "写了的整格换掉");
     assert_eq!(merged.summary, phrases(&[("en", "Helps.")]), "没写的沿用");
 }
 
@@ -317,4 +325,49 @@ fn each_mistake_carries_its_code_and_where() {
     let mut unique = names.clone();
     unique.dedup();
     assert_eq!(names.len(), unique.len(), "写法不重复");
+}
+
+#[test]
+fn examples_are_written_back_and_read_the_same() {
+    let demos = vec![
+        Demo {
+            user: "  问个事 ".to_string(),
+            assistant: "第一行\n\n第二行".to_string(),
+        },
+        Demo {
+            user: "user 说的".to_string(),
+            assistant: "好".to_string(),
+        },
+    ];
+    let text = write_examples(&demos).unwrap();
+    assert_eq!(
+        text,
+        "user: 问个事\nassistant: 第一行\n第二行\n\nuser: user 说的\nassistant: 好\n"
+    );
+    assert_eq!(
+        read_examples(&text).unwrap(),
+        [
+            Demo {
+                user: "问个事".to_string(),
+                assistant: "第一行\n第二行".to_string()
+            },
+            Demo {
+                user: "user 说的".to_string(),
+                assistant: "好".to_string()
+            },
+        ],
+        "空行去掉，读回来一样"
+    );
+    let clash = vec![
+        Demo {
+            user: "a".to_string(),
+            assistant: "b".to_string(),
+        },
+        Demo {
+            user: "c".to_string(),
+            assistant: "照这样写：\nuser: 你好".to_string(),
+        },
+    ];
+    assert_eq!(write_examples(&clash), Err(2), "第二对有一行像 user: 开头");
+    assert_eq!(write_examples(&[]), Ok(String::new()));
 }

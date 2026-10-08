@@ -3,8 +3,7 @@
 
 use std::fmt;
 
-use miyu_config::phrases::{self, PhraseError};
-use miyu_config::secret::valid_name;
+use miyu_config::phrases::{self, Label, PhraseError};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::request::Message;
 use serde::{Deserialize, Serialize};
@@ -16,31 +15,27 @@ use crate::memory::MemoryScope;
 pub const TOML: &str = "persona.toml";
 /// 示范对话在人格目录里的位置。
 pub const EXAMPLES: &str = "prompts/examples.md";
-/// 认得的语言：名字、说明各写这几种里的几种。
+/// 认得的语言：以前写成语言表的名字、说明，各写这几种里的几种。
 pub use miyu_config::phrases::{LANGUAGES, Phrases};
 
 /// `persona.toml` 读好的样子。每一格都可以没有。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PersonaFile {
-    /// 名字，例如 `{"en": "Software Engineer", "zh": "软件工程师"}`。
-    pub name: Phrases,
-    /// 一句说明。
-    pub summary: Phrases,
+    /// 名字：一句字（施工 P-3 补），以前写成语言表的照样认。
+    pub name: Option<Label>,
+    /// 一句说明，写法同名字。
+    pub summary: Option<Label>,
     /// 记忆的默认范围（`[memory] scope`，施工 R-3 下）：只能是 `persona`、`session`；没写的是没有，照 `persona` 算。
     pub memory: Option<MemoryScope>,
-    /// 以哪个人格为底（施工 P-3 上，16 第四节）：自己的几层盖在它叠好的样子上，提示词文件同名替换、没写的沿用。底怎么找在
-    /// `miyu_store::personas`。
-    pub base: Option<String>,
 }
 
 impl PersonaFile {
-    /// 叠在 `lower` 上面（同名覆盖，16 第四节）：逐项盖，这一层写了的语言换掉，没写的沿用下面的。
+    /// 叠在 `lower` 上面（同名覆盖，16 第四节）：逐项盖，这一层写了的整格换掉，没写的沿用下面的。
     #[must_use]
     pub fn over(self, mut lower: PersonaFile) -> PersonaFile {
-        lower.name.extend(self.name);
-        lower.summary.extend(self.summary);
+        lower.name = self.name.or(lower.name);
+        lower.summary = self.summary.or(lower.summary);
         lower.memory = self.memory.or(lower.memory);
-        lower.base = self.base.or(lower.base);
         lower
     }
 }
@@ -102,7 +97,7 @@ pub enum Code {
     NotATable,
     /// `[persona]` 里多了 `name`、`summary` 以外的键。
     UnknownKey,
-    /// `name`、`summary` 不是语言到一句话的表。
+    /// `name`、`summary` 不是一句字，也不是语言到一句话的表（以前的写法）。
     NotPhrases,
     /// 语言不是 `zh`、`en`、`ja`。
     UnknownLanguage,
@@ -110,8 +105,6 @@ pub enum Code {
     EmptyPhrase,
     /// `[memory]` 的 `scope` 不是 `persona`、`session`（施工 R-3 下加的读法）。
     BadMemoryScope,
-    /// `[persona]` 的 `base` 不是合写法的人格编号（施工 P-3 上）。
-    BadBase,
     /// 示范对话第一行不是人说的。
     FirstLine,
     /// 示范对话没有一问一答交替。
@@ -134,7 +127,6 @@ impl Code {
             Code::UnknownLanguage => "unknown_language",
             Code::EmptyPhrase => "empty_phrase",
             Code::BadMemoryScope => "bad_memory_scope",
-            Code::BadBase => "bad_base",
             Code::FirstLine => "first_line",
             Code::TakeTurns => "take_turns",
             Code::LastLine => "last_line",
@@ -143,7 +135,7 @@ impl Code {
     }
 
     /// 全部，照先后。
-    pub const ALL: [Code; 13] = [
+    pub const ALL: [Code; 12] = [
         Code::Syntax,
         Code::UnknownTable,
         Code::NotATable,
@@ -152,7 +144,6 @@ impl Code {
         Code::UnknownLanguage,
         Code::EmptyPhrase,
         Code::BadMemoryScope,
-        Code::BadBase,
         Code::FirstLine,
         Code::TakeTurns,
         Code::LastLine,
@@ -207,19 +198,7 @@ pub fn read_toml(text: &str) -> Result<PersonaFile, Problem> {
             ));
         };
         for (key, item) in table.iter() {
-            if key == "base" {
-                let base = item.as_str().filter(|id| valid_name(id)).ok_or_else(|| {
-                    problem(
-                        at(item),
-                        Code::BadBase,
-                        "persona.base",
-                        "persona.base must be a persona id".to_string(),
-                    )
-                })?;
-                file.base = Some(base.to_string());
-                continue;
-            }
-            let phrases = match key {
+            let label = match key {
                 "name" => &mut file.name,
                 "summary" => &mut file.summary,
                 other => {
@@ -231,7 +210,7 @@ pub fn read_toml(text: &str) -> Result<PersonaFile, Problem> {
                     ));
                 }
             };
-            *phrases = read_phrases(key, item, text)?;
+            *label = Some(read_label(key, item, text)?);
         }
     }
     Ok(file)
@@ -275,15 +254,21 @@ fn read_memory(
     Ok(scope)
 }
 
-/// 一张语言到一句话的表。
-fn read_phrases(field: &str, item: &Item, text: &str) -> Result<Phrases, Problem> {
+/// 名字、说明：一句字，或者以前的语言表。
+fn read_label(field: &str, item: &Item, text: &str) -> Result<Label, Problem> {
     let line_at = |offset: usize| line_of(text, offset);
-    phrases::read(item).map_err(|error| match error {
+    phrases::read_label(item).map_err(|error| match error {
         PhraseError::NotPhrases(span) => problem(
             span.map(|span| line_at(span.start)),
             Code::NotPhrases,
             &format!("persona.{field}"),
-            format!("persona.{field} must map languages to text"),
+            format!("persona.{field} must be text"),
+        ),
+        PhraseError::Empty(language, span) if language.is_empty() => problem(
+            span.map(|span| line_at(span.start)),
+            Code::EmptyPhrase,
+            &format!("persona.{field}"),
+            format!("persona.{field} must be non-empty text"),
         ),
         PhraseError::UnknownLanguage(language, span) => problem(
             span.map(|span| line_at(span.start)),
@@ -371,6 +356,51 @@ pub fn read_examples(text: &str) -> Result<Vec<Demo>, Problem> {
         });
     }
     Ok(demos)
+}
+
+/// 把示范对话写回 `prompts/examples.md` 的写法（施工 P-3 补：界面里一对一对地编，格式留在核心）：每一对 `user:`、
+/// `assistant:` 开头，对与对之间空一行。一句里的空行写不进去（读的时候空行不算），去掉；每一句去掉前后空白。
+///
+/// # Errors
+///
+/// 写出来读不回原样的（一句里有一行看起来像 `user:`、`assistant:` 开头，读的时候会当成下一句），交回是第几对（从 1 数）。
+pub fn write_examples(demos: &[Demo]) -> Result<String, usize> {
+    let kept: Vec<Demo> = demos
+        .iter()
+        .map(|demo| Demo {
+            user: solid(&demo.user),
+            assistant: solid(&demo.assistant),
+        })
+        .collect();
+    let text = written(&kept);
+    if read_examples(&text).is_ok_and(|read| read == kept) {
+        return Ok(text);
+    }
+    let bad = (1..=kept.len())
+        .find(|&n| {
+            let part = &kept[..n];
+            !read_examples(&written(part)).is_ok_and(|read| read == part)
+        })
+        .unwrap_or(kept.len());
+    Err(bad)
+}
+
+/// 一对对写成字。
+fn written(demos: &[Demo]) -> String {
+    let pairs: Vec<String> = demos
+        .iter()
+        .map(|demo| format!("user: {}\nassistant: {}\n", demo.user, demo.assistant))
+        .collect();
+    pairs.join("\n")
+}
+
+/// 去掉空行和前后空白。
+fn solid(text: &str) -> String {
+    let lines: Vec<&str> = text
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .collect();
+    lines.join("\n").trim().to_string()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

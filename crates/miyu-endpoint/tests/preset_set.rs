@@ -1,5 +1,6 @@
-//! 新建、改、删预设（施工 P-3 中，`docs/blueprint/presets.md`「改」）：真核心走一遍。只写家目录那一层；对没有的编号写就是新建，
-//! 改出厂的只写改了的项；原来的注释、顺序照原样；有错、`expect` 对不上的整条不收、什么都不写；删掉家目录那一层回到下面的。
+//! 新建、改、删预设（施工 P-3 中、P-3 补，`docs/blueprint/presets.md`「改」）：真核心走一遍。只写家目录那一层；不写编号的是
+//! 新建、编号由核心起；改出厂的只写改了的项；原来的注释、顺序照原样；有错、`expect` 对不上的整条不收、什么都不写；删掉家目录
+//! 那一层回到下面的。
 
 use std::sync::Arc;
 
@@ -39,41 +40,63 @@ async fn set(client: &mut Client, id: &str, preset: &str, changes: Value) -> Val
         .await
 }
 
+/// 回应里软件 `id` 开不开；没有这一个的是没有。
+fn on(reply: &Value, id: &str) -> Option<bool> {
+    reply["result"]["software"]
+        .as_array()?
+        .iter()
+        .find(|one| one["id"] == id)?["on"]
+        .as_bool()
+}
+
 #[tokio::test]
-async fn a_new_id_is_made_in_one_call_and_a_session_can_use_it() {
+async fn a_new_preset_gets_its_id_from_the_core_and_a_session_can_use_it() {
     let home = Home::new();
     let mut client = connected(&home).await;
-    let made = set(
-        &mut client,
-        "s1",
-        "mine",
-        json!([
-            {"key": "preset.base", "value": "dev"},
-            {"key": "preset.name.zh", "value": "我的"},
-            {"key": "software.memory", "value": true},
-        ]),
-    )
-    .await;
-    let made = &made["result"];
-    assert_eq!(made["preset"], "mine", "{made}");
-    assert_eq!(made["base"], "dev");
-    assert_eq!(made["layers"], json!(["home"]));
-    assert_eq!(
-        (&made["name"]["zh"], &made["name"]["en"]),
-        (&json!("我的"), &json!("Dev"))
-    );
-    assert_eq!(made["software"]["memory"], true);
-    assert_eq!(
-        mine(&home, "mine").as_deref(),
-        Some(
-            "[preset]\nbase = \"dev\"\n\n[preset.name]\nzh = \"我的\"\n\n[software]\nmemory = true\n"
+    let made = client
+        .call(
+            "s1",
+            "preset.set",
+            json!({"changes": [
+                {"key": "preset.name", "value": "我的"},
+                {"key": "software.memory", "value": false},
+            ]}),
         )
+        .await;
+    assert_eq!(made["result"]["preset"], "preset-1", "{made}");
+    assert_eq!(made["result"]["name"], "我的");
+    assert_eq!(on(&made, "memory"), Some(false));
+    assert_eq!(on(&made, "roleplay"), Some(true), "别的照旧全开");
+    assert_eq!(made["result"]["remove"], "delete", "自己建的：删了就没了");
+    assert_eq!(
+        mine(&home, "preset-1").as_deref(),
+        Some("[preset]\nname = \"我的\"\n\n[software]\nmemory = false\n")
+    );
+    let second = client
+        .call(
+            "s2",
+            "preset.set",
+            json!({"changes": [{"key": "preset.name", "value": "又一个"}]}),
+        )
+        .await;
+    assert_eq!(second["result"]["preset"], "preset-2", "{second}");
+    let nothing = client
+        .call(
+            "s3",
+            "preset.set",
+            json!({"changes": [{"key": "software.net", "unset": true}]}),
+        )
+        .await;
+    assert_eq!(
+        reason(&nothing),
+        Some("bad_params"),
+        "新建只删不写：{nothing}"
     );
     let created = client
         .call(
             "c1",
             "session.create",
-            json!({"cwd": home.work.to_string_lossy(), "preset": "mine"}),
+            json!({"cwd": home.work.to_string_lossy(), "preset": "preset-1"}),
         )
         .await;
     assert!(created["result"]["session"].is_string(), "{created}");
@@ -90,33 +113,45 @@ async fn changing_a_shipped_one_writes_only_what_changed_and_keeps_the_rest_of_t
         json!([{"key": "software.memory", "value": true}]),
     )
     .await;
-    assert_eq!(got["result"]["layers"], json!(["shipped", "home"]), "{got}");
-    assert_eq!(got["result"]["software"]["memory"], true);
+    assert_eq!(on(&got, "memory"), Some(true), "{got}");
+    assert_eq!(
+        got["result"]["remove"], "restore",
+        "改过的出厂：删了回到出厂的"
+    );
     assert_eq!(
         mine(&home, "dev").as_deref(),
         Some("[software]\nmemory = true\n")
+    );
+    let untouched = client
+        .call("g0", "preset.get", json!({"preset": "full"}))
+        .await;
+    assert_eq!(
+        untouched["result"]["remove"],
+        Value::Null,
+        "没改过的出厂没什么可删"
     );
 
     home.write(
         "home/alice/presets/full.toml",
         "# 我自己的\n[tools]\nshell = false # 先关着\n\n[preset]\nname = { zh = \"全开\" }\n",
     );
-    set(
+    let renamed = set(
         &mut client,
         "s2",
         "full",
         json!([
-            {"key": "preset.name.en", "value": "All"},
+            {"key": "preset.name", "value": "All"},
             {"key": "tools.trash", "value": false},
         ]),
     )
     .await;
+    assert_eq!(renamed["result"]["name"], "All", "{renamed}");
     assert_eq!(
         mine(&home, "full").as_deref(),
         Some(
-            "# 我自己的\n[tools]\nshell = false # 先关着\ntrash = false\n\n[preset]\nname = { zh = \"全开\", en = \"All\" }\n"
+            "# 我自己的\n[tools]\nshell = false # 先关着\ntrash = false\n\n[preset]\nname = \"All\"\n"
         ),
-        "注释、顺序、行内表的写法照原样"
+        "注释、顺序照原样；以前的语言表换成一句字"
     );
 
     // 删一项：回到下面那一层的。
@@ -127,11 +162,10 @@ async fn changing_a_shipped_one_writes_only_what_changed_and_keeps_the_rest_of_t
         json!([{"key": "software.memory", "unset": true}]),
     )
     .await;
-    assert_eq!(unset["result"]["software"].get("memory"), None, "{unset}");
     assert_eq!(
-        unset["result"]["layers"],
-        json!(["shipped", "home"]),
-        "空了的文件照样是一层"
+        on(&unset, "memory"),
+        None,
+        "没装、也不再写着的不列：{unset}"
     );
 }
 
@@ -171,7 +205,8 @@ async fn conflicts_and_mistakes_write_nothing() {
     )
     .await;
     assert_eq!(
-        matching["result"]["software"]["net"], false,
+        on(&matching, "net"),
+        Some(false),
         "对得上的照写：{matching}"
     );
     let before = mine(&home, "dev");
@@ -186,12 +221,12 @@ async fn conflicts_and_mistakes_write_nothing() {
             "home dev.toml:",
         ),
         (
-            json!([{"key": "preset.base", "value": "dev"}]),
-            "base cycle: dev -> dev",
+            json!([{"key": "preset.name", "value": "  "}]),
+            "home dev.toml:",
         ),
         (
-            json!([{"key": "preset.base", "value": "nowhere"}]),
-            r#"base "nowhere" of "dev" not found"#,
+            json!([{"key": "preset.default_persona", "value": "Not An Id"}]),
+            "home dev.toml:",
         ),
     ]
     .into_iter()
@@ -203,11 +238,19 @@ async fn conflicts_and_mistakes_write_nothing() {
             .as_str()
             .unwrap_or_default();
         assert!(said.starts_with(problem), "{said}");
+        let told = reply["error"]["data"]["message"]
+            .as_str()
+            .unwrap_or_default();
+        assert!(
+            !told.is_empty() && !told.contains("home"),
+            "照连接的语言说一句，不带层：{reply}"
+        );
         assert_eq!(mine(&home, "dev"), before, "什么都没写：{changes}");
     }
 
     for (n, params) in [
         json!({"preset": "dev", "changes": []}),
+        json!({"changes": []}),
         json!({"preset": "dev", "changes": [{"key": "software.net", "value": true, "unset": true}]}),
         json!({"preset": "dev", "changes": [{"key": "software.net"}]}),
         json!({"preset": "dev", "changes": [{"key": "software.net", "value": [true]}]}),
@@ -236,13 +279,17 @@ async fn deleting_your_layer_goes_back_to_what_is_below() {
         json!([{"key": "software.memory", "value": true}]),
     )
     .await;
-    set(
-        &mut client,
-        "s2",
-        "mine",
-        json!([{"key": "preset.base", "value": "full"}]),
-    )
-    .await;
+    let made = client
+        .call(
+            "s2",
+            "preset.set",
+            json!({"changes": [{"key": "preset.name", "value": "我的"}]}),
+        )
+        .await;
+    let mine_id = made["result"]["preset"]
+        .as_str()
+        .expect("起了编号")
+        .to_string();
 
     let back = client
         .call("d1", "preset.delete", json!({"preset": "dev"}))
@@ -252,14 +299,15 @@ async fn deleting_your_layer_goes_back_to_what_is_below() {
     let got = client
         .call("g1", "preset.get", json!({"preset": "dev"}))
         .await;
-    assert_eq!(got["result"]["layers"], json!(["shipped"]));
+    assert_eq!(on(&got, "memory"), None, "回到出厂的：出厂的没写记忆");
+    assert_eq!(got["result"]["remove"], Value::Null);
 
     let gone = client
-        .call("d2", "preset.delete", json!({"preset": "mine"}))
+        .call("d2", "preset.delete", json!({"preset": mine_id}))
         .await;
     assert_eq!(gone["result"], json!({"remains": false}), "{gone}");
     let got = client
-        .call("g2", "preset.get", json!({"preset": "mine"}))
+        .call("g2", "preset.get", json!({"preset": mine_id}))
         .await;
     assert_eq!(reason(&got), Some("unknown_preset"), "{got}");
 
@@ -300,13 +348,13 @@ async fn the_same_value_writes_nothing() {
         ]),
     )
     .await;
-    assert_eq!(again["result"]["software"]["memory"], true, "{again}");
+    assert_eq!(on(&again, "memory"), Some(true), "{again}");
     assert_eq!(
         std::fs::read_to_string(&path).expect("在"),
         text,
         "这一层本来就是这个值的不动，单引号也不换"
     );
-    // 还没有的编号上只删不写：什么都不建。
+    // 写了编号、还没有的上只删不写：什么都不建。
     let ghost = set(
         &mut client,
         "s3",

@@ -1,0 +1,5 @@
+# 出厂的软件工程师（施工 3-6 上起只有人设那一句）。名字、说明照连接的语言显示（施工 P-3 补：界面上只露名字，没有名字的
+# 人格认不出是哪个）。
+[persona]
+name = { zh = "软件工程师", en = "Software Engineer", ja = "ソフトウェアエンジニア" }
+summary = { zh = "写代码、查问题，不带角色扮演", en = "Writes code and tracks down problems, no role-play", ja = "コードを書き、問題を調べます。ロールプレイなし" }

@@ -1,8 +1,7 @@
 //! 人格在哪、几层怎么叠（施工 P-1 上，`docs/blueprint/personas.md`，`16-人格与预设.md` 第四节）：出厂的
 //! `<资源目录>/personas/<编号>/`、系统区 `system/personas/<编号>/`、管理员家目录 `home/<管理员>/personas/<编号>/`，同名的后面
 //! 的叠在前面的上面：`persona.toml` 逐项盖，`prompts/` 里的文件同名替换、没写的沿用。读法同配置文件：只有本人写自己的
-//! 家目录，顺着链接读。写了 `base` 的，自己的几层盖在底叠好的样子上（施工 P-3 上，16 第四节），底也照这样找；绕成圈、
-//! 指着没有的报错。文件怎么读成样子在 `miyu_policy::persona`。
+//! 家目录，顺着链接读。文件怎么读成样子在 `miyu_policy::persona`。
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -25,15 +24,6 @@ pub const PERSONA_MD: &str = "prompts/persona.md";
 /// 角色扮演提示在人格目录里的位置（施工 P-1 补）。
 pub const REMINDERS_MD: &str = "prompts/reminders.md";
 
-/// 一份字来自哪儿：哪个人格（自己的，或者底的）的哪一层。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Origin {
-    /// 住在哪个人格的目录里：自己的就是自己的编号，来自底的是底的（底的底也照这样）。
-    pub persona: String,
-    /// 哪一层。
-    pub layer: Layer,
-}
-
 /// 家目录那一层里一个人格的几份改成什么（施工 P-3 下）：键是人格目录里的位置（`persona.toml`、`prompts/persona.md` 这些），
 /// 值是改完的字，`None` 是删掉。
 pub type Edits = BTreeMap<&'static str, Option<String>>;
@@ -47,16 +37,14 @@ pub struct Found {
     pub file: PersonaFile,
     /// 叠好的字，造快照用。
     pub texts: PersonaTexts,
-    /// 有它的几层，从下往上（不算底的）。
+    /// 有它的几层，从下往上。
     pub layers: Vec<Layer>,
-    /// 人设来自哪儿，没有的是没有。
-    pub persona_from: Option<Origin>,
-    /// 示范对话来自哪儿，没有的是没有。
-    pub examples_from: Option<Origin>,
-    /// 角色扮演提示来自哪儿，没有的是没有（施工 P-1 补）。
-    pub reminders_from: Option<Origin>,
-    /// 以哪个人格为底（施工 P-3 上）：叠好的 `base`，没有的是没有。
-    pub base: Option<String>,
+    /// 人设来自哪一层，没有的是没有。
+    pub persona_from: Option<Layer>,
+    /// 示范对话来自哪一层，没有的是没有。
+    pub examples_from: Option<Layer>,
+    /// 角色扮演提示来自哪一层，没有的是没有（施工 P-1 补）。
+    pub reminders_from: Option<Layer>,
     /// 它住在谁的家目录里：有家目录那一层的是那个账号，只有出厂、系统区的没有（记忆归哪个账号照它，`personas.md`）。
     pub home: Option<AccountId>,
 }
@@ -72,12 +60,6 @@ pub enum PersonaError {
     Invalid(Layer, Problem),
     /// 读不了：哪个文件。
     Unreadable(PathBuf, io::Error),
-    /// 以谁为底绕成了圈（施工 P-3 上）：从要找的那个起，一路到又回来的那个。
-    BaseCycle(Vec<String>),
-    /// 底没有：哪个人格、写的底是什么。
-    BaseMissing(String, String),
-    /// 底的文件写错了：哪个底、哪一层、错在哪（自己的文件写错的是 [`PersonaError::Invalid`]，说法不带编号）。
-    BaseInvalid(String, Layer, Problem),
 }
 
 impl fmt::Display for PersonaError {
@@ -88,11 +70,6 @@ impl fmt::Display for PersonaError {
             PersonaError::Invalid(layer, problem) => write!(f, "{} {problem}", layer.as_str()),
             PersonaError::Unreadable(path, error) => {
                 write!(f, "cannot read {}: {error}", path.display())
-            }
-            PersonaError::BaseCycle(chain) => write!(f, "base cycle: {}", chain.join(" -> ")),
-            PersonaError::BaseMissing(id, base) => write!(f, "base {base:?} of {id:?} not found"),
-            PersonaError::BaseInvalid(base, layer, problem) => {
-                write!(f, "base {base}: {} {problem}", layer.as_str())
             }
         }
     }
@@ -120,13 +97,13 @@ impl Personas {
         }
     }
 
-    /// 找人格 `id`，几层叠好；写了 `base` 的叠在底上：`persona.toml` 逐项盖，提示词自己的几层没有的沿用底的。
+    /// 找人格 `id`，几层叠好。
     ///
     /// # Errors
     ///
-    /// 编号不合写法、哪一层都没有、文件写错了、读不了；底绕成了圈、底没有，底的文件写错了、读不了。
+    /// 编号不合写法、哪一层都没有、文件写错了、读不了。
     pub fn find(&self, id: &str) -> Result<Found, PersonaError> {
-        self.find_from(id, &mut Vec::new(), None)
+        self.stack(id, None)
     }
 
     /// 同 [`Personas::find`]，只是家目录那一层里 `id` 的几份照 `home` 算（施工 P-3 下）：写了的是改完的字，`None` 是删掉，
@@ -136,53 +113,10 @@ impl Personas {
     ///
     /// 同 [`Personas::find`]。
     pub fn find_with(&self, id: &str, home: &Edits) -> Result<Found, PersonaError> {
-        self.find_from(id, &mut Vec::new(), Some(home))
+        self.stack(id, Some(home))
     }
 
-    /// 同 [`Personas::find`]，`chain` 是一路找过来的那几个（找底的时候查绕圈），`home` 见 [`Personas::find_with`]：只用在
-    /// 要找的那一个上，底照盘上的找。
-    fn find_from(
-        &self,
-        id: &str,
-        chain: &mut Vec<String>,
-        home: Option<&Edits>,
-    ) -> Result<Found, PersonaError> {
-        let mut found = self.stack(id, home)?;
-        let Some(base) = found.file.base.clone() else {
-            return Ok(found);
-        };
-        chain.push(id.to_string());
-        if chain.contains(&base) {
-            chain.push(base);
-            return Err(PersonaError::BaseCycle(std::mem::take(chain)));
-        }
-        let below = match self.find_from(&base, chain, None) {
-            Err(PersonaError::NotFound(_)) => {
-                return Err(PersonaError::BaseMissing(id.to_string(), base));
-            }
-            Err(PersonaError::Invalid(layer, problem)) => {
-                return Err(PersonaError::BaseInvalid(base, layer, problem));
-            }
-            below => below?,
-        };
-        found.file = found.file.over(below.file);
-        if found.persona_from.is_none() {
-            found.texts.persona = below.texts.persona;
-            found.persona_from = below.persona_from;
-        }
-        if found.examples_from.is_none() {
-            found.texts.examples = below.texts.examples;
-            found.examples_from = below.examples_from;
-        }
-        if found.reminders_from.is_none() {
-            found.texts.reminders = below.texts.reminders;
-            found.reminders_from = below.reminders_from;
-        }
-        found.base = Some(base);
-        Ok(found)
-    }
-
-    /// 人格 `id` 自己的几层叠好，不管底；`home` 是写了的，家目录那一层照它改过的算。
+    /// 人格 `id` 的几层叠好；`home` 是写了的，家目录那一层照它改过的算。
     fn stack(&self, id: &str, home: Option<&Edits>) -> Result<Found, PersonaError> {
         if !valid(id) {
             return Err(PersonaError::BadId(id.to_string()));
@@ -195,7 +129,6 @@ impl Personas {
             persona_from: None,
             examples_from: None,
             reminders_from: None,
-            base: None,
             home: None,
         };
         for (layer, dir) in &self.dirs {
@@ -219,22 +152,18 @@ impl Personas {
                     .map_err(|problem| PersonaError::Invalid(*layer, problem))?;
                 found.file = file.over(std::mem::take(&mut found.file));
             }
-            let origin = Origin {
-                persona: id.to_string(),
-                layer: *layer,
-            };
             if let Some(text) = text_of(PERSONA_MD)? {
                 found.texts.persona = text;
-                found.persona_from = Some(origin.clone());
+                found.persona_from = Some(*layer);
             }
             if let Some(text) = text_of(persona::EXAMPLES)? {
                 found.texts.examples = persona::read_examples(&text)
                     .map_err(|problem| PersonaError::Invalid(*layer, problem))?;
-                found.examples_from = Some(origin.clone());
+                found.examples_from = Some(*layer);
             }
             if let Some(text) = text_of(REMINDERS_MD)? {
                 found.texts.reminders = text;
-                found.reminders_from = Some(origin);
+                found.reminders_from = Some(*layer);
             }
         }
         if found.layers.is_empty() {
@@ -268,15 +197,28 @@ impl Personas {
         inside(&self.home_dir(id), relative)
     }
 
+    /// 新建时由核心起的编号（施工 P-3 补，2026-10-08 项目主人定：新建不填编号）：`persona-<n>`，n 从 1 数起，取几层里都还没有
+    /// 的最小的那个。只是挑，不占：写的一方照「已经有了就换下一个」再挑。
+    ///
+    /// # Panics
+    ///
+    /// 实际不会 panic：编号数不完。
+    pub fn unused_id(&self) -> String {
+        (1..)
+            .map(|n: u64| format!("persona-{n}"))
+            .find(|id| !self.exists(id))
+            .expect("总有没用过的编号")
+    }
+
     /// 有没有哪一层有人格 `id` 的目录（施工 P-3 下，`persona.delete` 挪完看还剩不剩）。
     pub fn exists(&self, id: &str) -> bool {
         valid(id) && self.dirs.iter().any(|(_, dir)| dir.join(id).is_dir())
     }
 
-    /// 一份字真住在哪个文件（施工 P-3 下，`persona.read` 读原文）：`origin` 那个人格那一层的目录里的 `relative`。
-    pub fn file_of(&self, origin: &Origin, relative: &str) -> Option<PathBuf> {
-        let (_, dir) = self.dirs.iter().find(|(layer, _)| *layer == origin.layer)?;
-        Some(inside(&dir.join(&origin.persona), relative))
+    /// 一份字真住在哪个文件（施工 P-3 下，`persona.read` 读原文）：人格 `id` 在 `layer` 那一层的目录里的 `relative`。
+    pub fn file_of(&self, id: &str, layer: Layer, relative: &str) -> Option<PathBuf> {
+        let (_, dir) = self.dirs.iter().find(|(at, _)| *at == layer)?;
+        Some(inside(&dir.join(id), relative))
     }
 
     /// 用人格 `id`、属主是 `owner` 的会话，记忆归哪个账号（和记忆的会话对过，`17-记忆.md` L16，`personas.md`「怎么走」第 5 条）：
