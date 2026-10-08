@@ -31,7 +31,7 @@ mod tests;
 
 use streams::{Stream, stream_of, subscribe};
 
-use crate::hello::{Shaken, hello};
+use crate::hello::{Caller, Shaken, hello};
 use crate::login::{self, Revoked, Via};
 use crate::methods;
 use crate::queries::Handler;
@@ -101,7 +101,10 @@ async fn read_all<R: AsyncRead + Unpin>(
     // 核心拉起的扩展是哪个包（施工 9-4 下下）：握手交它自己的配置，之后变了推。
     let package = spawned.as_ref().map(|(_, package)| package.clone());
     // 这个连接是谁（施工 O-4 下）：声明了系统账号的包的扩展是它，别的是管理员。
-    let account = core.account_of(package.as_deref());
+    let caller = Caller {
+        account: core.account_of(package.as_deref()),
+        package: package.clone(),
+    };
     let mut handing: Option<Handing> = None;
     // 这个连接说话时还带着工作目录（施工 9-7 上：不再换工作区，照收不理）：第一次记一行，看得出谁还在发。
     let mut told_cwd = false;
@@ -220,29 +223,31 @@ async fn read_all<R: AsyncRead + Unpin>(
         }
         let id = || Value::String(request.id.as_str().to_string());
         let (answer, target, close) = match (request.method.as_str(), peer) {
-            ("hello", _) => match hello(&core, request.params.clone(), from_core, &account).await {
-                Ok((shook, by, mut result)) => {
-                    if let Some((ready, _)) = spawned.take()
-                        && ready.send(()).is_err()
-                    {
-                        // 看管它的那一头不等了：不用说。
+            ("hello", _) => {
+                match hello(&core, request.params.clone(), from_core, &caller.account).await {
+                    Ok((shook, by, mut result)) => {
+                        if let Some((ready, _)) = spawned.take()
+                            && ready.send(()).is_err()
+                        {
+                            // 看管它的那一头不等了：不用说。
+                        }
+                        if let Some(package) = &package {
+                            let given = Handing::now(&core, package);
+                            result["config"] = json!(given.handed);
+                            handing = Some(given);
+                        }
+                        shaken = Some(shook);
+                        revoked = by.login().map(|_| core.identity.revoked());
+                        via = Some(by);
+                        (wire::result(&request.id, result), None, false)
                     }
-                    if let Some(package) = &package {
-                        let given = Handing::now(&core, package);
-                        result["config"] = json!(given.handed);
-                        handing = Some(given);
+                    // 被拒的，话照这一次报的语言说（施工 4-9 再补三上）：第一次握手也不是一律英文。
+                    Err((refusal, close)) => {
+                        let asked = asked_locale(&request.params).unwrap_or(locale);
+                        (wire::error(id(), refusal, asked), None, close)
                     }
-                    shaken = Some(shook);
-                    revoked = by.login().map(|_| core.identity.revoked());
-                    via = Some(by);
-                    (wire::result(&request.id, result), None, false)
                 }
-                // 被拒的，话照这一次报的语言说（施工 4-9 再补三上）：第一次握手也不是一律英文。
-                Err((refusal, close)) => {
-                    let asked = asked_locale(&request.params).unwrap_or(locale);
-                    (wire::error(id(), refusal, asked), None, close)
-                }
-            },
+            }
             (_, None) => (wire::error(id(), Refusal::HELLO_FIRST, locale), None, false),
             ("subscribe", Some(peer)) => {
                 let (result, target) = match stream_of(&request) {
@@ -307,7 +312,7 @@ async fn read_all<R: AsyncRead + Unpin>(
                 (answer(&request, result, locale), None, false)
             }
             (_, Some(peer)) => {
-                let result = methods::call(&core, peer, &account, &request, &mut uploads).await;
+                let result = methods::call(&core, peer, &caller, &request, &mut uploads).await;
                 (answer(&request, result, locale), target(&request), false)
             }
         };

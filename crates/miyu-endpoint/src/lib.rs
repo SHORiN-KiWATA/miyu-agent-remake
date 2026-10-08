@@ -24,6 +24,7 @@
 //!   （施工 W-5，`uploads.rs`）。连接断了、60 秒没写都作废。
 //! - [`extensions`]：核心拉起的 `process` 包，经标准输入输出说同一套协议；开关、退避重启、随核心退出（施工 9-4 上）。
 
+mod appending;
 mod attach;
 mod check;
 mod commands;

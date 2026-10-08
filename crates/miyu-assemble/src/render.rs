@@ -37,6 +37,8 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
     }
     for event in history.ordered() {
         match &event.body {
+            // 旁听的场所消息这一步先不进上下文，O-13 下渲染成群聊近况（施工 O-13 上）。
+            Body::MessageUser(message) if message.venue.as_ref().is_some_and(|venue| venue.ambient) => {}
             Body::MessageUser(message) => {
                 let blocks = said(history, &event.by, known(&message.blocks), texts);
                 transcript.add(event.seq, Place::Here, blocks);
@@ -128,6 +130,9 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
             | Body::QuestionAnswered(_)
             | Body::ContextCompacted(_)
             | Body::CompactionPaused(_)
+            // 场所的撤回、她实际发出去的话：O-13 下渲染进群聊近况（施工 O-13 上）。
+            | Body::VenueRecalled(_)
+            | Body::VenueDelivered(_)
             | Body::Unknown { .. } => {}
         }
     }

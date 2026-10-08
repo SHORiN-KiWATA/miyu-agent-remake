@@ -22,7 +22,7 @@ use super::configure::Replaced;
 
 mod command;
 
-pub use command::{Answer, Command, Queued};
+pub use command::{Answer, Appended, Command, ExtEvent, Queued};
 
 /// 送进会话的一件事。
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -57,6 +57,7 @@ fn fields_are_written_in_the_drawing_order() {
             blocks: vec![Block::Text(Text {
                 text: "看看 src 目录".to_string(),
             })],
+            venue: None,
         }),
     };
     assert_eq!(event.to_line(), USER);

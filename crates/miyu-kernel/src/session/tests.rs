@@ -40,6 +40,7 @@ mod title;
 mod todos;
 mod tools;
 mod turn;
+mod venue;
 mod workspace;
 
 use std::collections::BTreeMap;
@@ -120,7 +121,11 @@ fn message(n: u64, words: &str, urgent: bool) -> Input {
         id: id(n),
         by: alice(),
         at: at(n % 60),
-        command: Command::Send { blocks, urgent },
+        command: Command::Send {
+            blocks,
+            urgent,
+            venue: None,
+        },
     })
 }
 

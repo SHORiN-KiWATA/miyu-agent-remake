@@ -59,6 +59,7 @@ impl MessagePort for Messenger {
                     text: message.to_string(),
                 })],
                 urgent: false,
+                venue: None,
             };
             let outcome = agents
                 .port

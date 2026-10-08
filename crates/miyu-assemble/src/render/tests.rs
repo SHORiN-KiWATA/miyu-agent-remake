@@ -8,6 +8,7 @@ use crate::test_support::*;
 mod clear;
 mod recap;
 mod reminder;
+mod venue;
 
 fn rendered(log: &Log) -> Vec<String> {
     shape(&render(log.history(), &texts()))

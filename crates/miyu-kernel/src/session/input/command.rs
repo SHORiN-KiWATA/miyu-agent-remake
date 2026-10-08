@@ -1,8 +1,12 @@
 //! 发给会话的命令（`02-内核.md` 第三节）：意图、回答、打断时排着的怎么办。施工 9-7 上从 `input.rs` 挪出来（那一份到了 500 行）。
 
 use crate::block::Block;
-use crate::event::{ChildReported, Decision, Level, Response};
+use crate::event::{
+    Body, ChildReported, Decision, Level, Response, VenueDelivered, VenueMessage, VenueRecalled,
+};
+use crate::id::EventKind;
 use crate::id::{CallId, TurnId};
+use crate::raw::RawJson;
 
 /// 发给会话的意图（`02-内核.md` 第三节）。结局只有两种：被接受并产生事件，或被拒绝并附原因。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -14,6 +18,13 @@ pub enum Command {
         /// 急着插话：这一步还没跑的工具跳过，这句话马上进下一步（`02-内核.md` 第六节
         /// 「打断和急着插话」）。
         urgent: bool,
+        /// 通讯平台上的一条消息（施工 O-13 上）：原样记进 `message.user`。旁听的只记下，不开回合，回合进行中也不排进这一轮。
+        venue: Option<VenueMessage>,
+    },
+    /// `events.append`：记一条不带回合编号的事件（施工 O-13 上），任何时候都收，不开回合、不打断。
+    Append {
+        /// 记哪一条：只有这几种经得了这条路。
+        event: Appended,
     },
     /// `session.set_permission_level`：开关只读，或者改常用的那一级，改哪样写哪样
     /// （`02-内核.md` 第六节「权限级别怎么切」）。
@@ -125,4 +136,49 @@ pub enum Queued {
     Return,
     /// 留着（施工 O-6，`/stop` 全停）：不撤回，也不接着开一轮；照样在历史里，下一句话开的那一轮看得到。
     Keep,
+}
+
+/// `events.append` 记的一条（施工 O-13 上，`docs/blueprint/chat.md` 第七条第 3 条）：扩展自己命名空间的，或者核心认得的两种场所
+/// 的事件。别的种类经不了这条路：内核自己的事件只由内核记。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Appended {
+    /// `ext.` 开头的：原样留着，不渲染。
+    Ext(ExtEvent),
+    /// `venue.recalled`。
+    Recalled(VenueRecalled),
+    /// `venue.delivered`。
+    Delivered(VenueDelivered),
+}
+
+impl Appended {
+    /// 记成事件的那一份。
+    pub(crate) fn into_body(self) -> Body {
+        match self {
+            Appended::Ext(ext) => Body::Unknown {
+                kind: ext.kind,
+                body: ext.body,
+            },
+            Appended::Recalled(recalled) => Body::VenueRecalled(recalled),
+            Appended::Delivered(delivered) => Body::VenueDelivered(delivered),
+        }
+    }
+}
+
+/// 一条 `ext.` 开头的事件：种类和原样的 `body`。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExtEvent {
+    kind: EventKind,
+    body: RawJson,
+}
+
+impl ExtEvent {
+    /// 种类 `kind`、内容 `body` 的一条；种类不是 `ext.` 开头、不合种类的写法的没有。
+    pub fn new(kind: &str, body: serde_json::Value) -> Option<ExtEvent> {
+        if !kind.starts_with("ext.") {
+            return None;
+        }
+        let kind = EventKind::parse(kind).ok()?;
+        let body = serde_json::from_str(&body.to_string()).ok()?;
+        Some(ExtEvent { kind, body })
+    }
 }

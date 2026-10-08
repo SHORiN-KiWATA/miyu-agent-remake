@@ -48,6 +48,7 @@ pub(super) fn some_peer(rng: &mut Rng, watch: &Watch, next_id: &mut u64) -> Opti
                 text: words.to_string(),
             })],
             urgent: rng.below(4) == 0,
+            venue: None,
         },
     }))
 }

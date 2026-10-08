@@ -296,6 +296,7 @@ impl AgentPort for Spawner {
                     text: prompt.to_string(),
                 })],
                 urgent: false,
+                venue: None,
             };
             let sent = agents
                 .port

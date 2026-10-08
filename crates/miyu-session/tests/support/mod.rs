@@ -430,6 +430,7 @@ pub fn say(words: &str) -> Command {
             text: words.to_string(),
         })],
         urgent: false,
+        venue: None,
     }
 }
 

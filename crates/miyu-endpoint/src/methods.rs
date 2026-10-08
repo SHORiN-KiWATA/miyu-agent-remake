@@ -22,7 +22,7 @@ use serde_json::{Value, json};
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::Level;
-use miyu_kernel::id::{AccountId, CallId, JobId, Seq, SessionId, TurnId};
+use miyu_kernel::id::{CallId, JobId, Seq, SessionId, TurnId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Outcome, Queued};
 use miyu_policy::memory::MemoryScope;
@@ -34,7 +34,7 @@ use crate::commands;
 use crate::config;
 use crate::files;
 use crate::from;
-use crate::hello::Peer;
+use crate::hello::{Caller, Peer};
 use crate::human;
 use crate::job_output;
 use crate::list;
@@ -59,7 +59,7 @@ use params::*;
 pub(crate) async fn call(
     core: &Arc<Core>,
     peer: Peer,
-    account: &AccountId,
+    caller: &Caller,
     request: &Request,
     uploads: &mut Uploads,
 ) -> Result<Value, Refusal> {
@@ -76,7 +76,7 @@ pub(crate) async fn call(
                 .map(|text| MemoryScope::parse(&text).ok_or(Refusal::BAD_PARAMS))
                 .transpose()?;
             let who = Opening {
-                owner: account.clone(),
+                owner: caller.account.clone(),
                 attended: peer.input,
                 oneshot: params.oneshot,
                 model,
@@ -126,8 +126,9 @@ pub(crate) async fn call(
             let sessions = list::list(core, params.oneshot, params.limit).await?;
             Ok(json!({"sessions": sessions}))
         }
+        "events.append" => crate::appending::append(core, caller, request, params(request)?).await,
         "venue.session" => {
-            venues::session(core, account, request.id.clone(), params(request)?).await
+            venues::session(core, &caller.account, request.id.clone(), params(request)?).await
         }
         "session.send" => {
             let params: SendParams = params(request)?;
@@ -141,6 +142,14 @@ pub(crate) async fn call(
             };
             let mut blocks = said(params.text);
             let session = session(&params.session)?;
+            // 场所的那几格（施工 O-13 上）：先查写法，只跟着 `as` 来。
+            let venue = params
+                .venue
+                .map(crate::venues::VenueMessageParams::checked)
+                .transpose()?;
+            if venue.is_some() && params.as_external.is_none() {
+                return Err(Refusal::BAD_PARAMS);
+            }
             // 附件先查，再找会话：不对的，会话里什么都不送（施工 3-9 三补）。头报的 `cwd`、`dirs` 不再换工作区（施工 9-7 上）。
             let attachments = params.attachments.unwrap_or_default();
             blocks.extend(attach::blocks(core, attachments).await?);
@@ -150,6 +159,7 @@ pub(crate) async fn call(
             let command = Command::Send {
                 blocks,
                 urgent: params.urgent,
+                venue,
             };
             // 场所会话只收代表外部的人说的话，本机的会话不收（施工 O-3，`venues.md`）。
             let local = found.handle.venue().as_str() == list::LOCAL;
@@ -376,7 +386,7 @@ pub(crate) async fn command_to(
 }
 
 /// 同 [`command_to`]，记成 `by` 发的：别的 harness 发来的话（施工 7-10）。
-async fn command_by(
+pub(crate) async fn command_by(
     core: &Core,
     request: &Request,
     session: &SessionId,

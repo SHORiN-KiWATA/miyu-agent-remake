@@ -30,6 +30,7 @@ async fn show(handle: &Handle, blob: &ContentHash) {
             height: 1,
         })],
         urgent: false,
+        venue: None,
     };
     ask(handle, "cmd-1", send).await.expect("会话在跑");
     until_turn_ends(&mut pushes).await;

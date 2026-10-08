@@ -92,7 +92,8 @@
 
 | 命令 | 协议里的方法 | 带着 | 见 |
 |---|---|---|---|
-| `Send { blocks, urgent }` | `session.send` | 内容块；`urgent` 急着插话 | 「发一条消息」 |
+| `Send { blocks, urgent, venue }` | `session.send` | 内容块；`urgent` 急着插话；`venue` 通讯平台上的一条消息的那几格（施工 O-13 上） | 「发一条消息」 |
+| `Append { event }` | `events.append` | 扩展自己的 `ext.*`，或者 `venue.recalled`、`venue.delivered`（施工 O-13 上；别的种类经不了这条路，类型就不收） | 「桥记的事件」 |
 | `Interrupt { queued }` | `session.interrupt` | `Queued::Send` 排着的接着发，`Queued::Return` 退回，`Queued::Keep` 留着（施工 O-6） | 「打断」 |
 | `SetPermission { level, read_only }` | `session.set_permission_level` | 常用的那一级、只读开关，不改的是 `None` | 「切权限级别」 |
 | `SetMeta { title, pinned }` | `session.set_meta` | 新的标题（空的是去掉标题）、置顶，不改的是 `None`（施工 3-8 三补） | 「改标题、置顶」 |
@@ -197,6 +198,9 @@
 2. 发命令的是这个会话派的子代理（`by` 是它的子会话，账本认得出，被停掉的、撤掉的回合里派的也认）：照「子代理的留言」，不走下面几条（施工 7-7）。`by` 是 `harness` 的：照「别的 harness 发来的话」，也不走下面几条（施工 7-10）。`by` 是别的会话的（一个会话，既不是这个会话的父会话，也不是它派的子代理）：照「别的会话发来的话」，也不走下面几条（施工 C-2）。
 3. 空闲时：追加 `message.user`，同一批开一个回合（「回合」第 1 条）。这条消息不带回合编号。急着插话的也一样。
 4. 回合进行中：追加 `message.user`，带上这个回合，排进队（「排队的消息」）。这一步里在等人的调用作废（`asking.md`「在等的怎么了结」）；急着插话的，再跳过还没跑的（「急着插话」）。都在同一批；叫停的 `CancelTool` 排在 `Append` 后面。
+5. 场所里旁听的（`venue.ambient`，施工 O-13 上）：追加 `message.user`，不带回合编号，不开回合，回合进行中也不排进队、不作废在等的、不插话；回合说完了不因它接着开一轮。
+
+**桥记的事件**（`Append`，施工 O-13 上，`docs/blueprint/chat.md` 第七条第 3 条第 2 项）：追加那一条，不带回合编号，任何时候都收，不开回合、不打断。`ext.*` 记成内核不认识的种类（原样留着，投影跳过）；`venue.recalled`、`venue.delivered` 记成认识的，投影这一步先跳过（O-13 下渲染）。
 
 **回合**：回合编号是它 `turn.started` 的序号。回合走到的阶段：
 

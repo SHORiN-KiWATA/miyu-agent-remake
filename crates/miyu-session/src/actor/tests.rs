@@ -65,6 +65,7 @@ fn say(text: &str) -> Command {
             text: text.to_string(),
         })],
         urgent: false,
+        venue: None,
     }
 }
 

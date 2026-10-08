@@ -298,9 +298,27 @@ async fn the_bridge_runs_as_its_system_account_and_owns_the_group() {
     }
     assert!(!turns(&bot()).exists(), "系统账号没有自己的回合库");
     // 删掉群会话：管理员的回合库里给它埋墓碑，记忆的出处在它里面的都算死了。
-    let deleted = client
-        .call("d1", "session.delete", json!({"session": session}))
-        .await;
+    // 带附件的那一句排出的那一轮可能还在跑：跑着的删不掉（`turn_running`），等它说完再删。
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
+    let mut n = 0;
+    let deleted = loop {
+        n += 1;
+        let deleted = client
+            .call(
+                &format!("d{n}"),
+                "session.delete",
+                json!({"session": session}),
+            )
+            .await;
+        if reason(&deleted) != Some("turn_running") {
+            break deleted;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "一直在跑：{deleted}"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    };
     assert_eq!(deleted["result"], json!({}), "{deleted}");
     let db = rusqlite::Connection::open_with_flags(
         turns(&alice()),
@@ -417,4 +435,46 @@ async fn usage_of_a_system_account_is_caught_up_after_the_ledger_is_lost() {
         .filter_map(|row| row["account"].as_str())
         .collect();
     assert!(accounts.contains(&"bot"), "照它的日志补回来：{usage}");
+}
+
+/// `events.append`（施工 O-13 上）：核心拉起的扩展只能写自己的包那一段的 `ext.*`。
+#[tokio::test]
+async fn an_extension_writes_only_its_own_ext_events() {
+    let home = Home::new();
+    let program = Program::new();
+    let (path, step) = record(&home, "bot");
+    install_serving(
+        &home,
+        "bot",
+        &program.name(),
+        &steps(&[
+            &step,
+            "hello",
+            r#"ask:venue.session:{"venue":"qq:group:1","kind":"group"}"#,
+            r#"ask:events.append:{"session":"{session}","kind":"ext.bot.chat.decided","body":{"to":[1]}}"#,
+            r#"ask:events.append:{"session":"{session}","kind":"ext.other.chat.decided","body":{}}"#,
+            "wait",
+        ]),
+        "always",
+        true,
+    );
+    let core = served_core(&home, &Script::new([]));
+    let got = replies(&path, 4).await;
+    assert!(got[2]["result"]["seq"].is_u64(), "自己的包：{got:?}");
+    assert_eq!(reason(&got[3]), Some("bad_params"), "别的包的：{got:?}");
+    let session = got[1]["result"]["session"]
+        .as_str()
+        .expect("有编号")
+        .to_string();
+    let decided = read_events(&dir(&home, &bot(), &session))
+        .expect("读得了")
+        .into_iter()
+        .find(|event| event.body.kind() == "ext.bot.chat.decided")
+        .expect("记下了");
+    assert_eq!(
+        serde_json::to_value(&decided.by).expect("写得出"),
+        json!({"kind": "module", "id": "bot"}),
+        "记成这个包写的"
+    );
+    core.stop_extensions().await;
 }

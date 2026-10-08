@@ -26,6 +26,10 @@ kinds! {
     Send,
     /// 急着插话。
     Urgent,
+    /// 场所里旁听的（施工 O-13 上）。
+    Overheard,
+    /// 桥记的一条（施工 O-13 上）。
+    Appended,
     /// 打断，排着的接着发。
     Interrupt,
     /// 打断，排着的退回。
@@ -113,6 +117,9 @@ impl InputKind {
     pub(super) fn of(input: &Input) -> InputKind {
         match input {
             Input::Command(received) => match &received.command {
+                Command::Send {
+                    venue: Some(venue), ..
+                } if venue.ambient => InputKind::Overheard,
                 Command::Send { urgent: false, .. } => InputKind::Send,
                 Command::Send { urgent: true, .. } => InputKind::Urgent,
                 Command::Interrupt {
@@ -128,6 +135,7 @@ impl InputKind {
                 Command::SetMeta { .. } => InputKind::SetMeta,
                 Command::SetWorkspace { .. } => InputKind::SetWorkspace,
                 Command::Ran { .. } => InputKind::Ran,
+                Command::Append { .. } => InputKind::Appended,
                 Command::Configure { .. } => InputKind::Configure,
                 Command::Answer {
                     answer: Answer::Approval { .. },

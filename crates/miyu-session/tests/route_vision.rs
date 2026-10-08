@@ -54,6 +54,7 @@ async fn show(handle: &Handle, command: &str, words: &str, blob: &ContentHash) {
     let send = Command::Send {
         blocks,
         urgent: false,
+        venue: None,
     };
     ask(handle, command, send).await.expect("会话在跑");
     until_turn_ends(&mut pushes).await;

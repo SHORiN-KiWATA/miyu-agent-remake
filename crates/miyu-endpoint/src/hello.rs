@@ -114,6 +114,15 @@ pub(crate) fn language_of(config: &Config, system: &'static str) -> &'static str
     }
 }
 
+/// 这个连接是谁（施工 O-4 下、O-13 上）：账号，和核心拉起的扩展是哪个包（本机的头没有）。
+#[derive(Debug, Clone)]
+pub(crate) struct Caller {
+    /// 声明了系统账号的包的扩展是那个系统账号，别的是管理员。
+    pub(crate) account: AccountId,
+    /// 核心拉起的扩展是哪个包：`events.append` 的 `ext.<包>.` 照它查、记成这个模块写的。
+    pub(crate) package: Option<String>,
+}
+
 /// 这一刻的这个连接。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Peer {

@@ -129,6 +129,7 @@
 |---|---|
 | `session.create` | 造会话 |
 | `venue.session` | 找回或者造一个通讯平台场所的主线会话（施工 O-3，`venues.md`） |
+| `events.append` | 往会话里记一条不带回合编号的事件：扩展自己的 `ext.*`、场所的 `venue.recalled`、`venue.delivered`（施工 O-13 上，`venues.md`） |
 | `session.list` | 列出会话 |
 | `session.send` | 说一句话 |
 | `session.interrupt` | 打断在进行的回合 |
@@ -241,6 +242,7 @@
 | `attachments` | 数组，可以不写 | 附件（施工 3-9 三补）：`blob.put` 的回应，照先后。每一项要 `blob`、`name`、`media_type`，别的格不看 |
 | `from` | 字符串，可以不写 | 别的 harness 报的自己的名字（施工 7-10，`agents.md` 第十一条第 4 条）：写了的，这一句是它说的，不是本人 |
 | `as` | 对象，可以不写 | 代表通讯平台上的人（施工 O-3，`venues.md`）：`{"external": <平台身份>, "role": "manager"|"member"}`。只给场所会话，场所会话也只收带它的（不带的回 `venue_session`）；和 `from` 不能一起写 |
+| `venue` | 对象，可以不写 | 通讯平台上的一条消息的那几格（施工 O-13 上，`venues.md`「场所的格」）：只跟着 `as` 来，原样记进 `message.user` 的 `venue`；`ambient` 的只记下，不开回合，回合进行中也不排进这一轮。不带 `as` 的、格写错的 `bad_params`，什么都不记 |
 
 回应：`events` 是 `[<这一句 message.user 的序号>]`；`cwd` 是会话现在实际在哪个目录里干活；`untrusted_project` 照 `session.create` 的写法，照这时实际干活的目录找（施工 8-2）。
 

@@ -20,6 +20,9 @@
 | `crates/miyu-kernel/src/origin.rs` | `Person` 多 `via`（私聊里经哪个平台身份认出来的本人）；`External` 多 `account`（对应表里对着的本机账号）、`role`（桥报的场所里的身份） |
 | `crates/miyu-store/src/index.rs`、`index/row.rs` | 索引一行多 `venue`，版本 3 |
 | `crates/miyu-endpoint/src/venues.rs` | `venue.session`：照场所加属主找回或者造；`as` 怎么认、记成谁（照会话的属主比，施工 O-4 下） |
+| `crates/miyu-endpoint/src/venues/message.rs`、`crates/miyu-kernel/src/event/venue.rs` | `session.send` 的 `venue` 怎么查、记成什么（施工 O-13 上） |
+| `crates/miyu-endpoint/src/appending.rs` | `events.append`：种类、大小、格怎么查，记成谁（施工 O-13 上） |
+| `crates/miyu-endpoint/tests/venue_records.rs` | `venue` 原样记下、旁听的不开回合、写错的什么都不记；`events.append` 收的三类、回应带序号、不带回合编号，拒的几种；扩展只能写自己的包那一段（`system_account.rs`）（施工 O-13 上） |
 | `crates/miyu-endpoint/src/system_accounts.rs` | 系统账号（施工 O-4 下，`packages.md`「`[process]`」）：这次起来认的有哪些、连接是谁、记忆照谁算；起来时建它们的家目录 |
 | `crates/miyu-endpoint/src/list.rs` | 列会话、推会话列表时跳过场所会话 |
 
@@ -78,6 +81,28 @@
    - 别的：外部身份，`{"kind":"external","venue":<会话的场所>,"id":"qq:10001","role":"member"}`；这个号在对应表里的（群里的主人），另记 `account`：写的时候就记下，以后对应表改了，以前谁说的不跟着变（记忆照它认主人，`17-记忆.md` L16）。
 3. 谁能写 `as`：O-3 里本机连接都能（本人本来什么都能做，代表外部的人只会更低）；9-4 以后扩展照清单里批准的 `act_for_external`。
 4. 同一个命令编号再发只生效一次，核心重启以后照样（`04-核心协议.md` 第六节第 1 条）：桥照「平台、登录的账号、消息编号、平台给的时刻」拼编号（`chat.md` 第七条第 1 条），断线重发、平台重发都靠它。
+
+**场所的格**（施工 O-13 上，`docs/blueprint/chat.md` 第七条第 2 条，2026-10-09 和通讯平台的会话又对过）：`session.send` 多一格可选的 `venue`，只跟着 `as` 来，原样记进 `message.user` 的 `venue`：
+
+| 格 | 写法 | 是什么 |
+|---|---|---|
+| `msg` | 字，必写，1 到 128 个字符 | 平台的消息编号 |
+| `reply_to` | 字，同上，可以不写 | 引用的那一条的平台编号 |
+| `name` | 字，最多 64 个字符，可以不写 | 发的人此刻在这个场所里叫什么（群名片，没有的用昵称）；名字会变，每条各记各的 |
+| `mentions` | 平台身份的列表，可以不写 | @ 了谁；@ 了谁的名字桥写在正文里 |
+| `mentions_me`、`mentions_all` | 布尔，不写是假 | @ 了她；@ 了全体成员（不算 @ 她） |
+| `media` | 列表，可以不写 | 带的东西，每项 `{kind, id, name?}`：`kind` 是 `image`、`file`、`voice`、`video`、`sticker`，`id` 平台的编号（懒下载，不进内容块），`name` 文件名、表情的字（最多 200 个字符） |
+| `ambient` | 布尔，不写是假 | 旁听：只记下，不开回合，回合进行中也不排进这一轮 |
+| `asleep` | 布尔，不写是假 | 睡着时收到的（桥照样带 `ambient`）；群聊近况不收它（O-13 下） |
+
+写错的、不带 `as` 的：`bad_params`，什么都不记。
+
+**桥记的事件**（施工 O-13 上，chat.md 第七条第 3 条第 2 项）：`events.append {session, kind, body}`，回应 `{"seq": n}`。记成不带回合编号的事件，任何时候都收，不开回合、不打断；记成谁：核心拉起的扩展是那个包（模块），本机的头是管理员。
+
+1. `ext.<包>.<名字>`：`<名字>` 一段或几段、点隔开，每段小写字母开头，只有小写字母、数字、`_`、`-`；整个种类最多 128 个字符；`body` 是 JSON 对象，序列化以后最多 16 KiB。核心拉起的扩展的连接，`<包>` 必须是它自己的包编号；本机的头都收。哪个会话都收。不渲染，撤销、压缩都不动它。
+2. `venue.recalled`：`{msg, by}`，被撤的平台编号、谁撤的平台身份。
+3. `venue.delivered`：`{line, turn, to, msg, text, images?}`，哪条线的会话编号、哪一轮的回合编号、回的人（平台身份的列表）、平台编号、正文、图的内容哈希。
+4. 第 2、3 条只收场所会话的；格多了、少了、写法不对的，和第 1 条不合的，都 `bad_params`，什么都不记。O-13 下照它们渲染撤回的标记和 `[you]` 行。
 
 **斜杠命令**（施工 O-6，`protocol.md` 的 `command.run`）：桥把人打的原文连同 `as` 交过来，核心认、判谁能用、执行，回执那一句也由核心照语言写好，桥原样发出去。
 

@@ -1,10 +1,11 @@
 //! 发一条消息（`docs/blueprint/kernel/session.md`「发一条消息」；施工 8-10 从 `session.rs` 挪出来，那边放不下了）：
-//! 空的拒绝；别处来的照回报的规矩到（`messages.rs`）；空闲时记下、同一批开一个回合，回合进行中记下、排进队。
+//! 空的拒绝；别处来的照回报的规矩到（`messages.rs`）；空闲时记下、同一批开一个回合，回合进行中记下、排进队。场所里旁听的
+//! 只记下（施工 O-13 上）。`events.append` 记的也在这里：不带回合编号，不开回合。
 
 use super::action::{Action, Reason};
-use super::{Session, rejected};
+use super::{Appended, Session, rejected};
 use crate::block::Block;
-use crate::event::{Body, MessageUser};
+use crate::event::{Body, MessageUser, VenueMessage};
 use crate::id::CommandId;
 use crate::origin::By;
 use crate::time::Timestamp;
@@ -19,7 +20,7 @@ impl Session {
         id: CommandId,
         by: By,
         at: Timestamp,
-        blocks: Vec<Block>,
+        (blocks, venue): (Vec<Block>, Option<VenueMessage>),
         urgent: bool,
     ) -> Vec<Action> {
         if blocks.is_empty() {
@@ -28,7 +29,14 @@ impl Session {
         if let Some(waker) = self.elsewhere(&by) {
             return self.elsewhere_says(id, by, at, blocks, waker);
         }
-        let body = Body::MessageUser(MessageUser { blocks });
+        let ambient = venue.as_ref().is_some_and(|venue| venue.ambient);
+        let body = Body::MessageUser(MessageUser { blocks, venue });
+        if ambient {
+            // 旁听的：只记下，不开回合，回合进行中也不排进这一轮（施工 O-13 上）。
+            let message = self.record_outside(at, by, Some(id.clone()), body);
+            self.accept(id, vec![message.seq]);
+            return vec![Action::Append(vec![message])];
+        }
         let message = self.record(at, by.clone(), Some(id.clone()), body);
         self.accept(id.clone(), vec![message.seq]);
         let trigger = message.seq;
@@ -48,5 +56,18 @@ impl Session {
         let mut actions = vec![Action::Append(events)];
         actions.extend(stops);
         actions
+    }
+
+    /// `events.append`（施工 O-13 上）：记一条不带回合编号的事件，任何时候都收，不开回合、不打断。
+    pub(super) fn append(
+        &mut self,
+        id: CommandId,
+        by: By,
+        at: Timestamp,
+        event: Appended,
+    ) -> Vec<Action> {
+        let event = self.record_outside(at, by, Some(id.clone()), event.into_body());
+        self.accept(id, vec![event.seq]);
+        vec![Action::Append(vec![event])]
     }
 }
