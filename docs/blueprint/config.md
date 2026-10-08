@@ -253,6 +253,7 @@ miyu_config::settings! {
 | `permission.start_read_only` | 开关 | `false` | 系统、个人、项目 | `true_only` | `new_session` | 8-2 |
 | `external.bindings.<external>` | 名字（本机账号） | 没有 | 系统 | 不能写 | `now` | O-3：主人对应表（`venues.md`），一个号一行；对着不存在的账号的认的时候当没写、记一行运行日志 |
 | `ui.startup` | 选项 `new`、`recent` | `new`，开一个新会话 | 系统、个人 | 不能写 | `head_start` | 8-3（8-28 从 `tui.startup` 改名） |
+| `ui.head` | 名字（软件包的编号） | `tui` | 系统、个人 | 不能写 | `head_start` | 9-3（`cli/main.md`「怎么走」第 3 条）：直接敲 `miyu`、`miyu config` 时打开哪个界面；主程序每次敲的时候经 `config.get` 读，照清单找这个包的程序。界面提示：通用页的「显示」组，文字 |
 | `persona.default` | 名字（人格的编号） | `engineer` | 系统、个人 | 不能写 | `new_session` | P-1 上（`personas.md`）：没指定人格、预设也没写默认人格的新会话照它找；指着没有的人格，造会话回 `unknown_persona`，不悄悄换 |
 | `preset.default` | 名字（预设的编号） | `full` | 系统、个人 | 不能写 | `new_session` | P-2 上（`presets.md`）：没指定预设的新会话照它找；指着没有的预设，造会话回 `unknown_preset`，不悄悄换（Y12）。设置页在「通用」那一页的「预设」一组 |
 | `models.chat` | 引用 | 没有：`no_model` | 系统、个人 | 不能写 | `new_session` | 8-6 |
@@ -1133,6 +1134,10 @@ keys = []
 # output =
 
 [ui]
+# 默认界面：直接敲 miyu 时打开哪个界面：软件包的编号。
+# 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。这个程序下次启动时生效。
+head = "tui"
+
 # 界面语言：终端、网页、命令行给你看的字用哪种话。auto 跟着终端或浏览器的语言。
 # 能写：auto、zh、en 或 ja。只能写在系统配置或个人设置里。当场生效。
 language = "auto"
@@ -1589,6 +1594,12 @@ ticket_idle_seconds = 43200
     },
     "ui": {
       "properties": {
+        "head": {
+          "default": "tui",
+          "description": "直接敲 miyu 时打开哪个界面：软件包的编号。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。这个程序下次启动时生效。",
+          "title": "默认界面",
+          "type": "string"
+        },
         "language": {
           "default": "auto",
           "description": "终端、网页、命令行给你看的字用哪种话。auto 跟着终端或浏览器的语言。能写：auto、zh、en 或 ja。只能写在系统配置或个人设置里。当场生效。",
@@ -1691,6 +1702,8 @@ ticket_idle_seconds = 43200
 | `ui.startup` 名字（8-3，8-28 改名） | 启动时打开 | On start, open | 起動時に開く |
 | 说明（8-28 改成不点名哪个头） | 打开终端界面或网页时，开一个新会话，还是接着最近的那一个。 | Whether a terminal interface or the web page opens a new session or picks up the most recent one. | 端末画面やウェブを開いたときに、新しいセッションを始めるか、最近のセッションを続けるかです。 |
 | 选项 | `new` 新会话、`recent` 最近的会话 | A new session、The most recent session | 新しいセッション、最近のセッション |
+| `ui.head` 名字（9-3，主会话定） | 默认界面 | Default interface | 既定の画面 |
+| 说明 | 直接敲 miyu 时打开哪个界面：软件包的编号。 | The interface plain miyu opens: a package id. | miyu だけを打ったときに開く画面。パッケージの ID です。 |
 | `persona.default` 名字（P-1 上，主会话定） | 默认人格 | Default persona | 既定のペルソナ |
 | 说明（2026-10-07 项目主人定：只留一句，选人格照 `persona.list` 的下拉，谁优先人用不到） | 新会话默认用哪个人格。 | The persona new sessions use. | 新しいセッションで使うペルソナ。 |
 | `preset.default` 名字（P-2 上，主会话定） | 默认预设 | Default preset | 既定のプリセット |

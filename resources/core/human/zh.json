@@ -35,6 +35,10 @@
           "recent": "最近的会话"
         }
       },
+      "ui.head": {
+        "name": "默认界面",
+        "description": "直接敲 miyu 时打开哪个界面：软件包的编号。"
+      },
       "persona.default": {
         "name": "默认人格",
         "description": "新会话默认用哪个人格。"

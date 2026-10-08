@@ -35,6 +35,10 @@
           "recent": "The most recent session"
         }
       },
+      "ui.head": {
+        "name": "Default interface",
+        "description": "The interface plain miyu opens: a package id."
+      },
       "persona.default": {
         "name": "Default persona",
         "description": "The persona new sessions use."

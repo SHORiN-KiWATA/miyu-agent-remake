@@ -184,6 +184,10 @@ keys = []
 # output =
 
 [ui]
+# Default interface: The interface plain miyu opens: a package id.
+# Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Takes effect the next time the program starts.
+head = "tui"
+
 # Interface language: The language terminals, the web page and the command line use for you. auto follows the terminal or browser.
 # Allowed: auto, zh, en or ja. Only in the system config or personal settings. Takes effect at once.
 language = "auto"

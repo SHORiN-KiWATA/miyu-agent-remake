@@ -44,9 +44,9 @@ use crate::shown::{self, say, write};
 /// `miyu config` 的参数。给人看的说明在帮助页里（[`crate::help`]），这里的注释只给读代码的人看。
 #[derive(Debug, Clone, Args)]
 pub struct Config {
-    /// 哪个子命令。
+    /// 哪个子命令。没写的：在终端里打开界面的设置页（施工 9-3，主程序先看），不在终端里的印帮助。
     #[command(subcommand)]
-    pub command: ConfigCommand,
+    pub command: Option<ConfigCommand>,
 }
 
 /// 参数不对（`cli/main.md`「参数写错时」）：不在终端里的 `edit`、`trust`，`set --project`（施工 8-3）。
@@ -171,10 +171,10 @@ pub fn check(args: Check, start: impl FnOnce() -> Command) -> ExitCode {
     });
     config(
         Config {
-            command: ConfigCommand::Check {
+            command: Some(ConfigCommand::Check {
                 file,
                 format: args.format,
-            },
+            }),
         },
         start,
     )
@@ -218,7 +218,15 @@ pub fn config(args: Config, start: impl FnOnce() -> Command) -> ExitCode {
 async fn run(args: Config, start: impl FnOnce() -> Command) -> u8 {
     let language = language::current();
     let mut console = Terminal::current();
-    if let Some(code) = early(&args.command, language, &console, &mut io::stderr()) {
+    // 没写子命令的走到这里：不在终端里、或者界面不认设置页（施工 9-3），照旧印帮助。
+    let Some(command) = args.command else {
+        write(
+            &mut io::stdout(),
+            crate::help::page(language, crate::help::Page::Config),
+        );
+        return MISUSE;
+    };
+    if let Some(code) = early(&command, language, &console, &mut io::stderr()) {
         return code;
     }
     let env = Env::current();
@@ -237,7 +245,7 @@ async fn run(args: Config, start: impl FnOnce() -> Command) -> u8 {
         Err(reason) => return failed(&reason),
     };
     let plan = ConfigPlan {
-        command: args.command,
+        command,
         language,
         cwd: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
         root: root.path().to_path_buf(),

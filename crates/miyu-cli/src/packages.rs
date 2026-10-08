@@ -10,7 +10,7 @@ mod tests;
 #[cfg(windows)]
 mod windows;
 #[cfg(windows)]
-use windows::run;
+pub(crate) use windows::run;
 
 use std::ffi::OsString;
 use std::io::Write;
@@ -155,7 +155,7 @@ fn say(err: &mut dyn Write, text: &str) {
 
 /// Unix 上换成它：信号、终端都直接到它，它的退出码就是这个进程的。换不成的说为什么，退出码 1。
 #[cfg(unix)]
-fn run(program: &Path, args: &[OsString], err: &mut dyn Write) -> u8 {
+pub(crate) fn run(program: &Path, args: &[OsString], err: &mut dyn Write) -> u8 {
     use std::os::unix::process::CommandExt;
     let error = std::process::Command::new(program).args(args).exec();
     say(err, &format!("{}: {error}", program.display()));

@@ -420,6 +420,12 @@
     },
     "ui": {
       "properties": {
+        "head": {
+          "default": "tui",
+          "description": "直接敲 miyu 时打开哪个界面：软件包的编号。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。这个程序下次启动时生效。",
+          "title": "默认界面",
+          "type": "string"
+        },
         "language": {
           "default": "auto",
           "description": "终端、网页、命令行给你看的字用哪种话。auto 跟着终端或浏览器的语言。能写：auto、zh、en 或 ja。只能写在系统配置或个人设置里。当场生效。",
