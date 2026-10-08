@@ -25,7 +25,7 @@ use miyu_kernel::session::{Input, Reread, Step, Subagent};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_policy::RunTexts;
 use miyu_store::blob::Blobs;
-use miyu_tool::{Call, CallIds, Catalog, Done, JobPort, Log, Progress, Seen, Stop};
+use miyu_tool::{Call, CallIds, Done, JobPort, Log, Progress, Seen, Shelf, Stop};
 
 use crate::TARGET;
 use crate::agents::{Agents, Inherit};
@@ -47,8 +47,8 @@ mod questions;
 pub(crate) struct ToolKit {
     /// 这个会话（施工 O-2 上）：每次调用带上，提供者的工具照它发 `tool.call`。
     pub(crate) session: SessionId,
-    /// 工具目录。
-    pub(crate) catalog: Catalog,
+    /// 工具目录的架子：执行时照现在的那一份找（施工 O-2 中）。
+    pub(crate) catalog: Shelf,
     /// 替工具写的两句。
     pub(crate) texts: RunTexts,
     /// 系统的家目录。
@@ -83,7 +83,7 @@ pub(crate) struct ToolKit {
 pub(crate) struct Tools {
     /// 这个会话（施工 O-2 上）。
     session: SessionId,
-    catalog: Catalog,
+    catalog: Shelf,
     texts: RunTexts,
     home: Option<PathBuf>,
     data_root: PathBuf,
@@ -304,7 +304,7 @@ impl Tools {
             }),
         };
         let call_text = call_id.to_string();
-        let Some(tool) = self.catalog.get(&name).cloned() else {
+        let Some(tool) = self.catalog.get(&name) else {
             tracing::warn!(target: TARGET, call = call_text.as_str(), tool = name.as_str(), "unavailable");
             let worded = self.texts.unavailable(&name);
             return Some(Input::ToolDone {

@@ -28,6 +28,7 @@ pub mod picture;
 mod questions;
 mod run;
 mod sessions;
+mod shelf;
 mod stop;
 #[cfg(feature = "testkit")]
 pub mod testkit;
@@ -50,6 +51,7 @@ pub use messages::{
 pub use questions::{ASK_USER, Answering, QuestionPort};
 pub use run::{Call, CallIds, Done, Effect, Picture, Progress, Running, Seen, Target};
 pub use sessions::{Found, Listing, MainSession, Opening, SESSIONS, SessionsPort, find_session};
+pub use shelf::{Edition, Shelf};
 pub use stop::Stop;
 pub use todos::TODOWRITE;
 pub use usage::{ContextUse, SESSION_USAGE, Spending, Spent, UsagePort};

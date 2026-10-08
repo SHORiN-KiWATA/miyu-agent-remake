@@ -260,6 +260,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         child: created.parent.is_some(),
         presets,
         tools: tools.clone(),
+        // 快照是以前拼的，照的目录不知道是哪一代：第一个回合照现在的对一次（施工 O-2 中）。
+        seen: None,
         venue: refresh_venue,
         lineage: refresh_lineage,
     });

@@ -102,8 +102,10 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     // 工具面照这时的配置拼：`subagent` 能选哪几个池（施工 8-8 补）、哪几个人格（施工 P-2 补），以后照快照、载入不重拼。
     // 照预设筛（施工 P-2 中）。
     let offers = Offers::of(&config.current().resolved.values(), personas.ids());
+    // 照架子上现在的那一代拼；记下第几代，回合开头看换没换（施工 O-2 中）。
+    let edition = tools.edition();
     let face = Agents::face(
-        tools,
+        &edition.catalog,
         Site {
             venue: &venue,
             group,
@@ -115,7 +117,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         preset.as_ref().map(|chosen| &chosen.file),
     );
     let pin = preset.as_ref().map(Chosen::pin);
-    let tooled = tooled(tools);
+    let tooled = tooled(&edition.catalog);
     let preset = preset.map(|chosen| chosen.id);
     let asks = Agents::asks(
         &venue,
@@ -295,6 +297,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         child,
         presets,
         tools: tools.clone(),
+        seen: Some(edition.clone()),
         venue: venue.clone(),
         lineage: lineage.clone(),
     });

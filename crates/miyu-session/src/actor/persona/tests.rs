@@ -16,7 +16,7 @@ use super::*;
 
 /// 照全是默认值的配置看一遍。
 fn seen(refresh: &Refresh) -> Seen {
-    look(refresh, &Values::default())
+    look(refresh, &Values::default(), &refresh.tools.edition())
 }
 
 /// 一个临时数据根，Miyu 住在管理员 alice 的家目录，人设是 `persona`；和照这一刻的文件拼好快照的 `Refresh`。
@@ -57,7 +57,8 @@ fn setup_with(
         snapshot,
         child: false,
         presets: None,
-        tools,
+        seen: Some(Shelf::new(tools.clone()).edition()),
+        tools: Shelf::new(tools),
         venue: VenueId::parse("local").expect("场所合写法"),
         lineage: None,
     };

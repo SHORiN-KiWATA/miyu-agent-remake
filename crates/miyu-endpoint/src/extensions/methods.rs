@@ -53,7 +53,8 @@ pub(crate) fn entry(core: &Core, id: &str, peer: Peer) -> Option<Value> {
     Some(one(core, id, manifest, &switches, peer))
 }
 
-/// `extension.enable`：要的能力还有没批的，照 `approve` 批（施工 9-4 下上）；批过的、开着的一起记下，没在跑的拉起。
+/// `extension.enable`：要的能力还有没批的，照 `approve` 批（施工 9-4 下上）；批过的、开着的一起记下，照登记缓存先登记
+/// 它的工具（施工 O-2 中），没在跑的拉起。
 pub(crate) async fn enable(
     core: &Arc<Core>,
     peer: Peer,
@@ -71,12 +72,13 @@ pub(crate) async fn enable(
     )?;
     switches.on.insert(params.package.clone(), true);
     write(core, &params.package, &switches, version.as_deref())?;
+    crate::provide::restore(core, &params.package);
     core.extensions.launch(core, &params.package, manifest);
     core.extensions.notify(&params.package);
     Ok(one(core, &params.package, manifest, &switches, peer))
 }
 
-/// `extension.disable`：记成关着，在跑的请它退出、等它退出。
+/// `extension.disable`：记成关着，在跑的请它退出、等它退出，它的工具出目录（施工 O-2 中）。
 pub(crate) async fn disable(
     core: &Arc<Core>,
     peer: Peer,
@@ -88,6 +90,7 @@ pub(crate) async fn disable(
     switches.on.insert(params.package.clone(), false);
     write(core, &params.package, &switches, version.as_deref())?;
     core.extensions.halt(&params.package).await;
+    crate::provide::withdraw(core, &params.package);
     core.extensions.notify(&params.package);
     Ok(one(core, &params.package, manifest, &switches, peer))
 }

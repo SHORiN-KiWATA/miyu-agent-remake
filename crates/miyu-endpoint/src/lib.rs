@@ -86,7 +86,7 @@ use miyu_store::index::SessionIndex;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_store::usage::UsageIndex;
-use miyu_tool::Catalog;
+use miyu_tool::{Catalog, Shelf};
 
 use config::Config;
 use config::hub::Hub;
@@ -101,8 +101,9 @@ pub struct Core {
     resources: ResourceRoot,
     /// 给会话造请求模型的端口。
     models: Arc<dyn Models>,
-    /// 工具目录：造会话时照它存下工具面（施工 4-1）。提供者登记了换一份（施工 O-2 上，[`Core::tools`]）。
-    tools: std::sync::RwLock<Catalog>,
+    /// 工具目录的架子：造会话时照现在的那一份存下工具面（施工 4-1）。提供者登记了换一代（施工 O-2 上），会话们拿着同一个
+    /// 架子，下一个回合换上（施工 O-2 中）。
+    tools: Shelf,
     /// 哪个包现在由哪个连接提供工具（施工 O-2 上，`provide.rs`）。
     provided: Arc<provide::Provided>,
     /// 系统的家目录：权限策略照它换 `~`，头报来的工作目录是它的就退回管理员的工作区（施工 4-3 下）。
@@ -178,20 +179,9 @@ const HELLO_WAIT: Duration = Duration::from_secs(10);
 const UPLOAD_IDLE: Duration = Duration::from_secs(60);
 
 impl Core {
-    /// 现在的工具目录（施工 O-2 上：提供者登记了会换）：造会话、载入时照它。
+    /// 现在的工具目录（施工 O-2 上：提供者登记了会换）。
     pub(crate) fn tools(&self) -> Catalog {
-        self.tools
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone()
-    }
-
-    /// 换上新的工具目录（施工 O-2 上，`provide`）。
-    pub(crate) fn set_tools(&self, tools: Catalog) {
-        *self
-            .tools
-            .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = tools;
+        self.tools.current()
     }
 }
 
@@ -235,7 +225,7 @@ impl Core {
             root,
             resources,
             models,
-            tools: std::sync::RwLock::new(tools),
+            tools: Shelf::new(tools),
             provided: Arc::default(),
             home,
             sandbox: Availability::Unusable(Unusable::HelperMissing),

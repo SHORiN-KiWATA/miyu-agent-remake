@@ -222,3 +222,17 @@ fn replacing_a_package_keeps_the_others_and_checks_the_new_ones() {
         .unwrap_err();
     assert_eq!(bad.problem, Problem::Name);
 }
+
+/// 经提供者登记的包目录自己记着（施工 O-2 中）：回合开头换快照时，只有它们的工具照现在的登记换。登记成空的，那几件就没了。
+#[test]
+fn the_catalog_knows_which_tools_came_from_a_provider() {
+    let catalog = Catalog::in_packages([("basesystem", vec![object("read")])]).unwrap();
+    assert!(!catalog.provided("read"), "起来时登记的不是");
+    let provided = catalog.replacing("onebot", vec![object("send")]).unwrap();
+    assert!(provided.provided("send"));
+    assert!(!provided.provided("read"));
+    assert!(!provided.provided("nothing"), "没有的不是");
+    let emptied = provided.replacing("onebot", Vec::new()).unwrap();
+    assert_eq!(names(&emptied), ["read"]);
+    assert_eq!(emptied.packages().collect::<Vec<_>>(), ["basesystem"]);
+}

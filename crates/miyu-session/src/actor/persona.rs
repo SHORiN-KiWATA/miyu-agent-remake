@@ -1,8 +1,9 @@
-//! 人格、预设的文件改了，下一个回合换上（施工 P-1 再补、P-2 下，`docs/blueprint/kernel/session.md`「换策略快照」，
-//! `personas.md`「怎么走」第 6 条，`presets.md`「改了文件」）。每个回合开始，照会话的人格、预设的编号把几层重新找一遍、算
-//! 指纹，和现在的快照比：一样的什么都不做；不一样的照新的重拼（记忆的范围、有没有人能确认照旧快照；工具面照新的预设重新筛，
-//! 以前就有的那几件照旧快照里的原样），核心的字没变才换：存成 blob，策略交给内核放着，交回新快照的哈希。以前造的快照没有
-//! 指纹的不换；找不着、写错了的照旧用原来的，记一行运行日志。
+//! 人格、预设的文件改了，包的工具变了，下一个回合换上（施工 P-1 再补、P-2 下、O-2 中，`docs/blueprint/kernel/session.md`
+//! 「换策略快照」，`personas.md`「怎么走」第 6 条，`presets.md`「改了文件」，`providers.md`「目录换代」）。每个回合开始，照会话的
+//! 人格、预设的编号把几层重新找一遍、算指纹，看工具目录的架子换没换代，和现在的快照比：一样的什么都不做；不一样的照新的重拼
+//! （记忆的范围、有没有人能确认照旧快照；工具面照新的预设、现在的目录重新筛，提供者的工具照现在的登记，别的以前就有的照旧
+//! 快照里的原样），拼出来不一样、核心的字没变才换：存成 blob，策略交给内核放着，交回新快照的哈希。以前造的快照没有指纹的
+//! 不换；找不着、写错了的照旧用原来的，记一行运行日志。
 
 use miyu_config::Values;
 use miyu_kernel::id::{ContentHash, VenueId};
@@ -13,7 +14,7 @@ use miyu_policy::{Snapshot, ToolEntry};
 use miyu_store::blob::Blobs;
 use miyu_store::personas::{PersonaError, Personas};
 use miyu_store::resources::ResourceRoot;
-use miyu_tool::Catalog;
+use miyu_tool::{Catalog, Edition, Shelf};
 
 use super::Actor;
 use crate::TARGET;
@@ -23,8 +24,8 @@ use crate::open::PresetPlaces;
 use crate::snapshot::{Parts, build, tooled};
 use crate::spawn::Lineage;
 
-/// 换快照要的：人格的几层、资源目录、存快照的地方，现在的快照，是不是子会话；预设的几层和装了的软件，重新筛工具面要的目录、
-/// 场所、父会话（施工 P-2 下）。
+/// 换快照要的：人格的几层、资源目录、存快照的地方，现在的快照，是不是子会话；预设的几层和装了的软件，重新筛工具面要的目录
+/// 架子、场所、父会话（施工 P-2 下、O-2 中）。
 #[derive(Clone)]
 pub(crate) struct Refresh {
     pub(crate) personas: Personas,
@@ -33,7 +34,9 @@ pub(crate) struct Refresh {
     pub(crate) snapshot: Snapshot,
     pub(crate) child: bool,
     pub(crate) presets: Option<PresetPlaces>,
-    pub(crate) tools: Catalog,
+    pub(crate) tools: Shelf,
+    /// 现在的快照照的是架子上的哪一代（施工 O-2 中）：载入的不知道是哪一代，是没有，第一个回合照现在的对一次。
+    pub(crate) seen: Option<Edition>,
     pub(crate) venue: VenueId,
     pub(crate) lineage: Option<Lineage>,
 }
@@ -56,18 +59,26 @@ impl Actor {
         self.persona = Some(refresh);
     }
 
-    /// 回合开始：看人格、预设的文件改了没有。改了、换得了的，新策略交给内核放着，交回新快照的哈希。`values` 是这一轮冻结
-    /// 的配置：新打开的 `subagent` 照它填能选的池。
+    /// 回合开始：看人格、预设的文件改了没有，工具目录换没换代。改了、换得了的，新策略交给内核放着，交回新快照的哈希。
+    /// `values` 是这一轮冻结的配置：新打开的 `subagent` 照它填能选的池。
     pub(super) async fn refresh_persona(&mut self, values: Values) -> Option<ContentHash> {
         let refresh = self.persona.clone()?;
         let persona = refresh.snapshot.persona.clone();
-        match blocking(move || look(&refresh, &values)).await {
-            Seen::Same => None,
+        let now = refresh.tools.edition();
+        let seen = now.clone();
+        match blocking(move || look(&refresh, &values, &now)).await {
+            Seen::Same => {
+                if let Some(refresh) = self.persona.as_mut() {
+                    refresh.seen = Some(seen);
+                }
+                None
+            }
             Seen::Swapped(snapshot, policy, hash) => {
                 tracing::info!(target: TARGET, persona = persona.as_deref(), "persona swapped");
                 self.session.stage_policy(*policy);
                 if let Some(refresh) = self.persona.as_mut() {
                     refresh.snapshot = *snapshot;
+                    refresh.seen = Some(seen);
                 }
                 Some(hash)
             }
@@ -83,8 +94,8 @@ impl Actor {
     }
 }
 
-/// 在阻塞线程里看一遍。
-fn look(refresh: &Refresh, values: &Values) -> Seen {
+/// 在阻塞线程里看一遍：`now` 是架子上现在的那一代。
+fn look(refresh: &Refresh, values: &Values, now: &Edition) -> Seen {
     let old = &refresh.snapshot;
     // 无人格的（施工 P-4 上）只看预设；人格的文件没了的照快照里的接着用，不换也不报。
     let texts = match (&old.persona, &old.persona_digest) {
@@ -104,12 +115,27 @@ fn look(refresh: &Refresh, values: &Values) -> Seen {
         .persona_digest
         .as_ref()
         .is_none_or(|digest| texts.digest() == *digest);
-    if same && preset.is_none() {
+    // 目录换了代：预设找得回来的（或者本来没有预设的）照现在的目录重新筛；以前造的、找不回来的照旧（施工 O-2 中）。
+    let moved = refresh
+        .seen
+        .as_ref()
+        .is_none_or(|seen| seen.generation != now.generation)
+        && !matches!(preset, Preset::Unknown);
+    if same && !moved && !matches!(preset, Preset::Changed(_)) {
         return Seen::Same;
     }
+    let catalog = &now.catalog;
     let (face, pin) = match &preset {
-        Some(chosen) => (refaced(refresh, values, &chosen.file), Some(chosen.pin())),
-        None => (old.tools.clone(), old.preset.clone()),
+        Preset::Changed(chosen) => (
+            refaced(refresh, values, catalog, &chosen.file),
+            Some(chosen.pin()),
+        ),
+        Preset::Same(chosen) if moved => (
+            followed(refresh, values, catalog, Some(&chosen.file)),
+            old.preset.clone(),
+        ),
+        Preset::Nothing if moved => (followed(refresh, values, catalog, None), old.preset.clone()),
+        _ => (old.tools.clone(), old.preset.clone()),
     };
     let parts = Parts {
         name: old.persona.clone(),
@@ -119,7 +145,7 @@ fn look(refresh: &Refresh, values: &Values) -> Seen {
         memory: old.memory.clone(),
         child: refresh.child,
         preset: pin,
-        tooled: tooled(&refresh.tools),
+        tooled: tooled(catalog),
         // 群会话照旧快照钉下的时区（施工 O-13 中）：换了时区的机器上换人格，前缀里的钟点也不变。
         group: old.group.as_ref().map(|chat| chat.offset),
     };
@@ -127,6 +153,10 @@ fn look(refresh: &Refresh, values: &Values) -> Seen {
         Ok(new) => new,
         Err(error) => return Seen::Kept(error.to_string()),
     };
+    // 目录换了代、这个会话的工具面没变的（只给群的、预设关着的），什么都不记。
+    if new.hash() == old.hash() {
+        return Seen::Same;
+    }
     if !old.swappable(&new) {
         return Seen::Kept("the core texts changed since this session was made".to_string());
     }
@@ -141,14 +171,28 @@ fn look(refresh: &Refresh, values: &Values) -> Seen {
     Seen::Swapped(Box::new(new), Box::new(policy), hash)
 }
 
-/// 照快照里预设的编号重新找一遍（施工 P-2 下）：改了的交回新找到的（记忆照开会话时的），没改的、以前造的快照没有指纹的、
-/// 没交预设的几层的是没有。
-fn preset(refresh: &Refresh) -> Result<Option<Chosen>, String> {
-    let (Some(pin), Some(places)) = (&refresh.snapshot.preset, &refresh.presets) else {
-        return Ok(None);
+/// 快照里的预设现在是什么样（施工 P-2 下；O-2 中重新筛工具面也要它）。
+enum Preset {
+    /// 这个会话没有预设。
+    Nothing,
+    /// 找不回来：以前造的快照没有指纹，没交预设的几层。
+    Unknown,
+    /// 没改：现在找到的那一份。
+    Same(Chosen),
+    /// 改了：新找到的（记忆照开会话时的）。
+    Changed(Chosen),
+}
+
+/// 照快照里预设的编号重新找一遍（施工 P-2 下）。
+fn preset(refresh: &Refresh) -> Result<Preset, String> {
+    let Some(pin) = &refresh.snapshot.preset else {
+        return Ok(Preset::Nothing);
+    };
+    let Some(places) = &refresh.presets else {
+        return Ok(Preset::Unknown);
     };
     if pin.digest.is_none() {
-        return Ok(None);
+        return Ok(Preset::Unknown);
     }
     let found = places
         .presets
@@ -157,15 +201,23 @@ fn preset(refresh: &Refresh) -> Result<Option<Chosen>, String> {
     let installed = || places.installed.iter().map(String::as_str);
     let memory = !pin.off.iter().any(|software| software == MEMORY);
     let chosen = Chosen::new(found.id, found.file, installed()).keeping_memory(memory, installed());
-    Ok((chosen.pin() != *pin).then_some(chosen))
+    Ok(match chosen.pin() == *pin {
+        true => Preset::Same(chosen),
+        false => Preset::Changed(chosen),
+    })
 }
 
-/// 照新的预设 `file` 重新筛工具面（施工 P-2 下）：场所、子会话、能不能确认、记忆的范围照旧快照；以前就有的那几件照旧快照里
-/// 的原样（描述、`subagent` 能选的池都不跟着变），新打开的照现在的目录拿、能选的池照这一轮的配置 `values`。
-fn refaced(refresh: &Refresh, values: &Values, file: &PresetFile) -> Vec<ToolEntry> {
+/// 照预设 `file`、现在的目录 `catalog` 筛出给这个会话的工具（施工 P-2 中、O-2 中）：场所、子会话、能不能确认、记忆的范围照旧
+/// 快照；新打开的 `subagent` 能选的池照这一轮的配置 `values`。
+fn offered(
+    refresh: &Refresh,
+    values: &Values,
+    catalog: &Catalog,
+    file: Option<&PresetFile>,
+) -> Vec<ToolEntry> {
     let old = &refresh.snapshot;
     Agents::face(
-        &refresh.tools,
+        catalog,
         Site {
             venue: &refresh.venue,
             group: old.group.is_some(),
@@ -174,21 +226,76 @@ fn refaced(refresh: &Refresh, values: &Values, file: &PresetFile) -> Vec<ToolEnt
         &Offers::of(values, refresh.personas.ids()),
         old.attended,
         old.memory_scope(),
-        Some(file),
+        file,
     )
-    .into_iter()
-    .map(|entry| {
-        old.tools
-            .iter()
-            .find(|kept| kept.name == entry.name)
-            .cloned()
-            .unwrap_or(entry)
-    })
-    .collect()
+}
+
+/// 预设改了，照新的预设 `file` 重新筛工具面（施工 P-2 下）：以前就有的那几件照旧快照里的原样（描述、`subagent` 能选的池都
+/// 不跟着变，改过名的照旧叫以前的名字），新打开的照现在的目录拿；提供者的工具照现在的登记（施工 O-2 中）。
+fn refaced(
+    refresh: &Refresh,
+    values: &Values,
+    catalog: &Catalog,
+    file: &PresetFile,
+) -> Vec<ToolEntry> {
+    let old = &refresh.snapshot;
+    offered(refresh, values, catalog, Some(file))
+        .into_iter()
+        .map(|entry| {
+            if catalog.provided(&entry.name) {
+                return entry;
+            }
+            old.tools
+                .iter()
+                .find(|kept| {
+                    catalog
+                        .get(&kept.name)
+                        .is_some_and(|tool| tool.spec().name == entry.name)
+                })
+                .cloned()
+                .unwrap_or(entry)
+        })
+        .collect()
+}
+
+/// 目录换了代、预设没改（施工 O-2 中）：照旧快照的先后一件一件对现在的目录 `catalog`。提供者的照现在的登记，不再给这个会话
+/// 的拿掉；自带的照旧快照里的原样，不新加。目录里没有了的：上一次对过的那一代里是提供者的拿掉（扩展关掉了、不再登记它），
+/// 别的照旧留着、调到时暂时不可用（施工 4-2：程序升级拿掉的，载入的会话认不出来的）。新登记的提供者的工具加进来；快照照
+/// 名字排（`miyu_policy` 的工具面）。
+fn followed(
+    refresh: &Refresh,
+    values: &Values,
+    catalog: &Catalog,
+    file: Option<&PresetFile>,
+) -> Vec<ToolEntry> {
+    let fresh = offered(refresh, values, catalog, file);
+    let basis = refresh.seen.as_ref().map(|seen| &seen.catalog);
+    let mut face = Vec::new();
+    for kept in &refresh.snapshot.tools {
+        match catalog.get(&kept.name) {
+            Some(tool) if catalog.provided(&kept.name) => {
+                let name = &tool.spec().name;
+                face.extend(fresh.iter().find(|entry| entry.name == *name).cloned());
+            }
+            Some(_) => face.push(kept.clone()),
+            None if basis.is_some_and(|basis| basis.provided(&kept.name)) => {}
+            None => face.push(kept.clone()),
+        }
+    }
+    let added: Vec<ToolEntry> = fresh
+        .into_iter()
+        .filter(|entry| {
+            catalog.provided(&entry.name) && !face.iter().any(|kept| kept.name == entry.name)
+        })
+        .collect();
+    face.extend(added);
+    face
 }
 
 #[cfg(test)]
 mod preset_tests;
+#[cfg(test)]
+mod shelf_tests;
 #[cfg(test)]
 mod test_support;
 #[cfg(test)]

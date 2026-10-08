@@ -1,6 +1,6 @@
 //! 提供者（施工 O-2 上，`docs/construction/O-2-提供者（上）.md`）：核心拉起的扩展经 `provide` 登记工具，写错的、撞名的整个不收；
 //! 本机的头不是提供者。新造的会话工具面里有给本机的那几件、没有只给群的；她调到时扩展收到 `tool.call`（带会话、调用编号、
-//! 参数），回的结果、错误、写法不对的各自交回；扩展停了，再调到的暂时不可用。
+//! 参数），回的结果、错误、写法不对的各自交回；扩展关掉了，下一个回合工具面里没有它的工具（施工 O-2 中），照旧调的说没有这件。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -146,7 +146,7 @@ async fn an_extension_provides_tools_and_answers_the_calls() {
     assert_eq!(call["params"]["args"], json!({"x": 1}));
     assert!(call["params"]["call_id"].is_string(), "{call}");
 
-    // 停了扩展：工具还在，调到的暂时不可用。
+    // 关掉扩展：工具出目录，下一个回合拿掉（施工 O-2 中）；连接没来的暂时不可用见 `provide_later.rs`。
     let stopped = call_ext(&mut client, "extension.disable", "bridge").await;
     assert!(stopped.get("error").is_none(), "{stopped}");
     until_state(&mut client, "bridge", |entry| entry["state"] == "off").await;
@@ -154,10 +154,7 @@ async fn an_extension_provides_tools_and_answers_the_calls() {
     home.until_turns(&session, 2).await;
     assert_eq!(
         results(&home, &session).last(),
-        Some(&(
-            "The tool \"echo_back\" is not available right now.\n".to_string(),
-            true
-        ))
+        Some(&("There is no tool named \"echo_back\".\n".to_string(), true))
     );
 }
 

@@ -16,7 +16,7 @@ use miyu_store::presets::Presets;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_store::usage::UsageIndex;
-use miyu_tool::Catalog;
+use miyu_tool::Shelf;
 
 use crate::config::Configs;
 use crate::jobs::Jobs;
@@ -69,8 +69,9 @@ pub struct Create<'a> {
     pub by: By,
     /// 给会话造请求模型的端口：驱动的占位取自这个会话的策略快照。
     pub models: &'a dyn Models,
-    /// 工具目录：照它存下这个会话的工具面（施工 4-1），以后一直照快照发。
-    pub tools: &'a Catalog,
+    /// 工具目录的架子：照现在的那一份存下这个会话的工具面（施工 4-1），以后照快照发；提供者的包换了，下一个回合换上
+    /// （施工 O-2 中）。执行工具时照现在的那一份找。
+    pub tools: &'a Shelf,
     /// 系统的家目录：权限策略照它换 `~`、找工具链目录（施工 4-3 下）。读不出来的是空的。
     pub home: Option<&'a Path>,
     /// 沙盒的助手：这台机器上的沙盒能用才有（核心起来时探的，施工 5-4 上）。权限策略照它判执行命令，执行器照它
@@ -127,8 +128,9 @@ pub struct Load<'a> {
     pub environment: Environment,
     /// 给会话造请求模型的端口：驱动的占位取自这个会话的策略快照。
     pub models: &'a dyn Models,
-    /// 工具目录：执行工具时照名字在这里找（施工 4-2）。工具面照快照，不照它。
-    pub tools: &'a Catalog,
+    /// 工具目录的架子：执行工具时照名字在现在的那一份里找（施工 4-2）。工具面照快照；提供者的包换了，下一个回合换上
+    /// （施工 O-2 中）。
+    pub tools: &'a Shelf,
     /// 系统的家目录：权限策略照它换 `~`、找工具链目录（施工 4-3 下）。读不出来的是空的。
     pub home: Option<&'a Path>,
     /// 沙盒的助手：这台机器上的沙盒能用才有（核心起来时探的，施工 5-4 上）。权限策略照它判执行命令，执行器照它

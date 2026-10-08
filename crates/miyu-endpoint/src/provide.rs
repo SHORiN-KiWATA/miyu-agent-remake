@@ -1,13 +1,14 @@
 //! `provide {tools}`（施工 O-2 上，`docs/blueprint/providers.md`）：核心拉起的扩展把它现在提供的全部工具登记进核心的工具目录，
 //! 归它的包，换掉它上一次登记的；记下这个包现在由这个连接提供（[`Provided`]）。连接断了，工具照旧留在目录里，被调到时回
-//! 「暂时不可用」。
+//! 「暂时不可用」。登记缓存在磁盘上，核心起来、开扩展时先照缓存登记；关掉扩展，它的工具出目录（施工 O-2 中，[`cache`]）。
 
+mod cache;
 mod remote;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use miyu_kernel::raw::RawJson;
@@ -46,15 +47,15 @@ impl Provided {
     }
 }
 
-/// `provide` 的参数。
-#[derive(Debug, Deserialize)]
+/// `provide` 的参数，也是登记缓存的写法（施工 O-2 中）。
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct ProvideParams {
     tools: Vec<ToolParams>,
 }
 
 /// 一件工具的规格。
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct ToolParams {
     name: String,
@@ -73,16 +74,26 @@ pub(crate) async fn provide(
     let Some(package) = caller.package.as_deref() else {
         return Err(Refusal::NOT_A_PROVIDER);
     };
+    let kept = serde_json::to_vec(&params).map_err(|_| Refusal::INTERNAL)?;
+    let count = register(core, package, params.tools)?;
+    core.provided.register(package, caller.reverse.clone());
+    cache::write(core, package, &kept);
+    tracing::info!(target: "miyu::endpoint", package, tools = count, "provided");
+    Ok(json!({ "tools": count }))
+}
+
+/// 照规格 `tools` 换掉包 `package` 在目录里的工具，交回几件：`provide`、读缓存共用。两处同时换的一个接一个（[`miyu_tool::Shelf`]）。
+fn register(core: &Core, package: &str, tools: Vec<ToolParams>) -> Result<usize, Refusal> {
     let unavailable = core
         .resources
         .core_texts()
         .map(|texts| texts.tool_results.unavailable)
         .map_err(|_| Refusal::INTERNAL)?;
-    let count = params.tools.len();
-    let mut tools: Vec<Arc<dyn Tool>> = Vec::with_capacity(count);
-    for tool in params.tools {
+    let count = tools.len();
+    let mut built: Vec<Arc<dyn Tool>> = Vec::with_capacity(count);
+    for tool in tools {
         let (spec, venues) = checked(tool)?;
-        tools.push(Arc::new(RemoteTool::new(
+        built.push(Arc::new(RemoteTool::new(
             spec,
             venues,
             package,
@@ -90,15 +101,24 @@ pub(crate) async fn provide(
             unavailable.clone(),
         )));
     }
-    let replaced = core
-        .tools()
-        .replacing(package, tools)
+    core.tools
+        .replace(|catalog| catalog.replacing(package, built))
         .map_err(|error| bad_tool(&error.tool, problem(error.problem)))?;
-    core.set_tools(replaced);
-    core.provided.register(package, caller.reverse.clone());
-    tracing::info!(target: "miyu::endpoint", package, tools = count, "provided");
-    Ok(json!({ "tools": count }))
+    Ok(count)
 }
+
+/// 关掉扩展（施工 O-2 中）：包 `package` 的工具出目录，开着的会话下一个回合换掉；缓存留着，再开时照它先登记。
+pub(crate) fn withdraw(core: &Core, package: &str) {
+    let withdrawn = core
+        .tools
+        .replace(|catalog| catalog.replacing(package, Vec::new()));
+    if let Err(error) = withdrawn {
+        // 拿掉不会撞名：只是把这个包的去掉。
+        tracing::error!(target: "miyu::endpoint", package, error = %error, "tools not withdrawn");
+    }
+}
+
+pub(crate) use cache::restore;
 
 /// 查一件的访问类别和给哪种会话；名字、参数格式、撞名由目录查（[`miyu_tool::Catalog::replacing`]）。
 fn checked(tool: ToolParams) -> Result<(Spec, Venues), Refusal> {

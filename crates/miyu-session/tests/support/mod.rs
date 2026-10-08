@@ -144,6 +144,7 @@ impl Home {
         opening: Opening,
         lines: Lines,
     ) -> Handle {
+        let tools = &miyu_tool::Shelf::new(tools.clone());
         let created = create(Create {
             root: &self.root,
             resources: &self.resources,
@@ -242,6 +243,7 @@ impl Home {
         environment: Environment,
         sessions: Option<Arc<dyn SessionPort>>,
     ) -> Handle {
+        let tools = &miyu_tool::Shelf::new(tools.clone());
         let loaded = load(Load {
             root: &self.root,
             owner: alice_account(),

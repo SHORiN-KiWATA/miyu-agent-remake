@@ -1,7 +1,7 @@
-//! 工具目录（05 第八节，施工 4-1）：核心起来时登记一次，登记完就冻结。照名字排好，造会话时照这个
-//! 先后交出工具面。改过名的工具照以前的名字也找得到（施工 7-5 再补，[`Tool::formerly`]）。
+//! 工具目录（05 第八节，施工 4-1）：核心起来时登记一次；提供者登记一次换出新的一份（施工 O-2 上，放在 [`crate::Shelf`]
+//! 上）。照名字排好，造会话时照这个先后交出工具面。改过名的工具照以前的名字也找得到（施工 7-5 再补，[`Tool::formerly`]）。
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::sync::Arc;
 
@@ -20,6 +20,8 @@ pub struct Catalog {
     formerly: BTreeMap<String, String>,
     /// 每件工具现在的名字到它的软件包（施工 P-2 中）：预设照包开关。
     packages: BTreeMap<String, String>,
+    /// 经提供者登记过的包（施工 O-2 中，[`Catalog::replacing`]）：回合开头换快照时，只有它们的工具照现在的登记换。
+    provided: BTreeSet<String>,
 }
 
 /// 基础系统的编号（`10-自带软件.md` 第三节）：只交一串工具的老写法，全算它。
@@ -88,6 +90,7 @@ impl Catalog {
     ) -> Result<Catalog, CatalogError> {
         let mut catalog = self.clone();
         catalog.take_out(package);
+        catalog.provided.insert(package.to_string());
         for tool in tools {
             catalog.add(package, tool)?;
         }
@@ -148,12 +151,18 @@ impl Catalog {
         self.packages.get(now).map(String::as_str)
     }
 
+    /// 叫 `name` 的那一件是经提供者登记的（施工 O-2 中）；没有这件的不是。
+    pub fn provided(&self, name: &str) -> bool {
+        self.package_of(name)
+            .is_some_and(|package| self.provided.contains(package))
+    }
+
     /// 有工具的几个包，照编号排、不重复。
     pub fn packages(&self) -> impl Iterator<Item = &str> {
         self.packages
             .values()
             .map(String::as_str)
-            .collect::<std::collections::BTreeSet<_>>()
+            .collect::<BTreeSet<_>>()
             .into_iter()
     }
 
