@@ -80,6 +80,24 @@ impl Refusal {
         reason: "unknown_preset",
         data: None,
     };
+    /// 没有这个编号的软件包，或者它的清单读不成（施工 9-4 上）。
+    pub(crate) const UNKNOWN_PACKAGE: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_package",
+        data: None,
+    };
+    /// 这个包是界面，不是核心拉起的扩展（施工 9-4 上）。
+    pub(crate) const NOT_AN_EXTENSION: Refusal = Refusal {
+        code: REFUSED,
+        reason: "not_an_extension",
+        data: None,
+    };
+    /// 重启一个关着的扩展（施工 9-4 上）。
+    pub(crate) const EXTENSION_OFF: Refusal = Refusal {
+        code: REFUSED,
+        reason: "extension_off",
+        data: None,
+    };
     /// 没有这个会话。
     pub(crate) const NOT_FOUND: Refusal = Refusal {
         code: REFUSED,

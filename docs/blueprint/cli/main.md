@@ -60,7 +60,7 @@
    1. 不认识的子命令：标准错误上说「没有 <名字> 这个子命令。想和她对话，用 miyu ask "…"」，退出码 2。不连核心，不拉起，什么都不发。
    2. `-h`、`--help`、`help`、`help <子命令>`：把那一页原样印在标准输出上，退出码 0。`-V`、`--version`：印 `miyu <版本>`，退出码 0。
    3. 别的：标准错误上说一句（下面「参数写错时」），退出码 2。
-3. 没写子命令（施工 9-3，`crates/miyu-cli/src/head.rs`）：标准输入、标准输出都是终端的，连上核心（没在跑就拉起）问 `config.get` 拿 `ui.head`（出厂 `tui`），照两层清单找这个编号的界面包（`kind = "ui"`、有 `[command]`），程序只找 `miyu` 旁边的，换成它、不带参数，退出码照它的。没有这个界面（没清单、不是界面、程序不在旁边）：标准错误上说没装哪一个、装了的界面有哪几个、`miyu config set ui.head <编号>` 换一个（一个都没装的说先用 `miyu ask`），退出码 1。不在终端里（被脚本调、接管道）：把主程序的帮助页印在标准输出上，退出码 2，不连核心。
+3. 没写子命令（施工 9-3，`crates/miyu-cli/src/head.rs`）：标准输入、标准输出都是终端的，连上核心（没在跑就拉起）问 `config.get` 拿 `ui.head`（出厂 `tui`），照两层清单找这个编号的界面包（`kind = "ui"`、有 `[command]`），程序只找 `miyu` 旁边的，换成它、不带参数，退出码照它的。没有这个界面（没清单、不是界面、没有子命令）：标准错误上说没装哪一个、装了的界面有哪几个、`miyu config set ui.head <编号>` 换一个（一个都没装的说先用 `miyu ask`），退出码 1。有清单、程序不在旁边的（出厂带了终端的清单，程序随 M9；9-3 补）：说这个界面的程序叫什么、不在 `miyu` 旁边，后半句同上，退出码 1。「装了的界面」只算程序在 `miyu` 旁边的：只有清单的列出来也打不开。不在终端里（被脚本调、接管道）：把主程序的帮助页印在标准输出上，退出码 2，不连核心。
    - `config` 不写它的子命令（原来的 8-24）：在终端里、`ui.head` 那个界面的清单 `[ui] opens` 里有 `config` 的，同上拉起它、带 `--page config`；没有这一页的、不在终端里的，把 `config` 的帮助页印在标准输出上，退出码 2。
    - `web`：照清单找网页软件（`web-ui.md`「怎么走」第二条）。
 4. `ask`、`undo`（`rewind`）、`restore`、`redo`、`compact`、`recap`、`rename`、`config`、`login`、`logout`、`setup`：交给命令行的头（`cli/ask.md`、`cli/undo.md`、`cli/redo.md`、`cli/compact.md`、`cli/recap.md`、`cli/rename.md`、`cli/config.md`、`cli/login.md`、`cli/setup.md`），连同拉起核心用的命令。

@@ -22,12 +22,14 @@
 //!   压根没有它，握手以后的方法里找不到、这张表里也找不到的，一律 `unknown_method`。
 //! - 分块上传：`blob.open`、`blob.write`、`blob.close`，跟着连接走，收齐了存成 blob，回应和 `blob.put` 一样
 //!   （施工 W-5，`uploads.rs`）。连接断了、60 秒没写都作废。
+//! - [`extensions`]：核心拉起的 `process` 包，经标准输入输出说同一套协议；开关、退避重启、随核心退出（施工 9-4 上）。
 
 mod attach;
 mod check;
 mod commands;
 pub mod config;
 mod connection;
+pub mod extensions;
 mod files;
 mod from;
 mod hello;
@@ -147,6 +149,8 @@ pub struct Core {
     venues: tokio::sync::Mutex<()>,
     /// 软件包清单（施工 9-1 上，`packages.rs`）：起来时读一次，装卸要重启。
     packages: Vec<miyu_store::packages::Found>,
+    /// 扩展进程（施工 9-4 上，`extensions.rs`）：核心拉起的 `process` 包。
+    extensions: extensions::Extensions,
 }
 
 /// 空的模型资料：没有档案、没有目录，读完了。
@@ -219,6 +223,7 @@ impl Core {
             listing: listing::Listing::default(),
             venues: tokio::sync::Mutex::new(()),
             packages: found,
+            extensions: extensions::Extensions::new(extensions::Timing::default()),
         }
     }
 
@@ -280,6 +285,13 @@ impl Core {
     #[must_use]
     pub fn with_packages(mut self, packages: Vec<miyu_store::packages::Found>) -> Core {
         self.packages = packages;
+        self
+    }
+
+    /// 同一份家底，扩展进程等多久、退避多久照 `timing`（施工 9-4 上）：测试里设短的，不用真等。
+    #[must_use]
+    pub fn with_extension_timing(mut self, timing: extensions::Timing) -> Core {
+        self.extensions = extensions::Extensions::new(timing);
         self
     }
 
@@ -351,10 +363,13 @@ impl Core {
         self.connections.load(Ordering::Acquire)
     }
 
-    /// 空闲：没有连接，没有在跑的回合，也没有在跑的后台命令（施工 7-3）。核心看它决定能不能空闲退出
+    /// 空闲：没有连接，没有在跑的回合，也没有在跑的后台命令（施工 7-3），也没有开着、没停下的扩展（施工 9-4 上）。核心看它决定能不能空闲退出
     /// （`12-进程形态与分发.md` 第二节、R1，施工 3-9 上）。
     pub async fn idle(&self) -> bool {
-        self.connections() == 0 && !self.jobs.running() && !self.sessions.busy().await
+        self.connections() == 0
+            && !self.jobs.running()
+            && !self.extensions.busy()
+            && !self.sessions.busy().await
     }
 
     /// 有计划地停下全部在跑的会话：核心收到停的信号时。跑到一半的回合记成「重启了」，下次载入接着干。

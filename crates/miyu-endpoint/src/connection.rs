@@ -21,7 +21,7 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinSet;
 
 use miyu_kernel::id::SessionId;
@@ -46,10 +46,26 @@ pub async fn serve<S>(stream: S, core: Arc<Core>)
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
+    serve_from(stream, core, None).await;
+}
+
+/// 同 [`serve`]，对面是核心亲手拉起的扩展（施工 9-4 上）：握手不看凭据，握成了往 `shook` 说一声。
+pub(crate) async fn serve_spawned<S>(stream: S, core: Arc<Core>, shook: oneshot::Sender<()>)
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    serve_from(stream, core, Some(shook)).await;
+}
+
+/// 两种连接共用的：`spawned` 有的是核心亲手拉起的扩展。
+async fn serve_from<S>(stream: S, core: Arc<Core>, spawned: Option<oneshot::Sender<()>>)
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
     let _connected = Connected::new(Arc::clone(&core));
     let (read, write) = tokio::io::split(stream);
     let (out, lines) = mpsc::channel(QUEUE);
-    tokio::join!(read_all(read, core, out), write_all(write, lines));
+    tokio::join!(read_all(read, core, out, spawned), write_all(write, lines));
 }
 
 /// 写的一头：一行行写出去，写不出去就停。
@@ -66,8 +82,14 @@ async fn write_all<W: AsyncWrite + Unpin>(mut write: W, mut lines: mpsc::Receive
     }
 }
 
-/// 读的一头：一条条办请求，回应放进写队列（订阅了的会话，经它的转发任务）。
-async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sender<String>) {
+/// 读的一头：一条条办请求，回应放进写队列（订阅了的会话，经它的转发任务）。`spawned` 见 [`serve_from`]。
+async fn read_all<R: AsyncRead + Unpin>(
+    read: R,
+    core: Arc<Core>,
+    out: mpsc::Sender<String>,
+    mut spawned: Option<oneshot::Sender<()>>,
+) {
+    let from_core = spawned.is_some();
     let mut reader = BufReader::new(read);
     let mut shaken: Option<Shaken> = None;
     // 这个连接是怎么认出来的（施工 W-8）：用登录令牌、密码连上的另收作废的广播。
@@ -150,6 +172,18 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
             }
             continue;
         }
+        // 扩展不能开关、重启扩展（施工 9-4 上）：那是人的事。
+        if via == Some(Via::Spawned) && request.method.starts_with("extension.") {
+            let refused = wire::error(
+                Value::String(request.id.as_str().to_string()),
+                Refusal::LOCAL_ONLY,
+                locale,
+            );
+            if !send(&out, refused).await {
+                break;
+            }
+            continue;
+        }
         if peer.is_some()
             && let Some(handler) = core.queries.background(&request.method)
         {
@@ -164,8 +198,13 @@ async fn read_all<R: AsyncRead + Unpin>(read: R, core: Arc<Core>, out: mpsc::Sen
         }
         let id = || Value::String(request.id.as_str().to_string());
         let (answer, target, close) = match (request.method.as_str(), peer) {
-            ("hello", _) => match hello(&core, request.params.clone()).await {
+            ("hello", _) => match hello(&core, request.params.clone(), from_core).await {
                 Ok((shook, by, result)) => {
+                    if let Some(ready) = spawned.take()
+                        && ready.send(()).is_err()
+                    {
+                        // 看管它的那一头不等了：不用说。
+                    }
                     shaken = Some(shook);
                     revoked = by.login().map(|_| core.identity.revoked());
                     via = Some(by);

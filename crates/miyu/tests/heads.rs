@@ -110,6 +110,11 @@ fn install(home: &Home, id: &str, program: &str, opens: &str) {
     .expect("写得进");
 }
 
+/// 测试的界面用的编号：避开出厂会有的（出厂带着 `tui`，同编号认出厂的，9-3 补）。系统配置里 `ui.head` 指着它。
+fn pointed(home: &Home) {
+    home.system_config("[ui]\nhead = \"probe-head\"\n");
+}
+
 /// 在伪终端里跑 `miyu <args>`：标准输入、输出接伪终端，标准错误接管道（好读）。
 fn miyu(home: &Home, args: &[&str]) -> Output {
     miyu_with(home, args, true)
@@ -147,7 +152,8 @@ fn said(output: &Output) -> String {
 async fn plain_miyu_and_miyu_config_open_the_head_from_its_manifest() {
     let home = Home::new();
     let head = Head::new(&home);
-    install(&home, "tui", &head.name(), "\"config\"");
+    pointed(&home);
+    install(&home, "probe-head", &head.name(), "\"config\"");
     let plain = miyu(&home, &[]);
     assert_eq!(
         plain.status.code(),
@@ -166,7 +172,8 @@ async fn plain_miyu_and_miyu_config_open_the_head_from_its_manifest() {
 async fn a_head_without_the_config_page_leaves_miyu_config_to_the_help() {
     let home = Home::new();
     let head = Head::new(&home);
-    install(&home, "tui", &head.name(), "");
+    pointed(&home);
+    install(&home, "probe-head", &head.name(), "");
     let config = miyu(&home, &["config"]);
     assert_eq!(config.status.code(), Some(2), "{}", said(&config));
     assert_eq!(head.seen(), None, "没拉起");
@@ -181,19 +188,52 @@ async fn a_missing_head_names_the_installed_ones() {
     home.system_config("[ui]\nhead = \"nope\"\n");
     let plain = miyu(&home, &[]);
     assert_eq!(plain.status.code(), Some(1));
+    // 出厂的终端只有清单、程序随 M9，不算装了；网页的程序编没编出来看这一次构建（9-3 补）。
+    let installed = match beside("miyu-web") {
+        true => "other、web",
+        false => "other",
+    };
     assert_eq!(
         said(&plain).trim_end(),
-        "没装 nope 这个界面（ui.head 指着它）。装上它的软件包，或者 miyu config set ui.head <编号> 换成装了的界面：other、web。"
+        format!(
+            "没装 nope 这个界面（ui.head 指着它）。装上它的软件包，或者 miyu config set ui.head <编号> 换成装了的界面：{installed}。"
+        )
     );
     assert_eq!(head.seen(), None);
     home.kill_core().await;
 }
 
 #[tokio::test]
+async fn the_shipped_terminal_without_its_program_says_where_it_should_be() {
+    // 出厂的 ui.head 是 tui，出厂带着它的清单，程序 miyu-tui 随 M9（9-3 补）。
+    let home = Home::new();
+    assert!(!beside("miyu-tui"), "这一次构建里没有终端的程序");
+    let plain = miyu(&home, &[]);
+    assert_eq!(plain.status.code(), Some(1), "{}", said(&plain));
+    assert!(
+        said(&plain).starts_with(
+            "tui 这个界面的程序 miyu-tui 不在 miyu 旁边（ui.head 指着它）。把它放到 miyu 旁边，或者 miyu config set ui.head <编号> 换成装了的界面"
+        ),
+        "{}",
+        said(&plain)
+    );
+    home.kill_core().await;
+}
+
+/// `miyu` 真实位置旁边有没有 `program`。
+fn beside(program: &str) -> bool {
+    std::fs::canonicalize(MIYU)
+        .expect("主程序在")
+        .with_file_name(format!("{program}{}", std::env::consts::EXE_SUFFIX))
+        .is_file()
+}
+
+#[tokio::test]
 async fn only_a_terminal_on_both_ends_opens_the_head() {
     let home = Home::new();
     let head = Head::new(&home);
-    install(&home, "tui", &head.name(), "\"config\"");
+    pointed(&home);
+    install(&home, "probe-head", &head.name(), "\"config\"");
     let piped = miyu_with(&home, &[], false);
     assert_eq!(piped.status.code(), Some(2), "标准输入不是终端：印帮助");
     assert_eq!(head.seen(), None, "没拉起");

@@ -124,10 +124,12 @@ pub(crate) struct Peer {
     pub(crate) input: bool,
 }
 
-/// 握手：交回这个连接记下的、它是怎么认出来的（施工 W-8）和回应。拒绝的，交回拒绝和要不要断开。
+/// 握手：交回这个连接记下的、它是怎么认出来的（施工 W-8）和回应。拒绝的，交回拒绝和要不要断开。`spawned` 的是核心亲手拉起的
+/// 扩展（施工 9-4 上）：不看凭据，写了的也不看。
 pub(crate) async fn hello(
     core: &Arc<Core>,
     params: Value,
+    spawned: bool,
 ) -> Result<(Shaken, Via, Value), (Refusal, bool)> {
     let params: Params =
         serde_json::from_value(params).map_err(|_| (Refusal::BAD_PARAMS, false))?;
@@ -143,14 +145,16 @@ pub(crate) async fn hello(
         return Err((Refusal::PROTOCOL, true));
     }
     let head = params.head.kind.as_str();
-    let (via, login) = credentials(core, &params)
-        .await
-        .map_err(|(refusal, said)| {
-            if let Some(said) = said {
-                tracing::warn!(target: "miyu::endpoint", head, "{said}");
-            }
-            (refusal, true)
-        })?;
+    let checked = match spawned {
+        true => Ok((Via::Spawned, None)),
+        false => credentials(core, &params).await,
+    };
+    let (via, login) = checked.map_err(|(refusal, said)| {
+        if let Some(said) = said {
+            tracing::warn!(target: "miyu::endpoint", head, "{said}");
+        }
+        (refusal, true)
+    })?;
     tracing::info!(
         target: "miyu::endpoint",
         head,

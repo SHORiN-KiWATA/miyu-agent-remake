@@ -69,8 +69,8 @@ fn a_page_the_head_does_not_open_and_a_missing_head_are_told_apart() {
     assert_eq!(plan("tui", Some("config"), &found, &main), Plan::NoPage);
     assert_eq!(
         plan("gone", None, &found, &main),
-        Plan::Missing,
-        "程序不在旁边"
+        Plan::NoProgram("miyu-gone".to_string()),
+        "有清单、程序不在旁边"
     );
     assert_eq!(
         plan("other", None, &found, &main),
@@ -91,14 +91,36 @@ fn a_page_the_head_does_not_open_and_a_missing_head_are_told_apart() {
 
 #[test]
 fn a_missing_head_lists_the_installed_ones() {
+    let (dir, main) = beside("installed", &["miyu-web", "miyu-gui"]);
     let found = [
         ui("web", "miyu-web", &[]),
         ui("tui", "miyu-tui", &["config"]),
+        ui("gui", "miyu-gui", &[]),
     ];
-    assert_eq!(installed(&found), ["web", "tui"]);
     assert_eq!(
-        not_installed("tui", &installed(&found), Language::Chinese),
-        "没装 tui 这个界面（ui.head 指着它）。装上它的软件包，或者 miyu config set ui.head <编号> 换成装了的界面：web、tui。"
+        installed(&found, &main),
+        ["web", "gui"],
+        "只有清单、程序不在的不算装了"
     );
-    assert!(not_installed("tui", &[], Language::English).contains("no interface is installed yet"));
+    assert_eq!(
+        unavailable("nope", None, &installed(&found, &main), Language::Chinese),
+        "没装 nope 这个界面（ui.head 指着它）。装上它的软件包，或者 miyu config set ui.head <编号> 换成装了的界面：web、gui。"
+    );
+    assert!(
+        unavailable("nope", None, &[], Language::English).contains("no interface is installed yet")
+    );
+    std::fs::remove_dir_all(&dir).expect("删得掉");
+}
+
+#[test]
+fn a_head_whose_program_is_missing_says_so() {
+    let installed = ["web".to_string()];
+    assert_eq!(
+        unavailable("tui", Some("miyu-tui"), &installed, Language::Chinese),
+        "tui 这个界面的程序 miyu-tui 不在 miyu 旁边（ui.head 指着它）。把它放到 miyu 旁边，或者 miyu config set ui.head <编号> 换成装了的界面：web。"
+    );
+    assert_eq!(
+        unavailable("tui", Some("miyu-tui"), &installed, Language::English),
+        "The tui interface's program miyu-tui is not next to miyu (ui.head names it). Put it next to miyu, or switch with miyu config set ui.head <id> to one that is installed: web."
+    );
 }
