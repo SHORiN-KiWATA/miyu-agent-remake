@@ -90,6 +90,12 @@ pub(crate) fn check_expect(
     Ok(())
 }
 
+/// 去掉 `text` 里 P-3 上写进去的「以谁为底」那一格（施工 P-3 再补）：`table` 是 `persona`、`preset`。没有的、去不掉的照原样。
+pub(crate) fn without_base(text: &str, table: &str) -> String {
+    let key = format!("{table}.{}", miyu_policy::persona::BASE);
+    edit::apply(text, Change::Unset(&key)).unwrap_or_else(|_| text.to_string())
+}
+
 /// 在 `text` 上一项项改：这一层本来就是这个值的不动（写法不同的也不动，例如单引号）；本来就没写又要删的，`edit::apply` 自己
 /// 不动。放不进去的（那一组写成了别的东西）照 `invalid` 拒绝，说是 `file` 的哪一项。
 pub(crate) fn edited(

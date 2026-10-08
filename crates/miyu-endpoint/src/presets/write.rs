@@ -22,7 +22,7 @@ use crate::Core;
 use crate::config::methods::words;
 use crate::hello::Peer;
 use crate::refusal::Refusal;
-use crate::toml_changes::{ChangeParams, Wanted, check_expect, edited, wanted};
+use crate::toml_changes::{ChangeParams, Wanted, check_expect, edited, wanted, without_base};
 
 /// 写的时候撞上有人手改，最多重来几次。
 const ATTEMPTS: usize = 3;
@@ -133,7 +133,12 @@ fn write(
         };
         check_expect(&text, wanted, "preset_conflict")?;
         let file = format!("home {id}.toml");
-        let edited = edited(&text, wanted, &file, Refusal::preset_invalid)?;
+        let edited = edited(
+            &without_base(&text, "preset"),
+            wanted,
+            &file,
+            Refusal::preset_invalid,
+        )?;
         if edited == text {
             return presets.find(id).map_err(|error| told(&error, said));
         }

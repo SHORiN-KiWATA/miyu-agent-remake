@@ -209,3 +209,20 @@ fn old_style_names_keep_the_digest_they_had() {
         "sha256:49ff2847b261e037c53a2873ddd7ca9ccf1267bb9f6dc134bd3c7889896594cb"
     );
 }
+
+/// P-3 上那几个小时里建的预设写着 `base`（施工 P-3 再补）：认出来当没写，写成什么样都不算写错，别的照读。
+#[test]
+fn a_base_written_by_p3_is_read_as_unwritten() {
+    let plain = read("[preset]\nname = \"我的\"\n").unwrap();
+    for text in [
+        "[preset]\nbase = \"full\"\nname = \"我的\"\n",
+        "[preset]\nname = \"我的\"\nbase = { a = 1 }\n",
+    ] {
+        assert_eq!(read(text).unwrap(), plain, "{text:?}");
+    }
+    assert_eq!(
+        wrong("[software]\nbase = \"x\"\n").0,
+        Code::NotBool,
+        "别的表里照旧"
+    );
+}

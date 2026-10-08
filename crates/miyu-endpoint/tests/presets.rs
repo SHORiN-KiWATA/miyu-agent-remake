@@ -251,7 +251,7 @@ async fn presets_are_listed_and_read_by_layer() {
     assert_eq!(
         listed["result"]["presets"],
         json!([
-            {"preset": "broken", "problem": "home broken.toml:1: unknown table [colors]"},
+            {"preset": "broken", "problem": "不认识的表 [colors]：预设文件里只能有 [preset]、[software]、[tools]", "line": 1},
             {"preset": "dev", "name": "大家的开发", "summary": "只开写代码必需的：基础系统、联网、长期目标"},
             {"preset": "full", "name": "功能全开", "summary": "装了的软件全部打开，以后新装的也打开"},
         ]),
