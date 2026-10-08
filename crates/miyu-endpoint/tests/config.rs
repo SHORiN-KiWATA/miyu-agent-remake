@@ -107,17 +107,18 @@ async fn the_schema_lists_the_items_in_the_language_of_the_connection() {
         [
             "ui.language",
             "ui.startup",
+            "ui.head",
             "permission.start_read_only",
             "log.level"
         ]
     );
-    let switch = &all["result"]["items"][2];
+    let switch = &all["result"]["items"][3];
     assert_eq!(switch["type"], "bool");
     assert_eq!(switch["tighten"], "true_only");
     assert_eq!(switch["control"], "toggle");
     assert_eq!(switch["applies"], "new_session");
     assert!(switch.get("options").is_none());
-    assert_eq!(all["result"]["items"][3]["env"], "MIYU_LOG");
+    assert_eq!(all["result"]["items"][4]["env"], "MIYU_LOG");
     assert_eq!(
         all["result"]["pages"],
         json!([{"id":"general","name":"通用"},{"id":"permissions","name":"权限"},{"id":"advanced","name":"高级"}])
@@ -166,6 +167,7 @@ async fn get_says_every_value_and_where_it_came_from() {
             "permission.start_read_only": {"origin": {"layer": "default"}, "value": false},
             "ui.language": {"origin": {"file": "home/alice/settings.toml", "layer": "personal", "line": 4}, "value": "zh"},
             "ui.startup": {"origin": {"layer": "default"}, "value": "new"},
+            "ui.head": {"origin": {"layer": "default"}, "value": "tui"},
         })
     );
     assert_eq!(

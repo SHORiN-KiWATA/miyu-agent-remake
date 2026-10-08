@@ -45,14 +45,18 @@ fn an_unknown_command_is_refused_and_never_sent() {
 }
 
 #[test]
-fn plain_miyu_says_what_to_use_for_now() {
+fn plain_miyu_off_a_terminal_prints_the_help() {
+    // 不在终端里（这里标准输入、输出都接着管道）：不拉起界面，印帮助、退出码 2（施工 9-3）。
     let home = Home::new();
     let output = miyu(&home, "zh_CN.UTF-8", &[]);
     assert_eq!(output.status.code(), Some(2));
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("miyu ask"),
+    assert_eq!(
+        String::from_utf8_lossy(&output.stdout),
+        page(Language::Chinese, Page::Miyu),
         "{output:?}"
     );
+    assert!(output.stderr.is_empty(), "{output:?}");
+    assert!(!home.root.run().join("socket").exists(), "没拉起核心");
 }
 
 #[test]

@@ -57,6 +57,7 @@ fn the_registered_list_is_well_formed() {
         [
             "ui.language",
             "ui.startup",
+            "ui.head",
             "persona.default",
             "preset.default",
             "usage.currency",

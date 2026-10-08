@@ -92,12 +92,10 @@ fn main() -> ExitCode {
         return ExitCode::from(code);
     }
     let section = miyu_cli::packages::help_section(language, &added);
+    let help = miyu_cli::packages::with_section(page(language, Page::Miyu), &section);
     // 帮助页换成自己写的（施工 4-11）：`-h`、`--help`、`miyu help <子命令>` 都印它们，clap 生成的一个字都不印。
     let command = Cli::command()
-        .override_help(miyu_cli::packages::with_section(
-            page(language, Page::Miyu),
-            &section,
-        ))
+        .override_help(help.clone())
         .mut_subcommand("ask", |ask| ask.override_help(page(language, Page::Ask)))
         .mut_subcommand("undo", |undo| {
             undo.override_help(page(language, Page::Undo))
@@ -161,20 +159,38 @@ fn main() -> ExitCode {
         Some(Command::Recap(args)) => miyu_cli::recap(args, core),
         Some(Command::Rename(args)) => miyu_cli::rename(args, core),
         Some(Command::Sandbox(args)) => miyu_cli::sandbox(args),
+        // 不带子命令、在终端里：打开界面的设置页（施工 9-3，原来的 8-24）；界面不认设置页的照旧印帮助。
+        Some(Command::Config(args)) if args.command.is_none() && terminal() => {
+            match miyu_cli::head::open(Some("config"), &miyu_core::admin(), core) {
+                miyu_cli::head::Opened::Ran(code) => ExitCode::from(code),
+                miyu_cli::head::Opened::NoPage => miyu_cli::config(args, core),
+            }
+        }
         Some(Command::Config(args)) => miyu_cli::config(args, core),
         Some(Command::Check(args)) => miyu_cli::check(args, core),
         Some(Command::Login(args)) => miyu_cli::login(args.into(), core),
         Some(Command::Logout(args)) => miyu_cli::login(args.into(), core),
         Some(Command::Setup(args)) => miyu_cli::setup(args, core),
-        Some(Command::Web(args)) => miyu_cli::web(args),
+        Some(Command::Web(args)) => miyu_cli::web(args, &miyu_core::admin()),
         Some(Command::Core { idle_seconds }) => miyu_core::main(miyu_core::Options {
             idle: idle_seconds.map_or(miyu_core::IDLE, Duration::from_secs),
         }),
+        // 不带子命令（施工 9-3）：在终端里打开 `ui.head` 指的界面；不在终端里（被脚本调、接管道）印帮助、退出码 2。
+        None if terminal() => match miyu_cli::head::open(None, &miyu_core::admin(), core) {
+            miyu_cli::head::Opened::Ran(code) => ExitCode::from(code),
+            miyu_cli::head::Opened::NoPage => ExitCode::from(USAGE),
+        },
         None => {
-            eprintln!("{}", language.nothing_yet());
+            print!("{help}");
             ExitCode::from(USAGE)
         }
     }
+}
+
+/// 标准输入、标准输出都是终端（施工 9-3）：只有这时才拉起界面。
+fn terminal() -> bool {
+    use std::io::IsTerminal;
+    std::io::stdin().is_terminal() && std::io::stdout().is_terminal()
 }
 
 /// 内置的子命令（施工 9-2）：每一个的名字、别名，加上 `help`。软件包的子命令撞了它们的不转交、不列。

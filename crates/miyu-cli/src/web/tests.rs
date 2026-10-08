@@ -25,7 +25,13 @@ fn a_missing_web_ui_says_how_to_install() {
     std::fs::write(&main, "").expect("写得进");
     let mut err = Vec::new();
     assert_eq!(
-        web_on(&Web::default(), &main, Language::Chinese, &mut err),
+        web_on(
+            &Web::default(),
+            &main,
+            "miyu-web",
+            Language::Chinese,
+            &mut err
+        ),
         1
     );
     let said = String::from_utf8(err).expect("UTF-8");
@@ -33,7 +39,13 @@ fn a_missing_web_ui_says_how_to_install() {
     assert!(said.contains("miyu-web"), "{said}");
     let mut err = Vec::new();
     assert_eq!(
-        web_on(&Web::default(), &main, Language::English, &mut err),
+        web_on(
+            &Web::default(),
+            &main,
+            "miyu-web",
+            Language::English,
+            &mut err
+        ),
         1
     );
     assert!(
@@ -66,7 +78,7 @@ fn an_installed_web_ui_gets_the_args_and_decides_the_exit_code() {
     };
     let mut err = Vec::new();
     assert_eq!(
-        web_on(&args, &main, Language::Chinese, &mut err),
+        web_on(&args, &main, "miyu-web", Language::Chinese, &mut err),
         7,
         "照它的退出码"
     );

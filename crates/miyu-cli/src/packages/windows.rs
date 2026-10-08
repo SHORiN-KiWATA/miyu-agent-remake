@@ -15,7 +15,7 @@ use windows_sys::Win32::System::Console::SetConsoleCtrlHandler;
 use super::say;
 
 /// 起 `program args…`、等它，交回它的退出码；起不来的说为什么，退出码 1。
-pub(super) fn run(program: &Path, args: &[OsString], err: &mut dyn Write) -> u8 {
+pub(crate) fn run(program: &Path, args: &[OsString], err: &mut dyn Write) -> u8 {
     // SAFETY: 处理函数传空、第二个参数是 TRUE：只是让这个进程不理 Ctrl+C，不碰任何内存。
     unsafe {
         SetConsoleCtrlHandler(None, 1);

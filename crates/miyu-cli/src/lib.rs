@@ -27,6 +27,7 @@
 mod ask;
 mod compact;
 mod config;
+pub mod head;
 pub mod help;
 pub mod language;
 mod link;
