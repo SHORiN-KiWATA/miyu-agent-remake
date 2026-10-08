@@ -7,6 +7,13 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 
+# 测试用的扩展（施工 9-4 上）：端点的测试把它当成 `process` 包的程序让核心拉起，三个平台都能真跑。不随发行带出去。
+[[bin]]
+name = "miyu-test-extension"
+path = "src/bin/miyu-test-extension.rs"
+test = false
+doc = false
+
 [dependencies]
 # 时区：核心所在的机器现在的偏移，写进会话的环境。
 jiff = "0.2"
@@ -41,8 +48,8 @@ miyu-drivers = { path = "../miyu-drivers" }
 # 协议是 JSON-RPC 2.0（04-核心协议.md P1）。
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-# 连接是异步的字节流：一行一条消息。接不了连接时歇一会儿再接。
-tokio = { version = "1", features = ["io-util", "macros", "rt", "sync", "time"] }
+# 连接是异步的字节流：一行一条消息。接不了连接时歇一会儿再接。拉起扩展、经它的标准输入输出说协议（施工 9-4 上）。
+tokio = { version = "1", features = ["io-util", "macros", "process", "rt", "sync", "time"] }
 # 运行日志的门面（施工 3-7 上）。
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 # 撤销时之后又被改过的文件，算她改完的和现在的差异（施工 4-7 下）：Rust 里通用的那一个，只开文本。
