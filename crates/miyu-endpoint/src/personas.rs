@@ -21,9 +21,10 @@ pub(crate) mod write;
 
 const TARGET: &str = "miyu::endpoint";
 
-/// 这个核心的几层人格：出厂、系统区、管理员的家目录。
+/// 这个核心的几层人格：出厂、系统区、管理员的家目录。系统账号没有自己的一层，记忆归管理员（施工 O-4 下）。
 pub(crate) fn personas(core: &Core) -> Personas {
     Personas::new(&core.resources, &core.root, &core.admin)
+        .with_system_accounts(core.system_accounts())
 }
 
 /// 找新会话的人格（施工 P-4 上，2026-10-08 项目主人：「人格允许为空」）：`wanted` 写了编号的是它，写了 `null` 的

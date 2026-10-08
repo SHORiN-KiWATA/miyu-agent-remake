@@ -82,6 +82,8 @@ impl std::error::Error for PersonaError {}
 pub struct Personas {
     dirs: Vec<(Layer, PathBuf)>,
     admin: AccountId,
+    /// 系统账号（施工 O-4 下）：属主是它们的会话，出厂、系统区的人格的记忆归管理员。
+    system: Vec<AccountId>,
 }
 
 impl Personas {
@@ -94,7 +96,15 @@ impl Personas {
                 (Layer::Home, root.account_dir(admin).join("personas")),
             ],
             admin: admin.clone(),
+            system: Vec::new(),
         }
+    }
+
+    /// 同一份，认 `system` 是系统账号（施工 O-4 下）：[`Personas::memory_account`] 照它把系统账号的会话的记忆归给管理员。
+    #[must_use]
+    pub fn with_system_accounts(mut self, system: Vec<AccountId>) -> Personas {
+        self.system = system;
+        self
     }
 
     /// 找人格 `id`，几层叠好。
@@ -222,9 +232,13 @@ impl Personas {
     }
 
     /// 用人格 `id`、属主是 `owner` 的会话，记忆归哪个账号（和记忆的会话对过，`17-记忆.md` L16，`personas.md`「怎么走」第 5 条）：
-    /// 人格住在谁的家目录就归谁；出厂、系统区的人格归会话的属主。属主是系统账号的归管理员，随 O-4。造会话、载入都照它。
+    /// 人格住在谁的家目录就归谁；出厂、系统区的人格归会话的属主，属主是系统账号的归管理员（施工 O-4 下）。造会话、载入都照它。
     pub fn memory_account(&self, id: &str, owner: &AccountId) -> AccountId {
-        self.home_of(id).unwrap_or_else(|| owner.clone())
+        self.home_of(id)
+            .unwrap_or_else(|| match self.system.contains(owner) {
+                true => self.admin.clone(),
+                false => owner.clone(),
+            })
     }
 
     /// 几层里所有人格的编号，照编号排好，不重复。目录名不合写法的不算；读不了的一层当没有。

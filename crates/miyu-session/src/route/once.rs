@@ -249,6 +249,8 @@ impl OneShot {
                     ..
                 } => classified,
             };
+            // 池的成员回了 404：后台确认它是不是下架了（施工 8-23）。
+            picked.check_gone(config, classified.error.status);
             let switch = picked.failed(&classified.error.class, classified.retry_after_ms, false);
             if !switch.failover || switch.wait_ms.is_some() || switched == FAILOVERS {
                 return Err(Unanswered::Failed(classified.error));

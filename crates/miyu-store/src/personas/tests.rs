@@ -224,6 +224,11 @@ fn memory_goes_to_the_home_the_persona_lives_in() {
         owner,
         "不合写法的不找"
     );
+    // 属主是系统账号的（施工 O-4 下）：出厂、系统区的人格归管理员，家目录里的照旧归那个账号。
+    let system = personas.clone().with_system_accounts(vec![owner.clone()]);
+    assert_eq!(system.memory_account("engineer", &owner).as_str(), "admin");
+    assert_eq!(system.memory_account("shared", &owner).as_str(), "admin");
+    assert_eq!(system.memory_account("miyu", &owner).as_str(), "admin");
     assert_eq!(
         personas
             .home_of("miyu")

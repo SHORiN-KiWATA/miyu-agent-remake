@@ -68,7 +68,8 @@ pub(crate) async fn query(core: &Arc<Core>, params: QueryParams) -> Result<Value
     let query = read(params, crate::sessions::offset)?;
     let currency = UsageSettings::from(&core.config().resolved().values()).currency;
     let usage = Arc::clone(&core.usage);
-    let accounts = vec![core.admin.clone()];
+    // 系统账号的算进总数，照 `account` 能分开看（施工 O-4 下）。
+    let accounts = core.accounts();
     let group = query.group.clone();
     let totals = tokio::task::spawn_blocking(move || match caught_up(&usage, &accounts, &query) {
         Ok(totals) => Ok(totals),

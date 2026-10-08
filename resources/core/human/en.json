@@ -231,22 +231,6 @@
       "external.bindings.<external>": {
         "name": "Owner's platform accounts",
         "description": "Which platform identity is which local account. The key is the platform identity (for example qq:10001), the value is the local account. In private chats that identity is that account itself."
-      },
-      "onebot.listen": {
-        "name": "QQ bridge port",
-        "description": "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws. Changes saved on the QQ bridge web page take effect at once."
-      },
-      "onebot.web": {
-        "name": "QQ bridge web port",
-        "description": "The port of the QQ bridge's own web page (NapCat connection, token), local only. Open it with miyu-onebot web. Changes saved on that page take effect at once."
-      },
-      "onebot.token": {
-        "name": "QQ bridge token",
-        "description": "The access token NapCat shows when it connects; set the same one in NapCat. Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Without it the QQ bridge still starts but refuses NapCat; you can generate one on the QQ bridge web page. After a change, NapCat's next connection uses the new one."
-      },
-      "onebot.trusted": {
-        "name": "QQ bridge friends",
-        "description": "People who can call her in private chat, with no rate limit, even while she sleeps: a list of platform identities, for example [\"qq:20017\"]. Edit it on the QQ bridge web page. The QQ bridge uses it once groups are connected."
       }
     },
     "pages": {
@@ -268,8 +252,7 @@
       "providers": "Providers",
       "catalog": "Model catalog",
       "cooldown": "Cooldown",
-      "external": "Platform accounts",
-      "onebot": "QQ bridge"
+      "external": "Platform accounts"
     }
   },
   "said": {
@@ -388,6 +371,7 @@
     "package-problems/not_bool": "{detail} must be true or false",
     "package-problems/settings_taken": "The package id {detail} is also a core settings section, so none of its settings count; give it another id",
     "package-problems/bad_capability": "Unknown or repeated capability: {detail}",
+    "package-problems/account_taken": "System account name already taken: {detail}",
     "package-problems/check_failed": "The package's own check did not finish: {detail}",
     "package-problems/check_unavailable": "{detail} was not found, so the package's own check did not run",
     "package-problems/check_output": "The package's own check printed {detail} lines that are not problems; they were skipped",

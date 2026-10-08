@@ -84,6 +84,7 @@ fn a_process_package_reads_its_start_check_and_settings() {
             args: vec!["serve".to_string()],
             start: Start::Manual,
             capabilities: Vec::new(),
+            system_account: false,
         })
     );
     assert_eq!(
@@ -103,6 +104,7 @@ fn a_process_package_reads_its_start_check_and_settings() {
             args: Vec::new(),
             start: Start::Manual,
             capabilities: Vec::new(),
+            system_account: false,
         }),
         "都不写：没有参数、等开关、不要能力"
     );
@@ -282,6 +284,46 @@ fn capabilities_are_read_in_the_table_order() {
         assert_eq!(wrong(&text), (code, Some(14)), "{list}");
     }
     assert_eq!(Code::BadCapability.as_str(), "bad_capability");
+}
+
+/// 系统账号（施工 O-4 下）：`[process] system_account` 是开关，不写是假；不是开关的报 `not_bool`，说是哪一行。界面的包
+/// 没有这一格。
+#[test]
+fn a_process_package_may_declare_a_system_account() {
+    let with = |line: &str| {
+        BRIDGE.replace(
+            "start = \"manual\"\n",
+            &format!("start = \"manual\"\n{line}\n"),
+        )
+    };
+    assert!(
+        read(&with("system_account = true"))
+            .unwrap()
+            .process
+            .unwrap()
+            .system_account
+    );
+    assert!(
+        !read(&with("system_account = false"))
+            .unwrap()
+            .process
+            .unwrap()
+            .system_account
+    );
+    assert!(
+        !read(BRIDGE).unwrap().process.unwrap().system_account,
+        "不写是假"
+    );
+    assert_eq!(
+        wrong(&with("system_account = \"yes\"")),
+        (Code::NotBool, Some(14))
+    );
+    let ui = TUI.replace(
+        "opens = [\"config\"]\n",
+        "opens = [\"config\"]\nsystem_account = true\n",
+    );
+    assert_eq!(wrong(&ui).0, Code::UnknownKey);
+    assert_eq!(Code::AccountTaken.as_str(), "account_taken");
 }
 
 #[test]

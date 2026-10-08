@@ -1,6 +1,8 @@
 //! 跟核心的那一头（`onebot.md` 第一条「怎么走」第 1、7 到 11 条）：在给的管道（[`Pipe`]：程序里是核心亲手给的标准输入输出，
 //! 施工 O-18；测试里是内存里的管道）上握手，不带凭据（`protocol.md`「握手」第 3 条）；之后说 JSON-RPC，一行一条。管道上只有
-//! 协议：桥别处不往标准输出写。握手等回应有期限（`bridge.json` 的 `hello_seconds`）：从终端跑起来的等不到就退。
+//! 协议：桥别处不往标准输出写。握手等回应有期限（`bridge.json` 的 `hello_seconds`）：从终端跑起来的等不到就退。握手的回应里
+//! 核心交来这个包自己的配置（`config`，施工 O-20，`extensions.md`「配置」），之后变了推 `extension.config`，`route` 交给
+//! `serve`。
 //!
 //! 一条连接只有一个用的人（`route`）：它发一条请求、等到回应才发下一条；等回应时来的推送留着，之后照先后交出去，一条都
 //! 不丢（照终端的头的 `rpc.rs`）。命令编号自己编的（`venue.session`、`subscribe`）带一段随机前缀：同一个编号再发，核心交回
@@ -40,6 +42,11 @@ pub(crate) struct Core {
     reading: JoinHandle<()>,
     /// 握手回的语言：`zh`、`en`、`ja` 之一。
     pub(crate) language: String,
+    /// 握手回应交来的配置（施工 O-20）：没带这一格的是 `null`，读的一方照默认值（`crate::settings::Settings::handed`）。
+    pub(crate) config: Value,
+    /// 握手回的桥自己的账号（核心 O-4 中以后是系统账号 `onebot`）：`venue.session` 回的会话属主是它的，是陌生人（`route`，
+    /// 「施工时定的」第 49 条）。没回的是空的。
+    pub(crate) account: Option<String>,
 }
 
 impl Core {
@@ -64,6 +71,8 @@ impl Core {
             next: 0,
             reading: tokio::spawn(read_all(BufReader::new(pipe.read), sender)),
             language: String::new(),
+            config: Value::Null,
+            account: None,
         };
         let hello = json!({
             "protocol": [1, 1],
@@ -84,6 +93,8 @@ impl Core {
             return Err(Failure::Core("hello reply without a language".to_string()));
         };
         core.language = language.to_string();
+        core.config = reply["result"]["config"].clone();
+        core.account = reply["result"]["account"].as_str().map(str::to_string);
         Ok(core)
     }
 

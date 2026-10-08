@@ -67,7 +67,9 @@ impl Sessions {
         open.created
             .retain(|(_, session)| session != id && !family.contains(session));
         let (root, account, at) = (core.root.clone(), owner, now());
-        let index = Arc::clone(&core.index);
+        // 回合库照记忆归谁找：系统账号的会话记在管理员名下（施工 O-4 下）。
+        let remembered = core.memory_owner(&account);
+        let index = core.index_for(&account);
         let recall = Arc::clone(&core.memory.turns);
         let order: Vec<SessionId> = family.into_iter().rev().chain([id.clone()]).collect();
         let listing = Arc::clone(core);
@@ -76,9 +78,11 @@ impl Sessions {
                 trash::discard(&root, &account, &session, at)
                     .map_err(|error| (session.clone(), error))?;
                 // 挪走了才删那一行（施工 3-8 七补）：半路崩了，还在原处的照旧列得出来。
-                forget(&index, &session);
+                if let Some(index) = &index {
+                    forget(index, &session);
+                }
                 // 回合库里它的也拿掉（施工 R-2 上，`memory.md` 第一条第 7 款）：派生的，拿不掉只记一行，不挡删会话。
-                if let Err(error) = recall.forget_session(&account, &session) {
+                if let Err(error) = recall.forget_session(&remembered, &session) {
                     tracing::warn!(target: "miyu::endpoint", session = session.as_str(), error = %error, "memory index not updated");
                 }
                 // 会话列表的推送（施工 9-5）：挪走一个报一个。

@@ -26,9 +26,6 @@ pub struct Tuning {
     pub inbound_queue: usize,
     /// 接不了 TCP 连接（打开的文件太多这类）时，歇几毫秒再接，不空转（照核心的规矩）。
     pub accept_retry_millis: u64,
-    /// NapCat 出示的令牌对不上（或者桥手里还没有）时重读配置，离上一次这样重读不到几秒的不读（第 2 条，施工 O-16 补二）：
-    /// 乱连的不能把读配置变成负担。
-    pub reload_seconds: u64,
     /// 跟核心握手，最多等几秒回应（第 1 条，施工 O-18）：从终端跑起来的等不到就退，说 `serve` 只由核心拉起。
     pub hello_seconds: u64,
     /// `logs -f` 隔几毫秒看一次运行日志长了没有（施工 O-18）。
@@ -83,11 +80,6 @@ impl Tuning {
     /// 接不了连接时歇多久。
     pub fn accept_retry(&self) -> Duration {
         Duration::from_millis(self.accept_retry_millis)
-    }
-
-    /// 令牌对不上时，两次重读配置至少隔多久。
-    pub fn reload(&self) -> Duration {
-        Duration::from_secs(self.reload_seconds)
     }
 
     /// 跟核心握手最多等多久。

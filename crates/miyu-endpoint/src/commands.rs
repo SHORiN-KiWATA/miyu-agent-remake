@@ -113,7 +113,7 @@ pub(crate) async fn run(
         (true, None) => admin(core),
         (true, Some(_)) => return Err(Refusal::BAD_PARAMS),
         (false, None) => return Err(Refusal::VENUE_SESSION),
-        (false, Some(speaking)) => venues::speaker(core, handle.venue(), &core.admin, speaking)?,
+        (false, Some(speaking)) => venues::speaker(core, handle.venue(), handle.owner(), speaking)?,
     };
     if !may_run(&by) {
         return Err(Refusal::COMMAND_NOT_ALLOWED);

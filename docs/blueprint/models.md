@@ -308,7 +308,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 |---|---|
 | `providers` | 配好的供应商，照编号排。每一家：`id`、`name`（显示名，施工 8-21：`{"value", "from", "key"}`，`from` 是 `config`（写了的，另带 `file`、`line`、`layer`，照资料那一格的写法）、`catalog`（目录里对上的那一家的名字）、`id`（都没有，照编号）；`key` 是完整的配置键名 `providers.<编号>.name`，头照抄它发 `config.set`；用不了的那一家也有）、`driver`、`base_url`（照配置写的样子交：写死的是地址本身，是 `{ env = … }` 的交 `{"env": "…"}`，不解出地址，施工 8-6b）、`key`（8-25：这一家的 key，`ref` 是 `secret:<名字>` 或 `env:<变量>`，`set` 有没有值，`state`；没写 key 的没有这一格）、`catalog`（对上了目录里的哪一家，`how` 是怎么对上的：`config` 手写、`id` 编号一样、`similar_id` 去掉分隔以后一样、`url` 地址一样，没对上的不写）、`models`；`driver_from`：驱动从哪来，`config`（手写的）、`profile`（档案的）、`catalog`（目录那一家的 `npm` 换的）、`default`（都推不出，用 `openai-chat`），施工 8-26。这一家用不了的（推不出地址，驱动还没有）：`driver`、`base_url` 照手写的，没写的是 `null`，没有 `driver_from`，多一格 `problem`（`no_model` 的那一句原话），`models` 是空的（8-7） |
 | `models` 里的每一个 | `model` 模型名、`ref` 写成引用的样子、`listed` 从哪几处列出来的（`config`、`provider`、`catalog`，照这个先后）、`facts` 每一格的 `value` 和来源（上面「模型的资料」，十二格都在：`window`、`max_output`、`inputs`、`tools`、`reasoning`、`effort`（8-18：配置的默认；没写的、写的不在档位里的是 `{"value":null,"from":"default"}`；多一格 `key`，8-18（补）：这一项完整的配置键名，模型名带点的加好引号，例如 `providers.dev.models."deepseek-v4.1-flash".effort`，头照抄它发 `config.set`（个人设置），选「默认」就发 `unset: true`）、`takes_temperature`（8-22：目录说的能不能调，`true`、`false`，没说的是 `null`、`default`；头照它决定温度那一格能不能改）、`temperature`（8-22：配置的默认，这个模型用不了的、没写的是 `{"value":null,"from":"default"}`；和 `effort` 一样多一格 `key`，头照抄它发 `config.set`，选「默认」发 `unset: true`）、`price`、`multiplier`、`name`、`status`）、`state`。手写指定的目录条目不存在的，多一格 `catalog_missing`：写的那个条目（8-7） |
-| `pools` | 每个池，照名字排：`name`、`strategy`（生效的分法：写了的照写的，没写的照成员定，一个成员都认不出的照写的或 `pin`）、`models`（照配置写的原样，认不出的也在）（8-8）；`subagent`（开关，没写的是 `false`）、`description`（没写的是 `null`）（8-8 补）。8-8 的 `tiers` 8-8 补去掉了 |
+| `pools` | 每个池，照名字排：`name`、`strategy`（生效的分法：写了的照写的，没写的照成员定，一个成员都认不出的照写的或 `pin`）、`models`（照配置写的原样，认不出的也在）（8-8）；`usable`（成员不是空的；下架的模型拿空了的池留着，标成假，8-23）；`subagent`（开关，没写的是 `false`）、`description`（没写的是 `null`）（8-8 补）。8-8 的 `tiers` 8-8 补去掉了 |
 | `uses` | `chat`、`vision` 各配的引用，没配的是 `null`（8-7 只有 `chat`，8-8 加 `vision`） |
 | `catalog` | 在用的目录：`source`（`snapshot` 或 `cache`）、`fetched`；两份都读不了的是 `null` |
 
@@ -832,6 +832,13 @@ opencode 有两个端点：Zen（`https://opencode.ai/zen/v1`，按量付费）�
 6. **头看得到**：`model.list` 的 `facts.takes_temperature`、`facts.temperature`（多一格 `key`，照 `facts.effort.key` 的写法）。头照 `takes_temperature` 决定温度那一格能不能改，照 `key` 发 `config.set`（写个人设置），选「默认」发 `unset: true`。
 7. **不记**：温度不进会话日志（`model.called`、`session.created` 不记），`subscribe`、`model.changed` 不带。
 
+**十五、下架的模型移出池**（8-23；2026-10-04 项目主人转来，2026-10-08 照推荐定「列表和报错都说没有才算」，施工单 `8-23-下架的模型移出池（要补）.md`）
+
+1. **怎么算下架**：发给池的成员的请求回了 404（照状态码，不照原话），而且当场再拉一次这一家的模型列表（`refresh_list`，拉成了照常换上），里面没有它。拉不成的、列表里还有它的不算。直接写在 `models.chat`、`models.vision` 的不查：那是人明着写的，撞上了照旧报错。
+2. **在哪查**：路由出错收场时（会话的请求、一次性调用都算，`route/retire.rs`），不挡这一次：这一次照旧照分类收场（404 是 `other`，不换端点）。后台拉列表，同一个模型同一时间只查一次。查完了交给端口 `miyu_session::Retirement`（核心起来时端点装上，`Core::start_retirement`），在阻塞线程里调。运行日志：下架了的 `INFO model gone provider=… model=…`，没下架的 `DEBUG model not gone`。
+3. **拿掉**：端点照两层（系统配置、个人设置）的文件里写着它的 `pools.<名字>.models`，一层一次 `config.set` 那一条路写：拿掉它，别的成员照原样；手改保护、推 `config.changed`（`by` 是 `{"kind":"kernel"}`）、日志都照常。记一行 `INFO model retired model=… pools=…`；写不成的 `WARN model not retired`，下一次撞上再来。
+4. **删空了的池留着**：名字可能还被 `models.chat`、预设、派子代理引用着。`model.list` 的 `pools` 每个多一格 `usable`：成员是空的是假；照它挑的照旧 `no_model`。
+
 ### 样子
 
 配置（例子，地址用 `.invalid`）：
@@ -986,6 +993,8 @@ mimo = ["xiaomi"]
 | `INFO` | `learned window provider=… model=… window=…` | 用出来的窗口 |
 | `INFO` | `endpoint cooling provider=… key=… model=… class=… for_ms=… failures=…` | 记冷却（没写 key 的没有 `key`） |
 | `INFO` | `failover from=… to=… class=…`（8-25 起没有只换 key 的那一种） | 换端点 |
+| `INFO` | `model gone provider=… model=…`、`model retired model=… pools=…` | 池的成员下架了：路由确认了、端点从池里拿掉了（8-23） |
+| `WARN` | `model not retired model=… layer=… reason=…` | 下架的模型写不回配置（8-23） |
 | `INFO` | `model fallback session=… from=… to=…` | 钉着的没了，退回默认 |
 | `WARN` | `pool member skipped pool=… member=…` | 池里认不出的成员（那一家没配），路由每次解析记一行（8-8） |
 | `DEBUG` | `unknown model why=…` | `session.create`、`model.call`（8-20）的 `model` 解析不出，回 `unknown_model`（8-8，目标 `miyu::endpoint`） |
@@ -1073,6 +1082,7 @@ mimo = ["xiaomi"]
 | `crates/miyu-cli/tests/ask.rs` | `miyu ask --model`：新开的照它造，接着的先换（`@池`）再说，换不成的（连同以前的挡位名）退出码 1、不发话 | 8-10、8-8 补 |
 | `crates/miyu-kernel/src/event/*/tests.rs`、`crates/miyu-kernel/tests/samples.rs` | 新的几格读写一字不差，以前的日志照读，样本对得上（8-8：`session/tests.rs` 的 `session.created.model`，写在最后、`null` 当没有、不是字的读不进来） | 8-8、8-10、8-15 |
 | `crates/miyu-endpoint/tests/models.rs`、`models_pools.rs` | `model.list` 的形状、来源、状态，用不了的一家、手写指定不存在的、只看一家、`unknown_provider`，`refresh` 拉完再答、不写的在后台拉（8-7）；冷却：模型照能用的 key 里最好的那个、都在冷却的带最早恢复的、认证失败停了的 key、取不到值的 key 不算（8-9）；`models_pools.rs`（8-8）：`pools`（8-8 补多 `subagent`、`description`，没有 `tiers`）、`uses` 的形状，用途池里点名的模型也列，`session.create` 的 `model` 记下解析出的、几种 `unknown_model`（连同以前的挡位名）什么都不造、不是字的 `bad_params`，真核心派子代理时子会话照 `pool`、抄父会话记下的，`bad_reference` 的问题、话、`config_errors`，`config.check` 照新的字查；`session.configure` 记下解析出的、先推再回应、一样的不记、参数不对和解析不出的什么都不记，`subscribe` 的 `model` 照真路由（8-10，`models_pools.rs`；`limits.rs` 照蓝图的例子一字不差）；`model.list` 的 `facts` 里来源是配置的带 `layer`，个人设置压着系统配置（`models.rs`，8-7（补）） | 8-7 到 8-10；8-7（补） |
+| `crates/miyu-session/tests/route_retire.rs`、`crates/miyu-endpoint/tests/models_retire.rs` | 下架的模型（8-23）：池的成员回 404、当场拉的列表里没有它的交「下架了」，列表里还有、拉不成的交「没下架」，别的错、直接写着的不查不拉；端点从两层里写着它的池都拿掉、推 `config.changed`（`by` 是内核）、删空了的池留着 `usable` 是假、`models.chat` 不动，列表里还有的不动 | 8-23 |
 | `crates/miyu-models/src/onboard/tests.rs` | 找哪些变量（只有一个名字的、几家同名一家一条）、只探本机能用的几家、档案的一家也列、名字档案的先；搜（编号、名字、不分大小写）、排（能用的先、名字不分大小写）、`limit`；推荐（够格的里发布最晚的、没日期的排后、一样的取靠前的、都不够格取第一个、`deprecated`、窗口、工具）；候选写成的最终值和写进配置的一样推、`{value}` 的引用不和真的密钥撞名 | 8-11 |
 | `crates/miyu-endpoint/tests/providers.rs`、`providers_test.rs` | `provider.detect` 照交进来的环境找、值不交、空白的不算设了，本机的服务几家一起探（假服务器等三家都到了才回，挨个探的一家都探不到）、300 毫秒没回的、回错的、读不出的当没有，配好的写 `configured`（变量、地址），`looked_for` 不带值；`provider.catalog` 搜、排、`supported`、`local` 的标法、`limit`、参数不对，`featured` 照资源的先后、名字照语言、中文挑国内的、目录里没有的跳过、不看 `query` 和 `limit`（8-11 再补）；`provider.test`（`providers_test.rs`）对假服务器：成了交 `first_token_ms`、收到第一段正文就停（假服务器停住不动也照样成了）、只有一条 user 没有工具、配好的存列表、候选不存、`{value}` 去掉前后空白，列不出的照目录列，认证失败交分类、状态、原话，推荐的不是列表第一个，推不出的 `config`，没有模型可试的 `list`，参数不对、`unknown_provider` | 8-11 |
 | `crates/miyu-core/tests/catalog.rs`、`crates/miyu-core/src/models/tests.rs` | 快照和缓存挑新的、坏的退回另一份、没有 `meta` 的当最旧、都坏照样起来，后台拉（写缓存、换上）、304、失败一小时后再试，关掉 `update` 不拉、打开当场拉；出厂的快照、`meta`、认原厂的表读得进、表里的原厂都在目录里 | 8-7 |

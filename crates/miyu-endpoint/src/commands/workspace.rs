@@ -37,7 +37,7 @@ pub(super) async fn run(
         return Ok((Vec::new(), said));
     }
     let wanted = absolute(core, asked, head.unwrap_or(&found.cwd))?;
-    let cwd = checked(core, &wanted)?;
+    let cwd = checked(core, found.handle.owner(), &wanted)?;
     let change = Command::SetWorkspace {
         cwd: cwd.clone(),
         dirs: None,

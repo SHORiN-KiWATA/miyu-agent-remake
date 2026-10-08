@@ -231,22 +231,6 @@
       "external.bindings.<external>": {
         "name": "主人のプラットフォームのアカウント",
         "description": "通信プラットフォームのどの番号がどのローカルアカウント本人かです。キーにプラットフォーム上の ID（例：qq:10001）、値にローカルアカウントを書きます。個人チャットでは、その番号がそのアカウント本人です。"
-      },
-      "onebot.listen": {
-        "name": "QQ ブリッジのポート",
-        "description": "NapCat のリバース WebSocket が接続してくるポートです。このマシンからだけ受け付けます。NapCat 側のアドレスは ws://127.0.0.1:<ポート>/ws です。QQ ブリッジの Web ページで変えて保存すると、すぐ反映されます。"
-      },
-      "onebot.web": {
-        "name": "QQ ブリッジの Web ページのポート",
-        "description": "QQ ブリッジ自身の Web ページ（NapCat の接続、トークン）のポートです。このマシンからだけ受け付けます。miyu-onebot web で開きます。そのページで変えて保存すると、すぐ反映されます。"
-      },
-      "onebot.token": {
-        "name": "QQ ブリッジのトークン",
-        "description": "NapCat が接続するときに示すアクセストークンです。NapCat 側にも同じものを設定します。{ secret = \"名前\" }（miyu login で保存）か { env = \"環境変数\" } を書きます。未設定でも QQ ブリッジは起動しますが、NapCat の接続は拒否します。QQ ブリッジの Web ページで生成できます。変えると、NapCat の次の接続から新しいものを使います。"
-      },
-      "onebot.trusted": {
-        "name": "QQ ブリッジの仲間",
-        "description": "個人チャットで呼べて、回数制限がなく、寝ている間も個人チャットが通る人です。プラットフォーム上の ID のリストで書きます。例：[\"qq:20017\"]。QQ ブリッジの Web ページで変えます。QQ ブリッジがグループにつながってから、これで人を見分けます。"
       }
     },
     "pages": {
@@ -268,8 +252,7 @@
       "providers": "プロバイダー",
       "catalog": "モデルカタログ",
       "cooldown": "クールダウン",
-      "external": "プラットフォームのアカウント",
-      "onebot": "QQ ブリッジ"
+      "external": "プラットフォームのアカウント"
     }
   },
   "said": {
@@ -388,6 +371,7 @@
     "package-problems/not_bool": "{detail} は true か false です",
     "package-problems/settings_taken": "パッケージ ID {detail} がコアの設定と重なるため、その設定項目は一つも使いません。別の ID にしてください",
     "package-problems/bad_capability": "不明な拡張能力、または重複しています: {detail}",
+    "package-problems/account_taken": "システムアカウント名はすでに使われています: {detail}",
     "package-problems/check_failed": "パッケージ自身のチェックが終わりませんでした：{detail}",
     "package-problems/check_unavailable": "{detail} が見つからないため、パッケージ自身のチェックは動きませんでした",
     "package-problems/check_output": "パッケージ自身のチェックが読めない行を {detail} 行出したので、飛ばしました",

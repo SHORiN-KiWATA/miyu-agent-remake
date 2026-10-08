@@ -63,7 +63,7 @@ async fn the_owners_private_chat_is_found_again_and_kept_off_the_local_list() {
     let again = venue(&mut client, "v2", private("qq:10001")).await;
     assert_eq!(
         again["result"],
-        json!({"session": session, "created": false})
+        json!({"session": session, "created": false, "account": "alice"})
     );
     let listed = client.call("l1", "session.list", json!({})).await;
     assert_eq!(
@@ -77,7 +77,7 @@ async fn the_owners_private_chat_is_found_again_and_kept_off_the_local_list() {
     let again = venue(&mut client, "v3", private("qq:10001")).await;
     assert_eq!(
         again["result"],
-        json!({"session": session, "created": false})
+        json!({"session": session, "created": false, "account": "alice"})
     );
 }
 

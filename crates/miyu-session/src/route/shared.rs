@@ -34,6 +34,8 @@ use miyu_store::usage::UsageIndex;
 
 use crate::TARGET;
 
+use super::retire::{Retirement, Retiring};
+
 /// 核心一份的模型资料。
 #[derive(Debug)]
 pub struct ModelData {
@@ -54,6 +56,9 @@ pub struct ModelData {
     local: Option<Client>,
     /// 用量汇总（施工 8-15）：一次性入口每发出去一次记一笔。核心起来时交进来（[`ModelData::keep_ledger`]）；没有的不记。
     ledger: Mutex<Option<Arc<UsageIndex>>>,
+    /// 下架的模型交给谁、正在确认的几个（施工 8-23，`route/retire.rs`）。核心起来时装上（[`ModelData::on_retirement`]）；没装的
+    /// 不确认。
+    retiring: Mutex<Retiring>,
     /// 占位工具给模型看的说明（施工 8-14 补）：档案点名了占位工具的供应商，工具面里缺这几件时补上
     /// （`route/placeholder.rs`）。没读到的（测试、老数据根）是空的，空的不补。
     placeholder_tool: String,
@@ -84,6 +89,7 @@ impl ModelData {
             fetcher: None,
             local: None,
             ledger: Mutex::new(None),
+            retiring: Mutex::new(Retiring::default()),
             placeholder_tool: String::new(),
         }
     }
@@ -91,6 +97,16 @@ impl ModelData {
     /// 一次性入口的用量记进 `ledger`（施工 8-15，`models.md`「怎么走」第九条第 4 条）：核心造家底时交进来，和会话写的是同一份。
     pub fn keep_ledger(&self, ledger: Arc<UsageIndex>) {
         *self.ledger.lock().unwrap_or_else(PoisonError::into_inner) = Some(ledger);
+    }
+
+    /// 池的成员回了 404 以后确认完了交给 `port`（施工 8-23）：核心造家底时交进来。
+    pub fn on_retirement(&self, port: Arc<dyn Retirement>) {
+        self.retiring().port = Some(port);
+    }
+
+    /// 下架的模型那一份（`route/retire.rs`）。
+    pub(super) fn retiring(&self) -> std::sync::MutexGuard<'_, Retiring> {
+        self.retiring.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
     /// 一次性入口记账的那一份；没交的没有。

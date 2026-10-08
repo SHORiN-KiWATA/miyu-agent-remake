@@ -71,7 +71,7 @@ pub async fn napcat(
     }
 }
 
-/// 照 `auth` 一直连，直到进得去（施工 O-16 补二：令牌刚设、刚换的，桥对不上时隔 `reload_seconds` 才重读一次配置）；回的不是
+/// 照 `auth` 一直连，直到进得去（施工 O-20：令牌刚推来的，桥换上以前那一下还照旧的比）；回的不是
 /// 401 的不再连。最多等十秒。
 pub async fn admitted(port: u16, path: &str, auth: Auth<'_>, self_id: Option<i64>) -> NapCat {
     within("NapCat 进得去", async {

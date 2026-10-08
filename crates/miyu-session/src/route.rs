@@ -44,6 +44,7 @@ mod once;
 mod placeholder;
 mod pool;
 mod probe;
+mod retire;
 mod send;
 pub(crate) mod shared;
 mod sight;
@@ -53,6 +54,7 @@ pub use lists::{STALE, refresh_list};
 pub use local::{LOCAL_WAIT, Running, find_local};
 pub use once::{Answer, Ask, OneShot, Unanswered};
 pub use probe::{Probe, Probed, Stage, probe};
+pub use retire::Retirement;
 pub use shared::{ModelData, Observed, read_observed};
 
 use std::future::Future;

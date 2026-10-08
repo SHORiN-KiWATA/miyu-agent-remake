@@ -8,6 +8,8 @@
 //! - `env:<名字>`：记下一行 `<名字>=<这个环境变量的值>`，没有的值是空的（施工 O-18）；
 //! - `hello`：发握手（不带凭据），读一行回应记下；
 //! - `call:<方法>`：发一条不带参数的请求，读一行回应记下；
+//! - `ask:<方法>:<JSON 参数>`：发一条带参数的请求，读一行回应记下；参数里的 `{session}` 换成最近一条带 `"session"` 的回应里
+//!   的会话编号（施工 O-4 下：造了场所会话接着对它说话）；
 //! - `wait`：读标准输入直到读到头；
 //! - `listen`：读标准输入直到读到头，读到的每一行都记下（施工 9-4 下下：核心推来的 `extension.config`）；
 //! - `hang`：不管标准输入，一直睡；
@@ -23,6 +25,8 @@ fn main() {
     let stdin = io::stdin();
     let mut input = stdin.lock();
     let mut record: Option<File> = None;
+    // 最近一条带会话编号的回应里的那个编号：`ask` 的参数照它换。
+    let mut session = String::new();
     for (n, step) in std::env::args().skip(1).enumerate() {
         if let Some(path) = step.strip_prefix("record:") {
             let mut file = OpenOptions::new()
@@ -48,6 +52,17 @@ fn main() {
                 r#"{{"jsonrpc":"2.0","id":"s{n}","method":"{method}","params":{{}}}}"#
             ));
             keep(&mut record, &read(&mut input));
+        } else if let Some(rest) = step.strip_prefix("ask:") {
+            let (method, params) = rest.split_once(':').expect("写成 ask:<方法>:<JSON 参数>");
+            let params = params.replace("{session}", &session);
+            send(&format!(
+                r#"{{"jsonrpc":"2.0","id":"s{n}","method":"{method}","params":{params}}}"#
+            ));
+            let reply = read(&mut input);
+            if let Some(id) = session_in(&reply) {
+                session = id;
+            }
+            keep(&mut record, &reply);
         } else if step == "wait" {
             while !read(&mut input).is_empty() {}
         } else if step == "listen" {
@@ -85,6 +100,13 @@ fn read(input: &mut impl BufRead) -> String {
         Ok(_) => line.trim_end().to_string(),
         Err(_) => String::new(),
     }
+}
+
+/// 一行回应里 `"session":"…"` 的那个编号；没有的是没有。只用标准库，不解析整份 JSON。
+fn session_in(line: &str) -> Option<String> {
+    let (_, rest) = line.split_once(r#""session":""#)?;
+    let (id, _) = rest.split_once('"')?;
+    Some(id.to_string())
 }
 
 /// 记下一行。

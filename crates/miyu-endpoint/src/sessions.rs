@@ -108,7 +108,7 @@ pub(crate) struct Found {
 }
 
 impl Sessions {
-    /// 造一个会话：属主是管理员，在本机；有没有人能确认照 `attended`；`miyu ask` 开的是一次性的。先找预设（`who.preset`，
+    /// 造一个会话：属主照 `who.owner`（施工 O-4 下：连接是谁，场所会话照对应表、系统账号定的）；有没有人能确认照 `attended`；`miyu ask` 开的是一次性的。先找预设（`who.preset`，
     /// 没写的照默认预设，施工 P-2 上，`presets.rs`），再找人格：`persona` 照 [`personas::resolve`]，预设不再参与（施工 P-4
     /// 上，2026-10-08 项目主人：只去掉预设的「默认人格」）。同一个命令编号重发，交回上一次造的那一个，预设、人格都不再找。
     pub(crate) async fn create(
@@ -132,7 +132,7 @@ impl Sessions {
                 open.created.pop_front();
             }
         }
-        let workspace = workspace(core, &cwd);
+        let workspace = workspace(core, &who.owner, &cwd);
         // 开局只读照这个会话实际干活的目录算，带上信任着的项目配置（`config.md` 第二条第 9 条）。
         let (resolved, project) = core.config().with_project(&workspace);
         let untrusted = project.and_then(|project| project.untrusted());
@@ -158,13 +158,16 @@ impl Sessions {
                 .map(|found| found.texts.clone())
                 .unwrap_or_default(),
             personas: personas::personas(core),
-            memory_account: personas::memory_account(persona.as_ref(), &core.admin),
+            memory_account: personas::memory_account(
+                persona.as_ref(),
+                &core.memory_owner(&who.owner),
+            ),
             memory_scope: who
                 .memory
                 .or(persona.as_ref().and_then(|found| found.file.memory))
                 .unwrap_or(MemoryScope::Persona),
             venue: who.venue.clone().unwrap_or_else(local),
-            owner: core.admin.clone(),
+            owner: who.owner.clone(),
             permission: Permission {
                 level: Level::Workspace,
                 read_only,
@@ -178,13 +181,13 @@ impl Sessions {
             tools: &core.tools,
             home: core.home.as_deref(),
             sandbox: core.sandbox.helper(),
-            sandbox_cache: core.sandbox_cache_of(&core.admin),
+            sandbox_cache: core.sandbox_cache_of(&who.owner),
             lineage: None,
             sessions: Some(spawn::port(core)),
             jobs: &core.jobs,
-            index: core.index_for(&core.admin),
-            usage: core.usage_for(&core.admin),
-            memory: core.memory_for(&core.admin),
+            index: core.index_for(&who.owner),
+            usage: core.usage_for(&who.owner),
+            memory: core.memory_for(&who.owner),
             configs: core.hub.configs(),
             model: who.model,
             preset: Some(presets::chosen(core, preset)),
@@ -278,7 +281,10 @@ impl Sessions {
                 .map(|found| found.texts.clone())
                 .unwrap_or_default(),
             personas: personas::personas(core),
-            memory_account: personas::memory_account(persona.as_ref(), &child.owner),
+            memory_account: personas::memory_account(
+                persona.as_ref(),
+                &core.memory_owner(&child.owner),
+            ),
             memory_scope: MemoryScope::Off,
             venue: child.venue,
             sandbox_cache: core.sandbox_cache_of(&child.owner),
@@ -351,6 +357,8 @@ impl Sessions {
 /// 造会话时要记下的几样：有没有人能确认，是不是一次性的，用哪个模型。
 #[derive(Debug, Clone)]
 pub(crate) struct Opening {
+    /// 属主（施工 O-4 下）：`session.create` 的是连接是谁，`venue.session` 的照对应表、系统账号定。
+    pub(crate) owner: AccountId,
     /// 有没有人能确认：头握手时报的。
     pub(crate) attended: bool,
     /// 一次性的：`miyu ask` 开的（施工 3-9 下）。
@@ -442,13 +450,13 @@ fn dir_too_wide(core: &Core, dir: &str) -> bool {
 }
 
 /// 拿头报上来的 `cwd` 当工作区。太宽的（`~` 本身、系统的家目录、根目录，包含数据根或者落在数据根里），退回
-/// 管理员的工作区 `home/<账号>/workspace/`（`11-权限与沙盒.md` 第四节，施工 4-3 下）。换不成真实位置的照原样：
-/// 说不清它宽不宽，用到时工具自己报错。
-pub(crate) fn workspace(core: &Core, cwd: &str) -> String {
-    let own = core.root.workspace(&core.admin);
+/// 会话的属主 `owner` 的工作区 `home/<账号>/workspace/`（`11-权限与沙盒.md` 第四节，施工 4-3 下；施工 O-4 下起照属主，
+/// 系统账号的场所会话退回它自己的）。换不成真实位置的照原样：说不清它宽不宽，用到时工具自己报错。
+pub(crate) fn workspace(core: &Core, owner: &AccountId, cwd: &str) -> String {
+    let own = core.root.workspace(owner);
     let fallback = || {
         // 建家目录时就建了；老的数据根里可能还没有，补上。建不了的照样退回：用到时工具自己报错。
-        if let Err(error) = core.root.prepare_home(&core.admin) {
+        if let Err(error) = core.root.prepare_home(owner) {
             tracing::warn!(target: "miyu::endpoint", kind = ?error.kind(), "workspace not prepared");
         }
         own.to_string_lossy().into_owned()

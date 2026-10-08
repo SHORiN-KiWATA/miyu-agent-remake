@@ -19,7 +19,9 @@ async fn when_the_core_closes_the_pipe_the_bridge_stops_quietly() {
         let mut lines = BufReader::new(reader).lines();
         let line = lines.next_line().await.expect("读得了").expect("有一行");
         let hello: Value = serde_json::from_str(&line).expect("是 JSON");
-        let reply = json!({"jsonrpc": "2.0", "id": hello["id"], "result": {"protocol": 1, "language": "zh"}});
+        // 照核心拉起扩展的样子交两个端口（施工 O-20）：0 让系统挑，不碰出厂的 8301、8302。
+        let config = json!({"onebot.listen": 0, "onebot.web": 0});
+        let reply = json!({"jsonrpc": "2.0", "id": hello["id"], "result": {"protocol": 1, "language": "zh", "config": config}});
         writer
             .write_all(format!("{reply}\n").as_bytes())
             .await
@@ -62,7 +64,7 @@ async fn without_a_hello_reply_it_says_the_core_starts_it() {
         ..serve(root, settings())
     };
     // 核心那一头开着、一直不回：照从终端跑起来的样子。
-    let ran = within("桥退出", run(serve, |_| {}, std::future::pending())).await;
+    let ran = within("桥退出", run(serve, |_| {}, |_| {}, std::future::pending())).await;
     drop(core_end);
     assert_eq!(ran, Err(Failure::NotSpawned));
     if std::fs::remove_dir_all(&dir).is_err() {
@@ -80,7 +82,7 @@ async fn a_pipe_closed_during_hello_is_a_failure_to_reach_the_core() {
         pipe: Pipe::new(read, write),
         ..serve(root, settings())
     };
-    let ran = within("桥退出", run(serve, |_| {}, std::future::pending())).await;
+    let ran = within("桥退出", run(serve, |_| {}, |_| {}, std::future::pending())).await;
     assert!(matches!(ran, Err(Failure::Core(_))), "{ran:?}");
     if std::fs::remove_dir_all(&dir).is_err() {
         // 删不掉就留在临时目录里，不影响测试。

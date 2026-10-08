@@ -29,8 +29,6 @@ fn the_shipped_numbers_are_the_blueprints() {
     assert_eq!(tuning.write_queue, 64);
     assert_eq!(tuning.inbound_queue, 256);
     assert_eq!(tuning.accept_retry(), Duration::from_millis(100));
-    // 令牌对不上时最多一秒重读一次配置（施工 O-16 补二）。
-    assert_eq!(tuning.reload(), Duration::from_secs(1));
     // 跟核心握手最多等 10 秒；`logs -f` 半秒看一次（施工 O-18）。
     assert_eq!(tuning.hello(), Duration::from_secs(10));
     assert_eq!(tuning.follow(), Duration::from_millis(500));
@@ -78,8 +76,12 @@ fn a_bad_file_is_not_read_and_named() {
             good.replace("\"accept_retry_millis\": 100", "\"x\": 1"),
         ),
         (
-            "reload-missing",
-            good.replace("\"reload_seconds\": 1", "\"y\": 1"),
+            // 令牌对不上时重读配置的节流去掉了（施工 O-20）：再写它是多一格。
+            "reload-again",
+            good.replace(
+                "\"hello_seconds\"",
+                "\"reload_seconds\": 1,\n  \"hello_seconds\"",
+            ),
         ),
         (
             "hello-missing",

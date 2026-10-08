@@ -37,7 +37,7 @@ async fn a_hello_reply_without_a_language_is_a_failure_to_reach_the_core() {
         locale: None,
         ..serve(root, settings())
     };
-    let ran = within("桥退出", run(serve, |_| {}, std::future::pending())).await;
+    let ran = within("桥退出", run(serve, |_| {}, |_| {}, std::future::pending())).await;
     core.abort();
     if std::fs::remove_dir_all(&dir).is_err() {
         // 删不掉就留在临时目录里，不影响测试。
