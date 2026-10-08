@@ -67,7 +67,7 @@ pub(in crate::session) fn cuts(ordered: &[&Event]) -> Vec<Option<Seq>> {
 
 /// 定下切在哪（`compaction.md` 第三条第 2 条）：一组不拆，落在一条回复和它的工具结果之间的，退到这条回复前面；切出来的
 /// 前一段要是投影的开头一段，不是的往前退到切得开的地方。两样都照到不动为止。
-pub(super) fn settle(ordered: &[&Event], mut upto: Seq) -> Option<Seq> {
+pub(in crate::session) fn settle(ordered: &[&Event], mut upto: Seq) -> Option<Seq> {
     loop {
         let split = ordered
             .iter()

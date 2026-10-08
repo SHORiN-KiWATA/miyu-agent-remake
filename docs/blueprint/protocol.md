@@ -407,7 +407,7 @@
 | `session` | 字符串，必写 | 哪个会话 |
 | `instructions` | 字符串，可以不写 | 人附的要求，例如「重点保留数据库设计的讨论」，原样交给内核；去掉前后空白是空的，当没写 |
 
-回应：`events` 是 `[<那一轮 turn.started 的序号>]`，它落了盘就回，和 `session.send` 一样不等这一轮做完。压好了没有，看推送里的 `compaction.progress`、`compaction.done`、`context.compacted`、`turn.ended`。
+回应：`events` 是 `[<那一轮 turn.started 的序号>]`，它落了盘就回，和 `session.send` 一样不等这一轮做完。压好了没有，看推送里的 `compaction.progress`、`compaction.done`、`context.compacted`、`turn.ended`。手里有一份提前压好的、没附要求的，直接换上：没有 `compaction.progress`，`compaction.done` 带 `prepared: true`（施工 6-11 上，`compaction.md` 第十五条）。
 
 1. 开的那一轮，`turn.started` 的 `cause` 是这一条的 `id`，没有 `trigger`：头照 `cause` 认出自己的那一轮。
 2. 有回合在进行：`turn_running`。没有能压的：`nothing_to_compact`（`compaction.md` 第七条第 2 条）。正在改回文件：`restoring`。先找会话，找不到的回的是找不到。

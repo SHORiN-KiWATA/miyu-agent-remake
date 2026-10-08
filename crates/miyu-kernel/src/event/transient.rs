@@ -122,6 +122,10 @@ pub struct CompactionDone {
     /// 摘要请求从发出去到说完的毫秒数；没发出去的没有。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_ms: Option<u64>,
+    /// 换上的是提前压好的那一份（施工 6-11 上，`compaction.md` 第十五条）：前面没推过进度，用量、用时是提前那一次摘要请求的。
+    /// 当场压的不写。
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub prepared: bool,
 }
 
 /// `todos.changed` 的 `body`：现在的整份待办（施工 D-3）。全部做完清空了、写过的都撤掉了的，是空列表。头照它换掉手里的那份，

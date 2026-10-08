@@ -41,6 +41,7 @@ impl Stage {
                     injected: self.injections.pop_front().unwrap_or_default(),
                     replaced,
                     policy,
+                    prepare: self.prepare.on,
                 }]
             }
             Action::CallModel { seen, request, .. } => self.call(seen, request),

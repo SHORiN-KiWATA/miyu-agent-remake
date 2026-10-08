@@ -228,7 +228,7 @@
 4. 不要这次请求了：叫端口停下，记一行 `cancelled`，`seen`、`took_ms`。已经说完了的，什么都不做。
 5. 会话停了也算叫停：actor 退出时放下了叫停的那一头，路上的请求跟着停下，不白花 token。
 6. 重试是内核定的：能再来的错，内核推一条等着重试的状态提示、交出「到点叫醒」（`kernel/session.md`）。actor 照状态提示记一行 `retrying`：`seen`、第几次 `attempt`、最多几次 `limit`、等多久 `wait_ms`、分类 `class`；出错的原话不写，里面可能回显请求里的字。到点送回「到点了」，内核再交一次「请求模型」。
-7. **辅助请求**（`Aside { purpose, upto, request }`：回顾，施工 3-8 四补，`kernel/session.md`「回顾」；起标题，施工 3-8 五补，「起标题」）：交给同一个端口，名字是用途和它照到的那一条。回报另走一路（`Reports::aside`，送回的是 `AsideSent`、`AsideDelta`、`AsideEnded`，带着用途），和主请求的 `seen` 撞了也分得开：回合进行中的主请求多半就照到那一条。一种用途一次只有一个，它的叫停那一头 actor 拿着不用（内核不叫停辅助请求），actor 退出时放下，请求跟着停。记的几行和主请求的一样，前面带用途：交给端口之前 `recap request`、`title request`（`seen` 是照到的那一条、端点、模型，没有 `changed`：它不和主请求比），说完了 `recap ended`、`recap failed`、`title ended`、`title failed`，格和第 3 条一样。起标题两次都没起成就不再试，第二行 `title failed` 就是那一行。
+7. **辅助请求**（`Aside { purpose, upto, request }`：回顾，施工 3-8 四补，`kernel/session.md`「回顾」；起标题，施工 3-8 五补，「起标题」）：提前压好，施工 6-11 上，`compaction.md` 第十五条）：交给同一个端口，名字是用途和它照到的那一条。回报另走一路（`Reports::aside`，送回的是 `AsideSent`、`AsideDelta`、`AsideEnded`，带着用途），和主请求的 `seen` 撞了也分得开：回合进行中的主请求多半就照到那一条。一种用途一次只有一个，它的叫停那一头 actor 拿着不用（内核不叫停辅助请求），actor 退出时放下，请求跟着停。记的几行和主请求的一样，前面带用途：交给端口之前 `recap request`、`title request`、`compaction request`（`seen` 是照到的那一条、端点、模型，没有 `changed`：它不和主请求比），说完了 `recap ended`、`recap failed`、`title ended`、`title failed`、`compaction ended`、`compaction failed`，格和第 3 条一样；提前压好的出错记 `WARN`（没人看得到它，到线时照当场压）。起标题两次都没起成就不再试，第二行 `title failed` 就是那一行。
 8. **跟着端口的限额**（施工 8-9，`models.md`「怎么走」第五条第 7 条）：每次请求说完（主请求、辅助请求都算），在送进说完了之前，比端口的 `limits()` 和上一次交给内核的。变了的当场交 `Input::Limits`（不出动作），向内核要一份给头看的限额，连同端口的引用和模型写进和 `Handle` 共用的那一份（`Shown`，施工 8-10，`subscribe` 照它答）。限额里的模型变了、不是 `none` 的（轮换的池总是 `none`，不推），推一条瞬时的 `model.changed`：`by` 是内核，`turn`、`cause` 照内核这时的回合（`turn_cause()`），`ref` 照端口的 `reference()`，`endpoint`、`model` 是新的模型，`limits` 是刚要的那一份，`why` 是 `failover`。只换 key、模型没变的限额不变，不推。
 9. **替它看图**（`Describe { blob, request }`，施工 8-17，`kernel/session.md`「替它看图」，`models.md`「怎么走」第十三条第 4 条）：交给端口（`ModelPort::describe`），带上这一轮冻结的配置和一个 `Sight`（`blob` 和送回收件箱的那一头）；结果送回 `Back::Described`，写成 `Input::Described`。没成的记一行 `image not described`（`blob`、`why`），交内核的是没有。叫不停：会话停了，回来的没人收。路由那一头见第 8 条第 6 款。
 
@@ -290,11 +290,13 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | INFO | `recap failed` | `seen`、`took_ms`、`class` | 回顾的请求出错收场 |
 | INFO | `recap ended` | `seen`、`took_ms`、`in`、`hit`、`write`、`out` | 回顾的请求说完 |
 | INFO | `title request` | `seen`、`endpoint`、`model` | 起标题的请求交给端口之前（第 7 条，施工 3-8 五补） |
+| INFO | `compaction request` | `seen`、`endpoint`、`model` | 提前压好的摘要请求交给端口之前（第 7 条，施工 6-11 上）；说完了 `compaction ended` |
 | INFO | `title failed` | `seen`、`took_ms`、`class` | 起标题的请求出错、没有正文收场；第二行是不再试的那一行 |
 | INFO | `title ended` | `seen`、`took_ms`、`in`、`hit`、`write`、`out` | 起标题的请求说完 |
 | INFO | `image not described` | `blob`、`why` | 替它看图没成（第 7 条第 9 款，施工 8-17）：没配 `models.vision` 的、一次性入口没答成的（原话照它的）、回答是空的。成了的不另记：一次性入口那一行 `model call purpose=vision` 带着会话编号 |
 | WARN | `retrying` | `seen`、`attempt`、`limit`、`wait_ms`、`class` | 等着重试 |
-| INFO | `compacted` | `seen`、`trigger`、`before`、`after`、`summary_in`、`summary_cached`、`summary_out`、`took_ms` | 压好了（`compaction.md` 第十三条）：摘要请求的输入、命中、输出、用时照它的 `model.called`，没有的不写 |
+| INFO | `compacted` | `seen`、`trigger`、`before`、`after`、`summary_in`、`summary_cached`、`summary_out`、`took_ms`、`prepared` | 压好了（`compaction.md` 第十三条）：摘要请求的输入、命中、输出、用时照它的 `model.called`，没有的不写；换上的是提前压好的写 `prepared=yes`（施工 6-11 上） |
+| WARN | `compaction failed` | `seen`、`took_ms`、`class` | 提前压好的摘要请求出错（第 7 条，施工 6-11 上） |
 | INFO | `running` | `call`、`tool` | 开始跑一次调用（`session/tools.md`） |
 | INFO | `ran` | `call`、`took_ms`、`error`（出错的才有，是 `true`） | 一次调用跑完 |
 | INFO | `stopped` | `call`、`took_ms` | 叫停一次在跑的调用 |
@@ -388,6 +390,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | `crates/miyu-session/tests/route_pools.rs`（施工 8-8） | 池：钉住的一个会话一直发给一个成员、新会话照指针分开、认不出的成员跳过；载入照日志认回钉着的、指针写进 `pools.json` 重启读回；轮换的一次一个；这时用不了的跳过、钉到下一个；池没了退回 `chat`；限额照钉着的、轮换的取小的；`session.created` 记下会话的引用（`models.md`「守着它的」） |
 | `crates/miyu-session/tests/log.rs` | 会话造、请求、出错、重试、收场、停下、载入、没人拿着、端口 panic 的几行；手动压缩的 `compacted` 写 `trigger=manual`（施工 6-8）；撤销以后 `changed=message:0:user`；`DEBUG` 的输入和动作、增量在 `TRACE`；没有对话的字 |
 | `crates/miyu-session/tests/recap_log.rs`（施工 3-8 四补） | 回顾的请求记 `recap request`、`recap ended`、`recap failed`，`seen` 是照到的那一条，格和主请求的一样；没有对话的字 |
+| `crates/miyu-session/tests/prepare_log.rs`、`tests/prepare.rs`（施工 6-11 上） | 配置开着（默认）的过了起压线旁路发一次摘要请求、到线换上不再请求，`compacted` 那一行带 `prepared=yes`、有 `compaction request`；出错的记 `WARN compaction failed`；`compaction.prepare = false` 的照当场压 |
 | `crates/miyu-session/tests/title_log.rs`（施工 3-8 五补） | 起标题的请求记 `title request`、`title ended`、`title failed`，`seen` 是照到的那一条；两次都没起成，第三轮不再试；没有对话的字 |
 | `crates/miyu-session/tests/http_log.rs` | HTTP 的两行带会话编号，key 不在日志里 |
 | `crates/miyu-session/tests/index_log.rs`（施工 3-8 七补） | 每落一批，索引里那一行照到日志的末尾；表没了，更新失败只记一行带会话编号的 `session index not updated`，会话照常说完下一轮（`store/index.md`「守着它的」） |

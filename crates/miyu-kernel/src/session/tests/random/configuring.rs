@@ -38,6 +38,7 @@ pub(super) fn with_fallback(rng: &mut Rng, watch: &Watch, input: Input) -> Input
             turn,
             injected,
             replaced: None,
+            prepare,
         } if rng.below(3) == 0 => {
             let from = match rng.below(4) {
                 0 => "b/n",
@@ -45,6 +46,7 @@ pub(super) fn with_fallback(rng: &mut Rng, watch: &Watch, input: Input) -> Input
             };
             Input::TurnStartHooksDone {
                 policy: None,
+                prepare,
                 at,
                 turn,
                 injected,

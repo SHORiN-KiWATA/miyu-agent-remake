@@ -20,6 +20,7 @@ pub(super) mod model;
 mod overflow;
 mod peers;
 mod permission;
+mod prepare;
 mod question;
 mod queue;
 mod rebuild;
@@ -113,6 +114,8 @@ pub(super) struct Watch {
     peers: peers::Peers,
     /// 回顾（施工 3-8 四补）：在路上的那一次、等着的回应。
     pub(super) recaps: recap::Recaps,
+    /// 提前压好（施工 6-11 上，`watch/prepare.rs`）。
+    pub(super) prepares: prepare::Prepares,
     /// 换模型（施工 8-10）：会话的引用、最近一次换模型写在第几条。
     models: configure::Models,
     /// 替它看图（施工 8-17）：在路上的、转述过的、每一轮没成的。
@@ -167,6 +170,7 @@ impl Watch {
             reports: reports::Reports::default(),
             peers: peers::Peers::default(),
             recaps: recap::Recaps::default(),
+            prepares: prepare::Prepares::default(),
             models: configure::Models::default(),
             sight: sight::Sight::default(),
         }
@@ -196,6 +200,7 @@ impl Watch {
     /// 被打断的 `turn.ended` 收尾；没开着的，拒绝，原因码 `not_running`。
     pub(super) fn feed(&mut self, session: &mut Session, input: Input) {
         self.fed.insert(InputKind::of(&input));
+        self.before_prepare(&input);
         self.reread_fed(&input);
         self.retry_fed(&input);
         self.sight_fed(&input);
@@ -294,6 +299,7 @@ impl Watch {
         for action in actions {
             self.check(action);
         }
+        self.reread_unfollowed();
         self.interrupting = None;
         // 取回原文：执行器做完才收收件箱，马上交回（施工 6-9）。
         if let Some(recalled) = self.recall_answer() {
@@ -303,12 +309,13 @@ impl Watch {
 
     fn check(&mut self, action: Action) {
         let seed = self.seed;
-        if let Some(pending) = self.compactions.reread.take() {
-            assert!(
-                matches!(&action, Action::CallModel { seen, .. } if *seen == pending),
-                "种子 {seed}：重读后面跟的不是它那次摘要请求：{action:?}"
-            );
+        // 重读后面跟的不是它那次摘要请求的，是换上提前压好的那一份（施工 6-11 上，`watch/prepare.rs`）。
+        if let Some(pending) = self.compactions.reread
+            && !matches!(&action, Action::CallModel { seen, .. } if *seen == pending)
+        {
+            self.reread_unfollowed();
         }
+        self.compactions.reread = None;
         match action {
             Action::Append(events) => self.appended(events),
             Action::Reread { seen, paths, .. } => self.reread_issued(seen, &paths),
@@ -329,6 +336,11 @@ impl Watch {
                 self.hooks_model(model.as_deref());
             }
             Action::CallModel { seen, request, .. } => self.called(seen, &request),
+            Action::Aside {
+                purpose: crate::event::Purpose::Compaction,
+                upto,
+                request,
+            } => self.prepare_issued(upto, &request),
             Action::Aside { upto, request, .. } => self.recap_issued(upto, &request),
             Action::Describe { blob, request } => self.describe_issued(blob, &request),
             Action::Wake { seen, .. } => self.wake_asked(seen),
@@ -454,6 +466,7 @@ impl Watch {
             match &event.body {
                 Body::TurnEnded(ended) => {
                     self.main_request_sent();
+                    self.prepare_turn_ended();
                     self.shorten_turn_ended();
                     self.passive_turn_ended();
                     self.all_resulted(self.open_turn());

@@ -89,6 +89,7 @@ fn policy_with(system: String) -> Policy {
             reserve_cap: 20_000,
             margin: 13_000,
             tail: 16_000,
+            lead: 0,
             price: Flat {
                 image: 2000,
                 file: 2000,

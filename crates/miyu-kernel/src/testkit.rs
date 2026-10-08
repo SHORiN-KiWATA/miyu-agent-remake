@@ -17,6 +17,7 @@ mod jobs;
 mod limits;
 mod opening;
 mod peers;
+mod prepare;
 mod respond;
 mod routing;
 mod script;

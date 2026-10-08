@@ -80,6 +80,10 @@ name = "compaction_log"
 path = "tests/compaction_log.rs"
 
 [[test]]
+name = "prepare_log"
+path = "tests/prepare_log.rs"
+
+[[test]]
 name = "failover_log"
 path = "tests/failover_log.rs"
 

@@ -15,6 +15,7 @@ fn with_tail(tail: u64) -> Stage {
             reserve_cap: 10,
             margin: 10,
             tail,
+            lead: 0,
             price: crate::estimate::Flat {
                 image: 50,
                 file: 50,

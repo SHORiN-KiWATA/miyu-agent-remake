@@ -8,7 +8,7 @@
 //!   （施工 3-5 三补）；另一个会话里池的一个成员限速、换到下一个当场再来的状态（带 `failover`），和换过去成了以后推的
 //!   `model.changed`（施工 8-9）；人换了模型、下一轮开始时池没了退回默认，推的 `model.changed`（`why` 是 `turn`，施工 8-10）；
 //! - 54 号压缩写摘要时的两段进度（`compaction.progress`，施工 6-2 上），和压好了的那一条（`compaction.done`，
-//!   施工 6-3 下）；
+//!   施工 6-3 下）；另一个会话到线时换上了提前压好的那一份（带 `prepared`，施工 6-11 上）；
 //! - 65 号回合里换上了一份待办以后推的 `todos.changed`（施工 D-3）。
 //!
 //! 瞬时事件内核只推不读，所以样本在代码里照着造，不从文件读回来。
@@ -303,9 +303,33 @@ fn the_compaction_done_sample_is_written_exactly() {
                 output: 2412,
             }),
             duration_ms: Some(41_250),
+            prepared: false,
         }),
     };
-    assert_eq!(lines("transient/compaction.done.jsonl"), [done.to_line()]);
+    let prepared = Transient {
+        at: Timestamp::parse("2026-10-08T03:12:40.000Z").expect("样本的时刻合写法"),
+        turn: None,
+        by: By::Kernel,
+        cause: Some(CommandId::parse("cmd-c7a1").expect("命令编号合写法")),
+        body: TransientBody::CompactionDone(CompactionDone {
+            seen: Seq::new(88).expect("88 是合法的序号"),
+            trigger: CompactTrigger::Auto,
+            before: 152_430,
+            after: 38_210,
+            usage: Some(Usage {
+                uncached: 1840,
+                cache_read: 133_632,
+                cache_write: 0,
+                output: 3108,
+            }),
+            duration_ms: Some(18_620),
+            prepared: true,
+        }),
+    };
+    assert_eq!(
+        lines("transient/compaction.done.jsonl"),
+        [done.to_line(), prepared.to_line()]
+    );
 }
 
 #[test]

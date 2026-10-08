@@ -82,6 +82,8 @@ pub struct Script {
     reference: Option<String>,
     /// 价格（施工 8-15）：有的话每次说完了照它算金额，和路由一样经 [`Reports::billed`]。
     tariff: Option<Tariff>,
+    /// 每次说完了报的命中（施工 6-11 上）：没设的是 40，用量一共 110。
+    cached: u64,
 }
 
 impl Script {
@@ -105,7 +107,16 @@ impl Script {
             titled: Arc::new(Mutex::new(Vec::new())),
             reference: None,
             tariff: None,
+            cached: 40,
         }
+    }
+
+    /// 同一份剧本，每次说完了报的用量一共是 `total`（施工 6-11 上：好走到起压线、压缩线）：60 没命中、10 输出，别的算命中。
+    /// 不到 70 的照 70。
+    #[must_use]
+    pub fn reports(mut self, total: u64) -> Script {
+        self.cached = total.saturating_sub(70);
+        self
     }
 
     /// 同一份剧本，每次说完了照 `tariff` 算金额（施工 8-15）：`model.called` 带 `cost`。
@@ -215,11 +226,12 @@ impl ModelPort for Script {
         }
         let model = self.model.clone();
         let cancelled = Arc::clone(&self.cancelled);
+        let usage = usage(self.cached);
         let reports = reports.billed(self.tariff.clone());
         tokio::spawn(async move {
             reports.sent(model, hash);
             match play {
-                Play::Says(text) => says(reports, text, 1),
+                Play::Says(text) => says(reports, text, 1, usage),
                 Play::Thinks { thinking, text } => {
                     let mut thought = block(0, Kind::Reasoning, thinking, 2);
                     let mut said = block(1, Kind::Text, text, 2);
@@ -232,9 +244,9 @@ impl ModelPort for Script {
                     {
                         reports.delta(delta);
                     }
-                    reports.ended(Some(usage()), None, None, None);
+                    reports.ended(Some(usage), None, None, None);
                 }
-                Play::Floods(n) => says(reports, &"字".repeat(n), n),
+                Play::Floods(n) => says(reports, &"字".repeat(n), n, usage),
                 Play::Calls(calls) => {
                     let mut ends = Vec::new();
                     for (index, (name, args)) in calls.iter().enumerate() {
@@ -248,7 +260,7 @@ impl ModelPort for Script {
                     for end in ends {
                         reports.delta(end);
                     }
-                    reports.ended(Some(usage()), None, None, None);
+                    reports.ended(Some(usage), None, None, None);
                 }
                 Play::Fails { class, wait_ms } => reports.ended(
                     None,
@@ -286,18 +298,18 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 }
 
 /// 说完一句：正文分成 `pieces` 段交出去，报用量：60 没命中、40 命中、10 输出。
-fn says(reports: Reports, text: &str, pieces: usize) {
+fn says(reports: Reports, text: &str, pieces: usize, usage: Usage) {
     for delta in text_block(text, pieces) {
         reports.delta(delta);
     }
-    reports.ended(Some(usage()), None, None, None);
+    reports.ended(Some(usage), None, None, None);
 }
 
-/// 剧本报的用量：60 没命中、40 命中、10 输出。
-fn usage() -> Usage {
+/// 剧本报的用量：60 没命中、`cached` 命中（没设的是 40）、10 输出。
+fn usage(cached: u64) -> Usage {
     Usage {
         uncached: 60,
-        cache_read: 40,
+        cache_read: cached,
         cache_write: 0,
         output: 10,
     }

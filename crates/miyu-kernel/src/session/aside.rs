@@ -81,33 +81,52 @@ impl Aside {
         self,
         at: Timestamp,
         purpose: Purpose,
-        (usage, cost): (Option<Usage>, Option<Cost>),
+        spent: (Option<Usage>, Option<Cost>),
         error: Option<CallError>,
         next: Seq,
         empty: &str,
     ) -> Finished {
+        let (mut called, blocks) = self.end(at, purpose, spent, error, next);
+        let text = blocks.and_then(|blocks| {
+            let text = blocks
+                .iter()
+                .filter_map(|block| match block {
+                    Block::Text(text) => Some(text.text.as_str()),
+                    _ => None,
+                })
+                .collect::<String>()
+                .trim()
+                .to_string();
+            match text.is_empty() {
+                true => Err(CallError {
+                    class: ErrorClass::EmptyReply,
+                    message: empty.to_string(),
+                    status: None,
+                }),
+                false => Ok(text),
+            }
+        });
+        if let Err(error) = &text {
+            failed(&mut called, error);
+        }
+        Finished { called, text }
+    }
+
+    /// 说完了：记账的那条 `model.called`（还没编序号），和收到的块；出错的、还没发出去的是错（施工 6-11 上从
+    /// [`Aside::finish`] 拆出来：提前压好的摘要照块取）。`next` 是累积器收尾时给块编号用的下一条序号。
+    pub(super) fn end(
+        self,
+        at: Timestamp,
+        purpose: Purpose,
+        (usage, cost): (Option<Usage>, Option<Cost>),
+        error: Option<CallError>,
+        next: Seq,
+    ) -> (ModelCalled, Result<Vec<Block>, CallError>) {
         let mut error = error.or(self.broken);
         if self.sent.is_none() && error.is_none() {
             error = Some(bad_stream("请求还没发出去就说完了"));
         }
-        let text = self
-            .accumulator
-            .finish(next)
-            .iter()
-            .filter_map(|block| match block {
-                Block::Text(text) => Some(text.text.as_str()),
-                _ => None,
-            })
-            .collect::<String>()
-            .trim()
-            .to_string();
-        if error.is_none() && text.is_empty() {
-            error = Some(CallError {
-                class: ErrorClass::EmptyReply,
-                message: empty.to_string(),
-                status: None,
-            });
-        }
+        let blocks = self.accumulator.finish(next);
         let sent = self.sent.as_ref();
         let called = ModelCalled {
             seen: self.upto,
@@ -131,13 +150,11 @@ impl Aside {
             compaction: None,
             purpose: Some(purpose),
         };
-        Finished {
-            called,
-            text: match error {
-                Some(error) => Err(error),
-                None => Ok(text),
-            },
-        }
+        let blocks = match error {
+            Some(error) => Err(error),
+            None => Ok(blocks),
+        };
+        (called, blocks)
     }
 }
 
@@ -150,6 +167,7 @@ impl Session {
                 .as_mut()
                 .map(|recapping| &mut recapping.aside),
             Purpose::Title => self.titling.as_mut(),
+            Purpose::Compaction => self.prepare.aside(upto),
             Purpose::Other(_) => None,
         };
         aside.filter(|aside| aside.upto == upto)
@@ -196,6 +214,7 @@ impl Session {
         match purpose {
             Purpose::Recap => self.recap_ended(at, upto, spent, error),
             Purpose::Title => self.title_ended(at, upto, spent, error),
+            Purpose::Compaction => self.prepare_ended(at, upto, spent, error),
             Purpose::Other(_) => Vec::new(),
         }
     }
@@ -223,6 +242,14 @@ impl Session {
             panic!("the kernel's own event failed the ledger, a kernel bug: {error}");
         }
         event
+    }
+}
+
+/// 一次辅助请求没写成：记账的那条改成出错、带上错；已经带着错的不动（施工 6-11 上：说完了才认出来的错也照这样记）。
+pub(super) fn failed(called: &mut ModelCalled, error: &CallError) {
+    if called.error.is_none() {
+        called.result = CallResult::Error;
+        called.error = Some(error.clone());
     }
 }
 

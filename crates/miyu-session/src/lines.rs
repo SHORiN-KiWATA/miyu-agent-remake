@@ -28,7 +28,7 @@ pub(crate) fn where_(changed: &Difference) -> String {
 /// - 等着重试的状态提示，记一条 `WARN`：第几次、一共几次、等多久、出错的分类。原话不写：供应商的出错信息里可能
 ///   回显请求里的字。
 /// - 压好了，记一条 `INFO` 度量（施工 6-3 下，`compaction.md` 第十三条）：为什么压（照它的 `trigger`，施工 6-8）、
-///   压前、压后，摘要请求的输入、命中、输出、用时。
+///   压前、压后，摘要请求的输入、命中、输出、用时；换上的是提前压好的，多一格 `prepared=yes`（施工 6-11 上）。
 pub(crate) fn note(transient: &Transient) {
     match &transient.body {
         TransientBody::Status(status) => {
@@ -58,6 +58,7 @@ pub(crate) fn note(transient: &Transient) {
                 summary_cached = usage.map(|usage| usage.cache_read),
                 summary_out = usage.map(|usage| usage.output),
                 took_ms = done.duration_ms,
+                prepared = done.prepared.then_some("yes"),
                 "compacted"
             );
         }

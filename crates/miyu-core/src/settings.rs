@@ -23,6 +23,7 @@ use miyu_models::settings::{
     AuthCooldown, CatalogSettings, ModelSettings, PoolSettings, PriceSettings, ProviderSettings,
     RateLimitedCooldown, RetryableCooldown, UsageSettings, UseSettings,
 };
+use miyu_session::settings::CompactionSettings;
 use miyu_store::generated;
 use miyu_store::human::Human;
 use miyu_store::packages::Found;
@@ -34,8 +35,9 @@ const TARGET: &str = "miyu::config";
 
 /// 登记的模块，照这个先后，一个模块里照声明的先后。加一个模块只加一行。设置页的页照第一次出现的先后排：通用、界面、
 /// 权限、模型、高级（施工 8-2、8-3、8-6）；模型那一页先「用途」、再「供应商」、再「目录」（施工 8-7），「池」排在「用途」
-/// 后面（施工 8-8；「挡位」8-8 补去掉了），「冷却」排在「目录」后面（施工 8-9）。
-const MODULES: [&[Item]; 16] = [
+/// 后面（施工 8-8；「挡位」8-8 补去掉了），「冷却」排在「目录」后面（施工 8-9）；高级那一页先「压缩」再「运行日志」（施工
+/// 6-11 上）。
+const MODULES: [&[Item]; 17] = [
     UiSettings::ITEMS,
     PersonaSettings::ITEMS,
     PresetSettings::ITEMS,
@@ -51,6 +53,7 @@ const MODULES: [&[Item]; 16] = [
     RateLimitedCooldown::ITEMS,
     RetryableCooldown::ITEMS,
     AuthCooldown::ITEMS,
+    CompactionSettings::ITEMS,
     LogSettings::ITEMS,
 ];
 

@@ -77,6 +77,8 @@ pub struct Stage {
     pub(super) titles: Vec<(Seq, Request)>,
     pub(super) title_lines: VecDeque<Line>,
     pub(super) held_title: Option<(Seq, Line)>,
+    /// 提前压好：开关、请求、剧本、停住的（施工 6-11 上，`prepare.rs`）。
+    pub(super) prepare: super::prepare::Prepares,
     /// 路由：回合开始时交来的引用、解析不出的（施工 8-10，`routing.rs`）。
     pub(super) routing: super::routing::Routing,
     /// 替它看图：剧本、交出来的转述请求、扣着的（施工 8-17，`sight.rs`）。

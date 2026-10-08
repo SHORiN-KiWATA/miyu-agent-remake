@@ -47,6 +47,7 @@ mod restore;
 mod route;
 mod sandbox;
 mod sessions;
+pub mod settings;
 mod shown;
 mod snapshot;
 mod spawn;
