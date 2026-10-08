@@ -7,6 +7,8 @@ use crate::env::{Env, Platform};
 use crate::test_support::Scratch;
 use miyu_policy::preset::{Code, Unlisted};
 
+mod base;
+
 /// 一个临时的资源目录和数据根：`res/`、`data/`。
 struct Places {
     scratch: Scratch,

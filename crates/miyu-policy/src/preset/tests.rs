@@ -149,6 +149,10 @@ fn tool_names_take_letters_digits_dashes_and_underscores() {
     assert_eq!(file.tools_off.len(), 3);
     let long = format!("[tools]\n{} = false\n", "a".repeat(65));
     assert_eq!(wrong(&long).0, Code::BadTool);
+    assert_eq!(
+        wrong("[preset]\nbase = \"Dev\"\n"),
+        (Code::BadBase, Some(2))
+    );
 }
 
 #[test]
@@ -163,7 +167,7 @@ fn a_problem_reads_as_a_line_and_a_sentence() {
         message: "broken".to_string(),
     };
     assert_eq!(no_line.to_string(), "broken");
-    assert_eq!(Code::ALL.len(), 13);
+    assert_eq!(Code::ALL.len(), 14);
 }
 
 #[test]

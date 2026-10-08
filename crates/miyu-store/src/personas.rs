@@ -1,7 +1,8 @@
 //! 人格在哪、几层怎么叠（施工 P-1 上，`docs/blueprint/personas.md`，`16-人格与预设.md` 第四节）：出厂的
 //! `<资源目录>/personas/<编号>/`、系统区 `system/personas/<编号>/`、管理员家目录 `home/<管理员>/personas/<编号>/`，同名的后面
 //! 的叠在前面的上面：`persona.toml` 逐项盖，`prompts/` 里的文件同名替换、没写的沿用。读法同配置文件：只有本人写自己的
-//! 家目录，顺着链接读。文件怎么读成样子在 `miyu_policy::persona`。
+//! 家目录，顺着链接读。写了 `base` 的，自己的几层盖在底叠好的样子上（施工 P-3 上，16 第四节），底也照这样找；绕成圈、
+//! 指着没有的报错。文件怎么读成样子在 `miyu_policy::persona`。
 
 use std::collections::BTreeSet;
 use std::fmt;
@@ -24,6 +25,15 @@ pub const PERSONA_MD: &str = "prompts/persona.md";
 /// 角色扮演提示在人格目录里的位置（施工 P-1 补）。
 pub const REMINDERS_MD: &str = "prompts/reminders.md";
 
+/// 一份字来自哪儿：哪个人格（自己的，或者底的）的哪一层。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Origin {
+    /// 住在哪个人格的目录里：自己的就是自己的编号，来自底的是底的（底的底也照这样）。
+    pub persona: String,
+    /// 哪一层。
+    pub layer: Layer,
+}
+
 /// 叠好的一个人格。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Found {
@@ -33,14 +43,16 @@ pub struct Found {
     pub file: PersonaFile,
     /// 叠好的字，造快照用。
     pub texts: PersonaTexts,
-    /// 有它的几层，从下往上。
+    /// 有它的几层，从下往上（不算底的）。
     pub layers: Vec<Layer>,
-    /// 人设来自哪一层，没有的是没有。
-    pub persona_from: Option<Layer>,
-    /// 示范对话来自哪一层，没有的是没有。
-    pub examples_from: Option<Layer>,
-    /// 角色扮演提示来自哪一层，没有的是没有（施工 P-1 补）。
-    pub reminders_from: Option<Layer>,
+    /// 人设来自哪儿，没有的是没有。
+    pub persona_from: Option<Origin>,
+    /// 示范对话来自哪儿，没有的是没有。
+    pub examples_from: Option<Origin>,
+    /// 角色扮演提示来自哪儿，没有的是没有（施工 P-1 补）。
+    pub reminders_from: Option<Origin>,
+    /// 以哪个人格为底（施工 P-3 上）：叠好的 `base`，没有的是没有。
+    pub base: Option<String>,
     /// 它住在谁的家目录里：有家目录那一层的是那个账号，只有出厂、系统区的没有（记忆归哪个账号照它，`personas.md`）。
     pub home: Option<AccountId>,
 }
@@ -56,6 +68,12 @@ pub enum PersonaError {
     Invalid(Layer, Problem),
     /// 读不了：哪个文件。
     Unreadable(PathBuf, io::Error),
+    /// 以谁为底绕成了圈（施工 P-3 上）：从要找的那个起，一路到又回来的那个。
+    BaseCycle(Vec<String>),
+    /// 底没有：哪个人格、写的底是什么。
+    BaseMissing(String, String),
+    /// 底的文件写错了：哪个底、哪一层、错在哪（自己的文件写错的是 [`PersonaError::Invalid`]，说法不带编号）。
+    BaseInvalid(String, Layer, Problem),
 }
 
 impl fmt::Display for PersonaError {
@@ -66,6 +84,11 @@ impl fmt::Display for PersonaError {
             PersonaError::Invalid(layer, problem) => write!(f, "{} {problem}", layer.as_str()),
             PersonaError::Unreadable(path, error) => {
                 write!(f, "cannot read {}: {error}", path.display())
+            }
+            PersonaError::BaseCycle(chain) => write!(f, "base cycle: {}", chain.join(" -> ")),
+            PersonaError::BaseMissing(id, base) => write!(f, "base {base:?} of {id:?} not found"),
+            PersonaError::BaseInvalid(base, layer, problem) => {
+                write!(f, "base {base}: {} {problem}", layer.as_str())
             }
         }
     }
@@ -93,12 +116,54 @@ impl Personas {
         }
     }
 
-    /// 找人格 `id`，几层叠好。
+    /// 找人格 `id`，几层叠好；写了 `base` 的叠在底上：`persona.toml` 逐项盖，提示词自己的几层没有的沿用底的。
     ///
     /// # Errors
     ///
-    /// 编号不合写法、哪一层都没有、文件写错了、读不了。
+    /// 编号不合写法、哪一层都没有、文件写错了、读不了；底绕成了圈、底没有，底的文件写错了、读不了。
     pub fn find(&self, id: &str) -> Result<Found, PersonaError> {
+        self.find_from(id, &mut Vec::new())
+    }
+
+    /// 同 [`Personas::find`]，`chain` 是一路找过来的那几个（找底的时候查绕圈）。
+    fn find_from(&self, id: &str, chain: &mut Vec<String>) -> Result<Found, PersonaError> {
+        let mut found = self.stack(id)?;
+        let Some(base) = found.file.base.clone() else {
+            return Ok(found);
+        };
+        chain.push(id.to_string());
+        if chain.contains(&base) {
+            chain.push(base);
+            return Err(PersonaError::BaseCycle(std::mem::take(chain)));
+        }
+        let below = match self.find_from(&base, chain) {
+            Err(PersonaError::NotFound(_)) => {
+                return Err(PersonaError::BaseMissing(id.to_string(), base));
+            }
+            Err(PersonaError::Invalid(layer, problem)) => {
+                return Err(PersonaError::BaseInvalid(base, layer, problem));
+            }
+            below => below?,
+        };
+        found.file = found.file.over(below.file);
+        if found.persona_from.is_none() {
+            found.texts.persona = below.texts.persona;
+            found.persona_from = below.persona_from;
+        }
+        if found.examples_from.is_none() {
+            found.texts.examples = below.texts.examples;
+            found.examples_from = below.examples_from;
+        }
+        if found.reminders_from.is_none() {
+            found.texts.reminders = below.texts.reminders;
+            found.reminders_from = below.reminders_from;
+        }
+        found.base = Some(base);
+        Ok(found)
+    }
+
+    /// 人格 `id` 自己的几层叠好，不管底。
+    fn stack(&self, id: &str) -> Result<Found, PersonaError> {
         if !valid(id) {
             return Err(PersonaError::BadId(id.to_string()));
         }
@@ -110,6 +175,7 @@ impl Personas {
             persona_from: None,
             examples_from: None,
             reminders_from: None,
+            base: None,
             home: None,
         };
         for (layer, dir) in &self.dirs {
@@ -126,18 +192,22 @@ impl Personas {
                     .map_err(|problem| PersonaError::Invalid(*layer, problem))?;
                 found.file = file.over(std::mem::take(&mut found.file));
             }
+            let origin = Origin {
+                persona: id.to_string(),
+                layer: *layer,
+            };
             if let Some(text) = read(&inside(&dir, PERSONA_MD))? {
                 found.texts.persona = text;
-                found.persona_from = Some(*layer);
+                found.persona_from = Some(origin.clone());
             }
             if let Some(text) = read(&inside(&dir, persona::EXAMPLES))? {
                 found.texts.examples = persona::read_examples(&text)
                     .map_err(|problem| PersonaError::Invalid(*layer, problem))?;
-                found.examples_from = Some(*layer);
+                found.examples_from = Some(origin.clone());
             }
             if let Some(text) = read(&dir.join(REMINDERS_MD))? {
                 found.texts.reminders = text;
-                found.reminders_from = Some(*layer);
+                found.reminders_from = Some(origin);
             }
         }
         if found.layers.is_empty() {

@@ -4,6 +4,7 @@
 use std::fmt;
 
 use miyu_config::phrases::{self, PhraseError};
+use miyu_config::secret::valid_name;
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::request::Message;
 use serde::{Deserialize, Serialize};
@@ -27,6 +28,9 @@ pub struct PersonaFile {
     pub summary: Phrases,
     /// 记忆的默认范围（`[memory] scope`，施工 R-3 下）：只能是 `persona`、`session`；没写的是没有，照 `persona` 算。
     pub memory: Option<MemoryScope>,
+    /// 以哪个人格为底（施工 P-3 上，16 第四节）：自己的几层盖在它叠好的样子上，提示词文件同名替换、没写的沿用。底怎么找在
+    /// `miyu_store::personas`。
+    pub base: Option<String>,
 }
 
 impl PersonaFile {
@@ -36,6 +40,7 @@ impl PersonaFile {
         lower.name.extend(self.name);
         lower.summary.extend(self.summary);
         lower.memory = self.memory.or(lower.memory);
+        lower.base = self.base.or(lower.base);
         lower
     }
 }
@@ -105,6 +110,8 @@ pub enum Code {
     EmptyPhrase,
     /// `[memory]` 的 `scope` 不是 `persona`、`session`（施工 R-3 下加的读法）。
     BadMemoryScope,
+    /// `[persona]` 的 `base` 不是合写法的人格编号（施工 P-3 上）。
+    BadBase,
     /// 示范对话第一行不是人说的。
     FirstLine,
     /// 示范对话没有一问一答交替。
@@ -127,6 +134,7 @@ impl Code {
             Code::UnknownLanguage => "unknown_language",
             Code::EmptyPhrase => "empty_phrase",
             Code::BadMemoryScope => "bad_memory_scope",
+            Code::BadBase => "bad_base",
             Code::FirstLine => "first_line",
             Code::TakeTurns => "take_turns",
             Code::LastLine => "last_line",
@@ -135,7 +143,7 @@ impl Code {
     }
 
     /// 全部，照先后。
-    pub const ALL: [Code; 12] = [
+    pub const ALL: [Code; 13] = [
         Code::Syntax,
         Code::UnknownTable,
         Code::NotATable,
@@ -144,6 +152,7 @@ impl Code {
         Code::UnknownLanguage,
         Code::EmptyPhrase,
         Code::BadMemoryScope,
+        Code::BadBase,
         Code::FirstLine,
         Code::TakeTurns,
         Code::LastLine,
@@ -198,6 +207,18 @@ pub fn read_toml(text: &str) -> Result<PersonaFile, Problem> {
             ));
         };
         for (key, item) in table.iter() {
+            if key == "base" {
+                let base = item.as_str().filter(|id| valid_name(id)).ok_or_else(|| {
+                    problem(
+                        at(item),
+                        Code::BadBase,
+                        "persona.base",
+                        "persona.base must be a persona id".to_string(),
+                    )
+                })?;
+                file.base = Some(base.to_string());
+                continue;
+            }
             let phrases = match key {
                 "name" => &mut file.name,
                 "summary" => &mut file.summary,

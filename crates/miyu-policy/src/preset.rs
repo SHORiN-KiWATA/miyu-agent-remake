@@ -54,6 +54,8 @@ pub struct PresetFile {
     pub software: BTreeMap<String, bool>,
     /// 关掉的单件工具（开着的包里的）。
     pub tools_off: BTreeSet<String>,
+    /// 以哪个预设为底（施工 P-3 上，16 第四节）：自己的几层逐格盖在它叠好的样子上。底怎么找在 `miyu_store::presets`。
+    pub base: Option<String>,
 }
 
 impl PresetFile {
@@ -66,6 +68,7 @@ impl PresetFile {
         lower.unlisted = self.unlisted.or(lower.unlisted);
         lower.software.extend(self.software);
         lower.tools_off.extend(self.tools_off);
+        lower.base = self.base.or(lower.base);
         lower
     }
 
@@ -87,7 +90,8 @@ impl PresetFile {
         self.opens(package) && !self.tools_off.contains(tool)
     }
 
-    /// 叠好的文件的指纹（施工 P-2 下）：记进快照，回合开始时执行器照它认出预设的文件改了。
+    /// 叠好的文件的指纹（施工 P-2 下）：记进快照，回合开始时执行器照它认出预设的文件改了。`base` 不算进去（施工 P-3 上）：
+    /// 底的各格已经叠进来了，算进去会让以前的快照全都对不上、开着的会话白白换一次快照。
     ///
     /// # Panics
     ///
@@ -223,6 +227,8 @@ pub enum Code {
     BadTool,
     /// `[tools]` 的值不是 `false`：单件打开某个包里的一件先不做。
     NotFalse,
+    /// `base` 不是合写法的预设编号（施工 P-3 上）。
+    BadBase,
 }
 
 impl Code {
@@ -242,11 +248,12 @@ impl Code {
             Code::NotBool => "not_bool",
             Code::BadTool => "bad_tool",
             Code::NotFalse => "not_false",
+            Code::BadBase => "bad_base",
         }
     }
 
     /// 全部，照先后：给人看的字的门禁照它查三种语言都有。
-    pub const ALL: [Code; 13] = [
+    pub const ALL: [Code; 14] = [
         Code::Syntax,
         Code::UnknownTable,
         Code::NotATable,
@@ -260,6 +267,7 @@ impl Code {
         Code::NotBool,
         Code::BadTool,
         Code::NotFalse,
+        Code::BadBase,
     ];
 }
 
@@ -366,6 +374,17 @@ impl Reader<'_> {
                         )
                     })?;
                     file.default_persona = Some(persona.to_string());
+                }
+                "base" => {
+                    let base = item.as_str().filter(|id| valid_name(id)).ok_or_else(|| {
+                        self.problem(
+                            item,
+                            Code::BadBase,
+                            "preset.base",
+                            "preset.base must be a preset id".to_string(),
+                        )
+                    })?;
+                    file.base = Some(base.to_string());
                 }
                 "unlisted" => {
                     file.unlisted = Some(match item.as_str() {

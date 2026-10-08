@@ -6,6 +6,13 @@ use super::*;
 use crate::env::{Env, Platform};
 use crate::test_support::Scratch;
 
+mod base;
+
+/// 一份字来自哪一层。
+fn layer(origin: &Option<Origin>) -> Option<Layer> {
+    origin.as_ref().map(|origin| origin.layer)
+}
+
 /// 一个临时的资源目录和数据根：`res/`、`home/`。
 struct Places {
     scratch: Scratch,
@@ -90,14 +97,14 @@ fn the_layers_stack_file_by_file_and_key_by_key() {
         Some("System.")
     );
     assert_eq!(found.texts.persona, "my persona\n", "人设同名替换，原样");
-    assert_eq!(found.persona_from, Some(Layer::Home));
+    assert_eq!(layer(&found.persona_from), Some(Layer::Home));
     assert_eq!(found.texts.examples.len(), 1, "示范对话沿用出厂的");
-    assert_eq!(found.examples_from, Some(Layer::Shipped));
+    assert_eq!(layer(&found.examples_from), Some(Layer::Shipped));
     assert_eq!(
         found.texts.reminders, "Stay soft.\n",
         "角色扮演提示照层叠，原样"
     );
-    assert_eq!(found.reminders_from, Some(Layer::System));
+    assert_eq!(layer(&found.reminders_from), Some(Layer::System));
     assert_eq!(found.home, Some(AccountId::parse("admin").unwrap()));
 }
 
@@ -110,7 +117,7 @@ fn a_persona_only_in_the_shipped_layer_lives_in_no_home() {
     assert_eq!(found.file, PersonaFile::default(), "没有 persona.toml 也行");
     assert!(found.texts.examples.is_empty());
     assert_eq!(
-        (found.texts.reminders.as_str(), found.reminders_from),
+        (found.texts.reminders.as_str(), layer(&found.reminders_from)),
         ("", None)
     );
     places.write(Layer::System, "shared", "prompts/persona.md", "y\n");

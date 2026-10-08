@@ -29,10 +29,14 @@ jobs:
         run: rustup toolchain install
       # 第三方依赖的编译产物：照 Cargo.lock、工具链、这台机器的系统分开存；只有 main 上的那一次存，分支照 main 的取，
       # 缓存不随分支越攒越多。工作区自己的 crate 每次照旧编。
+      # 键里不算「环境」：它把机器上装着的每个工具链都算进去，GitHub 的机器自带的 stable 版本一批一批地换（同一天
+      # 有 1.98.1 的、有 1.99.0 的），分支几乎对不上 main 存的那一份。钉住的工具链在 rust-toolchain.toml 里，它已经
+      # 算在键的后一半，换了照样换一份缓存（2026-10-08，0-3 再补）。
       - name: 取编译缓存
         uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
+          add-rust-environment-hash-key: false
       - name: 门禁
         run: cargo xtask check
 
@@ -52,5 +56,6 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           save-if: ${{ github.ref == 'refs/heads/main' }}
+          add-rust-environment-hash-key: false
       - name: 长跑
         run: cargo test --release -p miyu-kernel -p miyu-assemble -- --ignored for_longer
