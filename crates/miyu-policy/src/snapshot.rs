@@ -94,6 +94,9 @@ pub struct CompactionNumbers {
     /// 尾巴至多多少 token（施工 6-2 下）。6-2（上）造的快照里没有，读成出厂的 16000。
     #[serde(default = "default_tail")]
     pub tail: u64,
+    /// 提前压好的提前量的上限（施工 6-11 上）。以前造的快照里没有，读成出厂的 16000：老会话也提前压。
+    #[serde(default = "default_lead")]
+    pub lead: u64,
     /// 压后重建的数（施工 6-5）。以前造的快照里没有，读成没有：不重读。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rebuild: Option<RebuildNumbers>,
@@ -111,6 +114,14 @@ pub const TAIL: u64 = 16_000;
 /// 读 6-2（上）造的快照时，没有 `tail` 的那一格。
 fn default_tail() -> u64 {
     TAIL
+}
+
+/// 提前量的上限的出厂值（`09-压缩.md` 第十节，2026-10-07 项目主人定）。
+pub const LEAD: u64 = 16_000;
+
+/// 读 6-11（上）以前造的快照时，没有 `lead` 的那一格。
+fn default_lead() -> u64 {
+    LEAD
 }
 
 /// 随核心附带的字（`resources/core/`），原文照抄，行尾的换行也算（`26-提示词.md` 第八节）。
@@ -404,6 +415,7 @@ impl Snapshot {
             reserve_cap: numbers.reserve_cap,
             margin: numbers.margin,
             tail: numbers.tail,
+            lead: numbers.lead,
             price: Flat {
                 image: numbers.image,
                 file: numbers.file,

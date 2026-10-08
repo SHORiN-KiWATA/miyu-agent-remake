@@ -254,6 +254,7 @@ miyu_config::settings! {
 | `external.bindings.<external>` | 名字（本机账号） | 没有 | 系统 | 不能写 | `now` | O-3：主人对应表（`venues.md`），一个号一行；对着不存在的账号的认的时候当没写、记一行运行日志 |
 | `ui.startup` | 选项 `new`、`recent` | `new`，开一个新会话 | 系统、个人 | 不能写 | `head_start` | 8-3（8-28 从 `tui.startup` 改名） |
 | `ui.head` | 名字（软件包的编号） | `tui` | 系统、个人 | 不能写 | `head_start` | 9-3（`cli/main.md`「怎么走」第 3 条）：直接敲 `miyu`、`miyu config` 时打开哪个界面；主程序每次敲的时候经 `config.get` 读，照清单找这个包的程序。界面提示：通用页的「显示」组，文字 |
+| `compaction.prepare` | 开关 | `true` | 系统、个人 | 不能写 | `next_turn` | 6-11 上（`compaction.md` 第十五条）：提前压好，会话 actor 回合开始时读、交给内核。设置页在「高级」那一页的「压缩」一组，排在「运行日志」前面 |
 | `persona.default` | 名字（人格的编号） | `engineer` | 系统、个人 | 不能写 | `new_session` | P-1 上（`personas.md`）：没指定人格、预设也没写默认人格的新会话照它找；指着没有的人格，造会话回 `unknown_persona`，不悄悄换 |
 | `preset.default` | 名字（预设的编号） | `full` | 系统、个人 | 不能写 | `new_session` | P-2 上（`presets.md`）：没指定预设的新会话照它找；指着没有的预设，造会话回 `unknown_preset`，不悄悄换（Y12）。设置页在「通用」那一页的「预设」一组 |
 | `models.chat` | 引用 | 没有：`no_model` | 系统、个人 | 不能写 | `new_session` | 8-6 |
@@ -951,6 +952,11 @@ $ miyu logout bigmodel-2
 # Miyu 的全部配置项和默认值。这份是生成的，改它没有用。
 # 系统配置写在 system/config.toml，个人设置写在 home/<账号>/settings.toml。
 
+[compaction]
+# 提前压好：上下文快满时，在后台先把旧的那一段压成摘要，到了要压缩的时候直接换上，不用停下来等。关掉的话，照旧到线再压。
+# 能写：true 或 false。只能写在系统配置或个人设置里。下一轮生效。
+prepare = true
+
 [external.bindings]
 # 主人的平台账号：通讯平台上的哪个号是哪个本机账号本人。键写平台上的身份（例如 qq:10001），值写本机账号。私聊里，这个号就是那个账号本人。
 # 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置里。当场生效。
@@ -1169,12 +1175,23 @@ port = 8300
 ticket_idle_seconds = 43200
 ```
 
-样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `models.chat`、`models.vision`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`models.cooldown.*`（8-9）、`permission.start_read_only`、`persona.default`（P-1 上）、`preset.default`（P-2 上）、`providers.<id>.*`、`ui.language`、`ui.startup`）：
+样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `compaction.prepare`（6-11 上）、`models.chat`、`models.vision`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`models.cooldown.*`（8-9）、`permission.start_read_only`、`persona.default`（P-1 上）、`preset.default`（P-2 上）、`providers.<id>.*`、`ui.language`、`ui.startup`）：
 
 ```json
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "properties": {
+    "compaction": {
+      "properties": {
+        "prepare": {
+          "default": true,
+          "description": "上下文快满时，在后台先把旧的那一段压成摘要，到了要压缩的时候直接换上，不用停下来等。关掉的话，照旧到线再压。能写：true 或 false。只能写在系统配置或个人设置里。下一轮生效。",
+          "title": "提前压好",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "models": {
       "properties": {
         "catalog": {

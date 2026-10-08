@@ -1,6 +1,17 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "properties": {
+    "compaction": {
+      "properties": {
+        "prepare": {
+          "default": true,
+          "description": "上下文快满时，在后台先把旧的那一段压成摘要，到了要压缩的时候直接换上，不用停下来等。关掉的话，照旧到线再压。能写：true 或 false。只能写在系统配置或个人设置里。下一轮生效。",
+          "title": "提前压好",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "external": {
       "properties": {
         "bindings": {

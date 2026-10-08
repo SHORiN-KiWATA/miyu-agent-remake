@@ -16,6 +16,7 @@ pub(super) fn random_policy(attended: bool, isolate: bool) -> Policy {
         reserve_cap: 10,
         margin: 10,
         tail: 30,
+        lead: 20,
         price: crate::estimate::Flat {
             image: 50,
             file: 50,

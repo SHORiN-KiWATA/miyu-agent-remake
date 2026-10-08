@@ -1,6 +1,11 @@
 # Every Miyu setting and its default. This file is generated. Editing it has no effect.
 # Write the system config in system/config.toml and personal settings in home/<account>/settings.toml.
 
+[compaction]
+# Prepare compaction early: When the context is nearly full, the older part is summarized in the background, so the switch happens without a wait when compaction is due. Off means compacting only once the limit is reached, as before.
+# Allowed: true or false. Only in the system config or personal settings. Takes effect next turn.
+prepare = true
+
 [external.bindings]
 # Owner's platform accounts: Which platform identity is which local account. The key is the platform identity (for example qq:10001), the value is the local account. In private chats that identity is that account itself.
 # Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config. Takes effect at once.

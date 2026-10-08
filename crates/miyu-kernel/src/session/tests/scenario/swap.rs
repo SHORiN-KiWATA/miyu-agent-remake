@@ -128,6 +128,7 @@ fn a_staged_policy_without_a_hash_is_dropped() {
         injected: Vec::new(),
         replaced: None,
         policy: None,
+        prepare: false,
     });
     assert!(appended_events(&actions).is_empty(), "{actions:?}");
     let systems: Vec<&str> = actions

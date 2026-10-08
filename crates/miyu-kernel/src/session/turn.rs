@@ -10,11 +10,11 @@ use super::Session;
 use super::action::Action;
 use super::breaker::Before;
 use super::call::Call;
-use super::configure::Replaced;
-use super::input::Injection;
+use super::input::Input;
 use super::manual::Manual;
 use super::overflow::Passive;
 use super::step::Step;
+use super::summary::Summarized;
 use crate::event::{Body, EndReason, Event, TurnEnded, TurnStarted};
 use crate::id::{CommandId, ContentHash, Seq, TurnId};
 use crate::origin::{By, Module};
@@ -112,6 +112,9 @@ pub(super) enum Stage {
     Settling,
     /// 回复里有工具调用：这一步的调用走到了哪。
     Tools(Step),
+    /// 到线时换上提前压好的那一份，在等执行器重读（施工 6-11 上，`prepare.rs`）：回来了写压缩，回到「准备好」。打断、重启
+    /// 照「准备好」收拾，那一份扔掉。
+    Swapping(Box<Summarized>),
 }
 
 impl Session {
@@ -185,20 +188,25 @@ impl Session {
     /// 文件改了、带着新快照的哈希的，再记一条、换上放着的策略（施工 P-1 再补，`policy.rs`）；再照交回来的先后追加成
     /// `context.injected`，`by` 是各自的模块，然后回合往下走。回合对不上的、同一个回合第二次来的，不理：打断以后迟到的
     /// 就是这种。
-    pub(super) fn turn_start_hooked(
-        &mut self,
-        at: Timestamp,
-        turn: TurnId,
-        injected: Vec<Injection>,
-        replaced: Option<Replaced>,
-        policy: Option<ContentHash>,
-    ) -> Vec<Action> {
+    pub(super) fn turn_start_hooked(&mut self, hooked: Input) -> Vec<Action> {
+        let Input::TurnStartHooksDone {
+            at,
+            turn,
+            injected,
+            replaced,
+            policy,
+            prepare,
+        } = hooked
+        else {
+            return Vec::new();
+        };
         let Some(current) = self.turn.as_mut() else {
             return Vec::new();
         };
         if current.id != turn || !matches!(current.stage, Stage::Hooking) {
             return Vec::new();
         }
+        self.prepare.on = prepare;
         current.stage = Stage::Ready;
         let cause = current.cause.clone();
         let mut events: Vec<Event> = self
@@ -267,11 +275,11 @@ impl Session {
         let request = self.with_descriptions(request);
         // 手动压缩单开的那一轮：不问熔断，发摘要请求（施工 6-8，`manual.rs`）。
         if let Some(due) = self.manual_due(&request) {
-            return self.start_compaction(due);
+            return self.begin_compaction(at, due);
         }
         match self.before_asking(&request) {
             Before::Send => {}
-            Before::Compact(due) => return self.start_compaction(due),
+            Before::Compact(due) => return self.begin_compaction(at, due),
             Before::Pause(paused) => return self.pause(at, paused),
             Before::Refuse(error) => return self.refuse(at, seen, &request, error),
         }
@@ -281,6 +289,8 @@ impl Session {
             .as_ref()
             .and_then(|before| fingerprint.first_difference(before));
         self.last_request = Some(fingerprint);
+        // 过了起压线的，在后台提前压（施工 6-11 上，`prepare.rs`）：排在主请求后面。
+        let prepare = self.prepare_up(&request);
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();
         };
@@ -292,11 +302,13 @@ impl Session {
         turn.queued.clear();
         turn.reports.clear();
         turn.stage = Stage::Asking(Call::new(seen, request.messages.len(), difference));
-        vec![Action::CallModel {
+        let mut actions = vec![Action::CallModel {
             seen,
             request,
             changed: difference,
-        }]
+        }];
+        actions.extend(prepare);
+        actions
     }
 
     /// 结束正在进行的回合：追加 `turn.ended`，会话空闲。等它落了盘，再跑回合结束的挂接点。

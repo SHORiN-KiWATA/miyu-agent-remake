@@ -1,6 +1,17 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "properties": {
+    "compaction": {
+      "properties": {
+        "prepare": {
+          "default": true,
+          "description": "When the context is nearly full, the older part is summarized in the background, so the switch happens without a wait when compaction is due. Off means compacting only once the limit is reached, as before. Allowed: true or false. Only in the system config or personal settings. Takes effect next turn.",
+          "title": "Prepare compaction early",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "external": {
       "properties": {
         "bindings": {

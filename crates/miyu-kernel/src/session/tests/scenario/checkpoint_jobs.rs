@@ -17,6 +17,7 @@ fn compacting() -> Stage {
             reserve_cap: 10,
             margin: 10,
             tail: 0,
+            lead: 0,
             price: crate::estimate::Flat {
                 image: 50,
                 file: 50,

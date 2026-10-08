@@ -18,6 +18,8 @@ mod models;
 mod overflow;
 mod peers;
 mod permission_changed;
+mod prepare;
+mod prepare_drop;
 mod rebuild;
 mod recap;
 mod redo;

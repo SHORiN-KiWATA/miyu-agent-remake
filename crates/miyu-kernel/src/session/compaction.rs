@@ -25,8 +25,8 @@ use crate::id::{CommandId, Seq};
 use crate::origin::By;
 use crate::request::Request;
 use crate::time::Timestamp;
-pub(super) use cut::cuts;
-use cut::{settle, tail_upto};
+use cut::tail_upto;
+pub(super) use cut::{cuts, settle};
 
 /// 进度的 `expected` 夹在这两头之间：压缩前的用量折成字数，输出约是输入的四分之一、一个 token 约四个字符，两下
 /// 相抵就是用量本身（openclaude 的做法）。
@@ -418,6 +418,7 @@ impl Session {
             duration_ms,
             paths,
             reread,
+            prepared,
         } = summarized;
         let rebuilt = self.rebuild(at, upto, cut, &summary, &paths, reread.as_deref());
         let body = Body::ContextCompacted(ContextCompacted {
@@ -451,6 +452,7 @@ impl Session {
                 after,
                 usage,
                 duration_ms,
+                prepared,
             }),
         });
         if self.turn.as_ref().is_some_and(|turn| turn.manual.is_some()) {

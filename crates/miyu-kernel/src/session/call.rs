@@ -449,6 +449,7 @@ impl Session {
                     duration_ms: called.duration_ms,
                     paths,
                     reread,
+                    prepared: false,
                 }
             });
         events.push(self.record(at, By::Kernel, cause, Body::ModelCalled(called)));

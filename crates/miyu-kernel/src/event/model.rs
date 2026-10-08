@@ -57,8 +57,8 @@ pub struct ModelCalled {
     /// 第十条第 3 条）。以前的日志没有这一格。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub compaction: Option<CompactTrigger>,
-    /// 辅助请求的用途（施工 3-8 四补，`26-提示词.md` J6）：回顾 `recap`、起标题 `title`（施工 3-8 五补）；主请求、摘要请求
-    /// 没有。以前的日志没有这一格。
+    /// 辅助请求的用途（施工 3-8 四补，`26-提示词.md` J6）：回顾 `recap`、起标题 `title`（施工 3-8 五补）、提前压好的摘要
+    /// `compaction`（施工 6-11 上）；主请求、当场压的摘要请求没有。以前的日志没有这一格。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub purpose: Option<Purpose>,
 }
@@ -78,6 +78,8 @@ text_enum!(
         Recap = "recap",
         /// 起标题：没起名的会话一轮答完以后内核自己要的（施工 3-8 五补，`docs/blueprint/kernel/session.md`「起标题」）。
         Title = "title",
+        /// 提前压好：用量过了起压线，内核在后台先要的摘要（施工 6-11 上，`docs/blueprint/compaction.md` 第十五条）。
+        Compaction = "compaction",
     }
 );
 

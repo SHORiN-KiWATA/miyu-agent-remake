@@ -23,6 +23,7 @@ use crate::handle::Pushed;
 use crate::lines::{millis, where_};
 use crate::port::{Cancel, Report, Reports, Sight};
 use crate::route::NONE;
+use crate::settings::CompactionSettings;
 use crate::shown::{Next, Shown};
 
 impl Actor {
@@ -129,9 +130,11 @@ impl Actor {
             self.announce(ChangeWhy::Turn);
         }
         let values = self.config.current().resolved.values();
+        let prepare = CompactionSettings::from(&values).prepare;
         let policy = self.refresh_persona(values).await;
         Input::TurnStartHooksDone {
             policy,
+            prepare,
             at: self.clock.now(),
             turn,
             injected: Vec::new(),
@@ -261,7 +264,7 @@ impl Actor {
 }
 
 /// 一次请求收场的那一行：出错的写分类，说完了的写输入、命中、写进缓存的、输出。`what` 是主请求的空着，辅助请求的是用途加一个
-/// 空格（`recap `、`title `）。
+/// 空格（`recap `、`title `、`compaction `）。提前压好的出错记 `WARN`（施工 6-11 上）：到线时照当场压，没人看得到它。
 fn finished(
     seen: Seq,
     asked: Instant,
@@ -271,6 +274,13 @@ fn finished(
 ) {
     let took_ms = millis(asked.elapsed());
     match error {
+        Some(error) if what == "compaction " => tracing::warn!(
+            target: TARGET,
+            seen = seen.get(),
+            took_ms,
+            class = error.class.as_str(),
+            "{what}failed"
+        ),
         Some(error) => tracing::info!(
             target: TARGET,
             seen = seen.get(),

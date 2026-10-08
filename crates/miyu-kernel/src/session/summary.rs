@@ -8,6 +8,7 @@ use crate::event::{CallError, CompactTrigger, ErrorClass, Usage};
 use crate::id::Seq;
 
 /// 摘要请求取到了摘要：替代到哪、摘要、压之前的用量，和这次摘要请求的用量、用时（施工 6-3 下：推 `compaction.done`）。
+#[derive(Debug)]
 pub(super) struct Summarized {
     pub(super) upto: Seq,
     /// 哪一种压缩、人附的要求（施工 6-8）、压完很快又到线连着的第几次（施工 6-6 上）。
@@ -23,6 +24,8 @@ pub(super) struct Summarized {
     /// 交给执行器重读的候选、送回的结果（施工 6-5）。
     pub(super) paths: Vec<String>,
     pub(super) reread: Option<Vec<Reread>>,
+    /// 换上的是提前压好的那一份（施工 6-11 上，`prepare.rs`）：推的 `compaction.done` 带 `prepared`。
+    pub(super) prepared: bool,
 }
 
 impl Session {

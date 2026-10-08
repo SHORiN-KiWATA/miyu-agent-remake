@@ -54,7 +54,8 @@ impl Watch {
         let in_flight = self
             .compactions
             .summarizing
-            .map(|(summarizing, _)| summarizing);
+            .map(|(summarizing, _)| summarizing)
+            .or_else(|| self.swapping());
         let rebuild = &mut self.compactions.rebuild;
         let asked = rebuild.asked.as_ref().filter(|(asked, _)| *asked == *seen);
         if let Some((_, paths)) = asked {

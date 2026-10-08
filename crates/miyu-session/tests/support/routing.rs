@@ -28,6 +28,7 @@ pub fn items() -> Vec<Item> {
         PriceSettings::ITEMS,
         UseSettings::ITEMS,
         PoolSettings::ITEMS,
+        miyu_session::settings::CompactionSettings::ITEMS,
     ]
     .concat()
 }

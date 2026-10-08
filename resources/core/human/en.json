@@ -1,6 +1,10 @@
 {
   "config": {
     "items": {
+      "compaction.prepare": {
+        "name": "Prepare compaction early",
+        "description": "When the context is nearly full, the older part is summarized in the background, so the switch happens without a wait when compaction is due. Off means compacting only once the limit is reached, as before."
+      },
       "log.level": {
         "name": "Runtime log level",
         "description": "How much the runtime log records. Set debug when chasing a problem. MIYU_LOG, when set, wins for that launch.",
@@ -236,6 +240,7 @@
       "display": "Display",
       "persona": "Persona",
       "preset": "Preset",
+      "compaction": "Compaction",
       "log": "Runtime log",
       "sessions": "Sessions",
       "uses": "Uses",

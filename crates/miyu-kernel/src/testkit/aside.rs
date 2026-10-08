@@ -96,6 +96,10 @@ impl Stage {
                     self.titles.push((upto, request));
                     self.title_lines.pop_front()
                 }
+                Purpose::Compaction => {
+                    self.prepare.asked.push((upto, request));
+                    self.prepare.lines.pop_front()
+                }
                 Purpose::Other(_) => None,
             };
         let Some(line) = line else {
@@ -121,6 +125,7 @@ impl Stage {
         if line.hold {
             match purpose {
                 Purpose::Title => self.held_title = Some((upto, line)),
+                Purpose::Compaction => self.prepare.held = Some((upto, line)),
                 _ => self.held_recap = Some((upto, line)),
             }
         } else {
@@ -130,7 +135,7 @@ impl Stage {
     }
 
     /// 辅助请求 `upto` 说完了：出错的带上分类和原话，说完了的带上用量。
-    fn aside_ended(&mut self, purpose: Purpose, upto: Seq, line: &Line) -> Input {
+    pub(super) fn aside_ended(&mut self, purpose: Purpose, upto: Seq, line: &Line) -> Input {
         Input::AsideEnded {
             at: self.tick(),
             purpose,
