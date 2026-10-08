@@ -41,8 +41,8 @@ pub struct Create<'a> {
     pub resources: &'a ResourceRoot,
     /// 会话编号，照 [`crate::new_id`] 造。
     pub id: SessionId,
-    /// 照哪个人格造：编号。
-    pub persona: &'a str,
+    /// 照哪个人格造：编号。无人格的没有（施工 P-4 上）：`persona_texts` 是空的，记忆不生效。
+    pub persona: Option<&'a str>,
     /// 这个人格的字，几层叠好的（施工 P-1 上，`miyu_store::personas`）：造快照用。
     pub persona_texts: PersonaTexts,
     /// 人格的几层（施工 P-1 再补）：回合开始时照它看人格的文件改了没有。

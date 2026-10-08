@@ -22,7 +22,7 @@ use crate::Core;
 use crate::config::methods::words;
 use crate::hello::Peer;
 use crate::refusal::Refusal;
-use crate::toml_changes::{ChangeParams, Wanted, check_expect, edited, wanted, without_base};
+use crate::toml_changes::{ChangeParams, Wanted, check_expect, edited, wanted, without};
 
 /// 写的时候撞上有人手改，最多重来几次。
 const ATTEMPTS: usize = 3;
@@ -47,6 +47,13 @@ pub(crate) async fn set(core: &Core, peer: Peer, params: SetParams) -> Result<Js
     if params.preset.is_none() && !wanted.iter().any(Wanted::writes) {
         return Err(Refusal::BAD_PARAMS);
     }
+    // 撤掉了的几格不收（施工 P-4 上）：头还在发，说明它没跟上，早报出来好。
+    if wanted
+        .iter()
+        .any(|want| retired().iter().any(|key| key == want.key()))
+    {
+        return Err(Refusal::BAD_PARAMS);
+    }
     let presets = presets(core);
     let found = tokio::task::spawn_blocking(move || match params.preset {
         Some(id) => write(&presets, &id, &wanted, said.as_ref()),
@@ -55,6 +62,14 @@ pub(crate) async fn set(core: &Core, peer: Peer, params: SetParams) -> Result<Js
     .await
     .map_err(|_| Refusal::INTERNAL)??;
     Ok(describe(core, &found, peer.language))
+}
+
+/// 预设里撤掉了的几格的完整的键：P-3 补撤掉的「以谁为底」、P-4 上撤掉的默认人格。读的时候当没写，写的时候去掉。
+fn retired() -> [String; 2] {
+    [
+        format!("preset.{}", miyu_policy::persona::BASE),
+        format!("preset.{}", miyu_policy::preset::DEFAULT_PERSONA),
+    ]
 }
 
 /// 新建：挑一个没用过的编号，照 `wanted` 写一份新文件；写的那一瞬间别处占了这个编号的（文件已经有了），换下一个再来。
@@ -134,7 +149,7 @@ fn write(
         check_expect(&text, wanted, "preset_conflict")?;
         let file = format!("home {id}.toml");
         let edited = edited(
-            &without_base(&text, "preset"),
+            &without(&text, &retired()),
             wanted,
             &file,
             Refusal::preset_invalid,

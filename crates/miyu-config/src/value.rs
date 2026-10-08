@@ -234,6 +234,16 @@ fn float_toml(number: f64) -> String {
     }
 }
 
+/// 单个密钥（施工 O-8，`onebot.token`）：写了的是它的引用，没写的、不是引用的是空的。
+impl Setting for Option<Reference> {
+    fn read(value: Option<&Value>) -> Option<Reference> {
+        match value {
+            Some(Value::Secret(reference)) => Some(reference.clone()),
+            _ => None,
+        }
+    }
+}
+
 /// 密钥的列表（施工 8-6）：照写的先后，不是引用的跳过。
 impl Setting for Vec<Reference> {
     fn read(value: Option<&Value>) -> Vec<Reference> {

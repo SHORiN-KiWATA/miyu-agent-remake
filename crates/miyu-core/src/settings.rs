@@ -36,8 +36,8 @@ const TARGET: &str = "miyu::config";
 /// 登记的模块，照这个先后，一个模块里照声明的先后。加一个模块只加一行。设置页的页照第一次出现的先后排：通用、界面、
 /// 权限、模型、高级（施工 8-2、8-3、8-6）；模型那一页先「用途」、再「供应商」、再「目录」（施工 8-7），「池」排在「用途」
 /// 后面（施工 8-8；「挡位」8-8 补去掉了），「冷却」排在「目录」后面（施工 8-9）；高级那一页先「压缩」再「运行日志」（施工
-/// 6-11 上）。
-const MODULES: [&[Item]; 17] = [
+/// 6-11 上）。通讯平台的桥的两项排在最后，高级页里「运行日志」后面（施工 O-8）。
+const MODULES: [&[Item]; 18] = [
     UiSettings::ITEMS,
     PersonaSettings::ITEMS,
     PresetSettings::ITEMS,
@@ -55,7 +55,30 @@ const MODULES: [&[Item]; 17] = [
     AuthCooldown::ITEMS,
     CompactionSettings::ITEMS,
     LogSettings::ITEMS,
+    OnebotSettings::ITEMS,
 ];
+
+miyu_config::settings! {
+    /// 通讯平台的桥 `miyu-onebot` 的配置（施工 O-8，`docs/blueprint/onebot.md` 第一条）。权宜：照 `tui.startup`（施工 8-3）的
+    /// 先例，软件包的清单还不能声明配置项，先由核心替桥声明、登记；桥自己读系统配置、起来时读一次，核心不管它。施工 9-1
+    /// 有了软件包的清单以后挪进桥自己的清单。
+    pub struct OnebotSettings in "onebot" {
+        /// NapCat 反连进来的端口，只听本机 `127.0.0.1`。8301 挨着网页软件的 8300（`onebot.md`「施工时定的」第 2 条）。
+        listen: Option<i64> = 8301 {
+            kind: int [1024, 65535],
+            layers: [System],
+            applies: head_start,
+            ui: { page: "advanced", group: "onebot", control: number },
+        },
+        /// NapCat 连进来时出示的访问令牌：`{ secret = … }` 或 `{ env = … }`。没设、取不到的，桥不起来（「施工时定的」第 3 条）。
+        token: Option<miyu_config::secret::Reference> = none {
+            kind: secret,
+            layers: [System],
+            applies: head_start,
+            ui: { page: "advanced", group: "onebot", control: text },
+        },
+    }
+}
 
 /// 生成的三份放在状态区的这个目录里：`state/config/`。
 const DIR: &str = "config";

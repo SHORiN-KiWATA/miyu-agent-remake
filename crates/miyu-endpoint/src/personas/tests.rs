@@ -19,11 +19,11 @@ fn found(home: Option<&str>) -> Found {
 fn memory_follows_the_home_the_persona_lives_in() {
     let owner = AccountId::parse("alice").unwrap();
     assert_eq!(
-        memory_account(&found(Some("admin")), &owner).as_str(),
+        memory_account(Some(&found(Some("admin"))), &owner).as_str(),
         "admin"
     );
     assert_eq!(
-        memory_account(&found(None), &owner).as_str(),
+        memory_account(Some(&found(None)), &owner).as_str(),
         "alice",
         "出厂、系统区的归属主"
     );

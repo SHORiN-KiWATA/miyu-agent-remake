@@ -46,8 +46,6 @@ pub struct PresetFile {
     pub name: Option<Label>,
     /// 一句说明，写法同名字。
     pub summary: Option<Label>,
-    /// 不指定人格时用哪个人格（人格的编号；在不在开会话时查）。
-    pub default_persona: Option<String>,
     /// 没列出来的软件开不开；几层都没写的照 [`Unlisted::On`]（[`PresetFile::unlisted`]）。
     pub unlisted: Option<Unlisted>,
     /// 软件包的编号到开不开。
@@ -62,7 +60,6 @@ impl PresetFile {
     pub fn over(self, mut lower: PresetFile) -> PresetFile {
         lower.name = self.name.or(lower.name);
         lower.summary = self.summary.or(lower.summary);
-        lower.default_persona = self.default_persona.or(lower.default_persona);
         lower.unlisted = self.unlisted.or(lower.unlisted);
         lower.software.extend(self.software);
         lower.tools_off.extend(self.tools_off);
@@ -88,7 +85,8 @@ impl PresetFile {
     }
 
     /// 叠好的文件的指纹（施工 P-2 下）：记进快照，回合开始时执行器照它认出预设的文件改了。名字、说明照以前的写法算
-    /// （施工 P-3 补：没写的是空表、语言表照原样，一句字的是那句字）：以前造的快照照旧对得上，开着的会话不白白换一次快照。
+    /// （施工 P-3 补：没写的是空表、语言表照原样，一句字的是那句字），默认人格那一格照没写算（施工 P-4 上撤了）：以前造的
+    /// 快照照旧对得上，开着的会话不白白换一次快照。
     ///
     /// # Panics
     ///
@@ -97,7 +95,7 @@ impl PresetFile {
         let fields = (
             label_json(self.name.as_ref()),
             label_json(self.summary.as_ref()),
-            &self.default_persona,
+            None::<String>,
             self.unlisted.map(Unlisted::as_str),
             &self.software,
             &self.tools_off,
@@ -195,6 +193,10 @@ pub struct Problem {
     pub message: String,
 }
 
+/// 撤掉了的默认人格那一格的键（施工 P-4 上，2026-10-08 项目主人：只去掉预设的「默认人格」）：读的时候当没写，写的时候去掉，
+/// `preset.set` 写它是参数不对。
+pub const DEFAULT_PERSONA: &str = "default_persona";
+
 /// 预设文件错在哪一种。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Code {
@@ -212,8 +214,6 @@ pub enum Code {
     UnknownLanguage,
     /// 一句话是空的、不是字。
     EmptyPhrase,
-    /// `default_persona` 不是合写法的人格编号。
-    BadPersona,
     /// `unlisted` 不是 `on`、`off`。
     BadUnlisted,
     /// `[software]` 的键不是合写法的软件包编号。
@@ -237,7 +237,6 @@ impl Code {
             Code::NotPhrases => "not_phrases",
             Code::UnknownLanguage => "unknown_language",
             Code::EmptyPhrase => "empty_phrase",
-            Code::BadPersona => "bad_persona",
             Code::BadUnlisted => "bad_unlisted",
             Code::BadSoftware => "bad_software",
             Code::NotBool => "not_bool",
@@ -247,7 +246,7 @@ impl Code {
     }
 
     /// 全部，照先后：给人看的字的门禁照它查三种语言都有。
-    pub const ALL: [Code; 13] = [
+    pub const ALL: [Code; 12] = [
         Code::Syntax,
         Code::UnknownTable,
         Code::NotATable,
@@ -255,7 +254,6 @@ impl Code {
         Code::NotPhrases,
         Code::UnknownLanguage,
         Code::EmptyPhrase,
-        Code::BadPersona,
         Code::BadUnlisted,
         Code::BadSoftware,
         Code::NotBool,
@@ -357,19 +355,9 @@ impl Reader<'_> {
             match key {
                 "name" => file.name = Some(self.label(key, item)?),
                 "summary" => file.summary = Some(self.label(key, item)?),
-                // P-3 上那几个小时里写进去的「以谁为底」：认出来就当没写（施工 P-3 再补），下一次写这份文件时去掉。
-                crate::persona::BASE => {}
-                "default_persona" => {
-                    let persona = item.as_str().filter(|id| valid_name(id)).ok_or_else(|| {
-                        self.problem(
-                            item,
-                            Code::BadPersona,
-                            "preset.default_persona",
-                            "preset.default_persona must be a persona id".to_string(),
-                        )
-                    })?;
-                    file.default_persona = Some(persona.to_string());
-                }
+                // P-3 上那几个小时里写进去的「以谁为底」（施工 P-3 再补）、P-4 上撤掉的默认人格：认出来就当没写，下一次写这份
+                // 文件时去掉。
+                crate::persona::BASE | DEFAULT_PERSONA => {}
                 "unlisted" => {
                     file.unlisted = Some(match item.as_str() {
                         Some("on") => Unlisted::On,

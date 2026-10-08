@@ -31,7 +31,7 @@ fn setup_with(
     let resources = ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"));
     let personas = Personas::new(&resources, &root, &alice);
     let parts = Parts {
-        name: "miyu".to_string(),
+        name: Some("miyu".to_string()),
         texts: personas.find("miyu").expect("找得到 Miyu").texts,
         attended: true,
         face: Vec::new(),
@@ -119,4 +119,12 @@ fn roleplay_stays_off_across_a_swap() {
     assert_eq!(snapshot.preset, Some(pin));
     refresh.snapshot = *snapshot;
     assert!(matches!(seen(&refresh), Seen::Same), "换过以后不再换");
+}
+
+/// 人格的文件没了（施工 P-4 上：以前钉着出厂人格、后来撤掉了的会话）：照快照里的接着用，不换也不报。
+#[test]
+fn a_persona_whose_files_are_gone_is_kept_quietly() {
+    let (_scratch, root, refresh) = setup("gone", "You are Miyu.\n");
+    std::fs::remove_dir_all(root.path().join("home/alice/personas/miyu")).expect("删得掉");
+    assert!(matches!(seen(&refresh), Seen::Same));
 }

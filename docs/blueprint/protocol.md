@@ -188,7 +188,7 @@
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| `persona` | 字符串，可以不写 | 照哪个人格造；不写的照预设的 `default_persona`（施工 P-2 上），预设没写的照这时的 `persona.default`（施工 P-1 上，`personas.md`），都没写是出厂的 `engineer` |
+| `persona` | 字符串或 `null`，可以不写 | 照哪个人格造；写 `null` 的明着无人格，不写的照这时的 `persona.default`（施工 P-1 上，`personas.md`），没设的、指着没有的无人格（施工 P-4 上：预设不再管默认人格，出厂不设默认人格）。无人格的会话 system 里没有人设、记忆不生效 |
 | `preset` | 字符串，可以不写 | 照哪个预设造（施工 P-2 上，`presets.md`）：不写、写 `null` 的照这时的 `preset.default`，都没写是出厂的 `full`。记进 `session.created` 的 `preset`，以后不改 |
 | `cwd` | 字符串，必写 | 头的工作目录，人看到的那种写法，例如 `~/src/miyu` |
 | `oneshot` | 布尔，不写是 `false` | 一次性的：`miyu ask` 开的写 `true`，记进 `session.created` |
@@ -506,7 +506,7 @@
 |---|---|---|
 | `preset` | 字符串，必写 | 预设的编号 |
 
-回应 `{"preset", "name", "summary", "default_persona", "unlisted", "software", "tools", "remove"}`（施工 P-3 补：只给人要看的）：`name`、`summary` 一句字（挑法同 `persona.list`）；`default_persona` 没写的是 `null`；`unlisted` 是叠好以后的 `on`、`off`（几层都没写的是 `on`）；`tools` 是关掉的单件工具，值都是 `false`；`remove` 是删了会怎样：`restore`（有你那一层、下面还有：删了回到出厂的样子）、`delete`（只有你那一层：删了就没了）、`null`（没有你那一层，没什么可删）。
+回应 `{"preset", "name", "summary", "unlisted", "software", "tools", "remove"}`（施工 P-3 补：只给人要看的；`default_persona` 施工 P-4 上撤了）：`name`、`summary` 一句字（挑法同 `persona.list`）；`unlisted` 是叠好以后的 `on`、`off`（几层都没写的是 `on`）；`tools` 是关掉的单件工具，值都是 `false`；`remove` 是删了会怎样：`restore`（有你那一层、下面还有：删了回到出厂的样子）、`delete`（只有你那一层：删了就没了）、`null`（没有你那一层，没什么可删）。
 - `software` 是一个个软件 `[{"id", "name", "summary", "on", "installed"}, …]`（施工 P-3 补，2026-10-08 项目主人：「显示名称呢？都是英文谁看得懂？」）：这台机器上装了的，加上 `[software]` 里写了、没装的（`installed: false`）。`name`、`summary` 照这个连接的语言：内置的（基础系统、联网、长期目标、记忆、角色扮演）照给人看的字 `software/<编号>`、`software/<编号>/summary`，清单装的包照它清单的 `name`、`summary`，都没有的名字是编号、说明是 `null`。`on` 是叠好以后开不开。先后：内置的照上面那个先后，再是装了的别的、没装的，各照编号。`id` 是 `preset.set` 写 `software.<id>` 用的，不往界面上露。
 - 编号不合写法的 `bad_params`，没有的 `unknown_preset`，写错的 `preset_invalid`（`data.message` 照这个连接的语言说一句、`data.line` 第几行，施工 P-3 补）。
 
@@ -515,7 +515,7 @@
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | `preset` | 字符串，可以不写 | 预设的编号；不写的是新建，编号由核心起 `preset-<n>`（几层里都还没有的最小的 n，施工 P-3 补，2026-10-08 项目主人定：新建不填编号） |
-| `changes` | 数组，必写、不能是空的 | 每一项 `{"key", "value" \| "unset": true, "expect"?}`，照 `config.set` 的 `changes`：`key` 是文件里的键（`preset.name`、`preset.summary`、`preset.default_persona`、`preset.unlisted`、`software.<包>`、`tools.<工具>`），`value` 是字、开关、数，`expect` 是你那一层里这一项现在应当是什么（`{"value": …}` 或者 `{}` 没写） |
+| `changes` | 数组，必写、不能是空的 | 每一项 `{"key", "value" \| "unset": true, "expect"?}`，照 `config.set` 的 `changes`：`key` 是文件里的键（`preset.name`、`preset.summary`、`preset.unlisted`、`software.<包>`、`tools.<工具>`；写 `preset.default_persona` 的 `bad_params`，施工 P-4 上撤了），`value` 是字、开关、数，`expect` 是你那一层里这一项现在应当是什么（`{"value": …}` 或者 `{}` 没写） |
 
 回应同 `preset.get`：改完叠好的样子（带着编号）。只写管理员家目录那一层的 `<编号>.toml`：改出厂的、系统区的就是建同名覆盖，只写改了的项。名字、说明写成一句字（施工 P-3 补，2026-10-08 项目主人：不分语言），以前写成语言表的整格换成一句。说明能写空的字（`"value": ""`）：就是没有说明，盖住出厂的那句，`unset` 才回到出厂的（施工 P-3 再补）；名字照旧不收空的。人格同样。新建的什么开关都不写，就是全开（`unlisted` 没写是开）。
 
@@ -796,10 +796,10 @@
 | `window` | 非负整数，可以没有 | 上下文窗口。模型的资料没报的没有（`compaction.md`「对外的样子」模型的资料） |
 | `compaction_line` | 非负整数，可以没有 | 压缩线：用量过了它，发下一次请求之前自动压（`compaction.md` 第二条第 2 条）。没有窗口的、窗口太小算不出正数的没有 |
 
-例子：会话照 `models.chat` 记下 `deepseek/deepseek-v4`，核心照 DeepSeek 的资料，窗口 1000000、最大输出 393216，压缩线 = 1000000 − min(393216, 20000) − 13000（键照字母先后排）：
+例子：会话照 `models.chat` 记下 `deepseek/deepseek-v4`，核心照 DeepSeek 的资料，窗口 1000000、最大输出 393216，压缩线 = 1000000 − min(393216, 20000) − 13000；没设默认人格，会话无人格，没有 `persona` 这一格（施工 P-4 上）（键照字母先后排）：
 
 ```json
-{"id":"c2","jsonrpc":"2.0","result":{"jobs":[],"limits":{"compaction_line":967000,"window":1000000},"model":{"endpoint":"deepseek","model":"deepseek-v4","ref":"deepseek/deepseek-v4"},"permission":{"level":"workspace","read_only":false},"persona":"engineer","preset":"full","usage":{"amounts":[],"cache_breaks":0,"compactions":0,"main":{"cache_read":0,"cache_write":0,"output":0,"uncached":0},"requests":0,"unpriced":0,"usage":{"cache_read":0,"cache_write":0,"output":0,"uncached":0}},"workspace":{"cwd":"<工作区>","dirs":[]}}}
+{"id":"c2","jsonrpc":"2.0","result":{"jobs":[],"limits":{"compaction_line":967000,"window":1000000},"model":{"endpoint":"deepseek","model":"deepseek-v4","ref":"deepseek/deepseek-v4"},"permission":{"level":"workspace","read_only":false},"preset":"full","usage":{"amounts":[],"cache_breaks":0,"compactions":0,"main":{"cache_read":0,"cache_write":0,"output":0,"uncached":0},"requests":0,"unpriced":0,"usage":{"cache_read":0,"cache_write":0,"output":0,"uncached":0}},"workspace":{"cwd":"<工作区>","dirs":[]}}}
 ```
 
 （`<工作区>` 是在 `~` 里造的会话退回的账号的工作区，照真实的那个写，施工 9-7 上。）
@@ -1142,7 +1142,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/replay_race.rs`（施工 3-8 六补） | 掉了队的头带上最后看到的序号重新订阅，看到的和补的合起来就是日志；真核心：另一个头一句接一句地说、会话一直在追加，中途几个头先后从头订阅，每个头补的和推的合起来都和日志一字不差 |
 | `crates/miyu-endpoint/tests/restart.rs` | 核心重启以后：不带 `cwd` 载入的会话照最后一轮的工作目录、没开过回合的照造会话时的；重发的造会话交回原来那一个 |
 | `crates/miyu-endpoint/tests/check.rs`（施工 8-30） | `check`：不写文件的照磁盘上现在的字查配置、照核心手里的查密钥、人格每一层各查各的，先后、代码、级别、行对，给人看的那一句照连接的语言；写了文件的照位置认、只查那一份，项目配置照 `.miyu/config.toml` 认、相对的照 `cwd` 接，还没有的人格文件读不了，认不出的 `unknown_file`，多写格的参数不对 |
-| `crates/miyu-endpoint/tests/personas.rs`（施工 P-1 上） | 家目录里的人格进 system、示范对话排在前面；不写人格照默认、个人设置压着系统配置；没有的、编号不对的、写错的拒绝，默认人格指着没有的也拒；`venue.session` 带人格造、找回时不看；`persona.list`、`persona.get` |
+| `crates/miyu-endpoint/tests/personas.rs`（施工 P-1 上） | 家目录里的人格进 system、示范对话排在前面；不写人格照默认、个人设置压着系统配置、都没设的无人格；没有的、编号不对的、写错的拒绝，默认人格指着没有的当没设（施工 P-4 上）；`null` 明着无人格、不写进会话列表和订阅回应；`venue.session` 带人格造、找回时不看；`persona.list`、`persona.get` |
 | `crates/miyu-endpoint/tests/persona_set.rs`（施工 P-3 下、补） | 不写编号新建、核心起 `persona-1`、`persona-2`，一次带名字、人设、一对一对的示范对话、角色扮演提示，写成文件的写法、空行去掉，开会话用得上，一样的字不再写，只删不写的新建参数不对；读原文和版本、不给来处，出厂的没改过 `remove` 是空的、改过是 `restore`，旧版本存撞上什么都不写，空的字是这一段空的；删提示词回到下面的、删没有的不出错；写错的示范对话、`memory.scope`、写不回原样的 `pairs` 什么都不写、带照连接语言的 `message` 和行；参数不对的十种、读的两种、没有的人格；删了挪进回收处、整个目录、读不到了，盖在出厂上的回到出厂、本来没有的、编号不对的 |
 | `crates/miyu-endpoint/tests/preset_set.rs`（施工 P-3 中、补） | 不写编号新建、核心起 `preset-1`、`preset-2`，别的照旧全开，`remove` 是 `delete`，开会话用得上，只删不写的新建参数不对；改出厂的只写改了的项、`remove` 是 `restore`，没改过的是空的；注释、顺序照原样，以前的语言表换成一句字；删一项回到下面的；`expect` 对不上的两种、对得上的照写；写错的值、不认识的键、空的名字、默认人格写法不对的整条不收、什么都不写、带照连接语言的 `message`；参数不对的九种；删你那一层回到下面的、只有你那一层的就没了、本来没有的、编号不对的；一样的值不写 |
 | `crates/miyu-endpoint/tests/presets.rs`（施工 P-2 上） | 不写预设照默认、个人设置压着系统配置、指定的压着默认；人格照「指定、预设的默认人格、`persona.default`」；没有的、编号不对的、写错的拒绝、什么都不造，默认预设指着没有的也拒；会话列表、`subscribe` 写 `preset`，以前的日志不写；`venue.session` 带预设造、找回时不看；`preset.list`、`preset.get`；`check` 查预设 |

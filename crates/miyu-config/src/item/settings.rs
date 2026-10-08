@@ -10,7 +10,7 @@
 ///   没有默认值的照字段类型的「没有」（[`Setting`](crate::Setting)）；
 /// - `<类型>::from(&最终值)`（[`From<&Values>`](crate::Values)）：同 `at(&最终值, &[])`。
 ///
-/// 每一项的格照这个先后写：默认值（必写，不写编译不过；没有默认值的写 `none`，密钥的列表空的写 `[]`）、`kind`
+/// 每一项的格照这个先后写：默认值（必写，不写编译不过；没有默认值的写 `none`，密钥的列表空的写 `[]`，整数写数，施工 O-8）、`kind`
 /// （`option [..]` 选项至少两个、`bool`、`secret`、`secrets`、`int [最小, 最大]`、`url`、`name`、`reference`，施工 8-7 加
 /// `float [最小, 最大]`、`text [最多]`、`texts [最多]`、`options [..]`、`duration [最短, 最长]`，施工 8-8 加 `models`）、`layers`
 /// （至少一层）、`tighten`（能放进项目配置的必写，别的不写）、`env`（可以不写）、`applies`、`ui`（`common` 可以不写，
@@ -257,6 +257,10 @@ macro_rules! __settings_default {
     };
     (duration, $default:literal) => {
         ::core::option::Option::Some($crate::Value::Text(::std::borrow::Cow::Borrowed($default)))
+    };
+    // 整数有默认值的（施工 O-8：`onebot.listen` 默认 8301）。
+    (int, $default:literal) => {
+        ::core::option::Option::Some($crate::Value::Int($default))
     };
     // 文字有默认值的（施工 8-15：`usage.currency` 默认 `USD`）。
     (text, $default:literal) => {

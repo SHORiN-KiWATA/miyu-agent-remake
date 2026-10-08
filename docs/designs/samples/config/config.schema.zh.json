@@ -162,6 +162,49 @@
       },
       "type": "object"
     },
+    "onebot": {
+      "properties": {
+        "listen": {
+          "default": 8301,
+          "description": "NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/onebot/v11/ws。能写：1024 到 65535 之间的整数。只能写在系统配置里。这个程序下次启动时生效。",
+          "maximum": 65535,
+          "minimum": 1024,
+          "title": "QQ 桥的端口",
+          "type": "integer"
+        },
+        "token": {
+          "description": "NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。写 { secret = \"名字\" }（用 miyu login 存）或 { env = \"环境变量\" }。没设的，QQ 桥不起来。能写：{ secret = \"…\" } 或 { env = \"…\" }。只能写在系统配置里。这个程序下次启动时生效。",
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "secret": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "secret"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "env": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "env"
+              ],
+              "type": "object"
+            }
+          ],
+          "title": "QQ 桥的令牌"
+        }
+      },
+      "type": "object"
+    },
     "permission": {
       "properties": {
         "start_read_only": {
@@ -176,8 +219,7 @@
     "persona": {
       "properties": {
         "default": {
-          "default": "engineer",
-          "description": "新会话默认用哪个人格。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。",
+          "description": "新会话默认用哪个人格。不设的话，新会话无人格：不带人设，记忆不生效。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。",
           "title": "默认人格",
           "type": "string"
         }

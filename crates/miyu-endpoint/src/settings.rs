@@ -37,8 +37,9 @@ miyu_config::settings! {
 miyu_config::settings! {
     /// 人格的配置（施工 P-1 上，`docs/blueprint/personas.md`）。
     pub struct PersonaSettings in "persona" {
-        /// 新会话默认用哪个人格：人格目录的编号。开会话时指定的、通讯平台的桥照场所规则交来的优先。
-        default: String = "engineer" {
+        /// 新会话默认用哪个人格：人格目录的编号。开会话时指定的、通讯平台的桥照场所规则交来的优先。出厂不设：没设的新会话
+        /// 无人格（施工 P-4 上）；指着没有的人格的当没设。
+        default: Option<String> = none {
             kind: name,
             layers: [System, Personal],
             applies: new_session,

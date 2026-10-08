@@ -7,10 +7,11 @@
 use miyu_config::Values;
 use miyu_kernel::id::{ContentHash, VenueId};
 use miyu_kernel::session::Policy;
+use miyu_policy::PersonaTexts;
 use miyu_policy::preset::{Chosen, MEMORY, PresetFile};
 use miyu_policy::{Snapshot, ToolEntry};
 use miyu_store::blob::Blobs;
-use miyu_store::personas::Personas;
+use miyu_store::personas::{PersonaError, Personas};
 use miyu_store::resources::ResourceRoot;
 use miyu_tool::Catalog;
 
@@ -63,7 +64,7 @@ impl Actor {
         match blocking(move || look(&refresh, &values)).await {
             Seen::Same => None,
             Seen::Swapped(snapshot, policy, hash) => {
-                tracing::info!(target: TARGET, persona = persona.as_str(), "persona swapped");
+                tracing::info!(target: TARGET, persona = persona.as_deref(), "persona swapped");
                 self.session.stage_policy(*policy);
                 if let Some(refresh) = self.persona.as_mut() {
                     refresh.snapshot = *snapshot;
@@ -71,11 +72,11 @@ impl Actor {
                 Some(hash)
             }
             Seen::Unreadable(error) => {
-                tracing::warn!(target: TARGET, persona = persona.as_str(), error = error.as_str(), "persona unreadable");
+                tracing::warn!(target: TARGET, persona = persona.as_deref(), error = error.as_str(), "persona unreadable");
                 None
             }
             Seen::Kept(error) => {
-                tracing::warn!(target: TARGET, persona = persona.as_str(), error = error.as_str(), "persona not swapped");
+                tracing::warn!(target: TARGET, persona = persona.as_deref(), error = error.as_str(), "persona not swapped");
                 None
             }
         }
@@ -85,18 +86,25 @@ impl Actor {
 /// 在阻塞线程里看一遍。
 fn look(refresh: &Refresh, values: &Values) -> Seen {
     let old = &refresh.snapshot;
-    let Some(digest) = &old.persona_digest else {
-        return Seen::Same;
-    };
-    let found = match refresh.personas.find(&old.persona) {
-        Ok(found) => found,
-        Err(error) => return Seen::Unreadable(error.to_string()),
+    // 无人格的（施工 P-4 上）只看预设；人格的文件没了的照快照里的接着用，不换也不报。
+    let texts = match (&old.persona, &old.persona_digest) {
+        (None, _) => PersonaTexts::default(),
+        (Some(_), None) => return Seen::Same,
+        (Some(id), Some(_)) => match refresh.personas.find(id) {
+            Ok(found) => found.texts,
+            Err(PersonaError::NotFound(_)) => return Seen::Same,
+            Err(error) => return Seen::Unreadable(error.to_string()),
+        },
     };
     let preset = match preset(refresh) {
         Ok(preset) => preset,
         Err(error) => return Seen::Unreadable(error),
     };
-    if found.texts.digest() == *digest && preset.is_none() {
+    let same = old
+        .persona_digest
+        .as_ref()
+        .is_none_or(|digest| texts.digest() == *digest);
+    if same && preset.is_none() {
         return Seen::Same;
     }
     let (face, pin) = match &preset {
@@ -105,7 +113,7 @@ fn look(refresh: &Refresh, values: &Values) -> Seen {
     };
     let parts = Parts {
         name: old.persona.clone(),
-        texts: found.texts,
+        texts,
         attended: old.attended,
         face,
         memory: old.memory.clone(),

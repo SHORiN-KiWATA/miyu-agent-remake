@@ -85,11 +85,8 @@ async fn a_subagent_takes_the_chosen_persona_and_preset_or_the_defaults() {
     let some = |text: &str| Some(text.to_string());
     assert_eq!(
         picks,
-        [
-            (some("engineer"), some("full")),
-            (some("none"), some("full"))
-        ],
-        "没挑的是软件工程师；预设一律照父会话的"
+        [(None, some("full")), (some("none"), some("full"))],
+        "没挑的是无人格（施工 P-4 上）；预设一律照父会话的"
     );
     let said = serde_json::to_string(&log).expect("写得成 JSON");
     assert!(

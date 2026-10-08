@@ -181,7 +181,6 @@ fn describe(core: &Core, found: &Found, language: &str) -> Value {
         "preset": found.id,
         "name": label(found.file.name.as_ref(), language),
         "summary": label(found.file.summary.as_ref(), language),
-        "default_persona": found.file.default_persona,
         "unlisted": found.file.unlisted().as_str(),
         "software": software(core, found, language),
         "tools": tools,

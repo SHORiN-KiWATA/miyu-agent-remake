@@ -26,20 +26,49 @@ pub(crate) fn personas(core: &Core) -> Personas {
     Personas::new(&core.resources, &core.root, &core.admin)
 }
 
-/// 找新会话的人格：指定了的是它，不然照这时的 `persona.default`（个人设置压着系统配置，都没写的是出厂的 `engineer`）。
-/// 在阻塞线程里读盘。
-pub(crate) async fn resolve(core: &Core, wanted: Option<&str>) -> Result<Found, Refusal> {
-    let id = match wanted {
-        Some(id) => id.to_string(),
-        None => PersonaSettings::from(&core.config().resolved().values()).default,
+/// 找新会话的人格（施工 P-4 上，2026-10-08 项目主人：「人格允许为空」）：`wanted` 写了编号的是它，写了 `null` 的
+/// （`Some(None)`）明着无人格；不写的照这时的 `persona.default`（个人设置压着系统配置），都没写的是无人格。明着写了没有的
+/// 拒绝；默认人格指着没有的当没设、记一行 `WARN`：配置是以前写的，人格可能后来删了。在阻塞线程里读盘。
+pub(crate) async fn resolve(
+    core: &Core,
+    wanted: Option<Option<&str>>,
+) -> Result<Option<Found>, Refusal> {
+    let (id, default) = match wanted {
+        Some(None) => return Ok(None),
+        Some(Some(id)) => (id.to_string(), false),
+        None => match PersonaSettings::from(&core.config().resolved().values()).default {
+            Some(id) => (id, true),
+            None => return Ok(None),
+        },
     };
     let personas = personas(core);
-    let found = tokio::task::spawn_blocking(move || personas.find(&id)).await;
+    let found = tokio::task::spawn_blocking({
+        let id = id.clone();
+        move || personas.find(&id)
+    })
+    .await;
     match found {
-        Ok(Ok(found)) => Ok(found),
+        Ok(Ok(found)) => Ok(Some(found)),
+        Ok(Err(PersonaError::NotFound(_))) if default => {
+            tracing::warn!(target: TARGET, persona = id.as_str(), "default persona not found");
+            Ok(None)
+        }
         Ok(Err(error)) => Err(refusal(&error)),
         Err(_) => Err(Refusal::INTERNAL),
     }
+}
+
+/// 写了的（`null` 也算写了）交回 `Some`，不写的靠 `#[serde(default)]` 是 `None`（施工 P-4 上：`session.create`、
+/// `venue.session` 的 `"persona": null` 是明着无人格，不写才照默认人格）。
+///
+/// # Errors
+///
+/// 写的不是字、不是 `null`。
+pub(crate) fn written<'de, D>(deserializer: D) -> Result<Option<Option<String>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Option::<String>::deserialize(deserializer).map(Some)
 }
 
 /// 找人格出的错照协议说：编号不合写法的参数不对，哪一层都没有的 `unknown_persona`，写错了的 `persona_invalid`（`data.problem`
@@ -100,9 +129,11 @@ pub(crate) fn remove(layers: &[Layer]) -> Option<&'static str> {
 }
 
 /// 造会话时记忆归哪个账号：和载入时的 [`Personas::memory_account`] 同一条规则（`personas.md`「怎么走」第 5 条），叠好的人格
-/// 已经知道它住在谁家，不再看一遍目录。属主是系统账号的归管理员，随 O-4。
-pub(crate) fn memory_account(found: &Found, owner: &AccountId) -> AccountId {
-    found.home.clone().unwrap_or_else(|| owner.clone())
+/// 已经知道它住在谁家，不再看一遍目录。无人格的归属主（记忆本来就不生效，施工 P-4 上）。属主是系统账号的归管理员，随 O-4。
+pub(crate) fn memory_account(found: Option<&Found>, owner: &AccountId) -> AccountId {
+    found
+        .and_then(|found| found.home.clone())
+        .unwrap_or_else(|| owner.clone())
 }
 
 /// `persona.list`：几层里所有的人格，照编号排。每个带名字、说明（照这个连接的语言挑）；写错了的带 `problem`（照这个连接的

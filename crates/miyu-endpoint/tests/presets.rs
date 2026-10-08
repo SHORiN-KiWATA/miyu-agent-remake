@@ -1,5 +1,5 @@
 //! 预设（施工 P-2 上，`docs/blueprint/presets.md`）：真核心走一遍。造会话照「开会话时指定、个人设置、系统配置」找预设，指着
-//! 没有的、写错的不造；人格照「指定、预设的默认人格、`persona.default`」找；`session.created`、会话列表、`subscribe` 带上预设；
+//! 没有的、写错的不造；人格照「指定、`persona.default`」找，预设不再管（施工 P-4 上）；`session.created`、会话列表、`subscribe` 带上预设；
 //! `venue.session` 带预设；`preset.list`、`preset.get`；`check` 查预设。
 
 use std::sync::Arc;
@@ -60,7 +60,7 @@ async fn without_a_preset_the_default_is_used_personal_over_system() {
     // 都没写：出厂的功能全开。
     let mut client = connected(configured(&home, &script)).await;
     let first = made(&create(&mut client, "c1", json!({"cwd": "~"})).await);
-    // 系统配置写了 dev：开发预设的默认人格是软件工程师。
+    // 系统配置写了 dev。
     home.write("system/config.toml", "[preset]\ndefault = \"dev\"\n");
     let mut client = connected(configured(&home, &script)).await;
     let second = made(&create(&mut client, "c2", json!({"cwd": "~"})).await);
@@ -86,7 +86,7 @@ async fn without_a_preset_the_default_is_used_personal_over_system() {
 }
 
 #[tokio::test]
-async fn the_persona_comes_from_the_request_then_the_preset_then_the_default() {
+async fn the_persona_comes_from_the_request_then_the_default_and_never_the_preset() {
     let home = Home::new();
     home.write(
         "home/alice/personas/miyu/prompts/persona.md",
@@ -96,35 +96,43 @@ async fn the_persona_comes_from_the_request_then_the_preset_then_the_default() {
     mine(&home, "chat", "[preset]\nname = { en = \"Chat\" }\n");
     let script = Script::new([]);
     let mut client = connected(configured(&home, &script)).await;
+    // 旧文件里写着默认人格的，当没写（施工 P-4 上，2026-10-08 项目主人：只去掉预设的「默认人格」）。
+    mine(&home, "ghost", "[preset]\ndefault_persona = \"nobody\"\n");
     let cases = [
         (
             json!({"cwd": "~", "preset": "dev"}),
-            "engineer",
-            "开发预设的默认人格",
-        ),
-        (
-            json!({"cwd": "~", "preset": "dev", "persona": "none"}),
-            "none",
-            "指定的压着预设的",
+            Some("miyu"),
+            "预设不管人格，照 persona.default",
         ),
         (
             json!({"cwd": "~", "preset": "chat"}),
-            "miyu",
-            "预设没写默认人格的照 persona.default",
+            Some("miyu"),
+            "照 persona.default",
+        ),
+        (
+            json!({"cwd": "~", "preset": "ghost"}),
+            Some("miyu"),
+            "旧文件里的默认人格当没写",
+        ),
+        (
+            json!({"cwd": "~", "preset": "dev", "persona": "none"}),
+            Some("none"),
+            "指定的压着默认的",
+        ),
+        (
+            json!({"cwd": "~", "preset": "dev", "persona": null}),
+            None,
+            "null 明着无人格",
         ),
     ];
     for (index, (params, persona, why)) in cases.into_iter().enumerate() {
         let session = made(&create(&mut client, &format!("c{index}"), params).await);
         assert_eq!(
             created(&home, &session).persona.as_deref(),
-            Some(persona),
+            persona,
             "{why}"
         );
     }
-    // 预设的默认人格不存在：照 unknown_persona，不造。
-    mine(&home, "ghost", "[preset]\ndefault_persona = \"nobody\"\n");
-    let reply = create(&mut client, "c9", json!({"cwd": "~", "preset": "ghost"})).await;
-    assert_eq!(reason(&reply), Some("unknown_persona"), "{reply}");
 }
 
 #[tokio::test]
@@ -221,9 +229,9 @@ async fn a_venue_session_is_made_with_the_given_preset_and_found_again_without_i
         .to_string();
     assert_eq!(created(&home, &session).preset.as_deref(), Some("dev"));
     assert_eq!(
-        created(&home, &session).persona.as_deref(),
-        Some("engineer"),
-        "开发预设的默认人格"
+        created(&home, &session).persona,
+        None,
+        "预设不管人格，没设默认人格的无人格（施工 P-4 上）"
     );
     let again = json!({"venue": "qq:private:10001", "kind": "private", "peer": "qq:10001", "preset": "nobody"});
     let found = client.call("v2", "venue.session", again).await;
@@ -263,7 +271,10 @@ async fn presets_are_listed_and_read_by_layer() {
     let got = &got["result"];
     assert_eq!(got["name"], "大家的开发", "照连接的语言挑一句");
     assert!(got.get("layers").is_none(), "来自哪几层不给（施工 P-3 补）");
-    assert_eq!(got["default_persona"], "engineer");
+    assert!(
+        got.get("default_persona").is_none(),
+        "预设没有默认人格这一格（施工 P-4 上）"
+    );
     assert_eq!(got["unlisted"], "off");
     let software: Vec<(&str, &str, bool)> = got["software"]
         .as_array()
@@ -295,7 +306,7 @@ async fn presets_are_listed_and_read_by_layer() {
         .call("g2", "preset.get", json!({"preset": "full"}))
         .await;
     assert_eq!(full["result"]["unlisted"], "on");
-    assert_eq!(full["result"]["default_persona"], Value::Null);
+    assert!(full["result"].get("default_persona").is_none());
     let reply = client
         .call("g3", "preset.get", json!({"preset": "nobody"}))
         .await;

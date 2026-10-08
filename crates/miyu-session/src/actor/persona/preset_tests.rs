@@ -57,7 +57,7 @@ fn setup(name: &str, text: &str) -> (Scratch, DataRoot, Refresh) {
         Some(&chosen.file),
     );
     let parts = Parts {
-        name: "miyu".to_string(),
+        name: Some("miyu".to_string()),
         texts: personas.find("miyu").expect("找得到 Miyu").texts,
         attended: true,
         face,
@@ -193,5 +193,36 @@ fn a_broken_preset_and_an_older_pin_are_kept() {
     assert!(
         matches!(look_now(&refresh), Seen::Same),
         "P-2（中）造的快照没有指纹，不换"
+    );
+}
+
+/// 无人格的会话（施工 P-4 上）：快照里没有人格的指纹，回合开始照样看预设，改了照样换；换出来的照旧无人格。
+#[test]
+fn without_a_persona_a_changed_preset_still_swaps() {
+    let (_scratch, root, mut refresh) = setup("preset-nobody", "");
+    let parts = Parts {
+        name: None,
+        texts: miyu_policy::PersonaTexts::default(),
+        attended: true,
+        face: refresh.snapshot.tools.clone(),
+        memory: Some("off".to_string()),
+        child: false,
+        preset: refresh.snapshot.preset.clone(),
+    };
+    refresh.snapshot = build(&refresh.resources, parts).expect("拼得成");
+    assert_eq!(
+        (&refresh.snapshot.persona, &refresh.snapshot.persona_digest),
+        (&None, &None)
+    );
+    assert!(matches!(look_now(&refresh), Seen::Same), "没改的不换");
+    write_preset(&root, "[tools]\nshell = false\n");
+    let Seen::Swapped(snapshot, _, _) = look_now(&refresh) else {
+        panic!("无人格的照样换预设");
+    };
+    assert_eq!(snapshot.persona, None);
+    assert!(
+        !snapshot.system.contains("You are Miyu."),
+        "{}",
+        snapshot.system
     );
 }

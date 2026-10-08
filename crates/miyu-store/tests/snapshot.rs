@@ -66,7 +66,7 @@ fn requests(snapshot: Snapshot) -> Vec<Vec<u8>> {
 fn a_stored_snapshot_reads_back_and_gives_the_same_requests() {
     let scratch = Scratch::new();
     let snapshot = compose(
-        "engineer",
+        Some("engineer"),
         resources()
             .sources("engineer")
             .expect("出厂的软件工程师读得出来"),

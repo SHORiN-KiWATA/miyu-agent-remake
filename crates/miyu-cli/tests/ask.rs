@@ -147,7 +147,8 @@ async fn model_makes_a_new_session_with_it_and_switches_a_continued_one() {
 #[tokio::test]
 async fn no_memory_makes_an_off_session() {
     let script = Script::new([Play::Says("一。"), Play::Says("二。")]);
-    let home = Home::new(Arc::new(script));
+    // 记忆要人格才生效（施工 P-4 上）：默认人格设成出厂的软件工程师。
+    let home = Home::configured(Arc::new(script), "[persona]\ndefault = \"engineer\"\n");
     let snapshot = |home: &Home, session: &miyu_kernel::id::SessionId| -> String {
         let dir = home.root.session_dir(&AccountIdOf::admin(), session);
         let created = first_event(&dir).expect("读得到");

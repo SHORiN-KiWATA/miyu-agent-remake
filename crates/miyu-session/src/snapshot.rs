@@ -7,7 +7,7 @@ use miyu_store::resources::{ResourceRoot, SourceError};
 /// 拼一份快照的料：人格的编号和叠好的字、有没有人能确认、工具面、记忆的范围（快照里那一格的原样，没有的是没有），是不是
 /// 子会话，预设（施工 P-2 中，快照里那一格的原样；工具面、记忆的范围已经照它筛过）。
 pub(crate) struct Parts {
-    pub(crate) name: String,
+    pub(crate) name: Option<String>,
     pub(crate) texts: PersonaTexts,
     pub(crate) attended: bool,
     pub(crate) face: Vec<ToolEntry>,
@@ -23,7 +23,8 @@ pub(crate) struct Parts {
 /// 资源目录里哪一份读不了。
 pub(crate) fn build(resources: &ResourceRoot, parts: Parts) -> Result<Snapshot, SourceError> {
     let sources = resources.sources_with(parts.texts)?;
-    let mut snapshot = compose(&parts.name, sources, parts.attended).with_tools(parts.face);
+    let mut snapshot =
+        compose(parts.name.as_deref(), sources, parts.attended).with_tools(parts.face);
     snapshot.memory = parts.memory;
     if parts.child {
         snapshot = snapshot.with_venue(&resources.subagent_venue()?);
