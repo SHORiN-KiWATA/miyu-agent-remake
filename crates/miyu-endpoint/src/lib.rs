@@ -78,8 +78,6 @@ use miyu_models::profile::Profiles;
 use miyu_sandbox::{Availability, Unusable};
 use miyu_session::{Jobs, Memory, ModelData, Models, Observed, SandboxCache};
 use miyu_store::index::SessionIndex;
-use miyu_store::memory::MemoryLogs;
-use miyu_store::recall::RecallIndexes;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_store::usage::UsageIndex;
@@ -197,10 +195,7 @@ impl Core {
         let usage = Arc::new(usage::open(&root));
         model_data.keep_ledger(Arc::clone(&usage));
         Core {
-            memory: Arc::new(Memory {
-                turns: Arc::new(RecallIndexes::new(&root)),
-                logs: Arc::new(MemoryLogs::new(&root)),
-            }),
+            memory: Memory::new(&root),
             index,
             usage,
             hub: Hub::new(&config),

@@ -273,7 +273,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
 
 /// 现在的快照（施工 P-1 再补）：整份日志里最近一条带 `policy` 的 `session.policy_changed`，撤掉的回合里的也算（换快照不是
 /// 对话的一部分）；没换过的没有，照 `session.created` 的。
-fn current_policy(events: &[Event]) -> Option<&ContentHash> {
+pub(crate) fn current_policy(events: &[Event]) -> Option<&ContentHash> {
     events.iter().rev().find_map(|event| match &event.body {
         Body::PolicyChanged(changed) => changed.policy.as_ref(),
         _ => None,

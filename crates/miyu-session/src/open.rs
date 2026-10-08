@@ -40,6 +40,7 @@ mod load;
 mod setup;
 
 pub use error::{CreateError, LoadError};
+pub(crate) use load::current_policy;
 pub use load::load;
 pub use setup::{Create, Load, PresetPlaces};
 

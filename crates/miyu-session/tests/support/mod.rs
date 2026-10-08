@@ -20,6 +20,7 @@ use miyu_kernel::origin::{By, Person};
 use miyu_kernel::session::{Command, Outcome};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_policy::memory::MemoryScope;
+use miyu_session::Memory;
 use miyu_session::{
     Configs, Create, Handle, Jobs, Lineage, Load, Models, Pushed, SandboxCache, SessionPort,
     Stopped, Subscription, create, load, new_id,
@@ -48,6 +49,8 @@ pub struct Home {
     pub usage: Arc<UsageIndex>,
     /// 造的、载入的会话从这里取配置（施工 8-4）：默认是全空的一份，测试换成自己的。
     pub configs: Configs,
+    /// 核心一份的记忆（施工 R-2 下照数据根造：第一次开回合库时记日志、补齐旧会话）。
+    pub memory: Arc<Memory>,
     /// 回合库的登记（施工 R-2 上）：这个场地里造的、载入的主会话都往里写，和核心里一样。
     pub recall: Arc<RecallIndexes>,
     /// 记忆日志的登记（施工 R-3 中）：三件工具经它记、忘、搜。
@@ -91,6 +94,8 @@ pub struct Lines {
     pub memory_account: AccountId,
     /// 预设（施工 P-2 上、中）：默认没有，全开。
     pub preset: Option<miyu_policy::preset::Chosen>,
+    /// 核心交不交记忆（施工 R-2 下）：不交的是以前的版本造的会话，回合库里一条都没有。默认交。
+    pub indexed: bool,
 }
 
 impl Default for Lines {
@@ -106,6 +111,7 @@ impl Default for Lines {
             memory: MemoryScope::Persona,
             memory_account: alice_account(),
             preset: None,
+            indexed: true,
         }
     }
 }
@@ -161,9 +167,11 @@ impl Home {
         std::fs::create_dir_all(&home).expect("建得了假的家");
         let (index, _) = SessionIndex::open(&root.index(&alice_account()).join(FILE));
         let (usage, _) = UsageIndex::open(&root);
+        let memory = Memory::new(&root);
         Home {
-            recall: Arc::new(RecallIndexes::new(&root)),
-            logs: Arc::new(MemoryLogs::new(&root)),
+            recall: Arc::clone(&memory.turns),
+            logs: Arc::clone(&memory.logs),
+            memory,
             usage: Arc::new(usage),
             scratch,
             root,
@@ -243,7 +251,7 @@ impl Home {
             usage: Some(Arc::clone(&self.usage)),
             configs: self.configs.clone(),
             model: lines.model,
-            memory: Some(self.memory()),
+            memory: lines.indexed.then(|| self.memory()),
             preset: lines.preset,
             presets: None,
         });
@@ -318,11 +326,8 @@ impl Home {
     }
 
     /// 交给造的、载入的会话的记忆：这个场地的回合库登记和记忆日志登记（施工 R-3 中）。
-    pub fn memory(&self) -> Arc<miyu_session::Memory> {
-        Arc::new(miyu_session::Memory {
-            turns: Arc::clone(&self.recall),
-            logs: Arc::clone(&self.logs),
-        })
+    pub fn memory(&self) -> Arc<Memory> {
+        Arc::clone(&self.memory)
     }
 
     /// 磁盘上会话 `session` 的日志，照先后。

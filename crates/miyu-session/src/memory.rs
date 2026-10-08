@@ -4,6 +4,7 @@
 //!
 //! 回合库是派生的：更新失败记一行 `WARN memory index not updated`，会话照常；照到的位置没往前挪，下次载入照日志补。
 
+mod backfill;
 mod keeper;
 mod port;
 
@@ -18,6 +19,7 @@ use miyu_policy::memory::MemoryScope;
 use miyu_recall::{Change, TurnFeed, key, replay};
 use miyu_store::memory::MemoryLogs;
 use miyu_store::recall::{Edit, Opened, RecallIndex, RecallIndexes, Room};
+use miyu_store::root::DataRoot;
 
 use crate::TARGET;
 
@@ -29,6 +31,39 @@ pub struct Memory {
     pub turns: Arc<RecallIndexes>,
     /// 记忆日志的登记（施工 R-3 上）。
     pub logs: Arc<MemoryLogs>,
+}
+
+impl Memory {
+    /// 数据根 `root` 上一份空的记忆：两份登记，用到哪一间才开。回合库第一次开时记一行运行日志；人格那一间是新建的、重建过的，
+    /// 起一个后台线程补齐这个账号的旧会话（施工 R-2 下，`memory/backfill.rs`）。
+    pub fn new(root: &DataRoot) -> Arc<Memory> {
+        let turns = Arc::new(RecallIndexes::new(root));
+        let recall = Arc::downgrade(&turns);
+        let at = root.clone();
+        let registered = turns.when_opened(Box::new(move |room, opened| {
+            log_opened(room, opened);
+            let fresh = matches!(opened, Opened::Created | Opened::Rebuilt(_));
+            if !fresh || !matches!(room, Room::Persona { .. }) {
+                return;
+            }
+            // 登记被放下了（核心在退出）就不补：下次开库时照样是新建的、重建的，再补。
+            let Some(recall) = recall.upgrade() else {
+                return;
+            };
+            let (room, root) = (room.clone(), at.clone());
+            let spawned = std::thread::Builder::new()
+                .name("memory-backfill".to_string())
+                .spawn(move || backfill::backfill(&recall, &root, &room));
+            if let Err(error) = spawned {
+                tracing::warn!(target: TARGET, error = %error, "memory index not backfilled");
+            }
+        }));
+        debug_assert!(registered, "一份新的登记只登记这一次");
+        Arc::new(Memory {
+            turns,
+            logs: Arc::new(MemoryLogs::new(root)),
+        })
+    }
 }
 
 /// 接上会话 `session` 的记忆：回合索引（[`Turns::connect`]）和三件工具的端口（[`Calls`]）。范围是 `off` 的（子会话、
@@ -53,7 +88,7 @@ pub(crate) fn connect(
     let Some(memory) = memory else {
         return (None, None);
     };
-    let turns = Turns::connect(&memory.turns, &room, persona, session, events);
+    let turns = Turns::connect(&memory.turns, &room, session, events);
     (turns, Some(Calls::new(memory, room, owner, session)))
 }
 
@@ -74,8 +109,6 @@ pub(crate) struct Turns {
     /// 核心的登记，和这个会话的那一间：回合库照它开。
     recall: Arc<RecallIndexes>,
     room: Room,
-    /// 人格的编号：只用来记日志。
-    persona: String,
     /// 开了的回合库：新造的会话到第一次真要写的时候才开，造会话不多一次开库、建表、同步。
     index: OnceLock<Arc<RecallIndex>>,
     /// 增量算。
@@ -90,7 +123,6 @@ impl Turns {
     pub(crate) fn connect(
         recall: &Arc<RecallIndexes>,
         room: &Room,
-        persona: &str,
         session: &SessionId,
         events: &[Event],
     ) -> Option<Turns> {
@@ -98,7 +130,6 @@ impl Turns {
             session: session.clone(),
             recall: Arc::clone(recall),
             room: room.clone(),
-            persona: persona.to_string(),
             index: OnceLock::new(),
             feed: TurnFeed::default(),
         };
@@ -120,15 +151,9 @@ impl Turns {
         Some(turns)
     }
 
-    /// 这个会话的回合库：第一次用时照登记开，这一回第一次开的记一行。
+    /// 这个会话的回合库：第一次用时照登记开（这一回第一次开的，登记记一行，[`Memory::new`]）。
     fn index(&self) -> &RecallIndex {
-        self.index.get_or_init(|| {
-            let (index, opened) = self.recall.turns(&self.room);
-            if let Some(opened) = opened {
-                log_opened(&self.persona, &opened);
-            }
-            index
-        })
+        self.index.get_or_init(|| self.recall.turns(&self.room).0)
     }
 
     /// 一批事件落了盘：交给 `TurnFeed`，照它交回的改回合库，连同照到了这一批的最后一条。恢复的那几轮要读整份日志
@@ -210,16 +235,19 @@ impl Turns {
     }
 }
 
-/// 回合库这一回第一次开：新建的记 `INFO`，重建的、用不了的记 `WARN`（照会话列表的索引的说法）。
-fn log_opened(persona: &str, opened: &Opened) {
+/// 回合库这一回第一次开：新建的记 `INFO`，重建的、用不了的记 `WARN`（照会话列表的索引的说法）。哪一间写成
+/// `persona <账号>/<人格>`、`session <账号>/<会话>`（施工 R-2 下：开库的四处都从登记过，原来只有会话写回合那一处记）。
+fn log_opened(room: &Room, opened: &Opened) {
+    let room = room.to_string();
+    let room = room.as_str();
     match opened {
         Opened::Kept => {}
-        Opened::Created => tracing::info!(target: TARGET, persona, "memory index created"),
+        Opened::Created => tracing::info!(target: TARGET, room, "memory index created"),
         Opened::Rebuilt(why) => {
-            tracing::warn!(target: TARGET, persona, reason = %why, "memory index rebuilt");
+            tracing::warn!(target: TARGET, room, reason = %why, "memory index rebuilt");
         }
         Opened::Unusable(error) => {
-            tracing::warn!(target: TARGET, persona, error = %error, "memory index unusable");
+            tracing::warn!(target: TARGET, room, error = %error, "memory index unusable");
         }
     }
 }

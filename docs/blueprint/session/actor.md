@@ -319,8 +319,10 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | WARN | `session index not updated` | `error` | 落了盘，会话列表的索引更新失败（第 5 条第 7 点，施工 3-8 七补） |
 | WARN | `memory index not updated` | `error` | 落了盘，回合索引更新失败、恢复时读不回日志（第 5 条第 8 点，施工 R-2 上） |
 | WARN | `memory index not read` | `error` | 接上回合索引时读不出照到了哪：当作没照过，整份补（施工 R-2 上） |
-| INFO | `memory index created` | `persona` | 这个人格的回合库这一回新建（施工 R-2 上） |
-| WARN | `memory index rebuilt`、`memory index unusable` | `persona`、`reason` 或 `error` | 回合库坏了、版本不对删掉重建，或者删了也打不开（施工 R-2 上） |
+| INFO | `memory index created` | `room` | 这一间的回合库这一回新建（施工 R-2 上；R-2 下起由登记记，开库的四处都算，`room` 写法见 `memory.md` 第一条第 8 款） |
+| WARN | `memory index rebuilt`、`memory index unusable` | `room`、`reason` 或 `error` | 回合库坏了、版本不对删掉重建，或者删了也打不开（施工 R-2 上） |
+| INFO | `memory index backfilled` | `room`、`sessions` | 人格那一间新建、重建以后后台补齐了几个旧会话（施工 R-2 下，`memory.md` 第一条第 9 款） |
+| WARN | `memory index not backfilled` | `session` 或 `room`，`error` | 补齐时一个会话读不了、快照取不出（跳过它），或者列不出会话（施工 R-2 下） |
 | WARN | `usage not indexed` | `error` | 落了盘，用量汇总写不进去（第 5 条第 8 点，施工 8-15）；`session_usage` 补这个会话时日志读不完（`session` 另带） |
 | WARN | `write failed, stopped` | `kind` | 写不进去 |
 | WARN | `read back failed, stopped` | `error` | 读回日志读不了（第 4 条，施工 6-9） |
