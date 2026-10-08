@@ -226,7 +226,9 @@ export class Store {
   send(id, text, extra = {}) { return this.conn.request('session.send', { session: id, text, ...extra }); }
 
   /**
-   * 左栏的一项：读进来了的照日志（每条事件都跟着走），没读的照会话表（标题、没标题的拿第一句话的预览、在不在跑、置顶、最近活动）。
+   * 左栏的一项：读进来了的照日志（在跑、最近活动每条事件都跟着走），没读的照会话表。标题、置顶会话表里有的照会话表：按页读（核心 9-6）
+   * 时起标题、改名、置顶的那几条常在还没读的页里，照读进来的日志会拿到读进来的第一句话（终端 10-08 踩到的坑）；没标题的照会话表的
+   * `preview`（整个会话的第一句话）。
    */
   summary(id) {
     const s = this.sessions.get(id);
@@ -236,7 +238,7 @@ export class Store {
     const listed = Date.parse(e?.last_active ?? '');
     const active = Math.max(log.active ?? 0, Number.isNaN(listed) ? 0 : listed) || null;
     return read
-      ? { ...log, active, unread: this.unread.has(id) }
+      ? { ...log, title: e?.title ?? e?.preview ?? log.title, pinned: e ? !!e.pinned : log.pinned, active, unread: this.unread.has(id) }
       : { ...log, title: e?.title ?? e?.preview ?? null, running: !!e?.busy, pinned: !!e?.pinned, active, unread: this.unread.has(id) };
   }
 

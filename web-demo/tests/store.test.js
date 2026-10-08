@@ -297,3 +297,15 @@ test('按页读（核心 9-6 下）：先读最新一页、从它的最后一条
   assert.deepEqual([s.first, s.more, s.paged], [1, false, true]);
   assert.equal(await store.older('S'), false, '没有更早的不再读');
 });
+
+test('读进来了的会话：标题、置顶照会话表（按页读时起标题那条常在没读的页里，照日志会拿到读进来的第一句话）；会话表里没有的照日志', async () => {
+  const { store, push } = withIndex([{ session: 'L', parent: null, title: '修设置页', pinned: true, last_active: '2026-10-08T01:00:00.000Z' }, { session: 'Q', parent: null, preview: '整个会话的第一句', last_active: '2026-10-08T00:00:00.000Z' }]);
+  await store.boot();
+  const msg = (seq, text) => ({ seq, at: '2026-10-08T01:00:00Z', kind: 'message.user', body: { blocks: [{ type: 'text', text }] } });
+  for (const id of ['L', 'Q', 'X']) store.sessions.set(id, { ...emptySession(id), events: [msg(30, '读进来的第一句')] });
+  assert.deepEqual([store.summary('L').title, store.summary('L').pinned], ['修设置页', true]);
+  assert.equal(store.summary('Q').title, '整个会话的第一句');
+  assert.equal(store.summary('X').title, '读进来的第一句', '会话表里没有的照日志');
+  push('sessions.changed', { session: 'L', entry: { session: 'L', parent: null, title: '改过的名字', last_active: '2026-10-08T02:00:00.000Z' } });
+  assert.deepEqual([store.summary('L').title, store.summary('L').pinned], ['改过的名字', false]);
+});
