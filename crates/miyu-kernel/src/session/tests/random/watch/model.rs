@@ -107,7 +107,8 @@ impl Watch {
             listing(&self.effective_events()),
             "种子 {seed}：请求照全部历史，撤回的、撤掉的、压缩掉的除外"
         );
-        let retry = self.retry_request();
+        // 被动压完的重发和报超长的那一次是同一步（`compaction.md` 第六条第 1 条）。
+        let retry = self.retry_request() || self.passive_resend();
         let count = self.requests.entry(turn).or_default();
         if !retry {
             *count += 1;

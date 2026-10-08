@@ -46,6 +46,8 @@ impl Session {
         let turn = self.turn.as_mut()?;
         turn.passive = Some(Passive::Due);
         turn.overflowed = true;
+        // 压完重发的还是这一步（第六条第 1 条）：不算进请求数，不然报超长的是最后一步时，重发就把步数用超了。
+        turn.retrying = true;
         turn.stage = Stage::Ready;
         None
     }

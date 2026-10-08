@@ -22,8 +22,14 @@ fn overflowing() -> Stage {
 
 /// 同上，熔断的数是 `pause`。
 fn overflowing_with(pause: Pause) -> Stage {
+    overflowing_limited(pause, None)
+}
+
+/// 同上，一个回合最多请求 `step_limit` 次。
+fn overflowing_limited(pause: Pause, step_limit: Option<u32>) -> Stage {
     let make = move || {
         let mut policy = policy();
+        policy.step_limit = step_limit;
         policy.compaction = Some(Compaction {
             reserve_cap: 10,
             margin: 10,
@@ -336,5 +342,37 @@ fn each_step_may_compact_once() {
         story(&stage)
             .last()
             .is_some_and(|line| line.contains("turn.ended:completed"))
+    );
+}
+
+#[test]
+fn the_resend_after_a_passive_compaction_is_the_same_step() {
+    // 一个回合最多请求两次：第一次报超长，压完重发的还是第一步（第六条第 1 条「这一步改成先压缩，再重发一次」）；重发的
+    // 调了工具，第二步照发，说完了这一轮照常结束，不是到了步数上限。
+    let mut stage = overflowing_limited(PAUSE, Some(2));
+    wide(&mut stage);
+    stage.model([Line::says("好。")]);
+    stage.say("hi");
+    let asked = stage.requests().len();
+    stage.disk("~/src/miyu/a.txt", "a");
+    stage.tools([Play::read("~/src/miyu/a.txt", "a")]);
+    stage.model([
+        too_long(),
+        Line::says("S"),
+        Line::calls("", &[("read", "{}")]),
+        Line::says("读完了。"),
+    ]);
+    stage.say("读 a");
+    assert_eq!(
+        stage.requests().len(),
+        asked + 4,
+        "主请求、摘要请求、重发、第二步"
+    );
+    let story = story(&stage);
+    assert!(
+        story
+            .last()
+            .is_some_and(|line| line.contains("turn.ended:completed")),
+        "{story:#?}"
     );
 }
