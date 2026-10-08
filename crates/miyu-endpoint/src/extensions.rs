@@ -9,14 +9,14 @@ mod methods;
 mod stderr;
 mod supervise;
 
-pub(crate) use methods::{disable, enable, restart, status};
+pub(crate) use methods::{disable, enable, entry, restart, status};
 pub use supervise::Timing;
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use tokio::sync::watch;
+use tokio::sync::{broadcast, watch};
 use tokio::task::JoinHandle;
 
 use miyu_config::package::{Manifest, PackageKind, Start};
@@ -111,8 +111,35 @@ pub(crate) struct Status {
     pub(crate) failures: u32,
 }
 
-/// 表和看管的任务一起拿着的那一份。
-type Shared = Arc<Mutex<Status>>;
+/// 表和看管的任务一起拿着的那一份：状态，改了就广播是哪个包变了（施工 9-4 补，订阅的连接照它推 `extension.changed`）。
+pub(crate) struct Cell {
+    /// 包的编号。
+    id: String,
+    /// 状态。
+    status: Mutex<Status>,
+    /// 谁变了：广播包的编号。
+    changed: broadcast::Sender<String>,
+}
+
+impl Cell {
+    /// 这时的状态。
+    pub(crate) fn get(&self) -> Status {
+        *self.status.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// 记下状态，广播一声。
+    pub(crate) fn set(&self, state: State, failures: u32) {
+        *self.status.lock().unwrap_or_else(PoisonError::into_inner) = Status { state, failures };
+        if self.changed.send(self.id.clone()).is_err() {
+            // 没有订阅着的连接：不用说。
+        }
+    }
+}
+
+type Shared = Arc<Cell>;
+
+/// 广播最多攒多少条还没被读走的：读得慢的连接掉了队，推 `resync`。
+const CHANGES: usize = 64;
 
 /// 一个包一格。
 struct Slot {
@@ -130,6 +157,8 @@ pub(crate) struct Extensions {
     ops: tokio::sync::Mutex<()>,
     /// 等多久、退避多久。
     timing: Timing,
+    /// 谁变了（施工 9-4 补）。
+    changed: broadcast::Sender<String>,
 }
 
 impl Extensions {
@@ -138,6 +167,19 @@ impl Extensions {
             slots: Mutex::new(BTreeMap::new()),
             ops: tokio::sync::Mutex::new(()),
             timing,
+            changed: broadcast::channel(CHANGES).0,
+        }
+    }
+
+    /// 收「谁变了」的一头（施工 9-4 补）。
+    pub(crate) fn subscribe(&self) -> broadcast::Receiver<String> {
+        self.changed.subscribe()
+    }
+
+    /// 广播包 `id` 变了：开关变了、状态没变的也说一声（`enable` 一个程序没找到的，还是停下，`on` 变了）。
+    pub(crate) fn notify(&self, id: &str) {
+        if self.changed.send(id.to_string()).is_err() {
+            // 没有订阅着的连接：不用说。
         }
     }
 
@@ -152,29 +194,29 @@ impl Extensions {
                 state: State::Off,
                 failures: 0,
             },
-            |slot| *slot.status.lock().unwrap_or_else(PoisonError::into_inner),
+            |slot| slot.status.get(),
         )
     }
 
     /// 有在干活、或者等着再干的。
     pub(crate) fn busy(&self) -> bool {
-        self.slots().values().any(|slot| {
-            slot.status
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .state
-                .busy()
-        })
+        self.slots()
+            .values()
+            .any(|slot| slot.status.get().state.busy())
     }
 
     /// 拉起包 `id`（清单是 `manifest`）：在跑、在等的不动；程序没找到、协议版本对不上的直接停下。
     fn launch(&self, core: &Arc<Core>, id: &str, manifest: &Manifest) {
         let mut slots = self.slots();
         let slot = slots.entry(id.to_string()).or_insert_with(|| Slot {
-            status: Arc::new(Mutex::new(Status {
-                state: State::Off,
-                failures: 0,
-            })),
+            status: Arc::new(Cell {
+                id: id.to_string(),
+                status: Mutex::new(Status {
+                    state: State::Off,
+                    failures: 0,
+                }),
+                changed: self.changed.clone(),
+            }),
             task: None,
         });
         if slot
@@ -188,19 +230,13 @@ impl Extensions {
             Ok(plan) => plan,
             Err(reason) => {
                 tracing::warn!(target: TARGET, package = id, reason = reason.as_str(), "extension not started");
-                *slot.status.lock().unwrap_or_else(PoisonError::into_inner) = Status {
-                    state: State::Stopped(reason),
-                    failures: 0,
-                };
+                slot.status.set(State::Stopped(reason), 0);
                 slot.task = None;
                 return;
             }
         };
         // 任务跑起来之前就算在干活：刚拉起的那一瞬间核心不算空闲。
-        *slot.status.lock().unwrap_or_else(PoisonError::into_inner) = Status {
-            state: State::Starting { pid: None },
-            failures: 0,
-        };
+        slot.status.set(State::Starting { pid: None }, 0);
         let (stop, asked) = watch::channel(false);
         let task = tokio::spawn(supervise::run(
             Arc::downgrade(core),
@@ -250,10 +286,7 @@ impl Extensions {
     /// 把包 `id` 记成关着、连续失败从零数。
     fn mark_off(&self, id: &str) {
         if let Some(slot) = self.slots().get(id) {
-            *slot.status.lock().unwrap_or_else(PoisonError::into_inner) = Status {
-                state: State::Off,
-                failures: 0,
-            };
+            slot.status.set(State::Off, 0);
         }
     }
 }
