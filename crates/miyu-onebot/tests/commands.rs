@@ -6,6 +6,7 @@ use serde_json::Value;
 
 use miyu_session::testkit::{Play, Script};
 
+use crate::support::ports::on_free_ports;
 use crate::support::spawning::*;
 use crate::support::*;
 
@@ -234,13 +235,16 @@ async fn a_command_after_the_session_was_deleted_finds_it_again() {
 
 #[tokio::test]
 async fn the_run_log_names_the_command_and_the_reason_but_not_the_words() {
-    let (listen, web) = (free_port(), free_port());
-    let home = Home::spawning(&Script::new([]), &ports_config(listen, web));
-    store_token(&home.root, TOKEN);
-    let started = cli(&home.root, &["start"]).await;
-    assert_eq!(started.status.code(), Some(0), "{}", text(&started.stderr));
-    until_extension(&home.root, |one| one["state"] == "running").await;
-    until_port(listen, true).await;
+    let script = Script::new([]);
+    let (home, listen) = on_free_ports(async |listen, web| {
+        let home = Home::spawning(&script, &ports_config(listen, web));
+        store_token(&home.root, TOKEN);
+        let started = cli(&home.root, &["start"]).await;
+        assert_eq!(started.status.code(), Some(0), "{}", text(&started.stderr));
+        bridge_up(&home.root, listen, web, None).await?;
+        Ok((home, listen))
+    })
+    .await;
     let mut napcat = owner_napcat(listen).await;
     napcat.owner_says(1, "/stop").await;
     assert_eq!(napcat.reply().await, STOPPED);

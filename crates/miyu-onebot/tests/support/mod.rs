@@ -8,6 +8,7 @@ pub mod fake_core;
 pub mod http;
 pub mod napcat;
 pub mod pipe;
+pub mod ports;
 pub mod spawning;
 
 use std::path::{Path, PathBuf};

@@ -5,10 +5,7 @@
 //! 各一句），改了配置文件，`/status` 的 `token` 跟着变、NapCat 不用重启就连上，`/token` 交出值、运行日志里没有它；
 //! `miyu-onebot web --print` 照常印网址。
 
-use std::time::Duration;
-
 use serde_json::json;
-use tokio::net::TcpStream;
 
 use miyu_onebot::serve::{Notice, Serve};
 use miyu_onebot::texts::Texts;
@@ -17,7 +14,8 @@ use miyu_store::resources::ResourceRoot;
 
 use crate::support::fake_core::{CODE, LOGIN, fake_core};
 use crate::support::http::*;
-use crate::support::spawning::{free_port, program, served};
+use crate::support::ports::on_free_ports;
+use crate::support::spawning::{program, served_up};
 use crate::support::*;
 
 /// 换上的新令牌。
@@ -115,19 +113,13 @@ async fn a_new_token_takes_over_and_the_open_connection_stays() {
 async fn the_program_runs_without_a_token_and_takes_one_without_a_restart() {
     let (dir, root) = temp_root();
     let _core = fake_core(&root);
-    let (listen, web) = (free_port(), free_port());
     let system = root.path().join("system");
     std::fs::create_dir_all(&system).expect("建得了");
-    let ports = format!("[onebot]\nlisten = {listen}\nweb = {web}\n");
-    std::fs::write(system.join("config.toml"), &ports).expect("写得进");
-    let mut serve = served(&root).await;
-    within("WebUI 开始听", async {
-        while TcpStream::connect(("127.0.0.1", web)).await.is_err() {
-            if let Some(exited) = serve.child.try_wait().expect("看得到") {
-                panic!("桥退了：{exited}");
-            }
-            tokio::time::sleep(Duration::from_millis(50)).await;
-        }
+    // 挑的空端口被别人先占了的换一组再来（`support/ports.rs`）；回来的时候两个端口都听上了。
+    let (mut serve, listen, web, ports) = on_free_ports(async |listen, web| {
+        let ports = format!("[onebot]\nlisten = {listen}\nweb = {web}\n");
+        std::fs::write(system.join("config.toml"), &ports).expect("写得进");
+        Ok((served_up(&root, listen, web).await?, listen, web, ports))
     })
     .await;
     assert_eq!(

@@ -2,7 +2,7 @@
 //! 核心照出厂的清单拉起硬链接在测试程序旁边的 `miyu-onebot`，`start`、`stop`、`restart`、`status` 是真的程序。`start` 以后
 //! NapCat 连得进来、主人的私聊照旧来回，`status` 说在跑、NapCat 连着；`stop` 以后桥自己退出、端口关了；桥被杀掉，核心拉起新的
 //! 一个，NapCat 重连得上；端口被占，核心停下，`status` 说是配置错、带出「端口被占」那一句；关着的不能 `restart`。不靠墙钟睡，
-//! 等状态。
+//! 等状态。挑的空端口在桥起来以前被别人占了的，换一组从头再来（`support/ports.rs`）。
 
 use std::time::Duration;
 
@@ -12,6 +12,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
+use crate::support::ports::on_free_ports;
 use crate::support::spawning::*;
 use crate::support::*;
 
@@ -42,27 +43,24 @@ async fn ok(root: &DataRoot, args: &[&str]) -> String {
     text(&ran.stdout)
 }
 
-/// 等桥在跑、NapCat 的端口开着，交回它的进程号。
-async fn until_running(root: &DataRoot, listen: u16) -> u64 {
-    let running = until_extension(root, |one| one["state"] == "running").await;
-    until_port(listen, true).await;
-    running["pid"].as_u64().expect("在跑的有进程号")
-}
-
 #[tokio::test]
 async fn start_lets_the_core_run_the_bridge_and_stop_closes_it() {
-    let (listen, web) = (free_port(), free_port());
-    let home = home(&Script::new([Play::Says("在。")]), listen, web);
-    assert_eq!(
-        ok(&home.root, &["status"]).await,
-        format!("{}\n", zh(&Report::Off))
-    );
-    let started = ok(&home.root, &["start"]).await;
-    assert!(
-        started.starts_with(&format!("{}\n", zh(&Report::Started))),
-        "{started}"
-    );
-    let pid = until_running(&home.root, listen).await;
+    let script = Script::new([Play::Says("在。")]);
+    let (home, listen, web, pid) = on_free_ports(async |listen, web| {
+        let home = home(&script, listen, web);
+        assert_eq!(
+            ok(&home.root, &["status"]).await,
+            format!("{}\n", zh(&Report::Off))
+        );
+        let started = ok(&home.root, &["start"]).await;
+        assert!(
+            started.starts_with(&format!("{}\n", zh(&Report::Started))),
+            "{started}"
+        );
+        let pid = bridge_up(&home.root, listen, web, None).await?;
+        Ok((home, listen, web, pid))
+    })
+    .await;
     let mut napcat = owner_napcat(listen).await;
     napcat.owner_says(1, "在吗").await;
     assert_eq!(napcat.reply().await, "在。", "主人的私聊照旧来回");
@@ -107,17 +105,19 @@ async fn start_lets_the_core_run_the_bridge_and_stop_closes_it() {
 
 #[tokio::test]
 async fn a_killed_bridge_is_started_again_and_napcat_comes_back() {
-    let (listen, web) = (free_port(), free_port());
-    let home = home(&Script::new([Play::Says("回来了。")]), listen, web);
-    ok(&home.root, &["start"]).await;
-    let first = until_running(&home.root, listen).await;
-    kill(first);
-    let again = until_extension(&home.root, |one| {
-        one["state"] == "running" && one["pid"].as_u64() != Some(first)
+    let script = Script::new([Play::Says("回来了。")]);
+    // 核心拉起的新桥照样绑这两个端口：杀掉以后到它绑上之间被别人占了的，也换一组从头再来。
+    let (home, listen) = on_free_ports(async |listen, web| {
+        let home = home(&script, listen, web);
+        ok(&home.root, &["start"]).await;
+        let first = bridge_up(&home.root, listen, web, None).await?;
+        kill(first);
+        bridge_up(&home.root, listen, web, Some(first)).await?;
+        Ok((home, listen))
     })
     .await;
+    let again = extension(&home.root).await;
     assert_eq!(again["failures"], 1, "被杀掉算一次失败：{again}");
-    until_port(listen, true).await;
     let mut napcat = owner_napcat(listen).await;
     napcat.owner_says(2, "还在吗").await;
     assert_eq!(napcat.reply().await, "回来了。", "NapCat 重连得上");
@@ -128,8 +128,10 @@ async fn a_killed_bridge_is_started_again_and_napcat_comes_back() {
 
 #[tokio::test]
 async fn a_port_in_use_stops_it_and_status_says_why() {
-    let (listen, web) = (free_port(), free_port());
-    let taken = std::net::TcpListener::bind(("127.0.0.1", listen)).expect("占得上");
+    // 占着的端口由测试自己从系统挑来、一直拿着，没有放掉再绑的空当；桥先绑 NapCat 的这一个，绑不上就停，WebUI 的那个用不上。
+    let taken = std::net::TcpListener::bind("127.0.0.1:0").expect("挑得到");
+    let listen = taken.local_addr().expect("有地址").port();
+    let web = free_port();
     let home = home(&Script::new([]), listen, web);
     ok(&home.root, &["start"]).await;
     let stopped = until_extension(&home.root, |one| one["state"] == "stopped").await;
@@ -154,26 +156,27 @@ async fn a_port_in_use_stops_it_and_status_says_why() {
 
 #[tokio::test]
 async fn restarting_an_extension_that_is_off_is_refused_in_the_cores_words() {
-    let (listen, web) = (free_port(), free_port());
-    let home = home(&Script::new([]), listen, web);
-    let refused = cli(&home.root, &["restart"]).await;
-    assert_eq!(refused.status.code(), Some(1));
-    assert_eq!(text(&refused.stdout), "");
-    assert_eq!(
-        text(&refused.stderr),
-        "这个扩展关着，先打开它。\n",
-        "照核心的原话（握手说中文）"
-    );
-    // 开了再重启：换一个新进程。
-    ok(&home.root, &["start"]).await;
-    let first = until_running(&home.root, listen).await;
-    let restarted = ok(&home.root, &["restart"]).await;
-    assert!(
-        restarted.starts_with(&format!("{}\n", zh(&Report::Restarted))),
-        "{restarted}"
-    );
-    until_extension(&home.root, |one| {
-        one["state"] == "running" && one["pid"].as_u64() != Some(first)
+    let script = Script::new([]);
+    let home = on_free_ports(async |listen, web| {
+        let home = home(&script, listen, web);
+        let refused = cli(&home.root, &["restart"]).await;
+        assert_eq!(refused.status.code(), Some(1));
+        assert_eq!(text(&refused.stdout), "");
+        assert_eq!(
+            text(&refused.stderr),
+            "这个扩展关着，先打开它。\n",
+            "照核心的原话（握手说中文）"
+        );
+        // 开了再重启：换一个新进程。
+        ok(&home.root, &["start"]).await;
+        let first = bridge_up(&home.root, listen, web, None).await?;
+        let restarted = ok(&home.root, &["restart"]).await;
+        assert!(
+            restarted.starts_with(&format!("{}\n", zh(&Report::Restarted))),
+            "{restarted}"
+        );
+        bridge_up(&home.root, listen, web, Some(first)).await?;
+        Ok(home)
     })
     .await;
     ok(&home.root, &["stop"]).await;
