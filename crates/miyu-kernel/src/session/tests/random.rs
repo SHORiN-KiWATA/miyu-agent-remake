@@ -56,6 +56,7 @@ mod kinds;
 mod naming;
 mod paths;
 mod peering;
+mod preparing;
 mod recapping;
 mod replies;
 mod reporting;
@@ -195,7 +196,7 @@ fn some_input(rng: &mut Rng, watch: &mut Watch, next_id: &mut u64) -> Input {
                 Some(turn) if rng.below(4) > 0 => *turn,
                 _ => TurnId::new(seq(1 + rng.below(watch.last()))),
             };
-            hooks_done(turn, some_injections(rng))
+            preparing::with_prepare(watch, hooks_done(turn, some_injections(rng)))
         }
         8 => stored(1 + rng.below(watch.last())),
         9..=12 => stored(watch.last()),
@@ -340,6 +341,9 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         // 照原来的走。
         let sighting = seed % 8 == 5 && !watch.writing;
         let (mut sights, mut sight_ids) = (Rng(seed ^ 0x5167_0817), 0);
+        // 三个种子里有一个开着提前压好（施工 6-11 上）：另一串随机数。
+        let (mut prepares, preparing) = (Rng(seed ^ 0x6110_0000), seed % 3 == 2);
+        watch.prepares.seeded = preparing;
         for _ in 0..300 {
             // 有回顾在路上的不崩：崩了它就丢了，等着的命令收不到回应（施工 3-8 四补）。
             if watch.all_stored() && crashes.below(200) == 0 && watch.recaps_idle() {
@@ -399,6 +403,9 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
             if sighting
                 && let Some(input) = sighting::some_sight(&mut sights, &watch, &mut sight_ids)
             {
+                watch.feed(&mut session, input);
+            }
+            if preparing && let Some(input) = preparing::some_prepare(&mut prepares, &watch) {
                 watch.feed(&mut session, input);
             }
             let mut input = some_input(&mut rng, &mut watch, &mut next_id);

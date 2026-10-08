@@ -84,9 +84,21 @@ impl Watch {
             Input::Command(received) if received.command == Command::Recap && !refused => {
                 Some(self.expect_recap(received.id.clone()))
             }
-            Input::AsideSent { upto, .. }
-            | Input::AsideDelta { upto, .. }
-            | Input::AsideEnded { upto, .. } => {
+            Input::AsideSent {
+                purpose: Purpose::Recap,
+                upto,
+                ..
+            }
+            | Input::AsideDelta {
+                purpose: Purpose::Recap,
+                upto,
+                ..
+            }
+            | Input::AsideEnded {
+                purpose: Purpose::Recap,
+                upto,
+                ..
+            } => {
                 let Some(flight) = self.recaps.flight.as_mut().filter(|f| f.upto == *upto) else {
                     self.seen_paths.insert("对不上的回顾回报不理");
                     return Some(Expect::Stale);

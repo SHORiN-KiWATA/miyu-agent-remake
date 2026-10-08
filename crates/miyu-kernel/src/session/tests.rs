@@ -148,6 +148,7 @@ fn turn3() -> TurnId {
 fn hooks_done(turn: TurnId, injected: Vec<Injection>) -> Input {
     Input::TurnStartHooksDone {
         policy: None,
+        prepare: false,
         at: at(30),
         turn,
         injected,

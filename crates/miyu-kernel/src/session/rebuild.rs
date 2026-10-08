@@ -31,13 +31,19 @@ pub(super) struct Rebuilt {
 }
 
 impl Session {
-    /// 执行器送回了第 `seen` 次摘要请求的重读结果（施工 6-5）：记在那次请求上。不是在路上的那一次的，不理（施工 8-9 从
-    /// `call.rs` 挪来，那边放不下了）。
-    pub(super) fn reread_done(&mut self, seen: Seq, files: Vec<Reread>) -> Vec<Action> {
+    /// 执行器送回了第 `seen` 次摘要请求的重读结果（施工 6-5）：记在那次请求上。换上提前压好的那一份的，收下就写压缩（施工
+    /// 6-11 上，`prepare.rs`）。别的不理（施工 8-9 从 `call.rs` 挪来，那边放不下了）。
+    pub(super) fn reread_done(
+        &mut self,
+        at: Timestamp,
+        seen: Seq,
+        files: Vec<Reread>,
+    ) -> Vec<Action> {
         if let Some(compacting) = self.call(seen).and_then(|call| call.compaction.as_mut()) {
             compacting.reread(files);
+            return Vec::new();
         }
-        Vec::new()
+        self.swap_reread(at, seen, files).unwrap_or_default()
     }
 
     /// 取回原文（施工 6-9，`kernel/history.md`「重读的原文」）：现在的检查点重读过文件的，照先后交出它们的 blob；没有

@@ -54,6 +54,9 @@ pub enum Input {
         /// 人格的文件改了，执行器照新的拼好的快照的哈希（施工 P-1 再补）：内核换上先放着的那一份策略
         /// （[`crate::session::Session::stage_policy`]），记一条带 `policy` 的 `session.policy_changed`。没换的没有。
         policy: Option<ContentHash>,
+        /// 这一轮开着提前压好（施工 6-11 上，配置 `compaction.prepare`）：执行器冻结这一轮的配置时照它交。不开回合的手动
+        /// 压缩照上一轮的。
+        prepare: bool,
     },
     /// 请求发出去了（`02-内核.md` 第六节「回复怎么收、回合怎么结束」）。
     RequestSent {

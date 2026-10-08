@@ -64,6 +64,7 @@ impl Session {
             | Stage::Ready
             | Stage::Looking { .. }
             | Stage::Waiting { .. }
+            | Stage::Swapping(_)
             | Stage::Settling => Vec::new(),
         };
         let text = self.policy.tool_texts.restarted();

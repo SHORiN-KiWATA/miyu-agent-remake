@@ -124,7 +124,11 @@ impl Watch {
     /// 的回合结束，要么再来。
     pub(super) fn model_called(&mut self, called: &ModelCalled, events: &[Event], k: usize) {
         let seed = self.seed;
-        // 回顾的请求另查（施工 3-8 四补，`watch/recap.rs`）：它不是这一轮的请求。
+        // 提前压的另查（施工 6-11 上，`watch/prepare.rs`）、回顾的请求另查（施工 3-8 四补，`watch/recap.rs`）：它们不是
+        // 这一轮的请求。
+        if called.purpose == Some(crate::event::Purpose::Compaction) {
+            return self.prepare_called(&events[k], called);
+        }
         if called.aside() {
             return self.recap_called(called, events, k);
         }

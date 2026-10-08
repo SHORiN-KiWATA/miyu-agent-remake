@@ -69,7 +69,7 @@
 | `Stored { at, upto }` | 落完盘的时刻（执行器的时钟），落了盘的最后一条的序号。时刻是给「接着发请求」时熔断要写的事件用的（施工 6-6 上） | 「命令和回应」第 8 条 |
 | `Environment(Environment)` | `offset` 时区、`cwd` 工作目录（头报的、人看到的写法）、`dirs` 加进来的目录（施工 5-10 上） | 换掉会话的环境，什么都不出；下一个边界才用 |
 | `Limits(Limits)` | `model` 发给哪个端点的哪个模型、`window` 上下文窗口、`max_output` 最大输出，没报的是 `None`（施工 6-2 上）；`images` 一张图怎么算（`estimate::ImagePrice`，驱动交的，没有的照策略里的固定数，施工 6-3 上）；`blind` 看不了图（施工 8-17，池里有一个成员看不了就算） | 换掉会话的模型限额，什么都不出；只在内存里，载入以后执行器再交一次。没交过的不主动压缩（`compaction.md` 第二条） |
-| `TurnStartHooksDone { at, turn, injected, replaced }` | 哪个回合；各模块的注入 `Injection { module, fact }`，照固定的先后；执行器重新解析时钉着的没了、退回了默认的 `Replaced { from, to }`（原来的、退回的，施工 8-10），没有的是没有 | 「回合」第 4 条，「换模型」第 3 条 |
+| `TurnStartHooksDone { at, turn, injected, replaced, policy, prepare }` | 哪个回合；各模块的注入 `Injection { module, fact }`，照固定的先后；执行器重新解析时钉着的没了、退回了默认的 `Replaced { from, to }`（原来的、退回的，施工 8-10），没有的是没有；人格的文件改了的新快照的哈希（施工 P-1 再补）；这一轮开不开提前压好（`compaction.prepare`，施工 6-11 上，`compaction.md` 第十五条） | 「回合」第 4 条，「换模型」第 3 条 |
 | `RequestSent { at, seen, model, request }` | 哪次请求；发给了哪个端点的哪个模型（`Model { endpoint, model }`）；驱动编码以后的请求字节的哈希 | 「收回复」 |
 | `ModelDelta { at, seen, delta }` | 一段增量：`Start { index, kind }`、`Text { index, text }`、`Private { index, private }`、`End { index }` | 「收回复」 |
 | `ModelEnded { at, seen, usage, cost, error, wait_ms, excess, failover }` | 用量；金额（施工 8-15：执行器照价格算好的，原样记进 `model.called` 的 `cost`，内核不碰价格）；出错的分类和原话；供应商说要等多少毫秒（换了端点的是别的候选都在冷却时要等多久）；超长的超了多少 token（施工 6-6 中，不进日志）；端口换了端点（`failover`，施工 8-9，不进日志）。没发出去就失败的不报 `RequestSent`，直接报这一条 | 「收回复」「出错再来」 |
@@ -131,7 +131,7 @@
 | `Report(Upward)` | 子会话交给父会话的一份回报（施工 7-6）：报的是哪一轮 `turn`、`reason`（`done` 或 `aborted`）、正文 `text`、`truncated`、`person` | 补上任务编号、子会话，经端口交给父会话，命令编号 `<子会话>/report/<turn>`，不送回（`session/actor.md`「向上回报」） |
 | `StopJobs { jobs, by, cause }` | 撤销（重做的撤销那一半）撤掉的那几轮派出去、还在跑的任务，照编号；撤销的人和命令（施工 7-8） | 后台命令整组杀掉、存好输出，`job.reported`（`undone`，`by`、`cause` 照这里的）经收件箱交回（`JobEnded`）；子代理经会话表停下，回报由子会话交来（`Report`，`undone`）；已经结束了的不管。不送回、不等（`history.md`「撤销」第 5 条，`agents.md` 第七条第 1 条） |
 | `Recall { blobs }` | 检查点里重读的文件的 blob，照先后（施工 6-9） | 照 blob 读出原文，读完才收收件箱，送回 `Recalled`；读不出来的、不是 UTF-8 的不交（`history.md`「重读的原文」） |
-| `Aside { purpose, upto, request }` | 用途（`recap`、`title`）、照到第几条（和用途合起来是这一次的名字）、统一的请求（施工 3-8 四补；五补起回顾、起标题共用，原来叫 `Recap`） | 交给这个会话的模型发出去，回报另走一路（和主请求的 `seen` 不撞）；送回 `AsideSent`、`AsideDelta`、`AsideEnded`。不叫停：会话停了，执行器放下它就停了（`session/actor.md` 第 7 条） |
+| `Aside { purpose, upto, request }` | 用途（`recap`、`title`、`compaction`：提前压好，施工 6-11 上）、照到第几条（和用途合起来是这一次的名字）、统一的请求（施工 3-8 四补；五补起回顾、起标题共用，原来叫 `Recap`） | 交给这个会话的模型发出去，回报另走一路（和主请求的 `seen` 不撞）；送回 `AsideSent`、`AsideDelta`、`AsideEnded`。不叫停：会话停了，执行器放下它就停了（`session/actor.md` 第 7 条） |
 | `Describe { blob, request }` | 哪一张图（也是这一次的名字）、转述的请求（`Assembler::describe`，施工 8-17） | 经一次性入口发给这一轮的 `models.vision`（`session/actor.md` 第 8 条），送回 `Described`。叫不停：之后到的照样送回 |
 
 **结局**（`Outcome`）：`Accepted { events }` 接受，附上它产生的事件的序号，照先后；`Recapped { text, upto, cached }` 回顾好了：那一句、照到第几条、是不是交回的上一句（施工 3-8 四补，「回顾」）；`Rejected { reason }` 拒绝，什么都没产生（回顾没写成的例外：记了一条出错的 `model.called`）。原因码是稳定的英文（`Reason::code`）：
@@ -208,6 +208,7 @@
 | `Looking { waiting }` | 看不了图，这一次请求里的几张图在等转述（施工 8-17） | 都回来了回到 `Ready`：转述落了盘再组装 |
 | `Asking(请求)` | 执行器的三种回报。可能是压缩的摘要请求（`compaction.md` 第三条） | `Settling`；摘要请求取到了摘要的，回 `Ready` |
 | `Waiting { after }` | 为 `after` 那次请求的 `Woke` | `Ready` |
+| `Swapping(摘要)` | 到线换上提前压好的那一份，等执行器重读（施工 6-11 上，`compaction.md` 第十五条第 3 条） | 重读回来了写压缩，回 `Ready`。打断、重启照 `Ready` 收拾，那一份扔掉 |
 | `Settling` | 只在处理一条输入的当中出现，什么输入都不收 | 结束、`Tools`，或者 `Waiting` |
 | `Tools(这一步)` | 这一步的调用都有了结果 | `Ready`，或者结束 |
 

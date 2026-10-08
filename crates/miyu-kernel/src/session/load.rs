@@ -187,6 +187,7 @@ impl Session {
             recapping: None,
             naming,
             titling: None,
+            prepare: super::prepare::Prepare::default(),
             reference,
             sight,
             grants,

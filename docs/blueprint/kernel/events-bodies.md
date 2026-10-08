@@ -351,9 +351,9 @@
 | `result` | 取值 | 必有 | `ok` 说完了；`error` 出错；`interrupted` 被人打断 |
 | `error` | 出错 | 可以没有 | 出错的分类、原话，有的话还有 HTTP 状态码；只在出错时有 |
 | `compaction` | `auto`、`manual`、`overflow` | 可以没有 | 这是哪一种压缩的摘要请求；主请求没有。以前的日志没有这一格（施工 6-6 上） |
-| `purpose` | `recap`、`title` | 可以没有 | 辅助请求的用途（施工 3-8 四补，`26-提示词.md` J6）：回顾，起标题（施工 3-8 五补）。主请求、摘要请求没有；以前的日志没有这一格。不认识的原样留着，也算辅助请求 |
+| `purpose` | `recap`、`title`、`compaction` | 可以没有 | 辅助请求的用途（施工 3-8 四补，`26-提示词.md` J6）：回顾，起标题（施工 3-8 五补），提前压好的摘要（施工 6-11 上，`compaction.md` 第十五条：不带 `compaction` 那一格，不数进熔断）。主请求、摘要请求没有；以前的日志没有这一格。不认识的原样留着，也算辅助请求 |
 
-- 带 `purpose` 的是辅助请求（`ModelCalled::aside()`）：它和主对话无关，她没在这次请求里听到什么，它报的用量也不是主对话的大小。所以用量的锚（`compaction.md` 第一条）、排着的话她听到没有（`kernel/history.md`）、压缩的边界（`compaction.md` 第三条第 2 条）、渲染时回合开始的那几块（`kernel/request.md`「组装」）都不看它。它不带 `turn`、没有回复，`seen` 是它照到的那一条，`first_difference`、`blocks` 没有。回顾的 `cause` 是要它的命令；起标题的没有 `cause`（内核自己要的）。
+- 带 `purpose` 的是辅助请求（`ModelCalled::aside()`）：它和主对话无关，她没在这次请求里听到什么，它报的用量也不是主对话的大小。所以用量的锚（`compaction.md` 第一条）、排着的话她听到没有（`kernel/history.md`）、压缩的边界（`compaction.md` 第三条第 2 条）、渲染时回合开始的那几块（`kernel/request.md`「组装」）都不看它。它不带 `turn`、没有回复，`seen` 是它照到的那一条，`first_difference`、`blocks` 没有。回顾的 `cause` 是要它的命令；起标题、提前压好的没有 `cause`（内核自己要的）。
 - `first_difference` 在代码里装在盒子里（施工 3-8 四补）：它多半没有；`purpose` 加进来以后 `model.called` 比别的种类大出两百字节，clippy 的 `large_enum_variant` 拦下了。JSON 的写法不变。`cost` 照样装在盒子里（施工 8-15）。
 
 金额（施工 8-15，代码在 `event/cost.rs`）：

@@ -140,6 +140,7 @@ impl Stage {
             titles: Vec::new(),
             title_lines: VecDeque::new(),
             held_title: None,
+            prepare: super::prepare::Prepares::default(),
             routing: super::routing::Routing::default(),
             sight: super::sight::Sight::default(),
             swap: None,

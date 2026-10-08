@@ -28,6 +28,7 @@ fn overflowing_with(pause: Pause) -> Stage {
             reserve_cap: 10,
             margin: 10,
             tail: 3,
+            lead: 0,
             price: crate::estimate::Flat {
                 image: 50,
                 file: 50,

@@ -84,6 +84,7 @@ impl Session {
             | Stage::Ready
             | Stage::Looking { .. }
             | Stage::Waiting { .. }
+            | Stage::Swapping(_)
             | Stage::Settling => {}
         }
         events.extend(self.close_interrupted(at, &by, &id, queued));

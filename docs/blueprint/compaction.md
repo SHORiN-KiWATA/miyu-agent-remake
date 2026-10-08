@@ -44,6 +44,8 @@
 | 输出预留的上限 | 20000 | 输出预留 = min(模型的最大输出, 它) |
 | 余量 | 13000 | 压缩线离「放不下」还空多少：盖住下一步的增长和摘要指令 |
 | 尾巴 | 16000 token，不超过压缩线的四分之一 | 压完原样留着的最近一段（第三条第 2 条） |
+| 提前量 | 16000 token，不超过压缩线的四分之一减尾巴 | 起压线 = 压缩线 − 提前量（第十五条）。快照里是 `compaction.lead`（施工 6-11 上）；以前的快照没有，读成 16000 |
+| `compaction.prepare` | 开 | 提前压好（第十五条）：配置项，系统配置、个人设置两层，下一轮生效（施工 6-11 上） |
 | 重读的文件 | 最多 5 个；单个 5000 token；合计 50000 token | 压后重建（第九条） |
 | 不重读文件的窗口 | 32000 token 以下 | 同上 |
 | 暂停自动压缩 | 连续失败 3 次；或者压完 3 个回合内又到线，连续 3 次 | 第十条。快照里是 `compaction.pause` 的 `failures`、`turns`、`refills` 三个数（施工 6-6 上）；以前的快照没有，读成没有：不熔断 |
@@ -83,7 +85,7 @@
 | `failures` | 整数 | 可以没有 | `failures` 的：连着失败了几次 |
 | `entry` | 序号 | 可以没有 | `too_large` 的：检查点后面估得最大的那一条 |
 
-**事件** `model.called` 多一格 `compaction`（`auto`、`manual`、`overflow`，可以没有）：这是哪一种压缩的摘要请求，主请求没有（施工 6-6 上）。有了它，日志里认得出哪几次是摘要请求，失败照它数。以前的日志没有这一格。
+**事件** `model.called` 多一格 `compaction`（`auto`、`manual`、`overflow`，可以没有）：这是哪一种压缩的摘要请求，主请求没有（施工 6-6 上）。有了它，日志里认得出哪几次是摘要请求，失败照它数。以前的日志没有这一格。提前压好的那一次（第十五条）不带这一格，带 `purpose: compaction`：它是旁路请求，不数进熔断。
 
 **事件** `turn.started`：`trigger` 改成可以没有。人要的压缩、人要的清空单开一轮，它不是哪一句话引起的（第七条、第十四条）。没有 `trigger` 的那一轮只做压缩：载入时不接着干，渲染时不进上下文（第七条第 7、8 条）。
 
@@ -99,6 +101,7 @@
 - 压缩期间推送瞬时的 `compaction.progress`：`written` 已经收到多少字，`expected` 估计要写多少字。头照它画进度，不让人对着空白等。
 **协议** `session.clear`（`protocol.md`，施工 6-8 补）：只有 `session` 一个参数。回应照 `session.compact`：`events` 是那一轮 `turn.started` 的序号，一整轮同一批落了盘才回。有回合在进行：`turn_running`；上下文本来就是空的：`nothing_to_clear`（第十四条第 2 条）；正在改回文件：`restoring`。不推 `compaction.progress`、`compaction.done`：没有摘要请求，推送里就是那一轮的三条事件。
 
+- 换上提前压好的那一份的（第十五条）：不推 `compaction.progress`，`compaction.done` 多一格 `prepared: true`，`usage`、`duration_ms` 是提前那一次摘要请求的。当场压的不写这一格。
 - 压好了推瞬时的 `compaction.done`（6-3 下）：`seen` 哪一次摘要请求；`trigger` 哪一种压缩（`auto`、`manual`，施工 6-8：运行日志照它写）；`before` 压之前的用量（自动的是过了线的那一次主请求算出的，手动的是那一轮开头落了盘时照有效历史组装一次算的），`after` 压完的用量（照这时的有效历史组装一次算的），都是估算，和压缩线同一个算法；`usage`、`duration_ms` 是摘要请求的用量、用时，照它的 `model.called`。中途被打断、出错的不推（`kernel/events.md`）。
 
 ### 怎么走
@@ -309,6 +312,7 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 - `seen` 哪一次摘要请求；`trigger` 为什么压，照 `compaction.done` 的 `trigger`（`auto`、`manual`，施工 6-8）；`before`、`after` 压前、压后的估算。
 - `summary_in`、`summary_cached`、`summary_out`、`took_ms`：摘要请求的输入（没命中的、命中的、写进缓存的加起来）、命中、输出、用时，照它的 `model.called`，没有的不写。
 - 截过几次、重读了几个文件随 6-6、6-5 加。
+- 换上提前压好的那一份的，末尾多一格 `prepared=yes`（施工 6-11 上），`took_ms` 照旧是那一次摘要请求的用时；当场压的不写。提前压的请求照旁路请求记：`compaction request`、`compaction ended`，出错的 `compaction failed` 记成 `WARN`（`session/actor.md` 第 7 条）。
 - 清空不记这一行：没有摘要请求，不推 `compaction.done`（第十四条）。
 
 **十四、清空**（`trigger` 是 `clear`，施工 6-8 补）
@@ -330,6 +334,20 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 7. **撤销、恢复**照第十一条：清空那一轮是一轮，撤掉它，检查点跟着撤掉，读回更早的日志，上下文回到清空以前；恢复把它放回来，又是空的。下一轮开始、再压缩以后恢复不了。撤销的回应里另有一格 `clears` 数它，`compactions` 不算它；`miyu undo` 撤掉的几轮里有清空的，说「撤掉了清空，上下文回到了清空以前」，和撤掉了压缩那一句都有的先压缩后清空（`protocol/undo.md`、`cli/undo.md`，2026-09-30 项目主人定）。
 8. `history` 照样找得到清空以前的（`tools/history.md`：日志照样留着）；清空的检查点摘要是空的，不算一条。
 9. 不做：命令行上的清空命令（`miyu ask` 本来每次都开新会话）；QQ 的 `/reset` 随通讯平台。
+
+**十五、提前压好、到线换上**（施工 6-11 上；`09-压缩.md` 第十节、Z11，2026-10-07 项目主人定）
+
+1. **起压**：每次发主请求之前、熔断说照发以后，和查压缩线同一处（`miyu-kernel` 的 `session/prepare.rs`）。尾巴的预算 T 照第三条第 2 条，提前量 G = min(`lead`, 压缩线的四分之一 − T)；用量过了起压线（压缩线 − G）、还没过压缩线，这一轮开着、要关了的不算、熔断没暂停、没有一次在路上、手里没有一份还用得上的，就照第三条第 2 条（同一个 T）切出 N，出 `Aside { purpose: compaction, upto: N }`，排在这一次的 `CallModel` 后面。G 是 0（压缩线不到 64000）的不提前压。
+2. **请求**：和当场压的 fork 式摘要请求一样：有效历史到 N 的投影加摘要指令，看不了图的照样换成转述。旁路：不碰「上一次请求」、不算步数、不推增量和进度。说完了记 `model.called`：不带回合编号，`purpose` 是 `compaction`，`seen` 是 N，不带 `compaction`。取到了摘要的只放在内存里，不另记事件。
+   - fork 式调了工具、策略里有隔离式的：照隔离式再发一次，同一个 N，只再一次。
+   - 出错、取不出摘要的扔掉：不重试，不数进熔断（熔断只认带 `compaction` 的）。
+3. **换上**：到线（自动压缩）、手动压缩没附要求的，手里有一份还用得上的就换上，不再请求：
+   - 还用得上：起压时照检查点和 N 以前还算数的事件的序号算一个指纹，这时再算一遍，一样；N 那里还切得开；N 以后的尾巴（本地估算）不超过 T + G。撤销撤到了 N 或更早、清空、中间压过一次、撤掉压缩，指纹都会变。
+   - 照第九条交执行器重读 N 以前读过、改过、尾巴里没碰过的文件：放在换上的这一刻做，读到的是最新的（起压到到线之间她还在干活，shell 改的文件内核看不到）。没有候选的当场写。等重读的这一会儿回合在 `Swapping`（`kernel/session.md`「回合」）。
+   - 重读回来了写 `context.compacted`（`upto` 是 N、摘要是那一份，`trigger`、`refills`、压之前的用量照这一次的），照常压后重建、比事实，推带 `prepared` 的 `compaction.done`。
+4. **用不上的**扔掉，照第三条当场压：还在路上的（6-11 上不等它，晚到的照「还用得上」再判，多半已经作废）；尾巴超了；作废了；这一轮关着；附了要求的手动压缩。被动压缩（第六条）不走这里。
+5. **开关**：配置 `compaction.prepare`（`miyu-session` 的 `settings.rs`），会话 actor 在回合开始冻结配置时读它，跟着 `TurnStartHooksDone` 的 `prepare` 交给内核；不开回合的手动压缩照上一轮的。造会话、载入以后还没开过回合的是关着。
+6. **只在内存里**：载入、重启以后没有，到了起压线再压一次。压好了没到线、会话就停了的，白花一次（`09-压缩.md` 第十节「要实测的」）。
 
 ### 样子
 
@@ -399,6 +417,7 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 | 会话的测试 | 压缩期间别的会话照常；打断取消；重读的文件存成 blob、重放时逐字节相同；运行日志 `compacted` 的 `trigger` 照 `compaction.done` |
 | 协议、命令行的测试 | `session.compact` 的参数、回应、拒绝；`miyu compact` 印的几行、退出码（`protocol.md`、`cli/compact.md`，施工 6-8）；`session.clear` 的回应、推送、两种拒绝两种语言、撤掉它上下文回来（施工 6-8 补） |
 | 压缩里的任务（施工 7-8、7-8 补） | 还没听到的回报留在检查点后面（`scenario/checkpoint_jobs.rs`）；还在跑的任务不列，代码写的几段只有取回指路（`scenario/checkpoint_jobs.rs`，照出厂资源的真会话 `miyu-session` 的 `tests/rebuild.rs`）；7-8 以后造的快照带着那两份模板照样读得回来，读成和出厂的一样（`miyu-policy` 的 `snapshot/tests.rs`） |
+| 提前压好（施工 6-11 上） | 起压线、开关、G 是 0、小窗口不起；一次只有一个、压好了还用得上的不再起；到线换上不再请求、`prepared`、不推进度；在路上的不等；尾巴超了、撤销撤到 N、清空、开关关了、附了要求的照当场压，只撤尾巴的照用；出错、空的扔掉；调了工具照隔离式再来一次；重读在换上时做、读到最新的（`miyu-kernel` 的 `scenario/prepare.rs`、`prepare_drop.rs`）；随机测试里提前压、换上和撤销、手动压缩、清空、打断、重启随机交错（`random/watch/prepare.rs`）；真会话里配置开着换上、日志 `prepared=yes`、出错记 `WARN`，关着的当场压（`miyu-session` 的 `tests/prepare_log.rs`、`tests/prepare.rs`） |
 | 真模型实测 | 慢模型加长上下文（旧版的教训：快模型短会话绕开了超时）；摘要请求的缓存命中；压缩质量评测：压完问之前的约定、让她接着做 |
 
 ### 出处
@@ -413,7 +432,8 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 
 - `compaction.progress` 的 `expected`（估计要写多少字）夹在 20000 到 80000 之间，摘要常常写不了那么多：实测一次手动压缩（压前 7.1k token），摘要 7567 字、`expected` 20000，网页的进度条走到 37% 就收到 `compaction.done`（2026-10-01 网页转来，项目主人说先放着、以后改）。改法方向：下限跟着压前的用量走，或者照这个会话以往摘要的长度估。以后从压缩这条线开一张小单。
 - 裁剪、群聊默认裁剪、无人值守的场所改成裁剪一次：随通讯平台。
-- `compaction.*` 在配置里改：随配置那一步。
+- `compaction.*` 在配置里改：随配置那一步（`compaction.prepare` 施工 6-11 上做了）。
+- 到线时提前压的那一次还在路上的，等它回来、从那一刻起推进度；真会话量 G、省下的等、白花的次数：施工 6-11 下。
 - 快满了的提示、局部压缩（人选中一条消息压到那里）：随 M8 的终端界面。
 - 聊天型模板：靠压缩质量评测打磨。
 - 技能、计划、待办、提问的压后重建：随 M8（后台任务、子代理不列，交给摘要记，施工 7-8 补）。

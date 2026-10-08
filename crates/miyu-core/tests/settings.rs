@@ -100,6 +100,7 @@ fn the_registered_list_is_well_formed() {
             "models.cooldown.retryable.max",
             "models.cooldown.auth.base",
             "models.cooldown.auth.max",
+            "compaction.prepare",
             "log.level"
         ],
         "照登记的先后"

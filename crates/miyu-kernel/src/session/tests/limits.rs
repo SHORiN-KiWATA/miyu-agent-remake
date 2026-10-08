@@ -12,6 +12,7 @@ const COMPACTION: Compaction = Compaction {
     reserve_cap: 20_000,
     margin: 13_000,
     tail: 16_000,
+    lead: 0,
     price: Flat {
         image: 2_000,
         file: 2_000,

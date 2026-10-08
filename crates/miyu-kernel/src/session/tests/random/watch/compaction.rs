@@ -294,6 +294,7 @@ impl Watch {
         ) {
             // 说完了也不清零连着出错的次数：和这一步的主请求合用一个计数（施工 6-2 下）。
             (CallResult::Ok, _) => {
+                self.prepares.summarized = true;
                 assert!(
                     matches!(after, Some(Body::ContextCompacted(compacted)) if compacted.upto == called.seen),
                     "种子 {seed}：摘要请求说完了，后面紧跟着替代到 {} 的压缩",
@@ -372,12 +373,14 @@ impl Watch {
         self.shorten_compacted(compacted);
         let seed = self.seed;
         self.seen_paths.insert("压缩了");
-        let issued = self.compactions.latest;
-        assert_eq!(
-            Some(compacted.upto),
-            issued,
-            "种子 {seed}：压缩替代到的是摘要请求的 N"
-        );
+        if !self.compaction_swapped(compacted) {
+            let issued = self.compactions.latest;
+            assert_eq!(
+                Some(compacted.upto),
+                issued,
+                "种子 {seed}：替代到摘要请求的 N"
+            );
+        }
         assert_eq!(
             compacted.trigger,
             Some(self.summary_trigger()),
@@ -452,6 +455,7 @@ impl Watch {
         let Some((upto, compacted_in)) = self.compactions.just.take() else {
             panic!("种子 {seed}：没压，却推了压好了");
         };
+        self.done_prepared(done);
         assert_eq!(done.seen, upto, "种子 {seed}");
         assert_eq!(turn, Some(compacted_in), "种子 {seed}");
         let trigger = self

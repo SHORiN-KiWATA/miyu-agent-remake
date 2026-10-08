@@ -28,6 +28,7 @@ mod overflow;
 mod peers;
 mod permission;
 mod policy;
+mod prepare;
 mod question;
 mod queue;
 mod rebuild;
@@ -132,6 +133,8 @@ pub struct Session {
     naming: title::Naming,
     /// 在路上的那一次起标题（施工 3-8 五补）：只在内存里，载入以后没有。
     titling: Option<aside::Aside>,
+    /// 提前压好的账（施工 6-11 上，`prepare.rs`）：只在内存里，载入以后没有。
+    prepare: prepare::Prepare,
     /// 会话的引用和最近一次换模型写在第几条（施工 8-10，`configure.rs`）：每追加一条记一次。
     reference: configure::Reference,
     /// 转述过哪些图、哪些正在转（施工 8-17，`sight.rs`）：转述过的每追加一条记一次。
@@ -187,6 +190,7 @@ impl Session {
             recapping: None,
             naming: title::Naming::default(),
             titling: None,
+            prepare: prepare::Prepare::default(),
             reference: configure::Reference::default(),
             sight: sight::Sight::default(),
             grants: grants::Grants::default(),
@@ -252,18 +256,12 @@ impl Session {
                 self.limits = Some(limits);
                 Vec::new()
             }
-            Input::Reread { seen, files, .. } => self.reread_done(seen, files),
+            Input::Reread { at, seen, files } => self.reread_done(at, seen, files),
             Input::Recalled { texts } => {
                 self.history.recall(texts);
                 Vec::new()
             }
-            Input::TurnStartHooksDone {
-                at,
-                turn,
-                injected,
-                replaced,
-                policy,
-            } => self.turn_start_hooked(at, turn, injected, replaced, policy),
+            hooked @ Input::TurnStartHooksDone { .. } => self.turn_start_hooked(hooked),
             Input::RequestSent {
                 at,
                 seen,
