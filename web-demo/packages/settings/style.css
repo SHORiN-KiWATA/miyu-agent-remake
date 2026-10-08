@@ -297,3 +297,17 @@
 /* 「软件包」页分两段：核心的软件包、网页自己的组件（段名比组名大一档） */
 .set-part + .set-part { margin-top: 28px; }
 .set-part-name { margin: 4px 0 4px; color: var(--text); font-size: 14px; font-weight: 600; }
+
+/* 核心拉起的扩展（「软件包」页，extensions.js）：停了的说明红字；标准错误等宽、暗底；要批准的那一块暖色底，不画描边 */
+.set-desc.is-error { color: var(--danger); }
+.set-link { padding: 0; border: 0; background: none; color: var(--accent); font: 12px var(--sans); cursor: pointer; }
+.set-link:hover { text-decoration: underline; }
+.set-ext-output { margin: 0 0 8px; padding: 8px 10px; max-height: 200px; overflow: auto; border-radius: 8px; background: var(--surface-2); color: var(--text-soft); font: 11.5px/1.5 var(--mono); white-space: pre-wrap; word-break: break-all; }
+.set-ext-unapproved { color: var(--t-warn); }
+.set-ext-ask { margin: 4px 0 10px; padding: 12px 14px; border-radius: 10px; background: color-mix(in srgb, var(--t-warn) 10%, transparent); }
+.set-ext-ask-title { margin: 0 0 6px; color: var(--text); font-size: 13px; font-weight: 600; }
+.set-ext-ask ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.set-ext-ask li { display: flex; gap: 8px; font-size: 13px; }
+.set-ext-ask li b { font-weight: 600; white-space: nowrap; }
+.set-ext-ask li span { color: var(--text-soft); }
+.set-ext-ask .set-form-buttons { margin-top: 10px; }

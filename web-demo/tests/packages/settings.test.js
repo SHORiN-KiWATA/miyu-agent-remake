@@ -190,3 +190,14 @@ test('网页包的设置项只列有控件能改的：json、map、list 不列',
   assert.deepEqual(editableKeys({ only: { type: 'json' } }), [], '全是复杂项的一项都不列（不出展开箭头）');
   assert.deepEqual(editableKeys(undefined), []);
 });
+
+test('扩展「运行」那一行：关着的只写关着（不管上一次为什么停）；开着的照状态、停了照原因、认不出的原因写停了；几秒后再试照毫秒算', async () => {
+  const { stateText } = await import('../../packages/settings/extensions.js');
+  // 字表里有的交 <键>；没有的照真的 text() 交回键本身
+  const t = (key, f) => (key === 'ext.reason.weird' ? key : `<${key}${f ? JSON.stringify(f) : ''}>`);
+  assert.equal(stateText(t, { package: 'x', name: 'x', on: false, state: 'stopped', reason: 'not_installed' }), '<ext.state.off>');
+  assert.equal(stateText(t, { package: 'x', name: 'x', on: true, state: 'running' }), '<ext.state.running>');
+  assert.equal(stateText(t, { package: 'x', name: 'x', on: true, state: 'stopped', reason: 'needs_approval' }), '<ext.reason.needs_approval>');
+  assert.equal(stateText(t, { package: 'x', name: 'x', on: true, state: 'stopped', reason: 'weird' }), '<ext.state.stopped>');
+  assert.equal(stateText(t, { package: 'x', name: 'x', on: true, state: 'waiting', retry_in: 2500, failures: 2 }), '<ext.state.waiting{"seconds":3,"failures":2}>');
+});

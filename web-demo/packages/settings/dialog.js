@@ -10,6 +10,7 @@ import { drawLook } from './look.js';
 import { drawPackages } from './packages.js';
 import { drawModels } from './models.js';
 import { sectionKit } from './kit.js';
+import { Extensions } from './extensions.js';
 
 /** 上次看的那一页：这个终端记着（蓝图第 3 条），刷新就忘 */
 let lastPage = 'general';
@@ -30,6 +31,8 @@ export class SettingsDialog {
     this.pending = false;
     this.onKey = this.onKey.bind(this);
     this.onPush = this.onPush.bind(this);
+    /** 核心拉起的扩展（「软件包」页）：开着弹窗时订阅它们的状态 */
+    this.extensions = new Extensions(this);
   }
 
   /** 打开：画框，读配置，到 `page` 那一页（没给的回上次看的）。 */
@@ -72,6 +75,7 @@ export class SettingsDialog {
     this.isOpen = false;
     document.removeEventListener('keydown', this.onKey, true);
     this.ctx.core.pushes?.delete(this.onPush);
+    this.extensions.stop();
     leave(this.root, () => this.root.remove());
   }
 
@@ -88,6 +92,7 @@ export class SettingsDialog {
     const cfg = this.ctx.config;
     this.pages = buildPages(schema, got, { merge: cfg.merge, moveGroups: cfg.move_groups, hide: cfg.hide_prefixes });
     this.modelsPromise = this.loadModels();
+    await this.extensions.start();
   }
 
   /** 读模型列表：读着的时候 `modelsLoading`，读完了在模型页的重画一次（正在改一项的不打断）。 */
@@ -165,8 +170,14 @@ export class SettingsDialog {
     if (this.current === 'models') kids = drawModels(this);
     else if (this.current === 'appearance') kids = drawLook(this);
     else if (this.current === 'packages') {
-      // 上面一段核心的软件包（一个包一组，照 `config.schema`），下面一段网页自己的组件
-      const core = page?.groups.map((g) => groupBlock(g.name, g.items.map((item) => coreRow(this, item)))).filter(Boolean) ?? [];
+      // 上面一段核心的软件包：核心拉起的扩展一个一组（运行、权限，再接它自己的设置项，`extensions.js`），别的包照 `config.schema` 一包一组；
+      // 下面一段网页自己的组件
+      const ext = this.extensions.ids();
+      const groups = page?.groups ?? [];
+      const core = [
+        ...ext.map((id) => this.extensions.block(id, (groups.find((g) => g.id === id)?.items ?? []).map((item) => coreRow(this, item)).filter(Boolean))),
+        ...groups.filter((g) => !ext.includes(g.id)).map((g) => groupBlock(g.name, g.items.map((item) => coreRow(this, item)))).filter(Boolean),
+      ];
       kids = [
         ...(page?.problems ?? []).map((p) => banner(p)),
         core.length ? h('section.set-part', h('h2.set-part-name', this.ctx.text('packages_core')), core) : null,
@@ -251,9 +262,11 @@ export class SettingsDialog {
     setTimeout(() => leave(el, () => el.remove()), 2000);
   }
 
-  /** 别处改了配置（别的终端、命令行、手改文件）：重读重画。 */
-  onPush(method) {
-    if (!this.isOpen || method !== 'config.changed') return;
+  /** 别处改了配置（别的终端、命令行、手改文件）：重读重画；扩展的状态变了只重画那一组。 */
+  onPush(method, params) {
+    if (!this.isOpen) return;
+    if (this.extensions.push(method, params)) return;
+    if (method !== 'config.changed') return;
     clearTimeout(this.pushTimer);
     this.pushTimer = setTimeout(() => this.reload().catch(() => {}), 80);
   }

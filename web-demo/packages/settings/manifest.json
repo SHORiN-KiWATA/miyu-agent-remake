@@ -154,6 +154,32 @@
         "live": "当场生效",
         "reload": "这个包重新加载"
       },
+      "ext": {
+        "run": "运行",
+        "perms": "权限",
+        "restart": "重启",
+        "show_output": "看输出",
+        "hide_output": "收起输出",
+        "unapproved": "有权限还没批准，开启时会先问",
+        "ask": "开启前要批准这些权限：",
+        "approve": "批准并开启",
+        "cancel": "取消",
+        "state": {
+          "off": "关着",
+          "starting": "正在启动",
+          "running": "在运行",
+          "waiting": "{seconds} 秒后再试（连续失败 {failures} 次）",
+          "stopped": "停了"
+        },
+        "reason": {
+          "needs_approval": "要先批准权限才能启动",
+          "config_error": "配置有问题，它退出了",
+          "failed_repeatedly": "连续失败 5 次，停了",
+          "not_installed": "程序没装上",
+          "cannot_start": "起不来",
+          "protocol_mismatch": "版本对不上，没有启动"
+        }
+      },
       "reset": "恢复默认",
       "conflict": "别处改过了，现在是 {value}",
       "default_mark": "默认",
@@ -271,6 +297,32 @@
         "head_start": "このプログラムを次に起動したときに反映されます",
         "live": "すぐに反映",
         "reload": "このパッケージを再読み込み"
+      },
+      "ext": {
+        "run": "実行",
+        "perms": "権限",
+        "restart": "再起動",
+        "show_output": "出力を見る",
+        "hide_output": "出力を閉じる",
+        "unapproved": "未承認の権限があります。オンにするときに確認します",
+        "ask": "オンにする前に次の権限を承認してください：",
+        "approve": "承認してオンにする",
+        "cancel": "キャンセル",
+        "state": {
+          "off": "オフ",
+          "starting": "起動中",
+          "running": "実行中",
+          "waiting": "{seconds} 秒後に再試行（連続 {failures} 回失敗）",
+          "stopped": "停止"
+        },
+        "reason": {
+          "needs_approval": "権限を承認しないと起動できません",
+          "config_error": "設定に問題があり終了しました",
+          "failed_repeatedly": "5 回続けて失敗したため停止しました",
+          "not_installed": "プログラムがインストールされていません",
+          "cannot_start": "起動できません",
+          "protocol_mismatch": "バージョンが合わないため起動しません"
+        }
       },
       "reset": "デフォルトに戻す",
       "conflict": "ほかで変更されました。現在は {value}",
