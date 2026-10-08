@@ -79,3 +79,25 @@ fn compactions_and_cache_breaks_are_counted_from_their_events() {
     assert_eq!(tally.cache_breaks, 2, "带 first_difference 的都算");
     assert_eq!(tally.requests, 1);
 }
+
+#[test]
+fn main_requests_leave_out_the_helpers() {
+    let sent = r#","endpoint":"deepseek","model":"deepseek-v4","usage":{"uncached":100,"cache_read":40,"cache_write":0,"output":7}"#;
+    let events = [
+        called(3, sent),
+        called(5, &format!(r#"{sent},"purpose":"recap""#)),
+        called(7, &format!(r#"{sent},"compaction":"auto""#)),
+    ];
+    let tally = Tally::of(&events);
+    assert_eq!(tally.requests, 3);
+    assert_eq!(tally.usage.uncached, 300, "累计的算全部");
+    assert_eq!(
+        (
+            tally.main.uncached,
+            tally.main.cache_read,
+            tally.main.output
+        ),
+        (200, 80, 14),
+        "主请求不算回顾这类辅助请求，摘要请求算"
+    );
+}

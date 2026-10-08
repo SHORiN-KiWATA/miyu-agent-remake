@@ -18,6 +18,7 @@ fn reply_of(limits: serde_json::Value) -> serde_json::Value {
     json!({"jobs": [], "limits": limits, "model": {"endpoint": "deepseek", "model": "deepseek-v4"},
         "permission": {"level": "workspace", "read_only": false}, "persona": "engineer", "preset": "full",
         "usage": {"amounts": [], "cache_breaks": 0, "compactions": 0, "requests": 0, "unpriced": 0,
+            "main": {"cache_read": 0, "cache_write": 0, "output": 0, "uncached": 0},
             "usage": {"cache_read": 0, "cache_write": 0, "output": 0, "uncached": 0}}})
 }
 
@@ -41,7 +42,7 @@ async fn the_reply_is_the_drawing_example() {
     let reply = client.subscribe("c2", &session).await;
     assert_eq!(
         serde_json::to_string(&reply).expect("写得成 JSON"),
-        r#"{"id":"c2","jsonrpc":"2.0","result":{"jobs":[],"limits":{"compaction_line":967000,"window":1000000},"model":{"endpoint":"deepseek","model":"deepseek-v4","ref":"deepseek/deepseek-v4"},"permission":{"level":"workspace","read_only":false},"persona":"engineer","preset":"full","usage":{"amounts":[],"cache_breaks":0,"compactions":0,"requests":0,"unpriced":0,"usage":{"cache_read":0,"cache_write":0,"output":0,"uncached":0}}}}"#
+        r#"{"id":"c2","jsonrpc":"2.0","result":{"jobs":[],"limits":{"compaction_line":967000,"window":1000000},"model":{"endpoint":"deepseek","model":"deepseek-v4","ref":"deepseek/deepseek-v4"},"permission":{"level":"workspace","read_only":false},"persona":"engineer","preset":"full","usage":{"amounts":[],"cache_breaks":0,"compactions":0,"main":{"cache_read":0,"cache_write":0,"output":0,"uncached":0},"requests":0,"unpriced":0,"usage":{"cache_read":0,"cache_write":0,"output":0,"uncached":0}}}}"#
     );
 }
 

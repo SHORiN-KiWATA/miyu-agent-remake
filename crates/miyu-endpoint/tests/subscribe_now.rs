@@ -56,7 +56,8 @@ async fn the_totals_match_the_usage_query_and_survive_a_reload() {
     assert_eq!(
         fresh["usage"],
         json!({"requests": 0, "usage": {"uncached": 0, "cache_read": 0, "cache_write": 0, "output": 0},
-            "amounts": [], "unpriced": 0, "compactions": 0, "cache_breaks": 0}),
+            "amounts": [], "unpriced": 0, "compactions": 0, "cache_breaks": 0,
+            "main": {"uncached": 0, "cache_read": 0, "cache_write": 0, "output": 0}}),
         "{fresh}"
     );
     assert_eq!(
@@ -73,6 +74,7 @@ async fn the_totals_match_the_usage_query_and_survive_a_reload() {
         .call("q1", "usage.query", json!({"session": session}))
         .await;
     let mut row = query["result"]["rows"][0].clone();
+    row["main"] = row["usage"].clone();
     row["compactions"] = json!(0);
     row["cache_breaks"] = now["usage"]["cache_breaks"].clone();
     assert_eq!(now["usage"], row, "和 usage.query 那一行同一份：{now}");
