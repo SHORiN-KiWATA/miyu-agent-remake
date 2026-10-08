@@ -50,6 +50,43 @@ export function foldable(body) {
   };
 }
 
+/**
+ * 编辑器的壳（2026-10-08 项目主人：切到别的那一个时动画有问题）：收着时和列表里的那一块长得一模一样（灰底、同样的边距、名字和「默认」、
+ * 下面一行说明），展开时灰底淡掉、上下两条细线淡入、说明收起、正文长出来、右上「收起」淡入；收起倒着走一遍，走完换回列表那一块
+ * 看不出接缝。
+ * @param {{title: string, tag?: string|null, summary?: string|null, label: string, collapse: () => void, body: HTMLElement}} o
+ */
+export function shell(o) {
+  const titleEl = h('span.setup-title', o.title);
+  const sumText = h('p.setup-shell-sum', o.summary ?? '');
+  const sum = h('div.unfold', h('div.unfold-inner', sumText));
+  unfold(sum, !!o.summary);
+  const fold = foldable(o.body);
+  const el = h('div.setup-card.setup-shell', head(h('h4', titleEl, o.tag ? h('span.setup-tag', o.tag) : null), o.label, o.collapse), sum, fold.wrap);
+  return {
+    el,
+    titleEl,
+    /** 说明改了（存过以后）：收起时露出来的那一行跟着换。 @param {string|null} text */
+    summary: (text) => {
+      sumText.textContent = text ?? '';
+      o.summary = text;
+    },
+    open: () => {
+      fold.open();
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        el.classList.add('is-open');
+        unfold(sum, false);
+      }));
+    },
+    /** @param {() => void} done */
+    close: (done) => {
+      el.classList.remove('is-open');
+      unfold(sum, !!o.summary);
+      fold.close(done);
+    },
+  };
+}
+
 /** 编辑器的头：名字，右边「收起」。 @param {HTMLElement} title @param {string} label @param {() => void} close */
 export const head = (title, label, close) => h('div.setup-head', title, h('button.setup-collapse', { type: 'button', onclick: close }, label, icon('chevron-down')));
 

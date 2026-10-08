@@ -59,7 +59,10 @@
 
 /* 设置页的「人格」页：一个人格一块，底色一块不画描边 */
 .setup-cards { display: grid; gap: 10px; margin-top: 4px; }
-.setup-card { padding: 14px 16px; border-radius: 12px; background: var(--surface-2); }
+.setup-card {
+  padding: 14px 16px; border-radius: 12px; background: var(--surface-2);
+  transition: background-color var(--motion-collapse) ease, box-shadow var(--motion-collapse) ease, border-radius var(--motion-collapse) ease;
+}
 .setup-card h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; color: var(--text); font-size: 14px; }
 .setup-card h4 .setup-tag { font-weight: 400; }
 .setup-card h4 code { color: var(--text-faint); font: 12px var(--mono); font-weight: 400; }
@@ -83,9 +86,14 @@
 .setup-card.is-clickable { cursor: pointer; transition: background-color 0.15s ease; }
 .setup-card.is-clickable:hover { background: var(--surface-3); }
 .setup-card.is-clickable:focus-visible { outline: 0; box-shadow: var(--card-shadow); }
-.setup-card.is-open { padding: 12px 0 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; }
+/* 展开的：灰底淡掉，上下两条细线淡入（照编辑供应商铺在页面上）；收着的壳和列表那一块一模一样（`form.js` 的 `shell`） */
+.setup-card.is-open { border-radius: 0; background: transparent; box-shadow: inset 0 1px var(--line), inset 0 -1px var(--line); }
 .setup-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.setup-head h4 { margin: 0; font-size: 15px; }
+.setup-head h4 { margin: 0; }
+.setup-shell .setup-head { margin-bottom: 0; }
+.setup-card p.setup-shell-sum { margin: 4px 0 0; }
+.setup-shell .setup-collapse { opacity: 0; pointer-events: none; transition: opacity var(--motion-collapse) ease; }
+.setup-shell.is-open .setup-collapse { opacity: 1; pointer-events: auto; }
 .setup-collapse { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; padding: 2px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--text-faint); font: 12px var(--sans); cursor: pointer; }
 .setup-collapse:hover { background: var(--surface-2); color: var(--text-soft); }
 .setup-collapse svg { width: 14px; height: 14px; transform: rotate(180deg); }

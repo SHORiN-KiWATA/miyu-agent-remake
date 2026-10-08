@@ -4,24 +4,27 @@
 //! 名字（`software`，照连接的语言），没装的写「没安装」。删除照核心的 `remove`，同人格。
 
 import { h, replace } from '../../src/lib/dom.js';
-import { field, head, twoClick, foldable } from './form.js';
+import { field, twoClick, shell } from './form.js';
 import { refusalText } from './persona-editor.js';
 
 /** @typedef {{saved: () => void, removed: (remains: boolean) => void, close: () => void}} Hooks */
 
 export class PresetEditor {
-  /** @param {any} ctx @param {import('./form.js').Kit} kit @param {import('./catalog.js').Catalog} catalog @param {string} id @param {Hooks} hooks */
-  constructor(ctx, kit, catalog, id, hooks) {
+  /**
+   * @param {any} ctx @param {import('./form.js').Kit} kit @param {import('./catalog.js').Catalog} catalog @param {string} id @param {Hooks} hooks
+   * @param {{name?: string, tag?: string|null}} [look] 列表里那一块写的（收着时照它的样子）
+   */
+  constructor(ctx, kit, catalog, id, hooks, look = {}) {
     this.ctx = ctx;
     this.kit = kit;
     this.catalog = catalog;
     this.id = id;
     this.hooks = hooks;
     this.t = (/** @type {string} */ key, /** @type {any} */ fields) => ctx.text(key, fields);
-    this.title = h('h4', id);
     this.body = h('div.setup-editor', h('p.setup-empty', this.t('page.loading')));
-    this.fold = foldable(this.body);
-    this.el = h('div.setup-card.is-open', head(this.title, this.t('edit.collapse'), () => this.collapse()), this.fold.wrap);
+    this.shell = shell({ title: look.name ?? id, tag: look.tag, label: this.t('edit.collapse'), collapse: () => this.collapse(), body: this.body });
+    this.title = this.shell.titleEl;
+    this.el = this.shell.el;
   }
 
   async load() {
@@ -42,12 +45,17 @@ export class PresetEditor {
   }
 
   expand() {
-    this.fold.open();
+    this.shell.open();
   }
 
-  /** 收起：动画走完再交给列表换回那一块。 */
+  /** 收起：交给列表（列表让它缩回去，走完再换回那一块）。 */
   collapse() {
-    this.fold.close(() => this.hooks.close());
+    this.hooks.close();
+  }
+
+  /** 缩回去，走完了交回。 @param {() => void} done */
+  foldAway(done) {
+    this.shell.close(done);
   }
 
   /** @param {any} got `preset.get` 的回应 */

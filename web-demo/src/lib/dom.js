@@ -51,6 +51,20 @@ export function replace(el, ...kids) {
 }
 
 /**
+ * 换成这几个孩子，已经在里面、先后没变的不拿下来：拿下来再放回去的元素正在走的过渡会作废、一下跳到终点（展开收起到一半重画就一跳）。
+ * 空的（`null`、`false`）跳过；不在新的里的拿掉。
+ * @param {Element} el @param {(Node|null|undefined|false)[]} kids
+ */
+export function keep(el, kids) {
+  const want = /** @type {Node[]} */ (kids.filter(Boolean));
+  for (const old of [...el.childNodes]) if (!want.includes(old)) old.remove();
+  want.forEach((node, i) => {
+    if (el.childNodes[i] !== node) el.insertBefore(node, el.childNodes[i] ?? null);
+  });
+  return el;
+}
+
+/**
  * 一个 Lucide 图标（`resources/lucide.json`）：24 的画布，线宽 1.8（照旧版 `.icon-slot svg`）。
  * 没登记的名字画一个空的框：看得出漏了，不崩。
  */

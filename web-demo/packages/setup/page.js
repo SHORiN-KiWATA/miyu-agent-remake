@@ -6,7 +6,7 @@
 //! 点一块在原地展开详情（`persona-editor.js`、`preset-editor.js`），一次开一个；顶上「＋ 新建」先只填名字（`form.js` 的 `nameFirst`），
 //! 建好接着在详情里写。一页是一个常驻的对象：设置页别处改了配置重画、关了再开，交回的是同一块，开着的详情和没存的字都还在。
 
-import { h, icon, replace } from '../../src/lib/dom.js';
+import { h, icon, keep, replace } from '../../src/lib/dom.js';
 import { personaName, presetName } from './model.js';
 import { nameFirst } from './form.js';
 import { PersonaEditor, refusalText } from './persona-editor.js';
@@ -28,13 +28,13 @@ const KINDS = {
   persona: {
     list: (c) => c.personas, fallback: (c) => c.personaDefault, name: personaName, none: 'page.none', add: 'edit.new_persona', intro: 'page.intro', summary: true,
     create: (core, name) => core.request('persona.set', { changes: [{ key: 'persona.name', value: name }] }).then((r) => r?.persona),
-    editor: (ctx, kit, catalog, id, hooks) => new PersonaEditor(ctx, kit, id, hooks),
+    editor: (ctx, kit, catalog, id, hooks, look) => new PersonaEditor(ctx, kit, id, hooks, look),
   },
   preset: {
     // 预设不写说明（2026-10-08 项目主人：没什么意义，名字已经说清了）
     list: (c) => c.presets, fallback: (c) => c.presetDefault ?? 'full', name: presetName, none: 'presets.none', add: 'edit.new_preset', intro: null, summary: false,
     create: (core, name) => core.request('preset.set', { changes: [{ key: 'preset.name', value: name }] }).then((r) => r?.preset),
-    editor: (ctx, kit, catalog, id, hooks) => new PresetEditor(ctx, kit, catalog, id, hooks),
+    editor: (ctx, kit, catalog, id, hooks, look) => new PresetEditor(ctx, kit, catalog, id, hooks, look),
   },
 };
 
@@ -48,6 +48,8 @@ export class ListPage {
     this.el = h('div.setup-cards', h('p.setup-empty', ctx.text('page.loading')));
     /** @type {{id: string, editor: PersonaEditor|PresetEditor}|null} 开着的详情 */
     this.open = null;
+    /** 正在缩回去的详情（编号 → 编辑器）：走完动画前还画它，不一下子没了（2026-10-08 项目主人：切到别的那一个时一跳） */
+    this.closing = new Map();
     /** @type {HTMLElement|null} 新建时只填名字的那一块 */
     this.creating = null;
     /** @type {import('./form.js').Kit|null} */
@@ -81,6 +83,7 @@ export class ListPage {
       const id = p[this.kind];
       if (p.problem) return badCard(this.ctx, id, this.catalog.problemOf(this.kind, p));
       if (this.open?.id === id) return this.open.editor.el;
+      if (this.closing.has(id)) return this.closing.get(id).el;
       // 「默认」接在名字后面，不另占一行（2026-10-08 项目主人）
       const card = h('div.setup-card.is-clickable', { tabindex: '0', role: 'button', onclick: () => this.show(id) },
         h('h4', this.k.name(p), id === fallback ? h('span.setup-tag', t('page.default')) : null),
@@ -94,16 +97,34 @@ export class ListPage {
     });
     // 顶上一行：这一页管什么（人格页，2026-10-08 项目主人），右边「＋ 新建」
     const add = h('div.setup-bar', this.k.intro ? h('p.setup-intro', t(this.k.intro)) : null, h('button.setup-new', { type: 'button', onclick: () => this.startNew() }, icon('plus'), h('span', t(this.k.add))));
-    replace(this.el, add, this.creating, cards.length ? cards : h('p.setup-empty', t(this.k.none)));
+    // 只挪变了的：开着、正在缩回去的那几块不拿下来，展开收起的过渡不断（`keep`）
+    keep(this.el, [add, this.creating, ...(cards.length ? cards : [h('p.setup-empty', t(this.k.none))])]);
   }
 
-  /** 展开一个：开着的那个改了没存的不换，提示先存或者取消。 @param {string} id */
+  /** 开着的那一个缩回去（和新展开的那一个同时动，看着是交换高度），走完再换回列表里那一块。 */
+  foldOpen() {
+    const was = this.open;
+    if (!was) return;
+    this.open = null;
+    this.closing.set(was.id, was.editor);
+    was.editor.foldAway(() => {
+      if (this.closing.get(was.id) !== was.editor) return;
+      this.closing.delete(was.id);
+      this.draw();
+    });
+  }
+
+  /** 展开一个：开着的那个改了没存的不换，提示先存或者取消；没改的缩回去，同时这一个展开。 @param {string} id */
   async show(id) {
     if (!this.kit || this.open?.id === id) return;
     if (this.open?.editor.dirty()) {
       this.open.editor.tryClose();
       return;
     }
+    this.closing.delete(id);
+    this.foldOpen();
+    const item = (this.k.list(this.catalog) ?? []).find((p) => p[this.kind] === id);
+    const look = item ? { name: this.k.name(item), summary: this.k.summary ? item.summary ?? null : null, tag: id === this.k.fallback(this.catalog) ? this.ctx.text('page.default') : null } : {};
     const editor = this.k.editor(this.ctx, this.kit, this.catalog, id, {
       saved: () => this.refresh(),
       removed: (remains) => {
@@ -113,10 +134,9 @@ export class ListPage {
         this.refresh();
       },
       close: () => {
-        this.open = null;
-        this.draw();
+        if (this.open?.editor === editor) this.foldOpen();
       },
-    });
+    }, look);
     this.open = { id, editor };
     this.draw();
     editor.expand();
@@ -140,7 +160,6 @@ export class ListPage {
       }
       this.creating = null;
       await this.catalog.load();
-      this.open = null;
       await this.show(id);
       this.open?.editor.focusFirst();
       return null;

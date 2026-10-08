@@ -5,7 +5,7 @@
 //! 别处改过了（`persona_conflict`）写一句、给「重新读」；写错的照核心给人看的那一句（`data.message`）。
 
 import { h, replace } from '../../src/lib/dom.js';
-import { field, head, area, twoClick, foldable } from './form.js';
+import { field, area, twoClick, shell } from './form.js';
 import { Pairs } from './pairs.js';
 import { personaSave, halfPair } from './model.js';
 
@@ -18,17 +18,21 @@ import { personaSave, halfPair } from './model.js';
 export const refusalText = (err) => err?.data?.message ?? err?.message ?? String(err);
 
 export class PersonaEditor {
-  /** @param {any} ctx @param {import('./form.js').Kit} kit @param {string} id @param {Hooks} hooks */
-  constructor(ctx, kit, id, hooks) {
+  /**
+   * @param {any} ctx @param {import('./form.js').Kit} kit @param {string} id @param {Hooks} hooks
+   * @param {{name?: string, summary?: string|null, tag?: string|null}} [look] 列表里那一块写的（收着时照它的样子）
+   */
+  constructor(ctx, kit, id, hooks, look = {}) {
     this.ctx = ctx;
     this.kit = kit;
     this.id = id;
     this.hooks = hooks;
     this.t = (/** @type {string} */ key, /** @type {any} */ fields) => ctx.text(key, fields);
-    this.title = h('h4', id);
     this.body = h('div.setup-editor', h('p.setup-empty', this.t('page.loading')));
-    this.fold = foldable(this.body);
-    this.el = h('div.setup-card.is-open', { 'data-set-dismiss': '' }, head(this.title, this.t('edit.collapse'), () => this.tryClose()), this.fold.wrap);
+    this.shell = shell({ title: look.name ?? id, tag: look.tag, summary: look.summary, label: this.t('edit.collapse'), collapse: () => this.tryClose(), body: this.body });
+    this.title = this.shell.titleEl;
+    this.el = this.shell.el;
+    this.el.setAttribute('data-set-dismiss', '');
     // `Esc`：没改过的收起；改了没存的留着（长的字一按就丢太亏），提示先存或者取消
     this.el.addEventListener('set-dismiss', () => this.tryClose());
     /** @type {PersonaDraft|null} */
@@ -63,6 +67,7 @@ export class PersonaEditor {
   draw(d) {
     const t = this.t;
     this.title.textContent = d.name || this.id;
+    this.shell.summary(d.summary || null);
     this.name = this.kit.field(d.name, '');
     this.summary = this.kit.field(d.summary, t('edit.summary_hint'));
     this.persona = area(d.persona, t('edit.persona_hint'), 4);
@@ -120,12 +125,17 @@ export class PersonaEditor {
 
   /** 展开（放进页面以后）。 */
   expand() {
-    this.fold.open();
+    this.shell.open();
   }
 
-  /** 收起：动画走完再交给列表换回那一块。 */
+  /** 收起：交给列表（列表让它缩回去，走完再换回那一块）。 */
   collapse() {
-    this.fold.close(() => this.hooks.close());
+    this.hooks.close();
+  }
+
+  /** 缩回去，走完了交回。 @param {() => void} done */
+  foldAway(done) {
+    this.shell.close(done);
   }
 
   async save() {
