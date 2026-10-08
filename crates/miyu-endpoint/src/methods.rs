@@ -102,6 +102,7 @@ pub(crate) async fn call(
         "check" => crate::check::check(core, peer, params(request)?).await,
         "persona.list" => personas::list(core, peer).await,
         "package.list" => crate::packages::list(core, peer),
+        "view.page" => crate::view::page(core, params(request)?).await,
         "extension.status" => Ok(crate::extensions::status(core, peer)),
         "extension.enable" => crate::extensions::enable(core, peer, params(request)?).await,
         "extension.disable" => crate::extensions::disable(core, peer, params(request)?).await,

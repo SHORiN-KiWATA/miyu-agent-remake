@@ -57,6 +57,7 @@ mod undo;
 mod uploads;
 mod usage;
 mod venues;
+mod view;
 mod wire;
 
 pub use connection::serve;
