@@ -2,8 +2,8 @@
 //! 人格、预设、工作区（软件包 `setup`，蓝图 `web.md`「人格、预设、工作区」）：按钮上写什么、实际会用哪个、默认的能不能用、最近用过的目录。
 //! 纯函数。
 
-/** `persona.list` 的一项：写错的只有 `persona`、`problem`。 @typedef {{persona: string, name?: string|null, summary?: string|null, layers?: string[], problem?: string}} Persona */
-/** `preset.list` 的一项：写错的只有 `preset`、`problem`。 @typedef {{preset: string, name?: string|null, summary?: string|null, layers?: string[], problem?: string}} Preset */
+/** `persona.list` 的一项：写错的只有 `persona`、`problem`。 @typedef {{persona: string, name?: string|null, summary?: string|null, problem?: string}} Persona */
+/** `preset.list` 的一项：写错的只有 `preset`、`problem`。 @typedef {{preset: string, name?: string|null, summary?: string|null, problem?: string}} Preset */
 
 /** 人格写给人看的名字：没有显示名的写编号。 @param {Persona} p */
 export const personaName = (p) => p.name || p.persona;

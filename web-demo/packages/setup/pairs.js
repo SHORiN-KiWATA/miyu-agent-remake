@@ -27,7 +27,7 @@ export class Pairs {
   add(p) {
     const user = area(p.user, this.words.userHint, 1);
     const assistant = area(p.assistant, this.words.replyHint, 1);
-    const who = h('span.setup-who', this.words.them());
+    const who = h('span.setup-who', { title: this.words.them() }, this.words.them());
     /** @type {{user: HTMLTextAreaElement, assistant: HTMLTextAreaElement, who: HTMLElement, el: HTMLElement}} */
     const r = { user, assistant, who, el: h('div') };
     const drop = h('button.setup-drop', { type: 'button', title: this.words.drop, 'aria-label': this.words.drop, onclick: () => this.drop(r) }, icon('x'));
@@ -54,7 +54,10 @@ export class Pairs {
 
   /** 名字改了：回的那一头跟着写新名字。 @param {string} name */
   rename(name) {
-    for (const r of this.rows) r.who.textContent = name;
+    for (const r of this.rows) {
+      r.who.textContent = name;
+      r.who.title = name;
+    }
   }
 
   /** 只写了一头的那一对标出来，焦点放到空着的那一头。 @param {number} i */

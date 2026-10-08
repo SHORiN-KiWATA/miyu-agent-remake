@@ -109,7 +109,7 @@
 .setup-pairs { display: grid; gap: 10px; }
 .setup-pair { display: grid; gap: 6px; padding: 8px; border-radius: 10px; background: color-mix(in srgb, var(--surface-2) 45%, transparent); }
 .setup-pair.is-bad { background: color-mix(in srgb, var(--danger) 10%, transparent); }
-.setup-turn { display: grid; grid-template-columns: 56px 1fr 26px; gap: 8px; align-items: start; }
+.setup-turn { display: grid; grid-template-columns: 7em 1fr 26px; gap: 8px; align-items: start; }
 .setup-who { overflow: hidden; padding-top: 8px; color: var(--text-faint); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .setup-drop { display: grid; place-items: center; width: 26px; height: 26px; margin-top: 3px; border: 0; border-radius: 7px; background: transparent; color: var(--text-faint); cursor: pointer; }
 .setup-drop:hover { background: var(--surface-2); color: var(--danger); }
