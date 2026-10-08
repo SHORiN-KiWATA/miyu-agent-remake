@@ -45,7 +45,9 @@ export class Chat {
     /** 内容变短时垫在底下的空白（见开头）。 */
     this.spacer = h('div.chat-spacer');
     // 底边的淡出（sticky 的一条，不用 mask：滚动时不用重画整片正文）
-    this.el = h('div.chat-scroll', this.list, this.spacer, h('div.chat-fade', { 'aria-hidden': 'true' }));
+    /** 正文最上面一行（按页读，核心 9-6 下）：读更早的那一页时写「正在读更早的…」，往前翻到头了写「已经是开头」 */
+    this.olderEl = h('div.chat-older', { hidden: true });
+    this.el = h('div.chat-scroll', this.olderEl, this.list, this.spacer, h('div.chat-fade', { 'aria-hidden': 'true' }));
     this.scroll = new Follow(this.el, this.list, this.spacer);
     /** 看着你说的话的（软件包 rail 这类，经服务 `chat`）：每画一次交一份；新来的先拿到现在的 */
     this.promptWatchers = new Set();
@@ -58,6 +60,12 @@ export class Chat {
     this.settled = false;
     /** @type {Map<string, {node: HTMLElement, content: HTMLElement|null, sig: string, items: Map<string, {node: HTMLElement, sig: string, view?: SegmentView}>}>} */
     this.blocks = new Map();
+  }
+
+  /** 最上面那一行：`loading` 正在读更早的，`start` 往前翻到头了，`null` 不写。 @param {'loading'|'start'|null} state */
+  setOlder(state) {
+    this.olderEl.hidden = !state;
+    this.olderEl.textContent = state ? t(`older.${state}`) : '';
   }
 
   /**
@@ -193,11 +201,15 @@ export class Chat {
     let cleared = null;
     // 最后那段正文：画的时候记下来（`reconcile`），长过视口时照它停住、停住以后照它钉着
     this.scroll.reply = null;
-    for (const block of group(items)) {
+    const blocks = group(items);
+    // 新冒出来的块只有排在原来最后一块后面的才算刚来的：往上翻读进来的更早的一页（核心 9-6 下）接在前面，不算你新说的、不拽视口
+    const tail = blocks.findLastIndex((b) => this.blocks.has(b.key));
+    for (const [i, block] of blocks.entries()) {
       const own = block.kind === 'user' && this.mine(block.item);
-      const freshNote = this.settled && block.kind === 'note' && block.item.compaction === 'clear' && !this.blocks.has(block.key);
-      // 你新说的一句（不是刚打开会话时读回来的）：回到最底下，照最新的露；别人说的不拽视口
-      const fresh = this.settled && own && !this.blocks.has(block.key);
+      const appended = !this.blocks.has(block.key) && i > tail;
+      const freshNote = this.settled && block.kind === 'note' && block.item.compaction === 'clear' && appended;
+      // 你新说的一句（不是刚打开会话时读回来的、不是往上翻读进来的）：回到最底下，照最新的露；别人说的不拽视口
+      const fresh = this.settled && own && appended;
       const node = this.block(block);
       // 你新说的一句：回到最底下；重做的落回原来的位置（`follow.js`）。等它画进页面再放
       if (fresh) arrivals.push(node);

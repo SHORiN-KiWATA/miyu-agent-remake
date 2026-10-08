@@ -93,3 +93,12 @@ test('一个会话里在跑的后台任务一共几个：连子代理（读进�
   assert.equal(runningDeep('s-parent', (id) => child[id] ?? null), 4, 'j1、j2，子代理的 j1、j2；绕回父会话的不再数');
   assert.equal(runningDeep('s-none', () => null), 0);
 });
+
+test('还在跑的任务的种子（核心 9-6 上）：派它的那条还没读进来时照种子算在跑、不知道几时开始；读到真的那条照真的；之后的回报照样结束它', () => {
+  const seed = { seq: 0, at: '2026-10-08T00:00:00Z', kind: 'jobs.seed', body: { jobs: [{ job: 'j1', what: 'command', title: '编译' }, { job: 'j2', what: 'agent', title: '查资料', session: 'S2' }] } };
+  const tasks = tasksOf([seed]);
+  assert.deepEqual(tasks.map((x) => [x.job, x.state, x.since, x.session]), [['j1', 'running', null, null], ['j2', 'running', null, 'S2']]);
+  assert.deepEqual(childrenOf([seed]).map((x) => [x.session, x.running]), [['S2', true]], '左栏的子代理树照样有它');
+  const reported = { seq: 30, at: '2026-10-08T00:01:00Z', kind: 'job.reported', body: { job: 'j1', reason: 'exited', exit_code: 0, duration_ms: 1200 } };
+  assert.equal(tasksOf([seed, reported]).find((x) => x.job === 'j1')?.state, 'done');
+});

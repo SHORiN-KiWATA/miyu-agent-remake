@@ -57,3 +57,20 @@ test('核心切了级别（session.policy_changed）底栏跟着换：只读盖�
   assert.equal(footer([created, changed({ level: 'full', read_only: false })], {}).left.level, 'full');
   assert.equal(footer([created, changed({ level: 'full', read_only: true })], {}).left.level, 'read_only');
 });
+
+test('订阅回应里的底数（核心 9-6 上）：累计照 usage、命中率照 main 起头，只加序号比 upto 大的；权限照它起头、之后改的照改的', () => {
+  const called = (seq, usage, extra = {}) => ({ seq, at: '2026-10-08T00:00:00Z', kind: 'model.called', body: { model: 'm', endpoint: 'e', usage, ...extra } });
+  const u = (uncached, cache_read, output) => ({ uncached, cache_read, cache_write: 0, output });
+  const base = { upto: 5, usage: { usage: u(1000, 3000, 500), main: u(800, 3000, 400) }, permission: { level: 'full', read_only: false }, jobs: [] };
+  // 3 号在底数里（不再加），7 号是之后来的（加上）；9 号是辅助请求，只进累计
+  const events = [called(3, u(100, 0, 10)), called(7, u(200, 800, 50)), called(9, u(50, 0, 5), { purpose: 'recap' })];
+  const f = footer(events, { window: 100000 }, new Map(), null, base);
+  assert.equal(f.left.level, 'full');
+  const total = f.right.find((x) => x.key === 'total').text;
+  // 累计：1000+3000+500 + 200+800+50 + 50+5 = 5605；命中率：(3000+800) / (800+3000 + 200+800) = 79.2%，写成整数 79
+  assert.match(total, /5\.6k/);
+  assert.match(total, /C79%/);
+  const later = [...events, { seq: 10, at: '2026-10-08T00:00:00Z', kind: 'session.policy_changed', body: { permission: { level: 'workspace', read_only: true } } }];
+  assert.equal(footer(later, {}, new Map(), null, base).left.level, 'read_only');
+  assert.equal(footer([{ seq: 4, at: '2026-10-08T00:00:00Z', kind: 'session.policy_changed', body: { permission: { level: 'workspace', read_only: false } } }], {}, new Map(), null, base).left.level, 'full', '底数以前的改动不算');
+});

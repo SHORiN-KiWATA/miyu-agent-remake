@@ -64,7 +64,8 @@
         "undone": "随撤销停止",
         "restarted": "因重启停止",
         "aborted": "中断：核心退出过",
-        "paused": "等你说话"
+        "paused": "等你说话",
+        "running_plain": "运行中"
       },
       "reasons": {
         "unknown_job": "这个任务已经结束了",
@@ -108,7 +109,8 @@
         "undone": "取り消しで停止",
         "restarted": "再起動で停止",
         "aborted": "中断：コアが終了しました",
-        "paused": "入力待ち"
+        "paused": "入力待ち",
+        "running_plain": "実行中"
       },
       "reasons": {
         "unknown_job": "このタスクはすでに終了しています",

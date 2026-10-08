@@ -21,12 +21,22 @@ import { SessionIndex } from './session-index.js';
  * @typedef {{id: string, events: any[], live: Live|null, marks: Map<string, {start: number, end: number|null}>,
  *   limits: any, replaying?: boolean, retry: Retry|null, compacting: Compacting|null, compactStats: Map<number, {before: number, after: number}>,
  *   compactReady: {before: number, after: number}|null, todos: {content: string, status: string}[], todosDone: {content: string, status: string}[]|null,
- *   changes: {after: number, at: string, body: any}[], model: {ref?: string, endpoint?: string, model?: string, effort?: {level: string, from: string}}|null}} Session
+ *   changes: {after: number, at: string, body: any}[], model: {ref?: string, endpoint?: string, model?: string, effort?: {level: string, from: string}}|null,
+ *   first: number|null, more: boolean, paged: boolean, older: boolean, base: Base|null}} Session
+ *   `first` 读进来的最早一条的序号，`more` 还有更早的（`view.page`，核心 9-6 下），`paged` 往前翻过，`older` 正在读更早的一页
  */
+/**
+ * @typedef {{upto: number, usage: any, permission: {level: string, read_only: boolean}|null, jobs: any[]|null}} Base
+ *   订阅回应里「这一刻的」（核心 9-6 上）：累计用量、权限级别、还在跑的任务，截到 `upto`；头照它起头，之后只加序号比它大的
+ */
+
+/** 还在跑的任务的种子（核心 9-6 上的 `jobs`）：一条不画的事件放在最前面，派它的那条在更早的页里时照它认（`lib/jobs.js`），读到真的那条就被盖掉。 */
+export const SEED = 'jobs.seed';
 
 /** 一个刚知道、还没读的会话。 */
 export function emptySession(id) {
-  return /** @type {Session} */ ({ id, events: [], live: null, marks: new Map(), limits: {}, retry: null, compacting: null, compactStats: new Map(), compactReady: null, changes: [], model: null, todos: [], todosDone: null });
+  return /** @type {Session} */ ({ id, events: [], live: null, marks: new Map(), limits: {}, retry: null, compacting: null, compactStats: new Map(), compactReady: null, changes: [], model: null, todos: [], todosDone: null,
+    first: null, more: false, paged: false, older: false, base: null });
 }
 
 export class Store {
@@ -111,21 +121,66 @@ export class Store {
   }
 
   /**
-   * 订阅一个会话、读它的历史：订阅带 `after: 0`，核心先把整份日志照原样补推过来（普通的 `event` 推送，都在回应前面）、再接着推新的
-   * （施工 3-8 六补）；推来的照序号接上、去重（`persisted`）。补历史的那一段不记「没看过」。`listed` 为假的（子代理的会话）不进
-   * 会话表的顶层。
+   * 读一个会话、订阅它（核心 9-6 下）：先读最新的一页（`view.page`，最近 20 轮），再从那一页的最后一条往后订阅，之后只接新的；更早的
+   * 往上翻时再读（`older`）。旧核心没有 `view.page` 的，订阅带 `after: 0`，核心先把整份日志补推过来（施工 3-8 六补）。
+   * 推来的照序号接上、去重（`persisted`）。读历史的那一段不记「没看过」。
    */
   async load(id) {
     const s = emptySession(id);
     this.sessions.set(id, s);
-    await this.subscribe(s, 0);
+    const page = await this.conn.request('view.page', { session: id }).catch((err) => {
+      if (err?.code === -32601) return null;
+      throw err;
+    });
+    if (!page) return this.subscribe(s, 0);
+    this.take(s, page.events ?? []);
+    s.first = page.first ?? null;
+    s.more = !!page.more;
+    await this.subscribe(s, page.last ?? 0);
   }
 
-  /** 订阅（带 `after`）：补推的是历史，不记「没看过」；回应里的限额记下。 */
+  /**
+   * 往上翻：读更早的一页（`view.page` 带 `before`，上一页的 `first`），接在前面，照序号去重（切点前的触发消息可能两页都带）。
+   * 没有更早的、正在读的不再读。交回读没读。
+   * @param {string} id
+   */
+  async older(id) {
+    const s = this.sessions.get(id);
+    if (!s || !s.more || s.older || s.first == null) return false;
+    s.older = true;
+    this.changed();
+    try {
+      const page = await this.conn.request('view.page', { session: id, before: s.first });
+      const known = new Set(s.events.map((e) => e.seq));
+      s.events = [...(page.events ?? []).filter((e) => !known.has(e.seq)), ...s.events].sort((a, b) => a.seq - b.seq);
+      s.first = page.first ?? s.first;
+      s.more = !!page.more;
+      s.paged = true;
+      return true;
+    } finally {
+      s.older = false;
+      this.changed();
+    }
+  }
+
+  /** 一页事件接进来：照序号接上，读历史的不记「没看过」。 @param {Session} s @param {any[]} events */
+  take(s, events) {
+    s.replaying = true;
+    try {
+      for (const e of events) this.persisted(s, e);
+    } finally {
+      s.replaying = false;
+    }
+  }
+
+  /** 订阅（带 `after`）：补推的是历史，不记「没看过」；回应里的限额、模型、待办、「这一刻的」底数记下。 */
   async subscribe(s, after) {
     s.replaying = true;
     try {
-      const { limits, model, todos } = await this.conn.request('subscribe', { session: s.id, stream: 'events', after });
+      const { limits, model, todos, upto, usage, permission, jobs } = await this.conn.request('subscribe', { session: s.id, stream: 'events', after });
+      // 「这一刻的」（核心 9-6 上）：旧核心没有的是 `null`，照读进来的日志算
+      s.base = { upto: upto ?? after, usage: usage ?? null, permission: permission ?? null, jobs: jobs ?? null };
+      seed(s);
       s.limits = limits ?? s.limits ?? {};
       // 会话接下来请求的模型（核心施工 8-10）：框下面那一行照它写
       s.model = model ?? null;
@@ -252,6 +307,7 @@ export class Store {
 
   persisted(s, e) {
     if (s.events.length && s.events.at(-1).seq >= e.seq) return;
+    if (e.kind === SEED) return;
     s.events.push(e);
     // 回复落了盘、一轮结束：在收的扔掉，还开着的块停在这一刻
     if (e.kind === 'message.assistant' && s.live?.seen === e.body.seen) {
@@ -373,4 +429,11 @@ function close(block, at) {
 /** 这次请求里还开着的块都算收全。 */
 function closeAll(live, at) {
   for (const block of live.blocks) if (block) close(block, at);
+}
+
+/** 把订阅回应里还在跑的任务放成最前面那条种子（换掉旧的）；没有的拿掉。 @param {Session} s */
+function seed(s) {
+  const rest = s.events.filter((e) => e.kind !== SEED);
+  const jobs = s.base?.jobs ?? [];
+  s.events = jobs.length ? [{ seq: 0, kind: SEED, at: rest[0]?.at ?? new Date(0).toISOString(), body: { jobs } }, ...rest] : rest;
 }

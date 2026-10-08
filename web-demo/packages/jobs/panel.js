@@ -124,7 +124,8 @@ export class JobsPanel {
     for (const el of this.list.querySelectorAll('.jobs-row.is-running')) {
       const text = el.querySelector('.jobs-state-text');
       const since = Number(/** @type {HTMLElement} */ (el).dataset.since);
-      if (text) text.textContent = this.t('states.running', { elapsed: clock((now - since) / 1000) });
+      // 派它的那条还在更早、没读的页里的（核心 9-6 上的种子）不知道几时开始，不走表
+      if (text && Number.isFinite(since)) text.textContent = this.t('states.running', { elapsed: clock((now - since) / 1000) });
     }
     for (const p of this.previews.values()) p.refresh();
   }
@@ -213,7 +214,7 @@ export class JobsPanel {
     const cls = `.is-${task.state}${agent ? '.is-agent' : '.is-command'}${line.kids ? '.has-kids' : ''}${this.previews.has(key) ? '.is-previewing' : ''}`;
     const row = h(`div.jobs-row${cls}`, {
       role: 'button', tabindex: '0', title: agent ? t('enter') : t('preview.open'), style: `--depth: ${line.depth}`,
-      dataset: { since: String(task.since) }, onclick: click,
+      dataset: { since: task.since == null ? '' : String(task.since) }, onclick: click,
     },
     treeLines(line),
     h('span.jobs-mark', icon(agent ? 'bot' : 'square-terminal')),
@@ -242,9 +243,9 @@ export class JobsPanel {
   /** 状态的字：在跑的走表，停在半路的写等你说话，结束的照回报（和正文里回报那一行一个说法）。 */
   stateText(task, now) {
     const t = this.t;
-    if (task.state === 'running') return t('states.running', { elapsed: clock((now - task.since) / 1000) });
+    if (task.state === 'running') return task.since == null ? t('states.running_plain') : t('states.running', { elapsed: clock((now - task.since) / 1000) });
     if (task.state === 'done') {
-      const ms = task.duration ?? (task.ended != null ? task.ended - task.since : null);
+      const ms = task.duration ?? (task.ended != null && task.since != null ? task.ended - task.since : null);
       return ms != null ? t('states.done', { elapsed: seconds(ms) }) : t('states.done_plain');
     }
     if (task.state === 'failed') return task.signal != null ? t('states.signal', { signal: task.signal }) : t('states.failed', { code: task.code });

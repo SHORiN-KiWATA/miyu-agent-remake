@@ -3,7 +3,7 @@
 //! 派出去的任务、在跑还是结束了、怎么排；挂在它下面的子代理。软件包 `jobs` 画后台任务的浮层，左栏画子代理的树，都照它。
 
 /**
- * @typedef {{job: string, what: string, title: string, session: string|null, state: string, since: number, ended: number|null,
+ * @typedef {{job: string, what: string, title: string, session: string|null, state: string, since: number|null, ended: number|null,
  *   duration: number|null, code: number|null, signal: number|null, command: string|null}} Task 一个任务（后台命令带着命令本身，照派它的
  *   那次调用的参数；子代理、读不懂的是 `null`）
  */
@@ -50,6 +50,13 @@ export function tasksOf(events, child = () => null) {
   const args = new Map();
   for (const e of events) {
     const at = Date.parse(e.at);
+    // 还在跑的任务的种子（`core/store.js` 的 `SEED`，核心 9-6 上）：派它的那条在更早、还没读的页里时照它认；读到真的那条会把它盖掉
+    if (e.kind === 'jobs.seed') {
+      for (const x of e.body.jobs ?? []) {
+        if (!tasks.has(x.job)) tasks.set(x.job, { job: x.job, what: x.what, title: x.title ?? '', session: x.session ?? null, state: 'running', since: null, ended: null, duration: null, code: null, signal: null, command: null });
+      }
+      continue;
+    }
     if (e.kind === 'message.assistant') {
       for (const block of e.body.blocks ?? []) if (block.type === 'tool_call') args.set(block.call_id, block.args);
     } else if (e.kind === 'tool.result') {

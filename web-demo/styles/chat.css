@@ -255,3 +255,7 @@
 .app-shell.is-sidebar-collapsed .stage-info { left: 56px; }
 .chat-crumbs:not([hidden]) + .stage-info { top: 7px; right: 16px; left: auto; max-width: 45%; }
 @media (max-width: 836px) { .stage-info { left: 56px; } }
+
+/* 正文最上面一行（按页读，蓝图 web.md「连核心」第 3a 条）：读更早的一页时「正在读更早的…」，翻到头了「已经是开头」；暗色、居中 */
+.chat-older { padding: 14px 0 4px; color: var(--text-faint); font-size: 12px; text-align: center; }
+.chat-older[hidden] { display: none; }

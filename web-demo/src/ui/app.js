@@ -270,6 +270,8 @@ export class App {
     ctx.slots.declare('stage.info', 'list');
     ctx.effect(() => mountList(this.stageInfo, ctx.slots, 'stage.info', failedSlot));
     this.root.classList.toggle('is-sidebar-collapsed', !!ctx.storage.get(COLLAPSED, false));
+    // 按页读（核心 9-6 下）：往上滚到顶自动读更早的一页（2026-10-08 项目主人定）
+    this.chat.el.addEventListener('scroll', () => this.maybeOlder(), { passive: true });
     const expand = /** @type {HTMLElement} */ (this.root.querySelector('.sidebar-expand-button'));
     this.menuButton = /** @type {HTMLElement} */ (this.root.querySelector('.mobile-menu-button'));
     for (const el of [zone, expand, this.menuButton, this.sidebar.el]) {
@@ -325,6 +327,20 @@ export class App {
     if (list.some((r) => r.after === after && r.text === text)) return;
     this.recapsAgain.set(session, [...list, { after, text }]);
     this.schedule();
+  }
+
+  /**
+   * 滚到离顶不远（`layout.json` 的 `older_px`）、还有更早的、没在读：读更早的一页。读之前记下离底边多远，画完照它放回去，正在看的不跳。
+   */
+  maybeOlder() {
+    const s = this.current ? this.store.sessions.get(this.current) : null;
+    const el = this.chat.el;
+    if (!s?.more || s.older || el.scrollTop > res.layout.older_px) return;
+    this.keepFromBottom = el.scrollHeight - el.scrollTop;
+    this.store.older(s.id).catch((err) => {
+      this.keepFromBottom = null;
+      this.composer.say(refusalText(err));
+    });
   }
 
   /** 左栏的先后（`model/session.js` 的 `rank`）：置顶的在最前，别的照最近活动。 */
@@ -657,7 +673,7 @@ export class App {
       return;
     }
     const events = this.store.sessions.get(session)?.events ?? [];
-    await this.setLevel(session, nextLevel(footer(events, {}).left.level));
+    await this.setLevel(session, nextLevel(footer(events, {}, undefined, null, this.store.sessions.get(session)?.base ?? null).left.level));
   }
 
   /** 新会话刚开：点过的级别和核心开出来的不一样的，说第一句话之前发给核心。 */
@@ -699,8 +715,10 @@ export class App {
     this.crumbs.draw(path);
     this.back?.draw(path.length > 1 ? path[path.length - 2] : null);
     // 回答里的本机地址、结果里的图照这个会话取（工作目录照 `session.created`）
-    this.chat.setWhere(this.current, events.find((e) => e.kind === 'session.created')?.body.cwd ?? null);
-    const view = project(withChanges(withRecaps(events, this.recapsAgain.get(this.current ?? '') ?? []), s?.changes ?? []), s?.live ?? null, s?.marks, s?.compactStats);
+    this.chat.setWhere(this.current, this.current ? this.workdir() : null);
+    // 子会话的父会话照会话表（按页读时 `session.created` 可能还在没读的页里）
+    const parent = this.current ? this.store.index.get(this.current)?.parent ?? null : null;
+    const view = project(withChanges(withRecaps(events, this.recapsAgain.get(this.current ?? '') ?? []), s?.changes ?? []), s?.live ?? null, s?.marks, s?.compactStats, parent);
     // 压好了、进度条还没走满：落了盘的那一行先不画（蓝图「压缩的进度」第 5 条）
     const hold = s?.compacting?.note;
     if (hold != null) view.items = view.items.filter((it) => it.seq !== hold);
@@ -708,6 +726,14 @@ export class App {
     // 先照空不空摆好输入框（居中时对话区没有高度），再画对话：不然第一句话照 0 高算停在哪，被顶到视口上面
     this.centerIfEmpty(view.items.length === 0);
     this.chat.render(view.items);
+    // 更早的一页刚接在前面：正在看的那一句不跳（照离底边的距离放回去）；最上面那一行照读到哪写
+    if (this.keepFromBottom != null && !s?.older) {
+      this.chat.el.scrollTop = this.chat.el.scrollHeight - this.keepFromBottom;
+      this.keepFromBottom = null;
+    }
+    this.chat.setOlder(s?.older ? 'loading' : s?.paged && !s.more ? 'start' : null);
+    // 一页不满一屏（滚不动、到不了顶）的接着读
+    if (s?.more && !s.older) requestAnimationFrame(() => this.maybeOlder());
     this.syncJump?.();
     this.composer.setRunning(!!view.running);
     this.chat.setRunning(!!view.running);
@@ -715,7 +741,7 @@ export class App {
     this.ctx.publish('view.changed', { session: s?.id ?? null, running: view.running, events, live: s?.live ?? null, retry: s?.retry ?? null, queued: view.queued, todos: s?.todos ?? [], todosDone: s?.todosDone ?? null });
     // 排着的话（打断时有排着的不撤那一轮）
     this.queuedNow = view.queued ?? [];
-    const f = footer(events, s?.limits ?? {}, s?.compactStats, s?.model);
+    const f = footer(events, s?.limits ?? {}, s?.compactStats, s?.model, s?.base ?? null);
     // 框下面的模型（蓝图「换模型的菜单」第 1 条）：新会话、选过还没生效的、用着池的照引用写；别的照核心报的模型、端点
     const ref = this.modelRef();
     const picked = this.current ? this.picked.get(this.current) : null;

@@ -29,8 +29,9 @@ export const levelOf = (p) => (p?.read_only ? 'read_only' : p?.level ?? 'workspa
  *   在收的那一次回复：瞬时的 `model.delta` 攒起来的（`core/store.js`）
  * @param {Map<string, {start: number, end: number|null}>} [marks] 看着流出来时记下的每一块的时刻（`core/store.js`）
  * @param {Map<number, {before: number, after: number}>} [stats] 看着压好的那几次压缩的前后用量，照落了盘的那一条的序号（`core/store.js`）
+ * @param {string|null} [parentOf] 这个会话是子会话的：派它的会话（会话表里的 `parent`）；按页读时 `session.created` 可能还没读进来
  */
-export function project(events, live = null, marks = new Map(), stats = new Map()) {
+export function project(events, live = null, marks = new Map(), stats = new Map(), parentOf = null) {
   /** @type {any[]} */
   const items = [];
   const turns = new Map();
@@ -58,7 +59,7 @@ export function project(events, live = null, marks = new Map(), stats = new Map(
     items.push({ type: 'note', key: `a${e.seq}`, seq: e.seq, turn: e.turn ?? null, slot: 'asking', event: e, asked: q });
   };
   /** 这个会话是子会话的：派它的那个会话（它发来的话写「派它的会话」） */
-  let parent = null;
+  let parent = parentOf;
   /** 请求 `seen` 听到了排着的：前面那段收起，听到的照先后挪到正文末尾 */
   const hear = (seen) => {
     const heard = queue.filter((q) => q.seq <= seen);

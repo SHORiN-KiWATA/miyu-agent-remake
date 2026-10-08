@@ -181,6 +181,8 @@ test('读一个会话、掉了队补上：订阅带 after（0 从头，掉队的
   const conn = {
     onPush() {},
     request: async (method, params) => {
+      // 旧核心：没有 `view.page`（核心 9-6 下以前），退回订阅带 `after: 0` 补整份
+      if (method === 'view.page') throw Object.assign(new Error('unknown method'), { code: -32601 });
       calls.push([method, params.after]);
       if (method !== 'subscribe') return {};
       // 核心先补推，再回应
@@ -269,4 +271,29 @@ test('全部会话那一页开的老会话也列进左栏；置顶的排不进�
   assert.equal(store.order.length, 31, '最近的 30 个加上置顶的');
   await store.ensure('s33', true);
   assert.ok(store.order.includes('s33'));
+});
+
+test('按页读（核心 9-6 下）：先读最新一页、从它的最后一条往后订阅；往上翻读更早的一页接在前面、照序号去重；订阅回应里的还在跑的任务放成最前面那条种子', async () => {
+  const msg = (seq) => ev(seq, seq, 'message.user', undefined, { blocks: [{ type: 'text', text: `第${seq}条` }] });
+  const calls = [];
+  const conn = {
+    onPush() {},
+    request: async (method, params) => {
+      calls.push([method, params.before ?? params.after ?? null]);
+      if (method === 'view.page' && params.before == null) return { events: [5, 6, 7, 8].map(msg), first: 5, last: 8, more: true };
+      if (method === 'view.page') return { events: [1, 2, 3, 4, 5].map(msg), first: 1, last: 5, more: false };
+      if (method === 'subscribe') return { limits: {}, upto: 8, usage: { usage: { uncached: 10, cache_read: 0, cache_write: 0, output: 5 } }, permission: { level: 'full', read_only: false }, jobs: [{ job: 'j1', what: 'command', title: '编译' }] };
+      return {};
+    },
+  };
+  const store = new Store(/** @type {any} */ (conn));
+  await store.load('S');
+  const s = store.sessions.get('S');
+  assert.deepEqual(calls, [['view.page', null], ['subscribe', 8]], '最新一页、从 8 往后订阅');
+  assert.deepEqual(s.events.map((e) => `${e.seq}:${e.kind}`), ['0:jobs.seed', '5:message.user', '6:message.user', '7:message.user', '8:message.user']);
+  assert.deepEqual([s.first, s.more, s.base?.upto, s.base?.permission?.level], [5, true, 8, 'full']);
+  assert.equal(await store.older('S'), true);
+  assert.deepEqual(s.events.map((e) => e.seq), [0, 1, 2, 3, 4, 5, 6, 7, 8], '更早的接在前面，5 两页都有、只留一条，种子还在最前面');
+  assert.deepEqual([s.first, s.more, s.paged], [1, false, true]);
+  assert.equal(await store.older('S'), false, '没有更早的不再读');
 });
