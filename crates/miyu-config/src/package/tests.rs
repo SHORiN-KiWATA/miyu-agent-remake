@@ -83,6 +83,7 @@ fn a_process_package_reads_its_start_check_and_settings() {
         Some(Process {
             args: vec!["serve".to_string()],
             start: Start::Manual,
+            capabilities: Vec::new(),
         })
     );
     assert_eq!(
@@ -101,8 +102,9 @@ fn a_process_package_reads_its_start_check_and_settings() {
         Some(Process {
             args: Vec::new(),
             start: Start::Manual,
+            capabilities: Vec::new(),
         }),
-        "都不写：没有参数、等开关"
+        "都不写：没有参数、等开关、不要能力"
     );
 }
 
@@ -227,6 +229,59 @@ fn process_ui_and_check_fields_are_checked() {
         wrong(&format!("{TUI}theme = \"dark\"\n")).0,
         Code::UnknownKey
     );
+}
+
+/// 能力（施工 9-4 下上）：`[process] capabilities` 只认 05 第三节的十二个名字，照那张表的先后排好；不认识的、重复的、
+/// 不是字的列表说是哪一处。
+#[test]
+fn capabilities_are_read_in_the_table_order() {
+    let declared = BRIDGE.replace(
+        "start = \"manual\"\n",
+        "start = \"manual\"\ncapabilities = [\"network\", \"sessions.drive\", \"act_for_external\", \"events.read\"]\n",
+    );
+    let process = read(&declared).unwrap().process.unwrap();
+    assert_eq!(
+        process.capabilities,
+        [
+            Capability::EventsRead,
+            Capability::SessionsDrive,
+            Capability::ActForExternal,
+            Capability::Network,
+        ]
+    );
+    assert_eq!(
+        Capability::ALL.map(Capability::as_str),
+        [
+            "tools",
+            "commands",
+            "context.inject",
+            "tool.guard",
+            "tool.rewrite",
+            "events.read",
+            "events.write",
+            "sessions.drive",
+            "act_for_external",
+            "network",
+            "fs.read",
+            "fs.write",
+        ]
+    );
+    for name in Capability::ALL.map(Capability::as_str) {
+        assert_eq!(Capability::parse(name).map(Capability::as_str), Some(name));
+    }
+    for (list, code) in [
+        ("[\"telepathy\"]", Code::BadCapability),
+        ("[\"network\", \"network\"]", Code::BadCapability),
+        ("\"network\"", Code::NotTexts),
+        ("[1]", Code::NotTexts),
+    ] {
+        let text = BRIDGE.replace(
+            "start = \"manual\"\n",
+            &format!("start = \"manual\"\ncapabilities = {list}\n"),
+        );
+        assert_eq!(wrong(&text), (code, Some(14)), "{list}");
+    }
+    assert_eq!(Code::BadCapability.as_str(), "bad_capability");
 }
 
 #[test]

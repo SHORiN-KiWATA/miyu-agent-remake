@@ -142,16 +142,6 @@ impl Language {
         }
     }
 
-    /// 只敲了 `miyu`：终端界面还没做。
-    pub fn nothing_yet(&self) -> &'static str {
-        match self {
-            Language::Chinese => "终端界面还没做好。想和她对话，用 miyu ask \"…\"",
-            Language::English => {
-                "The terminal interface is not ready yet. To talk to her, use miyu ask \"…\""
-            }
-        }
-    }
-
     /// 没有可用的模型（施工 8-6；施工 8-11 起指向 `miyu setup`，`models.md`「给人看的字」）。
     pub fn no_model(&self) -> String {
         match self {

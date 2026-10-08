@@ -8,6 +8,7 @@
 use super::Stage;
 use super::respond::{deltas, model};
 use super::script::Line;
+use crate::accumulate::{Delta, Kind};
 use crate::event::{Purpose, Usage};
 use crate::id::{CommandId, Seq};
 use crate::request::Request;
@@ -112,7 +113,16 @@ impl Stage {
             model: model(),
             request: hash,
         }];
-        if line.error.is_none() || line.says_something() {
+        if let (true, Some(chars)) = (line.hold, line.partway) {
+            for delta in partway(&line, chars, true) {
+                inputs.push(Input::AsideDelta {
+                    at: self.tick(),
+                    purpose: purpose.clone(),
+                    upto,
+                    delta,
+                });
+            }
+        } else if line.error.is_none() || line.says_something() {
             for delta in deltas(&line) {
                 inputs.push(Input::AsideDelta {
                     at: self.tick(),
@@ -150,6 +160,40 @@ impl Stage {
             }),
             cost: None,
             error: line.error.clone(),
+        }
+    }
+}
+
+/// 只说话的一行正文分成两截（施工 6-11 下，[`Line::held_after`]）：`head` 是停住以前的那截（开始、头 `chars` 个字），不是的
+/// 是放行时的那截（剩下的字、收全）。
+pub(super) fn partway(line: &Line, chars: usize, head: bool) -> Vec<Delta> {
+    let cut = line
+        .text
+        .char_indices()
+        .nth(chars)
+        .map_or(line.text.len(), |(at, _)| at);
+    let (first, rest) = line.text.split_at(cut);
+    match head {
+        true => vec![
+            Delta::Start {
+                index: 0,
+                kind: Kind::Text,
+            },
+            Delta::Text {
+                index: 0,
+                text: first.to_string(),
+            },
+        ],
+        false => {
+            let mut deltas = Vec::new();
+            if !rest.is_empty() {
+                deltas.push(Delta::Text {
+                    index: 0,
+                    text: rest.to_string(),
+                });
+            }
+            deltas.push(Delta::End { index: 0 });
+            deltas
         }
     }
 }

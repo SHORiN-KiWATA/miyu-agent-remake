@@ -31,6 +31,14 @@ miyu_config::settings! {
             applies: head_start,
             ui: { page: "general", group: "display", control: text },
         },
+        /// 第一次引导走过了（施工 8-11 四补，2026-10-08 终端、网页两个头要的）：账号级，只在个人设置里，每个账号各走一次；
+        /// 头走完引导写 `true`，以后不再进，缺什么去配置页补。设置页不画。核心不读它。
+        welcomed: bool = false {
+            kind: bool,
+            layers: [Personal],
+            applies: now,
+            ui: { page: "general", group: "display", control: toggle, hidden: true },
+        },
     }
 }
 

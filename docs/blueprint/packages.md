@@ -47,6 +47,7 @@ pages_dir = "web/pages"          # 页面文件的目录，相对资源目录；
 [process]                        # 只有 kind = "process" 的能写，要有 [command]
 args = ["serve"]                 # 拉起时带的参数，没写的是空的
 start = "manual"                 # manual：开关打开才拉起（默认）；always：核心起来就拉起
+capabilities = ["network"]       # 要的扩展能力（施工 9-4 下上，extensions.md「能力」）：只认 05 第三节那十二个名字，可以不写
 
 [check]                          # 要有 [command]
 args = ["check"]                 # miyu check 跑 <program> <args…>（9-2）
@@ -123,6 +124,7 @@ name = { en = "Web port", zh = "网页的端口" }
 | `duplicate`、`command_taken` | 两层同编号的家目录那一份；子命令名被先读到的占了 |
 | `bad_setting_name`、`bad_type`、`bad_element`、`bad_default`、`bad_choices`、`bad_range`、`bad_layers`、`bad_applies`、`not_bool` | 配置项写错：名字、类型、列表的元素（写错、写成 `list`、不是字，施工 9-1 补）、默认值、选项、范围、几层、什么时候生效、`hidden`（施工 9-1 下） |
 | `settings_taken` | 包的编号和核心自己的配置撞了、又声明了配置项（施工 9-1 下） |
+| `bad_capability` | `[process] capabilities` 里有不认识的、重复的名字（施工 9-4 下上） |
 | `protocol_mismatch` | 读成了，说的协议版本不包含 1（列表里照样带全；`miyu check` 是警告） |
 | `check_failed`、`check_unavailable`、`check_output` | 跑包的检查（施工 9-2，都是警告）：跑坏了、到时没完；程序没找到；印了看不懂的行 |
 

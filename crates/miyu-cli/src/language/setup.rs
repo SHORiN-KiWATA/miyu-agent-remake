@@ -46,11 +46,11 @@ impl Language {
     pub(crate) fn core_cannot_see(&self, names: &[&str]) -> String {
         match self {
             Language::Chinese => format!(
-                "· 这个终端里设了 {}，核心看不到：核心是别处拉起的，看不到后来设的环境变量。等核心空闲了自己退出（没有界面连着、没有在跑的活），再在这个终端里运行 miyu setup；或者选这一家、把 key 贴进来。",
+                "· 核心未读到 {}（核心启动后才设置）。核心空闲退出后重新运行 miyu setup，或选这一家贴 key。",
                 names.join("、")
             ),
             Language::English => format!(
-                "· {} is set in this terminal, but the core cannot see it: the core was started elsewhere and does not see variables set later. Wait until the core is idle and exits by itself (no interface connected, nothing running), then run miyu setup in this terminal again; or pick that provider and paste the key.",
+                "· The core has not read {} (set after the core started). Run miyu setup again once the core exits when idle, or pick that provider and paste the key.",
                 names.join(", ")
             ),
         }

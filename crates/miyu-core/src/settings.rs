@@ -36,7 +36,7 @@ const TARGET: &str = "miyu::config";
 /// 登记的模块，照这个先后，一个模块里照声明的先后。加一个模块只加一行。设置页的页照第一次出现的先后排：通用、界面、
 /// 权限、模型、高级（施工 8-2、8-3、8-6）；模型那一页先「用途」、再「供应商」、再「目录」（施工 8-7），「池」排在「用途」
 /// 后面（施工 8-8；「挡位」8-8 补去掉了），「冷却」排在「目录」后面（施工 8-9）；高级那一页先「压缩」再「运行日志」（施工
-/// 6-11 上）。通讯平台的桥的两项排在最后，高级页里「运行日志」后面（施工 O-8）。
+/// 6-11 上）。通讯平台的桥的几项排在最后，高级页里「运行日志」后面（施工 O-8；O-16 加端口，O-17 加自己人）。
 const MODULES: [&[Item]; 18] = [
     UiSettings::ITEMS,
     PersonaSettings::ITEMS,
@@ -87,6 +87,17 @@ miyu_config::settings! {
             layers: [System],
             applies: now,
             ui: { page: "advanced", group: "onebot", control: text },
+        },
+        /// 自己人：平台身份的列表（`qq:20017`），私聊里能叫她、不限流、睡着时私聊也放行（施工 O-17，`chat.md`「发的人是谁」，
+        /// `onebot.md` 第二条「怎么走」第 4 条）。在桥的 WebUI「主人与自己人」页上整张写回。元素最多 128 个字，和主人对应表的
+        /// `<external>` 一样长；没有默认值，不写的就是没有自己人（「施工时定的」第 36 条）。现在桥还不读，桥接群、算「发的人
+        /// 是谁」时读，到时照 O-16 的办法当场重读，所以生效时机写 `now`。以后桥的配置整体挪进软件包清单的 `[settings]` 时，
+        /// 写成 `type = "list", element = "text", layers = ["system"]`，同一个提交删掉这一项。
+        trusted: Option<Vec<String>> = none {
+            kind: texts [128],
+            layers: [System],
+            applies: now,
+            ui: { page: "advanced", group: "onebot", control: list },
         },
     }
 }

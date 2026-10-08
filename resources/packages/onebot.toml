@@ -1,0 +1,20 @@
+# QQ 桥的软件包清单（施工 O-18，docs/blueprint/onebot.md 第一条、packages.md）：核心照开关拉起桥、经标准输入输出说协议；
+# miyu onebot … 转交给 miyu-onebot …。给人看的字，不发给模型。
+
+[package]
+kind = "process"
+protocol = [1, 1]
+name = { en = "QQ bridge", zh = "QQ 桥", ja = "QQ ブリッジ" }
+summary = { en = "Talk with her on QQ through NapCat", zh = "经 NapCat 在 QQ 上和她说话", ja = "NapCat 経由で QQ で会話する" }
+
+[command]
+name = "onebot"
+program = "miyu-onebot"
+about = { en = "Start, stop and look at the QQ bridge", zh = "开、关、查看 QQ 桥", ja = "QQ ブリッジを起動・停止・確認する" }
+
+[process]
+args = ["serve"]
+start = "manual"
+# 要的扩展能力（施工 9-4 下上，05-内核接口.md 第三节）：venue.session、session.send 是操作会话，带 as 是代平台上的人发话，
+# subscribe 是读会话，开本机的两个端口、NapCat 连进来是联网。出厂的包算批过的，不用人批。
+capabilities = ["sessions.drive", "act_for_external", "events.read", "network"]

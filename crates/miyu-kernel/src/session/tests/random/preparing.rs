@@ -3,6 +3,9 @@
 //!
 //! 在路上的，多半送它的回报：还没报发出去的先报（偶尔先送一段增量，该算对不上），再一段段正文，说了话的才说完了；偶尔出错、
 //! 偶尔送一条对不上的（该不理）。开着的种子里，五个回合里有一个交关着。
+//!
+//! 慢的（N 是双数的，施工 6-11 下）：照样报发出去、送正文，回合没在等它的时候不说完、不出错，等到线时回合等它了才送
+//! 说完了：等的时候推进度、回来了换上或者当场压的路都走得到。
 
 use super::*;
 use crate::event::Purpose;
@@ -11,6 +14,7 @@ use crate::event::Purpose;
 pub(super) fn some_prepare(rng: &mut Rng, watch: &Watch) -> Option<Input> {
     let flight = watch.prepares.flight.as_ref()?;
     let upto = flight.upto;
+    let slow = upto.get() % 2 == 0 && !watch.awaiting();
     match rng.below(10) {
         0 => Some(ended(Seq::FIRST, None)),
         1 | 2 => None,
@@ -25,7 +29,7 @@ pub(super) fn some_prepare(rng: &mut Rng, watch: &Watch) -> Option<Input> {
             },
             request: ContentHash::of(b"prepare"),
         }),
-        4 => Some(ended(
+        4 if !slow => Some(ended(
             upto,
             Some(CallError {
                 class: ErrorClass::Retryable,
@@ -34,7 +38,7 @@ pub(super) fn some_prepare(rng: &mut Rng, watch: &Watch) -> Option<Input> {
             }),
         )),
         5..=7 => Some(delta(upto, flight.next_delta())),
-        _ if !flight.said() => Some(delta(upto, flight.next_delta())),
+        _ if !flight.said() || slow => Some(delta(upto, flight.next_delta())),
         _ => Some(ended(upto, None)),
     }
 }

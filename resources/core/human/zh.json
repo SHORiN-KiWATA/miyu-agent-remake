@@ -43,6 +43,10 @@
         "name": "默认界面",
         "description": "直接敲 miyu 时打开哪个界面。"
       },
+      "ui.welcomed": {
+        "name": "第一次引导走过了",
+        "description": "这个账号已经走完第一次引导，终端、网页不再打开引导。"
+      },
       "persona.default": {
         "name": "默认人格",
         "description": "新会话默认用哪个人格。不设的话，新会话无人格：不带人设，记忆不生效。"
@@ -239,6 +243,10 @@
       "onebot.token": {
         "name": "QQ 桥的令牌",
         "description": "NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。写 { secret = \"名字\" }（用 miyu login 存）或 { env = \"环境变量\" }。没设的，QQ 桥照样起来，NapCat 连进来会被拒；在 QQ 桥的网页上能生成一个。改了以后，NapCat 下一次连进来就照新的。"
+      },
+      "onebot.trusted": {
+        "name": "QQ 桥的自己人",
+        "description": "私聊里能叫她、不限流、睡着时私聊也放行的人，写平台上的身份的列表，例如 [\"qq:20017\"]。在 QQ 桥的网页上改。QQ 桥接通群以后才照它认人。"
       }
     },
     "pages": {
@@ -298,6 +306,30 @@
     "software/memory/summary": "记住你说过的事，以后想得起来",
     "software/roleplay": "角色扮演",
     "software/roleplay/summary": "照人格的设定演下去，不出戏",
+    "extensions/capabilities/tools": "提供工具",
+    "extensions/capabilities/tools/summary": "给她加能调用的工具",
+    "extensions/capabilities/commands": "提供命令",
+    "extensions/capabilities/commands/summary": "加斜杠命令",
+    "extensions/capabilities/context.inject": "往上下文里加内容",
+    "extensions/capabilities/context.inject/summary": "每一轮开始时往她看到的内容里加东西",
+    "extensions/capabilities/tool.guard": "拦工具",
+    "extensions/capabilities/tool.guard/summary": "工具执行前放行、拒绝，或者先问你",
+    "extensions/capabilities/tool.rewrite": "改工具结果",
+    "extensions/capabilities/tool.rewrite/summary": "工具执行后改写结果",
+    "extensions/capabilities/events.read": "读会话",
+    "extensions/capabilities/events.read/summary": "读会话里的全部记录",
+    "extensions/capabilities/events.write": "写会话记录",
+    "extensions/capabilities/events.write/summary": "往会话里追加它自己的记录",
+    "extensions/capabilities/sessions.drive": "操作会话",
+    "extensions/capabilities/sessions.drive/summary": "在会话里发消息、开新会话",
+    "extensions/capabilities/act_for_external": "代平台上的人发话",
+    "extensions/capabilities/act_for_external/summary": "替聊天平台上的人发消息、命令",
+    "extensions/capabilities/network": "联网",
+    "extensions/capabilities/network/summary": "访问网络、开端口",
+    "extensions/capabilities/fs.read": "读文件",
+    "extensions/capabilities/fs.read/summary": "读指定的文件和目录",
+    "extensions/capabilities/fs.write": "写文件",
+    "extensions/capabilities/fs.write/summary": "写指定的文件和目录",
     "persona-problems/syntax": "读不成 TOML：{detail}",
     "persona-problems/unknown_table": "不认识的表 [{detail}]：persona.toml 里只能有 [persona]、[memory]",
     "persona-problems/not_a_table": "{detail} 要写成一张表 [{detail}]",
@@ -355,6 +387,7 @@
     "package-problems/bad_applies": "{detail} 只能是 now、new_session、next_turn 或 program_start",
     "package-problems/not_bool": "{detail} 只能是 true 或 false",
     "package-problems/settings_taken": "包的编号 {detail} 和核心自己的配置撞了，它的配置项一项都不收：换一个编号",
+    "package-problems/bad_capability": "不认识的扩展能力，或者写了两遍：{detail}",
     "package-problems/check_failed": "这个包自己的检查没跑完：{detail}",
     "package-problems/check_unavailable": "没找到 {detail}，这个包自己的检查没跑",
     "package-problems/check_output": "这个包自己的检查印了 {detail} 行看不懂的，跳过了",

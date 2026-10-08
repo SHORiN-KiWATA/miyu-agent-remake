@@ -27,6 +27,8 @@ pub struct Line {
     pub excess: Option<u64>,
     /// 说到一半停住。
     pub hold: bool,
+    /// 停住以前只送正文的头几个字（施工 6-11 下，[`Line::held_after`]）；没有的增量都送。
+    pub partway: Option<usize>,
     /// 说完了报的用量；没有的照默认：没命中缓存的 100，输出 10（施工 6-2 上）。
     pub usage: Option<Usage>,
     /// 出错时端口说换了端点（施工 8-9）。
@@ -52,6 +54,7 @@ impl Line {
             wait_ms: None,
             excess: None,
             hold: false,
+            partway: None,
             usage: None,
             failover: false,
         }
@@ -130,6 +133,16 @@ impl Line {
     /// 同样的回复，说到一半停住：增量都送了，等放行才送说完了。
     pub fn held(self) -> Line {
         Line { hold: true, ..self }
+    }
+
+    /// 同样的回复，正文只送头 `chars` 个字就停住，放行时送剩下的、收全、说完了（施工 6-11 下：等提前压的那一次时，
+    /// 每来一段正文推一次进度）。只给只说话、不想不调工具的提前压用。
+    pub fn held_after(self, chars: usize) -> Line {
+        Line {
+            hold: true,
+            partway: Some(chars),
+            ..self
+        }
     }
 }
 

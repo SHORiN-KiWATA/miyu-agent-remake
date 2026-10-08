@@ -63,6 +63,7 @@ impl Watch {
     /// 一个回合的请求不超过上限。摘要请求照压缩的规矩查（`watch/compaction.rs`），不算步数。
     pub(super) fn called(&mut self, seen: Seq, request: &Request) {
         let seed = self.seed;
+        self.not_awaiting();
         // 交出去以前喂进去的说完了不算（内核不收不在路上的）：只查交出去以后的（施工 8-15）。
         self.retries.costs.remove(&seen);
         let turn = self.open_turn();
@@ -106,7 +107,8 @@ impl Watch {
             listing(&self.effective_events()),
             "种子 {seed}：请求照全部历史，撤回的、撤掉的、压缩掉的除外"
         );
-        let retry = self.retry_request();
+        // 被动压完的重发和报超长的那一次是同一步（`compaction.md` 第六条第 1 条）。
+        let retry = self.retry_request() || self.passive_resend();
         let count = self.requests.entry(turn).or_default();
         if !retry {
             *count += 1;

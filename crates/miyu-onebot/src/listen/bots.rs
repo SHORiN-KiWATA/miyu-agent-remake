@@ -1,9 +1,10 @@
 //! 连着的机器人号（`onebot.md` 第一条「怎么走」第 2、10 条）：一个号一条连接，同一个号再连进来，新的顶掉旧的（旧的关掉）；
-//! 回话照号找它现在的连接。WebUI 的 `/status` 照这里说连着哪个号、是哪个实现（施工 O-16）。
+//! 回话照号找它现在的连接。WebUI 的 `/status`、状态文件照这里说连着哪个号、是哪个实现（施工 O-16、O-18）。
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
+use serde_json::{Map, Value, json};
 use tokio::sync::mpsc;
 use tokio_tungstenite::tungstenite::Message;
 
@@ -54,6 +55,22 @@ impl Bots {
             .iter()
             .min_by_key(|(bot, _)| **bot)
             .map(|(bot, link)| (*bot, link.clone()))
+    }
+
+    /// NapCat 连没连上、是哪个号、哪个实现：连着的号里最小的那一个，`connected`、`self_id`，问到了是哪个实现的再带
+    /// `implementation`、`version`；没连着的只有 `connected: false`（`onebot.md` 第二条 `/status`，第一条「状态文件」）。
+    pub(crate) fn napcat(&self) -> Value {
+        let Some((bot, link)) = self.first() else {
+            return json!({"connected": false});
+        };
+        let mut napcat = Map::new();
+        napcat.insert("connected".into(), json!(true));
+        napcat.insert("self_id".into(), json!(bot.to_string()));
+        if let Some(peer) = link.peer.get() {
+            napcat.insert("implementation".into(), json!(peer.implementation));
+            napcat.insert("version".into(), json!(peer.version));
+        }
+        Value::Object(napcat)
     }
 
     /// 序号是 `serial` 的那一条断开了：号 `bot` 现在还是它的，拿掉；已经被顶掉的不动。

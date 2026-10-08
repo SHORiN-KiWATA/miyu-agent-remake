@@ -105,7 +105,8 @@ async fn broken_taken_and_mismatched_ones_carry_a_code_and_a_sentence() {
     mine(
         &home,
         "bridge.toml",
-        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = { en = \"Bridge\" }\n\n[command]\nname = \"onebot\"\nprogram = \"miyu-onebot\"\nabout = { en = \"QQ\" }\n\n[process]\nargs = [\"serve\"]\n\n[check]\nargs = [\"check\"]\n",
+        // 子命令不叫 onebot：出厂的桥占着它（施工 O-18）。
+        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = { en = \"Bridge\" }\n\n[command]\nname = \"bridge\"\nprogram = \"miyu-onebot\"\nabout = { en = \"QQ\" }\n\n[process]\nargs = [\"serve\"]\n\n[check]\nargs = [\"check\"]\n",
     );
     let packages = listed(&home).await;
     let by_id = |id: &str| {

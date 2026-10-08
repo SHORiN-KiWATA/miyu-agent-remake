@@ -57,6 +57,11 @@ impl Watch {
         self.passives.again = self.passives.current;
     }
 
+    /// 发主请求：这一步被动压过的，这一次是压完的重发，不算一步（第六条第 1 条「这一步改成先压缩，再重发一次」）。
+    pub(super) fn passive_resend(&self) -> bool {
+        self.passives.overflowed
+    }
+
     /// 主请求说完了：这一步过去了。
     pub(super) fn passive_step_done(&mut self) {
         self.passives.overflowed = false;

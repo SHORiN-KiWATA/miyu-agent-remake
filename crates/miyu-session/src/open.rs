@@ -30,7 +30,7 @@ use crate::jobs::Roster;
 use crate::memory::{self, connect};
 use crate::port::ForSession;
 use crate::report::{Reporter, Upstream};
-use crate::snapshot::{Parts, build};
+use crate::snapshot::{Parts, build, tooled};
 use crate::store::{Indexed, LogDir};
 use crate::tools::ToolKit;
 use crate::usage::Ledger;
@@ -40,6 +40,7 @@ mod load;
 mod setup;
 
 pub use error::{CreateError, LoadError};
+pub(crate) use load::current_policy;
 pub use load::load;
 pub use setup::{Create, Load, PresetPlaces};
 
@@ -110,6 +111,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         preset.as_ref().map(|chosen| &chosen.file),
     );
     let pin = preset.as_ref().map(Chosen::pin);
+    let tooled = tooled(tools);
     let preset = preset.map(|chosen| chosen.id);
     let asks = Agents::asks(
         &venue,
@@ -137,6 +139,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             memory: Some(scope.as_str().to_string()),
             child,
             preset: pin,
+            tooled,
         };
         let snapshot = build(&resources, parts).map_err(CreateError::Persona)?;
         let policy = snapshot.policy().map_err(CreateError::Policy)?;

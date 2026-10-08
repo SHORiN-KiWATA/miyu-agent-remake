@@ -43,6 +43,10 @@
         "name": "既定の画面",
         "description": "miyu だけを打ったときに開く画面。"
       },
+      "ui.welcomed": {
+        "name": "初回ガイド完了",
+        "description": "このアカウントは初回ガイドを終えています。ターミナルと Web ではもうガイドを開きません。"
+      },
       "persona.default": {
         "name": "既定のペルソナ",
         "description": "新しいセッションで使うペルソナ。設定しない場合、新しいセッションはペルソナなしになり、人格設定がなく、記憶は無効です。"
@@ -239,6 +243,10 @@
       "onebot.token": {
         "name": "QQ ブリッジのトークン",
         "description": "NapCat が接続するときに示すアクセストークンです。NapCat 側にも同じものを設定します。{ secret = \"名前\" }（miyu login で保存）か { env = \"環境変数\" } を書きます。未設定でも QQ ブリッジは起動しますが、NapCat の接続は拒否します。QQ ブリッジの Web ページで生成できます。変えると、NapCat の次の接続から新しいものを使います。"
+      },
+      "onebot.trusted": {
+        "name": "QQ ブリッジの仲間",
+        "description": "個人チャットで呼べて、回数制限がなく、寝ている間も個人チャットが通る人です。プラットフォーム上の ID のリストで書きます。例：[\"qq:20017\"]。QQ ブリッジの Web ページで変えます。QQ ブリッジがグループにつながってから、これで人を見分けます。"
       }
     },
     "pages": {
@@ -298,6 +306,30 @@
     "software/memory/summary": "話したことを覚えて、あとで思い出します",
     "software/roleplay": "ロールプレイ",
     "software/roleplay/summary": "ペルソナの設定どおりに演じ続けます",
+    "extensions/capabilities/tools": "ツールを提供",
+    "extensions/capabilities/tools/summary": "彼女が呼び出せるツールを追加する",
+    "extensions/capabilities/commands": "コマンドを提供",
+    "extensions/capabilities/commands/summary": "スラッシュコマンドを追加する",
+    "extensions/capabilities/context.inject": "コンテキストに追加",
+    "extensions/capabilities/context.inject/summary": "各ターンの開始時に彼女が見る内容へ追加する",
+    "extensions/capabilities/tool.guard": "ツールを制御",
+    "extensions/capabilities/tool.guard/summary": "ツールの実行前に許可・拒否・確認を行う",
+    "extensions/capabilities/tool.rewrite": "ツール結果を書き換え",
+    "extensions/capabilities/tool.rewrite/summary": "ツールの実行後に結果を書き換える",
+    "extensions/capabilities/events.read": "セッションを読む",
+    "extensions/capabilities/events.read/summary": "セッションの記録をすべて読む",
+    "extensions/capabilities/events.write": "セッション記録を書く",
+    "extensions/capabilities/events.write/summary": "セッションに自分の記録を追加する",
+    "extensions/capabilities/sessions.drive": "セッションを操作",
+    "extensions/capabilities/sessions.drive/summary": "メッセージを送り、セッションを開始する",
+    "extensions/capabilities/act_for_external": "プラットフォームの利用者として操作",
+    "extensions/capabilities/act_for_external/summary": "チャットプラットフォームの利用者に代わってメッセージやコマンドを送る",
+    "extensions/capabilities/network": "ネットワーク",
+    "extensions/capabilities/network/summary": "ネットワークにアクセスし、ポートを開く",
+    "extensions/capabilities/fs.read": "ファイルを読む",
+    "extensions/capabilities/fs.read/summary": "指定したファイルとフォルダを読む",
+    "extensions/capabilities/fs.write": "ファイルを書く",
+    "extensions/capabilities/fs.write/summary": "指定したファイルとフォルダに書き込む",
     "persona-problems/syntax": "TOML として読めません：{detail}",
     "persona-problems/unknown_table": "知らない表 [{detail}]：persona.toml に書けるのは [persona] と [memory] だけです",
     "persona-problems/not_a_table": "{detail} は表 [{detail}] として書きます",
@@ -355,6 +387,7 @@
     "package-problems/bad_applies": "{detail} は now、new_session、next_turn、program_start のどれかです",
     "package-problems/not_bool": "{detail} は true か false です",
     "package-problems/settings_taken": "パッケージ ID {detail} がコアの設定と重なるため、その設定項目は一つも使いません。別の ID にしてください",
+    "package-problems/bad_capability": "不明な拡張能力、または重複しています: {detail}",
     "package-problems/check_failed": "パッケージ自身のチェックが終わりませんでした：{detail}",
     "package-problems/check_unavailable": "{detail} が見つからないため、パッケージ自身のチェックは動きませんでした",
     "package-problems/check_output": "パッケージ自身のチェックが読めない行を {detail} 行出したので、飛ばしました",

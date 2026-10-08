@@ -1,11 +1,10 @@
 //! 令牌没设（施工 O-16 补、补二，`onebot.md` 第一条「怎么走」第 1、2 条、「施工时定的」第 3 条，第二条「施工时定的」第 14、
 //! 18 条；`18-通讯平台.md` 第三节「还没配好就 `start`：桥只开 WebUI，不连 NapCat，等配好」）：桥照样起来，两个端口都开，说一句
 //! 怎么办；NapCat 连进来 401。照页面的办法写进令牌，不重启，NapCat 下一次连就通；再换一个，新的进得来、旧的不收，已经连着的
-//! 那一条照样收发。真的程序 `miyu-onebot serve` 照常起来（标准错误、运行日志各一句），改了配置文件，`/status` 的 `token`
-//! 跟着变、NapCat 不用重启就连上，`/token` 交出值、运行日志里没有它；`miyu-onebot web --print` 照常印网址。
+//! 那一条照样收发。真的程序 `miyu-onebot serve` 照常起来（施工 O-18 起测试当核心，经它的标准输入输出握手；标准错误、运行日志
+//! 各一句），改了配置文件，`/status` 的 `token` 跟着变、NapCat 不用重启就连上，`/token` 交出值、运行日志里没有它；
+//! `miyu-onebot web --print` 照常印网址。
 
-use std::io::Read;
-use std::process::{Command, Stdio};
 use std::time::Duration;
 
 use serde_json::json;
@@ -15,20 +14,14 @@ use miyu_onebot::serve::{Notice, Serve};
 use miyu_onebot::texts::Texts;
 use miyu_session::testkit::{Play, Script};
 use miyu_store::resources::ResourceRoot;
-use miyu_store::root::DataRoot;
 
 use crate::support::fake_core::{CODE, LOGIN, fake_core};
 use crate::support::http::*;
+use crate::support::spawning::{free_port, program, served};
 use crate::support::*;
 
 /// 换上的新令牌。
 const NEW: &str = "napcat-new-token";
-
-/// 一个空着的端口：系统挑一个，马上放掉。
-fn free_port() -> u16 {
-    let free = std::net::TcpListener::bind("127.0.0.1:0").expect("挑得到");
-    free.local_addr().expect("有地址").port()
-}
 
 /// 带着登录令牌 [`LOGIN`] 取一次 `path`（`/status`、`/token`）。
 async fn ask(port: u16, path: &str) -> serde_json::Value {
@@ -65,7 +58,7 @@ async fn without_a_token_both_ports_listen_and_napcat_is_refused() {
     }
     assert_eq!(
         ask(bridge.web, "/status").await,
-        json!({"napcat": {"connected": false}, "listen": bridge.port, "web": bridge.web, "token": "none"})
+        json!({"napcat": {"connected": false}, "listen": bridge.port, "web": bridge.web, "token": "none", "platform": "qq"})
     );
     bridge.stop().await.expect("停得下");
     if std::fs::remove_dir_all(&dir).is_err() {
@@ -118,20 +111,6 @@ async fn a_new_token_takes_over_and_the_open_connection_stays() {
     bridge.stop().await.expect("停得下");
 }
 
-/// 真的程序 `miyu-onebot`：数据根是 `root`，资源目录是源码树的；握手以前说英文（替身握手回中文：说的话换成中文，才看得出
-/// 照握手回的语言说）；不用 `$XDG_RUNTIME_DIR`（核心的替身也不用，两头找的是同一个套接字）。
-fn program(root: &DataRoot, args: &[&str]) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_miyu-onebot"));
-    command
-        .args(args)
-        .env("MIYU_HOME", root.path())
-        .env("MIYU_RESOURCES", resources())
-        .env("LC_ALL", "en_US.UTF-8")
-        .env_remove("XDG_RUNTIME_DIR")
-        .env_remove("MIYU_LOG");
-    command
-}
-
 #[tokio::test]
 async fn the_program_runs_without_a_token_and_takes_one_without_a_restart() {
     let (dir, root) = temp_root();
@@ -141,21 +120,11 @@ async fn the_program_runs_without_a_token_and_takes_one_without_a_restart() {
     std::fs::create_dir_all(&system).expect("建得了");
     let ports = format!("[onebot]\nlisten = {listen}\nweb = {web}\n");
     std::fs::write(system.join("config.toml"), &ports).expect("写得进");
-    let mut serve = program(&root, &["serve"])
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("起得来");
+    let mut serve = served(&root).await;
     within("WebUI 开始听", async {
         while TcpStream::connect(("127.0.0.1", web)).await.is_err() {
-            if let Some(exited) = serve.try_wait().expect("看得到") {
-                let mut said = String::new();
-                if let Some(mut stderr) = serve.stderr.take()
-                    && stderr.read_to_string(&mut said).is_err()
-                {
-                    // 读不出来：照空的说。
-                }
-                panic!("桥退了（{exited}）：{said}");
+            if let Some(exited) = serve.child.try_wait().expect("看得到") {
+                panic!("桥退了：{exited}");
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
@@ -163,7 +132,7 @@ async fn the_program_runs_without_a_token_and_takes_one_without_a_restart() {
     .await;
     assert_eq!(
         ask(web, "/status").await,
-        json!({"napcat": {"connected": false}, "listen": listen, "web": web, "token": "none"})
+        json!({"napcat": {"connected": false}, "listen": listen, "web": web, "token": "none", "platform": "qq"})
     );
     let refused = napcat(listen, "/ws", Auth::Bearer(TOKEN), Some(BOT)).await;
     assert_eq!(refused.err(), Some(401), "NapCat 的端口开着，没令牌一律拒");
@@ -198,11 +167,12 @@ async fn the_program_runs_without_a_token_and_takes_one_without_a_restart() {
         format!("http://127.0.0.1:{web}/#setup={CODE}\n"),
         "照常打开"
     );
-    serve.kill().expect("停得下");
-    let served = tokio::task::spawn_blocking(move || serve.wait_with_output())
+    // 核心请它退出：关它的标准输入（施工 O-18）。
+    drop(serve.stdin.take());
+    let served = within("桥退出", serve.child.wait_with_output())
         .await
-        .expect("没崩")
         .expect("等得到");
+    assert_eq!(served.status.code(), Some(0), "读到头好好停下");
     let said = String::from_utf8_lossy(&served.stderr).to_string();
     let listening = zh(&Notice::Listening {
         port: listen,

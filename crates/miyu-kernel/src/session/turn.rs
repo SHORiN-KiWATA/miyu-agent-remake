@@ -13,6 +13,7 @@ use super::call::Call;
 use super::input::Input;
 use super::manual::Manual;
 use super::overflow::Passive;
+use super::prepare::Awaiting;
 use super::step::Step;
 use super::summary::Summarized;
 use crate::event::{Body, EndReason, Event, TurnEnded, TurnStarted};
@@ -115,6 +116,9 @@ pub(super) enum Stage {
     /// 到线时换上提前压好的那一份，在等执行器重读（施工 6-11 上，`prepare.rs`）：回来了写压缩，回到「准备好」。打断、重启
     /// 照「准备好」收拾，那一份扔掉。
     Swapping(Box<Summarized>),
+    /// 到线时提前压的那一次还在路上，等它（施工 6-11 下，`prepare.rs`）：它回来了用得上的换上，用不上的当场压。打断、
+    /// 重启照「准备好」收拾，它接着在后台跑。
+    Awaiting(Box<Awaiting>),
 }
 
 impl Session {

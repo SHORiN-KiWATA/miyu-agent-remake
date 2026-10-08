@@ -64,6 +64,7 @@ fn setup(name: &str, text: &str) -> (Scratch, DataRoot, Refresh) {
         memory: Some(scope.as_str().to_string()),
         child: false,
         preset: Some(chosen.pin()),
+        tooled: tooled(&tools),
     };
     let snapshot = build(&resources, parts).expect("拼得成");
     let refresh = Refresh {
@@ -208,6 +209,7 @@ fn without_a_persona_a_changed_preset_still_swaps() {
         memory: Some("off".to_string()),
         child: false,
         preset: refresh.snapshot.preset.clone(),
+        tooled: tooled(&refresh.tools),
     };
     refresh.snapshot = build(&refresh.resources, parts).expect("拼得成");
     assert_eq!(

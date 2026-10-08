@@ -90,6 +90,14 @@ async fn each_turn_goes_in_and_undo_and_restore_follow() {
 #[tokio::test]
 async fn loading_catches_up_what_was_missed() {
     let home = Home::new();
+    // 先把回合库建好：第一次照登记开的是开过的库，不起补齐旧会话的线程（施工 R-2 下）。不然它晚到一步，会把下面故意
+    // 拿掉的又补回去，测不到载入时补。
+    let path = home
+        .root
+        .index(&alice_account())
+        .join("recall/turns-engineer.db");
+    std::fs::create_dir_all(path.parent().expect("有上一级")).expect("建得了");
+    drop(miyu_store::recall::RecallIndex::open(&path));
     let script = Script::new([Play::Says("记住了，你用 N 卡。")]);
     let handle = home.create(&script).await;
     let id = handle.id().clone();

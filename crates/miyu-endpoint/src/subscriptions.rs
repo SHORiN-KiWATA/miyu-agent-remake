@@ -16,6 +16,7 @@
 //! 9-4 补，`subscriptions/extensions.rs`）。
 
 mod config;
+mod extension_config;
 mod extensions;
 mod sessions;
 
@@ -32,6 +33,7 @@ use miyu_session::{Ended, Pushed, Subscription};
 
 use crate::Core;
 use config::ConfigForwarder;
+use extension_config::ExtensionConfigForwarder;
 use extensions::ExtensionsForwarder;
 use sessions::SessionsForwarder;
 
@@ -42,6 +44,8 @@ pub(crate) struct Subscriptions {
     config: Option<ConfigForwarder>,
     sessions: Option<SessionsForwarder>,
     extensions: Option<ExtensionsForwarder>,
+    /// 核心拉起的扩展自己的配置的推送（施工 9-4 下下）：握手以后起，不用订阅。
+    extension_config: Option<ExtensionConfigForwarder>,
 }
 
 /// 一条回应经哪个订阅写出去。
@@ -161,6 +165,23 @@ impl Subscriptions {
     /// 取消订阅会话列表的推送：转发任务当场停。
     pub(crate) fn remove_sessions(&mut self) {
         self.sessions = None;
+    }
+
+    /// 核心拉起的扩展握了手（施工 9-4 下下，`extension_config.rs`）：包是 `package`，握手交出去的是 `handed`，`current` 是
+    /// 握手时拿的盯配置的那一头；变了推 `extension.config`。握手的回应写出去以后调。
+    pub(crate) fn add_extension_config(
+        &mut self,
+        package: String,
+        handed: BTreeMap<String, serde_json::Value>,
+        current: tokio::sync::watch::Receiver<Arc<crate::config::Config>>,
+        out: &mpsc::Sender<String>,
+    ) {
+        self.extension_config = Some(ExtensionConfigForwarder::start(
+            package,
+            handed,
+            current,
+            out.clone(),
+        ));
     }
 
     /// 订阅扩展的状态的推送（施工 9-4 补）：先拿收推送的一头，再算一份整的（排在这之前的变化照样推，推的是这一刻的整项，

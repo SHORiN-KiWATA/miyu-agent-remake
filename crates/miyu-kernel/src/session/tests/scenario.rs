@@ -20,6 +20,7 @@ mod peers;
 mod permission_changed;
 mod prepare;
 mod prepare_drop;
+mod prepare_wait;
 mod rebuild;
 mod recap;
 mod redo;

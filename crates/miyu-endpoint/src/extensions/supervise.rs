@@ -61,6 +61,10 @@ pub(super) struct Plan {
     pub(super) args: Vec<String>,
     /// 工作目录：包放状态的目录，没有的建。
     pub(super) dir: PathBuf,
+    /// 核心手上的数据根：拉起时设成 `MIYU_HOME`（施工 O-18，`extensions.md`「怎么走」第 1 条）。
+    pub(super) home: PathBuf,
+    /// 核心手上的资源目录：拉起时设成 `MIYU_RESOURCES`（施工 O-18）。
+    pub(super) resources: PathBuf,
     /// 标准错误接到哪个文件。
     pub(super) log: PathBuf,
 }
@@ -135,7 +139,7 @@ pub(super) async fn run(
             return;
         };
         let (ready, shook) = oneshot::channel();
-        let serving = serve_spawned(tokio::io::join(output, input), owner, ready);
+        let serving = serve_spawned(tokio::io::join(output, input), owner, ready, id.to_string());
         let watched = Watched {
             shared: &shared,
             id,
@@ -222,8 +226,11 @@ fn spawn(plan: &Plan) -> io::Result<Child> {
     std::fs::create_dir_all(&plan.dir)?;
     let errors = stderr::open(&plan.log)?;
     let mut command = std::process::Command::new(&plan.program);
+    // 环境照核心的，只把这两个设成核心手上的（施工 O-18）：扩展和核心认同一份数据根、资源目录，不管核心是怎么找到它们的。
     command
         .args(&plan.args)
+        .env("MIYU_HOME", &plan.home)
+        .env("MIYU_RESOURCES", &plan.resources)
         .current_dir(&plan.dir)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

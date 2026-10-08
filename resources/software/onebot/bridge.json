@@ -5,6 +5,8 @@
   "inbound_queue": 256,
   "accept_retry_millis": 100,
   "reload_seconds": 1,
+  "hello_seconds": 10,
+  "follow_millis": 500,
   "web": {
     "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
     "types": {

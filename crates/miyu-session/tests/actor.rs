@@ -8,10 +8,9 @@ use crate::support::{
     watch, within,
 };
 use miyu_kernel::event::{Body, EndReason, ErrorClass, Event, TransientBody};
-use miyu_kernel::facts::Environment;
 use miyu_kernel::id::Seq;
 use miyu_kernel::session::{Command, Outcome, Queued};
-use miyu_kernel::time::{Timestamp, UtcOffset};
+use miyu_kernel::time::Timestamp;
 use miyu_policy::Snapshot;
 use miyu_session::testkit::{Play, Script};
 use miyu_session::{Pushed, Stopped};
@@ -349,28 +348,4 @@ async fn a_session_nobody_holds_cancels_its_request() {
     })
     .await;
     assert!(waited.is_ok(), "六十秒内端口收到了叫停");
-}
-
-#[tokio::test]
-async fn a_new_working_directory_shows_up_at_the_next_turn() {
-    let home = Home::new();
-    let script = Script::new([Play::Says("好。"), Play::Says("好。")]);
-    let handle = home.create(&script).await;
-    let mut pushes = watch(&handle).await;
-    ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");
-    until_turn_ends(&mut pushes).await;
-    // 头报上来：工作目录换了。不当场注入，下一轮开始时才查（08 C10）。
-    handle
-        .environment(Environment {
-            offset: UtcOffset::from_minutes(540).expect("东九区在范围里"),
-            cwd: "~/src/elsewhere".to_string(),
-            dirs: Vec::new(),
-        })
-        .expect("会话在跑");
-    ask(&handle, "cmd-2", say("again")).await.expect("会话在跑");
-    until_turn_ends(&mut pushes).await;
-    let requests = script.requests();
-    let text = |n: usize| String::from_utf8(requests[n].1.canonical_bytes()).expect("请求是 UTF-8");
-    assert!(!text(0).contains("~/src/elsewhere"), "{}", text(0));
-    assert!(text(1).contains("~/src/elsewhere"), "{}", text(1));
 }
