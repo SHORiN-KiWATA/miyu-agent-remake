@@ -10,7 +10,7 @@ use miyu_kernel::request::Message;
 use miyu_kernel::template::Template;
 
 use crate::texts::{
-    HarnessTexts, IdleTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title,
+    GroupChat, HarnessTexts, IdleTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title,
     TurnEndedTexts, Vision,
 };
 
@@ -60,6 +60,18 @@ pub(crate) fn texts() -> Texts {
         recap: Some(recap_texts()),
         title: Some(title_texts()),
         vision: Some(vision_texts()),
+        group: None,
+    }
+}
+
+/// 群会话的替身字（施工 O-13 中）：时区是 `minutes` 分钟，空的那一条写 `<no-text>`。
+pub(crate) fn group_texts(minutes: i32) -> Texts {
+    Texts {
+        group: Some(GroupChat {
+            offset: miyu_kernel::time::UtcOffset::from_minutes(minutes).expect("在范围里"),
+            no_text: "<no-text>".to_string(),
+        }),
+        ..texts()
     }
 }
 

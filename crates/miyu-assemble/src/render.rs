@@ -11,7 +11,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::{Body, CompactTrigger, ContextCompacted, ToolStatus};
+use miyu_kernel::event::{Body, CompactTrigger, ContextCompacted, Event, MessageUser, ToolStatus};
 use miyu_kernel::facts::REMINDER;
 use miyu_kernel::history::History;
 use miyu_kernel::id::{Seq, TurnId};
@@ -19,7 +19,7 @@ use miyu_kernel::origin::By;
 use miyu_kernel::request::Message;
 
 use crate::texts::Texts;
-use crate::{harness, jobs, peers};
+use crate::{group, harness, jobs, peers};
 
 /// 渲染有效历史：检查点和历史，照先后排好的消息。稳定区不在这里。
 pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
@@ -40,7 +40,7 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
             // 旁听的场所消息这一步先不进上下文，O-13 下渲染成群聊近况（施工 O-13 上）。
             Body::MessageUser(message) if message.venue.as_ref().is_some_and(|venue| venue.ambient) => {}
             Body::MessageUser(message) => {
-                let blocks = said(history, &event.by, known(&message.blocks), texts);
+                let blocks = spoken(history, event, message, known(&message.blocks), texts);
                 transcript.add(event.seq, Place::Here, blocks);
             }
             Body::ContextInjected(fact) => {
@@ -139,10 +139,25 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
     transcript.finish()
 }
 
+/// 人这边的一条消息 `event`（内容 `message`，块是 `blocks`）渲染成的块（主请求和回顾的请求共用）：群会话里群里的人说的
+/// 是一行一条（施工 O-13 中，`group.rs`），别的照谁发的（[`said`]）。
+pub(crate) fn spoken(
+    history: &History,
+    event: &Event,
+    message: &MessageUser,
+    blocks: Vec<Block>,
+    texts: &Texts,
+) -> Vec<Block> {
+    match (&message.venue, &texts.group) {
+        (Some(venue), Some(chat)) => group::line(event.at, &event.by, venue, blocks, chat),
+        _ => said(history, &event.by, blocks, texts),
+    }
+}
+
 /// 人这边的一条消息的块，照谁发的（主请求和回顾的请求共用）：子代理发来的留言注明是哪个子代理（施工 7-7，`jobs.rs`），
 /// 别的 harness 发来的话注明是它、叫什么（施工 7-10，`harness.rs`），别的会话发来的话注明是哪个会话（施工 C-2，`peers.rs`）；
 /// 别人（人、父会话）发的原样。
-pub(crate) fn said(history: &History, by: &By, blocks: Vec<Block>, texts: &Texts) -> Vec<Block> {
+fn said(history: &History, by: &By, blocks: Vec<Block>, texts: &Texts) -> Vec<Block> {
     match by {
         By::Harness(from) => harness::message(from, blocks, texts.harness.as_ref()),
         By::Session(session) if history.is_peer(&session.id) => {

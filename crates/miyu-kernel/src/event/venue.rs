@@ -36,6 +36,9 @@ pub struct VenueMessage {
     /// 睡着时收到的：不进群聊近况。
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub asleep: bool,
+    /// 渲染这一条时写不写发的人的平台身份（施工 O-13 中）：桥照这时的场所规则每条带上，规则改了从下一条起照新的。
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub show_ids: bool,
 }
 
 /// 一条消息带的一样东西。

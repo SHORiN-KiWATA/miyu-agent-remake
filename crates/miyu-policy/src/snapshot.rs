@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::drivers::DriverPlaceholders;
 use crate::facts::FactTexts;
+use crate::group::GroupChat;
 use crate::harness::HarnessTexts;
 use crate::jobs::{JobNumbers, JobTexts};
 use crate::pause::PauseNumbers;
@@ -80,6 +81,10 @@ pub struct Snapshot {
     /// 换人格重拼时照它去掉角色扮演提示、写「装了没开」那一行。以前造的没有：全开。没有的不写，旧快照的字节不变。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preset: Option<PresetPin>,
+    /// 群会话（施工 O-13 中，`group.rs`）：造会话时钉下的时区和空的一条写什么，群里的人说的照它渲染成一行一条。私聊、本机的
+    /// 没有：不写，字节和以前一样。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<GroupChat>,
 }
 
 /// 压缩用的数（`compaction.md`「对外的样子」的策略数据）。
@@ -358,6 +363,7 @@ impl Snapshot {
             recap: self.recap(),
             title: self.title(),
             vision: self.vision(),
+            group: self.group.as_ref().map(GroupChat::texts).transpose()?,
         };
         let (face, rules) = tools::split(&self.tools)?;
         let stable = Stable {

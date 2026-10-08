@@ -84,6 +84,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         memory,
         preset,
         presets,
+        group,
     } = setup;
     let span = actor::span(&id);
     let config = Turning::start(configs, environment.cwd.clone()).await;
@@ -140,6 +141,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             child,
             preset: pin,
             tooled,
+            group: group.then(|| offset.minutes()),
         };
         let snapshot = build(&resources, parts).map_err(CreateError::Persona)?;
         let policy = snapshot.policy().map_err(CreateError::Policy)?;

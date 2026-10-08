@@ -105,6 +105,9 @@ pub struct Create<'a> {
     pub preset: Option<Chosen>,
     /// 预设的几层和装了的软件（施工 P-2 下）：改了预设的文件下一个回合换上。没有的（测试里自己造的）不看。
     pub presets: Option<PresetPlaces>,
+    /// 是不是群会话（施工 O-13 中）：`venue.session` 的 `kind` 是 `group` 的。是的 system 接上群聊的格式说明，快照钉下这时的
+    /// 时区，群里的人说的渲染成一行一条。
+    pub group: bool,
 }
 
 /// 载入一个会话要的。

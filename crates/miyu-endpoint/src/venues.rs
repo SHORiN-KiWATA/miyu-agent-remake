@@ -119,6 +119,7 @@ pub(crate) async fn session(
         venue: Some(venue),
         memory: None,
         preset: params.preset,
+        group: params.kind == Kind::Group,
     };
     let cwd = params
         .cwd

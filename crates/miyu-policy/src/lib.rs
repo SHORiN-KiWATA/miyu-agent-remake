@@ -12,6 +12,7 @@
 mod compose;
 mod drivers;
 mod facts;
+mod group;
 mod guard;
 mod harness;
 mod image_name;
@@ -36,6 +37,7 @@ mod test_support;
 pub use compose::{CoreLines, PersonaTexts, Sources, Wrap, compose};
 pub use drivers::DriverPlaceholders;
 pub use facts::FactTexts;
+pub use group::GroupChat;
 pub use guard::GuardTexts;
 pub use harness::HarnessTexts;
 pub use image_name::ImageNameTexts;

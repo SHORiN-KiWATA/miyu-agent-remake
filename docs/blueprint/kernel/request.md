@@ -17,7 +17,8 @@
 | `crates/miyu-assemble/src/texts.rs` | 检查点的包装、回合没走完的五句、回报的写法、别的 harness 发来的话的标签（施工 7-10）、别的会话发来的话的标签（施工 C-2）、空了的通知（施工 C-6） |
 | `crates/miyu-assemble/src/jobs.rs` | 两种回报渲染成带标签的事实（施工 7-2）；子代理发来的留言包一层标签（施工 7-7） |
 | `crates/miyu-assemble/src/harness.rs` | 别的 harness 发来的话包一层带名字的标签（施工 7-10） |
-| `crates/miyu-assemble/src/peers.rs` | 别的会话发来的话包一层带短编号的标签（施工 C-2）；空了的通知那一块（施工 C-6）；人这边的一条照谁发的包哪种外壳在 `render.rs` 的 `said`，主请求和回顾的请求共用 |
+| `crates/miyu-assemble/src/peers.rs` | 别的会话发来的话包一层带短编号的标签（施工 C-2）；空了的通知那一块（施工 C-6）；人这边的一条照谁发的包哪种外壳在 `render.rs` 的 `said`；群会话里群里的人说的先走 `group.rs`（`spoken`，主请求和回顾的请求共用） |
+| `crates/miyu-assemble/src/group.rs` | 群会话里群里的人说的一条渲染成一行（施工 O-13 中，下面「群里的一行」） |
 | `crates/miyu-assemble/src/recap.rs` | 回顾的请求：取最近几轮的对话正文、截到上限、接在回顾的指令后面（施工 3-8 四补，下面「回顾的请求」） |
 | `crates/miyu-assemble/src/title.rs` | 起标题的请求：取第一轮的对话正文，照回顾的写法截到上限、接在起标题的指令后面（施工 3-8 五补，下面「起标题的请求」） |
 | `crates/miyu-assemble/src/vision.rs` | 转述一张图的请求：指令、人这一轮最近说的那一句、这张图（施工 8-17，下面「替它看的图」） |
@@ -88,6 +89,7 @@
 | | `peers` | `PeerTexts`：别的会话发来的话的标签，`core/peers/` 下的两份（施工 C-2，下面「别的会话发来的话」）：`open` 字段 `id`，`close`。以前造的快照里没有的，是没有：那种话照人的话原样渲染。`idle`（施工 C-6，`IdleTexts`，下面「空了的通知」）：`open` 字段 `id`、`reason`，`silent`、`expired`（造快照时照 `peers.watch_hours` 换好了 `hours`）、`gone`、`close`；C-2 时造的快照里没有，是没有：通知不出 |
 | | `recap` | `Recap`：回顾的指令、两种标签、两句记号（`core/recap/` 下的五份），最多几轮 `turns`、整份最多约多少 token `tokens`（施工 3-8 四补，下面「回顾的请求」）。以前造的快照里没有的，是没有：不做回顾 |
 | | `title` | `Title`：起标题的指令（`core/title/instruction.txt`），整份最多约多少 token `tokens`（施工 3-8 五补，下面「起标题的请求」）。标签、截断的记号借 `recap` 的，两样都有才起标题。以前造的快照里没有的，是没有：不起标题 |
+| | `group` | `GroupChat`：群会话钉下的时区和空的一条写什么（`core/venues/no-text.txt`，施工 O-13 中，下面「群里的一行」）。私聊、本机的会话没有：人的话照原样渲染 |
 | | `vision` | `Vision`：转述一张图的指令（`core/vision/instruction.txt`）、人的话前面那一行（`question.txt`）（施工 8-17，下面「替它看的图」）。以前造的快照里没有的，是没有：不转述 |
 
 默认的 `summarize`：截到第 `upto` 条照平常组装；最后一条是 user 的，指令并进这一条做最后一块，不是的另起一条 user；`continuation` 是假。指令是一个文本块：`summarize_task`；有要求的接 `summarize_instructions` 和要求（原样，不转义，末尾没有换行的补一个）；最后是 `summarize_end`（施工 6-8，`compaction.md` 第七条第 3 条）。默认的 `summary`：只看正文块，有 `<summary>` 的取到 `</summary>` 或者末尾，没有的去掉 `<analysis>…</analysis>`，前后空白去掉，空的是 `None`（`crates/miyu-assemble/src/summary.rs`）。
@@ -499,6 +501,20 @@ Carry on from where the summary leaves off, without redoing work it records as d
 - system 由拼快照的一步拼好（`policy.md`「拼」），组装时原样用，不再拆开。新会话的 system 是人设、场所说明（子会话）、核心的几行，预设里有装了没开的软件的接一行（施工 P-2 中，`presets.md`），带角色扮演提示的人格最后还有风格锁（施工 P-1 补），块和块之间空一行（`26-提示词.md` 第四节）。核心的几行施工 2-7 补加，一行一句，先 `permission-rule.txt`（工具面是空的会话不带）、后 `local-paths-rule.txt`；以前造的快照 system 里没有这一块，照快照发，前缀一字不变。
 - 样本：`docs/designs/samples/requests/second-step.json`（第一轮两块事实排在触发消息前面、调一次工具以后的那次请求）、`after-compaction.json`（压缩以后只剩检查点）；探针几张脸的 system 都以核心的几行结尾（施工 2-7 补）；`docs/designs/samples/probe/terminal/requests/` 是一段终端会话的每一次请求，第 7 次起带着切到只读的那一块（切换那一份，施工 2-7 补），第 11 次带接着写的记号；`docs/designs/samples/probe/reports/requests/` 是一段有回报的会话（施工 7-2）：第 3 次由子代理的回报开，第 5 次后台命令结束排在工具结果后面，第 7 次只记下的回报排在人那一句前面；`docs/designs/samples/probe/cleared/requests/` 是一段清空过的会话（施工 6-8 补）：第 3 次是清空以后的，只剩工具面、system、三块事实和那一句；`docs/designs/samples/probe/harness/requests/` 是一段有别的 harness 来话的会话（施工 7-10）：第 2 次由它开，第 4 次它在回合中途到、排在工具结果后面，和同一份剧本里换成人说的比，每次请求只多标签那两段；`docs/designs/samples/probe/peers/requests/` 是一段有别的会话来话的会话（施工 C-2）：第 2 次由它开，第 4 次它在回合中途到、排在工具结果后面，和同一份剧本里换成人说的比，每次请求只多标签那两段；`docs/designs/samples/probe/permission/requests/` 是一段人切了权限级别的会话（施工 2-7 补）：第 2 次开头是切到完全放开的那一块，第 3 轮开了只读又关掉、不注入，第 7 次切到只读的那一块排在工具结果后面。`docs/designs/samples/probe/reminder/requests/` 是带角色扮演提示的人格聊五轮（施工 P-1 补）：system 以风格锁结尾，第 1、4 次的最后一块是提示、排在人说的那句后面，第 2、3、5 次的最后一块是人说的那句；去掉风格锁和提示，和不带提示的同一份剧本一字不差。
 
+**群里的一行**（施工 O-13 中，`18-通讯平台.md` 第九节，格式照旧版的群聊记录）：群会话里带 `venue`、不旁听的 `message.user` 替掉原来的正文，渲染成一行：
+
+```text
+[14:02] 老王 (id=qq:20018, manager) [msg=8811]: 看这个 [image] [file: 排班.pdf]
+  reply-to: msg=8810
+  @mentions: @all, [you], qq:20017
+```
+
+- 钟点照快照钉下的时区（`Timestamp::local_clock`），换了时区的机器上载入也不变。名字照 `venue.name`，没有的写平台身份；括号里 `id=` 只在这一条的 `show_ids` 是真、又有名字时写，身份只写 `owner`（`as` 认出的主人）、`manager`（桥报的），都没有的不写括号。
+- 内容：字去掉前后空白、截到 4096 字节（截在字的边界上），带的东西空一格接在后面（`[image]`、`[file: 名字]`、`[sticker: 字]`、`[voice]`、`[video]`）；都没有的写 `no_text`。图片、文件块接在这一行后面交给驱动。
+- 缩进的两行可选：引用了的写 `reply-to`；`@mentions` 是 `@all`（@ 了全体成员）、`[you]`（@ 了她），`show_ids` 是真的再列 @ 了的人的平台身份，都没有的不写。
+- 名字、字、编号、带的东西的名字、身份照模板的规矩转义（`template::escape`）：多行的字成了一行，伪造不出另一条记录。钟点、`owner`、`manager`、`@all`、`[you]` 原样。
+- 回顾、起标题的请求读人这边的话也走这一步（`spoken`）。
+
 ### 出错
 
 报错给写模板的人、查问题的人看，不给模型看。模板的几句是英文，写进运行日志（施工 4-9 再补四中：原来是中文）；增量对不上的那一句记进 `model.called` 的原话，`miyu ask` 印给人看，还是中文，等界面语言那一步。
@@ -534,6 +550,7 @@ Carry on from where the summary leaves off, without redoing work it records as d
 | `crates/miyu-assemble/src/title/tests.rs`（施工 3-8 五补） | 起标题的请求：一条 user、没有 system 和工具面，只有第一轮，照到的是第一个回答；那一轮中间一步说的、工具、思考、事实不要；第一轮没答出正文的，两句人的话并成一段、照到第二轮的回答；别的 harness 的话带外壳；没有回答、没有起标题的字或者回顾的标签的没有；放不下两段各截中间，连指令正好到上限，小到连标签都放不下的整份截到上限 |
 | `crates/miyu-assemble/src/tests.rs` 的 `a_title_after_the_notice_still_continues`（施工 3-8 五补） | 被打断的那一句后面内核起了标题，照样接着写 |
 | `crates/miyu-assemble/tests/probe_title.rs`（施工 3-8 五补） | 起标题这张脸：真内核照剧本跑，起标题的请求（`titles/`）和主请求一样和存档（`docs/designs/samples/probe/title/`）逐字节比；它是单独的一次，一条 user，指令接第一轮的话和回答，工具的输出、中间一步说的不在里面；只起一次；主请求照查五条性质，第二轮接着第一轮往后长 |
+| `crates/miyu-assemble/src/group/tests.rs`（施工 O-13 中） | 群里的一行：钟点照会话的时区、名字、`id=` 跟着这一条的 `show_ids`、只写 `owner` 和 `manager`、没名字的写身份；带的东西、图片块接在后面、空的写那一句；引用和 @ 两行（`@all`、`[you]`、看得到身份的列身份）；转义成一行；4096 字节截在字的边界；旁听的不进、私聊的照原样；回顾里也是这一行 |
 | `crates/miyu-assemble/src/vision/tests.rs`（施工 8-17） | 转述的请求：一条 user、没有 system 和工具面，指令在前、图在后、图去掉了名字；有人的话的接那一行和原话、原样不转义；快照里没有字的没有 |
 | `crates/miyu-kernel/src/request/tests.rs` 的转述那几条（施工 8-17） | `described` 空的不写进字节、哈希不变，有的写在最后；不算进指纹 |
 | `crates/miyu-assemble/tests/probe_vision.rs`（施工 8-17） | 看不了图的那张脸：真内核照剧本跑，人附了一张图、她又读出一张，各转述一次，主请求和存档（`docs/designs/samples/probe/vision/`）逐字节比、线上的字节里图的位置是带标签的转述；第二轮不再转述，前缀照查五条性质 |

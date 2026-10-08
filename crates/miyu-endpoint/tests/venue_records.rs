@@ -43,7 +43,7 @@ async fn a_venue_message_is_kept_as_written_and_an_ambient_one_opens_no_turn() {
     let venue = json!({"msg": "8810", "reply_to": "8800", "name": "小林", "mentions": ["qq:20017"],
         "mentions_me": true, "mentions_all": false,
         "media": [{"kind": "file", "id": "f-1", "name": "排班.pdf"}, {"kind": "voice", "id": "v-1"}],
-        "ambient": true, "asleep": false});
+        "ambient": true, "asleep": false, "show_ids": true});
     let reply = client
         .call("s1", "session.send", said(&session, venue))
         .await;
@@ -61,7 +61,7 @@ async fn a_venue_message_is_kept_as_written_and_an_ambient_one_opens_no_turn() {
         written,
         json!({"msg": "8810", "reply_to": "8800", "name": "小林", "mentions": ["qq:20017"],
             "mentions_me": true, "media": [{"kind": "file", "id": "f-1", "name": "排班.pdf"}, {"kind": "voice", "id": "v-1"}],
-            "ambient": true}),
+            "ambient": true, "show_ids": true}),
         "原样记下，假的不写"
     );
     assert!(

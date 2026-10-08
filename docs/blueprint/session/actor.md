@@ -91,7 +91,7 @@
 
 1. 在阻塞线程里依次做，哪一步不成就交回那一种错，actor 不起；已经存下的快照留着：
    1. 读出这个人格要用的原文（`store/resources.md`）。
-   2. 拼策略快照：人格、有没有人能确认、工具目录里每件工具的名字、说明、参数格式、访问类别，照名字排（`policy.md`）。不在本机、到了深度上限的，工具面里不给 `subagent`；子会话读出场所说明（`core/jobs/subagent-venue.txt`，读不了的算人格读不出来），接在 system 的人设后面（施工 7-5，`session/tools.md`「工具面」）。
+   2. 拼策略快照：人格、有没有人能确认、工具目录里每件工具的名字、说明、参数格式、访问类别，照名字排（`policy.md`）。不在本机、到了深度上限的，工具面里不给 `subagent`；子会话读出场所说明（`core/jobs/subagent-venue.txt`，读不了的算人格读不出来），接在 system 的人设后面（施工 7-5，`session/tools.md`「工具面」）；群会话（`Create::group`）读出格式说明接在同一个位置，快照钉下这时的时区（施工 O-13 中，`policy.md` 的 `with_group`），换人格重拼时照旧快照的时区。
    3. 照快照造内核的策略、驱动的占位、替工具写的两句（`session/tools.md`）、权限策略拒绝时的三句（`session/guard.md`）。
    4. 快照存成属主的 blob：先落 blob，再写引用它的事件。
    5. 建会话目录和空的第一段（`store.md`）。

@@ -9,6 +9,7 @@ mod actor;
 mod backlog;
 mod delete;
 mod embed;
+mod group;
 mod guard;
 mod guard_dirs;
 mod guard_grants;

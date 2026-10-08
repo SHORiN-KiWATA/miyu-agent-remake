@@ -290,6 +290,33 @@ fn the_subagent_venue_note_is_its_own_file() {
     }
 }
 
+/// 群会话的两份（施工 O-13 中）：格式说明、空的一条写什么，读的是 `core/venues/` 下的原文；时区照交进来的；没有的说是哪一份。
+#[test]
+fn the_group_chat_texts_are_their_own_files() {
+    assert_eq!(
+        repo().group_note().unwrap(),
+        include_str!("../../../../resources/core/venues/group.txt")
+    );
+    let chat = repo().group_chat(-300).unwrap();
+    assert_eq!(chat.offset, -300);
+    assert_eq!(
+        chat.no_text,
+        include_str!("../../../../resources/core/venues/no-text.txt")
+    );
+    let scratch = Scratch::new();
+    let empty = ResourceRoot::at(scratch.path());
+    for (error, file) in [
+        (empty.group_note().unwrap_err(), "core/venues/group.txt"),
+        (empty.group_chat(0).unwrap_err(), "core/venues/no-text.txt"),
+    ] {
+        match error {
+            SourceError::Read { path, .. } => {
+                assert!(path.ends_with(Path::new(file)), "{path:?}");
+            }
+        }
+    }
+}
+
 /// 核心的几行（施工 2-7 补）：读的是 `core/permission-rule.txt`、`core/local-paths-rule.txt` 的原文；没有的说是哪一份。
 #[test]
 fn the_core_lines_are_their_own_files() {

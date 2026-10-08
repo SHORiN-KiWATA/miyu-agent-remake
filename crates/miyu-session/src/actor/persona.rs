@@ -120,6 +120,8 @@ fn look(refresh: &Refresh, values: &Values) -> Seen {
         child: refresh.child,
         preset: pin,
         tooled: tooled(&refresh.tools),
+        // 群会话照旧快照钉下的时区（施工 O-13 中）：换了时区的机器上换人格，前缀里的钟点也不变。
+        group: old.group.as_ref().map(|chat| chat.offset),
     };
     let new = match build(&refresh.resources, parts) {
         Ok(new) => new,

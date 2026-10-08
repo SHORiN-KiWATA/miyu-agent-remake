@@ -83,6 +83,7 @@ pub(crate) async fn call(
                 venue: None,
                 memory,
                 preset: params.preset,
+                group: false,
             };
             let created = core
                 .sessions

@@ -36,6 +36,8 @@ pub(crate) struct VenueMessageParams {
     ambient: bool,
     #[serde(default)]
     asleep: bool,
+    #[serde(default)]
+    show_ids: bool,
 }
 
 /// 一样带的东西。
@@ -93,6 +95,7 @@ impl VenueMessageParams {
             media,
             ambient: self.ambient,
             asleep: self.asleep,
+            show_ids: self.show_ids,
         })
     }
 }

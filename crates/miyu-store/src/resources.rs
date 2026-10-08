@@ -12,7 +12,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use miyu_policy::{
-    CompactionTexts, CoreLines, CoreTexts, DriverPlaceholders, FactTexts, HarnessTexts,
+    CompactionTexts, CoreLines, CoreTexts, DriverPlaceholders, FactTexts, GroupChat, HarnessTexts,
     ImageDescriptionTexts, ImageNameTexts, JobTexts, PeerIdleTexts, PeerTexts, PermissionTexts,
     PersonaTexts, RebuildTexts, RecapTexts, ShortenTexts, Sources, TextFileTexts, TitleTexts,
     ToolResultTexts, TurnEndedTexts, VisionTexts, Wrap,
@@ -161,6 +161,27 @@ impl ResourceRoot {
     /// 读不了这份文件，写明是哪一份。
     pub fn subagent_venue(&self) -> Result<String, SourceError> {
         self.read(&["core", "jobs", "subagent-venue.txt"])
+    }
+
+    /// 群会话的格式说明（施工 O-13 中）：`core/venues/group.txt` 的原文，造群会话时接在人设后面（`Snapshot::with_group`）。
+    ///
+    /// # Errors
+    ///
+    /// 读不了这份文件，写明是哪一份。
+    pub fn group_note(&self) -> Result<String, SourceError> {
+        self.read(&["core", "venues", "group.txt"])
+    }
+
+    /// 群会话钉下的（施工 O-13 中）：时区 `offset`（比 UTC 早多少分钟），空的一条写什么照 `core/venues/no-text.txt` 的原文。
+    ///
+    /// # Errors
+    ///
+    /// 读不了这份文件，写明是哪一份。
+    pub fn group_chat(&self, offset: i32) -> Result<GroupChat, SourceError> {
+        Ok(GroupChat {
+            offset,
+            no_text: self.read(&["core", "venues", "no-text.txt"])?,
+        })
     }
 
     /// 常用的几家（施工 8-11 再补）：`models/featured.toml` 的原文，`provider.catalog {"featured": true}` 每次照它列。

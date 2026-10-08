@@ -19,7 +19,7 @@ use miyu_store::log::read_events;
 use miyu_tool::Catalog;
 
 use crate::support::extensions::*;
-use crate::support::venues::BINDINGS;
+use crate::support::venues::{BINDINGS, snapshot};
 use crate::support::*;
 
 /// 包 `id` 的清单：程序 `program`、参数 `args`，`start`、`system_account` 照写。
@@ -199,6 +199,12 @@ async fn the_bridge_runs_as_its_system_account_and_owns_the_group() {
         "没写 cwd 的是它自己的工作区"
     );
     assert!(workspace.is_dir(), "起来时建了它的工作区");
+    // 群会话（施工 O-13 中）：快照钉下时区、system 接上格式说明。
+    let note =
+        std::fs::read_to_string(default_resources().join("core/venues/group.txt")).expect("读得到");
+    let made = snapshot(&home, &bot(), &groups);
+    assert!(made.group.is_some(), "群会话钉下时区");
+    assert!(made.system.contains(note.trim_end()));
     // 群归系统账号以后，对应表认出的主人在群里说的是外部身份带账号，不是本人（`as` 照会话的属主比）。
     let owner_said = read_events(&groups)
         .expect("读得了")
@@ -218,6 +224,9 @@ async fn the_bridge_runs_as_its_system_account_and_owns_the_group() {
     );
     let mine = private["session"].as_str().expect("有编号").to_string();
     assert!(dir(&home, &alice(), &mine).is_dir());
+    let made = snapshot(&home, &alice(), &dir(&home, &alice(), &mine));
+    assert_eq!(made.group, None, "私聊不是群会话");
+    assert!(!made.system.contains(note.trim_end()));
     assert!(
         got[6].get("error").is_none(),
         "系统账号的连接照样能对主人的会话说话：{got:?}"

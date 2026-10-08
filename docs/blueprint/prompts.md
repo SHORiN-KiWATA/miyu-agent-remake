@@ -2447,6 +2447,32 @@ No notice came within {hours} hours, so the request was dropped.
 The session no longer exists.
 ```
 
+### system，群会话：人设后面空一行（和子会话的场所说明同一个位置）
+
+#### `core/venues/group.txt`
+
+- 什么时候加进来：群会话（`venue.session` 的 `kind` 是 `group`）的每次请求（施工 O-13 中）；只在造会话时拼，私聊、本机的会话不带，以前造的快照一个字节不变
+- token：50（2026-10-09 主会话在 DeepSeek 官方 `deepseek-flash` 上量，接在 system 后面空一行）
+- 为什么加：群里谁都能说话，她看到的一行一条带着时刻、名字、平台编号，格式在 system 里说一次（`18-通讯平台.md` 第九节，2026-10-07 定）。只陈述是什么：编号稳定、名字会变（群名片人人能改），`[you]` 是她自己。`id=` 跟着每条消息的 `show_ids` 有时有、有时没有，说明写成两种情况都对的一句，不随它换（2026-10-09 主会话和通讯平台的会话定）
+- 指纹：`faba8d8c`
+
+```text
+Group messages look like [HH:MM] name (id=..., role) [msg=...]: text, with optional indented reply-to and @mentions lines. Ids are stable, names are not. [you] is you.
+```
+
+### 人这边：群里一行的内容
+
+#### `core/venues/no-text.txt`
+
+- 什么时候加进来：群会话里，群里的人发的一条既没有字、也没有带的东西（施工 O-13 中）
+- token：4（2026-10-09，同上：放进一行的内容里，比只放一个字母多 4）
+- 为什么加：照旧版的 `[no text content]`：一行的内容不能是空的，空着她看不出这一条是什么
+- 指纹：`932276e4`
+
+```text
+[no text content]
+```
+
 ### 回顾那一次请求，不进主对话
 
 #### `core/recap/instruction.txt`

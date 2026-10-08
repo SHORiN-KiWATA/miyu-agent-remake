@@ -16,6 +16,7 @@
 //! 冻结在会话上的东西，也就是稳定区和给模型看的几句固定的字，在造组装器的时候交进来，
 //! 一个会话一个（内核 K3）。这里不读文件：出厂的字由执行器从资源目录读好交进来。
 
+mod group;
 mod harness;
 mod jobs;
 mod peers;
@@ -31,7 +32,7 @@ mod vision;
 mod test_support;
 
 pub use texts::{
-    HarnessTexts, IdleTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title,
+    GroupChat, HarnessTexts, IdleTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title,
     TurnEndedTexts, Vision,
 };
 
