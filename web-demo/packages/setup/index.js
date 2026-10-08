@@ -3,7 +3,7 @@
 //! - 空会话：输入框正上方「选择人格」「选择预设」「设置工作区」三个按钮（挂载位 `composer.above`），选了以后按钮上的字换成选中的；没选的照默认
 //!   的用，开会话时由整页带上（服务 `chat` 的 `draft`、`setDraft`）。默认的预设、（照预设算出来的）默认人格用不了，锁住输入框，选了才能打字。
 //! - 开着的会话：对话区左上角一小条（挂载位 `stage.info`）：人格名 · 预设名 · 工作目录，点目录那一截换工作区。
-//! - `/workspace [路径]`：换这个会话以后在哪干活（服务 `chat` 的 `setWorkdir`）；不带路径的开工作区的菜单。
+//! - `/workspace [路径]`：换这个会话在哪干活（服务 `chat` 的 `setWorkdir`，核心 9-7 的 `session.set_workspace`）；不带路径的开工作区的菜单。
 //! - 设置页：「人格」「预设」两页（`settings.section`），通用页的默认人格、默认预设给下拉的选项（`settings.editor`）。
 
 import { h, icon, replace } from '../../src/lib/dom.js';
@@ -137,29 +137,41 @@ export function apply(ctx) {
     });
   };
 
-  /** 换到这个目录：空会话改选的工作区（默认的记成没选），开着的会话之后每句话带上；记进最近用过的。 @param {string} path */
-  const use = (path) => {
+  /** 核心拒了换目录的原因写给人看的一句（`fs.list`、`session.set_workspace` 同一套原因码）。 @param {any} err */
+  const refused = (err) => err?.reason === 'path_forbidden' ? t('forbidden') : err?.reason === 'not_a_directory' ? t('not_a_dir')
+    : err?.reason === 'path_unreadable' ? t('not_dir') : err?.message ?? String(err);
+
+  /**
+   * 换到这个目录：空会话改选的工作区（默认的记成没选；开会话时核心才判，这里先问 `fs.list` 能不能用）；开着的会话交给核心换
+   * （`session.set_workspace`，核心 9-7：会话记着、别的头跟着换，不在、不是目录、在数据根里的当场拒）。成了记进最近用过的。
+   * 交回一句错，成了是 `null`。
+   * @param {string} path
+   */
+  const use = async (path) => {
     const session = chat.current();
     const def = chat.defaultWorkdir();
-    if (!session) chat.setDraft({ cwd: path === def ? null : path });
-    else {
-      chat.setWorkdir(session, path);
-      ctx.composer.say(t('workspace_set', { path: tilde(path, home()) }), true);
+    try {
+      if (!session) {
+        await ctx.core.request('fs.list', { cwd: path, dir: '' });
+        chat.setDraft({ cwd: path === def ? null : path });
+      } else {
+        const actual = await chat.setWorkdir(session, path);
+        // 太宽退回了工作区的，`workdir.adjusted` 那边提示
+        if (actual === path) ctx.composer.say(t('workspace_set', { path: tilde(path, home()) }), true);
+      }
+    } catch (err) {
+      return refused(err);
     }
     ctx.storage.set(RECENT, remember(recent(), path, def, 5));
+    return null;
   };
+  /** 菜单里点一项：错了写进提示。 @param {string} path */
+  const pickDir = (path) => use(path).then((why) => { if (why) ctx.composer.say(why); });
 
-  /** 先问核心这个目录能不能用（`fs.list`：不在、不是目录、落在数据根里的拒掉）；交回一句错，能用的是 `null`。 @param {string} text */
+  /** 输入框里写的路径：先认写法，再换；交回一句错，成了是 `null`。 @param {string} text */
   const check = async (text) => {
     const path = readPath(text);
-    if (!path) return t('relative');
-    try {
-      await ctx.core.request('fs.list', { cwd: path, dir: '' });
-    } catch (err) {
-      return err?.reason === 'path_forbidden' ? t('forbidden') : t('not_dir');
-    }
-    use(path);
-    return null;
+    return path ? use(path) : t('relative');
   };
 
   /** 工作区的菜单：默认工作区、最近用过的、「选择文件夹…」，最下面写路径。 @param {HTMLElement} anchor @param {boolean} below */
@@ -173,10 +185,10 @@ export function apply(ctx) {
       hint: t('menu_hint'),
       below,
       rows: [
-        { title: t('default_workspace'), desc: tilde(def, home()), current: now === def, pick: () => use(def) },
+        { title: t('default_workspace'), desc: tilde(def, home()), current: now === def, pick: () => pickDir(def) },
         ...(others.length ? [{ section: t('recent') }] : []),
-        ...others.map((p) => ({ title: dirName(tilde(p, home())), desc: tilde(p, home()), current: now === p, pick: () => use(p) })),
-        { title: t('folders.open'), icon: 'folder-open', pick: () => browse(ctx, which, anchor, below, now, use, (p) => tilde(p, home())) },
+        ...others.map((p) => ({ title: dirName(tilde(p, home())), desc: tilde(p, home()), current: now === p, pick: () => pickDir(p) })),
+        { title: t('folders.open'), icon: 'folder-open', pick: () => browse(ctx, which, anchor, below, now, pickDir, (p) => tilde(p, home())) },
       ],
       input: { hint: t('path_hint'), submit: check },
     });
@@ -199,7 +211,6 @@ export function apply(ctx) {
   ctx.slots.mount('stage.info', { id: 'setup', order: 10, render: () => infoWrap });
   ctx.on('view.changed', () => draw());
   ctx.on('draft.changed', () => draw());
-  ctx.on('workdir.changed', () => draw());
   ctx.on('session.opened', (id) => { if (id === null) load(); else draw(); });
   ctx.on('session.created', () => draw());
   // 核心照「工作目录太宽」退回了工作区：照实际的提示一句，用不了的那个不留在最近用过里

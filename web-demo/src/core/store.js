@@ -26,8 +26,8 @@ import { SessionIndex } from './session-index.js';
  *   `first` 读进来的最早一条的序号，`more` 还有更早的（`view.page`，核心 9-6 下），`paged` 往前翻过，`older` 正在读更早的一页
  */
 /**
- * @typedef {{upto: number, usage: any, permission: {level: string, read_only: boolean}|null, jobs: any[]|null}} Base
- *   订阅回应里「这一刻的」（核心 9-6 上）：累计用量、权限级别、还在跑的任务，截到 `upto`；头照它起头，之后只加序号比它大的
+ * @typedef {{upto: number, usage: any, permission: {level: string, read_only: boolean}|null, jobs: any[]|null, workspace: {cwd: string, dirs?: string[]}|null}} Base
+ *   订阅回应里「这一刻的」（核心 9-6 上、9-7 上）：累计用量、权限级别、还在跑的任务、工作区，截到 `upto`；头照它起头，之后只看序号比它大的
  */
 
 /** 还在跑的任务的种子（核心 9-6 上的 `jobs`）：一条不画的事件放在最前面，派它的那条在更早的页里时照它认（`lib/jobs.js`），读到真的那条就被盖掉。 */
@@ -177,9 +177,9 @@ export class Store {
   async subscribe(s, after) {
     s.replaying = true;
     try {
-      const { limits, model, todos, upto, usage, permission, jobs } = await this.conn.request('subscribe', { session: s.id, stream: 'events', after });
-      // 「这一刻的」（核心 9-6 上）：旧核心没有的是 `null`，照读进来的日志算
-      s.base = { upto: upto ?? after, usage: usage ?? null, permission: permission ?? null, jobs: jobs ?? null };
+      const { limits, model, todos, upto, usage, permission, jobs, workspace } = await this.conn.request('subscribe', { session: s.id, stream: 'events', after });
+      // 「这一刻的」（核心 9-6 上、9-7 上）：旧核心没有的是 `null`，照读进来的日志算
+      s.base = { upto: upto ?? after, usage: usage ?? null, permission: permission ?? null, jobs: jobs ?? null, workspace: workspace ?? null };
       seed(s);
       s.limits = limits ?? s.limits ?? {};
       // 会话接下来请求的模型（核心施工 8-10）：框下面那一行照它写

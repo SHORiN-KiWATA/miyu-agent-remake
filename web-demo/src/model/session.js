@@ -100,12 +100,17 @@ export function untouchedTurn(events, live) {
 }
 
 /**
- * 一个会话现在在哪个目录干活（蓝图「人格、预设、工作区」第 5 条）：最后一条带 `cwd` 的 `turn.started`（头报的写法），没有的照
- * `session.created` 的；都没有的是 `null`。
+ * 一个会话现在在哪个目录干活（蓝图「人格、预设、工作区」第 5 条；核心 9-7 起工作区是会话的属性）：订阅回应以后来的
+ * `session.workspace_changed`（哪个头换的都算），没有的照订阅回应的 `workspace`；旧核心两样都没有，照最后一条带 `cwd` 的
+ * `turn.started`、`session.created` 的。都没有的是 `null`。
  * @param {any[]} events
+ * @param {{upto: number, workspace?: {cwd: string}|null}|null} [base] 订阅回应里「这一刻的」
  * @returns {string|null}
  */
-export function sessionCwd(events) {
+export function sessionCwd(events, base = null) {
+  const changed = events.findLast((e) => e.kind === 'session.workspace_changed' && typeof e.body?.cwd === 'string' && (!base || e.seq > base.upto));
+  if (changed) return changed.body.cwd;
+  if (base?.workspace?.cwd) return base.workspace.cwd;
   const turn = events.findLast((e) => e.kind === 'turn.started' && typeof e.body?.cwd === 'string');
   return turn?.body.cwd ?? events.find((e) => e.kind === 'session.created')?.body.cwd ?? null;
 }

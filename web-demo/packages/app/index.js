@@ -42,7 +42,7 @@ export function apply(ctx) {
     /** 还没开的新会话选的人格、预设、工作区：开会话时带上（事件 `draft.changed`） */
     draft: () => ({ ...app.draft }),
     setDraft: (patch) => app.setDraft(patch),
-    /** `/workspace`：这个会话之后在哪个目录干活（事件 `workdir.changed`；核心退回了工作区的来 `workdir.adjusted`） */
+    /** 换这个会话在哪干活（核心 9-7 的 `session.set_workspace`）：交回实际的目录，拒了的抛出来；太宽退回工作区的来事件 `workdir.adjusted` */
     setWorkdir: (session, cwd) => app.setWorkdir(session, cwd),
     /** 会话用的人格（核心 P-1 下：`session.created` 的 `persona`，没读进来的照会话表那一项的；以前的日志没有，是 `null`） */
     persona: (id) => app.store.sessions.get(id)?.events.find((e) => e.kind === 'session.created')?.body.persona ?? app.store.index.get(id)?.persona ?? null,
