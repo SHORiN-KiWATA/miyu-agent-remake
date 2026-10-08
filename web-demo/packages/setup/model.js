@@ -83,10 +83,21 @@ export function tilde(path, home) {
 }
 
 /** 示范对话的一对：你说的、人格回的。 @typedef {{user: string, assistant: string}} Pair */
+/** `persona.set`、`preset.set` 的一项改动。 @typedef {{key: string, value?: string, unset?: true}} Change */
+
+/**
+ * 说明改了发什么：写了的发字，清空了去掉这一项（说明不收空字）；没变的什么都不发。
+ * @param {'persona'|'preset'} kind @param {string} before @param {string} after @returns {Change[]}
+ */
+export function summaryChange(kind, before, after) {
+  const text = after.trim();
+  if (text === before.trim()) return [];
+  return [text ? { key: `${kind}.summary`, value: text } : { key: `${kind}.summary`, unset: true }];
+}
 
 /**
  * 编辑器里的人格（详情的四样）和读进来时提示词的版本（存的时候当 `expect` 带回去，防覆盖别处的改动）。
- * @typedef {{name: string, persona: string, reminders: string, pairs: Pair[], versions: {persona: string|null, reminders: string|null, examples: string|null}}} PersonaDraft
+ * @typedef {{name: string, summary: string, persona: string, reminders: string, pairs: Pair[], versions: {persona: string|null, reminders: string|null, examples: string|null}}} PersonaDraft
  */
 
 /** 示范对话要存的那几对：字前后的空白去掉，两头都空的不要。 @param {Pair[]} pairs @returns {Pair[]} */
@@ -100,16 +111,21 @@ export function halfPair(pairs) {
 }
 
 /**
- * 点「存」发什么（`persona.set` 的 `changes`、`prompts`）：和读进来的比，变了的才发；提示词带读进来时的版本。
+ * 点「保存」发什么（`persona.set` 的 `changes`、`prompts`）：和读进来的比，变了的才发；提示词带读进来时的版本。
  * 人设、角色扮演提示清空了发空字（人要的是「不要这一段」，`unset` 在出厂人格上会回到出厂的字）；示范对话没有了发空的一对对。
+ * 说明清空了去掉这一项（说明不收空字）。
  * @param {PersonaDraft} before @param {PersonaDraft} after
- * @returns {{changes?: {key: string, value: string}[], prompts?: Record<string, any>}|null} 什么都没变是 `null`
+ * @returns {{changes?: Change[], prompts?: Record<string, any>}|null} 什么都没变是 `null`
  */
 export function personaSave(before, after) {
-  /** @type {{changes?: {key: string, value: string}[], prompts?: Record<string, any>}} */
+  /** @type {{changes?: Change[], prompts?: Record<string, any>}} */
   const out = {};
+  /** @type {Change[]} */
+  const changes = [];
   const name = after.name.trim();
-  if (name && name !== before.name) out.changes = [{ key: 'persona.name', value: name }];
+  if (name && name !== before.name) changes.push({ key: 'persona.name', value: name });
+  changes.push(...summaryChange('persona', before.summary, after.summary));
+  if (changes.length) out.changes = changes;
   const prompts = {};
   for (const key of /** @type {const} */ (['persona', 'reminders'])) {
     if (after[key].trim() !== before[key].trim()) prompts[key] = { text: after[key].trim(), expect: before.versions[key] };

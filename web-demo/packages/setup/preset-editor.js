@@ -1,12 +1,12 @@
 // @ts-check
-//! 预设的详情（蓝图 `web.md`「人格、预设、工作区」第 6 条）：在列表里原地展开，三样——名字、默认人格、功能开关（2026-10-08 项目主人）。
-//! 都是点了当场存（`preset.set` 只带改的那一项，不带 `expect`）：名字回车、离开时存，默认人格选了就存，开关点了就存；功能照核心给的
+//! 预设的详情（蓝图 `web.md`「人格、预设、工作区」第 6 条）：在列表里原地展开——名字、说明、默认人格、功能开关（2026-10-08 项目主人）。
+//! 都是点了当场存（`preset.set` 只带改的那一项，不带 `expect`）：名字、说明回车、离开时存，默认人格选了就存，开关点了就存；功能照核心给的
 //! 名字（`software`，照连接的语言），没装的写「没安装」。删除照核心的 `remove`，同人格。
 
 import { h, replace } from '../../src/lib/dom.js';
-import { part, row, head, twoClick } from './form.js';
+import { field, head, twoClick } from './form.js';
 import { refusalText } from './persona-editor.js';
-import { personaName } from './model.js';
+import { personaName, summaryChange } from './model.js';
 
 /** @typedef {{saved: () => void, removed: (remains: boolean) => void, close: () => void}} Hooks */
 
@@ -43,6 +43,11 @@ export class PresetEditor {
     const label = typeof got.name === 'string' ? got.name : '';
     this.title.textContent = label || this.id;
     const name = this.kit.text(label, '', (text) => { if (text) this.set([{ key: 'preset.name', value: text }]); });
+    const was = typeof got.summary === 'string' ? got.summary : '';
+    const summary = this.kit.text(was, t('edit.preset_summary_hint'), (text) => {
+      const changes = summaryChange('preset', was, text);
+      if (changes.length) this.set(changes);
+    });
     const personas = (this.catalog.personas ?? []).filter((p) => !p.problem).map((p) => ({ value: p.persona, name: personaName(p) }));
     const persona = this.kit.select([{ value: null, name: t('edit.no_default') }, ...personas], got.default_persona ?? null,
       (v) => this.set([v == null ? { key: 'preset.default_persona', unset: true } : { key: 'preset.default_persona', value: v }]));
@@ -55,9 +60,10 @@ export class PresetEditor {
     this.note = h('p.setup-error', { hidden: true });
     const remove = got.remove ? twoClick(this.kit, t(`edit.${got.remove}`), t(`edit.${got.remove}_again`), () => this.drop()) : null;
     replace(this.body,
-      row(t('edit.name'), null, name),
-      row(t('edit.default_persona'), t('edit.default_persona_desc'), persona),
-      part(t('edit.features'), software.length ? features : h('p.setup-empty', t('edit.no_features'))),
+      field(t('edit.name'), name),
+      field(t('edit.summary'), summary),
+      field(t('edit.default_persona'), persona, t('edit.default_persona_desc')),
+      field(t('edit.features'), software.length ? features : h('p.setup-empty', t('edit.no_features'))),
       this.note,
       remove ? h('div.setup-foot', remove) : null);
   }

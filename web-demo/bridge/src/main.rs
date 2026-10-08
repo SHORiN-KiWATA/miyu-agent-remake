@@ -16,12 +16,14 @@
 //! - 附件不经桥：页面经 WebSocket 分块直接传给核心（`blob.open`、`blob.write`、`blob.close`，核心施工 W-5）。
 //! - 链接卡片不经桥：页面直接问核心的 `link.preview`，卡片的图是 blob，照 `/blob` 取（核心施工 W-7）。
 //! - `@` 选文件不经桥：页面直接问核心的 `fs.list`、`fs.find`（核心施工 W-2）。
+//! - 选工作区的「选择文件夹…」经 `/pick-dir?k=口令&title=…&start=…` 开系统的选目录对话框（`dialog.rs`），回选的绝对路径。
 //!
 //! 用法：`cargo run -- [端口]`，默认 8765；页面文件是这个 crate 上一层的 `web-demo/`。
 //! 核心没在跑、给了 `MIYU_CORE_BIN` 的，拉起来（`<它> core`）；别的环境变量（`MIYU_HOME`、数据根的配置里
 //! key 引用的那个，开发用的是 `DEEPSEEK_API_KEY`）由拉起的核心照常读。
 
 mod core;
+mod dialog;
 mod files;
 mod link;
 mod media;

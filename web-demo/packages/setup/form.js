@@ -1,5 +1,5 @@
 // @ts-check
-//! 人格、预设编辑器共用的几样（软件包 `setup`，蓝图 `web.md`「人格、预设、工作区」第 6 条）：一段的小标题、一行名字和控件、跟着字长高的
+//! 人格、预设编辑器共用的几样（软件包 `setup`，蓝图 `web.md`「人格、预设、工作区」第 6 条）：一个字段（字段名和控件）、跟着字长高的
 //! 多行框（空着时占位字说写什么，不另加说明行）、点两次才做的按钮（删除、恢复出厂，不弹窗）、新建时只填名字的那一块。控件照设置页给的
 //! `kit`（`settings/kit.js`），和设置页长一个样。
 
@@ -17,11 +17,11 @@ import { h, icon } from '../../src/lib/dom.js';
  * }} Kit
  */
 
-/** 一段：暗色小标题，下面是内容。 @param {string} title @param {...any} kids */
-export const part = (title, ...kids) => h('div.setup-part', h('h5.setup-part-name', title), ...kids);
-
-/** 一行：左边名字（下面可以有一行暗色的说明），右边控件。 @param {string} name @param {string|null} desc @param {HTMLElement} control */
-export const row = (name, desc, control) => h('div.setup-row', h('div.setup-row-text', h('span.setup-row-name', name), desc ? h('span.setup-row-desc', desc) : null), control);
+/**
+ * 一个字段：左边字段名（下面可以有一行暗色的说明），右边控件；照设置页编辑供应商的表单（2026-10-08 项目主人：铺在页面上，不用白卡片）。
+ * @param {string} name @param {HTMLElement} control @param {string|null} [desc]
+ */
+export const field = (name, control, desc = null) => h('div.setup-field', h('div.setup-field-name', h('span', name), desc ? h('small', desc) : null), h('div.setup-field-control', control));
 
 /** 编辑器的头：名字，右边「收起」。 @param {HTMLElement} title @param {string} label @param {() => void} close */
 export const head = (title, label, close) => h('div.setup-head', title, h('button.setup-collapse', { type: 'button', onclick: close }, label, icon('chevron-down')));
@@ -80,10 +80,10 @@ export function twoClick(kit, label, again, run) {
  * @param {(name: string) => Promise<string|null>} create @param {() => void} cancel
  */
 export function nameFirst(kit, t, title, hint, create, cancel) {
-  const field = kit.field('', hint);
+  const input = kit.field('', hint);
   const err = h('p.setup-error', { hidden: true });
   const submit = async () => {
-    const name = field.value.trim();
+    const name = input.value.trim();
     if (!name) return;
     ok.disabled = true;
     const why = await create(name);
@@ -93,18 +93,18 @@ export function nameFirst(kit, t, title, hint, create, cancel) {
   };
   const ok = kit.button(t('edit.create'), { primary: true }, submit);
   ok.disabled = true;
-  field.addEventListener('input', () => { ok.disabled = !field.value.trim(); });
-  field.addEventListener('keydown', (e) => {
+  input.addEventListener('input', () => { ok.disabled = !input.value.trim(); });
+  input.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' || e.isComposing) return;
     e.preventDefault();
     submit();
   });
   const el = h('div.setup-card.is-open', { 'data-set-dismiss': '' },
     h('div.setup-head', h('h4', title)),
-    row(t('edit.name'), null, field),
+    field(t('edit.name'), input),
     err,
     h('div.setup-foot', h('span.setup-grow'), kit.button(t('edit.cancel'), {}, cancel), ok));
   el.addEventListener('set-dismiss', cancel);
-  requestAnimationFrame(() => field.focus());
+  requestAnimationFrame(() => input.focus());
   return el;
 }

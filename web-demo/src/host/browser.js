@@ -8,6 +8,8 @@
 //! - 连核心的线是一条 WebSocket（`/ws`）；本机文件、blob（链接卡片的配图、图标也是 blob）的地址是桥的 `/file`、`/blob`；
 //!   附件的字节从浏览器的文件里切一段读出来（`files.read`），页面分块传给核心（蓝图 `web.md`「附件」第 2 条，核心施工 W-5）。
 //! - 链接照网页的写法（`target=_blank`、`download`），浏览器自己会办，`intercept` 什么都不做。
+//! - 选目录：浏览器给不了本机路径，请桥开系统的选目录对话框（`/pick-dir`，桥的 `dialog.rs`）；页面开在别的机器上的（地址不是本机）
+//!   不请，对话框会开在桥那台机器上、人看不到。
 
 /**
  * @typedef {{name: string, size: number, type: string, file?: Blob, path?: string, stored?: {session: string, hash: string}}} FileRef
@@ -186,6 +188,27 @@ async function checkKey(key) {
   }
 }
 
+/** 页面和桥在同一台机器上（地址是本机）。 */
+const onThisMachine = () => ['127.0.0.1', 'localhost', '[::1]', '::1'].includes(location.hostname);
+
+/**
+ * 选目录：请桥开系统的对话框（2026-10-08 项目主人：选择文件夹应该打开目录选择器）。交回选的绝对路径；点了取消的交 `false`；
+ * 开不了的（页面开在别的机器上、桥那台机器上没有对话框程序、问不到桥）交 `null`，用的地方退回自己画的文件夹浏览器。
+ * @param {string} key @param {{title?: string, start?: string}} [opts] `start` 从哪个目录开始
+ * @returns {Promise<string|false|null>}
+ */
+async function pickDir(key, opts = {}) {
+  if (!onThisMachine()) return null;
+  try {
+    const q = new URLSearchParams({ k: key, title: opts.title ?? '', start: opts.start ?? '' });
+    const got = await (await fetch(`/pick-dir?${q}`, { cache: 'no-store' })).json();
+    if (typeof got?.path === 'string') return got.path;
+    return got?.cancelled ? false : null;
+  } catch {
+    return null;
+  }
+}
+
 /** 起浏览器这个宿主；链接里、这个标签页里都没有桥的口令的交 `null`（页面说连不上桥）。 */
 export function browserHost() {
   const key = bridgeKey();
@@ -204,8 +227,8 @@ export function browserHost() {
       refs,
       text: (/** @type {FileRef} */ ref, /** @type {number} */ max) => text(key, ref, max),
       read,
-      /** 选目录：浏览器给不了本机路径，交 `null`（用的地方自己画文件夹浏览器，照核心列；桌面端是系统的对话框） */
-      pickDir: async () => null,
+      /** 选目录：请桥开系统的对话框（见上面的 `pickDir`） */
+      pickDir: (/** @type {{title?: string, start?: string}} */ opts) => pickDir(key, opts),
     },
     /** 外面的链接：新标签页。 */
     open: (/** @type {string} */ url) => { window.open(url, '_blank', 'noopener'); },

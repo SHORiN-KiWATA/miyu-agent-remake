@@ -1,6 +1,7 @@
 // @ts-check
-//! 选文件夹（蓝图 `web.md`「人格、预设、工作区」第 4 条）：桌面端照宿主的 `files.pickDir()` 开系统的选目录对话框；浏览器给不了本机路径
-//! （交 `null`），而且页面可能开在别的机器上，所以在菜单里画一个文件夹浏览器，列核心那台机器上的目录（`fs.list`，路径都照核心给的，
+//! 选文件夹（蓝图 `web.md`「人格、预设、工作区」第 4 条）：先照宿主的 `files.pickDir()` 开系统的选目录对话框（2026-10-08 项目主人：
+//! 选择文件夹应该打开目录选择器；浏览器经桥开，桌面端自己开），点了取消就算了；开不了的（交 `null`：页面开在别的机器上、那台机器上
+//! 没有对话框程序）在菜单里画一个文件夹浏览器，列核心那台机器上的目录（`fs.list`，路径都照核心给的，
 //! 哪个系统都一样）：顶上是现在的目录，一行一个子目录，点进去；「上一级」照 `fs.realpath` 的 `..`；「选这个目录」交出去。点开的点
 //! 文件夹不收起菜单。以点开头的隐藏目录不列（要用的直接写路径）。
 
@@ -47,8 +48,9 @@ export async function browse(ctx, menu, anchor, below, start, done, show) {
       foot: [button(t('folders.cancel'), false, () => menu.close()), button(t('folders.choose'), true, () => { menu.close(); done(dir); }, bad)],
     });
   };
-  // 桌面端：系统的选目录对话框（浏览器交 `null`）
-  const picked = await ctx.host?.files?.pickDir?.().catch(() => null);
-  if (picked) return done(picked);
+  // 系统的选目录对话框：选了交出去，取消了（`false`）就算了，开不了（`null`）才画浏览器
+  const picked = await ctx.host?.files?.pickDir?.({ title: t('folders.title'), start }).catch(() => null);
+  if (typeof picked === 'string') return done(picked);
+  if (picked === false) return;
   await go(start);
 }

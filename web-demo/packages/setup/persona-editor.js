@@ -1,11 +1,11 @@
 // @ts-check
-//! 人格的详情（蓝图 `web.md`「人格、预设、工作区」第 6 条）：在列表里原地展开，只有四样——名字、人设、示范对话、角色扮演提示
-//! （2026-10-08 项目主人：来自哪一层、以谁为底、编号都不露）。四样改完点「存」一起发一条 `persona.set`（写一半不生效），提示词带
+//! 人格的详情（蓝图 `web.md`「人格、预设、工作区」第 6 条）：在列表里原地展开，名字、说明、人设、示范对话、角色扮演提示
+//! （2026-10-08 项目主人：来自哪一层、以谁为底、编号都不露；说明人自己写，出厂的那句能改）。改完点「保存」一起发一条 `persona.set`（写一半不生效），提示词带
 //! `persona.read` 给的版本；「取消」收起、丢掉没存的。删除照核心的 `remove`：改过的出厂「恢复出厂」、自己建的「删除」，点两次才删。
 //! 别处改过了（`persona_conflict`）写一句、给「重新读」；写错的照核心给人看的那一句（`data.message`）。
 
 import { h, replace } from '../../src/lib/dom.js';
-import { part, row, head, area, twoClick } from './form.js';
+import { field, head, area, twoClick } from './form.js';
 import { Pairs } from './pairs.js';
 import { personaSave, halfPair } from './model.js';
 
@@ -46,6 +46,7 @@ export class PersonaEditor {
       this.remove = got?.remove ?? null;
       this.before = {
         name: typeof got?.name === 'string' ? got.name : '',
+        summary: typeof got?.summary === 'string' ? got.summary : '',
         persona: persona?.text ?? '',
         reminders: reminders?.text ?? '',
         pairs: Array.isArray(examples?.pairs) ? examples.pairs : [],
@@ -62,29 +63,31 @@ export class PersonaEditor {
     const t = this.t;
     this.title.textContent = d.name || this.id;
     this.name = this.kit.field(d.name, '');
+    this.summary = this.kit.field(d.summary, t('edit.summary_hint'));
     this.persona = area(d.persona, t('edit.persona_hint'), 4);
     this.reminders = area(d.reminders, t('edit.reminders_hint'), 2);
     const them = () => this.name?.value.trim() || t('edit.them');
     this.pairs = new Pairs(d.pairs, { you: t('edit.you'), them, add: t('edit.add_pair'), drop: t('edit.drop_pair'), userHint: t('edit.user_hint'), replyHint: t('edit.reply_hint') }, () => this.sync());
     this.name.addEventListener('input', () => { this.pairs?.rename(them()); this.sync(); });
-    for (const a of [this.persona, this.reminders]) a.addEventListener('input', () => this.sync());
+    for (const a of [this.summary, this.persona, this.reminders]) a.addEventListener('input', () => this.sync());
     this.note = h('p.setup-error', { hidden: true });
     this.saveBtn = this.kit.button(t('edit.save'), { primary: true }, () => this.save());
     const remove = this.remove ? twoClick(this.kit, t(`edit.${this.remove}`), t(`edit.${this.remove}_again`), () => this.drop()) : null;
     replace(this.body,
-      row(t('edit.name'), null, this.name),
-      part(t('edit.persona'), this.persona),
-      part(t('edit.examples'), this.pairs.el),
-      part(t('edit.reminders'), this.reminders),
+      field(t('edit.name'), this.name),
+      field(t('edit.summary'), this.summary),
+      field(t('edit.persona'), this.persona),
+      field(t('edit.examples'), this.pairs.el),
+      field(t('edit.reminders'), this.reminders),
       this.note,
       h('div.setup-foot', remove, h('span.setup-grow'), this.kit.button(t('edit.cancel'), {}, () => this.hooks.close()), this.saveBtn));
     this.sync();
   }
 
-  /** 编辑器里现在的四样。 @returns {PersonaDraft} */
+  /** 编辑器里现在写的。 @returns {PersonaDraft} */
   current() {
     const b = /** @type {PersonaDraft} */ (this.before);
-    return { ...b, name: this.name?.value ?? b.name, persona: this.persona?.value ?? b.persona, reminders: this.reminders?.value ?? b.reminders, pairs: this.pairs?.value() ?? b.pairs };
+    return { ...b, name: this.name?.value ?? b.name, summary: this.summary?.value ?? b.summary, persona: this.persona?.value ?? b.persona, reminders: this.reminders?.value ?? b.reminders, pairs: this.pairs?.value() ?? b.pairs };
   }
 
   /** 改了没存。 */

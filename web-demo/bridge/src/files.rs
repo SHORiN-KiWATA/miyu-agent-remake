@@ -1,4 +1,4 @@
-//! 页面文件：只认 `GET`，路径落在页面目录里才给；别的 404。开发用，不缓存。`/file`、`/blob` 交给 `media.rs`。
+//! 页面文件：只认 `GET`，路径落在页面目录里才给；别的 404。开发用，不缓存。`/file`、`/blob` 交给 `media.rs`，`/pick-dir` 交给 `dialog.rs`。
 
 use std::io;
 use std::path::Path;
@@ -36,6 +36,16 @@ pub async fn serve(mut stream: TcpStream, site: &Site) -> io::Result<()> {
     }
     if path == "/file" || path == "/blob" {
         return media::serve(&mut stream, site, path, query, &head).await;
+    }
+    if path == "/pick-dir" {
+        // 选目录（`dialog.rs`）：带口令才开；`start` 是从哪个目录开始，`title` 是对话框的标题
+        let q = media::params(query);
+        if q.get("k") != Some(&site.key) {
+            return reply(&mut stream, "403 Forbidden", "text/plain; charset=utf-8", b"").await;
+        }
+        let start = q.get("start").filter(|s| !s.is_empty()).map(String::as_str);
+        let picked = crate::dialog::pick_dir(q.get("title").map_or("", String::as_str), start).await;
+        return reply(&mut stream, "200 OK", "application/json; charset=utf-8", picked.json().as_bytes()).await;
     }
     if path == "/key" {
         // 页面连不上时问一句口令对不对（蓝图 `web.md`「连核心」第 9 条）：只回对不对，别的不说

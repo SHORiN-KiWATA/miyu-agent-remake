@@ -14,7 +14,7 @@ miyu-kernel = { path = "../../crates/miyu-kernel" }
 # 协议是 JSON-RPC：握手要往里塞本机令牌，`events.read` 要自己回。
 serde_json = "1"
 # 异步：一个浏览器标签页一条核心连接，互不等。
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "fs", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "fs", "time", "process"] }
 # 浏览器那头说 WebSocket（04 P2：浏览器、远程用 WebSocket，每帧一条消息）。MIT。
 tokio-tungstenite = "0.29"
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
