@@ -86,7 +86,8 @@
 │   ├── config.toml                     系统配置（config.md，施工 8-2 读，8-3 写）
 │   ├── secrets.toml                    密钥，Unix 上 0600，只经核心写（config.md，施工 8-5）
 │   ├── accounts.json                   网页登录的用户名、argon2id 的密码哈希，Unix 上 0600，只经核心写（web-module.md，施工 W-8）
-│   └── journal.jsonl                   系统日志：系统配置、密钥的改动（config.md，施工 8-3、8-5）
+│   ├── journal.jsonl                   系统日志：系统配置、密钥的改动（config.md，施工 8-3、8-5）
+│   └── modules/<包>/                   各包的系统数据：管理员维护，同名替换出厂的（例如 onebot 的违规词表 modules/onebot/moderation.txt，onebot.md 第一条，施工 O-21）
 ├── home/
 │   └── <账号>/                         核心起来时给 admin 建；退回工作区时缺了再补建
 │       ├── settings.toml               个人设置（config.md，施工 8-2 读，8-3 写）

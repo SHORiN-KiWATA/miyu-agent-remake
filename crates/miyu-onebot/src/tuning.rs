@@ -30,6 +30,8 @@ pub struct Tuning {
     pub hello_seconds: u64,
     /// `logs -f` 隔几毫秒看一次运行日志长了没有（施工 O-18）。
     pub follow_millis: u64,
+    /// 要用场所规则时，隔几毫秒才看一眼系统的两处变没变（施工 O-21，`onebot.md`「场所规则和出厂数据」第 3 条）。
+    pub rules_check_millis: u64,
     /// WebUI 的数（施工 O-16，`onebot.md` 第二条）。
     pub web: WebTuning,
 }
@@ -90,5 +92,10 @@ impl Tuning {
     /// `logs -f` 隔多久看一次。
     pub fn follow(&self) -> Duration {
         Duration::from_millis(self.follow_millis)
+    }
+
+    /// 隔多久才看一眼系统的场所规则变没变。
+    pub fn rules_check(&self) -> Duration {
+        Duration::from_millis(self.rules_check_millis)
     }
 }

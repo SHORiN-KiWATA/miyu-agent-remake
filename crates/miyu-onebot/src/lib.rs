@@ -15,6 +15,9 @@
 //! - [`web`]：桥自己的 WebUI（施工 O-16，第二条）：页面、`/ws` 转给核心、`/status`、`/token`、`/apply`，底子是共用的
 //!   `miyu-webserve`。
 //! - [`open`]：`miyu-onebot web`：桥在跑的话，开浏览器到 WebUI，还没设过登录密码的带上一次性码。
+//! - [`rules`]：场所规则和出厂数据（施工 O-21）：出厂的起来时读一次，系统的照群聊内核读好、合起来、套到场所上，变了下一次
+//!   用就照新的。
+//! - [`venue`]：`miyu onebot venue show <场所>`：一个场所每一项的值和来处（施工 O-21）。
 //!
 //! 分层照 `01-架构.md` 第九节第 5 层：只用本机传输连核心（WebUI 那一头用 `miyu-webserve`）；场所、平台上的人的编号经第 2
 //! 层的群聊内核 `miyu-chat` 拼；不依赖核心的 crate（`miyu-core`、`miyu-endpoint`，`18-通讯平台.md` 第一节）：配置由核心交
@@ -27,11 +30,13 @@ mod listen;
 pub mod logs;
 pub mod onebot;
 pub mod open;
+pub mod rules;
 pub mod serve;
 pub mod settings;
 pub mod status_file;
 pub mod texts;
 pub mod tuning;
+pub mod venue;
 pub mod web;
 
 /// 运行日志的目标。

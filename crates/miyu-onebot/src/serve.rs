@@ -4,7 +4,7 @@
 //! 1. 在 [`Pipe`] 上握手（`core`）：程序里是标准输入输出，核心拉起桥时接好的（施工 O-18，`extensions.md`），不带凭据。等不到
 //!    回应：[`Failure::NotSpawned`]；被拒、管道关了：[`Failure::Core`]。握手回了语言先告诉调的一方（之后说的都照它，端口被占
 //!    那一句也是，施工 O-20，「施工时定的」第 42 条）；回应里的 `config` 读成两个端口、令牌（[`Settings::handed`]，没交的端口
-//!    照清单的默认值）。
+//!    照清单的默认值）。握手以后读一次系统的场所规则，问题记运行日志（施工 O-21，[`Venues`]）。
 //! 2. 只听 `127.0.0.1` 的 `onebot.listen`。被占了：[`Failure::PortInUse`]。再听 `127.0.0.1` 的 `onebot.web`（WebUI，施工
 //!    O-16，第二条「怎么走」第 1 条）。被占了：[`Failure::WebPortInUse`]。听上了各说一行（[`Notice::Listening`]、
 //!    [`Notice::Web`]）。令牌没设的两个也照开，NapCat 连进来一律 401，人在 WebUI 里生成令牌，NapCat 下一次连就通
@@ -20,12 +20,14 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU16, AtomicU64};
+use std::time::Instant;
 
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::net::TcpListener;
 use tokio::sync::{Notify, mpsc};
 use tokio::task::JoinSet;
 
+use miyu_chat::Problem;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
@@ -35,6 +37,7 @@ use crate::core::route::Route;
 use crate::current::Current;
 use crate::listen::bots::Bots;
 use crate::listen::{self, Gate};
+use crate::rules::{Factory, Venues};
 use crate::settings::{Defaults, Settings};
 use crate::status_file;
 use crate::tuning::Tuning;
@@ -79,6 +82,8 @@ pub struct Serve {
     pub resources: ResourceRoot,
     /// 清单 `[settings]` 里两个端口的默认值：握手没交、推来 `null` 的照它（施工 O-20）。
     pub defaults: Defaults,
+    /// 出厂的场所规则、出厂参数、违规词表：握手以前读好、查过（施工 O-21，[`Factory::load`]）。
+    pub factory: Factory,
 }
 
 /// 说给人听的（「样子」）：怎么说照 `texts`。
@@ -131,6 +136,8 @@ pub enum Failure {
     Start(String),
     /// 跟核心的那一头崩了、发回话的任务崩了（是 bug）：原话。
     Crashed(String),
+    /// 出厂的场所规则、出厂参数、违规词表有问题（是打包的错，施工 O-21）：每一条问题。
+    Factory(Vec<Problem>),
 }
 
 /// 跑起来，直到 `stop` 到了（停的信号）或者核心关了管道。握手回了语言交给 `shaken`（之后说的话、起不来的原因都照它说），
@@ -147,6 +154,14 @@ pub async fn run(
 ) -> Result<(), Failure> {
     let core = Core::connect(serve.pipe, serve.locale.as_deref(), serve.tuning.hello()).await?;
     shaken(&core.language);
+    // 场所规则和出厂数据（施工 O-21）：读一次系统的，问题记进运行日志。用到它们的（进站链、主动回复判断、出站）随接群的
+    // 几步，现在只有起来时这一次（「施工时定的」第 54 条）。
+    let _venues = Venues::new(
+        serve.factory,
+        &serve.root,
+        serve.tuning.rules_check(),
+        Instant::now(),
+    );
     let settings = Settings::handed(&core.config, &serve.defaults);
     let (mut napcat, listen) = bind(settings.port, Failure::PortInUse).await?;
     let (mut pages, web_port) = bind(settings.web, Failure::WebPortInUse).await?;

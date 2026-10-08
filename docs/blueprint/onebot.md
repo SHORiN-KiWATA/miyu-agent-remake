@@ -4,14 +4,14 @@
 
 软件包 `miyu-onebot`：经 OneBot v11 接 QQ 的桥，和终端界面、网页平级的一个头（`docs/designs/18-通讯平台.md` 第三节、Q17）。它把 QQ 上的人接进场所会话，把她的回复发回 QQ；要不要开口、限流、出站这些和平台无关的部分在群聊内核 `miyu-chat`（`chat.md`），这里只管 QQ 这一头和跟核心的那一头。
 
-状态：图纸，随施工 O-8 起草（2026-10-07）。O-8 只有骨架：主人的私聊、只有文字（第一条）；O-8 补照 `chat.md` 第七条第 1 条改了编号的拼法（第一条第 7、8 条）；WebUI（第二条）随 O-16、O-17 起草，O-16 做了骨架和「连接」页，O-17 做了「主人与自己人」页。O-18 改成由核心拉起：经标准输入输出说协议，`miyu onebot start/stop/restart/status/logs`（第一条，2026-10-08）。O-19 接上斜杠命令：主人的私聊里 `/` 开头的先交核心的 `command.run`（第一条「斜杠命令」，2026-10-08）。O-20 改成用核心交的配置：握手回应的 `config`、推送 `extension.config`，桥不再自己读系统配置和密钥文件，`onebot.*` 四项挪进清单的 `[settings]`（第一条，2026-10-09）。群（连同群里的斜杠命令）、图片和文件、出站链与出站队列、WebUI 的其余几页随后面的步子。
+状态：图纸，随施工 O-8 起草（2026-10-07）。O-8 只有骨架：主人的私聊、只有文字（第一条）；O-8 补照 `chat.md` 第七条第 1 条改了编号的拼法（第一条第 7、8 条）；WebUI（第二条）随 O-16、O-17 起草，O-16 做了骨架和「连接」页，O-17 做了「主人与自己人」页。O-18 改成由核心拉起：经标准输入输出说协议，`miyu onebot start/stop/restart/status/logs`（第一条，2026-10-08）。O-19 接上斜杠命令：主人的私聊里 `/` 开头的先交核心的 `command.run`（第一条「斜杠命令」，2026-10-08）。O-20 改成用核心交的配置：握手回应的 `config`、推送 `extension.config`，桥不再自己读系统配置和密钥文件，`onebot.*` 四项挪进清单的 `[settings]`（第一条，2026-10-09）。O-21 读场所规则和出厂数据：出厂的、系统的规则文件、出厂参数、违规词表照群聊内核读好、套到场所上，系统的改了下一次用就照新的；`miyu onebot venue show` 印一个场所每一项的值和来处（第一条「场所规则和出厂数据」，2026-10-09）。群（连同群里的斜杠命令）、图片和文件、出站链与出站队列、WebUI 的其余几页随后面的步子。
 
 ### 在哪
 
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu-onebot/`（第 5 层，头） | 桥 |
-| `crates/miyu-onebot/src/main.rs` | 程序的入口：先找资源目录、读给人看的字（照系统的语言），再认子命令。`serve`（只由核心拉起，O-18）：装运行日志、读 `bridge.json` 和清单里两个端口的默认值（O-20），标准输入输出交给 `serve.rs`，握手回了语言就照它说（O-20）；`start`、`stop`、`restart`、`status`（O-18）交给 `control.rs`；`logs [-f]`（O-18）交给 `logs.rs`；`web [--print]`（O-16）：WebUI 的端口照状态文件的 `web`，没有状态文件的照清单的默认值（O-20），交给 `open.rs`；`-h`、`--help` 印用法（O-18） |
+| `crates/miyu-onebot/src/main.rs` | 程序的入口：先找资源目录、读给人看的字（照系统的语言），再认子命令。`serve`（只由核心拉起，O-18）：装运行日志、读 `bridge.json` 和清单里两个端口的默认值（O-20），标准输入输出交给 `serve.rs`，握手回了语言就照它说（O-20）；`start`、`stop`、`restart`、`status`（O-18）交给 `control.rs`；`logs [-f]`（O-18）交给 `logs.rs`；`web [--print]`（O-16）：WebUI 的端口照状态文件的 `web`，没有状态文件的照清单的默认值（O-20），交给 `open.rs`；`venue show <场所>`（O-21）交给 `venue.rs`；`-h`、`--help` 印用法（O-18）。`serve` 握手以前还读出厂的场所规则、出厂参数、违规词表（`rules.rs` 的 `Factory`，O-21） |
 | `resources/packages/onebot.toml`（O-18） | 软件包清单：`process` 包，子命令 `onebot`、程序 `miyu-onebot`，`[process] args = ["serve"]`、`start = "manual"`；`[settings]` 四项（O-20）（「软件包清单」） |
 | `crates/miyu-onebot/src/settings.rs` | 桥用的配置（O-20）：握手交来的 `config`、推送来的 `extension.config` 照键读成两个端口、令牌（`Settings`），没有的、`null` 的端口照清单 `[settings]` 的默认值（`Defaults`，照资源目录里的清单读），令牌没有就是没有；`onebot.trusted` 这一步不读 |
 | `crates/miyu-onebot/src/tuning.rs` | 读 `bridge.json`：桥自己的数（O-16 多 `web` 一格） |
@@ -30,8 +30,12 @@
 | `crates/miyu-onebot/src/onebot.rs`、`onebot/text.rs`、`onebot/calls.rs` | OneBot v11 的事件和动作：认一帧（私聊带上事件的 `time`）、读出私聊的文字、写 `send_private_msg`、调用和回应按 `echo` 配对；平台的名字 `qq`（`PLATFORM`）只写在 `onebot.rs`。三个小函数照它拼编号：`private_venue(号) -> Result<VenueId, FormatError>`、`person(号) -> Result<ExternalId, FormatError>` 经群聊内核拼（`Venue::new`、`miyu_chat::person`），`command_id(机器人的号, 消息编号, 时刻) -> String`（第 7、8 条） |
 | `crates/miyu-onebot/src/core.rs`、`core/route.rs` | 跟核心的那一头：在给的管道上（`Pipe`：程序里是标准输入输出，O-18；测试里是内存里的管道）握手、不带凭据，取握手回应的 `config`（O-20）、桥自己的 `account`（第 7 条），`venue.session`、带 `as` 的 `session.send`、订阅、她的回复发回去；推来的 `extension.config` 交给 `serve.rs`（O-20） |
 | `crates/miyu-onebot/src/core/route/command.rs`（O-19） | 斜杠命令：`/` 开头的先交 `command.run`，回执、被拒的那一句发回去，认不出的交回去照普通的话发（「斜杠命令」） |
+| `crates/miyu-onebot/src/rules.rs`（O-21） | 场所规则和出厂数据（「场所规则和出厂数据」）：出厂的起来时读一次、查一次（`Factory`）；系统的照群聊内核读好、和出厂的合起来（`load`、`Loaded`），套到场所上（`Loaded::at`）；什么时候重读（`Venues`：隔一阵看一眼系统的两处变没变，变了整份重读，问题记运行日志） |
+| `crates/miyu-onebot/src/rules/files.rs`（O-21） | 读文件：照配置文件的读法读一份（`miyu_store::config_file::read`），读不了的变成群聊内核的 `Problem`；列出 `venues.d/` 里的规则文件；系统的两处这一刻的样子（文件列表、修改时刻、大小） |
+| `crates/miyu-onebot/src/venue.rs`（O-21） | `venue show <场所>`：不连核心，照 `rules.rs` 读同样的文件，一项一行印值和来处，问题印在后面 |
 | `crates/miyu-onebot/src/texts.rs` | 说给人听的字：挑哪一句、换进什么字段，字照 `Human::load` 读（「给人看的字」） |
-| `resources/software/onebot/bridge.json` | 桥自己的数：认的路径、调用等多久、两个队列多长、接不了连接歇多久、握手等多久和 `logs -f` 隔多久看一次（O-18）（「对外的样子」） |
+| `resources/software/onebot/bridge.json` | 桥自己的数：认的路径、调用等多久、两个队列多长、接不了连接歇多久、握手等多久和 `logs -f` 隔多久看一次（O-18）、隔多久看一次系统的场所规则变没变（O-21）（「对外的样子」） |
+| `resources/software/onebot/venues.d/`、`defaults.toml`、`moderation.txt` | 出厂的场所规则、出厂参数、违规词表（写法、内容在 `chat.md` 第一条、第八条、第二条）；O-21 起桥读它们（「场所规则和出厂数据」） |
 | `resources/software/onebot/human/{zh,en,ja}.json` | 桥说给人听的字（「给人看的字」）；WebUI 页面的字（`web/` 开头，O-16；`web/people/` 开头的 O-17，第二条「给人看的字」） |
 | `resources/software/onebot/web/`（O-16） | WebUI 的页面：`index.html`、`app.js`（登录、骨架、「连接」页）、`people.js`（「主人与自己人」页，O-17）、`style.css`，原生 JS 的模块（第二条「施工时定的」第 25 条） |
 | `xtask/src/ledger.rs` | 登记簿门禁豁免 `software/onebot/bridge.json` 这一份文件：是数据，不发给模型；O-16 再豁免 `software/onebot/web/` 这一个目录：给浏览器的 |
@@ -58,6 +62,7 @@
 | `accept_retry_millis` | 100 | 接不了 TCP 连接（打开的文件太多这类）时歇几毫秒再接，不空转 |
 | `hello_seconds` | 10 | 跟核心握手，最多等几秒回应；等不到的（从终端跑起来的）说 `failure/not-spawned`、退出码 1（第 1 条，O-18） |
 | `follow_millis` | 500 | `logs -f` 隔几毫秒看一次运行日志长了没有（O-18） |
+| `rules_check_millis` | 1000 | 要用场所规则时，隔几毫秒才看一眼系统的两处变没变（O-21，「场所规则和出厂数据」第 3 条） |
 | `web` | 见第二条「对外的样子」 | WebUI 的数（O-16）：`csp`、`types`、`status_cache_seconds` |
 
 多一格、少一格、队列写 0、读不了：起不来（「出错」）。
@@ -72,10 +77,11 @@
 | `status` | 调 `extension.status`，取 `onebot` 那一个说：关着、正在起来、在跑（进程号）、退避中（几秒后再拉起、连续失败几次）、停下了（原因，带标准错误的最后几行）。在跑的、状态文件的进程号和它对得上的，再说 NapCat 连没连上、哪个实现和版本、机器人的号、两个地址（「状态文件」）。几个场所、出站队列积压几条随后面的步子 |
 | `logs [-f]` | 印运行日志 `state/logs/onebot.log`；标准错误那一份 `state/logs/onebot.stderr` 有内容的，先印它、再印运行日志，各带一行标题。`-f`：印完接着跟运行日志，每 `follow_millis` 看一次，文件变短了（换了一份）从头读，Ctrl+C 停 |
 | `web [--print]` | 打开 WebUI（第二条） |
+| `venue show <场所>`（O-21） | 一个场所每一项的值和来处，像 `udevadm info`（18 第四节「看和改」）：场所编号写成 `qq:group:<群号>`、`qq:private:<号>`。不连核心，照系统的语言说；读的文件和桥一样（「场所规则和出厂数据」第 6 条） |
 | `serve` | 只由核心拉起（`extensions.md`）：标准输入输出是协议，说给人听的在标准错误上。从终端跑起来，照协议发握手、等回应，`hello_seconds` 内等不到就说 `failure/not-spawned`、退出码 1 |
 | `-h`、`--help` | 用法印在标准输出上，退出码 0（`miyu help onebot` 转成 `--help`，9-2） |
 
-`start`、`stop`、`restart`、`status` 照终端的样子连核心（出示本机令牌，没在跑就拉起，和 `miyu-onebot web` 同一个 `miyu_webserve::open::Core`），握手以后照核心回的语言说。说的印在标准输出上，退出码 0；连不上核心（`failure/core`）、核心拒绝（照核心的原话）、核心那边没有 `onebot` 这个包（`status/missing`）印在标准错误上，退出码 1。`logs` 不连核心：日志印在标准输出上（原样的字节），还没有运行日志的在标准错误上说 `logs/none`。
+`start`、`stop`、`restart`、`status` 照终端的样子连核心（出示本机令牌，没在跑就拉起，和 `miyu-onebot web` 同一个 `miyu_webserve::open::Core`），握手以后照核心回的语言说。说的印在标准输出上，退出码 0；连不上核心（`failure/core`）、核心拒绝（照核心的原话）、核心那边没有 `onebot` 这个包（`status/missing`）印在标准错误上，退出码 1。`logs` 不连核心：日志印在标准输出上（原样的字节），还没有运行日志的在标准错误上说 `logs/none`。`venue show` 也不连核心：印在标准输出上，退出码 0（读文件时发现了问题也是 0：问题是印出来的一部分）；场所编号认不出的在标准错误上说 `venue/bad-venue`，退出码 2；出厂的数据有问题的在标准错误上说 `failure/factory` 和每一条问题，退出码 1。
 
 **软件包清单**（O-18，`resources/packages/onebot.toml`，照 `packages.md`）：
 
@@ -182,6 +188,42 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 11. **断开**：NapCat 断了，等它自己重连，桥不退。标准输入读到头（核心请它退出，或者核心不在了）、标准输出写不进：桥停下，退出码 0，不说话，运行日志记一行 `INFO core closed, stopping`；读到头 5 秒内退出（核心等 5 秒，没退的杀掉）。崩了以后由核心退避重启（O-18，「施工时定的」第 5、21 条）。跟核心的那一头崩了、发回话的任务崩了（都是 bug），说一句带原话、退出码 1，运行日志记一行 `ERROR`。Ctrl+C、SIGTERM 也是好好停下，退出码 0。
 12. **运行日志**：照 `miyu-log` 写 `state/logs/onebot.log`，满了照核心的换法。消息正文不进运行日志，只记场所、消息编号、字数（`28-运行日志.md`）。
 
+**场所规则和出厂数据**（O-21，2026-10-09；施工单「要定的」三条照推荐定：用的时候看一眼修改时刻、系统的写错了只丢坏的、系统的违规词表放 `system/modules/onebot/`）：写法、怎么套由群聊内核管（`chat.md` 第一条、第八条、第二条第 12 条），读文件是桥的事（群聊内核在第 2 层，不碰磁盘）。不占编号，和「斜杠命令」一样。
+
+1. **在哪**：
+
+   | 什么 | 出厂（资源目录的 `software/onebot/`） | 系统（数据根的 `system/`） |
+   |---|---|---|
+   | 场所规则 | `venues.d/*.toml` | `venues.d/*.toml`（07 第二节） |
+   | 出厂参数 | `defaults.toml` | 没有：要改写场所规则（`chat.md` 第八条「怎么走」第 3 条） |
+   | 违规词表 | `moderation.txt` | `modules/onebot/moderation.txt`：在的话整份替换出厂的（`chat.md` 第七条第 5 条；位置 2026-10-09 核心的主会话定：包自己的系统数据放 `system/modules/<包编号>/`，和 `home/<账号>/modules/<模块>/` 对称；不放 `system/packages/<包>/`，那是装进来的包本身，重装会整个换掉） |
+
+   规则文件是 `venues.d/` 里名字以 `.toml` 结尾、不以 `.` 开头的普通文件（跟着链接）；名字不是 UTF-8 的不认（「施工时定的」第 51 条）。
+2. **读**：一份文件照配置文件的读法读（`miyu_store::config_file::read`：超过 1 MiB 不读、开头的 BOM 去掉、不是 UTF-8 不读，`config.md`「怎么走」第二条第 2 条），读不成的变成群聊内核的 `Problem`：原因码照配置的 `unreadable`（带系统的原话）、`too_big`、`not_utf8`，没有第几条规则、键、位置；列不出 `venues.d/` 的也是一条 `unreadable`，文件名写 `venues.d`。规则文件交 `Rules::parse`（出厂的 `Source::Factory`、系统的 `Source::System`，文件名不带目录），出厂参数交 `Params::read`，违规词表交 `Moderation::parse_keywords`。
+   - **出厂的**：起来时读一次（`Factory::load`），握手以前，和 `bridge.json` 一样。规则文件单独过一遍 `Rules::parse`（合上系统的以后，被同名替换的那一份不读，单独过才查得全）。有一条问题（警告也算，照 `chat.md` 第八条施工时定的第 10 条）、出厂参数读不出来、哪一份不在或读不成，都是打包的错：在标准错误上说 `failure/factory`，接着每一条问题缩进两格一行（`venue/problem`），退出码 1，核心不再重启（`config_error`）。之后放在内存里，跑着不再读（「施工时定的」第 52 条）。
+   - **系统的**：出厂的规则文件合上系统的过 `Rules::parse`，坏的那一项、那一条规则、那一份文件照群聊内核的规矩丢，别的照用。系统那一份读不成的照空的用：规则文件照样替换同名的出厂那一份、自己没有规则（和 TOML 写法不对一样整份不用），违规词表照空的（没有词）（「施工时定的」第 50 条）。违规词表：系统那一份在的整份替换出厂的，不在的照出厂的。问题照文件名排，违规词表的在最后。
+3. **什么时候重读**（`Venues`）：要用时交进当时的时刻（`Instant`）。离上一次看不到 `bridge.json` 的 `rules_check_millis`（出厂 1000 毫秒）的，照手里的；到了，看一眼系统的两处这一刻的样子：`system/venues.d/` 里规则文件的列表、每一份的修改时刻和大小，`system/modules/onebot/moderation.txt` 的修改时刻和大小（不在也是一种样子；列不出 `venues.d/` 的记这个目录本身）。和上一次的一样，照手里的；不一样，整份重读系统的（第 2 条）。先记样子再读：读的时候又改了的，下一次看得出来。不监视文件（「施工时定的」第 53 条）。
+4. **记运行日志**：每读一次系统的（起来时那一次、变了重读的），每条问题一行 `WARN venue rules problem`（原因码、来处、文件、第几条规则、键、行、原文、为什么），读完一行 `INFO venue rules read problems=<条数>`。没变的不记，不会一条问题每秒记一次。
+5. **套场所**（`Loaded::at`）：`Rules::resolve(&venue)` 得出每一项的值和来处，再 `Params::at` 套上规则改的参数。
+6. **起来时**：握手以后读一次系统的（第 4 条记运行日志）。用到它们的（进站链、主动回复判断、出站）随接群的几步，现在桥里只有起来时这一次（「施工时定的」第 54 条）。
+7. **`venue show <场所>`**（「施工时定的」第 55 条）：场所编号照内核的 `VenueId` 再 `Venue::parse` 解，解不出的在标准错误上说 `venue/bad-venue`，退出码 2。读出厂的（出厂的有问题照第 2 条那样说，退出码 1），再读系统的（不记运行日志），套到这个场所上，在标准输出上印：
+   - 规则设到的每一项一行（`venue/entry`：键、值、来处），照键排；值照 TOML 的写法（字带引号、列表带方括号），参数照 `表.项`（`chatty.probability`）；来处是出厂或系统、文件名、第几条规则、第几行（`venue/rule`）。一项都没有的说 `venue/none`。
+   - 接着一句 `venue/defaults`：没列出的参数照出厂的 `defaults.toml`。参数的每一项不印：`Params` 交的是换算好的格，印不回原文；规则设到的已经在上面。
+   - 读系统的发现了问题的，一句标题 `venue/problems`，问题缩进两格一条一行（`venue/problem`：在哪、错在哪；在哪照有没有第几条规则、第几行挑 `venue/rule`、`venue/line`、`venue/file`，错在哪一种原因码一句 `problem/…`）。
+   - 违规词表不印：它不分场所。
+
+   例子（系统的 `80-test.toml` 给 `qq:group:1` 设了 `rate`、`chatty = { probability = 80 }`，`90-bad.toml` 第 2 条规则的 `rate` 写错了）：
+
+   ```
+   chatty.probability = 80（系统 80-test.toml 第 1 条规则，第 4 行）
+   discipline = "chatty"（出厂 50-defaults.toml 第 1 条规则，第 14 行）
+   parallel = 1（出厂 50-defaults.toml 第 1 条规则，第 16 行）
+   rate = "30/60s"（系统 80-test.toml 第 1 条规则，第 3 行）
+   没列出的参数照出厂的 defaults.toml。
+   读文件时发现的问题（写错的那一项、那一条规则、那一份文件不用，别的照用）：
+     系统 90-bad.toml 第 2 条规则，第 6 行：rate 写法不对："abc"
+   ```
+
 **样子**：桥起来时在标准错误上说一行「在 127.0.0.1:8301 等 NapCat 连进来」，照握手回的语言（令牌没设的接着再说 `notice/no-token` 那一句，O-16 补二）；NapCat 连上、断开各一行。
 
 **出错**
@@ -195,13 +237,16 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 | 标准输入读到头、标准输出写不进（核心请它退出、核心不在了，O-18） | 不说，运行日志一行 | 0 |
 | 跟核心的那一头崩了、发回话的任务崩了（是 bug） | 出了错、停下，带原话 | 1 |
 | 别的原因起不来：听不了、起不了运行时、数据根用不了、`bridge.json` 读不进来、清单里两个端口的默认值读不出来（O-20） | 起不来，带原话 | 1 |
+| 出厂的场所规则、出厂参数、违规词表有问题、不在、读不成（O-21，打包的错；`serve` 握手以前、`venue show`） | `failure/factory`，接着每一条问题缩进两格一行 | 1 |
+| 系统的场所规则、违规词表写错了、读不成（O-21） | 不说；运行日志每条一行 `WARN venue rules problem`，坏的丢、别的照用 | 不退 |
 | 找不到资源目录、给人看的字读不懂 | 这时还没有字可用：`miyu-onebot: <原话>` | 1 |
 | `start`、`stop`、`restart`、`status` 连不上核心（O-18） | 连不上核心，带原因 | 1 |
 | 核心拒绝（例如 `restart` 关着的，O-18） | 核心的原话 | 1 |
 | 核心那边没有 `onebot` 这个包（清单不在、写错了，O-18） | `status/missing` | 1 |
 | 用法不对 | 用法（标准错误上） | 2 |
+| `venue show` 的场所编号认不出（O-21） | `venue/bad-venue`（标准错误上） | 2 |
 
-**给人看的字**（`serve`、`web` 说的在标准错误上；`start`、`stop`、`restart`、`status`、`logs` 的结果在标准输出上，O-18）：放在 `resources/software/onebot/human/{zh,en,ja}.json` 的 `said` 里，照核心的格式和 `Human::load` 的读法（`store/resources.md`「怎么走」第 3 条），说法的编号是 `software/onebot/<编号>`；`texts.rs` 只挑哪一句、换进什么字段，换不出来的（是 bug）印出编号和字段、记一行运行日志。`ja.json` 照英文写，和核心拒绝时的话一样（O-8 施工时定）。握手以前照系统的语言（`zh`、`ja` 开头的照它，别的说英文，和核心照握手的 `locale` 算的一样；O-20 起桥不读配置，不看 `ui.language`），握手以后照核心回的 `language`（`serve` 端口被占那一句也是，O-20）；`start`、`stop`、`restart`、`status`、`web` 握手以后照核心回的说，`logs` 不连核心，照系统的语言；换成的那种语言的字读不懂，说一行原话、接着照原来的说。
+**给人看的字**（`serve`、`web` 说的在标准错误上；`start`、`stop`、`restart`、`status`、`logs` 的结果在标准输出上，O-18；`venue show` 的也是，O-21）：放在 `resources/software/onebot/human/{zh,en,ja}.json` 的 `said` 里，照核心的格式和 `Human::load` 的读法（`store/resources.md`「怎么走」第 3 条），说法的编号是 `software/onebot/<编号>`；`texts.rs` 只挑哪一句、换进什么字段，换不出来的（是 bug）印出编号和字段、记一行运行日志。`ja.json` 照英文写，和核心拒绝时的话一样（O-8 施工时定）。握手以前照系统的语言（`zh`、`ja` 开头的照它，别的说英文，和核心照握手的 `locale` 算的一样；O-20 起桥不读配置，不看 `ui.language`），握手以后照核心回的 `language`（`serve` 端口被占那一句也是，O-20）；`start`、`stop`、`restart`、`status`、`web` 握手以后照核心回的说，`logs`、`venue show`（O-21）不连核心，照系统的语言；换成的那种语言的字读不懂，说一行原话、接着照原来的说。
 
 | 编号 | 什么时候 | 中文 | 英文 |
 |---|---|---|---|
@@ -214,7 +259,7 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 | `failure/crashed` | 跟核心的那一头、发回话的任务崩了 | QQ 桥出了错，停下：{reason} | The QQ bridge hit a bug and stops: {reason} |
 | `failure/start` | 别的原因起不来 | QQ 桥起不来：{reason} | The QQ bridge could not start: {reason} |
 | `failure/not-spawned`（O-18） | 等不到握手的回应 | 没等到核心的握手回应。miyu-onebot serve 只由核心拉起：用 miyu onebot start 打开 QQ 桥。 | No handshake reply from the core. miyu-onebot serve is started by the core only: turn the QQ bridge on with miyu onebot start. |
-| `usage`（O-18 改） | 用法不对、`-h` | 用法：miyu onebot start \| stop \| restart \| status \| logs [-f] \| web [--print]（serve 只由核心拉起） | usage: miyu onebot start \| stop \| restart \| status \| logs [-f] \| web [--print] (serve is started by the core only) |
+| `usage`（O-18 改，O-21 加 `venue show`） | 用法不对、`-h` | 用法：miyu onebot start \| stop \| restart \| status \| logs [-f] \| web [--print] \| venue show <场所>（serve 只由核心拉起） | usage: miyu onebot start \| stop \| restart \| status \| logs [-f] \| web [--print] \| venue show <venue> (serve is started by the core only) |
 | `no-log` | 运行日志装不上（照样跑） | 运行日志写不了：{reason} | The run log cannot be written: {reason} |
 | `control/started`（O-18，下同） | `start` 成了 | QQ 桥开了：核心拉起它，以后核心每次起来都拉起它。 | The QQ bridge is on: the core starts it now and every time the core starts. |
 | `control/stopped` | `stop` 成了 | QQ 桥关了：核心停下它，以后不再拉起。 | The QQ bridge is off: the core stopped it and will not start it again. |
@@ -239,6 +284,28 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 | `logs/stderr` | `logs` 的标准错误那一段的标题 | —— 标准错误 {path} —— | —— standard error {path} —— |
 | `logs/log` | 运行日志那一段的标题（有标准错误那一段时才印） | —— 运行日志 {path} —— | —— run log {path} —— |
 | `logs/none` | 还没有运行日志 | 还没有运行日志：{path} | No run log yet: {path} |
+| `failure/factory`（O-21，下同） | 出厂的数据有问题（接着每一条问题缩进两格一行 `venue/problem`） | QQ 桥的出厂数据有问题（是打包的错），起不来： | The QQ bridge cannot start: its factory data has problems (a packaging error): |
+| `venue/entry` | `venue show`：规则设到的一项 | {key} = {value}（{from}） | {key} = {value} ({from}) |
+| `venue/rule` | 来处、问题在哪：有第几条规则的 | {source} {file} 第 {rule} 条规则，第 {line} 行 | {source} {file}, rule {rule}, line {line} |
+| `venue/line` | 问题在哪：只有第几行的（出厂参数） | {source} {file} 第 {line} 行 | {source} {file}, line {line} |
+| `venue/file` | 问题在哪：整份文件的、缺了的 | {source} {file} | {source} {file} |
+| `venue/factory`、`venue/system` | 上面的 `{source}` | 出厂、系统 | factory、system |
+| `venue/none` | 没有规则设到这个场所 | 没有规则设到这个场所。 | No rule sets anything for this venue. |
+| `venue/defaults` | 跟在规则设到的后面 | 没列出的参数照出厂的 defaults.toml。 | Parameters not listed follow the factory defaults.toml. |
+| `venue/problems` | 问题那一段的标题 | 读文件时发现的问题（写错的那一项、那一条规则、那一份文件不用，别的照用）： | Problems found while reading (the wrong item, rule or file is not used; the rest is): |
+| `venue/problem` | 一条问题 | {at}：{what} | {at}: {what} |
+| `venue/bad-venue` | 场所编号认不出 | 认不出场所编号 {venue}。写成 <平台>:group:<群号> 或 <平台>:private:<号>，例如 qq:group:123456。 | Not a venue id: {venue}. Write <platform>:group:<group> or <platform>:private:<user>, for example qq:group:123456. |
+| `problem/unreadable` | 上面的 `{what}`：读不成 | 读不了：{why} | cannot be read: {why} |
+| `problem/too-big` | 超过 1 MiB | 超过 1 MiB，不读 | over 1 MiB, not read |
+| `problem/not-utf8` | 不是 UTF-8 | 不是 UTF-8，不读 | not UTF-8, not read |
+| `problem/syntax` | TOML 写法不对 | TOML 写法不对：{why} | TOML syntax error: {why} |
+| `problem/unknown-key`、`problem/unknown-key-plain` | 不认识的键，有、没有离得最近的名字 | 不认识 {key}，是不是想写 {suggest}？／不认识 {key} | unknown key {key}; did you mean {suggest}?／unknown key {key} |
+| `problem/wrong-type` | 类型不对 | {key} 的类型不对：{got} | {key} has the wrong type: {got} |
+| `problem/missing` | 出厂参数缺了一项（`wrong_type`，没有原文） | 缺了 {key} | {key} is missing |
+| `problem/not-an-option` | 不是能选的值 | {key} 不是能选的值：{got} | {key} is not one of the options: {got} |
+| `problem/out-of-range` | 超出范围 | {key} 超出范围：{got} | {key} is out of range: {got} |
+| `problem/bad-format` | 写法不对 | {key} 写法不对：{got} | {key} is not written right: {got} |
+| `problem/other` | 别的原因码（照说不会） | {key}：{code} | {key}: {code} |
 
 不认识的停下原因照原样印代码。
 
@@ -266,12 +333,14 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 - 思考、工具调用不发回去；空的回复不发。（`replies.rs`，下面一条同）
 - 桥重启以后，以前的回复不再发一遍。
 - 调用等了给的时限（测试给 3 秒，和出厂的不一样）还等不到算失败，到时以前还在等；连接断了在等的算失败；同时在等的几个照 `echo` 各拿各的。（`calls.rs`，钟停住，照停住的钟算）
-- 出厂的 `bridge.json` 读得进、数和上面的表一样；队列写 0、多一格、少一格、不是 JSON、没有文件，都读不进来，说是哪个文件。（`tuning.rs`）
-- 三种语言里桥说的每一句都换得出来；中文照上面的表、字段换进去；日文和英文一字不差；换语言照新的说；握手以前照系统的语言（`zh`、`ja` 开头的照它，别的英文）。（`texts.rs`）
+- 出厂的 `bridge.json` 读得进、数和上面的表一样（O-21 多 `rules_check_millis`）；队列写 0、多一格、少一格、不是 JSON、没有文件，都读不进来，说是哪个文件。（`tuning.rs`）
+- 三种语言里桥说的每一句都换得出来（O-21 多 `failure/factory`、`venue/`、`problem/` 开头的）；中文照上面的表、字段换进去；日文和英文一字不差；换语言照新的说；握手以前照系统的语言（`zh`、`ja` 开头的照它，别的英文）。（`texts.rs`）
 - 文字怎么读出来：别的段跳过；CQ 码去掉，`&amp;` 最后换。（`text.rs`）
 - 编号：场所、平台上的人和群聊内核拼的一样（`qq:private:<号>`、`qq:<号>`，解得回原样）；命令编号带时刻，同一个消息编号、时刻不同的两条编号不同；`time` 是整数、写成整数的字符串都认，没带、读不出（`null`、不是数的字、小数）的是 `0`。（`ids.rs`）
 - 握手交来的配置（O-20）：两个端口照交来的；没有的、`null` 的、不是 0 到 65535 的整数的照清单的默认值；令牌是字的照它、去掉前后空白，没有的、`null`、空的、不是字的是没有；推来的只换带了的键，别的键不认；出厂清单的默认值是 8301、8302，清单不在、没写默认值的读不出来、说是哪个文件。（`settings.rs`）
 - 令牌没设（O-16 补、补二，O-20 改）：桥照样起来，两个端口都开，先说在哪等 NapCat、再说 `notice/no-token`；NapCat 连进来 401；推来令牌，不重启，NapCat 下一次连就通。再换一个：新的连得进、旧的 401，已经连着的那一条照样收发；推来 `null`：一律 401。真的程序 `miyu-onebot serve` 也这样起来（测试当核心，经它的标准输入输出握手、推送；标准错误、运行日志各一句），推来令牌以后 `/status` 的 `token` 从 `none` 变 `set`，NapCat 不用重启就连上，`/token` 交出值、运行日志里没有这个值；`miyu-onebot web --print` 照状态文件里的端口印出网址。（`no_token.rs`）
+- 场所规则和出厂数据（O-21，`rules.rs`，什么时候重读在 `reload.rs`；钟是交进去的时刻，不等）：出厂的读得出、零问题，违规词表 153 个词；出厂、系统两份照文件名的先后套，系统同名的整份替换出厂的，值和来处（出厂或系统、文件、第几条、第几行）都对；名字不以 `.toml` 结尾的、以 `.` 开头的、目录不当规则文件；系统的写错只丢那一项、那一条，读不成的（超过 1 MiB、不是 UTF-8）报出来、照空的用、同名的出厂那份也不用，别的照用；问题照文件名排（读不成的夹在写错的中间也是），`venues.d` 列不出来的报一条、出厂的照用；套场所时参数照规则改；出厂的写错（规则写错、只有一条警告、出厂参数写错、违规词表不在、`venues.d/` 不在）读不出来，交回每一条问题；改了、加了、删了系统的规则文件，隔够 `rules_check_millis` 的下一次用照新的，没隔够的照旧，没变的不重读；违规词表系统那一份替换出厂的，读不成的照空的，删了回到出厂的。
+- `venue show`（O-21，`venue.rs`）：印的值和来处、照键排、没有规则的说没有、问题印在后面一条一行，中文一字不差；没有系统规则的只印出厂的；场所编号认不出说 `venue/bad-venue`、退出码 2；出厂的写错在标准错误上说 `failure/factory` 和每一条问题、退出码 1。真的程序：`miyu-onebot venue show` 照系统的语言印、退出码 0；`serve` 出厂的写错握手以前就退、退出码 1、说是哪条问题；系统的写错照常起来，运行日志里有那条问题。
 - 依赖（O-20）：`cargo metadata` 里 `miyu-onebot` 的依赖（开发依赖不算）没有 `miyu-core`、`miyu-endpoint`（18 第一节「桥不依赖核心的 crate」）。（`dependencies.rs`）
 
 **施工时定的**（O-8）
@@ -352,6 +421,18 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 | # | 定了什么 | 为什么 | 没选 |
 |---|---|---|---|
 | 49 | `venue.session` 回应带 `account`、等于桥自己的账号（握手回应的 `account`）的私聊是陌生人：照 `no_system_account` 不接，同一个人只记一行，会话编号不记进缓存、不订阅；没带 `account` 的照常接（第 7 条） | 核心 O-4 中（系统账号）以后，陌生人在 `venue.session` 不再被拒，照常造会话（属主是系统账号 `onebot`）；进站链要到接群那一步才接进桥，这期间私聊不能敞开，只接主人。核心等桥这一处进了 main 再合 O-4 中；没带 `account` 的照现在办，桥这一处不依赖核心先做 | 等接群那一步再管（这期间陌生人的话直接交给她）；记进缓存（下一条不再问，陌生人后来成了主人也认不出） |
+
+**施工时定的**（O-21，2026-10-09；施工单「要定的」三条照推荐定：用的时候看一眼修改时刻、系统的写错了只丢坏的、系统的违规词表放 `system/modules/onebot/`）
+
+| # | 定了什么 | 为什么 | 没选 |
+|---|---|---|---|
+| 50 | 系统那一份读不成的（超过 1 MiB、不是 UTF-8、读不了）照空的用：规则文件照样替换同名的出厂那一份、自己没有规则；违规词表照空的；问题照样报 | 替换看的是同名的文件在不在，和群聊内核对 TOML 写法不对的办法一样（整份不用，出厂那份也不读）；配置起来时读不好的也照空的（`config.md` 的 `using-nothing`） | 读不成的当没有（出厂那份顶上来：同一个文件写法不对和读不成结果不一样）；照上一次读好的用（要一份一份记着，重读又是整份的） |
+| 51 | 规则文件：`venues.d/` 里名字以 `.toml` 结尾、不以 `.` 开头的普通文件（跟着链接）；名字不是 UTF-8 的不认 | 编辑器的锁文件（`.#80-x.toml`）、隐藏文件不当规则；名字要按字节排、要印出来 | 收所有 `.toml` |
+| 52 | 出厂的起来时读一次、单独查一次，放在内存里，跑着不再读、不看变没变；有问题握手以前说 `failure/factory` 和每一条问题、退出码 1 | 出厂的随包装好，跑着不会变（换包要重启桥）；系统同名替换以后出厂那份不读，单独查才查得全；和 `bridge.json` 一样是资源，握手以前读 | 出厂的也看修改时刻；出厂的问题只说一句「起不来」带第一条 |
+| 53 | 变没变照文件列表、每一份的修改时刻和大小比（`venues.d/` 列不出的记目录本身）；隔多久看一次是 `bridge.json` 的 `rules_check_millis`（出厂 1000）；用的一方交进当时的时刻 | 大小顺手一起比，修改时刻粗的文件系统上同一秒里改了多半也看得出；数是数据；交进时刻，测试不用等一秒 | 只比修改时刻；写死 1 秒；里面自己取钟 |
+| 54 | 起来时（握手以后）读一次系统的、问题记运行日志；桥里还没有别处用它 | 施工单要「桥把它们读进来」，写错的规则起来就看得见；用到它们的进站链、主动回复判断、出站随接群的几步 | 等用到的那一步再读 |
+| 55 | `venue show`：只印规则设到的项，照键排，值照 TOML 写，接一句没列出的参数照 `defaults.toml`；问题印在标准输出上、在后面；有问题也是退出码 0；场所编号认不出退出码 2（用法不对）；出厂的有问题照起来时那样说、退出码 1；违规词表不印 | `Params` 交的是换算好的格（毫秒、字符），印不回原文；`Resolved` 照键排好了；问题是看的内容的一部分，像 `udevadm info`；出厂的有问题桥起不来，套出来的也不对；词表不分场所 | 参数三十几项都印；问题印在标准错误上、有问题退出码 1 |
+| 56 | 问题说成话：在哪（出厂或系统、文件、第几条规则、第几行）加错在哪，一种原因码一句（`problem/…`），出厂参数缺了的另一句；不照配置的 `tell` 说 | `tell` 要配置清单的项才说得出期望什么，规则的属性、参数的声明不在配置清单里（群聊内核里是私有的）；原文 `got` 已经够人看出错在哪 | 照 `tell` 说（要群聊内核交出每一项的类型）；只印原因码 |
 
 ### 二、WebUI（施工 O-16 起）
 

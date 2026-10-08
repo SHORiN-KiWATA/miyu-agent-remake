@@ -26,6 +26,7 @@ use miyu_endpoint::Core;
 use miyu_endpoint::config::{Config, Environment};
 use miyu_endpoint::extensions::Timing;
 use miyu_kernel::id::{AccountId, SessionId};
+use miyu_onebot::rules::Factory;
 use miyu_onebot::serve::{Failure, Notice, Serve, run};
 use miyu_onebot::settings::{Defaults, Settings};
 use miyu_onebot::tuning::Tuning;
@@ -84,6 +85,11 @@ pub fn tuning() -> Tuning {
 /// 出厂的清单里两个端口的默认值（施工 O-20）。
 pub fn defaults() -> Defaults {
     Defaults::load(&ResourceRoot::at(resources())).expect("出厂的清单读得出来")
+}
+
+/// 出厂的场所规则、出厂参数、违规词表（施工 O-21）。
+pub fn factory() -> Factory {
+    Factory::load(&ResourceRoot::at(resources())).expect("出厂的读得出来")
 }
 
 /// 一个新的临时数据根（`MIYU_HOME` 指到它），建好骨架：交回目录（用完调的一方删）和数据根。
@@ -304,8 +310,8 @@ pub fn handed(settings: &Settings) -> Value {
 }
 
 /// 在数据根 `root` 上起一个桥要的：握手交的配置照 `settings`，经内存里的管道连 `root` 上的那个核心（[`pipe::pipe_to`]，施工
-/// O-18），`accounts` 有的照它改写账号，WebUI 拉不起核心，说中文，出厂的 `bridge.json`、资源目录和清单的默认值。另交回测试
-/// 那一头的转接 [`Relay`]：推配置（施工 O-20）、看桥问了核心什么。
+/// O-18），`accounts` 有的照它改写账号，WebUI 拉不起核心，说中文，出厂的 `bridge.json`、资源目录、清单的默认值和出厂的场所
+/// 规则这几样（施工 O-21）。另交回测试那一头的转接 [`Relay`]：推配置（施工 O-20）、看桥问了核心什么。
 pub fn serve_relayed(
     root: DataRoot,
     settings: Settings,
@@ -320,6 +326,7 @@ pub fn serve_relayed(
         tuning: tuning(),
         resources: ResourceRoot::at(resources()),
         defaults: defaults(),
+        factory: factory(),
     };
     (serve, relay)
 }
