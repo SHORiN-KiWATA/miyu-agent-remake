@@ -1,0 +1,20 @@
+# 本机 embedding 出厂的模型（施工 R-5 上，`docs/blueprint/recall.md` 第四条）：bge-small-zh-v1.5 的 8 位量化 ONNX，MIT。
+# 文件放在 Miyu 自己的 GitHub Release，核心第一次用时照这里下载、核对 SHA-256（R-5 中）。换模型就是换一份清单。
+id = "bge-small-zh-v1.5"
+dims = 512
+pooling = "cls"
+max_tokens = 512
+
+[[files]]
+role = "model"
+name = "model_quantized.onnx"
+url = "https://github.com/SHORiN-KiWATA/miyu-agent-remake/releases/download/models-bge-small-zh-v1.5/model_quantized.onnx"
+sha256 = "15b717c382bcb518ba457b93ea6850ede7f4f1cd8937454aa06972366cd19bcc"
+size = 24010842
+
+[[files]]
+role = "vocab"
+name = "vocab.txt"
+url = "https://github.com/SHORiN-KiWATA/miyu-agent-remake/releases/download/models-bge-small-zh-v1.5/vocab.txt"
+sha256 = "45bbac6b341c319adc98a532532882e91a9cefc0329aa57bac9ae761c27b291c"
+size = 109540

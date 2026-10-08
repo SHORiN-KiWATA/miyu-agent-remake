@@ -21,11 +21,15 @@
 |---|---|---|
 | `crates/miyu-recall/src/lib.rs` | 纯逻辑的 crate（第 2 层）：对外的几样 | R-1 |
 | `crates/miyu-recall/src/terms.rs` | 一段字切成存进索引的词、拼成查询（`index_terms`、`query`） | R-1 |
-| `crates/miyu-recall/src/fuse.rs` | 加权的 RRF：几路名次合成一个 | R-5 |
-| `crates/miyu-recall/src/vector.rs` | 向量写成字节、读回来、点积 | R-5 |
+| `crates/miyu-recall/src/fuse.rs` | 加权的 RRF：几路名次合成一个 | R-5 下 |
+| `crates/miyu-recall/src/vector.rs` | 向量写成字节、读回来、点积 | R-5 下 |
 | `crates/miyu-store/src/recall.rs` | 一个检索库：开（坏了删掉重建）、放进一条、拿掉一条、照关键词找（R-1）；一批和照到哪一起写、拿掉一个来源（R-2 上） | R-1 |
-| `crates/miyu-store/src/recall/vectors.rs` | 向量表：放、照模型读出来逐条算 | R-5 |
-| `crates/miyu-embed/` | 本机 embedding 的小程序：ONNX Runtime 静态链接在里面 | R-5 |
+| `crates/miyu-store/src/recall/vectors.rs` | 向量表：放、照模型读出来逐条算 | R-5 下 |
+| `crates/miyu-embed/src/manifest.rs` | 本机模型的清单：读、查（第四条第 2 款） | R-5 上 |
+| `crates/miyu-embed/src/wordpiece.rs` | BERT 的 WordPiece 分词（第四条第 5 款） | R-5 上 |
+| `crates/miyu-embed/src/model.rs` | 照清单载入模型、算一句的向量：ONNX Runtime 静态链接在这个小程序里 | R-5 上 |
+| `crates/miyu-embed/src/serve.rs`、`main.rs` | 小程序 `miyu-embed` 的协议和参数（第四条第 4 款） | R-5 上 |
+| `resources/models/embed/bge-small-zh-v1.5.toml` | 出厂的清单（模型资料，不给模型看，不进登记簿） | R-5 上 |
 
 `miyu-recall` 只用白名单里的 crate（`01-架构.md` 第九节），不碰 I/O。SQLite 的那一半放在 `miyu-store`：它已经有 `rusqlite` 和开库的规矩（`sqlite.rs`，`store/index.md`），检索库照同一套开、坏了删、版本不对删。
 
@@ -110,12 +114,28 @@ CREATE VIRTUAL TABLE terms USING fts5(words, content='', contentless_delete=1, t
 3. 两路合并：照名次 `score = Σ 权重 / (60 + 名次 + 1)`，关键词一路权重 1，向量一路 0.5（起点，测评后定）；只有向量命中的那几条，相似度还要过一个下限。向量那一路用不了（没装、出错、超时）就只有关键词，记一行日志，不停下。
 4. 向量照（模型、字的 SHA-256）缓存在系统的缓存目录：库删了重建、换了位置都不重算。
 
-**四、embedding**（R-5，施工时细化）
+**四、embedding**（R-5 上、中、下）
 
-1. 用途 `models.embedding`：写 `local` 用本机的 `miyu-embed`；写 `<供应商>/<模型>` 走那一家 OpenAI 兼容的 `/v1/embeddings`；没写的，`miyu-embed` 在就用本机的，不在就只有关键词。
-2. 本机模型照一份清单认：名字、下载地址、每个文件的 SHA-256、维数、怎么取向量（bge 是第一个 token、归一化）、最长多少 token。出厂一份 `bge-small-zh-v1.5` 的 int8（24 MB，MIT，2026-10-07 项目主人定），配置 `embedding.local` 换成别的清单就换了模型：做成可更换的（同一天项目主人定）。
-3. 模型文件第一次用时下载到系统的缓存目录，地址出厂指到 Miyu 自己的 GitHub Release（项目主人定），配置能改；SHA-256 对不上的不用、删掉。
-4. `miyu-embed`：核心按需拉起，空闲 600 秒退出；一次一条、单线程（旧版实测：一次 32 条、16 线程时内存冲到 2 GB 不还）；标准输入输出上一行一个 JSON。ONNX Runtime 静态链接在它里面，主程序不带。
+1. 用途 `models.embedding`：写 `local` 用本机的 `miyu-embed`；写 `<供应商>/<模型>` 走那一家 OpenAI 兼容的 `/v1/embeddings`；没写的，`miyu-embed` 在就用本机的，不在就只有关键词（R-5 中、下，施工时细化）。
+2. **清单**（R-5 上）：本机模型照一份 TOML 认，出厂的在 `resources/models/embed/bge-small-zh-v1.5.toml`，配置 `embedding.local` 换成别的清单就换了模型：做成可更换的（2026-10-07 项目主人定）。几格：
+   - `id`：模型的名字，向量的模型编号写成 `local:<id>`；`dims`：几维；`pooling`：怎么取一句的向量，现在只认 `cls`（取 `[CLS]` 那一格）；`max_tokens`：一句最多几个词（连 `[CLS]`、`[SEP]`），至少 2。
+   - `[[files]]`：每个文件的 `role`（`model`、`vocab` 各正好一个）、`name`（一个单纯的文件名，不带目录）、`url`、`sha256`、`size`。
+   - 少格、多格、不认识的取法、`role` 重了或缺了、`dims` 是 0、文件名带目录的都拒，说哪里不对。向量一律归一化。WordPiece 以外的分词、`cls` 以外的取法，换到那样的模型时再加。
+   - 出厂的是 bge-small-zh-v1.5 的 8 位量化 ONNX（`model_quantized.onnx`，24 MB，512 维，MIT）：十句和原版 fp32 的余弦平均 0.991，`model_int8.onnx` 只有 0.970，一样快（2026-10-09 量）。
+3. 模型文件第一次用时下载到系统的缓存目录，地址出厂指到 Miyu 自己的 GitHub Release（项目主人定；Release `models-bge-small-zh-v1.5`，预发布，2026-10-09 建，放模型、`vocab.txt`、FlagEmbedding 的 MIT 许可证、`SHA256SUMS`），配置能改；SHA-256 对不上的不用、删掉（R-5 中）。
+4. **`miyu-embed`**：核心按需拉起，空闲 600 秒退出（R-5 中）。小程序本身（R-5 上）：
+   - `miyu-embed --manifest <清单> --dir <模型文件的目录>`：照 `role` 在目录里找文件，下载、核对是核心的事。
+   - 载入成了，标准输出印一行 `{"ready":{"model":"local:<id>","dims":<维数>}}`；清单读不懂、文件没有、模型载入不了，印一行 `{"error":"…"}`，退出码 1；参数写错，标准错误印用法，退出码 2。
+   - 之后标准输入一行 `{"id":"…","text":"…"}`，标准输出回一行 `{"id":"…","vector":[…]}`（f32，JSON 的最短写法，读回 f32 一位不差）；读不懂的、不是 UTF-8 的、算不出的回 `{"id":"…","error":"…"}`（读不出 `id` 的写 `null`），接着读下一行；行尾的 `\r` 不算。标准输入关了退出码 0；读不了标准输入、写不进标准输出的，原因写到标准错误，退出码 1。
+   - 一次一条、单线程（ONNX Runtime 的 `intra`、`inter` 都是 1；旧版实测一次 32 条、16 线程时内存冲到 2 GB 不还）。错误的原话是英文短句；协议只有核心读，不给模型看，不进登记簿。
+   - ONNX Runtime 静态链接在它里面（`ort` 钉死 `=2.0.0-rc.13`，ONNX Runtime 1.28，编译时下 pyke 预编好的静态库），主程序不带。
+5. **分词**（R-5 上）：BERT 的 WordPiece，照 bge-small-zh-v1.5 原版的配置，和 Hugging Face `tokenizers` 的结果一样（`crates/miyu-embed/tests/tokens.rs` 逐个比）：
+   - 去掉 `U+0000`、`U+FFFD` 和 Unicode「其他」类的字（控制、格式、代理、私用、没分配；制表、换行、回车算空白）；空白处断开；汉字（CJK 统一表意文字那几段）、标点（ASCII 的标点和 Unicode 的七种标点类）一个一个成词。不转小写、不去重音（原版的配置）。
+   - 一个词超过 100 个字整个算 `[UNK]`；不然从头起每次取最长的、在词表里的一段（不是开头的带 `##`），有一段取不出来整个词算 `[UNK]`。
+   - 前后加 `[CLS]`、`[SEP]`；超过 `max_tokens` 的截掉后面的，留住 `[SEP]`。词表一行一个词，行号是编号，没有 `[CLS]`、`[SEP]`、`[UNK]` 的、一个词写了两行的拒。
+   - 和 `tokenizers` 不一样的两处：字里写着 `[CLS]` 这种的照普通的字切（人说的话不变成控制用的词）；Unicode 的类别照新的表，Unicode 9 以后才有的字切成 `[UNK]`（它的表旧，当没分配去掉）。
+   - 原版不转小写：大写的英文词（`RTX`、`Hello`）、片假名的词都是 `[UNK]`，那一部分靠关键词那一路（第一条的两两切词管得到日文）；改不改等测评集。
+6. **实测**（2026-10-09，Linux x86_64，release 没 strip）：程序 29 MB，没有 ONNX Runtime 的动态库；起来到 `ready` 130 到 580 毫秒，一句短的（十来个字）4 到 9 毫秒、一百来个字 12 到 25 毫秒（同一台机器上别的会话在编译，数跳得厉害；仓库外单独试的是载入 46 毫秒、一句 1 到 2 毫秒），峰值内存 62 MB。
 
 ### 出错
 
@@ -123,6 +143,15 @@ CREATE VIRTUAL TABLE terms USING fts5(words, content='', contentless_delete=1, t
 - 切不出词：`query` 交回 `None`，不算出错。
 
 ### 守着它的
+
+R-5 上做好的：
+
+| 测试 | 守哪几条 |
+|---|---|
+| `crates/miyu-embed/tests/tokens.rs` | 第四条第 5 款：真词表上 39 句照 `tokenizers` 0.23.2 的结果逐个比（空的、空白、汉字、全角标点、大写英文、带重音的、片假名、韩文、emoji、零宽空格、BOM、控制字符、`U+FFFD`、不间断空格、100 和 101 个字的词、扩展区和兼容区的汉字、全角字母、`##` 开头的）；截断留住 `[SEP]`；字里的 `[CLS]` 照普通的字；词表少了特殊的词、写了两行的拒；`\r\n` 的词表也认 |
+| `crates/miyu-embed/tests/manifest.rs` | 第四条第 2 款：出厂的清单读得出；少格、多格、取法不认识、`role` 重了、缺了、`dims` 是 0、`max_tokens` 小于 2、文件名带目录、不是 TOML 的都拒，说哪里不对；文件读不了说是哪个 |
+| `crates/miyu-embed/tests/protocol.rs` | 第四条第 4 款，手造的小模型（`fixtures/tiny/`，`fixtures/make.py` 造）：`ready`；向量和 Python 的 ONNX Runtime 算的每格差不过 1e-6；超长截断、空字也有向量；不是 JSON、没有 `id`、`id` 不是字、没有 `text`、空行、不是 UTF-8 的回错，接着读下一行；行尾的 `\r`；标准输入关了退出码 0；清单读不了、文件不在、模型是坏的退出码 1；清单的 `dims` 和模型对不上的每一句回错；参数写错（少了、多了、写了两次）退出码 2、印用法 |
+| `crates/miyu-embed/tests/real.rs` | 真模型（`#[ignore]`，`MIYU_EMBED_MODEL_DIR` 指到 Release 的文件）：四句的向量和 Python 的 ONNX Runtime 算的余弦不低于 0.999 |
 
 R-1 做好的：
 
@@ -133,12 +162,13 @@ R-1 做好的：
 
 ### 出处
 
+- Release `models-bge-small-zh-v1.5` 的文件来自 Hugging Face 的 `Xenova/bge-small-zh-v1.5`（commit `75c43b06`，`BAAI/bge-small-zh-v1.5` commit `7999e1d3` 转的 ONNX），原样转发；`crates/miyu-embed/tests/fixtures/` 的标准答案照那里的 `make.py` 生成（`docs/construction/R-5-本机embedding的小程序（上）.md`）。
 - `docs/reviews/2026-10-07-记忆知识库embedding调研.md` 第三节（选型和实测）、第五节末尾（技术细节照推荐定）、第八节（项目主人的拍板：本机 embedding 用 bge-small-zh、模型从 Miyu 的 GitHub Release 下、做成可更换的）。
 - `17-记忆.md` 第四节、`19-知识库.md` N3：关键词加向量、两路合并、索引在 SQLite 里。
 - `10-自带软件.md`、`tools/history.md`：混合召回以关键词为主、向量为辅（2026-09-29 项目主人定）。
 
 ### 还没有的
 
-- 第三、四条（向量、两路合并、embedding）：R-5。
+- 第三条（向量、两路合并）、第四条的第 1、3 款和拉起、空闲退出（`models.embedding`、下载、核心怎么用小程序）：R-5 中、下。
 - 知识库的切块、文件监视：知识库那条线。
 - `history` 改用全文索引：照 `tools/history.md`，慢了再做。
