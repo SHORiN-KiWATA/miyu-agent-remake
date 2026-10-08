@@ -22,7 +22,7 @@ use std::collections::BTreeMap;
 
 use crate::event::{Body, ContextInjected, Level, Permission};
 use crate::history::History;
-use crate::id::{FactKind, SessionId};
+use crate::id::{FactKind, ModuleId, SessionId};
 use crate::origin::By;
 use crate::template::{Template, TemplateError};
 use crate::time::{Timestamp, UtcOffset};
@@ -154,6 +154,7 @@ impl FactTemplates {
             }
         }
         Some(ContextInjected {
+            refs: Vec::new(),
             kind,
             text: text.clone(),
         })
@@ -166,6 +167,7 @@ impl FactTemplates {
     /// 实际不会 panic：造的时候已经试换过；`reply_cut` 这个类别名也合写法。
     pub fn reply_cut(&self) -> ContextInjected {
         ContextInjected {
+            refs: Vec::new(),
             kind: kind("reply_cut"),
             text: self
                 .reply_cut
@@ -184,6 +186,7 @@ impl FactTemplates {
         let timezone = environment.offset.to_string();
         let fields = env_fields(&time, &timezone, &environment.cwd);
         ContextInjected {
+            refs: Vec::new(),
             kind: kind("env"),
             text: self.env.render(&fields).expect("造的时候试换过，字段都有"),
         }
@@ -197,6 +200,7 @@ impl FactTemplates {
     pub fn session(&self, id: &SessionId) -> Option<ContextInjected> {
         let template = self.session.as_ref()?;
         Some(ContextInjected {
+            refs: Vec::new(),
             kind: kind("session"),
             text: template
                 .render(&session_fields(id.as_str()))
@@ -211,6 +215,7 @@ impl FactTemplates {
     /// 实际不会 panic：`permission` 这个类别名合写法。
     pub fn permission(&self, permission: &Permission) -> ContextInjected {
         ContextInjected {
+            refs: Vec::new(),
             kind: kind("permission"),
             text: self.permission_text(effective_level(permission)),
         }
@@ -229,6 +234,7 @@ impl FactTemplates {
     ) -> Option<ContextInjected> {
         let template = self.permission_changed.as_ref()?;
         Some(ContextInjected {
+            refs: Vec::new(),
             kind: kind("permission"),
             text: changed_text(template, effective_level(permission), previous),
         })
@@ -312,6 +318,35 @@ pub fn changed(history: &History, by: &By, facts: Vec<ContextInjected>) -> Vec<C
 /// 这一块和有效历史里同一个来源、同一类的最近一块不一样，或者那一类还没有过。
 fn unseen(history: &History, by: &By, fact: &ContextInjected) -> bool {
     latest(history, by, &fact.kind) != Some(fact.text.as_str())
+}
+
+/// 有效历史里由模块注入的一块（施工 R-4 上）：回合开始交给挂接点（`Action::RunTurnStartHooks` 的 `present`），模块照它定
+/// 这一段上下文里还要不要交。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Present {
+    /// 哪个模块注入的。
+    pub module: ModuleId,
+    /// 这一块的类别。
+    pub kind: FactKind,
+    /// 这一块带着的编号（[`ContextInjected::refs`]），原样。
+    pub refs: Vec<String>,
+}
+
+/// 有效历史里由模块注入的 `context.injected`，照日志的先后（施工 R-4 上）。和会话编号那一块同一个找法：最近一个检查点
+/// 以后、撤掉的回合不算（[`History`] 就是这样的）；内核自己注入的不算。
+pub fn present(history: &History) -> Vec<Present> {
+    history
+        .events()
+        .iter()
+        .filter_map(|event| match (&event.by, &event.body) {
+            (By::Module(module), Body::ContextInjected(fact)) => Some(Present {
+                module: module.id.clone(),
+                kind: fact.kind.clone(),
+                refs: fact.refs.clone(),
+            }),
+            _ => None,
+        })
+        .collect()
 }
 
 /// 有效历史里，这个来源、这一类的最近一块的原文。

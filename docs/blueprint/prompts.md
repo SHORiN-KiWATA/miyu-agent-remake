@@ -2871,6 +2871,45 @@ Placeholder for a tool this client is expected to send with the request; it is n
 }
 ```
 
+### 事实：常驻的记忆摘要那一块的开头
+
+#### `software/memory/summary/open.txt`
+
+- 什么时候加进来：会话的第一轮；压缩、清空以后，撤掉了带着它的那一轮以后的第一轮（这一段上下文里还没有、这一间有算数的记忆，`memory.md` 第三条）
+- token：4（2026-10-08 照开发端点量，带行尾换行）
+- 为什么加：记下的事她开口之前就知道，不用先搜（施工 R-4 上，`17-记忆.md`，2026-10-07 项目主人定的三层召回）；标签夹着，和人说的话分得开
+- 指纹：`cf868be3`
+
+```text
+<memories>
+```
+
+### 事实：常驻的记忆摘要那一块的收尾
+
+#### `software/memory/summary/close.txt`
+
+- 什么时候加进来：同上
+- token：4（2026-10-08 量）
+- 为什么加：同上
+- 指纹：`885a0486`
+
+```text
+</memories>
+```
+
+### 事实：常驻的记忆摘要那一块，最后一条后面
+
+#### `software/memory/summary/more.txt`
+
+- 什么时候加进来：同上，超过 3000 字节截了的（字段按 `12` 填）
+- token：11（2026-10-08 量）
+- 为什么加：截了要说：还有几条、`memory_search` 找得到（施工 R-4 上）。一行照 `memory_search/memory.txt`，不另加字；两条的一块合计 41（外壳 8），截满的一块 964（3000 字节，中文为主）
+- 指纹：`fd8c77fa`
+
+```text
+…and {count} more; memory_search finds them.
+```
+
 ### 判官那一次请求的 system，不进主对话
 
 #### `software/onebot/judge/system.txt`

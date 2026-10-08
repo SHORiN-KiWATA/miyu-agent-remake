@@ -220,3 +220,15 @@ fn the_reports_reach_the_request_as_tagged_facts() {
         "{whole}"
     );
 }
+
+/// 模块注入的一块（施工 R-4 上，样本第 151 条，记忆交的那一块）：进请求的只有 `text`，`refs` 是给交它的模块下一轮看的，
+/// 不进请求。
+#[test]
+fn a_module_block_reaches_the_request_without_its_refs() {
+    let whole = assembled_upto(u64::MAX);
+    assert!(
+        whole.contains(r"<memories>\nm12 feedback 2026-09-25: 回答先说结论"),
+        "{whole}"
+    );
+    assert!(!whole.contains("refs"), "refs 不该在请求里：{whole}");
+}

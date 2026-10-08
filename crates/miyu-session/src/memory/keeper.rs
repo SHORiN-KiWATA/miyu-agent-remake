@@ -22,7 +22,7 @@ use super::Memory;
 /// 一间记忆，连同这次会被谁看到（听众）。可以复制：每次调用照它做。
 #[derive(Debug, Clone)]
 pub struct Keeper {
-    memory: Arc<Memory>,
+    pub(super) memory: Arc<Memory>,
     room: Room,
     hearers: Vec<By>,
 }

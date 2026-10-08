@@ -6,7 +6,7 @@ use std::collections::VecDeque;
 use super::script::{Line, Play};
 use crate::block::{Block, Text};
 use crate::event::{Body, Decision, Event, Level, ModelCalled, Response, Transient};
-use crate::facts::Environment;
+use crate::facts::{Environment, Present};
 use crate::id::{CallId, CommandId, ContentHash, HarnessName, Seq, SessionId, TurnId};
 use crate::origin::{By, Harness};
 use crate::request::Request;
@@ -45,6 +45,8 @@ pub struct Stage {
     pub(super) plays: VecDeque<Play>,
     pub(super) verdicts: VecDeque<Verdict>,
     pub(super) injections: VecDeque<Vec<Injection>>,
+    /// 回合开始每次叫挂接点时内核带的 `present`，照先后（施工 R-4 上）。
+    pub(super) presents: Vec<Vec<Present>>,
     /// 停住的请求（它的 `seen` 和剩下的回复）、停住的调用。
     pub(super) held_model: Option<(Seq, Line)>,
     pub(super) held_tools: Vec<(CallId, Play)>,
@@ -329,6 +331,11 @@ impl Stage {
     /// 请求看到的比它早（施工 6-2 下）。
     pub fn marks(&self) -> &[Seq] {
         &self.marks
+    }
+
+    /// 回合开始每次叫挂接点时内核带的 `present`（有效历史里模块注入过的那几块），照先后（施工 R-4 上）。
+    pub fn presents(&self) -> &[Vec<Present>] {
+        &self.presents
     }
 
     /// 推给头的瞬时事件，照先后。

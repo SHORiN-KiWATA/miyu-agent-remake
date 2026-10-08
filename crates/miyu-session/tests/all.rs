@@ -22,6 +22,7 @@ mod limits;
 mod memory;
 mod memory_backfill;
 mod memory_scope;
+mod memory_summary;
 mod memory_tools;
 mod messages;
 mod messages_peer;

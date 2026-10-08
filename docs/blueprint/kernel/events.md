@@ -60,7 +60,7 @@
 | `tool.approval_decided` | 人对确认请求的决定 | 回答的人 | 必带 | `tool.approval_decided.jsonl` |
 | `question.asked` | 一个在跑的调用请人回答一组题 | 那次调用 | 必带 | `question.asked.jsonl` |
 | `question.answered` | 人对一组题的回答 | 回答的人 | 必带 | `question.answered.jsonl` |
-| `context.injected` | 注入进上下文的一块事实 | 内核；回合开始的挂接点交回来的，是交它的模块（现在的执行器一块都不交） | 回合进行中注入的带上 | `context.injected.jsonl` |
+| `context.injected` | 注入进上下文的一块事实 | 内核；回合开始的挂接点交回来的，是交它的模块（现在只有记忆交常驻的摘要，`memory.md` 第三条，施工 R-4 上） | 回合进行中注入的带上 | `context.injected.jsonl` |
 | `context.compacted` | 压缩的检查点 | 内核 | 带上：压缩发生在哪一轮 | `context.compacted.jsonl` |
 | `context.compaction_paused` | 暂停了自动压缩（施工 6-6 上） | 内核 | 必带 | `context.compaction_paused.jsonl` |
 | `model.called` | 一次模型请求的记录 | 内核 | 回合进行中的带上；回顾、起标题的请求不带（施工 3-8 四补、五补） | `model.called.jsonl` |

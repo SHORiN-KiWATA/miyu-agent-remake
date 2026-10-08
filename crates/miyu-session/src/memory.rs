@@ -7,9 +7,11 @@
 mod backfill;
 mod keeper;
 mod port;
+mod summary;
 
 pub use keeper::{Filter, Keeper, Stamp};
 pub(crate) use port::Calls;
+pub use summary::SummaryTexts;
 
 use std::sync::{Arc, OnceLock};
 
@@ -31,12 +33,15 @@ pub struct Memory {
     pub turns: Arc<RecallIndexes>,
     /// 记忆日志的登记（施工 R-3 上）。
     pub logs: Arc<MemoryLogs>,
+    /// 常驻的摘要那一块的字（施工 R-4 上）：读不出来的（安装坏了）这个核心不交摘要。
+    pub summary: Option<SummaryTexts>,
 }
 
 impl Memory {
     /// 数据根 `root` 上一份空的记忆：两份登记，用到哪一间才开。回合库第一次开时记一行运行日志；人格那一间是新建的、重建过的，
-    /// 起一个后台线程补齐这个账号的旧会话（施工 R-2 下，`memory/backfill.rs`）。
-    pub fn new(root: &DataRoot) -> Arc<Memory> {
+    /// 起一个后台线程补齐这个账号的旧会话（施工 R-2 下，`memory/backfill.rs`）。`summary` 是常驻的摘要那一块的字（施工
+    /// R-4 上），没有的不交摘要。
+    pub fn new(root: &DataRoot, summary: Option<SummaryTexts>) -> Arc<Memory> {
         let turns = Arc::new(RecallIndexes::new(root));
         let recall = Arc::downgrade(&turns);
         let at = root.clone();
@@ -62,6 +67,7 @@ impl Memory {
         Arc::new(Memory {
             turns,
             logs: Arc::new(MemoryLogs::new(root)),
+            summary,
         })
     }
 }

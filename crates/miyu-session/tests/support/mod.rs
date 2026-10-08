@@ -20,11 +20,11 @@ use miyu_kernel::origin::{By, Person};
 use miyu_kernel::session::{Command, Outcome};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_policy::memory::MemoryScope;
-use miyu_session::Memory;
 use miyu_session::{
     Configs, Create, Handle, Jobs, Lineage, Load, Models, Pushed, SandboxCache, SessionPort,
     Stopped, Subscription, create, load, new_id,
 };
+use miyu_session::{Memory, SummaryTexts};
 use miyu_store::env::{Env, Platform};
 use miyu_store::index::{FILE, SessionIndex};
 use miyu_store::log::{read_events, read_segments};
@@ -167,7 +167,11 @@ impl Home {
         std::fs::create_dir_all(&home).expect("建得了假的家");
         let (index, _) = SessionIndex::open(&root.index(&alice_account()).join(FILE));
         let (usage, _) = UsageIndex::open(&root);
-        let memory = Memory::new(&root);
+        let resources = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");
+        let memory = Memory::new(
+            &root,
+            Some(SummaryTexts::load(&resources).expect("读得到摘要的字")),
+        );
         Home {
             recall: Arc::clone(&memory.turns),
             logs: Arc::clone(&memory.logs),

@@ -81,7 +81,7 @@ async fn a_new_persona_index_is_filled_from_the_old_sessions() {
             .exists(),
         "以前的版本造的会话：回合库还没有"
     );
-    let memory = Memory::new(&home.root);
+    let memory = Memory::new(&home.root, None);
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         let cats = found(&memory, &persona(), "养了");
@@ -116,7 +116,7 @@ async fn a_rebuilt_persona_index_is_filled_too() {
         .join("recall/turns-engineer.db");
     std::fs::create_dir_all(path.parent().expect("有上一级")).expect("建得了");
     std::fs::write(&path, "这不是一个库").expect("写得进");
-    let memory = Memory::new(&home.root);
+    let memory = Memory::new(&home.root, None);
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         let cats = found(&memory, &persona(), "养了");
