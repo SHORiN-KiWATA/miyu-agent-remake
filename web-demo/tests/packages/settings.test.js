@@ -154,10 +154,10 @@ test('供应商的表：编号的写法、密钥存成的新名字、要发的�
     { key: 'providers.dev.driver', value: 'openai-chat', expect: {} },
   ]);
   const fresh = providerChanges('new-one', { name: '', base_url: '', driver: 'anthropic', key: { kind: 'secret', value: 'sk-…' } }, { items: {} }, 'personal', 'new-one-x');
-  assert.deepEqual(fresh.map((c) => c.key), ['providers.new-one.driver', 'providers.new-one.keys'], '新建的空着的不写');
-  assert.deepEqual(fresh[1].value, [{ secret: 'new-one-x' }], '明文不进配置，只写密钥的名字');
+  assert.deepEqual(fresh.map((c) => c.key), ['providers.new-one.driver', 'providers.new-one.key'], '新建的空着的不写');
+  assert.deepEqual(fresh[1].value, { secret: 'new-one-x' }, '明文不进配置，只写密钥的名字；一家一个 key（核心 8-25）');
   const env = providerChanges('dev', { name: '', base_url: '', driver: '', key: { kind: 'env', value: ' KEY ' } }, { items: {} }, 'personal', null);
-  assert.deepEqual(env, [{ key: 'providers.dev.keys', value: [{ env: 'KEY' }], expect: {} }]);
+  assert.deepEqual(env, [{ key: 'providers.dev.key', value: { env: 'KEY' }, expect: {} }]);
   const urlKept = providerChanges('dev', { name: '', base_url: null, driver: '', key: { kind: 'keep', value: '' } }, { items: { 'providers.dev.base_url': { layers: [{ origin: { layer: 'personal' }, used: true, value: { env: 'U' } }] } } }, 'personal', null);
   assert.deepEqual(urlKept, [], '地址是 null（原来是环境变量、框空着）的不动');
   assert.deepEqual(moveMember(['a', 'b', 'c'], 0, 1), ['b', 'a', 'c']);

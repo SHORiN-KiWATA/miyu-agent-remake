@@ -219,8 +219,9 @@ export function providerChanges(id, form, got, layer, secret) {
   put('name', form.name.trim() ? { value: form.name.trim() } : { unset: true });
   if (form.base_url !== null) put('base_url', form.base_url.trim() ? { input: form.base_url.trim() } : { unset: true });
   if (form.driver) put('driver', { value: form.driver });
-  if (form.key.kind === 'secret' && secret) put('keys', { value: [{ secret }] });
-  if (form.key.kind === 'env' && form.key.value.trim()) put('keys', { value: [{ env: form.key.value.trim() }] });
+  // 一家一个 key（核心 8-25）：`providers.<编号>.key` 是一个引用
+  if (form.key.kind === 'secret' && secret) put('key', { value: { secret } });
+  if (form.key.kind === 'env' && form.key.value.trim()) put('key', { value: { env: form.key.value.trim() } });
   return changes;
 }
 

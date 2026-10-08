@@ -37,9 +37,9 @@ export function providerForm(dialog, providers) {
   const drawDriver = () => replace(driverBox, select(dialog, drivers, driver, (v) => { driver = v; drawDriver(); }));
   drawDriver();
   // 密钥：粘贴（密码框，编辑时空着是不改）或者环境变量的名字
-  const keyRef = p?.keys?.[0]?.ref ?? '';
+  const keyRef = p?.key?.ref ?? '';
   let keyKind = keyRef.startsWith('env:') ? 'env' : 'secret';
-  const secretField = input({ type: 'password', placeholder: p?.keys?.[0]?.set ? t('key_keep') : t('key_paste') });
+  const secretField = input({ type: 'password', placeholder: p?.key?.set ? t('key_keep') : t('key_paste') });
   const envField = input({ value: keyRef.startsWith('env:') ? keyRef.slice(4) : '', placeholder: 'DEEPSEEK_API_KEY' });
   const keyBox = h('div.set-form-key');
   const kindButtons = ['secret', 'env'].map((kind) => h('button.set-seg-item', { type: 'button', onclick: () => { keyKind = kind; drawKey(); } }, t(`key_${kind}`)));

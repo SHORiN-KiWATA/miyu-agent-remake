@@ -59,7 +59,8 @@ function providers(dialog, list) {
     h('button.set-prov.is-add', { type: 'button', onclick: openForm(dialog, null) }, icon('plus'), ctx.text('models.add_provider')));
   if (!p) return h('div.set-prov-wrap', side);
   const models = p.models ?? [];
-  const key = p.keys?.[0];
+  // 一家一个 key（核心 8-25）：`model.list` 每家的 `key`，没写的没有这一格
+  const key = p.key;
   const keyText = key?.ref?.startsWith('env:') ? ctx.text('from_env', { name: key.ref.slice(4) }) : ctx.text(key?.set ? 'secret_set' : 'secret_unset');
   const address = typeof p.base_url === 'object' && p.base_url?.env ? ctx.text('from_env', { name: p.base_url.env }) : inputText(p.base_url);
   const shared = sharedState(models);
