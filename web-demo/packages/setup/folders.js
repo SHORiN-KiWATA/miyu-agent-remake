@@ -37,7 +37,6 @@ export async function browse(ctx, menu, anchor, below, start, done, show) {
     const name = (x) => x.path.replace(/[\\/]+$/, '');
     menu.show(anchor, {
       title: show(dir),
-      hint: t('folders.hint'),
       below,
       back: up,
       note: note || (items.length ? '' : t('folders.empty')),

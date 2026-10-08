@@ -107,7 +107,6 @@ export function apply(ctx) {
     const chosen = inUse().persona;
     menu.show(personaBtn, {
       title: t('choose_persona'),
-      hint: t('menu_hint'),
       rows: [
         // 第一行「无人格」：不带人格（2026-10-08 项目主人：人格可以留空，这一项叫「无人格」；没有人格的会话记忆不生效，知识库照样能查）
         { title: t('no_persona'), desc: t('no_persona_desc'), current: chosen == null, pick: () => chat.setDraft({ persona: false }) },
@@ -129,7 +128,6 @@ export function apply(ctx) {
     const chosen = inUse().preset;
     menu.show(presetBtn, {
       title: t('choose_preset'),
-      hint: t('menu_hint'),
       rows: catalog.presets.map((p) => ({
         title: presetName(p),
         desc: p.problem ? t('preset_bad') : p.summary ?? '',
@@ -146,7 +144,8 @@ export function apply(ctx) {
     : err?.reason === 'path_unreadable' ? t('not_dir') : err?.message ?? String(err);
 
   /**
-   * 换到这个目录：空会话改选的工作区（默认的记成没选；开会话时核心才判，这里先问 `fs.list` 能不能用）；开着的会话交给核心换
+   * 换到这个目录：空会话改选的工作区（选了默认的也记着，按钮上换成它的目录名，2026-10-08 项目主人；开会话时核心才判，这里先问
+   * `fs.list` 能不能用）；开着的会话交给核心换
    * （`session.set_workspace`，核心 9-7：会话记着、别的头跟着换，不在、不是目录、在数据根里的当场拒）。成了记进最近用过的。
    * 交回一句错，成了是 `null`。
    * @param {string} path
@@ -157,7 +156,7 @@ export function apply(ctx) {
     try {
       if (!session) {
         await ctx.core.request('fs.list', { cwd: path, dir: '' });
-        chat.setDraft({ cwd: path === def ? null : path });
+        chat.setDraft({ cwd: path });
       } else {
         // 换成了的正文里多一行「工作区：路径」（照核心推来的 `session.workspace_changed`），这里不再另提示；太宽退回了工作区的，
         // `workdir.adjusted` 那边提示
@@ -172,13 +171,13 @@ export function apply(ctx) {
   /** 菜单里点一项：错了写进提示。 @param {string} path */
   const pickDir = (path) => use(path).then((why) => { if (why) ctx.composer.say(why); });
 
-  /** 输入框里写的路径：先认写法，再换；交回一句错，成了是 `null`。 @param {string} text */
+  /** `/workspace 路径` 写的路径：先认写法，再换；交回一句错，成了是 `null`。 @param {string} text */
   const check = async (text) => {
     const path = readPath(text);
     return path ? use(path) : t('relative');
   };
 
-  /** 工作区的菜单：默认工作区、最近用过的、「选择文件夹…」，最下面写路径。 @param {HTMLElement} anchor @param {boolean} below */
+  /** 工作区的菜单：默认工作区、最近用过的、「选择文件夹…」（2026-10-08 项目主人：不要手写路径的框；要写路径用 `/workspace 路径`）。 @param {HTMLElement} anchor @param {boolean} below */
   const openWorkspaces = (anchor, below) => {
     const def = chat.defaultWorkdir();
     const now = chat.current() ? chat.workdir() : chat.draft().cwd ?? def;
@@ -186,7 +185,6 @@ export function apply(ctx) {
     const which = below ? infoMenu : menu;
     which.show(anchor, {
       title: t('set_workspace'),
-      hint: t('menu_hint'),
       below,
       rows: [
         { title: t('default_workspace'), desc: tilde(def, home()), current: now === def, pick: () => pickDir(def) },
@@ -194,7 +192,6 @@ export function apply(ctx) {
         ...others.map((p) => ({ title: dirName(tilde(p, home())), desc: tilde(p, home()), current: now === p, pick: () => pickDir(p) })),
         { title: t('folders.open'), icon: 'folder-open', pick: () => browse(ctx, which, anchor, below, now, pickDir, (p) => tilde(p, home())) },
       ],
-      input: { hint: t('path_hint'), submit: check },
     });
   };
 

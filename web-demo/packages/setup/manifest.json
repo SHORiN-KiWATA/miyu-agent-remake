@@ -36,7 +36,6 @@
       "persona_bad": "文件写错了",
       "default_workspace": "默认工作区",
       "recent": "最近用过",
-      "path_hint": "输入路径，回车用它",
       "relative": "写绝对路径，或者 ~ 开头的路径",
       "not_dir": "找不到这个目录",
       "forbidden": "这个目录不能用",
@@ -92,11 +91,9 @@
         "no_features": "没有可以开关的功能",
         "not_installed": "没安装"
       },
-      "menu_hint": "↑↓ 选 · Enter 确定 · Esc 关闭",
       "folders": {
         "open": "选择文件夹…",
         "title": "选择工作区",
-        "hint": "↑↓ 选 · Enter 进去 · ⌫ 上一级",
         "up": "上一级",
         "empty": "这里没有子文件夹",
         "partial": "太多了，只列了一部分",
@@ -122,7 +119,6 @@
       "persona_bad": "ファイルに誤りがあります",
       "default_workspace": "既定のワークスペース",
       "recent": "最近使った",
-      "path_hint": "パスを入力して Enter",
       "relative": "絶対パスか ~ で始まるパスを書いてください",
       "not_dir": "このディレクトリが見つかりません",
       "forbidden": "このディレクトリは使えません",
@@ -178,11 +174,9 @@
         "no_features": "切り替えられる機能がありません",
         "not_installed": "未インストール"
       },
-      "menu_hint": "↑↓ 選択 · Enter 決定 · Esc 閉じる",
       "folders": {
         "open": "フォルダを選ぶ…",
         "title": "ワークスペースを選ぶ",
-        "hint": "↑↓ 選択 · Enter 開く · ⌫ 上へ",
         "up": "上の階層",
         "empty": "サブフォルダがありません",
         "partial": "多すぎるため一部だけ表示",

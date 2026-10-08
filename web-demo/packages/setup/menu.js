@@ -1,6 +1,6 @@
 // @ts-check
-//! 按钮旁边弹出的小菜单（蓝图 `web.md`「人格、预设、工作区」第 3、4 条）：顶上一行标题、右边暗色写按键（照选语言的浮层），下面一行一项
-//! （名字，有说明的下面暗色一行；现在的那一项打勾，用不了的暗着），可以分几段（段名暗色），再下面可以有一个输入框（回车交）、一排按钮。
+//! 按钮旁边弹出的小菜单（蓝图 `web.md`「人格、预设、工作区」第 3、4 条）：顶上一行标题（不写按键提示，2026-10-08 项目主人），下面一行一项
+//! （名字，有说明的下面暗色一行；现在的那一项打勾，用不了的暗着），可以分几段（段名暗色），再下面可以有一排按钮。
 //! 宽度跟着字走。`↑` `↓` 选、`Enter` 选定、`Esc` 和点外面关；鼠标悬停选中、点一下选定；`Backspace` 交给 `back`（文件夹里回上一级）。
 //! 不画描边（浮起来的层那一圈细线除外）。
 
@@ -9,8 +9,7 @@ import { h, icon, replace } from '../../src/lib/dom.js';
 /**
  * @typedef {{title: string, desc?: string, icon?: string, current?: boolean, off?: boolean, tip?: string, pick: () => void}} Row
  * @typedef {{section: string}} Section
- * @typedef {{hint: string, submit: (text: string) => Promise<string|null>}} Input 回车交；交回一句错就写在框下面，`null` 是成了
- * @typedef {{title: string, hint?: string, rows: (Row|Section)[], note?: string, input?: Input, foot?: HTMLElement[], back?: () => void, below?: boolean}} View
+ * @typedef {{title: string, rows: (Row|Section)[], note?: string, foot?: HTMLElement[], back?: () => void, below?: boolean}} View
  */
 
 export class Menu {
@@ -22,9 +21,7 @@ export class Menu {
     /** @type {View|null} */
     this.view = null;
     this.onKey = (/** @type {KeyboardEvent} */ e) => {
-      const inField = /** @type {HTMLElement} */ (e.target).classList?.contains('setup-input');
       if (e.key === 'Escape') this.close();
-      else if (inField) return;
       else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') this.mark(this.next(e.key === 'ArrowDown' ? 1 : -1));
       else if (e.key === 'Enter' && !e.isComposing && this.at >= 0) this.pick(this.items[this.at].row);
       else if (e.key === 'Backspace' && this.view?.back) this.view.back();
@@ -57,9 +54,8 @@ export class Menu {
       return el;
     });
     replace(this.el,
-      h('div.setup-menu-head', h('strong.setup-menu-name', view.title), view.hint ? h('span.setup-menu-hint', view.hint) : null),
+      h('div.setup-menu-head', h('strong.setup-menu-name', view.title)),
       h('div.setup-menu-list', nodes, view.note ? h('div.setup-menu-note', view.note) : null),
-      view.input ? this.inputBox(view.input) : null,
       view.foot?.length ? h('div.setup-menu-foot', view.foot) : null);
     this.el.classList.toggle('is-below', !!view.below);
     this.el.style.left = `${anchor.offsetLeft}px`;
@@ -89,21 +85,6 @@ export class Menu {
     this.view = null;
     document.removeEventListener('keydown', this.onKey, true);
     document.removeEventListener('pointerdown', this.onDown, true);
-  }
-
-  /** 输入框：回车交，错了写在下面、字留着。 @param {Input} input */
-  inputBox(input) {
-    const err = h('div.setup-menu-error', { hidden: true });
-    const field = /** @type {HTMLInputElement} */ (h('input.setup-input', { type: 'text', placeholder: input.hint, spellcheck: 'false', autocomplete: 'off' }));
-    field.addEventListener('keydown', async (e) => {
-      if (e.key !== 'Enter' || e.isComposing) return;
-      e.preventDefault();
-      const why = await input.submit(field.value);
-      err.hidden = !why;
-      err.textContent = why ?? '';
-      if (!why) this.close();
-    });
-    return h('div.setup-menu-input', field, err);
   }
 
   /** 下一个能选的（跳过暗着的），到头绕回去。 @param {number} step */
