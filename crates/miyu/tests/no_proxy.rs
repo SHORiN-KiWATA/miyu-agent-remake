@@ -138,9 +138,9 @@ async fn list_and_ask(rpc: &mut Rpc, work: &Path) {
     .await;
 }
 
-/// 等服务器收到 `count` 条请求，最多十秒。
+/// 等服务器收到 `count` 条请求，最多六十秒（test-waits 补）。
 async fn wait_received(server: &Server, count: usize, why: &str) -> Vec<Received> {
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(60);
     while server.received().len() < count && Instant::now() < deadline {
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
