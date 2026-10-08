@@ -167,7 +167,7 @@ impl Session {
             return actions;
         }
         history.jobs_from(&self.history);
-        self.history = history;
+        self.history = history.owned_by(self.id.clone());
         let stop = self.stop_undone(&turns, &by, &id);
         let body = Body::TurnReverted(TurnReverted { turns });
         let event = self.record(at, by.clone(), Some(id.clone()), body);

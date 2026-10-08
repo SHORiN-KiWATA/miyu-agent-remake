@@ -62,6 +62,19 @@ pub struct GroupChat {
     pub offset: UtcOffset,
     /// 正文、带的东西都没有时写的（`core/venues/no-text.txt`），不带行尾的换行。
     pub no_text: String,
+    /// 群聊近况（施工 O-13 下，`group/recent.rs`）。O-13（中）造的群会话没有：不出近况。
+    pub recent: Option<GroupRecent>,
+}
+
+/// 群聊近况要用的（施工 O-13 下）：块头、缺口提示、预算。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GroupRecent {
+    /// 块头那一行（`core/venues/recent-open.txt`），以换行结尾。
+    pub open: String,
+    /// 前面还有没装下的时，块头下面那一行（`core/venues/recent-omitted.txt`）：字段 `count` 是没装下的条数，以换行结尾。
+    pub omitted: Template,
+    /// 一块最多多少字节，从最新往前装。
+    pub budget: usize,
 }
 
 /// 转述一张图的请求要用的两份（施工 8-17，`docs/blueprint/kernel/request.md`「替它看的图」）：换行都在文件里，拼的时候不加字。

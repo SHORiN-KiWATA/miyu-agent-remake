@@ -37,7 +37,7 @@ mod test_support;
 pub use compose::{CoreLines, PersonaTexts, Sources, Wrap, compose};
 pub use drivers::DriverPlaceholders;
 pub use facts::FactTexts;
-pub use group::GroupChat;
+pub use group::{GroupChat, GroupRecent, RECENT_BUDGET};
 pub use guard::GuardTexts;
 pub use harness::HarnessTexts;
 pub use image_name::ImageNameTexts;

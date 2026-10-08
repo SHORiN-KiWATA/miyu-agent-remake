@@ -1,14 +1,15 @@
 //! 群会话，执行器这一头（施工 O-13 中，`docs/construction/O-13-群里的一行和格式说明（中）.md`）：造的时候 system 在人设后面接上
 //! 格式说明、快照钉下这时的时区；群里的人说的进请求是一行一条；换了时区的机器上载入，前面那一行一字不变、后面的也照钉下的
-//! 时区；私聊的没有说明、快照里没有这一格，人的话照原样。
+//! 时区；私聊的没有说明、快照里没有这一格，人的话照原样。群聊近况（施工 O-13 下）：开一轮的那条前面一块，收旁听的和别的线替
+//! 她发的话，这条线自己发的不重复；载入以后那一块一字不差。
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::{Body, Event, VenueMessage};
+use miyu_kernel::event::{Body, Event, VenueDelivered, VenueMessage};
 use miyu_kernel::facts::Environment;
-use miyu_kernel::id::{ExternalId, SessionId, VenueId};
-use miyu_kernel::origin::{By, External, Role};
+use miyu_kernel::id::{ExternalId, ModuleId, SessionId, TurnId, VenueId};
+use miyu_kernel::origin::{By, External, Module, Role};
 use miyu_kernel::request::{Message, Request};
-use miyu_kernel::session::Command;
+use miyu_kernel::session::{Appended, Command};
 use miyu_kernel::time::UtcOffset;
 use miyu_policy::Snapshot;
 use miyu_session::Handle;
@@ -169,4 +170,109 @@ async fn a_private_chat_has_no_note_and_is_said_as_written() {
         said(&script.requests()[0].1).last().map(String::as_str),
         Some("在吗")
     );
+}
+
+/// 桥记下 `line` 那条线发进群里的一句。
+fn delivered(line: &SessionId, msg: &str, text: &str) -> Command {
+    Command::Append {
+        event: Appended::Delivered(VenueDelivered {
+            line: line.clone(),
+            turn: TurnId::new(miyu_kernel::id::Seq::FIRST),
+            to: Vec::new(),
+            msg: msg.to_string(),
+            text: text.to_string(),
+            images: Vec::new(),
+        }),
+    }
+}
+
+fn bridge() -> By {
+    By::Module(Module {
+        id: ModuleId::parse("onebot").expect("模块编号合写法"),
+    })
+}
+
+#[tokio::test]
+async fn a_turn_in_a_group_starts_with_what_was_overheard() {
+    let home = Home::new();
+    let script = Script::new([Play::Says("我来。"), Play::Says("好。")]);
+    let handle = home
+        .create_full(
+            &script,
+            &Catalog::default(),
+            Opening::default(),
+            lines("qq:group:1", true),
+        )
+        .await;
+    let session = handle.id().clone();
+    let mut overheard = heard("早", "8800");
+    if let Command::Send {
+        venue: Some(venue), ..
+    } = &mut overheard
+    {
+        venue.ambient = true;
+    }
+    let other = SessionId::parse("0192f3a0-1111-7abc-8def-001122334455").expect("合写法");
+    for (n, (by, command)) in [
+        (member(), overheard),
+        (bridge(), delivered(&session, "8801", "这条线自己说的")),
+        (bridge(), delivered(&other, "8802", "我来")),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        // 造会话的命令是 `cmd-0`：从 `cmd-1` 起编。
+        within(
+            "回应",
+            handle.command(id(&format!("cmd-{}", n + 1)), by, command),
+        )
+        .await
+        .expect("会话在跑");
+    }
+    one_turn(&handle, "cmd-9", member(), heard("今天谁值班", "8803")).await;
+    stop(&handle).await;
+    let log = home.log(&session);
+    let tokyo = offset(540);
+    let clock = |msg: &str| -> String {
+        let event = log
+            .iter()
+            .find(|event| match &event.body {
+                Body::MessageUser(message) => {
+                    message.venue.as_ref().is_some_and(|venue| venue.msg == msg)
+                }
+                Body::VenueDelivered(delivered) => delivered.msg == msg,
+                _ => false,
+            })
+            .expect("记下了");
+        event.at.local_clock(tokyo)
+    };
+    let block = format!(
+        "[Prior group chat records]\n[{}] 小林 [msg=8800]: 早\n[{}] [you] [msg=8802]: 我来\n",
+        clock("8800"),
+        clock("8802")
+    );
+    let line = format!("[{}] 小林 [msg=8803]: 今天谁值班", clock("8803"));
+    let words = said(&script.requests()[0].1);
+    assert_eq!(
+        words[words.len() - 2..],
+        [block.clone(), line.clone()],
+        "{words:?}"
+    );
+
+    // 载入以后（换到西五区的机器上）：那一块一字不差。
+    let west = Environment {
+        offset: offset(-300),
+        ..environment()
+    };
+    let handle = home
+        .load_in(&session, &script, &Catalog::default(), west, None)
+        .await;
+    one_turn(&handle, "cmd-10", member(), heard("那我来", "8804")).await;
+    stop(&handle).await;
+    let words = said(&script.requests()[1].1);
+    let at = words
+        .iter()
+        .position(|text| *text == block)
+        .expect("那一块还在");
+    assert_eq!(words[at + 1], line);
 }

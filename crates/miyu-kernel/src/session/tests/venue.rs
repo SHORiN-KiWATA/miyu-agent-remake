@@ -130,3 +130,22 @@ fn only_ext_kinds_are_free_form() {
         );
     }
 }
+
+/// 有效历史记着这个会话自己的编号（施工 O-13 下）：造的、载入的、撤销以后的都有；组装器照它认出别的线替她发进群里的话。
+#[test]
+fn the_history_knows_its_own_session() {
+    let mut logged = super::load::Logged::new();
+    assert_eq!(logged.session.history.own(), Some(&session_id()));
+    let seen = logged.ask(1, "hi");
+    logged.say(seen, "好");
+    let (loaded, _) = super::load::load(logged.log.clone());
+    assert_eq!(loaded.history.own(), Some(&session_id()));
+    let actions = logged.handle(super::revert::revert(2, 3));
+    assert!(
+        appended_events(&actions)
+            .iter()
+            .any(|event| matches!(event.body, Body::TurnReverted(_))),
+        "撤了"
+    );
+    assert_eq!(logged.session.history.own(), Some(&session_id()));
+}

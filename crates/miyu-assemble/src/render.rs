@@ -24,6 +24,7 @@ use crate::{group, harness, jobs, peers};
 /// 渲染有效历史：检查点和历史，照先后排好的消息。稳定区不在这里。
 pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
     let mut transcript = Transcript::default();
+    let opened = Opened::of(history);
     // 清空的检查点什么都不出（施工 6-8 补）：她看到的上下文从这里起是空的。
     if let Some(checkpoint) = history.checkpoint()
         && let Body::ContextCompacted(compacted) = &checkpoint.body
@@ -40,7 +41,16 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
             // 旁听的场所消息这一步先不进上下文，O-13 下渲染成群聊近况（施工 O-13 上）。
             Body::MessageUser(message) if message.venue.as_ref().is_some_and(|venue| venue.ambient) => {}
             Body::MessageUser(message) => {
-                let blocks = spoken(history, event, message, known(&message.blocks), texts);
+                // 群会话里开一轮的那条，前面先放群聊近况（施工 O-13 下）：和它一起挪到回合开始的地方，排在事实后面。
+                let mut blocks: Vec<Block> = texts
+                    .group
+                    .as_ref()
+                    .zip(opened.window(event.seq))
+                    .and_then(|(chat, after)| group::recent(history, after, event.seq, chat))
+                    .map(text_block)
+                    .into_iter()
+                    .collect();
+                blocks.extend(spoken(history, event, message, known(&message.blocks), texts));
                 transcript.add(event.seq, Place::Here, blocks);
             }
             Body::ContextInjected(fact) => {
@@ -164,6 +174,38 @@ fn said(history: &History, by: &By, blocks: Vec<Block>, texts: &Texts) -> Vec<Bl
             peers::message(&session.id, blocks, texts.peers.as_ref())
         }
         by => jobs::message(history, by, blocks, texts.jobs.as_ref()),
+    }
+}
+
+/// 由人的消息开的回合，各由哪一条开的（施工 O-13 下）：群聊近况收两次这样的触发之间的。手动压缩单开的那一轮、回报开的
+/// 回合不算。
+struct Opened(Vec<Seq>);
+
+impl Opened {
+    fn of(history: &History) -> Opened {
+        let said: BTreeSet<Seq> = history
+            .events()
+            .iter()
+            .filter(|event| matches!(event.body, Body::MessageUser(_)))
+            .map(|event| event.seq)
+            .collect();
+        let mut triggers: Vec<Seq> = history
+            .events()
+            .iter()
+            .filter_map(|event| match &event.body {
+                Body::TurnStarted(started) => started.trigger,
+                _ => None,
+            })
+            .filter(|trigger| said.contains(trigger))
+            .collect();
+        triggers.sort_unstable();
+        Opened(triggers)
+    }
+
+    /// 第 `seq` 条开了一轮的，交回上一个这样的触发（没有的是没有）；没开的没有。
+    fn window(&self, seq: Seq) -> Option<Option<Seq>> {
+        let at = self.0.binary_search(&seq).ok()?;
+        Some(at.checked_sub(1).map(|before| self.0[before]))
     }
 }
 

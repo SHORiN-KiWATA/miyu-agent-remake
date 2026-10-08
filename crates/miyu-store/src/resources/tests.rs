@@ -303,11 +303,38 @@ fn the_group_chat_texts_are_their_own_files() {
         chat.no_text,
         include_str!("../../../../resources/core/venues/no-text.txt")
     );
+    // 群聊近况（施工 O-13 下）。
+    let recent = chat.recent.expect("有群聊近况的字");
+    assert_eq!(
+        recent.open,
+        include_str!("../../../../resources/core/venues/recent-open.txt")
+    );
+    assert_eq!(
+        recent.omitted,
+        include_str!("../../../../resources/core/venues/recent-omitted.txt")
+    );
+    assert_eq!(recent.budget, miyu_policy::RECENT_BUDGET);
     let scratch = Scratch::new();
     let empty = ResourceRoot::at(scratch.path());
     for (error, file) in [
         (empty.group_note().unwrap_err(), "core/venues/group.txt"),
         (empty.group_chat(0).unwrap_err(), "core/venues/no-text.txt"),
+        (
+            {
+                let venues = scratch.path().join("core/venues");
+                std::fs::create_dir_all(&venues).unwrap();
+                std::fs::write(venues.join("no-text.txt"), "x\n").unwrap();
+                empty.group_chat(0).unwrap_err()
+            },
+            "core/venues/recent-open.txt",
+        ),
+        (
+            {
+                std::fs::write(scratch.path().join("core/venues/recent-open.txt"), "x\n").unwrap();
+                empty.group_chat(0).unwrap_err()
+            },
+            "core/venues/recent-omitted.txt",
+        ),
     ] {
         match error {
             SourceError::Read { path, .. } => {

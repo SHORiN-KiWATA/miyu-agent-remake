@@ -169,8 +169,8 @@ impl Session {
     ) -> (Session, Vec<Action>) {
         let mut session = Session {
             ledger: Ledger::for_session(session.clone()),
+            history: History::default().owned_by(session.clone()),
             id: session,
-            history: History::default(),
             unstored: Vec::new(),
             stored: None,
             waiting: Vec::new(),

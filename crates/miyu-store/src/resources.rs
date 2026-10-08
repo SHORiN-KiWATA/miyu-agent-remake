@@ -12,10 +12,10 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use miyu_policy::{
-    CompactionTexts, CoreLines, CoreTexts, DriverPlaceholders, FactTexts, GroupChat, HarnessTexts,
-    ImageDescriptionTexts, ImageNameTexts, JobTexts, PeerIdleTexts, PeerTexts, PermissionTexts,
-    PersonaTexts, RebuildTexts, RecapTexts, ShortenTexts, Sources, TextFileTexts, TitleTexts,
-    ToolResultTexts, TurnEndedTexts, VisionTexts, Wrap,
+    CompactionTexts, CoreLines, CoreTexts, DriverPlaceholders, FactTexts, GroupChat, GroupRecent,
+    HarnessTexts, ImageDescriptionTexts, ImageNameTexts, JobTexts, PeerIdleTexts, PeerTexts,
+    PermissionTexts, PersonaTexts, RebuildTexts, RecapTexts, ShortenTexts, Sources, TextFileTexts,
+    TitleTexts, ToolResultTexts, TurnEndedTexts, VisionTexts, Wrap,
 };
 
 use crate::env::Env;
@@ -172,7 +172,8 @@ impl ResourceRoot {
         self.read(&["core", "venues", "group.txt"])
     }
 
-    /// 群会话钉下的（施工 O-13 中）：时区 `offset`（比 UTC 早多少分钟），空的一条写什么照 `core/venues/no-text.txt` 的原文。
+    /// 群会话钉下的（施工 O-13 中）：时区 `offset`（比 UTC 早多少分钟），空的一条写什么照 `core/venues/no-text.txt` 的原文；
+    /// 群聊近况（施工 O-13 下）的块头、缺口提示照 `core/venues/recent-open.txt`、`recent-omitted.txt` 的原文，预算是出厂的。
     ///
     /// # Errors
     ///
@@ -181,6 +182,11 @@ impl ResourceRoot {
         Ok(GroupChat {
             offset,
             no_text: self.read(&["core", "venues", "no-text.txt"])?,
+            recent: Some(GroupRecent {
+                open: self.read(&["core", "venues", "recent-open.txt"])?,
+                omitted: self.read(&["core", "venues", "recent-omitted.txt"])?,
+                budget: miyu_policy::RECENT_BUDGET,
+            }),
         })
     }
 

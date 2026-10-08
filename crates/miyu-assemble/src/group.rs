@@ -5,6 +5,8 @@
 //! 时区；`id=` 只在这一条的 `show_ids` 是真时写；身份只写 `owner`（主人对应表里有的）、`manager`（桥报的）。名字、正文、
 //! 编号、带的东西的名字是不可信的，照模板的规矩转义成一行（`template::escape`）：伪造不出另一条记录；钟点、身份、`@all`、
 //! `[you]` 是可信的，原样。图片、文件块照旧接在这一行后面交给驱动。
+//!
+//! 开一轮的那条前面的群聊近况在 `recent.rs`（施工 O-13 下）：两次触发之间的旁听、别的线替她发的话，一行一条。
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Media, VenueMessage};
@@ -29,12 +31,28 @@ pub(crate) fn line(
     let (words, rest): (Vec<Block>, Vec<Block>) = blocks
         .into_iter()
         .partition(|block| matches!(block, Block::Text(_)));
+    let line = record(at, by, venue, &words, texts, "");
+    let mut out = vec![Block::Text(Text { text: line })];
+    out.extend(rest);
+    out
+}
+
+/// 一条的字：`[时刻] 发的人 [msg=编号]<mark>: 内容`，下面可选缩进的两行。`mark` 是编号后面的可信记号（撤回的，`recent.rs`），
+/// 没有的是空的。`words` 里只看文本块。
+fn record(
+    at: Timestamp,
+    by: &By,
+    venue: &VenueMessage,
+    words: &[Block],
+    texts: &GroupChat,
+    mark: &str,
+) -> String {
     let mut line = format!(
-        "[{}] {} [msg={}]: {}",
+        "[{}] {} [msg={}]{mark}: {}",
         at.local_clock(texts.offset),
         sender(by, venue),
         escape(&venue.msg),
-        content(&words, &venue.media, &texts.no_text),
+        content(words, &venue.media, &texts.no_text),
     );
     if let Some(reply_to) = &venue.reply_to {
         line.push_str("\n  reply-to: msg=");
@@ -44,9 +62,7 @@ pub(crate) fn line(
         line.push_str("\n  @mentions: ");
         line.push_str(&mentions);
     }
-    let mut out = vec![Block::Text(Text { text: line })];
-    out.extend(rest);
-    out
+    line
 }
 
 /// 发的人：名字（没有的写平台身份），后面括号里是 `id=`（这一条 `show_ids`、又有名字的才写）和身份（`owner`、`manager`）。
@@ -134,6 +150,10 @@ fn cut(text: &str, limit: usize) -> &str {
     }
     &text[..end]
 }
+
+mod recent;
+
+pub(crate) use recent::recent;
 
 #[cfg(test)]
 mod tests;

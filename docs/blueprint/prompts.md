@@ -2473,6 +2473,32 @@ Group messages look like [HH:MM] name (id=..., role) [msg=...]: text, with optio
 [no text content]
 ```
 
+### 人这边：群聊近况那一块的头一行，排在开这一轮的那条前面
+
+#### `core/venues/recent-open.txt`
+
+- 什么时候加进来：群会话里由人的消息开的一轮，上一个这样的触发以后有旁听的消息、别的线替她发的话（施工 O-13 下）；之后每次请求照原文带
+- token：6（2026-10-09 主会话在 DeepSeek 官方 `deepseek-flash` 上量，接在一行群里的话前面）
+- 为什么加：照旧版的 `[Prior group chat records]`：说下面几行是她没回的群聊记录，和开这一轮的那条分开（`18-通讯平台.md` 第九节）
+- 指纹：`f9646662`
+
+```text
+[Prior group chat records]
+```
+
+### 人这边：群聊近况那一块，头一行下面
+
+#### `core/venues/recent-omitted.txt`
+
+- 什么时候加进来：同上，又装不下全部（一块 80000 字节，从最新往前装）（施工 O-13 下）
+- token：14（`{count}` 填 12，同上）
+- 为什么加：照旧版的缺口提示：前面还有几条没放进来、用 `history` 取，不说她就当群里只聊了这几句。旧版点名的是它自己的群聊记录工具，这里换成 `history`
+- 指纹：`0bf04d70`
+
+```text
+({count} earlier messages did not fit here; fetch them with history.)
+```
+
 ### 回顾那一次请求，不进主对话
 
 #### `core/recap/instruction.txt`
