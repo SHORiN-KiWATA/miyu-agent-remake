@@ -20,6 +20,8 @@ use miyu_kernel::raw::RawJson;
 use miyu_kernel::time::Timestamp;
 
 use crate::durable::{create_dir, sync_dir};
+
+pub mod personas;
 use crate::journal::{self, Entry};
 use crate::root::DataRoot;
 use crate::usage;
@@ -143,7 +145,7 @@ fn keep_usage(
         .map_err(|error| error.to_string())
 }
 
-/// 回收处里的会话目录 `dir` 写着的删的时刻。读不了、写法不对的，交回为什么。
+/// 回收处里的目录 `dir`（会话的、人格的）写着的删的时刻。读不了、写法不对的，交回为什么。
 fn deleted_at(dir: &Path) -> Result<Timestamp, String> {
     let text = fs::read_to_string(dir.join(DELETED_AT)).map_err(|error| error.to_string())?;
     Timestamp::parse(text.trim_end()).map_err(|error| error.to_string())

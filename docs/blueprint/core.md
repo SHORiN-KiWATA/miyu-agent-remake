@@ -14,7 +14,7 @@
 | `crates/miyu-core/src/serve.rs` | 接连接，空闲退出，停的信号 |
 | `crates/miyu-core/src/sandbox.rs` | 起来时找沙盒的助手、探一次，记日志（施工 5-1）；探到了手段的，交回助手（施工 5-4 上） |
 | `crates/miyu-core/src/packages.rs`、`packages/net.rs` | 照编进来的可选软件包（cargo 开关）往查询表里登记，交给 `Core`（施工 W-4，`mermaid.md`；`net` 的 `link.preview` 在后台答，卡片的图存进管理员的 blob，施工 W-7，`net.md`）；起来时清掉管理员分块上传留下的暂存（施工 W-5） |
-| `crates/miyu-core/src/trash.rs` | 起来时清一次回收处；删了的会话留多久 `KEEP`（施工 3-8 三补） |
+| `crates/miyu-core/src/trash.rs` | 起来时清一次回收处；删了的会话留多久 `KEEP`（施工 3-8 三补）；删了的人格同样清（施工 P-3 下） |
 | `crates/miyu-core/src/settings.rs` | 配置清单：登记各模块的几项；起来时读配置（施工 8-5 起连同密钥文件，环境照进程的）、照 `log.level` 换运行日志的级别（施工 8-2），生成两份 JSON Schema 和参考文件（施工 8-1，`config.md`「怎么走」第一、二条）；运行中跟着配置换级别、重写这三份（`settings/follow.rs`，施工 8-4） |
 | `crates/miyu-sandbox/src/lifeline.rs`、`lifeline/` | 核心没了，它起的命令跟着没（施工 7-8，下面「子进程随核心退出」）：Unix 上每条命令的组里一个看门的，Windows 上核心进作业对象 |
 | `crates/miyu-ipc` | 单实例锁、套接字、本机令牌、那一行的写法（`ipc.md`） |
@@ -55,6 +55,7 @@
 | `.miyu-root`、`system/`、`home/`、`state/`、`run/` | 骨架（`store.md`） |
 | `home/admin/`、`home/admin/workspace/` | 管理员的家目录和工作区 |
 | `home/admin/trash/sessions/` | 回收处：删掉的会话，留 7 天（`store.md` 第 12 条，施工 3-8 三补）。起来时清掉满了 7 天的 |
+| `home/admin/trash/personas/` | 删掉的人格，`<编号>.<删的时刻，毫秒>/`，同样留 7 天、起来时清（施工 P-3 下） |
 | `state/logs/core.log` | 运行日志，满 10 MiB 换一份，留 `core.log.1` 到 `core.log.5`（`log.md`） |
 | `run/core.lock`、`run/token`、`run/socket` | 单实例锁、本机令牌、套接字的位置（`ipc.md`） |
 | `run/core.sock` | 套接字本身，放在 `run/` 的时候（`ipc.md`「套接字放哪」） |

@@ -12,6 +12,8 @@ use crate::hello::Peer;
 use crate::refusal::Refusal;
 use crate::settings::PersonaSettings;
 
+pub(crate) mod write;
+
 const TARGET: &str = "miyu::endpoint";
 
 /// 这个核心的几层人格：出厂、系统区、管理员的家目录。
@@ -101,6 +103,11 @@ pub(crate) struct GetParams {
 /// 提示词原文不经协议给。
 pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal> {
     let found = resolve(core, Some(&params.persona)).await?;
+    Ok(describe(&found))
+}
+
+/// 叠好的一个人格照 `persona.get` 写（`persona.set` 的回应也是它，施工 P-3 下）。
+fn describe(found: &Found) -> Value {
     let from = |origin: &Option<Origin>| origin.as_ref().map(|origin| origin_of(&found.id, origin));
     let mut reply = json!({
         "persona": found.id,
@@ -117,7 +124,7 @@ pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal
     if let Some(base) = &found.base {
         reply["base"] = json!(base);
     }
-    Ok(reply)
+    reply
 }
 
 /// 一份字来自哪儿，`persona.get` 的写法：人格 `id` 自己的是那一层，来自底的是 `base:<编号>/<层>`。
