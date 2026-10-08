@@ -1,0 +1,39 @@
+# 第一次接入时先列的常用几家（施工 8-11 再补，2026-10-08 项目主人定）：`miyu setup`、头的第一次引导照这个先后列，经
+# `provider.catalog {"featured": true}` 交出去。
+#
+# - `catalog`：目录、档案里的编号；写了 `catalog_zh` 的，中文界面用它（国内的地址）。目录里没有的跳过。
+# - `name`：给人看的名字，一句字，或者语言到一句话的表（照连接的语言挑）。
+
+[[providers]]
+catalog = "deepseek"
+name = "DeepSeek"
+
+[[providers]]
+catalog = "openai"
+name = "OpenAI"
+
+[[providers]]
+catalog = "anthropic"
+name = "Anthropic"
+
+[[providers]]
+catalog = "openrouter"
+name = "OpenRouter"
+
+[[providers]]
+catalog = "moonshotai"
+catalog_zh = "moonshotai-cn"
+name = "Kimi"
+
+[[providers]]
+catalog = "zhipuai"
+name = { zh = "智谱 GLM", en = "Zhipu GLM", ja = "Zhipu GLM" }
+
+[[providers]]
+catalog = "alibaba"
+catalog_zh = "alibaba-cn"
+name = { zh = "通义千问", en = "Qwen", ja = "Qwen" }
+
+[[providers]]
+catalog = "opencode"
+name = "opencode Zen"

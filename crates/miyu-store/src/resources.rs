@@ -163,6 +163,15 @@ impl ResourceRoot {
         self.read(&["core", "jobs", "subagent-venue.txt"])
     }
 
+    /// 常用的几家（施工 8-11 再补）：`models/featured.toml` 的原文，`provider.catalog {"featured": true}` 每次照它列。
+    ///
+    /// # Errors
+    ///
+    /// 读不了这份文件，写明是哪一份。
+    pub fn featured_providers(&self) -> Result<String, SourceError> {
+        self.read(&["models", "featured.toml"])
+    }
+
     /// 核心的几行（施工 2-7 补，`26-提示词.md` 第四节第 3 块）：`core/permission-rule.txt`、`core/local-paths-rule.txt` 的
     /// 原文，造会话时拼进 system（`Snapshot::with_core_lines`）。只在造会话时读：以前造的快照 system 里没有它们。风格锁
     /// `core/style-lock.txt` 一起读（第 7 块，施工 P-1 补，`Snapshot::with_style_lock`）。

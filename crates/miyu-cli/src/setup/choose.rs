@@ -1,9 +1,12 @@
-//! 选一家（`docs/blueprint/cli/setup.md`「怎么走」第 3 到 6 条，施工 8-11）：`provider.detect` 找到的、搜目录的、
-//! `--provider` 写的。
+//! 选一家（`docs/blueprint/cli/setup.md`「怎么走」第 3 到 6 条，施工 8-11、8-11 再补）：常用的几家、本机跑着的服务、自定义，
+//! 或者 `--provider` 写的。
 //!
-//! - 找到的：`keys` 在前、`local` 在后，用不了的不编号、灰字；头看得到、核心看不到的变量先说一段灰字。
-//! - 搜目录：一次最多 [`PAGE`] 家，搜到的本机的一家不要 key，别的要贴。
+//! - 常用的几家照 `provider.catalog {"featured": true}` 的先后（2026-10-08 项目主人定）：配好了的标「已配好」，找到了 key 的
+//!   标「已找到 key」，用不了的不编号、灰字；本机跑着的服务标「本机」；最后一行「自定义」（`custom.rs`）。
+//! - 头看得到、核心看不到的变量先说一段灰字。
 //! - `--env` 写了的，要 key 的都照它（已经配好的、本机的不要）。
+
+use std::collections::BTreeMap;
 
 use serde_json::{Value, json};
 
@@ -11,42 +14,44 @@ use super::flow::{Chosen, Flow, Key};
 use super::pick::{Row, Typed, numbered, typed};
 use crate::shown::{say, write};
 
-/// 搜目录一次列几家。
-const PAGE: usize = 20;
-
 /// `--provider` 找那一家时最多看几家：编号里有这一截的都在里面。
 const ALL: usize = 1000;
 
-/// 能选的一个，和它在表里的那一行。
+/// 表里的一行：选了是哪一家（「自定义」的没有，接着问），和它那一行。
 struct Offer {
-    chosen: Chosen,
+    chosen: Option<Chosen>,
     row: Row,
 }
 
 impl Flow<'_> {
-    /// 从 `provider.detect` 的回应 `detected` 里选；都没有、选 `0` 的搜目录。
+    /// 列常用的几家、本机跑着的服务、自定义，选一个。`detected` 是 `provider.detect` 的回应。
     pub(super) async fn choose(&mut self, detected: &Value) -> Result<Chosen, u8> {
         let language = self.plan.language;
         self.unseen(detected);
-        let offers = self.offers(detected);
-        if offers.is_empty() {
-            say(self.err, language.found_nothing());
-            return self.search().await;
-        }
-        say(self.err, language.found_heading());
+        let featured = self
+            .request("provider.catalog", json!({"featured": true}))
+            .await?;
+        let configured = self.configured().await?;
+        let offers = self.offers(detected, &featured, &configured);
+        say(self.err, language.pick_provider());
         let rows: Vec<Row> = offers.iter().map(|offer| offer.row.clone()).collect();
-        for line in numbered(&rows, Some(("0", language.none_of_these()))) {
+        for line in numbered(&rows, None) {
             write(self.err, &line.paint(self.plan.gray));
         }
         let usable: Vec<&Offer> = offers.iter().filter(|offer| offer.row.usable).collect();
         loop {
             match typed(self.ask(language.pick_number()), usable.len()) {
-                Typed::Picked(at) => return Ok(self.with_env(usable[at].chosen.clone())),
-                Typed::Zero => return self.search().await,
+                Typed::Picked(at) => {
+                    return match &usable[at].chosen {
+                        Some(chosen) => Ok(self.with_env(chosen.clone())),
+                        None => self.custom(),
+                    };
+                }
                 Typed::Empty | Typed::End => {
                     say(self.err, language.not_picked());
                     return Err(crate::exit::ERROR);
                 }
+                Typed::Zero => say(self.err, &language.not_a_number("0")),
                 Typed::Other(text) => say(self.err, &language.not_a_number(&text)),
             }
         }
@@ -66,120 +71,96 @@ impl Flow<'_> {
         }
     }
 
-    /// 找到的每一个写成能选的一行。
-    fn offers(&self, detected: &Value) -> Vec<Offer> {
+    /// 配置里已经有的几家：目录里的编号 → 配置里的编号（写了 `catalog` 的照它，没写的就是配置里的编号）。照 `config.get`
+    /// 的最终值，配置里的编号照字节排、先占的算。
+    async fn configured(&mut self) -> Result<BTreeMap<String, String>, u8> {
+        let got = self.request("config.get", json!({})).await?;
+        let items = got["items"].as_object().cloned().unwrap_or_default();
+        let mut configured = BTreeMap::new();
+        for key in items.keys() {
+            let Some(id) = key
+                .strip_prefix("providers.")
+                .and_then(|rest| rest.split_once('.'))
+                .map(|(id, _)| id)
+            else {
+                continue;
+            };
+            let catalog = items
+                .get(&format!("providers.{id}.catalog"))
+                .and_then(|item| item["value"].as_str())
+                .unwrap_or(id);
+            configured
+                .entry(catalog.to_string())
+                .or_insert_with(|| id.to_string());
+        }
+        Ok(configured)
+    }
+
+    /// 表里的每一行：常用的几家、本机跑着的服务，最后「自定义」。
+    fn offers(
+        &self,
+        detected: &Value,
+        featured: &Value,
+        configured: &BTreeMap<String, String>,
+    ) -> Vec<Offer> {
         let language = self.plan.language;
-        let configured = |entry: &Value| entry["configured"].as_str().map(str::to_string);
-        let mut offers: Vec<Offer> = list(&detected["keys"])
-            .map(|key| {
-                let env = text(&key["env"]);
-                let mut place = language.found_key(&env);
-                if let Some(id) = configured(key) {
-                    place.push_str(&language.already_set_up(&id));
-                }
-                let usable = key["supported"] == json!(true);
-                if !usable {
-                    let why = language.unusable_why(key["driver"].as_str(), true);
-                    place.push_str(&language.unusable(&why, true));
-                }
+        let mut offers: Vec<Offer> = list(&featured["providers"])
+            .map(|entry| {
+                let id = text(&entry["id"]);
+                let found = list(&detected["keys"])
+                    .find(|key| key["provider"] == json!(id) && key["supported"] == json!(true));
+                let (key, mark) = match (configured.get(&id), found) {
+                    (Some(set), _) => (Key::Configured(set.clone()), language.set_up_mark()),
+                    (None, Some(found)) => (Key::Env(text(&found["env"])), language.key_found()),
+                    (None, None) => (from_catalog(entry).key, ""),
+                };
+                let usable = entry["supported"] == json!(true);
+                let note = match usable {
+                    true => mark.to_string(),
+                    false => {
+                        let why = language
+                            .unusable_why(entry["driver"].as_str(), !entry["base_url"].is_null());
+                        language.unusable(&why, false)
+                    }
+                };
                 Offer {
-                    chosen: Chosen {
-                        id: text(&key["provider"]),
-                        name: text(&key["name"]),
-                        key: configured(key).map_or(Key::Env(env), Key::Configured),
-                    },
+                    chosen: Some(Chosen {
+                        id,
+                        name: text(&entry["name"]),
+                        key,
+                        custom: None,
+                    }),
                     row: Row {
-                        cells: vec![text(&key["name"]), place],
+                        cells: vec![text(&entry["name"]), note],
                         usable,
                     },
                 }
             })
             .collect();
         offers.extend(list(&detected["local"]).map(|service| {
-            let models = service["models"].as_array().map_or(0, Vec::len);
-            let mut place = language.found_local(&text(&service["base_url"]), models);
-            if let Some(id) = configured(service) {
-                place.push_str(&language.already_set_up(&id));
-            }
+            let mut note = language.local_mark(&text(&service["base_url"]));
+            let key = match service["configured"].as_str() {
+                Some(id) => {
+                    note.push_str(&format!("，{}", language.set_up_mark()));
+                    Key::Configured(id.to_string())
+                }
+                None => Key::Nothing,
+            };
             Offer {
-                chosen: Chosen {
+                chosen: Some(Chosen {
                     id: text(&service["provider"]),
                     name: text(&service["name"]),
-                    key: configured(service).map_or(Key::Nothing, Key::Configured),
-                },
-                row: Row::usable(vec![text(&service["name"]), place]),
+                    key,
+                    custom: None,
+                }),
+                row: Row::usable(vec![text(&service["name"]), note]),
             }
         }));
+        offers.push(Offer {
+            chosen: None,
+            row: Row::usable(vec![language.custom().to_string(), String::new()]),
+        });
         offers
-    }
-
-    /// 搜目录：问一截，列出来，选一个或者再搜。
-    async fn search(&mut self) -> Result<Chosen, u8> {
-        let language = self.plan.language;
-        let not_picked = |flow: &mut Flow<'_>| {
-            say(flow.err, language.not_picked());
-            Err(crate::exit::ERROR)
-        };
-        let Some(mut query) = self.ask(language.search_for()) else {
-            return not_picked(self);
-        };
-        loop {
-            let query_now = query.trim().to_string();
-            let mut params = json!({"limit": PAGE});
-            if !query_now.is_empty() {
-                params["query"] = json!(query_now);
-            }
-            let found = self.request("provider.catalog", params).await?;
-            let providers: Vec<&Value> = list(&found["providers"]).collect();
-            if providers.is_empty() {
-                say(self.err, language.nothing_matches());
-                match self.ask(language.search_for()) {
-                    Some(next) => {
-                        query = next;
-                        continue;
-                    }
-                    None => return not_picked(self),
-                }
-            }
-            let rows: Vec<Row> = providers
-                .iter()
-                .map(|entry| self.catalog_row(entry))
-                .collect();
-            for line in numbered(&rows, None) {
-                write(self.err, &line.paint(self.plan.gray));
-            }
-            if providers.len() == PAGE {
-                say(self.err, &language.only_first(PAGE));
-            }
-            let usable: Vec<&&Value> = providers
-                .iter()
-                .filter(|entry| entry["supported"] == json!(true))
-                .collect();
-            match typed(self.ask(language.pick_or_search()), usable.len()) {
-                Typed::Picked(at) => return Ok(self.with_env(from_catalog(usable[at]))),
-                Typed::Empty | Typed::End => return not_picked(self),
-                Typed::Zero => query = "0".to_string(),
-                Typed::Other(text) => query = text,
-            }
-        }
-    }
-
-    /// 搜到的一家写成一行：名字、编号，用不了的接原因。
-    fn catalog_row(&self, entry: &Value) -> Row {
-        let language = self.plan.language;
-        let usable = entry["supported"] == json!(true);
-        let note = match usable {
-            true => String::new(),
-            false => {
-                let why =
-                    language.unusable_why(entry["driver"].as_str(), !entry["base_url"].is_null());
-                language.unusable(&why, false)
-            }
-        };
-        Row {
-            cells: vec![text(&entry["name"]), text(&entry["id"]), note],
-            usable,
-        }
     }
 
     /// `--provider`：目录、档案里编号一模一样、能用的那一家；找到了它的 key 的照那个变量用。
@@ -224,6 +205,7 @@ fn from_catalog(entry: &Value) -> Chosen {
             true => Key::Nothing,
             false => Key::Paste,
         },
+        custom: None,
     }
 }
 

@@ -29,6 +29,11 @@ base_url = "http://127.0.0.1:11434/v1"
 driver = "anthropic"
 base_url = "https://api.anthropic.com/v1"
 
+# OpenRouter（施工 8-11 再补）：目录里这一家的包是它自己的（@openrouter/ai-sdk-provider），[npm] 推不出驱动；接口是 OpenAI 兼容的
+# chat completions，地址照目录。只写驱动，没有开关（没有 key 实测过；列模型不要 key，2026-10-08 试过是通的）。常用的几家要它能用。
+[providers.openrouter]
+driver = "openai-chat"
+
 # OpenAI 官方（施工 8-13）：目录里这一家没写地址，档案补上。Responses 接口，没有开关；思考强度照目录的档位。
 [providers.openai]
 driver = "openai-responses"

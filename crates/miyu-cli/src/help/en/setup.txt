@@ -1,8 +1,8 @@
 Usage: miyu setup [options]
 
-Connect the first model: look for keys in environment variables and model
-services on this machine, or find a provider in the catalog and paste its
-key; try it, pick the model for chat, and write it to the system config.
+Connect the first model: pick a common provider, a model service on this
+machine, or a custom address and API protocol; paste the key, try it, pick
+the model for chat, and write it to the system config.
 
 Options:
       --provider <id>   Skip picking: use this provider from the catalog

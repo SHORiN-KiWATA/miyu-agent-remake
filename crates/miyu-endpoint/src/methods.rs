@@ -301,7 +301,7 @@ pub(crate) async fn call(
         "secret.list" => Ok(secrets::list(core)),
         "model.list" => models::list(core, params(request)?).await,
         "provider.detect" => providers::detect(core).await,
-        "provider.catalog" => providers::catalog(core, params(request)?).await,
+        "provider.catalog" => providers::catalog(core, peer, params(request)?).await,
         "provider.test" => providers::test(core, params(request)?).await,
         "model.call" => models::call(core, params(request)?).await,
         "usage.query" => crate::usage::query(core, params(request)?).await,

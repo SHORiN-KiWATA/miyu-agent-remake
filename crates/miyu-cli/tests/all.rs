@@ -17,6 +17,7 @@ mod recap;
 mod redo;
 mod rename;
 mod setup;
+mod setup_custom;
 mod setup_skip;
 mod steps;
 mod undo;

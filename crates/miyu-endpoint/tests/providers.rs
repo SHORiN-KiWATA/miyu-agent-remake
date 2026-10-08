@@ -197,3 +197,105 @@ async fn the_catalog_is_searched_and_usable_ones_come_first() {
         assert_eq!(reason(&reply), Some("bad_params"), "{params}");
     }
 }
+
+/// 常用的几家（施工 8-11 再补）：照资源目录 `models/featured.toml` 的先后，目录、档案里没有的跳过；写法和搜到的同一家一样，
+/// 名字换成它写的、照连接的语言挑；中文的 Kimi、通义用国内的那一家。不看 `query`、`limit`。
+#[tokio::test]
+async fn featured_ones_follow_the_resource_order_and_the_language() {
+    let profile = |name: &str, base_url: &str| json!({"name": name, "driver": "openai-chat", "base_url": base_url});
+    let extra = json!({
+        "moonshotai": profile("Moonshot AI", "https://api.moonshot.ai/v1"),
+        "moonshotai-cn": profile("Moonshot AI (China)", "https://api.moonshot.cn/v1"),
+        "alibaba-cn": profile("Alibaba (China)", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+    });
+    let shown = |reply: &Value| -> Vec<(String, String)> {
+        let providers = reply["result"]["providers"].as_array().expect("是列表");
+        providers
+            .iter()
+            .map(|entry| (text(&entry["id"]), text(&entry["name"])))
+            .collect()
+    };
+    let chinese = Home::new();
+    let params = json!({"featured": true, "query": "nothing-like-this", "limit": 1});
+    let reply = ask(&chinese, &[], extra.clone(), "provider.catalog", params).await;
+    assert_eq!(
+        shown(&reply),
+        pairs(&[
+            ("deepseek", "DeepSeek"),
+            ("openai", "OpenAI"),
+            ("anthropic", "Anthropic"),
+            ("moonshotai-cn", "Kimi"),
+            ("alibaba-cn", "通义千问"),
+            ("opencode", "opencode Zen"),
+        ])
+    );
+    let searched = ask(
+        &chinese,
+        &[],
+        extra.clone(),
+        "provider.catalog",
+        json!({"query": "deepseek"}),
+    )
+    .await;
+    assert_eq!(
+        reply["result"]["providers"][0], searched["result"]["providers"][0],
+        "写法和搜到的同一家一样"
+    );
+
+    let english = Home::new();
+    english.write("system/config.toml", "[ui]\nlanguage = \"en\"\n");
+    let reply = ask(
+        &english,
+        &[],
+        extra,
+        "provider.catalog",
+        json!({"featured": true}),
+    )
+    .await;
+    assert_eq!(
+        shown(&reply),
+        pairs(&[
+            ("deepseek", "DeepSeek"),
+            ("openai", "OpenAI"),
+            ("anthropic", "Anthropic"),
+            ("moonshotai", "Kimi"),
+            ("opencode", "opencode Zen"),
+        ]),
+        "国际的通义目录里没有，跳过"
+    );
+
+    let plain = ask(
+        &chinese,
+        &[],
+        json!({}),
+        "provider.catalog",
+        json!({"featured": false, "limit": 2}),
+    )
+    .await;
+    assert_eq!(
+        plain["result"]["providers"].as_array().map(Vec::len),
+        Some(2)
+    );
+    let wrong = ask(
+        &chinese,
+        &[],
+        json!({}),
+        "provider.catalog",
+        json!({"featured": "yes"}),
+    )
+    .await;
+    assert_eq!(reason(&wrong), Some("bad_params"));
+}
+
+/// 一格字。
+fn text(value: &Value) -> String {
+    value.as_str().unwrap_or_default().to_string()
+}
+
+/// 写成 `(编号, 名字)` 的列表。
+fn pairs(wanted: &[(&str, &str)]) -> Vec<(String, String)> {
+    wanted
+        .iter()
+        .map(|(id, name)| ((*id).to_string(), (*name).to_string()))
+        .collect()
+}

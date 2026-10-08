@@ -89,7 +89,7 @@
   check [文件]          查手写的文件有没有写错：配置、密钥、人格、预设、清单
   login [名字]          存一个供应商的 key；--list 列出哪几家设了
   logout [名字]         删掉一个供应商的 key
-  setup                 接上第一个模型：找现成的 key，试通了写进配置
+  setup                 接上第一个模型：选一家、贴 key，试通了写进配置
   web                   打开网页界面
   sandbox setup|remove  装好、撤掉沙盒用户（Windows，要管理员权限）
 
@@ -138,7 +138,7 @@ Commands:
   check [file]          Check config, secrets, personas, presets and packages
   login [name]          Save a provider's key; --list shows which are set
   logout [name]         Delete a provider's key
-  setup                 Connect the first model: find a key, try it, save it
+  setup                 Connect the first model: pick a provider and try it
   web                   Open the web UI
   sandbox setup|remove  Set up or remove the sandbox user (Windows, needs admin)
 

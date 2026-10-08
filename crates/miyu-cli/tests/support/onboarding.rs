@@ -12,7 +12,7 @@ use miyu_cli::language::Language;
 use miyu_cli::{Console, HeadEnv, Setup, SetupPlan, model_ready_on, setup_on};
 use miyu_endpoint::Core;
 use miyu_endpoint::config::{Config, Environment};
-use miyu_http::testkit::Server;
+use miyu_http::testkit::{Piece, Reply, Server};
 use miyu_http::{Proxy, fetcher};
 use miyu_models::catalog::{Catalog, CatalogSource, Loaded};
 use miyu_models::matching::Vendors;
@@ -95,6 +95,40 @@ impl Console for Typist {
 /// 三种写法，这样它就当成外面的供应商，要贴 key、不去探。
 pub fn remote(server: &Server) -> String {
     server.base_url.replace("127.0.0.1", "127.1")
+}
+
+/// DeepSeek 的档案指到假服务器（当成外面的供应商）。
+pub fn deepseek_at(server: &Server) -> serde_json::Value {
+    json!({"deepseek": {"driver": "openai-chat", "base_url": remote(server)}})
+}
+
+/// 一眼看得出是假的 key。
+pub const FAKE: &str = "sk-FAKE-KEY-FOR-TESTS-0001";
+
+/// 列出 `models` 的回应。
+pub fn listing(models: &[&str]) -> Reply {
+    let data: Vec<_> = models.iter().map(|id| json!({"id": id})).collect();
+    Reply::stream(vec![Piece::Bytes(
+        json!({"object": "list", "data": data})
+            .to_string()
+            .into_bytes(),
+    )])
+}
+
+/// 回一句 OK、说完。
+pub fn answer() -> Reply {
+    let chunk = |delta: serde_json::Value, finish: serde_json::Value| {
+        let event = json!({"id": "c1", "object": "chat.completion.chunk", "model": "x",
+            "choices": [{"index": 0, "delta": delta, "finish_reason": finish}]});
+        format!("data: {event}\n\n")
+    };
+    let text = [
+        chunk(json!({"role": "assistant", "content": "OK"}), json!(null)),
+        chunk(json!({}), json!("stop")),
+        "data: [DONE]\n\n".to_string(),
+    ]
+    .concat();
+    Reply::stream(vec![Piece::Bytes(text.into_bytes())])
 }
 
 /// 档案：出厂的 `[npm]`，加上 `extra` 里的几家（编号 → 档案）。
