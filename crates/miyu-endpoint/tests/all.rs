@@ -47,6 +47,7 @@ mod models;
 mod models_effort;
 mod models_name;
 mod models_pools;
+mod models_retire;
 mod models_temperature;
 mod orphans;
 mod owner;

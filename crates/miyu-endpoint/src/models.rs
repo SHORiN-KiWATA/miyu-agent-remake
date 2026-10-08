@@ -14,6 +14,7 @@
 
 mod call;
 mod entry;
+mod retire;
 
 pub(crate) use call::call;
 
@@ -151,10 +152,13 @@ fn pools_json(values: &Values) -> Vec<Value> {
         .filter_map(|name| {
             let (models, strategy) = pools::listed(values, &name)?;
             let settings = PoolSettings::at(values, &[&name]);
+            // 删空了的池留着（施工 8-23：下架的模型移出池），标成用不了。
+            let usable = !models.is_empty();
             Some(json!({
                 "name": name,
                 "strategy": strategy.as_str(),
                 "models": models,
+                "usable": usable,
                 "subagent": settings.subagent,
                 "description": settings.description,
             }))

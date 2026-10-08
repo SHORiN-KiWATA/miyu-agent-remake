@@ -44,6 +44,7 @@ mod route_facts;
 mod route_failover;
 mod route_pools;
 mod route_responses;
+mod route_retire;
 mod route_temperature;
 mod route_turn;
 mod route_vision;
