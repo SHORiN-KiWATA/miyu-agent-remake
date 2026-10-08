@@ -461,8 +461,8 @@ Rust 这一边：
    - `should_reply`、`to_bot` 是布尔，少了当假。
    - `severity` 是数，0 到 10，夹住，四舍五入成整数；少了当没查（`None`）。只查违规的那一次少了 `severity`：`Unreadable`。
    - `reason` 是字，少了当空；超过 `reason_chars`（出厂 500）个字符的截到这个数，进 `Judgement::reason`。
-   - 除了五维，别的格类型不对的（写成字的布尔、`null` 的 `severity`）照少了算。只进日志（`ext.chat.decided`），不进她的上下文，她也看不到打分（18 第七节「两边各看各的」）。
-5. **读不出来、超时、出错的**，当判不了，照不回算（18 第七节）；记一笔 `ext.chat.decided`，写明为什么。重试、超时由桥管，数照第八条的 `Params::judge`（出厂 60 秒，只查违规的 120 秒，重试 1 次）；全局并发（4）、排队等多久（15 秒）是桥这个进程的，不在参数里。
+   - 除了五维，别的格类型不对的（写成字的布尔、`null` 的 `severity`）照少了算。只进日志（`ext.onebot.chat.decided`），不进她的上下文，她也看不到打分（18 第七节「两边各看各的」）。
+5. **读不出来、超时、出错的**，当判不了，照不回算（18 第七节）；记一笔 `ext.onebot.chat.decided`，写明为什么。重试、超时由桥管，数照第八条的 `Params::judge`（出厂 60 秒，只查违规的 120 秒，重试 1 次）；全局并发（4）、排队等多久（15 秒）是桥这个进程的，不在参数里。
 6. **违规时给她看的那句预检结论**、回合开头那句「为什么叫你」：随桥接群的那一步，另放资源、另登记。
 
 **守着它的**（`crates/miyu-chat/src/judge/tests.rs` 等，O-11）
@@ -479,7 +479,7 @@ Rust 这一边：
 | 2 | 违规的回答只要 `severity` 和 `reason`；旧版的类别、证据、相关的人和消息不要 | 只有门槛和给她看的那句预检结论用得上；别的只进过旧版的日志 | 照旧版全要 |
 | 3 | 群聊记录、这一条、base64 解出来的字用标签包起来，标签的开头和收尾各是一份资源 | 给模型看的字都在资源里、都登记；照 `core/jobs` 开头收尾分开的先例 | 写在代码里 |
 | 4 | 判官看的事件元数据（旧版的 `mentioned_bot` 那一段 JSON）不另给 | @ 了谁、引用了谁在渲染器一行一条的格式里已经有 | 另给一段 JSON |
-| 5 | `Judgement` 加一格 `reason`，算分不看它；`read` 直接交出 `Judgement` | 桥记 `ext.chat.decided` 要它；一个类型最省（2026-10-07 主会话定） | 另起 `Answer { judgement, reason }` |
+| 5 | `Judgement` 加一格 `reason`，算分不看它；`read` 直接交出 `Judgement` | 桥记 `ext.onebot.chat.decided` 要它；一个类型最省（2026-10-07 主会话定） | 另起 `Answer { judgement, reason }` |
 | 6 | `read` 另收 `Mode` | 只查违规的少了 `severity` 判不了，这条规矩只写在读回答这一处 | 桥自己再查一遍 |
 | 7 | 除了五维，类型不对的格照少了算；`severity` 四舍五入成整数 | 五维是算分离不开的，别的格都有不出错的默认；`Judgement::severity` 是 `u8` | 类型不对一律判不了 |
 | 8 | 夹进标签的字末尾没有换行的补一个，空的不补 | 收尾的标签落在自己那一行；空的补了会在标签中间多一个空行 | 只给人格、群聊记录补 |
@@ -511,18 +511,18 @@ Rust 这一边：
 
 | 事件 | 谁写 | 谁读 | 记什么 |
 |---|---|---|---|
-| `message.user` 多一个可选的对象 `venue` | 桥经 `session.send` 带上 | 核心（群聊近况的一行）、桥 | `msg` 平台的编号；`reply_to` 引用的平台编号；`mentions` @ 了谁（平台身份的列表）；`mentions_me` @ 了她没有；`media` 带的图、文件、语音、视频、表情（种类、平台的编号；懒下载，不进内容块）；`ambient` 旁听（核心第二批第 5 项）；`asleep` 睡着时收到的（不进群聊近况，18 第五节）。「只有表情」「只有图」从内容块和 `media` 算，不另存 |
+| `message.user` 多一个可选的对象 `venue` | 桥经 `session.send` 带上 | 核心（群聊近况的一行）、桥 | `msg` 平台的编号；`name` 发的人此刻在这个场所里叫什么（群名片，没有的用昵称，最多 64 个字符；名字会变，每条各记各的）；`reply_to` 引用的平台编号；`mentions` @ 了谁（平台身份的列表；正文里桥写成 `@名字`）；`mentions_me` @ 了她没有；`mentions_all` @ 了全体成员没有（不算冲她来；单独一格是因为正文里的 `@全体成员` 谁都能打出来，不可信）；`media` 带的图、文件、语音、视频、表情（种类 `image`、`file`、`voice`、`video`、`sticker`，QQ 的小黄脸、商城表情都是 `sticker`；平台的编号；可选的 `name`：文件名、表情的字，最多 200 个字符；懒下载，不进内容块）；`ambient` 旁听（核心第二批第 5 项）；`asleep` 睡着时收到的（不进群聊近况，18 第五节）。「只有表情」「只有图」从内容块和 `media` 算，不另存 |
 | `venue.recalled` | 桥 | 核心（标明撤回、谁撤的）、桥 | 被撤的平台编号、谁撤的。不叫 `withdrawn`：内核的 `message.withdrawn` 是排着队的消息退回给头，挨得太近 |
 | `venue.delivered` | 桥 | 核心（`[you]` 行：这条线历史里没有的才渲染，18 第八节）、桥 | 哪条线（主线或支线的会话编号）、哪一轮、回的是谁（平台身份的列表）、平台的编号、正文、图的哈希。和 `message.assistant` 重的正文以谁为准：`[you]` 行照它（实际发出去的、出站链洗过的），她自己的上下文照 `message.assistant` |
 | `turn.started` 多一格 `triggers` | 核心，由下面第 3 条的原语开回合时记 | 桥 | 这一轮由哪几条旁听消息触发（序号的列表）；原来的 `trigger` 照旧是最后一条，旧日志照读。账本查：每一条都是这个会话里旁听的 `message.user`，还没被别的轮当过触发 |
-| `ext.chat.decided` | 桥 | 桥（WebUI、回放验收） | 判的是哪几条（序号的列表，顶替重判的一起）、成立的条件和加分、走的路、判官的回答和理由、算分的每一项、结论；判不了的写为什么；用的模型、耗时 |
-| `ext.venues.queued`、`ext.venues.failed` | 桥 | 桥 | 出站队列：入队（种类：回复、提示、回执、定时）、失败和为什么 |
-| `ext.venues.muted`、`ext.venues.unmuted` | 桥 | 桥 | 她被禁言到什么时候、解禁了 |
+| `ext.onebot.chat.decided` | 桥 | 桥（WebUI、回放验收） | 判的是哪几条（序号的列表，顶替重判的一起）、成立的条件和加分、走的路、判官的回答和理由、算分的每一项、结论；判不了的写为什么；用的模型、耗时 |
+| `ext.onebot.venues.queued`、`ext.onebot.venues.failed` | 桥 | 桥 | 出站队列：入队（种类：回复、提示、回执、定时）、失败和为什么 |
+| `ext.onebot.venues.muted`、`ext.onebot.venues.unmuted` | 桥 | 桥 | 她被禁言到什么时候、解禁了 |
 
 **3. 核心要多给的三样**（在核心第二批的五项以外）
 
 1. **照已经记下的几条开一轮**：`session.respond {session, to, facts}`，内核里的新命令 `Respond`。它不新记消息，是拿已经记下的几条（`to`，序号的列表）当触发开一轮，所以不是 `session.send` 多一格；名字也不带 `venue`：以后定时、跨会话也可能用。`facts` 是几块事实，照 `context.injected` 的格（`kind`、`text`，`text` 是带好标签外壳的原文），排在触发前面（`08-上下文投影.md` C2），`by` 是桥这个模块；每块最多 4 KiB。它们是给模型看的字：模板在桥的资源里、登记进 26 第十节，核心只原样记、不拼。会话正在跑一轮的，`to` 在下一步的边界并进去（分派里的「并进主线」），和回合中途来的回报排队同一个办法。桥自己判过了，不再过回合闸。
-2. **写自己命名空间的事件**：`events.append {session, kind, body}`。`kind` 必须是 `ext.<包>.<名字>`：9-4 以后 `<包>` 必须是连接自报的包名，9-4 以前本机连接 `ext.` 开头的都收；`body` 是 JSON 对象，最多 16 KiB。记成不带回合编号的事件，不渲染，撤销、压缩都不动它，回应交回序号。要 `events.write` 能力（`05-内核接口.md` 第三节）。
+2. **写自己命名空间的事件**：`events.append {session, kind, body}`。`kind` 必须是 `ext.<包>.<名字>`：核心拉起的扩展 `<包>` 必须是它自己的包编号（桥是 `onebot`），本机的头 `ext.` 开头的都收；`<名字>` 可以有几段、用点连着，每段照短名字的写法，整个 `kind` 最多 128 个字符，所以桥的是 `ext.onebot.chat.decided`、`ext.onebot.venues.queued` 这样（2026-10-09 和核心的主会话定，原来写的 `ext.chat.*`、`ext.venues.*` 和这条规矩对不上）；`body` 是 JSON 对象，最多 16 KiB。记成不带回合编号的事件，不渲染，撤销、压缩都不动它，回应交回序号。要 `events.write` 能力（`05-内核接口.md` 第三节）。
 3. **核心认识的场所格和种类**：上面表里 `message.user.venue`、`venue.recalled`、`venue.delivered`、`turn.started.triggers`；组装群聊近况时照它们渲染（18 第九节）。
 
 核心那一半并进它的第二批，拆两步：先做事件的格和 `events.append`（只是记录），再做 `session.respond`（碰回合状态机）。
@@ -532,11 +532,11 @@ Rust 这一边：
 | 输入 | 从哪几种事件 | 怎么算 |
 |---|---|---|
 | 进站链 `Ctx.turns` | `turn.started` | 窗口里的回合，去掉触发它的人全是主人或自己人的；没有 `triggers` 的（回报、后台命令、定时）照算 |
-| 进站链 `Ctx.notices` | `ext.venues.queued` | 种类是提示、原因是限流的那几条的时刻 |
-| 进站链 `Ctx.muted` | `ext.venues.muted`、`unmuted` | 最后一条 |
+| 进站链 `Ctx.notices` | `ext.onebot.venues.queued` | 种类是提示、原因是限流的那几条的时刻 |
+| 进站链 `Ctx.muted` | `ext.onebot.venues.muted`、`unmuted` | 最后一条 |
 | 发的人是谁 `Standing` | `message.user` 的 `by`、系统配置 | 私聊里 `person` 带 `via`、群里 `external` 带 `account`：主人；编号在 `onebot.trusted` 里：自己人；别的：别人 |
 | 算分 `Reply` | `venue.delivered` | 一轮一笔：同一条线、同一轮的几条并成一笔，时刻取第一条，回的人取并集 |
-| 顶替 `Pending` | `ext.chat.decided`、`turn.started.triggers` | 判过要回、还没进哪一轮 `triggers` 的：`Committed`。前提是桥先记 `ext.chat.decided`、再 `session.respond`，桥保证这个先后。`Judging` 只在桥的内存里，桥重启就丢，丢了不补判（窗口只有 7 秒） |
+| 顶替 `Pending` | `ext.onebot.chat.decided`、`turn.started.triggers` | 判过要回、还没进哪一轮 `triggers` 的：`Committed`。前提是桥先记 `ext.onebot.chat.decided`、再 `session.respond`，桥保证这个先后。`Judging` 只在桥的内存里，桥重启就丢，丢了不补判（窗口只有 7 秒） |
 | 分派 `Lines` | `turn.started`、`turn.ended`、分叉出的子会话 | 主线开着的那一轮，回的人是它 `triggers` 的发的人；支线同理 |
 | 出站 `Sent` | `venue.delivered` | 这一轮的正文和图的哈希 |
 | 出站 `Since` | `message.user`、`venue.delivered` | 她回的那条之后别人的消息条数、过了多久、最后一条是不是她的 |
@@ -549,7 +549,7 @@ Rust 这一边：
 - **给人看的字**：`resources/software/onebot/human/{zh,en,ja}.json`，照软件包的规矩（`store/resources.md`）；桥里不写死。
 - **判官的说明**：`resources/software/onebot/judge/`（O-11）。以后别的平台的桥要用时，再挪到群聊内核自己的资源目录。
 
-**6. 已知的代价**：`ext.chat.decided` 一条群消息记一条，场所会话的日志会长得快；压缩照样不删日志。可以接受，写进 18 第七节。
+**6. 已知的代价**：`ext.onebot.chat.decided` 一条群消息记一条，场所会话的日志会长得快；压缩照样不删日志。可以接受，写进 18 第七节。
 
 **7. 不在这一条里的**：桥接群、贴表情、出站队列的实现、WebUI。
 
