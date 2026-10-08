@@ -2,8 +2,6 @@
 //! `harness`、带着名字，闲着开一轮，她收到的请求里是带标签的那一块；不带的、`null` 照旧是本人；名字去掉控制字符、截到 128
 //! 字节；空的、不是字符串的参数不对，什么都没写；正忙时不排进这一轮、打断不撤回；`session.create`、`session.redo` 不理它。
 
-mod support;
-
 use serde_json::{Value, json};
 
 use miyu_kernel::block::{Block, Text};
@@ -12,7 +10,7 @@ use miyu_kernel::origin::By;
 use miyu_kernel::request::Message;
 use miyu_session::testkit::{Play, Script};
 
-use support::*;
+use crate::support::*;
 
 /// 日志里人这边的话：`by` 和原话，照先后。
 fn said(home: &Home, session: &str) -> Vec<(By, Vec<Block>)> {

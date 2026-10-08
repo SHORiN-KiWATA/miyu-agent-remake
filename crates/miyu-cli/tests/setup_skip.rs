@@ -2,14 +2,12 @@
 //! 不问；不在终端里的从管道读 key、用推荐的模型；不在终端里又没写 `--provider` 的退出码 2、不连核心；`--provider` 不是目录里
 //! 能用的退出码 2；不在终端里试不通退出码 1。三个平台一样跑。
 
-mod support;
-
 use serde_json::json;
 
+use crate::support::Home;
+use crate::support::onboarding::{Typist, plan, remote};
 use miyu_cli::Setup;
 use miyu_http::testkit::{Piece, Reply, Server};
-use support::Home;
-use support::onboarding::{Typist, plan, remote};
 
 /// 一眼看得出是假的 key。
 const FAKE: &str = "sk-FAKE-KEY-FOR-TESTS-0001";

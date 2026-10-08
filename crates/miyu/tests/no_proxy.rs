@@ -2,8 +2,6 @@
 //! 的，照样连得上——环境变量里的代理不会自动放行回环地址，`NO_PROXY` 没写回环地址的机器以前连不上。非回环的地址照旧
 //! 走代理：指到一台记请求的假代理，看它收到了。
 
-mod support;
-
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -12,8 +10,8 @@ use std::time::{Duration, Instant};
 use serde_json::json;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader as AsyncReader};
 
+use crate::support::{Home, within};
 use miyu_http::testkit::{Piece, Received, Reply, Server};
-use support::{Home, within};
 
 /// 一段事件流：说 `text`，然后 `[DONE]`。
 fn said(text: &str) -> Reply {

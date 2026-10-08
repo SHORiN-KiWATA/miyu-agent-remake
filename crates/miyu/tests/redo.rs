@@ -2,23 +2,21 @@
 //! 重做上一次 `miyu ask` 的那一轮，先说撤掉了哪一轮，`-s` 和 `--session` 重做的是写的那个；核心没配模型的，照 `miyu ask` 说没有
 //! 可用的模型，退出码 5。
 
-mod support;
-
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+use crate::support::{Home, MIYU, within};
 use miyu_cli::help::{Page, page};
 use miyu_cli::language::Language;
 use miyu_ipc::connect_or_start;
-use support::{Home, MIYU, within};
 
 /// 在数据根 `root` 上跑 `miyu <args>`：界面语言是 `lang`。
 fn miyu(root: &Path, lang: &str, args: &[&str]) -> Output {
     Command::new(MIYU)
         .args(args)
         .env("MIYU_HOME", root)
-        .envs(support::offline(root))
-        .env("MIYU_RESOURCES", support::resources())
+        .envs(crate::support::offline(root))
+        .env("MIYU_RESOURCES", crate::support::resources())
         .env("LANG", lang)
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")
@@ -58,7 +56,7 @@ fn the_help_is_the_redo_page_in_the_language() {
 #[tokio::test]
 async fn the_last_ask_or_the_given_session_is_the_one_redone() {
     let home = Home::new();
-    home.system_config(support::UNUSABLE_MODEL);
+    home.system_config(crate::support::UNUSABLE_MODEL);
     let (held, _) = within("拉起", connect_or_start(&home.root, || home.core()))
         .await
         .expect("拉得起");

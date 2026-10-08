@@ -9,18 +9,16 @@
 //! 兼容接口的字节（施工 3-4 上）。字节变了必须是有意的：设上 `MIYU_PROBE_WRITE=1` 跑一遍，重写
 //! 存档，提交说明里写为什么变。怎么存、怎么比在 `support/archive.rs`；有别的 harness 来话的会话在 `probe_harness.rs`。
 
-mod support;
-
+use crate::support::{
+    LINES, PARENT, VENUE, anchored, check, child_stage, files, matches_the_archive,
+    matches_the_archive_with_faces, sent, stage, summarizes,
+};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{ChildReason, ErrorClass, JobReason};
 use miyu_kernel::origin::{By, Tool};
 use miyu_kernel::request::Message;
 use miyu_kernel::session::Queued;
 use miyu_kernel::testkit::{CHILD_SESSION, Line, Play, SESSION, Stage};
-use support::{
-    LINES, PARENT, VENUE, anchored, check, child_stage, files, matches_the_archive,
-    matches_the_archive_with_faces, sent, stage, summarizes,
-};
 
 /// 终端会话的剧本，十一个回合，1-12、1-13 画过的走法都走一遍，最后两段是自动压缩（施工 6-2 上）。照真内核会怎么走写（施工 2-9 下）：
 /// 回合中途的那句话在工具还在跑时说；两轮之间换只读，改成请求还在路上时先切、再打断。

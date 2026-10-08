@@ -1,14 +1,12 @@
 //! 在真的套接字上（`docs/construction/3-8-协议端点（下）.md` 验收第 2 条；Windows 上是命名管道，施工 3-8 补）：
 //! 核心起来，头照 `run/socket`、`run/token` 连上，握手、造会话、说一句，这一轮说完；第二个头也连得上。
 
-mod support;
-
 use serde_json::json;
 
+use crate::support::{Client, Home, kinds};
 use miyu_endpoint::run;
 use miyu_ipc::{Dirs, connect, open};
 use miyu_session::testkit::{Play, Script};
-use support::{Client, Home, kinds};
 
 #[tokio::test]
 async fn a_head_talks_to_the_core_over_the_socket() {

@@ -2,8 +2,6 @@
 //! 没价格的几次有才写，上下文有窗口的写几成和压缩线（没有压缩线的不写那一句），没窗口的写大约多少，算不出的不写；参数写了
 //! 什么都不认；没有端口的照什么都没花答；查不了的出错；叫停。给人看的说法中文、英文都换得出字。
 
-mod support;
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -13,7 +11,7 @@ use miyu_kernel::block::{Block, Text};
 use miyu_kernel::tool::Access;
 use miyu_tool::{ContextUse, Done, Spending, Spent, Stop, UsagePort};
 
-use support::{Site, check, human, readable, said, tool};
+use crate::support::{Site, check, human, readable, said, tool};
 
 /// 假的查用量端口：交回给的那一份，数着被问了几次。
 struct Port {

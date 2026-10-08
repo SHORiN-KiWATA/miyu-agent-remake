@@ -6,6 +6,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
+autotests = false
 
 [dependencies]
 # shell 在 Windows 上把命令编成 PowerShell 的 -EncodedCommand（施工 4-8）；每个平台都编，它的测试到处都跑。
@@ -50,3 +51,12 @@ tokio = { version = "1", features = ["macros", "rt", "time"] }
 
 [lints]
 workspace = true
+
+# 集成测试并成一个程序（施工 0-3 三补）；自己装日志订阅者的另列。
+[[test]]
+name = "all"
+path = "tests/all.rs"
+
+[[test]]
+name = "log"
+path = "tests/log.rs"

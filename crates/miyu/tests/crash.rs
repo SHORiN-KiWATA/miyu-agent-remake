@@ -6,8 +6,6 @@
 //!
 //! 没停下的（修之前的样子），测试最后照心跳记下的进程号把它杀掉：只杀测试自己起的。
 
-mod support;
-
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -16,8 +14,8 @@ use std::time::{Duration, Instant};
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader as AsyncReader};
 
+use crate::support::{Home, within};
 use miyu_http::testkit::{Piece, Reply, Server};
-use support::{Home, within};
 
 /// 一段事件流：照 DeepSeek 的写法，一块 `data:` 一行，最后 `[DONE]`。
 fn stream(chunks: &[Value]) -> Reply {

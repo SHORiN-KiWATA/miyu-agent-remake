@@ -2,16 +2,14 @@
 //! 文件名，最多 64 KiB，截过的写明；二进制的、发不了的 PDF 写一句占位，带大小；以前造的快照里没有那三句的，文本文件
 //! 也写占位。
 
-mod support;
-
 use std::collections::BTreeMap;
 
+use crate::support::{call, file, id, read_tool, sample, text, texts, tool_call};
 use miyu_drivers::openai_chat::{Compat, EncodeError, encode};
 use miyu_drivers::{DriverTextSources, DriverTexts, Inputs};
 use miyu_kernel::id::ContentHash;
 use miyu_kernel::request::{Message, Request};
 use serde_json::Value;
-use support::{call, file, id, read_tool, sample, text, texts, tool_call};
 
 const NOTES: &[u8] = "# 待办\n- 写测试\n- 跑 CI".as_bytes();
 const EMPTY: &[u8] = b"";

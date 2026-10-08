@@ -2,8 +2,6 @@
 //! 回报交给父会话：命令编号照那一轮定、发命令的是子会话、任务编号照造它的命令读回；载入时最后那一份再交一次；父会话载入
 //! 以后叫起还没回报的子会话。
 
-mod support;
-
 use std::sync::{Arc, Mutex, PoisonError};
 
 use miyu_kernel::block::{Block, Text};
@@ -15,7 +13,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_session::{Child, Handle, Lineage, Pending, SessionPort};
 use miyu_tool::Catalog;
 
-use support::*;
+use crate::support::*;
 
 /// 父会话。
 const PARENT: &str = "01a0d75d-2180-7a3c-9e41-5b7d2c8f6a10";

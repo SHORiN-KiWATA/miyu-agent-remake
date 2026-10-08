@@ -1,20 +1,18 @@
 //! Responses 的思考（`docs/blueprint/drivers/openai-responses.md`「编码」第 4 条、「思考强度」，施工 8-13）：加密的思考回传、
 //! 空摘要写 `[]`、别家的和没有加密内容的不写、和正文、调用的先后；思考强度两种写法接在最后，没写的、`on` 一个字节不加。
 
-mod support;
-
 use std::collections::BTreeMap;
 
+use crate::support::{family_call, gpt, private_thought, responses_sample, text, texts, thought};
 use miyu_drivers::openai_responses::encode;
 use miyu_drivers::{Call, EFFORT_OFF, EFFORT_ON, Inputs};
 use miyu_kernel::block::Block;
 use miyu_kernel::request::{Message, Request};
 use serde_json::{Value, json};
-use support::{family_call, gpt, private_thought, responses_sample, text, texts, thought};
 
 fn request(reply: Vec<Block>) -> Request {
     Request {
-        tools: vec![support::read_tool()],
+        tools: vec![crate::support::read_tool()],
         system: "You are Miyu.".to_string(),
         messages: vec![
             Message::User {

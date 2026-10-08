@@ -2,14 +2,12 @@
 //! 档位发 `reasoning_effort`；`off`、`on` 照档案的开关（DeepSeek 的 `thinking`），没写开关的 `off` 发
 //! `reasoning_effort: "none"`、`on` 什么都不加；都接在最后，前面的字节一个不动。
 
-mod support;
-
 use std::collections::BTreeMap;
 
+use crate::support::{call, deepseek, text, texts};
 use miyu_drivers::openai_chat::{Compat, encode};
 use miyu_drivers::{EFFORT_OFF, EFFORT_ON, Inputs};
 use miyu_kernel::request::{Message, Request};
-use support::{call, deepseek, text, texts};
 
 /// 一句话的请求。
 fn request() -> Request {

@@ -3,19 +3,17 @@
 //! 会话钉着造它时的模型，`models.chat` 改了只影响新会话；造的时候没配的，配好以后下一轮就用上；窗口照配置。地址是环境变量
 //! 的引用时（施工 8-6b）：设了照它连，没设当场 `no_model`，和取不到 key 一样。
 
-mod support;
-
 use std::sync::Arc;
 
 use tokio::sync::watch;
 
+use crate::support::routing::{called, configs, hellos, routes, turn};
+use crate::support::{Home, stop};
 use miyu_config::secret::Reference;
 use miyu_http::testkit::Server;
 use miyu_kernel::event::ErrorClass;
 use miyu_models::keys;
 use miyu_session::{ConfigSource, Handle};
-use support::routing::{called, configs, hellos, routes, turn};
-use support::{Home, stop};
 
 /// 一家 `a` 在 `base_url`，几个 key 照 `{ env = "K<n>" }` 写，`models.chat` 是 `a/m`。
 fn provider(base_url: &str, keys: usize) -> String {

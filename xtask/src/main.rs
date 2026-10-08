@@ -16,6 +16,7 @@ mod prompts;
 mod purity;
 mod samples;
 mod size;
+mod test_targets;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
@@ -116,13 +117,16 @@ fn check() -> ExitCode {
         name: "许可证",
         problems: licenses::check(&root, &cargo),
     });
-    outcomes.push(cargo_step(
+    let mut tests = cargo_step(
         &cargo,
         &root,
         "测试",
         &["test", "--workspace", "--quiet"],
         &[],
-    ));
+    );
+    println!("\n── 测试：每个测试文件都进了测试程序（autotests = false 的 crate）──");
+    tests.problems.extend(test_crates(&cargo, &root));
+    outcomes.push(tests);
     report(&outcomes)
 }
 
@@ -202,6 +206,20 @@ fn load(cargo: &str, root: &Path) -> Result<(Drawing, Vec<Package>), String> {
         drawing::parse(&text).map_err(|e| format!("图纸 {} 读不出来：{e}", drawing::PATH))?;
     let packages = layers::read_packages(root, cargo)?;
     Ok((drawing, packages))
+}
+
+/// 查每个 crate 的测试文件都进了测试程序（`test_targets`）；读不了 cargo metadata 的说一句。
+fn test_crates(cargo: &str, root: &Path) -> Vec<String> {
+    match layers::read_packages(root, cargo) {
+        Ok(packages) => {
+            let dirs: Vec<&Path> = packages
+                .iter()
+                .map(|package| package.dir.as_path())
+                .collect();
+            test_targets::check(root, &dirs)
+        }
+        Err(e) => vec![e],
+    }
 }
 
 /// 一个 crate 的 `src/`，相对仓库根。

@@ -1,13 +1,11 @@
 //! 回合索引接在核心上（施工 R-2 上，`docs/blueprint/memory.md`「怎么走」第一条第 4、7 款）：真核心造的主会话说过的一轮进
 //! 软件工程师的回合库；删会话以后拿掉。
 
-mod support;
-
 use serde_json::json;
 
 use miyu_session::testkit::{Play, Script};
 
-use support::*;
+use crate::support::*;
 
 /// 另开一个只读的连接，在软件工程师的回合库里搜 `words`，交回键。回合库是核心用到才建的：还没有的是什么都没找到。不能
 /// 用 `RecallIndex::open` 去开：它会建库、碰到核心正在建的那一半当成坏了删掉重建（一个库只该有一个连接写）。

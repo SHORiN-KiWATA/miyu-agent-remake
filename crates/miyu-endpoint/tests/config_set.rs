@@ -2,14 +2,12 @@
 //! `#:schema`；回应的样子；每一种拒绝；`expect`、整份换的版本；写之前发现手改过先重读；一次几项全收或者全不收；写不成
 //! 什么都没变；日志记一条。
 
-mod support;
-
 use serde_json::{Value, json};
 
 use miyu_session::testkit::Script;
 use miyu_store::config_file::version;
 
-use support::*;
+use crate::support::*;
 
 /// 个人设置在数据根里的位置。
 const PERSONAL: &str = "home/alice/settings.toml";

@@ -2,19 +2,17 @@
 //! `image`、`document` 块，媒体类型不对的、不能收的换成字；工具结果里的图、PDF 放在 `tool_result` 里面；文本文件、带名字的
 //! 图片、替它看的图照 openai-chat 一样换成字（`media.rs` 共用）；缺 blob 报错。
 
-mod support;
-
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::support::{
+    anthropic_sample, claude, file, id, image, named_image, read_tool, sees_all, text, texts,
+    tool_call,
+};
 use miyu_drivers::anthropic::{blobs_needed, encode};
 use miyu_drivers::{EncodeError, Inputs};
 use miyu_kernel::id::ContentHash;
 use miyu_kernel::request::{Message, Request};
 use serde_json::{Value, json};
-use support::{
-    anthropic_sample, claude, file, id, image, named_image, read_tool, sees_all, text, texts,
-    tool_call,
-};
 
 const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR";
 const BMP: &[u8] = b"BM\0\0\0\0bitmap";

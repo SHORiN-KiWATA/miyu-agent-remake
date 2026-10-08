@@ -1,15 +1,13 @@
 //! 统一检查（施工 8-30，`docs/blueprint/protocol.md` 的 `check`）：真核心走一遍。不写文件的查全部：配置照磁盘上现在的字、
 //! 密钥文件照核心手里的、人格每一层各查各的；写了文件的只查那一份，认不出的 `unknown_file`；给人看的那一句照连接的语言。
 
-mod support;
-
 use serde_json::{Value, json};
 
 use miyu_session::testkit::Script;
 use miyu_tool::Catalog;
 
-use support::venues::configured_core;
-use support::*;
+use crate::support::venues::configured_core;
+use crate::support::*;
 
 async fn connected(home: &Home) -> Client {
     let mut client = Client::connect(configured_core(home, &Script::new([]), Catalog::default()));

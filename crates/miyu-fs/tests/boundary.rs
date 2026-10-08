@@ -1,11 +1,9 @@
 //! 边界表（施工 4-3 上）：几片重叠时照先后，先对上的算。
 
-mod support;
-
 use std::path::PathBuf;
 
+use crate::support::Site;
 use miyu_fs::{Boundary, Places, Zone, within};
-use support::Site;
 
 #[test]
 fn the_workspace_is_writable_but_what_git_runs_outside_is_read_only() {

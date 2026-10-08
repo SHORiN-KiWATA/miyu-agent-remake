@@ -1,10 +1,8 @@
 //! 换成真实的位置（施工 4-3 上）：相对的照工作目录接，`~` 当家目录，链接照它指向的地方算，还不存在的
 //! 照最近的上级目录算；最后一段不跟链接的（施工 4-9 再补二）。
 
-mod support;
-
+use crate::support::Site;
 use miyu_fs::{ResolveError, Zone, resolve, resolve_itself};
-use support::Site;
 
 #[test]
 fn a_relative_path_follows_the_working_directory() {

@@ -6,6 +6,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
+autotests = false
 
 [dependencies]
 # 事件、序号、账号、会话编号：会话日志一行一条事件（施工 3-2）。
@@ -42,3 +43,8 @@ serde_json = { version = "1.0", features = ["raw_value"] }
 
 [lints]
 workspace = true
+
+# 集成测试并成一个程序（施工 0-3 三补）；自己装日志订阅者的另列。
+[[test]]
+name = "all"
+path = "tests/all.rs"

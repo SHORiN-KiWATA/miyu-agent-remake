@@ -2,8 +2,6 @@
 //! `message.user` 里文字后面的图片块、文件块，宽高、媒体类型照核心自己量的；只有附件也是一句话；blob 不在的拒绝，
 //! 什么都不写。
 
-mod support;
-
 use serde_json::{Value, json};
 
 use miyu_kernel::block::{Block, File, Image, Text};
@@ -12,7 +10,7 @@ use miyu_kernel::id::{ContentHash, FileName, MediaType};
 use miyu_kernel::request::Message;
 use miyu_session::testkit::{Play, Script};
 
-use support::*;
+use crate::support::*;
 
 /// 一张 `width` × `height` 的 PNG 的开头。
 fn png(width: u32, height: u32) -> Vec<u8> {

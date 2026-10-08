@@ -2,15 +2,13 @@
 
 #![cfg(unix)]
 
-mod support;
-
 use std::fs;
 use std::os::unix::fs::{FileTypeExt, MetadataExt};
 use std::os::unix::net::UnixListener as StdListener;
 
+use crate::support::{Home, mode, talk};
 use miyu_ipc::{ConnectError, Dirs, OpenError, connect, fingerprint, open};
 use miyu_store::env::Platform;
-use support::{Home, mode, talk};
 
 #[tokio::test]
 async fn a_head_connects_through_run_socket_and_gets_the_token() {

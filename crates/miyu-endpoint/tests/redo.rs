@@ -4,8 +4,6 @@
 //! 不是字符串、会话编号不对的是参数不对，写 `null` 当没写。附件照 `session.send` 传：不写的照带原来的，写了的换掉，空的是不要，
 //! 核心里没有的拒绝。
 
-mod support;
-
 use std::path::Path;
 
 use serde_json::{Value, json};
@@ -13,7 +11,7 @@ use serde_json::{Value, json};
 use miyu_kernel::event::{Body, MessageUser};
 use miyu_session::testkit::{Play, Script};
 
-use support::*;
+use crate::support::*;
 
 /// 回应里的 `result`。
 fn result_of(reply: &Value) -> &Value {

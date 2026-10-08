@@ -4,17 +4,15 @@
 //!
 //! 假服务器在本机回环上，档案是空的、没有目录：资料全照手写的。
 
-mod support;
-
 use std::time::Duration;
 
+use crate::support::calling::{asking, bearer, blobs, body, entry, frozen};
+use crate::support::routing::routes;
 use miyu_config::secret::Reference;
 use miyu_http::testkit::{Piece, Reply, Server};
 use miyu_kernel::event::Usage;
 use miyu_session::Answer;
 use serde_json::json;
-use support::calling::{asking, bearer, blobs, body, entry, frozen};
-use support::routing::routes;
 
 /// Responses 说「你好！」的流，`n` 份。
 fn hellos(n: usize) -> Vec<Reply> {

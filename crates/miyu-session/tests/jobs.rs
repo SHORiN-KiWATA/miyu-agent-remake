@@ -4,8 +4,6 @@
 //! 再载入时补 `aborted`。假的后台命令（`miyu_tool::testkit::Held`）三个平台一样；真的 `shell` 三个平台都跑，沙盒那一条
 //! 只在 Unix 上有收紧手段时跑。
 
-mod support;
-
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -20,7 +18,7 @@ use miyu_store::blob::Blobs;
 use miyu_tool::testkit::{Act, Fake, Held};
 use miyu_tool::{Catalog, Exit, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 真的基础系统。
 fn base_system() -> Catalog {

@@ -3,13 +3,11 @@
 //! 工具结果后面。每一次请求和存档（`docs/designs/samples/probe/harness/`）逐字节比，查五条性质；和同一份剧本里换成人说的
 //! 比，每一次请求只多标签那两段。
 
-mod support;
-
+use crate::support::{check, files, matches_the_archive, sent, stage};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::id::CommandId;
 use miyu_kernel::request::{Message, Request};
 use miyu_kernel::testkit::{Line, Play, Stage};
-use support::{check, files, matches_the_archive, sent, stage};
 
 /// 标签的开头：名字是 `claude-code`。
 const OPEN: &str = "<agent-message from=\"claude-code\">\n";

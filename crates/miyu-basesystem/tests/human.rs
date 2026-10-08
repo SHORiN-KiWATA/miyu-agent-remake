@@ -2,12 +2,10 @@
 //! 两份字里都有，换得出字。数管着的是 1 的编号多接 `/one`，别的数照旧（施工 4-5 再补「一个的时候说单数」）；
 //! `read`、`glob`、`grep` 那一组拆进 `human/read_glob_grep.rs`，理由同下面那个 `mod`。
 
-mod support;
-
 use miyu_kernel::id::ContentHash;
 use miyu_tool::Seen;
 
-use support::{Site, check, human, readable, said};
+use crate::support::{Site, check, human, readable, said};
 
 /// `read`、`glob`、`grep` 交回的说法：这个文件超过了行数上限，拆进这里（照 `spawn/renamed.rs` 的先例，
 /// `#[path]` 一样要写：这个文件是 crate 根，`mod` 默认只找同目录的平级文件）。

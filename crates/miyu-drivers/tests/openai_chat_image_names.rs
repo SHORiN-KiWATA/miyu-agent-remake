@@ -2,17 +2,17 @@
 //! 的前后各一段标签，不能看图的占位写上名字；不带名字的照旧（`media.json`、`tool-attachments.json` 这几份样本不变）；
 //! 以前造的快照里没有那三句的，带名字的也照不带名字的写。
 
-mod support;
-
 use std::collections::BTreeMap;
 
+use crate::support::{
+    call, id, image, named_image, read_tool, sample, sees_all, text, texts, tool_call,
+};
 use miyu_drivers::openai_chat::{Compat, encode};
 use miyu_drivers::{DriverTextSources, DriverTexts, Inputs, TextFileSources};
 use miyu_kernel::block::Block;
 use miyu_kernel::id::ContentHash;
 use miyu_kernel::request::{Message, Request};
 use serde_json::{Value, json};
-use support::{call, id, image, named_image, read_tool, sample, sees_all, text, texts, tool_call};
 
 const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR";
 const SHOT: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rscreenshot";

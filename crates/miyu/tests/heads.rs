@@ -5,8 +5,6 @@
 
 #![cfg(unix)]
 
-mod support;
-
 use std::fs::{File, OpenOptions};
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
@@ -15,7 +13,7 @@ use std::process::{Command, Output, Stdio};
 
 use rustix::pty::{OpenptFlags, grantpt, openpt, ptsname, unlockpt};
 
-use support::{Home, MIYU, offline, resources};
+use crate::support::{Home, MIYU, offline, resources};
 
 /// 一对伪终端：主端，从端的路径。
 fn pty() -> (File, String) {

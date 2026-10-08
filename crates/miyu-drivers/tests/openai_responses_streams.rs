@@ -3,11 +3,10 @@
 //! 一条，逐字节比对。还查：从哪里切开喂都一样；内核的累积器一条都不拒；解出来的编码回去，`call_id`、加密内容原样；驱动的
 //! 接口走一遍；`finished()` 在收尾事件以后才说是。
 
-mod support;
-
 use std::collections::BTreeMap;
 use std::fs;
 
+use crate::support::{family_dir, gpt, responses_file, text, texts};
 use miyu_drivers::classify::Failure;
 use miyu_drivers::openai_responses::{Decoder, encode};
 use miyu_drivers::{Driver, Ending, Inputs, OpenAiResponses};
@@ -16,7 +15,6 @@ use miyu_kernel::event::ErrorClass;
 use miyu_kernel::id::Seq;
 use miyu_kernel::request::{Message, Request};
 use serde_json::{Value, json};
-use support::{family_dir, gpt, responses_file, text, texts};
 
 /// 流的样本，一份一种情形。
 const STREAMS: [&str; 15] = [

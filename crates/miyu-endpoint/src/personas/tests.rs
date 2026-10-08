@@ -7,11 +7,10 @@ fn found(home: Option<&str>) -> Found {
         id: "miyu".to_string(),
         file: Default::default(),
         texts: Default::default(),
-        layers: vec![Layer::Shipped],
+        layers: vec![miyu_store::personas::Layer::Shipped],
         persona_from: None,
         examples_from: None,
         reminders_from: None,
-        base: None,
         home: home.map(|account| AccountId::parse(account).unwrap()),
     }
 }
@@ -47,4 +46,11 @@ fn names_are_picked_by_language_then_english_chinese_japanese() {
         .collect();
     assert_eq!(pick(&english, "zh").as_deref(), Some("Miyu"));
     assert_eq!(pick(&Default::default(), "zh"), None);
+}
+
+#[test]
+fn a_label_is_one_line_for_every_language() {
+    let one = Label::One("我的".to_string());
+    assert_eq!(label(Some(&one), "en").as_deref(), Some("我的"));
+    assert_eq!(label(None, "zh"), None);
 }

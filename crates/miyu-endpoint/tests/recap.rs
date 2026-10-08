@@ -3,8 +3,6 @@
 //! system、工具面；中间没有新内容再要一次，交回上一句、不请求；有回合在进行时照收；一个回复都没有的、没写成的，照头的语言
 //! 拒绝；会话编号不对的是参数不对，没有这个会话的找不到。
 
-mod support;
-
 use serde_json::{Value, json};
 
 use miyu_kernel::block::Block;
@@ -12,7 +10,7 @@ use miyu_kernel::event::{Body, ErrorClass};
 use miyu_kernel::request::Message;
 use miyu_session::testkit::{Play, Script};
 
-use support::*;
+use crate::support::*;
 
 /// 第 `k` 次请求里唯一那一条 user 的字：回顾的请求没有 system、工具面。
 fn asked(script: &Script, k: usize) -> String {

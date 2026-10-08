@@ -3,11 +3,10 @@
 //! 逐字节比对。还查：从哪里切开喂都一样；内核的累积器一条都不拒；解出来的回复编码回去，编号、签名原样；驱动的接口走一遍；
 //! `finished()` 在 `stop_reason` 到了以后才说是。
 
-mod support;
-
 use std::collections::BTreeMap;
 use std::fs;
 
+use crate::support::{anthropic_file, claude, family_dir, text, texts};
 use miyu_drivers::anthropic::{Decoder, encode};
 use miyu_drivers::classify::Failure;
 use miyu_drivers::{Anthropic, Driver, Ending, Inputs};
@@ -16,7 +15,6 @@ use miyu_kernel::event::ErrorClass;
 use miyu_kernel::id::Seq;
 use miyu_kernel::request::{Message, Request};
 use serde_json::{Value, json};
-use support::{anthropic_file, claude, family_dir, text, texts};
 
 /// 流的样本，一份一种情形。
 const STREAMS: [&str; 15] = [

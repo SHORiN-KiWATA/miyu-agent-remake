@@ -2,8 +2,6 @@
 //! 她问一道题，日志里有 `question.asked`（选项带 `preview`）；`session.answer` 交回答（带 `notes`），回应列出事件，她收到的
 //! 结果一道一行；选了题目里没有的是 `bad_answer`，什么都没记。
 
-mod support;
-
 use serde_json::{Value, json};
 
 use miyu_kernel::block::Block;
@@ -11,7 +9,7 @@ use miyu_kernel::event::Body;
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
 
-use support::*;
+use crate::support::*;
 
 /// 起核心（真的基础系统）、握手、造会话、说一句：交回连接和会话编号。事件照日志看，不订阅：订阅着的推送会排在回应前面。
 async fn started(home: &Home, plays: Vec<Play>) -> (Client, String) {

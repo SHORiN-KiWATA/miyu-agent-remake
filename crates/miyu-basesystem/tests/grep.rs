@@ -2,12 +2,10 @@
 //! 不分大小写；照 `head_limit`、`offset` 分页；超长的行截掉；没搜到、写错了的说清楚；Claude Code、opencode 的
 //! 别名照认。
 
-mod support;
-
 use miyu_kernel::tool::Access;
 use miyu_tool::Call;
 
-use support::{Site, native, tool};
+use crate::support::{Site, native, tool};
 
 /// 照新的在前写出来的几行：`rows` 里的路径是相对工作目录、用 `/` 写的。
 fn listed(rows: &[&str]) -> String {

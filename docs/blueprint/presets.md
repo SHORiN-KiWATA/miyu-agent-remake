@@ -38,11 +38,10 @@ home/<管理员>/presets/<编号>.toml      管理员自己的
 
 ```toml
 [preset]
-name = { zh = "开发", en = "Dev", ja = "開発" }
-summary = { zh = "只开写代码必需的", en = "Only what coding needs" }
+name = "开发"                   # 一句字（施工 P-3 补）；以前的语言表照样认
+summary = "只开写代码必需的"
 default_persona = "engineer"   # 不指定人格时用哪个人格
 unlisted = "off"               # 没列在 [software] 里的软件开不开：on、off
-# base = "full"                # 以哪个预设为底（施工 P-3 上）
 
 [software]                     # 软件包的编号 = 开不开
 basesystem = true
@@ -53,13 +52,12 @@ goal = true
 shell = false
 ```
 
-1. `name`、`summary` 照人格的写法：只认 `zh`、`en`、`ja`，每一句去掉前后空白不能是空的。
+1. `name`、`summary` 照人格的写法：一句字，去掉前后空白不能是空的（施工 P-3 补）；以前写成语言表（`zh`、`en`、`ja`）的照样认，出厂的两个照旧这么写，界面照连接的语言显示。上一层写了的整格换掉。叠好的文件的指纹照以前的写法算（没写的是空表、语言表照原样）：以前造的快照照旧对得上。
 2. `default_persona` 是人格的编号，这里只查写法，在不在开会话时查。
 3. `unlisted`：几层都没写的照 `on`。功能全开是默认，`[tools]` 里只关一两件的写法也是建在「其余都开」上的。
-4. `[software]` 的键是软件的编号，写法同包的编号。现在装了的：基础系统 `basesystem`、记忆 `memory`（三件工具和回合开始的召回）、角色扮演 `roleplay`（人格的角色扮演提示和风格锁），和清单装的 `process` 包（桥）；联网 `net`、长期目标 `goal` 等它们做出来。写了没装的不报错（这台机器上以后可能装），`preset.get` 写进 `missing`。
+4. `[software]` 的键是软件的编号，写法同包的编号。现在装了的：基础系统 `basesystem`、记忆 `memory`（三件工具和回合开始的召回）、角色扮演 `roleplay`（人格的角色扮演提示和风格锁），和清单装的 `process` 包（桥）；联网 `net`、长期目标 `goal` 等它们做出来。写了没装的不报错（这台机器上以后可能装），`preset.get` 的 `software` 里标 `installed: false`（施工 P-3 补）。
 5. `[tools]` 的键是工具名：字母、数字、`-`、`_`，最多 64 个。单件打开某个包里的一件先不做（走查 C1），写 `true` 报错。
 6. 权限级别、压缩模板、强调色这些配置值随 P-2（下）（D1、C3）。
-7. `base`（施工 P-3 上，16 第四节 Y3）：以哪个预设为底，写法同编号。先把底照同样的办法找好、叠好，再把自己的几层逐格盖上去；`base` 本身也照几层叠，底再写了底的接着找。绕成了圈（含指着自己）、底哪一层都没有，`preset_invalid`：`base cycle: a -> b -> a`、`base "<底>" of "<自己>" not found`；底的文件写错照它自己的那一句（带底的编号）。叠好的文件的指纹不算 `base` 这一格（底的各格已经叠进来了），没写底的预设指纹和以前一个字节不差。
 
 **出厂的两个**（Y6、Y7，`10-自带软件.md` 第四节）：
 
@@ -73,7 +71,7 @@ shell = false
 **协议**（`protocol.md`）：
 
 - `session.create`、`venue.session` 多 `preset`：不写的照默认找；`venue.session` 找回已有的会话时不看。
-- `preset.list`、`preset.get`（施工 P-2 中起多 `missing`）；原因码 `unknown_preset`、`preset_invalid`。
+- `preset.list`、`preset.get`；原因码 `unknown_preset`、`preset_invalid`。
 - `session.created` 多 `preset`（`kernel/events-bodies.md`）；会话列表、`sessions.changed`、`subscribe` 的回应照它写 `preset`，以前的日志没有的不写。
 
 ### 怎么走
@@ -96,14 +94,14 @@ shell = false
    - 角色扮演、装了没开的那一行照新的重新算。
    - 找不着、写错了的照旧用原来的，记一行运行日志；P-2（中）造的快照没有指纹，不换。撤掉换快照那一轮不换回去。
 7. **`preset.list`**：几层里所有的编号，照编号排，一个一个找；名字、说明照这个连接的语言挑（挑法同 `persona.list`）；写错了的只带 `problem`。
-8. **`preset.get {preset}`**：叠好的各格；`unlisted` 是叠好以后的（几层都没写的是 `on`）；`tools` 写成工具名到 `false`；`missing` 是 `[software]` 里写了、这台机器上没装的，照编号排（施工 P-2 中；界面照它写「没安装」，16 第五节）。`switches` 是这台机器上装了的每一个软件叠好以后开不开（施工 P-2 补：预设是全部功能的开关，界面照它一项一个开关画，2026-10-08 项目主人定）。
+8. **`preset.get {preset}`**：叠好的各格（施工 P-3 补：只给人要看的）；名字、说明一句字；`unlisted` 是叠好以后的（几层都没写的是 `on`）；`tools` 写成工具名到 `false`；`software` 是一个个软件 `{"id", "name", "summary", "on", "installed"}`：装了的，加上写了没装的（`installed: false`，界面写「没安装」，16 第五节），名字、说明照连接的语言（内置的照给人看的字 `software/<编号>`，清单装的照它的清单），照固定的先后（2026-10-08 项目主人：「显示名称呢？都是英文谁看得懂？」；施工 P-2 补起预设是全部功能的开关，界面照它一项一个开关画）；`remove` 是删了会怎样（`restore`、`delete`、`null`）。来自哪几层不给。
 9. **`miyu check`**（`cli/check.md`）：每一层里每一份预设各查各的，上面一层盖住了照样报，种类 `preset`；给人看的那一句照 `preset-problems/<code>`。写了文件的，某一层 `presets/` 下的 `<编号>.toml` 认作预设（两边换成真的路径比），还没有的报读不了。
 
 ### 改（施工 P-3 中）
 
-- `preset.set {"preset", "changes"}`、`preset.delete {"preset"}`（`protocol.md`）：只写管理员家目录那一层的 `<编号>.toml`。对还没有的编号写就是新建（一次带上 `preset.base`、名字），改出厂的、系统区的就是建同名覆盖、只写改了的项（16 第四节 Y3）。删掉家目录那一层，下面几层还有的回到它们的样子。
+- `preset.set {"preset", "changes"}`、`preset.delete {"preset"}`（`protocol.md`）：只写管理员家目录那一层的 `<编号>.toml`。不写编号的是新建，编号由核心起 `preset-<n>`（施工 P-3 补，2026-10-08 项目主人定：新建不填编号；新建的什么开关都不写就是全开），改出厂的、系统区的就是建同名覆盖、只写改了的项（16 第四节 Y3）。删掉家目录那一层，下面几层还有的回到它们的样子。
 - 一项项在原来的字上改（`miyu_config::edit::apply`），注释、顺序照原样；新开的一组在文件末尾另起一张表（`[preset.name]`）。`expect` 照 `miyu_config::plain::json_at` 读的你那一层现在的值比。
-- 写之前查：改完的一份照规矩读一遍，再照它叠一遍（`Presets::find_with`：家目录那一层照改完的字算，不读盘），写错、底绕圈、底没有的整条不收。
+- 写之前查：改完的一份照规矩读一遍，再照它叠一遍（`Presets::find_with`：家目录那一层照改完的字算，不读盘），写错的整条不收，拒绝里带照连接语言的一句（`data.message`，施工 P-3 补）。
 - 写盘照配置文件的规矩（`miyu_store::config_file`）：顺着链接写、先写临时文件再替换、替换之前再读一次本体，撞上手改的从头再来，三次还不行的 `preset_conflict`。写成了记一行运行日志 `INFO preset saved`，删了 `INFO preset deleted`；不进配置的留痕日志。
 - 只给本机的连接：扩展进程调回 `local_only`。不推 `preset.changed`：两个头都是每次打开重新读（2026-10-08 和两个头对过）。
 
@@ -117,7 +115,6 @@ shell = false
 | `bad_persona`、`bad_unlisted` | `default_persona` 不是合写法的编号；`unlisted` 不是 `on`、`off` |
 | `bad_software`、`not_bool` | `[software]` 的键不合包编号的写法；值不是开关 |
 | `bad_tool`、`not_false` | `[tools]` 的键不是工具名的写法；值不是 `false` |
-| `bad_base` | `base` 不是合写法的编号（施工 P-3 上） |
 
 ### 守着它的
 
@@ -125,14 +122,13 @@ shell = false
 |---|---|
 | `crates/miyu-policy/src/preset/tests.rs` | 每一格读对；空文件什么都没有、`unlisted` 照 `on`；逐格叠；每一种写错报对代码和行；工具名的写法 |
 | `crates/miyu-store/src/presets/tests.rs` | 三层逐格叠；一层也行、空文件也算；没有的、编号不合写法的、写错的写明哪一层；编号照文件名、不重复、照编号排；`check` 每一层各查、写了文件的认得出；出厂两份读得出、零问题、三种语言齐；每一种代码三种语言都有给人看的一句 |
-| `crates/miyu-store/src/presets/tests/base.rs`（施工 P-3 上） | 盖在底上逐格（底的几层也叠进来）、底的底、没写底的指纹不变；绕两个的圈、指着自己、底没有、底写错了说底的文件、`base` 写错 |
 | `crates/miyu-store/src/index/tests.rs` | 索引里存得下、读得回人格和预设 |
-| `crates/miyu-endpoint/tests/preset_set.rs`（施工 P-3 中） | 新建、改出厂的只写改了的、保留格式、删一项、`expect`、整条不收、参数不对、删你那一层、一样的值不写（`protocol.md` 测试表） |
+| `crates/miyu-endpoint/tests/preset_set.rs`（施工 P-3 中、补） | 不写编号新建、`remove`、改出厂的只写改了的、保留格式、删一项、`expect`、整条不收还带一句、参数不对、删你那一层、一样的值不写（`protocol.md` 测试表） |
 | `crates/miyu-config/src/plain/tests.rs`（施工 P-3 中） | 表、行内表、点号连着的键里读一项，没写的、是表的、读不懂的是空的；只有字、开关、数换得成要写的值 |
 | `crates/miyu-endpoint/src/connection/tests.rs`（施工 P-3 中） | 扩展进程调了回 `local_only` 的名单 |
 | `crates/miyu-endpoint/tests/presets.rs` | 不写预设照默认、个人设置压着系统配置、指定的压着默认；找人格的先后；没有的、编号不对的、写错的拒绝、什么都不造，默认预设指着没有的也拒；会话列表、`subscribe` 写 `preset`，以前的日志不写；`venue.session` 带预设造、找回时不看；`preset.list`、`preset.get`；`check` 查预设 |
 | `crates/miyu-session/tests/spawn.rs` | 子会话照父会话的预设，父会话载入以后也照 |
-| `crates/miyu-endpoint/tests/preset_face.rs`（施工 P-2 中） | 功能全开的工具面全有、没有那一行；开发预设没有记忆三件、范围 `off`（要了也没用）、那一行只写 `memory`；单件关掉的没有、不写那一行；整包关掉的工具全没、写进那一行；角色扮演开着的有提示和风格锁、那一行在风格锁前面，关着的都没有；`preset.get` 的 `missing` |
+| `crates/miyu-endpoint/tests/preset_face.rs`（施工 P-2 中） | 功能全开的工具面全有、没有那一行；开发预设没有记忆三件、范围 `off`（要了也没用）、那一行只写 `memory`；单件关掉的没有、不写那一行；整包关掉的工具全没、写进那一行；角色扮演开着的有提示和风格锁、那一行在风格锁前面，关着的都没有；`preset.get` 的 `software`：装了的、写了没装的，内置的照固定的先后（施工 P-3 补） |
 | `crates/miyu-tool/src/catalog/tests.rs` | 按包登记、以前的名字照现在的包、老写法算基础系统、两个包里同名的照样拒 |
 | `crates/miyu-policy/src/preset/tests.rs` | 软件开不开、单件留不留；没开的照编号、不重复 |
 | `crates/miyu-session/src/actor/persona/tests.rs` | 角色扮演没开的换人格以后照旧没有提示和风格锁，换过以后不再换 |
@@ -159,5 +155,4 @@ shell = false
 
 - 预设里写配置值（D1：配置清单每一项标跟着人格、预设还是人）：先放着。2026-10-08 项目主人说「预设需要有所有功能的开关，这就是把功能设计成软件的意义」，预设先只做开关；哪一项真要跟着预设走时再定。
 - 强调色（`[preset]` 的 `color`）：随 D1 以后。
-- 人格的新建、改、删：P-3（下）。
-- `miyu check` 只查每一份文件自己，底绕成圈、底没有的不查：开会话、`preset.get` 时报。
+- 系统区那一层（大家共用的）的新建、改、删：等多用户那次专门讨论。

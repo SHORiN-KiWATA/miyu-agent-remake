@@ -5,8 +5,6 @@
 //! 假工具 `edit` 只报要写的路径、不真写：报一条根目录下不存在的路径，它不在工作区、临时目录这些能写的地方，一定要问人
 //! （测试的工作区都在系统的临时目录里，临时目录能写，写在那里不问）。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -17,7 +15,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 根目录下一个不存在的目录里的文件，写成她会给的样子。
 fn nowhere(name: &str) -> String {

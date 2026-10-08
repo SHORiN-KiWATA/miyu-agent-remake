@@ -5,11 +5,12 @@
 //!
 //! 假服务器在本机回环上，手写的地址指着它；编号和目录里一样，照编号认出是目录里的那一家。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::support::Home;
+use crate::support::calling::{asking, blobs, body, entry, frozen, user};
+use crate::support::routing::{configs, routes_with, turn};
 use miyu_config::secret::Reference;
 use miyu_http::testkit::{Piece, Reply, Server};
 use miyu_kernel::block::{Block, Text};
@@ -20,9 +21,6 @@ use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
 use miyu_session::{ModelData, Observed, Routes, Unanswered};
 use serde_json::json;
-use support::Home;
-use support::calling::{asking, blobs, body, entry, frozen, user};
-use support::routing::{configs, routes_with, turn};
 
 /// 真目录裁出来的一份（`miyu-models` 的测试也用它）：Go 有走三种驱动的模型，Zen 有一个走 Google 的。
 fn trimmed() -> Loaded {
@@ -220,7 +218,7 @@ async fn a_model_without_a_driver_is_no_model_and_the_rest_still_work() {
         &source(&plain.base_url, "opencode/deepseek-v4.1-flash"),
         &key(),
     );
-    let plain_entry = support::calling::entry(&plain_routes);
+    let plain_entry = crate::support::calling::entry(&plain_routes);
     plain_entry
         .call(&config, &blobs, asking(None, "title", "hi"))
         .await

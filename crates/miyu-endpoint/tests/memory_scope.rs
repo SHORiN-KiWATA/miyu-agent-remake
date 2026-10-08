@@ -1,8 +1,6 @@
 //! 记忆的范围（施工 R-3 下，`docs/blueprint/memory.md`「范围」，`protocol.md` 的 `session.create`）：真核心走一遍。`memory`
 //! 三种照写的记进快照，写错的参数不对、什么都不造；不写的照人格的 `persona.toml`，那也没写的跟着人格。
 
-mod support;
-
 use serde_json::{Value, json};
 
 use miyu_kernel::event::Body;
@@ -11,7 +9,7 @@ use miyu_policy::memory::MemoryScope;
 use miyu_session::testkit::Script;
 use miyu_store::blob::Blobs;
 
-use support::*;
+use crate::support::*;
 
 /// 会话 `session` 快照里记忆的范围。
 fn scope(home: &Home, session: &str) -> MemoryScope {

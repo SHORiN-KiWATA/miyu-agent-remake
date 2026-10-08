@@ -2,15 +2,13 @@
 //! （`auto` 照头报的系统语言，`zh`、`ja`、别的）、`config_errors`；`config.schema`、`config.get`（`cwd`、`all`、`files`、
 //! `problems`）、`config.check` 的样子和报错的话；不认识的键；造会话时开局只读照配置、照信任着的项目配置。
 
-mod support;
-
 use serde_json::{Value, json};
 
 use miyu_kernel::event::Body;
 use miyu_session::testkit::Script;
 use miyu_store::config_file::version;
 
-use support::*;
+use crate::support::*;
 
 /// 用不着模型。
 fn script() -> Script {

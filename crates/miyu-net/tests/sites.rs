@@ -2,11 +2,9 @@
 //! 经测试的口子解析到回环，认站照主机名。假服务器只照路径回，不看 `Host`：一个站要的几样（页面、接口、图）互相要
 //! 写对方的端口时，分开起几台。
 
-mod support;
-
+use crate::support::{PNG, Reply, Site, Store, card, local_with, miss, resources};
 use miyu_net::{Kind, LinkPreview, Why};
 use serde_json::{Value, json};
-use support::{PNG, Reply, Site, Store, card, local_with, miss, resources};
 
 /// 测试里当真的那几个主机名。
 const NAMES: &[&str] = &[
@@ -32,7 +30,7 @@ fn json_reply(body: &Value) -> Reply {
 }
 
 /// 照路径找收到过的请求。
-fn find(site: &Site, prefix: &str) -> Vec<support::Seen> {
+fn find(site: &Site, prefix: &str) -> Vec<crate::support::Seen> {
     site.seen()
         .into_iter()
         .filter(|seen| seen.target.starts_with(prefix))
@@ -363,23 +361,24 @@ async fn challenge_pages_have_no_card() {
     let site = Site::start(vec![
         (
             "/moment".to_string(),
-            Reply::html(&support::page("Just a moment...", "")),
+            Reply::html(&crate::support::page("Just a moment...", "")),
         ),
         (
             "/spaced".to_string(),
-            Reply::html(&support::page("  安全检查 ", "")),
+            Reply::html(&crate::support::page("  安全检查 ", "")),
         ),
         (
             "/header".to_string(),
-            Reply::html(&support::page("Fine", "")).with_header("cf-mitigated", " Challenge "),
+            Reply::html(&crate::support::page("Fine", ""))
+                .with_header("cf-mitigated", " Challenge "),
         ),
         (
             "/forbidden".to_string(),
-            Reply::html(&support::page("Fine", "")).with_status(403),
+            Reply::html(&crate::support::page("Fine", "")).with_status(403),
         ),
         (
             "/busy".to_string(),
-            Reply::html(&support::page("Fine", "")).with_status(503),
+            Reply::html(&crate::support::page("Fine", "")).with_status(503),
         ),
         (
             "/forbidden-text".to_string(),
@@ -387,11 +386,11 @@ async fn challenge_pages_have_no_card() {
         ),
         (
             "/teapot".to_string(),
-            Reply::html(&support::page("Fine", "")).with_status(418),
+            Reply::html(&crate::support::page("Fine", "")).with_status(418),
         ),
         (
             "/plain".to_string(),
-            Reply::html(&support::page("Just a moment", "")),
+            Reply::html(&crate::support::page("Just a moment", "")),
         ),
     ])
     .await;

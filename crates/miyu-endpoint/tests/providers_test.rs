@@ -2,16 +2,14 @@
 //! 成了交 `first_token_ms`、收到第一段正文就停（假服务器之后停住不动也照样成了）；配好的存列表、候选不存；列不出的照目录
 //! 列；认证失败交分类、状态、原话；推荐的模型；推不出的 `config`；没有模型可试的 `list`；参数不对、`unknown_provider`；配了温度的照带（施工 8-22）。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
 
+use crate::support::providers::{core, data, profiles};
+use crate::support::*;
 use miyu_http::testkit::{Piece, Reply, Server};
 use miyu_session::ModelData;
-use support::providers::{core, data, profiles};
-use support::*;
 
 /// 一眼看得出是假的 key。
 const FAKE: &str = "sk-FAKE-KEY-FOR-TESTS-0001";

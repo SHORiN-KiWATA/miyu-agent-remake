@@ -1,8 +1,6 @@
 //! 真的 `glob`、`grep`（施工 4-4 下）：会话里她调它们，工作区里的找得到、搜得到，结果落盘；边界以外的也搜得到，
 //! 没人能确认也不用问（施工 5-4 上，原来被拒）；从上面往下搜，不进数据根。
 
-mod support;
-
 use std::path::Path;
 
 use miyu_kernel::block::Block;
@@ -10,7 +8,7 @@ use miyu_kernel::event::{Body, Level, Permission, ToolResult, ToolStatus};
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
 
-use support::*;
+use crate::support::*;
 
 fn base_system() -> Catalog {
     let resources = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");

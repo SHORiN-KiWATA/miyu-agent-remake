@@ -3,18 +3,16 @@
 //! 回复后面）：再载入父会话时，子会话挪进回收处；记下了的照留。改名以前造的父会话（调的是 `agent`）换现在的核心载入，
 //! 照样收（施工 7-5 再补）。
 
-mod support;
-
 use std::sync::Arc;
 
+use crate::support::deleting::{
+    Router, agent, base_tools, in_place, started_child, tools_before_the_rename, trashed,
+};
+use crate::support::{Client, Home, alice, until};
 use miyu_kernel::event::Body;
 use miyu_kernel::id::SessionId;
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
-use support::deleting::{
-    Router, agent, base_tools, in_place, started_child, tools_before_the_rename, trashed,
-};
-use support::{Client, Home, alice, until};
 
 /// 主会话调 `tool` 派一个子代理、说一句；子代理停在请求上。
 fn scripts(tool: &str) -> Router {

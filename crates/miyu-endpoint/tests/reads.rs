@@ -3,8 +3,6 @@
 //! 数据根里 `path_forbidden`、工作区里能读、相对的 `bad_params`、`~` 接家目录、不是普通文件或者没有
 //! `path_unreadable`；`length` 超过 512 KiB `bad_params`。
 
-mod support;
-
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use serde_json::{Value, json};
@@ -12,7 +10,7 @@ use serde_json::{Value, json};
 use miyu_kernel::id::ContentHash;
 use miyu_session::testkit::Script;
 
-use support::*;
+use crate::support::*;
 
 /// 一块最多多少字节（`web-module.md`「怎么走」第七条第 3 款，`fs.read`、`blob.get` 同一个数）。
 const MAX_LENGTH: u64 = 512 * 1024;

@@ -2,8 +2,6 @@
 //! 记忆没开的会话范围是 `off`；角色扮演没开的没有角色扮演提示和风格锁；装了没开的软件写一行进 system；功能全开的和以前一样；
 //! `preset.get` 写出没装的。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -18,8 +16,8 @@ use miyu_store::blob::Blobs;
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Tool};
 
-use support::venues::configured_core;
-use support::*;
+use crate::support::venues::configured_core;
+use crate::support::*;
 
 /// 基础系统两件、记忆三件，照包登记。
 fn catalog() -> Catalog {
@@ -206,20 +204,44 @@ async fn preset_get_names_software_that_is_not_installed() {
     let dev = client
         .call("g1", "preset.get", json!({"preset": "dev"}))
         .await;
-    assert_eq!(dev["result"]["missing"], json!(["goal", "net"]), "{dev}");
     assert_eq!(
-        dev["result"]["switches"],
-        json!({"basesystem": true, "memory": false, "roleplay": false}),
-        "装了的每一个都有开关（施工 P-2 补）"
+        switches(&dev),
+        [
+            ("basesystem", true, true),
+            ("net", true, false),
+            ("goal", true, false),
+            ("memory", false, true),
+            ("roleplay", false, true),
+        ],
+        "装了的每一个都有开关（施工 P-2 补），写了没装的标着没装，内置的照固定的先后（施工 P-3 补）：{dev}"
     );
     let full = client
         .call("g2", "preset.get", json!({"preset": "full"}))
         .await;
-    assert_eq!(full["result"]["missing"], json!([]));
     assert_eq!(
-        full["result"]["switches"],
-        json!({"basesystem": true, "memory": true, "roleplay": true})
+        switches(&full),
+        [
+            ("basesystem", true, true),
+            ("memory", true, true),
+            ("roleplay", true, true),
+        ]
     );
+}
+
+/// `preset.get` 的软件：编号、开不开、装没装。
+fn switches(reply: &serde_json::Value) -> Vec<(&str, bool, bool)> {
+    reply["result"]["software"]
+        .as_array()
+        .expect("是一个个软件")
+        .iter()
+        .map(|one| {
+            (
+                one["id"].as_str().unwrap_or_default(),
+                one["on"].as_bool().unwrap_or_default(),
+                one["installed"].as_bool().unwrap_or_default(),
+            )
+        })
+        .collect()
 }
 
 #[tokio::test]

@@ -4,8 +4,6 @@
 //! 场地不在系统的临时目录里（[`Home::outside_temp`]）：数据根 `data/`、假的家 `home/`、工作区 `work/`、
 //! 边界以外的 `other/`。
 
-mod support;
-
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -18,7 +16,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 会报路径的三件假工具：读（`read`）、写（`edit`）、执行命令（`run`，不报路径）。
 struct Kit {

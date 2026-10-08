@@ -3,8 +3,6 @@
 //! 60 秒错 5 次就先拒；登录令牌认得、过期、作废的不认；凭据只写一种；`account.logout` 作废一个、全部，断开用登录令牌、
 //! 密码连着的连接；文件坏了的样子。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -13,8 +11,8 @@ use serde_json::json;
 use miyu_session::testkit::Script;
 use miyu_store::{accounts, logins};
 
-use support::login::*;
-use support::*;
+use crate::support::login::*;
+use crate::support::*;
 
 /// 读 `system/accounts.json`。
 fn accounts_of(home: &Home) -> accounts::Accounts {

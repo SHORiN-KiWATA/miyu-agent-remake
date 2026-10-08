@@ -3,18 +3,16 @@
 //!
 //! 一台假服务器、一家两个 key。一次性调用的用途挑成和会话钉着同一个 key 的，看它被冷却挤到另一个 key 上。
 
-mod support;
-
 use std::time::Duration;
 
 use serde_json::json;
 
+use crate::support::calling::{asking, bearer, blobs, entry, frozen, keyed, limited, purpose_on};
+use crate::support::routing::{configs, hellos, routes, turn};
+use crate::support::{Home, ask, say, until_turn_ends, watch};
 use miyu_config::secret::Reference;
 use miyu_http::testkit::Server;
 use miyu_models::keys;
-use support::calling::{asking, bearer, blobs, entry, frozen, keyed, limited, purpose_on};
-use support::routing::{configs, hellos, routes, turn};
-use support::{Home, ask, say, until_turn_ends, watch};
 
 /// 照 [`keyed`] 的配置的字、取得到的密钥（两个都取得到）。
 fn two_keys(base_url: &str) -> (String, Vec<(Reference, String)>) {

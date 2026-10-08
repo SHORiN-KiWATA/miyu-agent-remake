@@ -5,14 +5,12 @@
 //! 回顾的请求是单独的一次：一条 user，指令接对话记录，没有 system、工具面；和存档（`docs/designs/samples/probe/recap/`
 //! 的 `recaps/`）逐字节比。主请求照样查五条性质、和存档比：回顾夹在中间，不改它们。
 
-mod support;
-
+use crate::support::{check, files, matches_the_archive, recap, sent, stage};
 use miyu_kernel::block::Block;
 use miyu_kernel::id::CommandId;
 use miyu_kernel::request::Message;
 use miyu_kernel::session::Outcome;
 use miyu_kernel::testkit::{Line, Play, Stage};
-use support::{check, files, matches_the_archive, recap, sent, stage};
 
 /// 剧本。
 fn script() -> Stage {

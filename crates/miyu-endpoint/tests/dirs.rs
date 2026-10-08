@@ -2,13 +2,11 @@
 //! 施工 9-7 上起是会话的属性：说话带着的不理，换的是 `session.set_workspace`（`dirs` 不写的照旧，写空的就是没有）；太宽的
 //! 整条命令都不收；核心重启以后照最后一次记下的找回来。
 
-mod support;
-
 use serde_json::{Value, json};
 
+use crate::support::*;
 use miyu_kernel::event::{Body, Event};
 use miyu_session::testkit::{Play, Script};
-use support::*;
 
 /// 工作区旁边建一个目录，交回它的路径（数据根外面）。
 fn extra(home: &Home, name: &str) -> String {

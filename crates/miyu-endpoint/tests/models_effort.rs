@@ -5,8 +5,6 @@
 //!
 //! 没有目录：档位全照手写的 `reasoning`。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -23,7 +21,7 @@ use miyu_session::{ModelData, Models, Observed, Routes};
 use miyu_store::resources::ResourceRoot;
 use miyu_tool::Catalog as ToolCatalog;
 
-use support::*;
+use crate::support::*;
 
 /// 两家 `a`、`b`。`a/m` 有 `off`、`low`、`high`，默认 `low`；`a/x` 只有 `high`，默认写成了它没有的 `max`；`b/n` 没写几档。
 /// 主对话 `a/m`，池 `p` 轮换。

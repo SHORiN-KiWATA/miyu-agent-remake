@@ -2,8 +2,6 @@
 //! 里是那一轮的开头、空的检查点、结束，下一次请求里没有清空以前的；撤掉那一轮，回应数的是清空、不是压缩，上下文回来了。
 //! 有回合在进行、上下文本来就是空的，照头的语言拒绝；会话编号不对的是参数不对。
 
-mod support;
-
 use serde_json::json;
 
 use miyu_kernel::block::Block;
@@ -11,7 +9,7 @@ use miyu_kernel::event::{Body, CompactTrigger};
 use miyu_kernel::request::{Message, Request};
 use miyu_session::testkit::{Play, Script};
 
-use support::*;
+use crate::support::*;
 
 /// 一次请求里人这边说的每一段字，照先后。
 fn user_texts(request: &Request) -> Vec<String> {

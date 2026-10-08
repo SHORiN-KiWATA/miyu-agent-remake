@@ -3,10 +3,9 @@
 //! 了一次，退出码 0；写了话的换成这句；一轮都没有的照核心的话说「无法重做」，退出码 1；一个会话都没有的，说清楚，退出码 1；
 //! `--session` 重做的是指定的那个。
 
-mod support;
-
 use std::sync::Arc;
 
+use crate::support::{Home, plan, resources};
 use miyu_cli::RedoPlan;
 use miyu_cli::language::Language;
 use miyu_kernel::block::Block;
@@ -14,7 +13,6 @@ use miyu_kernel::event::{Body, MessageUser, TurnReverted};
 use miyu_kernel::id::SessionId;
 use miyu_session::testkit::{Play, Script};
 use miyu_store::human::Human;
-use support::{Home, plan, resources};
 
 /// 起一个核心：请求模型照 `plays`，没有工具。
 fn home(plays: impl IntoIterator<Item = Play>) -> Home {

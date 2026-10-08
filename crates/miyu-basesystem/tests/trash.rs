@@ -2,8 +2,6 @@
 //! 重名的接 `.2`，目录、链接，路径照规范转义，挪不动的、家目录的回收站建不了的不删；macOS、Windows 上删文件、删目录
 //! （在 CI 上跑）。
 
-mod support;
-
 use serde_json::json;
 
 use miyu_kernel::block::Block;
@@ -11,7 +9,7 @@ use miyu_kernel::event::Said;
 use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Effect};
 
-use support::{Site, tool};
+use crate::support::{Site, tool};
 
 /// 基础系统的说法。
 fn said(key: &str) -> Said {

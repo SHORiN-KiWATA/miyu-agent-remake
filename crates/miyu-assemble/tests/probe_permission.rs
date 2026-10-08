@@ -3,15 +3,13 @@
 //! 时开只读，这一轮下一次请求之前告诉她。每一次请求和存档（`docs/designs/samples/probe/permission/`）逐字节比，查五条性质；
 //! 和同一份剧本在以前造的快照（没有切换那一份）上跑的比，每一次请求只差切换那几块：换回平常那一份就一字不差。
 
-mod support;
-
+use crate::support::{check, files, matches_the_archive, policy, sent, stage, stage_with};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::Level;
 use miyu_kernel::facts::FactTemplates;
 use miyu_kernel::request::{Message, Request};
 use miyu_kernel::session::Policy;
 use miyu_kernel::testkit::{Line, Play, Stage};
-use support::{check, files, matches_the_archive, policy, sent, stage, stage_with};
 
 /// 平常那一份的原文。
 const PLAIN: &str = include_str!("../../../resources/core/facts/permission.txt");

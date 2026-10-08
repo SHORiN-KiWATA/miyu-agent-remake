@@ -2,8 +2,6 @@
 //! `.git/hooks` 只能读，只读照旧拒绝。场地和 `guard.rs` 一样不在系统的临时目录里：工作区 `work/`、加进来的
 //! `other/`。
 
-mod support;
-
 use std::sync::Arc;
 
 use miyu_kernel::event::{Body, Event, Level, Permission, ToolResult, ToolStatus};
@@ -13,7 +11,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 写文件的假工具，报它参数里的路径。
 struct Kit {

@@ -2,19 +2,17 @@
 //! 主会话、子会话里各答各的。等子代理都回报过、被回报叫醒的几轮也结束了才退出，这期间每一轮都印；会话有头跟着时回报
 //! 叫醒她，头走了只记下。
 
-mod support;
-
 use std::path::Path;
 use std::time::Duration;
 
 use serde_json::{Value, json};
 use tokio::sync::mpsc;
 
+use crate::support::router::{Gate, Router};
+use crate::support::{Asked, Home, Tape, ask_onto, plan, resources, within};
 use miyu_cli::{Format, Plan, Target};
 use miyu_kernel::event::Body;
 use miyu_session::testkit::Play;
-use support::router::{Gate, Router};
-use support::{Asked, Home, Tape, ask_onto, plan, resources, within};
 
 /// 起一个核心：工具是出厂的，请求模型照 `router`。
 fn home(router: Router) -> Home {
@@ -241,7 +239,7 @@ async fn a_subagent_from_before_is_waited_for_once_messaged_like_the_sample() {
 
 #[tokio::test]
 async fn a_background_command_is_not_waited_for_and_says_it_went_to_the_background() {
-    let work = support::outside::Outside::new();
+    let work = crate::support::outside::Outside::new();
     // 睡 6 秒：Windows 的 CI 上从起 shell 到命令行退出会超过 2 秒，睡 2 秒的退出前就跑完了（2026-10-07 run 1130）；后面等它结束
     // 的 `within` 是 10 秒，不能睡得比它长。
     let args = json!({"command": "sleep 6", "description": "睡一会", "run_in_background": true});

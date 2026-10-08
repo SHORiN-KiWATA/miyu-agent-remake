@@ -4,13 +4,12 @@
 //!
 //! 配置的来源是假的：`log.level` 取自一份「项目配置」的字，每次取都重新读那一份文件，记下照哪个目录取的。
 
-mod support;
-
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use tokio::sync::watch;
 
+use crate::support::{Home, Scratch, ask, environment, say, until_turn_ends, watch as watching};
 use miyu_config::merge::{Layers, Resolved, merge};
 use miyu_config::parse::parse;
 use miyu_config::secret::{Reference, Secret};
@@ -23,7 +22,6 @@ use miyu_kernel::session::Limits;
 use miyu_log::settings::LogSettings;
 use miyu_session::testkit::{Play, Script};
 use miyu_session::{Cancel, ConfigSource, ForSession, ModelPort, Models, Reports, TurnConfig};
-use support::{Home, Scratch, ask, environment, say, until_turn_ends, watch as watching};
 
 /// 一份最终值：`log.level` 是 `level`。
 fn resolved(level: &str) -> Resolved {

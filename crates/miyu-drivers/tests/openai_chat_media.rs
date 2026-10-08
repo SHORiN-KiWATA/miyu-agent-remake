@@ -1,19 +1,17 @@
 //! OpenAI 兼容对话接口的编码，图片、文件和思考：能收的写成 data URL，不能收的换成占位；工具结果里的
 //! 图片、PDF 挪到后面；思考照开关回传。
 
-mod support;
-
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::support::{
+    call, deepseek, file, id, image, read_tool, sample, sees_all, text, texts, thought, tool_call,
+};
 use miyu_drivers::Inputs;
 use miyu_drivers::openai_chat::{
     Compat, EncodeError, ReasoningField, ReasoningReplay, blobs_needed, encode,
 };
 use miyu_kernel::id::ContentHash;
 use miyu_kernel::request::{Message, Request};
-use support::{
-    call, deepseek, file, id, image, read_tool, sample, sees_all, text, texts, thought, tool_call,
-};
 
 const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR";
 const SHOT: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rscreenshot";

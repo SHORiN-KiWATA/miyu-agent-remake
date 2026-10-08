@@ -4,8 +4,6 @@
 //! 的供应商、池没配的，配置的问题里报 `bad_reference`、算进 `config_errors`。换模型（施工 8-10）：`session.configure` 照这时的配置解析好交给内核，一样的不记，
 //! 解析不出、参数不对的什么都不记；`subscribe` 回应的 `model` 照会话接下来请求的写。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -23,7 +21,7 @@ use miyu_session::{ModelData, Models, Observed, Routes};
 use miyu_store::resources::ResourceRoot;
 use miyu_tool::Catalog as ToolCatalog;
 
-use support::*;
+use crate::support::*;
 
 /// 两家 `a`、`b`（`b` 按次计费），主对话 `a/m`、看图 `b/v`；池 `free` 钉住（成员有一个认不出），派子代理能选、带说明；池
 /// `fast` 不写分法（成员全是按次计费的：轮换）；池 `empty` 一个成员都认不出，开关开着。

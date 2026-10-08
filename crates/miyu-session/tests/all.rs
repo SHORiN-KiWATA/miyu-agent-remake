@@ -1,0 +1,60 @@
+//! 这个 crate 的集成测试并成一个程序（施工 0-3 三补，`docs/construction/0-3-三平台CI（三补）.md`）：一个文件一个模块，
+//! `support` 只编一次，只链接一次。自己装日志订阅者的几个照旧各是各的程序（调用点记下谁在听是全进程的，同一个进程里
+//! 别的测试同时碰到会漏听；全局的一个进程只能装一次），
+//! 在 `Cargo.toml` 里另列。新加的测试文件在下面添一行。
+
+mod support;
+
+mod actor;
+mod backlog;
+mod delete;
+mod guard;
+mod guard_dirs;
+mod guard_grants;
+mod guard_thread;
+mod history;
+mod history_other;
+mod history_speed;
+mod http;
+mod jobs;
+mod jobs_stop;
+mod limits;
+mod memory;
+mod memory_scope;
+mod memory_tools;
+mod messages;
+mod messages_peer;
+mod once;
+mod once_pools;
+mod once_shared;
+mod outside_sandbox;
+mod questions;
+mod read;
+mod rebuild;
+mod report_up;
+mod restore;
+mod route;
+mod route_anthropic;
+mod route_cost;
+mod route_effort;
+mod route_facts;
+mod route_failover;
+mod route_pools;
+mod route_responses;
+mod route_temperature;
+mod route_turn;
+mod route_vision;
+mod route_zen;
+mod sandbox;
+mod search;
+mod session_fact;
+mod session_usage;
+mod sessions;
+mod spawn;
+mod stop;
+mod tools;
+mod turn_config;
+mod undo_compaction;
+mod watch;
+mod watched;
+mod write;

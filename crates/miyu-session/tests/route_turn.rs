@@ -3,20 +3,18 @@
 //! 以后钉在它上面；`models.chat` 也没有的不记、当场 `no_model`；只改了窗口的下一轮用上；换成轮换的池推的没有端点；载入
 //! 以后照换过的说。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::watch as channel;
 
+use crate::support::routing::{called, configs, hellos, routes};
+use crate::support::{Home, Lines, Opening, ask, say, stop, until_turn_ends, watch};
 use miyu_http::testkit::Server;
 use miyu_kernel::event::{Body, ChangeWhy, ErrorClass, ModelChanged, PolicyChanged, TransientBody};
 use miyu_kernel::session::Command;
 use miyu_session::{ConfigSource, Handle, Models, Pushed};
 use miyu_tool::Catalog;
-use support::routing::{called, configs, hellos, routes};
-use support::{Home, Lines, Opening, ask, say, stop, until_turn_ends, watch};
 
 /// 两家 `a`、`b`，都不带 key；`b` 的 `n` 窗口 32000，`a` 的 `m` 窗口 `window`。`models.chat` 是 `chat`；池 `p` 是 `a/m`、
 /// `b/n`，轮换。`only_b` 的，配置里没有 `a`、池。

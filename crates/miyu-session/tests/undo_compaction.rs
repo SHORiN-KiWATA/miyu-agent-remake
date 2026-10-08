@@ -2,8 +2,6 @@
 //! 文件重读进检查点；第三轮再说一句。撤掉第二轮，执行器从磁盘读回更早的日志，上下文回到压缩前；恢复把压缩放回来，不请求
 //! 模型，重读的原文照 blob 取回，接着的请求里照样有。撤掉以后停了再载入，内核照日志认出那次压缩不算了。
 
-mod support;
-
 use std::path::Path;
 
 use miyu_kernel::block::Block;
@@ -15,7 +13,7 @@ use miyu_session::Handle;
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
 
-use support::*;
+use crate::support::*;
 
 fn base_system() -> Catalog {
     let resources = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");

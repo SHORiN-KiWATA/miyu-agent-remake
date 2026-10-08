@@ -1,10 +1,9 @@
 //! 派子代理，真核心走一遍（施工 7-5，`docs/blueprint/agents.md` 第一条）：她在主会话里调 `agent`，会话表造出子会话，交代作为
 //! 主会话发来的话开了它的第一轮，替身模型在子会话里答话；子会话的日志、快照、请求，`session.list` 的 `parent` 都对。
 
-mod support;
-
 use serde_json::{Value, json};
 
+use crate::support::{Client, Home, TOKEN, alice, default_resources};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Body, Effect, Level, Permission};
 use miyu_kernel::id::SessionId;
@@ -14,7 +13,6 @@ use miyu_policy::Snapshot;
 use miyu_session::testkit::{Play, Script};
 use miyu_store::blob::Blobs;
 use miyu_tool::Catalog;
-use support::{Client, Home, TOKEN, alice, default_resources};
 
 /// 交代：两行，原样送到。
 const PROMPT: &str = "Read Cargo.toml and say which crates the workspace has.\nOne line is enough.";

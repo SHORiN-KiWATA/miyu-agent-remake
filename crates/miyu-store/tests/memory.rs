@@ -1,8 +1,6 @@
 //! 记忆日志的登记（施工 R-3 上，`docs/blueprint/memory.md`「对外的样子」的记忆日志、底账、记忆库）：记了、重开还在；最后
 //! 半行坏了截掉；几个线程同时记，序号连续不重；记忆库删了、落后了，打开时照日志补。
 
-mod support;
-
 use std::fs;
 use std::sync::Arc;
 
@@ -12,7 +10,7 @@ use miyu_recall::{MemoryEvent, MemoryId, Retired, Saved, Source};
 use miyu_store::memory::MemoryLogs;
 use miyu_store::recall::Room;
 
-use support::*;
+use crate::support::*;
 
 fn tool() -> By {
     serde_json::from_str(r#"{"kind":"tool","call_id":"call_3_1"}"#).expect("合写法")

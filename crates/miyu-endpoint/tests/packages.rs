@@ -4,13 +4,11 @@
 //! 测试用的是仓库的资源目录：出厂的清单会越来越多（终端界面、桥），这里只断言出厂的网页和测试自己放的那几份，家目录里
 //! 放的编号、子命令名都避开出厂会有的。
 
-mod support;
-
 use serde_json::{Value, json};
 
 use miyu_session::testkit::Script;
 
-use support::*;
+use crate::support::*;
 
 /// 终端界面的会话 2026-10-07 给的那份草稿：编号、子命令名改成 `term`，出厂以后才有的 `tui` 撞不上它。
 const TERM: &str = r#"[package]

@@ -3,15 +3,13 @@
 //! 核心起来时就建好了，`core.md`），没建过的就照原样交回。`fs.realpath` 往上找最近在的一层换成真实的位置，
 //! 相对的要配 `cwd`，不查边界。
 
-mod support;
-
 use std::path::Path;
 
 use serde_json::json;
 
 use miyu_session::testkit::Script;
 
-use support::*;
+use crate::support::*;
 
 /// 连上、握手，交回客户端。
 async fn client(home: &Home) -> Client {

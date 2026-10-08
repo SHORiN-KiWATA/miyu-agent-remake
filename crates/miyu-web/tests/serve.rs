@@ -1,11 +1,9 @@
 //! `miyu-web serve`（施工 W-9，`web-module.md`「怎么走」第九条第 1 到 6 款）：单实例、`run/web`、那一行；端口被占说清楚；
 //! Host 只认三种写法；页面文件不出页面目录；响应头一个不少、从不设 cookie；空闲到点退出、删 `run/web`、放锁。
 
-mod support;
-
+use crate::support::*;
 use miyu_ipc::Ready;
 use miyu_web::serve::{address, running};
-use support::*;
 
 #[tokio::test]
 async fn one_instance_writes_its_address_and_a_second_says_running() {

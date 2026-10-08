@@ -2,19 +2,17 @@
 //! 基础系统；她读到了、没读成、被拒了，每一步在标准错误上印一行；执行命令、编辑的下面印输出、改动（施工 4-11）；
 //! 工作目录太宽的，开头说一句。还有一个假的核心，照协议允许的最晚的先后说话。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::mpsc;
 
+use crate::support::outside::Outside;
+use crate::support::{AccountIdOf, Asked, Bare, Home, ask_at, dirs, plan, resources};
 use miyu_cli::{Format, Plan, Target};
 use miyu_ipc::Listener;
 use miyu_session::testkit::{Play, Script};
-use support::outside::Outside;
-use support::{AccountIdOf, Asked, Bare, Home, ask_at, dirs, plan, resources};
 
 /// 起一个核心：请求模型照 `plays`，工具是真的三件读的。
 fn home(plays: impl IntoIterator<Item = Play>) -> Home {

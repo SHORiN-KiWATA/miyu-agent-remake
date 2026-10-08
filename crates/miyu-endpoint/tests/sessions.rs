@@ -4,8 +4,6 @@
 //!
 //! 几个会话同时请求模型，谁先到不一定：替身照请求里人这边的那句分给各自的剧本（`support/deleting.rs` 的 `Router`）。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -16,8 +14,8 @@ use miyu_kernel::id::SessionId;
 use miyu_kernel::template::escape;
 use miyu_session::testkit::{Play, Script};
 
-use support::deleting::*;
-use support::*;
+use crate::support::deleting::*;
+use crate::support::*;
 
 /// `session.list` 里会话 `session` 那一项。
 fn item<'a>(listed: &'a Value, session: &str) -> Option<&'a Value> {

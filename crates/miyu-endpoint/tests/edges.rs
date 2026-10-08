@@ -1,14 +1,12 @@
 //! 协议的几个边角（施工 4-9 再补三上）：握手的时限；数组的 `params` 不收；握手被拒照它报的语言说；人格的目录在、
 //! 里面读不了的是内部出错。
 
-mod support;
-
 use std::time::Duration;
 
 use serde_json::json;
 
+use crate::support::*;
 use miyu_session::testkit::Script;
-use support::*;
 
 /// 连上不握手：到了时限就断开，不然一个连上不说话的本机进程能让核心一直不空闲退出。握手了的不受它管。
 #[tokio::test]

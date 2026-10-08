@@ -4,17 +4,15 @@
 //! 印的那一行照「样子」一字不差；`edit` 改字、不改、改错再改好、放弃、编辑器出错、存的时候别处改过了、项目配置由命令行
 //! 自己写；`trust` 列出会改哪几项、`--yes`、`--no`、问、不在终端里、本来就信任着、看的时候又变了。
 
-mod support;
-
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::support::configuring::{Edit, Fake, at_terminal};
+use crate::support::outside::Outside;
+use crate::support::{Asked, Home};
 use miyu_cli::language::Language;
 use miyu_cli::{ConfigCommand, ConfigPlan};
 use miyu_session::testkit::Script;
-use support::configuring::{Edit, Fake, at_terminal};
-use support::outside::Outside;
-use support::{Asked, Home};
 
 fn home() -> Home {
     Home::new(Arc::new(Script::new([])))

@@ -6,14 +6,17 @@ use std::collections::BTreeSet;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+use miyu_config::Words;
 use miyu_config::package::PackageKind;
 use miyu_policy::preset::{Chosen, ROLEPLAY};
 use miyu_session::PresetPlaces;
-use miyu_store::presets::{Found, Layer, PresetError, Presets};
+use miyu_store::human::Human;
+use miyu_store::presets::{Found, PresetError, Presets};
 
 use crate::Core;
+use crate::config::methods::words;
 use crate::hello::Peer;
-use crate::personas::pick;
+use crate::personas::{label, pick, remove};
 use crate::refusal::Refusal;
 use crate::settings::PresetSettings;
 
@@ -74,9 +77,7 @@ fn refusal(error: &PresetError) -> Refusal {
     match error {
         PresetError::BadId(_) => Refusal::BAD_PARAMS,
         PresetError::NotFound(_) => Refusal::UNKNOWN_PRESET,
-        PresetError::Invalid(..) | PresetError::BaseCycle(_) | PresetError::BaseMissing(..) => {
-            Refusal::preset_invalid(error.to_string())
-        }
+        PresetError::Invalid(..) => Refusal::preset_invalid(error.to_string()),
         PresetError::Unreadable(..) => {
             tracing::warn!(target: TARGET, error = %error, "preset unreadable");
             Refusal::INTERNAL
@@ -84,8 +85,21 @@ fn refusal(error: &PresetError) -> Refusal {
     }
 }
 
-/// `preset.list`：几层里所有的预设，照编号排。每个带名字、说明（照这个连接的语言挑）、来自哪几层；写错了的带 `problem`、
-/// 不带名字和说明。
+/// 同 [`refusal`]，写错了的多带一句照 `words` 的语言的 `message` 和第几行（施工 P-3 补）：`preset.get`、`preset.set` 用。
+pub(crate) fn told(error: &PresetError, words: Option<&Human>) -> Refusal {
+    let refused = refusal(error);
+    match (error, words) {
+        (PresetError::Invalid(_, _, problem), Some(words)) => {
+            let key = format!("preset-problems/{}", problem.code.as_str());
+            let message = Words::sentence(words, &key, &[("detail", problem.detail.as_str())]);
+            refused.telling(message, problem.line)
+        }
+        _ => refused,
+    }
+}
+
+/// `preset.list`：几层里所有的预设，照编号排。每个带名字、说明（照这个连接的语言挑）；写错了的带 `problem`、不带名字和
+/// 说明。来自哪几层不往外给（施工 P-3 补）。
 pub(crate) async fn list(core: &Core, peer: Peer) -> Result<Value, Refusal> {
     let presets = presets(core);
     let read = tokio::task::spawn_blocking(move || {
@@ -105,9 +119,8 @@ pub(crate) async fn list(core: &Core, peer: Peer) -> Result<Value, Refusal> {
         .map(|(id, found)| match found {
             Ok(found) => json!({
                 "preset": id,
-                "name": pick(&found.file.name, peer.language),
-                "summary": pick(&found.file.summary, peer.language),
-                "layers": layers(&found.layers),
+                "name": label(found.file.name.as_ref(), peer.language),
+                "summary": label(found.file.summary.as_ref(), peer.language),
             }),
             Err(error) => json!({"preset": id, "problem": error.to_string()}),
         })
@@ -122,52 +135,101 @@ pub(crate) struct GetParams {
     preset: String,
 }
 
-/// `preset.get`：叠好的样子。名字、说明的几种语言原样给；默认人格没写的是 `null`；`unlisted` 是叠好以后的（几层都没写的是
-/// `on`）；`software` 是包到开不开，`tools` 是关掉的单件工具，都是 `false`；`missing` 是 `[software]` 里写了、这台机器上没装的
-/// （施工 P-2 中，照编号排）；`switches` 是这台机器上装了的每一个软件叠好以后开不开（施工 P-2 补：预设是全部功能的开关，界面
-/// 照它一项一个开关画，2026-10-08 项目主人定）；写了底的带 `base`，各格是叠在底上以后的（施工 P-3 上）。
-pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal> {
-    let found = resolve(core, Some(&params.preset)).await?;
-    Ok(describe(core, &found))
+/// `preset.get`：叠好的样子（施工 P-3 补：只给人要看的）。名字、说明照这个连接的语言挑；默认人格没写的是 `null`；`unlisted`
+/// 是叠好以后的（几层都没写的是 `on`）；`software` 是一个个软件（[`software`]）；`tools` 是关掉的单件工具，都是 `false`；
+/// 删了会怎样（`remove`，同人格）。
+/// 来自哪几层不往外给。
+pub(crate) async fn get(core: &Core, peer: Peer, params: GetParams) -> Result<Value, Refusal> {
+    let said = words(core, peer.language).ok();
+    let presets = presets(core);
+    let found = tokio::task::spawn_blocking(move || presets.find(&params.preset))
+        .await
+        .map_err(|_| Refusal::INTERNAL)?
+        .map_err(|error| told(&error, said.as_ref()))?;
+    Ok(describe(core, &found, peer.language))
 }
 
-/// 叠好的一个预设照 `preset.get` 写（`preset.set` 的回应也是它，施工 P-3 中）。
-fn describe(core: &Core, found: &Found) -> Value {
-    let installed = installed(core);
-    let missing: Vec<&String> = found
-        .file
-        .software
-        .keys()
-        .filter(|software| !installed.contains(*software))
-        .collect();
-    let switches: serde_json::Map<String, Value> = installed
-        .iter()
-        .map(|software| (software.clone(), json!(found.file.opens(software))))
-        .collect();
+/// 叠好的一个预设照 `preset.get` 写（`preset.set` 的回应也是它，施工 P-3 中），名字、说明照语言 `language` 挑。
+fn describe(core: &Core, found: &Found, language: &str) -> Value {
     let tools: serde_json::Map<String, Value> = found
         .file
         .tools_off
         .iter()
         .map(|tool| (tool.clone(), json!(false)))
         .collect();
-    let mut reply = json!({
+    json!({
         "preset": found.id,
-        "name": found.file.name,
-        "summary": found.file.summary,
-        "layers": layers(&found.layers),
+        "name": label(found.file.name.as_ref(), language),
+        "summary": label(found.file.summary.as_ref(), language),
         "default_persona": found.file.default_persona,
         "unlisted": found.file.unlisted().as_str(),
-        "software": found.file.software,
+        "software": software(core, found, language),
         "tools": tools,
-        "missing": missing,
-        "switches": switches,
-    });
-    if let Some(base) = &found.base {
-        reply["base"] = json!(base);
-    }
-    reply
+        "remove": remove(&found.layers),
+    })
 }
 
-fn layers(layers: &[Layer]) -> Vec<&'static str> {
-    layers.iter().map(|layer| layer.as_str()).collect()
+/// 内置的软件，照这个先后排在最前面（施工 P-3 补）。名字、说明在 `core/human/<语言>.json` 的 `software/<编号>`、
+/// `software/<编号>/summary`。
+const BUILT_IN: [&str; 5] = ["basesystem", "net", "goal", "memory", "roleplay"];
+
+/// 预设里的一个个软件（施工 P-3 补，2026-10-08 项目主人：「显示名称呢？都是英文谁看得懂？」）：这台机器上装了的，加上
+/// `[software]` 里写了、没装的。每个 `{"id", "name", "summary", "on", "installed"}`：名字、说明照语言挑（清单装的包照它的
+/// 清单，内置的照给人看的字，都没有的名字是编号、说明是 `null`），`on` 是叠好以后开不开。先后：内置的照 [`BUILT_IN`]，
+/// 再是装了的别的、没装的，各照编号。
+fn software(core: &Core, found: &Found, language: &str) -> Vec<Value> {
+    let installed = installed(core);
+    let words = words(core, language).ok();
+    let mut ids: Vec<&str> = BUILT_IN
+        .iter()
+        .copied()
+        .filter(|id| installed.contains(*id) || found.file.software.contains_key(*id))
+        .collect();
+    ids.extend(
+        installed
+            .iter()
+            .map(String::as_str)
+            .filter(|id| !BUILT_IN.contains(id)),
+    );
+    ids.extend(
+        found
+            .file
+            .software
+            .keys()
+            .map(String::as_str)
+            .filter(|id| !BUILT_IN.contains(id) && !installed.contains(*id)),
+    );
+    ids.into_iter()
+        .map(|id| {
+            let manifest = core
+                .packages
+                .iter()
+                .find_map(|package| match &package.read {
+                    Ok(manifest) if package.id == id => Some(manifest),
+                    _ => None,
+                });
+            let said = |key: String| {
+                words
+                    .as_ref()
+                    .and_then(|words| Words::sentence(words, &key, &[]))
+            };
+            let (name, summary) = match manifest {
+                Some(manifest) => (
+                    pick(&manifest.name, language),
+                    pick(&manifest.summary, language),
+                ),
+                None => (
+                    said(format!("software/{id}")),
+                    said(format!("software/{id}/summary")),
+                ),
+            };
+            json!({
+                "id": id,
+                "name": name.unwrap_or_else(|| id.to_string()),
+                "summary": summary,
+                "on": found.file.opens(id),
+                "installed": installed.contains(id),
+            })
+        })
+        .collect()
 }

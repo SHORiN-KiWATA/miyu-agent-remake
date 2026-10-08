@@ -1,8 +1,6 @@
 //! 叫停改文件的调用（施工 4-9 再补一）：打断时在跑的写，执行器只举旗、不掐任务，工具停在改之前或者做完，照常
 //! 送回；又打断一次就不等了，掐掉它。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -15,7 +13,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 一件改文件的假工具、调它的会话：说一句，等它开始跑。
 async fn writing(home: &Home, act: Act) -> (Arc<Fake>, Handle) {
