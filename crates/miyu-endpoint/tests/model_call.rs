@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 
 use crate::support::providers::{core, data, profiles, routed, said};
 use crate::support::*;
-use miyu_http::testkit::{Reply, Server};
+use miyu_http::testkit::{Piece, Reply, Server};
 use miyu_kernel::id::AccountId;
 use miyu_store::blob::Blobs;
 
@@ -287,4 +287,21 @@ async fn a_pool_is_resolved_and_a_429_member_fails_over_to_the_next() {
     );
     assert_eq!(slow.received().len(), 1);
     assert_eq!(ok.received().len(), 1);
+}
+
+/// 在后台答（施工 8-20 补）：模型还没说完，同一个连接后面的请求照答，回应照 `id` 对上。
+#[tokio::test]
+async fn a_call_still_waiting_does_not_hold_up_the_next_request() {
+    let server = Server::start(vec![Reply::stream(vec![Piece::Stall]), said("Quick.")]).await;
+    let home = Home::new();
+    let mut client = connected(&home, &config(&server)).await;
+    let first =
+        json!({"jsonrpc": "2.0", "id": "c1", "method": "model.call", "params": asked("slow")});
+    client.line(&first.to_string()).await;
+    server.wait_stalled(1).await;
+    let quick = client.call("c2", "model.call", asked("quick")).await;
+    assert_eq!(quick["id"], json!("c2"), "{quick}");
+    assert_eq!(quick["result"]["text"], json!("Quick."), "{quick}");
+    let listed = client.call("c3", "session.list", json!({})).await;
+    assert_eq!(listed["id"], json!("c3"), "{listed}");
 }

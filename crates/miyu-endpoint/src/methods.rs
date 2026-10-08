@@ -55,6 +55,20 @@ mod params;
 
 use params::*;
 
+/// 在后台答的自带方法（施工 8-20 补，`protocol.md`「一个连接」第 1 条）：`model.call` 要等模型说完，几秒到几分钟；同一个连接
+/// 后面的请求不等它，回应照 `id` 对上。
+pub(crate) fn answered_later(method: &str) -> bool {
+    method == "model.call"
+}
+
+/// 在后台办一条 [`answered_later`] 认的请求。
+pub(crate) async fn call_later(core: &Arc<Core>, request: &Request) -> Result<Value, Refusal> {
+    match request.method.as_str() {
+        "model.call" => models::call(core, params(request)?).await,
+        _ => Err(Refusal::UNKNOWN_METHOD),
+    }
+}
+
 /// 照方法办一条请求：交回回应的 `result`，或者拒绝。
 pub(crate) async fn call(
     core: &Arc<Core>,
@@ -333,7 +347,6 @@ pub(crate) async fn call(
         "provider.detect" => providers::detect(core).await,
         "provider.catalog" => providers::catalog(core, peer, params(request)?).await,
         "provider.test" => providers::test(core, params(request)?).await,
-        "model.call" => models::call(core, params(request)?).await,
         "usage.query" => crate::usage::query(core, params(request)?).await,
         "blob.put" => attach::put(core, params(request)?).await,
         "blob.open" => uploads::open(core, uploads, params(request)?).await,

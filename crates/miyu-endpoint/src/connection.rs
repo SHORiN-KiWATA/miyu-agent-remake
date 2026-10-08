@@ -229,6 +229,10 @@ async fn read_all<R: AsyncRead + Unpin>(
             ));
             continue;
         }
+        if peer.is_some() && methods::answered_later(&request.method) {
+            background.spawn(call_later(Arc::clone(&core), request, locale, out.clone()));
+            continue;
+        }
         let id = || Value::String(request.id.as_str().to_string());
         let (answer, target, close) = match (request.method.as_str(), peer) {
             ("hello", _) => {
@@ -366,6 +370,12 @@ async fn answer_later(
     let result = handler(core, request.params.clone())
         .await
         .map_err(Refusal::from);
+    send(&out, answer(&request, result, locale)).await;
+}
+
+/// 在后台办一条自带的方法（施工 8-20 补，[`methods::answered_later`]）：办完了把回应放进写队列。
+async fn call_later(core: Arc<Core>, request: Request, locale: Locale, out: mpsc::Sender<String>) {
+    let result = methods::call_later(&core, &request).await;
     send(&out, answer(&request, result, locale)).await;
 }
 
