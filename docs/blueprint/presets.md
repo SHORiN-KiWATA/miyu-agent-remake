@@ -40,7 +40,6 @@ home/<管理员>/presets/<编号>.toml      管理员自己的
 [preset]
 name = "开发"                   # 一句字（施工 P-3 补）；以前的语言表照样认
 summary = "只开写代码必需的"
-default_persona = "engineer"   # 不指定人格时用哪个人格
 unlisted = "off"               # 没列在 [software] 里的软件开不开：on、off
 
 [software]                     # 软件包的编号 = 开不开
@@ -53,7 +52,7 @@ shell = false
 ```
 
 1. `name`、`summary` 照人格的写法：一句字，名字去掉前后空白不能是空的，说明可以是空的字、就是没有说明（施工 P-3 补、再补）；以前写成语言表（`zh`、`en`、`ja`）的照样认，出厂的两个照旧这么写，界面照连接的语言显示。上一层写了的整格换掉。叠好的文件的指纹照以前的写法算（没写的是空表、语言表照原样）：以前造的快照照旧对得上。
-2. `default_persona` 是人格的编号，这里只查写法，在不在开会话时查。
+2. 没有 `default_persona`（施工 P-4 上撤了，2026-10-08 项目主人：「人格、记忆、预设相互之间耦合了」，只去掉预设的默认人格）：以前写了的认出来当没写，指纹照没写算，下一次 `preset.set` 写这份文件时去掉；`preset.set` 写这个键是 `bad_params`。
 3. `unlisted`：几层都没写的照 `on`。功能全开是默认，`[tools]` 里只关一两件的写法也是建在「其余都开」上的。
 4. `[software]` 的键是软件的编号，写法同包的编号。现在装了的：基础系统 `basesystem`、记忆 `memory`（三件工具和回合开始的召回）、角色扮演 `roleplay`（人格的角色扮演提示和风格锁），和清单装的 `process` 包（桥）；联网 `net`、长期目标 `goal` 等它们做出来。写了没装的不报错（这台机器上以后可能装），`preset.get` 的 `software` 里标 `installed: false`（施工 P-3 补）。
 5. `[tools]` 的键是工具名：字母、数字、`-`、`_`，最多 64 个。单件打开某个包里的一件先不做（走查 C1），写 `true` 报错。
@@ -64,7 +63,7 @@ shell = false
 | 编号 | 名字 | 内容 |
 |---|---|---|
 | `full` | 功能全开 | `unlisted = "on"`：装了的全开，以后新装的也开。`preset.default` 出厂是它 |
-| `dev` | 开发 | `unlisted = "off"`，开 `basesystem`、`net`、`goal`；默认人格 `engineer` |
+| `dev` | 开发 | `unlisted = "off"`，开 `basesystem`、`net`、`goal` |
 
 **配置**：`preset.default`，名字，出厂 `full`，系统配置、个人设置，以后开的会话照它（`config.md`）。设置页在「通用」那一页的「预设」一组。
 
@@ -78,7 +77,7 @@ shell = false
 
 1. **新会话用哪个预设**：开会话时指定的（`session.create` 的 `preset`；场所会话是桥照场所规则算好交来的 `venue.session` 的 `preset`），没有就照这一刻的 `preset.default`（个人设置压着系统配置，都没写是 `full`）。同一个命令编号再来，照上一次造的那个，不再找。
 2. **找**：在三层里照编号找、叠好。编号不合写法：`bad_params`；哪一层都没有：`unknown_preset`，默认预设指着没有的也一样，不悄悄换成别的（Y12）；文件写错：`preset_invalid`，`data.problem` 写明哪一层、哪个文件第几行（例如 `home dev.toml:3: preset.unlisted must be on or off`）；读不了：内部出错，记一行运行日志。找好了才造会话，什么都没找成的什么都不造。
-3. **再找人格**：开会话时指定的人格 → 预设的 `default_persona` → `persona.default`（`personas.md`「怎么走」第 1 条）。预设的默认人格不存在照 `unknown_persona`。
+3. **再找人格**：开会话时指定的人格 → `persona.default` → 无人格（`personas.md`「怎么走」第 1 条）。预设不再参与（施工 P-4 上）。
 4. **钉在会话上**：`session.created` 记下预设的编号；子会话照父会话的，她派子代理时挑不了预设（只挑得了池和人格，2026-10-08 项目主人定，`tools/subagent.md`）：照编号重新找，找不到、写错了的不派，同人格；父会话是以前造的、没有预设的，子会话也没有。
 5. **照预设挑**（施工 P-2 中）：
    - 装了的软件：工具目录里有工具的包（按包登记，`Catalog::in_packages`；只交一串工具的老写法全算 `basesystem`）、`roleplay`、清单装的 `process` 包。`ui` 包是头，不算。
@@ -112,7 +111,7 @@ shell = false
 | `syntax` | 读不成 TOML |
 | `unknown_table`、`not_a_table`、`unknown_key` | `[preset]`、`[software]`、`[tools]` 以外的表；这三样不是表；`[preset]` 里别的键 |
 | `not_phrases`、`unknown_language`、`empty_phrase` | 「语言到一句话」那一格写错 |
-| `bad_persona`、`bad_unlisted` | `default_persona` 不是合写法的编号；`unlisted` 不是 `on`、`off` |
+| `bad_unlisted` | `unlisted` 不是 `on`、`off`（`bad_persona` 随 `default_persona` 施工 P-4 上撤了） |
 | `bad_software`、`not_bool` | `[software]` 的键不合包编号的写法；值不是开关 |
 | `bad_tool`、`not_false` | `[tools]` 的键不是工具名的写法；值不是 `false` |
 

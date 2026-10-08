@@ -86,12 +86,12 @@ async fn a_child_session_does_its_task_and_is_listed_under_its_parent() {
     };
     assert_eq!(turn.trigger, Some(log[1].seq));
 
-    // 快照：软件工程师，有人能确认照父会话的，system 接上场所说明、再接核心的几行（施工 2-7 补），工具面照核心的目录。
+    // 快照：没挑人格的无人格（施工 P-4 上），有人能确认照父会话的，system 接上场所说明、再接核心的几行（施工 2-7 补），工具面照核心的目录。
     let bytes = Blobs::new(home.root.blobs(&alice()))
         .get(&created.policy)
         .unwrap();
     let snapshot = Snapshot::from_bytes(&bytes).unwrap();
-    assert_eq!(snapshot.persona, "engineer");
+    assert_eq!(snapshot.persona, None);
     assert!(snapshot.attended);
     let read = |name: &str| std::fs::read_to_string(default_resources().join(name)).unwrap();
     let venue = read("core/jobs/subagent-venue.txt");

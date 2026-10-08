@@ -42,9 +42,9 @@ async fn sessions_are_listed_newest_first_and_oneshot_ones_can_be_picked() {
     assert_eq!(
         listed,
         json!([
-            {"session": plain, "oneshot": false, "parent": null, "cwd": "/work", "persona": "engineer", "preset": "full"},
-            {"session": second, "oneshot": true, "parent": null, "cwd": "/work", "persona": "engineer", "preset": "full"},
-            {"session": first, "oneshot": true, "parent": null, "cwd": "/work", "persona": "engineer", "preset": "full"},
+            {"session": plain, "oneshot": false, "parent": null, "cwd": "/work", "preset": "full"},
+            {"session": second, "oneshot": true, "parent": null, "cwd": "/work", "preset": "full"},
+            {"session": first, "oneshot": true, "parent": null, "cwd": "/work", "preset": "full"},
         ]),
         "从新到旧，闲着的不写 busy"
     );

@@ -34,6 +34,11 @@ pub(crate) struct Wanted {
 }
 
 impl Wanted {
+    /// 改哪一项：文件里的键。
+    pub(crate) fn key(&self) -> &str {
+        &self.key
+    }
+
     /// 这一项是写一个值（不是删）：新建的至少要有一项（施工 P-3 补）。
     pub(crate) fn writes(&self) -> bool {
         self.value.is_some()
@@ -90,10 +95,12 @@ pub(crate) fn check_expect(
     Ok(())
 }
 
-/// 去掉 `text` 里 P-3 上写进去的「以谁为底」那一格（施工 P-3 再补）：`table` 是 `persona`、`preset`。没有的、去不掉的照原样。
-pub(crate) fn without_base(text: &str, table: &str) -> String {
-    let key = format!("{table}.{}", miyu_policy::persona::BASE);
-    edit::apply(text, Change::Unset(&key)).unwrap_or_else(|_| text.to_string())
+/// 去掉 `text` 里撤掉了的几格（施工 P-3 再补的「以谁为底」，P-4 上的预设的默认人格）：`keys` 是完整的键。没有的、去不掉的
+/// 照原样。
+pub(crate) fn without(text: &str, keys: &[String]) -> String {
+    keys.iter().fold(text.to_string(), |text, key| {
+        edit::apply(&text, Change::Unset(key)).unwrap_or(text)
+    })
 }
 
 /// 在 `text` 上一项项改：这一层本来就是这个值的不动（写法不同的也不动，例如单引号）；本来就没写又要删的，`edit::apply` 自己

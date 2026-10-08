@@ -31,9 +31,6 @@ use crate::TARGET;
 use crate::job_ids::JobIds;
 use crate::spawn::{Child, Lineage, SessionPort};
 
-/// 子代理的人格：软件工程师（`agents.md` 第一条第 1 条）。挑人格随配置和预设那一步。
-const PERSONA: &str = "engineer";
-
 /// 本机这个场所（`protocol.md` 的 `session.create` 第 2 条）：只有它的会话能派子代理。
 const LOCAL: &str = "local";
 
@@ -258,7 +255,8 @@ struct Spawner {
 }
 
 impl AgentPort for Spawner {
-    /// 标题不交给子会话：它只给头看，记在 `job.started` 里（工具报）。人格没挑的是软件工程师（走查 C5），预设照父会话的。
+    /// 标题不交给子会话：它只给头看，记在 `job.started` 里（工具报）。人格没挑的是无人格（施工 P-4 上：出厂不带人格，原来是
+    /// 软件工程师，走查 C5），预设照父会话的。
     fn spawn<'a>(&'a self, order: Order<'a>) -> Spawning<'a> {
         let Order {
             prompt,
@@ -276,7 +274,7 @@ impl AgentPort for Spawner {
                     depth: agents.depth + 1,
                 },
                 command: command_id(parent, &job, ""),
-                persona: persona.unwrap_or(PERSONA).to_string(),
+                persona: persona.map(str::to_string),
                 owner: agents.owner.clone(),
                 venue: agents.venue.clone(),
                 permission: self.permission.clone(),

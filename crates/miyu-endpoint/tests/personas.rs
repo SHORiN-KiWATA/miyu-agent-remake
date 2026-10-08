@@ -158,7 +158,7 @@ async fn without_a_persona_the_default_is_used_personal_over_system() {
     mine(&home, "miyu", "prompts/persona.md", "You are Miyu.\n");
     mine(&home, "kiki", "prompts/persona.md", "You are Kiki.\n");
     let script = Script::new([Play::Says("a"), Play::Says("b"), Play::Says("c")]);
-    // 都没写：出厂的软件工程师。
+    // 都没写：无人格（施工 P-4 上：出厂不设默认人格）。
     let mut client = connected(configured(&home, &script)).await;
     let first = client.create("c1", "~").await;
     client.say("s1", &first, "hi").await;
@@ -190,14 +190,12 @@ async fn without_a_persona_the_default_is_used_personal_over_system() {
                 .to_string()
         })
         .collect();
-    assert_eq!(
-        systems,
-        [
-            "You are a helpful software engineer.",
-            "You are Miyu.",
-            "You are Kiki."
-        ]
+    assert!(
+        !systems[0].starts_with("You are"),
+        "无人格的不带人设：{}",
+        systems[0]
     );
+    assert_eq!(systems[1..], ["You are Miyu.", "You are Kiki."]);
 }
 
 #[tokio::test]
@@ -216,13 +214,17 @@ async fn missing_bad_and_broken_personas_are_refused() {
         reply["error"]["data"]["problem"],
         "home prompts/examples.md:2: user and assistant must take turns"
     );
-    // 默认人格指着没有的：照样不悄悄换成别的。
+    let listed = client.call("l1", "session.list", json!({})).await;
+    assert_eq!(listed["result"]["sessions"], json!([]), "什么都没造");
+    // 默认人格指着没有的：当没设，造无人格的会话（施工 P-4 上：配置是以前写的，人格可能后来删了）。
     home.write("system/config.toml", "[persona]\ndefault = \"nobody\"\n");
     let mut client = connected(configured(&home, &script)).await;
     let reply = create(&mut client, "c4", json!({"cwd": "~"})).await;
-    assert_eq!(reason(&reply), Some("unknown_persona"), "{reply}");
-    let listed = client.call("l1", "session.list", json!({})).await;
-    assert_eq!(listed["result"]["sessions"], json!([]), "什么都没造");
+    assert!(reply["result"]["session"].is_string(), "{reply}");
+    let listed = client.call("l2", "session.list", json!({})).await;
+    let sessions = listed["result"]["sessions"].as_array().unwrap();
+    assert_eq!(sessions.len(), 1, "{listed}");
+    assert!(sessions[0].get("persona").is_none(), "{listed}");
 }
 
 #[tokio::test]
@@ -327,27 +329,27 @@ async fn personas_are_listed_and_read() {
     assert_eq!(reason(&got), Some("bad_params"), "{got}");
 }
 
-/// 空人格和会话带上人格（施工 P-1 下）：选 `none` 的 system 里没有人设；`session.created`、会话列表、`subscribe` 的回应都写
-/// 着用的是哪个人格。
+/// 无人格和会话带上人格（施工 P-1 下、P-4 上）：`"persona": null` 明着无人格，system 里没有人设；`session.created`、会话列表、
+/// `subscribe` 的回应带人格的写着用的是哪个，无人格的不写这一格。
 #[tokio::test]
-async fn the_empty_persona_says_nothing_and_every_view_names_the_persona() {
+async fn no_persona_says_nothing_and_every_view_names_the_persona_or_leaves_it_out() {
     let home = Home::new();
     let script = Script::new([Play::Says("嗯。"), Play::Says("好。")]);
     let mut client = connected(configured(&home, &script)).await;
-    let reply = create(&mut client, "c1", json!({"cwd": "~", "persona": "none"})).await;
+    let reply = create(&mut client, "c1", json!({"cwd": "~", "persona": null})).await;
     let empty = reply["result"]["session"]
         .as_str()
         .expect("造出来了")
         .to_string();
     client.say("s1", &empty, "hi").await;
     home.until_turns(&empty, 1).await;
-    let engineer = client.create("c2", "~").await;
+    let engineer = client.create_as("c2", "~", "engineer").await;
     client.say("s2", &engineer, "hi").await;
     home.until_turns(&engineer, 1).await;
     let requests = script.requests();
     assert!(
         !requests[0].1.system.contains("software engineer"),
-        "空人格不带人设：{}",
+        "无人格的不带人设：{}",
         requests[0].1.system
     );
     assert!(
@@ -364,7 +366,7 @@ async fn the_empty_persona_says_nothing_and_every_view_names_the_persona() {
             _ => None,
         })
         .expect("有造会话那一条");
-    assert_eq!(created.persona.as_deref(), Some("none"));
+    assert_eq!(created.persona, None);
     let listed = client.call("l1", "session.list", json!({})).await;
     let personas: Vec<(String, String)> = listed["result"]["sessions"]
         .as_array()
@@ -381,11 +383,16 @@ async fn the_empty_persona_says_nothing_and_every_view_names_the_persona() {
         personas,
         [
             (engineer.clone(), "engineer".to_string()),
-            (empty.clone(), "none".to_string())
+            (empty.clone(), String::new())
         ]
     );
     let subscribed = client.subscribe("w1", &empty).await;
-    assert_eq!(subscribed["result"]["persona"], "none", "{subscribed}");
+    assert!(
+        subscribed["result"].get("persona").is_none(),
+        "{subscribed}"
+    );
+    let subscribed = client.subscribe("w2", &engineer).await;
+    assert_eq!(subscribed["result"]["persona"], "engineer", "{subscribed}");
 }
 
 /// 以前的日志没有 `persona`：会话列表、`subscribe` 都不写这一格（施工 P-1 下）。
@@ -394,7 +401,7 @@ async fn sessions_from_older_logs_name_no_persona() {
     let home = Home::new();
     let script = Script::new([Play::Says("嗯。")]);
     let mut client = connected(configured(&home, &script)).await;
-    let session = client.create("c1", "~").await;
+    let session = client.create_as("c1", "~", "engineer").await;
     client.say("s1", &session, "hi").await;
     home.until_turns(&session, 1).await;
     // 把造会话那一条改回以前的样子：去掉 persona。

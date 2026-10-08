@@ -88,7 +88,7 @@ const OFF_LINE: &str = "Installed but off in this session's preset:";
 #[tokio::test]
 async fn everything_on_keeps_every_tool_and_no_line() {
     let home = Home::new();
-    let (session, request) = first_request(&home, json!({"cwd": "~"})).await;
+    let (session, request) = first_request(&home, json!({"cwd": "~", "persona": "engineer"})).await;
     assert_eq!(
         tool_names(&request),
         ["forget", "memory_search", "read", "remember", "shell"]
@@ -141,7 +141,11 @@ async fn a_tool_turned_off_alone_is_gone_and_nothing_is_said() {
         "home/alice/presets/careful.toml",
         "[preset]\nname = { en = \"Careful\" }\n\n[tools]\nshell = false\n",
     );
-    let (_, request) = first_request(&home, json!({"cwd": "~", "preset": "careful"})).await;
+    let (_, request) = first_request(
+        &home,
+        json!({"cwd": "~", "persona": "engineer", "preset": "careful"}),
+    )
+    .await;
     assert_eq!(
         tool_names(&request),
         ["forget", "memory_search", "read", "remember"]
@@ -251,7 +255,11 @@ async fn a_package_turned_off_takes_all_its_tools_and_is_named() {
         "home/alice/presets/nobase.toml",
         "[preset]\nname = { en = \"No base\" }\n\n[software]\nbasesystem = false\n",
     );
-    let (_, request) = first_request(&home, json!({"cwd": "~", "preset": "nobase"})).await;
+    let (_, request) = first_request(
+        &home,
+        json!({"cwd": "~", "persona": "engineer", "preset": "nobase"}),
+    )
+    .await;
     assert_eq!(
         tool_names(&request),
         ["forget", "memory_search", "remember"],

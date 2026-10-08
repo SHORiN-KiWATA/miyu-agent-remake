@@ -224,10 +224,6 @@ async fn conflicts_and_mistakes_write_nothing() {
             json!([{"key": "preset.name", "value": "  "}]),
             "home dev.toml:",
         ),
-        (
-            json!([{"key": "preset.default_persona", "value": "Not An Id"}]),
-            "home dev.toml:",
-        ),
     ]
     .into_iter()
     .enumerate()
@@ -335,7 +331,7 @@ async fn the_same_value_writes_nothing() {
     )
     .await;
     let path = home.root.path().join("home/alice/presets/dev.toml");
-    let text = "[preset]\ndefault_persona = 'engineer'\n\n[software]\nmemory   =   true\n";
+    let text = "[preset]\nunlisted = 'off'\n\n[software]\nmemory   =   true\n";
     std::fs::write(&path, text).expect("写得进");
     let again = set(
         &mut client,
@@ -343,7 +339,7 @@ async fn the_same_value_writes_nothing() {
         "dev",
         json!([
             {"key": "software.memory", "value": true},
-            {"key": "preset.default_persona", "value": "engineer"},
+            {"key": "preset.unlisted", "value": "off"},
             {"key": "tools.shell", "unset": true},
         ]),
     )
@@ -453,4 +449,46 @@ async fn an_empty_summary_means_none_and_covers_the_factory_one() {
     )
     .await;
     assert_eq!(reason(&named), Some("preset_invalid"), "{named}");
+}
+
+/// 预设不再有默认人格（施工 P-4 上，2026-10-08 项目主人：只去掉预设的「默认人格」）：`preset.set` 写这个键参数不对，什么都不写；
+/// 旧文件里写了的，下一次写这份文件时去掉；`preset.get` 没有这一格。
+#[tokio::test]
+async fn the_default_persona_is_gone_from_presets() {
+    let home = Home::new();
+    let mut client = connected(&home).await;
+    for (n, changes) in [
+        json!([{"key": "preset.default_persona", "value": "engineer"}]),
+        json!([{"key": "preset.default_persona", "unset": true}]),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let reply = set(&mut client, &format!("b{n}"), "dev", changes.clone()).await;
+        assert_eq!(reason(&reply), Some("bad_params"), "{changes}：{reply}");
+    }
+    assert_eq!(mine(&home, "dev"), None, "什么都没写");
+    let dir = home.root.path().join("home/alice/presets");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("old.toml"),
+        "[preset]\nname = \"我的\"\ndefault_persona = \"engineer\"\n",
+    )
+    .unwrap();
+    let got = client
+        .call("g", "preset.get", json!({"preset": "old"}))
+        .await;
+    assert!(got["result"].get("default_persona").is_none(), "{got}");
+    let reply = set(
+        &mut client,
+        "s",
+        "old",
+        json!([{"key": "preset.summary", "value": "改过"}]),
+    )
+    .await;
+    assert!(reply.get("error").is_none(), "{reply}");
+    assert_eq!(
+        mine(&home, "old").as_deref(),
+        Some("[preset]\nname = \"我的\"\nsummary = \"改过\"\n")
+    );
 }

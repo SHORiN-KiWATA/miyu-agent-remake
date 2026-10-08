@@ -162,6 +162,49 @@
       },
       "type": "object"
     },
+    "onebot": {
+      "properties": {
+        "listen": {
+          "default": 8301,
+          "description": "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/onebot/v11/ws. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect the next time the program starts.",
+          "maximum": 65535,
+          "minimum": 1024,
+          "title": "QQ bridge port",
+          "type": "integer"
+        },
+        "token": {
+          "description": "The access token NapCat shows when it connects; set the same one in NapCat. Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Without it the QQ bridge does not start. Allowed: { secret = \"…\" } or { env = \"…\" }. Only in the system config. Takes effect the next time the program starts.",
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "secret": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "secret"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "env": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "env"
+              ],
+              "type": "object"
+            }
+          ],
+          "title": "QQ bridge token"
+        }
+      },
+      "type": "object"
+    },
     "permission": {
       "properties": {
         "start_read_only": {
@@ -176,8 +219,7 @@
     "persona": {
       "properties": {
         "default": {
-          "default": "engineer",
-          "description": "The persona new sessions use. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to sessions opened from now on.",
+          "description": "The persona new sessions use. When unset, new sessions have no persona: no character prompt, and memory is off. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to sessions opened from now on.",
           "title": "Default persona",
           "type": "string"
         }

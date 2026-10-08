@@ -38,7 +38,12 @@ async fn session_create_records_the_scope_and_refuses_a_wrong_one() {
         ("c3", json!("off"), MemoryScope::Off),
         ("c4", Value::Null, MemoryScope::Persona),
     ] {
-        let reply = create(&mut client, id, json!({"cwd": "~", "memory": memory})).await;
+        let reply = create(
+            &mut client,
+            id,
+            json!({"cwd": "~", "persona": "engineer", "memory": memory}),
+        )
+        .await;
         let session = reply["result"]["session"].as_str().expect("造了");
         assert_eq!(scope(&home, session), expected, "{memory}");
     }
@@ -67,14 +72,45 @@ async fn without_it_the_persona_file_decides() {
     );
     let mut client = Client::connect(home.core(&Script::new([])));
     client.hello().await;
-    let reply = create(&mut client, "c1", json!({"cwd": "~"})).await;
+    let reply = create(
+        &mut client,
+        "c1",
+        json!({"cwd": "~", "persona": "engineer"}),
+    )
+    .await;
     let session = reply["result"]["session"].as_str().expect("造了");
     assert_eq!(scope(&home, session), MemoryScope::Session, "照人格的");
-    let reply = create(&mut client, "c2", json!({"cwd": "~", "memory": "persona"})).await;
+    let reply = create(
+        &mut client,
+        "c2",
+        json!({"cwd": "~", "persona": "engineer", "memory": "persona"}),
+    )
+    .await;
     let session = reply["result"]["session"].as_str().expect("造了");
     assert_eq!(
         scope(&home, session),
         MemoryScope::Persona,
         "写了的压着人格的"
     );
+}
+
+/// 无人格的会话记忆不生效（施工 P-4 上，2026-10-08 项目主人：「没有人格的情况下，记忆不生效」）：写了范围也是 `off`；不写人格、
+/// 没设默认人格的就是无人格。
+#[tokio::test]
+async fn without_a_persona_memory_is_off() {
+    let home = Home::new();
+    let mut client = Client::connect(home.core(&Script::new([])));
+    client.hello().await;
+    for (id, params) in [
+        ("c1", json!({"cwd": "~"})),
+        (
+            "c2",
+            json!({"cwd": "~", "persona": null, "memory": "persona"}),
+        ),
+        ("c3", json!({"cwd": "~", "memory": "session"})),
+    ] {
+        let reply = create(&mut client, id, params.clone()).await;
+        let session = reply["result"]["session"].as_str().expect("造了");
+        assert_eq!(scope(&home, session), MemoryScope::Off, "{params}");
+    }
 }

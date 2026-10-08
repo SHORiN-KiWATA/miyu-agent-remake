@@ -39,7 +39,7 @@ async fn a_turn_said_through_the_core_is_indexed_and_goes_with_the_session() {
     let mut client = Client::connect(home.core(&Script::new([Play::Says("好，记住你用 N 卡。")])));
     client.hello().await;
     let work = home.work.to_string_lossy().into_owned();
-    let session = client.create("c1", &work).await;
+    let session = client.create_as("c1", &work, "engineer").await;
     client.say("c2", &session, "我的显卡是 N 卡").await;
     home.until_turns(&session, 1).await;
     // 回合库在日志落了盘以后才更新：等它出现，最多六十秒（机器忙时慢，只在出错时等满）。

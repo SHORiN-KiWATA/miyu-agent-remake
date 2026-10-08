@@ -30,7 +30,11 @@ fn every_field_reads() {
         Some("开发")
     );
     assert!(file.summary.is_some());
-    assert_eq!(file.default_persona.as_deref(), Some("engineer"));
+    assert_eq!(
+        file,
+        read(&DEV.replace("default_persona = \"engineer\"\n", "")).unwrap(),
+        "撤掉了的默认人格当没写（施工 P-4 上）"
+    );
     assert_eq!(file.unlisted, Some(Unlisted::Off));
     assert_eq!(
         file.software,
@@ -68,11 +72,6 @@ fn an_upper_layer_overrides_field_by_field() {
         Some("我的开发"),
         "名字写了的整格换掉，没写的语言不再沿用"
     );
-    assert_eq!(
-        file.default_persona.as_deref(),
-        Some("engineer"),
-        "没写的沿用"
-    );
     assert_eq!(file.unlisted, Some(Unlisted::On));
     assert_eq!(file.software.get("memory"), Some(&true), "逐个键盖");
     assert_eq!(file.software.get("net"), Some(&true));
@@ -81,10 +80,6 @@ fn an_upper_layer_overrides_field_by_field() {
         BTreeSet::from(["shell".to_string(), "trash".to_string()]),
         "关掉的工具叠在一起"
     );
-    let persona = read("[preset]\ndefault_persona = \"miyu\"\n")
-        .unwrap()
-        .over(read(DEV).unwrap());
-    assert_eq!(persona.default_persona.as_deref(), Some("miyu"));
 }
 
 #[test]
@@ -107,14 +102,6 @@ fn every_wrong_one_says_which_line() {
     assert_eq!(
         wrong("[preset]\nsummary = { en = \" \" }\n"),
         (Code::EmptyPhrase, Some(2))
-    );
-    assert_eq!(
-        wrong("[preset]\ndefault_persona = \"Miyu\"\n"),
-        (Code::BadPersona, Some(2))
-    );
-    assert_eq!(
-        wrong("[preset]\ndefault_persona = 1\n"),
-        (Code::BadPersona, Some(2))
     );
     assert_eq!(
         wrong("[preset]\nunlisted = \"maybe\"\n"),
@@ -162,7 +149,7 @@ fn a_problem_reads_as_a_line_and_a_sentence() {
         message: "broken".to_string(),
     };
     assert_eq!(no_line.to_string(), "broken");
-    assert_eq!(Code::ALL.len(), 13);
+    assert_eq!(Code::ALL.len(), 12);
 }
 
 #[test]
@@ -197,11 +184,13 @@ fn chosen_lists_installed_software_that_is_off_in_order() {
 
 #[test]
 fn old_style_names_keep_the_digest_they_had() {
-    // P-3 补以前算的值：名字、说明照以前的写法算，以前造的快照照旧对得上（`PresetFile::digest`）。
+    // 名字、说明照以前的写法算，以前造的快照照旧对得上（`PresetFile::digest`）。默认人格撤了（施工 P-4 上），照没写算：
+    // 这一份写了它，指纹是以前的写法里不写它的那一个（另用 Python 照以前的写法独立算过，P-3 补钉的写了它的是 f91563cc…）；
+    // 空的那一份本来就没写，指纹不变。
     let dev = read(DEV).unwrap();
     assert_eq!(
         dev.digest().as_str(),
-        "sha256:f91563cc16871e165d4b0d70890275bf9f77a88661e74ca8e9531ad79eaa5731"
+        "sha256:89703aaa280c2505d05919571905728248c06efd0a9476326d15b7681e41d9dd"
     );
     let empty = PresetFile::default();
     assert_eq!(
@@ -210,13 +199,16 @@ fn old_style_names_keep_the_digest_they_had() {
     );
 }
 
-/// P-3 上那几个小时里建的预设写着 `base`（施工 P-3 再补）：认出来当没写，写成什么样都不算写错，别的照读。
+/// P-3 上那几个小时里建的预设写着 `base`（施工 P-3 再补）、撤掉了的默认人格（施工 P-4 上）：认出来当没写，写成什么样都
+/// 不算写错，别的照读。
 #[test]
 fn a_base_written_by_p3_is_read_as_unwritten() {
     let plain = read("[preset]\nname = \"我的\"\n").unwrap();
     for text in [
         "[preset]\nbase = \"full\"\nname = \"我的\"\n",
         "[preset]\nname = \"我的\"\nbase = { a = 1 }\n",
+        "[preset]\ndefault_persona = \"Miyu\"\nname = \"我的\"\n",
+        "[preset]\nname = \"我的\"\ndefault_persona = 1\n",
     ] {
         assert_eq!(read(text).unwrap(), plain, "{text:?}");
     }

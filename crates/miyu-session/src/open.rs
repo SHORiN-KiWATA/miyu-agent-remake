@@ -88,12 +88,14 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let config = Turning::start(configs, environment.cwd.clone()).await;
     // 没指定的照这时的 `models.chat`：记进 `session.created`，以后照它（施工 8-8）。
     let reference = model.or_else(|| chat(&config.current().resolved.values()));
-    let (resources, name) = (resources.clone(), persona.to_string());
+    let (resources, name) = (resources.clone(), persona.map(str::to_string));
     let shipped = resources.clone();
     // 预设没开记忆的，范围一律 `off`（施工 P-2 中，走查 E2：开不开记忆归预设）。
-    let opened = preset
-        .as_ref()
-        .is_none_or(|chosen| chosen.file.opens(MEMORY));
+    // 无人格的记忆不生效（施工 P-4 上，2026-10-08 项目主人：「没有人格的情况下，记忆不生效」）。
+    let opened = name.is_some()
+        && preset
+            .as_ref()
+            .is_none_or(|chosen| chosen.file.opens(MEMORY));
     let scope = memory::scope(lineage.is_some(), opened, memory_scope);
     // 工具面照这时的配置拼：`subagent` 能选哪几个池（施工 8-8 补）、哪几个人格（施工 P-2 补），以后照快照、载入不重拼。
     // 照预设筛（施工 P-2 中）。
@@ -148,7 +150,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             scope,
             &memory_account,
             &owner_of,
-            &name,
+            name.as_deref().unwrap_or_default(),
             &id_of,
             &[],
         );

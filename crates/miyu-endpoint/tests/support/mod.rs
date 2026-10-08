@@ -442,7 +442,18 @@ impl Client {
 
     /// 造一个会话，交回它的编号。
     pub async fn create(&mut self, id: &str, cwd: &str) -> String {
-        let reply = self.call(id, "session.create", json!({"cwd": cwd})).await;
+        self.create_with(id, json!({"cwd": cwd})).await
+    }
+
+    /// 造一个人格是 `persona` 的会话（施工 P-4 上：出厂不设默认人格，要人格的测试明着写），交回编号。
+    pub async fn create_as(&mut self, id: &str, cwd: &str, persona: &str) -> String {
+        self.create_with(id, json!({"cwd": cwd, "persona": persona}))
+            .await
+    }
+
+    /// 照参数 `params` 造一个会话，交回编号。
+    pub async fn create_with(&mut self, id: &str, params: serde_json::Value) -> String {
+        let reply = self.call(id, "session.create", params).await;
         reply["result"]["session"]
             .as_str()
             .unwrap_or_else(|| panic!("应该造出会话：{reply}"))

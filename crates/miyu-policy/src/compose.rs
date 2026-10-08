@@ -64,11 +64,12 @@ pub struct PersonaTexts {
     pub reminders: String,
 }
 
-/// 照 `26-提示词.md` 第四节拼出人格 `persona` 的快照。`attended` 是这个场所有没有人能确认。
-pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
-    let digest = sources.persona.digest();
+/// 照 `26-提示词.md` 第四节拼出人格 `persona` 的快照。`attended` 是这个场所有没有人能确认。无人格的（施工 P-4 上）`sources`
+/// 里人格的字是空的，system 里只有核心自己的那段，没有指纹：回合开始不看人格的文件。
+pub fn compose(persona: Option<&str>, sources: Sources, attended: bool) -> Snapshot {
+    let digest = persona.map(|_| sources.persona.digest());
     Snapshot {
-        persona: persona.to_string(),
+        persona: persona.map(str::to_string),
         system: system(&[&sources.persona.persona]),
         demos: sources.persona.examples,
         tools: Vec::new(),
@@ -83,7 +84,7 @@ pub fn compose(persona: &str, sources: Sources, attended: bool) -> Snapshot {
         peers: Some(crate::peers::PEERS),
         memory: None,
         reminder: reminder(&sources.persona.reminders, &sources.reminder),
-        persona_digest: Some(digest),
+        persona_digest: digest,
         preset: None,
     }
 }
@@ -287,7 +288,7 @@ mod tests {
             open: "<persona-reminder>\n".to_string(),
             close: "</persona-reminder>\n".to_string(),
         };
-        compose("miyu", sources, true)
+        compose(Some("miyu"), sources, true)
     }
 
     #[test]
@@ -371,7 +372,7 @@ mod tests {
         let mut sources = crate::test_support::sources();
         sources.persona.persona = "You are Miyu.\n".to_string();
         sources.persona.reminders = "Stay.".to_string();
-        let new = compose("engineer", sources, true)
+        let new = compose(Some("engineer"), sources, true)
             .with_tools(vec![a_tool()])
             .with_core_lines(&lines())
             .with_style_lock("<lock/>");
@@ -397,7 +398,7 @@ mod tests {
         attended.attended = false;
         assert!(!old.swappable(&attended));
         let mut other = new;
-        other.persona = "miyu".to_string();
+        other.persona = Some("miyu".to_string());
         assert!(!old.swappable(&other), "不是同一个人格");
     }
 
@@ -416,5 +417,32 @@ mod tests {
             tooled.system,
             "空的几行不留空行"
         );
+    }
+
+    /// 无人格（施工 P-4 上）：快照不写 `persona`、没有人格的指纹，system 里只有核心的那段；带人格的字节照旧写着它。
+    #[test]
+    fn without_a_persona_the_snapshot_names_none_and_says_no_character() {
+        let mut sources = crate::test_support::sources();
+        sources.persona = PersonaTexts::default();
+        let nobody = compose(None, sources, true);
+        assert_eq!((&nobody.persona, &nobody.persona_digest), (&None, &None));
+        let bytes = String::from_utf8(nobody.to_bytes()).expect("是字");
+        assert!(!bytes.contains("\"persona\""), "{bytes}");
+        assert!(
+            !nobody.system.contains("software engineer"),
+            "{}",
+            nobody.system
+        );
+        let created = nobody.session_created(
+            miyu_kernel::id::AccountId::parse("alice").unwrap(),
+            miyu_kernel::id::VenueId::parse("local").unwrap(),
+            miyu_kernel::event::Permission {
+                level: miyu_kernel::event::Level::Workspace,
+                read_only: false,
+            },
+        );
+        assert_eq!(created.persona, None);
+        let named = String::from_utf8(crate::test_support::engineer().to_bytes()).expect("是字");
+        assert!(named.starts_with("{\"persona\":\"engineer\","), "{named}");
     }
 }

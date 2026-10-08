@@ -51,9 +51,12 @@ const SOFTWARE_DIR: &str = "software/";
 const PERSONAS_DIR: &str = "personas/";
 const PERSONA_TOML: &str = "persona.toml";
 
-/// 群聊内核的出厂数据不发给模型，不登记：出厂参数（几张表的数，施工 O-15，`chat.md` 第八条施工时定的第 16 条）、违规词表（只拿来
-/// 比子串）、出厂的场所规则（施工 O-15 下，第八条施工时定的第 21 条）。只豁免这几份：别处同名的、`venues.d/` 里别的文件照查。
-const CHAT_DATA: [&str; 3] = [
+/// `software/onebot/` 里这几份是数据，不发给模型，不登记：群聊内核的出厂参数（几张表的数，施工 O-15，`chat.md` 第八条施工时定的
+/// 第 16 条）、违规词表（只拿来比子串）、出厂的场所规则（施工 O-15 下，第八条施工时定的第 21 条），桥自己的数（路径、等回应多久、
+/// 队列多长，施工 O-8，`onebot.md`「施工时定的」第 15 条）。只豁免这几份、不豁免整个包（包里有给模型看的字，判官）：别处同名的、
+/// `venues.d/` 里别的文件照查。
+const ONEBOT_DATA: [&str; 4] = [
+    "software/onebot/bridge.json",
     "software/onebot/defaults.toml",
     "software/onebot/moderation.txt",
     "software/onebot/venues.d/50-defaults.toml",
@@ -118,7 +121,7 @@ fn walk(dir: &Path, prefix: &str, files: &mut BTreeMap<String, Vec<u8>>) -> Resu
         } else if !(name == PERSONA_TOML
             && prefix.starts_with(PERSONAS_DIR)
             && prefix.matches('/').count() == 2)
-            && !CHAT_DATA.contains(&path.as_str())
+            && !ONEBOT_DATA.contains(&path.as_str())
         {
             files.insert(path, std::fs::read(entry.path()).map_err(unreadable)?);
         }
@@ -246,6 +249,9 @@ mod tests {
             ("core/packages/p.txt", "p"),
             ("presets/dev.toml", "[preset]"),
             ("core/presets/p.txt", "p"),
+            ("software/onebot/bridge.json", "{}"),
+            ("software/onebot/prompt.txt", "p"),
+            ("software/x/bridge.json", "{}"),
         ] {
             let path = dir.join(path);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -255,10 +261,10 @@ mod tests {
         let walked = walk(&dir, "", &mut found);
         std::fs::remove_dir_all(&dir).unwrap();
         walked.unwrap();
-        // 给人看的字、最上一层的模型资料、网页软件、软件包清单和出厂的预设、software/mermaid/、software/net/、人格目录的 persona.toml、群聊内核的
-        // 出厂参数 software/onebot/defaults.toml、违规词表 moderation.txt、出厂的场所规则 venues.d/50-defaults.toml 不登记，别的照查
-        // （别处叫 models、web、mermaid、net 的目录、别处的 defaults.toml 和 moderation.txt、venues.d/ 里别的文件照查：只有正好这几处才
-        // 豁免）。
+        // 给人看的字、最上一层的模型资料、网页软件、软件包清单和出厂的预设、software/mermaid/、software/net/、人格目录的 persona.toml、
+        // 群聊内核的出厂参数 software/onebot/defaults.toml、违规词表 moderation.txt、出厂的场所规则 venues.d/50-defaults.toml、桥自己的数
+        // software/onebot/bridge.json 不登记，别的照查（别处叫 models、web、mermaid、net 的目录、别处的 defaults.toml、moderation.txt
+        // 和 bridge.json、venues.d/ 里别的文件、onebot 包里别的文件照查：只有正好这几处才豁免）。
         assert_eq!(
             found.keys().collect::<Vec<_>>(),
             [
@@ -270,7 +276,9 @@ mod tests {
                 "personas/x/prompts/persona.md",
                 "personas/x/prompts/persona.toml",
                 "software/onebot/judge/system.txt",
+                "software/onebot/prompt.txt",
                 "software/onebot/venues.d/60-more.toml",
+                "software/x/bridge.json",
                 "software/x/defaults.toml",
                 "software/x/mermaid/not_special_here.json",
                 "software/x/moderation.txt",

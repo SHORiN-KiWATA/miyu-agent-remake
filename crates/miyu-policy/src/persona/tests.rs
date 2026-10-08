@@ -194,7 +194,7 @@ fn examples_go_after_the_system_and_before_the_history() {
         },
         reminder: Default::default(),
     };
-    let snapshot = compose("miyu", sources, true);
+    let snapshot = compose(Some("miyu"), sources, true);
     let request = snapshot
         .policy()
         .unwrap()

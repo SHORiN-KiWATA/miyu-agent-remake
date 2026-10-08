@@ -17,7 +17,7 @@ async fn pushes_come_before_the_reply() {
     let reply = client.subscribe("c2", &session).await;
     assert_eq!(
         apart_from_now(&reply["result"]),
-        json!({"limits": {}, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}, "persona": "engineer", "preset": "full"}),
+        json!({"limits": {}, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}, "preset": "full"}),
         "{reply}"
     );
 
@@ -168,7 +168,7 @@ async fn a_slow_reader_gets_a_resync_and_every_reply() {
     let reply = client.subscribe("c6", &session).await;
     assert_eq!(
         apart_from_now(&reply["result"]),
-        json!({"limits": {}, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}, "persona": "engineer", "preset": "full"}),
+        json!({"limits": {}, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}, "preset": "full"}),
         "{reply}"
     );
     client.say("c7", &session, "once more").await;

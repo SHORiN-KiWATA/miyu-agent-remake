@@ -45,7 +45,7 @@
       },
       "persona.default": {
         "name": "默认人格",
-        "description": "新会话默认用哪个人格。"
+        "description": "新会话默认用哪个人格。不设的话，新会话无人格：不带人设，记忆不生效。"
       },
       "preset.default": {
         "name": "默认预设",
@@ -227,6 +227,14 @@
       "external.bindings.<external>": {
         "name": "主人的平台账号",
         "description": "通讯平台上的哪个号是哪个本机账号本人。键写平台上的身份（例如 qq:10001），值写本机账号。私聊里，这个号就是那个账号本人。"
+      },
+      "onebot.listen": {
+        "name": "QQ 桥的端口",
+        "description": "NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/onebot/v11/ws。"
+      },
+      "onebot.token": {
+        "name": "QQ 桥的令牌",
+        "description": "NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。写 { secret = \"名字\" }（用 miyu login 存）或 { env = \"环境变量\" }。没设的，QQ 桥不起来。"
       }
     },
     "pages": {
@@ -248,7 +256,8 @@
       "providers": "供应商",
       "catalog": "模型目录",
       "cooldown": "冷却",
-      "external": "平台账号"
+      "external": "平台账号",
+      "onebot": "QQ 桥"
     }
   },
   "said": {
@@ -304,7 +313,6 @@
     "preset-problems/not_phrases": "{detail} 要写一句字",
     "preset-problems/unknown_language": "{detail}：语言只能是 zh、en、ja",
     "preset-problems/empty_phrase": "{detail} 要写一句不空的话",
-    "preset-problems/bad_persona": "{detail} 要写人格的编号：小写字母开头，只有小写字母、数字、-、_",
     "preset-problems/bad_unlisted": "{detail} 只能是 on 或 off",
     "preset-problems/bad_software": "{detail}：软件包的编号小写字母开头，只有小写字母、数字、-、_",
     "preset-problems/not_bool": "{detail} 只能是 true 或 false",

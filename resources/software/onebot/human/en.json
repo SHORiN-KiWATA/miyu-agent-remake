@@ -1,0 +1,18 @@
+{
+  "said": {
+    "usage": "usage: miyu-onebot serve",
+    "no-log": "The run log cannot be written: {reason}",
+    "notice/listening": "Waiting for NapCat on 127.0.0.1:{port}.",
+    "notice/connected": "NapCat connected.",
+    "notice/connected-as": "NapCat connected ({bot}).",
+    "notice/disconnected": "NapCat disconnected; waiting for it to reconnect.",
+    "notice/disconnected-as": "NapCat disconnected ({bot}); waiting for it to reconnect.",
+    "failure/core": "Could not reach the core: {reason}",
+    "failure/core-gone": "The core went away; the QQ bridge stops.",
+    "failure/port-in-use": "Port {port} is in use. Pick another: miyu config set --system onebot.listen <port>, and change NapCat to match.",
+    "failure/crashed": "The QQ bridge hit a bug and stops: {reason}",
+    "failure/start": "The QQ bridge could not start: {reason}",
+    "unready/no-token": "The QQ bridge token (onebot.token) is not set. Save one with miyu login onebot, then put it in the system config: miyu config set --system onebot.token '{{ secret = \"onebot\" }}'. Give NapCat the same token.",
+    "unready/bad-port": "onebot.listen could not be read; check it with miyu config check --system."
+  }
+}

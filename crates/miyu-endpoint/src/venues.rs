@@ -29,10 +29,10 @@ pub(crate) struct VenueParams {
     peer: Option<String>,
     #[serde(default)]
     cwd: Option<String>,
-    /// 新造的会话用哪个人格（施工 P-1 上）：桥照场所规则算好交来，核心不读场所规则；不写的照默认人格。找回已有的会话时
-    /// 不看。
-    #[serde(default)]
-    persona: Option<String>,
+    /// 新造的会话用哪个人格（施工 P-1 上）：桥照场所规则算好交来，核心不读场所规则；不写的照默认人格，写 `null` 的明着
+    /// 无人格（施工 P-4 上）。找回已有的会话时不看。
+    #[serde(default, deserialize_with = "crate::personas::written")]
+    persona: Option<Option<String>>,
     /// 新造的会话用哪个预设（施工 P-2 上）：同 `persona`，桥照场所规则算好交来；不写的照默认预设。找回已有的会话时不看。
     #[serde(default)]
     preset: Option<String>,
@@ -120,7 +120,7 @@ pub(crate) async fn session(
         .create(
             core,
             command,
-            params.persona.as_deref(),
+            params.persona.as_ref().map(Option::as_deref),
             cwd,
             Vec::new(),
             who,
