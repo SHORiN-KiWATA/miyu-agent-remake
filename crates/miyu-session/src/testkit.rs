@@ -18,6 +18,12 @@ use miyu_models::price::Tariff;
 use crate::config::TurnConfig;
 use crate::port::{Cancel, ForSession, ModelPort, Models, Reports};
 
+mod persona;
+
+pub use persona::{
+    SAMPLE_PERSONA, install_sample_persona, sample_persona_dir, sample_persona_texts,
+};
+
 /// 剧本里的一次回复。
 #[derive(Debug, Clone)]
 pub enum Play {

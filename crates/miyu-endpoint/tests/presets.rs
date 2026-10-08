@@ -57,7 +57,7 @@ async fn without_a_preset_the_default_is_used_personal_over_system() {
     let home = Home::new();
     mine(&home, "mine", "[preset]\nunlisted = \"off\"\n");
     let script = Script::new([]);
-    // 都没写：出厂的功能全开。
+    // 都没写：出厂的全部功能。
     let mut client = connected(configured(&home, &script)).await;
     let first = made(&create(&mut client, "c1", json!({"cwd": "~"})).await);
     // 系统配置写了 dev。
@@ -115,8 +115,8 @@ async fn the_persona_comes_from_the_request_then_the_default_and_never_the_prese
             "旧文件里的默认人格当没写",
         ),
         (
-            json!({"cwd": "~", "preset": "dev", "persona": "none"}),
-            Some("none"),
+            json!({"cwd": "~", "preset": "dev", "persona": "engineer"}),
+            Some("engineer"),
             "指定的压着默认的",
         ),
         (
@@ -260,8 +260,8 @@ async fn presets_are_listed_and_read_by_layer() {
         listed["result"]["presets"],
         json!([
             {"preset": "broken", "problem": "不认识的表 [colors]：预设文件里只能有 [preset]、[software]、[tools]", "line": 1},
-            {"preset": "dev", "name": "大家的开发", "summary": "只开写代码必需的：基础系统、联网、长期目标"},
-            {"preset": "full", "name": "功能全开", "summary": "装了的软件全部打开，以后新装的也打开"},
+            {"preset": "dev", "name": "大家的开发", "summary": null},
+            {"preset": "full", "name": "全部功能", "summary": null},
         ]),
         "照连接的语言挑"
     );

@@ -324,6 +324,8 @@ fn temp_root() -> (PathBuf, DataRoot) {
     })
     .expect("MIYU_HOME 是绝对路径");
     root.prepare().expect("临时目录里建得了骨架");
+    // 出厂不带人格（施工 P-4 下）：样本的软件工程师装进系统区那一层，测试照旧用 `engineer`。
+    miyu_session::testkit::install_sample_persona(&root);
     (dir, root)
 }
 

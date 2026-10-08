@@ -246,8 +246,10 @@ pub(crate) fn sources() -> Sources {
     Sources {
         core: core(),
         persona: PersonaTexts {
-            persona: include_str!("../../../resources/personas/engineer/prompts/persona.md")
-                .to_string(),
+            persona: include_str!(
+                "../../../docs/designs/samples/personas/engineer/prompts/persona.md"
+            )
+            .to_string(),
             examples: Vec::new(),
             reminders: String::new(),
         },

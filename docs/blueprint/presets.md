@@ -62,8 +62,10 @@ shell = false
 
 | 编号 | 名字 | 内容 |
 |---|---|---|
-| `full` | 功能全开 | `unlisted = "on"`：装了的全开，以后新装的也开。`preset.default` 出厂是它 |
-| `dev` | 开发 | `unlisted = "off"`，开 `basesystem`、`net`、`goal` |
+| `full` | 全部功能 | `unlisted = "on"`：装了的全开，以后新装的也开。`preset.default` 出厂是它 |
+| `dev` | 基础功能 | `unlisted = "off"`，开 `basesystem`、`net`、`goal` |
+
+- 名字三种语言：全部功能、Everything、すべての機能；基础功能、Basics、基本機能。出厂的不写说明（施工 P-4 下，2026-10-08 项目主人：「`开发`改成`基础功能` 功能全开改成`全部功能`，然后描述可以不要，没什么意义」）。编号照旧 `full`、`dev`，只在核心和配置 `preset.default` 里用，界面上不露。
 
 **配置**：`preset.default`，名字，出厂 `full`，系统配置、个人设置，以后开的会话照它（`config.md`）。设置页在「通用」那一页的「预设」一组。
 

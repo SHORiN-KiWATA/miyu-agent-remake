@@ -36,9 +36,9 @@ home/<管理员>/personas/<编号>/   管理员自己的
 
 1. 编号就是目录名：小写字母开头，小写字母、数字、`-`、`_`，最多 64 个（和配置里的名字一个写法）。
 2. 同名的后面的叠在前面的上面：`persona.toml` 逐项盖（同一格里逐种语言盖），`prompts/` 里的文件同名替换、没写的沿用。只有一个空目录也算有这一层。
-3. 每样都可以没有：出厂的软件工程师现在只有 `prompts/persona.md`。
+3. 每样都可以没有：测试用的样本（软件工程师，`docs/designs/samples/personas/engineer/`）只有 `persona.toml` 的名字和 `prompts/persona.md`。
 4. `prompts/reminders.md`（施工 P-1 补）：整份是一条提示，照原样（例如旧版 Miyu 的 `miyu.hint.md`）；去掉末尾空白是空的，算没有。有它的人格每 3 轮在触发的那句后面多一块提示，system 最后多一句风格锁（`26-提示词.md` J10、第四节第 7 块）。
-5. 出厂另有一个空人格 `none`（施工 P-1 下，`16-人格与预设.md` Y11）：只有 `persona.toml` 的名字和说明，没有提示词，system 里不带人设。2026-10-08 项目主人改了方向（Y11 改了）：会话可以没有人格（无人格），出厂一个人格都不带，`none`、`engineer` 随 P-4（下）撤掉。
+5. 出厂一个人格都不带（施工 P-4 下，2026-10-08 项目主人：「软件默认不自带任何人格，人格允许为空」，`16-人格与预设.md` Y11 改了）：原来出厂的软件工程师 `engineer`、空人格 `none` 撤掉了，资源目录里没有 `personas/`。人格都是人自己建的（第一个由头的第一次引导带着建）或者系统区放的，以后也能做成软件包装进来。软件工程师挪成测试用的样本 `docs/designs/samples/personas/engineer/`：要人格的测试把它装进临时数据根的系统区那一层（`miyu_session::testkit::install_sample_persona`），照旧用编号 `engineer`。以前造的、钉着 `engineer`、`none` 的会话照快照里冻结的接着用（「怎么走」第 6 条）。
 
 **`persona.toml`**：
 
