@@ -294,7 +294,7 @@ async fn presets_are_listed_and_read_by_layer() {
             ("basesystem", "基础系统", true),
             ("net", "联网", true),
             ("goal", "长期目标", true),
-            ("memory", "记忆", true),
+            ("memory", "人格记忆", true),
             ("roleplay", "角色扮演", false),
         ],
         "内置的照固定的先后、照连接的语言写名字（施工 P-3 补）"
