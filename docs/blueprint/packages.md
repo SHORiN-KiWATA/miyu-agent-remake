@@ -20,6 +20,7 @@
 | `crates/miyu-endpoint/src/check.rs` | `miyu check` 照磁盘查清单 |
 | `resources/packages/web.toml` | 出厂的网页界面的清单 |
 | `resources/packages/tui.toml` | 出厂的终端界面的清单（9-3 补：终端的会话给的，和 proto 上的一字不差；程序 `miyu-tui` 随 M9）；9-3 再补多配置项 `tui.icons`（图标：`nerd`、`plain`，第一次打开的引导写它） |
+| `resources/packages/onebot.toml` | 出厂的 QQ 桥的清单（施工 O-18；`[settings]` 四项随 O-20，原来核心替它声明，`onebot.md` 第一条「软件包清单」） |
 
 ### 对外的样子
 

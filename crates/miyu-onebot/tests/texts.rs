@@ -1,13 +1,12 @@
 //! 说给人听的字（施工 O-8，`onebot.md` 第一条「给人看的字」）：字在 `resources/software/onebot/human/`，三种语言里桥说的
-//! 每一句都换得出来（换不出来的会印出说法的编号），字段换进去；中文照图纸；日文照英文；换语言照新的说。O-18 多了
-//! `start`、`stop`、`restart`、`status`、`logs` 说的。
+//! 每一句都换得出来（换不出来的会印出说法的编号），字段换进去；中文照图纸；日文照英文；换语言照新的说；握手以前照系统的
+//! 语言（施工 O-20：不读配置）。O-18 多了 `start`、`stop`、`restart`、`status`、`logs` 说的。
 
 use miyu_onebot::control::{Halt, Report};
 use miyu_onebot::logs::Heading;
 use miyu_onebot::open::Opening;
 use miyu_onebot::serve::{Failure, Notice};
-use miyu_onebot::settings::{Unready, system_language};
-use miyu_onebot::texts::Texts;
+use miyu_onebot::texts::{Texts, system_language};
 use miyu_store::resources::ResourceRoot;
 
 /// 源码树里的资源目录。
@@ -15,14 +14,11 @@ fn resources() -> ResourceRoot {
     ResourceRoot::at(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"))
 }
 
-/// 桥说的每一句：用法、日志、起来连上断开、起不来停了、读配置起不来、`miyu-onebot web`、开关和状态、`logs` 的标题。
+/// 桥说的每一句：用法、日志、起来连上断开、起不来停了、`miyu-onebot web`、开关和状态、`logs` 的标题。
 fn everything(texts: &Texts) -> Vec<String> {
     let mut said = vec![texts.usage(), texts.no_log("disk full")];
     for notice in [
-        Notice::Listening {
-            port: 8301,
-            language: "zh".to_string(),
-        },
+        Notice::Listening { port: 8301 },
         Notice::Connected { bot: Some(30003) },
         Notice::Connected { bot: None },
         Notice::Disconnected { bot: Some(30003) },
@@ -41,9 +37,6 @@ fn everything(texts: &Texts) -> Vec<String> {
         Failure::Start("nope".to_string()),
     ] {
         said.push(texts.failure(&failure));
-    }
-    for unready in [Unready::BadPort, Unready::BadWebPort] {
-        said.push(texts.unready(&unready));
     }
     for opening in [
         Opening::NotRunning(8302),
@@ -120,10 +113,7 @@ fn every_sentence_turns_into_words_in_every_language() {
 #[test]
 fn chinese_reads_as_drawn_and_fields_go_in() {
     let texts = Texts::load(resources(), "zh").expect("读得出来");
-    let listening = Notice::Listening {
-        port: 8301,
-        language: "zh".to_string(),
-    };
+    let listening = Notice::Listening { port: 8301 };
     assert_eq!(
         texts.notice(&listening),
         "在 127.0.0.1:8301 等 NapCat 连进来。"
@@ -154,7 +144,7 @@ fn chinese_reads_as_drawn_and_fields_go_in() {
     );
     assert_eq!(
         texts.opening(&Opening::NotRunning(8302)),
-        "127.0.0.1:8302 上没有 QQ 桥的网页。先 miyu onebot start；改过 onebot.web 的，miyu onebot restart。"
+        "127.0.0.1:8302 上没有 QQ 桥的网页。先 miyu onebot start。"
     );
     assert_eq!(
         texts.failure(&Failure::NotSpawned),
@@ -271,7 +261,7 @@ fn japanese_reads_as_english_and_the_language_can_change() {
 }
 
 #[test]
-fn before_the_config_is_read_the_system_language_is_spoken() {
+fn before_the_handshake_the_system_language_is_spoken() {
     assert_eq!(system_language(Some("zh_CN.UTF-8")), "zh");
     assert_eq!(system_language(Some("ja_JP")), "ja");
     assert_eq!(system_language(Some("de_DE")), "en");

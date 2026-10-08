@@ -207,8 +207,24 @@ pub struct Served {
     pub stdout: tokio::task::JoinHandle<Vec<String>>,
 }
 
-/// 照 [`program`] 跑 `serve`，测试当核心：读它的握手，回 `language: zh`，之后它在标准输出上写的都收着。
-pub async fn served(root: &DataRoot) -> Served {
+impl Served {
+    /// 照核心的样子推一次配置的变化（`extension.config`，施工 O-20）：`keys` 是 `{键: 新值或 null}`。
+    pub async fn config(&mut self, keys: Value) {
+        use tokio::io::AsyncWriteExt;
+
+        let pushed = serde_json::json!({"jsonrpc": "2.0", "method": "extension.config", "params": {"keys": keys}});
+        let stdin = self.stdin.as_mut().expect("标准输入还开着");
+        stdin
+            .write_all(format!("{pushed}\n").as_bytes())
+            .await
+            .expect("写得进");
+        stdin.flush().await.expect("写得出");
+    }
+}
+
+/// 照 [`program`] 跑 `serve`，测试当核心：读它的握手，回 `language: zh`，`config` 照核心拉起扩展时交的样子是 `config`
+/// （施工 O-20，`extensions.md`「配置」），之后它在标准输出上写的都收着。
+pub async fn served(root: &DataRoot, config: Value) -> Served {
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
     let mut command = tokio::process::Command::from(program(root, &["serve"]));
@@ -228,7 +244,7 @@ pub async fn served(root: &DataRoot) -> Served {
     let reply = serde_json::json!({
         "jsonrpc": "2.0",
         "id": hello["id"],
-        "result": {"protocol": 1, "account": "admin", "language": "zh"},
+        "result": {"protocol": 1, "account": "admin", "language": "zh", "config": config},
     });
     stdin
         .write_all(format!("{reply}\n").as_bytes())
@@ -250,10 +266,11 @@ pub async fn served(root: &DataRoot) -> Served {
     }
 }
 
-/// 照 [`served`] 跑 `serve`（配置里的两个端口是 `listen`、`web`，调的一方写好），等它两个端口都听上：状态文件的进程号是它的。
+/// 照 [`served`] 跑 `serve`（握手交的两个端口是 `listen`、`web`，没有令牌），等它两个端口都听上：状态文件的进程号是它的。
 /// 它退了、标准错误说的是这两个端口被占了：[`Taken`]（`ports.rs`）；别的原因退出的当失败。
 pub async fn served_up(root: &DataRoot, listen: u16, web: u16) -> Result<Served, Taken> {
-    let mut served = served(root).await;
+    let config = serde_json::json!({"onebot.listen": listen, "onebot.web": web});
+    let mut served = served(root, config).await;
     let pid = served.child.id().map(u64::from);
     let up = within("桥两个端口都听上", async {
         loop {
@@ -280,20 +297,10 @@ pub async fn served_up(root: &DataRoot, listen: u16, web: u16) -> Result<Served,
     Err(Taken)
 }
 
-/// 系统配置：两个端口照写，令牌是 `onebot.token` 引用密钥 `onebot`（密钥文件另写），说中文。主人对应表由 `Home` 写在前面。
+/// 系统配置：两个端口照写，令牌是 `onebot.token` 引用密钥 `onebot`（密钥文件由 `Home::spawning` 写），说中文。主人对应表由
+/// `Home` 写在前面。
 pub fn ports_config(listen: u16, web: u16) -> String {
     format!(
         "\n[onebot]\nlisten = {listen}\nweb = {web}\ntoken = {{ secret = \"onebot\" }}\n\n[ui]\nlanguage = \"zh\"\n"
     )
-}
-
-/// 往数据根 `root` 的密钥文件里存 `onebot = <value>`。
-pub fn store_token(root: &DataRoot, value: &str) {
-    let system = root.path().join("system");
-    std::fs::create_dir_all(&system).expect("建得了");
-    std::fs::write(
-        system.join("secrets.toml"),
-        format!("onebot = \"{value}\"\n"),
-    )
-    .expect("写得进");
 }

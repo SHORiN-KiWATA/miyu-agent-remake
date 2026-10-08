@@ -3,7 +3,7 @@
 //! 编号是 `software/onebot/<哪一句>`。这里只管挑哪一句、换进什么字段。`start`、`stop`、`restart`、`status`、`logs` 说的
 //! （施工 O-18）也在这里。
 //!
-//! 说话的语言：读配置以前照系统的语言，读了配置照 `ui.language`（`auto` 的照系统的语言），握手以后照核心回的
+//! 说话的语言：握手以前照系统的语言（[`system_language`]；施工 O-20 起桥不读配置，不看 `ui.language`），握手以后照核心回的
 //! `language`。日文没有专门写的，`ja.json` 照英文写，和核心拒绝时的话一样（`protocol.md`「握手」`language`）。
 
 use miyu_kernel::event::Said;
@@ -14,10 +14,19 @@ use crate::control::{Halt, Report};
 use crate::logs::Heading;
 use crate::open::Opening;
 use crate::serve::{Failure, Notice};
-use crate::settings::Unready;
 
 /// 这个包的说法编号的前缀：软件包的说法照它在资源目录里的位置起（`store/resources.md`「怎么走」第 3 条第 4 款）。
 const PREFIX: &str = "software/onebot/";
+
+/// 握手以前说话的语言：照系统的语言 `locale`（`miyu_store::env::locale`），`zh`、`ja` 开头的照它，别的、没有的说英文。和核心
+/// 照握手的 `locale` 算 `ui.language = auto` 的是同一个规矩（「施工时定的」第 44 条）。
+pub fn system_language(locale: Option<&str>) -> &'static str {
+    match locale {
+        Some(locale) if locale.starts_with("zh") => "zh",
+        Some(locale) if locale.starts_with("ja") => "ja",
+        _ => "en",
+    }
+}
 
 /// 读好的一种语言的字。
 #[derive(Debug, Clone)]
@@ -104,14 +113,6 @@ impl Texts {
             }
             Failure::Crashed(reason) => self.say("failure/crashed", &[("reason", reason.clone())]),
             Failure::Start(reason) => self.say("failure/start", &[("reason", reason.clone())]),
-        }
-    }
-
-    /// 读配置时就起不来。
-    pub fn unready(&self, unready: &Unready) -> String {
-        match unready {
-            Unready::BadPort => self.say("unready/bad-port", &[]),
-            Unready::BadWebPort => self.say("unready/bad-web-port", &[]),
         }
     }
 

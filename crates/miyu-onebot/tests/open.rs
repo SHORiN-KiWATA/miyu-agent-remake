@@ -1,12 +1,13 @@
 //! `miyu-onebot web`（施工 O-16，`onebot.md` 第二条「对外的样子」、「施工时定的」第 5 条）：桥要已经在跑，不在跑的说先
 //! `miyu onebot start`（施工 O-18 改）；还没设过密码的网址带 `#setup=<一次性码>`，别的不带；`--print`、交不给浏览器的印网址（带码的另
-//! 提醒）。核心是替身，照握手回的中文说。
+//! 提醒）。核心是替身，照握手回的中文说。网页的端口照状态文件里桥实际听的，没有的照清单的默认值（施工 O-20）。
 
 use std::sync::Mutex;
 use std::sync::atomic::Ordering;
 
-use miyu_onebot::open::{Browser, Open, Opening, open};
+use miyu_onebot::open::{Browser, Open, Opening, open, port};
 use miyu_onebot::serve::CoreCommand;
+use miyu_onebot::status_file;
 use miyu_onebot::texts::Texts;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
@@ -145,6 +146,31 @@ async fn print_or_no_browser_prints_the_address() {
     assert_eq!(out, format!("{site}/\n"), "交不出去照 --print 办");
     assert_eq!(err, format!("{}\n", zh(&Opening::OpenThis)));
     bridge.stop().await.expect("停得下");
+    if std::fs::remove_dir_all(&dir).is_err() {
+        // 删不掉就留在临时目录里，不影响测试。
+    }
+}
+
+#[test]
+fn the_port_comes_from_the_status_file_or_the_manifest() {
+    let (dir, root) = temp_root();
+    assert_eq!(port(&root, 8302), 8302, "桥还没在这里跑过：照清单的默认值");
+    let file = status_file::path(&root);
+    std::fs::create_dir_all(file.parent().expect("有上一级")).expect("建得了");
+    std::fs::write(
+        &file,
+        r#"{"pid": 1, "listen": 18301, "web": 18402, "napcat": {"connected": false}}"#,
+    )
+    .expect("写得进");
+    assert_eq!(port(&root, 8302), 18402, "照桥实际听的");
+    for broken in [
+        "not json",
+        r#"{"pid": 1, "web": 70000}"#,
+        r#"{"pid": 1, "web": "18402"}"#,
+    ] {
+        std::fs::write(&file, broken).expect("写得进");
+        assert_eq!(port(&root, 8302), 8302, "{broken}");
+    }
     if std::fs::remove_dir_all(&dir).is_err() {
         // 删不掉就留在临时目录里，不影响测试。
     }

@@ -8,6 +8,8 @@
 //! - `/` 开头的先当斜杠命令交 `command.run`（`command`，O-19，第 7、8 条之间的「斜杠命令」），核心说不是命令的才照普通的话发。
 //! - 她的回话：`message.assistant` 的文字块接起来，不空就交给收进这个会话的那个机器人号现在的连接；`begin` 在这里照先后放进
 //!   写队列，等回应的那一步交给别的任务。
+//! - 核心推来的 `extension.config`（施工 O-20）：`keys` 原样交给 `serve`，它换上手里的配置、端口变了照 `/apply` 的办法换
+//!   （「施工时定的」第 45 条）：这里够不着监听。
 
 mod command;
 #[cfg(test)]
@@ -18,7 +20,7 @@ use std::sync::Arc;
 
 use miyu_kernel::FormatError;
 use miyu_kernel::id::{ExternalId, VenueId};
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 use tokio::sync::mpsc;
 use tokio::task::{JoinError, JoinSet};
 
@@ -56,11 +58,17 @@ pub(crate) struct Route {
     refused: HashSet<i64>,
     /// 在等 NapCat 回应的回话：放下 `Route` 时一起停。
     sending: JoinSet<()>,
+    /// 推来的配置变化交给 `serve`（施工 O-20）。
+    configured: mpsc::UnboundedSender<Map<String, Value>>,
 }
 
 impl Route {
-    /// 拿着连接 `core`，回话照 `bots` 找连接。
-    pub(crate) fn new(core: Core, bots: Arc<Bots>) -> Route {
+    /// 拿着连接 `core`，回话照 `bots` 找连接，推来的配置变化交给 `configured`。
+    pub(crate) fn new(
+        core: Core,
+        bots: Arc<Bots>,
+        configured: mpsc::UnboundedSender<Map<String, Value>>,
+    ) -> Route {
         Route {
             core,
             bots,
@@ -68,6 +76,7 @@ impl Route {
             peers: HashMap::new(),
             refused: HashSet::new(),
             sending: JoinSet::new(),
+            configured,
         }
     }
 
@@ -229,9 +238,18 @@ impl Route {
         Ok(true)
     }
 
-    /// 核心推来的一条：她的回话发回去（第 10 条）；掉了队、会话停了的（`resync`）再订阅一次。
+    /// 核心推来的一条：配置变了的（`extension.config`）交给 `serve`（施工 O-20）；她的回话发回去（第 10 条）；掉了队、会话停了的
+    /// （`resync`）再订阅一次。
     async fn pushed(&mut self, pushed: Value) -> Result<(), Gone> {
         let params = &pushed["params"];
+        if pushed["method"] == "extension.config" {
+            if let Some(keys) = params["keys"].as_object()
+                && self.configured.send(keys.clone()).is_err()
+            {
+                // `serve` 不收了：桥在停，没有别处可交。
+            }
+            return Ok(());
+        }
         let Some(session) = params["session"].as_str() else {
             return Ok(());
         };

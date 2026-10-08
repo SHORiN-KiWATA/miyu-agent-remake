@@ -4,8 +4,8 @@
 // - 页面自己说核心协议：经桥的 /ws 原样转给核心，握手带一次性码、用户名和密码，或者记住的登录令牌，核心验（照网页软件，
 //   web-module.md 第一条）。读写配置、存密钥调核心现成的 config.get、config.set、secret.set，校验只在核心。
 // - 只有桥知道的照桥自己给的，都带登录令牌：/status（NapCat 连没连上、令牌设没设，每 5 秒取一次）、/token（令牌的值：桥
-//   自己的凭据，由桥交给登录了的管理员，不经核心协议）、/apply（端口存好以后叫桥当场换）。桥在 /status、/token 时重读配置，
-//   令牌改了当场生效，不用重启（施工 O-16 补二）。
+//   自己的凭据，由桥交给登录了的管理员，不经核心协议）、/apply（端口存好以后问桥换完了没有）。配置改了，核心当场推给桥
+//   （extension.config），桥照新的用，不用重启（施工 O-20）：/status、/token 答的就是桥手里最新的。
 // - 页面里的字：登录以前照桥的 /human（这时还不能调 human.get），登录以后照 human.get；字放在
 //   resources/software/onebot/human/，编号前缀 software/onebot/。
 import { peoplePage } from './people.js';
@@ -320,16 +320,22 @@ import { peoplePage } from './people.js';
     return answer;
   }
 
-  /** 桥手里的令牌（/token：桥这时重读配置，刚写进去的令牌当场照新的）。没有的交回空的。 */
+  /** 桥手里的令牌（/token：核心换上新配置就推给桥，刚写进去的令牌当场照新的）。没有的交回空的。 */
   async function tokenValue() {
     const answer = await bridge('/token');
     if (!answer.ok) throw new Error(`/token ${answer.status}`);
     return (await answer.json()).token ?? '';
   }
 
-  /** 叫桥照新的配置（/apply）：令牌照新的，两个端口变了的换掉。交回实际听的 {listen, web}；新端口被占的抛「被占了」的话。 */
+  /** 问桥两个端口换完了没有（/apply：照桥手里最新的配置换，核心推来的多半已经换好）。交回实际听的 {listen, web}；新端口被
+   *  占的抛「被占了」的话。WebUI 的端口已经被推来的换掉、旧地址上这一问回 403（Host 对不上新端口）或连不上的，交回空的：
+   *  调的一方照刚存的端口跳（onebot.md 第二条「施工时定的」第 37 条）。 */
   async function apply() {
-    const answer = await bridge('/apply', 'POST');
+    const answer = await bridge('/apply', 'POST').catch((error) => {
+      if (error instanceof TypeError) return null;
+      throw error;
+    });
+    if (!answer || answer.status === 403) return null;
     if (answer.status === 409) throw new Error(say('web/ports/in-use', { port: (await answer.json()).in_use }));
     if (!answer.ok) throw new Error(`/apply ${answer.status}`);
     return answer.json();
@@ -507,7 +513,7 @@ import { peoplePage } from './people.js';
       try { state.shown = state.shown ? '' : await tokenValue(); } catch (error) { fail(error); }
       paint();
     });
-    // 生成：写进核心（secret.set、config.set），再问桥要回来显示：桥这时重读配置，NapCat 下一次连就照新的。
+    // 生成：写进核心（secret.set、config.set），再问桥要回来显示：核心换上新配置就推给桥，NapCat 下一次连就照新的。
     const generate = async (asking) => {
       if (asking && !(await confirmed(say('web/token/confirm'), say('web/token/change')))) return;
       change.disabled = create.disabled = true;
@@ -537,8 +543,8 @@ import { peoplePage } from './people.js';
       row(say('web/fill/format'), h('span', { class: 'value', text: say('web/fill/array') })));
   }
 
-  /** 令牌那一行：照 /status 的 token（设了、没写引用、取不到）和配置里的引用（照环境变量的写名字）。交回那一行的字、设没设；
-   *  还没取到 /status 的字是空的。 */
+  /** 令牌那一行：照 /status 的 token（设了、没有）和配置里的引用（照环境变量的写名字）。交回那一行的字、设没设；还没取到
+   *  /status 的字是空的。没写引用、引用取不到，核心都不交给桥，/status 都说 none（施工 O-20）。 */
   function tokenState() {
     const reference = state.items[KEYS.token]?.value;
     const kind = state.status?.token;
@@ -546,7 +552,6 @@ import { peoplePage } from './people.js';
       const text = reference?.env ? say('web/token/env', { name: reference.env }) : `${say('web/token/set')} ········`;
       return { text, set: true };
     }
-    if (kind === 'missing') return { text: say('web/token/missing', { name: reference?.secret ?? reference?.env ?? '' }), set: false };
     return { text: kind === 'none' ? say('web/token/unset') : '', set: false };
   }
 
@@ -564,8 +569,9 @@ import { peoplePage } from './people.js';
         h('label', {}, h('span', { text: say('web/ports/web') }), web),
         save),
       note);
-    // 存好了叫桥当场换（/apply）：WebUI 的端口换了，先说一句再跳过去（登录记在浏览器里、按地址分，新地址上要再登录）；
-    // NapCat 的换了，提醒去 NapCat 里改地址。
+    // 存好了核心当场推给桥、桥照新的换，再问桥换完了没有（/apply）：WebUI 的端口换了，先说一句再跳过去（登录记在浏览器里、
+    // 按地址分，新地址上要再登录）；桥已经换到新端口、旧地址上问不到的，照刚存的端口跳；NapCat 的换了，提醒去 NapCat 里改
+    // 地址。被占的照 /apply 的 409 说，桥照旧用原来的。
     el.addEventListener('submit', async (event) => {
       event.preventDefault();
       const changes = [[KEYS.listen, listen], [KEYS.web, web]]
@@ -577,10 +583,13 @@ import { peoplePage } from './people.js';
       try {
         await state.rpc.call('config.set', { layer: 'system', changes });
         const moved = await apply();
+        const saved = changes.find((change) => change.key === KEYS.web);
+        const webPort = moved?.web ?? (saved && Number(saved.input));
+        if (!webPort) throw new Error('/apply');
         await load();
-        if (moved.web !== Number(location.port)) {
-          alert(say('web/ports/web-moved', { port: moved.web }));
-          location.assign(`${location.protocol}//${location.hostname}:${moved.web}/`);
+        if (webPort !== Number(location.port)) {
+          alert(say('web/ports/web-moved', { port: webPort }));
+          location.assign(`${location.protocol}//${location.hostname}:${webPort}/`);
           return;
         }
         const listenMoved = changes.some((change) => change.key === KEYS.listen);

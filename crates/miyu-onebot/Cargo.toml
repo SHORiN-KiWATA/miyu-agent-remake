@@ -20,10 +20,6 @@ miyu-ipc = { path = "../miyu-ipc" }
 miyu-store = { path = "../miyu-store" }
 # 运行日志 `state/logs/onebot.log`，满了照核心的换法。
 miyu-log = { path = "../miyu-log" }
-# 读系统配置的两项（`onebot.listen`、`onebot.token`）：照核心登记的全部清单读（`miyu_core::settings::items`），连同密钥
-# 文件，只读。两项由核心替桥声明（权宜，9-1 挪进桥的清单）。不要核心的可选软件包。
-miyu-core = { path = "../miyu-core", default-features = false }
-miyu-endpoint = { path = "../miyu-endpoint" }
 # WebUI（施工 O-16）：给页面、核对 Host 和 Origin、`/ws` 原样转给核心、照终端的样子连核心和开浏览器，和网页软件共用的底子
 # （webserve.md）。
 miyu-webserve = { path = "../miyu-webserve" }
@@ -31,7 +27,8 @@ miyu-webserve = { path = "../miyu-webserve" }
 miyu-kernel = { path = "../miyu-kernel" }
 # 群聊内核（第 2 层）：场所、平台上的人的编号经它拼，桥不手拼（`chat.md` 第七条第 1 条）。
 miyu-chat = { path = "../miyu-chat" }
-# 令牌是取出来的密钥（`Debug` 只印 `Secret(…)`）。
+# 令牌是核心交来的密钥（`Debug` 只印 `Secret(…)`）；两个端口的默认值照自己的清单读（`miyu_config::package`，施工 O-20）。
+# 配置由核心在握手时交、变了推过来，桥不依赖核心的 crate（`miyu-core`、`miyu-endpoint`，18 第一节）。
 miyu-config = { path = "../miyu-config" }
 # HTTP/1 的服务端：NapCat 反连进来的那一下是 HTTP 升级（照网页软件，本来就在依赖图里）。MIT。
 hyper = { version = "1", features = ["server", "http1"] }
@@ -55,7 +52,9 @@ tracing = { version = "0.1", default-features = false, features = ["std"] }
 workspace = true
 
 [dev-dependencies]
-# 测试里在进程里起一个真的核心：协议端点、请求模型照剧本回、读会话日志。
+# 测试里在进程里起一个真的核心：协议端点、请求模型照剧本回、读会话日志；配置清单照真核心起来时那样拼进出厂的包的配置项
+# （`miyu_core::settings::Packaged`，施工 O-20）。不要核心的可选软件包。
+miyu-core = { path = "../miyu-core", default-features = false }
 miyu-endpoint = { path = "../miyu-endpoint" }
 miyu-session = { path = "../miyu-session", features = ["testkit"] }
 miyu-tool = { path = "../miyu-tool" }

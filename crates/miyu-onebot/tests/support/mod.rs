@@ -1,6 +1,7 @@
 //! 桥的测试共用的（施工 O-8，`onebot.md`「守着它的」）：临时的数据根里起一个真的核心（请求模型照剧本回，系统配置里
-//! `qq:10001` 是管理员本人），起一个桥（端口 0 让系统挑），假的 NapCat 是一个 WebSocket 客户端。在进程里跑的桥经内存里的
-//! 管道连核心（`pipe`，施工 O-18）；真核心拉起真桥、跑真的程序的在 `spawning`。
+//! `qq:10001` 是管理员本人；配置清单照真核心起来时那样拼进出厂的包的配置项，施工 O-20），起一个桥（端口 0 让系统挑），假的
+//! NapCat 是一个 WebSocket 客户端。在进程里跑的桥经内存里的管道连核心（`pipe`，施工 O-18），握手的回应里照核心拉起扩展的样子
+//! 填上配置（施工 O-20）；真核心拉起真桥、跑真的程序的在 `spawning`。
 
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
 
@@ -16,7 +17,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use serde_json::Value;
+use serde_json::{Value, json};
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
@@ -26,7 +27,7 @@ use miyu_endpoint::config::{Config, Environment};
 use miyu_endpoint::extensions::Timing;
 use miyu_kernel::id::{AccountId, SessionId};
 use miyu_onebot::serve::{Failure, Notice, Serve, run};
-use miyu_onebot::settings::{Reload, Settings, Token, load};
+use miyu_onebot::settings::{Defaults, Settings};
 use miyu_onebot::tuning::Tuning;
 use miyu_session::testkit::Script;
 use miyu_store::env::{Env, Platform};
@@ -37,6 +38,7 @@ use miyu_tool::Catalog;
 
 #[allow(unused_imports, reason = "读配置的测试用不上假 NapCat")]
 pub use napcat::*;
+pub use pipe::Push;
 
 /// 主人的 QQ 号：系统配置里对着管理员。
 pub const OWNER: i64 = 10001;
@@ -79,6 +81,11 @@ pub fn tuning() -> Tuning {
     Tuning::load(&resources()).expect("出厂的 bridge.json 读得出来")
 }
 
+/// 出厂的清单里两个端口的默认值（施工 O-20）。
+pub fn defaults() -> Defaults {
+    Defaults::load(&ResourceRoot::at(resources())).expect("出厂的清单读得出来")
+}
+
 /// 一个新的临时数据根（`MIYU_HOME` 指到它），建好骨架：交回目录（用完调的一方删）和数据根。
 pub fn temp_root() -> (PathBuf, DataRoot) {
     static NEXT: AtomicU64 = AtomicU64::new(0);
@@ -107,12 +114,13 @@ pub fn temp_root() -> (PathBuf, DataRoot) {
 impl Home {
     /// 起一个核心：请求模型照 `script`，没有工具，系统配置是主人对应表。
     pub fn new(script: &Script) -> Home {
-        Home::with_config(script, CONFIG, None)
+        Home::with_config(script, CONFIG, None, None)
     }
 
-    /// 起一个照开关拉起扩展的核心（施工 O-18）：系统配置是主人对应表接着 `more`（端口、令牌、语言），退避从 20 毫秒起、
-    /// 最多 100 毫秒，请扩展退出以后照出厂的等 5 秒再杀（等的时候桥得自己退）。出厂的清单里有桥：开了就拉起测试程序旁边的
-    /// `miyu-onebot`（[`spawning::linked`]）。
+    /// 起一个照开关拉起扩展的核心（施工 O-18）：系统配置是主人对应表接着 `more`（端口、令牌、语言），密钥文件里 `onebot` 是
+    /// [`TOKEN`]（[`spawning::ports_config`] 引用它；核心起来以前写好：核心握手时交的是它起来时读到的，施工 O-20），退避从
+    /// 20 毫秒起、最多 100 毫秒，请扩展退出以后照出厂的等 5 秒再杀（等的时候桥得自己退）。出厂的清单里有桥：开了就拉起测试程序
+    /// 旁边的 `miyu-onebot`（[`spawning::linked`]）。
     pub fn spawning(script: &Script, more: &str) -> Home {
         spawning::linked();
         let timing = Timing {
@@ -121,31 +129,43 @@ impl Home {
             backoff: Duration::from_millis(20),
             longest: Duration::from_millis(100),
         };
-        Home::with_config(script, &format!("{CONFIG}{more}"), Some(timing))
+        let secrets = format!("onebot = \"{TOKEN}\"\n");
+        Home::with_config(
+            script,
+            &format!("{CONFIG}{more}"),
+            Some(&secrets),
+            Some(timing),
+        )
     }
 
-    /// 起一个核心：系统配置写成 `config`；`extensions` 有的照它等、退避，照开关拉起扩展。
-    fn with_config(script: &Script, config: &str, extensions: Option<Timing>) -> Home {
+    /// 起一个核心：系统配置写成 `config`，有 `secrets` 的密钥文件写成它；`extensions` 有的照它等、退避，照开关拉起扩展。配置
+    /// 清单照真核心起来时那样拼进出厂的包的配置项（`Packaged`，施工 O-20：`onebot.*` 在桥的清单里）。
+    fn with_config(
+        script: &Script,
+        config: &str,
+        secrets: Option<&str>,
+        extensions: Option<Timing>,
+    ) -> Home {
         let (dir, root) = temp_root();
         let file = root.path().join("system").join("config.toml");
         std::fs::create_dir_all(file.parent().expect("有上一级")).expect("建得了目录");
         std::fs::write(&file, config).expect("写得进");
+        if let Some(secrets) = secrets {
+            std::fs::write(file.with_file_name("secrets.toml"), secrets).expect("写得进");
+        }
         let dirs = miyu_ipc::Dirs {
             runtime_dir: None,
             ..miyu_ipc::Dirs::current()
         };
         let opened = miyu_ipc::open(&root, &dirs).expect("起得来");
-        let config = Config::load(
-            &root,
-            &admin(),
-            None,
-            miyu_core::settings::items(),
-            Environment::of(&[]),
-        );
+        let shipped = ResourceRoot::at(resources());
+        let mut found = miyu_endpoint::packages::load(&shipped, &root, &admin());
+        let packaged = miyu_core::settings::Packaged::of(&mut found);
+        let config = Config::load(&root, &admin(), None, packaged.all(), Environment::of(&[]));
         let core = Arc::new(
             Core::new(
                 root.clone(),
-                ResourceRoot::at(resources()),
+                shipped,
                 Arc::new(script.clone()),
                 Catalog::default(),
                 None,
@@ -153,6 +173,7 @@ impl Home {
                 opened.token.clone(),
             )
             .with_config(config)
+            .with_packages(found)
             .with_extension_timing(extensions.unwrap_or_default()),
         );
         if extensions.is_some() {
@@ -259,23 +280,12 @@ pub fn settings() -> Settings {
     with_token(Some(TOKEN))
 }
 
-/// 两个端口都是 0，令牌是 `token`；空的是没写引用（施工 O-16 补二：令牌读成三种）。
+/// 两个端口都是 0，令牌是 `token`；空的是没有令牌。
 pub fn with_token(token: Option<&str>) -> Settings {
     Settings {
         port: 0,
         web: 0,
-        token: token.map_or(Token::Unset, |token| {
-            Token::Set(Secret::new(token).expect("合写法"))
-        }),
-    }
-}
-
-/// 两个端口都是 0，令牌写了引用、取不到。
-pub fn missing_token() -> Settings {
-    Settings {
-        port: 0,
-        web: 0,
-        token: Token::Missing,
+        token: token.map(|token| Secret::new(token).expect("合写法")),
     }
 }
 
@@ -284,60 +294,35 @@ pub fn no_token() -> Notice {
     Notice::NoToken
 }
 
-/// NapCat 的令牌对不上时，隔 `seconds` 秒才重读一次配置。
-pub fn reload_every(tuning: &mut Tuning, seconds: u64) {
-    tuning.reload_seconds = seconds;
+/// 照核心拉起扩展时握手交的样子写 `settings`（施工 O-20，`extensions.md`「配置」）：两个端口、令牌的真值；没有令牌的不放这一键。
+pub fn handed(settings: &Settings) -> Value {
+    let mut config = json!({"onebot.listen": settings.port, "onebot.web": settings.web});
+    if let Some(token) = &settings.token {
+        config["onebot.token"] = json!(token.expose());
+    }
+    config
 }
 
-/// 照磁盘上的配置重读（真的 `load`）：数据根是 `root`，环境是空的。
-pub fn from_disk(root: &DataRoot) -> Reload {
-    let root = root.clone();
-    Arc::new(move || load(&root, None, None, Environment::of(&[])).settings)
-}
-
-/// 照页面的办法写令牌（施工 O-16 补二）：经核心 `secret.set` 存成 `onebot`，再 `config.set` 把 `onebot.token` 写成引用它。
-/// 核心要已经在 `root` 上跑着。
-pub async fn set_token(root: &DataRoot, value: &str) {
-    let mut core = within(
-        "连上核心",
-        miyu_webserve::open::Core::connect_running(root, "test"),
-    )
-    .await
-    .expect("连得上核心");
-    core.call(
-        "secret",
-        "secret.set",
-        serde_json::json!({"name": "onebot", "value": value}),
-    )
-    .await
-    .expect("存得进");
-    core.call(
-        "config",
-        "config.set",
-        serde_json::json!({"layer": "system", "changes": [{"key": "onebot.token", "value": {"secret": "onebot"}}]}),
-    )
-    .await
-    .expect("写得进");
-}
-
-/// 重读配置读到的总是 `settings`。
-pub fn same(settings: Settings) -> Reload {
-    Arc::new(move || Ok(settings.clone()))
-}
-
-/// 在数据根 `root` 上起一个桥要的：设置照 `settings`，经内存里的管道连 `root` 上的那个核心（[`pipe::pipe_to`]，施工 O-18），
-/// WebUI 拉不起核心，说中文，出厂的 `bridge.json` 和资源目录，重读配置读到的和起来时一样。
-pub fn serve(root: DataRoot, settings: Settings) -> Serve {
-    Serve {
-        pipe: pipe::pipe_to(&root),
+/// 在数据根 `root` 上起一个桥要的：握手交的配置照 `settings`，经内存里的管道连 `root` 上的那个核心（[`pipe::pipe_to`]，施工
+/// O-18），WebUI 拉不起核心，说中文，出厂的 `bridge.json`、资源目录和清单的默认值。另交回往桥那一头推配置的 [`Push`]（施工
+/// O-20）。
+pub fn serve_pushing(root: DataRoot, settings: Settings) -> (Serve, Push) {
+    let (pipe, push) = pipe::pipe_to(&root, handed(&settings));
+    let serve = Serve {
+        pipe,
         root,
-        settings: settings.clone(),
         core: Arc::new(no_core),
         locale: Some("zh_CN.UTF-8".to_string()),
         tuning: tuning(),
         resources: ResourceRoot::at(resources()),
-        reload: same(settings),
-    }
+        defaults: defaults(),
+    };
+    (serve, push)
+}
+
+/// 同 [`serve_pushing`]，不推配置。
+pub fn serve(root: DataRoot, settings: Settings) -> Serve {
+    serve_pushing(root, settings).0
 }
 
 /// 在 `home` 上起一个桥：端口 0，令牌是 [`TOKEN`]，等它说在哪两个端口听。
@@ -345,15 +330,16 @@ pub async fn bridge(home: &Home) -> Bridge {
     start(serve(home.root.clone(), settings())).await
 }
 
-/// 照 `serve` 起一个桥，等它说在哪两个端口听（令牌没设的只说 WebUI 的，NapCat 的端口照设的那一个）。
+/// 照 `serve` 起一个桥，等它说在哪两个端口听（先说 NapCat 的，再说 WebUI 的）。
 pub async fn start(serve: Serve) -> Bridge {
     let notices = Arc::new(Mutex::new(Vec::new()));
     let (stop, stopped) = oneshot::channel::<()>();
     let (told, mut telling) = tokio::sync::mpsc::unbounded_channel();
     let heard = Arc::clone(&notices);
-    let mut port = serve.settings.port;
+    let mut port = 0;
     let task = tokio::spawn(run(
         serve,
+        |_| {},
         move |notice| {
             if told.send(notice.clone()).is_err() {
                 // 等的那头已经不在了。

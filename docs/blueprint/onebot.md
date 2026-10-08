@@ -4,51 +4,48 @@
 
 软件包 `miyu-onebot`：经 OneBot v11 接 QQ 的桥，和终端界面、网页平级的一个头（`docs/designs/18-通讯平台.md` 第三节、Q17）。它把 QQ 上的人接进场所会话，把她的回复发回 QQ；要不要开口、限流、出站这些和平台无关的部分在群聊内核 `miyu-chat`（`chat.md`），这里只管 QQ 这一头和跟核心的那一头。
 
-状态：图纸，随施工 O-8 起草（2026-10-07）。O-8 只有骨架：主人的私聊、只有文字（第一条）；O-8 补照 `chat.md` 第七条第 1 条改了编号的拼法（第一条第 7、8 条）；WebUI（第二条）随 O-16、O-17 起草，O-16 做了骨架和「连接」页，O-17 做了「主人与自己人」页。O-18 改成由核心拉起：经标准输入输出说协议，`miyu onebot start/stop/restart/status/logs`（第一条，2026-10-08）。O-19 接上斜杠命令：主人的私聊里 `/` 开头的先交核心的 `command.run`（第一条「斜杠命令」，2026-10-08）。群（连同群里的斜杠命令）、图片和文件、出站链与出站队列、WebUI 的其余几页随后面的步子。
+状态：图纸，随施工 O-8 起草（2026-10-07）。O-8 只有骨架：主人的私聊、只有文字（第一条）；O-8 补照 `chat.md` 第七条第 1 条改了编号的拼法（第一条第 7、8 条）；WebUI（第二条）随 O-16、O-17 起草，O-16 做了骨架和「连接」页，O-17 做了「主人与自己人」页。O-18 改成由核心拉起：经标准输入输出说协议，`miyu onebot start/stop/restart/status/logs`（第一条，2026-10-08）。O-19 接上斜杠命令：主人的私聊里 `/` 开头的先交核心的 `command.run`（第一条「斜杠命令」，2026-10-08）。O-20 改成用核心交的配置：握手回应的 `config`、推送 `extension.config`，桥不再自己读系统配置和密钥文件，`onebot.*` 四项挪进清单的 `[settings]`（第一条，2026-10-09）。群（连同群里的斜杠命令）、图片和文件、出站链与出站队列、WebUI 的其余几页随后面的步子。
 
 ### 在哪
 
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu-onebot/`（第 5 层，头） | 桥 |
-| `crates/miyu-onebot/src/main.rs` | 程序的入口：先找资源目录、读给人看的字，再认子命令。`serve`（只由核心拉起，O-18）：装运行日志、读配置和 `bridge.json`，标准输入输出交给 `serve.rs`；`start`、`stop`、`restart`、`status`（O-18）交给 `control.rs`；`logs [-f]`（O-18）交给 `logs.rs`；`web [--print]`（O-16）：读配置，交给 `open.rs`（令牌没设的照样往下走，O-16 补）；`-h`、`--help` 印用法（O-18） |
-| `resources/packages/onebot.toml`（O-18） | 软件包清单：`process` 包，子命令 `onebot`、程序 `miyu-onebot`，`[process] args = ["serve"]`、`start = "manual"`（「软件包清单」） |
-| `crates/miyu-onebot/src/settings.rs` | 起来时读的三项（`onebot.web` 随 O-16）：照核心登记的清单读系统配置、密钥文件（`miyu-endpoint` 的 `Config::load`，只读），令牌照引用取，读成三种：取到了、没写引用、写了引用取不到（`Token`，O-16 补二；没取到的不算起不来）；握手以前说话的语言；重读用的 `Reload` |
-| `crates/miyu-onebot/src/tuning.rs` | 读 `bridge.json`：桥自己的数（O-16 多 `web` 一格，补二多 `reload_seconds`） |
-| `crates/miyu-onebot/src/serve.rs` | 起来：经核心亲手给的管道（标准输入输出，O-18）握手、开两个监听（NapCat 的、WebUI 的），把几样接起来；`/apply` 开好的新监听换掉旧的（O-16 补二）；状态文件跟着写（O-18）；核心关了管道就停，跟核心的那一头崩了就退 |
-| `crates/miyu-onebot/src/status_file.rs`（O-18） | 状态文件 `state/packages/onebot/status.json`：起来时、NapCat 连上断开、问到是哪个实现、`/apply` 换了端口时照这一刻写（「状态文件」） |
+| `crates/miyu-onebot/src/main.rs` | 程序的入口：先找资源目录、读给人看的字（照系统的语言），再认子命令。`serve`（只由核心拉起，O-18）：装运行日志、读 `bridge.json` 和清单里两个端口的默认值（O-20），标准输入输出交给 `serve.rs`，握手回了语言就照它说（O-20）；`start`、`stop`、`restart`、`status`（O-18）交给 `control.rs`；`logs [-f]`（O-18）交给 `logs.rs`；`web [--print]`（O-16）：WebUI 的端口照状态文件的 `web`，没有状态文件的照清单的默认值（O-20），交给 `open.rs`；`-h`、`--help` 印用法（O-18） |
+| `resources/packages/onebot.toml`（O-18） | 软件包清单：`process` 包，子命令 `onebot`、程序 `miyu-onebot`，`[process] args = ["serve"]`、`start = "manual"`；`[settings]` 四项（O-20）（「软件包清单」） |
+| `crates/miyu-onebot/src/settings.rs` | 桥用的配置（O-20）：握手交来的 `config`、推送来的 `extension.config` 照键读成两个端口、令牌（`Settings`），没有的、`null` 的端口照清单 `[settings]` 的默认值（`Defaults`，照资源目录里的清单读），令牌没有就是没有；`onebot.trusted` 这一步不读 |
+| `crates/miyu-onebot/src/tuning.rs` | 读 `bridge.json`：桥自己的数（O-16 多 `web` 一格） |
+| `crates/miyu-onebot/src/serve.rs` | 起来：经核心亲手给的管道（标准输入输出，O-18）握手、开两个监听（NapCat 的、WebUI 的），把几样接起来；推来的配置交给 `current.rs`，端口变了照 `/apply` 的办法当场换（O-20）；`/apply` 开好的新监听换掉旧的（O-16 补二）；状态文件跟着写（O-18）；核心关了管道就停，跟核心的那一头崩了就退 |
+| `crates/miyu-onebot/src/status_file.rs`（O-18） | 状态文件 `state/packages/onebot/status.json`：起来时、NapCat 连上断开、问到是哪个实现、换了端口时（推送来的、`/apply` 的）照这一刻写（「状态文件」） |
 | `crates/miyu-onebot/src/control.rs`（O-18） | `start`、`stop`、`restart`、`status`：照终端的样子连核心，调 `extension.enable`、`disable`、`restart`、`status`；`status` 再读状态文件；照回应说 |
 | `crates/miyu-onebot/src/logs.rs`（O-18） | `logs [-f]`：印运行日志，标准错误那一份有内容的先另起一段；`-f` 跟着看 |
-| `crates/miyu-onebot/src/current.rs`（O-16 补二） | 桥手里的令牌：起来时读到的那个；每次重读配置（`/status`、`/token`、`/apply`、NapCat 对不上时）照读到的换上；NapCat 对不上时的重读有节流 |
+| `crates/miyu-onebot/src/current.rs`（O-16 补二，O-20 改） | 桥手里最新的配置：握手交来的那一份，推送来了照它换（O-20）；NapCat 的监听、WebUI 共用 |
 | `crates/miyu-onebot/src/web.rs`（O-16） | WebUI：核对 Host，`/ws` 原样转给核心、`/status`、`/token`、`/apply`（补二）、`/human`、页面文件；底子是共用的 `miyu-webserve`（`webserve.md`） |
 | `crates/miyu-onebot/src/web/login.rs`、`web/checked.rs`（O-16） | 登录令牌拿去和核心握手验、验过的记一阵（只记哈希）；`/status`、`/token`、`/apply` 都照它（补二从 `status.rs` 挪出来） |
-| `crates/miyu-onebot/src/web/status.rs`、`web/token.rs`、`web/apply.rs`（O-16，后两个补二） | `/status`：NapCat 的状态、两个端口、令牌设没设、平台的名字（O-17）；`/token`：令牌的值；`/apply`：重读配置、换端口 |
+| `crates/miyu-onebot/src/web/status.rs`、`web/token.rs`、`web/apply.rs`（O-16，后两个补二） | `/status`：NapCat 的状态、两个端口、令牌设没设、平台的名字（O-17）；`/token`：令牌的值；`/apply`：照桥手里最新的配置换端口，推送来的端口变化也照它换（O-20） |
 | `crates/miyu-onebot/src/web/human.rs`（O-16） | `/human`：登录以前页面要的字 |
 | `crates/miyu-onebot/src/open.rs`（O-16） | `miyu-onebot web`：桥在不在跑、要一次性码、开浏览器 |
-| `crates/miyu-onebot/src/listen.rs` | NapCat 反连进来的那一下：路径、令牌（对不上时重读配置再比，O-16 补二）、升级 |
+| `crates/miyu-onebot/src/listen.rs` | NapCat 反连进来的那一下：路径、令牌（和桥手里最新的比，O-20）、升级 |
 | `crates/miyu-onebot/src/listen/connection.rs`、`listen/bots.rs` | 一条 NapCat 的连接：回应、私聊、别的事件各交给谁，连上就问 `get_version_info`（回的实现、版本记在这条连接上，O-16 的 `/status` 用）；一个机器人号一条连接，新的顶掉旧的 |
 | `crates/miyu-onebot/src/onebot.rs`、`onebot/text.rs`、`onebot/calls.rs` | OneBot v11 的事件和动作：认一帧（私聊带上事件的 `time`）、读出私聊的文字、写 `send_private_msg`、调用和回应按 `echo` 配对；平台的名字 `qq`（`PLATFORM`）只写在 `onebot.rs`。三个小函数照它拼编号：`private_venue(号) -> Result<VenueId, FormatError>`、`person(号) -> Result<ExternalId, FormatError>` 经群聊内核拼（`Venue::new`、`miyu_chat::person`），`command_id(机器人的号, 消息编号, 时刻) -> String`（第 7、8 条） |
-| `crates/miyu-onebot/src/core.rs`、`core/route.rs` | 跟核心的那一头：在给的管道上（`Pipe`：程序里是标准输入输出，O-18；测试里是内存里的管道）握手、不带凭据，`venue.session`、带 `as` 的 `session.send`、订阅、她的回复发回去 |
+| `crates/miyu-onebot/src/core.rs`、`core/route.rs` | 跟核心的那一头：在给的管道上（`Pipe`：程序里是标准输入输出，O-18；测试里是内存里的管道）握手、不带凭据，取握手回应的 `config`（O-20），`venue.session`、带 `as` 的 `session.send`、订阅、她的回复发回去；推来的 `extension.config` 交给 `serve.rs`（O-20） |
 | `crates/miyu-onebot/src/core/route/command.rs`（O-19） | 斜杠命令：`/` 开头的先交 `command.run`，回执、被拒的那一句发回去，认不出的交回去照普通的话发（「斜杠命令」） |
 | `crates/miyu-onebot/src/texts.rs` | 说给人听的字：挑哪一句、换进什么字段，字照 `Human::load` 读（「给人看的字」） |
-| `resources/software/onebot/bridge.json` | 桥自己的数：认的路径、调用等多久、两个队列多长、接不了连接歇多久、令牌对不上时多久才重读、握手等多久和 `logs -f` 隔多久看一次（O-18）（「对外的样子」） |
+| `resources/software/onebot/bridge.json` | 桥自己的数：认的路径、调用等多久、两个队列多长、接不了连接歇多久、握手等多久和 `logs -f` 隔多久看一次（O-18）（「对外的样子」） |
 | `resources/software/onebot/human/{zh,en,ja}.json` | 桥说给人听的字（「给人看的字」）；WebUI 页面的字（`web/` 开头，O-16；`web/people/` 开头的 O-17，第二条「给人看的字」） |
 | `resources/software/onebot/web/`（O-16） | WebUI 的页面：`index.html`、`app.js`（登录、骨架、「连接」页）、`people.js`（「主人与自己人」页，O-17）、`style.css`，原生 JS 的模块（第二条「施工时定的」第 25 条） |
 | `xtask/src/ledger.rs` | 登记簿门禁豁免 `software/onebot/bridge.json` 这一份文件：是数据，不发给模型；O-16 再豁免 `software/onebot/web/` 这一个目录：给浏览器的 |
-| `crates/miyu-core/src/settings.rs` | `onebot.listen`、`onebot.web`（O-16）、`onebot.token`、`onebot.trusted`（O-17）四项配置（`OnebotSettings`）：权宜，照 `tui.startup` 的先例先由核心声明，以后桥的配置整体挪进软件包清单的 `[settings]` 时，同一个提交删掉核心这一份；生效时机：两个端口 `head_start`，令牌、自己人 `now`（O-16 补二、O-17） |
-| `crates/miyu-config/src/item/settings.rs`、`value.rs` | `settings!` 里整数可以写默认值；单个密钥的设置类型 `Option<Reference>`（O-8 加，两项要用） |
-| `resources/core/human/{zh,en,ja}.json` | 四项配置给人看的字（`config.items`，`onebot.trusted` 随 O-17）、组 `onebot`（`config.groups`）；补二：地址写 `/ws`，端口说明补「在 QQ 桥的网页上改、保存的，当场生效」，令牌说明改成没设照样起来、NapCat 下一次连进来照新的 |
 
 ### 一、骨架：主人的私聊（施工 O-8）
 
 **对外的样子**
 
-配置（系统配置，桥起来时读。`onebot.token` 的生效时机是 `now`：改了不用重启，NapCat 下一次连进来就照新的（第 2 条）；两个端口是 `head_start`：用命令行改的桥下次起来时生效，在 WebUI 的「连接」页保存的当场换（第二条 `/apply`）。O-16 补二，第二条「施工时定的」第 24 条）：
+配置（软件包清单的 `[settings]`，O-20 从核心挪过来；设置页在「软件包」那一页的「QQ 桥」组，名字、说明三种语言写在清单里。都只能写在系统配置，都当场生效：核心拉起桥时在握手的回应里交来最终值，变了推过来，桥照新的用，不用重启（第 1、2 条）。`onebot.web`、`onebot.trusted` 见第二条「对外的样子」）：
 
 | 键 | 类型 | 默认 | 说明 |
 |---|---|---|---|
-| `onebot.listen` | 整数 1024 到 65535 | 8301 | NapCat 反连进来的端口，只听本机 `127.0.0.1` |
-| `onebot.token` | 密钥（`{ secret = … }` 或 `{ env = … }`） | 没有 | NapCat 连进来时出示的访问令牌；没设、取不到，桥照样起来，NapCat 连进来一律 401；设了、换了不用重启（第 1、2 条，O-16 补二） |
+| `onebot.listen` | 整数 1024 到 65535 | 8301 | NapCat 反连进来的端口，只听本机 `127.0.0.1`；改了当场换（照 `/apply` 的办法，第 1 条，O-20） |
+| `onebot.token` | 密钥（`{ secret = … }` 或 `{ env = … }`） | 没有 | NapCat 连进来时出示的访问令牌；没设、取不到，桥照样起来，NapCat 连进来一律 401；设了、换了、删了不用重启（第 1、2 条，O-16 补二、O-20） |
 
 桥自己的数在资源目录的 `software/onebot/bridge.json`，不进配置清单（照网页软件的 `web.json`）：
 
@@ -59,7 +56,6 @@
 | `write_queue` | 64 | 往一条 NapCat 的连接写，最多攒几帧没写出去；满了写的一方等着。至少 1 |
 | `inbound_queue` | 256 | 读出来的私聊最多攒几条没交给跟核心的那一头；满了读 NapCat 的那一头等着。至少 1 |
 | `accept_retry_millis` | 100 | 接不了 TCP 连接（打开的文件太多这类）时歇几毫秒再接，不空转 |
-| `reload_seconds` | 1 | NapCat 出示的令牌对不上（或者桥手里还没有令牌）时重读配置；离上一次这样重读不到这么多秒的不读，照手里的比（第 2 条，O-16 补二） |
 | `hello_seconds` | 10 | 跟核心握手，最多等几秒回应；等不到的（从终端跑起来的）说 `failure/not-spawned`、退出码 1（第 1 条，O-18） |
 | `follow_millis` | 500 | `logs -f` 隔几毫秒看一次运行日志长了没有（O-18） |
 | `web` | 见第二条「对外的样子」 | WebUI 的数（O-16）：`csp`、`types`、`status_cache_seconds` |
@@ -98,9 +94,57 @@ about = { en = "Start, stop and look at the QQ bridge", zh = "开、关、查看
 [process]
 args = ["serve"]
 start = "manual"
+capabilities = ["sessions.drive", "act_for_external", "events.read", "network"]
+
+[settings.listen]
+type = "int"
+min = 1024
+max = 65535
+default = 8301
+layers = ["system"]
+applies = "now"
+name = { … }
+description = { … }
+
+[settings.web]
+type = "int"
+min = 1024
+max = 65535
+default = 8302
+layers = ["system"]
+applies = "now"
+name = { … }
+description = { … }
+
+[settings.token]
+type = "secret"
+layers = ["system"]
+applies = "now"
+name = { … }
+description = { … }
+
+[settings.trusted]
+type = "list"
+element = "text"
+max = 128
+layers = ["system"]
+applies = "now"
+name = { … }
+description = { … }
 ```
 
-不写 `[check]`、`[settings]`、`capabilities`：各随自己那一步（`miyu onebot check`、配置挪进清单随 9-4 下）。
+不写 `[check]`：随 `miyu onebot check` 那一步。`capabilities` 随 9-4（下上）。`[settings]` 四项（O-20）照核心原来替桥声明的那一份（O-8 的 `OnebotSettings`）：类型、默认值、层一样；生效时机都是 `now`（两个端口原来是 `head_start`：推送来了桥当场换，「施工时定的」第 40 条）；设置页从高级页的「QQ 桥」组挪到「软件包」那一页、这个包那一组（组名是包的名字「QQ 桥」，`packages.md`「配置项」第 4 条）。名字、说明（`name`、`description`，三种语言写在清单里，不进 `core/human`）：
+
+| 键 | 中文 | 英文 | 日文 |
+|---|---|---|---|
+| `listen` 名字 | QQ 桥的端口 | QQ bridge port | QQ ブリッジのポート |
+| 说明 | NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/ws。 | The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws. | NapCat のリバース WebSocket が接続してくるポートです。このマシンからだけ受け付けます。NapCat 側のアドレスは ws://127.0.0.1:<ポート>/ws です。 |
+| `web` 名字 | QQ 桥网页的端口 | QQ bridge web port | QQ ブリッジの Web ページのポート |
+| 说明 | QQ 桥自己的网页（连接 NapCat、换令牌）的端口，只听本机。用 miyu-onebot web 打开。 | The port of the QQ bridge's own web page (NapCat connection, token), local only. Open it with miyu-onebot web. | QQ ブリッジ自身の Web ページ（NapCat の接続、トークン）のポートです。このマシンからだけ受け付けます。miyu-onebot web で開きます。 |
+| `token` 名字 | QQ 桥的令牌 | QQ bridge token | QQ ブリッジのトークン |
+| 说明 | NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。写 { secret = "名字" }（用 miyu login 存）或 { env = "环境变量" }。没设的，QQ 桥照样起来，NapCat 连进来会被拒；在 QQ 桥的网页上能生成一个。改了以后，NapCat 下一次连进来就照新的。 | The access token NapCat shows when it connects; set the same one in NapCat. Write { secret = "name" } (saved with miyu login) or { env = "VARIABLE" }. Without it the QQ bridge still starts but refuses NapCat; you can generate one on the QQ bridge web page. After a change, NapCat's next connection uses the new one. | NapCat が接続するときに示すアクセストークンです。NapCat 側にも同じものを設定します。{ secret = "名前" }（miyu login で保存）か { env = "環境変数" } を書きます。未設定でも QQ ブリッジは起動しますが、NapCat の接続は拒否します。QQ ブリッジの Web ページで生成できます。変えると、NapCat の次の接続から新しいものを使います。 |
+| `trusted` 名字 | QQ 桥的自己人 | QQ bridge friends | QQ ブリッジの仲間 |
+| 说明 | 私聊里能叫她、不限流、睡着时私聊也放行的人，写平台上的身份的列表，例如 ["qq:20017"]。在 QQ 桥的网页上改。QQ 桥接通群以后才照它认人。 | People who can call her in private chat, with no rate limit, even while she sleeps: a list of platform identities, for example ["qq:20017"]. Edit it on the QQ bridge web page. The QQ bridge uses it once groups are connected. | 個人チャットで呼べて、回数制限がなく、寝ている間も個人チャットが通る人です。プラットフォーム上の ID のリストで書きます。例：["qq:20017"]。QQ ブリッジの Web ページで変えます。QQ ブリッジがグループにつながってから、これで人を見分けます。 |
 
 **状态文件**（O-18）：桥把这一刻的样子写进 `<数据根>/state/packages/onebot/status.json`（核心给的工作目录就是这个目录；照数据根算，不照相对路径）：
 
@@ -108,16 +152,16 @@ start = "manual"
 {"pid": 12345, "listen": 8301, "web": 8302, "napcat": {"connected": true, "self_id": "30003", "implementation": "NapCat.Onebot", "version": "4.8.2"}}
 ```
 
-- `pid`：桥的进程号；`listen`、`web`：实际听的两个端口（`/apply` 换过的照换过的）；`napcat`：和 WebUI 的 `/status` 一样（连着的号里最小的那一个，问到了是哪个实现的才带 `implementation`、`version`；没连着的只有 `connected: false`）。
-- 什么时候写：两个端口听上以后写一次；NapCat 连上、断开、认出号、问到是哪个实现，`/apply` 换了端口，照这一刻的再写。和磁盘上一样的不写；先写旁边的临时文件再改名盖上（`miyu_store::generated::write`），读的人看不到写了一半的。写不进记一行 `WARN status not written`，桥照跑。
+- `pid`：桥的进程号；`listen`、`web`：实际听的两个端口（换过的照换过的：推送来的、`/apply` 的）；`napcat`：和 WebUI 的 `/status` 一样（连着的号里最小的那一个，问到了是哪个实现的才带 `implementation`、`version`；没连着的只有 `connected: false`）。
+- 什么时候写：两个端口听上以后写一次；NapCat 连上、断开、认出号、问到是哪个实现，换了端口（推送来的、`/apply` 的），照这一刻的再写。和磁盘上一样的不写；先写旁边的临时文件再改名盖上（`miyu_store::generated::write`），读的人看不到写了一半的。写不进记一行 `WARN status not written`，桥照跑。
 - 桥退出不删它：`status` 只在 `extension.status` 说在跑、进程号和文件里的一样时才用它，旧的、上一个进程的、读不懂的都不用。
 
 NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「WebSocket 客户端」），地址 `ws://127.0.0.1:<onebot.listen>/ws`（`/onebot/v11/ws` 也认，WebUI 上写短的那个，O-16 补二），访问令牌和 `onebot.token` 一样，消息格式选数组（字符串格式也认，第 6 条）。
 
 **怎么走**
 
-1. **起来**（O-18）：由核心拉起（`extensions.md`「怎么走」第 1 条：工作目录是 `state/packages/onebot/`，环境里的 `MIYU_HOME`、`MIYU_RESOURCES` 是核心正在用的那两个，标准错误接到 `state/logs/onebot.stderr`）。找资源目录、读给人看的字；读系统配置的几项（权宜，「施工时定的」第 6 条）；读 `bridge.json`。经标准输入输出跟核心握手：照头的样子，`head.kind = "onebot"`，不带凭据（核心亲手给的管道，`protocol.md`「握手」第 3 条）。`hello_seconds`（出厂 10 秒）内等不到回应的（从终端跑起来的）说 `failure/not-spawned`、退出码 1；被拒、握手时管道关了、回应没带 `language`（`protocol.md`「握手」说一定带，没带是协议不对），照连不上核心说、退出码 1。标准输出只给协议，一行一条，桥别处不往上面写；说给人听的都在标准错误上，运行日志照旧写 `onebot.log`。然后开两个监听（NapCat 的、WebUI 的）；端口被占了说清是哪个端口，退出码 1：核心不再重启（`config_error`），`miyu onebot status` 带出标准错误的最后几行。听上了写一次状态文件（「状态文件」）。令牌没设、引用的密钥或环境变量取不到：照样起来，两个端口照开，说完在哪等 NapCat 再说一句 `notice/no-token`（到 WebUI 的「连接」页生成一个，填进 NapCat，几秒内就连上），运行日志记一行 `WARN no token yet`。NapCat 这时连进来一律 401；人在 WebUI 里生成令牌以后，NapCat 下一次连就通，不用重启（第 2 条；18 第三节「还没配好就 `start`：桥只开 WebUI，不连 NapCat，等配好」，O-16 补、补二）。
-2. **连进来**：只认 `bridge.json` 的 `paths`（出厂 `/onebot/v11/ws` 和 `/ws` 两个），别的 404。令牌照 `Authorization: Bearer <令牌>`、`Authorization: Token <令牌>` 或查询参数 `access_token` 取，和桥手里的按常数时间比。对不上、桥手里还没有的，重读一次配置（同 `/status` 的重读，`Config::load`）再比一次，对上了照新的用，以后都照它比（`current.rs`，O-16 补二）。这样重读有节流：离上一次这样重读不到 `reload_seconds`（出厂 1 秒）的不读，照手里的比，乱连的不能把读配置变成负担。还对不上 401。令牌换了以后，已经连着的那一条不断（它握手时出示的是当时对的），下次重连照新的。WebUI 每次读配置（第二条 `/status`、`/token`、`/apply`），桥手里的令牌也跟着换上。不是 WebSocket 的升级请求 400；算出来的 `Sec-WebSocket-Accept` 放不进回应的头（照说不会），也是 400，不升级。机器人的号照 `X-Self-ID` 头取，没有的等第一条事件的 `self_id`。同一个号再连进来，新的顶掉旧的。
+1. **起来**（O-18，O-20 改）：由核心拉起（`extensions.md`「怎么走」第 1 条：工作目录是 `state/packages/onebot/`，环境里的 `MIYU_HOME`、`MIYU_RESOURCES` 是核心正在用的那两个，标准错误接到 `state/logs/onebot.stderr`）。找资源目录、读给人看的字（照系统的语言）；读 `bridge.json` 和资源目录里自己的清单（`packages/onebot.toml`）的 `[settings]` 里两个端口的默认值（O-20）。握手以前不读配置、不说话（O-20）：起不来的（资源目录、给人看的字、`bridge.json`、清单读不进来）照系统的语言说一句、退出码 1；运行日志装不上的那一句等握手以后照握手回的语言说（握手不成的，说握手不成那一句以前先说它）。经标准输入输出跟核心握手：照头的样子，`head.kind = "onebot"`，不带凭据（核心亲手给的管道，`protocol.md`「握手」第 3 条）。`hello_seconds`（出厂 10 秒）内等不到回应的（从终端跑起来的）说 `failure/not-spawned`、退出码 1；被拒、握手时管道关了、回应没带 `language`（`protocol.md`「握手」说一定带，没带是协议不对），照连不上核心说、退出码 1。握手回了语言，以后说的都照它，端口被占那一句也是（O-20：O-19 时发现原来只在「听上了」那一刻换语言，端口被占那一句照的还是握手以前的语言）。标准输出只给协议，一行一条，桥别处不往上面写；说给人听的都在标准错误上，运行日志照旧写 `onebot.log`。握手回应的 `config`（`extensions.md`「配置」：这个包自己的键、最终值，密钥是真值，没设、取不到的那一键不放）取两个端口和令牌（O-20）：`onebot.listen`、`onebot.web` 是 0 到 65535 的整数的照它（核心只收 1024 到 65535；0 是测试让系统挑），没有的、不是的照清单的默认值（出厂 8301、8302，「施工时定的」第 38 条）；`onebot.token` 是字的照它（去掉前后空白），没有的、空的就是没有令牌；`onebot.trusted` 这一步不读（桥接群时读），别的键不认。然后开两个监听（NapCat 的、WebUI 的）；端口被占了说清是哪个端口，退出码 1：核心不再重启（`config_error`），`miyu onebot status` 带出标准错误的最后几行。听上了写一次状态文件（「状态文件」）。令牌没设、引用的密钥或环境变量取不到：照样起来，两个端口照开，说完在哪等 NapCat 再说一句 `notice/no-token`（到 WebUI 的「连接」页生成一个，填进 NapCat，几秒内就连上），运行日志记一行 `WARN no token yet`。NapCat 这时连进来一律 401；人在 WebUI 里生成令牌以后，NapCat 下一次连就通，不用重启（第 2 条；18 第三节「还没配好就 `start`：桥只开 WebUI，不连 NapCat，等配好」，O-16 补、补二）。之后核心推 `extension.config`（`{"keys": {键: 新值或 null}}`，只放变了的键，不用订阅），桥照它换上手里的那一份（`current.rs`，O-20）：`null` 的当没有（端口照清单的默认值，令牌没了）；令牌换了、没了照第 2 条；两个端口变了的照第二条 `/apply` 的办法当场换（先开新的，都开上了才关旧的、换上新的，状态文件跟着写；有一个开不了，两个都不换，旧的照旧开着，运行日志记一行 `WARN apply port in use`），已经连着的（NapCat 的那一条、页面正在用的连接）不断。推来的值不进运行日志：令牌换了只记一行 `INFO token changed`，端口换了记 `INFO applied listen=… web=…`。
+2. **连进来**：只认 `bridge.json` 的 `paths`（出厂 `/onebot/v11/ws` 和 `/ws` 两个），别的 404。令牌照 `Authorization: Bearer <令牌>`、`Authorization: Token <令牌>` 或查询参数 `access_token` 取，和桥手里最新的那个（握手交来的，推送换过的照换过的，第 1 条）按常数时间比；对不上、桥手里没有令牌的 401（O-20：去掉了 O-16 补二「对不上时重读一次配置再比」，推送来了就换，用不着读盘）。令牌换了以后，已经连着的那一条不断（它握手时出示的是当时对的），下次重连照新的；令牌删了的，以后连进来的一律 401。不是 WebSocket 的升级请求 400；算出来的 `Sec-WebSocket-Accept` 放不进回应的头（照说不会），也是 400，不升级。机器人的号照 `X-Self-ID` 头取，没有的等第一条事件的 `self_id`。同一个号再连进来，新的顶掉旧的。
 3. **对端是谁**：连上以后调一次 `get_version_info`，把实现的名字和版本记进运行日志（18 第十三节：排查时先确认连着的是哪个实现）。quirk 表随后面的步子。
 4. **调用**：发出去的动作带 `echo`（桥自己编，同一条连接里不重），等带同样 `echo` 的回应，等了 `call_timeout_seconds`（出厂 10 秒）还等不到算失败；连接断了，在等的都算失败。
 5. **收私聊**：`post_type = message`、`message_type = private` 的才看；别的事件（群消息、通知、请求、心跳、生命周期）记一行调试日志就丢。
@@ -150,14 +194,14 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 | `hello_seconds` 内等不到握手的回应（从终端跑起来的，O-18） | `serve` 只由核心拉起，用 `miyu onebot start` | 1 |
 | 标准输入读到头、标准输出写不进（核心请它退出、核心不在了，O-18） | 不说，运行日志一行 | 0 |
 | 跟核心的那一头崩了、发回话的任务崩了（是 bug） | 出了错、停下，带原话 | 1 |
-| 别的原因起不来：听不了、起不了运行时、数据根用不了、`bridge.json` 读不进来 | 起不来，带原话 | 1 |
+| 别的原因起不来：听不了、起不了运行时、数据根用不了、`bridge.json` 读不进来、清单里两个端口的默认值读不出来（O-20） | 起不来，带原话 | 1 |
 | 找不到资源目录、给人看的字读不懂 | 这时还没有字可用：`miyu-onebot: <原话>` | 1 |
 | `start`、`stop`、`restart`、`status` 连不上核心（O-18） | 连不上核心，带原因 | 1 |
 | 核心拒绝（例如 `restart` 关着的，O-18） | 核心的原话 | 1 |
 | 核心那边没有 `onebot` 这个包（清单不在、写错了，O-18） | `status/missing` | 1 |
 | 用法不对 | 用法（标准错误上） | 2 |
 
-**给人看的字**（`serve`、`web` 说的在标准错误上；`start`、`stop`、`restart`、`status`、`logs` 的结果在标准输出上，O-18）：放在 `resources/software/onebot/human/{zh,en,ja}.json` 的 `said` 里，照核心的格式和 `Human::load` 的读法（`store/resources.md`「怎么走」第 3 条），说法的编号是 `software/onebot/<编号>`；`texts.rs` 只挑哪一句、换进什么字段，换不出来的（是 bug）印出编号和字段、记一行运行日志。`ja.json` 照英文写，和核心拒绝时的话一样（O-8 施工时定）。读配置以前照系统的语言，读了配置照 `ui.language`，握手以后照核心回的 `language`；换成的那种语言的字读不懂，说一行原话、接着照原来的说。
+**给人看的字**（`serve`、`web` 说的在标准错误上；`start`、`stop`、`restart`、`status`、`logs` 的结果在标准输出上，O-18）：放在 `resources/software/onebot/human/{zh,en,ja}.json` 的 `said` 里，照核心的格式和 `Human::load` 的读法（`store/resources.md`「怎么走」第 3 条），说法的编号是 `software/onebot/<编号>`；`texts.rs` 只挑哪一句、换进什么字段，换不出来的（是 bug）印出编号和字段、记一行运行日志。`ja.json` 照英文写，和核心拒绝时的话一样（O-8 施工时定）。握手以前照系统的语言（`zh`、`ja` 开头的照它，别的说英文，和核心照握手的 `locale` 算的一样；O-20 起桥不读配置，不看 `ui.language`），握手以后照核心回的 `language`（`serve` 端口被占那一句也是，O-20）；`start`、`stop`、`restart`、`status`、`web` 握手以后照核心回的说，`logs` 不连核心，照系统的语言；换成的那种语言的字读不懂，说一行原话、接着照原来的说。
 
 | 编号 | 什么时候 | 中文 | 英文 |
 |---|---|---|---|
@@ -169,7 +213,6 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 | `failure/core` | 连不上核心 | 连不上核心：{reason} | Could not reach the core: {reason} |
 | `failure/crashed` | 跟核心的那一头、发回话的任务崩了 | QQ 桥出了错，停下：{reason} | The QQ bridge hit a bug and stops: {reason} |
 | `failure/start` | 别的原因起不来 | QQ 桥起不来：{reason} | The QQ bridge could not start: {reason} |
-| `unready/bad-port` | 端口读不出来（走不到） | onebot.listen 读不出来，照 miyu config check --system 查一下。 | onebot.listen could not be read; check it with miyu config check --system. |
 | `failure/not-spawned`（O-18） | 等不到握手的回应 | 没等到核心的握手回应。miyu-onebot serve 只由核心拉起：用 miyu onebot start 打开 QQ 桥。 | No handshake reply from the core. miyu-onebot serve is started by the core only: turn the QQ bridge on with miyu onebot start. |
 | `usage`（O-18 改） | 用法不对、`-h` | 用法：miyu onebot start \| stop \| restart \| status \| logs [-f] \| web [--print]（serve 只由核心拉起） | usage: miyu onebot start \| stop \| restart \| status \| logs [-f] \| web [--print] (serve is started by the core only) |
 | `no-log` | 运行日志装不上（照样跑） | 运行日志写不了：{reason} | The run log cannot be written: {reason} |
@@ -201,17 +244,17 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 
 号没认出来的（没带 `X-Self-ID`、还没来事件）用不带 `-as` 的那一句，不写括号那一段。
 
-**守着它的**（`crates/miyu-onebot/tests/`，O-8；假的 NapCat 是测试里的一个 WebSocket 客户端，核心照别的头的测试起一个真的。O-18 起在进程里跑的桥经内存里的管道连核心：测试那一头把握手补上本机令牌、经本机套接字交给核心，核心那一头照常是 `miyu_endpoint::serve`）
+**守着它的**（`crates/miyu-onebot/tests/`，O-8；假的 NapCat 是测试里的一个 WebSocket 客户端，核心照别的头的测试起一个真的。O-18 起在进程里跑的桥经内存里的管道连核心：测试那一头把握手补上本机令牌、经本机套接字交给核心，核心那一头照常是 `miyu_endpoint::serve`。O-20 起测试那一头还在握手的回应里填上 `config`（照核心拉起扩展时交的样子），要改配置的照推送的样子往桥那一头写 `extension.config`；测试里的核心照出厂的清单拼进包的配置项，和真核心起来时一样）
 
 - 令牌：三种出示法都认；不对 401（差一个字、多一个字、空的也算）；没出示 401。路径不对 404。端口被占了说是哪个端口。（`listen.rs`）
 - 算出来的 `Sec-WebSocket-Accept` 放不进头的回 400、不说升级；放得进的回 101，值照 RFC 6455 的例子。（`src/listen/tests.rs`）
 - 发回话的任务崩了，交回「出了错」带原话，桥停下；好好结束的接着办。（`src/core/route/tests.rs`）
 - 握手的回应没带 `language`：照连不上核心退，原因里写明。假的核心只回 `hello`。（`core.rs`）
 - 管道（O-18）：核心关了管道（读到头），桥好好停下；握手不带凭据、报 `onebot`；`hello_seconds` 里等不到回应说 `failure/not-spawned`。（`pipe.rs`）
-- 真的程序 `serve`（O-18）：测试当核心，经它的标准输入输出握手：握手不带凭据，标准输出上每一行都是协议的请求；关了标准输入 5 秒内退出、退出码 0；`-h`、`--help` 印用法到标准输出、退出码 0。（`stdio.rs`）
-- 真核心拉起真的桥（O-18，测试程序里的核心照出厂的清单拉起硬链接在测试程序旁边的 `miyu-onebot`）：`start` 以后在跑、NapCat 连得进来、主人私聊来回，`status` 说在跑、NapCat 连着、两个地址；`stop` 以后桥退出、端口关了、`status` 说关着；桥被杀掉，核心拉起新的一个，NapCat 重连得上；端口被占，核心停下、`status` 说配置错、带出「端口被占」那一句；`restart` 关着的照核心的原话拒绝。（`spawned.rs`）
+- 真的程序 `serve`（O-18）：测试当核心，经它的标准输入输出握手：握手不带凭据，标准输出上每一行都是协议的请求；关了标准输入 5 秒内退出、退出码 0；`-h`、`--help` 印用法到标准输出、退出码 0。握手回应交的 NapCat 端口被占：标准错误上只有一句，照握手回的语言（测试的系统语言是英文、握手回中文）说是哪个端口被占，退出码 1（O-20）。（`stdio.rs`）
+- 真核心拉起真的桥（O-18，测试程序里的核心照出厂的清单拉起硬链接在测试程序旁边的 `miyu-onebot`）：`start` 以后在跑、NapCat 连得进来、主人私聊来回，`status` 说在跑、NapCat 连着、两个地址；`stop` 以后桥退出、端口关了、`status` 说关着；桥被杀掉，核心拉起新的一个，NapCat 重连得上；端口被占，核心停下、`status` 说配置错、带出「端口被占」那一句；`restart` 关着的照核心的原话拒绝。O-20：桥照握手交的端口开监听；不重启，`secret.set` 只换令牌的值、`config.set` 把令牌换成引用别的密钥，新的进得来、旧的 401，已经连着的那一条照样收发；`config.set` 换 NapCat 的端口、WebUI 的端口，当场换，旧的关了，状态文件和 `status` 跟着说；`config.set` 删了令牌，以后连进来的一律 401。（`spawned.rs`）
 - `status` 说的（O-18）：关着、正在起来、在跑（状态文件的进程号对得上才说 NapCat 和地址，对不上、读不懂的不说）、退避中（毫秒进成整秒）、停下的每一种原因和标准错误一行行缩进、不认识的原因照原样、不认识的状态；核心那边没有这个包。（`control.rs`）
-- 状态文件（O-18）：听上了就写，进程号、两个端口、NapCat 没连着；连上以后说号和实现，只从第一条事件认出号的也写，断了说没连着（`status_file.rs`）；`/apply` 换了端口跟着换（`apply.rs`）。
+- 状态文件（O-18）：听上了就写，进程号、两个端口、NapCat 没连着；连上以后说号和实现，只从第一条事件认出号的也写，断了说没连着（`status_file.rs`）；推送换了端口跟着换（`apply.rs`）。
 - `logs`（O-18）：只有运行日志的原样印；标准错误有内容的先印它、各带标题；还没有运行日志的说一句；`-f` 接着印新写的行，文件换了从头读。（`logs.rs`）
 - 主人的私聊走一遍：假 NapCat 发一条私聊，核心里那个场所会话收到一条 `by` 是主人本人、带 `via` 的消息，命令编号是 `qq:<机器人的号>:<消息编号>:<时刻>`；她回了一句，假 NapCat 收到 `send_private_msg`，字对得上。用核心的测试模型替身。（`private.rs`，下面三条同）
 - 同一条消息发两次，会话里只有一条；同一个消息编号、时刻不同的是两条，都送进去、都回。没带 `time` 的照样送进去，命令编号的时刻是 `0`。
@@ -223,12 +266,12 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 - 桥重启以后，以前的回复不再发一遍。
 - 调用等了给的时限（测试给 3 秒，和出厂的不一样）还等不到算失败，到时以前还在等；连接断了在等的算失败；同时在等的几个照 `echo` 各拿各的。（`calls.rs`，钟停住，照停住的钟算）
 - 出厂的 `bridge.json` 读得进、数和上面的表一样；队列写 0、多一格、少一格、不是 JSON、没有文件，都读不进来，说是哪个文件。（`tuning.rs`）
-- 三种语言里桥说的每一句都换得出来；中文照上面的表、字段换进去；日文和英文一字不差；换语言照新的说；读配置以前照系统的语言。（`texts.rs`）
+- 三种语言里桥说的每一句都换得出来；中文照上面的表、字段换进去；日文和英文一字不差；换语言照新的说；握手以前照系统的语言（`zh`、`ja` 开头的照它，别的英文）。（`texts.rs`）
 - 文字怎么读出来：别的段跳过；CQ 码去掉，`&amp;` 最后换。（`text.rs`）
 - 编号：场所、平台上的人和群聊内核拼的一样（`qq:private:<号>`、`qq:<号>`，解得回原样）；命令编号带时刻，同一个消息编号、时刻不同的两条编号不同；`time` 是整数、写成整数的字符串都认，没带、读不出（`null`、不是数的字、小数）的是 `0`。（`ids.rs`）
-- 读配置：令牌读成三种：没写引用、写了引用取不到（密钥没存、环境变量没设）、取到了，都照样读得出来（O-16 补、补二）；照密钥文件、环境变量取；端口不写是 8301；握手以前的语言照 `ui.language`。（`settings.rs`）
-- 令牌没设（O-16 补、补二）：桥照样起来，两个端口都开，先说在哪等 NapCat、再说 `notice/no-token`；NapCat 连进来 401；经核心的 `secret.set`、`config.set` 写进令牌（照页面的办法），不重启，NapCat 下一次连就通。再换一个：新的连得进、旧的 401，已经连着的那一条照样收发。真的程序 `miyu-onebot serve` 也这样起来（O-18 起测试当核心，经它的标准输入输出握手；标准错误、运行日志各一句），改配置文件以后 `/status` 的 `token` 从 `none` 变 `missing`、`set`，NapCat 不用重启就连上，`/token` 交出值、运行日志里没有这个值；`miyu-onebot web --print` 照常印出网址。（`no_token.rs`）
-- 令牌对不上时的重读有节流（O-16 补二）：一直拿错的连，`reload_seconds` 里只读一次配置。（`apply.rs`）
+- 握手交来的配置（O-20）：两个端口照交来的；没有的、`null` 的、不是 0 到 65535 的整数的照清单的默认值；令牌是字的照它、去掉前后空白，没有的、`null`、空的、不是字的是没有；推来的只换带了的键，别的键不认；出厂清单的默认值是 8301、8302，清单不在、没写默认值的读不出来、说是哪个文件。（`settings.rs`）
+- 令牌没设（O-16 补、补二，O-20 改）：桥照样起来，两个端口都开，先说在哪等 NapCat、再说 `notice/no-token`；NapCat 连进来 401；推来令牌，不重启，NapCat 下一次连就通。再换一个：新的连得进、旧的 401，已经连着的那一条照样收发；推来 `null`：一律 401。真的程序 `miyu-onebot serve` 也这样起来（测试当核心，经它的标准输入输出握手、推送；标准错误、运行日志各一句），推来令牌以后 `/status` 的 `token` 从 `none` 变 `set`，NapCat 不用重启就连上，`/token` 交出值、运行日志里没有这个值；`miyu-onebot web --print` 照状态文件里的端口印出网址。（`no_token.rs`）
+- 依赖（O-20）：`cargo metadata` 里 `miyu-onebot` 的依赖（开发依赖不算）没有 `miyu-core`、`miyu-endpoint`（18 第一节「桥不依赖核心的 crate」）。（`dependencies.rs`）
 
 **施工时定的**（O-8）
 
@@ -239,7 +282,7 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 | 3 | NapCat 必须带令牌；没设时桥照样起来，NapCat 的端口照开、连进来一律 401，设了不用重启（O-16 补，2026-10-07；补二，2026-10-08 项目主人定） | 18 第三节「默认只接本机，并且要带访问令牌」「还没配好就 `start`：桥只开 WebUI，不连 NapCat，等配好」：第一次用在 WebUI 里生成令牌，不用先上命令行；端口先开着，令牌一设 NapCat 下一次连就通（第二条「施工时定的」第 18 条） | 本机连进来的可以不带；令牌没设就不起来（O-8 原来的做法：WebUI 也打不开，和 18 第三节对不上）；令牌没设不开 NapCat 的端口（O-16 补的做法：设了要重启才开） |
 | 4 | 订阅不写 `after` | 桥重启不重发旧回复；漏发的由以后的出站队列补 | 记住看到哪条、重启接着推 |
 | 5 | 核心断了桥就退（O-18 做了：标准输入读到头就停，崩了由核心退避重启，第 21 条） | 9-4 以后核心拉起，崩了照退避重起；桥里不另写一套重连 | 桥自己重连核心 |
-| 6 | 桥自己读系统配置和密钥文件，用核心那一份读配置的代码（`Config::load`，照核心登记的全部清单），只读 | 密钥从不经协议交出去（`config.md` 第九条），令牌要用值；读配置在连核心以前。**权宜**：为此依赖了 `miyu-core`、`miyu-endpoint`，和 18 第一节「不依赖核心的 crate」不一样；O-18 起由核心拉起，读配置照旧是这段权宜；9-4（下）握手时把这个包的设置连同密钥的值经标准输入交给它，到时去掉这两个依赖。代价：桥读配置只认核心登记的清单，系统配置里写了软件包的键（例如 `web.port`）时，`onebot.log` 记一条不认识的键的 `WARN`，值照读；随这段权宜在 9-4（下）一起去掉（2026-10-08） | 经 `config.get` 读：拿不到密钥的值 |
+| 6 | **已去掉（O-20，2026-10-09）**：桥不读系统配置和密钥文件，用核心交的：握手回应的 `config`、推送 `extension.config`（`extensions.md`「配置」，核心那一头 9-4 下下），只在核心亲手拉起、走标准输入输出的连接上给，密钥是真值（`config.md` 第九条的例外）；不再依赖 `miyu-core`、`miyu-endpoint`（18 第一节「不依赖核心的 crate」）。原来（O-8 到 O-19）是权宜：桥用核心那一份读配置的代码（`Config::load`，照核心登记的全部清单）自己读，只读，令牌对不上时重读（O-16 补二）；系统配置里写了软件包的键时 `onebot.log` 记一条不认识的键的 `WARN`，随它一起没了 | 密钥不经头的协议交出去，桥要用令牌的值；握手正好在开监听以前，回应里带上配置，起来时就有 | 经 `config.get` 读：拿不到密钥的值；桥自己读盘（原来的权宜） |
 | 7 | 两项放在高级页的「QQ 桥」组（`onebot`），排在「运行日志」后面 | 页的先后不变；一个桥一组，以后的几项跟着进来 | 放进权限页「平台账号」组：端口不是权限 |
 | 8 | 会话不在了：`session_not_found`、`session_stopped` 都忘掉、再问一次 `venue.session`、再发一次，只重来一次；推来 `resync` 的再订阅一次（不写 `after`） | 会话被删、停了都是这个场所以后还要说话；只重来一次不会打转 | 只认 `session_not_found`：会话停了以后这个私聊就一直发不进去 |
 | 9 | 发进去的字照原样；去掉首尾空白是空的才不送 | `session.send` 照原样成一块文字 | 先去掉首尾空白再发 |
@@ -287,9 +330,25 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 |---|---|---|---|
 | 37 | 真的程序起桥的测试（`spawned.rs`、`stdio.rs`、`no_token.rs`、`commands.rs` 记运行日志那一个）照 `support/ports.rs` 的 `on_free_ports` 跑：桥退出、标准错误说的正是挑的那两个端口被占了，这一组作废、换一组从头再来，最多 5 次；别的原因退出照旧当失败。等桥起来看状态文件的进程号是它的（两个端口都绑上才写），不看端口连不连得上。`/apply` 换到挑的空端口、回 409 说的正是它的，换一个再来；要「没人听的端口」的（`open.rs`）绑着不听、用完才放 | `free_port` 挑来马上放掉，过一阵真的程序才去绑；负载高时这个号被别的测试先拿走（进程里的桥照端口 0 让系统挑），桥说端口被占、退出码 1，测试偶发红。同时跑 6 份测试程序复现过（18 份里红 3 份，都是端口被占）。看端口连不连得上会把别人听着的当成桥 | 挑端口改成固定的号段：几份测试程序、别的会话同时跑照样撞；桥绑端口 0、测试读状态文件拿端口：`spawned.rs` 要测配置里写的端口 |
 
+**施工时定的**（O-20，2026-10-09；施工单「要定的」三条照推荐定：握手回应里没有端口的照清单的默认值、`/apply` 施工时看（留着）、端口当场生效）
+
+| # | 定了什么 | 为什么 | 没选 |
+|---|---|---|---|
+| 38 | 握手回应里没有端口的（`null`、不是 0 到 65535 的整数的也算）照清单 `[settings]` 的默认值：起来时读资源目录里自己的清单（`miyu_store::packages` 出厂那一层的 `onebot`，`miyu_config::package` 读成样子），读不出来的起不来 | 核心交的是最终值，正常一定有；真没有就照默认值，不另起一套数，清单是唯一的那一份 | 起不来；在 `bridge.json` 里另写一份默认值 |
+| 39 | `/apply` 留着，改成「照桥手里最新的配置换端口」：推送来了桥已经照它换了的，`/apply` 再照一次什么都不换，回实际听的两个端口；推送来时新端口被占、没换成的，`/apply` 再试一次，还被占回 409 和是哪个 | 页面存了端口要等换完的结果：WebUI 的端口换了要跳到新地址、被占了要说是哪个；只看 `/status`，页面得自己猜什么时候换完，页面这一步不改（`resources/software/onebot/web/` 不动）。页面的 `config.set` 回来以前，核心已经换上新的一份配置、叫醒了推送；回应还要经页面、浏览器再回到桥，推送先到。WebUI 的端口被推送换掉以后，页面这一次 `/apply` 走旧地址，回 403（Host 照新端口核对）或者连不上：页面照刚存的端口跳（第二条「施工时定的」第 37 条，无头浏览器里试出来的） | 去掉 `/apply`，页面照 `/status` 看换没换完（页面要改，还要猜等多久） |
+| 40 | 两个端口的生效时机改成 `now`：推送来了当场换，照 `/apply` 的办法 | 桥收得到推送，不用再说「下次启动时」；命令行改的也当场换 | 照旧 `head_start` |
+| 41 | `/status` 的 `token` 只剩 `set`、`none`：没写引用、引用取不到，核心都不交（`extensions.md`「配置」第 2 条），桥分不出 | 照核心交的说，不另要；页面原来照 `missing` 说「引用的取不到」，现在两种都说「没设」，`missing` 那一支和 `web/token/missing` 一起删掉（页面照 `config.get` 里写没写引用分得出，要分的时候再加） | 请核心把取不到的另交一个记号（核心的形状要改） |
+| 42 | 握手以前不读配置、不说话：起不来的照系统的语言说一句；运行日志装不上的那一句等握手回了语言再说；握手回了语言就照它说，端口被占那一句也是（`run` 多一个参数：握手回了语言叫一声） | 核心拉起的桥，握手以前没有配置可读；O-19 时发现端口被占那一句照的是握手以前的语言（`main.rs` 只在「听上了」那一刻换） | 只在「听上了」那一刻换（原来的做法）；端口被占那一句自己带上语言 |
+| 43 | `miyu-onebot web` 照状态文件的 `web` 找桥的网页，没有状态文件的照清单的默认值；`open/not-running` 去掉「改过 onebot.web 的，miyu onebot restart」 | 桥不再自己读配置；状态文件写的是桥实际听的端口（推送、`/apply` 换过的照换过的），比配置里写的准（新端口被占、没换成的，配置里是新的、桥还在旧的上）；端口改了当场换，不用 `restart` | 经核心的 `config.get` 问 `onebot.web`（要先连核心，桥没在跑也拉起核心；被占没换成时问到的不对） |
+| 44 | `start`、`stop`、`restart`、`status`、`logs` 握手以前照系统的语言，不再读 `ui.language`；系统的语言照 `zh`、`ja` 开头的认，别的英文，和核心照 `locale` 算的一样，写在 `texts.rs` | 桥不读配置；`start` 这几样握手以后照核心回的语言说（照旧），握手以前只有连不上核心那一句；`logs` 只说标题和「还没有」那一句 | 经核心问语言（`logs` 不连核心） |
+| 45 | 推来的 `extension.config` 由跟核心的那一头（`core/route.rs`）交给 `serve.rs`：令牌当场换上；两个端口变了另起一个任务照 `/apply` 的办法换 | 拿着跟核心的连接的只有那一个任务，它够不着监听；换端口和 `/apply` 是同一段代码（`web/apply.rs` 的 `latest`），同时来的几次锁着一个一个办，每次照这时手里最新的 | 跟核心的那一头自己换端口 |
+| 46 | 两个端口的说明去掉「在 QQ 桥的网页上改、保存的，当场生效」，别的照核心那一份原样搬 | 生效时机改成 `now`，参考文件自己写「当场生效」；只说网页上的，像是命令行改的不当场生效 | 一字不改地搬过来 |
+| 47 | 测试：测试里的核心照出厂的清单拼进包的配置项（`miyu-core` 的 `Packaged`，和真核心起来时一样；`miyu-core` 挪进开发依赖）；进程里跑的桥，测试那一头的转接在握手的回应里填 `config`，要改配置的照推送的样子写 `extension.config`；真核心拉起真桥的测试守着核心真的交、真的推 | 握手交配置、推送只给核心亲手拉起的连接，进程里跑的桥连的是本机套接字，核心不给；转接照样子填，桥的代码走的是同一条路 | 核心为测试公开「当成亲手拉起的」入口 |
+| 48 | 依赖照 `cargo metadata` 查（测试 `dependencies.rs`） | 施工单验收第 1 条；分层门禁只管层，第 5 层依赖第 4 层是允许的，和门禁读同一份 | 改分层门禁（全仓的规则，不为一个包加） |
+
 ### 二、WebUI（施工 O-16 起）
 
-`miyu-onebot` 自己的配置页（`docs/designs/18-通讯平台.md` 第三节、Q18）：桥进程开一个只听本机的 HTTP 端口，给页面、把 `/ws` 原样转给核心。页面自己说核心协议：用户名、密码登录（核心验，`web-module.md` 第一条 W-8），改配置、存密钥调核心现成的 `config.set`、`secret.set`，校验只在核心那一处。只有桥自己知道的由桥另给：只读的 `/status`（NapCat 连没连上、是哪个实现、令牌设没设）、`/token`（令牌的值），和让桥当场照新配置的 `/apply`（O-16 补二）。终端界面、网页软件的设置页里只有一行「QQ：打开 miyu-onebot」，不画 QQ 的配置。
+`miyu-onebot` 自己的配置页（`docs/designs/18-通讯平台.md` 第三节、Q18）：桥进程开一个只听本机的 HTTP 端口，给页面、把 `/ws` 原样转给核心。页面自己说核心协议：用户名、密码登录（核心验，`web-module.md` 第一条 W-8），改配置、存密钥调核心现成的 `config.set`、`secret.set`，校验只在核心那一处。只有桥自己知道的由桥另给：只读的 `/status`（NapCat 连没连上、是哪个实现、令牌设没设）、`/token`（令牌的值），和照桥手里最新的配置换端口的 `/apply`（O-16 补二，O-20 改）。终端界面、网页软件的设置页里只有一行「QQ：打开 miyu-onebot」，不画 QQ 的配置。
 
 状态：图纸，2026-10-07 起草，项目主人过目（登录用 Miyu 网页的账号、先做两页，照推荐定）。O-16 做好了骨架和「连接」页（施工时补的见「施工时定的」第 7 到 13 条；没设令牌也起来、在「连接」页生成第一个，见第 14 到 16 条）。2026-10-08 项目主人在自己的 NapCat 上试过以后改了四处（补二，第 17 到 24 条）：令牌随时能看能复制、没令牌时页顶写清三步、改了令牌和端口当场生效不用重启、地址写短的 `/ws`。O-17 做好了「主人与自己人」页（施工时补的见「施工时定的」第 25 到 36 条）；场所和规则、平台工具、插件、日志几页等群接通以后再做。
 
@@ -299,13 +358,13 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 
 | 什么 | 说明 |
 |---|---|
-| 配置 `onebot.web` | WebUI 的端口，整数 1024 到 65535，出厂 8302（网页软件 8300、NapCat 8301，挨着好记），只能写在系统配置；在「连接」页保存当场换（`/apply`），命令行改的桥下次起来时生效（O-16 补二）。照 `onebot.listen` 的先例先由核心声明，9-1 挪进清单 |
-| 配置 `onebot.trusted`（O-17） | 自己人：平台身份的列表（`["qq:20017"]`），元素是文字、最多 128 个字；没有默认值，不写的当没有自己人；只能写在系统配置；生效时机 `now`。在「主人与自己人」页上整张写回。现在桥还不读（桥接群、算「发的人是谁」时读，`chat.md`「发的人是谁」），照 `onebot.listen` 的先例先由核心声明 |
+| 配置 `onebot.web` | WebUI 的端口，整数 1024 到 65535，出厂 8302（网页软件 8300、NapCat 8301，挨着好记），只能写在系统配置；改了当场换：核心推过来，桥照 `/apply` 的办法换（O-20，原来命令行改的要等桥下次起来）。在清单的 `[settings]` 里（O-20，第一条「软件包清单」；原来照 `onebot.listen` 的先例由核心声明） |
+| 配置 `onebot.trusted`（O-17） | 自己人：平台身份的列表（`["qq:20017"]`），元素是文字、最多 128 个字；没有默认值，不写的当没有自己人；只能写在系统配置；生效时机 `now`。在「主人与自己人」页上整张写回。现在桥还不读（桥接群、算「发的人是谁」时读，`chat.md`「发的人是谁」）。在清单的 `[settings]` 里（O-20；原来照 `onebot.listen` 的先例由核心声明） |
 | `GET /` 和页面文件 | 页面在 `resources/software/onebot/web/`，规矩照网页软件（`..`、跑到目录外的、不是普通文件的 404；类型照扩展名；响应头带 `nosniff`、`no-referrer`、`no-cache`、内容安全策略） |
 | `GET /ws` | 原样转给核心，和网页软件的 `/ws` 一样（一帧一行、Origin 要对、1 MiB 上限、核心断了关 1012） |
-| `GET /status` | 只读，`Authorization: Bearer <登录令牌>`；桥拿这个令牌去和核心握手，核心认了才回，不认 401；连不上核心 502；`GET` 以外 405。每次重读一次配置（`Config::load`），桥手里的令牌照读到的换上（第一条第 2 条）。回 `{"napcat": {"connected": 布尔, "implementation": 字, "version": 字, "self_id": 字}, "listen": 端口, "web": 端口, "token": "set" \| "none" \| "missing", "platform": "qq"}`，`Cache-Control: no-store`；没连着的 `napcat` 只有 `connected: false`；连着、还没问到是哪个实现的，没有 `implementation`、`version`。连着几个号的，说号最小的那一个。`listen`、`web` 是实际听的端口（`/apply` 换过的照换过的）。`token`：取到了值、没写引用、写了引用取不到（引用的密钥没存、环境变量没设）；配置读不出来（走不到）的照桥手里的说（O-16 补二：去掉 `restart_needed`，`listen` 不再有 `null`，「施工时定的」第 6、14 条）。`platform` 是桥的平台名（第一条的 `PLATFORM`），「主人与自己人」页照它拼 `qq:<号>`（O-17，「施工时定的」第 26 条） |
-| `GET /token` | 要登录，和 `/status` 一样（不带、带错 401，连不上核心 502，`GET` 以外 405）。重读一次配置，回桥手里的令牌 `{"token": "<值>"}`，没有的 `{"token": null}`；`Cache-Control: no-store`；运行日志只记一行 `INFO web token read`，不记值（O-16 补二，「施工时定的」第 17 条） |
-| `POST /apply` | 要登录，同上；`POST` 以外 405。桥重读配置，令牌照新的；两个端口里和上一次照的（配置里写的那个）不一样的，先开新的，都开上了才关旧的、换上新的，回 `{"listen": 端口, "web": 端口}`（实际听的）。新的开不了的回 409 `{"in_use": 端口}`，两个端口都不换、旧的照旧开着，令牌照样换上；配置读不出来（走不到）回 500。已经连着的（NapCat 的那一条、页面正在用的连接）不断（O-16 补二，「施工时定的」第 19 条） |
+| `GET /status` | 只读，`Authorization: Bearer <登录令牌>`；桥拿这个令牌去和核心握手，核心认了才回，不认 401；连不上核心 502；`GET` 以外 405。照桥手里最新的配置答，不读盘（O-20）。回 `{"napcat": {"connected": 布尔, "implementation": 字, "version": 字, "self_id": 字}, "listen": 端口, "web": 端口, "token": "set" \| "none", "platform": "qq"}`，`Cache-Control: no-store`；没连着的 `napcat` 只有 `connected: false`；连着、还没问到是哪个实现的，没有 `implementation`、`version`。连着几个号的，说号最小的那一个。`listen`、`web` 是实际听的端口（换过的照换过的：推送来的、`/apply` 的）。`token`：桥手里有令牌的 `set`，没有的 `none`（O-20：没写引用、引用取不到，核心都不交，分不出，原来的 `missing` 没了，第一条「施工时定的」第 41 条；O-16 补二：去掉 `restart_needed`，`listen` 不再有 `null`，「施工时定的」第 6、14 条）。`platform` 是桥的平台名（第一条的 `PLATFORM`），「主人与自己人」页照它拼 `qq:<号>`（O-17，「施工时定的」第 26 条） |
+| `GET /token` | 要登录，和 `/status` 一样（不带、带错 401，连不上核心 502，`GET` 以外 405）。回桥手里最新的令牌 `{"token": "<值>"}`（不读盘，O-20），没有的 `{"token": null}`；`Cache-Control: no-store`；运行日志只记一行 `INFO web token read`，不记值（O-16 补二，「施工时定的」第 17 条） |
+| `POST /apply` | 要登录，同上；`POST` 以外 405。照桥手里最新的配置换端口（O-20，不读盘）：两个端口里和上一次照的（配置里写的那个）不一样的，先开新的，都开上了才关旧的、换上新的，回 `{"listen": 端口, "web": 端口}`（实际听的）。新的开不了的回 409 `{"in_use": 端口}`，两个端口都不换、旧的照旧开着。已经连着的（NapCat 的那一条、页面正在用的连接）不断（O-16 补二，「施工时定的」第 19 条）。推送来的端口变化桥自己照这个办法当场换（第一条第 1 条），换好了的，`/apply` 什么都不换、回实际听的；推送来时被占、没换成的，`/apply` 再试一次（第一条「施工时定的」第 39 条）。WebUI 的端口被推来的换掉以后，旧地址上来的请求 Host 对不上新端口，照 Host 的规矩回 403（页面照刚存的端口跳，「施工时定的」第 37 条） |
 | `GET /human` | 登录以前页面要的字（O-16 施工时补，「施工时定的」第 7 条）：不要登录，`{"language": <桥的语言>, "said": {<编号>: <模板>}}`，只有 `software/onebot/web/` 开头的；`GET` 以外 405 |
 | `miyu-onebot web [--print]` | 桥要在跑（`miyu onebot start`，「施工时定的」第 5 条），令牌设没设都一样：开浏览器到 WebUI；还没设过登录密码的，照 `miyu web` 带上一次性码（`web-ui.md` 第二条）；`--print`、交不给浏览器的印网址 |
 | 给人看的字 | 页面里的字照 `human.get` 取（核心和软件包的 `human/*.json` 合成的一份，`web-module.md`），桥的字在 `software/onebot/human/` 里，编号前缀 `software/onebot/`；登录以前照 `/human` |
@@ -399,8 +458,8 @@ NapCat 那边要填的
    - 没令牌时（`/status` 的 `token` 不是 `set`）页顶一段三步：① 生成令牌；② 把地址和令牌填进 NapCat 的「WebSocket 客户端」，消息格式选数组；③ 等几秒，NapCat 那一行变成「已连上」。出来了就留着（令牌设好了第一步打勾），NapCat 连上了才收起，这一页里不再出来（O-16 补二，「施工时定的」第 22 条）。
    - NapCat 的状态照 `/status`，每 5 秒取一次。
    - 地址照 `ws://127.0.0.1:<onebot.listen>/ws` 拼（短的那个，O-16 补二），「复制」把它放进剪贴板。
-   - 令牌照 `/status` 的 `token`（O-16 补二，「施工时定的」第 16、17 条）：`set` 的那一行「已设 ········」（照环境变量的写「照环境变量 <名字>」），三个按钮：「显示」取 `/token` 把值显示在那一行（按钮变「收起」，再按收起）；「复制」取 `/token` 放进剪贴板；「换一个」先在页面里的对话框问一句（NapCat 那边也要跟着换；「取消」「换一个」，先停在「取消」上）再生成。`none`、`missing` 的那一行说没设、引用的取不到，只有一个主按钮「生成」，不先问。生成：页面生成 32 个随机字节（十六进制），`secret.set` 存成 `onebot`，`config.set` 把 `onebot.token` 写成 `{ secret = "onebot" }`，再取 `/token` 显示出来：取的时候桥重读配置，令牌当场照新的（第一条第 2 条）。
-   - 端口：`config.set` 写 `onebot.listen`、`onebot.web`；写错的核心回问题，页面照原话说。写好了调 `/apply`：NapCat 的端口换了，说一句去 NapCat 里改地址；WebUI 的端口换了，先说一句（登录记在浏览器里、按地址分，到新地址要重新登录一次），再跳到新地址；被占了说哪个端口被占、桥照旧用原来的（O-16 补二，「施工时定的」第 21 条）。
+   - 令牌照 `/status` 的 `token`（O-16 补二，「施工时定的」第 16、17 条）：`set` 的那一行「已设 ········」（照环境变量的写「照环境变量 <名字>」），三个按钮：「显示」取 `/token` 把值显示在那一行（按钮变「收起」，再按收起）；「复制」取 `/token` 放进剪贴板；「换一个」先在页面里的对话框问一句（NapCat 那边也要跟着换；「取消」「换一个」，先停在「取消」上）再生成。`none` 的那一行说没设，只有一个主按钮「生成」，不先问（O-20 起没写引用、引用取不到都是 `none`，原来 `missing` 那一行「引用的取不到」随之去掉，第一条「施工时定的」第 41 条）。生成：页面生成 32 个随机字节（十六进制），`secret.set` 存成 `onebot`，`config.set` 把 `onebot.token` 写成 `{ secret = "onebot" }`，再取 `/token` 显示出来：核心换上新配置时就把新令牌推给桥（`extension.config`），桥当场照新的（第一条第 1、2 条，O-20）。
+   - 端口：`config.set` 写 `onebot.listen`、`onebot.web`；写错的核心回问题，页面照原话说。写好了调 `/apply`（核心已经把新端口推给桥、桥多半已经换好，`/apply` 回实际听的，O-20）：NapCat 的端口换了，说一句去 NapCat 里改地址；WebUI 的端口换了，先说一句（登录记在浏览器里、按地址分，到新地址要重新登录一次），再跳到新地址；被占了（409）说哪个端口被占、桥照旧用原来的（O-16 补二，「施工时定的」第 21 条）。桥已经换到新的 WebUI 端口的，页面这一次 `/apply` 走的是旧地址，回 403（Host 对不上新端口）或者连不上：页面照刚存的端口说那一句、跳过去（O-20，「施工时定的」第 37 条）。
 4. **主人与自己人页**（O-17）：
    - 进这一页时 `config.get` 读一遍（不写 `keys`：全部，键里有人起的名字的照真的键列；「连接」页也照它）。平台的名字照 `/status` 的 `platform`；还没取到 `/status` 的先说「正在连」，取到了再画（「施工时定的」第 26、33 条）。
    - **主人**：`external.bindings` 下键是 `<平台>:<号>` 的每一格，一行一个号对一个账号；别的平台的不画、不碰。号只收数字，平台前缀由页面照桥的平台名拼（`qq:<号>`）。账号的下拉：协议里没有列账号的方法，下拉里是握手回的账号（核心里固定是 `admin`），加上表里已经写着的别的账号（手写的照原样留着，「施工时定的」第 27 条）；新加的一行照握手回的账号。保存时照改动发一条 `config.set`（`layer: "system"`，几项一起）：加的、改了账号的写 `external.bindings."qq:<号>" = "<账号>"`，删的恢复默认（`unset: true`，去掉这一格）。只写系统配置。
@@ -408,9 +467,9 @@ NapCat 那边要填的
    - 号：去掉前后的空白；空着的行不算（保存时当没有这一行，也不标）；不是 1 到 20 位数字、以 0 开头的标出来；同一张表里号重复的都标出来；有标着的不让存（「施工时定的」第 28 条）。表里手写的 `qq:` 后面不是数字的照样画出来、标着，删掉或者改对了才能存。
    - 两张表各有一个「保存」，没改动、有标着的行时灰着。存好了在那一张表下面说「存好了」，照 `config.get` 重读，只重画这一张表，另一张没存的改动留着（第 31 条）。核心回问题（`config_invalid`、还没设好密码的 `setup_first` 这些）照原话说在那一张表下面（`web/failed`），表里的东西不丢。
    - 表空着时：主人表写一句先做什么（「加一个」、填上自己的号、「保存」），自己人表写「还没有自己人」。主人表下面折起来一段「号被盗的代价」（`<details>`，18 第三节的三条），给人看的字。
-   - 生效：`external.bindings` 核心当场照新的认（`config.md` 那一行的 `now`）；`onebot.trusted` 现在桥还不读（桥接群、算「发的人是谁」时才读），生效时机写 `now`，到时桥照 O-16 的办法当场重读，自己人那张表下面先写一句「QQ 桥接通群以后才照这张表认人」（第 32 条），桥接群那一步去掉。页面都不提示重启。
+   - 生效：`external.bindings` 核心当场照新的认（`config.md` 那一行的 `now`）；`onebot.trusted` 现在桥还不读（桥接群、算「发的人是谁」时才读），生效时机写 `now`，到时照核心推来的当场用（O-20），自己人那张表下面先写一句「QQ 桥接通群以后才照这张表认人」（第 32 条），桥接群那一步去掉。页面都不提示重启。
    - 左栏的「主人与自己人」点得进，「连接」点得回；在哪一页只记在页面里，重新载入回到「连接」（第 34 条）。窄屏点了左栏的一页，抽屉收起。
-5. **运行日志**：照桥的 `state/logs/onebot.log`，只记 WebUI 起来、登录成功或失败的次数、取过令牌（`/token`，O-16 补二）、`/apply` 换了哪个端口，不记密码、令牌、一次性码。
+5. **运行日志**：照桥的 `state/logs/onebot.log`，只记 WebUI 起来、登录成功或失败的次数、取过令牌（`/token`，O-16 补二）、换了哪个端口（推送来的、`/apply` 的），不记密码、令牌、一次性码。
 
 **在哪**、**改了谁**：见第一条「在哪」标 O-16 的几行；共用的底子 `crates/miyu-webserve/`（`webserve.md`，第 3 层，从 `miyu-web` 原样搬来，搬家表在那一页）。
 
@@ -419,14 +478,13 @@ NapCat 那边要填的
 | 情况 | 怎么办 |
 |---|---|
 | WebUI 的端口被占（`serve`） | `failure/web-port-in-use`：哪个端口被占了、改 `onebot.web`；退出码 1 |
-| `onebot.web` 读不出来（走不到） | `unready/bad-web-port`，退出码 1 |
 | Host 不对 | 403，运行日志 `WARN web rejected host=… origin=…` |
 | `/ws` 的 Origin 不对、连不上核心 | 照网页软件：403；`web.error` 通知再关（`web-ui.md` 第一条第 7 款） |
 | `/status`、`/token`、`/apply` 没带、带错登录令牌 | 401，运行日志 `WARN web login refused`（带对的、要和核心握手的记 `INFO web login accepted`）；连不上核心 502，`WARN core unreachable` |
 | `/apply`：新端口开不了 | 409 `{"in_use": 端口}`，两个端口都不换、旧的照旧开着；`WARN apply port in use`（O-16 补二） |
-| 重读配置读不出来（走不到） | 桥手里的令牌不动，`WARN config not readable`；`/apply` 回 500（O-16 补二） |
+| 推送来的端口开不了（O-20） | 同上：两个端口都不换、旧的照旧开着，`WARN apply port in use`；页面接着调的 `/apply` 再试一次、回 409 |
 | `/human` 字读不懂 | 500，`WARN human not read` |
-| `miyu-onebot web`：WebUI 的端口上连不上 | `open/not-running`，退出码 1 |
+| `miyu-onebot web`：WebUI 的端口上连不上（端口照状态文件，没有状态文件的照清单的默认值，O-20） | `open/not-running`，退出码 1 |
 | `miyu-onebot web`：连不上核心、要不到一次性码 | `failure/core`，退出码 1 |
 | 令牌没设（`serve`、`web`） | 不算错（O-16 补、补二）：`serve` 照常开两个端口，说 `notice/no-token`，运行日志 `WARN no token yet`，NapCat 连进来 401；`web` 照常打开，人在「连接」页生成令牌，NapCat 下一次连就通 |
 
@@ -436,15 +494,14 @@ NapCat 那边要填的
 |---|---|---|---|
 | `notice/web` | 起来了 | QQ 桥的网页在 http://127.0.0.1:{port}，用 miyu-onebot web 打开。 | The QQ bridge web page is at http://127.0.0.1:{port}; open it with miyu-onebot web. |
 | `failure/web-port-in-use` | WebUI 的端口被占 | 端口 {port} 被占了。换一个：miyu config set --system onebot.web <端口>。 | Port {port} is in use. Pick another: miyu config set --system onebot.web <port>. |
-| `unready/bad-web-port` | 读不出来 | onebot.web 读不出来，照 miyu config check --system 查一下。 | onebot.web could not be read; check it with miyu config check --system. |
-| `open/not-running` | 桥不在跑（O-18 改） | 127.0.0.1:{port} 上没有 QQ 桥的网页。先 miyu onebot start；改过 onebot.web 的，miyu onebot restart。 | No QQ bridge web page on 127.0.0.1:{port}. Turn it on with miyu onebot start; if you changed onebot.web, run miyu onebot restart. |
+| `open/not-running` | 桥不在跑（O-18 改，O-20 改） | 127.0.0.1:{port} 上没有 QQ 桥的网页。先 miyu onebot start。 | No QQ bridge web page on 127.0.0.1:{port}. Turn it on with miyu onebot start. |
 | `open/first` | 还没设过密码 | 还没设过网页的登录密码：带着一次性码打开网页，在网页上设用户名和密码。 | No web password yet: opening the web page with a one-time code to set a username and password. |
 | `open/opened` | 交给了浏览器 | QQ 桥的网页开在 {url}，已经交给浏览器打开。 | The QQ bridge web page is at {url} and has been opened in your browser. |
 | `open/print-hint` | 带了码 | 浏览器没打开的话，用 miyu-onebot web --print。 | If the browser did not open, use miyu-onebot web --print. |
 | `open/open-this` | `--print` | 在浏览器里打开： | Open this in a browser: |
 | `open/code-warning` | `--print` 带了码 | 这个链接 5 分钟内有效，只能用一次，别发给别人。 | This link works once within 5 minutes. Do not share it. |
 
-页面的字（`web/…`，中文；英文见 `resources/software/onebot/human/en.json`）：登录（`web/login/*`：登录、用户名、密码、「还没设过密码的，在终端里运行 miyu-onebot web。」）、设密码（`web/setup/*`）、`web/loading`、`web/core-lost`、`web/retry`、左栏（`web/nav/*`、`web/later`、`web/not-yet`）、`web/menu`、`web/sign-out`、没令牌时的三步（`web/guide/*`，O-16 补二）、NapCat 的状态（`web/napcat/*`：已连上、没连上、看不到桥的状态，`{implementation} {version} · 机器人 {bot}`）、要填的（`web/fill/*`，地址的写法 `ws://127.0.0.1:{port}/ws` 也在这里）、令牌（`web/token/*`：已设、没设、引用的取不到、照环境变量、显示、收起、换一个、生成、换之前问一句）、对话框的「取消」（`web/cancel`）、端口（`web/ports/*`：两格的名字，NapCat 的端口换了、WebUI 的端口换了要重新登录、被占了）、`web/copy`、`web/copied`、`web/save`、`web/saved`、`web/failed`、`web/brand`；「主人与自己人」页（`web/people/*`，O-17，中文照下表，存好了、没成照上面的 `web/saved`、`web/failed`）。补二去掉了 `web/napcat/closed`（没开端口）、`web/token/new`、`web/token/new-hint`（只显示这一次）、`web/restart`（重启以后生效）。
+页面的字（`web/…`，中文；英文见 `resources/software/onebot/human/en.json`）：登录（`web/login/*`：登录、用户名、密码、「还没设过密码的，在终端里运行 miyu-onebot web。」）、设密码（`web/setup/*`）、`web/loading`、`web/core-lost`、`web/retry`、左栏（`web/nav/*`、`web/later`、`web/not-yet`）、`web/menu`、`web/sign-out`、没令牌时的三步（`web/guide/*`，O-16 补二）、NapCat 的状态（`web/napcat/*`：已连上、没连上、看不到桥的状态，`{implementation} {version} · 机器人 {bot}`）、要填的（`web/fill/*`，地址的写法 `ws://127.0.0.1:{port}/ws` 也在这里）、令牌（`web/token/*`：已设、没设、照环境变量、显示、收起、换一个、生成、换之前问一句；「引用的取不到」`web/token/missing` O-20 去掉）、对话框的「取消」（`web/cancel`）、端口（`web/ports/*`：两格的名字，NapCat 的端口换了、WebUI 的端口换了要重新登录、被占了）、`web/copy`、`web/copied`、`web/save`、`web/saved`、`web/failed`、`web/brand`；「主人与自己人」页（`web/people/*`，O-17，中文照下表，存好了、没成照上面的 `web/saved`、`web/failed`）。补二去掉了 `web/napcat/closed`（没开端口）、`web/token/new`、`web/token/new-hint`（只显示这一次）、`web/restart`（重启以后生效）。
 
 | 编号（`web/people/` 后面） | 中文 | 英文 |
 |---|---|---|
@@ -473,14 +530,14 @@ NapCat 那边要填的
 
 - Host 只认三种写法，NapCat 的端口、别的端口都 403，`/status`、`/human`、`/ws` 也一样；页面不出页面目录（`..`、`%2e%2e`、链接、目录、`%zz`）；响应头一个不少、内容安全策略照 `bridge.json`、从不设 cookie；`HEAD`、别的方法 405；类型照表、表里没有的不猜。`/ws` 的 Origin 不对 403（没有、别的网站、`https`、`null`、NapCat 的端口）；两头一帧一行照转、一个字节不改（凭据、中文、空白、很长的一行）；核心断了 1012；连不上核心发 `web.error` 再关。WebUI 的端口被占说是哪个端口。`/human` 照桥的语言、只给 `web/` 开头的。（`web.rs`）
 - `/status`：不带、带错（差一个字、多一个字、空的、别的方案）401；带对的回状态（两个实际的端口、`token`）；记着的不再握手，错的每次都握、都 401，过了时候再握；NapCat 连上以后说是哪个实现、哪个号，断了说没连着。（`status.rs`）
-- 令牌没设（O-16 补、补二）：两个端口都开，`/status` 的 `listen` 是实际的端口、`token` 照配置文件说 `none`、`missing`、`set`；真的程序 `serve`、`web --print` 照常走（第一条「守着它的」，`no_token.rs`）。
+- 令牌没设（O-16 补、补二，O-20 改）：两个端口都开，`/status` 的 `listen` 是实际的端口、`token` 照推来的说 `none`、`set`；真的程序 `serve`、`web --print` 照常走（第一条「守着它的」，`no_token.rs`）。
 - `/token`（O-16 补二）：不带、带错登录令牌 401，`GET` 以外 405；带对的拿到值，`no-store`；没有的是 `null`。（`token.rs`）
-- `/apply`（O-16 补二）：不带、带错 401，`POST` 以外 405；换 NapCat 的端口：回新端口，旧的连不上、新的连得上，`/status` 跟着说；换 WebUI 的端口：新地址上页面、`/status` 照常，旧的连不上；新端口被占回 409 和是哪个，旧的照旧、两个都不换；换令牌：旧的 401、新的进得来、已经连着的那一条还在。（`apply.rs`）
+- `/apply`（O-16 补二，O-20 改）：不带、带错 401，`POST` 以外 405；推来新的 NapCat 端口，不用 `/apply` 就换：旧的连不上、新的连得上，`/status` 跟着说，再 `/apply` 回新端口、什么都不换；推来新的 WebUI 端口：新地址上页面、`/status` 照常，旧的连不上；推来的新端口被占，旧的照旧、两个都不换，`/apply` 回 409 和是哪个，端口空出来以后再 `/apply` 换得上；推来新令牌：旧的 401、新的进得来、已经连着的那一条还在；推来 `null`：一律 401。（`apply.rs`）
 - 验过的登录令牌：记一阵、到点就忘、别的令牌不算；只记 SHA-256，没有原文。（`src/web/tests.rs`）
-- `miyu-onebot web`：桥不在跑说先 `serve`、退出码 1、不开浏览器；没设过密码的带 `#setup=`，设过的不带；`--print`、交不给浏览器的印网址和提醒。（`open.rs`）
-- 出厂的 `bridge.json` 的 `web`：三种类型、策略只连自己不许被框、60 秒；多一格少一格读不进来。（`tuning.rs`）读配置：`onebot.web` 不写是 8302。（`settings.rs`）新加的每一句三种语言都换得出来。（`texts.rs`）
-- 「主人与自己人」页（O-17，`people.rs`；真的核心加真的桥，浏览器经 `/ws` 照页面的样子发）：还没设好密码的连接（一次性码）改系统配置回 `setup_first`、什么都没写；设好以后加一个主人（`external.bindings."qq:<号>"`）、删一个主人（恢复默认）、整张写回自己人，换一条连接 `config.get` 读得回，桥收到新主人的私聊、记成管理员本人；自己人写进个人设置、写成一个字、元素是空的字，`config_invalid`，什么都没变。`/status` 带 `platform`（`status.rs`）。`onebot.trusted` 读得出、不写是没有、只能写系统配置、写错的报问题（`crates/miyu-core/tests/settings.rs`）。
-- 页面没有自动测试：`node --check` 查 `app.js`、`people.js` 的写法；无头浏览器截图（补二：没令牌时的三步、显示令牌、换令牌的确认，亮暗各一套；O-17：两张表空着、填了几行（号不对、重复、已经是主人）、核心回问题、窄屏，亮暗各一套）；项目主人在浏览器里试一次（O-16 施工单验收第 6 条、O-17 第 5 条）。
+- `miyu-onebot web`：桥不在跑说先 `miyu onebot start`、退出码 1、不开浏览器；没设过密码的带 `#setup=`，设过的不带；`--print`、交不给浏览器的印网址和提醒；网页的端口照状态文件里桥实际听的，没有、读不懂的照清单的默认值（O-20）。（`open.rs`）
+- 出厂的 `bridge.json` 的 `web`：三种类型、策略只连自己不许被框、60 秒；多一格少一格读不进来。（`tuning.rs`）握手没交 `onebot.web` 的照清单的默认值 8302。（`settings.rs`）新加的每一句三种语言都换得出来。（`texts.rs`）
+- 「主人与自己人」页（O-17，`people.rs`；真的核心加真的桥，浏览器经 `/ws` 照页面的样子发）：还没设好密码的连接（一次性码）改系统配置回 `setup_first`、什么都没写；设好以后加一个主人（`external.bindings."qq:<号>"`）、删一个主人（恢复默认）、整张写回自己人，换一条连接 `config.get` 读得回，桥收到新主人的私聊、记成管理员本人；自己人写进个人设置、写成一个字、元素是空的字，`config_invalid`，什么都没变。`/status` 带 `platform`（`status.rs`）。`onebot.trusted` 读得出、不写是没有、只能写系统配置、写错的报问题（`crates/miyu-core/tests/settings.rs`，O-20 起照出厂清单的 `[settings]`、在「软件包」页这个包那一组）。
+- 页面没有自动测试：`node --check` 查 `app.js`、`people.js` 的写法；无头浏览器截图（补二：没令牌时的三步、显示令牌、换令牌的确认，亮暗各一套；O-17：两张表空着、填了几行（号不对、重复、已经是主人）、核心回问题、窄屏，亮暗各一套）；项目主人在浏览器里试一次（O-16 施工单验收第 6 条、O-17 第 5 条）。O-20：真核心加真桥、无头浏览器在「连接」页改 NapCat 的端口（当场换、说去 NapCat 里改）、改 WebUI 的端口（先说一句、跳到新地址、要重新登录）、两个端口各改成被占的（说是哪个、桥照旧），截图看一眼（O-20 施工单「验收结果」）。
 
 **施工时定的**（O-16，2026-10-07；补二，2026-10-08；O-17 第 25 到 36 条，2026-10-08）
 
@@ -491,7 +548,7 @@ NapCat 那边要填的
 | 3 | `/status` 验过的登录令牌记 60 秒（只记令牌的哈希） | 页面每 5 秒取一次，不用每次都和核心握手 | 每次都握手；不验 |
 | 4 | 登录成功就算能进：核心现在只有管理员一个账号，「接平台」这项能力随多用户那一段 | 不为以后写代码；到时照能力判 | 现在就做能力检查 |
 | 5 | `miyu-onebot web` 要桥已经在跑；不在跑的说先 `miyu onebot start`（O-18 改，原来说先 `miyu-onebot serve`） | 桥由核心照开关拉起，开不开是人的决定，打开网页不替人开 | 照 `miyu web` 在后台拉起 serve |
-| 6 | `/status` 每次重读一次配置：`token` 照读到的说，桥手里的令牌跟着换上（补二改写，2026-10-08 项目主人定「改了当场生效」：去掉 `restart_needed`） | 页面要照实说令牌设没设；读到了就用，令牌改了不等 NapCat 来碰 | 和起来时读到的比、说要不要重启（O-16 原来的 `restart_needed`）；订阅配置的推送 |
+| 6 | `/status` 每次重读一次配置：`token` 照读到的说，桥手里的令牌跟着换上（补二改写，2026-10-08 项目主人定「改了当场生效」：去掉 `restart_needed`）。**O-20 改**：不读盘，照桥手里最新的配置（核心推来的）说 | 页面要照实说令牌设没设；读到了就用，令牌改了不等 NapCat 来碰 | 和起来时读到的比、说要不要重启（O-16 原来的 `restart_needed`）；订阅配置的推送 |
 | 7 | 登录以前页面的字由桥的 `/human` 给：照桥的语言（握手回的）读 `software/onebot/human/<语言>.json`，只交 `web/` 开头的，样子和 `human.get` 的 `said` 一样；登录以后照 `human.get` 换一遍（施工时补，2026-10-07） | 登录以前页面还没和核心握手，调不了 `human.get`，登录表单的字没处来；字还是住在 `human/*.json` 里 | 登录表单的字写进 `index.html`（字不是数据）；登录以后也只用 `/human`（和图纸「照 `human.get`」两样） |
 | 8 | `/status` 验登录令牌时握手报 `head.kind = "onebot"`，等回应照 `bridge.json` 的 `call_timeout_seconds`，握完就关；连不上核心回 502 | 不另开一个数；502 照网页软件 `/media` 连不上核心 | 每次留着连接复用（照 `/media`：页面 5 秒一次，又有 60 秒的记着，省不了几条） |
 | 9 | 连着几个机器人号的，`/status` 说号最小的那一个；还没问到是哪个实现的，不写 `implementation`、`version` | 图纸的 `napcat` 是一个；不写比写空的字清楚 | 列出全部（图纸的样子要改） |
@@ -500,16 +557,16 @@ NapCat 那边要填的
 | 12 | 图里的「回到 Miyu」O-16 不画 | 页面不知道网页软件在哪：它的端口在 `web.json`、地址在 `run/web`，都不归桥管 | 写死 8300（网页软件 `--port` 换了就错） |
 | 13 | 新加 `Unready::BadWebPort`、`Failure::WebPortInUse`、`Notice::Web`，各一句话 | 端口被占要说改哪一项（`onebot.web`，不是 `onebot.listen`） | 共用 `listen` 那一句 |
 | 14 | 令牌没设也开 NapCat 的端口，连进来一律 401；`/status` 的 `listen` 总是实际听的端口（补，2026-10-07；补二改写，2026-10-08 项目主人定） | 设了令牌不用重启就要能连，端口得先开着；令牌对不上本来就回 401 | 令牌没设不开 NapCat 的端口、`listen` 写 `null`（补的做法：设了要重启才开） |
-| 15 | 令牌没设那一句从读配置的 `Unready::NoToken` 挪成起来以后说的 `Notice::NoToken`，编号 `unready/no-token` 改成 `notice/no-token`（补，2026-10-07）；补二：跟在 `Notice::Listening` 后面说（语言照 `Listening` 带的换，它自己不再带）；`Settings::token` 是 `Token`（取到了、没写引用、取不到三种） | 没设已经不是起不来；这一句在握手以后说，照核心回的语言；`/status` 要分清没写引用和取不到 | 留在 `Unready`、读配置时就说（照系统的语言说，又和后面几句不是一种语言）；`Option<Secret>`（分不出两种没有） |
-| 16 | 页面：令牌设没设照 `/status` 的 `token`：`set` 的（照环境变量的也是）「显示」「复制」「换一个」，换之前问；`none`、`missing` 只有一个主按钮「生成」，不问（补，2026-10-07；补二改写，2026-10-08） | 没有旧的要换掉，问「换吗」不对；环境变量设没设桥看得到，页面不用猜 | 一直叫「换一个」；页面照 `secret.list` 自己算（看不到环境变量，只能当它有） |
+| 15 | 令牌没设那一句从读配置的 `Unready::NoToken` 挪成起来以后说的 `Notice::NoToken`，编号 `unready/no-token` 改成 `notice/no-token`（补，2026-10-07）；补二：跟在 `Notice::Listening` 后面说（语言照 `Listening` 带的换，它自己不再带）；`Settings::token` 是 `Token`（取到了、没写引用、取不到三种）。**O-20 改**：`Settings::token` 是 `Option<Secret>`（核心不交取不到的，分不出，第一条「施工时定的」第 41 条）；`Notice::Listening` 不带语言，握手回了语言 `main.rs` 就换（第 42 条） | 没设已经不是起不来；这一句在握手以后说，照核心回的语言；`/status` 要分清没写引用和取不到 | 留在 `Unready`、读配置时就说（照系统的语言说，又和后面几句不是一种语言）；`Option<Secret>`（分不出两种没有） |
+| 16 | 页面：令牌设没设照 `/status` 的 `token`：`set` 的（照环境变量的也是）「显示」「复制」「换一个」，换之前问；`none`、`missing` 只有一个主按钮「生成」，不问（补，2026-10-07；补二改写，2026-10-08）。**O-20 改**：`missing` 没了（第一条「施工时定的」第 41 条），页面那一支删掉 | 没有旧的要换掉，问「换吗」不对；环境变量设没设桥看得到，页面不用猜 | 一直叫「换一个」；页面照 `secret.list` 自己算（看不到环境变量，只能当它有） |
 | 17 | 令牌随时能看、能复制：`/token` 由桥交给登录了的管理员；页面不再写「只显示这一次」（补二，2026-10-08 项目主人定，推翻 2026-10-07「只在刚生成时显示一次」） | 本机、要登录、只给管理员的页面，方便优先；令牌是桥自己的凭据，桥手里本来就有，由桥交给登录了的管理员，不经核心协议交出去，和 `config.md` 第九条（密钥不经协议交出去）不冲突 | 只在刚生成时显示一次（试的时候抄错了、关了页面，只能再换一个） |
-| 18 | 令牌当场生效：NapCat 出示的对不上（或者桥手里还没有）时重读一次配置再比，节流 `reload_seconds`（出厂 1 秒）；WebUI 每次读配置（`/status`、`/token`、`/apply`）也照读到的换上；已经连着的那一条不断（补二，2026-10-08 项目主人定「不用重启」，做法照推荐） | 令牌经核心写进密钥文件和系统配置，桥没有推送可听；NapCat 几秒重连一次，对不上时读一下最省事；节流：乱连的不能把读配置变成负担；连着的那一条握手时出示的是当时对的，断了它 NapCat 那边还没改，白断 | 订阅核心的配置推送（多一条订阅，值还是要自己读）；每次连进来都读；定时读；换了令牌断开连着的 |
-| 19 | `/apply`：两个端口照配置里写的比上一次照的（不是实际听的），变了的先开新的，都开上了才关旧的；有一个开不了回 409，两个都不换，令牌照样换上；同时来的几个 `/apply` 一个一个办（补二，2026-10-08） | 开不了新端口时旧的照旧，桥不会落到哪个端口都不听；写 0 的（测试）每次都是 0，不当成变了；令牌和端口互不牵连 | 先关旧的再开新的；开上一个算一个；照实际听的比（写 0 的每次都当变了） |
+| 18 | 令牌当场生效：NapCat 出示的对不上（或者桥手里还没有）时重读一次配置再比，节流 `reload_seconds`（出厂 1 秒）；WebUI 每次读配置（`/status`、`/token`、`/apply`）也照读到的换上；已经连着的那一条不断（补二，2026-10-08 项目主人定「不用重启」，做法照推荐）。**O-20 改**：核心有了推送（9-4 下下，值也交过来），去掉重读和 `reload_seconds`，推来了就换；已经连着的照旧不断 | 令牌经核心写进密钥文件和系统配置，桥没有推送可听；NapCat 几秒重连一次，对不上时读一下最省事；节流：乱连的不能把读配置变成负担；连着的那一条握手时出示的是当时对的，断了它 NapCat 那边还没改，白断 | 订阅核心的配置推送（多一条订阅，值还是要自己读）；每次连进来都读；定时读；换了令牌断开连着的 |
+| 19 | `/apply`：两个端口照配置里写的比上一次照的（不是实际听的），变了的先开新的，都开上了才关旧的；有一个开不了回 409，两个都不换，令牌照样换上；同时来的几个 `/apply` 一个一个办（补二，2026-10-08）。**O-20 改**：不读盘，照桥手里最新的配置；推送来的端口变化也照这个办法换（第一条「施工时定的」第 39、45 条） | 开不了新端口时旧的照旧，桥不会落到哪个端口都不听；写 0 的（测试）每次都是 0，不当成变了；令牌和端口互不牵连 | 先关旧的再开新的；开上一个算一个；照实际听的比（写 0 的每次都当变了） |
 | 20 | 页面上的地址写短的 `ws://127.0.0.1:<端口>/ws`（补二，2026-10-08 项目主人定） | 两个路径桥都认，短的好填 | 照 OneBot 的惯例写 `/onebot/v11/ws` |
 | 21 | 端口保存以后调 `/apply`：WebUI 的端口换了，页面先说一句（`alert`）再跳到新地址，在新地址上重新登录；被占了（409）页面说清，不把配置改回去（补二，2026-10-08） | 登录令牌记在浏览器里、按地址分，新地址上没有；不在地址里带登录令牌（会进浏览历史）。被占时配置里已经是新端口，说清被占、桥照旧用原来的，人换一个再存就够；改回去要多一次 `config.set` | 地址里带着登录令牌跳过去；409 时页面把配置改回原来的 |
 | 22 | 没令牌时页顶的三步：`/status` 的 `token` 不是 `set` 时出来，出来了就留到 NapCat 连上（令牌设好了第一步打勾）；令牌早就设好、只是没连上的不出来（补二，2026-10-08） | 生成以后还有两步要做，这时收起，人不知道下一步；设好过的人不用再看一遍 | 只看 `token`（生成完就收起）；只看连没连上（设好过、NapCat 暂时断了也出来） |
 | 23 | 换令牌之前问的那一句用页面里的对话框（`<dialog>`），不用浏览器的 `confirm`（补二，2026-10-08） | 跟着页面的亮暗色、字体，和页面是一家；截图看得到（浏览器自己的对话框不进页面的截图） | 浏览器的 `confirm`（O-16 原来的做法） |
-| 24 | 配置清单里 `onebot.token` 的生效时机改 `now`，说明写「改了以后，NapCat 下一次连进来就照新的」；`onebot.listen`、`onebot.web` 留 `head_start`，说明补「在 QQ 桥的网页上改、保存的，当场生效」；地址的说法写 `/ws`；没设令牌那一句改成「QQ 桥照样起来，NapCat 连进来会被拒」（补二，2026-10-08 主会话定；`OnebotSettings` 是 O-8 权宜放在核心里的，核心同意过由桥这边改） | 令牌改了确实当场生效（第 18 条），说「下次启动时」会让人白重启；命令行改的端口还是要重启或在网页上按保存，`head_start` 照实说，网页上的另补一句 | 令牌留 `head_start`（说得不对）；端口改 `now`（命令行改的不会当场换） |
+| 24 | 配置清单里 `onebot.token` 的生效时机改 `now`，说明写「改了以后，NapCat 下一次连进来就照新的」；`onebot.listen`、`onebot.web` 留 `head_start`，说明补「在 QQ 桥的网页上改、保存的，当场生效」；地址的说法写 `/ws`；没设令牌那一句改成「QQ 桥照样起来，NapCat 连进来会被拒」（补二，2026-10-08 主会话定；`OnebotSettings` 是 O-8 权宜放在核心里的，核心同意过由桥这边改）。**O-20 改**：四项挪进清单的 `[settings]`，两个端口也改 `now`，说明里网页那一句去掉（第一条「施工时定的」第 40、46 条） | 令牌改了确实当场生效（第 18 条），说「下次启动时」会让人白重启；命令行改的端口还是要重启或在网页上按保存，`head_start` 照实说，网页上的另补一句 | 令牌留 `head_start`（说得不对）；端口改 `now`（命令行改的不会当场换） |
 | 25 | 页面拆成模块：`app.js`（登录、骨架、「连接」页）、`people.js`（「主人与自己人」页，`app.js` 引进来）；`index.html` 照 `type="module"` 载 `app.js`（O-17） | 一页一个文件，不出包揽一切的大文件；原生的模块不用构建工具，内容安全策略 `script-src 'self'` 照样放行，`.js` 的类型表里本来就有 | 都写在 `app.js` 里（八百多行）；两个普通脚本经全局变量共用 |
 | 26 | 平台的名字照 `/status` 多的一格 `platform`（第一条的 `PLATFORM`）；页面拼 `<平台>:<号>`，认的也只认这个平台的（O-17） | 平台的名字只写一处（第一条「施工时定的」第 16 条）；页面本来每 5 秒取 `/status` | 页面里再写一份 `qq` |
 | 27 | 账号的下拉：握手回的账号，加上表里已经写着的别的账号；新加的一行照握手回的（O-17） | 协议里没有列账号的方法，核心现在只有 `admin`（第 4 条），照实；手写的别的账号不能因为页面不认就被改掉 | 请核心加 `account.list`（多用户那一段的事）；写死 `admin` |
@@ -522,3 +579,4 @@ NapCat 那边要填的
 | 34 | 在哪一页只记在页面里，重新载入回到「连接」（O-17） | 朴素；地址栏的 `#` 给一次性码用 | 照地址栏的 `#people` 记 |
 | 35 | 「不是管理员的账号改系统配置被拒」照实测：核心现在只有管理员一个账号（第 4 条），没有这种账号；测的是还没设好密码的连接（一次性码）改系统配置回 `setup_first`、什么都没写，页面照原话说在表下面（O-17） | 照核心现在的样子测，不为测造一个核心里没有的账号；多用户那一段有了别的账号再补 | 造一个假的账号（核心里没有） |
 | 36 | `onebot.trusted` 的元素是文字，最多 128 个字（和主人表的 `<external>` 一样长）；没有默认值（`none`），不写的页面当空表（O-17） | 元素是平台身份，照 `<external>` 的长度；宏里只有密钥的列表认 `[]` 当默认值，要 `[]` 得改 `miyu-config` | 默认值 `[]`；照号只收数字（规矩在页面，平台无关的规矩在桥那边，施工单「要定的」第 4 条） |
+| 37 | 端口存好以后，WebUI 的端口换了的，`/apply` 回了的照回的跳；旧地址上问不到（403、连不上）的照页面刚存的端口跳；被占的照 409 说（O-20，2026-10-09，主会话定） | 核心推来的多半比页面的 `/apply` 先到，桥已经换到新端口：页面这一次 `/apply` 走的是旧地址上留着的连接，桥照新端口核对 Host 回 403（无头浏览器里试出来的，页面卡在旧地址说「没成：/apply 403」）；刚存的端口页面自己知道，不用非等 `/apply`。被占的推送换不成，桥还在旧地址上，`/apply` 回 409 照旧说 | 只照 `/apply` 回的跳（卡在旧地址）；存好了不问 `/apply` 直接跳（新端口被占时跳到没人听的地址） |

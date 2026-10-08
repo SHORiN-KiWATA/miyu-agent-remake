@@ -259,7 +259,7 @@ async fn a_taken_web_port_is_named() {
             ..settings()
         },
     );
-    let ran = within("起不来", run(serve, |_| {}, std::future::pending())).await;
+    let ran = within("起不来", run(serve, |_| {}, |_| {}, std::future::pending())).await;
     assert_eq!(ran, Err(Failure::WebPortInUse(port)));
 }
 

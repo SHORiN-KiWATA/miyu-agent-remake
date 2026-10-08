@@ -1,93 +1,148 @@
-//! 桥读的几项配置（施工 O-8，`onebot.md` 第一条「怎么走」第 1 条）：令牌读成三种：没写引用、写了引用取不到（密钥没存、环境
-//! 变量没设）、取到了，都照样读得出来（O-16 补、补二：桥照样起来，NapCat 连进来 401）；设了的照密钥文件、环境变量取；端口
-//! 不写是 8301。语言照 `ui.language`，`auto` 的照系统的语言。
+//! 桥用的配置（施工 O-20，`onebot.md` 第一条「怎么走」第 1 条、「施工时定的」第 38 条）：握手交来的 `config` 读成两个端口、
+//! 令牌；没交的、`null` 的、不是 0 到 65535 的整数的端口照清单的默认值；令牌是字的照它（去掉前后空白），别的是没有；推来的
+//! 只换带了的键，别的键不认。清单的默认值照出厂的清单读（8301、8302），读不出来的说是哪个文件。
+
+use serde_json::{Map, Value, json};
 
 use miyu_config::secret::Secret;
-use miyu_endpoint::config::Environment;
-use miyu_onebot::settings::{Token, load};
-use miyu_session::testkit::Script;
+use miyu_onebot::settings::{Defaults, Settings};
+use miyu_store::resources::ResourceRoot;
 
-use crate::support::Home;
+use crate::support::{TOKEN, defaults, resources};
 
-/// 改系统配置、密钥文件：测试的核心已经起来了，桥自己读，读的是磁盘上的。
-fn write(home: &Home, relative: &str, text: &str) {
-    std::fs::write(home.root.path().join(relative), text).expect("写得进");
+/// 测试用的默认值：和出厂的不一样，看得出照的是它。
+const FALLBACK: Defaults = Defaults {
+    listen: 18301,
+    web: 18302,
+};
+
+/// 令牌 `token`。
+fn secret(token: &str) -> Option<Secret> {
+    Some(Secret::new(token).expect("合写法"))
 }
 
-#[tokio::test]
-async fn without_a_token_the_settings_still_load() {
-    let home = Home::new(&Script::new([]));
-    let loaded = load(&home.root, None, Some("zh_CN.UTF-8"), Environment::of(&[]));
-    assert_eq!(loaded.language, "zh");
-    let settings = loaded.settings.expect("没设令牌也读得出来");
+/// `keys` 当推来的变化。
+fn keys(value: Value) -> Map<String, Value> {
+    value.as_object().expect("是对象").clone()
+}
+
+#[test]
+fn the_shipped_manifest_gives_the_two_default_ports() {
     assert_eq!(
-        (settings.port, settings.web, settings.token),
-        (8301, 8302, Token::Unset)
-    );
-    write(
-        &home,
-        "system/config.toml",
-        "[onebot]\ntoken = { secret = \"onebot\" }\n",
-    );
-    let loaded = load(&home.root, None, Some("en_US"), Environment::of(&[]));
-    assert_eq!(loaded.language, "en");
-    assert_eq!(
-        loaded.settings.expect("读得出来").token,
-        Token::Missing,
-        "引用的密钥没存"
-    );
-    write(
-        &home,
-        "system/config.toml",
-        "[onebot]\ntoken = { env = \"NAPCAT_TOKEN\" }\n",
-    );
-    let loaded = load(&home.root, None, None, Environment::of(&[]));
-    assert_eq!(
-        loaded.settings.expect("读得出来").token,
-        Token::Missing,
-        "引用的环境变量没设"
+        defaults(),
+        Defaults {
+            listen: 8301,
+            web: 8302
+        }
     );
 }
 
-#[tokio::test]
-async fn the_token_comes_from_the_secrets_file_or_the_environment() {
-    let home = Home::new(&Script::new([]));
-    write(
-        &home,
-        "system/config.toml",
-        "[ui]\nlanguage = \"ja\"\n[onebot]\ntoken = { secret = \"onebot\" }\n",
+#[test]
+fn a_missing_manifest_or_default_is_named() {
+    let dir = std::env::temp_dir().join(format!("miyu-onebot-defaults-{}", std::process::id()));
+    let packages = dir.join("packages");
+    std::fs::create_dir_all(&packages).expect("建得了");
+    let error = Defaults::load(&ResourceRoot::at(dir.clone())).expect_err("没有清单");
+    assert!(error.contains("onebot"), "{error}");
+    // 照出厂的清单写一份，去掉 `onebot.web` 的默认值。
+    let shipped = std::fs::read_to_string(resources().join("packages").join("onebot.toml"))
+        .expect("读得到出厂的清单");
+    let without = shipped.replace("default = 8302\n", "");
+    assert_ne!(without, shipped, "真的去掉了");
+    std::fs::write(packages.join("onebot.toml"), without).expect("写得进");
+    let error = Defaults::load(&ResourceRoot::at(dir.clone())).expect_err("没写默认值");
+    assert!(
+        error.contains("onebot.toml") && error.contains("onebot.web"),
+        "{error}"
     );
-    write(&home, "system/secrets.toml", "onebot = \"from-file\"\n");
-    let loaded = load(&home.root, None, Some("zh_CN"), Environment::of(&[]));
-    assert_eq!(loaded.language, "ja");
-    let settings = loaded.settings.expect("起得来");
+    std::fs::write(packages.join("onebot.toml"), "not toml [").expect("写得进");
+    let error = Defaults::load(&ResourceRoot::at(dir.clone())).expect_err("读不成");
+    assert!(error.contains("onebot.toml"), "{error}");
+    if std::fs::remove_dir_all(&dir).is_err() {
+        // 删不掉就留在临时目录里，不影响测试。
+    }
+}
+
+#[test]
+fn the_handed_config_is_taken_as_it_comes() {
+    let handed = json!({"onebot.listen": 9000, "onebot.web": 9001, "onebot.token": TOKEN, "onebot.trusted": ["qq:20017"]});
     assert_eq!(
-        (settings.port, settings.web),
-        (8301, 8302),
-        "出厂的两个端口"
+        Settings::handed(&handed, &FALLBACK),
+        Settings {
+            port: 9000,
+            web: 9001,
+            token: secret(TOKEN)
+        }
     );
     assert_eq!(
-        settings.token.secret().map(Secret::expose),
-        Some("from-file")
+        Settings::handed(&json!({"onebot.token": format!("  {TOKEN}\n")}), &FALLBACK).token,
+        secret(TOKEN),
+        "前后的空白去掉"
     );
-    write(
-        &home,
-        "system/config.toml",
-        "[onebot]\nlisten = 9000\nweb = 9001\ntoken = { env = \"NAPCAT_TOKEN\" }\n",
-    );
-    let loaded = load(
-        &home.root,
-        None,
-        None,
-        Environment::of(&[("NAPCAT_TOKEN", "from-env")]),
-    );
-    let settings = loaded.settings.expect("起得来");
     assert_eq!(
-        (
-            settings.port,
-            settings.web,
-            settings.token.secret().map(Secret::expose)
-        ),
-        (9000, 9001, Some("from-env"))
+        Settings::handed(&json!({"onebot.listen": 0, "onebot.web": 65535}), &FALLBACK),
+        Settings {
+            port: 0,
+            web: 65535,
+            token: None
+        },
+        "0 到 65535 都照它"
     );
+}
+
+#[test]
+fn what_is_not_handed_falls_back_to_the_manifest() {
+    let nothing = Settings {
+        port: 18301,
+        web: 18302,
+        token: None,
+    };
+    for config in [
+        json!({}),
+        Value::Null,
+        json!("not an object"),
+        json!({"onebot.listen": null, "onebot.web": null, "onebot.token": null}),
+        json!({"onebot.listen": 65536, "onebot.web": -1, "onebot.token": ""}),
+        json!({"onebot.listen": "8301", "onebot.web": 8302.5, "onebot.token": 42}),
+        json!({"listen": 9000, "web.port": 9001, "onebotx.token": TOKEN, "onebot.tokens": TOKEN}),
+    ] {
+        assert_eq!(Settings::handed(&config, &FALLBACK), nothing, "{config}");
+    }
+}
+
+#[test]
+fn a_push_changes_only_the_keys_it_carries() {
+    let mut settings = Settings::handed(
+        &json!({"onebot.listen": 9000, "onebot.web": 9001, "onebot.token": TOKEN}),
+        &FALLBACK,
+    );
+    settings.change(&keys(json!({"onebot.token": "new"})), &FALLBACK);
+    assert_eq!(
+        settings,
+        Settings {
+            port: 9000,
+            web: 9001,
+            token: secret("new")
+        }
+    );
+    settings.change(&keys(json!({"onebot.listen": 9100})), &FALLBACK);
+    assert_eq!((settings.port, settings.web), (9100, 9001));
+    settings.change(
+        &keys(json!({"onebot.web": null, "onebot.token": null})),
+        &FALLBACK,
+    );
+    assert_eq!(
+        settings,
+        Settings {
+            port: 9100,
+            web: 18302,
+            token: None
+        },
+        "null 当没有：端口照默认值，令牌没了"
+    );
+    settings.change(
+        &keys(json!({"onebot.trusted": ["qq:1"], "web.port": 1})),
+        &FALLBACK,
+    );
+    assert_eq!((settings.port, settings.web), (9100, 18302), "别的键不认");
 }

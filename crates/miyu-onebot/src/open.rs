@@ -1,8 +1,8 @@
 //! `miyu-onebot web`（`onebot.md` 第二条「对外的样子」，施工 O-16）：打开桥的 WebUI。
 //!
 //! 1. 桥要已经在跑（「施工时定的」第 5 条：桥由核心照开关拉起，开不开是人的决定，这里不替人开）：连不上
-//!    `127.0.0.1:<onebot.web>` 的，说先 `miyu onebot start`，退出码 1。改过 `onebot.web` 还没重启桥的，连的是新端口、也连不
-//!    上，同一句里提醒 `miyu onebot restart`（施工 O-18 改）。
+//!    `127.0.0.1:<端口>` 的，说先 `miyu onebot start`，退出码 1（施工 O-18 改）。端口照状态文件里桥实际听的（[`port`]，施工
+//!    O-20：桥不再自己读配置；端口改了当场换，用不着提醒 `restart`）。
 //! 2. 照终端的样子连核心（出示本机令牌），握手以后照核心回的语言说；问一次 `account.setup_code`：还没设过密码的（`first`），
 //!    网址带 `#setup=<一次性码>`（照 `miyu web`，`web-ui.md`「怎么走」第二条第 3 款）；别的网址就是地址本身，页面用存着的
 //!    登录令牌，没有的问用户名和密码。
@@ -21,6 +21,7 @@ use miyu_webserve::open::Core;
 pub use miyu_webserve::open::{Browser, SystemBrowser};
 
 use crate::serve::Failure;
+use crate::status_file;
 use crate::texts::Texts;
 
 /// 没开成的退出码。
@@ -50,7 +51,16 @@ pub enum Opening {
     CodeWarning,
 }
 
-/// 照 `open` 走一遍，交回退出码。`port` 是 `onebot.web`；核心没在跑时照 `core` 拉起；说的话照 `texts`，握手以后换成核心回
+/// 桥的网页在哪个端口（第一条「施工时定的」第 43 条）：状态文件（`crate::status_file`）里桥实际听的
+/// `web`；没有状态文件、读不懂的（桥还没在这个数据根上跑过）照 `fallback`（清单的默认值）。
+pub fn port(root: &DataRoot, fallback: u16) -> u16 {
+    status_file::read(root)
+        .and_then(|file| file["web"].as_u64())
+        .and_then(|port| u16::try_from(port).ok())
+        .unwrap_or(fallback)
+}
+
+/// 照 `open` 走一遍，交回退出码。`port` 是桥的网页的端口（[`port`]）；核心没在跑时照 `core` 拉起；说的话照 `texts`，握手以后换成核心回
 /// 的语言。
 #[expect(
     clippy::too_many_arguments,
