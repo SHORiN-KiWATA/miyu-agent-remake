@@ -33,7 +33,7 @@
 | `oneshot` | 一次性的（0、1） | `session.created` 的 `oneshot` |
 | `title` | 标题，空的是没有 | `session.meta_changed` 一条条盖上：写了 `title` 的换成它 |
 | `pinned` | 置顶（0、1） | `session.meta_changed` 写了 `pinned` 的换成它 |
-| `cwd` | 工作目录，空的是日志里一条都没记（很早以前的日志） | 最后一条带 `cwd` 的 `turn.started`，没有就照 `session.created` 的（`protocol.md`「会话表」第 5 条，同一个函数 `cwd`） |
+| `cwd` | 工作目录，空的是日志里一条都没记（很早以前的日志） | 最后一条带 `cwd` 的 `turn.started`、换工作区的 `session.workspace_changed`（施工 9-7 上），都没有就照 `session.created` 的（`protocol.md`「会话表」第 5 条，同一个函数 `cwd`） |
 | `created` | 造的时刻，毫秒 | `session.created` 的 `at` |
 | `last_active` | 最近一次动静，毫秒 | 照到的最后一条事件的 `at`，哪种事件都算 |
 | `segment` | 照到哪一段：这一段第一条的序号，就是段的名字 | 写日志的一方、读日志的一方交回的位置 |

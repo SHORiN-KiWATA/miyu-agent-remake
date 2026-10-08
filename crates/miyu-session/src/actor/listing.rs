@@ -23,6 +23,7 @@ impl Actor {
                     event.body,
                     Body::SessionCreated(_)
                         | Body::MetaChanged(_)
+                        | Body::WorkspaceChanged(_)
                         | Body::TurnStarted(_)
                         | Body::TurnEnded(_)
                 )

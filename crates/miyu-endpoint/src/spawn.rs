@@ -61,7 +61,7 @@ impl SessionPort for Table {
         Box::pin(async move {
             let core = self.core()?;
             core.sessions
-                .get(&core, &session, None, None)
+                .get(&core, &session)
                 .await
                 .map(|_| ())
                 .map_err(|refusal| format!("session {session} not opened: {refusal:?}"))
@@ -79,7 +79,7 @@ impl SessionPort for Table {
             let core = self.core()?;
             let found = core
                 .sessions
-                .get(&core, &session, None, None)
+                .get(&core, &session)
                 .await
                 .map_err(|refusal| format!("session {session} not found: {refusal:?}"))?;
             match found.handle.command(id, by, command).await {
@@ -98,7 +98,7 @@ impl SessionPort for Table {
             let core = self.core()?;
             let found = core
                 .sessions
-                .get(&core, &session, None, None)
+                .get(&core, &session)
                 .await
                 .map_err(|refusal| format!("session {session} not found: {refusal:?}"))?;
             let interrupt = Command::Interrupt {
@@ -182,7 +182,7 @@ impl SessionPort for Table {
             let Ok(core) = self.core() else {
                 return false;
             };
-            match core.sessions.get(&core, &session, None, None).await {
+            match core.sessions.get(&core, &session).await {
                 Ok(found) => found.handle.oneshot() && !found.handle.watched(),
                 Err(_) => false,
             }
@@ -209,7 +209,7 @@ impl Table {
         since: Timestamp,
     ) -> Result<(), NotWatched> {
         let core = self.core().map_err(NotWatched::Failed)?;
-        let found = match core.sessions.get(&core, &session, None, None).await {
+        let found = match core.sessions.get(&core, &session).await {
             Ok(found) => found,
             Err(refusal) if refusal == Refusal::NOT_FOUND => return Err(NotWatched::Gone),
             Err(refusal) => {

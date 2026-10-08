@@ -26,9 +26,11 @@ async fn a_session_loaded_without_a_cwd_keeps_the_last_one() {
     let mut client = Client::connect(first.clone());
     client.hello().await;
     let session = client.create("create-a", "~").await;
+    // 换了工作区（施工 9-7 上：说话不再换它）：重启以后照记下的那条找回来。
     let cwd = home.work.to_string_lossy().into_owned();
-    let send = json!({"session": session, "text": "hi", "cwd": cwd});
-    client.call("send-a", "session.send", send).await;
+    let moved = json!({"session": session, "cwd": cwd});
+    client.call("move-a", "session.set_workspace", moved).await;
+    client.say("send-a", &session, "hi").await;
     home.until_turns(&session, 1).await;
     first.stop_sessions().await;
     drop(client);

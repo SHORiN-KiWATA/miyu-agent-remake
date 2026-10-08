@@ -1,5 +1,6 @@
-//! 加进来的目录（施工 5-10 上，`docs/blueprint/protocol.md`「加进来的目录」）：造会话、说话时报来，记进这一轮的
-//! `turn.started`；`dirs` 不写的照旧，写空的就是没有；太宽的整条命令都不收；核心重启以后照最后一轮的找回来。
+//! 加进来的目录（施工 5-10 上，`docs/blueprint/protocol.md`「加进来的目录」）：造会话时报来，记进每一轮的 `turn.started`；
+//! 施工 9-7 上起是会话的属性：说话带着的不理，换的是 `session.set_workspace`（`dirs` 不写的照旧，写空的就是没有）；太宽的
+//! 整条命令都不收；核心重启以后照最后一次记下的找回来。
 
 mod support;
 
@@ -52,15 +53,23 @@ async fn added_dirs_go_into_the_turn_and_stay_until_told_otherwise() {
     let session = session_of(&created);
     client.say("send-1", &session, "hi").await;
     home.until_turns(&session, 1).await;
-    client.say("send-2", &session, "again").await;
+    let ignored = json!({"session": session, "text": "again", "dirs": []});
+    client.call("send-2", "session.send", ignored).await;
     home.until_turns(&session, 2).await;
-    let cleared = json!({"session": session, "text": "clear", "dirs": []});
-    client.call("send-3", "session.send", cleared).await;
+    let cleared = client
+        .call(
+            "set-3",
+            "session.set_workspace",
+            json!({"session": session, "dirs": []}),
+        )
+        .await;
+    assert_eq!(cleared["result"]["dirs"], json!([]), "{cleared}");
+    client.say("send-3", &session, "clear").await;
     home.until_turns(&session, 3).await;
     assert_eq!(
         dirs_of_turns(&home.log(&session)),
         [vec![extra.clone()], vec![extra], Vec::new()],
-        "造会话时带的、不写的照旧、写空的就没有了"
+        "造会话时带的、说话带着的不理、换成空的就没有了"
     );
 }
 
@@ -96,15 +105,15 @@ async fn too_wide_dirs_are_refused_before_anything_is_written() {
         assert_eq!(reason(&reply), Some("dir_too_wide"), "{dir}：{reply}");
     }
     let session = client.create("create-ok", &cwd).await;
-    let send = json!({"session": session, "text": "hi", "dirs": [wide[3]]});
-    let reply = client.call("send-wide", "session.send", send).await;
+    let set = json!({"session": session, "dirs": [wide[3]]});
+    let reply = client.call("set-wide", "session.set_workspace", set).await;
     assert_eq!(reason(&reply), Some("dir_too_wide"), "{reply}");
     assert!(
         !home
             .log(&session)
             .iter()
-            .any(|event| matches!(event.body, Body::MessageUser(_))),
-        "这一句没收下"
+            .any(|event| matches!(event.body, Body::WorkspaceChanged(_))),
+        "什么都没记"
     );
 }
 
@@ -118,8 +127,9 @@ async fn after_a_restart_the_last_turns_dirs_are_kept() {
     client.hello().await;
     let cwd = home.work.to_string_lossy().into_owned();
     let session = client.create("create-r", &cwd).await;
-    let send = json!({"session": session, "text": "hi", "dirs": [extra]});
-    client.call("send-r1", "session.send", send).await;
+    let set = json!({"session": session, "dirs": [extra]});
+    client.call("set-r1", "session.set_workspace", set).await;
+    client.say("send-r1", &session, "hi").await;
     home.until_turns(&session, 1).await;
     first.stop_sessions().await;
     drop(client);
@@ -130,6 +140,6 @@ async fn after_a_restart_the_last_turns_dirs_are_kept() {
     assert_eq!(
         dirs_of_turns(&home.log(&session)),
         [vec![extra.clone()], vec![extra]],
-        "重启以后第一次说话不带 dirs：照最后一轮的"
+        "重启以后照最后一次记下的"
     );
 }

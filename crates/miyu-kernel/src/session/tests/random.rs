@@ -86,7 +86,7 @@ use asking::{some_answer, some_question, some_reply, some_verdict};
 use compacting::{random_policy, some_clear, some_compact, some_limits, some_overflow};
 use endings::some_ending;
 use kinds::InputKind;
-use naming::{some_meta, some_ran};
+use naming::{some_meta, some_ran, some_workspace};
 use paths::{EXPECTED_PATHS, LONG_PATHS};
 use recapping::{finish_recap, some_recap};
 use replies::some_injections;
@@ -420,6 +420,7 @@ fn run(seeds: std::ops::Range<u64>) -> (BTreeSet<&'static str>, BTreeSet<InputKi
         // 改标题、置顶放在最后，为什么见 `random/naming.rs`（施工 3-8 三补）。
         watch.feed(&mut session, some_meta(seed, &mut next_id));
         watch.feed(&mut session, some_ran(&mut next_id));
+        watch.feed(&mut session, some_workspace(seed, &mut next_id));
         let last = watch.last();
         watch.feed(&mut session, stored(last));
         assert_eq!(

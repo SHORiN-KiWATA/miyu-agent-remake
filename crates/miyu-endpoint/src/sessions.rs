@@ -55,11 +55,9 @@ struct Open {
 #[derive(Debug)]
 struct Running {
     handle: Handle,
-    /// 头报上来的工作目录：下次报来的和它比。
-    cwd: String,
-    /// 实际在哪个目录里干活：`cwd` 太宽的，是账号的工作区。
+    /// 实际在哪个目录里干活：头报的太宽的，是账号的工作区。施工 9-7 上起只有人换工作区才变（[`Sessions::moved`]）。
     workspace: String,
-    /// 加进来的目录（施工 5-10 上）：头下次报来的和它比。
+    /// 加进来的目录（施工 5-10 上）。同上。
     dirs: Vec<String>,
 }
 
@@ -172,7 +170,6 @@ impl Sessions {
             id.clone(),
             Running {
                 handle,
-                cwd,
                 workspace: workspace.clone(),
                 dirs,
             },
@@ -188,20 +185,28 @@ impl Sessions {
         })
     }
 
-    /// 找会话 `id`：在跑的直接交回；没在跑的从磁盘载入。头报上来的工作目录 `cwd`、加进来的目录 `dirs`（施工 5-10
-    /// 上）和会话现在的不一样，先送进会话；`dirs` 里有太宽的，整条命令都不收。
-    pub(crate) async fn get(
-        &self,
-        core: &Arc<Core>,
-        id: &SessionId,
-        cwd: Option<&str>,
-        dirs: Option<&[String]>,
-    ) -> Result<Found, Refusal> {
-        if let Some(dirs) = dirs {
-            check_dirs(core, dirs)?;
-        }
+    /// 找会话 `id`：在跑的直接交回；没在跑的从磁盘载入。施工 9-7 上起头每句话报的工作目录不再换会话的：换工作区另走
+    /// `session.set_workspace`（`workspace.rs`）。
+    pub(crate) async fn get(&self, core: &Arc<Core>, id: &SessionId) -> Result<Found, Refusal> {
         let mut open = self.open.lock().await;
-        open.found(core, id, cwd, dirs).await
+        open.found(core, id).await
+    }
+
+    /// 会话 `id` 换了工作区（施工 9-7 上）：会话表记着的跟着换（说话的回应照它写 `cwd`）。写了 `dirs` 的整份换掉。交回现在
+    /// 加进来的目录；不在表里的（停了）没有。
+    pub(crate) async fn moved(
+        &self,
+        id: &SessionId,
+        workspace: String,
+        dirs: Option<Vec<String>>,
+    ) -> Option<Vec<String>> {
+        let mut open = self.open.lock().await;
+        let running = open.running.get_mut(id)?;
+        running.workspace = workspace;
+        if let Some(dirs) = dirs {
+            running.dirs = dirs;
+        }
+        Some(running.dirs.clone())
     }
 
     /// 造一个子会话（施工 7-5，`agents.md` 第一条）：照执行器填好的 `child`，由父会话造（`by` 是它）。放进表里，和头造的
@@ -267,7 +272,6 @@ impl Sessions {
         // 工作目录是父会话这一轮实际干活的那一个，已经定过宽不宽。
         let running = Running {
             handle,
-            cwd: child.cwd.clone(),
             workspace: child.cwd,
             dirs: child.dirs,
         };
@@ -372,7 +376,7 @@ fn environment(workspace: String, dirs: Vec<String>) -> Environment {
 }
 
 /// 加进来的目录里有太宽的：整条命令都不收（施工 5-10 上）。
-fn check_dirs(core: &Core, dirs: &[String]) -> Result<(), Refusal> {
+pub(crate) fn check_dirs(core: &Core, dirs: &[String]) -> Result<(), Refusal> {
     if dirs.iter().any(|dir| dir_too_wide(core, dir)) {
         Err(Refusal::DIR_TOO_WIDE)
     } else {
@@ -403,7 +407,7 @@ fn dir_too_wide(core: &Core, dir: &str) -> bool {
 /// 拿头报上来的 `cwd` 当工作区。太宽的（`~` 本身、系统的家目录、根目录，包含数据根或者落在数据根里），退回
 /// 管理员的工作区 `home/<账号>/workspace/`（`11-权限与沙盒.md` 第四节，施工 4-3 下）。换不成真实位置的照原样：
 /// 说不清它宽不宽，用到时工具自己报错。
-fn workspace(core: &Core, cwd: &str) -> String {
+pub(crate) fn workspace(core: &Core, cwd: &str) -> String {
     let own = core.root.workspace(&core.admin);
     let fallback = || {
         // 建家目录时就建了；老的数据根里可能还没有，补上。建不了的照样退回：用到时工具自己报错。

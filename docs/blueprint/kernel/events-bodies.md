@@ -8,7 +8,7 @@
 
 | 代码 | 管什么 |
 |---|---|
-| `crates/miyu-kernel/src/event/session.rs` | `session.created`、`session.policy_changed`、`session.meta_changed`、`session.recapped`（施工 3-8 四补）、`command.ran`（施工 O-6）；权限 `Permission`、级别 `Level` |
+| `crates/miyu-kernel/src/event/session.rs` | `session.created`、`session.policy_changed`、`session.meta_changed`、`session.workspace_changed`（施工 9-7 上）、`session.recapped`（施工 3-8 四补）、`command.ran`（施工 O-6）；权限 `Permission`、级别 `Level` |
 | `crates/miyu-kernel/src/event/turn.rs` | `turn.started`、`turn.ended`（`EndReason`）、`turn.reverted`、`turn.unreverted` |
 | `crates/miyu-kernel/src/event/restore.rs` | `files.restored`（`Restored`、`RestoreAction`、`RestoreOutcome`） |
 | `crates/miyu-kernel/src/event/message.rs` | `message.user`、`message.assistant`、`message.withdrawn` |
@@ -86,6 +86,17 @@
 - 标题的写法由协议端点管（`protocol.md` 的 `session.set_meta`）：头写的去掉前后空白再量，空的、超过 200 个字的不收；头写 `null` 去掉标题，这里记成空的 `""`，事件里从不写 `null`（上面「可以没有」的格写成 `null` 当没有）。读的时候不查长短：以后放宽了，老的照样读得进来（施工 3-8 三补）。
 - 现在的标题、置顶是日志里的这些一条条盖上去的结果：没写的格照旧；撤掉的回合里的也算（`kernel/session.md`「改标题、置顶」）。
 - 谁改的看 `by`：人改的（`session.set_meta`）`by` 是人、`cause` 是那个命令；内核自己起的标题（施工 3-8 五补，`kernel/session.md`「起标题」）`by` 是内核，只写 `title`，没有 `cause`、不带 `turn`，前面紧跟着那一次起标题请求的 `model.called`（`purpose` 是 `title`），同一批追加。内核起的标题取回复的第一行，超过 50 个字的截掉，所以也在 1 到 200 个字里。
+
+**`session.workspace_changed`**：换了会话在哪个目录干活（施工 9-7 上，`kernel/session.md`「换工作区」）。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `cwd` | 字符串 | 必有 | 新的工作目录：协议那一头判过太不太宽、换成了实际用的，人看到的那种写法 |
+| `dirs` | 字符串的数组 | 可以没有 | 新的加进来的目录，整份换掉；空的是去掉全部；没写的照旧 |
+
+- 工作区是会话的属性：只有人明确换才有它（`protocol.md` 的 `session.set_workspace`），头每句话报的目录不再换工作区。`by` 是换的人，`cause` 是那个命令；回合进行中换的带上这个回合。
+- 不进她的上下文（渲染时不出）：下一轮开始时，变了的环境照旧注成一块事实。
+- 会话的工作目录、加进来的目录照日志里最后一条带它们的算：工作目录照 `session.workspace_changed`、`turn.started`、`session.created` 里最后一条带 `cwd` 的，加进来的目录照最后一条写了 `dirs` 的 `session.workspace_changed` 或者 `turn.started`。会话列表的 `cwd` 照同一个认法（`store/index.md`）。
 
 **`session.recapped`**：一句回顾（施工 3-8 四补，`kernel/session.md`「回顾」）。头要的（`protocol.md` 的 `session.recap`），推给所有订阅着的头；不进她的上下文（渲染时不出，`kernel/request.md`「组装」），`history` 也不列。`by` 是内核，`cause` 是要它的那个命令（在路上又来的几个并进去，照第一个），不带 `turn`。
 

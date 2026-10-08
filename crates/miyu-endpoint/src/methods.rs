@@ -128,22 +128,14 @@ pub(crate) async fn call(
             };
             let mut blocks = said(params.text);
             let session = session(&params.session)?;
-            // 附件先查，再找会话：不对的，会话里什么都不送，`cwd`、`dirs` 也不送（施工 3-9 三补）。
+            // 附件先查，再找会话：不对的，会话里什么都不送（施工 3-9 三补）。头报的 `cwd`、`dirs` 不再换工作区（施工 9-7 上）。
             let attachments = params.attachments.unwrap_or_default();
             blocks.extend(attach::blocks(core, attachments).await?);
             let command = Command::Send {
                 blocks,
                 urgent: params.urgent,
             };
-            let found = core
-                .sessions
-                .get(
-                    core,
-                    &session,
-                    params.cwd.as_deref(),
-                    params.dirs.as_deref(),
-                )
-                .await?;
+            let found = core.sessions.get(core, &session).await?;
             // 场所会话只收代表外部的人说的话，本机的会话不收（施工 O-3，`venues.md`）。
             let local = found.handle.venue().as_str() == list::LOCAL;
             match (local, params.as_external) {
@@ -170,7 +162,7 @@ pub(crate) async fn call(
                 QueuedParam::Keep => Queued::Keep,
             };
             let session = session(&params.session)?;
-            let found = core.sessions.get(core, &session, None, None).await?;
+            let found = core.sessions.get(core, &session).await?;
             let command = Command::Interrupt { queued };
             let events = command_to(core, request, &session, &found.handle, command).await?;
             Ok(json!({ "events": events }))
@@ -182,7 +174,7 @@ pub(crate) async fn call(
                 .map(|turn| Seq::new(turn).map(TurnId::new).ok_or(Refusal::BAD_PARAMS))
                 .transpose()?;
             let session = session(&params.session)?;
-            let found = core.sessions.get(core, &session, None, None).await?;
+            let found = core.sessions.get(core, &session).await?;
             let command = Command::Revert { turn };
             let events = command_to(core, request, &session, &found.handle, command).await?;
             Ok(undo::reply(core, &session, &found.cwd, events).await)
@@ -190,7 +182,7 @@ pub(crate) async fn call(
         "session.unrevert" => {
             let params: UnrevertParams = params(request)?;
             let session = session(&params.session)?;
-            let found = core.sessions.get(core, &session, None, None).await?;
+            let found = core.sessions.get(core, &session).await?;
             let command = Command::Unrevert;
             let events = command_to(core, request, &session, &found.handle, command).await?;
             Ok(undo::reply(core, &session, &found.cwd, events).await)
@@ -204,7 +196,7 @@ pub(crate) async fn call(
                 Some(attachments) => Some(attach::blocks(core, attachments).await?),
                 None => None,
             };
-            let found = core.sessions.get(core, &session, None, None).await?;
+            let found = core.sessions.get(core, &session).await?;
             let command = Command::Redo {
                 text: params.text.map(said),
                 attachments,
@@ -215,7 +207,7 @@ pub(crate) async fn call(
         "session.compact" => {
             let params: CompactParams = params(request)?;
             let session = session(&params.session)?;
-            let found = core.sessions.get(core, &session, None, None).await?;
+            let found = core.sessions.get(core, &session).await?;
             let command = Command::Compact {
                 instructions: params.instructions,
             };
@@ -232,7 +224,7 @@ pub(crate) async fn call(
                 LevelParam::Full => Level::Full,
             });
             let session = session(&params.session)?;
-            let found = core.sessions.get(core, &session, None, None).await?;
+            let found = core.sessions.get(core, &session).await?;
             let command = Command::SetPermission {
                 level,
                 read_only: params.read_only,
@@ -246,7 +238,7 @@ pub(crate) async fn call(
             let call_id = CallId::parse(&params.call).map_err(|_| Refusal::BAD_PARAMS)?;
             let session = session(&params.session)?;
             let answer = params.answer()?;
-            let found = core.sessions.get(core, &session, None, None).await?;
+            let found = core.sessions.get(core, &session).await?;
             let command = Command::Answer { call_id, answer };
             let events = command_to(core, request, &session, &found.handle, command).await?;
             Ok(json!({ "events": events }))
@@ -254,14 +246,14 @@ pub(crate) async fn call(
         "session.clear" => {
             let params: ClearParams = params(request)?;
             let session = session(&params.session)?;
-            let found = core.sessions.get(core, &session, None, None).await?;
+            let found = core.sessions.get(core, &session).await?;
             let events = command_to(core, request, &session, &found.handle, Command::Clear).await?;
             Ok(json!({ "events": events }))
         }
         "session.recap" => {
             let params: RecapParams = params(request)?;
             let session = session(&params.session)?;
-            let found = core.sessions.get(core, &session, None, None).await?;
+            let found = core.sessions.get(core, &session).await?;
             let by = admin(core);
             match outcome(core, request, &session, &found.handle, by, Command::Recap).await? {
                 Outcome::Recapped { text, upto, cached } => {
@@ -274,7 +266,7 @@ pub(crate) async fn call(
             let params: JobStopParams = params(request)?;
             let session = session(&params.session)?;
             let job = JobId::parse(&params.job).map_err(|_| Refusal::BAD_PARAMS)?;
-            let found = core.sessions.get(core, &session, None, None).await?;
+            let found = core.sessions.get(core, &session).await?;
             match found
                 .handle
                 .stop_job(job, admin(core), request.id.clone())
@@ -313,7 +305,7 @@ pub(crate) async fn call(
             let params: models::ConfigureParams = params(request)?;
             let text = params.model()?;
             let session = session(&params.session)?;
-            let found = core.sessions.get(core, &session, None, None).await?;
+            let found = core.sessions.get(core, &session).await?;
             let model = models::record(core, text)?;
             let command = Command::Configure { model };
             command_to(core, request, &session, &found.handle, command).await?;
@@ -323,11 +315,12 @@ pub(crate) async fn call(
         "fs.find" => files::find(core, params(request)?).await,
         "fs.realpath" => files::realpath(core, params(request)?).await,
         "fs.read" => files::read(core, params(request)?).await,
+        "session.set_workspace" => crate::workspace::set(core, request, params(request)?).await,
         "session.set_meta" => {
             let params: MetaParams = params(request)?;
             let command = params.command()?;
             let session = session(&params.session)?;
-            let found = core.sessions.get(core, &session, None, None).await?;
+            let found = core.sessions.get(core, &session).await?;
             command_to(core, request, &session, &found.handle, command).await?;
             Ok(json!({}))
         }
@@ -349,7 +342,7 @@ pub(crate) async fn call(
 
 /// 把命令交给会话 `session`（把手是 `handle`），记成管理员发的，等它的回应：接受的交回它产生的事件的序号。会话停了的
 /// 从表里拿掉。
-async fn command_to(
+pub(crate) async fn command_to(
     core: &Core,
     request: &Request,
     session: &SessionId,

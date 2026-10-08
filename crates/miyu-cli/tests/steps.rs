@@ -129,7 +129,7 @@ async fn a_directory_too_wide_is_said_first_and_once() {
 }
 
 #[tokio::test]
-async fn going_on_from_a_directory_too_wide_says_it_too() {
+async fn going_on_from_elsewhere_says_where_the_session_works() {
     let work = Outside::new();
     let home = home([Play::Says("一。"), Play::Says("二。")]);
     let first = home
@@ -144,8 +144,8 @@ async fn going_on_from_a_directory_too_wide_says_it_too() {
         "项目目录不说：{}",
         first.err
     );
-    // 接着说时在 `~` 里：头报的目录跟着这一句送进会话，说话的回应里说实际在哪。剧本里的模型当场就回话，
-    // 回应和她的回答谁先到不一定（真的模型要等网络，回应总是先到），这里只看说了、只说了一次；先后由跟着
+    // 接着说时在 `~` 里：工作区是会话的（施工 9-7 上），说话不再换它，说话的回应里说会话在哪干活。剧本里的模型当场
+    // 就回话，回应和她的回答谁先到不一定（真的模型要等网络，回应总是先到），这里只看说了、只说了一次；先后由跟着
     // 一轮的那一头的测试照固定的顺序喂着看。
     let second = home
         .ask(&Plan {
@@ -155,8 +155,7 @@ async fn going_on_from_a_directory_too_wide_says_it_too() {
         })
         .await;
     assert_eq!(second.code, 0, "{}", second.err);
-    let workspace = home.root.workspace(&AccountIdOf::admin());
-    let said = format!("· 目录太宽（~），这次在 {} 里干活\n", workspace.display());
+    let said = format!("· 这个会话在 {} 里干活\n", work.text());
     assert_eq!(second.err.matches(&said).count(), 1, "{}", second.err);
     assert_eq!(second.out, "二。\n");
 }

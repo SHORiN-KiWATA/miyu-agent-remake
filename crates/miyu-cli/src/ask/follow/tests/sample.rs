@@ -110,7 +110,8 @@ fn the_screen_is_the_sample_of_the_drawing() {
         ),
         event("turn.ended", 3, "ask-4", json!({"reason": "completed"})),
     ];
-    let Fed { step, screen, .. } = feed(&plan, false, &messages);
+    // 新会话：目录太宽那一句是造会话的回应说的（施工 9-7 上起说话的回应不说它）。
+    let Fed { step, screen, .. } = feed_after(&plan, false, None, Some(&used), &messages);
     assert_eq!(step, Step::Done(exit::UNATTENDED));
     let sample =
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/designs/samples/cli/ask-text.txt");

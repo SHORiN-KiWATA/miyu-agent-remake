@@ -111,6 +111,8 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
             Body::SessionCreated(_)
             | Body::PolicyChanged(_)
             | Body::MetaChanged(_)
+            // 换工作区不进上下文：下一轮开始时变了的环境照旧注成一块事实（施工 9-7 上）。
+            | Body::WorkspaceChanged(_)
             | Body::SessionRecapped(_)
             // 斜杠命令的那一句只给人和聊天记录看（施工 O-6）。
             | Body::CommandRan(_)
@@ -352,6 +354,7 @@ pub(crate) fn continues(history: &History) -> bool {
             Body::ModelCalled(_)
                 | Body::SessionRecapped(_)
                 | Body::MetaChanged(_)
+                | Body::WorkspaceChanged(_)
                 | Body::CommandRan(_)
                 | Body::ImageDescribed(_)
         )

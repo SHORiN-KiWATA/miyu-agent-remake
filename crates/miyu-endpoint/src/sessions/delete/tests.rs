@@ -89,11 +89,7 @@ async fn no_one_wakes_the_child_between_its_stopped_report_and_its_deletion() {
         )
         .await
         .expect("造得了");
-    let parent = core
-        .sessions
-        .get(&core, &created.id, None, None)
-        .await
-        .expect("在跑");
+    let parent = core.sessions.get(&core, &created.id).await.expect("在跑");
     parent
         .handle
         .command(CommandId::parse("c2").unwrap(), admin(&core), say("派一个"))
