@@ -24,7 +24,7 @@ export const part = (title, ...kids) => h('div.setup-part', h('h5.setup-part-nam
 export const row = (name, desc, control) => h('div.setup-row', h('div.setup-row-text', h('span.setup-row-name', name), desc ? h('span.setup-row-desc', desc) : null), control);
 
 /** 编辑器的头：名字，右边「收起」。 @param {HTMLElement} title @param {string} label @param {() => void} close */
-export const head = (title, label, close) => h('div.setup-head', title, h('button.setup-collapse', { type: 'button', onclick: close }, label, icon('chevron-up')));
+export const head = (title, label, close) => h('div.setup-head', title, h('button.setup-collapse', { type: 'button', onclick: close }, label, icon('chevron-down')));
 
 /**
  * 多行框：跟着字长高；输入时打记号（设置页重画时不冲掉正在写的，`settings` 的 `editing`）。
@@ -99,7 +99,7 @@ export function nameFirst(kit, t, title, hint, create, cancel) {
     e.preventDefault();
     submit();
   });
-  const el = h('div.setup-card.is-open.set-form',
+  const el = h('div.setup-card.is-open', { 'data-set-dismiss': '' },
     h('div.setup-head', h('h4', title)),
     row(t('edit.name'), null, field),
     err,

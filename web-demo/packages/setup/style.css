@@ -81,8 +81,9 @@
 
 /* 人格、预设的详情：在列表里原地展开，亮底浮起来一点；控件照设置页的（`settings/kit.js`），不画描边 */
 .setup-bar { display: flex; justify-content: flex-end; margin: -4px 0 0; }
-.setup-new { height: 30px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--surface-2); color: var(--text); font: 13px var(--sans); cursor: pointer; }
+.setup-new { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--surface-2); color: var(--text); font: 13px var(--sans); cursor: pointer; }
 .setup-new:hover { background: var(--surface-3); }
+.setup-new svg { width: 14px; height: 14px; }
 .setup-card.is-clickable { cursor: pointer; transition: background-color 0.15s ease; }
 .setup-card.is-clickable:hover { background: var(--surface-3); }
 .setup-card.is-clickable:focus-visible { outline: 0; box-shadow: var(--card-shadow); }
@@ -91,7 +92,7 @@
 .setup-head h4 { margin: 0; }
 .setup-collapse { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; padding: 2px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--text-faint); font: 12px var(--sans); cursor: pointer; }
 .setup-collapse:hover { background: var(--surface-2); color: var(--text-soft); }
-.setup-collapse svg { width: 14px; height: 14px; }
+.setup-collapse svg { width: 14px; height: 14px; transform: rotate(180deg); }
 .setup-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0; }
 .setup-row-text { display: grid; gap: 2px; }
 .setup-row-name { color: var(--text); font-size: 13.5px; }

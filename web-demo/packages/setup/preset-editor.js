@@ -40,8 +40,9 @@ export class PresetEditor {
   /** @param {any} got `preset.get` 的回应 */
   draw(got) {
     const t = this.t;
-    this.title.textContent = got.name || this.id;
-    const name = this.kit.text(got.name ?? '', '', (text) => { if (text) this.set([{ key: 'preset.name', value: text }]); });
+    const label = typeof got.name === 'string' ? got.name : '';
+    this.title.textContent = label || this.id;
+    const name = this.kit.text(label, '', (text) => { if (text) this.set([{ key: 'preset.name', value: text }]); });
     const personas = (this.catalog.personas ?? []).filter((p) => !p.problem).map((p) => ({ value: p.persona, name: personaName(p) }));
     const persona = this.kit.select([{ value: null, name: t('edit.no_default') }, ...personas], got.default_persona ?? null,
       (v) => this.set([v == null ? { key: 'preset.default_persona', unset: true } : { key: 'preset.default_persona', value: v }]));

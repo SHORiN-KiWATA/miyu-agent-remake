@@ -6,7 +6,7 @@
 //! 点一块在原地展开详情（`persona-editor.js`、`preset-editor.js`），一次开一个；顶上「＋ 新建」先只填名字（`form.js` 的 `nameFirst`），
 //! 建好接着在详情里写。一页是一个常驻的对象：设置页别处改了配置重画、关了再开，交回的是同一块，开着的详情和没存的字都还在。
 
-import { h, replace } from '../../src/lib/dom.js';
+import { h, icon, replace } from '../../src/lib/dom.js';
 import { personaName, presetName } from './model.js';
 import { nameFirst } from './form.js';
 import { PersonaEditor, refusalText } from './persona-editor.js';
@@ -90,7 +90,7 @@ export class ListPage {
       });
       return card;
     });
-    const add = h('div.setup-bar', h('button.setup-new', { type: 'button', onclick: () => this.startNew() }, t(this.k.add)));
+    const add = h('div.setup-bar', h('button.setup-new', { type: 'button', onclick: () => this.startNew() }, icon('plus'), h('span', t(this.k.add))));
     replace(this.el, add, this.creating, cards.length ? cards : h('p.setup-empty', t(this.k.none)));
   }
 

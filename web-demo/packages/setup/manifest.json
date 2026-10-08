@@ -50,8 +50,8 @@
       "edit": {
         "name": "名字",
         "name_hint": "起个名字",
-        "new_persona": "＋ 新建人格",
-        "new_preset": "＋ 新建预设",
+        "new_persona": "新建人格",
+        "new_preset": "新建预设",
         "create": "建好",
         "cancel": "取消",
         "save": "存",
@@ -128,8 +128,8 @@
       "edit": {
         "name": "名前",
         "name_hint": "名前をつける",
-        "new_persona": "＋ 人格を作る",
-        "new_preset": "＋ プリセットを作る",
+        "new_persona": "人格を作る",
+        "new_preset": "プリセットを作る",
         "create": "作成",
         "cancel": "キャンセル",
         "save": "保存",

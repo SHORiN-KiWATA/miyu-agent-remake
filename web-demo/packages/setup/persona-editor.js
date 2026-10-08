@@ -27,7 +27,7 @@ export class PersonaEditor {
     this.t = (/** @type {string} */ key, /** @type {any} */ fields) => ctx.text(key, fields);
     this.title = h('h4', id);
     this.body = h('div.setup-editor', h('p.setup-empty', this.t('page.loading')));
-    this.el = h('div.setup-card.is-open.set-form', head(this.title, this.t('edit.collapse'), () => this.tryClose()), this.body);
+    this.el = h('div.setup-card.is-open', { 'data-set-dismiss': '' }, head(this.title, this.t('edit.collapse'), () => this.tryClose()), this.body);
     // `Esc`：没改过的收起；改了没存的留着（长的字一按就丢太亏），提示先存或者取消
     this.el.addEventListener('set-dismiss', () => this.tryClose());
     /** @type {PersonaDraft|null} */
