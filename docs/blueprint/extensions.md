@@ -18,7 +18,7 @@
 | `crates/miyu-endpoint/src/subscriptions/extensions.rs` | 扩展的状态的订阅（施工 9-4 补）：先写回应，收到哪个包变了照这一刻算那一项推 `extension.changed`，掉了队推 `resync` |
 | `crates/miyu-endpoint/src/connection.rs`、`hello.rs`、`login.rs` | 核心亲手给的连接：握手不看凭据（`Via::Spawned`） |
 | `crates/miyu-core/src/lib.rs`、`serve.rs` | 写了 `ready` 以后照开关拉起，停的时候请扩展退出 |
-| `crates/miyu-endpoint/src/bin/miyu-test-extension.rs` | 测试用的扩展：照参数一步步做（握手、调方法、等标准输入读到头、不理它、退出码、往标准错误写、记下一个环境变量（施工 O-18）），不随发行带出去 |
+| `crates/miyu-endpoint/src/bin/miyu-test-extension.rs` | 测试用的扩展：照参数一步步做（握手、调方法、带参数调方法（参数里的 `{session}` 换成最近回应里的会话编号，施工 O-4 下）、等标准输入读到头、不理它、退出码、往标准错误写、记下一个环境变量（施工 O-18）），不随发行带出去 |
 
 ### 对外的样子
 
@@ -81,7 +81,7 @@
 ### 怎么走
 
 1. **拉起**：程序照 9-2 的找法（`miyu_store::packages::locate`，只找 `miyu` 真实位置旁边的，不走 `PATH`），参数是清单的 `[process] args`，环境照核心的，另把 `MIYU_HOME`、`MIYU_RESOURCES` 设成核心手上正在用的数据根、资源目录的路径（施工 O-18：扩展和核心认同一份，不管核心是怎么找到它们的；测试里的核心跑在测试程序里，环境里没有临时的数据根，靠它把扩展指过去），工作目录是这个包放状态的目录（`state/packages/<编号>/`，没有的建）。标准输入、输出接管道，交给协议的连接；标准错误直接接到 `state/logs/<编号>.stderr` 上（追加，拉起前超过 1 MiB 的先挪成 `<编号>.stderr.old`）。核心丢下它时杀掉（`kill_on_drop`），兜底。Windows 上不开新的控制台窗口。
-2. **握手**：照头的样子（`hello`），不出示凭据：标准输入输出是核心亲手给的（`Via::Spawned`，写了的凭据不看）。握手的期限照头的。身份先是管理员本人，系统账号随 O-4。能力批过的才拉起（「能力」）；照能力挡方法随多用户、沙盒那一段。
+2. **握手**：照头的样子（`hello`），不出示凭据：标准输入输出是核心亲手给的（`Via::Spawned`，写了的凭据不看）。握手的期限照头的。包声明了系统账号的（`packages.md`「系统账号」），这个连接就是它：握手回应的 `account` 写它，通讯平台的场所会话归它（`venues.md`）；没声明的是管理员本人（施工 O-4 下）。人格、预设、软件包、上传的 blob 照旧照管理员的。能力批过的才拉起（「能力」）；照能力挡方法随多用户、沙盒那一段。
 3. **开关**：核心写了 `ready` 以后读一次开关的文件，照开关拉起开着的（`Core::start_extensions`）。`enable`、`disable` 先写文件再动进程，写不进的拒绝、不动进程（`internal_error`）；开、关、重启一件件办，两个连接同时开同一个不拉起两个。核心空闲的判断多一条：有要拉起、在跑、在等着再拉起的扩展，不算空闲；停下了的不拦着。
 4. **退出**：核心停的时候、`disable`、`restart` 时关它的标准输入（读到头就是「请退出」，三个平台一样），等 5 秒，没退的杀掉。核心停的时候各个扩展一起等，不一个个排队。
 5. **崩了**：它自己退出（退出码 1 以外的，包括 0）、被信号杀掉、标准输出关了、握手不成，都算一次失败：退避 1、2、4、8、16 秒以后再拉起（最多 60 秒），连续 5 次停下（`failed_repeatedly`）。退出码 1 是「配置错、端口被占」这类重启也没用的：不退避，直接停下（`config_error`）。握了手、连着跑满 60 秒的，下一次失败从 1 数。进程活着、连接连着就算活，不另做健康检查。停下的照旧开着：`restart` 再试，核心下次起来也再试。
@@ -106,6 +106,7 @@
 | `crates/miyu-endpoint/tests/extension_stream.rs`（施工 9-4 补） | 订阅回整份、名字照语言；开了推到在跑、关了推到关着；带 `after` 和会话的参数不对；取消了不推 |
 | `crates/miyu-endpoint/tests/extension_approval.rs`、`crates/miyu-config/src/package/tests.rs`、`crates/miyu-store/src/extensions/tests.rs`（施工 9-4 下上） | 清单的能力照表的先后、不认识的和重复的报 `bad_capability`；开关文件的 `approved` 读写、以前的文件当没批过、没批的不写这一格；管理员装的：不带 `approve` 拒绝 `needs_approval`、只批一部分说剩下的、不是声明的名字 `bad_params`、批了开起来、记下、关了不清；`always` 的没批不拉起、不拦空闲、`restart` 拒绝、批了拉起；升级多了的只问多的；出厂的桥不用批；名字照连接的语言 |
 | `crates/miyu-endpoint/tests/extension_config.rs`、`src/extensions/config/tests.rs`（施工 9-4 下下） | 握手交自己的键（默认值、密钥真值、没设的不放），头的连接没有；改了自己的项推、`secret.set` 换了值推新真值、去掉了推 `null`、别的项变了不推；只放变了的键 |
+| `crates/miyu-endpoint/tests/system_account.rs`、`crates/miyu-store/src/packages/tests.rs`、`crates/miyu-store/src/personas/tests.rs`（施工 O-4 下） | 声明了系统账号的包：起来时建它的工作区；拉起的扩展握手的 `account` 是它；群的场所会话归它（目录、工作目录、回应的 `account`）、找回同一个；对应表里的主人的私聊照旧归主人、这个连接照样能对它说话；群里主人说的记成外部身份带 `account`；附件拷进它名下；用量记在它名下；记忆归管理员、删了照管理员埋墓碑；没声明的扩展照旧 `no_system_account`、不建账号；撞了管理员的 `account_taken` |
 
 ### 起草时定的
 
@@ -120,5 +121,5 @@
 ### 还没有的
 
 - 装包时批能力：有了装包那一步，审批挪到装的时候。
-- 扩展的身份是系统账号：O-4。能力的强制执行、沙盒里跑：随多用户、沙盒那一段。
+- 能力的强制执行、照连接的身份挡方法、沙盒里跑：随多用户、沙盒那一段（扩展的身份是系统账号，施工 O-4 下做了）。
 - 扩展提供工具、命令、挂接点：O-2。

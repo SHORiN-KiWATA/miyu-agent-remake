@@ -81,9 +81,11 @@ pub(crate) fn bound(core: &Core, id: &ExternalId) -> Option<AccountId> {
 }
 
 /// `venue.session`：找回或者造场所 `venue` 的主线会话（`venues.md`「对外的样子」）。属主：私聊、对方在对应表里的是那个本机
-/// 账号；别的该是系统账号，O-4 以前没有，回 `no_system_account`。照「场所加属主」找：属主的主会话里场所是它的、最新的那一个。
+/// 账号；别的归系统账号：连接 `caller` 是系统账号的（核心拉起的、声明了系统账号的包的扩展）归它，别的连接回
+/// `no_system_account`（施工 O-4 下）。照「场所加属主」找：属主的主会话里场所是它的、最新的那一个。回应带属主 `account`。
 pub(crate) async fn session(
     core: &Arc<Core>,
+    caller: &AccountId,
     command: CommandId,
     params: VenueParams,
 ) -> Result<Value, Refusal> {
@@ -95,16 +97,18 @@ pub(crate) async fn session(
         (Kind::Group, None) => None,
         _ => return Err(Refusal::BAD_PARAMS),
     };
-    let owner = peer
-        .as_ref()
-        .and_then(|peer| bound(core, peer))
-        .ok_or(Refusal::NO_SYSTEM_ACCOUNT)?;
+    let owner = match peer.as_ref().and_then(|peer| bound(core, peer)) {
+        Some(account) => account,
+        None if core.is_system(caller) => caller.clone(),
+        None => return Err(Refusal::NO_SYSTEM_ACCOUNT),
+    };
     // 同一个场所同时来两次：一个找、一个造，排着来，免得造出两个主线会话。
     let _one_at_a_time = core.venues.lock().await;
     if let Some(found) = find(core, &owner, &venue).await? {
-        return Ok(json!({"session": found.as_str(), "created": false}));
+        return Ok(json!({"session": found.as_str(), "created": false, "account": owner.as_str()}));
     }
     let who = Opening {
+        owner: owner.clone(),
         attended: false,
         oneshot: false,
         model: None,
@@ -126,7 +130,7 @@ pub(crate) async fn session(
             who,
         )
         .await?;
-    Ok(json!({"session": created.id.as_str(), "created": true}))
+    Ok(json!({"session": created.id.as_str(), "created": true, "account": owner.as_str()}))
 }
 
 /// 属主 `owner` 的主会话里，场所是 `venue` 的最新的那一个：照会话列表的索引找，和 `session.list` 同一个读法。

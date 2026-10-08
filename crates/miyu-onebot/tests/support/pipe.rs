@@ -100,9 +100,9 @@ pub fn pipe_to(root: &DataRoot, config: Value, accounts: Option<Accounts>) -> (P
             if !config.is_null() {
                 reply["result"]["config"] = config;
             }
-            if let Some(accounts) = accounts {
-                reply["result"]["account"] = json!(accounts.own);
-            }
+            // 桥自己的账号照核心拉起它时的样子：系统账号 `onebot`（核心 O-4 下）。本机套接字上的核心当它是管理员，不改写的话主人
+            // 私聊的属主（管理员）和它一样，会被当成陌生人。
+            reply["result"]["account"] = json!(accounts.map_or("onebot", |accounts| accounts.own));
         }
         if near_write
             .write_all(format!("{reply}\n").as_bytes())

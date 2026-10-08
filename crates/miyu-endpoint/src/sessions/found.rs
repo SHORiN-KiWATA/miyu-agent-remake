@@ -36,7 +36,7 @@ impl Open {
         // 上）。施工 9-7 上起换工作区的事件也算。
         let (last_cwd, dirs) = remembered(core, &owner, id).await;
         let cwd = last_cwd.unwrap_or_else(|| NO_CWD.to_string());
-        let workspace = workspace(core, &cwd);
+        let workspace = workspace(core, &owner, &cwd);
         let loaded = load(Load {
             root: &core.root,
             personas: crate::personas::personas(core),

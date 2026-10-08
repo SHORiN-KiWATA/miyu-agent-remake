@@ -244,7 +244,7 @@ async fn a_venue_session_is_made_with_the_given_persona_and_found_again_without_
     let found = client.call("v2", "venue.session", again).await;
     assert_eq!(
         found["result"],
-        json!({"session": session, "created": false}),
+        json!({"session": session, "created": false, "account": "alice"}),
         "找回时不看人格"
     );
     let send = json!({"session": session, "text": "在吗", "as": {"external": "qq:10001"}});

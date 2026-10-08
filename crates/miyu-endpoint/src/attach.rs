@@ -142,6 +142,44 @@ pub(crate) async fn blocks(
     .await
 }
 
+/// 附件存在连接的账号（现在都是管理员）名下，她照会话的属主 `owner` 读（施工 O-4 下）：不是一个账号的，把块里的 blob 拷一份
+/// 进属主的，属主那里已经有的不再拷。读不了、存不下的记一行、`internal_error`。
+pub(crate) async fn hand_over(
+    core: &Core,
+    owner: &AccountId,
+    blocks: &[Block],
+) -> Result<(), Refusal> {
+    let hashes: Vec<ContentHash> = blocks
+        .iter()
+        .filter_map(|block| match block {
+            Block::Image(image) => Some(image.blob.clone()),
+            Block::File(file) => Some(file.blob.clone()),
+            _ => None,
+        })
+        .collect();
+    if *owner == core.admin || hashes.is_empty() {
+        return Ok(());
+    }
+    let place = place(core);
+    let owner = owner.clone();
+    blocking(move || {
+        let from = Blobs::new(place.root.blobs(&place.admin));
+        let to = Blobs::new(place.root.blobs(&owner));
+        for hash in hashes {
+            if to.path(&hash).is_file() {
+                continue;
+            }
+            let bytes = read_blob(&from, &hash)?;
+            to.put(&bytes).map_err(|error| {
+                tracing::warn!(target: TARGET, blob = hash.as_str(), error = %error, "attachment not handed over");
+                Refusal::INTERNAL
+            })?;
+        }
+        Ok(())
+    })
+    .await
+}
+
 /// `model.call` 的图（施工 8-20）：每个哈希一块图片，照先后。blob 这个账号没有的 `unknown_attachment`，不是图的
 /// `bad_params`，太大的 `attachment_too_big`。
 pub(crate) async fn images(core: &Core, hashes: Vec<ContentHash>) -> Result<Vec<Block>, Refusal> {

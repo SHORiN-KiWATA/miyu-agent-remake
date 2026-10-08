@@ -22,7 +22,7 @@ use serde_json::{Value, json};
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::Level;
-use miyu_kernel::id::{CallId, JobId, Seq, SessionId, TurnId};
+use miyu_kernel::id::{AccountId, CallId, JobId, Seq, SessionId, TurnId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Outcome, Queued};
 use miyu_policy::memory::MemoryScope;
@@ -59,6 +59,7 @@ use params::*;
 pub(crate) async fn call(
     core: &Arc<Core>,
     peer: Peer,
+    account: &AccountId,
     request: &Request,
     uploads: &mut Uploads,
 ) -> Result<Value, Refusal> {
@@ -75,6 +76,7 @@ pub(crate) async fn call(
                 .map(|text| MemoryScope::parse(&text).ok_or(Refusal::BAD_PARAMS))
                 .transpose()?;
             let who = Opening {
+                owner: account.clone(),
                 attended: peer.input,
                 oneshot: params.oneshot,
                 model,
@@ -124,7 +126,9 @@ pub(crate) async fn call(
             let sessions = list::list(core, params.oneshot, params.limit).await?;
             Ok(json!({"sessions": sessions}))
         }
-        "venue.session" => venues::session(core, request.id.clone(), params(request)?).await,
+        "venue.session" => {
+            venues::session(core, account, request.id.clone(), params(request)?).await
+        }
         "session.send" => {
             let params: SendParams = params(request)?;
             // 别的 harness 报的名字先查（施工 7-10）：不对的，会话里什么都不送。代表外部的人（施工 O-3）和它不能同时写。
@@ -140,11 +144,13 @@ pub(crate) async fn call(
             // 附件先查，再找会话：不对的，会话里什么都不送（施工 3-9 三补）。头报的 `cwd`、`dirs` 不再换工作区（施工 9-7 上）。
             let attachments = params.attachments.unwrap_or_default();
             blocks.extend(attach::blocks(core, attachments).await?);
+            let found = core.sessions.get(core, &session).await?;
+            // 附件照连接的账号读，她照会话的属主读：不是一个账号的拷一份过去（施工 O-4 下）。
+            attach::hand_over(core, found.handle.owner(), &blocks).await?;
             let command = Command::Send {
                 blocks,
                 urgent: params.urgent,
             };
-            let found = core.sessions.get(core, &session).await?;
             // 场所会话只收代表外部的人说的话，本机的会话不收（施工 O-3，`venues.md`）。
             let local = found.handle.venue().as_str() == list::LOCAL;
             match (local, params.as_external) {
@@ -152,7 +158,12 @@ pub(crate) async fn call(
                 (true, Some(_)) => return Err(Refusal::BAD_PARAMS),
                 (false, None) => return Err(Refusal::VENUE_SESSION),
                 (false, Some(speaking)) => {
-                    by = venues::speaker(core, found.handle.venue(), &core.admin, speaking)?;
+                    by = venues::speaker(
+                        core,
+                        found.handle.venue(),
+                        found.handle.owner(),
+                        speaking,
+                    )?;
                 }
             }
             let events = command_by(core, request, &session, &found.handle, by, command).await?;
@@ -206,6 +217,9 @@ pub(crate) async fn call(
                 None => None,
             };
             let found = core.sessions.get(core, &session).await?;
+            if let Some(blocks) = &attachments {
+                attach::hand_over(core, found.handle.owner(), blocks).await?;
+            }
             let command = Command::Redo {
                 text: params.text.map(said),
                 attachments,

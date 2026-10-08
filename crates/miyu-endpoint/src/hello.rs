@@ -19,6 +19,7 @@
 use serde::Deserialize;
 use serde_json::{Value, json};
 
+use miyu_kernel::id::AccountId;
 use miyu_sandbox::Availability;
 
 use std::sync::Arc;
@@ -125,11 +126,12 @@ pub(crate) struct Peer {
 }
 
 /// 握手：交回这个连接记下的、它是怎么认出来的（施工 W-8）和回应。拒绝的，交回拒绝和要不要断开。`spawned` 的是核心亲手拉起的
-/// 扩展（施工 9-4 上）：不看凭据，写了的也不看。
+/// 扩展（施工 9-4 上）：不看凭据，写了的也不看。`account` 是这个连接是谁（施工 O-4 下：声明了系统账号的包的扩展是它）。
 pub(crate) async fn hello(
     core: &Arc<Core>,
     params: Value,
     spawned: bool,
+    account: &AccountId,
 ) -> Result<(Shaken, Via, Value), (Refusal, bool)> {
     let params: Params =
         serde_json::from_value(params).map_err(|_| (Refusal::BAD_PARAMS, false))?;
@@ -171,8 +173,8 @@ pub(crate) async fn hello(
     let mut result = json!({
         "protocol": PROTOCOL,
         "core": {"version": env!("CARGO_PKG_VERSION")},
-        "account": core.admin.as_str(),
-        "host": host(core),
+        "account": account.as_str(),
+        "host": host(core, account),
         "sandbox": sandbox(&core.sandbox),
         "language": language,
     });
@@ -256,10 +258,10 @@ fn system(locale: Option<&str>) -> &'static str {
 
 /// 握手的回应里的 `host`（施工 W-3，`web-module.md`「四、路径」）：`home` 是核心起来时拿到的系统的家目录，照
 /// 原样，读不出来的是 `null`；`platform` 是核心所在的平台；`workspace` 是这个账号的工作区，换成真实的位置。不在
-/// 这里建它：管理员的工作区核心起来时就建好了（`core.md`），握手不该替每一个连上来的头造目录；换不成的（没建出来）
-/// 照原样交回，工具自己用到时会报错。
-fn host(core: &Core) -> Value {
-    let workspace = core.root.workspace(&core.admin);
+/// 这里建它：管理员、系统账号的工作区核心起来时就建好了（`core.md`，施工 O-4 下），握手不该替每一个连上来的头造目录；换不成
+/// 的（没建出来）照原样交回，工具自己用到时会报错。
+fn host(core: &Core, account: &AccountId) -> Value {
+    let workspace = core.root.workspace(account);
     let workspace = std::fs::canonicalize(&workspace).unwrap_or(workspace);
     json!({
         "home": core.home.as_deref().map(|home| home.display().to_string()),

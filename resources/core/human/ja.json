@@ -371,6 +371,7 @@
     "package-problems/not_bool": "{detail} は true か false です",
     "package-problems/settings_taken": "パッケージ ID {detail} がコアの設定と重なるため、その設定項目は一つも使いません。別の ID にしてください",
     "package-problems/bad_capability": "不明な拡張能力、または重複しています: {detail}",
+    "package-problems/account_taken": "システムアカウント名はすでに使われています: {detail}",
     "package-problems/check_failed": "パッケージ自身のチェックが終わりませんでした：{detail}",
     "package-problems/check_unavailable": "{detail} が見つからないため、パッケージ自身のチェックは動きませんでした",
     "package-problems/check_output": "パッケージ自身のチェックが読めない行を {detail} 行出したので、飛ばしました",

@@ -7,7 +7,6 @@
 //! 的第一条都读一遍，平常的载入不该为它慢下来。改名以前造的会话，日志里的调用叫 `agent`，一样认（施工 7-5 再补）。
 
 use std::collections::BTreeSet;
-use std::sync::Arc;
 
 use miyu_kernel::block::Block;
 use miyu_kernel::event::{Body, Effect};
@@ -53,12 +52,14 @@ impl Open {
         self.created
             .retain(|(_, session)| !orphans.contains(session));
         let (root, account, at, parent) = (core.root.clone(), owner.clone(), now(), parent.clone());
-        let index = Arc::clone(&core.index);
+        let index = core.index_for(&account);
         let moved = tokio::task::spawn_blocking(move || {
             for orphan in orphans {
                 match trash::discard(&root, &account, &orphan, at) {
                     Ok(()) => {
-                        forget(&index, &orphan);
+                        if let Some(index) = &index {
+                            forget(index, &orphan);
+                        }
                         tracing::info!(target: "miyu::endpoint", session = orphan.as_str(), parent = parent.as_str(), "orphan subagent removed");
                     }
                     Err(error) => {

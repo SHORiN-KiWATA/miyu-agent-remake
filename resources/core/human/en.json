@@ -371,6 +371,7 @@
     "package-problems/not_bool": "{detail} must be true or false",
     "package-problems/settings_taken": "The package id {detail} is also a core settings section, so none of its settings count; give it another id",
     "package-problems/bad_capability": "Unknown or repeated capability: {detail}",
+    "package-problems/account_taken": "System account name already taken: {detail}",
     "package-problems/check_failed": "The package's own check did not finish: {detail}",
     "package-problems/check_unavailable": "{detail} was not found, so the package's own check did not run",
     "package-problems/check_output": "The package's own check printed {detail} lines that are not problems; they were skipped",

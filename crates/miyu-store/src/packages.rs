@@ -61,6 +61,8 @@ pub enum Issue {
 pub struct Packages {
     dirs: Vec<(Layer, PathBuf)>,
     state: PathBuf,
+    /// 管理员（施工 O-4 下）：声明了系统账号、编号和它一样的包不收。只有出厂那一层的没有。
+    admin: Option<AccountId>,
 }
 
 impl Packages {
@@ -72,6 +74,7 @@ impl Packages {
                 (Layer::Home, root.account_dir(admin).join("packages")),
             ],
             state: root.state().join("packages"),
+            admin: Some(admin.clone()),
         }
     }
 
@@ -80,6 +83,7 @@ impl Packages {
         Packages {
             dirs: vec![(Layer::Shipped, resources.path().join("packages"))],
             state: PathBuf::new(),
+            admin: None,
         }
     }
 
@@ -105,6 +109,9 @@ impl Packages {
         found.sort_by(|one, other| (&one.id, one.layer).cmp(&(&other.id, other.layer)));
         duplicates(&mut found);
         taken(&mut found);
+        if let Some(admin) = &self.admin {
+            accounts_taken(&mut found, admin);
+        }
         found
     }
 
@@ -117,6 +124,25 @@ impl Packages {
     pub fn state_dir(&self, id: &str) -> PathBuf {
         self.state.join(id)
     }
+}
+
+/// 读成了的清单里声明了系统账号的那些包的账号（施工 O-4 下）：账号名就是包的编号，照编号排。
+pub fn system_accounts(found: &[Found]) -> Vec<AccountId> {
+    found
+        .iter()
+        .filter(|found| declares_account(found))
+        .filter_map(|found| AccountId::parse(&found.id).ok())
+        .collect()
+}
+
+/// 读成了、声明了系统账号。
+fn declares_account(found: &Found) -> bool {
+    found.read.as_ref().is_ok_and(|manifest| {
+        manifest
+            .process
+            .as_ref()
+            .is_some_and(|process| process.system_account)
+    })
 }
 
 /// 包里的程序 `program` 在哪（施工 9-2，`packages.md`「转交」）：主程序 `main` 真实位置旁边的（Windows 加 `.exe`，和
@@ -192,6 +218,20 @@ fn taken(found: &mut [Found]) {
                     message,
                 }));
             }
+        }
+    }
+}
+
+/// 声明了系统账号、编号和管理员的账号一样的：报 `account_taken`，整份不收（施工 O-4 下）。
+fn accounts_taken(found: &mut [Found], admin: &AccountId) {
+    for one in found.iter_mut() {
+        if declares_account(one) && one.id == admin.as_str() {
+            one.read = Err(Issue::Wrong(Problem {
+                line: None,
+                code: Code::AccountTaken,
+                message: format!("system account {} is already a person's account", one.id),
+                detail: one.id.clone(),
+            }));
         }
     }
 }

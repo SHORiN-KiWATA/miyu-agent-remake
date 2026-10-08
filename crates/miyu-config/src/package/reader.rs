@@ -165,7 +165,11 @@ impl Reader<'_> {
 
     /// `[process]`。
     pub(super) fn process(&self, table: &dyn TableLike) -> Result<Process, Problem> {
-        self.only(table, "process", &["args", "start", "capabilities"])?;
+        self.only(
+            table,
+            "process",
+            &["args", "start", "capabilities", "system_account"],
+        )?;
         let start = match table.get("start") {
             None => Start::Manual,
             Some(item) => match item.as_str() {
@@ -181,10 +185,22 @@ impl Reader<'_> {
                 }
             },
         };
+        let system_account = match table.get("system_account") {
+            None => false,
+            Some(item) => item.as_bool().ok_or_else(|| {
+                self.problem(
+                    Some(item),
+                    Code::NotBool,
+                    "process.system_account",
+                    "process.system_account must be true or false".to_string(),
+                )
+            })?,
+        };
         Ok(Process {
             args: self.texts(table, "process", "args")?,
             start,
             capabilities: self.capabilities(table)?,
+            system_account,
         })
     }
 

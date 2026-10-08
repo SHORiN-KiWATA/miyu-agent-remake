@@ -83,6 +83,9 @@ pub struct Process {
     pub start: Start,
     /// 要哪些扩展能力（施工 9-4 下上）：照 [`Capability::ALL`] 的先后，不重复；没写的是空的。
     pub capabilities: Vec<Capability>,
+    /// 有没有自己的系统账号（施工 O-4 下，`06-多用户与身份.md` U14）：有的，账号名就是包的编号，核心起来时建它，拉起的扩展
+    /// 以它的身份连进来。没写的是没有。
+    pub system_account: bool,
 }
 
 /// 什么时候拉起。
@@ -209,6 +212,8 @@ pub enum Code {
     SettingsTaken,
     /// `[process] capabilities` 里有不认识的、重复的名字（施工 9-4 下上）。
     BadCapability,
+    /// 声明了系统账号，编号和一个人的账号撞了（施工 O-4 下，`miyu-store` 认）。
+    AccountTaken,
 }
 
 impl Code {
@@ -247,11 +252,12 @@ impl Code {
             Code::NotBool => "not_bool",
             Code::SettingsTaken => "settings_taken",
             Code::BadCapability => "bad_capability",
+            Code::AccountTaken => "account_taken",
         }
     }
 
     /// 全部代码：给人看的字的门禁照它查三种语言都有。
-    pub const ALL: [Code; 32] = [
+    pub const ALL: [Code; 33] = [
         Code::Syntax,
         Code::UnknownTable,
         Code::NotATable,
@@ -284,6 +290,7 @@ impl Code {
         Code::NotBool,
         Code::SettingsTaken,
         Code::BadCapability,
+        Code::AccountTaken,
     ];
 }
 
