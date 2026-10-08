@@ -4,10 +4,12 @@
 use std::collections::VecDeque;
 
 use super::Stage;
+use super::aside::partway;
 use super::script::Line;
 use crate::event::Purpose;
 use crate::id::Seq;
 use crate::request::Request;
+use crate::session::Input;
 
 /// 替身记着的提前压好。
 #[derive(Default)]
@@ -49,6 +51,18 @@ impl Stage {
             .held
             .take()
             .unwrap_or_else(|| panic!("没有停住的提前压"));
+        // 只送了头几个字的（施工 6-11 下）：先送剩下的、收全。
+        if line.partway.is_some() {
+            for delta in partway(&line, line.partway.unwrap_or_default(), false) {
+                let input = Input::AsideDelta {
+                    at: self.tick(),
+                    purpose: Purpose::Compaction,
+                    upto,
+                    delta,
+                };
+                self.run(input);
+            }
+        }
         let ended = self.aside_ended(Purpose::Compaction, upto, &line);
         self.run(ended);
     }

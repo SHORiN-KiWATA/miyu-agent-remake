@@ -8,18 +8,21 @@
 //!
 //! 出错、取不出摘要的扔掉，不重试、不数进熔断；fork 式调了工具、策略里有隔离式的，照隔离式再发一次。只在内存里：载入、
 //! 重启以后没有，到了起压线再压一次。
+//!
+//! 到线时那一次还在路上、还用得上的（施工 6-11 下），回合进 [`Stage::Awaiting`] 等它：先推一条进度（写了的是已经收到的
+//! 字数），之后它每来一段正文推一次；回来了用得上的换上，用不上的当场压。等的时候打断、重启，它接着在后台跑。
 
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 use super::Session;
 use super::action::Action;
 use super::aside::{Aside, failed};
-use super::compaction::{Due, settle};
+use super::compaction::{Due, expected, settle};
 use super::input::Reread;
 use super::summary::{Summarized, called_tool};
 use super::turn::Stage;
 use crate::estimate;
-use crate::event::{Body, CallError, Cost, Purpose, Usage};
+use crate::event::{Body, CallError, CompactionProgress, Cost, Purpose, Usage};
 use crate::id::Seq;
 use crate::request::Request;
 use crate::time::Timestamp;
@@ -55,6 +58,13 @@ struct Prepared {
     summary: String,
     usage: Option<Usage>,
     duration_ms: Option<u64>,
+}
+
+/// 到线时在等提前压的那一次（施工 6-11 下）：这次压缩压什么，进度的 `expected`。
+#[derive(Debug)]
+pub(super) struct Awaiting {
+    due: Due,
+    expected: u64,
 }
 
 impl Prepare {
@@ -93,7 +103,11 @@ impl Session {
         }
         match &self.prepare.state {
             Some(State::Asking { .. }) => return None,
-            Some(State::Ready(prepared)) if self.usable(prepared, tail + lead) => return None,
+            Some(State::Ready(prepared))
+                if self.usable(prepared.upto, prepared.key, tail + lead) =>
+            {
+                return None;
+            }
             _ => self.prepare.state = None,
         }
         let price = self.price()?;
@@ -156,6 +170,34 @@ impl Session {
         let (usage, duration_ms) = (called.usage, called.duration_ms);
         let event = self.record_aside(at, None, Body::ModelCalled(called));
         let mut actions = vec![Action::Append(vec![event])];
+        // 回合在等它（施工 6-11 下）：用得上的换上；别的（出错、取不出、调了工具、用不上了）不再补发隔离式的，回到「准备
+        // 好」，这条 `model.called` 落了盘再组装、照现在的办法当场压（请求要等事件都落了盘才发）。回到「准备好」照别处一样
+        // 先查事实：等的时候切了级别的，这时注入。
+        if let Some(awaiting) = self.take_awaiting() {
+            let room = self.lead().map(|(tail, lead)| tail + lead);
+            match summary {
+                Ok(summary) if room.is_some_and(|room| self.usable(upto, key, room)) => {
+                    let prepared = Prepared {
+                        upto,
+                        key,
+                        summary,
+                        usage,
+                        duration_ms,
+                    };
+                    actions.extend(self.swap(at, awaiting.due, prepared));
+                }
+                _ => {
+                    if let Some(turn) = self.turn.as_mut() {
+                        turn.stage = Stage::Ready;
+                    }
+                    let facts = self.refresh_facts(at);
+                    if !facts.is_empty() {
+                        actions.push(Action::Append(facts));
+                    }
+                }
+            }
+            return actions;
+        }
         match summary {
             Ok(summary) => {
                 self.prepare.state = Some(State::Ready(Prepared {
@@ -174,12 +216,89 @@ impl Session {
         actions
     }
 
-    /// 到线了（第十五条第 3 条）：自动压缩、手动压缩没附要求的，手里那一份用得上就换上，不然当场压
-    /// （[`Session::start_compaction`]）。用不上的扔掉；在路上的留着，晚到了照「还用得上」再判（6-11 上不等它）。
+    /// 到线了（第十五条第 3、4、5 条）：自动压缩、手动压缩没附要求的，手里那一份用得上就换上；在路上的那一次用得上就等它
+    /// （施工 6-11 下）；不然当场压（[`Session::start_compaction`]）。压好了用不上的扔掉；在路上用不上的留着，晚到了照
+    /// 「还用得上」再判。
     pub(super) fn begin_compaction(&mut self, at: Timestamp, due: Due) -> Vec<Action> {
-        match self.take_prepared(&due) {
-            Some(prepared) => self.swap(at, due, prepared),
+        if let Some(prepared) = self.take_prepared(&due) {
+            return self.swap(at, due, prepared);
+        }
+        match self.awaitable(&due) {
+            Some(written) => self.await_prepared(at, due, written),
             None => self.start_compaction(due),
+        }
+    }
+
+    /// 在路上的那一次等不等（施工 6-11 下）：这一轮开着、没附要求，它起压时的指纹和这时的一样、那里还切得开、以后的尾巴
+    /// 不超过 T + G 的等，交回它的名字和已经收到的正文字数。
+    fn awaitable(&self, due: &Due) -> Option<(Seq, u64)> {
+        let Some(State::Asking { aside, key, .. }) = &self.prepare.state else {
+            return None;
+        };
+        let (tail, lead) = self.lead()?;
+        let wanted = self.prepare.on && due.instructions.is_none();
+        (wanted && self.usable(aside.upto, *key, tail + lead))
+            .then(|| (aside.upto, aside.written()))
+    }
+
+    /// 等在路上的那一次（施工 6-11 下）：回合进 [`Stage::Awaiting`]，推一条进度：`seen` 是它的名字，写了的是已经收到的。
+    fn await_prepared(
+        &mut self,
+        at: Timestamp,
+        due: Due,
+        (seen, written): (Seq, u64),
+    ) -> Vec<Action> {
+        let expected = expected(due.used);
+        let Some(turn) = self.turn.as_mut() else {
+            return Vec::new();
+        };
+        turn.stage = Stage::Awaiting(Box::new(Awaiting { due, expected }));
+        let progress = CompactionProgress {
+            seen,
+            written,
+            expected,
+        };
+        vec![Action::PushTransient(Session::progress(
+            at,
+            Some(turn.id),
+            turn.cause.clone(),
+            progress,
+        ))]
+    }
+
+    /// 回合在等的那一次来了一段正文（施工 6-11 下，`aside.rs` 的 `aside_delta` 调它）：推一次进度。没在等的什么都不推。
+    pub(super) fn awaited_progress(&mut self, at: Timestamp, upto: Seq) -> Vec<Action> {
+        let Some(written) = self.prepare.aside(upto).map(|aside| aside.written()) else {
+            return Vec::new();
+        };
+        let Some(turn) = self.turn.as_ref() else {
+            return Vec::new();
+        };
+        let Stage::Awaiting(awaiting) = &turn.stage else {
+            return Vec::new();
+        };
+        let progress = CompactionProgress {
+            seen: upto,
+            written,
+            expected: awaiting.expected,
+        };
+        vec![Action::PushTransient(Session::progress(
+            at,
+            Some(turn.id),
+            turn.cause.clone(),
+            progress,
+        ))]
+    }
+
+    /// 回合在等提前压的那一次的，取走等的那一格，回合先放在「收拾」上（接着换上或者当场压）。没在等的没有。
+    fn take_awaiting(&mut self) -> Option<Box<Awaiting>> {
+        let turn = self.turn.as_mut()?;
+        if !matches!(turn.stage, Stage::Awaiting(_)) {
+            return None;
+        }
+        match std::mem::replace(&mut turn.stage, Stage::Settling) {
+            Stage::Awaiting(awaiting) => Some(awaiting),
+            _ => None,
         }
     }
 
@@ -195,24 +314,25 @@ impl Session {
         // 被动压缩不走这里（`overflow.rs` 照它自己的切法当场压）。
         let wanted = self.prepare.on && due.instructions.is_none();
         let (tail, lead) = self.lead()?;
-        (wanted && self.usable(&prepared, tail + lead)).then_some(prepared)
+        (wanted && self.usable(prepared.upto, prepared.key, tail + lead)).then_some(prepared)
     }
 
-    /// 压好的这一份还用得上：有效历史里它替代到的以前没变，那里还切得开，以后的尾巴不超过 `room`（T + G）。
-    fn usable(&self, prepared: &Prepared, room: u64) -> bool {
-        if self.prefix_key(prepared.upto) != prepared.key {
+    /// 替代到 `upto`、起压时指纹是 `key` 的那一份还用得上：有效历史里 `upto` 以前没变，那里还切得开，以后的尾巴不超过
+    /// `room`（T + G）。压好了的、在路上的（施工 6-11 下）一样判。
+    fn usable(&self, upto: Seq, key: u64, room: u64) -> bool {
+        if self.prefix_key(upto) != key {
             return false;
         }
         let Some(price) = self.price() else {
             return false;
         };
         let ordered = self.history.ordered();
-        if settle(&ordered, prepared.upto) != Some(prepared.upto) {
+        if settle(&ordered, upto) != Some(upto) {
             return false;
         }
         let tail = ordered
             .iter()
-            .filter(|event| event.seq > prepared.upto)
+            .filter(|event| event.seq > upto)
             .map(|event| estimate::event(event, &price))
             .fold(0, u64::saturating_add);
         tail <= room

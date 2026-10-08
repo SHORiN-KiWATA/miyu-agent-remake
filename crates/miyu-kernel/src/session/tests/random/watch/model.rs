@@ -63,6 +63,7 @@ impl Watch {
     /// 一个回合的请求不超过上限。摘要请求照压缩的规矩查（`watch/compaction.rs`），不算步数。
     pub(super) fn called(&mut self, seen: Seq, request: &Request) {
         let seed = self.seed;
+        self.not_awaiting();
         // 交出去以前喂进去的说完了不算（内核不收不在路上的）：只查交出去以后的（施工 8-15）。
         self.retries.costs.remove(&seen);
         let turn = self.open_turn();

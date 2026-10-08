@@ -412,7 +412,8 @@ impl Watch {
         let seed = self.seed;
         self.seen_paths.insert("推了压缩的进度");
         let Some((seen, written)) = self.compactions.summarizing.as_mut() else {
-            panic!("种子 {seed}：没有在路上的摘要请求，却推了进度");
+            self.awaited_progress(progress.seen, progress.written);
+            return;
         };
         assert_eq!(progress.seen, *seen, "种子 {seed}：进度不是在路上的那次的");
         // 发出去时先推一条 0 字的（施工 6-3 下），之后每一条都比上一条多。
@@ -432,10 +433,12 @@ impl Watch {
         );
     }
 
-    /// 载入了：会话不记得交过的限额；手动压缩那一轮也不在了（崩了的收尾、重启的不接着压）。
+    /// 载入了：会话不记得交过的限额；手动压缩那一轮也不在了（崩了的收尾、重启的不接着压）；在路上的摘要请求跟着没了，不记
+    /// `model.called`（施工 6-11 下补上：以前载入以后不会不发摘要请求就推进度，留着的那一次查不出来，等提前压的进度撞上了）。
     pub(super) fn forget_limits(&mut self) {
         self.compactions.limits = None;
         self.compactions.manual = None;
+        self.compactions.summarizing = None;
     }
 
     /// 发了主请求，或者这一轮结束了：下一步又能压了。

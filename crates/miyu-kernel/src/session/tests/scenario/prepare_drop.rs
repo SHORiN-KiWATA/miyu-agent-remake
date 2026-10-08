@@ -1,4 +1,4 @@
-//! 场景：提前压好的那一份什么时候用、什么时候扔（`docs/blueprint/compaction.md` 第十五条第 3、4 条，施工 6-11 上）。数同
+//! 场景：提前压好的那一份什么时候用、什么时候扔（`docs/blueprint/compaction.md` 第十五条第 3、5 条，施工 6-11 上）。数同
 //! `prepare.rs`：压缩线 400，T = 40，G = 60，过了 340 起压；第一轮切到第 8 条。
 
 use super::prepare::{compactions, done, preparing, two_turns, words};

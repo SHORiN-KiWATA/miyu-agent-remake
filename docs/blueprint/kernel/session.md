@@ -209,6 +209,7 @@
 | `Asking(请求)` | 执行器的三种回报。可能是压缩的摘要请求（`compaction.md` 第三条） | `Settling`；摘要请求取到了摘要的，回 `Ready` |
 | `Waiting { after }` | 为 `after` 那次请求的 `Woke` | `Ready` |
 | `Swapping(摘要)` | 到线换上提前压好的那一份，等执行器重读（施工 6-11 上，`compaction.md` 第十五条第 3 条） | 重读回来了写压缩，回 `Ready`。打断、重启照 `Ready` 收拾，那一份扔掉 |
+| `Awaiting(压什么)` | 到线时提前压的那一次还在路上，等它（施工 6-11 下，`compaction.md` 第十五条第 4 条） | 它每来一段正文推一次进度；回来了用得上的照 `Swapping` 换上，用不上的回 `Ready`、落了盘当场压。打断、重启照 `Ready` 收拾，它接着在后台跑 |
 | `Settling` | 只在处理一条输入的当中出现，什么输入都不收 | 结束、`Tools`，或者 `Waiting` |
 | `Tools(这一步)` | 这一步的调用都有了结果 | `Ready`，或者结束 |
 
