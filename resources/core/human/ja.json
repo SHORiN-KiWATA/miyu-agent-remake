@@ -230,11 +230,15 @@
       },
       "onebot.listen": {
         "name": "QQ ブリッジのポート",
-        "description": "NapCat のリバース WebSocket が接続してくるポートです。このマシンからだけ受け付けます。NapCat 側のアドレスは ws://127.0.0.1:<ポート>/onebot/v11/ws です。"
+        "description": "NapCat のリバース WebSocket が接続してくるポートです。このマシンからだけ受け付けます。NapCat 側のアドレスは ws://127.0.0.1:<ポート>/ws です。QQ ブリッジの Web ページで変えて保存すると、すぐ反映されます。"
+      },
+      "onebot.web": {
+        "name": "QQ ブリッジの Web ページのポート",
+        "description": "QQ ブリッジ自身の Web ページ（NapCat の接続、トークン）のポートです。このマシンからだけ受け付けます。miyu-onebot web で開きます。そのページで変えて保存すると、すぐ反映されます。"
       },
       "onebot.token": {
         "name": "QQ ブリッジのトークン",
-        "description": "NapCat が接続するときに示すアクセストークンです。NapCat 側にも同じものを設定します。{ secret = \"名前\" }（miyu login で保存）か { env = \"環境変数\" } を書きます。未設定なら QQ ブリッジは起動しません。"
+        "description": "NapCat が接続するときに示すアクセストークンです。NapCat 側にも同じものを設定します。{ secret = \"名前\" }（miyu login で保存）か { env = \"環境変数\" } を書きます。未設定でも QQ ブリッジは起動しますが、NapCat の接続は拒否します。QQ ブリッジの Web ページで生成できます。変えると、NapCat の次の接続から新しいものを使います。"
       }
     },
     "pages": {

@@ -60,21 +60,32 @@ const MODULES: [&[Item]; 18] = [
 
 miyu_config::settings! {
     /// 通讯平台的桥 `miyu-onebot` 的配置（施工 O-8，`docs/blueprint/onebot.md` 第一条）。权宜：照 `tui.startup`（施工 8-3）的
-    /// 先例，软件包的清单还不能声明配置项，先由核心替桥声明、登记；桥自己读系统配置、起来时读一次，核心不管它。施工 9-1
-    /// 有了软件包的清单以后挪进桥自己的清单。
+    /// 先例，软件包的清单还不能声明配置项，先由核心替桥声明、登记；桥自己读系统配置，核心不管它：起来时读一次，之后在 NapCat
+    /// 的令牌对不上时、桥的 WebUI 问的时候重读（施工 O-16 补二）。施工 9-1 有了软件包的清单以后挪进桥自己的清单。
     pub struct OnebotSettings in "onebot" {
-        /// NapCat 反连进来的端口，只听本机 `127.0.0.1`。8301 挨着网页软件的 8300（`onebot.md`「施工时定的」第 2 条）。
+        /// NapCat 反连进来的端口，只听本机 `127.0.0.1`。8301 挨着网页软件的 8300（`onebot.md`「施工时定的」第 2 条）。桥起来时
+        /// 读；在桥的 WebUI 上改、保存的当场换（`/apply`，O-16 补二），命令行改的桥下次起来时生效。
         listen: Option<i64> = 8301 {
             kind: int [1024, 65535],
             layers: [System],
             applies: head_start,
             ui: { page: "advanced", group: "onebot", control: number },
         },
-        /// NapCat 连进来时出示的访问令牌：`{ secret = … }` 或 `{ env = … }`。没设、取不到的，桥不起来（「施工时定的」第 3 条）。
+        /// 桥自己的 WebUI 的端口，只听本机 `127.0.0.1`。8302 挨着网页软件的 8300、NapCat 的 8301（施工 O-16，`onebot.md`
+        /// 第二条「对外的样子」）。生效同 `listen`。
+        web: Option<i64> = 8302 {
+            kind: int [1024, 65535],
+            layers: [System],
+            applies: head_start,
+            ui: { page: "advanced", group: "onebot", control: number },
+        },
+        /// NapCat 连进来时出示的访问令牌：`{ secret = … }` 或 `{ env = … }`。没设、取不到的，桥照样起来，NapCat 连进来一律
+        /// 401（「施工时定的」第 3 条）。改了当场生效：NapCat 下一次连进来，桥对不上就重读，照新的比（O-16 补二，`onebot.md`
+        /// 第一条「怎么走」第 2 条）。
         token: Option<miyu_config::secret::Reference> = none {
             kind: secret,
             layers: [System],
-            applies: head_start,
+            applies: now,
             ui: { page: "advanced", group: "onebot", control: text },
         },
     }

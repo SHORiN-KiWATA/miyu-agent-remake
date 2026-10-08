@@ -1,5 +1,7 @@
 //! `miyu-web serve`（`web-ui.md`「怎么走」第一条）：单实例、只听 `127.0.0.1`、写 `run/web` 和那一行、空闲退出；每个
-//! 请求先核对 Host，`/ws` 交给 `ws`，`/media` 交给 `media`（施工 W-10），别的当页面文件（`pages`）。
+//! 请求先核对 Host，`/ws` 交给 `miyu_webserve::ws`，`/media` 交给 `media`（施工 W-10），别的当页面文件
+//! （`miyu_webserve::pages`）。核对 Host、给页面、`/ws` 照转、回应的几样在共用的 `miyu-webserve`（施工 O-16，
+//! `webserve.md`「搬家表」）。
 //!
 //! 1. 先拿 `run/web.lock`，拿不到写 `running` 走。
 //! 2. 听端口：被占了写 `error port <端口> in use`（`open` 认这个前缀，照人的语言说），别的起不来写 `error <原因>`。
@@ -9,36 +11,32 @@
 use std::convert::Infallible;
 use std::fs::{File, OpenOptions, TryLockError};
 use std::path::PathBuf;
-use std::process::Command;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
-use http_body_util::{BodyExt, Full};
-use hyper::body::{Bytes, Incoming};
-use hyper::header::{self, HeaderValue};
-use hyper::{Method, Request, Response, StatusCode};
+use hyper::body::Incoming;
+use hyper::header;
+use hyper::{Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 
 use miyu_ipc::Ready;
 use miyu_store::root::DataRoot;
+use miyu_webserve::Site as _;
 
 use crate::media::Media;
 use crate::settings::Settings;
-use crate::{TARGET, media, pages, ws};
+use crate::{TARGET, media};
+
+pub use miyu_webserve::CoreCommand;
+pub(crate) use miyu_webserve::respond::{Body, empty, full, secure};
 
 /// 单实例的锁，在 `run/` 里。
 pub const LOCK: &str = "web.lock";
 
 /// 网页的地址，在 `run/` 里：一行，`http://127.0.0.1:<端口>`。
 pub const ADDRESS: &str = "web";
-
-/// 回应的正文：整段的，或者 `/media` 一块块给的。
-pub(crate) type Body = http_body_util::combinators::BoxBody<Bytes, std::io::Error>;
-
-/// 拉起核心的命令：主程序 `miyu` 加 `core`。
-pub type CoreCommand = Arc<dyn Fn() -> Command + Send + Sync>;
 
 /// 起一个网页软件要的。
 pub struct Serve {
@@ -102,24 +100,26 @@ impl Site {
                 .elapsed(),
         )
     }
+}
 
-    /// Host、Origin 认的三种写法（不带协议）。
-    pub(crate) fn hosts(&self) -> [String; 3] {
-        let port = self.port;
-        [
-            format!("127.0.0.1:{port}"),
-            format!("localhost:{port}"),
-            format!("[::1]:{port}"),
-        ]
+/// `/ws` 照它连核心、数忙；Host、Origin 照它的端口核对（`miyu_webserve::Site` 的两个默认方法）。
+impl miyu_webserve::Site for Site {
+    type Busy = Busy;
+
+    fn root(&self) -> &DataRoot {
+        &self.root
     }
 
-    /// Host 对不对：只认三种写法，`localhost` 不分大小写。
-    fn host_allowed(&self, host: Option<&str>) -> bool {
-        host.is_some_and(|host| {
-            self.hosts()
-                .iter()
-                .any(|allowed| allowed.eq_ignore_ascii_case(host))
-        })
+    fn port(&self) -> u16 {
+        self.port
+    }
+
+    fn core(&self) -> &CoreCommand {
+        &self.core
+    }
+
+    fn busy(self: &Arc<Self>) -> Busy {
+        Site::busy(self)
     }
 }
 
@@ -232,7 +232,7 @@ async fn handle(request: Request<Incoming>, site: Arc<Site>) -> Result<Response<
     }
     let path = request.uri().path();
     if path == "/ws" {
-        return Ok(ws::accept(request, site));
+        return Ok(miyu_webserve::ws::accept(request, site));
     }
     if path == "/media" {
         return Ok(media::post(request, site).await);
@@ -240,58 +240,8 @@ async fn handle(request: Request<Incoming>, site: Arc<Site>) -> Result<Response<
     if path.starts_with("/media/") {
         return Ok(media::get(request, site).await);
     }
-    if request.method() != Method::GET && request.method() != Method::HEAD {
-        return Ok(empty(StatusCode::METHOD_NOT_ALLOWED));
-    }
-    let Some(file) = pages::find(&site.pages, request.uri().path()) else {
-        return Ok(empty(StatusCode::NOT_FOUND));
-    };
-    let Ok(bytes) = tokio::fs::read(&file).await else {
-        return Ok(empty(StatusCode::NOT_FOUND));
-    };
-    let body = match request.method() == Method::HEAD {
-        true => Bytes::new(),
-        false => Bytes::from(bytes),
-    };
-    let mut response = Response::new(full(body));
-    let headers = response.headers_mut();
-    headers.insert(header::CONTENT_TYPE, value(site.settings.type_of(&file)));
-    headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
-    headers.insert(header::CONTENT_SECURITY_POLICY, value(&site.settings.csp));
-    secure(headers);
-    Ok(response)
-}
-
-/// 整段的正文。
-pub(crate) fn full(bytes: impl Into<Bytes>) -> Body {
-    Full::new(bytes.into())
-        .map_err(|never| match never {})
-        .boxed()
-}
-
-/// 没有内容的回应，带两个一律有的头。
-pub(crate) fn empty(status: StatusCode) -> Response<Body> {
-    let mut response = Response::new(full(Bytes::new()));
-    *response.status_mut() = status;
-    secure(response.headers_mut());
-    response
-}
-
-/// 一律带的：不猜类型、不带 Referer。从来不设 cookie（「起草时定的」第 13 条）。
-pub(crate) fn secure(headers: &mut hyper::HeaderMap) {
-    headers.insert(
-        header::X_CONTENT_TYPE_OPTIONS,
-        HeaderValue::from_static("nosniff"),
-    );
-    headers.insert(
-        header::REFERRER_POLICY,
-        HeaderValue::from_static("no-referrer"),
-    );
-}
-
-/// 字写成头的值；写不成的（有控制字符）是空的。
-fn value(text: &str) -> HeaderValue {
-    HeaderValue::from_str(text).unwrap_or_else(|_| HeaderValue::from_static(""))
+    let settings = &site.settings;
+    Ok(miyu_webserve::pages::serve(&request, &site.pages, &settings.csp, &settings.types).await)
 }
 
 /// 拿单实例的锁：拿不到（有一个在跑）是空的。

@@ -22,12 +22,14 @@ miyu-store = { path = "../miyu-store" }
 miyu-config = { path = "../miyu-config" }
 # 运行日志 `state/logs/web.log`，满了照核心的换法。
 miyu-log = { path = "../miyu-log" }
+# 给页面、核对 Host 和 Origin、`/ws` 照转、照终端的样子连核心和开浏览器：和 QQ 桥的 WebUI 共用的底子（施工 O-16，
+# webserve.md）。
+miyu-webserve = { path = "../miyu-webserve" }
 # HTTP/1 的服务端（「起草时定的」第 24 条：正式的软件不手写协议）。本来就在依赖图里（reqwest 带进来的）。MIT。
 hyper = { version = "1", features = ["server", "http1"] }
 hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }
 http-body-util = "0.1"
-# WebSocket：一帧一条消息。只开握手（算 Sec-WebSocket-Accept），连接由 hyper 升级好交给它。MIT。
-tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }
+# `/media` 一块块给的正文是一条流。
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 # `/media`（施工 W-10）：票据是 32 个随机字节；核心一块块给的是 base64。两个都本来就在依赖图里，和别的 crate 用的同一份。
 getrandom = { version = "0.4", features = ["std"] }
@@ -35,7 +37,7 @@ base64 = "0.22"
 # 读 web.json。
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time", "fs", "signal"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "sync", "time", "signal"] }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 
 [lints]

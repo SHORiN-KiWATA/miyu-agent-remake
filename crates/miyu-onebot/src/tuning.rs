@@ -3,6 +3,7 @@
 //!
 //! 是数据，不发给模型，不进登记簿（`xtask/src/ledger.rs` 只豁免这一份文件：这个包以后要放给模型看的字）。
 
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::Duration;
 
@@ -25,6 +26,30 @@ pub struct Tuning {
     pub inbound_queue: usize,
     /// 接不了 TCP 连接（打开的文件太多这类）时，歇几毫秒再接，不空转（照核心的规矩）。
     pub accept_retry_millis: u64,
+    /// NapCat 出示的令牌对不上（或者桥手里还没有）时重读配置，离上一次这样重读不到几秒的不读（第 2 条，施工 O-16 补二）：
+    /// 乱连的不能把读配置变成负担。
+    pub reload_seconds: u64,
+    /// WebUI 的数（施工 O-16，`onebot.md` 第二条）。
+    pub web: WebTuning,
+}
+
+/// WebUI 的数：页面的内容安全策略、类型表（照网页软件的 `web.json`），`/status` 验过的登录令牌记多久。
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WebTuning {
+    /// 页面的 `Content-Security-Policy`。
+    pub csp: String,
+    /// 扩展名（小写）→ 媒体类型；表里没有的给 `application/octet-stream`。
+    pub types: BTreeMap<String, String>,
+    /// `/status` 验过的登录令牌记几秒，这几秒里不再和核心握手（「施工时定的」第 3 条）。
+    pub status_cache_seconds: u64,
+}
+
+impl WebTuning {
+    /// 验过的登录令牌记多久。
+    pub fn status_cache(&self) -> Duration {
+        Duration::from_secs(self.status_cache_seconds)
+    }
 }
 
 impl Tuning {
@@ -54,5 +79,10 @@ impl Tuning {
     /// 接不了连接时歇多久。
     pub fn accept_retry(&self) -> Duration {
         Duration::from_millis(self.accept_retry_millis)
+    }
+
+    /// 令牌对不上时，两次重读配置至少隔多久。
+    pub fn reload(&self) -> Duration {
+        Duration::from_secs(self.reload_seconds)
     }
 }

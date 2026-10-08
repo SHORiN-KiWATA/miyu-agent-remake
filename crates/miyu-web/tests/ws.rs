@@ -230,11 +230,20 @@ async fn an_open_socket_keeps_it_from_idling() {
 }
 
 /// 网页软件转发浏览器的连接不读本机令牌（「起草时定的」第 4 条）：照源码查，只有 `open.rs` 要一次性码那一下照终端连。
+/// `ws.rs`、`pages.rs` 施工 O-16 搬进了共用的 `miyu-webserve`（`webserve.md`「搬家表」），照搬过去的位置查。
 #[test]
 fn the_forwarding_code_never_reads_the_local_token() {
-    let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-    for file in ["ws.rs", "serve.rs", "pages.rs", "settings.rs", "lib.rs"] {
-        let text = std::fs::read_to_string(src.join(file)).expect("读得到");
+    let crates = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    for file in [
+        "miyu-webserve/src/ws.rs",
+        "miyu-web/src/serve.rs",
+        "miyu-webserve/src/pages.rs",
+        "miyu-webserve/src/respond.rs",
+        "miyu-webserve/src/lib.rs",
+        "miyu-web/src/settings.rs",
+        "miyu-web/src/lib.rs",
+    ] {
+        let text = std::fs::read_to_string(crates.join(file)).expect("读得到");
         for forbidden in [
             "read_token",
             "miyu_ipc::connect(",

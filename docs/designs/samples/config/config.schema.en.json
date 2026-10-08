@@ -166,14 +166,14 @@
       "properties": {
         "listen": {
           "default": 8301,
-          "description": "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/onebot/v11/ws. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect the next time the program starts.",
+          "description": "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws. Changes saved on the QQ bridge web page take effect at once. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect the next time the program starts.",
           "maximum": 65535,
           "minimum": 1024,
           "title": "QQ bridge port",
           "type": "integer"
         },
         "token": {
-          "description": "The access token NapCat shows when it connects; set the same one in NapCat. Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Without it the QQ bridge does not start. Allowed: { secret = \"…\" } or { env = \"…\" }. Only in the system config. Takes effect the next time the program starts.",
+          "description": "The access token NapCat shows when it connects; set the same one in NapCat. Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Without it the QQ bridge still starts but refuses NapCat; you can generate one on the QQ bridge web page. After a change, NapCat's next connection uses the new one. Allowed: { secret = \"…\" } or { env = \"…\" }. Only in the system config. Takes effect at once.",
           "oneOf": [
             {
               "additionalProperties": false,
@@ -201,6 +201,14 @@
             }
           ],
           "title": "QQ bridge token"
+        },
+        "web": {
+          "default": 8302,
+          "description": "The port of the QQ bridge's own web page (NapCat connection, token), local only. Open it with miyu-onebot web. Changes saved on that page take effect at once. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect the next time the program starts.",
+          "maximum": 65535,
+          "minimum": 1024,
+          "title": "QQ bridge web port",
+          "type": "integer"
         }
       },
       "type": "object"

@@ -230,11 +230,15 @@
       },
       "onebot.listen": {
         "name": "QQ bridge port",
-        "description": "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/onebot/v11/ws."
+        "description": "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws. Changes saved on the QQ bridge web page take effect at once."
+      },
+      "onebot.web": {
+        "name": "QQ bridge web port",
+        "description": "The port of the QQ bridge's own web page (NapCat connection, token), local only. Open it with miyu-onebot web. Changes saved on that page take effect at once."
       },
       "onebot.token": {
         "name": "QQ bridge token",
-        "description": "The access token NapCat shows when it connects; set the same one in NapCat. Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Without it the QQ bridge does not start."
+        "description": "The access token NapCat shows when it connects; set the same one in NapCat. Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Without it the QQ bridge still starts but refuses NapCat; you can generate one on the QQ bridge web page. After a change, NapCat's next connection uses the new one."
       }
     },
     "pages": {

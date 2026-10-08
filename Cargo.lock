@@ -1735,8 +1735,10 @@ dependencies = [
  "miyu-session",
  "miyu-store",
  "miyu-tool",
+ "miyu-webserve",
  "serde",
  "serde_json",
+ "sha2",
  "tokio",
  "tokio-tungstenite",
  "tracing",
@@ -1861,7 +1863,24 @@ dependencies = [
  "miyu-ipc",
  "miyu-log",
  "miyu-store",
+ "miyu-webserve",
  "serde",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+]
+
+[[package]]
+name = "miyu-webserve"
+version = "0.0.0"
+dependencies = [
+ "futures-util",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "miyu-ipc",
+ "miyu-store",
  "serde_json",
  "tokio",
  "tokio-tungstenite",

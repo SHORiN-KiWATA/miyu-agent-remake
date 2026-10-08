@@ -7,7 +7,8 @@
 //!    地址本身，页面用存着的登录令牌，没有的问用户名和密码（要了没用的码 5 分钟后自己作废）。
 //! 5. `--print`、交不给浏览器的：印网址（带了码的另印一句提醒）。别的交给浏览器打开。
 //!
-//! 网址印在标准输出上（脚本能拿）；别的话印在标准错误上。
+//! 网址印在标准输出上（脚本能拿）；别的话印在标准错误上。照终端的样子连核心、开浏览器这两样在 `miyu-webserve`（施工
+//! O-16，`webserve.md`「搬家表」）。
 
 use std::io::Write;
 use std::process::Command;
@@ -17,8 +18,9 @@ use serde_json::json;
 
 use miyu_ipc::Ready;
 use miyu_store::root::DataRoot;
+use miyu_webserve::open::Core;
+pub use miyu_webserve::open::{Browser, SystemBrowser};
 
-use crate::client::Core;
 use crate::serve::{CoreCommand, address, running};
 use crate::texts::Language;
 
@@ -43,35 +45,6 @@ pub struct Launch {
     pub core: CoreCommand,
 }
 
-/// 怎么把网址交给浏览器：交出去了的是真。
-pub trait Browser {
-    /// 打开 `url`。
-    fn open(&self, url: &str) -> bool;
-}
-
-/// 系统的办法：Linux 是 `xdg-open`，macOS 是 `open`，Windows 是 `cmd /C start "" <网址>`。
-pub struct SystemBrowser;
-
-impl Browser for SystemBrowser {
-    fn open(&self, url: &str) -> bool {
-        let mut command = if cfg!(target_os = "macos") {
-            Command::new("open")
-        } else if cfg!(windows) {
-            let mut command = Command::new("cmd");
-            command.args(["/C", "start", ""]);
-            command
-        } else {
-            Command::new("xdg-open")
-        };
-        command
-            .arg(url)
-            .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null());
-        command.status().is_ok_and(|status| status.success())
-    }
-}
-
 /// 照 `open` 走一遍，交回退出码。
 pub async fn open(
     root: &DataRoot,
@@ -81,14 +54,14 @@ pub async fn open(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> u8 {
-    let mut core = match Core::connect(root, &launch.core).await {
+    let mut core = match Core::connect(root, &launch.core, "miyu-web").await {
         Ok(core) => core,
         Err(reason) => {
             say(err, &Language::En.no_core(&reason));
             return 1;
         }
     };
-    let language = core.language;
+    let language = Language::of(core.language());
     if open.logout {
         return match core
             .call("logout", "account.logout", json!({"all": true}))

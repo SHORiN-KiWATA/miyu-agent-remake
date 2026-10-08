@@ -9,6 +9,7 @@ use miyu_kernel::event::Said;
 use miyu_store::human::{Human, HumanError};
 use miyu_store::resources::ResourceRoot;
 
+use crate::open::Opening;
 use crate::serve::{Failure, Notice};
 use crate::settings::Unready;
 
@@ -68,7 +69,7 @@ impl Texts {
         self.say("no-log", &[("reason", reason.to_string())])
     }
 
-    /// 起来了、连上了、断开了。号没认出来的不说号。
+    /// 起来了（令牌没设的说怎么设）、连上了、断开了。号没认出来的不说号。
     pub fn notice(&self, notice: &Notice) -> String {
         match notice {
             Notice::Listening { port, .. } => {
@@ -82,6 +83,8 @@ impl Texts {
                 self.say("notice/disconnected-as", &[("bot", bot.to_string())])
             }
             Notice::Disconnected { bot: None } => self.say("notice/disconnected", &[]),
+            Notice::Web { port } => self.say("notice/web", &[("port", port.to_string())]),
+            Notice::NoToken => self.say("notice/no-token", &[]),
         }
     }
 
@@ -93,6 +96,9 @@ impl Texts {
             Failure::PortInUse(port) => {
                 self.say("failure/port-in-use", &[("port", port.to_string())])
             }
+            Failure::WebPortInUse(port) => {
+                self.say("failure/web-port-in-use", &[("port", port.to_string())])
+            }
             Failure::Crashed(reason) => self.say("failure/crashed", &[("reason", reason.clone())]),
             Failure::Start(reason) => self.say("failure/start", &[("reason", reason.clone())]),
         }
@@ -101,8 +107,22 @@ impl Texts {
     /// 读配置时就起不来。
     pub fn unready(&self, unready: &Unready) -> String {
         match unready {
-            Unready::NoToken => self.say("unready/no-token", &[]),
             Unready::BadPort => self.say("unready/bad-port", &[]),
+            Unready::BadWebPort => self.say("unready/bad-web-port", &[]),
+        }
+    }
+
+    /// `miyu-onebot web` 说的（施工 O-16）。
+    pub fn opening(&self, opening: &Opening) -> String {
+        match opening {
+            Opening::NotRunning(port) => {
+                self.say("open/not-running", &[("port", port.to_string())])
+            }
+            Opening::First => self.say("open/first", &[]),
+            Opening::Opened(url) => self.say("open/opened", &[("url", url.clone())]),
+            Opening::PrintHint => self.say("open/print-hint", &[]),
+            Opening::OpenThis => self.say("open/open-this", &[]),
+            Opening::CodeWarning => self.say("open/code-warning", &[]),
         }
     }
 

@@ -1,14 +1,10 @@
 //! 跟核心的那一头（施工 O-8，`onebot.md` 第一条「怎么走」第 1 条）：握手的回应一定带 `language`（`protocol.md`「握手」）；
 //! 没带的是协议不对，照「连不上核心」说清、退出，不悄悄当成英文接着跑。
 
-use std::sync::Arc;
-
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
-use miyu_config::secret::Secret;
 use miyu_onebot::serve::{Failure, Serve, run};
-use miyu_onebot::settings::Settings;
 
 use crate::support::*;
 
@@ -38,14 +34,8 @@ async fn a_hello_reply_without_a_language_is_a_failure_to_reach_the_core() {
     let opened = miyu_ipc::open(&root, &dirs).expect("起得来");
     let core = tokio::spawn(fake_core(opened.listener, json!({"protocol": [1, 1]})));
     let serve = Serve {
-        root,
-        settings: Settings {
-            port: 0,
-            token: Secret::new(TOKEN).expect("合写法"),
-        },
-        core: Arc::new(no_core),
         locale: None,
-        tuning: tuning(),
+        ..serve(root, settings())
     };
     let ran = within("桥退出", run(serve, |_| {}, std::future::pending())).await;
     core.abort();

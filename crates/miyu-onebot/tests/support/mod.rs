@@ -3,6 +3,8 @@
 
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
 
+pub mod fake_core;
+pub mod http;
 pub mod napcat;
 
 use std::path::{Path, PathBuf};
@@ -19,7 +21,7 @@ use miyu_endpoint::Core;
 use miyu_endpoint::config::{Config, Environment};
 use miyu_kernel::id::{AccountId, SessionId};
 use miyu_onebot::serve::{Failure, Notice, Serve, run};
-use miyu_onebot::settings::Settings;
+use miyu_onebot::settings::{Reload, Settings, Token, load};
 use miyu_onebot::tuning::Tuning;
 use miyu_session::testkit::Script;
 use miyu_store::env::{Env, Platform};
@@ -187,8 +189,10 @@ impl Drop for Home {
 
 /// 跑着的一个桥。
 pub struct Bridge {
-    /// 实际听的端口。
+    /// NapCat 连进来的端口，实际听的那一个。
     pub port: u16,
+    /// WebUI 实际听的端口。
+    pub web: u16,
     /// 它说给人听的，照先后。
     pub notices: Arc<Mutex<Vec<Notice>>>,
     stop: Option<oneshot::Sender<()>>,
@@ -212,30 +216,107 @@ pub fn no_core() -> std::process::Command {
     std::process::Command::new("/nonexistent/miyu-core-for-tests")
 }
 
-/// 在 `home` 上起一个桥：端口 0，令牌是 [`TOKEN`]，等它说在哪个端口等 NapCat。
-pub async fn bridge(home: &Home) -> Bridge {
-    let notices = Arc::new(Mutex::new(Vec::new()));
-    let (stop, stopped) = oneshot::channel::<()>();
-    let (port_tx, port_rx) = oneshot::channel();
-    let port_tx = Mutex::new(Some(port_tx));
-    let heard = Arc::clone(&notices);
-    let serve = Serve {
-        root: home.root.clone(),
-        settings: Settings {
-            port: 0,
-            token: Secret::new(TOKEN).expect("合写法"),
-        },
+/// 两个端口都是 0（让系统挑），令牌是 [`TOKEN`]。
+pub fn settings() -> Settings {
+    with_token(Some(TOKEN))
+}
+
+/// 两个端口都是 0，令牌是 `token`；空的是没写引用（施工 O-16 补二：令牌读成三种）。
+pub fn with_token(token: Option<&str>) -> Settings {
+    Settings {
+        port: 0,
+        web: 0,
+        token: token.map_or(Token::Unset, |token| {
+            Token::Set(Secret::new(token).expect("合写法"))
+        }),
+    }
+}
+
+/// 两个端口都是 0，令牌写了引用、取不到。
+pub fn missing_token() -> Settings {
+    Settings {
+        port: 0,
+        web: 0,
+        token: Token::Missing,
+    }
+}
+
+/// 令牌没设的那一句（跟在说在哪等 NapCat 的后面）。
+pub fn no_token() -> Notice {
+    Notice::NoToken
+}
+
+/// NapCat 的令牌对不上时，隔 `seconds` 秒才重读一次配置。
+pub fn reload_every(tuning: &mut Tuning, seconds: u64) {
+    tuning.reload_seconds = seconds;
+}
+
+/// 照磁盘上的配置重读（真的 `load`）：数据根是 `root`，环境是空的。
+pub fn from_disk(root: &DataRoot) -> Reload {
+    let root = root.clone();
+    Arc::new(move || load(&root, None, None, Environment::of(&[])).settings)
+}
+
+/// 照页面的办法写令牌（施工 O-16 补二）：经核心 `secret.set` 存成 `onebot`，再 `config.set` 把 `onebot.token` 写成引用它。
+/// 核心要已经在 `root` 上跑着。
+pub async fn set_token(root: &DataRoot, value: &str) {
+    let mut core = within(
+        "连上核心",
+        miyu_webserve::open::Core::connect_running(root, "test"),
+    )
+    .await
+    .expect("连得上核心");
+    core.call(
+        "secret",
+        "secret.set",
+        serde_json::json!({"name": "onebot", "value": value}),
+    )
+    .await
+    .expect("存得进");
+    core.call(
+        "config",
+        "config.set",
+        serde_json::json!({"layer": "system", "changes": [{"key": "onebot.token", "value": {"secret": "onebot"}}]}),
+    )
+    .await
+    .expect("写得进");
+}
+
+/// 重读配置读到的总是 `settings`。
+pub fn same(settings: Settings) -> Reload {
+    Arc::new(move || Ok(settings.clone()))
+}
+
+/// 在数据根 `root` 上起一个桥要的：设置照 `settings`，拉不起核心，说中文，出厂的 `bridge.json` 和资源目录，重读配置读到的
+/// 和起来时一样。
+pub fn serve(root: DataRoot, settings: Settings) -> Serve {
+    Serve {
+        root,
+        settings: settings.clone(),
         core: Arc::new(no_core),
         locale: Some("zh_CN.UTF-8".to_string()),
         tuning: tuning(),
-    };
+        resources: ResourceRoot::at(resources()),
+        reload: same(settings),
+    }
+}
+
+/// 在 `home` 上起一个桥：端口 0，令牌是 [`TOKEN`]，等它说在哪两个端口听。
+pub async fn bridge(home: &Home) -> Bridge {
+    start(serve(home.root.clone(), settings())).await
+}
+
+/// 照 `serve` 起一个桥，等它说在哪两个端口听（令牌没设的只说 WebUI 的，NapCat 的端口照设的那一个）。
+pub async fn start(serve: Serve) -> Bridge {
+    let notices = Arc::new(Mutex::new(Vec::new()));
+    let (stop, stopped) = oneshot::channel::<()>();
+    let (told, mut telling) = tokio::sync::mpsc::unbounded_channel();
+    let heard = Arc::clone(&notices);
+    let mut port = serve.settings.port;
     let task = tokio::spawn(run(
         serve,
         move |notice| {
-            if let Notice::Listening { port, .. } = &notice
-                && let Some(port_tx) = port_tx.lock().expect("没 panic").take()
-                && port_tx.send(*port).is_err()
-            {
+            if told.send(notice.clone()).is_err() {
                 // 等的那头已经不在了。
             }
             heard.lock().expect("没 panic").push(notice);
@@ -246,9 +327,20 @@ pub async fn bridge(home: &Home) -> Bridge {
             }
         },
     ));
-    let port = within("桥开始听", port_rx).await.expect("说了端口");
+    // 说在哪等 NapCat 的那一句在 WebUI 那一句前面。
+    let web = within("WebUI 开始听", async {
+        loop {
+            match telling.recv().await.expect("说了端口") {
+                Notice::Listening { port: heard, .. } => port = heard,
+                Notice::Web { port } => return port,
+                _ => {}
+            }
+        }
+    })
+    .await;
     Bridge {
         port,
+        web,
         notices,
         stop: Some(stop),
         task,

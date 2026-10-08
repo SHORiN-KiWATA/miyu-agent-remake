@@ -1,10 +1,7 @@
 //! NapCat 反连进来的那一下（施工 O-8，`onebot.md` 第一条「怎么走」第 2 条）：令牌三种出示法都认，不对的、没出示的 401；
 //! 只认 `/onebot/v11/ws` 和 `/ws`，别的 404。端口被占了说是哪个端口（第 1 条）。
 
-use std::sync::Arc;
-
-use miyu_config::secret::Secret;
-use miyu_onebot::serve::{Failure, Notice, Serve, run};
+use miyu_onebot::serve::{Failure, Notice, run};
 use miyu_onebot::settings::Settings;
 use miyu_session::testkit::Script;
 
@@ -86,16 +83,7 @@ async fn a_port_in_use_is_named() {
         .await
         .expect("挑得到");
     let port = taken.local_addr().expect("有地址").port();
-    let serve = Serve {
-        root: home.root.clone(),
-        settings: Settings {
-            port,
-            token: Secret::new(TOKEN).expect("合写法"),
-        },
-        core: Arc::new(|| std::process::Command::new("/nonexistent/miyu-core-for-tests")),
-        locale: None,
-        tuning: tuning(),
-    };
+    let serve = serve(home.root.clone(), Settings { port, ..settings() });
     let ran = within("起不来", run(serve, |_| {}, std::future::pending())).await;
     assert_eq!(ran, Err(Failure::PortInUse(port)));
 }

@@ -62,7 +62,8 @@ impl Route {
     }
 
     /// 一直办，直到办不下去，交回为什么，桥照它退出：核心断开（[`Failure::CoreGone`]，第 11 条）；发回话的任务崩了
-    /// （[`Failure::Crashed`]，「施工时定的」第 14 条）。`inbound` 关了（不会：桥自己拿着发的一头）就只看核心。
+    /// （[`Failure::Crashed`]，「施工时定的」第 14 条）。`inbound` 关了就只看核心：令牌没设、没开 NapCat 的监听时，发的
+    /// 一头一开始就放下了。
     pub(crate) async fn run(mut self, mut inbound: mpsc::Receiver<Private>) -> Failure {
         let mut open = true;
         loop {

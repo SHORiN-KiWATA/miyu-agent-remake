@@ -93,7 +93,7 @@ impl Settings {
     /// `serve`，核心总在跑；直接起 `serve`、核心没在跑的照默认，记一行 `INFO web config from defaults`。连上了却拒了的照默认，
     /// 记一行 `WARN web config not read`。
     pub async fn from_core(self, root: &DataRoot) -> Settings {
-        let mut client = match crate::client::Core::connect_running(root).await {
+        let mut client = match miyu_webserve::open::Core::connect_running(root, "miyu-web").await {
             Ok(client) => client,
             Err(error) => {
                 tracing::info!(target: crate::TARGET, error = %error, "web config from defaults");
@@ -140,12 +140,9 @@ impl Settings {
         Duration::from_secs(self.idle_seconds)
     }
 
-    /// 路径 `path` 照扩展名的媒体类型；表里没有的是 `application/octet-stream`。
+    /// 路径 `path` 照扩展名的媒体类型；表里没有的是 `application/octet-stream`（`miyu_webserve::pages::type_of`）。
     pub fn type_of(&self, path: &Path) -> &str {
-        path.extension()
-            .and_then(|extension| extension.to_str())
-            .and_then(|extension| self.types.get(&extension.to_ascii_lowercase()))
-            .map_or("application/octet-stream", String::as_str)
+        miyu_webserve::pages::type_of(&self.types, path)
     }
 }
 
