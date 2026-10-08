@@ -37,7 +37,7 @@
       },
       "ui.head": {
         "name": "既定の画面",
-        "description": "miyu だけを打ったときに開く画面。パッケージの ID です。"
+        "description": "miyu だけを打ったときに開く画面。"
       },
       "persona.default": {
         "name": "既定のペルソナ",

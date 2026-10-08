@@ -66,7 +66,21 @@ pub fn open(page: Option<&str>, admin: &AccountId, start: impl FnOnce() -> Comma
         Plan::Run(program, args) => Opened::Ran(packages::run(&program, &args, &mut io::stderr())),
         Plan::NoPage => Opened::NoPage,
         Plan::Missing => {
-            say(&not_installed(&head, &installed(&found), language));
+            say(&unavailable(
+                &head,
+                None,
+                &installed(&found, &main),
+                language,
+            ));
+            Opened::Ran(1)
+        }
+        Plan::NoProgram(program) => {
+            say(&unavailable(
+                &head,
+                Some(&program),
+                &installed(&found, &main),
+                language,
+            ));
             Opened::Ran(1)
         }
     }
@@ -103,8 +117,10 @@ enum Plan {
     Run(PathBuf, Vec<OsString>),
     /// 界面不认那一页。
     NoPage,
-    /// 没有这个界面：没有清单、不是界面、没有子命令、程序不在 `miyu` 旁边。
+    /// 没有这个界面：没有清单、不是界面、没有子命令。
     Missing,
+    /// 有清单，程序不在 `miyu` 旁边：程序名（9-3 补：出厂带了终端的清单，程序随 M9）。
+    NoProgram(String),
 }
 
 /// 编号是 `head` 的界面包怎么开：要 `page` 那一页的带 `--page <页>`，清单里没认这一页的不开。
@@ -122,12 +138,11 @@ fn plan(head: &str, page: Option<&str>, found: &[Found], main: &Path) -> Plan {
     {
         return Plan::NoPage;
     }
-    let Some(program) = manifest
-        .command
-        .as_ref()
-        .and_then(|command| locate(&command.program, main))
-    else {
+    let Some(command) = manifest.command.as_ref() else {
         return Plan::Missing;
+    };
+    let Some(program) = locate(&command.program, main) else {
+        return Plan::NoProgram(command.program.clone());
     };
     let args = page.map_or_else(Vec::new, |page| {
         vec![OsString::from("--page"), OsString::from(page)]
@@ -143,37 +158,68 @@ fn opens(manifest: &Manifest, page: &str) -> bool {
         .is_some_and(|ui| ui.opens.iter().any(|one| one == page))
 }
 
-/// 装了的界面：读成了的、`kind = "ui"`、有子命令的，照编号排。
-fn installed(found: &[Found]) -> Vec<String> {
+/// 装了的界面：读成了的、`kind = "ui"`、有子命令、程序在 `miyu`（`main`）旁边的，照编号排。只有清单、程序还不在的不算：
+/// 列出来也打不开（9-3 补）。
+fn installed(found: &[Found], main: &Path) -> Vec<String> {
     found
         .iter()
         .filter(|one| {
             one.read.as_ref().is_ok_and(|manifest| {
-                manifest.kind == PackageKind::Ui && manifest.command.is_some()
+                manifest.kind == PackageKind::Ui
+                    && manifest
+                        .command
+                        .as_ref()
+                        .is_some_and(|command| locate(&command.program, main).is_some())
             })
         })
         .map(|one| one.id.clone())
         .collect()
 }
 
-/// 没装 `head`：怎么办，装了的有哪几个。
-fn not_installed(head: &str, installed: &[String], language: Language) -> String {
-    let list = installed.join("、");
-    match (language, installed.is_empty()) {
+/// 打不开 `head`：为什么（没有这个界面；有清单、程序 `program` 不在 `miyu` 旁边），怎么办，装了的有哪几个。
+fn unavailable(
+    head: &str,
+    program: Option<&str>,
+    installed: &[String],
+    language: Language,
+) -> String {
+    let (why, fix) = match (language, program) {
+        (Language::Chinese, None) => (
+            format!("没装 {head} 这个界面（ui.head 指着它）。"),
+            "装上它的软件包",
+        ),
+        (Language::Chinese, Some(program)) => (
+            format!("{head} 这个界面的程序 {program} 不在 miyu 旁边（ui.head 指着它）。"),
+            "把它放到 miyu 旁边",
+        ),
+        (Language::English, None) => (
+            format!("The {head} interface is not installed (ui.head names it). "),
+            "Install its package",
+        ),
+        (Language::English, Some(program)) => (
+            format!(
+                "The {head} interface's program {program} is not next to miyu (ui.head names it). "
+            ),
+            "Put it next to miyu",
+        ),
+    };
+    let next = match (language, installed.is_empty()) {
         (Language::Chinese, true) => format!(
-            "没装 {head} 这个界面（ui.head 指着它）。装上它的软件包，或者 miyu config set ui.head <编号> 换成装了的界面；现在一个界面都没装，可以先用 miyu ask \"…\" 和她对话。"
+            "{fix}，或者 miyu config set ui.head <编号> 换成装了的界面；现在一个界面都没装，可以先用 miyu ask \"…\" 和她对话。"
         ),
         (Language::Chinese, false) => format!(
-            "没装 {head} 这个界面（ui.head 指着它）。装上它的软件包，或者 miyu config set ui.head <编号> 换成装了的界面：{list}。"
+            "{fix}，或者 miyu config set ui.head <编号> 换成装了的界面：{}。",
+            installed.join("、")
         ),
         (Language::English, true) => format!(
-            "The {head} interface is not installed (ui.head names it). Install its package, or switch with miyu config set ui.head <id>; no interface is installed yet, so talk to her with miyu ask \"…\" for now."
+            "{fix}, or switch with miyu config set ui.head <id>; no interface is installed yet, so talk to her with miyu ask \"…\" for now."
         ),
         (Language::English, false) => format!(
-            "The {head} interface is not installed (ui.head names it). Install its package, or switch with miyu config set ui.head <id> to one that is installed: {}.",
+            "{fix}, or switch with miyu config set ui.head <id> to one that is installed: {}.",
             installed.join(", ")
         ),
-    }
+    };
+    format!("{why}{next}")
 }
 
 fn say(text: &str) {

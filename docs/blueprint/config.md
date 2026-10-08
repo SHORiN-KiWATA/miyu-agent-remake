@@ -1134,7 +1134,7 @@ keys = []
 # output =
 
 [ui]
-# 默认界面：直接敲 miyu 时打开哪个界面：软件包的编号。
+# 默认界面：直接敲 miyu 时打开哪个界面。
 # 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。这个程序下次启动时生效。
 head = "tui"
 
@@ -1596,7 +1596,7 @@ ticket_idle_seconds = 43200
       "properties": {
         "head": {
           "default": "tui",
-          "description": "直接敲 miyu 时打开哪个界面：软件包的编号。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。这个程序下次启动时生效。",
+          "description": "直接敲 miyu 时打开哪个界面。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。这个程序下次启动时生效。",
           "title": "默认界面",
           "type": "string"
         },
@@ -1703,7 +1703,7 @@ ticket_idle_seconds = 43200
 | 说明（8-28 改成不点名哪个头） | 打开终端界面或网页时，开一个新会话，还是接着最近的那一个。 | Whether a terminal interface or the web page opens a new session or picks up the most recent one. | 端末画面やウェブを開いたときに、新しいセッションを始めるか、最近のセッションを続けるかです。 |
 | 选项 | `new` 新会话、`recent` 最近的会话 | A new session、The most recent session | 新しいセッション、最近のセッション |
 | `ui.head` 名字（9-3，主会话定） | 默认界面 | Default interface | 既定の画面 |
-| 说明 | 直接敲 miyu 时打开哪个界面：软件包的编号。 | The interface plain miyu opens: a package id. | miyu だけを打ったときに開く画面。パッケージの ID です。 |
+| 说明 | 直接敲 miyu 时打开哪个界面。 | The interface plain miyu opens. | miyu だけを打ったときに開く画面。 |
 | `persona.default` 名字（P-1 上，主会话定） | 默认人格 | Default persona | 既定のペルソナ |
 | 说明（2026-10-07 项目主人定：只留一句，选人格照 `persona.list` 的下拉，谁优先人用不到） | 新会话默认用哪个人格。 | The persona new sessions use. | 新しいセッションで使うペルソナ。 |
 | `preset.default` 名字（P-2 上，主会话定） | 默认预设 | Default preset | 既定のプリセット |

@@ -37,7 +37,7 @@
       },
       "ui.head": {
         "name": "默认界面",
-        "description": "直接敲 miyu 时打开哪个界面：软件包的编号。"
+        "description": "直接敲 miyu 时打开哪个界面。"
       },
       "persona.default": {
         "name": "默认人格",
