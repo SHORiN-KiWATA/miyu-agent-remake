@@ -8,7 +8,7 @@ use std::time::Duration;
 use serde_json::json;
 
 use miyu_session::testkit::{Play, Script};
-use support::{Client, Home, kinds, reason};
+use support::{Client, Home, apart_from_now, kinds, reason};
 
 #[tokio::test]
 async fn pushes_come_before_the_reply() {
@@ -18,7 +18,7 @@ async fn pushes_come_before_the_reply() {
     let session = client.create("c1", "~").await;
     let reply = client.subscribe("c2", &session).await;
     assert_eq!(
-        reply["result"],
+        apart_from_now(&reply["result"]),
         json!({"limits": {}, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}, "persona": "engineer", "preset": "full"}),
         "{reply}"
     );
@@ -169,7 +169,7 @@ async fn a_slow_reader_gets_a_resync_and_every_reply() {
     // 重新订阅：照常推。
     let reply = client.subscribe("c6", &session).await;
     assert_eq!(
-        reply["result"],
+        apart_from_now(&reply["result"]),
         json!({"limits": {}, "model": {"endpoint": "deepseek", "model": "deepseek-v4"}, "persona": "engineer", "preset": "full"}),
         "{reply}"
     );

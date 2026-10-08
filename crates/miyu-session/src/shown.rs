@@ -7,11 +7,12 @@ use miyu_kernel::event::{EffortInUse, Todo};
 use miyu_kernel::origin::Model;
 use miyu_kernel::session::ContextLimits;
 
+use crate::current::Tally;
 use crate::port::ModelPort;
 use crate::route::NONE;
 
 /// 给头看的那一份。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Shown {
     /// 窗口、压缩线（施工 6-3 补）：向内核要的，和它判到线用的是同一条。
     pub limits: ContextLimits,
@@ -19,6 +20,20 @@ pub struct Shown {
     pub next: Next,
     /// 当前的待办（施工 D-3）：造会话、载入时照内核的，内核推 `todos.changed` 时跟着换。
     pub todos: Vec<Todo>,
+    /// 这个会话累计的（施工 9-6 上）：造会话时是空的，载入时照整份日志算，之后每落一批盘加上这一批。
+    pub tally: Tally,
+}
+
+impl Shown {
+    /// 造会话、载入时的一份：累计的是空的，载入的由 actor 另照日志算（施工 9-6 上）。
+    pub(crate) fn new(limits: ContextLimits, next: Next, todos: Vec<Todo>) -> Shown {
+        Shown {
+            limits,
+            next,
+            todos,
+            tally: Tally::default(),
+        }
+    }
 }
 
 /// 会话接下来请求的模型（施工 8-10）：`subscribe` 回应的 `model`，`model.changed` 的 `ref`、`endpoint`、`model`。

@@ -3,6 +3,7 @@
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
 
 pub mod deleting;
+pub mod extensions;
 pub mod login;
 pub mod providers;
 mod pushes;
@@ -461,6 +462,18 @@ pub async fn until(what: &str, done: impl Fn() -> bool) {
 }
 
 /// 回应里的原因码；不是拒绝的是 `None`。
+/// 订阅的回应去掉「当前的」三格（施工 9-6 上：`usage`、`permission`、`jobs`）：只看限额、模型、补发这些的测试用，三格另有
+/// `tests/subscribe_now.rs`、`tests/limits.rs` 守着。
+pub fn apart_from_now(result: &Value) -> Value {
+    let mut result = result.clone();
+    if let Some(fields) = result.as_object_mut() {
+        for key in ["usage", "permission", "jobs"] {
+            fields.remove(key);
+        }
+    }
+    result
+}
+
 pub fn reason(reply: &Value) -> Option<&str> {
     reply["error"]["data"]["reason"].as_str()
 }

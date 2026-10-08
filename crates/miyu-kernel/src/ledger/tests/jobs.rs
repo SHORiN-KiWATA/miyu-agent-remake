@@ -8,6 +8,7 @@ use crate::id::{JobId, SessionId};
 
 mod numbers;
 mod reports;
+mod running;
 
 /// 子代理 `j2` 的会话。
 const A: &str = "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91";

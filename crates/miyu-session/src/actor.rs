@@ -166,11 +166,11 @@ impl Actor {
         let busy_seen = !session.vacant();
         // 造会话、载入时已经把端口的限额交给了内核（`open.rs`）：记下交的是哪一份。
         let handed = model.limits();
-        let shown = Arc::new(Mutex::new(Shown {
-            limits: session.context_limits(),
-            next: Next::of(&*model),
-            todos: session.todos(),
-        }));
+        let shown = Arc::new(Mutex::new(Shown::new(
+            session.context_limits(),
+            Next::of(&*model),
+            session.todos(),
+        )));
         Actor {
             session,
             store: Some(store),
