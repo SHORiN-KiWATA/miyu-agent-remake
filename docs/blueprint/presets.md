@@ -99,6 +99,14 @@ shell = false
 8. **`preset.get {preset}`**：叠好的各格；`unlisted` 是叠好以后的（几层都没写的是 `on`）；`tools` 写成工具名到 `false`；`missing` 是 `[software]` 里写了、这台机器上没装的，照编号排（施工 P-2 中；界面照它写「没安装」，16 第五节）。`switches` 是这台机器上装了的每一个软件叠好以后开不开（施工 P-2 补：预设是全部功能的开关，界面照它一项一个开关画，2026-10-08 项目主人定）。
 9. **`miyu check`**（`cli/check.md`）：每一层里每一份预设各查各的，上面一层盖住了照样报，种类 `preset`；给人看的那一句照 `preset-problems/<code>`。写了文件的，某一层 `presets/` 下的 `<编号>.toml` 认作预设（两边换成真的路径比），还没有的报读不了。
 
+### 改（施工 P-3 中）
+
+- `preset.set {"preset", "changes"}`、`preset.delete {"preset"}`（`protocol.md`）：只写管理员家目录那一层的 `<编号>.toml`。对还没有的编号写就是新建（一次带上 `preset.base`、名字），改出厂的、系统区的就是建同名覆盖、只写改了的项（16 第四节 Y3）。删掉家目录那一层，下面几层还有的回到它们的样子。
+- 一项项在原来的字上改（`miyu_config::edit::apply`），注释、顺序照原样；新开的一组在文件末尾另起一张表（`[preset.name]`）。`expect` 照 `miyu_config::plain::json_at` 读的你那一层现在的值比。
+- 写之前查：改完的一份照规矩读一遍，再照它叠一遍（`Presets::find_with`：家目录那一层照改完的字算，不读盘），写错、底绕圈、底没有的整条不收。
+- 写盘照配置文件的规矩（`miyu_store::config_file`）：顺着链接写、先写临时文件再替换、替换之前再读一次本体，撞上手改的从头再来，三次还不行的 `preset_conflict`。写成了记一行运行日志 `INFO preset saved`，删了 `INFO preset deleted`；不进配置的留痕日志。
+- 只给本机的连接：扩展进程调回 `local_only`。不推 `preset.changed`：两个头都是每次打开重新读（2026-10-08 和两个头对过）。
+
 ### 出错
 
 | 代码 | 什么时候 |
@@ -119,6 +127,9 @@ shell = false
 | `crates/miyu-store/src/presets/tests.rs` | 三层逐格叠；一层也行、空文件也算；没有的、编号不合写法的、写错的写明哪一层；编号照文件名、不重复、照编号排；`check` 每一层各查、写了文件的认得出；出厂两份读得出、零问题、三种语言齐；每一种代码三种语言都有给人看的一句 |
 | `crates/miyu-store/src/presets/tests/base.rs`（施工 P-3 上） | 盖在底上逐格（底的几层也叠进来）、底的底、没写底的指纹不变；绕两个的圈、指着自己、底没有、底写错了说底的文件、`base` 写错 |
 | `crates/miyu-store/src/index/tests.rs` | 索引里存得下、读得回人格和预设 |
+| `crates/miyu-endpoint/tests/preset_set.rs`（施工 P-3 中） | 新建、改出厂的只写改了的、保留格式、删一项、`expect`、整条不收、参数不对、删你那一层、一样的值不写（`protocol.md` 测试表） |
+| `crates/miyu-config/src/plain/tests.rs`（施工 P-3 中） | 表、行内表、点号连着的键里读一项，没写的、是表的、读不懂的是空的；只有字、开关、数换得成要写的值 |
+| `crates/miyu-endpoint/src/connection/tests.rs`（施工 P-3 中） | 扩展进程调了回 `local_only` 的名单 |
 | `crates/miyu-endpoint/tests/presets.rs` | 不写预设照默认、个人设置压着系统配置、指定的压着默认；找人格的先后；没有的、编号不对的、写错的拒绝、什么都不造，默认预设指着没有的也拒；会话列表、`subscribe` 写 `preset`，以前的日志不写；`venue.session` 带预设造、找回时不看；`preset.list`、`preset.get`；`check` 查预设 |
 | `crates/miyu-session/tests/spawn.rs` | 子会话照父会话的预设，父会话载入以后也照 |
 | `crates/miyu-endpoint/tests/preset_face.rs`（施工 P-2 中） | 功能全开的工具面全有、没有那一行；开发预设没有记忆三件、范围 `off`（要了也没用）、那一行只写 `memory`；单件关掉的没有、不写那一行；整包关掉的工具全没、写进那一行；角色扮演开着的有提示和风格锁、那一行在风格锁前面，关着的都没有；`preset.get` 的 `missing` |
@@ -148,5 +159,5 @@ shell = false
 
 - 预设里写配置值（D1：配置清单每一项标跟着人格、预设还是人）：先放着。2026-10-08 项目主人说「预设需要有所有功能的开关，这就是把功能设计成软件的意义」，预设先只做开关；哪一项真要跟着预设走时再定。
 - 强调色（`[preset]` 的 `color`）：随 D1 以后。
-- 新建、改、删：P-3（中、下）。
+- 人格的新建、改、删：P-3（下）。
 - `miyu check` 只查每一份文件自己，底绕成圈、底没有的不查：开会话、`preset.get` 时报。

@@ -15,6 +15,7 @@
 //! - [`secret`]：密钥的名字、配置里引用密钥的写法、密钥文件的字怎么读、怎么改一行，取出来的密钥 [`secret::Secret`]
 //!   不会被印出来（施工 8-5）；
 //! - [`dangling`]：引用、模型的列表指的供应商、池在最终值里没有的，报 `bad_reference`（施工 8-8）。
+//! - [`plain`]：没有清单的 TOML（人格、预设的文件）读一项、协议上的值换成要写的值（施工 P-3 中）。
 //!
 //! 给人看的字（名字、说明、几句话）住在资源目录里，由读资源的那一层照 [`Words`] 交进来。
 //!
@@ -29,6 +30,7 @@ pub mod merge;
 pub mod package;
 pub mod parse;
 pub mod phrases;
+pub mod plain;
 pub mod problem;
 pub mod reference;
 pub mod schema;

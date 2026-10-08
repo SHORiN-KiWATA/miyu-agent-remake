@@ -139,6 +139,7 @@
 | `session.recap` | 要一句回顾：这个会话在做什么、做完了什么、卡在哪（施工 3-8 四补） |
 | `persona.list`、`persona.get` | 列出人格、读一个人格叠好的样子（施工 P-1 上，`personas.md`） |
 | `preset.list`、`preset.get` | 列出预设、读一个预设叠好的样子（施工 P-2 上，`presets.md`） |
+| `preset.set`、`preset.delete` | 新建、改一个预设（只写你家目录那一层），删掉你那一层（施工 P-3 中，`presets.md`「改」） |
 | `package.list` | 列出起来时读到的软件包清单（施工 9-1 上，`packages.md`） |
 | `extension.status`、`extension.enable`、`extension.disable`、`extension.restart` | 核心拉起的扩展：列状态、开、关、重启（施工 9-4 上，`extensions.md`） |
 | `check` | 查人手写的文件：配置、密钥文件、人格，照磁盘上现在的字（施工 8-30，`cli/check.md`） |
@@ -505,6 +506,23 @@
 | `preset` | 字符串，必写 | 预设的编号 |
 
 回应 `{"preset", "name", "summary", "layers", "default_persona", "unlisted", "software", "tools", "missing", "switches"}`：`name`、`summary` 是语言到一句话的对象，原样给；`default_persona` 没写的是 `null`；`unlisted` 是叠好以后的 `on`、`off`（几层都没写的是 `on`）；`software` 是软件包的编号到 `true`、`false`；`tools` 是关掉的单件工具，值都是 `false`；`missing` 是 `[software]` 里写了、这台机器上没装的（施工 P-2 中）；`switches` 是这台机器上装了的每一个软件叠好以后开不开（施工 P-2 补）。写了底的多一格 `base`（施工 P-3 上），各格是叠在底上以后的；`layers` 只算自己的。编号不合写法的 `bad_params`，没有的 `unknown_preset`，写错的、底绕成圈、底没有的 `preset_invalid`。
+
+**`preset.set`**（施工 P-3 中，`presets.md`「改」）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `preset` | 字符串，必写 | 预设的编号：还没有的就是新建 |
+| `changes` | 数组，必写、不能是空的 | 每一项 `{"key", "value" \| "unset": true, "expect"?}`，照 `config.set` 的 `changes`：`key` 是文件里的键（`preset.name.zh`、`preset.summary.en`、`preset.default_persona`、`preset.unlisted`、`preset.base`、`software.<包>`、`tools.<工具>`），`value` 是字、开关、数，`expect` 是你那一层里这一项现在应当是什么（`{"value": …}` 或者 `{}` 没写） |
+
+回应同 `preset.get`：改完叠好的样子。只写管理员家目录那一层的 `<编号>.toml`：改出厂的、系统区的就是建同名覆盖，只写改了的项。
+
+1. 一项项在原来的字上改，注释、顺序、别的字节照原样；你那一层本来就是这个值的、本来就没写又要删的不动。一项都没变的不写。
+2. 改完的一份照预设的规矩读一遍、连同叠好以后（底、绕圈）再查：有错整条不收、什么都不写，`preset_invalid`，`data.problem` 是头一处（写法同 `preset.get`）。
+3. `expect` 对不上：`preset_conflict`，`data.current` 是你那一层里这一项现在的样子，什么都不写。写的那一瞬间有人手改、重来三次还不行：`preset_conflict`，不带 `data.current`。
+4. 编号不合写法、`changes` 是空的、同一个键写了两次、一项里 `value` 和 `unset` 不是正好一个、`unset` 不是 `true`、`value` 不是字开关数、`expect` 不是那两种：`bad_params`。
+5. 写盘照配置文件的规矩：顺着链接写、先写临时文件再替换。开着的会话下一个回合照新的（P-2 下）。扩展进程调回 `local_only`。
+
+**`preset.delete`**（施工 P-3 中，`presets.md`「改」）：`{"preset"}` → `{"remains": <下面几层还有没有>}`。删掉你家目录那一层的文件：下面还有出厂、系统区的回到它们的样子（`true`，界面写「恢复出厂」），没有了的这个预设就没了（`false`）。你那一层本来就没有的 `nothing_to_delete`；编号不合写法的 `bad_params`；扩展进程调回 `local_only`。会话钉着的、默认指着的也能删：开着的会话照旧用快照里的，默认指着没有的照旧拒开会话（Y12）。
 
 **`package.list`**（施工 9-1 上，`packages.md`「协议」）
 
@@ -886,11 +904,13 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `hello_first` | -32010 | 握手以前发了别的方法 |
 | `protocol_mismatch` | -32010 | 头支持的主版本里没有 1（之后断开） |
 | `bad_token` | -32010 | 凭据一种都没写、本机令牌不对（之后断开） |
-| `bad_code`、`bad_login`、`bad_password`、`login_throttled`、`setup_first`、`local_only` | -32010 | 网页登录的几种（施工 W-8，`web-module.md`「出错」）；扩展调 `extension.*` 也回 `local_only`（施工 9-4 上） |
+| `bad_code`、`bad_login`、`bad_password`、`login_throttled`、`setup_first`、`local_only` | -32010 | 网页登录的几种（施工 W-8，`web-module.md`「出错」）；扩展调 `extension.*` 也回 `local_only`（施工 9-4 上），调 `preset.set`、`preset.delete` 也是（施工 P-3 中） |
 | `unknown_persona` | -32010 | 造会话、`persona.get` 时三层都没有这个人格（施工 P-1 上起三层，`personas.md`） |
 | `persona_invalid` | -32010 | 人格的文件写错了；`data.problem` 写明哪一层、哪个文件第几行（施工 P-1 上） |
 | `unknown_preset` | -32010 | 造会话、`preset.get` 时三层都没有这个预设，默认预设指着没有的也一样（施工 P-2 上，`presets.md`） |
-| `preset_invalid` | -32010 | 预设的文件写错了；`data.problem` 写明哪一层、哪个文件第几行（施工 P-2 上） |
+| `preset_invalid` | -32010 | 预设的文件写错了；`data.problem` 写明哪一层、哪个文件第几行（施工 P-2 上）；`preset.set` 改完的一份写错、叠不成（施工 P-3 中） |
+| `preset_conflict` | -32010 | `preset.set` 的 `expect` 对不上（`data.current`），写的那一瞬间有人手改、重来三次都不行（施工 P-3 中） |
+| `nothing_to_delete` | -32010 | `preset.delete` 删的在你家目录那一层本来就没有（施工 P-3 中） |
 | `unknown_file` | -32010 | `check` 写的文件不是 Miyu 读的那几种（施工 8-30） |
 | `not_a_directory` | -32010 | `session.set_workspace` 换到的是文件（施工 9-7 上）；`/workspace` 也一样（施工 9-7 下） |
 | `unknown_package`、`not_an_extension`、`extension_off` | -32010 | `extension.*`：没有这个包、清单读不成；是界面包；重启一个关着的（施工 9-4 上，`extensions.md`） |
@@ -1024,6 +1044,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `persona_invalid` | 这个人格的文件写错了，详情在 data.problem 里。 | This persona's files have a mistake; data.problem says where. |
 | `unknown_preset` | 没有这个预设。 | There is no such preset. |
 | `preset_invalid` | 这个预设的文件写错了，详情在 data.problem 里。 | This preset's file has a mistake; data.problem says where. |
+| `preset_conflict` | 这个预设刚被别处改过，重新读一遍再改。 | This preset was just changed elsewhere; read it again and retry. |
+| `nothing_to_delete` | 你这一层本来就没有，没有可删的。 | There is nothing of yours to delete here. |
 | `unknown_file` | Miyu 不读这个文件：能查的是配置、密钥文件、人格目录里的 persona.toml 和 prompts/examples.md、预设、软件包清单。 | Miyu does not read this file: it checks the config, the secrets file, persona.toml and prompts/examples.md in persona directories, presets and package manifests. |
 | `not_a_directory` | 这不是一个目录。 | This is not a directory. |
 | `unknown_package` | 没有这个软件包。 | There is no such package. |
@@ -1095,6 +1117,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/restart.rs` | 核心重启以后：不带 `cwd` 载入的会话照最后一轮的工作目录、没开过回合的照造会话时的；重发的造会话交回原来那一个 |
 | `crates/miyu-endpoint/tests/check.rs`（施工 8-30） | `check`：不写文件的照磁盘上现在的字查配置、照核心手里的查密钥、人格每一层各查各的，先后、代码、级别、行对，给人看的那一句照连接的语言；写了文件的照位置认、只查那一份，项目配置照 `.miyu/config.toml` 认、相对的照 `cwd` 接，还没有的人格文件读不了，认不出的 `unknown_file`，多写格的参数不对 |
 | `crates/miyu-endpoint/tests/personas.rs`（施工 P-1 上） | 家目录里的人格进 system、示范对话排在前面；不写人格照默认、个人设置压着系统配置；没有的、编号不对的、写错的拒绝，默认人格指着没有的也拒；`venue.session` 带人格造、找回时不看；`persona.list`、`persona.get` |
+| `crates/miyu-endpoint/tests/preset_set.rs`（施工 P-3 中） | 新的编号一次建好、开会话用得上；改出厂的只写改了的项；注释、顺序、行内表照原样；删一项回到下面的；`expect` 对不上的两种、对得上的照写；写错的值、不认识的键、底绕圈、底没有的整条不收、什么都不写；参数不对的八种；删你那一层回到下面的、只有你那一层的就没了、本来没有的、编号不对的；一样的值不写 |
 | `crates/miyu-endpoint/tests/presets.rs`（施工 P-2 上） | 不写预设照默认、个人设置压着系统配置、指定的压着默认；人格照「指定、预设的默认人格、`persona.default`」；没有的、编号不对的、写错的拒绝、什么都不造，默认预设指着没有的也拒；会话列表、`subscribe` 写 `preset`，以前的日志不写；`venue.session` 带预设造、找回时不看；`preset.list`、`preset.get`；`check` 查预设 |
 | `crates/miyu-endpoint/tests/edges.rs` | 不握手的到时断开、握手了的不受管；数组的 `params` 参数不对；握手被拒照它报的语言说；人格目录不存在是 `unknown_persona`、目录在而读不了是 `internal_error` |
 | `crates/miyu-endpoint/tests/list.rs` | 从新到旧、只要一次性的、`limit`、参数不对、空的；每一项带 `cwd`、合写法的 `last_active`，闲着的不写 `busy`（施工 C-3） |

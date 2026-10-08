@@ -110,6 +110,8 @@ pub(crate) async fn call(
         "persona.get" => personas::get(core, params(request)?).await,
         "preset.list" => crate::presets::list(core, peer).await,
         "preset.get" => crate::presets::get(core, params(request)?).await,
+        "preset.set" => crate::presets::write::set(core, params(request)?).await,
+        "preset.delete" => crate::presets::write::delete(core, params(request)?).await,
         "session.list" => {
             let params: ListParams = params(request)?;
             let sessions = list::list(core, params.oneshot, params.limit).await?;

@@ -17,6 +17,8 @@ use crate::personas::pick;
 use crate::refusal::Refusal;
 use crate::settings::PresetSettings;
 
+pub(crate) mod write;
+
 const TARGET: &str = "miyu::endpoint";
 
 /// 这个核心的几层预设：出厂、系统区、管理员的家目录。
@@ -126,6 +128,11 @@ pub(crate) struct GetParams {
 /// 照它一项一个开关画，2026-10-08 项目主人定）；写了底的带 `base`，各格是叠在底上以后的（施工 P-3 上）。
 pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal> {
     let found = resolve(core, Some(&params.preset)).await?;
+    Ok(describe(core, &found))
+}
+
+/// 叠好的一个预设照 `preset.get` 写（`preset.set` 的回应也是它，施工 P-3 中）。
+fn describe(core: &Core, found: &Found) -> Value {
     let installed = installed(core);
     let missing: Vec<&String> = found
         .file
@@ -158,7 +165,7 @@ pub(crate) async fn get(core: &Core, params: GetParams) -> Result<Value, Refusal
     if let Some(base) = &found.base {
         reply["base"] = json!(base);
     }
-    Ok(reply)
+    reply
 }
 
 fn layers(layers: &[Layer]) -> Vec<&'static str> {
