@@ -110,7 +110,7 @@ export function apply(ctx) {
       hint: t('menu_hint'),
       rows: catalog.personas.map((p) => ({
         title: personaName(p),
-        desc: p.problem ? t('persona_bad') : p.summary || (p.name ? p.persona : ''),
+        desc: p.problem ? t('persona_bad') : p.summary ?? '',
         tip: p.problem ?? undefined,
         current: p.persona === chosen && !p.problem,
         off: !!p.problem,
@@ -128,7 +128,7 @@ export function apply(ctx) {
       hint: t('menu_hint'),
       rows: catalog.presets.map((p) => ({
         title: presetName(p),
-        desc: p.problem ? t('preset_bad') : p.summary || (p.name ? p.preset : ''),
+        desc: p.problem ? t('preset_bad') : p.summary ?? '',
         tip: p.problem ?? undefined,
         current: p.preset === chosen && !p.problem,
         off: !!p.problem,

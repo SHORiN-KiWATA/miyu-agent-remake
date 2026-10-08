@@ -1,9 +1,8 @@
 // @ts-check
 //! 设置页的「人格」「预设」两页（蓝图 `web.md`「人格、预设、工作区」第 6 条；挂进设置页的 `settings.section`）：打开时先重读列表和默认的
-//! （通用页刚改过默认的这里跟着变），一个一块：名字、编号、说明，下面一排小标签。只看，新建、修改等核心 P-3。
-//! - 人格：小标签是「默认」、有示范对话的写几轮（来自哪一层不写，2026-10-07 项目主人：没必要）；文件写错的那一块写原因。
-//! - 预设：小标签是「默认」、预设写的默认人格；下面照 `preset.get` 的 `switches` 一个软件一个开关（项目主人定：预设是全部功能的开关），
-//!   开关先只看、点不动（改等 P-3）；写了没装的（`missing`）写「没安装」。
+//! （通用页刚改过默认的这里跟着变），一个一块：名字、说明，默认的那个标「默认」；文件写错的那一块写原因。
+//! 照「用户来这一页要做什么」画（2026-10-08 项目主人：来自哪一层、以谁为底、编号、分语言的名字都是核心怎么存，用户用不上，不显示）。
+//! 改、新建的详情另做（P-3，等样板定了）。
 
 import { h, replace } from '../../src/lib/dom.js';
 import { personaName, presetName } from './model.js';
@@ -15,13 +14,9 @@ function later(ctx, fill) {
   return el;
 }
 
-/** 一块：名字（有显示名的后面暗色写编号）、说明、小标签，再接 `more`。 */
-function card(title, id, named, summary, tags, ...more) {
-  return h('div.setup-card',
-    h('h4', title, named ? h('code', id) : null),
-    summary ? h('p', summary) : null,
-    tags.length ? h('div.setup-tags', tags.map((x) => h('span.setup-tag', x))) : null,
-    ...more);
+/** 一块：名字、说明、小标签。 */
+function card(title, summary, tags) {
+  return h('div.setup-card', h('h4', title), summary ? h('p', summary) : null, tags.length ? h('div.setup-tags', tags.map((x) => h('span.setup-tag', x))) : null);
 }
 
 /** @param {any} ctx @param {import('./catalog.js').Catalog} catalog @returns {HTMLElement} */
@@ -31,9 +26,7 @@ export function personaPage(ctx, catalog) {
     await catalog.load();
     const cards = await Promise.all((catalog.personas ?? []).map(async (p) => {
       if (p.problem) return h('div.setup-card.is-bad', h('h4', p.persona), h('p.setup-card-problem', p.problem));
-      const got = await ctx.core.request('persona.get', { persona: p.persona }).catch(() => null);
-      const tags = [p.persona === catalog.personaDefault ? t('page.default') : null, got?.examples ? t('page.examples', { count: got.examples }) : null].filter(Boolean);
-      return card(personaName(p), p.persona, !!p.name, p.summary, tags);
+      return card(personaName(p), p.summary, p.persona === catalog.personaDefault ? [t('page.default')] : []);
     }));
     replace(el, cards.length ? cards : h('p.setup-empty', t('page.none')), h('p.setup-note', t('page.note')));
   });
@@ -42,23 +35,12 @@ export function personaPage(ctx, catalog) {
 /** @param {any} ctx @param {import('./catalog.js').Catalog} catalog @returns {HTMLElement} */
 export function presetPage(ctx, catalog) {
   const t = (key, fields) => ctx.text(key, fields);
-  const personaOf = (id) => {
-    const p = catalog.personas?.find((x) => x.persona === id);
-    return p ? personaName(p) : id;
-  };
   return later(ctx, async (el) => {
     await catalog.load();
     const fallback = catalog.presetDefault ?? 'full';
-    const cards = await Promise.all((catalog.presets ?? []).map(async (p) => {
-      if (p.problem) return h('div.setup-card.is-bad', h('h4', p.preset), h('p.setup-card-problem', p.problem));
-      const got = await catalog.preset(p.preset);
-      const tags = [p.preset === fallback ? t('page.default') : null, got?.default_persona ? t('presets.persona', { name: personaOf(got.default_persona) }) : null].filter(Boolean);
-      const switches = Object.entries(got?.switches ?? {}).map(([id, on]) => h('div.setup-switch',
-        h('code', id),
-        h(`span.setup-toggle${on ? '.is-on' : ''}`, { role: 'switch', 'aria-checked': String(!!on), 'aria-disabled': 'true', title: t('presets.readonly') }, h('i'))));
-      const missing = got?.missing?.length ? h('p.setup-missing', t('presets.missing', { list: got.missing.join('、') })) : null;
-      return card(presetName(p), p.preset, !!p.name, p.summary, tags, switches.length ? h('div.setup-switches', switches) : null, missing);
-    }));
+    const cards = (catalog.presets ?? []).map((p) => (p.problem
+      ? h('div.setup-card.is-bad', h('h4', p.preset), h('p.setup-card-problem', p.problem))
+      : card(presetName(p), p.summary, p.preset === fallback ? [t('page.default')] : [])));
     replace(el, cards.length ? cards : h('p.setup-empty', t('presets.none')), h('p.setup-note', t('presets.note')));
   });
 }
