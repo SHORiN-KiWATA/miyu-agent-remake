@@ -151,7 +151,7 @@ $ echo "$KEY" | miyu setup --provider deepseek --model deepseek-flash
 核心是别的终端拉起的，看不到这个终端里后来设的 key（灰字）：
 
 ```text
-· 这个终端里设了 OPENAI_API_KEY，核心看不到：核心是别处拉起的，看不到后来设的环境变量。等核心空闲了自己退出（没有界面连着、没有在跑的活），再在这个终端里运行 miyu setup；或者选这一家、把 key 贴进来。
+· 核心未读到 OPENAI_API_KEY（核心启动后才设置）。核心空闲退出后重新运行 miyu setup，或选这一家贴 key。
 ```
 
 样本 `crates/miyu-cli/src/help/zh/setup.txt`（帮助页，中文）：
@@ -213,7 +213,7 @@ Outside a terminal, give --provider and pipe the key in:
 | 用不了的原因 | 认不出它的接口；目录里没有它的地址；还没有 {driver} 驱动 | its API is not known; the catalog has no address for it; no {driver} driver yet |
 | 问编号 | 选一个编号： | Pick a number: |
 | 编号不对 | {敲的} 不是列出的编号 | {typed} is not a listed number |
-| 核心看不到 | 见「样子」 | · {vars} is set in this terminal, but the core cannot see it: the core was started elsewhere and does not see variables set later. Wait until the core is idle and exits by itself (no interface connected, nothing running), then run miyu setup in this terminal again; or pick that provider and paste the key. |
+| 核心看不到 | 见「样子」（2026-10-08 项目主人定改短：照软件的说法） | · The core has not read {vars} (set after the core started). Run miyu setup again once the core exits when idle, or pick that provider and paste the key. |
 | 问地址 | Base URL： | Base URL: |
 | 地址不对 | 要以 http:// 或 https:// 开头 | Must start with http:// or https:// |
 | 接口协议的头一行 | 接口协议： | API protocol: |

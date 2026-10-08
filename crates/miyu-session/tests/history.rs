@@ -1,11 +1,10 @@
 //! 真的 `history`（施工 6-4）：会话把自己日志的只读入口、时区交给这次调用。压缩以后她调它，找得到压缩以前说的话，
-//! 时刻照会话现在的时区写：开会话时东九区，头后来报上来换成了 +05:30。
+//! 时刻照会话的时区写（开会话时东九区）。会话中途换时区那条路（`Handle::environment`）没人走，2026-10-08 项目主人定删了。
 
 use std::path::Path;
 
 use miyu_kernel::block::Block;
 use miyu_kernel::event::{Body, Level, Permission, Said, ToolStatus};
-use miyu_kernel::facts::Environment;
 use miyu_kernel::time::UtcOffset;
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
@@ -48,14 +47,6 @@ async fn after_a_compaction_she_finds_what_was_said_before_it() {
         .await
         .expect("会话在跑");
     until_turn_ends(&mut pushes).await;
-    let india = UtcOffset::from_minutes(330).expect("在范围里");
-    handle
-        .environment(Environment {
-            offset: india,
-            cwd,
-            dirs: Vec::new(),
-        })
-        .expect("会话在跑");
     ask(&handle, "cmd-2", say("项目代号是什么？"))
         .await
         .expect("会话在跑");
@@ -91,7 +82,10 @@ async fn after_a_compaction_she_finds_what_was_said_before_it() {
             other => panic!("只有字：{other:?}"),
         })
         .collect();
-    let when = said.at.local_minute(india);
+    // 照造会话时的时区写（测试的环境是东九区）。
+    let when = said
+        .at
+        .local_minute(UtcOffset::from_minutes(540).expect("东九区在范围里"));
     assert_eq!(
         text,
         format!(

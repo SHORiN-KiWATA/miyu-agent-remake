@@ -209,11 +209,6 @@ impl Tools {
         self.log.clone()
     }
 
-    /// 会话的时区换成 `offset`：头报上来的环境换了（施工 6-4）。以后派出去的调用照它。
-    pub(crate) fn locate(&mut self, offset: UtcOffset) {
-        self.offset = offset;
-    }
-
     /// 她看过的文件换成 `seen`：撤销、恢复以后照日志重算的（施工 4-7 上）。在跑的调用拿着的是原来那一份。
     pub(crate) fn see(&mut self, seen: Seen) {
         self.seen = Arc::new(seen);
