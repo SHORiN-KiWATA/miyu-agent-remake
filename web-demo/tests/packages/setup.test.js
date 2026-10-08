@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { personaName, presetName, defaultUsable, presetInUse, personaInUse, dirName, readPath, remember, tilde, problemsOf } from '../../packages/setup/model.js';
+import { personaName, presetName, defaultUsable, presetInUse, personaInUse, dirName, readPath, remember, tilde, problemsOf, cleanPairs, halfPair, personaSave } from '../../packages/setup/model.js';
 import { sessionCwd } from '../../src/model/session.js';
 
 const list = [{ persona: 'engineer', name: null }, { persona: 'miyu', name: 'Miyu' }, { persona: 'bad', problem: 'persona.toml:2: …' }];
@@ -92,4 +92,22 @@ test('写错的人格、预设：照 check 的文件认是谁的（哪一层都�
   ]);
   assert.deepEqual(problemsOf(problems, 'preset', 'dev'), [{ line: 2, message: '不是开关', file: 'dev.toml' }]);
   assert.deepEqual(problemsOf(problems, 'persona', 'dev'), []);
+});
+
+test('示范对话：去掉空白和两头都空的；只写了一头的那一对是第几对', () => {
+  const pairs = [{ user: ' 你好 ', assistant: '嗨 ' }, { user: '', assistant: '  ' }, { user: '在吗', assistant: '' }];
+  assert.deepEqual(cleanPairs(pairs), [{ user: '你好', assistant: '嗨' }, { user: '在吗', assistant: '' }]);
+  assert.equal(halfPair(pairs), 2);
+  assert.equal(halfPair(pairs.slice(0, 2)), -1);
+});
+
+test('人格点「存」发什么：只发变了的，提示词带读进来的版本；清空的发空字；什么都没变是 null；名字清空不发', () => {
+  const before = { name: 'Miyu', persona: '你是 Miyu', reminders: '', pairs: [{ user: '累', assistant: '歇会儿' }], versions: { persona: 'sha256:a', reminders: null, examples: 'sha256:e' } };
+  assert.equal(personaSave(before, { ...before, persona: '你是 Miyu  ', pairs: [...before.pairs, { user: '', assistant: '' }] }), null);
+  assert.deepEqual(personaSave(before, { ...before, name: '小美' }), { changes: [{ key: 'persona.name', value: '小美' }] });
+  assert.deepEqual(personaSave(before, { ...before, persona: '', reminders: '别变成客服腔' }), {
+    prompts: { persona: { text: '', expect: 'sha256:a' }, reminders: { text: '别变成客服腔', expect: null } },
+  });
+  assert.deepEqual(personaSave(before, { ...before, pairs: [] }), { prompts: { examples: { pairs: [], expect: 'sha256:e' } } });
+  assert.equal(personaSave(before, { ...before, name: '  ' }), null);
 });

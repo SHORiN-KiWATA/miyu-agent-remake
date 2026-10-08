@@ -224,6 +224,8 @@
 .set-form-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 .set-btn.is-primary { border-color: var(--accent); background: var(--accent); color: var(--on-primary); }
 .set-btn.is-primary:hover { border-color: var(--accent); filter: brightness(1.06); }
+.set-btn.is-danger { color: var(--danger); }
+.set-btn.is-danger.is-armed { background: color-mix(in srgb, var(--danger) 14%, transparent); }
 .set-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--surface-2); width: fit-content; }
 .set-seg-item { height: 24px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text-soft); font: 12.5px var(--sans); cursor: pointer; }
 .set-seg-item.is-on { background: var(--surface-1); box-shadow: var(--card-shadow); color: var(--text); }

@@ -79,12 +79,48 @@
 .setup-empty.is-bad { color: var(--danger); }
 .setup-menu-btn:disabled { cursor: default; opacity: 0.45; filter: none; }
 
-/* 预设页：一个软件一个开关（先只看），没装的写一行 */
-.setup-switches { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px 16px; margin-top: 10px; }
-.setup-switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 28px; }
-.setup-switch code { color: var(--text-soft); font: 12.5px var(--mono); }
-.setup-toggle { position: relative; flex: none; width: 32px; height: 18px; border-radius: 999px; background: var(--surface-3); cursor: default; }
-.setup-toggle i { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface-1); box-shadow: var(--card-shadow); }
-.setup-toggle.is-on { background: var(--accent); }
-.setup-toggle.is-on i { left: 16px; }
-.setup-missing { margin: 8px 0 0; color: var(--t-warn); font-size: 12px; }
+/* 人格、预设的详情：在列表里原地展开，亮底浮起来一点；控件照设置页的（`settings/kit.js`），不画描边 */
+.setup-bar { display: flex; justify-content: flex-end; margin: -4px 0 0; }
+.setup-new { height: 30px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--surface-2); color: var(--text); font: 13px var(--sans); cursor: pointer; }
+.setup-new:hover { background: var(--surface-3); }
+.setup-card.is-clickable { cursor: pointer; transition: background-color 0.15s ease; }
+.setup-card.is-clickable:hover { background: var(--surface-3); }
+.setup-card.is-clickable:focus-visible { outline: 0; box-shadow: var(--card-shadow); }
+.setup-card.is-open { background: var(--surface-1); box-shadow: var(--card-shadow); }
+.setup-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.setup-head h4 { margin: 0; }
+.setup-collapse { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; padding: 2px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--text-faint); font: 12px var(--sans); cursor: pointer; }
+.setup-collapse:hover { background: var(--surface-2); color: var(--text-soft); }
+.setup-collapse svg { width: 14px; height: 14px; }
+.setup-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0; }
+.setup-row-text { display: grid; gap: 2px; }
+.setup-row-name { color: var(--text); font-size: 13.5px; }
+.setup-row-desc { color: var(--text-faint); font-size: 12px; }
+.setup-part { margin-top: 12px; }
+.setup-part-name { margin: 0 0 6px; color: var(--text-faint); font-size: 12px; font-weight: 600; }
+.setup-area {
+  display: block; width: 100%; box-sizing: border-box; padding: 8px 10px; border: 0; border-radius: 8px; outline: 0; resize: none; overflow: hidden;
+  background: var(--surface-2); color: var(--text); font: 13px/1.6 var(--sans); transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.setup-area:hover { background: var(--surface-3); }
+.setup-area:focus { background: var(--surface-1); box-shadow: var(--card-shadow); }
+.setup-area::placeholder { color: var(--text-faint); }
+.setup-pairs { display: grid; gap: 10px; }
+.setup-pair { display: grid; gap: 6px; padding: 8px; border-radius: 10px; background: color-mix(in srgb, var(--surface-2) 45%, transparent); }
+.setup-pair.is-bad { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.setup-turn { display: grid; grid-template-columns: 56px 1fr 26px; gap: 8px; align-items: start; }
+.setup-who { overflow: hidden; padding-top: 8px; color: var(--text-faint); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.setup-drop { display: grid; place-items: center; width: 26px; height: 26px; margin-top: 3px; border: 0; border-radius: 7px; background: transparent; color: var(--text-faint); cursor: pointer; }
+.setup-drop:hover { background: var(--surface-2); color: var(--danger); }
+.setup-drop svg { width: 14px; height: 14px; }
+.setup-add { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; height: 28px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--surface-2); color: var(--text-soft); font: 12.5px var(--sans); cursor: pointer; }
+.setup-add:hover { background: var(--surface-3); color: var(--text); }
+.setup-add svg { width: 14px; height: 14px; }
+.setup-features { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 4px 20px; }
+.setup-feature { display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 34px; color: var(--text); font-size: 13.5px; }
+.setup-missing { color: var(--t-warn); font-size: 12px; }
+.setup-foot { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+.setup-grow { flex: 1; }
+.setup-card p.setup-error, .setup-error { margin: 10px 0 0; color: var(--danger); font-size: 12.5px; }
+.setup-link { margin-left: 8px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
+.setup-link:hover { text-decoration: underline; }

@@ -81,3 +81,41 @@ export function tilde(path, home) {
   if (path === home) return '~';
   return path.startsWith(`${home}/`) || path.startsWith(`${home}\\`) ? `~${path.slice(home.length)}` : path;
 }
+
+/** 示范对话的一对：你说的、人格回的。 @typedef {{user: string, assistant: string}} Pair */
+
+/**
+ * 编辑器里的人格（详情的四样）和读进来时提示词的版本（存的时候当 `expect` 带回去，防覆盖别处的改动）。
+ * @typedef {{name: string, persona: string, reminders: string, pairs: Pair[], versions: {persona: string|null, reminders: string|null, examples: string|null}}} PersonaDraft
+ */
+
+/** 示范对话要存的那几对：字前后的空白去掉，两头都空的不要。 @param {Pair[]} pairs @returns {Pair[]} */
+export function cleanPairs(pairs) {
+  return pairs.map((p) => ({ user: p.user.trim(), assistant: p.assistant.trim() })).filter((p) => p.user || p.assistant);
+}
+
+/** 只写了一头的那一对是第几对（从 0 起，照编辑器里的先后）；都齐的是 -1。 @param {Pair[]} pairs */
+export function halfPair(pairs) {
+  return pairs.findIndex((p) => !p.user.trim() !== !p.assistant.trim());
+}
+
+/**
+ * 点「存」发什么（`persona.set` 的 `changes`、`prompts`）：和读进来的比，变了的才发；提示词带读进来时的版本。
+ * 人设、角色扮演提示清空了发空字（人要的是「不要这一段」，`unset` 在出厂人格上会回到出厂的字）；示范对话没有了发空的一对对。
+ * @param {PersonaDraft} before @param {PersonaDraft} after
+ * @returns {{changes?: {key: string, value: string}[], prompts?: Record<string, any>}|null} 什么都没变是 `null`
+ */
+export function personaSave(before, after) {
+  /** @type {{changes?: {key: string, value: string}[], prompts?: Record<string, any>}} */
+  const out = {};
+  const name = after.name.trim();
+  if (name && name !== before.name) out.changes = [{ key: 'persona.name', value: name }];
+  const prompts = {};
+  for (const key of /** @type {const} */ (['persona', 'reminders'])) {
+    if (after[key].trim() !== before[key].trim()) prompts[key] = { text: after[key].trim(), expect: before.versions[key] };
+  }
+  const pairs = cleanPairs(after.pairs);
+  if (JSON.stringify(pairs) !== JSON.stringify(cleanPairs(before.pairs))) prompts.examples = { pairs, expect: before.versions.examples };
+  if (Object.keys(prompts).length) out.prompts = prompts;
+  return out.changes || out.prompts ? out : null;
+}

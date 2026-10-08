@@ -10,7 +10,7 @@ import { h, icon, replace } from '../../src/lib/dom.js';
 import { Menu } from './menu.js';
 import { personaName, presetName, defaultUsable, presetInUse, personaInUse, dirName, readPath, remember, tilde } from './model.js';
 import { Catalog } from './catalog.js';
-import { personaPage, presetPage, problemText } from './page.js';
+import { ListPage, problemText } from './page.js';
 import { browse } from './folders.js';
 
 const RECENT = 'setup.recent';
@@ -196,8 +196,10 @@ export function apply(ctx) {
 
   ctx.slots.mount('composer.above', { id: 'setup', order: 90, render: () => row });
   // 设置页：「人格」「预设」两页；通用页的「默认人格」「默认预设」照列表给下拉的选项（只有一个也列，2026-10-07 项目主人）
-  ctx.slots.mount('settings.section', { id: 'personas', name: t('page.title'), render: () => personaPage(ctx, catalog) });
-  ctx.slots.mount('settings.section', { id: 'presets', name: t('presets.title'), render: () => presetPage(ctx, catalog) });
+  const personaPage = new ListPage(ctx, catalog, 'persona');
+  const presetPage = new ListPage(ctx, catalog, 'preset');
+  ctx.slots.mount('settings.section', { id: 'personas', name: t('page.title'), render: (kit) => personaPage.render(kit) });
+  ctx.slots.mount('settings.section', { id: 'presets', name: t('presets.title'), render: (kit) => presetPage.render(kit) });
   ctx.slots.mount('settings.editor', {
     id: 'setup-persona',
     key: 'persona.default',

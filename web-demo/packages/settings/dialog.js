@@ -9,6 +9,7 @@ import { coreRow, groupBlock, banner } from './rows.js';
 import { drawLook } from './look.js';
 import { drawPackages } from './packages.js';
 import { drawModels } from './models.js';
+import { sectionKit } from './kit.js';
 
 /** 上次看的那一页：这个终端记着（蓝图第 3 条），刷新就忘 */
 let lastPage = 'general';
@@ -172,7 +173,7 @@ export class SettingsDialog {
         h('section.set-part', core.length ? h('h2.set-part-name', this.ctx.text('packages_web')) : null, drawPackages(this)),
       ];
     }
-    else if (entry?.section) kids = entry.section.render?.() ?? null;
+    else if (entry?.section) kids = entry.section.render?.(sectionKit(this)) ?? null;
     else if (page) {
       kids = [
         ...page.problems.map((p) => banner(p)),
