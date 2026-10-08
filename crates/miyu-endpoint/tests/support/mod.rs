@@ -462,12 +462,12 @@ pub async fn until(what: &str, done: impl Fn() -> bool) {
 }
 
 /// 回应里的原因码；不是拒绝的是 `None`。
-/// 订阅的回应去掉「当前的」三格（施工 9-6 上：`usage`、`permission`、`jobs`）：只看限额、模型、补发这些的测试用，三格另有
-/// `tests/subscribe_now.rs`、`tests/limits.rs` 守着。
+/// 订阅的回应去掉「当前的」几格（施工 9-6 上：`usage`、`permission`、`jobs`；施工 9-7 上：`workspace`）：只看限额、模型、补发
+/// 这些的测试用，这几格另有 `tests/subscribe_now.rs`、`tests/limits.rs`、`tests/workspace_property.rs` 守着。
 pub fn apart_from_now(result: &Value) -> Value {
     let mut result = result.clone();
     if let Some(fields) = result.as_object_mut() {
-        for key in ["usage", "permission", "jobs"] {
+        for key in ["usage", "permission", "jobs", "workspace"] {
             fields.remove(key);
         }
     }

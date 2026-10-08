@@ -1,6 +1,6 @@
 //! 工作目录太宽（施工 4-3 下，`11-权限与沙盒.md` 第四节）：头报来的是 `~`、系统的家目录、根目录，或者包含
 //! 数据根、落在数据根里的，退回管理员的工作区 `home/<账号>/workspace/`；项目目录照旧。造会话、说话的回应
-//! 说会话实际在哪个目录里干活（施工 4-5 下）。
+//! 说会话实际在哪个目录里干活（施工 4-5 下）。施工 9-7 上起说话不再换工作区，换的是 `session.set_workspace`。
 
 mod support;
 
@@ -152,7 +152,7 @@ async fn the_replies_say_where_the_session_works() {
         .as_str()
         .expect("造出来了")
         .to_string();
-    // 接着说时换到了太宽的目录：回应里是退回的工作区。
+    // 说话带着目录的不再换工作区（施工 9-7 上）：照收不理，回应里是会话现在的。
     let reply = client
         .call(
             "c2",
@@ -160,9 +160,18 @@ async fn the_replies_say_where_the_session_works() {
             json!({"session": session, "text": "hi", "cwd": "~"}),
         )
         .await;
-    assert_eq!(reply["result"]["cwd"], json!(own), "{reply}");
+    assert_eq!(reply["result"]["cwd"], json!(project), "{reply}");
     home.until_turns(&session, 1).await;
-    // 不带目录的，是会话现在的。
+    // 人明着换到太宽的目录：退回的工作区，回应说实际用的。
+    let reply = client
+        .call(
+            "w1",
+            "session.set_workspace",
+            json!({"session": session, "cwd": "~"}),
+        )
+        .await;
+    assert_eq!(reply["result"]["cwd"], json!(own), "{reply}");
+    // 之后说话的回应，是会话现在的。
     let reply = client
         .call(
             "c3",

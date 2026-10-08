@@ -31,6 +31,7 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "这个预设的文件写错了，详情在 data.problem 里。",
             "This preset's file has a mistake; data.problem says where.",
         ),
+        "not_a_directory" => ("这不是一个目录。", "This is not a directory."),
         "unknown_package" => ("没有这个软件包。", "There is no such package."),
         "not_an_extension" => (
             "这个软件包是界面，不由核心拉起。",

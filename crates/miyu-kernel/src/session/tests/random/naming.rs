@@ -21,6 +21,24 @@ pub(super) fn some_meta(seed: u64, next_id: &mut u64) -> Input {
     })
 }
 
+/// 换工作区（施工 9-7 上）：照改标题的办法，每一例最后另送一次，另用一串随机数；目录换一个、不换，加进来的目录换成一个、
+/// 清空、不换，随便配（都不换的接受，什么都不记）。什么时候来都收，回合进行中的带上回合。
+pub(super) fn some_workspace(seed: u64, next_id: &mut u64) -> Input {
+    let mut rng = Rng(seed ^ 0x9A70_0000);
+    let cwd = ["~/src/miyu", "/work"][rng.below(2) as usize];
+    let dirs: [Option<&[&str]>; 3] = [None, Some(&[]), Some(&["~/notes"])];
+    let dirs = dirs[rng.below(3) as usize];
+    Input::Command(Received {
+        id: id(next_command(next_id)),
+        by: alice(),
+        at: at(32),
+        command: Command::SetWorkspace {
+            cwd: cwd.to_string(),
+            dirs: dirs.map(|dirs| dirs.iter().map(|dir| (*dir).to_string()).collect()),
+        },
+    })
+}
+
 /// 记下用了一个斜杠命令（施工 O-6）：照改标题的办法，每一例最后另送一次；什么时候来都收。
 pub(super) fn some_ran(next_id: &mut u64) -> Input {
     Input::Command(Received {

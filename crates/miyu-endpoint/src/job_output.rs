@@ -53,7 +53,7 @@ pub(crate) async fn read(core: &Arc<Core>, params: Params) -> Result<Value, Refu
     let want = usize::try_from(params.tail).map_err(|_| Refusal::BAD_PARAMS)?;
     let session = SessionId::parse(&params.session).map_err(|_| Refusal::BAD_PARAMS)?;
     let job = JobId::parse(&params.job).map_err(|_| Refusal::BAD_PARAMS)?;
-    let found = core.sessions.get(core, &session, None, None).await?;
+    let found = core.sessions.get(core, &session).await?;
     let output = match found.handle.job_output(job).await {
         Ok(Ok(output)) => output,
         Ok(Err(Unreadable::Unknown)) => return Err(Refusal::UNKNOWN_JOB),

@@ -80,6 +80,12 @@ impl Refusal {
         reason: "unknown_preset",
         data: None,
     };
+    /// 换工作区换到的是一个文件，不是目录（施工 9-7 上）。
+    pub(crate) const NOT_A_DIRECTORY: Refusal = Refusal {
+        code: REFUSED,
+        reason: "not_a_directory",
+        data: None,
+    };
     /// 没有这个编号的软件包，或者它的清单读不成（施工 9-4 上）。
     pub(crate) const UNKNOWN_PACKAGE: Refusal = Refusal {
         code: REFUSED,

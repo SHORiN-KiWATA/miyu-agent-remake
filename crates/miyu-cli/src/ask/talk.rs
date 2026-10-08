@@ -55,6 +55,12 @@ pub async fn talk(
         Ok(found) => found,
         Err(code) => return code,
     };
+    // 接着说的会话写了 `--add-dir`：说之前把会话加进来的目录换成这几个（施工 9-7 上）。新会话造的时候就带上了。
+    if created.is_null()
+        && let Err(code) = added(&mut rpc, &session, plan, screen).await
+    {
+        return code;
+    }
     let subscribe = json!({"session": session, "stream": "events"});
     let subscribed = link::request(
         &mut rpc,
@@ -194,27 +200,40 @@ async fn until(deadline: Option<Instant>) {
     }
 }
 
-/// `session.send` 的参数。本人说的带 `cwd`、`dirs`，`dirs` 每次都写；别的 harness 说的（`--from`，施工 7-10）带 `from`，不带
-/// `cwd`，`dirs` 只在写了 `--add-dir` 时带：会话的工作目录、加进来的目录是人的，别的 harness 发一句不该把它们换成自己的
-/// （2026-09-30 主会话定）。有附件的再带上附件，照 `blob.put` 的回应原样放。
+/// `session.send` 的参数。别的 harness 说的（`--from`，施工 7-10）带 `from`。施工 9-7 上起不带 `cwd`、`dirs`：工作区是会话
+/// 的属性，说话不再换它（接着说的写了 `--add-dir` 的，说之前另换，[`added`]）。有附件的再带上附件，照 `blob.put` 的回应原样放。
 fn send_params(session: &str, plan: &Plan, attachments: Vec<Value>) -> Value {
     let mut send = json!({"session": session, "text": plan.text});
-    match &plan.from {
-        None => {
-            send["cwd"] = json!(plan.cwd);
-            send["dirs"] = json!(plan.dirs);
-        }
-        Some(from) => {
-            send["from"] = json!(from);
-            if !plan.dirs.is_empty() {
-                send["dirs"] = json!(plan.dirs);
-            }
-        }
+    if let Some(from) = &plan.from {
+        send["from"] = json!(from);
     }
     if !attachments.is_empty() {
         send["attachments"] = Value::Array(attachments);
     }
     send
+}
+
+/// 接着说的会话写了 `--add-dir` 的：`session.set_workspace` 只换加进来的目录（施工 9-7 上）。没写的什么都不做；被拒的（太宽、
+/// 没有这个会话）照核心说的原因说，交回退出码。
+async fn added(
+    rpc: &mut Rpc,
+    session: &str,
+    plan: &Plan,
+    screen: &mut Screen<'_>,
+) -> Result<(), u8> {
+    if plan.dirs.is_empty() {
+        return Ok(());
+    }
+    let params = json!({"session": session, "dirs": plan.dirs});
+    link::request(
+        rpc,
+        "session.set_workspace",
+        params,
+        &plan.language,
+        screen.err,
+    )
+    .await
+    .map(|_| ())
 }
 
 /// 照先后把 `--file` 的每一个传给核心（`blob.put`，传路径），交回回应：说话时照原样带着。传不上的，说是哪个文件、核心

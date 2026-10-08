@@ -165,12 +165,14 @@ impl Row {
     }
 }
 
-/// 这一条记下的工作目录（`protocol.md`「会话表」第 5 条）：带 `cwd` 的 `turn.started`、`session.created`。会话表载入时、列会话时
+/// 这一条记下的工作目录（`protocol.md`「会话表」第 5 条）：带 `cwd` 的 `turn.started`、`session.created`，换工作区的
+/// `session.workspace_changed`（施工 9-7 上）。会话表载入时、列会话时
 /// 都照日志里最后一条带它的算，同一个认法。
 pub fn cwd(event: &Event) -> Option<&str> {
     match &event.body {
         Body::TurnStarted(started) => started.cwd.as_deref(),
         Body::SessionCreated(created) => created.cwd.as_deref(),
+        Body::WorkspaceChanged(changed) => Some(changed.cwd.as_str()),
         _ => None,
     }
 }

@@ -59,6 +59,7 @@ mod usage;
 mod venues;
 mod view;
 mod wire;
+mod workspace;
 
 pub use connection::serve;
 pub use listen::run;

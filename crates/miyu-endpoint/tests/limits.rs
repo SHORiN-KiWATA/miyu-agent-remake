@@ -12,14 +12,20 @@ use miyu_models::settings::{ProviderSettings, UseSettings};
 use miyu_session::testkit::Script;
 use support::*;
 
-/// 限额是 `limits` 的那一份回应：模型是替身的 deepseek 的 deepseek-v4，没有引用。新会话的「当前的」三格（施工 9-6 上）：
-/// 什么都没花、权限是出厂的、没有在跑的任务。
-fn reply_of(limits: serde_json::Value) -> serde_json::Value {
+/// 限额是 `limits` 的那一份回应：模型是替身的 deepseek 的 deepseek-v4，没有引用。新会话的「当前的」几格（施工 9-6 上）：
+/// 什么都没花、权限是出厂的、没有在跑的任务；在 `~` 里造的会话在账号的工作区里干活（施工 9-7 上）。
+fn reply_of(home: &Home, limits: serde_json::Value) -> serde_json::Value {
     json!({"jobs": [], "limits": limits, "model": {"endpoint": "deepseek", "model": "deepseek-v4"},
         "permission": {"level": "workspace", "read_only": false}, "persona": "engineer", "preset": "full",
         "usage": {"amounts": [], "cache_breaks": 0, "compactions": 0, "requests": 0, "unpriced": 0,
             "main": {"cache_read": 0, "cache_write": 0, "output": 0, "uncached": 0},
-            "usage": {"cache_read": 0, "cache_write": 0, "output": 0, "uncached": 0}}})
+            "usage": {"cache_read": 0, "cache_write": 0, "output": 0, "uncached": 0}},
+        "workspace": {"cwd": workspace(home), "dirs": []}})
+}
+
+/// 账号的工作区，照会话记下的写法。
+fn workspace(home: &Home) -> String {
+    home.root.workspace(&alice()).to_string_lossy().into_owned()
 }
 
 /// 窗口是 `window` 的替身，一句都不用答。
@@ -40,9 +46,12 @@ async fn the_reply_is_the_drawing_example() {
     client.hello().await;
     let session = client.create("c1", "~").await;
     let reply = client.subscribe("c2", &session).await;
+    // 蓝图里工作区写成 `<工作区>`：换成这个测试的数据根里账号的工作区（照 JSON 的写法转义，Windows 上有反斜杠）。
+    let example = r#"{"id":"c2","jsonrpc":"2.0","result":{"jobs":[],"limits":{"compaction_line":967000,"window":1000000},"model":{"endpoint":"deepseek","model":"deepseek-v4","ref":"deepseek/deepseek-v4"},"permission":{"level":"workspace","read_only":false},"persona":"engineer","preset":"full","usage":{"amounts":[],"cache_breaks":0,"compactions":0,"main":{"cache_read":0,"cache_write":0,"output":0,"uncached":0},"requests":0,"unpriced":0,"usage":{"cache_read":0,"cache_write":0,"output":0,"uncached":0}},"workspace":{"cwd":"<工作区>","dirs":[]}}}"#;
+    let quoted = serde_json::to_string(&workspace(&home)).expect("写得成 JSON");
     assert_eq!(
         serde_json::to_string(&reply).expect("写得成 JSON"),
-        r#"{"id":"c2","jsonrpc":"2.0","result":{"jobs":[],"limits":{"compaction_line":967000,"window":1000000},"model":{"endpoint":"deepseek","model":"deepseek-v4","ref":"deepseek/deepseek-v4"},"permission":{"level":"workspace","read_only":false},"persona":"engineer","preset":"full","usage":{"amounts":[],"cache_breaks":0,"compactions":0,"main":{"cache_read":0,"cache_write":0,"output":0,"uncached":0},"requests":0,"unpriced":0,"usage":{"cache_read":0,"cache_write":0,"output":0,"uncached":0}}}}"#
+        example.replace("\"<工作区>\"", &quoted)
     );
 }
 
@@ -54,7 +63,7 @@ async fn without_a_window_the_limits_are_empty() {
     client.hello().await;
     let session = client.create("c1", "~").await;
     let reply = client.subscribe("c2", &session).await;
-    assert_eq!(reply["result"], reply_of(json!({})), "{reply}");
+    assert_eq!(reply["result"], reply_of(&home, json!({})), "{reply}");
 }
 
 /// 窗口太小，算不出正数的压缩线：只有窗口。
@@ -67,7 +76,7 @@ async fn too_small_a_window_has_no_line() {
     let reply = client.subscribe("c2", &session).await;
     assert_eq!(
         reply["result"],
-        reply_of(json!({"window": 33_000})),
+        reply_of(&home, json!({"window": 33_000})),
         "{reply}"
     );
 }
@@ -77,7 +86,7 @@ async fn too_small_a_window_has_no_line() {
 async fn every_subscriber_gets_them() {
     let home = Home::new();
     let core = home.core(&script(60_000));
-    let expected = reply_of(json!({"compaction_line": 27_000, "window": 60_000}));
+    let expected = reply_of(&home, json!({"compaction_line": 27_000, "window": 60_000}));
     let mut first = Client::connect(core.clone());
     first.hello().await;
     let session = first.create("c1", "~").await;
@@ -115,7 +124,7 @@ async fn a_session_loaded_after_a_restart_has_them_too() {
     let reply = client.subscribe("c2", &session).await;
     assert_eq!(
         reply["result"],
-        reply_of(json!({"compaction_line": 27_000, "window": 60_000})),
+        reply_of(&home, json!({"compaction_line": 27_000, "window": 60_000})),
         "{reply}"
     );
 }

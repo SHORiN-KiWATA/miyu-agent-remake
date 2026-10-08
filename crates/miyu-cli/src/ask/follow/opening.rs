@@ -57,13 +57,19 @@ impl Follow<'_> {
         }
     }
 
-    /// 说话的回应到了（`result`）：项目配置没信任的、目录太宽的，照上面各说一句。
+    /// 说话的回应到了（`result`）：项目配置没信任的说一句；会话在别处干活的（接着说的会话，工作区是它自己的，施工 9-7 上）
+    /// 说一句它在哪。新会话造的时候说过了（目录太宽的那一句），这时一样，不再说。
     pub(crate) fn opened(&mut self, result: &Value, screen: &mut Screen<'_>) {
         if let Some(file) = result["untrusted_project"].as_str() {
             self.untrusted(file, screen);
         }
-        if let Some(used) = result["cwd"].as_str() {
-            self.moved(used, screen);
+        if let Some(used) = result["cwd"].as_str()
+            && used != self.cwd
+        {
+            self.cwd = used.to_string();
+            if self.plan.format == Format::Text {
+                self.aside(&steps::elsewhere(self.plan, used), screen);
+            }
         }
     }
 }
