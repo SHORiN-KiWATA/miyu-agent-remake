@@ -138,3 +138,8 @@ test('框下面那一截写显示名和供应商的显示名（重名的也写�
   assert.deepEqual(footerLabel({ model: '@duo', endpoint: null }, list), { model: '@duo', endpoint: null });
   assert.deepEqual(footerLabel({ model: 'x', endpoint: 'nope' }, null), { model: 'x', endpoint: 'nope' }, '还没有列表');
 });
+
+test('模型池拿空了（核心 8-23 的 usable 是假）：暗着选不了，悬停写原因，下面一行只写怎么分', () => {
+  const { pools } = menuOf({ ...LIST, pools: [{ name: 'gone', strategy: 'pin', models: [], usable: false }] }, null);
+  assert.deepEqual(pools.map((r) => [r.ref, r.desc, r.usable, r.why]), [['@gone', '出错换下一个', false, '池里没有能用的模型']]);
+});

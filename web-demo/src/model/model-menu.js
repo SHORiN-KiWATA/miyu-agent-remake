@@ -30,7 +30,9 @@ export function menuOf(list, current) {
     const ref = `@${pool.name}`;
     const members = pool.models.map((r) => footerOf(r).model).join(t('list_sep'));
     const how = t(`model_menu.${pool.strategy === 'rotate' ? 'rotate' : 'pin'}`);
-    return { ref, title: ref, desc: `${how} · ${members}`, current: ref === current, usable: true, why: '', find: `${ref}\n${members}` };
+    // 成员是空的（下架的模型被核心拿空了，核心 8-23 的 `usable`）：暗着选不了，照它挑会是 `no_model`
+    const usable = pool.usable !== false && pool.models.length > 0;
+    return { ref, title: ref, desc: members ? `${how} · ${members}` : how, current: ref === current, usable, why: usable ? '' : t('model_menu.pool_empty'), find: `${ref}\n${members}` };
   });
   return { models, pools };
 }

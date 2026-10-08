@@ -382,6 +382,7 @@
     "rotate": "轮流用",
     "cooling": "冷却到 {time}",
     "no_key": "没设 key",
+    "pool_empty": "池里没有能用的模型",
     "failed": "拿不到模型列表：{message}",
     "loading": "正在读模型列表…",
     "empty": "没有配模型",
