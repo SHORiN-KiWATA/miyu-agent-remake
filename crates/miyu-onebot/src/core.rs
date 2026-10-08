@@ -4,8 +4,8 @@
 //!
 //! 一条连接只有一个用的人（`route`）：它发一条请求、等到回应才发下一条；等回应时来的推送留着，之后照先后交出去，一条都
 //! 不丢（照终端的头的 `rpc.rs`）。命令编号自己编的（`venue.session`、`subscribe`）带一段随机前缀：同一个编号再发，核心交回
-//! 上一次的结果（`venues.md`「`venue.session`」第 4 条），桥重启以后从 1 数起就会撞上。`session.send` 的编号由调的一方拼
-//! （第 8 条）。
+//! 上一次的结果（`venues.md`「`venue.session`」第 4 条），桥重启以后从 1 数起就会撞上。`session.send`、`command.run`（O-19）
+//! 的编号由调的一方拼（第 8 条）。
 
 pub(crate) mod route;
 

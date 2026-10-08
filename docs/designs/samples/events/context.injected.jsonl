@@ -3,3 +3,4 @@
 {"seq":57,"at":"2026-09-25T07:31:00.000Z","kind":"context.injected","turn":56,"by":{"kind":"kernel"},"cause":"cmd-c6d3","body":{"kind":"env","text":"<env time=\"Fri 2026-09-25 16:00–17:00\" timezone=\"UTC+09:00\" cwd=\"~/src/miyu\"/>\n"}}
 {"seq":58,"at":"2026-09-25T07:31:00.000Z","kind":"context.injected","turn":56,"by":{"kind":"kernel"},"cause":"cmd-c6d3","body":{"kind":"permission","text":"<permission level=\"read_only\"/>\n"}}
 {"seq":66,"at":"2026-09-25T07:33:00.000Z","kind":"context.injected","turn":65,"by":{"kind":"kernel"},"cause":"cmd-0a17","body":{"kind":"permission","text":"<permission level=\"workspace\"/>\n"}}
+{"seq":151,"at":"2026-09-25T21:30:00.000Z","kind":"context.injected","turn":148,"by":{"kind":"module","id":"memory"},"cause":"cmd-9b21","body":{"kind":"memory","text":"<memories>\nm12 feedback 2026-09-25: 回答先说结论，再给依据\nm7 user 2026-09-25: 用户的 CI 在 macOS 上跑，临时目录在 /var 下面\n</memories>\n","refs":["m12","m7"]}}

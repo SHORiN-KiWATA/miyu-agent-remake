@@ -13,3 +13,12 @@ about = { en = "Open the terminal interface", zh = "打开终端界面", ja = "�
 
 [ui]
 opens = ["config"]
+
+# 第一次打开的引导里「图标」那一步写它（终端蓝图 `docs/blueprint/tui.md`「第一次打开的引导」第 14 条、「图标」第 4 条）。
+[settings.icons]
+type = "option"
+choices = ["nerd", "plain"]
+default = "nerd"
+applies = "now"
+name = { en = "Icons", zh = "图标", ja = "アイコン" }
+description = { en = "Which icon set the terminal interface draws: Nerd Font glyphs, or plain characters for fonts without them.", zh = "终端界面用哪一套图标：Nerd Font 的图标，或者没装这种字体时用的普通字符。", ja = "ターミナル画面のアイコン：Nerd Font のアイコンか、そのフォントがない場合の普通の文字か。" }

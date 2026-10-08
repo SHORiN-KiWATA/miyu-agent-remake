@@ -3,6 +3,7 @@
 //! 会话自己不做 I/O：要追加的事件、要回应的命令、要推送的事件，都写成动作交给执行器。
 
 use crate::event::{Event, Permission, Purpose, Response, Transient};
+use crate::facts::Present;
 use crate::id::{CallId, CommandId, ContentHash, JobId, Seq, TurnId};
 use crate::origin::By;
 use crate::raw::RawJson;
@@ -35,6 +36,9 @@ pub enum Action {
         /// 会话现在的引用（施工 8-10）：执行器先照这一轮的配置重新解析它，退回了默认的随
         /// [`super::Input::TurnStartHooksDone`] 交回。以前的会话没有记下引用的是没有：跟着 `models.chat`。
         model: Option<String>,
+        /// 有效历史里由模块注入过的那几块（施工 R-4 上，[`crate::facts::present`]）：模块照它定这一段上下文里还要不要交，
+        /// 例如记忆的摘要一段上下文只交一次。
+        present: Vec<Present>,
     },
     /// 请求模型：把这份请求交给驱动编码、发出去（`05-内核接口.md` 第七节）。发出去了、
     /// 每一段增量、说完了，都带着 `seen` 回报（`02-内核.md` 第六节「回复怎么收、回合怎么结束」）。

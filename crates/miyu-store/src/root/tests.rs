@@ -253,6 +253,42 @@ fn a_home_is_built_once() {
     }
 }
 
+/// 会话是哪个账号的（施工 O-4 上）：照哪个账号的家目录下有它；不合账号写法的目录不算；两个都有的照账号名的先后取第一个。
+#[test]
+fn the_owner_of_a_session_is_the_account_holding_it() {
+    let scratch = Scratch::new();
+    let root = root_in(&scratch);
+    let session = SessionId::parse("0192f3a0-0000-7000-8000-000000000001").unwrap();
+    assert_eq!(root.owner_of(&session).unwrap(), None, "连 home/ 都还没有");
+    root.prepare().unwrap();
+    let (admin, onebot) = (
+        AccountId::parse("admin").unwrap(),
+        AccountId::parse("onebot").unwrap(),
+    );
+    fs::create_dir_all(root.account_dir(&admin)).unwrap();
+    assert_eq!(root.owner_of(&session).unwrap(), None);
+    fs::create_dir_all(root.session_dir(&onebot, &session)).unwrap();
+    assert_eq!(root.owner_of(&session).unwrap(), Some(onebot.clone()));
+    fs::create_dir_all(
+        root.homes()
+            .join("Not An Account")
+            .join("sessions")
+            .join(session.as_str()),
+    )
+    .unwrap();
+    assert_eq!(
+        root.owner_of(&session).unwrap(),
+        Some(onebot),
+        "不合写法的不算"
+    );
+    fs::create_dir_all(root.session_dir(&admin, &session)).unwrap();
+    assert_eq!(
+        root.owner_of(&session).unwrap(),
+        Some(admin),
+        "两个都有的取名字在前的"
+    );
+}
+
 #[test]
 fn sessions_are_listed_newest_first() {
     let scratch = Scratch::new();

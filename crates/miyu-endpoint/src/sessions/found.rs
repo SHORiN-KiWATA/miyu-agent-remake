@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use miyu_kernel::event::Body;
-use miyu_kernel::id::SessionId;
+use miyu_kernel::id::{AccountId, SessionId};
 use miyu_session::{Load, LoadError, load};
 use miyu_store::log::{OpenError, read_events};
 
@@ -28,28 +28,32 @@ impl Open {
                 cwd: running.workspace.clone(),
             });
         }
+        // 照属主的家目录找（施工 O-4 上）：哪个账号的家目录下都没有的是没有这个会话。
+        let Some(owner) = super::stored_owner(core, id).await else {
+            return Err(Refusal::NOT_FOUND);
+        };
         // 照日志里最后一次记下的工作目录，都没有才退回 `~`（施工 4-9 再补三上）；加进来的目录照最后一次记下的（施工 5-10
         // 上）。施工 9-7 上起换工作区的事件也算。
-        let (last_cwd, dirs) = remembered(core, id).await;
+        let (last_cwd, dirs) = remembered(core, &owner, id).await;
         let cwd = last_cwd.unwrap_or_else(|| NO_CWD.to_string());
         let workspace = workspace(core, &cwd);
         let loaded = load(Load {
             root: &core.root,
             personas: crate::personas::personas(core),
             resources: &core.resources,
-            owner: core.admin.clone(),
+            owner: owner.clone(),
             id: id.clone(),
             environment: environment(workspace.clone(), dirs.clone()),
             models: &*core.models,
             tools: &core.tools,
             home: core.home.as_deref(),
             sandbox: core.sandbox.helper(),
-            sandbox_cache: core.sandbox_cache_of(&core.admin),
+            sandbox_cache: core.sandbox_cache_of(&owner),
             sessions: Some(spawn::port(core)),
             jobs: &core.jobs,
-            index: core.index_for(&core.admin),
-            usage: core.usage_for(&core.admin),
-            memory: core.memory_for(&core.admin),
+            index: core.index_for(&owner),
+            usage: core.usage_for(&owner),
+            memory: core.memory_for(&owner),
             presets: Some(crate::presets::places(core)),
             configs: core.hub.configs(),
         })
@@ -62,7 +66,7 @@ impl Open {
                 return Err(Refusal::BROKEN);
             }
         };
-        self.sweep_orphans(core, id).await;
+        self.sweep_orphans(core, &owner, id).await;
         self.running.insert(
             id.clone(),
             Running {
@@ -81,8 +85,12 @@ impl Open {
 /// 会话日志里最后一次记下的工作目录（施工 4-9 再补三上）：最后一条带 `cwd` 的 `turn.started`，没有就照
 /// `session.created` 的；之前的日志没有这两格，是空的。列会话照同一个认法（[`cwd`]，施工 C-3）。加进来的目录照最后一条 `turn.started` 的，没有就是没有（施工
 /// 5-10 上）。在阻塞线程里读。
-async fn remembered(core: &Core, id: &SessionId) -> (Option<String>, Vec<String>) {
-    let dir = core.root.session_dir(&core.admin, id);
+async fn remembered(
+    core: &Core,
+    owner: &AccountId,
+    id: &SessionId,
+) -> (Option<String>, Vec<String>) {
+    let dir = core.root.session_dir(owner, id);
     tokio::task::spawn_blocking(move || {
         let Ok(events) = read_events(&dir) else {
             return (None, Vec::new());

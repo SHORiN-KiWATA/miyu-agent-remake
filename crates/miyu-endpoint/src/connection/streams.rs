@@ -40,7 +40,8 @@ async fn created_of(
     core: &Core,
     session: &SessionId,
 ) -> Option<miyu_kernel::event::SessionCreated> {
-    let dir = core.root.session_dir(&core.admin, session);
+    let owner = core.sessions.owner(core, session).await?;
+    let dir = core.root.session_dir(&owner, session);
     let first = tokio::task::spawn_blocking(move || miyu_store::log::first_event(&dir))
         .await
         .ok()?

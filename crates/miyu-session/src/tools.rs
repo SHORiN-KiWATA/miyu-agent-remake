@@ -174,6 +174,11 @@ impl Tools {
         self.agents.as_ref()
     }
 
+    /// 记忆的端口和会话现在的时区（施工 R-4 上）：回合开始交常驻的摘要照它。没接记忆的没有。
+    pub(crate) fn memory(&self) -> Option<(crate::memory::Calls, UtcOffset)> {
+        Some((self.memory.clone()?, self.offset))
+    }
+
     /// 照 `kit` 跑，回报送进 `backs`。
     pub(crate) fn new(kit: ToolKit, backs: mpsc::UnboundedSender<Back>) -> Tools {
         let sandbox = kit.sandbox.map(|helper| {

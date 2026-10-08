@@ -44,6 +44,7 @@ mod stop;
 mod store;
 mod watchers;
 
+use back::answer_back;
 use mail::Mail;
 
 /// 推送的队列：一个会话最多攒这么多份还没被读走的。读得慢的订阅者被挤掉，掉了队
@@ -315,8 +316,12 @@ impl Actor {
                 self.push(Pushed::Transient(transient));
                 None
             }
-            // 回合开始（`turn.started` 已经落了盘）：冻结这一轮的配置，重新解析会话的引用（施工 8-4、8-10，`model.rs`）。
-            Action::RunTurnStartHooks { turn, model } => Some(self.turn_start(turn, model).await),
+            // 回合开始（`turn.started` 已经落了盘）：冻结这一轮的配置，重新解析会话的引用，问挂接点（施工 8-4、8-10、R-4 上，`model.rs`）。
+            Action::RunTurnStartHooks {
+                turn,
+                model,
+                present,
+            } => Some(self.turn_start(turn, model, present).await),
             Action::CallModel {
                 seen,
                 request,
@@ -485,15 +490,6 @@ impl Actor {
 )]
 fn answer<T>(reply: oneshot::Sender<T>, value: T) {
     let _ = reply.send(value);
-}
-
-/// 送回 actor。会话停了就送不进去，丢掉。
-#[expect(
-    clippy::let_underscore_must_use,
-    reason = "会话停了：到点了也没人要，丢掉"
-)]
-fn answer_back(backs: &mpsc::UnboundedSender<Back>, back: Back) {
-    let _ = backs.send(back);
 }
 
 #[cfg(test)]

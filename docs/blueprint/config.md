@@ -1162,6 +1162,11 @@ keys = []
 # 能写：0 到 1000000 之间的数。只能写在系统配置或个人设置里。下一轮生效。
 # output =
 
+[tui]
+# 图标：终端界面用哪一套图标：Nerd Font 的图标，或者没装这种字体时用的普通字符。
+# 能写：nerd 或 plain。只能写在系统配置或个人设置里。当场生效。
+icons = "nerd"
+
 [ui]
 # 默认界面：直接敲 miyu 时打开哪个界面。
 # 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。这个程序下次启动时生效。
@@ -1202,7 +1207,7 @@ port = 8300
 ticket_idle_seconds = 43200
 ```
 
-样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `compaction.prepare`（6-11 上）、`models.chat`、`models.vision`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`models.cooldown.*`（8-9）、`permission.start_read_only`、`persona.default`（P-1 上）、`preset.default`（P-2 上）、`providers.<id>.*`、`ui.language`、`ui.startup`）：
+样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `compaction.prepare`（6-11 上）、`models.chat`、`models.vision`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`models.cooldown.*`（8-9）、`permission.start_read_only`、`persona.default`（P-1 上）、`preset.default`（P-2 上）、`providers.<id>.*`、`tui.icons`（9-3 再补，终端界面的清单声明的）、`ui.language`、`ui.startup`）：
 
 ```json
 {
@@ -1632,6 +1637,21 @@ ticket_idle_seconds = 43200
           }
         },
         "type": "object"
+      },
+      "type": "object"
+    },
+    "tui": {
+      "properties": {
+        "icons": {
+          "default": "nerd",
+          "description": "终端界面用哪一套图标：Nerd Font 的图标，或者没装这种字体时用的普通字符。能写：nerd 或 plain。只能写在系统配置或个人设置里。当场生效。",
+          "enum": [
+            "nerd",
+            "plain"
+          ],
+          "title": "图标",
+          "type": "string"
+        }
       },
       "type": "object"
     },

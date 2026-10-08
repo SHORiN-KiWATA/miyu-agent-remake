@@ -12,7 +12,7 @@ use tokio::sync::Mutex;
 
 use miyu_kernel::event::{Body, Level, Permission};
 use miyu_kernel::facts::Environment;
-use miyu_kernel::id::{CommandId, SessionId, VenueId};
+use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::{By, Person, Session};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_policy::memory::MemoryScope;
@@ -59,6 +59,37 @@ struct Running {
     workspace: String,
     /// 加进来的目录（施工 5-10 上）。同上。
     dirs: Vec<String>,
+}
+
+impl Sessions {
+    /// 会话 `id` 是哪个账号的（施工 O-4 上）：照数据根里哪个账号的家目录下有它，在跑的会话的目录也在那里；都没有的没有。
+    /// 不拿表的锁：删会话拿着锁时，父会话经端口读子会话的日志也要问这一句。
+    pub(crate) async fn owner(&self, core: &Core, id: &SessionId) -> Option<AccountId> {
+        stored_owner(core, id).await
+    }
+}
+
+impl Open {
+    /// 会话 `id` 是哪个账号的，表的锁在调的一方手里：在跑的照它的把手，没在跑的照家目录（[`stored_owner`]）。
+    pub(super) async fn owner(&self, core: &Core, id: &SessionId) -> Option<AccountId> {
+        match self.running.get(id) {
+            Some(running) => Some(running.handle.owner().clone()),
+            None => stored_owner(core, id).await,
+        }
+    }
+}
+
+/// 磁盘上会话 `id` 是哪个账号的（施工 O-4 上，`DataRoot::owner_of`）：在阻塞线程里看；读不了 `home/` 的当没有，记一行 `WARN`。
+pub(super) async fn stored_owner(core: &Core, id: &SessionId) -> Option<AccountId> {
+    let (root, id) = (core.root.clone(), id.clone());
+    match tokio::task::spawn_blocking(move || root.owner_of(&id)).await {
+        Ok(Ok(owner)) => owner,
+        Ok(Err(error)) => {
+            tracing::warn!(target: "miyu::endpoint", error = %error, "homes unreadable");
+            None
+        }
+        Err(_) => None,
+    }
 }
 
 /// 造好的会话：编号，和它实际在哪个目录里干活（施工 4-5 下）；这个目录的项目配置还没问过信不信任的，它在哪（施工 8-2）。

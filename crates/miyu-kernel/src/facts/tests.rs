@@ -54,6 +54,7 @@ fn permission(level: Level, read_only: bool) -> Permission {
 /// 一块事实。
 fn fact(kind: &str, text: &str) -> ContextInjected {
     ContextInjected {
+        refs: Vec::new(),
         kind: FactKind::parse(kind).unwrap(),
         text: text.to_string(),
     }

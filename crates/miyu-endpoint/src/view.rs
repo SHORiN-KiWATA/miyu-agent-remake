@@ -47,7 +47,13 @@ pub(crate) async fn page(core: &Core, params: PageParams) -> Result<Value, Refus
     if !(1..=MOST_TURNS).contains(&turns) || params.before == Some(0) {
         return Err(Refusal::BAD_PARAMS);
     }
-    let dir = core.root.session_dir(&core.admin, &session);
+    // 照属主的家目录读（施工 O-4 上）。
+    let owner = core
+        .sessions
+        .owner(core, &session)
+        .await
+        .ok_or(Refusal::NOT_FOUND)?;
+    let dir = core.root.session_dir(&owner, &session);
     let read = tokio::task::spawn_blocking(move || read_events(&dir))
         .await
         .map_err(|_| Refusal::INTERNAL)?;

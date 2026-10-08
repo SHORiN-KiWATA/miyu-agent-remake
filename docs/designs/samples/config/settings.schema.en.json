@@ -428,6 +428,21 @@
       },
       "type": "object"
     },
+    "tui": {
+      "properties": {
+        "icons": {
+          "default": "nerd",
+          "description": "Which icon set the terminal interface draws: Nerd Font glyphs, or plain characters for fonts without them. Allowed: nerd or plain. Only in the system config or personal settings. Takes effect at once.",
+          "enum": [
+            "nerd",
+            "plain"
+          ],
+          "title": "Icons",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "ui": {
       "properties": {
         "head": {

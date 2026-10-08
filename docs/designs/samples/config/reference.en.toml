@@ -205,6 +205,11 @@ keys = []
 # Allowed: a number from 0 to 1000000. Only in the system config or personal settings. Takes effect next turn.
 # output =
 
+[tui]
+# Icons: Which icon set the terminal interface draws: Nerd Font glyphs, or plain characters for fonts without them.
+# Allowed: nerd or plain. Only in the system config or personal settings. Takes effect at once.
+icons = "nerd"
+
 [ui]
 # Default interface: The interface plain miyu opens.
 # Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Takes effect the next time the program starts.

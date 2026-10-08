@@ -76,7 +76,7 @@ use miyu_kernel::id::AccountId;
 use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
 use miyu_sandbox::{Availability, Unusable};
-use miyu_session::{Jobs, Memory, ModelData, Models, Observed, SandboxCache};
+use miyu_session::{Jobs, Memory, ModelData, Models, Observed, SandboxCache, SummaryTexts};
 use miyu_store::index::SessionIndex;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
@@ -194,8 +194,12 @@ impl Core {
         let found = packages::load(&resources, &root, &admin);
         let usage = Arc::new(usage::open(&root));
         model_data.keep_ledger(Arc::clone(&usage));
+        // 常驻的摘要那一块的字（施工 R-4 上）：读不出来的（安装坏了）这个核心不交摘要，别的照常。
+        let summary = SummaryTexts::load(resources.path())
+            .inspect_err(|error| tracing::warn!(target: "miyu::endpoint", error = %error, "memory summary texts unreadable"))
+            .ok();
         Core {
-            memory: Memory::new(&root),
+            memory: Memory::new(&root, summary),
             index,
             usage,
             hub: Hub::new(&config),
