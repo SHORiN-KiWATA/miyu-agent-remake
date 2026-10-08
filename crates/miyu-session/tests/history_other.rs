@@ -2,8 +2,6 @@
 //! actor，`session` 参数认出来的另一个会话，读的是它磁盘上真实的日志，不载入它、在跑的也读得到；子会话没有列会话的
 //! 端口，写了 `session` 直接拒。
 
-mod support;
-
 use std::sync::Arc;
 
 use miyu_kernel::block::{Block, Text};
@@ -16,7 +14,7 @@ use miyu_session::{Child, Handle, Lineage, Pending, SessionPort};
 use miyu_store::root::DataRoot;
 use miyu_tool::{Catalog, Log, MainSession, Stop};
 
-use support::*;
+use crate::support::*;
 
 /// 假的会话表：只给列会话、读别的会话日志两样，都照 `root` 上真实的目录读（和生产里的会话表一样：不载入
 /// 那个会话）。派子代理、发命令这几件这份测试用不到。

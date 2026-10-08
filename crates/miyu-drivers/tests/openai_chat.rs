@@ -1,14 +1,12 @@
 //! OpenAI 兼容对话接口的编码（`docs/designs/05-内核接口.md` 第七节那张表）：每一种写法一个样本，
 //! 逐字节比对。图片、文件和思考在 `openai_chat_media.rs`。
 
-mod support;
-
 use std::collections::BTreeMap;
 
+use crate::support::{call, id, raw, read_tool, sample, text, texts, tool_call};
 use miyu_drivers::Inputs;
 use miyu_drivers::openai_chat::{Compat, OutputLimit, encode};
 use miyu_kernel::request::{Message, Request};
-use support::{call, id, raw, read_tool, sample, text, texts, tool_call};
 
 fn user(blocks: Vec<miyu_kernel::block::Block>) -> Message {
     Message::User { blocks }

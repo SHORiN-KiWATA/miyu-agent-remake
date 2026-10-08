@@ -2,8 +2,6 @@
 //! 工具面上没有三件、说过的不进回合库，载入以后照旧；`session` 的记在会话自己的目录里，别的会话搜不到，载入以后接着记在
 //! 那里；子会话的快照写 `off`。
 
-mod support;
-
 use miyu_kernel::event::Body;
 use miyu_kernel::id::SessionId;
 use miyu_policy::Snapshot;
@@ -14,7 +12,7 @@ use miyu_store::blob::Blobs;
 use miyu_store::recall::Room;
 use miyu_tool::Catalog;
 
-use support::*;
+use crate::support::*;
 
 /// 基础系统加记忆的三件，和核心里一样。
 fn catalog(home: &Home) -> Catalog {

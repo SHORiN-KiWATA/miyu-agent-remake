@@ -2,8 +2,6 @@
 //! 会话照常；删得了的，后台命令整组杀掉、不记回报，回了以后会话就停了。`discard` 不问：跑到一半的也停，后台命令一样杀掉、
 //! 不记，那一轮不收尾。假的后台命令（`miyu_tool::testkit::Held`），三个平台一样。
 
-mod support;
-
 use std::sync::Arc;
 
 use miyu_kernel::event::{Body, Event};
@@ -13,7 +11,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake, Held};
 use miyu_tool::{Catalog, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 只有一件假工具 `start`：把 `held` 交给任务端口。
 fn starting(held: &Arc<Held>) -> Catalog {

@@ -4,13 +4,11 @@
 //! 通知开了一轮。每一次请求和存档（`docs/designs/samples/probe/peers/`）逐字节比，查五条性质；和同一份剧本里换成人说的比，
 //! 每一次请求只多标签那两段（通知两边都有）。
 
-mod support;
-
+use crate::support::{check, files, matches_the_archive, sent, stage};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::id::CommandId;
 use miyu_kernel::request::{Message, Request};
 use miyu_kernel::testkit::{Line, Play, Stage};
-use support::{check, files, matches_the_archive, sent, stage};
 
 /// 发话的会话。
 const PEER: &str = "0192f3a0-1111-7abc-8def-001122334455";

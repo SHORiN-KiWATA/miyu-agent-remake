@@ -2,8 +2,6 @@
 //! 记忆没开的会话范围是 `off`；角色扮演没开的没有角色扮演提示和风格锁；装了没开的软件写一行进 system；功能全开的和以前一样；
 //! `preset.get` 写出没装的。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -18,8 +16,8 @@ use miyu_store::blob::Blobs;
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Tool};
 
-use support::venues::configured_core;
-use support::*;
+use crate::support::venues::configured_core;
+use crate::support::*;
 
 /// 基础系统两件、记忆三件，照包登记。
 fn catalog() -> Catalog {

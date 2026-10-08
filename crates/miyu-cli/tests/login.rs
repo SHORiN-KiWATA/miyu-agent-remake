@@ -5,17 +5,15 @@
 //! 走的是哪条）、管道进来的整份读、空的不收；`--list` 两种格式；`logout` 写名字、选、没设过的；两种语言；退出码。屏幕上
 //! 从头到尾没有 key。
 
-mod support;
-
 use std::collections::VecDeque;
 use std::io;
 use std::path::Path;
 use std::sync::Arc;
 
+use crate::support::{Asked, Home};
 use miyu_cli::language::Language;
 use miyu_cli::{Console, Format, KeyCommand, LoginPlan};
 use miyu_session::testkit::Script;
-use support::{Asked, Home};
 
 /// 一眼看得出是假的 key。
 const FAKE: &str = "sk-FAKE-KEY-FOR-TESTS-0001";

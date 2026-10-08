@@ -2,8 +2,6 @@
 //! 列出停掉的任务（编号、种类、标题），回应之前后台命令已经整组杀了，回报记 `undone`；恢复撤销的回应不带这一格，停掉的
 //! 不再起来；再撤销时已经结束了的不再列；重做的回应也列。
 
-mod support;
-
 use std::path::Path;
 use std::sync::Arc;
 
@@ -15,7 +13,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake, Held};
 use miyu_tool::{Catalog, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 基础系统的工具，加一件假的 `start`：把 `held` 交给任务端口，标题是 `fake`。
 fn tools(held: &Arc<Held>) -> Catalog {

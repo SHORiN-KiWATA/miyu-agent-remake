@@ -2,8 +2,6 @@
 //! （`miyu-test-extension`），拷一份放在测试程序旁边（包的程序只找主程序旁边的，测试里的主程序就是测试程序自己），参数写它
 //! 一步步做什么。等多久、退避多久设短的。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -12,8 +10,8 @@ use serde_json::{Value, json};
 use miyu_session::testkit::Script;
 use miyu_tool::Catalog;
 
-use support::extensions::*;
-use support::*;
+use crate::support::extensions::*;
+use crate::support::*;
 
 #[tokio::test]
 async fn enabling_starts_it_in_its_own_directory_and_it_shakes_hands_without_a_token() {

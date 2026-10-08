@@ -8,8 +8,6 @@
 
 #![cfg(unix)]
 
-mod support;
-
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
 use std::process::{Command, Stdio};
@@ -20,8 +18,8 @@ use std::time::{Duration, Instant};
 use rustix::pty::{OpenptFlags, grantpt, openpt, ptsname, unlockpt};
 use rustix::termios::{self, LocalModes};
 
+use crate::support::{Home, MIYU, offline, resources, within};
 use miyu_ipc::connect_or_start;
-use support::{Home, MIYU, offline, resources, within};
 
 /// 一眼看得出是假的 key。
 const FAKE: &str = "sk-FAKE-KEY-FOR-TESTS-0001";

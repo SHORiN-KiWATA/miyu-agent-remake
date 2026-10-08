@@ -1,8 +1,6 @@
 //! `todowrite`（`docs/blueprint/tools/todowrite.md`，施工 D-3）：整份换，结果一句短话、逐字节比，效果带着整份；全部做完的
 //! 清空，效果是空列表；参数不对的（少了格、状态不认识）报参数不对、什么效果都不报；访问类别读。给人看的说法中文、英文都有。
 
-mod support;
-
 use serde_json::json;
 
 use miyu_kernel::block::{Block, Text};
@@ -10,7 +8,7 @@ use miyu_kernel::event::{Todo, TodoStatus, TodoWritten};
 use miyu_kernel::tool::Access;
 use miyu_tool::{Done, Effect, Stop};
 
-use support::{Site, check, human, readable, said, tool};
+use crate::support::{Site, check, human, readable, said, tool};
 
 fn text(done: &Done) -> &str {
     match done.blocks.as_slice() {

@@ -6,6 +6,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
+autotests = false
 
 [dependencies]
 # 工具的结果、给人看的说法、时刻和时区。
@@ -24,3 +25,8 @@ tokio = { version = "1", features = ["macros", "rt"] }
 
 [lints]
 workspace = true
+
+# 集成测试并成一个程序（施工 0-3 三补）；自己装日志订阅者的另列。
+[[test]]
+name = "all"
+path = "tests/all.rs"

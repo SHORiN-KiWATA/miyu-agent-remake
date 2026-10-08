@@ -3,8 +3,6 @@
 //! 记录由人手写）。`config.trust`（施工 8-3）：版本对不上、没有项目配置、参数不对的拒绝；一个仓库一条，新的盖掉旧的；
 //! 记账号日志 `trust.changed`；手改过的 `trust.toml` 在新的字上记。
 
-mod support;
-
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -14,7 +12,7 @@ use miyu_kernel::event::Body;
 use miyu_session::testkit::{Play, Script};
 use miyu_store::config_file::version;
 
-use support::*;
+use crate::support::*;
 
 /// 项目配置开局只读的一份。
 const STRICT: &str = "# 这个仓库里开的新会话一开始只读\n[permission]\nstart_read_only = true\n";

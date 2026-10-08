@@ -1,15 +1,13 @@
 //! 扩展的状态的推送（施工 9-4 补，`docs/blueprint/extensions.md`「推送」）：真核心拉起真进程，订阅着的连接收到整份和每一次
 //! 变化。夹具同 `tests/extensions.rs`（`support/extensions.rs`）。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::{Value, json};
 
-use support::extensions::*;
-use support::*;
+use crate::support::extensions::*;
+use crate::support::*;
 
 /// 读到一条 `extension.changed`、它那一项合 `wanted` 为止，交回那一项：别的消息（回应）跳过，最多 60 秒。
 async fn until_pushed(client: &mut Client, wanted: impl Fn(&Value) -> bool) -> Value {

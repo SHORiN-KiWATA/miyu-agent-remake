@@ -2,15 +2,13 @@
 //! `preset` 的也不理（2026-10-08 项目主人定）；写了这个会话没列着的人格，照参数不对、不派。能挑的人格进 `subagent` 的
 //! `persona` 那一格的 `enum`。
 
-mod support;
-
 use serde_json::json;
 
+use crate::support::{Client, Home, TOKEN, default_resources};
 use miyu_kernel::event::{Body, Effect, SessionCreated};
 use miyu_kernel::id::SessionId;
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
-use support::{Client, Home, TOKEN, default_resources};
 
 /// 父会话这一轮派出去的子会话，照先后。
 fn children(log: &[miyu_kernel::event::Event]) -> Vec<SessionId> {

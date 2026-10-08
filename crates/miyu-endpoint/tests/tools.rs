@@ -1,10 +1,9 @@
 //! 工具面（施工 4-1）：协议上造的会话，工具面照核心的工具目录存进策略快照。核心的沙盒造会话、载入时交给会话
 //! （施工 5-4 上）。
 
-mod support;
-
 use std::sync::Arc;
 
+use crate::support::{Client, Home, TOKEN, alice};
 use miyu_kernel::event::Body;
 use miyu_kernel::tool::Access;
 use miyu_policy::Snapshot;
@@ -13,7 +12,6 @@ use miyu_store::blob::Blobs;
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Tool};
 use serde_json::json;
-use support::{Client, Home, TOKEN, alice};
 
 #[tokio::test]
 async fn a_session_made_over_the_protocol_gets_the_cores_tools() {

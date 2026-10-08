@@ -2,19 +2,17 @@
 //! `input_image`、`input_file`，不能收的换成字；工具结果里的图、PDF 放在 `output` 里；文本文件、带名字的图片、替它看的图照
 //! openai-chat 一样换成字（`media.rs` 共用）；缺 blob 报错。
 
-mod support;
-
 use std::collections::BTreeMap;
 
+use crate::support::{
+    file, gpt, id, image, named_image, read_tool, responses_sample, sees_all, text, texts,
+    tool_call,
+};
 use miyu_drivers::openai_responses::{blobs_needed, encode};
 use miyu_drivers::{EncodeError, Inputs};
 use miyu_kernel::id::ContentHash;
 use miyu_kernel::request::{Message, Request};
 use serde_json::{Value, json};
-use support::{
-    file, gpt, id, image, named_image, read_tool, responses_sample, sees_all, text, texts,
-    tool_call,
-};
 
 const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR";
 const PDF: &[u8] = b"%PDF-1.7\n%\xe2\xe3\xcf\xd3\n";

@@ -2,8 +2,6 @@
 //! 表坏了、版本不对、删了的照日志重建；回收处里的会话照样算；撤掉的回合里的照样算；没发出去的不算；金额照币种各加各的；
 //! 分组、子会话一起算；一次性调用写进账号日志、照用途分组、重建以后还在。删掉的会话、时区在 `usage_purged.rs`。
 
-mod support;
-
 use std::fs;
 
 use miyu_kernel::id::AccountId;
@@ -12,7 +10,7 @@ use miyu_store::log::SessionLog;
 use miyu_store::sqlite::Opened;
 use miyu_store::usage::{FILE, Group, OneShotCall, Query, UsageIndex};
 
-use support::*;
+use crate::support::*;
 
 /// 一个主会话：三次请求（一次带美元的金额、一次带人民币的、一次没金额），中间一次没发出去的、一条人说的。
 fn spoken(root: &miyu_store::root::DataRoot, index: &UsageIndex) -> SessionLog {

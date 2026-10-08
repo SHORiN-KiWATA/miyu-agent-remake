@@ -4,13 +4,13 @@
 //!
 //! 两台假服务器，档案是空的、没有目录：档位全照手写的 `reasoning`。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::watch as channel;
 
+use crate::support::routing::{called, configs, hellos, items, routes};
+use crate::support::{Home, Lines, Opening, ask, say, until_turn_ends, watch};
 use miyu_config::Layer;
 use miyu_config::merge::{Layers, Resolved, merge};
 use miyu_config::parse::parse;
@@ -21,8 +21,6 @@ use miyu_kernel::event::{
 use miyu_kernel::session::Command;
 use miyu_session::{ConfigSource, Handle, Models, Pushed, fixed_with};
 use miyu_tool::Catalog;
-use support::routing::{called, configs, hellos, items, routes};
-use support::{Home, Lines, Opening, ask, say, until_turn_ends, watch};
 
 /// 两家 `a`、`b`，都不带 key。`a` 的 `m` 有 `a_levels` 那几档、默认 `low`；`b` 的 `n` 有 `high`、`max`，没有默认。池 `p`
 /// 是两个都有的轮换。`models.chat` 是 `a/m`。

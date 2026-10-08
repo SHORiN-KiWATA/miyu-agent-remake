@@ -3,8 +3,6 @@
 //! 用不了的（目录说不收的、超过 Anthropic 的上限 1 的）报 `unusable_temperature`、算进 `config_errors`，`config.check`
 //! 照新的字查；`config.set` 写温度下一轮生效，超出 0 到 2 的照清单拒。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -20,7 +18,7 @@ use miyu_session::{ModelData, Observed};
 use miyu_store::resources::ResourceRoot;
 use miyu_tool::Catalog as ToolCatalog;
 
-use support::*;
+use crate::support::*;
 
 /// 三家照档案认得：`deepseek` 走 `openai-chat`、`anthropic` 走 `anthropic`、`openai` 走 `openai-responses`。裁出来的目录里
 /// `deepseek-flash`、`claude-sonnet-4-5` 能调，`gpt-5` 不能调。

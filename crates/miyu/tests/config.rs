@@ -3,16 +3,14 @@
 //! 说话；`miyu ask` 起头说配置有错、项目配置没信任（施工 8-3）；帮助页跟着界面语言；参数不对退出码 2；核心没在跑
 //! 的拉起来（施工 8-6）。改、信任（施工 8-3）：`set`、`unset`、`trust` 经真核心写进文件，`edit` 不在终端里、`set --project` 连核心以前就拦下。
 
-mod support;
-
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use crate::support::cli::{miyu, run, stderr, stdout};
+use crate::support::{Home, count, within};
 use miyu_cli::help::{Page, page};
 use miyu_cli::language::Language;
 use miyu_ipc::connect_or_start;
-use support::cli::{miyu, run, stderr, stdout};
-use support::{Home, count, within};
 
 /// 系统配置：日志记到 debug，界面英文，开局只读写错了（一处错误）。
 const SYSTEM: &str = "[log]\nlevel = \"debug\"\n\n[ui]\nlanguage = \"en\"\n\n[permission]\nstart_read_only = \"yes\"\n";
@@ -217,7 +215,7 @@ async fn ask_first_says_the_config_has_errors_and_path_says_where_a_project_conf
     // 配一个用不了的模型（施工 8-11）：没配的 `miyu ask` 不造会话，看不到造会话时说的那几句。
     write(
         &root.join("system").join("config.toml"),
-        &format!("{SYSTEM}\n{}", support::UNUSABLE_MODEL),
+        &format!("{SYSTEM}\n{}", crate::support::UNUSABLE_MODEL),
     );
     let (held, _) = within("拉起", connect_or_start(&home.root, || home.core()))
         .await
@@ -415,21 +413,22 @@ async fn set_unset_and_trust_go_through_a_real_core() {
 #[tokio::test]
 async fn without_a_running_core_one_is_started() {
     let home = Home::new();
-    let mut command = Command::new(support::MIYU);
+    let mut command = Command::new(crate::support::MIYU);
     command
         .args(["config", "get", "ui.language"])
         .current_dir(std::env::temp_dir())
         .env("MIYU_HOME", home.root.path())
-        .envs(support::offline(home.root.path()))
-        .env("MIYU_RESOURCES", support::resources())
+        .envs(crate::support::offline(home.root.path()))
+        .env("MIYU_RESOURCES", crate::support::resources())
         .env("LANG", "zh_CN.UTF-8")
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")
         .env_remove("XDG_RUNTIME_DIR");
     let dir = home.dir.clone();
-    let output = tokio::task::spawn_blocking(move || support::run_starting(&dir, command, ""))
-        .await
-        .expect("没 panic");
+    let output =
+        tokio::task::spawn_blocking(move || crate::support::run_starting(&dir, command, ""))
+            .await
+            .expect("没 panic");
     assert_eq!(output.status.code(), Some(0), "{output:?}");
     assert_eq!(stdout(&output), "auto\n");
     home.kill_core().await;

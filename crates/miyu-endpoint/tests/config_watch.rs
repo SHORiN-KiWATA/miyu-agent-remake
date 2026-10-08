@@ -5,8 +5,6 @@
 //!
 //! 等推送一律有上限（十秒），不靠固定的歇一会儿赌时序。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -17,7 +15,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_store::config_file::version;
 use miyu_store::watch::Watch;
 
-use support::*;
+use crate::support::*;
 
 /// 个人设置、系统配置在数据根里的位置。
 const PERSONAL: &str = "home/alice/settings.toml";

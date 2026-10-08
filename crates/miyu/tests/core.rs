@@ -2,16 +2,14 @@
 //! 等它说好了再连；再连不再拉起；两个头同时连只拉起一个；起不来的说原因；已经在跑的说一声就走；空闲了
 //! 自己走，运行日志里记着起来、停了；起来时清一次回收处（施工 3-8 三补）。
 
-mod support;
-
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use serde_json::json;
 
+use crate::support::{Home, MIYU, count, hello, within};
 use miyu_ipc::{Dirs, Lock, StartError, connect_or_start};
-use support::{Home, MIYU, count, hello, within};
 
 #[tokio::test]
 async fn a_head_starts_the_core_and_talks_to_it() {

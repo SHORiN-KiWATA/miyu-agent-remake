@@ -3,8 +3,6 @@
 //! 没有的 `unknown_persona`，编号不合写法的参数不对，写错了的 `persona_invalid` 带问题；`persona.list`、`persona.get`；
 //! 角色扮演提示排在人说的那句后面、system 带风格锁（施工 P-1 补）。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -15,8 +13,8 @@ use miyu_kernel::request::{Message, Request};
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
 
-use support::venues::{BINDINGS, configured_core};
-use support::*;
+use crate::support::venues::{BINDINGS, configured_core};
+use crate::support::*;
 
 /// 管理员（测试里是 alice）家目录里的人格 `id` 的一个文件。
 fn mine(home: &Home, id: &str, file: &str, text: &str) {

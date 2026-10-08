@@ -3,8 +3,6 @@
 //! `blob.get` 读得回来，假代理收到的请求行写着整个地址。慢的 `link.preview` 不挡同一个连接上后面的请求，回应照 `id`
 //! 对上。环境变量只设在拉起的核心上，不碰这个测试进程的。
 
-mod support;
-
 use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};
 use std::sync::Arc;
@@ -13,8 +11,8 @@ use std::time::Duration;
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader as AsyncReader};
 
+use crate::support::{Home, within};
 use miyu_http::testkit::{Piece, Reply, Server};
-use support::{Home, within};
 
 /// 一份 PNG 的开头。
 const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR";

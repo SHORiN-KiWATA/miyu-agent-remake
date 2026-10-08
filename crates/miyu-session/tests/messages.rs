@@ -3,8 +3,6 @@
 //! 每一种：主会话没有父、不是她派的（没派过、派它的那一轮撤掉了）、被停掉了、对方拒收、没有会话表。工具面上什么时候有
 //! `send_message`：本机的都有，到了深度上限的也有，群里没有。
 
-mod support;
-
 use std::sync::{Arc, Mutex, PoisonError};
 
 use miyu_kernel::block::{Block, Text};
@@ -19,7 +17,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_session::{Child, Handle, Lineage, Pending, SessionPort};
 use miyu_tool::Catalog;
 
-use support::*;
+use crate::support::*;
 
 /// 假的会话表：造的第 n 个子会话编号末位是 n；记下发的命令，`refusing` 的回拒绝。
 #[derive(Default)]

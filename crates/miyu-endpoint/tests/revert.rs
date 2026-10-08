@@ -1,14 +1,12 @@
 //! 撤销、恢复（施工 4-7 上）：协议上撤掉一轮、再恢复它，回应的是它们产生的事件；没有能恢复的、没有这一轮的，照头的
 //! 语言拒绝；回合编号写成 0 的是参数不对。改回文件的那一半在会话的测试里（`miyu-session` 的 tests/restore.rs）。
 
-mod support;
-
 use serde_json::json;
 
 use miyu_kernel::event::Body;
 use miyu_session::testkit::{Play, Script};
 
-use support::*;
+use crate::support::*;
 
 #[tokio::test]
 async fn a_turn_is_undone_and_redone_over_the_protocol() {

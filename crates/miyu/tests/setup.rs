@@ -1,13 +1,11 @@
 //! 真跑 `miyu setup`（施工 8-11，`docs/blueprint/cli/setup.md`）：帮助页跟着界面语言；不在终端里又没写 `--provider` 的退出码
 //! 2，不拉起核心。在终端里走一遍的在 `crates/miyu-cli/tests/setup.rs`（假终端照剧本回）。
 
-mod support;
-
 use std::process::{Command, Output, Stdio};
 
+use crate::support::{Home, MIYU};
 use miyu_cli::help::{Page, page};
 use miyu_cli::language::Language;
-use support::{Home, MIYU};
 
 /// 在临时的数据根上跑 `miyu setup <args>`，标准输入是空的管道，界面语言是 `lang`。
 fn setup(home: &Home, lang: &str, args: &[&str]) -> Output {
@@ -15,8 +13,8 @@ fn setup(home: &Home, lang: &str, args: &[&str]) -> Output {
         .arg("setup")
         .args(args)
         .env("MIYU_HOME", home.root.path())
-        .envs(support::offline(home.root.path()))
-        .env("MIYU_RESOURCES", support::resources())
+        .envs(crate::support::offline(home.root.path()))
+        .env("MIYU_RESOURCES", crate::support::resources())
         .env("LANG", lang)
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")

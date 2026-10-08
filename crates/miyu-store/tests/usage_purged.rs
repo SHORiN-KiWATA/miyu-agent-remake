@@ -2,8 +2,6 @@
 //! `usage.purged`，写进去了才删目录；汇总照它换掉单次行，加起来一样多，删了汇总重建也一样；写了两遍不加两遍；写不进账号
 //! 日志的不删。分天：整点时区的和单次行一分不差，半点时区照小时的开头归到哪天。
 
-mod support;
-
 use std::fs;
 use std::time::Duration;
 
@@ -14,7 +12,7 @@ use miyu_store::trash::{self, DELETED_AT};
 use miyu_store::usage::purged::{self, Purged};
 use miyu_store::usage::{Group, Query, Total, UsageIndex};
 
-use support::*;
+use crate::support::*;
 
 /// 留 7 天。
 const WEEK: Duration = Duration::from_secs(7 * 24 * 3600);

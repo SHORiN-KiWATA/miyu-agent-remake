@@ -3,8 +3,6 @@
 //! 现在的工作区接；不带路径的只说现在在哪。写错的照那几种原因拒绝、什么都不记；太宽的退回账号的工作区，回执说一声。场所里
 //! 只有主人能换。
 
-mod support;
-
 use std::path::Path;
 
 use serde_json::{Value, json};
@@ -13,8 +11,8 @@ use miyu_kernel::event::{Body, Event};
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
 
-use support::venues::bound_core;
-use support::*;
+use crate::support::venues::bound_core;
+use crate::support::*;
 
 async fn run(client: &mut Client, id: &str, params: Value) -> Value {
     client.call(id, "command.run", params).await

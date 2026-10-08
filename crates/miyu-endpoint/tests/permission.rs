@@ -3,8 +3,6 @@
 //! 不写、格的值不对是参数不对；没有的会话是找不到，停了的会话是停了。回合进行中收紧成只读，这一步里等着的写入当场拦下：
 //! 真核心走一遍。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -18,7 +16,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 发一条请求，交回回应之前读到的推送和回应：订阅着的会话，推送可能排在回应前面。
 async fn request(

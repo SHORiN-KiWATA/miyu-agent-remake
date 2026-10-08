@@ -1,14 +1,12 @@
 //! 叫停的旗（施工 4-9 再补一）：`write`、`edit`、`trash` 真正改之前看一眼，旗举了就不改，交回 `stopped`，什么都
 //! 没动：要建的文件、上级目录还没有，要改的文件照旧，要删的还在原处。旗没举的照常改，见各自的测试。
 
-mod support;
-
 use serde_json::json;
 
 use miyu_kernel::id::ContentHash;
 use miyu_tool::{Done, Seen, Stop};
 
-use support::Site;
+use crate::support::Site;
 
 /// 一面举起来的旗。
 fn raised() -> Stop {

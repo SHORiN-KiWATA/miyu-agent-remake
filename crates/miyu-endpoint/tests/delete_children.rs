@@ -4,8 +4,6 @@
 //!
 //! 几个会话同时请求模型，谁先到不一定：替身照请求里人这边的那句交代分给各自的剧本（`support/deleting.rs` 的 `Router`）。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::json;
@@ -19,8 +17,8 @@ use miyu_store::log::read_events;
 use miyu_tool::testkit::{Act, Fake, Held};
 use miyu_tool::{Catalog, Tool};
 
-use support::deleting::*;
-use support::*;
+use crate::support::deleting::*;
+use crate::support::*;
 
 #[tokio::test]
 async fn children_stop_layer_by_layer_and_go_with_their_parent() {

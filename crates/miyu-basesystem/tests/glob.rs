@@ -1,12 +1,10 @@
 //! `glob`（施工 4-4 下）：模式照 ripgrep 的 `--glob`；遵守 `.gitignore`；新的在前；在工作目录里的写相对路径、
 //! 外面的写绝对路径；最多 100 个；找不到、写错了的说清楚。
 
-mod support;
-
 use miyu_kernel::tool::Access;
 use miyu_tool::Call;
 
-use support::{Site, absolute, native, tool};
+use crate::support::{Site, absolute, native, tool};
 
 /// 照新的在前写出来的几行：`paths` 是相对工作目录、用 `/` 写的。
 fn listed(paths: &[&str]) -> String {

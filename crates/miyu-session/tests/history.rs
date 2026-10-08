@@ -1,8 +1,6 @@
 //! 真的 `history`（施工 6-4）：会话把自己日志的只读入口、时区交给这次调用。压缩以后她调它，找得到压缩以前说的话，
 //! 时刻照会话现在的时区写：开会话时东九区，头后来报上来换成了 +05:30。
 
-mod support;
-
 use std::path::Path;
 
 use miyu_kernel::block::Block;
@@ -12,7 +10,7 @@ use miyu_kernel::time::UtcOffset;
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
 
-use support::*;
+use crate::support::*;
 
 fn base_system() -> Catalog {
     let resources = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");

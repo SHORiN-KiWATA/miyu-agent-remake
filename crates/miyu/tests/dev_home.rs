@@ -6,17 +6,16 @@
 
 #[path = "../../../xtask/src/dev_home.rs"]
 #[allow(dead_code, reason = "命令行那一段这里不用")]
-mod dev_home;
-mod support;
+mod xtask_dev_home;
 
 use std::process::Command;
 
+use crate::support::{Home, MIYU, within};
 use miyu_config::Layer;
 use miyu_http::testkit::{Piece, Reply, Server};
 use miyu_ipc::connect_or_start;
-use support::{Home, MIYU, within};
 
-use dev_home::{BASE_URL, MODEL, Vars, WINDOW, make};
+use xtask_dev_home::{BASE_URL, MODEL, Vars, WINDOW, make};
 
 /// 这棵目录下的每一份文件里都搜不到 `needle`（施工 8-6b：地址不进任何文件）。
 fn none_of_the_files_under(dir: &std::path::Path, needle: &str) {
@@ -158,7 +157,7 @@ fn an_existing_config_or_a_foreign_directory_is_left_alone() {
 #[tokio::test]
 async fn a_real_core_on_a_dev_home_answers_through_the_config() {
     let sample = std::fs::read(
-        support::resources()
+        crate::support::resources()
             .join("../docs/designs/samples/drivers/openai-chat/streams/openai-text.sse"),
     )
     .expect("样本读得到");
@@ -196,7 +195,7 @@ async fn a_real_core_on_a_dev_home_answers_through_the_config() {
         Command::new(MIYU)
             .args(["ask", "在吗"])
             .env("MIYU_HOME", &root)
-            .envs(support::offline(&root))
+            .envs(crate::support::offline(&root))
             .env("LANG", "C")
             .env_remove("LC_ALL")
             .env_remove("LC_MESSAGES")

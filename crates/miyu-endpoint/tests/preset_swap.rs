@@ -2,8 +2,6 @@
 //! 下一轮的请求里就没有它，日志里一条内核记的、带 `policy` 的 `session.policy_changed`；没改的不记；写错了的照旧；重启以后
 //! 照换上的那一份。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::json;
@@ -17,8 +15,8 @@ use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Tool};
 
-use support::venues::configured_core;
-use support::*;
+use crate::support::venues::configured_core;
+use crate::support::*;
 
 /// 基础系统两件。
 fn catalog() -> Catalog {

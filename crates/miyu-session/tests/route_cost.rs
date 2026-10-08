@@ -1,15 +1,13 @@
 //! 会话的请求记金额（施工 8-15，`docs/blueprint/models.md`「怎么走」第九条第 2、3 条）：路由照真发的那个模型手写的价格、
 //! 供应商的倍率算好，`model.called` 带 `cost`，出处写配置那一层和第几行；没价格的不写。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::support::routing::{configs, routes};
+use crate::support::{Home, ask, say, until_turn_ends, watch};
 use miyu_http::testkit::{Piece, Reply, Server};
 use miyu_kernel::event::{Body, ModelCalled, Prices, Real};
-use support::routing::{configs, routes};
-use support::{Home, ask, say, until_turn_ends, watch};
 
 /// 说「你好！」：报 2000 输入（其中 1920 命中）、3 输出。
 fn hello() -> Reply {

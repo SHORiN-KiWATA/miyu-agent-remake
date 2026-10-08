@@ -2,8 +2,6 @@
 //! 要的是这个会话的属主的主会话，交给工具时拿掉她自己；载入的会话照样列。工具面：本机的主会话有 `sessions`，子会话、群里
 //! 没有，别的工具一件不少。
 
-mod support;
-
 use std::sync::{Arc, Mutex, PoisonError};
 
 use miyu_kernel::block::{Block, Text};
@@ -18,7 +16,7 @@ use miyu_session::{Child, Handle, Lineage, Pending, SessionPort};
 use miyu_store::root::DataRoot;
 use miyu_tool::{Catalog, Log, MainSession, Stop};
 
-use support::*;
+use crate::support::*;
 
 /// 假的会话表：列会话时交回 `listed` 再加上问它的那个会话，记下每次问的属主；读别的会话的日志（施工 C-4）照
 /// `root` 上真实的目录读，和生产里一样不载入它。

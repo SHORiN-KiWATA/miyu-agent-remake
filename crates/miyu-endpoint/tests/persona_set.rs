@@ -2,12 +2,10 @@
 //! 一次就建好、带着提示词；`persona.read` 给叠好的原文、来自哪儿、你那一层的版本，`persona.set` 照版本防覆盖；有错的什么
 //! 都不写；删了的挪进回收处，下面还有的回到它们的样子。
 
-mod support;
-
 use serde_json::{Value, json};
 
+use crate::support::*;
 use miyu_session::testkit::Script;
-use support::*;
 
 async fn connected(home: &Home) -> Client {
     let mut client = Client::connect(home.core(&Script::new([])));

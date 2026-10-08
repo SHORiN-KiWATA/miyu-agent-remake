@@ -1,15 +1,13 @@
 //! 检索库（施工 R-1，`docs/blueprint/recall.md`「怎么走」第二条）：建、重开、坏了和版本不对的删掉重建；放进、换掉、拿掉；
 //! 两个字的词、一个字都搜得到；中了越多的越靠前；中英混着的；只给几条。
 
-mod support;
-
 use std::fs;
 use std::path::PathBuf;
 
 use miyu_kernel::id::Seq;
 use miyu_store::recall::{Edit, Hit, Opened, RecallIndex, Room};
 
-use support::*;
+use crate::support::*;
 
 /// 临时数据根里管理员的一个检索库的位置。
 fn place(scratch: &Scratch) -> PathBuf {

@@ -3,8 +3,6 @@
 //! 写不成的不跑。Unix 上有收紧手段的，真的经助手跑 `shell`：
 //! 工作区里写得进，外面写不进，外面读得到，数据根读不到；只读时哪儿都写不进。
 
-mod support;
-
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -19,7 +17,7 @@ use miyu_session::{Handle, SandboxCache};
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 假的助手：假工具不起它。
 const HELPER: &str = "miyu-sandbox";

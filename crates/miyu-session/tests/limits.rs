@@ -5,14 +5,12 @@
 //!
 //! 给头看的那一份（施工 6-3 补）：`Handle` 带着端口交的窗口和内核算的压缩线，造会话、载入的都一样。
 
-mod support;
-
+use crate::support::{Home, ask, say, stop, until_turn_ends, watch};
 use miyu_kernel::block::Block;
 use miyu_kernel::event::Body;
 use miyu_kernel::request::Message;
 use miyu_kernel::session::ContextLimits;
 use miyu_session::testkit::{Play, Script};
-use support::{Home, ask, say, stop, until_turn_ends, watch};
 
 /// 窗口 33100 的剧本：第一轮答一句；第二轮先回摘要请求，再答一句。
 fn script() -> Script {

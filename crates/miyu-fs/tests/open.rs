@@ -1,12 +1,10 @@
 //! 安全地打开（施工 4-3 上）：普通文件打得开；目录、FIFO、设备、套接字、最后一层的链接都不开，报是什么；
 //! FIFO 不卡住。Unix 上路上有链接的也不开（施工 5-10 下）。
 
-mod support;
-
 use std::io::Read;
 
+use crate::support::Site;
 use miyu_fs::{Kind, OpenError, open_file};
-use support::Site;
 
 #[test]
 fn a_regular_file_opens_and_reads() {

@@ -3,8 +3,6 @@
 //!
 //! 场地不在系统的临时目录里（[`Home::outside_temp`]）：工作区 `work/`、边界以外的 `other/`。
 
-mod support;
-
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError, mpsc};
@@ -20,7 +18,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Call, Catalog, Done, Progress, Running, Spec, Target, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 报路径时停住的工具：进来了说一声，等测试放它走，最多等六十秒；放走了没有记下来。
 struct Slow {

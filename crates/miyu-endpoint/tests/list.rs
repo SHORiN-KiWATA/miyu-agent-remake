@@ -2,13 +2,11 @@
 //! 从新到旧；只要一次性的、最多几个。主会话的 `parent` 是 `null`（施工 7-5；子会话的见 `spawn.rs`）。每一项带工作目录、最近
 //! 一次动静，忙的写 `busy`（施工 C-3；忙不忙、工作目录跟着头换、她列会话的见 `sessions.rs`）。
 
-mod support;
-
 use serde_json::json;
 
+use crate::support::{Client, Home};
 use miyu_kernel::time::Timestamp;
 use miyu_session::testkit::Script;
-use support::{Client, Home};
 
 #[tokio::test]
 async fn sessions_are_listed_newest_first_and_oneshot_ones_can_be_picked() {

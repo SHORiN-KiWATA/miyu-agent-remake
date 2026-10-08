@@ -2,8 +2,6 @@
 //! 没有的、写错的不造；人格照「指定、预设的默认人格、`persona.default`」找；`session.created`、会话列表、`subscribe` 带上预设；
 //! `venue.session` 带预设；`preset.list`、`preset.get`；`check` 查预设。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
@@ -12,8 +10,8 @@ use miyu_endpoint::Core;
 use miyu_session::testkit::{Play, Script};
 use miyu_tool::Catalog;
 
-use support::venues::{BINDINGS, configured_core};
-use support::*;
+use crate::support::venues::{BINDINGS, configured_core};
+use crate::support::*;
 
 /// 管理员（测试里是 alice）家目录里的预设 `id`。
 fn mine(home: &Home, id: &str, text: &str) {

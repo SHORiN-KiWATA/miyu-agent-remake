@@ -2,8 +2,6 @@
 //! 改后的内容；新建的不用先读；没读过就写的被拒，读过以后可以写，会话重新载入以后她读过的照样算数；改完一次接着改，
 //! 不用重读。真的 `shell`（施工 4-8）：她执行的命令记进日志，退出码在给人看的说法里。
 
-mod support;
-
 use std::path::Path;
 
 use miyu_kernel::event::{
@@ -14,7 +12,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_store::blob::Blobs;
 use miyu_tool::Catalog;
 
-use support::*;
+use crate::support::*;
 
 fn base_system() -> Catalog {
     let resources = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");

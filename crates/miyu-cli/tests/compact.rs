@@ -3,19 +3,17 @@
 //! 退出码 1；一个会话都没有的，说清楚，退出码 1；`--session` 压的是指定的那个；按 Ctrl+C 打断，压缩期间别的头说的那句
 //! 接着发。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::mpsc;
 
+use crate::support::{Home, plan, within};
 use miyu_cli::language::Language;
 use miyu_cli::{CompactPlan, Plan, Target};
 use miyu_kernel::event::{Body, CompactTrigger, ContextCompacted};
 use miyu_kernel::id::SessionId;
 use miyu_session::testkit::{Play, Script};
-use support::{Home, plan, within};
 
 /// 出厂的尾巴是 16000 token：说得短的全在尾巴里，没有能压的。说七万个字，一组就超了尾巴，压得掉它。
 fn long() -> String {

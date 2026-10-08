@@ -2,14 +2,12 @@
 
 #![cfg(windows)]
 
-mod support;
-
 use std::path::PathBuf;
 
 use tokio::net::windows::named_pipe::{ClientOptions, ServerOptions};
 
+use crate::support::{Home, talk, within};
 use miyu_ipc::{ConnectError, OpenError, connect, fingerprint, open};
-use support::{Home, talk, within};
 
 /// 这个数据根的管道名。
 fn pipe(home: &Home) -> PathBuf {

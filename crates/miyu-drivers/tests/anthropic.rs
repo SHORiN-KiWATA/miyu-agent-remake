@@ -1,16 +1,16 @@
 //! Anthropic 消息接口的编码（`docs/blueprint/drivers/anthropic.md`「怎么走：编码」，施工 8-12）：每一种写法一个样本，
 //! 逐字节比对。打点在 `anthropic_marks.rs`，思考在 `anthropic_thinking.rs`，图片、文件在 `anthropic_media.rs`。
 
-mod support;
-
 use std::collections::BTreeMap;
 
+use crate::support::{
+    anthropic_sample, claude, family_call, id, read_tool, text, texts, tool_call,
+};
 use miyu_drivers::anthropic::{FALLBACK_MAX_TOKENS, PATH, encode};
 use miyu_drivers::{Anthropic, Driver, Encoded, Inputs};
 use miyu_kernel::block::Block;
 use miyu_kernel::request::{Message, Request};
 use serde_json::{Value, json};
-use support::{anthropic_sample, claude, family_call, id, read_tool, text, texts, tool_call};
 
 fn user(blocks: Vec<Block>) -> Message {
     Message::User { blocks }

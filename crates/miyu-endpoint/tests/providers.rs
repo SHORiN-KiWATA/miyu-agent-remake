@@ -2,16 +2,14 @@
 //! 环境找、值不交，本机的服务几家一起探、300 毫秒没回的当没有；`provider.catalog` 搜、排；`provider.test` 在
 //! `providers_test.rs`。目录是真目录裁出来的一份，本机的服务是本机回环上的假服务器。
 
-mod support;
-
 use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::{Value, json};
 
+use crate::support::providers::{core, data, profiles};
+use crate::support::*;
 use miyu_http::testkit::{Piece, Reply, Server};
-use support::providers::{core, data, profiles};
-use support::*;
 
 /// 一眼看得出是假的 key。
 const FAKE: &str = "sk-FAKE-KEY-FOR-TESTS-0001";

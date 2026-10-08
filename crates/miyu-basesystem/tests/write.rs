@@ -1,8 +1,6 @@
 //! `write`（施工 4-6 上）：新建（带建上级目录）、覆盖；没读过的、读过以后被改了的不写，自己刚写过的可以接着写；
 //! 目录、只读的不写；覆盖时照原来的 CRLF、BOM、UTF-16；报的 `file.changed` 改前改后对得上；给人看的说法。
 
-mod support;
-
 use serde_json::json;
 
 use miyu_kernel::block::Block;
@@ -11,7 +9,7 @@ use miyu_kernel::id::ContentHash;
 use miyu_kernel::tool::Access;
 use miyu_tool::{Call, Done, Effect, Seen};
 
-use support::{Site, native, tool};
+use crate::support::{Site, native, tool};
 
 /// 基础系统的说法。
 fn said(key: &str) -> Said {

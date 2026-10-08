@@ -3,8 +3,6 @@
 //! 停了再载入，内核要回检查点里重读过的原文（施工 6-9），接着的请求里照样有。检查点里代码写的几段不列还在跑的任务（施工
 //! 7-8 补）。
 
-mod support;
-
 use std::path::Path;
 use std::sync::Arc;
 
@@ -19,7 +17,7 @@ use miyu_store::blob::Blobs;
 use miyu_tool::testkit::{Act, Fake, Held};
 use miyu_tool::{Catalog, Tool};
 
-use support::*;
+use crate::support::*;
 
 fn base_system() -> Catalog {
     let resources = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");

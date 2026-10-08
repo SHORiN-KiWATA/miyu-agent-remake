@@ -3,8 +3,6 @@
 //! 恢复时对照的是撤销以后的样子。改回了内容的也附上差异，连同新增、删掉的行数（施工 4-7 再补，`crates/miyu-endpoint/
 //! src/undo/tests.rs` 另有新建的文件、`trash`、本来就一样几种的单元测试）。
 
-mod support;
-
 use std::path::Path;
 use std::sync::Arc;
 
@@ -15,7 +13,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 基础系统的工具，加一件假的执行命令的 `run`（施工 4-7 下：撤掉的几轮执行过几条命令）。
 fn tools() -> Catalog {

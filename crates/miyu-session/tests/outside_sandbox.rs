@@ -2,8 +2,6 @@
 //! 调用，工作区这一级问人、不提规则，允许了这一次不套沙盒，拒绝了她拿到平常的拒绝；只读不问、拒绝；完全放开不问、本来就不套。
 //! 没报的照旧在沙盒里跑、不问。Unix 上有收紧手段的，真的经助手跑 `shell`：允许以后写得进工作区以外。
 
-mod support;
-
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -17,7 +15,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 假的助手：假工具不起它。
 const HELPER: &str = "miyu-sandbox";

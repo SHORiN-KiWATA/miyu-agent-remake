@@ -3,8 +3,6 @@
 //!
 //! 场地照 `guard.rs`：数据根 `data/`、假的家 `home/`、工作区 `work/`、边界以外的 `other/`。
 
-mod support;
-
 use std::sync::Arc;
 
 use miyu_kernel::event::{Body, Decision, Event, Level, Permission};
@@ -16,7 +14,7 @@ use miyu_session::testkit::{Play, Script};
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Catalog, Tool};
 
-use support::*;
+use crate::support::*;
 
 /// 场地里的一处，写成她会给的样子（绝对路径）。
 fn at(home: &Home, path: &str) -> String {

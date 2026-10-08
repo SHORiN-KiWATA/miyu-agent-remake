@@ -1,15 +1,13 @@
 //! 会话列表的索引（施工 3-8 七补，`docs/blueprint/store/index.md`）：造会话、说话、改标题、置顶以后，索引里那一行和日志对得上，
 //! 照到的就是日志的末尾；删会话删掉那一行。
 
-mod support;
-
 use serde_json::json;
 
 use miyu_kernel::id::SessionId;
 use miyu_session::testkit::{Play, Script};
 use miyu_store::index::{FILE, Row, SessionIndex};
 
-use support::*;
+use crate::support::*;
 
 /// 索引里会话 `session` 那一行：另开一个连接读。
 fn row(home: &Home, session: &str) -> Option<Row> {

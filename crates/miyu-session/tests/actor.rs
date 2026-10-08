@@ -1,10 +1,12 @@
 //! 会话 actor（`docs/construction/3-7-会话actor（中）.md` 验收第 2 条）：造会话、说一句、重试、打断、
 //! 停下再载入、同一个命令来两次。请求模型照剧本回，磁盘是临时的数据根。
 
-mod support;
-
 use std::time::{Duration, Instant};
 
+use crate::support::{
+    Home, alice_account, ask, id, kinds, say, stop, until_delta, until_logged, until_turn_ends,
+    watch, within,
+};
 use miyu_kernel::event::{Body, EndReason, ErrorClass, Event, TransientBody};
 use miyu_kernel::facts::Environment;
 use miyu_kernel::id::Seq;
@@ -14,10 +16,6 @@ use miyu_policy::Snapshot;
 use miyu_session::testkit::{Play, Script};
 use miyu_session::{Pushed, Stopped};
 use miyu_store::blob::Blobs;
-use support::{
-    Home, alice_account, ask, id, kinds, say, stop, until_delta, until_logged, until_turn_ends,
-    watch, within,
-};
 
 /// 一份推送里的事件的序号；瞬时事件没有。
 fn seqs(pushed: &Pushed) -> Vec<Seq> {

@@ -9,15 +9,13 @@
 //! 和存档（`docs/designs/samples/probe/vision/`）逐字节比：`requests/`、`openai-chat/` 是主请求，`describes/` 是转述请求。
 //! 主请求照样查五条性质。
 
-mod support;
-
+use crate::support::{check, files, matches_the_archive, sent, stage, vision, wire};
 use miyu_kernel::block::{Block, Image, Text};
 use miyu_kernel::event::Body;
 use miyu_kernel::id::{ContentHash, FileName, MediaType};
 use miyu_kernel::request::Message;
 use miyu_kernel::session::Limits;
 use miyu_kernel::testkit::{Line, Play, Stage, model};
-use support::{check, files, matches_the_archive, sent, stage, vision, wire};
 
 /// 截图的转述。
 const SHOT: &str = "A terminal window showing the end of a cargo test run in red. The last lines read:\nfailures:\n    support::temp_dir_is_canonical\ntest result: FAILED. 214 passed; 1 failed; 0 ignored";

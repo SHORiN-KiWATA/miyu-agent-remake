@@ -5,8 +5,6 @@
 //! （不算出错）、对方没看的太多；参数不对的照共用的那一句。以前的名字 `message_agent` 还认得出。给人看的说法两种语言都
 //! 换得出字。施工 C-6 多一格 `notify_when_idle`、`message` 可以不写（`send_message/watch.rs`）。
 
-mod support;
-
 /// 当会话编号认（施工 C-5）：找到的、找不到的、撞了的、是她自己的，每种说法；这个文件超过行数上限，拆进这里
 /// （照 `spawn/renamed.rs` 的先例，`#[path]` 一样要写：这个文件是 crate 根，`mod` 默认只找同目录的平级文件）。
 #[path = "send_message/by_session_id.rs"]
@@ -26,7 +24,7 @@ use miyu_kernel::id::JobId;
 use miyu_kernel::tool::Access;
 use miyu_tool::{Delivered, Done, Effect, MessagePort, NotSent, Recipient, Sending};
 
-use support::{Site, check, human, readable, said, tool};
+use crate::support::{Site, check, human, readable, said, tool};
 
 /// 她自己：短编号 `22334455`（和 `sessions.rs` 共用）。
 const THIS: &str = "0192f3a0-1111-7abc-8def-001122334455";

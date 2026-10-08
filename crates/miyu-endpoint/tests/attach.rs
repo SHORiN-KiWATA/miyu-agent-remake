@@ -1,8 +1,6 @@
 //! 传附件 `blob.put`（施工 3-9 三补，`docs/blueprint/protocol.md` 的 `blob.put`）：传路径、传内容两种；照内容认图片、PDF、
 //! 文本、别的文件，图片量宽高；太大的、数据根里的、读不了的各有各的拒绝；参数不对的几种。
 
-mod support;
-
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 use serde_json::{Value, json};
@@ -11,7 +9,7 @@ use miyu_kernel::id::ContentHash;
 use miyu_session::testkit::Script;
 use miyu_store::blob::Blobs;
 
-use support::*;
+use crate::support::*;
 
 /// 一张 `width` × `height` 的 PNG 的开头：签名和 IHDR，量宽高只看它。
 pub fn png(width: u32, height: u32) -> Vec<u8> {

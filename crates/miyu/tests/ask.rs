@@ -1,14 +1,12 @@
 //! 真跑 `miyu ask`（`docs/construction/3-9-miyu-ask（下）.md`）：核心没配模型的，退出码 5、不造会话（施工 8-6 起 key 来自配置，头
 //! 一律拉起核心；施工 8-11 起说话之前先看）；参数不对的退出码 2；帮助页跟着界面语言。
 
-mod support;
-
 use std::process::{Command, Output};
 
+use crate::support::{Home, MIYU, within};
 use miyu_cli::help::{Page, page};
 use miyu_cli::language::Language;
 use miyu_ipc::connect_or_start;
-use support::{Home, MIYU, within};
 
 /// 在临时的数据根上跑 `miyu ask <args>`：界面语言是 `lang`。
 fn ask(home: &Home, lang: &str, args: &[&str]) -> Output {
@@ -16,8 +14,8 @@ fn ask(home: &Home, lang: &str, args: &[&str]) -> Output {
         .arg("ask")
         .args(args)
         .env("MIYU_HOME", home.root.path())
-        .envs(support::offline(home.root.path()))
-        .env("MIYU_RESOURCES", support::resources())
+        .envs(crate::support::offline(home.root.path()))
+        .env("MIYU_RESOURCES", crate::support::resources())
         .env("LANG", lang)
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")
@@ -38,7 +36,7 @@ async fn a_core_without_a_model_says_so() {
             Command::new(MIYU)
                 .args(["ask", "在吗"])
                 .env("MIYU_HOME", &home_root)
-                .envs(support::offline(&home_root))
+                .envs(crate::support::offline(&home_root))
                 .env("LANG", "zh_CN.UTF-8")
                 .env_remove("LC_ALL")
                 .env_remove("LC_MESSAGES")

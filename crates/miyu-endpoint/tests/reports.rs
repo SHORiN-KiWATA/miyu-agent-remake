@@ -4,12 +4,11 @@
 //!
 //! 几个会话同时请求模型，谁先到不一定：替身照请求里人这边的那句交代分给各自的剧本。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::json;
 
+use crate::support::{Client, Home, default_resources};
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Body, ChildReason, ChildReported, Effect, Event, Purpose};
 use miyu_kernel::id::{JobId, Seq, SessionId};
@@ -18,7 +17,6 @@ use miyu_kernel::request::{Message, Request};
 use miyu_session::testkit::{Play, Script};
 use miyu_session::{Cancel, ForSession, ModelPort, Models, Reports};
 use miyu_tool::Catalog;
-use support::{Client, Home, default_resources};
 
 /// 各个会话的剧本：请求里人这边有哪一句，就照哪一份回。
 #[derive(Clone)]

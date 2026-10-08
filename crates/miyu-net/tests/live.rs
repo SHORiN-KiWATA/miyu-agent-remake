@@ -9,12 +9,10 @@
 //!
 //! 图存进一个用完就删的临时目录，不碰真实数据。
 
-mod support;
-
 use std::time::Duration;
 
+use crate::support::{Store, resources};
 use miyu_net::{Kind, LinkPreview, Preview};
-use support::{Store, resources};
 
 /// 要试的链接和应该是什么：（链接，卡片的 `kind`）。
 const LINKS: &[(&str, Kind)] = &[

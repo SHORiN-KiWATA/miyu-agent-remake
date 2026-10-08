@@ -2,17 +2,15 @@
 //! 她用 `miyu ask` 改了一个文件，`miyu undo` 改回来、照定的样子印在标准输出上（改回了内容的附差异，施工 4-7 再补），
 //! `miyu restore` 又改回她改完的样子；之后又被改过的印出差异；一轮都没有的、一个会话都没有的，说清楚，退出码 1。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::json;
 
+use crate::support::outside::Outside;
+use crate::support::{Home, plan, resources};
 use miyu_cli::language::Language;
 use miyu_cli::{Direction, Plan, UndoPlan};
 use miyu_session::testkit::{Play, Script};
-use support::outside::Outside;
-use support::{Home, plan, resources};
 
 /// 起一个核心：请求模型照 `plays`，工具是出厂的那几件。
 fn home(plays: impl IntoIterator<Item = Play>) -> Home {

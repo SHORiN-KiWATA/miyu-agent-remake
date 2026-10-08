@@ -2,16 +2,16 @@
 //! `stable` 是 0 的，思考块不打、往前找，同一块只打一次、最多 4 处；`unmarked` 去掉以后，一段随机的会话每次请求都是上一次的
 //! 前缀延伸。
 
-mod support;
-
 use std::collections::BTreeMap;
 
+use crate::support::{
+    anthropic_sample, claude, family_call, id, private_thought, read_tool, text, texts,
+};
 use miyu_drivers::anthropic::{encode, unmarked};
 use miyu_drivers::{Encoded, Inputs};
 use miyu_kernel::block::Block;
 use miyu_kernel::request::{Message, Request};
 use serde_json::Value;
-use support::{anthropic_sample, claude, family_call, id, private_thought, read_tool, text, texts};
 
 const MARK: &str = r#","cache_control":{"type":"ephemeral"}"#;
 

@@ -3,8 +3,6 @@
 //! 的，交给端口，不写的交没有，不在列表里的照参数不对、端口不派，原话照 `serde` 列出能写的几个；以前的 `tier` 不理。给人看
 //! 的说法两种语言都换得出字；显示名新旧两个名字都有、三种语言里一样。
 
-mod support;
-
 use std::sync::{Arc, Mutex, PoisonError};
 
 use serde_json::json;
@@ -18,7 +16,7 @@ use miyu_tool::{AgentPort, Done, Effect, NotSpawned, Order, Spawned, Spawning};
 use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
 
-use support::{Site, check, human, readable, resources, said, tool};
+use crate::support::{Site, check, human, readable, resources, said, tool};
 
 /// 子会话的编号。
 const CHILD: &str = "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91";

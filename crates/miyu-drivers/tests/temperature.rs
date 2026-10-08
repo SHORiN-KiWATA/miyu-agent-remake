@@ -1,14 +1,12 @@
 //! 三种驱动的温度（施工 8-22，`docs/blueprint/models.md`「驱动要守的约定」第 14 条）：没有的一个字节不变；有的写顶层
 //! `"temperature":<数>`，接在思考强度那几样的前面，数照最短的十进制写；Anthropic 开着思考（档位、`on`）不带。
 
-mod support;
-
 use std::collections::BTreeMap;
 
+use crate::support::{call, claude, deepseek, gpt, text, texts};
 use miyu_drivers::openai_chat::Compat;
 use miyu_drivers::{Call, EFFORT_OFF, EFFORT_ON, Inputs, anthropic, openai_chat, openai_responses};
 use miyu_kernel::request::{Message, Request};
-use support::{call, claude, deepseek, gpt, text, texts};
 
 /// 一句话的请求。
 fn request() -> Request {

@@ -3,11 +3,10 @@
 //! `.txt` 是解出来的，一行一条，逐字节比对。还查：从哪里切开喂都一样；内核的累积器一条都不拒；
 //! 解出来的回复编码回去，用的是供应商的编号；驱动的接口走一遍。
 
-mod support;
-
 use std::collections::BTreeMap;
 use std::fs;
 
+use crate::support::{call, deepseek, dir, sample_file, text, texts};
 use miyu_drivers::classify::Failure;
 use miyu_drivers::openai_chat::Decoder;
 use miyu_drivers::{Driver, Ending, Inputs, OpenAiChat};
@@ -15,7 +14,6 @@ use miyu_kernel::accumulate::{Accumulator, Delta, Kind};
 use miyu_kernel::event::ErrorClass;
 use miyu_kernel::id::Seq;
 use miyu_kernel::request::{Message, Request};
-use support::{call, deepseek, dir, sample_file, text, texts};
 
 /// 流的样本，一份一种情形。
 const STREAMS: [&str; 13] = [

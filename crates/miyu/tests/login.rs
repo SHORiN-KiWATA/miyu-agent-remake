@@ -3,16 +3,14 @@
 //! `--format` 不带 `--list` 退出码 2；核心没在跑的拉起来（施工 8-6）；帮助页两种语言。整份运行日志（`trace`）、
 //! 系统日志、屏幕上都搜不到 key。
 
-mod support;
-
 use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Output, Stdio};
 
+use crate::support::{Home, MIYU, count, within};
 use miyu_cli::help::{Page, page};
 use miyu_cli::language::Language;
 use miyu_ipc::connect_or_start;
-use support::{Home, MIYU, count, within};
 
 /// 一眼看得出是假的 key。
 const FAKE: &str = "sk-FAKE-KEY-FOR-TESTS-0001";
@@ -23,8 +21,8 @@ fn miyu(root: &Path, lang: &str, args: &[&str], input: &str) -> Output {
     let mut child = Command::new(MIYU)
         .args(args)
         .env("MIYU_HOME", root)
-        .envs(support::offline(root))
-        .env("MIYU_RESOURCES", support::resources())
+        .envs(crate::support::offline(root))
+        .env("MIYU_RESOURCES", crate::support::resources())
         .env("LANG", lang)
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")
@@ -208,16 +206,17 @@ async fn misuse_and_no_core_are_refused_before_reading_a_key() {
     command
         .args(["login", "deepseek"])
         .env("MIYU_HOME", &root)
-        .envs(support::offline(&root))
-        .env("MIYU_RESOURCES", support::resources())
+        .envs(crate::support::offline(&root))
+        .env("MIYU_RESOURCES", crate::support::resources())
         .env("LANG", "C")
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")
         .env_remove("XDG_RUNTIME_DIR");
     let dir = home.dir.clone();
-    let started = tokio::task::spawn_blocking(move || support::run_starting(&dir, command, FAKE))
-        .await
-        .expect("没 panic");
+    let started =
+        tokio::task::spawn_blocking(move || crate::support::run_starting(&dir, command, FAKE))
+            .await
+            .expect("没 panic");
     assert_eq!(started.status.code(), Some(0), "{started:?}");
     assert!(root.join("system").join("secrets.toml").exists());
     home.kill_core().await;

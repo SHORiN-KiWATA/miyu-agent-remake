@@ -1,16 +1,14 @@
 //! OpenAI Responses 接口的编码（`docs/blueprint/drivers/openai-responses.md`「怎么走：编码」，施工 8-13）：每一种写法一个样本，
 //! 逐字节比对。思考在 `openai_responses_reasoning.rs`，图片、文件在 `openai_responses_media.rs`。
 
-mod support;
-
 use std::collections::BTreeMap;
 
+use crate::support::{family_call, gpt, id, read_tool, responses_sample, text, texts, tool_call};
 use miyu_drivers::openai_responses::{PATH, encode};
 use miyu_drivers::{Driver, Encoded, Inputs, OpenAiResponses};
 use miyu_kernel::block::Block;
 use miyu_kernel::request::{Message, Request};
 use serde_json::{Value, json};
-use support::{family_call, gpt, id, read_tool, responses_sample, text, texts, tool_call};
 
 fn user(blocks: Vec<Block>) -> Message {
     Message::User { blocks }
@@ -176,7 +174,7 @@ fn tool_calls_use_their_own_ids_the_kernels_or_nothing_foreign() {
                     call_id: id("call_1_2"),
                     name: "read".to_string(),
                     args: "not json".to_string(),
-                    private: Some(support::private(
+                    private: Some(crate::support::private(
                         "openai-chat",
                         r#"{"call_id":"call_foreign"}"#,
                     )),
@@ -195,7 +193,7 @@ fn tool_calls_use_their_own_ids_the_kernels_or_nothing_foreign() {
                 call_id: id("call_1_1"),
                 name: "read".to_string(),
                 args: r#"{"path":"a.txt"}"#.to_string(),
-                private: Some(support::private(
+                private: Some(crate::support::private(
                     "openai-responses",
                     r#"{"call_id":"call_abc"}"#,
                 )),

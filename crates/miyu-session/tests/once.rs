@@ -4,22 +4,20 @@
 //!
 //! 假服务器在本机回环上，档案是空的、没有目录：资料全照手写的。
 
-mod support;
-
 use std::time::Duration;
 
 use serde_json::json;
 
+use crate::support::calling::{
+    asking, bearer, blobs, body, entry, frozen, keyed_config, limited, purpose_on, user,
+};
+use crate::support::routing::{cut_after, hellos, routes};
 use miyu_http::testkit::{Reply, Server};
 use miyu_kernel::block::{Block, Image, Text};
 use miyu_kernel::event::{ErrorClass, Usage};
 use miyu_kernel::id::MediaType;
 use miyu_kernel::request::Message;
 use miyu_session::{Answer, Ask, Unanswered};
-use support::calling::{
-    asking, bearer, blobs, body, entry, frozen, keyed_config, limited, purpose_on, user,
-};
-use support::routing::{cut_after, hellos, routes};
 
 /// 说「你好！」的那一份流报的用量：输入 2000（命中 1920），输出 3。
 const HELLO_USAGE: Usage = Usage {

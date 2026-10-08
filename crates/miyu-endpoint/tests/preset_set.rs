@@ -1,15 +1,13 @@
 //! 新建、改、删预设（施工 P-3 中，`docs/blueprint/presets.md`「改」）：真核心走一遍。只写家目录那一层；对没有的编号写就是新建，
 //! 改出厂的只写改了的项；原来的注释、顺序照原样；有错、`expect` 对不上的整条不收、什么都不写；删掉家目录那一层回到下面的。
 
-mod support;
-
 use std::sync::Arc;
 
 use serde_json::{Value, json};
 
+use crate::support::*;
 use miyu_endpoint::Core;
 use miyu_session::testkit::Script;
-use support::*;
 
 fn core(home: &Home) -> Arc<Core> {
     home.core(&Script::new([]))

@@ -4,13 +4,11 @@
 //!
 //! 替身没报最大输出，输出预留照出厂策略的上限 20000，余量 13000：压缩线 = 窗口 − 33000。
 
-mod support;
-
 use serde_json::json;
 
+use crate::support::*;
 use miyu_models::settings::{ProviderSettings, UseSettings};
 use miyu_session::testkit::Script;
-use support::*;
 
 /// 限额是 `limits` 的那一份回应：模型是替身的 deepseek 的 deepseek-v4，没有引用。新会话的「当前的」几格（施工 9-6 上）：
 /// 什么都没花、权限是出厂的、没有在跑的任务；在 `~` 里造的会话在账号的工作区里干活（施工 9-7 上）。
