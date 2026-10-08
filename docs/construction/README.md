@@ -424,6 +424,7 @@ flowchart LR
 | O-17 | WebUI 的主人与自己人页 | 主人对应表 `external.bindings`、自己人 `onebot.trusted`：加一行、删一行、保存（`onebot.md` 第二条第 4 条）；`onebot.trusted` 先由核心的 `OnebotSettings` 代声明。施工单见 `O-17-WebUI的主人与自己人页.md` |
 | O-18 | 桥由核心拉起 | 软件包清单 `resources/packages/onebot.toml`（`kind = "process"`、`start = "manual"`）；`serve` 只经标准输入输出说协议，核心照开关拉起、崩了退避重启（`extensions.md`，9-4 上）；`miyu onebot start / stop / restart / status / logs`。读配置照旧是权宜，等 9-4（下）。施工单见 `O-18-桥由核心拉起.md` |
 | O-19 | 斜杠命令 | 桥认出 `/` 开头的消息，原样交给核心的 `command.run`（O-6），回执发回 QQ；`/clear`、`/stop`、`/workspace`、`/remember` 在 QQ 私聊里能用，认不出的当普通的话。施工单见 `O-19-斜杠命令.md` |
+| O-20 | 桥用核心交的配置 | 去掉 O-8 起桥自己读配置的权宜：握手回应的 `config`、推送 `extension.config`（9-4 下下）；不再依赖 `miyu-core`、`miyu-endpoint`；`onebot.*` 挪进清单的 `[settings]`，同一个提交删掉核心的 `OnebotSettings` |
 
 **有界面（M9）的头几步**（2026-10-07 项目主人批准；草稿先给终端界面、网页、onebot 三个会话看过，意见并进来了。M9 其余的步子到了跟前再拆）
 
