@@ -109,7 +109,7 @@ export function apply(ctx) {
       title: t('choose_persona'),
       hint: t('menu_hint'),
       rows: [
-        // 第一行「空白」：不带人格（2026-10-08 项目主人：人格可以留空，这一项叫「空白」；没有人格的会话记忆、知识库不生效）
+        // 第一行「空白」：不带人格（2026-10-08 项目主人：人格可以留空，这一项叫「空白」；没有人格的会话记忆不生效，知识库照样能查）
         { title: t('no_persona'), desc: t('no_persona_desc'), current: chosen == null, pick: () => chat.setDraft({ persona: false }) },
         ...catalog.personas.map((p) => ({
         title: personaName(p),
