@@ -95,3 +95,47 @@ fn triggers_are_overheard_in_order_unused_and_end_with_the_trigger() {
         .append(&event(9, Some(9), "turn.started", r#"{"trigger":4}"#))
         .unwrap();
 }
+
+/// `turn.joined`（施工 O-14 下）：只在回合里；不能是空的；照 `turn.started` 的规矩查那几条；记下以后算当过触发。
+#[test]
+fn a_join_happens_in_a_turn_and_uses_its_triggers_up() {
+    let mut ledger = base();
+    let joined = |seq: u64, turn: Option<u64>, triggers: &str| {
+        event(
+            seq,
+            turn,
+            "turn.joined",
+            &format!(r#"{{"triggers":[{triggers}]}}"#),
+        )
+    };
+    refused(
+        &mut ledger,
+        &joined(6, None, "2"),
+        "turn.joined happens only in a turn",
+    );
+    ledger
+        .append(&event(6, Some(6), "turn.started", r#"{"trigger":4}"#))
+        .unwrap();
+    refused(
+        &mut ledger,
+        &joined(7, Some(6), ""),
+        "turn.joined should have triggers",
+    );
+    refused(
+        &mut ledger,
+        &joined(7, Some(6), "3,2"),
+        "triggers should be in order, each once",
+    );
+    refused(
+        &mut ledger,
+        &joined(7, Some(6), "4"),
+        "trigger 4 is not an overheard message.user",
+    );
+    ledger.append(&joined(7, Some(6), "2")).unwrap();
+    assert!(ledger.answered(Seq::new(2).unwrap()));
+    refused(
+        &mut ledger,
+        &joined(8, Some(6), "2,3"),
+        "trigger 2 has already opened a turn",
+    );
+}

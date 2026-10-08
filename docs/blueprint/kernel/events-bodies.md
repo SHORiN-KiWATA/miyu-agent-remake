@@ -9,7 +9,7 @@
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu-kernel/src/event/session.rs` | `session.created`、`session.policy_changed`、`session.meta_changed`、`session.workspace_changed`（施工 9-7 上）、`session.recapped`（施工 3-8 四补）、`command.ran`（施工 O-6）；权限 `Permission`、级别 `Level` |
-| `crates/miyu-kernel/src/event/turn.rs` | `turn.started`、`turn.ended`（`EndReason`）、`turn.reverted`、`turn.unreverted` |
+| `crates/miyu-kernel/src/event/turn.rs` | `turn.joined`（施工 O-14 下）、`turn.started`、`turn.ended`（`EndReason`）、`turn.reverted`、`turn.unreverted` |
 | `crates/miyu-kernel/src/event/restore.rs` | `files.restored`（`Restored`、`RestoreAction`、`RestoreOutcome`） |
 | `crates/miyu-kernel/src/event/message.rs` | `message.user`、`message.assistant`、`message.withdrawn` |
 | `crates/miyu-kernel/src/event/tool.rs` | `tool.result`（`ToolStatus`、给人看的说法 `Said`）、`tool.approval_requested`、`tool.approval_decided`（`Decision`） |
@@ -123,6 +123,12 @@
 | `triggers` | 序号的列表 | 可以没有 | 照记下的几条开的一轮（`session.respond`，施工 O-14 上）：开这一轮的那几条旁听消息，照序号排好，`trigger` 是最后一条。别的回合没有，不写 |
 | `cwd` | 字符串 | 可以没有 | 这一轮开始时会话的工作目录，照会话的环境，人看到的那种写法（施工 4-9 再补三上）。之前的日志没有。核心重启以后载入会话，照它找回工作目录（`protocol.md`） |
 | `dirs` | 字符串的数组 | 可以没有 | 这一轮加进来的目录，照头报的原样（施工 5-10 上）。没有加进来的目录就不写，所以原来的日志一个字节不变 |
+
+**`turn.joined`**（施工 O-14 下）：照记下的几条并进正在跑的这一轮，带回合编号，`by` 是内核，`cause` 是那个 `session.respond`。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `triggers` | 序号的列表 | 必有 | 并进来的那几条旁听消息，照序号排好、不空。账本查：都是旁听的、都没当过触发；记下以后算当过（`kernel/history.md`） |
 
 **`turn.ended`**：
 

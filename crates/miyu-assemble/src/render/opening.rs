@@ -3,6 +3,7 @@
 
 use std::collections::BTreeSet;
 
+use miyu_kernel::block::Block;
 use miyu_kernel::event::{Body, Event, MessageUser, TurnStarted};
 use miyu_kernel::history::History;
 use miyu_kernel::id::Seq;
@@ -36,14 +37,20 @@ pub(super) fn opening(
         Place::Lead(trigger),
         recent.into_iter().map(text_block).collect(),
     );
-    for (said, message) in started
-        .triggers
+    transcript.add(
+        trigger,
+        Place::Here,
+        joined(history, &started.triggers, texts),
+    );
+}
+
+/// 照记下的几条开的、并进来的（`triggers`）那几条旁听的话渲染成的块，照序号的先后（施工 O-14 上、下）。
+pub(super) fn joined(history: &History, triggers: &[Seq], texts: &Texts) -> Vec<Block> {
+    triggers
         .iter()
         .filter_map(|seq| message_at(history, *seq))
-    {
-        let blocks = spoken(history, said, message, known(&message.blocks), texts);
-        transcript.add(trigger, Place::Here, blocks);
-    }
+        .flat_map(|(said, message)| spoken(history, said, message, known(&message.blocks), texts))
+        .collect()
 }
 
 /// 由人的消息开的回合（施工 O-13 下）：`session.send` 开的、照记下的几条开的（施工 O-14 上），各在哪一条开始；群聊近况收
@@ -68,13 +75,18 @@ impl Opened {
             answered: BTreeSet::new(),
         };
         for event in history.events() {
-            if let Body::TurnStarted(started) = &event.body
-                && started
-                    .trigger
-                    .is_some_and(|trigger| said.contains(&trigger))
-            {
-                opened.starts.push(event.seq);
-                opened.answered.extend(&started.triggers);
+            match &event.body {
+                Body::TurnStarted(started)
+                    if started
+                        .trigger
+                        .is_some_and(|trigger| said.contains(&trigger)) =>
+                {
+                    opened.starts.push(event.seq);
+                    opened.answered.extend(&started.triggers);
+                }
+                // 并进正在跑的一轮的（施工 O-14 下）也当过触发。
+                Body::TurnJoined(joined) => opened.answered.extend(&joined.triggers),
+                _ => {}
             }
         }
         opened

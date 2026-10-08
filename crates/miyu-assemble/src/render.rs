@@ -48,6 +48,11 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
                 let blocks = spoken(history, event, message, known(&message.blocks), texts);
                 transcript.add(event.seq, Place::Here, blocks);
             }
+            // 并进正在跑的一轮的那几条（施工 O-14 下）：在它自己的位置；接着开的那一轮由它触发，和开始时的事实一组。
+            Body::TurnJoined(joined) => {
+                let blocks = opening::joined(history, &joined.triggers, texts);
+                transcript.add(event.seq, Place::Here, blocks);
+            }
             Body::ContextInjected(fact) => {
                 let reminder = event.by == By::Kernel && fact.kind.as_str() == REMINDER;
                 let place = match transcript.trigger_of(event.turn) {

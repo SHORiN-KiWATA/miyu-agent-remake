@@ -178,6 +178,7 @@ impl Ledger {
         }
         self.check_turn(event)?;
         match &event.body {
+            Body::TurnJoined(joined) => self.triggers.check_joined(joined),
             Body::SessionCreated(created) => jobs::check_created(created),
             Body::MessageAssistant(message) => {
                 self.check_seen(seq, message.seen)?;
@@ -424,6 +425,7 @@ fn in_turn_only(body: &Body) -> bool {
     matches!(
         body,
         Body::MessageAssistant(_)
+            | Body::TurnJoined(_)
             | Body::ToolResult(_)
             | Body::ApprovalRequested(_)
             | Body::ApprovalDecided(_)

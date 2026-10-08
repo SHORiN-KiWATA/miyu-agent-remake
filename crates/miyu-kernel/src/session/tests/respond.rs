@@ -1,6 +1,8 @@
 //! 照记下的几条开一轮（施工 O-14 上，`docs/blueprint/chat.md` 第七条第 3 条第 1 项）：闲着时拿旁听记下的几条当触发开一轮，
-//! `triggers` 排好去重、`trigger` 是最后一条，桥带来的事实接在内核的事实后面；正忙的、空的、不是旁听的、当过触发的拒，
-//! 后两种带上是哪几条；载入以后照样认得当过触发的。
+//! `triggers` 排好去重、`trigger` 是最后一条，桥带来的事实接在内核的事实后面；空的、不是旁听的、当过触发的拒，后两种带上是
+//! 哪几条；载入以后照样认得当过触发的。正在跑一轮的并进去（施工 O-14 下，[`joining`]）。
+
+mod joining;
 
 use super::load::{Logged, load};
 use super::*;
@@ -118,14 +120,6 @@ fn responding_opens_a_turn_on_what_was_overheard() {
             events: events.iter().map(|event| event.seq).collect()
         })
     );
-}
-
-#[test]
-fn responding_while_a_turn_runs_is_refused() {
-    let mut logged = overheard_twice();
-    logged.ask(4, "hi");
-    let actions = logged.handle(respond(9, &[2]));
-    assert_eq!(actions, [rejected(id(9), Reason::TurnRunning)]);
 }
 
 #[test]

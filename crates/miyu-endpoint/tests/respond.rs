@@ -141,3 +141,59 @@ async fn bad_requests_record_nothing_and_refusals_name_the_messages() {
 fn sessions_admin() -> miyu_kernel::origin::By {
     miyu_kernel::origin::By::Person(miyu_kernel::origin::Person::new(alice()))
 }
+
+/// 正在跑一轮时（施工 O-14 下）：并进这一轮，`turn.joined` 带回合编号；打断以后不另开一轮。
+#[tokio::test]
+async fn respond_while_running_joins_the_turn() {
+    let home = Home::new();
+    let (mut client, session, seqs) = overheard_twice(&home, &Script::new([Play::Holds])).await;
+    let opened = client
+        .call(
+            "s1",
+            "session.send",
+            json!({"session": session, "text": "@她 在吗", "as": {"external": "qq:10001"}}),
+        )
+        .await;
+    assert!(opened.get("error").is_none(), "{opened}");
+    let reply = client
+        .call("r1", "session.respond", respond(&session, json!([seqs[1]])))
+        .await;
+    let events: Vec<u64> = reply["result"]["events"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{reply}"))
+        .iter()
+        .filter_map(Value::as_u64)
+        .collect();
+    let log = home.log(&session);
+    let joined = log
+        .iter()
+        .find(|event| event.seq.get() == *events.last().unwrap())
+        .expect("记下了");
+    let Body::TurnJoined(turn_joined) = &joined.body else {
+        panic!("最后一条是并进去：{joined:?}");
+    };
+    assert_eq!(
+        turn_joined
+            .triggers
+            .iter()
+            .map(|seq| seq.get())
+            .collect::<Vec<_>>(),
+        [seqs[1]]
+    );
+    assert!(joined.turn.is_some(), "带回合编号");
+    let stopped = client
+        .call(
+            "i1",
+            "session.interrupt",
+            json!({"session": session, "queued": "send"}),
+        )
+        .await;
+    assert!(stopped.get("error").is_none(), "{stopped}");
+    home.until_turns(&session, 1).await;
+    let started = home
+        .log(&session)
+        .iter()
+        .filter(|event| matches!(event.body, Body::TurnStarted(_)))
+        .count();
+    assert_eq!(started, 1, "打断以后不由它另开一轮");
+}

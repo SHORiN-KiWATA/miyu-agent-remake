@@ -72,3 +72,50 @@ fn later_blocks_skip_what_already_opened_a_turn_and_earlier_requests_stay() {
         ))
     );
 }
+
+/// 并进正在跑的一轮（施工 O-14 下）：那几条在 `turn.joined` 的位置渲染，桥的事实在前；她没听到就结束的，接着开的那一轮
+/// 由它触发，开始时注入的事实排在它们前面；以后的近况不收它们。
+#[test]
+fn joined_triggers_come_where_they_joined() {
+    let mut log = Log::new();
+    let first = ambient(&mut log, "在吗", "8801");
+    respond(&mut log, &[first]);
+    let call = log.reply_calling("我看看。");
+    let late = ambient(&mut log, "我也问一句", "8802");
+    log.fact_by(BRIDGE, "judge", "<judge-2/>");
+    log.push(
+        KERNEL,
+        "turn.joined",
+        &format!(r#"{{"triggers":[{late}]}}"#),
+    );
+    log.result(&call, "ok", "看完了");
+    assert_eq!(
+        in_group(&log).last().map(String::as_str),
+        Some("user: <judge-2/> | [15:00] 小林 [msg=8802]: 我也问一句"),
+        "排在那一步的工具结果后面，事实在前"
+    );
+    // 没听到就结束：接着开的那一轮由 `turn.joined` 触发。
+    log.reply(&format!("[{}]", text_json("好")));
+    let again = ambient(&mut log, "还在吗", "8803");
+    let joined = log.push(
+        KERNEL,
+        "turn.joined",
+        &format!(r#"{{"triggers":[{again}]}}"#),
+    );
+    log.end("completed");
+    log.start(joined);
+    log.fact("<env/>");
+    assert_eq!(
+        in_group(&log).last().map(String::as_str),
+        Some("user: <env/> | [15:00] 小林 [msg=8803]: 还在吗")
+    );
+    // 以后的近况不收并进去过的。
+    log.reply(&format!("[{}]", text_json("在")));
+    log.end("completed");
+    let third = ambient(&mut log, "第三个", "8804");
+    respond(&mut log, &[third]);
+    assert_eq!(
+        in_group(&log).last().map(String::as_str),
+        Some("user: <judge/> | [15:00] 小林 [msg=8804]: 第三个")
+    );
+}

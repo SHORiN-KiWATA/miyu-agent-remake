@@ -243,6 +243,12 @@ impl Watch {
                     }
                 }
             }
+            // 并进正在跑的一轮的（施工 O-14 下）：带回合编号，照回合中途到的回报排着。
+            Body::TurnJoined(_) => {
+                assert!(event.turn.is_some(), "种子 {seed}：并进去的带回合编号");
+                self.seen_paths.insert("回合中途并进去的排着");
+                self.reports.pending.push(event.seq);
+            }
             Body::MessageAssistant(reply) => self.peers_heard(reply.seen),
             Body::TurnStarted(_) => self.reports.deferred.clear(),
             Body::ModelCalled(called)

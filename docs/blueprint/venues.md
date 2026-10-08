@@ -104,7 +104,7 @@
 
 1. `to`：序号的列表，1 到 64 条，核心照序号排好、去重；`facts`：可以不写，每块 `{kind, text}`，`kind` 照事实类别的写法，`text` 最多 4 KiB，原样记成 `context.injected`，排在触发前面。写错的 `bad_params`，什么都不记。
 2. 记成谁同下面的 `events.append`。同一个命令编号再发只算一次，回应和头一次一样。
-3. 正在跑一轮的 `turn_running`（O-14 下改成并进这一轮）；`to` 里有不是这个会话里旁听的 `message.user` 的 `not_ambient`，有已经当过触发的 `already_answered`，`data.messages` 是不合的那几条。
+3. 正在跑一轮的并进这一轮（施工 O-14 下）：事实和一条 `turn.joined {triggers}`（带回合编号）当场记下，下一步就听到，这一轮没再请求就结束的接着开一轮，打断时不退回、不接着开。`to` 里有不是这个会话里旁听的 `message.user` 的 `not_ambient`，有已经当过触发的 `already_answered`，`data.messages` 是不合的那几条。
 4. 开的那一轮 `turn.started` 带 `triggers`，那几条在回合开始的地方渲染（群会话里一行一条），以后的群聊近况不再收它们。
 
 **桥记的事件**（施工 O-13 上，chat.md 第七条第 3 条第 2 项）：`events.append {session, kind, body}`，回应 `{"seq": n}`。记成不带回合编号的事件，任何时候都收，不开回合、不打断；记成谁：核心拉起的扩展是那个包（模块），本机的头是管理员。

@@ -93,7 +93,7 @@
 | 命令 | 协议里的方法 | 带着 | 见 |
 |---|---|---|---|
 | `Send { blocks, urgent, venue }` | `session.send` | 内容块；`urgent` 急着插话；`venue` 通讯平台上的一条消息的那几格（施工 O-13 上） | 「发一条消息」 |
-| `Respond { to, facts }` | `session.respond` | 开这一轮的那几条旁听消息的序号、几块事实（施工 O-14 上） | 「照记下的几条开一轮」 |
+| `Respond { to, facts }` | `session.respond` | 开这一轮（正在跑的并进去，施工 O-14 下）的那几条旁听消息的序号、几块事实（施工 O-14 上） | 「照记下的几条开一轮」 |
 | `Append { event }` | `events.append` | 扩展自己的 `ext.*`，或者 `venue.recalled`、`venue.delivered`（施工 O-13 上；别的种类经不了这条路，类型就不收） | 「桥记的事件」 |
 | `Interrupt { queued }` | `session.interrupt` | `Queued::Send` 排着的接着发，`Queued::Return` 退回，`Queued::Keep` 留着（施工 O-6） | 「打断」 |
 | `SetPermission { level, read_only }` | `session.set_permission_level` | 常用的那一级、只读开关，不改的是 `None` | 「切权限级别」 |
@@ -205,10 +205,11 @@
 
 **照记下的几条开一轮**（`Respond`，施工 O-14 上，`docs/blueprint/chat.md` 第七条第 3 条第 1 项）：
 
-1. 正在跑一轮的拒 `turn_running`（O-14 下改成并进去）。`to` 照序号排好、去重；空的拒 `empty_message`。
+1. `to` 照序号排好、去重；空的拒 `empty_message`。
 2. 有不是旁听的 `message.user` 的拒 `not_ambient`，有当过触发的拒 `already_answered`（账本答，`kernel/history.md`）：拒绝的 `about` 是不合的那几条，先查前一种。
-3. 合的：开一轮（「开回合」），`turn.started` 带 `triggers`（排好的序号），`trigger` 是最后一条，`cause` 是这个命令；内核的事实照旧，`facts` 照先后接在它们后面，`by` 是发命令的一方、带这个回合。落了盘回应，附这一批的序号。不过回合闸（还没有）。
-4. 渲染：那几条在回合开始的地方，不在它们自己的位置（`kernel/request.md`「群聊近况」）。
+3. 正在跑一轮的并进去（施工 O-14 下）：`facts` 照先后记下，带这个回合，`by` 是发命令的一方；再记 `turn.joined {triggers}`，带这个回合，`by` 是内核，`cause` 是这个命令；照回合中途来的回报排进队（`Waker::Joined`）：下一次请求就有它，这一轮没再请求就结束的接着开一轮、由它触发，打断时不退回、不接着开；这一步里在等人的调用作废（同「回合进行中」的人的话），叫停的 `CancelTool` 排在 `Append` 后面。落了盘回应，附这一批的序号。
+4. 闲着的：开一轮（「开回合」），`turn.started` 带 `triggers`（排好的序号），`trigger` 是最后一条，`cause` 是这个命令；内核的事实照旧，`facts` 照先后接在它们后面，`by` 是发命令的一方、带这个回合。落了盘回应，附这一批的序号。不过回合闸（还没有）。
+5. 渲染：开的那几条在回合开始的地方，不在它们自己的位置；并进来的在 `turn.joined` 的位置（`kernel/request.md`「群聊近况」）。
 
 **桥记的事件**（`Append`，施工 O-13 上，`docs/blueprint/chat.md` 第七条第 3 条第 2 项）：追加那一条，不带回合编号，任何时候都收，不开回合、不打断。`ext.*` 记成内核不认识的种类（原样留着，投影跳过）；`venue.recalled`、`venue.delivered` 记成认识的，投影这一步先跳过（O-13 下渲染）。
 
@@ -619,7 +620,8 @@
 | `crates/miyu-kernel/src/session/tests/scenario/messages.rs`（施工 7-7） | 子代理的留言：闲着开一轮、`trigger` 和 `cause` 照它、回应只附它；正忙下一次请求听到、不带回合编号；最后一步里到的接着开；打断两种都不撤回、不接着开；不作废在等人回答的题；没人看着的一次性会话只记下、有头订阅着照常开；派它的那一轮撤掉了的不开轮；能恢复撤销时记在一边、载入以后恢复了接着开；由它接着开的一轮撤掉，人的话跟着撤、留言留着；载入以后下一轮听到；不是她派的会话发来的是别的会话发来的话（施工 C-2），不带回合编号；`subagents()` 的每一种；中间一层答完孙代理的留言不报、孙代理报完再报；孙代理在回报里问、它留言答了（`job.messaged`）也等孙代理再报 |
 | `crates/miyu-kernel/src/session/tests/scenario/upward.rs`、`scenario/upward_load.rs`、`session/report/tests.rs`（施工 7-6） | 向上回报：做完交代报那一轮最后说的、只报一次；主会话不报；人自己开的不报；人开的一轮里进了父会话的留言报、注明人；交代那一轮里人插过话注明；超长的截头尾、中间那一行；出错报半截、没说话的正文空、步数上限报最后说的；孙代理都报完、被叫醒的那一轮结束才报一次；孙代理崩了闲着当场报；它自己的子代理开的不报；崩在那一轮里载入报 `aborted`；报过的载入再交一次；重启接着干、做完再报，没接着干的报 `aborted`；打断的等下一轮；补的一批没全落盘不报；收到「要重启了」以后不交、再载入时交一次；父会话挤掉最近 1024 个编号以后照样认出重交的，换编号的是新的一份。截正文：到上限原样、头尾各一半、单数尾巴多一个、空的那一行只留换行 |
 | `crates/miyu-kernel/src/session/tests/queue.rs` | 最后一步里来的开下一轮；由最后一条触发；出错、到上限的也接着开；被后一步听到的不再开；打断接着发、退回、留着（施工 O-6：不撤回、不接着开，下一句开的那一轮看得到）；没排着的不写撤回；触发不算排队 |
-| `crates/miyu-kernel/src/session/tests/respond.rs`（施工 O-14 上） | 照记下的几条开一轮：`triggers` 排好去重、`trigger` 是最后一条、桥的事实接在内核的后面；正忙的、空的拒；不是旁听的、当过触发的拒，带上是哪几条；载入以后照样认得当过触发的 |
+| `crates/miyu-kernel/src/session/tests/respond.rs`（施工 O-14 上） | 照记下的几条开一轮：`triggers` 排好去重、`trigger` 是最后一条、桥的事实接在内核的后面；空的拒；不是旁听的、当过触发的拒，带上是哪几条；载入以后照样认得当过触发的 |
+| `crates/miyu-kernel/src/session/tests/respond/joining.rs`（施工 O-14 下） | 正在跑一轮时：桥的事实、`turn.joined` 带这个回合记下、回应附序号；下一步听到的不另开；没再请求就结束的接着开一轮、由 `turn.joined` 触发；打断（接着发、退回）不退回不接着开；在等的那一问作废 |
 | `crates/miyu-kernel/src/session/tests/interrupt.rs` | 空闲时打断被拒；请求前、请求中、调工具时打断；什么都没收到不写回复；急着插话的三种时候；空闲时急着插话开回合；在跑的写叫它停、排在后面的当场补、10 秒以后叫醒、改完了的带着效果记、收了尾到点不理 |
 | `crates/miyu-kernel/src/session/tests/landed.rs`（施工 3-8 六补） | `landed()`：造会话那一条落盘以前没有；追加了、还没落盘的不算，落一部分走一部分；载入的是日志里最后一条 |
 | `crates/miyu-kernel/src/session/tests/meta.rs`（施工 3-8 三补） | 改名记一条、落了盘才回应、同一个编号再来不再记；只写变了的格，和现在一样的（含没有标题时去掉、没置顶时取消、两格都不写）当场回应、编号照记；去掉标题记成空的；回合进行中的带上回合；载入以后照日志算回来，撤掉的回合里改的也算；`deletable()`：空闲的删得了，开了回合、`turn.ended` 没落盘的是有回合在进行，改回文件的时候是正在改回；斜杠命令记一条 `command.ran`、带着说命令的人和起因、同一个编号再来不再记（施工 O-6） |

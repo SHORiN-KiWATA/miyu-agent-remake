@@ -26,6 +26,14 @@ pub struct TurnStarted {
     pub dirs: Vec<String>,
 }
 
+/// `turn.joined`：照记下的几条并进正在跑的这一轮（施工 O-14 下，`session.respond` 时有回合在进行）。带这个回合的编号；
+/// 下一次请求就有那几条，这一轮没再请求就结束的，接着开一轮，由它触发。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TurnJoined {
+    /// 并进来的那几条旁听消息的序号，照序号排好。
+    pub triggers: Vec<Seq>,
+}
+
 /// `turn.ended`：回合结束。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TurnEnded {
