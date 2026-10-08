@@ -109,7 +109,7 @@ export function apply(ctx) {
       title: t('choose_persona'),
       hint: t('menu_hint'),
       rows: [
-        // 第一行「空白」：不带人格（2026-10-08 项目主人：人格可以留空，这一项叫「空白」；没有人格的会话记忆不生效，知识库照样能查）
+        // 第一行「无人格」：不带人格（2026-10-08 项目主人：人格可以留空，这一项叫「无人格」；没有人格的会话记忆不生效，知识库照样能查）
         { title: t('no_persona'), desc: t('no_persona_desc'), current: chosen == null, pick: () => chat.setDraft({ persona: false }) },
         ...catalog.personas.map((p) => ({
         title: personaName(p),
@@ -207,7 +207,7 @@ export function apply(ctx) {
   ctx.slots.mount('settings.editor', {
     id: 'setup-persona',
     key: 'persona.default',
-    // 「空白」：新会话默认不带人格（写成删掉这一项）
+    // 「无人格」：新会话默认不带人格（写成删掉这一项）
     options: () => [{ value: null, name: t('default_none') }, ...(catalog.personas ?? []).filter((p) => !p.problem).map((p) => ({ value: p.persona, name: personaName(p) }))],
   });
   ctx.slots.mount('settings.editor', {

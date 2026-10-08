@@ -68,7 +68,7 @@ test('预设：名字照显示名、没有的写编号；默认的能不能用�
   assert.equal(defaultUsable(presets, 'nope', 'preset'), false);
 });
 
-test('没选时实际用哪个：预设照 preset.default、没写是 full；人格照选的 → 预设写的默认人格 → persona.default，指着没有的当没设，都没有是没有人格；选了「空白」是没有', () => {
+test('没选时实际用哪个：预设照 preset.default、没写是 full；人格照选的 → 预设写的默认人格 → persona.default，指着没有的当没设，都没有是没有人格；选了「无人格」是没有', () => {
   assert.equal(presetInUse('dev', 'full'), 'dev');
   assert.equal(presetInUse(null, 'dev'), 'dev');
   assert.equal(presetInUse(null, null), 'full');
@@ -77,7 +77,7 @@ test('没选时实际用哪个：预设照 preset.default、没写是 full；人
   assert.equal(personaInUse(null, 'gone', 'miyu', list), 'miyu', '预设写的人格没了：照 persona.default');
   assert.equal(personaInUse(null, null, 'gone', list), null, '默认人格没了：没有人格，不锁');
   assert.equal(personaInUse(null, null, null, list), null, '出厂不带人格');
-  assert.equal(personaInUse(false, 'engineer', 'miyu', list), null, '明着选了空白');
+  assert.equal(personaInUse(false, 'engineer', 'miyu', list), null, '明着选了无人格');
   assert.equal(personaInUse(null, null, 'bad', list), 'bad', '写错的照样算出来，由锁那边管');
 });
 
