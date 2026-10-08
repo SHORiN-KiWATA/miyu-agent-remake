@@ -24,13 +24,20 @@ pub(crate) struct PackageParams {
     package: String,
 }
 
-/// `extension.status`：起来时读到的 `process` 包，照编号排。
+/// `extension.status`：起来时读到的 `process` 包，照编号排。订阅扩展的推送时的回应也是它（施工 9-4 补）。
 pub(crate) fn status(core: &Core, peer: Peer) -> Value {
     let (switches, _) = read_switches(core);
     let listed: Vec<Value> = processes(core)
         .map(|(id, manifest)| one(core, id, manifest, on(&switches, id, manifest), peer))
         .collect();
     json!({ "extensions": listed })
+}
+
+/// 包 `id` 这时的一项（施工 9-4 补，`extension.changed` 推的就是它）：不是起来时读到的 `process` 包的没有。
+pub(crate) fn entry(core: &Core, id: &str, peer: Peer) -> Option<Value> {
+    let manifest = extension(core, id).ok()?;
+    let (switches, _) = read_switches(core);
+    Some(one(core, id, manifest, on(&switches, id, manifest), peer))
 }
 
 /// `extension.enable`：记成开着，没在跑的拉起。
@@ -43,6 +50,7 @@ pub(crate) async fn enable(
     let _one_at_a_time = core.extensions.ops.lock().await;
     switch(core, &params.package, true)?;
     core.extensions.launch(core, &params.package, manifest);
+    core.extensions.notify(&params.package);
     Ok(one(core, &params.package, manifest, true, peer))
 }
 
@@ -56,6 +64,7 @@ pub(crate) async fn disable(
     let _one_at_a_time = core.extensions.ops.lock().await;
     switch(core, &params.package, false)?;
     core.extensions.halt(&params.package).await;
+    core.extensions.notify(&params.package);
     Ok(one(core, &params.package, manifest, false, peer))
 }
 

@@ -7,14 +7,14 @@ mod tests;
 use std::io;
 use std::path::PathBuf;
 use std::process::Stdio;
-use std::sync::{PoisonError, Weak};
+use std::sync::Weak;
 use std::time::Duration;
 
 use tokio::process::{Child, Command};
 use tokio::sync::{oneshot, watch};
 use tokio::time::Instant;
 
-use super::{Reason, Shared, State, Status, TARGET, stderr};
+use super::{Reason, Shared, State, TARGET, stderr};
 use crate::Core;
 use crate::connection::serve_spawned;
 
@@ -249,7 +249,7 @@ async fn finish(child: &mut Child, grace: Duration) -> Option<std::process::Exit
     child.wait().await.ok()
 }
 
-/// 记下状态。
+/// 记下状态，广播一声。
 fn set(shared: &Shared, state: State, failures: u32) {
-    *shared.lock().unwrap_or_else(PoisonError::into_inner) = Status { state, failures };
+    shared.set(state, failures);
 }

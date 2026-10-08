@@ -4,137 +4,16 @@
 
 mod support;
 
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use serde_json::{Value, json};
 
-use miyu_endpoint::Core;
-use miyu_endpoint::extensions::Timing;
 use miyu_session::testkit::Script;
 use miyu_tool::Catalog;
 
+use support::extensions::*;
 use support::*;
-
-/// 测试用的扩展，拷在测试程序旁边、名字各用各的。用完删掉。
-struct Program(PathBuf);
-
-impl Program {
-    fn new() -> Program {
-        static NEXT: AtomicU64 = AtomicU64::new(0);
-        let n = NEXT.fetch_add(1, Ordering::Relaxed);
-        let exe = std::env::current_exe().expect("找得到测试程序");
-        let dir = std::fs::canonicalize(&exe)
-            .expect("测试程序在")
-            .parent()
-            .expect("有上一级")
-            .to_path_buf();
-        let path = dir.join(format!(
-            "miyu-test-ext-{}-{n}{}",
-            std::process::id(),
-            std::env::consts::EXE_SUFFIX
-        ));
-        std::fs::copy(env!("CARGO_BIN_EXE_miyu-test-extension"), &path).expect("拷得了");
-        Program(path)
-    }
-
-    /// 清单里写的程序名：不带 `.exe`。
-    fn name(&self) -> String {
-        self.0
-            .file_stem()
-            .expect("有名字")
-            .to_string_lossy()
-            .into_owned()
-    }
-}
-
-impl Drop for Program {
-    fn drop(&mut self) {
-        drop(std::fs::remove_file(&self.0));
-    }
-}
-
-/// 管理员（测试里是 alice）家目录里的一份 `process` 清单：程序 `program`，参数 `args`，`start` 照写。
-fn install(home: &Home, id: &str, program: &str, start: &str, args: &[String]) {
-    let args: Vec<String> = args.iter().map(|arg| format!("{arg:?}")).collect();
-    home.write(
-        &format!("home/alice/packages/{id}.toml"),
-        &format!(
-            "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"Echo\", zh = \"回声\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"E\" }}\n\n[process]\nargs = [{}]\nstart = \"{start}\"\n",
-            args.join(", ")
-        ),
-    );
-}
-
-/// 短的等法：等 300 毫秒再杀，退避从 20 毫秒起、最多 100 毫秒；跑满 60 秒才算稳。
-fn quick() -> Timing {
-    Timing {
-        grace: Duration::from_millis(300),
-        stable: Duration::from_secs(60),
-        backoff: Duration::from_millis(20),
-        longest: Duration::from_millis(100),
-    }
-}
-
-/// 一份核心：清单装好了再造（核心起来时读一次），照开关拉起开着的。
-fn core(home: &Home, timing: Timing) -> Arc<Core> {
-    let core = Arc::new(
-        home.core_full(&Script::new([]), Catalog::default(), None, TOKEN)
-            .with_extension_timing(timing),
-    );
-    core.start_extensions();
-    core
-}
-
-/// 记下的文件在哪；记的那一步的参数。
-fn record(home: &Home, id: &str) -> (PathBuf, String) {
-    let path = home.work.join(format!("record-{id}"));
-    let step = format!("record:{}", path.display());
-    (path, step)
-}
-
-fn steps(steps: &[&str]) -> Vec<String> {
-    steps.iter().map(ToString::to_string).collect()
-}
-
-/// `extension.status` 里编号是 `id` 的那一个。
-async fn status(client: &mut Client, id: &str) -> Value {
-    let reply = client.call("s", "extension.status", json!({})).await;
-    reply["result"]["extensions"]
-        .as_array()
-        .unwrap_or_else(|| panic!("{reply}"))
-        .iter()
-        .find(|one| one["package"] == id)
-        .cloned()
-        .unwrap_or_else(|| panic!("没有 {id}：{reply}"))
-}
-
-/// 等到编号是 `id` 的那一个合 `wanted`：最多 60 秒。
-async fn until(client: &mut Client, id: &str, wanted: impl Fn(&Value) -> bool) -> Value {
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
-    loop {
-        let one = status(client, id).await;
-        if wanted(&one) {
-            return one;
-        }
-        assert!(tokio::time::Instant::now() < deadline, "等不到：{one}");
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
-}
-
-fn read(path: &Path) -> String {
-    std::fs::read_to_string(path).unwrap_or_default()
-}
-
-fn stderr(home: &Home, id: &str) -> String {
-    read(&home.root.state().join("logs").join(format!("{id}.stderr")))
-}
-
-async fn call(client: &mut Client, method: &str, id: &str) -> Value {
-    client.call("c", method, json!({"package": id})).await
-}
 
 #[tokio::test]
 async fn enabling_starts_it_in_its_own_directory_and_it_shakes_hands_without_a_token() {
@@ -161,7 +40,7 @@ async fn enabling_starts_it_in_its_own_directory_and_it_shakes_hands_without_a_t
 
     let enabled = call(&mut client, "extension.enable", "echo").await;
     assert_eq!(enabled["result"]["on"], true, "{enabled}");
-    let running = until(&mut client, "echo", |one| one["state"] == "running").await;
+    let running = until_state(&mut client, "echo", |one| one["state"] == "running").await;
     assert!(running["pid"].as_u64().is_some(), "{running}");
     // 它握完手、调完那一句才算记完：等记下三行。
     let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
@@ -212,18 +91,18 @@ async fn always_ones_start_with_the_core_and_a_new_core_follows_the_switches() {
     let first = core(&home, quick());
     let mut client = Client::connect(Arc::clone(&first));
     client.hello().await;
-    let auto = until(&mut client, "auto", |one| one["state"] == "running").await;
+    let auto = until_state(&mut client, "auto", |one| one["state"] == "running").await;
     assert_eq!(auto["on"], true, "always 的不用开：{auto}");
     call(&mut client, "extension.enable", "echo").await;
     call(&mut client, "extension.disable", "auto").await;
-    until(&mut client, "echo", |one| one["state"] == "running").await;
+    until_state(&mut client, "echo", |one| one["state"] == "running").await;
     drop(client);
     first.stop_extensions().await;
 
     let second = core(&home, quick());
     let mut client = Client::connect(Arc::clone(&second));
     client.hello().await;
-    until(&mut client, "echo", |one| one["state"] == "running").await;
+    until_state(&mut client, "echo", |one| one["state"] == "running").await;
     let auto = status(&mut client, "auto").await;
     assert_eq!(
         (&auto["on"], &auto["state"]),
@@ -251,7 +130,7 @@ async fn an_open_extension_keeps_the_core_from_idling() {
     {
         let mut client = Client::connect(Arc::clone(&core));
         client.hello().await;
-        until(&mut client, "auto", |one| one["state"] == "running").await;
+        until_state(&mut client, "auto", |one| one["state"] == "running").await;
     }
     let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
     while core.connections() > 1 {
@@ -278,7 +157,7 @@ async fn exit_code_one_stops_at_once_with_the_end_of_its_stderr() {
     let mut client = Client::connect(Arc::clone(&core));
     client.hello().await;
     call(&mut client, "extension.enable", "echo").await;
-    let stopped = until(&mut client, "echo", |one| one["state"] == "stopped").await;
+    let stopped = until_state(&mut client, "echo", |one| one["state"] == "stopped").await;
     assert_eq!(stopped["reason"], "config_error", "{stopped}");
     assert_eq!(stopped["failures"], 1);
     assert_eq!(stopped["stderr"], "port 6700 is taken");
@@ -308,7 +187,7 @@ async fn other_exits_back_off_and_five_in_a_row_stop_it() {
     let mut client = Client::connect(Arc::clone(&core));
     client.hello().await;
     call(&mut client, "extension.enable", "echo").await;
-    let stopped = until(&mut client, "echo", |one| one["state"] == "stopped").await;
+    let stopped = until_state(&mut client, "echo", |one| one["state"] == "stopped").await;
     assert_eq!(stopped["reason"], "failed_repeatedly", "{stopped}");
     assert_eq!(stopped["failures"], 5);
     assert_eq!(stderr(&home, "echo"), "up\n".repeat(5), "拉起了五次");
@@ -333,7 +212,7 @@ async fn one_that_never_says_hello_fails_too() {
     let mut client = Client::connect(Arc::clone(&core));
     client.hello().await;
     call(&mut client, "extension.enable", "echo").await;
-    let stopped = until(&mut client, "echo", |one| one["state"] == "stopped").await;
+    let stopped = until_state(&mut client, "echo", |one| one["state"] == "stopped").await;
     assert_eq!(stopped["reason"], "failed_repeatedly", "{stopped}");
     assert_eq!(stderr(&home, "echo"), "up\n".repeat(5));
 }
@@ -353,7 +232,7 @@ async fn one_that_ignores_the_closed_input_is_killed_after_the_grace() {
     let mut client = Client::connect(Arc::clone(&core));
     client.hello().await;
     call(&mut client, "extension.enable", "echo").await;
-    let running = until(&mut client, "echo", |one| one["state"] == "running").await;
+    let running = until_state(&mut client, "echo", |one| one["state"] == "running").await;
     let disabled = call(&mut client, "extension.disable", "echo").await;
     assert_eq!(disabled["result"]["state"], "off", "{disabled}");
     #[cfg(unix)]
@@ -387,10 +266,10 @@ async fn restart_starts_a_new_process_and_the_count_again() {
     let off = call(&mut client, "extension.restart", "echo").await;
     assert_eq!(off["error"]["data"]["reason"], "extension_off", "{off}");
     call(&mut client, "extension.enable", "echo").await;
-    let first = until(&mut client, "echo", |one| one["state"] == "running").await;
+    let first = until_state(&mut client, "echo", |one| one["state"] == "running").await;
     let restarted = call(&mut client, "extension.restart", "echo").await;
     assert_eq!(restarted["result"]["on"], true, "{restarted}");
-    let second = until(&mut client, "echo", |one| {
+    let second = until_state(&mut client, "echo", |one| {
         one["state"] == "running" && one["pid"] != first["pid"]
     })
     .await;
