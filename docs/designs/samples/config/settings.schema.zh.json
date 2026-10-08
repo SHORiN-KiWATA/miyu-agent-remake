@@ -428,6 +428,21 @@
       },
       "type": "object"
     },
+    "tui": {
+      "properties": {
+        "icons": {
+          "default": "nerd",
+          "description": "终端界面用哪一套图标：Nerd Font 的图标，或者没装这种字体时用的普通字符。能写：nerd 或 plain。只能写在系统配置或个人设置里。当场生效。",
+          "enum": [
+            "nerd",
+            "plain"
+          ],
+          "title": "图标",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "ui": {
       "properties": {
         "head": {
