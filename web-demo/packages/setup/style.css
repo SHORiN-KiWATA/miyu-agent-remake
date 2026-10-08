@@ -60,9 +60,11 @@
 /* 设置页的「人格」页：一个人格一块，底色一块不画描边 */
 .setup-cards { display: grid; gap: 10px; margin-top: 4px; }
 .setup-card { padding: 14px 16px; border-radius: 12px; background: var(--surface-2); }
-.setup-card h4 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 4px; color: var(--text); font-size: 14px; }
+.setup-card h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; color: var(--text); font-size: 14px; }
+.setup-card h4 .setup-tag { font-weight: 400; }
 .setup-card h4 code { color: var(--text-faint); font: 12px var(--mono); font-weight: 400; }
 .setup-card p { margin: 0 0 8px; color: var(--text-soft); font-size: 13px; }
+.setup-card > p:last-child, .setup-card > h4:last-child { margin-bottom: 0; }
 .setup-card .setup-card-problem { margin: 0; color: var(--danger); font-size: 13px; }
 .setup-card .setup-card-problem + .setup-card-problem { margin-top: 4px; }
 .setup-tags { display: flex; flex-wrap: wrap; gap: 6px; }

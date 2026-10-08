@@ -4,6 +4,7 @@
 //! `kit`（`settings/kit.js`），和设置页长一个样。
 
 import { h, icon } from '../../src/lib/dom.js';
+import { unfold } from '../../src/lib/motion.js';
 
 /**
  * 设置页交来的控件（`settings.section` 的 `render(kit)`；软件包之间不互相 import，这里照用到的写一份形状）。
@@ -22,6 +23,32 @@ import { h, icon } from '../../src/lib/dom.js';
  * @param {string} name @param {HTMLElement} control @param {string|null} [desc]
  */
 export const field = (name, control, desc = null) => h('div.setup-field', h('div.setup-field-name', h('span', name), desc ? h('small', desc) : null), h('div.setup-field-control', control));
+
+/**
+ * 展开、收起的一块（2026-10-08 项目主人：原地展开要有动画）：高度从 0 长出来、收回去，照 `base.css` 的 `.unfold`。放进页面以后下一帧
+ * 才展开（不然没有过渡）；收起走完再交回（`done`），过渡没来的（减少动画、没放进页面）照时间兜底。
+ * @param {HTMLElement} body
+ */
+export function foldable(body) {
+  const wrap = h('div.unfold', h('div.unfold-inner', body));
+  unfold(wrap, false);
+  return {
+    wrap,
+    open: () => requestAnimationFrame(() => requestAnimationFrame(() => unfold(wrap, true))),
+    /** @param {() => void} done */
+    close: (done) => {
+      let finished = false;
+      const finish = () => {
+        if (finished) return;
+        finished = true;
+        done();
+      };
+      wrap.addEventListener('transitionend', (e) => { if (e.target === wrap) finish(); }, { once: true });
+      setTimeout(finish, 600);
+      unfold(wrap, false);
+    },
+  };
+}
 
 /** 编辑器的头：名字，右边「收起」。 @param {HTMLElement} title @param {string} label @param {() => void} close */
 export const head = (title, label, close) => h('div.setup-head', title, h('button.setup-collapse', { type: 'button', onclick: close }, label, icon('chevron-down')));
@@ -99,12 +126,10 @@ export function nameFirst(kit, t, title, hint, create, cancel) {
     e.preventDefault();
     submit();
   });
-  const el = h('div.setup-card.is-open', { 'data-set-dismiss': '' },
-    h('div.setup-head', h('h4', title)),
-    field(t('edit.name'), input),
-    err,
-    h('div.setup-foot', h('span.setup-grow'), kit.button(t('edit.cancel'), {}, cancel), ok));
-  el.addEventListener('set-dismiss', cancel);
+  const fold = foldable(h('div', field(t('edit.name'), input), err, h('div.setup-foot', h('span.setup-grow'), kit.button(t('edit.cancel'), {}, () => fold.close(cancel)), ok)));
+  const el = h('div.setup-card.is-open', { 'data-set-dismiss': '' }, h('div.setup-head', h('h4', title)), fold.wrap);
+  el.addEventListener('set-dismiss', () => fold.close(cancel));
+  fold.open();
   requestAnimationFrame(() => input.focus());
   return el;
 }

@@ -26,12 +26,13 @@ function badCard(ctx, id, problems) {
 /** 人格页、预设页不一样的那几处。 */
 const KINDS = {
   persona: {
-    list: (c) => c.personas, fallback: (c) => c.personaDefault, name: personaName, none: 'page.none', add: 'edit.new_persona', intro: 'page.intro',
+    list: (c) => c.personas, fallback: (c) => c.personaDefault, name: personaName, none: 'page.none', add: 'edit.new_persona', intro: 'page.intro', summary: true,
     create: (core, name) => core.request('persona.set', { changes: [{ key: 'persona.name', value: name }] }).then((r) => r?.persona),
     editor: (ctx, kit, catalog, id, hooks) => new PersonaEditor(ctx, kit, id, hooks),
   },
   preset: {
-    list: (c) => c.presets, fallback: (c) => c.presetDefault ?? 'full', name: presetName, none: 'presets.none', add: 'edit.new_preset', intro: null,
+    // 预设不写说明（2026-10-08 项目主人：没什么意义，名字已经说清了）
+    list: (c) => c.presets, fallback: (c) => c.presetDefault ?? 'full', name: presetName, none: 'presets.none', add: 'edit.new_preset', intro: null, summary: false,
     create: (core, name) => core.request('preset.set', { changes: [{ key: 'preset.name', value: name }] }).then((r) => r?.preset),
     editor: (ctx, kit, catalog, id, hooks) => new PresetEditor(ctx, kit, catalog, id, hooks),
   },
@@ -80,9 +81,10 @@ export class ListPage {
       const id = p[this.kind];
       if (p.problem) return badCard(this.ctx, id, this.catalog.problemOf(this.kind, p));
       if (this.open?.id === id) return this.open.editor.el;
+      // 「默认」接在名字后面，不另占一行（2026-10-08 项目主人）
       const card = h('div.setup-card.is-clickable', { tabindex: '0', role: 'button', onclick: () => this.show(id) },
-        h('h4', this.k.name(p)), p.summary ? h('p', p.summary) : null,
-        id === fallback ? h('div.setup-tags', h('span.setup-tag', t('page.default'))) : null);
+        h('h4', this.k.name(p), id === fallback ? h('span.setup-tag', t('page.default')) : null),
+        this.k.summary && p.summary ? h('p', p.summary) : null);
       card.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter' && e.key !== ' ') return;
         e.preventDefault();
@@ -117,6 +119,7 @@ export class ListPage {
     });
     this.open = { id, editor };
     this.draw();
+    editor.expand();
     await editor.load();
   }
 

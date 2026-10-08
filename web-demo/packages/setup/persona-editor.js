@@ -5,7 +5,7 @@
 //! 别处改过了（`persona_conflict`）写一句、给「重新读」；写错的照核心给人看的那一句（`data.message`）。
 
 import { h, replace } from '../../src/lib/dom.js';
-import { field, head, area, twoClick } from './form.js';
+import { field, head, area, twoClick, foldable } from './form.js';
 import { Pairs } from './pairs.js';
 import { personaSave, halfPair } from './model.js';
 
@@ -27,7 +27,8 @@ export class PersonaEditor {
     this.t = (/** @type {string} */ key, /** @type {any} */ fields) => ctx.text(key, fields);
     this.title = h('h4', id);
     this.body = h('div.setup-editor', h('p.setup-empty', this.t('page.loading')));
-    this.el = h('div.setup-card.is-open', { 'data-set-dismiss': '' }, head(this.title, this.t('edit.collapse'), () => this.tryClose()), this.body);
+    this.fold = foldable(this.body);
+    this.el = h('div.setup-card.is-open', { 'data-set-dismiss': '' }, head(this.title, this.t('edit.collapse'), () => this.tryClose()), this.fold.wrap);
     // `Esc`：没改过的收起；改了没存的留着（长的字一按就丢太亏），提示先存或者取消
     this.el.addEventListener('set-dismiss', () => this.tryClose());
     /** @type {PersonaDraft|null} */
@@ -80,7 +81,7 @@ export class PersonaEditor {
       field(t('edit.examples'), this.pairs.el),
       field(t('edit.reminders'), this.reminders),
       this.note,
-      h('div.setup-foot', remove, h('span.setup-grow'), this.kit.button(t('edit.cancel'), {}, () => this.hooks.close()), this.saveBtn));
+      h('div.setup-foot', remove, h('span.setup-grow'), this.kit.button(t('edit.cancel'), {}, () => this.collapse()), this.saveBtn));
     this.sync();
   }
 
@@ -114,7 +115,17 @@ export class PersonaEditor {
       this.saveBtn?.focus();
       return;
     }
-    this.hooks.close();
+    this.collapse();
+  }
+
+  /** 展开（放进页面以后）。 */
+  expand() {
+    this.fold.open();
+  }
+
+  /** 收起：动画走完再交给列表换回那一块。 */
+  collapse() {
+    this.fold.close(() => this.hooks.close());
   }
 
   async save() {

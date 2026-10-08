@@ -132,7 +132,7 @@ export function apply(ctx) {
       title: t('choose_preset'),
       rows: catalog.presets.map((p) => ({
         title: presetName(p),
-        desc: p.problem ? t('preset_bad') : p.summary ?? '',
+        desc: p.problem ? t('preset_bad') : '',
         tip: p.problem ? catalog.problemOf('preset', p).map((x) => problemText(ctx, x)).join('\n') : undefined,
         current: p.preset === chosen && !p.problem,
         off: !!p.problem,
