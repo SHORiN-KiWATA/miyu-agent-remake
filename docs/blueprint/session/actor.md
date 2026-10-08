@@ -317,7 +317,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | WARN | `subagent not woken` | `child`、`error` | 父会话载入以后叫不起子会话 |
 | WARN | `seen files not rebuilt` | `error` | 第 5 条第 4 点 |
 | WARN | `session index not updated` | `error` | 落了盘，会话列表的索引更新失败（第 5 条第 7 点，施工 3-8 七补） |
-| WARN | `memory index not updated` | `error` | 落了盘，回合索引更新失败、恢复时读不回日志（第 5 条第 8 点，施工 R-2 上） |
+| WARN | `memory index not updated` | `error`（场所会话的另带 `session`） | 落了盘，回合索引更新失败、恢复时读不回日志（第 5 条第 8 点，施工 R-2 上）；载入场所会话时拿不掉它以前进了库的（施工 R-2 再补，`memory.md` 第一条第 1 款） |
 | WARN | `memory index not read` | `error` | 接上回合索引时读不出照到了哪：当作没照过，整份补（施工 R-2 上） |
 | INFO | `memory index created` | `room` | 这一间的回合库这一回新建（施工 R-2 上；R-2 下起由登记记，开库的四处都算，`room` 写法见 `memory.md` 第一条第 8 款） |
 | WARN | `memory index rebuilt`、`memory index unusable` | `room`、`reason` 或 `error` | 回合库坏了、版本不对删掉重建，或者删了也打不开（施工 R-2 上） |

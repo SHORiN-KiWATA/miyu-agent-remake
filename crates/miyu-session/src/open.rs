@@ -129,7 +129,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
     let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
-    let (owner_of, id_of) = (owner.clone(), id.clone());
+    let (owner_of, id_of, venue_of) = (owner.clone(), id.clone(), venue.clone());
     let (snapshot, policy, texts, run, guard, log, (turns, calls)) = blocking(move || {
         let parts = Parts {
             name: name.clone(),
@@ -155,6 +155,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             &owner_of,
             name.as_deref().unwrap_or_default(),
             &id_of,
+            &venue_of,
             &[],
         );
         Ok((snapshot, policy, texts, run, guard, log, turns))

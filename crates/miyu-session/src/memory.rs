@@ -16,7 +16,7 @@ pub use summary::SummaryTexts;
 use std::sync::{Arc, OnceLock};
 
 use miyu_kernel::event::Event;
-use miyu_kernel::id::{AccountId, SessionId};
+use miyu_kernel::id::{AccountId, SessionId, VenueId};
 use miyu_policy::memory::MemoryScope;
 use miyu_recall::{Change, TurnFeed, key, replay};
 use miyu_store::memory::MemoryLogs;
@@ -24,6 +24,7 @@ use miyu_store::recall::{Edit, Opened, RecallIndex, RecallIndexes, Room};
 use miyu_store::root::DataRoot;
 
 use crate::TARGET;
+use crate::agents::LOCAL;
 
 /// 核心一份的记忆（施工 R-3 中）：回合库的登记、记忆日志的登记。会话表交给每个会话，主会话照它更新回合索引、给三件工具造
 /// 端口。
@@ -77,6 +78,13 @@ impl Memory {
 ///
 /// 记忆放在哪照范围（`memory.md`「范围」）：跟着人格的在记忆账号 `account` 的那一间，只在这个会话里的在会话自己的目录
 /// 里（属主 `owner` 的）。听众照属主，不照记忆账号：出厂人格的记忆归属主，系统账号开的会话归管理员，听的人还是属主。
+///
+/// 回合索引只接本机（`venue` 是 `local`）的会话（施工 R-2 再补，`memory.md` 第一条第 1 款）：回合库的条目还没有听众（第九条，
+/// 随 O 线），群里的回合进了库，本机会话里就搜得到群里别人说的话。场所会话以前进了库的（施工 O-4 下起），载入时拿掉。
+#[expect(
+    clippy::too_many_arguments,
+    reason = "接上记忆要的几样各是一样，拼成一个结构体只为过这一条"
+)]
 pub(crate) fn connect(
     memory: Option<&Arc<Memory>>,
     scope: MemoryScope,
@@ -84,6 +92,7 @@ pub(crate) fn connect(
     owner: &AccountId,
     persona: &str,
     session: &SessionId,
+    venue: &VenueId,
     events: &[Event],
 ) -> (Option<Turns>, Option<Calls>) {
     let room = match scope {
@@ -94,8 +103,24 @@ pub(crate) fn connect(
     let Some(memory) = memory else {
         return (None, None);
     };
-    let turns = Turns::connect(&memory.turns, &room, session, events);
+    let turns = if venue.as_str() == LOCAL {
+        Turns::connect(&memory.turns, &room, session, events)
+    } else {
+        if !events.is_empty() {
+            leave(&memory.turns, &room, session);
+        }
+        None
+    };
     (turns, Some(Calls::new(memory, room, owner, session)))
+}
+
+/// 场所会话 `session` 以前进了 `room` 那一间回合库的（施工 O-4 下到 R-2 再补之间）拿掉：只拿掉、不埋墓碑，会话还在。拿不掉的
+/// 记一行 `WARN memory index not updated`，下次载入再拿。
+fn leave(recall: &RecallIndexes, room: &Room, session: &SessionId) {
+    let (index, _) = recall.turns(room);
+    if let Err(error) = index.forget(session.as_str()) {
+        tracing::warn!(target: TARGET, session = session.as_str(), error = %error, "memory index not updated");
+    }
 }
 
 /// 会话的记忆的范围：子会话（`child`）不管交的、快照里的是什么都是 `off`（17 第二节，以前造的子会话快照里没有这一格）；

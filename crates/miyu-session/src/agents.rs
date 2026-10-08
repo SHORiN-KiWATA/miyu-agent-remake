@@ -31,8 +31,9 @@ use crate::TARGET;
 use crate::job_ids::JobIds;
 use crate::spawn::{Child, Lineage, SessionPort};
 
-/// 本机这个场所（`protocol.md` 的 `session.create` 第 2 条）：只有它的会话能派子代理。
-const LOCAL: &str = "local";
+/// 本机这个场所（`protocol.md` 的 `session.create` 第 2 条）：只有它的会话能派子代理；回合索引也只收它的（施工 R-2 再补，
+/// `memory.rs`）。
+pub(crate) const LOCAL: &str = "local";
 
 /// 一个会话派子代理要的：造子会话的端口，和子会话照抄的、会话里不变的几样。
 pub(crate) struct Agents {

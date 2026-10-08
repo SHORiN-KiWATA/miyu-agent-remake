@@ -281,22 +281,19 @@ async fn the_bridge_runs_as_its_system_account_and_owns_the_group() {
         "用量记在系统账号名下、管理员看得到：{usage}"
     );
 
-    // 记忆归管理员：回合库在管理员的家目录下，系统账号没有自己的记忆。
+    // 记忆归管理员，系统账号没有自己的记忆。群里的回合先不进回合库（施工 R-2 再补，`memory.md` 第一条第 1 款：回合库的
+    // 条目还没有听众），哪边都不为它建库。管理员那一间的回合库平常是本机的会话建的：这里直接建一份，看删群会话时是不是
+    // 照记忆归谁去埋墓碑。
     let turns = |account: &AccountId| {
         home.root
             .index(account)
             .join("recall")
             .join("turns-engineer.db")
     };
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
-    while !turns(&alice()).exists() {
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "回合库建在管理员名下"
-        );
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
     assert!(!turns(&bot()).exists(), "系统账号没有自己的回合库");
+    assert!(!turns(&alice()).exists(), "群里的回合不进管理员的回合库");
+    std::fs::create_dir_all(turns(&alice()).parent().expect("有上一级")).expect("建得了");
+    drop(miyu_store::recall::RecallIndex::open(&turns(&alice())));
     // 删掉群会话：管理员的回合库里给它埋墓碑，记忆的出处在它里面的都算死了。
     // 带附件的那一句排出的那一轮可能还在跑：跑着的删不掉（`turn_running`），等它说完再删。
     let deadline = tokio::time::Instant::now() + Duration::from_secs(60);

@@ -106,6 +106,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
                 &owner_of,
                 persona,
                 &id_of,
+                &created.venue,
                 &events,
             );
             Ok((
