@@ -105,7 +105,8 @@ export class SettingsDialog {
     const all = [
       ...this.pages.map((p) => ({ id: p.id, name: p.name })),
       { id: 'appearance', name: named('appearance') },
-      { id: 'packages', name: named('packages') },
+      // 核心也有一页「软件包」（9-1 下，一个包一组）：和网页自己的组件合成一页，上面核心、下面网页（2026-10-07 项目主人定）
+      ...(this.pages.some((p) => p.id === 'packages') ? [] : [{ id: 'packages', name: named('packages') }]),
       ...this.ctx.slots.list('settings.section').map((s) => ({ id: s.id, name: s.name, section: s })),
     ];
     const rank = (id) => {
@@ -158,7 +159,15 @@ export class SettingsDialog {
     let kids;
     if (this.current === 'models') kids = drawModels(this);
     else if (this.current === 'appearance') kids = drawLook(this);
-    else if (this.current === 'packages') kids = drawPackages(this);
+    else if (this.current === 'packages') {
+      // 上面一段核心的软件包（一个包一组，照 `config.schema`），下面一段网页自己的组件
+      const core = page?.groups.map((g) => groupBlock(g.name, g.items.map((item) => coreRow(this, item)))).filter(Boolean) ?? [];
+      kids = [
+        ...(page?.problems ?? []).map((p) => banner(p)),
+        core.length ? h('section.set-part', h('h2.set-part-name', this.ctx.text('packages_core')), core) : null,
+        h('section.set-part', core.length ? h('h2.set-part-name', this.ctx.text('packages_web')) : null, drawPackages(this)),
+      ];
+    }
     else if (entry?.section) kids = entry.section.render?.() ?? null;
     else if (page) {
       kids = [

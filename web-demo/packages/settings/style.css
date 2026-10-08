@@ -292,3 +292,7 @@
   .set-row { flex-wrap: wrap; }
   .set-drawer { position: fixed; inset: 0; width: 100%; z-index: 7; }
 }
+
+/* 「软件包」页分两段：核心的软件包、网页自己的组件（段名比组名大一档） */
+.set-part + .set-part { margin-top: 28px; }
+.set-part-name { margin: 4px 0 4px; color: var(--text); font-size: 14px; font-weight: 600; }

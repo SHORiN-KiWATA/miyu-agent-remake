@@ -115,6 +115,7 @@
         "appearance": "palette",
         "models": "cpu",
         "permissions": "shield",
+        "presets": "toggle-right",
         "advanced": "wrench",
         "packages": "package"
       },
@@ -157,7 +158,7 @@
         "new_session": "以后开的会话生效",
         "next_turn": "下一轮生效",
         "restart": "重启核心后生效",
-        "head_start": "下次打开界面时生效",
+        "head_start": "这个程序下次启动时生效",
         "live": "当场生效",
         "reload": "这个包重新加载"
       },
@@ -248,7 +249,9 @@
         "pool_new_hint": "回车创建 · Esc 取消",
         "driver_guess": "没认出来，先这样用"
       },
-      "changed": "已改"
+      "changed": "已改",
+      "packages_core": "核心",
+      "packages_web": "网页"
     },
     "ja": {
       "title": "設定",
@@ -282,7 +285,7 @@
         "new_session": "新しいセッションから反映",
         "next_turn": "次のターンから反映",
         "restart": "コア再起動後に反映",
-        "head_start": "次に画面を開いたときに反映",
+        "head_start": "このプログラムを次に起動したときに反映されます",
         "live": "すぐに反映",
         "reload": "このパッケージを再読み込み"
       },
@@ -373,7 +376,9 @@
         "pool_new_hint": "Enter で作成 · Esc でキャンセル",
         "driver_guess": "判別できず、仮にこれを使用"
       },
-      "changed": "変更済み"
+      "changed": "変更済み",
+      "packages_core": "コア",
+      "packages_web": "ウェブ"
     }
   },
   "styles": [

@@ -36,7 +36,8 @@ export function buildPages(schema, got, opts = {}) {
   const byPage = new Map(pages.map((p) => [p.id, p]));
   for (const g of schema.groups) {
     const items = schema.items
-      .filter((i) => i.group === g.id && !isTemplate(i.key) && !foreign(i.key))
+      // 界面提示 `hidden` 的（核心 9-1 下：网页服务的空闲秒数这类）不画，照样能写、能查
+      .filter((i) => i.group === g.id && !i.hidden && !isTemplate(i.key) && !foreign(i.key))
       .map((i) => ({ ...i, entry: got.items?.[i.key] ?? null, problems: problems.filter((x) => x.key === i.key) }))
       .sort((a, b) => Number(!!b.common) - Number(!!a.common));
     const home = moveGroups[g.id] ?? g.page;
