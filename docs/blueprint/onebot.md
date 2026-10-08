@@ -28,7 +28,7 @@
 | `crates/miyu-onebot/src/listen.rs` | NapCat 反连进来的那一下：路径、令牌（和桥手里最新的比，O-20）、升级 |
 | `crates/miyu-onebot/src/listen/connection.rs`、`listen/bots.rs` | 一条 NapCat 的连接：回应、私聊、别的事件各交给谁，连上就问 `get_version_info`（回的实现、版本记在这条连接上，O-16 的 `/status` 用）；一个机器人号一条连接，新的顶掉旧的 |
 | `crates/miyu-onebot/src/onebot.rs`、`onebot/text.rs`、`onebot/calls.rs` | OneBot v11 的事件和动作：认一帧（私聊带上事件的 `time`）、读出私聊的文字、写 `send_private_msg`、调用和回应按 `echo` 配对；平台的名字 `qq`（`PLATFORM`）只写在 `onebot.rs`。三个小函数照它拼编号：`private_venue(号) -> Result<VenueId, FormatError>`、`person(号) -> Result<ExternalId, FormatError>` 经群聊内核拼（`Venue::new`、`miyu_chat::person`），`command_id(机器人的号, 消息编号, 时刻) -> String`（第 7、8 条） |
-| `crates/miyu-onebot/src/core.rs`、`core/route.rs` | 跟核心的那一头：在给的管道上（`Pipe`：程序里是标准输入输出，O-18；测试里是内存里的管道）握手、不带凭据，取握手回应的 `config`（O-20），`venue.session`、带 `as` 的 `session.send`、订阅、她的回复发回去；推来的 `extension.config` 交给 `serve.rs`（O-20） |
+| `crates/miyu-onebot/src/core.rs`、`core/route.rs` | 跟核心的那一头：在给的管道上（`Pipe`：程序里是标准输入输出，O-18；测试里是内存里的管道）握手、不带凭据，取握手回应的 `config`（O-20）、桥自己的 `account`（第 7 条），`venue.session`、带 `as` 的 `session.send`、订阅、她的回复发回去；推来的 `extension.config` 交给 `serve.rs`（O-20） |
 | `crates/miyu-onebot/src/core/route/command.rs`（O-19） | 斜杠命令：`/` 开头的先交 `command.run`，回执、被拒的那一句发回去，认不出的交回去照普通的话发（「斜杠命令」） |
 | `crates/miyu-onebot/src/texts.rs` | 说给人听的字：挑哪一句、换进什么字段，字照 `Human::load` 读（「给人看的字」） |
 | `resources/software/onebot/bridge.json` | 桥自己的数：认的路径、调用等多久、两个队列多长、接不了连接歇多久、握手等多久和 `logs -f` 隔多久看一次（O-18）（「对外的样子」） |
@@ -166,7 +166,7 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 4. **调用**：发出去的动作带 `echo`（桥自己编，同一条连接里不重），等带同样 `echo` 的回应，等了 `call_timeout_seconds`（出厂 10 秒）还等不到算失败；连接断了，在等的都算失败。
 5. **收私聊**：`post_type = message`、`message_type = private` 的才看；别的事件（群消息、通知、请求、心跳、生命周期）记一行调试日志就丢。
 6. **读出文字**：`message` 是段的数组时，取 `text` 段的 `data.text` 依次接起来；是字符串（CQ 码）时，去掉 `[CQ:…]`，再把 `&#91;`、`&#93;`、`&#44;`、`&amp;` 换回来。图片、表情这些别的段这一步不管。接出来的字去掉首尾空白是空的，不送。
-7. **找会话**：`venue.session {venue: "qq:private:<user_id>", kind: "private", peer: "qq:<user_id>"}`。场所编号由群聊内核的 `Venue::new("qq", VenueKind::Private, <user_id>)` 拼，平台上的人由 `miyu_chat::person("qq", <user_id>)` 拼，桥不手拼（`chat.md` 第七条第 1 条）；拼不出来的（号是整数，照说不会）记一行运行日志 `WARN`、这条不送，不 panic。桥在内存里记着「场所 → 会话编号」，每个场所只在桥起来以后第一次来消息时问；回 `session_not_found` 这类会话不在了的，忘掉、再问一次。回 `no_system_account`（不是主人，O-4 以前没有系统账号）：这个人的消息这一步不接，同一个人只记一行运行日志。
+7. **找会话**：`venue.session {venue: "qq:private:<user_id>", kind: "private", peer: "qq:<user_id>"}`。场所编号由群聊内核的 `Venue::new("qq", VenueKind::Private, <user_id>)` 拼，平台上的人由 `miyu_chat::person("qq", <user_id>)` 拼，桥不手拼（`chat.md` 第七条第 1 条）；拼不出来的（号是整数，照说不会）记一行运行日志 `WARN`、这条不送，不 panic。桥在内存里记着「场所 → 会话编号」，每个场所只在桥起来以后第一次来消息时问；回 `session_not_found` 这类会话不在了的，忘掉、再问一次。回 `no_system_account`（不是主人，O-4 以前没有系统账号）：这个人的消息这一步不接，同一个人只记一行运行日志。回应里带 `account`（这个会话的属主，核心 O-4 中起找回、新造都带）、而且等于桥自己的账号（握手回应的 `account`：O-4 中以后核心拉起的桥是系统账号 `onebot`）的，是陌生人：照 `no_system_account` 办，这个人的消息不进任何会话、不回话，同一个人只记一行运行日志，会话编号不记进「场所 → 会话」、不订阅，下一条照样再问。没带 `account` 的照常接。接群那一步以前私聊只接主人，接群时照进站链判（`chat.md`）（「施工时定的」第 49 条）。
 **斜杠命令**（O-19，2026-10-08；`venues.md`「斜杠命令」、`protocol.md` 的 `command.run`）：第 7 条找到会话以后、第 8 条以前走这一段（不占编号）。
 
 1. **认**：私聊的文字去掉开头的空白（照核心的认法，Unicode 的空白）以后以 `/` 开头的，先当命令交 `command.run {session, text, as: {external}}`：`text` 照原样（同第 8 条，不去掉空白），`as.external` 同第 8 条；`cwd` 不带（场所会话没有头所在的目录，相对路径照会话现在的工作区接）。请求的 `id` 和第 8 条同一个拼法（`qq:<机器人的号>:<消息编号>:<时刻>`）：一条消息要么是命令、要么是话，编号只用一次；断线重发、平台重发核心都只执行一次（`command.run` 第 7 条）。会话不在了照第 7 条忘掉、再找、再交一次。
@@ -258,7 +258,7 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 - `logs`（O-18）：只有运行日志的原样印；标准错误有内容的先印它、各带标题；还没有运行日志的说一句；`-f` 接着印新写的行，文件换了从头读。（`logs.rs`）
 - 主人的私聊走一遍：假 NapCat 发一条私聊，核心里那个场所会话收到一条 `by` 是主人本人、带 `via` 的消息，命令编号是 `qq:<机器人的号>:<消息编号>:<时刻>`；她回了一句，假 NapCat 收到 `send_private_msg`，字对得上。用核心的测试模型替身。（`private.rs`，下面三条同）
 - 同一条消息发两次，会话里只有一条；同一个消息编号、时刻不同的是两条，都送进去、都回。没带 `time` 的照样送进去，命令编号的时刻是 `0`。
-- 不是主人的私聊：不进任何会话（主人的会话已经有了也不进），不回话。
+- 不是主人的私聊：不进任何会话（主人的会话已经有了也不进），不回话。`venue.session` 回应的 `account` 是桥自己的账号（测试那一头照核心 O-4 中以后的样子改写握手和 `venue.session` 的回应）：不接、不交 `session.send`、`command.run`、不订阅，下一条照样再问；`account` 是别的账号、没带这一格的照常接、照常回。同一个陌生人连发几条，运行日志只记一行（`stranger_log.rs`，自己一个测试程序，装着日志订阅者）。
 - 段的数组、CQ 字符串两种格式；只有图片的消息不送。同一个号再连进来，新的顶掉旧的，旧的断开不拿掉新的。
 - 斜杠命令（O-19，真核心加真桥、假 NapCat）：`/clear`、`/stop` 成了，核心照中文写的回执发回 QQ，她不开新的一轮，会话里记一条 `command.ran`；没东西可清的 `/reset` 回核心「上下文为空」那一句、什么都不记、不交给她；`/workspace` 不带路径回现在在哪；`/remember 某句` 回核心 `memory_unavailable` 那一句、不交给她；`/xxx`、`/ 你好`、`/` 照普通的话进会话、她回话；同一条命令平台重发两次只执行一次（回执两次）；开头有空白的 `  /stop` 也认；不是主人的 `/stop` 不进任何会话、不回；会话被删了，命令照第 7 条再找、再交一次；`/stop` 打断她还没开口的一轮，不发空的，桥不卡住、下一句照常来回。（`commands.rs`，下面一条同）
 - 运行日志（O-19，真核心拉起真的桥）：记 `command ran` 带正名、`command refused` 带原因码，`/remember` 后面的原文不进日志。
@@ -345,6 +345,12 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 | 46 | 两个端口的说明去掉「在 QQ 桥的网页上改、保存的，当场生效」，别的照核心那一份原样搬 | 生效时机改成 `now`，参考文件自己写「当场生效」；只说网页上的，像是命令行改的不当场生效 | 一字不改地搬过来 |
 | 47 | 测试：测试里的核心照出厂的清单拼进包的配置项（`miyu-core` 的 `Packaged`，和真核心起来时一样；`miyu-core` 挪进开发依赖）；进程里跑的桥，测试那一头的转接在握手的回应里填 `config`，要改配置的照推送的样子写 `extension.config`；真核心拉起真桥的测试守着核心真的交、真的推 | 握手交配置、推送只给核心亲手拉起的连接，进程里跑的桥连的是本机套接字，核心不给；转接照样子填，桥的代码走的是同一条路 | 核心为测试公开「当成亲手拉起的」入口 |
 | 48 | 依赖照 `cargo metadata` 查（测试 `dependencies.rs`） | 施工单验收第 1 条；分层门禁只管层，第 5 层依赖第 4 层是允许的，和门禁读同一份 | 改分层门禁（全仓的规则，不为一个包加） |
+
+**施工时定的**（桥：陌生人的私聊照旧不接，2026-10-09 和核心的主会话定）
+
+| # | 定了什么 | 为什么 | 没选 |
+|---|---|---|---|
+| 49 | `venue.session` 回应带 `account`、等于桥自己的账号（握手回应的 `account`）的私聊是陌生人：照 `no_system_account` 不接，同一个人只记一行，会话编号不记进缓存、不订阅；没带 `account` 的照常接（第 7 条） | 核心 O-4 中（系统账号）以后，陌生人在 `venue.session` 不再被拒，照常造会话（属主是系统账号 `onebot`）；进站链要到接群那一步才接进桥，这期间私聊不能敞开，只接主人。核心等桥这一处进了 main 再合 O-4 中；没带 `account` 的照现在办，桥这一处不依赖核心先做 | 等接群那一步再管（这期间陌生人的话直接交给她）；记进缓存（下一条不再问，陌生人后来成了主人也认不出） |
 
 ### 二、WebUI（施工 O-16 起）
 

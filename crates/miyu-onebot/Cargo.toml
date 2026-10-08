@@ -67,3 +67,8 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-uti
 [[test]]
 name = "all"
 path = "tests/all.rs"
+
+# 陌生人的私聊只记一行运行日志（施工时定的第 49 条）：装着日志订阅者。
+[[test]]
+name = "stranger_log"
+path = "tests/stranger_log.rs"

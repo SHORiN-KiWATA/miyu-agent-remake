@@ -38,7 +38,7 @@ use miyu_tool::Catalog;
 
 #[allow(unused_imports, reason = "读配置的测试用不上假 NapCat")]
 pub use napcat::*;
-pub use pipe::Push;
+pub use pipe::{Accounts, Relay};
 
 /// 主人的 QQ 号：系统配置里对着管理员。
 pub const OWNER: i64 = 10001;
@@ -304,10 +304,14 @@ pub fn handed(settings: &Settings) -> Value {
 }
 
 /// 在数据根 `root` 上起一个桥要的：握手交的配置照 `settings`，经内存里的管道连 `root` 上的那个核心（[`pipe::pipe_to`]，施工
-/// O-18），WebUI 拉不起核心，说中文，出厂的 `bridge.json`、资源目录和清单的默认值。另交回往桥那一头推配置的 [`Push`]（施工
-/// O-20）。
-pub fn serve_pushing(root: DataRoot, settings: Settings) -> (Serve, Push) {
-    let (pipe, push) = pipe::pipe_to(&root, handed(&settings));
+/// O-18），`accounts` 有的照它改写账号，WebUI 拉不起核心，说中文，出厂的 `bridge.json`、资源目录和清单的默认值。另交回测试
+/// 那一头的转接 [`Relay`]：推配置（施工 O-20）、看桥问了核心什么。
+pub fn serve_relayed(
+    root: DataRoot,
+    settings: Settings,
+    accounts: Option<Accounts>,
+) -> (Serve, Relay) {
+    let (pipe, relay) = pipe::pipe_to(&root, handed(&settings), accounts);
     let serve = Serve {
         pipe,
         root,
@@ -317,7 +321,12 @@ pub fn serve_pushing(root: DataRoot, settings: Settings) -> (Serve, Push) {
         resources: ResourceRoot::at(resources()),
         defaults: defaults(),
     };
-    (serve, push)
+    (serve, relay)
+}
+
+/// 同 [`serve_relayed`]，账号照核心原样。
+pub fn serve_pushing(root: DataRoot, settings: Settings) -> (Serve, Relay) {
+    serve_relayed(root, settings, None)
 }
 
 /// 同 [`serve_pushing`]，不推配置。

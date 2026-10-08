@@ -4,7 +4,8 @@
 //! - 场所、平台上的人经群聊内核拼（`onebot::private_venue`、`onebot::person`），拼不出来的（照说不会）记一行、这条不送。
 //! - 「场所 → 会话编号」只记在内存里：每个场所桥起来以后第一次来消息时问一次 `venue.session`，问到了订阅它（不写 `after`）。
 //! - 会话不在了（`session_not_found`、`session_stopped`）：忘掉，再问一次、再发一次，只重来一次。
-//! - 不是主人（`no_system_account`）：这一步不接，同一个人只记一行运行日志。
+//! - 不是主人（`no_system_account`），或者会话的属主是桥自己（核心 O-4 中以后陌生人的会话归系统账号，「施工时定的」第 49
+//!   条）：接群以前私聊只接主人，这一步不接，同一个人只记一行运行日志，会话编号不记、不订阅。
 //! - `/` 开头的先当斜杠命令交 `command.run`（`command`，O-19，第 7、8 条之间的「斜杠命令」），核心说不是命令的才照普通的话发。
 //! - 她的回话：`message.assistant` 的文字块接起来，不空就交给收进这个会话的那个机器人号现在的连接；`begin` 在这里照先后放进
 //!   写队列，等回应的那一步交给别的任务。
@@ -54,7 +55,7 @@ pub(crate) struct Route {
     venues: HashMap<String, String>,
     /// 会话编号 → 回话发到哪（第 10 条）。
     peers: HashMap<String, Peer>,
-    /// 记过一行「不是主人」的号（第 7 条）。
+    /// 记过一行「不是主人」的号（第 7 条）：`no_system_account` 的、会话属主是桥自己的。
     refused: HashSet<i64>,
     /// 在等 NapCat 回应的回话：放下 `Route` 时一起停。
     sending: JoinSet<()>,
@@ -193,8 +194,8 @@ impl Route {
         Ok(None)
     }
 
-    /// 找回场所 `venue` 的会话、订阅它（第 7、9 条）：对方是平台上的 `peer`，号是 `user`。不接的、问不到的、订阅不上的是
-    /// 空的（记一行运行日志）。
+    /// 找回场所 `venue` 的会话、订阅它（第 7、9 条）：对方是平台上的 `peer`，号是 `user`。不接的（不是主人、会话属主是桥
+    /// 自己）、问不到的、订阅不上的是空的（记一行运行日志）。
     async fn find(
         &mut self,
         venue: &VenueId,
@@ -203,9 +204,14 @@ impl Route {
     ) -> Result<Option<String>, Gone> {
         let params = json!({"venue": venue, "kind": "private", "peer": peer});
         let reply = self.core.call("venue.session", params).await?;
+        // 回应带了会话的属主、正是桥自己的账号：陌生人（核心 O-4 中以后照常造会话，属主是系统账号）。接群以前私聊只接主人，
+        // 照 `no_system_account` 办（「施工时定的」第 49 条）。没带属主的照常接。
+        let own = reply["result"]["account"]
+            .as_str()
+            .is_some_and(|owner| Some(owner) == self.core.account.as_deref());
         match reason(&reply) {
-            None => {}
-            Some("no_system_account") => {
+            None if !own => {}
+            None | Some("no_system_account") => {
                 if self.refused.insert(user) {
                     tracing::info!(target: TARGET, venue = %venue, "not the owner, not taken");
                 }

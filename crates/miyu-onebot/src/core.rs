@@ -44,6 +44,9 @@ pub(crate) struct Core {
     pub(crate) language: String,
     /// 握手回应交来的配置（施工 O-20）：没带这一格的是 `null`，读的一方照默认值（`crate::settings::Settings::handed`）。
     pub(crate) config: Value,
+    /// 握手回的桥自己的账号（核心 O-4 中以后是系统账号 `onebot`）：`venue.session` 回的会话属主是它的，是陌生人（`route`，
+    /// 「施工时定的」第 49 条）。没回的是空的。
+    pub(crate) account: Option<String>,
 }
 
 impl Core {
@@ -69,6 +72,7 @@ impl Core {
             reading: tokio::spawn(read_all(BufReader::new(pipe.read), sender)),
             language: String::new(),
             config: Value::Null,
+            account: None,
         };
         let hello = json!({
             "protocol": [1, 1],
@@ -90,6 +94,7 @@ impl Core {
         };
         core.language = language.to_string();
         core.config = reply["result"]["config"].clone();
+        core.account = reply["result"]["account"].as_str().map(str::to_string);
         Ok(core)
     }
 

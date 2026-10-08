@@ -13,7 +13,7 @@ use crate::support::http::*;
 use crate::support::*;
 
 /// 起一个桥：握手交的是 `settings`。交回桥、推配置的那一头、临时目录（用完删）和核心的替身。
-async fn bridge_with(settings: Settings) -> (Bridge, Push, PathBuf, FakeCore) {
+async fn bridge_with(settings: Settings) -> (Bridge, Relay, PathBuf, FakeCore) {
     let (dir, root) = temp_root();
     let core = fake_core(&root);
     let (serve, push) = serve_pushing(root, settings);

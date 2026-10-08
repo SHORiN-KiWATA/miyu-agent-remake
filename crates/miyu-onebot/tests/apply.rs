@@ -24,7 +24,7 @@ const NEW: &str = "napcat-new-token";
 /// 跑着的桥（握手交的两个端口是 0、令牌是 [`TOKEN`]），推配置的那一头。
 struct Changing {
     bridge: Bridge,
-    push: Push,
+    push: Relay,
     dir: PathBuf,
     root: DataRoot,
     _core: FakeCore,
