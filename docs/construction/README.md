@@ -423,7 +423,7 @@ flowchart LR
 | O-16 | WebUI 的骨架和连接页 | `miyu-onebot` 自己的 WebUI（18 第三节 Q18，`onebot.md` 第二条）：从 `miyu-web` 抽出共用的底子进第 3 层的新 crate `miyu-webserve`（给页面、核对 Host 和 Origin、`/ws` 原样转给核心、带一次性码开浏览器），`miyu-web` 行为不变；桥开 `127.0.0.1:<onebot.web>`（出厂 8302）、给页面、`/ws`、只读的 `/status`；`miyu-onebot web`；「连接」页：NapCat 状态、地址、换令牌、两个端口。接在 O-8 后面，O-8 先合。施工单见 `O-16-WebUI的骨架和连接页.md` |
 | O-17 | WebUI 的主人与自己人页 | 主人对应表 `external.bindings`、自己人 `onebot.trusted`：加一行、删一行、保存（`onebot.md` 第二条第 4 条）；`onebot.trusted` 先由核心的 `OnebotSettings` 代声明。施工单见 `O-17-WebUI的主人与自己人页.md` |
 | O-18 | 桥由核心拉起 | 软件包清单 `resources/packages/onebot.toml`（`kind = "process"`、`start = "manual"`）；`serve` 只经标准输入输出说协议，核心照开关拉起、崩了退避重启（`extensions.md`，9-4 上）；`miyu onebot start / stop / restart / status / logs`。读配置照旧是权宜，等 9-4（下）。施工单见 `O-18-桥由核心拉起.md` |
-| O-19 | 斜杠命令 | 桥认出 `/` 开头的消息，原样交给核心的 `command.run`（O-6），回执发回 QQ；`/clear`、`/stop`、`/workspace` 这些在 QQ 里能用 |
+| O-19 | 斜杠命令 | 桥认出 `/` 开头的消息，原样交给核心的 `command.run`（O-6），回执发回 QQ；`/clear`、`/stop`、`/workspace`、`/remember` 在 QQ 私聊里能用，认不出的当普通的话。施工单见 `O-19-斜杠命令.md` |
 
 **有界面（M9）的头几步**（2026-10-07 项目主人批准；草稿先给终端界面、网页、onebot 三个会话看过，意见并进来了。M9 其余的步子到了跟前再拆）
 

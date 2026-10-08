@@ -5,9 +5,11 @@
 //! - 「场所 → 会话编号」只记在内存里：每个场所桥起来以后第一次来消息时问一次 `venue.session`，问到了订阅它（不写 `after`）。
 //! - 会话不在了（`session_not_found`、`session_stopped`）：忘掉，再问一次、再发一次，只重来一次。
 //! - 不是主人（`no_system_account`）：这一步不接，同一个人只记一行运行日志。
+//! - `/` 开头的先当斜杠命令交 `command.run`（`command`，O-19，第 7、8 条之间的「斜杠命令」），核心说不是命令的才照普通的话发。
 //! - 她的回话：`message.assistant` 的文字块接起来，不空就交给收进这个会话的那个机器人号现在的连接；`begin` 在这里照先后放进
 //!   写队列，等回应的那一步交给别的任务。
 
+mod command;
 #[cfg(test)]
 mod tests;
 
@@ -32,6 +34,14 @@ struct Peer {
     bot: i64,
     user: i64,
     venue: VenueId,
+}
+
+/// 一条要交给核心的私聊：命令编号（第 8 条）、场所和对方在平台上的身份（第 7 条），和私聊本身。
+struct Message {
+    id: String,
+    venue: VenueId,
+    external: ExternalId,
+    private: Private,
 }
 
 /// 拿着跟核心的连接的那一个。
@@ -87,7 +97,7 @@ impl Route {
         }
     }
 
-    /// 一条私聊（第 6 到 8 条）。
+    /// 一条私聊（第 6 到 8 条，中间是「斜杠命令」）。
     async fn private(&mut self, private: Private) -> Result<(), Gone> {
         let (venue, external) = match addressed(private.user) {
             Ok(addressed) => addressed,
@@ -100,13 +110,52 @@ impl Route {
             tracing::debug!(target: TARGET, venue = %venue, message = private.message_id, "nothing to send");
             return Ok(());
         }
-        let id = command_id(private.bot, private.message_id, private.time);
+        let message = Message {
+            id: command_id(private.bot, private.message_id, private.time),
+            venue,
+            external,
+            private,
+        };
+        if command::looks_like(&message.private.text) && self.command(&message).await? {
+            return Ok(());
+        }
+        let Some((_, reply)) = self.deliver(&message, "session.send").await? else {
+            return Ok(());
+        };
+        let (venue, number) = (&message.venue, message.private.message_id);
+        match reason(&reply) {
+            None => {
+                let chars = message.private.text.chars().count();
+                tracing::info!(target: TARGET, venue = %venue, message = number, chars, "message sent in");
+            }
+            Some(other) => {
+                tracing::warn!(target: TARGET, venue = %venue, message = number, reason = other, "message refused");
+            }
+        }
+        Ok(())
+    }
+
+    /// 把私聊 `message` 照 `method`（`session.send`、`command.run`）交给它那个场所的会话：`{session, text, as}`，编号是
+    /// 这条消息的命令编号（第 8 条）。会话不在了（`session_not_found`、`session_stopped`）忘掉、再找、再交，只重来一次。
+    /// 交回会话编号和最后一次的回应（接受的、拒绝的都原样），这时记下这个会话的回话发给谁（「施工时定的」第 36 条）；
+    /// 不接的、找不到会话的是空的（已经记了运行日志）。
+    async fn deliver(
+        &mut self,
+        message: &Message,
+        method: &str,
+    ) -> Result<Option<(String, Value)>, Gone> {
+        let Message {
+            id,
+            venue,
+            external,
+            private,
+        } = message;
         for retried in [false, true] {
             let session = match self.venues.get(venue.as_str()) {
                 Some(session) => session.clone(),
-                None => match self.find(&venue, &external, private.user).await? {
+                None => match self.find(venue, external, private.user).await? {
                     Some(session) => session,
-                    None => return Ok(()),
+                    None => return Ok(None),
                 },
             };
             let params = json!({
@@ -114,29 +163,25 @@ impl Route {
                 "text": private.text,
                 "as": {"external": external},
             });
-            let reply = self.core.call_as(&id, "session.send", params).await?;
-            match reason(&reply) {
-                None => {
-                    let chars = private.text.chars().count();
-                    tracing::info!(target: TARGET, venue = %venue, message = private.message_id, chars, "message sent in");
-                    let peer = Peer {
-                        bot: private.bot,
-                        user: private.user,
-                        venue,
-                    };
-                    self.peers.insert(session, peer);
-                    return Ok(());
-                }
-                Some("session_not_found" | "session_stopped") if !retried => {
-                    self.venues.remove(venue.as_str());
-                }
-                Some(other) => {
-                    tracing::warn!(target: TARGET, venue = %venue, message = private.message_id, reason = other, "message refused");
-                    return Ok(());
-                }
+            let reply = self.core.call_as(id, method, params).await?;
+            if !retried
+                && matches!(
+                    reason(&reply),
+                    Some("session_not_found" | "session_stopped")
+                )
+            {
+                self.venues.remove(venue.as_str());
+                continue;
             }
+            let peer = Peer {
+                bot: private.bot,
+                user: private.user,
+                venue: venue.clone(),
+            };
+            self.peers.insert(session.clone(), peer);
+            return Ok(Some((session, reply)));
         }
-        Ok(())
+        Ok(None)
     }
 
     /// 找回场所 `venue` 的会话、订阅它（第 7、9 条）：对方是平台上的 `peer`，号是 `user`。不接的、问不到的、订阅不上的是

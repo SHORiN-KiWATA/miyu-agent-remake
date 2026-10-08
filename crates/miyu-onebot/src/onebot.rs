@@ -43,7 +43,8 @@ pub fn person(user: i64) -> Result<ExternalId, FormatError> {
 
 /// 机器人号 `bot` 收进来的第 `message_id` 条消息、平台给的时刻是 `time`，发进去用的命令编号：
 /// `qq:<机器人的号>:<消息编号>:<时刻>`（第 8 条，`chat.md` 第七条第 1 条）。带上时刻：NapCat 重置本地库以后消息编号会重号，
-/// 同一个编号、不同的时刻是两条，新消息不会被当成重发吞掉。
+/// 同一个编号、不同的时刻是两条，新消息不会被当成重发吞掉。斜杠命令交 `command.run` 也用它（O-19，「斜杠命令」第 1 条）：
+/// 一条消息要么是命令、要么是话，编号只用一次。
 pub fn command_id(bot: i64, message_id: i64, time: i64) -> String {
     format!("{PLATFORM}:{bot}:{message_id}:{time}")
 }
