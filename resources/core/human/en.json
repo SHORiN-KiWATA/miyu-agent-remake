@@ -37,7 +37,7 @@
       },
       "ui.head": {
         "name": "Default interface",
-        "description": "The interface plain miyu opens: a package id."
+        "description": "The interface plain miyu opens."
       },
       "persona.default": {
         "name": "Default persona",

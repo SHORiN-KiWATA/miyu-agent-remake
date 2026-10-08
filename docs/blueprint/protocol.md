@@ -114,7 +114,7 @@
 
 1. 参数读不成（缺了必写的格、哪一格类型不对）：`bad_params`，连接不断。
 2. `1` 不在 `[最低, 最高]` 里：`protocol_mismatch`，回完断开。
-3. 凭据正好写一种（施工 W-8）：`token`，`code`，`login`，或者 `user` 加 `password`。写了不止一种、`user` 和 `password` 只写了一个：`bad_params`，回完断开。一种都没写、本机令牌不对：`bad_token`，回完断开；本机令牌长短要一样，每个字节都比，比到哪一个不一样都用一样长的时间。另外三种怎么验、被拒回什么（`bad_code`、`bad_login`、`bad_password`、`login_throttled`，都回完断开）照 `web-module.md`「怎么走」第一条。用一次性码连上的只能调 `hello`、`human.get`、`account.setup`，别的回 `setup_first`；用登录令牌、密码连上的，它靠的登录令牌作废了就断开。
+3. 凭据正好写一种（施工 W-8）：`token`，`code`，`login`，或者 `user` 加 `password`。写了不止一种、`user` 和 `password` 只写了一个：`bad_params`，回完断开。一种都没写、本机令牌不对：`bad_token`，回完断开；本机令牌长短要一样，每个字节都比，比到哪一个不一样都用一样长的时间。另外三种怎么验、被拒回什么（`bad_code`、`bad_login`、`bad_password`、`login_throttled`，都回完断开）照 `web-module.md`「怎么走」第一条。用一次性码连上的只能调 `hello`、`human.get`、`account.setup`，别的回 `setup_first`；用登录令牌、密码连上的，它靠的登录令牌作废了就断开。核心亲手拉起的扩展经标准输入输出连上，不看凭据，写了的也不看；它调 `extension.*` 回 `local_only`（施工 9-4 上，`extensions.md`）。
 4. 过了：这个连接就是管理员。它发的命令都记成管理员发的（`by` 是 `{"kind":"person","account":"admin"}`），命令引起的事件，`cause` 是请求的 `id`（`kernel/events.md`）。
 5. 握手以前：别的方法一律 `hello_first`，连接不断；读不懂的行照「请求」的表回；通知不理。
 6. 握手以前的拒绝说英文；`hello` 本身被拒的，话照这一次报的 `locale` 说（读得出来的话，施工 4-9 再补三上）。过了的，话照回应的 `language` 说（施工 8-2）：`ui.language` 定成 `en` 的，报 `zh-CN` 的头也听英文。握手以后再发 `hello`：照样从第 1 条查起；过了，换成这一次算出的语言和能力；这一次被拒的，话照这一次报的语言说，没断开的还是上一次握手的语言和能力。
@@ -140,6 +140,7 @@
 | `persona.list`、`persona.get` | 列出人格、读一个人格叠好的样子（施工 P-1 上，`personas.md`） |
 | `preset.list`、`preset.get` | 列出预设、读一个预设叠好的样子（施工 P-2 上，`presets.md`） |
 | `package.list` | 列出起来时读到的软件包清单（施工 9-1 上，`packages.md`） |
+| `extension.status`、`extension.enable`、`extension.disable`、`extension.restart` | 核心拉起的扩展：列状态、开、关、重启（施工 9-4 上，`extensions.md`） |
 | `check` | 查人手写的文件：配置、密钥文件、人格，照磁盘上现在的字（施工 8-30，`cli/check.md`） |
 | `command.run` | 执行一条斜杠命令：头把人打的原文交过来，核心认、判谁能用、执行（施工 O-6） |
 | `session.answer` | 回答一次确认（允许这一次、本会话都允许、拒绝），或者一组题（施工 D-1） |
@@ -506,6 +507,10 @@
 
 不带参数。回应 `{"packages": [...]}`：核心起来时读到的两层清单（出厂的、管理员家目录里的），照编号排。每一项的格子见 `packages.md` 的表：读成了的有 `kind`、`protocol`、`name`、`state`，写了的有 `version`、`summary`、`command`、`opens`、`pages_dir`、`process`、`check`；写错的、撞了的、读不了的只有 `package`、`layer`、`code`、`problem`（照连接的语言）和有的话 `line`；协议版本对不上的照样带全，多 `code: "protocol_mismatch"` 和 `problem`。名字、说明照连接的语言挑。装、卸、改了清单要重启核心才认。
 
+**`extension.status`、`extension.enable`、`extension.disable`、`extension.restart`**（施工 9-4 上，`extensions.md`「对外的样子」）
+
+`status` 不带参数，回应 `{"extensions": [...]}`，照编号排，只列读成了的 `process` 包；另外三个带 `{"package"}`，回应是那一个。一个的格子见 `extensions.md` 的表：`package`、`name`（照连接的语言挑）、`start`、`on`、`state`（`off`、`starting`、`running`、`waiting`、`stopped`）、`failures`，在跑的带 `pid`，在等的带 `retry_in`，停下的带 `reason` 和标准错误的最后几行 `stderr`。`enable`、`disable` 先写开关再动进程；`restart` 关着的回 `extension_off`。没有这个包、清单读不成的 `unknown_package`，界面包 `not_an_extension`。扩展自己调回 `local_only`。
+
 **`persona.get`**（施工 P-1 上，`personas.md`「怎么走」第 8 条）
 
 | 参数 | 类型 | 说明 |
@@ -843,12 +848,13 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `hello_first` | -32010 | 握手以前发了别的方法 |
 | `protocol_mismatch` | -32010 | 头支持的主版本里没有 1（之后断开） |
 | `bad_token` | -32010 | 凭据一种都没写、本机令牌不对（之后断开） |
-| `bad_code`、`bad_login`、`bad_password`、`login_throttled`、`setup_first`、`local_only` | -32010 | 网页登录的几种（施工 W-8，`web-module.md`「出错」） |
+| `bad_code`、`bad_login`、`bad_password`、`login_throttled`、`setup_first`、`local_only` | -32010 | 网页登录的几种（施工 W-8，`web-module.md`「出错」）；扩展调 `extension.*` 也回 `local_only`（施工 9-4 上） |
 | `unknown_persona` | -32010 | 造会话、`persona.get` 时三层都没有这个人格（施工 P-1 上起三层，`personas.md`） |
 | `persona_invalid` | -32010 | 人格的文件写错了；`data.problem` 写明哪一层、哪个文件第几行（施工 P-1 上） |
 | `unknown_preset` | -32010 | 造会话、`preset.get` 时三层都没有这个预设，默认预设指着没有的也一样（施工 P-2 上，`presets.md`） |
 | `preset_invalid` | -32010 | 预设的文件写错了；`data.problem` 写明哪一层、哪个文件第几行（施工 P-2 上） |
 | `unknown_file` | -32010 | `check` 写的文件不是 Miyu 读的那几种（施工 8-30） |
+| `unknown_package`、`not_an_extension`、`extension_off` | -32010 | `extension.*`：没有这个包、清单读不成；是界面包；重启一个关着的（施工 9-4 上，`extensions.md`） |
 | `session_not_found` | -32010 | 没有这个会话，删了的也是 |
 | `no_system_account` | -32010 | 场所会话的属主该是系统账号，还没有（施工 O-3；系统账号随 O-4） |
 | `venue_session` | -32010 | 场所会话只收代表外部的人说的话：不带 `as` 的 `session.send`（施工 O-3）、`command.run`（施工 O-6） |
@@ -979,6 +985,9 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `unknown_preset` | 没有这个预设。 | There is no such preset. |
 | `preset_invalid` | 这个预设的文件写错了，详情在 data.problem 里。 | This preset's file has a mistake; data.problem says where. |
 | `unknown_file` | Miyu 不读这个文件：能查的是配置、密钥文件、人格目录里的 persona.toml 和 prompts/examples.md、预设、软件包清单。 | Miyu does not read this file: it checks the config, the secrets file, persona.toml and prompts/examples.md in persona directories, presets and package manifests. |
+| `unknown_package` | 没有这个软件包。 | There is no such package. |
+| `not_an_extension` | 这个软件包是界面，不由核心拉起。 | This package is an interface; the core does not start it. |
+| `extension_off` | 这个扩展关着，先打开它。 | This extension is off; turn it on first. |
 | `session_not_found` | 没有这个会话。 | There is no such session. |
 | `no_system_account` | 这个场所的会话要归系统账号，还没有装好系统账号。 | This venue's session belongs to a system account, which is not set up yet. |
 | `venue_session` | 这是通讯平台的场所会话，本机的头不能直接说话。 | This is a chat platform venue session; local heads cannot talk in it directly. |

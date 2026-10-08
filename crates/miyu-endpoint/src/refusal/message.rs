@@ -31,6 +31,15 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "这个预设的文件写错了，详情在 data.problem 里。",
             "This preset's file has a mistake; data.problem says where.",
         ),
+        "unknown_package" => ("没有这个软件包。", "There is no such package."),
+        "not_an_extension" => (
+            "这个软件包是界面，不由核心拉起。",
+            "This package is an interface; the core does not start it.",
+        ),
+        "extension_off" => (
+            "这个扩展关着，先打开它。",
+            "This extension is off; turn it on first.",
+        ),
         "session_not_found" => ("没有这个会话。", "There is no such session."),
         "no_system_account" => (
             "这个场所的会话要归系统账号，还没有装好系统账号。",

@@ -26,6 +26,7 @@ pub mod blob;
 pub mod config_file;
 mod durable;
 pub mod env;
+pub mod extensions;
 pub mod generated;
 pub mod human;
 pub mod index;

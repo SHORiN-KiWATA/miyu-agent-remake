@@ -59,6 +59,8 @@ pub(crate) enum Via {
     Login(String),
     /// 用户名、密码：带着这次造的登录令牌的哈希。
     Password(String),
+    /// 核心亲手拉起的扩展（施工 9-4 上）：标准输入输出是核心给的，不看凭据。
+    Spawned,
 }
 
 impl Via {
@@ -69,6 +71,7 @@ impl Via {
             Via::Code => "code",
             Via::Login(_) => "login",
             Via::Password(_) => "password",
+            Via::Spawned => "spawned",
         }
     }
 
@@ -76,7 +79,7 @@ impl Via {
     pub(crate) fn login(&self) -> Option<&str> {
         match self {
             Via::Login(hash) | Via::Password(hash) => Some(hash),
-            Via::Token | Via::Code => None,
+            Via::Token | Via::Code | Via::Spawned => None,
         }
     }
 }
