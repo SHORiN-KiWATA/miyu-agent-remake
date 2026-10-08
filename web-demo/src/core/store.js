@@ -22,7 +22,7 @@ import { SessionIndex } from './session-index.js';
  *   limits: any, replaying?: boolean, retry: Retry|null, compacting: Compacting|null, compactStats: Map<number, {before: number, after: number}>,
  *   compactReady: {before: number, after: number}|null, todos: {content: string, status: string}[], todosDone: {content: string, status: string}[]|null,
  *   changes: {after: number, at: string, body: any}[], model: {ref?: string, endpoint?: string, model?: string, effort?: {level: string, from: string}}|null,
- *   first: number|null, more: boolean, paged: boolean, older: boolean, base: Base|null}} Session
+ *   first: number|null, more: boolean, paged: boolean, older: boolean, base: Base|null, known: Map<string, any>}} Session
  *   `first` 读进来的最早一条的序号，`more` 还有更早的（`view.page`，核心 9-6 下），`paged` 往前翻过，`older` 正在读更早的一页
  */
 /**
@@ -30,13 +30,17 @@ import { SessionIndex } from './session-index.js';
  *   订阅回应里「这一刻的」（核心 9-6 上、9-7 上）：累计用量、权限级别、还在跑的任务、工作区，截到 `upto`；头照它起头，之后只看序号比它大的
  */
 
-/** 还在跑的任务的种子（核心 9-6 上的 `jobs`）：一条不画的事件放在最前面，派它的那条在更早的页里时照它认（`lib/jobs.js`），读到真的那条就被盖掉。 */
+/**
+ * 任务的种子：一条不画的事件放在最前面，派它的那条还在更早、没读的页里时照它认，读到真的那条就被盖掉。`jobs` 是还在跑的（订阅回应，
+ * 核心 9-6 上；`lib/jobs.js` 算在跑）；`known` 是读进来的页里报完了的（`view.page` 的 `jobs`，9-6 再补；正文里「后台命令完成 · 标题」
+ * 照它写标题）。
+ */
 export const SEED = 'jobs.seed';
 
 /** 一个刚知道、还没读的会话。 */
 export function emptySession(id) {
   return /** @type {Session} */ ({ id, events: [], live: null, marks: new Map(), limits: {}, retry: null, compacting: null, compactStats: new Map(), compactReady: null, changes: [], model: null, todos: [], todosDone: null,
-    first: null, more: false, paged: false, older: false, base: null });
+    first: null, more: false, paged: false, older: false, base: null, known: new Map() });
 }
 
 export class Store {
@@ -133,6 +137,7 @@ export class Store {
       throw err;
     });
     if (!page) return this.subscribe(s, 0);
+    remember(s, page.jobs);
     this.take(s, page.events ?? []);
     s.first = page.first ?? null;
     s.more = !!page.more;
@@ -153,6 +158,8 @@ export class Store {
       const page = await this.conn.request('view.page', { session: id, before: s.first });
       const known = new Set(s.events.map((e) => e.seq));
       s.events = [...(page.events ?? []).filter((e) => !known.has(e.seq)), ...s.events].sort((a, b) => a.seq - b.seq);
+      remember(s, page.jobs);
+      seed(s);
       s.first = page.first ?? s.first;
       s.more = !!page.more;
       s.paged = true;
@@ -433,9 +440,15 @@ function closeAll(live, at) {
   for (const block of live.blocks) if (block) close(block, at);
 }
 
-/** 把订阅回应里还在跑的任务放成最前面那条种子（换掉旧的）；没有的拿掉。 @param {Session} s */
+/** 把还在跑的任务、读进来的页里报完了的放成最前面那条种子（换掉旧的）；都没有的拿掉。 @param {Session} s */
 function seed(s) {
   const rest = s.events.filter((e) => e.kind !== SEED);
   const jobs = s.base?.jobs ?? [];
-  s.events = jobs.length ? [{ seq: 0, kind: SEED, at: rest[0]?.at ?? new Date(0).toISOString(), body: { jobs } }, ...rest] : rest;
+  const known = [...s.known.values()];
+  s.events = jobs.length || known.length ? [{ seq: 0, kind: SEED, at: rest[0]?.at ?? new Date(0).toISOString(), body: { jobs, known } }, ...rest] : rest;
+}
+
+/** 记下一页里报完了、派它的那条在更早的页里的任务（`view.page` 的 `jobs`，核心 9-6 再补）。 @param {Session} s @param {any[]|undefined} jobs */
+function remember(s, jobs) {
+  for (const x of jobs ?? []) s.known.set(x.job, x);
 }

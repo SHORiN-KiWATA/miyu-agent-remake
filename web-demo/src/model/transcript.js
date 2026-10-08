@@ -76,6 +76,13 @@ export function project(events, live = null, marks = new Map(), stats = new Map(
     // `/stop` 留着的排着的话（核心 O-6 的 `keep`）不会再开一轮：照它记下的 `command.ran`（排在那一轮结束后面）进正文，不压到后来的
     // 那几行（清空这些）下面。只认这一条：接着开下一轮之前也会先来标题这类事件，那时排着的是下一轮的开头（照终端，2026-10-07）
     if (e.kind === 'command.ran' && queue.length && ![...turns.values()].some((x) => !x.ended)) items.push(...queue.splice(0));
+    // 任务的种子（`core/store.js` 的 `SEED`）：派它的那条还在没读的页里时，回报那一行照它写标题（核心 9-6 上、9-6 再补）
+    if (e.kind === 'jobs.seed') {
+      for (const x of [...(b.jobs ?? []), ...(b.known ?? [])]) {
+        if (!jobs.has(x.job)) jobs.set(x.job, { what: x.what, title: x.title ?? '', session: x.session ?? null, command: null });
+      }
+      continue;
+    }
     switch (e.kind) {
       case 'session.created':
       case 'session.policy_changed':

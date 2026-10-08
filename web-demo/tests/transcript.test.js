@@ -244,3 +244,12 @@ test('确认和提问了结以后留的：在了结的那一条处放一条交�
   const cut = [...events.slice(0, 4), ev(5, 'tool.result', { call_id: 'c1', status: 'cancelled', blocks: [] }), ev(6, 'turn.ended', { reason: 'interrupted' })];
   assert.deepEqual(project(cut, null).items.filter((it) => it.slot).map((it) => it.event.body.status), ['cancelled']);
 });
+
+test('按页读：派后台命令的那条还在没读的页里，回报那一行照种子里的任务名单写标题（核心 9-6 再补的 view.page jobs）', () => {
+  const seed = { seq: 0, at: '2026-10-08T00:00:00Z', kind: 'jobs.seed', body: { jobs: [], known: [{ job: 'j1', what: 'command', title: '后台睡三秒' }] } };
+  const reported = { seq: 40, at: '2026-10-08T00:00:03Z', kind: 'job.reported', body: { job: 'j1', reason: 'exited', exit_code: 0, duration_ms: 3100 } };
+  const without = JSON.stringify(project([reported]).items);
+  const withSeed = JSON.stringify(project([seed, reported]).items);
+  assert.ok(!without.includes('后台睡三秒'), '没有名单时拿不到标题');
+  assert.ok(withSeed.includes('后台睡三秒'));
+});
