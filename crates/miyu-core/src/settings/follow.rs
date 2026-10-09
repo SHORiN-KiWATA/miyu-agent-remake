@@ -4,6 +4,7 @@
 //!   一直是它，配置怎么改都不换（`log.md` 第 3 条）。
 //! - `ui.language` 照核心这边的系统语言算出的那一种变了：照新的语言重写生成的三份（第一条第 12 条）。`auto` 换成系统本来
 //!   就是的那一种，字一样，不重写。
+//! - 配置清单变了（装卸软件包以后，施工 F-5 补）：照新的清单重写生成的三份，包的配置项的字照这时读成了的清单。
 //!
 //! 别的 `now` 项由用它的地方自己跟：连接每说一句照这时的 `ui.language` 重算（端点）。
 
@@ -18,7 +19,7 @@ use miyu_log::settings::LogSettings;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
-use super::{Packaged, generate, set_level};
+use super::{Manifests, generate, set_level};
 
 /// 当场生效的那几样现在是什么。
 #[derive(Debug, PartialEq, Eq)]
@@ -27,6 +28,8 @@ struct Applied {
     level: String,
     /// 生成的文件用哪种语言。
     language: String,
+    /// 配置清单（施工 F-5 补）。
+    items: Vec<miyu_config::Item>,
 }
 
 impl Applied {
@@ -35,12 +38,13 @@ impl Applied {
         Applied {
             level: LogSettings::from(&values).level,
             language: UiSettings::from(&values).language_for(locale).to_string(),
+            items: config.items().to_vec(),
         }
     }
 }
 
 /// 跟着配置服务 `now`，直到它没了：级别换在 `levels` 上，生成的文件写进 `root` 的状态区，字从 `resources` 读，`auto` 的照
-/// 核心这边的系统语言 `locale`。
+/// 核心这边的系统语言 `locale`，包的配置项的字照 `manifests` 这时交回的清单。
 ///
 /// 现在是什么在调的这一刻就记下（不等交回的任务跑起来）：任务起来之前换的也看得到。
 pub fn follow(
@@ -49,10 +53,10 @@ pub fn follow(
     root: DataRoot,
     resources: ResourceRoot,
     locale: Option<String>,
-    packaged: Arc<Packaged>,
+    manifests: Manifests,
 ) -> impl Future<Output = ()> + Send {
     let last = Applied::of(&now.borrow_and_update(), locale.as_deref());
-    watching(now, last, levels, root, resources, locale, packaged)
+    watching(now, last, levels, root, resources, locale, manifests)
 }
 
 /// 等配置换，照 [`follow()`] 说的办。
@@ -63,7 +67,7 @@ async fn watching(
     root: DataRoot,
     resources: ResourceRoot,
     locale: Option<String>,
-    packaged: Arc<Packaged>,
+    manifests: Manifests,
 ) {
     while now.changed().await.is_ok() {
         let config = Arc::clone(&now.borrow_and_update());
@@ -71,11 +75,19 @@ async fn watching(
         if next.level != last.level {
             set_level(&config, &levels);
         }
-        if next.language != last.language {
+        if next.language != last.language || next.items != last.items {
             let (root, resources, locale) = (root.clone(), resources.clone(), locale.clone());
-            let (values, packaged) = (config.resolved().values(), Arc::clone(&packaged));
+            let (values, items, manifests) =
+                (config.resolved().values(), next.items.clone(), manifests());
             let written = tokio::task::spawn_blocking(move || {
-                generate(&root, &resources, locale.as_deref(), &values, &packaged);
+                generate(
+                    &root,
+                    &resources,
+                    locale.as_deref(),
+                    &values,
+                    &items,
+                    &manifests,
+                );
             });
             if let Err(error) = written.await {
                 tracing::error!(target: super::TARGET, error = %error, "config schema writer panicked");

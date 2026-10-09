@@ -138,7 +138,7 @@ program = "miyu-embed"
 | `hidden` | `true` 的设置页不画：照样能写、能查、进 Schema |
 
 1. 名字：小写字母开头，只有小写字母、数字、`_`，最多 64 个。键是 `<包的编号>.<名字>`，例如 `web.port`。
-2. 核心起来时读清单那一次，读成了的清单的配置项接在核心自己的配置项后面，进配置清单：读配置、`miyu check`、`config.schema`、`config.get`、`config.set`、生成的 Schema 和参考文件都照它。装卸要重启核心。
+2. 核心起来时读清单那一次，读成了的清单的配置项接在核心自己的配置项后面，进配置清单：读配置、`miyu check`、`config.schema`、`config.get`、`config.set`、生成的 Schema 和参考文件都照它。经 `package.install`、`package.remove` 装卸以后照新的清单再拼一次（`Builtins::settings`，`miyu-core` 装上），配置服务换上（`Config::refit`）：系统配置、个人设置照手里的字重新认，认得的项、问题变了的推 `config.changed`（`via: package`）；生成的三份照新的清单重写（施工 F-5 补）。卸掉的包的键照旧报不认识。
 3. 包的编号是核心自己某一段配置的第一段（`ui`、`persona`、`permission`、`models`、`providers`、`log`、`usage`、`external` 这些，照核心起来时的配置清单认）、又声明了配置项的，这一份报 `settings_taken`，当写错了的列出，配置项一项都不收。
 4. 设置页：都在一页 `packages`（「软件包」），一个包一组，组的编号是包的编号、名字是包的名字；每一项的名字、说明用清单里的，照连接的语言挑（这种语言、`en`、`zh`、`ja`），不进 `core/human`。控件照类型：开关 `toggle`、整数 `number`、选项 `select`、列表 `list`，别的 `text`。`config.schema` 里列表照核心自己的列表写：多 `element`，元素是选项的多 `options`。 平台接入的包（写了 `[connection]` 的）不在这一页：它的配置项挂在 `connections`（「接入」）那一页，一个包一组，头单独画（施工 F-4，设计 30 第五节）。核心替内置包声明的配置项（现在是人格记忆的三项）也挂在这一页、这个包那一组；包没装的照样认、照样有最终值，设置页不画（`hidden`，施工 F-4，设计 30 第七节）。
 
@@ -180,7 +180,7 @@ program = "miyu-embed"
 ### 装卸（施工 F-5 上，设计 `30-插件框架.md` 第九节）
 
 1. **只动管理员家目录那一层**（`miyu_store::packages::install`）：装是把清单拷成 `<编号>.toml`，旁边同名的目录（包自己的文件）拷成 `<编号>/`；先拷到点开头的暂存处再换进去，原来就有的先挪到点开头的备份处，装成了删备份、装不成放回去。卸家目录的是删掉清单和同名目录。卸出厂的是在家目录记一笔 `<编号>.removed`（空文件，像 systemd 的 mask），资源目录不动；装回来是删掉这一笔。
-2. **当场生效**：装、卸以后照两层重读、标没编进来的内置包、认配置项撞没撞，换掉核心手里的那一份（`Core::reload_packages`）。`package.list`、预设的功能、新开的会话、开着的会话下一个回合都照新的。内置包的工具照 `Builtins` 端口（`miyu-core` 装上）重新要，新装上的换进工具目录、卸掉的拿掉并记下随包卸掉了（施工 F-5 中，`Catalog::placing`、`removing`）：用过它的会话工具面不变、调到时报「已卸载」，开着的会话下一个回合拿到新装上的包的工具。查询记着属于哪个包，包没装的当没有（`unknown_method`）。扩展进程照装卸前后的清单停下、拉起、升级了的重起，经提供者登记的工具随包卸掉的同样报「已卸载」，声明了系统账号的当场建账号（施工 F-5 下，`extensions.md`「怎么走」第 7 条）。配置项跟着换随 F-5 补。
+2. **当场生效**：装、卸以后照两层重读、标没编进来的内置包、认配置项撞没撞，换掉核心手里的那一份（`Core::reload_packages`）。`package.list`、预设的功能、新开的会话、开着的会话下一个回合都照新的。内置包的工具照 `Builtins` 端口（`miyu-core` 装上）重新要，新装上的换进工具目录、卸掉的拿掉并记下随包卸掉了（施工 F-5 中，`Catalog::placing`、`removing`）：用过它的会话工具面不变、调到时报「已卸载」，开着的会话下一个回合拿到新装上的包的工具。查询记着属于哪个包，包没装的当没有（`unknown_method`）。扩展进程照装卸前后的清单停下、拉起、升级了的重起，经提供者登记的工具随包卸掉的同样报「已卸载」，声明了系统账号的当场建账号（施工 F-5 下，`extensions.md`「怎么走」第 7 条）；卸是先停用着它的再删文件（施工 F-5 补）。配置项照新的清单当场换（「配置项」第 2 条，施工 F-5 补）；内置模型的小程序当场换随 F-5 再补。
 3. **装之前查**：路径要是绝对的 `<编号>.toml`；照规矩读得成；编号不和出厂的撞。拷进去以后照两层重读一遍，这一份撞了别的包（子命令名、功能编号、系统账号）、是核心没编进来的内置包的，撤回（原来那一份放回去）、报 `package_invalid`。
 4. **卸之前查**：没装的 `unknown_package`；必需的（基础系统）`package_required`。
 5. **卸掉的出厂的**：读两层时不算装了（`Packages::read`）；`package.list` 照样列它，带 `removed: true`（`Packages::read_removed`），好让头给人装回来。
@@ -226,6 +226,7 @@ program = "miyu-embed"
 | `crates/miyu-cli/src/head/tests.rs`、`crates/miyu/tests/heads.rs`（施工 9-3） | 照清单定怎么开（不带参数、带 `--page config`、不认这一页、没装、不是界面、有清单程序不在）、没装的列出装了的（只算程序在旁边的，9-3 补）；真二进制在伪终端里：`miyu`、`miyu config` 拉起清单里的界面、退出码照它的，不认设置页的印帮助，`ui.head` 指着没装的退出码 1；出厂的终端只有清单的说程序不在旁边（9-3 补） |
 | `crates/miyu-core/tests/embed_package.rs`、`src/embed/tests.rs`（施工 R-5 三补） | 仓库里的内置语义模型的清单读得成小程序包；出厂的人格记忆推荐它、不依赖它，出厂的资源里没有它；照装了的包拼本机 embedding（`recall.md` 第四条第 1 款） |
 | `crates/miyu-core/tests/tools.rs`、`tests/packages.rs`（施工 F-2） | 没装记忆、基础系统的工具目录里没有它们的工具；读坏了的清单不算装了；出厂的内置包清单和编进来的一一对得上；没装画 mermaid、联网的查询是 `unknown_method` |
+| `crates/miyu-endpoint/tests/packages_config.rs`、`crates/miyu/tests/packages_live.rs`、`crates/miyu-core/tests/tools.rs`、`crates/miyu-tool/src/catalog/tests.rs`（施工 F-5 补） | 装卸以后配置项当场换（见 `config.md`「守着它的」）；端口交的整份配置清单和起来时读配置用的一样、没装的人格记忆的几项不画；卸掉的提供者装回来登记了不再算卸掉 |
 | `crates/miyu-endpoint/tests/packages_extensions.rs`、`tests/system_account.rs`、`src/system_accounts/tests.rs`（施工 F-5 下） | 真核心装上的扩展当场拉起、卸掉的当场停下、旧会话调到它的工具报「已卸载」、升级了的重起、没变的不动；起来以后装上、装回来的声明了系统账号的包当场有账号；再走一遍时开过的索引不再开 |
 | `crates/miyu-endpoint/tests/packages_live.rs`（施工 F-5 中） | 真核心卸掉一个内置包：查询当没有、用过它的会话工具面不变、调到报「已卸载」、新开的会话没有；装回来工具、查询都回来 |
 | `crates/miyu-endpoint/tests/packages_install.rs`（施工 F-5 上） | 装一份清单、同名目录一起拷、列表和预设的功能当场有；升级换掉、升级撞了放回原来的、不留暂存；写错的、和出厂撞了的、和别的包撞了的不装；卸家目录的删掉；卸出厂的记一笔、列表里标卸掉、装得回来；必需的、没装的不能卸 |

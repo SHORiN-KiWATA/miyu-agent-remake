@@ -93,6 +93,8 @@ impl Catalog {
     ) -> Result<Catalog, CatalogError> {
         let mut catalog = self.clone();
         catalog.take_out(package);
+        // 卸掉以后装回来、又登记了的（施工 F-5 补）：不再算随包卸掉的。
+        catalog.gone.retain(|_, owner| owner != package);
         catalog.provided.insert(package.to_string());
         for tool in tools {
             catalog.add(package, tool)?;

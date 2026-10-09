@@ -168,3 +168,32 @@ fn the_builtin_port_gives_what_startup_registers() {
         .expect("拼得出");
     assert!(without.iter().all(|(id, _)| id != "memory"));
 }
+
+/// 同一个端口交的整份配置清单（施工 F-5 补）：和起来时读配置用的一样；人格记忆没装的，它那几项照样在、设置页不画。
+#[test]
+fn the_builtin_port_gives_the_settings_startup_reads() {
+    let resources = shipped_resources();
+    let port = miyu_core::builtin_tools(&resources);
+    let all = port.settings(&mut installed(&resources, &[]));
+    let startup = miyu_core::settings::Packaged::of(&mut installed(&resources, &[])).all();
+    assert_eq!(all, startup);
+    let hidden = |items: &[miyu_config::Item]| -> Vec<&str> {
+        items
+            .iter()
+            .filter(|item| item.ui.hidden)
+            .map(|item| item.key)
+            .collect()
+    };
+    assert!(
+        !hidden(&all).iter().any(|key| key.starts_with("memory.")),
+        "装着的画"
+    );
+    let without = port.settings(&mut installed(&resources, &["memory"]));
+    assert_eq!(without.len(), all.len(), "没装的照样认");
+    assert!(
+        hidden(&without)
+            .iter()
+            .any(|key| key.starts_with("memory.")),
+        "没装的不画"
+    );
+}

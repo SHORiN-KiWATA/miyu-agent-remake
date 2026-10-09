@@ -30,6 +30,7 @@ pub(crate) mod observe;
 mod options;
 mod project;
 pub(crate) mod push;
+pub(crate) mod refit;
 pub(crate) mod set;
 mod trust;
 pub(crate) mod trusting;

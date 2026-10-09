@@ -65,7 +65,8 @@ fn generated(root: &DataRoot, resources: &ResourceRoot, locale: Option<&str>) ->
                 resources,
                 locale,
                 &Values::defaults(&items()),
-                &Packaged::default(),
+                &items(),
+                &[],
             )
         },
     );
@@ -163,7 +164,8 @@ async fn a_changed_level_and_language_take_effect_right_away() {
         &resources(),
         None,
         &first.resolved().values(),
-        &Packaged::default(),
+        first.items(),
+        &[],
     );
     let (sender, now) = watch::channel(Arc::new(first));
     tokio::spawn(follow(
@@ -172,7 +174,7 @@ async fn a_changed_level_and_language_take_effect_right_away() {
         root.clone(),
         resources(),
         None,
-        Default::default(),
+        Box::new(Vec::new),
     ));
     tracing::debug!(target: "miyu::core", "hidden before");
     let second = "[log]\nlevel = \"debug\"\n[ui]\nlanguage = \"zh\"\n";
@@ -202,7 +204,7 @@ async fn a_changed_level_and_language_take_effect_right_away() {
         root.clone(),
         resources(),
         None,
-        Default::default(),
+        Box::new(Vec::new),
     ));
     let loud = "[log]\nlevel = \"trace\"\n[ui]\nlanguage = \"en\"\n";
     sender.send_replace(Arc::new(config(&root, loud, &env)));
@@ -211,4 +213,47 @@ async fn a_changed_level_and_language_take_effect_right_away() {
     tracing::info!(target: "miyu::core", "hidden at warn");
     assert!(!has("hidden at warn"), "{:?}", memory.lines());
     assert!(!has("level=trace"), "{:?}", memory.lines());
+}
+
+/// 一份声明了一项配置的扩展包的清单。
+const XCFG: &str = "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = { en = \"X\" }\n\n[command]\nname = \"xcfg\"\nprogram = \"miyu-nothing\"\nabout = { en = \"X\" }\n\n[process]\nstart = \"manual\"\n\n[settings.port]\ntype = \"int\"\ndefault = 8400\nlayers = [\"system\"]\nname = { en = \"Port\" }\n";
+
+/// 配置清单变了（施工 F-5 补：装卸软件包以后）：语言没变也照新的清单重写，包的配置项的字照这时交回的清单。
+#[tokio::test]
+async fn a_changed_item_list_rewrites_the_files() {
+    let scratch = Scratch::new();
+    let root = scratch.root();
+    let reference = root.state().join("config").join("reference.toml");
+    let read = || std::fs::read_to_string(&reference).unwrap_or_default();
+    let (_subscriber, levels) =
+        miyu_log::reloadable(Memory::new(), LevelFilter::INFO, String::new, None);
+    let first = config(&root, "[ui]\nlanguage = \"en\"\n", &[]);
+    let manifest = miyu_config::package::read(XCFG).expect("合写法");
+    let mut found = vec![Found {
+        id: "xcfg".to_string(),
+        layer: miyu_store::packages::Layer::Home,
+        path: root.path().join("xcfg.toml"),
+        read: Ok(manifest),
+    }];
+    let packaged = Packaged::of(&mut found);
+    let manifests = packaged.manifests.clone();
+    let (sender, now) = watch::channel(Arc::new(first));
+    tokio::spawn(follow(
+        now,
+        levels,
+        root.clone(),
+        resources(),
+        None,
+        Box::new(move || manifests.clone()),
+    ));
+    let second = Config::load(
+        &root,
+        &crate::admin(),
+        None,
+        packaged.all(),
+        miyu_endpoint::config::Environment::of(&[]),
+    );
+    sender.send_replace(Arc::new(second));
+    until("照新的清单重写", || read().contains("[xcfg]")).await;
+    assert!(read().contains("port = 8400"), "{}", read());
 }

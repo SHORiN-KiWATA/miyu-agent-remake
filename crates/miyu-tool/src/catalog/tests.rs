@@ -261,3 +261,20 @@ fn a_builtin_package_is_placed_and_removed_without_becoming_provided() {
     let clash = back.placing("other", vec![object("read")]);
     assert!(clash.is_err(), "撞了别的包照样拒");
 }
+
+/// 卸掉的扩展装回来、又登记了（施工 F-5 补）：它的几件不再算随包卸掉的，之后关掉照「用不了」说。
+#[test]
+fn a_provider_registering_again_is_no_longer_gone() {
+    let catalog = Catalog::in_packages([("basesystem", vec![object("read")])]).unwrap();
+    let provided = catalog
+        .replacing("xbridge", vec![object("echo_back")])
+        .unwrap();
+    let removed = provided.removing("xbridge");
+    assert!(removed.gone("echo_back"));
+    let back = removed
+        .replacing("xbridge", vec![object("echo_back")])
+        .unwrap();
+    assert!(!back.gone("echo_back"), "装回来登记了不再算卸掉");
+    let off = back.replacing("xbridge", Vec::new()).unwrap();
+    assert!(!off.gone("echo_back"), "关掉的不算卸掉");
+}

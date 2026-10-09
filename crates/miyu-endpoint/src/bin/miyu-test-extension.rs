@@ -6,6 +6,7 @@
 //! - `record:<路径>`：往这个文件追加记下的（先记一行 `cwd:<工作目录>`）；
 //! - `err:<字>`：往标准错误写一行；
 //! - `env:<名字>`：记下一行 `<名字>=<这个环境变量的值>`，没有的值是空的（施工 O-18）；
+//! - `exists:<路径>`：记下一行 `exists:true` 或 `exists:false`，这时这个路径在不在（施工 F-5 补：卸包先停再删）；
 //! - `hello`：发握手（不带凭据），读一行回应记下；
 //! - `call:<方法>`：发一条不带参数的请求，读一行回应记下；
 //! - `ask:<方法>:<JSON 参数>`：发一条带参数的请求，读一行回应记下；参数里的 `{session}` 换成最近一条带 `"session"` 的回应里
@@ -44,6 +45,9 @@ fn main() {
         } else if let Some(name) = step.strip_prefix("env:") {
             let value = std::env::var_os(name).unwrap_or_default();
             keep(&mut record, &format!("{name}={}", value.to_string_lossy()));
+        } else if let Some(path) = step.strip_prefix("exists:") {
+            let there = std::path::Path::new(path).exists();
+            keep(&mut record, &format!("exists:{there}"));
         } else if step == "hello" {
             send(&format!(
                 r#"{{"jsonrpc":"2.0","id":"s{n}","method":"hello","params":{{"protocol":[1,1],"head":{{"kind":"test-extension","version":"0"}}}}}}"#

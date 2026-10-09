@@ -26,6 +26,8 @@ pub(crate) enum Via {
     Edit,
     /// 手改，核心看到文件变了。
     File,
+    /// 装卸软件包以后配置清单换了，照新的清单重新认（施工 F-5 补）：文件没变。
+    Package,
 }
 
 impl Via {
@@ -35,6 +37,7 @@ impl Via {
             Via::Set => "set",
             Via::Edit => "edit",
             Via::File => "file",
+            Via::Package => "package",
         }
     }
 }

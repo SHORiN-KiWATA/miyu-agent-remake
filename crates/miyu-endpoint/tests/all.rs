@@ -61,6 +61,7 @@ mod owner;
 mod package_check;
 mod package_settings;
 mod packages;
+mod packages_config;
 mod packages_extensions;
 mod packages_install;
 mod packages_live;

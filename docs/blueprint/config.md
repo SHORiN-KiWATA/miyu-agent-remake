@@ -488,8 +488,8 @@ miyu_config::settings! {
 | 格 | 是什么 |
 |---|---|
 | `layer` | `system` 或 `personal`。项目配置不推：不监视，每一轮开始时读（第三条） |
-| `via` | `set` 经 `config.set` 改的，`edit` 经 `config.set` 整份换的，`file` 手改、核心看到文件变了 |
-| `by` | 谁改的，`via` 是 `set`、`edit` 才有。写法照 `kernel/ids.md`，`kind` 在最前 |
+| `via` | `set` 经 `config.set` 改的，`edit` 经 `config.set` 整份换的，`file` 手改、核心看到文件变了，`package` 装卸软件包以后配置清单换了、照新的清单重新认（施工 F-5 补：文件没变，认得的项、问题变了） |
+| `by` | 谁改的，`via` 是 `set`、`edit` 才有（`file`、`package` 没有）。写法照 `kernel/ids.md`，`kind` 在最前 |
 | `version` | 这份文件现在的版本。文件被删了是 `null` |
 | `keys` | 这一层里变了的每一项，格同 `config.set` 的回应 |
 | `problems` | 这份文件现在的全部问题。改好了的推一条空的，头照它收起报错 |
@@ -616,7 +616,7 @@ miyu_config::settings! {
 
 **一、清单和生成的文件**（8-1）
 
-1. 清单是各模块 `ITEMS` 登记成的一张表（`miyu-core/src/settings.rs` 的 `MODULES`），照登记的先后，一个模块里照声明的先后；后面接着软件包清单里声明的配置项（`Packaged`，施工 9-1 下，`packages.md`「配置项」）：键是 `<包的编号>.<名字>`，都在「软件包」那一页、一个包一组，名字、说明从清单来。核心起来时合成一次，之后不变；装卸软件包要重启核心。
+1. 清单是各模块 `ITEMS` 登记成的一张表（`miyu-core/src/settings.rs` 的 `MODULES`），照登记的先后，一个模块里照声明的先后；后面接着软件包清单里声明的配置项（`Packaged`，施工 9-1 下，`packages.md`「配置项」）：键是 `<包的编号>.<名字>`，都在「软件包」那一页、一个包一组，名字、说明从清单来。核心起来时合成一次；经 `package.install`、`package.remove` 装卸以后照新的清单再合一次、当场换上（施工 F-5 补，`packages.md`「配置项」第 2 条），别的时候不变。
 2. 键：至少两段，每一段是小写字母开头，只有小写字母、数字、`_`。第一段是声明它的模块的编号，`ext` 留给扩展，内置的不许用。
 3. 两个键不指同一件事：键不重复。一个键也不能是另一个键按段数的前缀（有了 `ui.language` 就不能再有一项叫 `ui`，不然 `ui` 那一格是表还是值说不清）。照段比：`ui.lang` 不是 `ui.language` 的前缀。
 4. 每一项的默认值要过它自己的校验（选项：是列出的之一，区分大小写）。选项至少两个、不重复，至少能放一层、层不写重。整数、小数、时长必写范围，文字必写最多几个字，随这几种类型加。
@@ -2167,6 +2167,7 @@ Options:
 | `crates/miyu-store/src/watch/tests.rs` | 先写新文件再改名的存法认得出、删掉的认得出。合并：连着的几下交一次、静够了才交，隔开的另一次。别的文件名、别的目录里同名的、只读的动静不理，事件丢了的每一份都交一次。链接指向的目录也看，经链接给的目录交的是给的那个路径。照真实的位置比（macOS 的临时目录在 `/var` 下）。系统的监视起不来退回轮询（Linux 上拿还没有的目录让 inotify 拒绝），轮询也看得到 | 8-4 |
 | `crates/miyu-endpoint/tests/config_watch.rs` | 手改推 `config.changed`（`via: file`，不带 `by`，样子逐格比）、记账号日志（`by` 是内核、没有 `cause`）、换上。`config.set` 先见推送、后见回应，推的和回应的一样，核心自己写的不重推、不重记。改坏了推问题（`using` 是 `last_good`，项照上一次的）、改好了推空的。只动注释的不推（换上），字节一样的什么都不做（不换），删了这一层变空（`version` 是 `null`）。订阅不带会话、`after`，别的流、`events` 不带会话的 `bad_params`；取消订阅以后不推，再订阅照推。掉队推 `resync`、之后不推、回应一条不丢。改了 `ui.language`，连接下一句的拒绝、`config.schema` 照新的语言。手改 `trust.toml` 记 `trust.changed`（`via: file`）、`config.get` 照新的信任、不推。每一轮照那一刻的配置：项目配置改了内容不算、回合之间 `config.set` 的下一轮用上 | 8-4 |
 | `crates/miyu-endpoint/tests/config_watch_log.rs` | 运行日志：手改被看到的记 `INFO config changed layer=… via=file keys=…`；监视起不来记 `WARN config watch unavailable`、退回轮询照样推（Linux） | 8-4 |
+| `crates/miyu-endpoint/tests/packages_config.rs`、`crates/miyu/tests/packages_live.rs`、`crates/miyu-core/src/settings/tests.rs` | 装上声明了配置项的包：早写着的它的键当场认得、推 `config.changed`（`via: package`，不带 `by`）、`config.get`、`config.schema` 有它；只有问题变了的那一层照样推；认得的没变的不推；卸掉又报不认识。真核心生成的参考文件照新的清单重写、卸掉又没了；配置清单变了、语言没变也重写 | F-5 补 |
 | `crates/miyu-session/tests/turn_config.rs` | 回合中途改了配置，这一轮的两次请求（出错再来的那一次也算）照开始时的，下一轮照新的。每一轮开始都照会话的目录重新取（造会话一次、每轮一次） | 8-4 |
 | `crates/miyu-core/src/settings/tests.rs` | 运行中换了配置：`log.level` 当场换级别、记 `INFO log level`，`ui.language` 变了重写生成的文件；`MIYU_LOG` 设了的，配置怎么改都不换级别 | 8-4 |
 | `crates/miyu-endpoint/src/config/journal/tests.rs`、`config/tests/trust.rs` | 手改被看到的日志：`by` 是内核、没有 `cause`，`trust.changed` 多 `via`。手改的信任记录只报回答变了的、新加的仓库，照最后一条算 | 8-4 |

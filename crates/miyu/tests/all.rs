@@ -20,6 +20,7 @@ mod login_tty;
 mod memory;
 mod no_proxy;
 mod packages;
+mod packages_live;
 mod recap;
 mod redo;
 mod rename;

@@ -352,7 +352,7 @@ impl Core {
     }
 
     /// 这时的软件包清单（施工 F-5 上：装卸以后当场换）。
-    pub(crate) fn packages(&self) -> Arc<Vec<miyu_store::packages::Found>> {
+    pub fn packages(&self) -> Arc<Vec<miyu_store::packages::Found>> {
         Arc::clone(
             &self
                 .packages

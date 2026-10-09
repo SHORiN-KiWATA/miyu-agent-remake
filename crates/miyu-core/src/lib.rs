@@ -118,13 +118,13 @@ pub fn main(options: Options) -> ExitCode {
         &resources,
         locale.as_deref(),
         &config.resolved().values(),
-        &packaged,
+        config.items(),
+        &packaged.manifests,
     );
     let live = Live {
         levels: log.levels(),
         locale,
         found,
-        packaged,
     };
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .worker_threads(WORKERS)
@@ -207,6 +207,21 @@ impl miyu_endpoint::builtins::Builtins for BuiltinTools {
             .map(|(id, tools)| (id.to_string(), tools))
             .collect())
     }
+
+    /// 和起来时同一套拼法（施工 F-5 补）：核心登记的、包声明的，没装的内置包替它声明的那几项设置页不画。
+    fn settings(&self, found: &mut [Found]) -> Vec<miyu_config::Item> {
+        settings::Packaged::of(found).all()
+    }
+}
+
+/// 核心这时读成了的清单（施工 F-5 补）：配置清单变了重写生成的文件时照它找包的配置项的字。核心没了的交回空的。
+fn manifests_of(core: &Arc<Core>) -> settings::Manifests {
+    let core = Arc::downgrade(core);
+    Box::new(move || {
+        core.upgrade()
+            .map(|core| settings::manifests(&core.packages()))
+            .unwrap_or_default()
+    })
 }
 
 /// 读两层清单（施工 9-1 上），再标出这一份核心没编进来的内置包（施工 F-2）。必需的基础系统没装，记一行 `WARN`，照样起来。
@@ -219,13 +234,12 @@ fn load_packages(resources: &ResourceRoot, root: &DataRoot) -> Vec<Found> {
     found
 }
 
-/// 运行中配置换了当场生效要的（施工 8-4）：换运行日志级别的把手，核心这边的系统语言；起来时读的软件包清单和照它拼的
-/// 配置项（施工 9-1 下）：交给核心，语言换了重写生成的文件时也用。
+/// 运行中配置换了当场生效要的（施工 8-4）：换运行日志级别的把手，核心这边的系统语言；起来时读的软件包清单（施工 9-1
+/// 下）：交给核心。
 struct Live {
     levels: miyu_log::Levels,
     locale: Option<String>,
     found: Vec<miyu_store::packages::Found>,
-    packaged: settings::Packaged,
 }
 
 /// 后半段，在运行时里：在套接字上等连接，说「好了」，接连接，直到停下。`env` 是起来时读的那一份环境快照，`config` 是
@@ -291,7 +305,7 @@ async fn run(
         generated,
         words,
         live.locale,
-        Arc::new(live.packaged),
+        manifests_of(&core),
     ));
     models::follow_cooldown(core.config_now(), Arc::clone(&model_data));
     // 监视配置文件（第七条）：拿着它一直到停，丢掉就不看了。

@@ -201,3 +201,126 @@ async fn an_upgraded_extension_restarts() {
     until_state(&mut client, "xup", |entry| entry["state"] == "running").await;
     core.stop_extensions().await;
 }
+
+/// 卸包先停再删（施工 F-5 补）：扩展退出的时候，它的清单还在盘上。
+#[tokio::test]
+async fn a_removed_extension_stops_before_its_files_go() {
+    let home = Home::new();
+    let program = Program::new();
+    let (path, step) = record(&home, "xgone");
+    let written = home.root.path().join("home/alice/packages/xgone.toml");
+    let check = format!("exists:{}", written.display());
+    install(
+        &home,
+        "xgone",
+        &program.name(),
+        "always",
+        &steps(&[&step, "hello", "serve", &check]),
+    );
+    let core = Arc::new(
+        home.core_full(&Script::new([]), Catalog::default(), None, TOKEN)
+            .with_extension_timing(quick()),
+    );
+    core.start_extensions();
+    let mut client = Client::connect(Arc::clone(&core));
+    client.hello().await;
+    until_state(&mut client, "xgone", |entry| entry["state"] == "running").await;
+    let reply = client
+        .call("r1", "package.remove", json!({"package": "xgone"}))
+        .await;
+    assert_eq!(reply["result"]["removed"], true, "{reply}");
+    assert!(!written.exists(), "删掉了");
+    lines(&path, 3).await;
+    assert_eq!(
+        read(&path).lines().last(),
+        Some("exists:true"),
+        "停下的时候清单还在：{}",
+        read(&path)
+    );
+    core.stop_extensions().await;
+}
+
+/// 换不成、删不成的照原来的清单换回来（施工 F-5 补）：先停下的扩展重新拉起。只在 Unix 上造得出换不成（目录只读）。
+#[cfg(unix)]
+#[tokio::test]
+async fn a_failed_upgrade_or_removal_brings_the_extension_back() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let home = Home::new();
+    let program = Program::new();
+    let (path, step) = record(&home, "xstay");
+    install(
+        &home,
+        "xstay",
+        &program.name(),
+        "always",
+        &steps(&[&step, "hello", "serve"]),
+    );
+    let core = Arc::new(
+        home.core_full(&Script::new([]), Catalog::default(), None, TOKEN)
+            .with_extension_timing(quick()),
+    );
+    core.start_extensions();
+    let mut client = Client::connect(Arc::clone(&core));
+    client.hello().await;
+    until_state(&mut client, "xstay", |entry| entry["state"] == "running").await;
+    lines(&path, 2).await;
+    let dir = home.root.path().join("home/alice/packages");
+    let source = home.work.join("xstay.toml");
+    std::fs::copy(dir.join("xstay.toml"), &source).expect("拷得了");
+    let set = |mode| std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(mode));
+    set(0o555).expect("改得了权限");
+    let upgraded = client
+        .call("i1", "package.install", json!({"path": source}))
+        .await;
+    let removed = client
+        .call("r1", "package.remove", json!({"package": "xstay"}))
+        .await;
+    set(0o755).expect("改得回权限");
+    assert_eq!(reason(&upgraded), Some("internal_error"), "{upgraded}");
+    assert_eq!(reason(&removed), Some("internal_error"), "{removed}");
+    lines(&path, 6).await;
+    until_state(&mut client, "xstay", |entry| entry["state"] == "running").await;
+    core.stop_extensions().await;
+}
+
+/// 升级成撞了别的包的（施工 F-5 补）：原来的那一份放回去，先停下的那一个照原来的清单重新拉起。
+#[tokio::test]
+async fn an_invalid_upgrade_brings_the_old_extension_back() {
+    let home = Home::new();
+    let program = Program::new();
+    let (path, step) = record(&home, "xbad");
+    install(
+        &home,
+        "xbad",
+        &program.name(),
+        "always",
+        &steps(&[&step, "hello", "serve"]),
+    );
+    let written = home.root.path().join("home/alice/packages/xbad.toml");
+    let good = std::fs::read_to_string(&written).expect("读得到");
+    let core = Arc::new(
+        home.core_full(&Script::new([]), Catalog::default(), None, TOKEN)
+            .with_extension_timing(quick()),
+    );
+    core.start_extensions();
+    let mut client = Client::connect(Arc::clone(&core));
+    client.hello().await;
+    until_state(&mut client, "xbad", |entry| entry["state"] == "running").await;
+    lines(&path, 2).await;
+    // 子命令名撞了出厂的网页。
+    let source = home.work.join("xbad.toml");
+    std::fs::write(&source, good.replace("name = \"xbad\"", "name = \"web\"")).expect("写得进");
+    let reply = client
+        .call("i1", "package.install", json!({"path": source}))
+        .await;
+    assert_eq!(reason(&reply), Some("package_invalid"), "{reply}");
+    assert_eq!(
+        std::fs::read_to_string(&written).expect("在"),
+        good,
+        "原来的放回去了"
+    );
+    lines(&path, 4).await;
+    until_state(&mut client, "xbad", |entry| entry["state"] == "running").await;
+    core.stop_extensions().await;
+}

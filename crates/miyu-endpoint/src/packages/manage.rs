@@ -15,6 +15,7 @@ use miyu_store::packages::{Found, Issue, Layer, Packages};
 use super::{TARGET, compiled, listed, load, packages, sentence, settle};
 use crate::Core;
 use crate::config::methods::words;
+use crate::extensions::processes_of;
 use crate::hello::Peer;
 use crate::refusal::Refusal;
 
@@ -36,19 +37,29 @@ pub(crate) struct RemoveParams {
 }
 
 impl Core {
-    /// 照两层重读软件包清单，标没编进来的内置包、认配置项撞没撞，当场换掉核心手里的那一份（施工 F-5 上）。
+    /// 照两层重读软件包清单，标没编进来的内置包、认配置项撞没撞，当场换掉核心手里的那一份（施工 F-5 上）。整份配置清单照
+    /// 端口拼、配置服务换上（施工 F-5 补）；没设端口的（测试里造的核心）照手里的清单认撞没撞，配置清单不换。
     pub(crate) fn reload_packages(&self) {
         let mut found = load(&self.resources, &self.root, &self.admin);
         if let Some(built_in) = &self.built_in {
             compiled(&mut found, built_in);
         }
-        let items = self.config().items().to_vec();
-        let _ = settle(&mut found, &items);
+        let items = match &self.builtins {
+            Some(builtins) => Some(builtins.settings(&mut found)),
+            None => {
+                let items = self.config().items().to_vec();
+                let _ = settle(&mut found, &items);
+                None
+            }
+        };
         self.rebuild_builtins(&found);
         *self
             .packages
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = std::sync::Arc::new(found);
+        if let Some(items) = items {
+            crate::config::refit::refit(self, items);
+        }
     }
 
     /// 照清单 `found` 换内置包的工具（施工 F-5 中）：新装上的换进去，卸掉的拿掉、记下随包卸掉了（用过它的会话调到时报「已
@@ -132,13 +143,26 @@ pub(crate) async fn remove(core: &Arc<Core>, params: RemoveParams) -> Result<Val
     }
     let home = home(core)?;
     let layer = one.layer;
+    // 先停下用着它的、再删文件（施工 F-5 补）：Windows 上开着的文件删不掉。删不成的照原来的清单换回来。
+    let all = processes_of(&found);
+    let mut without = all.clone();
+    without.remove(id.as_str());
+    core.follow_packages(&all, &without).await;
     let removed = blocking(move || match layer {
         Layer::Home => install::take_out(&home, &id).map(|()| id),
         Layer::Shipped => install::mark_removed(&home, &id).map(|()| id),
     })
-    .await?;
+    .await;
+    let removed = match removed {
+        Ok(removed) => removed,
+        Err(refusal) => {
+            core.follow_packages(&without, &all).await;
+            return Err(refusal);
+        }
+    };
     core.reload_packages();
-    core.follow_packages(&found).await;
+    let now = core.packages();
+    core.follow_packages(&without, &processes_of(&now)).await;
     tracing::info!(target: TARGET, package = removed.as_str(), "package removed");
     Ok(json!({"package": removed, "removed": true}))
 }
@@ -168,9 +192,21 @@ async fn from_path(core: &Arc<Core>, peer: Peer, path: &Path) -> Result<Value, R
     let files = files.is_dir().then_some(files);
     let manifest = path.to_path_buf();
     let target = id.clone();
+    // 升级的先停下原来的那一个再换文件（施工 F-5 补）：Windows 上开着的文件挪不走。换不成的照原来的清单换回来。
     let before = core.packages();
-    let placed: Placed =
-        blocking(move || install::place(&home, &target, &manifest, files.as_deref())).await?;
+    let all = processes_of(&before);
+    let mut without = all.clone();
+    without.remove(id.as_str());
+    core.follow_packages(&all, &without).await;
+    let placed =
+        blocking(move || install::place(&home, &target, &manifest, files.as_deref())).await;
+    let placed: Placed = match placed {
+        Ok(placed) => placed,
+        Err(refusal) => {
+            core.follow_packages(&without, &all).await;
+            return Err(refusal);
+        }
+    };
     core.reload_packages();
     let now = core.packages();
     let mine = now.iter().find(|one| one.id == id);
@@ -184,10 +220,12 @@ async fn from_path(core: &Arc<Core>, peer: Peer, path: &Path) -> Result<Value, R
             tracing::warn!(target: TARGET, package = id.as_str(), error = %error, "package install not undone");
         }
         core.reload_packages();
+        let back = core.packages();
+        core.follow_packages(&without, &processes_of(&back)).await;
         return Err(refusal);
     }
     placed.keep();
-    core.follow_packages(&before).await;
+    core.follow_packages(&without, &processes_of(&now)).await;
     tracing::info!(target: TARGET, package = id.as_str(), "package installed");
     let mine = now
         .iter()
@@ -207,7 +245,9 @@ async fn bring_back(core: &Arc<Core>, peer: Peer, id: &str) -> Result<Value, Ref
     let before = core.packages();
     blocking(move || install::unmark_removed(&home, &target)).await?;
     core.reload_packages();
-    core.follow_packages(&before).await;
+    let now = core.packages();
+    core.follow_packages(&processes_of(&before), &processes_of(&now))
+        .await;
     tracing::info!(target: TARGET, package = id, "package restored");
     let words = words(core, peer.language)?;
     let now = core.packages();

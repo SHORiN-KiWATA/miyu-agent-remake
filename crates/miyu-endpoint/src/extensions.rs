@@ -336,15 +336,17 @@ impl Core {
         }
     }
 
-    /// 装卸以后照这时的清单跟着拉起、停下扩展（施工 F-5 下，设计 30 第九节）：`before` 是装卸以前的那一份。
+    /// 装卸时照清单从 `before` 换到 `now` 跟着拉起、停下扩展（施工 F-5 下，设计 30 第九节）。卸包是删文件以前先换到去掉它
+    /// 以后的那一份，删不成的再换回来（施工 F-5 补）。
     /// - 卸掉的停下，它登记的工具拿掉、记下随包卸掉了：用过它的会话照旧留着、调到时报已卸载。
     /// - 新装上的照开关拉起；升级了的（清单变了）先停下，再照开关拉起。
-    /// - 系统账号照这时的清单先建好家目录。
-    pub(crate) async fn follow_packages(self: &Arc<Self>, before: &[Found]) {
+    /// - 系统账号照核心这时的清单先建好家目录。
+    pub(crate) async fn follow_packages(
+        self: &Arc<Self>,
+        old: &Processes<'_>,
+        new: &Processes<'_>,
+    ) {
         crate::system_accounts::prepare(self);
-        let now = self.packages();
-        let old: BTreeMap<&str, &Manifest> = processes(before).collect();
-        let new: BTreeMap<&str, &Manifest> = processes(&now).collect();
         for id in old.keys().filter(|id| !new.contains_key(*id)) {
             self.extensions.halt(id).await;
             let removed = self
@@ -355,7 +357,7 @@ impl Core {
             }
         }
         let (switches, _) = read_switches(self);
-        for (id, manifest) in &new {
+        for (id, manifest) in new {
             match old.get(id) {
                 Some(previous) if previous == manifest => continue,
                 Some(_) => self.extensions.halt(id).await,
@@ -372,6 +374,14 @@ impl Core {
 }
 
 /// 起来时读到的 `process` 包：编号和清单，照编号排。
+/// 一份清单里的扩展包：编号到清单（施工 F-5 下、补：装卸时照它对）。
+pub(crate) type Processes<'a> = BTreeMap<&'a str, &'a Manifest>;
+
+/// 清单 `packages` 里的扩展包，收成 [`Processes`]。
+pub(crate) fn processes_of(packages: &[Found]) -> Processes<'_> {
+    processes(packages).collect()
+}
+
 pub(crate) fn processes(packages: &[Found]) -> impl Iterator<Item = (&str, &Manifest)> {
     packages.iter().filter_map(|found| {
         let manifest = found.read.as_ref().ok()?;

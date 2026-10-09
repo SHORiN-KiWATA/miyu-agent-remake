@@ -33,6 +33,20 @@ impl Builtins for Kit {
             false => Vec::new(),
         })
     }
+
+    /// 核心造的时候那一份，接上包声明的。
+    fn settings(&self, found: &mut [Found]) -> Vec<miyu_config::Item> {
+        let own = [
+            miyu_endpoint::settings::UiSettings::ITEMS,
+            miyu_endpoint::settings::PersonaSettings::ITEMS,
+            miyu_endpoint::settings::PresetSettings::ITEMS,
+            miyu_endpoint::settings::PermissionSettings::ITEMS,
+            miyu_endpoint::settings::EXTERNAL_BINDINGS,
+        ]
+        .concat();
+        let packaged = miyu_endpoint::packages::settle(found, &own);
+        own.into_iter().chain(packaged).collect()
+    }
 }
 
 /// 照起来时那样造核心：清单里装着 `xkit`，编进来的内置包有它和出厂的几个。
