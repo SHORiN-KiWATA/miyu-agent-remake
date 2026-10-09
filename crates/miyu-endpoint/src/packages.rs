@@ -9,6 +9,7 @@ use std::collections::BTreeSet;
 use miyu_config::package::{Code, Manifest, PackageKind, Problem, settings};
 use miyu_config::{Item, Words};
 use miyu_kernel::id::AccountId;
+use miyu_policy::features::{Feature, Features};
 use miyu_store::human::Human;
 use miyu_store::packages::{Found, Issue, Packages};
 use miyu_store::resources::ResourceRoot;
@@ -241,6 +242,27 @@ pub fn is_installed(found: &[Found], id: &str) -> bool {
                 .as_ref()
                 .is_ok_and(|manifest| manifest.kind == PackageKind::Builtin)
     })
+}
+
+/// 装了的功能（施工 F-3 上，设计 30 第三节）：读成了的内置包、扩展包带的，照清单读的先后（包照编号，包里照写的先后）；
+/// 没写功能的包整个算一个（[`Manifest::features_of`]）。界面、小程序不带。预设照它开关、工具照它归。
+pub fn features(found: &[Found]) -> Features {
+    Features::new(
+        found
+            .iter()
+            .filter_map(|one| one.read.as_ref().ok().map(|manifest| (one, manifest)))
+            .flat_map(|(one, manifest)| {
+                manifest
+                    .features_of(&one.id)
+                    .into_iter()
+                    .map(|feature| Feature {
+                        id: feature.id,
+                        package: one.id.clone(),
+                        tools: feature.tools,
+                    })
+            })
+            .collect(),
+    )
 }
 
 /// 读成了的清单：编号和样子（给人看的字照它并进包的配置项的名字）。

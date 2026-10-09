@@ -12,7 +12,8 @@ use miyu_drivers::DriverTexts;
 use miyu_kernel::id::{ContentHash, VenueId};
 use miyu_kernel::session::Policy;
 use miyu_policy::PersonaTexts;
-use miyu_policy::preset::{Chosen, MEMORY, PresetFile};
+use miyu_policy::features::Features;
+use miyu_policy::preset::{Chosen, MEMORY, PresetFile, ROLEPLAY};
 use miyu_policy::{GuardTexts, RunTexts, Snapshot, ToolEntry};
 use miyu_store::blob::Blobs;
 use miyu_store::personas::{PersonaError, Personas};
@@ -151,7 +152,8 @@ fn look(refresh: &Refresh, values: &Values, now: &Edition) -> Seen {
         memory: old.memory.clone(),
         child: refresh.child,
         preset: pin,
-        tooled: tooled(catalog),
+        tooled: tooled(catalog, features(refresh)),
+        roleplay: features(refresh).is_none_or(|features| features.installed(ROLEPLAY)),
         // 群会话照旧快照钉下的时区（施工 O-13 中）：换了时区的机器上换人格，前缀里的钟点也不变。
         group: old.group.as_ref().map(|chat| chat.offset),
     };
@@ -209,6 +211,11 @@ enum Preset {
     Changed(Chosen),
 }
 
+/// 装了的功能（施工 F-3 上）：没交预设几层的（测试里造的、以前的）没有，当都装着。
+fn features(refresh: &Refresh) -> Option<&Features> {
+    refresh.presets.as_ref().map(|places| &places.features)
+}
+
 /// 照快照里预设的编号重新找一遍（施工 P-2 下）。
 fn preset(refresh: &Refresh) -> Result<Preset, String> {
     let Some(pin) = &refresh.snapshot.preset else {
@@ -224,10 +231,11 @@ fn preset(refresh: &Refresh) -> Result<Preset, String> {
         .presets
         .find(&pin.id)
         .map_err(|error| error.to_string())?;
-    let installed = || places.installed.iter().map(String::as_str);
-    let memory = !pin.off.iter().any(|software| software == MEMORY);
-    let chosen = Chosen::new(found.id, found.file, installed()).keeping_memory(memory, installed());
-    Ok(match chosen.pin() == *pin {
+    let features = &places.features;
+    let memory = !pin.off.iter().any(|feature| feature == MEMORY);
+    let chosen = Chosen::new(found.id, found.file, features).keeping_memory(memory, features);
+    // 以前的快照记的是包的编号（施工 F-3 上）：照现在的功能读一样的算没改，不为改了写法换一次快照。
+    Ok(match pin.means_the_same(&chosen.pin(), features) {
         true => Preset::Same(chosen),
         false => Preset::Changed(chosen),
     })
@@ -252,7 +260,7 @@ fn offered(
         &Offers::of(values, refresh.personas.ids()),
         old.attended,
         old.memory_scope(),
-        file,
+        file.map(|file| (file, features(refresh))),
     )
 }
 

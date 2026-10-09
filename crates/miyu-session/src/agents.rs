@@ -19,6 +19,7 @@ use miyu_kernel::event::Permission;
 use miyu_kernel::id::{AccountId, CommandId, JobId, SessionId, VenueId};
 use miyu_kernel::origin::{By, Session};
 use miyu_kernel::session::{Command, Outcome};
+use miyu_policy::features::Features;
 use miyu_policy::memory::MemoryScope;
 use miyu_policy::preset::PresetFile;
 use miyu_policy::{Choice, JOB_DEPTH, ToolEntry};
@@ -116,8 +117,8 @@ impl Agents {
     /// 工具面造会话时定，一个会话里不变，给了只会被拒的不给（`agents.md` 第一条第 6 条）。
     /// `subagent` 的 `pool` 照这时的配置 `values` 填上能选的池（施工 8-8 补：`miyu_models::pools::offered`，一个都没有的拿掉
     /// 这个参数）；`persona` 照 `offers` 填上这台机器上有的人格（施工 P-2 补）。`ask_user` 只给能问人的会话（[`Agents::asks`]，施工 D-2）。`todowrite` 只给本机的会话（施工 D-3）：群里没人
-    /// 看她的清单。有预设的照它筛（施工 P-2 中）：工具所在的包没开的、单件关掉的不给（[`PresetFile::keeps`]）；目录里没记包的
-    /// 当基础系统。
+    /// 看她的清单。有预设的照它筛（施工 P-2 中；施工 F-3 上起照功能）：工具归的功能没开的、单件关掉的不给
+    /// （[`PresetFile::keeps`]）；归哪个功能照预设旁边交来的装了的功能认，认不出的照它的包；目录里没记包的当基础系统。
     pub(crate) fn face(
         tools: &Catalog,
         site: Site<'_>,
@@ -125,7 +126,7 @@ impl Agents {
         offers: &Offers,
         attended: bool,
         memory: MemoryScope,
-        preset: Option<&PresetFile>,
+        preset: Option<(&PresetFile, Option<&Features>)>,
     ) -> Vec<ToolEntry> {
         let venue = site.venue;
         let spawns = Agents::allowed(venue, lineage);
@@ -162,9 +163,12 @@ impl Agents {
                     })
             })
             .filter(|spec| {
-                preset.is_none_or(|preset| {
+                preset.is_none_or(|(preset, features)| {
                     let package = tools.package_of(&spec.name).unwrap_or(BASESYSTEM);
-                    preset.keeps(package, &spec.name)
+                    let feature = features
+                        .and_then(|features| features.of_tool(package, &spec.name))
+                        .unwrap_or(package);
+                    preset.keeps(feature, package, &spec.name)
                 })
             })
             .map(|spec| {

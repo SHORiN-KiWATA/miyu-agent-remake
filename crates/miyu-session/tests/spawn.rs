@@ -225,7 +225,7 @@ async fn parent(home: &Home, script: &Script, table: &Arc<Table>) -> Handle {
         preset: Some(miyu_policy::preset::Chosen::new(
             "dev".to_string(),
             miyu_policy::preset::PresetFile::default(),
-            [],
+            &miyu_policy::features::Features::default(),
         )),
         ..Lines::default()
     };

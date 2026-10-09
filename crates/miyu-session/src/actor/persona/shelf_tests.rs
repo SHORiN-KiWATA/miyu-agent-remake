@@ -9,7 +9,7 @@ use miyu_kernel::tool::Access;
 use miyu_tool::testkit::{Act, Fake};
 use miyu_tool::{Call, Progress, Running, Spec, Tool, Venues};
 
-use super::test_support::{look_now, names, setup};
+use super::test_support::{installed, look_now, names, setup};
 use super::*;
 
 const LOCAL: Venues = Venues {
@@ -208,7 +208,8 @@ fn a_session_without_a_preset_follows_the_catalog_too() {
         memory: refresh.snapshot.memory.clone(),
         child: false,
         preset: None,
-        tooled: tooled(&refresh.tools.current()),
+        tooled: tooled(&refresh.tools.current(), Some(&installed())),
+        roleplay: true,
         group: None,
     };
     refresh.snapshot = build(&refresh.resources, parts).expect("拼得成");

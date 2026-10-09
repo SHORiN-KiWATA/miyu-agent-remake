@@ -46,7 +46,7 @@ pub(crate) async fn resolve(core: &Core, wanted: Option<&str>) -> Result<Found, 
 }
 
 /// 这台机器上装了的软件（施工 P-2 中，`presets.md`「照预设挑」）：工具目录里有工具的包、角色扮演，和清单装的 `process` 包
-/// （桥，读成了的）。界面包是头，不算。
+/// （桥，读成了的）。界面包是头，不算。施工 F-3 上起只剩 `preset.get` 的 `software` 用它，F-3 下换成照功能列。
 pub(crate) fn installed(core: &Core) -> BTreeSet<String> {
     let mut installed: BTreeSet<String> = core.tools().packages().map(str::to_string).collect();
     installed.insert(ROLEPLAY.to_string());
@@ -57,18 +57,21 @@ pub(crate) fn installed(core: &Core) -> BTreeSet<String> {
     installed
 }
 
-/// 交给会话的预设的几层和装了的软件（施工 P-2 下）：改了预设的文件，开着的会话下一个回合换上。
+/// 交给会话的预设的几层和装了的功能（施工 P-2 下；施工 F-3 上起是功能）：改了预设的文件，开着的会话下一个回合换上。
 pub(crate) fn places(core: &Core) -> PresetPlaces {
     PresetPlaces {
         presets: presets(core),
-        installed: installed(core).into_iter().collect(),
+        features: crate::packages::features(&core.packages),
     }
 }
 
-/// 找好的预设换成造会话要的：算好装了、没开的那几个。
+/// 找好的预设换成造会话要的：算好装了、没开的功能（施工 F-3 上）。
 pub(crate) fn chosen(core: &Core, found: Found) -> Chosen {
-    let installed = installed(core);
-    Chosen::new(found.id, found.file, installed.iter().map(String::as_str))
+    Chosen::new(
+        found.id,
+        found.file,
+        &crate::packages::features(&core.packages),
+    )
 }
 
 /// 找预设出的错照协议说：编号不合写法的参数不对，哪一层都没有的 `unknown_preset`，写错了的 `preset_invalid`（`data.problem`

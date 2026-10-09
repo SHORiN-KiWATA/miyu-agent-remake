@@ -46,7 +46,8 @@ fn setup_with(
         memory: None,
         child: false,
         preset,
-        tooled: tooled(&tools),
+        tooled: tooled(&tools, None),
+        roleplay: true,
         group,
     };
     let snapshot = build(&resources, parts).expect("拼得成");

@@ -365,6 +365,7 @@
     "preset-problems/not_bool": "{detail} は true か false です",
     "preset-problems/bad_tool": "{detail}：ツール名は英字、数字、-、_ だけで、64 文字までです",
     "preset-problems/not_false": "{detail} には false しか書けません：プリセットではツールを一つずつ無効にすることしかできません",
+    "preset-problems/bad_feature": "機能 ID の書き方が正しくありません: {detail}",
     "package-problems/syntax": "TOML として読めません：{detail}",
     "package-problems/unknown_table": "知らない表 [{detail}]：マニフェストに書けるのは [package]、[command]、[process]、[ui]、[check]、[settings] だけです",
     "package-problems/not_a_table": "{detail} は表 [{detail}] で書いてください",

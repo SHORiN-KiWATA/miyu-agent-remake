@@ -122,3 +122,31 @@ fn broken_resources_say_which_file() {
     // 先读的是几件工具共用的那几句。
     assert!(error.contains("missing.txt"), "{error}");
 }
+
+/// 出厂的每一件工具都归一个功能（施工 F-3 上，设计 30 第三节第 6 条）：预设照功能开关，归不上的就关不掉。
+#[test]
+fn every_shipped_tool_belongs_to_a_feature() {
+    let resources = shipped_resources();
+    let found = installed(&resources, &[]);
+    let features = miyu_endpoint::packages::features(&found);
+    let catalog = miyu_core::tools(&resources, &found).expect("出厂的资源读得出来");
+    let mut owners = Vec::new();
+    for spec in catalog.specs() {
+        let package = catalog.package_of(&spec.name).expect("记了包");
+        let feature = features
+            .of_tool(package, &spec.name)
+            .unwrap_or_else(|| panic!("{} 没有归哪个功能", spec.name));
+        owners.push((spec.name.clone(), feature.to_string()));
+    }
+    let owner = |tool: &str| {
+        owners
+            .iter()
+            .find(|(name, _)| name == tool)
+            .map(|(_, feature)| feature.as_str())
+    };
+    assert_eq!(owner("shell"), Some("commands"));
+    assert_eq!(owner("jobs"), Some("background"));
+    assert_eq!(owner("edit"), Some("files"));
+    assert_eq!(owner("send_message"), Some("peers"));
+    assert_eq!(owner("remember"), Some("memory"));
+}

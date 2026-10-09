@@ -365,6 +365,7 @@
     "preset-problems/not_bool": "{detail} 只能是 true 或 false",
     "preset-problems/bad_tool": "{detail}：工具名只有字母、数字、-、_，最多 64 个",
     "preset-problems/not_false": "{detail} 只能写 false：预设里只能关掉单件工具",
+    "preset-problems/bad_feature": "功能编号的写法不对：{detail}",
     "package-problems/syntax": "读不成 TOML：{detail}",
     "package-problems/unknown_table": "不认识的表 [{detail}]：清单里只能有 [package]、[command]、[process]、[ui]、[check]、[settings]",
     "package-problems/not_a_table": "{detail} 要写成一张表 [{detail}]",
