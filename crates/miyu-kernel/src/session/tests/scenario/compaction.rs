@@ -487,6 +487,7 @@ fn reported_usage_reads_the_same_as_the_kernel_uses_it() {
         cache_read: 2,
         cache_write: 3,
         output: 4,
+        reasoning: None,
     };
     let line = Line::says("x").reports(10);
     assert_eq!(line.usage.map(|u| u.uncached), Some(10));

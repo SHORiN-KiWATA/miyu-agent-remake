@@ -26,6 +26,7 @@ const HELLO_USAGE: Usage = Usage {
     cache_read: 1920,
     cache_write: 0,
     output: 3,
+    reasoning: None,
 };
 
 fn plain() -> miyu_session::Routes {

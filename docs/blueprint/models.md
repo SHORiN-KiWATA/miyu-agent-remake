@@ -392,7 +392,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 |---|---|
 | `text` | 回答的正文：正文块的字照先后接起来，思考不要；没有正文的是空字 |
 | `provider`、`model` | 真发给的供应商编号、模型名（换过端点的是最后成了的那一个） |
-| `usage` | 用量，和 `model.called` 的一样四项：`uncached`、`cache_read`、`cache_write`、`output`；供应商没报的是 `null` |
+| `usage` | 用量，和 `model.called` 的一样四项：`uncached`、`cache_read`、`cache_write`、`output`，报了思考的多一格 `reasoning`（施工 2-3 再补）；供应商没报的是 `null` |
 
 ```json
 {"text":"A cat on a red sofa.","provider":"deepseek","model":"deepseek-flash","usage":{"uncached":812,"cache_read":0,"cache_write":0,"output":9}}

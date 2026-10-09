@@ -25,6 +25,7 @@ pub(super) fn usage() -> Usage {
         cache_read: 0,
         cache_write: 0,
         output: 26,
+        reasoning: None,
     }
 }
 

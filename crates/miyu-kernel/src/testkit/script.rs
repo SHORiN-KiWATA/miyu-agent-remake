@@ -125,6 +125,7 @@ impl Line {
                 cache_read: 0,
                 cache_write: 0,
                 output: 0,
+                reasoning: None,
             }),
             ..self
         }

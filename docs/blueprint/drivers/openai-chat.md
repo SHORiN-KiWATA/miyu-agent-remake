@@ -161,6 +161,7 @@
 | 写进缓存 `cache_write` | `prompt_tokens_details.cache_write_tokens`；没有是 0 |
 | 没命中 `uncached` | `prompt_tokens` 减去上面两项，最少 0 |
 | 输出 `output` | `completion_tokens`（含思考）；没有是 0 |
+| 思考 `reasoning` | `completion_tokens_details.reasoning_tokens`（施工 2-3 再补，DeepSeek 也报）；没有的、0 的不写 |
 
 没有 `prompt_tokens` 的不算用量；只认非负整数。
 

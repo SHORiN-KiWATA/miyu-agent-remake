@@ -390,7 +390,7 @@
 
 块的起止：`start_ms` 这一块第一段增量到的时刻，`end_ms` 它最后一段增量到的时刻，两格都必有，都是从请求发出去算起的毫秒数，和 `first_token_ms` 同一个起点。收块的 `End` 不算：驱动流完了才一起收块（`drivers/openai-chat.md`「收尾」第 2 条），算上它，每一块都收在流的末尾。时钟往回拨了，早于发出去的算 0，`end_ms` 不往回挪。被打断、出错收的半截，照留下的那几块记；流里有、回复里不要了的块（空块、没收全的工具调用、出错时去掉的工具调用）不记。形状 `[{"start_ms":640,"end_ms":2310},{"start_ms":2330,"end_ms":2980}]`。头照它写「已思考 N 秒」：思考那一块的 `end_ms` 减 `start_ms`。以前的日志没有这一格，照读，写出去还是没有（施工 2-3 补）。
 
-用量：`uncached` 没命中缓存的输入、`cache_read` 缓存读取、`cache_write` 缓存写入、`output` 输出，四格都必有，都是 token 数。
+用量：`uncached` 没命中缓存的输入、`cache_read` 缓存读取、`cache_write` 缓存写入、`output` 输出（含思考），四格都必有，都是 token 数。另有一格可以没有的 `reasoning`（施工 2-3 再补）：输出里思考占了多少，已经算在 `output` 里；供应商报了、不是 0 才写（OpenAI 兼容对话接口的 `completion_tokens_details.reasoning_tokens`、Responses 的 `output_tokens_details.reasoning_tokens`；Anthropic 不另报），头照它写「思考 N 词元」。以前的日志没有这一格，读进来再写出去一字不差。
 
 出错：`class` 分类、`message` 原话，两格都必有；原话给查问题的人看，不进上下文。`status` 是供应商回的 HTTP 状态码，整数，可以没有：连不上的、流里报的错、内核自己查出来的都没有。形状 `{"class":"other","message":"HTTP 404: …","status":404}`。头照它分 429、402、404 说人话，不从原话里抠；分类不看它。以前的日志没有这一格，照读，写出去还是没有（施工 3-5 三补）。
 

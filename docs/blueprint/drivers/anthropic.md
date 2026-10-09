@@ -182,7 +182,7 @@ SSE 分帧共用 `sse.rs`（`drivers/openai-chat.md`「解码」）。一条事�
 | 没命中 `uncached` | `input_tokens`：这一家报的就是没命中的那一截，不用减 |
 | 输出 `output` | `output_tokens`（含思考） |
 
-没有 `input_tokens` 的不算用量；只认非负整数。
+没有 `input_tokens` 的不算用量；只认非负整数。思考占了多少这一家不另报，`reasoning` 不写（施工 2-3 再补）。
 
 ### 怎么走：出错分类
 

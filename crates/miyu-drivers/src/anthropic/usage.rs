@@ -37,6 +37,7 @@ impl Reported {
             cache_read: self.cache_read.unwrap_or(0),
             cache_write: self.cache_write.unwrap_or(0),
             output: self.output.unwrap_or(0),
+            reasoning: None,
         })
     }
 }
