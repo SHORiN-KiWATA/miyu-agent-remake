@@ -5,7 +5,7 @@
 mod cache;
 mod remote;
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
@@ -113,8 +113,16 @@ fn register(core: &Core, package: &str, tools: Vec<ToolParams>) -> Result<usize,
             .map_err(|_| Refusal::INTERNAL)?,
     };
     let count = tools.len();
+    let listed = listed(core, package);
     let mut built: Vec<Arc<dyn Tool>> = Vec::with_capacity(count);
     for tool in tools {
+        // 写了 `[features]` 的包登记的工具要归它列的某个功能（施工 T-2）：归不上的预设开关不了它。
+        if listed
+            .as_ref()
+            .is_some_and(|listed| !listed.contains(&tool.name))
+        {
+            return Err(bad_tool(&tool.name, "feature"));
+        }
         built.push(Arc::new(RemoteTool::new(
             checked(tool)?,
             package,
@@ -126,6 +134,28 @@ fn register(core: &Core, package: &str, tools: Vec<ToolParams>) -> Result<usize,
         .replace(|catalog| catalog.replacing(package, built))
         .map_err(|error| bad_tool(&error.tool, problem(error.problem)))?;
     Ok(count)
+}
+
+/// 包 `package` 的工具归得上的：清单写了 `[features]`、又不是只有一个功能的，是它列的工具名（施工 T-2，归法同
+/// `miyu_policy::features::Features::of_tool`）。没写的整个包算一个功能、只写了一个功能的都归它、清单读不成的，没有：不查。
+fn listed(core: &Core, package: &str) -> Option<BTreeSet<String>> {
+    let packages = core.packages();
+    let manifest = packages
+        .iter()
+        .find(|one| one.id == package)?
+        .read
+        .as_ref()
+        .ok()?;
+    let features = manifest
+        .features
+        .as_ref()
+        .filter(|features| features.len() != 1)?;
+    Some(
+        features
+            .iter()
+            .flat_map(|feature| feature.tools.iter().cloned())
+            .collect(),
+    )
 }
 
 /// 关掉扩展（施工 O-2 中）：包 `package` 的工具出目录，开着的会话下一个回合换掉；缓存留着，再开时照它先登记。

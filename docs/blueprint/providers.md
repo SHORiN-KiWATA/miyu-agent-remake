@@ -32,7 +32,7 @@
    - `access` 是 `read`、`write`、`execute`、`network`、`outbound` 之一；
    - `timeout_ms` 可以不写：等它答多久，1000 到 600000 毫秒，不写是 60000（施工 O-2 下）；
    - `venues` 是给哪种会话：`local`（本机的）、`private`（通讯平台的私聊）、`group`（群）里的一个或几个，不能是空的（05 第六节的 `venues`；2026-10-09 和通讯平台的会话定：「发给任意好友或群」只给本机，`skip_reply` 只给场所）。
-3. 登记进工具目录，归这个包：换掉它上一次登记的那几件。名字撞上核心自带的、别的包的、写法不对的：整个不收，`bad_tool`，`data` 是 `{"tool": 名字, "problem": "duplicate" | "name" | "parameters" | "access" | "venues" | "timeout"}`。回应 `{"tools": 件数}`。
+3. 登记进工具目录，归这个包：换掉它上一次登记的那几件。名字撞上核心自带的、别的包的、写法不对的：整个不收，`bad_tool`，`data` 是 `{"tool": 名字, "problem": "duplicate" | "name" | "parameters" | "access" | "venues" | "timeout" | "feature"}`。`feature`（施工 T-2）：清单写了几个功能、这一件哪个功能都没列，或者写了空的 `[features]`；归法同预设认工具归哪个功能（`Features::of_tool`：列了的照列的，只有一个功能的都归它，没写 `[features]` 的整个包算一个）。归不上的预设开关不了它。回应 `{"tools": 件数}`。
 4. 记下这个包现在由这个连接提供。连接断了、扩展崩了，工具照旧留在目录里（`05-内核接口.md` 第九节：工具从目录里消失会改变请求字节），被调到时回「暂时不可用」。
 5. 这一次登记的原文写进登记缓存 `state/providers/<包>.json`（施工 O-2 中，下面「登记缓存」）。
 
@@ -83,7 +83,7 @@
 | 什么时候 | 原因码 | 说明 |
 |---|---|---|
 | 不是核心拉起的扩展 | `not_a_provider` | 头扮演提供者随 O-2（下） |
-| 规格不对、撞名、时限出了范围 | `bad_tool` | `data.tool`、`data.problem` |
+| 规格不对、撞名、时限出了范围、归不上功能（施工 T-2） | `bad_tool` | `data.tool`、`data.problem` |
 | 参数写错 | `bad_params` | |
 
 ### 守着它的
@@ -96,6 +96,7 @@
 | `crates/miyu-endpoint/src/provide/tests.rs` | 访问类别、给哪种会话不认识的、空的拒；提供者表照包记，重新登记的换掉旧的；没有连接的、发不出去的暂时不可用，说法同执行器的 |
 | `crates/miyu-tool/src/catalog/tests.rs` 的 `replacing_a_package_keeps_the_others_and_checks_the_new_ones` | 换掉一个包的工具：别的包的照留，原来那份不动，撞名、写法不对的整个不收 |
 | `crates/miyu-session/src/agents/tests.rs` | 工具面照会话在哪挑提供者的工具：本机的、私聊、群 |
+| `crates/miyu-endpoint/tests/provide_features.rs`（施工 T-2） | 写了几个功能的，登记没列的工具整个不收（`feature`）、只登记列了的照收；空的 `[features]` 一件都不收；只写了一个功能的都收 |
 | `crates/miyu-endpoint/tests/provide.rs` | 契约：扩展登记、撞名的整个不收、头不是提供者；新造的会话工具面里有给本机的、没有只给群的；`tool.call` 带会话、调用编号、参数、是谁要的、是不是主人；结果、错误、写法不对的各自交回；不答的到点超时、扩展收到 `tool.cancel`；扩展关掉了，下一个回合没有它的工具 |
 | `crates/miyu-kernel/src/session/tests/respond/asking.rs`、`origin/tests.rs` 的 `the_owner_is_a_person_or_someone_on_the_owner_table` | 是谁要的：开回合的触发、照记下的几条开的最后一条、并进来的和排着队的被请求看到以后换上，回报不换、别的 harness 换；主人的判法 |
 | `crates/miyu-endpoint/src/provide/tests/remote_tests.rs`、`reverse/tests.rs` | `tool.call` 带 `by`、`owner`；超时交回那一句、发 `tool.cancel`；叫它停发、照样等它回；掐掉发；回应先到的不发；不等了的调用从表里拿掉，通知不带编号、断了不发 |
