@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>323</b><span>/ 336 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>324</b><span>/ 337 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
-    <li><b class="mono">8bd3b6e6</b><span>最近一步（R-5 四补 本机模型当场换）的提交</span></li>
+    <li><b class="mono">a7b68abb</b><span>最近一步（F-5 补 配置项当场换）的提交</span></li>
   </ul>
 </header>
 
@@ -733,7 +733,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sF-5a"><span class="n">F-5 上</span>装卸命令、清单当场换<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sF-5b"><span class="n">F-5 中</span>工具、查询当场换<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sF-5c"><span class="n">F-5 下</span>扩展、系统账号当场换<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">F-5 补</span>配置项当场换</span></li>
+        <li><a class="step done" href="#sF-5d"><span class="n">F-5 补</span>配置项当场换<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">F-5 再补</span>内置模型当场换</span></li>
       </ol>
       <p class="later">框架搭好以后：整理现有功能和代码、清掉无用的，再做性能检查（设计 30 第十二节）。</p>
     </li>
@@ -19817,6 +19818,62 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/F-5-装包、卸包（下）.md</code>；蓝图 <code>extensions.md</code>「怎么走」第 7 条、<code>packages.md</code>「装卸」「系统账号」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sF-5d" aria-labelledby="h-sF5d">
+  <div class="sheet-head"><h2 id="h-sF5d"><span class="no">F-5 补</span>配置项当场换</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">装上、卸掉一个带配置项的包不用重启核心：它的键当场认得、生成的 Schema 和参考文件当场有它，卸掉又报不认识。卸包、升级先把用着它的扩展停下再动文件。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">配置项当场换</span><span class="dir-note">F-5 补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>Builtins</code> 端口多 <code>settings</code>，交回整份配置清单（miyu-core 照起来时那一套拼）</li>
+              <li>配置服务换清单（<code>Config::refit</code>）：两层照手里的字重新认，变了的推 <code>config.changed</code>（<code>via: package</code>）</li>
+              <li>生成的三份在配置清单变了时也重写，包的字照核心这时的清单</li>
+              <li>卸包、升级先照去掉它的清单停扩展再动文件，删不成、换不成、撤回的换回来</li>
+              <li>修：卸掉的扩展装回来又登记了，不再算随包卸掉的</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不重读盘、照手里的字重新认</span><span class="rl">盘上的手改照监视那一条走</span></div>
+          <div class="tile new"><span class="nm">换清单不记配置日志</span><span class="rl">文件没人改</span></div>
+          <div class="tile new"><span class="nm">先停再动文件</span><span class="rl">Windows 上开着的文件删不掉、挪不走</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">F-5 补</dd></div>
+        <div><dt>名称</dt><dd>配置项当场换</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">a7b68abb</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 16/16、八项、三台 CI 和长跑（run 1453）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>装上：早写着的键认得、推 via: package、config.get/schema 有它</span></li>
+        <li><span class="ok">✓</span><span>只有问题变了的那一层照样推，没变的不推</span></li>
+        <li><span class="ok">✓</span><span>真核心参考文件照新清单重写、卸掉又没了</span></li>
+        <li><span class="ok">✓</span><span>卸包停下时清单还在；换不成、删不成、撤回的扩展重新拉起</span></li>
+        <li><span class="ok">✓</span><span>变异 16/16</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/F-5-装包、卸包（补）.md</code>；蓝图 <code>config.md</code>、<code>packages.md</code>「配置项」「装卸」、<code>extensions.md</code>「怎么走」第 7 条。</li>
       </ul>
     </div>
   </div>
