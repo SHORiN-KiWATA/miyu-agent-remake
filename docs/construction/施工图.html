@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>312</b><span>/ 329 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>313</b><span>/ 329 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
-    <li><b class="mono">064cc108</b><span>最近一步（9-7 补 人手动选的工作区照用）的提交</span></li>
+    <li><b class="mono">681d837b</b><span>最近一步（F-1 清单的新几格）的提交</span></li>
   </ul>
 </header>
 
@@ -722,7 +722,7 @@ a.step:hover{border-color:var(--primary)}
     <li>
       <div class="ms-head"><span class="ms-id">F</span><span class="ms-name">插件框架</span><span class="ms-goal">自带的和别人做的都是软件包，预设照功能开关（2026-10-09 定先专门搭框架）</span></div>
       <ol class="chips">
-        <li><span class="step"><span class="n">F-1</span>清单的新几格</span></li>
+        <li><a class="step done" href="#sF-1"><span class="n">F-1</span>清单的新几格<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">F-2</span>内置的包照清单启用</span></li>
         <li><span class="step"><span class="n">F-3</span>预设照功能开关</span></li>
         <li><span class="step"><span class="n">F-4</span>平台接入、配置项随包</span></li>
@@ -19221,6 +19221,61 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/O-25-退信和贴表情（下）.md</code>；蓝图 <code>onebot.md</code> 第一条「退信」「贴表情」、施工时定的第 129 到 137 条；<code>26-提示词.md</code> 第十节。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sF-1" aria-labelledby="h-sF1">
+  <div class="sheet-head"><h2 id="h-sF1"><span class="no">F-1</span>清单的新几格</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">插件框架（设计 30）的第一步：软件包清单读得出内置、小程序两种包，包带的功能，平台接入，依赖的小程序，必需。只读、只列，不改行为。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">清单的新几格</span><span class="dir-note">F-1</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>kind</code> 多 <code>builtin</code>、<code>worker</code>；<code>required</code> 只给内置包</li>
+              <li><code>[features.&lt;编号&gt;]</code>：名字、说明、下面的工具；没写的整个包算一个，写了空表的没有</li>
+              <li><code>[connection] platform</code>、<code>[depends]</code>、<code>[recommends]</code> 的 <code>workers</code>、小程序的 <code>[worker]</code></li>
+              <li>每种包能写哪几张表列成一张表，写错报 <code>wrong_kind</code>；功能编号撞了报 <code>feature_taken</code></li>
+              <li><code>package.list</code> 带上 <code>required</code>、<code>features</code>、<code>connection</code>、<code>depends</code>、<code>recommends</code>、<code>worker</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">功能是开关的单位</span><span class="rl">项目主人定；一个包能带好几个</span></div>
+          <div class="tile new"><span class="nm">没写功能的算一个</span><span class="rl">别人的扩展不写也有一个开关</span></div>
+          <div class="tile new"><span class="nm">package.list 不列工具</span><span class="rl">头画预设页用 preset.get（F-3）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">F-1</dd></div>
+        <div><dt>名称</dt><dd>清单的新几格</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">681d837b</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 16/16、八项、三台 CI 和长跑（run 1415）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>每一种新格读对、每一种写错报对代码和行</span></li>
+        <li><span class="ok">✓</span><span>没写功能的照包算一个，空表一个都没有</span></li>
+        <li><span class="ok">✓</span><span>两个包的功能编号撞了，后读到的报 feature_taken</span></li>
+        <li><span class="ok">✓</span><span>变异 16/16</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/F-1-清单的新几格.md</code>；设计 <code>30-插件框架.md</code>；蓝图 <code>packages.md</code>「格式」「协议」「出错」。</li>
       </ul>
     </div>
   </div>
