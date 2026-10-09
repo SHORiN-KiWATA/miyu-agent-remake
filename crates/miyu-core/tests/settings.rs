@@ -106,6 +106,8 @@ fn the_registered_list_is_well_formed() {
             "memory.extract_idle",
             "memory.extract_turns",
             "memory.organizer",
+            "memory.merge_every",
+            "memory.merge_sessions",
             "log.level"
         ],
         "照登记的先后"
@@ -302,7 +304,7 @@ fn builtin_package_settings_follow_their_package() {
         .iter()
         .filter(|item| item.key.starts_with("memory."))
         .collect();
-    assert_eq!(owned.len(), 3, "抽取的三项");
+    assert_eq!(owned.len(), 5, "抽取的三项、合并的两项（施工 R-7 上）");
     for item in owned {
         assert_eq!(
             (item.ui.page, item.ui.group),

@@ -110,6 +110,7 @@ impl Actor {
         let min_turns = usize::try_from(settings.extract_turns).unwrap_or(1);
         let plan = plan(&spoken, &called, min_turns, offset, &extraction.texts);
         let job = Job {
+            offset,
             keeper: keeper.clone(),
             extraction,
             config,

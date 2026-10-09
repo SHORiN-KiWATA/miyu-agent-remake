@@ -17,6 +17,14 @@
         "name": "Memory organizer model",
         "description": "The model used to organize memories, billed by usage. If none is chosen, the chat model is used."
       },
+      "memory.merge_every": {
+        "name": "How often to consolidate memories",
+        "description": "After this long she goes over new and older memories together: drops repeats and outdated ones, and writes a summary of what she knows about you."
+      },
+      "memory.merge_sessions": {
+        "name": "Chats before consolidating",
+        "description": "Consolidate only after memories have been taken from at least this many chats since the last time."
+      },
       "log.level": {
         "name": "Runtime log level",
         "description": "How much the runtime log records. Set debug when chasing a problem. MIYU_LOG, when set, wins for that launch.",

@@ -29,6 +29,21 @@
           "title": "Turns before organizing",
           "type": "integer"
         },
+        "merge_every": {
+          "default": "24h",
+          "description": "After this long she goes over new and older memories together: drops repeats and outdated ones, and writes a summary of what she knows about you. Allowed: a length of time from 1h to 720h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect next turn.",
+          "pattern": "^[0-9]+[smh]?$",
+          "title": "How often to consolidate memories",
+          "type": "string"
+        },
+        "merge_sessions": {
+          "default": 5,
+          "description": "Consolidate only after memories have been taken from at least this many chats since the last time. Allowed: a whole number from 1 to 100. Only in the system config or personal settings. Takes effect next turn.",
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Chats before consolidating",
+          "type": "integer"
+        },
         "organizer": {
           "description": "The model used to organize memories, billed by usage. If none is chosen, the chat model is used. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.",
           "title": "Memory organizer model",

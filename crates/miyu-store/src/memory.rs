@@ -191,8 +191,11 @@ impl MemoryLog {
                 }],
                 seq,
             ),
-            // 作废的不用改记忆库：搜得到，挑不挑是用的一方照底账判；抽到哪不是一条记忆（施工 R-6 上）。
-            MemoryEvent::Retired(_) | MemoryEvent::Extracted(_) => Ok(()),
+            // 作废的不用改记忆库：搜得到，挑不挑是用的一方照底账判；抽到哪、合并的摘要和记号不是一条记忆（施工 R-6 上、R-7 上）。
+            MemoryEvent::Retired(_)
+            | MemoryEvent::Extracted(_)
+            | MemoryEvent::Summary(_)
+            | MemoryEvent::Merged(_) => Ok(()),
             // 清掉的人不要了：字不留在派生的库里。
             MemoryEvent::Cleared(_) => self.index.apply(SOURCE, &removals(&cleared), seq),
         };

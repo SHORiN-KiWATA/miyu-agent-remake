@@ -369,7 +369,7 @@ impl Keeper {
     }
 
     /// 这一条给不给看：没改掉、没清掉（`forgotten` 时作废的也给）、听众合、出处活着。
-    fn shown(&self, entry: &Entry, forgotten: bool) -> bool {
+    pub(super) fn shown(&self, entry: &Entry, forgotten: bool) -> bool {
         entry.replaced_by.is_none()
             && !entry.cleared
             && (forgotten || entry.retired.is_none())
@@ -378,7 +378,7 @@ impl Keeper {
     }
 
     /// 这一间的记忆日志；这一回第一次开的记一行派生的情形。
-    fn log(&self) -> Result<Arc<MemoryLog>, Refused> {
+    pub(super) fn log(&self) -> Result<Arc<MemoryLog>, Refused> {
         let (log, report) = self
             .memory
             .logs
@@ -405,7 +405,7 @@ impl Keeper {
     }
 
     /// 追加一条，交回编号和清掉了几条；记忆库没写上的记一行，不挡。
-    fn append(
+    pub(super) fn append(
         &self,
         log: &MemoryLog,
         stamp: Stamp,

@@ -100,6 +100,8 @@ pub struct Extraction {
     pub blobs: Blobs,
     /// 闲多久才抽：没有的照配置 `memory.extract_idle`；测试里设短的，不用真等一分钟。
     pub idle: Option<std::time::Duration>,
+    /// 合并给模型看的字（施工 R-7 上）：合并在抽取记下以后起，照同一个一次性入口发。
+    pub merge: super::MergeTexts,
 }
 
 impl std::fmt::Debug for Extraction {
@@ -318,7 +320,7 @@ fn excerpt(block: &str, room: usize, texts: &ExtractTexts) -> String {
 }
 
 /// 配置里引用的密钥的原文（照这一份配置取得到的）：发出去以前、记下以前遮掉。
-fn secrets(config: &Turn) -> Vec<String> {
+pub(super) fn secrets(config: &Turn) -> Vec<String> {
     let values = config.resolved.values();
     let mut found = Vec::new();
     for key in values.keys() {
@@ -361,6 +363,8 @@ pub(crate) struct Job {
     pub(crate) extractor: Arc<Extractor>,
     /// 放不下、还剩几轮的，抽完了照它马上再起一次（不用再等闲）。
     pub(crate) again: Box<dyn Fn() + Send + Sync>,
+    /// 会话的时区：合并的日期照它写（施工 R-7 上）。
+    pub(crate) offset: UtcOffset,
 }
 
 impl Job {
@@ -371,7 +375,13 @@ impl Job {
                 self.extractor.finish(self.after, true);
             }
             Plan::Skip { upto } => {
-                self.mark(upto, Vec::new(), Some(Skipped::Remembered)).await;
+                if self
+                    .mark(upto, Vec::new(), Some(Skipped::Remembered))
+                    .await
+                    .is_some()
+                {
+                    self.merge();
+                }
                 self.extractor.finish(self.after, true);
             }
             Plan::Ask {
@@ -423,6 +433,7 @@ impl Job {
                 if let Some(count) = recorded {
                     let took_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
                     tracing::info!(target: TARGET, session = %self.session, count, took_ms, "memory extracted");
+                    self.merge();
                 }
                 self.extractor.finish(self.after, true);
                 recorded.is_some()
@@ -436,6 +447,18 @@ impl Job {
                 false
             }
         }
+    }
+
+    /// 记下了抽到哪以后看一眼够不够合并（施工 R-7 上，`merge.rs`）：够的在后台合。
+    fn merge(&self) {
+        super::merge::MergeJob {
+            keeper: self.keeper.clone(),
+            extraction: self.extraction.clone(),
+            config: Arc::clone(&self.config),
+            owner: self.owner.clone(),
+            offset: self.offset,
+        }
+        .start();
     }
 
     /// 记下几条、记抽到了第 `upto` 条，交回记下几条；写不进的记一行，交回没有。

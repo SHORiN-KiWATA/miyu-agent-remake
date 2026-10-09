@@ -10,7 +10,7 @@
 #[cfg(test)]
 mod tests;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -29,6 +29,10 @@ const RETIRED: &str = "ext.memory.retired";
 const CLEARED: &str = "ext.memory.cleared";
 /// 抽到哪（施工 R-6 上）。
 const EXTRACTED: &str = "ext.memory.extracted";
+/// 合并写的摘要（施工 R-7 上）。
+const SUMMARY: &str = "ext.memory.summary";
+/// 合到哪（施工 R-7 上）。
+const MERGED: &str = "ext.memory.merged";
 
 /// 出厂认识的四类（2026-10-07 项目主人定）：关于你、你要她怎样、经历、长期有效的事实。日志里别的类原样留着、照常列出；
 /// 她经工具记的照这张名单查（R-3 中）。
@@ -140,6 +144,33 @@ pub struct Extracted {
     pub skipped: Option<Skipped>,
 }
 
+/// `ext.memory.summary` 的 `body`：合并写的一段摘要（施工 R-7 上，`memory.md` 第七条第 4 款）。不是一条记忆，不进记忆库；
+/// 底账照最后一份。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Summary {
+    /// 正文。
+    pub text: String,
+    /// 合到记忆日志的第几条：照它以前的写的。
+    pub upto: Seq,
+}
+
+/// `ext.memory.merged` 的 `body`：一次合并做完了（施工 R-7 上，`memory.md` 第七条第 4、6 款）。改的、作废的、摘要都记下以后
+/// 才写：中途崩了的下次重合这一批。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Merged {
+    /// 合到记忆日志的第几条：交进去的新记的里最后那一条，下次从它后面接着。
+    pub upto: Seq,
+    /// 交进去几条（新记的加相关的）。
+    pub given: u32,
+    /// 改了几条。
+    pub revised: u32,
+    /// 作废几条。
+    pub retired: u32,
+    /// 这一批连着合不成三次，跳过了；没失败的不写。
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub failed: bool,
+}
+
 /// 一段为什么整段跳过。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -161,6 +192,10 @@ pub enum MemoryEvent {
     Cleared(Cleared),
     /// 一个会话抽到了哪（施工 R-6 上）。
     Extracted(Extracted),
+    /// 合并写的摘要（施工 R-7 上）。
+    Summary(Summary),
+    /// 一次合并做完了（施工 R-7 上）。
+    Merged(Merged),
 }
 
 /// 写成记忆日志里的一条事件：第 `seq` 条，时刻 `at`，`by` 写它的那一方。
@@ -174,6 +209,8 @@ pub fn to_event(seq: Seq, at: Timestamp, by: By, event: &MemoryEvent) -> Result<
         MemoryEvent::Retired(retired) => (RETIRED, serde_json::to_string(retired)),
         MemoryEvent::Cleared(cleared) => (CLEARED, serde_json::to_string(cleared)),
         MemoryEvent::Extracted(extracted) => (EXTRACTED, serde_json::to_string(extracted)),
+        MemoryEvent::Summary(summary) => (SUMMARY, serde_json::to_string(summary)),
+        MemoryEvent::Merged(merged) => (MERGED, serde_json::to_string(merged)),
     };
     let json = json.map_err(|error| error.to_string())?;
     let body: RawJson = serde_json::from_str(&json).map_err(|error| error.to_string())?;
@@ -198,6 +235,8 @@ pub fn from_event(event: &Event) -> Option<Result<MemoryEvent, String>> {
         RETIRED => serde_json::from_str(body.get()).map(MemoryEvent::Retired),
         CLEARED => serde_json::from_str(body.get()).map(MemoryEvent::Cleared),
         EXTRACTED => serde_json::from_str(body.get()).map(MemoryEvent::Extracted),
+        SUMMARY => serde_json::from_str(body.get()).map(MemoryEvent::Summary),
+        MERGED => serde_json::from_str(body.get()).map(MemoryEvent::Merged),
         _ => return None,
     };
     Some(read.map_err(|error| format!("body of {kind} not readable: {error}")))
@@ -218,6 +257,8 @@ pub struct Entry {
     pub audience: Vec<By>,
     /// 说的是哪天的事。
     pub about: Option<String>,
+    /// 它改的是哪一条（施工 R-7 上：合并照它认出自己改出来的那几条）；新记的没有。
+    pub replaces: Option<MemoryId>,
     /// 记下的时刻。
     pub at: Timestamp,
     /// 谁记的。
@@ -245,6 +286,12 @@ pub struct MemoryBook {
     done: BTreeMap<CommandId, (MemoryId, usize)>,
     /// 每个会话抽到了哪（施工 R-6 上）：最大的那个 `upto`。
     extracted: BTreeMap<SessionId, Seq>,
+    /// 最后一份摘要（施工 R-7 上）。
+    summary: Option<String>,
+    /// 最后一次合并：那一条的时刻、合到第几条（施工 R-7 上）。
+    merged: Option<(Timestamp, Seq)>,
+    /// 最后一次合并以后抽过的会话（施工 R-7 上）：够数了才再合。
+    since_merge: BTreeSet<SessionId>,
 }
 
 impl MemoryBook {
@@ -267,6 +314,21 @@ impl MemoryBook {
     /// 会话 `session` 抽到了会话日志的第几条（施工 R-6 上）；还没抽过的是 `None`。
     pub fn extracted(&self, session: &SessionId) -> Option<Seq> {
         self.extracted.get(session).copied()
+    }
+
+    /// 最后一份摘要（施工 R-7 上）；还没合并过的没有。
+    pub fn summary(&self) -> Option<&str> {
+        self.summary.as_deref()
+    }
+
+    /// 最后一次合并：那一条的时刻、合到记忆日志的第几条（施工 R-7 上）；还没合并过的没有。
+    pub fn merged(&self) -> Option<(Timestamp, Seq)> {
+        self.merged
+    }
+
+    /// 最后一次合并以后抽过几个会话（施工 R-7 上，`memory.md` 第七条第 1 款）；没合并过的照全部，同一个会话算一个。
+    pub fn sessions_since_merge(&self) -> usize {
+        self.since_merge.len()
     }
 
     /// 命令编号 `cause` 做过的：那一条的编号、清掉几条；没做过的是 `None`。
@@ -293,6 +355,7 @@ impl MemoryBook {
                         sources: saved.sources,
                         audience: saved.audience,
                         about: saved.about,
+                        replaces: saved.replaces,
                         at: event.at,
                         by: event.by.clone(),
                         replaced_by: None,
@@ -323,9 +386,19 @@ impl MemoryBook {
             Some(Ok(MemoryEvent::Extracted(extracted))) => {
                 let upto = self
                     .extracted
-                    .entry(extracted.session)
+                    .entry(extracted.session.clone())
                     .or_insert(extracted.upto);
                 *upto = (*upto).max(extracted.upto);
+                self.since_merge.insert(extracted.session);
+                Ok(Some(0))
+            }
+            Some(Ok(MemoryEvent::Summary(summary))) => {
+                self.summary = Some(summary.text);
+                Ok(Some(0))
+            }
+            Some(Ok(MemoryEvent::Merged(merged))) => {
+                self.merged = Some((event.at, merged.upto));
+                self.since_merge.clear();
                 Ok(Some(0))
             }
         }

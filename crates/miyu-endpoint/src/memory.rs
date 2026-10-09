@@ -344,19 +344,21 @@ pub(crate) fn extraction(
     admin: &miyu_kernel::id::AccountId,
 ) -> Option<miyu_session::Extraction> {
     let ask = models.one_shot()?;
-    let texts =
-        miyu_session::ExtractTexts::load(resources.path()).map_err(|error| error.to_string());
+    let texts = miyu_session::ExtractTexts::load(resources.path())
+        .and_then(|texts| Ok((texts, miyu_session::MergeTexts::load(resources.path())?)))
+        .map_err(|error| error.to_string());
     let shapes = resources
         .memory_secrets()
         .map_err(|error| error.to_string())
         .and_then(|text| miyu_recall::redact::KeyShapes::parse(&text));
     match texts.and_then(|texts| shapes.map(|shapes| (texts, shapes))) {
-        Ok((texts, shapes)) => Some(miyu_session::Extraction {
+        Ok(((texts, merge), shapes)) => Some(miyu_session::Extraction {
             texts,
             shapes,
             ask,
             blobs: miyu_store::blob::Blobs::new(root.blobs(admin)),
             idle: None,
+            merge,
         }),
         Err(error) => {
             tracing::warn!(target: "miyu::endpoint", error = error.as_str(), "memory extraction unavailable");

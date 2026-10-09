@@ -671,7 +671,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sR-5g"><span class="n">R-5</span>本机模型当场换（四补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-6"><span class="n">R-6</span>抽取（上）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">R-6</span>抽取（下，暂不做）</span></li>
-        <li><span class="step"><span class="n">R-7</span>合并</span></li>
+        <li><a class="step done" href="#sR-7"><span class="n">R-7</span>合并（上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">R-7</span>常驻的那一块交摘要（下）</span></li>
         <li><span class="step"><span class="n">R-8</span>联想</span></li>
         <li><span class="step"><span class="n">R-9</span>记忆验收</span></li>
         <li><a class="step done" href="#sR-10"><span class="n">R-10</span>记忆照包启用<span class="st">✓</span></a></li>
@@ -17552,6 +17553,58 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/R-6-抽取.md</code>；蓝图 <code>memory.md</code> 第六条，<code>config.md</code> 的三项，<code>log.md</code>，<code>kernel/session.md</code>，<code>26-提示词.md</code> 第十节。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sR-7" aria-labelledby="h-sR7">
+  <div class="sheet-head"><h2 id="h-sR7"><span class="no">R-7</span>合并（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">抽取只往里加；隔一段时间、攒够几个会话，把新记的和相关的旧记忆放在一起理一遍：重复的、被推翻的作废，相对的日期改成绝对的，写一段新的摘要。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-recall · miyu-session · resources/software/memory/merge</span><span class="dir-note">R-7</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>抽取记下以后看够不够：有新记的、会话够、间隔到了</li>
+              <li>交摘要、新记的、相关的旧记忆，最多 32 KiB，放不下的接着合</li>
+              <li>读交回的：改、作废、摘要，不合的丢掉</li>
+              <li>记成事件：改的指着旧的，摘要、合到哪</li>
+              <li>两项配置、五份给模型看的字（登记）</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">只追加</span><span class="rl">作废的原文还在</span></div>
+          <div class="tile new"><span class="nm">自己改的不算新</span><span class="rl">不反复合</span></div>
+          <div class="tile new"><span class="nm">摘要 600 字</span><span class="rl">常驻那一块留地方</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-7</dd></div>
+        <div><dt>名称</dt><dd>合并（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">（合进 main 时填）</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型两批、核心的主会话看形状 · 自己验收，通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>（合进 main 时填）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-7-合并（上）.md</code>；蓝图 <code>memory.md</code> 第七条和记忆日志的事件，<code>config.md</code> 的 <code>memory.merge_*</code>，<code>log.md</code>，<code>26-提示词.md</code> 第十节。</li>
       </ul>
     </div>
   </div>

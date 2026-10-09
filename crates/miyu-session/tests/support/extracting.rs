@@ -10,7 +10,7 @@ use miyu_kernel::event::Body;
 use miyu_kernel::id::{Seq, SessionId, TurnId};
 use miyu_recall::Entry;
 use miyu_recall::redact::KeyShapes;
-use miyu_session::{ExtractTexts, Extraction};
+use miyu_session::{ExtractTexts, Extraction, MergeTexts};
 use miyu_store::blob::Blobs;
 
 use super::calling::entry;
@@ -74,6 +74,7 @@ pub fn organizer(home: &mut Home, server: &Server, extra: &str) {
         ask: entry(&routes(serde_json::json!({}), Duration::from_secs(60))),
         blobs: Blobs::new(home.root.blobs(&alice_account())),
         idle: Some(Duration::from_millis(100)),
+        merge: MergeTexts::load(&resources).expect("读得到"),
     };
     assert!(home.memory.give_extraction(extraction));
 }

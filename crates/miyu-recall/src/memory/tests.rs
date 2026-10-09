@@ -7,6 +7,8 @@ use miyu_kernel::time::Timestamp;
 
 use super::*;
 
+mod merged;
+
 fn seq(n: u64) -> Seq {
     Seq::new(n).expect("序号从 1 起")
 }
