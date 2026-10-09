@@ -53,6 +53,7 @@ mod models_name;
 mod models_pools;
 mod models_retire;
 mod models_temperature;
+mod note;
 mod orphans;
 mod owner;
 mod package_check;
