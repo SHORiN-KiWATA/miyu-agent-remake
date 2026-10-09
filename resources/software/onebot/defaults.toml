@@ -49,6 +49,7 @@ supersede_window = "7s"   # 同一个人在这么久里补发，接过前一条
 # 判官（第六条）。model 不写：照 models.chat；要用便宜的，场所规则里写 judge = { model = "@池" }。
 [judge]
 records = 20                  # 判官看触发这一条之前的几条记录
+persona = true                # 判官带不带这个群会话所用的人格的说明；某个群想省 token，场所规则写 judge = { persona = false }
 max_tokens = 400              # 判官最多输出多少 token
 timeout = "60s"               # 打分那一次的超时
 moderation_timeout = "120s"   # 只查违规那一次的超时

@@ -4,7 +4,7 @@
 
 软件包 `miyu-onebot`：经 OneBot v11 接 QQ 的桥，和终端界面、网页平级的一个头（`docs/designs/18-通讯平台.md` 第三节、Q17）。它把 QQ 上的人接进场所会话，把她的回复发回 QQ；要不要开口、限流、出站这些和平台无关的部分在群聊内核 `miyu-chat`（`chat.md`），这里只管 QQ 这一头和跟核心的那一头。
 
-状态：图纸，随施工 O-8 起草（2026-10-07）。O-8 只有骨架：主人的私聊、只有文字（第一条）；O-8 补照 `chat.md` 第七条第 1 条改了编号的拼法（第一条第 7、8 条）；WebUI（第二条）随 O-16、O-17 起草，O-16 做了骨架和「连接」页，O-17 做了「主人与自己人」页。O-18 改成由核心拉起：经标准输入输出说协议，`miyu onebot start/stop/restart/status/logs`（第一条，2026-10-08）。O-19 接上斜杠命令：主人的私聊里 `/` 开头的先交核心的 `command.run`（第一条「斜杠命令」，2026-10-08）。O-20 改成用核心交的配置：握手回应的 `config`、推送 `extension.config`，桥不再自己读系统配置和密钥文件，`onebot.*` 四项挪进清单的 `[settings]`（第一条，2026-10-09）。O-21 读场所规则和出厂数据：出厂的、系统的规则文件、出厂参数、违规词表照群聊内核读好、套到场所上，系统的改了下一次用就照新的；`miyu onebot venue show` 印一个场所每一项的值和来处（第一条「场所规则和出厂数据」，2026-10-09）。O-22 把群消息记进场所会话：一律旁听、不开回合，名字、@、引用、带的东西记进场所的格，群里的斜杠命令照私聊的办法交，撤回记 `venue.recalled`，私聊也带上场所的格（第一条「群消息」「撤回」，2026-10-09）。O-23（上）群里叫她就回：订阅群会话、从日志投影、过进站链、判走哪条路，主人冲她来的开一轮，她的回话照纯文本拆段发回群里、记 `venue.delivered`，每判一条记 `ext.onebot.chat.decided`；要问判官的两条路只记判断（第一条「群里怎么叫她」，2026-10-09）。O-23（下）接上判官：线路规程四种分开走，同一个人补发的照群聊内核顶替，要问判官的经核心的 `model.call` 问、读回答算分，`ext.onebot.chat.decided` 记全（第一条「群里怎么叫她」第 10 到 14 条，2026-10-09）。下载图片和文件、出站链与出站队列、WebUI 的其余几页随后面的步子。
+状态：图纸，随施工 O-8 起草（2026-10-07）。O-8 只有骨架：主人的私聊、只有文字（第一条）；O-8 补照 `chat.md` 第七条第 1 条改了编号的拼法（第一条第 7、8 条）；WebUI（第二条）随 O-16、O-17 起草，O-16 做了骨架和「连接」页，O-17 做了「主人与自己人」页。O-18 改成由核心拉起：经标准输入输出说协议，`miyu onebot start/stop/restart/status/logs`（第一条，2026-10-08）。O-19 接上斜杠命令：主人的私聊里 `/` 开头的先交核心的 `command.run`（第一条「斜杠命令」，2026-10-08）。O-20 改成用核心交的配置：握手回应的 `config`、推送 `extension.config`，桥不再自己读系统配置和密钥文件，`onebot.*` 四项挪进清单的 `[settings]`（第一条，2026-10-09）。O-21 读场所规则和出厂数据：出厂的、系统的规则文件、出厂参数、违规词表照群聊内核读好、套到场所上，系统的改了下一次用就照新的；`miyu onebot venue show` 印一个场所每一项的值和来处（第一条「场所规则和出厂数据」，2026-10-09）。O-22 把群消息记进场所会话：一律旁听、不开回合，名字、@、引用、带的东西记进场所的格，群里的斜杠命令照私聊的办法交，撤回记 `venue.recalled`，私聊也带上场所的格（第一条「群消息」「撤回」，2026-10-09）。O-23（上）群里叫她就回：订阅群会话、从日志投影、过进站链、判走哪条路，主人冲她来的开一轮，她的回话照纯文本拆段发回群里、记 `venue.delivered`，每判一条记 `ext.onebot.chat.decided`；要问判官的两条路只记判断（第一条「群里怎么叫她」，2026-10-09）。O-23（下）接上判官：线路规程四种分开走，同一个人补发的照群聊内核顶替，要问判官的经核心的 `model.call` 问、读回答算分，`ext.onebot.chat.decided` 记全（第一条「群里怎么叫她」第 10 到 14 条，2026-10-09）。O-23（补）判官带人格：群会话用的人格照订阅回应记下，原文经 `persona.read` 读、记一阵，夹进判官的请求，场所规则写了 `judge = { persona = false }` 的群不带（「群里怎么叫她」第 1 条、第 12 条第 3 款，2026-10-09 项目主人定）。下载图片和文件、出站链与出站队列、WebUI 的其余几页随后面的步子。
 
 ### 在哪
 
@@ -14,7 +14,7 @@
 | `crates/miyu-onebot/src/main.rs` | 程序的入口：先找资源目录、读给人看的字（照系统的语言），再认子命令。`serve`（只由核心拉起，O-18）：装运行日志、读 `bridge.json` 和清单里两个端口的默认值（O-20），标准输入输出交给 `serve.rs`，握手回了语言就照它说（O-20）；`start`、`stop`、`restart`、`status`（O-18）交给 `control.rs`；`logs [-f]`（O-18）交给 `logs.rs`；`web [--print]`（O-16）：WebUI 的端口照状态文件的 `web`，没有状态文件的照清单的默认值（O-20），交给 `open.rs`；`venue show <场所>`（O-21）交给 `venue.rs`；`-h`、`--help` 印用法（O-18）。`serve` 握手以前还读出厂的场所规则、出厂参数、违规词表（`rules.rs` 的 `Factory`，O-21） |
 | `resources/packages/onebot.toml`（O-18） | 软件包清单：`process` 包，子命令 `onebot`、程序 `miyu-onebot`，`[process] args = ["serve"]`、`start = "manual"`；`[settings]` 四项（O-20）；`capabilities` O-23 多 `events.write`（「软件包清单」） |
 | `crates/miyu-onebot/src/settings.rs` | 桥用的配置（O-20）：握手交来的 `config`、推送来的 `extension.config` 照键读成两个端口、令牌（`Settings`），没有的、`null` 的端口照清单 `[settings]` 的默认值（`Defaults`，照资源目录里的清单读），令牌没有就是没有；`onebot.trusted` 读成自己人的平台身份（`trusted`，O-23：跟核心的那一头照它认自己人） |
-| `crates/miyu-onebot/src/tuning.rs` | 读 `bridge.json`：桥自己的数（O-16 多 `web` 一格；O-23 下多判官的全局并发、排队等多久两格） |
+| `crates/miyu-onebot/src/tuning.rs` | 读 `bridge.json`：桥自己的数（O-16 多 `web` 一格；O-23 下多判官的全局并发、排队等多久两格；O-23 补多判官带的人格原文记多久） |
 | `crates/miyu-onebot/src/serve.rs` | 起来：经核心亲手给的管道（标准输入输出，O-18）握手、开两个监听（NapCat 的、WebUI 的），把几样接起来；推来的配置交给 `current.rs`，端口变了照 `/apply` 的办法当场换（O-20）；`/apply` 开好的新监听换掉旧的（O-16 补二）；状态文件跟着写（O-18）；核心关了管道就停，跟核心的那一头崩了就退 |
 | `crates/miyu-onebot/src/status_file.rs`（O-18） | 状态文件 `state/packages/onebot/status.json`：起来时、NapCat 连上断开、问到是哪个实现、换了端口时（推送来的、`/apply` 的）照这一刻写（「状态文件」） |
 | `crates/miyu-onebot/src/control.rs`（O-18） | `start`、`stop`、`restart`、`status`：照终端的样子连核心，调 `extension.enable`、`disable`、`restart`、`status`；`status` 再读状态文件；照回应说 |
@@ -39,8 +39,9 @@
 | `crates/miyu-onebot/src/core/route/discipline.rs`（O-23 下） | 线路规程（纯逻辑）：四种各留下哪些条件、看不看顶替、走哪条路（第 10 条） |
 | `crates/miyu-onebot/src/core/route/body.rs`（O-23 下，从 `decide.rs` 挪出来） | `ext.onebot.chat.decided` 的 `body`（纯逻辑，第 7 条那张表） |
 | `crates/miyu-onebot/src/core/route/called.rs`（O-23） | 叫她：群消息记下以后，照场所规则、投影、这一条填好交 `decide.rs`，记判断，开一轮或回一句提示；要问判官的交给 `judges.rs`（第 3 到 8、11 条） |
-| `crates/miyu-onebot/src/core/route/judges.rs`（O-23 下） | 在判的：桥内存里的 `Judging`、问判官的任务、全局的名额（第 11、12 条） |
-| `crates/miyu-onebot/src/core/route/ask.rs`（O-23 下） | 问一次判官（一个任务）：排队、`venue.records`、拼请求、`model.call`、读回答、重试（第 12、13 条） |
+| `crates/miyu-onebot/src/core/route/judges.rs`（O-23 下） | 在判的：桥内存里的 `Judging`、问判官的任务、全局的名额（第 11、12 条）；群会话用的人格（O-23 补，第 1 条） |
+| `crates/miyu-onebot/src/core/route/ask.rs`（O-23 下） | 问一次判官（一个任务）：排队、`venue.records`、带上人格（O-23 补）、拼请求、`model.call`、读回答、重试（第 12、13 条） |
+| `crates/miyu-onebot/src/core/route/persona.rs`（O-23 补） | 判官带的人格的原文：`persona.read` 读，读到的记一阵，几个问判官的任务共用（第 12 条第 3 款） |
 | `crates/miyu-onebot/src/core/route/judged.rs`（O-23 下） | 判官回来了：算分、记判断、回的开一轮；被放下的丢掉（第 7、11、13 条） |
 | `crates/miyu-onebot/src/core/route/speak.rs`（O-23） | 群会话推来的事件：收进投影，她新说的话照纯文本拆段发回群里，NapCat 回了成功记 `venue.delivered`（第 1、9 条） |
 | `crates/miyu-onebot/src/core/route/applied.rs`（O-22） | 场所规则套到这一条上：`venue.session` 带的人格、预设、工作区，`managers` 认的身份，`show_ids`，此刻睡没睡；O-23 多进站链要的 `rate`、`sleep`、`allow`、`keywords` 和此刻（本机的钟、时区） |
@@ -52,7 +53,7 @@
 | `crates/miyu-onebot/src/rules/files.rs`（O-21） | 读文件：照配置文件的读法读一份（`miyu_store::config_file::read`），读不了的变成群聊内核的 `Problem`；列出 `venues.d/` 里的规则文件；系统的两处这一刻的样子（文件列表、修改时刻、大小） |
 | `crates/miyu-onebot/src/venue.rs`（O-21） | `venue show <场所>`：不连核心，照 `rules.rs` 读同样的文件，一项一行印值和来处，问题印在后面 |
 | `crates/miyu-onebot/src/texts.rs` | 说给人听的字：挑哪一句、换进什么字段，字照 `Human::load` 读（「给人看的字」）；O-23 多发进群里的限流提示 |
-| `resources/software/onebot/bridge.json` | 桥自己的数：认的路径、调用等多久、两个队列多长、接不了连接歇多久、握手等多久和 `logs -f` 隔多久看一次（O-18）、隔多久看一次系统的场所规则变没变（O-21）、群成员的名字记多久（O-22）、判官全局最多同时问几个、排队等多久（O-23 下）（「对外的样子」） |
+| `resources/software/onebot/bridge.json` | 桥自己的数：认的路径、调用等多久、两个队列多长、接不了连接歇多久、握手等多久和 `logs -f` 隔多久看一次（O-18）、隔多久看一次系统的场所规则变没变（O-21）、群成员的名字记多久（O-22）、判官全局最多同时问几个、排队等多久（O-23 下）、判官带的人格原文记多久（O-23 补）（「对外的样子」） |
 | `resources/software/onebot/venues.d/`、`defaults.toml`、`moderation.txt` | 出厂的场所规则、出厂参数、违规词表（写法、内容在 `chat.md` 第一条、第八条、第二条）；O-21 起桥读它们（「场所规则和出厂数据」） |
 | `resources/software/onebot/human/{zh,en,ja}.json` | 桥说给人听的字（「给人看的字」）；WebUI 页面的字（`web/` 开头，O-16；`web/people/` 开头的 O-17，第二条「给人看的字」） |
 | `resources/software/onebot/web/`（O-16） | WebUI 的页面：`index.html`、`app.js`（登录、骨架、「连接」页）、`people.js`（「主人与自己人」页，O-17）、`style.css`，原生 JS 的模块（第二条「施工时定的」第 25 条） |
@@ -84,6 +85,7 @@
 | `member_names_seconds` | 600 | 群成员的名字记几秒（O-22，「群消息」第 5 条） |
 | `judge_concurrency` | 4 | 判官全局最多同时问几个（O-23 下，「群里怎么叫她」第 12 条；18 第七节）。至少 1 |
 | `judge_queue_seconds` | 15 | 名额满了，问判官的排队最多等几秒，等不到的当判不了（O-23 下，同上） |
+| `judge_persona_seconds` | 60 | 判官带的人格原文读到以后记几秒，这段时间里同一个人格不再读（O-23 补，「群里怎么叫她」第 12 条第 3 款） |
 | `web` | 见第二条「对外的样子」 | WebUI 的数（O-16）：`csp`、`types`、`status_cache_seconds` |
 
 多一格、少一格、队列写 0、判官的并发写 0、读不了：起不来（「出错」）。
@@ -252,7 +254,7 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
 
 O-23 下（2026-10-09；施工单「要定的」三条照推荐定：放下在判的请求不真的取消、回来的回答丢掉，判官的全局并发和排队等多久放 `bridge.json`，违规时给她看的那句预检结论这一步不做）接上判官：线路规程四种分开走（第 10 条），同一个人在顶替窗口里补发的照群聊内核顶替（第 11 条），要问判官的经核心的 `model.call` 问（第 12 条）、读回答、算分（第 13 条），额度满了不抽样、不问判官（第 14 条）；`ext.onebot.chat.decided` 记全（第 7 条）。核心的 `model.call` 在后台答（施工 8-20 补，`protocol.md` 的 `model.call` 第 2 条）：判官一次要几十秒，这段时间桥别的请求不等它，她的话、新的群消息照常走（「施工时定的」第 86 条）。
 
-1. **订阅群会话**：桥起来以后头一次找到一个群的会话（「群消息」第 3 条），订阅它的事件流，写 `after: 0`：核心先把日志从头补过来，再接着推新的（`protocol.md`「补发」）。补来的、推来的走同一条路收进这个群的投影（第 2 条）；回应的 `upto` 记下：序号不大于它的是从前的，她的话不再发（桥重启不会把以前的回复再发一遍，同第 9 条）。订阅不上的记一行 `WARN not subscribed`，这一条不记，下一条再找（同第 7 条）。掉了队（`resync`）照收到的最后一条的序号再订阅（`after` 写它），补来的照样收进投影、她的话不发（出站队列随 O-25）。会话不在了（第 7 条）连投影一起忘掉，再找、再订阅。
+1. **订阅群会话**：桥起来以后头一次找到一个群的会话（「群消息」第 3 条），订阅它的事件流，写 `after: 0`：核心先把日志从头补过来，再接着推新的（`protocol.md`「补发」）。补来的、推来的走同一条路收进这个群的投影（第 2 条）；回应的 `upto` 记下：序号不大于它的是从前的，她的话不再发（桥重启不会把以前的回复再发一遍，同第 9 条）。订阅不上的记一行 `WARN not subscribed`，这一条不记，下一条再找（同第 7 条）。掉了队（`resync`）照收到的最后一条的序号再订阅（`after` 写它），补来的照样收进投影、她的话不发（出站队列随 O-25）。会话不在了（第 7 条）连投影一起忘掉，再找、再订阅。回应的 `persona`（这个群会话用的人格，照日志第一条 `session.created`，`protocol.md` 的 `subscribe`；没有这一格的是无人格）记下，判官照它带人格（第 12 条第 3 款，O-23 补）。
 2. **从日志投影**（`chat.md` 第七条第 4 条那张表）：内存里只放从日志算得出的，桥重启照第 1 条重建。推来的事件照序号收，重的、更早的不收。
    - 人说的话（`message.user`）：序号 → 发的人（`by.id`）、是不是主人（`by` 是外部身份、带 `account`）。
    - 开过的回合（`turn.started`）：开始的时刻（事件的 `at`），`triggers` 每一条的发的人。
@@ -307,7 +309,13 @@ O-23 下（2026-10-09；施工单「要定的」三条照推荐定：放下在�
 12. **问判官**（O-23 下）：交给一个另起的任务（`judges.rs`、`ask.rs`），跟核心的那一头接着办别的消息；任务经并着发的调用口（`core/caller.rs`）调核心，不等那一头手上的事。
     1. **排队**：全局最多同时问 `bridge.json` 的 `judge_concurrency` 个（出厂 4），名额满了排队，最多等 `judge_queue_seconds`（出厂 15 秒），等不到的当判不了（`unjudged: queue`），不重试。一个名额占到这一次问完：重试接着占着；被放下的那一次照样等到回答才放（「施工时定的」第 95 条）。
     2. **群聊记录**：`venue.records {session, msg: 判的最后一条, count}`，`count` 是这个群的 `Params::judge.records`（1 到 100，和核心收的一样，`chat.md` 第八条，「施工时定的」第 93 条）。被拒的当判不了（`refused`，`detail` 是原因码），不重试。几条一起判的，前面几条在记录里（「施工时定的」第 92 条）。
-    3. **拼请求**：`Ask { persona: None, records, current, decoded, mode }`：判官先不带人格，等项目主人定（`venues.md`「判官看的群聊记录」第 4 条）；`decoded` 是判的几条的正文用换行接起来交这个群的 `Params::base64` 的 `Base64::reveal`；`mode` 照走的路（`judge` 是 `Reply`，`moderation_only` 是 `ModerationOnly`）。`request(&判官的说明, &ask, &这个群的 Params::chatty)` 拼成两条，写成 `messages: [{role: "system", text}, {role: "user", text}]`。
+    3. **拼请求**：`Ask { persona, records, current, decoded, mode }`。`persona` 是这个群会话所用的人格的说明（O-23 补，2026-10-09 项目主人定：判官也带人格，给一个开关，默认开）：
+       - 哪一个人格：第 1 条记下的订阅回应的 `persona`；没有的（无人格）不带。这个群的 `Params::judge.persona` 是假的（场所规则写 `judge = { persona = false }`，`chat.md` 第八条）也不带、不读。不带的是 `None`，那一段整个不出现。
+       - 原文：拿到群聊记录以后读 `persona.read {"persona": <编号>, "prompt": "persona"}` 的 `text`：属主那几层叠好的、现在文件里的那一份，不是会话快照里冻着的（施工单「不做什么」第 1 条）。`text` 是 `null` 或空的（这个人格没写人设）不带。
+       - 读到的记 `bridge.json` 的 `judge_persona_seconds`（出厂 60 秒），几个问判官的任务共用：这段时间里同一个人格不再读，人格改了判官最多晚这么久看到（「施工时定的」第 103 条）。
+       - 读不到的（核心拒了：人格删了、写错了、读出错）：这一次不带，运行日志记一行 `WARN persona not read`（`session`、`persona`、`reason`），照样问判官；不记下，下一次再读。核心断开了的，这一次问判官的任务交回空的（同 `venue.records`）。
+
+       `decoded` 是判的几条的正文用换行接起来交这个群的 `Params::base64` 的 `Base64::reveal`；`mode` 照走的路（`judge` 是 `Reply`，`moderation_only` 是 `ModerationOnly`）。`request(&判官的说明, &ask, &这个群的 Params::chatty)` 拼成两条，写成 `messages: [{role: "system", text}, {role: "user", text}]`。
     4. **调**：`model.call {purpose: "judge", model?, max_tokens, messages}`：`model` 照 `Params::judge.model`，没写的不带（核心照 `models.chat`）；`max_tokens` 照 `Params::judge.max_tokens`。每一次最多等 `Params::judge.timeout`（只查违规的 `moderation_timeout`），等不到的不再等（核心那边照样做完，回来的回应丢掉）。判不了的（等不到、核心拒了、读不出，第 13 条）再问，最多再问 `Params::judge.retries` 次，记进判断的是最后一次的为什么（「施工时定的」第 94 条）。
     5. **判官的说明**：资源 `software/onebot/judge/` 的十三份，桥起来时和出厂数据一起读、查过（「场所规则和出厂数据」第 2 条）。
 13. **读回答、算分**（O-23 下）：回应的 `text` 交 `read(text, mode, Params::judge.reason_chars)`，读不出的（`Unreadable`）当判不了。判官回来了，被放下的（第 11 条）不再理；没被放下的先把这个会话留着的推送收进投影（同第 3 条），读出来了的拿合起来的条件、投影里她的回复、判官回来的这一刻（冷静照这时的近期发言量）、问判官时套的那一份 `Params::chatty` 交 `score`：`reply` 是真的回，假的只记下（第 7 条）。判不了的照不回算，只记下（18 第七节），`judge.unjudged` 写为什么（「施工时定的」第 100 条）。
@@ -460,7 +468,7 @@ O-23 下（2026-10-09；施工单「要定的」三条照推荐定：放下在�
 - 思考、工具调用不发回去；空的回复不发。（`replies.rs`，下面一条同）
 - 桥重启以后，以前的回复不再发一遍。
 - 调用等了给的时限（测试给 3 秒，和出厂的不一样）还等不到算失败，到时以前还在等；连接断了在等的算失败；同时在等的几个照 `echo` 各拿各的。（`calls.rs`，钟停住，照停住的钟算）
-- 出厂的 `bridge.json` 读得进、数和上面的表一样（O-21 多 `rules_check_millis`，O-23 下多判官的两格）；队列写 0、判官的并发写 0、多一格、少一格、不是 JSON、没有文件，都读不进来，说是哪个文件。（`tuning.rs`）
+- 出厂的 `bridge.json` 读得进、数和上面的表一样（O-21 多 `rules_check_millis`，O-23 下多判官的两格，O-23 补多 `judge_persona_seconds`）；队列写 0、判官的并发写 0、多一格、少一格、不是 JSON、没有文件，都读不进来，说是哪个文件。（`tuning.rs`）
 - 三种语言里桥说的每一句都换得出来（O-21 多 `failure/factory`、`venue/`、`problem/` 开头的，O-23 多 `group/rate-limited`）；中文照上面的表、字段换进去；日文和英文一字不差；换语言照新的说；握手以前照系统的语言（`zh`、`ja` 开头的照它，别的英文）。（`texts.rs`）
 - 文字怎么读出来：别的段跳过；CQ 码去掉，`&amp;` 最后换。（`text.rs`）
 - 编号：场所、平台上的人和群聊内核拼的一样（`qq:private:<号>`、`qq:<号>`，解得回原样）；命令编号带时刻，同一个消息编号、时刻不同的两条编号不同；`time` 是整数、写成整数的字符串都认，没带、读不出（`null`、不是数的字、小数）的是 `0`。（`ids.rs`）
@@ -482,8 +490,10 @@ O-23 下（2026-10-09；施工单「要定的」三条照推荐定：放下在�
 - 线路规程和顶替（O-23 下，`src/core/route/decide/follow_tests.rs`、`discipline/tests.rs`）：四种的写法读得回来，没设的、认不出的（大小写不同、空的）照 `chatty`；`chatty` 留全部条件（额度满了去掉抽样），`when-called`、`wake` 只留冲她来、续聊、违规旗，`every-message` 去掉抽样，加分照原样；只有 `chatty`、`when-called` 看顶替；`chatty` 照群聊内核走路，`when-called`、`wake` 只有违规旗的只查违规、和别的一起的和别的有条件的开一轮，`every-message` 有字的都开一轮（只有违规旗的也是）、只有图的只记下；`when-called` 冲她来直接回、抽样必中也不抽、只有违规旗的问判官只查违规、额度满了不问只记下（`rate_full`）、冲她来又有违规旗的照回。顶替：前一条判过要回的接过去（`supersede.inherit`、条件是前一条的、`commit`），`when-called` 也接、`wake` 不接；还在判的几条一起问判官（判的是那一条接过的、那一条、这一条），主人补一句 @ 她的几条一起回；正好 7 秒以前的不算，差一毫秒的算。
 - 判断的 `body`（O-23 下，`src/core/route/body/tests.rs`）：问了判官的写全模式、几次、多久、模型、五维、`should_reply`、`to_bot`、`severity`（没查的不写）、`reason` 和算分的每一项，分够的回、不够的只记下；判不了的六种（`queue`、`timeout`、`refused` 带原因码、`unreadable` 带 `no_object`、`no_severity`、`dimension:<名字>`）都只记下、没有分；额度满了的只写模式和 `rate_full`；接过的、放下的那一条；条件的五种写法读得回来，认不出的读不回。
 - 问一次判官（O-23 下，`src/core/route/ask/tests.rs`；核心那一头是测试，钟停住）：先 `venue.records {session, msg, count: 20}`，再 `model.call`：`purpose` 是 `judge`、`max_tokens` 400、没写模型的不带、两条消息，system 照出厂的说明拼（不带人格、门槛换进去、只查违规的换那一份），user 夹着记录、这一条、base64 解出来的字（没有的不夹）；包在代码块里的回答读得出，模型记成 `<供应商>/<模型>`；记录的条数照参数，写了模型的带上；读不出、核心拒了、等不到的再问，几次照 `retries`，交回最后一次的为什么、回过的那一次的模型；打分等 60 秒、只查违规等 120 秒，等不到的再问一次回了的照用，晚来的丢掉；名额满了等 15 秒还没有的不问（`queue`、0 次），10 秒有了名额接着问、耗时从交出去算；记录被拒的不再问；核心断开了交回空的。
+- 判官带的人格（O-23 补，`src/core/route/ask/persona_tests.rs`；同上，钟停住）：有人格的先拿记录、再 `persona.read {persona, prompt: "persona"}`，原文夹在 `persona-open`、`persona-close` 中间、紧跟着 `system.txt`；60 秒里同一个人格不再读，到了 60 秒再读，别的人格另读；`text` 是 `null` 的不带、照样记下；读不到的（`unknown_persona`）照样问判官、不带、不记下，下一次再读；没给人格的不读；读的时候核心断开了交回空的。
 - 并着发的调用口（O-23 下，`src/core/caller/tests.rs`）：两个一起等，后发的先回，各拿各的；推送、跟核心的那一头的回应、核心发来的请求原样交回，没人等的回应丢掉；不等了的编号拿掉、晚来的丢掉；读的一头停了，等着的和再来的都断开；管道关了断开。
 - 问判官（O-23 下，真核心拉起真桥、假 NapCat、她照剧本说、判官那一次发到本机回环上的假服务器，`judged.rs`）：别人 @ 她判官说回就回、说不回只记下；抽样中了交判官；只有违规旗的只查违规（system 照 `moderation-only.txt`），严重程度 8 照回；`ext.onebot.chat.decided` 的 `judge`、`score` 每一格对（冲她来的免冷静：0.9 + 0.2 + 0.3 对 0.8）；判官看到的是一条 system、一条 user，照出厂的说明拼，模型照 `models.chat`，最多输出 400；两次都读不出的判不了（`unreadable`、`no_object`、两次），头一次少了几维的再问一次回；判官一秒内没回的不等了（`timeout`、一次、没有模型），晚到的回答丢掉、不开回合；理由、原文不进运行日志，判不了的另记一行 `not judged`；判官在判（30 秒才回）的时候，别人说的一句 10 秒内记进、判完（核心的 `model.call` 在后台答，施工 8-20 补）。
+- 判官带人格（O-23 补，`judged_persona.rs`，同上，真核心的系统区装上样本人格）：规则给群设了样本人格 `engineer`，判官的 system 开头是 `system.txt`、`persona-open.txt`、样本的人设、`persona-close.txt` 接着；设了人格、又写了 `judge = { persona = false }` 的群不带；无人格的群不带；会话造好以后人格删了的不带、照样问，运行日志有一行 `persona not read`。
 - 顶替（O-23 下，`superseded.rs`）：别人 @ 她、判官说回，她还没开口他补一句没 @ 的：接过去，并进她这一轮（`turn.joined`，`cause` 是补的那一条加 `/respond`），判断和图纸一字不差，不再问判官；判官还没回他就补一句：放下前一次，两条一起问（判官看的这一条是后一条，前一条在记录里），回了，一轮的 `triggers` 是两条，判断只有一笔（`msgs` 两条、`supersede.rejudge`），前一次晚回来的说不回丢掉、不记判断。
 - 线路规程（O-23 下，`disciplines.rs`，抽样开到必中）：`every-message` 有字的开一轮、只有图的只记下；`when-called` 没叫的只记下（不抽样）、@ 她开一轮、她还没回完补的一句接过去、有人说了违规词没叫她：问判官只查违规（system 照 `moderation-only.txt`），判官说严重程度 2 不回、8 才回；`wake` 没叫的只记下、唤醒词开一轮、她还没回完补的一句不接、她回过的人接着说开一轮（续聊）、别人接着说不算（刚说过话不算）；判官只为那两句违规的问过。
 - 自己人的配置（O-23，`settings.rs`）：`onebot.trusted` 字的列表照收，列表里不是字的不要，没有、`null`、不是列表的是空的。
@@ -638,6 +648,14 @@ O-23 下（2026-10-09；施工单「要定的」三条照推荐定：放下在�
 | 99 | 判官在判的时候同一个人又说了一条、要顶替的：桥这边先拿掉在判的那一条，判断等新的一次判完才记，只记一笔（`msgs` 是几条，命令编号照最后一条拼） | 一条消息只判一次（第 8 条）；放下的那一次没有结论 | 放下的那一次也记一笔 |
 | 100 | 算分的此刻是判官回来的那一刻；参数照交给判官时套的那一份 | 判官可能跑几十秒，冷静照她这时的近期发言量；参数中途改了，同一次判断照同一份 | 照交给判官的那一刻 |
 | 101 | 核心为并进去的那几条接着开的一轮，`turn.started` 只有指向那条 `turn.joined` 的 `trigger`：投影照它找回 `triggers` 的发的人（2026-10-09 主会话审过以后加） | 那一轮回的就是并进去的人；不找回，`venue.delivered` 的 `to` 是空的，续聊认不出（真跑时看到的）。日志里本来就有，不用核心多记一格 | 要核心在那一轮另记 `triggers` |
+
+**施工时定的**（O-23 补，2026-10-09；项目主人定：判官也带人格，给一个开关，默认开，经核心的主会话转达）
+
+| # | 定了什么 | 为什么 | 没选 |
+|---|---|---|---|
+| 102 | 人格照订阅回应的 `persona` 认；原文经 `persona.read {persona, prompt: "persona"}` 读现在文件里的那一份；`judge.persona` 关了的、无人格的不带、不读。量过：带样本人格 `engineer`（测试用的那一份，人设一句），判官请求多 15 个 token（`persona-open`、人设那一句、`persona-close` 接起来，2026-10-09 在开发端点的 `deepseek-v4.1-flash` 上量，两次一样）；真人格照它人设的长度多（旧版 Miyu 的人设 1403 个，`26-提示词.md` 第五节） | 施工单第 1、2 条：订阅回应就是会话实际用的人格，场所规则没写的照核心的默认人格，桥自己算不出；`persona.read` 是核心现成的。不加给模型看的字：标签 O-11 就登记了，人格原文是人格自己的 | 照场所规则的 `persona`；照会话快照里冻着的（要核心另开口） |
+| 103 | 读到的原文记 60 秒（`bridge.json` 的 `judge_persona_seconds`），几个问判官的任务共用一份；读不到的不记 | 施工单第 4 条：同一个人格一分钟里读一次就够，热闹的群一分钟里能问判官好几次；人格改了最多晚一分钟。照群成员名字的缓存放 `bridge.json`（第 59 条）：是桥这个进程的，不按场所改。读不到的不记：人格恢复了下一次就带上；日志一次一行，判官的次数有限流、名额压着 | 不记、每次读；记到桥重启；读不到的也记一阵 |
+| 104 | 读人格在问判官的任务里，拿到群聊记录以后 | 跟核心的那一头不等它（同第 86 条）；记录被拒的不用读 | 交给判官以前在跟核心的那一头读 |
 
 ### 二、WebUI（施工 O-16 起）
 

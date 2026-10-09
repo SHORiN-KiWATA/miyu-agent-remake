@@ -119,6 +119,7 @@ fn blank() -> Params {
         judge: Judge {
             model: None,
             records: 0,
+            persona: false,
             max_tokens: 0,
             timeout: 0,
             moderation_timeout: 0,

@@ -6,6 +6,7 @@
 //! - 群：`venue.session {venue, kind: "group", persona?, preset?, cwd?}`（照场所规则，`applied`）；群的会话本来就归桥自己的
 //!   系统账号，不照属主认陌生人。规则写了不存在的人格、预设（`unknown_persona`、`unknown_preset`、`preset_invalid`）：不接。
 //!   问到了从头订阅（`after: 0`，施工 O-23，「群里怎么叫她」第 1 条）：补来的收进这个群的投影；会话不在了连投影一起忘掉。
+//!   订阅回应的 `persona`（这个群会话用的人格）交给判官那边记下（施工 O-23 补）。
 //! - 不接的同一个场所只记一行运行日志（桥起来以后；「施工时定的」第 66 条）。
 
 use miyu_chat::Venue;
@@ -181,7 +182,8 @@ impl Route {
 
     /// 订阅群会话 `session` 的事件流，补 `after` 以后的（施工 O-23，「群里怎么叫她」第 1 条）：头一次是 0，从头补；掉了队的是
     /// 收到的最后一条。补来的照先后收进这个群的投影，序号不大于回应的 `upto` 的她的话不发。订阅不上的记一行、交回假，这个群的
-    /// 会话和投影都忘掉：下一条照第 7 条再找、从头订阅（掉了队再订阅不上的，投影不再跟着日志走，留着会判错）。
+    /// 会话和投影都忘掉：下一条照第 7 条再找、从头订阅（掉了队再订阅不上的，投影不再跟着日志走，留着会判错）。订阅上了的，
+    /// 回应的 `persona`（这个群会话用的人格，没有的是无人格）交给判官那边记下（施工 O-23 补）。
     pub(super) async fn follow(&mut self, session: &str, after: u64) -> Result<bool, Gone> {
         let params = json!({"session": session, "stream": "events", "after": after});
         let reply = self.core.call("subscribe", params).await?;
@@ -192,6 +194,8 @@ impl Route {
             return Ok(false);
         }
         let upto = reply["result"]["upto"].as_u64().unwrap_or(after);
+        self.judges
+            .subscribed(session, reply["result"]["persona"].as_str());
         self.groups
             .entry(session.to_string())
             .or_insert_with(|| Projection::new(upto))

@@ -9,7 +9,7 @@
 //! - 群里叫她（施工 O-23，「群里怎么叫她」）：记下以后判（`called`：纯逻辑的判断在 `decide`，线路规程在 `discipline`，
 //!   判断的样子在 `body`），该回的开一轮；群会话推来的事件收进投影（`projection`），她新说的话发回群里、记
 //!   `venue.delivered`（`speak`）。要问判官的（O-23 下）交给 `judges`，任务（`ask`）经并着发的调用口问，跟核心的那一头接着办
-//!   别的；判官回来了照号收回来、算分、记判断（`judged`）。
+//!   别的；判官回来了照号收回来、算分、记判断（`judged`）。判官带这个群会话所用的人格的说明（O-23 补，`persona`）。
 //! - 找会话（`session`）：「场所 → 会话编号」只记在内存里，每个场所桥起来以后第一次要用时问一次 `venue.session`；私聊的
 //!   问到了订阅（不写 `after`），群的从头订阅（施工 O-23）。会话不在了（`session_not_found`、`session_stopped`）
 //!   忘掉，再问一次、再交一次，只重来一次。私聊不是主人的（`no_system_account`，或者会话的属主是桥自己，「施工时定的」第
@@ -32,6 +32,7 @@ mod group;
 mod judged;
 mod judges;
 mod names;
+mod persona;
 mod projection;
 mod recall;
 mod session;
@@ -62,6 +63,7 @@ use crate::texts::Texts;
 pub(crate) use ask::Slots;
 use fields::{Flags, fields};
 use judges::Judges;
+pub(crate) use persona::Personas;
 use projection::Projection;
 use session::Place;
 use speak::Delivered;
@@ -122,18 +124,18 @@ pub(crate) struct Route {
 
 impl Route {
     /// 拿着连接 `core`，回话照 `bots` 找连接，场所规则照 `rules`，群成员的名字记进 `members`，发进群里的提示照 `texts`
-    /// 说，问判官照全局的名额 `slots` 排队（施工 O-23 下），推来的配置变化交给 `configured`。自己人照握手交来的配置
-    /// （`core.config`）。
+    /// 说，问判官照全局的名额 `slots` 排队（施工 O-23 下）、判官带的人格原文照 `personas` 记（施工 O-23 补），推来的配置变化
+    /// 交给 `configured`。自己人照握手交来的配置（`core.config`）。
     pub(crate) fn new(
         core: Core,
         bots: Arc<Bots>,
         rules: Venues,
         members: Members,
-        (texts, slots): (Texts, Slots),
+        (texts, slots, personas): (Texts, Slots, Personas),
         configured: mpsc::UnboundedSender<Map<String, Value>>,
     ) -> Route {
         let trusted = trusted(&core.config[trusted_key()]);
-        let judges = Judges::new(core.caller(), rules.judge_texts(), slots);
+        let judges = Judges::new(core.caller(), rules.judge_texts(), slots, personas);
         Route {
             core,
             bots,

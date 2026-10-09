@@ -1,6 +1,7 @@
 //! 问一次判官（施工 O-23 下，`onebot.md` 第一条「群里怎么叫她」第 12、13 条）：核心那一头是测试，照编号回。先拿群聊记录、
 //! 再调 `model.call`，参数照图纸；记录的条数、模型照参数；读不出、核心拒了、等不到的再问，交回最后一次的
 //! 为什么；打分、只查违规各照各的超时；名额满了排队，等不到的不问；记录被拒的不再问；核心断开了交回空的。钟停住，照停住的钟算。
+//! 判官带的人格在 `persona_tests.rs`（施工 O-23 补），夹具在这里。
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -10,6 +11,7 @@ use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, BufReader, DuplexStream};
 use tokio::task::JoinHandle;
 
+use super::super::persona::Personas;
 use super::{Answer, Asking, Slots, Unjudged, ask};
 use crate::core::caller::{Waiting, Writer};
 use crate::core::{Caller, Gone};
@@ -18,7 +20,7 @@ use crate::core::{Caller, Gone};
 const PREFIX: &str = "onebot-t-side-";
 
 /// 一份读得出的回答：理由 `reason`。
-fn verdict(reason: &str) -> String {
+pub(super) fn verdict(reason: &str) -> String {
     json!({"relevance": 5, "willingness": 5, "social": 5, "timing": 5, "continuity": 5,
         "should_reply": true, "to_bot": false, "severity": 0, "reason": reason})
     .to_string()
@@ -62,14 +64,14 @@ fn texts() -> Arc<JudgeTexts> {
 }
 
 /// 测试当的核心：读桥发来的请求，照编号回。
-struct Fake {
-    waiting: Waiting,
+pub(super) struct Fake {
+    pub(super) waiting: Waiting,
     lines: BufReader<DuplexStream>,
 }
 
 impl Fake {
     /// 下一条请求。钟停着，一个小时还没来的（问的一方不再发了）是测试错了，当场说，不卡住。
-    async fn next(&mut self) -> Value {
+    pub(super) async fn next(&mut self) -> Value {
         let mut line = String::new();
         let read = tokio::time::timeout(Duration::from_secs(3600), self.lines.read_line(&mut line));
         read.await.expect("等得到请求").expect("读得到");
@@ -83,22 +85,30 @@ impl Fake {
     }
 
     /// 回请求 `request`：拒绝，原因码 `reason`。
-    fn refuse(&self, request: &Value, reason: &str) {
+    pub(super) fn refuse(&self, request: &Value, reason: &str) {
         let reply = json!({"jsonrpc": "2.0", "id": request["id"],
             "error": {"code": -32010, "message": "no", "data": {"reason": reason}}});
         assert_eq!(self.waiting.sort(reply), None, "有人等着");
     }
 
     /// 回 `venue.records`：记录 `records`、这一条 `current`。
-    async fn records(&mut self, records: &str, current: &str) -> Value {
+    pub(super) async fn records(&mut self, records: &str, current: &str) -> Value {
         let request = self.next().await;
         assert_eq!(request["method"], "venue.records", "{request}");
         self.answer(&request, json!({"records": records, "current": current}));
         request
     }
 
+    /// 回下一个 `persona.read`：原文 `text`（可以是 `null`）。
+    pub(super) async fn persona(&mut self, text: Value) -> Value {
+        let request = self.next().await;
+        assert_eq!(request["method"], "persona.read", "{request}");
+        self.answer(&request, json!({"text": text, "version": null}));
+        request
+    }
+
     /// 回下一个 `model.call`：判官说 `text`。
-    async fn says(&mut self, text: &str) -> Value {
+    pub(super) async fn says(&mut self, text: &str) -> Value {
         let request = self.next().await;
         assert_eq!(request["method"], "model.call", "{request}");
         self.answer(
@@ -110,7 +120,7 @@ impl Fake {
 }
 
 /// 一个调用口和测试当的核心。
-fn connected() -> (Caller, Fake) {
+pub(super) fn connected() -> (Caller, Fake) {
     let (ours, theirs) = tokio::io::duplex(64 * 1024);
     let waiting = Waiting::new(PREFIX.to_string());
     let writer: Writer = Arc::new(tokio::sync::Mutex::new(Box::new(ours)));
@@ -122,7 +132,7 @@ fn connected() -> (Caller, Fake) {
 }
 
 /// 问判官要的：群会话 `s` 的第 12 条，打分，base64 解出来一段，判官的几项照出厂的再交 `change` 改。
-fn asking(change: impl FnOnce(&mut Asking)) -> Asking {
+pub(super) fn asking(change: impl FnOnce(&mut Asking)) -> Asking {
     let params = params();
     let mut asking = Asking {
         session: "s".to_string(),
@@ -131,18 +141,40 @@ fn asking(change: impl FnOnce(&mut Asking)) -> Asking {
         decoded: Some("hidden words".to_string()),
         judge: params.judge,
         chatty: params.chatty,
+        persona: None,
     };
     change(&mut asking);
     asking
 }
 
-/// 起一个问判官的任务：名额照 `slots`。
-fn asked(asking: Asking, caller: &Caller, slots: &Slots) -> JoinHandle<Option<Answer>> {
-    tokio::spawn(ask(asking, caller.clone(), texts(), slots.clone()))
+/// 起一个问判官的任务：名额照 `slots`，人格的原文另记一份（[`kept`]）。
+pub(super) fn asked(asking: Asking, caller: &Caller, slots: &Slots) -> JoinHandle<Option<Answer>> {
+    asked_with(asking, caller, slots, &kept())
+}
+
+/// 同 [`asked`]，人格的原文照 `personas` 记：几个任务共用一份。
+pub(super) fn asked_with(
+    asking: Asking,
+    caller: &Caller,
+    slots: &Slots,
+    personas: &Personas,
+) -> JoinHandle<Option<Answer>> {
+    tokio::spawn(ask(
+        asking,
+        caller.clone(),
+        texts(),
+        slots.clone(),
+        personas.clone(),
+    ))
+}
+
+/// 人格的原文记 60 秒（出厂的 `judge_persona_seconds`）。
+pub(super) fn kept() -> Personas {
+    Personas::new(Duration::from_secs(60))
 }
 
 /// 四个名额、排队等 15 秒（出厂的）。
-fn slots() -> Slots {
+pub(super) fn slots() -> Slots {
     Slots::new(4, Duration::from_secs(15))
 }
 
@@ -171,7 +203,7 @@ async fn the_records_come_first_then_the_call_shaped_as_drawn() {
         system.contains("<reply>") && system.contains("<violations 7>"),
         "{system}"
     );
-    assert!(!system.contains("<persona>"), "判官先不带人格：{system}");
+    assert!(!system.contains("<persona>"), "没给人格的不带：{system}");
     assert_eq!(messages[1]["role"], "user");
     let user = messages[1]["text"].as_str().expect("是字");
     for part in ["R1", "C1", "hidden words"] {

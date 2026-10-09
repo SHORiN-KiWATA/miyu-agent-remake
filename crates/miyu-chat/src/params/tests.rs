@@ -31,6 +31,7 @@ fn factory() -> Params {
         judge: Judge {
             model: None,
             records: 20,
+            persona: true,
             max_tokens: 400,
             timeout: 60_000,
             moderation_timeout: 120_000,
@@ -132,6 +133,19 @@ fn the_judge_model_alone_may_be_left_out_and_is_read_when_written() {
         problems(&text),
         [bad(Code::BadFormat, "judge.model", line, 9, "\"cheap\"")]
     );
+}
+
+#[test]
+fn the_judge_persona_is_a_switch_that_is_on_out_of_the_box() {
+    // 出厂开着（施工 O-23 补，2026-10-09 项目主人定：判官也带人格，默认开）；写成假的读成假的。
+    assert!(defaults().judge.persona);
+    let off = Params::read(&file(&edited("persona = true", "persona = false")));
+    assert_eq!(off.map(|p| p.judge.persona), Ok(false));
+    // 写成字的不认；缺了报缺。
+    let text = edited("persona = true", "persona = \"no\"");
+    assert_eq!(code_of(&text, "judge.persona"), Code::WrongType);
+    let text = edited("persona = true", "");
+    assert_eq!(problems(&text), [missing("judge.persona")]);
 }
 
 #[test]

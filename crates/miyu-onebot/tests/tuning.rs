@@ -39,6 +39,8 @@ fn the_shipped_numbers_are_the_blueprints() {
     // 判官全局最多同时问 4 个，排队最多等 15 秒（施工 O-23 下，18 第七节）。
     assert_eq!(tuning.judge_concurrency, 4);
     assert_eq!(tuning.judge_queue(), Duration::from_secs(15));
+    // 判官带的人格原文记一分钟（施工 O-23 补）。
+    assert_eq!(tuning.judge_persona(), Duration::from_secs(60));
     // WebUI（施工 O-16）：页面只有三种文件；内容安全策略只许连自己、不许被框起来；验过的登录令牌记 60 秒。
     assert_eq!(
         tuning.web.types.keys().collect::<Vec<_>>(),
@@ -113,6 +115,10 @@ fn a_bad_file_is_not_read_and_named() {
         (
             "judge-queue-missing",
             good.replace("\"judge_queue_seconds\": 15", "\"t\": 1"),
+        ),
+        (
+            "judge-persona-missing",
+            good.replace("\"judge_persona_seconds\": 60", "\"s\": 1"),
         ),
         ("not-json", "nope".to_string()),
     ] {
