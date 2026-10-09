@@ -49,6 +49,7 @@ mod meta;
 mod model_call;
 mod models;
 mod models_effort;
+mod models_embedding;
 mod models_name;
 mod models_pools;
 mod models_retire;

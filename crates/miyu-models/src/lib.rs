@@ -22,6 +22,7 @@
 pub mod catalog;
 pub mod cooldown;
 pub mod effort;
+pub mod embedding;
 pub mod facts;
 pub mod headers;
 mod knowledge;

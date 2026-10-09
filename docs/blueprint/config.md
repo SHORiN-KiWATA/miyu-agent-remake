@@ -377,7 +377,7 @@ miyu_config::settings! {
 {"groups":[{"id":"display","name":"显示","page":"general"}],"items":[{"applies":"now","common":true,"control":"select","default":"auto","description":"终端、网页、命令行给你看的字用哪种话。auto 跟着终端或浏览器的语言。","group":"display","key":"ui.language","layers":["system","personal"],"name":"界面语言","options":[{"name":"跟随系统","value":"auto"},{"name":"中文","value":"zh"},{"name":"English","value":"en"},{"name":"日本語","value":"ja"}],"page":"general","type":"option"}],"pages":[{"id":"general","name":"通用"}]}
 ```
 
-- 每一项的格：`key`、`type`，照类型带 `options`（选项：`value` 和给人看的 `name`）、`min`、`max`、`max_chars`、`element`，再是 `default`、`layers`、`tighten`（没有不写）、`env`（没有不写）、`applies`、`name`、`description`、`page`、`group`、`common`、`control`，设置页不画的再带 `hidden: true`（施工 9-1 下：网页的空闲、票据那几项）。
+- 每一项的格：`key`、`type`，照类型带 `options`（选项：`value` 和给人看的 `name`；核心查得出的再带 `note`，头接在名字后面暗色写，施工 R-5 再补：现在只有 `models.embedding` 的 `local`，写内置模型的名字，照核心手里的本机清单的 `id`，本机的那一路用不上的没有；不进给人看的字）、`min`、`max`、`max_chars`、`element`，再是 `default`、`layers`、`tighten`（没有不写）、`env`（没有不写）、`applies`、`name`、`description`、`page`、`group`、`common`、`control`，设置页不画的再带 `hidden: true`（施工 9-1 下：网页的空闲、票据那几项）。
 - 写了清单里没有的键：`unknown_config_key`，`data.problems` 里每个不认识的一条：`code` 是 `unknown_key`，`level` 是 `error`（请求写错了，不是文件里的警告），`key`、`message`，有最近的键名的带 `suggest`，没有行列。
 - 名字、说明这种语言里没有的，照英文（`store/resources.md` 第 3 条的退法），英文也没有的名字照键、说明是空的；页、组的名字同样，都没有的照编号。
 
@@ -976,7 +976,7 @@ level = "info"
 # 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。以后开的会话生效。
 # chat =
 
-# 按意思找记忆：她搜记得的事和以前的对话时，意思对、字对不上的也找得到。本机的模型第一次用时下载约 24 MB；指定一家供应商的模型照用量算钱；关了只照关键词找。
+# 语义模型：提高记忆、知识库等内容的检索质量。
 # 能写：local、off 或 <供应商>/<模型>。只能写在系统配置或个人设置里。下一轮生效。
 # embedding =
 
@@ -1350,8 +1350,8 @@ ticket_idle_seconds = 43200
               "type": "string"
             }
           ],
-          "description": "她搜记得的事和以前的对话时，意思对、字对不上的也找得到。本机的模型第一次用时下载约 24 MB；指定一家供应商的模型照用量算钱；关了只照关键词找。能写：local、off 或 <供应商>/<模型>。只能写在系统配置或个人设置里。下一轮生效。",
-          "title": "按意思找记忆"
+          "description": "提高记忆、知识库等内容的检索质量。能写：local、off 或 <供应商>/<模型>。只能写在系统配置或个人设置里。下一轮生效。",
+          "title": "语义模型"
         },
         "vision": {
           "description": "主对话的模型看不了图时，替它看图的模型。写法同主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
@@ -1807,9 +1807,9 @@ ticket_idle_seconds = 43200
 | 说明 | 这个模型的上下文窗口，单位 token。 | The context window of this model, in tokens. | このモデルのコンテキストウィンドウ。単位はトークン。 |
 | `models.vision` 名字（8-8） | 看图的模型 | Vision model | 画像を見るモデル |
 | 说明 | 主对话的模型看不了图时，替它看图的模型。写法同主对话的模型。 | Looks at images for the chat model when it cannot. Written like the chat model. | 会話のモデルが画像を見られないとき、代わりに見るモデル。書き方は会話のモデルと同じです。 |
-| `models.embedding` 名字（R-5 下） | 按意思找记忆 | Search by meaning | 意味で記憶を探す |
-| 说明 | 她搜记得的事和以前的对话时，意思对、字对不上的也找得到。不写的用本机的模型，第一次用时下载约 24 MB；写 off 只照关键词找。 | When she searches what she remembers and past conversations, she also finds what means the same in other words. Left out, the local model is used and downloads about 24 MB the first time; off searches by keywords only. | 覚えていることや以前の会話を探すとき、言葉が違っても意味が合うものも見つけます。書かなければローカルのモデルを使い、初回に約 24 MB をダウンロードします。off はキーワードだけで探します。 |
-| 选项 | `local` 本机的模型、`off` 关 | Local model、Off | ローカルのモデル、オフ |
+| `models.embedding` 名字（R-5 下；R-5 再补改名，2026-10-09 项目主人定） | 语义模型 | Semantic model | 意味モデル |
+| 说明 | 提高记忆、知识库等内容的检索质量。 | Improves search quality for memories, knowledge bases and more. | 記憶やナレッジベースなどの検索の質を高めます。 |
+| 选项 | `local` 内置模型、`off` 关 | Built-in model、Off | 内蔵モデル、オフ |
 | `pools.<id>.models` 名字（8-8） | 池的成员 | Pool members | プールのメンバー |
 | 说明 | 几个模型编成一组，每个写成 供应商/模型。 | A group of models, each written as provider/model. | いくつかのモデルをひとまとめにします。それぞれ プロバイダー/モデル の形で書きます。 |
 | `pools.<id>.strategy` 名字（8-8） | 池的分法 | Pool strategy | プールの分け方 |
@@ -2093,6 +2093,7 @@ Options:
 | `crates/miyu-config/src/list/tests.rs` | 查清单：键重复、按段互为前缀（`ui.lang` 不算）、写法不对（一段、大写、别的字、空段、数字或 `_` 开头）、第一段 `ext`、默认值过不了校验、选项少于两个或写重、一层都没有或层写重，各一例；几处都错的全报 | 8-1 |
 | `crates/miyu-config/src/words/tests.rs` | 查资源的字：缺名字、说明、选项名，页和组没名字，资源里多了项、选项、页、组，各一例。几个里的一个怎么连（一个、两个、三个以上，值和字两种「或」）。一项说明后面那几句。缺了哪一句照实报 | 8-1 |
 | `crates/miyu-config/src/item/kind/model_or_tests.rs`、`dangling/tests.rs` 的 `a_model_or_word_is_not_checked_and_its_model_is` | 模型或几个字（R-5 补）：列出的字、模型都收，池、写错的、空的、不是字的拒；宏照 `model_or [..]` 声明；TOML、协议、人敲的都读得出；说法、Schema 的 `anyOf`；清单里字重了、带 `/`、一个都没有的报（参考文件里的样子由生成文件的样本守着）；`dangling` 不查字、查模型的供应商 | R-5 补 |
+| `crates/miyu-endpoint/tests/config.rs` 的 `a_model_or_item_lists_its_words`、`memory_meaning.rs` 的 `the_built_in_option_notes_the_local_model` | 协议上 `config.schema` 里 `models.embedding` 的类型是 `model_or`、带 `options`（那几个字和它们的名字）、控件 `text`（R-5 补）；名字「语义模型」、说明、`local` 叫「内置模型」，没接本机的那一路的不带 `note`，接上了的「内置模型」带 `note`（本机清单的 `id`），「关」不带（R-5 再补） | R-5 补、R-5 再补 |
 | `crates/miyu-config/src/schema/tests.rs`、`reference/tests.rs`、`value/tests.rs` | 拿假的字和手写的几项：Schema 只有这一层的项、一层层的表、格照字母先后、这一层什么都没有的；参考文件表照名字排、表里的项照名字排、不重开同一张表、每一项两行注释、项间空一行、多行的字每一行都是注释；缺字报是哪一句。值写成 TOML（引号、反斜杠、控制字符转义）、写成 JSON | 8-1 |
 | `crates/miyu-core/tests/settings.rs` | 登记的全部清单过 `list::check`，照登记的先后（8-3 起有 `tui.startup`、8-28 改名 `ui.startup`，8-6 起有模型那一块的六项，O-8 到 O-20 最后是 `onebot.*` 四项，O-20 挪进桥的清单）。`onebot.trusted`（O-17；O-20 起照出厂清单的 `[settings]` 拼进来的那一项查）的类型、层、生效、界面照 `onebot.md` 第一条「软件包清单」，读得出、不写是没有，写进个人设置、不是列表、元素不是字、空的、超过 128 个字的报问题。中文、英文、日文三份（直接读文件）过 `words::check`。照源码树的资源生成的两份 Schema、参考文件和样本逐字节一样（中文、英文），日文生成得出来 | 8-1 |
 | `crates/miyu-core/src/settings/tests.rs` | 起来时生成：字照系统的语言挑（日文、没有的照英文）。资源里缺字、读不懂的，三份各记一条 `WARN`，什么都不写 | 8-1 |

@@ -201,6 +201,15 @@ impl Embedder {
             .map(|ready| ready.manifest.model())
     }
 
+    /// 本机清单的模型名（`id`，施工 R-5 再补）：设置页的「内置模型」后面暗字写它。用不上的没有。
+    pub fn name(&self) -> Option<String> {
+        self.shared
+            .ready
+            .as_ref()
+            .ok()
+            .map(|ready| ready.manifest.id.clone())
+    }
+
     /// 小程序现在拉起着没有（给测试看；以后给头看状态）。
     pub async fn running(&self) -> bool {
         self.shared.slot.lock().await.worker.is_some()

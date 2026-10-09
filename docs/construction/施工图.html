@@ -664,6 +664,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sR-5b"><span class="n">R-5</span>核心接上小程序（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-5c"><span class="n">R-5</span>向量一路（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-5d"><span class="n">R-5</span>远程的 embedding（补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sR-5e"><span class="n">R-5</span>语义模型这一项（再补）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">R-6</span>抽取</span></li>
         <li><span class="step"><span class="n">R-7</span>合并</span></li>
         <li><span class="step"><span class="n">R-8</span>联想</span></li>
@@ -17205,6 +17206,56 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/R-5-远程的embedding（补）.md</code>；蓝图 <code>recall.md</code> 第三条第 1、5、6 款、第四条第 1、7 款，<code>config.md</code> 的类型表和 <code>models.embedding</code>，<code>models.md</code> 的 <code>[models]</code>，<code>http.md</code>，<code>log.md</code>，<code>core.md</code> 第 10 步。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sR-5e" aria-labelledby="h-sR5e">
+  <div class="sheet-head"><h2 id="h-sR5e"><span class="no">R-5</span>语义模型这一项（再补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">设置页上这一项人看得懂、选得了：叫「语义模型」，说它管什么；内置的那一个后面暗字写模型名；指定一家的模型时从能出向量的里挑。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-models · miyu-endpoint · resources</span><span class="dir-note">R-5</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>名字、说明、选项的名字照项目主人定的改</li>
+              <li>config.schema 的选项多可以没有的 note：内置模型的名字</li>
+              <li>model.list 里能出向量的模型标 embedding</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">照名字认</span><span class="rl">目录不标 embedding 的输出种类</span></div>
+          <div class="tile new"><span class="nm">规矩是数据</span><span class="rl">models/embedding.toml</span></div>
+          <div class="tile new"><span class="nm">暗字照核心查</span><span class="rl">不进给人看的字</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-5</dd></div>
+        <div><dt>名称</dt><dd>语义模型这一项（再补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">待合</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、核心的主会话看形状 · 自己验收</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新测试：名字的规矩 3 条、出厂规矩照目录快照 1 条、model.list 2 条、config.schema 2 条；13 个手写变异全被逮住</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-5-语义模型（再补）.md</code>；蓝图 <code>config.md</code>「协议」和「给人看的字」，<code>protocol.md</code> 的 <code>config.schema</code>，<code>models.md</code>「协议」<code>model.list</code>，<code>recall.md</code> 第四条第 1 款。</li>
       </ul>
     </div>
   </div>

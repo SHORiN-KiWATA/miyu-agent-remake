@@ -21,7 +21,7 @@ level = "info"
 # Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Applies to sessions opened from now on.
 # chat =
 
-# Search by meaning: When she searches what she remembers and past conversations, she also finds what means the same in other words. The local model downloads about 24 MB the first time; a provider's model is billed by usage; turned off, she searches by keywords only.
+# Semantic model: Improves search quality for memories, knowledge bases and more.
 # Allowed: local, off or <provider>/<model>. Only in the system config or personal settings. Takes effect next turn.
 # embedding =
 

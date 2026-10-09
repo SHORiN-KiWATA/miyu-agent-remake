@@ -168,8 +168,8 @@
               "type": "string"
             }
           ],
-          "description": "When she searches what she remembers and past conversations, she also finds what means the same in other words. The local model downloads about 24 MB the first time; a provider's model is billed by usage; turned off, she searches by keywords only. Allowed: local, off or <provider>/<model>. Only in the system config or personal settings. Takes effect next turn.",
-          "title": "Search by meaning"
+          "description": "Improves search quality for memories, knowledge bases and more. Allowed: local, off or <provider>/<model>. Only in the system config or personal settings. Takes effect next turn.",
+          "title": "Semantic model"
         },
         "vision": {
           "description": "Looks at images for the chat model when it cannot. Written like the chat model. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.",

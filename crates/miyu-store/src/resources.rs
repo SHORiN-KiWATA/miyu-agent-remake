@@ -390,6 +390,16 @@ impl ResourceRoot {
         self.read(&["core", "models", "probe.txt"])
     }
 
+    /// 认能出向量的模型的规矩的原文（`models/embedding.toml`，施工 R-5 再补）：`model.list` 的 `embedding` 照它标。怎么读由
+    /// `miyu_models::embedding` 定。
+    ///
+    /// # Errors
+    ///
+    /// 读不出来：写明是哪个文件。
+    pub fn embedding_names(&self) -> Result<String, SourceError> {
+        self.read(&["models", "embedding.toml"])
+    }
+
     /// 认原厂的表的原文（`models/vendors.toml`，施工 8-7）。怎么读由核心定。
     ///
     /// # Errors

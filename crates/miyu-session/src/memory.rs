@@ -13,7 +13,7 @@ mod vectors;
 pub use keeper::{Filter, Keeper, Stamp};
 pub(crate) use port::Calls;
 pub use summary::SummaryTexts;
-pub use vectors::{Query, Using, Vectors};
+pub use vectors::{LOCAL as EMBED_LOCAL, Query, Using, Vectors};
 
 use std::sync::{Arc, OnceLock};
 

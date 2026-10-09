@@ -68,10 +68,10 @@
         "description": "Looks at images for the chat model when it cannot. Written like the chat model."
       },
       "models.embedding": {
-        "name": "Search by meaning",
-        "description": "When she searches what she remembers and past conversations, she also finds what means the same in other words. The local model downloads about 24 MB the first time; a provider's model is billed by usage; turned off, she searches by keywords only.",
+        "name": "Semantic model",
+        "description": "Improves search quality for memories, knowledge bases and more.",
         "options": {
-          "local": "Local model",
+          "local": "Built-in model",
           "off": "Off"
         }
       },

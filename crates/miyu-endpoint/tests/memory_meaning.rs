@@ -39,21 +39,26 @@ fn program() -> PathBuf {
 /// 接上小模型的核心：系统配置里默认人格是软件工程师。
 fn core(home: &Home) -> Arc<miyu_endpoint::Core> {
     home.write("system/config.toml", "[persona]\ndefault = \"engineer\"\n");
+    let setup = local(home);
+    let configured = venues::configured_core(home, &Script::new([]), miyu_tool::Catalog::default());
+    let core = Arc::try_unwrap(configured).unwrap_or_else(|_| panic!("刚造的只有一份"));
+    Arc::new(core.with_vectors(Some(setup)))
+}
+
+/// 本机的那一路：小模型的文件事先放进缓存目录（核对得上，不下）。
+fn local(home: &Home) -> EmbedSetup {
     let cache = home.work.join("cache").join("embed");
     std::fs::create_dir_all(cache.join("tiny")).expect("建得了");
     for name in ["model.onnx", "vocab.txt"] {
         std::fs::copy(tiny().join(name), cache.join("tiny").join(name)).expect("放得下");
     }
-    let setup = EmbedSetup {
+    EmbedSetup {
         program: Some(program()),
         manifest: tiny().join("manifest.toml"),
         cache: Some(cache),
         client: miyu_http::fetcher(miyu_http::Proxy::Off).expect("造得出"),
         idle: Duration::from_secs(600),
-    };
-    let configured = venues::configured_core(home, &Script::new([]), miyu_tool::Catalog::default());
-    let core = Arc::try_unwrap(configured).unwrap_or_else(|_| panic!("刚造的只有一份"));
-    Arc::new(core.with_vectors(Some(setup)))
+    }
 }
 
 /// 接上远程的核心：一家 `emb` 在假服务器上，key 照核心的环境变量取，`models.embedding` 指着它的 `text-emb`；没有本机的。
@@ -156,4 +161,35 @@ async fn a_remote_model_is_asked_with_the_current_config_and_billed_to_the_admin
         journal.contains(r#""body":{"purpose":"embedding","endpoint":"emb","model":"text-emb","usage":{"uncached":5"#),
         "{journal}"
     );
+}
+
+/// 接上本机的那一路的核心（施工 R-5 再补）：`config.schema` 里「内置模型」后面暗字写本机清单的模型名（小模型叫 `tiny`）。
+#[tokio::test]
+async fn the_built_in_option_notes_the_local_model() {
+    let home = Home::new();
+    home.write("system/config.toml", "");
+    let items = [
+        miyu_endpoint::settings::UiSettings::ITEMS,
+        miyu_models::settings::UseSettings::ITEMS,
+    ]
+    .concat();
+    let config = miyu_endpoint::config::Config::load(
+        &home.root,
+        &alice(),
+        None,
+        items,
+        miyu_endpoint::config::Environment::of(&[]),
+    );
+    let core = home
+        .core_full(&Script::new([]), miyu_tool::Catalog::default(), None, TOKEN)
+        .with_config(config)
+        .with_vectors(Some(local(&home)));
+    let mut client = Client::connect(Arc::new(core));
+    client.hello().await;
+    let reply = client
+        .call("c1", "config.schema", json!({"keys": ["models.embedding"]}))
+        .await;
+    let options = &reply["result"]["items"][0]["options"];
+    assert_eq!(options[0]["note"], "tiny", "{reply}");
+    assert!(options[1].get("note").is_none(), "关没有暗字：{reply}");
 }

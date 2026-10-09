@@ -36,8 +36,8 @@ const PREPARING: Duration = Duration::from_secs(1);
 /// 补的时候连着几条算不出，这一回就不补了。
 const STREAK: u32 = 3;
 
-/// `models.embedding` 照本机的写法。
-const LOCAL: &str = "local";
+/// `models.embedding` 照本机的写法：设置页上叫「内置模型」，后面暗字写 [`Vectors::local_name`]（施工 R-5 再补）。
+pub const LOCAL: &str = "local";
 
 /// `models.embedding` 关掉的写法。
 const OFF: &str = "off";
@@ -112,6 +112,12 @@ impl Vectors {
             data,
             filling: Mutex::new(BTreeSet::new()),
         }
+    }
+
+    /// 本机的那一路的模型名（清单的 `id`，施工 R-5 再补）：`config.schema` 里「内置模型」后面暗字写它。没有本机的、用不上的
+    /// 没有。
+    pub fn local_name(&self) -> Option<String> {
+        self.local.as_ref()?.name()
     }
 
     /// 照 `using` 挑：模型编号和算的那一路。`off` 的、要本机的却没有的没有。

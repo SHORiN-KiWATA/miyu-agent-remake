@@ -7,6 +7,7 @@ mod support;
 
 mod catalog;
 mod config_words;
+mod embedding_names;
 mod packages;
 mod serve;
 mod settings;

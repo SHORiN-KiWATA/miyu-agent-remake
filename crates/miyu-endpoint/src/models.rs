@@ -4,7 +4,8 @@
 //! `null`。8-8 的 `tiers` 8-8 补去掉了。模型、key 的冷却（施工 8-9）照核心一份的冷却表，照这一刻说。`session.create` 的
 //! `model` 怎么解析也在这里（[`record`]，施工 8-8）。`session.configure` 的参数（[`ConfigureParams`]，施工 8-10）、
 //! `subscribe` 回应的 `model`（[`next`]，施工 8-10；8-18 多 `effort`，从哪来是配置的哪一层，8-18（补））也在这里。
-//! `model.call` 经一次性入口叫一次模型（`models/call.rs`，施工 8-20）。
+//! `model.call` 经一次性入口叫一次模型（`models/call.rs`，施工 8-20）。能出向量的模型多一格 `embedding`（施工 R-5 再补，照资源
+//! 目录的 `models/embedding.toml` 认，[`embedding_names`]）。
 //!
 //! 1. 先等目录读完（核心写了 `ready` 以后才读）。
 //! 2. `provider` 写了、不是配好了的：`unknown_provider`。
@@ -25,6 +26,7 @@ use serde_json::{Value, json};
 
 use miyu_config::secret::{Reference, Secret};
 use miyu_config::{Layer, Values};
+use miyu_models::embedding::EmbeddingNames;
 use miyu_models::pools;
 use miyu_models::provider::{self, NoModel};
 use miyu_models::settings::{PoolSettings, ProviderSettings, UseSettings};
@@ -127,9 +129,10 @@ pub(crate) async fn list(core: &Core, params: Value) -> Result<Value, Refusal> {
         refresh_stale(&data, &snapshot, &chosen);
     }
     let now = crate::sessions::now();
+    let names = embedding_names(core);
     let providers: Vec<Value> = chosen
         .iter()
-        .map(|id| entry::provider(&data, &snapshot, id, now))
+        .map(|id| entry::provider(&data, &snapshot, id, now, &names))
         .collect();
     let catalog = data.catalog().map_or(
         Value::Null,
@@ -142,6 +145,20 @@ pub(crate) async fn list(core: &Core, params: Value) -> Result<Value, Refusal> {
         "uses": {"chat": uses.chat, "vision": uses.vision},
         "catalog": catalog,
     }))
+}
+
+/// 认能出向量的模型的规矩（施工 R-5 再补）：每次照资源目录的 `models/embedding.toml` 读。读不了、写错了的这一次一个都不标，
+/// 记一行 `WARN`，`model.list` 照常答。
+fn embedding_names(core: &Core) -> EmbeddingNames {
+    let read = core
+        .resources
+        .embedding_names()
+        .map_err(|error| error.to_string())
+        .and_then(|text| EmbeddingNames::parse(&text));
+    read.unwrap_or_else(|error| {
+        tracing::warn!(target: "miyu::endpoint", error = error.as_str(), "embedding names unreadable");
+        EmbeddingNames::default()
+    })
 }
 
 /// 每个池：名字、怎么分（没写的照成员定）、写的成员（照写的原样），派子代理能不能选（没写的是 `false`）、给模型看的说明

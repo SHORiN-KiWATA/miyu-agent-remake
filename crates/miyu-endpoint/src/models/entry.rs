@@ -14,6 +14,8 @@
 //! - 思考强度的那一格多 `key`（施工 8-18（补），`models.md`「协议」）：这一项完整的配置键名，头照抄它发 `config.set`。
 //! - 显示名 `name`（施工 8-21）：写了的照写的（带文件、行、层），只有空白的当没写；没写的、对上了目录的照目录里那一家
 //!   的名字；都没有的照编号。用不了的那一家也有。也带 `key`。
+//! - 能出向量的（施工 R-5 再补）：照 `names`（资源目录的 `models/embedding.toml`）认模型名和目录里那个条目的 `family`，认得出
+//!   的多一格 `embedding: true`，不是的不写。
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -26,6 +28,7 @@ use miyu_config::merge::Origin;
 use miyu_kernel::time::Timestamp;
 use miyu_models::cooldown::{Candidate, Cooling};
 use miyu_models::effort;
+use miyu_models::embedding::EmbeddingNames;
 use miyu_models::facts::facts;
 use miyu_models::matching::Found;
 use miyu_models::provider::{self, NoModel, key_name};
@@ -36,8 +39,14 @@ use miyu_session::ModelData;
 
 use super::Snapshot;
 
-/// 编号 `id` 这一家，冷却照 `now` 这一刻。
-pub(crate) fn provider(data: &ModelData, snapshot: &Snapshot, id: &str, now: Timestamp) -> Value {
+/// 编号 `id` 这一家，冷却照 `now` 这一刻，能出向量的照 `names` 认。
+pub(crate) fn provider(
+    data: &ModelData,
+    snapshot: &Snapshot,
+    id: &str,
+    now: Timestamp,
+    names: &EmbeddingNames,
+) -> Value {
     let values = snapshot.resolved.values();
     let settings = ProviderSettings::at(&values, &[id]);
     // 这一家的 key（施工 8-25：一家一个）：引用的写法、取不取得到、这一家整个冷不冷（认证失败停的）。没写的没有这一格。
@@ -122,6 +131,12 @@ pub(crate) fn provider(data: &ModelData, snapshot: &Snapshot, id: &str, now: Tim
                         }
                         if let Found::Missing(missing) = matched {
                             entry["catalog_missing"] = json!(missing);
+                        }
+                        let family = catalog_models
+                            .and_then(|listed| listed.models.get(&model))
+                            .and_then(|known| known.family.as_deref());
+                        if names.matches(&model, family) {
+                            entry["embedding"] = json!(true);
                         }
                         entry
                     })
