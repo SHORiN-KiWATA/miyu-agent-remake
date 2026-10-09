@@ -35,6 +35,7 @@ use crate::store::Store;
 use crate::tools::{Dispatch, ToolKit, Tools};
 
 mod back;
+mod extract;
 mod halt;
 mod listing;
 mod mail;

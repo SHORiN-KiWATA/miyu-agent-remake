@@ -8,10 +8,13 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use miyu_kernel::id::{CommandId, SessionId, TurnId};
-use miyu_kernel::origin::By;
+use miyu_kernel::id::{CommandId, ModuleId, Seq, SessionId, TurnId};
+use miyu_kernel::origin::{By, Module};
 use miyu_kernel::time::Timestamp;
-use miyu_recall::{Cleared, Entry, MemoryEvent, MemoryId, Retired, Saved, Source, fuse};
+use miyu_recall::extract::Candidate;
+use miyu_recall::{
+    Cleared, Entry, Extracted, MemoryEvent, MemoryId, Retired, Saved, Skipped, Source, fuse,
+};
 use miyu_store::memory::{MemoryLog, Report};
 use miyu_store::recall::{Opened, Room};
 use miyu_tool::{FoundTurn, Refused, Remember};
@@ -95,6 +98,77 @@ impl Keeper {
         };
         self.append(&log, stamp, &MemoryEvent::Saved(saved))
             .map(|(id, _)| id)
+    }
+
+    /// 抽取要的几样（施工 R-6 上）：核心没交的没有，不抽。
+    pub(crate) fn extraction(&self) -> Option<super::Extraction> {
+        self.memory.extraction().cloned()
+    }
+
+    /// 会话 `session` 抽到了它日志的第几条（施工 R-6 上，`memory.md` 第六条）；还没抽过的是 `None`。
+    ///
+    /// # Errors
+    ///
+    /// 记忆日志开不了。
+    pub(crate) fn extracted(&self, session: &SessionId) -> Result<Option<Seq>, Refused> {
+        Ok(self.log()?.book(|book| book.extracted(session)))
+    }
+
+    /// 记下会话 `session` 抽出来的几条（施工 R-6 上）：`by` 是记忆模块，出处各是那一轮，听众是这次的听众；再记一条它抽到了
+    /// 第 `upto` 条（整段跳过的带上为什么）。交回记下了几条。候选在前、记号在后：中途写不进的，下次重抽这一段。
+    ///
+    /// # Errors
+    ///
+    /// 记忆日志开不了、写不进。
+    pub(crate) fn record_extraction(
+        &self,
+        at: Timestamp,
+        session: &SessionId,
+        upto: Seq,
+        found: Vec<Candidate>,
+        skipped: Option<Skipped>,
+    ) -> Result<u32, Refused> {
+        let log = self.log()?;
+        let by = By::Module(Module {
+            id: ModuleId::parse(super::MODULE).expect("合模块编号的写法"),
+        });
+        let mut count = 0;
+        for candidate in found {
+            let Some(turn) = Seq::new(candidate.turn).map(TurnId::new) else {
+                continue;
+            };
+            let saved = Saved {
+                class: candidate.class,
+                text: candidate.text,
+                sources: vec![Source {
+                    session: session.clone(),
+                    turn,
+                }],
+                audience: self.hearers.clone(),
+                replaces: None,
+                about: candidate.about,
+            };
+            let stamp = Stamp {
+                at,
+                by: by.clone(),
+                cause: None,
+            };
+            self.append(&log, stamp, &MemoryEvent::Saved(saved))?;
+            count += 1;
+        }
+        let mark = Extracted {
+            session: session.clone(),
+            upto,
+            count,
+            skipped,
+        };
+        let stamp = Stamp {
+            at,
+            by,
+            cause: None,
+        };
+        self.append(&log, stamp, &MemoryEvent::Extracted(mark))?;
+        Ok(count)
     }
 
     /// 改一条（协议的 `memory.update`）：新记一条 `replaces` 它，类照旧的，出处空。

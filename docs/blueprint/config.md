@@ -257,6 +257,9 @@ miyu_config::settings! {
 | `ui.head` | 名字（软件包的编号） | `tui` | 系统、个人 | 不能写 | `head_start` | 9-3（`cli/main.md`「怎么走」第 3 条）：直接敲 `miyu`、`miyu config` 时打开哪个界面；主程序每次敲的时候经 `config.get` 读，照清单找这个包的程序。界面提示：通用页的「显示」组，文字 |
 | `ui.welcomed` | 布尔 | `false` | 个人 | 不能写 | `now` | 8-11 四补（2026-10-08 终端、网页两个头要的，`cli/setup.md` 以外的第一次引导）：这个账号走完了第一次引导。头走完写 `true`（`config.set` 个人设置），以后不再进引导，缺什么去配置页补；进不进只看它，不看有没有模型。核心不读它。设置页不画（`hidden`） |
 | `compaction.prepare` | 开关 | `true` | 系统、个人 | 不能写 | `next_turn` | 6-11 上（`compaction.md` 第十五条）：提前压好，会话 actor 回合开始时读、交给内核。设置页在「高级」那一页的「压缩」一组，排在「运行日志」前面 |
+| `memory.extract_idle` | 时长，60 秒到 1 小时 | `3m` | 系统、个人 | 不能写 | `next_turn` | R-6 上（`memory.md` 第六条第 1 款）：会话闲了多久才抽新的一段；设置页在「高级」那一页的「记忆」一组 |
+| `memory.extract_turns` | 整数 1 到 100 | `2` | 系统、个人 | 不能写 | `next_turn` | R-6 上：上次抽到以后至少有几轮她答了话才抽 |
+| `memory.organizer` | 引用 | 没有：照 `models.chat` | 系统、个人 | 不能写 | `next_turn` | R-6 上：抽取（以后的合并也是）照哪个模型发，经一次性入口、用途 `memory` 记账。三项先照核心声明，插件框架做到「配置项照包归组」时挪进记忆包（2026-10-09 核心的主会话定） |
 | `persona.default` | 名字（人格的编号） | 没有 | 系统、个人 | 不能写 | `new_session` | P-1 上（`personas.md`）：没指定人格的新会话照它找；没设的无人格，指着没有的人格当没设（施工 P-4 上：出厂不设，原来是 `engineer`；预设不再管默认人格） |
 | `preset.default` | 名字（预设的编号） | `full` | 系统、个人 | 不能写 | `new_session` | P-2 上（`presets.md`）：没指定预设的新会话照它找；指着没有的预设，造会话回 `unknown_preset`，不悄悄换（Y12）。设置页在「通用」那一页的「预设」一组 |
 | `models.chat` | 引用 | 没有：`no_model` | 系统、个人 | 不能写 | `new_session` | 8-6 |
@@ -971,6 +974,19 @@ prepare = true
 # 能写：error、warn、info、debug、trace 或 off。只能写在系统配置里。当场生效。
 level = "info"
 
+[memory]
+# 整理记忆前等多久：聊完闲了这么久，她把新聊的内容里值得记的整理成记忆。
+# 能写：1m 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。下一轮生效。
+extract_idle = "3m"
+
+# 攒几轮再整理：上次整理以后至少聊了这么多轮才整理。
+# 能写：1 到 100 之间的整数。只能写在系统配置或个人设置里。下一轮生效。
+extract_turns = 2
+
+# 整理记忆的模型：整理记忆时用的模型，照用量算钱。没选的用主对话的模型。
+# 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。
+# organizer =
+
 [models]
 # 主对话的模型：新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash；也能写 @池。
 # 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。以后开的会话生效。
@@ -1222,6 +1238,31 @@ ticket_idle_seconds = 43200
           "description": "上下文快满时，在后台先把旧的那一段压成摘要，到了要压缩的时候直接换上，不用停下来等。关掉的话，照旧到线再压。能写：true 或 false。只能写在系统配置或个人设置里。下一轮生效。",
           "title": "提前压好",
           "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "memory": {
+      "properties": {
+        "extract_idle": {
+          "default": "3m",
+          "description": "聊完闲了这么久，她把新聊的内容里值得记的整理成记忆。能写：1m 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。下一轮生效。",
+          "pattern": "^[0-9]+[smh]?$",
+          "title": "整理记忆前等多久",
+          "type": "string"
+        },
+        "extract_turns": {
+          "default": 2,
+          "description": "上次整理以后至少聊了这么多轮才整理。能写：1 到 100 之间的整数。只能写在系统配置或个人设置里。下一轮生效。",
+          "maximum": 100,
+          "minimum": 1,
+          "title": "攒几轮再整理",
+          "type": "integer"
+        },
+        "organizer": {
+          "description": "整理记忆时用的模型，照用量算钱。没选的用主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
+          "title": "整理记忆的模型",
+          "type": "string"
         }
       },
       "type": "object"
@@ -1810,6 +1851,12 @@ ticket_idle_seconds = 43200
 | `models.embedding` 名字（R-5 下；R-5 再补改名，2026-10-09 项目主人定） | 语义模型 | Semantic model | 意味モデル |
 | 说明 | 提高记忆、知识库等内容的检索质量。 | Improves search quality for memories, knowledge bases and more. | 記憶やナレッジベースなどの検索の質を高めます。 |
 | 选项 | `local` 内置模型、`off` 关 | Built-in model、Off | 内蔵モデル、オフ |
+| `memory.extract_idle` 名字（R-6 上） | 整理记忆前等多久 | Wait before organizing memories | 記憶を整理するまでの待ち時間 |
+| 说明 | 聊完闲了这么久，她把新聊的内容里值得记的整理成记忆。 | Once the conversation has been quiet this long, she turns what is worth keeping from the new part into memories. | 会話がこの時間止まると、新しい部分のうち覚えておく価値のあるものを記憶にまとめます。 |
+| `memory.extract_turns` 名字（R-6 上） | 攒几轮再整理 | Turns before organizing | 整理までのターン数 |
+| 说明 | 上次整理以后至少聊了这么多轮才整理。 | She organizes only after at least this many turns since the last time. | 前回の整理からこのターン数以上話したときだけ整理します。 |
+| `memory.organizer` 名字（R-6 上） | 整理记忆的模型 | Memory organizer model | 記憶を整理するモデル |
+| 说明 | 整理记忆时用的模型，照用量算钱。没选的用主对话的模型。 | The model used to organize memories, billed by usage. If none is chosen, the chat model is used. | 記憶の整理に使うモデルです。使った分だけ料金がかかります。選ばなければ会話のモデルを使います。 |
 | `pools.<id>.models` 名字（8-8） | 池的成员 | Pool members | プールのメンバー |
 | 说明 | 几个模型编成一组，每个写成 供应商/模型。 | A group of models, each written as provider/model. | いくつかのモデルをひとまとめにします。それぞれ プロバイダー/モデル の形で書きます。 |
 | `pools.<id>.strategy` 名字（8-8） | 池的分法 | Pool strategy | プールの分け方 |
@@ -1842,6 +1889,7 @@ ticket_idle_seconds = 43200
 | 组 `pools`（`models`，8-8） | 池 | Pools | プール |
 | 组 `providers`（`models`） | 供应商 | Providers | プロバイダー |
 | 组 `log`（`advanced`） | 运行日志 | Runtime log | 実行ログ |
+| 组 `memory`（`advanced`，R-6 上） | 记忆 | Memory | 記憶 |
 
 **生成的文件要的几句**（`core/human/<语言>.json` 的 `said`，编号前面加 `core/`，8-1）。日文照中文写，用词照终端界面的日文（施工 4-5 补），句子里用全角的「：」：
 

@@ -5,6 +5,18 @@
         "name": "Prepare compaction early",
         "description": "When the context is nearly full, the older part is summarized in the background, so the switch happens without a wait when compaction is due. Off means compacting only once the limit is reached, as before."
       },
+      "memory.extract_idle": {
+        "name": "Wait before organizing memories",
+        "description": "Once the conversation has been quiet this long, she turns what is worth keeping from the new part into memories."
+      },
+      "memory.extract_turns": {
+        "name": "Turns before organizing",
+        "description": "She organizes only after at least this many turns since the last time."
+      },
+      "memory.organizer": {
+        "name": "Memory organizer model",
+        "description": "The model used to organize memories, billed by usage. If none is chosen, the chat model is used."
+      },
       "log.level": {
         "name": "Runtime log level",
         "description": "How much the runtime log records. Set debug when chasing a problem. MIYU_LOG, when set, wins for that launch.",
@@ -253,6 +265,7 @@
       "persona": "Persona",
       "preset": "Preset",
       "compaction": "Compaction",
+      "memory": "Memory",
       "log": "Runtime log",
       "sessions": "Sessions",
       "uses": "Uses",

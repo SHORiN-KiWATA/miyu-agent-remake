@@ -18,15 +18,17 @@ use miyu_tool::{FoundMemory, MEMORIES, MemoryPort, Pending, Refused, Remember, S
 use crate::blocking::blocking;
 use crate::config::TurnConfig;
 
-use super::{Keeper, Memory, Query, Stamp, Using};
+use super::{Extractor, Keeper, Memory, Query, Stamp, Using};
 
 /// 一个主会话的记忆：每次调用照它造端口。
 #[derive(Clone)]
 pub(crate) struct Calls {
     keeper: Keeper,
     session: SessionId,
-    /// 属主：远程算向量的用量记在他名下（施工 R-5 补）。
+    /// 属主：远程算向量的用量记在他名下（施工 R-5 补）；抽取的也是（施工 R-6 上）。
     owner: AccountId,
+    /// 这个会话的抽取（施工 R-6 上）：闹钟、在路上的那一次。
+    extractor: Arc<Extractor>,
 }
 
 impl Calls {
@@ -42,7 +44,13 @@ impl Calls {
             keeper: Keeper::new(memory, room, hearers),
             session: session.clone(),
             owner: owner.clone(),
+            extractor: Arc::default(),
         }
+    }
+
+    /// 抽取用的（施工 R-6 上）：记在哪一间的那一份、哪个会话、谁付钱、这个会话的抽取状态。
+    pub(crate) fn extracting(&self) -> (&Keeper, &SessionId, &AccountId, &Arc<Extractor>) {
+        (&self.keeper, &self.session, &self.owner, &self.extractor)
     }
 
     /// 记忆放在哪一间：交给 [`crate::Handle`]，协议照它找这个会话的记忆（施工 R-3 补）。

@@ -390,6 +390,16 @@ impl ResourceRoot {
         self.read(&["core", "models", "probe.txt"])
     }
 
+    /// 常见的 key 写法的原文（`core/memory/secrets.toml`，施工 R-6 上）：抽取发出去以前、记下以前照它遮 key。怎么读由
+    /// `miyu_recall::redact` 定。
+    ///
+    /// # Errors
+    ///
+    /// 读不出来：写明是哪个文件。
+    pub fn memory_secrets(&self) -> Result<String, SourceError> {
+        self.read(&["core", "memory", "secrets.toml"])
+    }
+
     /// 认能出向量的模型的规矩的原文（`models/embedding.toml`，施工 R-5 再补）：`model.list` 的 `embedding` 照它标。怎么读由
     /// `miyu_models::embedding` 定。
     ///

@@ -667,7 +667,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sR-5c"><span class="n">R-5</span>向量一路（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-5d"><span class="n">R-5</span>远程的 embedding（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-5e"><span class="n">R-5</span>语义模型这一项（再补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">R-6</span>抽取</span></li>
+        <li><a class="step done" href="#sR-6"><span class="n">R-6</span>抽取（上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">R-6</span>抽取（下）</span></li>
         <li><span class="step"><span class="n">R-7</span>合并</span></li>
         <li><span class="step"><span class="n">R-8</span>联想</span></li>
         <li><span class="step"><span class="n">R-9</span>记忆验收</span></li>
@@ -17375,6 +17376,56 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/R-5-语义模型（再补）.md</code>；蓝图 <code>config.md</code>「协议」和「给人看的字」，<code>protocol.md</code> 的 <code>config.schema</code>，<code>models.md</code>「协议」<code>model.list</code>，<code>recall.md</code> 第四条第 1 款。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sR-6" aria-labelledby="h-sR6">
+  <div class="sheet-head"><h2 id="h-sR6"><span class="no">R-6</span>抽取（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">人不用说「记住」：会话闲下来一会儿，她把新聊的这一段里值得记的整理成记忆。零条是常态。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-kernel · miyu-assemble · miyu-recall · miyu-session</span><span class="dir-note">R-6</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>闲了三分钟、攒够两轮就起；忙起来就撤</li>
+              <li>这一段照会话日志取，压缩过的、重启前的都不丢</li>
+              <li>遮掉 key 发给整理的模型，交回的记成记忆</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">从日志取</span><span class="rl">内核手里的历史检查点以前的没了</span></div>
+          <div class="tile new"><span class="nm">不卡在一轮上</span><span class="rl">太长的截中间也抽、往前走</span></div>
+          <div class="tile new"><span class="nm">她记过的整段跳过</span><span class="rl">照 Claude Code</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-6</dd></div>
+        <div><dt>名称</dt><dd>抽取（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">待合</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型、核心的主会话审 · 自己验收</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新测试：会话 8 条、拼法 6 条、读回和遮 key 7 条、抽到哪 2 条、渲染这一段 3 条；真模型抽了一次，记得对、该丢的丢了</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-6-抽取.md</code>；蓝图 <code>memory.md</code> 第六条，<code>config.md</code> 的三项，<code>log.md</code>，<code>kernel/session.md</code>，<code>26-提示词.md</code> 第十节。</li>
       </ul>
     </div>
   </div>

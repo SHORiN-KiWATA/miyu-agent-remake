@@ -342,3 +342,44 @@ fn clearing_counts_what_could_be_seen() {
     }
     assert!(book.all().all(|entry| entry.cleared), "旧版本也标成清掉");
 }
+
+/// 抽到哪（施工 R-6 上）：`ext.memory.extracted` 读写对得上，跳过的原因写成小写的字，没跳的不写；底账照最大的 `upto` 记。
+#[test]
+fn an_extraction_mark_round_trips_and_the_book_keeps_the_furthest() {
+    let session = SessionId::parse("0192f3a0-1111-7abc-8def-001122334455").expect("合写法");
+    let mark = |upto: u64, skipped| {
+        MemoryEvent::Extracted(Extracted {
+            session: session.clone(),
+            upto: seq(upto),
+            count: 2,
+            skipped,
+        })
+    };
+    let event =
+        to_event(seq(3), at(1), admin(), &mark(9, Some(Skipped::Remembered))).expect("写得出");
+    assert!(
+        event.to_line().ends_with(r#""body":{"session":"0192f3a0-1111-7abc-8def-001122334455","upto":9,"count":2,"skipped":"remembered"}}"#),
+        "{}",
+        event.to_line()
+    );
+    let back = Event::from_line(&event.to_line()).expect("读得回");
+    assert_eq!(
+        from_event(&back),
+        Some(Ok(mark(9, Some(Skipped::Remembered))))
+    );
+    let plain = to_event(seq(4), at(1), admin(), &mark(5, None)).expect("写得出");
+    assert!(
+        plain.to_line().ends_with(r#""count":2}}"#),
+        "没跳的不写 skipped"
+    );
+    let mut book = MemoryBook::default();
+    for event in [&event, &plain] {
+        book.see(event).expect("读得懂");
+    }
+    assert_eq!(
+        book.extracted(&session),
+        Some(seq(9)),
+        "后来写的小的不往回退"
+    );
+    assert_eq!(book.all().count(), 0);
+}

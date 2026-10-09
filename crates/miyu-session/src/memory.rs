@@ -5,12 +5,18 @@
 //! 回合库是派生的：更新失败记一行 `WARN memory index not updated`，会话照常；照到的位置没往前挪，下次载入照日志补。
 
 mod backfill;
+mod extract;
 mod keeper;
 mod port;
 mod summary;
 mod vectors;
 
+pub use extract::{ExtractTexts, Extraction};
+pub(crate) use extract::{Extractor, Job, plan};
 pub use keeper::{Filter, Keeper, Stamp};
+
+/// 记忆模块的编号：注入、抽取记下的 `by` 都是它（施工 R-4 上、R-6 上）。
+pub(crate) const MODULE: &str = "memory";
 pub(crate) use port::Calls;
 pub use summary::SummaryTexts;
 pub use vectors::{LOCAL as EMBED_LOCAL, Query, Using, Vectors};
@@ -40,6 +46,8 @@ pub struct Memory {
     pub summary: Option<SummaryTexts>,
     /// 照意思找的那一路（施工 R-5 下）：核心起来时接上（[`Memory::give_vectors`]），没接的只照关键词找。
     vectors: OnceLock<Arc<Vectors>>,
+    /// 抽取要的几样（施工 R-6 上）：核心起来时交（[`Memory::give_extraction`]），没交的不抽。
+    extraction: OnceLock<Extraction>,
 }
 
 impl Memory {
@@ -74,6 +82,7 @@ impl Memory {
             logs: Arc::new(MemoryLogs::new(root)),
             summary,
             vectors: OnceLock::new(),
+            extraction: OnceLock::new(),
         })
     }
 }
@@ -87,6 +96,16 @@ impl Memory {
     /// 照意思找的那一路：没接的没有。
     pub fn vectors(&self) -> Option<&Arc<Vectors>> {
         self.vectors.get()
+    }
+
+    /// 交上抽取要的几样（施工 R-6 上）：核心起来、造好一次性入口以后交一次；交过的再交不算，交回 `false`。
+    pub fn give_extraction(&self, extraction: Extraction) -> bool {
+        self.extraction.set(extraction).is_ok()
+    }
+
+    /// 抽取要的几样：没交的没有，不抽。
+    pub(crate) fn extraction(&self) -> Option<&Extraction> {
+        self.extraction.get()
     }
 }
 

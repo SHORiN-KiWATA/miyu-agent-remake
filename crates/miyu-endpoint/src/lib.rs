@@ -219,8 +219,13 @@ impl Core {
         let summary = SummaryTexts::load(resources.path())
             .inspect_err(|error| tracing::warn!(target: "miyu::endpoint", error = %error, "memory summary texts unreadable"))
             .ok();
+        let memory = Memory::new(&root, summary);
+        // 抽取（施工 R-6 上）：照一次性入口发；字、key 的写法读不出来的，这个核心不抽。
+        if let Some(extraction) = memory::extraction(&*models, &resources, &root, &admin) {
+            memory.give_extraction(extraction);
+        }
         Core {
-            memory: Memory::new(&root, summary),
+            memory,
             index,
             system_indexes: std::sync::OnceLock::new(),
             usage,

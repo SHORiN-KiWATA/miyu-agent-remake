@@ -10,11 +10,15 @@
 //!   用途和 `upto` 分开主请求、回顾、起标题的回报。
 //! - 出错、回复里没有正文：记出错的 `model.called`，都拒绝，`recap_failed`，不再来。增量对不上的，记下错，等说完了一起收：
 //!   不叫停，也就不会有叫停以后还到的回报串进下一次回顾。
+//!
+//! 同一份取法给抽取用（施工 R-6 上，[`Session::spoken_in`]）：会话那一层照日志拼的历史，交给这个会话的组装器渲染。
 
 use super::Session;
 use super::action::{Action, Outcome, Reason};
 use super::aside::{Aside, Finished};
+use crate::assemble::Spoken;
 use crate::event::{Body, CallError, Cost, Purpose, SessionRecapped, Usage};
+use crate::history::History;
 use crate::id::{CommandId, Seq};
 use crate::time::Timestamp;
 
@@ -28,6 +32,13 @@ pub(super) struct Recapping {
 }
 
 impl Session {
+    /// `history` 里第 `after` 条以后的几段话，照这个会话的组装器渲染（施工 R-6 上，`memory.md` 第六条）：抽取的那一段。
+    /// `history` 是会话那一层照日志拼的（可以是留着一切的那一份，压缩替代掉的也在），不碰这个会话手里的历史；组装器别的
+    /// 本事不往外露。只读。
+    pub fn spoken_in(&self, history: &History, after: Seq) -> Vec<Spoken> {
+        self.policy.assembler.spoken(history, after)
+    }
+
     /// 收下 `session.recap`：照这一刻落了盘的有效历史组装。没有能回顾的拒绝，`nothing_to_recap`；照到的和最近一条
     /// `session.recapped` 一样的，交回它（它落了盘才回）；有一次在路上的，并进去；不然发请求，名字是照到的那一条。
     pub(super) fn recap(&mut self, id: CommandId) -> Vec<Action> {

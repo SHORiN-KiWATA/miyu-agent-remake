@@ -31,6 +31,11 @@ pub(crate) trait Store: Send + 'static {
 
     /// 只读地读回第 `from` 条起的日志（施工 6-9）：一段一段读，只留要的。
     fn events_from(&self, from: Seq) -> Result<Vec<Event>, String>;
+
+    /// 日志在哪个目录（施工 R-6 上）：抽取在别的线程里只读地读它，不占 actor。不在磁盘上的（测试里）没有。
+    fn dir(&self) -> Option<PathBuf> {
+        None
+    }
 }
 
 impl Store for SessionLog {
@@ -50,6 +55,9 @@ impl Store for SessionLog {
         })
         .map_err(|error| error.to_string())?;
         Ok(kept)
+    }
+    fn dir(&self) -> Option<PathBuf> {
+        Some(SessionLog::dir(self).to_path_buf())
     }
 }
 
@@ -120,6 +128,10 @@ impl Store for Indexed {
 
     fn events_from(&self, from: Seq) -> Result<Vec<Event>, String> {
         self.log.events_from(from)
+    }
+
+    fn dir(&self) -> Option<PathBuf> {
+        Store::dir(&self.log)
     }
 }
 

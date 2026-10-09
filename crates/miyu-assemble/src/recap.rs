@@ -11,12 +11,14 @@
 
 use std::collections::BTreeMap;
 
+use miyu_kernel::assemble::Spoken;
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::estimate::BYTES_PER_TOKEN;
 use miyu_kernel::event::Body;
 use miyu_kernel::history::History;
 use miyu_kernel::id::{Seq, TurnId};
 use miyu_kernel::request::{Message, Request};
+use miyu_kernel::time::Timestamp;
 
 use crate::texts::{Recap, Texts};
 
@@ -106,11 +108,29 @@ fn exchanges(history: &History, texts: &Texts, turns: usize) -> Option<Vec<Excha
     Some(exchanges)
 }
 
-/// 记录里的一段：哪一条、是不是她的回答、原话（去掉了前后空白，不是空的）。
+/// 记录里的一段：哪一条、哪一轮、什么时候、是不是她的回答、原话（去掉了前后空白，不是空的）。回顾、抽取（施工 R-6 上，
+/// [`spoken`]）照同一份取。
 pub(crate) struct Entry {
     pub(crate) seq: Seq,
+    pub(crate) turn: Option<TurnId>,
+    pub(crate) at: Timestamp,
     pub(crate) assistant: bool,
     pub(crate) text: String,
+}
+
+/// 第 `after` 条以后的几段（施工 R-6 上，`Assembler::spoken`）：取法照 [`entries`]，和回顾一样。
+pub(crate) fn spoken(history: &History, texts: &Texts, after: Seq) -> Vec<Spoken> {
+    entries(history, texts)
+        .into_iter()
+        .filter(|entry| entry.seq > after)
+        .map(|entry| Spoken {
+            seq: entry.seq,
+            turn: entry.turn,
+            at: entry.at,
+            assistant: entry.assistant,
+            text: entry.text,
+        })
+        .collect()
 }
 
 /// 照投影的先后（`History::ordered`）取人这边的话和她每一轮最后一条有正文的回复。人这边的话照主请求里的写法渲染：别的
@@ -137,6 +157,8 @@ pub(crate) fn entries(history: &History, texts: &Texts) -> Vec<Entry> {
         if !text.is_empty() {
             entries.push(Entry {
                 seq: event.seq,
+                turn: event.turn,
+                at: event.at,
                 assistant,
                 text,
             });
@@ -244,5 +266,7 @@ fn excerpt(text: &str, limit: usize, marker: &str) -> String {
     format!("{}{marker}{}", &text[..head], &text[tail..])
 }
 
+#[cfg(test)]
+mod spoken_tests;
 #[cfg(test)]
 mod tests;

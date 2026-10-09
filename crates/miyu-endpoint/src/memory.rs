@@ -302,3 +302,33 @@ async fn blocking<T: Send + 'static>(
         }
     }
 }
+
+/// 抽取要的几样（施工 R-6 上，`memory.md` 第六条）：请求模型的照一次性入口（照剧本回的端口没有，不抽）、资源目录里的字和 key 的
+/// 写法、管理员的 blob（抽取的请求只有字，用不上）。读不出来的记一行，没有：这个核心不抽，别的照常。
+pub(crate) fn extraction(
+    models: &dyn miyu_session::Models,
+    resources: &miyu_store::resources::ResourceRoot,
+    root: &miyu_store::root::DataRoot,
+    admin: &miyu_kernel::id::AccountId,
+) -> Option<miyu_session::Extraction> {
+    let ask = models.one_shot()?;
+    let texts =
+        miyu_session::ExtractTexts::load(resources.path()).map_err(|error| error.to_string());
+    let shapes = resources
+        .memory_secrets()
+        .map_err(|error| error.to_string())
+        .and_then(|text| miyu_recall::redact::KeyShapes::parse(&text));
+    match texts.and_then(|texts| shapes.map(|shapes| (texts, shapes))) {
+        Ok((texts, shapes)) => Some(miyu_session::Extraction {
+            texts,
+            shapes,
+            ask,
+            blobs: miyu_store::blob::Blobs::new(root.blobs(admin)),
+            idle: None,
+        }),
+        Err(error) => {
+            tracing::warn!(target: "miyu::endpoint", error = error.as_str(), "memory extraction unavailable");
+            None
+        }
+    }
+}

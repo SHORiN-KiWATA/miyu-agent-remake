@@ -16,6 +16,19 @@ prepare = true
 # Allowed: error, warn, info, debug, trace or off. Only in the system config. Takes effect at once.
 level = "info"
 
+[memory]
+# Wait before organizing memories: Once the conversation has been quiet this long, she turns what is worth keeping from the new part into memories.
+# Allowed: a length of time from 1m to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect next turn.
+extract_idle = "3m"
+
+# Turns before organizing: She organizes only after at least this many turns since the last time.
+# Allowed: a whole number from 1 to 100. Only in the system config or personal settings. Takes effect next turn.
+extract_turns = 2
+
+# Memory organizer model: The model used to organize memories, billed by usage. If none is chosen, the chat model is used.
+# Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.
+# organizer =
+
 [models]
 # Chat model: The model new sessions use, written as provider/model, for example deepseek/deepseek-flash, or @pool.
 # Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Applies to sessions opened from now on.

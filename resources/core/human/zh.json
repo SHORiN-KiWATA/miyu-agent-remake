@@ -5,6 +5,18 @@
         "name": "提前压好",
         "description": "上下文快满时，在后台先把旧的那一段压成摘要，到了要压缩的时候直接换上，不用停下来等。关掉的话，照旧到线再压。"
       },
+      "memory.extract_idle": {
+        "name": "整理记忆前等多久",
+        "description": "聊完闲了这么久，她把新聊的内容里值得记的整理成记忆。"
+      },
+      "memory.extract_turns": {
+        "name": "攒几轮再整理",
+        "description": "上次整理以后至少聊了这么多轮才整理。"
+      },
+      "memory.organizer": {
+        "name": "整理记忆的模型",
+        "description": "整理记忆时用的模型，照用量算钱。没选的用主对话的模型。"
+      },
       "log.level": {
         "name": "运行日志的级别",
         "description": "运行日志记到哪一级。排查问题时调成 debug。设了环境变量 MIYU_LOG 的，那一次启动照它。",
@@ -253,6 +265,7 @@
       "persona": "人格",
       "preset": "预设",
       "compaction": "压缩",
+      "memory": "记忆",
       "log": "运行日志",
       "sessions": "会话",
       "uses": "用途",

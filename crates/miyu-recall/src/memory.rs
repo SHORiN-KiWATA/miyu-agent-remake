@@ -27,6 +27,8 @@ const SAVED: &str = "ext.memory.saved";
 const RETIRED: &str = "ext.memory.retired";
 /// 清空（施工 R-3 补）。
 const CLEARED: &str = "ext.memory.cleared";
+/// 抽到哪（施工 R-6 上）。
+const EXTRACTED: &str = "ext.memory.extracted";
 
 /// 出厂认识的四类（2026-10-07 项目主人定）：关于你、你要她怎样、经历、长期有效的事实。日志里别的类原样留着、照常列出；
 /// 她经工具记的照这张名单查（R-3 中）。
@@ -123,6 +125,31 @@ pub struct Cleared {
     pub session: Option<SessionId>,
 }
 
+/// `ext.memory.extracted` 的 `body`：一个会话抽到了哪（施工 R-6 上，`memory.md` 第六条）。记下这一段的候选以后才写：中途
+/// 崩了的下次重抽这一段。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Extracted {
+    /// 哪个会话。
+    pub session: SessionId,
+    /// 抽到会话日志的第几条：下次从它后面接着。
+    pub upto: Seq,
+    /// 记下了几条。
+    pub count: u32,
+    /// 整段跳过的为什么；没跳的不写。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub skipped: Option<Skipped>,
+}
+
+/// 一段为什么整段跳过。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Skipped {
+    /// 这一段里她调过 `remember`、`forget`：她当场记过了。
+    Remembered,
+    /// 同一段连着抽不成三次。
+    Failed,
+}
+
 /// 记忆日志里的一条事件。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MemoryEvent {
@@ -132,6 +159,8 @@ pub enum MemoryEvent {
     Retired(Retired),
     /// 清空（施工 R-3 补）。
     Cleared(Cleared),
+    /// 一个会话抽到了哪（施工 R-6 上）。
+    Extracted(Extracted),
 }
 
 /// 写成记忆日志里的一条事件：第 `seq` 条，时刻 `at`，`by` 写它的那一方。
@@ -144,6 +173,7 @@ pub fn to_event(seq: Seq, at: Timestamp, by: By, event: &MemoryEvent) -> Result<
         MemoryEvent::Saved(saved) => (SAVED, serde_json::to_string(saved)),
         MemoryEvent::Retired(retired) => (RETIRED, serde_json::to_string(retired)),
         MemoryEvent::Cleared(cleared) => (CLEARED, serde_json::to_string(cleared)),
+        MemoryEvent::Extracted(extracted) => (EXTRACTED, serde_json::to_string(extracted)),
     };
     let json = json.map_err(|error| error.to_string())?;
     let body: RawJson = serde_json::from_str(&json).map_err(|error| error.to_string())?;
@@ -167,6 +197,7 @@ pub fn from_event(event: &Event) -> Option<Result<MemoryEvent, String>> {
         SAVED => serde_json::from_str(body.get()).map(MemoryEvent::Saved),
         RETIRED => serde_json::from_str(body.get()).map(MemoryEvent::Retired),
         CLEARED => serde_json::from_str(body.get()).map(MemoryEvent::Cleared),
+        EXTRACTED => serde_json::from_str(body.get()).map(MemoryEvent::Extracted),
         _ => return None,
     };
     Some(read.map_err(|error| format!("body of {kind} not readable: {error}")))
@@ -212,6 +243,8 @@ pub struct MemoryBook {
     entries: BTreeMap<MemoryId, Entry>,
     /// 带命令编号（`cause`）的每一条做成了什么：那一条的编号、清掉几条（施工 R-3 补，04 第六节第 1 条：同一个编号只生效一次）。
     done: BTreeMap<CommandId, (MemoryId, usize)>,
+    /// 每个会话抽到了哪（施工 R-6 上）：最大的那个 `upto`。
+    extracted: BTreeMap<SessionId, Seq>,
 }
 
 impl MemoryBook {
@@ -229,6 +262,11 @@ impl MemoryBook {
                 .insert(cause.clone(), (MemoryId::new(event.seq), cleared));
         }
         Ok(cleared)
+    }
+
+    /// 会话 `session` 抽到了会话日志的第几条（施工 R-6 上）；还没抽过的是 `None`。
+    pub fn extracted(&self, session: &SessionId) -> Option<Seq> {
+        self.extracted.get(session).copied()
     }
 
     /// 命令编号 `cause` 做过的：那一条的编号、清掉几条；没做过的是 `None`。
@@ -280,6 +318,15 @@ impl MemoryBook {
                     }
                 }
                 Ok(Some(shown))
+            }
+            // 照最大的记：日志是先后写的，取最大的也不怕哪一条重了。
+            Some(Ok(MemoryEvent::Extracted(extracted))) => {
+                let upto = self
+                    .extracted
+                    .entry(extracted.session)
+                    .or_insert(extracted.upto);
+                *upto = (*upto).max(extracted.upto);
+                Ok(Some(0))
             }
         }
     }

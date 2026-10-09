@@ -11,16 +11,18 @@
 //! 照 Lucene 的 CJKBigram 两两切（`docs/reviews/2026-10-07-记忆知识库embedding调研.md` 第三节）。
 
 pub mod embedding;
+pub mod extract;
 mod fuse;
 mod memory;
+pub mod redact;
 mod terms;
 mod turns;
 pub mod vector;
 
 pub use fuse::{FLOOR, fuse};
 pub use memory::{
-    CLASSES, Cleared, Entry, MemoryBook, MemoryEvent, MemoryId, Retired, Saved, Source, from_event,
-    to_event,
+    CLASSES, Cleared, Entry, Extracted, MemoryBook, MemoryEvent, MemoryId, Retired, Saved, Skipped,
+    Source, from_event, to_event,
 };
 pub use terms::{MAX_QUERY_TERMS, index_terms, query};
 pub use turns::{Change, TurnFeed, TurnItem, key, replay};

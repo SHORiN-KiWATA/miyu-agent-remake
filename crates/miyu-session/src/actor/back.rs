@@ -18,6 +18,15 @@ impl Actor {
             Back::Woke { seen } => Input::Woke { at, seen },
             Back::Tool(back) => return self.tools.back(at, back),
             Back::Job(ended) => self.jobs.arrived(at, ended),
+            // 抽取（施工 R-6 上，`extract.rs`）：不进内核。
+            Back::ExtractDue { generation } => {
+                self.extract_due(generation);
+                return None;
+            }
+            Back::ExtractRead { generation, read } => {
+                self.extract_read(generation, read);
+                return None;
+            }
             // 等的会话等不到了（施工 C-6，`crate::peers`）：内核照账本还在等、确实到了点的才记。
             Back::WatchEnded { session, reason } => Input::WatchEnded {
                 at,

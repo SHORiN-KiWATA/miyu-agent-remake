@@ -36,7 +36,7 @@ pub use texts::{
     Texts, Title, TurnEndedTexts, Vision,
 };
 
-use miyu_kernel::assemble::Assembler;
+use miyu_kernel::assemble::{Assembler, Spoken};
 use miyu_kernel::block::{Block, Image};
 use miyu_kernel::history::History;
 use miyu_kernel::id::Seq;
@@ -131,6 +131,11 @@ impl Assembler for DefaultAssembler {
     /// 回顾的请求（施工 3-8 四补，`recap.rs`）：不接稳定区，一条 user，指令接对话记录。快照里没有回顾的字的，没有。
     fn recap(&self, history: &History) -> Option<(Request, Seq)> {
         recap::request(history, &self.texts)
+    }
+
+    /// 抽取的那一段（`recap.rs` 的 `spoken`，施工 R-6 上）：取法和回顾同一份。
+    fn spoken(&self, history: &History, after: Seq) -> Vec<Spoken> {
+        recap::spoken(history, &self.texts, after)
     }
 
     /// 起标题的请求（`title.rs`，施工 3-8 五补）：只喂第一轮，一条 user，不接稳定区。

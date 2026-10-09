@@ -19,6 +19,7 @@
 | `crates/miyu-kernel/src/session/redo.rs` | 重做：撤最后一轮、重发开它的话、开新的一轮（`history.md`「重做」，施工 4-7 再补） |
 | `crates/miyu-kernel/src/session/clear.rs` | 清空上下文单开的那一轮：收命令、上下文是不是本来就空、一批写开头、空的检查点、结束（`compaction.md` 第十四条，施工 6-8 补） |
 | `crates/miyu-kernel/src/session/recap.rs` | 回顾：收命令、照落了盘的有效历史组装、交回上一句、并进在路上的、收回报、记 `model.called` 和 `session.recapped`（「回顾」，施工 3-8 四补） |
+| `crates/miyu-kernel/src/session/recap.rs` 的 `spoken_in`、`crates/miyu-kernel/src/assemble.rs` 的 `Spoken`、`history.rs` 的 `called_since`（施工 R-6 上） | 只读的两处给抽取用（`memory.md` 第六条第 2 款）：会话那一层照日志拼的历史（可以是留着一切的那一份）交给这个会话的组装器渲染 `after` 以后的几段话（组装器 trait 有默认实现的 `spoken`，`DefaultAssembler` 照回顾的取法），和这一段调过的工具名；撤掉的回合两边都不算。不碰这个会话手里的历史，不改 `Input`、`Action`，不写日志 |
 | `crates/miyu-kernel/src/session/aside.rs` | 辅助请求在路上的那一次（回顾、起标题共用，施工 3-8 五补从 `recap.rs` 分出来）：照用途和名字认回报、收增量、说完了算出正文和那条 `model.called`；不带回合编号的事件怎么造 |
 | `crates/miyu-kernel/src/session/sight.rs` | 替它看图：什么时候转述、出 `Describe`、收回来记 `image.described`、这个会话转述过哪些图、把转述放进请求、人这一轮最近说的那一句（「替它看图」，施工 8-17） |
 | `crates/miyu-kernel/src/session/title.rs` | 起标题：该不该起（从日志一条条算）、落了盘以后发请求、收回来记 `model.called` 和 `session.meta_changed`、标题怎么截（「起标题」，施工 3-8 五补） |

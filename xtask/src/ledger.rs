@@ -64,8 +64,9 @@ const ONEBOT_DATA: [&str; 4] = [
 const DATA_PACKAGES: [&str; 2] = ["mermaid", "net"];
 
 /// `core/view.json` 是数据，不发给模型，不登记：视图投影照它认哪件工具算命令、编辑、子代理、留言（施工 9-8 上，`view.md`）。
-/// 只豁免这一份：`core/` 里别的照查。
-const CORE_DATA: [&str; 1] = ["core/view.json"];
+/// `core/memory/secrets.toml` 也是：抽取照它认常见的 key 写法、遮掉，不发给模型（施工 R-6 上，`memory.md` 第六条）。只豁免
+/// 这几份：`core/` 里别的照查。
+const CORE_DATA: [&str; 2] = ["core/view.json", "core/memory/secrets.toml"];
 
 /// 这几个单独的目录整个是给浏览器的，不发给模型，不登记：`software/onebot/web/` 是 QQ 桥 WebUI 的页面（施工 O-16，
 /// `onebot.md` 第二条；照最上一层 `web/` 的先例）。只豁免这一个目录，不豁免整个包。
