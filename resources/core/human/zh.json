@@ -354,7 +354,7 @@
     "persona-problems/empty_line": "这一句是空的",
     "persona-problems/pair_clash": "第 {pair} 对里有一行以 user: 或 assistant: 开头，存不进去",
     "preset-problems/syntax": "读不成 TOML：{detail}",
-    "preset-problems/unknown_table": "不认识的表 [{detail}]：预设文件里只能有 [preset]、[software]、[tools]",
+    "preset-problems/unknown_table": "不认识的表 [{detail}]：预设文件里只能有 [preset]、[features]、[software]、[tools]",
     "preset-problems/not_a_table": "{detail} 要写成一张表 [{detail}]",
     "preset-problems/unknown_key": "不认识的键 {detail}",
     "preset-problems/not_phrases": "{detail} 要写一句字",

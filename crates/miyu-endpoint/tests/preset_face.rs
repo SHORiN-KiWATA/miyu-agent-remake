@@ -232,44 +232,91 @@ async fn roleplay_off_drops_the_reminder_and_the_style_lock_and_the_line_comes_b
     assert!(snapshot(&home, &session).reminder.is_none());
 }
 
+/// `preset.get` 照功能列（施工 F-3 下，设计 30 第四节）：装了的每个功能都有开关，各带归它的工具（显示名照给人看的字，开不开
+/// 照功能和 `[tools]`）；写了没装的标着没装，接在后面。
 #[tokio::test]
-async fn preset_get_names_software_that_is_not_installed() {
+async fn preset_get_lists_features_with_their_tools() {
     let home = Home::new();
+    home.write(
+        "home/alice/presets/nosh.toml",
+        "[preset]\nname = { en = \"No sh\" }\n\n[features]\nqq = false\n\n[tools]\nforget = false\n",
+    );
     let mut client = connected(configured(&home, &Script::new([]))).await;
     let dev = client
         .call("g1", "preset.get", json!({"preset": "dev"}))
         .await;
+    let listed = switches(&dev);
     assert_eq!(
-        switches(&dev),
-        [
-            ("basesystem", true, true),
-            ("net", true, false),
-            ("goal", true, false),
-            ("memory", false, true),
-            ("roleplay", false, true),
-            ("onebot", false, true),
-        ],
-        "装了的每一个都有开关（施工 P-2 补），写了没装的标着没装，内置的照固定的先后（施工 P-3 补）；清单装的桥接在后面（施工 O-18）：{dev}"
+        listed[..2],
+        [("files", true, true), ("commands", true, true)],
+        "{dev}"
     );
-    let full = client
-        .call("g2", "preset.get", json!({"preset": "full"}))
+    assert!(listed.contains(&("memory", false, true)));
+    assert!(listed.contains(&("qq", false, true)));
+    assert_eq!(
+        listed.last(),
+        Some(&("goal", true, false)),
+        "写了没装的接在后面"
+    );
+    let files = feature(&dev, "files");
+    assert_eq!(
+        files["tools"],
+        json!([{"name": "read", "label": "读取", "on": true}]),
+        "目录里只有 read 归文件读写"
+    );
+    assert_eq!(
+        feature(&dev, "memory")["tools"],
+        json!([
+            {"name": "forget", "label": "忘掉", "on": false},
+            {"name": "memory_search", "label": "翻记忆", "on": false},
+            {"name": "remember", "label": "记住", "on": false},
+        ]),
+        "功能关着的工具都是关着"
+    );
+    assert_eq!(
+        feature(&dev, "qq")["tools"],
+        json!([]),
+        "桥没登记，没有工具"
+    );
+    let nosh = client
+        .call("g2", "preset.get", json!({"preset": "nosh"}))
         .await;
     assert_eq!(
-        switches(&full),
-        [
-            ("basesystem", true, true),
-            ("memory", true, true),
-            ("roleplay", true, true),
-            ("onebot", true, true),
-        ]
+        feature(&nosh, "memory")["tools"],
+        json!([
+            {"name": "forget", "label": "忘掉", "on": false},
+            {"name": "memory_search", "label": "翻记忆", "on": true},
+            {"name": "remember", "label": "记住", "on": true},
+        ]),
+        "[tools] 单件关掉的"
     );
+    assert_eq!(feature(&nosh, "qq")["on"], false);
+    assert_eq!(
+        switches(&nosh)
+            .iter()
+            .filter(|(id, _, _)| *id == "qq")
+            .count(),
+        1,
+        "写在 [features] 里的、装了的不另列一遍"
+    );
+    assert_eq!(feature(&nosh, "commands")["tools"][0]["label"], "执行命令");
 }
 
-/// `preset.get` 的软件：编号、开不开、装没装。
-fn switches(reply: &serde_json::Value) -> Vec<(&str, bool, bool)> {
-    reply["result"]["software"]
+/// 回应里编号是 `id` 的那个功能。
+fn feature<'a>(reply: &'a serde_json::Value, id: &str) -> &'a serde_json::Value {
+    reply["result"]["features"]
         .as_array()
-        .expect("是一个个软件")
+        .expect("是一个个功能")
+        .iter()
+        .find(|one| one["id"] == id)
+        .unwrap_or_else(|| panic!("没有 {id}：{reply}"))
+}
+
+/// `preset.get` 的功能：编号、开不开、装没装（施工 F-3 下）。
+fn switches(reply: &serde_json::Value) -> Vec<(&str, bool, bool)> {
+    reply["result"]["features"]
+        .as_array()
+        .expect("是一个个功能")
         .iter()
         .map(|one| {
             (

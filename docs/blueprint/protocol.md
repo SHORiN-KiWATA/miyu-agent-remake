@@ -530,8 +530,8 @@
 |---|---|---|
 | `preset` | 字符串，必写 | 预设的编号 |
 
-回应 `{"preset", "name", "summary", "unlisted", "software", "tools", "remove"}`（施工 P-3 补：只给人要看的；`default_persona` 施工 P-4 上撤了）：`name`、`summary` 一句字（挑法同 `persona.list`）；`unlisted` 是叠好以后的 `on`、`off`（几层都没写的是 `on`）；`tools` 是关掉的单件工具，值都是 `false`；`remove` 是删了会怎样：`restore`（有你那一层、下面还有：删了回到出厂的样子）、`delete`（只有你那一层：删了就没了）、`null`（没有你那一层，没什么可删）。
-- `software` 是一个个软件 `[{"id", "name", "summary", "on", "installed"}, …]`（施工 P-3 补，2026-10-08 项目主人：「显示名称呢？都是英文谁看得懂？」）：这台机器上装了的，加上 `[software]` 里写了、没装的（`installed: false`）。`name`、`summary` 照这个连接的语言：内置的（基础系统、联网、长期目标、记忆、角色扮演）照给人看的字 `software/<编号>`、`software/<编号>/summary`，清单装的包照它清单的 `name`、`summary`，都没有的名字是编号、说明是 `null`。`on` 是叠好以后开不开。先后：内置的照上面那个先后，再是装了的别的、没装的，各照编号。`id` 是 `preset.set` 写 `software.<id>` 用的，不往界面上露。
+回应 `{"preset", "name", "summary", "unlisted", "features", "remove"}`（施工 P-3 补：只给人要看的；`default_persona` 施工 P-4 上撤了；施工 F-3 下 `software`、`tools` 换成 `features`）：`name`、`summary` 一句字（挑法同 `persona.list`）；`unlisted` 是叠好以后的 `on`、`off`（几层都没写的是 `on`）；`remove` 是删了会怎样：`restore`（有你那一层、下面还有：删了回到出厂的样子）、`delete`（只有你那一层：删了就没了）、`null`（没有你那一层，没什么可删）。
+- `features` 是一个个功能（施工 F-3 下，设计 `30-插件框架.md` 第三节、第四节）：装了的照清单读的先后（包照编号，包里照写的先后），每个 `{"id", "name", "summary", "on", "installed": true, "tools"}`：`name`、`summary` 照它的清单、照这个连接的语言挑，没说明的没有 `summary`；`on` 是叠好以后开不开；`tools` 是归它的、工具目录里现在有的工具，照名字排，每件 `{"name", "label", "on"}`，`label` 是给人看的显示名（没有的是工具名），功能关着的都是 `false`，开着的照 `[tools]` 关没关。预设的 `[features]`、`[software]` 里写了、没装的接在后面，照编号排：`{"id", "name", "on", "installed": false, "tools": []}`，名字照给人看的字 `software/<编号>`，没有的是编号；写的是装了的包的编号的不另列。`id` 是 `preset.set` 写 `features.<id>` 用的，`tools[].name` 是写 `tools.<name>` 用的，不往界面上露。头照它一个功能一个开关画，展开能逐件关。
 - 编号不合写法的 `bad_params`，没有的 `unknown_preset`，写错的 `preset_invalid`（`data.message` 照这个连接的语言说一句、`data.line` 第几行，施工 P-3 补）。
 
 **`preset.set`**（施工 P-3 中，`presets.md`「改」）

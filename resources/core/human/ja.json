@@ -354,7 +354,7 @@
     "persona-problems/empty_line": "この行は空です",
     "persona-problems/pair_clash": "{pair} 組目に user: か assistant: で始まる行があり、保存できません",
     "preset-problems/syntax": "TOML として読めません：{detail}",
-    "preset-problems/unknown_table": "知らない表 [{detail}]：プリセットに書けるのは [preset]、[software]、[tools] だけです",
+    "preset-problems/unknown_table": "知らない表 [{detail}]：プリセットに書けるのは [preset]、[features]、[software]、[tools] だけです",
     "preset-problems/not_a_table": "{detail} は表 [{detail}] で書いてください",
     "preset-problems/unknown_key": "知らないキー {detail}",
     "preset-problems/not_phrases": "{detail} には一文を書いてください",

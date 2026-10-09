@@ -354,7 +354,7 @@
     "persona-problems/empty_line": "This line is empty",
     "persona-problems/pair_clash": "Pair {pair} has a line that starts with user: or assistant:, so it cannot be saved",
     "preset-problems/syntax": "Not valid TOML: {detail}",
-    "preset-problems/unknown_table": "Unknown table [{detail}]: a preset only takes [preset], [software] and [tools]",
+    "preset-problems/unknown_table": "Unknown table [{detail}]: a preset only takes [preset], [features], [software] and [tools]",
     "preset-problems/not_a_table": "{detail} must be a table [{detail}]",
     "preset-problems/unknown_key": "Unknown key {detail}",
     "preset-problems/not_phrases": "{detail} must be text",
