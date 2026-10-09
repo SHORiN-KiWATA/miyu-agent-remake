@@ -109,6 +109,7 @@ impl Packages {
         found.sort_by(|one, other| (&one.id, one.layer).cmp(&(&other.id, other.layer)));
         duplicates(&mut found);
         taken(&mut found);
+        features_taken(&mut found);
         if let Some(admin) = &self.admin {
             accounts_taken(&mut found, admin);
         }
@@ -190,12 +191,18 @@ fn duplicates(found: &mut [Found]) {
     }
 }
 
-/// 子命令名：照读的先后（出厂的先于家目录，同一层照编号）先到先得，后到的那一份报 `command_taken`，报在子命令名那一行。
-fn taken(found: &mut [Found]) {
+/// 读的先后：出厂的先于家目录，同一层照编号。先到先得的几样（子命令名、功能的编号）照它。
+fn reading_order(found: &[Found]) -> Vec<usize> {
     let mut order: Vec<usize> = (0..found.len()).collect();
     order.sort_by(|&one, &other| {
         (found[one].layer, &found[one].id).cmp(&(found[other].layer, &found[other].id))
     });
+    order
+}
+
+/// 子命令名：照读的先后先到先得，后到的那一份报 `command_taken`，报在子命令名那一行。
+fn taken(found: &mut [Found]) {
+    let order = reading_order(found);
     let mut owners: BTreeMap<String, String> = BTreeMap::new();
     for index in order {
         let Ok(manifest) = &found[index].read else {
@@ -217,6 +224,39 @@ fn taken(found: &mut [Found]) {
                     detail: name,
                     message,
                 }));
+            }
+        }
+    }
+}
+
+/// 功能的编号（施工 F-1，设计 30 第三节）：照读的先后先到先得，后到的那一份报 `feature_taken`、整份不收，报在那个功能那一行；
+/// 没写功能的包照包的编号算（[`miyu_config::package::Manifest::features_of`]）。
+fn features_taken(found: &mut [Found]) {
+    let mut owners: BTreeMap<String, String> = BTreeMap::new();
+    for index in reading_order(found) {
+        let Ok(manifest) = &found[index].read else {
+            continue;
+        };
+        let features = manifest.features_of(&found[index].id);
+        let clash = features.iter().find_map(|feature| {
+            owners
+                .get(&feature.id)
+                .map(|owner| (feature, owner.clone()))
+        });
+        match clash {
+            Some((feature, owner)) => {
+                let message = format!("feature {} is already taken by package {owner}", feature.id);
+                found[index].read = Err(Issue::Wrong(Problem {
+                    line: feature.line,
+                    code: Code::FeatureTaken,
+                    detail: feature.id.clone(),
+                    message,
+                }));
+            }
+            None => {
+                for feature in features {
+                    owners.insert(feature.id, found[index].id.clone());
+                }
             }
         }
     }

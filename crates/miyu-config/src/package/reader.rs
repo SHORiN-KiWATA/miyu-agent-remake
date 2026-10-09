@@ -5,6 +5,16 @@ use toml_edit::{Item, TableLike};
 use super::{Capability, Code, Command, PackageKind, Pages, Problem, Process, Start};
 use crate::phrases::{self, PhraseError, Phrases};
 
+/// `[package]` 读出来的几格。
+pub(super) struct Head {
+    pub(super) kind: PackageKind,
+    pub(super) version: Option<String>,
+    pub(super) protocol: [u32; 2],
+    pub(super) name: Phrases,
+    pub(super) summary: Phrases,
+    pub(super) required: bool,
+}
+
 /// 照原文算行号。
 pub(super) struct Reader<'a> {
     pub(super) text: &'a str,
@@ -68,21 +78,18 @@ impl Reader<'_> {
     }
 
     /// `[package]`。
-    #[expect(clippy::type_complexity, reason = "五格照先后交回，只在这里拆开")]
-    pub(super) fn package(
-        &self,
-        table: &dyn TableLike,
-        at: &Item,
-    ) -> Result<(PackageKind, Option<String>, [u32; 2], Phrases, Phrases), Problem> {
+    pub(super) fn package(&self, table: &dyn TableLike, at: &Item) -> Result<Head, Problem> {
         self.only(
             table,
             "package",
-            &["kind", "version", "protocol", "name", "summary"],
+            &["kind", "version", "protocol", "name", "summary", "required"],
         )?;
         let item = self.required(table, at, "package", "kind")?;
         let kind = match item.as_str() {
             Some("ui") => PackageKind::Ui,
             Some("process") => PackageKind::Process,
+            Some("builtin") => PackageKind::Builtin,
+            Some("worker") => PackageKind::Worker,
             other => {
                 let shown = other.map_or_else(
                     || {
@@ -98,7 +105,7 @@ impl Reader<'_> {
                     Some(item),
                     Code::BadKind,
                     &shown,
-                    format!("package.kind must be ui or process, not \"{shown}\""),
+                    format!("package.kind must be ui, process, builtin or worker, not \"{shown}\""),
                 ));
             }
         };
@@ -120,7 +127,38 @@ impl Reader<'_> {
             Some(item) => self.phrases(item, "package.summary")?,
             None => Phrases::new(),
         };
-        Ok((kind, version, protocol, name, summary))
+        let required = match table.get("required") {
+            None => false,
+            Some(item) => self.required_flag(kind, item)?,
+        };
+        Ok(Head {
+            kind,
+            version,
+            protocol,
+            name,
+            summary,
+            required,
+        })
+    }
+
+    /// `[package] required`（施工 F-1）：开关，只有内置包能写。
+    fn required_flag(&self, kind: PackageKind, item: &Item) -> Result<bool, Problem> {
+        if kind != PackageKind::Builtin {
+            return Err(self.problem(
+                Some(item),
+                Code::WrongKind,
+                "package.required",
+                "package.required is only for kind = \"builtin\"".to_string(),
+            ));
+        }
+        item.as_bool().ok_or_else(|| {
+            self.problem(
+                Some(item),
+                Code::NotBool,
+                "package.required",
+                "package.required must be true or false".to_string(),
+            )
+        })
     }
 
     /// `[command]`。
@@ -277,22 +315,16 @@ impl Reader<'_> {
         Ok(Pages { opens, pages_dir })
     }
 
-    /// 这张表只给 `kind` 是 `owner` 的包。
-    pub(super) fn belongs(
-        &self,
-        kind: PackageKind,
-        owner: PackageKind,
-        name: &str,
-        at: &Item,
-    ) -> Result<(), Problem> {
-        if kind == owner {
+    /// 这张表给不给 `kind` 这种包（施工 F-1，[`PackageKind::tables`]）。
+    pub(super) fn belongs(&self, kind: PackageKind, name: &str, at: &Item) -> Result<(), Problem> {
+        if kind.tables().contains(&name) {
             return Ok(());
         }
         Err(self.problem(
             Some(at),
             Code::WrongKind,
-            name,
-            format!("[{name}] is only for kind = \"{}\"", owner.as_str()),
+            &format!("[{name}]"),
+            format!("[{name}] is not for kind = \"{}\"", kind.as_str()),
         ))
     }
 
@@ -409,7 +441,7 @@ fn command_name(name: &str) -> bool {
 }
 
 /// 程序名：不空，不带 `/`、`\`，不是 `.`、`..`。
-fn program_name(program: &str) -> bool {
+pub(super) fn program_name(program: &str) -> bool {
     !program.is_empty() && !program.contains(['/', '\\']) && program != "." && program != ".."
 }
 

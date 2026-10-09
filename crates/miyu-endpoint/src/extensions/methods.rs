@@ -127,7 +127,9 @@ fn extension<'a>(core: &'a Core, id: &str) -> Result<&'a Manifest, Refusal> {
         .ok_or(Refusal::UNKNOWN_PACKAGE)?;
     match manifest.kind {
         PackageKind::Process => Ok(manifest),
-        PackageKind::Ui => Err(Refusal::NOT_AN_EXTENSION),
+        PackageKind::Ui | PackageKind::Builtin | PackageKind::Worker => {
+            Err(Refusal::NOT_AN_EXTENSION)
+        }
     }
 }
 

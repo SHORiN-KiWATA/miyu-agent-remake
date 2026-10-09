@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 
 use std::collections::BTreeSet;
 
-use miyu_config::package::{Code, Manifest, Problem, settings};
+use miyu_config::package::{Code, Manifest, PackageKind, Problem, settings};
 use miyu_config::{Item, Words};
 use miyu_kernel::id::AccountId;
 use miyu_store::human::Human;
@@ -65,7 +65,7 @@ fn listed(found: &Found, places: &Packages, words: &Human, language: &str) -> Va
     let mut item = json!({"package": found.id, "layer": found.layer.as_str()});
     match &found.read {
         Ok(manifest) => {
-            fill(&mut item, manifest, language);
+            fill(&mut item, &found.id, manifest, language);
             item["state"] = json!(places.state_dir(&found.id).to_string_lossy());
             if let Some(range) = mismatch(manifest) {
                 item["code"] = json!("protocol_mismatch");
@@ -94,7 +94,7 @@ fn listed(found: &Found, places: &Packages, words: &Human, language: &str) -> Va
 }
 
 /// 读成了的几格；没有的不写。
-fn fill(item: &mut Value, manifest: &Manifest, language: &str) {
+fn fill(item: &mut Value, id: &str, manifest: &Manifest, language: &str) {
     item["kind"] = json!(manifest.kind.as_str());
     item["protocol"] = json!(manifest.protocol);
     item["name"] = json!(pick(&manifest.name, language));
@@ -122,6 +122,42 @@ fn fill(item: &mut Value, manifest: &Manifest, language: &str) {
     }
     if let Some(check) = &manifest.check {
         item["check"] = json!({"args": check.args});
+    }
+    links(item, id, manifest, language);
+}
+
+/// 施工 F-1 加的几格（设计 30）：必需的、带的功能（照包算的那一个也列，名字、说明照语言挑；不列工具）、平台接入、依赖、小程序。
+fn links(item: &mut Value, id: &str, manifest: &Manifest, language: &str) {
+    if manifest.required {
+        item["required"] = json!(true);
+    }
+    if matches!(manifest.kind, PackageKind::Builtin | PackageKind::Process) {
+        let features: Vec<Value> = manifest
+            .features_of(id)
+            .iter()
+            .map(|feature| {
+                let mut listed = json!({"id": feature.id, "name": pick(&feature.name, language)});
+                if let Some(summary) = pick(&feature.summary, language) {
+                    listed["summary"] = json!(summary);
+                }
+                listed
+            })
+            .collect();
+        item["features"] = json!(features);
+    }
+    if let Some(connection) = &manifest.connection {
+        item["connection"] = json!({"platform": connection.platform});
+    }
+    for (key, workers) in [
+        ("depends", &manifest.depends),
+        ("recommends", &manifest.recommends),
+    ] {
+        if !workers.is_empty() {
+            item[key] = json!({"workers": workers});
+        }
+    }
+    if let Some(worker) = &manifest.worker {
+        item["worker"] = json!({"program": worker.program, "args": worker.args});
     }
 }
 

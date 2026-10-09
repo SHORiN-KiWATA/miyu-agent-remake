@@ -89,6 +89,103 @@ async fn shipped_and_home_packages_are_listed_in_the_connections_language() {
     );
 }
 
+/// 种类多的两种、功能、平台接入、依赖、小程序（施工 F-1，设计 30）：照连接的语言列出来；没写功能的扩展包列出照包算的那一个，
+/// 界面、小程序没有 `features`；必需的才有 `required`。
+#[tokio::test]
+async fn features_connections_and_workers_are_listed() {
+    let home = Home::new();
+    mine(
+        &home,
+        "xbase.toml",
+        r#"[package]
+kind = "builtin"
+required = true
+protocol = [1, 1]
+name = { en = "Base", zh = "基础" }
+
+[features.xfiles]
+name = { en = "Files", zh = "文件读写" }
+summary = { zh = "读写文件" }
+tools = ["read"]
+
+[features.xcmd]
+name = { en = "Commands" }
+
+[recommends]
+workers = ["xembed"]
+"#,
+    );
+    mine(
+        &home,
+        "xbridge.toml",
+        r#"[package]
+kind = "process"
+protocol = [1, 1]
+name = { en = "Connect X", zh = "接入X" }
+
+[connection]
+platform = "x"
+
+[depends]
+workers = ["xembed"]
+"#,
+    );
+    mine(
+        &home,
+        "xembed.toml",
+        r#"[package]
+kind = "worker"
+protocol = [1, 1]
+name = { en = "Model" }
+
+[worker]
+program = "miyu-xembed"
+args = ["serve"]
+"#,
+    );
+    let packages = listed(&home).await;
+    let mut got = only(&packages, &["xbase", "xbridge", "xembed"]);
+    for package in &mut got {
+        package.as_object_mut().unwrap().remove("state");
+    }
+    assert_eq!(
+        got,
+        [
+            json!({
+                "package": "xbase",
+                "layer": "home",
+                "kind": "builtin",
+                "protocol": [1, 1],
+                "name": "基础",
+                "required": true,
+                "features": [
+                    {"id": "xfiles", "name": "文件读写", "summary": "读写文件"},
+                    {"id": "xcmd", "name": "Commands"},
+                ],
+                "recommends": {"workers": ["xembed"]},
+            }),
+            json!({
+                "package": "xbridge",
+                "layer": "home",
+                "kind": "process",
+                "protocol": [1, 1],
+                "name": "接入X",
+                "features": [{"id": "xbridge", "name": "接入X"}],
+                "connection": {"platform": "x"},
+                "depends": {"workers": ["xembed"]},
+            }),
+            json!({
+                "package": "xembed",
+                "layer": "home",
+                "kind": "worker",
+                "protocol": [1, 1],
+                "name": "Model",
+                "worker": {"program": "miyu-xembed", "args": ["serve"]},
+            }),
+        ]
+    );
+}
+
 #[tokio::test]
 async fn broken_taken_and_mismatched_ones_carry_a_code_and_a_sentence() {
     let home = Home::new();
@@ -123,7 +220,7 @@ async fn broken_taken_and_mismatched_ones_carry_a_code_and_a_sentence() {
             "layer": "home",
             "code": "bad_kind",
             "line": 2,
-            "problem": "package.kind 只能是 ui 或 process，写的是 daemon",
+            "problem": "package.kind 只能是 ui、process、builtin 或 worker，写的是 daemon",
         })]
     );
     let web = by_id("web");
@@ -183,7 +280,7 @@ async fn check_reads_the_manifests_from_disk() {
             "code": "bad_kind",
             "level": "error",
             "line": 2,
-            "message": "package.kind 只能是 ui 或 process，写的是 daemon",
+            "message": "package.kind 只能是 ui、process、builtin 或 worker，写的是 daemon",
         })],
         "{reply}"
     );

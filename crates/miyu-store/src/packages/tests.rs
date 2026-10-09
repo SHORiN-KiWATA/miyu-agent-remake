@@ -169,6 +169,50 @@ fn a_package_declaring_a_system_account_gets_one_named_after_it() {
     assert_eq!(problem.line, None);
 }
 
+/// 一份内置包的清单，带一个功能 `feature`，写在第 6 行。
+fn builtin(feature: &str) -> String {
+    format!(
+        "[package]\nkind = \"builtin\"\nprotocol = [1, 1]\nname = {{ en = \"B\" }}\n\n[features.{feature}]\nname = {{ en = \"F\" }}\n"
+    )
+}
+
+/// 功能的编号（施工 F-1，设计 30 第三节）：两个包撞了，照读的先后（出厂的先于家目录，同一层照编号）先到先得，后到的那一份报
+/// `feature_taken`、整份不收，报在那个功能那一行；没写功能的包，那一个功能的编号就是包的编号。
+#[test]
+fn a_feature_id_is_taken_by_whoever_is_read_first() {
+    let places = Places::new();
+    places.write(Layer::Shipped, "basesystem.toml", &builtin("files"));
+    places.write(
+        Layer::Shipped,
+        "files.toml",
+        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = { en = \"Files\" }\n",
+    );
+    places.write(Layer::Home, "alpha.toml", &builtin("files"));
+    places.write(Layer::Home, "beta.toml", &builtin("beta"));
+    let found = places.packages.read();
+    assert_eq!(
+        brief(&found),
+        [
+            ("alpha".to_string(), Layer::Home, Some(Code::FeatureTaken)),
+            ("basesystem".to_string(), Layer::Shipped, None),
+            ("beta".to_string(), Layer::Home, None),
+            (
+                "files".to_string(),
+                Layer::Shipped,
+                Some(Code::FeatureTaken)
+            ),
+        ]
+    );
+    let Err(Issue::Wrong(problem)) = &found[0].read else {
+        panic!("撞了");
+    };
+    assert_eq!((problem.detail.as_str(), problem.line), ("files", Some(6)));
+    let Err(Issue::Wrong(problem)) = &found[3].read else {
+        panic!("没写功能的照包的编号算");
+    };
+    assert_eq!((problem.detail.as_str(), problem.line), ("files", None));
+}
+
 #[test]
 fn a_broken_manifest_is_listed_with_its_problem() {
     let places = Places::new();
