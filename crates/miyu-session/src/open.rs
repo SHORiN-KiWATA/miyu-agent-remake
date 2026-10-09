@@ -27,6 +27,7 @@ use crate::guard::Guard;
 use crate::handle::{Handle, Ids};
 use crate::job_ids::JobIds;
 use crate::jobs::Roster;
+use crate::lettering::Lettering;
 use crate::memory::{self, connect};
 use crate::port::ForSession;
 use crate::report::{Reporter, Upstream};
@@ -238,11 +239,12 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         agents: agents.clone(),
     };
     let (inbox, mailbox) = mpsc::unbounded_channel();
+    let lettering = Arc::new(Lettering::new(run, guard));
     let guard = Guard::new(
         tools.clone(),
         root.path().to_path_buf(),
         home.map(Path::to_path_buf),
-        guard,
+        Arc::clone(&lettering),
         sandbox.is_some(),
     );
     let who = Who {
@@ -264,7 +266,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         ToolKit {
             session: id.clone(),
             catalog: tools.clone(),
-            texts: run,
+            lettering,
             home: home.map(Path::to_path_buf),
             data_root: root.path().to_path_buf(),
             blobs: kept,

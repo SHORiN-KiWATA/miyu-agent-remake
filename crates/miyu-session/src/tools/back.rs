@@ -60,7 +60,7 @@ impl Tools {
                     took_ms,
                     "crashed"
                 );
-                let worded = self.texts.crashed(&running.name);
+                let worded = self.lettering.run().crashed(&running.name);
                 Some(Input::ToolDone {
                     at,
                     call_id,

@@ -62,6 +62,7 @@ mod peers;
 mod permission;
 mod persona_set;
 mod persona_swap;
+mod persona_swap_upgrade;
 mod personas;
 mod preset_face;
 mod preset_set;

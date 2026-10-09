@@ -98,6 +98,9 @@ pub trait ModelPort: Send + Sync {
         }
     }
 
+    /// 换快照了（施工 P-1 三补）：驱动的占位换成新快照的 `texts`，以后的请求照它写。测试的端口不管。
+    fn retext(&self, _texts: DriverTexts) {}
+
     /// 替看不了图的模型看图（施工 8-17，`docs/blueprint/models.md`「怎么走」第十三条第 4 条）：照这一轮的配置 `config` 把
     /// `request` 经一次性入口发给 `models.vision`，说完了交给 `sight`。马上返回，在别的任务里发，带上当前的 span。没有一次性
     /// 入口的（测试的端口）当场交没成。
