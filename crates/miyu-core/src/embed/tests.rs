@@ -146,3 +146,42 @@ fn without_the_program_next_to_miyu_the_setup_says_so() {
     .expect("包装着就拼");
     assert_eq!(setup.program, None, "程序不在：Embedder 造的时候报用不了");
 }
+
+/// 装卸时照清单拼（施工 F-5 再补，[`find`]）：和起来时拼的一样，说得出缺的是哪一样；「没装」那一行只有起来时那一路记。
+#[test]
+fn find_matches_setup_and_only_setup_logs_the_missing_package() {
+    let scratch = Scratch::new();
+    let root = &scratch.0;
+    let packages = root.join("packages");
+    let env = env_with_program(root);
+    let memory = found(&packages, "memory", MEMORY);
+    let plain = found(&packages, "memory", PLAIN_MEMORY);
+    let embed = found(&packages, "embed", EMBED);
+    let started = setup(
+        &env,
+        &[
+            found(&packages, "memory", MEMORY),
+            found(&packages, "embed", EMBED),
+        ],
+    );
+    assert_eq!(find(&env, &[&memory, &embed]).ok(), started);
+    assert!(started.is_some());
+    assert_eq!(find(&env, &[&memory]), Err(Missing::Package));
+    assert_eq!(find(&env, &[&plain, &embed]), Err(Missing::Wanted));
+    assert_eq!(find(&env, &[&embed]), Err(Missing::Wanted));
+    let log = miyu_log::Memory::new();
+    tracing::subscriber::with_default(
+        miyu_log::subscriber(log.clone(), miyu_log::LevelFilter::INFO, None),
+        || {
+            assert!(find(&env, &[&memory]).is_err());
+            assert!(log.lines().is_empty(), "装卸那一路不记：{:?}", log.lines());
+            assert!(setup(&env, &[found(&packages, "memory", MEMORY)]).is_none());
+        },
+    );
+    let lines = log.lines();
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert!(
+        lines[0].contains("embedder unavailable") && lines[0].contains("no embed package"),
+        "{lines:?}"
+    );
+}

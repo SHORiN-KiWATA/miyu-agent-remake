@@ -188,16 +188,22 @@ fn groups(resources: &ResourceRoot, found: &[Found]) -> Result<Vec<Builtin>, Str
     Ok(groups)
 }
 
-/// 交给端点的内置包工具的端口（施工 F-5 中，`miyu_endpoint::builtins`）：装卸以后照清单重新登记，工具的字从 `resources` 读。
-pub fn builtin_tools(resources: &ResourceRoot) -> Arc<dyn miyu_endpoint::builtins::Builtins> {
+/// 交给端点的内置包工具的端口（施工 F-5 中，`miyu_endpoint::builtins`）：装卸以后照清单重新登记，工具的字从 `resources` 读；
+/// 本机的向量模型照核心起来时的环境 `env` 找小程序（施工 F-5 再补）。
+pub fn builtin_tools(
+    resources: &ResourceRoot,
+    env: &Env,
+) -> Arc<dyn miyu_endpoint::builtins::Builtins> {
     Arc::new(BuiltinTools {
         resources: resources.clone(),
+        env: env.clone(),
     })
 }
 
 /// [`builtin_tools`] 那一个。
 struct BuiltinTools {
     resources: ResourceRoot,
+    env: Env,
 }
 
 impl miyu_endpoint::builtins::Builtins for BuiltinTools {
@@ -211,6 +217,11 @@ impl miyu_endpoint::builtins::Builtins for BuiltinTools {
     /// 和起来时同一套拼法（施工 F-5 补）：核心登记的、包声明的，没装的内置包替它声明的那几项设置页不画。
     fn settings(&self, found: &mut [Found]) -> Vec<miyu_config::Item> {
         settings::Packaged::of(found).all()
+    }
+
+    /// 和起来时同一套拼法（施工 F-5 再补），不记「没装」的那一行。
+    fn embed(&self, found: &[&Found]) -> Option<miyu_session::EmbedSetup> {
+        embed::find(&self.env, found).ok()
     }
 }
 
@@ -276,7 +287,7 @@ async fn run(
     let trashed = root.clone();
     let (generated, words) = (root.clone(), resources.clone());
     let queries = packages::register(&resources, &root, &admin());
-    let builtins = builtin_tools(&resources);
+    let builtins = builtin_tools(&resources, &env);
     packages::clear_uploads(&root, &admin());
     let mut core = Core::new(
         root,

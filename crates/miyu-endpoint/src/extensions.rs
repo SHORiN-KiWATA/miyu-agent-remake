@@ -378,15 +378,18 @@ impl Core {
 pub(crate) type Processes<'a> = BTreeMap<&'a str, &'a Manifest>;
 
 /// 清单 `packages` 里的扩展包，收成 [`Processes`]。
-pub(crate) fn processes_of(packages: &[Found]) -> Processes<'_> {
-    processes(packages).collect()
+pub(crate) fn processes_of<'a>(packages: &[&'a Found]) -> Processes<'a> {
+    packages.iter().filter_map(|found| process(found)).collect()
 }
 
 pub(crate) fn processes(packages: &[Found]) -> impl Iterator<Item = (&str, &Manifest)> {
-    packages.iter().filter_map(|found| {
-        let manifest = found.read.as_ref().ok()?;
-        (manifest.kind == PackageKind::Process).then_some((found.id.as_str(), manifest))
-    })
+    packages.iter().filter_map(process)
+}
+
+/// 读成了的扩展包：编号和清单。
+fn process(found: &Found) -> Option<(&str, &Manifest)> {
+    let manifest = found.read.as_ref().ok()?;
+    (manifest.kind == PackageKind::Process).then_some((found.id.as_str(), manifest))
 }
 
 /// 包 `id` 开没开：写了的照写的，没写的照清单的 `start`。

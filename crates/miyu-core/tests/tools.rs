@@ -155,7 +155,7 @@ fn every_shipped_tool_belongs_to_a_feature() {
 #[test]
 fn the_builtin_port_gives_what_startup_registers() {
     let resources = shipped_resources();
-    let port = miyu_core::builtin_tools(&resources);
+    let port = miyu_core::builtin_tools(&resources, &miyu_store::env::Env::current());
     let groups = port.tools(&installed(&resources, &[])).expect("拼得出");
     let mut from_port: Vec<String> = groups
         .iter()
@@ -173,7 +173,7 @@ fn the_builtin_port_gives_what_startup_registers() {
 #[test]
 fn the_builtin_port_gives_the_settings_startup_reads() {
     let resources = shipped_resources();
-    let port = miyu_core::builtin_tools(&resources);
+    let port = miyu_core::builtin_tools(&resources, &miyu_store::env::Env::current());
     let all = port.settings(&mut installed(&resources, &[]));
     let startup = miyu_core::settings::Packaged::of(&mut installed(&resources, &[])).all();
     assert_eq!(all, startup);
@@ -196,4 +196,28 @@ fn the_builtin_port_gives_the_settings_startup_reads() {
             .any(|key| key.starts_with("memory.")),
         "没装的不画"
     );
+}
+
+/// 同一个端口照清单拼本机的向量模型（施工 F-5 再补）：人格记忆推荐、内置语义模型那个小程序包也装着才有，包目录照它的。
+#[test]
+fn the_builtin_port_sets_up_the_local_model_from_the_list() {
+    let resources = shipped_resources();
+    let port = miyu_core::builtin_tools(&resources, &miyu_store::env::Env::current());
+    let shipped = installed(&resources, &[]);
+    let read =
+        |text: &str| miyu_config::package::read(text).map_err(miyu_store::packages::Issue::Wrong);
+    let embed = Found {
+        id: "embed".to_string(),
+        layer: miyu_store::packages::Layer::Home,
+        path: std::env::temp_dir().join("embed.toml"),
+        read: read(
+            "[package]\nkind = \"worker\"\nprotocol = [1, 1]\nname = { en = \"Model\" }\n\n[worker]\nprogram = \"miyu-embed\"\n",
+        ),
+    };
+    let mut with: Vec<&Found> = shipped.iter().collect();
+    assert!(port.embed(&with).is_none(), "出厂不装");
+    with.push(&embed);
+    let setup = port.embed(&with).expect("装上就有");
+    assert_eq!(setup.dir, embed.files_dir());
+    assert_eq!(setup.manifest, embed.files_dir().join("model.toml"));
 }

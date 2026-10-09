@@ -47,6 +47,10 @@ impl Builtins for Kit {
         let packaged = miyu_endpoint::packages::settle(found, &own);
         own.into_iter().chain(packaged).collect()
     }
+
+    fn embed(&self, _: &[&Found]) -> Option<miyu_session::EmbedSetup> {
+        None
+    }
 }
 
 /// 照起来时那样造核心：清单里装着 `xkit`，编进来的内置包有它和出厂的几个。

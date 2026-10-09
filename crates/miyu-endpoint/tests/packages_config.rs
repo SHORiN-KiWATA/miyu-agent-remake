@@ -38,6 +38,10 @@ impl Builtins for Port {
         let packaged = miyu_endpoint::packages::settle(found, &core_items());
         core_items().into_iter().chain(packaged).collect()
     }
+
+    fn embed(&self, _: &[&Found]) -> Option<miyu_session::EmbedSetup> {
+        None
+    }
 }
 
 /// 一份手动拉起的扩展包的清单：带一项系统配置的整数 `port`。

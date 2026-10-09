@@ -62,6 +62,17 @@ impl Core {
         }
     }
 
+    /// 装卸时照清单从 `before` 换到 `now`（施工 F-5 下、补、再补）：扩展进程跟着停下、拉起（[`Core::follow_packages`]），本机的
+    /// 向量模型照 `now` 换（`Vectors::replace_local`，一样的不动，旧的小程序退完才返回）。卸包、升级在动文件以前照去掉它的清单
+    /// 换一遍：Windows 上开着的文件删不掉、挪不走。
+    async fn switch_packages(self: &Arc<Self>, before: &[&Found], now: &[&Found]) {
+        self.follow_packages(&processes_of(before), &processes_of(now))
+            .await;
+        if let (Some(builtins), Some(vectors)) = (&self.builtins, self.memory.vectors()) {
+            vectors.replace_local(builtins.embed(now)).await;
+        }
+    }
+
     /// 照清单 `found` 换内置包的工具（施工 F-5 中）：新装上的换进去，卸掉的拿掉、记下随包卸掉了（用过它的会话调到时报「已
     /// 卸载」）。没设端口、不知道编进来了哪些的不动。换不成的记一行、照旧。
     fn rebuild_builtins(&self, found: &[Found]) {
@@ -144,10 +155,9 @@ pub(crate) async fn remove(core: &Arc<Core>, params: RemoveParams) -> Result<Val
     let home = home(core)?;
     let layer = one.layer;
     // 先停下用着它的、再删文件（施工 F-5 补）：Windows 上开着的文件删不掉。删不成的照原来的清单换回来。
-    let all = processes_of(&found);
-    let mut without = all.clone();
-    without.remove(id.as_str());
-    core.follow_packages(&all, &without).await;
+    let all = refs(&found);
+    let without = leaving(&all, &id);
+    core.switch_packages(&all, &without).await;
     let removed = blocking(move || match layer {
         Layer::Home => install::take_out(&home, &id).map(|()| id),
         Layer::Shipped => install::mark_removed(&home, &id).map(|()| id),
@@ -156,13 +166,13 @@ pub(crate) async fn remove(core: &Arc<Core>, params: RemoveParams) -> Result<Val
     let removed = match removed {
         Ok(removed) => removed,
         Err(refusal) => {
-            core.follow_packages(&without, &all).await;
+            core.switch_packages(&without, &all).await;
             return Err(refusal);
         }
     };
     core.reload_packages();
     let now = core.packages();
-    core.follow_packages(&without, &processes_of(&now)).await;
+    core.switch_packages(&without, &refs(&now)).await;
     tracing::info!(target: TARGET, package = removed.as_str(), "package removed");
     Ok(json!({"package": removed, "removed": true}))
 }
@@ -194,16 +204,15 @@ async fn from_path(core: &Arc<Core>, peer: Peer, path: &Path) -> Result<Value, R
     let target = id.clone();
     // 升级的先停下原来的那一个再换文件（施工 F-5 补）：Windows 上开着的文件挪不走。换不成的照原来的清单换回来。
     let before = core.packages();
-    let all = processes_of(&before);
-    let mut without = all.clone();
-    without.remove(id.as_str());
-    core.follow_packages(&all, &without).await;
+    let all = refs(&before);
+    let without = leaving(&all, &id);
+    core.switch_packages(&all, &without).await;
     let placed =
         blocking(move || install::place(&home, &target, &manifest, files.as_deref())).await;
     let placed: Placed = match placed {
         Ok(placed) => placed,
         Err(refusal) => {
-            core.follow_packages(&without, &all).await;
+            core.switch_packages(&without, &all).await;
             return Err(refusal);
         }
     };
@@ -221,11 +230,11 @@ async fn from_path(core: &Arc<Core>, peer: Peer, path: &Path) -> Result<Value, R
         }
         core.reload_packages();
         let back = core.packages();
-        core.follow_packages(&without, &processes_of(&back)).await;
+        core.switch_packages(&without, &refs(&back)).await;
         return Err(refusal);
     }
     placed.keep();
-    core.follow_packages(&without, &processes_of(&now)).await;
+    core.switch_packages(&without, &refs(&now)).await;
     tracing::info!(target: TARGET, package = id.as_str(), "package installed");
     let mine = now
         .iter()
@@ -246,8 +255,7 @@ async fn bring_back(core: &Arc<Core>, peer: Peer, id: &str) -> Result<Value, Ref
     blocking(move || install::unmark_removed(&home, &target)).await?;
     core.reload_packages();
     let now = core.packages();
-    core.follow_packages(&processes_of(&before), &processes_of(&now))
-        .await;
+    core.switch_packages(&refs(&before), &refs(&now)).await;
     tracing::info!(target: TARGET, package = id, "package restored");
     let words = words(core, peer.language)?;
     let now = core.packages();
@@ -285,4 +293,14 @@ async fn blocking<T: Send + 'static>(
         }
         Err(_) => Err(Refusal::INTERNAL),
     }
+}
+
+/// 清单里的每一份。
+fn refs(found: &[Found]) -> Vec<&Found> {
+    found.iter().collect()
+}
+
+/// 去掉编号是 `id` 的那一份。
+fn leaving<'a>(all: &[&'a Found], id: &str) -> Vec<&'a Found> {
+    all.iter().copied().filter(|one| one.id != id).collect()
 }
