@@ -105,6 +105,11 @@ impl Keeper {
         self.memory.extraction().cloned()
     }
 
+    /// 人格记忆这时装着没有（施工 R-10）：没装的开着的会话不交摘要、不抽。
+    pub(crate) fn installed(&self) -> bool {
+        self.memory.installed()
+    }
+
     /// 会话 `session` 抽到了它日志的第几条（施工 R-6 上，`memory.md` 第六条）；还没抽过的是 `None`。
     ///
     /// # Errors

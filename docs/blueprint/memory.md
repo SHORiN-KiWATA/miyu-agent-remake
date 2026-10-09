@@ -35,7 +35,7 @@
 | `crates/miyu-session/src/actor/extract.rs` | 什么时候抽、这一段从哪来：闹钟、在阻塞线程里读两份日志、拼留着一切的历史交给组装器渲染（第六条第 1、2 款） | R-6 上 |
 | `crates/miyu-session/src/memory/keeper.rs` | 一间记忆和这次的听众（`Keeper`）：记、改、忘、清空、搜、列、搜以前的对话，她的工具和协议共用；`memory/port.rs` 是她的工具的端口，只管出处是这一轮、`by` 是那次调用 | R-3 中、补 |
 | `crates/miyu-memory/` | 记忆这个软件包（可选、能关，`10-自带软件.md` 第三节）：三件工具 `memory_search`、`remember`、`forget`，经端口碰记忆日志和检索库；不放进基础系统 | R-3 中 |
-| `crates/miyu-endpoint/src/memory.rs`、`memory/params.rs` | 协议 `memory.*`：找哪一间、读参数、写回应；`/remember` 记一条（`commands.rs` 调它） | R-3 补 |
+| `crates/miyu-endpoint/src/memory.rs`、`memory/params.rs` | 协议 `memory.*`：找哪一间、读参数、写回应；`/remember` 记一条（`commands.rs` 调它）；人格记忆没装的拒绝（R-10，第十一条）；`Core::with_vectors`、`memory_for`（R-10 从 `lib.rs` 挪过来） | R-3 补 |
 | `crates/miyu-cli/src/memory.rs`、`memory/shown.rs` | `miyu memory`：照子命令发 `memory.*`，一条印成一行（`cli/memory.md`） | R-3 再补 |
 | `resources/software/memory/` | 给她看的字（说明、规则、摘要和联想的外壳、整理的指令），进登记簿；`extract/` 是抽取那一次请求的六份（R-6 上） | R-3 中起 |
 | `resources/core/memory/secrets.toml` | 常见的 key 写法（数据，不给模型看，不进登记簿） | R-6 上 |
@@ -102,7 +102,7 @@
 - 结果：`remember` 说记成了哪个编号（改的另说改了哪一条）；超过 120 字、`replaces` 没有这一条、那一条已经改掉或作废了，不记，说一句。`forget` 说作废了哪一条。`memory_search` 记下的一条一行（编号、类、记下的日期、正文），以前的对话一条一行（日期、会话的短编号、截到 300 字的字），记下的最多 10 条在前、对话最多 5 条在后；只给现在算数的、出处还活着的、听众合的（第二条、第九条）；什么都没有说一句。照关键词找，`models.embedding` 不是 `off` 的再照意思找、两路照名次合（施工 R-5 下，`recall.md` 第三条第 3 到 6 款）：意思对、字对不上的也找得到。原文见「样子」，施工时定。
 - 她当场记的那一段，后台不再抽（第六条第 3 款，R-6）。
 
-**协议**（R-3 补，`17-记忆.md` 第九节；原文写法见 `protocol.md`）：人不经过她碰记忆。五个方法都能写 `persona` 或 `session`（最多一个）指哪一间：`persona` 是这个人格那一间（记忆账号照 `personas.md` 第 5 条，属主是这个连接的账号）；`session` 是那个会话用的那一间（照它的快照；`off` 的、不带人格的、场所会话 `memory_unavailable`）；都不写照默认人格，没设默认人格的 `memory_unavailable`（不带人格记忆不生效，17 L17）。听众照这个连接的人（本机的是管理员）：只列、只搜、只改得到听众合的（第九条），不合的当没有。
+**协议**（R-3 补，`17-记忆.md` 第九节；原文写法见 `protocol.md`）：人不经过她碰记忆。五个方法都能写 `persona` 或 `session`（最多一个）指哪一间：`persona` 是这个人格那一间（记忆账号照 `personas.md` 第 5 条，属主是这个连接的账号）；`session` 是那个会话用的那一间（照它的快照；`off` 的、不带人格的、场所会话 `memory_unavailable`）；都不写照默认人格，没设默认人格的 `memory_unavailable`（不带人格记忆不生效，17 L17）。人格记忆这个软件包没装的，五个都回 `memory_not_installed`，先于别的检查（第十一条，R-10）。听众照这个连接的人（本机的是管理员）：只列、只搜、只改得到听众合的（第九条），不合的当没有。
 
 | 方法 | 类型 | 参数 | 回应 |
 |---|---|---|---|
@@ -222,6 +222,12 @@
 3. 抽取只在缓存还热的时候 fork；合并只交相关的。
 4. 每一步合并以前用真模型量两样，写进施工单：同一个会话连说几轮的缓存命中，有记忆和没有的一样；每轮多了多少 token。
 
+**十一、装没装**（R-10，2026-10-09 项目主人定：记忆的代码编在核心里，照装没装人格记忆这个包启用，包出厂装着，卸了全没有、磁盘上的数据不删；形状 2026-10-10 和核心的主会话对过）
+
+1. 装没装记在核心一份的 `miyu_session::Memory` 上（`set_installed`、`installed`，没设过的当装着）：核心起来时照读到的清单设一次（`Core::new`、`Core::with_packages`），装卸以后照新的清单设（`Core::switch_packages` 最先做，卸包在动文件以前，删不成照原来的清单设回去，`packages.md`「装卸」第 2 条）。会话手里的功能表是开会话时那一份、不跟装卸，所以开着的会话看这个开关。
+2. 没装的时候：工具不在目录里、新开的会话不接记忆（F-2、F-3 上、F-5 中）；开着的会话这一轮不交摘要（第三条），闲了不上闹钟、上了的响的时候和读回来的时候没装了也不抽（第六条）；协议的 `memory.*` 回 `memory_not_installed`（「协议」），命令行 `miyu memory` 照这一句说；`/remember` 回 `memory_unavailable`，为什么那一句是「没装人格记忆。」（`commands/unavailable/not-installed`，先于没有人格、预设没开），`command.catalog` 带会话的不列它。
+3. 装回来：开着的会话下一轮照常交摘要、闲了照常抽（开会话时就接着记忆的那些）；开会话时没装的照旧不接，记忆照开会话时的（L3），换个新会话才有。磁盘上的记忆日志、检索库、回合库卸包时一个不动，装回来照旧读。
+
 ### 出错
 
 各步施工时定：她的工具出错照工具的规矩写一句英文（`26-提示词.md` J3），协议照 `protocol.md` 的原因码。
@@ -250,6 +256,9 @@
 | `crates/miyu-recall/src/memory/tests.rs`（R-3 补的两条） | 第二条第 5 款：`cleared` 带会话的、整间的写成事件读回一字不差；清掉一个会话的只清出处全在它里面的，有别的出处的、人记的不动；整间的清掉那以前全部，以后记的照常；清过的不再算 |
 | `crates/miyu-store/tests/memory.rs`（R-3 补的一条） | 清空交回清掉几条、记忆库里的字跟着删；记忆库删了照日志重建，清掉的不放回去 |
 | `crates/miyu-endpoint/tests/memory_api.rs` | 「协议」：五个方法各走一遍（新的在前、照类、`limit`、搜、改了旧的不出来、类照旧、作废的只在 `forgotten` 时出来）；写错的几种（超长带 `data`、120 字记得下、类不认识、空白、两样都写、`as`、人格编号、没有的人格、没有的会话、`limit` 出范围、`from` 写错），什么都没记；默认人格、会话那一间、跟着人格的会话、`off` 的 `memory_unavailable`；同一个命令编号记、改、作废、清空再发只算一次，重启以后也是；没设默认人格的不写人格就没有记忆、不带人格的会话里 `/remember` 不记，明着写了人格的照样能记 |
+| `crates/miyu-session/tests/memory_installed.rs`（R-10） | 第十一条，真会话：没装的这一轮不交摘要、装回来下一轮交、以前记的都在；没装的闲了不抽、装回来照常抽；上了闹钟以后卸掉的响了也不抽 |
+| `crates/miyu-endpoint/tests/memory_installed.rs`（R-10） | 第十一条，真核心经 `package.remove` 卸掉出厂的人格记忆：`memory.*` 五个都回 `memory_not_installed`、原话照语言；`/remember` 回 `memory_unavailable`、为什么说没装，`command.catalog` 不列它；装回来以前记的都在、又列出来 |
+| `crates/miyu-core/tests/packages.rs` 的 `memory_removed_before_start_says_not_installed`、`crates/miyu-endpoint/tests/preset_face.rs` 的 `memory_not_in_the_given_list_says_not_installed`（R-10） | 第十一条第 1 款：起来时就卸掉了的（`Core::new` 读的那一份、`Core::with_packages` 交进来的那一份），`memory.*` 回 `memory_not_installed` |
 | `crates/miyu-endpoint/tests/memory_clear.rs` | 清空：她记的和人记的一起清，清一个会话的回一条、清掉的作废的里也没有，清整间回两条、搜不到、改它说不算了；会话那一间清会话的就是整间 |
 | `crates/miyu-endpoint/tests/remember_command.rs` | `/remember`：记进会话那一间、`by` 是人、出处空、回执带编号、记 `command.ran`、不请求模型；空的、只有空白的、超长的不记；`off` 的、场所会话里 `memory_unavailable` |
 | `crates/miyu-session/tests/memory_summary.rs` | 第三条：真会话、真记忆日志，第一轮的请求里有那一块、在触发的那句前面、新的在前、一行逐字节对、`refs` 是那几条；第二轮不再交、第一轮那一块原样还在；清空以后又交一次；一条都没有的、范围 `off` 的不交；听众不合的、作废的、改掉的不进；正文的换行换成空格，日期照会话的时区（UTC 的 7 日 20 点在东九区写 8 日）；六十条截在一条的边界上、不超过 3000 字节、说还有几条；另一个线程握着记忆日志的锁，这一轮过了时限照常请求、不带，下一轮交了 |
@@ -295,6 +304,7 @@
 | R-5 三补 | 内置模型做成可选的小程序包 `embed`（只放 bge、模型文件在包里、出厂不装），不再下载；没装时「内置模型」选不了（`recall.md` 第四条第 1 到 3 款） |
 | R-6 上 | 抽取（单发，做了，2026-10-09）：闲了起闹钟、这一段照会话日志取、遮 key、记下、记抽到了哪（第六条） |
 | R-6 下 | 抽取（fork 式）：暂不做（2026-10-09 项目主人定，第六条第 10 款），抽取的费用成了问题再开 |
+| R-10 | 记忆照包启用：卸了人格记忆，开着的会话不交摘要、不抽，`memory.*`、`/remember` 说没装；装回来接着（第十一条） |
 | R-7 | 合并、重写摘要 |
 | R-8 | 联想（测评集上定门槛） |
 | R-9 | 记忆验收：真模型，缓存命中和每轮的 token |

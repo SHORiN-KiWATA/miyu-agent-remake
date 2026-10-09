@@ -1,7 +1,8 @@
 //! 常驻的记忆摘要（施工 R-4 上，`docs/blueprint/memory.md` 第三条）：会话的第一轮、压缩以后的第一轮，回合开始的挂接点交回
 //! 一块事实，在触发的那句前面，以后原样回放（缓存只在第一轮多写一次，第十条）。
 //!
-//! - 交不交：内核交来的 `present` 里没有这个模块、这一类的一块才交（第一轮、压缩以后、撤掉带着它的那一轮以后）。
+//! - 交不交：内核交来的 `present` 里没有这个模块、这一类的一块才交（第一轮、压缩以后、撤掉带着它的那一轮以后）；人格记忆这时
+//!   没装的不交（施工 R-10）。
 //! - 交什么：这一间里现在算数的、出处活着的、听众合的，新的在前，一条一行，和 `memory_search` 的一行一个写法；`refs` 是这几条
 //!   的编号。排名（半衰期、用到几次）随 R-4 下；合并出来的摘要随 R-7。
 //! - 上限：外壳加几行不超过 [`LIMIT`] 字节，截在一条的边界上，最后一行说还有几条。
@@ -64,6 +65,9 @@ impl Keeper {
     /// 这一轮要不要交摘要、交什么（这一段上下文里已经有的、一条都没有的、读不了的、核心没读到外壳的字的不交）。`offset`
     /// 是会话的时区。碰磁盘，调的一方放在阻塞线程里。
     pub(crate) fn summary(&self, offset: UtcOffset, present: &[Present]) -> Option<Injection> {
+        if !self.installed() {
+            return None;
+        }
         let name =
             |present: &Present| present.module.as_str() == NAME && present.kind.as_str() == NAME;
         let texts = self.memory.summary.as_ref()?;

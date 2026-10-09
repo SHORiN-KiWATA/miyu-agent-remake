@@ -1,7 +1,8 @@
 //! 什么时候抽、这一段从哪来（施工 R-6 上，`docs/blueprint/memory.md` 第六条第 1 款；抽本身在 `memory/extract.rs`）。
 //!
 //! 1. 会话从忙到闲那一刻（`watchers.rs` 的 `after_batch`）上一个闹钟，`memory.extract_idle` 以后响；忙起来就撤掉。只给记忆
-//!    开着、核心交过抽取要的几样的会话（本机的主会话：别的没有记忆的端口）。
+//!    开着、核心交过抽取要的几样的会话（本机的主会话：别的没有记忆的端口）。响的时候人格记忆没装的不抽（施工 R-10）：没装时上
+//!    的、上了以后卸掉的都在这里挡下。
 //! 2. 响了、还闲着、没有一次在路上：在阻塞线程里读记忆日志里它抽到了哪、会话日志里那以后的事件（不占 actor，不碰 actor 手里
 //!    的日志）。
 //! 3. 读回来、还是那个闹钟、还闲着：拼一份留着一切的历史（`History::whole`，压缩替代掉的也在），交给会话的组装器渲染这一段，
@@ -61,7 +62,7 @@ impl Actor {
         let Some(dir) = dir else {
             return;
         };
-        if !extractor.due(generation) || !self.session.vacant() {
+        if !extractor.due(generation) || !self.session.vacant() || !keeper.installed() {
             return;
         }
         let (keeper, session, backs) = (keeper.clone(), session.clone(), self.backs.clone());

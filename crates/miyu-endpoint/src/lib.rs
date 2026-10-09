@@ -84,11 +84,9 @@ use std::time::Duration;
 use miyu_kernel::id::AccountId;
 use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
+use miyu_policy::preset::MEMORY;
 use miyu_sandbox::{Availability, Unusable};
-use miyu_session::{
-    EmbedSetup, Embedder, Jobs, Memory, ModelData, Models, Observed, SandboxCache, SummaryTexts,
-    Vectors,
-};
+use miyu_session::{Jobs, Memory, ModelData, Models, Observed, SandboxCache, SummaryTexts};
 use miyu_store::index::SessionIndex;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
@@ -230,6 +228,8 @@ impl Core {
             .inspect_err(|error| tracing::warn!(target: "miyu::endpoint", error = %error, "memory summary texts unreadable"))
             .ok();
         let memory = Memory::new(&root, summary);
+        // 人格记忆装没装（施工 R-10）：照这时读到的清单；交进来另一份的照那一份（[`Core::with_packages`]）。
+        memory.set_installed(packages::is_installed(&found, MEMORY));
         // 抽取（施工 R-6 上）：照一次性入口发；字、key 的写法读不出来的，这个核心不抽。
         if let Some(extraction) = memory::extraction(&*models, &resources, &root, &admin) {
             memory.give_extraction(extraction);
@@ -333,6 +333,8 @@ impl Core {
     /// 交进来，`package.list`、包的配置项的字照它。没设的是 `Core::new` 自己读的那一份。
     #[must_use]
     pub fn with_packages(mut self, packages: Vec<miyu_store::packages::Found>) -> Core {
+        self.memory
+            .set_installed(packages::is_installed(&packages, MEMORY));
         self.packages = std::sync::RwLock::new(Arc::new(packages));
         self
     }
@@ -406,16 +408,6 @@ impl Core {
         self
     }
 
-    /// 同一份家底，接上照意思找的那一路（施工 R-5 下、补，`recall.md` 第四条）：本机的照 `local` 算（找不到小程序、缓存目录
-    /// 的是空的），远程的照模型资料里的供应商发。核心起来时接一次，接在 [`Core::with_model_data`] 后面（远程的照那一份查
-    /// 供应商、记账）；不接的（测试里）只照关键词找。
-    #[must_use]
-    pub fn with_vectors(self, local: Option<EmbedSetup>) -> Core {
-        let vectors = Vectors::new(local.map(Embedder::new), Arc::clone(&self.model_data));
-        self.memory.give_vectors(Arc::new(vectors));
-        self
-    }
-
     /// 账号 `owner` 的那一份沙盒的缓存。
     pub(crate) fn sandbox_cache_of(&self, owner: &AccountId) -> Option<SandboxCache> {
         self.sandbox_cache
@@ -442,12 +434,6 @@ impl Core {
     /// 账号 `owner` 的会话写哪份用量汇总（施工 8-15）：核心一份、行里带属主，管理员和系统账号的会话写（施工 O-4 下）。
     pub(crate) fn usage_for(&self, owner: &AccountId) -> Option<Arc<UsageIndex>> {
         self.knows(owner).then(|| Arc::clone(&self.usage))
-    }
-
-    /// 账号 `owner` 的会话用的记忆的登记，交给造的、载入的会话（施工 R-2 上、R-3 中）：管理员和系统账号的会话有（施工 O-4
-    /// 下）；记忆归哪个账号另照 [`Core::memory_owner`] 算，系统账号的归管理员。
-    pub(crate) fn memory_for(&self, owner: &AccountId) -> Option<Arc<Memory>> {
-        self.knows(owner).then(|| Arc::clone(&self.memory))
     }
 
     /// 连着几个连接。

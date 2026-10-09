@@ -1,6 +1,6 @@
 //! 用不了的命令为什么用不了（施工 O-6 再补，2026-10-09 项目主人在网页上验收：带了人格、预设没开记忆的会话打 `/remember`，
-//! 不知道为什么）：`command.catalog` 的 `unavailable` 和 `command.run` 拒绝的 `data.why` 是同一句，照连接的语言。记忆用不了的
-//! 说具体：会话没有人格；会话的预设没开记忆，带上预设的名字，人才知道去哪改。别的照拒绝的那一句。
+//! 不知道为什么）：`command.run` 拒绝的 `data.why`，照连接的语言。记忆用不了的说具体：人格记忆没装（施工 R-10）；会话没有
+//! 人格；会话的预设没开记忆，带上预设的名字，人才知道去哪改。别的照拒绝的那一句。
 
 use miyu_policy::preset::MEMORY;
 use miyu_session::Handle;
@@ -23,8 +23,11 @@ pub(super) async fn why(core: &Core, peer: &Peer, handle: &Handle, refused: &Ref
     refused.message(peer.locale).to_string()
 }
 
-/// 记忆为什么用不了：没有人格的、预设没开记忆的；会话表里查不到、说不准的是 `None`，照拒绝的那一句。
+/// 记忆为什么用不了：人格记忆没装的、没有人格的、预设没开记忆的；会话表里查不到、说不准的是 `None`，照拒绝的那一句。
 async fn memory(core: &Core, peer: &Peer, handle: &Handle) -> Option<Said> {
+    if !crate::memory::installed(core) {
+        return Some(Said::plain("commands/unavailable/not-installed"));
+    }
     let (root, admin, index) = (core.root.clone(), core.admin.clone(), core.index.clone());
     let id = handle.id().clone();
     let listed =

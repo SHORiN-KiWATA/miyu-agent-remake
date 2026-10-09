@@ -521,6 +521,7 @@
     "view/error/status/402": "Out of credit",
     "view/error/status/404": "Not found: check the endpoint address and the model name",
     "view/error/status/429": "Rate limited or out of credit, try again later",
+    "commands/unavailable/not-installed": "Persona memory is not installed.",
     "commands/unavailable/no-persona": "Memory does not work in a session without a persona.",
     "commands/unavailable/preset-off": "This session's preset \"{preset}\" has memory off.",
     "commands/workspace-wide": "The workspace is now {cwd} (a broad directory)."

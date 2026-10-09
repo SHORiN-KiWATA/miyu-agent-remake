@@ -1,4 +1,4 @@
-//! 人碰记忆时的四种拒绝（施工 R-3 补，`memory.md`「协议」）：`refusal.rs` 到了 500 行，挪到这里。
+//! 人碰记忆时的几种拒绝（施工 R-3 补，`memory.md`「协议」）：`refusal.rs` 到了 500 行，挪到这里。
 
 use super::{REFUSED, Refusal};
 
@@ -7,6 +7,13 @@ impl Refusal {
     pub(crate) const MEMORY_UNAVAILABLE: Refusal = Refusal {
         code: REFUSED,
         reason: "memory_unavailable",
+        data: None,
+    };
+    /// 人格记忆这个软件包没装（施工 R-10，`memory.md` 第十一条）：`memory.*` 五个都回它，先于别的检查；装上就能用，以前记的
+    /// 都在。
+    pub(crate) const MEMORY_NOT_INSTALLED: Refusal = Refusal {
+        code: REFUSED,
+        reason: "memory_not_installed",
         data: None,
     };
     /// 没有这一条记忆，或者听众不合（施工 R-3 补）：不合的当没有，不让人知道有。

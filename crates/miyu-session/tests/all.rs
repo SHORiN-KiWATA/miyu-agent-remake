@@ -26,6 +26,7 @@ mod memory;
 mod memory_backfill;
 mod memory_extract;
 mod memory_extract_more;
+mod memory_installed;
 mod memory_remote;
 mod memory_scope;
 mod memory_summary;

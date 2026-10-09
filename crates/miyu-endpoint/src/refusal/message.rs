@@ -171,6 +171,7 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "这里没有记忆：没有人格、记忆关着，或者是通讯平台的会话。",
             "No memory here: no persona, memory is off, or this is a platform session.",
         ),
+        "memory_not_installed" => ("没装人格记忆。", "Persona memory is not installed."),
         "unknown_memory" => ("没有这一条记忆。", "There is no such memory."),
         "memory_not_current" => (
             "这一条已经改掉、作废或者清掉了。",

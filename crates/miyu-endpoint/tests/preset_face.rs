@@ -441,6 +441,16 @@ async fn memory_not_installed_is_off_and_not_named() {
     assert!(!request.system.contains(OFF_LINE), "{}", request.system);
 }
 
+/// 交进来的清单里没有人格记忆（`Core::with_packages`，核心起来时的那一份）：`memory.*` 说没装（施工 R-10，`memory.md` 第十一条
+/// 第 1 款）。
+#[tokio::test]
+async fn memory_not_in_the_given_list_says_not_installed() {
+    let home = Home::new();
+    let mut client = connected(configured_with(&home, &Script::new([]), &["memory"])).await;
+    let reply = client.call("m1", "memory.list", json!({})).await;
+    assert_eq!(reason(&reply), Some("memory_not_installed"), "{reply}");
+}
+
 /// 没装人设防失忆提醒（施工 F-3 上）：人格写了提醒短语，全部功能的预设里也没有提醒、没有风格锁。
 #[tokio::test]
 async fn reminders_not_installed_drop_the_reminder_and_the_lock() {

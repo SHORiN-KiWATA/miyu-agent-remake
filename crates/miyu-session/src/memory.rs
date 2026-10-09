@@ -21,6 +21,7 @@ pub(crate) use port::Calls;
 pub use summary::SummaryTexts;
 pub use vectors::{LOCAL as EMBED_LOCAL, Query, Using, Vectors};
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
 
 use miyu_kernel::event::Event;
@@ -48,6 +49,8 @@ pub struct Memory {
     vectors: OnceLock<Arc<Vectors>>,
     /// 抽取要的几样（施工 R-6 上）：核心起来时交（[`Memory::give_extraction`]），没交的不抽。
     extraction: OnceLock<Extraction>,
+    /// 人格记忆这个软件包这时装着没有（施工 R-10）：开着的会话照它交不交摘要、抽不抽。
+    installed: AtomicBool,
 }
 
 impl Memory {
@@ -83,6 +86,7 @@ impl Memory {
             summary,
             vectors: OnceLock::new(),
             extraction: OnceLock::new(),
+            installed: AtomicBool::new(true),
         })
     }
 }
@@ -106,6 +110,17 @@ impl Memory {
     /// 抽取要的几样：没交的没有，不抽。
     pub(crate) fn extraction(&self) -> Option<&Extraction> {
         self.extraction.get()
+    }
+
+    /// 人格记忆这个软件包装没装（施工 R-10，`memory.md` 第十一条）：核心起来时照清单设一次，装卸以后照新的清单设（卸包在动
+    /// 文件以前）。没设过的当装着。没装的时候开着的会话不交摘要、不抽；磁盘上的不动，装回来接着用。
+    pub fn set_installed(&self, installed: bool) {
+        self.installed.store(installed, Ordering::SeqCst);
+    }
+
+    /// 人格记忆这个软件包这时装着没有（[`Memory::set_installed`]）。
+    pub fn installed(&self) -> bool {
+        self.installed.load(Ordering::SeqCst)
     }
 }
 

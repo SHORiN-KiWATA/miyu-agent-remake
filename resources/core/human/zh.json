@@ -509,6 +509,7 @@
     "view/error/status/402": "额度用完了",
     "view/error/status/404": "找不到，检查端点地址和模型名",
     "view/error/status/429": "被限速了，或者额度不够，过一会儿再试",
+    "commands/unavailable/not-installed": "没装人格记忆。",
     "commands/unavailable/no-persona": "没有人格的会话记忆不生效。",
     "commands/unavailable/preset-off": "这个会话的预设「{preset}」没开记忆。",
     "commands/workspace-wide": "工作区换到了 {cwd}（范围很大）。"

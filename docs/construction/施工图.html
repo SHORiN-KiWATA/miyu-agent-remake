@@ -674,6 +674,7 @@ a.step:hover{border-color:var(--primary)}
         <li><span class="step"><span class="n">R-7</span>合并</span></li>
         <li><span class="step"><span class="n">R-8</span>联想</span></li>
         <li><span class="step"><span class="n">R-9</span>记忆验收</span></li>
+        <li><a class="step done" href="#sR-10"><span class="n">R-10</span>记忆照包启用<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -17551,6 +17552,57 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/R-6-抽取.md</code>；蓝图 <code>memory.md</code> 第六条，<code>config.md</code> 的三项，<code>log.md</code>，<code>kernel/session.md</code>，<code>26-提示词.md</code> 第十节。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sR-10" aria-labelledby="h-sR10">
+  <div class="sheet-head"><h2 id="h-sR10"><span class="no">R-10</span>记忆照包启用</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">卸掉「人格记忆」，它的东西哪里都不出现：开着的会话不交摘要、不抽，协议、命令行、斜杠命令说没装；装回来以前记的都在。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-session · miyu-endpoint</span><span class="dir-note">R-10</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>Memory 记着装没装：起来时、装卸以后照清单设</li>
+              <li>开着的会话没装的不交摘要、不抽</li>
+              <li>memory.* 回 memory_not_installed</li>
+              <li>/remember 说没装、命令表不列</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">开关在记忆上</span><span class="rl">会话的功能表不跟装卸</span></div>
+          <div class="tile new"><span class="nm">另起原因码</span><span class="rl">分得出装上就能用</span></div>
+          <div class="tile new"><span class="nm">不删数据</span><span class="rl">装回来照旧读</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-10</dd></div>
+        <div><dt>名称</dt><dd>记忆照包启用</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">（合进 main 时填）</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真核心、核心的主会话看形状 · 自己验收，通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>（合进 main 时填）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-10-记忆照包启用.md</code>；蓝图 <code>memory.md</code> 第十一条和「协议」，<code>protocol.md</code> 的 <code>memory.*</code>、<code>/remember</code>、拒绝的表，<code>packages.md</code>「装卸」第 2 条，<code>core.md</code> 第 12 步。</li>
       </ul>
     </div>
   </div>

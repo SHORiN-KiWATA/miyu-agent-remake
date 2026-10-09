@@ -9,6 +9,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use miyu_config::package;
+use miyu_policy::preset::MEMORY;
 use miyu_store::packages::install::{self, Placed};
 use miyu_store::packages::{Found, Issue, Layer, Packages};
 
@@ -62,10 +63,15 @@ impl Core {
         }
     }
 
-    /// 装卸时照清单从 `before` 换到 `now`（施工 F-5 下、补、再补）：扩展进程跟着停下、拉起（[`Core::follow_packages`]），本机的
-    /// 向量模型照 `now` 换（`Vectors::replace_local`，一样的不动，旧的小程序退完才返回）。卸包、升级在动文件以前照去掉它的清单
-    /// 换一遍：Windows 上开着的文件删不掉、挪不走。
+    /// 装卸时照清单从 `before` 换到 `now`（施工 F-5 下、补、再补）：人格记忆装没装照 `now` 设（`Memory::set_installed`，施工
+    /// R-10：开着的会话照它交不交摘要、抽不抽），扩展进程跟着停下、拉起（[`Core::follow_packages`]），本机的向量模型照 `now`
+    /// 换（`Vectors::replace_local`，一样的不动，旧的小程序退完才返回）。卸包、升级在动文件以前照去掉它的清单换一遍：Windows
+    /// 上开着的文件删不掉、挪不走。
     async fn switch_packages(self: &Arc<Self>, before: &[&Found], now: &[&Found]) {
+        let memory = now
+            .iter()
+            .any(|one| super::is_installed(std::slice::from_ref(*one), MEMORY));
+        self.memory.set_installed(memory);
         self.follow_packages(&processes_of(before), &processes_of(now))
             .await;
         if let (Some(builtins), Some(vectors)) = (&self.builtins, self.memory.vectors()) {
