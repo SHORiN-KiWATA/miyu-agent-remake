@@ -73,6 +73,7 @@ impl SessionPort for Table {
         let answer = match made {
             2 => Outcome::Rejected {
                 reason: Reason::EmptyMessage,
+                about: Vec::new(),
             },
             _ => Outcome::Accepted { events: Vec::new() },
         };

@@ -11,7 +11,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use miyu_kernel::block::{Block, File, Image};
-use miyu_kernel::id::ContentHash;
+use miyu_kernel::id::{ContentHash, SourcePath};
 use miyu_kernel::request::{Message, Request};
 
 use crate::{BlobBytes, Call, DriverTexts, EncodeError, text_file};
@@ -27,12 +27,16 @@ pub(crate) struct Media<'a> {
 }
 
 impl Media<'_> {
-    /// 不能看图时的一张图：有转述、快照里有标签的写成带标签的转述（施工 8-17），别的写占位那一句。
+    /// 不能看图时的一张图：有转述、快照里有标签的写成带标签的转述（施工 8-17），别的写占位那一句，带着原来的路径的写上
+    /// 路径（施工 3-9 五补）。
     pub(crate) fn unseen(&self, image: &Image) -> String {
         self.described
             .get(&image.blob)
             .and_then(|description| self.texts.image_described(name(image), description))
-            .unwrap_or_else(|| self.texts.image_omitted(name(image)))
+            .unwrap_or_else(|| {
+                self.texts
+                    .image_omitted(name(image), image.path.as_ref().map(SourcePath::as_str))
+            })
     }
 
     /// 能看图时，带名字的图片前后的两段标签；不带名字的、快照里没有这几句的没有。
@@ -40,14 +44,19 @@ impl Media<'_> {
         self.texts.image_tags(name(image))
     }
 
-    /// 发不了的文件写成字：内容是文本的、快照里有那三句的，照字放进来；别的写一句占位，带文件名、媒体类型、大小。
+    /// 发不了的文件写成字：内容是文本的、快照里有那三句的，照字放进来；别的写一句占位，带文件名、媒体类型、大小，带着
+    /// 原来的路径的写上路径（施工 3-9 五补）。
     pub(crate) fn file_text(&self, file: &File) -> Result<String, EncodeError> {
         let bytes = self.bytes(&file.blob)?;
         let name = file.name.as_str();
         let text = text_file::as_text(bytes).and_then(|text| self.texts.text_file(name, text));
         Ok(text.unwrap_or_else(|| {
-            self.texts
-                .file_omitted(name, file.media_type.as_str(), bytes.len())
+            self.texts.file_omitted(
+                name,
+                file.media_type.as_str(),
+                bytes.len(),
+                file.path.as_ref().map(SourcePath::as_str),
+            )
         }))
     }
 

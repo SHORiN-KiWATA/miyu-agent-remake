@@ -161,9 +161,9 @@ impl Session {
             recent.insert(id, seqs);
         }
         let mut session = Session {
+            history: history.owned_by(session.clone()),
             id: session,
             ledger,
-            history,
             unstored: Vec::new(),
             stored: replay.last,
             waiting: Vec::new(),

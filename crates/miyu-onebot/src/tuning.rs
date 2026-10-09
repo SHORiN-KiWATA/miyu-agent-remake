@@ -22,7 +22,7 @@ pub struct Tuning {
     pub call_timeout_seconds: u64,
     /// 往一条 NapCat 的连接写，最多攒几帧没写出去；满了，写的一方等着。至少 1。
     pub write_queue: usize,
-    /// 读出来的私聊最多攒几条没交给跟核心的那一头；满了，读 NapCat 的那一头等着。至少 1。
+    /// 读出来的消息、撤回（施工 O-22 起群的也算）最多攒几条没交给跟核心的那一头；满了，读 NapCat 的那一头等着。至少 1。
     pub inbound_queue: usize,
     /// 接不了 TCP 连接（打开的文件太多这类）时，歇几毫秒再接，不空转（照核心的规矩）。
     pub accept_retry_millis: u64,
@@ -30,6 +30,18 @@ pub struct Tuning {
     pub hello_seconds: u64,
     /// `logs -f` 隔几毫秒看一次运行日志长了没有（施工 O-18）。
     pub follow_millis: u64,
+    /// 要用场所规则时，隔几毫秒才看一眼系统的两处变没变（施工 O-21，`onebot.md`「场所规则和出厂数据」第 3 条）。
+    pub rules_check_millis: u64,
+    /// 群成员的名字记几秒（施工 O-22，`onebot.md`「群消息」第 5 条）。
+    pub member_names_seconds: u64,
+    /// 判官全局最多同时问几个（施工 O-23 下，`onebot.md`「群里怎么叫她」第 12 条；18 第七节）。至少 1：是桥这个进程的，不按
+    /// 场所改，所以不在群聊内核的参数里（`chat.md` 第八条施工时定的第 5 条）。
+    pub judge_concurrency: usize,
+    /// 名额满了，问判官的排队最多等几秒（同上），等不到的当判不了。
+    pub judge_queue_seconds: u64,
+    /// 判官带的人格原文读到以后记几秒，这段时间里同一个人格不再读（施工 O-23 补，`onebot.md`「群里怎么叫她」第 12 条第 3 款，
+    /// 「施工时定的」第 103 条）。
+    pub judge_persona_seconds: u64,
     /// WebUI 的数（施工 O-16，`onebot.md` 第二条）。
     pub web: WebTuning,
 }
@@ -58,15 +70,15 @@ impl Tuning {
     ///
     /// # Errors
     ///
-    /// 读不了、不是这个形状、队列写了 0（建不了队列）：原话里说是哪个文件。
+    /// 读不了、不是这个形状、队列写了 0（建不了队列）、判官的并发写了 0（一个都问不了）：原话里说是哪个文件。
     pub fn load(resources: &Path) -> Result<Tuning, String> {
         let path = resources.join(FILE);
         let bad = |why: String| format!("{} not readable: {why}", path.display());
         let text = std::fs::read_to_string(&path).map_err(|error| bad(error.to_string()))?;
         let tuning: Tuning = serde_json::from_str(&text).map_err(|error| bad(error.to_string()))?;
-        if tuning.write_queue == 0 || tuning.inbound_queue == 0 {
+        if tuning.write_queue == 0 || tuning.inbound_queue == 0 || tuning.judge_concurrency == 0 {
             return Err(bad(
-                "write_queue and inbound_queue must be at least 1".to_string()
+                "write_queue, inbound_queue and judge_concurrency must be at least 1".to_string(),
             ));
         }
         Ok(tuning)
@@ -90,5 +102,25 @@ impl Tuning {
     /// `logs -f` 隔多久看一次。
     pub fn follow(&self) -> Duration {
         Duration::from_millis(self.follow_millis)
+    }
+
+    /// 隔多久才看一眼系统的场所规则变没变。
+    pub fn rules_check(&self) -> Duration {
+        Duration::from_millis(self.rules_check_millis)
+    }
+
+    /// 群成员的名字记多久。
+    pub fn member_names(&self) -> Duration {
+        Duration::from_secs(self.member_names_seconds)
+    }
+
+    /// 问判官的排队最多等多久。
+    pub fn judge_queue(&self) -> Duration {
+        Duration::from_secs(self.judge_queue_seconds)
+    }
+
+    /// 判官带的人格原文记多久。
+    pub fn judge_persona(&self) -> Duration {
+        Duration::from_secs(self.judge_persona_seconds)
     }
 }

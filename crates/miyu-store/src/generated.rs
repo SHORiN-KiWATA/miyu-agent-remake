@@ -6,10 +6,13 @@
 //!
 //! 比配置文件的写法（8-3）少几样：不顺着链接找本体、不带原来的权限位、替换之前不再读一次、Windows 上改名失败不重试。
 //! 它们是派生的，没人链接、没人手改；这一次写不成，下次起来再写。
+//!
+//! [`Staged`]（施工 R-5 中）：太大、不好一次拿在手里的（下载的本机 embedding 模型，几十 MB），一块一块写进同一种临时文件，
+//! 提交时同步、改名盖上、同步目录；没提交就放下的删掉临时文件。
 
 use std::fs::{self, File};
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::durable::{create_dir, create_temp, discard, sync_dir, temp_name};
 
@@ -45,6 +48,85 @@ fn store(mut file: File, content: &[u8], temp: &Path, path: &Path, dir: &Path) -
     drop(file);
     fs::rename(temp, path)?;
     sync_dir(dir)
+}
+
+/// 一块一块写、提交了才出现的文件（施工 R-5 中）。写进旁边的临时文件；[`Staged::commit`] 才同步、改名盖上 `path`、同步
+/// 目录；没提交就放下的（出错、核对不上）删掉临时文件，`path` 原来的不动。
+#[derive(Debug)]
+pub struct Staged {
+    /// 开着的临时文件；提交了就是空的。
+    file: Option<File>,
+    temp: PathBuf,
+    path: PathBuf,
+    dir: PathBuf,
+}
+
+impl Staged {
+    /// 为 `path` 开一个临时文件。没有的目录建上。
+    ///
+    /// # Errors
+    ///
+    /// `path` 不是某个目录里的文件；建不了目录、建不了临时文件。
+    pub fn create(path: &Path) -> io::Result<Staged> {
+        let (Some(dir), Some(name)) = (path.parent(), path.file_name()) else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("{} is not a file in a directory", path.display()),
+            ));
+        };
+        create_dir(dir)?;
+        let name = name.to_string_lossy();
+        let (temp, file) = create_temp(dir, || temp_name(&name))?;
+        Ok(Staged {
+            file: Some(file),
+            temp,
+            path: path.to_path_buf(),
+            dir: dir.to_path_buf(),
+        })
+    }
+
+    /// 接着写 `bytes`。
+    ///
+    /// # Errors
+    ///
+    /// 写不进（磁盘满了这类）。
+    pub fn write(&mut self, bytes: &[u8]) -> io::Result<()> {
+        match &mut self.file {
+            Some(file) => file.write_all(bytes),
+            None => Err(io::Error::other("already committed")),
+        }
+    }
+
+    /// 同步、关上，改名盖上 `path`，再同步目录。
+    ///
+    /// # Errors
+    ///
+    /// 同步不了、改不了名：临时文件删掉，`path` 原来的不动。
+    pub fn commit(mut self) -> io::Result<()> {
+        let Some(file) = self.file.take() else {
+            return Err(io::Error::other("already committed"));
+        };
+        let stored = file
+            .sync_data()
+            .and_then(|()| {
+                drop(file);
+                fs::rename(&self.temp, &self.path)
+            })
+            .and_then(|()| sync_dir(&self.dir));
+        if stored.is_err() {
+            discard(&self.temp);
+        }
+        stored
+    }
+}
+
+impl Drop for Staged {
+    /// 没提交就放下的：关上、删掉临时文件。
+    fn drop(&mut self) {
+        if self.file.take().is_some() {
+            discard(&self.temp);
+        }
+    }
 }
 
 #[cfg(test)]

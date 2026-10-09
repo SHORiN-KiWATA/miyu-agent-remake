@@ -28,7 +28,10 @@ pub(super) fn clear(n: u64) -> Input {
 fn rejected_reply(n: u64, reason: Reason) -> Action {
     Action::Reply {
         id: id(n),
-        outcome: Outcome::Rejected { reason },
+        outcome: Outcome::Rejected {
+            reason,
+            about: Vec::new(),
+        },
     }
 }
 
@@ -54,6 +57,7 @@ fn a_clear_writes_an_empty_checkpoint_in_a_turn_of_its_own() {
         events[0].body,
         Body::TurnStarted(TurnStarted {
             trigger: None,
+            triggers: Vec::new(),
             cwd: Some("~/src/miyu".to_string()),
             dirs: Vec::new(),
         })

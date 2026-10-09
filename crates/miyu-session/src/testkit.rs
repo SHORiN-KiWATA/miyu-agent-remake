@@ -318,6 +318,7 @@ fn usage(cached: u64) -> Usage {
         cache_read: cached,
         cache_write: 0,
         output: 10,
+        reasoning: None,
     }
 }
 

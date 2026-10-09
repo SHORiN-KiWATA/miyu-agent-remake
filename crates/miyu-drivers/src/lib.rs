@@ -30,7 +30,8 @@ mod texts;
 pub use driver::{Anthropic, Decode, Driver, OpenAiChat, OpenAiResponses};
 pub use image_tokens::{DeepSeekImages, deepseek_image_tokens};
 pub use texts::{
-    DriverTextSources, DriverTexts, ImageDescriptionSources, ImageNameSources, TextFileSources,
+    AttachedPathSources, DriverTextSources, DriverTexts, ImageDescriptionSources, ImageNameSources,
+    TextFileSources,
 };
 
 use std::collections::BTreeMap;

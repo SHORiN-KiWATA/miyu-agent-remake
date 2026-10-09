@@ -25,8 +25,11 @@ const CHARS: Kind = Kind::Int { min: 1, max: LIMIT };
 /// 字符数，0 有意思的：0 到 100000（理由不留、不拆）。
 const CHARS_OR_NONE: Kind = Kind::Int { min: 0, max: LIMIT };
 
-/// 条数：0 到 1000（判官看几条记录、隔几条才引用）。
+/// 条数：0 到 1000（隔几条才引用）。
 const COUNT: Kind = Kind::Int { min: 0, max: 1000 };
+
+/// 判官看几条记录：1 到 100，和核心的 `venue.records` 收的一样（`venues.md`「判官看的群聊记录」第 1 条，施工 O-23 下改）。
+const RECORDS: Kind = Kind::Int { min: 1, max: 100 };
 
 /// 违规的严重程度：1 到 10。0 是判官一报严重程度就回。
 const SEVERITY: Kind = Kind::Int { min: 1, max: 10 };
@@ -178,7 +181,11 @@ pub(crate) const ITEMS: &[Item] = &[
     optional("judge.model", Kind::Reference, |p, v| {
         p.judge.model = Some(String::from(v))
     }),
-    item("judge.records", COUNT, |p, v| p.judge.records = count(v)),
+    item("judge.records", RECORDS, |p, v| p.judge.records = count(v)),
+    // 判官带不带人格的说明（施工 O-23 补，施工时定的第 24 条）。
+    item("judge.persona", Kind::Bool, |p, v| {
+        p.judge.persona = flag(v)
+    }),
     item("judge.max_tokens", TOKENS, |p, v| {
         p.judge.max_tokens = count(v)
     }),

@@ -76,7 +76,10 @@ impl Session {
         {
             return vec![super::rejected(id, reason)];
         }
-        let body = Body::MessageUser(MessageUser { blocks });
+        let body = Body::MessageUser(MessageUser {
+            blocks,
+            venue: None,
+        });
         let events = match self.land(at, by, Some(id.clone()), body, Some(waker)) {
             Ok(events) => events,
             Err(error) => {

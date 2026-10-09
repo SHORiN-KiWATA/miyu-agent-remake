@@ -66,6 +66,7 @@ impl SessionPort for Table {
         let answer = match session.as_str() == PARENT {
             true => Outcome::Rejected {
                 reason: Reason::Restoring,
+                about: Vec::new(),
             },
             false => Outcome::Accepted { events: Vec::new() },
         };

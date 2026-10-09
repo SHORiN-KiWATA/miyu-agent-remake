@@ -277,6 +277,7 @@ impl Site {
             usage: None,
             questions: None,
             memory: None,
+            ids: None,
         }
     }
 }

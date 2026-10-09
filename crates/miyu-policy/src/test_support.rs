@@ -121,6 +121,16 @@ pub(crate) fn core() -> CoreTexts {
                 )
                 .to_string(),
             }),
+            attached_path: Some(crate::AttachedPathTexts {
+                image_omitted_path: include_str!(
+                    "../../../resources/core/drivers/image-omitted-path.txt"
+                )
+                .to_string(),
+                file_omitted_path: include_str!(
+                    "../../../resources/core/drivers/file-omitted-path.txt"
+                )
+                .to_string(),
+            }),
         },
         compaction: Some(CompactionTexts {
             summarize_task: include_str!("../../../resources/core/compaction/summarize-task.txt")

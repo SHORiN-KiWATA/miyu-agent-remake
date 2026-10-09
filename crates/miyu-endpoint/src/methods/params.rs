@@ -59,6 +59,9 @@ pub(super) struct SendParams {
     /// 代表通讯平台上的人（施工 O-3，`venues.md`）：只给场所会话，场所会话也只收带它的。
     #[serde(default, rename = "as")]
     pub(super) as_external: Option<crate::venues::AsParams>,
+    /// 通讯平台上的一条消息的那几格（施工 O-13 上）：只跟着 `as` 来，原样记进 `message.user`；旁听的不开回合。
+    #[serde(default)]
+    pub(super) venue: Option<crate::venues::VenueMessageParams>,
 }
 
 /// `session.interrupt` 的参数。

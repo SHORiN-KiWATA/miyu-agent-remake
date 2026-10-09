@@ -6,6 +6,7 @@
 
 use miyu_kernel::event::EndReason;
 use miyu_kernel::template::Template;
+use miyu_kernel::time::UtcOffset;
 
 /// 组装时要用的几句固定的字。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,6 +51,30 @@ pub struct Texts {
     /// 转述一张图的请求要用的（`core/vision/`，施工 8-17）。以前造的快照里没有，是没有：那些会话不转述，看不了图的照旧写
     /// 占位。
     pub vision: Option<Vision>,
+    /// 群会话的一行要用的（施工 O-13 中，`group.rs`）。私聊、本机的会话没有：人的话照原样渲染。
+    pub group: Option<GroupChat>,
+}
+
+/// 群里的一行要用的（施工 O-13 中）：会话的时区，和正文、带的东西都没有时写的那一句。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GroupChat {
+    /// 造会话时钉下的时区：一行的钟点照它算，换了时区的机器上载入也不变。
+    pub offset: UtcOffset,
+    /// 正文、带的东西都没有时写的（`core/venues/no-text.txt`），不带行尾的换行。
+    pub no_text: String,
+    /// 群聊近况（施工 O-13 下，`group/recent.rs`）。O-13（中）造的群会话没有：不出近况。
+    pub recent: Option<GroupRecent>,
+}
+
+/// 群聊近况要用的（施工 O-13 下）：块头、缺口提示、预算。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GroupRecent {
+    /// 块头那一行（`core/venues/recent-open.txt`），以换行结尾。
+    pub open: String,
+    /// 前面还有没装下的时，块头下面那一行（`core/venues/recent-omitted.txt`）：字段 `count` 是没装下的条数，以换行结尾。
+    pub omitted: Template,
+    /// 一块最多多少字节，从最新往前装。
+    pub budget: usize,
 }
 
 /// 转述一张图的请求要用的两份（施工 8-17，`docs/blueprint/kernel/request.md`「替它看的图」）：换行都在文件里，拼的时候不加字。

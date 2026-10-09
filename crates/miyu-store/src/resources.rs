@@ -12,10 +12,11 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use miyu_policy::{
-    CompactionTexts, CoreLines, CoreTexts, DriverPlaceholders, FactTexts, HarnessTexts,
-    ImageDescriptionTexts, ImageNameTexts, JobTexts, PeerIdleTexts, PeerTexts, PermissionTexts,
-    PersonaTexts, RebuildTexts, RecapTexts, ShortenTexts, Sources, TextFileTexts, TitleTexts,
-    ToolResultTexts, TurnEndedTexts, VisionTexts, Wrap,
+    AttachedPathTexts, CompactionTexts, CoreLines, CoreTexts, DriverPlaceholders, FactTexts,
+    GroupChat, GroupRecent, HarnessTexts, ImageDescriptionTexts, ImageNameTexts, JobTexts,
+    PeerIdleTexts, PeerTexts, PermissionTexts, PersonaTexts, RebuildTexts, RecapTexts,
+    ShortenTexts, Sources, TextFileTexts, TitleTexts, ToolResultTexts, TurnEndedTexts, VisionTexts,
+    Wrap,
 };
 
 use crate::env::Env;
@@ -163,6 +164,33 @@ impl ResourceRoot {
         self.read(&["core", "jobs", "subagent-venue.txt"])
     }
 
+    /// 群会话的格式说明（施工 O-13 中）：`core/venues/group.txt` 的原文，造群会话时接在人设后面（`Snapshot::with_group`）。
+    ///
+    /// # Errors
+    ///
+    /// 读不了这份文件，写明是哪一份。
+    pub fn group_note(&self) -> Result<String, SourceError> {
+        self.read(&["core", "venues", "group.txt"])
+    }
+
+    /// 群会话钉下的（施工 O-13 中）：时区 `offset`（比 UTC 早多少分钟），空的一条写什么照 `core/venues/no-text.txt` 的原文；
+    /// 群聊近况（施工 O-13 下）的块头、缺口提示照 `core/venues/recent-open.txt`、`recent-omitted.txt` 的原文，预算是出厂的。
+    ///
+    /// # Errors
+    ///
+    /// 读不了这份文件，写明是哪一份。
+    pub fn group_chat(&self, offset: i32) -> Result<GroupChat, SourceError> {
+        Ok(GroupChat {
+            offset,
+            no_text: self.read(&["core", "venues", "no-text.txt"])?,
+            recent: Some(GroupRecent {
+                open: self.read(&["core", "venues", "recent-open.txt"])?,
+                omitted: self.read(&["core", "venues", "recent-omitted.txt"])?,
+                budget: miyu_policy::RECENT_BUDGET,
+            }),
+        })
+    }
+
     /// 常用的几家（施工 8-11 再补）：`models/featured.toml` 的原文，`provider.catalog {"featured": true}` 每次照它列。
     ///
     /// # Errors
@@ -264,6 +292,10 @@ impl ResourceRoot {
                     image_description_open_named: driver("image-description-open-named.txt")?,
                     image_description_close: driver("image-description-close.txt")?,
                 }),
+                attached_path: Some(AttachedPathTexts {
+                    image_omitted_path: driver("image-omitted-path.txt")?,
+                    file_omitted_path: driver("file-omitted-path.txt")?,
+                }),
             },
             compaction: Some(CompactionTexts {
                 summarize_task: core(&["compaction", "summarize-task.txt"])?,
@@ -339,6 +371,15 @@ impl ResourceRoot {
         self.path.join("models").join("models-dev.json")
     }
 
+    /// 本机 embedding 出厂的清单在哪（`models/embed/bge-small-zh-v1.5.toml`，施工 R-5 下，`recall.md` 第四条第 2 款）：
+    /// 核心起来时交给 `Embedder`，第一次要向量时才读。
+    pub fn embed_manifest(&self) -> std::path::PathBuf {
+        self.path
+            .join("models")
+            .join("embed")
+            .join("bge-small-zh-v1.5.toml")
+    }
+
     /// `provider.test` 发的那一句（`core/models/probe.txt`，施工 8-11，`models.md`「怎么走」第七条第 4 条）：原文，去掉行尾
     /// 空白由用的一方做。每试一次读一次。
     ///
@@ -375,6 +416,16 @@ impl ResourceRoot {
     /// 读不出来：写明是哪个文件。
     pub fn placeholder_tool(&self) -> Result<String, SourceError> {
         self.read(&["core", "drivers", "placeholder-tool.txt"])
+    }
+
+    /// 提供者的工具没在时限里答完（施工 O-2 下，`providers.md`「超时」）：`core/tool-results/timed-out.txt` 的原文，字段 `name`、
+    /// `seconds`。不进快照的核心字：进了以后，以前造的会话「核心的字变了」，换不了快照。
+    ///
+    /// # Errors
+    ///
+    /// 读不出来：写明是哪个文件。
+    pub fn tool_timed_out(&self) -> Result<String, SourceError> {
+        self.read(&["core", "tool-results", "timed-out.txt"])
     }
 
     /// 读资源目录下的一份文件，路径一段一段地接上（三个平台一样）。

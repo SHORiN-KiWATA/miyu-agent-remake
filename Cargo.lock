@@ -1603,10 +1603,10 @@ dependencies = [
 name = "miyu-embed"
 version = "0.0.0"
 dependencies = [
+ "miyu-recall",
  "ort",
  "serde",
  "serde_json",
- "toml_edit",
  "unicode-general-category",
 ]
 
@@ -1617,6 +1617,7 @@ dependencies = [
  "base64 0.22.1",
  "getrandom 0.4.3",
  "jiff",
+ "miyu-assemble",
  "miyu-basesystem",
  "miyu-config",
  "miyu-drivers",
@@ -1766,13 +1767,16 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "jiff",
  "miyu-chat",
  "miyu-config",
  "miyu-core",
  "miyu-endpoint",
+ "miyu-http",
  "miyu-ipc",
  "miyu-kernel",
  "miyu-log",
+ "miyu-models",
  "miyu-session",
  "miyu-store",
  "miyu-tool",
@@ -1813,6 +1817,7 @@ dependencies = [
  "miyu-kernel",
  "serde",
  "serde_json",
+ "toml_edit",
 ]
 
 [[package]]
@@ -1852,6 +1857,7 @@ dependencies = [
  "miyu-tool",
  "rusqlite",
  "serde_json",
+ "sha2",
  "tokio",
  "tracing",
  "uuid",

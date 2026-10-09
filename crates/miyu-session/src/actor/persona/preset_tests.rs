@@ -1,106 +1,8 @@
 //! 改了预设，下一个回合换上（施工 P-2 下）：工具面照新的预设重新筛，以前就有的照旧快照里的原样；记忆照开会话时的；装了没开
 //! 的那一行跟着变；写错了的照旧；P-2（中）造的没有指纹的不换。
 
-use std::sync::Arc;
-
-use miyu_config::Values;
-use miyu_kernel::id::{AccountId, VenueId};
-use miyu_kernel::tool::Access;
-use miyu_policy::memory::MemoryScope;
-use miyu_policy::preset::{self, Chosen};
-use miyu_store::presets::Presets;
-use miyu_store::root::DataRoot;
-use miyu_tool::Tool;
-use miyu_tool::testkit::{Act, Fake};
-
-use std::path::Path;
-
-use super::test_support::{Scratch, scratch_root};
+use super::test_support::{look_now, names, setup, write_preset};
 use super::*;
-
-/// 基础系统两件、记忆一件。
-fn catalog() -> Catalog {
-    let fake = |name: &str| -> Arc<dyn Tool> { Fake::new(name, Access::Read, Act::Echo) };
-    Catalog::in_packages([
-        ("basesystem", vec![fake("read"), fake("shell")]),
-        ("memory", vec![fake("remember")]),
-    ])
-    .expect("合写法")
-}
-
-const INSTALLED: [&str; 3] = ["basesystem", "memory", "roleplay"];
-
-/// 一个会话：人格 Miyu，预设是家目录里的 `p.toml`（内容 `text`），照它筛好的工具面、算好的范围拼的快照。
-fn setup(name: &str, text: &str) -> (Scratch, DataRoot, Refresh) {
-    let (scratch, root) = scratch_root(name, "You are Miyu.\n");
-    write_preset(&root, text);
-    let alice = AccountId::parse("alice").expect("账号合写法");
-    let resources = ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"));
-    let personas = Personas::new(&resources, &root, &alice);
-    let presets = Presets::new(&resources, &root, &alice);
-    let found = presets.find("p").expect("找得到预设");
-    let chosen = Chosen::new(found.id, found.file, INSTALLED);
-    let venue = VenueId::parse("local").expect("场所合写法");
-    let scope = if chosen.file.opens(preset::MEMORY) {
-        MemoryScope::Persona
-    } else {
-        MemoryScope::Off
-    };
-    let tools = catalog();
-    let face = Agents::face(
-        &tools,
-        &venue,
-        None,
-        &Offers::of(&Values::default(), Vec::new()),
-        true,
-        scope,
-        Some(&chosen.file),
-    );
-    let parts = Parts {
-        name: Some("miyu".to_string()),
-        texts: personas.find("miyu").expect("找得到 Miyu").texts,
-        attended: true,
-        face,
-        memory: Some(scope.as_str().to_string()),
-        child: false,
-        preset: Some(chosen.pin()),
-        tooled: tooled(&tools),
-    };
-    let snapshot = build(&resources, parts).expect("拼得成");
-    let refresh = Refresh {
-        personas,
-        resources,
-        blobs: Blobs::new(root.blobs(&alice)),
-        snapshot,
-        child: false,
-        presets: Some(PresetPlaces {
-            presets,
-            installed: INSTALLED.iter().map(|one| one.to_string()).collect(),
-        }),
-        tools,
-        venue,
-        lineage: None,
-    };
-    (scratch, root, refresh)
-}
-
-fn write_preset(root: &DataRoot, text: &str) {
-    let dir = root.path().join("home/alice/presets");
-    std::fs::create_dir_all(&dir).expect("建得了预设目录");
-    std::fs::write(dir.join("p.toml"), text).expect("写得进");
-}
-
-fn look_now(refresh: &Refresh) -> Seen {
-    look(refresh, &Values::default())
-}
-
-fn names(snapshot: &Snapshot) -> Vec<&str> {
-    snapshot
-        .tools
-        .iter()
-        .map(|tool| tool.name.as_str())
-        .collect()
-}
 
 const OFF: &str = "Installed but off in this session's preset:";
 
@@ -209,7 +111,8 @@ fn without_a_persona_a_changed_preset_still_swaps() {
         memory: Some("off".to_string()),
         child: false,
         preset: refresh.snapshot.preset.clone(),
-        tooled: tooled(&refresh.tools),
+        tooled: tooled(&refresh.tools.current()),
+        group: None,
     };
     refresh.snapshot = build(&refresh.resources, parts).expect("拼得成");
     assert_eq!(

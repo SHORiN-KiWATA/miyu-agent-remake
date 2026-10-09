@@ -7,7 +7,7 @@
 //! 登记在 `docs/designs/26-提示词.md` 第十节；代码里一个给模型看的字都不写。
 //!
 //! 纯逻辑：说明的原文、人格的说明、渲染好的群聊记录和这一条，都由外面交进来（[`Ask`]）；违规的门槛从算分的参数拿。调用的其余几格（`purpose`、
-//! `model`、`max_tokens`）、超时、重试、记 `ext.chat.decided`，由桥管（「怎么走」第 3、5 条）。
+//! `model`、`max_tokens`）、超时、重试、记 `ext.onebot.chat.decided`，由桥管（「怎么走」第 3、5 条）。
 
 mod read;
 mod request;
@@ -129,6 +129,9 @@ pub struct Judge {
     pub model: Option<String>,
     /// 判官看触发这一条之前的几条记录（[`Ask::records`]）。
     pub records: usize,
+    /// 判官带不带这个群会话所用的人格的说明（[`Ask::persona`]，施工 O-23 补，2026-10-09 项目主人定：默认开）：假的是
+    /// 不带、不读，某个群想省 token 写一条场所规则关掉（`chat.md` 第八条施工时定的第 24 条）。
+    pub persona: bool,
     /// 判官最多输出多少 token（`model.call` 的 `max_tokens`）。
     pub max_tokens: u32,
     /// 打分那一次的超时，毫秒。

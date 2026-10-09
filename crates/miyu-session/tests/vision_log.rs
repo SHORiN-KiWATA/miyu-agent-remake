@@ -28,8 +28,10 @@ async fn show(handle: &Handle, blob: &ContentHash) {
             media_type: MediaType::parse("image/png").expect("媒体类型合写法"),
             width: 1,
             height: 1,
+            path: None,
         })],
         urgent: false,
+        venue: None,
     };
     ask(handle, "cmd-1", send).await.expect("会话在跑");
     until_turn_ends(&mut pushes).await;

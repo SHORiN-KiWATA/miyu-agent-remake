@@ -129,6 +129,10 @@
 |---|---|
 | `session.create` | 造会话 |
 | `venue.session` | 找回或者造一个通讯平台场所的主线会话（施工 O-3，`venues.md`） |
+| `session.respond` | 照已经旁听记下的几条开一轮，带几块事实（施工 O-14 上，`venues.md`「照记下的几条开一轮」） |
+| `provide` | 核心拉起的扩展登记它提供的工具（施工 O-2 上，`providers.md`）；核心照登记反向调用 `tool.call`，超时、打断时发通知 `tool.cancel`（施工 O-2 下） |
+| `venue.records` | 判官看的群聊记录：要判的那一条和它之前的几条，一行一条，和她看到的同一个写法（施工 O-24，`venues.md`「判官看的群聊记录」） |
+| `events.append` | 往会话里记一条不带回合编号的事件：扩展自己的 `ext.*`、场所的 `venue.recalled`、`venue.delivered`（施工 O-13 上，`venues.md`） |
 | `session.list` | 列出会话 |
 | `session.send` | 说一句话 |
 | `session.interrupt` | 打断在进行的回合 |
@@ -147,6 +151,7 @@
 | `check` | 查人手写的文件：配置、密钥文件、人格，照磁盘上现在的字（施工 8-30，`cli/check.md`） |
 | `memory.list`、`memory.search`、`memory.remember`、`memory.update`、`memory.forget` | 人不经过她列、搜、记、改、忘和清空记忆（施工 R-3 补，`memory.md`「协议」） |
 | `command.run` | 执行一条斜杠命令：头把人打的原文交过来，核心认、判谁能用、执行（施工 O-6） |
+| `command.catalog` | 列核心认的斜杠命令，给头的命令菜单、`/help`；带会话的只列这个会话里真能用的（施工 O-6 补） |
 | `session.answer` | 回答一次确认（允许这一次、本会话都允许、拒绝），或者一组题（施工 D-1） |
 | `job.stop` | 停掉一个后台命令或者子代理（施工 7-4） |
 | `job.output` | 读一条后台命令到这时为止的输出（施工 7-4 补） |
@@ -238,15 +243,16 @@
 | `text` | 字符串，必写 | 要说的话，照原样成一块文字；空的一块都没有 |
 | `urgent` | 布尔，不写是 `false` | 急着插话 |
 | `cwd`、`dirs` | 可以不写 | 施工 9-7 上起照收不理：工作区是会话的属性，换它走 `session.set_workspace`。一个连接第一次收到带它们的，记一行运行日志 `WARN session.send cwd ignored`，看得出谁还在发 |
-| `attachments` | 数组，可以不写 | 附件（施工 3-9 三补）：`blob.put` 的回应，照先后。每一项要 `blob`、`name`、`media_type`，别的格不看 |
+| `attachments` | 数组，可以不写 | 附件（施工 3-9 三补）：`blob.put` 的回应，照先后。每一项要 `blob`、`name`、`media_type`；可以另写 `path`：这个附件原来在本机的哪儿，就是 `blob.put` 传的那个路径（施工 3-9 五补，剪贴板贴的、传 `data` 的不写），绝对路径（`/`、`~/`、Windows 的盘符或 `\\` 开头）、没有控制字符、最多 4096 字节，不对的 `bad_params`；核心只查写法、不碰磁盘，记进块里，模型看不了这个附件时占位那一句带上它。别的格不看 |
 | `from` | 字符串，可以不写 | 别的 harness 报的自己的名字（施工 7-10，`agents.md` 第十一条第 4 条）：写了的，这一句是它说的，不是本人 |
 | `as` | 对象，可以不写 | 代表通讯平台上的人（施工 O-3，`venues.md`）：`{"external": <平台身份>, "role": "manager"|"member"}`。只给场所会话，场所会话也只收带它的（不带的回 `venue_session`）；和 `from` 不能一起写 |
+| `venue` | 对象，可以不写 | 通讯平台上的一条消息的那几格（施工 O-13 上，`venues.md`「场所的格」）：只跟着 `as` 来，原样记进 `message.user` 的 `venue`；`ambient` 的只记下，不开回合，回合进行中也不排进这一轮。不带 `as` 的、格写错的 `bad_params`，什么都不记 |
 
 回应：`events` 是 `[<这一句 message.user 的序号>]`；`cwd` 是会话现在实际在哪个目录里干活；`untrusted_project` 照 `session.create` 的写法，照这时实际干活的目录找（施工 8-2）。
 
 1. 没有回合在进行的，这一句开一轮；有的，排队，`urgent` 的插进下一步（`kernel/session.md`）。带 `from` 的照第 7 条。
 2. 开的那一轮，`turn.started` 的 `cause` 是这一条的 `id`：头照它认出自己的那一轮。
-3. `text` 是空的、又没有附件：`empty_message`。先找会话，找不到的回的是找不到。只有附件、`text` 是空的，也是一句话。
+3. `text` 是空的、又没有附件、也没带场所的东西（`venue.media`）：`empty_message`。先找会话，找不到的回的是找不到。只有附件、`text` 是空的，也是一句话；只有 `venue.media` 的场所消息也是（施工 O-13 补：群里只发一张图、一个表情）。
 4. 附件变成内容块，照先后接在文字那一块后面（施工 3-9 三补）：核心照 blob 的内容照 `blob.put` 第 4 条再认一遍，同一份代码。图片是图片块，宽、高、媒体类型照这一次量的，头交回来的 `kind`、`width`、`height` 不算，`name` 照交回来的（施工 3-9 四补：一句话附了几张图，她分得清哪张是哪个文件）；文件是文件块，`name` 照交回来的，媒体类型照交回来的再过一遍第 4 条（内容是 PDF 的写 `application/pdf`，交回来写成 PDF、图片而内容不是的照内容认）。
 5. 附件先查，再找会话：一项缺了格、格不合写法（`kernel/ids.md`）：`bad_params`；blob 不在管理员的 blob 里：`unknown_attachment`；读不出来（坏了、读不了）：`internal_error`，记一条运行日志；是超了上限的图（不是 `blob.put` 传的 blob 才会有）：`attachment_too_big`。拒了的，会话里什么都不送。
 6. `from`（施工 7-10）：写了的，这条 `message.user` 的 `by` 记成 `{"kind":"harness","name":<名字>}`；不写的、写 `null` 的照旧记成本人。名字照短名字的规矩收（`kernel/ids.md`）：先去掉控制字符（Unicode 的 Cc 类），再截到 128 字节以内，不截断一个字；剩下是空的，`bad_params`。不是字符串的（数字、数组……）也是 `bad_params`。名字不核对，照它报的记；给模型看之前照不可信的文本转义（`kernel/request.md`「别的 harness 发来的话」）。它先查，查在附件前面：拒了的什么都不送。
@@ -481,6 +487,18 @@
 7. 同一个 `id` 再发只算一次，核心重启以后也是：回应和头一次一样。
 8. `/remember <话>`（施工 R-3 补，`memory.md`「协议」）：名字后面跟的字是那一条，类 `user`，记进这个会话那一间，`by` 是打命令的人，出处空，听众是这个人；回执带编号（`commands/remembered`）。不请求模型。场所会话、范围 `off` 的回 `memory_unavailable`；空的 `bad_params`，超过 120 字的 `memory_too_long`。先判身份，再查这个会话有没有记忆，再查字。同一个 `id` 再发只记一次（记忆事件的 `cause`，`memory.*` 第 5 条）。
 
+**`command.catalog`**（施工 O-6 补，网页的会话要的，终端也用）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `session` | 字符串，可以不写 | 哪个会话：写了只列这个连接在这个会话里打了不会被拒的 |
+
+回应 `{"commands": [{"name": "clear", "aliases": ["reset"], "summary": "清空上下文"}, {"name": "workspace", "aliases": [], "summary": "切换工作区", "argument": "<路径>"}, …]}`：照名字排；`summary`、`argument` 照这个连接的语言，字在 `core/human/<语言>.json` 的 `commands/summary/<名字>`、`commands/argument/<名字>`；名字后面要跟字的（`workspace`、`remember`）才有 `argument`。
+
+1. 不写 `session`：列核心认的全部（头还没造会话、`/help` 列全部时用）。
+2. 写了：只列这个连接在这个会话里打了不会被拒的，和 `command.run` 第 2、8 条同一份判法（谁能用；`/workspace` 只给主人本人；`/remember` 要这个会话开着记忆）。只收本机的会话：场所会话回 `venue_session`（同不带 `as` 的 `command.run`）；会话编号写错 `bad_params`，没有这个会话 `session_not_found`。
+3. 不推送：头换会话、打开命令菜单时问一次。头自己的命令（`help`、`theme` 这些）、软件包登记的同名命令由头自己拼、自己去重；核心这份里没有只有头懂的命令。
+
 **`check`**（施工 8-30，`cli/check.md`）
 
 | 参数 | 类型 | 说明 |
@@ -696,7 +714,7 @@
 回应 `{"text": <正文>, "provider": <供应商编号>, "model": <模型名>, "usage": <四项> 或 null}`。消息的样子、出错、用量的形状都在 `models.md`「协议」`model.call`，这一页只列进方法表、出错表（照 `mermaid.render` 的先例）。
 
 1. 命令：经一次性入口发一次（`miyu_session::OneShot`），和会话的路由共用冷却表、池的指针。连上来的头都能调；有了扩展以后前面加一道能力的检查。
-2. 不进任何会话的日志，不推送；一个连接的请求一条一条答，等它说完才答下一条。
+2. 不进任何会话的日志，不推送；在后台答（施工 8-20 补）：同一个连接后面的请求不等它说完，回应照 `id` 对上；连接断了，没答完的停下（下面「一个连接」第 1 条）。
 
 **`usage.query`**（施工 8-15，`models.md`「协议」`usage.query`、「怎么走」第九条）
 
@@ -879,7 +897,7 @@
 
 **一个连接**
 
-1. 请求一条条办：上一条的回应放进了写队列（订阅着的会话的，交给了它的转发任务，下面「先见结果，后见回应」），才读下一行。要等的（`session.send` 等落盘，撤销等改完文件，载入会话）等着的时候，这个连接上的下一条也等着。例外是登记成在后台答的查询（现在只有 `link.preview`，施工 W-7）：交给这个连接的一个后台任务，接着读下一行；办完了回应照 `id` 对上，直接放进写队列，不经会话的订阅；连接断了，这些任务一起停。
+1. 请求一条条办：上一条的回应放进了写队列（订阅着的会话的，交给了它的转发任务，下面「先见结果，后见回应」），才读下一行。要等的（`session.send` 等落盘，撤销等改完文件，载入会话）等着的时候，这个连接上的下一条也等着。例外是在后台答的：登记成在后台答的查询（现在只有 `link.preview`，施工 W-7），和自带的 `model.call`（要等模型说完，施工 8-20 补，`methods.rs` 的 `answered_later`）：交给这个连接的一个后台任务，接着读下一行；办完了回应照 `id` 对上，直接放进写队列，不经会话的订阅；连接断了，这些任务一起停。
 2. 读和写分开：写的一头从写队列里一行行写出去，队列最多攒 256 行。写不出去就停；读的一头往写队列放回应、放不进去时发现，断开（交给转发任务的那一条放得进，要到再下一条）。
 3. 断开：一行太长的，回 `parse_error`（`id` 是 `null`）；`protocol_mismatch`、`bad_token` 回完；对方关了、读出错。
 4. 断开以后，这个连接的订阅都停了。会话照常跑：头走了，在跑的那一轮照样跑完。
@@ -963,13 +981,13 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `needs_approval` | -32010 | `extension.enable`、`extension.restart`：要的能力还有没批的，`data.capabilities` 是那几个（施工 9-4 下上，`extensions.md`「能力」） |
 | `session_not_found` | -32010 | 没有这个会话，删了的也是 |
 | `no_system_account` | -32010 | 场所会话的属主该是系统账号，这个连接不是（施工 O-3；O-4 下起核心拉起的、清单声明了系统账号的包的扩展是，别的连接还回它） |
-| `venue_session` | -32010 | 场所会话只收代表外部的人说的话：不带 `as` 的 `session.send`（施工 O-3）、`command.run`（施工 O-6） |
+| `venue_session` | -32010 | 场所会话只收代表外部的人说的话：不带 `as` 的 `session.send`（施工 O-3）、`command.run`（施工 O-6）；`command.catalog` 只收本机的会话（施工 O-6 补） |
 | `unknown_command` | -32010 | `command.run` 认不出这个命令（施工 O-6） |
 | `command_not_allowed` | -32010 | `command.run`：场所里既不是主人、也不是管理的人（施工 O-6） |
 | `owner_only` | -32010 | `command.run`：这个命令只有主人本人能用，管理的人也不行（`/workspace`，施工 9-7 下） |
 | `session_stopped` | -32010 | 会话停了：写不进去、出了 bug |
 | `session_broken` | -32010 | 会话载入不了：日志、策略快照坏了、读不了 |
-| `empty_message` | -32010 | `session.send` 的 `text` 是空的、又没有附件；`session.redo` 换过的那一句一块都不剩 |
+| `empty_message` | -32010 | `session.send` 的 `text` 是空的、又没有附件、也没带场所的东西（施工 O-13 补）；`session.redo` 换过的那一句一块都不剩 |
 | `dir_too_wide` | -32010 | 加进来的目录太宽（「加进来的目录」（施工 5-10 上）） |
 | `attachment_unreadable` | -32010 | `blob.put` 读不了 `path`：换不成真实的位置、没有、不是普通文件、没有权限（施工 3-9 三补） |
 | `attachment_too_big` | -32010 | 附件超过 20 MiB；图片超过 5 MiB，或者哪一边超过 8000 像素（施工 3-9 三补）；`blob.open` 的 `size` 超过 20 MiB（施工 W-5） |
@@ -996,6 +1014,10 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `not_redoable` | -32010 | 重做时最后一轮不是人说的话开的，或者一轮都没有（施工 4-7 再补） |
 | `nothing_to_recap` | -32010 | 回顾时她一个带正文的回复都还没有；以前造的快照里没有回顾的字（施工 3-8 四补） |
 | `not_asking` | -32010 | `session.answer` 回答的调用没在等回答：答过了、了结了、等的不是这一种（施工 D-1） |
+| `not_a_provider` | -32010 | `provide` 不是核心拉起的扩展发的（施工 O-2 上） |
+| `bad_tool` | -32010 | `provide` 的一件工具规格不对、撞名；`data.tool` 是哪一件，`data.problem` 是 `duplicate`、`name`、`parameters`、`access`、`venues`、`timeout`（施工 O-2 下）之一（施工 O-2 上） |
+| `not_ambient` | -32010 | `session.respond` 的 `to` 里有不是这个会话里旁听的 `message.user` 的；`data.messages` 是那几条（施工 O-14 上） |
+| `already_answered` | -32010 | `session.respond` 的 `to` 里有已经当过触发的；`data.messages` 是那几条（施工 O-14 上） |
 | `no_rule` | -32010 | `session.answer` 选了本会话都允许，请求却没提放行规则（施工 D-1） |
 | `unexpected_reason` | -32010 | `session.answer` 允许却带了理由（施工 D-1） |
 | `bad_answer` | -32010 | `session.answer` 的回答和题目对不上：条数不对、选了题目里没有的、单选的选了几项、选重了（施工 D-1） |
@@ -1141,6 +1163,10 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `not_redoable` | 无法重做 | Cannot redo. |
 | `nothing_to_recap` | 还没有可回顾的内容 | There is nothing to recap yet. |
 | `not_asking` | 它没在等回答：已经答过，或者已经了结了。 | It is not waiting for an answer: it was answered or settled already. |
+| `not_ambient` | 不是旁听记下的消息 | Not an overheard message. |
+| `not_a_provider` | 只有扩展能提供工具 | Only extensions can provide tools. |
+| `bad_tool` | 工具规格不对 | Bad tool spec. |
+| `already_answered` | 已经回过 | Already answered. |
 | `no_rule` | 这一次只能允许这一次，或者拒绝。 | This one can only be allowed once or denied. |
 | `unexpected_reason` | 只有拒绝能带理由。 | Only a denial can carry a reason. |
 | `bad_answer` | 回答和题目对不上：几道题几条，只能选题目里的选项。 | The answers do not fit the questions: one per question, picking only their options. |

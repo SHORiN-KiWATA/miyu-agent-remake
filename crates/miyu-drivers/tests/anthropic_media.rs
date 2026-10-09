@@ -86,7 +86,7 @@ fn images_and_pdfs_go_as_blocks_and_the_rest_as_placeholders() {
     // BMP 这一家不收：换成占位。
     assert_eq!(
         said[2],
-        json!({"type": "text", "text": texts().image_omitted(None)})
+        json!({"type": "text", "text": texts().image_omitted(None, None)})
     );
     assert_eq!(
         said[3],
@@ -98,7 +98,7 @@ fn images_and_pdfs_go_as_blocks_and_the_rest_as_placeholders() {
     );
     assert_eq!(
         said[4],
-        json!({"type": "text", "text": texts().file_omitted("data.zip", "application/zip", ZIP.len())})
+        json!({"type": "text", "text": texts().file_omitted("data.zip", "application/zip", ZIP.len(), None)})
     );
 }
 
@@ -107,10 +107,10 @@ fn a_model_that_takes_neither_gets_placeholders() {
     let body = body(&attachments(), Inputs::default());
     anthropic_sample("media-omitted", &body);
     let said = content(&body, 0);
-    assert_eq!(said[1]["text"], texts().image_omitted(None));
+    assert_eq!(said[1]["text"], texts().image_omitted(None, None));
     assert_eq!(
         said[3]["text"],
-        texts().file_omitted("报告.pdf", "application/pdf", PDF.len())
+        texts().file_omitted("报告.pdf", "application/pdf", PDF.len(), None)
     );
 }
 
@@ -184,7 +184,7 @@ fn named_images_are_wrapped_in_tags_or_named_in_the_placeholder() {
     let blind = content(&self::body(&request, Inputs::default()), 0);
     assert_eq!(
         blind,
-        json!([{"type": "text", "text": texts().image_omitted(Some("晚霞.png"))}])
+        json!([{"type": "text", "text": texts().image_omitted(Some("晚霞.png"), None)}])
     );
 }
 

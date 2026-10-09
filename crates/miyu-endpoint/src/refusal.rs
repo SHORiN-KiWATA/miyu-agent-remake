@@ -3,6 +3,7 @@
 
 use miyu_kernel::session::Reason;
 
+mod config;
 mod edits;
 mod memory;
 mod message;
@@ -113,6 +114,12 @@ impl Refusal {
         data: None,
     };
     /// 没有这个会话。
+    /// `provide` 只收核心拉起的扩展（施工 O-2 上）。
+    pub(crate) const NOT_A_PROVIDER: Refusal = Refusal {
+        code: REFUSED,
+        reason: "not_a_provider",
+        data: None,
+    };
     pub(crate) const NOT_FOUND: Refusal = Refusal {
         code: REFUSED,
         reason: "session_not_found",
@@ -319,45 +326,6 @@ impl Refusal {
         reason: "unknown_model",
         data: None,
     };
-    /// 请求里写了清单里没有的配置项（施工 8-2，`config.schema`、`config.get`、`config.set`）：`data.problems` 里每个不认识的
-    /// 一条。
-    pub(crate) fn unknown_config_key(problems: Vec<serde_json::Value>) -> Refusal {
-        Refusal::with(
-            "unknown_config_key",
-            "problems",
-            serde_json::Value::Array(problems),
-        )
-    }
-
-    /// `config.set` 的值不对、不能写在这一层，整份换的字里有错误（施工 8-3）：`data.problems` 里是每一处。
-    pub(crate) fn config_invalid(problems: Vec<serde_json::Value>) -> Refusal {
-        Refusal::with(
-            "config_invalid",
-            "problems",
-            serde_json::Value::Array(problems),
-        )
-    }
-
-    /// 文件现在读不进来，没法只改几项（施工 8-3）：`data.problems` 里是那几处。
-    pub(crate) fn config_file_broken(problems: Vec<serde_json::Value>) -> Refusal {
-        Refusal::with(
-            "config_file_broken",
-            "problems",
-            serde_json::Value::Array(problems),
-        )
-    }
-
-    /// `config.set` 的 `expect` 对不上（施工 8-3）：`data.current` 是这一层里这一项现在的样子，`{"value": …}` 或 `{}`。
-    pub(crate) fn config_conflict_current(current: serde_json::Value) -> Refusal {
-        Refusal::with("config_conflict", "current", current)
-    }
-
-    /// 版本对不上（施工 8-3）：整份换的、信任的那一份人看过以后又变了，写的那一瞬间有人手改了。`data.version` 是现在的
-    /// 版本，文件没有的是 `null`。
-    pub(crate) fn config_conflict_version(version: Option<String>) -> Refusal {
-        Refusal::with("config_conflict", "version", serde_json::json!(version))
-    }
-
     /// 人格的文件写错了（施工 P-1 上，`personas.md`）：`data.problem` 写明哪一层、哪个文件第几行、错在哪。
     pub(crate) fn persona_invalid(problem: String) -> Refusal {
         Refusal::with(
@@ -406,6 +374,15 @@ impl Refusal {
         }
     }
 
+    /// `provide` 的一件工具规格不对、撞名（施工 O-2 上）：`data.tool` 是哪一件，`data.problem` 是哪一条。
+    pub(crate) fn bad_tool(tool: &str, problem: &str) -> Refusal {
+        let mut refusal = Refusal::with("bad_tool", "tool", serde_json::json!(tool));
+        if let Some(data) = refusal.data.as_mut() {
+            data.insert("problem".to_string(), serde_json::json!(problem));
+        }
+        refusal
+    }
+
     /// 开一个扩展，它要的能力还有没批的（施工 9-4 下上，`extensions.md`「能力」）：`data.capabilities` 是没批的那几个。
     pub(crate) fn needs_approval(capabilities: serde_json::Value) -> Refusal {
         Refusal::with("needs_approval", "capabilities", capabilities)
@@ -428,6 +405,19 @@ impl Refusal {
             code: REFUSED,
             reason: reason.code(),
             data: None,
+        }
+    }
+
+    /// 内核拒了这个命令，拒的是哪几条事件（施工 O-14 上：`session.respond` 的 `not_ambient`、`already_answered`）：
+    /// `data.messages` 是它们的序号；没有的同 [`Refusal::kernel`]。
+    pub(crate) fn kernel_about(reason: Reason, about: &[miyu_kernel::id::Seq]) -> Refusal {
+        if about.is_empty() {
+            return Refusal::kernel(reason);
+        }
+        let seqs: Vec<u64> = about.iter().map(|seq| seq.get()).collect();
+        Refusal {
+            data: Refusal::with(reason.code(), "messages", serde_json::json!(seqs)).data,
+            ..Refusal::kernel(reason)
         }
     }
 

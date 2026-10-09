@@ -1,7 +1,8 @@
 //! 回合索引（施工 R-2 上，`docs/blueprint/memory.md`「怎么走」第一条）：真会话、执行器替身，数据根在临时目录。说过的每一轮
 //! 进这个人格的回合库；撤销的拿掉、恢复的放回；核心重启载入以后照旧，落下的补上；子会话的不进。
 
-use miyu_kernel::id::{SessionId, TurnId};
+use miyu_kernel::id::{SessionId, TurnId, VenueId};
+use miyu_kernel::origin::By;
 use miyu_kernel::session::Command;
 use miyu_recall::Source;
 use miyu_session::Handle;
@@ -138,4 +139,46 @@ async fn a_child_session_is_not_indexed() {
         .await;
     chat(&child, "cmd-1", "去查查樱花开了没有").await;
     assert!(found(&home, "樱花").is_empty());
+}
+
+/// 场所会话（群里）的回合先不进回合库（施工 R-2 再补，`memory.md` 第一条第 1 款）：回合库的条目还没有听众（第九条，随 O
+/// 线），进了库，本机会话里 `memory_search` 就搜得到群里别人说的话。这一步以前进了库的（施工 O-4 下起），载入时拿掉。
+#[tokio::test]
+async fn a_venue_session_is_not_indexed_and_what_got_in_is_taken_out() {
+    let home = Home::new();
+    let script = Script::new([Play::Says("好的，团子很可爱。")]);
+    let lines = Lines {
+        venue: VenueId::parse("qq:group:5550").expect("合写法"),
+        ..Lines::default()
+    };
+    let handle = home
+        .create_full(&script, &Default::default(), Opening::default(), lines)
+        .await;
+    let member: By = serde_json::from_str(
+        r#"{"kind":"external","venue":"qq:group:5550","id":"qq:20017","role":"member"}"#,
+    )
+    .expect("合写法");
+    let mut pushes = watch(&handle).await;
+    within(
+        "说一句",
+        handle.command(id("cmd-1"), member, say("我家猫叫团子")),
+    )
+    .await
+    .expect("会话在跑");
+    until_turn_ends(&mut pushes).await;
+    assert!(found(&home, "团子").is_empty(), "群里的不进");
+    let session = handle.id().clone();
+    stop(&handle).await;
+
+    // 这一步以前进了库的：照回合库的写法放一条进去，载入时拿掉。
+    let (index, _) = home
+        .recall
+        .turns(&Room::persona(&alice_account(), "engineer"));
+    index
+        .put(&format!("{session}/3"), "我家猫叫团子", now())
+        .expect("放得进");
+    assert_eq!(found(&home, "团子").len(), 1);
+    let handle = home.load(&session, &Script::new([])).await;
+    assert!(found(&home, "团子").is_empty(), "载入时拿掉");
+    stop(&handle).await;
 }

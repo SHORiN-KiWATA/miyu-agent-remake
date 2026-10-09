@@ -7,7 +7,8 @@
 //!   `null` 的、不是的，照清单 `[settings]` 的默认值（[`Defaults`]，「施工时定的」第 38 条）。
 //! - 令牌 `onebot.token`：是字的照它，去掉前后空白（[`Secret::new`]）；没有的、`null`、空的、不是字的就是没有：桥照样起来，
 //!   NapCat 连进来一律 401（第 1、2 条）。核心不交取不到的引用，桥分不出「没写引用」和「取不到」（「施工时定的」第 41 条）。
-//! - `onebot.trusted` 这一步不读（桥接群时读），别的键不认。
+//! - 自己人 `onebot.trusted`（施工 O-23）：跟核心的那一头照 [`trusted`] 读一份、推来的换（「群里怎么叫她」第 3 条），不进
+//!   [`Settings`]：NapCat 的监听、WebUI 用不上它。别的键不认。
 //!
 //! 键是 `<包的编号>.<名字>`（`packages.md`「配置项」第 1 条）：名字在这里写一次，清单的默认值、握手和推送的键都照它。
 
@@ -27,6 +28,9 @@ const WEB: &str = "web";
 
 /// NapCat 要出示的令牌：清单里的名字。
 const TOKEN: &str = "token";
+
+/// 自己人：清单里的名字（施工 O-23）。
+const TRUSTED: &str = "trusted";
 
 /// 桥用的三项。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -121,6 +125,25 @@ impl Settings {
             }
         }
     }
+}
+
+/// 自己人那一键（`onebot.trusted`）：握手交来的 `config`、推来的 `keys` 里照它取（施工 O-23）。
+pub fn trusted_key() -> String {
+    format!("{PACKAGE}.{TRUSTED}")
+}
+
+/// 自己人的平台身份（`onebot.trusted` 的值，施工 O-23，「群里怎么叫她」第 3 条）：字的列表照收；没有、`null`、不是列表的是
+/// 空的（核心照清单查过类型，照说不会），列表里不是字的不要。
+pub fn trusted(value: &Value) -> Vec<String> {
+    value
+        .as_array()
+        .map(|list| {
+            list.iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 /// 一个端口：0 到 65535 的整数；别的是空的。

@@ -12,7 +12,7 @@ use miyu_kernel::raw::RawJson;
 use miyu_kernel::tool::Access;
 use tokio::sync::Barrier;
 
-use crate::{Call, Done, Effect, Picture, Progress, Running, Spec, Stop, Target, Tool};
+use crate::{Call, Done, Effect, Picture, Progress, Running, Spec, Stop, Target, Tool, Venues};
 
 mod held;
 mod renamed;
@@ -54,6 +54,7 @@ pub enum Act {
 pub struct Fake {
     spec: Spec,
     act: Act,
+    venues: Option<Venues>,
     calls: Mutex<Vec<Call>>,
     dropped: Arc<AtomicUsize>,
 }
@@ -90,9 +91,19 @@ impl Fake {
         Arc::new(Fake {
             spec,
             act,
+            venues: None,
             calls: Mutex::new(Vec::new()),
             dropped: Arc::new(AtomicUsize::new(0)),
         })
+    }
+
+    /// 给 `venues` 那几种会话的假工具，像提供者的（施工 O-2 上）。
+    pub fn in_venues(name: &str, access: Access, venues: Venues, act: Act) -> Arc<Fake> {
+        let mut fake = Fake::new(name, access, act);
+        if let Some(fake) = Arc::get_mut(&mut fake) {
+            fake.venues = Some(venues);
+        }
+        fake
     }
 
     /// 交给它的每一次调用，照先后。
@@ -123,9 +134,36 @@ impl Drop for Guard {
     }
 }
 
+/// 一次假的调用（施工 O-2 上）：参数照 `args` 的原文，工作目录是 `/`，别的端口、编号都没有。
+pub fn call(args: &str) -> Call {
+    Call {
+        args: args.to_string(),
+        cwd: "/".to_string(),
+        home: None,
+        data_root: None,
+        seen: Arc::default(),
+        stop: Stop::default(),
+        sandbox: None,
+        log: None,
+        offset: miyu_kernel::time::UtcOffset::UTC,
+        agents: None,
+        messages: None,
+        jobs: None,
+        sessions: None,
+        usage: None,
+        questions: None,
+        memory: None,
+        ids: None,
+    }
+}
+
 impl Tool for Fake {
     fn spec(&self) -> &Spec {
         &self.spec
+    }
+
+    fn venues(&self) -> Option<Venues> {
+        self.venues
     }
 
     /// 参数里的 `path`（一条）、`paths`（几条）就是要碰的路径；访问类别是写的，就是写（施工 4-3 下）。

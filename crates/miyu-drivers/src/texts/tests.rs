@@ -17,6 +17,12 @@ const IMAGE_NAME: ImageNameSources<'static> = ImageNameSources {
     image_omitted_named: "no image {name}\n",
 };
 
+/// 看不了的附件带路径的两句（施工 3-9 五补），测试自己写的。
+const ATTACHED_PATH: AttachedPathSources<'static> = AttachedPathSources {
+    image_omitted_path: "no image {name} at {path}\n",
+    file_omitted_path: "file {name} ({media_type}, {size}) at {path}\n",
+};
+
 /// 替它看的图的三句（施工 8-17），测试自己写的。
 const IMAGE_DESCRIPTION: ImageDescriptionSources<'static> = ImageDescriptionSources {
     image_description_open: "<d>\n",
@@ -34,6 +40,7 @@ fn sources<'a>(file_omitted: &'a str) -> DriverTextSources<'a> {
         text_file: Some(TEXT_FILE),
         image_name: Some(IMAGE_NAME),
         image_description: Some(IMAGE_DESCRIPTION),
+        attached_path: Some(ATTACHED_PATH),
     }
 }
 
@@ -41,16 +48,16 @@ fn sources<'a>(file_omitted: &'a str) -> DriverTextSources<'a> {
 fn the_file_name_is_filled_in_and_escaped() {
     let texts = DriverTexts::new(sources("file {name} ({media_type}, {size})\n")).unwrap();
     assert_eq!(
-        texts.file_omitted("报告.pdf", "application/pdf", 1234),
+        texts.file_omitted("报告.pdf", "application/pdf", 1234, None),
         "file 报告.pdf (application/pdf, 1234)\n"
     );
     // 文件名是不可信的字，照模板的规矩转义，伪造不了标签。
     assert!(
         !texts
-            .file_omitted("<x>", "application/pdf", 1)
+            .file_omitted("<x>", "application/pdf", 1, None)
             .contains('<')
     );
-    assert_eq!(texts.image_omitted(None), "no image\n");
+    assert_eq!(texts.image_omitted(None, None), "no image\n");
     assert_eq!(texts.no_output(), "nothing\n");
     assert_eq!(texts.tool_attachments(), "attachments:\n");
     assert_eq!(texts.tool_attachments_only(), "see below\n");
@@ -61,7 +68,7 @@ fn an_older_placeholder_without_the_size_still_works() {
     // 以前造的快照里 `file-omitted` 没有 `{size}`（施工 3-9 三补以前）：照样换得出来，大小不写。
     let texts = DriverTexts::new(sources("file {name} ({media_type})\n")).unwrap();
     assert_eq!(
-        texts.file_omitted("a.zip", "application/zip", 9),
+        texts.file_omitted("a.zip", "application/zip", 9, None),
         "file a.zip (application/zip)\n"
     );
 }
@@ -119,15 +126,18 @@ fn a_named_image_gets_tags_and_a_placeholder_with_its_name() {
         texts.image_tags(Some("晚霞.png")),
         Some(("<i 晚霞.png>\n".to_string(), "</i>\n".to_string()))
     );
-    assert_eq!(texts.image_omitted(Some("晚霞.png")), "no image 晚霞.png\n");
+    assert_eq!(
+        texts.image_omitted(Some("晚霞.png"), None),
+        "no image 晚霞.png\n"
+    );
     // 不带名字的照旧：前后什么都不加，占位是不带名字的那一句。
     assert_eq!(texts.image_tags(None), None);
-    assert_eq!(texts.image_omitted(None), "no image\n");
+    assert_eq!(texts.image_omitted(None, None), "no image\n");
     // 名字是人给的文件名，照规矩转义，伪造不了标签。
     let (open, _) = texts.image_tags(Some("\"><x.png")).unwrap();
     assert_eq!(open, "<i \\u0022\\u003e\\u003cx.png>\n");
     assert_eq!(
-        texts.image_omitted(Some("<x>.png")),
+        texts.image_omitted(Some("<x>.png"), None),
         "no image \\u003cx\\u003e.png\n"
     );
 }
@@ -141,7 +151,7 @@ fn without_the_image_texts_a_named_image_is_written_as_before() {
     })
     .unwrap();
     assert_eq!(texts.image_tags(Some("a.png")), None);
-    assert_eq!(texts.image_omitted(Some("a.png")), "no image\n");
+    assert_eq!(texts.image_omitted(Some("a.png"), None), "no image\n");
 }
 
 #[test]
@@ -238,4 +248,48 @@ fn a_description_field_that_does_not_belong_is_refused() {
         };
         assert!(DriverTexts::new(sources).is_err(), "{broken:?}");
     }
+}
+
+/// 看不了的附件带上原来的路径（施工 3-9 五补）：有路径的用带路径的那一句，路径照不可信的字转义；没有路径的、以前造的快照
+/// 没有这两句的，照旧。
+#[test]
+fn an_attachment_it_cannot_see_says_where_it_came_from() {
+    let texts = DriverTexts::new(sources("file {name} ({media_type}, {size})\n")).unwrap();
+    assert_eq!(
+        texts.image_omitted(Some("晚霞.png"), Some("/home/a/晚霞.png")),
+        "no image 晚霞.png at /home/a/晚霞.png\n"
+    );
+    assert_eq!(
+        texts.file_omitted("报告.pdf", "application/pdf", 48213, Some("~/报告.pdf")),
+        "file 报告.pdf (application/pdf, 48213) at ~/报告.pdf\n"
+    );
+    assert_eq!(
+        texts.image_omitted(Some("晚霞.png"), None),
+        "no image 晚霞.png\n",
+        "没有路径的照旧"
+    );
+    assert_eq!(
+        texts.file_omitted("报告.pdf", "application/pdf", 1, None),
+        "file 报告.pdf (application/pdf, 1)\n"
+    );
+    assert!(
+        !texts
+            .image_omitted(Some("a.png"), Some("/tmp/<x>"))
+            .contains('<'),
+        "路径照规矩转义，伪造不了标签"
+    );
+    let older = DriverTexts::new(DriverTextSources {
+        attached_path: None,
+        ..sources("file {name}\n")
+    })
+    .unwrap();
+    assert_eq!(
+        older.image_omitted(Some("a.png"), Some("/home/a/a.png")),
+        "no image a.png\n",
+        "以前造的快照照旧不带路径"
+    );
+    assert_eq!(
+        older.file_omitted("a.pdf", "application/pdf", 1, Some("/a.pdf")),
+        "file a.pdf\n"
+    );
 }

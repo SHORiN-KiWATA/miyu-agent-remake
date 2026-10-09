@@ -326,7 +326,8 @@ fn reports_that_do_not_fit_are_refused_or_ignored() {
         assert_eq!(
             s.outcome(id),
             Some(&Outcome::Rejected {
-                reason: Reason::UnknownJob
+                reason: Reason::UnknownJob,
+                about: Vec::new(),
             })
         );
     };

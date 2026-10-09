@@ -33,12 +33,12 @@ use tokio_tungstenite::tungstenite::handshake::derive_accept_key;
 
 use crate::TARGET;
 use crate::current::Current;
-use crate::onebot::{Private, number};
+use crate::onebot::{Event, number};
 use crate::serve::Notice;
 use crate::tuning::Tuning;
 use bots::Bots;
 
-/// 各个连接共用的：桥手里的令牌、桥自己的数、连着的号、读出来的私聊交给谁、说给人听的。
+/// 各个连接共用的：桥手里的令牌、桥自己的数、连着的号、读出来的消息和撤回交给谁、说给人听的。
 pub(crate) struct Gate {
     /// NapCat 要出示的令牌在这里（和 WebUI 共用，核心推来新的就换上，施工 O-20）。
     pub(crate) current: Arc<Current>,
@@ -46,8 +46,8 @@ pub(crate) struct Gate {
     pub(crate) tuning: Tuning,
     /// 连着的号。
     pub(crate) bots: Arc<Bots>,
-    /// 读出来的私聊交给跟核心的那一头（`core/route.rs`）。
-    pub(crate) inbound: mpsc::Sender<Private>,
+    /// 读出来的消息、撤回（施工 O-22 起群的也算）交给跟核心的那一头（`core/route.rs`）。
+    pub(crate) inbound: mpsc::Sender<Event>,
     /// 连上、断开各说一行（「样子」）。
     pub(crate) tell: Arc<dyn Fn(Notice) + Send + Sync>,
     /// 下一条连接的序号（`bots::Link::serial`）。

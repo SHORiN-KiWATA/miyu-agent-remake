@@ -205,6 +205,16 @@ fn the_local_minute_is_the_wall_clock_to_the_minute() {
 }
 
 #[test]
+fn the_local_clock_is_the_hour_and_minute_only() {
+    // 施工 O-13 中：群里的一行只写钟点。
+    let t = Timestamp::parse("2026-09-29T05:03:59.999Z").unwrap();
+    assert_eq!(t.local_clock(offset(540)), "14:03");
+    assert_eq!(t.local_clock(offset(-330)), "23:33");
+    let midnight = Timestamp::parse("2026-09-29T00:00:00.000Z").unwrap();
+    assert_eq!(midnight.local_clock(UtcOffset::UTC), "00:00");
+}
+
+#[test]
 fn a_local_date_and_time_turns_back_into_the_moment() {
     let back = |y, mo, d, h, mi, minutes| {
         Timestamp::from_local(y, mo, d, h, mi, offset(minutes)).map(Timestamp::unix_millis)

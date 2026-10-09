@@ -330,3 +330,14 @@ fn until_cuts_the_history_after_the_given_event() {
     assert_eq!(seqs(&whole), seqs(&history));
     assert!(!seqs(&whole).contains(&14));
 }
+
+/// 截出来的前一段、后一段照带这个会话自己的编号（施工 O-13 下：摘要请求里的群聊近况照它认出别的线）。
+#[test]
+fn a_cut_keeps_whose_history_it_is() {
+    let own = crate::id::SessionId::parse("01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91").unwrap();
+    let history = feed(two_turns()).owned_by(own.clone());
+    let at = crate::id::Seq::new(3).unwrap();
+    assert_eq!(history.until(at).own(), Some(&own));
+    assert_eq!(history.after(at).own(), Some(&own));
+    assert_eq!(feed(two_turns()).own(), None);
+}

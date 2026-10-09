@@ -2,7 +2,7 @@
 //!
 //! 各家模型回的样子不一样：有的包在 ` ```json ` 里，有的前后带几句话。读的时候宽：只认第一个 `{` 到最后一个 `}` 那一段；
 //! 五维是算分离不开的，少了就判不了；别的格少了、类型不对，照「没说」算（布尔当假、`severity` 当没查、`reason` 当空）。
-//! 判不了的照不回算，由外面记一笔 `ext.chat.decided`（「怎么走」第 5 条）。
+//! 判不了的照不回算，由外面记一笔 `ext.onebot.chat.decided`（「怎么走」第 5 条）。
 
 use serde_json::{Map, Value};
 
@@ -17,7 +17,7 @@ const DIMENSIONS: [&str; 5] = ["relevance", "willingness", "social", "timing", "
 /// 分和违规的严重程度的上限：0 到 10（`answer.txt`、`reply.txt`、`violations.txt`）。
 const MAX: f64 = 10.0;
 
-/// 判官的回答读不出来：当判不了，照不回算，记进 `ext.chat.decided` 时写明是哪一种（「怎么走」第 5 条）。
+/// 判官的回答读不出来：当判不了，照不回算，记进 `ext.onebot.chat.decided` 时写明是哪一种（「怎么走」第 5 条）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Unreadable {
     /// 回答里找不到第一个 `{` 到最后一个 `}` 那一段，或者那一段读不成 JSON 对象：空字、只有话、半截的 JSON、数组。

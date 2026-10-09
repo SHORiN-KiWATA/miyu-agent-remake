@@ -16,19 +16,20 @@ use super::*;
 
 /// 照全是默认值的配置看一遍。
 fn seen(refresh: &Refresh) -> Seen {
-    look(refresh, &Values::default())
+    look(refresh, &Values::default(), &refresh.tools.edition())
 }
 
 /// 一个临时数据根，Miyu 住在管理员 alice 的家目录，人设是 `persona`；和照这一刻的文件拼好快照的 `Refresh`。
 fn setup(name: &str, persona: &str) -> (Scratch, DataRoot, Refresh) {
-    setup_with(name, persona, None)
+    setup_with(name, persona, None, None)
 }
 
-/// 同 [`setup`]，快照记着预设 `preset`（施工 P-2 中）。
+/// 同 [`setup`]，快照记着预设 `preset`（施工 P-2 中）；`group` 有的是群会话，时区是它（施工 O-13 中）。
 fn setup_with(
     name: &str,
     persona: &str,
     preset: Option<miyu_policy::PresetPin>,
+    group: Option<i32>,
 ) -> (Scratch, DataRoot, Refresh) {
     let (scratch, root) = scratch_root(name, persona);
     let alice = AccountId::parse("alice").expect("账号合写法");
@@ -46,6 +47,7 @@ fn setup_with(
         child: false,
         preset,
         tooled: tooled(&tools),
+        group,
     };
     let snapshot = build(&resources, parts).expect("拼得成");
     let refresh = Refresh {
@@ -55,7 +57,8 @@ fn setup_with(
         snapshot,
         child: false,
         presets: None,
-        tools,
+        seen: Some(Shelf::new(tools.clone()).edition()),
+        tools: Shelf::new(tools),
         venue: VenueId::parse("local").expect("场所合写法"),
         lineage: None,
     };
@@ -76,6 +79,31 @@ fn an_unchanged_persona_is_the_same_and_a_changed_one_swaps() {
         refresh.blobs.get(&hash).expect("新快照存进了 blob"),
         snapshot.to_bytes()
     );
+}
+
+/// 群会话换人格（施工 O-13 中）：新快照照样在人设后面接着格式说明，时区照旧快照钉下的。
+#[test]
+fn a_group_keeps_its_note_and_time_zone_across_a_swap() {
+    let (_scratch, root, refresh) = setup_with("group-swap", "You are Miyu.\n", None, Some(-300));
+    let note = refresh.resources.group_note().expect("读得到格式说明");
+    assert!(
+        refresh
+            .snapshot
+            .system
+            .starts_with(&format!("You are Miyu.\n\n{}", note.trim_end()))
+    );
+    write(&root, "persona.md", "You are Miyu, softly.\n");
+    let Seen::Swapped(snapshot, _, _) = seen(&refresh) else {
+        panic!("改了要换");
+    };
+    assert!(
+        snapshot
+            .system
+            .starts_with(&format!("You are Miyu, softly.\n\n{}", note.trim_end())),
+        "{}",
+        snapshot.system
+    );
+    assert_eq!(snapshot.group.as_ref().map(|chat| chat.offset), Some(-300));
 }
 
 #[test]
@@ -111,7 +139,7 @@ fn roleplay_stays_off_across_a_swap() {
         digest: None,
     };
     let (_scratch, root, mut refresh) =
-        setup_with("roleplay", "You are Miyu.\n", Some(pin.clone()));
+        setup_with("roleplay", "You are Miyu.\n", Some(pin.clone()), None);
     write(&root, "reminders.md", "Stay soft.\n");
     let Seen::Swapped(snapshot, _, _) = seen(&refresh) else {
         panic!("多了角色扮演提示也算改了");

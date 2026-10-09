@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::id::{CallId, ContentHash, DriverFamily, FileName, MediaType};
+use crate::id::{CallId, ContentHash, DriverFamily, FileName, MediaType, SourcePath};
 use crate::raw::{self, RawJson};
 
 /// 一块内容。JSON 里用 `type` 分开五种；读到不认识的，整块原样留着，投影跳过它。
@@ -59,6 +59,10 @@ pub struct Image {
     pub width: u32,
     /// 高，像素。
     pub height: u32,
+    /// 原来在本机的哪儿（施工 3-9 五补，[`SourcePath`]）：头交上来的、从本机文件来的才有；模型看不了时占位那一句带上它。
+    /// 以前的日志里没有这一格，读成没有；没有的不写，旧日志读进来再写出去一字不差。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<SourcePath>,
 }
 
 /// 文件。
@@ -70,6 +74,9 @@ pub struct File {
     pub name: FileName,
     /// 例如 `application/pdf`。
     pub media_type: MediaType,
+    /// 原来在本机的哪儿（施工 3-9 五补）：同图片块的 `path`。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<SourcePath>,
 }
 
 /// 一次工具调用。工具名和参数不检查：模型说了什么就记什么，

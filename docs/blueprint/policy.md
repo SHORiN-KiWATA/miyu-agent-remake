@@ -19,6 +19,7 @@
 | `crates/miyu-policy/src/tools/choice.rs` | 工具面上一件的一个参数照会话开局时的配置填上能选的几个（`ToolEntry::offer`：插 `enum`、说明后面一行一个，一个都没有的拿掉这个参数），照快照读回能选的（`ToolEntry::offered`）；照原样的 JSON 搬，别的字节不动（施工 8-8 补，`subagent` 的 `pool`） |
 | `crates/miyu-policy/src/guard.rs` | 权限策略拒绝时写的三句 |
 | `crates/miyu-policy/src/image_name.rs` | 带名字的图片的三句（施工 3-9 四补） |
+| `crates/miyu-policy/src/attached_path.rs` | 看不了的附件带上原来的路径的两句（施工 3-9 五补） |
 | `crates/miyu-policy/src/recap.rs` | 回顾的字 `RecapTexts`、数 `RecapNumbers` 和出厂的数 `RECAP`，交给组装器的样子（施工 3-8 四补） |
 | `crates/miyu-policy/src/vision.rs` | 替看不了图的模型看图的字（施工 8-17）：转述请求的两份 `VisionTexts`、图的位置的三句标签 `ImageDescriptionTexts`，交给组装器、驱动的样子 |
 | `crates/miyu-policy/src/title.rs` | 起标题的字 `TitleTexts`、数 `TitleNumbers` 和出厂的数 `TITLE`，交给组装器、内核的样子（施工 3-8 五补） |
@@ -59,7 +60,7 @@
 | `turn_ended` | `interrupted`、`error`、`step_limit`、`aborted`、`restarted` | `turn-ended/<同名>.txt` |
 | `facts` | `env`、`permission`、`reply_cut`、`session`、`permission_changed` | `facts/env.txt`、`facts/permission.txt`、`facts/reply-cut.txt`、`facts/session.txt`（施工 1-13 再补，会话编号。以前造的快照里没有，读成没有、不写：那些会话不注入这一块）、`facts/permission-changed.txt`（施工 2-7 补，切了级别以后的权限那一块，读法照 `session`：以前造的快照里没有，读成没有、不写，那些会话切了照旧写平常那一份，快照的字节、请求的前缀都一字不变） |
 | `tool_results` | `unknown`、`not_an_object`、`cancelled_before`、`cancelled_running`、`skipped`、`read_only`、`denied`、`denied_with_reason`、`unattended`、`question_interrupted`、`question_voided`、`question_unattended`、`restarted`、`unavailable`、`crashed` | `tool-results/` 下，下划线换成 `-` 的同名文件 |
-| `drivers` | `image_omitted`、`file_omitted`、`no_output`、`tool_attachments`、`tool_attachments_only`；`text_file` 里的 `file_open`、`file_cut`、`file_close`；`image_name` 里的 `image_open`、`image_close`、`image_omitted_named` | `drivers/` 下，下划线换成 `-` 的同名文件。`text_file`（施工 3-9 三补，文本文件照字放进消息，`drivers/openai-chat.md` 第 9 条）以前造的快照里没有，读成没有、不写：文本文件照别的文件写占位。`image_name`（施工 3-9 四补，带名字的图片，同一条）也是：以前造的快照里没有，读成没有、不写，带名字的图片照不带名字的写。`image_description` 里的 `image_description_open`、`image_description_open_named`、`image_description_close`（施工 8-17，替它看的图的标签，同一条）也是：以前造的快照里没有，读成没有、不写，看不了图的照旧写占位 |
+| `drivers` | `image_omitted`、`file_omitted`、`no_output`、`tool_attachments`、`tool_attachments_only`；`text_file` 里的 `file_open`、`file_cut`、`file_close`；`image_name` 里的 `image_open`、`image_close`、`image_omitted_named` | `drivers/` 下，下划线换成 `-` 的同名文件。`text_file`（施工 3-9 三补，文本文件照字放进消息，`drivers/openai-chat.md` 第 9 条）以前造的快照里没有，读成没有、不写：文本文件照别的文件写占位。`image_name`（施工 3-9 四补，带名字的图片，同一条）也是：以前造的快照里没有，读成没有、不写，带名字的图片照不带名字的写。`attached_path` 里的 `image_omitted_path`、`file_omitted_path`（施工 3-9 五补，看不了的附件带上原来的路径）同样：以前造的快照里没有，读成没有、不写，照旧不带路径。`image_description` 里的 `image_description_open`、`image_description_open_named`、`image_description_close`（施工 8-17，替它看的图的标签，同一条）也是：以前造的快照里没有，读成没有、不写，看不了图的照旧写占位 |
 | `permissions` | `forbidden`、`unresolvable` | `permissions/forbidden.txt`、`permissions/unresolvable.txt` |
 | `compaction` | `summarize_task`、`summarize_instructions`、`summarize_end`、`notes_files`、`notes_files_more`、`notes_retrieve`、`notes_too_large`、`restored_open`、`restored_close`、`truncated`、`notes_uncovered`、`summarize_system` | `compaction/` 下，下划线换成 `-` 的同名文件（摘要指令施工 6-2 上，截短重试的两份施工 6-6 中，隔离式那一句施工 6-6 下，别的施工 6-5；`summarize_instructions`、`summarize_end` 施工 6-8 从摘要指令里拆出来）。以前造的快照里没有，读成没有；没有的不写：没有 `notes_*` 的不写那一段，没有 `restored_*` 的不重读，没有截短重试的两份的不截短，没有 `summarize_system` 的不改走隔离式；有 `summarize_task`、没有 `summarize_instructions`、`summarize_end` 的，那两份读成空的：那时的 `summarize_task` 里本来就带着最后那一句，拼出来一字不差 |
 | `jobs` | `command_open`、`command_exit`、`command_signal`、`command_duration`、`command_output`、`command_close`、`subagent_open`、`subagent_person`、`subagent_truncated`、`subagent_silent`、`subagent_close`、`subagent_omitted`、`stopped_by_user`、`subagent_message_open`、`subagent_message_close` | `jobs/` 下，下划线换成 `-` 的同名文件（施工 7-2，两种回报的写法，`kernel/request.md`「回报」）。以前造的快照里没有，读成没有、不写：回报不渲染，那些会话也派不出任务。`subagent_omitted` 是子会话回报的正文截在中间的那一行，内核截的时候用、不交给组装器（施工 7-6）；7-2 到 7-5 造的没有，读成空的、不写：头尾之间只换一行。`stopped_by_user` 是人停的那一句，两种回报共用（施工 7-2 补，`kernel/request.md`「回报」第 3 条）；以前造的没有，读成空的、不写：人停的照原来的写。`subagent_message_open`、`subagent_message_close` 是子代理发来的留言的标签（施工 7-7，`kernel/request.md`「子代理的留言」）；以前造的没有，读成空的、不写：留言只剩它的话 |
@@ -75,7 +76,8 @@
 |---|---|
 | `compose(人格, Sources, attended)` | 拼一份快照。`Sources` 是读好的原文：`core`（`CoreTexts`）、`persona`（`PersonaTexts { persona, examples, reminders }`：人设、示范对话、角色扮演提示的原文）、`reminder`（角色扮演提示的包装 `Wrap { open, close }`，施工 P-1 补） |
 | `Snapshot::with_tools(工具)` | 带上工具面 |
-| `Snapshot::with_venue(说明)` | 带上场所说明：system 的第二块，接在人设后面（施工 7-5）。现在只有子会话有 |
+| `Snapshot::with_venue(说明)` | 带上场所说明：system 的第二块，接在人设后面（施工 7-5）。子会话有 |
+| `Snapshot::with_group(说明, GroupChat)` | 带上群会话（施工 O-13 中）：格式说明照 `with_venue` 接在人设后面（`core/venues/group.txt`），快照记下 `group` |
 | `Snapshot::with_core_lines(&CoreLines)` | 带上核心的几行（施工 2-7 补）：system 的第三块，所以在 `with_tools`、`with_venue` 以后调。`CoreLines` 有三格：`permission`（`permission-rule.txt`）、`local_paths`（`local-paths-rule.txt`）、`style_lock`（`style-lock.txt`，施工 P-1 补，交给 `with_style_lock`）。一行一句，先权限、后路径；工具面是空的不带权限那一句 |
 | `Snapshot::swappable(新的)` | 能不能换成 `新的`（施工 P-1 再补）：除了 `system`、`demos`、`tools`、`reminder`、`persona_digest`、`preset`（后两格施工 P-2 下：换预设时工具面重新筛过，留着的那几件是原样），别的格都一样 |
 | `Snapshot::with_preset(预设, 那一行)` | 带上预设（施工 P-2 中）：记进快照的 `preset`（编号、装了没开的软件）；没开角色扮演的去掉 `reminder`；装了没开的软件（角色扮演除外）写成一行接在 system 后面（`26-提示词.md` 第四节第 5 块，`core/preset-off.txt`）。在 `with_core_lines` 以后、`with_style_lock` 以前调；没有预设、都开着的 system 一字不变 |
@@ -108,6 +110,7 @@
 3. `step_limit` 是 `null`，`resumes` 是 3，`attended` 照交进来的，`compaction` 是出厂的四个数，`recap` 是出厂的两个数（施工 3-8 四补），`title` 是出厂的三个数（施工 3-8 五补），`peers` 是出厂的五个数（施工 C-2、C-6），`memory` 不写（造会话时 `with_memory` 写上，施工 R-3 下）。
 4. `reminder`（施工 P-1 补）：人格的角色扮演提示去掉末尾空白，是空的不写；不空的拼成一块：包装的开头、原文、换行、包装的收尾。原文不转义：是人格的作者写的。`policy()` 把它交给内核的事实模板（`FactTemplates::with_reminder`），回合开始时隔几轮注入（`kernel/request.md`「事实」）。造会话时最后带上风格锁（`with_style_lock`）：有 `reminder` 的 system 末尾空一行接上 `core/style-lock.txt`。
 6. `preset`（施工 P-2 中）：会话的预设，`{"id", "off", "digest"}`，`off` 是造会话时装了、这个预设没开的软件，照编号排，都开着的不写；`digest` 是叠好的预设文件的指纹（`PresetFile::digest`，施工 P-2 下），回合开始时执行器照它认出预设改了，P-2（中）造的没有、不换。工具面、记忆的范围造会话时已经照预设筛过；换人格重拼时照它（`with_preset`）去掉角色扮演提示、写那一行，所以人格的指纹照旧算人格原来的字，不会每轮都当成改过。以前造的快照没有：全开。
+7. `group`（施工 O-13 中）：群会话钉下的 `{"offset", "no_text", "recent"}`（`recent` 施工 O-13 下：群聊近况的块头、缺口提示的原文和预算 `budget`，出厂 `RECENT_BUDGET` 80000；O-13 中造的没有、不写，不出近况；缺口提示的字段只能是 `count`，不合的造不出策略）：造会话时这台机器的时区（比 UTC 早多少分钟），正文、带的东西都没有的那一条写什么（`core/venues/no-text.txt` 的原文）。`policy()` 交给组装器（时区换成内核的类型、空的那一句去掉行尾空白），群里的人说的照它渲染成一行一条；时区超出 ±14:00 的造不出策略（`BuildError::Offset`）。私聊、本机的会话没有、不写，字节和以前一样。换人格、换预设重拼时照旧快照的时区。
 5. `persona_digest`（施工 P-1 再补）：人格三份字（人设、示范对话、角色扮演提示，叠好的）的 SHA-256（`PersonaTexts::digest`，三样写成一个 JSON 数组再算）。回合开始时执行器照它认出人格的文件改了（`session/actor.md`「换快照」）。以前造的快照没有，读成没有、不写：那些会话不换。
 
 **字节和哈希**

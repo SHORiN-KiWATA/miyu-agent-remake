@@ -14,6 +14,7 @@ pub fn picture(k: u64) -> Block {
         media_type: MediaType::parse("image/png").expect("媒体类型合写法"),
         width: 640,
         height: 480,
+        path: None,
     })
 }
 

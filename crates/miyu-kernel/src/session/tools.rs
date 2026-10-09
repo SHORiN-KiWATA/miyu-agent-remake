@@ -18,25 +18,33 @@ use crate::origin::{By, Tool};
 use crate::time::Timestamp;
 use crate::tool::{Access, Worded, repair};
 
-/// 派一次调用的动作：带上这一轮的工作目录、加进来的目录、这一刻实际生效的那一级，和这一轮的 `cause`（施工 7-3）。派出去
-/// 的两条路（链当场放行的、等人决定了的）都经它，派出去的是同一个样子（施工 5-10 上）。
+/// 派工具时带上的这一轮的几样（[`super::turn::Turn::round`]）：工作目录、加进来的目录、`cause`（施工 7-3）、是谁要的（施工
+/// O-2 下）。
+pub(super) struct Round {
+    pub(super) cwd: String,
+    pub(super) dirs: Vec<String>,
+    pub(super) cause: Option<CommandId>,
+    pub(super) asked: Option<By>,
+}
+
+/// 派一次调用的动作：带上这一轮的几样 `round`、这一刻实际生效的那一级。派出去的两条路（链当场放行的、等人决定了的）都经它，
+/// 派出去的是同一个样子（施工 5-10 上）。
 pub(super) fn run_tool(
     call_id: CallId,
     name: &str,
     args: &str,
-    cwd: &str,
-    dirs: &[String],
+    round: &Round,
     permission: &Permission,
-    cause: Option<&CommandId>,
 ) -> Action {
     Action::RunTool {
         call_id,
         name: name.to_string(),
         args: args.to_string(),
-        cwd: cwd.to_string(),
-        dirs: dirs.to_vec(),
+        cwd: round.cwd.clone(),
+        dirs: round.dirs.clone(),
         permission: permission.clone(),
-        cause: cause.cloned(),
+        cause: round.cause.clone(),
+        asked: round.asked.clone(),
     }
 }
 
@@ -131,6 +139,7 @@ impl Session {
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();
         };
+        let round = turn.round();
         let Stage::Tools(step) = &mut turn.stage else {
             return Vec::new();
         };
@@ -146,10 +155,8 @@ impl Session {
                         call.id,
                         &call.name,
                         &call.args,
-                        &turn.cwd,
-                        &turn.dirs,
+                        &round,
                         &self.effective,
-                        turn.cause.as_ref(),
                     ));
                 }
                 State::Answered { answered } if answered <= stored => {

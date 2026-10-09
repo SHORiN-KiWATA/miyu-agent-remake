@@ -115,7 +115,8 @@ fn an_unknown_level_is_rejected() {
         [Action::Reply {
             id: id(1),
             outcome: Outcome::Rejected {
-                reason: Reason::UnknownLevel
+                reason: Reason::UnknownLevel,
+                about: Vec::new(),
             },
         }]
     );

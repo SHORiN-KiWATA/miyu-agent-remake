@@ -122,7 +122,7 @@ pub(crate) fn entries(history: &History, texts: &Texts) -> Vec<Entry> {
         let (assistant, blocks) = match &event.body {
             Body::MessageUser(message) => (
                 false,
-                crate::render::said(history, &event.by, message.blocks.clone(), texts),
+                crate::render::spoken(history, event, message, message.blocks.clone(), texts),
             ),
             Body::MessageAssistant(reply)
                 if event

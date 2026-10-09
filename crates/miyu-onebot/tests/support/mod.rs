@@ -6,7 +6,9 @@
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
 
 pub mod fake_core;
+pub mod group;
 pub mod http;
+pub mod judge;
 pub mod napcat;
 pub mod pipe;
 pub mod ports;
@@ -26,9 +28,11 @@ use miyu_endpoint::Core;
 use miyu_endpoint::config::{Config, Environment};
 use miyu_endpoint::extensions::Timing;
 use miyu_kernel::id::{AccountId, SessionId};
+use miyu_onebot::rules::Factory;
 use miyu_onebot::serve::{Failure, Notice, Serve, run};
 use miyu_onebot::settings::{Defaults, Settings};
 use miyu_onebot::tuning::Tuning;
+use miyu_session::Models;
 use miyu_session::testkit::Script;
 use miyu_store::env::{Env, Platform};
 use miyu_store::log::read_events;
@@ -86,6 +90,11 @@ pub fn defaults() -> Defaults {
     Defaults::load(&ResourceRoot::at(resources())).expect("出厂的清单读得出来")
 }
 
+/// 出厂的场所规则、出厂参数、违规词表（施工 O-21）。
+pub fn factory() -> Factory {
+    Factory::load(&ResourceRoot::at(resources())).expect("出厂的读得出来")
+}
+
 /// 一个新的临时数据根（`MIYU_HOME` 指到它），建好骨架：交回目录（用完调的一方删）和数据根。
 pub fn temp_root() -> (PathBuf, DataRoot) {
     static NEXT: AtomicU64 = AtomicU64::new(0);
@@ -114,7 +123,7 @@ pub fn temp_root() -> (PathBuf, DataRoot) {
 impl Home {
     /// 起一个核心：请求模型照 `script`，没有工具，系统配置是主人对应表。
     pub fn new(script: &Script) -> Home {
-        Home::with_config(script, CONFIG, None, None)
+        Home::with_config(Arc::new(script.clone()), CONFIG, None, None)
     }
 
     /// 起一个照开关拉起扩展的核心（施工 O-18）：系统配置是主人对应表接着 `more`（端口、令牌、语言），密钥文件里 `onebot` 是
@@ -122,6 +131,11 @@ impl Home {
     /// 20 毫秒起、最多 100 毫秒，请扩展退出以后照出厂的等 5 秒再杀（等的时候桥得自己退）。出厂的清单里有桥：开了就拉起测试程序
     /// 旁边的 `miyu-onebot`（[`spawning::linked`]）。
     pub fn spawning(script: &Script, more: &str) -> Home {
+        Home::spawning_with(Arc::new(script.clone()), more)
+    }
+
+    /// 同 [`Home::spawning`]，请求模型照 `models`（施工 O-23 下：判官另走一头，[`judge::models`]）。
+    pub fn spawning_with(models: Arc<dyn Models>, more: &str) -> Home {
         spawning::linked();
         let timing = Timing {
             grace: Duration::from_secs(5),
@@ -131,17 +145,17 @@ impl Home {
         };
         let secrets = format!("onebot = \"{TOKEN}\"\n");
         Home::with_config(
-            script,
+            models,
             &format!("{CONFIG}{more}"),
             Some(&secrets),
             Some(timing),
         )
     }
 
-    /// 起一个核心：系统配置写成 `config`，有 `secrets` 的密钥文件写成它；`extensions` 有的照它等、退避，照开关拉起扩展。配置
-    /// 清单照真核心起来时那样拼进出厂的包的配置项（`Packaged`，施工 O-20：`onebot.*` 在桥的清单里）。
+    /// 起一个核心：请求模型照 `models`，系统配置写成 `config`，有 `secrets` 的密钥文件写成它；`extensions` 有的照它等、退避，
+    /// 照开关拉起扩展。配置清单照真核心起来时那样拼进出厂的包的配置项（`Packaged`，施工 O-20：`onebot.*` 在桥的清单里）。
     fn with_config(
-        script: &Script,
+        models: Arc<dyn Models>,
         config: &str,
         secrets: Option<&str>,
         extensions: Option<Timing>,
@@ -166,7 +180,7 @@ impl Home {
             Core::new(
                 root.clone(),
                 shipped,
-                Arc::new(script.clone()),
+                models,
                 Catalog::default(),
                 None,
                 admin(),
@@ -304,8 +318,8 @@ pub fn handed(settings: &Settings) -> Value {
 }
 
 /// 在数据根 `root` 上起一个桥要的：握手交的配置照 `settings`，经内存里的管道连 `root` 上的那个核心（[`pipe::pipe_to`]，施工
-/// O-18），`accounts` 有的照它改写账号，WebUI 拉不起核心，说中文，出厂的 `bridge.json`、资源目录和清单的默认值。另交回测试
-/// 那一头的转接 [`Relay`]：推配置（施工 O-20）、看桥问了核心什么。
+/// O-18），`accounts` 有的照它改写账号，WebUI 拉不起核心，说中文，出厂的 `bridge.json`、资源目录、清单的默认值和出厂的场所
+/// 规则这几样（施工 O-21）。另交回测试那一头的转接 [`Relay`]：推配置（施工 O-20）、看桥问了核心什么。
 pub fn serve_relayed(
     root: DataRoot,
     settings: Settings,
@@ -320,6 +334,7 @@ pub fn serve_relayed(
         tuning: tuning(),
         resources: ResourceRoot::at(resources()),
         defaults: defaults(),
+        factory: factory(),
     };
     (serve, relay)
 }

@@ -38,6 +38,9 @@ pub struct History {
     jobs: jobs::Jobs,
     /// 写过的待办（施工 D-3，`history/todos.rs`）：压缩不丢，撤销、恢复跟着标。
     todos: todos::Todos,
+    /// 这个会话自己的编号（施工 O-13 下）：内核造会话、载入、撤销后重建时设上，组装器照它认出别的线替她发进群里的话。
+    /// 测试里自己拼的、`history` 读的没有。
+    own: Option<SessionId>,
 }
 
 impl History {
@@ -54,6 +57,18 @@ impl History {
     /// 6-9）。
     pub fn recall(&mut self, texts: BTreeMap<ContentHash, String>) {
         self.recalled.extend(texts);
+    }
+
+    /// 记下这是会话 `id` 的有效历史（施工 O-13 下）。
+    #[must_use]
+    pub fn owned_by(mut self, id: SessionId) -> History {
+        self.own = Some(id);
+        self
+    }
+
+    /// 这个会话自己的编号；没设的没有（[`History::owned_by`]）。
+    pub fn own(&self) -> Option<&SessionId> {
+        self.own.as_ref()
     }
 
     /// 重读的文件 `blob` 的原文；没交进来的没有（施工 6-5）。
@@ -140,6 +155,7 @@ impl History {
             recalled: self.recalled.clone(),
             jobs: self.jobs.clone(),
             todos: self.todos.clone(),
+            own: self.own.clone(),
         }
     }
 
@@ -159,6 +175,7 @@ impl History {
             recalled: self.recalled.clone(),
             jobs: self.jobs.clone(),
             todos: self.todos.clone(),
+            own: self.own.clone(),
         }
     }
 

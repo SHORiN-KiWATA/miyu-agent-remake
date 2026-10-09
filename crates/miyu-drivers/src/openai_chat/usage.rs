@@ -1,5 +1,6 @@
 //! 各家的用量写法归成内核的四项（`05-内核接口.md` 第七节「怎么解码」）：`prompt_tokens` 含命中的
-//! 和写入的，没命中的是减出来的；输出含思考。
+//! 和写入的，没命中的是减出来的；输出含思考，思考占了多少照 `completion_tokens_details.reasoning_tokens`（施工 2-3 再补，
+//! 0 的当没报）。
 
 use miyu_kernel::event::Usage;
 use serde_json::Value;
@@ -19,6 +20,8 @@ pub(super) fn usage(value: &Value) -> Option<Usage> {
         cache_read,
         cache_write,
         output: number(value, "/completion_tokens").unwrap_or(0),
+        reasoning: number(value, "/completion_tokens_details/reasoning_tokens")
+            .filter(|reasoning| *reasoning > 0),
     })
 }
 

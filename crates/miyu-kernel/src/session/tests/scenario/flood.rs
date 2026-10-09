@@ -18,7 +18,14 @@ fn unwatched() -> Stage {
 
 /// 这个命令被拒了，原因是 `reason`。
 fn refused(s: &Stage, id: &CommandId, reason: Reason) {
-    assert_eq!(s.outcome(id), Some(&Outcome::Rejected { reason }), "{id}");
+    assert_eq!(
+        s.outcome(id),
+        Some(&Outcome::Rejected {
+            reason,
+            about: Vec::new()
+        }),
+        "{id}"
+    );
 }
 
 /// 这个命令收下了。

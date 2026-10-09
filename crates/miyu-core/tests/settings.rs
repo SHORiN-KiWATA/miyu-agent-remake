@@ -66,6 +66,7 @@ fn the_registered_list_is_well_formed() {
             "external.bindings.<external>",
             "models.chat",
             "models.vision",
+            "models.embedding",
             "pools.<id>.models",
             "pools.<id>.strategy",
             "pools.<id>.subagent",

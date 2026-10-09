@@ -231,7 +231,8 @@ fn a_crash_while_you_are_asked_closes_what_waits() {
         [Action::Reply {
             id: id(2),
             outcome: Outcome::Rejected {
-                reason: Reason::NotAsking
+                reason: Reason::NotAsking,
+                about: Vec::new(),
             },
         }],
         "题跟着了结了"

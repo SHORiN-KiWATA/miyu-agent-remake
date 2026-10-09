@@ -146,6 +146,13 @@ impl Timestamp {
         )
     }
 
+    /// 这个时刻在 `offset` 那个时区的钟点，只到时、分：`14:03`（施工 O-13 中，群里的一行）。
+    pub fn local_clock(self, offset: UtcOffset) -> String {
+        let local = self.0 + i64::from(offset.0) * 60_000;
+        let minutes = local.rem_euclid(MS_PER_DAY) / 60_000;
+        format!("{:02}:{:02}", minutes / 60, minutes % 60)
+    }
+
     /// 这个时刻在 `offset` 那个时区是哪一天：`2026-10-01`（施工 8-15，用量按天分组）。
     pub fn local_date(self, offset: UtcOffset) -> String {
         let local = self.0 + i64::from(offset.0) * 60_000;

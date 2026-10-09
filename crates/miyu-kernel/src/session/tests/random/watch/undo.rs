@@ -207,7 +207,7 @@ impl Watch {
                     _ => "撤销被拒",
                 });
                 assert!(
-                    matches!(actions, [Action::Reply { outcome: Outcome::Rejected { reason: got }, .. }] if *got == reason),
+                    matches!(actions, [Action::Reply { outcome: Outcome::Rejected { reason: got, .. }, .. }] if *got == reason),
                     "种子 {seed}：应该拒绝，原因码 {}：{actions:?}",
                     reason.code()
                 );

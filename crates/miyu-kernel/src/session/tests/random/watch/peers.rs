@@ -114,7 +114,8 @@ impl Watch {
                         actions,
                         [Action::Reply {
                             outcome: Outcome::Rejected {
-                                reason: Reason::UnknownWatch
+                                reason: Reason::UnknownWatch,
+                                ..
                             },
                             ..
                         }]
@@ -210,7 +211,7 @@ impl Watch {
                     _ => "没听到的别的会话的话太多被拒",
                 });
                 assert!(
-                    matches!(actions, [Action::Reply { outcome: Outcome::Rejected { reason: got }, .. }] if *got == reason),
+                    matches!(actions, [Action::Reply { outcome: Outcome::Rejected { reason: got, .. }, .. }] if *got == reason),
                     "种子 {seed}：别的会话的话该拒，{reason:?}：{actions:?}"
                 );
             }

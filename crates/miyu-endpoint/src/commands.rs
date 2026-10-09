@@ -51,15 +51,27 @@ enum Slash {
 }
 
 impl Slash {
+    /// 认得的全部，照名字排（施工 O-6 补：`command.catalog` 照它列）。
+    const ALL: [Slash; 4] = [Slash::Clear, Slash::Remember, Slash::Stop, Slash::Workspace];
+
     /// 照名字认：别名换成正名。认不出的没有。
     fn of(name: &str) -> Option<Slash> {
-        match name {
-            "clear" | "reset" => Some(Slash::Clear),
-            "stop" => Some(Slash::Stop),
-            "workspace" => Some(Slash::Workspace),
-            "remember" => Some(Slash::Remember),
-            _ => None,
+        Slash::ALL
+            .into_iter()
+            .find(|slash| slash.name() == name || slash.aliases().contains(&name))
+    }
+
+    /// 别名。
+    fn aliases(self) -> &'static [&'static str] {
+        match self {
+            Slash::Clear => &["reset"],
+            Slash::Stop | Slash::Workspace | Slash::Remember => &[],
         }
+    }
+
+    /// 名字后面要跟字（施工 O-6 补：`command.catalog` 照它给参数提示）。
+    fn takes_text(self) -> bool {
+        matches!(self, Slash::Workspace | Slash::Remember)
     }
 
     /// 正名。
@@ -115,13 +127,7 @@ pub(crate) async fn run(
         (false, None) => return Err(Refusal::VENUE_SESSION),
         (false, Some(speaking)) => venues::speaker(core, handle.venue(), handle.owner(), speaking)?,
     };
-    if !may_run(&by) {
-        return Err(Refusal::COMMAND_NOT_ALLOWED);
-    }
-    // 换工作区动的是沙盒能写的地方：管理的人不行，只有主人本人。
-    if slash == Slash::Workspace && !is_owner(&by) {
-        return Err(Refusal::OWNER_ONLY);
-    }
+    allowed(core, slash, &handle, &by)?;
     let mut events = Vec::new();
     let said = match slash {
         Slash::Clear => {
@@ -143,6 +149,7 @@ pub(crate) async fn run(
                 // 没有在进行的回合：照样往下停后台的。
                 Outcome::Rejected {
                     reason: Reason::NotRunning,
+                    ..
                 } => {}
                 outcome => events.extend(accepted(outcome)?),
             }
@@ -183,6 +190,21 @@ fn parse(text: &str) -> Result<(Slash, &str), Refusal> {
     Ok((slash, rest.trim()))
 }
 
+/// `by` 在这个会话里能不能用 `slash`（施工 O-6 补收成一处，`command.run` 和 `command.catalog` 共用）：先判身份
+/// （[`may_run`]）；`/workspace` 动的是沙盒能写的地方，管理的人不行、只有主人本人；`/remember` 要这个会话开着记忆。
+fn allowed(core: &Core, slash: Slash, handle: &Handle, by: &By) -> Result<(), Refusal> {
+    if !may_run(by) {
+        return Err(Refusal::COMMAND_NOT_ALLOWED);
+    }
+    if slash == Slash::Workspace && !by.is_owner() {
+        return Err(Refusal::OWNER_ONLY);
+    }
+    if slash == Slash::Remember && !memory::remembers(core, handle) {
+        return Err(Refusal::MEMORY_UNAVAILABLE);
+    }
+    Ok(())
+}
+
 /// 谁能用（`18-通讯平台.md` 第十二节）：本人（本机的头、私聊里对应表认出的本人），对应表里有的外部身份（群里的主人），场所里
 /// 管理的人。
 fn may_run(by: &By) -> bool {
@@ -191,15 +213,6 @@ fn may_run(by: &By) -> bool {
         By::External(external) => {
             external.account.is_some() || external.role == Some(Role::Manager)
         }
-        _ => false,
-    }
-}
-
-/// 主人本人：本机的头、私聊里对应表认出的本人、对应表里有的外部身份（群里的主人）。
-fn is_owner(by: &By) -> bool {
-    match by {
-        By::Person(_) => true,
-        By::External(external) => external.account.is_some(),
         _ => false,
     }
 }
@@ -226,7 +239,7 @@ async fn command(
 fn accepted(outcome: Outcome) -> Result<Vec<u64>, Refusal> {
     match outcome {
         Outcome::Accepted { events } => Ok(events.iter().map(|seq| seq.get()).collect()),
-        Outcome::Rejected { reason } => Err(Refusal::kernel(reason)),
+        Outcome::Rejected { reason, .. } => Err(Refusal::kernel(reason)),
         _ => Err(Refusal::INTERNAL),
     }
 }
@@ -250,6 +263,9 @@ async fn words(core: &Core, peer: &Peer, said: &Said) -> String {
     }
 }
 
+mod catalog;
 #[cfg(test)]
 mod tests;
 mod workspace;
+
+pub(crate) use catalog::catalog;

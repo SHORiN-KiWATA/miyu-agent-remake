@@ -10,8 +10,8 @@ use miyu_kernel::request::Message;
 use miyu_kernel::template::Template;
 
 use crate::texts::{
-    HarnessTexts, IdleTexts, JobTexts, PeerTexts, Recap, RestoredWrap, Texts, Title,
-    TurnEndedTexts, Vision,
+    GroupChat, GroupRecent, HarnessTexts, IdleTexts, JobTexts, PeerTexts, Recap, RestoredWrap,
+    Texts, Title, TurnEndedTexts, Vision,
 };
 
 pub(crate) const KERNEL: &str = r#"{"kind":"kernel"}"#;
@@ -60,6 +60,29 @@ pub(crate) fn texts() -> Texts {
         recap: Some(recap_texts()),
         title: Some(title_texts()),
         vision: Some(vision_texts()),
+        group: None,
+    }
+}
+
+/// 群会话的替身字（施工 O-13 中）：时区是 `minutes` 分钟，空的那一条写 `<no-text>`；群聊近况（施工 O-13 下）的块头是
+/// `<recent>`、缺口提示是 `<omitted 条数>`，预算 80000 字节。
+pub(crate) fn group_texts(minutes: i32) -> Texts {
+    group_texts_within(minutes, 80_000)
+}
+
+/// 同 [`group_texts`]，近况的预算是 `budget` 字节。
+pub(crate) fn group_texts_within(minutes: i32, budget: usize) -> Texts {
+    Texts {
+        group: Some(GroupChat {
+            offset: miyu_kernel::time::UtcOffset::from_minutes(minutes).expect("在范围里"),
+            no_text: "<no-text>".to_string(),
+            recent: Some(GroupRecent {
+                open: "<recent>\n".to_string(),
+                omitted: Template::parse("<omitted {count}>\n").expect("模板合写法"),
+                budget,
+            }),
+        }),
+        ..texts()
     }
 }
 
@@ -164,6 +187,12 @@ impl Log {
         log
     }
 
+    /// 这是会话 `id` 的日志（施工 O-13 下）：有效历史记下自己的编号。
+    pub(crate) fn owned_by(&mut self, id: &str) {
+        let id = miyu_kernel::id::SessionId::parse(id).expect("会话编号合写法");
+        self.history = std::mem::take(&mut self.history).owned_by(id);
+    }
+
     /// 到现在为止的有效历史。
     pub(crate) fn history(&self) -> &History {
         &self.history
@@ -216,6 +245,18 @@ impl Log {
             KERNEL,
             "turn.started",
             &format!(r#"{{"trigger":{trigger}}}"#),
+        );
+    }
+
+    /// 照记下的几条开一个回合（施工 O-14 上）：`triggers` 照序号排好，最后一条是 `trigger`。
+    pub(crate) fn start_on(&mut self, triggers: &[u64]) {
+        self.turn = Some(self.next());
+        let last = triggers.last().expect("至少一条");
+        let list: Vec<String> = triggers.iter().map(u64::to_string).collect();
+        self.push(
+            KERNEL,
+            "turn.started",
+            &format!(r#"{{"trigger":{last},"triggers":[{}]}}"#, list.join(",")),
         );
     }
 

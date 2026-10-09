@@ -65,6 +65,20 @@ pub(super) struct Turn {
     pub(super) manual: Option<Manual>,
     /// 这一轮转述没成的图（施工 8-17，`sight.rs`）：这一轮里不再试，用占位那一句；下一轮再试。
     pub(super) unseen: BTreeSet<ContentHash>,
+    /// 她这时在回应的那一条的 `by`（施工 O-2 下，`asked.rs`）：派工具时带上。由触发开的回合才有。
+    pub(super) asked: Option<By>,
+}
+
+impl Turn {
+    /// 派工具时带上的这一轮的几样（施工 O-2 下收成一处）。
+    pub(super) fn round(&self) -> super::tools::Round {
+        super::tools::Round {
+            cwd: self.cwd.clone(),
+            dirs: self.dirs.clone(),
+            cause: self.cause.clone(),
+            asked: self.asked.clone(),
+        }
+    }
 }
 
 /// 打断以后在等停着的调用：谁打断的、哪个命令、排着队的怎么办，等的那一次 `Wake` 的记号。
@@ -145,6 +159,7 @@ impl Session {
             overflowed: false,
             manual: None,
             unseen: BTreeSet::new(),
+            asked: None,
         }
     }
 
@@ -157,8 +172,20 @@ impl Session {
         trigger: Seq,
         cause: Option<CommandId>,
     ) -> Vec<Event> {
+        self.open_turn_on(at, trigger, Vec::new(), cause)
+    }
+
+    /// 同 [`Session::open_turn`]，照记下的几条开（施工 O-14 上）：`triggers` 排好的序号，`trigger` 是最后一条；别的回合是空的。
+    pub(super) fn open_turn_on(
+        &mut self,
+        at: Timestamp,
+        trigger: Seq,
+        triggers: Vec<Seq>,
+        cause: Option<CommandId>,
+    ) -> Vec<Event> {
         let body = Body::TurnStarted(TurnStarted {
             trigger: Some(trigger),
+            triggers,
             cwd: Some(self.environment.cwd.clone()),
             dirs: self.environment.dirs.clone(),
         });
@@ -166,7 +193,9 @@ impl Session {
         let opened = Stage::Opening {
             opened: started.seq,
         };
-        self.turn = Some(self.new_turn(started.seq, cause.clone(), opened));
+        let mut turn = self.new_turn(started.seq, cause.clone(), opened);
+        turn.asked = self.asker(trigger);
+        self.turn = Some(turn);
         self.effective = self.permission.clone();
         // 记在一边的回报这一轮就听到了（施工 7-2）：不再由它们另开一轮。
         self.deferred.clear();
@@ -300,9 +329,13 @@ impl Session {
         self.last_request = Some(fingerprint);
         // 过了起压线的，在后台提前压（施工 6-11 上，`prepare.rs`）：排在主请求后面。
         let prepare = self.prepare_up(&request);
+        let asked = self.newly_asked();
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();
         };
+        if asked.is_some() {
+            turn.asked = asked;
+        }
         if !std::mem::take(&mut turn.retrying) {
             turn.requests += 1;
         }

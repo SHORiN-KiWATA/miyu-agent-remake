@@ -311,7 +311,7 @@ impl Extensions {
 
 impl Core {
     /// 照开关拉起开着的扩展（施工 9-4 上）：核心起来、开始接连接之前调一次。要在 tokio 的运行时里调。要的能力还有没批的
-    /// 不拉起，记成停下（`needs_approval`，施工 9-4 下上）。
+    /// 不拉起，记成停下（`needs_approval`，施工 9-4 下上）。拉起以前照登记缓存先登记它的工具（施工 O-2 中）。
     pub fn start_extensions(self: &Arc<Self>) {
         // 扩展以系统账号的身份连进来：先建它们的家目录（施工 O-4 下）。
         crate::system_accounts::prepare(self);
@@ -321,7 +321,10 @@ impl Core {
                 continue;
             }
             match approval::unapproved(self, id, manifest, &switches).is_empty() {
-                true => self.extensions.launch(self, id, manifest),
+                true => {
+                    crate::provide::restore(self, id);
+                    self.extensions.launch(self, id, manifest);
+                }
                 false => self.extensions.hold(id, Reason::NeedsApproval),
             }
         }

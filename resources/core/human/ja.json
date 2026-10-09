@@ -67,6 +67,14 @@
         "name": "画像を見るモデル",
         "description": "会話のモデルが画像を見られないとき、代わりに見るモデル。書き方は会話のモデルと同じです。"
       },
+      "models.embedding": {
+        "name": "意味で記憶を探す",
+        "description": "覚えていることや以前の会話を探すとき、言葉が違っても意味が合うものも見つけます。書かなければローカルのモデルを使い、初回に約 24 MB をダウンロードします。off はキーワードだけで探します。",
+        "options": {
+          "local": "ローカルのモデル",
+          "off": "オフ"
+        }
+      },
       "pools.<id>.models": {
         "name": "プールのメンバー",
         "description": "いくつかのモデルをひとまとめにします。それぞれ プロバイダー/モデル の形で書きます。"
@@ -270,6 +278,7 @@
     "tool-results/question-unattended": "ここには回答できる人がいません",
     "tool-results/restarted": "Miyu が再起動したため、完了していません",
     "tool-results/unavailable": "今は使えません",
+    "tool-results/timed-out": "{seconds} 秒以内に応答なし",
     "tool-results/crashed": "内部エラーが起きました。一部は実行されたかもしれません",
     "permissions/forbidden": "Miyu 自身のデータなので、誰も触れられません",
     "permissions/unresolvable": "どこを指しているか判断できません：{reason}",
@@ -279,6 +288,12 @@
     "commands/workspace-too-wide": "{asked} は広すぎるので、作業ディレクトリを {cwd} にしました。",
     "commands/workspace-is": "作業ディレクトリは {cwd} です。",
     "commands/remembered": "覚えました：{id}。",
+    "commands/summary/clear": "コンテキストを消去",
+    "commands/summary/stop": "すべて停止",
+    "commands/summary/workspace": "ワークスペースを変更",
+    "commands/summary/remember": "記憶を保存",
+    "commands/argument/workspace": "<パス>",
+    "commands/argument/remember": "<内容>",
     "software/basesystem": "基本システム",
     "software/basesystem/summary": "ファイルの読み書き、コマンドの実行、前の話の検索",
     "software/net": "ウェブ",

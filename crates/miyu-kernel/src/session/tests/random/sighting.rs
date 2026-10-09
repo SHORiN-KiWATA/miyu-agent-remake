@@ -15,6 +15,7 @@ fn picture(k: u64) -> Image {
         media_type: MediaType::parse("image/png").unwrap(),
         width: 640,
         height: 480,
+        path: None,
     }
 }
 
@@ -46,6 +47,7 @@ pub(super) fn some_sight(rng: &mut Rng, watch: &Watch, ids: &mut u64) -> Option<
                         Block::Image(picture(rng.below(3))),
                     ],
                     urgent: false,
+                    venue: None,
                 },
             }))
         }

@@ -190,7 +190,10 @@ fn answers_that_do_not_fit_are_rejected() {
             session.handle(input),
             [Action::Reply {
                 id: n,
-                outcome: Outcome::Rejected { reason },
+                outcome: Outcome::Rejected {
+                    reason,
+                    about: Vec::new()
+                },
             }]
         );
     }
@@ -211,7 +214,8 @@ fn answers_that_do_not_fit_are_rejected() {
         [Action::Reply {
             id: id(9),
             outcome: Outcome::Rejected {
-                reason: Reason::NotAsking
+                reason: Reason::NotAsking,
+                about: Vec::new(),
             },
         }]
     );
@@ -345,7 +349,8 @@ fn the_tool_finishing_first_closes_the_question() {
         [Action::Reply {
             id: id(2),
             outcome: Outcome::Rejected {
-                reason: Reason::NotAsking
+                reason: Reason::NotAsking,
+                about: Vec::new(),
             },
         }]
     );

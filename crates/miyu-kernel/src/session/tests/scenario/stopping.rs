@@ -301,7 +301,8 @@ fn words_during_the_wait_queue_up_and_an_undo_is_refused() {
     assert_eq!(
         stage.outcome(&undo),
         Some(&Outcome::Rejected {
-            reason: Reason::TurnRunning
+            reason: Reason::TurnRunning,
+            about: Vec::new(),
         })
     );
     stage.release_stopped(call(6, 1));

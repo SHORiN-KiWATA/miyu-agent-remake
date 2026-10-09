@@ -154,6 +154,15 @@
           },
           "type": "object"
         },
+        "embedding": {
+          "description": "When she searches what she remembers and past conversations, she also finds what means the same in other words. Left out, the local model is used and downloads about 24 MB the first time; off searches by keywords only. Allowed: local or off. Only in the system config or personal settings. Takes effect next turn.",
+          "enum": [
+            "local",
+            "off"
+          ],
+          "title": "Search by meaning",
+          "type": "string"
+        },
         "vision": {
           "description": "Looks at images for the chat model when it cannot. Written like the chat model. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.",
           "title": "Vision model",

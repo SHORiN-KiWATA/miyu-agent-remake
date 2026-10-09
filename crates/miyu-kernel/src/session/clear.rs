@@ -33,6 +33,7 @@ impl Session {
         let cause = Some(id.clone());
         let body = Body::TurnStarted(TurnStarted {
             trigger: None,
+            triggers: Vec::new(),
             cwd: Some(self.environment.cwd.clone()),
             dirs: self.environment.dirs.clone(),
         });

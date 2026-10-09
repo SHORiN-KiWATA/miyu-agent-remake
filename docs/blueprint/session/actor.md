@@ -91,7 +91,7 @@
 
 1. 在阻塞线程里依次做，哪一步不成就交回那一种错，actor 不起；已经存下的快照留着：
    1. 读出这个人格要用的原文（`store/resources.md`）。
-   2. 拼策略快照：人格、有没有人能确认、工具目录里每件工具的名字、说明、参数格式、访问类别，照名字排（`policy.md`）。不在本机、到了深度上限的，工具面里不给 `subagent`；子会话读出场所说明（`core/jobs/subagent-venue.txt`，读不了的算人格读不出来），接在 system 的人设后面（施工 7-5，`session/tools.md`「工具面」）。
+   2. 拼策略快照：人格、有没有人能确认、工具目录里每件工具的名字、说明、参数格式、访问类别，照名字排（`policy.md`）。不在本机、到了深度上限的，工具面里不给 `subagent`；子会话读出场所说明（`core/jobs/subagent-venue.txt`，读不了的算人格读不出来），接在 system 的人设后面（施工 7-5，`session/tools.md`「工具面」）；群会话（`Create::group`）读出格式说明接在同一个位置，快照钉下这时的时区（施工 O-13 中，`policy.md` 的 `with_group`），换人格重拼时照旧快照的时区。
    3. 照快照造内核的策略、驱动的占位、替工具写的两句（`session/tools.md`）、权限策略拒绝时的三句（`session/guard.md`）。
    4. 快照存成属主的 blob：先落 blob，再写引用它的事件。
    5. 建会话目录和空的第一段（`store.md`）。
@@ -317,7 +317,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | WARN | `subagent not woken` | `child`、`error` | 父会话载入以后叫不起子会话 |
 | WARN | `seen files not rebuilt` | `error` | 第 5 条第 4 点 |
 | WARN | `session index not updated` | `error` | 落了盘，会话列表的索引更新失败（第 5 条第 7 点，施工 3-8 七补） |
-| WARN | `memory index not updated` | `error` | 落了盘，回合索引更新失败、恢复时读不回日志（第 5 条第 8 点，施工 R-2 上） |
+| WARN | `memory index not updated` | `error`（场所会话的另带 `session`） | 落了盘，回合索引更新失败、恢复时读不回日志（第 5 条第 8 点，施工 R-2 上）；载入场所会话时拿不掉它以前进了库的（施工 R-2 再补，`memory.md` 第一条第 1 款） |
 | WARN | `memory index not read` | `error` | 接上回合索引时读不出照到了哪：当作没照过，整份补（施工 R-2 上） |
 | INFO | `memory index created` | `room` | 这一间的回合库这一回新建（施工 R-2 上；R-2 下起由登记记，开库的四处都算，`room` 写法见 `memory.md` 第一条第 8 款） |
 | WARN | `memory index rebuilt`、`memory index unusable` | `room`、`reason` 或 `error` | 回合库坏了、版本不对删掉重建，或者删了也打不开（施工 R-2 上） |
@@ -325,6 +325,9 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | WARN | `memory index not backfilled` | `session` 或 `room`，`error` | 补齐时一个会话读不了、快照取不出（跳过它），或者列不出会话（施工 R-2 下） |
 | DEBUG | `turn start hook timed out` | `module` | 回合开始的挂接点过了 300 毫秒没交回，这一轮当它没交（施工 R-4 上，`memory.md` 第三条第 4 款） |
 | WARN | `memory summary not read` | `error` | 回合开始列不出这一间的记忆，这一轮不交摘要（施工 R-4 上） |
+| INFO | `memory vectors filled` | `index`、`count`、`took_ms` | 搜的时候起的后台补了这一份库缺的几条向量（施工 R-5 下，`recall.md` 第三条第 5 款） |
+| WARN | `memory vectors not filled` | `error` | 补向量时库读写不了 |
+| DEBUG | `query not embedded`、`query not embedded in time` | `reason` | 问句的向量算不出、1 秒内没算出：这一回只走关键词（第三条第 4 款） |
 | WARN | `usage not indexed` | `error` | 落了盘，用量汇总写不进去（第 5 条第 8 点，施工 8-15）；`session_usage` 补这个会话时日志读不完（`session` 另带） |
 | WARN | `write failed, stopped` | `kind` | 写不进去 |
 | WARN | `read back failed, stopped` | `error` | 读回日志读不了（第 4 条，施工 6-9） |

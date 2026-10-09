@@ -31,8 +31,19 @@ pub(crate) enum Incoming {
     Request(Request),
     /// 一条通知：头发来的通知现在一种都不认，不回应。
     Notification,
+    /// 对核心发出去的请求的回应（施工 O-2 上，`reverse.rs`）。
+    Response(Response),
     /// 读不懂，或者不是请求：回这个拒绝，`id` 能认出来的照原样带回去。
     Bad(Value, Refusal),
+}
+
+/// 对核心发出去的请求的回应。
+#[derive(Debug, PartialEq)]
+pub(crate) struct Response {
+    /// 核心发的那一条的 `id`。
+    pub(crate) id: String,
+    /// `result`，或者 `error` 的原样。
+    pub(crate) outcome: Result<Value, Value>,
 }
 
 /// 读一行读到了什么。
@@ -83,6 +94,12 @@ pub(crate) fn parse(line: &[u8]) -> Incoming {
         Some(id @ (Value::String(_) | Value::Number(_))) => id.clone(),
         _ => Value::Null,
     };
+    // 对核心发出去的请求的回应（施工 O-2 上）：没有方法，有 `result` 或 `error`。
+    if !object.contains_key("method")
+        && (object.contains_key("result") || object.contains_key("error"))
+    {
+        return response(object, id, echo);
+    }
     let method = match object.remove("method") {
         Some(Value::String(method)) => method,
         _ => return Incoming::Bad(echo, Refusal::INVALID),
@@ -109,6 +126,25 @@ pub(crate) fn parse(line: &[u8]) -> Incoming {
         return Incoming::Bad(echo, Refusal::BAD_PARAMS);
     }
     Incoming::Request(Request { id, method, params })
+}
+
+/// 把一个对象认成回应：要是 2.0，`id` 是字符串；`result` 照原样，没有的照 `error` 的原样。
+fn response(
+    mut object: serde_json::Map<String, Value>,
+    id: Option<Value>,
+    echo: Value,
+) -> Incoming {
+    if object.get("jsonrpc") != Some(&Value::String("2.0".to_string())) {
+        return Incoming::Bad(echo, Refusal::INVALID);
+    }
+    let Some(Value::String(id)) = id else {
+        return Incoming::Bad(echo, Refusal::INVALID);
+    };
+    let outcome = match object.remove("result") {
+        Some(result) => Ok(result),
+        None => Err(object.remove("error").unwrap_or(Value::Null)),
+    };
+    Incoming::Response(Response { id, outcome })
 }
 
 /// 接受的回应，写成一行（不带换行）。

@@ -9,5 +9,5 @@ private 1 openai-responses {"call_id":"call_abc"}
 text 1 "{\"path\":\"src\"}"
 end 0
 end 1
-usage uncached=500 cache_read=0 cache_write=0 output=120
+usage uncached=500 cache_read=0 cache_write=0 output=120 reasoning=100
 ok

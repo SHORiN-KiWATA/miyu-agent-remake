@@ -183,6 +183,12 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
         "nothing_to_clear" => ("上下文为空", "The context is empty."),
         // 2026-09-30 项目主人定（施工 4-7 再补）：两种情况一句话，头把它当一条提示通知显示。
         "not_redoable" => ("无法重做", "Cannot redo."),
+        // 施工 O-14 上：`session.respond` 的两个。
+        "not_ambient" => ("不是旁听记下的消息", "Not an overheard message."),
+        // 施工 O-2 上：`provide` 的两个。
+        "not_a_provider" => ("只有扩展能提供工具", "Only extensions can provide tools."),
+        "bad_tool" => ("工具规格不对", "Bad tool spec."),
+        "already_answered" => ("已经回过", "Already answered."),
         // 施工 D-1：`session.answer` 碰得到的四个（`unknown_decision` 协议上碰不到，`protocol.md`「出错」）。
         "not_asking" => (
             "它没在等回答：已经答过，或者已经了结了。",

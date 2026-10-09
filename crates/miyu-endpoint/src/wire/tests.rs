@@ -51,6 +51,37 @@ fn only_json_rpc_requests_with_string_ids_count() {
     assert_eq!(request.params, json!({}), "没写参数的是空对象");
 }
 
+/// 对核心发出去的请求的回应（施工 O-2 上）：有 `result` 或 `error`、没有方法的；`id` 照原样交出去。
+#[test]
+fn a_response_to_the_core_is_read_as_one() {
+    let Incoming::Response(ok) =
+        parse(br#"{"jsonrpc":"2.0","id":"core-3","result":{"blocks":[]}}"#)
+    else {
+        panic!("应该是回应");
+    };
+    assert_eq!(ok.id, "core-3");
+    assert_eq!(ok.outcome, Ok(json!({"blocks": []})));
+    let Incoming::Response(failed) =
+        parse(br#"{"jsonrpc":"2.0","id":"core-4","error":{"code":-32000,"message":"boom"}}"#)
+    else {
+        panic!("应该是回应");
+    };
+    assert_eq!(
+        failed.outcome,
+        Err(json!({"code": -32000, "message": "boom"}))
+    );
+    assert_eq!(
+        bad(r#"{"jsonrpc":"2.0","id":5,"result":{}}"#),
+        (json!(5), Refusal::INVALID),
+        "回应的 id 也得是字符串"
+    );
+    assert_eq!(
+        bad(r#"{"id":"core-5","result":{}}"#),
+        (json!("core-5"), Refusal::INVALID),
+        "不是 2.0"
+    );
+}
+
 #[test]
 fn a_reply_is_one_line() {
     let id = CommandId::parse("c1").expect("合写法");

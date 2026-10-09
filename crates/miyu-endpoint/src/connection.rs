@@ -31,11 +31,12 @@ mod tests;
 
 use streams::{Stream, stream_of, subscribe};
 
-use crate::hello::{Shaken, hello};
+use crate::hello::{Caller, Shaken, hello};
 use crate::login::{self, Revoked, Via};
 use crate::methods;
 use crate::queries::Handler;
 use crate::refusal::{Locale, Refusal};
+use crate::reverse::Peer;
 use crate::subscriptions::{Subscriptions, Target};
 use crate::uploads::Uploads;
 use crate::wire::{self, Incoming, Read, Request};
@@ -101,7 +102,13 @@ async fn read_all<R: AsyncRead + Unpin>(
     // 核心拉起的扩展是哪个包（施工 9-4 下下）：握手交它自己的配置，之后变了推。
     let package = spawned.as_ref().map(|(_, package)| package.clone());
     // 这个连接是谁（施工 O-4 下）：声明了系统账号的包的扩展是它，别的是管理员。
-    let account = core.account_of(package.as_deref());
+    // 核心往这个连接发的请求（施工 O-2 上，`reverse.rs`）：提供者的工具经它反向调用。
+    let reverse = Peer::new(out.clone());
+    let caller = Caller {
+        reverse: reverse.clone(),
+        account: core.account_of(package.as_deref()),
+        package: package.clone(),
+    };
     let mut handing: Option<Handing> = None;
     // 这个连接说话时还带着工作目录（施工 9-7 上：不再换工作区，照收不理）：第一次记一行，看得出谁还在发。
     let mut told_cwd = false;
@@ -161,6 +168,10 @@ async fn read_all<R: AsyncRead + Unpin>(
         let request = match wire::parse(&line) {
             Incoming::Request(request) => request,
             Incoming::Notification => continue,
+            Incoming::Response(response) => {
+                reverse.answer(response);
+                continue;
+            }
             Incoming::Bad(id, refusal) => {
                 if !send(&out, wire::error(id, refusal, locale)).await {
                     break;
@@ -218,31 +229,37 @@ async fn read_all<R: AsyncRead + Unpin>(
             ));
             continue;
         }
+        if peer.is_some() && methods::answered_later(&request.method) {
+            background.spawn(call_later(Arc::clone(&core), request, locale, out.clone()));
+            continue;
+        }
         let id = || Value::String(request.id.as_str().to_string());
         let (answer, target, close) = match (request.method.as_str(), peer) {
-            ("hello", _) => match hello(&core, request.params.clone(), from_core, &account).await {
-                Ok((shook, by, mut result)) => {
-                    if let Some((ready, _)) = spawned.take()
-                        && ready.send(()).is_err()
-                    {
-                        // 看管它的那一头不等了：不用说。
+            ("hello", _) => {
+                match hello(&core, request.params.clone(), from_core, &caller.account).await {
+                    Ok((shook, by, mut result)) => {
+                        if let Some((ready, _)) = spawned.take()
+                            && ready.send(()).is_err()
+                        {
+                            // 看管它的那一头不等了：不用说。
+                        }
+                        if let Some(package) = &package {
+                            let given = Handing::now(&core, package);
+                            result["config"] = json!(given.handed);
+                            handing = Some(given);
+                        }
+                        shaken = Some(shook);
+                        revoked = by.login().map(|_| core.identity.revoked());
+                        via = Some(by);
+                        (wire::result(&request.id, result), None, false)
                     }
-                    if let Some(package) = &package {
-                        let given = Handing::now(&core, package);
-                        result["config"] = json!(given.handed);
-                        handing = Some(given);
+                    // 被拒的，话照这一次报的语言说（施工 4-9 再补三上）：第一次握手也不是一律英文。
+                    Err((refusal, close)) => {
+                        let asked = asked_locale(&request.params).unwrap_or(locale);
+                        (wire::error(id(), refusal, asked), None, close)
                     }
-                    shaken = Some(shook);
-                    revoked = by.login().map(|_| core.identity.revoked());
-                    via = Some(by);
-                    (wire::result(&request.id, result), None, false)
                 }
-                // 被拒的，话照这一次报的语言说（施工 4-9 再补三上）：第一次握手也不是一律英文。
-                Err((refusal, close)) => {
-                    let asked = asked_locale(&request.params).unwrap_or(locale);
-                    (wire::error(id(), refusal, asked), None, close)
-                }
-            },
+            }
             (_, None) => (wire::error(id(), Refusal::HELLO_FIRST, locale), None, false),
             ("subscribe", Some(peer)) => {
                 let (result, target) = match stream_of(&request) {
@@ -307,7 +324,7 @@ async fn read_all<R: AsyncRead + Unpin>(
                 (answer(&request, result, locale), None, false)
             }
             (_, Some(peer)) => {
-                let result = methods::call(&core, peer, &account, &request, &mut uploads).await;
+                let result = methods::call(&core, peer, &caller, &request, &mut uploads).await;
                 (answer(&request, result, locale), target(&request), false)
             }
         };
@@ -324,6 +341,8 @@ async fn read_all<R: AsyncRead + Unpin>(
     // 第 4 款）。
     background.abort_all();
     uploads.discard_all(&core).await;
+    // 在等它回的反向调用都了结；它提供的工具从此暂时不可用（施工 O-2 上）：提供者表里留着的这一头一叫就了结，重新登记的换掉它。
+    reverse.close();
     if shaken.is_some() {
         tracing::info!(target: "miyu::endpoint", "disconnected");
     }
@@ -351,6 +370,12 @@ async fn answer_later(
     let result = handler(core, request.params.clone())
         .await
         .map_err(Refusal::from);
+    send(&out, answer(&request, result, locale)).await;
+}
+
+/// 在后台办一条自带的方法（施工 8-20 补，[`methods::answered_later`]）：办完了把回应放进写队列。
+async fn call_later(core: Arc<Core>, request: Request, locale: Locale, out: mpsc::Sender<String>) {
+    let result = methods::call_later(&core, &request).await;
     send(&out, answer(&request, result, locale)).await;
 }
 

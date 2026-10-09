@@ -11,7 +11,7 @@ use std::process::ExitCode;
 
 use serde_json::json;
 
-use miyu_embed::manifest::Manifest;
+use miyu_embed::manifest;
 use miyu_embed::model::Embedder;
 use miyu_embed::serve::serve;
 
@@ -23,8 +23,7 @@ fn main() -> ExitCode {
         eprintln!("{USAGE}");
         return ExitCode::from(2);
     };
-    let loaded = Manifest::read(&manifest)
-        .map_err(|error| error.to_string())
+    let loaded = manifest::read(&manifest)
         .and_then(|manifest| Embedder::load(manifest, &dir).map_err(|error| error.to_string()));
     let mut out = std::io::stdout().lock();
     let mut embedder = match loaded {

@@ -79,6 +79,7 @@ pub(super) fn texts() -> Texts {
         recap: Some(recap()),
         title: Some(title()),
         vision: Some(vision()),
+        group: None,
     }
 }
 
@@ -175,6 +176,7 @@ pub(super) fn driver_texts() -> DriverTexts {
                 "../../../../resources/core/drivers/image-description-close.txt"
             ),
         }),
+        attached_path: None,
     })
     .expect("出厂的占位用得了")
 }

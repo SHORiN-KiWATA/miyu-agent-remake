@@ -9,7 +9,7 @@
 | 代码 | 管什么 |
 |---|---|
 | `crates/miyu-kernel/src/event/session.rs` | `session.created`、`session.policy_changed`、`session.meta_changed`、`session.workspace_changed`（施工 9-7 上）、`session.recapped`（施工 3-8 四补）、`command.ran`（施工 O-6）；权限 `Permission`、级别 `Level` |
-| `crates/miyu-kernel/src/event/turn.rs` | `turn.started`、`turn.ended`（`EndReason`）、`turn.reverted`、`turn.unreverted` |
+| `crates/miyu-kernel/src/event/turn.rs` | `turn.joined`（施工 O-14 下）、`turn.started`、`turn.ended`（`EndReason`）、`turn.reverted`、`turn.unreverted` |
 | `crates/miyu-kernel/src/event/restore.rs` | `files.restored`（`Restored`、`RestoreAction`、`RestoreOutcome`） |
 | `crates/miyu-kernel/src/event/message.rs` | `message.user`、`message.assistant`、`message.withdrawn` |
 | `crates/miyu-kernel/src/event/tool.rs` | `tool.result`（`ToolStatus`、给人看的说法 `Said`）、`tool.approval_requested`、`tool.approval_decided`（`Decision`） |
@@ -120,8 +120,15 @@
 | 格 | 写法 | 有没有 | 是什么 |
 |---|---|---|---|
 | `trigger` | 序号 | 可以没有 | 引起这一轮的那条事件：人发来的消息；排着队接着开的，是最后一条排着队的消息；重启以后接着干的，是那时排着队的最后一条，没有排着队的就是那条 `turn.ended`（`kernel/session.md`）。是什么引起的，看那条事件的种类。人要的压缩、人要的清空单开的那一轮不是哪一条引起的，没有（`compaction.md` 第七条、第十四条，施工 6-8、6-8 补）；以前的日志里都有 |
+| `triggers` | 序号的列表 | 可以没有 | 照记下的几条开的一轮（`session.respond`，施工 O-14 上）：开这一轮的那几条旁听消息，照序号排好，`trigger` 是最后一条。别的回合没有，不写 |
 | `cwd` | 字符串 | 可以没有 | 这一轮开始时会话的工作目录，照会话的环境，人看到的那种写法（施工 4-9 再补三上）。之前的日志没有。核心重启以后载入会话，照它找回工作目录（`protocol.md`） |
 | `dirs` | 字符串的数组 | 可以没有 | 这一轮加进来的目录，照头报的原样（施工 5-10 上）。没有加进来的目录就不写，所以原来的日志一个字节不变 |
+
+**`turn.joined`**（施工 O-14 下）：照记下的几条并进正在跑的这一轮，带回合编号，`by` 是内核，`cause` 是那个 `session.respond`。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `triggers` | 序号的列表 | 必有 | 并进来的那几条旁听消息，照序号排好、不空。账本查：都是旁听的、都没当过触发；记下以后算当过（`kernel/history.md`） |
 
 **`turn.ended`**：
 
@@ -177,6 +184,7 @@
 | 格 | 写法 | 有没有 | 是什么 |
 |---|---|---|---|
 | `blocks` | 内容块的列表 | 必有 | 消息的内容：文字、图片、文件。现在经协议发来的只有一块文字（`protocol.md`） |
+| `venue` | 对象 | 通讯平台上的消息才有（施工 O-13 上） | `msg` 平台的消息编号（必有）；`reply_to` 引用的平台编号；`name` 发的人此刻在这个场所里叫什么；`mentions` @ 了谁（平台身份的列表）；`mentions_me` @ 了她；`mentions_all` @ 了全体成员（不算 @ 她）；`media` 带的东西（每项 `kind`：`image`、`file`、`voice`、`video`、`sticker`，`id` 平台的编号，`name` 文件名、表情的字，不进内容块）；`ambient` 旁听；`asleep` 睡着时收到的；`show_ids` 渲染这一条时写不写发的人的平台身份（施工 O-13 中）。假的、空的、没写的不写。`ambient` 的不带回合编号：只记下，不开回合，回合进行中也不排进这一轮；投影这一步先跳过它，O-13 下渲染成群聊近况。群会话里不旁听的渲染成一行一条（施工 O-13 中，`miyu-assemble` 的 `group.rs`） |
 
 **`message.assistant`**：模型一次响应的完整内容，工具调用也在里面。
 
@@ -382,7 +390,7 @@
 
 块的起止：`start_ms` 这一块第一段增量到的时刻，`end_ms` 它最后一段增量到的时刻，两格都必有，都是从请求发出去算起的毫秒数，和 `first_token_ms` 同一个起点。收块的 `End` 不算：驱动流完了才一起收块（`drivers/openai-chat.md`「收尾」第 2 条），算上它，每一块都收在流的末尾。时钟往回拨了，早于发出去的算 0，`end_ms` 不往回挪。被打断、出错收的半截，照留下的那几块记；流里有、回复里不要了的块（空块、没收全的工具调用、出错时去掉的工具调用）不记。形状 `[{"start_ms":640,"end_ms":2310},{"start_ms":2330,"end_ms":2980}]`。头照它写「已思考 N 秒」：思考那一块的 `end_ms` 减 `start_ms`。以前的日志没有这一格，照读，写出去还是没有（施工 2-3 补）。
 
-用量：`uncached` 没命中缓存的输入、`cache_read` 缓存读取、`cache_write` 缓存写入、`output` 输出，四格都必有，都是 token 数。
+用量：`uncached` 没命中缓存的输入、`cache_read` 缓存读取、`cache_write` 缓存写入、`output` 输出（含思考），四格都必有，都是 token 数。另有一格可以没有的 `reasoning`（施工 2-3 再补）：输出里思考占了多少，已经算在 `output` 里；供应商报了、不是 0 才写（OpenAI 兼容对话接口的 `completion_tokens_details.reasoning_tokens`、Responses 的 `output_tokens_details.reasoning_tokens`；Anthropic 不另报），头照它写「思考 N 词元」。以前的日志没有这一格，读进来再写出去一字不差。
 
 出错：`class` 分类、`message` 原话，两格都必有；原话给查问题的人看，不进上下文。`status` 是供应商回的 HTTP 状态码，整数，可以没有：连不上的、流里报的错、内核自己查出来的都没有。形状 `{"class":"other","message":"HTTP 404: …","status":404}`。头照它分 429、402、404 说人话，不从原话里抠；分类不看它。以前的日志没有这一格，照读，写出去还是没有（施工 3-5 三补）。
 
@@ -482,6 +490,24 @@
 - 同一张图记了两条的（照理不会有），用先记的那一条。
 
 ：一律不带（2026-09-30 定）：回报不属于哪一轮，带了这一轮的编号，撤这一轮时会跟着被拿走，和「别处来的留着」冲突（`kernel/history.md`「拿走什么」）。账本照「带 `turn` 的是正在进行的那个回合」查，不另立规矩。谁写、到了开不开一轮见 `kernel/session.md`「回报」，渲染成什么样见 `kernel/request.md`「回报」（施工 7-2）。
+
+**`venue.recalled`**（施工 O-13 上，`docs/blueprint/chat.md` 第七条第 2 条）：场所里有人撤回了一条消息。桥经 `events.append` 记，不带回合编号；`by` 是桥这个模块。投影这一步先跳过，O-13 下渲染成群聊近况里那一条的撤回标记。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `msg` | 字 | 必有 | 被撤的那一条的平台编号 |
+| `by` | 平台身份 | 必有 | 谁撤的 |
+
+**`venue.delivered`**（施工 O-13 上）：她的一句话实际发到了平台上（出站链洗过的）。桥经 `events.append` 记，不带回合编号；`by` 是桥这个模块。O-13 下照它渲染 `[you]` 行。
+
+| 格 | 写法 | 有没有 | 是什么 |
+|---|---|---|---|
+| `line` | 会话编号 | 必有 | 哪条线：主线或支线 |
+| `turn` | 回合编号 | 必有 | 哪一轮 |
+| `to` | 平台身份的列表 | 必有 | 回的是谁 |
+| `msg` | 字 | 必有 | 平台给的编号 |
+| `text` | 字 | 必有 | 发出去的正文 |
+| `images` | 内容哈希的列表 | 有图才有 | 带的图 |
 
 ### 怎么走
 

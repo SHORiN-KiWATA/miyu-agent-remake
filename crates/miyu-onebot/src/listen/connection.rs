@@ -1,6 +1,7 @@
-//! 一条 NapCat 的连接（`onebot.md` 第一条「怎么走」第 2 到 6 条）：一帧一条 JSON，回应交给在等的调用，私聊交给跟核心的
-//! 那一头，别的事件记一行调试日志就丢。连上就调一次 `get_version_info`，把实现的名字和版本记进运行日志（第 3 条），也记在
-//! 这条连接上，WebUI 的 `/status` 照它说（施工 O-16）。号认出来、断开、问到实现，都叫一声状态文件（施工 O-18）。
+//! 一条 NapCat 的连接（`onebot.md` 第一条「怎么走」第 2 到 6 条）：一帧一条 JSON，回应交给在等的调用，消息（私聊、群）
+//! 和撤回（施工 O-22）交给跟核心的那一头，别的事件记一行调试日志就丢。连上就调一次 `get_version_info`，把实现的名字和
+//! 版本记进运行日志（第 3 条），也记在这条连接上，WebUI 的 `/status` 照它说（施工 O-16）。号认出来、断开、问到实现，都叫
+//! 一声状态文件（施工 O-18）。
 //!
 //! 往 NapCat 写的都经一个写的任务（回话、`get_version_info`、被顶掉时的关闭帧）。断开时：在等的调用都算失败，号还是这一条
 //! 的拿掉，说一行；桥不退，等 NapCat 自己重连（第 11 条）。
@@ -18,7 +19,7 @@ use tokio_tungstenite::tungstenite::protocol::Role;
 use super::Gate;
 use super::bots::{Link, Peer};
 use crate::TARGET;
-use crate::onebot::{self, Calls, Frame};
+use crate::onebot::{self, Calls, Event, Frame};
 use crate::serve::Notice;
 
 /// 跑一条升级好的连接，直到断开。`bot` 是 `X-Self-ID` 报的号。
@@ -105,19 +106,41 @@ async fn frame_in(gate: &Gate, text: &str, bot: &mut Option<i64>, link: &Link) -
                 tracing::debug!(target: TARGET, "reply nobody waits for");
             }
         }
-        Frame::Private(private) => {
-            tracing::debug!(
-                target: TARGET,
-                user = private.user,
-                message = private.message_id,
-                chars = private.text.chars().count(),
-                "private message"
-            );
-            return gate.inbound.send(private).await.is_ok();
+        Frame::Event(event) => {
+            noted(&event);
+            return gate.inbound.send(event).await.is_ok();
         }
         Frame::Other(kind) => tracing::debug!(target: TARGET, kind, "event ignored"),
     }
     true
+}
+
+/// 读出来的一件事记一行调试日志：谁、哪一条、几个字，不记原文。
+fn noted(event: &Event) {
+    match event {
+        Event::Private(posted) => tracing::debug!(
+            target: TARGET,
+            user = posted.user,
+            message = posted.message_id,
+            chars = posted.text.chars().count(),
+            "private message"
+        ),
+        Event::Group { group, posted } => tracing::debug!(
+            target: TARGET,
+            group,
+            user = posted.user,
+            message = posted.message_id,
+            chars = posted.text.chars().count(),
+            "group message"
+        ),
+        Event::Recalled(recall) => tracing::debug!(
+            target: TARGET,
+            group = recall.group,
+            user = recall.user,
+            message = recall.message_id,
+            "recall"
+        ),
+    }
 }
 
 /// 号 `bot` 现在用 `link`：顶掉的那一条在等的调用都算失败，给它发一帧关闭。

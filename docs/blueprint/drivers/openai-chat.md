@@ -161,6 +161,7 @@
 | 写进缓存 `cache_write` | `prompt_tokens_details.cache_write_tokens`；没有是 0 |
 | 没命中 `uncached` | `prompt_tokens` 减去上面两项，最少 0 |
 | 输出 `output` | `completion_tokens`（含思考）；没有是 0 |
+| 思考 `reasoning` | `completion_tokens_details.reasoning_tokens`（施工 2-3 再补，DeepSeek 也报）；没有的、0 的不写 |
 
 没有 `prompt_tokens` 的不算用量；只认非负整数。
 
@@ -237,8 +238,10 @@
 | `image-open.txt` | `<image name="{name}">` | `name`，照模板的规矩转义（施工 3-9 四补） |
 | `image-close.txt` | `</image>` | 没有（施工 3-9 四补） |
 | `image-omitted-named.txt` | `An image was attached here ({name}), but this model cannot view images.` | `name`，照模板的规矩转义（施工 3-9 四补） |
+| `image-omitted-path.txt` | `An image was attached here ({name}, from {path}), but this model cannot view images.` | `name`、`path`，照模板的规矩转义（施工 3-9 五补：带名字又带原来的路径的图） |
+| `file-omitted-path.txt` | `A file was attached here ({name}, {media_type}, {size} bytes, from {path}), but this model cannot read it.` | 同 `file-omitted`，另加 `path`（施工 3-9 五补：带原来的路径的文件） |
 
-几份在 `DriverTexts::new` 时读成模板，拿字段试换一次：`file-omitted` 只能要 `name`、`media_type`、`size`，`file-open`、`image-open`、`image-omitted-named` 只能要 `name`，`file-cut` 只能要 `shown`、`total`，别的不能要字段。原文随会话的策略快照（`policy.md`）；文本文件的三句、带名字的图片的三句以前造的快照里没有。
+几份在 `DriverTexts::new` 时读成模板，拿字段试换一次：`file-omitted` 只能要 `name`、`media_type`、`size`，`file-omitted-path` 另加 `path`，`image-omitted-path` 只能要 `name`、`path`，`file-open`、`image-open`、`image-omitted-named` 只能要 `name`，`file-cut` 只能要 `shown`、`total`，别的不能要字段。原文随会话的策略快照（`policy.md`）；文本文件的三句、带名字的图片的三句、带路径的两句（施工 3-9 五补）以前造的快照里没有。看不了的附件带着原来的路径（`kernel/blocks.md` 的 `path`）、快照里有带路径的两句的，占位写带路径的那一句：她照路径用工具去读；没有的照旧（施工 3-9 五补）。看得了的照旧发，路径不进请求。
 
 `text-files.json` 这份样本里那条 user 的 `content`，写开来是：
 

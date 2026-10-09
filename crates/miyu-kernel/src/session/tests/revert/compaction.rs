@@ -222,6 +222,7 @@ fn compact_rereading(log: &mut Vec<Event>, restored: Vec<RestoredFile>) {
         turn.started(),
         Body::TurnStarted(TurnStarted {
             trigger: Some(upto),
+            triggers: Vec::new(),
             cwd: None,
             dirs: Vec::new(),
         }),
@@ -291,6 +292,11 @@ fn while_reading_back_commands_are_refused_and_what_does_not_fit_is_ignored() {
     assert_eq!(session.handle(read_back(1, gap)), [], "中间断了的不理");
     // 对得上的：撤掉回合 3 和压缩那一轮，改过的文件照读回的那一段改回。
     let actions = session.handle(read_back(1, log.clone()));
+    assert_eq!(
+        session.history.own(),
+        Some(&session_id()),
+        "读回来重建的有效历史照样记着自己（施工 O-13 下）"
+    );
     let events = appended_events(&actions);
     assert_eq!(
         events.iter().map(|event| &event.body).collect::<Vec<_>>(),

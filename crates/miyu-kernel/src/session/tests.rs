@@ -31,6 +31,7 @@ mod random;
 mod recap;
 mod redo;
 mod reply;
+mod respond;
 mod restart;
 mod restore;
 mod revert;
@@ -40,6 +41,7 @@ mod title;
 mod todos;
 mod tools;
 mod turn;
+mod venue;
 mod workspace;
 
 use std::collections::BTreeMap;
@@ -120,7 +122,11 @@ fn message(n: u64, words: &str, urgent: bool) -> Input {
         id: id(n),
         by: alice(),
         at: at(n % 60),
-        command: Command::Send { blocks, urgent },
+        command: Command::Send {
+            blocks,
+            urgent,
+            venue: None,
+        },
     })
 }
 
@@ -385,7 +391,8 @@ fn an_empty_message_is_rejected_on_the_spot() {
         [Action::Reply {
             id: id(1),
             outcome: Outcome::Rejected {
-                reason: Reason::EmptyMessage
+                reason: Reason::EmptyMessage,
+                about: Vec::new(),
             },
         }]
     );

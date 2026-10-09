@@ -139,7 +139,8 @@ SSE 分帧共用 `sse.rs`。这一家没有 `[DONE]`：说完是 `response.compl
 | 命中缓存 `cache_read` | `input_tokens_details.cached_tokens`，没有是 0 |
 | 写进缓存 `cache_write` | 0：这一家不报写入，也不另收写入的钱 |
 | 没命中 `uncached` | `input_tokens` 减去命中，最少 0 |
-| 输出 `output` | `output_tokens`（含思考，`output_tokens_details.reasoning_tokens` 不另算） |
+| 输出 `output` | `output_tokens`（含思考，思考不另算钱） |
+| 思考 `reasoning` | `output_tokens_details.reasoning_tokens`（施工 2-3 再补）；没有的、0 的不写 |
 
 没有 `input_tokens` 的不算用量；只认非负整数。
 

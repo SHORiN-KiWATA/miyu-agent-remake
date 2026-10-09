@@ -10,6 +10,7 @@
 mod action;
 mod approval;
 mod aside;
+mod asked;
 mod breaker;
 mod call;
 mod clear;
@@ -34,9 +35,11 @@ mod queue;
 mod rebuild;
 mod recap;
 mod recent;
+mod record;
 mod redo;
 mod replies;
 mod report;
+mod respond;
 mod restart;
 mod restore;
 mod retry;
@@ -55,7 +58,10 @@ mod workspace;
 
 pub use action::{Action, Outcome, Reason};
 pub use configure::Replaced;
-pub use input::{Answer, Command, Injection, Input, Limits, Queued, Received, Reread, Verdict};
+pub use input::{
+    Answer, Appended, Command, ExtEvent, Injection, Input, Limits, Queued, Received, Reread,
+    Verdict,
+};
 pub use limits::ContextLimits;
 pub use load::LoadError;
 pub use messages::Subagent;
@@ -67,7 +73,7 @@ use crate::event::{Body, Event, Permission, SessionCreated, ToolResult, ToolStat
 use crate::facts::Environment;
 use crate::history::History;
 use crate::id::{CommandId, Seq, SessionId, TurnId};
-use crate::ledger::{Ledger, LedgerError};
+use crate::ledger::Ledger;
 use crate::origin::By;
 use crate::request::Fingerprint;
 use crate::time::Timestamp;
@@ -165,8 +171,8 @@ impl Session {
     ) -> (Session, Vec<Action>) {
         let mut session = Session {
             ledger: Ledger::for_session(session.clone()),
+            history: History::default().owned_by(session.clone()),
             id: session,
-            history: History::default(),
             unstored: Vec::new(),
             stored: None,
             waiting: Vec::new(),
@@ -387,7 +393,13 @@ impl Session {
             return vec![rejected(id, Reason::Restoring)];
         }
         match command {
-            Command::Send { blocks, urgent } => self.send(id, by, at, blocks, urgent),
+            Command::Send {
+                blocks,
+                urgent,
+                venue,
+            } => self.send(id, by, at, (blocks, venue), urgent),
+            Command::Append { event } => self.append(id, by, at, event),
+            Command::Respond { to, facts } => self.respond(id, by, at, to, facts),
             Command::Interrupt { queued } => self.interrupt(id, by, at, queued),
             Command::SetMeta { title, pinned } => self.set_meta(id, by, at, title, pinned),
             Command::SetWorkspace { cwd, dirs } => self.set_workspace(id, by, at, cwd, dirs),
@@ -413,41 +425,6 @@ impl Session {
             Command::Report(reported) => self.report(id, by, at, reported),
             Command::PeerIdle { status } => self.peer_idle(id, by, at, status),
         }
-    }
-
-    /// 造一条事件：交给账本查过，记在账上，交给有效历史，等着落盘。回合进行中造的，带上
-    /// 这个回合的编号；`turn.started` 带它自己的序号（`03-事件模型.md` 第二节）。
-    fn record(&mut self, at: Timestamp, by: By, cause: Option<CommandId>, body: Body) -> Event {
-        let seq = self.ledger.next_seq();
-        let turn = match body {
-            Body::TurnStarted(_) => Some(TurnId::new(seq)),
-            _ => self.turn.as_ref().map(|turn| turn.id),
-        };
-        let event = Event {
-            seq,
-            at,
-            turn,
-            by,
-            cause,
-            body,
-        };
-        if let Err(error) = self.commit(&event) {
-            panic!("the kernel's own event failed the ledger, a kernel bug: {error}");
-        }
-        event
-    }
-
-    /// 追加一条造好的事件：交给账本查过，记在账上，交给有效历史，等着落盘。过不了账本的什么都不动，交回违反了哪一条。
-    fn commit(&mut self, event: &Event) -> Result<(), LedgerError> {
-        self.ledger.append(event)?;
-        self.duty.note(event);
-        self.naming.note(event);
-        self.reference.note(event);
-        self.sight.note(event);
-        self.grants.note(event);
-        self.history.append(event.clone());
-        self.unstored.push(event.clone());
-        Ok(())
     }
 
     /// 到第 `upto` 条为止落了盘：先推送这些事件，再回应事件全落了盘的命令（`04-核心协议.md`
@@ -490,7 +467,15 @@ fn accepted(id: CommandId, events: Vec<Seq>) -> Action {
 fn rejected(id: CommandId, reason: Reason) -> Action {
     Action::Reply {
         id,
-        outcome: Outcome::Rejected { reason },
+        outcome: Outcome::rejected(reason),
+    }
+}
+
+/// 拒绝，带上针对的是哪几条（施工 O-14 上）。
+fn rejected_about(id: CommandId, reason: Reason, about: Vec<Seq>) -> Action {
+    Action::Reply {
+        id,
+        outcome: Outcome::Rejected { reason, about },
     }
 }
 

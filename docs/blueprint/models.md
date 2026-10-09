@@ -22,7 +22,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | `crates/miyu-models/src/observed.rs` | 用出来的（`learned.json`）、供应商的列表（`providers/<编号>.json`）的样子、读写、只记小的 | 8-7 |
 | `crates/miyu-models/src/knowledge.rs` | 查资料时手头的几份：档案、认原厂的表、目录、用出来的、列表（`Knowledge`） | 8-7 |
 | `crates/miyu-models/src/reference.rs` | 两种写法：读、哪里能写哪几种（8-6）；造会话记下的引用（`record`）、一个引用这一轮指到一个模型还是一个池（`resolve`）、用途池里点名的模型（`named`）（8-8；挡位 8-8 补去掉了） | 8-6、8-8 |
-| `crates/miyu-models/src/settings.rs` | 模型这一块的配置项：`UseSettings`（`models.chat`、`vision`）、`PoolSettings`（`pools.<id>` 的成员、分法，8-8；派子代理能不能选、给模型看的说明，8-8 补）、`ProviderSettings`（`providers.<id>` 的驱动、地址、key、`catalog`，8-8 加 `cache`）、`ModelSettings`（`providers.<id>.models.<model>` 的窗口，8-18 加 `effort`），核心登记进清单（`config.md`） | 8-6 起 |
+| `crates/miyu-models/src/settings.rs` | 模型这一块的配置项：`UseSettings`（`models.chat`、`vision`、`embedding`）、`PoolSettings`（`pools.<id>` 的成员、分法，8-8；派子代理能不能选、给模型看的说明，8-8 补）、`ProviderSettings`（`providers.<id>` 的驱动、地址、key、`catalog`，8-8 加 `cache`）、`ModelSettings`（`providers.<id>.models.<model>` 的窗口，8-18 加 `effort`），核心登记进清单（`config.md`） | 8-6 起 |
 | `crates/miyu-models/src/effort.rs` | 思考强度（8-18；8-18（补）去掉会话那一层）：档位名怎么规整（`none`、`disabled` 读成 `off`，有开关的多 `off`），给头看的那一档从配置的哪一层来（`in_use`），空闲超时放大几倍（`idle_factor`），配置里写的不在档位里的（`unknown`，报 `unknown_effort`） | 8-18 |
 | `crates/miyu-models/src/temperature.rs` | 温度（8-22）：驱动的上限、这个模型用不用得了、配置里写的用不了的（`unusable_temperature`） | 8-22 |
 | `crates/miyu-models/src/profile.rs` | 档案的样子：驱动、地址、`compat`（8-18 多 `toggle`：开关思考的字段）、能收哪些输入、一张图怎么算，核心读成 JSON 交进来 | 8-6 起 |
@@ -121,6 +121,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 |---|---|---|---|---|
 | `chat` | 模型或者 `@池` | 没有：`no_model` | `new_session`（8-6） | 新会话默认用的，钉着的没了退回它 |
 | `vision` | 模型或者 `@池` | 没有 | `next_turn` | 替看不了图的模型看图（第三条第 5 条）。8-8 只读进来、`model.list` 列出来；8-17 起照它替看不了图的模型看图（「怎么走」第十三条） |
+| `embedding` | `local`、`off` | 没有：照 `local` | `next_turn` | 记忆、以前的对话照意思找用哪个模型算向量（施工 R-5 下，`recall.md` 第四条第 1 款）：`local` 本机的 `miyu-embed`，`off` 不下模型、只照关键词找。远程的 `<供应商>/<模型>` 随 R-5 补；`model.list` 的 `uses` 这一步不列它 |
 
 8-8 有过四个挡位 `models.tiers.lite`、`cheap`、`standard`、`flagship`，8-8 补去掉了（2026-10-01 项目主人定，「定的」第 11 条）：现在是不认识的键，照 `config.md` 第四条警告、原样留在文件里。
 
@@ -391,7 +392,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 |---|---|
 | `text` | 回答的正文：正文块的字照先后接起来，思考不要；没有正文的是空字 |
 | `provider`、`model` | 真发给的供应商编号、模型名（换过端点的是最后成了的那一个） |
-| `usage` | 用量，和 `model.called` 的一样四项：`uncached`、`cache_read`、`cache_write`、`output`；供应商没报的是 `null` |
+| `usage` | 用量，和 `model.called` 的一样四项：`uncached`、`cache_read`、`cache_write`、`output`，报了思考的多一格 `reasoning`（施工 2-3 再补）；供应商没报的是 `null` |
 
 ```json
 {"text":"A cat on a red sofa.","provider":"deepseek","model":"deepseek-flash","usage":{"uncached":812,"cache_read":0,"cache_write":0,"output":9}}
@@ -799,7 +800,7 @@ opencode 有两个端点：Zen（`https://opencode.ai/zen/v1`，按量付费）�
    | `model_failed` | 发了、出错了：换不了、换够了；模型不收图；增量对不上（`bad_stream`）；编码要的 blob 取不出来 | 分类、HTTP 状态、原话，和 `model.called` 的一样 |
 
 6. **用量**：记运行日志一行 `INFO model call purpose=… provider=… model=… input=… output=…`（`input` 是没命中、命中、写进缓存三项加起来；没报用量的不写这两格），没成的记 `INFO model call failed purpose=… reason=…`（`model_failed` 另带 `class`）。目标 `miyu::session`，不属于哪个会话，不带会话编号；挑端点时记的 `endpoint cooling`、`failover` 也不带。8-15 起每发出去一次另记一笔账：属主的账号日志一条 `usage.oneshot`、用量汇总一行（第九条第 4 条）。
-7. **不进会话**：一次性调用不进任何会话的日志、不推送。没有打断：调的一方等它说完，协议上这个连接的下一条请求排在它后面（和 `provider.test` 一样，一个连接的请求一条一条答）。
+7. **不进会话**：一次性调用不进任何会话的日志、不推送。没有打断：调的一方等它说完。协议上在后台答（施工 8-20 补，`protocol.md`「一个连接」第 1 条）：同一个连接后面的请求不等它，回应照 `id` 对上，连接断了没答完的停下；通讯平台的桥只有核心给的一条连接，判官一次几十秒，不能把她的话、新的群消息堵在后面。
 8. **`provider.test` 不走一次性入口**：它试的可能是还没写进配置的一家（一次性入口只认配置里的引用）；它要试这一家的第一个 key，不换别的 key、不看也不记冷却（换了就试不出这个 key 坏了，也不该因为试一次让会话避开它）；它收到第一段正文就停、量第一段的毫秒数，一次性入口交的是整段。
 9. 协议 `model.call` 只开一次性的那种（「协议」）。流式的 `model.call`：第一版只交整段。扩展的能力检查：随扩展那一段。
 

@@ -64,7 +64,9 @@
 | `dispatched_in(turns)` | 在这几轮里派出去过的任务的编号，照编号（施工 7-8：撤销这几轮时停掉还在跑的） |
 | `dispatched(job)` | 派出去过的任务（`Dispatched`）：`what` 种类、`title` 标题、`session` 子代理的会话（施工 7-7）、`undone` 派它的那一轮撤掉了（下面「派出去过的任务」，施工 7-2）；没派过的没有 |
 | `subagent(会话)` | 在那个会话里跑的子代理：编号和它的 `Dispatched`（施工 7-7）。组装照它认出子代理发来的留言；不是这个会话派的子代理的没有 |
+| `overheard(序号)`、`answered(序号)` | 账本答的（施工 O-14 上，`ledger/triggers.rs`）：那一条是不是旁听的 `message.user`、是不是当过触发 |
 | `is_peer(会话)` | 那个会话发来的是不是别的会话的话：它不是父会话，也不是派的子代理（施工 C-2，上面「父会话」） |
+| `owned_by(会话)`、`own()` | 这是哪个会话的有效历史（施工 O-13 下）：内核造会话、载入、撤销后重建时设上，截出来的那一份照带；测试里自己拼的、`history` 读的没有。组装照它认出别的线替她发进群里的话（`kernel/request.md`「群聊近况」） |
 | `note(event)` | 只记派出去的任务，不留这一条：载入时重建的那一段以前的事件照它过（施工 7-2） |
 | `jobs_from(before)` | 派出去过的任务照 `before` 那一份的：撤掉压缩时换了一份有效历史（施工 7-2） |
 | `whole()` | 一份留着一切的：压缩替代掉的不丢，`context.compacted` 自己也照先后留在 `events()` 里，没有检查点；撤销、恢复、撤回照同一套规矩算，撤掉的回合里的压缩跟着拿走。`history` 照它算哪些还算数（施工 6-4，`tools/history.md`）；从日志的一段重建也从它起（施工 6-9） |
@@ -96,6 +98,11 @@
 | `turn.started` 的 `turn` 是它自己的序号 | turn.started should have its own seq as turn |
 | `turn.started` 时没有别的回合在进行 | turn <编号> has not ended |
 | `turn.started` 有 `trigger` 的，`trigger` 在它之前；没有的不查（手动压缩单开的那一轮，施工 6-8） | trigger should be an event before the turn started |
+| `turn.started` 带 `triggers` 的，最后一条是 `trigger`（施工 O-14 上） | trigger should be the last of triggers |
+| `triggers` 照序号排好、不重 | triggers should be in order, each once |
+| `triggers` 每一条都是旁听的 `message.user` | trigger <n> is not an overheard message.user |
+| `triggers` 每一条都没当过触发（撤掉的回合当过的也算） | trigger <n> has already opened a turn |
+| `turn.joined` 的 `triggers` 不空（施工 O-14 下）；别的照 `turn.started` 的那三条查，记下以后算当过 | turn.joined should have triggers |
 | 带 `turn` 的，是正在进行的那个回合 | turn <编号> is not the running turn |
 | `message.assistant`、`tool.result`、`tool.approval_requested`、`tool.approval_decided`、`question.asked`、`question.answered`、`message.withdrawn`、`turn.ended`、`context.compacted` 必须带 `turn`（`context.compacted` 施工 6-9 起：压缩跟着它所在的回合撤） | <种类> happens only in a turn and needs turn |
 | `message.assistant` 的 `seen` 在它之前 | seen <n> should come before this reply |
@@ -343,6 +350,7 @@
 | `crates/miyu-kernel/src/ledger/tests/jobs.rs` 的 `a_message_to_a_subagent_makes_it_owe_a_report`、`a_report_that_arrives_while_the_message_is_on_its_way_answers_it`（施工 7-7） | `job.messaged` 只能给这个会话派的子代理（后台命令、不认识的种类、没派过的拦下）；留了言欠一份回报、报了不欠；调用发出以后到的回报算回了；`subagent_in`、`subagents` |
 | `crates/miyu-kernel/src/ledger/tests/peers.rs`（施工 C-1） | 订的是自己的拒、同一条结果里有一个是自己的整条不收、不知道自己是谁的账本不查（`a_session_cannot_watch_itself`）；`peer.idle` 只认在等的：没订过的、订了别的、等到过的都拒，订它的那一轮还在进行时到的照收（`a_notice_is_taken_only_while_watching`）；`by` 对得上原因、不认识的原因不查、哪一种都算等到了头（`a_notice_is_by_the_session_or_by_the_kernel`）；撤掉订它的那一轮不算在等、恢复了照原来的时刻又算、恢复不了了一直不算（`undoing_the_watching_turn_stops_the_watch`）；又订从新的时刻算、撤掉又订的回到前一次、等到过以后再订的撤掉就不在等（`watching_again_counts_from_the_new_moment`） |
 | `crates/miyu-kernel/src/ledger/tests/said.rs`（施工 C-2） | 别的会话不是父会话、不是派的子代理，还不知道父会话的哪个都算；只有别的会话的话记下、照时刻数（含正好那一刻）、哈希一字不差；还没听到的：回顾的请求不算听到，主请求看到哪里算到哪里，回复看到了也算 |
+| `crates/miyu-kernel/src/ledger/tests/triggers.rs`（施工 O-14 上） | `triggers` 最后一条要是 `trigger`、排好不重、都是旁听的、都没当过触发；撤掉的回合当过的照样算；`overheard`、`answered` 答得对；人说的照旧能开 |
 | `crates/miyu-kernel/src/session/tests/peers.rs`（施工 C-1） | 会话知道自己是谁：造的会话订自己当场停下，载入的日志订自己拒绝，订别的会话的照收、载入以后照样在等 |
 | `crates/miyu-kernel/src/ledger/tests/undo.rs` | 压缩以前的也能撤，撤的范围里的压缩不再算数，恢复了跟着回来；`read_back_from` 从哪一条起、撤不到压缩的没有；撤一轮和它以后的全部；回合进行中不能撤；只恢复最近一次；下一轮开始、压缩以后不能恢复；改回文件只在回合之间 |
 | `crates/miyu-kernel/src/history/tests.rs` | 压缩重开有效历史；被动压缩的尾巴；最新的检查点换掉旧的；照请求看到的范围排（图上那一轮、请求在路上时来的话、压缩以后的尾巴）；撤回的和撤回本身都不留 |

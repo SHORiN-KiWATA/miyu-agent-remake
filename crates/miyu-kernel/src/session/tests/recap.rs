@@ -223,7 +223,8 @@ fn a_broken_stream_is_not_written() {
         assert!(landed.contains(&Action::Reply {
             id: id(20),
             outcome: Outcome::Rejected {
-                reason: Reason::RecapFailed
+                reason: Reason::RecapFailed,
+                about: Vec::new(),
             },
         }));
     }

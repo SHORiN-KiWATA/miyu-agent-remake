@@ -1,0 +1,98 @@
+//! 反向调用（施工 O-2 上）：发出去的一行带 `core-<n>` 编号、方法和参数；对上编号的回应交给等它的，对不上的不理；连接断了，
+//! 在等的和以后发的都了结成连接断了。
+
+use serde_json::json;
+use tokio::sync::mpsc;
+
+use super::*;
+use crate::wire::Response;
+
+#[tokio::test]
+async fn a_call_goes_out_as_a_request_and_its_response_comes_back() {
+    let (out, mut lines) = mpsc::channel(8);
+    let peer = Peer::new(out);
+    let asking = {
+        let peer = peer.clone();
+        tokio::spawn(async move { peer.call("tool.call", json!({"tool": "echo"})).await })
+    };
+    let sent: Value = serde_json::from_str(&lines.recv().await.expect("发出去了")).unwrap();
+    assert_eq!(
+        sent,
+        json!({"jsonrpc": "2.0", "id": "core-1", "method": "tool.call", "params": {"tool": "echo"}})
+    );
+    peer.answer(Response {
+        id: "core-9".to_string(),
+        outcome: Ok(json!("别人的")),
+    });
+    peer.answer(Response {
+        id: "core-1".to_string(),
+        outcome: Ok(json!({"blocks": []})),
+    });
+    assert_eq!(asking.await.unwrap(), Ok(Ok(json!({"blocks": []}))));
+    // 下一条编号往后数。
+    let second = {
+        let peer = peer.clone();
+        tokio::spawn(async move { peer.call("tool.call", json!({})).await })
+    };
+    let sent: Value = serde_json::from_str(&lines.recv().await.expect("发出去了")).unwrap();
+    assert_eq!(sent["id"], json!("core-2"));
+    peer.answer(Response {
+        id: "core-2".to_string(),
+        outcome: Err(json!({"code": -1, "message": "boom"})),
+    });
+    assert_eq!(
+        second.await.unwrap(),
+        Ok(Err(json!({"code": -1, "message": "boom"})))
+    );
+}
+
+#[tokio::test]
+async fn closing_ends_what_waits_and_what_comes_after() {
+    let (out, mut lines) = mpsc::channel(8);
+    let peer = Peer::new(out);
+    let waiting = {
+        let peer = peer.clone();
+        tokio::spawn(async move { peer.call("tool.call", json!({})).await })
+    };
+    lines.recv().await.expect("发出去了");
+    peer.close();
+    assert_eq!(waiting.await.unwrap(), Err(Gone));
+    assert_eq!(peer.call("tool.call", json!({})).await, Err(Gone));
+}
+
+/// 不等了的（等它的 future 被丢掉）从表里拿掉（施工 O-2 下）：它的回应后来到了也不理。
+#[tokio::test]
+async fn a_call_no_one_waits_for_is_forgotten() {
+    let (out, mut lines) = mpsc::channel(8);
+    let peer = Peer::new(out);
+    let asking = {
+        let peer = peer.clone();
+        tokio::spawn(async move { peer.call("tool.call", json!({})).await })
+    };
+    lines.recv().await.expect("发出去了");
+    asking.abort();
+    assert!(asking.await.is_err(), "丢掉了");
+    let waiting = peer
+        .state
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .waiting
+        .len();
+    assert_eq!(waiting, 0, "表里没有它了");
+}
+
+/// 通知不带编号、不等回应（施工 O-2 下）；连接断了的发不出去。
+#[tokio::test]
+async fn a_notification_has_no_id_and_is_not_sent_after_closing() {
+    let (out, mut lines) = mpsc::channel(8);
+    let peer = Peer::new(out);
+    assert!(peer.notify("tool.cancel", json!({"call_id": "c1"})));
+    let sent: Value = serde_json::from_str(&lines.recv().await.expect("发出去了")).unwrap();
+    assert_eq!(
+        sent,
+        json!({"jsonrpc": "2.0", "method": "tool.cancel", "params": {"call_id": "c1"}})
+    );
+    peer.close();
+    assert!(!peer.notify("tool.cancel", json!({})));
+    assert!(lines.try_recv().is_err());
+}

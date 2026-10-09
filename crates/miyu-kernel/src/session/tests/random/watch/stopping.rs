@@ -42,7 +42,8 @@ impl Watch {
                     actions,
                     [Action::Reply {
                         outcome: Outcome::Rejected {
-                            reason: Reason::NotRunning
+                            reason: Reason::NotRunning,
+                            ..
                         },
                         ..
                     }]

@@ -116,6 +116,19 @@ pub struct Harness {
     pub name: HarnessName,
 }
 
+impl By {
+    /// 是主人本人（施工 O-2 下，原来在斜杠命令里）：本机的头上的人、私聊里对应表认出的本人（`Person`）、群里对应表里有的
+    /// 外部身份。斜杠命令照它判谁能换工作区，提供者的工具照它挡（`tool.call` 的 `owner`）。
+    #[must_use]
+    pub fn is_owner(&self) -> bool {
+        match self {
+            By::Person(_) => true,
+            By::External(external) => external.account.is_some(),
+            _ => false,
+        }
+    }
+}
+
 impl<'de> Deserialize<'de> for By {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         raw::read_tagged(

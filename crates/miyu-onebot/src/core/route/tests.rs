@@ -1,15 +1,12 @@
-//! 发回话的任务结束了（`onebot.md`「施工时定的」第 14 条）：崩了照实交上去，桥停下；好好结束的接着办。
-
-use tokio::task::JoinSet;
+//! 发回话的任务结束了（`onebot.md`「施工时定的」第 14 条）：崩了照实交上去，桥停下；好好结束的接着办，群里发出去了的那一段
+//! 交上去记 `venue.delivered`（施工 O-23）。
 
 use super::sent;
 use crate::serve::Failure;
 
 #[tokio::test]
 async fn a_crashed_reply_task_stops_the_bridge() {
-    let mut tasks = JoinSet::new();
-    tasks.spawn(async { panic!("测试里故意崩") });
-    let joined = tasks.join_next().await.expect("有一个");
+    let joined = tokio::spawn(async { panic!("测试里故意崩") }).await;
     match sent(joined) {
         Err(Failure::Crashed(reason)) => assert!(reason.contains("panic"), "{reason}"),
         other => panic!("崩了要照实交上去：{other:?}"),
@@ -18,8 +15,6 @@ async fn a_crashed_reply_task_stops_the_bridge() {
 
 #[tokio::test]
 async fn a_reply_task_that_ended_well_goes_on() {
-    let mut tasks = JoinSet::new();
-    tasks.spawn(async {});
-    let joined = tasks.join_next().await.expect("有一个");
-    assert_eq!(sent(joined), Ok(()));
+    let joined = tokio::spawn(async { None }).await;
+    assert_eq!(sent(joined), Ok(None));
 }

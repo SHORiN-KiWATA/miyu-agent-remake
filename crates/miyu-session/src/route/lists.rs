@@ -140,6 +140,7 @@ pub(crate) fn listing_texts() -> Result<DriverTexts, String> {
         text_file: None,
         image_name: None,
         image_description: None,
+        attached_path: None,
     })
     .map_err(|error| error.to_string())
 }

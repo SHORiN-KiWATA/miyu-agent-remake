@@ -188,6 +188,8 @@ pub enum Action {
         /// 这一轮的 `cause`，也是这次调用的结果的（施工 7-3）：它起的后台命令自己退出了，执行器照它填 `job.reported` 的
         /// `cause`（`kernel/session.md`「回报」第 2 条）。
         cause: Option<CommandId>,
+        /// 是谁要她做的（施工 O-2 下，`asked.rs`）：她这时在回应的那一条的 `by`，提供者的工具照它挡。没有触发的回合没有。
+        asked: Option<By>,
     },
 }
 
@@ -212,7 +214,19 @@ pub enum Outcome {
     Rejected {
         /// 为什么拒绝。
         reason: Reason,
+        /// 拒绝针对的是哪几条事件（施工 O-14 上：`Respond` 的 `to` 里不合的那几条）；别的拒绝是空的。
+        about: Vec<Seq>,
     },
+}
+
+impl Outcome {
+    /// 拒绝了，不针对哪几条事件。
+    pub fn rejected(reason: Reason) -> Outcome {
+        Outcome::Rejected {
+            reason,
+            about: Vec::new(),
+        }
+    }
 }
 
 /// 拒绝的原因。给程序看的原因码是稳定的英文（[`Reason::code`]）；给人看的话，由核心照头的
@@ -275,6 +289,10 @@ pub enum Reason {
     /// 空了的通知来了，这边不在等它（施工 C-6，`docs/blueprint/cross-session.md` 第六条第 7 款）：没订过、订它的那一轮撤掉了、
     /// 已经收到过、作废了。只回给核心里别的会话，不经协议给头。
     UnknownWatch,
+    /// 照记下的几条开一轮（施工 O-14 上）：有的不是这个会话里旁听的 `message.user`。拒绝带上是哪几条。
+    NotAmbient,
+    /// 照记下的几条开一轮（施工 O-14 上）：有的已经当过触发。拒绝带上是哪几条。
+    AlreadyAnswered,
 }
 
 impl Reason {
@@ -304,6 +322,8 @@ impl Reason {
             Reason::DuplicateMessage => "duplicate_message",
             Reason::InboxFull => "inbox_full",
             Reason::UnknownWatch => "unknown_watch",
+            Reason::NotAmbient => "not_ambient",
+            Reason::AlreadyAnswered => "already_answered",
         }
     }
 }

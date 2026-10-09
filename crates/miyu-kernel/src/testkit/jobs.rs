@@ -177,6 +177,7 @@ impl Stage {
             Command::Send {
                 blocks,
                 urgent: false,
+                venue: None,
             },
         )
     }
@@ -196,6 +197,7 @@ impl Stage {
             Command::Send {
                 blocks,
                 urgent: false,
+                venue: None,
             },
         )
     }

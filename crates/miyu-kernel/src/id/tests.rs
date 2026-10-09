@@ -286,6 +286,21 @@ fn file_name_is_a_name_not_a_path() {
     rejected::<FileName>(&format!("\"{}\"", "报".repeat(86)), "255 bytes");
 }
 
+/// 附件原来的路径（施工 3-9 五补）：本机的绝对路径，`/`、`~/`、Windows 的盘符或 `\\` 开头；没有控制字符，最多 4096 字节。
+#[test]
+fn source_path_is_an_absolute_local_path() {
+    round_trip::<SourcePath>(r#""/home/alice/晚霞.png""#);
+    round_trip::<SourcePath>(r#""~/报告.pdf""#);
+    round_trip::<SourcePath>(r#""C:\\Users\\a\\x.png""#);
+    round_trip::<SourcePath>(r#""D:/a.png""#);
+    round_trip::<SourcePath>(r#""\\\\server\\share\\a.png""#);
+    rejected::<SourcePath>(r#""a.png""#, "absolute");
+    rejected::<SourcePath>(r#""~alice/a.png""#, "absolute");
+    rejected::<SourcePath>(r#""""#, "must not be empty");
+    rejected::<SourcePath>(r#""/a\nb""#, "control characters");
+    rejected::<SourcePath>(&format!("\"/{}\"", "a".repeat(4096)), "4096 bytes");
+}
+
 #[test]
 fn event_kind_is_dotted_lowercase() {
     for good in [

@@ -381,6 +381,7 @@ impl Actor {
                 dirs,
                 permission,
                 cause,
+                asked,
             } => {
                 let at = self.clock.now();
                 let jobs = self.jobs.port(call_id, cause);
@@ -399,6 +400,7 @@ impl Actor {
                         inherit: Inherit::of(&*self.model),
                         usage,
                         turn: self.session.turn_cause().map(|(turn, _)| turn),
+                        asked,
                     },
                 )
             }

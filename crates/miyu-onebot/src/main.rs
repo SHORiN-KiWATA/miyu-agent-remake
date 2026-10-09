@@ -5,13 +5,15 @@
 //! - `start`、`stop`、`restart`、`status`：调核心的 `extension.*`（施工 O-18，[`control`]）。
 //! - `logs [-f]`：印运行日志和标准错误（施工 O-18，[`logs`]）。
 //! - `web [--print]`：打开桥的 WebUI（第二条，施工 O-16，[`open`]）。
+//! - `venue show <场所>`：一个场所每一项的值和来处（施工 O-21，[`show`]）。
 //! - `-h`、`--help`：用法印在标准输出上，退出码 0（`miyu help onebot` 转成 `--help`）。
 //!
 //! 先找资源目录、读给人看的字（[`Texts`]，照系统的语言），之后说给人听的都照它。`serve` 再装运行日志
-//! `state/logs/onebot.log`，读 `bridge.json` 和清单里两个端口的默认值（[`Defaults`]），交给 [`run`]：配置由核心在握手的回应里
+//! `state/logs/onebot.log`，读 `bridge.json`、清单里两个端口的默认值（[`Defaults`]）和出厂的场所规则、出厂参数、违规词表
+//! （[`Factory`]，施工 O-21：有问题是打包的错，说 [`Failure::Factory`]、退出码 1），交给 [`run`]：配置由核心在握手的回应里
 //! 交、变了推过来，桥不读系统配置（施工 O-20）。握手以前不说话：起不来的照系统的语言说一句；运行日志装不上的那一句等握手回了
 //! 语言再说；握手回了语言就照它说，端口被占那一句也是（「施工时定的」第 42 条）。`start`、`stop`、`restart`、`status`、`web`
-//! 握手以后照核心回的语言说，`logs` 照系统的语言。找不到资源目录、给人看的字读不懂，这时还没有字可用，印原话。
+//! 握手以后照核心回的语言说，`logs`、`venue show` 照系统的语言。找不到资源目录、给人看的字读不懂，这时还没有字可用，印原话。
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -20,10 +22,12 @@ use std::sync::{Arc, Mutex, PoisonError};
 use miyu_onebot::control::{Control, control};
 use miyu_onebot::logs::logs;
 use miyu_onebot::open::{Open, SystemBrowser, open, port};
+use miyu_onebot::rules::Factory;
 use miyu_onebot::serve::{CoreCommand, Failure, Notice, Pipe, Serve, run};
 use miyu_onebot::settings::Defaults;
 use miyu_onebot::texts::{Texts, system_language};
 use miyu_onebot::tuning::Tuning;
+use miyu_onebot::venue::show;
 use miyu_onebot::{PROGRAM, TARGET};
 use miyu_store::env::Env;
 use miyu_store::resources::ResourceRoot;
@@ -45,6 +49,8 @@ enum Command {
     Logs { follow: bool },
     /// `web`，带不带 `--print`。
     Web(Open),
+    /// `venue show`：场所编号的原文。
+    Venue(String),
 }
 
 fn main() -> ExitCode {
@@ -74,6 +80,7 @@ fn main() -> ExitCode {
         ["logs", "-f"] => Command::Logs { follow: true },
         ["web"] => Command::Web(Open::default()),
         ["web", "--print"] => Command::Web(Open { print: true }),
+        ["venue", "show", venue] => Command::Venue(venue.to_string()),
         ["-h"] | ["--help"] => {
             println!("{}", texts.usage());
             return ExitCode::SUCCESS;
@@ -126,6 +133,13 @@ fn main() -> ExitCode {
             )
         }
         Command::Web(wanted) => runtime.block_on(web(root, &wanted, &mut texts)),
+        Command::Venue(venue) => show(
+            &root,
+            &venue,
+            &texts,
+            &mut std::io::stdout(),
+            &mut std::io::stderr(),
+        ),
     };
     // 标准输入在阻塞线程里读（`serve` 的管道）：核心还开着它时，等那个线程会一直等下去，不等它，进程退出时一起收掉。
     runtime.shutdown_background();
@@ -155,7 +169,7 @@ async fn web(root: DataRoot, wanted: &Open, texts: &mut Texts) -> u8 {
     .await
 }
 
-/// 装运行日志、读 `bridge.json` 和清单里两个端口的默认值、跑到停。`locale` 是系统的语言。交回退出码。
+/// 装运行日志、读 `bridge.json`、清单里两个端口的默认值和出厂的场所规则这几样、跑到停。`locale` 是系统的语言。交回退出码。
 async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Texts) -> u8 {
     let log = miyu_log::install(
         &root.state().join("logs"),
@@ -175,6 +189,14 @@ async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Te
             return FAILED;
         }
     };
+    let factory = match Factory::load(texts.resources()) {
+        Ok(factory) => factory,
+        Err(problems) => {
+            settle(texts, &owed);
+            eprintln!("{}", texts.failure(&Failure::Factory(problems)));
+            return FAILED;
+        }
+    };
     let serve = Serve {
         root,
         pipe: Pipe::new(tokio::io::stdin(), tokio::io::stdout()),
@@ -183,6 +205,7 @@ async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Te
         tuning,
         resources: texts.resources().clone(),
         defaults,
+        factory,
     };
     let speaking = Arc::new(Mutex::new(texts.clone()));
     let shaken = {

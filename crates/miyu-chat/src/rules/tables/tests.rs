@@ -229,6 +229,32 @@ fn at_changes_only_what_the_venue_rules_wrote() {
 }
 
 #[test]
+fn the_judge_persona_is_turned_off_only_where_written() {
+    // 某个群想省 token：写一条场所规则关掉，别的群照出厂的开着（施工 O-23 补）。
+    let files = [factory(
+        "50-defaults.toml",
+        "[[rule]]\nmatch = { group = [1] }\njudge = { persona = false }\n",
+    )];
+    let rules = rules(&files);
+    let factory = defaults();
+    assert!(factory.judge.persona);
+    let one = factory.at(&rules.resolve(&group("1")));
+    assert!(!one.judge.persona);
+    assert_eq!(
+        Params {
+            judge: Judge {
+                persona: true,
+                ..one.judge.clone()
+            },
+            ..one
+        },
+        factory,
+        "只改了这一项"
+    );
+    assert!(factory.at(&rules.resolve(&group("2"))).judge.persona);
+}
+
+#[test]
 fn at_skips_hand_made_entries_that_break_the_declaration() {
     let origin = Origin {
         source: Source::System,
@@ -265,7 +291,7 @@ fn every_item_lands_in_its_own_field() {
          restraint = false\nrestraint_half_life = \"23s\"\nrestraint_cap = 2.2\nrestraint_k = 2.3\n\
          severity_min = 9\n\
          [rule.dispatch]\nsupersede_window = \"24s\"\n\
-         [rule.judge]\nmodel = \"@cheap\"\nrecords = 25\nmax_tokens = 26\ntimeout = \"27s\"\n\
+         [rule.judge]\nmodel = \"@cheap\"\nrecords = 25\npersona = false\nmax_tokens = 26\ntimeout = \"27s\"\n\
          moderation_timeout = \"28s\"\nretries = 2\nreason_chars = 29\n\
          [rule.outbound]\nquote_after = 5\nmention_after = \"31s\"\nmin_bigrams = 17\nsimilar = 67\n\
          split_chars = 3001\ninvisible = [\"a\", \"b\"]\nleak_open = [\"<c\"]\nleak_close = [\"c>\"]\n",
@@ -302,6 +328,7 @@ fn every_item_lands_in_its_own_field() {
         judge: Judge {
             model: Some("@cheap".to_string()),
             records: 25,
+            persona: false,
             max_tokens: 26,
             timeout: 27_000,
             moderation_timeout: 28_000,

@@ -35,7 +35,10 @@ fn said(home: &Home, session: &SessionId) -> Vec<String> {
     home.log(session)
         .into_iter()
         .filter_map(|event| match event.body {
-            Body::MessageUser(MessageUser { blocks }) => Some(blocks),
+            Body::MessageUser(MessageUser {
+                blocks,
+                venue: None,
+            }) => Some(blocks),
             _ => None,
         })
         .flatten()

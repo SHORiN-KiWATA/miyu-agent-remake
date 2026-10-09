@@ -95,6 +95,7 @@ async fn a_reply_comes_back_from_the_server() {
             cache_read: 1920,
             cache_write: 0,
             output: 3,
+            reasoning: None,
         })
     );
     assert_eq!(
@@ -200,6 +201,7 @@ async fn a_missing_blob_fails_without_sending() {
             media_type: MediaType::parse("image/png").expect("媒体类型合写法"),
             width: 1,
             height: 1,
+            path: None,
         }),
     ];
     ask(
@@ -208,6 +210,7 @@ async fn a_missing_blob_fails_without_sending() {
         Command::Send {
             blocks,
             urgent: false,
+            venue: None,
         },
     )
     .await
@@ -282,6 +285,7 @@ async fn an_image_goes_out_as_its_bytes() {
         media_type: MediaType::parse("image/png").expect("媒体类型合写法"),
         width: 1,
         height: 1,
+        path: None,
     })];
     ask(
         &handle,
@@ -289,6 +293,7 @@ async fn an_image_goes_out_as_its_bytes() {
         Command::Send {
             blocks,
             urgent: false,
+            venue: None,
         },
     )
     .await

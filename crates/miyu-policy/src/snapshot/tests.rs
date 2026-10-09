@@ -1,6 +1,7 @@
 //! 快照的字节、读回来、造策略。随核心附带的字用仓库里出厂的那一份（编译时拿进来，不是读文件）。会话编号的模板在
 //! `facts.rs`。
 
+mod drivers;
 mod facts;
 mod jobs;
 mod recap;
@@ -136,65 +137,6 @@ fn the_switches_are_carried_as_given() {
     let mut limited = engineer();
     limited.step_limit = Some(5);
     assert_eq!(limited.policy().unwrap().step_limit, Some(5));
-}
-
-#[test]
-fn each_driver_placeholder_is_its_own() {
-    let texts = engineer().driver_texts().unwrap();
-    let drivers = core().drivers;
-    assert_eq!(texts.image_omitted(None), drivers.image_omitted);
-    assert_eq!(texts.no_output(), drivers.no_output);
-    assert_eq!(texts.tool_attachments(), drivers.tool_attachments);
-    assert_eq!(texts.tool_attachments_only(), drivers.tool_attachments_only);
-    let omitted = texts.file_omitted("a.pdf", "application/pdf", 1234);
-    assert!(
-        omitted.contains("a.pdf") && omitted.contains("1234"),
-        "{omitted}"
-    );
-    // 文本文件的三句（施工 3-9 三补）：出厂的快照带着，开头、截过的、收尾各是各的。
-    let text = drivers.text_file.expect("出厂的带着");
-    let wrapped = texts
-        .text_file("a.md", &"x".repeat(70_000))
-        .expect("有三句");
-    assert!(wrapped.starts_with(&text.file_open.replace("{name}", "a.md")));
-    assert!(
-        wrapped.contains(
-            &text
-                .file_cut
-                .replace("{shown}", "65536")
-                .replace("{total}", "70000")
-        )
-    );
-    assert!(wrapped.ends_with(&text.file_close));
-    // 带名字的图片的三句（施工 3-9 四补）：出厂的快照带着，开头、收尾、占位各是各的。
-    let image = drivers.image_name.expect("出厂的带着");
-    assert_eq!(
-        texts.image_tags(Some("a.png")),
-        Some((
-            image.image_open.replace("{name}", "a.png"),
-            image.image_close
-        ))
-    );
-    assert_eq!(
-        texts.image_omitted(Some("a.png")),
-        image.image_omitted_named.replace("{name}", "a.png")
-    );
-}
-
-/// 带名字的图片的三句（施工 3-9 四补）：以前造的快照里没有，读回来一字不差，带名字的图片照不带名字的写。
-#[test]
-fn older_snapshots_lack_the_image_name_texts() {
-    let mut old = engineer();
-    old.core.drivers.image_name = None;
-    let bytes = String::from_utf8(old.to_bytes()).unwrap();
-    assert!(!bytes.contains("image_name"), "没有的不写：{bytes}");
-    assert_eq!(Snapshot::from_bytes(bytes.as_bytes()), Ok(old.clone()));
-    let texts = old.driver_texts().unwrap();
-    assert_eq!(texts.image_tags(Some("a.png")), None);
-    assert_eq!(
-        texts.image_omitted(Some("a.png")),
-        texts.image_omitted(None)
-    );
 }
 
 /// 压缩（施工 6-2 上）：出厂的快照带着压缩的数和摘要指令，造出的策略会主动压；以前造的快照没有这两格，读回来照旧，

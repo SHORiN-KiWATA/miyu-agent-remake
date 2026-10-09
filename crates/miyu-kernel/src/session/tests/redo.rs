@@ -66,6 +66,7 @@ fn a_redo_is_one_batch_and_replies_when_it_is_stored() {
             blocks: vec![Block::Text(Text {
                 text: "换个说法".to_string(),
             })],
+            venue: None,
         })
     );
     assert!(replies(&actions).is_empty(), "落了盘才回应");
@@ -118,7 +119,8 @@ fn a_redo_that_changed_files_restores_them_before_saying_it_again() {
             actions.as_slice(),
             [Action::Reply {
                 outcome: Outcome::Rejected {
-                    reason: Reason::Restoring
+                    reason: Reason::Restoring,
+                    ..
                 },
                 ..
             }]

@@ -215,6 +215,15 @@ text_id!(
 );
 
 text_id!(
+    /// 附件原来的路径（施工 3-9 五补，`docs/blueprint/kernel/ids.md`）：头 `blob.put` 传的那个本机的绝对路径，`/`、`~/`、
+    /// Windows 的盘符或 `\\` 开头；没有控制字符，最多 4096 字节。只查写法，不碰磁盘：模型看不了这个附件时，占位那一句
+    /// 带上它，她照路径用工具去读，读的时候照权限策略判。
+    SourcePath,
+    "source path",
+    check_source_path
+);
+
+text_id!(
     /// 事件种类：用点分开的几段，例如 `message.user`、`ext.memory.recalled`。
     EventKind,
     "event kind",
@@ -348,6 +357,29 @@ fn check_file_name(text: &str) -> Result<(), &'static str> {
     }
     if text == "." || text == ".." {
         return Err("must not be . or ..");
+    }
+    Ok(())
+}
+
+fn check_source_path(text: &str) -> Result<(), &'static str> {
+    if text.is_empty() {
+        return Err("must not be empty");
+    }
+    if text.len() > 4096 {
+        return Err("at most 4096 bytes");
+    }
+    if text.chars().any(char::is_control) {
+        return Err("no control characters");
+    }
+    let bytes = text.as_bytes();
+    let drive = bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/');
+    let absolute =
+        text.starts_with('/') || text.starts_with("~/") || text.starts_with("\\\\") || drive;
+    if !absolute {
+        return Err("must be absolute: /, ~/, a drive letter or \\\\");
     }
     Ok(())
 }

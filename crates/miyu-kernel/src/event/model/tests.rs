@@ -1,4 +1,4 @@
-//! 模型调用的测试：图纸上的写法读写一字不差、认得出种类；出错的、第一处不同的写法；
+//! 模型调用的测试：图纸上的写法读写一字不差、认得出种类；出错的、第一处不同的写法；思考占了多少（施工 2-3 再补）；
 //! 不认识的分类原样留着；指纹比出来的第一处不同怎么写。
 
 use super::*;
@@ -27,6 +27,7 @@ fn the_drawing_round_trips() {
             cache_read: 0,
             cache_write: 0,
             output: 26,
+            reasoning: None,
         })
     );
     assert_eq!(called.first_difference, None);
@@ -77,6 +78,18 @@ fn an_error_keeps_its_http_status_and_old_logs_without_it_still_read() {
 
 /// 回复每一块的起止（施工 2-3 补）：排在用时后面，读写一字不差；以前的日志没有这一格，照读，写出去还是没有，不写成
 /// `null`。
+/// 思考占了多少（施工 2-3 再补）：带着的读写一字不差；以前的日志没有这一格，读成没有，写出去照旧。
+#[test]
+fn reasoning_tokens_round_trip_and_old_logs_without_them_still_read() {
+    let body = CALLED.replace(r#""output":26}"#, r#""output":26,"reasoning":20}"#);
+    let thought = called(&body);
+    assert_eq!(thought.usage.and_then(|usage| usage.reasoning), Some(20));
+    assert_eq!(serde_json::to_string(&thought).unwrap(), body);
+    let old = called(CALLED);
+    assert_eq!(old.usage.and_then(|usage| usage.reasoning), None);
+    assert_eq!(serde_json::to_string(&old).unwrap(), CALLED);
+}
+
 #[test]
 fn block_spans_round_trip_and_old_logs_without_them_still_read() {
     let body = CALLED.replace(

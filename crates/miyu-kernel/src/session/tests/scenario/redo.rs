@@ -22,12 +22,18 @@ fn text(words: &str) -> Block {
 
 /// 一张图。
 fn image() -> Block {
+    picture(b"png", "image/png", (1000, 500))
+}
+
+/// 内容是 `bytes`、类型是 `media_type`、宽高是 `size` 的图。
+fn picture(bytes: &[u8], media_type: &str, (width, height): (u32, u32)) -> Block {
     Block::Image(Image {
-        blob: ContentHash::of(b"png"),
+        blob: ContentHash::of(bytes),
         name: None,
-        media_type: MediaType::parse("image/png").unwrap(),
-        width: 1000,
-        height: 500,
+        media_type: MediaType::parse(media_type).unwrap(),
+        width,
+        height,
+        path: None,
     })
 }
 
@@ -39,7 +45,10 @@ fn event(s: &Stage, n: u64) -> &Event {
 /// 第 `n` 条人的话的内容块。
 fn said(s: &Stage, n: u64) -> &[Block] {
     match &event(s, n).body {
-        Body::MessageUser(MessageUser { blocks }) => blocks,
+        Body::MessageUser(MessageUser {
+            blocks,
+            venue: None,
+        }) => blocks,
         body => panic!("第 {n} 条应该是 message.user：{body:?}"),
     }
 }
@@ -66,7 +75,7 @@ fn shape(s: &Stage, k: usize) -> Vec<String> {
 
 /// 被拒绝，原因码是 `reason`。
 fn refused(reason: Reason) -> Outcome {
-    Outcome::Rejected { reason }
+    Outcome::rejected(reason)
 }
 
 #[test]
@@ -142,13 +151,7 @@ fn new_words_replace_only_the_opener_and_the_attachments_stay() {
 
 /// 另一张图。
 fn photo() -> Block {
-    Block::Image(Image {
-        blob: ContentHash::of(b"jpg"),
-        name: None,
-        media_type: MediaType::parse("image/jpeg").unwrap(),
-        width: 640,
-        height: 480,
-    })
+    picture(b"jpg", "image/jpeg", (640, 480))
 }
 
 #[test]
