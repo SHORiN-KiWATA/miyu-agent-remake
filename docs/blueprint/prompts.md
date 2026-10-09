@@ -3017,6 +3017,19 @@ Start a subagent in a new session to do one task and wait for it; its report arr
 …and {count} more; memory_search finds them.
 ```
 
+### 事实：常驻的记忆摘要那一块，有摘要时的头一行
+
+#### `software/memory/summary/digest.txt`
+
+- 什么时候加进来：合并写过、还算数的摘要的（字段是摘要，转义成一行），后面接上次合并以后新记的
+- token：7（2026-10-10 照开发端点量）
+- 为什么加：有了摘要以后常驻的那一块交「摘要加之后新记的」（施工 R-7 下，2026-10-09 项目主人定）：一段「她对你的了解」比一串流水账短、像人记事；分得开摘要和一条条的记忆
+- 指纹：`8ffc0043`
+
+```text
+About the user: {text}
+```
+
 ### 抽取那一次请求，不进主对话
 
 #### `software/memory/extract/instruction.txt`

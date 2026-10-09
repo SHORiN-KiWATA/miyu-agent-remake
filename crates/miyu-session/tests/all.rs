@@ -24,6 +24,7 @@ mod jobs_stop;
 mod limits;
 mod memory;
 mod memory_backfill;
+mod memory_digest;
 mod memory_extract;
 mod memory_extract_more;
 mod memory_installed;

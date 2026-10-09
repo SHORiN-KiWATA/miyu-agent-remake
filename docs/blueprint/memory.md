@@ -29,7 +29,7 @@
 | `crates/miyu-store/src/recall/indexes.rs` | 回合库的登记：照房间开回合库、留着；删会话时拿掉人格那几间里它的（会话那一间跟着目录走） | R-2 上 |
 | `crates/miyu-session/src/memory.rs` | 执行器：会话写日志时顺手更新回合索引、载入时补上（R-2 上）；`Memory::new` 登记第一次开回合库时记日志、补齐（R-2 下）；以后后台抽取、合并 | R-2 起 |
 | `crates/miyu-session/src/memory/backfill.rs` | 补齐旧会话：照账号的会话一个个读日志、照载入时的判法补（第一条第 9 款） | R-2 下 |
-| `crates/miyu-session/src/memory/summary.rs` | 常驻的摘要：交不交、交什么、上限，外壳的字（`SummaryTexts`）；`memory/port.rs` 在阻塞线程里读，`actor/model.rs` 的 `hooks` 在回合开始问它、限时（第三条） | R-4 上 |
+| `crates/miyu-session/src/memory/summary.rs` | 常驻的摘要（R-7 下：有摘要时头一行是摘要、后面接之后新记的）：交不交、交什么、上限，外壳的字（`SummaryTexts`）；`memory/port.rs` 在阻塞线程里读，`actor/model.rs` 的 `hooks` 在回合开始问它、限时（第三条） | R-4 上 |
 | `crates/miyu-recall/src/extract.rs`、`redact.rs` | 抽取交回的怎么读（第六条第 5 款）；遮 key 和 key 写法的读法（第六条第 7 款） | R-6 上 |
 | `crates/miyu-session/src/memory/extract.rs` | 抽取：给模型看的字、一个会话的抽取状态（闹钟、在路上的、失败几次）、照这一段拼请求（几轮怎么接、放不下的分几次、截中间）、派出去的那一件活（发、读、遮、记） | R-6 上 |
 | `crates/miyu-session/src/actor/extract.rs` | 什么时候抽、这一段从哪来：闹钟、在阻塞线程里读两份日志、拼留着一切的历史交给组装器渲染（第六条第 1、2 款） | R-6 上 |
@@ -162,7 +162,18 @@
    </memories>
    ```
 
-   一行和 `memory_search` 的一行一个写法（`resources/software/memory/memory_search/memory.txt`），正文里的换行换成空格，日期照会话的时区。交这一间里现在算数的（没作废、没被改掉、没清掉）、出处活着的、听众合的（第九条），新的在前（R-4 上）。排名（半衰期、用到几次、类）随 R-4 下；合并出来的 `ext.memory.summary` 随 R-7 下，有了以后交「摘要加之后新记的」（2026-10-09 项目主人定）。
+   一行和 `memory_search` 的一行一个写法（`resources/software/memory/memory_search/memory.txt`），正文里的换行换成空格，日期照会话的时区。交这一间里现在算数的（没作废、没被改掉、没清掉）、出处活着的、听众合的（第九条），新的在前（R-4 上）。排名（半衰期、用到几次、类）随 R-4 下。
+
+   合并写过、还算数的摘要的（R-7 下，2026-10-09 项目主人定：合并一天一次，当天记的当天也想得起来；只列条目的越记越长、越来越像流水账）：外壳里头一行是摘要（`summary/digest.txt`，`About the user: …`，换进去的字转义成一行），后面只接摘要合到的那一条以后新记的，同上的规矩、新的在前，不算合并自己改出来的（摘要里已经有了，第七条第 1 款的判法）：
+
+   ```text
+   <memories>
+   About the user: 用户养了一只橘猫，叫团子；2026年9月搬到了东京。
+   m14 user 2026-10-10: 用户这周末想去箱根泡温泉
+   </memories>
+   ```
+
+   合计照旧不超过 3000 字节，超了截新记的那几行，最后一行说还有几条；之后什么都没记的只有摘要一行。`refs` 是列出来的那几条，摘要那一行不算一条。摘要不算了的（第七条第 8 款）照上面只列条目。2026-10-10 照开发端点量：同样的事，摘要模式的一块 121 token，只列条目 201。
 3. **上限**：整块不超过 3000 字节（`memory/summary.rs` 的 `LIMIT`）。起点是约 1000 token；中文为主的一块照字节/4 折算会少算，2026-10-08 在开发端点量过 4000 字节 1298 token、3000 字节 964 token，所以取 3000。超了截在一条的边界上，最后一行写还有几条：`…and 12 more; memory_search finds them.`。
 4. **时限**：挂接点限时 300 毫秒（起点，`actor/model.rs` 的 `HOOKS`）。过了当这一轮没交，记一行 `DEBUG turn start hook timed out module=memory`；那次读在阻塞线程里照样读完，交回的丢掉；下一轮 `present` 里还没有，再问。现在只有这一个挂接点；第二个来了再并行问、照模块编号排。
 5. **读字**：外壳和截了的那一句（`resources/software/memory/summary/` 的 `open.txt`、`close.txt`、`more.txt`，登记簿）核心起来时照 `miyu_tool::load` 读好，交给 `Memory`（`SummaryTexts`）。读不出来的（安装坏了）这个核心不交摘要，记一行 `WARN memory summary texts unreadable error=…`；列记忆出错的那一轮不交，记一行 `WARN memory summary not read error=…`。
@@ -207,6 +218,7 @@
 5. **模型**：`memory.organizer`，默认 `models.chat`（2026-10-07 项目主人定；旧版最便宜那一挡把整理做坏了），经一次性入口，用途 `memory`，记在抽取那个会话的属主名下；不设输出上限。
 6. **出错**：发不出去、交回读不成的不动真相，下次抽完再来；同一间连着 3 次不成的记一条 `ext.memory.merged`（`failed: true`，`upto` 是这一次交进去的最后那一条），跳过这一批。成了一次、跳过一次都重新数：这一批从哪起只在这两种时候变；不照这一批合到哪认，新记的一直在加，那样永远到不了三次。失败的次数记在核心里，核心重起来重新数。记忆日志写不进的记一行，下次再来。
 7. **日志**（目标 `miyu::session`，带房间）：开始 `INFO memory merge started room=… given=…`，记下了 `INFO memory merged room=… revised=… retired=… took_ms=…`；没成 `WARN memory merge failed room=… tries=… error=…`，搜相关的出错 `WARN memory merge search failed`，写不进 `WARN memory merge not recorded`。
+8. **摘要什么时候不算数**（R-7 下，忘了就是忘了）：摘要写下以后，人或者她改了、作废了它合进去的一条（编号不大于摘要的 `upto`；合并自己的改、作废记在摘要前面，不算），或者清空了（整间、一个会话的都算），这一份就不算了：常驻的那一块照没有摘要的样子只列条目（第三条第 2 款），下一次合并照没合并过的从头来（现在算数的都当新记的，摘要照还没有；放不下的分几次，每次接着上一次的摘要写）。底账记着（`MemoryBook::summary`、`summary_stale`），不另写事件。之后才记的、作废之后才记的不碍事。
 
 **八、遗忘和排名**（R-4 下起）
 
@@ -243,6 +255,8 @@
 |---|---|
 | `crates/miyu-session/tests/memory_extract.rs`、`memory_extract_more.rs`（R-6 上） | 第六条，真会话、整理记忆的模型是假服务器：两轮以后闲了就抽，一条 user、指令在前、一轮一块、没有 system、照 `memory.organizer`；记下的 `by` 是记忆模块、出处是那一轮、听众是属主，记下抽到了哪；轮数不够的不抽、够了再抽；她调过 `remember` 的整段跳过、不发；人说的 key（配置里引用的、常见写法）发出去以前遮掉；两次抽取之间压缩过，检查点以前的那一轮照样抽到（太长的截了中间）；重开会话照抽到的地方接着、抽过的不重抽；一段放不下的分两次抽完；同一段连着三次不成的放过、往前走，后来的照常抽 |
 | `crates/miyu-session/tests/memory_merge.rs`（R-7 上） | 第七条，真会话、整理记忆的模型是假服务器：够会话的抽完就合，一条 user、指令、还没有摘要、新记的；改的指着旧的、类出处听众照旧、`by` 是记忆模块，作废的带为什么，摘要和合到哪记下；不够会话的不合、够了再合；合过的、会话够了间隔没到的不再合；改的类照旧（`feedback` 的还是 `feedback`）、和原文一样的不记；相关的旧记忆跟着交、作废的和听众不合的不交；放不下 32 KiB 的分两次、头一次取老的、合并自己改出来的不算新记的、合完没有剩下的不再发；连着三次读不成记失败的记号（`failed: true`）、什么都不改。「不再发」的几条多备一个回答：假服务器只收备了回答的那几个请求 |
+| `crates/miyu-session/tests/memory_digest.rs`（R-7 下） | 第三条第 2 款、第七条第 8 款，真会话、真记忆日志：有摘要的头一轮那一块逐字节是摘要一行加之后新记的（新的在前，合并改出来的、合进摘要的不在），`refs` 不算摘要；之后没记的只有摘要一行；截满了不过 3000 字节、说还有几条、新的在前；摘要合进去的一条作废了以后没有摘要、照只列条目、作废的那一条不出来 |
+| `crates/miyu-recall/src/memory/tests/merged.rs` 的 `a_summary_stops_counting_once_what_it_covered_is_changed_or_cleared`（R-7 下） | 第七条第 8 款：作废了、改了合进去的一条，清空了一个会话的、整间的，摘要不算、下次从头来；新的一份又算；之后才记的、作废之后才记的不碍事；合并那一次的改、作废记在摘要前面不碍事 |
 | `crates/miyu-recall/src/merge/tests.rs`、`memory/tests/merged.rs`（R-7 上） | 第七条第 3、4 款：前后多的话不管、没写的列表是空的、空的摘要当没写；不是交进去的编号、空的或超长的正文、空的 `why`、编号写错、写了两次的丢掉，正好 120 字收；又改又作废的照作废；摘要截在句子边界上、一句都放不下照字截、英文句号也算；读不成的整次失败；两种事件读写得回、没失败的不写 `failed`；底账照最后一份摘要、最后一次合并，那以后抽过几个会话（同一个算一个）重新数，摘要、记号不是记忆；一条记得它改的是哪一条 |
 | `crates/miyu-session/src/memory/extract/tests.rs`（R-6 上） | 第六条第 3、4 款：请求的字逐字节对；还没答的那一句不算；轮数不够的等；调过 `remember`、`forget` 的跳过；放不下的分几次、一轮自己就放不下的截了中间也抽；闹钟作废、在路上的只有一个、读不成的放下不算失败、同一段失败三次才放过、换一段重新数 |
 | `crates/miyu-recall/src/extract/tests.rs`、`redact/tests.rs`、`memory/tests.rs` 的一条（R-6 上） | 第六条第 5、7 款：前后多的话和代码块不管、零条、不合的丢掉别的照收、正好 120 字收、读不成的整次失败；密钥的原文和常见写法遮掉，太短的原文、不够长的尾巴、不是前缀开头的不遮，写法写错说是哪一格；`ext.memory.extracted` 读写对得上、跳过的原因写成小写、底账照最大的 `upto` 记 |

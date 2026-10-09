@@ -4,7 +4,8 @@
 //! - 交不交：内核交来的 `present` 里没有这个模块、这一类的一块才交（第一轮、压缩以后、撤掉带着它的那一轮以后）；人格记忆这时
 //!   没装的不交（施工 R-10）。
 //! - 交什么：这一间里现在算数的、出处活着的、听众合的，新的在前，一条一行，和 `memory_search` 的一行一个写法；`refs` 是这几条
-//!   的编号。排名（半衰期、用到几次）随 R-4 下；合并出来的摘要随 R-7。
+//!   的编号。合并写过、还算数的摘要的（施工 R-7 下，第七条第 8 款），头一行是摘要，后面只接上次合并以后新记的（不算合并自己
+//!   改出来的）。排名（半衰期、用到几次）随 R-4 下。
 //! - 上限：外壳加几行不超过 [`LIMIT`] 字节，截在一条的边界上，最后一行说还有几条。
 
 use std::path::Path;
@@ -17,6 +18,7 @@ use miyu_kernel::template::Template;
 use miyu_kernel::time::UtcOffset;
 use miyu_tool::load::{self, LoadError};
 
+use super::merge::made_by_merge;
 use super::{Filter, Keeper};
 
 /// 记忆这个软件包在资源目录里的名字（和 `miyu-memory` 的同一个；会话这一层不依赖软件包）。
@@ -29,18 +31,20 @@ const NAME: &str = "memory";
 /// 开发端点量过：4000 字节 1298 token，3000 字节 964 token，所以取 3000。
 pub const LIMIT: usize = 3000;
 
-/// 摘要那一块给模型看的字：外壳、一行（和 `memory_search` 的同一份）、截了的那一句（`resources/software/memory/`，登记簿）。
+/// 摘要那一块给模型看的字：外壳、一行（和 `memory_search` 的同一份）、截了的那一句、合并写的摘要那一行（施工 R-7 下）
+/// （`resources/software/memory/`，登记簿）。
 #[derive(Debug, Clone)]
 pub struct SummaryTexts {
     open: Template,
     line: Template,
     more: Template,
     close: Template,
+    digest: Template,
 }
 
 impl SummaryTexts {
-    /// 从资源目录 `resources` 读：`summary/open.txt`、`summary/close.txt`、`summary/more.txt`（`{count}`），一行照
-    /// `memory_search/memory.txt`（`{id}`、`{class}`、`{date}`、`{text}`）。
+    /// 从资源目录 `resources` 读：`summary/open.txt`、`summary/close.txt`、`summary/more.txt`（`{count}`）、`summary/digest.txt`
+    /// （`{text}`），一行照 `memory_search/memory.txt`（`{id}`、`{class}`、`{date}`、`{text}`）。
     ///
     /// # Errors
     ///
@@ -57,6 +61,7 @@ impl SummaryTexts {
             )?,
             more: load::text(resources, PACKAGE, "summary", "more", &["count"])?,
             close: load::text(resources, PACKAGE, "summary", "close", &[])?,
+            digest: load::text(resources, PACKAGE, "summary", "digest", &["text"])?,
         })
     }
 }
@@ -80,24 +85,45 @@ impl Keeper {
             forgotten: false,
             limit: usize::MAX,
         };
-        let entries = match self.list(&filter) {
-            Ok(entries) => entries,
+        let read = self.list(&filter).and_then(|entries| {
+            let digest = self
+                .log()
+                .map_err(|refused| format!("{refused:?}"))?
+                .book(|book| book.summary().map(|(text, upto)| (text.to_string(), upto)));
+            Ok((entries, digest))
+        });
+        let (mut entries, digest) = match read {
+            Ok(read) => read,
             Err(error) => {
                 tracing::warn!(target: crate::TARGET, error = error.as_str(), "memory summary not read");
                 return None;
             }
         };
-        if entries.is_empty() {
+        // 有摘要的只接它以后新记的：合进去的、合并自己改出来的都在摘要里了。
+        if let Some((_, upto)) = &digest {
+            entries.retain(|entry| entry.id.seq() > *upto && !made_by_merge(entry));
+        }
+        if entries.is_empty() && digest.is_none() {
             return None;
         }
         let say = |template: &Template, fields: &[(&str, &str)]| {
             load::say(template, fields).trim_end().to_string()
         };
         let (open, close) = (say(&texts.open, &[]), say(&texts.close, &[]));
+        let head = digest
+            .as_ref()
+            .map(|(text, _)| say(&texts.digest, &[("text", text)]));
         // 截了的那一句照最长的数留出地方：一条都放不下也说得出还有几条。
         let more = say(&texts.more, &[("count", &entries.len().to_string())]);
-        let room = LIMIT.saturating_sub(open.len() + close.len() + more.len() + 3);
-        let mut lines = Vec::new();
+        let room = LIMIT.saturating_sub(
+            open.len()
+                + close.len()
+                + more.len()
+                + 3
+                + head.as_ref().map_or(0, |head| head.len() + 1),
+        );
+        let mut lines: Vec<String> = head.into_iter().collect();
+        let header = lines.len();
         let mut used = 0;
         let mut refs = Vec::new();
         for entry in &entries {
@@ -119,7 +145,7 @@ impl Keeper {
             lines.push(row);
             refs.push(id);
         }
-        let left = entries.len() - lines.len();
+        let left = entries.len() - (lines.len() - header);
         if left > 0 {
             lines.push(say(&texts.more, &[("count", &left.to_string())]));
         }

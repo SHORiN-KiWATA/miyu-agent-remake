@@ -145,7 +145,7 @@ pub struct Extracted {
 }
 
 /// `ext.memory.summary` 的 `body`：合并写的一段摘要（施工 R-7 上，`memory.md` 第七条第 4 款）。不是一条记忆，不进记忆库；
-/// 底账照最后一份。
+/// 底账照最后一份。写下以后改了、作废了它合进去的一条，或者清空了，它就不算了（施工 R-7 下）。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Summary {
     /// 正文。
@@ -286,8 +286,10 @@ pub struct MemoryBook {
     done: BTreeMap<CommandId, (MemoryId, usize)>,
     /// 每个会话抽到了哪（施工 R-6 上）：最大的那个 `upto`。
     extracted: BTreeMap<SessionId, Seq>,
-    /// 最后一份摘要（施工 R-7 上）。
-    summary: Option<String>,
+    /// 算数的那一份摘要和它合到第几条（施工 R-7 上、下）：不算了的没有。
+    summary: Option<(String, Seq)>,
+    /// 摘要不算了、还没写新的一份（施工 R-7 下）：下一次合并从头来。
+    stale: bool,
     /// 最后一次合并：那一条的时刻、合到第几条（施工 R-7 上）。
     merged: Option<(Timestamp, Seq)>,
     /// 最后一次合并以后抽过的会话（施工 R-7 上）：够数了才再合。
@@ -316,9 +318,28 @@ impl MemoryBook {
         self.extracted.get(session).copied()
     }
 
-    /// 最后一份摘要（施工 R-7 上）；还没合并过的没有。
-    pub fn summary(&self) -> Option<&str> {
-        self.summary.as_deref()
+    /// 算数的那一份摘要和它合到记忆日志的第几条（施工 R-7 上、下，`memory.md` 第七条第 8 款）：还没合并过的、不算了的没有。
+    pub fn summary(&self) -> Option<(&str, Seq)> {
+        self.summary
+            .as_ref()
+            .map(|(text, upto)| (text.as_str(), *upto))
+    }
+
+    /// 摘要写下以后改了、作废了它合进去的一条，或者清空了，还没写新的一份（施工 R-7 下）：下一次合并照没合并过的从头来。
+    pub fn summary_stale(&self) -> bool {
+        self.stale
+    }
+
+    /// 编号 `id` 的那一条合进了现在的摘要：它变了，摘要就不算了。
+    fn touch(&mut self, id: MemoryId) {
+        if self
+            .summary
+            .as_ref()
+            .is_some_and(|(_, upto)| id.seq() <= *upto)
+        {
+            self.summary = None;
+            self.stale = true;
+        }
     }
 
     /// 最后一次合并：那一条的时刻、合到记忆日志的第几条（施工 R-7 上）；还没合并过的没有。
@@ -343,6 +364,9 @@ impl MemoryBook {
             Some(Err(why)) => Err(why),
             Some(Ok(MemoryEvent::Saved(saved))) => {
                 let id = MemoryId::new(event.seq);
+                if let Some(old) = saved.replaces {
+                    self.touch(old);
+                }
                 if let Some(old) = saved.replaces.and_then(|old| self.entries.get_mut(&old)) {
                     old.replaced_by = Some(id);
                 }
@@ -366,12 +390,16 @@ impl MemoryBook {
                 Ok(Some(0))
             }
             Some(Ok(MemoryEvent::Retired(retired))) => {
+                self.touch(retired.id);
                 if let Some(entry) = self.entries.get_mut(&retired.id) {
                     entry.retired = Some(retired.why);
                 }
                 Ok(Some(0))
             }
             Some(Ok(MemoryEvent::Cleared(cleared))) => {
+                if self.summary.take().is_some() {
+                    self.stale = true;
+                }
                 // 交回的条数不算改掉的旧版本：它们本来就看不见，人数的是看得见的那些（作废的带 `forgotten` 看得见）。
                 let mut shown = 0;
                 for id in self.clears(&cleared) {
@@ -393,7 +421,8 @@ impl MemoryBook {
                 Ok(Some(0))
             }
             Some(Ok(MemoryEvent::Summary(summary))) => {
-                self.summary = Some(summary.text);
+                self.summary = Some((summary.text, summary.upto));
+                self.stale = false;
                 Ok(Some(0))
             }
             Some(Ok(MemoryEvent::Merged(merged))) => {

@@ -94,6 +94,12 @@ impl MergeTexts {
     }
 }
 
+/// 是合并自己改出来的（`by` 是记忆模块、写了 `replaces`）：合并不当它是新记的，常驻的那一块有摘要时不列它（施工 R-7 下）。
+pub(super) fn made_by_merge(entry: &Entry) -> bool {
+    entry.replaces.is_some()
+        && matches!(&entry.by, miyu_kernel::origin::By::Module(module) if module.id.as_str() == super::MODULE)
+}
+
 /// 核心一份的合并状态：哪几间在合、每一间同一批失败了几次。
 #[derive(Debug, Default)]
 pub(crate) struct Merges {

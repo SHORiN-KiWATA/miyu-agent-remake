@@ -148,7 +148,10 @@ async fn enough_sessions_merge_after_extraction_and_land_as_events() {
     assert_eq!(old.replaced_by, Some(new.id));
     assert_eq!(entry(&home, id(2)).retired.as_deref(), Some("重复 m1"));
     assert_eq!(
-        book(&home, |book| book.summary().map(str::to_string)).as_deref(),
+        book(&home, |book| book
+            .summary()
+            .map(|(text, _)| text.to_string()))
+        .as_deref(),
         Some("用户养了一只猫。")
     );
     assert_eq!(
@@ -330,7 +333,12 @@ async fn three_failures_in_a_row_skip_the_batch() {
     chat(&home, &handle, 3, "三岁").await;
     requested(&server, 6).await;
     until_merged(&home).await;
-    assert_eq!(book(&home, |book| book.summary().map(str::to_string)), None);
+    assert_eq!(
+        book(&home, |book| book
+            .summary()
+            .map(|(text, _)| text.to_string())),
+        None
+    );
     let dir = home
         .root
         .account_dir(&alice_account())
@@ -417,4 +425,69 @@ async fn enough_sessions_still_wait_for_the_interval_and_revisions_keep_the_clas
     for handle in [&first, &second] {
         stop(handle).await;
     }
+}
+
+#[tokio::test]
+async fn a_stale_summary_makes_the_next_merge_start_over() {
+    let server = Server::start(vec![
+        every_turn("用户周末写 Rust"),
+        merged(serde_json::json!({"summary": "用户养猫，周末写 Rust。"})),
+    ])
+    .await;
+    let mut home = Home::new();
+    organizer(&mut home, &server, "merge_sessions = 1\n");
+    save(&home, "用户养了一只猫");
+    save(&home, "用户住在大阪");
+    // 很久以前合过一次、写了摘要，合到 m2；后来人作废了 m2：摘要不算了。
+    let (log, _) = home.logs.open(&persona()).expect("开得了");
+    let long_ago = Timestamp::parse("2026-01-01T00:00:00.000Z").expect("合写法");
+    let upto = Seq::new(2).expect("从 1 起");
+    for event in [
+        MemoryEvent::Summary(miyu_recall::Summary {
+            text: "用户养猫，住在大阪。".into(),
+            upto,
+        }),
+        MemoryEvent::Merged(Merged {
+            upto,
+            given: 2,
+            revised: 0,
+            retired: 0,
+            failed: false,
+        }),
+        MemoryEvent::Retired(Retired {
+            id: id(2),
+            why: "搬走了".into(),
+        }),
+    ] {
+        log.append(long_ago, alice(), None, &event).expect("记得下");
+    }
+    assert!(book(&home, |book| book.summary_stale()));
+    let handle = session(&home, 2).await;
+    chat(&home, &handle, 1, "我周末写 Rust").await;
+    chat(&home, &handle, 2, "写编译器").await;
+    requested(&server, 2).await;
+    let text = asked(&server, 1);
+    assert!(
+        text.contains("Current summary: none yet."),
+        "从头来：{text}"
+    );
+    assert!(
+        fresh_part(&text).contains("用户养了一只猫"),
+        "合过的、还算数的也当新记的：{text}"
+    );
+    assert!(!text.contains("用户住在大阪"), "作废的不交：{text}");
+    until_merged_after(&home, upto).await;
+    assert!(!book(&home, |book| book.summary_stale()), "写了新的一份");
+    stop(&handle).await;
+}
+
+/// 等合并合到 `after` 后面（最多 10 秒）。
+async fn until_merged_after(home: &Home, after: Seq) {
+    for _ in 0..200 {
+        if book(home, |book| book.merged()).is_some_and(|(_, upto)| upto > after) {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    panic!("十秒没合完");
 }

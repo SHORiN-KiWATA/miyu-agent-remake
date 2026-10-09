@@ -22,7 +22,8 @@ fn by() -> By {
 
 impl Keeper {
     /// 这一间够不够合、合什么（`memory.md` 第七条第 1 款）：`check` 是间隔和会话数，没有的不看（接着合剩下的那几次）。
-    /// 没有新记的、不够的交回没有。新记的是上次合到的那一条以后、现在算数、听众合、出处活着的，不算合并自己改出来的。
+    /// 没有新记的、不够的交回没有。新记的是上次合到的那一条以后、现在算数、听众合、出处活着的，不算合并自己改出来的；摘要
+    /// 不算了的（第 8 款，施工 R-7 下）照没合并过的从头来：现在算数的都是新记的，摘要照还没有。
     ///
     /// # Errors
     ///
@@ -33,10 +34,11 @@ impl Keeper {
         check: Option<(Duration, usize)>,
     ) -> Result<Option<Batch>, Refused> {
         let log = self.log()?;
-        let (summary, merged, sessions, all) = log.book(|book| {
+        let (summary, merged, stale, sessions, all) = log.book(|book| {
             (
-                book.summary().map(str::to_string),
+                book.summary().map(|(text, _)| text.to_string()),
                 book.merged(),
+                book.summary_stale(),
                 book.sessions_since_merge(),
                 book.all().cloned().collect::<Vec<Entry>>(),
             )
@@ -50,11 +52,11 @@ impl Keeper {
                 return Ok(None);
             }
         }
-        let after = merged.map(|(_, upto)| upto);
+        let after = merged.filter(|_| !stale).map(|(_, upto)| upto);
         let fresh: Vec<Entry> = all
             .into_iter()
             .filter(|entry| after.is_none_or(|after| entry.id.seq() > after))
-            .filter(|entry| !(entry.replaces.is_some() && entry.by == by()))
+            .filter(|entry| !super::made_by_merge(entry))
             .filter(|entry| self.shown(entry, false))
             .collect();
         Ok((!fresh.is_empty()).then_some(Batch { summary, fresh }))
