@@ -1,6 +1,7 @@
 //! 从日志投影一个群（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 1、2 条）：发的人、是不是主人；开过的回合去掉主人、
 //! 自己人开的；主线这一轮回的人并进 `turn.joined` 的；她的回复一轮一笔、回的人取并集；她发过的编号；限流的提示；补来的她的
-//! 话不交出来；重的、更早的不收。判过要回的（O-23 下）：判断的结论是回的那几条，到收了它们的那一轮完了为止。
+//! 话不交出来；重的、更早的不收。判过要回的（O-23 下）：判断的结论是回的那几条，到收了它们的那一轮完了为止。交给出站链的
+//! （O-25 上）在 `outbound_tests.rs`，夹具在这里。
 
 use miyu_chat::{Conditions, Hit, Kind, Pending, Reply, Status};
 use miyu_kernel::event::Event;
@@ -14,17 +15,24 @@ use super::{DECIDED, Projection, Speaking};
 const LINE: &str = "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91";
 
 /// 第 `seconds` 秒的时刻。
-fn at(seconds: i64) -> Timestamp {
+pub(super) fn at(seconds: i64) -> Timestamp {
     Timestamp::from_unix_millis(1_760_000_000_000 + seconds * 1000).expect("在范围里")
 }
 
 /// 平台上的人 `qq:<号>`。
-fn qq(user: i64) -> ExternalId {
+pub(super) fn qq(user: i64) -> ExternalId {
     ExternalId::parse(&format!("qq:{user}")).expect("合写法")
 }
 
 /// 照日志的写法读一条事件：序号 `seq`、第 `seconds` 秒、种类 `kind`，回合编号、`by`、`body` 照给的。
-fn event(seq: u64, seconds: i64, kind: &str, turn: Option<u64>, by: Value, body: Value) -> Event {
+pub(super) fn event(
+    seq: u64,
+    seconds: i64,
+    kind: &str,
+    turn: Option<u64>,
+    by: Value,
+    body: Value,
+) -> Event {
     let mut line = json!({"seq": seq, "at": at(seconds), "kind": kind, "by": by, "body": body});
     if let Some(turn) = turn {
         line["turn"] = json!(turn);
@@ -43,7 +51,7 @@ fn user(seq: u64, user: i64, owner: bool) -> Event {
 }
 
 /// 号是 `user` 的人第 `seconds` 秒在群里说的一句。
-fn said_at(seq: u64, seconds: i64, user: i64) -> Event {
+pub(super) fn said_at(seq: u64, seconds: i64, user: i64) -> Event {
     let by = json!({"kind": "external", "venue": "qq:group:5", "id": format!("qq:{user}")});
     let body = json!({"blocks": [{"type": "text", "text": "嗨"}], "venue": {"msg": seq.to_string(), "ambient": true}});
     event(seq, seconds, "message.user", None, by, body)
@@ -80,7 +88,7 @@ fn pendings(projection: &Projection) -> Vec<Pending> {
 }
 
 /// 第 `seconds` 秒开的一轮，由那几条触发；没有的是回报这类。
-fn started(seq: u64, seconds: i64, triggers: &[u64]) -> Event {
+pub(super) fn started(seq: u64, seconds: i64, triggers: &[u64]) -> Event {
     let mut body = json!({});
     if let Some(last) = triggers.last() {
         body = json!({"trigger": last, "triggers": triggers});
@@ -96,7 +104,7 @@ fn started(seq: u64, seconds: i64, triggers: &[u64]) -> Event {
 }
 
 /// 并进第 `turn` 轮的那几条。
-fn joined(seq: u64, turn: u64, triggers: &[u64]) -> Event {
+pub(super) fn joined(seq: u64, turn: u64, triggers: &[u64]) -> Event {
     let body = json!({"triggers": triggers});
     event(
         seq,
@@ -109,7 +117,7 @@ fn joined(seq: u64, turn: u64, triggers: &[u64]) -> Event {
 }
 
 /// 第 `turn` 轮完了。
-fn ended(seq: u64, turn: u64) -> Event {
+pub(super) fn ended(seq: u64, turn: u64) -> Event {
     let body = json!({"reason": "completed"});
     event(
         seq,
@@ -122,7 +130,7 @@ fn ended(seq: u64, turn: u64) -> Event {
 }
 
 /// 她在第 `turn` 轮说的一段。
-fn assistant(seq: u64, turn: u64) -> Event {
+pub(super) fn assistant(seq: u64, turn: u64) -> Event {
     let by = json!({"kind": "model", "endpoint": "deepseek", "model": "deepseek-v4"});
     let body = json!({"blocks": [{"type": "text", "text": "在。"}], "seen": 1});
     event(seq, 0, "message.assistant", Some(turn), by, body)
@@ -143,10 +151,18 @@ fn ext(seq: u64, seconds: i64, kind: &str, body: Value) -> Event {
 }
 
 /// 照先后收一串事件，交回她新说的话。
-fn take_all(projection: &mut Projection, events: Vec<Event>) -> Vec<Speaking> {
+pub(super) fn take_all(projection: &mut Projection, events: Vec<Event>) -> Vec<Speaking> {
     events
         .iter()
         .filter_map(|event| projection.take(event))
+        .collect()
+}
+
+/// 她新说的话的回合编号和这一轮回的人。
+fn turns_to(spoken: &[Speaking]) -> Vec<(u64, Vec<ExternalId>)> {
+    spoken
+        .iter()
+        .map(|speaking| (speaking.turn, speaking.to.clone()))
         .collect()
 }
 
@@ -212,17 +228,8 @@ fn the_running_turn_answers_its_triggers_and_whoever_joined() {
         ],
     );
     assert_eq!(
-        spoken,
-        [
-            Speaking {
-                turn: 3,
-                to: vec![qq(10001), qq(20002)],
-            },
-            Speaking {
-                turn: 3,
-                to: Vec::new(),
-            },
-        ],
+        turns_to(&spoken),
+        [(3, vec![qq(10001), qq(20002)]), (3, Vec::new()),],
         "并进来的不重；别的回合的不算；完了以后的回的人是空的"
     );
 }
@@ -262,17 +269,8 @@ fn a_turn_opened_for_what_joined_answers_whoever_joined() {
         ],
     );
     assert_eq!(
-        spoken,
-        [
-            Speaking {
-                turn: 6,
-                to: vec![qq(20002)],
-            },
-            Speaking {
-                turn: 8,
-                to: Vec::new(),
-            },
-        ],
+        turns_to(&spoken),
+        [(6, vec![qq(20002)]), (8, Vec::new()),],
         "照那条 turn.joined 找回触发的人；指向别的（回报这类）的照旧是空的"
     );
     assert_eq!(
@@ -364,11 +362,8 @@ fn history_is_not_spoken_and_old_or_repeated_events_are_skipped() {
         ],
     );
     assert_eq!(
-        spoken,
-        [Speaking {
-            turn: 2,
-            to: vec![qq(20002)],
-        }],
+        turns_to(&spoken),
+        [(2, vec![qq(20002)])],
         "不大于 upto 的是从前的（正好是 upto 的也是）；重的、比收过的早的不收"
     );
     assert!(!projection.owner(1), "重的不收");

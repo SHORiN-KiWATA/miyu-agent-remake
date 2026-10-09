@@ -1,7 +1,7 @@
 //! 群里的假 NapCat（施工 O-22，`onebot.md` 第一条「群消息」「撤回」）：照 NapCat 的样子拼群消息、撤回的事件；连上的假 NapCat
 //! 交给一个任务应答桥调的动作：`get_version_info` 照 NapCat 回，`get_group_member_info` 照给的群成员回（不在里面的回失败），
-//! 别的（`send_group_msg`、`send_private_msg`）回成了、交出来给测试看，回的 `message_id` 照收到的先后从 [`FIRST_SENT`] 起
-//! 一条加一（施工 O-23：她发过的编号要认得出「引用她」）。真的 NapCat 并着办动作，回的先后不一定照发的先后：
+//! 别的（`send_group_msg`、`send_private_msg`、`delete_msg`）回成了、交出来给测试看，发消息的回的 `message_id` 照收到的先后
+//! 从 [`FIRST_SENT`] 起一条加一（施工 O-23：她发过的编号要认得出「引用她」；撤回不占编号，施工 O-25 上）。真的 NapCat 并着办动作，回的先后不一定照发的先后：
 //! [`NapCat::reversing`] 把头几条发消息的回应倒着回。
 //!
 //! 群的测试共用的（施工 O-23 从 `group.rs` 挪过来）：真核心照开关拉起真桥、系统的场所规则写好、假 NapCat 连上（[`started`]），
@@ -104,8 +104,10 @@ pub type Member = (i64, &'static str, &'static str);
 pub struct Answering {
     /// 要发给桥的帧。
     frames: mpsc::UnboundedSender<Value>,
-    /// 桥调的、不是问版本和问群成员的动作。
+    /// 桥调的、不是问版本、问群成员、撤回的动作。
     actions: mpsc::UnboundedReceiver<Value>,
+    /// 桥调的撤回（`delete_msg`，施工 O-25 上）：另放一处，群里的命令回执几秒后才撤，不插进别的测试等的动作里。
+    recalls: mpsc::UnboundedReceiver<Value>,
     /// 桥问过哪些群成员（号），照先后。
     asked: Arc<Mutex<Vec<i64>>>,
     task: JoinHandle<()>,
@@ -123,6 +125,7 @@ impl NapCat {
         let members = members.to_vec();
         let (frames, mut outgoing) = mpsc::unbounded_channel::<Value>();
         let (seen, actions) = mpsc::unbounded_channel();
+        let (recalled, recalls) = mpsc::unbounded_channel();
         let asked = Arc::new(Mutex::new(Vec::new()));
         let noted = Arc::clone(&asked);
         let (mut sink, mut stream) = self.ws.split();
@@ -148,9 +151,19 @@ impl NapCat {
                         };
                         let action: Value = serde_json::from_str(&text).expect("是 JSON");
                         let answer = answer(&action, &members, &noted, &mut sent);
-                        let sending = action["action"] != "get_version_info"
-                            && action["action"] != "get_group_member_info";
-                        if sending && seen.send(action).is_err() {
+                        let kind = action["action"].as_str().unwrap_or_default();
+                        let recall = kind == "delete_msg";
+                        let sending = !recall
+                            && kind != "get_version_info"
+                            && kind != "get_group_member_info";
+                        let shown = if recall {
+                            recalled.send(action)
+                        } else if sending {
+                            seen.send(action)
+                        } else {
+                            Ok(())
+                        };
+                        if shown.is_err() {
                             return;
                         }
                         let mut answers = vec![answer];
@@ -175,6 +188,7 @@ impl NapCat {
         Answering {
             frames,
             actions,
+            recalls,
             asked,
             task,
         }
@@ -188,6 +202,8 @@ fn answer(action: &Value, members: &[Member], asked: &Mutex<Vec<i64>>, sent: &mu
             "ok",
             json!({"app_name": "NapCat.Onebot", "app_version": "4.8.0", "protocol_version": "v11"}),
         ),
+        // 撤回（施工 O-25 上）：回成了，不占发出去的编号。
+        Some("delete_msg") => ("ok", Value::Null),
         Some("get_group_member_info") => {
             let user = action["params"]["user_id"].as_i64().expect("问的是号");
             asked.lock().expect("没 panic").push(user);
@@ -233,6 +249,30 @@ impl Answering {
             .to_string()
     }
 
+    /// 下一个动作是发进群 `group` 的 `send_group_msg`：交回段的数组（施工 O-25 上：看第一段带没带引用、@）。
+    pub async fn group_message(&mut self, group: i64) -> Vec<Value> {
+        let action = self.action().await;
+        assert_eq!(action["action"], "send_group_msg", "{action}");
+        assert_eq!(action["params"]["group_id"], group, "{action}");
+        action["params"]["message"]
+            .as_array()
+            .expect("段的数组")
+            .clone()
+    }
+
+    /// 下一个撤回（`delete_msg`）的参数，最多等十秒。
+    pub async fn recalled(&mut self) -> Value {
+        let action = within("桥撤回", self.recalls.recv())
+            .await
+            .expect("任务还在");
+        action["params"].clone()
+    }
+
+    /// 还没取的撤回：没有的是空的。
+    pub fn pending_recall(&mut self) -> Option<Value> {
+        self.recalls.try_recv().ok()
+    }
+
     /// 还没取的动作：没有的是空的。
     pub fn pending(&mut self) -> Option<Value> {
         self.actions.try_recv().ok()
@@ -260,6 +300,18 @@ pub async fn started(
     members: &[Member],
 ) -> (Home, Answering, (u16, u16)) {
     started_with(script, rules, onebot, |napcat| napcat.answering(members)).await
+}
+
+/// 同 [`started`]，请求模型照 `models`（施工 O-25 上：她照台词说，[`super::speaking::Lines`]）。
+pub async fn started_by(
+    models: Arc<dyn Models>,
+    rules: &str,
+    members: &[Member],
+) -> (Home, Answering, (u16, u16)) {
+    up(models, "", (rules, ""), "", |napcat| {
+        napcat.answering(members)
+    })
+    .await
 }
 
 /// 同 [`started`]，假 NapCat 连上以后交给 `answer` 去应答（[`NapCat::reversing`] 这类）。

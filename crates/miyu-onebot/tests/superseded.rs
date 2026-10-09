@@ -228,7 +228,14 @@ async fn the_turn_opened_for_a_follow_up_answers_that_person() {
     let joined = of_kind(&events, "turn.joined")[0]["seq"].clone();
     release.send(()).expect("还在等");
     assert_eq!(napcat.group_reply(GROUP).await, "在。");
-    assert_eq!(napcat.group_reply(GROUP).await, "补上。");
+    // 她连着说：前一句先记下了的，这一句引用小林补的那一条（O-25 上，「施工时定的」第 111、112 条），剧本说得快，记没记下
+    // 不一定。这里看的是回给谁，不看带没带引用。
+    let followed = napcat.group_message(GROUP).await;
+    assert_eq!(
+        followed.last(),
+        Some(&json!({"type": "text", "data": {"text": "补上。"}})),
+        "{followed:?}"
+    );
     let events = until_events(&home.root, &venue(), |events| {
         of_kind(events, "venue.delivered").len() == 2 && of_kind(events, "turn.ended").len() == 2
     })
