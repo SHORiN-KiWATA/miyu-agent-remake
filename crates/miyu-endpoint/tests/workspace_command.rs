@@ -190,7 +190,7 @@ async fn without_a_path_it_only_says_where() {
 }
 
 #[tokio::test]
-async fn wrong_places_are_refused_and_too_wide_falls_back() {
+async fn wrong_places_are_refused_and_too_wide_is_kept() {
     let home = Home::new();
     let mut client = Client::connect(home.core(&Script::new([])));
     client.hello().await;
@@ -219,19 +219,35 @@ async fn wrong_places_are_refused_and_too_wide_falls_back() {
     assert!(noted(&log).is_empty(), "拒绝的什么都不记");
     assert!(moves(&log).is_empty());
 
+    // 这个核心读不出家目录：人明着要 `~` 照不了，说读不了，不悄悄退回（施工 9-7 补）。
     let reply = run(
         &mut client,
         "w",
         json!({"session": session, "text": "/workspace ~"}),
     )
     .await;
-    let own = home.root.workspace(&alice()).to_string_lossy().into_owned();
+    assert_eq!(reason(&reply), Some("path_unreadable"), "{reply}");
+
+    // 读得出家目录的：`~` 太宽，照人选的用，回执说一声范围大（施工 9-7 补，原来退回账号的工作区）。
+    let home = Home::new();
+    let own_home = home.work.join("home");
+    std::fs::create_dir_all(&own_home).expect("建得了");
+    let mut client = Client::connect(home.core_at_home(&Script::new([]), own_home));
+    client.hello().await;
+    let start = dir(&home, "start");
+    let session = client.create("c1", &start).await;
+    let reply = run(
+        &mut client,
+        "w",
+        json!({"session": session, "text": "/workspace ~"}),
+    )
+    .await;
     assert_eq!(
         reply["result"]["said"],
-        json!(format!("~ 太宽，工作区换到了 {own}。")),
+        json!("工作区换到了 ~（范围很大）。"),
         "{reply}"
     );
-    assert_eq!(moves(&home.log(&session)).last(), Some(&own));
+    assert_eq!(moves(&home.log(&session)).last(), Some(&"~".to_string()));
 }
 
 #[tokio::test]

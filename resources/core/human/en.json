@@ -285,7 +285,6 @@
     "commands/cleared": "Context cleared.",
     "commands/stopped": "Everything stopped.",
     "commands/workspace": "The workspace is now {cwd}.",
-    "commands/workspace-too-wide": "{asked} is too broad, so the workspace is now {cwd}.",
     "commands/workspace-is": "The workspace is {cwd}.",
     "commands/remembered": "Remembered as {id}.",
     "commands/summary/clear": "Clear context",
@@ -501,6 +500,7 @@
     "view/error/status/404": "Not found: check the endpoint address and the model name",
     "view/error/status/429": "Rate limited or out of credit, try again later",
     "commands/unavailable/no-persona": "Memory does not work in a session without a persona.",
-    "commands/unavailable/preset-off": "This session's preset \"{preset}\" has memory off."
+    "commands/unavailable/preset-off": "This session's preset \"{preset}\" has memory off.",
+    "commands/workspace-wide": "The workspace is now {cwd} (a broad directory)."
   }
 }

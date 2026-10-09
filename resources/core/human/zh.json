@@ -285,7 +285,6 @@
     "commands/cleared": "已清空上下文。",
     "commands/stopped": "已全部停下。",
     "commands/workspace": "工作区换到了 {cwd}。",
-    "commands/workspace-too-wide": "{asked} 太宽，工作区换到了 {cwd}。",
     "commands/workspace-is": "现在的工作区是 {cwd}。",
     "commands/remembered": "记下了：{id}。",
     "commands/summary/clear": "清空上下文",
@@ -489,6 +488,7 @@
     "view/error/status/404": "找不到，检查端点地址和模型名",
     "view/error/status/429": "被限速了，或者额度不够，过一会儿再试",
     "commands/unavailable/no-persona": "没有人格的会话记忆不生效。",
-    "commands/unavailable/preset-off": "这个会话的预设「{preset}」没开记忆。"
+    "commands/unavailable/preset-off": "这个会话的预设「{preset}」没开记忆。",
+    "commands/workspace-wide": "工作区换到了 {cwd}（范围很大）。"
   }
 }

@@ -98,6 +98,7 @@ pub(crate) async fn call(
                 memory,
                 preset: params.preset,
                 group: false,
+                chosen: params.chosen,
             };
             let created = core
                 .sessions
@@ -114,6 +115,9 @@ pub(crate) async fn call(
                 json!({"session": created.id.as_str(), "events": [1], "cwd": created.cwd});
             if let Some(file) = created.untrusted {
                 reply["untrusted_project"] = json!(file);
+            }
+            if created.wide {
+                reply["wide"] = json!(true);
             }
             Ok(reply)
         }

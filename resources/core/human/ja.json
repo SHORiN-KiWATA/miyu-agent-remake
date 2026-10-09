@@ -285,7 +285,6 @@
     "commands/cleared": "コンテキストを消去しました。",
     "commands/stopped": "すべて止めました。",
     "commands/workspace": "作業ディレクトリを {cwd} に変えました。",
-    "commands/workspace-too-wide": "{asked} は広すぎるので、作業ディレクトリを {cwd} にしました。",
     "commands/workspace-is": "作業ディレクトリは {cwd} です。",
     "commands/remembered": "覚えました：{id}。",
     "commands/summary/clear": "コンテキストを消去",
@@ -489,6 +488,7 @@
     "view/error/status/404": "見つかりません。エンドポイントのアドレスとモデル名を確認してください",
     "view/error/status/429": "レート制限か利用枠不足です。しばらくして再試行してください",
     "commands/unavailable/no-persona": "人格のないセッションでは記憶は使えません。",
-    "commands/unavailable/preset-off": "このセッションのプリセット「{preset}」は記憶がオフです。"
+    "commands/unavailable/preset-off": "このセッションのプリセット「{preset}」は記憶がオフです。",
+    "commands/workspace-wide": "ワークスペースを {cwd} に変更しました（範囲の広いディレクトリです）。"
   }
 }

@@ -35,8 +35,12 @@ impl Open {
         // 照日志里最后一次记下的工作目录，都没有才退回 `~`（施工 4-9 再补三上）；加进来的目录照最后一次记下的（施工 5-10
         // 上）。施工 9-7 上起换工作区的事件也算。
         let (last_cwd, dirs) = remembered(core, &owner, id).await;
-        let cwd = last_cwd.unwrap_or_else(|| NO_CWD.to_string());
-        let workspace = workspace(core, &owner, &cwd);
+        // 记下的是当时挑好的：太宽的是人选的、照用（施工 9-7 补：原来载入时再判一次，重启以后人选的 `~` 被换掉），落在
+        // 数据根里的照旧退回；什么都没记下的照头自己带上的判。
+        let workspace = match last_cwd {
+            Some(cwd) => super::pick(core, &owner, &cwd, true).cwd,
+            None => workspace(core, &owner, NO_CWD),
+        };
         let loaded = load(Load {
             root: &core.root,
             personas: crate::personas::personas(core),
