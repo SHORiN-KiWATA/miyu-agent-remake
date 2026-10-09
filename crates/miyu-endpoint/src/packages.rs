@@ -181,7 +181,8 @@ pub(crate) fn mismatch(manifest: &Manifest) -> Option<String> {
 pub fn settle(found: &mut [Found], core_items: &[Item]) -> Vec<Item> {
     let modules: BTreeSet<&str> = core_items
         .iter()
-        .filter(|item| item.ui.page != settings::PAGE)
+        // 「接入」那一页的也是包的（施工 F-4）：`miyu check` 照起来以后的清单认，里面已经有包的项。
+        .filter(|item| ![settings::PAGE, settings::CONNECTIONS].contains(&item.ui.page))
         .filter_map(|item| item.key.split('.').next())
         .collect();
     let mut items = Vec::new();
@@ -204,7 +205,12 @@ pub fn settle(found: &mut [Found], core_items: &[Item]) -> Vec<Item> {
             }));
             continue;
         }
-        items.extend(settings::items(&one.id, &manifest.settings));
+        // 平台接入的包挂在「接入」那一页（施工 F-4）。
+        let page = match manifest.connection {
+            Some(_) => settings::CONNECTIONS,
+            None => settings::PAGE,
+        };
+        items.extend(settings::items(&one.id, &manifest.settings, page));
     }
     items
 }

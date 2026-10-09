@@ -210,3 +210,33 @@ async fn a_package_named_like_a_core_module_declares_no_settings() {
         "一项都不收"
     );
 }
+
+/// 平台接入的包（施工 F-4，设计 30 第五节）：它的配置项挂在单独的「接入」页，不在「软件包」那一页；组照包的名字。
+#[tokio::test]
+async fn a_connection_package_has_its_settings_on_the_connections_page() {
+    let home = Home::new();
+    home.write("home/alice/packages/clock.toml", CLOCK);
+    let mut client = connected(&home).await;
+    let schema = client.call("s1", "config.schema", json!({})).await["result"].clone();
+    let listen = item(&schema, "onebot.listen");
+    assert_eq!(
+        (listen["page"].clone(), listen["group"].clone()),
+        (json!("connections"), json!("onebot"))
+    );
+    assert_eq!(
+        item(&schema, "clock.port")["page"],
+        "packages",
+        "别的包照旧"
+    );
+    let pages = schema["pages"].as_array().expect("有");
+    assert!(
+        pages.contains(&json!({"id": "connections", "name": "接入"})),
+        "{pages:?}"
+    );
+    assert!(
+        schema["groups"]
+            .as_array()
+            .expect("有")
+            .contains(&json!({"id": "onebot", "name": "接入QQ", "page": "connections"}))
+    );
+}

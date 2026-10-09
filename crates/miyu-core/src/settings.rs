@@ -59,6 +59,10 @@ const MODULES: [&[Item]; 18] = [
     LogSettings::ITEMS,
 ];
 
+/// 核心替内置包声明的配置项（施工 F-4，设计 `30-插件框架.md` 第七节）：包的编号和它的几项。它们照样在 [`MODULES`] 里（包没装
+/// 的也照样认，写了不报不认识），包没装的设置页不画（[`Packaged::all`]）。
+const OWNED: [(&str, &[Item]); 1] = [(miyu_memory::PACKAGE, MemorySettings::ITEMS)];
+
 /// 生成的三份放在状态区的这个目录里：`state/config/`。
 const DIR: &str = "config";
 
@@ -70,6 +74,8 @@ pub struct Packaged {
     pub items: Vec<Item>,
     /// 读成了的清单：编号和样子，配置项的名字、说明照它。
     pub manifests: Vec<(String, Manifest)>,
+    /// 核心替它声明了配置项、这台机器上又没装的内置包（施工 F-4）。
+    pub absent: Vec<&'static str>,
 }
 
 impl Packaged {
@@ -83,13 +89,33 @@ impl Packaged {
                 Err(_) => None,
             })
             .collect();
-        Packaged { items, manifests }
+        let absent = OWNED
+            .iter()
+            .map(|(package, _)| *package)
+            .filter(|package| !miyu_endpoint::packages::is_installed(found, package))
+            .collect();
+        Packaged {
+            items,
+            manifests,
+            absent,
+        }
     }
 
-    /// 登记的全部配置项，接上包的。
+    /// 登记的全部配置项，接上包的。核心替没装的内置包声明的那几项照样在，只是设置页不画（施工 F-4）。
     pub fn all(&self) -> Vec<Item> {
+        let hidden: Vec<&str> = OWNED
+            .iter()
+            .filter(|(package, _)| self.absent.contains(package))
+            .flat_map(|(_, items)| items.iter().map(|item| item.key))
+            .collect();
         items()
             .into_iter()
+            .map(|mut item| {
+                if hidden.contains(&item.key) {
+                    item.ui.hidden = true;
+                }
+                item
+            })
             .chain(self.items.iter().cloned())
             .collect()
     }

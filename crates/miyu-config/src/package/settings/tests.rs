@@ -267,7 +267,7 @@ fn settings_become_config_items_under_the_package() {
         "{PORT}\n[settings.idle_seconds]\ntype = \"int\"\nmin = 1\ndefault = 600\nhidden = true\nname = {{ en = \"Idle\" }}\n"
     )))
     .unwrap();
-    let items = items("web", &manifest.settings);
+    let items = items("web", &manifest.settings, PAGE);
     assert_eq!(items.len(), 2);
     let port = &items[0];
     assert_eq!(port.key, "web.port");
@@ -301,5 +301,5 @@ type = \"list\"\nelement = \"text\"\nname = { en = \"Trusted\" }\n\n[settings.mo
 }
 
 fn items_of(manifest: &crate::package::Manifest) -> Vec<Item> {
-    items("x", &manifest.settings)
+    items("x", &manifest.settings, PAGE)
 }

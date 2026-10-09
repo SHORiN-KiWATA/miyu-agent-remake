@@ -226,7 +226,8 @@ fn onebot_trusted_is_a_system_list_of_identities() {
     assert_eq!(item.applies, Applies::Now);
     assert_eq!(
         (item.ui.page, item.ui.group, item.ui.control),
-        ("packages", "onebot", Control::List)
+        ("connections", "onebot", Control::List),
+        "平台接入的配置项在「接入」那一页（施工 F-4）"
     );
     let parse = |layer: Layer, source: &str| {
         miyu_config::parse::parse(&listed, layer, source).expect("写法对")
@@ -289,5 +290,47 @@ fn onebot_trusted_is_a_system_list_of_identities() {
         ),
         [Code::BadFormat],
         "超过 128 个字"
+    );
+}
+
+/// 核心替内置包声明的配置项（施工 F-4，设计 30 第七节）：挂在「软件包」那一页、这个包那一组；包没装的照样认（写了不报不认识），
+/// 只是设置页不画。
+#[test]
+fn builtin_package_settings_follow_their_package() {
+    let installed = shipped().all();
+    let owned: Vec<_> = installed
+        .iter()
+        .filter(|item| item.key.starts_with("memory."))
+        .collect();
+    assert_eq!(owned.len(), 3, "抽取的三项");
+    for item in owned {
+        assert_eq!(
+            (item.ui.page, item.ui.group),
+            ("packages", "memory"),
+            "{}",
+            item.key
+        );
+        assert!(!item.ui.hidden, "{}", item.key);
+    }
+    let mut found = Packages::shipped(&ResourceRoot::at(repository().join("resources"))).read();
+    found.retain(|one| one.id != "memory");
+    let absent = Packaged::of(&mut found).all();
+    let memory: Vec<_> = absent
+        .iter()
+        .filter(|item| item.key.starts_with("memory."))
+        .collect();
+    assert!(!memory.is_empty(), "没装的照样认");
+    assert!(memory.iter().all(|item| item.ui.hidden), "没装的设置页不画");
+    assert!(
+        absent
+            .iter()
+            .filter(|item| !item.key.starts_with("memory."))
+            .zip(
+                installed
+                    .iter()
+                    .filter(|item| !item.key.starts_with("memory."))
+            )
+            .all(|(one, other)| one.ui.hidden == other.ui.hidden),
+        "别的包的照旧"
     );
 }

@@ -255,6 +255,7 @@
     },
     "pages": {
       "packages": "Packages",
+      "connections": "Connections",
       "general": "General",
       "advanced": "Advanced",
       "permissions": "Permissions",

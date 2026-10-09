@@ -255,6 +255,7 @@
     },
     "pages": {
       "packages": "软件包",
+      "connections": "接入",
       "general": "通用",
       "advanced": "高级",
       "permissions": "权限",
