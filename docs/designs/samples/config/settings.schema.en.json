@@ -136,7 +136,7 @@
               "type": "string"
             }
           ],
-          "description": "When she searches what she remembers and past conversations, she also finds what means the same in other words. Left out, the local model is used and downloads about 24 MB the first time; a provider's model uses that provider, billed by usage; off searches by keywords only. Allowed: local, off or <provider>/<model>. Only in the system config or personal settings. Takes effect next turn.",
+          "description": "When she searches what she remembers and past conversations, she also finds what means the same in other words. The local model downloads about 24 MB the first time; a provider's model is billed by usage; turned off, she searches by keywords only. Allowed: local, off or <provider>/<model>. Only in the system config or personal settings. Takes effect next turn.",
           "title": "Search by meaning"
         },
         "vision": {
