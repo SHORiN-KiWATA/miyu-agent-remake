@@ -105,7 +105,7 @@
 | `protocol` | 选定的主版本：`1`，核心只支持这一个 |
 | `core` | `{"version": <核心的版本号>}` |
 | `account` | 你是谁：管理员的账号，核心里固定是 `admin`（`core.md`）；核心拉起的、清单声明了系统账号的包的扩展是那个系统账号，账号名是包的编号（施工 O-4 下，`packages.md`） |
-| `host` | `{"home": <系统的家目录>, "platform": "linux" 或 "macos" 或 "windows", "workspace": <这个账号的工作区>}`，总有（施工 W-3，`web-module.md`「四、路径」）：`home` 是核心起来时拿到的系统的家目录，照原样，读不出来的是 `null`；`platform` 是核心所在的平台；`workspace` 是这个账号的工作区，换成真实的位置（管理员、系统账号的工作区核心起来时就建好了，`core.md`、施工 O-4 下；握手不另外建） |
+| `host` | `{"home": <系统的家目录>, "platform": "linux" 或 "macos" 或 "windows", "workspace": <这个账号的默认工作区>}`，总有（施工 W-3，`web-module.md`「四、路径」）：`home` 是核心起来时拿到的系统的家目录，照原样，读不出来的是 `null`；`platform` 是核心所在的平台；`workspace` 是这个账号的默认工作区，换成真实的位置（管理员、系统账号的默认工作区核心起来时就建好了，`core.md`、施工 O-4 下；握手不另外建） |
 | `language` | `zh`、`en`、`ja` 之一：这个连接给人看的字用哪种（施工 8-2，`config.md` 第二条第 8 条）。`ui.language` 的最终值（默认值、系统配置、个人设置）定了的就是它，`auto` 的照 `locale`。`ui.language` 改了，连接下一句就照新的说，不用再握手（施工 8-4）：回应里这一格只是握手那一刻的。核心拒绝时的话只有中文、英文，`ja` 的照英文；配置的名字、说明、报错的话有日文 |
 | `config_errors` | 系统配置、个人设置、密钥文件（施工 8-5）里现在有几处错误（不算警告，施工 8-2）。没有的不写 |
 | `config` | 只有核心拉起的扩展的连接有（施工 9-4 下下，`extensions.md`「配置」）：这个包自己的配置项的最终值，密钥是真值；之后变了推 `extension.config`（`{"keys": {键: 新值或 null}}`） |
@@ -163,10 +163,10 @@
 | `account.logout` | 作废登录令牌：这一个，或者 `all` 全部（施工 W-8） |
 | `blob.open`、`blob.write`、`blob.close` | 分块传一个附件，最后存成 blob，回应和 `blob.put` 一样；跟着连接走，60 秒不写、连接断了都作废（施工 W-5） |
 | `blob.get` | 分块读这个账号的一个 blob：照属主给，不照会话（施工 W-6） |
-| `fs.list` | 列一层目录：数据根只有账号自己的工作区能列（施工 W-2） |
-| `fs.find` | 在一个目录里模糊找文件：数据根只有账号自己的工作区能找（施工 W-2） |
+| `fs.list` | 列一层目录：数据根只有账号自己的默认工作区能列（施工 W-2） |
+| `fs.find` | 在一个目录里模糊找文件：数据根只有账号自己的默认工作区能找（施工 W-2） |
 | `fs.realpath` | 一个路径换成真实的位置：不查边界，落在数据根里的照样换（施工 W-3） |
-| `fs.read` | 分块读本机的一份文件：数据根只有账号自己的工作区能读（施工 W-6） |
+| `fs.read` | 分块读本机的一份文件：数据根只有账号自己的默认工作区能读（施工 W-6） |
 | `session.set_meta` | 改标题、置顶（施工 3-8 三补） |
 | `session.set_workspace` | 换会话在哪个目录干活（施工 9-7 上） |
 | `session.configure` | 换模型，下一个回合开始生效（施工 8-10，`models.md`「协议」） |
@@ -279,7 +279,7 @@
 ```
 
 1. `path`、`data` 正好写一个；两个都写、都不写（写 `null` 算没写）：`bad_params`。`path` 是相对的（没有工作目录可接，头自己接成绝对的）、`~别人/…`：`bad_params`。`data` 不是 base64、传 `data` 没写 `name`、`name` 不合文件名的写法、`media_type` 不合媒体类型的写法：`bad_params`。
-2. 读 `path`，在阻塞线程里：照 `fs.md` 换成真实的位置（链接照指向的地方算），照边界表（管理员的工作区、数据根、这台机器的临时目录和系统目录，`fs.md` 第一节）落在谁都不能碰的那一片（数据根里、管理员的工作区以外）：`attachment_in_data_root`。别的地方都能读，和她读文件一样（`session/guard.md`：读哪儿都不问）。换不成真实的位置、打不开（没有、不是普通文件、没有权限）：`attachment_unreadable`。照 `fs.md` 第四节打开，路上一层链接都不跟。
+2. 读 `path`，在阻塞线程里：照 `fs.md` 换成真实的位置（链接照指向的地方算），照边界表（管理员的默认工作区、数据根、这台机器的临时目录和系统目录，`fs.md` 第一节）落在谁都不能碰的那一片（数据根里、管理员的默认工作区以外）：`attachment_in_data_root`。别的地方都能读，和她读文件一样（`session/guard.md`：读哪儿都不问）。换不成真实的位置、打不开（没有、不是普通文件、没有权限）：`attachment_unreadable`。照 `fs.md` 第四节打开，路上一层链接都不跟。
 3. 一个最多 20 MiB（20,971,520 字节），多的 `attachment_too_big`；读到上限多一个字节就停，不整份读进来。`data` 放在一行 JSON 里，一行最长 1 MiB（「一行一条」），所以最多七百多 KiB，大的传 `path`；更大的（或者远程的头想一块一块传）用 `blob.open`、`blob.write`、`blob.close`（施工 W-5，下面）。
 4. 认是什么，照内容，不看扩展名：
    1. 开头是四种图之一（PNG、JPEG、GIF、WebP）、量得出宽高的：图片，媒体类型照认出的，`media_type` 写了也不算。超过 5 MiB、哪一边超过 8000 像素：`attachment_too_big`，正好在线上的收。认法和上限和 `read` 读图片是同一份代码（`crates/miyu-tool/src/picture.rs`，`tools/read.md`「读图片」）：图跟着对话每次都发，被供应商拒掉的图会让这个会话以后的请求都失败。
@@ -318,7 +318,7 @@
 {"building":false,"items":[{"dir":false,"full":"<家目录>/src/miyu/src/main.rs","marks":[4,5,6,7],"path":"src/main.rs","size":2048}],"partial":false}
 ```
 
-1. `cwd` 照 `fs.md` 换成真实的位置（`~` 照家目录接），要是一个目录。换不成、不在、不是目录：`path_unreadable`。落在数据根里、又不在这个账号的工作区里：`path_forbidden`。
+1. `cwd` 照 `fs.md` 换成真实的位置（`~` 照家目录接），要是一个目录。换不成、不在、不是目录：`path_unreadable`。落在数据根里、又不在这个账号的默认工作区里：`path_forbidden`。
 2. `dir` 照上面的参数表接好、换成真实的位置，只读那一层；同样要是一个目录、同样落进「谁都不能碰」那一片的 `path_forbidden`。
 3. 名字照开头对 `prefix`，大小写不论。点开头的藏起来，`prefix` 以 `.` 开头才列。目录在前、文件在后，各照名字排（大小写不论）。目录的 `path` 后面带 `/`。最多 50 条，多了截掉、`partial` 是 `true`。`marks` 是 `path` 的前几个字，`prefix` 有几个字就几个。
 4. 这一层里有东西落进了「谁都不能碰」那一片的（例如往上列到数据根的上级，列出来的一层恰好含着数据根自己），单单那一条不列，旁边的照样列。
@@ -383,7 +383,7 @@
 
 回应同 `blob.get`。
 
-1. `path` 照 `fs.md` 换成真实的位置，`~` 照家目录接；相对的（没有 `cwd` 可接）：`bad_params`。落在数据根里、又不在这个账号的工作区里：`path_forbidden`。
+1. `path` 照 `fs.md` 换成真实的位置，`~` 照家目录接；相对的（没有 `cwd` 可接）：`bad_params`。落在数据根里、又不在这个账号的默认工作区里：`path_forbidden`。
 2. 照 `fs.md` 第四节安全地打开，路上一层链接都不跟；换不成真实的位置、没有、不是普通文件、没有权限：`path_unreadable`。
 3. 读法同 `blob.get` 第 2、3、4 条。
 
@@ -486,7 +486,7 @@
 2. 谁能用：本机的会话（本机的头就是管理员本人）；场所会话里主人对应表认出的本人（记成带 `via` 的本人）、对应表里有的外部身份（群里的主人，`account`）、`role` 是 `manager` 的。别人回 `command_not_allowed`。`/workspace` 动的是沙盒能写的地方，只有主人本人能用（本机的会话、对应表认出的本人、群里的主人），管理的人回 `owner_only`。先查参数、再找会话、再判身份。
 3. `/clear` 同 `session.clear`：内核拒的照原因回（`turn_running`、`nothing_to_clear`、`restoring`）。
 4. `/stop` 全停：打断这一轮，排着的照 `keep` 留着；没有回合在进行的照样往下走。再停掉这个会话派出去的后台命令和子代理（同 `job.stop`，停的人记成说命令的人）。
-5. `/workspace <路径>` 同 `session.set_workspace` 只换工作目录，加进来的目录照旧（施工 9-7 下）：绝对的、`~` 开头的照原样；相对的照 `cwd` 接成真实的位置（`/workspace .` 就是头所在的目录），没带 `cwd` 的照会话现在的工作区接；路径里的空白照留，不认引号。写错的照那几种原因拒绝（`path_unreadable`、`not_a_directory`、`path_forbidden`，核心读不出家目录时的 `~` 也是读不了）；太宽的照人选的用，回执说一声范围大（「工作区换到了 ~（范围很大）。」，施工 9-7 补，原来退回账号的工作区）；和现在一样的不记换，照样记下命令。不带路径的什么都不换，回执说现在在哪。
+5. `/workspace <路径>` 同 `session.set_workspace` 只换工作目录，加进来的目录照旧（施工 9-7 下）：绝对的、`~` 开头的照原样；相对的照 `cwd` 接成真实的位置（`/workspace .` 就是头所在的目录），没带 `cwd` 的照会话现在的工作区接；路径里的空白照留，不认引号。写错的照那几种原因拒绝（`path_unreadable`、`not_a_directory`、`path_forbidden`，核心读不出家目录时的 `~` 也是读不了）；太宽的照人选的用，回执说一声范围大（「工作区换到了 ~（范围很大）。」，施工 9-7 补，原来退回账号的默认工作区）；和现在一样的不记换，照样记下命令。不带路径的什么都不换，回执说现在在哪。
 6. 执行了的记一条 `command.ran`（`kernel/events-bodies.md`），`cause` 是 `<id>/ran`；被拒的什么都不记。它不进模型的请求。
 7. 同一个 `id` 再发只算一次，核心重启以后也是：回应和头一次一样。
 8. `/remember <话>`（施工 R-3 补，`memory.md`「协议」）：名字后面跟的字是那一条，类 `user`，记进这个会话那一间，`by` 是打命令的人，出处空，听众是这个人；回执带编号（`commands/remembered`）。不请求模型。场所会话、范围 `off`、人格记忆没装的（施工 R-10）回 `memory_unavailable`，`data.why` 是照连接语言说的为什么（施工 O-6 再补：没装人格记忆的「没装人格记忆。」，先于别的，施工 R-10；没有人格的「没有人格的会话记忆不生效」，预设没开记忆的带上预设的名字，字在 `core/human/<语言>.json` 的 `commands/unavailable/…`，别的照拒绝的那一句）；空的 `bad_params`，超过 120 字的 `memory_too_long`。先判身份，再查这个会话有没有记忆，再查字。同一个 `id` 再发只记一次（记忆事件的 `cause`，`memory.*` 第 5 条）。
@@ -753,7 +753,7 @@
 回应 `{"cwd", "dirs"}`：实际用的工作目录、现在加进来的目录。
 
 1. 工作区是会话的属性：新会话开在哪就记哪（`session.create` 的 `cwd`、`dirs`），之后哪个头打开都照它，只有人明确换（这个方法、`/workspace`）才变。说话（`session.send`）带的目录照收不理。
-2. `cwd`、`dirs` 都没写、写了别的格：`bad_params`。工作目录换不成真实位置、读不了：`path_unreadable`；是文件：`not_a_directory`；落在数据根里、又不是账号自己的工作区：`path_forbidden`；太宽的（系统的家目录、根目录、包含数据根的）不拒，照人选的用，回应多 `wide: true`（施工 9-7 补，2026-10-09 项目主人定；原来退回账号的工作区）；核心读不出家目录时的 `~` 照不了，`path_unreadable`。加进来的目录照造会话的规矩查（`dir_too_wide`）。拒了的什么都不记。
+2. `cwd`、`dirs` 都没写、写了别的格：`bad_params`。工作目录换不成真实位置、读不了：`path_unreadable`；是文件：`not_a_directory`；落在数据根里、又不是账号自己的默认工作区：`path_forbidden`；太宽的（系统的家目录、根目录、包含数据根的）不拒，照人选的用，回应多 `wide: true`（施工 9-7 补，2026-10-09 项目主人定；原来退回账号的默认工作区）；核心读不出家目录时的 `~` 照不了，`path_unreadable`。加进来的目录照造会话的规矩查（`dir_too_wide`）。拒了的什么都不记。
 3. 和现在一样的：接受，什么都不记。不一样的：会话记一条 `session.workspace_changed`（`kernel/events-bodies.md`），订阅着的头照推送跟着换；会话列表那一项的 `cwd` 跟着变（`sessions.changed`）。这一轮里照旧，下一轮开始照新的。
 4. `subscribe`（events）的回应带 `workspace: {"cwd", "dirs"}`，接进来就知道她在哪干活。
 
@@ -879,7 +879,7 @@
 {"id":"c2","jsonrpc":"2.0","result":{"jobs":[],"limits":{"compaction_line":967000,"window":1000000},"model":{"endpoint":"deepseek","model":"deepseek-v4","ref":"deepseek/deepseek-v4"},"permission":{"level":"workspace","read_only":false},"preset":"full","usage":{"amounts":[],"cache_breaks":0,"compactions":0,"main":{"cache_read":0,"cache_write":0,"output":0,"uncached":0},"requests":0,"unpriced":0,"usage":{"cache_read":0,"cache_write":0,"output":0,"uncached":0}},"workspace":{"cwd":"<工作区>","dirs":[]}}}
 ```
 
-（`<工作区>` 是在 `~` 里造的会话退回的账号的工作区，照真实的那个写，施工 9-7 上。）
+（`<工作区>` 是在 `~` 里造的会话退回的账号的默认工作区，照真实的那个写，施工 9-7 上。）
 
 模型的资料没报窗口的：`{"id":"c2","jsonrpc":"2.0","result":{"limits":{},"model":{…}}}`。
 
@@ -965,7 +965,7 @@
 2. 没有这个会话的日志：`session_not_found`。别的载入不了（日志、策略快照坏了、读不了）：`session_broken`，原因记进运行日志。
 3. 发命令、订阅时会话已经停了（写不进去、出了 bug）：从表里拿掉，回 `session_stopped`；下一次用到再载入。
 4. `session.send` 带着 `cwd`、`dirs`，和这个会话上一次报的不一样：照「工作目录太宽」重新定实际干活的目录，送进会话，到下一个边界才注入（`kernel/request.md`）；会话这时停了的，回 `session_stopped`。不带的、一样的，照旧。
-5. 载入时没有报来的 `cwd`（`session.interrupt`、`session.revert`、`session.unrevert`、`session.redo`、`session.compact`、`session.set_permission_level`、`session.clear`、`session.recap`、`session.set_meta`、`subscribe` 载入的）：照日志里最后一条带 `cwd` 的 `turn.started`（加进来的目录照最后一条 `turn.started` 的 `dirs`，没有就是没有（施工 5-10 上）），没有就照 `session.created` 的，都没有（之前的日志）才当报来的是 `~`，退回管理员的工作区（施工 4-9 再补三上）。核心重启以后撤销，路径照会话真正的目录写短。
+5. 载入时没有报来的 `cwd`（`session.interrupt`、`session.revert`、`session.unrevert`、`session.redo`、`session.compact`、`session.set_permission_level`、`session.clear`、`session.recap`、`session.set_meta`、`subscribe` 载入的）：照日志里最后一条带 `cwd` 的 `turn.started`（加进来的目录照最后一条 `turn.started` 的 `dirs`，没有就是没有（施工 5-10 上）），没有就照 `session.created` 的，都没有（之前的日志）才当报来的是 `~`，退回管理员的默认工作区（施工 4-9 再补三上）。核心重启以后撤销，路径照会话真正的目录写短。
 6. 会话一直留在表里，直到核心退出、停下全部会话、删了它（`session.delete`），或者用到时发现它停了。
 7. 造会话、载入时，交给会话一份造子会话的端口（施工 7-5，`session/tools.md`「派子代理」）：会话里派出去的子会话由会话表造，放进表里，和头造的一样照编号找得到、只起一个；子会话也算进「有没有会话忙着」，停下全部会话时一起停。父会话已经不在表里的（删了、停了）不再造，派不了（施工 3-8 三补：不留下没有父会话的子会话）。
 8. 载入一个会话以后、放进表之前，收掉它派到一半的空子会话（施工 7-8，`agents.md` 第一条第 8 条）：它的日志里有没派成的 `subagent` 调用（以前造的会话里叫 `agent`，也算；结果里没有 `job.started`，或者还没有结果）才去认，认的是放会话的目录里 `session.created` 的 `parent` 是它、它的日志里又没有这个子会话的 `job.started` 的，连同它们派的；在跑的停下（`Handle::discard`），目录挪进回收处，最深的在前，照 `session.delete` 第 7 条。一个记一行 `INFO orphan subagent removed`；挪不走的记一行 `WARN`，不耽误载入。这时表拿着锁，它不在表里，也就派不出新的，认不错。
@@ -976,8 +976,8 @@
 
 1. 去掉前后空白是 `~` 的：太宽。
 2. 换成真实的位置（`fs.md`）：`~`、`~/…` 接在系统的家目录上（家目录先换成真实的位置），相对的接在 `/` 上，链接顺着找到本体。换不成的：照原样用，说不清它宽不宽，用到时工具自己报错。
-3. 真实的位置是系统的家目录、是根目录、包含数据根，或者落在数据根里却不在管理员的工作区里：太宽。
-4. 落在数据根里、却不在会话属主的工作区里的，退回属主的工作区 `<数据根>/home/<账号>/workspace`；它还没有的，当场建（建不成的记一条运行日志，照样用它）。
+3. 真实的位置是系统的家目录、是根目录、包含数据根，或者落在数据根里却不在管理员的默认工作区里：太宽。
+4. 落在数据根里、却不在会话属主的默认工作区里的，退回属主的默认工作区 `<数据根>/home/<账号>/workspace`；它还没有的，当场建（建不成的记一条运行日志，照样用它）。
 5. 别的太宽的：人明着选的（`session.create` 带 `chosen: true`、`session.set_workspace`、`/workspace`）照用，回应多 `wide: true`；头自己带上的（终端启动时的当前目录）照第 4 条退回（施工 9-7 补，2026-10-09 项目主人：「当然是我手动选择的，或者手动运行命令切换的，就别自动切工作区了」；原来一律退回）。数据根不管工作区设在哪都挡着（`session/guard.md`），设成 `~` 也写不进数据根。
 6. 不太宽的，照原样用，不换成真实的位置。
 7. 会话载入时（核心重启以后）照日志里最后记下的那一个，不再判太宽：记下的就是当时挑好的；落在数据根里、不在属主工作区的照第 4 条退回；什么都没记下的照头自己带上的判。
@@ -1033,10 +1033,10 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `dir_too_wide` | -32010 | 加进来的目录太宽（「加进来的目录」（施工 5-10 上）） |
 | `attachment_unreadable` | -32010 | `blob.put` 读不了 `path`：换不成真实的位置、没有、不是普通文件、没有权限（施工 3-9 三补） |
 | `attachment_too_big` | -32010 | 附件超过 20 MiB；图片超过 5 MiB，或者哪一边超过 8000 像素（施工 3-9 三补）；`blob.open` 的 `size` 超过 20 MiB（施工 W-5） |
-| `attachment_in_data_root` | -32010 | `blob.put` 的 `path` 在数据根里、管理员的工作区以外（施工 3-9 三补） |
+| `attachment_in_data_root` | -32010 | `blob.put` 的 `path` 在数据根里、管理员的默认工作区以外（施工 3-9 三补） |
 | `unknown_attachment` | -32010 | `session.send`、`session.redo` 附的 blob 这个核心里没有（施工 3-9 三补）；`model.call` 的图这个账号的 blob 里没有（施工 8-20） |
 | `path_unreadable` | -32010 | `fs.list`、`fs.find` 换不成真实的位置、不在、该是目录的不是目录、没有权限（施工 W-2）；`fs.realpath` 换不成真实的位置——一层都不在、路上的链接指向不存在的地方、没有家目录（施工 W-3）；`fs.read` 换不成真实的位置、没有、不是普通文件、没有权限（施工 W-6）；`session.set_workspace`、`/workspace` 换不成真实的位置、不在、读不了（施工 9-7 上、下） |
-| `path_forbidden` | -32010 | `fs.list`、`fs.find` 的目录落在数据根里、又不在这个账号的工作区里（施工 W-2）；`fs.read` 的路径也一样（施工 W-6）；`session.set_workspace`、`/workspace` 换去的目录也一样，账号自己的工作区可以（施工 9-7 上、下） |
+| `path_forbidden` | -32010 | `fs.list`、`fs.find` 的目录落在数据根里、又不在这个账号的默认工作区里（施工 W-2）；`fs.read` 的路径也一样（施工 W-6）；`session.set_workspace`、`/workspace` 换去的目录也一样，账号自己的默认工作区可以（施工 9-7 上、下） |
 | `mermaid_too_long` | -32010 | `mermaid.render` 的源码超过 64 KiB（施工 W-4） |
 | `mermaid_failed` | -32010 | `mermaid.render` 画不出；`data.detail` 是画图的库的原话（施工 W-4） |
 | `too_many_uploads` | -32010 | 这个连接同时开着 4 个分块上传（施工 W-5） |
@@ -1277,16 +1277,16 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/recap.rs`（施工 3-8 四补） | 协议上要回顾：回应是那一句、照到的、不是交回的；推送里先有回顾的 `model.called`、`session.recapped`，都不带回合编号、`cause` 是这一条，再是回应，别的头也收到；请求是一条 user、没有 system 和工具面；没有新内容再要一次交回上一句、不请求；有回合在进行时照收、照到的是这一轮那句话；没有能回顾的、没写成的两种拒绝，中文、英文，没写成的不再来；会话编号不对、没写、不是字符串的参数不对，没有的会话找不到 |
 | `crates/miyu-endpoint/tests/title.rs`（施工 3-8 五补） | 自动起标题：第一轮答完，订阅着的头收到起标题的 `model.called`（`purpose: "title"`）和 `session.meta_changed`，`by` 是内核、不带回合编号和 `cause`；请求是一条 user、没有 system 和工具面，只喂第一轮；`session.list` 带上标题，核心重启以后照样；第二轮不再起；人先起过名的不起 |
 | `crates/miyu-endpoint/tests/commands.rs`（施工 O-6） | `command.run`：`/clear`、别名 `/reset`（开头空白、后面跟的字照认）清空并记 `command.ran`，回执是中文那一句；`/stop` 打断、排着的留在日志里不接着开、子代理停了，没有回合也照样记；认不出的、`/` 后面是空白的 `unknown_command`，不以 `/` 开头的、多写格的参数不对，都什么都不写；内核拒的照原因回；同一个编号再发、重启以后再发回应一样、只记一次；场所里主人、管理的人能用，别人 `command_not_allowed`，不带 `as` 的 `venue_session`，本机的会话带 `as` 参数不对；`session.interrupt` 收 `keep` |
-| `crates/miyu-endpoint/tests/workspace_command.rs`（施工 9-7 下） | `/workspace <路径>` 同 `set_workspace` 只换工作目录、加进来的目录照旧，回执是中文那一句，一样的不记换；相对的照 `cwd` 接、没带的照会话的接，路径里的空白照留，`cwd` 不是绝对的参数不对；不带路径的只说现在在哪；不在的、文件、数据根里的照原因拒绝、什么都不记；`~` 太宽退回账号的工作区、回执说一声；场所里管理的人 `owner_only`，主人能换 |
+| `crates/miyu-endpoint/tests/workspace_command.rs`（施工 9-7 下） | `/workspace <路径>` 同 `set_workspace` 只换工作目录、加进来的目录照旧，回执是中文那一句，一样的不记换；相对的照 `cwd` 接、没带的照会话的接，路径里的空白照留，`cwd` 不是绝对的参数不对；不带路径的只说现在在哪；不在的、文件、数据根里的照原因拒绝、什么都不记；`~` 太宽退回账号的默认工作区、回执说一声；场所里管理的人 `owner_only`，主人能换 |
 | `crates/miyu-endpoint/tests/clear.rs` | 协议上清空（施工 6-8 补）：回应是那一轮的开头、订阅的推送里是那一批三条、不请求模型；下一次请求里没有清空以前的；撤掉那一轮回应里撤掉了一次压缩、没有 `said`，再问看得到了；有回合在进行、本来就空的两种拒绝，中文、英文；会话编号不对、没写的参数不对 |
 | `crates/miyu-endpoint/src/sessions/tests.rs` | 父会话不在会话表里的不再造子会话、什么都没建（施工 3-8 三补） |
-| `crates/miyu-endpoint/tests/workspace.rs` | 太宽的五种（`~`、家目录、根目录、数据根、数据根里面）和读不出家目录时的 `~`；项目目录、账号的工作区照旧；回应里的 `cwd`、重发的造会话 |
+| `crates/miyu-endpoint/tests/workspace.rs` | 太宽的五种（`~`、家目录、根目录、数据根、数据根里面）和读不出家目录时的 `~`；项目目录、账号的默认工作区照旧；回应里的 `cwd`、重发的造会话 |
 | `crates/miyu-endpoint/tests/dirs.rs` | 加进来的目录（施工 5-10 上）：造会话、说话时报的记进这一轮，不写的照旧、写空的就没有；太宽的五种整条命令都不收、什么都没写；核心重启以后照最后一轮的 |
 | `crates/miyu-endpoint/tests/idle.rs` | 连着连接、跑着回合不空闲；停下全部会话，跑到一半的记成重启了 |
-| `crates/miyu-endpoint/tests/attach.rs` | `blob.put`（施工 3-9 三补）：传路径、传内容；照内容认图片（扩展名不算）、PDF、文本、别的文件，量宽高，回应的格照字母排、存成管理员的 blob；写了的媒体类型什么时候算、改名、写 `null` 等于没写；太大（20 MiB、图片的宽高和 5 MiB，正好在线上的收）；数据根里的不给、管理员的工作区给、指到数据根里的链接不给；读不了（没有、目录、没有家目录时的 `~`）；参数不对的十二种、一个都没存；四种拒绝的中英文 |
+| `crates/miyu-endpoint/tests/attach.rs` | `blob.put`（施工 3-9 三补）：传路径、传内容；照内容认图片（扩展名不算）、PDF、文本、别的文件，量宽高，回应的格照字母排、存成管理员的 blob；写了的媒体类型什么时候算、改名、写 `null` 等于没写；太大（20 MiB、图片的宽高和 5 MiB，正好在线上的收）；数据根里的不给、管理员的默认工作区给、指到数据根里的链接不给；读不了（没有、目录、没有家目录时的 `~`）；参数不对的十二种、一个都没存；四种拒绝的中英文 |
 | `crates/miyu-endpoint/tests/uploads.rs`、`crates/miyu-core/tests/packages.rs`（施工 W-5） | `blob.open`、`blob.write`、`blob.close`：分块传完和 `blob.put` 同一个回应、同一个 blob；接不上回 `upload_offset`（`data.received` 对）；没收齐 `close` 回 `upload_incomplete`，还能接着写完；别的连接拿编号用不了；连接断了、60 秒不写都作废并删暂存；`size` 超过 20 MiB 当场 `attachment_too_big`；同时开到第 5 个 `too_many_uploads`，关掉一个腾出位置；`data` 不是 base64、一块超过 512 KiB、加起来超过 `size` 都是 `bad_params`；图片照 `blob.put` 的规矩认、查上限。`packages.rs` 另测 `packages::clear_uploads`：崩了留下的 `upload-*` 清掉、真的 blob 不碰、账号还没存过东西时不出错 |
 | `crates/miyu-endpoint/tests/attach_send.rs` | `session.send` 带附件（施工 3-9 三补）：照先后接在文字后面，宽高、种类照核心量的，图片块带着 `blob.put` 的名字（施工 3-9 四补），她收到的请求里就是这几块；只有附件也是一句话，`null` 是没有；blob 不在的拒绝、什么都没写、换的工作目录也没送进会话；附件的格不对的七种 |
-| `crates/miyu-endpoint/tests/files.rs` | `fs.list`、`fs.find`（施工 W-2）：真核心上数据根不列不找、账号的工作区照样列；开头对、大小写不论、点开头的打了点才列、目录在前、50 条截断、`marks`；模糊找有 `marks`、子目录的 `path` 用 `/`；清单没建完先给一部分、`building`；`fresh` 隔一段时间才重建、不是 `true` 不重建；最多记 4 份、多了丢最久没用的；换不成真实的位置、不是目录的 `path_unreadable`；没写 `cwd` 的 `bad_params` |
+| `crates/miyu-endpoint/tests/files.rs` | `fs.list`、`fs.find`（施工 W-2）：真核心上数据根不列不找、账号的默认工作区照样列；开头对、大小写不论、点开头的打了点才列、目录在前、50 条截断、`marks`；模糊找有 `marks`、子目录的 `path` 用 `/`；清单没建完先给一部分、`building`；`fresh` 隔一段时间才重建、不是 `true` 不重建；最多记 4 份、多了丢最久没用的；换不成真实的位置、不是目录的 `path_unreadable`；没写 `cwd` 的 `bad_params` |
 | `crates/miyu-endpoint/tests/hello.rs`（施工 W-3） | 握手的 `host`：三格总有、`platform` 是这台机器的、`workspace` 换成真实的位置（链接也换成指的地方）、没有系统的家目录 `home` 是 `null`、没人建过工作区就回原样的路径（不替连上来的头造目录）。`fs.realpath`：`~` 照家目录接、`cwd` 可以不写也可以本身是 `~`；相对的没给 `cwd` 的 `bad_params`；往上找最近在的一层、后面几段原样接上；路中间的链接换成指的地方；落在数据根里的照样换，不查边界；一层都不在（没有家目录）`path_unreadable` |
 | `crates/miyu-endpoint/tests/login.rs`、`login_log.rs`（施工 W-8） | 握手的四种凭据、`account.setup_code`、`account.setup`、`account.logout`、作废了断开、运行日志里没有码、密码、令牌（`web-module.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/reads.rs`（施工 W-6） | `blob.get`：读一段、读到结尾就停、`offset` 过了结尾是空的、不写 `offset`、`length` 的默认值、`length` 写 0 只问大小；没有这个 blob `unknown_blob`。`fs.read`：数据根拒、工作区能读、相对的 `bad_params`、`~` 接系统的家目录；没有、目录、（Unix）套接字 `path_unreadable`。两个方法 `length` 超过 512 KiB 都是 `bad_params`；拒绝的中英文 |

@@ -187,7 +187,7 @@
 | `endpoint` | WARN | `create failed` | `error` | 造会话失败，人格读不出以外的原因 |
 | `endpoint` | WARN | `load failed` | 带会话编号；`error` | 载入失败，没有这个会话以外的原因 |
 | `endpoint` | DEBUG | `already stopped` | 带会话编号 | 有计划地停下时，会话已经停了 |
-| `endpoint` | WARN | `workspace not prepared` | `kind` | 退回账号的工作区时建不了它 |
+| `endpoint` | WARN | `workspace not prepared` | `kind` | 退回账号的默认工作区时建不了它 |
 | `endpoint` | ERROR | `undo report panicked` | `error` | 撤销的回应里比改动的任务 panic 了 |
 | `endpoint` | WARN | `undo report not written` | `error` | 撤销的回应里读不了会话日志 |
 | `ipc` | INFO | `listening` | `socket` | 在套接字上等连接 |

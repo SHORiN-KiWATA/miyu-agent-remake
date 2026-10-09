@@ -53,7 +53,7 @@
 | 文件 | 是什么 |
 |---|---|
 | `.miyu-root`、`system/`、`home/`、`state/`、`run/` | 骨架（`store.md`） |
-| `home/admin/`、`home/admin/workspace/` | 管理员的家目录和工作区 |
+| `home/admin/`、`home/admin/workspace/` | 管理员的家目录和默认工作区 |
 | `home/admin/trash/sessions/` | 回收处：删掉的会话，留 7 天（`store.md` 第 12 条，施工 3-8 三补）。起来时清掉满了 7 天的 |
 | `home/admin/trash/personas/` | 删掉的人格，`<编号>.<删的时刻，毫秒>/`，同样留 7 天、起来时清（施工 P-3 下） |
 | `state/logs/core.log` | 运行日志，满 10 MiB 换一份，留 `core.log.1` 到 `core.log.5`（`log.md`） |
