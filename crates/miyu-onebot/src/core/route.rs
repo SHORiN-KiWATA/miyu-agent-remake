@@ -20,7 +20,10 @@
 //! - 她在私聊里的回话：`message.assistant` 的文字块接起来，过出站链、拆段（`speak`，施工 O-25 上）。
 //! - 出站队列（施工 O-25 中，「出站队列」）：她的话、提示、回执都先入队（记 `ext.onebot.venues.queued`）再照先后交给收进这个会话
 //!   的那个机器人号现在的连接，等回应的那一步交给别的任务，结局照放进写队列的先后交回来记（`sending`；排着、过期的纯逻辑在
-//!   `queue`）。她被禁言、解禁的通知记下（`muted`），禁言时这个群的出站排着；号连上了、定时醒了再看一遍排着的。
+//!   `queue`）。她被禁言、解禁的通知记下（`muted`），禁言时这个群的出站排着；号连上了、定时醒了再看一遍排着的。她的话没发出去的
+//!   经核心的 `session.note` 退信（施工 O-25 下，「退信」，在 `sending`）。
+//! - 贴表情（施工 O-25 下，「贴表情」）：判下来要回、主触发是冲她来或续聊的，在她要回的那一条上贴，那一轮发出去第一段、结束了、
+//!   到时候了摘（`reaction`）。
 //! - 核心推来的 `extension.config`（施工 O-20）：`keys` 原样交给 `serve`，它换上手里的配置、端口变了照 `/apply` 的办法换
 //!   （「施工时定的」第 45 条）：这里够不着监听。自己人 `onebot.trusted` 这里记一份（施工 O-23）。
 
@@ -41,6 +44,7 @@ mod outbound;
 mod persona;
 mod projection;
 mod queue;
+mod reaction;
 mod recall;
 mod receipt;
 mod sending;
@@ -76,6 +80,7 @@ use outbound::Spoken;
 pub(crate) use persona::Personas;
 use projection::Projection;
 use queue::Queue;
+pub(crate) use reaction::Reactions;
 use sending::{Answered, Item};
 use session::Place;
 
@@ -131,13 +136,15 @@ pub(crate) struct Route {
     sending: FuturesOrdered<JoinHandle<Answered>>,
     /// 私聊会话编号 → 桥这一轮自己入队了的（施工 O-25 上，`outbound`：私聊的出站链照它去重；O-25 中改成入队时记）。
     spoken: HashMap<String, Spoken>,
-    /// 群里的命令回执：NapCat 回了编号以后等几秒撤回的任务（施工 O-25 上，`receipt`）。不放进 [`Route::sending`]：照先后交的
-    /// 那一串会被它卡住几秒。
-    recalls: JoinSet<()>,
+    /// 另起的平台动作：群里的命令回执 NapCat 回了编号以后等几秒撤回（施工 O-25 上，`receipt`），贴了表情等着摘（施工 O-25 下，
+    /// `reaction`）。不放进 [`Route::sending`]：照先后交的那一串会被它们卡住。
+    chores: JoinSet<()>,
     /// 群里的命令回执发出去几秒后撤回（`bridge.json` 的 `receipt_recall_seconds`）。
     recall: Duration,
     /// 在判的和问判官的任务（施工 O-23 下）。
     judges: Judges,
+    /// 贴着的表情（施工 O-25 下，`reaction`）。
+    reactions: Reactions,
     /// 推来的配置变化交给 `serve`（施工 O-20）。
     configured: mpsc::UnboundedSender<Map<String, Value>>,
 }
@@ -145,14 +152,21 @@ pub(crate) struct Route {
 impl Route {
     /// 拿着连接 `core`，回话照 `bots` 找连接，场所规则照 `rules`，群成员的名字记进 `members`，发进群里的提示照 `texts`
     /// 说，问判官照全局的名额 `slots` 排队（施工 O-23 下）、判官带的人格原文照 `personas` 记（施工 O-23 补），群里的命令回执
-    /// `recall` 以后撤回（施工 O-25 上），出站排着的过了 `expire` 作废（施工 O-25 中），推来的配置变化交给 `configured`。自己人
-    /// 照握手交来的配置（`core.config`）。
+    /// `recall` 以后撤回（施工 O-25 上），出站排着的过了 `expire` 作废（施工 O-25 中），表情照 `reactions` 贴、摘（施工 O-25 下），
+    /// 推来的配置变化交给 `configured`。自己人照握手交来的配置（`core.config`）。
     pub(crate) fn new(
         core: Core,
         bots: Arc<Bots>,
         rules: Venues,
         members: Members,
-        (texts, slots, personas, recall, expire): (Texts, Slots, Personas, Duration, Duration),
+        (texts, slots, personas, recall, expire, reactions): (
+            Texts,
+            Slots,
+            Personas,
+            Duration,
+            Duration,
+            Reactions,
+        ),
         configured: mpsc::UnboundedSender<Map<String, Value>>,
     ) -> Route {
         let trusted = trusted(&core.config[trusted_key()]);
@@ -171,15 +185,16 @@ impl Route {
             waiting: Queue::new(expire),
             sending: FuturesOrdered::new(),
             spoken: HashMap::new(),
-            recalls: JoinSet::new(),
+            chores: JoinSet::new(),
             recall,
             judges,
+            reactions,
             configured,
         }
     }
 
     /// 一直办，直到办不下去：核心关了管道、写不出去（核心请它退出、核心不在了，第 11 条），交回空的，桥好好停下；发回话
-    /// 的任务、问判官的任务（施工 O-23 下）、撤回执的任务（施工 O-25 上）崩了，交回 [`Failure::Crashed`]（「施工时定的」
+    /// 的任务、问判官的任务（施工 O-23 下）、撤回执、贴表情的任务（施工 O-25 上、下）崩了，交回 [`Failure::Crashed`]（「施工时定的」
     /// 第 14 条），桥照它退出。`inbound` 关了就只看核心：桥在停、读 NapCat 的那一头都放下了。有东西排着的，另睡到最早的过期、
     /// 禁言到期的时刻，醒了再看一遍（施工 O-25 中，「出站队列」第 8 条）。
     pub(crate) async fn run(mut self, mut inbound: mpsc::Receiver<Event>) -> Option<Failure> {
@@ -202,7 +217,7 @@ impl Route {
                     Ok(answered) => self.answered(answered).await.map_err(|Gone| None),
                     Err(failure) => Err(Some(failure)),
                 },
-                Some(joined) = self.recalls.join_next(), if !self.recalls.is_empty() => {
+                Some(joined) = self.chores.join_next(), if !self.chores.is_empty() => {
                     sent(joined).map_err(Some)
                 }
                 () = tokio::time::sleep(wake.unwrap_or_default()), if wake.is_some() => {

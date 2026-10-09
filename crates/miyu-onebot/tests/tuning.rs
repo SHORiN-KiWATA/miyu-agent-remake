@@ -1,5 +1,6 @@
 //! 桥自己的数（施工 O-8，`onebot.md`「施工时定的」第 15 条）：出厂的 `bridge.json` 读得出来，数和图纸写的一样；队列写 0、
-//! 判官的并发写 0（施工 O-23 下）、排着的过期写 0（施工 O-25 中）、多出不认识的格、少了一格、读不了的，读不进来，说是哪个文件。
+//! 判官的并发写 0（施工 O-23 下）、排着的过期写 0（施工 O-25 中）、多出不认识的格、少了一格（施工 O-25 下的贴表情两格也是）、读
+//! 不了的，读不进来，说是哪个文件。
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -45,6 +46,9 @@ fn the_shipped_numbers_are_the_blueprints() {
     assert_eq!(tuning.receipt_recall(), Duration::from_secs(3));
     // 出站排着的一分钟过期（施工 O-25 中）。
     assert_eq!(tuning.queue_expire(), Duration::from_secs(60));
+    // 群里判过要回的那一条贴 QQ 表情 289，十分钟还没回的摘掉（施工 O-25 下，18 第七节）。
+    assert_eq!(tuning.reaction_emoji, "289");
+    assert_eq!(tuning.reaction(), Duration::from_secs(600));
     // WebUI（施工 O-16）：页面只有三种文件；内容安全策略只许连自己、不许被框起来；验过的登录令牌记 60 秒。
     assert_eq!(
         tuning.web.types.keys().collect::<Vec<_>>(),
@@ -134,6 +138,18 @@ fn a_bad_file_is_not_read_and_named() {
                 "\"queue_expire_seconds\": 60",
                 "\"queue_expire_seconds\": 0",
             ),
+        ),
+        (
+            "emoji-missing",
+            good.replace("\"reaction_emoji\": \"289\"", "\"q\": 1"),
+        ),
+        (
+            "emoji-not-text",
+            good.replace("\"reaction_emoji\": \"289\"", "\"reaction_emoji\": 289"),
+        ),
+        (
+            "reaction-missing",
+            good.replace("\"reaction_seconds\": 600", "\"p\": 1"),
         ),
         ("not-json", "nope".to_string()),
     ] {

@@ -1,8 +1,8 @@
 //! OneBot v11 这一头（`onebot.md` 第一条「怎么走」第 4 到 6 条、第 10 条，「群消息」「撤回」「出站队列」）：NapCat 发来的一帧
 //! 认成什么（回应、私聊、群消息、撤回、她被禁言和解禁（施工 O-25 中）、别的事件），私聊里的文字怎么读出来（`text`），
 //! 消息段怎么认（`segments`，施工 O-22），群成员叫什么（`members`，施工 O-22），发出去的动作和回应怎么照 `echo` 配对
-//! （`calls`），`send_private_msg`、`send_group_msg`（施工 O-25 上：第一段能带引用和 @）、`delete_msg`（施工 O-25 上）
-//! 写成什么样。
+//! （`calls`），`send_private_msg`、`send_group_msg`（施工 O-25 上：第一段能带引用和 @）、`delete_msg`（施工 O-25 上）、
+//! `set_msg_emoji_like`（施工 O-25 下）写成什么样。
 //!
 //! 号（机器人的号、对方的号、消息编号）和时刻照 OneBot 是整数；有的实现写成字符串，也认。
 //!
@@ -308,4 +308,14 @@ pub fn message_to(to: To, text: &str, lead: &Lead) -> (&'static str, Value) {
 /// 撤回平台编号是 `message_id` 的那一条的动作和参数：`delete_msg {message_id}`（施工 O-25 上，「斜杠命令」第 7 条）。
 pub fn delete_msg(message_id: i64) -> (&'static str, Value) {
     ("delete_msg", json!({"message_id": message_id}))
+}
+
+/// 在平台编号是 `message` 的那一条上贴（`set` 是真）、摘（假）表情 `emoji` 的动作和参数：`set_msg_emoji_like {message_id,
+/// emoji_id, set}`（施工 O-25 下，「贴表情」第 2 条）。编号、表情都原样写成字：NapCat 数和字都收（`SetMsgEmojiLike.ts`），
+/// 编号原样还回去，不换写法（「施工时定的」第 109、132 条）。
+pub fn emoji_like(message: &str, emoji: &str, set: bool) -> (&'static str, Value) {
+    (
+        "set_msg_emoji_like",
+        json!({"message_id": message, "emoji_id": emoji, "set": set}),
+    )
 }

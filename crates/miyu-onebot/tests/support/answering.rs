@@ -2,7 +2,8 @@
 //! `get_version_info` 照 NapCat 回，`get_group_member_info` 照给的群成员回（不在里面的回失败），别的（`send_group_msg`、
 //! `send_private_msg`、`delete_msg`）回成了、交出来给测试看，发消息的回的 `message_id` 照收到的先后从 [`FIRST_SENT`] 起一条
 //! 加一（施工 O-23：她发过的编号要认得出「引用她」；撤回不占编号，施工 O-25 上）。真的 NapCat 并着办动作，回的先后不一定照
-//! 发的先后：[`NapCat::reversing`] 把头几条发消息的回应倒着回。[`NapCat::refusing`] 发消息的一律回失败（施工 O-25 中）。
+//! 发的先后：[`NapCat::reversing`] 把头几条发消息的回应倒着回。[`NapCat::refusing`] 发消息的一律回失败（施工 O-25 中）。贴、摘表情
+//! （`set_msg_emoji_like`，施工 O-25 下）回成了、不占编号，另放一处给测试看（[`Answering::reacted`]）。
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -36,6 +37,8 @@ pub struct Answering {
     actions: mpsc::UnboundedReceiver<Value>,
     /// 桥调的撤回（`delete_msg`，施工 O-25 上）：另放一处，群里的命令回执几秒后才撤，不插进别的测试等的动作里。
     recalls: mpsc::UnboundedReceiver<Value>,
+    /// 桥调的贴、摘表情（`set_msg_emoji_like`，施工 O-25 下）：同撤回，另放一处。
+    reactions: mpsc::UnboundedReceiver<Value>,
     /// 桥问过哪些群成员（号），照先后。
     asked: Arc<Mutex<Vec<i64>>>,
     task: JoinHandle<()>,
@@ -64,6 +67,7 @@ impl NapCat {
         let (frames, mut outgoing) = mpsc::unbounded_channel::<Value>();
         let (seen, actions) = mpsc::unbounded_channel();
         let (recalled, recalls) = mpsc::unbounded_channel();
+        let (reacted, reactions) = mpsc::unbounded_channel();
         let asked = Arc::new(Mutex::new(Vec::new()));
         let noted = Arc::clone(&asked);
         let (mut sink, mut stream) = self.ws.split();
@@ -91,7 +95,9 @@ impl NapCat {
                         let mut answer = answer(&action, &members, &noted, &mut sent);
                         let kind = action["action"].as_str().unwrap_or_default();
                         let recall = kind == "delete_msg";
+                        let reaction = kind == "set_msg_emoji_like";
                         let sending = !recall
+                            && !reaction
                             && kind != "get_version_info"
                             && kind != "get_group_member_info";
                         if sending && refuse {
@@ -99,6 +105,8 @@ impl NapCat {
                         }
                         let shown = if recall {
                             recalled.send(action)
+                        } else if reaction {
+                            reacted.send(action)
                         } else if sending {
                             seen.send(action)
                         } else {
@@ -130,6 +138,7 @@ impl NapCat {
             frames,
             actions,
             recalls,
+            reactions,
             asked,
             task,
         }
@@ -143,8 +152,8 @@ fn answer(action: &Value, members: &[Member], asked: &Mutex<Vec<i64>>, sent: &mu
             "ok",
             json!({"app_name": "NapCat.Onebot", "app_version": "4.8.0", "protocol_version": "v11"}),
         ),
-        // 撤回（施工 O-25 上）：回成了，不占发出去的编号。
-        Some("delete_msg") => ("ok", Value::Null),
+        // 撤回（施工 O-25 上）、贴摘表情（施工 O-25 下）：回成了，不占发出去的编号。
+        Some("delete_msg" | "set_msg_emoji_like") => ("ok", Value::Null),
         Some("get_group_member_info") => {
             let user = action["params"]["user_id"].as_i64().expect("问的是号");
             asked.lock().expect("没 panic").push(user);
@@ -212,6 +221,19 @@ impl Answering {
     /// 还没取的撤回：没有的是空的。
     pub fn pending_recall(&mut self) -> Option<Value> {
         self.recalls.try_recv().ok()
+    }
+
+    /// 下一个贴、摘表情（`set_msg_emoji_like`）的参数，最多等十秒（施工 O-25 下）。
+    pub async fn reacted(&mut self) -> Value {
+        let action = within("桥贴摘表情", self.reactions.recv())
+            .await
+            .expect("任务还在");
+        action["params"].clone()
+    }
+
+    /// 还没取的贴、摘表情：没有的是空的。
+    pub fn pending_reaction(&mut self) -> Option<Value> {
+        self.reactions.try_recv().ok()
     }
 
     /// 还没取的动作：没有的是空的。

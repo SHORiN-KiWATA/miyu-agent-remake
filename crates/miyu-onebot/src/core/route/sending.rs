@@ -7,7 +7,10 @@
 //! - 门关着的排着（纯逻辑在 `queue`）。什么时候再看一遍：入队以后、机器人号连上了、记了禁言或解禁以后（`muted`）、定时醒了
 //!   （[`Route::wake`]，跟核心的那一头睡到那一刻）：先把过期的记了，再交门开着的（「施工时定的」第 123、125 条）。
 //! - 她的话入队记成了就算进这一回合发出去的（去重照它）：群里先算进投影，私聊记进 `Spoken`（「施工时定的」第 112、113 条）。
+//! - 退信（施工 O-25 下，「退信」）：她的话记了 `failed` 以后，经核心的 `session.note` 给那个会话记一块 `undelivered` 事实，写着
+//!   为什么和那一段的开头（模板是出厂数据，`rules/facts.rs`）；一段一块，提示、回执不退（「施工时定的」第 129、130 条）。
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -20,7 +23,7 @@ use super::queue::{DISCONNECTED, EXPIRED, Ending, ending};
 use super::receipt::recall;
 use super::{Peer, Route, applied};
 use crate::TARGET;
-use crate::core::Gone;
+use crate::core::{Gone, reason};
 use crate::onebot::{CallError, Lead, To, message_to};
 
 /// 失败记成的事件（第 4 条）。
@@ -34,6 +37,12 @@ const RECEIPT: &str = "receipt";
 
 /// 门关着：她被禁言着。
 const MUTED: &str = "muted";
+
+/// 退信那一块事实的 `kind`（施工 O-25 下，「退信」第 2 条）。
+const UNDELIVERED: &str = "undelivered";
+
+/// 退信带她那一段的头几个字符（施工 O-25 下，「退信」第 3 条，「施工时定的」第 130 条）：认得出是哪一句就够。
+const HEAD: usize = 30;
 
 /// 要说出去的一段是什么（第 1 条）。
 #[derive(Debug, Clone)]
@@ -256,7 +265,7 @@ impl Route {
             }
             (What::Receipt, Some(msg)) => {
                 let bots = Arc::clone(&self.bots);
-                self.recalls.spawn(recall(msg, peer, bots, self.recall));
+                self.chores.spawn(recall(msg, peer, bots, self.recall));
                 Ok(())
             }
             (What::Receipt, None) => {
@@ -267,7 +276,7 @@ impl Route {
         }
     }
 
-    /// 没成的一段记 `failed {queued, why, detail?}`（第 4 条），运行日志记一行（不记原文）。
+    /// 没成的一段记 `failed {queued, why, detail?}`（第 4 条），运行日志记一行（不记原文）；她的话再退信（施工 O-25 下，「退信」）。
     async fn failed(
         &mut self,
         session: &str,
@@ -281,10 +290,52 @@ impl Route {
         let chars = item.piece.text.chars().count();
         tracing::warn!(target: TARGET, venue = %venue, why, chars, "reply not sent");
         let mut body = json!({"queued": item.queued, "why": why});
-        if let Some(detail) = detail {
+        if let Some(detail) = &detail {
             body["detail"] = json!(detail);
         }
-        self.append(session, None, FAILED, body).await.map(drop)
+        self.append(session, None, FAILED, body).await?;
+        match item.piece.what {
+            What::Reply { .. } => {
+                let detail = detail.unwrap_or_default();
+                self.undelivered(session, &venue, item, (why, &detail))
+                    .await
+            }
+            What::Notice(_) | What::Receipt => Ok(()),
+        }
+    }
+
+    /// 她的一段 `item` 没发出去（为什么 `why`、NapCat 说的 `detail`，没有的是空的）：照退信的模板写一块，经核心的 `session.note`
+    /// 记进会话 `session`，命令编号是入队那一条的序号加 `/note`（「退信」第 2、3 条）。`venue` 只记运行日志。核心拒了的（照说
+    /// 不会）记一行，不再试。
+    ///
+    /// # Errors
+    ///
+    /// 写不出去、等的时候核心断开。
+    async fn undelivered(
+        &mut self,
+        session: &str,
+        venue: &str,
+        item: &Item,
+        (why, detail): (&str, &str),
+    ) -> Result<(), Gone> {
+        let head: String = item.piece.text.trim().chars().take(HEAD).collect();
+        let fields = BTreeMap::from([("why", why), ("detail", detail), ("text", head.as_str())]);
+        let text = match self.rules.undelivered().render(&fields) {
+            Ok(text) => text,
+            Err(error) => {
+                // 照说不会：起来时查过模板只要这三个字段（`rules/facts.rs`）。
+                tracing::warn!(target: TARGET, venue, error = %error, "undelivered not written");
+                return Ok(());
+            }
+        };
+        let id = format!("{}/note", item.queued);
+        let params = json!({"session": session, "facts": [{"kind": UNDELIVERED, "text": text}]});
+        let reply = self.core.call_as(&id, "session.note", params).await?;
+        match reason(&reply) {
+            None => tracing::info!(target: TARGET, venue, why, "undelivered noted"),
+            Some(reason) => tracing::warn!(target: TARGET, venue, reason, "note refused"),
+        }
+        Ok(())
     }
 }
 

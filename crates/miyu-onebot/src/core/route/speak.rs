@@ -17,7 +17,8 @@ use crate::TARGET;
 use crate::core::Gone;
 
 impl Route {
-    /// 群会话 `session` 推来的一条 `pushed`（`event` 推送）：落了盘的收进投影（瞬时的没有序号，不看），她新说的话发回群里。
+    /// 群会话 `session` 推来的一条 `pushed`（`event` 推送）：落了盘的收进投影（瞬时的没有序号，不看），交给贴着的表情看要不要摘
+    /// （施工 O-25 下，`reaction`），她新说的话发回群里。
     ///
     /// # Errors
     ///
@@ -37,7 +38,9 @@ impl Route {
         let Some(group) = self.groups.get_mut(session) else {
             return Ok(());
         };
-        match group.take(&event) {
+        let speaking = group.take(&event);
+        self.reactions.seen(session, &event);
+        match speaking {
             Some(speaking) => self.speak(session, speaking, &reply_text(raw)).await,
             None => Ok(()),
         }

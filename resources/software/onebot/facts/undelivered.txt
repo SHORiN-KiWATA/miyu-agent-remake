@@ -1,0 +1,1 @@
+<undelivered why="{why}" detail="{detail}">Your message starting "{text}" was not sent; the chat never saw it.</undelivered>

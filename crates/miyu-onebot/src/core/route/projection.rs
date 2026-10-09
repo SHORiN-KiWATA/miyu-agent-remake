@@ -363,6 +363,11 @@ impl Projection {
         self.said.get(&seq).map(|speaker| speaker.at)
     }
 
+    /// 序号是 `seq` 的这一条的平台编号（施工 O-25 下：贴表情贴在它上面）；没收过的、没有编号的是空的。
+    pub(super) fn msg(&self, seq: u64) -> Option<&str> {
+        self.said.get(&seq)?.msg.as_deref()
+    }
+
     /// 判过要回、她还没回完的（O-23 下，「群里怎么叫她」第 11 条）：交给顶替看。
     pub(super) fn committed(&self) -> impl Iterator<Item = &Pending> {
         self.committed.iter().map(|committed| &committed.pending)

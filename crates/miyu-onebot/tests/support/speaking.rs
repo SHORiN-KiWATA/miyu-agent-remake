@@ -6,7 +6,8 @@
 //!   等够了再放；去重看「这一回合已经发出去的」（O-25 中起照入队算，桥入队记成了就算上，`onebot.md`「施工时定的」第 112 条）。
 //!   不靠谁快。
 //!
-//! 起标题这类辅助请求不回：在路上不碍事。
+//! 起标题这类辅助请求不回：在路上不碍事。每一次主请求记下来（[`Lines::requests`]，施工 O-25 下：看退信那一块进没进她下一次
+//! 请求）。
 
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -62,6 +63,8 @@ impl Line {
 #[derive(Clone)]
 pub struct Lines {
     lines: Arc<Mutex<VecDeque<Line>>>,
+    /// 交来的每一次主请求，照先后。
+    seen: Arc<Mutex<Vec<Request>>>,
 }
 
 impl Lines {
@@ -69,7 +72,16 @@ impl Lines {
     pub fn new(lines: impl IntoIterator<Item = Line>) -> Lines {
         Lines {
             lines: Arc::new(Mutex::new(lines.into_iter().collect())),
+            seen: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+
+    /// 交来的每一次主请求，照先后（起标题这类辅助请求不算）。
+    pub fn requests(&self) -> Vec<Request> {
+        self.seen
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 }
 
@@ -105,6 +117,10 @@ impl ModelPort for Lines {
             .pop_front()
             .expect("台词里排了这一次说什么");
         let (model, hash) = (self.model(), request.hash());
+        self.seen
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(request);
         tokio::spawn(async move {
             if let Some(release) = line.release
                 && release.await.is_err()

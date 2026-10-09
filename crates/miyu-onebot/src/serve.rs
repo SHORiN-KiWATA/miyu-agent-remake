@@ -35,7 +35,7 @@ use miyu_store::root::DataRoot;
 
 use crate::TARGET;
 use crate::core::Core;
-use crate::core::route::{Personas, Route, Slots};
+use crate::core::route::{Personas, Reactions, Route, Slots};
 use crate::current::Current;
 use crate::listen::bots::Bots;
 use crate::listen::{self, Gate};
@@ -222,7 +222,15 @@ pub async fn run(
     let slots = Slots::new(gate.tuning.judge_concurrency, gate.tuning.judge_queue());
     let personas = Personas::new(gate.tuning.judge_persona());
     let recall = gate.tuning.receipt_recall();
-    let parts = (texts, slots, personas, recall, gate.tuning.queue_expire());
+    let reactions = Reactions::new(gate.tuning.reaction_emoji.clone(), gate.tuning.reaction());
+    let parts = (
+        texts,
+        slots,
+        personas,
+        recall,
+        gate.tuning.queue_expire(),
+        reactions,
+    );
     let route = Route::new(core, bots, venues, members, parts, configured);
     let route = tasks.spawn(async move { route.run(received).await }).id();
     tasks.spawn(status_file::keep(

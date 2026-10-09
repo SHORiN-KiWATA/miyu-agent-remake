@@ -131,7 +131,13 @@ impl Route {
         self.append(session, Some(&decided), DECIDED, written)
             .await?;
         match finale {
-            Finale::Reply => self.respond(session, &decision.msgs, tag).await,
+            Finale::Reply => {
+                // 开了一轮、并进一轮的贴表情（施工 O-25 下，「贴表情」第 1 条）。
+                if self.respond(session, &decision.msgs, tag).await? {
+                    self.react(session, decision);
+                }
+                Ok(())
+            }
             Finale::Notice(why) => {
                 // 提示入队（施工 O-25 中，「出站队列」第 2 条）：命令编号照这一条加 `/queued`，一条消息至多提示一次。
                 let queued = format!("{}/queued", tag.id);
@@ -290,15 +296,16 @@ impl Route {
     }
 
     /// 照记下的几条 `msgs` 开一轮（第 7 条）：`session.respond {session, to: msgs}`，命令编号照最后一条的 `tag`；正在跑一轮的
-    /// 核心并进去。核心说已经当过触发、不是旁听的不再开，记一行。
-    async fn respond(&mut self, session: &str, msgs: &[u64], tag: &Tag) -> Result<(), Gone> {
+    /// 核心并进去。交回成没成（施工 O-25 下：成了的贴表情）。核心说已经当过触发、不是旁听的不再开，记一行。
+    async fn respond(&mut self, session: &str, msgs: &[u64], tag: &Tag) -> Result<bool, Gone> {
         let id = format!("{}/respond", tag.id);
         let params = json!({"session": session, "to": msgs});
         let reply = self.core.call_as(&id, "session.respond", params).await?;
         let (venue, number) = (&tag.venue, tag.number);
         match reason(&reply) {
             None => {
-                tracing::info!(target: TARGET, venue = %venue, message = number, "respond asked")
+                tracing::info!(target: TARGET, venue = %venue, message = number, "respond asked");
+                return Ok(true);
             }
             Some(reason @ ("already_answered" | "not_ambient")) => {
                 let messages = &reply["error"]["data"]["messages"];
@@ -308,7 +315,7 @@ impl Route {
                 tracing::warn!(target: TARGET, venue = %venue, message = number, reason, "respond refused");
             }
         }
-        Ok(())
+        Ok(false)
     }
 
     /// 往会话 `session` 记一条 `kind` 的事件（`events.append`）：命令编号是 `id`，空的自己编。交回记成的序号（施工 O-25 中：

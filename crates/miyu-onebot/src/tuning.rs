@@ -47,6 +47,11 @@ pub struct Tuning {
     /// 出站排着的（她被禁言、机器人号没连着）入队以后过几秒还没交出去的作废（施工 O-25 中，`onebot.md`「出站队列」第 5 条）。
     /// 至少 1：0 的话入队的时刻就到了期限，一条都发不出去（「施工时定的」第 124 条）。
     pub queue_expire_seconds: u64,
+    /// 群里判过要回的那一条上贴哪个表情（施工 O-25 下，`onebot.md`「贴表情」第 2 条；18 第七节）：QQ 表情的编号，写成字，原样交
+    /// `set_msg_emoji_like` 的 `emoji_id`。
+    pub reaction_emoji: String,
+    /// 贴了以后过几秒她还没回、这一轮还没完的，摘掉（施工 O-25 下，「贴表情」第 3 条）。0 是贴了就摘（「施工时定的」第 135 条）。
+    pub reaction_seconds: u64,
     /// WebUI 的数（施工 O-16，`onebot.md` 第二条）。
     pub web: WebTuning,
 }
@@ -140,5 +145,10 @@ impl Tuning {
     /// 出站排着的多久过期。
     pub fn queue_expire(&self) -> Duration {
         Duration::from_secs(self.queue_expire_seconds)
+    }
+
+    /// 贴的表情过多久摘。
+    pub fn reaction(&self) -> Duration {
+        Duration::from_secs(self.reaction_seconds)
     }
 }
