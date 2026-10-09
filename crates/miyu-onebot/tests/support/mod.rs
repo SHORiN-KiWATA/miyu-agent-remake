@@ -8,6 +8,7 @@
 pub mod fake_core;
 pub mod group;
 pub mod http;
+pub mod judge;
 pub mod napcat;
 pub mod pipe;
 pub mod ports;
@@ -31,6 +32,7 @@ use miyu_onebot::rules::Factory;
 use miyu_onebot::serve::{Failure, Notice, Serve, run};
 use miyu_onebot::settings::{Defaults, Settings};
 use miyu_onebot::tuning::Tuning;
+use miyu_session::Models;
 use miyu_session::testkit::Script;
 use miyu_store::env::{Env, Platform};
 use miyu_store::log::read_events;
@@ -121,7 +123,7 @@ pub fn temp_root() -> (PathBuf, DataRoot) {
 impl Home {
     /// 起一个核心：请求模型照 `script`，没有工具，系统配置是主人对应表。
     pub fn new(script: &Script) -> Home {
-        Home::with_config(script, CONFIG, None, None)
+        Home::with_config(Arc::new(script.clone()), CONFIG, None, None)
     }
 
     /// 起一个照开关拉起扩展的核心（施工 O-18）：系统配置是主人对应表接着 `more`（端口、令牌、语言），密钥文件里 `onebot` 是
@@ -129,6 +131,11 @@ impl Home {
     /// 20 毫秒起、最多 100 毫秒，请扩展退出以后照出厂的等 5 秒再杀（等的时候桥得自己退）。出厂的清单里有桥：开了就拉起测试程序
     /// 旁边的 `miyu-onebot`（[`spawning::linked`]）。
     pub fn spawning(script: &Script, more: &str) -> Home {
+        Home::spawning_with(Arc::new(script.clone()), more)
+    }
+
+    /// 同 [`Home::spawning`]，请求模型照 `models`（施工 O-23 下：判官另走一头，[`judge::models`]）。
+    pub fn spawning_with(models: Arc<dyn Models>, more: &str) -> Home {
         spawning::linked();
         let timing = Timing {
             grace: Duration::from_secs(5),
@@ -138,17 +145,17 @@ impl Home {
         };
         let secrets = format!("onebot = \"{TOKEN}\"\n");
         Home::with_config(
-            script,
+            models,
             &format!("{CONFIG}{more}"),
             Some(&secrets),
             Some(timing),
         )
     }
 
-    /// 起一个核心：系统配置写成 `config`，有 `secrets` 的密钥文件写成它；`extensions` 有的照它等、退避，照开关拉起扩展。配置
-    /// 清单照真核心起来时那样拼进出厂的包的配置项（`Packaged`，施工 O-20：`onebot.*` 在桥的清单里）。
+    /// 起一个核心：请求模型照 `models`，系统配置写成 `config`，有 `secrets` 的密钥文件写成它；`extensions` 有的照它等、退避，
+    /// 照开关拉起扩展。配置清单照真核心起来时那样拼进出厂的包的配置项（`Packaged`，施工 O-20：`onebot.*` 在桥的清单里）。
     fn with_config(
-        script: &Script,
+        models: Arc<dyn Models>,
         config: &str,
         secrets: Option<&str>,
         extensions: Option<Timing>,
@@ -173,7 +180,7 @@ impl Home {
             Core::new(
                 root.clone(),
                 shipped,
-                Arc::new(script.clone()),
+                models,
                 Catalog::default(),
                 None,
                 admin(),

@@ -60,6 +60,9 @@ workspace = true
 miyu-core = { path = "../miyu-core", default-features = false }
 miyu-endpoint = { path = "../miyu-endpoint" }
 miyu-session = { path = "../miyu-session", features = ["testkit"] }
+# 判官的替身（施工 O-23 下）：`model.call` 走核心真的一次性入口，发到本机回环上的假服务器；模型资料、档案照它造。
+miyu-http = { path = "../miyu-http", features = ["testkit"] }
+miyu-models = { path = "../miyu-models" }
 miyu-tool = { path = "../miyu-tool" }
 # 测试里的假 NapCat 是一个 WebSocket 客户端（客户端的握手）。
 tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }

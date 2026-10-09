@@ -1,17 +1,17 @@
-//! 判一条群消息（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 5 到 7 条）：过进站链（`Chain::builtin`），放行的算加值项
-//! （`conditions`）、定走哪条路（`route`），得出结论；判断写成 `ext.onebot.chat.decided` 的 `body`（「施工时定的」第 76 条）。
-//! 纯逻辑：要的都由调的一方从场所规则、投影、这一条填好交进来（`called.rs`）。
+//! 判一条群消息（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 5、6、10、11、14 条）：过进站链（`Chain::builtin`），放行的
+//! 算加值项（`conditions`），照线路规程留下算数的条件（`discipline`，O-23 下）、看顶替（`supersede`，O-23 下）、定走哪条路，
+//! 得出结论。纯逻辑：要的都由调的一方从场所规则、投影、桥内存里在判的、这一条填好交进来（`called.rs`）。判断写成
+//! `ext.onebot.chat.decided` 的 `body` 在 `body.rs`。
 //!
-//! 这一步只走不用判官的路（施工单「要定的」第 4 条）：主人冲她来的回，没条件的只记下，要问判官的两条路（`Judge`、
-//! `ModerationOnly`）结论是「判官还没接」。只有主线，不分派（「施工时定的」第 74 条）。
+//! 要问判官的结论是 [`Conclusion::Judge`]：判官回来、算完分才知道回不回（`judged.rs`）。额度满了的这段时间 `chatty` 不抽样、
+//! 不问判官（第 14 条），要问判官的只记下。只有主线，不分派（「施工时定的」第 74 条）。
 
 use miyu_chat::{
-    Chain, Chatty, Clock, Conditions, Ctx, Facts, Flag, Inbound, Kind, Outcome, Reply, Route,
-    Standing, VenueKind, Verdict, Why, conditions, route,
+    Chain, Chatty, Clock, Conditions, Ctx, Facts, Inbound, Mode, Outcome, Pending, Reply, Route,
+    Supersede, VenueKind, Verdict, Why, conditions, rate_full, supersede,
 };
-use serde_json::{Value, json};
 
-use super::projection::RATE_LIMITED;
+use super::discipline::Discipline;
 
 /// 判一条要的。
 pub(super) struct Case<'a> {
@@ -27,165 +27,137 @@ pub(super) struct Case<'a> {
     pub(super) clock: Clock,
     /// 这个群的参数。
     pub(super) chatty: &'a Chatty,
+    /// 这个群的线路规程（O-23 下）。
+    pub(super) discipline: Discipline,
+    /// 这个群还没回完的（O-23 下）：投影里判过要回、她还没回完的，桥内存里在判的。
+    pub(super) pendings: &'a [Pending],
+    /// 顶替窗口，毫秒（这个群的 `Params::supersede_window`）。
+    pub(super) window: i64,
 }
 
 /// 结论。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Conclusion {
-    /// 回：开一轮（主人冲她来）。
+    /// 回：开一轮。
     Reply,
     /// 只记下。
     Record,
     /// 回一句提示（限流满了冲她来的）：为什么，写进提示的 `reason`。
     Notice(Why),
-    /// 要问判官：判官还没接（O-23 下），这一步不回。
-    NoJudge,
+    /// 问判官：打分，或者只查违规。回不回等判官回来、算完分。
+    Judge(Mode),
 }
 
 /// 一次判断。
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct Decision {
+    /// 判的是哪几条：序号，照先后。顶替重判的是那几条，别的只有这一条。
+    pub(super) msgs: Vec<u64>,
     /// 进站链的判定。
     pub(super) verdict: Verdict,
-    /// 放行了的：成立的条件、走的路。
-    pub(super) passed: Option<(Conditions, Route)>,
+    /// 放行了的：线路规程、条件、顶替、走的路。
+    pub(super) passed: Option<Passed>,
     /// 结论。
     pub(super) conclusion: Conclusion,
 }
 
-/// 判一条（「群里怎么叫她」第 5、6 条）：进站链只记下的只记下，提示的回一句；放行的照条件走路：`Record` 只记下，`Commit`
-/// 回，`Judge`、`ModerationOnly` 判官还没接。
+/// 放行了的一条怎么走的。
+#[derive(Debug, Clone, PartialEq)]
+pub(super) struct Passed {
+    /// 线路规程。
+    pub(super) discipline: Discipline,
+    /// 算数的条件：顶替了的是合起来的。
+    pub(super) conditions: Conditions,
+    /// 顶替。
+    pub(super) supersede: Supersede,
+    /// 走的路：接过去的是 `Commit`。
+    pub(super) route: Route,
+    /// 要问判官、额度满了没问（第 14 条）。
+    pub(super) rate_full: bool,
+}
+
+/// 判一条（「群里怎么叫她」第 5、6、10、11、14 条）：进站链只记下的只记下，提示的回一句；放行的照线路规程留下条件、看顶替：
+/// 接过去的回，别的照线路规程走路：`Record` 只记下，`Commit` 回，`Judge`、`ModerationOnly` 问判官（额度满了的只记下）。
 pub(super) fn decide(case: &Case<'_>) -> Decision {
+    let own = case.facts.msg.get();
     let inbound = Inbound {
         kind: VenueKind::Group,
         said: case.facts.said.clone(),
         text: case.text.clone(),
     };
     let verdict = Chain::builtin().judge(&inbound, &case.ctx, case.clock);
-    let (passed, conclusion) = match verdict.outcome {
-        Outcome::RecordOnly(_) => (None, Conclusion::Record),
-        Outcome::Notice(why) => (None, Conclusion::Notice(why)),
+    let (passed, conclusion, msgs) = match verdict.outcome {
+        Outcome::RecordOnly(_) => (None, Conclusion::Record, vec![own]),
+        Outcome::Notice(why) => (None, Conclusion::Notice(why), vec![own]),
         Outcome::Pass => {
-            let found = conditions(
-                &case.facts,
-                &verdict.flags,
-                case.replies,
-                case.clock,
-                case.chatty,
-            );
-            let way = route(&found, case.facts.said.standing);
-            let conclusion = match way {
-                Route::Record => Conclusion::Record,
+            let (passed, msgs) = pass(case, &verdict);
+            let conclusion = match passed.route {
                 Route::Commit => Conclusion::Reply,
-                Route::Judge | Route::ModerationOnly => Conclusion::NoJudge,
+                Route::Record => Conclusion::Record,
+                _ if passed.rate_full => Conclusion::Record,
+                Route::Judge => Conclusion::Judge(Mode::Reply),
+                Route::ModerationOnly => Conclusion::Judge(Mode::ModerationOnly),
             };
-            (Some((found, way)), conclusion)
+            (Some(passed), conclusion, msgs)
         }
     };
     Decision {
+        msgs,
         verdict,
         passed,
         conclusion,
     }
 }
 
-impl Decision {
-    /// `ext.onebot.chat.decided` 的 `body`（「群里怎么叫她」第 7 条那张表）：判的是序号 `msgs` 那几条，发的人是 `standing`。
-    pub(super) fn body(&self, msgs: &[u64], standing: Standing) -> Value {
-        let mut body = json!({
-            "msgs": msgs,
-            "standing": standing_name(standing),
-            "outcome": self.conclusion.name(),
-        });
-        let (inbound, why) = match self.verdict.outcome {
-            Outcome::Pass => ("pass", None),
-            Outcome::RecordOnly(why) => ("record_only", Some(why)),
-            Outcome::Notice(why) => ("notice", Some(why)),
-        };
-        body["inbound"] = json!(inbound);
-        if let Some(why) = why {
-            body["why"] = json!(why_name(why));
+/// 放行了的一条：算条件、照线路规程留下、看顶替、走路；交回怎么走的和判的是哪几条。
+fn pass(case: &Case<'_>, verdict: &Verdict) -> (Passed, Vec<u64>) {
+    let discipline = case.discipline;
+    let found = conditions(
+        &case.facts,
+        &verdict.flags,
+        case.replies,
+        case.clock,
+        case.chatty,
+    );
+    // 额度满了的这段时间不抽样、不问判官（18 第六节）：抽样只有 `chatty` 有，问判官哪种规程都照它。
+    let full = rate_full(&case.ctx, case.clock);
+    let own = discipline.keep(found, full);
+    let superseded = match discipline.supersedes() {
+        true => supersede(&case.facts, &own, case.pendings, case.clock, case.window),
+        false => Supersede::None,
+    };
+    let standing = case.facts.said.standing;
+    let media_only = case.facts.media_only;
+    let (conditions, route, msgs) = match &superseded {
+        Supersede::None => {
+            let route = discipline.route(&own, standing, media_only);
+            (own, route, vec![case.facts.msg.get()])
         }
-        if !self.verdict.flags.is_empty() {
-            let flags: Vec<&str> = self
-                .verdict
-                .flags
-                .iter()
-                .map(|flag| flag_name(*flag))
-                .collect();
-            body["flags"] = json!(flags);
+        Supersede::Inherit { conditions, .. } => (
+            conditions.clone(),
+            Route::Commit,
+            vec![case.facts.msg.get()],
+        ),
+        Supersede::Rejudge {
+            msgs, conditions, ..
+        } => {
+            let route = discipline.route(conditions, standing, media_only);
+            let msgs = msgs.iter().map(|msg| msg.get()).collect();
+            (conditions.clone(), route, msgs)
         }
-        if let Some((found, way)) = &self.passed {
-            let hits: Vec<Value> = found
-                .hits
-                .iter()
-                .map(|hit| json!({"kind": kind_name(hit.kind), "bonus": hit.bonus}))
-                .collect();
-            body["conditions"] = json!(hits);
-            body["route"] = json!(route_name(*way));
-        }
-        body
-    }
+    };
+    let rate_full = full && matches!(route, Route::Judge | Route::ModerationOnly);
+    let passed = Passed {
+        discipline,
+        conditions,
+        supersede: superseded,
+        route,
+        rate_full,
+    };
+    (passed, msgs)
 }
 
-impl Conclusion {
-    /// `body` 里 `outcome` 的写法；运行日志也照它。
-    pub(super) fn name(self) -> &'static str {
-        match self {
-            Conclusion::Reply => "reply",
-            Conclusion::Record => "record",
-            Conclusion::Notice(_) => "notice",
-            Conclusion::NoJudge => "no_judge",
-        }
-    }
-}
-
-/// 没放行的原因的写法：`body` 的 `why`，提示的 `reason`。
-pub(super) fn why_name(why: Why) -> &'static str {
-    match why {
-        Why::Asleep => "asleep",
-        Why::Muted => "muted",
-        Why::NotAllowed => "not_allowed",
-        Why::RateLimited => RATE_LIMITED,
-    }
-}
-
-/// 发的人是谁的写法。
-fn standing_name(standing: Standing) -> &'static str {
-    match standing {
-        Standing::Owner => "owner",
-        Standing::Trusted => "trusted",
-        Standing::Member => "member",
-    }
-}
-
-/// 旗的写法。
-fn flag_name(flag: Flag) -> &'static str {
-    match flag {
-        Flag::Moderation => "moderation",
-    }
-}
-
-/// 条件的种类的写法。
-fn kind_name(kind: Kind) -> &'static str {
-    match kind {
-        Kind::Direct => "direct",
-        Kind::Continuation => "continuation",
-        Kind::AfterSpeaking => "after_speaking",
-        Kind::Probability => "probability",
-        Kind::Moderation => "moderation",
-    }
-}
-
-/// 走的路的写法。
-fn route_name(way: Route) -> &'static str {
-    match way {
-        Route::Record => "record",
-        Route::Commit => "commit",
-        Route::ModerationOnly => "moderation_only",
-        Route::Judge => "judge",
-    }
-}
-
+#[cfg(test)]
+mod follow_tests;
 #[cfg(test)]
 mod tests;

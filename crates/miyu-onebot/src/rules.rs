@@ -6,6 +6,7 @@
 //! | 场所规则 | `venues.d/*.toml` | `venues.d/*.toml` |
 //! | 出厂参数 | `defaults.toml` | 没有：要改写场所规则 |
 //! | 违规词表 | `moderation.txt` | `modules/onebot/moderation.txt`，在的话整份替换出厂的 |
+//! | 判官的说明（施工 O-23 下） | `judge/*.txt` 十三份 | 没有：给模型看的字随包走 |
 //!
 //! - 出厂的起来时读一次、单独查一次（[`Factory::load`]）：有一条问题就是打包的错，桥起不来；之后放在内存里，跑着不再读
 //!   （「施工时定的」第 52 条）。
@@ -15,13 +16,15 @@
 //!   文件（「施工时定的」第 53 条）。
 
 mod files;
+mod judge;
 
 use std::fmt::Display;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use miyu_chat::{File, Moderation, Params, Problem, Resolved, Rules, Source, Venue};
+use miyu_chat::{File, JudgeTexts, Moderation, Params, Problem, Resolved, Rules, Source, Venue};
 use miyu_config::problem::Code;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
@@ -50,22 +53,26 @@ pub struct Factory {
     params: Params,
     /// 出厂的违规词表：系统没有那一份时用它。
     keywords: Vec<String>,
+    /// 判官的说明（施工 O-23 下）：查过的十三份，问判官的任务各拿一份引用。
+    judge: Arc<JudgeTexts>,
 }
 
 impl Factory {
     /// 读资源目录 `resources` 里的出厂数据：规则文件单独过一遍 [`Rules::parse`]（合上系统的以后，被同名替换的那一份不读，
-    /// 单独过才查得全），出厂参数过 [`Params::read`]，违规词表过 [`Moderation::parse_keywords`]。
+    /// 单独过才查得全），出厂参数过 [`Params::read`]，违规词表过 [`Moderation::parse_keywords`]，判官的说明过
+    /// [`JudgeTexts::new`]（施工 O-23 下）。
     ///
     /// # Errors
     ///
     /// 有一条问题就是打包的错（警告也算，照 `chat.md` 第八条施工时定的第 10 条），交回全部问题：规则写错、出厂参数写错、
-    /// 哪一份不在或读不成（`venues.d` 列不出来也是）。问题照规则文件、出厂参数、违规词表的先后。
+    /// 判官的说明写坏了、哪一份不在或读不成（`venues.d` 列不出来也是）。问题照规则文件、出厂参数、违规词表、判官的说明的
+    /// 先后。
     pub fn load(resources: &ResourceRoot) -> Result<Factory, Vec<Problem>> {
         let dir = resources.path().join("software").join(PACKAGE);
         let mut problems = Vec::new();
         let rules = files::rules(&dir.join(VENUES), VENUES, Source::Factory, &mut problems);
         problems.extend(Rules::parse(&rules).problems);
-        let params = match required(&dir, DEFAULTS, &mut problems) {
+        let params = match required(&dir.join(DEFAULTS), DEFAULTS, &mut problems) {
             Some(text) => {
                 let file = File {
                     source: Source::Factory,
@@ -82,22 +89,24 @@ impl Factory {
             }
             None => None,
         };
-        let keywords =
-            required(&dir, MODERATION, &mut problems).map(|text| Moderation::parse_keywords(&text));
-        match (params, keywords) {
-            (Some(params), Some(keywords)) if problems.is_empty() => Ok(Factory {
+        let keywords = required(&dir.join(MODERATION), MODERATION, &mut problems)
+            .map(|text| Moderation::parse_keywords(&text));
+        let judge = judge::texts(&dir, &mut problems);
+        match (params, keywords, judge) {
+            (Some(params), Some(keywords), Some(judge)) if problems.is_empty() => Ok(Factory {
                 rules,
                 params,
                 keywords,
+                judge: Arc::new(judge),
             }),
             _ => Err(problems),
         }
     }
 }
 
-/// 出厂的 `dir` 里的 `name`：不在的、读不成的记一条问题，交回空的。
-fn required(dir: &Path, name: &str, problems: &mut Vec<Problem>) -> Option<String> {
-    match files::read(&dir.join(name)) {
+/// 出厂的一份 `path`（问题里写成 `name`）：不在的、读不成的记一条问题，交回空的。
+fn required(path: &Path, name: &str, problems: &mut Vec<Problem>) -> Option<String> {
+    match files::read(path) {
         Ok(Some(text)) => Some(text),
         Ok(None) => {
             let missing = io::Error::from(io::ErrorKind::NotFound).to_string();
@@ -222,6 +231,11 @@ impl Venues {
             stamp,
             loaded,
         }
+    }
+
+    /// 判官的说明（施工 O-23 下）：出厂的，跑着不再读。
+    pub fn judge_texts(&self) -> Arc<JudgeTexts> {
+        Arc::clone(&self.factory.judge)
     }
 
     /// 这一刻 `now` 该用的那一份：离上一次看不到 `every` 的照手里的；到了，看一眼系统的两处，和上一次的一样照手里的，

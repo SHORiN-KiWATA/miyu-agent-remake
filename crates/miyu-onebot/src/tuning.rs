@@ -34,6 +34,11 @@ pub struct Tuning {
     pub rules_check_millis: u64,
     /// 群成员的名字记几秒（施工 O-22，`onebot.md`「群消息」第 5 条）。
     pub member_names_seconds: u64,
+    /// 判官全局最多同时问几个（施工 O-23 下，`onebot.md`「群里怎么叫她」第 12 条；18 第七节）。至少 1：是桥这个进程的，不按
+    /// 场所改，所以不在群聊内核的参数里（`chat.md` 第八条施工时定的第 5 条）。
+    pub judge_concurrency: usize,
+    /// 名额满了，问判官的排队最多等几秒（同上），等不到的当判不了。
+    pub judge_queue_seconds: u64,
     /// WebUI 的数（施工 O-16，`onebot.md` 第二条）。
     pub web: WebTuning,
 }
@@ -62,15 +67,15 @@ impl Tuning {
     ///
     /// # Errors
     ///
-    /// 读不了、不是这个形状、队列写了 0（建不了队列）：原话里说是哪个文件。
+    /// 读不了、不是这个形状、队列写了 0（建不了队列）、判官的并发写了 0（一个都问不了）：原话里说是哪个文件。
     pub fn load(resources: &Path) -> Result<Tuning, String> {
         let path = resources.join(FILE);
         let bad = |why: String| format!("{} not readable: {why}", path.display());
         let text = std::fs::read_to_string(&path).map_err(|error| bad(error.to_string()))?;
         let tuning: Tuning = serde_json::from_str(&text).map_err(|error| bad(error.to_string()))?;
-        if tuning.write_queue == 0 || tuning.inbound_queue == 0 {
+        if tuning.write_queue == 0 || tuning.inbound_queue == 0 || tuning.judge_concurrency == 0 {
             return Err(bad(
-                "write_queue and inbound_queue must be at least 1".to_string()
+                "write_queue, inbound_queue and judge_concurrency must be at least 1".to_string(),
             ));
         }
         Ok(tuning)
@@ -104,5 +109,10 @@ impl Tuning {
     /// 群成员的名字记多久。
     pub fn member_names(&self) -> Duration {
         Duration::from_secs(self.member_names_seconds)
+    }
+
+    /// 问判官的排队最多等多久。
+    pub fn judge_queue(&self) -> Duration {
+        Duration::from_secs(self.judge_queue_seconds)
     }
 }

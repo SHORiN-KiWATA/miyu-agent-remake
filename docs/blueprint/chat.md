@@ -536,7 +536,7 @@ Rust 这一边：
 | 进站链 `Ctx.muted` | `ext.onebot.venues.muted`、`unmuted` | 最后一条 |
 | 发的人是谁 `Standing` | `message.user` 的 `by`、系统配置 | 私聊里 `person` 带 `via`、群里 `external` 带 `account`：主人；编号在 `onebot.trusted` 里：自己人；别的：别人 |
 | 算分 `Reply` | `venue.delivered` | 一轮一笔：同一条线、同一轮的几条并成一笔，时刻取第一条，回的人取并集 |
-| 顶替 `Pending` | `ext.onebot.chat.decided`、`turn.started.triggers` | 判过要回、还没进哪一轮 `triggers` 的：`Committed`。前提是桥先记 `ext.onebot.chat.decided`、再 `session.respond`，桥保证这个先后。`Judging` 只在桥的内存里，桥重启就丢，丢了不补判（窗口只有 7 秒） |
+| 顶替 `Pending` | `ext.onebot.chat.decided`、`turn.started.triggers`、`turn.joined.triggers`、`turn.ended` | 判过要回、她还没回完的：`Committed`，从判断记下起，到收了它的那一轮（`triggers` 里有它）`turn.ended` 为止，还没进哪一轮的照旧算。前提是桥先记 `ext.onebot.chat.decided`、再 `session.respond`，桥保证这个先后。O-23 下改（2026-10-09 主会话定）：原来写的「还没进哪一轮 `triggers`」，照字面 `Committed` 只存在一瞬（桥记了判断紧接着 `session.respond`，核心当场记 `turn.started` 或 `turn.joined`），`Inherit` 走不到。`Judging` 只在桥的内存里，桥重启就丢，丢了不补判（窗口只有 7 秒） |
 | 分派 `Lines` | `turn.started`、`turn.ended`、分叉出的子会话 | 主线开着的那一轮，回的人是它 `triggers` 的发的人；支线同理 |
 | 出站 `Sent` | `venue.delivered` | 这一轮的正文和图的哈希 |
 | 出站 `Since` | `message.user`、`venue.delivered` | 她回的那条之后别人的消息条数、过了多久、最后一条是不是她的 |
@@ -591,7 +591,7 @@ restraint_half_life = "3m"
 | `chatty.severity_min` | 整数 1 到 10 | 7 | `Chatty::severity_min` |
 | `dispatch.supersede_window` | 时长 1 秒到 1 天 | `7s` | `Params::supersede_window` |
 | `judge.model` | 引用（`<供应商>/<模型>` 或 `@<池>`），可以不写 | 不写 | `Judge::model`：不写是 `None`，照 `models.chat` |
-| `judge.records` | 整数 0 到 1000 | 20 | `Judge::records`：判官看几条记录 |
+| `judge.records` | 整数 1 到 100（O-23 下改，原来 0 到 1000：和核心的 `venue.records` 收的一样） | 20 | `Judge::records`：判官看几条记录 |
 | `judge.max_tokens` | 整数 1 到 100000 | 400 | `Judge::max_tokens` |
 | `judge.timeout` | 时长 1 秒到 1 小时 | `60s` | `Judge::timeout` |
 | `judge.moderation_timeout` | 时长 1 秒到 1 小时 | `120s` | `Judge::moderation_timeout`：只查违规的那一次 |
@@ -669,7 +669,7 @@ Rust 这一边：
 | 4 | `onebot.trusted` 随第一个用到它的那一步：O-17 的「主人与自己人」页 | 这一步没人读它；它是桥的系统配置，跟群聊内核的参数不在一处 | 这一步就加 |
 | 5 | 判官的全局并发（4）、排队等多久（15 秒）不进表，随桥 | 是桥这个进程的，不是一个场所的；按场所改没有意义 | 放进 `[judge]` |
 | 6 | `judge.model` 出厂不写，是唯一一项可以不写的：不写照 `models.chat`；类型是配置的引用，指的在不在由桥调用时照核心的回答说 | 出厂不知道用户配了哪家的哪个模型；配置里没有「便宜的那档」这种键 | 出厂写一个池的名字 |
-| 7 | 范围照「能算出有意义的结果」定：小数（分、权重、加分、门槛、冷静的上限和 `k`）0 到 10，分的量级是 0 到 1、加起来能过 1，负的没有意义；窗口、半衰期、@ 的间隔 1 秒到 1 天（同 `rate` 的时长），判官的超时 1 秒到 1 小时；字符数、条数的上限是只防写错的整数。0 算得出意思的收 0（总引用、不拆、判官不看记录、不重试、理由不留、可打印的比例不筛），算不出的不收：`similar` 是 0 什么都算重复，`min_bigrams` 是 0 拿空集比相似度，`severity_min` 是 0 判官一报严重程度就回，base64 看 0 个字符什么都留不下 | 范围只挡算不出意思的、会算坏的，不替人挑值 | 照出厂值上下浮几倍 |
+| 7 | 范围照「能算出有意义的结果」定：小数（分、权重、加分、门槛、冷静的上限和 `k`）0 到 10，分的量级是 0 到 1、加起来能过 1，负的没有意义；窗口、半衰期、@ 的间隔 1 秒到 1 天（同 `rate` 的时长），判官的超时 1 秒到 1 小时；字符数、条数的上限是只防写错的整数。0 算得出意思的收 0（总引用、不拆、不重试、理由不留、可打印的比例不筛），算不出的不收：`similar` 是 0 什么都算重复，`min_bigrams` 是 0 拿空集比相似度，`severity_min` 是 0 判官一报严重程度就回，base64 看 0 个字符什么都留不下 | 范围只挡算不出意思的、会算坏的，不替人挑值 | 照出厂值上下浮几倍 |
 | 8 | `Params::read` 收第一条的 `File`，不只收字；问题用第一条的 `Problem`（施工单写的是 `read(text)`） | 问题要说是哪个文件，和场所规则的问题一个样；读一份文件、算位置、取原文那一套照用 | 收字，问题的文件名空着；另起一个问题的类型 |
 | 9 | 缺了的报 `wrong_type`，`at`、`got` 空着 | 配置的原因码里没有「缺了」（配置的项不写照默认值）；不改配置（施工单「风险」第 1 条），配置缺的照实记在这里 | 给配置加一种原因码 |
 | 10 | 出厂文件有一条问题（警告也算：`unknown_key` 在配置里是警告）整份不用 | 打包的错早报早改；只丢写错的那一项就得有个默认，默认又正是这份文件 | 照配置 G8 只丢那一项 |
@@ -685,3 +685,4 @@ Rust 这一边：
 | 20 | 标记每项 1 到 64 个字符（O-15 下） | 空的开头、收尾会让清理停不下来，配置的文字本来不收空的；64 同触发词的上限，只防写错 | 不设上限 |
 | 21 | 违规词表、出厂的场所规则也不进登记簿：豁免 `software/onebot/moderation.txt`、`software/onebot/venues.d/50-defaults.toml`，只豁免这几份（O-15 下，照第 16 条） | 是数据，不发给模型：违规词只拿来比子串，判官看不到 | 登记；豁免整个 `software/onebot/` |
 | 22 | 缺不缺照文件里写没写算：表在、项没写的，或者整张表没写的，是缺；表写成别的（不是表）的已经报过（O-15 下改） | 原来照「读对了没有、再除掉报过的」算；长度不同只报收尾，开头那一份写了、没报过、被拿掉，照原来的算法会被报成缺 | 长度不同两份都报 |
+| 23 | `judge.records` 的范围改成 1 到 100（O-23 下，2026-10-09 主会话定） | 核心的 `venue.records` 只收 1 到 100 条（`venues.md`「判官看的群聊记录」第 1 条）；范围宽了，桥就得另写一段截到核心收的，参数写的和判官实际看的对不上 | 照旧 0 到 1000、桥里截 |

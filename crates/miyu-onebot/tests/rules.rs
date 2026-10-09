@@ -83,6 +83,13 @@ pub fn copied_resources() -> PathBuf {
         std::fs::create_dir_all(to.parent().expect("有上一级")).expect("建得了");
         std::fs::copy(resources().join(file), &to).expect("抄得了");
     }
+    // 判官的说明（施工 O-23 下）：十三份，整个目录抄过去。
+    let judge = copy.join("software/onebot/judge");
+    std::fs::create_dir_all(&judge).expect("建得了");
+    for entry in std::fs::read_dir(resources().join("software/onebot/judge")).expect("列得出") {
+        let entry = entry.expect("读得了");
+        std::fs::copy(entry.path(), judge.join(entry.file_name())).expect("抄得了");
+    }
     copy
 }
 
@@ -399,6 +406,49 @@ fn factory_mistakes_are_all_reported() {
         ]
     );
     clean(resources.parent().expect("有上一级"));
+}
+
+#[test]
+fn broken_judge_texts_are_factory_mistakes() {
+    // 判官的说明（施工 O-23 下）：`violations.txt` 的模板写坏了、要了别的字段，记一条 `bad_format`；少了一份记一条读不成。
+    let resources = copied_resources();
+    let judge = resources.join("software/onebot/judge");
+    std::fs::write(judge.join("violations.txt"), "Severity {nope}.\n").expect("写得进");
+    let problems = Factory::load(&ResourceRoot::at(&resources)).expect_err("模板写坏了");
+    assert_eq!(
+        problems
+            .iter()
+            .map(|problem| (problem.code, problem.source, problem.file.as_str()))
+            .collect::<Vec<_>>(),
+        [(Code::BadFormat, Source::Factory, "judge/violations.txt")]
+    );
+    assert!(
+        problems[0]
+            .why
+            .as_deref()
+            .is_some_and(|why| why.contains("nope")),
+        "{problems:?}"
+    );
+    std::fs::copy(
+        resources_file("software/onebot/judge/violations.txt"),
+        judge.join("violations.txt"),
+    )
+    .expect("抄得了");
+    std::fs::remove_file(judge.join("answer.txt")).expect("删得了");
+    let problems = Factory::load(&ResourceRoot::at(&resources)).expect_err("少了一份");
+    assert_eq!(
+        problems
+            .iter()
+            .map(|problem| (problem.code, problem.file.as_str()))
+            .collect::<Vec<_>>(),
+        [(Code::Unreadable, "judge/answer.txt")]
+    );
+    clean(resources.parent().expect("有上一级"));
+}
+
+/// 源码树里资源目录的一份文件。
+fn resources_file(path: &str) -> PathBuf {
+    resources().join(path)
 }
 
 #[test]

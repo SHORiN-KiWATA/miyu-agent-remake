@@ -16,7 +16,9 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio_tungstenite::tungstenite::Message;
 
+use miyu_http::testkit::Server;
 use miyu_kernel::id::AccountId;
+use miyu_session::Models;
 use miyu_session::testkit::Script;
 use miyu_store::log::read_events;
 use miyu_store::root::DataRoot;
@@ -267,11 +269,57 @@ pub async fn started_with(
     onebot: &str,
     answer: impl FnOnce(NapCat) -> Answering,
 ) -> (Home, Answering, (u16, u16)) {
+    up(Arc::new(script.clone()), "", (rules, ""), onebot, answer).await
+}
+
+/// 同 [`started`]，判官那一次（`model.call`）发到假服务器 `judge`（施工 O-23 下，[`super::judge`]）：她的回合照剧本 `script`。
+/// `words` 不空的写成系统的违规词表（桥起来以前写好，不等重读）。
+pub async fn started_judged(
+    script: &Script,
+    judge: &Server,
+    (rules, words): (&str, &str),
+    onebot: &str,
+    members: &[Member],
+) -> (Home, Answering, (u16, u16)) {
+    let models = super::judge::models(script);
+    started_with_models(models, judge, (rules, words), onebot, members).await
+}
+
+/// 同 [`started_judged`]，请求模型照 `models`（[`super::judge::holding`] 这类）。
+pub async fn started_with_models(
+    models: Arc<dyn Models>,
+    judge: &Server,
+    (rules, words): (&str, &str),
+    onebot: &str,
+    members: &[Member],
+) -> (Home, Answering, (u16, u16)) {
+    let more = super::judge::config(judge);
+    up(models, &more, (rules, words), onebot, |napcat| {
+        napcat.answering(members)
+    })
+    .await
+}
+
+/// 起核心、拉起桥、连上假 NapCat：请求模型照 `models`，系统配置在端口、`[onebot]` 后面再接 `more`；系统的场所规则写成
+/// `rules`，`words` 不空的写成系统的违规词表。
+async fn up(
+    models: Arc<dyn Models>,
+    more: &str,
+    (rules, words): (&str, &str),
+    onebot: &str,
+    answer: impl FnOnce(NapCat) -> Answering,
+) -> (Home, Answering, (u16, u16)) {
     let (home, ports) = on_free_ports(async |listen, web| {
-        let home = Home::spawning(script, &ports_config_with(listen, web, onebot));
+        let config = format!("{}{more}", ports_config_with(listen, web, onebot));
+        let home = Home::spawning_with(Arc::clone(&models), &config);
         let dir = home.root.system().join("venues.d");
         std::fs::create_dir_all(&dir).expect("建得了目录");
         std::fs::write(dir.join("80-test.toml"), rules).expect("写得进");
+        if !words.is_empty() {
+            let modules = home.root.system().join("modules").join("onebot");
+            std::fs::create_dir_all(&modules).expect("建得了目录");
+            std::fs::write(modules.join("moderation.txt"), words).expect("写得进");
+        }
         let started = cli(&home.root, &["start"]).await;
         assert_eq!(started.status.code(), Some(0), "{}", text(&started.stderr));
         bridge_up(&home.root, listen, web, None).await?;

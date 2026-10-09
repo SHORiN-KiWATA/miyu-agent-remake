@@ -1,6 +1,6 @@
 //! 群里的限流和桥重启（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 1、2、5、7 条）：真核心照开关拉起真桥，假 NapCat 发群
 //! 消息。限流满了（规则 `rate = "1/1h"`，别人的那一轮由测试照判官点了头的样子经 `session.respond` 开），主人照样回；自己人
-//! （握手交来的 `onebot.trusted`）不受限流；别人冲她来回一句提示、记 `ext.onebot.venues.queued`，再来只记下。桥重启以后照日志
+//! （握手交来的 `onebot.trusted`）不受限流，可额度满了的这段时间不问判官，只记下（O-23 下，「群里怎么叫她」第 14 条）；别人冲她来回一句提示、记 `ext.onebot.venues.queued`，再来只记下。桥重启以后照日志
 //! 重建：限流照旧满、提示过的不再提示、引用她以前的话照样认得，以前的回复不再发一遍。改了自己人，推来就照新的认。
 
 use serde_json::{Value, json};
@@ -128,9 +128,15 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
         (
             &trusting["standing"],
             &trusting["inbound"],
+            &trusting["judge"],
             &trusting["outcome"]
         ),
-        (&json!("trusted"), &json!("pass"), &json!("no_judge")),
+        (
+            &json!("trusted"),
+            &json!("pass"),
+            &json!({"mode": "reply", "unjudged": "rate_full"}),
+            &json!("record")
+        ),
         "{trusting}"
     );
     let limited = decided(&events, 4).expect("记了");
@@ -219,9 +225,9 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
         (
             &trusting["standing"],
             &trusting["inbound"],
-            &trusting["outcome"]
+            &trusting["judge"]["unjudged"],
         ),
-        (&json!("trusted"), &json!("pass"), &json!("no_judge")),
+        (&json!("trusted"), &json!("pass"), &json!("rate_full")),
         "{trusting}"
     );
     assert!(napcat.pending().is_none(), "别的什么都不发");

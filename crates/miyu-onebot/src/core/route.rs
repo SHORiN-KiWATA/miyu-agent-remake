@@ -6,8 +6,10 @@
 //!   不送；带上场所的格（施工 O-22，`fields`），`show_ids` 照这个私聊套出来的场所规则（`applied`）。
 //! - 群消息（`group`，施工 O-22）：一律旁听；正文里的 @ 写成名字（`names`）；场所规则管人格、预设、工作区、谁是管理的人、
 //!   睡没睡、看不看得到号。撤回（`recall`，施工 O-22）记 `venue.recalled`。
-//! - 群里叫她（施工 O-23，「群里怎么叫她」）：记下以后判（`called`：纯逻辑的判断在 `decide`），主人冲她来的开一轮；群会话
-//!   推来的事件收进投影（`projection`），她新说的话发回群里、记 `venue.delivered`（`speak`）。
+//! - 群里叫她（施工 O-23，「群里怎么叫她」）：记下以后判（`called`：纯逻辑的判断在 `decide`，线路规程在 `discipline`，
+//!   判断的样子在 `body`），该回的开一轮；群会话推来的事件收进投影（`projection`），她新说的话发回群里、记
+//!   `venue.delivered`（`speak`）。要问判官的（O-23 下）交给 `judges`，任务（`ask`）经并着发的调用口问，跟核心的那一头接着办
+//!   别的；判官回来了照号收回来、算分、记判断（`judged`）。
 //! - 找会话（`session`）：「场所 → 会话编号」只记在内存里，每个场所桥起来以后第一次要用时问一次 `venue.session`；私聊的
 //!   问到了订阅（不写 `after`），群的从头订阅（施工 O-23）。会话不在了（`session_not_found`、`session_stopped`）
 //!   忘掉，再问一次、再交一次，只重来一次。私聊不是主人的（`no_system_account`，或者会话的属主是桥自己，「施工时定的」第
@@ -19,11 +21,16 @@
 //!   （「施工时定的」第 45 条）：这里够不着监听。自己人 `onebot.trusted` 这里记一份（施工 O-23）。
 
 mod applied;
+mod ask;
+mod body;
 mod called;
 mod command;
 mod decide;
+mod discipline;
 mod fields;
 mod group;
+mod judged;
+mod judges;
 mod names;
 mod projection;
 mod recall;
@@ -52,7 +59,9 @@ use crate::rules::{Applied, Venues};
 use crate::serve::Failure;
 use crate::settings::{trusted, trusted_key};
 use crate::texts::Texts;
+pub(crate) use ask::Slots;
 use fields::{Flags, fields};
+use judges::Judges;
 use projection::Projection;
 use session::Place;
 use speak::Delivered;
@@ -105,22 +114,26 @@ pub(crate) struct Route {
     /// 先后；`venue.delivered` 要照发的先后记，核心照日志的先后画她说的话，「施工时定的」第 84 条）。群里她的话发出去了的交回
     /// 那一段（施工 O-23）。放下 `Route` 时不掐：任务只等回应、记日志，连接断了、到了时限自己就完。
     sending: FuturesOrdered<JoinHandle<Option<Delivered>>>,
+    /// 在判的和问判官的任务（施工 O-23 下）。
+    judges: Judges,
     /// 推来的配置变化交给 `serve`（施工 O-20）。
     configured: mpsc::UnboundedSender<Map<String, Value>>,
 }
 
 impl Route {
     /// 拿着连接 `core`，回话照 `bots` 找连接，场所规则照 `rules`，群成员的名字记进 `members`，发进群里的提示照 `texts`
-    /// 说，推来的配置变化交给 `configured`。自己人照握手交来的配置（`core.config`）。
+    /// 说，问判官照全局的名额 `slots` 排队（施工 O-23 下），推来的配置变化交给 `configured`。自己人照握手交来的配置
+    /// （`core.config`）。
     pub(crate) fn new(
         core: Core,
         bots: Arc<Bots>,
         rules: Venues,
         members: Members,
-        texts: Texts,
+        (texts, slots): (Texts, Slots),
         configured: mpsc::UnboundedSender<Map<String, Value>>,
     ) -> Route {
         let trusted = trusted(&core.config[trusted_key()]);
+        let judges = Judges::new(core.caller(), rules.judge_texts(), slots);
         Route {
             core,
             bots,
@@ -133,13 +146,14 @@ impl Route {
             trusted,
             texts,
             sending: FuturesOrdered::new(),
+            judges,
             configured,
         }
     }
 
     /// 一直办，直到办不下去：核心关了管道、写不出去（核心请它退出、核心不在了，第 11 条），交回空的，桥好好停下；发回话
-    /// 的任务崩了，交回 [`Failure::Crashed`]（「施工时定的」第 14 条），桥照它退出。`inbound` 关了就只看核心：桥在停、
-    /// 读 NapCat 的那一头都放下了。
+    /// 的任务、问判官的任务（施工 O-23 下）崩了，交回 [`Failure::Crashed`]（「施工时定的」第 14 条），桥照它退出。`inbound`
+    /// 关了就只看核心：桥在停、读 NapCat 的那一头都放下了。
     pub(crate) async fn run(mut self, mut inbound: mpsc::Receiver<Event>) -> Option<Failure> {
         let mut open = true;
         loop {
@@ -159,6 +173,13 @@ impl Route {
                     Ok(Some(delivered)) => self.delivered(delivered).await.map_err(|Gone| None),
                     Ok(None) => Ok(()),
                     Err(failure) => Err(Some(failure)),
+                },
+                Some(joined) = self.judges.running.join_next(), if !self.judges.running.is_empty() => match joined {
+                    Ok(asked) => self.judged(asked).await.map_err(|Gone| None),
+                    Err(error) => {
+                        tracing::error!(target: TARGET, error = %error, "judge task crashed");
+                        Err(Some(Failure::Crashed(error.to_string())))
+                    }
                 },
             };
             if let Err(ended) = handled {

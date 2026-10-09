@@ -2,24 +2,33 @@
 //! 事件（订阅时从头补来的、之后推来的）照序号收进来，算出判一条群消息要的几样。纯逻辑：不碰 I/O、时钟。内存里只放从日志
 //! 算得出的，桥重启照日志重建（「施工时定的」第 71、83 条）。
 //!
-//! - 人说的话：序号 → 发的人、是不是主人（`by` 是外部身份、带 `account`）。
+//! - 人说的话：序号 → 发的人、是不是主人（`by` 是外部身份、带 `account`）、什么时刻（O-23 下：顶替窗口从它数）。
 //! - 开过的回合：开始的时刻、触发的人；进站链的 `Ctx.turns` 交触发的人全是主人或自己人以外的那些（[`Projection::turns`]）。
+//!   并进一轮的几条（`turn.joined`）那一轮没再请求就结束的，核心接着开一轮，它的 `turn.started` 没有 `triggers`、`trigger`
+//!   指向那条 `turn.joined`：照那条的 `triggers` 找回触发的人（O-23 下）。
 //! - 主线这一轮：回合编号、回的人（`turn.started`、`turn.joined` 的 `triggers` 的发的人）；`turn.ended` 这一轮完了。
 //! - 她的回复（`venue.delivered`）：一轮一笔，回的人取并集；她发过的平台编号（认「引用她」）。
 //! - 限流提示过的时刻（`ext.onebot.venues.queued`，种类是提示、原因是限流的）。
+//! - 判过要回、她还没回完的（O-23 下，「群里怎么叫她」第 11 条，「施工时定的」第 91 条）：判断（`ext.onebot.chat.decided`）
+//!   的结论是回的那几条，到收了它们的那一轮 `turn.ended` 为止；顶替看它们（`Status::Committed`）。
 //! - 她新说的话（`message.assistant`，序号大于订阅时的 `upto`）：交出回合编号和这一轮回的人，调的一方发回群里。
 
 use std::collections::{HashMap, HashSet};
 
-use miyu_chat::Reply;
+use miyu_chat::{Conditions, Hit, Pending, Reply, Status};
 use miyu_kernel::event::{Body, Event};
 use miyu_kernel::id::{ExternalId, Seq};
 use miyu_kernel::origin::By;
 use miyu_kernel::time::Timestamp;
 use serde_json::Value;
 
+use super::body::kind_of;
+
 /// 提示记成的事件（「群里怎么叫她」第 7 条）：出站队列的入队（`chat.md` 第七条第 2 条）。
 pub(super) const QUEUED: &str = "ext.onebot.venues.queued";
+
+/// 判断记成的事件（`chat.md` 第七条第 2 条）。
+pub(super) const DECIDED: &str = "ext.onebot.chat.decided";
 
 /// `ext.onebot.venues.queued` 的 `kind`：提示。
 pub(super) const NOTICE: &str = "notice";
@@ -34,6 +43,17 @@ struct Speaker {
     id: ExternalId,
     /// 是不是主人：核心照对应表认出来、记在 `by.account` 上的（`chat.md` 第七条第 4 条）。
     owner: bool,
+    /// 这一条记下的时刻（`message.user` 的 `at`）。
+    at: Timestamp,
+}
+
+/// 判过要回、她还没回完的一笔（O-23 下）。
+#[derive(Debug, Clone)]
+struct Committed {
+    /// 顶替看的样子：`status` 是 `Committed`。
+    pending: Pending,
+    /// 收了它的那一轮的回合编号；还没进哪一轮的是空的。
+    turn: Option<u64>,
 }
 
 /// 开过的一个回合。
@@ -84,6 +104,10 @@ pub(super) struct Projection {
     mine: HashSet<String>,
     /// 限流提示过的时刻。
     notices: Vec<Timestamp>,
+    /// 判过要回、她还没回完的，照先后（O-23 下）。
+    committed: Vec<Committed>,
+    /// 并进一轮的那几条：`turn.joined` 的序号 → 它的 `triggers`（O-23 下）。核心接着开的一轮照它找回触发的人。
+    joined: HashMap<u64, Vec<Seq>>,
 }
 
 impl Projection {
@@ -119,26 +143,40 @@ impl Projection {
                     let speaker = Speaker {
                         id: external.id.clone(),
                         owner: external.account.is_some(),
+                        at: event.at,
                     };
                     self.said.insert(seq, speaker);
                 }
             }
             Body::TurnStarted(started) => {
-                let by = self.speakers(&started.triggers);
+                let triggers = match (started.triggers.is_empty(), started.trigger) {
+                    (true, Some(trigger)) => {
+                        self.joined.get(&trigger.get()).cloned().unwrap_or_default()
+                    }
+                    _ => started.triggers.clone(),
+                };
+                let by = self.speakers(&triggers);
                 let mut to = Vec::new();
                 add(&mut to, by.iter().map(|speaker| &speaker.id));
                 self.turns.push(Turn { at: event.at, by });
                 self.running = turn.map(|turn| Running { turn, to });
+                self.taken(&triggers, turn);
             }
             Body::TurnJoined(joined) => {
+                self.joined.insert(seq, joined.triggers.clone());
                 let by = self.speakers(&joined.triggers);
                 if let Some(running) = self.running.as_mut()
                     && Some(running.turn) == turn
                 {
                     add(&mut running.to, by.iter().map(|speaker| &speaker.id));
                 }
+                self.taken(&joined.triggers, turn);
             }
-            Body::TurnEnded(_) => self.running = None,
+            Body::TurnEnded(_) => {
+                self.running = None;
+                self.committed
+                    .retain(|committed| committed.turn.is_none() || committed.turn != turn);
+            }
             Body::VenueDelivered(delivered) => {
                 let round = (
                     delivered.line.as_str().to_string(),
@@ -170,6 +208,12 @@ impl Projection {
                     self.notices.push(event.at);
                 }
             }
+            Body::Unknown { kind, body } if kind.as_str() == DECIDED => {
+                let body: Value = serde_json::from_str(body.get()).unwrap_or_default();
+                if let Some(committed) = self.committed_from(&body) {
+                    self.committed.push(committed);
+                }
+            }
             _ => {}
         }
         None
@@ -178,6 +222,16 @@ impl Projection {
     /// 序号是 `seq` 的这一条收过了没有（「群里怎么叫她」第 8 条：重发的不再判）。
     pub(super) fn knows(&self, seq: u64) -> bool {
         self.said.contains_key(&seq)
+    }
+
+    /// 序号是 `seq` 的这一条记下的时刻；没收过的是空的。
+    pub(super) fn at(&self, seq: u64) -> Option<Timestamp> {
+        self.said.get(&seq).map(|speaker| speaker.at)
+    }
+
+    /// 判过要回、她还没回完的（O-23 下，「群里怎么叫她」第 11 条）：交给顶替看。
+    pub(super) fn committed(&self) -> impl Iterator<Item = &Pending> {
+        self.committed.iter().map(|committed| &committed.pending)
     }
 
     /// 序号是 `seq` 的这一条是不是主人说的；没收过的不是。
@@ -211,6 +265,57 @@ impl Projection {
     /// 平台编号是 `msg` 的那一条是不是她发的（认「引用她」）。
     pub(super) fn mine(&self, msg: &str) -> bool {
         self.mine.contains(msg)
+    }
+
+    /// 一笔判断 `body`：结论是回的，读成判过要回的一笔：最后一条是 `msg`、前面的是 `absorbed`，发的人、时刻照最后一条，条件照
+    /// 判断的 `conditions`（认不出的种类不要）。别的结论、读不出、最后一条没收过的（照说不会）是空的。
+    fn committed_from(&self, body: &Value) -> Option<Committed> {
+        if body["outcome"] != "reply" {
+            return None;
+        }
+        let msgs: Vec<Seq> = body["msgs"]
+            .as_array()?
+            .iter()
+            .filter_map(|msg| msg.as_u64().and_then(Seq::new))
+            .collect();
+        let (last, absorbed) = msgs.split_last()?;
+        let speaker = self.said.get(&last.get())?;
+        let hits = body["conditions"]
+            .as_array()
+            .map(|hits| {
+                hits.iter()
+                    .filter_map(|hit| {
+                        let kind = hit["kind"].as_str().and_then(kind_of)?;
+                        Some(Hit {
+                            kind,
+                            bonus: hit["bonus"].as_f64()?,
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        Some(Committed {
+            pending: Pending {
+                msg: *last,
+                absorbed: absorbed.to_vec(),
+                sender: speaker.id.clone(),
+                at: speaker.at,
+                status: Status::Committed,
+                conditions: Conditions { hits },
+            },
+            turn: None,
+        })
+    }
+
+    /// 那几条（`triggers`）进了回合编号是 `turn` 的那一轮：收了它们的判过要回的，记下是哪一轮。
+    fn taken(&mut self, triggers: &[Seq], turn: Option<u64>) {
+        for committed in &mut self.committed {
+            let pending = &committed.pending;
+            let mine = |seq: &Seq| *seq == pending.msg || pending.absorbed.contains(seq);
+            if committed.turn.is_none() && triggers.iter().any(mine) {
+                committed.turn = turn;
+            }
+        }
     }
 
     /// 那几条的发的人，照先后；没收过的（照说不会）不算。

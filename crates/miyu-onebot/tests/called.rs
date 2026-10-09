@@ -1,6 +1,6 @@
 //! 群里叫她就回（施工 O-23，`onebot.md` 第一条「群里怎么叫她」）：真核心照开关拉起真桥，假 NapCat 发群消息，模型替身照剧本
 //! 说。主人 @ 她、叫她的名字（触发词开头）、引用她的消息，各开一轮，她的回话转成纯文本发回群里、记 `venue.delivered`；别人的
-//! @ 只记判断、不回；没条件的只记下；每一条都记一笔 `ext.onebot.chat.decided`。睡觉时间里主人照回、别人只记下；主人连发两条，
+//! @ 要问判官，照剧本回的核心没有一次性入口、回 `no_model`，判不了、不回（O-23 下；判官说回、说不回的在 `judged.rs`）；没条件的只记下；每一条都记一笔 `ext.onebot.chat.decided`。睡觉时间里主人照回、别人只记下；主人连发两条，
 //! 正在跑的一轮并进去；同一条消息平台重发不再判。她的话拆成几段发，NapCat 回的先后和发的先后不一样，`venue.delivered` 也照
 //! 发的先后记。
 
@@ -148,16 +148,16 @@ async fn the_owner_calling_her_gets_an_answer_in_the_group() {
     assert_eq!(
         decided(&events, 1),
         Some(json!({
-            "msgs": [seqs[0]], "standing": "member", "inbound": "pass", "conditions": [], "route": "record",
-            "outcome": "record",
+            "msgs": [seqs[0]], "standing": "member", "inbound": "pass", "discipline": "chatty", "conditions": [],
+            "route": "record", "outcome": "record",
         })),
         "没条件的只记下"
     );
     assert_eq!(
         decided(&events, 2),
         Some(json!({
-            "msgs": [seqs[1]], "standing": "owner", "inbound": "pass", "conditions": [{"kind": "direct", "bonus": 0.3}],
-            "route": "commit", "outcome": "reply",
+            "msgs": [seqs[1]], "standing": "owner", "inbound": "pass", "discipline": "chatty",
+            "conditions": [{"kind": "direct", "bonus": 0.3}], "route": "commit", "outcome": "reply",
         })),
         "主人 @ 她：主人照核心记下的 by 认"
     );
@@ -170,7 +170,12 @@ async fn the_owner_calling_her_gets_an_answer_in_the_group() {
     assert_eq!(other["standing"], "member", "{other}");
     assert_eq!(other["conditions"][0]["kind"], "direct", "{other}");
     assert_eq!(other["route"], "judge", "{other}");
-    assert_eq!(other["outcome"], "no_judge", "别人的 @ 要问判官：{other}");
+    assert_eq!(
+        other["judge"],
+        json!({"mode": "reply", "tries": 2, "millis": other["judge"]["millis"], "unjudged": "refused", "detail": "no_model"}),
+        "别人的 @ 要问判官，判不了的再问一次：{other}"
+    );
+    assert_eq!(other["outcome"], "record", "判不了照不回算：{other}");
 
     let started = of_kind(&events, "turn.started");
     assert_eq!(started.len(), 3, "主人叫了三次，开三轮：{started:#?}");
