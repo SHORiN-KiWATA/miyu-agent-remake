@@ -38,7 +38,7 @@ fn provide(refresh: &Refresh, tools: Vec<Arc<dyn Tool>>) {
 
 /// 看一遍，该换：照新的快照，记下现在这一代。
 fn swap(refresh: &mut Refresh) -> Snapshot {
-    let Seen::Swapped(snapshot, _, _) = look_now(refresh) else {
+    let Seen::Swapped(snapshot, _, _, _) = look_now(refresh) else {
         panic!("该换");
     };
     refresh.snapshot = (*snapshot).clone();
@@ -267,5 +267,39 @@ fn a_changed_preset_takes_provided_tools_as_registered_now() {
     assert_eq!(
         send.map(|tool| tool.description.as_str()),
         Some("Send, the new way.")
+    );
+}
+
+/// 升级以前造的会话、只是目录换了代（施工 P-1 三补）：工具面真的变了的换，换出来是新的核心的字；没变的（只给群的工具、
+/// 关着的包进了装了没开的那一行）不换，不为升级断一次缓存。
+#[test]
+fn after_an_upgrade_only_a_changed_face_swaps() {
+    let older = |name: &str, text: &str| {
+        let (scratch, root, mut refresh) = setup(name, text);
+        refresh.snapshot.core.facts.env = "<env/>\n".to_string();
+        (scratch, root, refresh)
+    };
+    let (_scratch, _root, mut refresh) = older("upgrade-face", "");
+    provide(&refresh, vec![provided("send", LOCAL)]);
+    let snapshot = swap(&mut refresh);
+    assert_eq!(names(&snapshot), ["read", "remember", "send", "shell"]);
+    assert_ne!(snapshot.core.facts.env, "<env/>\n", "新的核心的字一起换上");
+    let (_scratch, _root, refresh) = older("upgrade-group", "");
+    provide(&refresh, vec![provided("mute", GROUP)]);
+    assert!(matches!(look_now(&refresh), Seen::Same), "工具面没变的不换");
+    let (_scratch, _root, refresh) = older("upgrade-line", "[software]\nroleplay = false\n");
+    refresh
+        .tools
+        .replace(|catalog| catalog.replacing("roleplay", vec![provided("act", LOCAL)]))
+        .expect("登记得上");
+    assert!(
+        matches!(look_now(&refresh), Seen::Same),
+        "只有装了没开的那一行变了的不换"
+    );
+    let (_scratch, _root, mut refresh) = older("upgrade-loaded", "");
+    refresh.seen = None;
+    assert!(
+        matches!(look_now(&refresh), Seen::Same),
+        "载入时对一次：光是升级不换"
     );
 }

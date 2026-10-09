@@ -539,7 +539,7 @@ Rust 这一边：
 | 顶替 `Pending` | `ext.onebot.chat.decided`、`turn.started.triggers`、`turn.joined.triggers`、`turn.ended` | 判过要回、她还没回完的：`Committed`，从判断记下起，到收了它的那一轮（`triggers` 里有它）`turn.ended` 为止，还没进哪一轮的照旧算。前提是桥先记 `ext.onebot.chat.decided`、再 `session.respond`，桥保证这个先后。O-23 下改（2026-10-09 主会话定）：原来写的「还没进哪一轮 `triggers`」，照字面 `Committed` 只存在一瞬（桥记了判断紧接着 `session.respond`，核心当场记 `turn.started` 或 `turn.joined`），`Inherit` 走不到。`Judging` 只在桥的内存里，桥重启就丢，丢了不补判（窗口只有 7 秒） |
 | 分派 `Lines` | `turn.started`、`turn.ended`、分叉出的子会话 | 主线开着的那一轮，回的人是它 `triggers` 的发的人；支线同理 |
 | 出站 `Sent` | `venue.delivered` | 这一轮的正文和图的哈希 |
-| 出站 `Since` | `message.user`、`venue.delivered` | 她回的那条之后别人的消息条数、过了多久、最后一条是不是她的 |
+| 出站 `Since` | `message.user`、`message.assistant`、`venue.delivered` | 她回的那条之后别人的消息条数、过了多久、最后一条是不是她的 |
 
 **5. 参数和数据**
 

@@ -121,6 +121,7 @@ pub(crate) async fn call(
         "persona.list" => personas::list(core, peer).await,
         "package.list" => crate::packages::list(core, peer),
         "view.page" => crate::view::page(core, params(request)?).await,
+        "view.detail" => crate::view::detail(core, params(request)?).await,
         "extension.status" => Ok(crate::extensions::status(core, peer)),
         "extension.enable" => crate::extensions::enable(core, peer, params(request)?).await,
         "extension.disable" => crate::extensions::disable(core, peer, params(request)?).await,

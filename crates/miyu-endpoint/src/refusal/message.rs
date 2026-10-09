@@ -46,6 +46,7 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "This extension's capabilities are not approved yet.",
         ),
         "session_not_found" => ("没有这个会话。", "There is no such session."),
+        "unknown_call" => ("没有这次调用。", "There is no such tool call."),
         "no_system_account" => (
             "这个场所的会话要归系统账号，只有带系统账号的扩展能开。",
             "This venue's session belongs to a system account; only an extension with one can open it.",

@@ -70,7 +70,7 @@ fn an_unchanged_persona_is_the_same_and_a_changed_one_swaps() {
     let (_scratch, root, refresh) = setup("swap", "You are Miyu.\n");
     assert!(matches!(seen(&refresh), Seen::Same));
     write(&root, "persona.md", "You are Miyu, softly.\n");
-    let Seen::Swapped(snapshot, _, hash) = seen(&refresh) else {
+    let Seen::Swapped(snapshot, _, hash, _) = seen(&refresh) else {
         panic!("改了要换");
     };
     assert!(snapshot.system.starts_with("You are Miyu, softly."));
@@ -93,7 +93,7 @@ fn a_group_keeps_its_note_and_time_zone_across_a_swap() {
             .starts_with(&format!("You are Miyu.\n\n{}", note.trim_end()))
     );
     write(&root, "persona.md", "You are Miyu, softly.\n");
-    let Seen::Swapped(snapshot, _, _) = seen(&refresh) else {
+    let Seen::Swapped(snapshot, _, _, _) = seen(&refresh) else {
         panic!("改了要换");
     };
     assert!(
@@ -114,12 +114,27 @@ fn an_older_snapshot_without_a_digest_is_never_swapped() {
     assert!(matches!(seen(&refresh), Seen::Same));
 }
 
+/// 升级以前造的会话（施工 P-1 三补）：核心的字变了，改了人格照样换，换出来是新的核心的字；执行器手里的字跟着换。
 #[test]
-fn a_session_made_before_an_upgrade_keeps_its_snapshot() {
+fn a_session_made_before_an_upgrade_still_swaps_with_the_new_core_texts() {
     let (_scratch, root, mut refresh) = setup("upgraded", "You are Miyu.\n");
+    let shipped = refresh.snapshot.core.facts.env.clone();
     refresh.snapshot.core.facts.env = "<env/>\n".to_string();
+    refresh.snapshot.core.drivers.no_output = "old nothing\n".to_string();
+    assert!(
+        matches!(seen(&refresh), Seen::Same),
+        "光是升级不换：不为它断一次缓存"
+    );
     write(&root, "persona.md", "You are Miyu, softly.\n");
-    assert!(matches!(seen(&refresh), Seen::Kept(_)));
+    let Seen::Swapped(snapshot, _, _, texts) = seen(&refresh) else {
+        panic!("改了人格要换");
+    };
+    assert_eq!(snapshot.core.facts.env, shipped, "换上新的核心的字");
+    assert_eq!(
+        texts.driver.no_output(),
+        snapshot.core.drivers.no_output,
+        "执行器的字照新的快照"
+    );
 }
 
 #[test]
@@ -141,7 +156,7 @@ fn roleplay_stays_off_across_a_swap() {
     let (_scratch, root, mut refresh) =
         setup_with("roleplay", "You are Miyu.\n", Some(pin.clone()), None);
     write(&root, "reminders.md", "Stay soft.\n");
-    let Seen::Swapped(snapshot, _, _) = seen(&refresh) else {
+    let Seen::Swapped(snapshot, _, _, _) = seen(&refresh) else {
         panic!("多了角色扮演提示也算改了");
     };
     assert_eq!(snapshot.reminder, None, "预设没开角色扮演");

@@ -125,6 +125,12 @@ impl Refusal {
         reason: "session_not_found",
         data: None,
     };
+    /// 会话的日志里没有这次调用的结果（施工 9-6 三补，`view.detail`）：编号对不上，或者还没回。
+    pub(crate) const UNKNOWN_CALL: Refusal = Refusal {
+        code: REFUSED,
+        reason: "unknown_call",
+        data: None,
+    };
     /// 场所会话的属主该是系统账号，还没有（施工 O-3；系统账号随 O-4）。
     pub(crate) const NO_SYSTEM_ACCOUNT: Refusal = Refusal {
         code: REFUSED,

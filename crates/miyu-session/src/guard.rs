@@ -26,6 +26,8 @@ use miyu_kernel::tool::{Access, Worded};
 use miyu_policy::GuardTexts;
 use miyu_tool::{Call, Shelf, Stop, Target, Tool};
 
+use crate::lettering::Lettering;
+
 /// 权限策略：一个会话一份。
 pub(crate) struct Guard {
     /// 工具目录的架子：判的时候照现在的那一份找（施工 O-2 中）。
@@ -38,7 +40,8 @@ pub(crate) struct Guard {
     /// 边界表里跟环境有关的几片（临时目录、系统目录、工具链目录）：造的时候读一次，以后照它（施工 4-9 再补四下：
     /// 原来每判一次重读环境变量）。工作区每判一次换成这一轮的工作目录。
     places: Places,
-    texts: GuardTexts,
+    /// 拒绝时的话（施工 P-1 三补：和执行工具的端口同一份，换快照时跟着换）。
+    lettering: Arc<Lettering>,
     /// 这台机器上的沙盒能不能用（核心起来时探的）：执行命令照它判。
     sandboxed: bool,
 }
@@ -75,13 +78,13 @@ struct Asked {
 }
 
 impl Guard {
-    /// 照目录 `catalog` 找工具，数据根是 `data_root`，家目录是 `home`，拒绝时的话是 `texts`，这台机器上的沙盒能不能用
+    /// 照目录 `catalog` 找工具，数据根是 `data_root`，家目录是 `home`，拒绝时的话照 `lettering`，这台机器上的沙盒能不能用
     /// 是 `sandboxed`。
     pub(crate) fn new(
         catalog: Shelf,
         data_root: PathBuf,
         home: Option<PathBuf>,
-        texts: GuardTexts,
+        lettering: Arc<Lettering>,
         sandboxed: bool,
     ) -> Guard {
         let places = Places::here(PathBuf::new(), data_root.clone(), home.as_deref());
@@ -94,7 +97,7 @@ impl Guard {
             home,
             real_home,
             places,
-            texts,
+            lettering,
             sandboxed,
         }
     }
@@ -139,7 +142,14 @@ impl Guard {
         let asking = tool.asking(&call);
         let verdict = self.paths(tool.as_ref(), name, level, &call, dirs, grants, &asking);
         if tool.outside_sandbox(&call) {
-            beyond(verdict, level, name, access, &asking, &self.texts)
+            beyond(
+                verdict,
+                level,
+                name,
+                access,
+                &asking,
+                &self.lettering.guard(),
+            )
         } else {
             verdict
         }
@@ -185,7 +195,11 @@ impl Guard {
             let real = match self.real(&cwd, &target) {
                 Ok(real) => real,
                 Err(error) => {
-                    return deny(self.texts.unresolvable(&target.path, &error.to_string()));
+                    return deny(
+                        self.lettering
+                            .guard()
+                            .unresolvable(&target.path, &error.to_string()),
+                    );
                 }
             };
             let zone = boundary.zone(&real);
@@ -196,8 +210,8 @@ impl Guard {
                     write: target.write,
                     zone,
                 }),
-                Mark::Forbidden => return deny(self.texts.forbidden(&target.path)),
-                Mark::ReadOnly => return deny(self.texts.read_only()),
+                Mark::Forbidden => return deny(self.lettering.guard().forbidden(&target.path)),
+                Mark::ReadOnly => return deny(self.lettering.guard().read_only()),
             }
         }
         // 放行过的不问（施工 D-1）：只读、数据根上面已经拦下了，走不到这里。

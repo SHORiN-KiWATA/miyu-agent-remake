@@ -60,7 +60,7 @@ pub use shared::{ModelData, Observed, read_observed};
 
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock};
 use std::time::Duration;
 
 use miyu_drivers::{DeepSeekImages, DriverTexts};
@@ -129,7 +129,7 @@ impl Models for Routes {
             shared: self.clone(),
             session: session.id,
             owner: session.owner,
-            texts: session.texts,
+            texts: RwLock::new(session.texts),
             blobs: session.blobs,
             pinned: Arc::new(Mutex::new(Pinned {
                 reference,
@@ -169,7 +169,8 @@ struct Route {
     session: SessionId,
     /// 会话的属主（施工 8-15）：替它看图的一次性调用记在他的账上。
     owner: AccountId,
-    texts: DriverTexts,
+    /// 驱动的占位：取自会话的策略快照，换快照时跟着换（施工 P-1 三补）。
+    texts: RwLock<DriverTexts>,
     blobs: Blobs,
     /// 钉着的：引用、池里的成员、上一次解析出来的模型、限额、换过去的 key、要接着说的那一个。发出去的任务说完了也要改它
     /// （成了才钉，施工 8-9），所以放在 `Arc` 里。
@@ -193,6 +194,10 @@ struct Pinned {
 }
 
 impl ModelPort for Route {
+    fn retext(&self, texts: DriverTexts) {
+        *self.texts.write().unwrap_or_else(PoisonError::into_inner) = texts;
+    }
+
     fn model(&self) -> Model {
         self.lock().last.clone()
     }
@@ -286,7 +291,12 @@ impl Route {
         let (picked, pins) = routes.pick(config, &values, &resolved, &seat)?;
         pinned.last = model_of(&picked.choice.target);
         drop(pinned);
-        let ready = routes.ready(config, &picked.choice, self.texts.clone(), None)?;
+        let texts = self
+            .texts
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone();
+        let ready = routes.ready(config, &picked.choice, texts, None)?;
         Ok(send::Chosen {
             ready,
             blobs: self.blobs.clone(),

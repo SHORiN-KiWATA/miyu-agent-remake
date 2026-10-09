@@ -3,14 +3,17 @@
 //! 人格、预设的编号把几层重新找一遍、算指纹，看工具目录的架子换没换代，和现在的快照比：一样的什么都不做；不一样的照新的重拼
 //! （记忆的范围、有没有人能确认照旧快照；工具面照新的预设、现在的目录重新筛，提供者的工具照现在的登记，别的以前就有的照旧
 //! 快照里的原样），拼出来不一样、核心的字没变才换：存成 blob，策略交给内核放着，交回新快照的哈希。以前造的快照没有指纹的
-//! 不换；找不着、写错了的照旧用原来的，记一行运行日志。
+//! 不换；找不着、写错了的照旧用原来的，记一行运行日志。换的时候执行器手里取自快照的几份字（驱动的占位、替工具写的两句、
+//! 权限策略的几句）一起换成新快照的（施工 P-1 三补）：升级过的老会话也换得了；光是升级不换（核心的字变了、人格预设工具面
+//! 都没变的照旧），不为它断一次缓存。
 
 use miyu_config::Values;
+use miyu_drivers::DriverTexts;
 use miyu_kernel::id::{ContentHash, VenueId};
 use miyu_kernel::session::Policy;
 use miyu_policy::PersonaTexts;
 use miyu_policy::preset::{Chosen, MEMORY, PresetFile};
-use miyu_policy::{Snapshot, ToolEntry};
+use miyu_policy::{GuardTexts, RunTexts, Snapshot, ToolEntry};
 use miyu_store::blob::Blobs;
 use miyu_store::personas::{PersonaError, Personas};
 use miyu_store::resources::ResourceRoot;
@@ -45,11 +48,11 @@ pub(crate) struct Refresh {
 enum Seen {
     /// 没改，或者以前造的快照没有指纹。
     Same,
-    /// 改了，换上这一份：快照、照它造的策略、它的哈希。
-    Swapped(Box<Snapshot>, Box<Policy>, ContentHash),
+    /// 改了，换上这一份：快照、照它造的策略、它的哈希，执行器的几份字（施工 P-1 三补）。
+    Swapped(Box<Snapshot>, Box<Policy>, ContentHash, Box<Retext>),
     /// 人格、预设找不着、写错了、读不了：照旧。
     Unreadable(String),
-    /// 改了，换不了：程序升级过、拼不成、存不进：照旧。
+    /// 改了，换不了：拼不成、存不进：照旧。
     Kept(String),
 }
 
@@ -73,9 +76,12 @@ impl Actor {
                 }
                 None
             }
-            Seen::Swapped(snapshot, policy, hash) => {
+            Seen::Swapped(snapshot, policy, hash, texts) => {
                 tracing::info!(target: TARGET, persona = persona.as_deref(), "persona swapped");
                 self.session.stage_policy(*policy);
+                let Retext { driver, run, guard } = *texts;
+                self.model.retext(driver);
+                self.tools.lettering().set(run, guard);
                 if let Some(refresh) = self.persona.as_mut() {
                     refresh.snapshot = *snapshot;
                     refresh.seen = Some(seen);
@@ -157,18 +163,38 @@ fn look(refresh: &Refresh, values: &Values, now: &Edition) -> Seen {
     if new.hash() == old.hash() {
         return Seen::Same;
     }
-    if !old.swappable(&new) {
-        return Seen::Kept("the core texts changed since this session was made".to_string());
+    // 程序升级过（核心的字变了），人格、预设都没改、工具面也没变的：照旧，不为升级断一次缓存（施工 P-1 三补）。
+    let edited = !same || matches!(preset, Preset::Changed(_));
+    if !edited && !old.swappable(&new) && new.tools == old.tools {
+        return Seen::Same;
     }
-    let policy = match new.policy() {
-        Ok(policy) => policy,
-        Err(error) => return Seen::Kept(error.to_string()),
+    let built = || -> Result<(Policy, Retext), String> {
+        let texts = Retext {
+            driver: new.driver_texts().map_err(|error| error.to_string())?,
+            run: new.run_texts().map_err(|error| error.to_string())?,
+            guard: new.guard_texts().map_err(|error| error.to_string())?,
+        };
+        Ok((new.policy().map_err(|error| error.to_string())?, texts))
+    };
+    let (policy, texts) = match built() {
+        Ok(built) => built,
+        Err(error) => return Seen::Kept(error),
     };
     if let Err(error) = refresh.blobs.put(&new.to_bytes()) {
         return Seen::Kept(error.to_string());
     }
     let hash = new.hash();
-    Seen::Swapped(Box::new(new), Box::new(policy), hash)
+    Seen::Swapped(Box::new(new), Box::new(policy), hash, Box::new(texts))
+}
+
+/// 执行器取自快照的几份字（施工 P-1 三补）：换快照时一起换。
+struct Retext {
+    /// 驱动的占位：交给请求模型的端口。
+    driver: DriverTexts,
+    /// 执行工具时替工具写的两句。
+    run: RunTexts,
+    /// 权限策略的几句。
+    guard: GuardTexts,
 }
 
 /// 快照里的预设现在是什么样（施工 P-2 下；O-2 中重新筛工具面也要它）。

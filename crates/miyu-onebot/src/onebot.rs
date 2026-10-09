@@ -1,7 +1,7 @@
 //! OneBot v11 这一头（`onebot.md` 第一条「怎么走」第 4 到 6 条、第 10 条，「群消息」「撤回」）：NapCat 发来的一帧认成什么
 //! （回应、私聊、群消息、撤回、别的事件），私聊里的文字怎么读出来（`text`），消息段怎么认（`segments`，施工 O-22），群成员
 //! 叫什么（`members`，施工 O-22），发出去的动作和回应怎么照 `echo` 配对（`calls`），`send_private_msg`、`send_group_msg`
-//! 写成什么样。
+//! （施工 O-25 上：第一段能带引用和 @）、`delete_msg`（施工 O-25 上）写成什么样。
 //!
 //! 号（机器人的号、对方的号、消息编号）和时刻照 OneBot 是整数；有的实现写成字符串，也认。
 //!
@@ -217,10 +217,29 @@ pub enum To {
     Group(i64),
 }
 
-/// 发一句 `text` 给 `to` 的动作和参数：`send_private_msg {user_id, message}` 或者 `send_group_msg {group_id, message}`，
-/// 一个文字段（第 10 条）。
-pub fn message_to(to: To, text: &str) -> (&'static str, Value) {
-    let message = json!([{"type": "text", "data": {"text": text}}]);
+/// 一段前面带的引用和 @（施工 O-25 上，`onebot.md`「群里怎么叫她」第 9 条）：引用的那一条的平台编号、@ 的号，照平台给的原样
+/// 写成字（旧版的教训：引用的编号原样还回去，自作聪明换写法的，对端会不声不响地丢掉引用）。都没有的是不带。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Lead {
+    /// 引用的那一条的平台编号：`reply` 段。
+    pub reply: Option<String>,
+    /// @ 的号：`at` 段，后面跟一个空格的文字段。
+    pub at: Option<String>,
+}
+
+/// 发一句 `text` 给 `to` 的动作和参数：`send_private_msg {user_id, message}` 或者 `send_group_msg {group_id, message}`
+/// （第 10 条）。`message` 先是 `lead` 要带的引用段、@ 段，再是一个文字段（施工 O-25 上）。
+pub fn message_to(to: To, text: &str, lead: &Lead) -> (&'static str, Value) {
+    let mut message = Vec::new();
+    if let Some(id) = &lead.reply {
+        message.push(json!({"type": "reply", "data": {"id": id}}));
+    }
+    if let Some(qq) = &lead.at {
+        message.push(json!({"type": "at", "data": {"qq": qq}}));
+        // @ 段和后面的字挨着画，隔一个空格好读（旧版这样发，客户端不一定自己隔开）。
+        message.push(json!({"type": "text", "data": {"text": " "}}));
+    }
+    message.push(json!({"type": "text", "data": {"text": text}}));
     match to {
         To::Private(user) => (
             "send_private_msg",
@@ -231,4 +250,9 @@ pub fn message_to(to: To, text: &str) -> (&'static str, Value) {
             json!({"group_id": group, "message": message}),
         ),
     }
+}
+
+/// 撤回平台编号是 `message_id` 的那一条的动作和参数：`delete_msg {message_id}`（施工 O-25 上，「斜杠命令」第 7 条）。
+pub fn delete_msg(message_id: i64) -> (&'static str, Value) {
+    ("delete_msg", json!({"message_id": message_id}))
 }

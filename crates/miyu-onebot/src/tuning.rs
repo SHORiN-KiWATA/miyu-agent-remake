@@ -42,6 +42,8 @@ pub struct Tuning {
     /// 判官带的人格原文读到以后记几秒，这段时间里同一个人格不再读（施工 O-23 补，`onebot.md`「群里怎么叫她」第 12 条第 3 款，
     /// 「施工时定的」第 103 条）。
     pub judge_persona_seconds: u64,
+    /// 群里的命令回执发出去几秒后撤回（施工 O-25 上，`onebot.md`「斜杠命令」第 7 条；18 第十节）。0 是回了编号就撤。
+    pub receipt_recall_seconds: u64,
     /// WebUI 的数（施工 O-16，`onebot.md` 第二条）。
     pub web: WebTuning,
 }
@@ -122,5 +124,10 @@ impl Tuning {
     /// 判官带的人格原文记多久。
     pub fn judge_persona(&self) -> Duration {
         Duration::from_secs(self.judge_persona_seconds)
+    }
+
+    /// 群里的命令回执发出去多久以后撤回。
+    pub fn receipt_recall(&self) -> Duration {
+        Duration::from_secs(self.receipt_recall_seconds)
     }
 }

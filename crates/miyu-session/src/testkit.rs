@@ -7,6 +7,7 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex, PoisonError};
 
+use miyu_drivers::DriverTexts;
 use miyu_kernel::accumulate::{Delta, Kind};
 use miyu_kernel::event::{CallError, ErrorClass, Purpose, Usage};
 use miyu_kernel::id::{ModelName, ProviderId, Seq};
@@ -90,6 +91,8 @@ pub struct Script {
     tariff: Option<Tariff>,
     /// 每次说完了报的命中（施工 6-11 上）：没设的是 40，用量一共 110。
     cached: u64,
+    /// 换快照时交来的驱动的占位（施工 P-1 三补），照先后。
+    retexted: Arc<Mutex<Vec<DriverTexts>>>,
 }
 
 impl Script {
@@ -111,6 +114,7 @@ impl Script {
             window: None,
             titles: Arc::new(Mutex::new(VecDeque::new())),
             titled: Arc::new(Mutex::new(Vec::new())),
+            retexted: Arc::default(),
             reference: None,
             tariff: None,
             cached: 40,
@@ -142,6 +146,11 @@ impl Script {
     /// 交来的起标题的请求，照先后：照到第几条为止，和请求本身。
     pub fn titled(&self) -> Vec<(Seq, Request)> {
         lock(&self.titled).clone()
+    }
+
+    /// 换快照时交来的驱动的占位（施工 P-1 三补），照先后。
+    pub fn retexted(&self) -> Vec<DriverTexts> {
+        lock(&self.retexted).clone()
     }
 
     /// 同一份剧本，模型的窗口是 `window`：会话照它算压缩线（施工 6-3 上）。
@@ -185,6 +194,10 @@ impl Models for Script {
 impl ModelPort for Script {
     fn model(&self) -> Model {
         self.model.clone()
+    }
+
+    fn retext(&self, texts: DriverTexts) {
+        lock(&self.retexted).push(texts);
     }
 
     fn reference(&self) -> Option<String> {

@@ -221,8 +221,9 @@ pub async fn run(
     let members = Members::new(gate.tuning.member_names());
     let slots = Slots::new(gate.tuning.judge_concurrency, gate.tuning.judge_queue());
     let personas = Personas::new(gate.tuning.judge_persona());
-    let judging = (texts, slots, personas);
-    let route = Route::new(core, bots, venues, members, judging, configured);
+    let recall = gate.tuning.receipt_recall();
+    let parts = (texts, slots, personas, recall);
+    let route = Route::new(core, bots, venues, members, parts, configured);
     let route = tasks.spawn(async move { route.run(received).await }).id();
     tasks.spawn(status_file::keep(
         status_file::path(&serve.root),

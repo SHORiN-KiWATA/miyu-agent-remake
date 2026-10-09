@@ -13,6 +13,7 @@ pub mod napcat;
 pub mod pipe;
 pub mod ports;
 pub mod spawning;
+pub mod speaking;
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -123,7 +124,12 @@ pub fn temp_root() -> (PathBuf, DataRoot) {
 impl Home {
     /// 起一个核心：请求模型照 `script`，没有工具，系统配置是主人对应表。
     pub fn new(script: &Script) -> Home {
-        Home::with_config(Arc::new(script.clone()), CONFIG, None, None)
+        Home::speaking(Arc::new(script.clone()))
+    }
+
+    /// 同 [`Home::new`]，请求模型照 `models`（施工 O-25 上：她照台词说，[`speaking::Lines`]）。
+    pub fn speaking(models: Arc<dyn Models>) -> Home {
+        Home::with_config(models, CONFIG, None, None)
     }
 
     /// 起一个照开关拉起扩展的核心（施工 O-18）：系统配置是主人对应表接着 `more`（端口、令牌、语言），密钥文件里 `onebot` 是

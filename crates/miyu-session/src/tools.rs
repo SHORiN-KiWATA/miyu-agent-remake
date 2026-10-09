@@ -18,13 +18,13 @@ use tokio::sync::mpsc;
 use tokio::task::AbortHandle;
 use tracing::Instrument;
 
+use crate::lettering::Lettering;
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Effect, Permission, Question, Response, Restored};
 use miyu_kernel::id::{CallId, ContentHash, JobId, SessionId, TurnId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Input, Reread, Step, Subagent};
 use miyu_kernel::time::{Timestamp, UtcOffset};
-use miyu_policy::RunTexts;
 use miyu_store::blob::Blobs;
 use miyu_tool::{Call, CallIds, Done, JobPort, Log, Progress, Seen, Shelf, Stop};
 
@@ -51,8 +51,8 @@ pub(crate) struct ToolKit {
     pub(crate) session: SessionId,
     /// 工具目录的架子：执行时照现在的那一份找（施工 O-2 中）。
     pub(crate) catalog: Shelf,
-    /// 替工具写的两句。
-    pub(crate) texts: RunTexts,
+    /// 替工具写的两句，和权限策略同一份（施工 P-1 三补：换快照时跟着换）。
+    pub(crate) lettering: Arc<Lettering>,
     /// 系统的家目录。
     pub(crate) home: Option<PathBuf>,
     /// Miyu 的数据根：交给工具，往下走目录的走到这里跳过（施工 4-4 下）。
@@ -86,7 +86,7 @@ pub(crate) struct Tools {
     /// 这个会话（施工 O-2 上）。
     session: SessionId,
     catalog: Shelf,
-    texts: RunTexts,
+    lettering: Arc<Lettering>,
     home: Option<PathBuf>,
     data_root: PathBuf,
     blobs: Blobs,
@@ -179,6 +179,11 @@ pub(crate) struct Dispatch {
 }
 
 impl Tools {
+    /// 替工具写的字（施工 P-1 三补）：换快照时 actor 照它换。
+    pub(crate) fn lettering(&self) -> &Lettering {
+        &self.lettering
+    }
+
     /// 派子代理、给别的会话发话用的端口和这个会话的几样（施工 C-6：「空了告诉我」两边都经它找会话表）：会话表交进来了才有。
     pub(crate) fn agents(&self) -> Option<&Arc<Agents>> {
         self.agents.as_ref()
@@ -202,7 +207,7 @@ impl Tools {
         Tools {
             session: kit.session,
             catalog: kit.catalog,
-            texts: kit.texts,
+            lettering: kit.lettering,
             home: kit.home,
             data_root: kit.data_root,
             blobs: kit.blobs,
@@ -315,7 +320,7 @@ impl Tools {
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name) else {
             tracing::warn!(target: TARGET, call = call_text.as_str(), tool = name.as_str(), "unavailable");
-            let worded = self.texts.unavailable(&name);
+            let worded = self.lettering.run().unavailable(&name);
             return Some(Input::ToolDone {
                 at,
                 call_id,

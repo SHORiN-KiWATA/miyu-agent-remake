@@ -7,16 +7,18 @@
 //! - 群消息（`group`，施工 O-22）：一律旁听；正文里的 @ 写成名字（`names`）；场所规则管人格、预设、工作区、谁是管理的人、
 //!   睡没睡、看不看得到号。撤回（`recall`，施工 O-22）记 `venue.recalled`。
 //! - 群里叫她（施工 O-23，「群里怎么叫她」）：记下以后判（`called`：纯逻辑的判断在 `decide`，线路规程在 `discipline`，
-//!   判断的样子在 `body`），该回的开一轮；群会话推来的事件收进投影（`projection`），她新说的话发回群里、记
-//!   `venue.delivered`（`speak`）。要问判官的（O-23 下）交给 `judges`，任务（`ask`）经并着发的调用口问，跟核心的那一头接着办
-//!   别的；判官回来了照号收回来、算分、记判断（`judged`）。判官带这个群会话所用的人格的说明（O-23 补，`persona`）。
+//!   判断的样子在 `body`），该回的开一轮；群会话推来的事件收进投影（`projection`），她新说的话过出站链（`outbound`，施工
+//!   O-25 上）发回群里、记 `venue.delivered`（`speak`）。要问判官的（O-23 下）交给 `judges`，任务（`ask`）经并着发的调用口
+//!   问，跟核心的那一头接着办别的；判官回来了照号收回来、算分、记判断（`judged`）。判官带这个群会话所用的人格的说明（O-23
+//!   补，`persona`）。
 //! - 找会话（`session`）：「场所 → 会话编号」只记在内存里，每个场所桥起来以后第一次要用时问一次 `venue.session`；私聊的
 //!   问到了订阅（不写 `after`），群的从头订阅（施工 O-23）。会话不在了（`session_not_found`、`session_stopped`）
 //!   忘掉，再问一次、再交一次，只重来一次。私聊不是主人的（`no_system_account`，或者会话的属主是桥自己，「施工时定的」第
 //!   49 条）、群的规则写错的不接，同一个场所只记一行运行日志。
-//! - `/` 开头的先当斜杠命令交 `command.run`（`command`，O-19，第 7、8 条之间的「斜杠命令」），核心说不是命令的才照普通的话发。
-//! - 她在私聊里的回话：`message.assistant` 的文字块接起来，不空就交给收进这个会话的那个机器人号现在的连接；`begin` 在这里照
-//!   先后放进写队列，等回应的那一步交给别的任务。
+//! - `/` 开头的先当斜杠命令交 `command.run`（`command`，O-19，第 7、8 条之间的「斜杠命令」），核心说不是命令的才照普通的话发；
+//!   回执交 `receipt`，群里的过几秒撤回（施工 O-25 上）。
+//! - 她在私聊里的回话：`message.assistant` 的文字块接起来，过出站链、拆段（`speak`，施工 O-25 上），交给收进这个会话的那个
+//!   机器人号现在的连接；[`Route::begin`] 在这里照先后放进写队列，等回应的那一步交给别的任务。
 //! - 核心推来的 `extension.config`（施工 O-20）：`keys` 原样交给 `serve`，它换上手里的配置、端口变了照 `/apply` 的办法换
 //!   （「施工时定的」第 45 条）：这里够不着监听。自己人 `onebot.trusted` 这里记一份（施工 O-23）。
 
@@ -32,9 +34,11 @@ mod group;
 mod judged;
 mod judges;
 mod names;
+mod outbound;
 mod persona;
 mod projection;
 mod recall;
+mod receipt;
 mod session;
 mod speak;
 #[cfg(test)]
@@ -42,7 +46,7 @@ mod tests;
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use futures_util::StreamExt;
 use futures_util::stream::FuturesOrdered;
@@ -50,12 +54,14 @@ use miyu_chat::{Venue, VenueKind};
 use miyu_kernel::id::VenueId;
 use serde_json::{Map, Value, json};
 use tokio::sync::mpsc;
-use tokio::task::{JoinError, JoinHandle};
+use tokio::task::{JoinError, JoinHandle, JoinSet};
 
 use crate::TARGET;
 use crate::core::{Core, Gone, reason};
 use crate::listen::bots::Bots;
-use crate::onebot::{Event, Members, Posted, To, command_id, message_to, person, venue};
+use crate::onebot::{
+    Event, Lead, Members, Pending, Posted, To, command_id, message_to, person, venue,
+};
 use crate::rules::{Applied, Venues};
 use crate::serve::Failure;
 use crate::settings::{trusted, trusted_key};
@@ -63,6 +69,7 @@ use crate::texts::Texts;
 pub(crate) use ask::Slots;
 use fields::{Flags, fields};
 use judges::Judges;
+use outbound::Spoken;
 pub(crate) use persona::Personas;
 use projection::Projection;
 use session::Place;
@@ -116,6 +123,13 @@ pub(crate) struct Route {
     /// 先后；`venue.delivered` 要照发的先后记，核心照日志的先后画她说的话，「施工时定的」第 84 条）。群里她的话发出去了的交回
     /// 那一段（施工 O-23）。放下 `Route` 时不掐：任务只等回应、记日志，连接断了、到了时限自己就完。
     sending: FuturesOrdered<JoinHandle<Option<Delivered>>>,
+    /// 私聊会话编号 → 桥这一轮自己放进写队列的（施工 O-25 上，`outbound`：私聊的出站链照它去重，过渡）。
+    spoken: HashMap<String, Spoken>,
+    /// 群里的命令回执：等回应、等几秒撤回的任务（施工 O-25 上，`receipt`）。不放进 [`Route::sending`]：照先后交的那一串会被
+    /// 它卡住几秒。
+    recalls: JoinSet<()>,
+    /// 群里的命令回执发出去几秒后撤回（`bridge.json` 的 `receipt_recall_seconds`）。
+    recall: Duration,
     /// 在判的和问判官的任务（施工 O-23 下）。
     judges: Judges,
     /// 推来的配置变化交给 `serve`（施工 O-20）。
@@ -124,14 +138,15 @@ pub(crate) struct Route {
 
 impl Route {
     /// 拿着连接 `core`，回话照 `bots` 找连接，场所规则照 `rules`，群成员的名字记进 `members`，发进群里的提示照 `texts`
-    /// 说，问判官照全局的名额 `slots` 排队（施工 O-23 下）、判官带的人格原文照 `personas` 记（施工 O-23 补），推来的配置变化
+    /// 说，问判官照全局的名额 `slots` 排队（施工 O-23 下）、判官带的人格原文照 `personas` 记（施工 O-23 补），群里的命令回执
+    /// `recall` 以后撤回（施工 O-25 上），推来的配置变化
     /// 交给 `configured`。自己人照握手交来的配置（`core.config`）。
     pub(crate) fn new(
         core: Core,
         bots: Arc<Bots>,
         rules: Venues,
         members: Members,
-        (texts, slots, personas): (Texts, Slots, Personas),
+        (texts, slots, personas, recall): (Texts, Slots, Personas, Duration),
         configured: mpsc::UnboundedSender<Map<String, Value>>,
     ) -> Route {
         let trusted = trusted(&core.config[trusted_key()]);
@@ -148,14 +163,17 @@ impl Route {
             trusted,
             texts,
             sending: FuturesOrdered::new(),
+            spoken: HashMap::new(),
+            recalls: JoinSet::new(),
+            recall,
             judges,
             configured,
         }
     }
 
     /// 一直办，直到办不下去：核心关了管道、写不出去（核心请它退出、核心不在了，第 11 条），交回空的，桥好好停下；发回话
-    /// 的任务、问判官的任务（施工 O-23 下）崩了，交回 [`Failure::Crashed`]（「施工时定的」第 14 条），桥照它退出。`inbound`
-    /// 关了就只看核心：桥在停、读 NapCat 的那一头都放下了。
+    /// 的任务、问判官的任务（施工 O-23 下）、撤回执的任务（施工 O-25 上）崩了，交回 [`Failure::Crashed`]（「施工时定的」
+    /// 第 14 条），桥照它退出。`inbound` 关了就只看核心：桥在停、读 NapCat 的那一头都放下了。
     pub(crate) async fn run(mut self, mut inbound: mpsc::Receiver<Event>) -> Option<Failure> {
         let mut open = true;
         loop {
@@ -176,6 +194,9 @@ impl Route {
                     Ok(None) => Ok(()),
                     Err(failure) => Err(Some(failure)),
                 },
+                Some(joined) = self.recalls.join_next(), if !self.recalls.is_empty() => {
+                    sent(joined.map(|()| None)).map(|_| ()).map_err(Some)
+                }
                 Some(joined) = self.judges.running.join_next(), if !self.judges.running.is_empty() => match joined {
                     Ok(asked) => self.judged(asked).await.map_err(|Gone| None),
                     Err(error) => {
@@ -290,8 +311,8 @@ impl Route {
                 self.follow(&session, last).await?;
             }
             (Some("event"), None) if params["event"]["kind"] == "message.assistant" => {
-                let text = reply_text(&params["event"]);
-                self.send_back(session, &text).await;
+                let session = session.to_string();
+                self.say_privately(&session, &params["event"]).await;
             }
             (Some("resync"), None) if params["stream"] == "events" => {
                 let session = session.to_string();
@@ -302,38 +323,46 @@ impl Route {
         Ok(())
     }
 
-    /// 把回话、回执 `text` 发回会话 `session` 的那个私聊、群：空的不发；那个号没连着的记一行、丢掉。
+    /// 把回执、提示 `text` 发回会话 `session` 的那个私聊、群：去掉首尾空白，空的不发；照先后放进写队列，等回应交给别的任务。
     async fn send_back(&mut self, session: &str, text: &str) {
-        let Some(Peer { bot, to, venue }) = self.peers.get(session).cloned() else {
+        let Some(peer) = self.peers.get(session).cloned() else {
             return;
         };
         let text = text.trim();
         if text.is_empty() {
             return;
         }
-        let chars = text.chars().count();
-        let Some(link) = self.bots.get(bot) else {
-            tracing::info!(target: TARGET, venue = %venue, bot, chars, "bot not connected, reply dropped");
+        let Some(pending) = self.begin(&peer, text, &Lead::default()).await else {
             return;
         };
-        let (action, params) = message_to(to, text);
-        let begun = link.calls.begin(&link.out, action, params).await;
-        let pending = match begun {
-            Ok(pending) => pending,
-            Err(error) => {
-                tracing::warn!(target: TARGET, venue = %venue, chars, error = ?error, "reply not sent");
-                return;
-            }
-        };
+        let chars = text.chars().count();
         self.sending.push_back(tokio::spawn(async move {
             match pending.wait().await {
-                Ok(_) => tracing::info!(target: TARGET, venue = %venue, chars, "reply sent"),
+                Ok(_) => tracing::info!(target: TARGET, venue = %peer.venue, chars, "reply sent"),
                 Err(error) => {
-                    tracing::warn!(target: TARGET, venue = %venue, chars, error = ?error, "reply not sent");
+                    tracing::warn!(target: TARGET, venue = %peer.venue, chars, error = ?error, "reply not sent");
                 }
             }
             None
         }));
+    }
+
+    /// 把一段 `text`（前面带 `lead` 要带的引用、@）放进 `peer` 那个机器人号现在的连接的写队列，交回在等的回应。没连着的、
+    /// 放不进去的（连接断了）记一行、交回空的（第 10 条：丢掉，出站队列随 O-25 下）。
+    async fn begin(&self, peer: &Peer, text: &str, lead: &Lead) -> Option<Pending> {
+        let chars = text.chars().count();
+        let Some(link) = self.bots.get(peer.bot) else {
+            tracing::info!(target: TARGET, venue = %peer.venue, bot = peer.bot, chars, "bot not connected, reply dropped");
+            return None;
+        };
+        let (action, params) = message_to(peer.to, text, lead);
+        match link.calls.begin(&link.out, action, params).await {
+            Ok(pending) => Some(pending),
+            Err(error) => {
+                tracing::warn!(target: TARGET, venue = %peer.venue, chars, error = ?error, "reply not sent");
+                None
+            }
+        }
     }
 }
 
