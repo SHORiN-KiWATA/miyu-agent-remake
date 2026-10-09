@@ -11,9 +11,27 @@
 import { text, attachments } from './session.js';
 
 /**
- * @typedef {{name: string, aliases?: string[], summary: string, run: string, args?: boolean}} Spec
- *   一条命令：名字（不带 `/`）、别名、列表里的说明、做什么（`ui/commands.js` 照它找处理）、名字后面能不能接参数
+ * @typedef {{name: string, aliases?: string[], summary: string, run: string, args?: boolean, argument?: string}} Spec
+ *   一条命令：名字（不带 `/`）、别名、列表里的说明、做什么（`ui/commands.js` 照它找处理）、名字后面能不能接参数、参数的提示（核心的命令带）
  */
+
+/**
+ * 核心认的斜杠命令（`command.catalog`，核心 O-6 补）写成网页的命令：做法是交给核心（`command.run`），带参数的照它的提示。
+ * @param {{name: string, aliases?: string[], summary?: string, argument?: string}[]} catalog @returns {Spec[]}
+ */
+export function coreSpecs(catalog) {
+  return (catalog ?? []).map((c) => ({ name: c.name, aliases: c.aliases ?? [], summary: c.summary ?? '', run: 'core', args: !!c.argument, ...(c.argument ? { argument: c.argument } : {}) }));
+}
+
+/**
+ * 网页自己的（出厂的、软件包登记的）在前，核心的接在后面；核心的名字、别名和网页的撞了的不要（网页的那条做得更多：空会话里怎么说、
+ * 回执怎么画），核心新加的命令网页不用改就有。
+ * @param {Spec[]} local @param {Spec[]} core @returns {Spec[]}
+ */
+export function mergeSpecs(local, core) {
+  const taken = new Set(local.flatMap((s) => [s.name, ...(s.aliases ?? [])]));
+  return [...local, ...core.filter((s) => ![s.name, ...(s.aliases ?? [])].some((n) => taken.has(n)))];
+}
 /** @typedef {{kind: 'command', spec: Spec, words: string|null}|{kind: 'unknown'}|{kind: 'talk'}} Line 回车时框里那一行是什么 */
 
 /** 框里的字像不像命令：像的交回命令名（刚打一个 `/` 的是空的），不像的是 `null`。名字要紧挨着 `/`。 */

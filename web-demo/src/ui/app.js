@@ -19,6 +19,7 @@ import { Chat } from './chat.js';
 import { Composer } from './composer.js';
 import { Artifacts } from './artifacts.js';
 import { runCommand, refusalText, redo, copyTurn, Commands, revertLatest } from './commands.js';
+import { coreSpecs } from '../model/commands.js';
 import { project } from '../model/transcript.js';
 import { withRecaps, withChanges } from '../model/notes.js';
 import { rank, startupSession, untouchedTurn, sessionCwd } from '../model/session.js';
@@ -157,6 +158,10 @@ export class App {
       interrupt: () => this.interrupt(),
       cycleLevel: () => this.cycleLevel(),
       command: (spec, words) => runCommand(this, spec, words),
+      // 命令列表开了：照正在看的会话重问核心认哪些（预设、记忆开关换了，下一次打开就是新的）
+      commandsOpened: () => this.refreshCommands(),
+      // `/help`：核心认的全部（不照会话筛）
+      allCommands: async () => this.commands.listWith(coreSpecs((await this.store.conn.request('command.catalog', {}))?.commands ?? [])),
       // 输入历史：记在这台设备上、按账号分开（内核的 `storage`）；读到坏的丢掉
       history: {
         load: () => [].concat(ctx.storage.get(HISTORY, [])).filter((x) => typeof x?.text === 'string' && typeof x?.at === 'number'),
@@ -381,6 +386,22 @@ export class App {
     if (!this.current) return this.draft.cwd ?? this.cwd;
     const s = this.store.sessions.get(this.current);
     return sessionCwd(s?.events ?? [], s?.base ?? null) ?? this.cwd;
+  }
+
+  /**
+   * 照正在看的会话问核心认哪些斜杠命令（`command.catalog`，核心 O-6 补）：列出来的打了不会被拒；空会话里不列核心的（核心的命令要造好的
+   * 会话）。问回来时会话已经换了的不要；命令列表开着的照新的重筛。
+   */
+  async refreshCommands() {
+    const session = this.current;
+    if (!session) {
+      this.commands.setCore([]);
+      return;
+    }
+    const got = await this.store.conn.request('command.catalog', { session }).catch(() => null);
+    if (this.current !== session || !got) return;
+    this.commands.setCore(coreSpecs(got.commands ?? []));
+    if (this.composer.menu.open) this.composer.menu.update(this.composer.input.value);
   }
 
   /** 还没开的新会话改人格、预设、工作区（软件包 `setup`）：告诉软件包（`draft.changed`），重画（`@` 照它列文件）。 @param {Partial<{persona: string|false|null, preset: string|null, cwd: string|null}>} patch */
@@ -731,6 +752,11 @@ export class App {
     this.syncJump?.();
     this.composer.setRunning(!!view.running);
     this.chat.setRunning(!!view.running);
+    // 换了会话：重问核心这个会话里认哪些命令
+    if (this.commandsFor !== this.current) {
+      this.commandsFor = this.current;
+      this.refreshCommands();
+    }
     // 对话区画了一次：照它画的软件包（运行状态行这类）听这个事件；是状态事件，晚起来的包先拿到最后一份
     this.ctx.publish('view.changed', { session: s?.id ?? null, running: view.running, events, live: s?.live ?? null, retry: s?.retry ?? null, queued: view.queued, todos: s?.todos ?? [], todosDone: s?.todosDone ?? null });
     // 排着的话（打断时有排着的不撤那一轮）

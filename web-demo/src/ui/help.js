@@ -40,7 +40,7 @@ export class HelpPanel {
   show(specs) {
     const section = (title, rows) => [h('div.help-section', title), h('div.help-grid', rows)];
     const commands = specs.flatMap((s) => [
-      h('code.help-key', [`/${s.name}`, ...(s.aliases ?? []).map((a) => `/${a}`)].join(' · ')),
+      h('code.help-key', [`/${s.name}${s.argument ? ` ${s.argument}` : ''}`, ...(s.aliases ?? []).map((a) => `/${a}`)].join(' · ')),
       h('span.help-what', s.summary),
     ]);
     const keys = /** @type {[string, string][]} */ (res.text.help.keys).flatMap(([key, what]) => [h('kbd.help-key', key), h('span.help-what', what)]);

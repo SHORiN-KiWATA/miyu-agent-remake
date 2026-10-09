@@ -52,6 +52,7 @@ export class Composer {
    * @param {{send: (text: string, extra: Record<string, any>) => Promise<boolean>, interrupt: () => void, cycleLevel: () => void,
    *   command: (spec: import('../model/commands.js').Spec, words: string|null) => void,
    *   history: {load: () => import('../model/history.js').Item[], save: (items: import('../model/history.js').Item[]) => void},
+   *   commandsOpened?: () => void, allCommands?: () => Promise<import('../model/commands.js').Spec[]>,
    *   session: () => string|null, models: import('./model-menu.js').On, files: (plan: any, fresh: boolean, onUpdate: (found: any) => void, stale: () => boolean) => Promise<any>, where: () => {cwd: string|null, home: string|null}} on
    *   `send` 交回核心收没收；`history` 读、存输入历史（这台设备上、按账号分开）；`session` 正在看的会话；`models` 换模型的菜单问核心要列表、现在用的、选定了做什么；`files` 问核心列、找文件
    *   （`core/files.js`，没建完的先交 `onUpdate`、`stale` 说不要了就停）；`where` 这个会话的工作目录、家目录（`@` 选文件写路径照它）
@@ -91,7 +92,7 @@ export class Composer {
     this.middle = h('span.footer-middle');
     this.footer = h('div.composer-footer', this.left, this.middle, this.right, this.modelMenu.el);
     // 从命令列表里点的、选中回车的：记成 `/名字`
-    this.menu = new CommandList({ run: (spec) => { this.remember(`/${spec.name}`); this.run(spec, null); }, fill: (text) => this.fill(text) }, specs);
+    this.menu = new CommandList({ run: (spec) => { this.remember(`/${spec.name}`); this.run(spec, null); }, fill: (text) => this.fill(text), opened: () => on.commandsOpened?.() }, specs);
     /** 翻输入历史（蓝图「输入历史」） */
     this.recall = new Recall(on.history.load());
     this.historyList = new HistoryList({ choose: (item) => this.chosen(item), closed: () => this.input.focus() });
@@ -485,13 +486,14 @@ export class Composer {
   }
 
   /** `/help`：开帮助（和别的浮层不同时开），列现在的全部命令和按键。 */
-  openHelp() {
+  async openHelp() {
     this.picker.close();
     this.historyList.close();
     this.sessionList.close();
     this.menu.menu.dismiss(this.input.value);
     this.menu.update(this.input.value);
-    this.help.show(this.specs());
+    // 帮助列全部：核心认的全部（不照会话筛），问不到的照现在的
+    this.help.show((await this.on.allCommands?.().catch(() => null)) ?? this.specs());
   }
 
   /** `/sessions`：开会话列表（和命令列表、选语言、输入历史列表不同时开），带着 `/sessions 词` 的词搜。 */

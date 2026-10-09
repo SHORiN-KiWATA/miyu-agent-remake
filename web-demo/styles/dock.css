@@ -42,6 +42,7 @@
 .command-name { color: var(--text); font: 13px var(--mono); white-space: nowrap; }
 .command-row.is-selected .command-name { color: var(--accent); }
 .command-alias { color: var(--text-faint); }
+.command-arg { color: var(--text-faint); font-weight: 400; }
 .command-summary { overflow: hidden; color: var(--text-soft); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── 选一样的浮层（/language，蓝图 web.md「界面语言」第 3 条）：头一行标题、右边暗色写按键；一行一样，选中的铺底、字变 accent，

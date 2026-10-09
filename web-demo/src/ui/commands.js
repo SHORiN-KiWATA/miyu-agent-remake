@@ -18,6 +18,7 @@ import { copy } from '../markdown/build.js';
 import { Refusal } from '../core/connection.js';
 
 /** @typedef {import('../model/commands.js').Spec} Spec */
+import { mergeSpecs } from '../model/commands.js';
 /** @typedef {import('./app.js').App} App */
 
 /**
@@ -30,10 +31,18 @@ export class Commands {
     this.base = base;
     /** @type {Spec[]} 软件包登记的 */
     this.extra = [];
+    /** @type {Spec[]} 核心认的（`command.catalog`，照正在看的会话问；空会话里没有：核心的命令要造好的会话） */
+    this.core = [];
   }
 
-  /** 现在的全部：出厂的在前，登记的照登记的先后。 */
-  list() { return [...this.base, ...this.extra]; }
+  /** 现在的全部：出厂的在前，登记的照登记的先后，核心的接在后面（和网页撞名的不要，`mergeSpecs`）。 */
+  list() { return mergeSpecs([...this.base, ...this.extra], this.core); }
+
+  /** 换上核心的那一份。 @param {Spec[]} specs */
+  setCore(specs) { this.core = specs; }
+
+  /** 网页自己的加上给的这一份核心的（`/help` 列核心认的全部）。 @param {Spec[]} core */
+  listWith(core) { return mergeSpecs([...this.base, ...this.extra], core); }
 
   /** 登记一条：`run` 是做法，拿到命令名后面的字；交回怎么拿掉。 */
   register(spec, run) {
@@ -54,7 +63,7 @@ export class Commands {
 /** 浮在输入框上面的命令列表。 */
 export class CommandList {
   /**
-   * @param {{run: (spec: Spec) => void, fill: (text: string) => void}} on 执行选中的；把名字填进框里
+   * @param {{run: (spec: Spec) => void, fill: (text: string) => void, opened?: () => void}} on 执行选中的；把名字填进框里；列表开了（外面照会话重问核心的命令）
    * @param {() => Spec[]} specs 现在的全部命令（出厂的加软件包登记的）
    */
   constructor(on, specs) {
@@ -75,8 +84,10 @@ export class CommandList {
 
   /** 框里的字变了（或者要照它重看一遍）：定开不开、筛出哪几条。 */
   update(value) {
+    const was = this.open;
     this.value = value;
     this.matches = this.menu.sync(value, this.specs());
+    if (!was && this.open) this.on.opened?.();
     // 开：从下面升上来；关：往下沉、淡出（蓝图「动效」）
     if (!this.open) {
       hide(this.el);
@@ -97,7 +108,7 @@ export class CommandList {
       onmousedown: (/** @type {MouseEvent} */ ev) => ev.preventDefault(),
       onmousemove: (/** @type {MouseEvent} */ ev) => this.hover(ev, i),
       onclick: () => this.on.run(spec),
-    }, h('span.command-name', `/${spec.name}`, aliases), h('span.command-summary', spec.summary));
+    }, h('span.command-name', `/${spec.name}`, spec.argument ? h('span.command-arg', ` ${spec.argument}`) : null, aliases), h('span.command-summary', spec.summary));
   }
 
   /** 画选中的那一条；`scroll` 时把它滚进视野（只滚列表自己，不带着整页动）。 */
@@ -177,6 +188,15 @@ export function refusalText(err) {
 
 /** @type {Record<string, (app: App, spec: Spec, words: string|null) => unknown>} */
 const RUNS = {
+  // 核心认的命令（`command.catalog` 列出来的，网页没有自己的做法）：原样交给核心（`command.run`），回执写进提示
+  core: async (app, spec, words) => {
+    if (!app.current) {
+      app.composer.say(t('commands.needs_session'));
+      return;
+    }
+    const got = await app.store.conn.request('command.run', { session: app.current, text: `/${spec.name}${words ? ` ${words}` : ''}` });
+    if (got?.said) app.composer.say(got.said, true);
+  },
   revert: undo,
   unrevert: restore,
   compact: async (app, spec, words) => {

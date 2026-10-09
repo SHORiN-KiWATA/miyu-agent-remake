@@ -143,3 +143,15 @@ test('撤掉的那一句带的附件回到框里：照图片、文件块换成�
   ]);
   assert.deepEqual(keptAttachments({ body: { blocks: [{ type: 'image', blob: 'b3', media_type: 'image/svg+xml' }] } }, []), [{ blob: 'b3', name: 'image.svg', media_type: 'image/svg+xml', size: null }]);
 });
+
+test('核心认的命令（command.catalog）：写成交给核心的命令，带参数的照提示；和网页自己的撞名、撞别名的不要，接在后面', async () => {
+  const { coreSpecs, mergeSpecs } = await import('../src/model/commands.js');
+  const core = coreSpecs([
+    { name: 'clear', aliases: ['reset'], summary: '清空上下文' },
+    { name: 'remember', aliases: [], summary: '记一条记忆', argument: '<内容>' },
+    { name: 'wipe', aliases: ['reset'], summary: '撞了网页的别名' },
+  ]);
+  assert.deepEqual(core[1], { name: 'remember', aliases: [], summary: '记一条记忆', run: 'core', args: true, argument: '<内容>' });
+  const local = [{ name: 'clear', aliases: ['reset'], summary: '网页的清空', run: 'clear' }, { name: 'help', summary: '帮助', run: 'help' }];
+  assert.deepEqual(mergeSpecs(local, core).map((s) => `${s.name}:${s.run}`), ['clear:clear', 'help:help', 'remember:core']);
+});
