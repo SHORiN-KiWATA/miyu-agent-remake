@@ -111,17 +111,26 @@ impl RecallIndexes {
         failed.map_or(Ok(()), Err)
     }
 
-    /// 记忆的一处出处 `source` 还活着（施工 R-3 上，`memory.md` 第二条第 4 款）：房间 `room` 的回合库里，那个会话没埋（没删）、
-    /// 那一轮没埋（没撤销）。
+    /// 记忆的一处出处 `source` 还活着（施工 R-3 上，`memory.md` 第二条第 4 款）：那个会话的目录还在（没删进回收处、没清出回收处，
+    /// 施工 R-3 三补），房间 `room` 的回合库里那一轮没埋（没撤销）。
+    ///
+    /// 会话照目录判、不照删会话时埋的那块墓碑：墓碑是派生的，回合库坏了删掉重建就没了，回收处里的会话没人再读出来补；目录是
+    /// 真相，从回收处恢复的也自然又算活的。先看这一间的账号名下（平常就在这里），没有再找别的账号（系统账号的会话、记忆归管理员）。
     ///
     /// # Errors
     ///
-    /// 回合库读不了。
+    /// 回合库读不了；读不了数据根的 `home/`。
     pub fn alive(&self, room: &Room, source: &Source) -> Result<bool, DbError> {
+        let account = match room {
+            Room::Persona { account, .. } | Room::Session { account, .. } => account,
+        };
+        let here = self.root.session_dir(account, &source.session).is_dir();
+        if !here && self.root.owner_of(&source.session)?.is_none() {
+            return Ok(false);
+        }
         let (index, _) = self.turns(room);
-        let session = format!("{}/", source.session);
-        let turn = format!("{session}{}", source.turn.started().get());
-        Ok(!index.is_buried(&session)? && !index.is_buried(&turn)?)
+        let turn = format!("{}/{}", source.session, source.turn.started().get());
+        Ok(!index.is_buried(&turn)?)
     }
 
     /// 拿锁。别的线程拿着锁崩了，登记还是好的（只是一张表），照常用。
