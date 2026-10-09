@@ -217,9 +217,7 @@ async fn run(
     if let Some((cache, cargo_home)) = sandbox_cache {
         core = core.with_sandbox_cache(cache, cargo_home);
     }
-    if let Some(setup) = embedder {
-        core = core.with_embedder(setup);
-    }
+    core = core.with_vectors(embedder);
     let core = Arc::new(core);
     tokio::spawn(settings::follow(
         core.config_now(),

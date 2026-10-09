@@ -5,8 +5,10 @@
 //!    名额占到这一次问完：重试接着占着；被放下的那一次照样等到回答（「施工时定的」第 95 条）。
 //! 2. `venue.records` 拿群聊记录和这一条：`count` 照 `Params::judge.records`（1 到 100，和核心收的一样，`chat.md` 第八条）。
 //!    被拒的当判不了，不重试。
-//! 3. 拼请求（`request`）：判官先不带人格（`Ask::persona` 是 `None`），base64 解出来的字由调的一方交进来。
-//! 4. `model.call {purpose: "judge", model?, max_tokens, messages}`：每一次最多等 `timeout`（只查违规的 `moderation_timeout`）；
+//! 3. 带上人格（施工 O-23 补，第 12 条第 3 款）：调的一方交了人格的编号的（这个群会话用的人格，`judge.persona` 开着），读它的
+//!    原文（`persona.rs`：读到的记一阵，读不到的这一次不带、照样问）；没交的不带、不读。
+//! 4. 拼请求（`request`）：base64 解出来的字由调的一方交进来。
+//! 5. `model.call {purpose: "judge", model?, max_tokens, messages}`：每一次最多等 `timeout`（只查违规的 `moderation_timeout`）；
 //!    等不到、核心拒了、读不出（`read`）的再问，最多再问 `retries` 次，交回最后一次的为什么（「施工时定的」第 94 条）。
 //!
 //! 耗时从交给判官（排队以前）算到有结果（「施工时定的」第 96 条）。核心断开了交回空的：跟核心的那一头也停了，没人收。
@@ -21,6 +23,7 @@ use serde_json::{Value, json};
 use tokio::sync::Semaphore;
 use tokio::time::Instant;
 
+use super::persona::Personas;
 use crate::core::{Caller, Gone, reason};
 
 /// `model.call` 的用途（`protocol.md` 的 `model.call`）。
@@ -41,6 +44,9 @@ pub(super) struct Asking {
     pub(super) judge: Judge,
     /// 这个群的主动回复判断的参数：拼请求时取违规的门槛。
     pub(super) chatty: Chatty,
+    /// 判官带的人格：这个群会话用的人格的编号（订阅回应的 `persona`）；无人格的、这个群的 `judge.persona` 关了的是空的，
+    /// 不带、不读（施工 O-23 补）。
+    pub(super) persona: Option<String>,
 }
 
 /// 全局的名额：几个任务共用（`bridge.json` 的 `judge_concurrency`、`judge_queue_seconds`）。
@@ -88,12 +94,13 @@ pub(super) enum Unjudged {
     Unreadable(Unreadable),
 }
 
-/// 问一次（见模块的说明）。核心断开了交回空的。
+/// 问一次（见模块的说明）：人格的原文照 `personas` 记着的用、读到的记进去。核心断开了交回空的。
 pub(super) async fn ask(
     asking: Asking,
     caller: Caller,
     texts: Arc<JudgeTexts>,
     slots: Slots,
+    personas: Personas,
 ) -> Option<Answer> {
     let start = Instant::now();
     let finish = |tries: u32, model: Option<String>, result| Answer {
@@ -105,10 +112,16 @@ pub(super) async fn ask(
     let Ok(Ok(_slot)) = tokio::time::timeout(slots.queue, slots.slots.acquire_owned()).await else {
         return Some(finish(0, None, Err(Unjudged::Queue)));
     };
-    let ask = match records(&asking, &caller).await.ok()? {
+    let mut ask = match records(&asking, &caller).await.ok()? {
         Ok(ask) => ask,
         Err(refused) => return Some(finish(0, None, Err(refused))),
     };
+    if let Some(persona) = &asking.persona {
+        ask.persona = personas
+            .text(persona, &asking.session, &caller)
+            .await
+            .ok()?;
+    }
     let messages: Vec<Value> = request(&texts, &ask, &asking.chatty)
         .into_iter()
         .map(|message| {
@@ -159,7 +172,7 @@ pub(super) async fn ask(
     Some(finish(tries, model, Err(why)))
 }
 
-/// `venue.records` 拿群聊记录和这一条，拼成 `Ask`；被拒的交回 [`Unjudged::Refused`]。
+/// `venue.records` 拿群聊记录和这一条，拼成 `Ask`（人格另带）；被拒的交回 [`Unjudged::Refused`]。
 ///
 /// # Errors
 ///
@@ -186,5 +199,7 @@ async fn records(asking: &Asking, caller: &Caller) -> Result<Result<Ask, Unjudge
     }))
 }
 
+#[cfg(test)]
+mod persona_tests;
 #[cfg(test)]
 mod tests;

@@ -12,8 +12,8 @@ use std::path::PathBuf;
 
 use miyu_drivers::openai_chat::Compat;
 use miyu_drivers::{
-    Call, DriverTextSources, DriverTexts, ImageDescriptionSources, ImageNameSources, Inputs,
-    TextFileSources,
+    AttachedPathSources, Call, DriverTextSources, DriverTexts, ImageDescriptionSources,
+    ImageNameSources, Inputs, TextFileSources,
 };
 use miyu_kernel::block::{Block, File, Image, Private, Reasoning, Text, ToolCall};
 use miyu_kernel::id::{CallId, ContentHash, DriverFamily, FileName, MediaType, ModelName};
@@ -51,6 +51,14 @@ pub fn texts() -> DriverTexts {
             ),
             image_description_close: include_str!(
                 "../../../../resources/core/drivers/image-description-close.txt"
+            ),
+        }),
+        attached_path: Some(AttachedPathSources {
+            image_omitted_path: include_str!(
+                "../../../../resources/core/drivers/image-omitted-path.txt"
+            ),
+            file_omitted_path: include_str!(
+                "../../../../resources/core/drivers/file-omitted-path.txt"
             ),
         }),
     })
@@ -171,6 +179,7 @@ fn picture(content: &[u8], name: Option<&str>, media_type: &str) -> Block {
         media_type: MediaType::parse(media_type).expect("媒体类型合写法"),
         width: 800,
         height: 600,
+        path: None,
     })
 }
 
@@ -179,6 +188,7 @@ pub fn file(content: &[u8], name: &str, media_type: &str) -> Block {
         blob: ContentHash::of(content),
         name: FileName::parse(name).expect("文件名合写法"),
         media_type: MediaType::parse(media_type).expect("媒体类型合写法"),
+        path: None,
     })
 }
 

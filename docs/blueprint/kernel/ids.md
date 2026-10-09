@@ -48,6 +48,7 @@
 | `ModelName` | 模型，照供应商的叫法原样记 | 短名字 | `model` | `deepseek-v4`、`qwen/qwen3-235b-a22b@2026-07` |
 | `MediaType` | 媒体类型 | 媒体类型 | `media type` | `image/png` |
 | `FileName` | 文件名，给人看的名字，不是路径 | 文件名 | `file name` | `报告.pdf` |
+| `SourcePath` | 附件原来在本机的哪儿（施工 3-9 五补）：不能空，最多 4096 字节，没有控制字符，`/`、`~/`、Windows 的盘符（`C:\\`、`C:/`）或 `\\\\` 开头 | 附件的路径 | `source path` | `/home/alice/晚霞.png`、`~/报告.pdf` |
 | `EventKind` | 事件种类 | 事件种类 | `event kind` | `message.user`、`ext.memory.recalled` |
 | `HarnessName` | 别的 harness 报的名字（施工 7-1） | 短名字 | `harness name` | `claude-code` |
 

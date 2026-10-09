@@ -20,6 +20,7 @@ pub(crate) fn store(blobs: &Blobs, pictures: Vec<Picture>) -> Option<Vec<Block>>
                 media_type: picture.media_type,
                 width: picture.width,
                 height: picture.height,
+                path: None,
             })),
             Err(error) => {
                 tracing::error!(target: TARGET, error = %error, "image not stored");

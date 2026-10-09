@@ -187,6 +187,7 @@ async fn a_picture_from_a_tool_becomes_an_image_block_with_its_blob_stored() {
             media_type: MediaType::parse("image/png").unwrap(),
             width: 2,
             height: 1,
+            path: None,
         }),
     ];
     assert_eq!(results[0].blocks, expected);

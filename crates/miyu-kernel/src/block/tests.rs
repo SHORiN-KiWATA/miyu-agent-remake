@@ -1,5 +1,5 @@
 //! 内容块的测试：图纸上的五种读写一字不差；驱动私有数据、工具名和参数、不认识的块，
-//! 都一字不差；坏的报错。
+//! 都一字不差；附件原来的路径（施工 3-9 五补）；坏的报错。
 
 use super::*;
 use crate::test_support::{rejected, round_trip};
@@ -63,6 +63,29 @@ fn an_image_carries_its_name_only_when_it_has_one() {
             .unwrap()
             .contains("name")
     );
+}
+
+/// 附件原来的路径（施工 3-9 五补）：图片块、文件块带着的读写一字不差，排在最后；没有的读成没有，写出去也没有这一格。
+#[test]
+fn an_attachment_carries_where_it_came_from_only_when_it_has_one() {
+    for text in [
+        format!(
+            r#"{{"type":"image","blob":"{HASH}","name":"晚霞.png","media_type":"image/png","width":800,"height":600,"path":"/home/a/晚霞.png"}}"#
+        ),
+        format!(
+            r#"{{"type":"file","blob":"{HASH}","name":"报告.pdf","media_type":"application/pdf","path":"~/报告.pdf"}}"#
+        ),
+    ] {
+        round_trip::<Block>(&text);
+    }
+    let old = format!(
+        r#"{{"type":"file","blob":"{HASH}","name":"报告.pdf","media_type":"application/pdf"}}"#
+    );
+    let Block::File(file) = serde_json::from_str(&old).unwrap() else {
+        panic!("是文件块");
+    };
+    assert_eq!(file.path, None);
+    assert_eq!(serde_json::to_string(&Block::File(file)).unwrap(), old);
 }
 
 #[test]

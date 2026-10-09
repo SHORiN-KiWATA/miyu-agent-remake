@@ -107,7 +107,7 @@
 1. `msg` 是要判的那一条，必须是这个会话里带 `venue` 的 `message.user`；`count` 1 到 100。写错的、`msg` 不对的 `bad_params`；没有这个会话的 `session_not_found`。
 2. `current` 是那一条的一行；`records` 是它之前的群里的话，一行一条（每行以换行结尾，没有的是空的），照日志的先后，从新往旧取 `count` 条：场所的 `message.user`（旁听的、开过回合的都收，睡着时收到的不收），`venue.delivered` 写成 `[you]` 行（判官看不到她的回复，主线的也收）；`msg` 以前记下的撤回照样标。
 3. 写法和她看到的一行同一个函数（`miyu_assemble::group::records`），照会话快照里钉下的时区和字；快照里没有的（私聊）照核心这时的时区和出厂的字。照会话日志读（同 `view.page`，不载入会话），撤掉的、撤回的不算，压缩换出去的照样算。
-4. 判官的人格说明先不带（`Ask.persona` 是 `None`）：带不带、带哪段等项目主人定。
+4. 判官带人格（2026-10-09 项目主人定，出厂开，能按场所关）：桥照订阅回应里的 `persona` 用 `persona.read {persona, prompt: "persona"}` 读现在文件里的那一份，开关是群聊内核的出厂参数 `judge.persona`（通讯平台的会话 O-23 补）；`venue.records` 不管人格，形状不变。
 
 **照记下的几条开一轮**（施工 O-14 上，chat.md 第七条第 3 条第 1 项，形状 2026-10-09 和通讯平台的会话对过）：`session.respond {session, to, facts}`，回应 `{"events": [...]}`（`turn.started` 和事实的序号，同 `session.send`）。
 

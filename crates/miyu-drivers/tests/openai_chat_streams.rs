@@ -75,8 +75,14 @@ fn render((deltas, ending): &(Vec<Delta>, Ending)) -> String {
         .collect();
     lines.push(match &ending.usage {
         Some(usage) => format!(
-            "usage uncached={} cache_read={} cache_write={} output={}",
-            usage.uncached, usage.cache_read, usage.cache_write, usage.output
+            "usage uncached={} cache_read={} cache_write={} output={}{}",
+            usage.uncached,
+            usage.cache_read,
+            usage.cache_write,
+            usage.output,
+            usage
+                .reasoning
+                .map_or_else(String::new, |reasoning| format!(" reasoning={reasoning}"))
         ),
         None => "usage none".to_string(),
     });

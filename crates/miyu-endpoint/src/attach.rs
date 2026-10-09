@@ -27,7 +27,7 @@ use serde_json::{Value, json};
 
 use miyu_fs::{Boundary, Places, Zone, open_file, resolve, tilde};
 use miyu_kernel::block::{Block, File, Image};
-use miyu_kernel::id::{AccountId, ContentHash, FileName, MediaType};
+use miyu_kernel::id::{AccountId, ContentHash, FileName, MediaType, SourcePath};
 use miyu_store::blob::{BlobError, Blobs};
 use miyu_store::root::DataRoot;
 
@@ -59,12 +59,15 @@ pub(crate) struct PutParams {
     media_type: Option<String>,
 }
 
-/// `session.send`、`session.redo` 的一个附件：`blob.put` 的回应，只看这三格。
+/// `session.send`、`session.redo` 的一个附件：`blob.put` 的回应，只看这三格；另可带原来的路径（施工 3-9 五补）。
 #[derive(Debug, Deserialize)]
 pub(crate) struct Attachment {
     blob: String,
     name: String,
     media_type: String,
+    /// 原来在本机的哪儿：头 `blob.put` 传的那个路径。只查写法（[`SourcePath`]），不碰磁盘。
+    #[serde(default)]
+    path: Option<String>,
 }
 
 /// `blob.get` 的参数（施工 W-6）：`blob` 必写（内容哈希）；`offset` 不写是 0；`length` 不写是
@@ -122,10 +125,17 @@ pub(crate) async fn blocks(
     let mut wanted = Vec::with_capacity(attachments.len());
     for attachment in attachments {
         let blob = ContentHash::parse(&attachment.blob).map_err(|_| Refusal::BAD_PARAMS)?;
+        let path = attachment
+            .path
+            .as_deref()
+            .map(SourcePath::parse)
+            .transpose()
+            .map_err(|_| Refusal::BAD_PARAMS)?;
         wanted.push((
             blob,
             file_name(&attachment.name)?,
             media_type(&attachment.media_type)?,
+            path,
         ));
     }
     if wanted.is_empty() {
@@ -136,7 +146,7 @@ pub(crate) async fn blocks(
         let blobs = Blobs::new(place.root.blobs(&place.admin));
         wanted
             .into_iter()
-            .map(|(blob, name, given)| block(&blobs, blob, name, given))
+            .map(|(blob, name, given, path)| block(&blobs, blob, name, given, path))
             .collect()
     })
     .await
@@ -204,6 +214,7 @@ pub(crate) async fn images(core: &Core, hashes: Vec<ContentHash>) -> Result<Vec<
                         media_type,
                         width,
                         height,
+                        path: None,
                     })),
                     Kind::File { .. } => Err(Refusal::BAD_PARAMS),
                 }
@@ -254,12 +265,14 @@ fn get_blocking(
     Ok(json!({"data": STANDARD.encode(&data), "size": size}))
 }
 
-/// 一个附件造成一块：blob 要在，照内容再认一遍；名字照头交回来的，图片也带（施工 3-9 四补）。
+/// 一个附件造成一块：blob 要在，照内容再认一遍；名字照头交回来的，图片也带（施工 3-9 四补）；原来的路径照头交回来的
+/// （施工 3-9 五补）。
 fn block(
     blobs: &Blobs,
     blob: ContentHash,
     name: FileName,
     given: MediaType,
+    path: Option<SourcePath>,
 ) -> Result<Block, Refusal> {
     let bytes = read_blob(blobs, &blob)?;
     Ok(
@@ -274,11 +287,13 @@ fn block(
                 media_type,
                 width,
                 height,
+                path,
             }),
             Kind::File { media_type } => Block::File(File {
                 blob,
                 name,
                 media_type,
+                path,
             }),
         },
     )

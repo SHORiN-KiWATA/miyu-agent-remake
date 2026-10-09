@@ -183,6 +183,7 @@ impl UsageIndex {
                     cache_read: count(2)?,
                     cache_write: count(3)?,
                     output: count(4)?,
+                    reasoning: None,
                 },
                 amounts: Vec::new(),
                 unpriced: count(5)?,

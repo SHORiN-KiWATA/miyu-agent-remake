@@ -32,6 +32,7 @@ fn picture(content: &[u8], name: Option<&str>) -> Block {
         media_type: MediaType::parse("image/png").expect("媒体类型合写法"),
         width: 1280,
         height: 720,
+        path: None,
     })
 }
 

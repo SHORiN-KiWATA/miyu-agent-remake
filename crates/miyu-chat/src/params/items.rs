@@ -182,6 +182,10 @@ pub(crate) const ITEMS: &[Item] = &[
         p.judge.model = Some(String::from(v))
     }),
     item("judge.records", RECORDS, |p, v| p.judge.records = count(v)),
+    // 判官带不带人格的说明（施工 O-23 补，施工时定的第 24 条）。
+    item("judge.persona", Kind::Bool, |p, v| {
+        p.judge.persona = flag(v)
+    }),
     item("judge.max_tokens", TOKENS, |p, v| {
         p.judge.max_tokens = count(v)
     }),

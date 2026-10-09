@@ -92,6 +92,9 @@ fn property(item: &Item, words: &dyn Words) -> Result<Json, Missing> {
     Ok(Json::Object(property))
 }
 
+/// 模型 `<供应商>/<模型>` 的写法在 JSON Schema 里的粗查（施工 R-5 补）：供应商的编号小写字母开头，`/` 后面不是空的。
+const MODEL_PATTERN: &str = "^[a-z][a-z0-9_-]*/.+$";
+
 /// 一种类型在 JSON Schema 里的写法：`type` 和查什么。
 fn shape(kind: Kind) -> Map<String, Json> {
     let mut property = Map::new();
@@ -124,6 +127,16 @@ fn shape(kind: Kind) -> Map<String, Json> {
         }
         Kind::Name | Kind::Reference | Kind::Model => {
             property.insert("type".to_string(), json!("string"));
+        }
+        // 列出的几个字之一，或者一个模型（施工 R-5 补）：模型照写法粗查，供应商在不在是读进来以后的事。
+        Kind::ModelOr(words) => {
+            property.insert(
+                "anyOf".to_string(),
+                json!([
+                    {"type": "string", "enum": words},
+                    {"type": "string", "pattern": MODEL_PATTERN},
+                ]),
+            );
         }
         Kind::Float { min, max } => {
             property.insert("type".to_string(), json!("number"));

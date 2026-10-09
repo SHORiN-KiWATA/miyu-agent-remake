@@ -169,3 +169,36 @@ fn a_model_takes_only_a_provider_and_a_model() {
         Some(vec!["a/x".to_string()])
     );
 }
+
+crate::settings! {
+    /// 测试用的一项 `model_or`（施工 R-5 补）。
+    pub struct Embedding in "embedding" {
+        /// 算向量的。
+        picked: Option<String> = none {
+            kind: model_or ["local", "off"],
+            layers: [System, Personal],
+            applies: next_turn,
+            ui: { page: "models", group: "uses", control: text },
+        },
+    }
+}
+
+/// `model_or`（施工 R-5 补）：列出的字不查；写了模型的照 `Model` 查供应商在不在。
+#[test]
+fn a_model_or_word_is_not_checked_and_its_model_is() {
+    let check = |text: &str| {
+        let parsed = parse(Embedding::ITEMS, Layer::System, text).expect("写法对");
+        dangling(
+            Embedding::ITEMS,
+            &parsed,
+            Layer::System,
+            &|name| name == "a",
+            &|_| false,
+        )
+    };
+    assert!(check("[embedding]\npicked = \"local\"\n").is_empty());
+    assert!(check("[embedding]\npicked = \"a/bge-m3\"\n").is_empty());
+    let problems = check("[embedding]\npicked = \"nope/bge-m3\"\n");
+    assert_eq!(problems.len(), 1, "{problems:?}");
+    assert_eq!(problems[0].code, Code::NoProvider);
+}

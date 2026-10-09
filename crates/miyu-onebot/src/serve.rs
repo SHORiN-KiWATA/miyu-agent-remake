@@ -35,7 +35,7 @@ use miyu_store::root::DataRoot;
 
 use crate::TARGET;
 use crate::core::Core;
-use crate::core::route::{Route, Slots};
+use crate::core::route::{Personas, Route, Slots};
 use crate::current::Current;
 use crate::listen::bots::Bots;
 use crate::listen::{self, Gate};
@@ -220,7 +220,9 @@ pub async fn run(
     let (configured, mut configs) = mpsc::unbounded_channel();
     let members = Members::new(gate.tuning.member_names());
     let slots = Slots::new(gate.tuning.judge_concurrency, gate.tuning.judge_queue());
-    let route = Route::new(core, bots, venues, members, (texts, slots), configured);
+    let personas = Personas::new(gate.tuning.judge_persona());
+    let judging = (texts, slots, personas);
+    let route = Route::new(core, bots, venues, members, judging, configured);
     let route = tasks.spawn(async move { route.run(received).await }).id();
     tasks.spawn(status_file::keep(
         status_file::path(&serve.root),

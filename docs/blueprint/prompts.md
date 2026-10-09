@@ -386,6 +386,17 @@ An image was attached here, but this model cannot view images.
 An image was attached here ({name}), but this model cannot view images.
 ```
 
+#### `core/drivers/image-omitted-path.txt`
+
+- 什么时候加进来：模型看不了图，历史里有人从本机文件附的图片（施工 3-9 五补）
+- token：29
+- 为什么加：看不了的附件要拿得到：带上原来的路径，她能照路径用工具去读（2026-09-30 项目主人同意）。和带名字的那一句一样另成一份，模板没有可以不填的字段；照同样的名字、路径 `/home/alice/Pictures/晚霞.png` 量，路径越长越多
+- 指纹：`93390608`
+
+```text
+An image was attached here ({name}, from {path}), but this model cannot view images.
+```
+
 ### 文件的占位
 
 #### `core/drivers/file-omitted.txt`
@@ -397,6 +408,17 @@ An image was attached here ({name}), but this model cannot view images.
 
 ```text
 A file was attached here ({name}, {media_type}, {size} bytes), but this model cannot read it.
+```
+
+#### `core/drivers/file-omitted-path.txt`
+
+- 什么时候加进来：模型读不了这种文件，历史里有人从本机文件附的文件（施工 3-9 五补）
+- token：32
+- 为什么加：同 `image-omitted-path.txt`；照同样的值（`报告.pdf`、`application/pdf`、`48213`）加路径 `~/Documents/报告.pdf` 量，比不带路径的（24）多 8 个
+- 指纹：`c344d43c`
+
+```text
+A file was attached here ({name}, {media_type}, {size} bytes, from {path}), but this model cannot read it.
 ```
 
 ### 工具结果

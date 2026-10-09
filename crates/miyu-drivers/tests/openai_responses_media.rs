@@ -72,7 +72,7 @@ fn attachments() -> Request {
 fn images_and_pdfs_go_as_parts_and_the_rest_as_text() {
     let body = body(&attachments(), sees_all());
     responses_sample("media", &body);
-    let zip = texts().file_omitted("data.zip", "application/zip", ZIP.len());
+    let zip = texts().file_omitted("data.zip", "application/zip", ZIP.len(), None);
     assert_eq!(
         item(&body, 0),
         json!({"role": "user", "content": [
@@ -91,8 +91,8 @@ fn a_model_that_takes_neither_gets_one_string() {
     responses_sample("media-omitted", &body);
     let content = item(&body, 0)["content"].clone();
     let said = content.as_str().expect("全是字的是一个字符串");
-    assert!(said.contains(&texts().image_omitted(None)));
-    assert!(said.contains(&texts().file_omitted("报告.pdf", "application/pdf", PDF.len())));
+    assert!(said.contains(&texts().image_omitted(None, None)));
+    assert!(said.contains(&texts().file_omitted("报告.pdf", "application/pdf", PDF.len(), None)));
 }
 
 #[test]

@@ -14,6 +14,7 @@ HTTP 执行器：照驱动编码好的字节发一次请求，流式地读回来
 | `crates/miyu-http/src/endpoint.rs` | 端点：地址、key（可以没有，施工 8-6）、另配的头；打印时藏起 key、地址只写主机名；取主机名，日志也用它 |
 | `crates/miyu-http/src/send.rs` | 发一次：头、空闲超时、出错、叫停、运行日志 |
 | `crates/miyu-http/src/get.rs` | 一次 GET（施工 8-7）：拉 models.dev 的目录、拉供应商的模型列表；边下边交（施工 R-5 中）：下本机 embedding 的模型文件 |
+| `crates/miyu-http/src/post.rs` | 一次 POST、整个读完（施工 R-5 补）：远程的 embedding。带着头和 JSON 的请求体，有总时限、大小上限，出错的说法同一次 GET（`Failed`：原话不带地址，回的不是 2xx 的带状态码、响应头、最多 64 KiB 的响应体） |
 | `crates/miyu-http/src/testkit.rs` | 测试用的假服务器，`testkit` 开关打开才编进去 |
 | `crates/miyu-session/src/http.rs` | 用它的：会话请求模型的端口，取 blob、编码、发；空闲超时的初值 |
 | `crates/miyu-core/src/models.rs` | 造客户端和端点 |

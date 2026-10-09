@@ -177,6 +177,7 @@ fn an_older_snapshot_writes_placeholders_for_text_files_too() {
         text_file: None,
         image_name: None,
         image_description: None,
+        attached_path: None,
     })
     .expect("用得了");
     let body = encoded(&attached(), Inputs::default(), &old).expect("blob 都在");

@@ -4,7 +4,10 @@
 //! - 交给判官（[`Judges::start`]）：记下在判的、发一张号（`ticket`），起一个任务（`ask.rs`）。
 //! - 顶替要放下的（[`Judges::cancel`]）：拿掉在判的那一条；任务不掐，回来的回答没人认，丢掉（施工单「要定的」第 1 条）。
 //! - 判官回来了（[`Judges::take`]）：照号拿回在判的那一条；被放下的拿不到。
+//! - 群会话用的人格（施工 O-23 补，第 1 条、第 12 条第 3 款）：订阅上了照回应的 `persona` 记下（[`Judges::subscribed`]），
+//!   交给判官时照它带（[`Judges::persona`]）；原文另记在 `persona.rs`，几个任务共用。
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use miyu_chat::{Chatty, JudgeTexts, Pending, Standing};
@@ -12,6 +15,7 @@ use tokio::task::JoinSet;
 
 use super::ask::{Answer, Asking, Slots, ask};
 use super::decide::Decision;
+use super::persona::Personas;
 use crate::core::Caller;
 
 /// 判的那几条里最后一条的：判断、开一轮的命令编号照它拼，运行日志照它记。
@@ -55,6 +59,10 @@ pub(super) struct Judges {
     texts: Arc<JudgeTexts>,
     /// 全局的名额。
     slots: Slots,
+    /// 读到的人格原文，几个任务共用。
+    personas: Personas,
+    /// 群会话编号 → 它用的人格（订阅回应的 `persona`）：无人格的不在里面。
+    used: HashMap<String, String>,
     /// 在跑的任务：放下 `Route` 时一起掐掉（桥在停）。
     pub(super) running: JoinSet<Asked>,
     /// 在判的，照交出去的先后，带着号。
@@ -64,16 +72,36 @@ pub(super) struct Judges {
 }
 
 impl Judges {
-    /// 经 `caller` 问、照 `texts` 拼请求、全局照 `slots` 排队。
-    pub(super) fn new(caller: Caller, texts: Arc<JudgeTexts>, slots: Slots) -> Judges {
+    /// 经 `caller` 问、照 `texts` 拼请求、全局照 `slots` 排队，人格的原文照 `personas` 记。
+    pub(super) fn new(
+        caller: Caller,
+        texts: Arc<JudgeTexts>,
+        slots: Slots,
+        personas: Personas,
+    ) -> Judges {
         Judges {
             caller,
             texts,
             slots,
+            personas,
+            used: HashMap::new(),
             running: JoinSet::new(),
             judging: Vec::new(),
             next: 0,
         }
+    }
+
+    /// 群会话 `session` 订阅上了，回应说它用人格 `persona`（没有这一格的是无人格）：有的记下。会话的人格造的时候就定了
+    /// （照日志第一条 `session.created`，`protocol.md` 的 `subscribe`），掉了队再订阅也是同一个，不会从有变成没有。
+    pub(super) fn subscribed(&mut self, session: &str, persona: Option<&str>) {
+        if let Some(persona) = persona {
+            self.used.insert(session.to_string(), persona.to_string());
+        }
+    }
+
+    /// 群会话 `session` 用的人格；无人格的、没订阅上的是空的。
+    pub(super) fn persona(&self, session: &str) -> Option<&str> {
+        self.used.get(session).map(String::as_str)
     }
 
     /// 群会话 `session` 里在判的，交给顶替看。
@@ -89,13 +117,14 @@ impl Judges {
         self.next += 1;
         let ticket = self.next;
         self.judging.push((ticket, judging));
-        let (caller, texts, slots) = (
+        let (caller, texts, slots, personas) = (
             self.caller.clone(),
             Arc::clone(&self.texts),
             self.slots.clone(),
+            self.personas.clone(),
         );
         self.running
-            .spawn(async move { (ticket, ask(asking, caller, texts, slots).await) });
+            .spawn(async move { (ticket, ask(asking, caller, texts, slots, personas).await) });
     }
 
     /// 顶替要放下群会话 `session` 里挂在序号 `msg` 上的那一次：拿掉在判的、交回它，回来的回答没人认。

@@ -149,7 +149,7 @@ pub struct BlockSpan {
     pub end_ms: u64,
 }
 
-/// 用量，四项都是 token 数。
+/// 用量，四项都是 token 数；思考占了多少另记一格（施工 2-3 再补）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Usage {
     /// 没命中缓存的输入。
@@ -158,8 +158,12 @@ pub struct Usage {
     pub cache_read: u64,
     /// 缓存写入。
     pub cache_write: u64,
-    /// 输出。
+    /// 输出，含思考。
     pub output: u64,
+    /// 输出里思考占了多少（施工 2-3 再补）：供应商报了、不是 0 才有，已经算在 `output` 里，头照它写「思考 N 词元」。不报的
+    /// （Anthropic 的思考算在输出里不另报）、以前的日志没有这一格；没有的不写，旧日志读进来再写出去一字不差。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning: Option<u64>,
 }
 
 text_enum!(

@@ -251,6 +251,15 @@ fn the_core_texts_are_read_and_the_persona_texts_are_as_given() {
         wrap.image_description_close,
         driver!("image-description-close.txt")
     );
+    // 看不了的附件带路径的两句（施工 3-9 五补）：同上。
+    let attached = drivers
+        .attached_path
+        .expect("出厂的有看不了的附件带路径的两句");
+    assert_eq!(
+        attached.image_omitted_path,
+        driver!("image-omitted-path.txt")
+    );
+    assert_eq!(attached.file_omitted_path, driver!("file-omitted-path.txt"));
 }
 
 /// 资源目录里缺了一份核心的字：说是哪一份，英文，写进运行日志（施工 4-9 再补四中）。

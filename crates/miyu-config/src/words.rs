@@ -79,7 +79,9 @@ pub fn check(items: &[Item], words: &ConfigWords) -> Vec<String> {
         }
         // 选项的列表（施工 8-7）里的选项也要有名字。
         let options = match item.kind {
-            Kind::Option(options) | Kind::List(&Kind::Option(options)) => options,
+            Kind::Option(options) | Kind::List(&Kind::Option(options)) | Kind::ModelOr(options) => {
+                options
+            }
             _ => &[],
         };
         for option in options {
@@ -211,6 +213,13 @@ pub(crate) fn expected(words: &dyn Words, kind: Kind) -> Result<String, Missing>
         Kind::Name => sentence(words, "config/expected/name", &[]),
         Kind::Reference => sentence(words, "config/expected/reference", &[]),
         Kind::Model => sentence(words, "config/expected/model", &[]),
+        // 列出的几个字，再接上「或者一个模型」（施工 R-5 补，照网址接上 `{ env = … }` 的样子）。
+        Kind::ModelOr(listed) => {
+            let model = sentence(words, "config/expected/model", &[])?;
+            let mut values: Vec<&str> = listed.to_vec();
+            values.push(model.as_str());
+            one_of(words, &values, "config/or-values")
+        }
         Kind::List(inner) => {
             let item = expected(words, *inner)?;
             sentence(words, "config/expected/list", &[("item", &item)])

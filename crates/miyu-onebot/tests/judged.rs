@@ -1,7 +1,7 @@
 //! 问判官（施工 O-23 下，`onebot.md` 第一条「群里怎么叫她」第 7、12、13 条）：真核心照开关拉起真桥，假 NapCat 发群消息，她的
 //! 回合照剧本说，判官那一次（`model.call`）发到本机回环上的假服务器（`support::judge`）。别人 @ 她，判官说回就回、说不回就
 //! 不回；抽样中了交判官；只有违规旗的只查违规，严重程度够了照回；判官回的读不出、等不到的照不回、记为什么，读不出的再问一次；
-//! `ext.onebot.chat.decided` 的格都在；判官在判的时候，别人说的照样记进、判完。
+//! `ext.onebot.chat.decided` 的格都在；判官在判的时候，别人说的照样记进、判完。判官带人格在 `judged_persona.rs`（施工 O-23 补）。
 
 use std::time::Duration;
 
@@ -26,11 +26,11 @@ const QUIET: i64 = 557;
 const SLOW: i64 = 558;
 
 /// 群里的两个别人。
-const LIN: i64 = 20002;
-const JIE: i64 = 20003;
+pub(crate) const LIN: i64 = 20002;
+pub(crate) const JIE: i64 = 20003;
 
 /// 假 NapCat 认得的群成员：她自己。
-const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
+pub(crate) const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
 /// 系统的违规词表里的一个词。
 const BAD: &str = "坏词";
@@ -55,7 +55,7 @@ fn cause(message: i64, what: &str) -> String {
 }
 
 /// 第 `message` 条消息的那一笔判断的 `body`；没有的是空的。
-fn decided(events: &[Value], message: i64) -> Option<Value> {
+pub(crate) fn decided(events: &[Value], message: i64) -> Option<Value> {
     events
         .iter()
         .find(|event| {
@@ -66,7 +66,7 @@ fn decided(events: &[Value], message: i64) -> Option<Value> {
 }
 
 /// 等到群 `group` 里第 `message` 条消息的判断记下了：交回那时的全部事件。
-async fn until_decided(home: &Home, group: i64, message: i64) -> Vec<Value> {
+pub(crate) async fn until_decided(home: &Home, group: i64, message: i64) -> Vec<Value> {
     until_events(&home.root, &venue(group), |events| {
         decided(events, message).is_some()
     })
@@ -89,7 +89,7 @@ fn close(value: &Value, expected: f64) -> bool {
 }
 
 /// 资源里判官的一份说明。
-fn judge_text(name: &str) -> String {
+pub(crate) fn judge_text(name: &str) -> String {
     std::fs::read_to_string(resources().join("software/onebot/judge").join(name)).expect("读得出")
 }
 

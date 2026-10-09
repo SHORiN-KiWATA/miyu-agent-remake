@@ -39,6 +39,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | `crates/miyu-session/src/shown.rs` | 给头看的那一份 `Shown`：限额和会话接下来请求的模型 `Next`（8-18 多 `effort`），actor 写、`Handle` 读，`subscribe` 照它答 | 8-10、8-18 |
 | `crates/miyu-session/src/route/lists.rs` | 拉一家供应商的模型列表：照驱动的 `models_path()` GET、`parse_models`，存 `state/models/providers/<编号>.json`（8-7）；GET 一家的列表那一段 `provider.test` 也用（`list_models`，8-11） | 8-7、8-11 |
 | `crates/miyu-session/src/route/probe.rs` | `provider.test` 试一次（8-11）：推驱动、地址、key，列模型（列不出的照目录），挑模型，发一句、收到第一段正文就停；发的那一句照挑的模型的驱动、带档案另配的头（8-14） | 8-11、8-14 |
+| `crates/miyu-session/src/route/endpoint.rs` | 照一家供应商拼地址、key、另配的头（`reach`，R-5 补从 `probe.rs` 抽出来）：`provider.test` 和远程的 embedding（`recall.md` 第四条第 7 款）共用，不走路由、池、冷却 | R-5 补 |
 | `crates/miyu-session/src/route/local.rs` | `provider.detect` 探本机的服务（8-11）：几家一起发，各等 300 毫秒，不走代理 | 8-11 |
 | `crates/miyu-core/src/models.rs`、`models/` | 起来时读档案、认原厂的表（TOML 读成 JSON），造路由；写了 `ready` 以后读目录、用出来的、供应商的列表、池的指针（`models/catalog.rs`：快照和缓存挑新的），后台更新（`models/refresh.rs`，8-8：地址可以是环境变量的引用，`Schedule`）；`[models.cooldown]` 照配置当场换（`follow_cooldown`，8-9）；多造一个不走代理的 GET 客户端，探本机的服务用（8-11） | 8-6 起 |
 | `crates/miyu-endpoint/src/models.rs`、`models/entry.rs` | 协议：`model.list`（8-7，`entry.rs` 写一家；8-8 加 `pools`、`uses.vision`，8-8 补去掉 `tiers`、池多 `subagent`、`description`；8-9 加模型、key 的冷却；8-18（补）起 `facts.effort` 多 `key`），`session.create` 的 `model` 怎么解析（`record`，8-8，`methods.rs` 调它）；`session.configure` 的参数（`methods.rs` 先查参数、再找会话、再 `record`，`ConfigureParams`，写了 `effort` 的 8-18（补）起 `bad_params`）、`subscribe` 回应的 `model`（`connection.rs` 调它，8-10；8-18 多 `effort`）；`provider.detect`、`provider.catalog`、`provider.test` 在 `providers.rs`、`providers/trial.rs`（8-11）；`model.call` 在 `models/call.rs`（8-20：参数、照这个账号的 blob 认图（`attach.rs` 的 `images`）、调一次性入口、出错写成拒绝；8-15 记在这个连接的账号上）；`usage.query` 在 `usage.rs`（8-15：开 `state/usage.db`、参数、先补再查、写成 `rows`） | 8-7 到 8-11、8-15、8-20 |
@@ -121,7 +122,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 |---|---|---|---|---|
 | `chat` | 模型或者 `@池` | 没有：`no_model` | `new_session`（8-6） | 新会话默认用的，钉着的没了退回它 |
 | `vision` | 模型或者 `@池` | 没有 | `next_turn` | 替看不了图的模型看图（第三条第 5 条）。8-8 只读进来、`model.list` 列出来；8-17 起照它替看不了图的模型看图（「怎么走」第十三条） |
-| `embedding` | `local`、`off` | 没有：照 `local` | `next_turn` | 记忆、以前的对话照意思找用哪个模型算向量（施工 R-5 下，`recall.md` 第四条第 1 款）：`local` 本机的 `miyu-embed`，`off` 不下模型、只照关键词找。远程的 `<供应商>/<模型>` 随 R-5 补；`model.list` 的 `uses` 这一步不列它 |
+| `embedding` | `local`、`off` 或模型（类型「模型或几个字」，不收 `@池`） | 没有：照 `local` | `next_turn` | 记忆、以前的对话照意思找用哪个模型算向量（施工 R-5 下，`recall.md` 第四条第 1 款）：`local` 本机的 `miyu-embed`，`off` 不下模型、只照关键词找；`<供应商>/<模型>` 走那一家 OpenAI 兼容的 `/v1/embeddings`，不走路由、池、冷却，用量照一次性调用记（用途 `embedding`，施工 R-5 补，`recall.md` 第四条第 7 款）。`model.list` 的 `uses` 不列它（等界面要的时候） |
 
 8-8 有过四个挡位 `models.tiers.lite`、`cheap`、`standard`、`flagship`，8-8 补去掉了（2026-10-01 项目主人定，「定的」第 11 条）：现在是不认识的键，照 `config.md` 第四条警告、原样留在文件里。
 
@@ -392,7 +393,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 |---|---|
 | `text` | 回答的正文：正文块的字照先后接起来，思考不要；没有正文的是空字 |
 | `provider`、`model` | 真发给的供应商编号、模型名（换过端点的是最后成了的那一个） |
-| `usage` | 用量，和 `model.called` 的一样四项：`uncached`、`cache_read`、`cache_write`、`output`；供应商没报的是 `null` |
+| `usage` | 用量，和 `model.called` 的一样四项：`uncached`、`cache_read`、`cache_write`、`output`，报了思考的多一格 `reasoning`（施工 2-3 再补）；供应商没报的是 `null` |
 
 ```json
 {"text":"A cat on a red sofa.","provider":"deepseek","model":"deepseek-flash","usage":{"uncached":812,"cache_read":0,"cache_write":0,"output":9}}
@@ -588,7 +589,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
    - 写法不对（`models.chat`、`vision`）：`bad_format`（类型「引用」）。池的成员写了池：`bad_format`（类型「模型」，8-8 加）。池的说明不是一行英文：`bad_format`（类型「给模型看的字」，8-8 补）。池的名字、供应商的编号不合写法：键里的名字那一段的 `bad_format`。这几样解析时就丢掉这一项。
    - 引用的供应商、池不存在：`bad_reference`（错误，`miyu_config::dangling`），照不算项目配置的最终值查（指的供应商可以配在另一层）。读进来以后另查一遍、只报不丢：值照样用，路由当场照它说 `no_model` 和为什么（第一条第 7 条）；算进握手的 `config_errors`。`config.check` 查一段字时照「这段字换掉它那一层」合出来的查，字里新配的算上。
    - 都是这一项的错，别的项照常。
-3. **用途**：`chat` 是新会话默认用的、钉着的没了退回的（第六条第 4 条）。`vision` 见第 5 条。`embedding`、`speech_in`、`speech_out` 不在 M8（「还没有的」）。
+3. **用途**：`chat` 是新会话默认用的、钉着的没了退回的（第六条第 4 条）。`vision` 见第 5 条。`embedding` 见 `recall.md` 第四条（R-5 下、补）。`speech_in`、`speech_out` 不在 M8（「还没有的」）。
 4. **子代理用哪个**：`subagent` 写了 `pool` 的（只能是这个会话列着的，「工具」），子会话记 `@<池>`。没写的，用父会话这时生效的引用（「定的」第 6 条：路由钉着的那一个，`ModelPort::reference`）。交给会话表，记进子会话 `session.created` 的 `model`；什么都没有的不写，子会话照它造出来那时的 `models.chat`。执行器这一头在 `crates/miyu-session/src/agents.rs`（`Inherit`）。8-8 写的是挡位 `tier`，照父会话这一轮的配置解析，8-8 补去掉了。
 5. **`vision`**：替看不了图的模型看图（`10-自带软件.md` 第三节末尾），8-17 做（「定的」第 5 条），走法见「怎么走」第十三条。`model.list` 的 `uses` 里看得到它。
 6. **池**（`miyu_models::pools`，路由这一头 `route/pool.rs`）：
@@ -1140,7 +1141,7 @@ mimo = ["xiaomi"]
 
 - 借 agent CLI 的订阅（Claude Code、Codex、Antigravity、CodeBuddy）和订阅的额度：以后再说（施工方案第三节 M8 下第一条）。「找现成的」那时加上已登录的 CLI。
 - 成员自带的供应商、成员家目录的密钥（M6）：随多用户。
-- 用途 `embedding`、`speech_in`、`speech_out`：随记忆、语音。
+- 用途 `speech_in`、`speech_out`：随语音。
 - 替看图（8-17）没做的：给她留一个追问的口子（先实测转述够不够细）；视频、音频；头上显示转述；本地估算的用量照转述的字算（现在照图算，看不了图的端点上估多了）。转述的用量 8-15 记进了账本（属主的账号日志、用量汇总，用途 `vision`）。
 - 币种之间换算：以后另说（「定的」第 3 条）。
 - 思考强度的菜单：头那边（M9）。Anthropic、Responses 怎么写思考强度：随 8-12、8-13（「驱动要守的约定」第 13 条）。思考预算（`budget_tokens`）：不读。

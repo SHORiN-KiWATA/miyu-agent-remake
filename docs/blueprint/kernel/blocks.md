@@ -20,8 +20,8 @@
 |---|---|---|
 | `text` | `text`：文字 | `{"type":"text","text":"我先看一下目录。"}` |
 | `reasoning` | `text`：思考的文字；`private`：驱动私有数据，可以没有 | `{"type":"reasoning","text":"先看目录","private":{"driver":"anthropic","data":{"signature":"sig"}}}` |
-| `image` | `blob`：图片存成的 blob 的内容哈希；`name`：文件名，只是名字，不带路径，可以没有（施工 3-9 四补）；`media_type`：媒体类型；`width`、`height`：宽、高，像素 | `{"type":"image","blob":"sha256:…","name":"晚霞.png","media_type":"image/png","width":800,"height":600}` |
-| `file` | `blob`：文件存成的 blob 的内容哈希；`name`：文件名，只是名字，不带路径；`media_type`：媒体类型 | `{"type":"file","blob":"sha256:…","name":"报告.pdf","media_type":"application/pdf"}` |
+| `image` | `blob`：图片存成的 blob 的内容哈希；`name`：文件名，只是名字，不带路径，可以没有（施工 3-9 四补）；`media_type`：媒体类型；`width`、`height`：宽、高，像素；`path`：原来在本机的哪儿，可以没有（施工 3-9 五补，`SourcePath`） | `{"type":"image","blob":"sha256:…","name":"晚霞.png","media_type":"image/png","width":800,"height":600}` |
+| `file` | `blob`：文件存成的 blob 的内容哈希；`name`：文件名，只是名字，不带路径；`media_type`：媒体类型；`path`：原来在本机的哪儿，可以没有（施工 3-9 五补） | `{"type":"file","blob":"sha256:…","name":"报告.pdf","media_type":"application/pdf"}` |
 | `tool_call` | `call_id`：内核分的调用编号；`name`：模型说要调用的工具名；`args`：模型给的参数原文，一个字符串；`private`：驱动私有数据，可以没有 | `{"type":"tool_call","call_id":"call_44_1","name":"read","args":"{\"path\":\"src\"}"}` |
 
 - 除了标着「可以没有」的，每一格都必有。
@@ -86,7 +86,7 @@
 **写一块**：
 
 8. `type` 在最前，其余几格照上表的先后。
-9. `private`、图片块的 `name` 没有就不写这一格。
+9. `private`、图片块的 `name`、图片块和文件块的 `path`（施工 3-9 五补，排在最后）没有就不写这一格。
 10. 不认识的块照原文写。
 
 **块里的规矩**：

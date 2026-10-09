@@ -12,6 +12,8 @@
 //!   `name`。以前造的快照里没有这三句，带名字的图片照不带名字的写。
 //! - 替它看的图（施工 8-17）：不能看图、这张图有转述的，转述前后各一段标签：开头不带字段，带名字的图另用一份开头、字段
 //!   是 `name`；收尾没有字段。转述原文不转义。以前造的快照里没有这三句，照旧写占位。
+//! - 看不了的附件带上原来的路径（施工 3-9 五补）：图片的占位字段是 `name`、`path`，文件的是 `name`、`media_type`、`size`、
+//!   `path`。以前造的快照里没有这两句，照旧不带路径。
 //!
 //! 字段照模板的规矩转义（`08-上下文投影.md` 第五节「模板与转义怎么写」）。由执行器从资源目录读好
 //! 交进来，造会话时读一次，冻结在会话上。
@@ -41,6 +43,17 @@ pub struct DriverTexts {
     image_name: Option<ImageName>,
     /// 替它看的图的三句（施工 8-17）；以前造的快照里没有。
     image_description: Option<ImageDescription>,
+    /// 看不了的附件带路径的两句（施工 3-9 五补）；以前造的快照里没有。
+    attached_path: Option<AttachedPath>,
+}
+
+/// 看不了的附件带路径的两句（施工 3-9 五补）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct AttachedPath {
+    /// 图片：字段是 `name`、`path`。
+    image: Template,
+    /// 文件：字段是 `name`、`media_type`、`size`、`path`。
+    file: Template,
 }
 
 /// 替它看的图的三句（施工 8-17）。
@@ -95,6 +108,17 @@ pub struct DriverTextSources<'a> {
     pub image_name: Option<ImageNameSources<'a>>,
     /// 替它看的图的三句（施工 8-17）；以前造的快照里没有的是 `None`。
     pub image_description: Option<ImageDescriptionSources<'a>>,
+    /// 看不了的附件带路径的两句（施工 3-9 五补）；以前造的快照里没有的是 `None`。
+    pub attached_path: Option<AttachedPathSources<'a>>,
+}
+
+/// 看不了的附件带路径的两句的原文（施工 3-9 五补）。
+#[derive(Debug, Clone, Copy)]
+pub struct AttachedPathSources<'a> {
+    /// `image-omitted-path.txt`。
+    pub image_omitted_path: &'a str,
+    /// `file-omitted-path.txt`。
+    pub file_omitted_path: &'a str,
 }
 
 /// 替它看的图的三句的原文（施工 8-17）。
@@ -167,6 +191,15 @@ impl DriverTexts {
                 })
             })
             .transpose()?;
+        let attached_path = sources
+            .attached_path
+            .map(|path| -> Result<AttachedPath, TemplateError> {
+                Ok(AttachedPath {
+                    image: Template::parse(path.image_omitted_path)?,
+                    file: Template::parse(path.file_omitted_path)?,
+                })
+            })
+            .transpose()?;
         let texts = DriverTexts {
             image_omitted: Template::parse(sources.image_omitted)?,
             file_omitted: Template::parse(sources.file_omitted)?,
@@ -176,8 +209,13 @@ impl DriverTexts {
             text_file,
             image_name,
             image_description,
+            attached_path,
         };
         texts.file_omitted.render(&file("", "", ""))?;
+        if let Some(path) = &texts.attached_path {
+            path.image.render(&from(named(""), ""))?;
+            path.file.render(&from(file("", "", ""), ""))?;
+        }
         let mut plain = vec![
             &texts.image_omitted,
             &texts.no_output,
@@ -205,11 +243,14 @@ impl DriverTexts {
         Ok(texts)
     }
 
-    /// 模型不能看图，图片换成的这一句。带名字 `name` 的、快照里有带名字的那一句的（施工 3-9 四补），写上名字；别的
-    /// 是不带名字的那一句。
-    pub fn image_omitted(&self, name: Option<&str>) -> String {
-        match (name, &self.image_name) {
-            (Some(name), Some(image)) => render(&image.omitted, &named(name)),
+    /// 模型不能看图，图片换成的这一句。带名字 `name` 的、快照里有带名字的那一句的（施工 3-9 四补），写上名字；再带
+    /// 原来的路径 `path`、快照里有带路径的那一句的（施工 3-9 五补），名字、路径都写上；别的是不带名字的那一句。
+    pub fn image_omitted(&self, name: Option<&str>, path: Option<&str>) -> String {
+        match (name, path, &self.attached_path, &self.image_name) {
+            (Some(name), Some(path), Some(attached), _) => {
+                render(&attached.image, &from(named(name), path))
+            }
+            (Some(name), _, _, Some(image)) => render(&image.omitted, &named(name)),
             _ => render(&self.image_omitted, &BTreeMap::new()),
         }
     }
@@ -240,12 +281,21 @@ impl DriverTexts {
         ))
     }
 
-    /// 模型不能读这个文件，换成的这一句：`size` 是它有几个字节。
-    pub fn file_omitted(&self, name: &str, media_type: &str, size: usize) -> String {
-        render(
-            &self.file_omitted,
-            &file(name, media_type, &size.to_string()),
-        )
+    /// 模型不能读这个文件，换成的这一句：`size` 是它有几个字节。带原来的路径 `path`、快照里有带路径的那一句的（施工
+    /// 3-9 五补），写上路径。
+    pub fn file_omitted(
+        &self,
+        name: &str,
+        media_type: &str,
+        size: usize,
+        path: Option<&str>,
+    ) -> String {
+        let size = size.to_string();
+        let fields = file(name, media_type, &size);
+        match (path, &self.attached_path) {
+            (Some(path), Some(attached)) => render(&attached.file, &from(fields, path)),
+            _ => render(&self.file_omitted, &fields),
+        }
     }
 
     /// 文本文件 `name` 照字放进消息：开头、截过的那一句、给她看的那一截、收尾。`text` 是整份的内容。快照里没有
@@ -292,6 +342,12 @@ fn file<'a>(name: &'a str, media_type: &'a str, size: &'a str) -> BTreeMap<&'a s
 }
 
 /// 只有文件名的字段。
+/// 字段 `fields` 再加上原来的路径 `path`（施工 3-9 五补）。
+fn from<'a>(mut fields: BTreeMap<&'a str, &'a str>, path: &'a str) -> BTreeMap<&'a str, &'a str> {
+    fields.insert("path", path);
+    fields
+}
+
 fn named(name: &str) -> BTreeMap<&str, &str> {
     BTreeMap::from([("name", name)])
 }

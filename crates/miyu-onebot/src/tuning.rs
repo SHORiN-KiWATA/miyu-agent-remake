@@ -39,6 +39,9 @@ pub struct Tuning {
     pub judge_concurrency: usize,
     /// 名额满了，问判官的排队最多等几秒（同上），等不到的当判不了。
     pub judge_queue_seconds: u64,
+    /// 判官带的人格原文读到以后记几秒，这段时间里同一个人格不再读（施工 O-23 补，`onebot.md`「群里怎么叫她」第 12 条第 3 款，
+    /// 「施工时定的」第 103 条）。
+    pub judge_persona_seconds: u64,
     /// WebUI 的数（施工 O-16，`onebot.md` 第二条）。
     pub web: WebTuning,
 }
@@ -114,5 +117,10 @@ impl Tuning {
     /// 问判官的排队最多等多久。
     pub fn judge_queue(&self) -> Duration {
         Duration::from_secs(self.judge_queue_seconds)
+    }
+
+    /// 判官带的人格原文记多久。
+    pub fn judge_persona(&self) -> Duration {
+        Duration::from_secs(self.judge_persona_seconds)
     }
 }

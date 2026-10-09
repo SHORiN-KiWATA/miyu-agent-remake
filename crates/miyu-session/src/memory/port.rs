@@ -16,14 +16,17 @@ use miyu_store::recall::Room;
 use miyu_tool::{FoundMemory, MEMORIES, MemoryPort, Pending, Refused, Remember, Searched, TURNS};
 
 use crate::blocking::blocking;
+use crate::config::TurnConfig;
 
-use super::{Keeper, Memory, Query, Stamp};
+use super::{Keeper, Memory, Query, Stamp, Using};
 
 /// 一个主会话的记忆：每次调用照它造端口。
 #[derive(Clone)]
 pub(crate) struct Calls {
     keeper: Keeper,
     session: SessionId,
+    /// 属主：远程算向量的用量记在他名下（施工 R-5 补）。
+    owner: AccountId,
 }
 
 impl Calls {
@@ -38,6 +41,7 @@ impl Calls {
         Calls {
             keeper: Keeper::new(memory, room, hearers),
             session: session.clone(),
+            owner: owner.clone(),
         }
     }
 
@@ -56,21 +60,25 @@ impl Calls {
         blocking(move || keeper.summary(offset, &present)).await
     }
 
-    /// 这一次调用的端口：第 `turn` 轮（没有在跑的回合的没有）、调用 `call_id`、派出去的时刻 `at`；`meaning` 是这一轮照不照
-    /// 意思找（`models.embedding` 不是 `off`，施工 R-5 下）。
+    /// 这一次调用的端口：第 `turn` 轮（没有在跑的回合的没有）、调用 `call_id`、派出去的时刻 `at`；照意思找照这一轮的配置
+    /// `config`（`models.embedding`，施工 R-5 补）。
     pub(crate) fn port(
         &self,
         turn: Option<TurnId>,
         call_id: CallId,
         at: Timestamp,
-        meaning: bool,
+        config: &TurnConfig,
     ) -> Arc<dyn MemoryPort> {
+        let using = Using {
+            config: Arc::clone(config),
+            owner: self.owner.clone(),
+        };
         Arc::new(Port(Arc::new(Inner {
             calls: self.clone(),
             turn,
             call_id,
             at,
-            meaning,
+            using,
         })))
     }
 }
@@ -82,7 +90,7 @@ struct Inner {
     turn: Option<TurnId>,
     call_id: CallId,
     at: Timestamp,
-    meaning: bool,
+    using: Using,
 }
 
 impl MemoryPort for Port {
@@ -105,15 +113,15 @@ impl MemoryPort for Port {
     ) -> Pending<'a, Result<Searched, String>> {
         let inner = Arc::clone(&self.0);
         Box::pin(async move {
-            // 照意思找的（施工 R-5 下）：先算问句的向量（等不到的只走关键词），搜完在后台补这一间缺的。
-            let (keeper, meaning) = (inner.calls.keeper.clone(), inner.meaning);
+            // 照意思找的（施工 R-5 下）：先算问句的向量（`off` 的、等不到的只走关键词），搜完在后台补这一间缺的。
+            let (keeper, using) = (inner.calls.keeper.clone(), inner.using.clone());
             let near = match keeper.vectors() {
-                Some(vectors) if meaning => vectors.query(&query).await,
-                _ => None,
+                Some(vectors) => vectors.query(&using, &query).await,
+                None => None,
             };
             let found = blocking(move || inner.search(&query, forgotten, near.as_ref())).await;
-            if meaning && keeper.vectors().is_some() {
-                blocking(move || keeper.fill()).await;
+            if keeper.vectors().is_some() {
+                blocking(move || keeper.fill(&using)).await;
             }
             found
         })

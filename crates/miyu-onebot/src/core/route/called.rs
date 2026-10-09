@@ -188,6 +188,12 @@ impl Route {
             decoded: params.base64.reveal(&texts.join("\n")),
             judge: params.judge.clone(),
             chatty: params.chatty.clone(),
+            // 这个群关了判官的人格的不带、不读（施工 O-23 补，第 12 条第 3 款）。
+            persona: self
+                .judges
+                .persona(session)
+                .filter(|_| params.judge.persona)
+                .map(str::to_string),
         };
         let judging = Judging {
             session: session.to_string(),

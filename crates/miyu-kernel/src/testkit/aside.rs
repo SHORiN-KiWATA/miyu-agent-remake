@@ -156,6 +156,7 @@ impl Stage {
                     cache_read: 0,
                     cache_write: 0,
                     output: 10,
+                    reasoning: None,
                 })
             }),
             cost: None,

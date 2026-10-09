@@ -391,6 +391,8 @@ fn a_source_is_alive_unless_its_turn_or_its_session_is_buried() {
         session: session.clone(),
         turn: TurnId::new(seq(n)),
     };
+    // 活着的会话的目录在（施工 R-3 三补：出处活不活照会话的目录在不在）。
+    std::fs::create_dir_all(root.session_dir(&admin(), &session)).unwrap();
     let (turns, _) = indexes.turns(&Room::persona(&admin(), "engineer"));
     turns
         .apply(
@@ -424,5 +426,60 @@ fn a_source_is_alive_unless_its_turn_or_its_session_is_buried() {
             .alive(&Room::persona(&admin(), "miyu"), &at_turn(&session, 3))
             .unwrap(),
         "别的人格的回合库里没埋"
+    );
+}
+
+/// 出处活不活照会话的目录在不在（施工 R-3 三补，`memory.md` 第二条第 4 款）：回合库删掉重建（坏了）以后，删会话时埋的那块
+/// 墓碑没了，进了回收处的会话照样算死的；目录又回来了的（从回收处恢复）算活的；哪个账号名下的都认得出。
+#[test]
+fn a_deleted_session_stays_dead_after_the_index_is_rebuilt() {
+    use miyu_kernel::id::{SessionId, TurnId};
+    use miyu_recall::Source;
+    use miyu_store::recall::RecallIndexes;
+    let scratch = Scratch::new("recall-alive-rebuilt");
+    let root = root_in(&scratch);
+    let indexes = RecallIndexes::new(&root);
+    let room = Room::persona(&admin(), "engineer");
+    let deleted = SessionId::parse("0192f3a0-3333-7abc-8def-001122334455").unwrap();
+    let theirs = SessionId::parse("0192f3a0-4444-7abc-8def-001122334455").unwrap();
+    let at = |session: &SessionId| Source {
+        session: session.clone(),
+        turn: TurnId::new(seq(3)),
+    };
+    let live = root.session_dir(&admin(), &deleted);
+    std::fs::create_dir_all(&live).unwrap();
+    // 记忆归管理员、会话在别的账号（系统账号）名下的：照样认得出目录在。
+    let bot = miyu_kernel::id::AccountId::parse("bot").unwrap();
+    std::fs::create_dir_all(root.session_dir(&bot, &theirs)).unwrap();
+    assert!(indexes.alive(&room, &at(&deleted)).unwrap());
+    assert!(
+        indexes.alive(&room, &at(&theirs)).unwrap(),
+        "别的账号名下的会话"
+    );
+    // 删会话：目录挪进回收处，埋墓碑。
+    let trashed = root.trashed_sessions(&admin()).join(deleted.as_str());
+    std::fs::create_dir_all(trashed.parent().unwrap()).unwrap();
+    std::fs::rename(&live, &trashed).unwrap();
+    indexes.forget_session(&admin(), &deleted).unwrap();
+    assert!(!indexes.alive(&room, &at(&deleted)).unwrap());
+    // 墓碑还在的时候恢复：照目录判，算活的（墓碑只挡后台补的一批）。再删一回。
+    std::fs::rename(&trashed, &live).unwrap();
+    assert!(
+        indexes.alive(&room, &at(&deleted)).unwrap(),
+        "恢复了、墓碑还在的也算活的"
+    );
+    std::fs::rename(&live, &trashed).unwrap();
+    // 回合库坏了删掉重建：墓碑没了，进了回收处的照样算死的。
+    let (turns, _) = indexes.turns(&room);
+    turns.reset().unwrap();
+    assert!(
+        !indexes.alive(&room, &at(&deleted)).unwrap(),
+        "重建以后照样死的"
+    );
+    // 从回收处恢复：目录回来了，算活的。
+    std::fs::rename(&trashed, &live).unwrap();
+    assert!(
+        indexes.alive(&room, &at(&deleted)).unwrap(),
+        "恢复了的算活的"
     );
 }

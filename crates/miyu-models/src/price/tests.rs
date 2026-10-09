@@ -14,6 +14,7 @@ fn usage(uncached: u64, cache_read: u64, cache_write: u64, output: u64) -> Usage
         cache_read,
         cache_write,
         output,
+        reasoning: None,
     }
 }
 

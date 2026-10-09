@@ -211,6 +211,9 @@ macro_rules! __settings_kind {
     (models) => {
         $crate::Kind::List(&$crate::Kind::Model)
     };
+    (model_or [$first:literal $(, $word:literal)*]) => {
+        $crate::Kind::ModelOr(&[$first $(, $word)*])
+    };
     (float [$min:literal, $max:literal]) => {
         $crate::Kind::Float {
             min: $min,

@@ -172,6 +172,7 @@ fn an_older_snapshot_writes_named_images_as_if_they_had_no_names() {
         }),
         image_name: None,
         image_description: None,
+        attached_path: None,
     })
     .expect("用得了");
     let plain = without_names(&attached());
@@ -184,4 +185,51 @@ fn an_older_snapshot_writes_named_images_as_if_they_had_no_names() {
         // 出厂的这一份，不带名字的也照旧：前后什么都不加，占位不带名字。
         assert_eq!(body(&plain, inputs, &texts()), body(&plain, inputs, &old));
     }
+}
+
+/// 看不了的附件带上原来的路径（施工 3-9 五补）：从本机文件来的图、读不了的文件，占位写上路径；不带路径的照旧。
+#[test]
+fn a_model_that_cannot_see_gets_the_paths_in_the_placeholders() {
+    let with_path = |block: Block, path: &str| -> Block {
+        let path = Some(miyu_kernel::id::SourcePath::parse(path).expect("合写法"));
+        match block {
+            Block::Image(mut image) => {
+                image.path = path;
+                Block::Image(image)
+            }
+            Block::File(mut file) => {
+                file.path = path;
+                Block::File(file)
+            }
+            other => other,
+        }
+    };
+    let request = request(vec![Message::User {
+        blocks: vec![
+            text("看看"),
+            with_path(
+                named_image(PNG, "晚霞.png", "image/png"),
+                "/home/alice/晚霞.png",
+            ),
+            with_path(
+                crate::support::file(SHOT, "报告.pdf", "application/pdf"),
+                "~/报告.pdf",
+            ),
+        ],
+    }]);
+    let blind = body(&request, Inputs::default(), &texts());
+    assert_eq!(
+        content(&blind, 1),
+        format!(
+            "看看\n\
+             An image was attached here (晚霞.png, from /home/alice/晚霞.png), but this model cannot view images.\n\
+             A file was attached here (报告.pdf, application/pdf, {} bytes, from ~/报告.pdf), but this model cannot read it.\n",
+            SHOT.len()
+        )
+    );
+    let seen = body(&request, sees_all(), &texts());
+    assert!(
+        !String::from_utf8_lossy(&seen).contains("/home/alice"),
+        "看得了的路径不进请求"
+    );
 }

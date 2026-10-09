@@ -57,6 +57,7 @@ const NOTHING: Usage = Usage {
     cache_read: 0,
     cache_write: 0,
     output: 0,
+    reasoning: None,
 };
 
 impl Default for Tally {

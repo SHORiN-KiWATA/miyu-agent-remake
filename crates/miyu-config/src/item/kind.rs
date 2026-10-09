@@ -36,6 +36,10 @@ pub enum Kind {
     Model,
     /// 列表：每一个照元素的类型（施工 8-6：供应商的几个 key 是密钥的列表）。元素不能再是列表。
     List(&'static Kind),
+    /// 几个字之一或者一个模型（施工 R-5 补：`models.embedding` 写 `local`、`off` 或 `<供应商>/<模型>`）：等于列出的字的就是
+    /// 那个字（模型的写法一定带 `/`，撞不上）；别的照 [`Kind::Model`] 查写法，不收池。指的供应商在不在，读进来以后跨项查
+    /// （[`crate::dangling`]）。写成字。
+    ModelOr(&'static [&'static str]),
     /// 小数：在 `min` 到 `max` 之间，两头都算；`nan`、`inf` 不收，整数也收（施工 8-7：倍率、价格）。范围写成整数就够用。
     Float {
         /// 最小。
@@ -92,6 +96,10 @@ impl Kind {
             (Kind::Name, Value::Text(text)) => ok_or_format(crate::secret::valid_name(text)),
             (Kind::Reference, Value::Text(text)) => ok_or_format(reference(text)),
             (Kind::Model, Value::Text(text)) => ok_or_format(model(text)),
+            (Kind::ModelOr(words), Value::Text(text)) => match words.contains(&text.as_ref()) {
+                true => Ok(()),
+                false => ok_or_format(model(text)),
+            },
             (Kind::List(inner), Value::List(values)) if !matches!(inner, Kind::List(_)) => {
                 values.iter().try_for_each(|value| inner.check(value))
             }
@@ -120,7 +128,7 @@ impl Kind {
     }
 
     /// 协议上的写法（`config.schema` 的 `type`）：`option`、`bool`、`secret`、`int`、`url`、`name`、`reference`、`model`、
-    /// `list`、`float`、`text`、`english`、`duration`。
+    /// `list`、`model_or`、`float`、`text`、`english`、`duration`。
     pub fn as_str(&self) -> &'static str {
         match self {
             Kind::Option(_) => "option",
@@ -132,6 +140,7 @@ impl Kind {
             Kind::Reference => "reference",
             Kind::Model => "model",
             Kind::List(_) => "list",
+            Kind::ModelOr(_) => "model_or",
             Kind::Float { .. } => "float",
             Kind::Text { .. } => "text",
             Kind::English { .. } => "english",
@@ -234,3 +243,6 @@ mod english;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod model_or_tests;
