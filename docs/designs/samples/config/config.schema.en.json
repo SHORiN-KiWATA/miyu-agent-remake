@@ -211,11 +211,11 @@
           "description": "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect at once.",
           "maximum": 65535,
           "minimum": 1024,
-          "title": "QQ bridge port",
+          "title": "Connect QQ port",
           "type": "integer"
         },
         "token": {
-          "description": "The access token NapCat shows when it connects; set the same one in NapCat. Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Without it the QQ bridge still starts but refuses NapCat; you can generate one on the QQ bridge web page. After a change, NapCat's next connection uses the new one. Allowed: { secret = \"…\" } or { env = \"…\" }. Only in the system config. Takes effect at once.",
+          "description": "The access token NapCat shows when it connects; set the same one in NapCat. Write { secret = \"name\" } (saved with miyu login) or { env = \"VARIABLE\" }. Without it Connect QQ still starts but refuses NapCat; you can generate one on Connect QQ web page. After a change, NapCat's next connection uses the new one. Allowed: { secret = \"…\" } or { env = \"…\" }. Only in the system config. Takes effect at once.",
           "oneOf": [
             {
               "additionalProperties": false,
@@ -242,24 +242,24 @@
               "type": "object"
             }
           ],
-          "title": "QQ bridge token"
+          "title": "Connect QQ token"
         },
         "trusted": {
-          "description": "People who can call her in private chat, with no rate limit, even while she sleeps: a list of platform identities, for example [\"qq:20017\"]. Edit it on the QQ bridge web page. The QQ bridge uses it once groups are connected. Allowed: a list of text of at most 128 characters. Only in the system config. Takes effect at once.",
+          "description": "People who can call her in private chat, with no rate limit, even while she sleeps: a list of platform identities, for example [\"qq:20017\"]. Edit it on Connect QQ web page. Connect QQ uses it once groups are connected. Allowed: a list of text of at most 128 characters. Only in the system config. Takes effect at once.",
           "items": {
             "maxLength": 128,
             "minLength": 1,
             "type": "string"
           },
-          "title": "QQ bridge friends",
+          "title": "Connect QQ friends",
           "type": "array"
         },
         "web": {
           "default": 8302,
-          "description": "The port of the QQ bridge's own web page (NapCat connection, token), local only. Open it with miyu-onebot web. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect at once.",
+          "description": "The port of Connect QQ's own web page (NapCat connection, token), local only. Open it with miyu-onebot web. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect at once.",
           "maximum": 65535,
           "minimum": 1024,
-          "title": "QQ bridge web port",
+          "title": "Connect QQ web port",
           "type": "integer"
         }
       },

@@ -186,6 +186,50 @@ args = ["serve"]
     );
 }
 
+/// 清单是内置包、核心里却没编进它的代码（施工 F-2，设计 30 第二节第 3 条）：照读坏了的清单报 `not_built_in`，别的不动。
+#[test]
+fn a_builtin_the_core_lacks_is_not_built_in() {
+    let home = Home::new();
+    mine(
+        &home,
+        "xghost.toml",
+        "[package]\nkind = \"builtin\"\nprotocol = [1, 1]\nname = { en = \"Ghost\" }\n",
+    );
+    mine(&home, "term.toml", TERM);
+    let resources = miyu_store::resources::ResourceRoot::at(default_resources());
+    let mut found = miyu_endpoint::packages::load(&resources, &home.root, &alice());
+    miyu_endpoint::packages::compiled(
+        &mut found,
+        &["basesystem", "memory", "mermaid", "net", "roleplay"],
+    );
+    let codes: Vec<(&str, Option<&str>)> = found
+        .iter()
+        .map(|one| {
+            let code = match &one.read {
+                Ok(_) => None,
+                Err(miyu_store::packages::Issue::Wrong(problem)) => Some(problem.code.as_str()),
+                Err(miyu_store::packages::Issue::Unreadable(_)) => Some("unreadable"),
+            };
+            (one.id.as_str(), code)
+        })
+        .collect();
+    assert!(
+        codes.contains(&("xghost", Some("not_built_in"))),
+        "{codes:?}"
+    );
+    assert!(codes.contains(&("term", None)), "不是内置的不管");
+    assert!(codes.contains(&("basesystem", None)), "编进来了的照常");
+    assert!(
+        miyu_endpoint::packages::is_installed(&found, "memory"),
+        "读成了的内置包算装了"
+    );
+    assert!(!miyu_endpoint::packages::is_installed(&found, "xghost"));
+    assert!(
+        !miyu_endpoint::packages::is_installed(&found, "term"),
+        "只认内置包"
+    );
+}
+
 #[tokio::test]
 async fn broken_taken_and_mismatched_ones_carry_a_code_and_a_sentence() {
     let home = Home::new();

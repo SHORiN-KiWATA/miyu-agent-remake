@@ -37,6 +37,7 @@ use miyu_endpoint::Core;
 use miyu_ipc::{Dirs, Lock, OpenError, Ready};
 use miyu_kernel::id::AccountId;
 use miyu_store::env::Env;
+use miyu_store::packages::Found;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_tool::Catalog;
@@ -107,7 +108,7 @@ pub fn main(options: Options) -> ExitCode {
         Ok(resources) => resources,
         Err(error) => return failed("resources", error.to_string()),
     };
-    let mut found = miyu_endpoint::packages::load(&resources, &root, &admin());
+    let mut found = load_packages(&resources, &root);
     let packaged = settings::Packaged::of(&mut found);
     let config = settings::read(&root, &admin(), env.home.as_deref(), &packaged);
     settings::log_level(&config, &level, &log);
@@ -138,22 +139,51 @@ pub fn main(options: Options) -> ExitCode {
     outcome
 }
 
+/// 这一份核心编进来的内置包（施工 F-2，设计 `30-插件框架.md` 第二节）：清单是内置包、编号不在这里的，照读坏了的清单报
+/// （`miyu_endpoint::packages::compiled`）。画 mermaid、联网照 cargo 开关。
+pub fn built_in() -> Vec<&'static str> {
+    let mut built_in = vec![miyu_tool::BASESYSTEM, miyu_memory::PACKAGE, ROLEPLAY];
+    #[cfg(feature = "mermaid")]
+    built_in.push("mermaid");
+    #[cfg(feature = "net")]
+    built_in.push("net");
+    built_in
+}
+
+/// 人设防失忆提醒这个内置包的编号（施工 F-2）：代码在策略、会话两层，核心这里只认编号。
+const ROLEPLAY: &str = "roleplay";
+
 /// 工具目录：核心起来时登记一次，登记完就冻结（`05-内核接口.md` 第八节）。施工 4-4 起登记基础系统，施工 R-3 中起登记记忆
-/// 这个软件包，工具的字从资源目录 `resources` 读。
+/// 这个软件包，工具的字从资源目录 `resources` 读。施工 F-2 起照清单 `found`：没装的内置包（没有读成了的清单）不登记。
 ///
 /// # Errors
 ///
 /// 哪一份字读不出来、写法不对；登记时查不过（重名、名字或参数格式不合写法）。
-pub fn tools(resources: &ResourceRoot) -> Result<Catalog, String> {
-    let basesystem = miyu_basesystem::tools(resources.path()).map_err(|error| error.to_string())?;
+pub fn tools(resources: &ResourceRoot, found: &[Found]) -> Result<Catalog, String> {
+    let installed = |id| miyu_endpoint::packages::is_installed(found, id);
+    let mut groups = Vec::new();
+    if installed(miyu_tool::BASESYSTEM) {
+        let basesystem =
+            miyu_basesystem::tools(resources.path()).map_err(|error| error.to_string())?;
+        groups.push((miyu_tool::BASESYSTEM, basesystem));
+    }
     // 记忆这个软件包的三件（施工 R-3 中，`memory.md`「工具」）：工具面上只给本机的主会话。
-    let memory = miyu_memory::tools(resources.path()).map_err(|error| error.to_string())?;
+    if installed(miyu_memory::PACKAGE) {
+        let memory = miyu_memory::tools(resources.path()).map_err(|error| error.to_string())?;
+        groups.push((miyu_memory::PACKAGE, memory));
+    }
     // 照软件包登记（施工 P-2 中）：预设照包开关。
-    Catalog::in_packages([
-        (miyu_tool::BASESYSTEM, basesystem),
-        (miyu_memory::PACKAGE, memory),
-    ])
-    .map_err(|error| error.to_string())
+    Catalog::in_packages(groups).map_err(|error| error.to_string())
+}
+
+/// 读两层清单（施工 9-1 上），再标出这一份核心没编进来的内置包（施工 F-2）。必需的基础系统没装，记一行 `WARN`，照样起来。
+fn load_packages(resources: &ResourceRoot, root: &DataRoot) -> Vec<Found> {
+    let mut found = miyu_endpoint::packages::load(resources, root, &admin());
+    miyu_endpoint::packages::compiled(&mut found, &built_in());
+    if !miyu_endpoint::packages::is_installed(&found, miyu_tool::BASESYSTEM) {
+        tracing::warn!(target: TARGET, package = miyu_tool::BASESYSTEM, "required package missing");
+    }
+    found
 }
 
 /// 运行中配置换了当场生效要的（施工 8-4）：换运行日志级别的把手，核心这边的系统语言；起来时读的软件包清单和照它拼的
@@ -192,13 +222,13 @@ async fn run(
     let sandbox = sandbox::probe(env.exe.as_deref());
     let sandbox_cache = sandbox::cache(&env, std::env::var_os("CARGO_HOME"));
     let embedder = embed::setup(&env, &resources);
-    let tools = match tools(&resources) {
+    let tools = match tools(&resources, &live.found) {
         Ok(tools) => tools,
         Err(error) => return failed("tools", error),
     };
     let trashed = root.clone();
     let (generated, words) = (root.clone(), resources.clone());
-    let queries = packages::register(&resources, &root, &admin());
+    let queries = packages::register(&resources, &root, &admin(), &live.found);
     packages::clear_uploads(&root, &admin());
     let mut core = Core::new(
         root,

@@ -404,6 +404,7 @@
     "package-problems/bad_platform": "{detail} is badly written",
     "package-problems/bad_dependency": "Badly written or repeated package id: {detail}",
     "package-problems/feature_taken": "The feature {detail} is taken by another package; this one does not count",
+    "package-problems/not_built_in": "This core does not have the code of the built-in package {detail}",
     "package-problems/check_failed": "The package's own check did not finish: {detail}",
     "package-problems/check_unavailable": "{detail} was not found, so the package's own check did not run",
     "package-problems/check_output": "The package's own check printed {detail} lines that are not problems; they were skipped",

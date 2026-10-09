@@ -404,6 +404,7 @@
     "package-problems/bad_platform": "{detail} の書き方が正しくありません",
     "package-problems/bad_dependency": "依存するパッケージ ID の書き方が正しくないか、重複しています: {detail}",
     "package-problems/feature_taken": "機能 {detail} はほかのパッケージが使っています。こちらは数えません",
+    "package-problems/not_built_in": "このコアには組み込みパッケージ {detail} のコードがありません",
     "package-problems/check_failed": "パッケージ自身のチェックが終わりませんでした：{detail}",
     "package-problems/check_unavailable": "{detail} が見つからないため、パッケージ自身のチェックは動きませんでした",
     "package-problems/check_output": "パッケージ自身のチェックが読めない行を {detail} 行出したので、飛ばしました",

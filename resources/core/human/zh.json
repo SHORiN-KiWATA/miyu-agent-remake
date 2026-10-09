@@ -404,6 +404,7 @@
     "package-problems/bad_platform": "{detail} 的写法不对",
     "package-problems/bad_dependency": "依赖的包编号写法不对，或者写了两遍：{detail}",
     "package-problems/feature_taken": "功能 {detail} 已经被别的包占了，这一份不算",
+    "package-problems/not_built_in": "这一份核心没有内置包 {detail} 的代码",
     "package-problems/check_failed": "这个包自己的检查没跑完：{detail}",
     "package-problems/check_unavailable": "没找到 {detail}，这个包自己的检查没跑",
     "package-problems/check_output": "这个包自己的检查印了 {detail} 行看不懂的，跳过了",

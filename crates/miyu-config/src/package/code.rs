@@ -79,6 +79,8 @@ pub enum Code {
     BadDependency,
     /// 功能的编号被先读到的包占了（施工 F-1，`miyu-store` 认）。
     FeatureTaken,
+    /// 清单是内置包，核心里没编进它的代码（施工 F-2，核心起来时认）。
+    NotBuiltIn,
 }
 
 impl Code {
@@ -123,11 +125,12 @@ impl Code {
             Code::BadPlatform => "bad_platform",
             Code::BadDependency => "bad_dependency",
             Code::FeatureTaken => "feature_taken",
+            Code::NotBuiltIn => "not_built_in",
         }
     }
 
     /// 全部代码：给人看的字的门禁照它查三种语言都有。
-    pub const ALL: [Code; 38] = [
+    pub const ALL: [Code; 39] = [
         Code::Syntax,
         Code::UnknownTable,
         Code::NotATable,
@@ -166,5 +169,6 @@ impl Code {
         Code::BadPlatform,
         Code::BadDependency,
         Code::FeatureTaken,
+        Code::NotBuiltIn,
     ];
 }

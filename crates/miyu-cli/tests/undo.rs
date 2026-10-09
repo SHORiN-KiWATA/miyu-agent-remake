@@ -7,14 +7,14 @@ use std::sync::Arc;
 use serde_json::json;
 
 use crate::support::outside::Outside;
-use crate::support::{Home, plan, resources};
+use crate::support::{Home, plan, shipped_tools};
 use miyu_cli::language::Language;
 use miyu_cli::{Direction, Plan, UndoPlan};
 use miyu_session::testkit::{Play, Script};
 
 /// 起一个核心：请求模型照 `plays`，工具是出厂的那几件。
 fn home(plays: impl IntoIterator<Item = Play>) -> Home {
-    let tools = miyu_core::tools(&resources()).expect("出厂的资源读得出来");
+    let tools = shipped_tools();
     Home::with_tools(Arc::new(Script::new(plays)), tools)
 }
 

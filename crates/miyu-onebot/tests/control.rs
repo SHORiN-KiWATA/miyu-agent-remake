@@ -8,7 +8,7 @@ use miyu_onebot::control::{Halt, Line, Report, describe};
 
 /// 在跑的那一项：进程号 `pid`。
 fn running(pid: u64) -> Value {
-    json!({"package": "onebot", "name": "QQ 桥", "start": "manual", "on": true, "state": "running", "pid": pid, "failures": 0})
+    json!({"package": "onebot", "name": "接入QQ", "start": "manual", "on": true, "state": "running", "pid": pid, "failures": 0})
 }
 
 /// 状态文件：进程号 `pid`，NapCat 照 `napcat`。

@@ -208,6 +208,41 @@ pub fn settle(found: &mut [Found], core_items: &[Item]) -> Vec<Item> {
     items
 }
 
+/// 清单是内置包、`built_in` 里没有的（施工 F-2，设计 30 第二节第 3 条）：这一份核心没编进它的代码，照读坏了的清单报
+/// `not_built_in`、记一行 `WARN package invalid`。核心起来时读完清单调一次（`miyu-core`）。
+pub fn compiled(found: &mut [Found], built_in: &[&str]) {
+    for one in found.iter_mut() {
+        let lacking = one.read.as_ref().is_ok_and(|manifest| {
+            manifest.kind == PackageKind::Builtin && !built_in.contains(&one.id.as_str())
+        });
+        if !lacking {
+            continue;
+        }
+        let problem = Problem {
+            line: None,
+            code: Code::NotBuiltIn,
+            detail: one.id.clone(),
+            message: format!(
+                "this core does not have the code of built-in package {}",
+                one.id
+            ),
+        };
+        tracing::warn!(target: TARGET, package = one.id.as_str(), file = %one.path.display(), error = %problem, "package invalid");
+        one.read = Err(Issue::Wrong(problem));
+    }
+}
+
+/// 内置包 `id` 装了（施工 F-2）：有它读成了的清单，种类是内置。编进来的代码照它起不起。
+pub fn is_installed(found: &[Found], id: &str) -> bool {
+    found.iter().any(|one| {
+        one.id == id
+            && one
+                .read
+                .as_ref()
+                .is_ok_and(|manifest| manifest.kind == PackageKind::Builtin)
+    })
+}
+
 /// 读成了的清单：编号和样子（给人看的字照它并进包的配置项的名字）。
 pub(crate) fn manifests(found: &[Found]) -> impl Iterator<Item = (&str, &Manifest)> {
     found.iter().filter_map(|one| match &one.read {

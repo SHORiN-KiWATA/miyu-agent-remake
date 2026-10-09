@@ -10,21 +10,35 @@
 use miyu_endpoint::queries::Queries;
 use miyu_kernel::id::AccountId;
 use miyu_store::blob::Blobs;
+use miyu_store::packages::Found;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
-/// 照编进来的包往一张新的查询表里登记，交给 [`miyu_endpoint::Core::with_queries`]。`root`、`admin`：`net` 抓到的
-/// 卡片的图存进这个账号的 blob（现在连上来的都是管理员，`net.md`「起草时定的」第 9 条）。
-pub fn register(resources: &ResourceRoot, root: &DataRoot, admin: &AccountId) -> Queries {
+/// 照编进来、又装了的包往一张新的查询表里登记，交给 [`miyu_endpoint::Core::with_queries`]。装没装照清单 `found`（施工
+/// F-2，设计 30 第二节第 3 条：没有清单的不登记）。`root`、`admin`：`net` 抓到的卡片的图存进这个账号的 blob（现在连上来
+/// 的都是管理员，`net.md`「起草时定的」第 9 条）。
+pub fn register(
+    resources: &ResourceRoot,
+    root: &DataRoot,
+    admin: &AccountId,
+    found: &[Found],
+) -> Queries {
+    let installed = |id| miyu_endpoint::packages::is_installed(found, id);
     let queries = Queries::new();
     #[cfg(feature = "mermaid")]
-    let queries = mermaid::register(resources, queries);
+    let queries = match installed("mermaid") {
+        true => mermaid::register(resources, queries),
+        false => queries,
+    };
     #[cfg(feature = "net")]
-    let queries = net::register(resources, Blobs::new(root.blobs(admin)), queries);
+    let queries = match installed("net") {
+        true => net::register(resources, Blobs::new(root.blobs(admin)), queries),
+        false => queries,
+    };
     #[cfg(not(feature = "net"))]
     let _ = (root, admin);
     #[cfg(not(any(feature = "mermaid", feature = "net")))]
-    let _ = resources;
+    let _ = (resources, installed);
     queries
 }
 

@@ -295,13 +295,16 @@ async fn presets_are_listed_and_read_by_layer() {
             ("net", "联网", true),
             ("goal", "长期目标", true),
             ("memory", "人格记忆", true),
-            ("roleplay", "角色扮演", false),
-            ("onebot", "QQ 桥", false),
+            ("roleplay", "人设防失忆提醒", false),
+            ("onebot", "接入QQ", false),
         ],
         "内置的照固定的先后、照连接的语言写名字（施工 P-3 补）；清单装的桥照它的清单写名字（施工 O-18）"
     );
     assert_eq!(got["software"][4]["installed"], true, "角色扮演一直装着");
-    assert_eq!(got["software"][4]["summary"], "照人格的设定演下去，不出戏");
+    assert_eq!(
+        got["software"][4]["summary"],
+        "隔几轮把人设提醒短语再给她看一遍，聊久了也不出戏"
+    );
     assert_eq!(got["tools"], json!({"trash": false}));
     let full = client
         .call("g2", "preset.get", json!({"preset": "full"}))
