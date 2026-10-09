@@ -23,6 +23,7 @@ mod routing;
 mod script;
 mod sight;
 mod stage;
+mod stream;
 mod swap;
 
 pub use opening::{CHILD_SESSION, SESSION};
@@ -30,6 +31,7 @@ pub use respond::model;
 pub use script::{Line, Play};
 pub use sight::vision_model;
 pub use stage::Stage;
+pub use stream::Streamed;
 
 use crate::event::{RestoreAction, Restored};
 use crate::session::Step;

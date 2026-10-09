@@ -63,6 +63,10 @@ const ONEBOT_DATA: [&str; 4] = [
 ];
 const DATA_PACKAGES: [&str; 2] = ["mermaid", "net"];
 
+/// `core/view.json` 是数据，不发给模型，不登记：视图投影照它认哪件工具算命令、编辑、子代理、留言（施工 9-8 上，`view.md`）。
+/// 只豁免这一份：`core/` 里别的照查。
+const CORE_DATA: [&str; 1] = ["core/view.json"];
+
 /// 这几个单独的目录整个是给浏览器的，不发给模型，不登记：`software/onebot/web/` 是 QQ 桥 WebUI 的页面（施工 O-16，
 /// `onebot.md` 第二条；照最上一层 `web/` 的先例）。只豁免这一个目录，不豁免整个包。
 const DATA_DIRS: [&str; 1] = ["software/onebot/web"];
@@ -127,6 +131,7 @@ fn walk(dir: &Path, prefix: &str, files: &mut BTreeMap<String, Vec<u8>>) -> Resu
             && prefix.starts_with(PERSONAS_DIR)
             && prefix.matches('/').count() == 2)
             && !ONEBOT_DATA.contains(&path.as_str())
+            && !CORE_DATA.contains(&path.as_str())
         {
             files.insert(path, std::fs::read(entry.path()).map_err(unreadable)?);
         }
@@ -228,6 +233,8 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("miyu-ledger-{}", std::process::id()));
         for (path, text) in [
             ("core/a.txt", "a"),
+            ("core/view.json", "{}"),
+            ("core/x/view.json", "{}"),
             ("core/human/zh.json", "{}"),
             ("software/x/human/en.json", "{}"),
             ("software/x/tools/t.json", "{}"),
@@ -272,7 +279,7 @@ mod tests {
         walked.unwrap();
         // 给人看的字、最上一层的模型资料、网页软件、软件包清单和出厂的预设、software/mermaid/、software/net/、人格目录的 persona.toml、
         // 群聊内核的出厂参数 software/onebot/defaults.toml、违规词表 moderation.txt、出厂的场所规则 venues.d/50-defaults.toml、桥自己的数
-        // software/onebot/bridge.json、QQ 桥 WebUI 的页面 software/onebot/web/ 不登记，别的照查（别处叫 models、web、mermaid、net 的
+        // software/onebot/bridge.json、QQ 桥 WebUI 的页面 software/onebot/web/、视图投影的工具分类 core/view.json 不登记，别的照查（别处叫 models、web、mermaid、net 的
         // 目录、别处的 defaults.toml、moderation.txt 和 bridge.json、别的包的 web/、venues.d/ 里别的文件、onebot 包里别的文件照查：只有正好
         // 这几处才豁免）。
         assert_eq!(
@@ -283,6 +290,7 @@ mod tests {
                 "core/packages/p.txt",
                 "core/presets/p.txt",
                 "core/web/w.txt",
+                "core/x/view.json",
                 "personas/x/prompts/persona.md",
                 "personas/x/prompts/persona.toml",
                 "software/onebot/judge/system.txt",

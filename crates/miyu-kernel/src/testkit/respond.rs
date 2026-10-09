@@ -18,7 +18,10 @@ impl Stage {
         match action {
             Action::Append(events) => {
                 let upto = events.last().map(|event| event.seq);
-                self.log.extend(events);
+                for event in events {
+                    self.order.push((true, self.log.len()));
+                    self.log.push(event);
+                }
                 upto.map(|upto| Input::Stored { at: self.now, upto })
                     .into_iter()
                     .collect()
@@ -29,6 +32,7 @@ impl Stage {
             }
             Action::Push(_) | Action::RunTurnEndHooks { .. } => Vec::new(),
             Action::PushTransient(transient) => {
+                self.order.push((false, self.transients.len()));
                 self.transients.push(transient);
                 Vec::new()
             }
