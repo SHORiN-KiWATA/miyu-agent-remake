@@ -74,7 +74,10 @@ pub(super) fn compact(n: u64, instructions: Option<&str>) -> Input {
 fn rejected_reply(n: u64, reason: Reason) -> Action {
     Action::Reply {
         id: id(n),
-        outcome: Outcome::Rejected { reason },
+        outcome: Outcome::Rejected {
+            reason,
+            about: Vec::new(),
+        },
     }
 }
 
@@ -93,6 +96,7 @@ fn a_manual_compaction_opens_a_turn_of_its_own_and_answers_once_it_is_stored() {
         started.body,
         Body::TurnStarted(TurnStarted {
             trigger: None,
+            triggers: Vec::new(),
             cwd: Some("~/src/miyu".to_string()),
             dirs: Vec::new(),
         })

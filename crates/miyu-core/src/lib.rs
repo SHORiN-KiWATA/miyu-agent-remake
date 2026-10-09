@@ -17,6 +17,7 @@
 //! 之后 [`serve()`] 一个个接连接：没有连接、也没有在跑的回合，空闲够久了就退出；收到停的信号，先让在跑的
 //! 会话有计划地停下再退出。起不来的，把原因写成那一行（`error …`）交给头。
 
+mod embed;
 pub mod models;
 pub mod packages;
 mod sandbox;
@@ -190,6 +191,7 @@ async fn run(
     );
     let sandbox = sandbox::probe(env.exe.as_deref());
     let sandbox_cache = sandbox::cache(&env, std::env::var_os("CARGO_HOME"));
+    let embedder = embed::setup(&env, &resources);
     let tools = match tools(&resources) {
         Ok(tools) => tools,
         Err(error) => return failed("tools", error),
@@ -214,6 +216,9 @@ async fn run(
     .with_queries(queries);
     if let Some((cache, cargo_home)) = sandbox_cache {
         core = core.with_sandbox_cache(cache, cargo_home);
+    }
+    if let Some(setup) = embedder {
+        core = core.with_embedder(setup);
     }
     let core = Arc::new(core);
     tokio::spawn(settings::follow(

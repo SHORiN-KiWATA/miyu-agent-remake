@@ -139,7 +139,10 @@ impl Watch {
         self.trigger_of(turn)
             .and_then(|trigger| self.find(trigger))
             .is_some_and(|event| match &event.body {
-                Body::MessageUser(MessageUser { blocks }) => edited(blocks, change).is_empty(),
+                Body::MessageUser(MessageUser {
+                    blocks,
+                    venue: None,
+                }) => edited(blocks, change).is_empty(),
                 _ => false,
             })
     }
@@ -175,7 +178,7 @@ impl Watch {
                 }
                 // 读回来才拒的，读回的时候到的后台命令结束跟在后面照常记（`revert.rs`）。
                 assert!(
-                    matches!(actions.first(), Some(Action::Reply { outcome: Outcome::Rejected { reason: got }, .. }) if *got == reason),
+                    matches!(actions.first(), Some(Action::Reply { outcome: Outcome::Rejected { reason: got, .. }, .. }) if *got == reason),
                     "种子 {seed}：重做应该拒绝，原因码 {}：{actions:?}",
                     reason.code()
                 );
@@ -301,7 +304,11 @@ impl Watch {
         );
         for (event, seq) in events.iter().zip(&resend.said) {
             let original = self.find(*seq).unwrap();
-            let Body::MessageUser(MessageUser { blocks }) = &original.body else {
+            let Body::MessageUser(MessageUser {
+                blocks,
+                venue: None,
+            }) = &original.body
+            else {
                 panic!("种子 {seed}：要重发的 {seq} 不是人的话");
             };
             let expected = match Some(*seq) == resend.opener {
@@ -310,7 +317,10 @@ impl Watch {
             };
             assert_eq!(
                 event.body,
-                Body::MessageUser(MessageUser { blocks: expected }),
+                Body::MessageUser(MessageUser {
+                    blocks: expected,
+                    venue: None
+                }),
                 "种子 {seed}：重发的内容照原来的"
             );
             assert_eq!(

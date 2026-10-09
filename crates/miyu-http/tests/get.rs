@@ -1,9 +1,11 @@
-//! 一次 GET（施工 8-7）：带头、带 `ETag`、304、出错的几种、大小上限、总时限，原话里没有地址和头的值。
+//! 一次 GET（施工 8-7）：带头、带 `ETag`、304、出错的几种、大小上限、总时限，原话里没有地址和头的值。边下边交（施工 R-5
+//! 中）：一块一块交给收的一方，超过上限停，收的一方出错照它的原话。
 
+use std::io;
 use std::time::Duration;
 
 use miyu_http::testkit::{Piece, Reply, Server};
-use miyu_http::{Get, Got, Proxy, fetcher, get, get_full};
+use miyu_http::{Get, Got, Proxy, download, fetcher, get, get_full};
 
 /// 照 `server` 的地址加 `/models` GET 一次。
 async fn fetch(server: &Server, etag: Option<&str>, limit: usize) -> Result<Got, String> {
@@ -139,4 +141,80 @@ async fn the_full_failure_keeps_the_status_the_headers_and_the_body() {
     .expect_err("连不上");
     assert_eq!(refused.status, None, "连不上的没有状态码");
     assert!(refused.body.is_empty());
+}
+
+/// 照 `server` 的地址边下边交一次，每一块交给 `each`。
+async fn pull(
+    server: &Server,
+    limit: usize,
+    each: &mut (dyn FnMut(&[u8]) -> io::Result<()> + Send),
+) -> Result<u64, String> {
+    let client = fetcher(Proxy::Off).expect("造得出客户端");
+    let url = format!("{}/model.onnx", server.base_url);
+    let get = Get {
+        client: &client,
+        url: &url,
+        headers: &[],
+        etag: None,
+        timeout: Duration::from_secs(2),
+        limit,
+    };
+    download(get, each).await
+}
+
+#[tokio::test]
+async fn a_download_hands_each_piece_on_and_stops_where_it_should() {
+    let pieces = |parts: Vec<Piece>| Reply {
+        status: 200,
+        headers: Vec::new(),
+        body: parts,
+    };
+    let server = Server::start(vec![
+        pieces(vec![
+            Piece::Bytes(b"abc".to_vec()),
+            Piece::Wait(Duration::from_millis(50)),
+            Piece::Bytes(b"def".to_vec()),
+        ]),
+        ok(&"x".repeat(2048), &[]),
+        ok("abc", &[]),
+        // 说了 6 个字节，给了 2 个就断开：读到一半断了（没写长度的，对方断开就当读完，下载的一方照大小、SHA-256 核对）。
+        Reply {
+            status: 200,
+            headers: vec![("Content-Length".to_string(), "6".to_string())],
+            body: vec![Piece::Bytes(b"ab".to_vec()), Piece::Drop],
+        },
+        Reply::error(404, &[], "gone"),
+        pieces(vec![Piece::Stall]),
+    ])
+    .await;
+    let (mut got, mut handed) = (Vec::new(), 0);
+    let mut keep = |chunk: &[u8]| {
+        handed += 1;
+        got.extend_from_slice(chunk);
+        Ok(())
+    };
+    assert_eq!(pull(&server, 1024, &mut keep).await, Ok(6));
+    assert_eq!(got, b"abcdef");
+    assert!(handed >= 2, "一块一块交，不攒成一整块：交了 {handed} 次");
+    assert_eq!(
+        pull(&server, 1024, &mut |_| Ok(())).await,
+        Err("body over 1024 bytes".to_string())
+    );
+    let mut full = |_: &[u8]| Err(io::Error::other("disk full"));
+    assert_eq!(
+        pull(&server, 1024, &mut full).await,
+        Err("disk full".to_string())
+    );
+    let broken = pull(&server, 1024, &mut |_| Ok(()))
+        .await
+        .expect_err("断了");
+    assert!(!broken.contains("127.0.0.1"), "{broken}");
+    assert_eq!(
+        pull(&server, 1024, &mut |_| Ok(())).await,
+        Err("HTTP 404".to_string())
+    );
+    assert_eq!(
+        pull(&server, 1024, &mut |_| Ok(())).await,
+        Err("timed out after 2 seconds".to_string())
+    );
 }

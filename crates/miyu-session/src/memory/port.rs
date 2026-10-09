@@ -17,7 +17,7 @@ use miyu_tool::{FoundMemory, MEMORIES, MemoryPort, Pending, Refused, Remember, S
 
 use crate::blocking::blocking;
 
-use super::{Keeper, Memory, Stamp};
+use super::{Keeper, Memory, Query, Stamp};
 
 /// 一个主会话的记忆：每次调用照它造端口。
 #[derive(Clone)]
@@ -56,18 +56,21 @@ impl Calls {
         blocking(move || keeper.summary(offset, &present)).await
     }
 
-    /// 这一次调用的端口：第 `turn` 轮（没有在跑的回合的没有）、调用 `call_id`、派出去的时刻 `at`。
+    /// 这一次调用的端口：第 `turn` 轮（没有在跑的回合的没有）、调用 `call_id`、派出去的时刻 `at`；`meaning` 是这一轮照不照
+    /// 意思找（`models.embedding` 不是 `off`，施工 R-5 下）。
     pub(crate) fn port(
         &self,
         turn: Option<TurnId>,
         call_id: CallId,
         at: Timestamp,
+        meaning: bool,
     ) -> Arc<dyn MemoryPort> {
         Arc::new(Port(Arc::new(Inner {
             calls: self.clone(),
             turn,
             call_id,
             at,
+            meaning,
         })))
     }
 }
@@ -79,6 +82,7 @@ struct Inner {
     turn: Option<TurnId>,
     call_id: CallId,
     at: Timestamp,
+    meaning: bool,
 }
 
 impl MemoryPort for Port {
@@ -100,7 +104,19 @@ impl MemoryPort for Port {
         forgotten: bool,
     ) -> Pending<'a, Result<Searched, String>> {
         let inner = Arc::clone(&self.0);
-        Box::pin(async move { blocking(move || inner.search(&query, forgotten)).await })
+        Box::pin(async move {
+            // 照意思找的（施工 R-5 下）：先算问句的向量（等不到的只走关键词），搜完在后台补这一间缺的。
+            let (keeper, meaning) = (inner.calls.keeper.clone(), inner.meaning);
+            let near = match keeper.vectors() {
+                Some(vectors) if meaning => vectors.query(&query).await,
+                _ => None,
+            };
+            let found = blocking(move || inner.search(&query, forgotten, near.as_ref())).await;
+            if meaning && keeper.vectors().is_some() {
+                blocking(move || keeper.fill()).await;
+            }
+            found
+        })
     }
 }
 
@@ -131,10 +147,15 @@ impl Inner {
     }
 
     /// 记下的最多 [`MEMORIES`] 条在前，别的会话里以前的对话最多 [`TURNS`] 段在后。
-    fn search(&self, query: &str, forgotten: bool) -> Result<Searched, String> {
+    fn search(
+        &self,
+        query: &str,
+        forgotten: bool,
+        near: Option<&Query>,
+    ) -> Result<Searched, String> {
         let keeper = &self.calls.keeper;
         let memories = keeper
-            .search(query, forgotten, MEMORIES)?
+            .search(query, forgotten, MEMORIES, near)?
             .into_iter()
             .map(|entry| FoundMemory {
                 id: entry.id,
@@ -144,7 +165,7 @@ impl Inner {
                 retired: entry.retired.is_some(),
             })
             .collect();
-        let turns = keeper.turns(query, TURNS, &self.calls.session)?;
+        let turns = keeper.turns(query, TURNS, &self.calls.session, near)?;
         Ok(Searched { memories, turns })
     }
 }

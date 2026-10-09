@@ -5,11 +5,16 @@ use serde::{Deserialize, Serialize};
 use crate::block::Block;
 use crate::id::Seq;
 
+use super::VenueMessage;
+
 /// `message.user`：人发来的消息，或另一个会话发来的消息。谁发的写在事件的 `by` 里。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessageUser {
     /// 消息的内容，一串内容块：文字、图片、文件。
     pub blocks: Vec<Block>,
+    /// 通讯平台上的一条消息（施工 O-13 上）：平台编号、引用、@ 了谁、带的东西、旁听。本机的没有。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub venue: Option<VenueMessage>,
 }
 
 /// `message.assistant`：模型一次响应的完整内容，工具调用也在里面（03 E1）。

@@ -1,0 +1,1 @@
+Group messages look like [HH:MM] name (id=..., role) [msg=...]: text, with optional indented reply-to and @mentions lines. Ids are stable, names are not. [you] is you.

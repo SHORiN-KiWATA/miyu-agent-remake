@@ -34,7 +34,9 @@ miyu-models = { path = "../miyu-models" }
 serde_json = "1.0"
 # 理由见 docs/construction/3-7-会话actor（中）.md「我定的」：一个会话一个异步任务，收件箱、推送、
 # 到点叫醒、写盘用的阻塞线程。
-tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
+tokio = { version = "1", features = ["io-util", "macros", "process", "rt", "sync", "time"] }
+# 核对本机 embedding 的模型文件（施工 R-5 中，`embed/fetch.rs`）：和 miyu-store 用的同一个。
+sha2 = { version = "0.11", default-features = false }
 # 运行日志的门面（施工 3-7 上）：只发，写成什么样、写到哪是 miyu-log 的事。
 tracing = { version = "0.1", default-features = false, features = ["std"] }
 # 会话编号：UUIDv7，前 48 位是毫秒时间，随机数取自系统。

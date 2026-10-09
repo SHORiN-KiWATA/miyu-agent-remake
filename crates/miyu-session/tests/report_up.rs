@@ -122,6 +122,7 @@ impl SessionPort for Table {
                 *refusals -= 1;
                 Outcome::Rejected {
                     reason: Reason::UnknownJob,
+                    about: Vec::new(),
                 }
             }
             false => Outcome::Accepted {

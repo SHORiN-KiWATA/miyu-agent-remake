@@ -143,6 +143,7 @@ fn the_next_turns_inject_only_what_changed() {
                 text: "一小时以后".to_string(),
             })],
             urgent: false,
+            venue: None,
         },
     });
     let events = appended_events(&session.handle(next_hour));

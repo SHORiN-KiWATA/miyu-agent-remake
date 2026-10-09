@@ -24,11 +24,12 @@ use miyu_kernel::session::Verdict;
 use miyu_kernel::time::UtcOffset;
 use miyu_kernel::tool::{Access, Worded};
 use miyu_policy::GuardTexts;
-use miyu_tool::{Call, Catalog, Stop, Target, Tool};
+use miyu_tool::{Call, Shelf, Stop, Target, Tool};
 
 /// 权限策略：一个会话一份。
 pub(crate) struct Guard {
-    catalog: Catalog,
+    /// 工具目录的架子：判的时候照现在的那一份找（施工 O-2 中）。
+    catalog: Shelf,
     data_root: PathBuf,
     home: Option<PathBuf>,
     /// 家目录的真实位置（施工 D-1）：放行的范围拿它和换成真实位置的路径比。不换的话 Windows 上一边带 `\\?\` 前缀、一边不带，
@@ -77,7 +78,7 @@ impl Guard {
     /// 照目录 `catalog` 找工具，数据根是 `data_root`，家目录是 `home`，拒绝时的话是 `texts`，这台机器上的沙盒能不能用
     /// 是 `sandboxed`。
     pub(crate) fn new(
-        catalog: Catalog,
+        catalog: Shelf,
         data_root: PathBuf,
         home: Option<PathBuf>,
         texts: GuardTexts,
@@ -133,6 +134,7 @@ impl Guard {
             usage: None,
             questions: None,
             memory: None,
+            ids: None,
         };
         let asking = tool.asking(&call);
         let verdict = self.paths(tool.as_ref(), name, level, &call, dirs, grants, &asking);

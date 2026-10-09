@@ -46,6 +46,7 @@ pub(super) fn some_sight(rng: &mut Rng, watch: &Watch, ids: &mut u64) -> Option<
                         Block::Image(picture(rng.below(3))),
                     ],
                     urgent: false,
+                    venue: None,
                 },
             }))
         }

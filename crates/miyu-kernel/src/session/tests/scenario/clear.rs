@@ -200,7 +200,8 @@ fn a_summary_alone_is_something_to_clear() {
     assert_eq!(
         stage.outcome(&again),
         Some(&Outcome::Rejected {
-            reason: Reason::NothingToClear
+            reason: Reason::NothingToClear,
+            about: Vec::new(),
         })
     );
 }

@@ -39,7 +39,7 @@
 
 **题目**（`Input::ToolAsks { at, call_id, questions }`）：一组题，照先后，几道都行。一道题 `Question { header, question, options, multiple }`：顶上标签里的短名字（可以不写）、问的话、几个选项（`Choice { label, description, preview }`，一行标题、一行说明、一段文字画，后两样可以不写；选项可以一个都没有）、能不能多选。施工 D-2 起会问的工具是 `ask_user`（`tools/ask_user.md`）。
 
-**动作**：`GuardTool { call_id, name, args, cwd, permission }` 交给链；`RunTool { call_id, name, args, cwd, permission }` 派去跑，带着派出去那一刻实际生效的那一级（施工 5-4 上）；`AnswerTool { call_id, answers }` 把回答交给在等的调用；`CancelTool { call_id }` 叫停（`session.md`）。
+**动作**：`GuardTool { call_id, name, args, cwd, permission }` 交给链；`RunTool { call_id, name, args, cwd, permission, asked }` 派去跑，带着派出去那一刻实际生效的那一级（施工 5-4 上）；`AnswerTool { call_id, answers }` 把回答交给在等的调用；`CancelTool { call_id }` 叫停（`session.md`）。
 
 **事件**：
 

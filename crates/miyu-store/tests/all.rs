@@ -10,6 +10,7 @@ mod human_languages;
 mod memory;
 mod recall;
 mod recall_marks;
+mod recall_vectors;
 mod snapshot;
 mod usage;
 mod usage_purged;

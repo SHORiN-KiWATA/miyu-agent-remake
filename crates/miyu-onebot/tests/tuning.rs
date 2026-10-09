@@ -1,5 +1,5 @@
 //! 桥自己的数（施工 O-8，`onebot.md`「施工时定的」第 15 条）：出厂的 `bridge.json` 读得出来，数和图纸写的一样；队列写 0、
-//! 多出不认识的格、少了一格、读不了的，读不进来，说是哪个文件。
+//! 判官的并发写 0（施工 O-23 下）、多出不认识的格、少了一格、读不了的，读不进来，说是哪个文件。
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -32,6 +32,13 @@ fn the_shipped_numbers_are_the_blueprints() {
     // 跟核心握手最多等 10 秒；`logs -f` 半秒看一次（施工 O-18）。
     assert_eq!(tuning.hello(), Duration::from_secs(10));
     assert_eq!(tuning.follow(), Duration::from_millis(500));
+    // 要用场所规则时，隔一秒才看一眼系统的变没变（施工 O-21）。
+    assert_eq!(tuning.rules_check(), Duration::from_secs(1));
+    // 群成员的名字记十分钟（施工 O-22）。
+    assert_eq!(tuning.member_names(), Duration::from_secs(600));
+    // 判官全局最多同时问 4 个，排队最多等 15 秒（施工 O-23 下，18 第七节）。
+    assert_eq!(tuning.judge_concurrency, 4);
+    assert_eq!(tuning.judge_queue(), Duration::from_secs(15));
     // WebUI（施工 O-16）：页面只有三种文件；内容安全策略只许连自己、不许被框起来；验过的登录令牌记 60 秒。
     assert_eq!(
         tuning.web.types.keys().collect::<Vec<_>>(),
@@ -90,6 +97,22 @@ fn a_bad_file_is_not_read_and_named() {
         (
             "follow-missing",
             good.replace("\"follow_millis\": 500", "\"w\": 1"),
+        ),
+        (
+            "rules-check-missing",
+            good.replace("\"rules_check_millis\": 1000", "\"v\": 1"),
+        ),
+        (
+            "member-names-missing",
+            good.replace("\"member_names_seconds\": 600", "\"u\": 1"),
+        ),
+        (
+            "judges-zero",
+            good.replace("\"judge_concurrency\": 4", "\"judge_concurrency\": 0"),
+        ),
+        (
+            "judge-queue-missing",
+            good.replace("\"judge_queue_seconds\": 15", "\"t\": 1"),
         ),
         ("not-json", "nope".to_string()),
     ] {

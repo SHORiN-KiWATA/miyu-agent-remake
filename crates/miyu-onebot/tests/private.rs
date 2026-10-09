@@ -246,3 +246,53 @@ async fn a_venue_owned_by_someone_else_or_by_nobody_is_taken() {
         bridge.stop().await.expect("停得下");
     }
 }
+
+#[tokio::test]
+async fn the_private_chat_carries_its_venue_fields_and_a_recall_is_noted() {
+    // 施工 O-22：私聊也带上场所的格（不写 `ambient`），`show_ids` 照这个私聊的场所规则；私聊的撤回记 `venue.recalled`。
+    let script = Script::new([Play::Says("在。")]);
+    let home = Home::new(&script);
+    let dir = home.root.system().join("venues.d");
+    std::fs::create_dir_all(&dir).expect("建得了目录");
+    let rule =
+        format!("[[rule]]\nmatch = {{ kind = \"private\", user = [{OWNER}] }}\nshow_ids = true\n");
+    std::fs::write(dir.join("80-test.toml"), rule).expect("写得进");
+    let bridge = bridge(&home).await;
+    let mut napcat = owner_napcat(bridge.port).await;
+    let message = json!([
+        {"type": "reply", "data": {"id": 77}},
+        {"type": "text", "data": {"text": "看这个"}},
+        {"type": "image", "data": {"file": "p.jpg", "sub_type": 0}},
+    ]);
+    napcat.private(OWNER, 501, message).await;
+    assert_eq!(napcat.reply().await, "在。");
+    let said = home.said();
+    assert_eq!(said.len(), 1, "{said:?}");
+    assert_eq!(said[0]["body"]["blocks"][0]["text"], "看这个");
+    assert_eq!(
+        said[0]["body"]["venue"],
+        json!({
+            "msg": "501", "name": "someone", "reply_to": "77", "media": [{"kind": "image", "id": "p.jpg"}],
+            "show_ids": true,
+        })
+    );
+    napcat
+        .send(crate::support::group::friend_recall(OWNER, 501))
+        .await;
+    let session = home.sessions()[0].clone();
+    let recalled = within("记下撤回", async {
+        loop {
+            if let Some(event) = home
+                .events(&session)
+                .into_iter()
+                .find(|event| event["kind"] == "venue.recalled")
+            {
+                return event;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await;
+    assert_eq!(recalled["body"], json!({"msg": "501", "by": "qq:10001"}));
+    bridge.stop().await.expect("停得下");
+}

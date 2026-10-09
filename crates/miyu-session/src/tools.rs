@@ -20,12 +20,13 @@ use tracing::Instrument;
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Effect, Permission, Question, Response, Restored};
-use miyu_kernel::id::{CallId, ContentHash, JobId, TurnId};
+use miyu_kernel::id::{CallId, ContentHash, JobId, SessionId, TurnId};
+use miyu_kernel::origin::By;
 use miyu_kernel::session::{Input, Reread, Step, Subagent};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_policy::RunTexts;
 use miyu_store::blob::Blobs;
-use miyu_tool::{Call, Catalog, Done, JobPort, Log, Progress, Seen, Stop};
+use miyu_tool::{Call, CallIds, Done, JobPort, Log, Progress, Seen, Shelf, Stop};
 
 use crate::TARGET;
 use crate::agents::{Agents, Inherit};
@@ -45,8 +46,10 @@ mod questions;
 
 /// 执行工具要的：工具目录、替工具写的两句、系统的家目录（施工 4-4 上，交给每次调用）。
 pub(crate) struct ToolKit {
-    /// 工具目录。
-    pub(crate) catalog: Catalog,
+    /// 这个会话（施工 O-2 上）：每次调用带上，提供者的工具照它发 `tool.call`。
+    pub(crate) session: SessionId,
+    /// 工具目录的架子：执行时照现在的那一份找（施工 O-2 中）。
+    pub(crate) catalog: Shelf,
     /// 替工具写的两句。
     pub(crate) texts: RunTexts,
     /// 系统的家目录。
@@ -79,7 +82,9 @@ pub(crate) struct ToolKit {
 
 /// 执行工具的端口：一个会话一份。
 pub(crate) struct Tools {
-    catalog: Catalog,
+    /// 这个会话（施工 O-2 上）。
+    session: SessionId,
+    catalog: Shelf,
     texts: RunTexts,
     home: Option<PathBuf>,
     data_root: PathBuf,
@@ -102,6 +107,8 @@ pub(crate) struct Tools {
     asks: bool,
     /// 记忆（施工 R-3 中）。
     memory: Option<crate::memory::Calls>,
+    /// 这一轮照不照意思找记忆（施工 R-5 下，`models.embedding` 不是 `off`）：回合开始时照这一轮的配置换。
+    meaning: bool,
     /// 在跑的调用：掐掉它的那一头、它的旗、开始跑的那一刻、工具名。
     running: BTreeMap<CallId, Running>,
     backs: mpsc::UnboundedSender<Back>,
@@ -166,12 +173,19 @@ pub(crate) struct Dispatch {
     pub(crate) usage: Option<Asked>,
     /// 这一次调用在哪一轮（施工 R-3 中）：记忆的端口记下的出处是它。
     pub(crate) turn: Option<TurnId>,
+    /// 是谁要她做的（施工 O-2 下）：交给提供者的工具。
+    pub(crate) asked: Option<By>,
 }
 
 impl Tools {
     /// 派子代理、给别的会话发话用的端口和这个会话的几样（施工 C-6：「空了告诉我」两边都经它找会话表）：会话表交进来了才有。
     pub(crate) fn agents(&self) -> Option<&Arc<Agents>> {
         self.agents.as_ref()
+    }
+
+    /// 这一轮照不照意思找记忆（施工 R-5 下）：回合开始时照这一轮的 `models.embedding` 换。
+    pub(crate) fn search_by_meaning(&mut self, on: bool) {
+        self.meaning = on;
     }
 
     /// 记忆的端口和会话现在的时区（施工 R-4 上）：回合开始交常驻的摘要照它。没接记忆的没有。
@@ -190,6 +204,7 @@ impl Tools {
             )
         });
         Tools {
+            session: kit.session,
             catalog: kit.catalog,
             texts: kit.texts,
             home: kit.home,
@@ -204,6 +219,7 @@ impl Tools {
             ledger: kit.ledger,
             asks: kit.asks,
             memory: kit.memory,
+            meaning: true,
             running: BTreeMap::new(),
             backs,
         }
@@ -254,6 +270,7 @@ impl Tools {
             inherit,
             usage,
             turn,
+            asked,
         } = dispatch;
         let stop = Stop::default();
         // 派子代理的端口照这一轮的目录、这一刻的权限抄（施工 7-5）：沙盒下面照样要用它们。
@@ -292,10 +309,15 @@ impl Tools {
             memory: self
                 .memory
                 .as_ref()
-                .map(|memory| memory.port(turn, call_id, at)),
+                .map(|memory| memory.port(turn, call_id, at, self.meaning)),
+            ids: Some(CallIds {
+                session: self.session.clone(),
+                call: call_id,
+                asked,
+            }),
         };
         let call_text = call_id.to_string();
-        let Some(tool) = self.catalog.get(&name).cloned() else {
+        let Some(tool) = self.catalog.get(&name) else {
             tracing::warn!(target: TARGET, call = call_text.as_str(), tool = name.as_str(), "unavailable");
             let worded = self.texts.unavailable(&name);
             return Some(Input::ToolDone {

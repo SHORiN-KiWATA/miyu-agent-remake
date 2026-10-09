@@ -72,7 +72,10 @@ fn decision_of(event: &Event) -> &ApprovalDecided {
 fn rejected_with(reason: Reason, n: u64) -> Vec<Action> {
     vec![Action::Reply {
         id: id(n),
-        outcome: Outcome::Rejected { reason },
+        outcome: Outcome::Rejected {
+            reason,
+            about: Vec::new(),
+        },
     }]
 }
 
@@ -300,7 +303,10 @@ fn answers_that_do_not_fit_are_rejected() {
             session.handle(input),
             vec![Action::Reply {
                 id: n,
-                outcome: Outcome::Rejected { reason },
+                outcome: Outcome::Rejected {
+                    reason,
+                    about: Vec::new()
+                },
             }]
         );
     }

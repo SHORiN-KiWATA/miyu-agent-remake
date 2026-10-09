@@ -300,7 +300,12 @@ pub async fn served_up(root: &DataRoot, listen: u16, web: u16) -> Result<Served,
 /// 系统配置：两个端口照写，令牌是 `onebot.token` 引用密钥 `onebot`（密钥文件由 `Home::spawning` 写），说中文。主人对应表由
 /// `Home` 写在前面。
 pub fn ports_config(listen: u16, web: u16) -> String {
+    ports_config_with(listen, web, "")
+}
+
+/// 同 [`ports_config`]，`[onebot]` 里接着写 `onebot`（一行一项，例如自己人，施工 O-23）。
+pub fn ports_config_with(listen: u16, web: u16, onebot: &str) -> String {
     format!(
-        "\n[onebot]\nlisten = {listen}\nweb = {web}\ntoken = {{ secret = \"onebot\" }}\n\n[ui]\nlanguage = \"zh\"\n"
+        "\n[onebot]\nlisten = {listen}\nweb = {web}\ntoken = {{ secret = \"onebot\" }}\n{onebot}\n[ui]\nlanguage = \"zh\"\n"
     )
 }

@@ -13,6 +13,8 @@ miyu-kernel = { path = "../miyu-kernel" }
 # 记忆事件的 `body` 照自己的格写成 JSON、读回来（施工 R-3 上）。
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+# 本机 embedding 模型的清单是 TOML（施工 R-5 中，`embedding.rs`），照 serde 的格读：纯逻辑的白名单里的那一个，多开 `serde`。
+toml_edit = { version = "0.25", default-features = false, features = ["parse", "serde"] }
 
 
 [lints]

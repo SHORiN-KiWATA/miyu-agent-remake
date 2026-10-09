@@ -31,8 +31,16 @@ use crate::TARGET;
 use crate::job_ids::JobIds;
 use crate::spawn::{Child, Lineage, SessionPort};
 
-/// 本机这个场所（`protocol.md` 的 `session.create` 第 2 条）：只有它的会话能派子代理。
-const LOCAL: &str = "local";
+/// 本机这个场所（`protocol.md` 的 `session.create` 第 2 条）：只有它的会话能派子代理；回合索引也只收它的（施工 R-2 再补，
+/// `memory.rs`）。
+pub(crate) const LOCAL: &str = "local";
+
+/// 会话在哪：场所，和是不是群会话（施工 O-2 上：提供者的工具照它挑给私聊还是给群）。
+#[derive(Clone, Copy)]
+pub(crate) struct Site<'a> {
+    pub(crate) venue: &'a VenueId,
+    pub(crate) group: bool,
+}
 
 /// 一个会话派子代理要的：造子会话的端口，和子会话照抄的、会话里不变的几样。
 pub(crate) struct Agents {
@@ -112,13 +120,14 @@ impl Agents {
     /// 当基础系统。
     pub(crate) fn face(
         tools: &Catalog,
-        venue: &VenueId,
+        site: Site<'_>,
         lineage: Option<&Lineage>,
         offers: &Offers,
         attended: bool,
         memory: MemoryScope,
         preset: Option<&PresetFile>,
     ) -> Vec<ToolEntry> {
+        let venue = site.venue;
         let spawns = Agents::allowed(venue, lineage);
         let local = venue.as_str() == LOCAL;
         let asks = Agents::asks(venue, lineage.map(|lineage| &lineage.parent), attended);
@@ -136,6 +145,21 @@ impl Agents {
             .filter(|spec| {
                 (local && memory != MemoryScope::Off)
                     || ![REMEMBER, FORGET, MEMORY_SEARCH].contains(&spec.name.as_str())
+            })
+            // 提供者的工具照它给哪种会话挑（施工 O-2 上）。
+            .filter(|spec| {
+                tools
+                    .get(&spec.name)
+                    .and_then(|tool| tool.venues())
+                    .is_none_or(|venues| {
+                        if local {
+                            venues.local
+                        } else if site.group {
+                            venues.group
+                        } else {
+                            venues.private
+                        }
+                    })
             })
             .filter(|spec| {
                 preset.is_none_or(|preset| {
@@ -296,6 +320,7 @@ impl AgentPort for Spawner {
                     text: prompt.to_string(),
                 })],
                 urgent: false,
+                venue: None,
             };
             let sent = agents
                 .port
@@ -311,7 +336,7 @@ impl AgentPort for Spawner {
                     tracing::info!(target: TARGET, job = job_text.as_str(), child = session.as_str(), "subagent started");
                     return Ok(Spawned { job, session });
                 }
-                Ok(Outcome::Rejected { reason }) => {
+                Ok(Outcome::Rejected { reason, .. }) => {
                     format!("the task was refused: {}", reason.code())
                 }
                 Err(error) => error,
@@ -348,3 +373,6 @@ pub fn job_in(parent: &SessionId, command: &CommandId) -> Option<JobId> {
         .strip_prefix('/')?;
     JobId::parse(job).ok()
 }
+
+#[cfg(test)]
+mod tests;

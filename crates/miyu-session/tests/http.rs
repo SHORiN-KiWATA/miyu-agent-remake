@@ -208,6 +208,7 @@ async fn a_missing_blob_fails_without_sending() {
         Command::Send {
             blocks,
             urgent: false,
+            venue: None,
         },
     )
     .await
@@ -289,6 +290,7 @@ async fn an_image_goes_out_as_its_bytes() {
         Command::Send {
             blocks,
             urgent: false,
+            venue: None,
         },
     )
     .await

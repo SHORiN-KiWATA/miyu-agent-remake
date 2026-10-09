@@ -1,11 +1,13 @@
 //! `miyu-onebot` 在标准错误上说给人听的字（`onebot.md` 第一条「样子」「出错」「给人看的字」）：字放在
 //! `resources/software/onebot/human/{zh,en,ja}.json`，照 [`Human::load`] 读（`store/resources.md`「怎么走」第 3 条），说法的
 //! 编号是 `software/onebot/<哪一句>`。这里只管挑哪一句、换进什么字段。`start`、`stop`、`restart`、`status`、`logs` 说的
-//! （施工 O-18）也在这里。
+//! （施工 O-18）、`venue show` 说的和场所规则的问题说成话（施工 O-21）、限流满了发进群里的那一句（施工 O-23）也在这里。
 //!
 //! 说话的语言：握手以前照系统的语言（[`system_language`]；施工 O-20 起桥不读配置，不看 `ui.language`），握手以后照核心回的
 //! `language`。日文没有专门写的，`ja.json` 照英文写，和核心拒绝时的话一样（`protocol.md`「握手」`language`）。
 
+use miyu_chat::{Entry, Problem, Source};
+use miyu_config::problem::Code;
 use miyu_kernel::event::Said;
 use miyu_store::human::{Human, HumanError};
 use miyu_store::resources::ResourceRoot;
@@ -14,6 +16,7 @@ use crate::control::{Halt, Report};
 use crate::logs::Heading;
 use crate::open::Opening;
 use crate::serve::{Failure, Notice};
+use crate::venue::Shown;
 
 /// 这个包的说法编号的前缀：软件包的说法照它在资源目录里的位置起（`store/resources.md`「怎么走」第 3 条第 4 款）。
 const PREFIX: &str = "software/onebot/";
@@ -81,6 +84,11 @@ impl Texts {
         self.say("no-log", &[("reason", reason.to_string())])
     }
 
+    /// 限流满了、别人冲她来时发进群里的那一句（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 7 条）：说话的是桥，不是她。
+    pub fn rate_limited(&self) -> String {
+        self.say("group/rate-limited", &[])
+    }
+
     /// 起来了（令牌没设的说怎么设）、连上了、断开了。号没认出来的不说号。
     pub fn notice(&self, notice: &Notice) -> String {
         match notice {
@@ -113,7 +121,102 @@ impl Texts {
             }
             Failure::Crashed(reason) => self.say("failure/crashed", &[("reason", reason.clone())]),
             Failure::Start(reason) => self.say("failure/start", &[("reason", reason.clone())]),
+            Failure::Factory(problems) => {
+                let mut said = self.say("failure/factory", &[]);
+                for problem in problems {
+                    said.push_str(&format!("\n  {}", self.problem(problem)));
+                }
+                said
+            }
         }
+    }
+
+    /// `venue show` 说的几句（施工 O-21）。
+    pub fn shown(&self, shown: &Shown) -> String {
+        match shown {
+            Shown::None => self.say("venue/none", &[]),
+            Shown::Defaults => self.say("venue/defaults", &[]),
+            Shown::Problems => self.say("venue/problems", &[]),
+            Shown::BadVenue(venue) => self.say("venue/bad-venue", &[("venue", venue.clone())]),
+        }
+    }
+
+    /// 规则设到的一项（施工 O-21）：键 `key`、值照 TOML 写、来处。
+    pub fn entry(&self, key: &str, entry: &Entry) -> String {
+        let origin = &entry.origin;
+        let from = self.place(
+            origin.source,
+            &origin.file,
+            Some(origin.rule),
+            Some(origin.line),
+        );
+        self.say(
+            "venue/entry",
+            &[
+                ("key", key.to_string()),
+                ("value", entry.value.toml()),
+                ("from", from),
+            ],
+        )
+    }
+
+    /// 一条场所规则的问题说成话（施工 O-21，「施工时定的」第 56 条）：在哪，加错在哪（一种原因码一句；出厂参数缺了的是
+    /// `wrong_type` 没有原文，另说一句）。
+    pub fn problem(&self, problem: &Problem) -> String {
+        let at = self.place(
+            problem.source,
+            &problem.file,
+            problem.rule,
+            problem.at.map(|at| at.line),
+        );
+        let key = ("key", problem.key.clone().unwrap_or_default());
+        let got = ("got", problem.got.clone().unwrap_or_default());
+        let why = ("why", problem.why.clone().unwrap_or_default());
+        let what = match (problem.code, &problem.suggest) {
+            (Code::Unreadable, _) => self.say("problem/unreadable", &[why]),
+            (Code::TooBig, _) => self.say("problem/too-big", &[]),
+            (Code::NotUtf8, _) => self.say("problem/not-utf8", &[]),
+            (Code::Syntax, _) => self.say("problem/syntax", &[why]),
+            (Code::UnknownKey, Some(suggest)) => {
+                self.say("problem/unknown-key", &[key, ("suggest", suggest.clone())])
+            }
+            (Code::UnknownKey, None) => self.say("problem/unknown-key-plain", &[key]),
+            (Code::WrongType, _) if problem.got.is_none() => self.say("problem/missing", &[key]),
+            (Code::WrongType, _) => self.say("problem/wrong-type", &[key, got]),
+            (Code::NotAnOption, _) => self.say("problem/not-an-option", &[key, got]),
+            (Code::OutOfRange, _) => self.say("problem/out-of-range", &[key, got]),
+            (Code::BadFormat, _) => self.say("problem/bad-format", &[key, got]),
+            // 群聊内核、读文件报不出别的原因码：照原样印。
+            (code, _) => self.say("problem/other", &[key, ("code", code.as_str().to_string())]),
+        };
+        self.say("venue/problem", &[("at", at), ("what", what)])
+    }
+
+    /// 在哪：出厂或系统、文件名，有第几条规则、第几行的带上（第几条规则只和第几行一起说）。
+    fn place(
+        &self,
+        source: Source,
+        file: &str,
+        rule: Option<usize>,
+        line: Option<usize>,
+    ) -> String {
+        let source = match source {
+            Source::Factory => self.say("venue/factory", &[]),
+            Source::System => self.say("venue/system", &[]),
+        };
+        let mut fields = vec![("source", source), ("file", file.to_string())];
+        let key = match (rule, line) {
+            (Some(rule), Some(line)) => {
+                fields.extend([("rule", rule.to_string()), ("line", line.to_string())]);
+                "venue/rule"
+            }
+            (None, Some(line)) => {
+                fields.push(("line", line.to_string()));
+                "venue/line"
+            }
+            (_, None) => "venue/file",
+        };
+        self.say(key, &fields)
     }
 
     /// `miyu-onebot web` 说的（施工 O-16）。

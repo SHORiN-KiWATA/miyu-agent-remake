@@ -53,7 +53,7 @@ pub(crate) async fn reply(core: &Core, session: &SessionId, cwd: &str, events: V
         log: core.root.session_dir(&owner, session),
         blobs: core.root.blobs(&owner),
         executing: core
-            .tools
+            .tools()
             .specs()
             .filter(|spec| spec.access == Access::Execute)
             .map(|spec| spec.name.clone())

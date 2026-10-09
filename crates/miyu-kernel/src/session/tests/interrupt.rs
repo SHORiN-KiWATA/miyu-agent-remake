@@ -46,7 +46,8 @@ fn interrupting_an_idle_session_is_refused() {
         [Action::Reply {
             id: id(1),
             outcome: Outcome::Rejected {
-                reason: Reason::NotRunning
+                reason: Reason::NotRunning,
+                about: Vec::new(),
             },
         }]
     );

@@ -65,6 +65,7 @@ fn say(text: &str) -> Command {
             text: text.to_string(),
         })],
         urgent: false,
+        venue: None,
     }
 }
 
@@ -130,7 +131,7 @@ async fn a_write_that_fails_stops_the_session() {
     // 造会话那一条、第一句话写得进，第二句写不进。
     let run = snapshot.run_texts().expect("出厂的快照造得出两句");
     let guard = crate::guard::Guard::new(
-        miyu_tool::Catalog::default(),
+        miyu_tool::Shelf::default(),
         std::path::PathBuf::new(),
         None,
         snapshot.guard_texts().expect("出厂的快照造得出三句"),
@@ -141,7 +142,9 @@ async fn a_write_that_fails_stops_the_session() {
         Box::new(Failing { left: 2 }),
         Arc::new(Holding(model)),
         crate::tools::ToolKit {
-            catalog: miyu_tool::Catalog::default(),
+            session: miyu_kernel::id::SessionId::parse("01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91")
+                .expect("合写法"),
+            catalog: miyu_tool::Shelf::default(),
             texts: run,
             home: None,
             data_root: std::path::PathBuf::new(),

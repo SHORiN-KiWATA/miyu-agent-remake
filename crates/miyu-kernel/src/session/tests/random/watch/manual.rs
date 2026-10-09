@@ -120,7 +120,10 @@ impl Watch {
                     actions,
                     [Action::Reply {
                         id: command.clone(),
-                        outcome: Outcome::Rejected { reason },
+                        outcome: Outcome::Rejected {
+                            reason,
+                            about: Vec::new()
+                        },
                     }],
                     "种子 {seed}：手动压缩该被拒"
                 );

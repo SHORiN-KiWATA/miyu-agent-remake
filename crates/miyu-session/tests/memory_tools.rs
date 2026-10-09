@@ -34,6 +34,7 @@ async fn chat(home: &Home, handle: &Handle, turns: usize, words: &str) -> Vec<Ev
             text: words.to_string(),
         })],
         urgent: false,
+        venue: None,
     };
     within(
         "回应",

@@ -128,7 +128,8 @@ impl Upstream {
             let unknown = matches!(
                 handed,
                 Ok(Outcome::Rejected {
-                    reason: Reason::UnknownJob
+                    reason: Reason::UnknownJob,
+                    ..
                 })
             );
             if !unknown || waited >= RETRY_TOTAL_MS {
@@ -143,7 +144,7 @@ impl Upstream {
             Ok(Outcome::Accepted { .. } | Outcome::Recapped { .. }) => {
                 tracing::info!(target: TARGET, job = job.as_str(), parent, "reported");
             }
-            Ok(Outcome::Rejected { reason }) => {
+            Ok(Outcome::Rejected { reason, .. }) => {
                 tracing::warn!(target: TARGET, job = job.as_str(), parent, reason = reason.code(), "report refused");
             }
             Err(error) => {

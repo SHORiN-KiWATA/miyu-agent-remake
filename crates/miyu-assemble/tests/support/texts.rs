@@ -79,6 +79,7 @@ pub(super) fn texts() -> Texts {
         recap: Some(recap()),
         title: Some(title()),
         vision: Some(vision()),
+        group: None,
     }
 }
 

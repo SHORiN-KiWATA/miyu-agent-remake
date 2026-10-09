@@ -59,7 +59,8 @@ impl Watch {
                         actions,
                         [Action::Reply {
                             outcome: Outcome::Rejected {
-                                reason: Reason::Restoring
+                                reason: Reason::Restoring,
+                                ..
                             },
                             ..
                         }]

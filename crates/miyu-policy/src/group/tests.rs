@@ -1,0 +1,107 @@
+//! 群会话（施工 O-13 中）：格式说明接在人设后面、记下 `group`，字节读得回来；没有的不写这一格；交给组装器的时区和空的那一句；
+//! 时区坏了的快照造不出策略。群聊近况（施工 O-13 下）：交给组装器的块头、缺口提示的模板、预算；O-13（中）造的没有、不写；
+//! 缺口提示写错了的造不出策略。
+
+use miyu_kernel::template::Template;
+use miyu_kernel::time::UtcOffset;
+
+use super::*;
+use crate::test_support::engineer;
+
+const NOTE: &str = "<group-chat-format>\nOne record per line.\n</group-chat-format>\n";
+
+fn tokyo() -> GroupChat {
+    GroupChat {
+        offset: 540,
+        no_text: "[no text content]\n".to_string(),
+        recent: Some(GroupRecent {
+            open: "[Prior group chat records]\n".to_string(),
+            omitted: "({count} left out)\n".to_string(),
+            budget: RECENT_BUDGET,
+        }),
+    }
+}
+
+#[test]
+fn the_note_follows_the_persona_and_the_group_is_kept() {
+    let plain = engineer();
+    let group = engineer().with_group(NOTE, tokyo());
+    assert_eq!(
+        group.system,
+        format!("{}\n\n{}", plain.system, NOTE.trim_end())
+    );
+    assert_eq!(group.group, Some(tokyo()));
+    assert_eq!(Snapshot::from_bytes(&group.to_bytes()).unwrap(), group);
+}
+
+#[test]
+fn a_snapshot_without_a_group_writes_no_group() {
+    let bytes = String::from_utf8(engineer().to_bytes()).unwrap();
+    assert!(!bytes.contains("\"group\":"), "{bytes}");
+}
+
+#[test]
+fn the_assembler_gets_the_pinned_offset_and_the_bare_line() {
+    assert_eq!(
+        tokyo().texts().unwrap(),
+        miyu_assemble::GroupChat {
+            offset: UtcOffset::from_minutes(540).unwrap(),
+            no_text: "[no text content]".to_string(),
+            recent: Some(miyu_assemble::GroupRecent {
+                open: "[Prior group chat records]\n".to_string(),
+                omitted: Template::parse("({count} left out)\n").unwrap(),
+                budget: 80_000,
+            }),
+        }
+    );
+}
+
+#[test]
+fn a_group_made_before_the_recent_block_has_none_and_writes_none() {
+    let older = GroupChat {
+        recent: None,
+        ..tokyo()
+    };
+    assert_eq!(older.texts().unwrap().recent, None);
+    let bytes = String::from_utf8(engineer().with_group(NOTE, older).to_bytes()).unwrap();
+    assert!(!bytes.contains("\"recent\""), "{bytes}");
+}
+
+#[test]
+fn a_broken_omitted_line_builds_no_policy() {
+    let mut broken = tokyo();
+    if let Some(recent) = broken.recent.as_mut() {
+        recent.omitted = "({left} left out)\n".to_string();
+    }
+    let Err(error) = engineer().with_group(NOTE, broken).policy() else {
+        panic!("缺口提示写错了的造不出策略");
+    };
+    assert!(
+        matches!(
+            error,
+            BuildError::Texts {
+                which: "group chat recent",
+                ..
+            }
+        ),
+        "{error}"
+    );
+}
+
+#[test]
+fn a_time_zone_out_of_range_builds_no_policy() {
+    let broken = GroupChat {
+        offset: 15 * 60,
+        ..tokyo()
+    };
+    let snapshot = engineer().with_group(NOTE, broken);
+    let Err(error) = snapshot.policy() else {
+        panic!("时区坏了的快照造不出策略");
+    };
+    assert_eq!(error, BuildError::Offset(900));
+    assert_eq!(
+        error.to_string(),
+        "group chat time zone out of range: 900 minutes"
+    );
+    assert!(engineer().with_group(NOTE, tokyo()).policy().is_ok());
+}

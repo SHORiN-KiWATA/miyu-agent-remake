@@ -19,7 +19,7 @@ use miyu_tool::{Log, Seen};
 use crate::TARGET;
 use crate::actor::persona::Refresh;
 use crate::actor::{self, Actor, JobKit};
-use crate::agents::{Agents, Offers, job_in};
+use crate::agents::{Agents, Offers, Site, job_in};
 use crate::blocking::blocking;
 use crate::clock::Clock;
 use crate::config::Turning;
@@ -84,6 +84,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         memory,
         preset,
         presets,
+        group,
     } = setup;
     let span = actor::span(&id);
     let config = Turning::start(configs, environment.cwd.clone()).await;
@@ -101,9 +102,14 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     // 工具面照这时的配置拼：`subagent` 能选哪几个池（施工 8-8 补）、哪几个人格（施工 P-2 补），以后照快照、载入不重拼。
     // 照预设筛（施工 P-2 中）。
     let offers = Offers::of(&config.current().resolved.values(), personas.ids());
+    // 照架子上现在的那一代拼；记下第几代，回合开头看换没换（施工 O-2 中）。
+    let edition = tools.edition();
     let face = Agents::face(
-        tools,
-        &venue,
+        &edition.catalog,
+        Site {
+            venue: &venue,
+            group,
+        },
         lineage.as_ref(),
         &offers,
         attended,
@@ -111,7 +117,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         preset.as_ref().map(|chosen| &chosen.file),
     );
     let pin = preset.as_ref().map(Chosen::pin);
-    let tooled = tooled(tools);
+    let tooled = tooled(&edition.catalog);
     let preset = preset.map(|chosen| chosen.id);
     let asks = Agents::asks(
         &venue,
@@ -129,7 +135,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
     let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
-    let (owner_of, id_of) = (owner.clone(), id.clone());
+    let (owner_of, id_of, venue_of) = (owner.clone(), id.clone(), venue.clone());
     let (snapshot, policy, texts, run, guard, log, (turns, calls)) = blocking(move || {
         let parts = Parts {
             name: name.clone(),
@@ -140,6 +146,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             child,
             preset: pin,
             tooled,
+            group: group.then(|| offset.minutes()),
         };
         let snapshot = build(&resources, parts).map_err(CreateError::Persona)?;
         let policy = snapshot.policy().map_err(CreateError::Policy)?;
@@ -155,6 +162,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             &owner_of,
             name.as_deref().unwrap_or_default(),
             &id_of,
+            &venue_of,
             &[],
         );
         Ok((snapshot, policy, texts, run, guard, log, turns))
@@ -254,6 +262,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         )),
         model,
         ToolKit {
+            session: id.clone(),
             catalog: tools.clone(),
             texts: run,
             home: home.map(Path::to_path_buf),
@@ -288,6 +297,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         child,
         presets,
         tools: tools.clone(),
+        seen: Some(edition.clone()),
         venue: venue.clone(),
         lineage: lineage.clone(),
     });

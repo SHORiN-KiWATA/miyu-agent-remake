@@ -1,6 +1,6 @@
 //! 补齐旧会话（施工 R-2 下，`docs/blueprint/memory.md`「怎么走」第一条第 9 款）：真会话、真回合库，数据根在临时目录。以前的
 //! 版本造的会话回合库里一条都没有，一份新的登记第一次开人格那一间（新建），后台把这个账号跟着人格的旧会话补回去；子会话、范围 `off` 的、只在会话里
-//! 的不补进来；读不了的会话跳过，别的照补。
+//! 的、场所会话（施工 R-2 再补）不补进来；读不了的会话跳过，别的照补。
 
 use std::time::{Duration, Instant};
 
@@ -66,6 +66,12 @@ async fn a_new_persona_index_is_filled_from_the_old_sessions() {
         ..Lines::default()
     };
     said(&home, own, "我在学 Rust").await;
+    // 场所会话（群里）的先不进回合库（施工 R-2 再补）：回合库的条目还没有听众。
+    let venue = Lines {
+        venue: miyu_kernel::id::VenueId::parse("qq:group:5550").expect("合写法"),
+        ..Lines::default()
+    };
+    said(&home, venue, "群里说的团子").await;
     // 一个读不了的会话：目录在、日志是坏的。跳过它，别的照补（最后造的：会话照新的在前列，它排在最前，读到它不该停下）。
     let broken = home
         .root
@@ -97,7 +103,7 @@ async fn a_new_persona_index_is_filled_from_the_old_sessions() {
         assert!(Instant::now() < deadline, "等不到补齐：{cats:?} {hikes:?}");
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
-    for words in ["樱花", "显卡", "Rust"] {
+    for words in ["樱花", "显卡", "Rust", "团子"] {
         assert!(
             found(&memory, &persona(), words).is_empty(),
             "{words} 不该补进人格那一间"

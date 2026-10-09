@@ -86,7 +86,7 @@ pub struct Ctx {
     pub muted: bool,
     /// 最近开过的回合的开始时刻，不算主人、自己人开的：外面交进来时就去掉了。先后不要紧；只看窗口里的，交多了不要紧。
     pub turns: Vec<Timestamp>,
-    /// 限流提示过的时刻（`ext.venues.queued` 里种类是提示、原因是限流的）。先后不要紧。
+    /// 限流提示过的时刻（`ext.onebot.venues.queued` 里种类是提示、原因是限流的）。先后不要紧。
     pub notices: Vec<Timestamp>,
     /// 违规关键词的参数。
     pub moderation: Moderation,

@@ -75,7 +75,8 @@
 |---|---|
 | `compose(人格, Sources, attended)` | 拼一份快照。`Sources` 是读好的原文：`core`（`CoreTexts`）、`persona`（`PersonaTexts { persona, examples, reminders }`：人设、示范对话、角色扮演提示的原文）、`reminder`（角色扮演提示的包装 `Wrap { open, close }`，施工 P-1 补） |
 | `Snapshot::with_tools(工具)` | 带上工具面 |
-| `Snapshot::with_venue(说明)` | 带上场所说明：system 的第二块，接在人设后面（施工 7-5）。现在只有子会话有 |
+| `Snapshot::with_venue(说明)` | 带上场所说明：system 的第二块，接在人设后面（施工 7-5）。子会话有 |
+| `Snapshot::with_group(说明, GroupChat)` | 带上群会话（施工 O-13 中）：格式说明照 `with_venue` 接在人设后面（`core/venues/group.txt`），快照记下 `group` |
 | `Snapshot::with_core_lines(&CoreLines)` | 带上核心的几行（施工 2-7 补）：system 的第三块，所以在 `with_tools`、`with_venue` 以后调。`CoreLines` 有三格：`permission`（`permission-rule.txt`）、`local_paths`（`local-paths-rule.txt`）、`style_lock`（`style-lock.txt`，施工 P-1 补，交给 `with_style_lock`）。一行一句，先权限、后路径；工具面是空的不带权限那一句 |
 | `Snapshot::swappable(新的)` | 能不能换成 `新的`（施工 P-1 再补）：除了 `system`、`demos`、`tools`、`reminder`、`persona_digest`、`preset`（后两格施工 P-2 下：换预设时工具面重新筛过，留着的那几件是原样），别的格都一样 |
 | `Snapshot::with_preset(预设, 那一行)` | 带上预设（施工 P-2 中）：记进快照的 `preset`（编号、装了没开的软件）；没开角色扮演的去掉 `reminder`；装了没开的软件（角色扮演除外）写成一行接在 system 后面（`26-提示词.md` 第四节第 5 块，`core/preset-off.txt`）。在 `with_core_lines` 以后、`with_style_lock` 以前调；没有预设、都开着的 system 一字不变 |
@@ -108,6 +109,7 @@
 3. `step_limit` 是 `null`，`resumes` 是 3，`attended` 照交进来的，`compaction` 是出厂的四个数，`recap` 是出厂的两个数（施工 3-8 四补），`title` 是出厂的三个数（施工 3-8 五补），`peers` 是出厂的五个数（施工 C-2、C-6），`memory` 不写（造会话时 `with_memory` 写上，施工 R-3 下）。
 4. `reminder`（施工 P-1 补）：人格的角色扮演提示去掉末尾空白，是空的不写；不空的拼成一块：包装的开头、原文、换行、包装的收尾。原文不转义：是人格的作者写的。`policy()` 把它交给内核的事实模板（`FactTemplates::with_reminder`），回合开始时隔几轮注入（`kernel/request.md`「事实」）。造会话时最后带上风格锁（`with_style_lock`）：有 `reminder` 的 system 末尾空一行接上 `core/style-lock.txt`。
 6. `preset`（施工 P-2 中）：会话的预设，`{"id", "off", "digest"}`，`off` 是造会话时装了、这个预设没开的软件，照编号排，都开着的不写；`digest` 是叠好的预设文件的指纹（`PresetFile::digest`，施工 P-2 下），回合开始时执行器照它认出预设改了，P-2（中）造的没有、不换。工具面、记忆的范围造会话时已经照预设筛过；换人格重拼时照它（`with_preset`）去掉角色扮演提示、写那一行，所以人格的指纹照旧算人格原来的字，不会每轮都当成改过。以前造的快照没有：全开。
+7. `group`（施工 O-13 中）：群会话钉下的 `{"offset", "no_text", "recent"}`（`recent` 施工 O-13 下：群聊近况的块头、缺口提示的原文和预算 `budget`，出厂 `RECENT_BUDGET` 80000；O-13 中造的没有、不写，不出近况；缺口提示的字段只能是 `count`，不合的造不出策略）：造会话时这台机器的时区（比 UTC 早多少分钟），正文、带的东西都没有的那一条写什么（`core/venues/no-text.txt` 的原文）。`policy()` 交给组装器（时区换成内核的类型、空的那一句去掉行尾空白），群里的人说的照它渲染成一行一条；时区超出 ±14:00 的造不出策略（`BuildError::Offset`）。私聊、本机的会话没有、不写，字节和以前一样。换人格、换预设重拼时照旧快照的时区。
 5. `persona_digest`（施工 P-1 再补）：人格三份字（人设、示范对话、角色扮演提示，叠好的）的 SHA-256（`PersonaTexts::digest`，三样写成一个 JSON 数组再算）。回合开始时执行器照它认出人格的文件改了（`session/actor.md`「换快照」）。以前造的快照没有，读成没有、不写：那些会话不换。
 
 **字节和哈希**

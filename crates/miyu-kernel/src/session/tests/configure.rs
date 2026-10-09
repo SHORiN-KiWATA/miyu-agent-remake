@@ -146,7 +146,8 @@ fn a_change_is_refused_while_files_are_being_restored() {
             replies(&actions)[..],
             [Action::Reply {
                 outcome: Outcome::Rejected {
-                    reason: Reason::Restoring
+                    reason: Reason::Restoring,
+                    ..
                 },
                 ..
             }]

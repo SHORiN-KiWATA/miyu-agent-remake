@@ -2,17 +2,20 @@
 //! 核心照出厂的清单拉起硬链接在测试程序旁边的 `miyu-onebot`，`start`、`stop`、`restart`、`status` 是真的程序。`start` 以后
 //! NapCat 连得进来、主人的私聊照旧来回，`status` 说在跑、NapCat 连着；`stop` 以后桥自己退出、端口关了；桥被杀掉，核心拉起新的
 //! 一个，NapCat 重连得上；端口被占，核心停下，`status` 说是配置错、带出「端口被占」那一句；关着的不能 `restart`。核心改了桥的
-//! 配置（施工 O-20）：令牌、两个端口不重启当场换，令牌删了一律 401。不靠墙钟睡，等状态。挑的空端口在桥起来以前被别人占了的，
-//! 换一组从头再来（`support/ports.rs`）。
+//! 配置（施工 O-20）：令牌、两个端口不重启当场换，令牌删了一律 401。陌生人的私聊（「施工时定的」第 49 条，核心 O-4 下合了以后
+//! 补的）：核心把它归系统账号 `onebot`、造了会话，桥认出属主是自己，照旧不接；主人的照常来回。不靠墙钟睡，等状态。挑的空端口
+//! 在桥起来以前被别人占了的，换一组从头再来（`support/ports.rs`）。
 
 use std::time::Duration;
 
 use serde_json::{Value, json};
 
+use miyu_kernel::id::AccountId;
 use miyu_onebot::control::{Halt, Report};
 use miyu_onebot::status_file;
 use miyu_onebot::texts::Texts;
 use miyu_session::testkit::{Play, Script};
+use miyu_store::log::read_events;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
@@ -326,6 +329,52 @@ async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
     core_call(&home.root, "config.set", unset).await;
     until_refused(new_listen, OTHER).await;
     open.close().await;
+    ok(&home.root, &["stop"]).await;
+    home.stop_extensions().await;
+}
+
+#[tokio::test]
+async fn a_strangers_private_chat_is_still_not_taken_when_the_core_runs_the_bridge() {
+    let script = Script::new([Play::Says("在。")]);
+    let (home, listen) = on_free_ports(async |listen, web| {
+        let home = home(&script, listen, web);
+        ok(&home.root, &["start"]).await;
+        bridge_up(&home.root, listen, web, None).await?;
+        Ok((home, listen))
+    })
+    .await;
+    let mut napcat = owner_napcat(listen).await;
+    napcat.private(STRANGER, 1, json!("你好")).await;
+    napcat.private(STRANGER, 2, json!("还在吗")).await;
+    // 一条条照先后办：主人这一句的回话先到，前面陌生人的两句就是办完了、没回（回了的话 `reply` 先收到发给陌生人的，红）。
+    napcat.owner_says(3, "在吗").await;
+    assert_eq!(napcat.reply().await, "在。", "主人的私聊照常来回");
+    assert_eq!(home.said_texts(), ["在吗"]);
+    // 核心照 O-4 下把陌生人的私聊归系统账号、造了会话（回应的属主是桥自己，走的正是第 49 条那一处，不是 `no_system_account`）：
+    // 两条找的是同一个，里面没有人说的话。
+    let system = AccountId::parse("onebot").expect("合写法");
+    let theirs = home.root.sessions(&system).expect("列得出");
+    assert_eq!(theirs.len(), 1, "{theirs:?}");
+    let events: Vec<Value> = read_events(&home.root.session_dir(&system, &theirs[0]))
+        .expect("读得了")
+        .iter()
+        .map(|event| serde_json::to_value(event).expect("写得成 JSON"))
+        .collect();
+    assert_eq!(events[0]["body"]["venue"], "qq:private:20002", "{events:?}");
+    assert!(
+        events.iter().all(|event| event["kind"] != "message.user"),
+        "陌生人的话不进会话：{events:?}"
+    );
+    // 运行日志写文件不攒着：陌生人那两条办完时已经在文件里了。
+    let log = std::fs::read_to_string(home.root.state().join("logs").join("onebot.log"))
+        .expect("桥写了运行日志");
+    let refused: Vec<&str> = log
+        .lines()
+        .filter(|line| line.contains("not the owner, not taken"))
+        .collect();
+    assert_eq!(refused.len(), 1, "同一个人只记一行：{log}");
+    assert!(refused[0].contains("venue=qq:private:20002"), "{log}");
+    napcat.close().await;
     ok(&home.root, &["stop"]).await;
     home.stop_extensions().await;
 }

@@ -11,7 +11,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::{Body, CompactTrigger, ContextCompacted, ToolStatus};
+use miyu_kernel::event::{Body, CompactTrigger, ContextCompacted, Event, MessageUser, ToolStatus};
 use miyu_kernel::facts::REMINDER;
 use miyu_kernel::history::History;
 use miyu_kernel::id::{Seq, TurnId};
@@ -19,11 +19,16 @@ use miyu_kernel::origin::By;
 use miyu_kernel::request::Message;
 
 use crate::texts::Texts;
-use crate::{harness, jobs, peers};
+use crate::{group, harness, jobs, peers};
+
+mod opening;
+
+use opening::{Opened, opening};
 
 /// 渲染有效历史：检查点和历史，照先后排好的消息。稳定区不在这里。
 pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
     let mut transcript = Transcript::default();
+    let opened = Opened::of(history);
     // 清空的检查点什么都不出（施工 6-8 补）：她看到的上下文从这里起是空的。
     if let Some(checkpoint) = history.checkpoint()
         && let Body::ContextCompacted(compacted) = &checkpoint.body
@@ -37,8 +42,15 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
     }
     for event in history.ordered() {
         match &event.body {
+            // 旁听的场所消息这一步先不进上下文，O-13 下渲染成群聊近况（施工 O-13 上）。
+            Body::MessageUser(message) if message.venue.as_ref().is_some_and(|venue| venue.ambient) => {}
             Body::MessageUser(message) => {
-                let blocks = said(history, &event.by, known(&message.blocks), texts);
+                let blocks = spoken(history, event, message, known(&message.blocks), texts);
+                transcript.add(event.seq, Place::Here, blocks);
+            }
+            // 并进正在跑的一轮的那几条（施工 O-14 下）：在它自己的位置；接着开的那一轮由它触发，和开始时的事实一组。
+            Body::TurnJoined(joined) => {
+                let blocks = opening::joined(history, &joined.triggers, texts);
                 transcript.add(event.seq, Place::Here, blocks);
             }
             Body::ContextInjected(fact) => {
@@ -51,7 +63,7 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
                 transcript.add(event.seq, place, vec![text_block(fact.text.clone())]);
             }
             Body::TurnStarted(started) => match started.trigger {
-                Some(trigger) => transcript.start(event.turn, trigger),
+                Some(_) => opening(&mut transcript, history, event, started, &opened, texts),
                 // 手动压缩单开的那一轮（施工 6-8）：不是哪一句引起的，她也没看到过它。
                 None => transcript.silence(event.turn),
             },
@@ -128,16 +140,36 @@ pub(crate) fn render(history: &History, texts: &Texts) -> Vec<Message> {
             | Body::QuestionAnswered(_)
             | Body::ContextCompacted(_)
             | Body::CompactionPaused(_)
+            // 场所的撤回、她实际发出去的话：O-13 下渲染进群聊近况（施工 O-13 上）。
+            | Body::VenueRecalled(_)
+            | Body::VenueDelivered(_)
             | Body::Unknown { .. } => {}
         }
     }
     transcript.finish()
 }
 
+/// 人这边的一条消息 `event`（内容 `message`，块是 `blocks`）渲染成的块（主请求和回顾的请求共用）：群会话里群里的人说的
+/// 是一行一条（施工 O-13 中，`group.rs`），别的照谁发的（[`said`]）。
+pub(crate) fn spoken(
+    history: &History,
+    event: &Event,
+    message: &MessageUser,
+    blocks: Vec<Block>,
+    texts: &Texts,
+) -> Vec<Block> {
+    match (&message.venue, &texts.group) {
+        (Some(venue), Some(chat)) => group::line(event.at, &event.by, venue, blocks, chat),
+        // 不在群里、只有带的东西的（施工 O-13 补）：写成记号，不然她看到的是空的。
+        (Some(venue), None) if blocks.is_empty() => group::bare(venue).into_iter().collect(),
+        _ => said(history, &event.by, blocks, texts),
+    }
+}
+
 /// 人这边的一条消息的块，照谁发的（主请求和回顾的请求共用）：子代理发来的留言注明是哪个子代理（施工 7-7，`jobs.rs`），
 /// 别的 harness 发来的话注明是它、叫什么（施工 7-10，`harness.rs`），别的会话发来的话注明是哪个会话（施工 C-2，`peers.rs`）；
 /// 别人（人、父会话）发的原样。
-pub(crate) fn said(history: &History, by: &By, blocks: Vec<Block>, texts: &Texts) -> Vec<Block> {
+fn said(history: &History, by: &By, blocks: Vec<Block>, texts: &Texts) -> Vec<Block> {
     match by {
         By::Harness(from) => harness::message(from, blocks, texts.harness.as_ref()),
         By::Session(session) if history.is_peer(&session.id) => {
@@ -209,6 +241,8 @@ enum Place {
     Here,
     /// 排在触发的第几条前面：回合开始时注入的事实。
     Before(Seq),
+    /// 排在事实后面、触发的第几条前面：群聊近况（施工 O-14 上）。
+    Lead(Seq),
     /// 排在触发的第几条后面：内核回合开始时注入的角色扮演提示（施工 P-1 补，08 C2 唯一的例外）。
     After(Seq),
 }
@@ -282,6 +316,9 @@ impl Transcript {
                 Place::Before(trigger) if placed.contains(&trigger) => {
                     groups.entry(trigger).or_default().facts.push(piece.block);
                 }
+                Place::Lead(trigger) if placed.contains(&trigger) => {
+                    groups.entry(trigger).or_default().lead.push(piece.block);
+                }
                 Place::After(trigger) if placed.contains(&trigger) => {
                     groups.entry(trigger).or_default().after.push(piece.block);
                 }
@@ -325,6 +362,8 @@ impl Transcript {
 struct Group {
     /// 回合开始时注入的事实。
     facts: Vec<Block>,
+    /// 群聊近况（施工 O-14 上）。
+    lead: Vec<Block>,
     /// 触发这一回合的那一条。
     trigger: Vec<Block>,
     /// 排在触发后面的（施工 P-1 补）。
@@ -335,6 +374,7 @@ impl Group {
     /// 放进消息里：先事实，再触发，最后是排在触发后面的。
     fn put(self, blocks: &mut Vec<Block>) {
         blocks.extend(self.facts);
+        blocks.extend(self.lead);
         blocks.extend(self.trigger);
         blocks.extend(self.after);
     }

@@ -196,6 +196,7 @@ async fn a_shipped_extension_counts_as_approved() {
         declared,
         [
             "events.read",
+            "events.write",
             "sessions.drive",
             "act_for_external",
             "network"

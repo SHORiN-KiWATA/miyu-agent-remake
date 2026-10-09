@@ -48,7 +48,7 @@ pub(crate) async fn resolve(core: &Core, wanted: Option<&str>) -> Result<Found, 
 /// 这台机器上装了的软件（施工 P-2 中，`presets.md`「照预设挑」）：工具目录里有工具的包、角色扮演，和清单装的 `process` 包
 /// （桥，读成了的）。界面包是头，不算。
 pub(crate) fn installed(core: &Core) -> BTreeSet<String> {
-    let mut installed: BTreeSet<String> = core.tools.packages().map(str::to_string).collect();
+    let mut installed: BTreeSet<String> = core.tools().packages().map(str::to_string).collect();
     installed.insert(ROLEPLAY.to_string());
     installed.extend(core.packages.iter().filter_map(|found| match &found.read {
         Ok(manifest) if manifest.kind == PackageKind::Process => Some(found.id.clone()),

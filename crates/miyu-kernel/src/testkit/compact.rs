@@ -42,6 +42,7 @@ impl Stage {
             turn.started(),
             Body::TurnStarted(TurnStarted {
                 trigger: Some(upto),
+                triggers: Vec::new(),
                 cwd: Some(self.environment.cwd.clone()),
                 dirs: Vec::new(),
             }),

@@ -28,6 +28,7 @@ pub mod picture;
 mod questions;
 mod run;
 mod sessions;
+mod shelf;
 mod stop;
 #[cfg(feature = "testkit")]
 pub mod testkit;
@@ -48,8 +49,9 @@ pub use messages::{
     Delivered, MessagePort, NotSent, Recipient, SEND_MESSAGE, SEND_MESSAGE_FORMERLY, Sending,
 };
 pub use questions::{ASK_USER, Answering, QuestionPort};
-pub use run::{Call, Done, Effect, Picture, Progress, Running, Seen, Target};
+pub use run::{Call, CallIds, Done, Effect, Picture, Progress, Running, Seen, Target};
 pub use sessions::{Found, Listing, MainSession, Opening, SESSIONS, SessionsPort, find_session};
+pub use shelf::{Edition, Shelf};
 pub use stop::Stop;
 pub use todos::TODOWRITE;
 pub use usage::{ContextUse, SESSION_USAGE, Spending, Spent, UsagePort};
@@ -71,10 +73,26 @@ pub struct Spec {
     pub access: Access,
 }
 
+/// 提供者的工具给哪种会话（施工 O-2 上，`docs/blueprint/providers.md`）：本机的、通讯平台的私聊、群。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Venues {
+    /// 本机的会话。
+    pub local: bool,
+    /// 通讯平台的私聊。
+    pub private: bool,
+    /// 群。
+    pub group: bool,
+}
+
 /// 一件工具。
 pub trait Tool: Send + Sync {
     /// 它的规格。
     fn spec(&self) -> &Spec;
+
+    /// 给哪种会话（施工 O-2 上）：提供者的工具照它挑。核心自带的没有，照工具面自己的规矩挑（`miyu-session` 的 `Agents::face`）。
+    fn venues(&self) -> Option<Venues> {
+        None
+    }
 
     /// 这次调用要碰的路径、是读是写：照参数算，不碰磁盘（施工 4-3 下）。换成真实的位置、查边界是执行前的
     /// 链的事。默认一条都没有，例如执行命令。参数不对的，也交回空的：执行时再报错。

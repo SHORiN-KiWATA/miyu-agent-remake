@@ -42,6 +42,7 @@ async fn one_turn(home: &Home, handle: &Handle, turns: usize) -> Vec<Event> {
             text: "看看".to_string(),
         })],
         urgent: false,
+        venue: None,
     };
     within(
         "回应",

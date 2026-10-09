@@ -290,6 +290,60 @@ fn the_subagent_venue_note_is_its_own_file() {
     }
 }
 
+/// 群会话的两份（施工 O-13 中）：格式说明、空的一条写什么，读的是 `core/venues/` 下的原文；时区照交进来的；没有的说是哪一份。
+#[test]
+fn the_group_chat_texts_are_their_own_files() {
+    assert_eq!(
+        repo().group_note().unwrap(),
+        include_str!("../../../../resources/core/venues/group.txt")
+    );
+    let chat = repo().group_chat(-300).unwrap();
+    assert_eq!(chat.offset, -300);
+    assert_eq!(
+        chat.no_text,
+        include_str!("../../../../resources/core/venues/no-text.txt")
+    );
+    // 群聊近况（施工 O-13 下）。
+    let recent = chat.recent.expect("有群聊近况的字");
+    assert_eq!(
+        recent.open,
+        include_str!("../../../../resources/core/venues/recent-open.txt")
+    );
+    assert_eq!(
+        recent.omitted,
+        include_str!("../../../../resources/core/venues/recent-omitted.txt")
+    );
+    assert_eq!(recent.budget, miyu_policy::RECENT_BUDGET);
+    let scratch = Scratch::new();
+    let empty = ResourceRoot::at(scratch.path());
+    for (error, file) in [
+        (empty.group_note().unwrap_err(), "core/venues/group.txt"),
+        (empty.group_chat(0).unwrap_err(), "core/venues/no-text.txt"),
+        (
+            {
+                let venues = scratch.path().join("core/venues");
+                std::fs::create_dir_all(&venues).unwrap();
+                std::fs::write(venues.join("no-text.txt"), "x\n").unwrap();
+                empty.group_chat(0).unwrap_err()
+            },
+            "core/venues/recent-open.txt",
+        ),
+        (
+            {
+                std::fs::write(scratch.path().join("core/venues/recent-open.txt"), "x\n").unwrap();
+                empty.group_chat(0).unwrap_err()
+            },
+            "core/venues/recent-omitted.txt",
+        ),
+    ] {
+        match error {
+            SourceError::Read { path, .. } => {
+                assert!(path.ends_with(Path::new(file)), "{path:?}");
+            }
+        }
+    }
+}
+
 /// 核心的几行（施工 2-7 补）：读的是 `core/permission-rule.txt`、`core/local-paths-rule.txt` 的原文；没有的说是哪一份。
 #[test]
 fn the_core_lines_are_their_own_files() {

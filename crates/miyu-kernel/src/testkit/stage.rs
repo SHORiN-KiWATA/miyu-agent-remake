@@ -115,6 +115,7 @@ impl Stage {
         self.command(Command::Send {
             blocks: text(words),
             urgent: false,
+            venue: None,
         })
     }
 
@@ -123,6 +124,7 @@ impl Stage {
         self.command(Command::Send {
             blocks,
             urgent: false,
+            venue: None,
         })
     }
 
@@ -139,6 +141,7 @@ impl Stage {
             Command::Send {
                 blocks: text(words),
                 urgent: false,
+                venue: None,
             },
         )
     }
@@ -148,6 +151,7 @@ impl Stage {
         self.command(Command::Send {
             blocks: text(words),
             urgent: true,
+            venue: None,
         })
     }
 

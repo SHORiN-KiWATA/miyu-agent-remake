@@ -8,19 +8,25 @@
 //! 不丢（照终端的头的 `rpc.rs`）。命令编号自己编的（`venue.session`、`subscribe`）带一段随机前缀：同一个编号再发，核心交回
 //! 上一次的结果（`venues.md`「`venue.session`」第 4 条），桥重启以后从 1 数起就会撞上。`session.send`、`command.run`（O-19）
 //! 的编号由调的一方拼（第 8 条）。
+//!
+//! 问判官的任务不等这一个用的人：经并着发的调用口（[`Caller`]，施工 O-23 下）调，回应由读的一头照编号分出去。
 
+mod caller;
 pub(crate) mod route;
 
 use std::collections::VecDeque;
+use std::sync::Arc;
 
 use serde_json::{Value, json};
 use std::time::Duration;
 
-use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
 use crate::serve::{Failure, Pipe};
+pub(crate) use caller::Caller;
+use caller::{Waiting, Writer, write_line};
 
 /// 核心关了管道、写不出去：桥照第 11 条好好停下。
 #[derive(Debug)]
@@ -28,8 +34,10 @@ pub(crate) struct Gone;
 
 /// 连着核心的一头。
 pub(crate) struct Core {
-    /// 写的一头。
-    writer: Box<dyn AsyncWrite + Send + Unpin>,
+    /// 写的一头：和并着发的调用口共用（施工 O-23 下）。
+    writer: Writer,
+    /// 并着发的调用口等着的回应：读的一头照编号分出去（施工 O-23 下）。
+    waiting: Waiting,
     /// 读进来的回应和推送，照先后。
     incoming: mpsc::UnboundedReceiver<Value>,
     /// 等回应时来的推送。
@@ -63,13 +71,17 @@ impl Core {
         wait: Duration,
     ) -> Result<Core, Failure> {
         let (sender, incoming) = mpsc::unbounded_channel();
+        let prefix = format!("onebot-{}", prefix());
+        let waiting = Waiting::new(format!("{prefix}-side-"));
+        let reading = tokio::spawn(read_all(BufReader::new(pipe.read), sender, waiting.clone()));
         let mut core = Core {
-            writer: pipe.write,
+            writer: Arc::new(tokio::sync::Mutex::new(pipe.write)),
+            waiting,
             incoming,
             held: VecDeque::new(),
-            prefix: format!("onebot-{}", prefix()),
+            prefix,
             next: 0,
-            reading: tokio::spawn(read_all(BufReader::new(pipe.read), sender)),
+            reading,
             language: String::new(),
             config: Value::Null,
             account: None,
@@ -121,13 +133,7 @@ impl Core {
         params: Value,
     ) -> Result<Value, Gone> {
         let request = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
-        let written = async {
-            self.writer
-                .write_all(format!("{request}\n").as_bytes())
-                .await?;
-            self.writer.flush().await
-        };
-        written.await.map_err(|_| Gone)?;
+        write_line(&self.writer, &request).await?;
         while let Some(message) = self.incoming.recv().await {
             if message["id"] == json!(id) && message.get("method").is_none() {
                 return Ok(message);
@@ -143,6 +149,23 @@ impl Core {
             Some(message) => Some(message),
             None => self.incoming.recv().await,
         }
+    }
+
+    /// 并着发的调用口（施工 O-23 下）：问判官的任务各拿一份，不等这一头手上的事。
+    pub(crate) fn caller(&self) -> Caller {
+        Caller::new(Arc::clone(&self.writer), self.waiting.clone())
+    }
+
+    /// 留着的推送里会话 `session` 的事件（`event`），照先后取出来；别的照旧留着，先后不变（施工 O-23，`onebot.md` 第一条
+    /// 「群里怎么叫她」第 3 条）。核心先推、后回应：一条命令记下的事件，回应到了就都在留着的里面，判一条群消息以前先收它们。
+    pub(crate) fn take_events(&mut self, session: &str) -> Vec<Value> {
+        let (taken, kept): (VecDeque<Value>, VecDeque<Value>) = std::mem::take(&mut self.held)
+            .into_iter()
+            .partition(|message| {
+                message["method"] == "event" && message["params"]["session"] == session
+            });
+        self.held = kept;
+        taken.into()
     }
 }
 
@@ -172,10 +195,22 @@ fn prefix() -> String {
     }
 }
 
-/// 读的一头：一行一条，读不懂的不要。读到头（核心关了管道）就停：`incoming` 跟着关，用的一方看到的是断开。
+/// 读的一头：一行一条，读不懂的不要；并着发的调用口的回应照编号交给 `waiting`（施工 O-23 下）。读到头（核心关了管道）就停：
+/// `incoming` 跟着关、`waiting` 关上，用的一方看到的是断开。
 async fn read_all(
-    mut reader: BufReader<Box<dyn AsyncRead + Send + Unpin>>,
+    reader: BufReader<Box<dyn AsyncRead + Send + Unpin>>,
     sender: mpsc::UnboundedSender<Value>,
+    waiting: Waiting,
+) {
+    read_lines(reader, &sender, &waiting).await;
+    waiting.close();
+}
+
+/// [`read_all`] 读到头为止的那一段。
+async fn read_lines(
+    mut reader: BufReader<Box<dyn AsyncRead + Send + Unpin>>,
+    sender: &mpsc::UnboundedSender<Value>,
+    waiting: &Waiting,
 ) {
     let mut line = String::new();
     loop {
@@ -186,6 +221,9 @@ async fn read_all(
         }
         match serde_json::from_str::<Value>(&line) {
             Ok(message) => {
+                let Some(message) = waiting.sort(message) else {
+                    continue;
+                };
                 if sender.send(message).is_err() {
                     return;
                 }

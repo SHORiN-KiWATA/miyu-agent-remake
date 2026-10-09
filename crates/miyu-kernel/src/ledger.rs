@@ -19,11 +19,13 @@ use crate::origin::By;
 
 mod jobs;
 mod peers;
+mod triggers;
 mod undo;
 
 use jobs::Jobs;
 use peers::Peers;
 pub(crate) use peers::digest;
+use triggers::Triggers;
 use undo::Undone;
 
 /// 一个会话的日志的账本。
@@ -61,6 +63,8 @@ pub struct Ledger {
     jobs: Jobs,
     /// 在等别的会话的通知：每一次订在哪一轮、从哪一刻算起（施工 C-1）。
     peers: Peers,
+    /// 旁听记下的、当过触发的（施工 O-14 上，`ledger/triggers.rs`）。
+    triggers: Triggers,
 }
 
 impl Default for Ledger {
@@ -78,6 +82,7 @@ impl Default for Ledger {
             queued: BTreeSet::new(),
             jobs: Jobs::default(),
             peers: Peers::default(),
+            triggers: Triggers::default(),
         }
     }
 }
@@ -173,6 +178,7 @@ impl Ledger {
         }
         self.check_turn(event)?;
         match &event.body {
+            Body::TurnJoined(joined) => self.triggers.check_joined(joined),
             Body::SessionCreated(created) => jobs::check_created(created),
             Body::MessageAssistant(message) => {
                 self.check_seen(seq, message.seen)?;
@@ -261,7 +267,7 @@ impl Ledger {
             if started.trigger.is_some_and(|trigger| trigger >= event.seq) {
                 return Err("trigger should be an event before the turn started".to_string());
             }
-            return Ok(());
+            return self.triggers.check(started);
         }
         match event.turn {
             Some(turn) if Some(turn) != self.open => {
@@ -347,6 +353,7 @@ impl Ledger {
             _ => None,
         };
         self.peers.record(event, peer);
+        self.triggers.record(event);
         match &event.body {
             Body::TurnStarted(_) => {
                 let turn = TurnId::new(event.seq);
@@ -418,6 +425,7 @@ fn in_turn_only(body: &Body) -> bool {
     matches!(
         body,
         Body::MessageAssistant(_)
+            | Body::TurnJoined(_)
             | Body::ToolResult(_)
             | Body::ApprovalRequested(_)
             | Body::ApprovalDecided(_)

@@ -136,7 +136,8 @@ async fn notify(
         let restoring = matches!(
             outcome,
             Ok(Outcome::Rejected {
-                reason: Reason::Restoring
+                reason: Reason::Restoring,
+                ..
             })
         );
         if !restoring || waited >= RETRY_TOTAL_MS {
@@ -151,7 +152,7 @@ async fn notify(
         Ok(Outcome::Accepted { .. } | Outcome::Recapped { .. }) => {
             tracing::info!(target: TARGET, to = to.as_str(), "idle notice sent");
         }
-        Ok(Outcome::Rejected { reason }) => {
+        Ok(Outcome::Rejected { reason, .. }) => {
             tracing::warn!(target: TARGET, to = to.as_str(), code = reason.code(), "idle notice refused");
         }
         Err(error) => {

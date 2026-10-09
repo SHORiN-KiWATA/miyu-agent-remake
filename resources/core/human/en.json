@@ -67,6 +67,14 @@
         "name": "Vision model",
         "description": "Looks at images for the chat model when it cannot. Written like the chat model."
       },
+      "models.embedding": {
+        "name": "Search by meaning",
+        "description": "When she searches what she remembers and past conversations, she also finds what means the same in other words. Left out, the local model is used and downloads about 24 MB the first time; off searches by keywords only.",
+        "options": {
+          "local": "Local model",
+          "off": "Off"
+        }
+      },
       "pools.<id>.models": {
         "name": "Pool members",
         "description": "A group of models, each written as provider/model."
@@ -270,6 +278,7 @@
     "tool-results/question-unattended": "nobody here can answer",
     "tool-results/restarted": "Miyu restarted before it finished",
     "tool-results/unavailable": "not available right now",
+    "tool-results/timed-out": "no answer within {seconds} seconds",
     "tool-results/crashed": "crashed, may be partly done",
     "permissions/forbidden": "Miyu's own data, off limits",
     "permissions/unresolvable": "can't tell where it points: {reason}",
@@ -279,6 +288,12 @@
     "commands/workspace-too-wide": "{asked} is too broad, so the workspace is now {cwd}.",
     "commands/workspace-is": "The workspace is {cwd}.",
     "commands/remembered": "Remembered as {id}.",
+    "commands/summary/clear": "Clear context",
+    "commands/summary/stop": "Stop everything",
+    "commands/summary/workspace": "Change workspace",
+    "commands/summary/remember": "Save a memory",
+    "commands/argument/workspace": "<path>",
+    "commands/argument/remember": "<text>",
     "software/basesystem": "Base system",
     "software/basesystem/summary": "Read and edit files, run commands, look up earlier talk",
     "software/net": "Web",

@@ -4,7 +4,7 @@
 use serde_json::{Value, json};
 
 use miyu_chat::{Venue, VenueKind};
-use miyu_onebot::onebot::{Frame, PLATFORM, command_id, person, private_venue, read};
+use miyu_onebot::onebot::{Event, Frame, PLATFORM, command_id, person, private_venue, read};
 
 #[test]
 fn venue_and_person_are_made_by_the_chat_kernel() {
@@ -67,7 +67,7 @@ fn private(time: Option<Value>) -> Value {
 /// 认出来的私聊的时刻。
 fn time_of(frame: Value) -> i64 {
     match read(frame) {
-        Frame::Private(private) => private.time,
+        Frame::Event(Event::Private(private)) => private.time,
         other => panic!("该认成私聊：{other:?}"),
     }
 }

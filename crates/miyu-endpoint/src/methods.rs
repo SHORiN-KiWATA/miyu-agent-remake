@@ -22,7 +22,7 @@ use serde_json::{Value, json};
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::Level;
-use miyu_kernel::id::{AccountId, CallId, JobId, Seq, SessionId, TurnId};
+use miyu_kernel::id::{CallId, JobId, Seq, SessionId, TurnId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Command, Outcome, Queued};
 use miyu_policy::memory::MemoryScope;
@@ -34,7 +34,7 @@ use crate::commands;
 use crate::config;
 use crate::files;
 use crate::from;
-use crate::hello::Peer;
+use crate::hello::{Caller, Peer};
 use crate::human;
 use crate::job_output;
 use crate::list;
@@ -55,11 +55,25 @@ mod params;
 
 use params::*;
 
+/// 在后台答的自带方法（施工 8-20 补，`protocol.md`「一个连接」第 1 条）：`model.call` 要等模型说完，几秒到几分钟；同一个连接
+/// 后面的请求不等它，回应照 `id` 对上。
+pub(crate) fn answered_later(method: &str) -> bool {
+    method == "model.call"
+}
+
+/// 在后台办一条 [`answered_later`] 认的请求。
+pub(crate) async fn call_later(core: &Arc<Core>, request: &Request) -> Result<Value, Refusal> {
+    match request.method.as_str() {
+        "model.call" => models::call(core, params(request)?).await,
+        _ => Err(Refusal::UNKNOWN_METHOD),
+    }
+}
+
 /// 照方法办一条请求：交回回应的 `result`，或者拒绝。
 pub(crate) async fn call(
     core: &Arc<Core>,
     peer: Peer,
-    account: &AccountId,
+    caller: &Caller,
     request: &Request,
     uploads: &mut Uploads,
 ) -> Result<Value, Refusal> {
@@ -76,13 +90,14 @@ pub(crate) async fn call(
                 .map(|text| MemoryScope::parse(&text).ok_or(Refusal::BAD_PARAMS))
                 .transpose()?;
             let who = Opening {
-                owner: account.clone(),
+                owner: caller.account.clone(),
                 attended: peer.input,
                 oneshot: params.oneshot,
                 model,
                 venue: None,
                 memory,
                 preset: params.preset,
+                group: false,
             };
             let created = core
                 .sessions
@@ -126,8 +141,14 @@ pub(crate) async fn call(
             let sessions = list::list(core, params.oneshot, params.limit).await?;
             Ok(json!({"sessions": sessions}))
         }
+        "events.append" => crate::appending::append(core, caller, request, params(request)?).await,
+        "provide" => crate::provide::provide(core, caller, params(request)?).await,
+        "session.respond" => {
+            crate::responding::respond(core, caller, request, params(request)?).await
+        }
+        "venue.records" => venues::records(core, params(request)?).await,
         "venue.session" => {
-            venues::session(core, account, request.id.clone(), params(request)?).await
+            venues::session(core, &caller.account, request.id.clone(), params(request)?).await
         }
         "session.send" => {
             let params: SendParams = params(request)?;
@@ -141,6 +162,14 @@ pub(crate) async fn call(
             };
             let mut blocks = said(params.text);
             let session = session(&params.session)?;
+            // 场所的那几格（施工 O-13 上）：先查写法，只跟着 `as` 来。
+            let venue = params
+                .venue
+                .map(crate::venues::VenueMessageParams::checked)
+                .transpose()?;
+            if venue.is_some() && params.as_external.is_none() {
+                return Err(Refusal::BAD_PARAMS);
+            }
             // 附件先查，再找会话：不对的，会话里什么都不送（施工 3-9 三补）。头报的 `cwd`、`dirs` 不再换工作区（施工 9-7 上）。
             let attachments = params.attachments.unwrap_or_default();
             blocks.extend(attach::blocks(core, attachments).await?);
@@ -150,6 +179,7 @@ pub(crate) async fn call(
             let command = Command::Send {
                 blocks,
                 urgent: params.urgent,
+                venue,
             };
             // 场所会话只收代表外部的人说的话，本机的会话不收（施工 O-3，`venues.md`）。
             let local = found.handle.venue().as_str() == list::LOCAL;
@@ -208,6 +238,7 @@ pub(crate) async fn call(
             Ok(undo::reply(core, &session, &found.cwd, events).await)
         }
         "command.run" => commands::run(core, &peer, &request.id, params(request)?).await,
+        "command.catalog" => commands::catalog(core, &peer, params(request)?).await,
         "session.redo" => {
             let params: RedoParams = params(request)?;
             let session = session(&params.session)?;
@@ -317,7 +348,6 @@ pub(crate) async fn call(
         "provider.detect" => providers::detect(core).await,
         "provider.catalog" => providers::catalog(core, peer, params(request)?).await,
         "provider.test" => providers::test(core, params(request)?).await,
-        "model.call" => models::call(core, params(request)?).await,
         "usage.query" => crate::usage::query(core, params(request)?).await,
         "blob.put" => attach::put(core, params(request)?).await,
         "blob.open" => uploads::open(core, uploads, params(request)?).await,
@@ -376,7 +406,7 @@ pub(crate) async fn command_to(
 }
 
 /// 同 [`command_to`]，记成 `by` 发的：别的 harness 发来的话（施工 7-10）。
-async fn command_by(
+pub(crate) async fn command_by(
     core: &Core,
     request: &Request,
     session: &SessionId,
@@ -401,7 +431,7 @@ async fn outcome(
     command: Command,
 ) -> Result<Outcome, Refusal> {
     match handle.command(request.id.clone(), by, command).await {
-        Ok(Outcome::Rejected { reason }) => Err(Refusal::kernel(reason)),
+        Ok(Outcome::Rejected { reason, about }) => Err(Refusal::kernel_about(reason, &about)),
         Ok(outcome) => Ok(outcome),
         Err(_) => {
             core.sessions.forget(session).await;

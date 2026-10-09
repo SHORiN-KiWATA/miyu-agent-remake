@@ -3,6 +3,8 @@
 //! 别的测试同时碰到会漏听；全局的一个进程只能装一次），
 //! 在 `Cargo.toml` 里另列。新加的测试文件在下面添一行。
 
+mod provide;
+mod provide_later;
 mod support;
 
 mod answer;
@@ -10,6 +12,7 @@ mod attach;
 mod attach_send;
 mod check;
 mod clear;
+mod command_catalog;
 mod commands;
 mod compact;
 mod config;
@@ -39,6 +42,7 @@ mod login;
 mod memory;
 mod memory_api;
 mod memory_clear;
+mod memory_meaning;
 mod memory_scope;
 mod messages;
 mod meta;
@@ -73,6 +77,7 @@ mod remember_command;
 mod replay;
 mod replay_race;
 mod reports;
+mod respond;
 mod restart;
 mod revert;
 mod secrets;
@@ -91,6 +96,8 @@ mod undo;
 mod undo_jobs;
 mod uploads;
 mod usage;
+mod venue_judge;
+mod venue_records;
 mod venues;
 mod view_page;
 mod watch;

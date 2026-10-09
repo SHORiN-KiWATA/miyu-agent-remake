@@ -81,3 +81,18 @@ fn a_role_other_than_manager_or_member_is_refused() {
     );
     assert!(read.is_err(), "{read:?}");
 }
+
+/// 主人本人（施工 O-2 下）：本机的人、私聊里对应表认出的本人、群里对应表里有的外部身份；别的都不是。
+#[test]
+fn the_owner_is_a_person_or_someone_on_the_owner_table() {
+    let by = |json: &str| serde_json::from_str::<By>(json).unwrap();
+    assert!(by(r#"{"kind":"person","account":"alice"}"#).is_owner());
+    assert!(
+        by(r#"{"kind":"external","venue":"qq:group:1","id":"qq:1","account":"alice"}"#).is_owner()
+    );
+    assert!(
+        !by(r#"{"kind":"external","venue":"qq:group:1","id":"qq:2","role":"manager"}"#).is_owner()
+    );
+    assert!(!By::Kernel.is_owner());
+    assert!(!by(r#"{"kind":"harness","name":"claude"}"#).is_owner());
+}

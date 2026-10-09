@@ -165,8 +165,9 @@ pub(super) async fn stop_agent(
         }
         Ok(Outcome::Rejected {
             reason: Reason::UnknownJob,
+            ..
         }) => Err(JobError::Ended),
-        Ok(Outcome::Rejected { reason }) => {
+        Ok(Outcome::Rejected { reason, .. }) => {
             tracing::warn!(target: TARGET, job = job_text.as_str(), reason = reason.code(), "subagent stop not recorded");
             Err(JobError::Ended)
         }

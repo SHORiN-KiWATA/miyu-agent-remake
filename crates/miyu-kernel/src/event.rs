@@ -25,6 +25,7 @@ mod session;
 mod tool;
 mod transient;
 mod turn;
+mod venue;
 
 pub use context::{
     CompactTrigger, CompactionPaused, ContextCompacted, ContextInjected, PauseReason, RestoredFile,
@@ -53,7 +54,8 @@ pub use transient::{
     ChangeWhy, CompactionDone, CompactionProgress, EffortInUse, EffortSource, ModelChanged,
     ModelDelta, Piece, Retry, Status, TodosChanged, ToolProgress, Transient, TransientBody,
 };
-pub use turn::{EndReason, TurnEnded, TurnReverted, TurnStarted, TurnUnreverted};
+pub use turn::{EndReason, TurnEnded, TurnJoined, TurnReverted, TurnStarted, TurnUnreverted};
+pub use venue::{Media, MediaKind, VenueDelivered, VenueMessage, VenueRecalled};
 
 /// 一条事件：已经发生的一件事。追加进日志以后不改、不删；撤销和压缩也是追加一条新事件
 /// （`03-事件模型.md` 第一节）。
@@ -140,6 +142,8 @@ bodies! {
     CommandRan = "command.ran",
     /// 回合开始。
     TurnStarted = "turn.started",
+    /// 照记下的几条并进正在跑的这一轮（施工 O-14 下）。
+    TurnJoined = "turn.joined",
     /// 回合结束。
     TurnEnded = "turn.ended",
     /// 撤销了几个回合。
@@ -180,6 +184,10 @@ bodies! {
     PeerIdle = "peer.idle",
     /// 一张图的转述：看不了图的模型由 `models.vision` 替它看过（施工 8-17）。
     ImageDescribed = "image.described",
+    /// 场所里有人撤回了一条消息（施工 O-13 上，桥经 `events.append` 记）。
+    VenueRecalled = "venue.recalled",
+    /// 她的一句话实际发到了平台上（施工 O-13 上，桥经 `events.append` 记）。
+    VenueDelivered = "venue.delivered",
 }
 
 impl Event {

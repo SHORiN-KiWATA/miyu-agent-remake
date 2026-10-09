@@ -7,7 +7,7 @@
 //! 登记在 `docs/designs/26-提示词.md` 第十节；代码里一个给模型看的字都不写。
 //!
 //! 纯逻辑：说明的原文、人格的说明、渲染好的群聊记录和这一条，都由外面交进来（[`Ask`]）；违规的门槛从算分的参数拿。调用的其余几格（`purpose`、
-//! `model`、`max_tokens`）、超时、重试、记 `ext.chat.decided`，由桥管（「怎么走」第 3、5 条）。
+//! `model`、`max_tokens`）、超时、重试、记 `ext.onebot.chat.decided`，由桥管（「怎么走」第 3、5 条）。
 
 mod read;
 mod request;

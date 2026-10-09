@@ -46,6 +46,11 @@ impl Watch {
                 self.questions.speaking = Some(received.by.clone());
                 None
             }
+            // 正在跑一轮时照记下的几条并进去（施工 O-14 下）：在等的作废，同来了一句话。
+            Command::Respond { to, .. } if !to.is_empty() => {
+                self.questions.speaking = Some(received.by.clone());
+                None
+            }
             Command::Answer {
                 call_id,
                 answer: Answer::Questions(answers),
@@ -72,7 +77,7 @@ impl Watch {
                     self.seen_paths.insert("回答对不上被拒");
                 }
                 assert!(
-                    matches!(actions, [Action::Reply { outcome: Outcome::Rejected { reason: got }, .. }] if *got == reason),
+                    matches!(actions, [Action::Reply { outcome: Outcome::Rejected { reason: got, .. }, .. }] if *got == reason),
                     "种子 {seed}：这个回答应该被拒，原因码 {}：{actions:?}",
                     reason.code()
                 );

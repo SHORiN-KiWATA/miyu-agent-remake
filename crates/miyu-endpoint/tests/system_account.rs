@@ -19,7 +19,7 @@ use miyu_store::log::read_events;
 use miyu_tool::Catalog;
 
 use crate::support::extensions::*;
-use crate::support::venues::BINDINGS;
+use crate::support::venues::{BINDINGS, snapshot};
 use crate::support::*;
 
 /// 包 `id` 的清单：程序 `program`、参数 `args`，`start`、`system_account` 照写。
@@ -199,6 +199,12 @@ async fn the_bridge_runs_as_its_system_account_and_owns_the_group() {
         "没写 cwd 的是它自己的工作区"
     );
     assert!(workspace.is_dir(), "起来时建了它的工作区");
+    // 群会话（施工 O-13 中）：快照钉下时区、system 接上格式说明。
+    let note =
+        std::fs::read_to_string(default_resources().join("core/venues/group.txt")).expect("读得到");
+    let made = snapshot(&home, &bot(), &groups);
+    assert!(made.group.is_some(), "群会话钉下时区");
+    assert!(made.system.contains(note.trim_end()));
     // 群归系统账号以后，对应表认出的主人在群里说的是外部身份带账号，不是本人（`as` 照会话的属主比）。
     let owner_said = read_events(&groups)
         .expect("读得了")
@@ -218,6 +224,9 @@ async fn the_bridge_runs_as_its_system_account_and_owns_the_group() {
     );
     let mine = private["session"].as_str().expect("有编号").to_string();
     assert!(dir(&home, &alice(), &mine).is_dir());
+    let made = snapshot(&home, &alice(), &dir(&home, &alice(), &mine));
+    assert_eq!(made.group, None, "私聊不是群会话");
+    assert!(!made.system.contains(note.trim_end()));
     assert!(
         got[6].get("error").is_none(),
         "系统账号的连接照样能对主人的会话说话：{got:?}"
@@ -281,26 +290,41 @@ async fn the_bridge_runs_as_its_system_account_and_owns_the_group() {
         "用量记在系统账号名下、管理员看得到：{usage}"
     );
 
-    // 记忆归管理员：回合库在管理员的家目录下，系统账号没有自己的记忆。
+    // 记忆归管理员，系统账号没有自己的记忆。群里的回合先不进回合库（施工 R-2 再补，`memory.md` 第一条第 1 款：回合库的
+    // 条目还没有听众），哪边都不为它建库。管理员那一间的回合库平常是本机的会话建的：这里直接建一份，看删群会话时是不是
+    // 照记忆归谁去埋墓碑。
     let turns = |account: &AccountId| {
         home.root
             .index(account)
             .join("recall")
             .join("turns-engineer.db")
     };
+    assert!(!turns(&bot()).exists(), "系统账号没有自己的回合库");
+    assert!(!turns(&alice()).exists(), "群里的回合不进管理员的回合库");
+    std::fs::create_dir_all(turns(&alice()).parent().expect("有上一级")).expect("建得了");
+    drop(miyu_store::recall::RecallIndex::open(&turns(&alice())));
+    // 删掉群会话：管理员的回合库里给它埋墓碑，记忆的出处在它里面的都算死了。
+    // 带附件的那一句排出的那一轮可能还在跑：跑着的删不掉（`turn_running`），等它说完再删。
     let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
-    while !turns(&alice()).exists() {
+    let mut n = 0;
+    let deleted = loop {
+        n += 1;
+        let deleted = client
+            .call(
+                &format!("d{n}"),
+                "session.delete",
+                json!({"session": session}),
+            )
+            .await;
+        if reason(&deleted) != Some("turn_running") {
+            break deleted;
+        }
         assert!(
             tokio::time::Instant::now() < deadline,
-            "回合库建在管理员名下"
+            "一直在跑：{deleted}"
         );
         tokio::time::sleep(Duration::from_millis(20)).await;
-    }
-    assert!(!turns(&bot()).exists(), "系统账号没有自己的回合库");
-    // 删掉群会话：管理员的回合库里给它埋墓碑，记忆的出处在它里面的都算死了。
-    let deleted = client
-        .call("d1", "session.delete", json!({"session": session}))
-        .await;
+    };
     assert_eq!(deleted["result"], json!({}), "{deleted}");
     let db = rusqlite::Connection::open_with_flags(
         turns(&alice()),
@@ -417,4 +441,46 @@ async fn usage_of_a_system_account_is_caught_up_after_the_ledger_is_lost() {
         .filter_map(|row| row["account"].as_str())
         .collect();
     assert!(accounts.contains(&"bot"), "照它的日志补回来：{usage}");
+}
+
+/// `events.append`（施工 O-13 上）：核心拉起的扩展只能写自己的包那一段的 `ext.*`。
+#[tokio::test]
+async fn an_extension_writes_only_its_own_ext_events() {
+    let home = Home::new();
+    let program = Program::new();
+    let (path, step) = record(&home, "bot");
+    install_serving(
+        &home,
+        "bot",
+        &program.name(),
+        &steps(&[
+            &step,
+            "hello",
+            r#"ask:venue.session:{"venue":"qq:group:1","kind":"group"}"#,
+            r#"ask:events.append:{"session":"{session}","kind":"ext.bot.chat.decided","body":{"to":[1]}}"#,
+            r#"ask:events.append:{"session":"{session}","kind":"ext.other.chat.decided","body":{}}"#,
+            "wait",
+        ]),
+        "always",
+        true,
+    );
+    let core = served_core(&home, &Script::new([]));
+    let got = replies(&path, 4).await;
+    assert!(got[2]["result"]["seq"].is_u64(), "自己的包：{got:?}");
+    assert_eq!(reason(&got[3]), Some("bad_params"), "别的包的：{got:?}");
+    let session = got[1]["result"]["session"]
+        .as_str()
+        .expect("有编号")
+        .to_string();
+    let decided = read_events(&dir(&home, &bot(), &session))
+        .expect("读得了")
+        .into_iter()
+        .find(|event| event.body.kind() == "ext.bot.chat.decided")
+        .expect("记下了");
+    assert_eq!(
+        serde_json::to_value(&decided.by).expect("写得出"),
+        json!({"kind": "module", "id": "bot"}),
+        "记成这个包写的"
+    );
+    core.stop_extensions().await;
 }

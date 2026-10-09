@@ -69,6 +69,7 @@ impl SessionPort for Table {
         let answer = match self.refusing && message {
             true => Outcome::Rejected {
                 reason: Reason::Restoring,
+                about: Vec::new(),
             },
             false => Outcome::Accepted {
                 events: vec![Seq::new(2).expect("从 1 数起")],

@@ -140,7 +140,10 @@ impl Session {
                 true => redo.edited(&blocks),
                 false => blocks,
             };
-            let body = Body::MessageUser(MessageUser { blocks });
+            let body = Body::MessageUser(MessageUser {
+                blocks,
+                venue: None,
+            });
             let message = self.record(at, by, Some(id.clone()), body);
             if opens {
                 opener = Some(message.seq);

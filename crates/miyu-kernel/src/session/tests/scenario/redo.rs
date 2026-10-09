@@ -39,7 +39,10 @@ fn event(s: &Stage, n: u64) -> &Event {
 /// 第 `n` 条人的话的内容块。
 fn said(s: &Stage, n: u64) -> &[Block] {
     match &event(s, n).body {
-        Body::MessageUser(MessageUser { blocks }) => blocks,
+        Body::MessageUser(MessageUser {
+            blocks,
+            venue: None,
+        }) => blocks,
         body => panic!("第 {n} 条应该是 message.user：{body:?}"),
     }
 }
@@ -66,7 +69,7 @@ fn shape(s: &Stage, k: usize) -> Vec<String> {
 
 /// 被拒绝，原因码是 `reason`。
 fn refused(reason: Reason) -> Outcome {
-    Outcome::Rejected { reason }
+    Outcome::rejected(reason)
 }
 
 #[test]

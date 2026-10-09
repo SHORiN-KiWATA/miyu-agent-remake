@@ -28,6 +28,8 @@ pub enum BuildError {
     },
     /// 工具面上有两件叫这个名字的（施工 4-1）：她调的是哪一件，说不清。
     DuplicateTool(String),
+    /// 群会话钉下的时区超出了 −14:00 到 +14:00（施工 O-13 中）：快照坏了。
+    Offset(i32),
 }
 
 impl fmt::Display for BuildError {
@@ -35,6 +37,9 @@ impl fmt::Display for BuildError {
         match self {
             BuildError::Texts { which, error } => write!(f, "bundled {which} not usable: {error}"),
             BuildError::DuplicateTool(name) => write!(f, "two tools named {name:?}"),
+            BuildError::Offset(minutes) => {
+                write!(f, "group chat time zone out of range: {minutes} minutes")
+            }
         }
     }
 }

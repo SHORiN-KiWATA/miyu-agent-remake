@@ -214,7 +214,8 @@ fn undoing_the_turn_it_opened_keeps_it_and_that_turn_cannot_be_redone() {
     assert_eq!(
         s.outcome(&redo),
         Some(&Outcome::Rejected {
-            reason: Reason::NotRedoable
+            reason: Reason::NotRedoable,
+            about: Vec::new(),
         }),
         "它开的那一轮不是人说的话开的"
     );
