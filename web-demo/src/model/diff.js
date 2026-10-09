@@ -57,6 +57,47 @@ export function fromArgs(args) {
   return out;
 }
 
+/**
+ * 核心算好的差异（`view.detail`，核心 9-6 三补）排成行：统一格式、上下文 3 行、每段 `@@ -a,b +c,d @@` 起头、不带 `---`/`+++`。
+ * 两段之间一行 `gap`；行号照两边各数：删掉的写原来的行号，不变的、加上的写改后的（和照参数比的一样）。文件末尾没有换行的不另写。
+ * @param {string[]} diff @returns {Diff}
+ */
+export function fromUnified(diff) {
+  const out = { lines: /** @type {Line[]} */ ([]), added: 0, removed: 0 };
+  let before = 0;
+  let after = 0;
+  for (const line of diff ?? []) {
+    const head = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
+    if (head) {
+      if (out.lines.length) out.lines.push({ mark: 'gap', number: null, text: '' });
+      before = Number(head[1]);
+      after = Number(head[2]);
+      continue;
+    }
+    const text = line.slice(1);
+    if (line.startsWith('+')) {
+      out.lines.push({ mark: 'added', number: after++, text });
+      out.added += 1;
+    } else if (line.startsWith('-')) {
+      out.lines.push({ mark: 'removed', number: before++, text });
+      out.removed += 1;
+    } else {
+      out.lines.push({ mark: 'keep', number: after, text });
+      before += 1;
+      after += 1;
+    }
+  }
+  return out;
+}
+
+/** 核心给的路径和参数里写的是不是同一个文件：一样的，或者一个是另一个的末尾一截（参数里写相对的、核心写绝对的）。 */
+export function samePath(a, b) {
+  if (!a || !b) return false;
+  const x = String(a).replace(/\\/g, '/');
+  const y = String(b).replace(/\\/g, '/');
+  return x === y || x.endsWith(`/${y.replace(/^\.\//, '')}`) || y.endsWith(`/${x.replace(/^\.\//, '')}`);
+}
+
 /** 切成行，每行连着它的换行。 */
 function lines(text) {
   return text.match(/[^\n]*\n|[^\n]+$/g) ?? [];

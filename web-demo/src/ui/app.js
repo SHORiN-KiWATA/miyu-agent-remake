@@ -49,7 +49,9 @@ export class App {
   constructor(store, conn, info, ctx, lightbox) {
     this.ctx = ctx;
     /** 软件包接进来的：挂载位、现在的灯箱（`rich.js` 的 `Ext`） */
-    this.ext = { slots: ctx.slots, lightbox, storage: ctx.storage, account: info.account ?? null, titleOf: (id) => this.titleOf(id) };
+    this.ext = { slots: ctx.slots, lightbox, storage: ctx.storage, account: info.account ?? null, titleOf: (id) => this.titleOf(id), detail: (session, call) => this.callDetail(session, call) };
+    /** 一次调用改了什么（`view.detail`）：同一次调用的结果不会变，照「会话 调用」记着只问一次 @type {Map<string, Promise<any>>} */
+    this.details = new Map();
     this.store = store;
     this.cwd = info.cwd;
     /** 家目录（`@` 选文件写路径照它写成 `~/…`） */
@@ -386,6 +388,17 @@ export class App {
     if (!this.current) return this.draft.cwd ?? this.cwd;
     const s = this.store.sessions.get(this.current);
     return sessionCwd(s?.events ?? [], s?.base ?? null) ?? this.cwd;
+  }
+
+  /**
+   * 一次编辑、写入改了什么（`view.detail`，核心 9-6 三补）：完整的差异带行号。问不到的（旧核心、没有这次调用）交 `null`，
+   * 那一步照参数比的照旧。
+   * @param {string} session @param {string} call
+   */
+  callDetail(session, call) {
+    const key = `${session} ${call}`;
+    if (!this.details.has(key)) this.details.set(key, this.store.conn.request('view.detail', { session, call }).catch(() => null));
+    return /** @type {Promise<any>} */ (this.details.get(key));
   }
 
   /**

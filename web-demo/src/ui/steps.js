@@ -5,6 +5,7 @@
 //! 一步是一个一直在的节点，流式的字来了只改里面的字：新来的一步淡入一次，在想的标题的流光不断（重建节点会从头来）。
 //! 点开、收起记在这一步里，人点过的照人点的；没点过的照 `timeline.json` 的 `expand`。
 
+import { fromUnified, samePath } from '../model/diff.js';
 import { h, icon, replace } from './dom.js';
 import { spring } from '../lib/motion.js';
 import { res, t } from '../util/res.js';
@@ -248,9 +249,36 @@ export class StepView {
     const body = JSON.stringify([step.output, step.status, step.args, step.said]);
     if (body === this.drawnBody) return;
     this.drawnBody = body;
-    replace(this.body, details(step).map((s) => (s.kind === 'diff' ? diffCard(s)
-      : s.kind === 'images' ? this.imagesNode(s)
-        : h('div.tl-detail', h('div.tl-label', s.label), h('pre', s.text)))));
+    /** @type {[any, HTMLElement][]} 差异卡片：问到核心算好的差异以后换掉 */
+    const cards = [];
+    replace(this.body, details(step).map((s) => {
+      if (s.kind === 'diff') {
+        const card = diffCard(s);
+        cards.push([s, card]);
+        return card;
+      }
+      return s.kind === 'images' ? this.imagesNode(s) : h('div.tl-detail', h('div.tl-label', s.label), h('pre', s.text));
+    }));
+    if (cards.length) this.fullDiff(step, cards);
+  }
+
+  /**
+   * 编辑、写入做完了：问核心这次调用真改了什么（`view.detail`，完整的差异带行号），照路径换掉照参数比的那张卡片；算不出的写为什么，
+   * 进回收站的写一句。问不到的（旧核心、没改成）照参数比的留着。
+   * @param {any} step @param {[any, HTMLElement][]} cards
+   */
+  fullDiff(step, cards) {
+    if (!step.callId || step.end == null || !this.where.detail) return;
+    this.where.detail(step.callId).then((got) => {
+      const files = got?.files ?? [];
+      for (const [s, card] of cards) {
+        const file = files.find((f) => samePath(f.path, s.path)) ?? (files.length === 1 && cards.length === 1 ? files[0] : null);
+        if (!file || !card.isConnected) continue;
+        card.replaceWith(file.action === 'trash' ? noteCard(s, t('timeline.trashed'))
+          : file.skipped ? noteCard(s, t(`timeline.diff_skipped.${file.skipped}`))
+            : diffCard({ ...s, diff: fromUnified(file.diff ?? []) }));
+      }
+    });
   }
 
   /** 收着时预览区的小图（`result_image_thumb`）：点开了收掉，换成细节里的；图变了才重画。 */
@@ -304,14 +332,21 @@ function setTime(el, r, preparing) {
  */
 function diffCard(s) {
   const marks = { added: '+', removed: '−', keep: ' ' };
-  return h('div.diff-file',
+  // 行号：核心算好的差异、写入照参数比的有；编辑照参数比的不知道在第几行，这一列空着
+  const numbered = s.diff.lines.some((l) => l.number != null);
+  return h(`div.diff-file${numbered ? '.is-numbered' : ''}`,
     h('div.diff-file-head',
       h(`span.diff-op${s.created ? '.is-add' : ''}`, s.op),
       h('span.diff-path', s.path),
       h('span.diff-stat', h('b.diff-stat-add', `+${s.diff.added}`), ' ', h('b.diff-stat-del', `−${s.diff.removed}`))),
     h('div.diff-lines', s.diff.lines.map((l) => (l.mark === 'gap'
       ? h('div.diff-hunk', '⋯')
-      : h(`div.diff-line.is-${l.mark}`, h('span.diff-gutter', marks[l.mark]), h('span.diff-text', l.text))))));
+      : h(`div.diff-line.is-${l.mark}`, numbered ? h('span.diff-no', l.number ?? '') : null, h('span.diff-gutter', marks[l.mark]), h('span.diff-text', l.text))))));
+}
+
+/** 没有差异可画的那张卡片（进回收站的、核心算不出的）：头一行照旧，下面一句为什么。 */
+function noteCard(s, text) {
+  return h('div.diff-file', h('div.diff-file-head', h(`span.diff-op${s.created ? '.is-add' : ''}`, s.op), h('span.diff-path', s.path)), h('p.diff-note', text));
 }
 
 /** 点击：拖选了字的不算点（字照常能拖选）。 */

@@ -19,7 +19,8 @@ import { fileUrl } from '../core/host.js';
 
 /**
  * 看着的这个会话在哪：会话编号（新会话还没开的是 `null`）、家目录、工作目录；时间线里的结果图点开找的灯箱。
- * @typedef {{session: string|null, home: string|null, cwd: string|null, lightbox?: () => any}} Where
+ * @typedef {{session: string|null, home: string|null, cwd: string|null, lightbox?: () => any, detail?: (call: string) => Promise<any>}} Where
+ *   `detail` 问核心一次调用改了什么（`view.detail`，编辑、写入点开时）
  */
 
 /**

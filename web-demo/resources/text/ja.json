@@ -108,6 +108,8 @@
     "agent_subject": "{job} · {title}",
     "agent_pending": "{title}",
     "created": "新規作成",
+    "trashed": "ごみ箱に移しました（差分はありません）",
+    "diff_skipped": { "too_big": "ファイルが大きすぎるため差分を表示しません", "binary": "テキストファイルではないため差分を表示しません", "missing": "変更前後の内容を取得できません" },
     "changed": "変更",
     "summary": {
       "ran": [

@@ -44,3 +44,22 @@ test('既不是写入也不是编辑的参数没有差异', () => {
   assert.equal(fromArgs({ command: 'ls' }), null);
   assert.equal(fromArgs(null), null);
 });
+
+test('核心算好的差异（view.detail）：每段起头的行号接着数，删的写原来的、别的写改后的；两段之间一行 gap', async () => {
+  const { fromUnified } = await import('../src/model/diff.js');
+  const d = fromUnified(['@@ -12,3 +12,4 @@', ' 上', '-旧的', '+新的', '+多一行', ' 下', '@@ -40,2 +41,1 @@', '-删', ' 尾']);
+  assert.deepEqual(d.lines.map((l) => `${l.mark}:${l.number ?? ''}:${l.text}`), [
+    'keep:12:上', 'removed:13:旧的', 'added:13:新的', 'added:14:多一行', 'keep:15:下', 'gap::', 'removed:40:删', 'keep:41:尾',
+  ]);
+  assert.equal(d.added, 2);
+  assert.equal(d.removed, 2);
+});
+
+test('核心的路径和参数里写的对不对得上：一样的、一个是另一个的末尾一截（相对和绝对）、Windows 的分隔符', async () => {
+  const { samePath } = await import('../src/model/diff.js');
+  assert.equal(samePath('/home/u/proj/src/a.js', 'src/a.js'), true);
+  assert.equal(samePath('/home/u/proj/src/a.js', './src/a.js'), true);
+  assert.equal(samePath('C:\\proj\\src\\a.js', 'src/a.js'), true);
+  assert.equal(samePath('/home/u/proj/src/a.js', 'b.js'), false);
+  assert.equal(samePath('/home/u/proj/xa.js', 'a.js'), false);
+});

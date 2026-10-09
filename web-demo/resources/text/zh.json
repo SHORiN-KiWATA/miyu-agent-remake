@@ -108,6 +108,8 @@
     "agent_subject": "{job} · {title}",
     "agent_pending": "{title}",
     "created": "新建",
+    "trashed": "进了回收站，没有差异可看",
+    "diff_skipped": { "too_big": "文件太大，不显示差异", "binary": "不是文字文件，不显示差异", "missing": "取不到改前改后的内容" },
     "changed": "修改",
     "summary": {
       "ran": [

@@ -203,6 +203,9 @@
 .diff-hunk { padding: 3px 12px; color: var(--text-faint); }
 .diff-line { display: flex; white-space: pre-wrap; }
 .diff-gutter { flex: none; width: 1.9em; opacity: 0.65; text-align: center; }
+/* 行号（核心算好的差异、写入照参数比的才有）：暗、靠右、不跟着选中 */
+.diff-no { flex: none; min-width: 3.2em; padding-right: 6px; color: var(--text-faint); text-align: right; user-select: none; }
+.diff-note { margin: 0; padding: 8px 12px; color: var(--text-soft); font-size: 12.5px; }
 .diff-text { flex: 1; min-width: 0; padding-right: 12px; overflow-wrap: anywhere; }
 .diff-line.is-keep .diff-text { color: var(--text-soft); }
 .diff-line.is-added { background: color-mix(in srgb, var(--diff-add) 13%, transparent); }
