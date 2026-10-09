@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>303</b><span>/ 316 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>304</b><span>/ 317 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
-    <li><b class="mono">cc20d576</b><span>最近一步（O-25 上 出站链）的提交</span></li>
+    <li><b class="mono">5a9f4032</b><span>最近一步（9-6 三补 一次调用的完整差异）的提交</span></li>
   </ul>
 </header>
 
@@ -706,6 +706,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s9-5"><span class="n">9-5</span>会话列表推送<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s9-6a"><span class="n">9-6 上</span>订阅的回应带上当前的状态<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s9-6b"><span class="n">9-6 下</span>view.page 按页读<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s9-6e"><span class="n">9-6</span>一次调用的完整差异（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s9-7a"><span class="n">9-7 上</span>工作区是会话的属性<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s9-7b"><span class="n">9-7 下</span>斜杠命令 /workspace<span class="st">✓</span></a></li>
       </ol>
@@ -16304,6 +16305,62 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/9-6-历史按页读（下）.md</code>；蓝图 <code>protocol.md</code>「<code>view.page</code>」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s9-6e" aria-labelledby="h-s96e">
+  <div class="sheet-head"><h2 id="h-s96e"><span class="no">9-6 三补</span>一次调用的完整差异</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头画编辑、写入那一步时只能照工具的参数比：不知道改在第几行，没有上下文。核心有那次调用改前改后的内容，差异由核心算好交给头。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一次调用的完整差异</span><span class="dir-note">9-6 三补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>view.detail {session, call}</code> 回 <code>{files}</code>：一个文件一项，写入的带整份差异和增删行数，进回收站的只写动作</li>
+              <li>改前改后都从属主的 blob 取，不读磁盘：之后又被改过的照样是那一次的；新建的当改前是空的</li>
+              <li>算不出的带 <code>skipped</code>：<code>too_big</code>、<code>binary</code>、<code>missing</code></li>
+              <li>没有这次调用的结果回新的原因码 <code>unknown_call</code></li>
+              <li>差异的代码从撤销里抽出来两边共用（<code>diffs.rs</code>），撤销照旧最多 20 行</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">整份交，不截</span><span class="rl">头要带行号和上下文的完整差异</span></div>
+          <div class="tile new"><span class="nm">同一次调用的结果不变</span><span class="rl">头照调用编号记着，问一次就够</span></div>
+          <div class="tile new"><span class="nm">字段只加不改</span><span class="rl">以后视图投影还会交长输出这些</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">9-6 三补</dd></div>
+        <div><dt>名称</dt><dd>一次调用的完整差异</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">5a9f4032</dd></div>
+        <div><dt>验收</dt><dd>变异 12/12、八项、三台 CI 和长跑（run 1382）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>改了两处的整份差异带行号、不截断；新建的文件；太大的 too_big</span></li>
+        <li><span class="ok">✓</span><span>读文件的调用 files 是空的</span></li>
+        <li><span class="ok">✓</span><span>写错的 bad_params、没有的会话、没有的调用 unknown_call</span></li>
+        <li><span class="ok">✓</span><span>不是 UTF-8 的、取不出来的单元测试</span></li>
+        <li><span class="ok">✓</span><span>变异 12/12</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/9-6-一次调用的完整差异（三补）.md</code>；蓝图 <code>protocol.md</code>「<code>view.detail</code>」、<code>protocol/undo.md</code>。</li>
       </ul>
     </div>
   </div>
