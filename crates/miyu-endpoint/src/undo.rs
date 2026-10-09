@@ -14,7 +14,6 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 use serde_json::{Value, json};
-use similar::TextDiff;
 
 use miyu_kernel::block::Block;
 use miyu_kernel::event::{
@@ -33,8 +32,6 @@ mod jobs;
 
 /// 一个文件的差异最多交几行。
 const DIFF_LINES: usize = 20;
-/// 任一边超过这么多字节的不算差异。
-const DIFF_BYTES: u64 = 1 << 20;
 /// 内核给跑到一半被打断的、重启时没跑完的调用记的那两句（`kernel/session.md`）：这两种都可能跑了一半。
 const PARTLY_RAN: [&str; 2] = [
     "core/tool-results/cancelled-running",
@@ -332,7 +329,7 @@ fn restored_sides(
 fn changed_diff(blobs: &Blobs, expected: &ContentHash, path: &str) -> Option<Diff> {
     let then = blob_bytes(blobs, Some(expected))?;
     let now = match std::fs::metadata(path) {
-        Ok(meta) if meta.len() <= DIFF_BYTES => std::fs::read(path).ok(),
+        Ok(meta) if meta.len() <= crate::diffs::MOST_BYTES => std::fs::read(path).ok(),
         _ => None,
     }?;
     diff(&then, &now)
@@ -350,43 +347,25 @@ fn restored_diff(
     diff(&then, &now)
 }
 
-/// `hash` 的内容：没有 `hash`（`None`）的照空的算；超过 [`DIFF_BYTES`]、取不出来的没有。
+/// `hash` 的内容：没有 `hash`（`None`）的照空的算；太大的、取不出来的没有（[`crate::diffs::side`]）。
 fn blob_bytes(blobs: &Blobs, hash: Option<&ContentHash>) -> Option<Vec<u8>> {
-    let bytes = match hash {
-        None => Vec::new(),
-        Some(hash) => blobs.get(hash).ok()?,
-    };
-    (u64::try_from(bytes.len()).unwrap_or(u64::MAX) <= DIFF_BYTES).then_some(bytes)
+    crate::diffs::side(blobs, hash).ok()
 }
 
-/// `then` 和 `now` 之间的差异：统一格式，上下文 3 行，最多 [`DIFF_LINES`] 行，外加整份差异数的新增、删掉的行数。
+/// `then` 和 `now` 之间的差异（[`crate::diffs::unified`]）：最多 [`DIFF_LINES`] 行，外加整份差异数的新增、删掉的行数。
 /// 不是文本的、两边一样（没有差异）的，没有。
 fn diff(then: &[u8], now: &[u8]) -> Option<Diff> {
-    let (Ok(then), Ok(now)) = (std::str::from_utf8(then), std::str::from_utf8(now)) else {
-        return None;
-    };
-    let text = TextDiff::from_lines(then, now)
-        .unified_diff()
-        .context_radius(3)
-        .missing_newline_hint(false)
-        .to_string();
-    if text.is_empty() {
+    let whole = crate::diffs::unified(then, now).ok()?;
+    if whole.lines.is_empty() {
         return None;
     }
-    let lines: Vec<&str> = text.lines().collect();
-    let added = lines.iter().filter(|line| line.starts_with('+')).count();
-    let removed = lines.iter().filter(|line| line.starts_with('-')).count();
-    let more = lines.len().saturating_sub(DIFF_LINES);
-    let diff = lines
-        .into_iter()
-        .take(DIFF_LINES)
-        .map(str::to_string)
-        .collect();
+    let more = whole.lines.len().saturating_sub(DIFF_LINES);
+    let diff = whole.lines.into_iter().take(DIFF_LINES).collect();
     Some(Diff {
         diff,
         more,
-        added,
-        removed,
+        added: whole.added,
+        removed: whole.removed,
     })
 }
 

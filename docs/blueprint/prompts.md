@@ -3158,3 +3158,16 @@ reason is one short sentence: who the message is for, whether the bot is the exp
 ```text
 </decoded-base64>
 ```
+
+### 事实（`kind` 是 `undelivered`），桥经核心的 `session.note` 记
+
+#### `software/onebot/facts/undelivered.txt`
+
+- 什么时候加进来：她的一段话没发出去（NapCat 拒了、等不到、连接断了、排过期了），一段一块；这一轮还在跑的下一次请求看到，不在跑的下一轮开头看到（`onebot.md`「退信」，施工 O-25 下）
+- token：49（出厂的样子：`why` 填 `expired`、`detail` 空的、`text` 填 30 个字符的中文开头；`why` 填 `rejected`、`detail` 填 `发送失败` 是 52；只有模板、`text` 空的是 29）
+- 为什么加：她的话没发出去，她自己不知道，会以为群里看到了（18 第十节「发不出去就退回给她，像退信」、Q15）：说清是哪一句（开头 30 个字符）、没人看到、为什么；要不要再说由她定，不加指令
+- 指纹：`789148e2`
+
+```text
+<undelivered why="{why}" detail="{detail}">Your message starting "{text}" was not sent; the chat never saw it.</undelivered>
+```

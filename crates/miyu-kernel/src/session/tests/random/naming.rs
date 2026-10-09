@@ -115,3 +115,25 @@ pub(super) fn some_respond(seed: u64, overheard: u64, next_id: &mut u64) -> Inpu
         },
     })
 }
+
+/// 记几块事实（施工 O-14 补）：照改标题的办法，每一例最后另送一次，接在开一轮的后面，开成了的就是回合进行中记的。一块、两块、
+/// 一块都不带（内核拒）随便挑。
+pub(super) fn some_note(seed: u64, next_id: &mut u64) -> Input {
+    let mut rng = Rng(seed ^ 0x0E14_0B00);
+    let fact = || ContextInjected {
+        kind: FactKind::parse("failed").expect("合写法"),
+        text: "<upload-failed/>\n".to_string(),
+        refs: Vec::new(),
+    };
+    let facts = match rng.below(3) {
+        0 => vec![fact()],
+        1 => vec![fact(), fact()],
+        _ => Vec::new(),
+    };
+    Input::Command(Received {
+        id: id(next_command(next_id)),
+        by: alice(),
+        at: at(34),
+        command: Command::Note { facts },
+    })
+}

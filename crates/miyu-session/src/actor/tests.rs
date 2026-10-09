@@ -130,11 +130,15 @@ async fn a_write_that_fails_stops_the_session() {
     let (inbox, mailbox) = mpsc::unbounded_channel();
     // 造会话那一条、第一句话写得进，第二句写不进。
     let run = snapshot.run_texts().expect("出厂的快照造得出两句");
+    let lettering = Arc::new(crate::lettering::Lettering::new(
+        run,
+        snapshot.guard_texts().expect("出厂的快照造得出三句"),
+    ));
     let guard = crate::guard::Guard::new(
         miyu_tool::Shelf::default(),
         std::path::PathBuf::new(),
         None,
-        snapshot.guard_texts().expect("出厂的快照造得出三句"),
+        Arc::clone(&lettering),
         false,
     );
     let mut actor = Actor::new(
@@ -145,7 +149,7 @@ async fn a_write_that_fails_stops_the_session() {
             session: miyu_kernel::id::SessionId::parse("01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91")
                 .expect("合写法"),
             catalog: miyu_tool::Shelf::default(),
-            texts: run,
+            lettering,
             home: None,
             data_root: std::path::PathBuf::new(),
             // 这个测试不跑工具：blob 不会存进去。

@@ -11,6 +11,10 @@
   "judge_concurrency": 4,
   "judge_queue_seconds": 15,
   "judge_persona_seconds": 60,
+  "receipt_recall_seconds": 3,
+  "queue_expire_seconds": 60,
+  "reaction_emoji": "289",
+  "reaction_seconds": 600,
   "web": {
     "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
     "types": {

@@ -1,7 +1,8 @@
-//! OneBot v11 这一头（`onebot.md` 第一条「怎么走」第 4 到 6 条、第 10 条，「群消息」「撤回」）：NapCat 发来的一帧认成什么
-//! （回应、私聊、群消息、撤回、别的事件），私聊里的文字怎么读出来（`text`），消息段怎么认（`segments`，施工 O-22），群成员
-//! 叫什么（`members`，施工 O-22），发出去的动作和回应怎么照 `echo` 配对（`calls`），`send_private_msg`、`send_group_msg`
-//! 写成什么样。
+//! OneBot v11 这一头（`onebot.md` 第一条「怎么走」第 4 到 6 条、第 10 条，「群消息」「撤回」「出站队列」）：NapCat 发来的一帧
+//! 认成什么（回应、私聊、群消息、撤回、她被禁言和解禁（施工 O-25 中）、别的事件），私聊里的文字怎么读出来（`text`），
+//! 消息段怎么认（`segments`，施工 O-22），群成员叫什么（`members`，施工 O-22），发出去的动作和回应怎么照 `echo` 配对
+//! （`calls`），`send_private_msg`、`send_group_msg`（施工 O-25 上：第一段能带引用和 @）、`delete_msg`（施工 O-25 上）、
+//! `set_msg_emoji_like`（施工 O-25 下）写成什么样。
 //!
 //! 号（机器人的号、对方的号、消息编号）和时刻照 OneBot 是整数；有的实现写成字符串，也认。
 //!
@@ -112,6 +113,28 @@ pub enum Event {
     },
     /// 一次撤回（施工 O-22）。
     Recalled(Recall),
+    /// 她在群里被禁言了（施工 O-25 中，「出站队列」第 7 条）。
+    Muted {
+        /// 收到通知的机器人的号：被禁言的就是它。
+        bot: i64,
+        /// 群号。
+        group: i64,
+        /// 禁几秒，大于 0。
+        seconds: u64,
+    },
+    /// 她在群里被解禁了（施工 O-25 中）：`lift_ban`，或者禁 0 秒。
+    Unmuted {
+        /// 收到通知的机器人的号。
+        bot: i64,
+        /// 群号。
+        group: i64,
+    },
+    /// 一个机器人号连上了（施工 O-25 中，「怎么走」第 2 条）：号认出来的那一刻（`X-Self-ID`、第一条事件），由连接那一头交，
+    /// 不是 NapCat 的一帧。排着的照先后发。
+    Connected {
+        /// 机器人的号。
+        bot: i64,
+    },
 }
 
 /// NapCat 发来的一帧。
@@ -119,7 +142,7 @@ pub enum Event {
 pub enum Frame {
     /// 动作的回应：带 `echo`、不是事件。
     Reply(Value),
-    /// 一条消息、一次撤回。
+    /// 一条消息、一次撤回、禁言和解禁（施工 O-25 中）。
     Event(Event),
     /// 别的事件（别的通知、请求、心跳、生命周期、机器人自己发的……）或者读不懂的：`post_type`，没有的是空字。
     Other(String),
@@ -133,7 +156,7 @@ pub fn read(frame: Value) -> Frame {
     }
     let event = match kind.as_str() {
         "message" => posted(&frame),
-        "notice" => recall(&frame),
+        "notice" => recall(&frame).or_else(|| ban(&frame)),
         _ => None,
     };
     match event {
@@ -196,6 +219,36 @@ fn recall(frame: &Value) -> Option<Event> {
     }))
 }
 
+/// 禁言、解禁（`group_ban`，施工 O-25 中，「出站队列」第 7 条）：禁的是她（`user_id` 等于 `self_id`）的才是，全员禁言
+/// （`user_id` 是 0）、禁别人的不是。`ban` 带的 `duration`（秒）大于 0 是禁言，0 是解禁；`lift_ban` 是解禁；没带 `duration`、
+/// 负的、别的 `sub_type` 不是（「施工时定的」第 121 条）。
+fn ban(frame: &Value) -> Option<Event> {
+    if frame["notice_type"] != "group_ban" {
+        return None;
+    }
+    let (bot, user, group) = (
+        number(&frame["self_id"])?,
+        number(&frame["user_id"])?,
+        number(&frame["group_id"])?,
+    );
+    if user != bot {
+        return None;
+    }
+    let seconds = match frame["sub_type"].as_str()? {
+        "ban" => u64::try_from(number(&frame["duration"])?).ok()?,
+        "lift_ban" => 0,
+        _ => return None,
+    };
+    Some(match seconds {
+        0 => Event::Unmuted { bot, group },
+        seconds => Event::Muted {
+            bot,
+            group,
+            seconds,
+        },
+    })
+}
+
 /// 事件里机器人的号（`self_id`）：连进来时没带 `X-Self-ID` 的，照第一条事件的认（第 2 条）。
 pub fn self_id(frame: &Value) -> Option<i64> {
     number(&frame["self_id"])
@@ -217,10 +270,29 @@ pub enum To {
     Group(i64),
 }
 
-/// 发一句 `text` 给 `to` 的动作和参数：`send_private_msg {user_id, message}` 或者 `send_group_msg {group_id, message}`，
-/// 一个文字段（第 10 条）。
-pub fn message_to(to: To, text: &str) -> (&'static str, Value) {
-    let message = json!([{"type": "text", "data": {"text": text}}]);
+/// 一段前面带的引用和 @（施工 O-25 上，`onebot.md`「群里怎么叫她」第 9 条）：引用的那一条的平台编号、@ 的号，照平台给的原样
+/// 写成字（旧版的教训：引用的编号原样还回去，自作聪明换写法的，对端会不声不响地丢掉引用）。都没有的是不带。
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Lead {
+    /// 引用的那一条的平台编号：`reply` 段。
+    pub reply: Option<String>,
+    /// @ 的号：`at` 段，后面跟一个空格的文字段。
+    pub at: Option<String>,
+}
+
+/// 发一句 `text` 给 `to` 的动作和参数：`send_private_msg {user_id, message}` 或者 `send_group_msg {group_id, message}`
+/// （第 10 条）。`message` 先是 `lead` 要带的引用段、@ 段，再是一个文字段（施工 O-25 上）。
+pub fn message_to(to: To, text: &str, lead: &Lead) -> (&'static str, Value) {
+    let mut message = Vec::new();
+    if let Some(id) = &lead.reply {
+        message.push(json!({"type": "reply", "data": {"id": id}}));
+    }
+    if let Some(qq) = &lead.at {
+        message.push(json!({"type": "at", "data": {"qq": qq}}));
+        // @ 段和后面的字挨着画，隔一个空格好读（旧版这样发，客户端不一定自己隔开）。
+        message.push(json!({"type": "text", "data": {"text": " "}}));
+    }
+    message.push(json!({"type": "text", "data": {"text": text}}));
     match to {
         To::Private(user) => (
             "send_private_msg",
@@ -231,4 +303,19 @@ pub fn message_to(to: To, text: &str) -> (&'static str, Value) {
             json!({"group_id": group, "message": message}),
         ),
     }
+}
+
+/// 撤回平台编号是 `message_id` 的那一条的动作和参数：`delete_msg {message_id}`（施工 O-25 上，「斜杠命令」第 7 条）。
+pub fn delete_msg(message_id: i64) -> (&'static str, Value) {
+    ("delete_msg", json!({"message_id": message_id}))
+}
+
+/// 在平台编号是 `message` 的那一条上贴（`set` 是真）、摘（假）表情 `emoji` 的动作和参数：`set_msg_emoji_like {message_id,
+/// emoji_id, set}`（施工 O-25 下，「贴表情」第 2 条）。编号、表情都原样写成字：NapCat 数和字都收（`SetMsgEmojiLike.ts`），
+/// 编号原样还回去，不换写法（「施工时定的」第 109、132 条）。
+pub fn emoji_like(message: &str, emoji: &str, set: bool) -> (&'static str, Value) {
+    (
+        "set_msg_emoji_like",
+        json!({"message_id": message, "emoji_id": emoji, "set": set}),
+    )
 }

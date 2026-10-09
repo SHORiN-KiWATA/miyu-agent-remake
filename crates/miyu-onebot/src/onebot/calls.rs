@@ -2,7 +2,7 @@
 //! `echo` 的回应，等多久照 `bridge.json` 的 `call_timeout_seconds`，等不到算失败；连接断了，在等的都算失败，之后再调的也是。
 //!
 //! 一条连接一个 [`Calls`]。分两步：[`Calls::begin`] 把这一帧放进连接的写队列（照调的先后），[`Pending::wait`] 等回应；
-//! 发回话的一方先在自己的循环里 `begin`、再把等的那一步交给别的任务，几句回话就照她说的先后到 QQ（`core/route.rs`）。
+//! 发回话的一方先在自己的循环里 `begin`、再把等的那一步交给别的任务，几句回话就照她说的先后到 QQ（`core/route/sending.rs`）。
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -20,8 +20,9 @@ pub enum CallError {
     Timeout,
     /// 连接断了：发不出去，或者等的时候断了。
     Closed,
-    /// 回了，`status` 不是 `ok`：交回回应原文，好记进运行日志。
-    Failed(String),
+    /// 回了，`status` 不是 `ok`：交回回应原文（施工 O-25 中：出站队列取它的 `message` 记进 `failed`，`onebot.md`「施工时定的」
+    /// 第 120 条）。
+    Failed(Value),
 }
 
 /// 一条连接上在等回应的调用。
@@ -145,7 +146,7 @@ impl Pending {
             Err(_) => Err(CallError::Timeout),
             Ok(Err(_)) => Err(CallError::Closed),
             Ok(Ok(reply)) if reply["status"] == "ok" => Ok(reply),
-            Ok(Ok(reply)) => Err(CallError::Failed(reply.to_string())),
+            Ok(Ok(reply)) => Err(CallError::Failed(reply)),
         }
     }
 }

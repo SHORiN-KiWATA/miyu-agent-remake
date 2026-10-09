@@ -1,0 +1,254 @@
+//! 群里的假 NapCat 交给一个任务应答（施工 O-22，O-25 中从 `group.rs` 挪出来）：桥调的动作照 NapCat 的样子回。
+//! `get_version_info` 照 NapCat 回，`get_group_member_info` 照给的群成员回（不在里面的回失败），别的（`send_group_msg`、
+//! `send_private_msg`、`delete_msg`）回成了、交出来给测试看，发消息的回的 `message_id` 照收到的先后从 [`FIRST_SENT`] 起一条
+//! 加一（施工 O-23：她发过的编号要认得出「引用她」；撤回不占编号，施工 O-25 上）。真的 NapCat 并着办动作，回的先后不一定照
+//! 发的先后：[`NapCat::reversing`] 把头几条发消息的回应倒着回。[`NapCat::refusing`] 发消息的一律回失败（施工 O-25 中）。贴、摘表情
+//! （`set_msg_emoji_like`，施工 O-25 下）回成了、不占编号，另放一处给测试看（[`Answering::reacted`]）。
+
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+use futures_util::{SinkExt, StreamExt};
+use serde_json::{Value, json};
+use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
+use tokio_tungstenite::tungstenite::Message;
+
+use super::{NapCat, within};
+/// 假 NapCat 回的第一个发出去的消息编号。
+pub const FIRST_SENT: i64 = 90001;
+
+/// [`NapCat::reversing`] 倒着回的两条回应之间隔多久。
+const APART: Duration = Duration::from_millis(300);
+
+/// [`NapCat::refusing`] 回失败时说的（施工 O-25 中）：前后带空白、240 个字符，桥记的 `detail` 去掉空白、截到 200 个字符。
+pub fn refused() -> String {
+    format!("  {}  ", "发送失败".repeat(60))
+}
+
+/// 一个群成员：号、群名片、昵称。
+pub type Member = (i64, &'static str, &'static str);
+
+/// 交给任务应答的假 NapCat。放下了任务跟着停。
+pub struct Answering {
+    /// 要发给桥的帧。
+    frames: mpsc::UnboundedSender<Value>,
+    /// 桥调的、不是问版本、问群成员、撤回的动作。
+    actions: mpsc::UnboundedReceiver<Value>,
+    /// 桥调的撤回（`delete_msg`，施工 O-25 上）：另放一处，群里的命令回执几秒后才撤，不插进别的测试等的动作里。
+    recalls: mpsc::UnboundedReceiver<Value>,
+    /// 桥调的贴、摘表情（`set_msg_emoji_like`，施工 O-25 下）：同撤回，另放一处。
+    reactions: mpsc::UnboundedReceiver<Value>,
+    /// 桥问过哪些群成员（号），照先后。
+    asked: Arc<Mutex<Vec<i64>>>,
+    task: JoinHandle<()>,
+}
+
+impl NapCat {
+    /// 交给一个任务应答：群成员照 `members` 回（`card`、`nickname`），不在里面的回失败。
+    pub fn answering(self, members: &[Member]) -> Answering {
+        self.reversing(members, 0)
+    }
+
+    /// 同 [`NapCat::answering`]，只是头 `held` 条发消息的回应先压着，攒够了倒着回，两条之间隔 [`APART`]：后发的那一条先回
+    /// 到，先发的明明白白晚一截（施工 O-23）。
+    pub fn reversing(self, members: &[Member], held: usize) -> Answering {
+        self.serving(members, held, false)
+    }
+
+    /// 同 [`NapCat::answering`]，只是发消息的一律回失败（`status` 是 `failed`，`message` 是 [`refused`]，施工 O-25 中）。
+    pub fn refusing(self, members: &[Member]) -> Answering {
+        self.serving(members, 0, true)
+    }
+
+    /// 交给一个任务应答：头 `held` 条发消息的回应倒着回（[`NapCat::reversing`]），`refuse` 的发消息一律回失败。
+    fn serving(self, members: &[Member], held: usize, refuse: bool) -> Answering {
+        let members = members.to_vec();
+        let (frames, mut outgoing) = mpsc::unbounded_channel::<Value>();
+        let (seen, actions) = mpsc::unbounded_channel();
+        let (recalled, recalls) = mpsc::unbounded_channel();
+        let (reacted, reactions) = mpsc::unbounded_channel();
+        let asked = Arc::new(Mutex::new(Vec::new()));
+        let noted = Arc::clone(&asked);
+        let (mut sink, mut stream) = self.ws.split();
+        let task = tokio::spawn(async move {
+            let mut sent = FIRST_SENT;
+            let mut holding = Vec::new();
+            loop {
+                tokio::select! {
+                    frame = outgoing.recv() => match frame {
+                        Some(frame) => {
+                            if sink.send(Message::text(frame.to_string())).await.is_err() {
+                                return;
+                            }
+                        }
+                        None => return,
+                    },
+                    read = stream.next() => {
+                        let Some(Ok(Message::Text(text))) = read else {
+                            match read {
+                                Some(Ok(_)) => continue,
+                                _ => return,
+                            }
+                        };
+                        let action: Value = serde_json::from_str(&text).expect("是 JSON");
+                        let mut answer = answer(&action, &members, &noted, &mut sent);
+                        let kind = action["action"].as_str().unwrap_or_default();
+                        let recall = kind == "delete_msg";
+                        let reaction = kind == "set_msg_emoji_like";
+                        let sending = !recall
+                            && !reaction
+                            && kind != "get_version_info"
+                            && kind != "get_group_member_info";
+                        if sending && refuse {
+                            answer = json!({"status": "failed", "retcode": 1200, "data": null, "message": refused(), "wording": "", "echo": action["echo"]});
+                        }
+                        let shown = if recall {
+                            recalled.send(action)
+                        } else if reaction {
+                            reacted.send(action)
+                        } else if sending {
+                            seen.send(action)
+                        } else {
+                            Ok(())
+                        };
+                        if shown.is_err() {
+                            return;
+                        }
+                        let mut answers = vec![answer];
+                        if sending && holding.len() < held {
+                            holding.append(&mut answers);
+                            if holding.len() == held {
+                                answers = holding.drain(..).rev().collect();
+                            }
+                        }
+                        for (n, answer) in answers.into_iter().enumerate() {
+                            if n > 0 {
+                                tokio::time::sleep(APART).await;
+                            }
+                            if sink.send(Message::text(answer.to_string())).await.is_err() {
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        Answering {
+            frames,
+            actions,
+            recalls,
+            reactions,
+            asked,
+            task,
+        }
+    }
+}
+
+/// 照 NapCat 的样子回动作 `action`：问群成员的照 `members`，记下问的是谁；发消息的回 `sent`，再加一。
+fn answer(action: &Value, members: &[Member], asked: &Mutex<Vec<i64>>, sent: &mut i64) -> Value {
+    let (status, data) = match action["action"].as_str() {
+        Some("get_version_info") => (
+            "ok",
+            json!({"app_name": "NapCat.Onebot", "app_version": "4.8.0", "protocol_version": "v11"}),
+        ),
+        // 撤回（施工 O-25 上）、贴摘表情（施工 O-25 下）：回成了，不占发出去的编号。
+        Some("delete_msg" | "set_msg_emoji_like") => ("ok", Value::Null),
+        Some("get_group_member_info") => {
+            let user = action["params"]["user_id"].as_i64().expect("问的是号");
+            asked.lock().expect("没 panic").push(user);
+            match members.iter().find(|(id, _, _)| *id == user) {
+                Some((id, card, nickname)) => (
+                    "ok",
+                    json!({"group_id": action["params"]["group_id"], "user_id": id, "card": card, "nickname": nickname}),
+                ),
+                None => ("failed", Value::Null),
+            }
+        }
+        _ => {
+            *sent += 1;
+            ("ok", json!({"message_id": *sent - 1}))
+        }
+    };
+    json!({"status": status, "retcode": 0, "data": data, "message": "", "wording": "", "echo": action["echo"]})
+}
+
+impl Answering {
+    /// 发一帧给桥。
+    pub fn send(&self, frame: Value) {
+        self.frames.send(frame).expect("任务还在");
+    }
+
+    /// 下一个桥调的动作（问版本、问群成员的不算），最多等十秒。
+    pub async fn action(&mut self) -> Value {
+        within("桥调动作", self.actions.recv())
+            .await
+            .expect("任务还在")
+    }
+
+    /// 下一个动作是发进群 `group` 的 `send_group_msg`：交回里面的字（只有一个文字段）。
+    pub async fn group_reply(&mut self, group: i64) -> String {
+        let action = self.action().await;
+        assert_eq!(action["action"], "send_group_msg", "{action}");
+        assert_eq!(action["params"]["group_id"], group, "{action}");
+        let message = action["params"]["message"].as_array().expect("段的数组");
+        assert_eq!(message.len(), 1, "{action}");
+        message[0]["data"]["text"]
+            .as_str()
+            .expect("有字")
+            .to_string()
+    }
+
+    /// 下一个动作是发进群 `group` 的 `send_group_msg`：交回段的数组（施工 O-25 上：看第一段带没带引用、@）。
+    pub async fn group_message(&mut self, group: i64) -> Vec<Value> {
+        let action = self.action().await;
+        assert_eq!(action["action"], "send_group_msg", "{action}");
+        assert_eq!(action["params"]["group_id"], group, "{action}");
+        action["params"]["message"]
+            .as_array()
+            .expect("段的数组")
+            .clone()
+    }
+
+    /// 下一个撤回（`delete_msg`）的参数，最多等十秒。
+    pub async fn recalled(&mut self) -> Value {
+        let action = within("桥撤回", self.recalls.recv())
+            .await
+            .expect("任务还在");
+        action["params"].clone()
+    }
+
+    /// 还没取的撤回：没有的是空的。
+    pub fn pending_recall(&mut self) -> Option<Value> {
+        self.recalls.try_recv().ok()
+    }
+
+    /// 下一个贴、摘表情（`set_msg_emoji_like`）的参数，最多等十秒（施工 O-25 下）。
+    pub async fn reacted(&mut self) -> Value {
+        let action = within("桥贴摘表情", self.reactions.recv())
+            .await
+            .expect("任务还在");
+        action["params"].clone()
+    }
+
+    /// 还没取的贴、摘表情：没有的是空的。
+    pub fn pending_reaction(&mut self) -> Option<Value> {
+        self.reactions.try_recv().ok()
+    }
+
+    /// 还没取的动作：没有的是空的。
+    pub fn pending(&mut self) -> Option<Value> {
+        self.actions.try_recv().ok()
+    }
+
+    /// 桥问过哪些群成员，照先后。
+    pub fn asked(&self) -> Vec<i64> {
+        self.asked.lock().expect("没 panic").clone()
+    }
+}
+
+impl Drop for Answering {
+    fn drop(&mut self) {
+        self.task.abort();
+    }
+}

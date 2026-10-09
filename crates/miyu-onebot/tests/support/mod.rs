@@ -5,6 +5,7 @@
 
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
 
+pub mod answering;
 pub mod fake_core;
 pub mod group;
 pub mod http;
@@ -13,6 +14,7 @@ pub mod napcat;
 pub mod pipe;
 pub mod ports;
 pub mod spawning;
+pub mod speaking;
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -120,10 +122,43 @@ pub fn temp_root() -> (PathBuf, DataRoot) {
     (dir, root)
 }
 
+/// 源码树的资源目录抄一份到 `dir/resources`，`bridge.json` 照 `keys` 改那几格（施工 O-25 中）：交回抄好的目录。
+pub fn tuned_resources(dir: &Path, keys: &serde_json::Map<String, Value>) -> PathBuf {
+    let copy = dir.join("resources");
+    copy_tree(&resources(), &copy);
+    let file = copy.join(miyu_onebot::tuning::FILE);
+    let mut bridge: Value =
+        serde_json::from_str(&std::fs::read_to_string(&file).expect("读得了")).expect("是 JSON");
+    for (key, value) in keys {
+        bridge[key] = value.clone();
+    }
+    std::fs::write(&file, bridge.to_string()).expect("写得进");
+    copy
+}
+
+/// 把目录 `from` 整个抄到 `to`。
+fn copy_tree(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).expect("建得了目录");
+    for entry in std::fs::read_dir(from).expect("列得出") {
+        let entry = entry.expect("读得了");
+        let target = to.join(entry.file_name());
+        if entry.file_type().expect("看得出种类").is_dir() {
+            copy_tree(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), &target).expect("抄得了");
+        }
+    }
+}
+
 impl Home {
     /// 起一个核心：请求模型照 `script`，没有工具，系统配置是主人对应表。
     pub fn new(script: &Script) -> Home {
-        Home::with_config(Arc::new(script.clone()), CONFIG, None, None)
+        Home::speaking(Arc::new(script.clone()))
+    }
+
+    /// 同 [`Home::new`]，请求模型照 `models`（施工 O-25 上：她照台词说，[`speaking::Lines`]）。
+    pub fn speaking(models: Arc<dyn Models>) -> Home {
+        Home::with_config(models, CONFIG, None, None, &Value::Null)
     }
 
     /// 起一个照开关拉起扩展的核心（施工 O-18）：系统配置是主人对应表接着 `more`（端口、令牌、语言），密钥文件里 `onebot` 是
@@ -136,6 +171,12 @@ impl Home {
 
     /// 同 [`Home::spawning`]，请求模型照 `models`（施工 O-23 下：判官另走一头，[`judge::models`]）。
     pub fn spawning_with(models: Arc<dyn Models>, more: &str) -> Home {
+        Home::spawning_tuned(models, more, &Value::Null)
+    }
+
+    /// 同 [`Home::spawning_with`]，`tuned` 是对象的：资源目录是源码树的一份拷贝，`bridge.json` 照它改那几格（施工 O-25 中：
+    /// 要等过期的测试改小 `queue_expire_seconds`；真核心拉起的桥读的是核心的资源目录，`onebot.md`「施工时定的」第 127 条）。
+    pub fn spawning_tuned(models: Arc<dyn Models>, more: &str, tuned: &Value) -> Home {
         spawning::linked();
         let timing = Timing {
             grace: Duration::from_secs(5),
@@ -144,21 +185,19 @@ impl Home {
             longest: Duration::from_millis(100),
         };
         let secrets = format!("onebot = \"{TOKEN}\"\n");
-        Home::with_config(
-            models,
-            &format!("{CONFIG}{more}"),
-            Some(&secrets),
-            Some(timing),
-        )
+        let config = format!("{CONFIG}{more}");
+        Home::with_config(models, &config, Some(&secrets), Some(timing), tuned)
     }
 
     /// 起一个核心：请求模型照 `models`，系统配置写成 `config`，有 `secrets` 的密钥文件写成它；`extensions` 有的照它等、退避，
     /// 照开关拉起扩展。配置清单照真核心起来时那样拼进出厂的包的配置项（`Packaged`，施工 O-20：`onebot.*` 在桥的清单里）。
+    /// `tuned` 是对象的，资源目录用一份改过 `bridge.json` 的拷贝（[`tuned_resources`]）。
     fn with_config(
         models: Arc<dyn Models>,
         config: &str,
         secrets: Option<&str>,
         extensions: Option<Timing>,
+        tuned: &Value,
     ) -> Home {
         let (dir, root) = temp_root();
         let file = root.path().join("system").join("config.toml");
@@ -167,12 +206,16 @@ impl Home {
         if let Some(secrets) = secrets {
             std::fs::write(file.with_file_name("secrets.toml"), secrets).expect("写得进");
         }
+        let shipped = match tuned.as_object() {
+            Some(keys) => tuned_resources(&dir, keys),
+            None => resources(),
+        };
         let dirs = miyu_ipc::Dirs {
             runtime_dir: None,
             ..miyu_ipc::Dirs::current()
         };
         let opened = miyu_ipc::open(&root, &dirs).expect("起得来");
-        let shipped = ResourceRoot::at(resources());
+        let shipped = ResourceRoot::at(shipped);
         let mut found = miyu_endpoint::packages::load(&shipped, &root, &admin());
         let packaged = miyu_core::settings::Packaged::of(&mut found);
         let config = Config::load(&root, &admin(), None, packaged.all(), Environment::of(&[]));

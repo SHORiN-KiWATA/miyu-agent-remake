@@ -32,6 +32,8 @@ kinds! {
     Appended,
     /// 照记下的几条开一轮（施工 O-14 上）。
     Respond,
+    /// 记几块事实，不开回合（施工 O-14 补）。
+    Note,
     /// 打断，排着的接着发。
     Interrupt,
     /// 打断，排着的退回。
@@ -134,6 +136,7 @@ impl InputKind {
                     queued: Queued::Keep,
                 } => InputKind::Keep,
                 Command::Respond { .. } => InputKind::Respond,
+                Command::Note { .. } => InputKind::Note,
                 Command::SetPermission { .. } => InputKind::SetPermission,
                 Command::SetMeta { .. } => InputKind::SetMeta,
                 Command::SetWorkspace { .. } => InputKind::SetWorkspace,

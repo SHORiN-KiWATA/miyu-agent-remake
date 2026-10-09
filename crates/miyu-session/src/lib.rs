@@ -35,6 +35,7 @@ mod handle;
 mod job_ids;
 mod jobs;
 mod kinds;
+mod lettering;
 mod lines;
 mod memory;
 mod messages;

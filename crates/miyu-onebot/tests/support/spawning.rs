@@ -6,6 +6,7 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use serde_json::Value;
@@ -16,8 +17,7 @@ use miyu_store::root::DataRoot;
 use super::ports::{Taken, taken};
 use super::{resources, within};
 
-/// 测试程序旁边的 `miyu-onebot`：这个测试程序里头一次要的时候链上。上一次链的是别的构建的（大小、改动时刻对不上）先删掉
-/// 再链。之后留在那里：别的测试可能正跑着它。
+/// 测试程序旁边的 `miyu-onebot`：这个测试程序里头一次要的时候链上（[`link_beside`]）。之后留在那里：别的测试可能正跑着它。
 pub fn linked() -> &'static Path {
     static LINKED: OnceLock<PathBuf> = OnceLock::new();
     LINKED.get_or_init(|| {
@@ -28,23 +28,52 @@ pub fn linked() -> &'static Path {
             .expect("有上一级")
             .to_path_buf();
         let path = dir.join(format!("miyu-onebot{}", std::env::consts::EXE_SUFFIX));
-        let source = Path::new(env!("CARGO_BIN_EXE_miyu-onebot"));
-        let same = |one: &Path, other: &Path| {
-            let (Ok(one), Ok(other)) = (std::fs::metadata(one), std::fs::metadata(other)) else {
-                return false;
-            };
-            one.len() == other.len() && one.modified().ok() == other.modified().ok()
-        };
-        if !same(&path, source) {
-            if let Err(error) = std::fs::remove_file(&path)
-                && error.kind() != std::io::ErrorKind::NotFound
-            {
-                panic!("删不掉上一次链的 {}：{error}", path.display());
-            }
-            std::fs::hard_link(source, &path).expect("链得上");
-        }
+        link_beside(Path::new(env!("CARGO_BIN_EXE_miyu-onebot")), &path);
         path
     })
+}
+
+/// 把 `source` 硬链接到 `path`：已经是同一个文件的不动；不是的（上一次链的是别的构建的），先链到旁边一个只有这一次用的名字，
+/// 再改名盖上 `path`。
+///
+/// 几份测试程序可能同时在链同一个（并着跑同一个测试程序）。原来先删再链：后到的撞 `File exists`，或者把别人刚链好的删掉、
+/// 那一刻 `path` 不在（O-23 下撞过）。改名是原子的：`path` 要么是旧的、要么是新的，一直在；谁最后盖上的都是 `source` 那个
+/// 文件。所以链、改名的结果都不看，只看最后 `path` 是不是 `source` 那个文件。
+///
+/// # Panics
+///
+/// 链、改名完了 `path` 还不是 `source` 那个文件：带上链、改名各自的结果。
+pub fn link_beside(source: &Path, path: &Path) {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    if same(path, source) {
+        return;
+    }
+    let mut name = path.file_name().expect("有文件名").to_os_string();
+    name.push(format!(
+        ".linking-{}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    ));
+    let staged = path.with_file_name(name);
+    let linked = std::fs::hard_link(source, &staged);
+    let renamed = std::fs::rename(&staged, path);
+    // 改名成了的旁边那个名字已经没了；`path` 本来就是同一个文件的，改名什么都不做，旁边那个还在。
+    if std::fs::remove_file(&staged).is_err() {
+        // 不在了：改名成了。
+    }
+    assert!(
+        same(path, source),
+        "链不上 {}：链 {linked:?}，改名 {renamed:?}",
+        path.display()
+    );
+}
+
+/// 两个路径是不是同一个文件：大小、改动时刻都对得上（硬链接的两个名字是同一份）。有一个不在的不是。
+fn same(one: &Path, other: &Path) -> bool {
+    let (Ok(one), Ok(other)) = (std::fs::metadata(one), std::fs::metadata(other)) else {
+        return false;
+    };
+    one.len() == other.len() && one.modified().ok() == other.modified().ok()
 }
 
 /// 一个空着的端口：系统挑一个，马上放掉。

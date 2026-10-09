@@ -2,7 +2,8 @@
 //! O-22，「群消息」第 7 条）的文字去掉开头的空白以后以 `/` 开头的，先原样交核心的 `command.run`，和发消息同一个命令编号。
 //! 核心认命令、判谁能用、执行、照连接的语言写好回执；桥只分三种回应：成了的回执发回去，核心认不出的（`unknown_command`）
 //! 交回给 `Route::submit` 照普通的话发，别的被拒把核心拒绝时那一句（`error.message`，照连接的语言写好的，「施工时定的」
-//! 第 31 条）发回去（群里的发回群里）、不交给她。运行日志只记正名和原因码，不记原文。
+//! 第 31 条）发回去（群里的发回群里）、不交给她。发回去的交 `receipt`：入队（施工 O-25 中），群里的过几秒撤回（施工 O-25 上）。
+//! 运行日志只记正名和原因码，不记原文。
 
 use serde_json::Value;
 
@@ -37,7 +38,7 @@ impl Route {
                 said(&reply["error"]["message"])
             }
         };
-        self.send_back(&session, said).await;
+        self.receipt(&session, said).await?;
         Ok(true)
     }
 }

@@ -1,5 +1,6 @@
 //! 认帧（施工 O-22，`onebot.md` 第一条「怎么走」第 5 条、「群消息」第 1 条、「撤回」）：群消息带上群号、发的人的名字（群名片，
-//! 空白的取昵称）和认出来的段；私聊也带名字；机器人自己发的不认；两种撤回认出撤的人；缺了号的不认。
+//! 空白的取昵称）和认出来的段；私聊也带名字；机器人自己发的不认；两种撤回认出撤的人；缺了号的不认。禁言（施工 O-25 中，
+//! 「出站队列」第 7 条）：禁的是她的才认，0 秒、`lift_ban` 是解禁；别人、全员、没带秒数、负的、别的种类不认。
 
 use serde_json::{Value, json};
 
@@ -137,4 +138,51 @@ fn recalls_name_who_recalled() {
     let mut other = in_group;
     other["notice_type"] = json!("group_increase");
     assert_eq!(read(other), Frame::Other("notice".to_string()));
+}
+
+/// 群 555 里 `user` 被禁言的通知（施工 O-25 中）：`sub_type`、`duration` 照给的（`null` 的不写这一格）。
+fn ban(user: Value, sub_type: &str, duration: Value) -> Value {
+    let mut frame = json!({
+        "time": 1_759_800_000, "self_id": 30003, "post_type": "notice", "notice_type": "group_ban",
+        "sub_type": sub_type, "group_id": "555", "operator_id": 40004, "user_id": user,
+    });
+    if !duration.is_null() {
+        frame["duration"] = duration;
+    }
+    frame
+}
+
+#[test]
+fn only_her_own_ban_is_read() {
+    let muted = |seconds| Event::Muted {
+        bot: 30003,
+        group: 555,
+        seconds,
+    };
+    let unmuted = Event::Unmuted {
+        bot: 30003,
+        group: 555,
+    };
+    assert_eq!(event(ban(json!(30003), "ban", json!(600))), muted(600));
+    assert_eq!(
+        event(ban(json!("30003"), "ban", json!("60"))),
+        muted(60),
+        "号、秒数写成整数的字也认"
+    );
+    assert_eq!(event(ban(json!(30003), "lift_ban", json!(0))), unmuted);
+    assert_eq!(event(ban(json!(30003), "lift_ban", Value::Null)), unmuted);
+    assert_eq!(
+        event(ban(json!(30003), "ban", json!(0))),
+        unmuted,
+        "禁 0 秒是解禁"
+    );
+    for (name, frame) in [
+        ("别人", ban(json!(20002), "ban", json!(600))),
+        ("全员", ban(json!(0), "ban", json!(600))),
+        ("没带秒数", ban(json!(30003), "ban", Value::Null)),
+        ("负的", ban(json!(30003), "ban", json!(-1))),
+        ("别的种类", ban(json!(30003), "whole_ban", json!(600))),
+    ] {
+        assert_eq!(read(frame), Frame::Other("notice".to_string()), "{name}");
+    }
 }

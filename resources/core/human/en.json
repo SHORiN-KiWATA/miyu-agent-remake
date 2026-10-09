@@ -69,7 +69,7 @@
       },
       "models.embedding": {
         "name": "Search by meaning",
-        "description": "When she searches what she remembers and past conversations, she also finds what means the same in other words. Left out, the local model is used and downloads about 24 MB the first time; a provider's model uses that provider, billed by usage; off searches by keywords only.",
+        "description": "When she searches what she remembers and past conversations, she also finds what means the same in other words. The local model downloads about 24 MB the first time; a provider's model is billed by usage; turned off, she searches by keywords only.",
         "options": {
           "local": "Local model",
           "off": "Off"

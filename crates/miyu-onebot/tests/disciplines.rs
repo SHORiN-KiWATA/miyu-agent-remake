@@ -177,6 +177,11 @@ async fn each_discipline_goes_its_own_way() {
     napcat.send(send(WAKE, JIE, 12, json!([plain("米尤，几点了")])));
     assert_eq!(napcat.group_reply(WAKE).await, "三点。");
     until_turns(&home, WAKE, 2).await;
+    // 续聊照她的回复算（`venue.delivered`）：NapCat 收到她的话时桥还没记送达，等记下了再接着说，不然这一句可能先判、算不上续聊。
+    until_events(&home.root, &venue(WAKE), |events| {
+        !of_kind(events, "venue.delivered").is_empty()
+    })
+    .await;
     napcat.send(send(WAKE, JIE, 13, json!([plain("那明天呢")])));
     assert_eq!(napcat.group_reply(WAKE).await, "也热。");
     let continued = until_decided(&home, WAKE, 13).await;

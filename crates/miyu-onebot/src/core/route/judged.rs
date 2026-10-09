@@ -32,7 +32,7 @@ impl Route {
             tracing::debug!(target: TARGET, venue = %judging.tag.venue, message = judging.tag.number, "judge answer dropped");
             return Ok(());
         }
-        self.catch_up(&session).await;
+        self.catch_up(&session).await?;
         let scored = match (&answer.result, applied::clock(), self.groups.get(&session)) {
             (Ok(judgement), Some(clock), Some(group)) => Some(score(
                 judgement,

@@ -130,6 +130,7 @@
 | `session.create` | 造会话 |
 | `venue.session` | 找回或者造一个通讯平台场所的主线会话（施工 O-3，`venues.md`） |
 | `session.respond` | 照已经旁听记下的几条开一轮，带几块事实（施工 O-14 上，`venues.md`「照记下的几条开一轮」） |
+| `session.note` | 只记几块事实，不开回合（施工 O-14 补，`venues.md`「记几块事实」） |
 | `provide` | 核心拉起的扩展登记它提供的工具（施工 O-2 上，`providers.md`）；核心照登记反向调用 `tool.call`，超时、打断时发通知 `tool.cancel`（施工 O-2 下） |
 | `venue.records` | 判官看的群聊记录：要判的那一条和它之前的几条，一行一条，和她看到的同一个写法（施工 O-24，`venues.md`「判官看的群聊记录」） |
 | `events.append` | 往会话里记一条不带回合编号的事件：扩展自己的 `ext.*`、场所的 `venue.recalled`、`venue.delivered`（施工 O-13 上，`venues.md`） |
@@ -188,6 +189,7 @@
 | `link.preview` | 一个链接的卡片：标题、简介、图（存成 blob）。编进了 `net` 包才有，没编进来回 `unknown_method`；在后台答（施工 W-7，`net.md`） |
 | `subscribe`、`unsubscribe` | 订阅、取消订阅会话的事件流；配置、会话列表、扩展的状态的推送 |
 | `view.page` | 历史按页读：从末尾一页页往前，页的边界落在回合之间（施工 9-6 下） |
+| `view.detail` | 一次调用的完整差异：改了哪些文件、改前改后的统一格式差异（施工 9-6 三补） |
 
 带 `session` 的，它要合会话编号的写法：UUID 的标准写法，小写十六进制，8-4-4-4-12；不合的 `bad_params`。找会话照下面「会话表」。
 
@@ -814,7 +816,34 @@
 4. 这一页里报完了的任务（`job.reported`、`child.reported`，带进来的触发消息也算：后台命令跑完常引起下一轮），派它的 `job.started` 在切点前的，带在 `jobs` 里：照派出的先后，每一个照 `job.started` 的写法（`job`、`what`、`title`，子代理带 `session`），没有的不写这一格。头照它写「后台命令跑完了」那一行，不用为找标题往前翻（施工 9-6 再补）。
 5. `last` 是这一页最后一条：最新一页的 `last` 就是读的那一刻落了盘的最后一条，头接着 `subscribe {"after": last}`，只接新的。压缩、撤销照原样在页里，头照有效历史自己画：先拿到的总是更新的页，撤销总比被撤的那几轮先到。
 6. 只读地读会话目录里的日志，不为翻历史载入会话；读的时候会话照常跑，正在写的那半行不算。
-7. 会话编号不合写法、`before` 是 0 或不是正整数、`turns` 不在 1 到 50、写了别的格：`bad_params`。没有这个会话（删了的也是）：`session_not_found`。日志读不了：`session_broken`，记一行 `WARN page not read`。
+7. 会话编号不合写法、`before` 是 0 或不是正整数、`turns` 不在 1 到 50、写了别的格：`bad_params`。没有这个会话（删了的也是）：`session_not_found`。日志读不了：`session_broken`，记一行 `WARN log not read`。
+
+
+**`view.detail`**（施工 9-6 三补，2026-10-09 形状和终端界面、网页的会话对过；`04-核心协议.md` 第九节「条目只带摘要，完整的 diff 头展开时用 `view.detail` 按需取」）
+
+| 参数 | 类型 | 说明 |
+|---|---|---|
+| `session` | 字符串，必写 | 会话编号 |
+| `call` | 字符串，必写 | 那一次工具调用的编号（`tool.result` 的 `call_id`） |
+
+回应 `{"files": [...]}`，照那次调用的工具结果里效果的先后，一个文件一项：
+
+| 格 | 说明 |
+|---|---|
+| `path` | 换成真实位置以后的绝对路径 |
+| `action` | `write`（`file.changed`：新建、覆盖、编辑）或 `trash`（`file.trashed`，没有差异） |
+| `diff` | 整份差异，几行字：和撤销回应的同一套（`protocol/undo.md` 第 8 条第 5 款）——统一格式、上下文 3 行，每段 `@@ -旧起始,行数 +新起始,行数 @@` 起头，不带 `---`、`+++`，文件末尾没有换行的不写那一句；不截断。两边一样的是空的 |
+| `added`、`removed` | 新增、删掉了几行，照整份差异数；有 `diff` 的才有 |
+| `skipped` | 算不出差异的原因，有它的没有 `diff`、`added`、`removed`：`too_big`（一边超过 1 MiB）、`binary`（不是 UTF-8）、`missing`（改前改后的 blob 取不出来） |
+
+```json
+{"id":"d1","jsonrpc":"2.0","result":{"files":[{"action":"write","added":1,"diff":["@@ -1,3 +1,3 @@"," a","-b","+B"," c"],"path":"/home/me/proj/a.txt","removed":1}]}}
+```
+
+1. 只读地读会话的日志（和 `view.page` 一样，不为它载入会话），找这次调用的工具结果；改前、改后都从属主的 blob 取，不读磁盘：之后又被改过的照样是那一次的。改前是 `null`（新建的文件）的当空的算：`diff` 只有 `+` 行，头一行 `@@ -0,0 +1,N @@`。
+2. 读文件、派任务这些效果不算；这次调用没改文件的，`files` 是空的。同一次调用的结果不会变，头照 `call` 记着、问一次就够。
+3. 会话编号、调用编号写错、写了别的格：`bad_params`。没有这个会话：`session_not_found`。日志里没有这次调用的结果（编号对不上、还没回）：`unknown_call`。日志读不了：`session_broken`，记一行 `WARN log not read`。
+4. 以后做视图投影，`view.detail` 还会交长输出这些，字段只加不改。
 
 **`subscribe`、`unsubscribe`**
 
@@ -980,6 +1009,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `unknown_package`、`not_an_extension`、`extension_off` | -32010 | `extension.*`：没有这个包、清单读不成；是界面包；重启一个关着的（施工 9-4 上，`extensions.md`） |
 | `needs_approval` | -32010 | `extension.enable`、`extension.restart`：要的能力还有没批的，`data.capabilities` 是那几个（施工 9-4 下上，`extensions.md`「能力」） |
 | `session_not_found` | -32010 | 没有这个会话，删了的也是 |
+| `unknown_call` | -32010 | `view.detail` 的会话日志里没有这次调用的结果：编号对不上，或者还没回（施工 9-6 三补） |
 | `no_system_account` | -32010 | 场所会话的属主该是系统账号，这个连接不是（施工 O-3；O-4 下起核心拉起的、清单声明了系统账号的包的扩展是，别的连接还回它） |
 | `venue_session` | -32010 | 场所会话只收代表外部的人说的话：不带 `as` 的 `session.send`（施工 O-3）、`command.run`（施工 O-6）；`command.catalog` 只收本机的会话（施工 O-6 补） |
 | `unknown_command` | -32010 | `command.run` 认不出这个命令（施工 O-6） |
@@ -1128,6 +1158,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `extension_off` | 这个扩展关着，先打开它。 | This extension is off; turn it on first. |
 | `needs_approval` | 这个扩展要的能力还没批准。 | This extension's capabilities are not approved yet. |
 | `session_not_found` | 没有这个会话。 | There is no such session. |
+| `unknown_call` | 没有这次调用。 | There is no such tool call. |
 | `no_system_account` | 这个场所的会话要归系统账号，只有带系统账号的扩展能开。 | This venue's session belongs to a system account; only an extension with one can open it. |
 | `venue_session` | 这是通讯平台的场所会话，本机的头不能直接说话。 | This is a chat platform venue session; local heads cannot talk in it directly. |
 | `unknown_command` | 没有这个命令。 | There is no such command. |

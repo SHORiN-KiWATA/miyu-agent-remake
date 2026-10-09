@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>301</b><span>/ 314 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>307</b><span>/ 319 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
-    <li><b class="mono">8b909854</b><span>最近一步（R-5 补 远程的 embedding）的提交</span></li>
+    <li><b class="mono">86be0dcd</b><span>最近一步（O-25 下 退信和贴表情）的提交</span></li>
   </ul>
 </header>
 
@@ -655,6 +655,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sO-13d"><span class="n">O-13 补</span>只有媒体的消息<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-14a"><span class="n">O-14 上</span>照记下的几条开一轮<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-14b"><span class="n">O-14 下</span>并进正在跑的一轮<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sO-14c"><span class="n">O-14</span>记几块事实，不开回合（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-24"><span class="n">O-24</span>判官看的群聊记录<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-15a"><span class="n">O-15 上</span>出厂参数和按场所改<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-15b"><span class="n">O-15 下</span>词表和名单<span class="st">✓</span></a></li>
@@ -668,7 +669,9 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sO-23a"><span class="n">O-23 上</span>群里叫她就回<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-23b"><span class="n">O-23 下</span>判官接上<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-23c"><span class="n">O-23 补</span>判官带人格<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">O-25</span>出站</span></li>
+        <li><a class="step done" href="#sO-25a"><span class="n">O-25 上</span>出站链<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sO-25b"><span class="n">O-25 中</span>出站队列<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sO-25c"><span class="n">O-25 下</span>退信和贴表情<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-6"><span class="n">O-6</span>核心：斜杠命令由核心解析<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-6b"><span class="n">O-6 补</span>列出斜杠命令<span class="st">✓</span></a></li>
       </ol>
@@ -705,6 +708,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sP-1b"><span class="n">P-1</span>空人格、会话带上人格（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sP-1c"><span class="n">P-1</span>角色扮演提示（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sP-1d"><span class="n">P-1</span>改了人格下一回合换上（再补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sP-1e"><span class="n">P-1</span>升级以后老会话照样换快照（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sP-2a"><span class="n">P-2 上</span>预设的文件、找法和造会话<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sP-2b"><span class="n">P-2 中</span>照预设挑工具面<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sP-2c"><span class="n">P-2 下</span>改了预设，下一个回合换上<span class="st">✓</span></a></li>
@@ -735,6 +739,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s9-5"><span class="n">9-5</span>会话列表推送<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s9-6a"><span class="n">9-6 上</span>订阅的回应带上当前的状态<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s9-6b"><span class="n">9-6 下</span>view.page 按页读<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s9-6e"><span class="n">9-6</span>一次调用的完整差异（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s9-7a"><span class="n">9-7 上</span>工作区是会话的属性<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s9-7b"><span class="n">9-7 下</span>斜杠命令 /workspace<span class="st">✓</span></a></li>
       </ol>
@@ -15094,6 +15099,59 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sP-1e" aria-labelledby="h-sP1e">
+  <div class="sheet-head"><h2 id="h-sP1e"><span class="no">P-1 三补</span>升级以后老会话照样换快照</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">换快照要求「核心的字没变」：执行器的几份字是会话打开时从快照取好的，换一半会两版字混着用。可是程序每加一句核心的字，以前造的会话就再也换不了：改人格、改预设、包的工具变了都不再跟。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">升级以后老会话照样换快照</span><span class="dir-note">P-1 三补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>执行器取自快照的几份字一起换：请求模型的端口（<code>ModelPort::retext</code>）、替工具写的两句和权限策略的几句（共用的 <code>Lettering</code>）</li>
+              <li>和内核换策略同一个回合开头换；升级过的老会话也换得了，换上新的核心的字</li>
+              <li><code>swappable</code> 不再拦，只用来认「光是升级」</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">光是升级不换</span><span class="rl">核心的字变了、人格预设都没改、工具面也没变的照旧，不为升级断一次缓存</span></div>
+          <div class="tile new"><span class="nm">只有装了没开的那一行变了不换</span><span class="rl">升级后为这一行断一次缓存不值</span></div>
+          <div class="tile new"><span class="nm">人改的照换</span><span class="rl">改人格、改预设这一回合前缀本来就断</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">P-1 三补</dd></div>
+        <div><dt>名称</dt><dd>升级以后老会话照样换快照</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">688a45e4</dd></div>
+        <div><dt>验收</dt><dd>变异 8/8、八项、三台 CI 和长跑（run 1375）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>升级过的老会话改人格、改预设照样换，换出来是新的核心的字</span></li>
+        <li><span class="ok">✓</span><span>只是目录换代：工具面变了的换，没变的、只有那一行变了的不换，载入时光是升级不换</span></li>
+        <li><span class="ok">✓</span><span>契约：拷一份资源，会话开着时改两句核心的字，再改人格：拒绝的那一句是新的，请求模型的端口收到新的驱动占位</span></li>
+        <li><span class="ok">✓</span><span>变异 8/8</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/P-1-人格（三补）.md</code>；蓝图 <code>kernel/session.md</code>「换策略快照」、<code>providers.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="s9-1a" aria-labelledby="h-s91a">
   <div class="sheet-head"><h2 id="h-s91a"><span class="no">9-1 上</span>软件包清单的格式和找法</h2><span class="pill done">已完成</span></div>
   <p class="purpose">每个软件包（终端界面、网页界面、通讯平台的桥）一份清单，说清它是什么、哪个程序、给 miyu 加哪个子命令；核心起来时读一次，头问得出装了哪些，miyu check 查得出写错。</p>
@@ -16280,6 +16338,62 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/9-6-历史按页读（下）.md</code>；蓝图 <code>protocol.md</code>「<code>view.page</code>」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s9-6e" aria-labelledby="h-s96e">
+  <div class="sheet-head"><h2 id="h-s96e"><span class="no">9-6 三补</span>一次调用的完整差异</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头画编辑、写入那一步时只能照工具的参数比：不知道改在第几行，没有上下文。核心有那次调用改前改后的内容，差异由核心算好交给头。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">一次调用的完整差异</span><span class="dir-note">9-6 三补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>view.detail {session, call}</code> 回 <code>{files}</code>：一个文件一项，写入的带整份差异和增删行数，进回收站的只写动作</li>
+              <li>改前改后都从属主的 blob 取，不读磁盘：之后又被改过的照样是那一次的；新建的当改前是空的</li>
+              <li>算不出的带 <code>skipped</code>：<code>too_big</code>、<code>binary</code>、<code>missing</code></li>
+              <li>没有这次调用的结果回新的原因码 <code>unknown_call</code></li>
+              <li>差异的代码从撤销里抽出来两边共用（<code>diffs.rs</code>），撤销照旧最多 20 行</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">整份交，不截</span><span class="rl">头要带行号和上下文的完整差异</span></div>
+          <div class="tile new"><span class="nm">同一次调用的结果不变</span><span class="rl">头照调用编号记着，问一次就够</span></div>
+          <div class="tile new"><span class="nm">字段只加不改</span><span class="rl">以后视图投影还会交长输出这些</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">9-6 三补</dd></div>
+        <div><dt>名称</dt><dd>一次调用的完整差异</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">5a9f4032</dd></div>
+        <div><dt>验收</dt><dd>变异 12/12、八项、三台 CI 和长跑（run 1382）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>改了两处的整份差异带行号、不截断；新建的文件；太大的 too_big</span></li>
+        <li><span class="ok">✓</span><span>读文件的调用 files 是空的</span></li>
+        <li><span class="ok">✓</span><span>写错的 bad_params、没有的会话、没有的调用 unknown_call</span></li>
+        <li><span class="ok">✓</span><span>不是 UTF-8 的、取不出来的单元测试</span></li>
+        <li><span class="ok">✓</span><span>变异 12/12</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/9-6-一次调用的完整差异（三补）.md</code>；蓝图 <code>protocol.md</code>「<code>view.detail</code>」、<code>protocol/undo.md</code>。</li>
       </ul>
     </div>
   </div>
@@ -18128,6 +18242,61 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sO-14c" aria-labelledby="h-sO14c">
+  <div class="sheet-head"><h2 id="h-sO14c"><span class="no">O-14 补</span>记几块事实，不开回合</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">通讯平台的桥退信要用：她的话发不出去，下一步要知道。扩展写不了 <code>context.injected</code>，<code>session.respond</code> 带事实又会开一轮，退信不该开回合。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">记几块事实，不开回合</span><span class="dir-note">O-14 补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>session.note {session, facts}</code> 回 <code>{events}</code>：1 到 16 块，写法同 <code>session.respond</code> 的事实，查法两边共用</li>
+              <li>内核新命令 <code>Note</code>：当场记成 <code>context.injected</code>，<code>cause</code> 是这个命令</li>
+              <li>正在跑一轮的带这一轮的回合编号，下一次请求就看到，撤销这一轮跟着撤</li>
+              <li>空闲的不带回合编号、不开回合，下一轮开头看到，排在触发前面</li>
+              <li>随机测试多这一种输入，每一例最后另送一次</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不打断、不叫醒</span><span class="rl">退信不是有人说话，等她下一步、下一轮自然看到</span></div>
+          <div class="tile new"><span class="nm">不并进 events.append</span><span class="rl">那条路记的一律不带回合编号，一轮里来的退信该跟着这一轮</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-14 补</dd></div>
+        <div><dt>名称</dt><dd>记几块事实，不开回合</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">1ddee3df</dd></div>
+        <div><dt>验收</dt><dd>变异 10/10、八项、本地长跑、三台 CI 和长跑（run 1384）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>空闲时不带回合编号、不开回合，下一轮的请求里排在触发前面</span></li>
+        <li><span class="ok">✓</span><span>调工具时来的带这个回合、不叫停不叫醒，下一次请求就有它，说完不另开</span></li>
+        <li><span class="ok">✓</span><span>空的、17 块、类别不对、超过 4 KiB、多一格、会话编号不对的 bad_params，什么都不记；16 块收</span></li>
+        <li><span class="ok">✓</span><span>同一个请求编号再发只记一次</span></li>
+        <li><span class="ok">✓</span><span>变异 10/10</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-14-记几块事实（补）.md</code>；蓝图 <code>venues.md</code>「记几块事实」、<code>kernel/session.md</code>、<code>protocol.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sO-24" aria-labelledby="h-sO24">
   <div class="sheet-head"><h2 id="h-sO24"><span class="no">O-24</span>判官看的群聊记录</h2><span class="pill done">已完成</span></div>
   <p class="purpose">主动回复判断要问判官，判官看的群聊记录要和她看到的同一个样子。渲染要会话快照里钉下的时区和字，桥拿不到，由核心渲染好交给桥。</p>
@@ -18646,6 +18815,165 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/O-23-判官带人格（补）.md</code>；蓝图 <code>onebot.md</code> 问判官那一条，<code>chat.md</code> 第八条；18 第七节。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sO-25a" aria-labelledby="h-sO25a">
+  <div class="sheet-head"><h2 id="h-sO25a"><span class="no">O-25 上</span>出站链</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她要说出去的每一条话（群、私聊）先过群聊内核的出站链：清掉漏进正文的工具调用，空白、括号旁白不发，同一回合不说重复的话，照旧版的规矩定第一段带不带引用和 @。群里的命令回执发出 3 秒后撤回。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-onebot/src/core/route/</span><span class="dir-note">O-25 上</span></div>
+            <ol class="pipe" aria-label="她的一句话怎么出去">
+              <li>投影交情形：她回的那一条、之后别人说了几条、最后一条是不是她的、这一回合发过的</li>
+              <li>outbound.rs：过 <code>OutChain::builtin()</code>，丢了的记一行原因</li>
+              <li>照纯文本拆段，第一段带引用、@，后面几段不带</li>
+              <li>speak.rs：照先后发，成了的记 <code>venue.delivered</code></li>
+              <li>receipt.rs：群里的命令回执 3 秒后 <code>delete_msg</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">引用谁</span><span class="rl">这一轮触发的最后一条，只带在第一段</span></div>
+          <div class="tile new"><span class="nm">最后一条是不是她的</span><span class="rl">照她说那一段的序号比，不照回执（CI 上撞出来的）</span></div>
+          <div class="tile new"><span class="nm">丢了的</span><span class="rl">这一步只记运行日志，入队、失败的事件随出站队列</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-25 上</dd></div>
+        <div><dt>名称</dt><dd>出站链</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">cc20d576</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真跑 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真核心加真桥、假 NapCat、她照台词说：漏进来的工具调用清掉，旁白、空白不发，同一轮重复的只发一次，隔 4 条第一段引用，隔够了时候第一段 @，私聊只有一个文字段；群里的回执 3 秒后撤回</span></li>
+        <li><span class="ok">✓</span><span>手写变异 18 个、CI 修正后 4 个，全被逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 1373）；临时数据根真跑一遍看发出去的消息段和撤回</span></li>
+        <li><span class="ok">✓</span><span>顺手修的测试工具单独一个提交（cdeffc81）：几份测试同时链桥的程序不再撞 File exists</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-25-出站链（上）.md</code>；蓝图 <code>onebot.md</code>「群里怎么叫她」第 2、9 条、「怎么走」第 10 条、「斜杠命令」第 7 条，施工时定的第 105 到 115 条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sO-25b" aria-labelledby="h-sO25b">
+  <div class="sheet-head"><h2 id="h-sO25b"><span class="no">O-25 中</span>出站队列</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她要说出去的一切先记账再发：入队、送达、失败都是事件。她被禁言、号没连着时排着，解禁、到期、连上了照先后发；排过 60 秒的作废，不在解禁以后一股脑发出去。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-onebot/src/core/route/</span><span class="dir-note">O-25 中</span></div>
+            <ol class="pipe" aria-label="一段话怎么出去">
+              <li>sending.rs：先记 <code>ext.onebot.venues.queued</code>，拿到序号</li>
+              <li>queue.rs：门关着（禁言、没连着）的排着，过期的交出来作废</li>
+              <li>门开着照先后交 NapCat；成了记 <code>venue.delivered</code>，没成记 <code>failed</code></li>
+              <li>muted.rs：<code>group_ban</code> 禁她的记 <code>muted {until}</code>、解禁记 <code>unmuted</code></li>
+              <li>号连上、解禁、到期、定时醒了：再看一遍排着的</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">过期</span><span class="rl">排着的 60 秒作废，放 bridge.json</span></div>
+          <div class="tile new"><span class="nm">禁言</span><span class="rl">只认禁她的；全员禁言、别人被禁言不认</span></div>
+          <div class="tile new"><span class="nm">去重</span><span class="rl">照入队算，O-25 上的两处过渡收掉</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-25 中</dd></div>
+        <div><dt>名称</dt><dd>出站队列</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">d6a855d6</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真跑 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真核心加真桥、假 NapCat：入队先于送达；拒了的记 rejected；提示、回执、私聊回话都入队；禁言时只记下、她的话排着，解禁、到期照先后发；过期的记 expired 不发；没连着排着、连上了发；去重照入队</span></li>
+        <li><span class="ok">✓</span><span>改之前 12 个集成测试红；手写变异 22 个全被逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 1390）；临时数据根真跑禁言、解禁、到期、过期、断线重连、回执撤回</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-25-出站队列（中）.md</code>；蓝图 <code>onebot.md</code> 第一条「出站队列」、施工时定的第 116 到 128 条，<code>chat.md</code> 第七条第 2、4 条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sO-25c" aria-labelledby="h-sO25c">
+  <div class="sheet-head"><h2 id="h-sO25c"><span class="no">O-25 下</span>退信和贴表情</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她的话发不出去，经核心的 <code>session.note</code> 退回给她，她下一步就知道哪一句没人看到、为什么。群里叫她、判下来要回的那一条先贴一个表情，她回了、这一轮完了、10 分钟没回就摘。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-onebot/src/core/route/</span><span class="dir-note">O-25 下</span></div>
+            <ol class="pipe" aria-label="退信和贴表情">
+              <li>sending.rs：她的话记了 <code>failed</code>，<code>session.note</code> 记一块 <code>undelivered</code></li>
+              <li>called.rs：判下来要回、<code>session.respond</code> 成了，主触发是冲她来、续聊的交给贴表情</li>
+              <li>reaction.rs：贴 289，等这一轮发出第一段、结束、到 600 秒，摘一次</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">退信</span><span class="rl">一段一块，带开头 30 个字符；出厂 49 个 token，已登记</span></div>
+          <div class="tile new"><span class="nm">贴在哪</span><span class="rl">她要回的那一条；顶替的挪到新的一条</span></div>
+          <div class="tile new"><span class="nm">不记事件</span><span class="rl">贴、摘没成的记一行；重启时贴着的不摘</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-25 下</dd></div>
+        <div><dt>名称</dt><dd>退信和贴表情</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">86be0dcd</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真跑 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真核心加真桥、假 NapCat：被拒、过期的她的话退信，正在跑的那一轮下一次请求看得到；提示、回执不退；主人 @ 先贴后摘，判官说不回、抽样、刚说过话的不贴，续聊的贴，一直不回到时候摘，只摘一次</span></li>
+        <li><span class="ok">✓</span><span>改之前 8 个集成测试红；手写变异 23 个全被逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 1393）；临时数据根真跑贴、摘和退信</span></li>
+        <li><span class="ok">✓</span><span>顺手修的测试单独一个提交（605c4988）：disciplines 里续聊那一句等她的话记下再发</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-25-退信和贴表情（下）.md</code>；蓝图 <code>onebot.md</code> 第一条「退信」「贴表情」、施工时定的第 129 到 137 条；<code>26-提示词.md</code> 第十节。</li>
       </ul>
     </div>
   </div>

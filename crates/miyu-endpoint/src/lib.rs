@@ -30,6 +30,7 @@ mod check;
 mod commands;
 pub mod config;
 mod connection;
+mod diffs;
 pub mod extensions;
 mod files;
 mod from;

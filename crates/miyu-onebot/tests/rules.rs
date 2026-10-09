@@ -83,12 +83,14 @@ pub fn copied_resources() -> PathBuf {
         std::fs::create_dir_all(to.parent().expect("有上一级")).expect("建得了");
         std::fs::copy(resources().join(file), &to).expect("抄得了");
     }
-    // 判官的说明（施工 O-23 下）：十三份，整个目录抄过去。
-    let judge = copy.join("software/onebot/judge");
-    std::fs::create_dir_all(&judge).expect("建得了");
-    for entry in std::fs::read_dir(resources().join("software/onebot/judge")).expect("列得出") {
-        let entry = entry.expect("读得了");
-        std::fs::copy(entry.path(), judge.join(entry.file_name())).expect("抄得了");
+    // 判官的说明（施工 O-23 下）、给她看的事实的模板（施工 O-25 下）：整个目录抄过去。
+    for dir in ["software/onebot/judge", "software/onebot/facts"] {
+        let to = copy.join(dir);
+        std::fs::create_dir_all(&to).expect("建得了");
+        for entry in std::fs::read_dir(resources().join(dir)).expect("列得出") {
+            let entry = entry.expect("读得了");
+            std::fs::copy(entry.path(), to.join(entry.file_name())).expect("抄得了");
+        }
     }
     copy
 }
