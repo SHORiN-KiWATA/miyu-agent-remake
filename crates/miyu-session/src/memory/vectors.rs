@@ -8,6 +8,7 @@
 //! - 补：搜的时候起。照这一间的记忆库、回合库各起一个后台的，一次取 [`BATCH`] 条还没有这个模型的向量的，一条一条算、写回；
 //!   模型还在备的等它备好；这一回算不出的那几条跳过（照行号往后取，不挡住后面的），下次再补；连着 [`STREAK`] 条算不出的这一回
 //!   不补了（远程那一家挂了、key 错了，不一条一条地等）。同一份库同一时刻只有一个在补。
+//! - 换本机的（施工 R-5 四补）：装卸内置模型那个包以后核心照新的清单调 [`Vectors::replace_local`]，一样的不动。
 
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -21,7 +22,7 @@ use miyu_store::recall::RecallIndex;
 use crate::TARGET;
 use crate::blocking::blocking;
 use crate::config::TurnConfig;
-use crate::embed::{Embedder, Remote, Unavailable};
+use crate::embed::{EmbedSetup, Embedder, Remote, Unavailable};
 use crate::route::shared::ModelData;
 
 /// 问句的向量最多等多久。
@@ -98,17 +99,18 @@ impl Way {
 /// 核心一份的向量那一路：本机算向量的、远程查供应商要的模型资料、在补的那几份库。
 #[derive(Debug)]
 pub struct Vectors {
-    local: Option<Embedder>,
+    /// 本机的：装卸以后换（施工 R-5 四补）。用的时候拿一份副本，不拿着锁去算。
+    local: Mutex<Option<Embedder>>,
     data: Arc<ModelData>,
     /// 在补的：库的名字（[`Target`] 的种类加这一间）。
     filling: Mutex<BTreeSet<String>>,
 }
 
 impl Vectors {
-    /// 本机的照 `local` 算（找不到小程序、缓存目录的没有），远程的照模型资料 `data` 里的供应商发、记账。
+    /// 本机的照 `local` 算（没装内置模型那个包的没有），远程的照模型资料 `data` 里的供应商发、记账。
     pub fn new(local: Option<Embedder>, data: Arc<ModelData>) -> Vectors {
         Vectors {
-            local,
+            local: Mutex::new(local),
             data,
             filling: Mutex::new(BTreeSet::new()),
         }
@@ -117,7 +119,36 @@ impl Vectors {
     /// 本机的那一路的模型名（清单的 `id`，施工 R-5 再补）：`config.schema` 里「内置模型」后面暗字写它。没有本机的、用不上的
     /// 没有。
     pub fn local_name(&self) -> Option<String> {
-        self.local.as_ref()?.name()
+        self.local()?.name()
+    }
+
+    /// 本机的换成照 `setup` 造的（施工 R-5 四补，`recall.md` 第四条第 4 款）：装卸内置模型那个包以后核心照新的清单调，`None`
+    /// 是没有本机的那一路。和现在的一样的（[`EmbedSetup`] 每一格一样、模型清单的原文也没变，两边都没有也算）什么都不做：
+    /// 小程序照旧跑着。不一样的换上新的，旧的关掉、等它的小程序退完才返回；别人手里旧的副本要的交回用不了。
+    pub async fn replace_local(&self, setup: Option<EmbedSetup>) {
+        let old = {
+            let mut local = self.local.lock().unwrap_or_else(PoisonError::into_inner);
+            let same = match (local.as_ref(), setup.as_ref()) {
+                (None, None) => true,
+                (Some(current), Some(setup)) => current.serves(setup),
+                _ => false,
+            };
+            if same {
+                return;
+            }
+            std::mem::replace(&mut *local, setup.map(Embedder::new))
+        };
+        if let Some(old) = old {
+            old.shut().await;
+        }
+    }
+
+    /// 现在的本机的一份副本。
+    fn local(&self) -> Option<Embedder> {
+        self.local
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 
     /// 照 `using` 挑：模型编号和算的那一路。`off` 的、要本机的却没有的没有。
@@ -126,7 +157,7 @@ impl Vectors {
         match UseSettings::from(&values).embedding.as_deref() {
             Some(OFF) => None,
             None | Some(LOCAL) => {
-                let local = self.local.clone()?;
+                let local = self.local()?;
                 Some((local.model()?, Way::Local(local)))
             }
             // 别的都是 `<供应商>/<模型>`：配置照 `model_or` 查过写法。

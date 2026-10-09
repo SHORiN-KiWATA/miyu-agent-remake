@@ -130,7 +130,7 @@ CREATE VIRTUAL TABLE terms USING fts5(words, content='', contentless_delete=1, t
 
 1. 用途 `models.embedding`（R-5 下，`models.md` 的 `[models]`；类型是 `model_or`，`config.md`「配置项的类型」）：写 `local` 用本机的 `miyu-embed`；写 `off` 不核对模型、不拉起、只照关键词找（2026-10-09 项目主人定加 `off`）；写 `<供应商>/<模型>` 的走那一家 OpenAI 兼容的 `/v1/embeddings`（第 7 款，R-5 补，方向 2026-10-07 定）；不写的照 `local`，没装内置语义模型的包、小程序或模型清单没有的，就只有关键词。下一个回合开始时生效。不收 `@池`：向量要和存下的同一个模型比，池里换了成员就对不上。设置页上这一项叫「语义模型」，`local` 叫「内置模型」，后面暗字写模型名（`config.schema` 选项的 `note`），指定一家的模型从 `model.list` 里 `embedding: true` 的挑（R-5 再补，2026-10-09 项目主人定）；没有本机的那一路时 `local` 这个选项带 `available: false`，头画成灰的、选不了（R-5 三补，2026-10-09 项目主人定「不可选」，形状核心的主会话定）。
 
-   本机的那一路从包来（R-5 三补，2026-10-09 项目主人定：内置的 embedding 做成一个可选的包、只放 bge、模型文件打进包里、出厂不装）：人格记忆的清单推荐小程序包 `embed`（`[recommends] workers = ["embed"]`）；它装着（读成了、种类是小程序，`packages.md`「内置语义模型」）才有。核心照这时读到的包清单拼好交给 `Embedder`（`miyu-core/src/embed.rs` 的 `setup`），连同模型资料交给协议端点（`Core::with_vectors`，远程的照它查供应商、记账）：小程序照小程序清单的 `program` 在主程序真实位置的旁边找（`packages::locate`，不找 `PATH`），模型清单是包目录（`Found::files_dir`，清单旁边的同名目录）里的 `model.toml`，模型文件在同一个目录。没装的记一行 `INFO embedder unavailable reason=no embed package`（出厂不装，这是常态）。拼的这一段能再调：F-5 装卸当场生效时照它换；现在只在起来读清单那一次调。
+   本机的那一路从包来（R-5 三补，2026-10-09 项目主人定：内置的 embedding 做成一个可选的包、只放 bge、模型文件打进包里、出厂不装）：人格记忆的清单推荐小程序包 `embed`（`[recommends] workers = ["embed"]`）；它装着（读成了、种类是小程序，`packages.md`「内置语义模型」）才有。核心照这时读到的包清单拼好交给 `Embedder`（`miyu-core/src/embed.rs` 的 `setup`），连同模型资料交给协议端点（`Core::with_vectors`，远程的照它查供应商、记账）：小程序照小程序清单的 `program` 在主程序真实位置的旁边找（`packages::locate`，不找 `PATH`），模型清单是包目录（`Found::files_dir`，清单旁边的同名目录）里的 `model.toml`，模型文件在同一个目录。没装的记一行 `INFO embedder unavailable reason=no embed package`（出厂不装，这是常态）。拼的这一段能再调：装卸以后核心照新的清单再拼一次，交给 `Vectors::replace_local`（第 4 款；会话这一半 R-5 四补，核心那一半随 F-5 补；端点照 `core.memory.vectors()` 拿到那一份，核心起来时总会造，没装 `embed` 的本机那一路是空的）。
 2. **模型清单**（R-5 上；R-5 三补搬进包里）：本机模型照一份 TOML 认，在包目录里，名字是 `model.toml`（内置语义模型这个小程序认的约定，小程序清单里不另写）；仓库里的原本是 `crates/miyu-embed/package/embed/model.toml`。可更换（2026-10-07 项目主人定）照换包做：装一个放着别的模型的同名包，或者指定远程的；不另设换清单的配置项（2026-10-09 项目主人定）。几格：
    - `id`：模型的名字，向量的模型编号写成 `local:<id>`；`dims`：几维；`pooling`：怎么取一句的向量，现在只认 `cls`（取 `[CLS]` 那一格）；`max_tokens`：一句最多几个词（连 `[CLS]`、`[SEP]`），至少 2。
    - `[[files]]`：每个文件的 `role`（`model`、`vocab` 各正好一个）、`name`（一个单纯的文件名，不带目录）、`sha256`、`size`（R-5 三补去掉 `url`：不下了）。
@@ -142,7 +142,8 @@ CREATE VIRTUAL TABLE terms USING fts5(words, content='', contentless_delete=1, t
 4. **`miyu-embed`**：核心这边（R-5 中，`Embedder`）：
    - 程序在主程序真实位置的旁边找（第 1 款）；没有的、模型清单读不了的，造的时候记一行 `WARN embedder unavailable reason=…`，以后每一条都交回用不了。
    - 要用时拉起，等 `ready` 最多 30 秒；一次一条，同时来的排队；一条最多等 10 秒。它回一句错的，这一条算不出、它接着用；它退出了、回的编号对不上、读不懂、过了时限的，当它坏了：关掉，这一条算不出（`WARN embedder failed error=…`、`INFO embedder stopped reason=failed`），下一条再拉起。起来了记一行 `INFO embedder started model=… took_ms=…`。
-   - 这一回起不来过三次，就不再拉起，以后每一条都交回用不了（核心重起来再数）。
+   - 这一回起不来过三次，就不再拉起，以后每一条都交回用不了（核心重起来、换了一个再数）。
+   - **换**（R-5 四补，2026-10-09 和核心的主会话定）：`Vectors::replace_local(新的或者没有)`。和现在的一样的什么都不做，小程序照旧跑着，也不再记 `WARN`：照什么造的（程序路径、模型清单路径、包目录、空闲多久）每一格一样，模型清单的原文也没变（原地升级换了模型文件的，清单里的 SHA-256 变了，算不一样），两边都没有也算一样。不一样的：换上照新的造的，旧的关掉：标成用不了，拉起着的小程序等手里那一条问完、退出（`INFO embedder stopped reason=replaced`），退完才返回（卸包时核心先换再删文件：Windows 上跑着的小程序开着模型文件，删不掉）。别人手里旧的副本（在补的后台）要的交回用不了，补的照第三条第 5 款这一回不补了，不再拉起旧的。换了模型的照新的编号补，旧的向量留着（第三条第 1 款）。
    - 600 秒没有新的请求就关它的标准输入、等它退出（最多 5 秒，没退的杀掉），记一行 `INFO embedder stopped reason=idle`；下一条再拉起。
    - 它跟着核心走：核心放下它就杀掉（`kill_on_drop`）；核心整个没了，Windows 上作业对象收掉它，Unix 上它读到标准输入关了自己退出。它不算核心「忙」：核心空闲退出照旧。
    - 交回的三种：还在备、用不了（这一阵）、这一条算不出；原话是英文短句，进运行日志。
@@ -175,6 +176,13 @@ CREATE VIRTUAL TABLE terms USING fts5(words, content='', contentless_delete=1, t
 - 远程的用不了、算不出：照第四条第 7 款交回两种之一、记 `model call failed`，同上照只有关键词走。
 
 ### 守着它的
+
+R-5 四补做好的：
+
+| 测试 | 守哪几条 |
+|---|---|
+| `crates/miyu-session/tests/embed_replace.rs` | 第四条第 4 款的换，真的 `miyu-embed`、小模型摆成包目录：换成另一份的新的算得出、名字是新的，旧的小程序退了，旧的副本要的交回用不了、不再拉起；同样的一份换了地方的算换；一样的小程序照旧跑着、旧的副本照样算得出；路径一样、模型清单内容变了的算换；换成空的就没有本机的那一路，空的再换成一份照它算 |
+| `crates/miyu-session/src/embed/tests.rs` | 第四条第 4 款的换：排在拉起着的那一条后面的，轮到时已经关掉了，交回用不了、不去拉起；关掉了的当场交回用不了 |
 
 R-5 三补做好的：
 

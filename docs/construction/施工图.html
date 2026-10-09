@@ -668,6 +668,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sR-5d"><span class="n">R-5</span>远程的 embedding（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-5e"><span class="n">R-5</span>语义模型这一项（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-5f"><span class="n">R-5</span>内置模型做成小程序包（三补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sR-5g"><span class="n">R-5</span>本机模型当场换（四补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-6"><span class="n">R-6</span>抽取（上）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">R-6</span>抽取（下，暂不做）</span></li>
         <li><span class="step"><span class="n">R-7</span>合并</span></li>
@@ -17434,6 +17435,57 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/R-5-内置模型做成小程序包（三补）.md</code>；蓝图 <code>recall.md</code> 第四条第 1 到 4 款，<code>packages.md</code>「在哪」「格式」，<code>core.md</code> 第 10 步，<code>config.md</code>、<code>protocol.md</code> 的 <code>config.schema</code>，<code>store.md</code>，<code>http.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sR-5g" aria-labelledby="h-sR5g">
+  <div class="sheet-head"><h2 id="h-sR5g"><span class="no">R-5</span>本机模型当场换（四补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">装、卸「内置语义模型」不用重启核心：向量那一路换得了本机的，旧的小程序关掉。这一步是会话这一半，核心在 F-5 补里接上。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-session · embed · memory/vectors</span><span class="dir-note">R-5</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>Vectors::replace_local：照新的清单拼的换上</li>
+              <li>一样的不动：几格一样、模型清单原文也没变</li>
+              <li>旧的关掉：标成用不了、等小程序退完</li>
+              <li>旧的副本不再拉起</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">会话这边比</span><span class="rl">核心不用先比名字</span></div>
+          <div class="tile new"><span class="nm">原地升级算换</span><span class="rl">清单的 SHA-256 变了</span></div>
+          <div class="tile new"><span class="nm">先换再删</span><span class="rl">Windows 上开着的文件删不掉</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-5</dd></div>
+        <div><dt>名称</dt><dd>本机模型当场换（四补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">（合进 main 时填）</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、核心的主会话看签名 · 自己验收，通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>（合进 main 时填）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-5-换本机模型（四补）.md</code>；蓝图 <code>recall.md</code> 第四条第 1、4 款。</li>
       </ul>
     </div>
   </div>
