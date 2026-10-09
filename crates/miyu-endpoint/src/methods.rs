@@ -238,6 +238,7 @@ pub(crate) async fn call(
             Ok(undo::reply(core, &session, &found.cwd, events).await)
         }
         "command.run" => commands::run(core, &peer, &request.id, params(request)?).await,
+        "command.catalog" => commands::catalog(core, &peer, params(request)?).await,
         "session.redo" => {
             let params: RedoParams = params(request)?;
             let session = session(&params.session)?;

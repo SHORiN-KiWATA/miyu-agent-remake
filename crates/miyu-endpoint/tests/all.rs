@@ -12,6 +12,7 @@ mod attach;
 mod attach_send;
 mod check;
 mod clear;
+mod command_catalog;
 mod commands;
 mod compact;
 mod config;

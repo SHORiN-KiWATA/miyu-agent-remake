@@ -204,13 +204,22 @@ async fn find(core: &Arc<Core>, at: Where) -> Result<Keeper, Refusal> {
     }
 }
 
+/// 这个会话能不能记（施工 O-6 补，`/remember` 在 `command.catalog` 里列不列）：同 [`keeper_of`] 的判法。
+pub(crate) fn remembers(core: &Core, handle: &Handle) -> bool {
+    room(handle).is_some() && memory(core).is_ok()
+}
+
 /// 会话 `handle` 用的那一间，听众是 `hearer`：本机的、记忆开着的才有。
 fn keeper_of(core: &Core, handle: &Handle, hearer: By) -> Result<Keeper, Refusal> {
-    let room = handle
+    let room = room(handle).ok_or(Refusal::MEMORY_UNAVAILABLE)?;
+    Ok(Keeper::new(&memory(core)?, room.clone(), vec![hearer]))
+}
+
+/// 会话 `handle` 用的那一间：本机的、记忆开着的才有。
+fn room(handle: &Handle) -> Option<&Room> {
+    handle
         .memory_room()
         .filter(|_| handle.venue().as_str() == LOCAL)
-        .ok_or(Refusal::MEMORY_UNAVAILABLE)?;
-    Ok(Keeper::new(&memory(core)?, room.clone(), vec![hearer]))
 }
 
 /// 核心一份的记忆：管理员的才有（多用户以后照账号）。
