@@ -36,7 +36,13 @@ fn program() -> PathBuf {
         .parent()
         .and_then(Path::parent)
         .expect("在 target/<profile>/deps/ 里");
-    dir.join(format!("miyu-embed{}", std::env::consts::EXE_SUFFIX))
+    let program = dir.join(format!("miyu-embed{}", std::env::consts::EXE_SUFFIX));
+    assert!(
+        program.is_file(),
+        "{} 不在：先 cargo build -p miyu-embed（cargo test --workspace 会编它）",
+        program.display()
+    );
+    program
 }
 
 /// 给场地的记忆接上照意思找的那一路：小模型的文件事先放进缓存目录（核对得上，不下）；另放一个清单以外的 `stray`（备文件时

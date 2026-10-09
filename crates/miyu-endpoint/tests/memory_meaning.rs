@@ -25,7 +25,13 @@ fn program() -> PathBuf {
         .parent()
         .and_then(Path::parent)
         .expect("在 target/<profile>/deps/ 里");
-    dir.join(format!("miyu-embed{}", std::env::consts::EXE_SUFFIX))
+    let program = dir.join(format!("miyu-embed{}", std::env::consts::EXE_SUFFIX));
+    assert!(
+        program.is_file(),
+        "{} 不在：先 cargo build -p miyu-embed（cargo test --workspace 会编它）",
+        program.display()
+    );
+    program
 }
 
 /// 接上小模型的核心：系统配置里默认人格是软件工程师。
