@@ -117,6 +117,7 @@ pub(super) fn setup(name: &str, text: &str) -> (Scratch, DataRoot, Refresh) {
         tooled: tooled(&tools, Some(&installed())),
         roleplay: true,
         group: None,
+        foreground: false,
     };
     let snapshot = build(&resources, parts).expect("拼得成");
     let refresh = Refresh {

@@ -85,6 +85,10 @@ pub struct Snapshot {
     /// 没有：不写，字节和以前一样。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<GroupChat>,
+    /// 后台运行关着（施工 T-1 上，设计 30 第三节第 7 条）：这个会话没有后台，`shell` 不放到后台、执行器不给任务端口。照预设
+    /// 定；开着的、以前造的不写，字节和以前一样。
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub foreground: bool,
 }
 
 /// 压缩用的数（`compaction.md`「对外的样子」的策略数据）。

@@ -89,6 +89,7 @@ pub fn compose(persona: Option<&str>, sources: Sources, attended: bool) -> Snaps
         persona_digest: digest,
         preset: None,
         group: None,
+        foreground: false,
     }
 }
 

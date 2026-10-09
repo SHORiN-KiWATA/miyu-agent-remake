@@ -39,7 +39,10 @@ pub use agents::{
     AgentPort, NotSpawned, Order, SUBAGENT, SUBAGENT_FORMERLY, Spawned, Spawning, is_subagent,
 };
 pub use catalog::{BASESYSTEM, Catalog, CatalogError, Problem};
-pub use jobs::{Asking, Background, Exit, JobError, JobPort, Listed, Output, Process};
+pub use jobs::{
+    Asking, BACKGROUND, Background, Exit, JobError, JobPort, Listed, Output, Process,
+    RUN_IN_BACKGROUND, SHELL,
+};
 pub use log::{Log, ReadLog};
 pub use memory::{
     FORGET, FoundMemory, FoundTurn, MEMORIES, MEMORY_SEARCH, MemoryPort, Pending, REMEMBER,

@@ -156,6 +156,11 @@ fn look(refresh: &Refresh, values: &Values, now: &Edition) -> Seen {
         roleplay: features(refresh).is_none_or(|features| features.installed(ROLEPLAY)),
         // 群会话照旧快照钉下的时区（施工 O-13 中）：换了时区的机器上换人格，前缀里的钟点也不变。
         group: old.group.as_ref().map(|chat| chat.offset),
+        // 换了预设的照新的定后台运行（施工 T-1 上），别的照旧。
+        foreground: match &preset {
+            Preset::Changed(chosen) => Agents::foreground(Some(&chosen.file)),
+            _ => old.foreground,
+        },
     };
     let new = match build(&refresh.resources, parts) {
         Ok(new) => new,

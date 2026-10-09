@@ -437,3 +437,13 @@ fn job_report_texts_go_in_and_older_snapshots_lack_them() {
 const JOB_NUMBERS: &str = r#","jobs":{"report_chars":30000}"#;
 const RECAP_NUMBERS: &str = r#","recap":{"turns":8,"tokens":8192}"#;
 const TITLE_NUMBERS: &str = r#","title":{"tokens":1024,"chars":50,"tries":2}"#;
+
+/// 后台运行关着的（施工 T-1 上）：写在最后、读得回来；开着的不写（上面那份的字节以人格的指纹收尾）。
+#[test]
+fn a_foreground_session_is_written_last_and_read_back() {
+    let mut one = engineer();
+    one.foreground = true;
+    let text = String::from_utf8(one.to_bytes()).unwrap();
+    assert!(text.ends_with(",\"foreground\":true}"), "{text}");
+    assert_eq!(Snapshot::from_bytes(&one.to_bytes()), Ok(one));
+}

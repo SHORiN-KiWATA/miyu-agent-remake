@@ -88,7 +88,7 @@ shell = false
 5. **照预设挑**（施工 P-2 中）：
    - 装了的功能（施工 F-3 上）：读成了的内置包、扩展包带的功能（`miyu_endpoint::packages::features`，没写功能的包整个算一个），随预设的几层交给会话。工具归哪个功能：清单写明了的照写的，包只有一个功能的归它，都不是的照它的包的编号（`Features::of_tool`）。施工 F-3 上以前是：工具目录里有工具的包、`roleplay`、清单装的 `process` 包。
    - 一个功能开着：照「格式」第 4 条的先后（`PresetFile::opens_in`）。
-   - 工具面：归的功能开着的工具，减去 `[tools]` 关掉的（`PresetFile::keeps`），再照原来的几道筛（场所、子会话、能不能确认）。
+   - 工具面：归的功能开着的工具，减去 `[tools]` 关掉的（`PresetFile::keeps`），再照原来的几道筛（场所、子会话、能不能确认）。关了「后台运行」（`basesystem` 的 `background`）的：快照记 `foreground`，`shell` 拿掉 `run_in_background`（`ToolEntry::without`，别的字节不动），执行器不给任务端口（施工 T-1 上，设计 30 第三节第 7 条）；换预设时照新的预设定，以前就有的 `shell` 照旧快照里的原样，调到放到后台的照「这里不能放到后台」说。
    - 记忆：人格记忆 `memory` 没开的、没装的（施工 F-3 上），范围一律 `off`，不管 `session.create` 的 `memory`（走查 E2：开不开归预设，范围归开会话时）。
    - 人设防失忆提醒：`roleplay` 没开的、没装的（施工 F-3 上），快照里没有提醒短语、system 没有风格锁。
    - 装了没开的那一行（Y8，走查 C4）：装了、没开的软件里只列有工具的（照完整的工具目录算，不照这次的预设筛：某个包在目录里有工具就算）。没有工具的她用不上：`roleplay`；通讯平台的桥是核心拉起的，不随会话的预设，写进来是假话（2026-10-08 主会话定，施工 O-18）。照编号逗号隔开，`core/preset-off.txt` 写成一行接在核心的几行后面、风格锁前面。都开着、没开的都没有工具的不写，功能全开的会话 system、工具面和以前一个字节都不差。快照里的 `preset.off` 照旧记全部没开的软件（`preset.get`、设置页照它）。 施工 F-3 上起列的是功能的编号：快照的 `preset.off` 记装了、没开的功能，那一行只列下面有工具的。以前造的快照记的是包的编号，换快照时照现在的功能读（是装了的包、又不是功能编号的换成它的全部功能），一样的算没改，不换（`PresetPin::means_the_same`）。
@@ -143,6 +143,7 @@ shell = false
 | `crates/miyu-core/tests/tools.rs`（施工 F-3 上） | 出厂的每一件工具都归上一个功能 |
 | `crates/miyu-session/src/actor/persona/tests.rs` | 角色扮演没开的换人格以后照旧没有提示和风格锁，换过以后不再换 |
 | `crates/miyu-session/src/actor/persona/preset_tests.rs`（施工 P-2 下） | 改了预设重新筛工具面、留着的那一件是快照里的原样、换过以后不再换、整包关掉的写进那一行、重新打开的照现在的目录拿；记忆照开会话时的（开着的照开，关着的照关）；角色扮演打开了提示回来；写错了的、没有指纹的不换 |
+| `crates/miyu-endpoint/tests/preset_background.rs`、`crates/miyu-session/src/actor/persona/preset_tests.rs`、`crates/miyu-policy/src/snapshot/tests.rs`（施工 T-1 上） | 关了后台运行的预设：工具面上 `shell` 没有 `run_in_background`、别的参数不动，没有 `jobs`，快照记 `foreground`；硬写放到后台的回「这里不能放到后台」、不派任务；开着的照旧；换成关着的预设记下、以前就有的 `shell` 原样，改回来不记；`foreground` 写在快照最后、读得回来，开着的不写 |
 | `crates/miyu-endpoint/tests/preset_swap.rs`（施工 P-2 下） | 真核心：改了预设下一轮的工具面变、日志一条内核记的换快照；没改的不换；写错了的不换；重启以后照换上的那一份，载入的会话改了也换 |
 
 ### 起草时定的

@@ -34,6 +34,12 @@ impl ToolEntry {
         }
     }
 
+    /// 参数格式里拿掉参数 `parameter`（施工 T-1 上：后台运行关着的 `shell` 没有 `run_in_background`）：同一个都不给选的
+    /// [`ToolEntry::offer`]，别的字节不动。
+    pub fn without(&mut self, parameter: &str) {
+        self.offer(parameter, &[]);
+    }
+
     /// 参数 `parameter` 能选的几个：它的 `enum` 里的字，照写的先后。快照里没有这一格、写的不是字的，是空的。
     pub fn offered(&self, parameter: &str) -> Vec<String> {
         let found = || -> Option<Vec<String>> {

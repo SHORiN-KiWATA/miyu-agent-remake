@@ -1,16 +1,33 @@
 //! 执行器送回 actor 的（`docs/blueprint/session/actor.md` 第 3 条第 3 点）：请求的回报、到点了、工具和后台命令的结果、辅助请求的
 //! 回报、等不到的「空了告诉我」（施工 C-6）、替它看图的转述（施工 8-17），照 actor 的时钟记下到的时刻，写成内核的输入。施工 C-6 从 `actor.rs` 挪出来
-//! （那个文件到了行数上限）。
+//! （那个文件到了行数上限）；到点叫醒的定时任务施工 T-1 上也挪过来（同样的原因）。
+
+use std::time::Duration;
 
 use tokio::sync::mpsc;
 
+use miyu_kernel::id::Seq;
 use miyu_kernel::session::Input;
+use miyu_kernel::time::Timestamp;
 
 use super::Actor;
 use crate::TARGET;
 use crate::port::{Back, Report};
 
 impl Actor {
+    /// 到点叫醒：起一个定时的任务，到 `at` 这一刻送回「到点了」。
+    pub(super) fn wake(&mut self, at: Timestamp, seen: Seq) {
+        let wait = at
+            .unix_millis()
+            .saturating_sub(self.clock.now().unix_millis());
+        let wait = Duration::from_millis(u64::try_from(wait).unwrap_or(0));
+        let backs = self.backs.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(wait).await;
+            answer_back(&backs, Back::Woke { seen });
+        });
+    }
+
     /// 执行器送回来的，照 actor 的时钟记下到的时刻，写成内核的输入；已经不要了的工具回报，不理。
     pub(super) fn back(&mut self, back: Back) -> Option<Input> {
         let at = self.clock.now();

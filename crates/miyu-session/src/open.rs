@@ -122,6 +122,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         preset.as_ref().map(|chosen| (&chosen.file, features)),
     );
     let pin = preset.as_ref().map(Chosen::pin);
+    let foreground = Agents::foreground(preset.as_ref().map(|chosen| &chosen.file));
     let tooled = tooled(&edition.catalog, features);
     let roleplay = installed(ROLEPLAY);
     let preset = preset.map(|chosen| chosen.id);
@@ -154,6 +155,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             tooled,
             roleplay,
             group: group.then(|| offset.minutes()),
+            foreground,
         };
         let snapshot = build(&resources, parts).map_err(CreateError::Persona)?;
         let policy = snapshot.policy().map_err(CreateError::Policy)?;

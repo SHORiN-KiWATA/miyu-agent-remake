@@ -24,8 +24,9 @@ use miyu_policy::memory::MemoryScope;
 use miyu_policy::preset::PresetFile;
 use miyu_policy::{Choice, JOB_DEPTH, ToolEntry};
 use miyu_tool::{
-    ASK_USER, AgentPort, BASESYSTEM, Catalog, FORGET, MEMORY_SEARCH, NotSpawned, Order, REMEMBER,
-    SEND_MESSAGE, SESSION_USAGE, SESSIONS, SUBAGENT, Spawned, Spawning, TODOWRITE, is_subagent,
+    ASK_USER, AgentPort, BACKGROUND, BASESYSTEM, Catalog, FORGET, MEMORY_SEARCH, NotSpawned, Order,
+    REMEMBER, RUN_IN_BACKGROUND, SEND_MESSAGE, SESSION_USAGE, SESSIONS, SHELL, SUBAGENT, Spawned,
+    Spawning, TODOWRITE, is_subagent,
 };
 
 use crate::TARGET;
@@ -119,6 +120,7 @@ impl Agents {
     /// 这个参数）；`persona` 照 `offers` 填上这台机器上有的人格（施工 P-2 补）。`ask_user` 只给能问人的会话（[`Agents::asks`]，施工 D-2）。`todowrite` 只给本机的会话（施工 D-3）：群里没人
     /// 看她的清单。有预设的照它筛（施工 P-2 中；施工 F-3 上起照功能）：工具归的功能没开的、单件关掉的不给
     /// （[`PresetFile::keeps`]）；归哪个功能照预设旁边交来的装了的功能认，认不出的照它的包；目录里没记包的当基础系统。
+    /// 后台运行关着的（[`Agents::foreground`]，施工 T-1 上）`shell` 拿掉放到后台那一项。
     pub(crate) fn face(
         tools: &Catalog,
         site: Site<'_>,
@@ -133,6 +135,7 @@ impl Agents {
         let local = venue.as_str() == LOCAL;
         let asks = Agents::asks(venue, lineage.map(|lineage| &lineage.parent), attended);
         let lists = Agents::lists_sessions(venue, lineage.map(|lineage| &lineage.parent));
+        let foreground = Agents::foreground(preset.map(|(file, _)| file));
         tools
             .specs()
             .filter(|spec| spawns || spec.name != SUBAGENT)
@@ -183,9 +186,18 @@ impl Agents {
                     entry.offer(POOL, &offers.pools);
                     entry.offer(PERSONA_PARAMETER, &offers.personas);
                 }
+                if foreground && spec.name == SHELL {
+                    entry.without(RUN_IN_BACKGROUND);
+                }
                 entry
             })
             .collect()
+    }
+
+    /// 预设 `preset` 关了后台运行没有（施工 T-1 上，设计 30 第三节第 7 条）：关了的会话没有后台，快照记 `foreground`、`shell`
+    /// 不放到后台。没有预设的照开着。
+    pub(crate) fn foreground(preset: Option<&PresetFile>) -> bool {
+        preset.is_some_and(|file| !file.opens_in(BACKGROUND, BASESYSTEM))
     }
 
     /// 快照的工具面 `face` 上派子代理能选的池（施工 8-8 补）：`subagent`（以前的名字也算）的 `pool` 的 `enum`。没有这件、

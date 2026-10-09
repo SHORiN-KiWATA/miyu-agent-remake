@@ -49,6 +49,7 @@ fn setup_with(
         tooled: tooled(&tools, None),
         roleplay: true,
         group,
+        foreground: false,
     };
     let snapshot = build(&resources, parts).expect("拼得成");
     let refresh = Refresh {

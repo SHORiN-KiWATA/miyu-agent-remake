@@ -115,6 +115,7 @@ fn without_a_persona_a_changed_preset_still_swaps() {
         tooled: tooled(&refresh.tools.current(), Some(&installed())),
         roleplay: true,
         group: None,
+        foreground: false,
     };
     refresh.snapshot = build(&refresh.resources, parts).expect("拼得成");
     assert_eq!(
@@ -224,4 +225,34 @@ fn a_swap_leaves_reminders_out_when_they_are_not_installed() {
         panic!("人格改了要换");
     };
     assert_eq!(snapshot.reminder, None, "没装人设防失忆提醒");
+}
+
+/// 换成关了后台运行的预设（施工 T-1 上）：快照记下 `foreground`，以前就有的 `shell` 照旧快照里的原样；改回来又不记。
+#[test]
+fn a_preset_turning_background_off_marks_the_snapshot() {
+    let (_scratch, root, mut refresh) = setup("preset-background", "");
+    assert!(!refresh.snapshot.foreground);
+    let shell = refresh
+        .snapshot
+        .tools
+        .iter()
+        .find(|entry| entry.name == "shell")
+        .cloned()
+        .expect("有 shell");
+    write_preset(&root, "[features]\nbackground = false\n");
+    let Seen::Swapped(snapshot, _, _, _) = look_now(&refresh) else {
+        panic!("改了要换");
+    };
+    assert!(snapshot.foreground, "记下关着");
+    assert!(
+        snapshot.tools.contains(&shell),
+        "以前就有的照原样：{:?}",
+        snapshot.tools
+    );
+    refresh.snapshot = *snapshot;
+    write_preset(&root, "");
+    let Seen::Swapped(snapshot, _, _, _) = look_now(&refresh) else {
+        panic!("改回来也换");
+    };
+    assert!(!snapshot.foreground, "开着的不记");
 }

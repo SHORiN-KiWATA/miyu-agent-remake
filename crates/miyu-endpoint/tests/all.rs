@@ -72,6 +72,7 @@ mod persona_set;
 mod persona_swap;
 mod persona_swap_upgrade;
 mod personas;
+mod preset_background;
 mod preset_face;
 mod preset_set;
 mod preset_swap;

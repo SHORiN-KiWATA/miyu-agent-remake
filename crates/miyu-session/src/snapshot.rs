@@ -23,6 +23,8 @@ pub(crate) struct Parts {
     pub(crate) tooled: BTreeSet<String>,
     pub(crate) roleplay: bool,
     pub(crate) group: Option<i32>,
+    /// 后台运行关着（施工 T-1 上，[`crate::agents::Agents::foreground`]）。
+    pub(crate) foreground: bool,
 }
 
 /// 工具目录 `catalog` 里有工具的功能（施工 O-18；施工 F-3 上起照装了的功能 `features` 认工具归哪个功能）：不照这次的预设筛，
@@ -48,6 +50,7 @@ pub(crate) fn build(resources: &ResourceRoot, parts: Parts) -> Result<Snapshot, 
     let mut snapshot =
         compose(parts.name.as_deref(), sources, parts.attended).with_tools(parts.face);
     snapshot.memory = parts.memory;
+    snapshot.foreground = parts.foreground;
     if !parts.roleplay {
         snapshot.reminder = None;
     }
