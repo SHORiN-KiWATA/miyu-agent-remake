@@ -7,6 +7,7 @@ mod config;
 mod edits;
 mod memory;
 mod message;
+mod package;
 
 /// 一次拒绝：JSON-RPC 的错误码，和原因码。
 #[derive(Debug, Clone, PartialEq, Eq)]

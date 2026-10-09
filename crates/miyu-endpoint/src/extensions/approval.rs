@@ -23,7 +23,7 @@ fn declared(manifest: &Manifest) -> &[Capability] {
 
 /// 包 `id` 是不是出厂的。
 fn shipped(core: &Core, id: &str) -> bool {
-    core.packages
+    core.packages()
         .iter()
         .any(|found| found.id == id && found.layer == Layer::Shipped)
 }

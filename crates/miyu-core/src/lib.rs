@@ -242,6 +242,7 @@ async fn run(
     .with_sandbox(sandbox)
     .with_config(config)
     .with_packages(live.found)
+    .with_built_in(built_in())
     .with_model_data(Arc::clone(&model_data))
     .with_queries(queries);
     if let Some((cache, cargo_home)) = sandbox_cache {

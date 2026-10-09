@@ -40,7 +40,8 @@ pub(crate) struct EnableParams {
 /// `extension.status`：起来时读到的 `process` 包，照编号排。订阅扩展的推送时的回应也是它（施工 9-4 补）。
 pub(crate) fn status(core: &Core, peer: Peer) -> Value {
     let (switches, _) = read_switches(core);
-    let listed: Vec<Value> = processes(core)
+    let packages = core.packages();
+    let listed: Vec<Value> = processes(&packages)
         .map(|(id, manifest)| one(core, id, manifest, &switches, peer))
         .collect();
     json!({ "extensions": listed })
@@ -48,7 +49,7 @@ pub(crate) fn status(core: &Core, peer: Peer) -> Value {
 
 /// 包 `id` 这时的一项（施工 9-4 补，`extension.changed` 推的就是它）：不是起来时读到的 `process` 包的没有。
 pub(crate) fn entry(core: &Core, id: &str, peer: Peer) -> Option<Value> {
-    let manifest = extension(core, id).ok()?;
+    let manifest = &extension(core, id).ok()?;
     let (switches, _) = read_switches(core);
     Some(one(core, id, manifest, &switches, peer))
 }
@@ -60,7 +61,7 @@ pub(crate) async fn enable(
     peer: Peer,
     params: EnableParams,
 ) -> Result<Value, Refusal> {
-    let manifest = extension(core, &params.package)?;
+    let manifest = &extension(core, &params.package)?;
     let _one_at_a_time = core.extensions.ops.lock().await;
     let (mut switches, version) = read_switches(core);
     approval::approve(
@@ -84,7 +85,7 @@ pub(crate) async fn disable(
     peer: Peer,
     params: PackageParams,
 ) -> Result<Value, Refusal> {
-    let manifest = extension(core, &params.package)?;
+    let manifest = &extension(core, &params.package)?;
     let _one_at_a_time = core.extensions.ops.lock().await;
     let (mut switches, version) = read_switches(core);
     switches.on.insert(params.package.clone(), false);
@@ -102,7 +103,7 @@ pub(crate) async fn restart(
     peer: Peer,
     params: PackageParams,
 ) -> Result<Value, Refusal> {
-    let manifest = extension(core, &params.package)?;
+    let manifest = &extension(core, &params.package)?;
     let _one_at_a_time = core.extensions.ops.lock().await;
     let (switches, _) = read_switches(core);
     if !on(&switches, &params.package, manifest) {
@@ -118,12 +119,13 @@ pub(crate) async fn restart(
 }
 
 /// 编号是 `id` 的 `process` 包的清单：没有、读不成的 `unknown_package`，是界面的 `not_an_extension`。
-fn extension<'a>(core: &'a Core, id: &str) -> Result<&'a Manifest, Refusal> {
+fn extension(core: &Core, id: &str) -> Result<Manifest, Refusal> {
     let manifest = core
-        .packages
+        .packages()
         .iter()
         .find(|found| found.id == id)
         .and_then(|found| found.read.as_ref().ok())
+        .cloned()
         .ok_or(Refusal::UNKNOWN_PACKAGE)?;
     match manifest.kind {
         PackageKind::Process => Ok(manifest),

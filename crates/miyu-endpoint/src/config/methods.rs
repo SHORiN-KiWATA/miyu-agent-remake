@@ -405,8 +405,9 @@ pub(super) fn told(
 
 /// 这个连接的语言的字。读不懂是装坏了：内部出错。
 pub(crate) fn words(core: &Core, language: &str) -> Result<Human, Refusal> {
+    let packages = core.packages();
     Human::load(&core.resources, language)
-        .map(|human| human.with_packages(crate::packages::manifests(&core.packages), language))
+        .map(|human| human.with_packages(crate::packages::manifests(&packages), language))
         .map_err(|error| {
             tracing::warn!(target: TARGET, error = %error, "resource unreadable");
             Refusal::INTERNAL

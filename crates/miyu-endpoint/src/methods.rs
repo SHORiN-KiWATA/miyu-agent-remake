@@ -124,6 +124,8 @@ pub(crate) async fn call(
         "check" => crate::check::check(core, peer, params(request)?).await,
         "persona.list" => personas::list(core, peer).await,
         "package.list" => crate::packages::list(core, peer),
+        "package.install" => crate::packages::manage::install(core, peer, params(request)?).await,
+        "package.remove" => crate::packages::manage::remove(core, params(request)?).await,
         "view.page" => crate::view::page(core, params(request)?).await,
         "view.detail" => crate::view::detail(core, params(request)?).await,
         "extension.status" => Ok(crate::extensions::status(core, peer)),

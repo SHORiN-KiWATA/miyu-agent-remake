@@ -33,6 +33,18 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
         ),
         "not_a_directory" => ("这不是一个目录。", "This is not a directory."),
         "unknown_package" => ("没有这个软件包。", "There is no such package."),
+        "package_exists" => (
+            "出厂的软件包里已经有这个编号。",
+            "A shipped package already has this id.",
+        ),
+        "package_required" => (
+            "这个软件包是必需的，不能卸。",
+            "This package is required and cannot be removed.",
+        ),
+        "package_invalid" => (
+            "这份清单装不上，详情在 data.problem 里。",
+            "This manifest cannot be installed; data.problem says why.",
+        ),
         "not_an_extension" => (
             "这个软件包是界面，不由核心拉起。",
             "This package is an interface; the core does not start it.",

@@ -37,7 +37,7 @@ enum Ran {
 pub(super) async fn packages(core: &Core, words: &Human) -> Vec<Value> {
     let main = std::env::current_exe().unwrap_or_else(|_| "miyu".into());
     let mut problems = Vec::new();
-    for found in &core.packages {
+    for found in core.packages().iter() {
         let Ok(manifest) = &found.read else {
             continue;
         };

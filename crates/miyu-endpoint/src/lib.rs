@@ -163,8 +163,12 @@ pub struct Core {
     listing: listing::Listing,
     /// 找回、造场所会话排着来（施工 O-3）：同一个场所同时来两次，不造出两个主线会话。
     venues: tokio::sync::Mutex<()>,
-    /// 软件包清单（施工 9-1 上，`packages.rs`）：起来时读一次，装卸要重启。
-    packages: Vec<miyu_store::packages::Found>,
+    /// 软件包清单（施工 9-1 上，`packages.rs`）：起来时读一次；装、卸以后当场换成重读的一份（施工 F-5 上）。
+    packages: std::sync::RwLock<Arc<Vec<miyu_store::packages::Found>>>,
+    /// 这一份核心编进来的内置包（施工 F-2、F-5 上）：装卸以后重读清单时照它标没编进来的。没设的不标（测试里造的核心）。
+    built_in: Option<Vec<&'static str>>,
+    /// 装、卸一次只做一件（施工 F-5 上）。
+    packaging: tokio::sync::Mutex<()>,
     /// 扩展进程（施工 9-4 上，`extensions.rs`）：核心拉起的 `process` 包。
     extensions: extensions::Extensions,
 }
@@ -253,7 +257,9 @@ impl Core {
             identity: login::Identity::new(login::CODE_TTL),
             listing: listing::Listing::default(),
             venues: tokio::sync::Mutex::new(()),
-            packages: found,
+            packages: std::sync::RwLock::new(Arc::new(found)),
+            built_in: None,
+            packaging: tokio::sync::Mutex::new(()),
             extensions: extensions::Extensions::new(extensions::Timing::default()),
         }
     }
@@ -320,8 +326,25 @@ impl Core {
     /// 交进来，`package.list`、包的配置项的字照它。没设的是 `Core::new` 自己读的那一份。
     #[must_use]
     pub fn with_packages(mut self, packages: Vec<miyu_store::packages::Found>) -> Core {
-        self.packages = packages;
+        self.packages = std::sync::RwLock::new(Arc::new(packages));
         self
+    }
+
+    /// 同一份家底，这一份核心编进来的内置包照 `built_in`（施工 F-5 上）：装卸以后重读清单时照它标没编进来的。
+    #[must_use]
+    pub fn with_built_in(mut self, built_in: Vec<&'static str>) -> Core {
+        self.built_in = Some(built_in);
+        self
+    }
+
+    /// 这时的软件包清单（施工 F-5 上：装卸以后当场换）。
+    pub(crate) fn packages(&self) -> Arc<Vec<miyu_store::packages::Found>> {
+        Arc::clone(
+            &self
+                .packages
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        )
     }
 
     /// 同一份家底，扩展进程等多久、退避多久照 `timing`（施工 9-4 上）：测试里设短的，不用真等。

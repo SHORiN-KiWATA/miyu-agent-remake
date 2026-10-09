@@ -25,11 +25,12 @@ use crate::personas::pick;
 pub(super) fn listed(core: &Core, found: &Found, language: &str) -> Vec<Value> {
     let words = words(core, language).ok();
     let catalog = core.tools();
-    let table = crate::packages::features(&core.packages);
+    let found_packages = core.packages();
+    let table = crate::packages::features(&found_packages);
     let file = &found.file;
     let mut listed = Vec::new();
     let mut packages = BTreeSet::new();
-    for (package, manifest) in crate::packages::manifests(&core.packages) {
+    for (package, manifest) in crate::packages::manifests(&found_packages) {
         packages.insert(package);
         for feature in manifest.features_of(package) {
             let on = file.opens_in(&feature.id, package);

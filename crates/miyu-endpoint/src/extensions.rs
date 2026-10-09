@@ -24,7 +24,7 @@ use tokio::task::JoinHandle;
 use miyu_config::package::{Manifest, PackageKind, Start};
 use miyu_store::config_file;
 use miyu_store::extensions::{self as file, Switches};
-use miyu_store::packages::locate;
+use miyu_store::packages::{Found, locate};
 
 use crate::Core;
 
@@ -316,7 +316,8 @@ impl Core {
         // 扩展以系统账号的身份连进来：先建它们的家目录（施工 O-4 下）。
         crate::system_accounts::prepare(self);
         let (switches, _) = read_switches(self);
-        for (id, manifest) in processes(self) {
+        let packages = self.packages();
+        for (id, manifest) in processes(&packages) {
             if !on(&switches, id, manifest) {
                 continue;
             }
@@ -337,8 +338,8 @@ impl Core {
 }
 
 /// 起来时读到的 `process` 包：编号和清单，照编号排。
-fn processes(core: &Core) -> impl Iterator<Item = (&str, &Manifest)> {
-    core.packages.iter().filter_map(|found| {
+pub(crate) fn processes(packages: &[Found]) -> impl Iterator<Item = (&str, &Manifest)> {
+    packages.iter().filter_map(|found| {
         let manifest = found.read.as_ref().ok()?;
         (manifest.kind == PackageKind::Process).then_some((found.id.as_str(), manifest))
     })

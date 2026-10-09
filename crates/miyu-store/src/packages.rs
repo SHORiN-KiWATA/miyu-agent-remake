@@ -4,6 +4,9 @@
 //! 编号，后读到的那一份报 `command_taken`。读法同配置文件：顺着链接读。文件怎么读成样子在 `miyu_config::package`。
 //!
 //! 包自己在这台机器上的状态放 `<数据根>/state/packages/<编号>/`，包自己建、自己用（[`Packages::state_dir`]）。
+//!
+//! 装、卸（施工 F-5 上）：只动家目录那一层（`install.rs`）。卸掉的出厂的包在家目录记一笔 `<编号>.removed`，读的时候不算装了
+//! （[`Packages::read`]），另外照样读得出来（[`Packages::read_removed`]），好让头给人装回来。
 
 use std::collections::BTreeMap;
 use std::io;
@@ -14,6 +17,8 @@ use miyu_kernel::id::AccountId;
 
 use crate::resources::ResourceRoot;
 use crate::root::DataRoot;
+
+pub mod install;
 
 /// 一层：清单从哪来。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -96,7 +101,9 @@ impl Packages {
     }
 
     /// 两层里所有的清单，照编号排（同一个编号出厂的在前）。目录读不了的一层当没有；不是 `.toml` 的、编号不合写法的不算。
+    /// 卸掉的出厂的包（施工 F-5 上，家目录记了一笔的）不在里面。
     pub fn read(&self) -> Vec<Found> {
+        let removed = self.removed();
         let mut found: Vec<Found> = self
             .dirs
             .iter()
@@ -105,6 +112,7 @@ impl Packages {
                     .into_iter()
                     .map(move |(id, path)| (*layer, id, path))
             })
+            .filter(|(layer, id, _)| !(*layer == Layer::Shipped && removed.contains(id)))
             .map(|(layer, id, path)| Found {
                 read: std::fs::read_to_string(&path)
                     .map_err(Issue::Unreadable)
@@ -122,6 +130,41 @@ impl Packages {
             accounts_taken(&mut found, admin);
         }
         found
+    }
+
+    /// 卸掉的出厂的包（施工 F-5 上）：家目录记了一笔、出厂那一层有清单的，照编号排，各自读成样子（不和别的包比撞没撞）。
+    pub fn read_removed(&self) -> Vec<Found> {
+        let removed = self.removed();
+        let Some((_, dir)) = self.dirs.iter().find(|(layer, _)| *layer == Layer::Shipped) else {
+            return Vec::new();
+        };
+        let mut listed = files(dir);
+        listed.sort();
+        listed
+            .into_iter()
+            .filter(|(id, _)| removed.contains(id))
+            .map(|(id, path)| Found {
+                read: std::fs::read_to_string(&path)
+                    .map_err(Issue::Unreadable)
+                    .and_then(|text| package::read(&text).map_err(Issue::Wrong)),
+                id,
+                layer: Layer::Shipped,
+                path,
+            })
+            .collect()
+    }
+
+    /// 家目录那一层的目录（施工 F-5 上：装、卸只动它）；只有出厂那一层的没有。
+    pub fn home_dir(&self) -> Option<&Path> {
+        self.dirs
+            .iter()
+            .find(|(layer, _)| *layer == Layer::Home)
+            .map(|(_, dir)| dir.as_path())
+    }
+
+    /// 家目录里记着卸掉的出厂的包的编号（施工 F-5 上）。
+    pub fn removed(&self) -> Vec<String> {
+        self.home_dir().map(install::removed).unwrap_or_default()
     }
 
     /// 两层的目录：`miyu check` 认写了的文件是不是一份清单（两边换成真的路径比，`miyu-endpoint` 的 `check.rs`）。

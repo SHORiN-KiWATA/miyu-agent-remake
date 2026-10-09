@@ -47,7 +47,7 @@ pub(crate) async fn resolve(core: &Core, wanted: Option<&str>) -> Result<Found, 
 pub(crate) fn places(core: &Core) -> PresetPlaces {
     PresetPlaces {
         presets: presets(core),
-        features: crate::packages::features(&core.packages),
+        features: crate::packages::features(&core.packages()),
     }
 }
 
@@ -56,7 +56,7 @@ pub(crate) fn chosen(core: &Core, found: Found) -> Chosen {
     Chosen::new(
         found.id,
         found.file,
-        &crate::packages::features(&core.packages),
+        &crate::packages::features(&core.packages()),
     )
 }
 

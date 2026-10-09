@@ -16,6 +16,8 @@ use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
 use crate::Core;
+
+pub(crate) mod manage;
 use crate::config::methods::words;
 use crate::hello::Peer;
 use crate::personas::pick;
@@ -49,16 +51,22 @@ pub fn load(resources: &ResourceRoot, root: &DataRoot, admin: &AccountId) -> Vec
     found
 }
 
-/// `package.list`：起来时读到的，照编号排。
+/// `package.list`：核心这时认的（起来时读的，装卸以后当场换，施工 F-5 上），照编号排；卸掉的出厂的接在后面，带
+/// `removed: true`（施工 F-5 上），好让头给人装回来。
 pub(crate) fn list(core: &Core, peer: Peer) -> Result<Value, Refusal> {
     let words = words(core, peer.language)?;
     let places = packages(core);
-    let listed: Vec<Value> = core
-        .packages
+    let mut items: Vec<Value> = core
+        .packages()
         .iter()
         .map(|found| listed(found, &places, &words, peer.language))
         .collect();
-    Ok(json!({ "packages": listed }))
+    items.extend(places.read_removed().iter().map(|found| {
+        let mut item = listed(found, &places, &words, peer.language);
+        item["removed"] = json!(true);
+        item
+    }));
+    Ok(json!({ "packages": items }))
 }
 
 /// 一项。
