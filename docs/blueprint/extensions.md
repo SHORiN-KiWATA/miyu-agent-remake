@@ -86,6 +86,7 @@
 4. **退出**：核心停的时候、`disable`、`restart` 时关它的标准输入（读到头就是「请退出」，三个平台一样），等 5 秒，没退的杀掉。核心停的时候各个扩展一起等，不一个个排队。
 5. **崩了**：它自己退出（退出码 1 以外的，包括 0）、被信号杀掉、标准输出关了、握手不成，都算一次失败：退避 1、2、4、8、16 秒以后再拉起（最多 60 秒），连续 5 次停下（`failed_repeatedly`）。退出码 1 是「配置错、端口被占」这类重启也没用的：不退避，直接停下（`config_error`）。握了手、连着跑满 60 秒的，下一次失败从 1 数。进程活着、连接连着就算活，不另做健康检查。停下的照旧开着：`restart` 再试，核心下次起来也再试。
 6. **日志**：拉起、握了手、退出（退出码或信号）、退避、停下，各记一行运行日志，带包的编号。
+7. **装卸**（施工 F-5 下，`packages.md`「装卸」）：装、卸、装回来做成了以后，照装卸以前、以后两份清单对一遍（`Core::follow_packages`）。卸掉的照「退出」那一条停下，它经提供者登记的工具拿掉、记下随包卸掉了：用过它的会话照旧留着、调到时报「已卸载」。新装上的照开关拉起，和核心起来时一条路（没批的能力照旧记成停下）。清单变了的算升级：先停下再照开关拉起。清单没变的不动。声明了系统账号的照这时的清单先建好账号（`packages.md`「系统账号」）。
 
 ### 出错
 
@@ -106,7 +107,8 @@
 | `crates/miyu-endpoint/tests/extension_stream.rs`（施工 9-4 补） | 订阅回整份、名字照语言；开了推到在跑、关了推到关着；带 `after` 和会话的参数不对；取消了不推 |
 | `crates/miyu-endpoint/tests/extension_approval.rs`、`crates/miyu-config/src/package/tests.rs`、`crates/miyu-store/src/extensions/tests.rs`（施工 9-4 下上） | 清单的能力照表的先后、不认识的和重复的报 `bad_capability`；开关文件的 `approved` 读写、以前的文件当没批过、没批的不写这一格；管理员装的：不带 `approve` 拒绝 `needs_approval`、只批一部分说剩下的、不是声明的名字 `bad_params`、批了开起来、记下、关了不清；`always` 的没批不拉起、不拦空闲、`restart` 拒绝、批了拉起；升级多了的只问多的；出厂的桥不用批；名字照连接的语言 |
 | `crates/miyu-endpoint/tests/extension_config.rs`、`src/extensions/config/tests.rs`（施工 9-4 下下） | 握手交自己的键（默认值、密钥真值、没设的不放），头的连接没有；改了自己的项推、`secret.set` 换了值推新真值、去掉了推 `null`、别的项变了不推；只放变了的键 |
-| `crates/miyu-endpoint/tests/system_account.rs`、`crates/miyu-store/src/packages/tests.rs`、`crates/miyu-store/src/personas/tests.rs`（施工 O-4 下） | 声明了系统账号的包：起来时建它的工作区；拉起的扩展握手的 `account` 是它；群的场所会话归它（目录、工作目录、回应的 `account`）、找回同一个；对应表里的主人的私聊照旧归主人、这个连接照样能对它说话；群里主人说的记成外部身份带 `account`；附件拷进它名下；用量记在它名下；记忆归管理员、删了照管理员埋墓碑；没声明的扩展照旧 `no_system_account`、不建账号；撞了管理员的 `account_taken` |
+| `crates/miyu-endpoint/tests/packages_extensions.rs`（施工 F-5 下） | 真核心装上一个 `always` 的扩展当场拉起、它登记的工具进工具面、调得到；卸掉当场停下、`extension.status` 不列、用过它的会话照旧留着、调到报「已卸载」；升级了的停下再拉起；装别的包时清单没变的进程不换 |
+| `crates/miyu-endpoint/tests/system_account.rs`、`crates/miyu-store/src/packages/tests.rs`、`crates/miyu-store/src/personas/tests.rs`（施工 O-4 下） | 声明了系统账号的包：起来时建它的工作区；起来以后才装上的、装回来的当场建（施工 F-5 下），会话写进它自己的索引；拉起的扩展握手的 `account` 是它；群的场所会话归它（目录、工作目录、回应的 `account`）、找回同一个；对应表里的主人的私聊照旧归主人、这个连接照样能对它说话；群里主人说的记成外部身份带 `account`；附件拷进它名下；用量记在它名下；记忆归管理员、删了照管理员埋墓碑；没声明的扩展照旧 `no_system_account`、不建账号；撞了管理员的 `account_taken` |
 
 ### 起草时定的
 
@@ -117,6 +119,8 @@
 - 测试用的扩展是端点 crate 里的一个小程序（`miyu-test-extension`），不是 `sh` 脚本：包的程序在 Windows 上找的是 `.exe`，脚本只管得了 Unix（2026-10-08 主会话）。
 - 协议版本对不上的不拉起：说不通的话起了也白起（2026-10-08 主会话）。
 - 拉起时明着设 `MIYU_HOME`、`MIYU_RESOURCES`，值取核心手上的数据根、资源目录，不从核心自己的环境变量转抄；只加这两个，别的环境照旧继承，三个平台一条路（2026-10-08 主会话，施工 O-18 要的：真核心拉起真的桥的测试）。
+
+- 装卸时照清单前后对：卸掉的停、新的起、变了的重起、没变的不动（2026-10-09 主会话，施工 F-5 下）。比较整份清单，不另记版本号：清单里哪一格变了，起来的进程都可能不一样（参数、能力、配置项）。卸掉的那一格状态留着、记成关着：装回来从零数，不留着没用的进程。
 
 ### 还没有的
 

@@ -313,7 +313,9 @@ fn followed(
                 face.extend(fresh.iter().find(|entry| entry.name == *name).cloned());
             }
             Some(_) => face.push(kept.clone()),
-            None if basis.is_some_and(|basis| basis.provided(&kept.name)) => {}
+            // 随包卸掉的提供者的工具照旧留着、调到时报已卸载（施工 F-5 下）；关掉的扩展的拿掉。
+            None if basis.is_some_and(|basis| basis.provided(&kept.name))
+                && !catalog.gone(&kept.name) => {}
             None => face.push(kept.clone()),
         }
     }

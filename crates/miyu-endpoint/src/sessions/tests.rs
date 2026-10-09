@@ -3,38 +3,23 @@
 //! 子会话。
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use miyu_kernel::event::{Level, Permission};
 use miyu_kernel::id::{AccountId, CommandId, SessionId};
 use miyu_session::testkit::Script;
 use miyu_session::{Child, Lineage};
-use miyu_store::env::{Env, Platform};
 use miyu_store::resources::ResourceRoot;
-use miyu_store::root::DataRoot;
 use miyu_tool::Catalog;
 
 use super::local;
 use crate::Core;
+use crate::test_support::{resources, temp_root};
 
 #[tokio::test]
 async fn a_child_is_not_created_for_a_parent_gone_from_the_table() {
-    static NEXT: AtomicU64 = AtomicU64::new(0);
-    let n = NEXT.fetch_add(1, Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("miyu-endpoint-unit-{}-{n}", std::process::id()));
-    let root = DataRoot::locate(&Env {
-        platform: Platform::current(),
-        miyu_home: Some(dir.clone().into_os_string()),
-        home: None,
-        xdg_cache_home: None,
-        local_app_data: None,
-        miyu_resources: None,
-        exe: None,
-    })
-    .expect("MIYU_HOME 是绝对路径");
-    root.prepare().expect("建得了骨架");
+    let (root, dir) = temp_root("unit");
     let admin = AccountId::parse("alice").expect("合写法");
-    let resources = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");
+    let resources = resources();
     let core = Arc::new(Core::new(
         root.clone(),
         ResourceRoot::at(resources),

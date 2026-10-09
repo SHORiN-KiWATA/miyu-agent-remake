@@ -3,6 +3,7 @@
 //! 手里的清单（[`Core::reload_packages`]）：`package.list`、预设的功能、开着的会话下一个回合都照新的。一次只做一件。
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -102,7 +103,7 @@ impl Core {
 
 /// `package.install`。
 pub(crate) async fn install(
-    core: &Core,
+    core: &Arc<Core>,
     peer: Peer,
     params: InstallParams,
 ) -> Result<Value, Refusal> {
@@ -115,7 +116,7 @@ pub(crate) async fn install(
 }
 
 /// `package.remove`：家目录那一层的删掉；出厂的记一笔；必需的拒绝。
-pub(crate) async fn remove(core: &Core, params: RemoveParams) -> Result<Value, Refusal> {
+pub(crate) async fn remove(core: &Arc<Core>, params: RemoveParams) -> Result<Value, Refusal> {
     let _one_at_a_time = core.packaging.lock().await;
     let id = params.package;
     if !miyu_store::personas::valid(&id) {
@@ -137,12 +138,13 @@ pub(crate) async fn remove(core: &Core, params: RemoveParams) -> Result<Value, R
     })
     .await?;
     core.reload_packages();
+    core.follow_packages(&found).await;
     tracing::info!(target: TARGET, package = removed.as_str(), "package removed");
     Ok(json!({"package": removed, "removed": true}))
 }
 
 /// 从 `path` 这份清单装：读得成、不和出厂的撞、拷进去以后和别的包也不撞，才算装上。
-async fn from_path(core: &Core, peer: Peer, path: &Path) -> Result<Value, Refusal> {
+async fn from_path(core: &Arc<Core>, peer: Peer, path: &Path) -> Result<Value, Refusal> {
     let id = path
         .file_name()
         .and_then(|name| name.to_str())
@@ -166,6 +168,7 @@ async fn from_path(core: &Core, peer: Peer, path: &Path) -> Result<Value, Refusa
     let files = files.is_dir().then_some(files);
     let manifest = path.to_path_buf();
     let target = id.clone();
+    let before = core.packages();
     let placed: Placed =
         blocking(move || install::place(&home, &target, &manifest, files.as_deref())).await?;
     core.reload_packages();
@@ -184,6 +187,7 @@ async fn from_path(core: &Core, peer: Peer, path: &Path) -> Result<Value, Refusa
         return Err(refusal);
     }
     placed.keep();
+    core.follow_packages(&before).await;
     tracing::info!(target: TARGET, package = id.as_str(), "package installed");
     let mine = now
         .iter()
@@ -193,15 +197,17 @@ async fn from_path(core: &Core, peer: Peer, path: &Path) -> Result<Value, Refusa
 }
 
 /// 把卸掉的出厂的包 `id` 装回来：删掉家目录里记的那一笔。
-async fn bring_back(core: &Core, peer: Peer, id: &str) -> Result<Value, Refusal> {
+async fn bring_back(core: &Arc<Core>, peer: Peer, id: &str) -> Result<Value, Refusal> {
     let places = packages(core);
     if !places.removed().iter().any(|removed| removed == id) {
         return Err(Refusal::UNKNOWN_PACKAGE);
     }
     let home = home(core)?;
     let target = id.to_string();
+    let before = core.packages();
     blocking(move || install::unmark_removed(&home, &target)).await?;
     core.reload_packages();
+    core.follow_packages(&before).await;
     tracing::info!(target: TARGET, package = id, "package restored");
     let words = words(core, peer.language)?;
     let now = core.packages();

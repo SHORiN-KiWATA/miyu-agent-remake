@@ -318,16 +318,50 @@ impl Core {
         let (switches, _) = read_switches(self);
         let packages = self.packages();
         for (id, manifest) in processes(&packages) {
-            if !on(&switches, id, manifest) {
-                continue;
+            self.start_one(id, manifest, &switches);
+        }
+    }
+
+    /// 开着的拉起：要的能力还有没批的不拉起，记成停下（`needs_approval`）；拉起以前照登记缓存先登记它的工具。
+    fn start_one(self: &Arc<Self>, id: &str, manifest: &Manifest, switches: &Switches) {
+        if !on(switches, id, manifest) {
+            return;
+        }
+        match approval::unapproved(self, id, manifest, switches).is_empty() {
+            true => {
+                crate::provide::restore(self, id);
+                self.extensions.launch(self, id, manifest);
             }
-            match approval::unapproved(self, id, manifest, &switches).is_empty() {
-                true => {
-                    crate::provide::restore(self, id);
-                    self.extensions.launch(self, id, manifest);
-                }
-                false => self.extensions.hold(id, Reason::NeedsApproval),
+            false => self.extensions.hold(id, Reason::NeedsApproval),
+        }
+    }
+
+    /// 装卸以后照这时的清单跟着拉起、停下扩展（施工 F-5 下，设计 30 第九节）：`before` 是装卸以前的那一份。
+    /// - 卸掉的停下，它登记的工具拿掉、记下随包卸掉了：用过它的会话照旧留着、调到时报已卸载。
+    /// - 新装上的照开关拉起；升级了的（清单变了）先停下，再照开关拉起。
+    /// - 系统账号照这时的清单先建好家目录。
+    pub(crate) async fn follow_packages(self: &Arc<Self>, before: &[Found]) {
+        crate::system_accounts::prepare(self);
+        let now = self.packages();
+        let old: BTreeMap<&str, &Manifest> = processes(before).collect();
+        let new: BTreeMap<&str, &Manifest> = processes(&now).collect();
+        for id in old.keys().filter(|id| !new.contains_key(*id)) {
+            self.extensions.halt(id).await;
+            let removed = self
+                .tools
+                .replace(|catalog| Ok::<_, miyu_tool::CatalogError>(catalog.removing(id)));
+            if let Err(error) = removed {
+                tracing::error!(target: "miyu::endpoint", package = *id, error = %error, "tools not withdrawn");
             }
+        }
+        let (switches, _) = read_switches(self);
+        for (id, manifest) in &new {
+            match old.get(id) {
+                Some(previous) if previous == manifest => continue,
+                Some(_) => self.extensions.halt(id).await,
+                None => {}
+            }
+            self.start_one(id, manifest, &switches);
         }
     }
 

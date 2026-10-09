@@ -61,6 +61,8 @@ pub mod settings;
 mod spawn;
 mod subscriptions;
 mod system_accounts;
+#[cfg(test)]
+mod test_support;
 mod toml_changes;
 mod undo;
 mod uploads;
@@ -127,8 +129,9 @@ pub struct Core {
     sessions: Sessions,
     /// 管理员的会话列表的索引（施工 3-8 七补）：起来时开一次，一直开着；会话落盘时更新、删会话时删行、列会话时读。
     index: Arc<SessionIndex>,
-    /// 系统账号各自的会话列表的索引（施工 O-4 下）：在它们自己的家目录下，拉起扩展前开（`system_accounts::prepare`）。
-    system_indexes: std::sync::OnceLock<std::collections::BTreeMap<AccountId, Arc<SessionIndex>>>,
+    /// 系统账号各自的会话列表的索引（施工 O-4 下）：在它们自己的家目录下，拉起扩展前开（`system_accounts::prepare`）；
+    /// 装上新的跟着开，卸掉的留着、装回来接着用（施工 F-5 下）。
+    system_indexes: std::sync::Mutex<std::collections::BTreeMap<AccountId, Arc<SessionIndex>>>,
     /// 用量汇总（施工 8-15，`state/usage.db`）：起来时开一次，一直开着；会话落盘时写、一次性入口记账（交给模型资料）、
     /// `usage.query` 和 `session_usage` 查之前补。
     usage: Arc<UsageIndex>,
@@ -234,7 +237,7 @@ impl Core {
         Core {
             memory,
             index,
-            system_indexes: std::sync::OnceLock::new(),
+            system_indexes: std::sync::Mutex::default(),
             usage,
             hub: Hub::new(&config),
             config: std::sync::Mutex::new(config),
@@ -429,7 +432,11 @@ impl Core {
         if *owner == self.admin {
             return Some(Arc::clone(&self.index));
         }
-        self.system_indexes.get()?.get(owner).map(Arc::clone)
+        self.system_indexes
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(owner)
+            .map(Arc::clone)
     }
 
     /// 账号 `owner` 的会话写哪份用量汇总（施工 8-15）：核心一份、行里带属主，管理员和系统账号的会话写（施工 O-4 下）。

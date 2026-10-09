@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 
 use miyu_endpoint::Core;
 use miyu_kernel::event::Body;
-use miyu_kernel::id::{AccountId, SessionId};
+use miyu_kernel::id::AccountId;
 use miyu_kernel::origin::By;
 use miyu_session::testkit::{Play, Script};
 use miyu_store::blob::Blobs;
@@ -21,25 +21,6 @@ use miyu_tool::Catalog;
 use crate::support::extensions::*;
 use crate::support::venues::{BINDINGS, snapshot};
 use crate::support::*;
-
-/// 包 `id` 的清单：程序 `program`、参数 `args`，`start`、`system_account` 照写。
-fn install_serving(
-    home: &Home,
-    id: &str,
-    program: &str,
-    args: &[String],
-    start: &str,
-    system_account: bool,
-) {
-    let args: Vec<String> = args.iter().map(|arg| format!("{arg:?}")).collect();
-    home.write(
-        &format!("home/alice/packages/{id}.toml"),
-        &format!(
-            "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"Bridge\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"B\" }}\n\n[process]\nargs = [{}]\nstart = \"{start}\"\nsystem_account = {system_account}\n",
-            args.join(", ")
-        ),
-    );
-}
 
 /// 照对应表、读好的清单起来的核心，拉起开着的扩展。
 fn served_core(home: &Home, script: &Script) -> Arc<Core> {
@@ -92,49 +73,6 @@ async fn replies(path: &Path, n: usize) -> Vec<Value> {
 
 fn bot() -> AccountId {
     AccountId::parse("bot").expect("合写法")
-}
-
-/// 会话 `session` 在账号 `account` 名下的目录。
-fn dir(home: &Home, account: &AccountId, session: &str) -> std::path::PathBuf {
-    home.root
-        .session_dir(account, &SessionId::parse(session).expect("会话编号合写法"))
-}
-
-/// 等到 `dir` 里的日志结束了 `n` 轮。
-async fn until_turns_in(dir: &Path, n: usize) {
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
-    loop {
-        let ended = read_events(dir)
-            .unwrap_or_default()
-            .iter()
-            .filter(|event| matches!(event.body, Body::TurnEnded(_)))
-            .count();
-        if ended >= n {
-            return;
-        }
-        assert!(tokio::time::Instant::now() < deadline, "等不到第 {n} 轮");
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
-}
-
-/// 只读打开 SQLite 库 `db`，照 `sql`（带一个参数 `value`）数到大于 0 为止，最多 60 秒。库还没建、表还没有的当 0。
-async fn until_counted(db: &Path, sql: &str, value: &str) {
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
-    loop {
-        let counted =
-            rusqlite::Connection::open_with_flags(db, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
-                .and_then(|db| db.query_row(sql, [value], |row| row.get::<_, i64>(0)))
-                .unwrap_or(0);
-        if counted > 0 {
-            return;
-        }
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "{} 里数不到：{sql}",
-            db.display()
-        );
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
 }
 
 #[tokio::test]
@@ -350,6 +288,78 @@ async fn the_bridge_runs_as_its_system_account_and_owns_the_group() {
             })
             .expect("索引在");
     assert_eq!(left, 0, "它自己的索引里那一行拿掉了");
+    core.stop_extensions().await;
+}
+
+/// 起来以后才装上的包（施工 F-5 下）：当场建它的家目录、工作区，开它的会话列表索引，扩展以它的身份连进来。
+#[tokio::test]
+async fn a_package_installed_later_gets_its_system_account_at_once() {
+    let home = Home::new();
+    let program = Program::new();
+    let (path, step) = record(&home, "bot");
+    let script = Script::new([Play::Says("嗯。")]);
+    let core = served_core(&home, &script);
+    install_serving(
+        &home,
+        "bot",
+        &program.name(),
+        &steps(&[
+            &step,
+            "hello",
+            r#"ask:venue.session:{"venue":"qq:group:1","kind":"group","persona":"engineer"}"#,
+            r#"ask:session.send:{"session":"{session}","text":"在吗","as":{"external":"qq:20001"}}"#,
+            "wait",
+        ]),
+        "always",
+        true,
+    );
+    let source = home.work.join("bot.toml");
+    std::fs::rename(
+        home.root.path().join("home/alice/packages/bot.toml"),
+        &source,
+    )
+    .expect("挪得动");
+    let mut client = Client::connect(core.clone());
+    client.hello().await;
+    let reply = client
+        .call("i1", "package.install", json!({"path": source}))
+        .await;
+    assert_eq!(reply["result"]["package"], "bot", "{reply}");
+
+    let got = replies(&path, 3).await;
+    assert_eq!(got[0]["result"]["account"], "bot", "{got:?}");
+    assert_eq!(got[1]["result"]["account"], "bot", "{got:?}");
+    assert!(got[2].get("error").is_none(), "{got:?}");
+    assert!(home.root.workspace(&bot()).is_dir(), "装上就建了它的工作区");
+    let session = got[1]["result"]["session"].as_str().expect("有编号");
+    until_turns_in(&dir(&home, &bot(), session), 1).await;
+    until_counted(
+        &home.root.index(&bot()).join("sessions.db"),
+        "SELECT count(*) FROM sessions WHERE id = ?1 AND owner = 'bot'",
+        session,
+    )
+    .await;
+    core.stop_extensions().await;
+}
+
+/// 起来时就卸掉了的出厂的包（施工 F-5 下）：装回来当场建它的家目录、工作区。
+#[tokio::test]
+async fn a_shipped_package_brought_back_gets_its_system_account_at_once() {
+    let home = Home::new();
+    home.write("home/alice/packages/onebot.removed", "");
+    let core = served_core(&home, &Script::new([]));
+    let onebot = AccountId::parse("onebot").expect("合写法");
+    assert!(!home.root.workspace(&onebot).exists(), "卸掉的不建");
+    let mut client = Client::connect(core.clone());
+    client.hello().await;
+    let reply = client
+        .call("i1", "package.install", json!({"package": "onebot"}))
+        .await;
+    assert!(reply.get("error").is_none(), "{reply}");
+    assert!(
+        home.root.workspace(&onebot).is_dir(),
+        "装回来就建了它的工作区"
+    );
     core.stop_extensions().await;
 }
 

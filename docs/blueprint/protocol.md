@@ -575,7 +575,7 @@
 
 **`package.list`**（施工 9-1 上，`packages.md`「协议」）
 
-不带参数。回应 `{"packages": [...]}`：核心起来时读到的两层清单（出厂的、管理员家目录里的），照编号排。每一项的格子见 `packages.md` 的表：读成了的有 `kind`、`protocol`、`name`、`state`，写了的有 `version`、`summary`、`command`、`opens`、`pages_dir`、`process`、`check`；施工 F-1 起，必需的有 `required`，内置包、扩展包有 `features`（没写的照包算一个），写了的有 `connection`、`depends`、`recommends`、`worker`，`kind` 多 `builtin`、`worker`；写错的、撞了的、读不了的只有 `package`、`layer`、`code`、`problem`（照连接的语言）和有的话 `line`；协议版本对不上的照样带全，多 `code: "protocol_mismatch"` 和 `problem`。名字、说明照连接的语言挑。装、卸、改了清单要重启核心才认。
+不带参数。回应 `{"packages": [...]}`：核心手里这时的两层清单（出厂的、管理员家目录里的），照编号排。每一项的格子见 `packages.md` 的表：读成了的有 `kind`、`protocol`、`name`、`state`，写了的有 `version`、`summary`、`command`、`opens`、`pages_dir`、`process`、`check`；施工 F-1 起，必需的有 `required`，内置包、扩展包有 `features`（没写的照包算一个），写了的有 `connection`、`depends`、`recommends`、`worker`，`kind` 多 `builtin`、`worker`；写错的、撞了的、读不了的只有 `package`、`layer`、`code`、`problem`（照连接的语言）和有的话 `line`；协议版本对不上的照样带全，多 `code: "protocol_mismatch"` 和 `problem`。名字、说明照连接的语言挑。经 `package.install`、`package.remove` 装卸的当场换（施工 F-5）；手改了磁盘上的清单的要重启核心才认。
 
 **`package.install`、`package.remove`**（施工 F-5 上，`packages.md`「装卸」）
 
