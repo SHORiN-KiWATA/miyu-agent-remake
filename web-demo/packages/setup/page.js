@@ -6,9 +6,10 @@
 //! 点一块在原地展开详情（`persona-editor.js`、`preset-editor.js`），一次开一个；顶上「＋ 新建」先只填名字（`form.js` 的 `nameFirst`），
 //! 建好接着在详情里写。一页是一个常驻的对象：设置页别处改了配置重画、关了再开，交回的是同一块，开着的详情和没存的字都还在。
 
-import { h, icon, keep, replace } from '../../src/lib/dom.js';
+import { h, icon, replace } from '../../src/lib/dom.js';
 import { personaName, presetName } from './model.js';
 import { nameFirst } from './form.js';
+import { floatCard } from './float.js';
 import { PersonaEditor, refusalText } from './persona-editor.js';
 import { PresetEditor } from './preset-editor.js';
 
@@ -46,12 +47,8 @@ export class ListPage {
     this.kind = kind;
     this.k = KINDS[kind];
     this.el = h('div.setup-cards', h('p.setup-empty', ctx.text('page.loading')));
-    /** @type {{id: string, editor: PersonaEditor|PresetEditor}|null} 开着的详情 */
+    /** @type {{id: string|null, editor: PersonaEditor|PresetEditor|null, card: ReturnType<typeof floatCard>}|null} 开着的浮卡（新建时 `id` 是空的） */
     this.open = null;
-    /** 正在缩回去的详情（编号 → 编辑器）：走完动画前还画它，不一下子没了（2026-10-08 项目主人：切到别的那一个时一跳） */
-    this.closing = new Map();
-    /** @type {HTMLElement|null} 新建时只填名字的那一块 */
-    this.creating = null;
     /** @type {import('./form.js').Kit|null} */
     this.kit = null;
   }
@@ -77,13 +74,9 @@ export class ListPage {
     const t = (key, fields) => this.ctx.text(key, fields);
     const list = this.k.list(this.catalog) ?? [];
     const fallback = this.k.fallback(this.catalog);
-    // 开着的那一个没了（别处删了）：收起
-    if (this.open && !list.some((p) => p[this.kind] === this.open?.id)) this.open = null;
     const cards = list.map((p) => {
       const id = p[this.kind];
       if (p.problem) return badCard(this.ctx, id, this.catalog.problemOf(this.kind, p));
-      if (this.open?.id === id) return this.open.editor.el;
-      if (this.closing.has(id)) return this.closing.get(id).el;
       // 「默认」接在名字后面，不另占一行（2026-10-08 项目主人）
       const card = h('div.setup-card.is-clickable', { tabindex: '0', role: 'button', onclick: () => this.show(id) },
         h('h4', this.k.name(p), id === fallback ? h('span.setup-tag', t('page.default')) : null),
@@ -97,76 +90,72 @@ export class ListPage {
     });
     // 顶上一行：这一页管什么（人格页，2026-10-08 项目主人），右边「＋ 新建」
     const add = h('div.setup-bar', this.k.intro ? h('p.setup-intro', t(this.k.intro)) : null, h('button.setup-new', { type: 'button', onclick: () => this.startNew() }, icon('plus'), h('span', t(this.k.add))));
-    // 只挪变了的：开着、正在缩回去的那几块不拿下来，展开收起的过渡不断（`keep`）
-    keep(this.el, [add, this.creating, ...(cards.length ? cards : [h('p.setup-empty', t(this.k.none))])]);
+    replace(this.el, add, cards.length ? cards : h('p.setup-empty', t(this.k.none)));
   }
 
-  /** 开着的那一个缩回去（和新展开的那一个同时动，看着是交换高度），走完再换回列表里那一块。 */
-  foldOpen() {
-    const was = this.open;
-    if (!was) return;
+  /** 点卡片外面、`Esc`、✕：开着编辑器的交给它（人格改了没存的不关、提示一句），新建只填名字那一步直接关。 */
+  dismiss() {
+    if (this.open?.editor) this.open.editor.tryClose();
+    else this.closeCard();
+  }
+
+  /** 关掉开着的浮卡（淡出），列表照旧。 */
+  closeCard() {
+    this.open?.card.close();
     this.open = null;
-    this.closing.set(was.id, was.editor);
-    was.editor.foldAway(() => {
-      if (this.closing.get(was.id) !== was.editor) return;
-      this.closing.delete(was.id);
-      this.draw();
-    });
   }
 
-  /** 展开一个：开着的那个改了没存的不换，提示先存或者取消；没改的缩回去，同时这一个展开。 @param {string} id */
-  async show(id) {
-    if (!this.kit || this.open?.id === id) return;
-    if (this.open?.editor.dirty()) {
-      this.open.editor.tryClose();
-      return;
-    }
-    this.closing.delete(id);
-    this.foldOpen();
+  /** 给一个人格、预设开编辑器（放进 `card`；没给的新开一张浮卡）。 @param {string} id @param {ReturnType<typeof floatCard>|null} [card] */
+  editorFor(id, card = null) {
     const item = (this.k.list(this.catalog) ?? []).find((p) => p[this.kind] === id);
-    const look = item ? { name: this.k.name(item), summary: this.k.summary ? item.summary ?? null : null, tag: id === this.k.fallback(this.catalog) ? this.ctx.text('page.default') : null } : {};
-    const editor = this.k.editor(this.ctx, this.kit, this.catalog, id, {
+    const editor = this.k.editor(this.ctx, /** @type {any} */ (this.kit), this.catalog, id, {
       saved: () => this.refresh(),
       removed: (remains) => {
-        // 恢复出厂的还在，照出厂的样子重读；删掉的收起
+        // 恢复出厂的还在，照出厂的样子重读；删掉的关掉卡片
         if (remains) editor.load();
-        else this.open = null;
+        else this.closeCard();
         this.refresh();
       },
-      close: () => {
-        if (this.open?.editor === editor) this.foldOpen();
-      },
-    }, look);
-    this.open = { id, editor };
-    this.draw();
-    editor.expand();
-    await editor.load();
+      close: () => { if (this.open?.editor === editor) this.closeCard(); },
+    }, item ? { name: this.k.name(item) } : {});
+    if (card) {
+      card.setTitle(editor.title);
+      card.setBody(editor.body);
+    } else {
+      card = floatCard({ title: editor.title, body: editor.body, close: this.ctx.text('edit.close'), onDismiss: () => this.dismiss() });
+      card.mount(this.el);
+    }
+    this.open = { id, editor, card };
+    return editor;
   }
 
-  /** 「＋ 新建」：顶上一块只填名字；建好收起它、展开新的那一个接着写。 */
+  /** 点一块：开一张浮卡编辑它（2026-10-09 项目主人：原地展开不好，改成悬浮卡片）。 @param {string} id */
+  async show(id) {
+    if (!this.kit || this.open) return;
+    await this.editorFor(id).load();
+  }
+
+  /** 「＋ 新建」：浮卡里先只填名字；建好了同一张卡片接着换成这个人格、预设的详情。 */
   startNew() {
-    if (!this.kit || this.creating) return;
-    if (this.open?.editor.dirty()) {
-      this.open.editor.tryClose();
-      return;
-    }
+    if (!this.kit || this.open) return;
     const t = (key) => this.ctx.text(key);
-    this.creating = nameFirst(this.kit, t, t(this.k.add), t('edit.name_hint'), async (name) => {
+    const card = floatCard({ title: t(this.k.add), body: h('div'), close: t('edit.close'), onDismiss: () => this.dismiss() });
+    card.setBody(nameFirst(this.kit, t, t('edit.name_hint'), async (name) => {
       let id;
       try {
         id = await this.k.create(this.ctx.core, name);
       } catch (err) {
         return refusalText(err);
       }
-      this.creating = null;
       await this.catalog.load();
-      await this.show(id);
-      this.open?.editor.focusFirst();
-      return null;
-    }, () => {
-      this.creating = null;
       this.draw();
-    });
-    this.draw();
+      // 同一张卡片换成详情，接着写
+      const editor = this.editorFor(id, card);
+      await editor.load();
+      editor.focusFirst();
+      return null;
+    }, () => this.closeCard()));
+    card.mount(this.el);
+    this.open = { id: null, editor: null, card };
   }
 }

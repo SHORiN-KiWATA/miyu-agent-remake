@@ -115,3 +115,13 @@ test('人格点「保存」发什么：只发变了的，提示词带读进来�
   assert.deepEqual(personaSave(before, { ...before, summary: '写代码的帮手' }), { changes: [{ key: 'persona.summary', value: '写代码的帮手' }] });
   assert.deepEqual(personaSave(before, { ...before, summary: ' ' }), { changes: [{ key: 'persona.summary', value: '' }] });
 });
+
+test('新会话先选上上一次的：最新的顶层会话的人格、预设、目录；没人格的选无人格；没了的不选；子会话、一次性的不算', async () => {
+  const { lastChoice } = await import('../../packages/setup/model.js');
+  const personas = [{ persona: 'miyu', name: 'Miyu' }, { persona: 'bad', problem: 'x' }];
+  const presets = [{ preset: 'full', name: '全部功能' }, { preset: 'dev', name: '基础功能' }];
+  assert.deepEqual(lastChoice([{ parent: 'p', persona: 'miyu' }, { oneshot: true }, { persona: 'miyu', preset: 'dev', cwd: '/w' }], personas, presets), { persona: 'miyu', preset: 'dev', cwd: '/w' });
+  assert.deepEqual(lastChoice([{ preset: 'full', cwd: '/w' }], personas, presets), { persona: false, preset: 'full', cwd: '/w' });
+  assert.deepEqual(lastChoice([{ persona: 'gone', preset: 'gone', cwd: '/w' }], personas, presets), { cwd: '/w' });
+  assert.equal(lastChoice([], personas, presets), null);
+});

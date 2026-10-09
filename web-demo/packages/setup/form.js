@@ -3,8 +3,7 @@
 //! 多行框（空着时占位字说写什么，不另加说明行）、点两次才做的按钮（删除、恢复出厂，不弹窗）、新建时只填名字的那一块。控件照设置页给的
 //! `kit`（`settings/kit.js`），和设置页长一个样。
 
-import { h, icon } from '../../src/lib/dom.js';
-import { unfold } from '../../src/lib/motion.js';
+import { h } from '../../src/lib/dom.js';
 
 /**
  * 设置页交来的控件（`settings.section` 的 `render(kit)`；软件包之间不互相 import，这里照用到的写一份形状）。
@@ -23,72 +22,6 @@ import { unfold } from '../../src/lib/motion.js';
  * @param {string} name @param {HTMLElement} control @param {string|null} [desc]
  */
 export const field = (name, control, desc = null) => h('div.setup-field', h('div.setup-field-name', h('span', name), desc ? h('small', desc) : null), h('div.setup-field-control', control));
-
-/**
- * 展开、收起的一块（2026-10-08 项目主人：原地展开要有动画）：高度从 0 长出来、收回去，照 `base.css` 的 `.unfold`。放进页面以后下一帧
- * 才展开（不然没有过渡）；收起走完再交回（`done`），过渡没来的（减少动画、没放进页面）照时间兜底。
- * @param {HTMLElement} body
- */
-export function foldable(body) {
-  const wrap = h('div.unfold', h('div.unfold-inner', body));
-  unfold(wrap, false);
-  return {
-    wrap,
-    open: () => requestAnimationFrame(() => requestAnimationFrame(() => unfold(wrap, true))),
-    /** @param {() => void} done */
-    close: (done) => {
-      let finished = false;
-      const finish = () => {
-        if (finished) return;
-        finished = true;
-        done();
-      };
-      wrap.addEventListener('transitionend', (e) => { if (e.target === wrap) finish(); }, { once: true });
-      setTimeout(finish, 600);
-      unfold(wrap, false);
-    },
-  };
-}
-
-/**
- * 编辑器的壳（2026-10-08 项目主人：切到别的那一个时动画有问题）：收着时和列表里的那一块长得一模一样（灰底、同样的边距、名字和「默认」、
- * 下面一行说明），展开时灰底淡掉、上下两条细线淡入、说明收起、正文长出来、右上「收起」淡入；收起倒着走一遍，走完换回列表那一块
- * 看不出接缝。
- * @param {{title: string, tag?: string|null, summary?: string|null, label: string, collapse: () => void, body: HTMLElement}} o
- */
-export function shell(o) {
-  const titleEl = h('span.setup-title', o.title);
-  const sumText = h('p.setup-shell-sum', o.summary ?? '');
-  const sum = h('div.unfold', h('div.unfold-inner', sumText));
-  unfold(sum, !!o.summary);
-  const fold = foldable(o.body);
-  const el = h('div.setup-card.setup-shell', head(h('h4', titleEl, o.tag ? h('span.setup-tag', o.tag) : null), o.label, o.collapse), sum, fold.wrap);
-  return {
-    el,
-    titleEl,
-    /** 说明改了（存过以后）：收起时露出来的那一行跟着换。 @param {string|null} text */
-    summary: (text) => {
-      sumText.textContent = text ?? '';
-      o.summary = text;
-    },
-    open: () => {
-      fold.open();
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        el.classList.add('is-open');
-        unfold(sum, false);
-      }));
-    },
-    /** @param {() => void} done */
-    close: (done) => {
-      el.classList.remove('is-open');
-      unfold(sum, !!o.summary);
-      fold.close(done);
-    },
-  };
-}
-
-/** 编辑器的头：名字，右边「收起」。 @param {HTMLElement} title @param {string} label @param {() => void} close */
-export const head = (title, label, close) => h('div.setup-head', title, h('button.setup-collapse', { type: 'button', onclick: close }, label, icon('chevron-down')));
 
 /**
  * 多行框：跟着字长高；输入时打记号（设置页重画时不冲掉正在写的，`settings` 的 `editing`）。
@@ -138,12 +71,12 @@ export function twoClick(kit, label, again, run) {
 }
 
 /**
- * 新建：只填名字的一块（2026-10-08 项目主人：人格先填名字，建好接着在详情里写；预设填名字，功能先全开）。名字空着「建好」点不了；
- * `create` 交回一句错就写在下面、字留着。`Esc`（设置页的 `set-dismiss`）和「取消」收起。
- * @param {Kit} kit @param {(key: string) => string} t @param {string} title @param {string} hint
+ * 新建：只填名字的那一步（2026-10-08 项目主人：人格先填名字，建好接着在详情里写；预设填名字，功能先全开），放在浮卡里。名字空着「建好」
+ * 点不了；`create` 交回一句错就写在下面、字留着。
+ * @param {Kit} kit @param {(key: string) => string} t @param {string} hint
  * @param {(name: string) => Promise<string|null>} create @param {() => void} cancel
  */
-export function nameFirst(kit, t, title, hint, create, cancel) {
+export function nameFirst(kit, t, hint, create, cancel) {
   const input = kit.field('', hint);
   const err = h('p.setup-error', { hidden: true });
   const submit = async () => {
@@ -163,10 +96,6 @@ export function nameFirst(kit, t, title, hint, create, cancel) {
     e.preventDefault();
     submit();
   });
-  const fold = foldable(h('div', field(t('edit.name'), input), err, h('div.setup-foot', h('span.setup-grow'), kit.button(t('edit.cancel'), {}, () => fold.close(cancel)), ok)));
-  const el = h('div.setup-card.is-open', { 'data-set-dismiss': '' }, h('div.setup-head', h('h4', title)), fold.wrap);
-  el.addEventListener('set-dismiss', () => fold.close(cancel));
-  fold.open();
   requestAnimationFrame(() => input.focus());
-  return el;
+  return h('div.setup-editor', field(t('edit.name'), input), err, h('div.setup-foot', h('span.setup-grow'), kit.button(t('edit.cancel'), {}, cancel), ok));
 }

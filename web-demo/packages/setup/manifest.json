@@ -20,7 +20,8 @@
     "core",
     "commands",
     "storage",
-    "host"
+    "host",
+    "sessions"
   ],
   "styles": [
     "style.css"
@@ -62,6 +63,7 @@
         "save": "保存",
         "saved": "已保存",
         "collapse": "收起",
+        "close": "关闭",
         "persona": "人设",
         "persona_hint": "这个人格是谁、怎么说话、怎么待你",
         "examples": "示范对话",
@@ -89,6 +91,7 @@
       },
       "folders": {
         "open": "选择文件夹…",
+        "open_short": "选择文件夹",
         "title": "选择工作区",
         "up": "上一级",
         "empty": "这里没有子文件夹",
@@ -141,6 +144,7 @@
         "save": "保存",
         "saved": "保存しました",
         "collapse": "閉じる",
+        "close": "閉じる",
         "persona": "人物設定",
         "persona_hint": "この人格は誰か、どう話すか、あなたにどう接するか",
         "examples": "お手本会話",
@@ -168,6 +172,7 @@
       },
       "folders": {
         "open": "フォルダを選ぶ…",
+        "open_short": "フォルダを選ぶ",
         "title": "ワークスペースを選ぶ",
         "up": "上の階層",
         "empty": "サブフォルダがありません",

@@ -1,10 +1,10 @@
 // @ts-check
-//! 预设的详情（蓝图 `web.md`「人格、预设、工作区」第 6 条）：在列表里原地展开——名字、功能开关（2026-10-08 项目主人：预设不要说明，
+//! 预设的详情（蓝图 `web.md`「人格、预设、工作区」第 6 条）：浮起来的卡片里（`float.js`）——名字、功能开关（2026-10-08 项目主人：预设不要说明，
 //! 「没什么意义」；不带默认人格，人格、预设互不引用）。都是点了当场存（`preset.set` 只带改的那一项，不带 `expect`）：名字回车、离开时存，开关点了就存；功能照核心给的
 //! 名字（`software`，照连接的语言），没装的写「没安装」。删除照核心的 `remove`，同人格。
 
 import { h, replace } from '../../src/lib/dom.js';
-import { field, twoClick, shell } from './form.js';
+import { field, twoClick } from './form.js';
 import { refusalText } from './persona-editor.js';
 
 /** @typedef {{saved: () => void, removed: (remains: boolean) => void, close: () => void}} Hooks */
@@ -12,7 +12,7 @@ import { refusalText } from './persona-editor.js';
 export class PresetEditor {
   /**
    * @param {any} ctx @param {import('./form.js').Kit} kit @param {import('./catalog.js').Catalog} catalog @param {string} id @param {Hooks} hooks
-   * @param {{name?: string, tag?: string|null}} [look] 列表里那一块写的（收着时照它的样子）
+   * @param {{name?: string}} [look] 列表里那一块写的（读完以前卡片头上先写它的名字）
    */
   constructor(ctx, kit, catalog, id, hooks, look = {}) {
     this.ctx = ctx;
@@ -21,10 +21,8 @@ export class PresetEditor {
     this.id = id;
     this.hooks = hooks;
     this.t = (/** @type {string} */ key, /** @type {any} */ fields) => ctx.text(key, fields);
+    this.title = h('span', look.name ?? id);
     this.body = h('div.setup-editor', h('p.setup-empty', this.t('page.loading')));
-    this.shell = shell({ title: look.name ?? id, tag: look.tag, label: this.t('edit.collapse'), collapse: () => this.collapse(), body: this.body });
-    this.title = this.shell.titleEl;
-    this.el = this.shell.el;
   }
 
   async load() {
@@ -40,22 +38,9 @@ export class PresetEditor {
     return false;
   }
 
+  /** 点外面、`Esc`、✕：都是当场存的，直接关。 */
   tryClose() {
-    this.collapse();
-  }
-
-  expand() {
-    this.shell.open();
-  }
-
-  /** 收起：交给列表（列表让它缩回去，走完再换回那一块）。 */
-  collapse() {
     this.hooks.close();
-  }
-
-  /** 缩回去，走完了交回。 @param {() => void} done */
-  foldAway(done) {
-    this.shell.close(done);
   }
 
   /** @param {any} got `preset.get` 的回应 */

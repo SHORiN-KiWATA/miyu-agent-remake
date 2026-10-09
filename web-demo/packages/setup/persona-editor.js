@@ -1,11 +1,11 @@
 // @ts-check
-//! 人格的详情（蓝图 `web.md`「人格、预设、工作区」第 6 条）：在列表里原地展开，名字、说明、人设、示范对话、角色扮演提示
+//! 人格的详情（蓝图 `web.md`「人格、预设、工作区」第 6 条）：浮起来的卡片里（`float.js`，列表那一页 `page.js` 开它），名字、说明、人设、示范对话、角色扮演提示
 //! （2026-10-08 项目主人：来自哪一层、以谁为底、编号都不露；说明人自己写，出厂的那句能改）。改完点「保存」一起发一条 `persona.set`（写一半不生效），提示词带
-//! `persona.read` 给的版本；「取消」收起、丢掉没存的。删除照核心的 `remove`：改过的出厂「恢复出厂」、自己建的「删除」，点两次才删。
+//! `persona.read` 给的版本；「取消」关掉卡片、丢掉没存的。删除照核心的 `remove`：改过的出厂「恢复出厂」、自己建的「删除」，点两次才删。
 //! 别处改过了（`persona_conflict`）写一句、给「重新读」；写错的照核心给人看的那一句（`data.message`）。
 
 import { h, replace } from '../../src/lib/dom.js';
-import { field, area, twoClick, shell } from './form.js';
+import { field, area, twoClick } from './form.js';
 import { Pairs } from './pairs.js';
 import { personaSave, halfPair } from './model.js';
 
@@ -20,7 +20,7 @@ export const refusalText = (err) => err?.data?.message ?? err?.message ?? String
 export class PersonaEditor {
   /**
    * @param {any} ctx @param {import('./form.js').Kit} kit @param {string} id @param {Hooks} hooks
-   * @param {{name?: string, summary?: string|null, tag?: string|null}} [look] 列表里那一块写的（收着时照它的样子）
+   * @param {{name?: string}} [look] 列表里那一块写的（读完以前卡片头上先写它的名字，不露编号）
    */
   constructor(ctx, kit, id, hooks, look = {}) {
     this.ctx = ctx;
@@ -28,13 +28,10 @@ export class PersonaEditor {
     this.id = id;
     this.hooks = hooks;
     this.t = (/** @type {string} */ key, /** @type {any} */ fields) => ctx.text(key, fields);
+    /** 卡片头上的名字 */
+    this.title = h('span', look.name ?? id);
+    /** 卡片里的内容 */
     this.body = h('div.setup-editor', h('p.setup-empty', this.t('page.loading')));
-    this.shell = shell({ title: look.name ?? id, tag: look.tag, summary: look.summary, label: this.t('edit.collapse'), collapse: () => this.tryClose(), body: this.body });
-    this.title = this.shell.titleEl;
-    this.el = this.shell.el;
-    this.el.setAttribute('data-set-dismiss', '');
-    // `Esc`：没改过的收起；改了没存的留着（长的字一按就丢太亏），提示先存或者取消
-    this.el.addEventListener('set-dismiss', () => this.tryClose());
     /** @type {PersonaDraft|null} */
     this.before = null;
     /** @type {string|null} */
@@ -67,7 +64,6 @@ export class PersonaEditor {
   draw(d) {
     const t = this.t;
     this.title.textContent = d.name || this.id;
-    this.shell.summary(d.summary || null);
     this.name = this.kit.field(d.name, '');
     this.summary = this.kit.field(d.summary, t('edit.summary_hint'));
     this.persona = area(d.persona, t('edit.persona_hint'), 4);
@@ -86,7 +82,7 @@ export class PersonaEditor {
       field(t('edit.examples'), this.pairs.el),
       field(t('edit.reminders'), this.reminders),
       this.note,
-      h('div.setup-foot', remove, h('span.setup-grow'), this.kit.button(t('edit.cancel'), {}, () => this.collapse()), this.saveBtn));
+      h('div.setup-foot', remove, h('span.setup-grow'), this.kit.button(t('edit.cancel'), {}, () => this.hooks.close()), this.saveBtn));
     this.sync();
   }
 
@@ -113,29 +109,14 @@ export class PersonaEditor {
     replace(this.note, h('span', text), ...more);
   }
 
-  /** 改了没存的不收起，提示一句；没改的收起。 */
+  /** 点外面、`Esc`、✕：改了没存的不关（长的字一按就丢太亏），提示先存或者取消；没改的关掉。 */
   tryClose() {
     if (this.dirty()) {
       this.say(this.t('edit.unsaved'));
       this.saveBtn?.focus();
       return;
     }
-    this.collapse();
-  }
-
-  /** 展开（放进页面以后）。 */
-  expand() {
-    this.shell.open();
-  }
-
-  /** 收起：交给列表（列表让它缩回去，走完再换回那一块）。 */
-  collapse() {
     this.hooks.close();
-  }
-
-  /** 缩回去，走完了交回。 @param {() => void} done */
-  foldAway(done) {
-    this.shell.close(done);
   }
 
   async save() {

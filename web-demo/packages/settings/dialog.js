@@ -11,6 +11,7 @@ import { drawPackages } from './packages.js';
 import { drawModels } from './models.js';
 import { sectionKit } from './kit.js';
 import { Extensions } from './extensions.js';
+import { drawCorePackages } from './core-packages.js';
 
 /** 上次看的那一页：这个终端记着（蓝图第 3 条），刷新就忘 */
 let lastPage = 'general';
@@ -87,6 +88,8 @@ export class SettingsDialog {
       core.request('package.list', {}).then((r) => r?.packages ?? [], () => [])]);
     /** 能直接敲 `miyu` 打开的界面（`kind` 是 `ui`、有命令的包，核心 9-3） */
     this.heads = packages.filter((p) => p.kind === 'ui' && p.command);
+    /** 核心认的软件包（「软件包」页上面那一段照它列） */
+    this.packages = packages;
     this.schema = schema;
     this.got = got;
     const cfg = this.ctx.config;
@@ -170,14 +173,8 @@ export class SettingsDialog {
     if (this.current === 'models') kids = drawModels(this);
     else if (this.current === 'appearance') kids = drawLook(this);
     else if (this.current === 'packages') {
-      // 上面一段核心的软件包：核心拉起的扩展一个一组（运行、权限，再接它自己的设置项，`extensions.js`），别的包照 `config.schema` 一包一组；
-      // 下面一段网页自己的组件
-      const ext = this.extensions.ids();
-      const groups = page?.groups ?? [];
-      const core = [
-        ...ext.map((id) => this.extensions.block(id, (groups.find((g) => g.id === id)?.items ?? []).map((item) => coreRow(this, item)).filter(Boolean))),
-        ...groups.filter((g) => !ext.includes(g.id)).map((g) => groupBlock(g.name, g.items.map((item) => coreRow(this, item)))).filter(Boolean),
-      ];
+      // 上面一段核心的软件包：一个包一行、点开看它的设置（扩展另有运行、权限两行，`core-packages.js`）；下面一段网页自己的组件
+      const core = drawCorePackages(this, page).filter(Boolean);
       kids = [
         ...(page?.problems ?? []).map((p) => banner(p)),
         core.length ? h('section.set-part', h('h2.set-part-name', this.ctx.text('packages_core')), core) : null,

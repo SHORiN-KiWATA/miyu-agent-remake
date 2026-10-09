@@ -9,7 +9,8 @@ import { h, icon, replace } from '../../src/lib/dom.js';
 /**
  * @typedef {{title: string, desc?: string, icon?: string, current?: boolean, off?: boolean, tip?: string, pick: () => void}} Row
  * @typedef {{section: string}} Section
- * @typedef {{title: string, rows: (Row|Section)[], note?: string, foot?: HTMLElement[], back?: () => void, below?: boolean}} View
+ * @typedef {{title: string, rows: (Row|Section)[], note?: string, foot?: HTMLElement[], back?: () => void, below?: boolean, action?: {icon: string, title: string, run: () => void}}} View
+ *   `action` 是标题右边的一个图标按钮（工作区的「选择文件夹」）
  */
 
 export class Menu {
@@ -54,7 +55,8 @@ export class Menu {
       return el;
     });
     replace(this.el,
-      h('div.setup-menu-head', h('strong.setup-menu-name', view.title)),
+      h('div.setup-menu-head', h('strong.setup-menu-name', view.title),
+        view.action ? h('button.setup-menu-action', { type: 'button', title: view.action.title, 'aria-label': view.action.title, onmousedown: (/** @type {MouseEvent} */ e) => e.preventDefault(), onclick: () => view.action?.run() }, icon(view.action.icon)) : null),
       h('div.setup-menu-list', nodes, view.note ? h('div.setup-menu-note', view.note) : null),
       view.foot?.length ? h('div.setup-menu-foot', view.foot) : null);
     this.el.classList.toggle('is-below', !!view.below);

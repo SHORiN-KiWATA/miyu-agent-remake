@@ -17,7 +17,7 @@ const TABS = ['providers', 'chat', 'vision', 'embedding', 'pools'];
 export function drawModels(dialog) {
   const ctx = dialog.ctx;
   dialog.modelTab ??= 'providers';
-  // 「按意思找记忆」照核心给的名字（`models.embedding` 的 `name`），旧核心没有这一项的不出这个标签
+  // 「语义模型」（`models.embedding`，2026-10-09 项目主人定名），旧核心没有这一项的不出这个标签
   const embed = plainItem(dialog.schema, dialog.got, 'models.embedding');
   const shownTabs = TABS.filter((id) => id !== 'embedding' || embed);
   if (!shownTabs.includes(dialog.modelTab)) dialog.modelTab = 'providers';
@@ -25,7 +25,7 @@ export function drawModels(dialog) {
     type: 'button',
     role: 'tab',
     onclick: () => { dialog.modelTab = id; dialog.modelDetail = null; dialog.providerForm = null; dialog.drawBody(); },
-  }, id === 'embedding' ? embed?.name ?? ctx.text('models.tabs.embedding') : ctx.text(`models.tabs.${id}`))));
+  }, ctx.text(`models.tabs.${id}`))));
   const list = dialog.models;
   if (!list) return [tabs, dialog.modelsLoading ? loadingRow(ctx) : h('p.set-empty.is-bad', ctx.text('load_failed', { reason: 'model.list' }))];
   if (dialog.modelTab === 'providers') return [tabs, dialog.providerForm ? providerForm(dialog, list.providers ?? []) : providers(dialog, list)];

@@ -56,6 +56,25 @@ export function personaInUse(chosen, fallback, list) {
   return fallback && list.some((p) => p.persona === fallback) ? fallback : null;
 }
 
+/**
+ * 新会话先选上上一次的（2026-10-09 项目主人：不然每次新会话都要选好麻烦）：会话表里最新的那个顶层会话的人格、预设、工作目录。
+ * 那个会话没人格的选「无人格」（`false`）；人格、预设已经没了、写错了的不选（照默认的）；一个会话都没有的交 `null`。
+ * @param {{oneshot?: boolean, parent?: string|null, persona?: string, preset?: string, cwd?: string}[]} sessions 从新到旧
+ * @param {Persona[]} personas @param {Preset[]} presets
+ * @returns {{persona?: string|false, preset?: string, cwd?: string}|null}
+ */
+export function lastChoice(sessions, personas, presets) {
+  const last = sessions.find((e) => !e.oneshot && !e.parent);
+  if (!last) return null;
+  /** @type {{persona?: string|false, preset?: string, cwd?: string}} */
+  const out = {};
+  if (!last.persona) out.persona = false;
+  else if (defaultUsable(personas, last.persona)) out.persona = last.persona;
+  if (last.preset && defaultUsable(presets, last.preset, 'preset')) out.preset = last.preset;
+  if (last.cwd) out.cwd = last.cwd;
+  return out;
+}
+
 /** 目录名（按钮上写的）：路径最后一段，`~` 照写。 @param {string} path */
 export function dirName(path) {
   const parts = path.replace(/[\\/]+$/, '').split(/[\\/]/);

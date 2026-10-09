@@ -1,6 +1,6 @@
 // @ts-check
-//! 「软件包」页核心那一段里核心拉起的扩展（蓝图 `web.md`「设置页」第 13 条；核心 9-4 上、9-4 补、9-4 下上，`extensions.md`）：一个扩展一组，
-//! 组名是它的名字；「运行」一行写现在怎样（关着、正在启动、在运行、几秒后再试、停了为什么），右边开关，在运行的多一个「重启」，停了的
+//! 「软件包」页核心那一段里核心拉起的扩展（蓝图 `web.md`「设置页」第 13 条；核心 9-4 上、9-4 补、9-4 下上，`extensions.md`）：点开那个包以后，
+//! 「运行」一行写现在怎样（关着、正在启动、在运行、几秒后再试、停了为什么），右边开关，在运行的多一个「重启」，停了的
 //! 能点开看标准错误的最后几行；「权限」一行写它要哪些能力，还没批的标出来。开的那一下还有没批的：这一组里展开一块「开启前要批准这些
 //! 权限」，一条一条写名字和一句说明，「批准并开启」就是 `extension.enable` 带上 `approve`（2026-10-08 项目主人照推荐定：在开的那一下批）。
 //! 状态照 `subscribe {"stream": "extensions"}` 的推送当场跟上（`extension.changed` 整项换，掉队重订）。
@@ -73,11 +73,12 @@ export class Extensions {
   }
 
   /**
-   * 一个扩展的那一组：组名、「运行」「权限」两行、要批准时的那一块，再接这个包自己的设置项（`rows`，照 `config.schema` 那一组）。
+   * 一个扩展点开以后的几行：「运行」「权限」两行、要批准时的那一块，再接这个包自己的设置项（`rows`，照 `config.schema` 那一组）。
+   * 收着、点开那一行由「软件包」页画（`core-packages.js`）。
    * @param {string} id @param {Node[]} rows
    */
-  block(id, rows) {
-    const slot = h('section.set-group.set-ext');
+  body(id, rows) {
+    const slot = h('div.set-rows.set-ext');
     this.slots.set(id, slot);
     this.rows.set(id, rows);
     this.fill(id, slot);
@@ -112,7 +113,7 @@ export class Extensions {
         h('p.set-desc', caps.map((c, i) => [i ? '、' : '', h(`span${unapproved.has(c.id) ? '.set-ext-unapproved' : ''}`, { title: c.summary ?? null }, c.name)])),
         unapproved.size ? h('p.set-problem.is-warn', t('ext.unapproved')) : null)) : null;
     const ask = this.asking.has(id) || (e.on && e.reason === 'needs_approval') ? this.approval(e, caps, unapproved) : null;
-    replace(slot, h('h3.set-group-name', e.name), h('div.set-rows', run, output, perms, ask, ...(this.rows.get(id) ?? [])));
+    replace(slot, run, output, perms, ask, ...(this.rows.get(id) ?? []));
   }
 
   /** 要批准的那一块：没批的一条一条写名字、一句说明；「批准并开启」「取消」。 @param {Entry} e @param {Capability[]} caps @param {Set<string>} unapproved */

@@ -76,8 +76,8 @@
 .setup-empty.is-bad { color: var(--danger); }
 .setup-menu-btn:disabled { cursor: default; opacity: 0.45; filter: none; }
 
-/* 人格、预设的详情：在列表里原地展开，铺在页面底色上、不用白卡片，照设置页编辑供应商的表单（2026-10-08 项目主人）：左边字段名、右边灰底的框；
-   上下各一条细分隔和列表的块分开。控件照设置页的（`settings/kit.js`），不画描边 */
+/* 人格、预设的详情：浮起来的卡片（float.js，2026-10-09 项目主人：原地展开不好，改成悬浮卡片）。盖住整个设置框，底下糊一层，
+   正中一张白卡片，浮起来的影；里面左边字段名、右边灰底的框。控件照设置页的（`settings/kit.js`），不画描边 */
 .setup-bar { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin: -4px 0 0; }
 .setup-bar .setup-intro { flex: 1; margin: 0; color: var(--text-faint); font-size: 12.5px; }
 .setup-new { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--surface-2); color: var(--text); font: 13px var(--sans); cursor: pointer; }
@@ -86,17 +86,22 @@
 .setup-card.is-clickable { cursor: pointer; transition: background-color 0.15s ease; }
 .setup-card.is-clickable:hover { background: var(--surface-3); }
 .setup-card.is-clickable:focus-visible { outline: 0; box-shadow: var(--card-shadow); }
-/* 展开的：灰底淡掉，上下两条细线淡入（照编辑供应商铺在页面上）；收着的壳和列表那一块一模一样（`form.js` 的 `shell`） */
-.setup-card.is-open { border-radius: 0; background: transparent; box-shadow: inset 0 1px var(--line), inset 0 -1px var(--line); }
-.setup-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.setup-head h4 { margin: 0; }
-.setup-shell .setup-head { margin-bottom: 0; }
-.setup-card p.setup-shell-sum { margin: 4px 0 0; }
-.setup-shell .setup-collapse { opacity: 0; pointer-events: none; transition: opacity var(--motion-collapse) ease; }
-.setup-shell.is-open .setup-collapse { opacity: 1; pointer-events: auto; }
-.setup-collapse { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; padding: 2px 6px; border: 0; border-radius: 6px; background: transparent; color: var(--text-faint); font: 12px var(--sans); cursor: pointer; }
-.setup-collapse:hover { background: var(--surface-2); color: var(--text-soft); }
-.setup-collapse svg { width: 14px; height: 14px; transform: rotate(180deg); }
+.setup-float-scrim {
+  position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; padding: 24px;
+  background: color-mix(in srgb, var(--surface) 55%, transparent); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  animation: fade-in var(--motion-in) var(--ease-out) both;
+}
+.setup-float-scrim.is-leaving { animation: fade-out var(--motion-out) var(--ease-in) both; }
+.setup-float {
+  display: flex; flex-direction: column; width: min(620px, 100%); max-height: 100%; overflow: hidden;
+  border-radius: 14px; background: var(--surface-1); box-shadow: var(--float-shadow);
+  animation: pop-in var(--motion-in) var(--ease-out) both;
+}
+.setup-float-scrim.is-leaving .setup-float { animation: pop-out var(--motion-out) var(--ease-in) both; }
+.setup-float-head { display: flex; align-items: center; gap: 8px; padding: 16px 16px 4px 20px; }
+.setup-float-title { flex: 1; margin: 0; overflow: hidden; color: var(--text); font-size: 15px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.setup-float-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 20px 18px; }
+@media (prefers-reduced-motion: reduce) { .setup-float-scrim, .setup-float { animation: none; } }
 .setup-field { display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: start; gap: 12px; padding: 8px 0; }
 .setup-field-name { display: grid; gap: 2px; padding-top: 6px; color: var(--text-soft); font-size: 13px; }
 .setup-field-name small { color: var(--text-faint); font-size: 11.5px; line-height: 1.4; }
@@ -128,3 +133,10 @@
 .setup-card p.setup-error, .setup-error { margin: 10px 0 0; color: var(--danger); font-size: 12.5px; }
 .setup-link { margin-left: 8px; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; }
 .setup-link:hover { text-decoration: underline; }
+/* 浮卡是白底：框聚焦时照设置页会变成白底，在白卡片上就看不见了，卡片里聚焦保持灰底、只加一层影 */
+.setup-float .set-input:focus, .setup-float .setup-area:focus { background: var(--surface-2); box-shadow: var(--card-shadow); }
+
+/* 菜单标题右边的图标按钮（工作区的「选择文件夹」）：不画描边，悬停一块底色 */
+.setup-menu-action { display: grid; place-items: center; width: 26px; height: 26px; margin: -4px -4px -4px auto; border: 0; border-radius: 7px; background: transparent; color: var(--text-soft); cursor: pointer; }
+.setup-menu-action:hover { background: var(--surface-2); color: var(--text); }
+.setup-menu-action .icon, .setup-menu-action svg { width: 15px; height: 15px; }

@@ -8,7 +8,7 @@
 
 import { h, icon, replace } from '../../src/lib/dom.js';
 import { Menu } from './menu.js';
-import { personaName, presetName, defaultUsable, presetInUse, personaInUse, dirName, readPath, remember, tilde } from './model.js';
+import { personaName, presetName, defaultUsable, presetInUse, personaInUse, dirName, readPath, remember, tilde, lastChoice } from './model.js';
 import { Catalog } from './catalog.js';
 import { ListPage, problemText } from './page.js';
 import { browse } from './folders.js';
@@ -30,6 +30,8 @@ export function apply(ctx) {
   const infoMenu = new Menu();
   const info = h('div.setup-info', { hidden: true });
   const infoWrap = h('div.setup-info-wrap', info, infoMenu.el);
+  /** 左上角那一条里的路径：工作区的菜单开在它下面、和它左边对齐（2026-10-09 项目主人指出原来开在整条的左边，错位了） @type {HTMLElement|null} */
+  let pathBtn = null;
 
   const home = () => chat.home() ?? null;
   const recent = () => /** @type {string[]} */ (ctx.storage.get(RECENT, []));
@@ -57,6 +59,12 @@ export function apply(ctx) {
   let drawn = '';
   const draw = (force = false) => {
     const session = chat.current();
+    // 新的空会话（三样都还空着：人选过的哪怕是「无人格」「默认工作区」也不是空的）：人格、预设的列表读到了，照上一次的会话先选上
+    const fresh = chat.draft();
+    if (!session && fresh.persona == null && fresh.preset == null && fresh.cwd == null && catalog.personas && catalog.presets) {
+      const pick = lastChoice(ctx.sessions.index.all(), catalog.personas, catalog.presets);
+      if (pick && Object.keys(pick).length) chat.setDraft(pick);
+    }
     const draft = chat.draft();
     const cwd = chat.workdir();
     const used = session ? null : inUse();
@@ -97,7 +105,7 @@ export function apply(ctx) {
     replace(info,
       persona ? [h('span.setup-info-part', icon('user-round'), h('b', nameOf(persona))), sep()] : null,
       preset ? [h('span.setup-info-part', icon('toggle-right'), h('b', presetNameOf(preset))), sep()] : null,
-      h('button.setup-info-part.is-path', { type: 'button', title: path, onclick: () => openWorkspaces(info, true) }, icon('folder'), h('span', path)));
+      pathBtn = h('button.setup-info-part.is-path', { type: 'button', title: path, onclick: () => openWorkspaces(pathBtn ?? info, true) }, icon('folder'), h('span', path)));
     info.hidden = false;
   };
 
@@ -184,12 +192,13 @@ export function apply(ctx) {
     const which = below ? infoMenu : menu;
     which.show(anchor, {
       title: t('set_workspace'),
+      // 选文件夹：标题右边一个图标（2026-10-09 项目主人：做成右上角的一个图标，不占一行）
+      action: { icon: 'folder-open', title: t('folders.open_short'), run: () => browse(ctx, which, anchor, below, now, pickDir, (p) => tilde(p, home())) },
       below,
       rows: [
         { title: t('default_workspace'), desc: tilde(def, home()), current: now === def, pick: () => pickDir(def) },
         ...(others.length ? [{ section: t('recent') }] : []),
         ...others.map((p) => ({ title: dirName(tilde(p, home())), desc: tilde(p, home()), current: now === p, pick: () => pickDir(p) })),
-        { title: t('folders.open'), icon: 'folder-open', pick: () => browse(ctx, which, anchor, below, now, pickDir, (p) => tilde(p, home())) },
       ],
     });
   };
@@ -224,7 +233,7 @@ export function apply(ctx) {
   });
   ctx.commands.register({ name: 'workspace', summary: t('command'), args: true }, async (words) => {
     const text = (words ?? '').trim();
-    if (!text) return openWorkspaces(chat.current() ? info : workBtn, !!chat.current());
+    if (!text) return openWorkspaces(chat.current() ? pathBtn ?? info : workBtn, !!chat.current());
     const why = await check(text);
     if (why) ctx.composer.say(why);
   });
