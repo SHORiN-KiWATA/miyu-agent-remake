@@ -17,7 +17,6 @@ pub(crate) struct Gone;
 /// 一个连接上核心这边的一头：往它发请求、收它的回应。克隆的是同一个。
 #[derive(Clone)]
 pub(crate) struct Peer {
-    out: mpsc::Sender<String>,
     state: Arc<Mutex<State>>,
 }
 
@@ -34,16 +33,19 @@ struct State {
     last: u64,
     /// 编号到等它的。
     waiting: HashMap<String, oneshot::Sender<Result<Value, Value>>>,
-    /// 连接断了。
-    closed: bool,
+    /// 往连接写的一头；连接断了放掉，是 `None`（施工 O-2 再补：提供者表里存着这一头，留着它，写的那一头就一直不结束，
+    /// 核心察觉不到扩展退出，崩了不重新拉起）。
+    out: Option<mpsc::Sender<String>>,
 }
 
 impl Peer {
     /// 往 `out` 写的一头。
     pub(crate) fn new(out: mpsc::Sender<String>) -> Peer {
         Peer {
-            out,
-            state: Arc::default(),
+            state: Arc::new(Mutex::new(State {
+                out: Some(out),
+                ..State::default()
+            })),
         }
     }
 
@@ -57,16 +59,16 @@ impl Peer {
         method: &str,
         params: Value,
     ) -> Result<Result<Value, Value>, Gone> {
-        let (id, answer) = {
+        let (id, answer, out) = {
             let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-            if state.closed {
+            let Some(out) = state.out.clone() else {
                 return Err(Gone);
-            }
+            };
             state.last += 1;
             let id = format!("core-{}", state.last);
             let (tell, answer) = oneshot::channel();
             state.waiting.insert(id.clone(), tell);
-            (id, answer)
+            (id, answer, out)
         };
         // 不等了的（这个 future 被丢掉、发不出去、等到了）都从表里拿掉。
         let _waiting = Waiting {
@@ -74,7 +76,7 @@ impl Peer {
             id: &id,
         };
         let line = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
-        if self.out.send(line.to_string()).await.is_err() {
+        if out.send(line.to_string()).await.is_err() {
             return Err(Gone);
         }
         answer.await.map_err(|_| Gone)
@@ -82,16 +84,12 @@ impl Peer {
 
     /// 发一条通知（施工 O-2 下）：不带编号、不等回应。连接断了、写队列满了的发不出去，交回 `false`。
     pub(crate) fn notify(&self, method: &str, params: Value) -> bool {
-        if self
-            .state
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .closed
-        {
+        let state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        let Some(out) = state.out.as_ref() else {
             return false;
-        }
+        };
         let line = json!({"jsonrpc": "2.0", "method": method, "params": params});
-        self.out.try_send(line.to_string()).is_ok()
+        out.try_send(line.to_string()).is_ok()
     }
 
     /// 收到一条回应：交给等它的，对不上的不理。
@@ -107,11 +105,11 @@ impl Peer {
         }
     }
 
-    /// 连接断了：在等的都了结，以后发的直接了结。
+    /// 连接断了：在等的都了结，以后发的直接了结；往连接写的那一头放掉，写的任务才结束得了（施工 O-2 再补）。
     pub(crate) fn close(&self) {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-        state.closed = true;
         state.waiting.clear();
+        state.out = None;
     }
 
     /// 不等这一条了。
