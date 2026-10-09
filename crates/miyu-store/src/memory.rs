@@ -208,6 +208,11 @@ impl MemoryLog {
         read(&self.lock().book)
     }
 
+    /// 记忆库本身（施工 R-5 下）：补向量、照向量找的一方照它（`RecallIndex::missing`、`nearest`）。键是记忆的编号。
+    pub fn index(&self) -> &RecallIndex {
+        &self.index
+    }
+
     /// 在记忆库里照关键词找 `text`，最多 `limit` 条，最相关的在前。改掉的、作废的照样在里面，挑不挑是用的一方照底账判。
     ///
     /// # Errors

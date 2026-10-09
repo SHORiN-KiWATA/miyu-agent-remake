@@ -325,6 +325,9 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | WARN | `memory index not backfilled` | `session` 或 `room`，`error` | 补齐时一个会话读不了、快照取不出（跳过它），或者列不出会话（施工 R-2 下） |
 | DEBUG | `turn start hook timed out` | `module` | 回合开始的挂接点过了 300 毫秒没交回，这一轮当它没交（施工 R-4 上，`memory.md` 第三条第 4 款） |
 | WARN | `memory summary not read` | `error` | 回合开始列不出这一间的记忆，这一轮不交摘要（施工 R-4 上） |
+| INFO | `memory vectors filled` | `index`、`count`、`took_ms` | 搜的时候起的后台补了这一份库缺的几条向量（施工 R-5 下，`recall.md` 第三条第 5 款） |
+| WARN | `memory vectors not filled` | `error` | 补向量时库读写不了 |
+| DEBUG | `query not embedded`、`query not embedded in time` | `reason` | 问句的向量算不出、1 秒内没算出：这一回只走关键词（第三条第 4 款） |
 | WARN | `usage not indexed` | `error` | 落了盘，用量汇总写不进去（第 5 条第 8 点，施工 8-15）；`session_usage` 补这个会话时日志读不完（`session` 另带） |
 | WARN | `write failed, stopped` | `kind` | 写不进去 |
 | WARN | `read back failed, stopped` | `error` | 读回日志读不了（第 4 条，施工 6-9） |

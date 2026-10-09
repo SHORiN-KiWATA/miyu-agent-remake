@@ -21,10 +21,12 @@
 |---|---|---|
 | `crates/miyu-recall/src/lib.rs` | 纯逻辑的 crate（第 2 层）：对外的几样 | R-1 |
 | `crates/miyu-recall/src/terms.rs` | 一段字切成存进索引的词、拼成查询（`index_terms`、`query`） | R-1 |
-| `crates/miyu-recall/src/fuse.rs` | 加权的 RRF：几路名次合成一个 | R-5 下 |
+| `crates/miyu-recall/src/fuse.rs` | 加权的 RRF：几路名次合成一个，只有向量一路找到的过下限（第三条第 3 款） | R-5 下 |
 | `crates/miyu-recall/src/vector.rs` | 向量写成字节、读回来、点积 | R-5 下 |
 | `crates/miyu-store/src/recall.rs` | 一个检索库：开（坏了删掉重建）、放进一条、拿掉一条、照关键词找（R-1）；一批和照到哪一起写、拿掉一个来源（R-2 上） | R-1 |
-| `crates/miyu-store/src/recall/vectors.rs` | 向量表：放、照模型读出来逐条算 | R-5 下 |
+| `crates/miyu-store/src/recall/vectors.rs` | 向量表：放、照模型列出缺的、读出来逐条算最像的（第三条第 1、2 款） | R-5 下 |
+| `crates/miyu-session/src/memory/vectors.rs` | 算问句的向量（限时）、在后台补这一间缺的、`models.embedding` 照不照意思找（第三条第 4 到 6 款） | R-5 下 |
+| `crates/miyu-core/src/embed.rs` | 核心起来时照环境拼好 `Embedder` 要的几样（第四条第 1 款） | R-5 下 |
 | `crates/miyu-recall/src/embedding.rs` | 本机模型的清单：照原文读、查（第四条第 2 款；R-5 中从 `miyu-embed` 挪进来，核心不能依赖 `miyu-embed`） | R-5 上、中 |
 | `crates/miyu-embed/src/manifest.rs` | 小程序读清单的文件 | R-5 上 |
 | `crates/miyu-embed/src/wordpiece.rs` | BERT 的 WordPiece 分词（第四条第 5 款） | R-5 上 |
@@ -111,16 +113,19 @@ CREATE VIRTUAL TABLE terms USING fts5(words, content='', contentless_delete=1, t
    bm25 越小越相关，照它排；名次从 0 数。`MATCH` 的写法是 `query` 拼好的，不会是坏的；SQLite 照样报错的，如实交回 `DbError`，不吞。
 5. 读写出错交回 `DbError`，调的一方照派生数据的规矩处理：记一行 `WARN`，这一次不用索引，下次照真相补（`store/index.md` 第二条第 4 款）。
 
-**三、向量和两路合并**（R-5，施工时细化）
+**三、向量和两路合并**（R-5 下）
 
-1. 每一条另存一份向量：`vectors(id, model, dims, data BLOB)`，`data` 是 f32 的小端字节，长度是维数的 4 倍；`model` 是模型的编号（例如 `local:bge-small-zh-v1.5`），换了模型的旧向量不用，后台照新模型慢慢补。
-2. 向量都先归一化，相似度就是点积。查的时候读出这个模型的全部向量逐条算（旧版的规模约 1 万条，几毫秒），取最前面的几条；慢了先量，再看要不要另想办法。
-3. 两路合并：照名次 `score = Σ 权重 / (60 + 名次 + 1)`，关键词一路权重 1，向量一路 0.5（起点，测评后定）；只有向量命中的那几条，相似度还要过一个下限。向量那一路用不了（没装、出错、超时）就只有关键词，记一行日志，不停下。
-4. 向量照（模型、字的 SHA-256）缓存在系统的缓存目录：库删了重建、换了位置都不重算。
+1. **向量表**：检索库多一张 `vectors(key, model, data)`，主键是（条目、模型），`data` 是 f32 的小端字节（`miyu_recall::vector`），长度是维数的 4 倍；`model` 是模型的编号（`local:bge-small-zh-v1.5`）。条目拿掉、整个来源拿掉、换了字（同样的字照留）的，它的向量跟着拿掉；放向量时条目已经没了的不放。不换版本：每次开库、重建以后照 `CREATE TABLE IF NOT EXISTS` 补上这张表，以前的库也就有了（换版本要删掉重建，删掉的会话那几块墓碑是删会话时写的，重建补不回来）。换了模型的照新模型补，旧的留着不碍事。
+2. **查**：向量都归一化过，相似度就是点积。读出这个模型的全部向量逐条算（旧版的规模约 1 万条，几毫秒），取最像的几条，带着条目的字和时刻；慢了先量，再看要不要另想办法。
+3. **两路合并**（`miyu_recall::fuse`）：照名次合，不照分数（bm25 和余弦的尺度对不上）：`分 = Σ 权重 / (60 + 名次 + 1)`，名次从 0 数；关键词一路权重 1，向量一路 0.5；只有向量一路找到的，相似度不到 0.40 的不要；分一样的照关键词一路的先后、再照向量一路的。0.40 是 2026-10-09 在 bge-small-zh-v1.5 上量的起点：八句和记忆一个字都不重合的问题（「我家宠物叫什么」对「用户养了一只猫」这种），对的那一条都排第一，相似度最低 0.436、平均 0.564；不对的平均 0.297、九成在 0.368 以下、最高 0.456。几个数测评集有了再定。
+4. **搜**（`memory_search`、`memory.search`）：先算问句的向量，最多等 1 秒（第一次拉起小程序要一两百毫秒；那一条照样在后台算完，不打断小程序的一问一答）；算出来了，记忆库、回合库各照关键词一路、向量一路取（各取四倍再挑），照第 3 款合并，再照原来的规矩挑。算不出（还在备、用不了、过了时限）的只走关键词，和原来一样，记一行 `DEBUG query not embedded`，不停下。
+5. **补**：搜的时候起。照这一间的记忆库、回合库各起一个后台的，一次取 16 条还没有这个模型的向量的（照行号往后取），一条一条算、写回；模型还在备的每秒再问一次，等它备好；这一条算不出的跳过、接着补别的（下次搜再试）；用不了的（下不成、起不来过三次）这一回不补了。同一份库同一时刻只有一个在补。补了几条记一行 `INFO memory vectors filled index=… count=… took_ms=…`，读写不了记 `WARN memory vectors not filled error=…`。之后才放进库的（这一轮自己的回合）等下一次搜。
+6. `models.embedding` 是 `off` 的：不算问句、不补、不下模型、不拉起小程序，只照关键词找。她的工具照这一轮的配置（回合开始时换），协议照这时的配置。
+7. 向量照（模型、字的 SHA-256）缓存在系统的缓存目录、库删了重建不重算：还没做。重建很少见，重算一万条约二十秒，后台慢慢补；量出来是问题再加。
 
 **四、embedding**（R-5 上、中、下）
 
-1. 用途 `models.embedding`：写 `local` 用本机的 `miyu-embed`；写 `<供应商>/<模型>` 走那一家 OpenAI 兼容的 `/v1/embeddings`；没写的，`miyu-embed` 在就用本机的，不在就只有关键词（R-5 中、下，施工时细化）。
+1. 用途 `models.embedding`（R-5 下，`models.md` 的 `[models]`）：写 `local` 用本机的 `miyu-embed`；写 `off` 不下模型、不拉起、只照关键词找（2026-10-09 项目主人定加 `off`）；不写的照 `local`，本机的小程序、缓存目录、清单哪一样没有，就只有关键词。下一个回合开始时生效。远程的 `<供应商>/<模型>`（走那一家 OpenAI 兼容的 `/v1/embeddings`）随 R-5 补。核心起来时照环境拼好交给 `Embedder`（`miyu-core/src/embed.rs`）：小程序在主程序真实位置的旁边（照软件包的找法），清单是资源目录的 `models/embed/bge-small-zh-v1.5.toml`，模型放在缓存目录的 `embed/` 下，下载照环境变量走代理。
 2. **清单**（R-5 上）：本机模型照一份 TOML 认，出厂的在 `resources/models/embed/bge-small-zh-v1.5.toml`，配置 `embedding.local` 换成别的清单就换了模型：做成可更换的（2026-10-07 项目主人定）。几格：
    - `id`：模型的名字，向量的模型编号写成 `local:<id>`；`dims`：几维；`pooling`：怎么取一句的向量，现在只认 `cls`（取 `[CLS]` 那一格）；`max_tokens`：一句最多几个词（连 `[CLS]`、`[SEP]`），至少 2。
    - `[[files]]`：每个文件的 `role`（`model`、`vocab` 各正好一个）、`name`（一个单纯的文件名，不带目录）、`url`、`sha256`、`size`。
@@ -161,6 +166,15 @@ CREATE VIRTUAL TABLE terms USING fts5(words, content='', contentless_delete=1, t
 
 ### 守着它的
 
+R-5 下做好的：
+
+| 测试 | 守哪几条 |
+|---|---|
+| `crates/miyu-recall/src/vector/tests.rs`、`fuse/tests.rs` | 第三条第 1、3 款：写成字节读回一位不差、小端、长度不对的读不出、点积、维数对不上算 0；只有一路的照它的先后、两路都有的在前、只有向量一路找到的过下限、关键词也找到的不看下限、名次照原来的先后数、分一样的照先来后到 |
+| `crates/miyu-store/tests/recall_vectors.rs` | 第三条第 1、2 款：缺的照模型列、从哪一行往后列、最多几条；最像的在前、带着字和时刻、别的模型的不算；条目拿掉、换了字、整个来源拿掉、一批里拿掉的，向量跟着没；条目没了的不放；以前的库（没有这张表）照样开、不重建、补上表 |
+| `crates/miyu-session/tests/memory_vectors.rs` | 第三条第 4 到 6 款，真的 `miyu-embed`、手造的小模型：一条和问句一个字都不重合的记忆，第一次只走关键词找不到，后台补上向量以后照意思找得到；以前的对话也一样；`off` 的不补、不拉起小程序，关键词照旧找得到 |
+| `crates/miyu-endpoint/tests/memory_meaning.rs` | 第三条第 4 款：真核心接上本机 embedding，`memory.search` 第一次只走关键词，补齐以后照意思找得到 |
+
 R-5 中做好的：
 
 | 测试 | 守哪几条 |
@@ -194,6 +208,7 @@ R-1 做好的：
 
 ### 还没有的
 
-- 第三条（向量、两路合并）、第四条第 1 款（`models.embedding`、换清单的配置项、远程的 `/v1/embeddings`）：R-5 下。`Embedder` 现在只有测试在用，R-5 下接进 `memory_search`。
+- 远程的 `/v1/embeddings`（`models.embedding` 写 `<供应商>/<模型>`）、换清单的配置项：R-5 补。
+- 第三条第 7 款，照字的哈希缓存向量：量出来是问题再加。
 - 知识库的切块、文件监视：知识库那条线。
 - `history` 改用全文索引：照 `tools/history.md`，慢了再做。

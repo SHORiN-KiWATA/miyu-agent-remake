@@ -187,6 +187,15 @@ impl Embedder {
         }
     }
 
+    /// 向量记的模型编号（`local:<id>`，施工 R-5 下）：用不上的（没有小程序、缓存目录、清单）没有。
+    pub fn model(&self) -> Option<String> {
+        self.shared
+            .ready
+            .as_ref()
+            .ok()
+            .map(|ready| ready.manifest.model())
+    }
+
     /// 小程序现在拉起着没有（给测试看；以后给头看状态）。
     pub async fn running(&self) -> bool {
         self.shared.slot.lock().await.worker.is_some()

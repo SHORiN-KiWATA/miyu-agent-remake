@@ -26,6 +26,7 @@ mod memory_backfill;
 mod memory_scope;
 mod memory_summary;
 mod memory_tools;
+mod memory_vectors;
 mod messages;
 mod messages_peer;
 mod once;

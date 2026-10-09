@@ -5,12 +5,13 @@
 //! - 听众：一条记忆的听众里有这次会被谁看到的每一个人，才算合（17 L6）；不合的当没有，不让人知道有。
 //! - 出处活不活照回合库的墓碑（第二条第 4 款）：一处都没有（人记的）的算活；有的，活着一处就算。
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use miyu_kernel::id::{CommandId, SessionId, TurnId};
 use miyu_kernel::origin::By;
 use miyu_kernel::time::Timestamp;
-use miyu_recall::{Cleared, Entry, MemoryEvent, MemoryId, Retired, Saved, Source};
+use miyu_recall::{Cleared, Entry, MemoryEvent, MemoryId, Retired, Saved, Source, fuse};
 use miyu_store::memory::{MemoryLog, Report};
 use miyu_store::recall::{Opened, Room};
 use miyu_tool::{FoundTurn, Refused, Remember};
@@ -18,6 +19,7 @@ use miyu_tool::{FoundTurn, Refused, Remember};
 use crate::TARGET;
 
 use super::Memory;
+use super::vectors::{Query, Target, Vectors};
 
 /// 一间记忆，连同这次会被谁看到（听众）。可以复制：每次调用照它做。
 #[derive(Debug, Clone)]
@@ -140,17 +142,34 @@ impl Keeper {
             .map(|(_, cleared)| cleared)
     }
 
-    /// 照关键词搜记下的，最多 `limit` 条，最相关的在前：只给现在算数的（`forgotten` 时作废的也给）、出处活着的、听众合的。
+    /// 搜记下的，最多 `limit` 条，最相关的在前：只给现在算数的（`forgotten` 时作废的也给）、出处活着的、听众合的。照关键词找；
+    /// 有问句的向量 `near` 的（施工 R-5 下）再照意思找，两路照名次合（`miyu_recall::fuse`）。
     ///
     /// # Errors
     ///
     /// 记忆日志开不了、记忆库读不了。
-    pub fn search(&self, query: &str, forgotten: bool, limit: usize) -> Result<Vec<Entry>, String> {
+    pub fn search(
+        &self,
+        query: &str,
+        forgotten: bool,
+        limit: usize,
+        near: Option<&Query>,
+    ) -> Result<Vec<Entry>, String> {
         let log = self.log().map_err(failed)?;
         // 多要几倍：改掉的、作废的、出处死了的、听众不合的挑掉以后还够。
-        let ids = log
-            .search(query, limit.saturating_mul(4))
-            .map_err(|error| error.to_string())?;
+        let wide = limit.saturating_mul(4);
+        let ids = log.search(query, wide).map_err(|error| error.to_string())?;
+        let close = match near {
+            Some(near) => log
+                .index()
+                .nearest(&near.model, &near.vector, wide)
+                .map_err(|error| error.to_string())?
+                .into_iter()
+                .filter_map(|hit| MemoryId::parse(&hit.key).map(|id| (id, hit.similar)))
+                .collect(),
+            None => Vec::new(),
+        };
+        let ids = fuse(&ids, &close);
         let found = log.book(|book| {
             ids.iter()
                 .filter_map(|id| book.get(*id).cloned())
@@ -190,7 +209,8 @@ impl Keeper {
             .collect())
     }
 
-    /// 照关键词搜这一间的以前的对话（回合索引），最多 `limit` 段；`skip` 这个会话自己的不算（她看得见）。
+    /// 搜这一间的以前的对话（回合索引），最多 `limit` 段；`skip` 这个会话自己的不算（她看得见）。照关键词找；有问句的向量
+    /// `near` 的（施工 R-5 下）再照意思找，两路照名次合。
     ///
     /// # Errors
     ///
@@ -200,26 +220,64 @@ impl Keeper {
         query: &str,
         limit: usize,
         skip: &SessionId,
+        near: Option<&Query>,
     ) -> Result<Vec<FoundTurn>, String> {
         let (turns, _) = self.memory.turns.turns(&self.room);
         let own = format!("{skip}/");
-        Ok(turns
-            .search(query, limit.saturating_mul(4))
-            .map_err(|error| error.to_string())?
+        let wide = limit.saturating_mul(4);
+        let hits = turns
+            .search(query, wide)
+            .map_err(|error| error.to_string())?;
+        let close = match near {
+            Some(near) => turns
+                .nearest(&near.model, &near.vector, wide)
+                .map_err(|error| error.to_string())?,
+            None => Vec::new(),
+        };
+        let keys: Vec<String> = hits.iter().map(|hit| hit.key.clone()).collect();
+        let similar: Vec<(String, f32)> = close
+            .iter()
+            .map(|hit| (hit.key.clone(), hit.similar))
+            .collect();
+        // 合完照键找回字和时刻：两路交回的是同一条的同一份。
+        let mut found: BTreeMap<String, (String, Timestamp)> = close
             .into_iter()
-            .filter(|hit| !hit.key.starts_with(&own))
-            .filter_map(|hit| {
-                let (session, turn) = hit.key.split_once('/')?;
+            .map(|hit| (hit.key, (hit.text, hit.at)))
+            .collect();
+        found.extend(hits.into_iter().map(|hit| (hit.key, (hit.text, hit.at))));
+        Ok(fuse(&keys, &similar)
+            .into_iter()
+            .filter(|key| !key.starts_with(&own))
+            .filter_map(|key| {
+                let (text, at) = found.remove(&key)?;
+                let (session, turn) = key.split_once('/')?;
                 let turn = turn.parse().ok().and_then(miyu_kernel::id::Seq::new)?;
                 Some(FoundTurn {
                     session: SessionId::parse(session).ok()?,
                     turn: TurnId::new(turn),
-                    at: hit.at,
-                    text: hit.text,
+                    at,
+                    text,
                 })
             })
             .take(limit)
             .collect())
+    }
+
+    /// 照意思找的那一路在后台补这一间缺的向量（施工 R-5 下，`vectors.rs`）：搜的时候起。没接向量的什么都不做。
+    pub fn fill(&self) {
+        let Some(vectors) = self.memory.vectors() else {
+            return;
+        };
+        if let Ok(log) = self.log() {
+            vectors.fill(format!("memories {:?}", self.room), Target::Memories(log));
+        }
+        let (turns, _) = self.memory.turns.turns(&self.room);
+        vectors.fill(format!("turns {:?}", self.room), Target::Turns(turns));
+    }
+
+    /// 照意思找的那一路（施工 R-5 下）：核心没接的没有。
+    pub fn vectors(&self) -> Option<&Arc<Vectors>> {
+        self.memory.vectors()
     }
 
     /// 这一条给不给看：没改掉、没清掉（`forgotten` 时作废的也给）、听众合、出处活着。

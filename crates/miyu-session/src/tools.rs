@@ -106,6 +106,8 @@ pub(crate) struct Tools {
     asks: bool,
     /// 记忆（施工 R-3 中）。
     memory: Option<crate::memory::Calls>,
+    /// 这一轮照不照意思找记忆（施工 R-5 下，`models.embedding` 不是 `off`）：回合开始时照这一轮的配置换。
+    meaning: bool,
     /// 在跑的调用：掐掉它的那一头、它的旗、开始跑的那一刻、工具名。
     running: BTreeMap<CallId, Running>,
     backs: mpsc::UnboundedSender<Back>,
@@ -178,6 +180,11 @@ impl Tools {
         self.agents.as_ref()
     }
 
+    /// 这一轮照不照意思找记忆（施工 R-5 下）：回合开始时照这一轮的 `models.embedding` 换。
+    pub(crate) fn search_by_meaning(&mut self, on: bool) {
+        self.meaning = on;
+    }
+
     /// 记忆的端口和会话现在的时区（施工 R-4 上）：回合开始交常驻的摘要照它。没接记忆的没有。
     pub(crate) fn memory(&self) -> Option<(crate::memory::Calls, UtcOffset)> {
         Some((self.memory.clone()?, self.offset))
@@ -209,6 +216,7 @@ impl Tools {
             ledger: kit.ledger,
             asks: kit.asks,
             memory: kit.memory,
+            meaning: true,
             running: BTreeMap::new(),
             backs,
         }
@@ -297,7 +305,7 @@ impl Tools {
             memory: self
                 .memory
                 .as_ref()
-                .map(|memory| memory.port(turn, call_id, at)),
+                .map(|memory| memory.port(turn, call_id, at, self.meaning)),
             ids: Some(CallIds {
                 session: self.session.clone(),
                 call: call_id,

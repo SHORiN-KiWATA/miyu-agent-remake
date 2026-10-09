@@ -16,7 +16,7 @@ use serde_json::{Value, json};
 use miyu_kernel::id::{CommandId, SessionId};
 use miyu_kernel::origin::By;
 use miyu_recall::{CLASSES, Entry, MemoryId};
-use miyu_session::{Filter, Handle, Keeper, Stamp};
+use miyu_session::{Filter, Handle, Keeper, Stamp, by_meaning};
 use miyu_store::recall::Room;
 use miyu_tool::{Refused, Remember, TEXT_CHARS};
 
@@ -98,12 +98,26 @@ async fn search(core: &Arc<Core>, params: Search) -> Result<Value, Refusal> {
     let limit = limit(params.limit, SEARCH)?;
     let keeper = find(core, params.at).await?;
     let (query, forgotten) = (params.query, params.forgotten);
+    // 照意思找（施工 R-5 下）照这时的配置：先算问句的向量（等不到的只走关键词），搜完在后台补这一间缺的。
+    let meaning = by_meaning(&core.config().resolved().values());
+    let near = match keeper.vectors() {
+        Some(vectors) if meaning => vectors.query(&query).await,
+        _ => None,
+    };
+    let searched = keeper.clone();
     let found = blocking(move || {
-        keeper
-            .search(&query, forgotten, limit)
+        searched
+            .search(&query, forgotten, limit, near.as_ref())
             .map_err(Refused::Failed)
     })
     .await?;
+    if meaning {
+        blocking(move || {
+            keeper.fill();
+            Ok(())
+        })
+        .await?;
+    }
     Ok(json!({"memories": found.iter().map(shown).collect::<Vec<Value>>()}))
 }
 

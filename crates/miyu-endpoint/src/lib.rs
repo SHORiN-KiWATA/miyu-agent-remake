@@ -81,7 +81,10 @@ use miyu_kernel::id::AccountId;
 use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
 use miyu_sandbox::{Availability, Unusable};
-use miyu_session::{Jobs, Memory, ModelData, Models, Observed, SandboxCache, SummaryTexts};
+use miyu_session::{
+    EmbedSetup, Embedder, Jobs, Memory, ModelData, Models, Observed, SandboxCache, SummaryTexts,
+    Vectors,
+};
 use miyu_store::index::SessionIndex;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
@@ -352,6 +355,15 @@ impl Core {
     #[must_use]
     pub fn with_sandbox_cache(mut self, root: PathBuf, cargo_home: Option<PathBuf>) -> Core {
         self.sandbox_cache = Some((root, cargo_home));
+        self
+    }
+
+    /// 同一份家底，接上本机 embedding（施工 R-5 下，`recall.md` 第四条）：记忆、以前的对话照意思找。核心起来、找好小程序和
+    /// 缓存目录时接一次；不接的（测试里）只照关键词找。
+    #[must_use]
+    pub fn with_embedder(self, setup: EmbedSetup) -> Core {
+        self.memory
+            .give_vectors(Arc::new(Vectors::new(Embedder::new(setup))));
         self
     }
 

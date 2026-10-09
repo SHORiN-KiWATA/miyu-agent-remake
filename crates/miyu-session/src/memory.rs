@@ -8,10 +8,12 @@ mod backfill;
 mod keeper;
 mod port;
 mod summary;
+mod vectors;
 
 pub use keeper::{Filter, Keeper, Stamp};
 pub(crate) use port::Calls;
 pub use summary::SummaryTexts;
+pub use vectors::{Query, Vectors, by_meaning};
 
 use std::sync::{Arc, OnceLock};
 
@@ -36,6 +38,8 @@ pub struct Memory {
     pub logs: Arc<MemoryLogs>,
     /// 常驻的摘要那一块的字（施工 R-4 上）：读不出来的（安装坏了）这个核心不交摘要。
     pub summary: Option<SummaryTexts>,
+    /// 照意思找的那一路（施工 R-5 下）：核心起来时接上（[`Memory::give_vectors`]），没接的只照关键词找。
+    vectors: OnceLock<Arc<Vectors>>,
 }
 
 impl Memory {
@@ -69,7 +73,20 @@ impl Memory {
             turns,
             logs: Arc::new(MemoryLogs::new(root)),
             summary,
+            vectors: OnceLock::new(),
         })
+    }
+}
+
+impl Memory {
+    /// 接上照意思找的那一路（施工 R-5 下）：核心起来、找好小程序和缓存目录以后接一次；接过的再接不算，交回 `false`。
+    pub fn give_vectors(&self, vectors: Arc<Vectors>) -> bool {
+        self.vectors.set(vectors).is_ok()
+    }
+
+    /// 照意思找的那一路：没接的没有。
+    pub fn vectors(&self) -> Option<&Arc<Vectors>> {
+        self.vectors.get()
     }
 }
 

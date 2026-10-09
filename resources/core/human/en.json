@@ -67,6 +67,14 @@
         "name": "Vision model",
         "description": "Looks at images for the chat model when it cannot. Written like the chat model."
       },
+      "models.embedding": {
+        "name": "Search by meaning",
+        "description": "When she searches what she remembers and past conversations, she also finds what means the same in other words. Left out, the local model is used and downloads about 24 MB the first time; off searches by keywords only.",
+        "options": {
+          "local": "Local model",
+          "off": "Off"
+        }
+      },
       "pools.<id>.models": {
         "name": "Pool members",
         "description": "A group of models, each written as provider/model."

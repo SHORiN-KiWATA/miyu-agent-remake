@@ -260,6 +260,7 @@ miyu_config::settings! {
 | `preset.default` | 名字（预设的编号） | `full` | 系统、个人 | 不能写 | `new_session` | P-2 上（`presets.md`）：没指定预设的新会话照它找；指着没有的预设，造会话回 `unknown_preset`，不悄悄换（Y12）。设置页在「通用」那一页的「预设」一组 |
 | `models.chat` | 引用 | 没有：`no_model` | 系统、个人 | 不能写 | `new_session` | 8-6 |
 | `models.vision` | 引用 | 没有 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
+| `models.embedding` | 选项 `local`、`off` | 没有：照 `local` | 系统、个人 | 不能写 | `next_turn` | R-5 下 |
 | `pools.<id>.models` | 模型的列表，可以是空的 | 没有：这个池解析不出 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
 | `pools.<id>.strategy` | 选项 `pin`、`rotate` | 没有：照成员的缓存类别定 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
 | `pools.<id>.subagent` | 开关 | `false`：不在派子代理的选项里 | 系统、个人 | 不能写 | `new_session` | 8-8 补 |
@@ -974,6 +975,10 @@ level = "info"
 # 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。以后开的会话生效。
 # chat =
 
+# 按意思找记忆：她搜记得的事和以前的对话时，意思对、字对不上的也找得到。不写的用本机的模型，第一次用时下载约 24 MB；写 off 只照关键词找。
+# 能写：local 或 off。只能写在系统配置或个人设置里。下一轮生效。
+# embedding =
+
 # 看图的模型：主对话的模型看不了图时，替它看图的模型。写法同主对话的模型。
 # 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。
 # vision =
@@ -1329,6 +1334,15 @@ ticket_idle_seconds = 43200
             }
           },
           "type": "object"
+        },
+        "embedding": {
+          "description": "她搜记得的事和以前的对话时，意思对、字对不上的也找得到。不写的用本机的模型，第一次用时下载约 24 MB；写 off 只照关键词找。能写：local 或 off。只能写在系统配置或个人设置里。下一轮生效。",
+          "enum": [
+            "local",
+            "off"
+          ],
+          "title": "按意思找记忆",
+          "type": "string"
         },
         "vision": {
           "description": "主对话的模型看不了图时，替它看图的模型。写法同主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
@@ -1784,6 +1798,9 @@ ticket_idle_seconds = 43200
 | 说明 | 这个模型的上下文窗口，单位 token。 | The context window of this model, in tokens. | このモデルのコンテキストウィンドウ。単位はトークン。 |
 | `models.vision` 名字（8-8） | 看图的模型 | Vision model | 画像を見るモデル |
 | 说明 | 主对话的模型看不了图时，替它看图的模型。写法同主对话的模型。 | Looks at images for the chat model when it cannot. Written like the chat model. | 会話のモデルが画像を見られないとき、代わりに見るモデル。書き方は会話のモデルと同じです。 |
+| `models.embedding` 名字（R-5 下） | 按意思找记忆 | Search by meaning | 意味で記憶を探す |
+| 说明 | 她搜记得的事和以前的对话时，意思对、字对不上的也找得到。不写的用本机的模型，第一次用时下载约 24 MB；写 off 只照关键词找。 | When she searches what she remembers and past conversations, she also finds what means the same in other words. Left out, the local model is used and downloads about 24 MB the first time; off searches by keywords only. | 覚えていることや以前の会話を探すとき、言葉が違っても意味が合うものも見つけます。書かなければローカルのモデルを使い、初回に約 24 MB をダウンロードします。off はキーワードだけで探します。 |
+| 选项 | `local` 本机的模型、`off` 关 | Local model、Off | ローカルのモデル、オフ |
 | `pools.<id>.models` 名字（8-8） | 池的成员 | Pool members | プールのメンバー |
 | 说明 | 几个模型编成一组，每个写成 供应商/模型。 | A group of models, each written as provider/model. | いくつかのモデルをひとまとめにします。それぞれ プロバイダー/モデル の形で書きます。 |
 | `pools.<id>.strategy` 名字（8-8） | 池的分法 | Pool strategy | プールの分け方 |
