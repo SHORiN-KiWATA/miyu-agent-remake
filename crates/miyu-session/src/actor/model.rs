@@ -141,9 +141,6 @@ impl Actor {
         }
         let values = self.config.current().resolved.values();
         let prepare = CompactionSettings::from(&values).prepare;
-        // 照不照意思找记忆（施工 R-5 下）：`off` 的这一轮不算向量、不补。
-        self.tools
-            .search_by_meaning(crate::memory::by_meaning(&values));
         let policy = self.refresh_persona(values).await;
         let injected = hooks(self.tools.memory(), present).await;
         Input::TurnStartHooksDone {

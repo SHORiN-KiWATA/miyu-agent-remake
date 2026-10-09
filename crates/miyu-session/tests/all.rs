@@ -23,6 +23,7 @@ mod jobs_stop;
 mod limits;
 mod memory;
 mod memory_backfill;
+mod memory_remote;
 mod memory_scope;
 mod memory_summary;
 mod memory_tools;

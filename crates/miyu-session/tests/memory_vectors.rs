@@ -9,15 +9,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::{Body, Event};
-use miyu_kernel::session::Command;
-use miyu_recall::{MemoryEvent, Saved};
 use miyu_session::testkit::{Play, Script};
-use miyu_session::{EmbedSetup, Embedder, Handle, Vectors};
-use miyu_store::recall::Room;
-use miyu_tool::Catalog;
+use miyu_session::{EmbedSetup, Embedder, Turn, Using, Vectors};
 
+use crate::support::meaning::*;
 use crate::support::*;
 
 const MODEL: &str = "local:tiny";
@@ -66,111 +61,12 @@ fn attach(home: &Home, manifest: PathBuf, cache: PathBuf) -> Embedder {
         client: miyu_http::fetcher(miyu_http::Proxy::Off).expect("造得出"),
         idle: Duration::from_secs(600),
     });
-    let given = home
-        .memory
-        .give_vectors(Arc::new(Vectors::new(embedder.clone())));
+    let given = home.memory.give_vectors(Arc::new(Vectors::new(
+        Some(embedder.clone()),
+        model_data(home),
+    )));
     assert!(given);
     embedder
-}
-
-fn persona() -> Room {
-    Room::persona(&alice_account(), "engineer")
-}
-
-/// 人记一条。
-fn save(home: &Home, text: &str) {
-    let (log, _) = home.logs.open(&persona()).expect("开得了");
-    let saved = Saved {
-        class: "user".into(),
-        text: text.into(),
-        sources: Vec::new(),
-        audience: vec![alice()],
-        replaces: None,
-        about: None,
-    };
-    log.append(now(), alice(), None, &MemoryEvent::Saved(saved))
-        .expect("记得下");
-}
-
-fn catalog(home: &Home) -> Catalog {
-    let mut tools = miyu_basesystem::tools(home.resources.path()).expect("读得出");
-    tools.extend(miyu_memory::tools(home.resources.path()).expect("读得出"));
-    Catalog::new(tools).expect("合写法")
-}
-
-fn search(query: &str) -> Play {
-    let args = serde_json::json!({ "query": query }).to_string();
-    Play::calls(&[("memory_search", &args)])
-}
-
-/// 说 `words`，等到结束了 `turns` 轮，交回日志。
-async fn chat(home: &Home, handle: &Handle, turns: usize, words: &str) -> Vec<Event> {
-    let said = Command::Send {
-        blocks: vec![Block::Text(Text {
-            text: words.to_string(),
-        })],
-        urgent: false,
-        venue: None,
-    };
-    within(
-        "回应",
-        handle.command(id(&format!("cmd-{turns}")), alice(), said),
-    )
-    .await
-    .expect("会话在跑");
-    until_logged(home, handle.id(), |log| {
-        log.iter()
-            .filter(|event| matches!(event.body, Body::TurnEnded(_)))
-            .count()
-            >= turns
-    })
-    .await
-}
-
-/// 日志里最后一次调用的结果。
-fn last_result(log: &[Event]) -> String {
-    let result = log
-        .iter()
-        .rev()
-        .find_map(|event| match &event.body {
-            Body::ToolResult(result) => Some(result),
-            _ => None,
-        })
-        .expect("有一次调用");
-    match result.blocks.as_slice() {
-        [Block::Text(Text { text })] => text.clone(),
-        other => panic!("一段字：{other:?}"),
-    }
-}
-
-/// 这一份库里键是 `key` 的那一条补上了这个模型的向量没有。
-fn has_vector(index: &miyu_store::recall::RecallIndex, model: &str, key: &str) -> bool {
-    let missing = index.missing(model, 0, 1000).expect("读得了");
-    !missing.iter().any(|(_, missing, _)| missing == key)
-        && index.keys().expect("读得了").iter().any(|have| have == key)
-}
-
-/// 等记忆库里的 `key`（`memory`）或者回合库里以 `key` 开头的那一条（不是 `memory`）补上向量（最多 30 秒）。补是搜的时候起
-/// 的：起的时候已经在库里的都补，之后才放进去的（这一轮自己的回合）等下一次搜。
-async fn filled(home: &Home, model: &str, memory: bool, key: &str) {
-    for _ in 0..600 {
-        let done = if memory {
-            let (log, _) = home.logs.open(&persona()).expect("开得了");
-            has_vector(log.index(), model, key)
-        } else {
-            let (turns, _) = home.recall.turns(&persona());
-            let keys = turns.keys().expect("读得了");
-            keys.iter()
-                .filter(|have| have.starts_with(key))
-                .all(|have| has_vector(&turns, model, have))
-                && keys.iter().any(|have| have.starts_with(key))
-        };
-        if done {
-            return;
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    panic!("三十秒没补上 {key}");
 }
 
 #[tokio::test]
@@ -368,22 +264,30 @@ async fn measure_meaning_with_the_real_model() {
     ];
     let keeper = Keeper::new(&home.memory, persona(), vec![alice()]);
     let vectors = keeper.vectors().expect("接上了").clone();
+    // 不写 `models.embedding` 的照本机的。
+    let using = Using {
+        config: Arc::new(Turn::new(
+            Default::default(),
+            Arc::clone(&*home.configs.borrow()),
+        )),
+        owner: alice_account(),
+    };
     let started = std::time::Instant::now();
-    let mut first = vectors.query("我家宠物叫什么").await;
+    let mut first = vectors.query(&using, "我家宠物叫什么").await;
     while first.is_none() {
         tokio::time::sleep(Duration::from_millis(50)).await;
-        first = vectors.query("我家宠物叫什么").await;
+        first = vectors.query(&using, "我家宠物叫什么").await;
     }
     eprintln!("第一次算出问句（核对文件、拉起）：{:?}", started.elapsed());
     let filling = std::time::Instant::now();
-    keeper.fill();
+    keeper.fill(&using);
     filled(&home, REAL, true, &format!("m{}", memories.len())).await;
     eprintln!("补 {} 条：{:?}", memories.len(), filling.elapsed());
     let mut keyword_only = 0;
     let mut by_meaning = 0;
     for (question, expected) in questions {
         let plain = keeper.search(question, false, 3, None).expect("搜得了");
-        let near = vectors.query(question).await;
+        let near = vectors.query(&using, question).await;
         let both = keeper
             .search(question, false, 3, near.as_ref())
             .expect("搜得了");
@@ -404,7 +308,7 @@ async fn measure_meaning_with_the_real_model() {
             &format!("第 {n} 条：用户今天做了一件小事，记下来以后能想起来"),
         );
     }
-    keeper.fill();
+    keeper.fill(&using);
     filled(&home, REAL, true, "m108").await;
     eprintln!("补一百条：{:?}", hundred.elapsed());
 }

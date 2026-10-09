@@ -80,6 +80,25 @@ async fn hello_counts_errors_but_not_warnings() {
     assert_eq!(hello(&mut client, None).await["result"]["config_errors"], 2);
 }
 
+/// 几个字之一或者一个模型（施工 R-5 补）：类型是 `model_or`，列出那几个字和它们的名字，控件是手写的。
+#[tokio::test]
+async fn a_model_or_item_lists_its_words() {
+    let home = Home::new();
+    let data = crate::support::providers::data(crate::support::providers::profiles(json!({})));
+    let mut client = Client::connect(crate::support::providers::core(&home, &[], data));
+    hello(&mut client, Some("zh-CN")).await;
+    let reply = client
+        .call("c1", "config.schema", json!({"keys": ["models.embedding"]}))
+        .await;
+    let item = &reply["result"]["items"][0];
+    assert_eq!(item["type"], "model_or", "{reply}");
+    assert_eq!(item["control"], "text");
+    assert_eq!(
+        item["options"],
+        json!([{"name": "本机的模型", "value": "local"}, {"name": "关", "value": "off"}])
+    );
+}
+
 #[tokio::test]
 async fn the_schema_lists_the_items_in_the_language_of_the_connection() {
     let home = Home::new();

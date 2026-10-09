@@ -123,13 +123,21 @@
           "type": "object"
         },
         "embedding": {
-          "description": "When she searches what she remembers and past conversations, she also finds what means the same in other words. Left out, the local model is used and downloads about 24 MB the first time; off searches by keywords only. Allowed: local or off. Only in the system config or personal settings. Takes effect next turn.",
-          "enum": [
-            "local",
-            "off"
+          "anyOf": [
+            {
+              "enum": [
+                "local",
+                "off"
+              ],
+              "type": "string"
+            },
+            {
+              "pattern": "^[a-z][a-z0-9_-]*/.+$",
+              "type": "string"
+            }
           ],
-          "title": "Search by meaning",
-          "type": "string"
+          "description": "When she searches what she remembers and past conversations, she also finds what means the same in other words. Left out, the local model is used and downloads about 24 MB the first time; a provider's model uses that provider, billed by usage; off searches by keywords only. Allowed: local, off or <provider>/<model>. Only in the system config or personal settings. Takes effect next turn.",
+          "title": "Search by meaning"
         },
         "vision": {
           "description": "Looks at images for the chat model when it cannot. Written like the chat model. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.",

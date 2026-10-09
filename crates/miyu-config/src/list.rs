@@ -137,6 +137,20 @@ fn kind_problems(item: &Item) -> Vec<String> {
             }
             problems
         }
+        // 几个字之一或者一个模型（施工 R-5 补）：字至少一个、不重复、不带 `/`（带了就和模型的写法撞上）。
+        Kind::ModelOr(words) => {
+            let mut problems = Vec::new();
+            if words.is_empty() {
+                problems.push(format!("{}：至少列一个字", item.key));
+            }
+            if words.iter().collect::<BTreeSet<_>>().len() != words.len() {
+                problems.push(format!("{}：字写重了", item.key));
+            }
+            if words.iter().any(|word| word.contains('/')) {
+                problems.push(format!("{}：列出的字不能带 /", item.key));
+            }
+            problems
+        }
     }
 }
 

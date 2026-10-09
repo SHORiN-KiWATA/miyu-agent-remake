@@ -19,7 +19,7 @@ use miyu_tool::{FoundTurn, Refused, Remember};
 use crate::TARGET;
 
 use super::Memory;
-use super::vectors::{Query, Target, Vectors};
+use super::vectors::{Query, Target, Using, Vectors};
 
 /// 一间记忆，连同这次会被谁看到（听众）。可以复制：每次调用照它做。
 #[derive(Debug, Clone)]
@@ -263,16 +263,25 @@ impl Keeper {
             .collect())
     }
 
-    /// 照意思找的那一路在后台补这一间缺的向量（施工 R-5 下，`vectors.rs`）：搜的时候起。没接向量的什么都不做。
-    pub fn fill(&self) {
+    /// 照意思找的那一路照 `using` 在后台补这一间缺的向量（施工 R-5 下，`vectors.rs`）：搜的时候起。没接向量的、`off` 的什么
+    /// 都不做。
+    pub fn fill(&self, using: &Using) {
         let Some(vectors) = self.memory.vectors() else {
             return;
         };
         if let Ok(log) = self.log() {
-            vectors.fill(format!("memories {:?}", self.room), Target::Memories(log));
+            vectors.fill(
+                using,
+                format!("memories {:?}", self.room),
+                Target::Memories(log),
+            );
         }
         let (turns, _) = self.memory.turns.turns(&self.room);
-        vectors.fill(format!("turns {:?}", self.room), Target::Turns(turns));
+        vectors.fill(
+            using,
+            format!("turns {:?}", self.room),
+            Target::Turns(turns),
+        );
     }
 
     /// 照意思找的那一路（施工 R-5 下）：核心没接的没有。

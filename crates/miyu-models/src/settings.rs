@@ -254,13 +254,14 @@ miyu_config::settings! {
             applies: next_turn,
             ui: { page: "models", group: "uses", control: text },
         },
-        /// 算向量的模型（施工 R-5 下，`recall.md` 第四条第 1 款）：`local` 本机的 `miyu-embed`，`off` 不下模型、不拉起、记忆和
-        /// 对话只照关键词找（2026-10-09 项目主人定加 `off`）。不写的照 `local`。远程的 `<供应商>/<模型>` 随 R-5 补。
+        /// 算向量的模型（施工 R-5 下、补，`recall.md` 第四条第 1 款）：`local` 本机的 `miyu-embed`，`off` 不下模型、不拉起、
+        /// 记忆和对话只照关键词找（2026-10-09 项目主人定加 `off`），`<供应商>/<模型>` 走那一家的 `/v1/embeddings`（不收池：
+        /// 向量要和存下的同一个模型比）。不写的照 `local`。
         embedding: Option<String> = none {
-            kind: option ["local", "off"],
+            kind: model_or ["local", "off"],
             layers: [System, Personal],
             applies: next_turn,
-            ui: { page: "models", group: "uses", control: select },
+            ui: { page: "models", group: "uses", control: text },
         },
     }
 }

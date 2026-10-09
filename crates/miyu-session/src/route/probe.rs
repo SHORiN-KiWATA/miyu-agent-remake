@@ -32,11 +32,12 @@ use miyu_models::facts::facts;
 use miyu_models::headers::PROBE_SEED;
 use miyu_models::observed::ProviderList;
 use miyu_models::onboard::{Offered, recommend, released};
-use miyu_models::provider::{self, NoModel, Provider};
+use miyu_models::provider::{NoModel, Provider};
 
 use crate::TARGET;
 use crate::blocking::blocking;
 use crate::clock::wall_now;
+use crate::route::endpoint::{Reached, reach};
 use crate::route::lists::{TIMEOUT, list_models, listing_texts};
 use crate::route::shared::ModelData;
 
@@ -125,19 +126,13 @@ async fn run(
     tried: &mut Option<String>,
 ) -> Result<Probed, Probed> {
     let config = |NoModel(why): NoModel| failed(Stage::Config, ErrorClass::NoModel, why);
-    let provider = data
-        .with(|knowledge| provider::provider(probe.values, knowledge, probe.id))
+    let Reached {
+        provider,
+        base_url,
+        key,
+    } = data
+        .with(|knowledge| reach(probe.values, knowledge, probe.id, probe.secret))
         .map_err(config)?;
-    let base_url = provider::resolve_base_url(&provider, probe.secret).map_err(config)?;
-    let key = match &provider.key {
-        None => None,
-        Some(reference) => Some((probe.secret)(reference).ok_or_else(|| {
-            config(NoModel(format!(
-                "provider {:?} has no usable key",
-                probe.id
-            )))
-        })?),
-    };
     let unready = |why: String| failed(Stage::Config, ErrorClass::Unclassified, why);
     // 地址落在本机的不走代理（施工 8-11 补，`route/shared.rs` `ModelData::fetcher_for`）。
     let client = data
@@ -193,16 +188,12 @@ async fn run(
     });
     let speaking = speaking.map_err(config)?;
     let asking = speaking.build(listing_texts().map_err(unready)?);
-    let endpoint = match &key {
-        Some(key) => Endpoint::new(base_url, key.expose()),
-        None => Endpoint::keyless(base_url),
-    };
-    let endpoint = provider
-        .headers(PROBE_SEED)
-        .into_iter()
-        .fold(endpoint, |endpoint, (name, value)| {
-            endpoint.with_header(name, value)
-        });
+    let endpoint = Reached {
+        provider,
+        base_url,
+        key,
+    }
+    .endpoint(PROBE_SEED);
     let placeholders = speaking.placeholder_specs(data.placeholder_tool());
     let first_token_ms = ask(
         &client,

@@ -66,7 +66,7 @@ pub struct Failed {
 
 impl Failed {
     /// 只有原话的：连不上、超时、太大这类。
-    fn said(message: String) -> Failed {
+    pub(crate) fn said(message: String) -> Failed {
         Failed {
             message,
             status: None,
@@ -198,8 +198,8 @@ async fn exchange(
     Ok(Fetched::Body { etag })
 }
 
-/// 回的不是 2xx 也不是 304：状态码、响应头、最多 64 KiB 的响应体（读到一半断了的照读到的）。
-async fn failure(status: StatusCode, mut response: reqwest::Response) -> Failed {
+/// 回的不是 2xx 也不是 304：状态码、响应头、最多 64 KiB 的响应体（读到一半断了的照读到的）。一次 POST 也照它说（`post.rs`）。
+pub(crate) async fn failure(status: StatusCode, mut response: reqwest::Response) -> Failed {
     let headers = response
         .headers()
         .iter()
@@ -227,7 +227,7 @@ async fn failure(status: StatusCode, mut response: reqwest::Response) -> Failed 
 }
 
 /// 一个错误连同它的来由，一层一层接起来。
-fn chain(error: &(dyn Error + 'static)) -> String {
+pub(crate) fn chain(error: &(dyn Error + 'static)) -> String {
     let mut text = error.to_string();
     let mut source = error.source();
     while let Some(inner) = source {

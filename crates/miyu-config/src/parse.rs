@@ -257,6 +257,7 @@ pub fn read(kind: Kind, value: &TomlValue) -> Option<Value> {
             | Kind::Name
             | Kind::Reference
             | Kind::Model
+            | Kind::ModelOr(_)
             | Kind::Text { .. }
             | Kind::English { .. }
             | Kind::Duration { .. },
