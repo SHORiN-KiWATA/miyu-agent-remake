@@ -138,6 +138,19 @@ impl Projector {
         self.refresh_open_group();
     }
 
+    /// 这次请求说完了、没写成回复（只开了工具调用就出错、一块都没留下）：流式时开的块都拿掉，翻页本来就没有。
+    pub(super) fn discard_stream(&mut self, seen: miyu_kernel::id::Seq) {
+        if self.request != Some(seen) {
+            return;
+        }
+        self.request = None;
+        for (_, block) in std::mem::take(&mut self.blocks) {
+            if let Block::Tool(id) | Block::Text(Some(id)) | Block::Thought(Some(id)) = block {
+                self.drop_step(&id);
+            }
+        }
+    }
+
     /// 回复里的一块定下来，交回它的条目（没有条目的空思考是 `None`）。
     fn settle_block(&mut self, id: EntryId, block: &Content, at: Timestamp) -> Option<EntryId> {
         let exists = self.at.contains_key(&id);

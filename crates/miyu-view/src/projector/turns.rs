@@ -123,6 +123,7 @@ impl Projector {
             self.compaction_called(event, called);
             return;
         }
+        self.discard_stream(called.seen);
         self.spans(event, called);
         if called.endpoint.is_some() {
             self.model.0.clone_from(&called.endpoint);

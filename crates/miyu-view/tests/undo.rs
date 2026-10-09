@@ -38,3 +38,16 @@ fn undo_hides_the_turn_and_redo_shows_it_again() {
             .any(|c| matches!(c, Change::Hidden { hidden: false, .. }))
     );
 }
+
+#[test]
+fn words_from_elsewhere_stay_when_their_turn_is_undone() {
+    let mut stage = stage();
+    stage.model([Line::says("one")]);
+    stage.harness_says("claude", "from claude");
+    let turn = stage.turns()[0];
+    stage.revert(turn);
+    let entries = same(&stage);
+    let user = of_kind(&entries, "user")[0];
+    assert!(json(user)["from"].is_object(), "{user:?}");
+    assert!(!user.hidden, "别处来的话撤销不带走它");
+}

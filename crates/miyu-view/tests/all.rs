@@ -2,8 +2,10 @@
 
 mod support;
 
+mod lines;
 mod notices;
 mod queue;
 mod random;
+mod steps;
 mod turns;
 mod undo;
