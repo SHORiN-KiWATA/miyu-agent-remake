@@ -163,11 +163,13 @@ fn every_kind_of_block_is_counted() {
                 media_type: MediaType::parse("image/png").unwrap(),
                 width: 1000,
                 height: 500,
+                path: None,
             }),
             Block::File(File {
                 blob: ContentHash::of(b"pdf"),
                 name: FileName::parse("a.pdf").unwrap(),
                 media_type: MediaType::parse("application/pdf").unwrap(),
+                path: None,
             }),
         ],
     };

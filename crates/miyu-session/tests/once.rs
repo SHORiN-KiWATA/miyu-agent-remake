@@ -139,6 +139,7 @@ async fn an_image_goes_out_as_its_bytes_and_a_model_without_images_is_not_sent()
                     media_type: MediaType::parse("image/png").expect("合写法"),
                     width: 1,
                     height: 1,
+                    path: None,
                 }),
             ],
         }],

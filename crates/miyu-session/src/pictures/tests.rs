@@ -59,6 +59,7 @@ fn pictures_become_image_blocks_in_order() {
             media_type: MediaType::parse(media_type).unwrap(),
             width,
             height,
+            path: None,
         })
     };
     assert_eq!(

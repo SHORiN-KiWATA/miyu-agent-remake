@@ -73,11 +73,13 @@ async fn attachments_follow_the_text_as_measured_by_the_core() {
             media_type: MediaType::parse("image/png").unwrap(),
             width: 800,
             height: 600,
+            path: None,
         }),
         Block::File(File {
             blob: ContentHash::of("# 待办\n".as_bytes()),
             name: FileName::parse("notes.md").unwrap(),
             media_type: MediaType::parse("text/plain").unwrap(),
+            path: None,
         }),
     ];
     assert_eq!(said(&home, &session), std::slice::from_ref(&expected));
@@ -181,4 +183,54 @@ async fn attachments_that_do_not_fit_are_bad_params() {
         .await;
     assert_eq!(reason(&reply), Some("bad_params"), "{reply}");
     assert_eq!(home.log(&session).len(), 1, "什么都没写");
+}
+
+/// 附件原来的路径（施工 3-9 五补）：头交了的记进块里，模型看不了时占位带上它；写错的参数不对，什么都不写。
+#[tokio::test]
+async fn an_attachment_keeps_where_it_came_from() {
+    let home = Home::new();
+    let script = Script::new([Play::Says("好。")]);
+    let mut client = Client::connect(home.core(&script));
+    client.hello().await;
+    let picture = png(4, 3);
+    let mut image = put(&mut client, &home, "shot.png", &picture).await;
+    let mut notes = put(&mut client, &home, "notes.pdf", b"%PDF-1.7\n").await;
+    let session = client.create("c1", "~").await;
+    let mut wrong = image.clone();
+    wrong["path"] = json!("shot.png");
+    let reply = client
+        .call(
+            "c2",
+            "session.send",
+            json!({"session": session, "text": "看看", "attachments": [wrong]}),
+        )
+        .await;
+    assert_eq!(reply["error"]["code"], json!(-32602), "相对的路径：{reply}");
+    assert!(said(&home, &session).is_empty(), "什么都不写");
+    image["path"] = json!("/home/alice/shot.png");
+    notes["path"] = json!("~/notes.pdf");
+    let reply = client
+        .call(
+            "c3",
+            "session.send",
+            json!({"session": session, "text": "看看", "attachments": [image, notes]}),
+        )
+        .await;
+    assert!(reply["result"]["events"].is_array(), "{reply}");
+    home.until_turns(&session, 1).await;
+    let paths: Vec<Option<String>> = said(&home, &session)[0]
+        .iter()
+        .filter_map(|block| match block {
+            Block::Image(image) => Some(image.path.as_ref().map(|path| path.as_str().to_string())),
+            Block::File(file) => Some(file.path.as_ref().map(|path| path.as_str().to_string())),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        paths,
+        [
+            Some("/home/alice/shot.png".to_string()),
+            Some("~/notes.pdf".to_string())
+        ]
+    );
 }

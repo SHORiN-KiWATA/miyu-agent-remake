@@ -9,6 +9,7 @@
 //! - [`Snapshot::to_bytes`]、[`Snapshot::hash`]、[`Snapshot::from_bytes`]：规范的字节、内容哈希、读回来；
 //! - [`Snapshot::policy`]、[`Snapshot::driver_texts`]：照快照造出内核的策略、驱动的占位。
 
+mod attached_path;
 mod compose;
 mod drivers;
 mod facts;
@@ -34,6 +35,7 @@ mod vision;
 #[cfg(test)]
 mod test_support;
 
+pub use attached_path::AttachedPathTexts;
 pub use compose::{CoreLines, PersonaTexts, Sources, Wrap, compose};
 pub use drivers::DriverPlaceholders;
 pub use facts::FactTexts;

@@ -220,6 +220,7 @@ fn the_tail_counts_images_with_the_driver_price() {
             media_type: crate::id::MediaType::parse("image/png").unwrap(),
             width: 1000,
             height: 500,
+            path: None,
         })]
     };
     // 第一轮发一张图、答 5；第二轮说 10、答 10 报 20000；第三轮说 10 就压，预算 100。从新往旧：第三句 10、第二轮的

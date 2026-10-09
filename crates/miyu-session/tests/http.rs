@@ -201,6 +201,7 @@ async fn a_missing_blob_fails_without_sending() {
             media_type: MediaType::parse("image/png").expect("媒体类型合写法"),
             width: 1,
             height: 1,
+            path: None,
         }),
     ];
     ask(
@@ -284,6 +285,7 @@ async fn an_image_goes_out_as_its_bytes() {
         media_type: MediaType::parse("image/png").expect("媒体类型合写法"),
         width: 1,
         height: 1,
+        path: None,
     })];
     ask(
         &handle,

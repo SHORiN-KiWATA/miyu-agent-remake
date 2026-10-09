@@ -21,6 +21,7 @@ fn picture(k: u8) -> Image {
         media_type: MediaType::parse("image/png").unwrap(),
         width: 640,
         height: 480,
+        path: None,
     }
 }
 

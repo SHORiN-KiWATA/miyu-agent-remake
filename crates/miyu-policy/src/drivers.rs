@@ -5,6 +5,7 @@ use miyu_drivers::{DriverTextSources, DriverTexts};
 use miyu_kernel::template::TemplateError;
 use serde::{Deserialize, Serialize};
 
+use crate::attached_path::AttachedPathTexts;
 use crate::image_name::ImageNameTexts;
 use crate::text_file::TextFileTexts;
 use crate::vision::ImageDescriptionTexts;
@@ -32,6 +33,9 @@ pub struct DriverPlaceholders {
     /// 替它看的图的三句标签（施工 8-17）。以前造的快照里没有，读成没有：看不了图的照旧写占位；没有的不写。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub image_description: Option<ImageDescriptionTexts>,
+    /// 看不了的附件带上原来的路径的两句（施工 3-9 五补）。以前造的快照里没有，读成没有：照旧不带路径；没有的不写。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attached_path: Option<AttachedPathTexts>,
 }
 
 impl DriverPlaceholders {
@@ -53,6 +57,7 @@ impl DriverPlaceholders {
                 .image_description
                 .as_ref()
                 .map(ImageDescriptionTexts::sources),
+            attached_path: self.attached_path.as_ref().map(AttachedPathTexts::sources),
         })
     }
 }

@@ -22,12 +22,18 @@ fn text(words: &str) -> Block {
 
 /// 一张图。
 fn image() -> Block {
+    picture(b"png", "image/png", (1000, 500))
+}
+
+/// 内容是 `bytes`、类型是 `media_type`、宽高是 `size` 的图。
+fn picture(bytes: &[u8], media_type: &str, (width, height): (u32, u32)) -> Block {
     Block::Image(Image {
-        blob: ContentHash::of(b"png"),
+        blob: ContentHash::of(bytes),
         name: None,
-        media_type: MediaType::parse("image/png").unwrap(),
-        width: 1000,
-        height: 500,
+        media_type: MediaType::parse(media_type).unwrap(),
+        width,
+        height,
+        path: None,
     })
 }
 
@@ -145,13 +151,7 @@ fn new_words_replace_only_the_opener_and_the_attachments_stay() {
 
 /// 另一张图。
 fn photo() -> Block {
-    Block::Image(Image {
-        blob: ContentHash::of(b"jpg"),
-        name: None,
-        media_type: MediaType::parse("image/jpeg").unwrap(),
-        width: 640,
-        height: 480,
-    })
+    picture(b"jpg", "image/jpeg", (640, 480))
 }
 
 #[test]

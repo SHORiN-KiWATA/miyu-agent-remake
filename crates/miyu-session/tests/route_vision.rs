@@ -49,6 +49,7 @@ async fn show(handle: &Handle, command: &str, words: &str, blob: &ContentHash) {
             media_type: MediaType::parse("image/png").expect("媒体类型合写法"),
             width: 1,
             height: 1,
+            path: None,
         }),
     ];
     let send = Command::Send {
