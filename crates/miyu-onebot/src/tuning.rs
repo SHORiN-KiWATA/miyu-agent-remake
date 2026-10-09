@@ -44,6 +44,9 @@ pub struct Tuning {
     pub judge_persona_seconds: u64,
     /// 群里的命令回执发出去几秒后撤回（施工 O-25 上，`onebot.md`「斜杠命令」第 7 条；18 第十节）。0 是回了编号就撤。
     pub receipt_recall_seconds: u64,
+    /// 出站排着的（她被禁言、机器人号没连着）入队以后过几秒还没交出去的作废（施工 O-25 中，`onebot.md`「出站队列」第 5 条）。
+    /// 至少 1：0 的话入队的时刻就到了期限，一条都发不出去（「施工时定的」第 124 条）。
+    pub queue_expire_seconds: u64,
     /// WebUI 的数（施工 O-16，`onebot.md` 第二条）。
     pub web: WebTuning,
 }
@@ -72,16 +75,19 @@ impl Tuning {
     ///
     /// # Errors
     ///
-    /// 读不了、不是这个形状、队列写了 0（建不了队列）、判官的并发写了 0（一个都问不了）：原话里说是哪个文件。
+    /// 读不了、不是这个形状、队列写了 0（建不了队列）、判官的并发写了 0（一个都问不了）、排着的过期写了 0（一条都发不出去）：
+    /// 原话里说是哪个文件。
     pub fn load(resources: &Path) -> Result<Tuning, String> {
         let path = resources.join(FILE);
         let bad = |why: String| format!("{} not readable: {why}", path.display());
         let text = std::fs::read_to_string(&path).map_err(|error| bad(error.to_string()))?;
         let tuning: Tuning = serde_json::from_str(&text).map_err(|error| bad(error.to_string()))?;
-        if tuning.write_queue == 0 || tuning.inbound_queue == 0 || tuning.judge_concurrency == 0 {
-            return Err(bad(
-                "write_queue, inbound_queue and judge_concurrency must be at least 1".to_string(),
-            ));
+        if tuning.write_queue == 0
+            || tuning.inbound_queue == 0
+            || tuning.judge_concurrency == 0
+            || tuning.queue_expire_seconds == 0
+        {
+            return Err(bad("write_queue, inbound_queue, judge_concurrency and queue_expire_seconds must be at least 1".to_string()));
         }
         Ok(tuning)
     }
@@ -129,5 +135,10 @@ impl Tuning {
     /// 群里的命令回执发出去多久以后撤回。
     pub fn receipt_recall(&self) -> Duration {
         Duration::from_secs(self.receipt_recall_seconds)
+    }
+
+    /// 出站排着的多久过期。
+    pub fn queue_expire(&self) -> Duration {
+        Duration::from_secs(self.queue_expire_seconds)
     }
 }

@@ -29,6 +29,8 @@ mod outbound;
 mod people;
 mod pipe;
 mod private;
+mod queue;
+mod queue_waits;
 mod receipts;
 mod reload;
 mod replies;

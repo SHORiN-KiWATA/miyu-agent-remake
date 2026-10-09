@@ -46,7 +46,7 @@ pub(crate) struct Gate {
     pub(crate) tuning: Tuning,
     /// 连着的号。
     pub(crate) bots: Arc<Bots>,
-    /// 读出来的消息、撤回（施工 O-22 起群的也算）交给跟核心的那一头（`core/route.rs`）。
+    /// 读出来的消息、撤回（施工 O-22 起群的也算）、禁言和解禁、认出来的号（施工 O-25 中）交给跟核心的那一头（`core/route.rs`）。
     pub(crate) inbound: mpsc::Sender<Event>,
     /// 连上、断开各说一行（「样子」）。
     pub(crate) tell: Arc<dyn Fn(Notice) + Send + Sync>,

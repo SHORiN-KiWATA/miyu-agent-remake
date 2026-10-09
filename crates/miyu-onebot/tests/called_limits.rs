@@ -147,7 +147,8 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
     );
     assert_eq!(
         noted(&events, "ext.onebot.venues.queued", 4, "queued"),
-        Some(json!({"kind": "notice", "reason": "rate_limited"}))
+        Some(json!({"kind": "notice", "reason": "rate_limited", "text": LIMITED})),
+        "提示入队（施工 O-25 中）"
     );
     let again = decided(&events, 5).expect("记了");
     assert_eq!(

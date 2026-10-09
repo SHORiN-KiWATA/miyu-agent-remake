@@ -99,7 +99,6 @@ fn only_the_first_piece_carries_what_the_chain_left() {
     )
     .expect("过得了");
     assert_eq!(quoted.pieces, ["看到", "了"], "转成纯文本再拆");
-    assert_eq!(quoted.text, "**看到**了", "记的是过了链的原文");
     assert_eq!(
         quoted.lead,
         Lead {

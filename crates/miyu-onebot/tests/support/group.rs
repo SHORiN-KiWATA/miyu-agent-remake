@@ -1,20 +1,11 @@
-//! 群里的假 NapCat（施工 O-22，`onebot.md` 第一条「群消息」「撤回」）：照 NapCat 的样子拼群消息、撤回的事件；连上的假 NapCat
-//! 交给一个任务应答桥调的动作：`get_version_info` 照 NapCat 回，`get_group_member_info` 照给的群成员回（不在里面的回失败），
-//! 别的（`send_group_msg`、`send_private_msg`、`delete_msg`）回成了、交出来给测试看，发消息的回的 `message_id` 照收到的先后
-//! 从 [`FIRST_SENT`] 起一条加一（施工 O-23：她发过的编号要认得出「引用她」；撤回不占编号，施工 O-25 上）。真的 NapCat 并着办动作，回的先后不一定照发的先后：
-//! [`NapCat::reversing`] 把头几条发消息的回应倒着回。
-//!
-//! 群的测试共用的（施工 O-23 从 `group.rs` 挪过来）：真核心照开关拉起真桥、系统的场所规则写好、假 NapCat 连上（[`started`]），
-//! 读一个群的会话的事件（[`venue_events`]、[`until_event`]）。
+//! 群的测试共用的（施工 O-22，`onebot.md` 第一条「群消息」「撤回」；O-23 从 `group.rs` 测试挪过来）：照 NapCat 的样子拼群消息、
+//! 撤回、禁言（施工 O-25 中）的事件；真核心照开关拉起真桥、系统的场所规则写好、假 NapCat 连上交给任务应答（[`started`]，应答
+//! 在 `answering.rs`）；读一个群的会话的事件（[`venue_events`]、[`until_event`]）；照判官点了头的样子开一轮（[`respond`]）。
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
-use futures_util::{SinkExt, StreamExt};
 use serde_json::{Value, json};
-use tokio::sync::mpsc;
-use tokio::task::JoinHandle;
-use tokio_tungstenite::tungstenite::Message;
 
 use miyu_http::testkit::Server;
 use miyu_kernel::id::AccountId;
@@ -23,15 +14,11 @@ use miyu_session::testkit::Script;
 use miyu_store::log::read_events;
 use miyu_store::root::DataRoot;
 
+#[allow(unused_imports, reason = "几个测试程序各用其中一部分")]
+pub use super::answering::{Answering, FIRST_SENT, Member};
 use super::ports::on_free_ports;
 use super::spawning::{bridge_up, cli, ports_config_with, text};
-use super::{BOT, Home, NapCat, TIME, owner_napcat, within};
-
-/// 假 NapCat 回的第一个发出去的消息编号。
-pub const FIRST_SENT: i64 = 90001;
-
-/// [`NapCat::reversing`] 倒着回的两条回应之间隔多久。
-const APART: Duration = Duration::from_millis(300);
+use super::{BOT, Home, NapCat, TIME, owner_napcat};
 
 /// 正向的等待最多多久：真的程序、真的核心，负载高时慢。
 pub const WAIT: Duration = Duration::from_secs(60);
@@ -87,6 +74,25 @@ pub fn friend_recall(user: i64, message_id: i64) -> Value {
     })
 }
 
+/// 群 `group` 里 `user` 被禁言（施工 O-25 中，「出站队列」第 7 条）：`sub_type` 是 `ban`、`lift_ban` 这类，`duration` 照给的写
+/// （没有的不写这一格）。`user` 是 0 的是全员禁言。
+pub fn group_ban(group: i64, user: i64, sub_type: &str, duration: Option<i64>) -> Value {
+    let mut frame = json!({
+        "time": TIME,
+        "self_id": BOT,
+        "post_type": "notice",
+        "notice_type": "group_ban",
+        "sub_type": sub_type,
+        "group_id": group,
+        "operator_id": 40004,
+        "user_id": user,
+    });
+    if let Some(duration) = duration {
+        frame["duration"] = json!(duration);
+    }
+    frame
+}
+
 /// 一段文字。
 pub fn plain(text: &str) -> Value {
     json!({"type": "text", "data": {"text": text}})
@@ -95,199 +101,6 @@ pub fn plain(text: &str) -> Value {
 /// @ 一个号（`all` 是全体）。
 pub fn at(qq: impl Into<Value>) -> Value {
     json!({"type": "at", "data": {"qq": qq.into()}})
-}
-
-/// 一个群成员：号、群名片、昵称。
-pub type Member = (i64, &'static str, &'static str);
-
-/// 交给任务应答的假 NapCat。放下了任务跟着停。
-pub struct Answering {
-    /// 要发给桥的帧。
-    frames: mpsc::UnboundedSender<Value>,
-    /// 桥调的、不是问版本、问群成员、撤回的动作。
-    actions: mpsc::UnboundedReceiver<Value>,
-    /// 桥调的撤回（`delete_msg`，施工 O-25 上）：另放一处，群里的命令回执几秒后才撤，不插进别的测试等的动作里。
-    recalls: mpsc::UnboundedReceiver<Value>,
-    /// 桥问过哪些群成员（号），照先后。
-    asked: Arc<Mutex<Vec<i64>>>,
-    task: JoinHandle<()>,
-}
-
-impl NapCat {
-    /// 交给一个任务应答：群成员照 `members` 回（`card`、`nickname`），不在里面的回失败。
-    pub fn answering(self, members: &[Member]) -> Answering {
-        self.reversing(members, 0)
-    }
-
-    /// 同 [`NapCat::answering`]，只是头 `held` 条发消息的回应先压着，攒够了倒着回，两条之间隔 [`APART`]：后发的那一条先回
-    /// 到，先发的明明白白晚一截（施工 O-23）。
-    pub fn reversing(self, members: &[Member], held: usize) -> Answering {
-        let members = members.to_vec();
-        let (frames, mut outgoing) = mpsc::unbounded_channel::<Value>();
-        let (seen, actions) = mpsc::unbounded_channel();
-        let (recalled, recalls) = mpsc::unbounded_channel();
-        let asked = Arc::new(Mutex::new(Vec::new()));
-        let noted = Arc::clone(&asked);
-        let (mut sink, mut stream) = self.ws.split();
-        let task = tokio::spawn(async move {
-            let mut sent = FIRST_SENT;
-            let mut holding = Vec::new();
-            loop {
-                tokio::select! {
-                    frame = outgoing.recv() => match frame {
-                        Some(frame) => {
-                            if sink.send(Message::text(frame.to_string())).await.is_err() {
-                                return;
-                            }
-                        }
-                        None => return,
-                    },
-                    read = stream.next() => {
-                        let Some(Ok(Message::Text(text))) = read else {
-                            match read {
-                                Some(Ok(_)) => continue,
-                                _ => return,
-                            }
-                        };
-                        let action: Value = serde_json::from_str(&text).expect("是 JSON");
-                        let answer = answer(&action, &members, &noted, &mut sent);
-                        let kind = action["action"].as_str().unwrap_or_default();
-                        let recall = kind == "delete_msg";
-                        let sending = !recall
-                            && kind != "get_version_info"
-                            && kind != "get_group_member_info";
-                        let shown = if recall {
-                            recalled.send(action)
-                        } else if sending {
-                            seen.send(action)
-                        } else {
-                            Ok(())
-                        };
-                        if shown.is_err() {
-                            return;
-                        }
-                        let mut answers = vec![answer];
-                        if sending && holding.len() < held {
-                            holding.append(&mut answers);
-                            if holding.len() == held {
-                                answers = holding.drain(..).rev().collect();
-                            }
-                        }
-                        for (n, answer) in answers.into_iter().enumerate() {
-                            if n > 0 {
-                                tokio::time::sleep(APART).await;
-                            }
-                            if sink.send(Message::text(answer.to_string())).await.is_err() {
-                                return;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-        Answering {
-            frames,
-            actions,
-            recalls,
-            asked,
-            task,
-        }
-    }
-}
-
-/// 照 NapCat 的样子回动作 `action`：问群成员的照 `members`，记下问的是谁；发消息的回 `sent`，再加一。
-fn answer(action: &Value, members: &[Member], asked: &Mutex<Vec<i64>>, sent: &mut i64) -> Value {
-    let (status, data) = match action["action"].as_str() {
-        Some("get_version_info") => (
-            "ok",
-            json!({"app_name": "NapCat.Onebot", "app_version": "4.8.0", "protocol_version": "v11"}),
-        ),
-        // 撤回（施工 O-25 上）：回成了，不占发出去的编号。
-        Some("delete_msg") => ("ok", Value::Null),
-        Some("get_group_member_info") => {
-            let user = action["params"]["user_id"].as_i64().expect("问的是号");
-            asked.lock().expect("没 panic").push(user);
-            match members.iter().find(|(id, _, _)| *id == user) {
-                Some((id, card, nickname)) => (
-                    "ok",
-                    json!({"group_id": action["params"]["group_id"], "user_id": id, "card": card, "nickname": nickname}),
-                ),
-                None => ("failed", Value::Null),
-            }
-        }
-        _ => {
-            *sent += 1;
-            ("ok", json!({"message_id": *sent - 1}))
-        }
-    };
-    json!({"status": status, "retcode": 0, "data": data, "message": "", "wording": "", "echo": action["echo"]})
-}
-
-impl Answering {
-    /// 发一帧给桥。
-    pub fn send(&self, frame: Value) {
-        self.frames.send(frame).expect("任务还在");
-    }
-
-    /// 下一个桥调的动作（问版本、问群成员的不算），最多等十秒。
-    pub async fn action(&mut self) -> Value {
-        within("桥调动作", self.actions.recv())
-            .await
-            .expect("任务还在")
-    }
-
-    /// 下一个动作是发进群 `group` 的 `send_group_msg`：交回里面的字（只有一个文字段）。
-    pub async fn group_reply(&mut self, group: i64) -> String {
-        let action = self.action().await;
-        assert_eq!(action["action"], "send_group_msg", "{action}");
-        assert_eq!(action["params"]["group_id"], group, "{action}");
-        let message = action["params"]["message"].as_array().expect("段的数组");
-        assert_eq!(message.len(), 1, "{action}");
-        message[0]["data"]["text"]
-            .as_str()
-            .expect("有字")
-            .to_string()
-    }
-
-    /// 下一个动作是发进群 `group` 的 `send_group_msg`：交回段的数组（施工 O-25 上：看第一段带没带引用、@）。
-    pub async fn group_message(&mut self, group: i64) -> Vec<Value> {
-        let action = self.action().await;
-        assert_eq!(action["action"], "send_group_msg", "{action}");
-        assert_eq!(action["params"]["group_id"], group, "{action}");
-        action["params"]["message"]
-            .as_array()
-            .expect("段的数组")
-            .clone()
-    }
-
-    /// 下一个撤回（`delete_msg`）的参数，最多等十秒。
-    pub async fn recalled(&mut self) -> Value {
-        let action = within("桥撤回", self.recalls.recv())
-            .await
-            .expect("任务还在");
-        action["params"].clone()
-    }
-
-    /// 还没取的撤回：没有的是空的。
-    pub fn pending_recall(&mut self) -> Option<Value> {
-        self.recalls.try_recv().ok()
-    }
-
-    /// 还没取的动作：没有的是空的。
-    pub fn pending(&mut self) -> Option<Value> {
-        self.actions.try_recv().ok()
-    }
-
-    /// 桥问过哪些群成员，照先后。
-    pub fn asked(&self) -> Vec<i64> {
-        self.asked.lock().expect("没 panic").clone()
-    }
-}
-
-impl Drop for Answering {
-    fn drop(&mut self) {
-        self.task.abort();
-    }
 }
 
 /// 起一个照开关拉起桥的核心：系统的场所规则 `80-test.toml` 写成 `rules`，系统配置的 `[onebot]` 多写 `onebot`（自己人这类），
@@ -308,10 +121,21 @@ pub async fn started_by(
     rules: &str,
     members: &[Member],
 ) -> (Home, Answering, (u16, u16)) {
-    up(models, "", (rules, ""), "", |napcat| {
+    up(models, ("", &Value::Null), (rules, ""), "", |napcat| {
         napcat.answering(members)
     })
     .await
+}
+
+/// 同 [`started_by`]，`bridge.json` 照 `tuned` 改那几格（施工 O-25 中，[`Home::spawning_tuned`]），假 NapCat 连上以后交给
+/// `answer` 去应答（[`NapCat::refusing`] 这类）。
+pub async fn started_tuned(
+    models: Arc<dyn Models>,
+    rules: &str,
+    tuned: &Value,
+    answer: impl FnOnce(NapCat) -> Answering,
+) -> (Home, Answering, (u16, u16)) {
+    up(models, ("", tuned), (rules, ""), "", answer).await
 }
 
 /// 同 [`started`]，假 NapCat 连上以后交给 `answer` 去应答（[`NapCat::reversing`] 这类）。
@@ -321,7 +145,14 @@ pub async fn started_with(
     onebot: &str,
     answer: impl FnOnce(NapCat) -> Answering,
 ) -> (Home, Answering, (u16, u16)) {
-    up(Arc::new(script.clone()), "", (rules, ""), onebot, answer).await
+    up(
+        Arc::new(script.clone()),
+        ("", &Value::Null),
+        (rules, ""),
+        onebot,
+        answer,
+    )
+    .await
 }
 
 /// 同 [`started`]，判官那一次（`model.call`）发到假服务器 `judge`（施工 O-23 下，[`super::judge`]）：她的回合照剧本 `script`。
@@ -346,24 +177,28 @@ pub async fn started_with_models(
     members: &[Member],
 ) -> (Home, Answering, (u16, u16)) {
     let more = super::judge::config(judge);
-    up(models, &more, (rules, words), onebot, |napcat| {
-        napcat.answering(members)
-    })
+    up(
+        models,
+        (&more, &Value::Null),
+        (rules, words),
+        onebot,
+        |napcat| napcat.answering(members),
+    )
     .await
 }
 
-/// 起核心、拉起桥、连上假 NapCat：请求模型照 `models`，系统配置在端口、`[onebot]` 后面再接 `more`；系统的场所规则写成
-/// `rules`，`words` 不空的写成系统的违规词表。
+/// 起核心、拉起桥、连上假 NapCat：请求模型照 `models`，系统配置在端口、`[onebot]` 后面再接 `more`，`bridge.json` 照 `tuned`
+/// 改（[`Home::spawning_tuned`]）；系统的场所规则写成 `rules`，`words` 不空的写成系统的违规词表。
 async fn up(
     models: Arc<dyn Models>,
-    more: &str,
+    (more, tuned): (&str, &Value),
     (rules, words): (&str, &str),
     onebot: &str,
     answer: impl FnOnce(NapCat) -> Answering,
 ) -> (Home, Answering, (u16, u16)) {
     let (home, ports) = on_free_ports(async |listen, web| {
         let config = format!("{}{more}", ports_config_with(listen, web, onebot));
-        let home = Home::spawning_with(Arc::clone(&models), &config);
+        let home = Home::spawning_tuned(Arc::clone(&models), &config, tuned);
         let dir = home.root.system().join("venues.d");
         std::fs::create_dir_all(&dir).expect("建得了目录");
         std::fs::write(dir.join("80-test.toml"), rules).expect("写得进");
@@ -387,6 +222,21 @@ pub async fn stopped(home: Home) {
     let stopped = cli(&home.root, &["stop"]).await;
     assert_eq!(stopped.status.code(), Some(0), "{}", text(&stopped.stderr));
     home.stop_extensions().await;
+}
+
+/// 照判官点了头的样子开一轮（施工 O-23 的 `called_limits.rs` 那样，O-25 中挪来共用）：场所 `venue` 的会话里经
+/// `session.respond` 拿序号是 `to` 的那几条开，命令编号是 `id`。核心拒了的照实报出来。
+pub async fn respond(home: &Home, venue: &str, id: &str, to: &[Value]) {
+    let (session, _) = venue_session(&home.root, venue).expect("有会话");
+    let mut core = miyu_webserve::open::Core::connect_running(&home.root, "test")
+        .await
+        .expect("连得上核心");
+    let params = json!({"session": session, "to": to});
+    let reply = core
+        .call(id, "session.respond", params)
+        .await
+        .expect("开得了一轮");
+    assert!(reply.get("error").is_none(), "{reply}");
 }
 
 /// 系统账号 `onebot` 名下、场所是 `venue` 的那个会话：编号和事件（写成 JSON）；还没有的是空的。

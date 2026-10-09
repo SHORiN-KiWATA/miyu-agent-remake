@@ -200,7 +200,7 @@ impl Route {
             .entry(session.to_string())
             .or_insert_with(|| Projection::new(upto))
             .caught_up(upto);
-        self.catch_up(session).await;
+        self.catch_up(session).await?;
         Ok(true)
     }
 

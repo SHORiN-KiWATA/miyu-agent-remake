@@ -238,9 +238,15 @@ async fn a_venue_owned_by_someone_else_or_by_nobody_is_taken() {
         napcat.owner_says(1, "在吗").await;
         assert_eq!(napcat.reply().await, "在。", "{venue:?}");
         assert_eq!(home.said_texts(), ["在吗"], "{venue:?}");
+        // 她的回话先入队再发（施工 O-25 中）：多一个 `events.append`。
         assert_eq!(
             relay.asked(),
-            ["venue.session", "subscribe", "session.send"],
+            [
+                "venue.session",
+                "subscribe",
+                "session.send",
+                "events.append"
+            ],
             "{venue:?}"
         );
         bridge.stop().await.expect("停得下");
