@@ -9,6 +9,7 @@ Commands:
   recap                 Recap the session: goal, progress, blockers
   rename <title>        Give the session a title
   memory [command]      See what she remembers; search, add, edit, forget, clear
+  pkg [command]         See installed packages; install, remove
   config <command>      See and change settings, trust a project config
   check [file]          Check config, secrets, personas, presets and packages
   login [name]          Save a provider's key; --list shows which are set
