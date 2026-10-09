@@ -221,7 +221,7 @@ async fn run(
     );
     let sandbox = sandbox::probe(env.exe.as_deref());
     let sandbox_cache = sandbox::cache(&env, std::env::var_os("CARGO_HOME"));
-    let embedder = embed::setup(&env, &resources);
+    let embedder = embed::setup(&env, &live.found);
     let tools = match tools(&resources, &live.found) {
         Ok(tools) => tools,
         Err(error) => return failed("tools", error),

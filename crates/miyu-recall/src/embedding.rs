@@ -1,9 +1,9 @@
 //! 本机 embedding 模型的清单（施工 R-5 上写在 `miyu-embed` 里，R-5 中挪进来，`docs/blueprint/recall.md` 第四条第 2 款）：一份
-//! TOML 写一个本机模型叫什么、几维、怎么取向量、最长几个词，和它的几个文件（在哪下、SHA-256、多大）。换模型就是换一份清单
-//! （2026-10-07 项目主人定：做成可更换的）。
+//! TOML 写一个本机模型叫什么、几维、怎么取向量、最长几个词，和它的几个文件（SHA-256、多大）。它放在内置模型那个小程序包的
+//! 目录里（`model.toml`，施工 R-5 三补）：换模型就是换包。
 //!
-//! 放在纯逻辑这一层，是因为两边要读同一份：小程序 `miyu-embed` 照它载入模型，核心照它下载、核对（R-5 中）；核心又不能依赖
-//! `miyu-embed`（会把 ONNX Runtime 链进主程序）。这里只照原文读、查；读文件是用的一方的事。WordPiece 以外的分词、`cls`
+//! 放在纯逻辑这一层，是因为两边要读同一份：小程序 `miyu-embed` 照它载入模型，核心照它核对包里的文件（R-5 三补起不再下载）；
+//! 核心又不能依赖 `miyu-embed`（会把 ONNX Runtime 链进主程序）。这里只照原文读、查；读文件是用的一方的事。WordPiece 以外的分词、`cls`
 //! 以外的取法，换到那样的模型时再加：现在写别的，读的时候就拒，不悄悄算错。
 
 use std::fmt;
@@ -15,8 +15,8 @@ use serde::Deserialize;
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Manifest {
-    /// 模型的名字，例如 `bge-small-zh-v1.5`：一个单纯的名字，核心照它在缓存目录里分一格。向量记的模型编号是 `local:<id>`
-    /// （[`Manifest::model`]）。
+    /// 模型的名字，例如 `bge-small-zh-v1.5`：一个单纯的名字。向量记的模型编号是 `local:<id>`（[`Manifest::model`]），设置页的
+    /// 「内置模型」后面暗字写它。
     pub id: String,
     /// 向量几维。
     pub dims: usize,
@@ -62,13 +62,11 @@ impl Role {
 pub struct ModelFile {
     /// 做什么的。
     pub role: Role,
-    /// 放在模型目录里叫什么：一个单纯的名字，不带目录。
+    /// 放在包目录里叫什么：一个单纯的名字，不带目录。
     pub name: String,
-    /// 从哪下载（核心用，R-5 中）。
-    pub url: String,
-    /// 文件内容的 SHA-256，十六进制（核心下载完照它核对，R-5 中）。
+    /// 文件内容的 SHA-256，十六进制（核心第一次用时照它核对包里的文件）。
     pub sha256: String,
-    /// 多少字节（核心下载时照它看进度、防下得太多，R-5 中）。
+    /// 多少字节（核心核对时先比它）。
     pub size: u64,
 }
 
@@ -100,7 +98,7 @@ impl Manifest {
 
     /// 查读进来的几格，交回第一处不对的。
     fn check(&self) -> Result<(), String> {
-        // 编号是核心放模型的那一格目录的名字（缓存目录下的 `embed/<id>/`，R-5 中）：带目录的会放到别处去。
+        // 编号进向量的模型编号、给人看的暗字：一个单纯的名字，带目录的不收。
         if !plain(&self.id) {
             return Err(format!("id {} is not a plain name", self.id));
         }

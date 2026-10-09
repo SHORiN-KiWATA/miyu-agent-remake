@@ -667,6 +667,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sR-5c"><span class="n">R-5</span>向量一路（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-5d"><span class="n">R-5</span>远程的 embedding（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-5e"><span class="n">R-5</span>语义模型这一项（再补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sR-5f"><span class="n">R-5</span>内置模型做成小程序包（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-6"><span class="n">R-6</span>抽取（上）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">R-6</span>抽取（下，暂不做）</span></li>
         <li><span class="step"><span class="n">R-7</span>合并</span></li>
@@ -17379,6 +17380,59 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/R-5-语义模型（再补）.md</code>；蓝图 <code>config.md</code>「协议」和「给人看的字」，<code>protocol.md</code> 的 <code>config.schema</code>，<code>models.md</code>「协议」<code>model.list</code>，<code>recall.md</code> 第四条第 1 款。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sR-5f" aria-labelledby="h-sR5f">
+  <div class="sheet-head"><h2 id="h-sR5f"><span class="no">R-5</span>内置模型做成小程序包（三补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">主程序轻：不背 24 MB 的模型，也不在第一次用时去下。要照意思找、又不想用远程的，装「内置语义模型」这个包，装好就能用、不联网。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-core · miyu-session · miyu-endpoint · miyu-embed/package</span><span class="dir-note">R-5</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>小程序包 embed：程序 miyu-embed，模型清单和模型文件在包目录里</li>
+              <li>人格记忆推荐它；核心照装了的包拼 Embedder 要的</li>
+              <li>第一次要时核对包里的文件，不下、不删</li>
+              <li>没装时 config.schema 里「内置模型」带 available: false</li>
+              <li>去掉下载：fetch.rs 的下载、Staged、miyu_http::download、模型清单的 url</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">出厂不装</span><span class="rl">只有关键词，或者指定远程的</span></div>
+          <div class="tile new"><span class="nm">包的文件</span><span class="rl">清单旁边的同名目录</span></div>
+          <div class="tile new"><span class="nm">model.toml</span><span class="rl">小程序认的名字，清单里不另写</span></div>
+          <div class="tile new"><span class="nm">选不了</span><span class="rl">available 只写 false</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-5</dd></div>
+        <div><dt>名称</dt><dd>内置模型做成小程序包（三补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">（合进 main 时填）</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、核心的主会话看形状 · 自己验收，通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>（合进 main 时填）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-5-内置模型做成小程序包（三补）.md</code>；蓝图 <code>recall.md</code> 第四条第 1 到 4 款，<code>packages.md</code>「在哪」「格式」，<code>core.md</code> 第 10 步，<code>config.md</code>、<code>protocol.md</code> 的 <code>config.schema</code>，<code>store.md</code>，<code>http.md</code>。</li>
       </ul>
     </div>
   </div>

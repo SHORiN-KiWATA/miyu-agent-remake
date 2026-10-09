@@ -10,17 +10,14 @@ use miyu_config::merge::{Layers, Trust, below, explain, merge};
 use miyu_config::parse::parse;
 use miyu_config::problem::{Code, Problem, Told, Using, nearest, tell};
 use miyu_config::{Item, Kind, Layer, Words};
-use miyu_session::EMBED_LOCAL;
 use miyu_store::human::{FALLBACK, Human};
 
 use super::file::File;
+use super::options::{note, usable};
 use super::{Config, Project, TARGET, wire};
 use crate::Core;
 use crate::hello::Peer;
 use crate::refusal::Refusal;
-
-/// 语义模型那一项的键（`miyu_models::settings::UseSettings` 的 `embedding`）。
-const EMBEDDING: &str = "models.embedding";
 
 /// `config.schema` 的参数。
 #[derive(Debug, Deserialize)]
@@ -100,7 +97,8 @@ pub(crate) fn schema(core: &Core, peer: Peer, params: SchemaParams) -> Result<Va
             .item(item.key)
             .or_else(|| english.as_ref().and_then(|english| english.item(item.key)));
         let notes = |option: &str| note(item.key, option, local.as_deref());
-        listed.push(schema_item(item, said, &notes));
+        let usable = |option: &str| usable(item.key, option, local.is_some());
+        listed.push(schema_item(item, said, &notes, &usable));
         let page = item.ui.page;
         if !pages.iter().any(|seen| seen["id"] == page) {
             let name = config_name(&words, english.as_ref(), "pages", page);
@@ -115,20 +113,12 @@ pub(crate) fn schema(core: &Core, peer: Peer, params: SchemaParams) -> Result<Va
     Ok(json!({"groups": groups, "items": listed, "pages": pages}))
 }
 
-/// 选项后面暗字写的（施工 R-5 再补，`config.md`「协议」）：只有核心查得出的才有，不进给人看的字。现在只有语义模型
-/// （`UseSettings` 的 `embedding`）的「内置模型」：本机清单的模型名 `local`，本机的那一路用不上的没有。
-fn note(key: &str, option: &str, local: Option<&str>) -> Option<String> {
-    match (key, option) {
-        (EMBEDDING, EMBED_LOCAL) => local.map(str::to_string),
-        _ => None,
-    }
-}
-
-/// 一项在 `config.schema` 里的样子：选项后面暗字写的照 `notes` 查。
+/// 一项在 `config.schema` 里的样子：选项后面暗字写的照 `notes` 查，用不了的照 `usable` 标。
 fn schema_item(
     item: &Item,
     said: Option<&miyu_config::ItemWords>,
     notes: &dyn Fn(&str) -> Option<String>,
+    usable: &dyn Fn(&str) -> bool,
 ) -> Value {
     let mut map = Map::new();
     map.insert("key".to_string(), json!(item.key));
@@ -151,6 +141,9 @@ fn schema_item(
                 let mut named = json!({"name": name, "value": option});
                 if let Some(note) = notes(option) {
                     named["note"] = json!(note);
+                }
+                if !usable(option) {
+                    named["available"] = json!(false);
                 }
                 named
             })

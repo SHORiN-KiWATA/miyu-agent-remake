@@ -1,0 +1,19 @@
+# 内置语义模型的模型清单（施工 R-5 三补，`docs/blueprint/recall.md` 第四条第 2 款）：bge-small-zh-v1.5 的 8 位量化 ONNX，MIT。
+# 做包时和两个模型文件一起放进包目录（`packages/embed/`），核心第一次用时照这里核对大小、SHA-256；文件从 Miyu 的 GitHub Release
+# `models-bge-small-zh-v1.5` 取（`SHA256SUMS` 照这里写的）。换模型就是换包。
+id = "bge-small-zh-v1.5"
+dims = 512
+pooling = "cls"
+max_tokens = 512
+
+[[files]]
+role = "model"
+name = "model_quantized.onnx"
+sha256 = "15b717c382bcb518ba457b93ea6850ede7f4f1cd8937454aa06972366cd19bcc"
+size = 24010842
+
+[[files]]
+role = "vocab"
+name = "vocab.txt"
+sha256 = "45bbac6b341c319adc98a532532882e91a9cefc0329aa57bac9ae761c27b291c"
+size = 109540

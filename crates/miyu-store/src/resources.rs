@@ -371,15 +371,6 @@ impl ResourceRoot {
         self.path.join("models").join("models-dev.json")
     }
 
-    /// 本机 embedding 出厂的清单在哪（`models/embed/bge-small-zh-v1.5.toml`，施工 R-5 下，`recall.md` 第四条第 2 款）：
-    /// 核心起来时交给 `Embedder`，第一次要向量时才读。
-    pub fn embed_manifest(&self) -> std::path::PathBuf {
-        self.path
-            .join("models")
-            .join("embed")
-            .join("bge-small-zh-v1.5.toml")
-    }
-
     /// `provider.test` 发的那一句（`core/models/probe.txt`，施工 8-11，`models.md`「怎么走」第七条第 4 条）：原文，去掉行尾
     /// 空白由用的一方做。每试一次读一次。
     ///

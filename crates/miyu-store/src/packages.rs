@@ -47,6 +47,14 @@ pub struct Found {
     pub read: Result<Manifest, Issue>,
 }
 
+impl Found {
+    /// 包自己的文件放在哪个目录（施工 R-5 三补，`packages.md`「在哪」）：清单旁边的同名目录，例如
+    /// `home/<管理员>/packages/embed.toml` 的是 `home/<管理员>/packages/embed/`。两层都是这样；目录在不在不管。
+    pub fn files_dir(&self) -> PathBuf {
+        self.path.with_file_name(&self.id)
+    }
+}
+
 /// 一份清单的问题。
 #[derive(Debug)]
 pub enum Issue {

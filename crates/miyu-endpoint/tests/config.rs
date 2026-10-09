@@ -81,7 +81,8 @@ async fn hello_counts_errors_but_not_warnings() {
 }
 
 /// 几个字之一或者一个模型（施工 R-5 补）：类型是 `model_or`，列出那几个字和它们的名字，控件是手写的。名字、说明、选项的名字照
-/// 项目主人定的（施工 R-5 再补）；没接本机的那一路的核心，「内置模型」后面没有暗字。
+/// 项目主人定的（施工 R-5 再补）；没接本机的那一路的核心（没装内置语义模型的包），「内置模型」后面没有暗字、选不了（施工
+/// R-5 三补）。
 #[tokio::test]
 async fn a_model_or_item_lists_its_words() {
     let home = Home::new();
@@ -100,7 +101,10 @@ async fn a_model_or_item_lists_its_words() {
     );
     assert_eq!(
         item["options"],
-        json!([{"name": "内置模型", "value": "local"}, {"name": "关", "value": "off"}])
+        json!([
+            {"name": "内置模型", "value": "local", "available": false},
+            {"name": "关", "value": "off"}
+        ])
     );
 }
 

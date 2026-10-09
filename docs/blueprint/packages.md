@@ -16,7 +16,7 @@
 | `crates/miyu-config/src/package/links.rs` | `[connection]`、`[depends]`、`[recommends]`、`[worker]` 的读法（施工 F-1） |
 | `crates/miyu-config/src/package/code.rs` | 读不成时的代码（施工 F-1 从 `package.rs` 挪出来） |
 | `crates/miyu-config/src/phrases.rs` | 「语言到一句话」那一格的读法，和人格的名字、说明共用 |
-| `crates/miyu-store/src/packages.rs` | 两层在哪、读出所有清单、同编号、子命令名撞了、功能的编号撞了（施工 F-1）、系统账号撞了管理员（施工 O-4 下）；声明了的系统账号（`system_accounts`）；包放状态的目录 |
+| `crates/miyu-store/src/packages.rs` | 两层在哪、读出所有清单、同编号、子命令名撞了、功能的编号撞了（施工 F-1）、系统账号撞了管理员（施工 O-4 下）；声明了的系统账号（`system_accounts`）；包放状态的目录；包自己的文件的目录（`Found::files_dir`，施工 R-5 三补） |
 | `crates/miyu-endpoint/src/packages.rs` | 核心起来时读一次、记运行日志；`package.list`；照核心自己的模块认撞没撞、拼包的配置项（`settle`，施工 9-1 下） |
 | `crates/miyu-core/src/settings.rs` | 起来时照清单拼好包的配置项（`Packaged`），读配置、生成 Schema 和参考文件时并进去（施工 9-1 下） |
 | `crates/miyu-store/src/human.rs` | 给人看的字并进包的配置项的名字、说明和组名（`Human::with_packages`，施工 9-1 下） |
@@ -24,12 +24,13 @@
 | `resources/packages/web.toml` | 出厂的网页界面的清单 |
 | `resources/packages/tui.toml` | 出厂的终端界面的清单（9-3 补：终端的会话给的，和 proto 上的一字不差；程序 `miyu-tui` 随 M9）；9-3 再补多配置项 `tui.icons`（图标：`nerd`、`plain`，第一次打开的引导写它） |
 | `resources/packages/onebot.toml` | 出厂的接入QQ 的清单（施工 O-18；`[settings]` 四项随 O-20，原来核心替它声明，`onebot.md` 第一条「软件包清单」；施工 F-2 改名、多平台接入和功能 `qq`） |
-| `resources/packages/basesystem.toml`、`memory.toml`、`roleplay.toml`、`mermaid.toml`、`net.toml` | 出厂的内置包的清单（施工 F-2）：基础系统必需、九个功能；人格记忆、人设防失忆提醒各算一个功能；画 mermaid、联网不带功能 |
+| `resources/packages/basesystem.toml`、`memory.toml`、`roleplay.toml`、`mermaid.toml`、`net.toml` | 出厂的内置包的清单（施工 F-2）：基础系统必需、九个功能；人格记忆、人设防失忆提醒各算一个功能；画 mermaid、联网不带功能；人格记忆推荐小程序 `embed`（施工 R-5 三补） |
+| `crates/miyu-embed/package/embed.toml`、`package/embed/model.toml` | 「内置语义模型」这个小程序包的原本（施工 R-5 三补，`recall.md` 第四条）：出厂不装，不在资源目录里；模型文件不进仓库，做包时从 Release 取 |
 | `crates/miyu-core/src/lib.rs`、`packages.rs` | 编进来的内置包那张表（`built_in`）；起来时照清单登记工具（`tools`）、查询（`packages::register`）（施工 F-2） |
 
 ### 对外的样子
 
-**在哪**：出厂的放资源目录的 `packages/<编号>.toml`，管理员自己装的放 `home/<管理员>/packages/<编号>.toml`（`07-存储.md` 第二节；包自己的文件以后放同名目录）。编号就是文件名，写法同人格的编号（小写字母开头，小写字母、数字、`-`、`_`，最多 64 个），不合写法的、不是 `.toml` 的不算。包自己在这台机器上的状态放 `<数据根>/state/packages/<编号>/`，包自己建、自己用。
+**在哪**：出厂的放资源目录的 `packages/<编号>.toml`，管理员自己装的放 `home/<管理员>/packages/<编号>.toml`（`07-存储.md` 第二节）；包自己的文件放清单旁边的同名目录（`packages/<编号>/`，照 `miyu_store::packages::Found::files_dir` 算，用的一方不自己拼；施工 R-5 三补起有包用它）。编号就是文件名，写法同人格的编号（小写字母开头，小写字母、数字、`-`、`_`，最多 64 个），不合写法的、不是 `.toml` 的不算。包自己在这台机器上的状态放 `<数据根>/state/packages/<编号>/`，包自己建、自己用。
 
 **格式**（TOML；只收下面这些，不认识的表、键报错）：
 
@@ -94,6 +95,21 @@ workers = ["embed"]
 program = "miyu-embed"           # 程序名，不带路径分隔符
 args = ["serve"]                 # 可以不写
 ```
+
+一个小程序包的样子：内置语义模型（施工 R-5 三补，`recall.md` 第四条；2026-10-09 项目主人定做成可选的包、只放 bge、出厂不装）。人格记忆的清单写 `[recommends] workers = ["embed"]`，核心照它拉：
+
+```toml
+# packages/embed.toml
+[package]
+kind = "worker"
+protocol = [1, 1]
+name = { zh = "内置语义模型", en = "Built-in semantic model", ja = "内蔵の意味モデル" }
+
+[worker]
+program = "miyu-embed"
+```
+
+模型清单、模型文件放在包目录 `packages/embed/` 里：`model.toml`（这个小程序认的名字，小程序清单里不另写）、`model_quantized.onnx`、`vocab.txt`。
 
 每种包能写的表（别的写了报 `wrong_kind`）：
 
@@ -199,6 +215,7 @@ args = ["serve"]                 # 可以不写
 | `crates/miyu/tests/packages.rs`（施工 9-2） | 真二进制：参数原样交过去、退出码照它的、`help <名字>` 转成 `--help`、不拉起核心；帮助页列出包的子命令、撞了内置的不列、内置的照旧；没装的程序退出码 1；不认识的照旧退出码 2 |
 | `crates/miyu-endpoint/src/check/run/tests.rs`、`tests/package_check.rs`（施工 9-2） | 一行输出收哪几格、哪些不收；0、1 以外的退出码、信号、到时、跑不起来；真的跑 `sh`、到时杀掉；真核心：包报的接在后面，看不懂的行、跑坏了的、程序没找到的各一条警告 |
 | `crates/miyu-cli/src/head/tests.rs`、`crates/miyu/tests/heads.rs`（施工 9-3） | 照清单定怎么开（不带参数、带 `--page config`、不认这一页、没装、不是界面、有清单程序不在）、没装的列出装了的（只算程序在旁边的，9-3 补）；真二进制在伪终端里：`miyu`、`miyu config` 拉起清单里的界面、退出码照它的，不认设置页的印帮助，`ui.head` 指着没装的退出码 1；出厂的终端只有清单的说程序不在旁边（9-3 补） |
+| `crates/miyu-core/tests/embed_package.rs`、`src/embed/tests.rs`（施工 R-5 三补） | 仓库里的内置语义模型的清单读得成小程序包；出厂的人格记忆推荐它、不依赖它，出厂的资源里没有它；照装了的包拼本机 embedding（`recall.md` 第四条第 1 款） |
 | `crates/miyu-core/tests/tools.rs`、`tests/packages.rs`（施工 F-2） | 没装记忆、基础系统的工具目录里没有它们的工具；读坏了的清单不算装了；出厂的内置包清单和编进来的一一对得上；没装画 mermaid、联网的查询是 `unknown_method` |
 | `crates/miyu-endpoint/tests/packages.rs` | `package.list` 的每一格、照语言挑；施工 F-1 的几格（必需、功能、平台接入、依赖、小程序）；没编进来的内置包报 `not_built_in`、只认读成了的内置包算装了（施工 F-2）；写错的、同编号、撞名、协议版本对不上、`process` 和 `check`；起来时读一次；`check` 查清单、写了文件的认得出、别的文件认不出。只断言出厂的网页和测试自己放的几份，家目录里的编号、子命令名避开出厂会有的（施工 9-1 补：终端界面要出厂 `tui.toml`） |
 

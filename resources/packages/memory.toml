@@ -6,3 +6,7 @@ kind = "builtin"
 protocol = [1, 1]
 name = { en = "Persona memory", zh = "人格记忆", ja = "ペルソナの記憶" }
 summary = { en = "Remember what you said and recall it later", zh = "记住你说过的事，以后想得起来", ja = "話したことを覚えて、あとで思い出します" }
+
+# 推荐内置语义模型（施工 R-5 三补）：没装照起，只有关键词那一路，或者指定远程的模型。
+[recommends]
+workers = ["embed"]

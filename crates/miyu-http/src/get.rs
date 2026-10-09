@@ -6,11 +6,8 @@
 //!
 //! [`get_full`]（施工 8-11）：出错时另交回状态码、响应头、最多 64 KiB 的响应体，`provider.test` 列模型失败时照驱动分类
 //! （「和 `model.called` 的一样」）；[`get`] 只交原话，拉目录、拉列表照旧用它。
-//!
-//! [`download`]（施工 R-5 中）：边下边交，响应体一块一块交给收的一方、不攒成一整块：本机 embedding 的模型文件几十 MB。
 
 use std::error::Error;
-use std::io;
 use std::time::Duration;
 
 use reqwest::StatusCode;
@@ -91,53 +88,6 @@ pub async fn get(get: Get<'_>) -> Result<Got, String> {
 ///
 /// 同 [`get`]。
 pub async fn get_full(get: Get<'_>) -> Result<Got, Failed> {
-    let mut bytes = Vec::new();
-    let mut keep = |chunk: &[u8]| {
-        bytes.extend_from_slice(chunk);
-        Ok(())
-    };
-    match fetch(get, &mut keep).await? {
-        Fetched::Body { etag } => Ok(Got::Body { bytes, etag }),
-        Fetched::NotModified => Ok(Got::NotModified),
-    }
-}
-
-/// 边下边交（施工 R-5 中）：2xx 的响应体一块一块交给 `each`，交回一共多少字节。`etag` 带上了照样带，回 304 的算出错
-/// （要下的一方没东西可用）。
-///
-/// # Errors
-///
-/// 同 [`get`]；`each` 出错的照它的原话，当场停。
-pub async fn download(
-    get: Get<'_>,
-    each: &mut (dyn FnMut(&[u8]) -> io::Result<()> + Send),
-) -> Result<u64, String> {
-    let mut total = 0_u64;
-    let mut count = |chunk: &[u8]| {
-        each(chunk).map_err(|error| Failed::said(error.to_string()))?;
-        total += chunk.len() as u64;
-        Ok(())
-    };
-    match fetch(get, &mut count).await {
-        Ok(Fetched::Body { .. }) => Ok(total),
-        Ok(Fetched::NotModified) => Err("HTTP 304".to_string()),
-        Err(failed) => Err(failed.message),
-    }
-}
-
-/// 一块响应体交给谁：出错的当场停。
-type Each<'e> = dyn FnMut(&[u8]) -> Result<(), Failed> + Send + 'e;
-
-/// 发完一次：响应体已经一块一块交出去了，这里只剩它的 `ETag`。
-enum Fetched {
-    /// 2xx，回的 `ETag`（没有的没有）。
-    Body { etag: Option<String> },
-    /// 304。
-    NotModified,
-}
-
-/// 带上头、限着时发一次，2xx 的响应体一块一块交给 `each`。
-async fn fetch(get: Get<'_>, each: &mut Each<'_>) -> Result<Fetched, Failed> {
     let mut headers = HeaderMap::new();
     for (name, value) in get.headers {
         let header = HeaderName::from_bytes(name.as_bytes())
@@ -152,7 +102,7 @@ async fn fetch(get: Get<'_>, each: &mut Each<'_>) -> Result<Fetched, Failed> {
     {
         headers.insert(IF_NONE_MATCH, etag);
     }
-    match timeout(get.timeout, exchange(get, headers, each)).await {
+    match timeout(get.timeout, exchange(get, headers)).await {
         Ok(got) => got,
         Err(_) => Err(Failed::said(format!(
             "timed out after {} seconds",
@@ -161,12 +111,8 @@ async fn fetch(get: Get<'_>, each: &mut Each<'_>) -> Result<Fetched, Failed> {
     }
 }
 
-/// 发、一块一块读完，超过上限停。
-async fn exchange(
-    get: Get<'_>,
-    headers: HeaderMap,
-    each: &mut Each<'_>,
-) -> Result<Fetched, Failed> {
+/// 发、读完。
+async fn exchange(get: Get<'_>, headers: HeaderMap) -> Result<Got, Failed> {
     let broken = |error: reqwest::Error| Failed::said(chain(&error.without_url()));
     let mut response = get
         .client
@@ -177,7 +123,7 @@ async fn exchange(
         .map_err(broken)?;
     let status = response.status();
     if status == StatusCode::NOT_MODIFIED {
-        return Ok(Fetched::NotModified);
+        return Ok(Got::NotModified);
     }
     if !status.is_success() {
         return Err(failure(status, response).await);
@@ -187,15 +133,14 @@ async fn exchange(
         .get(ETAG)
         .and_then(|etag| etag.to_str().ok())
         .map(str::to_string);
-    let mut read = 0;
+    let mut bytes = Vec::new();
     while let Some(chunk) = response.chunk().await.map_err(broken)? {
-        read += chunk.len();
-        if read > get.limit {
+        if bytes.len() + chunk.len() > get.limit {
             return Err(Failed::said(format!("body over {} bytes", get.limit)));
         }
-        each(&chunk)?;
+        bytes.extend_from_slice(&chunk);
     }
-    Ok(Fetched::Body { etag })
+    Ok(Got::Body { bytes, etag })
 }
 
 /// 回的不是 2xx 也不是 304：状态码、响应头、最多 64 KiB 的响应体（读到一半断了的照读到的）。一次 POST 也照它说（`post.rs`）。

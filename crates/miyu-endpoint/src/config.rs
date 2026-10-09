@@ -27,6 +27,7 @@ pub(crate) mod hub;
 pub(crate) mod journal;
 pub(crate) mod methods;
 pub(crate) mod observe;
+mod options;
 mod project;
 pub(crate) mod push;
 pub(crate) mod set;

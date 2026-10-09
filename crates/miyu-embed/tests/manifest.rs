@@ -1,4 +1,5 @@
-//! 读清单的文件（`recall.md` 第四条第 2 款）：出厂那一份读得出、每一格对；文件读不了说是哪个。原文怎么读、怎么查在
+//! 读清单的文件（`recall.md` 第四条第 2 款）：内置语义模型的包里那一份读得出、每一格对、没有下载地址（R-5 三补）；文件读不了
+//! 说是哪个。原文怎么读、怎么查在
 //! `miyu_recall::embedding` 的单元测试里。
 
 use miyu_embed::manifest::{self, Pooling, Role};
@@ -16,10 +17,9 @@ fn the_shipped_one_reads() {
     let model = manifest.file(Role::Model);
     assert_eq!(model.name, "model_quantized.onnx");
     assert_eq!(model.size, 24_010_842);
-    assert!(
-        model.url.starts_with("https://github.com/"),
-        "{}",
-        model.url
+    assert_eq!(
+        model.sha256, "15b717c382bcb518ba457b93ea6850ede7f4f1cd8937454aa06972366cd19bcc",
+        "和 Release 的 SHA256SUMS 一样"
     );
     assert_eq!(manifest.file(Role::Vocab).name, "vocab.txt");
 }

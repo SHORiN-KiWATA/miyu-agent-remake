@@ -1,15 +1,16 @@
 //! 本机 embedding（施工 R-5 中，`docs/blueprint/recall.md` 第三条第 3 款、第四条第 3、4 款）：交给它一句话，交回一个向量。
 //! 核心一份 [`Embedder`]，给要向量的一方（R-5 下接进 `memory_search`）。
 //!
-//! - **备齐文件**（`embed/fetch.rs`）：第一次要时在后台照清单核对、下载，放在缓存目录的 `embed/<id>/`。备着的时候交回
-//!   [`Unavailable::Preparing`]，要的一方照只有关键词走，不等。下不成的，一小时以内不再试。
+//! - **核对文件**（`embed/files.rs`，施工 R-5 三补）：模型文件在内置模型那个小程序包的目录里，装好就能用、不下。第一次要时在
+//!   后台照模型清单核对大小、SHA-256；核对着的时候交回 [`Unavailable::Preparing`]，要的一方照只有关键词走，不等。对不上的
+//!   这一回用不了，不删包里的东西。
 //! - **小程序**（`embed/worker.rs`）：要用时拉起 `miyu-embed`，一次一条，后来的排队；[`IDLE`] 没有新的请求就让它退出，下一条
 //!   再拉起。它起不来、坏了，这一条交回 [`Unavailable::Failed`]；这一回起不来过三次，就不再拉起。
 //! - 它不算核心「忙」：核心空闲退出照旧，它跟着没了（`worker.rs` 的 `Worker`）。
 //!
 //! 远程的（`models.embedding` 写 `<供应商>/<模型>`，施工 R-5 补）在 `embed/remote.rs`：一次一个 HTTP 请求，不拉起小程序。
 
-mod fetch;
+mod files;
 mod remote;
 mod worker;
 
@@ -18,7 +19,6 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex, PoisonError, Weak};
 use std::time::{Duration, Instant};
 
-use miyu_http::Client;
 use miyu_recall::embedding::Manifest;
 
 use crate::TARGET;
@@ -28,23 +28,18 @@ use worker::{Failure, Worker};
 /// 多久没有新的请求就让小程序退出（`recall.md` 第四条第 4 款）。
 pub const IDLE: Duration = Duration::from_secs(600);
 
-/// 下不成以后多久再试（照模型目录的 `RETRY`）。
-const RETRY: Duration = Duration::from_secs(3600);
-
 /// 这一回起不来几次，就不再拉起。
 const TRIES: u32 = 3;
 
-/// 造一个 [`Embedder`] 要的。
+/// 造一个 [`Embedder`] 要的（核心照装了的内置模型那个小程序包拼，`miyu-core` 的 `embed::setup`，施工 R-5 三补）。
 #[derive(Debug, Clone)]
 pub struct EmbedSetup {
-    /// `miyu-embed` 在哪（主程序真实位置的旁边）；没找到的是空的。
+    /// `miyu-embed` 在哪（照小程序清单的 `program`，在主程序真实位置的旁边找）；没找到的是空的。
     pub program: Option<PathBuf>,
-    /// 清单的文件（出厂的在资源目录的 `models/embed/`）。
+    /// 模型清单的文件：包目录里的 `model.toml`。
     pub manifest: PathBuf,
-    /// 放模型的目录：缓存目录下的 `embed`；缓存目录算不出的是空的。
-    pub cache: Option<PathBuf>,
-    /// 下载用的客户端（`miyu_http::fetcher`，代理照环境变量）。
-    pub client: Client,
+    /// 模型的文件在哪个目录：包目录（`miyu_store::packages::Found::files_dir`）。
+    pub dir: PathBuf,
     /// 多久没有新的请求就让小程序退出：照 [`IDLE`]，测试改短。
     pub idle: Duration,
 }
@@ -54,8 +49,8 @@ pub struct EmbedSetup {
 pub enum Unavailable {
     /// 模型还在核对、在下：这一回只有关键词。
     Preparing,
-    /// 这台机器、这一阵用不了：没有小程序、没有缓存目录、清单读不了、下不成（一小时以后再试）、起不来过三次；远程的那一家
-    /// 没配、地址或 key 取不到。
+    /// 这台机器、这一阵用不了：没有小程序、模型清单读不了、包里的文件少了或对不上、起不来过三次；远程的那一家没配、地址或
+    /// key 取不到。
     Off(String),
     /// 这一条算不出：小程序回了一句错、起不来、坏了；远程的发不出去、出错、超时、回的读不懂。下一条照常再试。
     Failed(String),
@@ -85,7 +80,6 @@ struct Ready {
     manifest_path: PathBuf,
     manifest: Manifest,
     dir: PathBuf,
-    client: Client,
     idle: Duration,
 }
 
@@ -102,12 +96,12 @@ struct Shared {
 enum Files {
     /// 这一回还没看过。
     Unchecked,
-    /// 在后台核对、下载。
+    /// 在后台核对。
     Preparing,
     /// 齐了、核对过。
     Ready,
-    /// 没备成：什么时候、为什么。
-    Failed { at: Instant, why: String },
+    /// 对不上、少了：为什么。装卸要重启核心，这一回不再核对。
+    Failed(String),
 }
 
 /// 拉起着的小程序。
@@ -123,8 +117,8 @@ struct Slot {
 }
 
 impl Embedder {
-    /// 照 `setup` 造。清单在这时读；用不上的（没有小程序、没有缓存目录、清单读不了）记一行 `WARN embedder unavailable`，
-    /// 以后每一条都交回 [`Unavailable::Off`]。不碰网络、不拉起小程序：都等第一次要。
+    /// 照 `setup` 造。模型清单在这时读；用不上的（没有小程序、清单读不了）记一行 `WARN embedder unavailable`，以后每一条都交回
+    /// [`Unavailable::Off`]。不核对文件、不拉起小程序：都等第一次要。
     pub fn new(setup: EmbedSetup) -> Embedder {
         let ready = prepare(setup);
         if let Err(reason) = &ready {
@@ -192,7 +186,7 @@ impl Embedder {
         }
     }
 
-    /// 向量记的模型编号（`local:<id>`，施工 R-5 下）：用不上的（没有小程序、缓存目录、清单）没有。
+    /// 向量记的模型编号（`local:<id>`，施工 R-5 下）：用不上的（没有小程序、清单读不了）没有。
     pub fn model(&self) -> Option<String> {
         self.shared
             .ready
@@ -227,49 +221,40 @@ impl Shared {
         match &*files {
             Files::Ready => return Ok(ready),
             Files::Preparing => return Err(Unavailable::Preparing),
-            Files::Failed { at, why } if at.elapsed() < RETRY => {
-                return Err(Unavailable::Off(why.clone()));
-            }
-            Files::Unchecked | Files::Failed { .. } => {}
+            Files::Failed(why) => return Err(Unavailable::Off(why.clone())),
+            Files::Unchecked => {}
         }
         *files = Files::Preparing;
         let shared = Arc::clone(self);
-        tokio::spawn(async move {
+        tokio::task::spawn_blocking(move || {
             let Ok(ready) = &shared.ready else { return };
-            let prepared = fetch::prepare(&ready.manifest, &ready.dir, &ready.client).await;
-            if let Err(why) = &prepared {
-                tracing::warn!(target: TARGET, model = ready.manifest.id.as_str(), error = why.as_str(), "embedding model not downloaded");
+            let checked = files::check(&ready.manifest, &ready.dir);
+            if let Err(why) = &checked {
+                tracing::warn!(target: TARGET, model = ready.manifest.id.as_str(), error = why.as_str(), "embedder unavailable");
             }
             let mut files = shared.files.lock().unwrap_or_else(PoisonError::into_inner);
-            *files = match prepared {
+            *files = match checked {
                 Ok(()) => Files::Ready,
-                Err(why) => Files::Failed {
-                    at: Instant::now(),
-                    why,
-                },
+                Err(why) => Files::Failed(why),
             };
         });
         Err(Unavailable::Preparing)
     }
 }
 
-/// 读清单、看有没有小程序和缓存目录：用不上的交回原因。
+/// 读模型清单、看有没有小程序：用不上的交回原因。
 fn prepare(setup: EmbedSetup) -> Result<Ready, String> {
     let program = setup
         .program
         .ok_or_else(|| "no miyu-embed next to the program".to_string())?;
-    let cache = setup
-        .cache
-        .ok_or_else(|| "no cache directory".to_string())?;
     let text = std::fs::read_to_string(&setup.manifest)
         .map_err(|error| format!("cannot read {}: {error}", setup.manifest.display()))?;
     let manifest = Manifest::parse(&text).map_err(|error| error.to_string())?;
     Ok(Ready {
         program,
-        dir: fetch::dir_of(&cache, &manifest),
+        dir: setup.dir,
         manifest_path: setup.manifest,
         manifest,
-        client: setup.client,
         idle: setup.idle,
     })
 }

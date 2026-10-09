@@ -7,13 +7,11 @@ max_tokens = 6
 [[files]]
 role = "model"
 name = "model.onnx"
-url = "https://example.invalid/tiny/model.onnx"
 sha256 = "b3b1a8dc7601a46d0aa8b9065d7a7b6b892ece18fd642734013303ab76f85a89"
 size = 888
 
 [[files]]
 role = "vocab"
 name = "vocab.txt"
-url = "https://example.invalid/tiny/vocab.txt"
 sha256 = "b5f41243d0b27231a70952255ce11dbd2c92e43b75f1a674ac5311c979f7bee3"
 size = 99
