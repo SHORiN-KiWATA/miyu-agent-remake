@@ -17,7 +17,7 @@
 //! 之后 [`serve()`] 一个个接连接：没有连接、也没有在跑的回合，空闲够久了就退出；收到停的信号，先让在跑的
 //! 会话有计划地停下再退出。起不来的，把原因写成那一行（`error …`）交给头。
 
-mod embed;
+pub mod embed;
 pub mod models;
 pub mod packages;
 mod sandbox;

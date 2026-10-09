@@ -21,7 +21,7 @@ const MODEL: &str = "model.toml";
 
 /// 照核心的环境 `env`、起来时读到的清单 `found` 拼好造 `Embedder` 要的：人格记忆没装、没推荐它、它没装（或者不是小程序）的
 /// 没有；推荐了、没装的记一行。
-pub(crate) fn setup(env: &Env, found: &[Found]) -> Option<EmbedSetup> {
+pub fn setup(env: &Env, found: &[Found]) -> Option<EmbedSetup> {
     let found: Vec<&Found> = found.iter().collect();
     match find(env, &found) {
         Ok(setup) => Some(setup),
@@ -35,7 +35,7 @@ pub(crate) fn setup(env: &Env, found: &[Found]) -> Option<EmbedSetup> {
 
 /// 拼不出的为什么。
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) enum Missing {
+pub enum Missing {
     /// 人格记忆没装，或者没推荐它。
     Wanted,
     /// 推荐了，它没装（或者不是小程序）。
@@ -43,7 +43,11 @@ pub(crate) enum Missing {
 }
 
 /// 同 [`setup`]，不记日志（施工 F-5 再补：装卸时照那时的清单拼）。
-pub(crate) fn find(env: &Env, found: &[&Found]) -> Result<EmbedSetup, Missing> {
+///
+/// # Errors
+///
+/// 拼不出的为什么：人格记忆没装、没推荐它（[`Missing::Wanted`]），推荐了、它没装（[`Missing::Package`]）。
+pub fn find(env: &Env, found: &[&Found]) -> Result<EmbedSetup, Missing> {
     let manifest = |id: &str| {
         found
             .iter()

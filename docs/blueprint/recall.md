@@ -188,7 +188,8 @@ R-5 三补做好的：
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-core/src/embed/tests.rs` | 第四条第 1 款：人格记忆装着、推荐了 `embed`、`embed` 是装着的小程序包的照它拼（程序在主程序旁边、模型清单和目录在包目录里）；没装 `embed`、人格记忆没装、没推荐、`embed` 不是小程序、写坏了的没有；程序不在的照拼、造的时候报用不了 |
+| `crates/miyu-core/src/embed/tests.rs` | 第四条第 1 款：人格记忆装着、推荐了 `embed`、`embed` 是装着的小程序包的照它拼（程序在主程序旁边、模型清单和目录在包目录里）；没装 `embed`、人格记忆没装、没推荐、`embed` 不是小程序、写坏了的没有；程序不在的照拼、造的时候报用不了；装卸时照清单拼的（`find`，施工 F-5 再补）和起来时一样、说得出缺的是哪一样 |
+| `crates/miyu-core/tests/embed_log.rs`（施工 F-5 再补，自己一个程序：装日志订阅者） | 「没装内置语义模型」那一行只有起来时（`setup`）记，装卸时（`find`）不记 |
 | `crates/miyu-core/tests/embed_package.rs` | 第四条第 1、2 款：仓库里的 `embed.toml` 读得成小程序包、程序是 `miyu-embed`；出厂的人格记忆推荐它、不依赖它；出厂的资源里没有它（出厂不装） |
 | `crates/miyu-endpoint/tests/config.rs`、`memory_meaning.rs` | 第四条第 1 款的设置页：没有本机的那一路的核心，`local` 带 `available: false`、没有暗字；接上的带暗字、不带 `available`；`off` 都不带 |
 
