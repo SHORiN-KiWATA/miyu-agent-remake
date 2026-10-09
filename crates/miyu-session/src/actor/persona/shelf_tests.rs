@@ -304,3 +304,41 @@ fn after_an_upgrade_only_a_changed_face_swaps() {
         "载入时对一次：光是升级不换"
     );
 }
+
+/// 装上、卸掉内置包（施工 F-5 中，设计 30 第九节）：卸掉的照旧留在工具面上（调到时报已卸载），装回来的包下一个回合进来。
+#[test]
+fn a_builtin_package_installed_or_removed_follows_the_rules() {
+    let (_scratch, _root, mut refresh) = setup("shelf-builtin", "");
+    refresh
+        .tools
+        .replace(|catalog| Ok::<_, miyu_tool::CatalogError>(catalog.removing("memory")))
+        .expect("拿得掉");
+    let before = names(&refresh.snapshot)
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>();
+    match look_now(&refresh) {
+        Seen::Same => {}
+        Seen::Swapped(snapshot, ..) => {
+            assert_eq!(names(&snapshot), before, "卸掉的照旧留着");
+        }
+        _ => panic!("该是照旧或者换上一样的"),
+    }
+    assert!(refresh.tools.gone("remember"), "记下随包卸掉了");
+    refresh.seen = Some(refresh.tools.edition());
+    refresh
+        .snapshot
+        .tools
+        .retain(|tool| tool.name != "remember");
+    let fake = |name: &str| -> Arc<dyn Tool> { Fake::new(name, Access::Read, Act::Echo) };
+    refresh
+        .tools
+        .replace(|catalog| catalog.placing("memory", vec![fake("remember")]))
+        .expect("装得上");
+    let snapshot = swap(&mut refresh);
+    assert_eq!(
+        names(&snapshot),
+        ["read", "remember", "shell"],
+        "新装上的包下一个回合进来"
+    );
+}

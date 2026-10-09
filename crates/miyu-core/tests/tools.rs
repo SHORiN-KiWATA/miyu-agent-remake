@@ -150,3 +150,21 @@ fn every_shipped_tool_belongs_to_a_feature() {
     assert_eq!(owner("send_message"), Some("peers"));
     assert_eq!(owner("remember"), Some("memory"));
 }
+
+/// 交给端点的内置包工具的端口（施工 F-5 中）：照清单交回的和起来时登记的一样，没装的包不在里面。
+#[test]
+fn the_builtin_port_gives_what_startup_registers() {
+    let resources = shipped_resources();
+    let port = miyu_core::builtin_tools(&resources);
+    let groups = port.tools(&installed(&resources, &[])).expect("拼得出");
+    let mut from_port: Vec<String> = groups
+        .iter()
+        .flat_map(|(_, tools)| tools.iter().map(|tool| tool.spec().name.clone()))
+        .collect();
+    from_port.sort();
+    assert_eq!(from_port, names(&installed(&resources, &[])));
+    let without = port
+        .tools(&installed(&resources, &["memory"]))
+        .expect("拼得出");
+    assert!(without.iter().all(|(id, _)| id != "memory"));
+}

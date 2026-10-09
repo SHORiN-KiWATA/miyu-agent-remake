@@ -263,6 +263,10 @@ pub struct ToolResultTexts {
     /// 工具执行时崩了（`crashed.txt`，施工 4-2）：执行器写。读不到的同上。
     #[serde(default)]
     pub crashed: String,
+    /// 快照里有、随包卸掉了的工具（`uninstalled.txt`，施工 F-5 中，设计 30 第九节）：执行器写。以前造的快照里没有，读成空的，
+    /// 照 `unavailable` 说。
+    #[serde(default)]
+    pub uninstalled: String,
 }
 
 impl Snapshot {

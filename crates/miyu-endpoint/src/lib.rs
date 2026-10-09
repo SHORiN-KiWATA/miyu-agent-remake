@@ -26,6 +26,7 @@
 
 mod appending;
 mod attach;
+pub mod builtins;
 mod check;
 mod commands;
 pub mod config;
@@ -169,6 +170,8 @@ pub struct Core {
     built_in: Option<Vec<&'static str>>,
     /// 装、卸一次只做一件（施工 F-5 上）。
     packaging: tokio::sync::Mutex<()>,
+    /// 内置包的工具从哪来（施工 F-5 中）：装卸以后照它换工具目录；没设的不换。
+    builtins: Option<Arc<dyn builtins::Builtins>>,
     /// 扩展进程（施工 9-4 上，`extensions.rs`）：核心拉起的 `process` 包。
     extensions: extensions::Extensions,
 }
@@ -260,6 +263,7 @@ impl Core {
             packages: std::sync::RwLock::new(Arc::new(found)),
             built_in: None,
             packaging: tokio::sync::Mutex::new(()),
+            builtins: None,
             extensions: extensions::Extensions::new(extensions::Timing::default()),
         }
     }
@@ -334,6 +338,13 @@ impl Core {
     #[must_use]
     pub fn with_built_in(mut self, built_in: Vec<&'static str>) -> Core {
         self.built_in = Some(built_in);
+        self
+    }
+
+    /// 同一份家底，内置包的工具照 `builtins` 要（施工 F-5 中）：装卸以后当场换进工具目录。
+    #[must_use]
+    pub fn with_builtins(mut self, builtins: Arc<dyn builtins::Builtins>) -> Core {
+        self.builtins = Some(builtins);
         self
     }
 

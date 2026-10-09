@@ -10,35 +10,22 @@
 use miyu_endpoint::queries::Queries;
 use miyu_kernel::id::AccountId;
 use miyu_store::blob::Blobs;
-use miyu_store::packages::Found;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
-/// 照编进来、又装了的包往一张新的查询表里登记，交给 [`miyu_endpoint::Core::with_queries`]。装没装照清单 `found`（施工
-/// F-2，设计 30 第二节第 3 条：没有清单的不登记）。`root`、`admin`：`net` 抓到的卡片的图存进这个账号的 blob（现在连上来
-/// 的都是管理员，`net.md`「起草时定的」第 9 条）。
-pub fn register(
-    resources: &ResourceRoot,
-    root: &DataRoot,
-    admin: &AccountId,
-    found: &[Found],
-) -> Queries {
-    let installed = |id| miyu_endpoint::packages::is_installed(found, id);
+/// 照编进来的包往一张新的查询表里登记，交给 [`miyu_endpoint::Core::with_queries`]。每一行记着属于哪个包：包这时没装的，
+/// 端点当没有这个方法（施工 F-5 中，设计 30 第九节：装卸当场生效，这里只登记一次）。`root`、`admin`：`net` 抓到的卡片的图
+/// 存进这个账号的 blob（现在连上来的都是管理员，`net.md`「起草时定的」第 9 条）。
+pub fn register(resources: &ResourceRoot, root: &DataRoot, admin: &AccountId) -> Queries {
     let queries = Queries::new();
     #[cfg(feature = "mermaid")]
-    let queries = match installed("mermaid") {
-        true => mermaid::register(resources, queries),
-        false => queries,
-    };
+    let queries = mermaid::register(resources, queries);
     #[cfg(feature = "net")]
-    let queries = match installed("net") {
-        true => net::register(resources, Blobs::new(root.blobs(admin)), queries),
-        false => queries,
-    };
+    let queries = net::register(resources, Blobs::new(root.blobs(admin)), queries);
     #[cfg(not(feature = "net"))]
     let _ = (root, admin);
     #[cfg(not(any(feature = "mermaid", feature = "net")))]
-    let _ = (resources, installed);
+    let _ = resources;
     queries
 }
 
@@ -84,10 +71,14 @@ mod mermaid {
     /// （`mermaid.md`「怎么走」第 1 条：读字体、`style.json` 都等第一次调）。
     pub(super) fn register(resources: &ResourceRoot, queries: Queries) -> Queries {
         let mermaid = Arc::new(Mermaid::new(resources.path()));
-        queries.register("mermaid.render", move |_core: Arc<Core>, params: Value| {
-            let mermaid = Arc::clone(&mermaid);
-            async move { render(&mermaid, params).await }
-        })
+        queries.register_for(
+            "mermaid",
+            "mermaid.render",
+            move |_core: Arc<Core>, params: Value| {
+                let mermaid = Arc::clone(&mermaid);
+                async move { render(&mermaid, params).await }
+            },
+        )
     }
 
     /// 真正办事：参数读不成是 `bad_params`；画图在阻塞线程里（`mermaid.md`「怎么走」第 5 条）。

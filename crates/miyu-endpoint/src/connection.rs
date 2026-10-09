@@ -218,6 +218,7 @@ async fn read_all<R: AsyncRead + Unpin>(
             continue;
         }
         if peer.is_some()
+            && core.serves(&request.method)
             && let Some(handler) = core.queries.background(&request.method)
         {
             background.spawn(answer_later(

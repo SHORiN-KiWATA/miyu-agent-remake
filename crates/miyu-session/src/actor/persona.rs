@@ -294,8 +294,9 @@ fn refaced(
 
 /// 目录换了代、预设没改（施工 O-2 中）：照旧快照的先后一件一件对现在的目录 `catalog`。提供者的照现在的登记，不再给这个会话
 /// 的拿掉；自带的照旧快照里的原样，不新加。目录里没有了的：上一次对过的那一代里是提供者的拿掉（扩展关掉了、不再登记它），
-/// 别的照旧留着、调到时暂时不可用（施工 4-2：程序升级拿掉的，载入的会话认不出来的）。新登记的提供者的工具加进来；快照照
-/// 名字排（`miyu_policy` 的工具面）。
+/// 别的照旧留着、调到时暂时不可用（施工 4-2：程序升级拿掉的，载入的会话认不出来的；施工 F-5 中：随包卸掉的，调到时报已卸载）。
+/// 新登记的提供者的工具加进来；新装上的内置包（上一次对过的那一代里这个包一件都没有，施工 F-5 中）的工具也加进来，照样过
+/// 预设；快照照名字排（`miyu_policy` 的工具面）。
 fn followed(
     refresh: &Refresh,
     values: &Values,
@@ -316,10 +317,19 @@ fn followed(
             None => face.push(kept.clone()),
         }
     }
+    // 新装上的内置包：它的包在上一次对过的那一代里一件工具都没有。包里多了一件的（程序升级那种）照旧等预设改了才进来。
+    let appeared = |name: &str| {
+        basis.is_some_and(|basis| {
+            catalog
+                .package_of(name)
+                .is_some_and(|package| !basis.packages().any(|owner| owner == package))
+        })
+    };
     let added: Vec<ToolEntry> = fresh
         .into_iter()
         .filter(|entry| {
-            catalog.provided(&entry.name) && !face.iter().any(|kept| kept.name == entry.name)
+            (catalog.provided(&entry.name) || appeared(&entry.name))
+                && !face.iter().any(|kept| kept.name == entry.name)
         })
         .collect();
     face.extend(added);

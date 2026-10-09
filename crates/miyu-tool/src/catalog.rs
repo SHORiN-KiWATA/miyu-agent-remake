@@ -22,6 +22,9 @@ pub struct Catalog {
     packages: BTreeMap<String, String>,
     /// 经提供者登记过的包（施工 O-2 中，[`Catalog::replacing`]）：回合开头换快照时，只有它们的工具照现在的登记换。
     provided: BTreeSet<String>,
+    /// 随包卸掉的工具（施工 F-5 中，[`Catalog::removing`]）：工具名到它原来的包。用过它的会话调到时报「已卸载」，不是
+    /// 「暂时不可用」。包装回来就不算了。
+    gone: BTreeMap<String, String>,
 }
 
 /// 基础系统的编号（`10-自带软件.md` 第三节）：只交一串工具的老写法，全算它。
@@ -95,6 +98,48 @@ impl Catalog {
             catalog.add(package, tool)?;
         }
         Ok(catalog)
+    }
+
+    /// 内置包 `package` 装上了（施工 F-5 中）：换上它的几件，不算经提供者登记的（会话照旧快照的原样留着它们）；以前随它卸掉
+    /// 的不再算卸掉。查法同 [`Catalog::new`]。
+    ///
+    /// # Errors
+    ///
+    /// 同 [`Catalog::new`]。
+    pub fn placing(
+        &self,
+        package: &str,
+        tools: Vec<Arc<dyn Tool>>,
+    ) -> Result<Catalog, CatalogError> {
+        let mut catalog = self.clone();
+        catalog.take_out(package);
+        catalog.gone.retain(|_, owner| owner != package);
+        for tool in tools {
+            catalog.add(package, tool)?;
+        }
+        Ok(catalog)
+    }
+
+    /// 内置包 `package` 卸掉了（施工 F-5 中）：拿掉它的几件，记下它们是随包卸掉的（[`Catalog::gone`]）。
+    #[must_use]
+    pub fn removing(&self, package: &str) -> Catalog {
+        let mut catalog = self.clone();
+        let names: Vec<String> = catalog
+            .packages
+            .iter()
+            .filter(|(_, owner)| *owner == package)
+            .map(|(name, _)| name.clone())
+            .collect();
+        catalog.take_out(package);
+        catalog
+            .gone
+            .extend(names.into_iter().map(|name| (name, package.to_string())));
+        catalog
+    }
+
+    /// 叫 `name` 的那一件是随包卸掉的（施工 F-5 中）。
+    pub fn gone(&self, name: &str) -> bool {
+        self.gone.contains_key(name)
     }
 
     /// 拿掉包 `package` 的工具和它们以前的名字。

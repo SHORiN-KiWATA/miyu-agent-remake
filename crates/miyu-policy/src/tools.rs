@@ -32,12 +32,13 @@ pub struct ToolEntry {
     pub access: Access,
 }
 
-/// 执行器替工具写给模型的两句（施工 4-2）：快照里有、核心的目录里没有的工具；工具执行时崩了。和内核
-/// 替工具写的那几句放在一处（`resources/core/tool-results/`），从快照里拿，和驱动的占位一样。
+/// 执行器替工具写给模型的几句（施工 4-2）：快照里有、核心的目录里没有的工具；随包卸掉了的工具（施工 F-5 中）；工具执行时
+/// 崩了。和内核替工具写的那几句放在一处（`resources/core/tool-results/`），从快照里拿，和驱动的占位一样。
 #[derive(Debug, Clone)]
 pub struct RunTexts {
     unavailable: Template,
     crashed: Template,
+    uninstalled: Template,
 }
 
 impl RunTexts {
@@ -46,6 +47,14 @@ impl RunTexts {
         Worded {
             text: render(&self.unavailable, name),
             said: Some(Said::new("core/tool-results/unavailable").with("name", name)),
+        }
+    }
+
+    /// 叫 `name` 的工具随包卸掉了（施工 F-5 中）。说法是 `core/tool-results/uninstalled`。
+    pub fn uninstalled(&self, name: &str) -> Worded {
+        Worded {
+            text: render(&self.uninstalled, name),
+            said: Some(Said::new("core/tool-results/uninstalled").with("name", name)),
         }
     }
 
@@ -59,7 +68,7 @@ impl RunTexts {
 }
 
 impl Snapshot {
-    /// 执行器替工具写的两句。
+    /// 执行器替工具写的几句。
     ///
     /// # Errors
     ///
@@ -70,6 +79,11 @@ impl Snapshot {
             Ok(RunTexts {
                 unavailable: parse(&results.unavailable)?,
                 crashed: parse(&results.crashed)?,
+                // 以前造的快照没有这一句：照「现在用不了」说。
+                uninstalled: parse(match results.uninstalled.is_empty() {
+                    true => &results.unavailable,
+                    false => &results.uninstalled,
+                })?,
             })
         };
         texts().map_err(|error| BuildError::Texts {

@@ -391,7 +391,7 @@ pub(crate) async fn call(
             core.sessions.delete(core, &session).await?;
             Ok(json!({}))
         }
-        other => match core.queries.get(other) {
+        other => match core.queries.get(other).filter(|_| core.serves(other)) {
             // 可选软件包登记的查询（施工 W-4，`queries.rs`）：没登记的方法，这张表之外当没有这个方法。
             Some(handler) => handler(Arc::clone(core), request.params.clone())
                 .await

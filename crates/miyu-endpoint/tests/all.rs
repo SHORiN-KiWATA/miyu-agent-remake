@@ -62,6 +62,7 @@ mod package_check;
 mod package_settings;
 mod packages;
 mod packages_install;
+mod packages_live;
 mod peers;
 mod permission;
 mod persona_set;

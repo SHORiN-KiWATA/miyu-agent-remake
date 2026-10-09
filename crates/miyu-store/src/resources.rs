@@ -266,6 +266,7 @@ impl ResourceRoot {
                 restarted: result("restarted.txt")?,
                 unavailable: result("unavailable.txt")?,
                 crashed: result("crashed.txt")?,
+                uninstalled: result("uninstalled.txt")?,
             },
             permissions: PermissionTexts {
                 forbidden: core(&["permissions", "forbidden.txt"])?,

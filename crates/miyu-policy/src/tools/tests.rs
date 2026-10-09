@@ -167,3 +167,25 @@ fn strip(text: &str, field: &str) -> String {
     }
     format!("{}{}", &text[..start], &text[end + 1..])
 }
+
+/// 随包卸掉了的说「已卸载」（施工 F-5 中）；以前造的快照没有这一句，照「现在用不了」说。
+#[test]
+fn an_uninstalled_tool_is_named_and_old_snapshots_fall_back() {
+    let texts = engineer().run_texts().unwrap();
+    assert_eq!(
+        texts.uninstalled("read").text,
+        "The tool \"read\" was uninstalled.\n"
+    );
+    assert_eq!(
+        texts.uninstalled("read").said,
+        Some(Said::new("core/tool-results/uninstalled").with("name", "read"))
+    );
+    let text = String::from_utf8(engineer().to_bytes()).unwrap();
+    let old = strip(&text, "uninstalled");
+    let back = Snapshot::from_bytes(old.as_bytes()).unwrap();
+    assert_eq!(back.core.tool_results.uninstalled, "");
+    assert_eq!(
+        back.run_texts().unwrap().uninstalled("read").text,
+        "The tool \"read\" is not available right now.\n"
+    );
+}

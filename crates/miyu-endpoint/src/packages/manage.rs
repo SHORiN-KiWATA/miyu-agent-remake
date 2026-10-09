@@ -43,10 +43,60 @@ impl Core {
         }
         let items = self.config().items().to_vec();
         let _ = settle(&mut found, &items);
+        self.rebuild_builtins(&found);
         *self
             .packages
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = std::sync::Arc::new(found);
+    }
+
+    /// 照清单 `found` 换内置包的工具（施工 F-5 中）：新装上的换进去，卸掉的拿掉、记下随包卸掉了（用过它的会话调到时报「已
+    /// 卸载」）。没设端口、不知道编进来了哪些的不动。换不成的记一行、照旧。
+    fn rebuild_builtins(&self, found: &[Found]) {
+        let (Some(builtins), Some(built_in)) = (&self.builtins, &self.built_in) else {
+            return;
+        };
+        let groups = match builtins.tools(found) {
+            Ok(groups) => groups,
+            Err(error) => {
+                tracing::warn!(target: TARGET, error = error.as_str(), "builtin tools not rebuilt");
+                return;
+            }
+        };
+        let current = self.tools.current();
+        let moving = built_in.iter().any(|package| {
+            let has = current.packages().any(|owner| owner == *package);
+            let wanted = groups.iter().any(|(id, _)| id == package);
+            has != wanted
+        });
+        if !moving {
+            return;
+        }
+        let changed = self.tools.replace(|catalog| {
+            let mut next = catalog.clone();
+            for package in built_in {
+                let has = catalog.packages().any(|owner| owner == *package);
+                let wanted = groups.iter().find(|(id, _)| id == package);
+                next = match (wanted, has) {
+                    (Some((_, tools)), false) => next.placing(package, tools.clone())?,
+                    (None, true) => next.removing(package),
+                    _ => next,
+                };
+            }
+            Ok::<_, miyu_tool::CatalogError>(next)
+        });
+        if let Err(error) = changed {
+            tracing::warn!(target: TARGET, error = %error, "builtin tools not rebuilt");
+        }
+    }
+}
+
+impl Core {
+    /// 登记的查询 `method` 这时答不答（施工 F-5 中）：属于哪个软件包的，那个包这时装着才答；不属于哪个包的照答。
+    pub(crate) fn serves(&self, method: &str) -> bool {
+        self.queries
+            .package_of(method)
+            .is_none_or(|package| super::is_installed(&self.packages(), package))
     }
 }
 

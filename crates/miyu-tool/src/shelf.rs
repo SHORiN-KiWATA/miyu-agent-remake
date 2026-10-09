@@ -59,6 +59,16 @@ impl Shelf {
             .cloned()
     }
 
+    /// 叫 `name` 的那一件是随包卸掉的（施工 F-5 中，[`Catalog::gone`]）。
+    #[must_use]
+    pub fn gone(&self, name: &str) -> bool {
+        self.inner
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .catalog
+            .gone(name)
+    }
+
     /// 照现在的目录换一份：`change` 交回新的就换上、算一代，交回第几代；交回错误的不动。两处同时换的一个接一个，
     /// 后换的照先换的结果改。
     ///

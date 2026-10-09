@@ -160,6 +160,19 @@ const ROLEPLAY: &str = "roleplay";
 ///
 /// 哪一份字读不出来、写法不对；登记时查不过（重名、名字或参数格式不合写法）。
 pub fn tools(resources: &ResourceRoot, found: &[Found]) -> Result<Catalog, String> {
+    // 照软件包登记（施工 P-2 中）：预设照包开关。
+    Catalog::in_packages(groups(resources, found)?).map_err(|error| error.to_string())
+}
+
+/// 一个编进来的内置包的工具：包的编号和它的几件。
+type Builtin = (&'static str, Vec<Arc<dyn miyu_tool::Tool>>);
+
+/// 装了的内置包的工具：包的编号和它的几件（施工 F-5 中从 [`tools`] 拆出来：装卸以后端点经 [`BuiltinTools`] 重新要）。
+///
+/// # Errors
+///
+/// 同 [`tools`]：哪一份字读不出来、写法不对。
+fn groups(resources: &ResourceRoot, found: &[Found]) -> Result<Vec<Builtin>, String> {
     let installed = |id| miyu_endpoint::packages::is_installed(found, id);
     let mut groups = Vec::new();
     if installed(miyu_tool::BASESYSTEM) {
@@ -172,8 +185,28 @@ pub fn tools(resources: &ResourceRoot, found: &[Found]) -> Result<Catalog, Strin
         let memory = miyu_memory::tools(resources.path()).map_err(|error| error.to_string())?;
         groups.push((miyu_memory::PACKAGE, memory));
     }
-    // 照软件包登记（施工 P-2 中）：预设照包开关。
-    Catalog::in_packages(groups).map_err(|error| error.to_string())
+    Ok(groups)
+}
+
+/// 交给端点的内置包工具的端口（施工 F-5 中，`miyu_endpoint::builtins`）：装卸以后照清单重新登记，工具的字从 `resources` 读。
+pub fn builtin_tools(resources: &ResourceRoot) -> Arc<dyn miyu_endpoint::builtins::Builtins> {
+    Arc::new(BuiltinTools {
+        resources: resources.clone(),
+    })
+}
+
+/// [`builtin_tools`] 那一个。
+struct BuiltinTools {
+    resources: ResourceRoot,
+}
+
+impl miyu_endpoint::builtins::Builtins for BuiltinTools {
+    fn tools(&self, found: &[Found]) -> Result<Vec<miyu_endpoint::builtins::Group>, String> {
+        Ok(groups(&self.resources, found)?
+            .into_iter()
+            .map(|(id, tools)| (id.to_string(), tools))
+            .collect())
+    }
 }
 
 /// 读两层清单（施工 9-1 上），再标出这一份核心没编进来的内置包（施工 F-2）。必需的基础系统没装，记一行 `WARN`，照样起来。
@@ -228,7 +261,8 @@ async fn run(
     };
     let trashed = root.clone();
     let (generated, words) = (root.clone(), resources.clone());
-    let queries = packages::register(&resources, &root, &admin(), &live.found);
+    let queries = packages::register(&resources, &root, &admin());
+    let builtins = builtin_tools(&resources);
     packages::clear_uploads(&root, &admin());
     let mut core = Core::new(
         root,
@@ -243,6 +277,7 @@ async fn run(
     .with_config(config)
     .with_packages(live.found)
     .with_built_in(built_in())
+    .with_builtins(builtins)
     .with_model_data(Arc::clone(&model_data))
     .with_queries(queries);
     if let Some((cache, cargo_home)) = sandbox_cache {

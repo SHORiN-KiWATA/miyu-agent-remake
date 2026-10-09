@@ -47,20 +47,17 @@ async fn running_core(
     (running, head)
 }
 
-/// 出厂的那一层清单（施工 F-2：查询照装了的内置包登记）。
-fn shipped() -> Vec<miyu_store::packages::Found> {
-    miyu_store::packages::Packages::shipped(&resources()).read()
-}
-
-/// 没装画 mermaid、联网这两个包（没有它们的清单），编进来了也不登记 `mermaid.render`、`link.preview`（施工 F-2，设计 30
-/// 第二节第 3 条）。
+/// 卸掉了画 mermaid、联网这两个出厂的包（家目录记了一笔，施工 F-5 上），编进来了、登记了也当没有 `mermaid.render`、
+/// `link.preview`（施工 F-2、F-5 中，设计 30 第二节第 3 条）。
 #[tokio::test]
-async fn a_query_of_a_package_without_its_manifest_is_unknown_method() {
+async fn a_query_of_a_package_not_installed_is_unknown_method() {
     let home = Home::new();
-    let mut found = shipped();
-    found.retain(|one| one.id != "mermaid" && one.id != "net");
-    let queries =
-        miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin(), &found);
+    let mine = home.root.account_dir(&miyu_core::admin()).join("packages");
+    std::fs::create_dir_all(&mine).expect("建得了");
+    for removed in ["mermaid.removed", "net.removed"] {
+        std::fs::write(mine.join(removed), "").expect("写得进");
+    }
+    let queries = miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin());
     let (running, mut head) = running_core(&home, queries).await;
     let reply = head
         .call(
@@ -107,8 +104,7 @@ async fn an_unregistered_method_is_unknown_method() {
 #[tokio::test]
 async fn link_preview_is_registered_and_answers_without_the_network() {
     let home = Home::new();
-    let queries =
-        miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin(), &shipped());
+    let queries = miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin());
     let (running, mut head) = running_core(&home, queries).await;
     for (url, why) in [
         ("not a url", "not_a_url"),
@@ -193,8 +189,7 @@ async fn a_background_query_stops_when_its_connection_goes() {
 #[tokio::test]
 async fn the_real_core_draws_a_flowchart_and_a_sequence_diagram() {
     let home = Home::new();
-    let queries =
-        miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin(), &shipped());
+    let queries = miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin());
     let (running, mut head) = running_core(&home, queries).await;
     for (name, source) in [
         (
@@ -230,8 +225,7 @@ async fn the_real_core_draws_a_flowchart_and_a_sequence_diagram() {
 #[tokio::test]
 async fn an_empty_source_is_bad_params() {
     let home = Home::new();
-    let queries =
-        miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin(), &shipped());
+    let queries = miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin());
     let (running, mut head) = running_core(&home, queries).await;
     let reply = head
         .call("q1", "mermaid.render", json!({"source": "   "}))
@@ -244,8 +238,7 @@ async fn an_empty_source_is_bad_params() {
 #[tokio::test]
 async fn a_source_over_the_limit_is_mermaid_too_long() {
     let home = Home::new();
-    let queries =
-        miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin(), &shipped());
+    let queries = miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin());
     let (running, mut head) = running_core(&home, queries).await;
     // 真的 style.json 里 max_source 是 65536（64 KiB）。
     let source = "x".repeat(65537);
@@ -260,8 +253,7 @@ async fn a_source_over_the_limit_is_mermaid_too_long() {
 #[tokio::test]
 async fn an_unparseable_source_is_mermaid_failed_with_the_library_detail() {
     let home = Home::new();
-    let queries =
-        miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin(), &shipped());
+    let queries = miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin());
     let (running, mut head) = running_core(&home, queries).await;
     let reply = head
         .call(
@@ -282,8 +274,7 @@ async fn an_unparseable_source_is_mermaid_failed_with_the_library_detail() {
 #[tokio::test]
 async fn the_same_source_twice_gets_the_same_svg() {
     let home = Home::new();
-    let queries =
-        miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin(), &shipped());
+    let queries = miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin());
     let (running, mut head) = running_core(&home, queries).await;
     let params = json!({"source": "flowchart TD\nA-->B"});
     let first = head.call("q1", "mermaid.render", params.clone()).await;

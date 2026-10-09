@@ -588,6 +588,17 @@ The call was cancelled: Miyu restarted before it finished. It may have been part
 The tool "{name}" is not available right now.
 ```
 
+#### `core/tool-results/uninstalled.txt`
+
+- 什么时候加进来：快照里有、随包卸掉了的工具：她照样调了（施工 F-5 中）
+- token：11（2026-10-09 主会话在官方 `deepseek-flash` 上量：接在 `hi` 和一个换行后面；`unavailable` 那一句同样量是 12）
+- 为什么加：每次调用都要有结果；告诉她这件随包卸掉了，不是坏了（设计 30 第九节，项目主人定「调用报已卸载」）
+- 指纹：`7047a69b`
+
+```text
+The tool "{name}" was uninstalled.
+```
+
 #### `core/tool-results/crashed.txt`
 
 - 什么时候加进来：工具执行时崩了（它的 bug）

@@ -320,7 +320,11 @@ impl Tools {
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name) else {
             tracing::warn!(target: TARGET, call = call_text.as_str(), tool = name.as_str(), "unavailable");
-            let worded = self.lettering.run().unavailable(&name);
+            // 随包卸掉了的说「已卸载」（施工 F-5 中，设计 30 第九节）。
+            let worded = match self.catalog.gone(&name) {
+                true => self.lettering.run().uninstalled(&name),
+                false => self.lettering.run().unavailable(&name),
+            };
             return Some(Input::ToolDone {
                 at,
                 call_id,

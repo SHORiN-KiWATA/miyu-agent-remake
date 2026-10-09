@@ -76,7 +76,7 @@
 1. **读回应**：读进来的一行有 `result` 或 `error`、没有 `method` 的，是回应：照 `id` 找到核心发出去的那一条，交给等它的；找不到的不理。
 2. **发反向调用**：每个连接一张「发出去还没回」的表；编号照连接从 `core-1` 数起。连接断了，表里在等的都了结成「连接断了」，往这个连接写的那一头也放掉：提供者表里存着这个连接，它要是还攥着写的那一头，写的任务就一直不结束，核心察觉不到扩展退出，崩了不重新拉起、端口被占退出了还显示在跑（施工 O-2 再补，通讯平台的会话 O-26 查出来的）。
 3. **执行提供者的工具**：执行器照目录找到这件（`RemoteTool`）；它照包查提供者表：没有连接的，交回「暂时不可用」（`core/tool-results/unavailable.txt`）；有的，发 `tool.call`、等回应、到点算超时，超时和叫停时发 `tool.cancel`（施工 O-2 下）。不等了的调用从「发出去还没回」的表里拿掉。
-4. **目录换代**：核心的目录放在架子上（`Shelf`），`provide`、读缓存、关扩展各换一代，两处同时换的一个接一个；以后造的会话、载入的会话照新的，开着的会话下一个回合照上面「包的工具变了」换上；执行、判权限照现在的那一份找工具。
+4. **目录换代**：核心的目录放在架子上（`Shelf`），`provide`、读缓存、关扩展、装卸内置包（施工 F-5 中）各换一代，两处同时换的一个接一个；以后造的会话、载入的会话照新的，开着的会话下一个回合照上面「包的工具变了」换上；执行、判权限照现在的那一份找工具。
 
 ### 出错
 
@@ -100,7 +100,7 @@
 | `crates/miyu-kernel/src/session/tests/respond/asking.rs`、`origin/tests.rs` 的 `the_owner_is_a_person_or_someone_on_the_owner_table` | 是谁要的：开回合的触发、照记下的几条开的最后一条、并进来的和排着队的被请求看到以后换上，回报不换、别的 harness 换；主人的判法 |
 | `crates/miyu-endpoint/src/provide/tests/remote_tests.rs`、`reverse/tests.rs` | `tool.call` 带 `by`、`owner`；超时交回那一句、发 `tool.cancel`；叫它停发、照样等它回；掐掉发；回应先到的不发；不等了的调用从表里拿掉，通知不带编号、断了不发 |
 | `crates/miyu-tool/src/shelf/tests.rs`、`catalog/tests.rs` 的 `the_catalog_knows_which_tools_came_from_a_provider` | 架子换一次是一代、拿着同一个的都看到，换不成的不动；目录记着提供者的包的工具 |
-| `crates/miyu-session/src/actor/persona/shelf_tests.rs` | 目录换代：提供者的工具加上、改掉、去掉；自带的照旧、不新加、改过名的照旧名字，目录里没有了的照旧留着；只给群的不动本机的会话；载入的对一次；找不回预设的不跟 |
+| `crates/miyu-session/src/actor/persona/shelf_tests.rs` | 目录换代：提供者的工具加上、改掉、去掉；自带的照旧、不新加（包里多了一件的）、改过名的照旧名字，目录里没有了的照旧留着；新装上的内置包的工具加进来、卸掉的照旧留着（施工 F-5 中）；只给群的不动本机的会话；载入的对一次；找不回预设的不跟 |
 | `crates/miyu-endpoint/tests/provide_later.rs` | 契约：先造的会话下一个回合有扩展的工具、调得通、记 `session.policy_changed`，缓存照登记的原样；关掉以后下一个回合拿掉；重启以后扩展没登记，照缓存在目录里，载入的第一个回合对上、调到的暂时不可用，新造的带上；关着的包不读缓存 |
 
 ### 还没有的
