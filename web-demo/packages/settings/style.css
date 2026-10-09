@@ -311,3 +311,8 @@
 .set-ext-ask li b { font-weight: 600; white-space: nowrap; }
 .set-ext-ask li span { color: var(--text-soft); }
 .set-ext-ask .set-form-buttons { margin-top: 10px; }
+
+/* 「按意思找记忆」（embedding.js）：顶上核心的说明；「指定模型」小标题；手写那一行框撑满 */
+.set-embed-desc { margin: 12px 0 12px; }
+.set-pick.set-manual { cursor: default; }
+.set-pick.set-manual .set-input { flex: 1; min-width: 0; margin-left: 6px; }

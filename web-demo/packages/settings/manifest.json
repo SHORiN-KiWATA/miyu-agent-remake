@@ -196,7 +196,13 @@
           "providers": "供应商和模型",
           "chat": "默认文本模型",
           "vision": "默认视觉模型",
+          "embedding": "按意思找记忆",
           "pools": "模型池"
+        },
+        "embedding": {
+          "pick": "指定模型",
+          "manual_hint": "供应商/模型",
+          "manual_use": "用这个"
         },
         "add_provider": "添加供应商",
         "address": "地址",
@@ -340,7 +346,13 @@
           "providers": "プロバイダーとモデル",
           "chat": "既定のテキストモデル",
           "vision": "既定のビジョンモデル",
+          "embedding": "意味で記憶を探す",
           "pools": "モデルプール"
+        },
+        "embedding": {
+          "pick": "モデルを指定",
+          "manual_hint": "プロバイダー/モデル",
+          "manual_use": "これを使う"
         },
         "add_provider": "プロバイダーを追加",
         "address": "アドレス",

@@ -9,22 +9,28 @@ import { coreRow, textField } from './rows.js';
 import { itemFor, plainItem, shortCount, inputText, duplicates, layerFor, writtenIn, expectFor, providerName, filterModels } from './model.js';
 import { providerForm, openForm } from './provider-form.js';
 import { drawPools } from './pools.js';
+import { drawEmbedding } from './embedding.js';
 
-const TABS = ['providers', 'chat', 'vision', 'pools'];
+const TABS = ['providers', 'chat', 'vision', 'embedding', 'pools'];
 
 /** 这一页。 */
 export function drawModels(dialog) {
   const ctx = dialog.ctx;
   dialog.modelTab ??= 'providers';
-  const tabs = h('div.set-tabs', { role: 'tablist' }, TABS.map((id) => h(`button.set-tabbar${dialog.modelTab === id ? '.is-on' : ''}`, {
+  // 「按意思找记忆」照核心给的名字（`models.embedding` 的 `name`），旧核心没有这一项的不出这个标签
+  const embed = plainItem(dialog.schema, dialog.got, 'models.embedding');
+  const shownTabs = TABS.filter((id) => id !== 'embedding' || embed);
+  if (!shownTabs.includes(dialog.modelTab)) dialog.modelTab = 'providers';
+  const tabs = h('div.set-tabs', { role: 'tablist' }, shownTabs.map((id) => h(`button.set-tabbar${dialog.modelTab === id ? '.is-on' : ''}`, {
     type: 'button',
     role: 'tab',
     onclick: () => { dialog.modelTab = id; dialog.modelDetail = null; dialog.providerForm = null; dialog.drawBody(); },
-  }, ctx.text(`models.tabs.${id}`))));
+  }, id === 'embedding' ? embed?.name ?? ctx.text('models.tabs.embedding') : ctx.text(`models.tabs.${id}`))));
   const list = dialog.models;
   if (!list) return [tabs, dialog.modelsLoading ? loadingRow(ctx) : h('p.set-empty.is-bad', ctx.text('load_failed', { reason: 'model.list' }))];
   if (dialog.modelTab === 'providers') return [tabs, dialog.providerForm ? providerForm(dialog, list.providers ?? []) : providers(dialog, list)];
   if (dialog.modelTab === 'pools') return [tabs, drawPools(dialog, list)];
+  if (dialog.modelTab === 'embedding') return [tabs, drawEmbedding(dialog)];
   return [tabs, defaults(dialog, list, dialog.modelTab)];
 }
 
