@@ -151,6 +151,7 @@ fn an_undo_that_reads_back_the_log_stops_them_too() {
     let undo = s.revert(TurnId::new(seq(3)));
     assert!(!s.read_backs().is_empty(), "撤到了压缩以前，先读回");
     let stop = crate::session::Action::StopJobs {
+        undone: true,
         jobs: vec![JobId::new(1).unwrap(), JobId::new(2).unwrap()],
         by: alice(),
         cause: undo,

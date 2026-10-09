@@ -393,6 +393,7 @@ impl Snapshot {
             reports: self.reports()?,
             titles: self.titles(),
             peers: self.peers(),
+            foreground: self.foreground,
         })
     }
 

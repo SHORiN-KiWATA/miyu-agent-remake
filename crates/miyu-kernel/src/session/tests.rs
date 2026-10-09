@@ -199,6 +199,7 @@ fn policy() -> Policy {
         parameters: serde_json::from_str(parameters).unwrap(),
     };
     Policy {
+        foreground: false,
         assembler: Box::new(Listing),
         facts: FactTemplates::new(
             r#"<e t="{time}" z="{timezone}" d="{cwd}"/>"#,

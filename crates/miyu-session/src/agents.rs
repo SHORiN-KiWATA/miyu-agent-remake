@@ -120,7 +120,7 @@ impl Agents {
     /// 这个参数）；`persona` 照 `offers` 填上这台机器上有的人格（施工 P-2 补）。`ask_user` 只给能问人的会话（[`Agents::asks`]，施工 D-2）。`todowrite` 只给本机的会话（施工 D-3）：群里没人
     /// 看她的清单。有预设的照它筛（施工 P-2 中；施工 F-3 上起照功能）：工具归的功能没开的、单件关掉的不给
     /// （[`PresetFile::keeps`]）；归哪个功能照预设旁边交来的装了的功能认，认不出的照它的包；目录里没记包的当基础系统。
-    /// 后台运行关着的（[`Agents::foreground`]，施工 T-1 上）`shell` 拿掉放到后台那一项。
+    /// 后台运行关着的（[`Agents::foreground`]，施工 T-1 上）`shell` 拿掉放到后台那一项，`subagent` 换前台的说明（施工 T-1 下）。
     pub(crate) fn face(
         tools: &Catalog,
         site: Site<'_>,
@@ -188,6 +188,14 @@ impl Agents {
                 }
                 if foreground && spec.name == SHELL {
                     entry.without(RUN_IN_BACKGROUND);
+                }
+                // 在后台跑的工具换前台的说法（施工 T-1 下）：`subagent` 派出去等它报回来。
+                if let Some(said) = foreground
+                    .then(|| tools.get(&spec.name))
+                    .flatten()
+                    .and_then(|tool| tool.foreground_description())
+                {
+                    entry.description = said.to_string();
                 }
                 entry
             })

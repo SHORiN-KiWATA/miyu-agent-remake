@@ -10,6 +10,7 @@ mod commands;
 mod compaction;
 mod done;
 mod flood;
+mod foreground;
 mod harness;
 mod isolate;
 mod manual;

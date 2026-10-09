@@ -2841,6 +2841,17 @@ Placeholder for a tool this client is expected to send with the request; it is n
 }
 ```
 
+#### `software/basesystem/agent/foreground.txt`
+
+- 什么时候加进来：后台运行关着的会话（预设关了 `basesystem` 的 `background`）里 `subagent` 的说明换成它，参数照旧（每次请求都带）
+- token：59（2026-10-09 主会话在官方 `deepseek-flash` 上量：接在 `hi` 和一个换行后面；后台的那一句同样量是 57，多 2）
+- 为什么加：后台运行关着时子代理改前台跑，派它的那一步等它报回来（设计 30 第三节第 7 条，项目主人 2026-10-09 定；施工 T-1 下）：后台那一句说「在后台做、做完回报送来」，留着就是假话，她会以为能接着干别的。改成「派出去等它，报告在你下一步之前送到」，后半句照旧
+- 指纹：`0c7021ad`
+
+```text
+Start a subagent in a new session to do one task and wait for it; its report arrives as a message before your next step. It sees nothing of this conversation, so the prompt must stand on its own: background, what is already known, the goal and what to report.
+```
+
 #### `software/basesystem/tools/jobs.json`
 
 - 什么时候加进来：会话的工具面里有 `jobs`（每次请求都带）

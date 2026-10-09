@@ -280,6 +280,7 @@ fn background(call: &Call, held: &Arc<Held>) -> Done {
     };
     match port.start(held.background()) {
         Ok(job) => Done::ok(format!("started {job}")).effect(Effect::JobStarted(JobStarted {
+            foreground: false,
             job,
             what: JobKind::Command,
             title: "fake".to_string(),

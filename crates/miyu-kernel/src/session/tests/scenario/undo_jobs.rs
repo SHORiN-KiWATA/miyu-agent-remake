@@ -19,6 +19,7 @@ fn job(n: u64) -> JobId {
 /// 撤销 `undo` 交出的停任务：停 `jobs`，`by` 是 alice。
 fn stop(jobs: &[u64], undo: &CommandId) -> Action {
     Action::StopJobs {
+        undone: true,
         jobs: jobs.iter().map(|&n| job(n)).collect(),
         by: alice(),
         cause: undo.clone(),
@@ -139,6 +140,7 @@ fn stopping_comes_before_restoring_files() {
                 after: ContentHash::of(b"B"),
             }),
             Effect::JobStarted(JobStarted {
+                foreground: false,
                 job: job(1),
                 what: JobKind::Command,
                 title: "跑测试".to_string(),

@@ -281,6 +281,7 @@ async fn the_child_copies_the_parent_and_gets_the_task_from_it() {
     assert_eq!(
         result.effects,
         [Effect::JobStarted(JobStarted {
+            foreground: false,
             job: JobId::new(1).unwrap(),
             what: JobKind::Agent,
             title: "查导出".to_string(),

@@ -118,10 +118,21 @@ impl Actor {
         })
     }
 
-    /// 撤销停掉那几轮派出去、还在跑的（施工 7-8，动作 `StopJobs`）：后台命令当场在阻塞线程里整组杀掉、存好输出，回报
-    /// （`undone`，`by`、`cause` 是撤销的人和命令）经收件箱交回，排在这一批后面：撤销的回应不等它落盘，可回应之前命令已经
-    /// 杀了。子代理另起一个任务经会话表停，连它派的一起停，回报由子会话交来。已经结束了的（正好自己退出了、已经报过）不要紧。
-    pub(super) async fn undo_jobs(&mut self, jobs: Vec<JobId>, by: By, cause: CommandId) {
+    /// 停掉内核交来的几个（动作 `StopJobs`）：撤销停掉那几轮派出去、还在跑的（施工 7-8，`undone`），打断时停这一步在等的
+    /// 前台子代理（施工 T-1 下，`stopped`，人停的）。后台命令当场在阻塞线程里整组杀掉、存好输出，回报（`by`、`cause` 是撤销、
+    /// 打断的人和命令）经收件箱交回，排在这一批后面：回应不等它落盘，可回应之前命令已经杀了。子代理另起一个任务经会话表停，
+    /// 连它派的一起停，回报由子会话交来。已经结束了的（正好自己退出了、已经报过）不要紧。
+    pub(super) async fn stop_jobs(
+        &mut self,
+        jobs: Vec<JobId>,
+        by: By,
+        cause: CommandId,
+        undone: bool,
+    ) {
+        let why = match undone {
+            true => Why::Undone,
+            false => Why::Stopped { by_model: false },
+        };
         let mut agents = Vec::new();
         for job in jobs {
             match self.jobs.target(&job) {
@@ -129,15 +140,13 @@ impl Actor {
                     let who = Who {
                         by: by.clone(),
                         cause: Some(cause.clone()),
-                        why: Why::Undone,
+                        why,
                     };
                     if let Some(ended) = self.jobs.stop_command(job, who).await {
                         answer_back(&self.backs, Back::Job(ended));
                     }
                 }
-                Ok(Target::Agent(child)) => {
-                    agents.push(self.jobs.stop_agent(job, child, Why::Undone))
-                }
+                Ok(Target::Agent(child)) => agents.push(self.jobs.stop_agent(job, child, why)),
                 Err(_) => {}
             }
         }

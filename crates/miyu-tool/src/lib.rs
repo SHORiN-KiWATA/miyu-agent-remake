@@ -125,4 +125,10 @@ pub trait Tool: Send + Sync {
     fn formerly(&self) -> &'static [&'static str] {
         &[]
     }
+
+    /// 后台运行关着的会话里用的说明（施工 T-1 下）：在后台跑的工具换一种说法，`subagent` 有（派出去等它报回来）。别的没有，
+    /// 照规格的。
+    fn foreground_description(&self) -> Option<&str> {
+        None
+    }
 }

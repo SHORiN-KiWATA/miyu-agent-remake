@@ -71,6 +71,7 @@ pub fn policy() -> Policy {
         parameters: serde_json::from_str(r#"{"type":"object"}"#).expect("参数格式是 JSON"),
     };
     Policy {
+        foreground: false,
         assembler: Box::new(Nothing),
         facts: FactTemplates::new(
             r#"<e t="{time}"/>"#,
