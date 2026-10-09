@@ -413,6 +413,16 @@ impl ResourceRoot {
         self.read(&["core", "drivers", "placeholder-tool.txt"])
     }
 
+    /// 提供者的工具没在时限里答完（施工 O-2 下，`providers.md`「超时」）：`core/tool-results/timed-out.txt` 的原文，字段 `name`、
+    /// `seconds`。不进快照的核心字：进了以后，以前造的会话「核心的字变了」，换不了快照。
+    ///
+    /// # Errors
+    ///
+    /// 读不出来：写明是哪个文件。
+    pub fn tool_timed_out(&self) -> Result<String, SourceError> {
+        self.read(&["core", "tool-results", "timed-out.txt"])
+    }
+
     /// 读资源目录下的一份文件，路径一段一段地接上（三个平台一样）。
     fn read(&self, parts: &[&str]) -> Result<String, SourceError> {
         let path = parts

@@ -1,4 +1,5 @@
 //! `provide` 的几条（施工 O-2 上）：访问类别、给哪种会话照写法查，不认识的、空的拒；提供者表照包记，连接断了只拿掉它自己的。
+//! 时限照写法查（施工 O-2 下）；提供者的工具带上是谁要的，超时、叫它停、掐掉发 `tool.cancel`，回应先到的不发（`remote_tests.rs`）。
 
 use serde_json::json;
 use tokio::sync::mpsc;
@@ -23,7 +24,8 @@ fn refused_for(params: ToolParams) -> Value {
 
 #[test]
 fn access_and_venues_are_checked() {
-    let (spec, venues) = checked(tool("outbound", json!(["local", "group"]))).expect("合写法");
+    let Checked { spec, venues, .. } =
+        checked(tool("outbound", json!(["local", "group"]))).expect("合写法");
     assert_eq!(spec.access, Access::Outbound);
     assert_eq!(
         venues,
@@ -66,13 +68,11 @@ async fn the_table_follows_the_package_and_a_new_registration_replaces_the_old()
 #[tokio::test]
 async fn without_a_live_connection_a_provided_tool_is_unavailable() {
     let provided = Arc::new(Provided::default());
-    let (spec, venues) = checked(tool("read", json!(["local"]))).expect("合写法");
     let remote = RemoteTool::new(
-        spec,
-        venues,
+        checked(tool("read", json!(["local"]))).expect("合写法"),
         "onebot",
         Arc::clone(&provided),
-        "The tool \"{name}\" is not available right now.\n".to_string(),
+        texts(),
     );
     let unavailable = |done: miyu_tool::Done| {
         assert!(done.error);
@@ -98,3 +98,33 @@ async fn without_a_live_connection_a_provided_tool_is_unavailable() {
     provided.register("onebot", Peer::new(out));
     unavailable(remote.run(miyu_tool::testkit::call("{}"), progress()).await);
 }
+
+/// 两句的模板，照资源里的写。
+fn texts() -> Texts {
+    Texts {
+        unavailable: "The tool \"{name}\" is not available right now.\n".to_string(),
+        timed_out: "The tool \"{name}\" did not answer within {seconds} seconds.\n".to_string(),
+    }
+}
+
+/// 时限（施工 O-2 下）：不写是一分钟；一秒到十分钟，出了这个范围的拒，`problem` 是 `timeout`。
+#[test]
+fn the_timeout_is_checked() {
+    let timed = |timeout: Value| {
+        let mut params = serde_json::to_value(tool("read", json!(["local"]))).unwrap();
+        params["timeout_ms"] = timeout;
+        serde_json::from_value::<ToolParams>(params).unwrap()
+    };
+    let unset = checked(tool("read", json!(["local"]))).expect("合写法");
+    assert_eq!(unset.timeout, Duration::from_secs(60));
+    let fast = checked(timed(json!(1000))).expect("合写法");
+    assert_eq!(fast.timeout, Duration::from_secs(1));
+    for bad in [json!(999), json!(600_001)] {
+        assert_eq!(
+            refused_for(timed(bad)),
+            json!({"tool": "send_group", "problem": "timeout"})
+        );
+    }
+}
+
+mod remote_tests;

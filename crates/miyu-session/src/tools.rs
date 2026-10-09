@@ -21,6 +21,7 @@ use tracing::Instrument;
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Effect, Permission, Question, Response, Restored};
 use miyu_kernel::id::{CallId, ContentHash, JobId, SessionId, TurnId};
+use miyu_kernel::origin::By;
 use miyu_kernel::session::{Input, Reread, Step, Subagent};
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_policy::RunTexts;
@@ -172,6 +173,8 @@ pub(crate) struct Dispatch {
     pub(crate) usage: Option<Asked>,
     /// 这一次调用在哪一轮（施工 R-3 中）：记忆的端口记下的出处是它。
     pub(crate) turn: Option<TurnId>,
+    /// 是谁要她做的（施工 O-2 下）：交给提供者的工具。
+    pub(crate) asked: Option<By>,
 }
 
 impl Tools {
@@ -267,6 +270,7 @@ impl Tools {
             inherit,
             usage,
             turn,
+            asked,
         } = dispatch;
         let stop = Stop::default();
         // 派子代理的端口照这一轮的目录、这一刻的权限抄（施工 7-5）：沙盒下面照样要用它们。
@@ -309,6 +313,7 @@ impl Tools {
             ids: Some(CallIds {
                 session: self.session.clone(),
                 call: call_id,
+                asked,
             }),
         };
         let call_text = call_id.to_string();

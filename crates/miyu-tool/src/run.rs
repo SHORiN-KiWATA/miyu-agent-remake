@@ -11,6 +11,7 @@ use std::sync::Arc;
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{JobMessaged, JobStarted, PeerWatch, Said, TodoWritten};
 use miyu_kernel::id::{CallId, ContentHash, MediaType, SessionId};
+use miyu_kernel::origin::By;
 use miyu_kernel::time::UtcOffset;
 use miyu_sandbox::Sandboxed;
 
@@ -67,13 +68,15 @@ pub struct Call {
     pub ids: Option<CallIds>,
 }
 
-/// 一次调用是哪个会话的哪一次（施工 O-2 上）。
+/// 一次调用是哪个会话的哪一次（施工 O-2 上），是谁要她做的（施工 O-2 下）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CallIds {
     /// 会话。
     pub session: SessionId,
     /// 调用的编号。
     pub call: CallId,
+    /// 是谁要她做的（施工 O-2 下）：她这时在回应的那一条的 `by`，提供者的工具照它挡。没有触发的回合没有。
+    pub asked: Option<By>,
 }
 
 /// 她看过的文件（`10-自带软件.md` 第五节「她看过的」，施工 4-6 上）：换成真实位置以后的路径，和她最后一次看到的

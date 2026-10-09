@@ -577,6 +577,17 @@ The tool "{name}" is not available right now.
 The tool "{name}" stopped because of an internal error. It may have been partly done.
 ```
 
+#### `core/tool-results/timed-out.txt`
+
+- 什么时候加进来：提供者的工具没在登记时写的时限里答完（施工 O-2 下）
+- token：21
+- 为什么加：每次调用都要有结果；告诉她没等到、可能做了一部分，别当没做过重来一遍；提供者的工具自己读，不进快照的核心字（进了以后以前造的会话换不了快照）
+- 指纹：`eaf676bf`
+
+```text
+The tool "{name}" did not answer within {seconds} seconds. It may have been partly done.
+```
+
 #### `core/permissions/forbidden.txt`
 
 - 什么时候加进来：权限策略拒绝：要碰的路径在 Miyu 的数据根里

@@ -278,6 +278,7 @@
     "tool-results/question-unattended": "nobody here can answer",
     "tool-results/restarted": "Miyu restarted before it finished",
     "tool-results/unavailable": "not available right now",
+    "tool-results/timed-out": "no answer within {seconds} seconds",
     "tool-results/crashed": "crashed, may be partly done",
     "permissions/forbidden": "Miyu's own data, off limits",
     "permissions/unresolvable": "can't tell where it points: {reason}",

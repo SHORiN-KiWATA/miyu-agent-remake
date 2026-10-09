@@ -2,6 +2,7 @@
 //! `triggers` 排好去重、`trigger` 是最后一条，桥带来的事实接在内核的事实后面；空的、不是旁听的、当过触发的拒，后两种带上是
 //! 哪几条；载入以后照样认得当过触发的。正在跑一轮的并进去（施工 O-14 下，[`joining`]）。
 
+mod asking;
 mod joining;
 
 use super::load::{Logged, load};

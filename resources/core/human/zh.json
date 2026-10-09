@@ -278,6 +278,7 @@
     "tool-results/question-unattended": "这里没人能回答",
     "tool-results/restarted": "Miyu 重启了，没跑完",
     "tool-results/unavailable": "现在用不了",
+    "tool-results/timed-out": "{seconds} 秒内没答完",
     "tool-results/crashed": "内部出错了，可能做了一部分",
     "permissions/forbidden": "这是 Miyu 自己的数据，谁都不能碰",
     "permissions/unresolvable": "说不清它指向哪里：{reason}",

@@ -84,8 +84,9 @@ fn main() {
                 keep(&mut record, &line);
                 if line.contains(r#""method":"tool.call""#)
                     && let Some(id) = field(&line, "id")
+                    && let Some(answer) = served(&id, &field(&line, "tool").unwrap_or_default())
                 {
-                    send(&served(&id, &field(&line, "tool").unwrap_or_default()));
+                    send(&answer);
                 }
             }
         } else if step == "hang" {
@@ -129,9 +130,10 @@ fn field(line: &str, name: &str) -> Option<String> {
     Some(value.to_string())
 }
 
-/// 答编号是 `id`、工具是 `tool` 的那一次 `tool.call`（施工 O-2 上）。
-fn served(id: &str, tool: &str) -> String {
-    match tool {
+/// 答编号是 `id`、工具是 `tool` 的那一次 `tool.call`（施工 O-2 上）；`silent` 不答，等核心超时、发 `tool.cancel`（施工 O-2 下）。
+fn served(id: &str, tool: &str) -> Option<String> {
+    Some(match tool {
+        "silent" => return None,
         "boom" => {
             format!(r#"{{"jsonrpc":"2.0","id":"{id}","error":{{"code":-32000,"message":"boom"}}}}"#)
         }
@@ -142,7 +144,7 @@ fn served(id: &str, tool: &str) -> String {
         _ => format!(
             r#"{{"jsonrpc":"2.0","id":"{id}","result":{{"blocks":[{{"type":"text","text":"served {tool}"}}]}}}}"#
         ),
-    }
+    })
 }
 
 /// 记下一行。

@@ -123,7 +123,7 @@
 | `CancelModel { seen }` | 哪次请求 | 掐掉，不送回；之后到的不理 |
 | `Wake { at, seen }` | 什么时候、为哪次请求 | 到点送回 `Woke` |
 | `GuardTool { call_id, name, args, cwd, dirs, permission }` | 修正过的参数、这一轮的工作目录和加进来的目录、实际生效的那一级 | 过执行前的链，送回 `ToolGuarded`（`asking.md`） |
-| `RunTool { call_id, name, args, cwd, dirs, permission, cause }` | 修正过的参数、这一轮的工作目录和加进来的目录（施工 5-10 上）、派出去那一刻实际生效的那一级（施工 5-4 上：执行器照它写沙盒的规格）、这一轮的 `cause`（施工 7-3：它起的后台命令自己退出了，`job.reported` 的 `cause` 照它，「回报」第 2 条） | 跑；送回 `ToolProgress`、`ToolAsks`、`ToolDone` |
+| `RunTool { call_id, name, args, cwd, dirs, permission, cause, asked }` | 修正过的参数、这一轮的工作目录和加进来的目录（施工 5-10 上）、派出去那一刻实际生效的那一级（施工 5-4 上：执行器照它写沙盒的规格）、这一轮的 `cause`（施工 7-3：它起的后台命令自己退出了，`job.reported` 的 `cause` 照它，「回报」第 2 条）、是谁要她做的（施工 O-2 下，`asked.rs`：开回合的触发那一条的 `by`，请求新看到的排队消息、并进来的群消息、别的 harness 和别的会话发来的话里最新的那一条换上它，后台命令、子代理的回报不换；`providers.md`「是谁要的」） | 跑；送回 `ToolProgress`、`ToolAsks`、`ToolDone` |
 | `AnswerTool { call_id, answers }` | 人的回答 | 交给在等的调用（`asking.md`） |
 | `CancelTool { call_id }` | 哪次调用 | 掐掉，不送回；之后到的不理 |
 | `StopTool { call_id }` | 哪次改文件的调用 | 叫它停：停在改之前，或者做完；照常送回 `ToolDone`，停在改之前的带 `stopped`（「打断」第 7 条） |

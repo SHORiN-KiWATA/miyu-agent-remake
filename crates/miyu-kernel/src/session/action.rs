@@ -188,6 +188,8 @@ pub enum Action {
         /// 这一轮的 `cause`，也是这次调用的结果的（施工 7-3）：它起的后台命令自己退出了，执行器照它填 `job.reported` 的
         /// `cause`（`kernel/session.md`「回报」第 2 条）。
         cause: Option<CommandId>,
+        /// 是谁要她做的（施工 O-2 下，`asked.rs`）：她这时在回应的那一条的 `by`，提供者的工具照它挡。没有触发的回合没有。
+        asked: Option<By>,
     },
 }
 

@@ -1,5 +1,6 @@
 //! 反向调用（施工 O-2 上，`docs/blueprint/providers.md`「怎么走」第 1、2 条）：核心发给一个连接的请求，编号 `core-<n>`，照连接
-//! 从 1 数起；对上编号的回应交给等它的，对不上的不理。连接断了（[`Peer::close`]），在等的和以后发的都了结成 [`Gone`]。
+//! 从 1 数起；对上编号的回应交给等它的，对不上的不理。连接断了（[`Peer::close`]），在等的和以后发的都了结成 [`Gone`]。不等了的
+//! （等它的 future 被丢掉）从表里拿掉；通知（[`Peer::notify`]，`tool.cancel`）不带编号、不等回应（施工 O-2 下）。
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -67,12 +68,30 @@ impl Peer {
             state.waiting.insert(id.clone(), tell);
             (id, answer)
         };
+        // 不等了的（这个 future 被丢掉、发不出去、等到了）都从表里拿掉。
+        let _waiting = Waiting {
+            peer: self,
+            id: &id,
+        };
         let line = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
         if self.out.send(line.to_string()).await.is_err() {
-            self.forget(&id);
             return Err(Gone);
         }
         answer.await.map_err(|_| Gone)
+    }
+
+    /// 发一条通知（施工 O-2 下）：不带编号、不等回应。连接断了、写队列满了的发不出去，交回 `false`。
+    pub(crate) fn notify(&self, method: &str, params: Value) -> bool {
+        if self
+            .state
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .closed
+        {
+            return false;
+        }
+        let line = json!({"jsonrpc": "2.0", "method": method, "params": params});
+        self.out.try_send(line.to_string()).is_ok()
     }
 
     /// 收到一条回应：交给等它的，对不上的不理。
@@ -102,6 +121,18 @@ impl Peer {
             .unwrap_or_else(PoisonError::into_inner)
             .waiting
             .remove(id);
+    }
+}
+
+/// 在等的一条：丢掉时从表里拿掉。
+struct Waiting<'a> {
+    peer: &'a Peer,
+    id: &'a str,
+}
+
+impl Drop for Waiting<'_> {
+    fn drop(&mut self) {
+        self.peer.forget(self.id);
     }
 }
 

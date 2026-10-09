@@ -119,7 +119,7 @@ pub(crate) async fn run(
         return Err(Refusal::COMMAND_NOT_ALLOWED);
     }
     // 换工作区动的是沙盒能写的地方：管理的人不行，只有主人本人。
-    if slash == Slash::Workspace && !is_owner(&by) {
+    if slash == Slash::Workspace && !by.is_owner() {
         return Err(Refusal::OWNER_ONLY);
     }
     let mut events = Vec::new();
@@ -192,15 +192,6 @@ fn may_run(by: &By) -> bool {
         By::External(external) => {
             external.account.is_some() || external.role == Some(Role::Manager)
         }
-        _ => false,
-    }
-}
-
-/// 主人本人：本机的头、私聊里对应表认出的本人、对应表里有的外部身份（群里的主人）。
-fn is_owner(by: &By) -> bool {
-    match by {
-        By::Person(_) => true,
-        By::External(external) => external.account.is_some(),
         _ => false,
     }
 }

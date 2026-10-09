@@ -278,6 +278,7 @@
     "tool-results/question-unattended": "ここには回答できる人がいません",
     "tool-results/restarted": "Miyu が再起動したため、完了していません",
     "tool-results/unavailable": "今は使えません",
+    "tool-results/timed-out": "{seconds} 秒以内に応答なし",
     "tool-results/crashed": "内部エラーが起きました。一部は実行されたかもしれません",
     "permissions/forbidden": "Miyu 自身のデータなので、誰も触れられません",
     "permissions/unresolvable": "どこを指しているか判断できません：{reason}",

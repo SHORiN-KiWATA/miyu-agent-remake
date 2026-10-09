@@ -7,6 +7,7 @@ mod remote;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -20,7 +21,7 @@ use crate::hello::Caller;
 use crate::refusal::Refusal;
 use crate::reverse::Peer;
 
-use remote::RemoteTool;
+use remote::{RemoteTool, Texts};
 
 /// 哪个包现在由哪个连接提供。
 #[derive(Default)]
@@ -63,6 +64,22 @@ struct ToolParams {
     input_schema: Value,
     access: String,
     venues: Vec<String>,
+    /// 等它答多久（施工 O-2 下）：毫秒，[`TIMEOUT_MS`] 以内，不写是 [`DEFAULT_TIMEOUT_MS`]。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    timeout_ms: Option<u64>,
+}
+
+/// 不写时等多久：一分钟。
+const DEFAULT_TIMEOUT_MS: u64 = 60_000;
+
+/// 能写的时限：一秒到十分钟。
+const TIMEOUT_MS: std::ops::RangeInclusive<u64> = 1_000..=600_000;
+
+/// 查过的一件：规格、给哪种会话、等它多久。
+struct Checked {
+    spec: Spec,
+    venues: Venues,
+    timeout: Duration,
 }
 
 /// `provide`：见模块的说明。
@@ -84,21 +101,25 @@ pub(crate) async fn provide(
 
 /// 照规格 `tools` 换掉包 `package` 在目录里的工具，交回几件：`provide`、读缓存共用。两处同时换的一个接一个（[`miyu_tool::Shelf`]）。
 fn register(core: &Core, package: &str, tools: Vec<ToolParams>) -> Result<usize, Refusal> {
-    let unavailable = core
-        .resources
-        .core_texts()
-        .map(|texts| texts.tool_results.unavailable)
-        .map_err(|_| Refusal::INTERNAL)?;
+    let texts = Texts {
+        unavailable: core
+            .resources
+            .core_texts()
+            .map(|texts| texts.tool_results.unavailable)
+            .map_err(|_| Refusal::INTERNAL)?,
+        timed_out: core
+            .resources
+            .tool_timed_out()
+            .map_err(|_| Refusal::INTERNAL)?,
+    };
     let count = tools.len();
     let mut built: Vec<Arc<dyn Tool>> = Vec::with_capacity(count);
     for tool in tools {
-        let (spec, venues) = checked(tool)?;
         built.push(Arc::new(RemoteTool::new(
-            spec,
-            venues,
+            checked(tool)?,
             package,
             Arc::clone(&core.provided),
-            unavailable.clone(),
+            texts.clone(),
         )));
     }
     core.tools
@@ -120,8 +141,8 @@ pub(crate) fn withdraw(core: &Core, package: &str) {
 
 pub(crate) use cache::restore;
 
-/// 查一件的访问类别和给哪种会话；名字、参数格式、撞名由目录查（[`miyu_tool::Catalog::replacing`]）。
-fn checked(tool: ToolParams) -> Result<(Spec, Venues), Refusal> {
+/// 查一件的访问类别、给哪种会话、时限；名字、参数格式、撞名由目录查（[`miyu_tool::Catalog::replacing`]）。
+fn checked(tool: ToolParams) -> Result<Checked, Refusal> {
     let access = serde_json::from_value::<Access>(Value::String(tool.access.clone()))
         .ok()
         .filter(|access| !matches!(access, Access::Other(_)))
@@ -138,17 +159,22 @@ fn checked(tool: ToolParams) -> Result<(Spec, Venues), Refusal> {
     if venues == Venues::default() {
         return Err(bad_tool(&tool.name, "venues"));
     }
+    let timeout = tool.timeout_ms.unwrap_or(DEFAULT_TIMEOUT_MS);
+    if !TIMEOUT_MS.contains(&timeout) {
+        return Err(bad_tool(&tool.name, "timeout"));
+    }
     let parameters: RawJson = serde_json::from_str(&tool.input_schema.to_string())
         .map_err(|_| bad_tool(&tool.name, "parameters"))?;
-    Ok((
-        Spec {
+    Ok(Checked {
+        spec: Spec {
             name: tool.name,
             description: tool.description,
             parameters,
             access,
         },
         venues,
-    ))
+        timeout: Duration::from_millis(timeout),
+    })
 }
 
 /// 目录查出来的那一条，写成协议上的字。

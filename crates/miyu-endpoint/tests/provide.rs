@@ -63,10 +63,12 @@ async fn an_extension_provides_tools_and_answers_the_calls() {
     let program = Program::new();
     let (path, step) = record(&home, "bridge");
     let doubled = json!({"tools": [spec("dup", json!(["local"])), spec("dup", json!(["local"]))]});
+    let mut silent = spec("silent", json!(["local"]));
+    silent["timeout_ms"] = json!(1000);
     let tools = json!({"tools": [
         spec("echo_back", json!(["local"])), spec("boom", json!(["local"])),
         spec("garbled", json!(["local"])), spec("oops", json!(["local"])),
-        spec("group_only", json!(["group"])),
+        spec("group_only", json!(["group"])), silent,
     ]});
     install(
         &home,
@@ -87,6 +89,7 @@ async fn an_extension_provides_tools_and_answers_the_calls() {
             ("boom", "{}"),
             ("garbled", "{}"),
             ("oops", "{}"),
+            ("silent", "{}"),
         ]),
         Play::Says("好。"),
         Play::calls(&[("echo_back", "{}")]),
@@ -102,7 +105,7 @@ async fn an_extension_provides_tools_and_answers_the_calls() {
     assert_eq!(doubled["error"]["data"]["reason"], "bad_tool", "{doubled}");
     assert_eq!(doubled["error"]["data"]["problem"], "duplicate");
     let provided: Value = serde_json::from_str(&got[3]).unwrap();
-    assert_eq!(provided["result"], json!({"tools": 5}), "{provided}");
+    assert_eq!(provided["result"], json!({"tools": 6}), "{provided}");
 
     let mut client = Client::connect(Arc::clone(&core));
     client.hello().await;
@@ -120,7 +123,7 @@ async fn an_extension_provides_tools_and_answers_the_calls() {
         .collect();
     assert_eq!(
         face,
-        ["boom", "echo_back", "garbled", "oops"],
+        ["boom", "echo_back", "garbled", "oops", "silent"],
         "只给群的不在本机的会话里"
     );
     // 只读的几件一起跑，结果先到先记：照字排了再比。
@@ -129,6 +132,11 @@ async fn an_extension_provides_tools_and_answers_the_calls() {
     assert_eq!(
         answered,
         [
+            (
+                "The tool \"silent\" did not answer within 1 seconds. It may have been partly done.\n"
+                    .to_string(),
+                true
+            ),
             ("boom".to_string(), true),
             ("oops".to_string(), true),
             ("served echo_back".to_string(), false),
@@ -145,6 +153,27 @@ async fn an_extension_provides_tools_and_answers_the_calls() {
     assert_eq!(call["params"]["session"], json!(session));
     assert_eq!(call["params"]["args"], json!({"x": 1}));
     assert!(call["params"]["call_id"].is_string(), "{call}");
+    // 本机的会话：是 alice 本人要的（施工 O-2 下）。
+    assert_eq!(call["params"]["by"]["kind"], "person", "{call}");
+    assert_eq!(call["params"]["owner"], json!(true), "{call}");
+    // 超时的那一次发了 tool.cancel，照那一次的编号。
+    let silent: Value = serde_json::from_str(
+        read(&path)
+            .lines()
+            .find(|line| line.contains(r#""tool":"silent""#))
+            .expect("扩展收到了"),
+    )
+    .unwrap();
+    let cancel: Value = serde_json::from_str(
+        read(&path)
+            .lines()
+            .find(|line| line.contains(r#""method":"tool.cancel""#))
+            .expect("扩展收到了 tool.cancel"),
+    )
+    .unwrap();
+    assert_eq!(cancel["params"]["call_id"], silent["params"]["call_id"]);
+    assert_eq!(cancel["params"]["session"], json!(session));
+    assert!(cancel.get("id").is_none(), "通知不带编号");
 
     // 关掉扩展：工具出目录，下一个回合拿掉（施工 O-2 中）；连接没来的暂时不可用见 `provide_later.rs`。
     let stopped = call_ext(&mut client, "extension.disable", "bridge").await;

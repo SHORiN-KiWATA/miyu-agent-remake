@@ -39,8 +39,7 @@ impl Session {
             return Vec::new();
         };
         let cause = turn.cause.clone();
-        let cwd = turn.cwd.clone();
-        let dirs = turn.dirs.clone();
+        let round = turn.round();
         let Stage::Tools(step) = &mut turn.stage else {
             return Vec::new();
         };
@@ -55,10 +54,8 @@ impl Session {
                     call_id,
                     &call.name,
                     &call.args,
-                    &cwd,
-                    &dirs,
+                    &round,
                     &self.effective,
-                    cause.as_ref(),
                 )];
             }
             Verdict::Deny {
