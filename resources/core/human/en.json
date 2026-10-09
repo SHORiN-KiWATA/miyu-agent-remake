@@ -499,6 +499,8 @@
     "view/error/class/other": "Model error",
     "view/error/status/402": "Out of credit",
     "view/error/status/404": "Not found: check the endpoint address and the model name",
-    "view/error/status/429": "Rate limited or out of credit, try again later"
+    "view/error/status/429": "Rate limited or out of credit, try again later",
+    "commands/unavailable/no-persona": "Memory does not work in a session without a persona.",
+    "commands/unavailable/preset-off": "This session's preset \"{preset}\" has memory off."
   }
 }

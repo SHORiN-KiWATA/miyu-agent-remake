@@ -487,6 +487,8 @@
     "view/error/class/other": "モデルエラー",
     "view/error/status/402": "利用枠を使い切りました",
     "view/error/status/404": "見つかりません。エンドポイントのアドレスとモデル名を確認してください",
-    "view/error/status/429": "レート制限か利用枠不足です。しばらくして再試行してください"
+    "view/error/status/429": "レート制限か利用枠不足です。しばらくして再試行してください",
+    "commands/unavailable/no-persona": "人格のないセッションでは記憶は使えません。",
+    "commands/unavailable/preset-off": "このセッションのプリセット「{preset}」は記憶がオフです。"
   }
 }

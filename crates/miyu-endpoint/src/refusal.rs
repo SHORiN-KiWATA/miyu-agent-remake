@@ -405,6 +405,14 @@ impl Refusal {
         }
     }
 
+    /// 多一格 `data.why`：照连接的语言说的为什么（施工 O-6 再补：用不了的斜杠命令，和 `command.catalog` 的 `unavailable` 同一句）。
+    pub(crate) fn because(mut self, why: String) -> Refusal {
+        self.data
+            .get_or_insert_with(serde_json::Map::new)
+            .insert("why".to_string(), serde_json::Value::String(why));
+        self
+    }
+
     /// 内核拒了这个命令。
     pub(crate) fn kernel(reason: Reason) -> Refusal {
         Refusal {

@@ -487,7 +487,7 @@
 5. `/workspace <路径>` 同 `session.set_workspace` 只换工作目录，加进来的目录照旧（施工 9-7 下）：绝对的、`~` 开头的照原样；相对的照 `cwd` 接成真实的位置（`/workspace .` 就是头所在的目录），没带 `cwd` 的照会话现在的工作区接；路径里的空白照留，不认引号。写错的照那几种原因拒绝（`path_unreadable`、`not_a_directory`、`path_forbidden`）；太宽的退回账号的工作区，回执说一声（「~ 太宽，工作区换到了 …」）；和现在一样的不记换，照样记下命令。不带路径的什么都不换，回执说现在在哪。
 6. 执行了的记一条 `command.ran`（`kernel/events-bodies.md`），`cause` 是 `<id>/ran`；被拒的什么都不记。它不进模型的请求。
 7. 同一个 `id` 再发只算一次，核心重启以后也是：回应和头一次一样。
-8. `/remember <话>`（施工 R-3 补，`memory.md`「协议」）：名字后面跟的字是那一条，类 `user`，记进这个会话那一间，`by` 是打命令的人，出处空，听众是这个人；回执带编号（`commands/remembered`）。不请求模型。场所会话、范围 `off` 的回 `memory_unavailable`；空的 `bad_params`，超过 120 字的 `memory_too_long`。先判身份，再查这个会话有没有记忆，再查字。同一个 `id` 再发只记一次（记忆事件的 `cause`，`memory.*` 第 5 条）。
+8. `/remember <话>`（施工 R-3 补，`memory.md`「协议」）：名字后面跟的字是那一条，类 `user`，记进这个会话那一间，`by` 是打命令的人，出处空，听众是这个人；回执带编号（`commands/remembered`）。不请求模型。场所会话、范围 `off` 的回 `memory_unavailable`，`data.why` 是照连接语言说的为什么（施工 O-6 再补：没有人格的「没有人格的会话记忆不生效」，预设没开记忆的带上预设的名字，字在 `core/human/<语言>.json` 的 `commands/unavailable/…`，别的照拒绝的那一句）；空的 `bad_params`，超过 120 字的 `memory_too_long`。先判身份，再查这个会话有没有记忆，再查字。同一个 `id` 再发只记一次（记忆事件的 `cause`，`memory.*` 第 5 条）。
 
 **`command.catalog`**（施工 O-6 补，网页的会话要的，终端也用）
 
@@ -498,7 +498,7 @@
 回应 `{"commands": [{"name": "clear", "aliases": ["reset"], "summary": "清空上下文"}, {"name": "workspace", "aliases": [], "summary": "切换工作区", "argument": "<路径>"}, …]}`：照名字排；`summary`、`argument` 照这个连接的语言，字在 `core/human/<语言>.json` 的 `commands/summary/<名字>`、`commands/argument/<名字>`；名字后面要跟字的（`workspace`、`remember`）才有 `argument`。
 
 1. 不写 `session`：列核心认的全部（头还没造会话、`/help` 列全部时用）。
-2. 写了：只列这个连接在这个会话里打了不会被拒的，和 `command.run` 第 2、8 条同一份判法（谁能用；`/workspace` 只给主人本人；`/remember` 要这个会话开着记忆）。只收本机的会话：场所会话回 `venue_session`（同不带 `as` 的 `command.run`）；会话编号写错 `bad_params`，没有这个会话 `session_not_found`。
+2. 写了：只列这个连接在这个会话里打了不会被拒的，和 `command.run` 第 2、8 条同一份判法（谁能用；`/workspace` 只给主人本人；`/remember` 要这个会话开着记忆）。用不了的不列（2026-10-09 项目主人定）：人打了菜单里没有的命令，头照样交给 `command.run`，照拒绝的 `data.why` 说为什么，不自己说「没有这个命令」。
 3. 不推送：头换会话、打开命令菜单时问一次。头自己的命令（`help`、`theme` 这些）、软件包登记的同名命令由头自己拼、自己去重；核心这份里没有只有头懂的命令。
 
 **`check`**（施工 8-30，`cli/check.md`）
