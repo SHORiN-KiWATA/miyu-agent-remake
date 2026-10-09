@@ -16,6 +16,7 @@ mod client;
 mod endpoint;
 mod get;
 mod loopback;
+mod post;
 mod send;
 #[cfg(feature = "testkit")]
 pub mod testkit;
@@ -24,6 +25,7 @@ pub use client::{Proxy, client, fetcher};
 pub use endpoint::Endpoint;
 pub use get::{Failed, Get, Got, download, get, get_full};
 pub use loopback::{is_loopback_host, is_loopback_url};
+pub use post::{Post, post};
 /// HTTP 客户端：[`client()`] 造的那一个，连接跨请求复用。上层照这个名字拿着它，不用直接依赖 reqwest。
 pub use reqwest::Client;
 pub use send::{Attempt, Outcome, Progress, send};

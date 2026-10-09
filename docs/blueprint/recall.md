@@ -25,7 +25,7 @@
 | `crates/miyu-recall/src/vector.rs` | 向量写成字节、读回来、点积 | R-5 下 |
 | `crates/miyu-store/src/recall.rs` | 一个检索库：开（坏了删掉重建）、放进一条、拿掉一条、照关键词找（R-1）；一批和照到哪一起写、拿掉一个来源（R-2 上） | R-1 |
 | `crates/miyu-store/src/recall/vectors.rs` | 向量表：放、照模型列出缺的、读出来逐条算最像的（第三条第 1、2 款） | R-5 下 |
-| `crates/miyu-session/src/memory/vectors.rs` | 算问句的向量（限时）、在后台补这一间缺的、`models.embedding` 照不照意思找（第三条第 4 到 6 款） | R-5 下 |
+| `crates/miyu-session/src/memory/vectors.rs` | 算问句的向量（限时）、在后台补这一间缺的；照调的一方手里的配置挑本机、远程、关（第三条第 4 到 6 款，R-5 补加远程） | R-5 下 |
 | `crates/miyu-core/src/embed.rs` | 核心起来时照环境拼好 `Embedder` 要的几样（第四条第 1 款） | R-5 下 |
 | `crates/miyu-recall/src/embedding.rs` | 本机模型的清单：照原文读、查（第四条第 2 款；R-5 中从 `miyu-embed` 挪进来，核心不能依赖 `miyu-embed`） | R-5 上、中 |
 | `crates/miyu-embed/src/manifest.rs` | 小程序读清单的文件 | R-5 上 |
@@ -35,6 +35,9 @@
 | `crates/miyu-session/src/embed.rs` | 核心一份的 `Embedder`：备齐文件、按需拉起、一条一条问、空闲退出、连着起不来就不再拉起（第四条第 3、4 款） | R-5 中 |
 | `crates/miyu-session/src/embed/fetch.rs` | 照清单核对、下载模型的文件：清单以外的删掉，对不上的删掉重下，边下边写、边算 SHA-256 | R-5 中 |
 | `crates/miyu-session/src/embed/worker.rs` | 和跑着的 `miyu-embed` 说话：拉起、等 `ready`、一条一条问、编号对不上、时限、关掉 | R-5 中 |
+| `crates/miyu-session/src/embed/remote.rs` | 远程的 embedding：照一家供应商发 `/embeddings`、读向量、归一化、记账、记日志（第四条第 7 款） | R-5 补 |
+| `crates/miyu-session/src/route/endpoint.rs` | 照一家供应商拼地址、key、另配的头，不走路由、池、冷却：`provider.test` 和远程的 embedding 共用（从 `route/probe.rs` 抽出来） | R-5 补 |
+| `crates/miyu-http/src/post.rs` | 一次 POST、整个读完：有总时限、有大小上限，出错的说法同一次 GET | R-5 补 |
 | `resources/models/embed/bge-small-zh-v1.5.toml` | 出厂的清单（模型资料，不给模型看，不进登记簿） | R-5 上 |
 
 `miyu-recall` 只用白名单里的 crate（`01-架构.md` 第九节），不碰 I/O。SQLite 的那一半放在 `miyu-store`：它已经有 `rusqlite` 和开库的规矩（`sqlite.rs`，`store/index.md`），检索库照同一套开、坏了删、版本不对删。
@@ -115,17 +118,17 @@ CREATE VIRTUAL TABLE terms USING fts5(words, content='', contentless_delete=1, t
 
 **三、向量和两路合并**（R-5 下）
 
-1. **向量表**：检索库多一张 `vectors(key, model, data)`，主键是（条目、模型），`data` 是 f32 的小端字节（`miyu_recall::vector`），长度是维数的 4 倍；`model` 是模型的编号（`local:bge-small-zh-v1.5`）。条目拿掉、整个来源拿掉、换了字（同样的字照留）的，它的向量跟着拿掉；放向量时条目已经没了的不放。不换版本：每次开库、重建以后照 `CREATE TABLE IF NOT EXISTS` 补上这张表，以前的库也就有了（换版本要删掉重建，删掉的会话那几块墓碑是删会话时写的，重建补不回来）。换了模型的照新模型补，旧的留着不碍事。
+1. **向量表**：检索库多一张 `vectors(key, model, data)`，主键是（条目、模型），`data` 是 f32 的小端字节（`miyu_recall::vector`），长度是维数的 4 倍；`model` 是模型的编号：本机的是 `local:<id>`（`local:bge-small-zh-v1.5`），远程的是 `<供应商>/<模型>`（R-5 补）。条目拿掉、整个来源拿掉、换了字（同样的字照留）的，它的向量跟着拿掉；放向量时条目已经没了的不放。不换版本：每次开库、重建以后照 `CREATE TABLE IF NOT EXISTS` 补上这张表，以前的库也就有了（换版本要删掉重建，删掉的会话那几块墓碑是删会话时写的，重建补不回来）。换了模型的照新模型补，旧的留着不碍事。
 2. **查**：向量都归一化过，相似度就是点积。读出这个模型的全部向量逐条算（旧版的规模约 1 万条，几毫秒），取最像的几条，带着条目的字和时刻；慢了先量，再看要不要另想办法。
 3. **两路合并**（`miyu_recall::fuse`）：照名次合，不照分数（bm25 和余弦的尺度对不上）：`分 = Σ 权重 / (60 + 名次 + 1)`，名次从 0 数；关键词一路权重 1，向量一路 0.5；只有向量一路找到的，相似度不到 0.40 的不要；分一样的照关键词一路的先后、再照向量一路的。0.40 是 2026-10-09 在 bge-small-zh-v1.5 上量的起点：八句和记忆一个字都不重合的问题（「我家宠物叫什么」对「用户养了一只猫」这种），对的那一条都排第一，相似度最低 0.436、平均 0.564；不对的平均 0.297、九成在 0.368 以下、最高 0.456。几个数测评集有了再定。
 4. **搜**（`memory_search`、`memory.search`）：先算问句的向量，最多等 1 秒（第一次拉起小程序要一两百毫秒；那一条照样在后台算完，不打断小程序的一问一答）；算出来了，记忆库、回合库各照关键词一路、向量一路取（各取四倍再挑），照第 3 款合并，再照原来的规矩挑。算不出（还在备、用不了、过了时限）的只走关键词，和原来一样，记一行 `DEBUG query not embedded`，不停下。
-5. **补**：搜的时候起。照这一间的记忆库、回合库各起一个后台的，一次取 16 条还没有这个模型的向量的（照行号往后取），一条一条算、写回；模型还在备的每秒再问一次，等它备好；这一条算不出的跳过、接着补别的（下次搜再试）；用不了的（下不成、起不来过三次）这一回不补了。同一份库同一时刻只有一个在补。补了几条记一行 `INFO memory vectors filled index=… count=… took_ms=…`，读写不了记 `WARN memory vectors not filled error=…`。之后才放进库的（这一轮自己的回合）等下一次搜。
-6. `models.embedding` 是 `off` 的：不算问句、不补、不下模型、不拉起小程序，只照关键词找。她的工具照这一轮的配置（回合开始时换），协议照这时的配置。
+5. **补**：搜的时候起。照这一间的记忆库、回合库各起一个后台的，一次取 16 条还没有这个模型的向量的（照行号往后取），一条一条算、写回；模型还在备的每秒再问一次，等它备好；这一条算不出的跳过、接着补别的（下次搜再试），连着 3 条算不出的这一回不补了（远程那一家挂了、key 错了，不一条一条地等，R-5 补）；用不了的（下不成、起不来过三次、远程那一家没配）这一回不补了。同一份库同一时刻只有一个在补。补了几条记一行 `INFO memory vectors filled index=… count=… took_ms=…`，读写不了记 `WARN memory vectors not filled error=…`。之后才放进库的（这一轮自己的回合）等下一次搜。
+6. 照哪一路（R-5 补）：照调的一方手里的配置的 `models.embedding` 挑，她的工具照这一轮冻结的配置（派出去那一刻交给端口），协议照这时的配置。不写、写 `local` 的照本机的（第四条第 3、4 款），写 `<供应商>/<模型>` 的照那一家（第四条第 7 款），`off` 的不算问句、不补、不下模型、不拉起小程序，只照关键词找。
 7. 向量照（模型、字的 SHA-256）缓存在系统的缓存目录、库删了重建不重算：还没做。重建很少见，重算一万条约二十秒，后台慢慢补；量出来是问题再加。
 
 **四、embedding**（R-5 上、中、下）
 
-1. 用途 `models.embedding`（R-5 下，`models.md` 的 `[models]`）：写 `local` 用本机的 `miyu-embed`；写 `off` 不下模型、不拉起、只照关键词找（2026-10-09 项目主人定加 `off`）；不写的照 `local`，本机的小程序、缓存目录、清单哪一样没有，就只有关键词。下一个回合开始时生效。远程的 `<供应商>/<模型>`（走那一家 OpenAI 兼容的 `/v1/embeddings`）随 R-5 补。核心起来时照环境拼好交给 `Embedder`（`miyu-core/src/embed.rs`）：小程序在主程序真实位置的旁边（照软件包的找法），清单是资源目录的 `models/embed/bge-small-zh-v1.5.toml`，模型放在缓存目录的 `embed/` 下，下载照环境变量走代理。
+1. 用途 `models.embedding`（R-5 下，`models.md` 的 `[models]`；类型是 `model_or`，`config.md`「配置项的类型」）：写 `local` 用本机的 `miyu-embed`；写 `off` 不下模型、不拉起、只照关键词找（2026-10-09 项目主人定加 `off`）；写 `<供应商>/<模型>` 的走那一家 OpenAI 兼容的 `/v1/embeddings`（第 7 款，R-5 补，方向 2026-10-07 定）；不写的照 `local`，本机的小程序、缓存目录、清单哪一样没有，就只有关键词。下一个回合开始时生效。不收 `@池`：向量要和存下的同一个模型比，池里换了成员就对不上。核心起来时照环境拼好交给 `Embedder`（`miyu-core/src/embed.rs`），连同模型资料交给协议端点（`Core::with_vectors`，远程的照它查供应商、记账）：小程序在主程序真实位置的旁边（照软件包的找法），清单是资源目录的 `models/embed/bge-small-zh-v1.5.toml`，模型放在缓存目录的 `embed/` 下，下载照环境变量走代理。
 2. **清单**（R-5 上）：本机模型照一份 TOML 认，出厂的在 `resources/models/embed/bge-small-zh-v1.5.toml`，配置 `embedding.local` 换成别的清单就换了模型：做成可更换的（2026-10-07 项目主人定）。几格：
    - `id`：模型的名字，向量的模型编号写成 `local:<id>`；`dims`：几维；`pooling`：怎么取一句的向量，现在只认 `cls`（取 `[CLS]` 那一格）；`max_tokens`：一句最多几个词（连 `[CLS]`、`[SEP]`），至少 2。
    - `[[files]]`：每个文件的 `role`（`model`、`vocab` 各正好一个）、`name`（一个单纯的文件名，不带目录）、`url`、`sha256`、`size`。
@@ -156,15 +159,30 @@ CREATE VIRTUAL TABLE terms USING fts5(words, content='', contentless_delete=1, t
    - 前后加 `[CLS]`、`[SEP]`；超过 `max_tokens` 的截掉后面的，留住 `[SEP]`。词表一行一个词，行号是编号，没有 `[CLS]`、`[SEP]`、`[UNK]` 的、一个词写了两行的拒。
    - 和 `tokenizers` 不一样的两处：字里写着 `[CLS]` 这种的照普通的字切（人说的话不变成控制用的词）；Unicode 的类别照新的表，Unicode 9 以后才有的字切成 `[UNK]`（它的表旧，当没分配去掉）。
    - 原版不转小写：大写的英文词（`RTX`、`Hello`）、片假名的词都是 `[UNK]`，那一部分靠关键词那一路（第一条的两两切词管得到日文）；改不改等测评集。
-6. **实测**（2026-10-09，Linux x86_64，release 没 strip）：程序 29 MB，没有 ONNX Runtime 的动态库；起来到 `ready` 130 到 580 毫秒，一句短的（十来个字）4 到 9 毫秒、一百来个字 12 到 25 毫秒（同一台机器上别的会话在编译，数跳得厉害；仓库外单独试的是载入 46 毫秒、一句 1 到 2 毫秒），峰值内存 62 MB。
+6. **实测**（本机的，2026-10-09，Linux x86_64，release 没 strip）：程序 29 MB，没有 ONNX Runtime 的动态库；起来到 `ready` 130 到 580 毫秒，一句短的（十来个字）4 到 9 毫秒、一百来个字 12 到 25 毫秒（同一台机器上别的会话在编译，数跳得厉害；仓库外单独试的是载入 46 毫秒、一句 1 到 2 毫秒），峰值内存 62 MB。
+
+7. **远程**（R-5 补，`embed/remote.rs`；怎么配、怎么取端点、怎么记账 2026-10-09 核心的主会话定）：`models.embedding` 写 `<供应商>/<模型>` 的，一次算一句：
+   - 端点：照调的一方手里的配置找那一家，拼地址、key、另配的头（`route/endpoint.rs`，和 `provider.test` 同一段），不走路由、池、冷却；认证头照这一家的驱动写，另配的头照种子 `embedding` 换。客户端照地址挑：落在本机的不走代理，别的照环境变量（`ModelData::fetcher_for`）。这一家没配、地址或 key 取不到、没有客户端的算「用不了」。
+   - 发：`POST <地址>/embeddings`，`{"model":"<模型>","input":"<字>"}`，一次最多等 10 秒（问句照旧最多等 1 秒，第三条第 4 款），回应最多 4 MiB。读 `data[0].embedding`、归一化（各家不一定归一化过）。发不出去、回的不是 2xx、超时、读不懂、没有向量、长度是零的算「这一条算不出」。一次一句：补的时候一条一条发，量出来慢了再想批量。
+   - 记账：报了 `usage.prompt_tokens` 的照一次性调用记一笔 `usage.oneshot`（用途 `embedding`、供应商、模型、输入 token，有价格的照这个模型的价格算金额，`models.md`「怎么走」第九条第 4 条），记在调的那个账号名下（她的工具是会话的属主，协议是连上来的管理员）；回的向量用不了的（全是零、没有）也记，那一家照样收了钱；没报的、出错的、读不懂的不记。问句等不到的那一条照样在后台算完、照样记。
+   - 日志：每一次记一行，目标 `miyu::session`，和一次性入口那一行同一个写法：成了 `INFO model call purpose=embedding provider=… model=… input=… took_ms=…`，没成 `INFO model call failed purpose=embedding provider=… model=… took_ms=… error=…`；原话不带地址、key。
 
 ### 出错
 
 - 库读写出错：`DbError`，照第二条第 5 款。
 - 切不出词：`query` 交回 `None`，不算出错。
 - 本机 embedding 用不了、算不出：照第四条第 3、4 款交回三种之一、记日志（目标 `miyu::session`），不停下，要的一方照只有关键词走（第三条第 3 款）。
+- 远程的用不了、算不出：照第四条第 7 款交回两种之一、记 `model call failed`，同上照只有关键词走。
 
 ### 守着它的
+
+R-5 补做好的：
+
+| 测试 | 守哪几条 |
+|---|---|
+| `crates/miyu-session/tests/memory_remote.rs` | 第三条第 5、6 款，第四条第 7 款，假服务器当那一家：写了 `<供应商>/<模型>` 的照它算问句、补向量，一个字都不重合的照意思找得到；请求是 `POST /v1/embeddings`，带着认证、模型名、那一句；向量照 `<供应商>/<模型>` 存、归一化过；请求带着档案另配的头（种子是 `embedding`）；报了用量的每一次记一笔 `usage.oneshot`（用途 `embedding`，记在属主名下，读的是 `prompt_tokens`），没报的不记；问句等不到的等 1 秒照关键词找；补的时候出错的跳过，算成一条的重新数，读不懂、全是零、没有向量连着三条，这一回不补了、后面的不发；出错的、读不懂的不记账，全是零的报了用量照记 |
+| `crates/miyu-endpoint/tests/memory_meaning.rs` | 第四条第 7 款：协议照这时的配置发给远程那一家，补齐以后照意思找得到，用量记在管理员名下 |
+| `crates/miyu-http/tests/post.rs` | 第四条第 7 款的发：带着头和 JSON 的请求体、交回整个响应体；回的不是 2xx 的带状态码和响应体；超过上限的、超时的出错；连不上的原话不带地址、key |
 
 R-5 下做好的：
 
@@ -208,7 +226,8 @@ R-1 做好的：
 
 ### 还没有的
 
-- 远程的 `/v1/embeddings`（`models.embedding` 写 `<供应商>/<模型>`）、换清单的配置项：R-5 补。
+- 换清单的配置项（`embedding.local`，第四条第 2 款）：还没排。
+- 远程的一次发几句（批量）：现在一次一句，量出来慢了再说。
 - 第三条第 7 款，照字的哈希缓存向量：量出来是问题再加。
 - 知识库的切块、文件监视：知识库那条线。
 - `history` 改用全文索引：照 `tools/history.md`，慢了再做。

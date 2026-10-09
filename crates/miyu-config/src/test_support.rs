@@ -189,7 +189,7 @@ pub(crate) fn words(items: &[Item]) -> Fake {
             .iter()
             .map(|item| {
                 let options: &[&str] = match item.kind {
-                    Kind::Option(options) => options,
+                    Kind::Option(options) | Kind::ModelOr(options) => options,
                     _ => &[],
                 };
                 let name = format!("{} 的名字", item.key);

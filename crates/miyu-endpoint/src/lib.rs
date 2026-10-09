@@ -253,9 +253,14 @@ impl Core {
     }
 
     /// 同一份家底，模型资料照 `data`（施工 8-7）：核心起来时把路由手里的那一份交进来。没设的是空的：没有档案、没有目录。
-    /// 配置服务也拿着它：查模型默认的思考强度在不在档位里（施工 8-18）。
+    /// 配置服务也拿着它：查模型默认的思考强度在不在档位里（施工 8-18）。要在 [`Core::with_vectors`] 前面接：那一路照接上
+    /// 时手里的这一份查供应商、记账，接反了会悄悄拿到空的那一份（调试构建里当场 panic，测试、真核心的测试都逮得住）。
     #[must_use]
     pub fn with_model_data(mut self, data: Arc<ModelData>) -> Core {
+        debug_assert!(
+            self.memory.vectors().is_none(),
+            "with_model_data 要接在 with_vectors 前面"
+        );
         let config = self
             .config
             .get_mut()
@@ -358,12 +363,13 @@ impl Core {
         self
     }
 
-    /// 同一份家底，接上本机 embedding（施工 R-5 下，`recall.md` 第四条）：记忆、以前的对话照意思找。核心起来、找好小程序和
-    /// 缓存目录时接一次；不接的（测试里）只照关键词找。
+    /// 同一份家底，接上照意思找的那一路（施工 R-5 下、补，`recall.md` 第四条）：本机的照 `local` 算（找不到小程序、缓存目录
+    /// 的是空的），远程的照模型资料里的供应商发。核心起来时接一次，接在 [`Core::with_model_data`] 后面（远程的照那一份查
+    /// 供应商、记账）；不接的（测试里）只照关键词找。
     #[must_use]
-    pub fn with_embedder(self, setup: EmbedSetup) -> Core {
-        self.memory
-            .give_vectors(Arc::new(Vectors::new(Embedder::new(setup))));
+    pub fn with_vectors(self, local: Option<EmbedSetup>) -> Core {
+        let vectors = Vectors::new(local.map(Embedder::new), Arc::clone(&self.model_data));
+        self.memory.give_vectors(Arc::new(vectors));
         self
     }
 

@@ -6,8 +6,11 @@
 //! - **小程序**（`embed/worker.rs`）：要用时拉起 `miyu-embed`，一次一条，后来的排队；[`IDLE`] 没有新的请求就让它退出，下一条
 //!   再拉起。它起不来、坏了，这一条交回 [`Unavailable::Failed`]；这一回起不来过三次，就不再拉起。
 //! - 它不算核心「忙」：核心空闲退出照旧，它跟着没了（`worker.rs` 的 `Worker`）。
+//!
+//! 远程的（`models.embedding` 写 `<供应商>/<模型>`，施工 R-5 补）在 `embed/remote.rs`：一次一个 HTTP 请求，不拉起小程序。
 
 mod fetch;
+mod remote;
 mod worker;
 
 use std::fmt;
@@ -19,6 +22,7 @@ use miyu_http::Client;
 use miyu_recall::embedding::Manifest;
 
 use crate::TARGET;
+pub(crate) use remote::Remote;
 use worker::{Failure, Worker};
 
 /// 多久没有新的请求就让小程序退出（`recall.md` 第四条第 4 款）。
@@ -50,9 +54,10 @@ pub struct EmbedSetup {
 pub enum Unavailable {
     /// 模型还在核对、在下：这一回只有关键词。
     Preparing,
-    /// 这台机器、这一阵用不了：没有小程序、没有缓存目录、清单读不了、下不成（一小时以后再试）、起不来过三次。
+    /// 这台机器、这一阵用不了：没有小程序、没有缓存目录、清单读不了、下不成（一小时以后再试）、起不来过三次；远程的那一家
+    /// 没配、地址或 key 取不到。
     Off(String),
-    /// 这一条算不出：小程序回了一句错、起不来、坏了。下一条照常再试。
+    /// 这一条算不出：小程序回了一句错、起不来、坏了；远程的发不出去、出错、超时、回的读不懂。下一条照常再试。
     Failed(String),
 }
 

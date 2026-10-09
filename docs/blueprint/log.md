@@ -151,8 +151,8 @@
 | `endpoint` | DEBUG | `unknown model` | `why` | `session.create`、`session.configure`、`model.call` 的 `model` 解析不出，回 `unknown_model`（施工 8-8、8-10、8-20） |
 | `session` | INFO | `provider tested` | `provider`、`model`（没有模型可试的是空的）、`ok` | `provider.test` 试了一次（`models.md` 第七条第 4 条第 7 款，施工 8-11）：不属于哪个会话，不带会话编号；候选的 `provider` 是它推的编号。key、地址不进这一行 |
 | `endpoint` | WARN | `probe text unreadable` | `error` | `provider.test` 读不了 `core/models/probe.txt`，回 `internal_error`（施工 8-11） |
-| `session` | INFO | `model call` | `purpose`、`provider`、`model`、`input`、`output`（没报用量的没有后两个） | 一次性入口成了一次（`models.md` 第十二条第 6 条，施工 8-20）：`input` 是没命中、命中、写进缓存三项加起来。不属于哪个会话，不带会话编号；替看不了图的模型看图那一次（`purpose` 是 `vision`）在会话的 span 里发，带会话编号（施工 8-17） |
-| `session` | INFO | `model call failed` | `purpose`、`reason`、`class`（只有 `model_failed` 带） | 一次性入口没成（施工 8-20）：`reason` 是 `unknown_model`、`no_model`、`cooling`、`model_failed`。不带会话编号；`vision` 的带（施工 8-17） |
+| `session` | INFO | `model call` | `purpose`、`provider`、`model`、`input`、`output`（没报用量的没有后两个）；远程的 embedding 是 `purpose`、`provider`、`model`、`input`（没报用量的没有）、`took_ms` | 一次性入口成了一次（`models.md` 第十二条第 6 条，施工 8-20）：`input` 是没命中、命中、写进缓存三项加起来。不属于哪个会话，不带会话编号；替看不了图的模型看图那一次（`purpose` 是 `vision`）在会话的 span 里发，带会话编号（施工 8-17）。远程的 embedding 算了一句（`purpose` 是 `embedding`，`recall.md` 第四条第 7 款，施工 R-5 补）：在派出去的后台任务里算，不带会话编号 |
+| `session` | INFO | `model call failed` | `purpose`、`reason`、`class`（只有 `model_failed` 带）；远程的 embedding 是 `purpose`、`provider`、`model`、`took_ms`、`error` | 一次性入口没成（施工 8-20）：`reason` 是 `unknown_model`、`no_model`、`cooling`、`model_failed`。不带会话编号；`vision` 的带（施工 8-17）。远程的 embedding 没算成（施工 R-5 补）：`error` 是英文的原话，不带地址、key |
 | `session` | INFO | `image not described` | `blob`、`why` | 替看不了图的模型看图没成（`models.md` 第十三条第 7 条，施工 8-17）：没配 `models.vision`、一次性入口没答成、回答是空的。会话的 actor 记，带会话编号；这张图这一轮写占位 |
 | `core` | INFO | `sandbox` | `helper`（助手的路径）、`platform`、`mechanisms`（逗号连起来，空的写 `none`） | 起来时探沙盒的助手，探成了（`sandbox.md`，施工 5-1） |
 | `core` | WARN | `sandbox unavailable` | `reason` | 起来时探沙盒的助手：没找到、跑不了、到时、说的读不懂 |

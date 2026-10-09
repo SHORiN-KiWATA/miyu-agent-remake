@@ -29,7 +29,10 @@ pub fn dangling(
             continue;
         };
         let texts: Vec<&str> = match (item.kind, &entry.value) {
-            (Kind::Reference | Kind::Model, Value::Text(text)) => vec![text.as_ref()],
+            // `model_or` 列出的那几个字照引用读不出指的是什么，下面自然跳过（施工 R-5 补）。
+            (Kind::Reference | Kind::Model | Kind::ModelOr(_), Value::Text(text)) => {
+                vec![text.as_ref()]
+            }
             (Kind::List(Kind::Reference | Kind::Model), Value::List(values)) => values
                 .iter()
                 .filter_map(|value| match value {

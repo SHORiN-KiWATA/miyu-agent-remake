@@ -660,7 +660,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sR-5"><span class="n">R-5</span>本机 embedding 的小程序（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-5b"><span class="n">R-5</span>核心接上小程序（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-5c"><span class="n">R-5</span>向量一路（下）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">R-5</span>远程的 embedding（补）</span></li>
+        <li><a class="step done" href="#sR-5d"><span class="n">R-5</span>远程的 embedding（补）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">R-6</span>抽取</span></li>
         <li><span class="step"><span class="n">R-7</span>合并</span></li>
         <li><span class="step"><span class="n">R-8</span>联想</span></li>
@@ -16989,6 +16989,56 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sR-5d" aria-labelledby="h-sR5d">
+  <div class="sheet-head"><h2 id="h-sR5d"><span class="no">R-5</span>远程的 embedding（补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">不想在本机跑模型的，<code>models.embedding</code> 写一家供应商的模型，她照意思找记忆时走那一家；花的钱照一次性调用记账。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-config · miyu-http · miyu-session · miyu-endpoint</span><span class="dir-note">R-5</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>配置多一种类型：几个字之一或者一个模型</li>
+              <li>照一家供应商拼地址、key、头，和试一家共用</li>
+              <li>POST 那一家的 /embeddings，归一化，报了用量的记账</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不收池</span><span class="rl">向量要和存下的同一个模型比</span></div>
+          <div class="tile new"><span class="nm">连着三条停</span><span class="rl">那一家挂了不一条一条地等</span></div>
+          <div class="tile new"><span class="nm">报了用量就记</span><span class="rl">向量用不了也照记</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-5</dd></div>
+        <div><dt>名称</dt><dd>远程的 embedding（补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">待合</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、核心的主会话审 · 自己验收</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新测试：配置的类型 7 条、POST 2 条、会话 3 条、协议 2 条</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-5-远程的embedding（补）.md</code>；蓝图 <code>recall.md</code> 第三条第 1、5、6 款、第四条第 1、7 款，<code>config.md</code> 的类型表和 <code>models.embedding</code>，<code>models.md</code> 的 <code>[models]</code>，<code>http.md</code>，<code>log.md</code>，<code>core.md</code> 第 10 步。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sR-2b" aria-labelledby="h-sR2b">
   <div class="sheet-head"><h2 id="h-sR2b"><span class="no">R-2</span>补齐旧会话（下）</h2><span class="pill done">已完成</span></div>
   <p class="purpose">人格那一间的回合库是新建的、重建过的，后台把这个账号跟着人格的旧会话补回去：她搜得到以前说过的，记忆的出处照墓碑判得了活不活。</p>
@@ -18746,7 +18796,7 @@ const TREE = {
 
 /* 拼到哪了。how：frame 只搭好了框，里面还空着；on 拼上了；review 这一步拼的，等验收。 */
 const BUILD = {
-  n_mem: { by: 'R-1', how: 'frame', note: '检索的底子（R-1）：中文、日文两两切词，FTS5 照 bm25 找。回合索引（R-2 上）：人开的每一轮照日志进人格的回合库。记忆日志和底账（R-3 上）：只追加，墓碑判出处活不活。三件工具（R-3 中）：remember、forget、memory_search，软件包 miyu-memory，只给本机主会话。范围（R-3 下）：跟着人格、只在会话里、不开，记进快照。协议和清空（R-3 补）：memory.* 五个方法、清空两种、/remember。命令行（R-3 再补）：miyu memory。常驻的摘要（R-4 上）：回合开始交最新的几条，一段上下文一份，不超过 3000 字节。本机 embedding 的小程序（R-5 上）：miyu-embed，bge-small-zh-v1.5，清单能换，ONNX Runtime 静态链接在它里面。核心接上小程序（R-5 中）：第一次用时在后台下模型、核对，按需拉起，闲了退出。向量一路（R-5 下）：搜记忆、以前的对话照意思找，两路照名次合，`off` 只照关键词。排名随 R-4 下，远程的 embedding 随 R-5 补，联想随 R-8' },
+  n_mem: { by: 'R-1', how: 'frame', note: '检索的底子（R-1）：中文、日文两两切词，FTS5 照 bm25 找。回合索引（R-2 上）：人开的每一轮照日志进人格的回合库。记忆日志和底账（R-3 上）：只追加，墓碑判出处活不活。三件工具（R-3 中）：remember、forget、memory_search，软件包 miyu-memory，只给本机主会话。范围（R-3 下）：跟着人格、只在会话里、不开，记进快照。协议和清空（R-3 补）：memory.* 五个方法、清空两种、/remember。命令行（R-3 再补）：miyu memory。常驻的摘要（R-4 上）：回合开始交最新的几条，一段上下文一份，不超过 3000 字节。本机 embedding 的小程序（R-5 上）：miyu-embed，bge-small-zh-v1.5，清单能换，ONNX Runtime 静态链接在它里面。核心接上小程序（R-5 中）：第一次用时在后台下模型、核对，按需拉起，闲了退出。向量一路（R-5 下）：搜记忆、以前的对话照意思找，两路照名次合，`off` 只照关键词。远程的 embedding（R-5 补）：models.embedding 写一家供应商的模型走它的 /v1/embeddings，照一次性调用记账。排名随 R-4 下，联想随 R-8' },
   n_ld: { by: 'O-7', how: 'frame', note: '主动回复判断的上半（O-7）：加值项（冲她来、续聊、刚说过话、违规旗、抽样）、走哪条路、算分、冷静。判官的请求、顶替和分派随后面几步' },
   n_out: { by: 'O-10', how: 'frame', note: '出站链（O-10）：清理、去重、引用和 @，纯文本的形态（Markdown 转纯文本、拆段）。出站队列、长文转图随桥' },
   n_dispatch: { by: 'O-9', how: 'frame', note: '顶替与分派（O-9）：同一个人 7 秒内补发接过去或重判；分派到主线、支线或排队。从日志投影谁在判、各条线在回谁随桥' },

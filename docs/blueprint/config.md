@@ -158,12 +158,13 @@ trusted = true
 | 名字 `name` | `"deepseek"` | 小写字母开头，只有小写字母、数字、`-`、`_`，最长 64 个字符；不对的 `bad_format` | 8-6（供应商的 `catalog`） |
 | 引用 `reference` | `"deepseek/deepseek-v4"` | 模型 `<供应商>/<模型>` 或池 `@<池>`（`models.md`「两种写法」），写法不对的 `bad_format`。指的供应商、池在不在，读进来以后照最终值另查，没有的 `bad_reference`（8-8，`miyu_config::dangling`，「报错」那张表），会话的路由也当场说 `no_model` | 8-6（`models.chat`） |
 | 模型 `model` | `"deepseek/deepseek-v4"` | 只能是 `<供应商>/<模型>`：池、写法不对的 `bad_format`。指的供应商在不在同引用 | 8-8（池的成员：宏里写 `models`，模型的列表） |
+| 模型或几个字 `model_or` | `"local"`、`"siliconflow/BAAI/bge-m3"` | 宏里写 `model_or ["local", "off"]`：等于列出的字的就是那个字（字不带 `/`，模型的写法一定带，撞不上）；别的照「模型」这一行查，不收池。指的供应商在不在只查模型那一种，同「模型」。说法是列出的字再接上「或 `<供应商>/<模型>`」；JSON Schema 是 `anyOf`：那几个字的 `enum`、模型的写法（`pattern`）；协议上 `config.schema` 的 `type` 是 `model_or`，带 `options`（那几个字和它们的名字），界面控件照 `text` | R-5 补（`models.embedding`） |
 | 给模型看的字 `english` | `"Small model for quick lookups."` | 必写最多几个字符，宏里写 `english [60]`；空的、超了的、有控制字符（连同换行：只能一行）的 `bad_format`；CJK 的字（汉字、假名、谚文、全角的标点和字母）数乘二不小于总字数的也是 `bad_format`：给模型看的字一律英文（`26-提示词.md` J3），期望说「一行英文」。协议上 `config.schema` 照文字一样带 `max` | 8-8 补（池的 `description`） |
 | 密钥 `secret` | `{ secret = "deepseek" }`、`{ env = "DEEPSEEK_API_KEY" }`，行内表、有表头的表都认 | 正好一格；`secret` 的照名字的写法，`env` 的不是空的、没有 `=`；写错的 `wrong_type`。不由环境变量压过（第九条） | 8-5（类型加了，清单里用它的项随 8-6） |
 | 列表 `list` | `[…]` | 每一个照元素的类型查，元素不能再是列表；宏里写 `secrets` 是密钥的列表 | 8-6（供应商的 `keys`，8-25 改成一个 `key`；软件包的列表配置项还用） |
 | 表 `table` | `[a.b]`，或者 `{ … }` | 键照名字的写法，值照元素的类型查 | 同上 |
 
-- 类型照「不为以后写代码」一样一样加：哪一步第一次有一项用到它，哪一步加。8-1 只有选项，8-2 加开关，8-5 加密钥，8-6 加整数、网址、名字、引用、列表，8-7 加小数、文字、时长，8-8 补加给模型看的字，列表的元素可以是选项（宏里写 `options [..]`，`config.schema` 照样带 `options`，选项的名字照样要有字）、文字（`texts [..]`）。路径、表随用到它的那一步。
+- 类型照「不为以后写代码」一样一样加：哪一步第一次有一项用到它，哪一步加。8-1 只有选项，8-2 加开关，8-5 加密钥，8-6 加整数、网址、名字、引用、列表，8-7 加小数、文字、时长，8-8 补加给模型看的字，R-5 补加模型或几个字，列表的元素可以是选项（宏里写 `options [..]`，`config.schema` 照样带 `options`，选项的名字照样要有字）、文字（`texts [..]`）。路径、表随用到它的那一步。
 - **人起的名字**（8-6，`miyu_config::key`）：键里可以有一段是人起的名字，清单里写成占位：`<id>` 照「路径里的名字」（`kernel/ids.md`：小写字母开头，只有小写字母、数字、`-`、`_`，最长 32 个字符，不是 Windows 的保留名，它要当 `state/` 下的文件名），`<model>` 照「短名字」（1 到 128 字节，没有控制字符），`<external>` 是通讯平台上的身份，写法同 `<model>`（施工 O-3，主人对应表）。占位不能是第一段；O-3 起可以是最后一段：一张按名字的表，每一格就是这一项（`external.bindings."qq:10001" = "admin"`），Schema 里写成那张表的 `additionalProperties`，参考文件里写成 `# "<external>" =`。文件里、协议上、最终值里的是真的键，照 TOML 点号连着的键写：能裸着写的一段（只有字母、数字、`-`、`_`）照写，别的带双引号，例如 `providers.dev.models."deepseek-v4.1-flash".window`。哪一层写了哪几个名字，每个名字各合各的；没有默认值、哪一层都没写的，最终值里没有它。名字写法不对的那一段报一条 `bad_format`（原因码一样，话是「<键> 里的 <名字> 不能当名字：…」），底下的都不收。键里有人起的名字的项不能由环境变量压过。
 
 **生效时机** `applies`（G7）：
@@ -260,7 +261,7 @@ miyu_config::settings! {
 | `preset.default` | 名字（预设的编号） | `full` | 系统、个人 | 不能写 | `new_session` | P-2 上（`presets.md`）：没指定预设的新会话照它找；指着没有的预设，造会话回 `unknown_preset`，不悄悄换（Y12）。设置页在「通用」那一页的「预设」一组 |
 | `models.chat` | 引用 | 没有：`no_model` | 系统、个人 | 不能写 | `new_session` | 8-6 |
 | `models.vision` | 引用 | 没有 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
-| `models.embedding` | 选项 `local`、`off` | 没有：照 `local` | 系统、个人 | 不能写 | `next_turn` | R-5 下 |
+| `models.embedding` | 模型或几个字：`local`、`off`、`<供应商>/<模型>` | 没有：照 `local` | 系统、个人 | 不能写 | `next_turn` | R-5 下（R-5 补从选项换成模型或几个字，`recall.md` 第四条第 1、7 款） |
 | `pools.<id>.models` | 模型的列表，可以是空的 | 没有：这个池解析不出 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
 | `pools.<id>.strategy` | 选项 `pin`、`rotate` | 没有：照成员的缓存类别定 | 系统、个人 | 不能写 | `next_turn` | 8-8 |
 | `pools.<id>.subagent` | 开关 | `false`：不在派子代理的选项里 | 系统、个人 | 不能写 | `new_session` | 8-8 补 |
@@ -975,8 +976,8 @@ level = "info"
 # 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。以后开的会话生效。
 # chat =
 
-# 按意思找记忆：她搜记得的事和以前的对话时，意思对、字对不上的也找得到。不写的用本机的模型，第一次用时下载约 24 MB；写 off 只照关键词找。
-# 能写：local 或 off。只能写在系统配置或个人设置里。下一轮生效。
+# 按意思找记忆：她搜记得的事和以前的对话时，意思对、字对不上的也找得到。不写的用本机的模型，第一次用时下载约 24 MB；写一家供应商的模型的用那一家的，照用量算钱；写 off 只照关键词找。
+# 能写：local、off 或 <供应商>/<模型>。只能写在系统配置或个人设置里。下一轮生效。
 # embedding =
 
 # 看图的模型：主对话的模型看不了图时，替它看图的模型。写法同主对话的模型。
@@ -1336,13 +1337,21 @@ ticket_idle_seconds = 43200
           "type": "object"
         },
         "embedding": {
-          "description": "她搜记得的事和以前的对话时，意思对、字对不上的也找得到。不写的用本机的模型，第一次用时下载约 24 MB；写 off 只照关键词找。能写：local 或 off。只能写在系统配置或个人设置里。下一轮生效。",
-          "enum": [
-            "local",
-            "off"
+          "anyOf": [
+            {
+              "enum": [
+                "local",
+                "off"
+              ],
+              "type": "string"
+            },
+            {
+              "pattern": "^[a-z][a-z0-9_-]*/.+$",
+              "type": "string"
+            }
           ],
-          "title": "按意思找记忆",
-          "type": "string"
+          "description": "她搜记得的事和以前的对话时，意思对、字对不上的也找得到。不写的用本机的模型，第一次用时下载约 24 MB；写一家供应商的模型的用那一家的，照用量算钱；写 off 只照关键词找。能写：local、off 或 <供应商>/<模型>。只能写在系统配置或个人设置里。下一轮生效。",
+          "title": "按意思找记忆"
         },
         "vision": {
           "description": "主对话的模型看不了图时，替它看图的模型。写法同主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
@@ -2083,6 +2092,7 @@ Options:
 | `crates/miyu-config/src/item/tests.rs`、`item.rs` 的文档 | 宏生成的清单和设置类型一一对上：键、类型、默认值、层、环境变量、生效、界面提示照声明的先后；设置类型照最终值，没有的照默认值。选项区分大小写。没写默认值、选项只有一个的编译不过（`trybuild` 不引，写成宏的文档里的 `compile_fail` 例子）；数没写范围的随整数、小数那一步 | 8-1 |
 | `crates/miyu-config/src/list/tests.rs` | 查清单：键重复、按段互为前缀（`ui.lang` 不算）、写法不对（一段、大写、别的字、空段、数字或 `_` 开头）、第一段 `ext`、默认值过不了校验、选项少于两个或写重、一层都没有或层写重，各一例；几处都错的全报 | 8-1 |
 | `crates/miyu-config/src/words/tests.rs` | 查资源的字：缺名字、说明、选项名，页和组没名字，资源里多了项、选项、页、组，各一例。几个里的一个怎么连（一个、两个、三个以上，值和字两种「或」）。一项说明后面那几句。缺了哪一句照实报 | 8-1 |
+| `crates/miyu-config/src/item/kind/model_or_tests.rs`、`dangling/tests.rs` 的 `a_model_or_word_is_not_checked_and_its_model_is` | 模型或几个字（R-5 补）：列出的字、模型都收，池、写错的、空的、不是字的拒；宏照 `model_or [..]` 声明；TOML、协议、人敲的都读得出；说法、Schema 的 `anyOf`；清单里字重了、带 `/`、一个都没有的报（参考文件里的样子由生成文件的样本守着）；`dangling` 不查字、查模型的供应商 | R-5 补 |
 | `crates/miyu-config/src/schema/tests.rs`、`reference/tests.rs`、`value/tests.rs` | 拿假的字和手写的几项：Schema 只有这一层的项、一层层的表、格照字母先后、这一层什么都没有的；参考文件表照名字排、表里的项照名字排、不重开同一张表、每一项两行注释、项间空一行、多行的字每一行都是注释；缺字报是哪一句。值写成 TOML（引号、反斜杠、控制字符转义）、写成 JSON | 8-1 |
 | `crates/miyu-core/tests/settings.rs` | 登记的全部清单过 `list::check`，照登记的先后（8-3 起有 `tui.startup`、8-28 改名 `ui.startup`，8-6 起有模型那一块的六项，O-8 到 O-20 最后是 `onebot.*` 四项，O-20 挪进桥的清单）。`onebot.trusted`（O-17；O-20 起照出厂清单的 `[settings]` 拼进来的那一项查）的类型、层、生效、界面照 `onebot.md` 第一条「软件包清单」，读得出、不写是没有，写进个人设置、不是列表、元素不是字、空的、超过 128 个字的报问题。中文、英文、日文三份（直接读文件）过 `words::check`。照源码树的资源生成的两份 Schema、参考文件和样本逐字节一样（中文、英文），日文生成得出来 | 8-1 |
 | `crates/miyu-core/src/settings/tests.rs` | 起来时生成：字照系统的语言挑（日文、没有的照英文）。资源里缺字、读不懂的，三份各记一条 `WARN`，什么都不写 | 8-1 |
@@ -2425,6 +2435,15 @@ Options:
 | `providers.<id>.models.<model>.temperature` 是小数（`float [0, 2]`），系统、个人两层，`next_turn` | 和 `effort` 一个位置、一个生效时机；0 到 2 是 OpenAI、DeepSeek 这些收的范围，最宽的那一家 | 供应商那一层也能写一个默认（没要） |
 | `unusable_temperature` 是新的原因码（`Code::UnusableTemperature`），两句话：不收的 `config/temperature-unsupported`，超过上限的 `config/temperature-too-high`（`name` 是上限） | 头只认一种码；话说得清是模型不收还是写大了 | 超过上限另开一个码 |
 | 查法和 `unknown_effort` 挂在同一处（`config/effort.rs` 的 `unusable_temperature`），能不能调照目录、上限照这个模型真走的驱动（`Provider::driver_for`）；纯的那一半在 `miyu_models::temperature::unusable` | 同一个时机、同一份模型资料 | 写的时候就拒：目录会变，照样要只报不丢 |
+
+R-5 补施工时照推荐定的配置这一半（2026-10-09 核心的主会话定，写进了正文；远程那一半在 `recall.md` 第四条第 7 款，施工单 `R-5-远程的embedding（补）.md`）：
+
+| 定了什么 | 为什么 | 别的选法 |
+|---|---|---|
+| 加一种类型「模型或几个字」（`Kind::ModelOr(&[..])`，`config.schema` 的 `type` 是 `model_or`，带 `options`），给 `models.embedding` | 一项里既有几个固定的字（`local`、`off`），又能写一个模型；写错当场报文件、行、列 | 用「引用」：会收 `@池`，向量要和存下的同一个模型比，池里换成员就对不上；拆成两项（开关加模型）：人要同时改两处 |
+| 列出的字查重、不能带 `/`、至少一个（`list::check`） | 带 `/` 的字会和模型的写法撞上，读不出写的是哪一种 | 不查：撞上的那一项读出来不对，不报 |
+| `dangling` 只查模型那一种，照「模型」查供应商在不在 | 列出的字不指别的东西 | 字也当供应商查：`local` 会被报成没配的供应商 |
+| 说法、JSON Schema、参考文件照「选项」和「模型」两种拼：说法是那几个字再接上模型的那一句（`config/or-values` 连，照网址接 `{ env = … }` 的样子），Schema 是 `anyOf` | 不多加给人看的字；编辑器两种写法都补全得出 | 新写一句「或者一个模型」：多一句要三种语言 |
 
 ### 要跟着改的别的页
 

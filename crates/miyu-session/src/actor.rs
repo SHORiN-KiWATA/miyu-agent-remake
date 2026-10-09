@@ -401,6 +401,7 @@ impl Actor {
                         usage,
                         turn: self.session.turn_cause().map(|(turn, _)| turn),
                         asked,
+                        config: Arc::clone(self.config.current()),
                     },
                 )
             }
