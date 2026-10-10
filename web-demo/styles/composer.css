@@ -57,6 +57,8 @@
   border-radius: 10px; color: var(--text);
   background: color-mix(in srgb, var(--surface-1) 86%, transparent); backdrop-filter: blur(14px) saturate(1.2);
   box-shadow: var(--card-shadow); font-size: 12.5px; white-space: nowrap; animation: rise-in var(--motion-in) var(--ease-out) both;
+  /* 长的（「记下了：<那句话>」这类）不超出框：末尾截掉加 …，悬停看全文 */
+  max-width: calc(100% - 12px); overflow: hidden; text-overflow: ellipsis;
 }
 .composer-notice.is-leaving { animation: fade-out var(--motion-out) var(--ease-in) both; }
 /* 好消息不画描边：底色淡淡带一点绿 */
