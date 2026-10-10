@@ -218,7 +218,7 @@
 4. 读得慢、被挤掉了的：这个订阅掉了队，`Ended::Lagged`，以后一直是掉队，要重新订阅（协议里的 `resync`，`protocol.md`）。
 5. 会话停了：读完已经到了的，再读是 `Ended::Stopped`。
 6. `try_next` 不等：已经到了的交回，没到的交回空。协议端点收到回应时，先把到了的推送都写出去，再写回应（`protocol.md`）。
-7. 会话列表的那一项变了（施工 9-5，`protocol.md`「会话列表的推送」）：一批动作里推过 `session.created`、`session.meta_changed`、`turn.started`、`turn.ended` 的，或者这一批前后忙不忙变了的，这一批送完、写好「有没有在跑的回合」以后，经会话表的端口报一声（`SessionPort::listing`，默认什么都不做）。只报「变了」，那一项由会话表照索引算：actor 不碰会话列表。
+7. 会话列表的那一项变了（施工 9-5，`protocol.md`「会话列表的推送」）：一批动作里推过 `session.created`、`session.meta_changed`、`turn.started`、`turn.ended` 的，或者这一批前后忙不忙变了的，这一批送完、写好「有没有在跑的回合」以后，经会话表的端口报一声（`SessionPort::listing`，默认什么都不做）。只报「变了」，那一项由会话表照索引算：actor 不碰会话列表。这一批推过派出（工具结果的效果里有 `job.started`）、了结（`job.reported`、`child.reported`）的，另报一声任务表变了（`SessionPort::moved`，施工 9-8 补下修），核心的会话树照它重量。
 
 **7. 请求模型**
 
