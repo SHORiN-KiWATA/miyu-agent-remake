@@ -15,7 +15,9 @@ use miyu_kernel::id::CallId;
 use miyu_kernel::time::Timestamp;
 
 use super::{Job, Projector};
-use crate::entry::{Answered, Approval, Body, Diff, Entry, EntryId, Picture, Tool, ToolState};
+use crate::entry::{
+    Answered, Approval, Body, Diff, Entry, EntryId, Picture, Tool, ToolState, TouchKind, Touched,
+};
 use crate::estimate;
 use crate::notice::Notice;
 use crate::summary::Counted;
@@ -75,6 +77,7 @@ impl Projector {
             to_title: self.to_title(name, &parsed),
             approval: None,
             took_ms: None,
+            files: Vec::new(),
         };
         if let Some(call) = call {
             self.calls.insert(call, id.clone());
@@ -202,6 +205,21 @@ impl Projector {
                 _ => None,
             })
             .collect();
+        let files: Vec<Touched> = result
+            .effects
+            .iter()
+            .filter_map(|effect| match effect {
+                Effect::FileChanged(changed) => Some(Touched {
+                    path: changed.path.clone(),
+                    action: TouchKind::Changed,
+                }),
+                Effect::FileTrashed(trashed) => Some(Touched {
+                    path: trashed.path.clone(),
+                    action: TouchKind::Trashed,
+                }),
+                _ => None,
+            })
+            .collect();
         let mut job = None;
         for effect in &result.effects {
             if let Effect::JobStarted(started) = effect {
@@ -228,6 +246,7 @@ impl Projector {
                 tool.title = title::of(&tool.name, &parsed, state, result.human.as_ref(), &texts);
                 tool.images = images;
                 tool.job = job;
+                tool.files = files;
                 if let Some(real) = real
                     && !state.failed()
                 {
