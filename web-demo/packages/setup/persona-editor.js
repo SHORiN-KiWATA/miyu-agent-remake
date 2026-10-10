@@ -3,13 +3,13 @@
 //! （2026-10-08 项目主人：来自哪一层、以谁为底、编号都不露；说明人自己写，出厂的那句能改）。改完点「保存」一起发一条 `persona.set`（写一半不生效），提示词带
 //! `persona.read` 给的版本；「取消」关掉卡片、丢掉没存的。删除照核心的 `remove`：改过的出厂「恢复出厂」、自己建的「删除」，点两次才删。
 //! 别处改过了（`persona_conflict`）写一句、给「重新读」；写错的照核心给人看的那一句（`data.message`）。
-//! 最上面一格头像（核心 P-5）：圆的图，「更换头像」选一张图（大的先缩小，`avatars.js`），「移除头像」；换、删当场存，不等「保存」。
+//! 最上面三行是外观（头像、主题色、背景图，`appearance.js`）：换、删当场存，不等「保存」。
 
 import { h, replace } from '../../src/lib/dom.js';
 import { field, area, twoClick } from './form.js';
 import { Pairs } from './pairs.js';
 import { personaSave, halfPair } from './model.js';
-import { shrink, store } from './avatars.js';
+import { Appearance } from './appearance.js';
 
 /**
  * @typedef {import('./model.js').PersonaDraft} PersonaDraft
@@ -28,10 +28,6 @@ export class PersonaEditor {
     this.ctx = ctx;
     this.kit = kit;
     this.catalog = catalog;
-    /** 头像的版本（`persona.get` 的 `avatar`），没有是 `null` @type {string|null} */
-    this.avatar = null;
-    /** 头像那一格（换了、读到了只重画它，不动写了一半的字） */
-    this.avatarBox = h('div.setup-avatar-box');
     this.id = id;
     this.hooks = hooks;
     this.t = (/** @type {string} */ key, /** @type {any} */ fields) => ctx.text(key, fields);
@@ -43,6 +39,12 @@ export class PersonaEditor {
     this.before = null;
     /** @type {string|null} */
     this.remove = null;
+    /** 外观那三行 */
+    this.look = new Appearance(ctx, kit, catalog, id, {
+      saved: () => this.hooks.saved(),
+      say: (text) => this.say(text),
+      name: () => this.name?.value.trim() || this.before?.name || '',
+    });
   }
 
   /** 读这个人格和三份提示词（`persona.read`），画出来；读不到写原因。 */
@@ -53,7 +55,7 @@ export class PersonaEditor {
         this.ctx.core.request('persona.get', { persona: this.id }), read('persona'), read('reminders'), read('examples'),
       ]);
       this.remove = got?.remove ?? null;
-      this.avatar = got?.avatar ?? null;
+      this.look.set(got);
       this.before = {
         name: typeof got?.name === 'string' ? got.name : '',
         summary: typeof got?.summary === 'string' ? got.summary : '',
@@ -83,9 +85,11 @@ export class PersonaEditor {
     this.note = h('p.setup-error', { hidden: true });
     this.saveBtn = this.kit.button(t('edit.save'), { primary: true }, () => this.save());
     const remove = this.remove ? twoClick(this.kit, t(`edit.${this.remove}`), t(`edit.${this.remove}_again`), () => this.drop()) : null;
-    this.paintAvatar();
+    this.look.paint();
     replace(this.body,
-      field(t('edit.avatar'), this.avatarBox),
+      field(t('edit.avatar'), this.look.avatarBox),
+      field(t('edit.seed'), this.look.seedBox),
+      field(t('edit.background'), this.look.backgroundBox),
       field(t('edit.name'), this.name),
       field(t('edit.summary'), this.summary),
       field(t('edit.persona'), this.persona),
@@ -94,58 +98,6 @@ export class PersonaEditor {
       this.note,
       h('div.setup-foot', remove, h('span.setup-grow'), this.kit.button(t('edit.cancel'), {}, () => this.hooks.close()), this.saveBtn));
     this.sync();
-  }
-
-  /** 头像那一格：圆的图（没有的、还没读到的画名字的第一个字），「更换头像」「移除头像」。 */
-  paintAvatar() {
-    const t = this.t;
-    const url = this.catalog.avatars.url(this.id, this.avatar);
-    // 图还在读：读到了再画一次（这一格不在页面上了就不画）
-    if (!url && this.avatar) {
-      const again = () => {
-        this.catalog.listeners.delete(again);
-        if (this.avatarBox.isConnected) this.paintAvatar();
-      };
-      this.catalog.listeners.add(again);
-    }
-    const name = this.name?.value.trim() || this.before?.name || '';
-    const pick = /** @type {HTMLInputElement} */ (h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/*', hidden: true }));
-    pick.addEventListener('change', () => {
-      const file = pick.files?.[0];
-      pick.value = '';
-      if (file) this.changeAvatar(file);
-    });
-    replace(this.avatarBox,
-      h('span.setup-face.is-persona.is-big', { 'aria-hidden': 'true' }, url ? h('img', { src: url, alt: '' }) : [...name][0] ?? ''),
-      this.kit.button(t('edit.avatar_change'), {}, () => pick.click()),
-      this.avatar ? this.kit.button(t('edit.avatar_remove'), {}, () => this.setAvatar({ unset: true })) : null,
-      pick);
-  }
-
-  /** 换成选的这张：大的先缩小，传成 blob，再交给核心。 @param {File} file */
-  async changeAvatar(file) {
-    const cfg = this.ctx.config;
-    try {
-      const blob = await shrink(file, cfg.avatar_side);
-      const hash = await store(this.ctx.core, blob, { chunk: cfg.avatar_chunk_bytes, tries: cfg.avatar_tries });
-      await this.setAvatar({ blob: hash });
-    } catch (err) {
-      this.say(refusalText(err));
-    }
-  }
-
-  /** `persona.set` 只带头像（`{blob}` 换、`{unset: true}` 删），存了重读版本、重画这一格和列表。 @param {any} avatar */
-  async setAvatar(avatar) {
-    try {
-      await this.ctx.core.request('persona.set', { persona: this.id, avatar });
-      const got = await this.ctx.core.request('persona.get', { persona: this.id });
-      this.avatar = got?.avatar ?? null;
-      this.say('');
-      this.paintAvatar();
-      this.hooks.saved();
-    } catch (err) {
-      this.say(refusalText(err));
-    }
   }
 
   /** 编辑器里现在写的。 @returns {PersonaDraft} */

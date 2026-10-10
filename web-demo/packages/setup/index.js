@@ -62,7 +62,8 @@ export function apply(ctx) {
     if (!catalog.personas) return undefined;
     const id = session ? chat.persona(session) : inUse().persona;
     const p = id ? catalog.personas.find((x) => x.persona === id) : null;
-    return p ? { name: personaName(p), avatar: catalog.avatars.url(p.persona, p.avatar) } : null;
+    // 自选的主题色、背景图（核心 P-6）跟着交出去：跟着人格的外观（软件包 `theme-persona`）照它们画
+    return p ? { name: personaName(p), avatar: catalog.avatars.url(p.persona, p.avatar), seed: p.seed ?? null, background: catalog.backgrounds.url(p.persona, p.background) } : null;
   };
   chat.look(lookOf);
   // 第一次引导里人格、预设那两屏（蓝图「第一次引导」第 8、9 条）：控件照引导交来的 `kit`（设置页那一套）

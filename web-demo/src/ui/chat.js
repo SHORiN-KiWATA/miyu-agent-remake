@@ -352,7 +352,7 @@ function herNode(cont, look) {
   return h('article.assistant-message', h('header.assistant-label', face, h('strong', look.name)), h('div.assistant-content'));
 }
 
-/** @typedef {{name: string, avatar?: string|null}} Look */
+/** @typedef {{name: string, avatar?: string|null, seed?: string|null, background?: string|null}} Look 名字、头像的地址；自选的主题色、背景图的地址（核心 P-6，跟着人格的外观用） */
 
 /**
  * 她的一条：回答、三个球、收尾那一行、夹在中间的回报。时间线的一段见 `reconcile`。

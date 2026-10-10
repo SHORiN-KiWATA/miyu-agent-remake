@@ -1,0 +1,7 @@
+/* 人格的背景图（packages/theme-persona/index.js 在页面根上写 has-persona-backdrop、--persona-backdrop、--persona-veil）：只铺对话区，
+   图铺满、居中裁，上面一层底色（surface 照设置项 veil 的浓度）让字看得清；用对话区自己的背景画，不另加一层，不动浮层的上下 */
+.has-persona-backdrop .stage {
+  background:
+    linear-gradient(color-mix(in srgb, var(--surface) var(--persona-veil, 80%), transparent), color-mix(in srgb, var(--surface) var(--persona-veil, 80%), transparent)),
+    var(--persona-backdrop) center / cover no-repeat var(--surface);
+}

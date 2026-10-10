@@ -77,6 +77,15 @@
 .setup-face.is-big { width: 56px; height: 56px; font-size: 22px; }
 /* 人格详情最上面的头像那一格：圆的图、两个按钮 */
 .setup-avatar-box { display: flex; align-items: center; gap: 10px; }
+/* 主题色那一行：自选的画一块颜色、写 #rrggbb；没选的写「跟随头像」（暗）。取色器藏着，按钮叫它出来 */
+.setup-seed-box, .setup-bg-box { position: relative; display: flex; align-items: center; gap: 10px; min-height: 32px; }
+.setup-swatch { flex: none; width: 24px; height: 24px; border-radius: 7px; }
+.setup-seed-hex { color: var(--text-soft); font: 12.5px/1 var(--mono); }
+.setup-seed-follow { color: var(--text-faint); font-size: 13px; }
+.setup-color-input { position: absolute; left: 0; bottom: 0; width: 0; height: 0; padding: 0; border: 0; opacity: 0; pointer-events: none; }
+/* 背景图那一行：16:9 的小图，没有的空一块底色 */
+.setup-bg-thumb { flex: none; width: 96px; height: 54px; overflow: hidden; border-radius: 8px; background: var(--surface-2); }
+.setup-bg-thumb img { width: 100%; height: 100%; object-fit: cover; }
 /* 预设详情的图标那一格：现在的图标加一个下拉的箭头；点开下面一块（搜索、不用图标、一排图标），都不描边 */
 .setup-icon-pick { display: grid; gap: 8px; }
 .setup-icon-now { display: inline-flex; align-items: center; gap: 4px; width: fit-content; height: 36px; padding: 0 8px; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--text); font: 15px var(--sans); cursor: pointer; }

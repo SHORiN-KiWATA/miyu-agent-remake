@@ -2,18 +2,18 @@
   "id": "theme-persona",
   "version": "0.1.0",
   "name": {
-    "zh": "跟随人格的主题色",
-    "en": "Persona colors",
-    "ja": "人格のテーマカラー"
+    "zh": "跟随人格的外观",
+    "en": "Persona look",
+    "ja": "人格の外観"
   },
   "summary": {
-    "zh": "照会话人格的头像生成页面的颜色",
-    "en": "Color the page from the session persona's avatar",
-    "ja": "会話の人格のアイコンからページの色を作る"
+    "zh": "照会话人格的头像或自选的颜色生成页面的颜色，对话区铺人格的背景图",
+    "en": "Color the page from the session persona's avatar or chosen color, and show its background",
+    "ja": "会話の人格のアイコンか選んだ色からページの色を作り、背景画像を敷く"
   },
   "kind": "optional",
   "description": {
-    "zh": "照正在看的会话用的人格的头像取主色，按 MD3 生成浅色、深色两套，盖在选中的主题的底色、字色、强调色上面；出错、差异、代码高亮的颜色照原来的主题。人格没有头像、无人格的照原来的主题。"
+    "zh": "照正在看的会话用的人格：主题色照人格自选的颜色、没选的照头像取主色，按 MD3 生成浅色、深色两套，盖在选中的主题的底色、字色、强调色上面（出错、差异、代码高亮的颜色照原来的主题）；人格有背景图的铺在对话区，上面盖一层底色。都没有、无人格的照原来的主题。"
   },
   "note": "取色用 material-color-utilities 0.4（vendor/，Apache-2.0）：QuantizerCelebi 128 色、Score 挑第一个，SchemeTonalSpot 对比度 0。",
   "inject": [
@@ -30,6 +30,21 @@
         "zh": "取色前头像缩到多大（长边像素）"
       },
       "advanced": true
+    },
+    "veil": {
+      "type": "number",
+      "default": 0.8,
+      "min": 0,
+      "max": 1,
+      "name": {
+        "zh": "背景图上面盖的那一层底色多浓（0 不盖，1 盖满看不见图）",
+        "en": "How thick the page color laid over the background is (0 none, 1 hides the image)",
+        "ja": "背景画像の上に重ねる地の色の濃さ（0 で重ねない、1 で画像が見えない）"
+      },
+      "applies": "live"
     }
-  }
+  },
+  "styles": [
+    "style.css"
+  ]
 }

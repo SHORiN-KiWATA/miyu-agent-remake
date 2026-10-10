@@ -5,7 +5,7 @@
 //! 读到一张新的叫 `listeners`）；预设的图标是 Lucide 的名字，读列表时顺带读一次整套图标（`moreIcons`，核心 P-5）。
 
 import { problemsOf } from './model.js';
-import { Avatars } from './avatars.js';
+import { PersonaImages } from './avatars.js';
 
 export class Catalog {
   /** @param {{request: (method: string, params: any) => Promise<any>}} core @param {() => Promise<void>} [moreIcons] 读整套图标（内核的 `icons`） */
@@ -24,7 +24,10 @@ export class Catalog {
     /** 头像读到一张新的时叫的（列表、对话区她那一轮的头重画） @type {Set<() => void>} */
     this.listeners = new Set();
     /** 人格的头像 */
-    this.avatars = new Avatars(core, () => { for (const fn of this.listeners) fn(); });
+    const changed = () => this.changed();
+    this.avatars = new PersonaImages(core, changed, 'avatar');
+    /** 人格的背景图（核心 P-6） */
+    this.backgrounds = new PersonaImages(core, changed, 'background');
   }
 
   /** 重新读一遍。 */
@@ -41,6 +44,13 @@ export class Catalog {
     this.presetDefault = got?.items?.['preset.default']?.value ?? null;
     const bad = [...(personas ?? []), ...(presets ?? [])].some((x) => x.problem);
     this.problems = bad ? await this.core.request('check', {}).then((r) => r?.problems ?? [], () => []) : [];
+    // 重读完叫一声：左上角、对话区的头像、主题色、背景图照新的列表重画（编辑卡片里改了主题色、换了背景图，不等别的事来再画）
+    this.changed();
+  }
+
+  /** 列表重读了、读到了一张新的图：叫听着的重画。 */
+  changed() {
+    for (const fn of this.listeners) fn();
   }
 
   /** 一个写错的人格、预设，人看的那几句：`check` 里找到的，找不到的退回列表里那句原话。 @param {'persona'|'preset'} kind @param {{problem?: string} & Record<string, any>} item */
