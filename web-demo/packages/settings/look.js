@@ -80,8 +80,10 @@ function packageRow(dialog, id, key, got, redraw) {
       await ctx.packages.set(id, { config: { [key]: v } });
       row.done();
       setTimeout(redraw, 300);
+      return true;
     } catch (err) {
       row.fail(err.message);
+      return false;
     }
   };
   row = shell({

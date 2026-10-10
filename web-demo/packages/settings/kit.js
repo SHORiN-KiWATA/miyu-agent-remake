@@ -9,7 +9,7 @@ import { toggle, textField, select } from './rows.js';
 
 /**
  * @typedef {{
- *   toggle: (on: boolean, change: (on: boolean) => void) => HTMLElement,
+ *   toggle: (on: boolean, change: (on: boolean) => any) => HTMLElement,
  *   select: (options: {value: any, name: string, note?: string}[], value: any, pick: (v: any) => void) => HTMLElement,
  *   text: (text: string, hint: string, commit: (text: string) => void) => HTMLInputElement,
  *   field: (text: string, hint: string) => HTMLInputElement,

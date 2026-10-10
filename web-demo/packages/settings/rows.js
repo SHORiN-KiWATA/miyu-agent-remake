@@ -78,6 +78,7 @@ export function coreRow(dialog, item, opts = {}) {
     const why = await dialog.save(item, change);
     if (why) row.fail(why);
     else row.done();
+    return !why;
   };
   // 密钥（`type: secret`）：粘贴的先存成一个新名字的密钥（`secret.set`，不覆盖原来的），再把引用写进配置——人不用知道
   // `{ secret = … }` 怎么写（2026-10-10 当用户试「接入QQ的令牌」：写纯文字会被核心拒）
@@ -112,7 +113,7 @@ export function coreRow(dialog, item, opts = {}) {
  * @param {any} dialog
  * @param {import('./model.js').Item} item
  * @param {any} value 最终值
- * @param {(change: {value?: any, input?: string}) => void} save
+ * @param {(change: {value?: any, input?: string}) => any} save 存成了交回 `true`
  * @param {(text: string) => void} [saveSecret] 密钥：粘贴的那一串
  */
 function control(dialog, item, value, save, saveSecret) {
@@ -148,9 +149,37 @@ function control(dialog, item, value, save, saveSecret) {
   return label;
 }
 
-/** 开关。 */
+/**
+ * 开关。点了先在原地拨过去、等圆点滑完（照样式里的过渡时长），再交给 `change` 去存：存完多半会重画整块，要是当场就存，
+ * 新画的开关一出来就是新的样子，看不到滑（2026-10-10 项目主人：开关没有动画）。`change` 交回 `false`（或者抛错）的是没存成，拨回去；
+ * 存着的时候再点不算。
+ * @param {boolean} on @param {(on: boolean) => any} change
+ */
 export function toggle(on, change) {
-  return h(`button.set-switch${on ? '.is-on' : ''}`, { type: 'button', role: 'switch', 'aria-checked': String(on), onclick: () => change(!on) }, h('i'));
+  const el = /** @type {HTMLButtonElement} */ (h(`button.set-switch${on ? '.is-on' : ''}`, { type: 'button', role: 'switch', 'aria-checked': String(on) }, h('i')));
+  const show = (/** @type {boolean} */ v) => {
+    el.classList.toggle('is-on', v);
+    el.setAttribute('aria-checked', String(v));
+  };
+  el.addEventListener('click', () => {
+    if (el.disabled || el.dataset.busy) return;
+    const next = !el.classList.contains('is-on');
+    show(next);
+    el.dataset.busy = '1';
+    const knob = /** @type {HTMLElement} */ (el.firstElementChild);
+    const wait = (parseFloat(getComputedStyle(knob).transitionDuration) || 0) * 1000;
+    setTimeout(async () => {
+      let ok;
+      try {
+        ok = await change(next);
+      } catch {
+        ok = false;
+      }
+      delete el.dataset.busy;
+      if (ok === false) show(!next);
+    }, wait);
+  });
+  return el;
 }
 
 /**

@@ -80,17 +80,19 @@ export class PresetEditor {
     }))];
   }
 
-  /** 改一项：成了照回应重画（回应同 `preset.get`），拒了写原因。 @param {any[]} changes */
+  /** 改一项：成了照回应重画（回应同 `preset.get`），拒了写原因；交回存没存成（开关照它拨回去）。 @param {any[]} changes */
   async set(changes) {
     try {
       const got = await this.ctx.core.request('preset.set', { preset: this.id, changes });
       this.draw(got);
       this.hooks.saved();
+      return true;
     } catch (err) {
       if (this.note) {
         this.note.hidden = false;
         this.note.textContent = refusalText(err);
       }
+      return false;
     }
   }
 
