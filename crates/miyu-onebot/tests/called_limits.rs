@@ -1,6 +1,7 @@
 //! 群里的限流和桥重启（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 1、2、5、7 条）：真核心照开关拉起真桥，假 NapCat 发群
 //! 消息。限流满了（规则 `rate = "1/1h"`，别人的那一轮由测试照判官点了头的样子经 `session.respond` 开），终端管理员照样回；白名单成员
-//! （握手交来的 `onebot.trusted`）不受限流，可额度满了的这段时间不问判官，只记下（O-23 下，「群里怎么叫她」第 14 条）；别人冲她来回一句提示、记 `ext.onebot.venues.queued`，再来只记下。桥重启以后照日志
+//! （握手交来的 `onebot.whitelist`）不受限流，冲她来的不过判官、照样回（施工 O-27，「群里怎么叫她」第 14 条）；别人冲她来回一句
+//! 提示、记 `ext.onebot.venues.queued`，再来只记下。桥重启以后照日志
 //! 重建：限流照旧满、提示过的不再提示、引用她以前的话照样认得，以前的回复不再发一遍。改了白名单成员，推来就照新的认。
 
 use serde_json::{Value, json};
@@ -60,8 +61,14 @@ async fn until_decided(home: &Home, message: i64) -> Vec<Value> {
 
 #[tokio::test]
 async fn the_rate_limit_holds_and_survives_a_restart() {
-    let script = Script::new([Play::Says("一"), Play::Says("二"), Play::Says("三")]);
-    let whitelist = format!("trusted = [\"qq:{JIE}\"]\n");
+    let script = Script::new([
+        Play::Says("一"),
+        Play::Says("二"),
+        Play::Says("三"),
+        Play::Says("四"),
+        Play::Says("五"),
+    ]);
+    let whitelist = format!("whitelist = [\"qq:{JIE}\"]\n");
     let (home, mut napcat, (listen, web)) = started(&script, &rules(), &whitelist, MEMBERS).await;
     let venue = format!("qq:group:{GROUP}");
     // 1：小林说一句，只记下；测试照判官点了头的样子开一轮（别人开的，算进限流）：一小时一轮满了。
@@ -90,7 +97,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
         of_kind(events, "turn.ended").len() == 1
     })
     .await;
-    // 2：终端管理员照样回。3：白名单成员不受限流（要问判官）。4：别人冲她来回一句提示。5：再来只记下。
+    // 2：终端管理员照样回。3：白名单成员不受限流、不过判官，照样回。4：别人冲她来回一句提示。5：再来只记下。
     napcat.send(group_frame(
         GROUP,
         ADMIN,
@@ -106,6 +113,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
         json!([at(BOT), plain(" 嗨")]),
         ("阿杰", "jie"),
     ));
+    assert_eq!(napcat.group_reply(GROUP).await, "三");
     napcat.send(group_frame(
         GROUP,
         WANG,
@@ -123,22 +131,23 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
     ));
     let events = until_decided(&home, 5).await;
     assert_eq!(decided(&events, 2).expect("记了")["outcome"], "reply");
-    let trusting = decided(&events, 3).expect("记了");
+    let listed = decided(&events, 3).expect("记了");
     assert_eq!(
         (
-            &trusting["standing"],
-            &trusting["inbound"],
-            &trusting["judge"],
-            &trusting["outcome"]
+            &listed["standing"],
+            &listed["inbound"],
+            &listed["route"],
+            &listed["outcome"]
         ),
         (
-            &json!("trusted"),
+            &json!("whitelisted"),
             &json!("pass"),
-            &json!({"mode": "reply", "unjudged": "rate_full"}),
-            &json!("record")
+            &json!("commit"),
+            &json!("reply")
         ),
-        "{trusting}"
+        "{listed}"
     );
+    assert!(listed.get("judge").is_none(), "不问判官：{listed}");
     let limited = decided(&events, 4).expect("记了");
     assert_eq!(
         (&limited["inbound"], &limited["why"], &limited["outcome"]),
@@ -187,7 +196,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
     napcat.send(group_frame(GROUP, ADMIN, 7, quoting, ("终端管理员", "o")));
     assert_eq!(
         napcat.group_reply(GROUP).await,
-        "三",
+        "四",
         "以前的回复不再发，只有新的这一句"
     );
     let events = until_decided(&home, 7).await;
@@ -204,15 +213,15 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
     let quoted = decided(&events, 7).expect("记了");
     assert_eq!(quoted["conditions"][0]["kind"], "direct", "{quoted}");
     assert_eq!(quoted["outcome"], "reply", "{quoted}");
-    assert_eq!(of_kind(&events, "turn.started").len(), 3);
-    // 改了白名单成员（核心推来 `extension.config`）：不重启，老王从下一条起不受限流。
+    assert_eq!(of_kind(&events, "turn.started").len(), 4);
+    // 改了白名单成员（核心推来 `extension.config`）：不重启，老王从下一条起不受限流、冲她来的照回。
     let changes = json!({"layer": "system", "changes": [
-        {"key": "onebot.trusted", "value": [format!("qq:{JIE}"), format!("qq:{WANG}")]},
+        {"key": "onebot.whitelist", "value": [format!("qq:{JIE}"), format!("qq:{WANG}")]},
     ]});
-    core.call("trusted-1", "config.set", changes)
+    core.call("whitelist-1", "config.set", changes)
         .await
         .expect("改得了");
-    until_log(&home, "trusted changed count=2").await;
+    until_log(&home, "whitelist changed count=2").await;
     napcat.send(group_frame(
         GROUP,
         WANG,
@@ -220,16 +229,13 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
         json!([at(BOT), plain(" 嗨")]),
         ("老王", "w"),
     ));
+    assert_eq!(napcat.group_reply(GROUP).await, "五");
     let events = until_decided(&home, 8).await;
-    let trusting = decided(&events, 8).expect("记了");
+    let listed = decided(&events, 8).expect("记了");
     assert_eq!(
-        (
-            &trusting["standing"],
-            &trusting["inbound"],
-            &trusting["judge"]["unjudged"],
-        ),
-        (&json!("trusted"), &json!("pass"), &json!("rate_full")),
-        "{trusting}"
+        (&listed["standing"], &listed["inbound"], &listed["route"]),
+        (&json!("whitelisted"), &json!("pass"), &json!("commit")),
+        "{listed}"
     );
     assert!(napcat.pending().is_none(), "别的什么都不发");
     stopped(home).await;

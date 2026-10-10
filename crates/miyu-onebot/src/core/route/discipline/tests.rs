@@ -118,7 +118,8 @@ fn each_goes_its_own_way() {
     assert_eq!(chatty.route(&direct, Standing::Admin, false), Route::Commit);
     assert_eq!(
         chatty.route(&direct, Standing::Whitelisted, false),
-        Route::Judge
+        Route::Commit,
+        "白名单成员冲她来的也开一轮（施工 O-27）"
     );
     assert_eq!(
         chatty.route(&flagged, Standing::Member, false),

@@ -156,7 +156,7 @@ async fn the_admin_calling_her_gets_an_answer_in_the_group() {
     assert_eq!(
         decided(&events, 2),
         Some(json!({
-            "msgs": [seqs[1]], "standing": "owner", "inbound": "pass", "discipline": "chatty",
+            "msgs": [seqs[1]], "standing": "admin", "inbound": "pass", "discipline": "chatty",
             "conditions": [{"kind": "direct", "bonus": 0.3}], "route": "commit", "outcome": "reply",
         })),
         "终端管理员 @ 她：终端管理员照核心记下的 by 认"

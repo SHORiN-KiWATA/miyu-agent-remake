@@ -370,7 +370,7 @@ async fn a_strangers_private_chat_is_still_not_taken_when_the_core_runs_the_brid
         .expect("桥写了运行日志");
     let refused: Vec<&str> = log
         .lines()
-        .filter(|line| line.contains("not the owner, not taken"))
+        .filter(|line| line.contains("not admin or whitelisted, not taken"))
         .collect();
     assert_eq!(refused.len(), 1, "同一个人只记一行：{log}");
     assert!(refused[0].contains("venue=qq:private:20002"), "{log}");

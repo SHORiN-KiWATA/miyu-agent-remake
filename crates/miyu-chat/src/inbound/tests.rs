@@ -145,14 +145,15 @@ fn sleep_before_the_epoch() {
 }
 
 #[test]
-fn sleep_excuses_admin_and_whitelisted_in_private() {
+fn sleep_excuses_admin_and_whitelisted_anywhere() {
+    // 白名单成员睡觉时间里私聊、群里都放行（施工 O-27，2026-10-10 项目主人定）。
     let mut night = ctx();
     night.sleep = sleep("23:00-07:00");
     let clock = utc(1, 0, 0);
     let expected = [
         pass(),
         pass(),
-        record(Why::Asleep),
+        pass(),
         record(Why::Asleep),
         record(Why::Asleep),
     ];

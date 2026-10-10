@@ -99,13 +99,13 @@ listen = 8301
 # Allowed: { secret = "…" } or { env = "…" }. Only in the system config. Takes effect at once.
 # token =
 
-# Whitelist: People who can call her in private chat, with no rate limit, even while she sleeps. Write each as qq:<QQ number>, for example qq:20017. Used once groups are connected.
-# Allowed: a list of text of at most 128 characters. Only in the system config. Takes effect at once.
-# trusted =
-
 # Web page port: The port of Connect QQ's own web page (NapCat connection, token), local only. Open it with miyu-onebot web.
 # Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect at once.
 web = 8302
+
+# Whitelist: People who can chat with her in private, whose friend requests are accepted, who are not rate-limited or held off while she sleeps, and whom she answers directly in groups. Write each as qq:<QQ number>, for example qq:20017.
+# Allowed: a list of text of at most 128 characters. Only in the system config. Takes effect at once.
+# whitelist =
 
 [permission]
 # Start new sessions read-only: When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on.

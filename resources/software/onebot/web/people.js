@@ -2,7 +2,7 @@
 //
 // - 终端管理员：系统配置的 external.bindings，一格是一个平台身份对一个本机账号。页面只画、只改这个桥的平台（/status 的
 //   platform）的，别的平台的不碰。存的时候照改动发一条 config.set：加的、改了账号的写值，删的恢复默认（unset）。
-// - 白名单成员：系统配置的 onebot.trusted，平台身份的列表，整张写回；别的平台的身份照原样留在前面。
+// - 白名单成员：系统配置的 onebot.whitelist（施工 O-27 改名），平台身份的列表，整张写回；别的平台的身份照原样留在前面。
 // - 号去掉前后空白，照 1 到 9 开头、一共 1 到 20 位数字认；空着的行不算；不对的、重复的标出来，有标着的不让存（「施工时
 //   定的」第 28 条）。页面的校验只是让人早点看见，算数的是核心：核心回的问题照原话说在那张表下面，表里的东西不丢。
 //
@@ -10,7 +10,7 @@
 
 /** 终端管理员对应表的键的前缀、白名单成员那一项的键（config.md 配置项表）。 */
 const BINDINGS = 'external.bindings.';
-const WHITELIST = 'onebot.trusted';
+const WHITELIST = 'onebot.whitelist';
 
 /** 号：1 到 9 开头，一共 1 到 20 位数字。桥照整数拼 `qq:<号>`，以 0 开头的写进去永远对不上。 */
 const NUMBER = /^[1-9][0-9]{0,19}$/;
@@ -79,7 +79,7 @@ function whitelistChanges(saved, numbers, platform) {
  *  - `cells(start, changed)`：号后面多的格（终端管理员的账号下拉），交回 [元素, 读出多的那几格的函数]，改了调 `changed`；
  *  - `aside(number)`：号没毛病时旁边说的一句（白名单成员的「已经是终端管理员」），没有的是空的；
  *  - `changes(rows)`：照填着的几行要发的改动，没改动的是空的；
- *  - `head`、`before`、`after`：表头、提示下面、表下面多的；`changed()`：表里改了、存好了告诉谁。
+ *  - `head`、`after`：表头、表下面多的；`changed()`：表里改了、存好了告诉谁。
  *  交回卡片、重标一遍的 `refresh`、表里现在填着的号 `numbers`。 */
 function editable(ui, spec) {
   const { h, say } = ui;
@@ -173,7 +173,7 @@ function editable(ui, spec) {
   const el = h('section', { class: `card people-${spec.name}` },
     h('h2', { text: say(`web/people/${spec.name}/title`) }),
     h('p', { class: 'hint', text: say(`web/people/${spec.name}/hint`) }),
-    spec.before, spec.head, empty, list,
+    spec.head, empty, list,
     h('div', { class: 'people-actions' }, more, save),
     note, spec.after);
   reset();
@@ -215,7 +215,6 @@ export function peoplePage(ui) {
     changes: (rows) => whitelistChanges(savedWhitelist(ui.items()), rows.map(({ number }) => number), platform),
     // 终端管理员的权限包含白名单成员的：照样能存，只说一句（施工单「要定的」第 3 条）。
     aside: (number) => (admins.numbers().includes(number) ? say('web/people/already-admin') : ''),
-    before: h('p', { class: 'hint', text: say('web/people/whitelist/later') }),
   });
   return [admins.el, whitelist.el];
 }

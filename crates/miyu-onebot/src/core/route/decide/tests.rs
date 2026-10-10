@@ -172,7 +172,27 @@ fn the_admin_calling_her_is_answered_and_the_decision_reads_as_drawn() {
     assert_eq!(
         written(&decision, Standing::Admin, None),
         json!({
-            "msgs": [12], "standing": "owner", "inbound": "pass", "discipline": "chatty",
+            "msgs": [12], "standing": "admin", "inbound": "pass", "discipline": "chatty",
+            "conditions": [{"kind": "direct", "bonus": 0.3}], "route": "commit", "outcome": "reply",
+        })
+    );
+}
+
+#[test]
+fn the_whitelist_calling_her_is_answered_without_the_judge() {
+    // 白名单成员冲她来的和终端管理员一样直接回（施工 O-27，2026-10-10 项目主人定）。
+    let params = params();
+    let decision = judged(
+        facts(Standing::Whitelisted, true),
+        "@米尤 在吗",
+        ctx(&params),
+        &params.chatty,
+    );
+    assert_eq!(decision.conclusion, Conclusion::Reply);
+    assert_eq!(
+        written(&decision, Standing::Whitelisted, None),
+        json!({
+            "msgs": [12], "standing": "whitelisted", "inbound": "pass", "discipline": "chatty",
             "conditions": [{"kind": "direct", "bonus": 0.3}], "route": "commit", "outcome": "reply",
         })
     );
@@ -194,18 +214,17 @@ fn nothing_holding_is_recorded_and_others_go_to_the_judge() {
         (&body["conditions"], &body["route"]),
         (&json!([]), &json!("record"))
     );
-    for standing in [Standing::Member, Standing::Whitelisted] {
-        let calling = judged(facts(standing, true), "@米尤 在吗", ctx(&params), chatty);
-        assert_eq!(
-            calling.conclusion,
-            Conclusion::Judge(Mode::Reply),
-            "{standing:?}"
-        );
-        assert_eq!(calling.msgs, [12]);
-        let body = written(&calling, standing, None);
-        assert_eq!(body["route"], "judge", "{body}");
-        assert_eq!(body["judge"], json!({"mode": "reply"}), "{body}");
-    }
+    let calling = judged(
+        facts(Standing::Member, true),
+        "@米尤 在吗",
+        ctx(&params),
+        chatty,
+    );
+    assert_eq!(calling.conclusion, Conclusion::Judge(Mode::Reply));
+    assert_eq!(calling.msgs, [12]);
+    let body = written(&calling, Standing::Member, None);
+    assert_eq!(body["route"], "judge", "{body}");
+    assert_eq!(body["judge"], json!({"mode": "reply"}), "{body}");
     // 只有违规旗：判官只查违规。
     let flagged = judged(
         facts(Standing::Member, false),
@@ -260,22 +279,18 @@ fn a_full_rate_notices_once_then_records_and_spares_admin_and_whitelisted() {
         chatty,
     );
     assert_eq!(quiet.conclusion, Conclusion::Record, "不冲她来的不提示");
-    // 白名单成员不受限流，可额度满了的这段时间不问判官：只记下（第 14 条）。
+    // 白名单成员不受限流，冲她来的不过判官：额度满了照回（第 14 条，施工 O-27）。
     let whitelisted = judged(
         facts(Standing::Whitelisted, true),
         "@米尤",
         full.clone(),
         chatty,
     );
-    assert_eq!(whitelisted.conclusion, Conclusion::Record);
+    assert_eq!(whitelisted.conclusion, Conclusion::Reply);
     let body = written(&whitelisted, Standing::Whitelisted, None);
     assert_eq!(
-        (&body["inbound"], &body["route"], &body["judge"]),
-        (
-            &json!("pass"),
-            &json!("judge"),
-            &json!({"mode": "reply", "unjudged": "rate_full"})
-        ),
+        (&body["inbound"], &body["route"], body.get("judge")),
+        (&json!("pass"), &json!("commit"), None),
         "{body}"
     );
     let admin = judged(facts(Standing::Admin, true), "@米尤", full, chatty);
@@ -335,8 +350,8 @@ fn asleep_or_not_allowed_only_records_but_the_admin_is_answered() {
     );
     assert_eq!(
         whitelisted.conclusion,
-        Conclusion::Record,
-        "群里的白名单成员不豁免睡眠"
+        Conclusion::Reply,
+        "群里的白名单成员也豁免睡觉（施工 O-27）"
     );
     let admin = judged(facts(Standing::Admin, true), "@米尤", asleep, chatty);
     assert_eq!(admin.conclusion, Conclusion::Reply);
@@ -344,9 +359,20 @@ fn asleep_or_not_allowed_only_records_but_the_admin_is_answered() {
         allow: Some(false),
         ..ctx(&params)
     };
-    let member = judged(facts(Standing::Member, true), "@米尤", closed, chatty);
+    let member = judged(
+        facts(Standing::Member, true),
+        "@米尤",
+        closed.clone(),
+        chatty,
+    );
     assert_eq!(
         written(&member, Standing::Member, None)["why"],
+        "not_allowed"
+    );
+    // 不让叫她的群：白名单成员照旧只记下，只有私聊里豁免（chat.md 第二条施工时定的第 2 条）。
+    let whitelisted = judged(facts(Standing::Whitelisted, true), "@米尤", closed, chatty);
+    assert_eq!(
+        written(&whitelisted, Standing::Whitelisted, None)["why"],
         "not_allowed"
     );
 }

@@ -1,5 +1,6 @@
 //! 睡眠（`docs/blueprint/chat.md` 第二条「怎么走」第 2 条，`18-通讯平台.md` 第五节、第六节）：此刻照时区换成当地时间，
-//! 落在睡眠时间里算睡着。睡着时只放行终端管理员和私聊里的白名单成员，别的只记下：不参与主动插话、不占限流额度、也不回话。
+//! 落在睡眠时间里算睡着。睡着时只放行终端管理员和白名单成员（私聊、群里都是，施工 O-27），别的只记下：不参与主动插话、不占
+//! 限流额度、也不回话。
 //! 回合闸要的醒来时刻也在这里算（第 8 条）。
 
 use super::{Clock, Ctx, Inbound, InboundRule, Outcome, Step, Why};
@@ -37,7 +38,7 @@ pub(super) struct Rule;
 
 impl InboundRule for Rule {
     fn judge(&self, msg: &Inbound, ctx: &Ctx, clock: Clock) -> Step {
-        match wakes(ctx, clock).is_some() && !msg.excused() {
+        match wakes(ctx, clock).is_some() && !msg.wakes_her() {
             true => Step::Stop(Outcome::RecordOnly(Why::Asleep)),
             false => Step::Continue,
         }

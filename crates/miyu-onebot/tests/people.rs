@@ -169,10 +169,10 @@ async fn the_page_adds_and_removes_admins_and_writes_the_whitelist_back_whole() 
     // 白名单成员整张写回。
     let whitelist = json!(["qq:20017", format!("qq:{SECOND}")]);
     let written = page
-        .save(json!([{"key": "onebot.trusted", "value": whitelist}]))
+        .save(json!([{"key": "onebot.whitelist", "value": whitelist}]))
         .await;
     assert_eq!(
-        written["result"]["keys"]["onebot.trusted"]["applies"], "now",
+        written["result"]["keys"]["onebot.whitelist"]["applies"], "now",
         "{written}"
     );
     // 换一条连接（记住的登录令牌），读得回。
@@ -180,8 +180,8 @@ async fn the_page_adds_and_removes_admins_and_writes_the_whitelist_back_whole() 
     assert_eq!(hello["result"]["account"], "admin", "{hello}");
     let items = again.items().await;
     assert_eq!(admins(&items), [(binding(SECOND), json!("admin"))]);
-    assert_eq!(items["onebot.trusted"]["value"], whitelist);
-    assert_eq!(items["onebot.trusted"]["origin"]["layer"], "system");
+    assert_eq!(items["onebot.whitelist"]["value"], whitelist);
+    assert_eq!(items["onebot.whitelist"]["origin"]["layer"], "system");
     // 新终端管理员的私聊当场认得是管理员本人：页面拼的键和桥拼的平台身份对得上。
     let mut napcat = admin_napcat(bridge.port).await;
     napcat
@@ -212,7 +212,7 @@ async fn a_whitelist_written_wrong_or_to_the_personal_layer_is_refused_whole() {
     let personal = page
         .call(
             "config.set",
-            json!({"layer": "personal", "changes": [{"key": "onebot.trusted", "value": ["qq:20017"]}]}),
+            json!({"layer": "personal", "changes": [{"key": "onebot.whitelist", "value": ["qq:20017"]}]}),
         )
         .await;
     assert_eq!(why(&personal), "config_invalid", "{personal}");
@@ -224,7 +224,7 @@ async fn a_whitelist_written_wrong_or_to_the_personal_layer_is_refused_whole() {
         let refused = page
             .save(json!([
                 {"key": binding(SECOND), "value": "admin"},
-                {"key": "onebot.trusted", "value": wrong},
+                {"key": "onebot.whitelist", "value": wrong},
             ]))
             .await;
         assert_eq!(why(&refused), "config_invalid", "{wrong}: {refused}");
@@ -234,7 +234,7 @@ async fn a_whitelist_written_wrong_or_to_the_personal_layer_is_refused_whole() {
         assert!(
             problems
                 .iter()
-                .all(|problem| problem["key"] == "onebot.trusted"
+                .all(|problem| problem["key"] == "onebot.whitelist"
                     && problem["message"]
                         .as_str()
                         .is_some_and(|message| !message.is_empty())),
@@ -242,7 +242,7 @@ async fn a_whitelist_written_wrong_or_to_the_personal_layer_is_refused_whole() {
         );
     }
     let items = page.items().await;
-    assert!(items.get("onebot.trusted").is_none(), "{items}");
+    assert!(items.get("onebot.whitelist").is_none(), "{items}");
     assert_eq!(
         admins(&items),
         [(binding(ADMIN), json!("admin"))],

@@ -305,9 +305,14 @@ fn routes() {
         Route::Commit
     );
     assert_eq!(
-        route(&of(&[Direct]), Standing::Whitelisted),
+        route(&of(&[Direct, AfterSpeaking]), Standing::Whitelisted),
+        Route::Commit,
+        "白名单成员冲她来的也不过判官（施工 O-27，2026-10-10 项目主人定）"
+    );
+    assert_eq!(
+        route(&of(&[AfterSpeaking]), Standing::Whitelisted),
         Route::Judge,
-        "白名单成员的 @ 也过判官"
+        "白名单成员没冲她来照样过判官"
     );
     assert_eq!(route(&of(&[Direct]), Standing::Member), Route::Judge);
     assert_eq!(

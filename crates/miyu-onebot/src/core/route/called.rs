@@ -3,7 +3,7 @@
 //! `decide`。要问判官的交给 `judges`（O-23 下），判官回来再记判断（`judged.rs`）；别的当场记一笔判断
 //! （`ext.onebot.chat.decided`），然后开一轮（`session.respond`）或者回一句提示。
 //!
-//! - 发的人是谁：终端管理员照核心记下的 `by`（投影），白名单成员照握手交来的 `onebot.trusted`，别的是别人（第 3 条）。
+//! - 发的人是谁：终端管理员照核心记下的 `by`（投影），白名单成员照握手交来的 `onebot.whitelist`，别的是别人（第 3 条）。
 //! - 重发的（序号在收留着的推送以前就在投影里了）不再判（第 8 条）。
 //! - 三个命令编号照判的最后一条的命令编号加 `/decided`、`/respond`、`/queued` 拼（「施工时定的」第 77、99 条）：同一条消息
 //!   至多一次判断、一次开回合、一次提示；先记判断、再开回合（`chat.md` 第七条第 4 条）。
@@ -232,11 +232,7 @@ impl Route {
         };
         let standing = if group.admin(seq) {
             Standing::Admin
-        } else if self
-            .whitelist
-            .iter()
-            .any(|one| one == heard.sender.as_str())
-        {
+        } else if self.whitelisted(&heard.sender) {
             Standing::Whitelisted
         } else {
             Standing::Member

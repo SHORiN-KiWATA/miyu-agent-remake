@@ -1,6 +1,7 @@
 //! 认帧（施工 O-22，`onebot.md` 第一条「怎么走」第 5 条、「群消息」第 1 条、「撤回」）：群消息带上群号、发的人的名字（群名片，
 //! 空白的取昵称）和认出来的段；私聊也带名字；机器人自己发的不认；两种撤回认出撤的人；缺了号的不认。禁言（施工 O-25 中，
-//! 「出站队列」第 7 条）：禁的是她的才认，0 秒、`lift_ban` 是解禁；别人、全员、没带秒数、负的、别的种类不认。
+//! 「出站队列」第 7 条）：禁的是她的才认，0 秒、`lift_ban` 是解禁；别人、全员、没带秒数、负的、别的种类不认。请求（施工 O-27，
+//! 「好友请求」）：加好友的认出号和标记，邀请她进群的认出群和邀请的人；入群申请、没带标记的、缺了号的不认。
 
 use serde_json::{Value, json};
 
@@ -184,5 +185,74 @@ fn only_her_own_ban_is_read() {
         ("别的种类", ban(json!(30003), "whole_ban", json!(600))),
     ] {
         assert_eq!(read(frame), Frame::Other("notice".to_string()), "{name}");
+    }
+}
+
+/// 一条请求（施工 O-27）：`request_type`、`sub_type` 照给的，号、群、标记照给的（`null` 的不写这一格）。
+fn request(request_type: &str, sub_type: Value, user: Value, flag: Value) -> Value {
+    let mut frame = json!({
+        "time": 1_759_800_000, "self_id": 30003, "post_type": "request", "request_type": request_type,
+        "group_id": 888, "user_id": user, "comment": "你好",
+    });
+    for (key, value) in [("sub_type", sub_type), ("flag", flag)] {
+        if !value.is_null() {
+            frame[key] = value;
+        }
+    }
+    frame
+}
+
+#[test]
+fn friend_requests_and_group_invites_are_read() {
+    let befriend = Event::Befriend {
+        bot: 30003,
+        user: 20003,
+        flag: "f-1".to_string(),
+    };
+    assert_eq!(
+        event(request("friend", Value::Null, json!(20003), json!("f-1"))),
+        befriend
+    );
+    assert_eq!(
+        event(request("friend", Value::Null, json!("20003"), json!("f-1"))),
+        befriend,
+        "号写成整数的字也认"
+    );
+    assert_eq!(
+        event(request(
+            "group",
+            json!("invite"),
+            json!(20003),
+            json!("g-1")
+        )),
+        Event::Invited {
+            bot: 30003,
+            group: 888,
+            user: 20003,
+        }
+    );
+    for (name, frame) in [
+        (
+            "入群申请",
+            request("group", json!("add"), json!(20003), json!("g-1")),
+        ),
+        (
+            "没带标记",
+            request("friend", Value::Null, json!(20003), Value::Null),
+        ),
+        (
+            "空的标记",
+            request("friend", Value::Null, json!(20003), json!("")),
+        ),
+        (
+            "没带号",
+            request("friend", Value::Null, Value::Null, json!("f-1")),
+        ),
+        (
+            "别的种类",
+            request("other", Value::Null, json!(20003), json!("f-1")),
+        ),
+    ] {
+        assert_eq!(read(frame), Frame::Other("request".to_string()), "{name}");
     }
 }

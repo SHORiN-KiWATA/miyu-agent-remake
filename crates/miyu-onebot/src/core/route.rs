@@ -1,9 +1,10 @@
-//! 消息进来、回话出去（`onebot.md` 第一条「怎么走」第 6 到 10 条，「群消息」「撤回」）：一个任务拿着跟核心的连接，一边收
-//! NapCat 那头读出来的消息和撤回，一边收核心推来的事件。一件件照先后办（套场所规则、找会话、发进去），办的时候来的推送由
+//! 消息进来、回话出去（`onebot.md` 第一条「怎么走」第 6 到 10 条，「群消息」「撤回」「好友请求」）：一个任务拿着跟核心的连接，
+//! 一边收 NapCat 那头读出来的消息、撤回和请求，一边收核心推来的事件。一件件照先后办（套场所规则、找会话、发进去），办的时候来的推送由
 //! [`Core`] 留着、办完再看。
 //!
 //! - 私聊（这里）：场所、平台上的人经群聊内核拼（`onebot::venue`、`onebot::person`），拼不出来的（照说不会）记一行、这条
-//!   不送；带上场所的格（施工 O-22，`fields`），`show_ids` 照这个私聊套出来的场所规则（`applied`）。
+//!   不送；带上场所的格（施工 O-22，`fields`），`show_ids` 照这个私聊套出来的场所规则（`applied`）。白名单成员的私聊照场所
+//!   规则带人格、预设、工作区（施工 O-27，同群）。
 //! - 群消息（`group`，施工 O-22）：一律旁听；正文里的 @ 写成名字（`names`）；场所规则管人格、预设、工作区、谁是管理的人、
 //!   睡没睡、看不看得到号。撤回（`recall`，施工 O-22）记 `venue.recalled`。
 //! - 群里叫她（施工 O-23，「群里怎么叫她」）：记下以后判（`called`：纯逻辑的判断在 `decide`，线路规程在 `discipline`，
@@ -13,8 +14,9 @@
 //!   补，`persona`）。
 //! - 找会话（`session`）：「场所 → 会话编号」只记在内存里，每个场所桥起来以后第一次要用时问一次 `venue.session`；私聊的
 //!   问到了订阅（不写 `after`），群的从头订阅（施工 O-23）。会话不在了（`session_not_found`、`session_stopped`）
-//!   忘掉，再问一次、再交一次，只重来一次。私聊不是终端管理员的（`no_system_account`，或者会话的属主是桥自己，「施工时定的」第
-//!   49 条）、群的规则写错的不接，同一个场所只记一行运行日志。
+//!   忘掉，再问一次、再交一次，只重来一次。私聊不是终端管理员、也不在白名单里的（`no_system_account`，或者会话的属主是桥
+//!   自己，「施工时定的」第 49 条，施工 O-27）、群的规则写错的不接，同一个场所只记一行运行日志。
+//! - 好友请求（施工 O-27，`request`）：白名单成员的另起任务同意，别的放着；群邀请只记一行。
 //! - `/` 开头的先当斜杠命令交 `command.run`（`command`，O-19，第 7、8 条之间的「斜杠命令」），核心说不是命令的才照普通的话发；
 //!   回执交 `receipt`，群里的过几秒撤回（施工 O-25 上）。
 //! - 她在私聊里的回话：`message.assistant` 的文字块接起来，过出站链、拆段（`speak`，施工 O-25 上）。
@@ -26,7 +28,8 @@
 //!   到时候了摘（`reaction`）。
 //! - 不说话（施工 O-26，「提供者和不说话」）：她的回复里有 `skip_reply` 的调用块，这一轮的字都不发（`quiet` 认，`speak` 不发）。
 //! - 核心推来的 `extension.config`（施工 O-20）：`keys` 原样交给 `serve`，它换上手里的配置、端口变了照 `/apply` 的办法换
-//!   （「施工时定的」第 45 条）：这里够不着监听。白名单成员 `onebot.trusted` 这里记一份（施工 O-23）。
+//!   （「施工时定的」第 45 条）：这里够不着监听。白名单成员 `onebot.whitelist` 这里记一份（施工 O-23）；换了的，私聊找过的
+//!   会话都忘掉，下一条照新的白名单再找（施工 O-27）。
 
 mod applied;
 mod ask;
@@ -49,6 +52,7 @@ mod quiet;
 mod reaction;
 mod recall;
 mod receipt;
+mod request;
 mod sending;
 mod session;
 mod speak;
@@ -62,7 +66,7 @@ use std::time::{Duration, Instant};
 use futures_util::StreamExt;
 use futures_util::stream::FuturesOrdered;
 use miyu_chat::{Venue, VenueKind};
-use miyu_kernel::id::VenueId;
+use miyu_kernel::id::{ExternalId, VenueId};
 use serde_json::{Map, Value, json};
 use tokio::sync::mpsc;
 use tokio::task::{JoinError, JoinHandle, JoinSet};
@@ -123,11 +127,11 @@ pub(crate) struct Route {
     venues: HashMap<String, String>,
     /// 会话编号 → 回执、回话发到哪（第 10 条）。
     peers: HashMap<String, Peer>,
-    /// 记过一行「不接」的场所（第 7 条、「群消息」第 3 条）：私聊不是终端管理员的，群的规则写错的。
+    /// 记过一行「不接」的场所（第 7 条、「群消息」第 3 条）：私聊不是终端管理员、也不在白名单里的，群的规则写错的。
     refused: HashSet<String>,
     /// 群会话编号 → 这个群的投影（施工 O-23，「群里怎么叫她」第 1、2 条）：订阅了的群才有。
     groups: HashMap<String, Projection>,
-    /// 白名单成员的平台身份（`onebot.trusted`，施工 O-23）：握手交来的，推来新的就换。
+    /// 白名单成员的平台身份（`onebot.whitelist`，施工 O-23）：握手交来的，推来新的就换。
     whitelist: Vec<String>,
     /// 发进群里的提示照它说（施工 O-23）：握手回的语言。
     texts: Texts,
@@ -257,7 +261,20 @@ impl Route {
             Event::Unmuted { bot, group } => self.muted(bot, group, None).await,
             // 号连上了：排着的照先后发（施工 O-25 中，「出站队列」第 3 条）。
             Event::Connected { .. } => self.pump().await,
+            Event::Befriend { bot, user, flag } => {
+                self.befriend(bot, user, flag);
+                Ok(())
+            }
+            Event::Invited { bot, group, user } => {
+                request::invited(bot, group, user);
+                Ok(())
+            }
         }
+    }
+
+    /// 平台上的 `who` 在不在白名单里（`onebot.whitelist`，施工 O-23、O-27）。
+    fn whitelisted(&self, who: &ExternalId) -> bool {
+        self.whitelist.iter().any(|one| one == who.as_str())
     }
 
     /// 一条私聊（第 6 到 8 条，中间是「斜杠命令」）。
@@ -276,17 +293,20 @@ impl Route {
             return Ok(());
         }
         // 私聊每一条都开回合：不写 `ambient`、`asleep`（「施工时定的」第 68 条）。
+        let applied = self.applied(&venue);
         let flags = Flags {
-            show_ids: applied::show_ids(&self.applied(&venue)),
+            show_ids: applied::show_ids(&applied),
             ..Flags::default()
         };
+        // 白名单成员的私聊会话归系统账号、照场所规则造（施工 O-27，同群）。
+        let listed = self.whitelisted(&external).then_some(&applied);
         let message = Message {
             id: command_id(posted.bot, posted.message_id, posted.time),
             number: posted.message_id,
             text: posted.text.clone(),
             acting: json!({"external": external}),
             fields: fields(&posted, &[], flags),
-            place: Place::private(&venue, &external, posted.bot, posted.user),
+            place: Place::private(&venue, &external, (posted.bot, posted.user), listed),
         };
         self.submit(message).await.map(|_| ())
     }
@@ -319,7 +339,8 @@ impl Route {
         self.rules.current(Instant::now()).at(venue)
     }
 
-    /// 核心推来的一条：配置变了的（`extension.config`）交给 `serve`（施工 O-20），白名单成员在里面的换上（施工 O-23）；群会话的
+    /// 核心推来的一条：配置变了的（`extension.config`）交给 `serve`（施工 O-20），白名单成员在里面的换上（施工 O-23），私聊找过的
+    /// 会话都忘掉（施工 O-27：删了的人下一条照新的白名单再找，就不接了；终端管理员的找回来还是那一个，再订阅一次不重）；群会话的
     /// 事件收进投影、她新说的话发回群里（施工 O-23）；私聊会话的事件交给 `say_privately`：她的回话发回去（第 10 条），这一轮
     /// 不说话了的不发（施工 O-26，要看 `turn.ended`）；掉了队、会话停了的（`resync`）再订阅一次，群的照收到的最后一条接着补。
     async fn pushed(&mut self, pushed: Value) -> Result<(), Gone> {
@@ -330,7 +351,10 @@ impl Route {
             };
             if let Some(value) = keys.get(&whitelist_key()) {
                 self.whitelist = whitelist(value);
-                tracing::info!(target: TARGET, count = self.whitelist.len(), "trusted changed");
+                let groups = &self.groups;
+                self.venues
+                    .retain(|_, session| groups.contains_key(session));
+                tracing::info!(target: TARGET, count = self.whitelist.len(), "whitelist changed");
             }
             if self.configured.send(keys.clone()).is_err() {
                 // `serve` 不收了：桥在停，没有别处可交。
