@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>348</b><span>/ 363 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>349</b><span>/ 363 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
-    <li><b class="mono">46d79cc8</b><span>最近一步（F-6 下 网页后台页）的提交</span></li>
+    <li><b class="mono">e8496192</b><span>最近一步（O-28 上 后台页）的提交</span></li>
   </ul>
 </header>
 
@@ -644,7 +644,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sO-25c"><span class="n">O-25 下</span>退信和贴表情<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-26"><span class="n">O-26</span>接上提供者和不说话<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-27"><span class="n">O-27</span>白名单成员<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">O-28 上</span>后台页</span></li>
+        <li><a class="step done" href="#sO-28a"><span class="n">O-28 上</span>后台页<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">O-28 下</span>去掉桥自己的网页</span></li>
         <li><a class="step done" href="#sO-6"><span class="n">O-6</span>核心：斜杠命令由核心解析<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-6b"><span class="n">O-6 补</span>列出斜杠命令<span class="st">✓</span></a></li>
@@ -21141,6 +21141,58 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/O-27-白名单成员.md</code>；设计 18 第三、六、七、十一、十七节；蓝图 <code>chat.md</code>、<code>onebot.md</code>（施工时定的第 145 到 150 条）、<code>config.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sO-28a" aria-labelledby="h-sO28a">
+  <div class="sheet-head"><h2 id="h-sO28a"><span class="no">O-28 上</span>后台页</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">接入QQ 的设置和状态做成网页「软件后台」里它自己的页面：包里的静态文件，跑在网页给的隔离框里，读写接入QQ 自己的设置项、调桥登记的方法。桥自己的网页随 O-28 下去掉。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">resources/packages/onebot/page/、crates/miyu-onebot/src/core/methods.rs</span><span class="dir-note">O-28 上</span></div>
+            <ol class="pipe" aria-label="后台页">
+              <li>清单 <code>[package] icon</code>、<code>[page] dir = "page"</code></li>
+              <li>桥经 <code>package.methods</code> 登记 <code>status</code>、<code>connection.token</code>，答 <code>method.call</code></li>
+              <li>页面只经 MessageChannel 说 <code>context</code>、<code>settings.get/set</code>、<code>call</code></li>
+              <li>「连接」「白名单成员」两页；三种语言的字在 <code>texts.js</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">令牌</span><span class="rl">页面生成、网页代存成密钥；看、复制经桥的方法</span></div>
+          <div class="tile new"><span class="nm">终端管理员</span><span class="rl">后台页不管，写一句去网页「高级」页改</span></div>
+          <div class="tile new"><span class="nm">调用口序号</span><span class="rl">同一条连接共用一个，登记工具、方法不撞号</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-28 上</dd></div>
+        <div><dt>名称</dt><dd>后台页</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">e8496192</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真跑 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真核心加真桥：<code>package.list</code> 有页面和图标，<code>package.call</code> 调得到状态和令牌，<code>package.file</code> 给得出页面文件；页面脚本过语法检查，三种语言的键一样</span></li>
+        <li><span class="ok">✓</span><span>改之前 9 个红；手写变异 18 个全被逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 1542）；在网页演示的软件后台里用无头浏览器点过两页</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-28-后台页（上）.md</code>；蓝图 <code>onebot.md</code> 第一条「后台页」、施工时定的第 151 到 165 条；设计 30 第十三节、蓝图 <code>package-pages.md</code>。</li>
       </ul>
     </div>
   </div>
