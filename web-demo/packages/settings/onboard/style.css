@@ -1,0 +1,59 @@
+/* 接一家供应商的几屏（软件包 settings；蓝图 web.md「第一次引导」第 2、5–7 条）：第一次引导和设置页的「添加供应商」共用。
+   一行一个的选项是一块底色，不描边；标记是右边一个小圆角块；选中的模型浮起来（surface-1 加软影） */
+.ob-list, .ob-provider { display: grid; gap: 8px; }
+.ob-rows { display: grid; gap: 6px; }
+.ob-row {
+  display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px 0 14px; border: 0; border-radius: 10px;
+  background: var(--surface-2); color: var(--text); font: 14px var(--sans); text-align: left; cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.ob-row:hover { background: var(--surface-3); }
+.ob-row:focus-visible { outline: 0; background: var(--surface-3); box-shadow: var(--card-shadow); }
+.ob-row.is-off { color: var(--text-faint); cursor: default; }
+.ob-row.is-off:hover { background: var(--surface-2); }
+.ob-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ob-row-hint { overflow: hidden; color: var(--text-faint); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.ob-row-arrow { display: inline-flex; margin-left: auto; color: var(--text-faint); }
+.ob-row-arrow svg { width: 15px; height: 15px; }
+.ob-tag + .ob-row-arrow { margin-left: 0; }
+.ob-tag {
+  flex: none; margin-left: auto; padding: 2px 8px; border-radius: 6px; font-size: 12px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent);
+}
+.ob-tag.is-good { background: color-mix(in srgb, var(--online) 14%, transparent); color: var(--online); }
+.ob-tag.is-off { background: var(--surface-3); color: var(--text-faint); }
+.ob-group-name { margin: 10px 0 0; color: var(--text-faint); font-size: 12px; font-weight: 600; }
+.ob-note { margin: 4px 0; color: var(--text-soft); font-size: 13px; }
+.ob-note.is-bad { color: var(--danger); }
+
+.ob-field { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 12px; min-height: 32px; }
+.ob-field-name { color: var(--text-soft); font-size: 13.5px; }
+.ob-field-control { min-width: 0; }
+.ob-input, .ob-search { width: 100%; height: 32px; }
+.ob-fixed { color: var(--text); font-size: 13.5px; }
+.ob-test-row { display: flex; padding-left: 108px; }
+.ob-result { display: grid; gap: 2px; font-size: 13px; }
+.ob-result svg { width: 15px; height: 15px; flex: none; }
+.ob-result.is-good { display: flex; align-items: center; gap: 6px; color: var(--online); }
+.ob-result.is-bad { color: var(--danger); }
+.ob-result-line { display: flex; align-items: center; gap: 6px; }
+.ob-result-raw {
+  display: -webkit-box; overflow: hidden; margin: 0 0 0 21px; color: var(--text-faint); font-size: 12px; overflow-wrap: anywhere;
+  -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+}
+.ob-models { display: grid; gap: 8px; }
+.ob-model-list { display: grid; max-height: min(320px, 42vh); padding: 4px; overflow-y: auto; border-radius: 10px; background: var(--surface-2); gap: 2px; }
+.ob-model {
+  display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 10px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text); font: 13px var(--mono); text-align: left; cursor: pointer;
+}
+.ob-model:hover { background: var(--surface-3); }
+.ob-model.is-on { background: var(--surface-1); box-shadow: var(--card-shadow); }
+.ob-model-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ob-model-note { color: var(--text-faint); font: 12px var(--sans); }
+.ob-model-check { display: inline-flex; margin-left: auto; color: var(--accent); }
+.ob-model-check svg { width: 15px; height: 15px; }
+
+/* 放在设置页「模型」那一栏里（「＋ 添加供应商」）：和编辑供应商的表一样宽 */
+.ob-in-settings { display: grid; gap: 10px; }
+.ob-in-settings .ob-model-list { max-height: 260px; }

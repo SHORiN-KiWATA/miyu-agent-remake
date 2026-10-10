@@ -8,6 +8,8 @@
 import { h, icon } from '../../src/lib/dom.js';
 import { SettingsDialog } from './dialog.js';
 import { openBackstage } from './backstage.js';
+import { ProviderFlow } from './onboard/flow.js';
+import { sectionKit } from './kit.js';
 
 /** @param {any} ctx */
 export function apply(ctx) {
@@ -24,6 +26,13 @@ export function apply(ctx) {
     dialog.open(page);
   };
   ctx.effect(() => () => dialog?.close());
+  // 给第一次引导的（蓝图「第一次引导」第 12 条）：和设置页一个样子的控件、接一家供应商的几屏（设置页的「＋ 添加供应商」也是它）
+  ctx.provide('settings', {
+    /** 控件画在 `panel` 里（菜单开在它上面），提示交给 `toast`。 @param {HTMLElement} panel @param {(text: string) => void} toast */
+    kit: (panel, toast) => sectionKit({ panel, ctx, toast }),
+    /** @param {import('./onboard/flow.js').Host} host */
+    providers: (host) => new ProviderFlow(ctx, host, 'welcome'),
+  });
   // `miyu web --package <编号>` 打出的网址：打开时直接到「软件后台」里这个软件的页面
   const launch = ctx.host.pages?.launch;
   if (launch) {

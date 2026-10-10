@@ -9,6 +9,11 @@
   "description": {
     "zh": "页面正中的弹窗：核心的配置和网页自己的设置都在这里改，改一项存一项（蓝图 web.md「设置页」）。"
   },
+  "provides": {
+    "services": [
+      "settings"
+    ]
+  },
   "inject": [
     "slots",
     "icons",
@@ -285,8 +290,15 @@
       },
       "changed": "已改",
       "packages_web": "网页",
-      "platforms": {"qq": "QQ"},
-      "backstage": {"none": "没有带后台页的软件", "by": "这个页面由「{name}」提供", "failed": "打不开这个软件的后台页", "forbidden": "只能改这个软件自己的设置"},
+      "platforms": {
+        "qq": "QQ"
+      },
+      "backstage": {
+        "none": "没有带后台页的软件",
+        "by": "这个页面由「{name}」提供",
+        "failed": "打不开这个软件的后台页",
+        "forbidden": "只能改这个软件自己的设置"
+      },
       "pkg": {
         "part": {
           "connection": "接入",
@@ -313,6 +325,60 @@
         "owner_hint": "号码",
         "owner_bad": "号码不能有空格",
         "gone": "软件包不存在"
+      },
+      "onboard": {
+        "title_list": "选择模型供应商",
+        "sub_list": "选择供应商并填写密钥",
+        "loading": "正在加载…",
+        "load_failed": "加载失败：{reason}",
+        "local": "本机",
+        "other": "其他",
+        "custom": "自定义…",
+        "custom_hint": "地址、接口、密钥",
+        "manual": "手动填写…",
+        "manual_hint": "编号、显示名、环境变量",
+        "search_more": "搜索更多供应商…",
+        "search_title": "搜索供应商",
+        "search_hint": "供应商名称",
+        "no_match": "无匹配结果",
+        "tag": {
+          "configured": "已配置",
+          "found": "已找到密钥",
+          "unsupported": "暂不支持"
+        },
+        "key": "密钥",
+        "key_configured": "已配置",
+        "key_paste": "粘贴密钥",
+        "key_env": "环境变量 {name}",
+        "key_optional": "可留空",
+        "test": "测试连接",
+        "testing": "正在测试…",
+        "test_ok": "连接成功 · {count} 个模型",
+        "no_list": "未获取到模型列表",
+        "config_error": "配置错误",
+        "classes": {
+          "retryable": "临时错误",
+          "rate_limited": "请求受限",
+          "context_too_long": "上下文太长",
+          "auth": "认证失败",
+          "no_model": "没有可用的模型",
+          "cooling": "模型都在冷却",
+          "content_policy": "内容被拦截",
+          "bad_stream": "响应流异常",
+          "empty_reply": "响应为空",
+          "other": "模型错误"
+        },
+        "model_name": "模型名称",
+        "model_search": "搜索模型",
+        "recommended": "推荐",
+        "more_models": "仅显示前 {shown} 个",
+        "custom_title": "自定义供应商",
+        "url": "地址",
+        "driver": "接口",
+        "next": "下一步",
+        "save": "保存",
+        "save_failed": "保存失败：{reason}",
+        "back": "上一步"
       }
     },
     "ja": {
@@ -465,8 +531,15 @@
       },
       "changed": "変更済み",
       "packages_web": "ウェブ",
-      "platforms": {"qq": "QQ"},
-      "backstage": {"none": "管理画面のあるソフトはありません", "by": "このページは「{name}」が提供しています", "failed": "このソフトの管理画面を開けません", "forbidden": "このソフト自身の設定だけ変更できます"},
+      "platforms": {
+        "qq": "QQ"
+      },
+      "backstage": {
+        "none": "管理画面のあるソフトはありません",
+        "by": "このページは「{name}」が提供しています",
+        "failed": "このソフトの管理画面を開けません",
+        "forbidden": "このソフト自身の設定だけ変更できます"
+      },
       "pkg": {
         "part": {
           "connection": "接続",
@@ -493,10 +566,65 @@
         "owner_hint": "番号",
         "owner_bad": "番号に空白は使えません",
         "gone": "パッケージがありません"
+      },
+      "onboard": {
+        "title_list": "モデルプロバイダーを選択",
+        "sub_list": "プロバイダーを選んでキーを入力",
+        "loading": "読み込み中…",
+        "load_failed": "読み込みに失敗しました：{reason}",
+        "local": "このマシン",
+        "other": "その他",
+        "custom": "カスタム…",
+        "custom_hint": "アドレス・API・キー",
+        "manual": "手動で入力…",
+        "manual_hint": "ID・表示名・環境変数",
+        "search_more": "ほかのプロバイダーを検索…",
+        "search_title": "プロバイダーを検索",
+        "search_hint": "プロバイダー名",
+        "no_match": "一致する結果はありません",
+        "tag": {
+          "configured": "設定済み",
+          "found": "キーを検出",
+          "unsupported": "未対応"
+        },
+        "key": "キー",
+        "key_configured": "設定済み",
+        "key_paste": "キーを貼り付け",
+        "key_env": "環境変数 {name}",
+        "key_optional": "空欄可",
+        "test": "接続テスト",
+        "testing": "テスト中…",
+        "test_ok": "接続成功 · モデル {count} 個",
+        "no_list": "モデル一覧を取得できませんでした",
+        "config_error": "設定エラー",
+        "classes": {
+          "retryable": "一時的なエラー",
+          "rate_limited": "リクエスト制限",
+          "context_too_long": "コンテキストが長すぎます",
+          "auth": "認証失敗",
+          "no_model": "使えるモデルがありません",
+          "cooling": "モデルはすべてクールダウン中",
+          "content_policy": "コンテンツがブロックされました",
+          "bad_stream": "応答ストリームの異常",
+          "empty_reply": "応答が空です",
+          "other": "モデルエラー"
+        },
+        "model_name": "モデル名",
+        "model_search": "モデルを検索",
+        "recommended": "おすすめ",
+        "more_models": "先頭 {shown} 個のみ表示",
+        "custom_title": "カスタムプロバイダー",
+        "url": "アドレス",
+        "driver": "API",
+        "next": "次へ",
+        "save": "保存",
+        "save_failed": "保存に失敗しました：{reason}",
+        "back": "戻る"
       }
     }
   },
   "styles": [
-    "style.css"
+    "style.css",
+    "onboard/style.css"
   ]
 }

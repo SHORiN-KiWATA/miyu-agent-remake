@@ -8,6 +8,7 @@ import { h, icon, replace } from '../../src/lib/dom.js';
 import { coreRow, textField } from './rows.js';
 import { itemFor, plainItem, shortCount, inputText, duplicates, layerFor, writtenIn, expectFor, providerName, filterModels } from './model.js';
 import { providerForm, openForm } from './provider-form.js';
+import { openAdd, drawAdd } from './add-provider.js';
 import { drawPools } from './pools.js';
 import { drawEmbedding } from './embedding.js';
 
@@ -24,11 +25,11 @@ export function drawModels(dialog) {
   const tabs = h('div.set-tabs', { role: 'tablist' }, shownTabs.map((id) => h(`button.set-tabbar${dialog.modelTab === id ? '.is-on' : ''}`, {
     type: 'button',
     role: 'tab',
-    onclick: () => { dialog.modelTab = id; dialog.modelDetail = null; dialog.providerForm = null; dialog.drawBody(); },
+    onclick: () => { dialog.modelTab = id; dialog.modelDetail = null; dialog.providerForm = null; dialog.adding = null; dialog.drawBody(); },
   }, ctx.text(`models.tabs.${id}`))));
   const list = dialog.models;
   if (!list) return [tabs, dialog.modelsLoading ? loadingRow(ctx) : h('p.set-empty.is-bad', ctx.text('load_failed', { reason: 'model.list' }))];
-  if (dialog.modelTab === 'providers') return [tabs, dialog.providerForm ? providerForm(dialog, list.providers ?? []) : providers(dialog, list)];
+  if (dialog.modelTab === 'providers') return [tabs, dialog.adding ? drawAdd(dialog) : dialog.providerForm ? providerForm(dialog, list.providers ?? []) : providers(dialog, list)];
   if (dialog.modelTab === 'pools') return [tabs, drawPools(dialog, list)];
   if (dialog.modelTab === 'embedding') return [tabs, drawEmbedding(dialog)];
   return [tabs, defaults(dialog, list, dialog.modelTab)];
@@ -62,7 +63,7 @@ function providers(dialog, list) {
   const side = h('div.set-prov-list',
     all.map((x) => h(`button.set-prov${x.id === p?.id ? '.is-on' : ''}`, { type: 'button', onclick: () => { dialog.provider = x.id; dialog.modelDetail = null; if (dialog.modelQuery) dialog.modelQuery.providers = ''; dialog.drawBody(); } },
       h('span', providerName(x)), sharedState(x.models ?? []) ? h('i.set-warn-dot') : null)),
-    h('button.set-prov.is-add', { type: 'button', onclick: openForm(dialog, null) }, icon('plus'), ctx.text('models.add_provider')));
+    h('button.set-prov.is-add', { type: 'button', onclick: () => openAdd(dialog) }, icon('plus'), ctx.text('models.add_provider')));
   if (!p) return h('div.set-prov-wrap', side);
   const models = p.models ?? [];
   // 一家一个 key（核心 8-25）：`model.list` 每家的 `key`，没写的没有这一格
