@@ -20,7 +20,7 @@ const SEARCH_LIMIT = 50;
  * @typedef {import('./logic.js').Row} Row
  * @typedef {import('./logic.js').Target} Target
  * @typedef {{
- *   title: string, sub?: string|null, body: HTMLElement,
+ *   title: string, sub?: string|null, body: HTMLElement, kind?: string,
  *   back?: (() => void)|null,
  *   next?: {label: string, ready: () => boolean, run: () => Promise<string|null>}|null,
  *   focus?: HTMLElement|null,
@@ -90,7 +90,7 @@ export class ProviderFlow {
 
   /** 读的时候那一屏。 */
   waiting() {
-    return { title: this.t('onboard.title_list'), sub: this.t('onboard.sub_list'), body: h('p.ob-note', this.t('onboard.loading')) };
+    return { title: this.t('onboard.title_list'), sub: this.t('onboard.sub_list'), body: h('p.ob-note', this.t('onboard.loading')), kind: 'wait' };
   }
 
   /** 选一家（第 5 条）。 */

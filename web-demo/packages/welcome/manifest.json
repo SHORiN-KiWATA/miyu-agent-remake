@@ -11,16 +11,16 @@
   },
   "kind": "optional",
   "description": {
-    "zh": "核心的 ui.welcomed 是 false 时整页盖上引导：欢迎 → 界面语言 → 模型 → 人格 → 预设 → 完成，走完写 true（蓝图 web.md「第一次引导」）。供应商那一段、控件经 settings 包的服务 settings，人格、预设经 setup 包的服务 personas，吉祥物经 mascot 包的服务 mascot。"
+    "zh": "核心的 ui.welcomed 是 false 时整页盖上引导：欢迎 → 界面语言 → 模型 → 人格 → 预设 → 完成，走完写 true（蓝图 web.md「第一次引导」）。排在对话页之前、别的服务都是用到时现找：没走过引导的这台设备一打开先盖一层底色，不露出空会话。供应商那一段、控件经 settings 包的服务 settings，人格、预设经 setup 包的服务 personas，吉祥物经 mascot 包的服务 mascot。"
   },
   "inject": [
     "core",
     "language",
     "storage",
-    "chat",
-    "composer",
-    "settings",
-    "personas",
+    "chat~",
+    "composer~",
+    "settings~",
+    "personas~",
     "mascot~"
   ],
   "settings": {

@@ -42,6 +42,8 @@ export class Body {
     /** 在往外让（地上正对输入框的那一段）：和往家走一样，动鼠标、打字不叫停 */
     this.leaving = false;
     this.floorUntil = 0;
+    /** 在空中时舞台叫它回家：落稳了再回（`goHome`） */
+    this.homeAfter = false;
     /** 原地跳着（落地前不算离开台子，手里的东西不收） */
     this.hopping = false;
     /** 要跳了、先蹲着：什么时候开始蹲、起跳的速度（往上、横着） */
@@ -121,7 +123,13 @@ export class Body {
       this.at = { x: home.x, y: floor?.y ?? innerHeight, vx: 0, vy: 0, ground: floor };
     }
     const g = this.at.ground;
-    if (!g || g.id === home.platform.id) return;
+    // 在空中（跳着、掉着）：落稳了再回
+    if (!g) {
+      this.homeAfter = true;
+      return;
+    }
+    this.homeAfter = false;
+    if (g.id === home.platform.id) return;
     const gone = !this.room.platforms().some((p) => p.id === g.id);
     // 换了一屏、新的台子还在原来的高度（标题上沿没挪）：直接站上去，不跳
     if (gone && Math.abs(home.platform.y - this.at.y) < 2 && this.at.x >= home.platform.x1 && this.at.x <= home.platform.x2) {
@@ -151,6 +159,7 @@ export class Body {
     this.drag = { t0: now, dx: b.x - x, dy: b.y - y, x, y, t: now, vx: 0, vy: 0, moved: false };
     this.walkTo = null;
     this.homing = false;
+    this.homeAfter = false;
     this.leaving = false;
     this.hopping = false;
     this.windup = null;
@@ -361,6 +370,11 @@ export class Body {
     this.landDepth = l.squash * Math.min(1, v / l.per_speed);
     if (b.ground?.id === 'floor') this.floorUntil = now + pick(this.config.walk.floor_stay_ms);
     if (v > l.bounce_min) return { ...b, vy: -v * l.bounce, ground: null };
+    // 在空中时舞台叫过它回家：站稳了就回（下一帧起跳）
+    if (this.homeAfter) {
+      queueMicrotask(() => this.goHome());
+      return b;
+    }
     // 落在地上正对输入框的那一段：走到近的那一边去
     if (b.ground?.id === 'floor') this.leave(b, now);
     return b;

@@ -4,7 +4,7 @@
 //! （步骤条）、上一步、下一步，管 `Enter`、`↑` `↓`、换屏的动画和吉祥物站哪。
 
 import { h, icon, replace } from '../../src/lib/dom.js';
-import { helloScreen, languageScreen, doneScreen, STEP_KEY } from './screens.js';
+import { helloScreen, languageScreen, doneScreen, STEP_KEY, DONE_KEY } from './screens.js';
 
 /** 步子的先后；`back` 是上一步回到哪 */
 const BACK = /** @type {Record<string, string|null>} */ ({ hello: null, language: 'hello', model: 'language', persona: 'model', preset: 'persona', done: 'preset' });
@@ -13,6 +13,10 @@ export const NUMBERED = ['language', 'model', 'persona', 'preset'];
 /** 换一屏要选中的选项（`↑` `↓` 换着选的：选了就是它；别的只挪焦点） */
 const CHOICES = '.ob-row:not([disabled]), .wl-lang, .setup-choice, .ob-model';
 const SELECTS = new Set(['wl-lang', 'setup-choice', 'ob-model']);
+/** 吉祥物站的那一块：这一屏内容里第一块看得见的（第一行选项、第一个框），站在它上沿靠右（2026-10-10 项目主人选的，同对话页站在输入框上） */
+const SURFACES = '.ob-row, .wl-lang, .setup-choice, .ob-input, .set-input, .setup-area, .set-select';
+/** 平常站的地方离那一块右边多远 */
+const HOME_RIGHT = 40;
 
 /**
  * @typedef {{title: string, sub?: string|null, body: HTMLElement, back?: (() => void)|null, center?: boolean, kind?: string,
@@ -21,9 +25,10 @@ const SELECTS = new Set(['wl-lang', 'setup-choice', 'ob-model']);
  */
 
 export class Guide {
-  /** @param {any} ctx `welcome` 包的 ctx */
-  constructor(ctx) {
+  /** @param {any} ctx `welcome` 包的 ctx @param {() => void} uncover 揭掉一打开就盖上的那层底色（收起时） */
+  constructor(ctx, uncover) {
     this.ctx = ctx;
+    this.uncover = uncover;
     this.t = (/** @type {string} */ key, /** @type {any} */ fields) => ctx.text(key, fields);
     this.step = 'hello';
     /** @type {Screen|null} */
@@ -38,7 +43,6 @@ export class Guide {
     this.head = h('div.wl-head', h('span.wl-brand', this.t('brand')), this.steps);
     this.page = h('div.wl-page', h('div.wl-col', this.head, this.slot));
     this.layer = h('div.wl-layer', { role: 'dialog', 'aria-modal': 'true' }, sky(ctx.config.stars), this.page);
-    this.kit = ctx.settings.kit(this.layer, (/** @type {string} */ text) => this.say(text));
     /** @type {HTMLButtonElement|null} */
     this.nextBtn = null;
     this.error = h('p.wl-error', { hidden: true });
@@ -47,12 +51,20 @@ export class Guide {
     this.unstage = /** @type {(() => void)|null} */ (null);
     /** 画了第几屏：台子的编号带着它（换了一屏，旧的台子就没了，吉祥物照新的站） */
     this.shown = 0;
+    /** 人格、预设还在读的那一下：台子照上一屏的留着，不让她掉下去 @type {{platforms: any[], home: any}|null} */
+    this.held = null;
     this.onKey = (/** @type {KeyboardEvent} */ e) => this.key(e);
     this.onFocus = (/** @type {FocusEvent} */ e) => {
       // 焦点关在引导里：后面的页面点不到、Tab 不过去
       if (!this.layer.contains(/** @type {Node} */ (e.target))) this.focusScreen();
     };
     this.onScroll = () => this.ctx.mascot?.refresh?.();
+  }
+
+  /** 和设置页一个样子的控件（`settings` 包给的；它比这个包晚加载，用到时再要） */
+  get kit() {
+    this.madeKit ??= this.ctx.settings.kit(this.layer, (/** @type {string} */ text) => this.say(text));
+    return this.madeKit;
   }
 
   /** 盖上，从 `step` 开始。 @param {string} step */
@@ -62,6 +74,13 @@ export class Guide {
     document.addEventListener('focusin', this.onFocus);
     this.page.addEventListener('scroll', this.onScroll, { passive: true });
     this.go(step in BACK ? step : 'hello', 1);
+    // 吉祥物的包比这个包晚加载：来了再让它上舞台
+    const wait = (/** @type {number} */ tries) => {
+      if (this.stageKind || !this.layer.isConnected) return;
+      if (this.ctx.mascot) this.restage();
+      else if (tries > 0) setTimeout(() => wait(tries - 1), 100);
+    };
+    wait(50);
   }
 
   /** 收起：淡出，吉祥物跳回输入框上。 */
@@ -72,6 +91,7 @@ export class Guide {
     this.unstage?.();
     this.unstage = null;
     this.layer.classList.add('is-leaving');
+    this.uncover();
     const gone = () => this.layer.remove();
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) gone();
     else this.layer.addEventListener('animationend', gone, { once: true });
@@ -96,7 +116,7 @@ export class Guide {
       flow.start();
     } else if (step === 'persona' || step === 'preset') {
       const part = step === 'persona' ? this.ctx.personas.persona(this.kit, host) : this.ctx.personas.preset(this.kit, host);
-      this.show({ title: '', body: h('p.wl-wait', icon('loader-circle')), next: null }, dir);
+      this.show({ title: '', body: h('p.wl-wait', icon('loader-circle')), next: null, kind: 'wait' }, dir);
       await part.load();
       if (this.step !== step) return;
       const screen = part.screen();
@@ -136,12 +156,16 @@ export class Guide {
     this.layer.classList.toggle('is-center', !!screen.center);
     this.head.hidden = !NUMBERED.includes(this.step);
     this.drawSteps();
+    // 还在读的那一下：吉祥物照上一屏的台子站着（先记下来再换掉）
+    const waiting = screen.kind === 'wait';
+    if (waiting && !this.held && this.stageKind) this.held = { platforms: this.platforms(), home: this.home() };
+    if (!waiting) this.held = null;
     replace(this.slot, node);
-    this.shown += 1;
+    if (!waiting) this.shown += 1;
     this.page.scrollTop = 0;
     this.sync();
     queueMicrotask(() => this.focusScreen());
-    if (!this.restage()) this.ctx.mascot?.home?.();
+    if (!this.restage() && !waiting) this.ctx.mascot?.home?.();
   }
 
   /** 焦点放到这一屏要的地方（没有的放到主按钮）。 */
@@ -238,12 +262,15 @@ export class Guide {
     return true;
   }
 
-  /** 台子：标题上面那一段（欢迎页是标题上面居中一段）；一列选项、按钮那一排的上沿。 */
+  /** 台子：站的那一块（居中的几屏是标题正上方一段）；别的选项、按钮那一排的上沿（拖下来松手落到它们上面）。 */
   platforms() {
+    if (this.held) return this.held.platforms;
     const top = this.top();
     const list = top ? [top] : [];
     if (this.stageKind === 'page') {
+      const first = this.first();
       this.slot.querySelectorAll('.ob-row, .wl-lang, .setup-choice, .wl-foot').forEach((el, i) => {
+        if (el === first) return;
         const r = el.getBoundingClientRect();
         if (r.width && r.top > 0) list.push({ id: `wl-${this.shown}-${i}`, x1: r.left + 8, x2: r.right - 8, y: r.top });
       });
@@ -251,37 +278,40 @@ export class Guide {
     return list;
   }
 
-  /**
-   * 标题上沿那一段台子：居中的那几屏（欢迎、完成）是标题正上方一段，别的是内容一列的上沿（还在读、没有标题的那一下也是它，不让她掉下去）。
-   */
+  /** 这一屏内容里第一块看得见的。 */
+  first() {
+    return /** @type {HTMLElement|null} */ (this.slot.querySelector('.wl-body')?.querySelector(SURFACES) ?? null);
+  }
+
+  /** 站的那一块：居中的那几屏（欢迎、完成）是标题正上方一段，别的是内容里第一块看得见的上沿。 */
   top() {
-    const title = /** @type {HTMLElement|null} */ (this.slot.querySelector('.wl-title'));
-    const r = (title ?? this.slot).getBoundingClientRect();
-    if (!r.width) return null;
     const id = `wl-top-${this.shown}`;
     if (this.screen?.center) {
+      const title = /** @type {HTMLElement|null} */ (this.slot.querySelector('.wl-title'));
+      const r = title?.getBoundingClientRect();
+      if (!r?.width) return null;
       const c = r.left + r.width / 2;
       return { id, x1: c - 80, x2: c + 80, y: r.top - 12 };
     }
-    const col = this.slot.getBoundingClientRect();
-    return { id, x1: col.left, x2: col.right, y: col.top - 10 };
+    const r = this.first()?.getBoundingClientRect();
+    if (!r?.width) return null;
+    return { id, x1: r.left + 8, x2: r.right - 8, y: r.top };
   }
 
-  /** 平常站哪：欢迎页标题正上方；别的几屏在「Miyu」和步骤条之间。 */
+  /** 平常站哪：居中的几屏在标题正上方；别的在第一块的上沿靠右。 */
   home() {
+    if (this.held) return this.held.home;
     const platform = this.top();
     if (!platform) return null;
     if (this.screen?.center) return { x: (platform.x1 + platform.x2) / 2, platform };
-    const brand = this.head.querySelector('.wl-brand')?.getBoundingClientRect();
-    const steps = this.steps.getBoundingClientRect();
-    const x = brand && steps.width ? (brand.right + steps.left) / 2 : platform.x1 + 160;
-    return { x, platform };
+    return { x: platform.x2 + 8 - HOME_RIGHT, platform };
   }
 
   /** 走完（完成那一屏的「开始聊天」）：写 `ui.welcomed`，收起，进一个新的空会话。 */
   async finish() {
     await this.ctx.core.request('config.set', { layer: 'personal', changes: [{ key: 'ui.welcomed', value: true }] });
     this.ctx.storage.set(STEP_KEY, null);
+    this.ctx.storage.set(DONE_KEY, true);
     this.close();
     this.ctx.chat.open(null);
     // 新会话照刚设的默认人格、预设（不照上一次的会话）

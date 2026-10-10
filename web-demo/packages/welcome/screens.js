@@ -5,6 +5,8 @@ import { h, icon, replace } from '../../src/lib/dom.js';
 
 /** 这台设备上记一笔走到哪一步（换了界面语言要重载页面，重载完接着走） */
 export const STEP_KEY = 'welcome.step';
+/** 这台设备上记着这个账号走过了引导：一打开不再先盖底色 */
+export const DONE_KEY = 'welcome.done';
 
 /**
  * 欢迎（第 3 条）：吉祥物站在标题上面（放大，舞台在 `guide.js`），标题、一行说明、「开始」，下面暗色「按 Enter 开始」。
