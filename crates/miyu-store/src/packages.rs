@@ -21,6 +21,7 @@ use crate::resources::ResourceRoot;
 use crate::root::DataRoot;
 
 pub mod install;
+pub mod local;
 pub mod migrate;
 
 /// 清单在包文件夹里的名字（施工 F-8 上）。
@@ -161,6 +162,11 @@ impl Packages {
                 path,
             })
             .collect()
+    }
+
+    /// 本地库在哪：`<数据根>/state/packages/.local`（施工 F-8 中上，[`local`]）。
+    pub fn local_root(&self) -> PathBuf {
+        local::root(&self.state)
     }
 
     /// 家目录那一层的目录（施工 F-5 上：装、卸只动它）；只有出厂那一层的没有。

@@ -163,13 +163,17 @@ pub(super) async fn remove_package(core: &Arc<Core>, id: String) -> Result<Value
         return Err(Refusal::PACKAGE_REQUIRED);
     }
     let home = home(core)?;
+    let local_root = packages(core).local_root();
     let layer = one.layer;
     // 先停下用着它的、再删文件（施工 F-5 补）：Windows 上开着的文件删不掉。删不成的照原来的清单换回来。
     let all = refs(&found);
     let without = leaving(&all, &id);
     core.switch_packages(&all, &without).await;
     let removed = blocking(move || match layer {
-        Layer::Home => install::take_out(&home, &id).map(|()| id),
+        Layer::Home => install::take_out(&home, &id).map(|()| {
+            super::local::forget(&local_root, &id);
+            id
+        }),
         Layer::Shipped => install::mark_removed(&home, &id).map(|()| id),
     })
     .await;
@@ -246,6 +250,17 @@ async fn from_path(core: &Arc<Core>, peer: Peer, path: &Path) -> Result<Value, R
         return Err(refusal);
     }
     placed.keep();
+    // 本地库记下这一份（施工 F-8 中上）：记不成的记一行，装成了照算。
+    let version = mine
+        .and_then(|one| one.read.as_ref().ok())
+        .and_then(|manifest| manifest.version.clone());
+    let (record_places, record_id, from) =
+        (places.clone(), id.clone(), folder.display().to_string());
+    if let Err(refusal) =
+        blocking(move || super::local::record(&record_places, &record_id, version, &from)).await
+    {
+        tracing::warn!(target: TARGET, package = id.as_str(), reason = refusal.reason, "package not recorded");
+    }
     core.switch_packages(&without, &refs(&now)).await;
     tracing::info!(target: TARGET, package = id.as_str(), "package installed");
     let mine = now

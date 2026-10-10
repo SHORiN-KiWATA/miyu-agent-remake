@@ -150,6 +150,8 @@ pub(crate) async fn call(
         "package.list" => crate::packages::list(core, peer),
         "package.install" => crate::packages::manage::install(core, peer, params(request)?).await,
         "package.remove" => crate::packages::manage::remove(core, params(request)?).await,
+        "package.info" => crate::packages::local::info(core, params(request)?).await,
+        "package.files" => crate::packages::local::files(core, params(request)?).await,
         "package.enable" => crate::packages::switch::enable(core, peer, params(request)?).await,
         "package.file" => crate::backstage::read(core, params(request)?).await,
         "package.methods" => crate::backstage::register(core, caller, params(request)?),

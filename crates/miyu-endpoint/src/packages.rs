@@ -17,6 +17,7 @@ use miyu_store::root::DataRoot;
 
 use crate::Core;
 
+pub(crate) mod local;
 pub(crate) mod manage;
 pub(crate) mod status;
 pub(crate) mod switch;
@@ -65,6 +66,8 @@ pub fn load(resources: &ResourceRoot, root: &DataRoot, admin: &AccountId) -> Vec
         }
     }
     let found = packages.read();
+    // 本地库（施工 F-8 中上）：以前装的、还没记的补一份。
+    local::backfill(&packages, &found);
     for one in &found {
         match &one.read {
             Ok(_) => {}

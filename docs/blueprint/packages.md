@@ -206,6 +206,15 @@ model = "mascot.json"   # 包目录 packages/pudding/ 里的相对路径
 4. **`miyu check`**：模型文件不在（照真实路径，出了包目录的也算不在）`mascot_missing`，超过 256 KiB `mascot_too_big`，不是 JSON 的对象 `mascot_not_json`，都是错误，写清哪个包、哪个文件。模型里面写得对不对由终端查。
 5. **装卸照常**：`package.install`、`package.remove`；没有开关（`package.enable`、`package.disable` 回 `not_switchable`）、没有配置项、不拉起程序。终端照配置项 `tui.mascot`（终端的清单 `[settings.mascot]`，填包的编号）挑用哪一个。
 
+### 本地库（施工 F-8 中上，设计 `31-软件包.md` 第四节）
+
+照 pacman 的 `local/`（`miyu_store::packages::local`，端点的 `packages/local.rs`）：
+
+1. **在哪**：`<数据根>/state/packages/.local/<编号>/`。点开头：和包自己放状态的 `state/packages/<编号>/` 在同一层，编号不会撞上（设计 31 原来写的 `local/` 会撞上编号叫 `local` 的包）。
+2. **记什么**：`desc` 是一个 JSON 对象（`id`、`version` 写了的才有、`installed` 装的时刻、`source` 从哪装的、`size` 总字节数）；`files` 一个文件一行 `<SHA-256> <字节数> <相对包目录的路径>`，路径用 `/` 分开、照路径排、放最后（带空格也认得）。写的时候整份先写进 `.<编号>.new` 再换上。
+3. **什么时候写**：家目录里装成、升级成的照装好的包目录现算一份，记不成的记一行 `WARN package not recorded`、装照算成；卸掉的删掉那一份。核心起来读清单时，家目录里读成了、还没记的补一份（`source` 是空的），记 `INFO package recorded`。出厂的不进本地库（资源目录归系统的包管理）。
+4. **答什么**：`package.info`、`package.files`（`protocol.md`），家目录里的照本地库（没记的现算），出厂的照现在的文件现算。
+
 ### 装卸（施工 F-5 上，设计 `30-插件框架.md` 第九节）
 
 1. **只动管理员家目录那一层**（`miyu_store::packages::install`）：装是把整个包目录拷成 `<编号>/`（施工 F-8 上）；先拷到点开头的暂存处再换进去，原来就有的先挪到点开头的备份处，装成了删备份、装不成放回去。卸家目录的是删掉这个包目录。卸出厂的是在家目录记一笔 `<编号>.removed`（空文件，像 systemd 的 mask），资源目录不动；装回来是删掉这一笔。

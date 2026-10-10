@@ -74,6 +74,7 @@ mod packages_embed;
 mod packages_extensions;
 mod packages_install;
 mod packages_live;
+mod packages_local;
 mod peers;
 mod permission;
 mod persona_appearance;
