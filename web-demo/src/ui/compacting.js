@@ -3,6 +3,9 @@
 //! 从头来）。「正在压缩上下文」流光、点轮换、右边写了多少字；下面一根细条一顿一顿地追真实的字数（`model/compaction.js`），
 //! 最多 95%；过了一会儿还没压好，字和条一起呼吸。会话状态不在压了（压好了、没压成、这一轮先结束了），当场拿掉，压好了的结果
 //! 那一行照条目画。
+//!
+//! 自动压缩（`trigger` 是 `auto`）不画进度条：核心提前在后台压，到了线还没压完、停下来等的时候才在压（会话状态的 `doing`），只出一行
+//! 绿点「正在压缩上下文…」，样子同结果那一行（2026-10-10 项目主人定，终端一样）。手动 `/compact` 照旧有进度条。
 
 import { h } from './dom.js';
 import { res, t } from '../util/res.js';
@@ -35,13 +38,14 @@ export class CompactingRow {
       if (this.state) this.stop();
       return;
     }
-    if (!this.state || this.state.seen !== state.seen || this.state.since !== state.since) this.start(state);
+    if (!this.state || this.state.seen !== state.seen || this.state.since !== state.since || this.state.trigger !== state.trigger) this.start(state);
     this.state = state;
     this.draw();
   }
 
   start(state) {
     this.stop();
+    if (state.trigger === 'auto') return this.waiting(state);
     const c = res.layout.compaction;
     this.state = state;
     this.shown = 0;
@@ -60,6 +64,13 @@ export class CompactingRow {
     this.timers.push(window.setInterval(() => { n = (n % 3) + 1; this.dots.textContent = '.'.repeat(n); }, c.dot_ms));
     this.timers.push(window.setTimeout(() => this.el.classList.add('is-breathing'), c.breathe_after_ms));
     this.step();
+  }
+
+  /** 自动压缩停下来等的那一行：绿点、「正在压缩上下文…」，不画条。 @param {import('../model/view-state.js').Compacting} state */
+  waiting(state) {
+    this.state = state;
+    this.el.replaceChildren(h('div.note-line.tone-good.compacting-wait', h('span.note-mark', res.layout.note_marks.good), h('span.note-text', t('notes.compacting_wait'))));
+    this.el.hidden = false;
   }
 
   /** 条一顿一顿地追：停一会儿，多走 1–3 格（减少动画的直接照真实的走）。 */
@@ -81,7 +92,7 @@ export class CompactingRow {
 
   draw() {
     const s = this.state;
-    if (!s) return;
+    if (!s || s.trigger === 'auto') return;
     const c = res.layout.compaction;
     if (reduced()) this.shown = this.real();
     this.count.textContent = s.written ? t('notes.compacting_count', { count: s.written.toLocaleString('en-US') }) : '';

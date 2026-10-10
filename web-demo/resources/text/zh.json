@@ -271,6 +271,7 @@
     "compact_failed": "压缩失败：{reason}",
     "compacted_stats": "上下文已压缩：{before} → {after} token",
     "compacting": "正在压缩上下文",
+    "compacting_wait": "正在压缩上下文…",
     "compacting_count": "{count} 字",
     "session_speaker": "从会话 {id} 收到消息",
     "peer": {

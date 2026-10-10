@@ -51,6 +51,8 @@
   margin-bottom: 30px; padding-left: 40px; animation: fade-in var(--motion-in) var(--ease-out);
 }
 .compacting.is-breathing .compacting-line, .compacting.is-breathing .compacting-bar { animation: compacting-breathe 2s ease-in-out infinite; }
+/* 自动压缩停下来等的那一行：同结果那一行（.note 的字） */
+.compacting-wait { color: color-mix(in srgb, var(--text) 62%, var(--surface)); font: 600 11.5px/1.5 var(--sans); }
 .compacting-line { display: flex; align-items: baseline; font-size: 11.5px; line-height: 1.5; }
 .compacting-label {
   color: var(--cp-base); font-weight: 600;

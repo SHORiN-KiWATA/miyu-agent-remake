@@ -271,6 +271,7 @@
     "compact_failed": "圧縮に失敗しました：{reason}",
     "compacted_stats": "コンテキストを圧縮しました：{before} → {after} トークン",
     "compacting": "コンテキストを圧縮しています",
+    "compacting_wait": "コンテキストを圧縮中…",
     "compacting_count": "{count} 字",
     "session_speaker": "セッション {id} からのメッセージ",
     "peer": {

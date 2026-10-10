@@ -5,8 +5,8 @@
 import { seqOf } from './entries.js';
 
 /**
- * @typedef {{seen: number, since: number, written: number, expected: number|null}} Compacting
- *   压缩的进度那一行（`ui/compacting.js`）：从哪一条起、什么时候起、写了多少、估计多少
+ * @typedef {{seen: number, since: number, written: number, expected: number|null, trigger: string}} Compacting
+ *   压缩的进度那一行（`ui/compacting.js`）：从哪一条起、什么时候起、写了多少、估计多少、谁要压的（`auto` 自动、`manual` 手动 `/compact`）
  */
 
 /**
@@ -18,7 +18,9 @@ export function compactingOf(entries, status) {
   const d = status?.doing;
   if (d?.what !== 'compacting') return null;
   const e = entries.find((x) => x.id === d.entry);
-  return { seen: seqOf(d.entry), since: e?.at ? Date.parse(e.at) : Date.now(), written: d.written ?? 0, expected: d.expected ?? null };
+  // 谁要压的：会话状态给了的照它（核心 6-11 补给 `compaction.progress` 加的 `trigger`），没给的照那一条旁白的
+  const trigger = d.trigger ?? e?.trigger ?? 'manual';
+  return { seen: seqOf(d.entry), since: e?.at ? Date.parse(e.at) : Date.now(), written: d.written ?? 0, expected: d.expected ?? null, trigger };
 }
 
 /** 最后一条带 `turn` 的条目的回合（开到第几轮）；一条都没有的是 0。 @param {any[]} entries */
