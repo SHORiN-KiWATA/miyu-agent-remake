@@ -160,24 +160,6 @@ pub fn reserve(max_output: Option<u64>, reserve_cap: u64) -> u64 {
     max_output.map_or(reserve_cap, |max| max.min(reserve_cap))
 }
 
-/// 压缩线：用量超过它就该压（Z3）。= 窗口 − min(最大输出, `reserve_cap`) − `margin`。
-///
-/// 没报最大输出的，输出预留按 `reserve_cap`。没有窗口的、算出来不是正数的（窗口比预留加余量还小），
-/// 没有线：不主动压，只在供应商报超长时被动压。出厂的 `reserve_cap` 是 20000、`margin` 是 13000，
-/// 和 Claude Code 的「有效窗口减 13000」一样。
-pub fn line(
-    window: Option<u64>,
-    max_output: Option<u64>,
-    reserve_cap: u64,
-    margin: u64,
-) -> Option<u64> {
-    let reserve = reserve(max_output, reserve_cap);
-    window?
-        .checked_sub(reserve)?
-        .checked_sub(margin)
-        .filter(|line| *line > 0)
-}
-
 /// 一条消息的本地估算：文字、思考、工具调用的名字和参数、驱动的私有数据、认不出的块，UTF-8 字节加起来除以 4，
 /// 向上取整；图片、文件照 `price`。不另加每块、每条的结构开销。
 pub fn message(message: &Message, price: &dyn Price) -> u64 {

@@ -8,7 +8,7 @@ use std::time::Instant;
 use super::Route;
 use super::fields::{NAME, clean};
 use crate::TARGET;
-use crate::onebot::{MEMBER_INFO, Piece, Posted, display_name, member_info};
+use crate::onebot::{MEMBER_INFO, Piece, Posted, display_name, member_info, rank_of};
 
 impl Route {
     /// 群号是 `group` 的群里那条 `posted` 交给核心的正文：字照原样接，@ 写成 `@名字`，名字拿不到的写 `@<号>`。
@@ -64,6 +64,14 @@ impl Route {
             return None;
         };
         let cleaned = clean(&name, NAME);
+        if let Some(rank) = asked
+            .as_ref()
+            .ok()
+            .and_then(|reply| rank_of(&reply["data"]))
+        {
+            // 问到了名字顺手记下身份（施工 O-31，「平台工具（一）」第 7 条）。
+            self.members.ranked(group, user, rank, Instant::now());
+        }
         self.members.remember(group, user, name, Instant::now());
         cleaned
     }

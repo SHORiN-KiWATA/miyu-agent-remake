@@ -49,6 +49,8 @@ fn the_shipped_numbers_are_the_blueprints() {
     // 群里判过要回的那一条贴 QQ 表情 289，十分钟还没回的摘掉（施工 O-25 下，18 第七节）。
     assert_eq!(tuning.reaction_emoji, "289");
     assert_eq!(tuning.reaction(), Duration::from_secs(600));
+    // 平台身份是不是终端管理员问到了记一分钟（施工 O-31，「平台工具（一）」第 3 条）。
+    assert_eq!(tuning.binding(), Duration::from_secs(60));
 }
 
 #[test]
@@ -131,6 +133,10 @@ fn a_bad_file_is_not_read_and_named() {
         (
             "reaction-missing",
             good.replace("\"reaction_seconds\": 600", "\"p\": 1"),
+        ),
+        (
+            "binding-missing",
+            good.replace("\"binding_seconds\": 60", "\"b\": 1"),
         ),
         ("not-json", "nope".to_string()),
     ] {

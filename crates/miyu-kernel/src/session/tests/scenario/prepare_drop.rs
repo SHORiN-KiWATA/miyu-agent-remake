@@ -162,6 +162,8 @@ fn rebuilding() -> Stage {
         policy.compaction = Some(Compaction {
             reserve_cap: 10,
             margin: 10,
+            line_percent: 100,
+            margin_percent: 100,
             tail: 40,
             lead: 60,
             price: crate::estimate::Flat {

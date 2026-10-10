@@ -3,7 +3,9 @@
 //! `send_private_msg`、`delete_msg`）回成了、交出来给测试看，发消息的回的 `message_id` 照收到的先后从 [`FIRST_SENT`] 起一条
 //! 加一（施工 O-23：她发过的编号要认得出「引用她」；撤回不占编号，施工 O-25 上）。真的 NapCat 并着办动作，回的先后不一定照
 //! 发的先后：[`NapCat::reversing`] 把头几条发消息的回应倒着回。[`NapCat::refusing`] 发消息的一律回失败（施工 O-25 中）。贴、摘表情
-//! （`set_msg_emoji_like`，施工 O-25 下）回成了、不占编号，另放一处给测试看（[`Answering::reacted`]）。
+//! （`set_msg_emoji_like`，施工 O-25 下）回成了、不占编号，另放一处给测试看（[`Answering::reacted`]）。平台工具（施工 O-31）：
+//! 问群成员照给的身份回 `role`（[`NapCat::ranked`]，没给的是 `member`）；`set_group_ban`、`group_poke`、`friend_poke` 回成了、
+//! 不占编号，交出来和发消息的放一处（[`Answering::action`]）；撤回编号是 [`UNRECALLABLE`] 的回失败（[`unrecallable`]）。
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -29,6 +31,20 @@ pub fn refused() -> String {
 /// 一个群成员：号、群名片、昵称。
 pub type Member = (i64, &'static str, &'static str);
 
+/// 一个群成员在群里的身份（施工 O-31）：号、`role`（`owner`、`admin`、`member`）。
+pub type Rank = (i64, &'static str);
+
+/// 撤不了的那一条的编号（施工 O-31）：撤它回失败，说的是 [`unrecallable`]。
+pub const UNRECALLABLE: i64 = 4040;
+
+/// 撤 [`UNRECALLABLE`] 时 NapCat 说的：前后带空白、超过 200 个字符，桥交回的去掉空白、截到 200 个字符。
+pub fn unrecallable() -> String {
+    format!("  {}  ", "Recall failed".repeat(20))
+}
+
+/// 照 NapCat 的样子回、不占发出去的编号的平台动作（施工 O-31）。
+const PLATFORM: [&str; 3] = ["set_group_ban", "group_poke", "friend_poke"];
+
 /// 交给任务应答的假 NapCat。放下了任务跟着停。
 pub struct Answering {
     /// 要发给桥的帧。
@@ -50,20 +66,27 @@ impl NapCat {
         self.reversing(members, 0)
     }
 
+    /// 同 [`NapCat::answering`]，问群成员时照 `ranks` 回身份（施工 O-31）。
+    pub fn ranked(self, members: &[Member], ranks: &[Rank]) -> Answering {
+        self.serving(members, ranks, 0, false)
+    }
+
     /// 同 [`NapCat::answering`]，只是头 `held` 条发消息的回应先压着，攒够了倒着回，两条之间隔 [`APART`]：后发的那一条先回
     /// 到，先发的明明白白晚一截（施工 O-23）。
     pub fn reversing(self, members: &[Member], held: usize) -> Answering {
-        self.serving(members, held, false)
+        self.serving(members, &[], held, false)
     }
 
     /// 同 [`NapCat::answering`]，只是发消息的一律回失败（`status` 是 `failed`，`message` 是 [`refused`]，施工 O-25 中）。
     pub fn refusing(self, members: &[Member]) -> Answering {
-        self.serving(members, 0, true)
+        self.serving(members, &[], 0, true)
     }
 
-    /// 交给一个任务应答：头 `held` 条发消息的回应倒着回（[`NapCat::reversing`]），`refuse` 的发消息一律回失败。
-    fn serving(self, members: &[Member], held: usize, refuse: bool) -> Answering {
+    /// 交给一个任务应答：问群成员照 `ranks` 回身份，头 `held` 条发消息的回应倒着回（[`NapCat::reversing`]），`refuse` 的发消息
+    /// 一律回失败。
+    fn serving(self, members: &[Member], ranks: &[Rank], held: usize, refuse: bool) -> Answering {
         let members = members.to_vec();
+        let ranks = ranks.to_vec();
         let (frames, mut outgoing) = mpsc::unbounded_channel::<Value>();
         let (seen, actions) = mpsc::unbounded_channel();
         let (recalled, recalls) = mpsc::unbounded_channel();
@@ -92,12 +115,14 @@ impl NapCat {
                             }
                         };
                         let action: Value = serde_json::from_str(&text).expect("是 JSON");
-                        let mut answer = answer(&action, &members, &noted, &mut sent);
+                        let mut answer = answer(&action, (&members, &ranks), &noted, &mut sent);
                         let kind = action["action"].as_str().unwrap_or_default();
                         let recall = kind == "delete_msg";
                         let reaction = kind == "set_msg_emoji_like";
+                        let platform = PLATFORM.contains(&kind);
                         let sending = !recall
                             && !reaction
+                            && !platform
                             && kind != "get_version_info"
                             && kind != "get_group_member_info";
                         if sending && refuse {
@@ -107,7 +132,7 @@ impl NapCat {
                             recalled.send(action)
                         } else if reaction {
                             reacted.send(action)
-                        } else if sending {
+                        } else if sending || platform {
                             seen.send(action)
                         } else {
                             Ok(())
@@ -145,22 +170,43 @@ impl NapCat {
     }
 }
 
-/// 照 NapCat 的样子回动作 `action`：问群成员的照 `members`，记下问的是谁；发消息的回 `sent`，再加一。
-fn answer(action: &Value, members: &[Member], asked: &Mutex<Vec<i64>>, sent: &mut i64) -> Value {
+/// 照 NapCat 的样子回动作 `action`：问群成员的照 `members`、身份照 `ranks`，记下问的是谁；发消息的回 `sent`，再加一。
+fn answer(
+    action: &Value,
+    (members, ranks): (&[Member], &[Rank]),
+    asked: &Mutex<Vec<i64>>,
+    sent: &mut i64,
+) -> Value {
+    if action["action"] == "delete_msg"
+        && action["params"]["message_id"].to_string().trim_matches('"') == UNRECALLABLE.to_string()
+    {
+        return json!({"status": "failed", "retcode": 1200, "data": null, "message": unrecallable(), "wording": "", "echo": action["echo"]});
+    }
     let (status, data) = match action["action"].as_str() {
         Some("get_version_info") => (
             "ok",
             json!({"app_name": "NapCat.Onebot", "app_version": "4.8.0", "protocol_version": "v11"}),
         ),
         // 撤回（施工 O-25 上）、贴摘表情（施工 O-25 下）、同意加好友（施工 O-27）：回成了，不占发出去的编号。
-        Some("delete_msg" | "set_msg_emoji_like" | "set_friend_add_request") => ("ok", Value::Null),
+        Some(
+            "delete_msg"
+            | "set_msg_emoji_like"
+            | "set_friend_add_request"
+            | "set_group_ban"
+            | "group_poke"
+            | "friend_poke",
+        ) => ("ok", Value::Null),
         Some("get_group_member_info") => {
             let user = action["params"]["user_id"].as_i64().expect("问的是号");
             asked.lock().expect("没 panic").push(user);
+            let role = ranks
+                .iter()
+                .find(|(id, _)| *id == user)
+                .map_or("member", |(_, role)| role);
             match members.iter().find(|(id, _, _)| *id == user) {
                 Some((id, card, nickname)) => (
                     "ok",
-                    json!({"group_id": action["params"]["group_id"], "user_id": id, "card": card, "nickname": nickname}),
+                    json!({"group_id": action["params"]["group_id"], "user_id": id, "card": card, "nickname": nickname, "role": role}),
                 ),
                 None => ("failed", Value::Null),
             }

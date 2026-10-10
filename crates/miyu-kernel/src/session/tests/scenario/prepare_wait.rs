@@ -54,6 +54,14 @@ fn one_on_its_way_at_the_line_is_waited_for_and_swapped_in() {
     // 回来了：剩下的字推一次进度，换上，带 prepared；只多一次主请求。
     stage.release_prepare();
     assert_eq!(written(&stage), [(8, 3), (8, 10)]);
+    let auto = stage
+        .transients()
+        .iter()
+        .all(|transient| match &transient.body {
+            TransientBody::CompactionProgress(progress) => progress.trigger == CompactTrigger::Auto,
+            _ => true,
+        });
+    assert!(auto, "等的进度带这次压缩的 auto（施工 6-11 再补）");
     let compacted = compactions(&stage);
     assert_eq!(compacted.len(), 1);
     assert_eq!(

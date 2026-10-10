@@ -52,7 +52,7 @@ async fn a_small_file_read_before_the_cut_comes_back_and_survives_a_reload() {
         .map(|n| format!("{n:05} lorem ipsum dolor sit amet\n"))
         .collect();
     std::fs::write(work.join("big.txt"), &big).expect("写得进");
-    // 窗口 43000：线 10000，压完的整份请求至多 5000，放得下小文件。
+    // 窗口 32000（重读要窗口不小于 32000）：线 10400（减掉预留 20000、窗口的 5% 1600），压完的整份请求至多 5000，放得下小文件。
     let script = Script::new([
         Play::calls(&[
             ("read", r#"{"file_path":"a.txt"}"#),
@@ -63,7 +63,7 @@ async fn a_small_file_read_before_the_cut_comes_back_and_survives_a_reload() {
         Play::Says("嗯。"),
         Play::Says("还在。"),
     ])
-    .window(43_000);
+    .window(32_000);
     let cwd = work.to_string_lossy().into_owned();
     let opening = Opening {
         permission: Permission {

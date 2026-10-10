@@ -16,6 +16,7 @@ use miyu_store::log::{SEGMENT_LIMIT, SessionLog};
 use miyu_store::usage::Who;
 use miyu_tool::Log;
 
+use super::place;
 use crate::TARGET;
 use crate::actor::persona::Refresh;
 use crate::actor::{self, Actor, JobKit};
@@ -76,53 +77,64 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
     let (watching, shipped, stored) = (personas.clone(), resources.clone(), blobs.clone());
     let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
     let (owner_of, id_of) = (owner.clone(), id.clone());
-    let (log, events, (created, command), (snapshot, pools), policy, texts, run, guard, wired) =
-        blocking(move || {
-            let (log, events) = SessionLog::open(&dir, SEGMENT_LIMIT).map_err(LoadError::Log)?;
-            let (created, command) = match events.first() {
-                Some(Event {
-                    body: Body::SessionCreated(created),
-                    cause,
-                    ..
-                }) => (created.clone(), cause.clone()),
-                _ => return Err(LoadError::NotCreated),
-            };
-            let bytes = store
-                .get(current_policy(&events).unwrap_or(&created.policy))
-                .map_err(LoadError::Blob)?;
-            let snapshot = Snapshot::from_bytes(&bytes).map_err(LoadError::Snapshot)?;
-            let policy = snapshot.policy().map_err(LoadError::Policy)?;
-            let texts = snapshot.driver_texts().map_err(LoadError::Policy)?;
-            let run = snapshot.run_texts().map_err(LoadError::Policy)?;
-            let guard = snapshot.guard_texts().map_err(LoadError::Policy)?;
-            // 能选的池照快照读回（施工 8-8 补）：造会话时拼的那一份，不重拼。
-            let pools = Agents::pools_in(&snapshot.tools);
-            // 快照里的范围已经照预设、有没有人格算过（施工 P-2 中、P-4 上），这里只再管子会话。
-            let persona = snapshot.persona.as_deref().unwrap_or_default();
-            let scope = memory::scope(created.parent.is_some(), true, snapshot.memory_scope());
-            let turns = connect(
-                memory.as_ref(),
-                scope,
-                &personas.memory_account(persona, &owner_of),
-                &owner_of,
-                persona,
-                &id_of,
-                &created.venue,
-                &events,
-            );
-            Ok((
-                log,
-                events,
-                (created, command),
-                (snapshot, pools),
-                policy,
-                texts,
-                run,
-                guard,
-                turns,
-            ))
-        })
-        .await?;
+    let place_resources = shipped.clone();
+    let (
+        log,
+        events,
+        (created, command),
+        (snapshot, pools),
+        policy,
+        texts,
+        run,
+        (guard, place),
+        wired,
+    ) = blocking(move || {
+        let (log, events) = SessionLog::open(&dir, SEGMENT_LIMIT).map_err(LoadError::Log)?;
+        let (created, command) = match events.first() {
+            Some(Event {
+                body: Body::SessionCreated(created),
+                cause,
+                ..
+            }) => (created.clone(), cause.clone()),
+            _ => return Err(LoadError::NotCreated),
+        };
+        let bytes = store
+            .get(current_policy(&events).unwrap_or(&created.policy))
+            .map_err(LoadError::Blob)?;
+        let snapshot = Snapshot::from_bytes(&bytes).map_err(LoadError::Snapshot)?;
+        let policy = snapshot.policy().map_err(LoadError::Policy)?;
+        let texts = snapshot.driver_texts().map_err(LoadError::Policy)?;
+        let run = snapshot.run_texts().map_err(LoadError::Policy)?;
+        let guard = snapshot.guard_texts().map_err(LoadError::Policy)?;
+        let place = place(&created.venue, &place_resources).map_err(LoadError::Shipped)?;
+        // 能选的池照快照读回（施工 8-8 补）：造会话时拼的那一份，不重拼。
+        let pools = Agents::pools_in(&snapshot.tools);
+        // 快照里的范围已经照预设、有没有人格算过（施工 P-2 中、P-4 上），这里只再管子会话。
+        let persona = snapshot.persona.as_deref().unwrap_or_default();
+        let scope = memory::scope(created.parent.is_some(), true, snapshot.memory_scope());
+        let turns = connect(
+            memory.as_ref(),
+            scope,
+            &personas.memory_account(persona, &owner_of),
+            &owner_of,
+            persona,
+            &id_of,
+            &created.venue,
+            &events,
+        );
+        Ok((
+            log,
+            events,
+            (created, command),
+            (snapshot, pools),
+            policy,
+            texts,
+            run,
+            (guard, place),
+            turns,
+        ))
+    })
+    .await?;
     let (turns, calls) = wired;
     let attended = snapshot.attended;
     let room = calls.as_ref().map(|calls| calls.room().clone());
@@ -210,7 +222,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         root.path().to_path_buf(),
         home.map(Path::to_path_buf),
         Arc::clone(&lettering),
-        sandbox.is_some(),
+        (sandbox.is_some(), place),
     );
     let ledger = ledger_of(usage.as_ref(), &id, &owner);
     let mut actor = Actor::new(

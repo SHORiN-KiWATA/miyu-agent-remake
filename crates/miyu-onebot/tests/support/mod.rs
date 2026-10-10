@@ -11,6 +11,7 @@ pub mod group;
 pub mod judge;
 pub mod napcat;
 pub mod pipe;
+pub mod platform;
 pub mod ports;
 pub mod spawning;
 pub mod speaking;
@@ -60,8 +61,8 @@ pub const TIME: i64 = 1_759_800_000;
 /// 桥的访问令牌。
 pub const TOKEN: &str = "napcat-test-token";
 
-/// 系统配置：终端管理员对应表。
-const CONFIG: &str = "[external.bindings]\n\"qq:10001\" = \"admin\"\n";
+/// 系统配置：终端管理员对应表；`qq:10007` 是终端管理员的小号（施工 O-31：没在群里说过话，桥照 `venue.binding` 认）。
+const CONFIG: &str = "[external.bindings]\n\"qq:10001\" = \"admin\"\n\"qq:10007\" = \"admin\"\n";
 
 /// 一个用完就删的临时数据根，里面跑着一个核心。
 pub struct Home {

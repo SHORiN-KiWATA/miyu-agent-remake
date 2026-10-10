@@ -81,6 +81,7 @@ fn compaction_of(seq: u64, turn: u64, trigger: Option<CompactTrigger>) -> Event 
             notes: String::new(),
             restored: Vec::new(),
             refills: None,
+            prepared: false,
         }),
     }
 }

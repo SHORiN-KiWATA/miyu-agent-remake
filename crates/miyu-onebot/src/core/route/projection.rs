@@ -16,6 +16,8 @@
 //!   出站链要的（「群里怎么叫她」第 2、9 条）：她回的那一条（这一轮触发里最后一条，并进来的换成并进来的最后一条），那之后
 //!   别人说了几条，群里最后一条是不是她的，这一轮已经发出去的：O-25 中照入队的（`ext.onebot.venues.queued` 里 `kind` 是
 //!   `reply` 的正文），桥入队记成了先算进来（[`Projection::queued`]），日志推来的同一段不重复算（「施工时定的」第 112 条）。
+//! - 叫她做的那条（施工 O-31，「平台工具（一）」第 3 条）：人说的话另记引用、@ 了谁；主线这一轮她回的那一条交给平台工具
+//!   （`origin.rs` 的 `Projection::origin`），引用的是她的、是谁的照这里认。
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -60,6 +62,10 @@ struct Speaker {
     at: Timestamp,
     /// 这一条的平台编号（`venue.msg`，O-25 上：引用它）；没有的（照说不会）是空的。
     msg: Option<String>,
+    /// 这一条引用的平台编号（`venue.reply_to`，O-31：撤回、禁言的目标）；没引用的是空的。
+    reply_to: Option<String>,
+    /// 这一条 @ 了谁（`venue.mentions`，不含她，O-31）。
+    mentions: Vec<ExternalId>,
 }
 
 /// 判过要回、她还没回完的一笔（O-23 下）。
@@ -196,11 +202,16 @@ impl Projection {
         match &event.body {
             Body::MessageUser(user) => {
                 if let By::External(external) = &event.by {
+                    let venue = user.venue.as_ref();
                     let speaker = Speaker {
                         id: external.id.clone(),
                         admin: external.account.is_some(),
                         at: event.at,
-                        msg: user.venue.as_ref().map(|venue| venue.msg.clone()),
+                        msg: venue.map(|venue| venue.msg.clone()),
+                        reply_to: venue.and_then(|venue| venue.reply_to.clone()),
+                        mentions: venue
+                            .map(|venue| venue.mentions.clone())
+                            .unwrap_or_default(),
                     };
                     self.said.insert(seq, speaker);
                 }
@@ -475,8 +486,12 @@ fn add<'a>(to: &mut Vec<ExternalId>, more: impl IntoIterator<Item = &'a External
     }
 }
 
+mod origin;
+
 #[cfg(test)]
 mod muted_tests;
+#[cfg(test)]
+mod origin_tests;
 #[cfg(test)]
 mod outbound_tests;
 #[cfg(test)]

@@ -89,6 +89,8 @@ fn policy_with(system: String) -> Policy {
         compaction: Some(Compaction {
             reserve_cap: 20_000,
             margin: 13_000,
+            line_percent: 100,
+            margin_percent: 100,
             tail: 16_000,
             lead: 0,
             price: Flat {

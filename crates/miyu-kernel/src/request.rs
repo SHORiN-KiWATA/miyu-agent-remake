@@ -38,6 +38,11 @@ pub struct Request {
     /// 字节和哈希都不变。不算进指纹。
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub described: BTreeMap<ContentHash, String>,
+    /// 这一次回答至多多少 token（施工 6-11 三补，`docs/blueprint/compaction.md` 第十五条第 4 条）：用量加输出预留放不下了、
+    /// 加上回答的下限还放得下的主请求，内核写成窗口减用量，驱动发的输出上限照它压。没有的照模型的。不写进规范字节、不算进
+    /// 指纹：平常的请求字节和哈希都不变。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub output_cap: Option<u64>,
 }
 
 /// 工具面上的一件工具：名字、说明、参数格式。存根也是这三样，只是说明短、参数宽松

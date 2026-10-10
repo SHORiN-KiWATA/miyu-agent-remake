@@ -57,7 +57,7 @@
 
 | 取值 | 在哪（`crates/miyu-kernel/src/` 下） | 认识的值 | 见 |
 |---|---|---|---|
-| `Access` | `tool.rs` | `read`、`write`、`execute`、`network`、`outbound` | `kernel/tools.md` |
+| `Access` | `tool.rs` | `read`、`write`、`execute`、`network`、`outbound`、`venue`（施工 O-31 前） | `kernel/tools.md` |
 | `Level` | `event/session.rs` | `workspace`、`full` | `kernel/events-bodies.md` |
 | `EndReason` | `event/turn.rs` | `completed`、`interrupted`、`error`、`step_limit`、`aborted`、`restarted` | 同上 |
 | `RestoreAction` | `event/restore.rs` | `write`、`trash`、`untrash` | 同上 |

@@ -1,16 +1,18 @@
 //! 给头看的限额（施工 6-3 补，`docs/blueprint/kernel/session.md` 的 `context_limits()`）：窗口照交来的，压缩线和内核判到线
 //! 用的是同一条（`compaction.md` 第二条第 2 条）。
 //!
-//! 策略里压缩的数照出厂的：输出预留的上限 20000、余量 13000。
+//! 策略里压缩的数照出厂的：输出预留的上限 20000、余量 13000，压缩线至多窗口的 85%、余量至多窗口的 5%（施工 6-11 再补）。
 
 use super::*;
 use crate::estimate::Flat;
 use crate::session::{Compaction, ContextLimits};
 
-/// 出厂的两个数；尾巴、图片的数这里用不上。
+/// 出厂的四个数；尾巴、图片的数这里用不上。
 const COMPACTION: Compaction = Compaction {
     reserve_cap: 20_000,
     margin: 13_000,
+    line_percent: 85,
+    margin_percent: 5,
     tail: 16_000,
     lead: 0,
     price: Flat {
@@ -60,30 +62,46 @@ fn the_line_reserves_the_smaller_of_max_output_and_the_cap() {
     hand(&mut session, Some(1_000_000), Some(393_216));
     assert_eq!(
         session.context_limits(),
-        limits(Some(1_000_000), Some(967_000)),
-        "最大输出比上限大：预留 20000"
+        limits(Some(1_000_000), Some(850_000)),
+        "大窗口：窗口的 85% 比减掉预留 20000、余量 13000 的 967000 小"
     );
     hand(&mut session, Some(128_000), Some(8_000));
     assert_eq!(
         session.context_limits(),
-        limits(Some(128_000), Some(107_000)),
-        "最大输出比上限小：预留 8000；再交一次照新的"
+        limits(Some(128_000), Some(108_800)),
+        "最大输出比上限小：预留 8000，余量是窗口的 5% 6400，减下来 113600，比窗口的 85% 大"
     );
     hand(&mut session, Some(60_000), None);
     assert_eq!(
         session.context_limits(),
-        limits(Some(60_000), Some(27_000)),
-        "没报最大输出：预留照上限"
+        limits(Some(60_000), Some(37_000)),
+        "没报最大输出：预留照上限，余量是窗口的 5% 3000；再交一次照新的"
     );
 }
 
 #[test]
 fn too_small_a_window_has_no_line() {
     let mut session = compacting();
-    hand(&mut session, Some(33_000), None);
-    assert_eq!(session.context_limits(), limits(Some(33_000), None));
-    hand(&mut session, Some(33_001), None);
-    assert_eq!(session.context_limits(), limits(Some(33_001), Some(1)));
+    hand(&mut session, Some(21_052), None);
+    assert_eq!(
+        session.context_limits(),
+        limits(Some(21_052), None),
+        "减掉预留 20000、余量 1052 正好是 0"
+    );
+    hand(&mut session, Some(21_053), None);
+    assert_eq!(session.context_limits(), limits(Some(21_053), Some(1)));
+    hand(&mut session, Some(16_000), Some(4_000));
+    assert_eq!(
+        session.context_limits(),
+        limits(Some(16_000), Some(11_200)),
+        "小窗口：预留 4000，余量 800"
+    );
+    hand(&mut session, Some(8_000), None);
+    assert_eq!(
+        session.context_limits(),
+        limits(Some(8_000), None),
+        "窗口比输出预留还小"
+    );
 }
 
 #[test]

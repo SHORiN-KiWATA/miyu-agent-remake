@@ -1,0 +1,1 @@
+Muted {who} for {duration}.

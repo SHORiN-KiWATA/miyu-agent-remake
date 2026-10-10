@@ -29,12 +29,17 @@
 2. `tools` 是这个包现在提供的全部工具，每件 `{name, description, input_schema, access, venues}`：
    - `name` 只用英文字母、数字、`_`、`-`，1 到 64 个字符；
    - `input_schema` 是 `{"type":"object",…}`；
-   - `access` 是 `read`、`write`、`execute`、`network`、`outbound` 之一；
+   - `access` 是 `read`、`write`、`execute`、`network`、`outbound`、`venue` 之一（`venue` 施工 O-31 前，见下面「在场所里做的事」）；
    - `timeout_ms` 可以不写：等它答多久，1000 到 600000 毫秒，不写是 60000（施工 O-2 下）；
    - `venues` 是给哪种会话：`local`（本机的）、`private`（通讯平台的私聊）、`group`（群）里的一个或几个，不能是空的（05 第六节的 `venues`；2026-10-09 和通讯平台的会话定：「发给任意好友或群」只给本机，`skip_reply` 只给场所）。
 3. 登记进工具目录，归这个包：换掉它上一次登记的那几件。名字撞上核心自带的、别的包的、写法不对的：整个不收，`bad_tool`，`data` 是 `{"tool": 名字, "problem": "duplicate" | "name" | "parameters" | "access" | "venues" | "timeout" | "feature"}`。`feature`（施工 T-2）：清单写了几个功能、这一件哪个功能都没列，或者写了空的 `[features]`；归法同预设认工具归哪个功能（`Features::of_tool`：列了的照列的，只有一个功能的都归它，没写 `[features]` 的整个包算一个）。归不上的预设开关不了它。回应 `{"tools": 件数}`。
 4. 记下这个包现在由这个连接提供。连接断了、扩展崩了，工具照旧留在目录里（`05-内核接口.md` 第九节：工具从目录里消失会改变请求字节），被调到时回「暂时不可用」。
 5. 这一次登记的原文写进登记缓存 `state/providers/<包>.json`（施工 O-2 中，下面「登记缓存」）。
+
+**在场所里做的事**（访问类别 `venue`，施工 O-31 前，2026-10-10 核心定；`kernel/tools.md`、`session/guard.md` 第四条）：通讯平台上的动作（撤回、禁言、戳一戳这些）登记成 `venue`。权限策略只看会话在不在场所里：场所会话里放行、不问人，本机的会话里拒绝（`not_in_venue`）。场所会话没人能确认，`network`、`outbound` 在那里一律被拒，所以不能拿它们登记要在群里用的动作。
+
+1. **谁能叫、能动谁是提供者的义务**：登记成 `venue` 的工具，核心不替它挡人。提供者照 `tool.call` 的 `by`（`by.role` 是 `manager` 的是管理的人）、`owner`、`venue.binding`（这个平台身份是不是终端管理员，`venues.md`「问对应表」：动谁的时候要认目标）自己挡；挡下的照工具结果回一句，`error` 是真。
+2. **出去的动作不许记成 `read`**：`read` 是不碰这台机器、不出 Miyu 的。`send_message` 用 `read` 是因为它只发给她能看到的会话，不出 Miyu（`tools/send_message.md`）；`skip_reply` 只让桥这一轮不发，也不出去。撤回、禁言、戳一戳会在平台上留下后果，是 `venue`。
 
 **`extension.disable`**（施工 O-2 中）：关掉的扩展的工具出目录，开着的会话下一个回合换掉；缓存留着。关是人的决定，和重启以后关着的包不读缓存一致；崩了、断了是一时的，不出目录。
 
@@ -95,9 +100,10 @@
 | `crates/miyu-endpoint/src/wire/tests.rs` | 对核心发出去的请求的回应认得出来：`result`、`error` 原样交出，`id` 要是字符串、要是 2.0 |
 | `crates/miyu-endpoint/tests/provide_exit.rs`（施工 O-2 再补） | 登记过工具的扩展一直退出：每次都察觉、照退避重新拉起，五次停下；端口被占退出的记成 `config_error` |
 | `crates/miyu-endpoint/src/reverse/tests.rs` | 反向调用发出去的一行带 `core-<n>`、方法、参数；对上编号的回应交给等它的，对不上的不理；连接断了，在等的和以后发的都了结 |
-| `crates/miyu-endpoint/src/provide/tests.rs` | 访问类别、给哪种会话不认识的、空的拒；提供者表照包记，重新登记的换掉旧的；没有连接的、发不出去的暂时不可用，说法同执行器的 |
+| `crates/miyu-endpoint/src/provide/tests.rs` | 访问类别（施工 O-31 前起认 `venue`）、给哪种会话不认识的、空的拒；提供者表照包记，重新登记的换掉旧的；没有连接的、发不出去的暂时不可用，说法同执行器的 |
 | `crates/miyu-tool/src/catalog/tests.rs` 的 `replacing_a_package_keeps_the_others_and_checks_the_new_ones` | 换掉一个包的工具：别的包的照留，原来那份不动，撞名、写法不对的整个不收 |
 | `crates/miyu-session/src/agents/tests.rs` | 工具面照会话在哪挑提供者的工具：本机的、私聊、群 |
+| `crates/miyu-endpoint/tests/provide_venue.rs`（施工 O-31 前） | 契约：登记成 `venue` 的工具收；本机的会话调到它，权限策略当场拒绝、写 `not-in-venue` 那一句，扩展收不到 `tool.call` |
 | `crates/miyu-endpoint/tests/provide_features.rs`（施工 T-2） | 写了几个功能的，登记没列的工具整个不收（`feature`）、只登记列了的照收；空的 `[features]` 一件都不收；只写了一个功能的都收 |
 | `crates/miyu-endpoint/tests/provide.rs` | 契约：扩展登记、撞名的整个不收、头不是提供者；新造的会话工具面里有给本机的、没有只给群的；`tool.call` 带会话、调用编号、参数、是谁要的、是不是主人；结果、错误、写法不对的各自交回；不答的到点超时、扩展收到 `tool.cancel`；扩展关掉了，下一个回合没有它的工具 |
 | `crates/miyu-kernel/src/session/tests/respond/asking.rs`、`origin/tests.rs` 的 `the_owner_is_a_person_or_someone_on_the_owner_table` | 是谁要的：开回合的触发、照记下的几条开的最后一条、并进来的和排着队的被请求看到以后换上，回报不换、别的 harness 换；主人的判法 |

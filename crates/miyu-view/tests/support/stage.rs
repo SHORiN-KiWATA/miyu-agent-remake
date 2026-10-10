@@ -33,6 +33,7 @@ impl Assembler for Nothing {
             stable: 0,
             continuation: false,
             described: Default::default(),
+            output_cap: None,
         }
     }
 
@@ -111,6 +112,8 @@ pub fn policy() -> Policy {
         compaction: Some(miyu_kernel::session::Compaction {
             reserve_cap: 20_000,
             margin: 13_000,
+            line_percent: 100,
+            margin_percent: 100,
             tail: 0,
             lead: 0,
             price: miyu_kernel::estimate::Flat {

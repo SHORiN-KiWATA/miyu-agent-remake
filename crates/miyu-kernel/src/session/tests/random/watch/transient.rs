@@ -33,6 +33,7 @@ impl Watch {
             }
             TransientBody::Status(status) => self.retry_status(status),
             TransientBody::CompactionProgress(progress) => self.compaction_progress(progress),
+            TransientBody::CompactionStarted(started) => self.prepare_started(transient, started),
             TransientBody::CompactionDone(done) => self.compaction_done(transient.turn, done),
             // 换模型的通知由会话 actor 推（施工 8-9），内核不推。
             TransientBody::ModelChanged(_) => panic!("种子 {seed}：内核推了 model.changed"),

@@ -322,7 +322,8 @@ impl Actor {
                 turn,
                 model,
                 present,
-            } => Some(self.turn_start(turn, model, present).await),
+                said,
+            } => Some(self.turn_start(turn, model, present, said).await),
             Action::CallModel {
                 seen,
                 request,

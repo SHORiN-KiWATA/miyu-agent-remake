@@ -108,7 +108,7 @@ async fn the_cost_is_recorded_and_she_reads_her_own_usage() {
         context.starts_with("Context: ") && context.ends_with(" of 100000 tokens."),
         "{text}"
     );
-    assert_eq!(lines.next(), Some("Compaction starts at 67000."));
+    assert_eq!(lines.next(), Some("Compaction starts at 75000."));
     assert_eq!(lines.next(), None, "{text}");
     // 用量汇总里照日志记着三次（看完了的那一次也落了盘）：和会话写的是同一个连接。
     let query = Query {

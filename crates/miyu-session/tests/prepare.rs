@@ -18,7 +18,7 @@ async fn switched_off_in_the_config_it_compacts_at_the_line() {
         Play::Says("<summary>当场压的摘要</summary>"),
         Play::Says("行。"),
     ])
-    .window(113_000)
+    .window(105_263)
     .reports(77_000);
     let handle = home.create(&script).await;
     let mut pushes = watch(&handle).await;

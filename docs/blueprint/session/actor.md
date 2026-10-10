@@ -161,7 +161,7 @@
 | 回应命令 | 交给等这个编号的最早那一头；它不等了，丢掉；没人在等的，不理 | |
 | 推送事件 | 推给订阅了的；没有订阅的，丢掉 | |
 | 推送瞬时事件 | 同上；是 `status`（现在只有等着重试这一种）的，先记一行 `retrying`；是 `compaction.done` 的，先记一行 `compacted`（施工 6-3 下；`trigger` 照它的 `trigger`，施工 6-8） | |
-| 跑回合开始的挂接点 | 先冻结这一轮的配置：从配置的 `watch` 取当前的一份，照会话这时的目录带上项目配置（阻塞线程里，施工 8-4，`config.md` 第八条第 3 条）。再叫端口照它重新解析内核交来的引用（施工 8-10，`ModelPort::turn`，第 8 条第 2 款）：限额和上一次交给内核的不一样的当场交 `Input::Limits`，给头看的（`Shown`）照内核算的限额、端口的引用和模型写一次；头看得到的（引用、接下来发给谁、思考强度、窗口、压缩线）和这一步之前的不一样，推一条 `model.changed`，`why` 是 `turn`。再问挂接点（施工 R-4 上，`actor/model.rs` 的 `hooks`）：现在只有记忆一个，照内核交来的 `present` 交常驻的摘要（`memory.md` 第三条），限时 300 毫秒，过了当没交、记一行 `DEBUG turn start hook timed out`；没接记忆的不问 | 挂接点跑完了，带着挂接点交回的几块（没有的是空的）；端口退回了默认的带着 `replaced` |
+| 跑回合开始的挂接点 | 先冻结这一轮的配置：从配置的 `watch` 取当前的一份，照会话这时的目录带上项目配置（阻塞线程里，施工 8-4，`config.md` 第八条第 3 条）。再叫端口照它重新解析内核交来的引用（施工 8-10，`ModelPort::turn`，第 8 条第 2 款）：限额和上一次交给内核的不一样的当场交 `Input::Limits`，给头看的（`Shown`）照内核算的限额、端口的引用和模型写一次；头看得到的（引用、接下来发给谁、思考强度、窗口、压缩线）和这一步之前的不一样，推一条 `model.changed`，`why` 是 `turn`。再问挂接点（施工 R-4 上，`actor/model.rs` 的 `hooks`）：现在只有记忆一个，照内核交来的 `present` 先交常驻的摘要（`memory.md` 第三条），再照 `said`（人开的一轮才有）联想（第四条，施工 R-8：照这一轮冻结的配置照意思找，常驻那一块这一轮列的也当交过的），各自限时 300 毫秒，过了的那一件当没交、记一行 `DEBUG turn start hook timed out`；没接记忆的不问 | 挂接点跑完了，带着挂接点交回的几块（没有的是空的）；端口退回了默认的带着 `replaced` |
 | 请求模型 | 交给端口（第 7 条），带上这一轮的配置（施工 8-4）：回顾、起标题、手动压缩这些不开回合的，照上一轮的 | |
 | 到点叫醒 | 起一个定时的任务，到那一刻送回「到点了」；那一刻已经过了的，马上送 | |
 | 不要这次请求了 | 叫端口停下（第 7 条） | |
@@ -324,7 +324,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | WARN | `memory index rebuilt`、`memory index unusable` | `room`、`reason` 或 `error` | 回合库坏了、版本不对删掉重建，或者删了也打不开（施工 R-2 上） |
 | INFO | `memory index backfilled` | `room`、`sessions` | 人格那一间新建、重建以后后台补齐了几个旧会话（施工 R-2 下，`memory.md` 第一条第 9 款） |
 | WARN | `memory index not backfilled` | `session` 或 `room`，`error` | 补齐时一个会话读不了、快照取不出（跳过它），或者列不出会话（施工 R-2 下） |
-| DEBUG | `turn start hook timed out` | `module` | 回合开始的挂接点过了 300 毫秒没交回，这一轮当它没交（施工 R-4 上，`memory.md` 第三条第 4 款） |
+| DEBUG | `turn start hook timed out` | `module`、`part`（`summary`、`recall`，施工 R-8） | 回合开始的挂接点的那一件过了 300 毫秒没交回，这一轮当它没交（施工 R-4 上，`memory.md` 第三条第 4 款、第四条第 6 款） |
 | WARN | `memory summary not read` | `error` | 回合开始列不出这一间的记忆，这一轮不交摘要（施工 R-4 上） |
 | INFO | `memory vectors filled` | `index`、`count`、`took_ms` | 搜的时候起的后台补了这一份库缺的几条向量（施工 R-5 下，`recall.md` 第三条第 5 款） |
 | WARN | `memory vectors not filled` | `error` | 补向量时库读写不了 |

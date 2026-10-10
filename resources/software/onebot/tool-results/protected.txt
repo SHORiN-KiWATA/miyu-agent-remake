@@ -1,0 +1,1 @@
+Not done: {who} is the group owner, an admin, the terminal admin or whitelisted.

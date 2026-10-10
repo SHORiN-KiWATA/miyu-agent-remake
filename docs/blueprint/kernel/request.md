@@ -45,6 +45,7 @@
 | `stable` | 整数 | 稳定区有几条消息，就是示范对话的条数。缓存标记照它落：`anthropic` 打四处缓存点，第 2 处在稳定区的末尾（施工 8-12，`drivers/anthropic.md`「缓存打点」）；`openai-chat`、`openai-responses` 不打点（后者是自动缓存，施工 8-13，`drivers/openai-responses.md`「缓存」） |
 | `continuation` | 布尔 | 接着写的记号（「组装」第 7 条）。是假的不写进字节 |
 | `described` | blob → 字符串 | 请求里出现的图在这个会话里的转述（施工 8-17，下面「替它看的图」）：内核组装完放进来，驱动给看不了图的端点编码时用。空的不写进字节 |
+| `output_cap` | 整数或没有 | 这一次回答至多多少 token（施工 6-11 三补，`compaction.md` 第十五条第 4 条）：放不下整份输出预留、还放得下回答的下限的主请求，内核写成窗口减用量；会话入口发的时候输出上限和它取小的。没有的不写进字节 |
 
 - 端点、模型、输出的上限不在请求里，发请求时才定（`drivers/openai-chat.md` 的 `Call`）。
 - `ToolSpec`：`name`、`description`、`parameters`。`parameters` 是参数的 JSON Schema，原样的 JSON，空格、字段的先后都留着。
@@ -60,7 +61,7 @@
 
 **规范的字节**：`canonical_bytes()` 写成紧凑的 JSON，字段照结构体的先后，参数格式原样照抄。`hash()` 是这串字节的 SHA-256，写成 `sha256:` 加 64 位小写十六进制。
 
-**指纹** `fingerprint()`：三样各算一个 SHA-256。工具面：`tools` 数组的 JSON；system：它写成的 JSON 字符串，带引号；每条消息：那一条的 JSON，另记它的角色。`stable`、`continuation`、`described` 不算进指纹（`described` 为什么不算见 `models.md`「施工时定的」8-17）。上一次的请求本身不留。
+**指纹** `fingerprint()`：三样各算一个 SHA-256。工具面：`tools` 数组的 JSON；system：它写成的 JSON 字符串，带引号；每条消息：那一条的 JSON，另记它的角色。`stable`、`continuation`、`described`、`output_cap` 不算进指纹（`described` 为什么不算见 `models.md`「施工时定的」8-17）。上一次的请求本身不留。
 
 **第一处不同** `first_difference(上一次的指纹)`：交回 `Tools`、`System`、`Message { index, role }`（`index` 从 0 数起），或者没有。
 

@@ -163,6 +163,8 @@
 | `session` | WARN | `memory merge failed` | `room`、`tries`（从同一处起第几次；读底账不成的没有）、`error` | 合并没成：一次性入口没答成的原因码、交回读不成的为什么；第三次的这一批跳过 |
 | `session` | WARN | `memory merge search failed` | `room`、`error` | 搜一条新记的相关旧记忆时记忆库读不了：这一条不带相关的，照合 |
 | `session` | WARN | `memory merge not recorded` | `room`、`error` | 记忆日志写不进：不动真相，下次再来 |
+| `session` | WARN | `memory recall not read` | `error` | 联想照意思找的时候记忆日志、记忆库读不了：这一轮不带（`memory.md` 第四条，施工 R-8）。带会话编号 |
+| `endpoint` | WARN | `memory recall texts unreadable` | `error` | 核心起来时联想的外壳、门槛表（`core/memory/recall.toml`）读不出来、写错了：这个核心不联想，别的照常（施工 R-8） |
 | `session` | INFO | `image not described` | `blob`、`why` | 替看不了图的模型看图没成（`models.md` 第十三条第 7 条，施工 8-17）：没配 `models.vision`、一次性入口没答成、回答是空的。会话的 actor 记，带会话编号；这张图这一轮写占位 |
 | `core` | INFO | `sandbox` | `helper`（助手的路径）、`platform`、`mechanisms`（逗号连起来，空的写 `none`） | 起来时探沙盒的助手，探成了（`sandbox.md`，施工 5-1） |
 | `core` | WARN | `sandbox unavailable` | `reason` | 起来时探沙盒的助手：没找到、跑不了、到时、说的读不懂 |

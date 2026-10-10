@@ -44,7 +44,7 @@ const SUMMARY: &str = "<summary>她读了两个文件。</summary>";
 const SMALL: &str = "\">\nalpha\n\n</file>\n";
 
 /// 第一轮打招呼；第二轮读 `a.txt`（小）和 `big.txt`（约 4 万字节），读完就过线，这一轮里压；第三轮再说一句。剧本后面
-/// 接着 `more`。交回场地、剧本、会话，和压缩所在的那一轮。窗口 43000：线 10000，读了大文件就过线。
+/// 接着 `more`。交回场地、剧本、会话，和压缩所在的那一轮。窗口 32000（重读要窗口不小于 32000）：线 10400，读了大文件就过线。
 async fn compacted(more: Vec<Play>) -> (Home, Script, Handle, TurnId) {
     // 测的是到线当场压：关掉提前压（施工 6-11 补起开着的会接着说，压缩挪到下一步，见内核的 `scenario/prepare_go.rs`）。
     let mut home = Home::new();
@@ -67,7 +67,7 @@ async fn compacted(more: Vec<Play>) -> (Home, Script, Handle, TurnId) {
         Play::Says("嗯。"),
     ];
     plays.extend(more);
-    let script = Script::new(plays).window(43_000);
+    let script = Script::new(plays).window(32_000);
     let opening = Opening {
         permission: Permission {
             level: Level::Workspace,

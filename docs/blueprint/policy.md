@@ -43,14 +43,14 @@
 | `step_limit` | 整数或 `null` | 一个回合最多请求几次模型；`null` 是不限，现在总是 `null` |
 | `attended` | 布尔 | 有没有人能确认 |
 | `resumes` | 整数 | 有计划的重启打断了一轮，再起来时连着接着干几次，现在是 3 |
-| `compaction` | 对象 | 压缩用的数：`reserve_cap` 输出预留的上限、`margin` 余量、`image`、`file` 估算时一张图、一个文件各算多少 token、`tail` 尾巴的上限，现在是 20000、13000、2000、2000、16000（施工 6-2）。以前造的快照里没有，读成没有；没有的不写。6-2（上）造的没有 `tail`，读成 16000。`rebuild` 压后重建的数（施工 6-5）。`pause` 熔断的数：`failures` 连续失败几次、`turns` 几个回合内又到线算快、`refills` 连着快几次，现在都是 3（施工 6-6 上）；以前造的没有，读成没有：不熔断。`shorten` 截短重试的数：`tries` 最多再试几次、`percent` 没说超多少时截百分之几，现在是 3、20（施工 6-6 中）；以前造的没有，或者只有数、没有字的，不截短 |
+| `compaction` | 对象 | 压缩用的数：`reserve_cap` 输出预留的上限、`margin` 余量、`image`、`file` 估算时一张图、一个文件各算多少 token、`tail` 尾巴的上限，现在是 20000、13000、2000、2000、16000（施工 6-2）。以前造的快照里没有，读成没有；没有的不写。6-2（上）造的没有 `tail`，读成 16000。`rebuild` 压后重建的数（施工 6-5）。`pause` 熔断的数：`failures` 连续失败几次、`turns` 几个回合内又到线算快、`refills` 连着快几次，现在都是 3（施工 6-6 上）；以前造的没有，读成没有：不熔断。`shorten` 截短重试的数：`tries` 最多再试几次、`percent` 没说超多少时截百分之几，现在是 3、20（施工 6-6 中）；以前造的没有，或者只有数、没有字的，不截短。`line_percent`、`margin_percent` 压缩线、余量各至多窗口的百分之几，现在是 85、5，排在 `margin` 后面（施工 6-11 再补，`compaction.md` 第二条第 2 条）；以前造的没有，读成 85、5：老会话也照它 |
 | `jobs` | 对象 | 任务用的数（施工 7-6）：`report_chars` 子会话回报的正文最多几个字，现在是 30000（`agents.md`「对外的样子」）。以前造的快照里没有，读成没有、不写：照出厂的 30000 截 |
 | `recap` | 对象 | 回顾用的数（施工 3-8 四补，`kernel/request.md`「回顾的请求」）：`turns` 最多喂几轮她答过的、`tokens` 整份最多约多少 token，现在是 8、8192（2026-10-01 项目主人定，照 codex）。以前造的快照里没有，读成没有、不写：不做回顾 |
 | `title` | 对象 | 起标题用的数（施工 3-8 五补，`kernel/request.md`「起标题的请求」、`kernel/session.md`「起标题」）：`tokens` 整份请求最多约多少 token、`chars` 标题最多几个字、`tries` 一个会话最多试几次，现在是 1024、50、2（1024 照回顾的截法施工时定；50 是 2026-10-01 项目主人定；2 是施工单定的）。以前造的快照里没有，读成没有、不写：不起标题 |
 | `peers` | 对象 | 别的会话发来的话怎么防刷屏（施工 C-2，`cross-session.md`「对外的样子」）：`burst` 同一个发话方一个窗口里最多几句、`window` 窗口多少秒、`unread` 没听到的最多几句，现在是 5、600、50（数是估的，待 C-7 实测）。排在 `title` 后面。以前造的快照里没有，读成没有、不写：照出厂的数，防刷屏不能因为会话旧就不管。施工 C-6 加两格，排在后面：`watch_hours` 订了多久没等到就作废（小时，出厂 12）、`status_chars` 通知那一行最多几个字（出厂 200）；C-2 时造的快照里没有这两格，读成没有、不写，照出厂的数 |
 | `memory` | 字符串 | 记忆的范围（施工 R-3 下，`memory.md`「范围」）：`persona`、`session`、`off`，造会话时定（`with_memory`），新造的都写明；排在 `peers` 后面、最后。以前造的快照里没有，读成没有、不写，照 `persona`；认不出的照 `off` |
 
-**`ToolEntry`**：`name`、`description`、`parameters`（参数的 JSON Schema，原样的 JSON）、`access`（`read`、`write`、`execute`、`network`、`outbound`，不认识的原样留着），照这个先后。
+**`ToolEntry`**：`name`、`description`、`parameters`（参数的 JSON Schema，原样的 JSON）、`access`（`read`、`write`、`execute`、`network`、`outbound`、`venue`（施工 O-31 前），不认识的原样留着），照这个先后。
 
 **`CoreTexts`**，每一格是 `resources/core/` 下一份文件的原文：
 

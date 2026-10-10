@@ -27,12 +27,16 @@
 //! - 贴表情（施工 O-25 下，「贴表情」）：判下来要回、主触发是冲她来或续聊的，在她要回的那一条上贴，那一轮发出去第一段、结束了、
 //!   到时候了摘（`reaction`）。
 //! - 不说话（施工 O-26，「提供者和不说话」）：她的回复里有 `skip_reply` 的调用块，这一轮的字都不发（`quiet` 认，`speak` 不发）。
+//! - 平台工具（一）（施工 O-31，「平台工具（一）」）：读的一头交来的撤回、禁言、戳一戳的 `tool.call`，做不做、对谁做照 `platform`
+//!   定，`acting` 收投影、调 NapCat、答核心。
 //! - 核心推来的 `extension.config`（施工 O-20）：`keys` 原样交给 `serve`，它换上手里的配置、端口变了另起一个任务换（`running::rebind`）
 //!   （「施工时定的」第 45 条）：这里够不着监听。白名单成员 `onebot.whitelist` 这里记一份（施工 O-23）；换了的，私聊找过的
 //!   会话都忘掉，下一条照新的白名单再找（施工 O-27）。
 
+mod acting;
 mod applied;
 mod ask;
+mod bindings;
 mod body;
 mod called;
 mod command;
@@ -46,6 +50,7 @@ mod muted;
 mod names;
 mod outbound;
 mod persona;
+mod platform;
 mod projection;
 mod queue;
 mod quiet;
@@ -75,11 +80,12 @@ use crate::TARGET;
 use crate::core::{Core, Gone, reason};
 use crate::listen::bots::Bots;
 use crate::onebot::{Event, Members, Posted, To, command_id, person, venue};
-use crate::rules::{Applied, Venues};
+use crate::rules::{Applied, Tools, Venues};
 use crate::serve::Failure;
 use crate::settings::{whitelist, whitelist_key};
 use crate::texts::Texts;
 pub(crate) use ask::Slots;
+use bindings::Bindings;
 use fields::{Flags, fields};
 use judges::Judges;
 use outbound::Spoken;
@@ -154,6 +160,12 @@ pub(crate) struct Route {
     reactions: Reactions,
     /// 这一轮不说话了的（施工 O-26，`quiet`）：群里、私聊的都在这一张表里。
     quiet: Quiet,
+    /// 桥的工具（施工 O-31）：平台工具答的话。
+    tools: Arc<Tools>,
+    /// 问到的「是不是终端管理员」（施工 O-31，`bindings`）。
+    bindings: Bindings,
+    /// 私聊会话编号 → 推来的最近一条人说的话引用的平台编号（没引用的是空的，施工 O-31，`acting`：私聊里叫她做的那条）。
+    quotes: HashMap<String, Option<String>>,
     /// 推来的配置变化交给 `serve`（施工 O-20）。
     configured: mpsc::UnboundedSender<Map<String, Value>>,
 }
@@ -162,24 +174,27 @@ impl Route {
     /// 拿着连接 `core`，回话照 `bots` 找连接，场所规则照 `rules`，群成员的名字记进 `members`，发进群里的提示照 `texts`
     /// 说，问判官照全局的名额 `slots` 排队（施工 O-23 下）、判官带的人格原文照 `personas` 记（施工 O-23 补），群里的命令回执
     /// `recall` 以后撤回（施工 O-25 上），出站排着的过了 `expire` 作废（施工 O-25 中），表情照 `reactions` 贴、摘（施工 O-25 下），
-    /// 推来的配置变化交给 `configured`。白名单成员照握手交来的配置（`core.config`）。
+    /// 推来的配置变化交给 `configured`。白名单成员照握手交来的配置（`core.config`）。问到的「是不是终端管理员」记 `binding`（施工
+    /// O-31）。
     pub(crate) fn new(
         core: Core,
         bots: Arc<Bots>,
         rules: Venues,
         members: Members,
-        (texts, slots, personas, recall, expire, reactions): (
+        (texts, slots, personas, recall, expire, reactions, binding): (
             Texts,
             Slots,
             Personas,
             Duration,
             Duration,
             Reactions,
+            Duration,
         ),
         configured: mpsc::UnboundedSender<Map<String, Value>>,
     ) -> Route {
         let whitelist = whitelist(&core.config[whitelist_key()]);
         let judges = Judges::new(core.caller(), rules.judge_texts(), slots, personas);
+        let tools = rules.tools();
         Route {
             core,
             bots,
@@ -199,6 +214,9 @@ impl Route {
             judges,
             reactions,
             quiet: Quiet::default(),
+            tools,
+            bindings: Bindings::new(binding),
+            quotes: HashMap::new(),
             configured,
         }
     }
@@ -343,6 +361,7 @@ impl Route {
     /// 会话都忘掉（施工 O-27：删了的人下一条照新的白名单再找，就不接了；终端管理员的找回来还是那一个，再订阅一次不重）；群会话的
     /// 事件收进投影、她新说的话发回群里（施工 O-23）；私聊会话的事件交给 `say_privately`：她的回话发回去（第 10 条），这一轮
     /// 不说话了的不发（施工 O-26，要看 `turn.ended`）；掉了队、会话停了的（`resync`）再订阅一次，群的照收到的最后一条接着补。
+    /// 读的一头交来的平台工具的调用（`tool.call`，施工 O-31）交给 `acting`。
     async fn pushed(&mut self, pushed: Value) -> Result<(), Gone> {
         let params = &pushed["params"];
         if pushed["method"] == "extension.config" {
@@ -360,6 +379,9 @@ impl Route {
                 // `serve` 不收了：桥在停，没有别处可交。
             }
             return Ok(());
+        }
+        if pushed["method"] == "tool.call" {
+            return self.tool_called(&pushed).await;
         }
         let Some(session) = params["session"].as_str() else {
             return Ok(());

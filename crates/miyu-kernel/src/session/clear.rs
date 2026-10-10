@@ -50,6 +50,7 @@ impl Session {
             notes: String::new(),
             restored: Vec::new(),
             refills: None,
+            prepared: false,
         });
         let compacted = self.record(at, By::Kernel, cause.clone(), body);
         let ended = self.end_turn(at, By::Kernel, cause, EndReason::Completed);

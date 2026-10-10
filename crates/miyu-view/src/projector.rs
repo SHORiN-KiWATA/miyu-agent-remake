@@ -66,6 +66,8 @@ pub struct Projector {
     reply: Option<(Seq, Vec<Option<EntryId>>)>,
     /// 在压的那一条。
     compacting: Option<EntryId>,
+    /// 后台提前压的摘要请求的用量、用时，照它替代到哪一条记（施工 6-11 三补）：换上时接在压缩那一条上，翻页和视图流一样。
+    prepared: BTreeMap<Seq, (Option<Usage>, Option<u64>)>,
     /// 最近一条撤销说明：改回的文件、停掉的任务记在它上面。
     reverted: Option<EntryId>,
     /// 最近一次说话的端点、模型。
@@ -146,6 +148,7 @@ impl Projector {
             questions: BTreeMap::new(),
             reply: None,
             compacting: None,
+            prepared: BTreeMap::new(),
             reverted: None,
             model: (None, None),
             last: (0, 0),

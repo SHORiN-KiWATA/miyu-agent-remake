@@ -5,10 +5,11 @@
 //! - 换上：没有摘要请求就写下的压缩，替代到最近压好的那一份的 N，摘要是它的正文，`trigger` 照这一次的；交了重读的，后面
 //!   不跟摘要请求；推的压好了带 `prepared`，当场压的不带；
 //! - 到线时在路上的（施工 6-11 下）：等它，推的进度是它的、字数是替身送过的正文字数；等的时候什么都不请求；
+//! - 起压时同一批推一条 `compaction.started`（施工 6-11 再补）：是在路上的那一次的、在回合里，一次只推一回；
 //! - 载入以后全忘：内核只在内存里记着。
 
 use super::*;
-use crate::event::{CompactionDone, ContextCompacted, ModelCalled, Purpose};
+use crate::event::{CompactionDone, CompactionStarted, ContextCompacted, ModelCalled, Purpose};
 
 /// 看守记着的提前压好。
 #[derive(Debug, Default)]
@@ -38,6 +39,8 @@ pub(in super::super) struct Flight {
     pub(in super::super) upto: Seq,
     /// 报过发出去了。
     pub(in super::super) sent: bool,
+    /// 推过 `compaction.started`。
+    started: bool,
     /// 正文那一块开始了。
     opened: bool,
     /// 送过的正文。
@@ -152,11 +155,36 @@ impl Watch {
         self.prepares.flight = Some(Flight {
             upto,
             sent: false,
+            started: false,
             opened: false,
             text: String::new(),
             broken: false,
             ended: None,
         });
+    }
+
+    /// 推了 `compaction.started`（施工 6-11 再补）：是在路上的那一次的、在回合里、带 `prepared`，一次只推一回。
+    pub(super) fn prepare_started(&mut self, transient: &Transient, started: &CompactionStarted) {
+        let seed = self.seed;
+        self.seen_paths.insert("推了提前压的开始");
+        assert!(started.prepared, "种子 {seed}");
+        assert!(transient.turn.is_some(), "种子 {seed}：起压在回合里");
+        let flight = self.prepares.flight.as_mut();
+        let flight =
+            flight.unwrap_or_else(|| panic!("种子 {seed}：没有在路上的提前压，却推了开始"));
+        assert_eq!(
+            flight.upto, started.seen,
+            "种子 {seed}：开始的不是在路上的那一次"
+        );
+        assert!(!flight.started, "种子 {seed}：同一次提前压推了两回开始");
+        flight.started = true;
+    }
+
+    /// 一批动作查完了：这一批交出的提前压推过开始（替身的提前压从不调工具，不会改走隔离式再发）。
+    pub(super) fn prepare_announced(&self) {
+        if let Some(flight) = &self.prepares.flight {
+            assert!(flight.started, "种子 {}：起压了没推开始", self.seed);
+        }
     }
 
     /// 提前压的 `model.called`：不带回合编号、不带 `compaction`，照到的是在路上的那一次，写没写成和算出来的一样。

@@ -37,7 +37,7 @@
 | `name` | 工具名，模型照它调：只用 ASCII 字母、数字、`_`、`-`，1 到 64 个字节 |
 | `description` | 给模型看的说明，英文，原样进 tools 数组 |
 | `parameters` | 参数的 JSON Schema，原样进 tools 数组，一个字节不改（`RawJson`）；必须是 `{"type":"object",…}` |
-| `access` | 访问类别：`read`、`write`、`execute`、`network`、`outbound`；不认识的原样留着，按最严的算 |
+| `access` | 访问类别：`read`、`write`、`execute`、`network`、`outbound`、`venue`（施工 O-31 前，`kernel/tools.md`）；不认识的原样留着，按最严的算 |
 
 **接口** `Tool`（`Send + Sync`）：
 

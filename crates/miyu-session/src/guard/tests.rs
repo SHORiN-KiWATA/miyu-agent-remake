@@ -156,3 +156,21 @@ fn the_detail_takes_what_the_tool_says() {
         Some(r#"{"command":"touch ~/x","sandbox":false,"title":"Create a file","tool":"shell"}"#)
     );
 }
+
+/// 在场所里做的事（`venue`，施工 O-31 前）：场所会话里放行，不问；本机的会话拒绝，写给她出厂的那一句，说法是
+/// `core/permissions/not-in-venue`。
+#[test]
+fn a_venue_action_runs_only_in_a_venue() {
+    assert_eq!(in_venue(&Place::Venue), Verdict::Allow);
+    let local = Place::local("Not here.\n".to_string());
+    assert_eq!(
+        in_venue(&local),
+        Verdict::Deny {
+            module: module(),
+            text: "Not here.\n".to_string(),
+            human: Some(miyu_kernel::event::Said::new(
+                "core/permissions/not-in-venue"
+            )),
+        }
+    );
+}

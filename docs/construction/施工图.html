@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>365</b><span>/ 378 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>369</b><span>/ 381 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
-    <li><b class="mono">abda7280</b><span>最近一步（T-12 常用供应商照 opencode）的提交</span></li>
+    <li><b class="mono">50764d4e</b><span>最近一步（6-11 三补 真满了才停）的提交</span></li>
   </ul>
 </header>
 
@@ -521,6 +521,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s6-11a"><span class="n">6-11 上</span>提前压好、到线换上<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-11b"><span class="n">6-11 下</span>到线时在路上的等它、真会话量 G<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s6-11c"><span class="n">6-11 补</span>压缩不等<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s6-11d"><span class="n">6-11 再补</span>压缩线 85%<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s6-11e"><span class="n">6-11 三补</span>真满了才停<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -681,6 +683,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sO-28c"><span class="n">O-28 补</span>miyu onebot web 打开后台页<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-29"><span class="n">O-29</span>界面字不写「她」<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-30"><span class="n">O-30</span>为什么叫你、回谁<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sO-31"><span class="n">O-31</span>撤回、禁言、戳一戳<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-6"><span class="n">O-6</span>核心：斜杠命令由核心解析<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-6b"><span class="n">O-6 补</span>列出斜杠命令<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-6c"><span class="n">O-6 再补</span>用不了的命令说为什么<span class="st">✓</span></a></li>
@@ -715,7 +718,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sR-7"><span class="n">R-7</span>合并（上）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-7b"><span class="n">R-7</span>常驻的那一块交摘要（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-7c"><span class="n">R-7</span>现在就整理记忆（补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">R-8</span>联想</span></li>
+        <li><a class="step done" href="#sR-8"><span class="n">R-8</span>联想<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">R-9</span>记忆验收</span></li>
         <li><a class="step done" href="#sR-10"><span class="n">R-10</span>记忆照包启用<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-11"><span class="n">R-11</span>测评集<span class="st">✓</span></a></li>
@@ -10389,6 +10392,114 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s6-11d" aria-labelledby="h-s611d">
+  <div class="sheet-head"><h2 id="h-s611d"><span class="no">6-11 再补</span>压缩线 85%</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">百万窗口照「窗口减 33000」要到 96.7 万才压，到线以后能接着长的只有余量那一点。项目主人定压缩线在窗口的 85%；终端要分自动、手动压缩，要一句「已触发上下文压缩」的提示。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">压缩线 85%</span><span class="dir-note">6-11 再补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>压缩线 = min(窗口的 85%, 窗口 − 输出预留 − 余量)，余量 = min(13000, 窗口的 5%)：策略快照多 <code>line_percent</code>、<code>margin_percent</code>，老会话读成 85、5</li>
+              <li>提前压好的那一份能留的尾巴照「窗口 − 输出预留 − 压缩线」放宽</li>
+              <li><code>compaction.progress</code> 带 <code>trigger</code>；后台起压推瞬时的 <code>compaction.started</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">两条取小的</span><span class="rl">小窗口两条冲突时取小的（项目主人定）</span></div>
+          <div class="tile new"><span class="nm">余量随窗口缩</span><span class="rl">至多窗口的 5%，窗口小的不至于减成没有线</span></div>
+          <div class="tile new"><span class="nm">开始只推一次</span><span class="rl">改走隔离式再发的、失败的、作废的不另推</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-11 再补</dd></div>
+        <div><dt>名称</dt><dd>压缩线 85%</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">9961fac9</dd></div>
+        <div><dt>验收</dt><dd>八项、三台 CI（run 1613）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>几种窗口的压缩线</span></li>
+        <li><span class="ok">✓</span><span>封顶让起压提前、尾巴照那一截判</span></li>
+        <li><span class="ok">✓</span><span>开始推一次、进度带 trigger</span></li>
+        <li><span class="ok">✓</span><span>手写变异 9/9</span></li>
+        <li><span class="ok">✓</span><span>长跑随机</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/6-11-压缩线85（再补）.md</code>、图纸 <code>docs/blueprint/compaction.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s6-11e" aria-labelledby="h-s611e">
+  <div class="sheet-head"><h2 id="h-s611e"><span class="no">6-11 三补</span>真满了才停</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">12 万窗口用到 10 万就停下来压，上下文明明还有空间（项目主人报）：「放不下」照整份输出预留算。项目主人要的是还有空间就不停，只有窗口真满了才等；网页只看视图流，要后台起压的提示、换上的那一次不画结果。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">真满了才停</span><span class="dir-note">6-11 三补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>放得下照「用量 + min(输出预留, 4096)」判；放不下整份预留的那一次，回答压到窗口剩下的（请求的 <code>output_cap</code>，会话入口照它压输出上限）</li>
+              <li><code>context.compacted</code> 记 <code>prepared</code>，翻页也认得出换上的是提前压好的</li>
+              <li><code>view.status</code> 多 <code>preparing</code>，<code>doing.compacting</code> 多 <code>trigger</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">回答的下限 4096</span><span class="rl">工具调用那几步通常几百 token，整份预留让停的点提前一大截</span></div>
+          <div class="tile new"><span class="nm">平常的请求不变</span><span class="rl"><code>output_cap</code> 不写进规范字节、不算进指纹</span></div>
+          <div class="tile new"><span class="nm">提前量不放大</span><span class="rl">下限改了以后到线以后的那一截够长</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">6-11 三补</dd></div>
+        <div><dt>名称</dt><dd>真满了才停</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-11</dd></div>
+        <div><dt>提交</dt><dd class="mono">50764d4e</dd></div>
+        <div><dt>验收</dt><dd>八项、三台 CI（run 1625）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>放不下整份预留照发、回答压住</span></li>
+        <li><span class="ok">✓</span><span>放不下下限才停</span></li>
+        <li><span class="ok">✓</span><span>翻页带 prepared 和后台那次的用量</span></li>
+        <li><span class="ok">✓</span><span>手写变异 11/11</span></li>
+        <li><span class="ok">✓</span><span>长跑随机</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/6-11-真满才停（三补）.md</code>、图纸 <code>docs/blueprint/compaction.md</code>、<code>docs/blueprint/view.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="s7-1" aria-labelledby="h-s71">
   <div class="sheet-head"><h2 id="h-s71"><span class="no">7-1</span>任务的事件</h2><span class="pill done">已完成</span></div>
   <p class="purpose">M7 的底子：日志记得下后台命令和子代理的开始、结束、回报，账本守得住它们的规矩。只做事件的类型、读写、账本、样本；谁来写、写了以后怎么走，是 7-2 以后的事。</p>
@@ -18250,6 +18361,55 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sR-8" aria-labelledby="h-sR8">
+  <div class="sheet-head"><h2 id="h-sR8"><span class="no">R-8</span>联想</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">人说到的事和她记得的某件有关，这一轮就自动带上那一两条，不用她自己去搜；大多数回合一个字都不加，宁可不带。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-kernel · miyu-recall · miyu-session · resources/core/memory</span><span class="dir-note">R-8</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>内核把触发这一轮的人话交给挂接点</li>
+              <li>照意思找，相似度过门槛的带上，门槛照模型</li>
+              <li>先交常驻那一块，再交联想；交过的不再带，一轮最多三条</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">严</span><span class="rl">平常的话一句都不带</span></div>
+          <div class="tile new"><span class="nm">没有语义模型</span><span class="rl">不联想</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-8</dd></div>
+        <div><dt>名称</dt><dd>联想</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">34e51d16</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、测评集、真核心真模型、核心的主会话审内核 · 自己验收，通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>测评集上平常的话一句都不带、带了的 72% 正是该带的；真核心上缓存照常命中、带了的那一轮多 30 来个 token；18 个手写变异全被逮住；内核的随机测试连长跑都过；门禁八项全过；三台机器的 CI 和长跑全绿（run 1618）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-8-联想.md</code>；蓝图 <code>memory.md</code> 第三条、第四条，<code>kernel/session.md</code> 的 <code>RunTurnStartHooks</code>，<code>session/actor.md</code>，<code>memory/eval.md</code>，<code>log.md</code>，<code>26-提示词.md</code> 第十节。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sR-10" aria-labelledby="h-sR10">
   <div class="sheet-head"><h2 id="h-sR10"><span class="no">R-10</span>记忆照包启用</h2><span class="pill done">已完成</span></div>
   <p class="purpose">卸掉「人格记忆」，它的东西哪里都不出现：开着的会话不交摘要、不抽，协议、命令行、斜杠命令说没装；装回来以前记的都在。</p>
@@ -22068,6 +22228,58 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/O-30-为什么叫你.md</code>「实测结果」；设计 18 第九节、第十七节 Q5。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sO-31" aria-labelledby="h-sO31">
+  <div class="sheet-head"><h2 id="h-sO31"><span class="no">O-31</span>撤回、禁言、戳一戳</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">平台工具第一批：<code>recall</code>、<code>mute</code>、<code>poke</code>。目标只从叫她做的那条消息的引用和 @ 取，不信模型给的编号；群管只给终端管理员和管理的人，不动群主、管理员、终端管理员、白名单成员。核心为它加了访问类别 <code>venue</code> 和问对应表的 <code>venue.binding</code>。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-onebot、miyu-kernel、miyu-session、miyu-endpoint</span><span class="dir-note">O-31</span></div>
+            <ol class="pipe" aria-label="平台工具一">
+              <li>核心：<code>Access::Venue</code>，场所会话里放行、不问确认，本机会话拒 <code>not_in_venue</code></li>
+              <li>核心：<code>venue.binding {id}</code> → <code>{account}</code>，只给系统账号、一次一个号</li>
+              <li>桥：三件工具登记成 <code>venue</code>，目标照引用、@ 取，终端管理员照 <code>venue.binding</code> 认（记 60 秒）</li>
+              <li>投影多记引用和 @；群成员缓存多记群主、管理员</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">access venue</span><span class="rl">对外的动作不记成 read；谁能叫由提供者自己挡</span></div>
+          <div class="tile new"><span class="nm">seconds</span><span class="rl">禁言参数叫 seconds，0 到 30 天，0 是解禁</span></div>
+          <div class="tile new"><span class="nm">token</span><span class="rl">群的前缀多 162，私聊多 82；预算改成 910 字节</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-31</dd></div>
+        <div><dt>名称</dt><dd>撤回、禁言、戳一戳</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-11</dd></div>
+        <div><dt>提交</dt><dd class="mono">b3d1be3e</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真跑、核心审 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>终端管理员回复一条叫她撤、别人叫她撤别人的不行、撤她自己的谁都行；禁言照引用和 @ 取人、换算写在结果里、群主和白名单成员不动、没在群里说过话的终端管理员照样不动；戳一戳；冒充、目标是她自己都测了</span></li>
+        <li><span class="ok">✓</span><span>手写变异两轮共 39 个全被逮住；三个提交各自门禁八项全过；三台机器的 CI 和长跑全绿（run 1620）；核心那两个提交核心审过</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-31-撤回禁言戳一戳.md</code>；蓝图 <code>onebot.md</code>「平台工具（一）」、施工时定的第 176 到 187 条；<code>providers.md</code>、<code>session/guard.md</code>、<code>kernel/tools.md</code>、<code>venues.md</code>「问对应表」。</li>
       </ul>
     </div>
   </div>

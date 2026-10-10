@@ -1,6 +1,6 @@
 //! 模型的限额（施工 6-3 上）：会话 actor 造会话、载入以后先把端口交的限额交给内核，到线就在这一轮里压。
 //!
-//! 剧本的回复报 110（60 没命中、40 命中、10 输出）；窗口 33100，没报最大输出，压缩线 = 33100 − 20000 − 13000 = 100：
+//! 剧本的回复报 110（60 没命中、40 命中、10 输出）；窗口 21157，没报最大输出，压缩线 = 21157 − 20000 − 1057（余量至多窗口的 5%）= 100：
 //! 第一轮没有锚、请求很短，不压；第二轮的锚是 110，一开头就过线。
 //!
 //! 给头看的那一份（施工 6-3 补）：`Handle` 带着端口交的窗口和内核算的压缩线，造会话、载入的都一样。
@@ -12,14 +12,14 @@ use miyu_kernel::request::Message;
 use miyu_kernel::session::ContextLimits;
 use miyu_session::testkit::{Play, Script};
 
-/// 窗口 33100 的剧本：第一轮答一句；第二轮先回摘要请求，再答一句。
+/// 窗口 21157 的剧本：第一轮答一句；第二轮先回摘要请求，再答一句。
 fn script() -> Script {
     Script::new([
         Play::Says("你好。"),
         Play::Says("<analysis>a</analysis><summary>用户打了招呼。</summary>"),
         Play::Says("好的。"),
     ])
-    .window(33_100)
+    .window(21_157)
 }
 
 /// 这一次请求是不是摘要请求：最后一块是出厂的摘要指令。
@@ -109,7 +109,7 @@ async fn the_handle_carries_the_window_and_the_line_the_kernel_uses() {
     let home = Home::new();
     let script = script();
     let expected = ContextLimits {
-        window: Some(33_100),
+        window: Some(21_157),
         compaction_line: Some(100),
     };
     let handle = home.create(&script).await;

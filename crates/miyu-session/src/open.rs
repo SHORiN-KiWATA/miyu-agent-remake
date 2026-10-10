@@ -7,12 +7,13 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot};
 
 use miyu_kernel::event::SessionCreated;
-use miyu_kernel::id::{AccountId, SessionId};
+use miyu_kernel::id::{AccountId, SessionId, VenueId};
 use miyu_kernel::session::{Input, Session};
 use miyu_models::provider::chat;
 use miyu_policy::preset::{Chosen, MEMORY, ROLEPLAY};
 use miyu_store::blob::Blobs;
 use miyu_store::log::{SEGMENT_LIMIT, SessionLog, abandon};
+use miyu_store::resources::{ResourceRoot, SourceError};
 use miyu_store::usage::{UsageIndex, Who};
 use miyu_tool::{Log, Seen};
 
@@ -23,7 +24,7 @@ use crate::agents::{Agents, Offers, Site, job_in};
 use crate::blocking::blocking;
 use crate::clock::Clock;
 use crate::config::Turning;
-use crate::guard::Guard;
+use crate::guard::{Guard, Place};
 use crate::handle::{Handle, Ids};
 use crate::job_ids::JobIds;
 use crate::jobs::Roster;
@@ -143,7 +144,9 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let store = blobs.clone();
     let (table, jobs_dir) = (Arc::clone(jobs), dir.clone());
     let (owner_of, id_of, venue_of) = (owner.clone(), id.clone(), venue.clone());
-    let (snapshot, policy, texts, run, guard, log, (turns, calls)) = blocking(move || {
+    let place_resources = shipped.clone();
+    let place_venue = venue.clone();
+    let (snapshot, policy, texts, run, (guard, place), log, (turns, calls)) = blocking(move || {
         let parts = Parts {
             name: name.clone(),
             texts: persona_texts,
@@ -162,6 +165,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         let texts = snapshot.driver_texts().map_err(CreateError::Policy)?;
         let run = snapshot.run_texts().map_err(CreateError::Policy)?;
         let guard = snapshot.guard_texts().map_err(CreateError::Policy)?;
+        let place = place(&place_venue, &place_resources).map_err(CreateError::Shipped)?;
         store.put(&snapshot.to_bytes()).map_err(CreateError::Disk)?;
         let log = SessionLog::create(&dir, SEGMENT_LIMIT).map_err(CreateError::Disk)?;
         let turns = connect(
@@ -174,7 +178,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             &venue_of,
             &[],
         );
-        Ok((snapshot, policy, texts, run, guard, log, turns))
+        Ok((snapshot, policy, texts, run, (guard, place), log, turns))
     })
     .await?;
     let room = calls.as_ref().map(|calls| calls.room().clone());
@@ -253,7 +257,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         root.path().to_path_buf(),
         home.map(Path::to_path_buf),
         Arc::clone(&lettering),
-        sandbox.is_some(),
+        (sandbox.is_some(), place),
     );
     let who = Who {
         owner: owner.clone(),
@@ -352,3 +356,13 @@ fn ledger_of(usage: Option<&Arc<UsageIndex>>, id: &SessionId, owner: &AccountId)
 
 #[cfg(test)]
 mod tests;
+
+/// 会话在哪（施工 O-31 前，`session/guard.md` 第四条）：场所是 `local` 的是本机的会话，读出厂的那一句拒绝在场所里做的事；别的
+/// 是场所会话。造会话、载入时各读一次，不进策略快照（[`ResourceRoot::not_in_venue`]）。
+fn place(venue: &VenueId, resources: &ResourceRoot) -> Result<Place, SourceError> {
+    if venue.as_str() == crate::agents::LOCAL {
+        Ok(Place::local(resources.not_in_venue()?))
+    } else {
+        Ok(Place::Venue)
+    }
+}

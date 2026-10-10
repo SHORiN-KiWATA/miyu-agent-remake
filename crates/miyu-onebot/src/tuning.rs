@@ -52,6 +52,9 @@ pub struct Tuning {
     /// 贴了以后过几秒她还没回、这一轮还没完的，摘掉（施工 O-25 下，「贴表情」第 3 条）。0 是贴了就摘（「施工时定的」第 135 条）。
     /// （施工 O-16 加的 WebUI 那一格 `web` 随施工 O-28 下去掉：再写它是多一格，读不进来。）
     pub reaction_seconds: u64,
+    /// 一个平台身份是不是终端管理员（核心的 `venue.binding`）问到了记几秒（施工 O-31，`onebot.md`「平台工具（一）」第 3 条，
+    /// 「施工时定的」第 183 条）：对应表改了，桥最多晚这么久看到。0 是每次都问。
+    pub binding_seconds: u64,
 }
 
 impl Tuning {
@@ -129,5 +132,10 @@ impl Tuning {
     /// 贴的表情过多久摘。
     pub fn reaction(&self) -> Duration {
         Duration::from_secs(self.reaction_seconds)
+    }
+
+    /// 问到的「是不是终端管理员」记多久（施工 O-31）。
+    pub fn binding(&self) -> Duration {
+        Duration::from_secs(self.binding_seconds)
     }
 }

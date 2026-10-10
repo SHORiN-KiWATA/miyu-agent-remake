@@ -6,7 +6,7 @@ use std::fmt;
 use std::ops::Deref;
 
 use crate::assemble::Assembler;
-use crate::estimate::Flat;
+use crate::estimate::{self, Flat};
 use crate::event::{Body, Event, PolicyChanged};
 use crate::facts::FactTemplates;
 use crate::id::{CommandId, ContentHash};
@@ -125,8 +125,12 @@ pub struct Rebuild {
 pub struct Compaction {
     /// 输出预留的上限：输出预留 = min(模型的最大输出, 它)。出厂 20000。
     pub reserve_cap: u64,
-    /// 余量：压缩线离「放不下」还空多少。出厂 13000。
+    /// 余量：压缩线离「放不下」还空多少，至多窗口的 `margin_percent`%。出厂 13000。
     pub margin: u64,
+    /// 压缩线至多是窗口的百分之几（施工 6-11 再补）。出厂 85；100 是不封。
+    pub line_percent: u64,
+    /// 余量至多是窗口的百分之几（施工 6-11 再补）：窗口小的，余量跟着小，不至于减成没有线。出厂 5；100 是不封。
+    pub margin_percent: u64,
     /// 尾巴的预算上限：压完原样留着的最近一段，至多这么多 token，也不超过压缩线的四分之一。出厂 16000（施工 6-2 下）。
     pub tail: u64,
     /// 提前压好的提前量的上限（施工 6-11 上）：起压线 = 压缩线 − G，G = min(它, 压缩线的四分之一 − 尾巴的预算)。出厂
@@ -142,6 +146,27 @@ pub struct Compaction {
     pub shorten: Option<Shorten>,
     /// fork 式的摘要回复里调了工具，改走隔离式（施工 6-6 下）。以前的快照没有隔离式那句 system，是假：照失败算。
     pub isolate: bool,
+}
+
+impl Compaction {
+    /// 压缩线（`compaction.md` 第二条第 2 条，施工 6-11 再补）：min(窗口的 `line_percent`%, 窗口 − 输出预留 − 余量)，余量是
+    /// min(`margin`, 窗口的 `margin_percent`%)，输出预留是 min(模型的最大输出, `reserve_cap`)，没报最大输出的按 `reserve_cap`。
+    ///
+    /// 没有窗口的、算出来不是正数的（窗口比预留加余量还小），没有线：不主动压，只在供应商报超长时被动压。
+    pub fn line(&self, window: Option<u64>, max_output: Option<u64>) -> Option<u64> {
+        let window = window?;
+        let margin = self.margin.min(percent(window, self.margin_percent));
+        window
+            .checked_sub(estimate::reserve(max_output, self.reserve_cap))?
+            .checked_sub(margin)
+            .map(|line| line.min(percent(window, self.line_percent)))
+            .filter(|line| *line > 0)
+    }
+}
+
+/// `window` 的 `percent`%，往下取整。
+fn percent(window: u64, percent: u64) -> u64 {
+    u64::try_from(u128::from(window) * u128::from(percent) / 100).unwrap_or(u64::MAX)
 }
 
 /// 摘要请求超长时截短再试的数（`compaction.md` 第三条第 10 条，施工 6-6 中）。数值是数据，放在策略快照里。

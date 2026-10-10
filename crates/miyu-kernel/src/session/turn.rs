@@ -282,10 +282,12 @@ impl Session {
                 // 执行器先照这一轮的配置重新解析会话的引用（施工 8-10）。
                 let model = self.reference().map(str::to_string);
                 let present = crate::facts::present(&self.history);
+                let said = crate::facts::said(&self.history, turn);
                 vec![Action::RunTurnStartHooks {
                     turn,
                     model,
                     present,
+                    said,
                 }]
             }
             Stage::Ready if self.unstored.is_empty() => self.ask(at),
@@ -310,7 +312,7 @@ impl Session {
         if let Some(looking) = self.look(&request) {
             return looking;
         }
-        let request = self.with_descriptions(request);
+        let mut request = self.with_descriptions(request);
         // 手动压缩单开的那一轮：不问熔断，发摘要请求（施工 6-8，`manual.rs`）。
         if let Some(due) = self.manual_due(&request) {
             return self.begin_compaction(at, due);
@@ -323,6 +325,8 @@ impl Session {
             Before::Pause(paused) => return self.pause(at, paused),
             Before::Refuse(error) => return self.refuse(at, seen, &request, error),
         }
+        // 放不下整份输出预留、还放得下回答的下限的，这一次的回答压到窗口剩下的（施工 6-11 三补，`breaker.rs`）。
+        request.output_cap = self.output_cap(&request);
         let fingerprint = request.fingerprint();
         let difference = self
             .last_request
@@ -330,7 +334,7 @@ impl Session {
             .and_then(|before| fingerprint.first_difference(before));
         self.last_request = Some(fingerprint);
         // 过了起压线的，在后台提前压（施工 6-11 上，`prepare.rs`）：排在主请求后面。
-        let prepare = self.prepare_up(&request);
+        let prepare = self.prepare_up(at, &request);
         let asked = self.newly_asked();
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();

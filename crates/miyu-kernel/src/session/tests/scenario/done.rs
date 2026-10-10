@@ -12,6 +12,8 @@ fn compacting() -> Stage {
         policy.compaction = Some(Compaction {
             reserve_cap: 10,
             margin: 10,
+            line_percent: 100,
+            margin_percent: 100,
             tail: 0,
             lead: 0,
             price: crate::estimate::Flat {

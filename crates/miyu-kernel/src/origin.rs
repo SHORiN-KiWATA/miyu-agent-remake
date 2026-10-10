@@ -117,6 +117,14 @@ pub struct Harness {
 }
 
 impl By {
+    /// 是人（施工 R-8 从回合索引挪进内核，两处共用）：有账号的人（`Person`）、通讯平台上的人（`External`）。别的会话、子代理、
+    /// 别的 harness、工具、模块、内核都不是。回合索引收哪几轮（`memory.md` 第一条第 1 款）、联想拿哪句话（第四条第 1 款）
+    /// 照它判。
+    #[must_use]
+    pub fn is_person(&self) -> bool {
+        matches!(self, By::Person(_) | By::External(_))
+    }
+
     /// 是主人本人（施工 O-2 下，原来在斜杠命令里）：本机的头上的人、私聊里对应表认出的本人（`Person`）、群里对应表里有的
     /// 外部身份。斜杠命令照它判谁能换工作区，提供者的工具照它挡（`tool.call` 的 `owner`）。
     #[must_use]

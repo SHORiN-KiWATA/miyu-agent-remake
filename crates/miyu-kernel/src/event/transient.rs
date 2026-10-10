@@ -41,6 +41,8 @@ pub enum TransientBody {
     Status(Status),
     /// `compaction.progress`：摘要写到哪了（施工 6-2 上）。
     CompactionProgress(CompactionProgress),
+    /// `compaction.started`：在后台提前压的那一次发出去了（施工 6-11 再补）。当场压的不推它，推的是 0 字的进度。
+    CompactionStarted(CompactionStarted),
     /// `compaction.done`：压好了，压前、压后的用量（施工 6-3 下）。
     CompactionDone(CompactionDone),
     /// `model.changed`：会话接下来请求的模型、限额变了（施工 8-9，`models.md`「瞬时事件」）。会话 actor 造，内核不推。装在
@@ -145,10 +147,22 @@ pub struct TodosChanged {
 pub struct CompactionProgress {
     /// 哪一次摘要请求：它替代到的那一条。
     pub seen: Seq,
+    /// 哪一种压缩，和压好了写的 `context.compacted` 一样（施工 6-11 再补）：头照它分，自动压的停下等只写一行，手动的画进度。
+    pub trigger: CompactTrigger,
     /// 到这时收到的正文字数，草稿加摘要，照 Unicode 字符数。
     pub written: u64,
     /// 估计要写多少字。
     pub expected: u64,
+}
+
+/// `compaction.started` 的 `body`：在后台提前压的那一次摘要请求发出去了（施工 6-11 再补，`compaction.md` 第十五条）。主请求
+/// 照发，头照它弹一句提示，正文里不画。压失败、作废的不另推；换上时推带 `prepared` 的 `compaction.done`。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct CompactionStarted {
+    /// 哪一次摘要请求：它替代到的那一条，和换上时的 `compaction.done` 一样。
+    pub seen: Seq,
+    /// 是提前压的：现在只有这一种，总是真。
+    pub prepared: bool,
 }
 
 /// `status` 的 `body`：哪一次请求出了错，等着重试（`03-事件模型.md` 第五节）。以后别的状态
@@ -222,6 +236,7 @@ impl TransientBody {
             TransientBody::ToolProgress(_) => "tool.progress",
             TransientBody::Status(_) => "status",
             TransientBody::CompactionProgress(_) => "compaction.progress",
+            TransientBody::CompactionStarted(_) => "compaction.started",
             TransientBody::CompactionDone(_) => "compaction.done",
             TransientBody::ModelChanged(_) => "model.changed",
             TransientBody::TodosChanged(_) => "todos.changed",
@@ -274,6 +289,7 @@ impl Serialize for TransientBody {
             TransientBody::ToolProgress(progress) => progress.serialize(s),
             TransientBody::Status(status) => status.serialize(s),
             TransientBody::CompactionProgress(progress) => progress.serialize(s),
+            TransientBody::CompactionStarted(started) => started.serialize(s),
             TransientBody::CompactionDone(done) => done.serialize(s),
             TransientBody::ModelChanged(changed) => changed.serialize(s),
             TransientBody::TodosChanged(changed) => changed.serialize(s),
