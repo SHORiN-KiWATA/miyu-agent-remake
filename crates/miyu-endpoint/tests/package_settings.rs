@@ -217,7 +217,7 @@ async fn a_package_named_like_a_core_module_declares_no_settings() {
 }
 
 /// 平台接入的包（施工 F-6 上，`package-pages.md`：「接入」页去掉了）：它的配置项和别的包一样在「软件包」那一页、带 `package`。
-/// 程序要在测试程序旁边，不然当没装（出厂的接入QQ 在测试里就是这样，它的几项一项都没有）。
+/// 程序要在测试程序旁边，不然当没装（`package_switch.rs` 测）。
 #[tokio::test]
 async fn a_connection_package_has_its_settings_on_the_packages_page() {
     let home = Home::new();
@@ -242,15 +242,5 @@ async fn a_connection_package_has_its_settings_on_the_packages_page() {
     assert!(
         !pages.iter().any(|page| page["id"] == "connections"),
         "{pages:?}"
-    );
-    assert!(
-        !schema["items"]
-            .as_array()
-            .expect("有")
-            .iter()
-            .any(|item| item["key"]
-                .as_str()
-                .is_some_and(|key| key.starts_with("onebot."))),
-        "程序不在的接入QQ 当没装"
     );
 }

@@ -120,9 +120,9 @@ async fn the_dev_preset_drops_memory_and_says_so() {
     );
     let pin = snapshot.preset.expect("记了预设");
     assert_eq!(pin.id, "dev");
-    // 施工 F-3 上起记的是功能的编号。出厂的接入QQ 的程序不在测试程序旁边，当没装（施工 F-6 上），它的 QQ 工具不在里面；装了、
-    // 没开、没有工具的包快照照记，见下一条。
-    assert_eq!(pin.off, ["memory", "roleplay"]);
+    // 施工 F-3 上起记的是功能的编号。出厂的接入QQ 的功能 qq 在不在看测试程序旁边有没有 `miyu-onebot`（桥的测试会链一个过去），这里不比它；装了、没开、没有工具的包快照照记，见下一条。
+    let off: Vec<&String> = pin.off.iter().filter(|id| *id != "qq").collect();
+    assert_eq!(off, ["memory", "roleplay"]);
     // 开会话时要了记忆也没用：开不开归预设。
     let (session, _) = first_request(
         &home,
@@ -257,10 +257,6 @@ async fn preset_get_lists_features_with_their_tools() {
         "{dev}"
     );
     assert!(listed.contains(&("memory", false, true)));
-    assert!(
-        !listed.iter().any(|(id, _, _)| *id == "qq"),
-        "接入QQ 的程序不在测试程序旁边，当没装（施工 F-6 上）"
-    );
     assert_eq!(
         listed.last(),
         Some(&("goal", true, false)),
@@ -293,14 +289,8 @@ async fn preset_get_lists_features_with_their_tools() {
         ]),
         "[tools] 单件关掉的"
     );
-    // 写在 [features] 里、程序不在当没装的（施工 F-6 上）：照「写了没装」接在后面，只列一遍。
-    assert_eq!(
-        (
-            feature(&nosh, "qq")["on"].clone(),
-            feature(&nosh, "qq")["installed"].clone()
-        ),
-        (json!(false), json!(false))
-    );
+    // 写在 [features] 里的：装了的照装了的列，没装的（程序不在的也是）照「写了没装」接在后面，都只列一遍。出厂的接入QQ 的功能 qq 在不在看测试程序旁边有没有 `miyu-onebot`（桥的测试会链一个过去），这里不比它装没装。
+    assert_eq!(feature(&nosh, "qq")["on"], false);
     assert_eq!(
         switches(&nosh)
             .iter()
