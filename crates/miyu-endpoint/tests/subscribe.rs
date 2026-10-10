@@ -290,12 +290,8 @@ async fn subscribing_needs_hello_a_session_and_a_known_stream() {
         .call(
             "c4",
             "subscribe",
-            json!({"session": session, "stream": "view"}),
+            json!({"session": session, "stream": "nope"}),
         )
         .await;
-    assert_eq!(
-        reason(&reply),
-        Some("bad_params"),
-        "现在只有事件流：{reply}"
-    );
+    assert_eq!(reason(&reply), Some("bad_params"), "不认识的流：{reply}");
 }

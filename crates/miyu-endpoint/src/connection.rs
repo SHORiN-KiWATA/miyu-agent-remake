@@ -29,7 +29,7 @@ mod streams;
 #[cfg(test)]
 mod tests;
 
-use streams::{Stream, stream_of, subscribe};
+use streams::{Stream, stream_of};
 
 use crate::hello::{Caller, Shaken, hello};
 use crate::login::{self, Revoked, Via};
@@ -272,31 +272,8 @@ async fn read_all<R: AsyncRead + Unpin>(
             }
             (_, None) => (wire::error(id(), Refusal::HELLO_FIRST, locale), None, false),
             ("subscribe", Some(peer)) => {
-                let (result, target) = match stream_of(&request) {
-                    Ok(Stream::Config) => {
-                        let system = shaken.map_or("en", Shaken::system);
-                        subscriptions.add_config(&core, system, &out);
-                        (Ok(json!({})), None)
-                    }
-                    Ok(Stream::Sessions) => match subscriptions.add_sessions(&core, &out).await {
-                        Ok(result) => (Ok(result), Some(Target::Sessions)),
-                        Err(refusal) => (Err(refusal), None),
-                    },
-                    Ok(Stream::Extensions) => match shaken {
-                        Some(shook) => {
-                            let listed = subscriptions.add_extensions(&core, shook, &out);
-                            (Ok(listed), Some(Target::Extensions))
-                        }
-                        None => (Err(Refusal::HELLO_FIRST), None),
-                    },
-                    Ok(Stream::Events(session)) => {
-                        match subscribe(&core, &mut subscriptions, &request, session, &out).await {
-                            Ok((result, target)) => (Ok(result), target.map(Target::Session)),
-                            Err(refusal) => (Err(refusal), None),
-                        }
-                    }
-                    Err(refusal) => (Err(refusal), None),
-                };
+                let (result, target) =
+                    streams::subscribe(&core, &mut subscriptions, &request, shaken, &out).await;
                 (answer(&request, result, peer.locale), target, false)
             }
             ("account.setup_code", Some(_)) => {
@@ -324,7 +301,9 @@ async fn read_all<R: AsyncRead + Unpin>(
             ("unsubscribe", Some(_)) => {
                 let result = stream_of(&request).map(|stream| {
                     match stream {
-                        Stream::Events(session) => subscriptions.remove(&session),
+                        Stream::Events(session) | Stream::View(session) => {
+                            subscriptions.remove(&session);
+                        }
                         Stream::Config => subscriptions.remove_config(),
                         Stream::Sessions => subscriptions.remove_sessions(),
                         Stream::Extensions => subscriptions.remove_extensions(),

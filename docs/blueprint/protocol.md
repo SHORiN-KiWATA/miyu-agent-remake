@@ -887,9 +887,9 @@
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| `session` | 字符串 | 哪个会话：`events` 必写，`config`、`sessions` 不写（写了 `bad_params`） |
-| `stream` | 字符串，必写 | `events` 会话的事件流；`config` 配置的推送（施工 8-4，`config.md`「订阅配置的推送」）；`sessions` 会话列表的推送（施工 9-5，下面「会话列表的推送」）；`extensions` 扩展的状态的推送（施工 9-4 补，`extensions.md`「推送」）。别的 `bad_params` |
-| `after` | 非负整数，可以不写 | 只有 `subscribe` 的 `events` 认（施工 3-8 六补，`config`、`sessions`、`extensions` 写了 `bad_params`）：先补发日志里序号大于它、落了盘的事件，`0` 是从头。见下面「补发」 |
+| `session` | 字符串 | 哪个会话：`events`、`view` 必写，`config`、`sessions` 不写（写了 `bad_params`） |
+| `stream` | 字符串，必写 | `events` 会话的事件流；`view` 会话的视图流（施工 9-8 下，下面第 9 条、`view.md`「视图流」）；`config` 配置的推送（施工 8-4，`config.md`「订阅配置的推送」）；`sessions` 会话列表的推送（施工 9-5，下面「会话列表的推送」）；`extensions` 扩展的状态的推送（施工 9-4 补，`extensions.md`「推送」）。别的 `bad_params` |
+| `after` | 非负整数，可以不写 | 只有 `subscribe` 的 `events` 认（施工 3-8 六补，`view`、`config`、`sessions`、`extensions` 写了 `bad_params`）：先补发日志里序号大于它、落了盘的事件，`0` 是从头。见下面「补发」 |
 
 回应：`config` 的都是 `{}`；`sessions` 的 `subscribe` 是 `{"sessions": [<一项>, …]}`，`unsubscribe` 是 `{}`（施工 9-5）；`extensions` 的 `subscribe` 是 `{"extensions": [<一个>, …]}`，`unsubscribe` 是 `{}`（施工 9-4 补）。`subscribe` 的是 `{"limits": <限额>, "model": <模型>}`，写了 `after` 的多一格 `upto`（补到哪一条）：`{"limits": <限额>, "model": <模型>, "upto": <序号>}`。当前的待办不空的多一格 `todos`（施工 D-3，照 `todo.written` 的写法）；会话用哪个人格写在 `persona`（施工 P-1 下）、哪个预设写在 `preset`（施工 P-2 上），都照日志第一条 `session.created` 读，以前的日志没有的不写；之后变了照推送的瞬时事件 `todos.changed`，头只认这两样，不自己翻效果。施工 9-6 上起再多三格「当前的」，和订阅在会话 actor 的同一步里拿，头之后照推过来的事件往上加、不重不漏：`usage` 这个会话（不带子会话）累计的，写法、口径同 `usage.query {"session": <它>}` 那一行（`requests`、`usage`、`amounts`、`unpriced`），另加 `main`（只算主请求的四项用量：`purpose` 是空的，压缩的摘要请求也算，回顾、起标题这些辅助请求不算；头照它算命中率、上下文，施工 9-6 上补）、`compactions`（压缩的检查点有几个）、`cache_breaks`（意外断了缓存的主请求有几次：带 `first_difference`、`purpose` 是空的；压缩的摘要请求（带 `compaction`，或者看到的比之前的主请求少）不算；压缩、撤销以后的头一个主请求本来就会断，也不算；口径同终端，施工 9-6 再补）；`permission` 人这一刻设的权限 `{"level", "read_only"}`；`jobs` 还在跑的后台命令和子代理，照编号，每一个照 `job.started` 的写法（`job`、`what`、`title`，子代理带 `session`）。施工 9-7 上起再多 `workspace`：`{"cwd", "dirs"}`，会话在哪个目录干活，之后照推过来的 `session.workspace_changed` 换。已经订阅着、再订阅一次不带 `after` 的（「还是那一个」），这几格另要一份这一刻的。`unsubscribe` 的是空对象 `{}`。
 
@@ -920,6 +920,8 @@
 6. 压缩线由内核算好，和它自己判到线用的是同一条；头照 `window` 画「用量 / 窗口」、照 `compaction_line` 算离压缩还有多少，不照公式自己算（公式里的输出预留、余量在策略里）。
 7. 限额不进日志：头每次接进来（造完会话、中途接进一个在跑的会话、掉了队重新订阅、核心重启以后）都经 `subscribe`，从回应里拿（为什么见 `04-核心协议.md` 第九节「先做的几样怎么写」）；接着的时候变了的，照推过来的瞬时 `model.changed` 换（施工 8-9）。
 8. 订阅着就算这个头在看着这个会话（施工 7-9）：一次性的会话没有头订阅着，回报只记下、不叫醒她（`agents.md` 第三条第 3 条）。取消订阅、连接断了，就不算了；会话 actor 数着拿着订阅的头（`session/actor.md` 第 3 条），不进日志，协议上不另说。头要知道还有几个子代理没报、叫醒的那一轮会不会来，照推过来的事件自己数（`job.started`、`child.reported`、`job.messaged`，`cli/ask.md`「等子代理」），协议不另给：施工 7-9 照最简单、不加协议定。
+
+9. **视图流**（施工 9-8 下，`view.md`「视图流」）：`subscribe {session, stream: "view"}` 总是换一个新的（这个连接原来订阅着这个会话的事件流、视图流都换掉：一个会话在一个连接上只有一个订阅，命令的回应都经它写出去）。回应除了上面几格，多最新一页的条目，格同 `view.page {view: true}`（`entries`、`more`，有条目的 `first`、`last`，`capped`），字照这个连接的语言；`jobs` 照旧是「当前的」在跑的任务，那一页里切点前派出、这一页报完的任务，条目里已经写了标题、命令。那一页和订阅在会话 actor 的同一步里拿，回应排在所有推送前面；之后推 `view.add`、`view.update`、`view.append`、`view.hidden`、`view.remove`（`{session, …}`，写法见 `view.md`）。读得慢的：攒着的一起算，同一条接着的 `view.append` 并成一条；还是掉了队、会话停了的推 `resync`（`{"session", "stream": "view"}`），头重新订阅。会话状态（9-8 补）做出来以前，`turn.started`、`turn.ended`、瞬时的 `status` 另照原样推 `event`。连接的 `ui.language` 改了，之后的条目照新的字，已经推过的不重推。`unsubscribe {session, stream: "view"}` 同第 3 条。
 
 **补发**（施工 3-8 六补，`04-核心协议.md` 第六节第 9 条、第七节）
 

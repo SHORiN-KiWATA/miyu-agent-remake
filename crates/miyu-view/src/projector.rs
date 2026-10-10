@@ -204,6 +204,11 @@ impl Projector {
         self.drain()
     }
 
+    /// 换一套字（施工 9-8 下）：连接的 `ui.language` 改了，从下一条变化起照新的；已经交出去的不重算。
+    pub fn retext(&mut self, texts: Arc<Texts>) {
+        self.texts = texts;
+    }
+
     /// 翻页时，这一页之前的日志：只学派出去的后台任务（标题、命令），不出条目（施工 9-8 中）。这一页里报完了、派在更早的
     /// 任务照它写那一行；不学的话，那一行没有标题、命令。
     pub fn learn(&mut self, earlier: &[Event]) {

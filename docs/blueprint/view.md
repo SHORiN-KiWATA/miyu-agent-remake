@@ -19,8 +19,10 @@
 | `crates/miyu-view/src/summary.rs`、`title.rs`、`estimate.rs`、`explain.rs`、`words.rs` | 收起那一行、标题那一句、照参数估的行数、出错说明；给人看的字的接口（`Words`、`Texts`）和工具分类（`Kinds`） |
 | `crates/miyu-view/tests/` | 照内核的替身跑真会话，每个测试都对照视图流和翻页最后一样（`support/mod.rs` 的 `same`）；`random.rs` 三百份随机剧本；`notices.rs` 另有切在派任务之后的一页（9-8 中） |
 | `crates/miyu-endpoint/tests/view_entries.rs`、`view_page.rs`、`view_detail.rs` | 真核心走一遍（9-8 中）：握手报版本；交条目的页、边界照旧、字照连接的语言；更早派出的任务照样有标题；调用的结果原文、压缩的摘要 |
+| `crates/miyu-endpoint/tests/view_stream.rs`、`src/subscriptions/view/tests.rs` | 视图流（9-8 下）：回应排在推送前面、推送拼到那一页上和翻页一样、`turn.started` 另推；改了语言之后的照新的字；带 `after` 的拒、退订了不推；接着的 `view.append` 并成一条 |
 | `resources/core/view.json` | 工具算哪一类（命令、编辑、子代理、留言）、参数里哪一格是会话编号：数据，不登记 |
-| `crates/miyu-endpoint/src/view/` | `view.page` 多交条目、`view.detail` 多交的（9-8 中，`project.rs` 接上投影要的字和改了多少行）；`subscribe` 的视图流（9-8 下） |
+| `crates/miyu-endpoint/src/view/` | `view.page` 多交条目、`view.detail` 多交的（9-8 中，`project.rs` 接上投影要的字和改了多少行）；视图流订阅时的最新一页（9-8 下，`newest`） |
+| `crates/miyu-endpoint/src/subscriptions/view.rs`、`connection/streams.rs` 的 `subscribe_view` | 视图流（9-8 下）：订阅、转发、合并 `view.append`、换字 |
 | `resources/core/human/<语言>.json` | `said` 的 `view/…`：收起那一行的字（照网页演示 `timeline.summary` 搬来，两个头一字不差）、准备中的显示名、「会话 短编号」「父会话」、出错说明（照终端的 `error_classes`、`status_hints`） |
 
 ### 对外的样子
@@ -103,7 +105,7 @@
 | `view.hidden {session, ids, hidden}` | 撤销、恢复：这几条藏起、显示回来，编号不删 |
 | `view.remove {session, id}` | 拿掉一条：流式时开了、落了盘的回复里却没有的块（出错时去掉的、打断时丢掉的半截工具调用；空了的那一段跟着拿掉），一轮结束时还在压的压缩（被打断了，翻页本来就没有它）。正文、思考出了字才开条目，空块不会推 |
 
-慢的头：同一条的 `view.append` 先合并；还放不下推 `resync`，头重新订阅拿新的一页（`04-核心协议.md` 第七节）。
+慢的头：同一条的 `view.append` 先合并；还放不下推 `resync`（`stream: "view"`），头重新订阅拿新的一页（`04-核心协议.md` 第七节）。订阅时的那一页和订阅在会话 actor 的同一步里拿（`subscribe_after(0)` 交回的订阅和日志），回应排在所有推送前面；之后的推送接着喂同一台投影（9-8 下，`crates/miyu-endpoint/src/subscriptions/view.rs`）。连接的 `ui.language` 改了，下一批起换字（`Projector::retext`）。
 
 ### 怎么走
 
