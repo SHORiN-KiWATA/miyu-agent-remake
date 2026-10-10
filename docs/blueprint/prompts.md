@@ -2007,6 +2007,28 @@ Retired {id}.
 Nothing found.
 ```
 
+#### `software/onebot/tool-results/skipped.txt`
+
+- 什么时候加进来：`skip_reply` 答的那一句（施工 O-26）
+- token：14（2026-10-09 量）
+- 为什么加：告诉她这一轮写的都不会发出去：调了以后还在说的，知道是白说
+- 指纹：`d7059f8b`
+
+```text
+Skipped: nothing you write in this turn will be sent.
+```
+
+#### `software/onebot/tool-results/unknown.txt`
+
+- 什么时候加进来：核心调到桥不答的工具（登记缓存是桥的旧版本的），字段按 `recall` 填（施工 O-26）
+- token：9（2026-10-09 量）
+- 为什么加：说法同核心的 `core/tool-results/unknown.txt`；给模型看的字随包走，桥不读核心的资源（`onebot.md` 施工时定的第 141 条）
+- 指纹：`82d2ac6b`
+
+```text
+There is no tool named "{name}".
+```
+
 #### `software/basesystem/common/not-read.txt`
 
 - 什么时候加进来：`write`、`edit` 要改的文件已经在了、她这个会话里没看过
@@ -2975,6 +2997,20 @@ Start a subagent in a new session to do one task and wait for it; its report arr
 {
   "description": "Send a message to a subagent you started, to your parent with `to: parent`, or to another of your sessions by its id. The other side reads it at its next step, or starts a new turn with it if idle. Send only what they need to know now, such as a question or a finding that changes their plan, since your final report goes up on its own.",
   "parameters": {"type":"object","properties":{"to":{"type":"string","description":"The job id of your subagent, such as j1, parent, or a session id."},"message":{"type":"string","description":"The message to send, which can be left out with notify_when_idle."},"notify_when_idle":{"type":"boolean","description":"Get one notice when that other session next finishes its work."}},"required":["to"]}
+}
+```
+
+#### `software/onebot/tools/skip_reply.json`
+
+- 什么时候加进来：场所会话（私聊、群）的工具面里有 `skip_reply`：预设开着功能 `qq`（QQ 工具）的，每次请求都带；本机的会话没有（`onebot.md`「提供者和不说话」，施工 O-26）
+- token：70（2026-10-09 照开发端点量，十六件一起时的边际份量）
+- 为什么加：群里的回合判过才开，判官、加值项会看错；每个回合都要有一条不说话的路（18 第七节、Q5：旧版只靠提示词叫她别回，她把「没 @ 我」说出了口）。两句：这一轮写的都不发、什么时候用；`reason` 必填、不写说明
+- 指纹：`c4ebd416`
+
+```json
+{
+  "description": "Stay silent this turn: nothing you write in this turn is sent. Use it when the message is not for you or a reply adds nothing.",
+  "parameters": {"type":"object","properties":{"reason":{"type":"string"}},"required":["reason"]}
 }
 ```
 

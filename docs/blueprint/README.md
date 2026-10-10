@@ -66,6 +66,7 @@
 | `models.md` | 供应商和模型：供应商的配置、模型资料和四层对目录、用途和池、出错换端点和冷却、会话里换模型、第一次接入、opencode Zen、用量和金额：图纸，定稿（2026-10-01 项目主人批准），M8 照它施工 |
 | `config.md` | 配置和密钥：清单、分层、项目配置的信任、校验和报错、写盘、留痕、监视和生效、密钥、`config.*`、`secret.*`、`miyu config`、`miyu login`、`miyu logout`：图纸，定稿（2026-10-01 项目主人批准），M8 的 8-1 到 8-5 照它施工 |
 | `packages.md` | 软件包清单：在哪、格式、两层怎么认、`package.list`、`miyu check` 查清单（施工 9-1 上起） |
+| `package-pages.md` | 软件包页和软件后台：清单的图标和后台页、`package.list` 的状态和开关、程序不在当没装、配置项归包、`package.file`、`package.call`、网页软件怎么给后台页、框和网页之间的方法表：图纸，2026-10-10 起草，F-6 照它施工 |
 | `extensions.md` | 扩展进程：核心拉起 `process` 包、开关、退避重启、随核心退出、`extension.*`（施工 9-4 上起） |
 | `providers.md` | 提供者：扩展经 `provide` 登记工具，核心反向调用 `tool.call`（施工 O-2 上起） |
 | `presets.md` | 预设：在哪、格式、三层怎么叠、默认预设、找人格的先后、`preset.list`、`preset.get`（施工 P-2 上起） |
@@ -78,6 +79,7 @@
 | `net.md` | 链接卡片：可选软件包 `net`、crate `miyu-net`、`link.preview`，地址闸、钉地址、代理、跳转、元数据、图存成 blob、在后台答（施工 W-7，2026-10-02 从 `web-module.md` 搬出来独立成页） |
 | `recall.md` | 检索的底子：中文两字切分加 FTS5、向量、两路合并、embedding（`miyu-embed`、`models.embedding`）：图纸，2026-10-07 起草，R 线照它施工 |
 | `memory.md` | 记忆：回合索引、记下的四类、记忆日志、常驻摘要、联想、抽取、合并、听众、缓存和 token 的账：图纸，2026-10-07 起草，R 线照它施工 |
+| `perf.md` | 量尺 `miyu-perf`：`cargo xtask perf`，假模型、沙盒、每一项量的是哪一段、对照预算的表（施工 V-1） |
 | `licenses.md` | 仓库用什么许可证；门禁查依赖的许可证能不能和它合在一起发（施工 4-12） |
 | `prompts.md` | 给模型看的每一份字的原文，按进到请求的哪里分组，带 token 数、什么时候出现；由门禁从 `resources/` 和登记簿生成（施工 4-9 三补） |
 

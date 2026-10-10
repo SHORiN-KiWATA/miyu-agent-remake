@@ -100,7 +100,13 @@ pub(crate) async fn remember_in(
         by,
         cause: Some(id.clone()),
     };
-    blocking(move || keeper.save(stamp, remember, Vec::new())).await
+    let saved = blocking({
+        let keeper = keeper.clone();
+        move || keeper.save(stamp, remember, Vec::new())
+    })
+    .await?;
+    fill(core, keeper).await;
+    Ok(saved)
 }
 
 async fn list(core: &Arc<Core>, params: List) -> Result<Value, Refusal> {
@@ -124,13 +130,7 @@ async fn search(core: &Arc<Core>, params: Search) -> Result<Value, Refusal> {
     let (query, forgotten) = (params.query, params.forgotten);
     // 照意思找（施工 R-5 下）照这时的配置：先算问句的向量（`off` 的、等不到的只走关键词），搜完在后台补这一间缺的。远程的
     // 用量记在管理员名下（M8 只有他，和 `model.call` 一样）。
-    let config = core.config_now().borrow().clone();
-    let resolved = config.resolved().clone();
-    let source: Arc<dyn ConfigSource> = config;
-    let using = Using {
-        config: Arc::new(Turn::new(resolved, source)),
-        owner: core.admin.clone(),
-    };
+    let using = using(core);
     let near = match keeper.vectors() {
         Some(vectors) => vectors.query(&using, &query).await,
         None => None,
@@ -166,7 +166,12 @@ async fn remember(
         replaces: None,
     };
     let keeper = find(core, params.at).await?;
-    let id = blocking(move || keeper.save(stamp, remember, Vec::new())).await?;
+    let id = blocking({
+        let keeper = keeper.clone();
+        move || keeper.save(stamp, remember, Vec::new())
+    })
+    .await?;
+    fill(core, keeper).await;
     Ok(json!({"id": id.to_string()}))
 }
 
@@ -174,7 +179,12 @@ async fn update(core: &Arc<Core>, stamp: Stamp, params: Update) -> Result<Value,
     let id = memory_id(&params.id)?;
     let text = checked(&params.text)?;
     let keeper = find(core, params.at).await?;
-    let id = blocking(move || keeper.update(stamp, id, text)).await?;
+    let id = blocking({
+        let keeper = keeper.clone();
+        move || keeper.update(stamp, id, text)
+    })
+    .await?;
+    fill(core, keeper).await;
     Ok(json!({"id": id.to_string()}))
 }
 
@@ -251,6 +261,31 @@ fn room(handle: &Handle) -> Option<&Room> {
     handle
         .memory_room()
         .filter(|_| handle.venue().as_str() == LOCAL)
+}
+
+/// 照意思找的那一路照这时的配置（施工 R-5 下）：远程的用量记在管理员名下（M8 只有他，和 `model.call` 一样）。
+fn using(core: &Core) -> Using {
+    let config = core.config_now().borrow().clone();
+    let resolved = config.resolved().clone();
+    let source: Arc<dyn ConfigSource> = config;
+    Using {
+        config: Arc::new(Turn::new(resolved, source)),
+        owner: core.admin.clone(),
+    }
+}
+
+/// 记下、改了以后在后台补这一间缺的向量（施工 R-5 五补：不等下一次搜）。没接向量的、`off` 的什么都不做。
+async fn fill(core: &Core, keeper: Keeper) {
+    if keeper.vectors().is_none() {
+        return;
+    }
+    let using = using(core);
+    // 记下已经成了，回应照常：补不成的 `blocking` 记了 `WARN memory failed`，补本身的出错 `Keeper::fill` 自己记。
+    let _filled: Result<(), Refusal> = blocking(move || {
+        keeper.fill(&using);
+        Ok(())
+    })
+    .await;
 }
 
 /// 人格记忆这个软件包这时装着没有（施工 R-10）：核心照清单设在记忆上（`Memory::set_installed`）。没有记忆的核心照装着算，

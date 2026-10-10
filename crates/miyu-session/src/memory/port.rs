@@ -148,7 +148,7 @@ impl Inner {
         }
     }
 
-    /// 出处是这一轮。
+    /// 出处是这一轮。记下了的在后台补它的向量（施工 R-5 五补：不等下一次搜）。
     fn save(&self, remember: Remember) -> Result<MemoryId, Refused> {
         let sources = self
             .turn
@@ -159,7 +159,9 @@ impl Inner {
                 }]
             })
             .unwrap_or_default();
-        self.calls.keeper.save(self.stamp(), remember, sources)
+        let saved = self.calls.keeper.save(self.stamp(), remember, sources)?;
+        self.calls.keeper.fill(&self.using);
+        Ok(saved)
     }
 
     /// 记下的最多 [`MEMORIES`] 条在前，别的会话里以前的对话最多 [`TURNS`] 段在后。

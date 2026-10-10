@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>336</b><span>/ 350 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>341</b><span>/ 354 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
-    <li><b class="mono">10b8d540</b><span>最近一步（T-7 删掉拍了板的无用代码）的提交</span></li>
+    <li><b class="mono">7bf5c846</b><span>最近一步（F-4 再补 权限并进通用）的提交</span></li>
   </ul>
 </header>
 
@@ -642,6 +642,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sO-25a"><span class="n">O-25 上</span>出站链<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-25b"><span class="n">O-25 中</span>出站队列<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-25c"><span class="n">O-25 下</span>退信和贴表情<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sO-26"><span class="n">O-26</span>接上提供者和不说话<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-6"><span class="n">O-6</span>核心：斜杠命令由核心解析<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-6b"><span class="n">O-6 补</span>列出斜杠命令<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-6c"><span class="n">O-6 再补</span>用不了的命令说为什么<span class="st">✓</span></a></li>
@@ -669,6 +670,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sR-5e"><span class="n">R-5</span>语义模型这一项（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-5f"><span class="n">R-5</span>内置模型做成小程序包（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-5g"><span class="n">R-5</span>本机模型当场换（四补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sR-5h"><span class="n">R-5</span>本机模型冷启动（五补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-6"><span class="n">R-6</span>抽取（上）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">R-6</span>抽取（下，暂不做）</span></li>
         <li><a class="step done" href="#sR-7"><span class="n">R-7</span>合并（上）<span class="st">✓</span></a></li>
@@ -732,6 +734,8 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sF-3a"><span class="n">F-3 上</span>预设照功能开关<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sF-3b"><span class="n">F-3 下</span>preset.get 照功能列<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sF-4"><span class="n">F-4</span>平台接入、配置项随包<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sF-4b"><span class="n">F-4 补</span>接入页的字<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sF-4c"><span class="n">F-4 再补</span>权限并进通用<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sF-5a"><span class="n">F-5 上</span>装卸命令、清单当场换<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sF-5b"><span class="n">F-5 中</span>工具、查询当场换<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sF-5c"><span class="n">F-5 下</span>扩展、系统账号当场换<span class="st">✓</span></a></li>
@@ -757,7 +761,7 @@ a.step:hover{border-color:var(--primary)}
     <li>
       <div class="ms-head"><span class="ms-id">V</span><span class="ms-name">性能检查</span><span class="ms-goal">照 23 的量法量核心这一边，超了预算的查、修，量尺进 CI（设计 30 第十二节第三阶段）</span></div>
       <ol class="chips">
-        <li><span class="step"><span class="n">V-1</span>量尺</span></li>
+        <li><a class="step done" href="#sV-1"><span class="n">V-1</span>量尺<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">V-2</span>超了预算的查、修</span></li>
         <li><span class="step"><span class="n">V-3</span>量尺进 CI</span></li>
       </ol>
@@ -17517,6 +17521,55 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sR-5h" aria-labelledby="h-sR5h">
+  <div class="sheet-head"><h2 id="h-sR5h"><span class="no">R-5</span>本机模型冷启动（五补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">核心起来以后的第一次搜就能照意思找，刚记的马上搜得到。慢的不是模型（拉起 45 毫秒、一句 1.5 毫秒），是三处等待。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-session · embed · memory · miyu-endpoint</span><span class="dir-note">R-5</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>第一次要的等核对、拉起，不交「还在备」</li>
+              <li>补的不再每秒问一次</li>
+              <li>记下的时候就在后台补向量</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">一次核对</span><span class="rl">同时来的等同一次</span></div>
+          <div class="tile new"><span class="nm">1.02 秒 → 75 毫秒</span><span class="rl">记完马上搜</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-5</dd></div>
+        <div><dt>名称</dt><dd>本机模型冷启动（五补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">75fb457b</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真核心 release 重量 · 自己验收，通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新测试 6 条、改 3 条；7 个手写变异全被逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 38023422682）；release 真核心：核心刚起来记一条马上搜，头一次就照意思找到，72 到 79 毫秒（原来 1.02 秒、搜 44 次）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-5-本机模型冷启动（五补）.md</code>；蓝图 <code>recall.md</code> 第三条第 4、5 款、第四条第 3、4、6 款。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sR-6" aria-labelledby="h-sR6">
   <div class="sheet-head"><h2 id="h-sR6"><span class="no">R-6</span>抽取（上）</h2><span class="pill done">已完成</span></div>
   <p class="purpose">人不用说「记住」：会话闲下来一会儿，她把新聊的这一段里值得记的整理成记忆。零条是常态。</p>
@@ -19839,6 +19892,106 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sF-4b" aria-labelledby="h-sF4b">
+  <div class="sheet-head"><h2 id="h-sF4b"><span class="no">F-4 补</span>接入页的字</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">网页的会话在「接入」页走了一遍：名字重复组名、说明里写着 TOML、JSON，用户照着填被拒。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">接入页的字</span><span class="dir-note">F-4 补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>接入QQ 四项改名：端口、网页端口、令牌、白名单成员（中英日）</li>
+              <li>令牌、白名单成员的说明删掉 TOML、JSON 写法</li>
+              <li><code>external.bindings</code> 叫终端管理员的平台账号</li>
+              <li>蓝图 <code>preset.set</code> 写上 <code>features.&lt;功能&gt;</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">叫法</span><span class="rl">主人改叫终端管理员、自己人改叫白名单成员（2026-10-10 项目主人定）</span></div>
+          <div class="tile new"><span class="nm">白名单成员在头里能改</span><span class="rl">设计 30 第三节</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">F-4 补</dd></div>
+        <div><dt>名称</dt><dd>接入页的字</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">01d9714c</dd></div>
+        <div><dt>验收</dt><dd>八项、三台 CI（run 1504）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>样本照新字重新生成、逐字节比</span></li>
+        <li><span class="ok">✓</span><span>八项门禁</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/F-4补-接入页的字.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sF-4c" aria-labelledby="h-sF4c">
+  <div class="sheet-head"><h2 id="h-sF4c"><span class="no">F-4 再补</span>权限并进通用</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">设置页的「权限」页只有一项，项目主人定并进「通用」，几个头照 config.schema 画。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">权限并进通用</span><span class="dir-note">F-4 再补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>permission.start_read_only</code> 的页改成 <code>general</code></li>
+              <li><code>external.bindings.&lt;external&gt;</code> 的页改成 <code>advanced</code></li>
+              <li>给人看的字去掉页 <code>permissions</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">项目主人 2026-10-10 定</span><span class="rl">权限页只有一项，并进通用</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">F-4 再补</dd></div>
+        <div><dt>名称</dt><dd>权限并进通用</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">7bf5c846</dd></div>
+        <div><dt>验收</dt><dd>八项、三台 CI（run 1511）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>config.schema 的页只剩通用、高级（改之前红）</span></li>
+        <li><span class="ok">✓</span><span>八项门禁</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/F-4再补-权限并进通用.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sF-5a" aria-labelledby="h-sF5a">
   <div class="sheet-head"><h2 id="h-sF5a"><span class="no">F-5 上</span>装卸命令、清单当场换</h2><span class="pill done">已完成</span></div>
   <p class="purpose">能装、能卸，不重启核心：装卸以后 package.list、预设的功能当场照新的，开着的会话下一个回合换上。</p>
@@ -20507,6 +20660,112 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/T-7-删掉拍了板的无用代码.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sV-1" aria-labelledby="h-sV1">
+  <div class="sheet-head"><h2 id="h-sV1"><span class="no">V-1</span>量尺</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">照 23 第一节的量法量核心这一边，原始数据入库，打一张对照预算的表；V-2 照它查、修，V-3 让它进 CI。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">量尺</span><span class="dir-note">V-1</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>工具 crate <code>miyu-perf</code>（01 第九节规则 5 登记）、<code>cargo xtask perf</code></li>
+              <li>自带假模型服务，沙盒数据根，拉起 release 的真 <code>miyu</code></li>
+              <li>冷启动、热启动、内存、一万条事件的大会话、重启打开、追加并同步、二进制大小</li>
+              <li>预算照 23 第二节的表读；<code>--render</code> 照原始数据重出表</li>
+              <li>23 F5：人整段等着的，上限 p95 60 ms（项目主人定）</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">量的是 release 的真二进制</span><span class="rl">两次分开编，测试开关混不进去</span></div>
+          <div class="tile new"><span class="nm">请求编号整个进程里不重复</span><span class="rl">核心照编号认重发</span></div>
+          <div class="tile new"><span class="nm">超了的四处交 V-2</span><span class="rl">打开大会话、投影、空闲内存、大会话内存不还</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">V-1</dd></div>
+        <div><dt>名称</dt><dd>量尺</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">1e812f9a</dd></div>
+        <div><dt>验收</dt><dd>八项、三台 CI（run 1499）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>量尺自己的 28 个测试</span></li>
+        <li><span class="ok">✓</span><span>手写变异 20/20</span></li>
+        <li><span class="ok">✓</span><span>真量一遍入库 <code>docs/perf/2026-10-10-linux-x86_64</code></span></li>
+        <li><span class="ok">✓</span><span>八项门禁</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/V-1-量尺.md</code>、蓝图 <code>docs/blueprint/perf.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sO-26" aria-labelledby="h-sO26">
+  <div class="sheet-head"><h2 id="h-sO26"><span class="no">O-26</span>接上提供者和不说话</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">桥第一次当提供者：握手以后把自己的工具登记给核心，答核心反向发来的调用。头一件是 <code>skip_reply</code>：她用了，这一回合在群里、私聊里都不发任何消息。以后撤回、禁言、发消息这些平台工具照同一条路加。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-onebot/src/</span><span class="dir-note">O-26</span></div>
+            <ol class="pipe" aria-label="提供者和不说话">
+              <li>rules/tools.rs：照 <code>software/onebot/tools/</code> 读工具说明</li>
+              <li>core/provider.rs：握手以后 <code>provide</code>；<code>tool.call</code> 当场答，不认识的回 error</li>
+              <li>core/route/quiet.rs：她的回复里有 <code>skip_reply</code> 的调用块，这一轮的字都不发</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">照调用块认</span><span class="rl">同一条回复里先说的字也不发，不等 tool.call</span></div>
+          <div class="tile new"><span class="nm">token</span><span class="rl">说明 70、答的一句 14、不认识 9；预算 280 字节</span></div>
+          <div class="tile new"><span class="nm">能力</span><span class="rl">清单加 tools；工具归功能 qq</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-26</dd></div>
+        <div><dt>名称</dt><dd>接上提供者和不说话</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">6ec1b70a</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真跑 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真核心加真桥、假 NapCat：群、私聊的工具面有 skip_reply，本机的没有；同一条回复里的字、调用以后的字都不发，模型收到答的那一句，下一轮照常；不认识的工具回 error</span></li>
+        <li><span class="ok">✓</span><span>改之前 9 个红；手写变异 19 个全被逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 1505）；施工时查出核心 provide 以后察觉不到扩展退出，核心 O-2 再补修了</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-26-接上提供者和不说话.md</code>；蓝图 <code>onebot.md</code> 第一条「提供者和不说话」、施工时定的第 138 到 144 条；<code>26-提示词.md</code> 第十节、<code>10-自带软件.md</code> 第九节。</li>
       </ul>
     </div>
   </div>

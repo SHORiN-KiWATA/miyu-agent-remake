@@ -1,7 +1,8 @@
 //! 她照台词说（施工 O-25 上，出站链的测试用）：会话的端口照一句句台词回，一句是一次回复。和剧本（`Script`）不同的两样：
 //!
 //! - 一次回复里可以既说一句、又调一件工具（[`Line::calls`]）：内核答完工具再请求一次，同一回合里她就说了两句，测得到去重。
-//!   调的是不存在的 [`NO_TOOL`]：内核当场答「没有这件工具」，接着请求（`02-内核.md`），什么都不用装。
+//!   调的是不存在的 [`NO_TOOL`]：内核当场答「没有这件工具」，接着请求（`02-内核.md`），什么都不用装。也可以调桥提供的
+//!   `skip_reply`（[`Line::skips`]，施工 O-26）：核心反向调桥，桥答完接着请求。
 //! - 可以等测试放行再说（[`Line::released_by`]）：引用、@ 看「她回的那条之后群里来了几条」「过了多久」，先压着，群里说完了、
 //!   等够了再放；去重看「这一回合已经发出去的」（O-25 中起照入队算，桥入队记成了就算上，`onebot.md`「施工时定的」第 112 条）。
 //!   不靠谁快。
@@ -24,12 +25,18 @@ use miyu_session::{Cancel, ForSession, ModelPort, Models, Reports, TurnConfig};
 /// 她调的工具：不存在。
 pub const NO_TOOL: &str = "no_such_tool";
 
+/// 桥提供的「这一轮不说话」（施工 O-26）。
+pub const SKIP_REPLY: &str = "skip_reply";
+
+/// 她调 [`SKIP_REPLY`] 时给的参数。
+pub const SKIP_ARGS: &str = r#"{"reason":"not for me"}"#;
+
 /// 一句台词：一次回复。
 pub struct Line {
     /// 说的字。
     text: &'static str,
-    /// 说完接着调 [`NO_TOOL`]。
-    call: bool,
+    /// 说完接着调的工具和参数：没有的这一轮就完了。
+    call: Option<(&'static str, &'static str)>,
     /// 等它放行再说；放行的一头放下了也照说，不卡住。
     release: Option<oneshot::Receiver<()>>,
 }
@@ -39,7 +46,7 @@ impl Line {
     pub fn says(text: &'static str) -> Line {
         Line {
             text,
-            call: false,
+            call: None,
             release: None,
         }
     }
@@ -47,7 +54,15 @@ impl Line {
     /// 说一句，同一次回复里调一件不存在的工具：这一轮接着往下走。
     pub fn calls(text: &'static str) -> Line {
         Line {
-            call: true,
+            call: Some((NO_TOOL, "{}")),
+            ..Line::says(text)
+        }
+    }
+
+    /// 说一句，同一次回复里调 [`SKIP_REPLY`]（施工 O-26）：这一轮接着往下走，她说的都不该发。
+    pub fn skips(text: &'static str) -> Line {
+        Line {
+            call: Some((SKIP_REPLY, SKIP_ARGS)),
             ..Line::says(text)
         }
     }
@@ -139,14 +154,14 @@ impl ModelPort for Lines {
                 },
             ];
             let mut ends = vec![Delta::End { index: 0 }];
-            if line.call {
+            if let Some((name, args)) = line.call {
                 let kind = Kind::ToolCall {
-                    name: NO_TOOL.to_string(),
+                    name: name.to_string(),
                 };
                 deltas.push(Delta::Start { index: 1, kind });
                 deltas.push(Delta::Text {
                     index: 1,
-                    text: "{}".to_string(),
+                    text: args.to_string(),
                 });
                 ends.push(Delta::End { index: 1 });
             }

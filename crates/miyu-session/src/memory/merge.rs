@@ -347,6 +347,15 @@ impl MergeJob {
                         let took_ms =
                             u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
                         tracing::info!(target: TARGET, room = room.as_str(), revised, retired, took_ms, "memory merged");
+                        if revised > 0 {
+                            // 改出来的几条在后台补向量（施工 R-5 五补）。
+                            let keeper = self.keeper.clone();
+                            let using = Using {
+                                config: Arc::clone(&self.config),
+                                owner: self.owner.clone(),
+                            };
+                            blocking(move || keeper.fill(&using)).await;
+                        }
                         true
                     }
                     Err(refused) => {

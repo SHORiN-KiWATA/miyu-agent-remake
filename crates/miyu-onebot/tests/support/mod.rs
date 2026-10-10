@@ -158,7 +158,7 @@ impl Home {
 
     /// 同 [`Home::new`]，请求模型照 `models`（施工 O-25 上：她照台词说，[`speaking::Lines`]）。
     pub fn speaking(models: Arc<dyn Models>) -> Home {
-        Home::with_config(models, CONFIG, None, None, &Value::Null)
+        Home::with_config(models, CONFIG, None, None, |_| resources())
     }
 
     /// 起一个照开关拉起扩展的核心（施工 O-18）：系统配置是主人对应表接着 `more`（端口、令牌、语言），密钥文件里 `onebot` 是
@@ -177,6 +177,27 @@ impl Home {
     /// 同 [`Home::spawning_with`]，`tuned` 是对象的：资源目录是源码树的一份拷贝，`bridge.json` 照它改那几格（施工 O-25 中：
     /// 要等过期的测试改小 `queue_expire_seconds`；真核心拉起的桥读的是核心的资源目录，`onebot.md`「施工时定的」第 127 条）。
     pub fn spawning_tuned(models: Arc<dyn Models>, more: &str, tuned: &Value) -> Home {
+        Home::spawning_from(models, more, |dir| match tuned.as_object() {
+            Some(keys) => tuned_resources(dir, keys),
+            None => resources(),
+        })
+    }
+
+    /// 同 [`Home::spawning_with`]，资源目录是源码树的一份拷贝，抄好以后交给 `edit` 改（施工 O-26：桥的工具说明改成核心不收的）。
+    pub fn spawning_edited(models: Arc<dyn Models>, more: &str, edit: impl FnOnce(&Path)) -> Home {
+        Home::spawning_from(models, more, |dir| {
+            let copy = tuned_resources(dir, &serde_json::Map::new());
+            edit(&copy);
+            copy
+        })
+    }
+
+    /// 起一个照开关拉起扩展的核心（见 [`Home::spawning`]），资源目录照 `shipped`：交进临时目录，交回用哪个资源目录。
+    fn spawning_from(
+        models: Arc<dyn Models>,
+        more: &str,
+        shipped: impl FnOnce(&Path) -> PathBuf,
+    ) -> Home {
         spawning::linked();
         let timing = Timing {
             grace: Duration::from_secs(5),
@@ -186,18 +207,18 @@ impl Home {
         };
         let secrets = format!("onebot = \"{TOKEN}\"\n");
         let config = format!("{CONFIG}{more}");
-        Home::with_config(models, &config, Some(&secrets), Some(timing), tuned)
+        Home::with_config(models, &config, Some(&secrets), Some(timing), shipped)
     }
 
     /// 起一个核心：请求模型照 `models`，系统配置写成 `config`，有 `secrets` 的密钥文件写成它；`extensions` 有的照它等、退避，
     /// 照开关拉起扩展。配置清单照真核心起来时那样拼进出厂的包的配置项（`Packaged`，施工 O-20：`onebot.*` 在桥的清单里）。
-    /// `tuned` 是对象的，资源目录用一份改过 `bridge.json` 的拷贝（[`tuned_resources`]）。
+    /// 资源目录照 `shipped`：交进临时目录，交回用哪个（源码树的，或者一份改过的拷贝，[`tuned_resources`]）。
     fn with_config(
         models: Arc<dyn Models>,
         config: &str,
         secrets: Option<&str>,
         extensions: Option<Timing>,
-        tuned: &Value,
+        shipped: impl FnOnce(&Path) -> PathBuf,
     ) -> Home {
         let (dir, root) = temp_root();
         let file = root.path().join("system").join("config.toml");
@@ -206,10 +227,7 @@ impl Home {
         if let Some(secrets) = secrets {
             std::fs::write(file.with_file_name("secrets.toml"), secrets).expect("写得进");
         }
-        let shipped = match tuned.as_object() {
-            Some(keys) => tuned_resources(&dir, keys),
-            None => resources(),
-        };
+        let shipped = shipped(&dir);
         let dirs = miyu_ipc::Dirs {
             runtime_dir: None,
             ..miyu_ipc::Dirs::current()

@@ -257,7 +257,7 @@
         "description": "The pause for a whole provider stops doubling here."
       },
       "external.bindings.<external>": {
-        "name": "Owner's platform accounts",
+        "name": "Terminal admin's platform accounts",
         "description": "Which platform identity is which local account. The key is the platform identity (for example qq:10001), the value is the local account. In private chats that identity is that account itself."
       }
     },
@@ -266,7 +266,6 @@
       "connections": "Connections",
       "general": "General",
       "advanced": "Advanced",
-      "permissions": "Permissions",
       "models": "Models"
     },
     "groups": {

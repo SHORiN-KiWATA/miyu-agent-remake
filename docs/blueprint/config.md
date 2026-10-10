@@ -230,7 +230,7 @@ miyu_config::settings! {
             layers: [System, Personal, Project],
             tighten: true_only,
             applies: new_session,
-            ui: { page: "permissions", group: "sessions", control: toggle },
+            ui: { page: "general", group: "sessions", control: toggle },
         },
     }
 }
@@ -967,7 +967,7 @@ $ miyu logout bigmodel-2
 prepare = true
 
 [external.bindings]
-# 主人的平台账号：通讯平台上的哪个号是哪个本机账号本人。键写平台上的身份（例如 qq:10001），值写本机账号。私聊里，这个号就是那个账号本人。
+# 终端管理员的平台账号：通讯平台上的哪个号是哪个本机账号本人。键写平台上的身份（例如 qq:10001），值写本机账号。私聊里，这个号就是那个账号本人。
 # 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置里。当场生效。
 # "<external>" =
 
@@ -1051,19 +1051,19 @@ base = "10s"
 max = "5m"
 
 [onebot]
-# 接入QQ的端口：NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/ws。
+# 端口：NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/ws。
 # 能写：1024 到 65535 之间的整数。只能写在系统配置里。当场生效。
 listen = 8301
 
-# 接入QQ的令牌：NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。写 { secret = "名字" }（用 miyu login 存）或 { env = "环境变量" }。没设的，接入QQ照样起来，NapCat 连进来会被拒；在接入QQ的网页上能生成一个。改了以后，NapCat 下一次连进来就照新的。
+# 令牌：NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。没设的，NapCat 连进来会被拒；在接入QQ的网页上能生成一个。
 # 能写：{ secret = "…" } 或 { env = "…" }。只能写在系统配置里。当场生效。
 # token =
 
-# 接入QQ的自己人：私聊里能叫她、不限流、睡着时私聊也放行的人，写平台上的身份的列表，例如 ["qq:20017"]。在接入QQ的网页上改。接入QQ接通群以后才照它认人。
+# 白名单成员：私聊里能叫她、不限流、睡着时私聊也放行的人。每一项写 qq:QQ号，例如 qq:20017。接通群以后才照它认人。
 # 能写：最多 128 个字的文字 的列表。只能写在系统配置里。当场生效。
 # trusted =
 
-# 接入QQ网页的端口：接入QQ自己的网页（连接 NapCat、换令牌）的端口，只听本机。用 miyu-onebot web 打开。
+# 网页端口：接入QQ自己的网页（连接 NapCat、换令牌）的端口，只听本机。用 miyu-onebot web 打开。
 # 能写：1024 到 65535 之间的整数。只能写在系统配置里。当场生效。
 web = 8302
 
@@ -1903,16 +1903,15 @@ ticket_idle_seconds = 43200
 | `providers.<id>.models.<model>.temperature` 名字（8-22） | 默认的温度 | Default temperature | 既定の温度 |
 | 说明 | 这个模型默认的温度，0 到 2，越高回答越随意。不写的照供应商的默认；这个模型不收温度的不发。 | The temperature this model uses by default, from 0 to 2; higher gives looser answers. Left out, the provider decides. Not sent to models that do not take one. | このモデルが既定で使う温度。0 から 2 で、高いほど答えが自由になります。書かなければプロバイダーの既定に従います。温度を受け付けないモデルには送りません。 |
 
-页和组（`config.pages`、`config.groups`，编号到名字；资源里只放清单用到的，`permissions`、`sessions` 随 8-2 加；8-3 加过页 `interface`（界面）、组 `tui`（终端界面），8-28 `ui.startup` 挪进通用页以后没有项用它们，去掉了）：
+页和组（`config.pages`、`config.groups`，编号到名字；资源里只放清单用到的，`permissions`、`sessions` 随 8-2 加，页 `permissions` 2026-10-10 并进通用页去掉了（施工 F-4 再补，项目主人定）；8-3 加过页 `interface`（界面）、组 `tui`（终端界面），8-28 `ui.startup` 挪进通用页以后没有项用它们，去掉了）：
 
 | 编号 | 中文 | 英文 | 日文 |
 |---|---|---|---|
 | 页 `general` | 通用 | General | 一般 |
-| 页 `permissions` | 权限 | Permissions | 権限 |
 | 页 `advanced` | 高级 | Advanced | 詳細 |
 | 组 `display`（`general`） | 显示 | Display | 表示 |
 | 组 `persona`（`general`，P-1 上） | 人格 | Persona | ペルソナ |
-| 组 `sessions`（`permissions`） | 会话 | Sessions | セッション |
+| 组 `sessions`（`general`，F-4 再补以前在 `permissions`） | 会话 | Sessions | セッション |
 | 页 `models`（8-6，主会话定） | 模型 | Models | モデル |
 | 组 `uses`（`models`） | 用途 | Uses | 用途 |
 | 组 `pools`（`models`，8-8） | 池 | Pools | プール |
