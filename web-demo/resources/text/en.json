@@ -318,7 +318,6 @@
     "tip": "Switch model",
     "models": "Models",
     "pools": "Model pools",
-    "pin": "Switch on error",
     "rotate": "Rotate",
     "cooling": "Cooling down until {time}",
     "no_key": "No API key",

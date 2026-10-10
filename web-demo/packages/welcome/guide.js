@@ -20,7 +20,7 @@ const HOME_RIGHT = 40;
 
 /**
  * @typedef {{title: string, sub?: string|null, body: HTMLElement, back?: (() => void)|null, center?: boolean, kind?: string,
- *   next?: {label?: string, ready: () => boolean, run: () => Promise<string|null>}|null, focus?: HTMLElement|null}} Screen
+ *   next?: {label?: string|(() => string), ready: () => boolean, run: () => Promise<string|null>}|null, focus?: HTMLElement|null}} Screen
  * @typedef {{model: {id: string, model: string|null, name: string}|null, persona: string, preset: string}} Result 走完写的
  */
 
@@ -37,6 +37,8 @@ export class Guide {
     this.step = 'hello';
     /** @type {Screen|null} */
     this.screen = null;
+    /** 画着的那一屏是哪一步的（等待屏之后接着画的照它认） @type {string|null} */
+    this.screenStep = null;
     this.running = false;
     /** @type {Result} */
     this.result = { model: null, persona: '', preset: '' };
@@ -142,21 +144,29 @@ export class Guide {
     } else if (step === 'done') this.show(doneScreen(this), dir);
   }
 
-  /** 画一屏。 @param {Screen} screen @param {1|-1} dir 往前走的从右边滑进来，往回的从左边 */
+  /**
+   * 画一屏。读完接着等待屏画的（同一步）沿用那个节点、只换里面的：滑进来的动画接着走，不再从头淡入一遍（2026-10-10 项目主人：点下一步
+   * 文字那一块闪一下，原来等待屏、读到的那一屏各淡入一遍）。
+   * @param {Screen} screen @param {1|-1} dir 往前走的从右边滑进来，往回的从左边
+   */
   show(screen, dir) {
+    const after = this.screen?.kind === 'wait' && this.screenStep === this.step;
     this.screen = screen;
+    this.screenStep = this.step;
     this.running = false;
     const stepBack = BACK[this.step];
     const back = screen.back ?? (stepBack && this.step !== 'done' ? () => this.go(stepBack, -1) : null);
     const next = screen.next ?? null;
-    this.nextBtn = next ? /** @type {HTMLButtonElement} */ (h('button.wl-btn.is-primary', { type: 'button', onclick: () => this.run() }, next.label ?? this.t('next'))) : null;
+    this.nextBtn = next ? /** @type {HTMLButtonElement} */ (h('button.wl-btn.is-primary', { type: 'button', onclick: () => this.run() }, this.labelOf(next))) : null;
     this.error = h('p.wl-error', { hidden: true });
     const foot = back || this.nextBtn
       ? h('div.wl-foot', back ? h('button.wl-link', { type: 'button', onclick: back }, icon('chevron-left'), h('span', this.t('back'))) : h('span'), this.nextBtn)
       : null;
-    const node = h(`div.wl-screen.is-${dir > 0 ? 'fwd' : 'back'}${screen.center ? '.is-center' : ''}`,
-      screen.title ? h('h1.wl-title', screen.title) : null, screen.sub ? h('p.wl-sub', screen.sub) : null,
-      h('div.wl-body', screen.body), this.error, foot);
+    const parts = [screen.title ? h('h1.wl-title', screen.title) : null, screen.sub ? h('p.wl-sub', screen.sub) : null, h('div.wl-body', screen.body), this.error, foot];
+    const old = /** @type {HTMLElement|null} */ (after ? this.slot.querySelector(':scope > .wl-screen') : null);
+    const node = old ?? h(`div.wl-screen.is-${dir > 0 ? 'fwd' : 'back'}`);
+    node.classList.toggle('is-center', !!screen.center);
+    replace(node, ...parts.filter(Boolean));
     this.layer.classList.toggle('is-hello', this.step === 'hello');
     this.layer.classList.toggle('is-center', !!screen.center);
     this.head.hidden = !NUMBERED.includes(this.step);
@@ -165,7 +175,7 @@ export class Guide {
     const waiting = screen.kind === 'wait';
     if (waiting && !this.held && this.stageKind) this.held = { platforms: this.platforms(), home: this.home() };
     if (!waiting) this.held = null;
-    replace(this.slot, node);
+    if (node !== old) replace(this.slot, node);
     if (!waiting) this.shown += 1;
     this.page.scrollTop = 0;
     this.sync();
@@ -185,9 +195,18 @@ export class Guide {
     replace(this.steps, NUMBERED.map((s, i) => h(`li${i === at ? '.is-now' : ''}`, `${i + 1} ${this.t(`steps.${s}`)}`)));
   }
 
-  /** 主按钮能不能点。 */
+  /** 主按钮能不能点、写什么（测试连接那一屏的跟着测的结果变）。 */
   sync() {
-    if (this.nextBtn) this.nextBtn.disabled = this.running || !(this.screen?.next?.ready() ?? false);
+    const next = this.screen?.next;
+    if (!this.nextBtn || !next) return;
+    this.nextBtn.disabled = this.running || !next.ready();
+    const label = this.labelOf(next);
+    if (this.nextBtn.textContent !== label) this.nextBtn.textContent = label;
+  }
+
+  /** 主按钮上的字：没写的是「下一步」。 @param {NonNullable<Screen['next']>} next */
+  labelOf(next) {
+    return (typeof next.label === 'function' ? next.label() : next.label) ?? this.t('next');
   }
 
   /** 点主按钮：跑这一屏的 `run`，出错的写在按钮上面。 */

@@ -52,6 +52,7 @@ function frame(dialog, screen, close) {
   const t = (/** @type {string} */ key) => dialog.ctx.text(key);
   const error = h('p.set-error', { hidden: true });
   const next = screen.next;
+  const labelOf = () => (typeof next?.label === 'function' ? next.label() : next?.label ?? '');
   const save = next ? /** @type {HTMLButtonElement} */ (h('button.set-btn.is-primary', { type: 'button', onclick: async () => {
     if (!next.ready() || save.disabled) return;
     save.disabled = true;
@@ -61,9 +62,14 @@ function frame(dialog, screen, close) {
       error.textContent = why;
       error.hidden = false;
     }
-    save.disabled = !next.ready();
-  } }, next.label)) : null;
-  const sync = () => { if (save) save.disabled = !next?.ready(); };
+    sync();
+  } }, labelOf())) : null;
+  // 能不能点、写什么（测试连接那一屏的跟着测的结果变：「测试连接」「正在测试…」「保存」）
+  const sync = () => {
+    if (!save) return;
+    save.disabled = !next?.ready();
+    if (save.textContent !== labelOf()) save.textContent = labelOf();
+  };
   sync();
   const back = screen.back
     ? h('button.set-btn', { type: 'button', onclick: screen.back }, icon('chevron-left'), t('onboard.back'))

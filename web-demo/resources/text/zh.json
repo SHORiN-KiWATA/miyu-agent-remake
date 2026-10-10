@@ -318,7 +318,6 @@
     "tip": "换模型",
     "models": "模型",
     "pools": "模型池",
-    "pin": "出错时切换",
     "rotate": "轮流使用",
     "cooling": "冷却到 {time}",
     "no_key": "未设置密钥",

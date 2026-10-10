@@ -33,10 +33,10 @@ test('模型那一页：一个模型一行，上面模型名、下面供应商�
   ]);
 });
 
-test('模型池那一页：@名字，下面写分法和它的模型（照先后，只写模型名）；没配池的是空的', () => {
+test('模型池那一页：@名字，下面写它的模型（照先后，只写模型名）；轮流用的打头写一句，出错时换下一个的不写；没配池的是空的', () => {
   const { pools } = menuOf(LIST, '@duo');
   assert.deepEqual(pools.map((r) => [r.ref, r.title, r.desc, r.current, r.usable]), [
-    ['@duo', '@duo', '出错时切换 · glm-5.3-flash、cline-pass/deepseek-v4.1-flash', true, true],
+    ['@duo', '@duo', 'glm-5.3-flash、cline-pass/deepseek-v4.1-flash', true, true],
     ['@spread', '@spread', '轮流使用 · deepseek-v4-pro', false, true],
   ]);
   assert.deepEqual(menuOf({ ...LIST, pools: [] }, null).pools, []);
@@ -139,7 +139,7 @@ test('框下面那一截写显示名和供应商的显示名（重名的也写�
   assert.deepEqual(footerLabel({ model: 'x', endpoint: 'nope' }, null), { model: 'x', endpoint: 'nope' }, '还没有列表');
 });
 
-test('模型池拿空了（核心 8-23 的 usable 是假）：暗着选不了，悬停写原因，下面一行只写怎么分', () => {
-  const { pools } = menuOf({ ...LIST, pools: [{ name: 'gone', strategy: 'pin', models: [], usable: false }] }, null);
-  assert.deepEqual(pools.map((r) => [r.ref, r.desc, r.usable, r.why]), [['@gone', '出错时切换', false, '池中没有可用模型']]);
+test('模型池拿空了（核心 8-23 的 usable 是假）：暗着选不了，悬停写原因，下面一行空着（轮流用的只写那一句）', () => {
+  const { pools } = menuOf({ ...LIST, pools: [{ name: 'gone', strategy: 'pin', models: [], usable: false }, { name: 'spin', strategy: 'rotate', models: [], usable: false }] }, null);
+  assert.deepEqual(pools.map((r) => [r.ref, r.desc, r.usable, r.why]), [['@gone', '', false, '池中没有可用模型'], ['@spin', '轮流使用', false, '池中没有可用模型']]);
 });

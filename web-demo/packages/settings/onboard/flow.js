@@ -22,10 +22,10 @@ const SEARCH_LIMIT = 50;
  * @typedef {{
  *   title: string, sub?: string|null, body: HTMLElement, kind?: string,
  *   back?: (() => void)|null,
- *   next?: {label: string, ready: () => boolean, run: () => Promise<string|null>}|null,
+ *   next?: {label: string|(() => string), ready: () => boolean, run: () => Promise<string|null>}|null,
  *   focus?: HTMLElement|null,
  * }} Screen 一屏：标题、下面一行、内容；`back` 是这一段自己的上一步（选一家那一屏没有，宿主用自己的）；`next` 是主按钮（`run`
- *   交回出错的字，成了是 `null`）
+ *   交回出错的字，成了是 `null`；`label` 是函数的跟着变，宿主每次 `ready` 时重读）
  * @typedef {{id: string, model: string|null, name: string}} Done 接好了：配置里的编号、选的模型、这一家的名字
  * @typedef {{show: (screen: Screen, dir: 1|-1) => void, ready: () => void, done: (result: Done) => void, panel: HTMLElement,
  *   manual?: () => void, mascot?: {busy: (on: boolean, hop?: boolean) => void, droop: () => void}|null}} Host
@@ -207,7 +207,8 @@ export class ProviderFlow {
   }
 
   /**
-   * 测试连接、选模型那一段（一家、自定义共用）。
+   * 测试连接、选模型那一段（一家、自定义共用）。主按钮只有一个（2026-10-10 项目主人：测试连接并进下一步）：没测过、改了框、没测成的写
+   * 「测试连接」，测着写「正在测试…」，测成了写「下一步」（设置页「保存」）。
    * @param {Target|(() => Target)} targetOf 自定义的随框里写的变
    * @param {string} name 这一家的名字（标题；自定义的是空的，接好了照编号）
    * @param {HTMLElement[]} fields 上面的几行
@@ -227,28 +228,24 @@ export class ProviderFlow {
     const models = h('div.ob-models', { hidden: true });
     /** 测的结果：成了的模型、选了哪个 */
     const state = { ok: /** @type {any} */ (null), chosen: /** @type {string|null} */ (null), running: false, gone: false };
-    const testBtn = /** @type {HTMLButtonElement} */ (h('button.set-btn.ob-test', { type: 'button', onclick: () => run() }, t('onboard.test')));
-    const syncTest = () => {
-      testBtn.disabled = state.running || !canTest() || (!modelRow.hidden && !modelInput.value.trim());
-      testBtn.textContent = state.running ? t('onboard.testing') : t('onboard.test');
-    };
-    // 框里改了：之前测的不算了
+    /** 测得了没有：没在测、贴了密钥（地址写对了）、要写模型名的写了 */
+    const canRun = () => !state.running && canTest() && (modelRow.hidden || !!modelInput.value.trim());
+    // 框里改了：之前测的不算了，主按钮回到「测试连接」
     this.stale = () => {
       if (state.ok) {
         state.ok = null;
         state.chosen = null;
         result.hidden = true;
         models.hidden = true;
-        this.host.ready();
       }
-      syncTest();
+      this.host.ready();
     };
-    modelInput.addEventListener('input', () => syncTest());
+    modelInput.addEventListener('input', () => this.host.ready());
     const enter = (/** @type {KeyboardEvent} */ e) => {
       if (e.key !== 'Enter' || e.isComposing || state.ok) return;
       e.preventDefault();
       e.stopPropagation();
-      if (!testBtn.disabled) run();
+      if (canRun()) run();
     };
     for (const el of [...fields, modelRow]) el.addEventListener('keydown', enter);
     const run = async () => {
@@ -258,7 +255,6 @@ export class ProviderFlow {
       state.chosen = null;
       models.hidden = true;
       result.hidden = true;
-      syncTest();
       this.host.ready();
       this.host.mascot?.busy(true);
       let got;
@@ -291,11 +287,9 @@ export class ProviderFlow {
           queueMicrotask(() => modelInput.focus());
         }
       }
-      syncTest();
       this.host.ready();
     };
-    syncTest();
-    const body = h('div.ob-provider', fields, modelRow, h('div.ob-test-row', testBtn), result, models);
+    const body = h('div.ob-provider', fields, modelRow, result, models);
     if (opts.auto) queueMicrotask(run);
     const save = async () => {
       if (!state.ok) return null;
@@ -311,7 +305,15 @@ export class ProviderFlow {
         this.host.mascot?.busy(false, false);
         this.host.show(this.list(), -1);
       },
-      next: { label: this.mode === 'welcome' ? t('onboard.next') : t('onboard.save'), ready: () => !!state.ok && (this.mode === 'settings' || !!state.chosen), run: save },
+      next: {
+        label: () => (state.ok ? t(this.mode === 'welcome' ? 'onboard.next' : 'onboard.save') : t(state.running ? 'onboard.testing' : 'onboard.test')),
+        ready: () => (state.ok ? this.mode === 'settings' || !!state.chosen : canRun()),
+        run: async () => {
+          if (state.ok) return save();
+          await run();
+          return null;
+        },
+      },
       focus: first,
     };
   }

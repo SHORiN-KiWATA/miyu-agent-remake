@@ -29,10 +29,11 @@ export function menuOf(list, current) {
   const pools = (list.pools ?? []).map((pool) => {
     const ref = `@${pool.name}`;
     const members = pool.models.map((r) => footerOf(r).model).join(t('list_sep'));
-    const how = t(`model_menu.${pool.strategy === 'rotate' ? 'rotate' : 'pin'}`);
+    // 轮流用的写一句；出错了换下一个是池本来的样子，不写（2026-10-10 项目主人：「出错时切换」没必要）
+    const how = pool.strategy === 'rotate' ? t('model_menu.rotate') : '';
     // 成员是空的（下架的模型被核心拿空了，核心 8-23 的 `usable`）：暗着选不了，照它挑会是 `no_model`
     const usable = pool.usable !== false && pool.models.length > 0;
-    return { ref, title: ref, desc: members ? `${how} · ${members}` : how, current: ref === current, usable, why: usable ? '' : t('model_menu.pool_empty'), find: `${ref}\n${members}` };
+    return { ref, title: ref, desc: [how, members].filter(Boolean).join(' · '), current: ref === current, usable, why: usable ? '' : t('model_menu.pool_empty'), find: `${ref}\n${members}` };
   });
   return { models, pools };
 }
