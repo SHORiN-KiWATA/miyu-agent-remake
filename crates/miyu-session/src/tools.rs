@@ -77,6 +77,8 @@ pub(crate) struct Tools {
     asks: bool,
     /// 记忆（施工 R-3 中）。
     memory: Option<crate::memory::Calls>,
+    /// 看软件包的端口（施工 F-10 上）。
+    packages: Option<Arc<dyn miyu_tool::PackagesPort>>,
     /// 在跑的调用：掐掉它的那一头、它的旗、开始跑的那一刻、工具名。
     running: BTreeMap<CallId, Running>,
     backs: mpsc::UnboundedSender<Back>,
@@ -190,6 +192,7 @@ impl Tools {
             ledger: kit.ledger,
             asks: kit.asks,
             memory: kit.memory,
+            packages: kit.packages,
             running: BTreeMap::new(),
             backs,
         }
@@ -281,6 +284,7 @@ impl Tools {
                 .memory
                 .as_ref()
                 .map(|memory| memory.port(turn, call_id, at, &config)),
+            packages: self.packages.clone(),
             ids: Some(CallIds {
                 session: self.session.clone(),
                 owner: self.owner.clone(),

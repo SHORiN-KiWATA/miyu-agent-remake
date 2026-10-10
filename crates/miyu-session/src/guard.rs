@@ -180,6 +180,7 @@ impl Guard {
             usage: None,
             questions: None,
             memory: None,
+            packages: None,
             ids: None,
         };
         let asking = tool.asking(&call);

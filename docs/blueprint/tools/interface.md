@@ -67,6 +67,7 @@
 | `jobs` | 任务端口（`Arc<dyn JobPort>`，施工 7-3）：执行器照这一次调用造一个，起它的命令自己退出了，`job.reported` 的 `by` 是这次调用、`cause` 是它所在那一轮的。`shell` 交后台命令，`jobs` 查、停（施工 7-4）；没有的（会话外面的调用，例如测试）是空的，不能放到后台，也查不到任务 |
 | `sessions` | 列会话的端口（`Arc<dyn SessionsPort>`，施工 C-3）：执行器照这一次调用抄好这个会话的编号、属主（`session/tools.md`「1d. 列会话」）。只有本机的主会话有，只有 `sessions` 用；没有的（测试里的假调用、子会话、场所会话、没装会话表的核心）是空的，`sessions` 照没有别的会话答 |
 | `usage` | 查用量的端口（`Arc<dyn UsagePort>`，施工 8-15）：执行器照这一次调用抄好这个会话的编号、属主、派出去那一刻内核算的上下文、这一轮的 `usage.currency`（`tools/session_usage.md`）。只有派的是 `session_usage`、核心开着用量汇总的才有；没有的是空的，`session_usage` 照什么都没花答 |
+| `packages` | 看软件包的端口（`Arc<dyn PackagesPort>`，施工 F-10 上）：协议端点造会话、载入时交进来，执行器原样带进每一次调用（`tools/packages.md`）。只有 `packages` 用；测试里的假调用、核心没交的没有，`packages` 说看不了 |
 | `questions` | 提问的端口（`Arc<dyn QuestionPort>`，施工 D-2）：执行器照这一次调用造，交来的题经它送进内核、回答落了盘送回来（`session/tools.md`「1e. 问人」）。只有能问人的会话有（有人能回答的本机主会话），只有 `ask_user` 用；没有的（测试里的假调用、子会话、`miyu ask` 开的、场所会话）是空的，`ask_user` 照这里没人能回答出错 |
 
 - `Seen`：换成真实位置以后的路径 → 她最后一次看到的整份文件的内容哈希（`sha256:` 加 64 位小写十六进制）。
@@ -106,6 +107,8 @@
 **列会话的端口** `SessionsPort`（`Send + Sync`，施工 C-3，`tools/sessions.md`）：`this()` 是这个会话自己的编号；`list(旗)` 交回一个 future，给同一个属主的主会话（`MainSession`：编号 `id`、标题 `title`（空的是没有）、工作目录 `cwd`、忙不忙 `busy`、最近一次动静 `last_active`），不含这个会话自己、不排先后，列不出来给英文的一句原因。读下一个会话之前看旗，举起来了交回已经读到的。两个端口比的是不是同一个。`SESSIONS` 是那件工具的名字：造会话时照它把 `sessions` 从子会话、场所会话的工具面上拿掉（`session/tools.md`「工具面」）。
 
 **查用量的端口** `UsagePort`（`Send + Sync`，施工 8-15，`tools/session_usage.md`）：`context()` 是派出去那一刻内核算的上下文（`ContextUse`：用了多少 `used`、窗口 `window`、压缩线 `line`，后两样可以没有），算不了的没有；`spent()` 交回一个 future，给这个会话到这时为止的用量和金额（`Spent`：请求数 `requests`、输入 `input`、其中命中缓存的 `cached`、输出 `output`、照币种排好先后的金额 `amounts`、没价格的次数 `unpriced`），不带子会话，查不了给英文的一句原因。两个端口比的是不是同一个。`SESSION_USAGE` 是那件工具的名字：造会话时照它把 `session_usage` 从场所会话的工具面上拿掉，派出去时照它决定要不要向内核要上下文。`find_session(写的, 一批编号)` 认她写的会话编号：整个编号相同，或者至少 8 位的小写十六进制、编号以它结尾；交回 `Found`：`One(编号)`、`None`、`Many`（`cross-session.md`「对外的样子」会话的短编号；C-4、C-5 照它认）。
+
+**看软件包的端口** `PackagesPort`（`Send + Sync`，施工 F-10 上，`tools/packages.md`）：`list()`、`info(编号)`、`inspect(包文件夹的绝对路径)` 各交回一个 future，成了是协议上那几样回应的样子（`package.list` 的 `packages`、`package.info` 加列表那一项的 `name`、`summary`、`kind`、`package.install` 带 `preview` 的），名字、说明照英文；拒了是 `PackageRefusal`：原因代码 `reason`（协议上的，核心正在停是 `shutting_down`），写错的清单另带英文的 `problem`、`line`。两个端口比的是不是同一个。`PACKAGES` 是那件工具的名字。
 
 **执行中的输出** `Progress`：`Progress::new(收的那一头)`，`push(一段字)`。
 

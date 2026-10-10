@@ -52,4 +52,6 @@ pub(crate) struct ToolKit {
     pub(crate) asks: bool,
     /// 记忆（施工 R-3 中）：主会话、核心交了记忆的才有，每次调用照它造记忆的端口。
     pub(crate) memory: Option<crate::memory::Calls>,
+    /// 看软件包的端口（施工 F-10 上）：协议端点交了的才有，每次调用原样带上。
+    pub(crate) packages: Option<Arc<dyn miyu_tool::PackagesPort>>,
 }

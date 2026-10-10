@@ -227,6 +227,20 @@ impl Site {
         tool(name).run(call, Progress::new(|_| {})).await
     }
 
+    /// 在 `work/` 里调一次工具，看软件包的端口是 `packages`（施工 F-10 上：`packages` 经它看）。
+    pub async fn done_with_packages(
+        &self,
+        name: &str,
+        args: serde_json::Value,
+        packages: Option<Arc<dyn miyu_tool::PackagesPort>>,
+    ) -> Done {
+        let call = Call {
+            packages,
+            ..self.call_for("work", args, Seen::new(), Stop::default())
+        };
+        tool(name).run(call, Progress::new(|_| {})).await
+    }
+
     /// 在 `work/` 里调一次工具，提问的端口是 `questions`（施工 D-2：`ask_user` 经它问人）。
     pub async fn done_with_questions(
         &self,
@@ -277,6 +291,7 @@ impl Site {
             usage: None,
             questions: None,
             memory: None,
+            packages: None,
             ids: None,
         }
     }

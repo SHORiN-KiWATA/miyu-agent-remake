@@ -1,0 +1,1 @@
+Give package or path, not both.

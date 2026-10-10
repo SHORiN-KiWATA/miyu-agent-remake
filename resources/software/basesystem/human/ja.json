@@ -74,6 +74,11 @@
       "name": "質問",
       "icon": "?"
     },
+    "packages": {
+      "name": "パッケージ",
+      "subject": "package",
+      "icon": "≡"
+    },
     "todowrite": {
       "name": "ToDo",
       "icon": "≡"
@@ -190,6 +195,10 @@
     "ask_user/answered": "回答しました",
     "ask_user/unattended": "ここでは誰も答えられません",
     "todowrite/updated": "ToDo を更新：{done}/{total} 完了",
-    "todowrite/cleared": "ToDo はすべて完了、クリアしました"
+    "todowrite/cleared": "ToDo はすべて完了、クリアしました",
+    "packages/listed": "パッケージを一覧しました",
+    "packages/shown": "{package} を確認しました",
+    "packages/inspected": "{path} を確認しました",
+    "packages/failed": "パッケージを確認できませんでした"
   }
 }

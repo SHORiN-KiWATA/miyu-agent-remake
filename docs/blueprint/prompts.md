@@ -1809,6 +1809,138 @@ Context: about {used} tokens. This model reports no window.
 Could not read the usage: {error}
 ```
 
+#### `software/basesystem/packages/listed.txt`
+
+- 什么时候加进来：`packages`：列出来一个一行：装着、开着的
+- token：待量（施工 F-10 上：测试端点要项目主人给 key，量过再填）
+- 为什么加：编号、名字、一句说明：她挑包要知道它是做什么的（施工 F-10 上）
+- 指纹：`6d7e8f12`
+
+```text
+{package}: {name}. {summary}
+```
+
+#### `software/basesystem/packages/listed-off.txt`
+
+- 什么时候加进来：`packages`：列出来：关着的（扩展的开关）
+- token：待量（施工 F-10 上：测试端点要项目主人给 key，量过再填）
+- 为什么加：关着的工具不在她的工具面上，不说她以为能用（施工 F-10 上）
+- 指纹：`d31123d8`
+
+```text
+{package}: {name}. {summary} Turned off.
+```
+
+#### `software/basesystem/packages/listed-removed.txt`
+
+- 什么时候加进来：`packages`：列出来：卸掉了的出厂包
+- token：待量（施工 F-10 上：测试端点要项目主人给 key，量过再填）
+- 为什么加：卸掉的照样列着，好让她知道能装回来（施工 F-10 上）
+- 指纹：`75ba1efb`
+
+```text
+{package}: {name}. Removed.
+```
+
+#### `software/basesystem/packages/listed-broken.txt`
+
+- 什么时候加进来：`packages`：列出来：清单读不了的
+- token：待量（施工 F-10 上：测试端点要项目主人给 key，量过再填）
+- 为什么加：读不了的照协议列，说哪里不对（施工 F-10 上）
+- 指纹：`c0eae0ff`
+
+```text
+{package}: cannot be read: {problem}
+```
+
+#### `software/basesystem/packages/inspected.txt`
+
+- 什么时候加进来：`packages`：看包文件夹：装得上的，下一行接看一眼的那一份 JSON
+- token：待量（施工 F-10 上：测试端点要项目主人给 key，量过再填）
+- 为什么加：她自己写的包写对没有、装上会是什么样，JSON 照协议原样（模板里换进去的字会转义引号，另起一行）（施工 F-10 上）
+- 指纹：`ceef3c14`
+
+```text
+{path} is a valid package. Installing it gives:
+```
+
+#### `software/basesystem/packages/invalid.txt`
+
+- 什么时候加进来：`packages`：看包文件夹：清单写错了，不知道第几行
+- token：待量（施工 F-10 上：测试端点要项目主人给 key，量过再填）
+- 为什么加：照真装那样拒，说哪里不对（施工 F-10 上）
+- 指纹：`ff952944`
+
+```text
+{path} is not a valid package: {problem}
+```
+
+#### `software/basesystem/packages/invalid-line.txt`
+
+- 什么时候加进来：`packages`：看包文件夹：清单写错了，知道第几行
+- token：待量（施工 F-10 上：测试端点要项目主人给 key，量过再填）
+- 为什么加：同上，带行号好改（施工 F-10 上）
+- 指纹：`20a486a7`
+
+```text
+{path} is not a valid package, line {line}: {problem}
+```
+
+#### `software/basesystem/packages/unknown.txt`
+
+- 什么时候加进来：`packages`：看一个：没有这个包
+- token：待量（施工 F-10 上：测试端点要项目主人给 key，量过再填）
+- 为什么加：每次调用都要有结果（施工 F-10 上）
+- 指纹：`edce7fc6`
+
+```text
+No package named {package}.
+```
+
+#### `software/basesystem/packages/refused.txt`
+
+- 什么时候加进来：`packages`：别的拒绝（读不了、和出厂的撞名、核心正在停）
+- token：待量（施工 F-10 上：测试端点要项目主人给 key，量过再填）
+- 为什么加：原因代码照协议原样，她认得（施工 F-10 上）
+- 指纹：`c87c540b`
+
+```text
+Cannot look at {what}: {reason}.
+```
+
+#### `software/basesystem/packages/both.txt`
+
+- 什么时候加进来：`packages`：`package`、`path` 都写了
+- token：待量（施工 F-10 上：测试端点要项目主人给 key，量过再填）
+- 为什么加：参数写错不问核心（施工 F-10 上）
+- 指纹：`2e964507`
+
+```text
+Give package or path, not both.
+```
+
+#### `software/basesystem/packages/relative.txt`
+
+- 什么时候加进来：`packages`：`path` 不是绝对路径
+- token：待量（施工 F-10 上：测试端点要项目主人给 key，量过再填）
+- 为什么加：核心只收绝对路径（施工 F-10 上）
+- 指纹：`ccce4f90`
+
+```text
+path must be absolute.
+```
+
+#### `software/basesystem/packages/unavailable.txt`
+
+- 什么时候加进来：`packages`：没有端口（核心没交）
+- token：待量（施工 F-10 上：测试端点要项目主人给 key，量过再填）
+- 为什么加：每次调用都要有结果（施工 F-10 上）
+- 指纹：`940cb5c2`
+
+```text
+Packages cannot be looked at here.
+```
+
 #### `software/basesystem/ask_user/answer.txt`
 
 - 什么时候加进来：`ask_user` 答了：一道一行
@@ -3179,6 +3311,20 @@ Start a subagent in a new session to do one task and wait for it; its report arr
 {
   "description": "Show how many tokens and how much money this session has used so far, and how full your context is.",
   "parameters": {"type":"object","properties":{}}
+}
+```
+
+#### `software/basesystem/tools/packages.json`
+
+- 什么时候加进来：会话的工具面里有 `packages`：功能「软件包」开着的（基础系统，每次请求都带）
+- token：待量（施工 F-10 上：测试端点要项目主人给 key，量过再填）
+- 为什么加：她看软件包（施工 F-10 上，设计 `31-软件包.md` 第六节）：列出装了的、看一个、装之前看一个包文件夹。包目录在数据根里，文件工具碰不到，不给这件她不知道装了什么、自己写的包写对没有
+- 指纹：`b8bf2c38`
+
+```json
+{
+  "description": "List installed Miyu packages, show one by id, or check a package folder before installing it.",
+  "parameters": {"type":"object","properties":{"package":{"type":"string","description":"Package id to show."},"path":{"type":"string","description":"Absolute path of a package folder to check."}}}
 }
 ```
 

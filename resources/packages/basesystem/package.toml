@@ -43,4 +43,8 @@ tools = ["history"]
 name = { en = "Usage", zh = "用量", ja = "使用量" }
 tools = ["session_usage"]
 
+[features.packages]
+name = { en = "Packages", zh = "软件包", ja = "パッケージ" }
+tools = ["packages"]
+
 [builtin]

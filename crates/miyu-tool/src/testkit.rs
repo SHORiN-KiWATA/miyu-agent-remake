@@ -153,6 +153,7 @@ pub fn call(args: &str) -> Call {
         usage: None,
         questions: None,
         memory: None,
+        packages: None,
         ids: None,
     }
 }

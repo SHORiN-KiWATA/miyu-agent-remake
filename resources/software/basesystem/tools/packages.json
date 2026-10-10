@@ -1,0 +1,4 @@
+{
+  "description": "List installed Miyu packages, show one by id, or check a package folder before installing it.",
+  "parameters": {"type":"object","properties":{"package":{"type":"string","description":"Package id to show."},"path":{"type":"string","description":"Absolute path of a package folder to check."}}}
+}

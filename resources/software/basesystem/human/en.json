@@ -74,6 +74,11 @@
       "name": "Ask",
       "icon": "?"
     },
+    "packages": {
+      "name": "Packages",
+      "subject": "package",
+      "icon": "≡"
+    },
     "todowrite": {
       "name": "Todos",
       "icon": "≡"
@@ -209,6 +214,10 @@
     "ask_user/answered": "You answered",
     "ask_user/unattended": "No one can answer here",
     "todowrite/updated": "Updated the todos, done: {done}/{total}",
-    "todowrite/cleared": "All todos done, list cleared"
+    "todowrite/cleared": "All todos done, list cleared",
+    "packages/listed": "Listed the packages",
+    "packages/shown": "Looked at {package}",
+    "packages/inspected": "Checked {path}",
+    "packages/failed": "Could not look at packages"
   }
 }

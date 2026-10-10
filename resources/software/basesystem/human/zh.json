@@ -74,6 +74,11 @@
       "name": "提问",
       "icon": "?"
     },
+    "packages": {
+      "name": "软件包",
+      "subject": "package",
+      "icon": "≡"
+    },
     "todowrite": {
       "name": "待办",
       "icon": "≡"
@@ -190,6 +195,10 @@
     "ask_user/answered": "你答了",
     "ask_user/unattended": "这里没人能回答",
     "todowrite/updated": "更新了待办：做完 {done}/{total}",
-    "todowrite/cleared": "待办都做完了，清空"
+    "todowrite/cleared": "待办都做完了，清空",
+    "packages/listed": "列了软件包",
+    "packages/shown": "看了 {package}",
+    "packages/inspected": "检查了 {path}",
+    "packages/failed": "没看成软件包"
   }
 }

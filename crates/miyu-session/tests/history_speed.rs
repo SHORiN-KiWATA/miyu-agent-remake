@@ -82,6 +82,7 @@ async fn how_long_fifty_thousand_events_take() {
             usage: None,
             questions: None,
             memory: None,
+            packages: None,
             ids: None,
         };
         let started = Instant::now();

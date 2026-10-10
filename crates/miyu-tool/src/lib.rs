@@ -24,6 +24,7 @@ pub mod load;
 mod log;
 mod memory;
 mod messages;
+mod packages;
 pub mod picture;
 mod questions;
 mod run;
@@ -51,6 +52,7 @@ pub use memory::{
 pub use messages::{
     Delivered, MessagePort, NotSent, Recipient, SEND_MESSAGE, SEND_MESSAGE_FORMERLY, Sending,
 };
+pub use packages::{Looking, PACKAGES, PackageRefusal, PackagesPort};
 pub use questions::{ASK_USER, Answering, QuestionPort};
 pub use run::{Call, CallIds, Done, Effect, Picture, Progress, Running, Seen, Target};
 pub use sessions::{Found, Listing, MainSession, Opening, SESSIONS, SessionsPort, find_session};
