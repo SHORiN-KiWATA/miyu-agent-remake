@@ -60,7 +60,6 @@
       "default": [
         "general",
         "models",
-        "permissions",
         "personas",
         "presets",
         "advanced",
@@ -77,7 +76,8 @@
       "type": "map",
       "of": "text",
       "default": {
-        "interface": "general"
+        "interface": "general",
+        "permissions": "general"
       },
       "name": {
         "zh": "项少的核心页并进哪一页（页 → 页）"
@@ -115,7 +115,6 @@
         "personas": "user-round",
         "appearance": "palette",
         "models": "cpu",
-        "permissions": "shield",
         "presets": "toggle-right",
         "advanced": "wrench",
         "packages": "package",
