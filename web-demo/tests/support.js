@@ -24,8 +24,8 @@ export function loadRes() {
     media: json('media.json'),
     human: human(),
   });
-  // 界面的字、命令的说明照中文装，收起那一行是英文（和出厂的 auto、浏览器是中文时一样）
-  settle(json('text/zh.json'), null, { ...res.languages.languages[0], fallback: 'zh', summary: 'en' }, json('commands.json').commands, json('text/en.json'));
+  // 界面的字、命令的说明照中文装，收起那一行挑英文那一份（和出厂的 auto、浏览器是中文时一样）
+  settle(json('text/zh.json'), null, { ...res.languages.languages[0], fallback: 'zh', summary: 'en' }, json('commands.json').commands);
   return res;
 }
 

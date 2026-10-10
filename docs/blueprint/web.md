@@ -31,7 +31,7 @@
 | `web-demo/src/core/connection.js` | 宿主给的一条线上的 JSON-RPC：请求和回应、推送、连接的状态；核心拒绝的是 `Refusal`（原因码、原话） |
 | `web-demo/src/core/store.js` | 头这边记着的会话：左栏列哪些、读进来的会话的持久事件、在收的那一次回复（`model.delta` 攒起来的）、限额、没看过的 |
 | `web-demo/src/core/session-index.js` | 会话表：核心的会话列表流（`subscribe` 的 `sessions`、`sessions.changed`，9-5），掉队重订，旧核心退回读一次 |
-| `web-demo/src/model/` | 纯函数：`session.js` 左栏的一项；`transcript.js` 正文的条目；`timeline.js` 时间线的段和步（照 TUI 的 `transcript/steps.rs`、`blocks.rs`）；`words.js` 一步的标题、收起那一行的字（照 TUI 的 `ui/timeline/step.rs`、`summary.rs`）；`diff.js` 编辑、写入的差异（照 TUI 的 `diff.rs`）；`artifacts.js` 预览工作区里放什么；`cards.js` 单独一行的媒体地址；`paths.js` 回答里的路径换成本机的绝对路径；`footer.js` 框下面那一行、丢格子的先后、权限级别的轮换；`commands.js` 斜杠命令怎么筛；`todo.js` 待办收成几行；`pulse.js` 运行状态行挑哪个词；`notes.js` 谁说的、回报那一行、压缩和清空那一行、出错那一句；`tree.js` 左栏的树（子代理挂在派它的会话下面、多了收起、文件树的线、顶层露几个）；`select.js` 左栏多选；`ago.js` 什么时候开的（会话编号里的时刻写成「N 分钟前」）；`group.js` 条目分块（你的话、她的一轮、不挂在她头下的一行）；`anchor.js` 对话区跟着最新的时停在哪、底下垫多高、长回答停在哪、跳转条上正在看哪一句；`format.js` 数的写法（和 TUI 的 `meter.rs` 一样）；`model-menu.js` 换模型的菜单列什么、框下面那一截怎么拆 |
+| `web-demo/src/model/` | 纯函数：`session.js` 会话的先后、打开页面进哪个会话；`entries.js` 条目换成正文的几种；`view-state.js` 照条目和会话状态算的几样（压缩的进度、这一轮结束没有、她做没做事、预览工作区里的文件）；`timeline.js` 时间线的段和步的形状、转圈的那一步；`words.js` 一步那一行、点开的细节（照 TUI 的 `ui/timeline/step.rs`）；`diff.js` 编辑、写入的差异（照 TUI 的 `diff.rs`）；`artifacts.js` 预览工作区里放什么；`cards.js` 单独一行的媒体地址；`paths.js` 回答里的路径换成本机的绝对路径；`footer.js` 框下面那一行、丢格子的先后、权限级别的轮换；`commands.js` 斜杠命令怎么筛；`todo.js` 待办收成几行；`pulse.js` 运行状态行挑哪个词；`notes.js` 谁说的、回报那一行、压缩和清空那一行、出错那一句；`tree.js` 左栏的树（子代理挂在派它的会话下面、多了收起、文件树的线、顶层露几个）；`select.js` 左栏多选；`ago.js` 什么时候开的（会话编号里的时刻写成「N 分钟前」）；`group.js` 条目分块（你的话、她的一轮、不挂在她头下的一行）；`anchor.js` 对话区跟着最新的时停在哪、底下垫多高、长回答停在哪、跳转条上正在看哪一句；`format.js` 数的写法（和 TUI 的 `meter.rs` 一样）；`model-menu.js` 换模型的菜单列什么、框下面那一截怎么拆 |
 | `web-demo/src/markdown/` | 她的回答的 Markdown：`parse.js` 块、`inline.js` 行内（纯函数）；`build.js` 造 DOM；`highlight.js` 代码上色；`math.js` 公式；`stream.js` 在收时补齐；`render.js` 入口和扩展点 |
 | `web-demo/src/kernel/`、`web-demo/src/lib/`、`web-demo/packages/`、`web-demo/distro.json` | 内核、lib、软件包、发行版（`web/architecture.md`）。现在有哪些软件包、各提供什么、挂在哪，见 `web/architecture.md`「现在搬到哪了」 |
 | `web-demo/src/ui/` | 画：`app.js` 整页和状态；`sidebar.js` 左栏；`chat.js` 对话区；`follow.js` 对话区滚到哪（跟着最新的、长回答停住、点开时钉住被点的那一行）；`rail.js` 右边的跳转条；`said.js` 你的话（别人说的写上是谁）和她一轮末尾的按钮、编辑；`notes.js` 回报、压缩、清空那一行，点开看输出、报告；`sessions-page.js` 全部会话那一页；`timeline.js` 时间线的一段、三个球；`steps.js` 时间线的一步；`rich.js` 回答里的图和卡片接进 Markdown；`mermaid.js` mermaid 图；`media.js` 图片、视频、音频卡片；`lightbox.js` 灯箱；`linkcards.js` 链接卡片；`artifacts.js` 预览工作区；`composer.js` 输入框、提示、框下面那一行；`model-menu.js` 换模型的菜单；`commands.js` 命令列表和执行；`todo.js` 待办那一块；`pulse.js` 运行状态行；`theme.js` 主题；`dom.js` 造 DOM、画图标 |
@@ -88,7 +88,7 @@
 2. 第一行（字和提示行一样大：正文字体 11.5px）：「正在压缩上下文」照运行状态行的流光（`accent` 打底，一道亮光扫过，600），后面的点 `.` `..` `...` 轮换（一个点 1 秒）；点后面空一格，11px `text_faint` 等宽写已经写了多少字（`written`，三位一撇，「6,534 字」；照运行状态行的用时，紧跟在点后面，2026-10-01 项目主人指出：原来推到这一行最右边，离字太远），还是 0 的不写。点的那一格照最宽的「...」占着，数字不跟着点左右跳。
 3. 第二行：一根细进度条，4px 高、240px 宽、圆头，底是 `line`，走过的是 `accent`，不扫光（流光只在「正在压缩上下文」几个字上，2026-10-01 项目主人定：原来条的最前头一点亮光明暗来回，没必要）；条后面 12px `text_faint` 写百分比。比例是已写 ÷ `expected`（核心估的要写多少字），没压好之前最多 95%。条不匀速涨：分 24 格，按整格一顿一顿地追真实的字数，真实的够亮几格了，随机停 0.3–1.5 秒再一下多走 1–3 格，永远不超过真实够的格数（照 TUI 定的，涨得随机一些）；百分比照真实的字数算。没给 `expected` 的不画条。
 4. 过了 3 秒还没压好：字和条一起呼吸（明暗来回，两秒一个来回）。
-5. 压好了（`compaction.done`）：条在 0.4 秒里一格格走满、百分比走到 100%，停 0.2 秒，淡出，原地换成结果那一行：`● 上下文已压缩：812.3k → 31k token`（`before`、`after` 照「框下面那一行」的写法），绿点，能点开看摘要。前后的数只在看着压好的那一次有（`compaction.done` 是瞬时的），刷新以后读回来的写「上下文已压缩」。走满以前落了盘的那一条 `context.compacted` 先不画，走满了再露出来。
+5. 压好了（会话状态不在压了）：进度那一行当场收掉，原地换成结果那一行：`● 上下文已压缩：812.3k → 31k token`（`before`、`after` 照「框下面那一行」的写法，核心给的），绿点，能点开看摘要。原来走满、停一下、淡出的那一段照条目画以后走不到，2026-10-10 项目主人点头删了。
 6. 没压成（落了盘的 `model.called` 带 `compaction`、`result` 是 `error`）：进度那一行当场换成红字 `● 压缩失败：<原因>`，圆点是红色实心的（同一天项目主人：原来想用 `·`，要红色实心圆）；原因照收尾行「出错了」的写法（`failureText`）。自动压缩中途、手动 `/compact` 那一轮都画这一行；手动那一轮不再另起「出错了」的收尾行。读回来的历史里照样有这一行。
 7. 这一轮先结束了（打断、核心重启）还没压好的：进度那一行收掉。
 7a. 提前压缩（核心 6-11，`compaction.md` 第十节 Z11；2026-10-07 核心定的形状）：过了更早的那条线核心就在后台发摘要请求，准备的时候什么都不推、网页什么都不画（项目主人定）。到了真正的线已经压好的，直接换上：没有 `compaction.progress`，只来一条带 `prepared: true` 的 `compaction.done`，不出进度那一行、不走满，只记下前后的用量，「● 上下文已压缩：812.3k → 31k token」照第 5 条直接画（两条谁先到不一定，照样对得上）；到了线还在请求的，从这一刻起照常来 `compaction.progress`（第一条的 `written` 可能已经大于 0），照第 1–5 条画；它在线上失败了，核心当场换一次摘要请求接着推进度，`written` 从 0 再来、`seen` 可能变：`written` 变小了、`seen` 变了都当重来，进度那一行从头走。后台那次请求的失败不画（它的 `model.called` 不带 `compaction`，第 6 条只认带的）。后台那次请求的 `model.called` 没有回合、带 `purpose: "compaction"`，照别的辅助请求算（框下面那一行：算进累计，不改上下文、命中率、速度；不属于哪一轮）。
@@ -729,7 +729,7 @@
   - 以后「点链接直接打开本机文件」（经桥、核心用系统默认程序开）要分平台：Linux `xdg-open`、macOS `open`、Windows `start`（或者用跨平台的库），别只写一个。
   - 按键：`Ctrl` 的地方 macOS 上照 `Cmd`（现在按键处理都同时认 `metaKey`，查过）；字体栈里 Windows、macOS 各有退路（等宽 `Consolas`、`SFMono-Regular`，中文 `PingFang SC`、`Microsoft YaHei`），可排在前面的 `Miyu CJK Sans` 那一层照 Linux 上的字体名（思源、Noto）配，要在另两个平台上看它是不是好好退到系统的字；提问抽屉里选项的文字画要的二比一等宽字（`JetBrains Maple Mono` 这类）另两个平台多半没装，照样退回 `--mono`。
 
-- 压缩的进度条走不到头（2026-10-01 项目主人：先这样，压好了走满；记下，跟核心提，以后改）：核心估的「要写多少字」（`compaction.progress` 的 `expected`）夹在 20000 到 80000 之间，摘要短的时候（实测只写了 7,500 字）条只走到三成多就压好了，最后一下补满。已经转告核心施工的会话。
+- 压缩的进度条走不到头（2026-10-01 项目主人：先这样，记下，跟核心提，以后改；2026-10-10 起压好了当场收掉，不再补满）：核心估的「要写多少字」（`compaction.progress` 的 `expected`）夹在 20000 到 80000 之间，摘要短的时候（实测只写了 7,500 字）条只走到三成多就压好了，最后一下补满。已经转告核心施工的会话。
 
 ### 和设计 21 的出入（待拍板）
 

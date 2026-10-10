@@ -40,7 +40,7 @@ export class Chat {
     /** 正文末尾、最后一轮下面（挂载位 `chat.tail`：确认和提问了结以后留的）：一直是正文那一列的最后一个，画的时候不动它 */
     this.tail = h('div.chat-tail');
     /** 压缩的进度那一行（`compacting.js`）：正文末尾、`chat.tail` 前面，一直是同一个节点 */
-    this.compacting = new CompactingRow((session) => on.compacted?.(session));
+    this.compacting = new CompactingRow();
     /** 钉在某一块后面的节点（确认和提问了结以后留的，`anchor`）：块的编号 → 节点，照钉的先后；`''` 是还没有块时钉在最前面 */
     this.anchored = /** @type {Map<string, HTMLElement[]>} */ (new Map());
     this.list.append(this.compacting.el, this.tail);

@@ -94,18 +94,12 @@
   "timeline": {
     "thinking": "正在思考",
     "thought": "已思考",
-    "prepare": {
-      "command": "准备执行",
-      "edit": "准备编辑",
-      "tool": "准备调用工具"
-    },
     "args": "参数",
     "result": "结果",
     "prompt": "提示词",
     "to": "发给",
     "message": "消息",
     "parent": "父会话",
-    "message_subject": "{to}",
     "message_to": "{job} · {title}",
     "message_session": "会话 {id}",
     "peek_sep": "·",
@@ -113,59 +107,12 @@
     "agent_pending": "{title}",
     "created": "新建",
     "trashed": "已移至回收站，无差异",
-    "diff_skipped": { "too_big": "文件太大，不显示差异", "binary": "不是文字文件，不显示差异", "missing": "无法获取修改前后的内容" },
-    "changed": "修改",
-    "summary": {
-      "ran": [
-        "执行了 1 条命令",
-        "执行了 {count} 条命令"
-      ],
-      "used": [
-        "用了 1 个工具",
-        "用了 {count} 个工具"
-      ],
-      "made": [
-        "编辑了 1 处",
-        "编辑了 {count} 处"
-      ],
-      "edits": [
-        "1 处编辑",
-        "{count} 处编辑"
-      ],
-      "tools": [
-        "1 个工具",
-        "{count} 个工具"
-      ],
-      "thoughts": [
-        "1 次思考",
-        "{count} 次思考"
-      ],
-      "errors": [
-        "1 个出错",
-        "{count} 个出错"
-      ],
-      "thought_for": "思考了 {elapsed}",
-      "spawned": [
-        "派了 1 个子代理",
-        "派了 {count} 个子代理"
-      ],
-      "messaged": [
-        "给 1 个子代理留言",
-        "给 {count} 个子代理留言"
-      ],
-      "agents": [
-        "1 个子代理",
-        "{count} 个子代理"
-      ],
-      "messages": [
-        "1 条留言",
-        "{count} 条留言"
-      ],
-      "messaged_sessions": [
-        "给 1 个会话留言",
-        "给 {count} 个会话留言"
-      ]
-    }
+    "diff_skipped": {
+      "too_big": "文件太大，不显示差异",
+      "binary": "不是文字文件，不显示差异",
+      "missing": "无法获取修改前后的内容"
+    },
+    "changed": "修改"
   },
   "markdown": {
     "code": "代码",

@@ -94,18 +94,12 @@
   "timeline": {
     "thinking": "考え中",
     "thought": "思考済み",
-    "prepare": {
-      "command": "実行を準備中",
-      "edit": "編集を準備中",
-      "tool": "ツールを準備中"
-    },
     "args": "引数",
     "result": "結果",
     "prompt": "プロンプト",
     "to": "宛先",
     "message": "メッセージ",
     "parent": "親セッション",
-    "message_subject": "{to}",
     "message_to": "{job} · {title}",
     "message_session": "セッション {id}",
     "peek_sep": "·",
@@ -113,59 +107,12 @@
     "agent_pending": "{title}",
     "created": "新規作成",
     "trashed": "ごみ箱に移しました（差分はありません）",
-    "diff_skipped": { "too_big": "ファイルが大きすぎるため差分を表示しません", "binary": "テキストファイルではないため差分を表示しません", "missing": "変更前後の内容を取得できません" },
-    "changed": "変更",
-    "summary": {
-      "ran": [
-        "コマンドを 1 件実行",
-        "コマンドを {count} 件実行"
-      ],
-      "used": [
-        "ツールを 1 件使用",
-        "ツールを {count} 件使用"
-      ],
-      "made": [
-        "1 件編集",
-        "{count} 件編集"
-      ],
-      "edits": [
-        "編集 1 件",
-        "編集 {count} 件"
-      ],
-      "tools": [
-        "ツール 1 件",
-        "ツール {count} 件"
-      ],
-      "thoughts": [
-        "思考 1 回",
-        "思考 {count} 回"
-      ],
-      "errors": [
-        "エラー 1 件",
-        "エラー {count} 件"
-      ],
-      "thought_for": "思考時間 {elapsed}",
-      "spawned": [
-        "サブエージェントを 1 件派遣",
-        "サブエージェントを {count} 件派遣"
-      ],
-      "messaged": [
-        "サブエージェント 1 件にメッセージ",
-        "サブエージェント {count} 件にメッセージ"
-      ],
-      "agents": [
-        "サブエージェント 1 件",
-        "サブエージェント {count} 件"
-      ],
-      "messages": [
-        "メッセージ 1 件",
-        "メッセージ {count} 件"
-      ],
-      "messaged_sessions": [
-        "セッション 1 件にメッセージ",
-        "セッション {count} 件にメッセージ"
-      ]
-    }
+    "diff_skipped": {
+      "too_big": "ファイルが大きすぎるため差分を表示しません",
+      "binary": "テキストファイルではないため差分を表示しません",
+      "missing": "変更前後の内容を取得できません"
+    },
+    "changed": "変更"
   },
   "markdown": {
     "code": "コード",

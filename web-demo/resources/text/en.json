@@ -94,18 +94,12 @@
   "timeline": {
     "thinking": "Thinking",
     "thought": "Thought",
-    "prepare": {
-      "command": "Preparing to run",
-      "edit": "Preparing to edit",
-      "tool": "Preparing to call tool"
-    },
     "args": "Arguments",
     "result": "Result",
     "prompt": "Prompt",
     "to": "To",
     "message": "Message",
     "parent": "Parent session",
-    "message_subject": "{to}",
     "message_to": "{job} · {title}",
     "message_session": "Session {id}",
     "peek_sep": "·",
@@ -118,58 +112,7 @@
       "binary": "Not a text file, diff not shown",
       "missing": "Can't get the content before and after the change"
     },
-    "changed": "Changed",
-    "summary": {
-      "ran": [
-        "Ran 1 command",
-        "Ran {count} commands"
-      ],
-      "used": [
-        "Used 1 tool",
-        "Used {count} tools"
-      ],
-      "made": [
-        "Made 1 edit",
-        "Made {count} edits"
-      ],
-      "edits": [
-        "1 edit",
-        "{count} edits"
-      ],
-      "tools": [
-        "1 tool",
-        "{count} tools"
-      ],
-      "thoughts": [
-        "1 thought",
-        "{count} thoughts"
-      ],
-      "errors": [
-        "1 err",
-        "{count} err"
-      ],
-      "thought_for": "Thought for {elapsed}",
-      "spawned": [
-        "Spawned 1 agent",
-        "Spawned {count} agents"
-      ],
-      "messaged": [
-        "Messaged 1 agent",
-        "Messaged {count} agents"
-      ],
-      "agents": [
-        "1 agent",
-        "{count} agents"
-      ],
-      "messages": [
-        "1 message",
-        "{count} messages"
-      ],
-      "messaged_sessions": [
-        "Messaged 1 session",
-        "Messaged {count} sessions"
-      ]
-    }
+    "changed": "Changed"
   },
   "markdown": {
     "code": "Code",

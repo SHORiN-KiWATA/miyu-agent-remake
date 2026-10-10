@@ -73,26 +73,22 @@ export function moreIcons() {
  * 字的文件读不到、不是 JSON，照原因抛出来。
  */
 export async function useTexts(base, lang) {
-  const [fallback, own, summary] = await Promise.all([
+  const [fallback, own] = await Promise.all([
     get(base, `text/${lang.fallback}.json`),
     lang.code === lang.fallback ? null : get(base, `text/${lang.code}.json`),
-    // 时间线收起那一行用别的一种（跟着浏览器时的英文）：再读那一份
-    lang.summary === lang.code ? null : get(base, `text/${lang.summary}.json`),
   ]);
-  settle(fallback, own, lang, commands, summary);
+  settle(fallback, own, lang, commands);
 }
 
 /**
  * 装好的字放进 `res`（`useTexts` 读完调；测试直接给两份字）。
  * @param {any} fallback 退回的那一份
  * @param {any} own 这一种的（和退回的是同一种时 `null`）
- * @param {import('../kernel/language.js').Language} lang
+ * @param {import('../kernel/language.js').Language} lang 时间线收起那一行挑核心给的哪一份照它的 `summary`（`model/entries.js`）
  * @param {any[]} list 命令清单的原样（说明每种语言各一句）
- * @param {any} [summary] 时间线收起那一行用别的一种时，那一种的字（只取 `timeline.summary`）
  */
-export function settle(fallback, own, lang, list, summary = null) {
-  const text = own ? merge(fallback, own) : fallback;
-  res.text = summary ? merge(text, { timeline: { summary: summary.timeline.summary } }) : text;
+export function settle(fallback, own, lang, list) {
+  res.text = own ? merge(fallback, own) : fallback;
   res.language = lang;
   res.commands = { commands: list.map((c) => ({ ...c, summary: local(c.summary, lang) })) };
 }

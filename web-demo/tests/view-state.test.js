@@ -30,7 +30,7 @@ test('打断时她还没开始做事：只在思考、在等模型的算没开�
 test('压缩的进度：会话状态在压的照它写了多少、估计多少，从那一条的时刻起；不在压的是 null', () => {
   const entries = [{ id: 'c20', kind: 'notice', what: 'compaction', state: 'running', at: AT }];
   const got = compactingOf(entries, { state: 'running', doing: { what: 'compacting', entry: 'c20', written: 1200, expected: 4000 } });
-  assert.deepEqual(got, { seen: 20, since: Date.parse(AT), written: 1200, expected: 4000, done: null, note: null });
+  assert.deepEqual(got, { seen: 20, since: Date.parse(AT), written: 1200, expected: 4000 });
   assert.equal(compactingOf(entries, { state: 'running', doing: { what: 'replying' } }), null);
   assert.equal(compactingOf(entries, null), null);
 });

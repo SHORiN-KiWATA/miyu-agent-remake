@@ -5,7 +5,7 @@
 import { seqOf } from './entries.js';
 
 /**
- * @typedef {{seen: number, since: number, written: number, expected: number|null, done: {before: number, after: number}|null, note: number|null}} Compacting
+ * @typedef {{seen: number, since: number, written: number, expected: number|null}} Compacting
  *   压缩的进度那一行（`ui/compacting.js`）：从哪一条起、什么时候起、写了多少、估计多少
  */
 
@@ -18,7 +18,7 @@ export function compactingOf(entries, status) {
   const d = status?.doing;
   if (d?.what !== 'compacting') return null;
   const e = entries.find((x) => x.id === d.entry);
-  return { seen: seqOf(d.entry), since: e?.at ? Date.parse(e.at) : Date.now(), written: d.written ?? 0, expected: d.expected ?? null, done: null, note: null };
+  return { seen: seqOf(d.entry), since: e?.at ? Date.parse(e.at) : Date.now(), written: d.written ?? 0, expected: d.expected ?? null };
 }
 
 /** 最后一条带 `turn` 的条目的回合（开到第几轮）；一条都没有的是 0。 @param {any[]} entries */

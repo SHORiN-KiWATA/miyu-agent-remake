@@ -120,24 +120,22 @@ test('运行状态行的词：每一档每种语言各一组', () => {
   }
 });
 
-test('时间线收起那一行：跟着浏览器（auto）的用英文那一套，手动定了语言的用那种语言的（2026-10-01 项目主人定）', () => {
+test('时间线收起那一行：跟着浏览器（auto）的挑核心给的英文那一份，手动定了语言的挑那种语言的（2026-10-01 项目主人定）', async () => {
   assert.equal(TABLE.auto_summary, 'en');
   assert.equal(pick('auto', ['ja-JP'], TABLE).summary, 'en');
   assert.equal(pick('ja', [], TABLE).summary, 'ja');
   assert.equal(pick('zh', ['ja-JP'], TABLE).summary, 'zh');
+  const { itemsOf } = await import('../src/model/entries.js');
   const zh = json('resources/text/zh.json');
   const ja = json('resources/text/ja.json');
-  const en = json('resources/text/en.json');
-  sameShape(zh.timeline.summary, en.timeline.summary, 'text/en.json 的 timeline.summary');
-  assert.equal(en.timeline.summary.ran[0], 'Ran 1 command');
-  assert.notEqual(zh.timeline.summary.ran[0], en.timeline.summary.ran[0], '中文那一份是中文的写法');
-  // 装字：auto 时收起那一行换成英文那一套，别的字照旧；手动定的不换
   const lang = (code, summary) => ({ ...TABLE.languages.find((l) => l.code === code), fallback: 'zh', summary });
-  settle(zh, ja, lang('ja', 'en'), [], en);
-  assert.equal(res.text.timeline.summary.ran[0], 'Ran 1 command');
-  assert.equal(res.text.timeline.thought, ja.timeline.thought);
-  settle(zh, ja, lang('ja', 'ja'), [], null);
-  assert.equal(res.text.timeline.summary.ran[0], ja.timeline.summary.ran[0]);
+  const group = [{ id: 'g1', kind: 'group', turn: 1, steps: [], summary: [{ text: '执行了 1 条命令' }], summary_en: [{ text: 'Ran 1 command' }] }];
+  const line = () => itemsOf(group, { state: 'idle' }).items[0].summary.spans[0].text;
+  settle(zh, ja, lang('ja', 'en'), []);
+  assert.equal(line(), 'Ran 1 command');
+  assert.equal(res.text.timeline.thought, ja.timeline.thought, '别的字照界面语言');
+  settle(zh, ja, lang('ja', 'ja'), []);
+  assert.equal(line(), '执行了 1 条命令', '手动定的照核心照连接的语言写的那一份');
 });
 
 test('个人设置写了网页的表里没有的语言：界面照浏览器认，收起那一行照界面那一种；写了 en 的就是英文（2026-10-10 起表里有）（蓝图「界面语言」第 5 条）', () => {
