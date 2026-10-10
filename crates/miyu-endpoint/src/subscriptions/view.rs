@@ -7,20 +7,23 @@
 //! - 连接的 `ui.language` 改了，从下一批起照新的字（[`Projector::retext`]）。
 //! - 会话状态（施工 9-8 补上，`view/status.rs`）：一批算完和上一份比，变了推整份 `view.status`。批里有落了盘的事件才向会话
 //!   actor 重要一份「当前的」（用量、权限、工作区），只有增量的不打扰它。
+//! - 会话树（施工 9-8 补下，`view/tree.rs`）：任务表变了，或者有子代理时别的会话动了（会话列表报的；子代理新派的孙会话还
+//!   不在记着的成员里，所以不只看成员），重量一遍再比。
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde_json::json;
-use tokio::sync::mpsc;
+use tokio::sync::{broadcast, mpsc};
 
-use miyu_kernel::id::SessionId;
+use miyu_kernel::id::{JobId, SessionId};
 use miyu_session::{Current, Ended, Handle, Pushed, Subscription};
-use miyu_view::{Change, Projector};
+use miyu_view::{Change, JobState, Projector};
 
 use crate::Core;
 use crate::hello::Shaken;
 use crate::view::status::{Fixed, whole};
+use crate::view::tree::{self, Tree};
 
 /// 一次最多攒几份推送一起喂：再多就先写出去，免得回应等太久。
 const BATCH: usize = 64;
@@ -35,6 +38,11 @@ pub(crate) struct View {
     fixed: Fixed,
     current: Option<Current>,
     status: serde_json::Value,
+    /// 会话树，和量它时的任务表（编号、状态）：任务表变了才重量。
+    tree: Tree,
+    shape: Vec<(JobId, JobState)>,
+    /// 哪个会话动了：树里的动了就重量。
+    touched: broadcast::Receiver<SessionId>,
 }
 
 impl std::fmt::Debug for View {
@@ -46,8 +54,9 @@ impl std::fmt::Debug for View {
 }
 
 impl View {
-    /// 订阅那一刻的：`projector` 喂过回应里那一页，字是 `language` 的；`current` 是和订阅同一步拿的「当前的」。
-    pub(crate) fn new(
+    /// 订阅那一刻的：`projector` 喂过回应里那一页，字是 `language` 的；`current` 是和订阅同一步拿的「当前的」。先拿会话动了的
+    /// 那一头，再量会话树，中间动了的一条不漏。
+    pub(crate) async fn start(
         core: Arc<Core>,
         shaken: Shaken,
         language: &'static str,
@@ -56,6 +65,7 @@ impl View {
         fixed: Fixed,
         current: Option<Current>,
     ) -> View {
+        let touched = core.listing.touched();
         let mut view = View {
             core,
             shaken,
@@ -65,9 +75,23 @@ impl View {
             fixed,
             current,
             status: serde_json::Value::Null,
+            tree: Tree::default(),
+            shape: Vec::new(),
+            touched,
         };
+        view.remeasure().await;
         view.status = view.whole();
         view
+    }
+
+    /// 照这一刻的任务表重量会话树。
+    async fn remeasure(&mut self) {
+        let rows = self.projector.status().jobs;
+        self.shape = rows
+            .iter()
+            .map(|row| (row.job.clone(), row.state))
+            .collect();
+        self.tree = tree::measure(&self.core, &rows).await;
     }
 
     /// 这一刻的整份会话状态：订阅的回应带它。
@@ -76,20 +100,47 @@ impl View {
     }
 
     fn whole(&self) -> serde_json::Value {
-        whole(
+        let mut status = whole(
             &self.core,
             &self.handle,
             self.projector.status(),
             self.current.as_ref(),
             &self.fixed,
-        )
+        );
+        let own = self
+            .current
+            .as_ref()
+            .map(|current| crate::usage::own(&current.tally));
+        tree::merge(&self.core, &mut status, &self.tree, own);
+        status
     }
 
-    /// 一批喂完以后：有落了盘的事件的，重要一份「当前的」；和上一份比，变了交回要推的那一条。
+    /// 一批喂完以后：有落了盘的事件的，重要一份「当前的」；任务表变了的重量会话树；和上一份比，变了交回要推的那一条。
     async fn restatus(&mut self, session: &SessionId, persisted: bool) -> Option<String> {
         if persisted && let Ok(current) = self.handle.current().await {
             self.current = Some(current);
         }
+        let shape: Vec<(JobId, JobState)> = self
+            .projector
+            .status()
+            .jobs
+            .iter()
+            .map(|row| (row.job.clone(), row.state))
+            .collect();
+        if shape != self.shape {
+            self.remeasure().await;
+        }
+        self.refresh(session)
+    }
+
+    /// 树里的会话动了：重量会话树，变了交回要推的那一条。
+    async fn retree(&mut self, session: &SessionId) -> Option<String> {
+        self.remeasure().await;
+        self.refresh(session)
+    }
+
+    /// 和上一份比，变了交回要推的那一条。
+    fn refresh(&mut self, session: &SessionId) -> Option<String> {
         let status = self.whole();
         if status == self.status {
             return None;
@@ -234,6 +285,21 @@ async fn relay(
             }
             next = subscription.next() => {
                 if !drain(session, subscription, view, Some(next), out).await {
+                    return;
+                }
+            }
+            touched = view.touched.recv() => {
+                // 有子代理的才重量：子代理新派的孙会话还不在记着的成员里，它动了也算（子代理那一项的 `spawned` 跟着变）。
+                let moved = match touched {
+                    Ok(touched) => !view.tree.branches.is_empty() && touched != *session,
+                    // 漏了几条：不知道是谁，照动了算。
+                    Err(broadcast::error::RecvError::Lagged(_)) => !view.tree.branches.is_empty(),
+                    Err(broadcast::error::RecvError::Closed) => false,
+                };
+                if moved
+                    && let Some(line) = view.retree(session).await
+                    && out.send(line).await.is_err()
+                {
                     return;
                 }
             }

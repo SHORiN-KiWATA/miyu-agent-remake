@@ -181,7 +181,7 @@ async fn view(
         persona: reply.get("persona").cloned(),
         preset: reply.get("preset").cloned(),
     };
-    let view = View::new(
+    let view = View::start(
         Arc::clone(core),
         shaken,
         language,
@@ -189,7 +189,8 @@ async fn view(
         handle.clone(),
         fixed,
         current,
-    );
+    )
+    .await;
     reply["status"] = view.status().clone();
     subscriptions.add_view(session.clone(), subscription, view, out.clone());
     Ok((reply, Some(session)))
