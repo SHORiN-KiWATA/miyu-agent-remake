@@ -14,5 +14,6 @@
   "receipt_recall_seconds": 3,
   "queue_expire_seconds": 60,
   "reaction_emoji": "289",
-  "reaction_seconds": 600
+  "reaction_seconds": 600,
+  "binding_seconds": 60
 }

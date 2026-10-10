@@ -14,6 +14,7 @@ fn posted(name: Option<&str>, segments: Segments) -> Posted {
         message_id: 9,
         time: 0,
         name: name.map(str::to_string),
+        rank: None,
         text: String::new(),
         segments,
     }

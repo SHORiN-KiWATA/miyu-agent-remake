@@ -1,0 +1,4 @@
+{
+  "description": "Mute the sender of the message quoted by the message you are answering, or the one person it @-mentions.",
+  "parameters": {"type":"object","properties":{"seconds":{"type":"integer","description":"0 unmutes; at most 2592000."}},"required":["seconds"]}
+}

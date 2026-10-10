@@ -2040,6 +2040,149 @@ Skipped: nothing you write in this turn will be sent.
 There is no tool named "{name}".
 ```
 
+#### `software/onebot/tool-results/recalled.txt`
+
+- 什么时候加进来：`recall` 成了（施工 O-31）
+- token：3（2026-10-10 量）
+- 为什么加：告诉她撤了
+- 指纹：`5a6ee52c`
+
+```text
+Recalled.
+```
+
+#### `software/onebot/tool-results/muted.txt`
+
+- 什么时候加进来：`mute` 成了，秒数大于 0；`who` 是名字（没有的写号），`duration` 是 `10m` 这样的时长
+- token：9（`小明`、`10m`）
+- 为什么加：18 第十一节：返回写明换算成多久，单位错了她看得出
+- 指纹：`1bee606a`
+
+```text
+Muted {who} for {duration}.
+```
+
+#### `software/onebot/tool-results/unmuted.txt`
+
+- 什么时候加进来：`mute` 成了，秒数是 0（解禁）
+- token：6（`小明`）
+- 为什么加：解禁和禁言分开说，她转告不会说反
+- 指纹：`d0036420`
+
+```text
+Unmuted {who}.
+```
+
+#### `software/onebot/tool-results/poked.txt`
+
+- 什么时候加进来：`poke` 成了
+- token：5（`小明`）
+- 为什么加：告诉她戳了谁：没 @ 的戳的是叫她的人
+- 指纹：`334c70a2`
+
+```text
+Poked {who}.
+```
+
+#### `software/onebot/tool-results/not-allowed.txt`
+
+- 什么时候加进来：不是终端管理员、管理的人叫她撤别人的、禁言（`onebot.md`「平台工具（一）」第 4 条）
+- token：16
+- 为什么加：18 第十一节：群管只给终端管理员和管理的人；她照人话转告，不另发群消息（施工单「要定的」第 3 条）
+- 指纹：`abecef57`
+
+```text
+Not done: only the terminal admin or a group manager can ask for this.
+```
+
+#### `software/onebot/tool-results/no-quote.txt`
+
+- 什么时候加进来：撤回：叫她做的那条没引用
+- token：16
+- 为什么加：撤回的目标以回复的那条为准；告诉她要对方回复那条再叫
+- 指纹：`d33517b4`
+
+```text
+Not done: they must reply to the message to recall, then ask again.
+```
+
+#### `software/onebot/tool-results/no-target.txt`
+
+- 什么时候加进来：禁言：引用、@ 都认不出人；戳一戳：没 @、也不知道谁叫的
+- token：19
+- 为什么加：目标不从模型来，认不出就不做；告诉她要对方回复或 @ 那个人再叫
+- 指纹：`49ed6fc4`
+
+```text
+Not done: they must reply to that person's message or @ them, then ask again.
+```
+
+#### `software/onebot/tool-results/many-targets.txt`
+
+- 什么时候加进来：禁言、戳一戳：引用的和 @ 的合起来不止一个人
+- token：17
+- 为什么加：一次只动一个人，不猜是哪一个
+- 指纹：`1feae897`
+
+```text
+Not done: that is more than one person; reply to or @ just one.
+```
+
+#### `software/onebot/tool-results/protected.txt`
+
+- 什么时候加进来：禁言：目标是群主、群管理员、终端管理员、白名单成员
+- token：21（`小明`）
+- 为什么加：18 第十一节：默认不动群主和群管理员；终端管理员、白名单成员同样不动
+- 指纹：`b371e98c`
+
+```text
+Not done: {who} is the group owner, an admin, the terminal admin or whitelisted.
+```
+
+#### `software/onebot/tool-results/bad-seconds.txt`
+
+- 什么时候加进来：禁言：秒数没写、不是整数、不在 0 到 2592000
+- token：14
+- 为什么加：QQ 的上限是 30 天；参数说明里写了，写错的再说一遍范围
+- 指纹：`82238467`
+
+```text
+Not done: seconds must be 0 to 2592000.
+```
+
+#### `software/onebot/tool-results/failed.txt`
+
+- 什么时候加进来：NapCat 回了失败（问身份、动作都算），`detail` 是它的原话（截到 200 个字符）
+- token：9（`Recall failed`）
+- 为什么加：施工单：NapCat 回失败照原话交回；她在群里不是管理员时撤别人的就走这里
+- 指纹：`a24f6a13`
+
+```text
+Not done: QQ said: {detail}
+```
+
+#### `software/onebot/tool-results/unreachable.txt`
+
+- 什么时候加进来：那个机器人号没连着、连接断了，或者桥不认识这个会话
+- token：11
+- 为什么加：没做成，说清是够不着 QQ，不是被拒
+- 指纹：`8c9726ee`
+
+```text
+Not done: QQ is not reachable right now.
+```
+
+#### `software/onebot/tool-results/unanswered.txt`
+
+- 什么时候加进来：等了 `call_timeout_seconds` NapCat 没回
+- token：15
+- 为什么加：可能做了、可能没做：照实说，她不会以为一定没成又叫一遍
+- 指纹：`9261e1f6`
+
+```text
+QQ did not answer in time; it may or may not have happened.
+```
+
 #### `software/basesystem/common/not-read.txt`
 
 - 什么时候加进来：`write`、`edit` 要改的文件已经在了、她这个会话里没看过
@@ -3022,6 +3165,48 @@ Start a subagent in a new session to do one task and wait for it; its report arr
 {
   "description": "Stay silent this turn: nothing you write in this turn is sent. Use it when the message is not for you or a reply adds nothing.",
   "parameters": {"type":"object","properties":{"reason":{"type":"string"}},"required":["reason"]}
+}
+```
+
+#### `software/onebot/tools/recall.json`
+
+- 什么时候加进来：场所会话（私聊、群）的工具面里有 `recall`：预设开着功能 `qq`（QQ 工具）的，每次请求都带；本机的会话没有（`onebot.md`「平台工具（一）」，施工 O-31）
+- token：36（2026-10-10 照开发端点量，十九件一起时的边际份量）
+- 为什么加：18 第十一节的撤回：目标从叫她做的那条的引用取，不给参数（不信模型给的编号）；一句说清撤哪一条
+- 指纹：`9549a49d`
+
+```json
+{
+  "description": "Recall the message quoted by the message you are answering.",
+  "parameters": {"type":"object","properties":{}}
+}
+```
+
+#### `software/onebot/tools/mute.json`
+
+- 什么时候加进来：群会话的工具面里有 `mute`（只给群；同上）
+- token：80（同上）
+- 为什么加：18 第十一节的群管：禁言，单位是秒；一句说清对谁；参数 `seconds` 名字看得出单位，说明只写「0 是解禁、最多 2592000」（旧版的教训：`duration` 被模型当成分钟；`onebot.md` 施工时定的第 186 条）
+- 指纹：`1591c1d3`
+
+```json
+{
+  "description": "Mute the sender of the message quoted by the message you are answering, or the one person it @-mentions.",
+  "parameters": {"type":"object","properties":{"seconds":{"type":"integer","description":"0 unmutes; at most 2592000."}},"required":["seconds"]}
+}
+```
+
+#### `software/onebot/tools/poke.json`
+
+- 什么时候加进来：场所会话（私聊、群）的工具面里有 `poke`（同 `recall`）
+- token：46（同上）
+- 为什么加：18 第十一节的互动：戳一戳；一句说清戳谁、没 @ 的戳叫她的人
+- 指纹：`563796d9`
+
+```json
+{
+  "description": "Poke the one person @-mentioned in the message you are answering, or its sender if nobody is.",
+  "parameters": {"type":"object","properties":{}}
 }
 ```
 

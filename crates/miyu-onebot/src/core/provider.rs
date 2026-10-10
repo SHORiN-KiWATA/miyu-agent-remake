@@ -6,6 +6,8 @@
 //! - 答请求（[`heard`]）：读的一头读到一行就问它（`core.rs` 的 `read_lines`），不交给跟核心的那一头：那一头手上可能正等着别的
 //!   回应，核心那边的回合在等这一次调用（第 140 条）。回应另起一个小任务写，读的一头接着读。后台页调的方法（`method.call`，
 //!   施工 O-28 上）也从这里交给 `super::methods` 答。
+//! - 撤回、禁言、戳一戳（施工 O-31，「平台工具（一）」第 2 条）不在这里答：要投影、群成员的缓存、机器人号的连接，原样交给跟核心
+//!   的那一头（`route/acting.rs`），答完了照 [`Answerer`] 写回去。
 
 use serde_json::{Value, json};
 
@@ -27,7 +29,7 @@ pub(super) enum Heard {
 }
 
 /// 核心说的一行 `message` 分成哪一种；请求照 `tools` 答好（「提供者和不说话」第 2 条），`method.call` 照 `methods` 答（施工
-/// O-28 上，「后台页」第 2 条）。
+/// O-28 上，「后台页」第 2 条）。平台工具（一）的 `tool.call` 原样交回（施工 O-31）。
 pub(super) fn heard(tools: &Tools, methods: &Methods, message: Value) -> Heard {
     let Some(method) = message["method"].as_str() else {
         return Heard::Other(message);
@@ -51,6 +53,9 @@ pub(super) fn heard(tools: &Tools, methods: &Methods, message: Value) -> Heard {
     }
     let params = &message["params"];
     let tool = params["tool"].as_str().unwrap_or_default();
+    if tools.routed(tool) {
+        return Heard::Other(message);
+    }
     let result = tools.call(tool);
     if result["error"] == true {
         tracing::warn!(target: TARGET, tool, "unknown tool called");
@@ -58,6 +63,25 @@ pub(super) fn heard(tools: &Tools, methods: &Methods, message: Value) -> Heard {
         tracing::debug!(target: TARGET, tool, session = %params["session"], "tool called");
     }
     Heard::Asked(json!({"jsonrpc": "2.0", "id": id, "result": result}))
+}
+
+/// 往核心写 `tool.call` 回应的一头（施工 O-31）：交给跟核心的那一头答的平台工具，任务办完了照它写，写法同 [`heard`] 答的。
+#[derive(Clone)]
+pub(crate) struct Answerer(Writer);
+
+impl Answerer {
+    /// 照写的一头 `writer`。
+    pub(super) fn new(writer: &Writer) -> Answerer {
+        Answerer(std::sync::Arc::clone(writer))
+    }
+
+    /// 答编号是 `id` 的那一次调用：结果是 `result`（`{blocks, error}`）。另起小任务写，同 [`reply`]。
+    pub(crate) fn answer(&self, id: &Value, result: Value) {
+        reply(
+            &self.0,
+            json!({"jsonrpc": "2.0", "id": id, "result": result}),
+        );
+    }
 }
 
 /// 写一条回应 `reply`：另起一个小任务，读的一头不等它。写不出去的是核心关了管道：读的一头接着读到头，桥照「怎么走」第 11 条停下。

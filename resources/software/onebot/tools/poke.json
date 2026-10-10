@@ -1,0 +1,4 @@
+{
+  "description": "Poke the one person @-mentioned in the message you are answering, or its sender if nobody is.",
+  "parameters": {"type":"object","properties":{}}
+}

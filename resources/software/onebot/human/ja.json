@@ -1,6 +1,9 @@
 {
   "tools": {
-    "skip_reply": { "name": "Skip reply", "subject": "reason" }
+    "skip_reply": { "name": "Skip reply", "subject": "reason" },
+    "recall": { "name": "Recall" },
+    "mute": { "name": "Mute", "subject": "seconds" },
+    "poke": { "name": "Poke" }
   },
   "said": {
     "usage": "usage: miyu onebot start | stop | restart | status | web | logs [-f] | venue show <venue> (serve is started by the core only)",

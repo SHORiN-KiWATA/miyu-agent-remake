@@ -5,7 +5,7 @@
 
 use serde_json::{Value, json};
 
-use miyu_onebot::onebot::{Event, Frame, Piece, Posted, Recall, read};
+use miyu_onebot::onebot::{Event, Frame, Piece, Posted, Rank, Recall, read};
 
 /// 一条群消息事件：群 555 里 `user` 发的第 9 条，`sender` 照给的写。
 fn group(user: Value, sender: Value) -> Value {
@@ -44,6 +44,7 @@ fn a_group_message_carries_its_group_sender_name_and_segments() {
         message_id,
         time,
         name,
+        rank,
         text,
         segments,
     } = posted;
@@ -52,6 +53,7 @@ fn a_group_message_carries_its_group_sender_name_and_segments() {
         (30003, 20002, 9, 1_759_800_000)
     );
     assert_eq!(name.as_deref(), Some("小林"));
+    assert_eq!(rank, None, "没带 role 的不知道（施工 O-31）");
     assert_eq!(text, "在", "只有字");
     assert_eq!(
         segments.pieces,
@@ -67,6 +69,19 @@ fn a_group_message_carries_its_group_sender_name_and_segments() {
             panic!("该认成群消息");
         };
         assert_eq!(posted.name.as_deref(), wanted, "{sender}");
+    }
+    // 发的人在群里的身份（施工 O-31，「平台工具（一）」第 7 条）。
+    for (role, wanted) in [
+        ("owner", Some(Rank::Owner)),
+        ("admin", Some(Rank::Admin)),
+        ("member", Some(Rank::Member)),
+        ("king", None),
+    ] {
+        let sender = json!({"card": "小林", "role": role});
+        let Event::Group { posted, .. } = event(group(json!(20002), sender)) else {
+            panic!("该认成群消息");
+        };
+        assert_eq!(posted.rank, wanted, "{role}");
     }
 }
 

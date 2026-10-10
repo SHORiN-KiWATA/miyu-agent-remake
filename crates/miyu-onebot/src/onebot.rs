@@ -3,7 +3,8 @@
 //! 私聊里的文字怎么读出来（`text`），
 //! 消息段怎么认（`segments`，施工 O-22），群成员叫什么（`members`，施工 O-22），发出去的动作和回应怎么照 `echo` 配对
 //! （`calls`），`send_private_msg`、`send_group_msg`（施工 O-25 上：第一段能带引用和 @）、`delete_msg`（施工 O-25 上）、
-//! `set_msg_emoji_like`（施工 O-25 下）、`set_friend_add_request`（施工 O-27）写成什么样。
+//! `set_msg_emoji_like`（施工 O-25 下）、`set_friend_add_request`（施工 O-27）、`set_group_ban`、`group_poke`、`friend_poke`
+//! （施工 O-31）写成什么样。
 //!
 //! 号（机器人的号、对方的号、消息编号）和时刻照 OneBot 是整数；有的实现写成字符串，也认。
 //!
@@ -21,7 +22,7 @@ use miyu_kernel::id::{ExternalId, VenueId};
 use serde_json::{Value, json};
 
 pub use calls::{CallError, Calls, Pending};
-pub use members::{MEMBER_INFO, Members, display_name, member_info};
+pub use members::{MEMBER_INFO, Members, Rank, display_name, member_info, rank_of};
 pub use segments::{Media, MediaKind, Piece, Segments, segments};
 pub use text::text_of;
 
@@ -79,6 +80,8 @@ pub struct Posted {
     pub time: i64,
     /// 发的人此刻叫什么：`sender` 的群名片，空白的取昵称（[`display_name`]，施工 O-22）；都没有的是空的。照原样，没洗。
     pub name: Option<String>,
+    /// 发的人在群里的身份：`sender.role`（[`rank_of`]，施工 O-31）；私聊的、没带的、认不出的是空的。
+    pub rank: Option<Rank>,
     /// 读出来的字（第 6 条）：只有 `text` 段，照原样，没去掉首尾空白。私聊照它送。
     pub text: String,
     /// 认出来的段（施工 O-22，[`segments()`]）：群的正文照它写；私聊取引用和带的东西。
@@ -206,6 +209,7 @@ fn posted(frame: &Value) -> Option<Event> {
         message_id,
         time: number(&frame["time"]).unwrap_or(0),
         name: display_name(&frame["sender"]),
+        rank: rank_of(&frame["sender"]),
         text: text_of(&frame["message"]),
         segments: segments(&frame["message"]),
     };
@@ -347,9 +351,29 @@ pub fn message_to(to: To, text: &str, lead: &Lead) -> (&'static str, Value) {
     }
 }
 
-/// 撤回平台编号是 `message_id` 的那一条的动作和参数：`delete_msg {message_id}`（施工 O-25 上，「斜杠命令」第 7 条）。
-pub fn delete_msg(message_id: i64) -> (&'static str, Value) {
-    ("delete_msg", json!({"message_id": message_id}))
+/// 撤回平台编号是 `message_id` 的那一条的动作和参数：`delete_msg {message_id}`（施工 O-25 上，「斜杠命令」第 7 条）。编号是
+/// NapCat 回的整数（回执），或者引用里原样的字（平台工具，施工 O-31：原样还回去，同 [`emoji_like`]）；NapCat 两样都收
+/// （`DeleteMsg.ts`）。
+pub fn delete_msg(message_id: impl Into<Value>) -> (&'static str, Value) {
+    ("delete_msg", json!({"message_id": message_id.into()}))
+}
+
+/// 在群 `group` 里禁言号是 `user` 的人 `seconds` 秒的动作和参数（0 是解禁）：`set_group_ban {group_id, user_id, duration}`（施工
+/// O-31，「平台工具（一）」第 1 条）。
+pub fn group_ban(group: i64, user: i64, seconds: u64) -> (&'static str, Value) {
+    (
+        "set_group_ban",
+        json!({"group_id": group, "user_id": user, "duration": seconds}),
+    )
+}
+
+/// 戳一戳号是 `user` 的人的动作和参数（施工 O-31）：在 `to` 那个群里 `group_poke {group_id, user_id}`，私聊里
+/// `friend_poke {user_id}`（NapCat 的 `SendPoke.ts`：群号没写的是私聊）。
+pub fn poke(to: To, user: i64) -> (&'static str, Value) {
+    match to {
+        To::Group(group) => ("group_poke", json!({"group_id": group, "user_id": user})),
+        To::Private(_) => ("friend_poke", json!({"user_id": user})),
+    }
 }
 
 /// 在平台编号是 `message` 的那一条上贴（`set` 是真）、摘（假）表情 `emoji` 的动作和参数：`set_msg_emoji_like {message_id,
