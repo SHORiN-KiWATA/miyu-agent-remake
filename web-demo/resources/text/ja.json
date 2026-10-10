@@ -215,7 +215,8 @@
     "language_unknown": "その言語はありません：{choices} を指定できます",
     "recap_working": "振り返っています…",
     "stop_idle": "実行中ではありません",
-    "needs_session": "会話を始めてから使えます"
+    "needs_session": "会話を始めてから使えます",
+    "running": "{name}中…"
   },
   "language": {
     "title": "表示言語",

@@ -615,13 +615,19 @@ export class Composer {
   }
 
   /** 提示：浮在输入框上面的小框，停一会儿；新的顶掉旧的。`good` 的底带一点绿（`tui.md`「提示」）。句末的句号去掉（核心的回执带着）。 */
-  say(text, good = false) {
+  say(text, good = false, hold = false) {
     this.notice.textContent = noStop(text);
     this.notice.classList.toggle('good', good);
-    // 出来从下面升上来，停一会儿淡出（蓝图「动效」）；新的顶掉旧的
+    // 出来从下面升上来，停一会儿淡出（蓝图「动效」）；新的顶掉旧的；`hold` 的一直留着，等下一句顶掉或者 `quiet`
     show(this.notice);
     clearTimeout(this.noticeTimer);
-    this.noticeTimer = setTimeout(() => hide(this.notice), res.layout.notice_ms);
+    if (!hold) this.noticeTimer = setTimeout(() => hide(this.notice), res.layout.notice_ms);
+  }
+
+  /** 收掉提示（`hold` 的那种等的事办完了、又没有话要说时）。 */
+  quiet() {
+    clearTimeout(this.noticeTimer);
+    hide(this.notice);
   }
 
   /**

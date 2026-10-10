@@ -27,6 +27,7 @@
   "composer_max_rows": 8,
   "esc_window_ms": 1500,
   "notice_ms": 2000,
+  "command_wait_ms": 400,
   "jump_after": 240,
   "older_px": 240,
   "compaction": { "cells": 24, "cap": 0.95, "pause_ms": [300, 1500], "finish_ms": 400, "hold_ms": 200, "breathe_after_ms": 3000, "dot_ms": 1000 },
