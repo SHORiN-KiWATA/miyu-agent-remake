@@ -25,7 +25,7 @@ const BRIDGE: &str = r#"[package]
 kind = "process"
 protocol = [1, 1]
 name = { en = "Connect QQ", zh = "接入QQ" }
-summary = { en = "Talk with her on QQ" }
+summary = { en = "Talk with the AI on QQ" }
 
 [command]
 name = "onebot"

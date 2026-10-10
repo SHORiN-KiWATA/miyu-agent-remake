@@ -209,7 +209,7 @@ fn a_feature_switched_off_takes_its_tools_away() {
     );
 }
 
-/// 换快照时也照装没装（施工 F-3 上）：人格多了提醒短语，可人设防失忆提醒没装，换上的快照里没有提醒。
+/// 换快照时也照装没装（施工 F-3 上）：人格多了提醒短语，可人设遵循提醒没装，换上的快照里没有提醒。
 #[test]
 fn a_swap_leaves_reminders_out_when_they_are_not_installed() {
     let (_scratch, root, mut refresh) = setup("preset-noreminder", "");
@@ -224,7 +224,7 @@ fn a_swap_leaves_reminders_out_when_they_are_not_installed() {
     let Seen::Swapped(snapshot, _, _, _) = look_now(&refresh) else {
         panic!("人格改了要换");
     };
-    assert_eq!(snapshot.reminder, None, "没装人设防失忆提醒");
+    assert_eq!(snapshot.reminder, None, "没装人设遵循提醒");
 }
 
 /// 换成关了后台运行的预设（施工 T-1 上）：快照记下 `foreground`，以前就有的 `shell` 照旧快照里的原样；改回来又不记。

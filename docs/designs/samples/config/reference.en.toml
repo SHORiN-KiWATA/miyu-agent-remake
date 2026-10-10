@@ -17,15 +17,15 @@ prepare = true
 level = "info"
 
 [memory]
-# Wait before organizing memories: Once the conversation has been quiet this long, she turns what is worth keeping from the new part into memories.
+# Wait before organizing memories: Once the conversation has been quiet this long, the AI turns what is worth keeping from the new part into memories.
 # Allowed: a length of time from 1m to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect next turn.
 extract_idle = "3m"
 
-# Turns before organizing: She organizes only after at least this many turns since the last time.
+# Turns before organizing: The AI organizes only after at least this many turns since the last time.
 # Allowed: a whole number from 1 to 100. Only in the system config or personal settings. Takes effect next turn.
 extract_turns = 2
 
-# How often to consolidate memories: After this long she goes over new and older memories together: drops repeats and outdated ones, and writes a summary of what she knows about you.
+# How often to consolidate memories: After this long the AI goes over new and older memories together: drops repeats and outdated ones, and writes a summary of what it knows about you.
 # Allowed: a length of time from 1h to 720h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect next turn.
 merge_every = "24h"
 
@@ -104,7 +104,7 @@ listen = 8301
 # whitelist =
 
 [permission]
-# Start new sessions read-only: When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on.
+# Start new sessions read-only: When on, new sessions begin read-only. The AI can look around and plan, and you turn read-only off when files should change. A project config can only turn it on.
 # Allowed: true or false. Only in the system config, personal settings or a project config. Applies to new sessions.
 start_read_only = false
 
@@ -114,7 +114,7 @@ start_read_only = false
 # default =
 
 [pools."<id>"]
-# Description for the model: One line she sees after the pool name when she starts a subagent. Write it in English.
+# Description for the model: One line the AI sees after the pool name when it starts a subagent. Write it in English.
 # Allowed: one line of English, at most 60 characters. Only in the system config or personal settings. Applies to new sessions.
 # description =
 
@@ -126,7 +126,7 @@ start_read_only = false
 # Allowed: pin or rotate. Only in the system config or personal settings. Takes effect next turn.
 # strategy =
 
-# Subagents can pick it: When on, she can pick this pool for a subagent in new sessions. It is listed only once it has members.
+# Subagents can pick it: When on, the AI can pick this pool for a subagent in new sessions. It is listed only once it has members.
 # Allowed: true or false. Only in the system config or personal settings. Applies to new sessions.
 subagent = false
 

@@ -74,7 +74,7 @@
 10. **Ctrl+C**：有回合在进行（还没认出第一轮的也算）：第一次发 `session.interrupt`，带 `queued: "return"`，等这一轮收尾；第二次不等了，说「打断了」，退出码 3。等子代理的时候按：不等了（「等子代理」第 7 条）。写了 `--from` 的（施工 7-10，2026-09-30 主会话定）：不打断，按一次就不等了，照第 13 条。
 11. **核心断开**：说「核心断开了」，退出码 1。
 12. **`--timeout` 到了**：有回合在进行的（还没认出第一轮的也算）发 `session.interrupt`，带 `queued: "return"`，不等它收尾；照「等子代理」第 8 条印完，退出码 3。写了 `--from` 的不打断，照第 13 条。
-13. **别的 harness 不等了**（`--from`，施工 7-10，2026-09-30 主会话定）：按 Ctrl+C、到了 `--timeout`，都只是不等了，不发 `session.interrupt`：那一轮是她的，会话是人的，别的 harness 不该打断人的会话。有回合在进行的（还没认出第一轮的也算），照收尾印用量、最后那一句，再印一行灰字 `· 不等了，她那一轮还在接着跑`、`· 等到时间了，她那一轮还在接着跑`，退出码 3。在等子代理的时候，照「等子代理」第 7、8 条。平常的 `miyu ask` 照旧打断。
+13. **别的 harness 不等了**（`--from`，施工 7-10，2026-09-30 主会话定）：按 Ctrl+C、到了 `--timeout`，都只是不等了，不发 `session.interrupt`：那一轮是她的，会话是人的，别的 harness 不该打断人的会话。有回合在进行的（还没认出第一轮的也算），照收尾印用量、最后那一句，再印一行灰字 `· 不等了，AI 那一轮还在接着跑`、`· 等到时间了，AI 那一轮还在接着跑`，退出码 3。在等子代理的时候，照「等子代理」第 7、8 条。平常的 `miyu ask` 照旧打断。
 
 ### 样子：`--format text`
 
@@ -232,7 +232,7 @@ todo.md
    2. 一轮结束了还有没报的，也没有要来的一轮：标准错误上印一行灰字 `· 等 <N> 个子代理回报…（按 Ctrl+C 不等了）`，`N` 是还欠着回报的几个。标准错误是终端的，原地刷新：不换行，回到行首、擦掉这一行重画（`\r` 加 `ESC[2K`），数目变了重画；别的东西要印之前先擦掉，屏幕照画它之前的样子接着印。不是终端的，一次 `miyu ask` 只印一次，照一行旁白。要来的一轮马上开的，不印。
    3. 等的子代理报回来了：印一行灰字 `· <编号>「<标题>」报回来了`；没有标题的（这一次以前派、这一次留了言的，第 2 条）写 `· <编号> 报回来了`（施工 7-9 补）。照一行旁白。闲着时到的，这一行就在它叫醒的那一轮前面；一轮里到的，印在那一步前后。编号、标题照每一步参数的值写成一行（只取第一行，控制字符换掉，最多 80 个字）。
    4. 收尾：用量那一行是跟过的每一轮每次请求加起来的；最后那一句的几步也是几轮加起来的；说为什么结束的那一句、退出码照最后结束的那一轮（上面「说为什么结束的那一句」）。
-7. **等子代理的时候按 Ctrl+C**（第一轮结束了、没有跟着的回合在进行）：不等了。终端里擦掉等的那一行，照收尾印用量、最后那一句，再印一行灰字 `· 不等了，子代理还在后台跑，下次 miyu ask -c 时她会看到结果`，退出码 3。回合在进行时按照旧（「怎么走」第 10 条）。
+7. **等子代理的时候按 Ctrl+C**（第一轮结束了、没有跟着的回合在进行）：不等了。终端里擦掉等的那一行，照收尾印用量、最后那一句，再印一行灰字 `· 不等了，子代理还在后台跑，下次 miyu ask -c 时 AI 会看到结果`，退出码 3。回合在进行时按照旧（「怎么走」第 10 条）。
 8. **`--timeout` 到了**：有回合在进行的叫它打断，不等它收尾；照第 7 条收好屏幕、印用量和最后那一句，再印一行灰字：还有子代理没报的 `· 等到时间了，没回报的子代理还在后台跑`，没有的 `· 等到时间了`；退出码 3。
 9. **`--format json`**：等的那一行、报回来了那一行不印；`turns` 照先后放这期间结束了的每一轮（下面「样子：`--format json`」）。不等了、到时间了的，照样印那一行 JSON，列出已经结束了的几轮，再在标准错误上说为什么不等了（不上色）。
 10. **头走了以后**：`miyu ask` 退出，连接断了，核心那边就没人看着这个一次性会话了，后来的回报只记下、不叫醒她，下次 `miyu ask -c` 时她一起看到（`agents.md` 第三条第 3 条；有没有头看着由会话 actor 照订阅数，`session/actor.md` 第 3 条）。
@@ -340,11 +340,11 @@ C 也查完了。
 | 等子代理，几个 | `· 等 2 个子代理回报…（按 Ctrl+C 不等了）` | `· Waiting for 2 subagents to report… (Ctrl+C stops waiting)` |
 | 报回来了 | `· j1「查 A」报回来了` | `· j1 “查 A” reported back` |
 | 报回来了，没有标题（施工 7-9 补） | `· j5 报回来了` | `· j5 reported back` |
-| 等的时候按了 Ctrl+C | `· 不等了，子代理还在后台跑，下次 miyu ask -c 时她会看到结果` | `· Stopped waiting; the subagents keep running, and she will see their results at the next miyu ask -c` |
+| 等的时候按了 Ctrl+C | `· 不等了，子代理还在后台跑，下次 miyu ask -c 时 AI 会看到结果` | `· Stopped waiting; the subagents keep running, and the AI will see their results at the next miyu ask -c` |
 | 到了 `--timeout`，还有子代理没报 | `· 等到时间了，没回报的子代理还在后台跑` | `· Time is up; the subagents that have not reported keep running` |
 | 到了 `--timeout`，没有 | `· 等到时间了` | `· Time is up` |
-| `--from` 按了 Ctrl+C，她那一轮还在进行（施工 7-10） | `· 不等了，她那一轮还在接着跑` | `· Stopped waiting; her turn keeps going` |
-| `--from` 到了 `--timeout`，她那一轮还在进行 | `· 等到时间了，她那一轮还在接着跑` | `· Time is up; her turn keeps going` |
+| `--from` 按了 Ctrl+C，她那一轮还在进行（施工 7-10） | `· 不等了，AI 那一轮还在接着跑` | `· Stopped waiting; the AI's turn keeps going` |
+| `--from` 到了 `--timeout`，她那一轮还在进行 | `· 等到时间了，AI 那一轮还在接着跑` | `· Time is up; the AI's turn keeps going` |
 | 没走完 | 这一轮没走完：<原因> | The turn did not finish: <reason> |
 | 出错 | 出错了：<分类>：<原话> | Error: <kind>: <message> |
 
@@ -373,14 +373,14 @@ C 也查完了。
 ```text
 用法：miyu ask [选项] <要说的话>
 
-说一句话，打印她的回答。不写 -c、-s 的，每次新开一个会话。
-她派了子代理的，等它们都报回来、她说完再退出。
+说一句话，打印 AI 的回答。不写 -c、-s 的，每次新开一个会话。
+AI 派了子代理的，等它们都报回来、AI 说完再退出。
 
 选项：
   -c, --continue          接着上一次 miyu ask 开的会话说
   -s, --session <编号>    接着这个会话说
       --format text|json  text 给人看（默认），json 给脚本
-      --add-dir <目录>    多放行一个目录，她能读能写，可以写好几次
+      --add-dir <目录>    多放行一个目录，AI 能读能写，可以写好几次
       --file <文件>       附上一个文件，图片、PDF、文本都行，可以写好几次
       --timeout <时长>    最多等多久，到了就不等了：30s、10m、1h
       --from <名字>       别的 harness 用：写上它的名字，例如 claude-code
@@ -394,14 +394,14 @@ C 也查完了。
 ```text
 Usage: miyu ask [options] <words>
 
-Say something and print her answer, in a new session unless -c or -s.
-If she starts subagents, it waits for their reports and her answers.
+Say something and print the AI's answer, in a new session unless -c or -s.
+If the AI starts subagents, it waits for their reports and the final answer.
 
 Options:
   -c, --continue          Go on in the session the last miyu ask opened
   -s, --session <id>      Go on in this session
       --format text|json  text for people (default), json for scripts
-      --add-dir <dir>     Let her read and write this directory too; repeatable
+      --add-dir <dir>     The AI may read and write it too; repeatable
       --file <file>       Attach a file: image, PDF, text…; repeatable
       --timeout <time>    Stop waiting after this long: 30s, 10m, 1h
       --from <name>       For another harness: its name, e.g. claude-code

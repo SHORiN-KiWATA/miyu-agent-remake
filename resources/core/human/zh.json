@@ -7,7 +7,7 @@
       },
       "memory.extract_idle": {
         "name": "整理记忆前等多久",
-        "description": "聊完闲了这么久，她把新聊的内容里值得记的整理成记忆。"
+        "description": "聊完闲了这么久，AI 把新聊的内容里值得记的整理成记忆。"
       },
       "memory.extract_turns": {
         "name": "攒几轮再整理",
@@ -19,7 +19,7 @@
       },
       "memory.merge_every": {
         "name": "多久归纳一次记忆",
-        "description": "隔这么久，她把新记的和以前的放在一起理一遍：重复的合掉，过时的作废，写一段对你的了解。"
+        "description": "隔这么久，AI 把新记的和以前的放在一起理一遍：重复的合掉，过时的作废，写一段对你的了解。"
       },
       "memory.merge_sessions": {
         "name": "攒几次聊天再归纳",
@@ -77,7 +77,7 @@
       },
       "permission.start_read_only": {
         "name": "新会话开局只读",
-        "description": "打开以后，新会话一开始就是只读。她只能查、写计划，要改文件时你再关掉只读。项目配置里只能把它打开。"
+        "description": "打开以后，新会话一开始就是只读。AI 只能查、写计划，要改文件时你再关掉只读。项目配置里只能把它打开。"
       },
       "models.chat": {
         "name": "主对话的模型",
@@ -109,11 +109,11 @@
       },
       "pools.<id>.subagent": {
         "name": "子代理能选",
-        "description": "打开以后，新会话里她派子代理时能选这个池。池里有成员才列出来。"
+        "description": "打开以后，新会话里 AI 派子代理时能选这个池。池里有成员才列出来。"
       },
       "pools.<id>.description": {
         "name": "给模型看的说明",
-        "description": "她派子代理时看到的一句，接在池名后面。用英文写，一行。"
+        "description": "AI 派子代理时看到的一句，接在池名后面。用英文写，一行。"
       },
       "providers.<id>.driver": {
         "name": "驱动",
@@ -324,11 +324,11 @@
     "software/memory": "人格记忆",
     "software/roleplay": "角色扮演",
     "extensions/capabilities/tools": "提供工具",
-    "extensions/capabilities/tools/summary": "给她加能调用的工具",
+    "extensions/capabilities/tools/summary": "给 AI 加能调用的工具",
     "extensions/capabilities/commands": "提供命令",
     "extensions/capabilities/commands/summary": "加斜杠命令",
     "extensions/capabilities/context.inject": "往上下文里加内容",
-    "extensions/capabilities/context.inject/summary": "每一轮开始时往她看到的内容里加东西",
+    "extensions/capabilities/context.inject/summary": "每一轮开始时往 AI 看到的内容里加东西",
     "extensions/capabilities/tool.guard": "拦截工具调用",
     "extensions/capabilities/tool.guard/summary": "工具执行前放行、拒绝，或者先问你",
     "extensions/capabilities/tool.rewrite": "修改工具结果",

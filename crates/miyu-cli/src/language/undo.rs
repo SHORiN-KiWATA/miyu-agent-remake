@@ -109,9 +109,9 @@ impl Language {
     /// 差异的头一行：对照的是什么。撤销时是她改完的，恢复时是撤销以后的。
     pub(crate) fn diff_then(&self, direction: Direction) -> &'static str {
         match (self, direction) {
-            (Language::Chinese, Direction::Undo) => "--- 她改完的",
+            (Language::Chinese, Direction::Undo) => "--- AI 改完的",
             (Language::Chinese, Direction::Restore) => "--- 撤销以后的",
-            (Language::English, Direction::Undo) => "--- as she left it",
+            (Language::English, Direction::Undo) => "--- as the AI left it",
             (Language::English, Direction::Restore) => "--- as undone",
         }
     }

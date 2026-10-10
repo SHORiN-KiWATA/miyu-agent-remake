@@ -90,7 +90,7 @@ fn an_undo_is_printed_the_way_it_was_agreed() {
 · 移回 {old}
 · 删掉 {new} → 移进了回收站
 · 改回 {b} → 没动：之后又被改过
-    --- 她改完的
+    --- AI 改完的
     +++ 现在
     @@ -3 +3 @@
     -fn main() {{}}
@@ -212,7 +212,7 @@ fn in_english_too() {
             native("src/b.rs")
         )
     );
-    assert_eq!(lines[5], "    --- as she left it");
+    assert_eq!(lines[5], "    --- as the AI left it");
     assert_eq!(
         lines[10],
         "· 2 commands ran: files they changed cannot be undone"

@@ -205,14 +205,14 @@ fn unavailable(
     };
     let next = match (language, installed.is_empty()) {
         (Language::Chinese, true) => format!(
-            "{fix}，或者 miyu config set ui.head <编号> 换成装了的界面；现在一个界面都没装，可以先用 miyu ask \"…\" 和她对话。"
+            "{fix}，或者 miyu config set ui.head <编号> 换成装了的界面；现在一个界面都没装，可以先用 miyu ask \"…\" 和 AI 对话。"
         ),
         (Language::Chinese, false) => format!(
             "{fix}，或者 miyu config set ui.head <编号> 换成装了的界面：{}。",
             installed.join("、")
         ),
         (Language::English, true) => format!(
-            "{fix}, or switch with miyu config set ui.head <id>; no interface is installed yet, so talk to her with miyu ask \"…\" for now."
+            "{fix}, or switch with miyu config set ui.head <id>; no interface is installed yet, so talk to the AI with miyu ask \"…\" for now."
         ),
         (Language::English, false) => format!(
             "{fix}, or switch with miyu config set ui.head <id> to one that is installed: {}.",

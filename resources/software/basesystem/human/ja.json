@@ -179,7 +179,7 @@
     "send_message/too-many": "{to} への送信が直近で多すぎます",
     "send_message/duplicate": "{to} は同じ内容をすでに受け取っています",
     "send_message/inbox-full": "{to} の未読メッセージが多すぎます",
-    "send_message/watching": "{to} が空いたら彼女に知らせます",
+    "send_message/watching": "{to} が空いたら AI に知らせます",
     "send_message/watch-peers-only": "待てるのはほかのセッションだけです",
     "sessions/listed": "{count} 件のセッション",
     "sessions/none": "ほかのセッションはありません",

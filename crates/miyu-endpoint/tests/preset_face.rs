@@ -451,7 +451,7 @@ async fn memory_not_in_the_given_list_says_not_installed() {
     assert_eq!(reason(&reply), Some("memory_not_installed"), "{reply}");
 }
 
-/// 没装人设防失忆提醒（施工 F-3 上）：人格写了提醒短语，全部功能的预设里也没有提醒、没有风格锁。
+/// 没装人设遵循提醒（施工 F-3 上）：人格写了提醒短语，全部功能的预设里也没有提醒、没有风格锁。
 #[tokio::test]
 async fn reminders_not_installed_drop_the_reminder_and_the_lock() {
     let home = Home::new();
