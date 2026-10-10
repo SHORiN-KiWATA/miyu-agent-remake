@@ -115,6 +115,7 @@ impl Watch {
                 notes: String::new(),
                 restored: Vec::new(),
                 refills: None,
+                prepared: false,
             }),
             "种子 {seed}：清空写一个空的检查点，替代到那一轮前面那一条"
         );

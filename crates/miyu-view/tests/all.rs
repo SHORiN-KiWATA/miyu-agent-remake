@@ -4,6 +4,7 @@ mod support;
 
 mod lines;
 mod notices;
+mod preparing;
 mod queue;
 mod random;
 mod status;

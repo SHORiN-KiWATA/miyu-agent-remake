@@ -57,6 +57,7 @@ impl Stage {
                 notes: String::new(),
                 restored: Vec::new(),
                 refills: None,
+                prepared: false,
             }),
         );
         let closed = event(

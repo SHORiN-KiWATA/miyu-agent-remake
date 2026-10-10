@@ -72,6 +72,7 @@ fn a_clear_writes_an_empty_checkpoint_in_a_turn_of_its_own() {
             notes: String::new(),
             restored: Vec::new(),
             refills: None,
+            prepared: false,
         })
     );
     assert_eq!(

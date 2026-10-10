@@ -31,6 +31,7 @@ fn cut(continuation: bool) -> Request {
         stable: 0,
         continuation,
         described: Default::default(),
+        output_cap: None,
     }
 }
 

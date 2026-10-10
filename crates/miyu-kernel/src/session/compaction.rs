@@ -427,6 +427,7 @@ impl Session {
             notes: rebuilt.notes,
             restored: rebuilt.restored,
             refills,
+            prepared,
         });
         let mut events = vec![self.record(at, By::Kernel, cause.clone(), body)];
         self.history.recall(rebuilt.texts);

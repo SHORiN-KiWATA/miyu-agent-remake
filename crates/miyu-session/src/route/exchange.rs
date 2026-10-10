@@ -7,8 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::sync::Arc;
 
-use miyu_drivers::EncodeError;
 use miyu_drivers::classify::Classified;
+use miyu_drivers::{Call, EncodeError};
 use miyu_http::{Attempt, Outcome, Progress, send};
 use miyu_kernel::event::{CallError, ErrorClass, Usage};
 use miyu_kernel::id::ContentHash;
@@ -56,6 +56,19 @@ pub(super) enum Exchanged {
     },
 }
 
+/// 输出上限照请求的 `output_cap` 压（施工 6-11 三补，`Request::output_cap`）：有的，和原来的取小的；原来没写的（供应商默认）
+/// 照它写，不然供应商默认的输出加上用量可能超窗口。没有的、原来就更小的交回 `None`，照原样发。
+fn capped(call: &Call, cap: Option<u64>) -> Option<Call> {
+    let cap = u32::try_from(cap?).unwrap_or(u32::MAX);
+    if call.max_output.is_some_and(|max| max <= cap) {
+        return None;
+    }
+    Some(Call {
+        max_output: Some(cap),
+        ..call.clone()
+    })
+}
+
 /// 发一次：取 blob、编码、发、读回来，「发出去了」和增量一有就交给 `on`；`cancel` 一完成就停。
 pub(super) async fn exchange(
     ready: &Ready,
@@ -77,7 +90,12 @@ pub(super) async fn exchange(
         }
     };
     let request = filled.as_ref().unwrap_or(request);
-    let encoded = match ready.driver.encode(request, &ready.call, &fetched) {
+    // 快满了的主请求，回答压到窗口剩下的（施工 6-11 三补）：拷一份改输出上限，平常的照原样。
+    let call = capped(&ready.call, request.output_cap);
+    let encoded = match ready
+        .driver
+        .encode(request, call.as_ref().unwrap_or(&ready.call), &fetched)
+    {
         Ok(encoded) => encoded,
         Err(EncodeError::MissingBlob(hash)) => return Exchanged::Missing(missing(&hash)),
     };
@@ -116,3 +134,6 @@ fn missing(hash: &ContentHash) -> CallError {
         status: None,
     }
 }
+
+#[cfg(test)]
+mod tests;

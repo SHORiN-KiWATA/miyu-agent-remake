@@ -178,10 +178,23 @@ impl Projector {
         if !self.at.contains_key(&id) {
             self.notice(id.clone(), event.at, Notice::Compaction(running()));
         }
+        let prepared = std::mem::take(&mut self.prepared)
+            .remove(&compacted.upto)
+            .filter(|_| compacted.prepared);
         self.touch(&id, |entry| {
             if let Body::Notice(Notice::Compaction(c)) = &mut entry.body {
                 c.state = CompactionState::Done;
                 c.trigger.clone_from(&compacted.trigger);
+                // 换上的是提前压好的（施工 6-11 三补）：日志里记着，翻页也认得出；用量、用时是后台那一次的。
+                c.prepared |= compacted.prepared;
+                if let Some((usage, took)) = &prepared {
+                    if c.usage.is_none() {
+                        c.usage.clone_from(usage);
+                    }
+                    if c.took_ms.is_none() {
+                        c.took_ms = *took;
+                    }
+                }
                 c.instructions.clone_from(&compacted.instructions);
                 c.written = None;
                 c.expected = None;

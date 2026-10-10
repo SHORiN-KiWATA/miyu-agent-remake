@@ -73,7 +73,7 @@
 
 | `what` | 格 |
 |---|---|
-| `compaction` | `trigger`（`auto`、`manual`、`overflow`；在压时照进度带的，施工 6-11 再补）；`instructions`（手动压缩附的要求）；`state`（`running`、`done`、`failed`）；`written`、`expected`、`seen`（摘要写到哪了，同 `compaction.progress`，只在 `running` 时有，视图流里照进度 `view.update`；`written` 变小是重来）；`prepared: true`（换上的是提前压好的，不出进度）；`before`、`after`（只在视图流里有：`compaction.done` 是瞬时的，翻页没有）；`took_ms`、`usage`；失败的 `error`（`class`、`status`、`message`）和 `explain`。摘要原文不进条目，点开时 `view.detail {session, compaction: <序号>}` 取。手动压缩那一轮的用时、用量接在这一条上，不另起 `end` |
+| `compaction` | `trigger`（`auto`、`manual`、`overflow`；在压时照进度带的，施工 6-11 再补）；`instructions`（手动压缩附的要求）；`state`（`running`、`done`、`failed`）；`written`、`expected`、`seen`（摘要写到哪了，同 `compaction.progress`，只在 `running` 时有，视图流里照进度 `view.update`；`written` 变小是重来）；`prepared: true`（换上的是提前压好的，不出进度；施工 6-11 三补起照 `context.compacted` 的 `prepared`，翻页也有，头照它不画结果行）；`before`、`after`（只在视图流里有：`compaction.done` 是瞬时的，翻页没有）；`took_ms`、`usage`；失败的 `error`（`class`、`status`、`message`）和 `explain`。摘要原文不进条目，点开时 `view.detail {session, compaction: <序号>}` 取。手动压缩那一轮的用时、用量接在这一条上，不另起 `end` |
 | `cleared` | 上下文清空了；那一轮不另起 `end` |
 | `paused` | 暂停了自动压缩（`context.compaction_paused`）：`reason`、`failures`、`entry`，原样 |
 | `reverted` | 撤销了几轮：`turns`、`said`（撤掉的第一句的头一行）；`files`（改回了哪些文件：照 `files.restored`，每项 `path`、`outcome`）；`jobs`（停掉的后台任务的编号）；撤掉的条目另外 `hidden` |
@@ -119,10 +119,11 @@
 | `state` | `idle`、`running`、`waiting`（有没了结的确认、提问） |
 | `waiting` | `[{what: "approve"\|"ask", entry, call}]`：没了结的确认、提问，照先后；要确认的工具和参数、题目在那一步的条目里（`args`、`approval`）。没有的不写 |
 | `since` | 这一轮开始的时刻；用时由头算。没在跑的不写 |
-| `doing` | 在跑时正在做什么：`{what: "thinking"\|"writing"\|"tool", entry}`；`{what: "retrying", attempt, limit, at, class, message, status?, failover?}`（`at` 是再试的时刻，照 `status` 瞬时事件）；`{what: "compacting", entry, written, expected}`。没在跑的不写 |
+| `doing` | 在跑时正在做什么：`{what: "thinking"\|"writing"\|"tool", entry}`；`{what: "retrying", attempt, limit, at, class, message, status?, failover?}`（`at` 是再试的时刻，照 `status` 瞬时事件）；`{what: "compacting", entry, trigger, written, expected}`（`trigger` 是 `auto`、`manual`、`overflow`，施工 6-11 三补：头照它分，自动的只写一行，手动的画进度）。没在跑的不写 |
 | `context` | `{window?, compaction_line?, used?}`：限额同订阅回应的 `limits`；`used` 是最近一次主请求的输入（三项加起来），压完的照 `compaction.done` 的 `after`，压缩落了盘还没有新请求的不写 |
 | `speed` | `{output, ms}`：最近一次主请求的输出 token、首字到结束的毫秒数（没报首字的照整次）；每秒多少由头算 |
 | `cooling_until` | 候选都在冷却时最早恢复的时刻（照 `class: cooling` 的重试算），说成了一次就不写。只认订阅以后看到的 |
+| `preparing` | 后台在提前压：`{seen, since}`（施工 6-11 三补）。起压时（`compaction.started`）有，那一次说完了（成没成都算）、换上了、压过了以后不写。头看它从没有变成有，弹一句「已触发上下文压缩」。只认订阅以后看到的，重连的不补 |
 | `usage` | 本会话累计，写法同 `usage.query` 的一行（含子代理的随 9-8 补下） |
 | `model` | 同订阅回应的 `model`（带思考强度 `effort`） |
 | `permission`、`todos`、`workspace` | 同订阅回应的那几格 |
@@ -134,7 +135,7 @@
 
 子代理任务（`jobs` 里 `what: agent` 的）另带四格（施工 9-8 补下，2026-10-10 和终端界面对过）：`busy`（子会话这会儿有没有在跑一轮）、`spawned`（它自己派出、还在跑的有几个）、`running_deep`（它那一支在跑的一共几个，不算它自己）、`usage`（它那一支一共用了多少，照账本连子会话一起查）。子代理此刻在做哪一步不在这里：要的头订阅那个子会话的视图流，看它的 `status.doing`。
 
-1. 投影算得出的那一半（`state`、`waiting`、`since`、`doing`、`used`、`speed`、`cooling_until`、`jobs`）在 `miyu-view` 的 `projector/status.rs`，喂事件时顺手记；别的向会话要，在 `miyu-endpoint` 的 `view/status.rs` 拼。
+1. 投影算得出的那一半（`state`、`waiting`、`since`、`doing`、`used`、`speed`、`cooling_until`、`preparing`、`jobs`）在 `miyu-view` 的 `projector/status.rs`，喂事件时顺手记；别的向会话要，在 `miyu-endpoint` 的 `view/status.rs` 拼。
 2. 一批里有落了盘的事件才向会话 actor 重要一份「当前的」（用量、权限、工作区）；只有增量的不打扰它。
 3. 会话树在 `view/tree.rs` 量：只看载入了的会话（在跑的子代理一定载入着，没载入的那一支算没有在跑的），往下最多走 8 层；用量照账本（`usage::branch`）。任务表变了（编号、状态），或者有子代理时别的会话动了（会话列表报的：一轮开始、空下来、改名、删了，`Listing::touched`；子代理新派的孙会话还不知道是谁的，所以不只看已知的子孙）才重量，量完照样和上一份比，变了才推。
 

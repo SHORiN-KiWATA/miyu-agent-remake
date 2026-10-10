@@ -4,14 +4,16 @@
 use miyu_kernel::accumulate::Kind;
 use miyu_kernel::event::{
     Body as EventBody, CallResult, ChildReason, ChildReported, Effect, ErrorClass, Event,
-    JobReason, JobReported, ModelCalled, Piece, Transient, TransientBody,
+    JobReason, JobReported, ModelCalled, Piece, Purpose, Transient, TransientBody,
 };
 use miyu_kernel::id::{CallId, JobId};
 use miyu_kernel::time::Timestamp;
 
 use super::Projector;
 use crate::entry::EntryId;
-use crate::status::{Doing, FINISHED_KEPT, JobRow, JobState, Speed, State, Status, Wait, Waiting};
+use crate::status::{
+    Doing, FINISHED_KEPT, JobRow, JobState, Preparing, Speed, State, Status, Wait, Waiting,
+};
 
 /// 记着的会话状态。
 #[derive(Debug, Default)]
@@ -21,6 +23,7 @@ pub(super) struct Tracking {
     used: Option<u64>,
     speed: Option<Speed>,
     cooling_until: Option<Timestamp>,
+    preparing: Option<Preparing>,
     jobs: Vec<JobRow>,
 }
 
@@ -42,6 +45,7 @@ impl Projector {
             used: tracking.used,
             speed: tracking.speed,
             cooling_until: tracking.cooling_until,
+            preparing: tracking.preparing,
             jobs: tracking.jobs.clone(),
         }
     }
@@ -66,9 +70,21 @@ impl Projector {
                 self.tracking.waiting.clear();
                 self.tracking.doing = None;
             }
-            EventBody::ModelCalled(called) => self.track_called(called),
+            EventBody::ModelCalled(called) => {
+                // 后台提前压的那一次说完了（不论成没成）。
+                if called.purpose == Some(Purpose::Compaction)
+                    && self
+                        .tracking
+                        .preparing
+                        .is_some_and(|p| p.seen == called.seen.get())
+                {
+                    self.tracking.preparing = None;
+                }
+                self.track_called(called);
+            }
             EventBody::ContextCompacted(_) => {
                 self.tracking.used = None;
+                self.tracking.preparing = None;
                 if matches!(self.tracking.doing, Some(Doing::Compacting { .. })) {
                     self.tracking.doing = None;
                 }
@@ -109,6 +125,7 @@ impl Projector {
             TransientBody::CompactionProgress(progress) => {
                 self.tracking.doing = Some(Doing::Compacting {
                     entry: EntryId::compaction(progress.seen),
+                    trigger: progress.trigger.clone(),
                     written: progress.written,
                     expected: progress.expected,
                 });
@@ -116,6 +133,13 @@ impl Projector {
             TransientBody::CompactionDone(done) => {
                 self.tracking.used = Some(done.after);
                 self.tracking.doing = None;
+                self.tracking.preparing = None;
+            }
+            TransientBody::CompactionStarted(started) => {
+                self.tracking.preparing = Some(Preparing {
+                    seen: started.seen.get(),
+                    since: transient.at,
+                });
             }
             _ => {}
         }

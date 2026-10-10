@@ -22,6 +22,7 @@ mod peers;
 mod permission_changed;
 mod prepare;
 mod prepare_drop;
+mod prepare_full;
 mod prepare_go;
 mod prepare_line;
 mod prepare_wait;

@@ -30,6 +30,7 @@ pub(crate) fn request(image: &Image, said: Option<&str>, vision: &Vision) -> Req
         stable: 0,
         continuation: false,
         described: Default::default(),
+        output_cap: None,
     }
 }
 
