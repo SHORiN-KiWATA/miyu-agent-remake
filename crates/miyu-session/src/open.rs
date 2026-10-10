@@ -277,6 +277,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         model,
         ToolKit {
             session: id.clone(),
+            owner: owner.clone(),
             catalog: tools.clone(),
             lettering,
             home: home.map(Path::to_path_buf),

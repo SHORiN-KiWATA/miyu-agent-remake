@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{JobMessaged, JobStarted, PeerWatch, Said, TodoWritten};
-use miyu_kernel::id::{CallId, ContentHash, MediaType, SessionId};
+use miyu_kernel::id::{AccountId, CallId, ContentHash, MediaType, SessionId};
 use miyu_kernel::origin::By;
 use miyu_kernel::time::UtcOffset;
 use miyu_sandbox::Sandboxed;
@@ -73,6 +73,8 @@ pub struct Call {
 pub struct CallIds {
     /// 会话。
     pub session: SessionId,
+    /// 会话的属主（施工 O-2 三补）：提供者的工具交回的图、文件照它拷进属主名下，她照属主读。
+    pub owner: AccountId,
     /// 调用的编号。
     pub call: CallId,
     /// 是谁要她做的（施工 O-2 下）：她这时在回应的那一条的 `by`，提供者的工具照它挡。没有触发的回合没有。

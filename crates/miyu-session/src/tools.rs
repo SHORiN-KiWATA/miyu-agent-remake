@@ -21,7 +21,7 @@ use tracing::Instrument;
 use crate::lettering::Lettering;
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::{Effect, Permission, Question, Response, Restored};
-use miyu_kernel::id::{CallId, ContentHash, JobId, SessionId, TurnId};
+use miyu_kernel::id::{AccountId, CallId, ContentHash, JobId, SessionId, TurnId};
 use miyu_kernel::origin::By;
 use miyu_kernel::session::{Input, Reread, Step, Subagent};
 use miyu_kernel::time::{Timestamp, UtcOffset};
@@ -38,53 +38,22 @@ use crate::lines::millis;
 use crate::messages;
 use crate::pictures;
 use crate::port::Back;
-use crate::sandbox::{Sandbox, SandboxCache};
+use crate::sandbox::Sandbox;
 use crate::sessions;
 use crate::usage::{Asked, Ledger};
 
 mod back;
+mod kit;
 mod questions;
 
-/// 执行工具要的：工具目录、替工具写的两句、系统的家目录（施工 4-4 上，交给每次调用）。
-pub(crate) struct ToolKit {
-    /// 这个会话（施工 O-2 上）：每次调用带上，提供者的工具照它发 `tool.call`。
-    pub(crate) session: SessionId,
-    /// 工具目录的架子：执行时照现在的那一份找（施工 O-2 中）。
-    pub(crate) catalog: Shelf,
-    /// 替工具写的两句，和权限策略同一份（施工 P-1 三补：换快照时跟着换）。
-    pub(crate) lettering: Arc<Lettering>,
-    /// 系统的家目录。
-    pub(crate) home: Option<PathBuf>,
-    /// Miyu 的数据根：交给工具，往下走目录的走到这里跳过（施工 4-4 下）。
-    pub(crate) data_root: PathBuf,
-    /// 这个会话的 blob：效果里改前改后的内容存进这里（施工 4-6 上）。
-    pub(crate) blobs: Blobs,
-    /// 她看过的文件：新会话是空的，载入的从日志里重建（施工 4-6 上）。
-    pub(crate) seen: Seen,
-    /// 沙盒的助手：这台机器上的沙盒能用才有（核心起来时探的，施工 5-4 上）。
-    pub(crate) sandbox: Option<PathBuf>,
-    /// 沙盒的缓存：工具链的缓存用沙盒自己的一份（施工 5-4 下）。核心算不出缓存目录的没有。
-    pub(crate) sandbox_cache: Option<SandboxCache>,
-    /// 这个会话日志的只读入口：交给每次调用，`history` 用（施工 6-4）。
-    pub(crate) log: Log,
-    /// 会话的时区：开会话时的环境里的（施工 6-4）。
-    pub(crate) offset: UtcOffset,
-    /// 这个会话的任务编号（施工 7-5）：从日志里用过的最大编号往下数，几次调用一起跑的各领各的。
-    pub(crate) job_ids: Arc<JobIds>,
-    /// 派子代理要的（施工 7-5）：会话表交进来了端口才有。
-    pub(crate) agents: Option<Arc<Agents>>,
-    /// 用量汇总里的这个会话（施工 8-15）：`session_usage` 的端口照它造。没开汇总的没有。
-    pub(crate) ledger: Option<Ledger>,
-    /// 能不能问人（施工 D-2，[`Agents::asks`]）：能的每次调用给一个提问的端口。
-    pub(crate) asks: bool,
-    /// 记忆（施工 R-3 中）：主会话、核心交了记忆的才有，每次调用照它造记忆的端口。
-    pub(crate) memory: Option<crate::memory::Calls>,
-}
+pub(crate) use kit::ToolKit;
 
 /// 执行工具的端口：一个会话一份。
 pub(crate) struct Tools {
     /// 这个会话（施工 O-2 上）。
     session: SessionId,
+    /// 会话的属主（施工 O-2 三补）。
+    owner: AccountId,
     catalog: Shelf,
     lettering: Arc<Lettering>,
     home: Option<PathBuf>,
@@ -206,6 +175,7 @@ impl Tools {
         });
         Tools {
             session: kit.session,
+            owner: kit.owner,
             catalog: kit.catalog,
             lettering: kit.lettering,
             home: kit.home,
@@ -313,6 +283,7 @@ impl Tools {
                 .map(|memory| memory.port(turn, call_id, at, &config)),
             ids: Some(CallIds {
                 session: self.session.clone(),
+                owner: self.owner.clone(),
                 call: call_id,
                 asked,
             }),

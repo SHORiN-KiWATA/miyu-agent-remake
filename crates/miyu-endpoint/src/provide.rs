@@ -21,7 +21,7 @@ use crate::hello::Caller;
 use crate::refusal::Refusal;
 use crate::reverse::Peer;
 
-use remote::{RemoteTool, Texts};
+use remote::{RemoteTool, Stores, Texts};
 
 /// 哪个包现在由哪个连接提供。
 #[derive(Default)]
@@ -128,6 +128,10 @@ fn register(core: &Core, package: &str, tools: Vec<ToolParams>) -> Result<usize,
             package,
             Arc::clone(&core.provided),
             texts.clone(),
+            Stores {
+                root: core.root.clone(),
+                admin: core.admin.clone(),
+            },
         )));
     }
     core.tools
