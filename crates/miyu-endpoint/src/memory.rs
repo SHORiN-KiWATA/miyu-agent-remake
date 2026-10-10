@@ -250,6 +250,35 @@ async fn find(core: &Arc<Core>, at: Where) -> Result<Keeper, Refusal> {
     }
 }
 
+/// 一间记忆日志订阅里挑过的、之后的最多攒几条没写出去的（施工 R-12 上，`protocol.md`「慢和掉队」第 1 条）：同包的变化。
+/// 记忆一轮至多追加几条，梦一次几十条；头的写队列（256 行）堵着才攒得起来，攒满了掉队，带 `after` 重新订阅补回来。
+const FOLLOWING: usize = 64;
+
+/// 跟着看 `at` 那一间的记忆日志（施工 R-12 上，流 `memory`）：找哪一间同 `memory.*`，听众是这个连接的人；`after` 以后的补。
+///
+/// # Errors
+///
+/// 人格记忆没装：`memory_not_installed`；找不到、写错了的同 `memory.*`；记忆日志读不了：`internal_error`，记一行。
+pub(crate) async fn follow(
+    core: &Arc<Core>,
+    at: &crate::subscriptions::MemoryAt,
+    after: Option<u64>,
+) -> Result<miyu_session::Following, Refusal> {
+    if !installed(core) {
+        return Err(Refusal::MEMORY_NOT_INSTALLED);
+    }
+    let keeper = find(
+        core,
+        Where {
+            persona: at.persona.clone(),
+            session: at.session.clone(),
+            as_external: None,
+        },
+    )
+    .await?;
+    blocking(move || keeper.follow(after, FOLLOWING).map_err(Refused::Failed)).await
+}
+
 /// 这个会话能不能记（施工 O-6 补，`/remember` 在 `command.catalog` 里列不列）：同 [`keeper_of`] 的判法。
 pub(crate) fn remembers(core: &Core, handle: &Handle) -> bool {
     room(handle).is_some() && memory(core).is_ok()
