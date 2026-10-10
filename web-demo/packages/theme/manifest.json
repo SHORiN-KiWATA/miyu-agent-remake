@@ -8,7 +8,7 @@
   },
   "kind": "base",
   "description": {
-    "zh": "照选中的那一套颜色把页面的颜色变量写上；一套一套的颜色由主题包挂进 theme.palettes。没选的跟着系统：浅色用第一套浅的，深色用第一套深的。"
+    "zh": "照选中的那一套颜色把页面的颜色变量写上；一套一套的颜色由主题包挂进 theme.palettes，跟着人格的几格挂进 theme.overlays 叠在上面。没选的跟着系统：浅色用第一套浅的，深色用第一套深的。"
   },
   "inject": [
     "slots",
@@ -28,5 +28,8 @@
       },
       "applies": "live"
     }
-  }
+  },
+  "styles": [
+    "style.css"
+  ]
 }

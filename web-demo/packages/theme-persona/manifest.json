@@ -1,0 +1,35 @@
+{
+  "id": "theme-persona",
+  "version": "0.1.0",
+  "name": {
+    "zh": "跟随人格的主题色",
+    "en": "Persona colors",
+    "ja": "人格のテーマカラー"
+  },
+  "summary": {
+    "zh": "照会话人格的头像生成页面的颜色",
+    "en": "Color the page from the session persona's avatar",
+    "ja": "会話の人格のアイコンからページの色を作る"
+  },
+  "kind": "optional",
+  "description": {
+    "zh": "照正在看的会话用的人格的头像取主色，按 MD3 生成浅色、深色两套，盖在选中的主题的底色、字色、强调色上面；出错、差异、代码高亮的颜色照原来的主题。人格没有头像、无人格的照原来的主题。"
+  },
+  "note": "取色用 material-color-utilities 0.4（vendor/，Apache-2.0）：QuantizerCelebi 128 色、Score 挑第一个，SchemeTonalSpot 对比度 0。",
+  "inject": [
+    "slots"
+  ],
+  "settings": {
+    "sample_side": {
+      "type": "number",
+      "default": 128,
+      "min": 16,
+      "max": 512,
+      "integer": true,
+      "name": {
+        "zh": "取色前头像缩到多大（长边像素）"
+      },
+      "advanced": true
+    }
+  }
+}

@@ -1,0 +1,7 @@
+/* 换颜色的那一下（packages/theme/index.js）：整页的底色、字色、线色、影 0.3 秒渐变过去，过完拿掉这个类，不影响别的动画 */
+.is-retheming, .is-retheming *, .is-retheming *::before, .is-retheming *::after {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, fill 0.3s ease, stroke 0.3s ease !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-retheming, .is-retheming *, .is-retheming *::before, .is-retheming *::after { transition: none !important; }
+}

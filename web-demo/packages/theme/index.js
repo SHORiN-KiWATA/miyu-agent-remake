@@ -5,10 +5,17 @@
 //!
 //! 提供服务 `theme`：现在是哪一套、是不是深色、换到下一套（写进个人那一层的设置，`/theme`、左栏的按钮用）。换了发事件
 //! `theme.changed`。
+//!
+//! 声明 `theme.overlays`：叠在选中的那一套上面的几格颜色（跟着人格的主题色，软件包 `theme-persona`，蓝图「跟着人格的外观」）。挂进来的
+//! `render(scheme)` 照浅色、深色交 `{page, tui}` 里要盖的那几格，交 `null` 的不盖。头一次以后再换颜色（换了一套、叠的变了），整页的
+//! 底色、字色、线色 0.3 秒渐变过去（`style.css` 的 `is-retheming`，过完拿掉）。
+
+const RETHEME_MS = 400;
 
 /** @param {any} ctx */
 export function apply(ctx) {
   ctx.slots.declare('theme.palettes', 'list');
+  ctx.slots.declare('theme.overlays', 'list');
   const system = matchMedia('(prefers-color-scheme: dark)');
   const root = document.documentElement;
   /** 写上去的变量：换了一套先拿掉原来的，撤回时全拿掉 */
@@ -23,12 +30,29 @@ export function apply(ctx) {
     const scheme = system.matches ? 'dark' : 'light';
     return all.find((p) => p.scheme === scheme) ?? all[0] ?? null;
   };
+  let painted = false;
+  let fading = 0;
   const paint = () => {
+    const p = chosen();
+    // 头一次以后的换色带过渡
+    if (painted && p) {
+      root.classList.add('is-retheming');
+      clearTimeout(fading);
+      fading = window.setTimeout(() => root.classList.remove('is-retheming'), RETHEME_MS);
+    }
     for (const name of written) root.style.removeProperty(name);
     written = [];
-    const p = chosen();
     if (!p) return;
-    const { page, tui } = p.render();
+    painted = true;
+    const base = p.render();
+    const page = { ...base.page };
+    const tui = { ...base.tui };
+    for (const o of ctx.slots.list('theme.overlays')) {
+      const got = o.render(p.scheme);
+      if (!got) continue;
+      Object.assign(page, got.page ?? {});
+      Object.assign(tui, got.tui ?? {});
+    }
     const set = (name, value) => {
       root.style.setProperty(name, value);
       written.push(name);
@@ -40,6 +64,7 @@ export function apply(ctx) {
     ctx.emit('theme.changed', p.id);
   };
   ctx.slots.watch('theme.palettes', paint);
+  ctx.slots.watch('theme.overlays', paint);
   // 换了一套（设置项 palette 是 live 的）：当场重画，不重来
   ctx.watchConfig(paint);
   ctx.effect(() => {
@@ -47,6 +72,8 @@ export function apply(ctx) {
     return () => system.removeEventListener('change', paint);
   });
   ctx.effect(() => () => {
+    clearTimeout(fading);
+    root.classList.remove('is-retheming');
     for (const name of written) root.style.removeProperty(name);
     root.style.colorScheme = '';
     delete root.dataset.theme;

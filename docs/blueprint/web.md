@@ -608,7 +608,7 @@
    - 空人格：原来出厂多一个人格 `none`（核心 P-1 下）。2026-10-08 项目主人改了：出厂不带任何人格（软件工程师、空白都撤掉，以后人格可以做成软件包装），人格可以留空——菜单里的「无人格」是「不带人格」，不是一个人格；没有人格的会话记忆不生效；知识库是账号级的、谁都可以查，没有人格也照样能查；OOBE 引导建第一个人格（网页做 OOBE 时有这一步）。
    - 预设（核心 P-2，形状照人格，2026-10-08 合进 main、网页接上并实测）：没选照 `preset.default`（出厂 `full`），人可以改；默认的用不了时锁住输入框，先选预设。
 6b. 开着的会话改了人格的文件，下一轮开头核心推 `session.policy_changed`（只有新快照的哈希，P-1 再补）：正文里不画「人格已更新」（2026-10-08 项目主人照推荐定：改文件的就是本人；这一条也认不出改的是哪一样）。
-7. 头像、看板图、背景图、照背景图生成主题色是核心 P-4「人格的外观」，到时候另画图纸。2026-10-10 项目主人定核心先做人格的头像（存在人格目录里，`persona.get`、`persona.list` 带上，头能换）、预设的图标（Lucide 的名字）；之前对话区的头照会话的人格写名字，头像画名字的第一个字（`persona.json` 只剩没有 `setup` 包时的退路）。
+7. 头像、看板图、背景图、主题色是「人格的外观」：主题色、背景图 2026-10-10 定了，见「主题」的「跟着人格的外观」；看板图还没定。2026-10-10 项目主人定核心先做人格的头像（存在人格目录里，`persona.get`、`persona.list` 带上，头能换）、预设的图标（Lucide 的名字）；之前对话区的头照会话的人格写名字，头像画名字的第一个字（`persona.json` 只剩没有 `setup` 包时的退路）。
 
 **设置页**（2026-10-07 项目主人定：页面正中的弹窗；核心的配置和网页自己的设置放在一个设置页里；模型那一页照 `tui.md`「全屏配置页」的四个分页。以后用 Tauri 包成桌面端，照 `web/architecture.md`「宿主」，第 15 条。协议照 `config.md`「协议」、`models.md`；数先照这里写，在 demo 上看过再调，写进 `layout.json` 的 `settings`）：
 
@@ -686,6 +686,14 @@
 - TUI 的：`dim`、`hover`、`workspace`、`full`、`read_only`、`thought`、`thought_hover`、`shade`、`added`、`removed`、`diff_*`、`error`、`warn`、代码和 Markdown 的那些（`tui.md`「主题」）。
 
 旧版的名字和 MD3 角色的对应照旧版：`surface` 底，`sidebar_bg` 左栏（比底暗一档），`surface_1` 浮起来的东西（你的气泡、输入框、选中的会话：浅色里比底亮），`surface_2` 悬停，`surface_3` 再深一档，`line` 细线（`outline_variant`），`line_strong`（`outline`），`accent` 主色，`accent_soft` 主色的容器色，`gold` 第二色，`ribbon` 第三色，`text_soft`（`on_surface_variant`），`text_faint`（`text_soft` 和底七三开混）。每套主题的每一格写在它的文件里。
+
+**跟着人格的外观**（2026-10-10 项目主人定：主题色跟正在看的会话的人格、从头像取可自选、背景图只铺对话区；页面的底做得素，一个目的就是方便换成人格自己的颜色和图）：
+
+1. 主题色：软件包 `theme-persona`（可停用，停用了就是原来那两套）。主题包多声明一个挂载位 `theme.overlays`：挂进来的照现在浅色还是深色交一份要盖上去的颜色，叠在选中的那一套上面。`theme-persona` 照正在看的会话用的人格（空会话照选着的、默认的；和左栏左上角、对话区的头像同一份，网页发状态事件 `look.changed`）的头像在浏览器里取主色（material-color-utilities 0.4：`QuantizerCelebi` 128 色、`Score` 挑第一个），照 MD3 `TONAL_SPOT`、对比度 0 生成浅色、深色两套，盖掉中性色和强调色那几格：`surface`（`surface`）、`sidebar_bg`（浅 `surface_container`、深 `surface_container_lowest`）、`surface_1`（浅 `surface_container_lowest`、深 `surface_container_low`：浮起来的）、`surface_2`（浅 `surface_container_high`、深 `surface_container`）、`surface_3`（浅 `surface_container_highest`、深 `surface_container_high`）、`sidebar_active`（同 `surface_2` 那一格）、`text`（`on_surface`）、`text_soft`（`on_surface_variant`）、`line`（`outline_variant`）、`line_strong`（`outline`）、`accent`（`primary`）、`accent_soft`（`primary_container`）、`on_primary`、`on_primary_container`、`gold`（`secondary`）、`ribbon`（`tertiary`），终端那一组的 `accent`、`workspace` 跟 `primary`。出错的红、差异的红绿、链接、代码高亮、吉祥物的颜色不盖，照选中的那一套（它们是语义色，跟着人格变了反而认不出）。「晨光」本来就是这样从她眼睛的蓝（`#3368c0`）生成的，同一份算法。
+2. 人格没有头像、无人格的会话：不盖，就是选中的那一套。换了会话、换了人格、换了头像：颜色 0.3 秒渐变过去（换的那一下整页的底色、字色、线色带过渡，过完拿掉，不影响别的动画）。
+3. 自选主色：人格的编辑卡片多一行「主题色」：一块色块写着现在用的颜色、右边「跟随头像」或自己挑的颜色（颜色选择器）；挑了的照它生成，不再从头像取。存在人格里（核心要加：`persona.toml` 的外观那一格，`persona.get`、`persona.list` 带上）。
+4. 背景图：只铺对话区（左栏照旧用主题色）：图铺满对话区、居中裁（`cover`），上面盖一层底色（`surface`）让字看得清，这一层多浓是设置项（出厂 80%）；输入框、你的气泡、卡片照旧是实底。人格的编辑卡片多一行「背景图」：缩略图、「更换背景图」「移除背景图」，同头像的做法。图存在人格目录里（核心要加，同头像 P-5：`background.png|jpg|webp`、`persona.set` 的 `background`、`persona.background` 读、列表带版本）。
+5. 停用 `theme-persona`：主题色、背景图都不跟人格，编辑卡片里那两行照样能改（存在人格里，以后启用了就用上）。
 
 ### 守着它的
 

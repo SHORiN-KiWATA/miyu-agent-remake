@@ -476,6 +476,8 @@ export class App {
     this.chat.setLook(look);
     this.sidebar.setLook(look);
     this.composer.setName(look?.name ?? null);
+    // 软件包跟着它变（跟着人格的主题色，`theme-persona`）：状态事件，晚起来的包先拿到最后一份；`null` 是无人格
+    this.ctx.publish('look.changed', look);
     this.schedule();
   }
 
