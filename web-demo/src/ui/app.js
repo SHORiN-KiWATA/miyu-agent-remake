@@ -319,6 +319,8 @@ export class App {
     addEventListener('resize', () => this.schedule());
     ctx.on('theme.changed', () => this.sidebar.drawThemeButton());
     this.frame = 0;
+    /** 新会话说第一句时正在开的那个会话（`createSession`）：这期间再说的等它，不另开 @type {Promise<void>|null} */
+    this.creating = null;
     /** 会话 → 照回应再画一次的回顾（`/recap` 回应里 `cached` 为真的，蓝图「回顾」第 3 条；只在这一页里） */
     this.recapsAgain = /** @type {Map<string, {after: string, text: string}[]>} */ (new Map());
     // 新会话框下面写默认的模型：起来时问一次（问不到的不写，菜单打开时再问）
@@ -517,24 +519,32 @@ export class App {
   async send(text, extra = {}) {
     try {
       if (!this.current) {
-        const asked = this.draft.cwd;
-        this.current = await this.store.create(asked ?? this.cwd, this.pendingModel, this.draft.persona, this.draft.preset, !!asked);
-        if (this.store.createdWide === this.current) this.ctx.emit('workdir.wide', { session: this.current, cwd: asked });
-        this.pendingModel = null;
-        this.draft = { persona: null, preset: null, cwd: null };
-        this.store.view(this.current);
-        // 还是这一段对话：跟着新会话走的软件包（演示待办）跟过去
-        this.ctx.emit('session.created', { from: null, to: this.current });
-        await this.applyPending();
+        // 新会话第一句还在开会话的时候又说了一句：等同一个会话开好，接着发进去，不另开一个（2026-10-11 实测：核心开会话慢的那几秒里
+        // 连按回车，开出了好几个会话）
+        if (!this.creating) this.creating = this.createSession().finally(() => { this.creating = null; });
+        await this.creating;
       }
       // 工作区是会话的属性（核心 9-7）：说话不再带 `cwd`
-      await this.store.send(this.current, text, extra);
+      await this.store.send(/** @type {string} */ (this.current), text, extra);
       return true;
     } catch (err) {
       const why = refusalText(err);
       this.composer.say(why === err.message ? t('refused', { message: why }) : why);
       return false;
     }
+  }
+
+  /** 开会话（新会话说第一句话时）：带上选的目录、模型、人格、预设，开好了看它、把还没开时点过的权限级别这类发过去。 */
+  async createSession() {
+    const asked = this.draft.cwd;
+    this.current = await this.store.create(asked ?? this.cwd, this.pendingModel, this.draft.persona, this.draft.preset, !!asked);
+    if (this.store.createdWide === this.current) this.ctx.emit('workdir.wide', { session: this.current, cwd: asked });
+    this.pendingModel = null;
+    this.draft = { persona: null, preset: null, cwd: null };
+    this.store.view(this.current);
+    // 还是这一段对话：跟着新会话走的软件包（演示待办）跟过去
+    this.ctx.emit('session.created', { from: null, to: this.current });
+    await this.applyPending();
   }
 
   /**
