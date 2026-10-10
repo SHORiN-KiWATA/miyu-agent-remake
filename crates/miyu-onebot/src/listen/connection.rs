@@ -1,7 +1,8 @@
-//! 一条 NapCat 的连接（`onebot.md` 第一条「怎么走」第 2 到 6 条）：一帧一条 JSON，回应交给在等的调用，消息（私聊、群）
-//! 和撤回（施工 O-22）交给跟核心的那一头，别的事件记一行调试日志就丢。连上就调一次 `get_version_info`，把实现的名字和
-//! 版本记进运行日志（第 3 条），也记在这条连接上，WebUI 的 `/status` 照它说（施工 O-16）。号认出来、断开、问到实现，都叫
-//! 一声状态文件（施工 O-18）。
+//! 一条 NapCat 的连接（`onebot.md` 第一条「怎么走」第 2 到 6 条）：一帧一条 JSON，回应交给在等的调用，消息（私聊、群）、
+//! 撤回（施工 O-22）和禁言、解禁（施工 O-25 中）交给跟核心的那一头，别的事件记一行调试日志就丢。号认出来了（`X-Self-ID`、
+//! 第一条事件）也告诉跟核心的那一头（`Event::Connected`，施工 O-25 中：排着的照先后发），和消息走同一条队，先后一致。连上就
+//! 调一次 `get_version_info`，把实现的名字和版本记进运行日志（第 3 条），也记在这条连接上，WebUI 的 `/status` 照它说（施工
+//! O-16）。号认出来、断开、问到实现，都叫一声状态文件（施工 O-18）。
 //!
 //! 往 NapCat 写的都经一个写的任务（回话、`get_version_info`、被顶掉时的关闭帧）。断开时：在等的调用都算失败，号还是这一条
 //! 的拿掉，说一行；桥不退，等 NapCat 自己重连（第 11 条）。
@@ -49,9 +50,11 @@ where
         calls: Arc::clone(&calls),
         peer: Arc::new(OnceLock::new()),
     };
-    if let Some(bot) = bot {
-        register(gate, bot, &link);
-    }
+    // 跟核心的那一头不收了（桥在停）：这条连接不再读。
+    let mut reading = match bot {
+        Some(bot) => register(gate, bot, &link).await,
+        None => true,
+    };
     tracing::info!(target: TARGET, bot, "napcat connected");
     (gate.tell)(Notice::Connected { bot });
     let probe = version(
@@ -62,15 +65,13 @@ where
     );
     tokio::pin!(probe);
     let mut probed = false;
-    loop {
+    while reading {
         tokio::select! {
             frame = frames.next() => match frame {
                 Some(Ok(Message::Text(text))) => {
-                    if !frame_in(gate, &text, &mut bot, &link).await {
-                        break;
-                    }
+                    reading = frame_in(gate, &text, &mut bot, &link).await;
                 }
-                Some(Ok(Message::Close(_))) | Some(Err(_)) | None => break,
+                Some(Ok(Message::Close(_))) | Some(Err(_)) | None => reading = false,
                 Some(Ok(_)) => {}
             },
             () = &mut probe, if !probed => probed = true,
@@ -98,7 +99,9 @@ async fn frame_in(gate: &Gate, text: &str, bot: &mut Option<i64>, link: &Link) -
         && let Some(id) = onebot::self_id(&frame)
     {
         *bot = Some(id);
-        register(gate, id, link);
+        if !register(gate, id, link).await {
+            return false;
+        }
     }
     match onebot::read(frame) {
         Frame::Reply(reply) => {
@@ -140,22 +143,27 @@ fn noted(event: &Event) {
             message = recall.message_id,
             "recall"
         ),
+        Event::Muted { group, seconds, .. } => {
+            tracing::debug!(target: TARGET, group, seconds, "muted");
+        }
+        Event::Unmuted { group, .. } => tracing::debug!(target: TARGET, group, "unmuted"),
+        Event::Connected { bot } => tracing::debug!(target: TARGET, bot, "bot known"),
     }
 }
 
-/// 号 `bot` 现在用 `link`：顶掉的那一条在等的调用都算失败，给它发一帧关闭。
-fn register(gate: &Gate, bot: i64, link: &Link) {
-    let replaced = gate.bots.insert(bot, link.clone());
-    gate.changed.notify_one();
-    let Some(old) = replaced else {
-        return;
-    };
-    old.calls.close();
-    if old.out.try_send(Message::Close(None)).is_err() {
-        // 旧的那一条已经断了，或者写队列满了：它的写的一头随连接一起放下。
-        tracing::debug!(target: TARGET, bot, "old connection not told to close");
+/// 号 `bot` 现在用 `link`：顶掉的那一条在等的调用都算失败，给它发一帧关闭；告诉跟核心的那一头这个号连上了（施工 O-25 中，
+/// 「施工时定的」第 126 条）。跟核心的那一头不收了（桥在停）交回假。
+async fn register(gate: &Gate, bot: i64, link: &Link) -> bool {
+    if let Some(old) = gate.bots.insert(bot, link.clone()) {
+        old.calls.close();
+        if old.out.try_send(Message::Close(None)).is_err() {
+            // 旧的那一条已经断了，或者写队列满了：它的写的一头随连接一起放下。
+            tracing::debug!(target: TARGET, bot, "old connection not told to close");
+        }
+        tracing::info!(target: TARGET, bot, "napcat connection replaced");
     }
-    tracing::info!(target: TARGET, bot, "napcat connection replaced");
+    gate.changed.notify_one();
+    gate.inbound.send(Event::Connected { bot }).await.is_ok()
 }
 
 /// 问对端是谁（第 3 条）：实现的名字、版本、协议版本记进运行日志；名字和版本记进 `peer`，叫一声 `changed`。

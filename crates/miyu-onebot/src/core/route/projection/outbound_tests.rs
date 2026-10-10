@@ -1,11 +1,24 @@
 //! 投影交给出站链的（施工 O-25 上，`onebot.md` 第一条「群里怎么叫她」第 2、9 条）：她回的那一条是这一轮触发的最后一条，并进来
 //! 的换成并进来的最后一条，平台编号、发的人、时刻都对；那之后别人说了几条（发它的人自己补的不算）；群里最后一条是不是她的；
-//! 这一轮发出去的，换了回合就清，晚到的上一轮的不算。夹具在 `tests.rs`。
+//! 这一轮发出去的（O-25 中照入队的），换了回合就清，晚到的上一轮的不算；桥先算上的，日志推来同一段不重复算。夹具在 `tests.rs`。
 
 use serde_json::json;
 
 use super::tests::{assistant, at, ended, event, joined, qq, said_at, started, take_all};
-use super::{Aim, Projection};
+use super::{Aim, Projection, QUEUED};
+
+/// 第 `turn` 轮入队了的她的一段 `text`（O-25 中）。
+fn queued(seq: u64, turn: u64, text: &str) -> miyu_kernel::event::Event {
+    let body = json!({"kind": "reply", "text": text, "line": "01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91", "turn": turn});
+    event(
+        seq,
+        0,
+        QUEUED,
+        None,
+        json!({"kind": "module", "id": "onebot"}),
+        body,
+    )
+}
 
 /// 第 `turn` 轮发出去的一段 `text`。
 fn delivered(seq: u64, turn: u64, text: &str) -> miyu_kernel::event::Event {
@@ -136,13 +149,14 @@ fn what_was_sent_this_turn() {
         &mut projection,
         vec![
             assistant(1, 1),
-            delivered(2, 1, "一"),
-            delivered(3, 1, "二"),
+            queued(2, 1, "一"),
+            queued(3, 1, "二"),
             assistant(4, 1),
-            delivered(5, 6, "三"),
-            delivered(6, 1, "晚到的"),
-            assistant(7, 6),
-            assistant(8, 1),
+            queued(5, 6, "三"),
+            queued(6, 1, "晚到的"),
+            delivered(7, 6, "只有回执的不算"),
+            assistant(8, 6),
+            assistant(9, 1),
         ],
     );
     let sent: Vec<Vec<String>> = spoken
@@ -157,6 +171,29 @@ fn what_was_sent_this_turn() {
             vec!["三".to_string()],
             Vec::new(),
         ],
-        "换了回合就清；晚到的上一轮的不算；别的回合的不给"
+        "照入队的算（O-25 中）；换了回合就清；晚到的上一轮的不算；别的回合的不给"
     );
+}
+
+/// 桥入队记成了先算上（O-25 中，「施工时定的」第 112 条）：日志推来的同一段照正文认，不重复算；别的段照加；桥算的别的回合的
+/// 换了回合就清。
+#[test]
+fn the_bridge_counts_first_and_the_log_does_not_count_twice() {
+    let mut projection = Projection::new(0);
+    projection.queued(2, "一");
+    projection.queued(2, "二");
+    let spoken = take_all(
+        &mut projection,
+        vec![
+            queued(3, 2, "一"),
+            queued(4, 2, "二"),
+            queued(5, 2, "三"),
+            assistant(6, 2),
+        ],
+    );
+    assert_eq!(spoken[0].sent, ["一", "二", "三"]);
+    projection.queued(1, "上一轮晚算的");
+    projection.queued(9, "四");
+    let spoken = take_all(&mut projection, vec![assistant(10, 9)]);
+    assert_eq!(spoken[0].sent, ["四"], "换了回合就清，上一轮的不算");
 }

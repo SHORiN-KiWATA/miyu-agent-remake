@@ -394,6 +394,7 @@ impl Session {
                         blocks,
                         seen,
                         interrupted: cut || failed,
+                        indexes: MessageAssistant::indexes_for(&kept),
                     };
                     let by = By::Model(sent.model.clone());
                     events.push(self.record(at, by, cause.clone(), Body::MessageAssistant(body)));

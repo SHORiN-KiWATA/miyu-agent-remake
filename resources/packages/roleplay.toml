@@ -1,0 +1,8 @@
+# 人设防失忆提醒（施工 F-2，设计 30 第三节；原来叫角色扮演，2026-10-09 项目主人定的名字）：内置包，没有工具，管人格的提醒
+# 短语和风格锁。没写功能，整个包算一个功能，编号 roleplay。给人看的字，不发给模型。
+
+[package]
+kind = "builtin"
+protocol = [1, 1]
+name = { en = "Persona reminders", zh = "人设防失忆提醒", ja = "ペルソナ維持リマインド" }
+summary = { en = "Every few turns, show her the persona's reminder phrases again so she stays in character", zh = "隔几轮把人设提醒短语再给她看一遍，聊久了也不出戏", ja = "数ターンごとにペルソナのリマインドをもう一度見せて、長く話してもキャラを保ちます" }

@@ -32,6 +32,8 @@ const SAYINGS: &str = "agent";
 pub(crate) struct Subagent {
     spec: Spec,
     texts: Texts,
+    /// 后台运行关着的会话里的说明（施工 T-1 下，`agent/foreground.txt`）。
+    foreground: String,
 }
 
 /// 输出里给她看的几句：`software/basesystem/agent/*.txt`，和几件工具共用的。
@@ -80,6 +82,7 @@ impl Subagent {
                 started: text("started", &["job", "title"])?,
                 not_started: text("not-started", &[])?,
             },
+            foreground: say(&text("foreground", &[])?, &[]).trim_end().to_string(),
         })
     }
 }
@@ -92,6 +95,11 @@ impl Tool for Subagent {
     /// 改名以前叫 `agent`：以前造的会话快照里冻着它，她照它调（施工 7-5 再补）。
     fn formerly(&self) -> &'static [&'static str] {
         &[SUBAGENT_FORMERLY]
+    }
+
+    /// 后台运行关着的会话里派出去等它报回来（施工 T-1 下）。
+    fn foreground_description(&self) -> Option<&str> {
+        Some(&self.foreground)
     }
 
     fn run(&self, call: Call, _progress: Progress) -> Running<'_> {
@@ -133,6 +141,7 @@ impl Tool for Subagent {
             Done::ok(say(&texts.started, &[("job", &job), ("title", title)]))
                 .said(said("agent/started").with("job", &job).with("title", title))
                 .effect(Effect::JobStarted(JobStarted {
+                    foreground: false,
                     job: spawned.job,
                     what: JobKind::Agent,
                     title: args.description,

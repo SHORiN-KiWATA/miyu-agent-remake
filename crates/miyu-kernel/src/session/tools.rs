@@ -10,8 +10,8 @@ use super::step::{Pending, State, Step};
 use super::turn::{Interjection, Stage};
 use crate::block::{Block, Text, ToolCall};
 use crate::event::{
-    Body, EndReason, Event, Permission, ToolProgress, ToolResult, ToolStatus, Transient,
-    TransientBody,
+    Body, Effect, EndReason, Event, JobKind, Permission, ToolProgress, ToolResult, ToolStatus,
+    Transient, TransientBody,
 };
 use crate::id::{CallId, CommandId, Seq};
 use crate::origin::{By, Tool};
@@ -122,6 +122,7 @@ impl Session {
         let step = Step {
             reply,
             calls: pending,
+            awaiting: Vec::new(),
         };
         let finished = step.finished();
         if let Some(turn) = self.turn.as_mut() {
@@ -188,7 +189,7 @@ impl Session {
     /// 工具执行完了：照工具交的追加 `tool.result`（`result`，成功还是出错、内容、用时、说法、效果都在里面），
     /// `by` 是那次调用，然后派后面能派的。这一步齐了，到了步数上限就结束回合，不然等落了盘请求下一次。
     /// 问着人的也算在跑：题目跟着了结。不是这一步在跑的，不理。打断以后在等停着的，交给 [`Self::stopped_done`]。
-    pub(super) fn tool_done(&mut self, at: Timestamp, result: ToolResult) -> Vec<Action> {
+    pub(super) fn tool_done(&mut self, at: Timestamp, mut result: ToolResult) -> Vec<Action> {
         let call_id = result.call_id;
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();
@@ -208,6 +209,21 @@ impl Session {
             return Vec::new();
         };
         call.state = State::Done;
+        // 后台运行关着的会话（施工 T-1 下）：派的子代理记成前台的，这一步等它；给前台子代理留了言的，这一步等它再报。
+        for effect in &mut result.effects {
+            match effect {
+                Effect::JobStarted(started)
+                    if self.policy.foreground && started.what == JobKind::Agent =>
+                {
+                    started.foreground = true;
+                    step.awaiting.push(started.job.clone());
+                }
+                Effect::JobMessaged(messaged) if self.ledger.foreground(&messaged.job) => {
+                    step.awaiting.push(messaged.job.clone());
+                }
+                _ => {}
+            }
+        }
         let finished = step.finished();
         let by = By::Tool(Tool { call_id });
         let recorded = if result.status == ToolStatus::Cancelled {
@@ -295,6 +311,15 @@ impl Session {
                 ToolStatus::Cancelled,
                 text,
             ));
+        }
+        // 在等的前台子代理连它一起停（施工 T-1 下）：回报随后到，只记下。
+        if !step.awaiting.is_empty() {
+            actions.push(Action::StopJobs {
+                jobs: std::mem::take(&mut step.awaiting),
+                by: by.clone(),
+                cause: cause.clone(),
+                undone: false,
+            });
         }
         (events, actions)
     }

@@ -1,6 +1,6 @@
 //! `/workspace <路径>`（施工 9-7 下，`docs/blueprint/protocol.md` 的 `command.run` 第 5 条）：同 `session.set_workspace` 只换
 //! 工作目录，加进来的目录照旧。相对的照头带来的 `cwd`（头所在的目录）接，没带的照会话现在的工作区接；不带路径的只说现在
-//! 在哪。写错的照 `set_workspace` 的那几种原因拒绝；太宽的退回账号的工作区，回执说一声。
+//! 在哪。写错的照 `set_workspace` 的那几种原因拒绝；太宽的照人选的用，回执说一声范围大（施工 9-7 补）。
 
 use std::path::Path;
 
@@ -37,23 +37,21 @@ pub(super) async fn run(
         return Ok((Vec::new(), said));
     }
     let wanted = absolute(core, asked, head.unwrap_or(&found.cwd))?;
-    let cwd = checked(core, found.handle.owner(), &wanted)?;
+    let picked = checked(core, found.handle.owner(), &wanted)?;
+    let cwd = picked.cwd;
     let change = Command::SetWorkspace {
         cwd: cwd.clone(),
         dirs: None,
     };
     let events = accepted(command(core, session, &found.handle, id, by, change).await?)?;
     core.sessions.moved(session, cwd.clone(), None).await;
-    let said = if cwd == wanted {
-        Said {
-            key: "commands/workspace",
-            fields: vec![("cwd", cwd)],
-        }
-    } else {
-        Said {
-            key: "commands/workspace-too-wide",
-            fields: vec![("asked", asked.to_string()), ("cwd", cwd)],
-        }
+    let key = match picked.wide {
+        true => "commands/workspace-wide",
+        false => "commands/workspace",
+    };
+    let said = Said {
+        key,
+        fields: vec![("cwd", cwd)],
     };
     Ok((events, said))
 }

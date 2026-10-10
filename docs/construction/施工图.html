@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>304</b><span>/ 317 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>336</b><span>/ 350 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
-    <li><b class="mono">5a9f4032</b><span>最近一步（9-6 三补 一次调用的完整差异）的提交</span></li>
+    <li><b class="mono">10b8d540</b><span>最近一步（T-7 删掉拍了板的无用代码）的提交</span></li>
   </ul>
 </header>
 
@@ -606,6 +606,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sO-2a"><span class="n">O-2 上</span>提供者登记工具、核心反向调用<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-2b"><span class="n">O-2 中</span>包的工具变了，下一个回合换上<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-2c"><span class="n">O-2 下</span>带上是谁要的，超时和 tool.cancel<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sO-2d"><span class="n">O-2 再补</span>登记过工具的扩展退出了照样察觉<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">O-2 补</span>进度、头当提供者、登记命令</span></li>
         <li><a class="step done" href="#sO-3"><span class="n">O-3</span>核心：外部身份和场所会话<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-4a"><span class="n">O-4 上</span>会话认自己的属主<span class="st">✓</span></a></li>
@@ -624,6 +625,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sO-13d"><span class="n">O-13 补</span>只有媒体的消息<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-14a"><span class="n">O-14 上</span>照记下的几条开一轮<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-14b"><span class="n">O-14 下</span>并进正在跑的一轮<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sO-14c"><span class="n">O-14</span>记几块事实，不开回合（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-24"><span class="n">O-24</span>判官看的群聊记录<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-15a"><span class="n">O-15 上</span>出厂参数和按场所改<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-15b"><span class="n">O-15 下</span>词表和名单<span class="st">✓</span></a></li>
@@ -638,9 +640,11 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sO-23b"><span class="n">O-23 下</span>判官接上<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-23c"><span class="n">O-23 补</span>判官带人格<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-25a"><span class="n">O-25 上</span>出站链<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">O-25 下</span>出站队列和贴表情</span></li>
+        <li><a class="step done" href="#sO-25b"><span class="n">O-25 中</span>出站队列<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sO-25c"><span class="n">O-25 下</span>退信和贴表情<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-6"><span class="n">O-6</span>核心：斜杠命令由核心解析<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sO-6b"><span class="n">O-6 补</span>列出斜杠命令<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sO-6c"><span class="n">O-6 再补</span>用不了的命令说为什么<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -662,10 +666,16 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sR-5b"><span class="n">R-5</span>核心接上小程序（中）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-5c"><span class="n">R-5</span>向量一路（下）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-5d"><span class="n">R-5</span>远程的 embedding（补）<span class="st">✓</span></a></li>
-        <li><span class="step"><span class="n">R-6</span>抽取</span></li>
-        <li><span class="step"><span class="n">R-7</span>合并</span></li>
+        <li><a class="step done" href="#sR-5e"><span class="n">R-5</span>语义模型这一项（再补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sR-5f"><span class="n">R-5</span>内置模型做成小程序包（三补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sR-5g"><span class="n">R-5</span>本机模型当场换（四补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sR-6"><span class="n">R-6</span>抽取（上）<span class="st">✓</span></a></li>
+        <li><span class="step"><span class="n">R-6</span>抽取（下，暂不做）</span></li>
+        <li><a class="step done" href="#sR-7"><span class="n">R-7</span>合并（上）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sR-7b"><span class="n">R-7</span>常驻的那一块交摘要（下）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">R-8</span>联想</span></li>
         <li><span class="step"><span class="n">R-9</span>记忆验收</span></li>
+        <li><a class="step done" href="#sR-10"><span class="n">R-10</span>记忆照包启用<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -709,8 +719,49 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s9-6e"><span class="n">9-6</span>一次调用的完整差异（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s9-7a"><span class="n">9-7 上</span>工作区是会话的属性<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s9-7b"><span class="n">9-7 下</span>斜杠命令 /workspace<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s9-7c"><span class="n">9-7 补</span>人手动选的工作区照用<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s9-8a"><span class="n">9-8 上</span>视图投影本身<span class="st">✓</span></a></li>
       </ol>
       <p class="later">头几步 2026-10-07 拆了，其余到了跟前再拆。终端界面以演示为蓝本并进主仓库，「显示什么」改由核心的视图投影给。</p>
+    </li>
+    <li>
+      <div class="ms-head"><span class="ms-id">F</span><span class="ms-name">插件框架</span><span class="ms-goal">自带的和别人做的都是软件包，预设照功能开关（2026-10-09 定先专门搭框架）</span></div>
+      <ol class="chips">
+        <li><a class="step done" href="#sF-1"><span class="n">F-1</span>清单的新几格<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sF-2"><span class="n">F-2</span>内置的包照清单启用<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sF-3a"><span class="n">F-3 上</span>预设照功能开关<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sF-3b"><span class="n">F-3 下</span>preset.get 照功能列<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sF-4"><span class="n">F-4</span>平台接入、配置项随包<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sF-5a"><span class="n">F-5 上</span>装卸命令、清单当场换<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sF-5b"><span class="n">F-5 中</span>工具、查询当场换<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sF-5c"><span class="n">F-5 下</span>扩展、系统账号当场换<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sF-5d"><span class="n">F-5 补</span>配置项当场换<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sF-5e"><span class="n">F-5 再补</span>内置模型当场换<span class="st">✓</span></a></li>
+      </ol>
+      <p class="later">框架搭好了（2026-10-09）：接着整理现有功能和代码（T 线），再做性能检查（设计 30 第十二节）。</p>
+    </li>
+    <li>
+      <div class="ms-head"><span class="ms-id">T</span><span class="ms-name">整理现有功能和代码</span><span class="ms-goal">自带的功能照插件框架走齐，说法、设计正文跟上，无用代码列清单拍板再删（设计 30 第十二节第二阶段）</span></div>
+      <ol class="chips">
+        <li><a class="step done" href="#sT-1a"><span class="n">T-1 上</span>后台运行关着：命令不放后台<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sT-1b"><span class="n">T-1 下</span>后台运行关着：子代理前台跑<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sT-2"><span class="n">T-2</span>扩展的工具归功能<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sT-3"><span class="n">T-3</span>miyu pkg 命令<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sT-4"><span class="n">T-4</span>说法、设计正文回写<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sT-5"><span class="n">T-5</span>没有人格时人格记忆怎么显示<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sT-6"><span class="n">T-6</span>无用代码清单<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sT-7"><span class="n">T-7</span>删掉拍了板的无用代码<span class="st">✓</span></a></li>
+      </ol>
+      <p class="later">整理完（2026-10-10）：照 <code>23-性能预算.md</code> 做性能检查（V 线）。</p>
+    </li>
+    <li>
+      <div class="ms-head"><span class="ms-id">V</span><span class="ms-name">性能检查</span><span class="ms-goal">照 23 的量法量核心这一边，超了预算的查、修，量尺进 CI（设计 30 第十二节第三阶段）</span></div>
+      <ol class="chips">
+        <li><span class="step"><span class="n">V-1</span>量尺</span></li>
+        <li><span class="step"><span class="n">V-2</span>超了预算的查、修</span></li>
+        <li><span class="step"><span class="n">V-3</span>量尺进 CI</span></li>
+      </ol>
+      <p class="later">界面的两项（按键到上屏、一帧）随头恢复再量。</p>
     </li>
   </ol>
   <ul class="legend" aria-label="图例">
@@ -14846,6 +14897,57 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sO-6c" aria-labelledby="h-sO6c">
+  <div class="sheet-head"><h2 id="h-sO6c"><span class="no">O-6 再补</span>用不了的命令说为什么</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">项目主人在网页上验收：没带人格、预设没开记忆的会话打 /remember，头说「命令不存在」，人不知道为什么。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">用不了的命令说为什么</span><span class="dir-note">O-6 再补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>command.run</code> 打了用不了的，拒绝多 <code>data.why</code>：照连接的语言说具体为什么</li>
+              <li>没有人格的「没有人格的会话记忆不生效」；预设没开记忆的带上预设的名字；别的照拒绝的那一句（<code>commands/why.rs</code>）</li>
+              <li>菜单照旧只列能用的</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">用不了的不列</span><span class="rl">项目主人定；同一天先做了「都列、带原因」，撤回</span></div>
+          <div class="tile new"><span class="nm">头那一半</span><span class="rl">菜单里没有的照样交给 command.run，照 data.why 说为什么</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-6 再补</dd></div>
+        <div><dt>名称</dt><dd>用不了的命令说为什么</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">1d9ae79f</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 6/6、八项、三台 CI 和长跑（run 1403）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>没有人格的、预设没开记忆的各说具体的一句</span></li>
+        <li><span class="ok">✓</span><span>人格预设都开着、是造会话时关的照拒绝的那一句</span></li>
+        <li><span class="ok">✓</span><span>变异 6/6</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-6-斜杠命令由核心解析（再补）.md</code>；蓝图 <code>protocol.md</code>「<code>command.run</code>」第 8 条、「<code>command.catalog</code>」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sP-1a" aria-labelledby="h-sP1a">
   <div class="sheet-head"><h2 id="h-sP1a"><span class="no">P-1 上</span>人格的文件和找法</h2><span class="pill done">已完成</span></div>
   <p class="purpose">人格成为数据根里的一个目录：主人把自己的 Miyu 放进家目录，造会话、QQ 私聊就用它说话，人设进 system、示范对话进稳定区。出厂只带软件工程师那一句。</p>
@@ -16468,6 +16570,116 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="s9-7c" aria-labelledby="h-s97c">
+  <div class="sheet-head"><h2 id="h-s97c"><span class="no">9-7 补</span>人手动选的工作区照用</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">项目主人在网页上验收：新会话把工作区设成 ~，聊了一句就变成别的了。太宽的目录一律退回账号的工作区，人明着选的也被换掉；核心重启以后载入时还会再判一次。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">人手动选的工作区照用</span><span class="dir-note">9-7 补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>session.create</code> 多 <code>chosen</code>：人明着选的太宽照用，回应多 <code>wide: true</code>；不写的照旧退回</li>
+              <li><code>session.set_workspace</code>、<code>/workspace</code> 一律算人选的；<code>/workspace</code> 的回执写明范围很大</li>
+              <li>数据根里不是自己工作区的，人选了也照旧退回、<code>path_forbidden</code></li>
+              <li>会话载入时照日志里记下的，不再判太宽；造会话、载入、换工作区都经 <code>sessions/places.rs</code> 的 <code>pick</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">人选的照用</span><span class="rl">项目主人定：手动选的、手动用命令换的不自动换</span></div>
+          <div class="tile new"><span class="nm">头自己带的照旧退回</span><span class="rl">终端启动时自动带上的当前目录，太宽照旧退回（项目主人选了 A）</span></div>
+          <div class="tile new"><span class="nm">头那一半</span><span class="rl">网页选的、终端明着给了路径的带 <code>chosen: true</code>；回应带 <code>wide</code> 的写一句提醒</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">9-7 补</dd></div>
+        <div><dt>名称</dt><dd>人手动选的工作区照用</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">064cc108</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 8 处、八项、三台 CI 和长跑（run 1409）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>人选的 ~ 造会话照用、带 wide，不选的照旧退回</span></li>
+        <li><span class="ok">✓</span><span>set_workspace、/workspace 的 ~ 照用；读不出家目录的 ~ 是读不了</span></li>
+        <li><span class="ok">✓</span><span>核心重启以后人选的 ~ 照旧</span></li>
+        <li><span class="ok">✓</span><span>变异头一回漏两处：一处补了测试，一处是多余的判断，删了</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/9-7-工作区是会话的属性（补）.md</code>；蓝图 <code>protocol.md</code>「<code>session.create</code>」「<code>session.set_workspace</code>」、<code>fs.md</code>「工作目录太宽」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s9-8a" aria-labelledby="h-s98a">
+  <div class="sheet-head"><h2 id="h-s98a"><span class="no">9-8 上</span>视图投影本身</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">终端、网页各自从事件算正文和时间线，收起那一行的字还得两边对齐。核心决定「显示什么」，头只管「怎么画」（设计 04 P3、01 D1）。这一步做投影本身，翻页、推送接在后面两步。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">视图投影本身</span><span class="dir-note">9-8 上</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>新 crate <code>miyu-view</code>（第 2 层，纯逻辑）：事件一条条喂进 <code>Projector</code>，交出条目的变化（加、换、接字、藏起、拿掉）</li>
+              <li>条目：消息、回答、时间线的一段和每一步、收尾、旁白；编号只看日志里的位置，跨页、跨重连不变</li>
+              <li>收起那一行、标题那一句、出错说明照连接的语言，收起那一行另给固定英文；字搬进核心的 human 资源</li>
+              <li><code>message.assistant</code> 多 <code>indexes</code>：流里的块号和位置错开时才写</li>
+              <li>内核替身多记交出来的先后，测试照它模拟头接着推送</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">视图流和翻页最后一样</span><span class="rl">每个测试都对照，另有三百份随机剧本</span></div>
+          <div class="tile new"><span class="nm">正文、思考出了字才开条目</span><span class="rl">空块不画；落了盘没有的块推 view.remove 拿掉</span></div>
+          <div class="tile new"><span class="nm">确认记在那一步工具上</span><span class="rl">不另起旁白</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">9-8 上</dd></div>
+        <div><dt>名称</dt><dd>视图投影本身</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">71840b33</dd></div>
+        <div><dt>验收</dt><dd>测试 26、变异 18/18、八项、本地长跑、三台 CI 和长跑（run 1396）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>一轮里的各种步、打断、出错丢掉半截调用、排队、退回、撤销恢复、手动压缩、后台任务、提问</span></li>
+        <li><span class="ok">✓</span><span>收起那一行的各种写法</span></li>
+        <li><span class="ok">✓</span><span>编号从一页中间开始喂和从头喂一样</span></li>
+        <li><span class="ok">✓</span><span>三百份随机剧本十样走法都走到</span></li>
+        <li><span class="ok">✓</span><span>变异 18/18</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/9-8-视图投影（上）.md</code>；蓝图 <code>view.md</code>（新）、<code>kernel/events-bodies.md</code>、<code>01-架构.md</code> 第九节（分层、白名单多 similar）。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sR-2" aria-labelledby="h-sR2">
   <div class="sheet-head"><h2 id="h-sR2"><span class="no">R-2</span>回合索引（上）</h2><span class="pill done">已完成</span></div>
   <p class="purpose">新版的「日记」：主会话里人开的每一轮（人的话加她最后的回答）照会话日志派生成一条，放进这个人格的回合库，能按关键词找。不另存：撤销、恢复、删会话自动跟着走，自己造的回合进不来。</p>
@@ -17146,6 +17358,362 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/R-5-远程的embedding（补）.md</code>；蓝图 <code>recall.md</code> 第三条第 1、5、6 款、第四条第 1、7 款，<code>config.md</code> 的类型表和 <code>models.embedding</code>，<code>models.md</code> 的 <code>[models]</code>，<code>http.md</code>，<code>log.md</code>，<code>core.md</code> 第 10 步。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sR-5e" aria-labelledby="h-sR5e">
+  <div class="sheet-head"><h2 id="h-sR5e"><span class="no">R-5</span>语义模型这一项（再补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">设置页上这一项人看得懂、选得了：叫「语义模型」，说它管什么；内置的那一个后面暗字写模型名；指定一家的模型时从能出向量的里挑。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-models · miyu-endpoint · resources</span><span class="dir-note">R-5</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>名字、说明、选项的名字照项目主人定的改</li>
+              <li>config.schema 的选项多可以没有的 note：内置模型的名字</li>
+              <li>model.list 里能出向量的模型标 embedding</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">照名字认</span><span class="rl">目录不标 embedding 的输出种类</span></div>
+          <div class="tile new"><span class="nm">规矩是数据</span><span class="rl">models/embedding.toml</span></div>
+          <div class="tile new"><span class="nm">暗字照核心查</span><span class="rl">不进给人看的字</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-5</dd></div>
+        <div><dt>名称</dt><dd>语义模型这一项（再补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">69907f89</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、核心的主会话看形状 · 自己验收，通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新测试：名字的规矩 3 条、出厂规矩照目录快照 1 条、model.list 2 条、config.schema 2 条；13 个手写变异全被逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 37895963537）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-5-语义模型（再补）.md</code>；蓝图 <code>config.md</code>「协议」和「给人看的字」，<code>protocol.md</code> 的 <code>config.schema</code>，<code>models.md</code>「协议」<code>model.list</code>，<code>recall.md</code> 第四条第 1 款。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sR-5f" aria-labelledby="h-sR5f">
+  <div class="sheet-head"><h2 id="h-sR5f"><span class="no">R-5</span>内置模型做成小程序包（三补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">主程序轻：不背 24 MB 的模型，也不在第一次用时去下。要照意思找、又不想用远程的，装「内置语义模型」这个包，装好就能用、不联网。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-core · miyu-session · miyu-endpoint · miyu-embed/package</span><span class="dir-note">R-5</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>小程序包 embed：程序 miyu-embed，模型清单和模型文件在包目录里</li>
+              <li>人格记忆推荐它；核心照装了的包拼 Embedder 要的</li>
+              <li>第一次要时核对包里的文件，不下、不删</li>
+              <li>没装时 config.schema 里「内置模型」带 available: false</li>
+              <li>去掉下载：fetch.rs 的下载、Staged、miyu_http::download、模型清单的 url</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">出厂不装</span><span class="rl">只有关键词，或者指定远程的</span></div>
+          <div class="tile new"><span class="nm">包的文件</span><span class="rl">清单旁边的同名目录</span></div>
+          <div class="tile new"><span class="nm">model.toml</span><span class="rl">小程序认的名字，清单里不另写</span></div>
+          <div class="tile new"><span class="nm">选不了</span><span class="rl">available 只写 false</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-5</dd></div>
+        <div><dt>名称</dt><dd>内置模型做成小程序包（三补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">af0d2b83</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、核心的主会话看形状 · 自己验收，通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新测试：核心照包拼 3 条、仓库里的包清单 1 条、会话照包目录核对 6 条、补的时候等 1 条、config.schema 的 available 2 条；17 个手写变异全被逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 37922928605）；真核心手摆一份：装了照意思找得到，拿掉以后「内置模型」选不了、关键词照样找得到</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-5-内置模型做成小程序包（三补）.md</code>；蓝图 <code>recall.md</code> 第四条第 1 到 4 款，<code>packages.md</code>「在哪」「格式」，<code>core.md</code> 第 10 步，<code>config.md</code>、<code>protocol.md</code> 的 <code>config.schema</code>，<code>store.md</code>，<code>http.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sR-5g" aria-labelledby="h-sR5g">
+  <div class="sheet-head"><h2 id="h-sR5g"><span class="no">R-5</span>本机模型当场换（四补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">装、卸「内置语义模型」不用重启核心：向量那一路换得了本机的，旧的小程序关掉。这一步是会话这一半，核心在 F-5 再补里接上。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-session · embed · memory/vectors</span><span class="dir-note">R-5</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>Vectors::replace_local：照新的清单拼的换上</li>
+              <li>一样的不动：几格一样、模型清单原文也没变</li>
+              <li>旧的关掉：标成用不了、等小程序退完</li>
+              <li>旧的副本不再拉起</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">会话这边比</span><span class="rl">核心不用先比名字</span></div>
+          <div class="tile new"><span class="nm">原地升级算换</span><span class="rl">清单的 SHA-256 变了</span></div>
+          <div class="tile new"><span class="nm">先换再删</span><span class="rl">Windows 上开着的文件删不掉</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-5</dd></div>
+        <div><dt>名称</dt><dd>本机模型当场换（四补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">8bd3b6e6</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、核心的主会话看签名 · 自己验收，通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新测试：换的 5 条（另一份、换了地方、一样的、清单内容变了、换成空的再换回来）、排队和关掉 2 条；12 个手写变异全被逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 37939886918）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-5-换本机模型（四补）.md</code>；蓝图 <code>recall.md</code> 第四条第 1、4 款。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sR-6" aria-labelledby="h-sR6">
+  <div class="sheet-head"><h2 id="h-sR6"><span class="no">R-6</span>抽取（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">人不用说「记住」：会话闲下来一会儿，她把新聊的这一段里值得记的整理成记忆。零条是常态。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-kernel · miyu-assemble · miyu-recall · miyu-session</span><span class="dir-note">R-6</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>闲了三分钟、攒够两轮就起；忙起来就撤</li>
+              <li>这一段照会话日志取，压缩过的、重启前的都不丢</li>
+              <li>遮掉 key 发给整理的模型，交回的记成记忆</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">从日志取</span><span class="rl">内核手里的历史检查点以前的没了</span></div>
+          <div class="tile new"><span class="nm">不卡在一轮上</span><span class="rl">太长的截中间也抽、往前走</span></div>
+          <div class="tile new"><span class="nm">她记过的整段跳过</span><span class="rl">照 Claude Code</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-6</dd></div>
+        <div><dt>名称</dt><dd>抽取（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">7c76894b</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型、核心的主会话审 · 自己验收，通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新测试：会话 8 条、拼法 6 条、读回和遮 key 7 条、抽到哪 2 条、渲染这一段 4 条；19 个手写变异全被逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 37907917534）；真模型抽了一次，记得对、该丢的丢了</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-6-抽取.md</code>；蓝图 <code>memory.md</code> 第六条，<code>config.md</code> 的三项，<code>log.md</code>，<code>kernel/session.md</code>，<code>26-提示词.md</code> 第十节。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sR-7" aria-labelledby="h-sR7">
+  <div class="sheet-head"><h2 id="h-sR7"><span class="no">R-7</span>合并（上）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">抽取只往里加；隔一段时间、攒够几个会话，把新记的和相关的旧记忆放在一起理一遍：重复的、被推翻的作废，相对的日期改成绝对的，写一段新的摘要。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-recall · miyu-session · resources/software/memory/merge</span><span class="dir-note">R-7</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>抽取记下以后看够不够：有新记的、会话够、间隔到了</li>
+              <li>交摘要、新记的、相关的旧记忆，最多 32 KiB，放不下的接着合</li>
+              <li>读交回的：改、作废、摘要，不合的丢掉</li>
+              <li>记成事件：改的指着旧的，摘要、合到哪</li>
+              <li>两项配置、五份给模型看的字（登记）</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">只追加</span><span class="rl">作废的原文还在</span></div>
+          <div class="tile new"><span class="nm">自己改的不算新</span><span class="rl">不反复合</span></div>
+          <div class="tile new"><span class="nm">摘要 600 字</span><span class="rl">常驻那一块留地方</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-7</dd></div>
+        <div><dt>名称</dt><dd>合并（上）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">d4afd2ad</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真模型两批、核心的主会话看形状 · 自己验收，通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新测试：合并交回的读法 6 条、事件和底账 3 条、真会话 6 条；17 个手写变异全被逮住（头一轮漏的六个补了测试或删了多余的代码）；门禁八项全过；三台机器的 CI 和长跑全绿（run 37965460473）；开发端点的真模型试两批：重复的、推翻的作废得对，相对日期改得对，不冲突的没动</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-7-合并（上）.md</code>；蓝图 <code>memory.md</code> 第七条和记忆日志的事件，<code>config.md</code> 的 <code>memory.merge_*</code>，<code>log.md</code>，<code>26-提示词.md</code> 第十节。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sR-7b" aria-labelledby="h-sR7b">
+  <div class="sheet-head"><h2 id="h-sR7b"><span class="no">R-7</span>常驻的那一块交摘要（下）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">合并写的摘要交给她：会话的第一轮、压缩以后，常驻的那一块是「她对你的了解」一段，后面接合并以后才记的几条。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-recall · miyu-session · resources/software/memory/summary</span><span class="dir-note">R-7</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>有摘要的：头一行是摘要，后面接之后新记的</li>
+              <li>摘要合进去的被改了、作废了、清空了：摘要不算</li>
+              <li>不算了的照只列条目，下次合并从头来</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">忘了就是忘了</span><span class="rl">摘要跟着不算</span></div>
+          <div class="tile new"><span class="nm">少四成 token</span><span class="rl">同样的事</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-7</dd></div>
+        <div><dt>名称</dt><dd>常驻的那一块交摘要（下）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">be41015e</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、量 token、核心的主会话看形状 · 自己验收，通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新测试：底账 1 条、真会话 5 条；13 个手写变异全被逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 37969432249）；量：同样的事摘要模式 121 token、只列条目 201</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-7-常驻的那一块交摘要（下）.md</code>；蓝图 <code>memory.md</code> 第三条第 2 款、第七条第 8 款，<code>26-提示词.md</code> 第十节。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sR-10" aria-labelledby="h-sR10">
+  <div class="sheet-head"><h2 id="h-sR10"><span class="no">R-10</span>记忆照包启用</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">卸掉「人格记忆」，它的东西哪里都不出现：开着的会话不交摘要、不抽，协议、命令行、斜杠命令说没装；装回来以前记的都在。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-session · miyu-endpoint</span><span class="dir-note">R-10</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>Memory 记着装没装：起来时、装卸以后照清单设</li>
+              <li>开着的会话没装的不交摘要、不抽</li>
+              <li>memory.* 回 memory_not_installed</li>
+              <li>/remember 说没装、命令表不列</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">开关在记忆上</span><span class="rl">会话的功能表不跟装卸</span></div>
+          <div class="tile new"><span class="nm">另起原因码</span><span class="rl">分得出装上就能用</span></div>
+          <div class="tile new"><span class="nm">不删数据</span><span class="rl">装回来照旧读</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-10</dd></div>
+        <div><dt>名称</dt><dd>记忆照包启用</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">96bf0513</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真核心、核心的主会话看形状 · 自己验收，通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>新测试：会话 3 条、端点 3 条、核心 1 条；12 个手写变异全被逮住；门禁八项全过（头一回行数拦了端点的 lib.rs，挪了记忆的两个方法）；三台机器的 CI 和长跑全绿（run 37954346219，Linux 上核心的一条日志测试抖了一次，重跑过）；真核心：卸了以后 miyu memory 说没装，装回来以前记的都在</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-10-记忆照包启用.md</code>；蓝图 <code>memory.md</code> 第十一条和「协议」，<code>protocol.md</code> 的 <code>memory.*</code>、<code>/remember</code>、拒绝的表，<code>packages.md</code>「装卸」第 2 条，<code>core.md</code> 第 12 步。</li>
       </ul>
     </div>
   </div>
@@ -18209,6 +18777,61 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sO-14c" aria-labelledby="h-sO14c">
+  <div class="sheet-head"><h2 id="h-sO14c"><span class="no">O-14 补</span>记几块事实，不开回合</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">通讯平台的桥退信要用：她的话发不出去，下一步要知道。扩展写不了 <code>context.injected</code>，<code>session.respond</code> 带事实又会开一轮，退信不该开回合。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">记几块事实，不开回合</span><span class="dir-note">O-14 补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>session.note {session, facts}</code> 回 <code>{events}</code>：1 到 16 块，写法同 <code>session.respond</code> 的事实，查法两边共用</li>
+              <li>内核新命令 <code>Note</code>：当场记成 <code>context.injected</code>，<code>cause</code> 是这个命令</li>
+              <li>正在跑一轮的带这一轮的回合编号，下一次请求就看到，撤销这一轮跟着撤</li>
+              <li>空闲的不带回合编号、不开回合，下一轮开头看到，排在触发前面</li>
+              <li>随机测试多这一种输入，每一例最后另送一次</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不打断、不叫醒</span><span class="rl">退信不是有人说话，等她下一步、下一轮自然看到</span></div>
+          <div class="tile new"><span class="nm">不并进 events.append</span><span class="rl">那条路记的一律不带回合编号，一轮里来的退信该跟着这一轮</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-14 补</dd></div>
+        <div><dt>名称</dt><dd>记几块事实，不开回合</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">1ddee3df</dd></div>
+        <div><dt>验收</dt><dd>变异 10/10、八项、本地长跑、三台 CI 和长跑（run 1384）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>空闲时不带回合编号、不开回合，下一轮的请求里排在触发前面</span></li>
+        <li><span class="ok">✓</span><span>调工具时来的带这个回合、不叫停不叫醒，下一次请求就有它，说完不另开</span></li>
+        <li><span class="ok">✓</span><span>空的、17 块、类别不对、超过 4 KiB、多一格、会话编号不对的 bad_params，什么都不记；16 块收</span></li>
+        <li><span class="ok">✓</span><span>同一个请求编号再发只记一次</span></li>
+        <li><span class="ok">✓</span><span>变异 10/10</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-14-记几块事实（补）.md</code>；蓝图 <code>venues.md</code>「记几块事实」、<code>kernel/session.md</code>、<code>protocol.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sO-24" aria-labelledby="h-sO24">
   <div class="sheet-head"><h2 id="h-sO24"><span class="no">O-24</span>判官看的群聊记录</h2><span class="pill done">已完成</span></div>
   <p class="purpose">主动回复判断要问判官，判官看的群聊记录要和她看到的同一个样子。渲染要会话快照里钉下的时区和字，桥拿不到，由核心渲染好交给桥。</p>
@@ -18632,6 +19255,57 @@ a.step:hover{border-color:var(--primary)}
   </div>
 </section>
 
+<section class="sheet" id="sO-2d" aria-labelledby="h-sO2d">
+  <div class="sheet-head"><h2 id="h-sO2d"><span class="no">O-2 再补</span>登记过工具的扩展退出了照样察觉</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">提供者表里存着扩展的连接，连接断了也攥着往它写的那一头：写的任务不结束，看管扩展的任务一直等，扩展崩了不重新拉起、端口被占退出了还显示在跑。通讯平台的会话做 O-26 时查出来的。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">登记过工具的扩展退出了照样察觉</span><span class="dir-note">O-2 再补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>往连接写的那一头挪进连接共享的状态里，连接断了（<code>Peer::close</code>）放掉</li>
+              <li>原来的「断了」标记就是它没了，去掉</li>
+              <li>改法照通讯平台的会话附的 diff</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">连接断了，写的那一头一起放掉</span><span class="rl">存着连接的地方不再拦着连接结束</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-2 再补</dd></div>
+        <div><dt>名称</dt><dd>登记过工具的扩展退出了照样察觉</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">57305eed</dd></div>
+        <div><dt>验收</dt><dd>测试先红后绿、变异 4/4、八项、三台 CI 和长跑（run 1400）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>登记过工具的扩展一直退出：每次都察觉、照退避重新拉起、五次停下</span></li>
+        <li><span class="ok">✓</span><span>端口被占退出的记成 config_error</span></li>
+        <li><span class="ok">✓</span><span>改之前两条都等 60 秒还是「在跑」</span></li>
+        <li><span class="ok">✓</span><span>变异 4/4</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-2-提供者（再补）.md</code>；蓝图 <code>providers.md</code>「怎么走」第 2 条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="sheet" id="sO-23b" aria-labelledby="h-sO23b">
   <div class="sheet-head"><h2 id="h-sO23b"><span class="no">O-23 下</span>判官接上</h2><span class="pill done">已完成</span></div>
   <p class="purpose">群里要问判官的两条路接上：别人的 @、续聊、刚说过话、抽样、违规旗，交判官打分，够了才回；补发的照顶替接过去或者几条一起重判；四种线路规程分开走。</p>
@@ -18781,6 +19455,1058 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/O-25-出站链（上）.md</code>；蓝图 <code>onebot.md</code>「群里怎么叫她」第 2、9 条、「怎么走」第 10 条、「斜杠命令」第 7 条，施工时定的第 105 到 115 条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sO-25b" aria-labelledby="h-sO25b">
+  <div class="sheet-head"><h2 id="h-sO25b"><span class="no">O-25 中</span>出站队列</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她要说出去的一切先记账再发：入队、送达、失败都是事件。她被禁言、号没连着时排着，解禁、到期、连上了照先后发；排过 60 秒的作废，不在解禁以后一股脑发出去。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-onebot/src/core/route/</span><span class="dir-note">O-25 中</span></div>
+            <ol class="pipe" aria-label="一段话怎么出去">
+              <li>sending.rs：先记 <code>ext.onebot.venues.queued</code>，拿到序号</li>
+              <li>queue.rs：门关着（禁言、没连着）的排着，过期的交出来作废</li>
+              <li>门开着照先后交 NapCat；成了记 <code>venue.delivered</code>，没成记 <code>failed</code></li>
+              <li>muted.rs：<code>group_ban</code> 禁她的记 <code>muted {until}</code>、解禁记 <code>unmuted</code></li>
+              <li>号连上、解禁、到期、定时醒了：再看一遍排着的</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">过期</span><span class="rl">排着的 60 秒作废，放 bridge.json</span></div>
+          <div class="tile new"><span class="nm">禁言</span><span class="rl">只认禁她的；全员禁言、别人被禁言不认</span></div>
+          <div class="tile new"><span class="nm">去重</span><span class="rl">照入队算，O-25 上的两处过渡收掉</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-25 中</dd></div>
+        <div><dt>名称</dt><dd>出站队列</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">d6a855d6</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真跑 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真核心加真桥、假 NapCat：入队先于送达；拒了的记 rejected；提示、回执、私聊回话都入队；禁言时只记下、她的话排着，解禁、到期照先后发；过期的记 expired 不发；没连着排着、连上了发；去重照入队</span></li>
+        <li><span class="ok">✓</span><span>改之前 12 个集成测试红；手写变异 22 个全被逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 1390）；临时数据根真跑禁言、解禁、到期、过期、断线重连、回执撤回</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-25-出站队列（中）.md</code>；蓝图 <code>onebot.md</code> 第一条「出站队列」、施工时定的第 116 到 128 条，<code>chat.md</code> 第七条第 2、4 条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sO-25c" aria-labelledby="h-sO25c">
+  <div class="sheet-head"><h2 id="h-sO25c"><span class="no">O-25 下</span>退信和贴表情</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">她的话发不出去，经核心的 <code>session.note</code> 退回给她，她下一步就知道哪一句没人看到、为什么。群里叫她、判下来要回的那一条先贴一个表情，她回了、这一轮完了、10 分钟没回就摘。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">crates/miyu-onebot/src/core/route/</span><span class="dir-note">O-25 下</span></div>
+            <ol class="pipe" aria-label="退信和贴表情">
+              <li>sending.rs：她的话记了 <code>failed</code>，<code>session.note</code> 记一块 <code>undelivered</code></li>
+              <li>called.rs：判下来要回、<code>session.respond</code> 成了，主触发是冲她来、续聊的交给贴表情</li>
+              <li>reaction.rs：贴 289，等这一轮发出第一段、结束、到 600 秒，摘一次</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">退信</span><span class="rl">一段一块，带开头 30 个字符；出厂 49 个 token，已登记</span></div>
+          <div class="tile new"><span class="nm">贴在哪</span><span class="rl">她要回的那一条；顶替的挪到新的一条</span></div>
+          <div class="tile new"><span class="nm">不记事件</span><span class="rl">贴、摘没成的记一行；重启时贴着的不摘</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">O-25 下</dd></div>
+        <div><dt>名称</dt><dd>退信和贴表情</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">86be0dcd</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真跑 · 通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真核心加真桥、假 NapCat：被拒、过期的她的话退信，正在跑的那一轮下一次请求看得到；提示、回执不退；主人 @ 先贴后摘，判官说不回、抽样、刚说过话的不贴，续聊的贴，一直不回到时候摘，只摘一次</span></li>
+        <li><span class="ok">✓</span><span>改之前 8 个集成测试红；手写变异 23 个全被逮住；门禁八项全过；三台机器的 CI 和长跑全绿（run 1393）；临时数据根真跑贴、摘和退信</span></li>
+        <li><span class="ok">✓</span><span>顺手修的测试单独一个提交（605c4988）：disciplines 里续聊那一句等她的话记下再发</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/O-25-退信和贴表情（下）.md</code>；蓝图 <code>onebot.md</code> 第一条「退信」「贴表情」、施工时定的第 129 到 137 条；<code>26-提示词.md</code> 第十节。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sF-1" aria-labelledby="h-sF1">
+  <div class="sheet-head"><h2 id="h-sF1"><span class="no">F-1</span>清单的新几格</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">插件框架（设计 30）的第一步：软件包清单读得出内置、小程序两种包，包带的功能，平台接入，依赖的小程序，必需。只读、只列，不改行为。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">清单的新几格</span><span class="dir-note">F-1</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>kind</code> 多 <code>builtin</code>、<code>worker</code>；<code>required</code> 只给内置包</li>
+              <li><code>[features.&lt;编号&gt;]</code>：名字、说明、下面的工具；没写的整个包算一个，写了空表的没有</li>
+              <li><code>[connection] platform</code>、<code>[depends]</code>、<code>[recommends]</code> 的 <code>workers</code>、小程序的 <code>[worker]</code></li>
+              <li>每种包能写哪几张表列成一张表，写错报 <code>wrong_kind</code>；功能编号撞了报 <code>feature_taken</code></li>
+              <li><code>package.list</code> 带上 <code>required</code>、<code>features</code>、<code>connection</code>、<code>depends</code>、<code>recommends</code>、<code>worker</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">功能是开关的单位</span><span class="rl">项目主人定；一个包能带好几个</span></div>
+          <div class="tile new"><span class="nm">没写功能的算一个</span><span class="rl">别人的扩展不写也有一个开关</span></div>
+          <div class="tile new"><span class="nm">package.list 不列工具</span><span class="rl">头画预设页用 preset.get（F-3）</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">F-1</dd></div>
+        <div><dt>名称</dt><dd>清单的新几格</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">681d837b</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 16/16、八项、三台 CI 和长跑（run 1415）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>每一种新格读对、每一种写错报对代码和行</span></li>
+        <li><span class="ok">✓</span><span>没写功能的照包算一个，空表一个都没有</span></li>
+        <li><span class="ok">✓</span><span>两个包的功能编号撞了，后读到的报 feature_taken</span></li>
+        <li><span class="ok">✓</span><span>变异 16/16</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/F-1-清单的新几格.md</code>；设计 <code>30-插件框架.md</code>；蓝图 <code>packages.md</code>「格式」「协议」「出错」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sF-2" aria-labelledby="h-sF2">
+  <div class="sheet-head"><h2 id="h-sF2"><span class="no">F-2</span>内置的包照清单启用</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">编进核心的东西也照装没装启用：有读成了的清单才算装了，核心才登记它的工具、查询。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">内置的包照清单启用</span><span class="dir-note">F-2</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>出厂多五份内置包的清单：基础系统（必需，九个功能）、人格记忆、人设防失忆提醒、画 mermaid、联网</li>
+              <li>接入QQ 改名（原来叫 QQ 桥），多平台接入和功能 QQ 工具</li>
+              <li>核心编进来的内置包一张表（<code>miyu_core::built_in</code>），清单在、没编进来的报 <code>not_built_in</code></li>
+              <li>起来时照清单登记基础系统、人格记忆的工具和画 mermaid、联网的查询，没装的不登记</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">装了只认清单</span><span class="rl">设计 30 第二节第 3 条；项目主人定</span></div>
+          <div class="tile new"><span class="nm">改名</span><span class="rl">接入QQ、人设防失忆提醒，项目主人定</span></div>
+          <div class="tile new"><span class="nm">召回、提醒照功能开关</span><span class="rl">随 F-3</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">F-2</dd></div>
+        <div><dt>名称</dt><dd>内置的包照清单启用</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">d9ed54d1</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 10/10、八项、三台 CI 和长跑（run 1423）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>没装记忆、基础系统的工具目录里没有它们的工具</span></li>
+        <li><span class="ok">✓</span><span>没装画 mermaid、联网的查询是 unknown_method</span></li>
+        <li><span class="ok">✓</span><span>出厂的内置包清单和编进来的一一对得上</span></li>
+        <li><span class="ok">✓</span><span>真核心起来时记一行 not_built_in</span></li>
+        <li><span class="ok">✓</span><span>变异 10/10</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/F-2-内置的包照清单启用.md</code>；设计 <code>30-插件框架.md</code>；蓝图 <code>packages.md</code>「在哪」「怎么走」「出错」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sF-3a" aria-labelledby="h-sF3a">
+  <div class="sheet-head"><h2 id="h-sF3a"><span class="no">F-3 上</span>预设照功能开关</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">开关的单位从软件包换成功能：预设照功能开关，工具照它归的功能留不留；没装的功能就是没有。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">预设照功能开关</span><span class="dir-note">F-3 上</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>功能表 <code>miyu_policy::features::Features</code>：核心照清单拼，随预设的几层交给会话；工具照清单写明的归功能，包只有一个功能的都归它</li>
+              <li>预设多 <code>[features]</code>；开不开先认它，再认以前的 <code>[software]</code>（功能编号、包编号），最后照 <code>unlisted</code></li>
+              <li>工具面、快照的 <code>preset.off</code>、装了没开的那一行都照功能</li>
+              <li>没装人格记忆的范围 off；没装人设防失忆提醒的没有提醒和风格锁</li>
+              <li>以前的快照记包编号，照现在的功能读一样的算没改，不断缓存</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">开关的单位是功能</span><span class="rl">项目主人定；设计 30 第四节</span></div>
+          <div class="tile new"><span class="nm">以前的 [software] 照认</span><span class="rl">老预设不用改</span></div>
+          <div class="tile new"><span class="nm">基础功能预设的那一行一个字节不变</span><span class="rl">只关着人格记忆的照旧写 memory</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">F-3 上</dd></div>
+        <div><dt>名称</dt><dd>预设照功能开关</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">2fbde6a7</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 19/19、八项、三台 CI 和长跑（run 1426）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>[features] 读法、先后、叠、指纹</span></li>
+        <li><span class="ok">✓</span><span>以前记包编号的快照不换、真改了的照换</span></li>
+        <li><span class="ok">✓</span><span>关掉一个功能工具没了、那一行写功能编号</span></li>
+        <li><span class="ok">✓</span><span>没装人格记忆、人设防失忆提醒的照没有</span></li>
+        <li><span class="ok">✓</span><span>出厂的每件工具都归上一个功能</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/F-3-预设照功能开关（上）.md</code>；设计 <code>30-插件框架.md</code>；蓝图 <code>presets.md</code>「格式」「怎么走」第 5 条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sF-3b" aria-labelledby="h-sF3b">
+  <div class="sheet-head"><h2 id="h-sF3b"><span class="no">F-3 下</span>preset.get 照功能列</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">头画预设页要的：每个功能一个开关，展开是它下面的工具，每件能单独关。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">preset.get 照功能列</span><span class="dir-note">F-3 下</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>preset.get</code> 的 <code>software</code>、<code>tools</code> 换成 <code>features</code>：装了的照清单读的先后，写了没装的接在后面</li>
+              <li>每个功能带归它的工具：显示名照各包给人看的字，功能关着的都关着，开着的照 <code>[tools]</code></li>
+              <li><code>preset.set</code> 写 <code>features.&lt;编号&gt;</code></li>
+              <li>不认识的表那一句加上 <code>[features]</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">一个开关下面还能逐件关工具</span><span class="rl">项目主人定</span></div>
+          <div class="tile new"><span class="nm">不另带 extra 标记</span><span class="rl">每个功能本来就有自己的开关</span></div>
+          <div class="tile new"><span class="nm">显示名照包里已有的字</span><span class="rl">不另写</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">F-3 下</dd></div>
+        <div><dt>名称</dt><dd>preset.get 照功能列</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">fc973559</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 8/8、八项、三台 CI 和长跑（run 1430）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>照功能列、写了没装的接在后面</span></li>
+        <li><span class="ok">✓</span><span>每件工具的显示名、开不开</span></li>
+        <li><span class="ok">✓</span><span>装了的不另列一遍</span></li>
+        <li><span class="ok">✓</span><span>preset.set 写 features.<编号></span></li>
+        <li><span class="ok">✓</span><span>变异 8/8</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/F-3-预设照功能开关（下）.md</code>；蓝图 <code>presets.md</code>「怎么走」第 8 条、<code>protocol.md</code>「preset.get」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sF-4" aria-labelledby="h-sF4">
+  <div class="sheet-head"><h2 id="h-sF4"><span class="no">F-4</span>平台接入、配置项随包</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">配置项跟着它的包走：平台接入的在单独的「接入」页；核心替内置包声明的归到那个包下面，包没装的设置页不画。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">平台接入、配置项随包</span><span class="dir-note">F-4</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>写了 <code>[connection]</code> 的包，配置项挂在 <code>connections</code>（接入）那一页</li>
+              <li>人格记忆的三项从「高级」挪到「软件包」那一页 memory 组</li>
+              <li>核心替内置包声明的配置项登记一张表（<code>OWNED</code>）：包没装的照样认、设置页不画</li>
+              <li>认核心自己的模块时，「接入」那一页的也算包的</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">平台接入单独一页</span><span class="rl">项目主人定；设计 30 第五节</span></div>
+          <div class="tile new"><span class="nm">没装的照样认</span><span class="rl">不让配置文件多出不认识的键</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">F-4</dd></div>
+        <div><dt>名称</dt><dd>平台接入、配置项随包</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">9c0273b6</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 5/5、八项、三台 CI 和长跑（run 1433）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>接入QQ 的配置项在「接入」页、组名照包的名字</span></li>
+        <li><span class="ok">✓</span><span>人格记忆的三项都在「软件包」页 memory 组</span></li>
+        <li><span class="ok">✓</span><span>没装记忆包的三项照样在、不画</span></li>
+        <li><span class="ok">✓</span><span>miyu check 不把接入QQ 当核心的模块</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/F-4-平台接入、配置项随包.md</code>；设计 <code>30-插件框架.md</code> 第五节、第七节；蓝图 <code>packages.md</code>「配置项」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sF-5a" aria-labelledby="h-sF5a">
+  <div class="sheet-head"><h2 id="h-sF5a"><span class="no">F-5 上</span>装卸命令、清单当场换</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">能装、能卸，不重启核心：装卸以后 package.list、预设的功能当场照新的，开着的会话下一个回合换上。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">装卸命令、清单当场换</span><span class="dir-note">F-5 上</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>package.install {path}</code>：从本机一份清单装进管理员家目录那一层，同名目录一起拷，同编号的换成新的</li>
+              <li>读不成的、和出厂撞了的、拷进去以后和别的包撞了的不装，撤回、原来的放回去</li>
+              <li><code>package.remove</code>：家目录的删掉，出厂的在家目录记一笔 <code>&lt;编号&gt;.removed</code>，必需的拒绝；<code>package.install {package}</code> 装回来</li>
+              <li>装卸以后照两层重读、当场换掉核心手里的清单；<code>package.list</code> 里卸掉的出厂的带 <code>removed</code></li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">当场生效</span><span class="rl">项目主人定；设计 30 第九节</span></div>
+          <div class="tile new"><span class="nm">出厂的能卸，家目录记一笔</span><span class="rl">项目主人定</span></div>
+          <div class="tile new"><span class="nm">只动家目录那一层</span><span class="rl">资源目录只读</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">F-5 上</dd></div>
+        <div><dt>名称</dt><dd>装卸命令、清单当场换</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">6074b2e9</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 11/11、八项、三台 CI 和长跑（run 1442）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>装上当场列出、带的功能当场进预设</span></li>
+        <li><span class="ok">✓</span><span>升级换掉、升级撞了放回原来的、不留暂存</span></li>
+        <li><span class="ok">✓</span><span>写错的、和出厂撞了的、和别的包撞了的不装</span></li>
+        <li><span class="ok">✓</span><span>卸出厂的记一笔、装得回来；必需的、没装的不能卸</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/F-5-装包、卸包（上）.md</code>；设计 <code>30-插件框架.md</code> 第九节；蓝图 <code>packages.md</code>「装卸」、<code>protocol.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sF-5b" aria-labelledby="h-sF5b">
+  <div class="sheet-head"><h2 id="h-sF5b"><span class="no">F-5 中</span>工具、查询当场换</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">装上、卸掉一个内置包，它的工具、查询当场跟着换：用过它的会话工具面不变、调到时报「已卸载」，开着的会话下一个回合拿到新装上的包的工具。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">工具、查询当场换</span><span class="dir-note">F-5 中</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>工具目录多 <code>placing</code>、<code>removing</code>，卸掉的记下随包卸掉了</li>
+              <li>核心多端口 <code>miyu_endpoint::builtins::Builtins</code>（miyu-core 装上），装卸以后照清单换内置包的工具</li>
+              <li>调到随包卸掉的工具写「已卸载」（<code>uninstalled.txt</code>，量过 11 token），以前的快照照「现在用不了」说</li>
+              <li>新装上的内置包的工具下一个回合进来；查询记着属于哪个包，没装的当没有</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">旧会话照旧留着、报已卸载</span><span class="rl">项目主人定；设计 30 第九节</span></div>
+          <div class="tile new"><span class="nm">包里多了一件的照旧等预设改</span><span class="rl">不为升级断缓存</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">F-5 中</dd></div>
+        <div><dt>名称</dt><dd>工具、查询当场换</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">273e17a1</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 13/13、八项、三台 CI 和长跑（run 1446）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真核心卸掉内置包：查询当没有、旧会话报已卸载、新会话没有</span></li>
+        <li><span class="ok">✓</span><span>装回来工具、查询都回来</span></li>
+        <li><span class="ok">✓</span><span>旧快照没有这一句的照用不了说</span></li>
+        <li><span class="ok">✓</span><span>变异 13/13</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/F-5-装包、卸包（中）.md</code>；蓝图 <code>packages.md</code>「装卸」、<code>providers.md</code>「目录换代」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sF-5c" aria-labelledby="h-sF5c">
+  <div class="sheet-head"><h2 id="h-sF5c"><span class="no">F-5 下</span>扩展、系统账号当场换</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">装上、升级、卸掉一个扩展包不用重启核心：装上的照开关拉起，升级了的换成新的，卸掉的停下、它登记的工具照「已卸载」那一套走；声明了系统账号的，装上就有账号。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">扩展、系统账号当场换</span><span class="dir-note">F-5 下</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>装卸以后照前后两份清单对一遍扩展包（<code>Core::follow_packages</code>）：卸掉的停、新的照开关起、清单变了的重起、没变的不动</li>
+              <li>卸掉的扩展经提供者登记的工具拿掉、记下随包卸掉了，用过它的会话照旧留着、调到报已卸载</li>
+              <li>系统账号每次装卸以后再建一遍，只管还没开过索引的；卸掉的家目录、索引留着</li>
+              <li>端点单元测试共用临时数据根（<code>src/test_support.rs</code>）</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">比整份清单，不另记版本号</span><span class="rl">哪一格变了起来的进程都可能不一样</span></div>
+          <div class="tile new"><span class="nm">卸掉的账号数据留着</span><span class="rl">彻底卸载连数据删随 R9</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">F-5 下</dd></div>
+        <div><dt>名称</dt><dd>扩展、系统账号当场换</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">46f6c815</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 11/11、八项、三台 CI 和长跑（run 1449）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真核心装上 always 的扩展当场拉起、工具调得到</span></li>
+        <li><span class="ok">✓</span><span>卸掉当场停下、不列、旧会话报已卸载</span></li>
+        <li><span class="ok">✓</span><span>升级了的重起，装别的包时没变的进程不换</span></li>
+        <li><span class="ok">✓</span><span>起来以后装上、装回来的包当场有系统账号</span></li>
+        <li><span class="ok">✓</span><span>变异 11/11</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/F-5-装包、卸包（下）.md</code>；蓝图 <code>extensions.md</code>「怎么走」第 7 条、<code>packages.md</code>「装卸」「系统账号」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sF-5d" aria-labelledby="h-sF5d">
+  <div class="sheet-head"><h2 id="h-sF5d"><span class="no">F-5 补</span>配置项当场换</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">装上、卸掉一个带配置项的包不用重启核心：它的键当场认得、生成的 Schema 和参考文件当场有它，卸掉又报不认识。卸包、升级先把用着它的扩展停下再动文件。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">配置项当场换</span><span class="dir-note">F-5 补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>Builtins</code> 端口多 <code>settings</code>，交回整份配置清单（miyu-core 照起来时那一套拼）</li>
+              <li>配置服务换清单（<code>Config::refit</code>）：两层照手里的字重新认，变了的推 <code>config.changed</code>（<code>via: package</code>）</li>
+              <li>生成的三份在配置清单变了时也重写，包的字照核心这时的清单</li>
+              <li>卸包、升级先照去掉它的清单停扩展再动文件，删不成、换不成、撤回的换回来</li>
+              <li>修：卸掉的扩展装回来又登记了，不再算随包卸掉的</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不重读盘、照手里的字重新认</span><span class="rl">盘上的手改照监视那一条走</span></div>
+          <div class="tile new"><span class="nm">换清单不记配置日志</span><span class="rl">文件没人改</span></div>
+          <div class="tile new"><span class="nm">先停再动文件</span><span class="rl">Windows 上开着的文件删不掉、挪不走</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">F-5 补</dd></div>
+        <div><dt>名称</dt><dd>配置项当场换</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">a7b68abb</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 16/16、八项、三台 CI 和长跑（run 1453）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>装上：早写着的键认得、推 via: package、config.get/schema 有它</span></li>
+        <li><span class="ok">✓</span><span>只有问题变了的那一层照样推，没变的不推</span></li>
+        <li><span class="ok">✓</span><span>真核心参考文件照新清单重写、卸掉又没了</span></li>
+        <li><span class="ok">✓</span><span>卸包停下时清单还在；换不成、删不成、撤回的扩展重新拉起</span></li>
+        <li><span class="ok">✓</span><span>变异 16/16</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/F-5-装包、卸包（补）.md</code>；蓝图 <code>config.md</code>、<code>packages.md</code>「配置项」「装卸」、<code>extensions.md</code>「怎么走」第 7 条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sF-5e" aria-labelledby="h-sF5e">
+  <div class="sheet-head"><h2 id="h-sF5e"><span class="no">F-5 再补</span>内置模型当场换</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">装上、升级、卸掉内置语义模型那个小程序包不用重启核心：本机的向量模型当场换上、换成新的、关掉；卸包、升级先把小程序关掉再动文件。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">内置模型当场换</span><span class="dir-note">F-5 再补</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>Builtins</code> 端口多 <code>embed</code>，照清单拼本机的向量模型（<code>embed::find</code>，和起来时同一套）</li>
+              <li>装卸走一个入口 <code>Core::switch_packages</code>：扩展跟着停、起，本机的向量模型交给 <code>Vectors::replace_local</code>（一样的不动）</li>
+              <li>「没装内置语义模型」那一行只在起来时记</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">会话那一半是记忆的会话的 R-5 四补</span><span class="rl">2026-10-09 两边主会话分工</span></div>
+          <div class="tile new"><span class="nm">装卸时拼不出的不记日志</span><span class="rl">每装卸一次就多一行没用</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">F-5 再补</dd></div>
+        <div><dt>名称</dt><dd>内置模型当场换</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">612a66d3</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 6/6、八项、三台 CI 和长跑（run 1459）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>真核心装上内置语义模型的包，设置页的内置模型当场写它的名字</span></li>
+        <li><span class="ok">✓</span><span>升级成另一个模型的换成新的，卸掉又没了</span></li>
+        <li><span class="ok">✓</span><span>装卸时拼的和起来时一样，只有起来时记没装</span></li>
+        <li><span class="ok">✓</span><span>变异 6/6</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/F-5-装包、卸包（再补）.md</code>；蓝图 <code>packages.md</code>「装卸」、<code>recall.md</code> 第四条第 1 款。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sT-1a" aria-labelledby="h-sT1a">
+  <div class="sheet-head"><h2 id="h-sT1a"><span class="no">T-1 上</span>后台运行关着：命令不放后台</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">预设关了「后台运行」的会话没有后台：工具面上 shell 没有放到后台那一项、没有 jobs，执行器不给任务端口。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">后台运行关着：命令不放后台</span><span class="dir-note">T-1 上</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>快照多一格 <code>foreground</code>，造会话、换预设时照预设定；开着的、以前造的不写</li>
+              <li>工具面上 <code>shell</code> 拿掉 <code>run_in_background</code>（<code>ToolEntry::without</code>），别的字节不动</li>
+              <li>执行器不给任务端口，硬写放到后台的照已有的「这里不能放到后台」说</li>
+              <li>到点叫醒挪进 <code>actor/back.rs</code>（actor.rs 到了行数上限）</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">给模型的字不新加</span><span class="rl">拿掉的那一项、那一句都登记过</span></div>
+          <div class="tile new"><span class="nm">换预设时以前就有的 shell 照原样</span><span class="rl">照 P-2 下「留着的原样」，调到放后台的照那一句说</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">T-1 上</dd></div>
+        <div><dt>名称</dt><dd>后台运行关着：命令不放后台</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">48175e6f</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 7/7、八项、三台 CI 和长跑（run 1463）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>关了后台运行：shell 没有那一项、别的参数不动，没有 jobs</span></li>
+        <li><span class="ok">✓</span><span>硬写放到后台的回「这里不能放到后台」、不派任务</span></li>
+        <li><span class="ok">✓</span><span>换成关着的预设记下、改回来不记</span></li>
+        <li><span class="ok">✓</span><span>变异 7/7</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/T-1-后台运行关着（上）.md</code>；蓝图 <code>tools/shell.md</code>、<code>presets.md</code>、<code>policy.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sT-1b" aria-labelledby="h-sT1b">
+  <div class="sheet-head"><h2 id="h-sT1b"><span class="no">T-1 下</span>后台运行关着：子代理前台跑</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">后台运行关着的会话派子代理：这一步等它报回来再请求下一次，报告排在工具结果后面；不叫醒、不另开轮；打断连它一起停。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">后台运行关着：子代理前台跑</span><span class="dir-note">T-1 下</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>策略多 <code>foreground</code>；记 subagent 的结果时 <code>job.started</code> 填上 <code>foreground</code>，这一步等它（<code>Step::awaiting</code>），留了言的等它再报</li>
+              <li>前台的回报一律不叫醒（运行时、载入时），账本记着哪个是前台的</li>
+              <li>打断时连它一起停：<code>StopJobs</code> 多 <code>undone</code>，假的记 <code>stopped</code></li>
+              <li>subagent 的说明换成 <code>agent/foreground.txt</code>（登记、59 token）</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">等它不设时限</span><span class="rl">人要停就打断</span></div>
+          <div class="tile new"><span class="nm">接着干的那一轮不重新等</span><span class="rl">记进「还没有的」</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">T-1 下</dd></div>
+        <div><dt>名称</dt><dd>后台运行关着：子代理前台跑</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">54375617</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 13/13、八项、本地长跑、三台 CI 和长跑（run 1468）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>内核：等报告、不另开轮、留言再等、打断停它、载入不记在一边</span></li>
+        <li><span class="ok">✓</span><span>真核心：工具面是前台的说明，子代理说完父会话才请求</span></li>
+        <li><span class="ok">✓</span><span>打断父会话停子代理，回报记 stopped</span></li>
+        <li><span class="ok">✓</span><span>变异 13/13</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/T-1-后台运行关着（下）.md</code>；蓝图 <code>agents.md</code>、<code>kernel/session.md</code>、<code>kernel/events-bodies.md</code>、<code>tools/subagent.md</code>；登记簿 26 第十节。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sT-2" aria-labelledby="h-sT2">
+  <div class="sheet-head"><h2 id="h-sT2"><span class="no">T-2</span>扩展的工具归功能</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">扩展登记了清单里哪个功能都没列的工具，预设就开关不了它：登记时就拒绝，扩展的作者当场知道要在清单里列上。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">扩展的工具归功能</span><span class="dir-note">T-2</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>provide 登记（读登记缓存同一条路）时，写了几个功能的，每件工具要列在其中一个的 tools 里，归不上的整个不收：<code>bad_tool</code>，<code>problem</code> 是 <code>feature</code></li>
+              <li>写了空 <code>[features]</code> 的一件都不收</li>
+              <li>只写了一个功能、没写 <code>[features]</code> 的都归它，不查（接入QQ 就是这样）</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">归法同预设认工具归哪个功能</span><span class="rl">Features::of_tool：列了的照列的，只有一个功能的都归它</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">T-2</dd></div>
+        <div><dt>名称</dt><dd>扩展的工具归功能</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">62ccccc0</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 2/2、八项、三台 CI 和长跑（run 1474）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>几个功能的：没列的整个不收、只登记列了的照收</span></li>
+        <li><span class="ok">✓</span><span>空的 [features] 一件都不收</span></li>
+        <li><span class="ok">✓</span><span>只写一个功能的都收</span></li>
+        <li><span class="ok">✓</span><span>变异 2/2</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/T-2-扩展的工具归功能.md</code>；蓝图 <code>providers.md</code>「怎么走」第 3 条、「出错」。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sT-3" aria-labelledby="h-sT3">
+  <div class="sheet-head"><h2 id="h-sT3"><span class="no">T-3</span>miyu pkg 命令</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">装卸软件包只有协议能做，头停着，人在终端里没法装卸：加一个命令行的管理命令，走同一组协议方法。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu pkg 命令</span><span class="dir-note">T-3</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>miyu pkg [list]</code>：一个一行「编号  名字」，照编号排，卸掉了的标「已卸载」、写错的标哪里不对；<code>--format json</code> 原样印</li>
+              <li><code>install &lt;清单|编号&gt;</code>：路径（相对的照现在的目录）或者卸掉了的出厂的包的编号</li>
+              <li><code>remove &lt;编号&gt;</code>；清单装不上的照 data 说哪里不对、第几行</li>
+              <li>帮助页中英两页；名字照 22 第五节，设计 30、施工图里的「miyu package」跟着改</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">界面只放人要的</span><span class="rl">种类、哪一层、版本、功能不印</span></div>
+          <div class="tile new"><span class="nm">text 照编号排</span><span class="rl">json 照核心的先后原样</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">T-3</dd></div>
+        <div><dt>名称</dt><dd>miyu pkg 命令</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-09</dd></div>
+        <div><dt>提交</dt><dd class="mono">51f52639</dd></div>
+        <div><dt>验收</dt><dd>测试、变异 3/3、沙盒里当用户走一遍、八项、三台 CI 和长跑（run 1476）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>列出、照相对路径装、卸</span></li>
+        <li><span class="ok">✓</span><span>卸掉出厂的标已卸载、照编号装回来</span></li>
+        <li><span class="ok">✓</span><span>必需的卸不掉、写错的装不上，退出码 1</span></li>
+        <li><span class="ok">✓</span><span>变异 3/3</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/T-3-miyu-pkg命令.md</code>；蓝图 <code>cli/pkg.md</code>、<code>cli/main.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sT-4" aria-labelledby="h-sT4">
+  <div class="sheet-head"><h2 id="h-sT4"><span class="no">T-4</span>说法、设计正文回写</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">第一阶段定的说法、做法，几份早写的设计正文还停在以前：照设计 30 回写，只改文档。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">说法、设计正文回写</span><span class="dir-note">T-4</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>05 标题改「插件接口」（文件名照旧），清单例子换成现在的写法，装了才启用、照开关拉起、装卸当场换</li>
+              <li>01、10、12、16 的正文：内置包、扩展、小程序，功能是开关的单位，人格可以为空、出厂不带人格</li>
+              <li>架构全图的说法（截图看过版面）</li>
+              <li>账号那个固定的目录叫「默认工作区」：设计和蓝图里改了 49 处；设计 30 词表补两个词</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">决定那一节照留当时的原话</span><span class="rl">前面加一句怎么读</span></div>
+          <div class="tile new"><span class="nm">代码分层的「模块」不改</span><span class="rl">门禁读那张表</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">T-4</dd></div>
+        <div><dt>名称</dt><dd>说法、设计正文回写</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">eb0c1fab</dd></div>
+        <div><dt>验收</dt><dd>八项（文档门禁）、三台 CI（run 1479）、架构全图截图</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>五份设计、架构全图回写</span></li>
+        <li><span class="ok">✓</span><span>默认工作区的说法</span></li>
+        <li><span class="ok">✓</span><span>八项门禁</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/T-4-说法和设计正文回写.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sT-5" aria-labelledby="h-sT5">
+  <div class="sheet-head"><h2 id="h-sT5"><span class="no">T-5</span>没有人格时人格记忆怎么显示</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">没有人格的会话里人格记忆不生效，预设页上它照样显示开着：拍板怎么显示。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">没有人格时人格记忆怎么显示</span><span class="dir-note">T-5</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>项目主人定：不处理，照现在的显示</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">预设是开关表，不随会话变</span><span class="rl">2026-10-10 项目主人定不处理</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">T-5</dd></div>
+        <div><dt>名称</dt><dd>没有人格时人格记忆怎么显示</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">eb0c1fab</dd></div>
+        <div><dt>验收</dt><dd>项目主人拍板</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>拍板：不处理</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li>设计 <code>30-插件框架.md</code> 第十二节。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sT-6" aria-labelledby="h-sT6">
+  <div class="sheet-head"><h2 id="h-sT6"><span class="no">T-6</span>无用代码清单</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">查资源文件、公开项、配置项、留着的 dead_code、给人看的字，列出没用的，等项目主人拍板。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">无用代码清单</span><span class="dir-note">T-6</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>资源文件 319 份、公开项 4683 个、配置项都在用</li>
+              <li>只有测试调的 7 个入口、兼容老会话的写法、留给 5-9 的那一格照留</li>
+              <li>要删的一处：core/human 三种语言的 software/&lt;编号&gt;/summary 共 15 条</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">项目主人 2026-10-10 定：删</span><span class="rl">由 T-7 删</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">T-6</dd></div>
+        <div><dt>名称</dt><dd>无用代码清单</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">9f974a67</dd></div>
+        <div><dt>验收</dt><dd>项目主人拍板</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>清单写好</span></li>
+        <li><span class="ok">✓</span><span>拍板：删 A</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/reviews/2026-10-10-无用代码清单.md</code>。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sT-7" aria-labelledby="h-sT7">
+  <div class="sheet-head"><h2 id="h-sT7"><span class="no">T-7</span>删掉拍了板的无用代码</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">照清单删项目主人拍了板的那一处。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">删掉拍了板的无用代码</span><span class="dir-note">T-7</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>core/human 三种语言的 software/&lt;编号&gt;/summary 五条（共 15 条）删掉；名字那五条照留</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">项目主人 2026-10-10 拍板</span><span class="rl">清单 docs/reviews/2026-10-10-无用代码清单.md</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">T-7</dd></div>
+        <div><dt>名称</dt><dd>删掉拍了板的无用代码</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">10b8d540</dd></div>
+        <div><dt>验收</dt><dd>八项、三台 CI 和长跑（run 1495）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>15 条删掉、JSON 照样读得懂</span></li>
+        <li><span class="ok">✓</span><span>八项门禁</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/T-7-删掉拍了板的无用代码.md</code>。</li>
       </ul>
     </div>
   </div>

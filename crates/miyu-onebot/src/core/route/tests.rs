@@ -1,5 +1,5 @@
-//! 发回话的任务结束了（`onebot.md`「施工时定的」第 14 条）：崩了照实交上去，桥停下；好好结束的接着办，群里发出去了的那一段
-//! 交上去记 `venue.delivered`（施工 O-23）。
+//! 发回话的任务结束了（`onebot.md`「施工时定的」第 14 条）：崩了照实交上去，桥停下；好好结束的接着办，等来的结局交上去记
+//! （施工 O-23；O-25 中：`venue.delivered`、`failed`）。
 
 use super::sent;
 use crate::serve::Failure;
@@ -15,6 +15,6 @@ async fn a_crashed_reply_task_stops_the_bridge() {
 
 #[tokio::test]
 async fn a_reply_task_that_ended_well_goes_on() {
-    let joined = tokio::spawn(async { None }).await;
-    assert_eq!(sent(joined), Ok(None));
+    let joined = tokio::spawn(async { 7 }).await;
+    assert_eq!(sent(joined), Ok(7));
 }

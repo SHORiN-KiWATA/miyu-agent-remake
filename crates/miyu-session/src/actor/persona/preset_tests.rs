@@ -1,8 +1,9 @@
 //! 改了预设，下一个回合换上（施工 P-2 下）：工具面照新的预设重新筛，以前就有的照旧快照里的原样；记忆照开会话时的；装了没开
 //! 的那一行跟着变；写错了的照旧；P-2（中）造的没有指纹的不换。
 
-use super::test_support::{look_now, names, setup, write_preset};
+use super::test_support::{installed, look_now, names, setup, write_preset};
 use super::*;
+use miyu_policy::features::{Feature, Features};
 
 const OFF: &str = "Installed but off in this session's preset:";
 
@@ -111,8 +112,10 @@ fn without_a_persona_a_changed_preset_still_swaps() {
         memory: Some("off".to_string()),
         child: false,
         preset: refresh.snapshot.preset.clone(),
-        tooled: tooled(&refresh.tools.current()),
+        tooled: tooled(&refresh.tools.current(), Some(&installed())),
+        roleplay: true,
         group: None,
+        foreground: false,
     };
     refresh.snapshot = build(&refresh.resources, parts).expect("拼得成");
     assert_eq!(
@@ -148,4 +151,108 @@ fn an_upgraded_session_still_follows_its_preset() {
         "工具面没变"
     );
     assert_ne!(snapshot.core.facts.env, "<env/>\n", "新的核心的字一起换上");
+}
+
+/// 以前的快照记的没开的是包的编号（施工 F-3 上）：升级以后照现在的功能读一样的算没改，不换快照、不断缓存；真改了的照换。
+#[test]
+fn an_old_pin_written_with_package_ids_is_not_a_change() {
+    let (_scratch, root, mut refresh) = setup("preset-legacy", "[software]\nonebot = false\n");
+    let feature = |id: &str, package: &str| Feature {
+        id: id.to_string(),
+        package: package.to_string(),
+        tools: Vec::new(),
+    };
+    let features = Features::new(vec![
+        feature("basesystem", "basesystem"),
+        feature("memory", "memory"),
+        feature("roleplay", "roleplay"),
+        feature("qq", "onebot"),
+    ]);
+    refresh.presets.as_mut().expect("有预设的几层").features = features;
+    let pin = refresh.snapshot.preset.as_mut().expect("有预设");
+    pin.off = vec!["onebot".to_string()];
+    assert!(
+        matches!(look_now(&refresh), Seen::Same),
+        "以前记的 onebot 就是现在的 qq"
+    );
+    write_preset(&root, "[software]\nonebot = false\nmemory = false\n");
+    assert!(
+        matches!(look_now(&refresh), Seen::Swapped(..)),
+        "真改了的照换"
+    );
+}
+
+/// 预设照功能开关（施工 F-3 上）：`[features]` 关掉一个功能，它下面的工具都不给，装了没开的那一行写功能的编号。
+#[test]
+fn a_feature_switched_off_takes_its_tools_away() {
+    let (_scratch, root, mut refresh) = setup("preset-feature", "");
+    let feature = |id: &str, package: &str, tools: &[&str]| Feature {
+        id: id.to_string(),
+        package: package.to_string(),
+        tools: tools.iter().map(ToString::to_string).collect(),
+    };
+    refresh.presets.as_mut().expect("有预设的几层").features = Features::new(vec![
+        feature("files", "basesystem", &["read"]),
+        feature("commands", "basesystem", &["shell"]),
+        feature("memory", "memory", &[]),
+        feature("roleplay", "roleplay", &[]),
+    ]);
+    write_preset(&root, "[features]\ncommands = false\n");
+    let Seen::Swapped(snapshot, _, _, _) = look_now(&refresh) else {
+        panic!("改了要换");
+    };
+    assert_eq!(names(&snapshot), ["read", "remember"]);
+    assert!(
+        snapshot.system.ends_with(&format!("{OFF} commands.")),
+        "{}",
+        snapshot.system
+    );
+}
+
+/// 换快照时也照装没装（施工 F-3 上）：人格多了提醒短语，可人设防失忆提醒没装，换上的快照里没有提醒。
+#[test]
+fn a_swap_leaves_reminders_out_when_they_are_not_installed() {
+    let (_scratch, root, mut refresh) = setup("preset-noreminder", "");
+    let feature = |id: &str| Feature {
+        id: id.to_string(),
+        package: id.to_string(),
+        tools: Vec::new(),
+    };
+    refresh.presets.as_mut().expect("有预设的几层").features =
+        Features::new(vec![feature("basesystem"), feature("memory")]);
+    super::test_support::write(&root, "reminders.md", "Stay soft.\n");
+    let Seen::Swapped(snapshot, _, _, _) = look_now(&refresh) else {
+        panic!("人格改了要换");
+    };
+    assert_eq!(snapshot.reminder, None, "没装人设防失忆提醒");
+}
+
+/// 换成关了后台运行的预设（施工 T-1 上）：快照记下 `foreground`，以前就有的 `shell` 照旧快照里的原样；改回来又不记。
+#[test]
+fn a_preset_turning_background_off_marks_the_snapshot() {
+    let (_scratch, root, mut refresh) = setup("preset-background", "");
+    assert!(!refresh.snapshot.foreground);
+    let shell = refresh
+        .snapshot
+        .tools
+        .iter()
+        .find(|entry| entry.name == "shell")
+        .cloned()
+        .expect("有 shell");
+    write_preset(&root, "[features]\nbackground = false\n");
+    let Seen::Swapped(snapshot, _, _, _) = look_now(&refresh) else {
+        panic!("改了要换");
+    };
+    assert!(snapshot.foreground, "记下关着");
+    assert!(
+        snapshot.tools.contains(&shell),
+        "以前就有的照原样：{:?}",
+        snapshot.tools
+    );
+    refresh.snapshot = *snapshot;
+    write_preset(&root, "");
+    let Seen::Swapped(snapshot, _, _, _) = look_now(&refresh) else {
+        panic!("改回来也换");
+    };
+    assert!(!snapshot.foreground, "开着的不记");
 }

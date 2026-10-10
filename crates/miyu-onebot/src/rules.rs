@@ -7,6 +7,7 @@
 //! | 出厂参数 | `defaults.toml` | 没有：要改写场所规则 |
 //! | 违规词表 | `moderation.txt` | `modules/onebot/moderation.txt`，在的话整份替换出厂的 |
 //! | 判官的说明（施工 O-23 下） | `judge/*.txt` 十三份 | 没有：给模型看的字随包走 |
+//! | 给她看的事实的模板（施工 O-25 下） | `facts/undelivered.txt` | 没有：同上 |
 //!
 //! - 出厂的起来时读一次、单独查一次（[`Factory::load`]）：有一条问题就是打包的错，桥起不来；之后放在内存里，跑着不再读
 //!   （「施工时定的」第 52 条）。
@@ -15,6 +16,7 @@
 //! - 什么时候重读（[`Venues`]）：要用时交进当时的时刻，隔够了才看一眼系统的两处变没变，变了整份重读，问题记运行日志；不监视
 //!   文件（「施工时定的」第 53 条）。
 
+mod facts;
 mod files;
 mod judge;
 
@@ -26,6 +28,7 @@ use std::time::{Duration, Instant};
 
 use miyu_chat::{File, JudgeTexts, Moderation, Params, Problem, Resolved, Rules, Source, Venue};
 use miyu_config::problem::Code;
+use miyu_kernel::template::Template;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
@@ -55,18 +58,20 @@ pub struct Factory {
     keywords: Vec<String>,
     /// 判官的说明（施工 O-23 下）：查过的十三份，问判官的任务各拿一份引用。
     judge: Arc<JudgeTexts>,
+    /// 退信的模板（施工 O-25 下，`onebot.md`「退信」第 3 条）：查过字段。
+    undelivered: Template,
 }
 
 impl Factory {
     /// 读资源目录 `resources` 里的出厂数据：规则文件单独过一遍 [`Rules::parse`]（合上系统的以后，被同名替换的那一份不读，
     /// 单独过才查得全），出厂参数过 [`Params::read`]，违规词表过 [`Moderation::parse_keywords`]，判官的说明过
-    /// [`JudgeTexts::new`]（施工 O-23 下）。
+    /// [`JudgeTexts::new`]（施工 O-23 下），退信的模板过 [`Template::parse`]、只认三个字段（施工 O-25 下）。
     ///
     /// # Errors
     ///
     /// 有一条问题就是打包的错（警告也算，照 `chat.md` 第八条施工时定的第 10 条），交回全部问题：规则写错、出厂参数写错、
-    /// 判官的说明写坏了、哪一份不在或读不成（`venues.d` 列不出来也是）。问题照规则文件、出厂参数、违规词表、判官的说明的
-    /// 先后。
+    /// 判官的说明、退信的模板写坏了、哪一份不在或读不成（`venues.d` 列不出来也是）。问题照规则文件、出厂参数、违规词表、判官
+    /// 的说明、退信的模板的先后。
     pub fn load(resources: &ResourceRoot) -> Result<Factory, Vec<Problem>> {
         let dir = resources.path().join("software").join(PACKAGE);
         let mut problems = Vec::new();
@@ -92,13 +97,19 @@ impl Factory {
         let keywords = required(&dir.join(MODERATION), MODERATION, &mut problems)
             .map(|text| Moderation::parse_keywords(&text));
         let judge = judge::texts(&dir, &mut problems);
-        match (params, keywords, judge) {
-            (Some(params), Some(keywords), Some(judge)) if problems.is_empty() => Ok(Factory {
-                rules,
-                params,
-                keywords,
-                judge: Arc::new(judge),
-            }),
+        let undelivered = facts::undelivered(&dir, &mut problems);
+        match (params, keywords, judge, undelivered) {
+            (Some(params), Some(keywords), Some(judge), Some(undelivered))
+                if problems.is_empty() =>
+            {
+                Ok(Factory {
+                    rules,
+                    params,
+                    keywords,
+                    judge: Arc::new(judge),
+                    undelivered,
+                })
+            }
             _ => Err(problems),
         }
     }
@@ -236,6 +247,11 @@ impl Venues {
     /// 判官的说明（施工 O-23 下）：出厂的，跑着不再读。
     pub fn judge_texts(&self) -> Arc<JudgeTexts> {
         Arc::clone(&self.factory.judge)
+    }
+
+    /// 退信的模板（施工 O-25 下）：出厂的，跑着不再读。
+    pub fn undelivered(&self) -> &Template {
+        &self.factory.undelivered
     }
 
     /// 这一刻 `now` 该用的那一份：离上一次看不到 `every` 的照手里的；到了，看一眼系统的两处，和上一次的一样照手里的，

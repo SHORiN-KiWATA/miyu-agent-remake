@@ -204,6 +204,24 @@ impl History {
         segments.into_iter().flat_map(reply_first).collect()
     }
 
+    /// 第 `after` 条以后调过的工具名（施工 R-6 上，抽取照它判这一段她自己记过没有）：照 [`History::ordered`] 的那些，
+    /// 撤掉的回合不算，口径和渲染的那一段一样。
+    pub fn called_since(&self, after: Seq) -> BTreeSet<String> {
+        self.ordered()
+            .into_iter()
+            .filter(|event| event.seq > after)
+            .filter_map(|event| match &event.body {
+                Body::MessageAssistant(reply) => Some(reply.blocks.iter()),
+                _ => None,
+            })
+            .flatten()
+            .filter_map(|block| match block {
+                crate::block::Block::ToolCall(call) => Some(call.name.clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
     /// 落到检查点上（施工 6-9）：事件里有 `context.compacted` 的，最近的那一条当检查点，换掉原来的；事件只留序号大于
     /// 它的 `upto`、不是 `context.compacted` 的；重读的原文清掉。交回检查点换了没有。放在一边的不动：里面的压缩，等
     /// 恢复放回来再落。

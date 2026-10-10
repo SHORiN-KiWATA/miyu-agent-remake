@@ -2,34 +2,18 @@
 //! 丢掉号不大于它的，所以回应以后推来的都比回应里的列表新。
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use miyu_kernel::id::{AccountId, SessionId};
 use miyu_session::testkit::Script;
-use miyu_store::env::{Env, Platform};
 use miyu_store::resources::ResourceRoot;
-use miyu_store::root::DataRoot;
 use miyu_tool::Catalog;
 
 use crate::Core;
+use crate::test_support::{resources, temp_root};
 
 fn core() -> Arc<Core> {
-    static NEXT: AtomicU64 = AtomicU64::new(0);
-    let n = NEXT.fetch_add(1, Ordering::Relaxed);
-    let dir =
-        std::env::temp_dir().join(format!("miyu-endpoint-listing-{}-{n}", std::process::id()));
-    let root = DataRoot::locate(&Env {
-        platform: Platform::current(),
-        miyu_home: Some(dir.into_os_string()),
-        home: None,
-        xdg_cache_home: None,
-        local_app_data: None,
-        miyu_resources: None,
-        exe: None,
-    })
-    .expect("MIYU_HOME 是绝对路径");
-    root.prepare().expect("建得了骨架");
-    let resources = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources");
+    let (root, _) = temp_root("listing");
+    let resources = resources();
     Arc::new(Core::new(
         root,
         ResourceRoot::at(&resources),

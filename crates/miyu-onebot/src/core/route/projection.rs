@@ -9,11 +9,13 @@
 //! - 主线这一轮：回合编号、回的人（`turn.started`、`turn.joined` 的 `triggers` 的发的人）；`turn.ended` 这一轮完了。
 //! - 她的回复（`venue.delivered`）：一轮一笔，回的人取并集；她发过的平台编号（认「引用她」）。
 //! - 限流提示过的时刻（`ext.onebot.venues.queued`，种类是提示、原因是限流的）。
+//! - 她被禁言到什么时候（O-25 中，「出站队列」第 7 条）：最后一条 `ext.onebot.venues.muted` 的 `until`，之后有 `unmuted` 的不算。
 //! - 判过要回、她还没回完的（O-23 下，「群里怎么叫她」第 11 条，「施工时定的」第 91 条）：判断（`ext.onebot.chat.decided`）
 //!   的结论是回的那几条，到收了它们的那一轮 `turn.ended` 为止；顶替看它们（`Status::Committed`）。
 //! - 她新说的话（`message.assistant`，序号大于订阅时的 `upto`）：交出回合编号和这一轮回的人，调的一方发回群里。O-25 上连同
 //!   出站链要的（「群里怎么叫她」第 2、9 条）：她回的那一条（这一轮触发里最后一条，并进来的换成并进来的最后一条），那之后
-//!   别人说了几条，群里最后一条是不是她的，这一轮的 `venue.delivered` 的正文。
+//!   别人说了几条，群里最后一条是不是她的，这一轮已经发出去的：O-25 中照入队的（`ext.onebot.venues.queued` 里 `kind` 是
+//!   `reply` 的正文），桥入队记成了先算进来（[`Projection::queued`]），日志推来的同一段不重复算（「施工时定的」第 112 条）。
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -34,6 +36,15 @@ pub(super) const DECIDED: &str = "ext.onebot.chat.decided";
 
 /// `ext.onebot.venues.queued` 的 `kind`：提示。
 pub(super) const NOTICE: &str = "notice";
+
+/// `ext.onebot.venues.queued` 的 `kind`：她的话（O-25 中，「出站队列」第 2 条）。
+pub(super) const REPLY: &str = "reply";
+
+/// 她被禁言记成的事件（O-25 中，「出站队列」第 7 条）：`body` 是 `{until}`。
+pub(super) const MUTED: &str = "ext.onebot.venues.muted";
+
+/// 她被解禁记成的事件（O-25 中）：`body` 是 `{}`。
+pub(super) const UNMUTED: &str = "ext.onebot.venues.unmuted";
 
 /// 限流提示的 `reason`：照进站链的 `Why::RateLimited` 写（`decide.rs`）。
 pub(super) const RATE_LIMITED: &str = "rate_limited";
@@ -105,7 +116,7 @@ pub(super) struct Speaking {
     pub(super) others: u64,
     /// 群里最后一条是不是她的：她发出去的最后一段比最后一条人说的话晚（照序号；她的一段照她说它的序号，见 [`Projection::own`]）。
     pub(super) last_is_own: bool,
-    /// 这一轮已经发出去的：这一轮的 `venue.delivered` 的正文，照先后。
+    /// 这一轮已经发出去的：这一轮入队了的她的话的正文，照先后（O-25 中；O-25 上照 `venue.delivered`）。
     pub(super) sent: Vec<String>,
 }
 
@@ -114,7 +125,7 @@ pub(super) struct Speaking {
 struct Round {
     /// 回合编号：换了回合就清。
     turn: u64,
-    /// 这一轮的 `venue.delivered` 的正文，照先后。
+    /// 这一轮入队了的她的话的正文，照先后，一样的只记一次（O-25 中）。
     texts: Vec<String>,
 }
 
@@ -147,6 +158,8 @@ pub(super) struct Projection {
     round: Round,
     /// 限流提示过的时刻。
     notices: Vec<Timestamp>,
+    /// 她被禁言到什么时候（O-25 中）：最后一条 `muted` 的 `until`；解禁了、没禁过的是空的。
+    muted: Option<Timestamp>,
     /// 判过要回、她还没回完的，照先后（O-23 下）。
     committed: Vec<Committed>,
     /// 并进一轮的那几条：`turn.joined` 的序号 → 它的 `triggers`（O-23 下）。核心接着开的一轮照它找回触发的人。
@@ -246,7 +259,6 @@ impl Projection {
                     _ => seq,
                 };
                 self.own = self.own.max(said);
-                self.delivered(delivered.turn.started().get(), &delivered.text);
             }
             Body::MessageAssistant(_) => {
                 let turn = turn?;
@@ -260,7 +272,20 @@ impl Projection {
                 if body["kind"] == NOTICE && body["reason"] == RATE_LIMITED {
                     self.notices.push(event.at);
                 }
+                if body["kind"] == REPLY
+                    && let (Some(turn), Some(text)) = (body["turn"].as_u64(), body["text"].as_str())
+                {
+                    self.queued(turn, text);
+                }
             }
+            Body::Unknown { kind, body } if kind.as_str() == MUTED => {
+                let body: Value = serde_json::from_str(body.get()).unwrap_or_default();
+                // 读不出 `until` 的（照说不会）不改。
+                if let Ok(until) = serde_json::from_value(body["until"].clone()) {
+                    self.muted = Some(until);
+                }
+            }
+            Body::Unknown { kind, .. } if kind.as_str() == UNMUTED => self.muted = None,
             Body::Unknown { kind, body } if kind.as_str() == DECIDED => {
                 let body: Value = serde_json::from_str(body.get()).unwrap_or_default();
                 if let Some(committed) = self.committed_from(&body) {
@@ -305,8 +330,9 @@ impl Projection {
         }
     }
 
-    /// 回合编号是 `turn` 的那一轮发出去了一段 `text`：换了回合的从这一轮重新记；晚到的、更早一轮的不算。
-    fn delivered(&mut self, turn: u64, text: &str) {
+    /// 回合编号是 `turn` 的那一轮入队了她的一段 `text`（O-25 中）：桥入队记成了先算上，日志推来的同一段照正文认，这一轮已经有
+    /// 一样的不再加（「施工时定的」第 112 条）；换了回合的从这一轮重新记；晚到的、更早一轮的不算。
+    pub(super) fn queued(&mut self, turn: u64, text: &str) {
         if turn < self.round.turn {
             return;
         }
@@ -316,7 +342,15 @@ impl Projection {
                 texts: Vec::new(),
             };
         }
-        self.round.texts.push(text.to_string());
+        if !self.round.texts.iter().any(|one| one == text) {
+            self.round.texts.push(text.to_string());
+        }
+    }
+
+    /// 她此刻（`now`）被禁言着的，交回禁言到什么时候；到了（不晚于此刻）、解禁了、没禁过的是空的（O-25 中：进站链的
+    /// `Ctx.muted`、出站的门、该醒的时刻都照它）。
+    pub(super) fn muted(&self, now: Timestamp) -> Option<Timestamp> {
+        self.muted.filter(|until| *until > now)
     }
 
     /// 序号是 `seq` 的这一条收过了没有（「群里怎么叫她」第 8 条：重发的不再判）。
@@ -327,6 +361,11 @@ impl Projection {
     /// 序号是 `seq` 的这一条记下的时刻；没收过的是空的。
     pub(super) fn at(&self, seq: u64) -> Option<Timestamp> {
         self.said.get(&seq).map(|speaker| speaker.at)
+    }
+
+    /// 序号是 `seq` 的这一条的平台编号（施工 O-25 下：贴表情贴在它上面）；没收过的、没有编号的是空的。
+    pub(super) fn msg(&self, seq: u64) -> Option<&str> {
+        self.said.get(&seq)?.msg.as_deref()
     }
 
     /// 判过要回、她还没回完的（O-23 下，「群里怎么叫她」第 11 条）：交给顶替看。
@@ -436,6 +475,8 @@ fn add<'a>(to: &mut Vec<ExternalId>, more: impl IntoIterator<Item = &'a External
     }
 }
 
+#[cfg(test)]
+mod muted_tests;
 #[cfg(test)]
 mod outbound_tests;
 #[cfg(test)]

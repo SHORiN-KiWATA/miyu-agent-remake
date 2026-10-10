@@ -116,6 +116,7 @@ impl Stage {
             marks: Vec::new(),
             replies: Vec::new(),
             transients: Vec::new(),
+            order: Vec::new(),
             ran: Vec::new(),
             lines: VecDeque::new(),
             plays: VecDeque::new(),

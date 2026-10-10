@@ -47,6 +47,58 @@ async fn running_core(
     (running, head)
 }
 
+/// 卸掉了画 mermaid、联网这两个出厂的包（家目录记了一笔，施工 F-5 上），编进来了、登记了也当没有 `mermaid.render`、
+/// `link.preview`（施工 F-2、F-5 中，设计 30 第二节第 3 条）。
+#[tokio::test]
+async fn a_query_of_a_package_not_installed_is_unknown_method() {
+    let home = Home::new();
+    let mine = home.root.account_dir(&miyu_core::admin()).join("packages");
+    std::fs::create_dir_all(&mine).expect("建得了");
+    for removed in ["mermaid.removed", "net.removed"] {
+        std::fs::write(mine.join(removed), "").expect("写得进");
+    }
+    let queries = miyu_core::packages::register(&resources(), &home.root, &miyu_core::admin());
+    let (running, mut head) = running_core(&home, queries).await;
+    let reply = head
+        .call(
+            "q1",
+            "mermaid.render",
+            json!({"source": "flowchart TD\nA-->B"}),
+        )
+        .await;
+    assert_eq!(
+        reply["error"]["data"]["reason"], "unknown_method",
+        "{reply}"
+    );
+    let reply = head
+        .call("q2", "link.preview", json!({"url": "not a url"}))
+        .await;
+    assert_eq!(
+        reply["error"]["data"]["reason"], "unknown_method",
+        "{reply}"
+    );
+    drop(head);
+    running.abort();
+}
+
+/// 起来时就卸掉了人格记忆（家目录记了一笔）：`memory.*` 回 `memory_not_installed`（施工 R-10，`memory.md` 第十一条）。装卸
+/// 当场换的在 `crates/miyu-endpoint/tests/memory_installed.rs`。
+#[tokio::test]
+async fn memory_removed_before_start_says_not_installed() {
+    let home = Home::new();
+    let mine = home.root.account_dir(&miyu_core::admin()).join("packages");
+    std::fs::create_dir_all(&mine).expect("建得了");
+    std::fs::write(mine.join("memory.removed"), "").expect("写得进");
+    let (running, mut head) = running_core(&home, Queries::new()).await;
+    let reply = head.call("m1", "memory.list", json!({})).await;
+    assert_eq!(
+        reply["error"]["data"]["reason"], "memory_not_installed",
+        "{reply}"
+    );
+    drop(head);
+    running.abort();
+}
+
 #[tokio::test]
 async fn an_unregistered_method_is_unknown_method() {
     let home = Home::new();

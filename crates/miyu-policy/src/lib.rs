@@ -13,6 +13,7 @@ mod attached_path;
 mod compose;
 mod drivers;
 mod facts;
+pub mod features;
 mod group;
 mod guard;
 mod harness;

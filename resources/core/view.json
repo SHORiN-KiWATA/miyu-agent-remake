@@ -1,0 +1,10 @@
+{
+  "kinds": {
+    "shell": "command",
+    "edit": "edit",
+    "write": "edit",
+    "subagent": "agent",
+    "send_message": "message"
+  },
+  "session_arg": "session"
+}

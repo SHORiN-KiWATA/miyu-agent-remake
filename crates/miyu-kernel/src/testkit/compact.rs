@@ -65,7 +65,10 @@ impl Stage {
                 reason: EndReason::Completed,
             }),
         );
-        self.log.extend([opened, compacted, closed]);
+        for event in [opened, compacted, closed] {
+            self.order.push((true, self.log.len()));
+            self.log.push(event);
+        }
         self.reload();
     }
 }

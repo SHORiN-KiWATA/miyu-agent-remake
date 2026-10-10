@@ -1,0 +1,6 @@
+# 哪些模型能出向量（docs/blueprint/models.md「协议」model.list 的「能出向量的」，施工 R-5 再补）：设置页的「语义模型」从这几个里挑。
+# 目录不标 embedding 的输出种类，照名字认：模型名、目录里的 family（都转小写）含 contains 里的一个，或者模型名最后一段（/ 后面）、
+# family 以 starts 里的一个开头，算；含 except 里的一个的不算。认错了照样能用，只是挑的时候多一个、少一个。
+contains = ["embed"]
+starts = ["bge"]
+except = ["rerank"]

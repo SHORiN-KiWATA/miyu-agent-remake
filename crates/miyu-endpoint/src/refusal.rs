@@ -7,6 +7,7 @@ mod config;
 mod edits;
 mod memory;
 mod message;
+mod package;
 
 /// 一次拒绝：JSON-RPC 的错误码，和原因码。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -403,6 +404,14 @@ impl Refusal {
             reason,
             data: Some(data),
         }
+    }
+
+    /// 多一格 `data.why`：照连接的语言说的为什么（施工 O-6 再补：用不了的斜杠命令，和 `command.catalog` 的 `unavailable` 同一句）。
+    pub(crate) fn because(mut self, why: String) -> Refusal {
+        self.data
+            .get_or_insert_with(serde_json::Map::new)
+            .insert("why".to_string(), serde_json::Value::String(why));
+        self
     }
 
     /// 内核拒了这个命令。

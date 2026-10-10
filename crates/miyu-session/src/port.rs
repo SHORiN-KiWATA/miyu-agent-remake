@@ -333,6 +333,13 @@ pub(crate) enum Back {
         blob: ContentHash,
         seen: Result<(Model, String), String>,
     },
+    /// 抽取的第 `generation` 个闹钟响了（施工 R-6 上，`actor/extract.rs`）。
+    ExtractDue { generation: u64 },
+    /// 抽取读回来的（施工 R-6 上）：第几个闹钟；上次抽到哪、日志里的事件，读不成的是为什么。
+    ExtractRead {
+        generation: u64,
+        read: Result<(Seq, Vec<miyu_kernel::event::Event>), String>,
+    },
     /// 等会话 `session` 等不到了（施工 C-6，`peers.rs`）：到点了是 `expired`，订的时候它不在了是 `gone`。
     WatchEnded {
         session: miyu_kernel::id::SessionId,

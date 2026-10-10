@@ -74,6 +74,27 @@ async fn group_receipts_are_recalled_and_private_ones_are_not() {
         napcat.pending_recall().is_none(),
         "发命令的那两条不撤：{log}"
     );
+    // 回执、被拒的那一句都先入队（施工 O-25 中）：群里两句，私聊一句。
+    let queued = |events: &[Value]| -> Vec<Value> {
+        of_kind(events, "ext.onebot.venues.queued")
+            .iter()
+            .map(|one| one["body"].clone())
+            .collect()
+    };
+    let group = queued(&venue_events(&home.root, &format!("qq:group:{GROUP}")));
+    assert_eq!(
+        group,
+        [
+            json!({"kind": "receipt", "text": STOPPED}),
+            json!({"kind": "receipt", "text": text_of(&refused)}),
+        ]
+    );
+    let private: Vec<Value> = home
+        .sessions()
+        .iter()
+        .flat_map(|session| queued(&home.events(session)))
+        .collect();
+    assert_eq!(private, [json!({"kind": "receipt", "text": STOPPED})]);
     stopped(home).await;
 }
 

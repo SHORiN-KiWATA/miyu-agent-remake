@@ -1,5 +1,6 @@
-//! 群里的命令回执撤回（施工 O-25 上，`onebot.md` 第一条「斜杠命令」第 7 条）：NapCat 回了编号，等够给的时候才撤，撤的是那个
-//! 编号，经那时的连接；没回编号的、那时没连着的不撤。钟是停住的（`start_paused`），等多久照它算，不照真的时间。
+//! 群里的命令回执撤回（施工 O-25 上，`onebot.md` 第一条「斜杠命令」第 7 条）：NapCat 回了编号以后，等够给的时候才撤，撤的是
+//! 那个编号，经那时的连接；那时没连着的不撤（没回编号的不撤由 `sending.rs` 管，O-25 中）。钟是停住的（`start_paused`），等多久
+//! 照它算，不照真的时间。
 
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
@@ -68,14 +69,8 @@ fn answer(calls: &Calls, sent: &Value, data: Value) {
 
 #[tokio::test(start_paused = true)]
 async fn the_receipt_is_recalled_only_after_the_wait() {
-    let (bots, calls, mut frames, out) = connected();
-    let pending = calls
-        .begin(&out, "send_group_msg", json!({}))
-        .await
-        .expect("放得进");
-    let sent = frame(&mut frames).await;
-    let task = tokio::spawn(recall(pending, peer(), bots, AFTER, 6));
-    answer(&calls, &sent, json!({"message_id": 77}));
+    let (bots, calls, mut frames, _out) = connected();
+    let task = tokio::spawn(recall(77, peer(), bots, AFTER));
     tokio::time::sleep(AFTER - Duration::from_millis(1)).await;
     assert!(frames.try_recv().is_err(), "还没到时候");
     let deleted = frame(&mut frames).await;
@@ -90,24 +85,10 @@ async fn the_receipt_is_recalled_only_after_the_wait() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn without_an_id_or_a_connection_nothing_is_recalled() {
-    let (bots, calls, mut frames, out) = connected();
-    let pending = calls
-        .begin(&out, "send_group_msg", json!({}))
-        .await
-        .expect("放得进");
-    let sent = frame(&mut frames).await;
-    let task = tokio::spawn(recall(pending, peer(), Arc::clone(&bots), AFTER, 6));
-    answer(&calls, &sent, json!({}));
-    task.await.expect("没崩");
-    let pending = calls
-        .begin(&out, "send_group_msg", json!({}))
-        .await
-        .expect("放得进");
-    let sent = frame(&mut frames).await;
-    let task = tokio::spawn(recall(pending, peer(), Arc::clone(&bots), AFTER, 6));
-    answer(&calls, &sent, json!({"message_id": 78}));
+async fn without_a_connection_then_nothing_is_recalled() {
+    let (bots, _calls, mut frames, _out) = connected();
+    let task = tokio::spawn(recall(78, peer(), Arc::clone(&bots), AFTER));
     bots.remove(BOT, 0);
     task.await.expect("没崩");
-    assert!(frames.try_recv().is_err(), "没回编号的、那时没连着的都不撤");
+    assert!(frames.try_recv().is_err(), "那时没连着的不撤");
 }

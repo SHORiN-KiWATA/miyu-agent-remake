@@ -106,7 +106,8 @@ async fn saying_the_same_twice_in_a_turn_sends_it_once() {
         napcat.group_message(PLAIN).await,
         [words("我在看这个问题。")]
     );
-    // 前一句记下了（`venue.delivered`）再说下一句：真跑时两句之间隔一次请求模型。
+    // 前一句发出去了再说下一句（O-25 上照 `venue.delivered` 去重时要等；O-25 中照入队算，等着也不碍事）：真跑时两句之间
+    // 隔一次请求模型。
     until_count(&home, PLAIN, "venue.delivered", 1).await;
     release.send(()).expect("她在等");
     let quote = json!({"type": "reply", "data": {"id": "1"}});

@@ -33,6 +33,18 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
         ),
         "not_a_directory" => ("这不是一个目录。", "This is not a directory."),
         "unknown_package" => ("没有这个软件包。", "There is no such package."),
+        "package_exists" => (
+            "出厂的软件包里已经有这个编号。",
+            "A shipped package already has this id.",
+        ),
+        "package_required" => (
+            "这个软件包是必需的，不能卸。",
+            "This package is required and cannot be removed.",
+        ),
+        "package_invalid" => (
+            "这份清单装不上，详情在 data.problem 里。",
+            "This manifest cannot be installed; data.problem says why.",
+        ),
         "not_an_extension" => (
             "这个软件包是界面，不由核心拉起。",
             "This package is an interface; the core does not start it.",
@@ -159,6 +171,7 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "这里没有记忆：没有人格、记忆关着，或者是通讯平台的会话。",
             "No memory here: no persona, memory is off, or this is a platform session.",
         ),
+        "memory_not_installed" => ("没装人格记忆。", "Persona memory is not installed."),
         "unknown_memory" => ("没有这一条记忆。", "There is no such memory."),
         "memory_not_current" => (
             "这一条已经改掉、作废或者清掉了。",

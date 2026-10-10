@@ -39,7 +39,10 @@ pub use agents::{
     AgentPort, NotSpawned, Order, SUBAGENT, SUBAGENT_FORMERLY, Spawned, Spawning, is_subagent,
 };
 pub use catalog::{BASESYSTEM, Catalog, CatalogError, Problem};
-pub use jobs::{Asking, Background, Exit, JobError, JobPort, Listed, Output, Process};
+pub use jobs::{
+    Asking, BACKGROUND, Background, Exit, JobError, JobPort, Listed, Output, Process,
+    RUN_IN_BACKGROUND, SHELL,
+};
 pub use log::{Log, ReadLog};
 pub use memory::{
     FORGET, FoundMemory, FoundTurn, MEMORIES, MEMORY_SEARCH, MemoryPort, Pending, REMEMBER,
@@ -121,5 +124,11 @@ pub trait Tool: Send + Sync {
     /// 默认没有。
     fn formerly(&self) -> &'static [&'static str] {
         &[]
+    }
+
+    /// 后台运行关着的会话里用的说明（施工 T-1 下）：在后台跑的工具换一种说法，`subagent` 有（派出去等它报回来）。别的没有，
+    /// 照规格的。
+    fn foreground_description(&self) -> Option<&str> {
+        None
     }
 }

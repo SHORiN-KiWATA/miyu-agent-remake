@@ -162,8 +162,8 @@ pub(crate) struct Dispatch {
     pub(crate) dirs: Vec<String>,
     /// 派出去那一刻实际生效的那一级：沙盒照它写规格。
     pub(crate) permission: Permission,
-    /// 这次调用的任务端口（施工 7-3）：`shell` 把后台命令交给它。
-    pub(crate) jobs: Arc<dyn JobPort>,
+    /// 这次调用的任务端口（施工 7-3）：`shell` 把后台命令交给它。后台运行关着的会话没有（施工 T-1 上）。
+    pub(crate) jobs: Option<Arc<dyn JobPort>>,
     /// 这个会话这一刻派出去的子代理（施工 7-7）：`send_message` 照它认 `to`。
     pub(crate) subagents: BTreeMap<JobId, Subagent>,
     /// 派子代理时子会话用哪个模型要的（施工 8-8）：会话这时的引用、这一轮的配置。
@@ -303,7 +303,7 @@ impl Tools {
             offset: self.offset,
             agents,
             messages,
-            jobs: Some(jobs),
+            jobs,
             sessions,
             usage: crate::usage::for_call(self.ledger.as_ref(), usage),
             questions: questions::port(self.asks, call_id, &self.backs),
@@ -320,7 +320,11 @@ impl Tools {
         let call_text = call_id.to_string();
         let Some(tool) = self.catalog.get(&name) else {
             tracing::warn!(target: TARGET, call = call_text.as_str(), tool = name.as_str(), "unavailable");
-            let worded = self.lettering.run().unavailable(&name);
+            // 随包卸掉了的说「已卸载」（施工 F-5 中，设计 30 第九节）。
+            let worded = match self.catalog.gone(&name) {
+                true => self.lettering.run().uninstalled(&name),
+                false => self.lettering.run().unavailable(&name),
+            };
             return Some(Input::ToolDone {
                 at,
                 call_id,

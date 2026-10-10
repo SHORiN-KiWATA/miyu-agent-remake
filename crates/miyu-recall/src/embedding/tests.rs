@@ -8,7 +8,7 @@ fn manifest(top: &str, files: &str) -> String {
     format!("id = \"m\"\ndims = 4\npooling = \"cls\"\nmax_tokens = 8\n{top}\n{files}")
 }
 
-const BOTH: &str = "[[files]]\nrole = \"model\"\nname = \"model.onnx\"\nurl = \"https://example.invalid/a\"\nsha256 = \"00\"\nsize = 1\n\n[[files]]\nrole = \"vocab\"\nname = \"vocab.txt\"\nurl = \"https://example.invalid/b\"\nsha256 = \"11\"\nsize = 2\n";
+const BOTH: &str = "[[files]]\nrole = \"model\"\nname = \"model.onnx\"\nsha256 = \"00\"\nsize = 1\n\n[[files]]\nrole = \"vocab\"\nname = \"vocab.txt\"\nsha256 = \"11\"\nsize = 2\n";
 
 #[test]
 fn a_good_one_parses() {

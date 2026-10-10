@@ -1,26 +1,30 @@
-//! 预设文件怎么读（施工 P-2 上，`docs/blueprint/presets.md`，`16-人格与预设.md` 第三节）：`[preset]` 的名字、说明、默认人格、
-//! 没列出来的软件开不开，`[software]` 按软件包开关，`[tools]` 关掉单件工具。纯逻辑：进来的是文件里的字，出去的是读好的样子，
-//! 或者写明第几行错在哪。找哪几层、读盘由存储做。
+//! 预设（施工 P-2 上，`docs/blueprint/presets.md`，`16-人格与预设.md` 第三节）：`[preset]` 的名字、说明、没列出来的功能开不开，
+//! `[features]` 按功能开关（施工 F-3 上，设计 `30-插件框架.md` 第四节），以前的 `[software]` 按软件包开关照认，`[tools]` 关掉
+//! 单件工具。纯逻辑：进来的是文件里的字，出去的是读好的样子，或者写明第几行错在哪（`read.rs`）。找哪几层、读盘由存储做。
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt;
 
-use miyu_config::phrases::{self, Label, PhraseError};
-use miyu_config::secret::valid_name;
+use miyu_config::phrases::Label;
 use miyu_kernel::id::ContentHash;
 use serde::{Deserialize, Serialize};
-use toml_edit::{Document, Item, TableLike};
+
+use crate::features::Features;
+
+mod read;
+
+pub use read::{Code, DEFAULT_PERSONA, Problem, read};
 
 /// 工具名最多几个字符。
 const TOOL_CHARS: usize = 64;
 
-/// 记忆这个软件（施工 P-2 中，`10-自带软件.md` 第四节）：三件工具和回合开始的召回。和 `miyu_memory::PACKAGE` 是同一个编号。
+/// 人格记忆这个功能（施工 P-2 中，`10-自带软件.md` 第四节；施工 F-3 上起是功能的编号）：三件工具和回合开始的召回。和
+/// `miyu_memory::PACKAGE` 是同一个编号：包没写功能，整个包算一个。
 pub const MEMORY: &str = "memory";
 
-/// 角色扮演这个软件（施工 P-2 中）：人格的角色扮演提示和风格锁（`16-人格与预设.md` 第八节：开发预设不开）。它没有工具。
+/// 人设防失忆提醒这个功能（施工 P-2 中，原来叫角色扮演；施工 F-3 上起是功能的编号）：人格的提醒短语和风格锁。它没有工具。
 pub const ROLEPLAY: &str = "roleplay";
 
-/// 没列在 `[software]` 里的软件（包括以后新装的）开不开（Y7）。
+/// 没列在 `[features]`、`[software]` 里的功能（包括以后新装的）开不开（Y7）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Unlisted {
     /// 开：功能全开那种。
@@ -46,21 +50,25 @@ pub struct PresetFile {
     pub name: Option<Label>,
     /// 一句说明，写法同名字。
     pub summary: Option<Label>,
-    /// 没列出来的软件开不开；几层都没写的照 [`Unlisted::On`]（[`PresetFile::unlisted`]）。
+    /// 没列出来的功能开不开；几层都没写的照 [`Unlisted::On`]（[`PresetFile::unlisted`]）。
     pub unlisted: Option<Unlisted>,
-    /// 软件包的编号到开不开。
+    /// 功能的编号到开不开（施工 F-3 上）。
+    pub features: BTreeMap<String, bool>,
+    /// 以前的写法：软件包（或者和包同编号的功能）的编号到开不开。照认，[`PresetFile::opens_in`]。
     pub software: BTreeMap<String, bool>,
     /// 关掉的单件工具（开着的包里的）。
     pub tools_off: BTreeSet<String>,
 }
 
 impl PresetFile {
-    /// 叠在 `lower` 上面（同名覆盖，16 第四节）：逐格盖，名字、说明写了的整格换掉，`[software]` 逐个键盖，关掉的工具叠在一起。
+    /// 叠在 `lower` 上面（同名覆盖，16 第四节）：逐格盖，名字、说明写了的整格换掉，`[features]`、`[software]` 逐个键盖，关掉的
+    /// 工具叠在一起。
     #[must_use]
     pub fn over(self, mut lower: PresetFile) -> PresetFile {
         lower.name = self.name.or(lower.name);
         lower.summary = self.summary.or(lower.summary);
         lower.unlisted = self.unlisted.or(lower.unlisted);
+        lower.features.extend(self.features);
         lower.software.extend(self.software);
         lower.tools_off.extend(self.tools_off);
         lower
@@ -71,17 +79,25 @@ impl PresetFile {
         self.unlisted.unwrap_or(Unlisted::On)
     }
 
-    /// 软件 `software` 开不开（施工 P-2 中，Y7）：`[software]` 写了的照写的，没写的照 `unlisted`。
-    pub fn opens(&self, software: &str) -> bool {
-        self.software
-            .get(software)
+    /// 包 `package` 里的功能 `feature` 开不开（施工 F-3 上）：`[features]` 写了的照写的；没写的照以前的 `[software]`，先认功能
+    /// 的编号、再认包的编号；都没写的照 `unlisted`。
+    pub fn opens_in(&self, feature: &str, package: &str) -> bool {
+        self.features
+            .get(feature)
+            .or_else(|| self.software.get(feature))
+            .or_else(|| self.software.get(package))
             .copied()
             .unwrap_or(self.unlisted() == Unlisted::On)
     }
 
-    /// 包 `package` 里的工具 `tool` 留不留在工具面上：包开着，这一件也没被 `[tools]` 关掉（走查 C1）。
-    pub fn keeps(&self, package: &str, tool: &str) -> bool {
-        self.opens(package) && !self.tools_off.contains(tool)
+    /// 编号和包一样的功能 `feature` 开不开：人格记忆、人设防失忆提醒这种没写功能、整个包算一个的（[`PresetFile::opens_in`]）。
+    pub fn opens(&self, feature: &str) -> bool {
+        self.opens_in(feature, feature)
+    }
+
+    /// 包 `package` 里归功能 `feature` 的工具 `tool` 留不留在工具面上：功能开着，这一件也没被 `[tools]` 关掉（走查 C1）。
+    pub fn keeps(&self, feature: &str, package: &str, tool: &str) -> bool {
+        self.opens_in(feature, package) && !self.tools_off.contains(tool)
     }
 
     /// 叠好的文件的指纹（施工 P-2 下）：记进快照，回合开始时执行器照它认出预设的文件改了。名字、说明照以前的写法算
@@ -100,7 +116,12 @@ impl PresetFile {
             &self.software,
             &self.tools_off,
         );
-        ContentHash::of(&serde_json::to_vec(&fields).expect("预设的几格写得成 JSON"))
+        // 没写 `[features]` 的照以前的几格算（施工 F-3 上）：以前造的快照照旧对得上。
+        let bytes = match self.features.is_empty() {
+            true => serde_json::to_vec(&fields),
+            false => serde_json::to_vec(&(fields, &self.features)),
+        };
+        ContentHash::of(&bytes.expect("预设的几格写得成 JSON"))
     }
 }
 
@@ -117,28 +138,34 @@ pub struct PresetPin {
     pub digest: Option<ContentHash>,
 }
 
-/// 开会话时找好的预设（施工 P-2 中）：编号、叠好的文件，和这台机器上装了、这个预设没开的软件（照编号排；Y8 那一行照它写）。
+impl PresetPin {
+    /// 和 `other` 说的是同一回事（施工 F-3 上）：编号、指纹一样，没开的照现在装了的功能 `features` 读（以前记的包编号换成它的
+    /// 功能，[`Features::read_legacy`]）也一样。升级以后预设没改的会话不为改了写法换一次快照、断一次缓存。
+    pub fn means_the_same(&self, other: &PresetPin, features: &Features) -> bool {
+        self.id == other.id
+            && self.digest == other.digest
+            && features.read_legacy(&self.off) == features.read_legacy(&other.off)
+    }
+}
+
+/// 开会话时找好的预设（施工 P-2 中）：编号、叠好的文件，和这台机器上装了、这个预设没开的功能（照编号排；Y8 那一行照它写）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Chosen {
     /// 编号。
     pub id: String,
     /// 叠好的文件。
     pub file: PresetFile,
-    /// 装了、没开的软件。
+    /// 装了、没开的功能。
     pub off: Vec<String>,
     /// 文件的指纹（施工 P-2 下）：照找到的那一份算，[`Chosen::keeping_memory`] 改了记忆那一格也不变。
     pub digest: ContentHash,
 }
 
 impl Chosen {
-    /// 照装了的软件 `installed` 算好没开的那几个。
-    pub fn new<'a>(
-        id: String,
-        file: PresetFile,
-        installed: impl IntoIterator<Item = &'a str>,
-    ) -> Chosen {
+    /// 照装了的功能 `features` 算好没开的那几个。
+    pub fn new(id: String, file: PresetFile, features: &Features) -> Chosen {
         let digest = file.digest();
-        let off = off(&file, installed);
+        let off = off(&file, features);
         Chosen {
             id,
             file,
@@ -147,15 +174,11 @@ impl Chosen {
         }
     }
 
-    /// 换预设时记忆照开会话时的（施工 P-2 下，L3）：`memory` 开不开改成 `open`，没开的那几个照 `installed` 重新算，指纹不变。
+    /// 换预设时记忆照开会话时的（施工 P-2 下，L3）：人格记忆开不开改成 `open`，没开的那几个照 `features` 重新算，指纹不变。
     #[must_use]
-    pub fn keeping_memory<'a>(
-        mut self,
-        open: bool,
-        installed: impl IntoIterator<Item = &'a str>,
-    ) -> Chosen {
-        self.file.software.insert(MEMORY.to_string(), open);
-        self.off = off(&self.file, installed);
+    pub fn keeping_memory(mut self, open: bool, features: &Features) -> Chosen {
+        self.file.features.insert(MEMORY.to_string(), open);
+        self.off = off(&self.file, features);
         self
     }
 
@@ -169,274 +192,14 @@ impl Chosen {
     }
 }
 
-/// 装了的 `installed` 里 `file` 没开的，照编号排、不重复。
-fn off<'a>(file: &PresetFile, installed: impl IntoIterator<Item = &'a str>) -> Vec<String> {
-    let off: BTreeSet<String> = installed
-        .into_iter()
-        .filter(|software| !file.opens(software))
-        .map(str::to_string)
+/// 装了的功能 `features` 里 `file` 没开的，照编号排、不重复。
+fn off(file: &PresetFile, features: &Features) -> Vec<String> {
+    let off: BTreeSet<String> = features
+        .iter()
+        .filter(|feature| !file.opens_in(&feature.id, &feature.package))
+        .map(|feature| feature.id.clone())
         .collect();
     off.into_iter().collect()
-}
-
-/// 预设文件写错了：第几行（从 1 数，说不出的没有）、哪一种错、错的那一处，和一句英文短句（日志、协议的 `data.problem` 用）。
-/// 给人看的那一句照 `code` 和 `detail` 用 `core/human/<语言>.json` 的 `preset-problems/<code>` 写。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Problem {
-    /// 第几行。
-    pub line: Option<usize>,
-    /// 哪一种错。
-    pub code: Code,
-    /// 错的那一处：表名、`<表>.<键>`、`preset.<格>.<语言>`；读不成 TOML 的是它的原话。
-    pub detail: String,
-    /// 错在哪，英文短句。
-    pub message: String,
-}
-
-/// 撤掉了的默认人格那一格的键（施工 P-4 上，2026-10-08 项目主人：只去掉预设的「默认人格」）：读的时候当没写，写的时候去掉，
-/// `preset.set` 写它是参数不对。
-pub const DEFAULT_PERSONA: &str = "default_persona";
-
-/// 预设文件错在哪一种。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Code {
-    /// 读不成 TOML。
-    Syntax,
-    /// 多了 `[preset]`、`[software]`、`[tools]` 以外的表。
-    UnknownTable,
-    /// 这三样有一样不是表。
-    NotATable,
-    /// `[preset]` 里多了别的键。
-    UnknownKey,
-    /// `name`、`summary` 不是一句字，也不是语言到一句话的表（以前的写法）。
-    NotPhrases,
-    /// 语言不是 `zh`、`en`、`ja`。
-    UnknownLanguage,
-    /// 一句话是空的、不是字。
-    EmptyPhrase,
-    /// `unlisted` 不是 `on`、`off`。
-    BadUnlisted,
-    /// `[software]` 的键不是合写法的软件包编号。
-    BadSoftware,
-    /// `[software]` 的值不是开关。
-    NotBool,
-    /// `[tools]` 的键不是工具名的写法。
-    BadTool,
-    /// `[tools]` 的值不是 `false`：单件打开某个包里的一件先不做。
-    NotFalse,
-}
-
-impl Code {
-    /// 稳定的写法：协议、给人看的字的键用它。
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Code::Syntax => "syntax",
-            Code::UnknownTable => "unknown_table",
-            Code::NotATable => "not_a_table",
-            Code::UnknownKey => "unknown_key",
-            Code::NotPhrases => "not_phrases",
-            Code::UnknownLanguage => "unknown_language",
-            Code::EmptyPhrase => "empty_phrase",
-            Code::BadUnlisted => "bad_unlisted",
-            Code::BadSoftware => "bad_software",
-            Code::NotBool => "not_bool",
-            Code::BadTool => "bad_tool",
-            Code::NotFalse => "not_false",
-        }
-    }
-
-    /// 全部，照先后：给人看的字的门禁照它查三种语言都有。
-    pub const ALL: [Code; 12] = [
-        Code::Syntax,
-        Code::UnknownTable,
-        Code::NotATable,
-        Code::UnknownKey,
-        Code::NotPhrases,
-        Code::UnknownLanguage,
-        Code::EmptyPhrase,
-        Code::BadUnlisted,
-        Code::BadSoftware,
-        Code::NotBool,
-        Code::BadTool,
-        Code::NotFalse,
-    ];
-}
-
-impl fmt::Display for Problem {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.line {
-            Some(line) => write!(f, "{line}: {}", self.message),
-            None => write!(f, "{}", self.message),
-        }
-    }
-}
-
-/// 读一份预设文件：`[preset]`、`[software]`、`[tools]` 三张表，都可以没有。
-///
-/// # Errors
-///
-/// 读不成 TOML、多了别的表或者键、哪一格的值不合写法，报第一处。
-pub fn read(text: &str) -> Result<PresetFile, Problem> {
-    let document = Document::parse(text).map_err(|error| Problem {
-        line: error.span().map(|span| line_of(text, span.start)),
-        code: Code::Syntax,
-        detail: error.message().trim().to_string(),
-        message: error.message().trim().to_string(),
-    })?;
-    let reader = Reader { text };
-    let mut file = PresetFile::default();
-    for (key, item) in document.as_table().iter() {
-        match key {
-            "preset" => reader.preset(reader.table(key, item)?, &mut file)?,
-            "software" => {
-                for (name, item) in reader.table(key, item)?.iter() {
-                    if !valid_name(name) {
-                        return Err(reader.problem(
-                            item,
-                            Code::BadSoftware,
-                            &format!("software.{name}"),
-                            format!("software.{name}: a package id starts with a lowercase letter and uses only lowercase letters, digits, - and _"),
-                        ));
-                    }
-                    let on = item.as_bool().ok_or_else(|| {
-                        reader.problem(
-                            item,
-                            Code::NotBool,
-                            &format!("software.{name}"),
-                            format!("software.{name} must be true or false"),
-                        )
-                    })?;
-                    file.software.insert(name.to_string(), on);
-                }
-            }
-            "tools" => {
-                for (name, item) in reader.table(key, item)?.iter() {
-                    if !tool_name(name) {
-                        return Err(reader.problem(
-                            item,
-                            Code::BadTool,
-                            &format!("tools.{name}"),
-                            format!("tools.{name}: a tool name uses only letters, digits, - and _"),
-                        ));
-                    }
-                    if item.as_bool() != Some(false) {
-                        return Err(reader.problem(
-                            item,
-                            Code::NotFalse,
-                            &format!("tools.{name}"),
-                            format!("tools.{name} can only be false"),
-                        ));
-                    }
-                    file.tools_off.insert(name.to_string());
-                }
-            }
-            other => {
-                return Err(reader.problem(
-                    item,
-                    Code::UnknownTable,
-                    other,
-                    format!("unknown table [{other}]"),
-                ));
-            }
-        }
-    }
-    Ok(file)
-}
-
-/// 读的时候带着原文，好说第几行。
-struct Reader<'a> {
-    text: &'a str,
-}
-
-impl Reader<'_> {
-    /// `[preset]` 那一张表。
-    fn preset(&self, table: &dyn TableLike, file: &mut PresetFile) -> Result<(), Problem> {
-        for (key, item) in table.iter() {
-            match key {
-                "name" => file.name = Some(self.label(key, item)?),
-                "summary" => file.summary = Some(self.label(key, item)?),
-                // P-3 上那几个小时里写进去的「以谁为底」（施工 P-3 再补）、P-4 上撤掉的默认人格：认出来就当没写，下一次写这份
-                // 文件时去掉。
-                crate::persona::BASE | DEFAULT_PERSONA => {}
-                "unlisted" => {
-                    file.unlisted = Some(match item.as_str() {
-                        Some("on") => Unlisted::On,
-                        Some("off") => Unlisted::Off,
-                        _ => {
-                            return Err(self.problem(
-                                item,
-                                Code::BadUnlisted,
-                                "preset.unlisted",
-                                "preset.unlisted must be on or off".to_string(),
-                            ));
-                        }
-                    });
-                }
-                other => {
-                    return Err(self.problem(
-                        item,
-                        Code::UnknownKey,
-                        &format!("preset.{other}"),
-                        format!("unknown key preset.{other}"),
-                    ));
-                }
-            }
-        }
-        Ok(())
-    }
-
-    /// 该是表的：不是的报 `not_a_table`。
-    fn table<'i>(&self, key: &str, item: &'i Item) -> Result<&'i dyn TableLike, Problem> {
-        item.as_table_like().ok_or_else(|| {
-            self.problem(item, Code::NotATable, key, format!("{key} must be a table"))
-        })
-    }
-
-    /// 名字、说明：一句字，或者以前的语言表。
-    fn label(&self, field: &str, item: &Item) -> Result<Label, Problem> {
-        let line =
-            |span: Option<std::ops::Range<usize>>| span.map(|span| line_of(self.text, span.start));
-        // 说明可以是空的字（施工 P-3 再补）：没有说明，盖住下面那一层的。
-        let read = match field {
-            "summary" => phrases::read_summary,
-            _ => phrases::read_label,
-        };
-        read(item).map_err(|error| match error {
-            PhraseError::NotPhrases(span) => Problem {
-                line: line(span),
-                code: Code::NotPhrases,
-                detail: format!("preset.{field}"),
-                message: format!("preset.{field} must be text"),
-            },
-            PhraseError::Empty(language, span) if language.is_empty() => Problem {
-                line: line(span),
-                code: Code::EmptyPhrase,
-                detail: format!("preset.{field}"),
-                message: format!("preset.{field} must be non-empty text"),
-            },
-            PhraseError::UnknownLanguage(language, span) => Problem {
-                line: line(span),
-                code: Code::UnknownLanguage,
-                detail: format!("preset.{field}.{language}"),
-                message: format!("preset.{field}.{language}: language must be zh, en or ja"),
-            },
-            PhraseError::Empty(language, span) => Problem {
-                line: line(span),
-                code: Code::EmptyPhrase,
-                detail: format!("preset.{field}.{language}"),
-                message: format!("preset.{field}.{language} must be non-empty text"),
-            },
-        })
-    }
-
-    fn problem(&self, item: &Item, code: Code, detail: &str, message: String) -> Problem {
-        Problem {
-            line: item.span().map(|span| line_of(self.text, span.start)),
-            code,
-            detail: detail.to_string(),
-            message,
-        }
-    }
 }
 
 /// 名字、说明照以前的写法写成 JSON（[`PresetFile::digest`]）：没写的是空表，语言表照原样，一句字的是那句字。
@@ -446,25 +209,6 @@ fn label_json(label: Option<&Label>) -> serde_json::Value {
         Some(Label::Each(phrases)) => serde_json::json!(phrases),
         Some(Label::One(text)) => serde_json::json!(text),
     }
-}
-
-/// 工具名：字母、数字、`-`、`_`，1 到 64 个。
-fn tool_name(name: &str) -> bool {
-    !name.is_empty()
-        && name.len() <= TOOL_CHARS
-        && name
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-}
-
-/// 字节位置 `offset` 在第几行。
-fn line_of(text: &str, offset: usize) -> usize {
-    text.as_bytes()
-        .iter()
-        .take(offset)
-        .filter(|&&byte| byte == b'\n')
-        .count()
-        + 1
 }
 
 #[cfg(test)]

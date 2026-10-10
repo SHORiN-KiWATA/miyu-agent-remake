@@ -6,8 +6,7 @@
 
 use super::*;
 use crate::event::{Effect, JobKind, JobStarted};
-use crate::id::{CommandId, JobId, SessionId};
-use crate::origin::By;
+use crate::id::{JobId, SessionId};
 
 impl Watch {
     /// 下一个派出去的任务：编号接着日志里用过的最大的往下数，撤掉的回合里的也算，所以不会重复。`n` 为单的派子代理，
@@ -43,6 +42,7 @@ impl Watch {
             }
         };
         Effect::JobStarted(JobStarted {
+            foreground: false,
             job,
             what,
             title: "t".to_string(),
@@ -76,8 +76,19 @@ impl Watch {
     /// 撤销交出的停任务（施工 7-8）：紧跟着撤销，停的正好是撤掉的那几轮派出去、还没报过结束的（后台命令没报过，子代理没以
     /// `stopped`、`undone` 报过、一次都没报过），照编号；`by`、`cause` 是那一条撤销的。随机的会话不给子代理留言，报过的子代理
     /// 就不再欠。
-    pub(super) fn stop_checked(&mut self, jobs: &[JobId], by: &By, cause: &CommandId) {
+    pub(super) fn stop_checked(&mut self, stop: &Action) {
         let seed = self.seed;
+        let Action::StopJobs {
+            jobs,
+            by,
+            cause,
+            undone,
+        } = stop
+        else {
+            unreachable!("只交停任务的");
+        };
+        // 随机的会话都开着后台运行：只有撤销会停任务（施工 T-1 下：打断停前台子代理的在 `scenario/foreground.rs`）。
+        assert!(*undone, "种子 {seed}：停任务的不是撤销：{stop:?}");
         self.seen_paths.insert("撤销停掉派出去的任务");
         let reverted = self
             .events
@@ -120,7 +131,7 @@ impl Watch {
             .into_iter()
             .collect();
         assert_eq!(
-            jobs, expected,
+            *jobs, expected,
             "种子 {seed}：停的不是撤掉的那几轮派出去、还在跑的"
         );
     }

@@ -516,8 +516,8 @@ Rust 这一边：
 | `venue.delivered` | 桥 | 核心（`[you]` 行：这条线历史里没有的才渲染，18 第八节）、桥 | 哪条线（主线或支线的会话编号）、哪一轮、回的是谁（平台身份的列表）、平台的编号、正文、图的哈希。和 `message.assistant` 重的正文以谁为准：`[you]` 行照它（实际发出去的、出站链洗过的），她自己的上下文照 `message.assistant` |
 | `turn.started` 多一格 `triggers` | 核心，由下面第 3 条的原语开回合时记 | 桥 | 这一轮由哪几条旁听消息触发（序号的列表）；原来的 `trigger` 照旧是最后一条，旧日志照读。账本查：每一条都是这个会话里旁听的 `message.user`，还没被别的轮当过触发 |
 | `ext.onebot.chat.decided` | 桥 | 桥（WebUI、回放验收） | 判的是哪几条（序号的列表，顶替重判的一起）、成立的条件和加分、走的路、判官的回答和理由、算分的每一项、结论；判不了的写为什么；用的模型、耗时 |
-| `ext.onebot.venues.queued`、`ext.onebot.venues.failed` | 桥 | 桥 | 出站队列：入队（种类：回复、提示、回执、定时）、失败和为什么 |
-| `ext.onebot.venues.muted`、`ext.onebot.venues.unmuted` | 桥 | 桥 | 她被禁言到什么时候、解禁了 |
+| `ext.onebot.venues.queued`、`ext.onebot.venues.failed` | 桥 | 桥 | 出站队列：入队（种类：回复、提示、回执、定时）、失败和为什么。O-25 中定了 `body`（`onebot.md` 第一条「出站队列」第 2、4 条）：`queued` 是 `{kind, text}`，`kind` 取 `reply`（另带 `line`、`turn`）、`notice`（另带 `reason`）、`receipt`；`failed` 是 `{queued: <入队那一条的序号>, why, detail?}`，`why` 取 `rejected`、`timeout`、`disconnected`、`expired` |
+| `ext.onebot.venues.muted`、`ext.onebot.venues.unmuted` | 桥 | 桥 | 她被禁言到什么时候、解禁了：`muted` 是 `{until}`（收到通知时本机此刻加禁言的秒数，写法同事件的 `at`），`unmuted` 是 `{}`（O-25 中，`onebot.md` 第一条「出站队列」第 7 条） |
 
 **3. 核心要多给的三样**（在核心第二批的五项以外）
 
@@ -533,12 +533,12 @@ Rust 这一边：
 |---|---|---|
 | 进站链 `Ctx.turns` | `turn.started` | 窗口里的回合，去掉触发它的人全是主人或自己人的；没有 `triggers` 的（回报、后台命令、定时）照算 |
 | 进站链 `Ctx.notices` | `ext.onebot.venues.queued` | 种类是提示、原因是限流的那几条的时刻 |
-| 进站链 `Ctx.muted` | `ext.onebot.venues.muted`、`unmuted` | 最后一条 |
+| 进站链 `Ctx.muted` | `ext.onebot.venues.muted`、`unmuted` | 最后一条 `muted` 的 `until` 晚于此刻、之后没有 `unmuted`（O-25 中） |
 | 发的人是谁 `Standing` | `message.user` 的 `by`、系统配置 | 私聊里 `person` 带 `via`、群里 `external` 带 `account`：主人；编号在 `onebot.trusted` 里：自己人；别的：别人 |
 | 算分 `Reply` | `venue.delivered` | 一轮一笔：同一条线、同一轮的几条并成一笔，时刻取第一条，回的人取并集 |
 | 顶替 `Pending` | `ext.onebot.chat.decided`、`turn.started.triggers`、`turn.joined.triggers`、`turn.ended` | 判过要回、她还没回完的：`Committed`，从判断记下起，到收了它的那一轮（`triggers` 里有它）`turn.ended` 为止，还没进哪一轮的照旧算。前提是桥先记 `ext.onebot.chat.decided`、再 `session.respond`，桥保证这个先后。O-23 下改（2026-10-09 主会话定）：原来写的「还没进哪一轮 `triggers`」，照字面 `Committed` 只存在一瞬（桥记了判断紧接着 `session.respond`，核心当场记 `turn.started` 或 `turn.joined`），`Inherit` 走不到。`Judging` 只在桥的内存里，桥重启就丢，丢了不补判（窗口只有 7 秒） |
 | 分派 `Lines` | `turn.started`、`turn.ended`、分叉出的子会话 | 主线开着的那一轮，回的人是它 `triggers` 的发的人；支线同理 |
-| 出站 `Sent` | `venue.delivered` | 这一轮的正文和图的哈希 |
+| 出站 `Sent` | `ext.onebot.venues.queued` | 这一轮入队了的她的话（`kind` 是 `reply`，照 `turn` 认是哪一轮）的正文；桥入队记成了就先算上，日志推来的同一段不重复算（O-25 中，原来照 `venue.delivered`）。图的哈希随她的图那一步 |
 | 出站 `Since` | `message.user`、`message.assistant`、`venue.delivered` | 她回的那条之后别人的消息条数、过了多久、最后一条是不是她的 |
 
 **5. 参数和数据**

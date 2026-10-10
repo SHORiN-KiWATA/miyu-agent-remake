@@ -9,10 +9,16 @@ use toml_edit::{Document, Item};
 use crate::phrases::Phrases;
 
 mod capability;
+mod code;
+mod features;
+mod links;
 mod reader;
 pub mod settings;
 
 pub use capability::Capability;
+pub use code::Code;
+pub use features::Feature;
+pub use links::{Connection, Worker};
 pub use settings::{Setting, SettingKind};
 
 use reader::{Reader, line_of};
@@ -40,15 +46,31 @@ pub struct Manifest {
     pub check: Option<Check>,
     /// 配置项（施工 9-1 下）：照写的先后；没有的是空的。
     pub settings: Vec<Setting>,
+    /// 必需的（施工 F-1）：卸不掉，只有内置包能写；没写的是假。
+    pub required: bool,
+    /// 写了的功能（施工 F-1）：没写 `[features]` 的没有，写了空表的是空的；算上照包算的那一个用 [`Manifest::features_of`]。
+    pub features: Option<Vec<Feature>>,
+    /// 平台接入（施工 F-1）：只有扩展包能写。
+    pub connection: Option<Connection>,
+    /// 缺了就不起的小程序（施工 F-1）：包编号，照写的先后。
+    pub depends: Vec<String>,
+    /// 缺了照起、少一部分本事的小程序（施工 F-1）。
+    pub recommends: Vec<String>,
+    /// 小程序怎么拉起（`kind = "worker"`，施工 F-1）。
+    pub worker: Option<Worker>,
 }
 
-/// 包的种类。
+/// 包的种类：只说它跑在哪（设计 `30-插件框架.md` 第二节）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PackageKind {
     /// 界面：有人看着用，自己起来、经本机套接字连核心。
     Ui,
-    /// 核心拉起、经标准输入输出说协议的扩展（9-4），通讯平台的桥也是这一种。
+    /// 核心拉起、经标准输入输出说协议的扩展（9-4），通讯平台的接入也是这一种。
     Process,
+    /// 内置（施工 F-1）：代码编在核心里，装的是清单和它的资源。
+    Builtin,
+    /// 小程序（施工 F-1）：核心按需拉起、空闲退出，说它自己的协议。
+    Worker,
 }
 
 impl PackageKind {
@@ -57,6 +79,36 @@ impl PackageKind {
         match self {
             PackageKind::Ui => "ui",
             PackageKind::Process => "process",
+            PackageKind::Builtin => "builtin",
+            PackageKind::Worker => "worker",
+        }
+    }
+
+    /// 这种包能写哪几张表（施工 F-1）：别的写了报 `wrong_kind`。
+    pub fn tables(self) -> &'static [&'static str] {
+        match self {
+            PackageKind::Ui => &[
+                "package",
+                "command",
+                "ui",
+                "check",
+                "settings",
+                "depends",
+                "recommends",
+            ],
+            PackageKind::Process => &[
+                "package",
+                "command",
+                "process",
+                "check",
+                "settings",
+                "features",
+                "connection",
+                "depends",
+                "recommends",
+            ],
+            PackageKind::Builtin => &["package", "features", "depends", "recommends"],
+            PackageKind::Worker => &["package", "worker"],
         }
     }
 }
@@ -145,154 +197,20 @@ impl fmt::Display for Problem {
     }
 }
 
-/// 问题的代码：给人看的那一句照它在 `core/human/<语言>.json` 的 `package-problems/<code>` 找。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Code {
-    /// 读不成 TOML。
-    Syntax,
-    /// 不认识的表。
-    UnknownTable,
-    /// 该是表的不是表。
-    NotATable,
-    /// 表里不认识的键。
-    UnknownKey,
-    /// 少了必写的：`[package]` 或者某一格。
-    MissingKey,
-    /// 这张表不给这种包（`[process]` 只给 `process`，`[ui]` 只给 `ui`）。
-    WrongKind,
-    /// `[process]`、`[check]` 要有 `[command]`。
-    NeedsCommand,
-    /// `kind` 不是 `ui`、`process`。
-    BadKind,
-    /// `protocol` 不是两个非负整数、最低不大于最高。
-    BadProtocol,
-    /// 该是字的不是字。
-    NotText,
-    /// 该是字的数组的不是。
-    NotTexts,
-    /// 该是「语言到一句话」的不是表。
-    NotPhrases,
-    /// 不认识的语言。
-    UnknownLanguage,
-    /// 某种语言那一句空了、不是字。
-    EmptyPhrase,
-    /// 子命令名的写法不对。
-    BadCommandName,
-    /// 程序名带了路径、是空的。
-    BadProgram,
-    /// `start` 不是 `manual`、`always`。
-    BadStart,
-    /// `opens` 里的页名写法不对。
-    BadPage,
-    /// `pages_dir` 不是资源目录里的相对目录。
-    BadPagesDir,
-    /// 两层里同一个编号：家目录那一份（`miyu-store` 认）。
-    Duplicate,
-    /// 子命令名被先读到的包占了（`miyu-store` 认）。
-    CommandTaken,
-    /// 配置项的名字写法不对。
-    BadSettingName,
-    /// 配置项的 `type` 不认识。
-    BadType,
-    /// 列表的 `element` 不认识、是列表、不是字（施工 9-1 补）。
-    BadElement,
-    /// 默认值不合类型、不在选项里，密钥写了默认值。
-    BadDefault,
-    /// 选项少于两个、有重复、不是字。
-    BadChoices,
-    /// `min`、`max` 不是整数、最小大于最大。
-    BadRange,
-    /// `layers` 不是 `system`、`personal` 里的一两个。
-    BadLayers,
-    /// `applies` 不认识。
-    BadApplies,
-    /// `hidden` 不是开关。
-    NotBool,
-    /// 包的编号和核心自己的模块撞了：它的配置项一项都不收（核心起来时、`miyu check` 认）。
-    SettingsTaken,
-    /// `[process] capabilities` 里有不认识的、重复的名字（施工 9-4 下上）。
-    BadCapability,
-    /// 声明了系统账号，编号和一个人的账号撞了（施工 O-4 下，`miyu-store` 认）。
-    AccountTaken,
-}
-
-impl Code {
-    /// 协议、给人看的字里的写法。
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Code::Syntax => "syntax",
-            Code::UnknownTable => "unknown_table",
-            Code::NotATable => "not_a_table",
-            Code::UnknownKey => "unknown_key",
-            Code::MissingKey => "missing_key",
-            Code::WrongKind => "wrong_kind",
-            Code::NeedsCommand => "needs_command",
-            Code::BadKind => "bad_kind",
-            Code::BadProtocol => "bad_protocol",
-            Code::NotText => "not_text",
-            Code::NotTexts => "not_texts",
-            Code::NotPhrases => "not_phrases",
-            Code::UnknownLanguage => "unknown_language",
-            Code::EmptyPhrase => "empty_phrase",
-            Code::BadCommandName => "bad_command_name",
-            Code::BadProgram => "bad_program",
-            Code::BadStart => "bad_start",
-            Code::BadPage => "bad_page",
-            Code::BadPagesDir => "bad_pages_dir",
-            Code::Duplicate => "duplicate",
-            Code::CommandTaken => "command_taken",
-            Code::BadSettingName => "bad_setting_name",
-            Code::BadType => "bad_type",
-            Code::BadElement => "bad_element",
-            Code::BadDefault => "bad_default",
-            Code::BadChoices => "bad_choices",
-            Code::BadRange => "bad_range",
-            Code::BadLayers => "bad_layers",
-            Code::BadApplies => "bad_applies",
-            Code::NotBool => "not_bool",
-            Code::SettingsTaken => "settings_taken",
-            Code::BadCapability => "bad_capability",
-            Code::AccountTaken => "account_taken",
-        }
-    }
-
-    /// 全部代码：给人看的字的门禁照它查三种语言都有。
-    pub const ALL: [Code; 33] = [
-        Code::Syntax,
-        Code::UnknownTable,
-        Code::NotATable,
-        Code::UnknownKey,
-        Code::MissingKey,
-        Code::WrongKind,
-        Code::NeedsCommand,
-        Code::BadKind,
-        Code::BadProtocol,
-        Code::NotText,
-        Code::NotTexts,
-        Code::NotPhrases,
-        Code::UnknownLanguage,
-        Code::EmptyPhrase,
-        Code::BadCommandName,
-        Code::BadProgram,
-        Code::BadStart,
-        Code::BadPage,
-        Code::BadPagesDir,
-        Code::Duplicate,
-        Code::CommandTaken,
-        Code::BadSettingName,
-        Code::BadType,
-        Code::BadElement,
-        Code::BadDefault,
-        Code::BadChoices,
-        Code::BadRange,
-        Code::BadLayers,
-        Code::BadApplies,
-        Code::NotBool,
-        Code::SettingsTaken,
-        Code::BadCapability,
-        Code::AccountTaken,
-    ];
-}
+/// 清单里认得的表；哪种包能写哪几张见 [`PackageKind::tables`]。
+const TABLES: [&str; 11] = [
+    "package",
+    "command",
+    "process",
+    "ui",
+    "check",
+    "settings",
+    "features",
+    "connection",
+    "depends",
+    "recommends",
+    "worker",
+];
 
 /// 读一份清单。
 ///
@@ -309,7 +227,7 @@ pub fn read(text: &str) -> Result<Manifest, Problem> {
     let reader = Reader { text };
     let root = document.as_table();
     for (key, item) in root.iter() {
-        if !["package", "command", "process", "ui", "check", "settings"].contains(&key) {
+        if !TABLES.contains(&key) {
             return Err(reader.problem(
                 Some(item),
                 Code::UnknownTable,
@@ -334,24 +252,24 @@ pub fn read(text: &str) -> Result<Manifest, Problem> {
             "the [package] table is missing".to_string(),
         ));
     };
-    let (kind, version, protocol, name, summary) = reader.package(package, &root["package"])?;
+    let head = reader.package(package, &root["package"])?;
+    let kind = head.kind;
+    for (key, item) in root.iter() {
+        reader.belongs(kind, key, item)?;
+    }
     let command = match root.get("command").and_then(Item::as_table_like) {
         Some(table) => Some(reader.command(table, &root["command"])?),
         None => None,
     };
     let process = match root.get("process").and_then(Item::as_table_like) {
         Some(table) => {
-            reader.belongs(kind, PackageKind::Process, "process", &root["process"])?;
             reader.needs_command(command.as_ref(), "process", &root["process"])?;
             Some(reader.process(table)?)
         }
         None => None,
     };
     let ui = match root.get("ui").and_then(Item::as_table_like) {
-        Some(table) => {
-            reader.belongs(kind, PackageKind::Ui, "ui", &root["ui"])?;
-            Some(reader.pages(table)?)
-        }
+        Some(table) => Some(reader.pages(table)?),
         None => None,
     };
     let check = match root.get("check").and_then(Item::as_table_like) {
@@ -368,17 +286,48 @@ pub fn read(text: &str) -> Result<Manifest, Problem> {
         Some(node) => settings::read(&reader, node)?,
         None => Vec::new(),
     };
+    let features = match root.get("features") {
+        Some(node) => Some(features::read(&reader, node)?),
+        None => None,
+    };
+    let connection = match root.get("connection").and_then(Item::as_table_like) {
+        Some(table) => Some(links::connection(&reader, table, &root["connection"])?),
+        None => None,
+    };
+    let [depends, recommends] = ["depends", "recommends"].map(|name| {
+        root.get(name)
+            .and_then(Item::as_table_like)
+            .map_or(Ok(Vec::new()), |table| links::workers(&reader, table, name))
+    });
+    let worker = match root.get("worker").and_then(Item::as_table_like) {
+        Some(table) => Some(links::worker(&reader, table, &root["worker"])?),
+        None if kind == PackageKind::Worker => {
+            return Err(reader.problem(
+                None,
+                Code::MissingKey,
+                "worker",
+                "a worker needs a [worker] table to name its program".to_string(),
+            ));
+        }
+        None => None,
+    };
     Ok(Manifest {
         kind,
-        version,
-        protocol,
-        name,
-        summary,
+        version: head.version,
+        protocol: head.protocol,
+        name: head.name,
+        summary: head.summary,
         command,
         process,
         ui,
         check,
         settings,
+        required: head.required,
+        features,
+        connection,
+        depends: depends?,
+        recommends: recommends?,
+        worker,
     })
 }
 

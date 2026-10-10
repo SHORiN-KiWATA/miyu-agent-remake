@@ -9,14 +9,14 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::mpsc;
 
 use crate::support::outside::Outside;
-use crate::support::{AccountIdOf, Asked, Bare, Home, ask_at, dirs, plan, resources};
+use crate::support::{AccountIdOf, Asked, Bare, Home, ask_at, dirs, plan, shipped_tools};
 use miyu_cli::{Format, Plan, Target};
 use miyu_ipc::Listener;
 use miyu_session::testkit::{Play, Script};
 
 /// 起一个核心：请求模型照 `plays`，工具是真的三件读的。
 fn home(plays: impl IntoIterator<Item = Play>) -> Home {
-    let tools = miyu_core::tools(&resources()).expect("出厂的资源读得出来");
+    let tools = shipped_tools();
     Home::with_tools(Arc::new(Script::new(plays)), tools)
 }
 

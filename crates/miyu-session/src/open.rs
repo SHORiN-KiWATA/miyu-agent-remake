@@ -10,7 +10,7 @@ use miyu_kernel::event::SessionCreated;
 use miyu_kernel::id::{AccountId, SessionId};
 use miyu_kernel::session::{Input, Session};
 use miyu_models::provider::chat;
-use miyu_policy::preset::{Chosen, MEMORY};
+use miyu_policy::preset::{Chosen, MEMORY, ROLEPLAY};
 use miyu_store::blob::Blobs;
 use miyu_store::log::{SEGMENT_LIMIT, SessionLog, abandon};
 use miyu_store::usage::{UsageIndex, Who};
@@ -93,9 +93,13 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     let reference = model.or_else(|| chat(&config.current().resolved.values()));
     let (resources, name) = (resources.clone(), persona.map(str::to_string));
     let shipped = resources.clone();
-    // 预设没开记忆的，范围一律 `off`（施工 P-2 中，走查 E2：开不开记忆归预设）。
+    // 装了的功能（施工 F-3 上）：没交预设几层的（测试里造的）当都装着。
+    let features = presets.as_ref().map(|places| &places.features);
+    let installed = |feature| features.is_none_or(|features| features.installed(feature));
+    // 预设没开记忆的，范围一律 `off`（施工 P-2 中，走查 E2：开不开记忆归预设）。没装人格记忆的也是（施工 F-3 上）。
     // 无人格的记忆不生效（施工 P-4 上，2026-10-08 项目主人：「没有人格的情况下，记忆不生效」）。
     let opened = name.is_some()
+        && installed(MEMORY)
         && preset
             .as_ref()
             .is_none_or(|chosen| chosen.file.opens(MEMORY));
@@ -115,10 +119,12 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         &offers,
         attended,
         scope,
-        preset.as_ref().map(|chosen| &chosen.file),
+        preset.as_ref().map(|chosen| (&chosen.file, features)),
     );
     let pin = preset.as_ref().map(Chosen::pin);
-    let tooled = tooled(&edition.catalog);
+    let foreground = Agents::foreground(preset.as_ref().map(|chosen| &chosen.file));
+    let tooled = tooled(&edition.catalog, features);
+    let roleplay = installed(ROLEPLAY);
     let preset = preset.map(|chosen| chosen.id);
     let asks = Agents::asks(
         &venue,
@@ -147,7 +153,9 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
             child,
             preset: pin,
             tooled,
+            roleplay,
             group: group.then(|| offset.minutes()),
+            foreground,
         };
         let snapshot = build(&resources, parts).map_err(CreateError::Persona)?;
         let policy = snapshot.policy().map_err(CreateError::Policy)?;

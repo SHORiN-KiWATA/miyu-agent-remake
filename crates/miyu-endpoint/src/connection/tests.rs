@@ -11,10 +11,18 @@ fn extensions_cannot_switch_extensions_or_write_personas_and_presets() {
         "preset.delete",
         "persona.set",
         "persona.delete",
+        "package.install",
+        "package.remove",
     ] {
         assert!(people_only(method), "{method}");
     }
-    for method in ["preset.get", "persona.get", "persona.read", "session.send"] {
+    for method in [
+        "preset.get",
+        "persona.get",
+        "persona.read",
+        "session.send",
+        "package.list",
+    ] {
         assert!(!people_only(method), "{method}");
     }
 }

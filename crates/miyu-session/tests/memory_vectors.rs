@@ -1,18 +1,19 @@
-//! 照意思找记忆（施工 R-5 下，`docs/blueprint/recall.md` 第三条）：真的 `miyu-embed`、手造的小模型（文件事先放在缓存目录里，
-//! 不下），真记忆日志、真回合库，执行器替身照剧本调 `memory_search`。
+//! 照意思找记忆（施工 R-5 下，`docs/blueprint/recall.md` 第三条）：真的 `miyu-embed`、手造的小模型（摆成一份包目录，R-5 三补），
+//! 真记忆日志、真回合库，执行器替身照剧本调 `memory_search`。
 //!
 //! 搜一句关键词对不上的（「喝茶」对「我的猫」）：第一次只走关键词、找不到，搜的时候起的后台把向量补齐以后照意思找得到；以前
 //! 的对话也一样；`models.embedding = "off"` 的不算向量、不补、不拉起小程序，只照关键词。小模型四维，什么都挺像（相似度都过
 //! 下限）：下限挡不挡得住在 `miyu-recall` 的单元测试里。
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
 use miyu_session::testkit::{Play, Script};
-use miyu_session::{EmbedSetup, Embedder, Turn, Using, Vectors};
+use miyu_session::{EmbedSetup, Embedder, Keeper, Turn, Using, Vectors};
 
 use crate::support::meaning::*;
+use crate::support::package::{program, tiny_package};
 use crate::support::*;
 
 const MODEL: &str = "local:tiny";
@@ -20,53 +21,34 @@ const MODEL: &str = "local:tiny";
 /// 出厂的真模型（量尺用）。
 const REAL: &str = "local:bge-small-zh-v1.5";
 
-fn tiny() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../miyu-embed/tests/fixtures/tiny")
-}
-
-/// cargo 编出来的 `miyu-embed`：和测试程序所在的 `deps/` 同一层。
-fn program() -> PathBuf {
-    let exe = std::env::current_exe().expect("知道测试程序在哪");
-    let dir = exe
-        .parent()
-        .and_then(Path::parent)
-        .expect("在 target/<profile>/deps/ 里");
-    let program = dir.join(format!("miyu-embed{}", std::env::consts::EXE_SUFFIX));
-    assert!(
-        program.is_file(),
-        "{} 不在：先 cargo build -p miyu-embed（cargo test --workspace 会编它）",
-        program.display()
-    );
-    program
-}
-
-/// 给场地的记忆接上照意思找的那一路：小模型的文件事先放进缓存目录（核对得上，不下）；另放一个清单以外的 `stray`（备文件时
-/// 会被删掉，看备过没有）。交回算向量的（看它拉起没有）。
+/// 给场地的记忆接上照意思找的那一路：小模型摆在场地的 `packages/embed/`。交回算向量的（看它拉起没有）。
 fn meaning(home: &Home) -> Embedder {
-    let cache = home.scratch.0.join("cache").join("embed");
-    std::fs::create_dir_all(cache.join("tiny")).expect("建得了");
-    for name in ["model.onnx", "vocab.txt"] {
-        std::fs::copy(tiny().join(name), cache.join("tiny").join(name)).expect("放得下");
-    }
-    std::fs::write(cache.join("tiny").join("stray"), b"x").expect("写得进");
-    attach(home, tiny().join("manifest.toml"), cache)
+    attach(
+        home,
+        tiny_package(&home.scratch.0.join("packages").join("embed")),
+    )
 }
 
-/// 照清单 `manifest`、缓存目录 `cache` 接上。
-fn attach(home: &Home, manifest: PathBuf, cache: PathBuf) -> Embedder {
-    let embedder = Embedder::new(EmbedSetup {
-        program: Some(program()),
-        manifest,
-        cache: Some(cache),
-        client: miyu_http::fetcher(miyu_http::Proxy::Off).expect("造得出"),
-        idle: Duration::from_secs(600),
-    });
+/// 照 `setup` 接上。
+fn attach(home: &Home, setup: EmbedSetup) -> Embedder {
+    let embedder = Embedder::new(setup);
     let given = home.memory.give_vectors(Arc::new(Vectors::new(
         Some(embedder.clone()),
         model_data(home),
     )));
     assert!(given);
     embedder
+}
+
+/// 不写 `models.embedding` 的照本机的（alice 的）。
+fn using(home: &Home) -> Using {
+    Using {
+        config: Arc::new(Turn::new(
+            Default::default(),
+            Arc::clone(&*home.configs.borrow()),
+        )),
+        owner: alice_account(),
+    }
 }
 
 #[tokio::test]
@@ -160,8 +142,6 @@ async fn off_means_keywords_only_and_nothing_runs() {
     let log = chat(&home, &handle, 1, "我喝什么").await;
     assert!(!last_result(&log).contains("我的猫"));
     tokio::time::sleep(Duration::from_millis(500)).await;
-    let stray = home.scratch.0.join("cache/embed/tiny/stray");
-    assert!(stray.exists(), "不备模型的文件（不核对、不下）");
     let (log_of, _) = home.logs.open(&persona()).expect("开得了");
     assert_eq!(
         log_of.index().missing(MODEL, 0, 10).expect("读得了").len(),
@@ -174,71 +154,42 @@ async fn off_means_keywords_only_and_nothing_runs() {
     stop(&handle).await;
 }
 
-/// 模型还在下的时候，补的那一个等它下完再补（`recall.md` 第三条第 5 款）：假服务器慢慢交小模型的文件，只搜一次，之后不再搜，
-/// 也补齐了。
+/// 包里的文件还在核对的时候，补的那一个等它核对完再补（`recall.md` 第三条第 5 款）：补的是头一个要向量的，头一次要的一定交回
+/// 「还在备」（核对在后台），等过了照样补齐。
 #[tokio::test]
-async fn the_fill_waits_while_the_model_is_downloaded() {
-    use miyu_http::testkit::{Piece, Reply, Server};
-    use sha2::{Digest, Sha256};
+async fn the_fill_waits_while_the_files_are_checked() {
     let home = Home::new();
-    let slow = |name: &str| Reply {
-        status: 200,
-        headers: Vec::new(),
-        body: vec![
-            Piece::Wait(Duration::from_millis(500)),
-            Piece::Bytes(std::fs::read(tiny().join(name)).expect("读得到")),
-        ],
-    };
-    let server = Server::start(vec![slow("model.onnx"), slow("vocab.txt")]).await;
-    let hex = |name: &str| -> (String, usize) {
-        let bytes = std::fs::read(tiny().join(name)).expect("读得到");
-        let digest: String = Sha256::digest(&bytes)
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect();
-        (digest, bytes.len())
-    };
-    let ((m, ms), (v, vs)) = (hex("model.onnx"), hex("vocab.txt"));
-    let manifest = home.scratch.0.join("tiny.toml");
-    let text = format!(
-        "id = \"tiny\"\ndims = 4\npooling = \"cls\"\nmax_tokens = 6\n\n\
-         [[files]]\nrole = \"model\"\nname = \"model.onnx\"\nurl = \"{base}/model.onnx\"\nsha256 = \"{m}\"\nsize = {ms}\n\n\
-         [[files]]\nrole = \"vocab\"\nname = \"vocab.txt\"\nurl = \"{base}/vocab.txt\"\nsha256 = \"{v}\"\nsize = {vs}\n",
-        base = server.base_url,
-    );
-    std::fs::write(&manifest, text).expect("写得进");
-    attach(&home, manifest, home.scratch.0.join("cache").join("embed"));
+    meaning(&home);
     save(&home, "我的猫");
-    let script = Script::new([search("喝茶"), Play::Says("没找到。")]);
-    let handle = home
-        .create_full(
-            &script,
-            &catalog(&home),
-            Opening::default(),
-            Lines::default(),
-        )
-        .await;
-    chat(&home, &handle, 1, "我喝什么").await;
+    Keeper::new(&home.memory, persona(), vec![alice()]).fill(&using(&home));
     filled(&home, MODEL, true, "m1").await;
-    stop(&handle).await;
 }
 
-/// 量尺（验收时手动跑）：真模型（`MIYU_EMBED_MODEL_DIR` 指到 Release 的文件，先拷进缓存目录，不下），记八条、问八句意思对字
-/// 不对的，量她搜不搜得到、第一次搜等多久、补一百条要多久。
+/// 量尺（验收时手动跑）：真模型（`MIYU_EMBED_MODEL_DIR` 指到 Release 的文件，和仓库里的模型清单原本一起拷进一份包目录），记八
+/// 条、问八句意思对字不对的，量她搜不搜得到、第一次搜等多久、补一百条要多久。
 #[tokio::test]
 #[ignore = "要真模型的文件：MIYU_EMBED_MODEL_DIR=… cargo test -p miyu-session --test all measure_meaning -- --ignored --nocapture"]
 async fn measure_meaning_with_the_real_model() {
-    use miyu_session::Keeper;
-    let dir =
+    let from =
         PathBuf::from(std::env::var_os("MIYU_EMBED_MODEL_DIR").expect("设了 MIYU_EMBED_MODEL_DIR"));
     let home = Home::new();
-    let cache = home.scratch.0.join("cache").join("embed");
-    std::fs::create_dir_all(cache.join("bge-small-zh-v1.5")).expect("建得了");
+    let dir = home.scratch.0.join("packages").join("embed");
+    std::fs::create_dir_all(&dir).expect("建得了");
+    let original =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../miyu-embed/package/embed/model.toml");
+    std::fs::copy(original, dir.join("model.toml")).expect("拷得了");
     for name in ["model_quantized.onnx", "vocab.txt"] {
-        std::fs::copy(dir.join(name), cache.join("bge-small-zh-v1.5").join(name)).expect("拷得了");
+        std::fs::copy(from.join(name), dir.join(name)).expect("拷得了");
     }
-    let manifest = home.resources.embed_manifest();
-    attach(&home, manifest, cache);
+    attach(
+        &home,
+        EmbedSetup {
+            program: Some(program()),
+            manifest: dir.join("model.toml"),
+            dir,
+            idle: Duration::from_secs(600),
+        },
+    );
     let memories = [
         "用户养了一只猫，叫团子，三岁",
         "用户喜欢喝乌龙茶，下午不喝咖啡",
@@ -264,14 +215,7 @@ async fn measure_meaning_with_the_real_model() {
     ];
     let keeper = Keeper::new(&home.memory, persona(), vec![alice()]);
     let vectors = keeper.vectors().expect("接上了").clone();
-    // 不写 `models.embedding` 的照本机的。
-    let using = Using {
-        config: Arc::new(Turn::new(
-            Default::default(),
-            Arc::clone(&*home.configs.borrow()),
-        )),
-        owner: alice_account(),
-    };
+    let using = using(&home);
     let started = std::time::Instant::now();
     let mut first = vectors.query(&using, "我家宠物叫什么").await;
     while first.is_none() {

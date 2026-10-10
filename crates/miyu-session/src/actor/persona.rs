@@ -12,7 +12,8 @@ use miyu_drivers::DriverTexts;
 use miyu_kernel::id::{ContentHash, VenueId};
 use miyu_kernel::session::Policy;
 use miyu_policy::PersonaTexts;
-use miyu_policy::preset::{Chosen, MEMORY, PresetFile};
+use miyu_policy::features::Features;
+use miyu_policy::preset::{Chosen, MEMORY, PresetFile, ROLEPLAY};
 use miyu_policy::{GuardTexts, RunTexts, Snapshot, ToolEntry};
 use miyu_store::blob::Blobs;
 use miyu_store::personas::{PersonaError, Personas};
@@ -151,9 +152,15 @@ fn look(refresh: &Refresh, values: &Values, now: &Edition) -> Seen {
         memory: old.memory.clone(),
         child: refresh.child,
         preset: pin,
-        tooled: tooled(catalog),
+        tooled: tooled(catalog, features(refresh)),
+        roleplay: features(refresh).is_none_or(|features| features.installed(ROLEPLAY)),
         // 群会话照旧快照钉下的时区（施工 O-13 中）：换了时区的机器上换人格，前缀里的钟点也不变。
         group: old.group.as_ref().map(|chat| chat.offset),
+        // 换了预设的照新的定后台运行（施工 T-1 上），别的照旧。
+        foreground: match &preset {
+            Preset::Changed(chosen) => Agents::foreground(Some(&chosen.file)),
+            _ => old.foreground,
+        },
     };
     let new = match build(&refresh.resources, parts) {
         Ok(new) => new,
@@ -209,6 +216,11 @@ enum Preset {
     Changed(Chosen),
 }
 
+/// 装了的功能（施工 F-3 上）：没交预设几层的（测试里造的、以前的）没有，当都装着。
+fn features(refresh: &Refresh) -> Option<&Features> {
+    refresh.presets.as_ref().map(|places| &places.features)
+}
+
 /// 照快照里预设的编号重新找一遍（施工 P-2 下）。
 fn preset(refresh: &Refresh) -> Result<Preset, String> {
     let Some(pin) = &refresh.snapshot.preset else {
@@ -224,10 +236,11 @@ fn preset(refresh: &Refresh) -> Result<Preset, String> {
         .presets
         .find(&pin.id)
         .map_err(|error| error.to_string())?;
-    let installed = || places.installed.iter().map(String::as_str);
-    let memory = !pin.off.iter().any(|software| software == MEMORY);
-    let chosen = Chosen::new(found.id, found.file, installed()).keeping_memory(memory, installed());
-    Ok(match chosen.pin() == *pin {
+    let features = &places.features;
+    let memory = !pin.off.iter().any(|feature| feature == MEMORY);
+    let chosen = Chosen::new(found.id, found.file, features).keeping_memory(memory, features);
+    // 以前的快照记的是包的编号（施工 F-3 上）：照现在的功能读一样的算没改，不为改了写法换一次快照。
+    Ok(match pin.means_the_same(&chosen.pin(), features) {
         true => Preset::Same(chosen),
         false => Preset::Changed(chosen),
     })
@@ -252,7 +265,7 @@ fn offered(
         &Offers::of(values, refresh.personas.ids()),
         old.attended,
         old.memory_scope(),
-        file,
+        file.map(|file| (file, features(refresh))),
     )
 }
 
@@ -286,8 +299,9 @@ fn refaced(
 
 /// 目录换了代、预设没改（施工 O-2 中）：照旧快照的先后一件一件对现在的目录 `catalog`。提供者的照现在的登记，不再给这个会话
 /// 的拿掉；自带的照旧快照里的原样，不新加。目录里没有了的：上一次对过的那一代里是提供者的拿掉（扩展关掉了、不再登记它），
-/// 别的照旧留着、调到时暂时不可用（施工 4-2：程序升级拿掉的，载入的会话认不出来的）。新登记的提供者的工具加进来；快照照
-/// 名字排（`miyu_policy` 的工具面）。
+/// 别的照旧留着、调到时暂时不可用（施工 4-2：程序升级拿掉的，载入的会话认不出来的；施工 F-5 中：随包卸掉的，调到时报已卸载）。
+/// 新登记的提供者的工具加进来；新装上的内置包（上一次对过的那一代里这个包一件都没有，施工 F-5 中）的工具也加进来，照样过
+/// 预设；快照照名字排（`miyu_policy` 的工具面）。
 fn followed(
     refresh: &Refresh,
     values: &Values,
@@ -304,14 +318,25 @@ fn followed(
                 face.extend(fresh.iter().find(|entry| entry.name == *name).cloned());
             }
             Some(_) => face.push(kept.clone()),
-            None if basis.is_some_and(|basis| basis.provided(&kept.name)) => {}
+            // 随包卸掉的提供者的工具照旧留着、调到时报已卸载（施工 F-5 下）；关掉的扩展的拿掉。
+            None if basis.is_some_and(|basis| basis.provided(&kept.name))
+                && !catalog.gone(&kept.name) => {}
             None => face.push(kept.clone()),
         }
     }
+    // 新装上的内置包：它的包在上一次对过的那一代里一件工具都没有。包里多了一件的（程序升级那种）照旧等预设改了才进来。
+    let appeared = |name: &str| {
+        basis.is_some_and(|basis| {
+            catalog
+                .package_of(name)
+                .is_some_and(|package| !basis.packages().any(|owner| owner == package))
+        })
+    };
     let added: Vec<ToolEntry> = fresh
         .into_iter()
         .filter(|entry| {
-            catalog.provided(&entry.name) && !face.iter().any(|kept| kept.name == entry.name)
+            (catalog.provided(&entry.name) || appeared(&entry.name))
+                && !face.iter().any(|kept| kept.name == entry.name)
         })
         .collect();
     face.extend(added);

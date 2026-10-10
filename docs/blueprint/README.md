@@ -36,6 +36,7 @@
 | `store/resources.md` | 资源目录、给人看的字 |
 | `store/index.md` | 会话列表的索引 |
 | `log.md` | 运行日志 |
+| `view.md` | 视图投影：条目、编号、种类、收起那一行、`view.page` 交条目、视图流的推送（施工 9-8 起） |
 | `session/actor.md` | 会话 actor：收件箱、落盘、推送、请求模型 |
 | `session/tools.md` | 执行工具、效果、她看过的、改回文件 |
 | `session/guard.md` | 权限策略 |

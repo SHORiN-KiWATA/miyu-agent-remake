@@ -6,15 +6,18 @@ use serde_json::{Value, json};
 
 use std::collections::BTreeSet;
 
-use miyu_config::package::{Code, Manifest, Problem, settings};
+use miyu_config::package::{Code, Manifest, PackageKind, Problem, settings};
 use miyu_config::{Item, Words};
 use miyu_kernel::id::AccountId;
+use miyu_policy::features::{Feature, Features};
 use miyu_store::human::Human;
 use miyu_store::packages::{Found, Issue, Packages};
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
 use crate::Core;
+
+pub(crate) mod manage;
 use crate::config::methods::words;
 use crate::hello::Peer;
 use crate::personas::pick;
@@ -48,16 +51,22 @@ pub fn load(resources: &ResourceRoot, root: &DataRoot, admin: &AccountId) -> Vec
     found
 }
 
-/// `package.list`：起来时读到的，照编号排。
+/// `package.list`：核心这时认的（起来时读的，装卸以后当场换，施工 F-5 上），照编号排；卸掉的出厂的接在后面，带
+/// `removed: true`（施工 F-5 上），好让头给人装回来。
 pub(crate) fn list(core: &Core, peer: Peer) -> Result<Value, Refusal> {
     let words = words(core, peer.language)?;
     let places = packages(core);
-    let listed: Vec<Value> = core
-        .packages
+    let mut items: Vec<Value> = core
+        .packages()
         .iter()
         .map(|found| listed(found, &places, &words, peer.language))
         .collect();
-    Ok(json!({ "packages": listed }))
+    items.extend(places.read_removed().iter().map(|found| {
+        let mut item = listed(found, &places, &words, peer.language);
+        item["removed"] = json!(true);
+        item
+    }));
+    Ok(json!({ "packages": items }))
 }
 
 /// 一项。
@@ -65,7 +74,7 @@ fn listed(found: &Found, places: &Packages, words: &Human, language: &str) -> Va
     let mut item = json!({"package": found.id, "layer": found.layer.as_str()});
     match &found.read {
         Ok(manifest) => {
-            fill(&mut item, manifest, language);
+            fill(&mut item, &found.id, manifest, language);
             item["state"] = json!(places.state_dir(&found.id).to_string_lossy());
             if let Some(range) = mismatch(manifest) {
                 item["code"] = json!("protocol_mismatch");
@@ -94,7 +103,7 @@ fn listed(found: &Found, places: &Packages, words: &Human, language: &str) -> Va
 }
 
 /// 读成了的几格；没有的不写。
-fn fill(item: &mut Value, manifest: &Manifest, language: &str) {
+fn fill(item: &mut Value, id: &str, manifest: &Manifest, language: &str) {
     item["kind"] = json!(manifest.kind.as_str());
     item["protocol"] = json!(manifest.protocol);
     item["name"] = json!(pick(&manifest.name, language));
@@ -123,6 +132,42 @@ fn fill(item: &mut Value, manifest: &Manifest, language: &str) {
     if let Some(check) = &manifest.check {
         item["check"] = json!({"args": check.args});
     }
+    links(item, id, manifest, language);
+}
+
+/// 施工 F-1 加的几格（设计 30）：必需的、带的功能（照包算的那一个也列，名字、说明照语言挑；不列工具）、平台接入、依赖、小程序。
+fn links(item: &mut Value, id: &str, manifest: &Manifest, language: &str) {
+    if manifest.required {
+        item["required"] = json!(true);
+    }
+    if matches!(manifest.kind, PackageKind::Builtin | PackageKind::Process) {
+        let features: Vec<Value> = manifest
+            .features_of(id)
+            .iter()
+            .map(|feature| {
+                let mut listed = json!({"id": feature.id, "name": pick(&feature.name, language)});
+                if let Some(summary) = pick(&feature.summary, language) {
+                    listed["summary"] = json!(summary);
+                }
+                listed
+            })
+            .collect();
+        item["features"] = json!(features);
+    }
+    if let Some(connection) = &manifest.connection {
+        item["connection"] = json!({"platform": connection.platform});
+    }
+    for (key, workers) in [
+        ("depends", &manifest.depends),
+        ("recommends", &manifest.recommends),
+    ] {
+        if !workers.is_empty() {
+            item[key] = json!({"workers": workers});
+        }
+    }
+    if let Some(worker) = &manifest.worker {
+        item["worker"] = json!({"program": worker.program, "args": worker.args});
+    }
 }
 
 /// 说的协议版本不包含核心的：交回给人看的那个范围，例如 `2–3`；包含的没有。
@@ -144,7 +189,8 @@ pub(crate) fn mismatch(manifest: &Manifest) -> Option<String> {
 pub fn settle(found: &mut [Found], core_items: &[Item]) -> Vec<Item> {
     let modules: BTreeSet<&str> = core_items
         .iter()
-        .filter(|item| item.ui.page != settings::PAGE)
+        // 「接入」那一页的也是包的（施工 F-4）：`miyu check` 照起来以后的清单认，里面已经有包的项。
+        .filter(|item| ![settings::PAGE, settings::CONNECTIONS].contains(&item.ui.page))
         .filter_map(|item| item.key.split('.').next())
         .collect();
     let mut items = Vec::new();
@@ -167,9 +213,70 @@ pub fn settle(found: &mut [Found], core_items: &[Item]) -> Vec<Item> {
             }));
             continue;
         }
-        items.extend(settings::items(&one.id, &manifest.settings));
+        // 平台接入的包挂在「接入」那一页（施工 F-4）。
+        let page = match manifest.connection {
+            Some(_) => settings::CONNECTIONS,
+            None => settings::PAGE,
+        };
+        items.extend(settings::items(&one.id, &manifest.settings, page));
     }
     items
+}
+
+/// 清单是内置包、`built_in` 里没有的（施工 F-2，设计 30 第二节第 3 条）：这一份核心没编进它的代码，照读坏了的清单报
+/// `not_built_in`、记一行 `WARN package invalid`。核心起来时读完清单调一次（`miyu-core`）。
+pub fn compiled(found: &mut [Found], built_in: &[&str]) {
+    for one in found.iter_mut() {
+        let lacking = one.read.as_ref().is_ok_and(|manifest| {
+            manifest.kind == PackageKind::Builtin && !built_in.contains(&one.id.as_str())
+        });
+        if !lacking {
+            continue;
+        }
+        let problem = Problem {
+            line: None,
+            code: Code::NotBuiltIn,
+            detail: one.id.clone(),
+            message: format!(
+                "this core does not have the code of built-in package {}",
+                one.id
+            ),
+        };
+        tracing::warn!(target: TARGET, package = one.id.as_str(), file = %one.path.display(), error = %problem, "package invalid");
+        one.read = Err(Issue::Wrong(problem));
+    }
+}
+
+/// 内置包 `id` 装了（施工 F-2）：有它读成了的清单，种类是内置。编进来的代码照它起不起。
+pub fn is_installed(found: &[Found], id: &str) -> bool {
+    found.iter().any(|one| {
+        one.id == id
+            && one
+                .read
+                .as_ref()
+                .is_ok_and(|manifest| manifest.kind == PackageKind::Builtin)
+    })
+}
+
+/// 装了的功能（施工 F-3 上，设计 30 第三节）：读成了的内置包、扩展包带的，照清单读的先后（包照编号，包里照写的先后）；
+/// 没写功能的包整个算一个（[`Manifest::features_of`]）。界面、小程序不带。预设照它开关、工具照它归。
+pub fn features(found: &[Found]) -> Features {
+    Features::new(
+        found
+            .iter()
+            .filter_map(|one| one.read.as_ref().ok().map(|manifest| (one, manifest)))
+            .flat_map(|(one, manifest)| {
+                manifest
+                    .features_of(&one.id)
+                    .into_iter()
+                    .map(|feature| Feature {
+                        id: feature.id,
+                        package: one.id.clone(),
+                        tools: feature.tools,
+                    })
+            })
+            .collect(),
+    )
 }
 
 /// 读成了的清单：编号和样子（给人看的字照它并进包的配置项的名字）。

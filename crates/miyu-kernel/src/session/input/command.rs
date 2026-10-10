@@ -30,6 +30,12 @@ pub enum Command {
         /// 几块事实，`by` 是发命令的一方。
         facts: Vec<ContextInjected>,
     },
+    /// `session.note`：记几块事实，不开回合（施工 O-14 补，`note.rs`）：`facts` 原样记成 `context.injected`，`by` 是发命令的
+    /// 一方。正在跑一轮的带这一轮的回合编号，不打断、不叫醒；空闲的不带。
+    Note {
+        /// 几块事实，至少一块。
+        facts: Vec<ContextInjected>,
+    },
     /// `events.append`：记一条不带回合编号的事件（施工 O-13 上），任何时候都收，不开回合、不打断。
     Append {
         /// 记哪一条：只有这几种经得了这条路。

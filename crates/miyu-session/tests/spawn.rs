@@ -225,7 +225,7 @@ async fn parent(home: &Home, script: &Script, table: &Arc<Table>) -> Handle {
         preset: Some(miyu_policy::preset::Chosen::new(
             "dev".to_string(),
             miyu_policy::preset::PresetFile::default(),
-            [],
+            &miyu_policy::features::Features::default(),
         )),
         ..Lines::default()
     };
@@ -281,6 +281,7 @@ async fn the_child_copies_the_parent_and_gets_the_task_from_it() {
     assert_eq!(
         result.effects,
         [Effect::JobStarted(JobStarted {
+            foreground: false,
             job: JobId::new(1).unwrap(),
             what: JobKind::Agent,
             title: "查导出".to_string(),

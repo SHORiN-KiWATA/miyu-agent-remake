@@ -80,6 +80,20 @@ impl File {
         self
     }
 
+    /// 照新的清单 `items` 重新认手里的字（施工 F-5 补：装卸软件包以后），不重读盘：版本、字照旧。整份读不进来的、还没有的
+    /// 照旧。
+    pub(crate) fn refit(&self, items: &[Item]) -> File {
+        let mut file = self.clone();
+        if self.broken.is_some() || self.version.is_none() {
+            return file;
+        }
+        match parse(items, self.layer, &self.text) {
+            Ok(parsed) => file.parsed = parsed,
+            Err(problem) => file.broken = Some(*problem),
+        }
+        file
+    }
+
     /// 和 `other` 比，读到的是不是同一份：版本一样、整份的问题一样（读不了的没有版本，照问题比）。
     pub(crate) fn same_as(&self, other: &File) -> bool {
         self.version == other.version && self.broken == other.broken

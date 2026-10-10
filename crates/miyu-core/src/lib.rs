@@ -17,7 +17,7 @@
 //! 之后 [`serve()`] 一个个接连接：没有连接、也没有在跑的回合，空闲够久了就退出；收到停的信号，先让在跑的
 //! 会话有计划地停下再退出。起不来的，把原因写成那一行（`error …`）交给头。
 
-mod embed;
+pub mod embed;
 pub mod models;
 pub mod packages;
 mod sandbox;
@@ -37,6 +37,7 @@ use miyu_endpoint::Core;
 use miyu_ipc::{Dirs, Lock, OpenError, Ready};
 use miyu_kernel::id::AccountId;
 use miyu_store::env::Env;
+use miyu_store::packages::Found;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 use miyu_tool::Catalog;
@@ -107,7 +108,7 @@ pub fn main(options: Options) -> ExitCode {
         Ok(resources) => resources,
         Err(error) => return failed("resources", error.to_string()),
     };
-    let mut found = miyu_endpoint::packages::load(&resources, &root, &admin());
+    let mut found = load_packages(&resources, &root);
     let packaged = settings::Packaged::of(&mut found);
     let config = settings::read(&root, &admin(), env.home.as_deref(), &packaged);
     settings::log_level(&config, &level, &log);
@@ -117,13 +118,13 @@ pub fn main(options: Options) -> ExitCode {
         &resources,
         locale.as_deref(),
         &config.resolved().values(),
-        &packaged,
+        config.items(),
+        &packaged.manifests,
     );
     let live = Live {
         levels: log.levels(),
         locale,
         found,
-        packaged,
     };
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .worker_threads(WORKERS)
@@ -138,31 +139,118 @@ pub fn main(options: Options) -> ExitCode {
     outcome
 }
 
+/// 这一份核心编进来的内置包（施工 F-2，设计 `30-插件框架.md` 第二节）：清单是内置包、编号不在这里的，照读坏了的清单报
+/// （`miyu_endpoint::packages::compiled`）。画 mermaid、联网照 cargo 开关。
+pub fn built_in() -> Vec<&'static str> {
+    let mut built_in = vec![miyu_tool::BASESYSTEM, miyu_memory::PACKAGE, ROLEPLAY];
+    #[cfg(feature = "mermaid")]
+    built_in.push("mermaid");
+    #[cfg(feature = "net")]
+    built_in.push("net");
+    built_in
+}
+
+/// 人设防失忆提醒这个内置包的编号（施工 F-2）：代码在策略、会话两层，核心这里只认编号。
+const ROLEPLAY: &str = "roleplay";
+
 /// 工具目录：核心起来时登记一次，登记完就冻结（`05-内核接口.md` 第八节）。施工 4-4 起登记基础系统，施工 R-3 中起登记记忆
-/// 这个软件包，工具的字从资源目录 `resources` 读。
+/// 这个软件包，工具的字从资源目录 `resources` 读。施工 F-2 起照清单 `found`：没装的内置包（没有读成了的清单）不登记。
 ///
 /// # Errors
 ///
 /// 哪一份字读不出来、写法不对；登记时查不过（重名、名字或参数格式不合写法）。
-pub fn tools(resources: &ResourceRoot) -> Result<Catalog, String> {
-    let basesystem = miyu_basesystem::tools(resources.path()).map_err(|error| error.to_string())?;
-    // 记忆这个软件包的三件（施工 R-3 中，`memory.md`「工具」）：工具面上只给本机的主会话。
-    let memory = miyu_memory::tools(resources.path()).map_err(|error| error.to_string())?;
+pub fn tools(resources: &ResourceRoot, found: &[Found]) -> Result<Catalog, String> {
     // 照软件包登记（施工 P-2 中）：预设照包开关。
-    Catalog::in_packages([
-        (miyu_tool::BASESYSTEM, basesystem),
-        (miyu_memory::PACKAGE, memory),
-    ])
-    .map_err(|error| error.to_string())
+    Catalog::in_packages(groups(resources, found)?).map_err(|error| error.to_string())
 }
 
-/// 运行中配置换了当场生效要的（施工 8-4）：换运行日志级别的把手，核心这边的系统语言；起来时读的软件包清单和照它拼的
-/// 配置项（施工 9-1 下）：交给核心，语言换了重写生成的文件时也用。
+/// 一个编进来的内置包的工具：包的编号和它的几件。
+type Builtin = (&'static str, Vec<Arc<dyn miyu_tool::Tool>>);
+
+/// 装了的内置包的工具：包的编号和它的几件（施工 F-5 中从 [`tools`] 拆出来：装卸以后端点经 [`BuiltinTools`] 重新要）。
+///
+/// # Errors
+///
+/// 同 [`tools`]：哪一份字读不出来、写法不对。
+fn groups(resources: &ResourceRoot, found: &[Found]) -> Result<Vec<Builtin>, String> {
+    let installed = |id| miyu_endpoint::packages::is_installed(found, id);
+    let mut groups = Vec::new();
+    if installed(miyu_tool::BASESYSTEM) {
+        let basesystem =
+            miyu_basesystem::tools(resources.path()).map_err(|error| error.to_string())?;
+        groups.push((miyu_tool::BASESYSTEM, basesystem));
+    }
+    // 记忆这个软件包的三件（施工 R-3 中，`memory.md`「工具」）：工具面上只给本机的主会话。
+    if installed(miyu_memory::PACKAGE) {
+        let memory = miyu_memory::tools(resources.path()).map_err(|error| error.to_string())?;
+        groups.push((miyu_memory::PACKAGE, memory));
+    }
+    Ok(groups)
+}
+
+/// 交给端点的内置包工具的端口（施工 F-5 中，`miyu_endpoint::builtins`）：装卸以后照清单重新登记，工具的字从 `resources` 读；
+/// 本机的向量模型照核心起来时的环境 `env` 找小程序（施工 F-5 再补）。
+pub fn builtin_tools(
+    resources: &ResourceRoot,
+    env: &Env,
+) -> Arc<dyn miyu_endpoint::builtins::Builtins> {
+    Arc::new(BuiltinTools {
+        resources: resources.clone(),
+        env: env.clone(),
+    })
+}
+
+/// [`builtin_tools`] 那一个。
+struct BuiltinTools {
+    resources: ResourceRoot,
+    env: Env,
+}
+
+impl miyu_endpoint::builtins::Builtins for BuiltinTools {
+    fn tools(&self, found: &[Found]) -> Result<Vec<miyu_endpoint::builtins::Group>, String> {
+        Ok(groups(&self.resources, found)?
+            .into_iter()
+            .map(|(id, tools)| (id.to_string(), tools))
+            .collect())
+    }
+
+    /// 和起来时同一套拼法（施工 F-5 补）：核心登记的、包声明的，没装的内置包替它声明的那几项设置页不画。
+    fn settings(&self, found: &mut [Found]) -> Vec<miyu_config::Item> {
+        settings::Packaged::of(found).all()
+    }
+
+    /// 和起来时同一套拼法（施工 F-5 再补），不记「没装」的那一行。
+    fn embed(&self, found: &[&Found]) -> Option<miyu_session::EmbedSetup> {
+        embed::find(&self.env, found).ok()
+    }
+}
+
+/// 核心这时读成了的清单（施工 F-5 补）：配置清单变了重写生成的文件时照它找包的配置项的字。核心没了的交回空的。
+fn manifests_of(core: &Arc<Core>) -> settings::Manifests {
+    let core = Arc::downgrade(core);
+    Box::new(move || {
+        core.upgrade()
+            .map(|core| settings::manifests(&core.packages()))
+            .unwrap_or_default()
+    })
+}
+
+/// 读两层清单（施工 9-1 上），再标出这一份核心没编进来的内置包（施工 F-2）。必需的基础系统没装，记一行 `WARN`，照样起来。
+fn load_packages(resources: &ResourceRoot, root: &DataRoot) -> Vec<Found> {
+    let mut found = miyu_endpoint::packages::load(resources, root, &admin());
+    miyu_endpoint::packages::compiled(&mut found, &built_in());
+    if !miyu_endpoint::packages::is_installed(&found, miyu_tool::BASESYSTEM) {
+        tracing::warn!(target: TARGET, package = miyu_tool::BASESYSTEM, "required package missing");
+    }
+    found
+}
+
+/// 运行中配置换了当场生效要的（施工 8-4）：换运行日志级别的把手，核心这边的系统语言；起来时读的软件包清单（施工 9-1
+/// 下）：交给核心。
 struct Live {
     levels: miyu_log::Levels,
     locale: Option<String>,
     found: Vec<miyu_store::packages::Found>,
-    packaged: settings::Packaged,
 }
 
 /// 后半段，在运行时里：在套接字上等连接，说「好了」，接连接，直到停下。`env` 是起来时读的那一份环境快照，`config` 是
@@ -191,14 +279,15 @@ async fn run(
     );
     let sandbox = sandbox::probe(env.exe.as_deref());
     let sandbox_cache = sandbox::cache(&env, std::env::var_os("CARGO_HOME"));
-    let embedder = embed::setup(&env, &resources);
-    let tools = match tools(&resources) {
+    let embedder = embed::setup(&env, &live.found);
+    let tools = match tools(&resources, &live.found) {
         Ok(tools) => tools,
         Err(error) => return failed("tools", error),
     };
     let trashed = root.clone();
     let (generated, words) = (root.clone(), resources.clone());
     let queries = packages::register(&resources, &root, &admin());
+    let builtins = builtin_tools(&resources, &env);
     packages::clear_uploads(&root, &admin());
     let mut core = Core::new(
         root,
@@ -212,6 +301,8 @@ async fn run(
     .with_sandbox(sandbox)
     .with_config(config)
     .with_packages(live.found)
+    .with_built_in(built_in())
+    .with_builtins(builtins)
     .with_model_data(Arc::clone(&model_data))
     .with_queries(queries);
     if let Some((cache, cargo_home)) = sandbox_cache {
@@ -225,7 +316,7 @@ async fn run(
         generated,
         words,
         live.locale,
-        Arc::new(live.packaged),
+        manifests_of(&core),
     ));
     models::follow_cooldown(core.config_now(), Arc::clone(&model_data));
     // 监视配置文件（第七条）：拿着它一直到停，丢掉就不看了。

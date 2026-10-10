@@ -1897,6 +1897,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-view"
+version = "0.0.0"
+dependencies = [
+ "miyu-kernel",
+ "serde",
+ "serde_json",
+ "similar",
+]
+
+[[package]]
 name = "miyu-web"
 version = "0.0.0"
 dependencies = [

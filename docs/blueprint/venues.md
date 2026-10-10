@@ -24,8 +24,9 @@
 | `crates/miyu-endpoint/src/appending.rs` | `events.append`：种类、大小、格怎么查，记成谁（施工 O-13 上） |
 | `crates/miyu-endpoint/src/venues/records.rs` | `venue.records`：照会话日志和快照里的时区渲染判官看的记录（施工 O-24） |
 | `crates/miyu-endpoint/tests/venue_judge.rs` | `venue.records` 的写法、写错的、没有的会话（施工 O-24） |
-| `crates/miyu-endpoint/src/responding.rs` | `session.respond`：参数怎么查，交给内核的 `Respond`（施工 O-14 上） |
+| `crates/miyu-endpoint/src/responding.rs` | `session.respond`：参数怎么查，交给内核的 `Respond`（施工 O-14 上）；`session.note`：交给内核的 `Note`，事实的查法两边共用（施工 O-14 补） |
 | `crates/miyu-endpoint/tests/respond.rs` | 照旁听的几条开一轮、`triggers` 排好去重、事实接在后面；写错的什么都不记；`not_ambient`、`already_answered` 带上是哪几条；同一个编号再发只算一次（施工 O-14 上） |
+| `crates/miyu-endpoint/tests/note.rs` | 空闲时记下、不带回合编号、不开回合，下一轮的请求里排在触发前面；正在跑一轮时带回合编号；空的、太多的、写错的什么都不记；同一个编号再发只算一次（施工 O-14 补） |
 | `crates/miyu-endpoint/tests/venue_records.rs` | `venue` 原样记下、旁听的不开回合、写错的什么都不记；`events.append` 收的三类、回应带序号、不带回合编号，拒的几种；扩展只能写自己的包那一段（`system_account.rs`）（施工 O-13 上） |
 | `crates/miyu-endpoint/src/system_accounts.rs` | 系统账号（施工 O-4 下，`packages.md`「`[process]`」）：这次起来认的有哪些、连接是谁、记忆照谁算；起来时建它们的家目录 |
 | `crates/miyu-endpoint/src/list.rs` | 列会话、推会话列表时跳过场所会话 |
@@ -62,7 +63,7 @@
 
 1. 先定属主：`private`、`peer` 在对应表里的，是那个本机账号；别的归系统账号：连接是系统账号的（核心拉起的、清单声明了系统账号的包的扩展，`packages.md`、`extensions.md`）归它，别的连接回 `no_system_account`（施工 O-4 下）。
 2. 照「场所加属主」找：属主的会话里，`session.created` 的场所是它的，最新的那一个；删了的不算。对应表改了、属主变了的，找不到就另造：旧的留在原来的属主名下（2026-10-07 项目主人定）。
-3. 找不到就造：场所照写，没人能确认（`attended` 是假：要确认的一律拒绝，工具面没有 `ask_user`），工作目录照 `cwd`，没写的、太宽的是属主的工作区（系统账号的是 `home/<它>/workspace/`）。2026-10-08 定的「多收可选的 `workspace`」就是这一格，不另加。
+3. 找不到就造：场所照写，没人能确认（`attended` 是假：要确认的一律拒绝，工具面没有 `ask_user`），工作目录照 `cwd`，没写的、太宽的是属主的默认工作区（系统账号的是 `home/<它>/workspace/`）。2026-10-08 定的「多收可选的 `workspace`」就是这一格，不另加。
    - 归系统账号的会话：目录在它的家目录下，会话列表的索引、用量记在它名下（`usage.query` 照 `account` 分开看），本机的头的会话列表照旧不列；记忆归管理员（`personas.md`「怎么走」第 5 条）；带附件发话的，附件拷一份进它的 blob（连接上传的存在管理员名下）。
 4. 同一个命令编号再发：交回上一次的那一个（和 `session.create` 一样）。
 
@@ -115,6 +116,12 @@
 2. 记成谁同下面的 `events.append`。同一个命令编号再发只算一次，回应和头一次一样。
 3. 正在跑一轮的并进这一轮（施工 O-14 下）：事实和一条 `turn.joined {triggers}`（带回合编号）当场记下，下一步就听到，这一轮没再请求就结束的接着开一轮，打断时不退回、不接着开。`to` 里有不是这个会话里旁听的 `message.user` 的 `not_ambient`，有已经当过触发的 `already_answered`，`data.messages` 是不合的那几条。
 4. 开的那一轮 `turn.started` 带 `triggers`，那几条在回合开始的地方渲染（群会话里一行一条），以后的群聊近况不再收它们。
+
+**记几块事实**（施工 O-14 补，2026-10-09 和通讯平台的会话对过，它的退信要的：她的话发不出去，下一步知道）：`session.note {session, facts}`，回应 `{"events": [...]}`（事实的序号）。
+
+1. `facts` 1 到 16 块，写法同上面的 `facts`，原样记成 `context.injected`。写错的 `bad_params`，什么都不记。记成谁同下面的 `events.append`；同一个命令编号再发只算一次。哪个会话都收。
+2. 不开回合、不打断、不叫醒。正在跑一轮的带这一轮的回合编号，下一次请求就看到，撤销这一轮跟着撤；这一轮没再请求就结束的，下一轮开头看到。空闲的不带回合编号，下一轮开头看到，排在那一轮的触发前面。
+3. 不并进 `events.append`：那条路记的一律不带回合编号，在一轮里来的退信该跟着这一轮。
 
 **桥记的事件**（施工 O-13 上，chat.md 第七条第 3 条第 2 项）：`events.append {session, kind, body}`，回应 `{"seq": n}`。记成不带回合编号的事件，任何时候都收，不开回合、不打断；记成谁：核心拉起的扩展是那个包（模块），本机的头是管理员。
 

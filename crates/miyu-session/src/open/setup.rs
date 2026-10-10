@@ -8,6 +8,7 @@ use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::By;
 use miyu_policy::PersonaTexts;
+use miyu_policy::features::Features;
 use miyu_policy::memory::MemoryScope;
 use miyu_policy::preset::Chosen;
 use miyu_store::index::SessionIndex;
@@ -24,13 +25,13 @@ use crate::port::Models;
 use crate::sandbox::SandboxCache;
 use crate::spawn::{Lineage, SessionPort};
 
-/// 预设的几层和这台机器上装了的软件（施工 P-2 下）：回合开始时照它看预设的文件改了没有。
+/// 预设的几层和这台机器上装了的功能（施工 P-2 下；施工 F-3 上起是功能）：回合开始时照它看预设的文件改了没有。
 #[derive(Debug, Clone)]
 pub struct PresetPlaces {
     /// 几层。
     pub presets: Presets,
-    /// 装了的软件的编号。
-    pub installed: Vec<String>,
+    /// 装了的功能（设计 `30-插件框架.md` 第三节）。
+    pub features: Features,
 }
 
 /// 造一个会话要的。

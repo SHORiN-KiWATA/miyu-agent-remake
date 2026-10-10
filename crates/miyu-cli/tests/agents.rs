@@ -9,14 +9,14 @@ use serde_json::{Value, json};
 use tokio::sync::mpsc;
 
 use crate::support::router::{Gate, Router};
-use crate::support::{Asked, Home, Tape, ask_onto, plan, resources, within};
+use crate::support::{Asked, Home, Tape, ask_onto, plan, shipped_tools, within};
 use miyu_cli::{Format, Plan, Target};
 use miyu_kernel::event::Body;
 use miyu_session::testkit::Play;
 
 /// 起一个核心：工具是出厂的，请求模型照 `router`。
 fn home(router: Router) -> Home {
-    let tools = miyu_core::tools(&resources()).expect("出厂的资源读得出来");
+    let tools = shipped_tools();
     Home::with_tools(std::sync::Arc::new(router), tools)
 }
 

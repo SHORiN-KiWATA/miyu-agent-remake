@@ -3,10 +3,9 @@
 //! 此刻、参数、这一轮发出去的都由调的一方交进来。
 //!
 //! - 群里的情形照投影（`projection` 的 [`Speaking`]）：本来想要引用她回的那一条、@ 发它的人；那之后别人说了几条、过了多久、
-//!   群里最后一条是不是她的；这一轮的 `venue.delivered`。
-//! - 私聊的两样都是假；这一轮发出去的照桥自己放进写队列的那几条（[`Spoken`]，内存里一个会话一份，换回合就清，桥重启就丢）。
-//!   这是过渡：私聊没有 `venue.delivered`，O-25 下有了入队事件，私聊、群都改成照入队算，[`Spoken`] 删掉（「施工时定的」
-//!   第 113 条，2026-10-09 主会话定）。
+//!   群里最后一条是不是她的；这一轮入队了的（O-25 中）。
+//! - 私聊的两样都是假；这一轮发出去的照桥自己入队了的那几段（[`Spoken`]，入队记成了就记上，内存里一个会话一份，换回合就清，
+//!   桥重启就丢）：私聊的订阅不补从前的，照日志算不了（「施工时定的」第 113 条，O-25 中改成入队时记）。
 
 use miyu_chat::{
     Out, OutChain, OutCtx, OutWhy, Outbound, Outgoing, Sent, Since, Target, plain, split,
@@ -19,8 +18,6 @@ use crate::onebot::Lead;
 /// 过了链、要发的一句。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Passed {
-    /// 过了链的正文（清理过）：私聊照它记这一轮发出去的。
-    pub(super) text: String,
     /// 照先后的几段：纯文本、拆好了的，没有空的。
     pub(super) pieces: Vec<String>,
     /// 第一段前面带的引用和 @。
@@ -49,7 +46,6 @@ pub(super) fn pass(
     };
     Ok(Passed {
         pieces: split(&plain(&outgoing.text), split_chars),
-        text: outgoing.text,
         lead,
     })
 }
@@ -97,12 +93,12 @@ pub(super) fn why_name(why: OutWhy) -> &'static str {
     }
 }
 
-/// 私聊里桥这一轮自己放进写队列的（过渡，见模块开头）。
+/// 私聊里桥这一轮自己入队了的那几段（见模块开头）。
 #[derive(Debug, Default)]
 pub(super) struct Spoken {
     /// 回合编号：换了回合就清。
     turn: u64,
-    /// 这一轮过了链的正文，照先后。
+    /// 这一轮入队了的正文（拆好的每一段），照先后。
     texts: Vec<String>,
 }
 
@@ -116,7 +112,7 @@ impl Spoken {
         }
     }
 
-    /// 回合编号是 `turn` 的那一轮发出去了 `text`：换了回合的从这一轮重新记。
+    /// 回合编号是 `turn` 的那一轮入队了一段 `text`：换了回合的从这一轮重新记。
     pub(super) fn add(&mut self, turn: u64, text: String) {
         if self.turn != turn {
             self.turn = turn;

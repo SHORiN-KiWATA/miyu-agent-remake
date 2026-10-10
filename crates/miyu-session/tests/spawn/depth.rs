@@ -118,6 +118,7 @@ async fn a_child_numbers_its_jobs_under_its_own() {
     assert_eq!(
         result.effects,
         [Effect::JobStarted(JobStarted {
+            foreground: false,
             job: JobId::parse("j2.1").unwrap(),
             what: JobKind::Agent,
             title: "甲".to_string(),

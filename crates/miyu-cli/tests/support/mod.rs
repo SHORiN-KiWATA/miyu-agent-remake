@@ -48,6 +48,13 @@ pub fn resources() -> ResourceRoot {
     ResourceRoot::at(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources"))
 }
 
+/// 出厂的工具目录：照仓库资源目录里出厂的那一层清单登记（施工 F-2：装了的内置包才登记）。
+pub fn shipped_tools() -> miyu_tool::Catalog {
+    let resources = resources();
+    let found = miyu_store::packages::Packages::shipped(&resources).read();
+    miyu_core::tools(&resources, &found).expect("出厂的资源读得出来")
+}
+
 /// 临时目录名的尾巴：纳秒时刻加这次测试里第几个。Windows 很快复用进程号，光靠进程号和序号会撞上前一个测试进程留下的目录。
 fn next() -> String {
     static NEXT: AtomicU64 = AtomicU64::new(0);

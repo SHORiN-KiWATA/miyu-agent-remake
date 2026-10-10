@@ -259,7 +259,7 @@ async fn presets_are_listed_and_read_by_layer() {
     assert_eq!(
         listed["result"]["presets"],
         json!([
-            {"preset": "broken", "problem": "不认识的表 [colors]：预设文件里只能有 [preset]、[software]、[tools]", "line": 1},
+            {"preset": "broken", "problem": "不认识的表 [colors]：预设文件里只能有 [preset]、[features]、[software]、[tools]", "line": 1},
             {"preset": "dev", "name": "大家的开发", "summary": null},
             {"preset": "full", "name": "全部功能", "summary": null},
         ]),
@@ -276,33 +276,44 @@ async fn presets_are_listed_and_read_by_layer() {
         "预设没有默认人格这一格（施工 P-4 上）"
     );
     assert_eq!(got["unlisted"], "off");
-    let software: Vec<(&str, &str, bool)> = got["software"]
+    let features: Vec<(&str, &str, bool, bool)> = got["features"]
         .as_array()
-        .expect("是一个个软件")
+        .expect("是一个个功能")
         .iter()
         .map(|one| {
             (
                 one["id"].as_str().unwrap_or_default(),
                 one["name"].as_str().unwrap_or_default(),
                 one["on"].as_bool().unwrap_or_default(),
+                one["installed"].as_bool().unwrap_or_default(),
             )
         })
         .collect();
     assert_eq!(
-        software,
+        features,
         [
-            ("basesystem", "基础系统", true),
-            ("net", "联网", true),
-            ("goal", "长期目标", true),
-            ("memory", "人格记忆", true),
-            ("roleplay", "角色扮演", false),
-            ("onebot", "QQ 桥", false),
+            ("files", "文件读写", true, true),
+            ("commands", "运行命令", true, true),
+            ("background", "后台运行", true, true),
+            ("subagents", "子代理", true, true),
+            ("peers", "跨会话消息", true, true),
+            ("questions", "提问", true, true),
+            ("todos", "待办清单", true, true),
+            ("history", "翻查本会话", true, true),
+            ("usage", "用量", true, true),
+            ("memory", "人格记忆", true, true),
+            ("qq", "QQ 工具", false, true),
+            ("roleplay", "人设防失忆提醒", false, true),
+            ("goal", "长期目标", true, false),
         ],
-        "内置的照固定的先后、照连接的语言写名字（施工 P-3 补）；清单装的桥照它的清单写名字（施工 O-18）"
+        "装了的照清单读的先后、名字照它的清单（施工 F-3 下）；写了没装的接在后面，名字照给人看的字；装了的包的编号（net）不另列"
     );
-    assert_eq!(got["software"][4]["installed"], true, "角色扮演一直装着");
-    assert_eq!(got["software"][4]["summary"], "照人格的设定演下去，不出戏");
-    assert_eq!(got["tools"], json!({"trash": false}));
+    assert_eq!(
+        got["features"][11]["summary"],
+        "隔几轮把人设提醒短语再给她看一遍，聊久了也不出戏"
+    );
+    assert!(got["features"][0].get("summary").is_none(), "没说明的不写");
+    assert!(got.get("software").is_none() && got.get("tools").is_none());
     let full = client
         .call("g2", "preset.get", json!({"preset": "full"}))
         .await;

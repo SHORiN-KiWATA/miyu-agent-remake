@@ -320,3 +320,23 @@ fn an_excerpt_keeps_both_ends_on_char_boundaries() {
     assert_eq!(excerpt("abcdef", 0, "~~"), "");
     assert_eq!(excerpt("中文", 4, "~~~~~"), "中", "截不到半个字");
 }
+
+/// 回顾的请求逐字节不变（施工 R-6 上：抽取和它共用 `entries`，那一份改了这里要先红）。
+#[test]
+fn the_recap_request_keeps_its_bytes() {
+    let mut log = Log::new();
+    turn(&mut log, "看看 src", "src 下有两个文件。");
+    let call_turn = log.say("再看看 tests");
+    log.start(call_turn);
+    let call = log.reply_calling("我看看。");
+    log.result(&call, "ok", "fn main() {}");
+    log.reply(&words("tests 下有一个。"));
+    log.end("completed");
+    let (request, upto) = request(log.history(), &texts()).expect("有能回顾的");
+    let bytes = serde_json::to_string(&request).expect("写得成");
+    assert_eq!(upto.get(), log.next() - 2);
+    assert_eq!(
+        bytes,
+        r#"{"tools":[],"system":"","messages":[{"role":"user","blocks":[{"type":"text","text":"<recap>\nU: 看看 src\n\nA: src 下有两个文件。\n\nU: 再看看 tests\n\nA: tests 下有一个。"}]}],"stable":0}"#
+    );
+}

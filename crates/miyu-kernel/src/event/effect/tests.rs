@@ -90,6 +90,7 @@ fn a_started_job_round_trips() {
     assert_eq!(
         round_trip(agent),
         Effect::JobStarted(JobStarted {
+            foreground: false,
             job: JobId::parse("j2").unwrap(),
             what: JobKind::Agent,
             title: "查 CI 为什么红".to_string(),
@@ -97,6 +98,7 @@ fn a_started_job_round_trips() {
         })
     );
     let command = Effect::JobStarted(JobStarted {
+        foreground: false,
         job: JobId::parse("j1").unwrap(),
         what: JobKind::Command,
         title: "跑全部测试".to_string(),

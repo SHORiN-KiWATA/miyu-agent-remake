@@ -37,6 +37,9 @@ pub struct Stage {
     pub(super) replies: Vec<(CommandId, Outcome)>,
     /// 推给头的瞬时事件。
     pub(super) transients: Vec<Transient>,
+    /// 落了盘的和瞬时的照交出来的先后（施工 9-8 上：视图投影照它一条条喂，模拟头接着推送）。`true` 是 `log` 里的，
+    /// `false` 是 `transients` 里的，后面是第几条。
+    pub(super) order: Vec<(bool, usize)>,
     /// 派去执行的每一次调用：调用编号、工具名、修正过的参数，照派的先后。
     pub(super) ran: Vec<(CallId, String, String)>,
     /// 剧本：模型接下来几次说什么、工具接下来几次怎么回、链接下来几次怎么判、挂接点接下来几次
@@ -265,6 +268,11 @@ impl Stage {
             .unwrap_or_else(|| panic!("没有扣着的到点叫醒"));
         let inputs = self.wake(at, seen);
         self.drain(inputs.into());
+    }
+
+    /// 停住的调用，照停住的先后（施工 9-8 上：随机剧本挑一个放行）。
+    pub fn held_tools(&self) -> Vec<CallId> {
+        self.held_tools.iter().map(|(call, _)| *call).collect()
     }
 
     /// 放行停住的调用 `call_id`：照它排好的回。

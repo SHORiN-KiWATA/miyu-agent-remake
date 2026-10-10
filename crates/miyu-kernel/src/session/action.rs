@@ -123,7 +123,8 @@ pub enum Action {
         steps: Vec<Step>,
     },
     /// 停掉撤掉的那几轮派出去、还在跑的任务（施工 7-8，`agents.md` 第七条第 1 条）：后台命令整组杀掉，子代理连它派的一起
-    /// 停，回报都记 `undone`、不叫醒她。后台命令的回报交回 [`super::Input::JobEnded`]（`by`、`cause` 照这里的），子代理的
+    /// 停，回报都记 `undone`、不叫醒她。打断时停这一步在等的前台子代理也是它（施工 T-1 下，`undone` 是假：记 `stopped`，前台
+    /// 的回报一律不叫醒）。后台命令的回报交回 [`super::Input::JobEnded`]（`by`、`cause` 照这里的），子代理的
     /// 由子会话交来（命令 `Report`）。不送回、不等：撤销照常回应。排在撤销那一条的 `Append` 后面、改回文件前面：停下的
     /// 命令不会再动文件。
     StopJobs {
@@ -133,6 +134,8 @@ pub enum Action {
         by: By,
         /// 撤销的命令：那几条的 `cause`。
         cause: CommandId,
+        /// 撤销停的是真：回报记 `undone`。打断时停这一步在等的前台子代理的是假（施工 T-1 下）：回报记 `stopped`，人停的。
+        undone: bool,
     },
     /// 压完要重读的文件（`compaction.md` 第九条，施工 6-5）：排在摘要请求的「请求模型」前面，执行器读完、存成
     /// blob，送回 [`super::Input::Reread`]，再做下一个动作。

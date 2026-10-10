@@ -74,9 +74,12 @@ impl Actor {
             for waiter in self.waiters.values_mut() {
                 waiter.armed = true;
             }
+            self.extract_cancel();
         } else if self.busy_seen {
             self.busy_seen = false;
             self.finished_at = Some(now);
+            // 从忙到闲：抽取的闹钟（施工 R-6 上）。
+            self.extract_when_idle();
         }
         self.notify_if_vacant();
     }

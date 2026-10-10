@@ -3,8 +3,8 @@
 //! `cwd` 跟着变）。头每句话报的目录不再换它。
 //!
 //! 人明着换，写错了当场说，不悄悄退回：换不成真实位置、读不了的 `path_unreadable`，是文件的 `not_a_directory`，落在数据根里
-//! 又不是账号自己的工作区的 `path_forbidden`。只有太宽的（系统的家目录、根目录、包含数据根的）照旧退回账号的工作区，回应写
-//! 实际用的（2026-10-07 项目主人定：太宽照旧在换的时候判、回实际的）。加进来的目录照造会话的规矩查（`dir_too_wide`）。
+//! 又不是账号自己的工作区的 `path_forbidden`。太宽的（系统的家目录、根目录、包含数据根的）照人选的用，回应多 `wide`（施工
+//! 9-7 补，2026-10-09 项目主人定，原来退回账号的工作区）。加进来的目录照造会话的规矩查（`dir_too_wide`）。
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -18,7 +18,7 @@ use miyu_kernel::session::Command;
 use crate::Core;
 use crate::methods::command_to;
 use crate::refusal::Refusal;
-use crate::sessions::{check_dirs, workspace};
+use crate::sessions::{Picked, check_dirs, pick};
 use crate::wire::Request;
 
 /// `session.set_workspace` 的参数。
@@ -51,13 +51,14 @@ pub(crate) async fn set(
     }
     let found = core.sessions.get(core, &session).await?;
     // 落在数据根里的照会话的属主认它自己的工作区（施工 O-4 下）。
-    let checked_cwd = params
+    let picked = params
         .cwd
         .as_deref()
         .map(|cwd| checked(core, found.handle.owner(), cwd))
         .transpose()?;
+    let wide = picked.as_ref().is_some_and(|picked| picked.wide);
     // 没写工作目录的：照会话现在的。
-    let cwd = checked_cwd.unwrap_or_else(|| found.cwd.clone());
+    let cwd = picked.map_or_else(|| found.cwd.clone(), |picked| picked.cwd);
     let command = Command::SetWorkspace {
         cwd: cwd.clone(),
         dirs: params.dirs.clone(),
@@ -68,7 +69,11 @@ pub(crate) async fn set(
         .moved(&session, cwd.clone(), params.dirs)
         .await
         .unwrap_or_default();
-    Ok(json!({"cwd": cwd, "dirs": dirs}))
+    let mut reply = json!({"cwd": cwd, "dirs": dirs});
+    if wide {
+        reply["wide"] = json!(true);
+    }
+    Ok(reply)
 }
 
 /// 核心所在的机器上人的家目录，真实的位置；没有的、换不成的没有。
@@ -79,12 +84,8 @@ pub(crate) fn home(core: &Core) -> Option<PathBuf> {
 }
 
 /// 查一个人明着要换去的工作目录，交回实际用的：见模块的说明。`/workspace` 也照它查（施工 9-7 下）。账号自己的工作区照会话的
-/// 属主 `owner`（施工 O-4 下）。
-pub(crate) fn checked(core: &Core, owner: &AccountId, cwd: &str) -> Result<String, Refusal> {
-    // `~` 本身总是太宽：读不出家目录也照造会话的退回，不当读不了。
-    if cwd.trim() == "~" {
-        return Ok(workspace(core, owner, cwd));
-    }
+/// 属主 `owner`（施工 O-4 下）。人明着选的，太宽的照用、标上 `wide`（施工 9-7 补）。
+pub(crate) fn checked(core: &Core, owner: &AccountId, cwd: &str) -> Result<Picked, Refusal> {
     let home = home(core);
     let real = miyu_fs::resolve(Path::new("/"), home.as_deref(), cwd)
         .map_err(|_| Refusal::PATH_UNREADABLE)?;
@@ -99,6 +100,5 @@ pub(crate) fn checked(core: &Core, owner: &AccountId, cwd: &str) -> Result<Strin
     if real.starts_with(&data_root) && !real.starts_with(&own) {
         return Err(Refusal::PATH_FORBIDDEN);
     }
-    // 太宽的照旧退回账号的工作区；不太宽的照人写的原样。
-    Ok(workspace(core, owner, cwd))
+    Ok(pick(core, owner, cwd, true))
 }

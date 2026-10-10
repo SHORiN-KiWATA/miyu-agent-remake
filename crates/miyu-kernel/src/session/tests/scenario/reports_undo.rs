@@ -144,6 +144,7 @@ fn restoring_files_after_a_redo_holds_the_report_until_they_are_back() {
     let mut done = changed(call(reply, 1));
     if let Input::ToolDone { effects, .. } = &mut done {
         effects.push(Effect::JobStarted(JobStarted {
+            foreground: false,
             job: JobId::new(1).unwrap(),
             what: JobKind::Command,
             title: "跑测试".to_string(),
@@ -258,6 +259,7 @@ fn a_command_ending_while_reading_back_waits_for_the_undo() {
     let mut done = super::super::executor::done(call(reply, 1), "Started j3.");
     if let Input::ToolDone { effects, .. } = &mut done {
         effects.push(Effect::JobStarted(JobStarted {
+            foreground: false,
             job: JobId::new(3).unwrap(),
             what: JobKind::Command,
             title: "跑测试".to_string(),

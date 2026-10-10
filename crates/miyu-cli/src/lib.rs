@@ -35,6 +35,7 @@ mod login;
 mod memory;
 mod misuse;
 pub mod packages;
+mod pkg;
 mod recap;
 mod redo;
 mod rename;
@@ -53,6 +54,7 @@ pub use config::{
 pub use login::{KeyCommand, Login, LoginPlan, Logout, login, login_on};
 pub use memory::{Clear as MemoryClear, Memory, MemoryCommand, MemoryPlan, memory, memory_on};
 pub use misuse::misuse;
+pub use pkg::{Pkg, PkgCommand, PkgPlan, pkg, pkg_on};
 pub use recap::{Recap, RecapPlan, recap, recap_on};
 pub use redo::{Redo, RedoPlan, redo, redo_on};
 pub use rename::{Rename, RenamePlan, rename, rename_on};

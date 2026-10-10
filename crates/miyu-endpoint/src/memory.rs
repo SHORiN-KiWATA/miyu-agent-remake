@@ -13,10 +13,12 @@ use std::sync::Arc;
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 
-use miyu_kernel::id::{CommandId, SessionId};
+use miyu_kernel::id::{AccountId, CommandId, SessionId};
 use miyu_kernel::origin::By;
 use miyu_recall::{CLASSES, Entry, MemoryId};
-use miyu_session::{ConfigSource, Filter, Handle, Keeper, Stamp, Turn, Using};
+use miyu_session::{
+    ConfigSource, EmbedSetup, Embedder, Filter, Handle, Keeper, Memory, Stamp, Turn, Using, Vectors,
+};
 use miyu_store::recall::Room;
 use miyu_tool::{Refused, Remember, TEXT_CHARS};
 
@@ -27,6 +29,25 @@ use crate::refusal::Refusal;
 use crate::sessions::{admin, now};
 
 use params::{Forget, List, Search, Update, Where};
+
+impl Core {
+    /// 同一份家底，接上照意思找的那一路（施工 R-5 下、补，`recall.md` 第四条）：本机的照 `local` 算（没装内置语义模型的是
+    /// 空的，装卸以后照新的清单换，`Vectors::replace_local`），远程的照模型资料里的供应商发。核心起来时接一次，接在
+    /// [`Core::with_model_data`] 后面（远程的照那一份查供应商、记账）；不接的（测试里）只照关键词找。（施工 R-10 从 `lib.rs`
+    /// 挪过来。）
+    #[must_use]
+    pub fn with_vectors(self, local: Option<EmbedSetup>) -> Core {
+        let vectors = Vectors::new(local.map(Embedder::new), Arc::clone(&self.model_data));
+        self.memory.give_vectors(Arc::new(vectors));
+        self
+    }
+
+    /// 账号 `owner` 的会话用的记忆的登记，交给造的、载入的会话（施工 R-2 上、R-3 中）：管理员和系统账号的会话有（施工 O-4
+    /// 下）；记忆归哪个账号另照 [`Core::memory_owner`] 算，系统账号的归管理员。
+    pub(crate) fn memory_for(&self, owner: &AccountId) -> Option<Arc<Memory>> {
+        self.knows(owner).then(|| Arc::clone(&self.memory))
+    }
+}
 
 /// `memory.list` 不写 `limit` 时给几条。
 const LIST: usize = 50;
@@ -42,6 +63,9 @@ pub(crate) async fn call(
     id: &CommandId,
     params: &Value,
 ) -> Result<Value, Refusal> {
+    if !installed(core) {
+        return Err(Refusal::MEMORY_NOT_INSTALLED);
+    }
     match method {
         "memory.list" => list(core, read(params)?).await,
         "memory.search" => search(core, read(params)?).await,
@@ -229,9 +253,17 @@ fn room(handle: &Handle) -> Option<&Room> {
         .filter(|_| handle.venue().as_str() == LOCAL)
 }
 
-/// 核心一份的记忆：管理员的才有（多用户以后照账号）。
+/// 人格记忆这个软件包这时装着没有（施工 R-10）：核心照清单设在记忆上（`Memory::set_installed`）。没有记忆的核心照装着算，
+/// 由后面的检查说这里没有记忆。
+pub(crate) fn installed(core: &Core) -> bool {
+    core.memory_for(&core.admin)
+        .is_none_or(|memory| memory.installed())
+}
+
+/// 核心一份的记忆：管理员的才有（多用户以后照账号）。人格记忆没装的当没有（施工 R-10）。
 fn memory(core: &Core) -> Result<Arc<miyu_session::Memory>, Refusal> {
     core.memory_for(&core.admin)
+        .filter(|memory| memory.installed())
         .ok_or(Refusal::MEMORY_UNAVAILABLE)
 }
 
@@ -299,6 +331,38 @@ async fn blocking<T: Send + 'static>(
         Err(error) => {
             tracing::warn!(target: "miyu::endpoint", error = %error, "memory failed");
             Err(Refusal::INTERNAL)
+        }
+    }
+}
+
+/// 抽取要的几样（施工 R-6 上，`memory.md` 第六条）：请求模型的照一次性入口（照剧本回的端口没有，不抽）、资源目录里的字和 key 的
+/// 写法、管理员的 blob（抽取的请求只有字，用不上）。读不出来的记一行，没有：这个核心不抽，别的照常。
+pub(crate) fn extraction(
+    models: &dyn miyu_session::Models,
+    resources: &miyu_store::resources::ResourceRoot,
+    root: &miyu_store::root::DataRoot,
+    admin: &miyu_kernel::id::AccountId,
+) -> Option<miyu_session::Extraction> {
+    let ask = models.one_shot()?;
+    let texts = miyu_session::ExtractTexts::load(resources.path())
+        .and_then(|texts| Ok((texts, miyu_session::MergeTexts::load(resources.path())?)))
+        .map_err(|error| error.to_string());
+    let shapes = resources
+        .memory_secrets()
+        .map_err(|error| error.to_string())
+        .and_then(|text| miyu_recall::redact::KeyShapes::parse(&text));
+    match texts.and_then(|texts| shapes.map(|shapes| (texts, shapes))) {
+        Ok(((texts, merge), shapes)) => Some(miyu_session::Extraction {
+            texts,
+            shapes,
+            ask,
+            blobs: miyu_store::blob::Blobs::new(root.blobs(admin)),
+            idle: None,
+            merge,
+        }),
+        Err(error) => {
+            tracing::warn!(target: "miyu::endpoint", error = error.as_str(), "memory extraction unavailable");
+            None
         }
     }
 }

@@ -6,7 +6,7 @@
 //! 内核当场拦下的不在这里，它们已经有了结果。
 
 use crate::event::{Question, Response};
-use crate::id::{CallId, Seq};
+use crate::id::{CallId, JobId, Seq};
 use crate::tool::Access;
 
 /// 这一步要跑的调用，照调用的先后。
@@ -16,6 +16,8 @@ pub(super) struct Step {
     pub(super) reply: Seq,
     /// 这一步的调用。
     pub(super) calls: Vec<Pending>,
+    /// 这一步派出去、还没报回来的前台子代理（施工 T-1 下）：都报回来这一步才齐。
+    pub(super) awaiting: Vec<JobId>,
 }
 
 /// 一个要跑的调用。
@@ -103,9 +105,9 @@ impl Step {
         ready
     }
 
-    /// 这一步的调用都有了结果。
+    /// 这一步的调用都有了结果，派出去的前台子代理也都报回来了（施工 T-1 下）。
     pub(super) fn finished(&self) -> bool {
-        self.calls.iter().all(|call| call.state == State::Done)
+        self.calls.iter().all(|call| call.state == State::Done) && self.awaiting.is_empty()
     }
 
     /// 这一步里的 `call_id`，而且它正走到 `state`。

@@ -30,7 +30,7 @@ mod found;
 mod orphans;
 mod places;
 
-pub(crate) use places::{check_dirs, workspace};
+pub(crate) use places::{Picked, check_dirs, pick, workspace};
 #[cfg(test)]
 mod tests;
 
@@ -99,6 +99,8 @@ pub(super) async fn stored_owner(core: &Core, id: &SessionId) -> Option<AccountI
 pub(crate) struct Created {
     pub(crate) id: SessionId,
     pub(crate) cwd: String,
+    /// 太宽、照人选的用着（施工 9-7 补）。
+    pub(crate) wide: bool,
     pub(crate) untrusted: Option<String>,
 }
 
@@ -134,7 +136,8 @@ impl Sessions {
                 open.created.pop_front();
             }
         }
-        let workspace = workspace(core, &who.owner, &cwd);
+        let picked = pick(core, &who.owner, &cwd, who.chosen);
+        let (workspace, wide) = (picked.cwd, picked.wide);
         // 开局只读照这个会话实际干活的目录算，带上信任着的项目配置（`config.md` 第二条第 9 条）。
         let (resolved, project) = core.config().with_project(&workspace);
         let untrusted = project.and_then(|project| project.untrusted());
@@ -143,6 +146,7 @@ impl Sessions {
             return Ok(Created {
                 id,
                 cwd: workspace,
+                wide,
                 untrusted,
             });
         }
@@ -220,6 +224,7 @@ impl Sessions {
         Ok(Created {
             id,
             cwd: workspace,
+            wide,
             untrusted,
         })
     }
@@ -378,6 +383,8 @@ pub(crate) struct Opening {
     pub(crate) preset: Option<String>,
     /// 群会话（施工 O-13 中）：`venue.session` 的 `kind` 是 `group` 的。
     pub(crate) group: bool,
+    /// 工作目录是人明着选的（施工 9-7 补）：`session.create` 的 `chosen`。太宽的照用；不是的照旧退回属主的工作区。
+    pub(crate) chosen: bool,
 }
 
 /// 管理员：本机连上来的都是他（`06-多用户与身份.md` 第二节）。

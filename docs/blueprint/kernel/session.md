@@ -19,6 +19,7 @@
 | `crates/miyu-kernel/src/session/redo.rs` | 重做：撤最后一轮、重发开它的话、开新的一轮（`history.md`「重做」，施工 4-7 再补） |
 | `crates/miyu-kernel/src/session/clear.rs` | 清空上下文单开的那一轮：收命令、上下文是不是本来就空、一批写开头、空的检查点、结束（`compaction.md` 第十四条，施工 6-8 补） |
 | `crates/miyu-kernel/src/session/recap.rs` | 回顾：收命令、照落了盘的有效历史组装、交回上一句、并进在路上的、收回报、记 `model.called` 和 `session.recapped`（「回顾」，施工 3-8 四补） |
+| `crates/miyu-kernel/src/session/recap.rs` 的 `spoken_in`、`crates/miyu-kernel/src/assemble.rs` 的 `Spoken`、`history.rs` 的 `called_since`（施工 R-6 上） | 只读的两处给抽取用（`memory.md` 第六条第 2 款）：会话那一层照日志拼的历史（可以是留着一切的那一份）交给这个会话的组装器渲染 `after` 以后的几段话（组装器 trait 有默认实现的 `spoken`，`DefaultAssembler` 照回顾的取法），和这一段调过的工具名；撤掉的回合两边都不算。不碰这个会话手里的历史，不改 `Input`、`Action`，不写日志 |
 | `crates/miyu-kernel/src/session/aside.rs` | 辅助请求在路上的那一次（回顾、起标题共用，施工 3-8 五补从 `recap.rs` 分出来）：照用途和名字认回报、收增量、说完了算出正文和那条 `model.called`；不带回合编号的事件怎么造 |
 | `crates/miyu-kernel/src/session/sight.rs` | 替它看图：什么时候转述、出 `Describe`、收回来记 `image.described`、这个会话转述过哪些图、把转述放进请求、人这一轮最近说的那一句（「替它看图」，施工 8-17） |
 | `crates/miyu-kernel/src/session/title.rs` | 起标题：该不该起（从日志一条条算）、落了盘以后发请求、收回来记 `model.called` 和 `session.meta_changed`、标题怎么截（「起标题」，施工 3-8 五补） |
@@ -94,6 +95,7 @@
 |---|---|---|---|
 | `Send { blocks, urgent, venue }` | `session.send` | 内容块；`urgent` 急着插话；`venue` 通讯平台上的一条消息的那几格（施工 O-13 上） | 「发一条消息」 |
 | `Respond { to, facts }` | `session.respond` | 开这一轮（正在跑的并进去，施工 O-14 下）的那几条旁听消息的序号、几块事实（施工 O-14 上） | 「照记下的几条开一轮」 |
+| `Note { facts }` | `session.note` | 几块事实，只记不开回合（施工 O-14 补） | 「记几块事实」 |
 | `Append { event }` | `events.append` | 扩展自己的 `ext.*`，或者 `venue.recalled`、`venue.delivered`（施工 O-13 上；别的种类经不了这条路，类型就不收） | 「桥记的事件」 |
 | `Interrupt { queued }` | `session.interrupt` | `Queued::Send` 排着的接着发，`Queued::Return` 退回，`Queued::Keep` 留着（施工 O-6） | 「打断」 |
 | `SetPermission { level, read_only }` | `session.set_permission_level` | 常用的那一级、只读开关，不改的是 `None` | 「切权限级别」 |
@@ -211,6 +213,8 @@
 4. 闲着的：开一轮（「开回合」），`turn.started` 带 `triggers`（排好的序号），`trigger` 是最后一条，`cause` 是这个命令；内核的事实照旧，`facts` 照先后接在它们后面，`by` 是发命令的一方、带这个回合。落了盘回应，附这一批的序号。不过回合闸（还没有）。
 5. 渲染：开的那几条在回合开始的地方，不在它们自己的位置；并进来的在 `turn.joined` 的位置（`kernel/request.md`「群聊近况」）。
 
+**记几块事实**（`Note`，施工 O-14 补，`docs/blueprint/venues.md`「记几块事实」）：空的拒 `empty_message`。`facts` 照先后当场记下，`by` 是发命令的一方，`cause` 是这个命令；正在跑一轮的带这个回合，没开的不带。不开回合、不打断、不作废在等的调用、不叫醒：投影照日志的先后排，下一次请求（正在跑的）或者下一轮开头（闲着的）就有它。落了盘回应，附这一批的序号。
+
 **桥记的事件**（`Append`，施工 O-13 上，`docs/blueprint/chat.md` 第七条第 3 条第 2 项）：追加那一条，不带回合编号，任何时候都收，不开回合、不打断。`ext.*` 记成内核不认识的种类（原样留着，投影跳过）；`venue.recalled`、`venue.delivered` 记成认识的，投影这一步先跳过（O-13 下渲染）。
 
 **回合**：回合编号是它 `turn.started` 的序号。回合走到的阶段：
@@ -298,7 +302,7 @@
 4. **轮到谁**：照调用的先后。只读（`read`）的，前面没有还没结果的非只读调用就轮到；不是只读的，前面的都有了结果才轮到，它没结果，后面的都等。过链的、等人的、允许了还没派的、在跑的、问着人的，都占着位置。
 5. **结果**（`ToolDone`）：只收这一步里在跑的调用（派出去了的、问着人的、答完了等落盘的）和停着的（「打断」第 7 条）；别的不理。追加 `tool.result`：`status` 照 `error` 是 `error` 或 `ok`，内容、用时、说法、效果照交的，`by` 是那次调用，`cause` 是回合的。没叫它停却交回停在改之前的（带 `stopped`）：记 `cancelled`，那一句是「已取消，跑到一半」，照内核写的（第 8 条）；执行器只在叫它停以后才这样交，这一条是兜底。然后派后面能派的。
 6. **输出**（`ToolProgress`）：只收在跑的调用的，推一条 `tool.progress`，`by` 是那次调用，`cause` 是回合的。
-7. **这一步齐了**：请求数到了步数上限，结束回合，`step_limit`；不然回到 `Ready`，这一轮里切过权限级别的先查一遍事实，落了盘请求下一次。上限只在一步齐了时查：第一次请求总会发，上限是 0 和 1 一样。
+7. **这一步齐了**：调用都有了结果，这一步派出去的前台子代理（策略的 `foreground`，施工 T-1 下：记结果时 `subagent` 那次的 `job.started` 填上 `foreground`；给前台子代理留了言的那次也算，等它再报）也都报回来了。等它们不设时限，等的时候来的消息照排队，人要停就打断。请求数到了步数上限，结束回合，`step_limit`；不然回到 `Ready`，这一轮里切过权限级别的先查一遍事实，落了盘请求下一次。上限只在一步齐了时查：第一次请求总会发，上限是 0 和 1 一样。
 8. **内核写的结果**：`blocks` 是一块文字（那一句），`human` 是那一句的说法，没有用时、没有效果。
 
 **排队的消息**：
@@ -314,7 +318,7 @@
 2. `job.reported` 的 `by` 照原因（2026-09-30 定），执行器照这个填：`exited` 是起它的那次调用（`cause` 是那次调用的）；`stopped` 是停它的人（`cause` 是停它的命令），或者停它的那次 `jobs` 调用；`undone` 是撤销的人（`cause` 是撤销的命令）；`restarted`、`aborted` 是内核。
 3. 回报一律不带回合编号（2026-09-30 定）：它不属于哪一轮。带了这一轮的编号，撤这一轮时会跟着被拿走，和「别处来的留着」冲突（`history.md`「拿走什么」）。回合中途到的，照它在日志里的位置和请求看到的范围排（`History::ordered`），下一次请求就在那一步的工具结果后面（`request.md`「回报」）。
 4. 先过账本（`history.md`「账本查的规矩」）：对不上的，`Report` 拒绝，`unknown_job`；`JobEnded` 不理；都什么都不记。改回文件、读回日志的时候来的 `Report` 照别的命令拒绝，`restoring`。
-5. 记下以后看叫不叫醒她。只记下、不叫醒的：`job.reported` 的 `undone`、`restarted`、`aborted`，和带 `by_model` 的 `stopped`（她自己停的）；`child.reported` 的 `undone`、`aborted`，和带 `by_model` 的 `stopped`（施工 7-4）；派它的那一轮撤掉了的（有效历史的「派出去过的任务」标着撤掉了，`history.md`；这种回报不渲染，开了轮她也看不到）。别的叫醒她，被人停掉的子代理也叫醒（`agents.md` 第三条第 4 条），不认识的原因也叫醒：
+5. 记下以后看叫不叫醒她。前台子代理的回报（账本记着它是前台的，施工 T-1 下）一律不叫醒：这一步在等它的，记下就不再等它，都齐了照「调工具」第 7 条请求下一次；不是在等的（打断、重启、崩了以后才到的）只记下，下一次请求照它在日志里的位置看到。别的只记下、不叫醒的：`job.reported` 的 `undone`、`restarted`、`aborted`，和带 `by_model` 的 `stopped`（她自己停的）；`child.reported` 的 `undone`、`aborted`，和带 `by_model` 的 `stopped`（施工 7-4）；派它的那一轮撤掉了的（有效历史的「派出去过的任务」标着撤掉了，`history.md`；这种回报不渲染，开了轮她也看不到）。别的叫醒她，被人停掉的子代理也叫醒（`agents.md` 第三条第 4 条），不认识的原因也叫醒：
    - 她正忙（有回合在进行）：排进这一轮的回报队，下一次请求算听到了（「回合」第 5 条）；回合结束时还没听到的，照「排队的消息」第 2 条接着开下一轮。
    - 她闲着（没有回合在进行，`turn.ended` 没落盘的也算），这时开得了：由它开一轮（`trigger` 是它，`cause` 是它的），和它同一批。
    - 她闲着，这时开不了：记在一边（第 7 条）。
@@ -374,7 +378,7 @@
 
 1. 没有回合在进行：拒绝，`not_running`。
 2. 请求在路上：收到的半截只留收全了的工具调用，发出去了、不是空的才写成回复（`"interrupted":true`）；`model.called` 的 `result` 是 `interrupted`。回复里留下的调用各补「已取消，没跑过」（`cancelled-before`）。出 `CancelModel`。半截回复和 `model.called` 的 `cause` 是回合的。
-3. 调工具：还没有结果的：
+3. 调工具：这一步在等的前台子代理连它一起停（`StopJobs`，`undone` 是假：回报记 `stopped`，`by` 是打断的人，施工 T-1 下），回报随后到、只记下。还没有结果的：
    1. 派出去了的、改文件的（访问类别 `write`）：叫它停（`StopTool`），先不记结果，改成「停着」（第 7 条）。
    2. 派出去了的别的、答完了等落盘的：补「已取消，跑到一半」（`cancelled-running`），出 `CancelTool`。
    3. 问着人的：补 `question-interrupted`，出 `CancelTool`。
@@ -622,6 +626,7 @@
 | `crates/miyu-kernel/src/session/tests/queue.rs` | 最后一步里来的开下一轮；由最后一条触发；出错、到上限的也接着开；被后一步听到的不再开；打断接着发、退回、留着（施工 O-6：不撤回、不接着开，下一句开的那一轮看得到）；没排着的不写撤回；触发不算排队 |
 | `crates/miyu-kernel/src/session/tests/respond.rs`（施工 O-14 上） | 照记下的几条开一轮：`triggers` 排好去重、`trigger` 是最后一条、桥的事实接在内核的后面；空的拒；不是旁听的、当过触发的拒，带上是哪几条；载入以后照样认得当过触发的 |
 | `crates/miyu-kernel/src/session/tests/respond/joining.rs`（施工 O-14 下） | 正在跑一轮时：桥的事实、`turn.joined` 带这个回合记下、回应附序号；下一步听到的不另开；没再请求就结束的接着开一轮、由 `turn.joined` 触发；打断（接着发、退回）不退回不接着开；在等的那一问作废 |
+| `crates/miyu-kernel/src/session/tests/respond/noting.rs`（施工 O-14 补） | 记几块事实：空闲时不带回合编号、不开回合，下一轮的请求里排在触发前面；同一个编号只记一次；调工具的时候来的带这个回合、不叫停不叫醒，下一次请求就有它，说完不另开；空的拒 |
 | `crates/miyu-kernel/src/session/tests/interrupt.rs` | 空闲时打断被拒；请求前、请求中、调工具时打断；什么都没收到不写回复；急着插话的三种时候；空闲时急着插话开回合；在跑的写叫它停、排在后面的当场补、10 秒以后叫醒、改完了的带着效果记、收了尾到点不理 |
 | `crates/miyu-kernel/src/session/tests/landed.rs`（施工 3-8 六补） | `landed()`：造会话那一条落盘以前没有；追加了、还没落盘的不算，落一部分走一部分；载入的是日志里最后一条 |
 | `crates/miyu-kernel/src/session/tests/meta.rs`（施工 3-8 三补） | 改名记一条、落了盘才回应、同一个编号再来不再记；只写变了的格，和现在一样的（含没有标题时去掉、没置顶时取消、两格都不写）当场回应、编号照记；去掉标题记成空的；回合进行中的带上回合；载入以后照日志算回来，撤掉的回合里改的也算；`deletable()`：空闲的删得了，开了回合、`turn.ended` 没落盘的是有回合在进行，改回文件的时候是正在改回；斜杠命令记一条 `command.ran`、带着说命令的人和起因、同一个编号再来不再记（施工 O-6） |

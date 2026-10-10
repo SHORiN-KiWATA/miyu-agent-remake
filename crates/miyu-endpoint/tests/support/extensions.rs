@@ -1,5 +1,6 @@
 //! 扩展进程的测试共用的（施工 9-4 上、补）：测试用的扩展、装清单、造核心、等状态。`tests/extensions.rs`、
-//! `tests/extension_stream.rs` 用。
+//! `tests/extension_stream.rs` 用；带系统账号的清单、会话目录、等轮数、等库里数得到，`tests/system_account.rs` 和装上的
+//! 包当场换（施工 F-5 下）用。
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -10,7 +11,10 @@ use serde_json::{Value, json};
 
 use miyu_endpoint::Core;
 use miyu_endpoint::extensions::Timing;
+use miyu_kernel::event::Body;
+use miyu_kernel::id::{AccountId, SessionId};
 use miyu_session::testkit::Script;
+use miyu_store::log::read_events;
 use miyu_tool::Catalog;
 
 use super::{Client, Home, TOKEN};
@@ -188,4 +192,66 @@ pub fn stderr(home: &Home, id: &str) -> String {
 
 pub async fn call(client: &mut Client, method: &str, id: &str) -> Value {
     client.call("c", method, json!({"package": id})).await
+}
+
+/// 包 `id` 的清单：程序 `program`、参数 `args`，`start`、`system_account` 照写。
+pub fn install_serving(
+    home: &Home,
+    id: &str,
+    program: &str,
+    args: &[String],
+    start: &str,
+    system_account: bool,
+) {
+    let args: Vec<String> = args.iter().map(|arg| format!("{arg:?}")).collect();
+    home.write(
+        &format!("home/alice/packages/{id}.toml"),
+        &format!(
+            "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"Bridge\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"B\" }}\n\n[process]\nargs = [{}]\nstart = \"{start}\"\nsystem_account = {system_account}\n",
+            args.join(", ")
+        ),
+    );
+}
+
+/// 会话 `session` 在账号 `account` 名下的目录。
+pub fn dir(home: &Home, account: &AccountId, session: &str) -> std::path::PathBuf {
+    home.root
+        .session_dir(account, &SessionId::parse(session).expect("会话编号合写法"))
+}
+
+/// 等到 `dir` 里的日志结束了 `n` 轮。
+pub async fn until_turns_in(dir: &Path, n: usize) {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
+    loop {
+        let ended = read_events(dir)
+            .unwrap_or_default()
+            .iter()
+            .filter(|event| matches!(event.body, Body::TurnEnded(_)))
+            .count();
+        if ended >= n {
+            return;
+        }
+        assert!(tokio::time::Instant::now() < deadline, "等不到第 {n} 轮");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+/// 只读打开 SQLite 库 `db`，照 `sql`（带一个参数 `value`）数到大于 0 为止，最多 60 秒。库还没建、表还没有的当 0。
+pub async fn until_counted(db: &Path, sql: &str, value: &str) {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
+    loop {
+        let counted =
+            rusqlite::Connection::open_with_flags(db, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+                .and_then(|db| db.query_row(sql, [value], |row| row.get::<_, i64>(0)))
+                .unwrap_or(0);
+        if counted > 0 {
+            return;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "{} 里数不到：{sql}",
+            db.display()
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
 }

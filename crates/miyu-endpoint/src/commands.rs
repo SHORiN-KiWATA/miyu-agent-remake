@@ -127,7 +127,10 @@ pub(crate) async fn run(
         (false, None) => return Err(Refusal::VENUE_SESSION),
         (false, Some(speaking)) => venues::speaker(core, handle.venue(), handle.owner(), speaking)?,
     };
-    allowed(core, slash, &handle, &by)?;
+    if let Err(refused) = allowed(core, slash, &handle, &by) {
+        let why = why::why(core, peer, &handle, &refused).await;
+        return Err(refused.because(why));
+    }
     let mut events = Vec::new();
     let said = match slash {
         Slash::Clear => {
@@ -266,6 +269,7 @@ async fn words(core: &Core, peer: &Peer, said: &Said) -> String {
 mod catalog;
 #[cfg(test)]
 mod tests;
+mod why;
 mod workspace;
 
 pub(crate) use catalog::catalog;

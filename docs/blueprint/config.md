@@ -257,6 +257,11 @@ miyu_config::settings! {
 | `ui.head` | 名字（软件包的编号） | `tui` | 系统、个人 | 不能写 | `head_start` | 9-3（`cli/main.md`「怎么走」第 3 条）：直接敲 `miyu`、`miyu config` 时打开哪个界面；主程序每次敲的时候经 `config.get` 读，照清单找这个包的程序。界面提示：通用页的「显示」组，文字 |
 | `ui.welcomed` | 布尔 | `false` | 个人 | 不能写 | `now` | 8-11 四补（2026-10-08 终端、网页两个头要的，`cli/setup.md` 以外的第一次引导）：这个账号走完了第一次引导。头走完写 `true`（`config.set` 个人设置），以后不再进引导，缺什么去配置页补；进不进只看它，不看有没有模型。核心不读它。设置页不画（`hidden`） |
 | `compaction.prepare` | 开关 | `true` | 系统、个人 | 不能写 | `next_turn` | 6-11 上（`compaction.md` 第十五条）：提前压好，会话 actor 回合开始时读、交给内核。设置页在「高级」那一页的「压缩」一组，排在「运行日志」前面 |
+| `memory.extract_idle` | 时长，60 秒到 1 小时 | `3m` | 系统、个人 | 不能写 | `next_turn` | R-6 上（`memory.md` 第六条第 1 款）：会话闲了多久才抽新的一段；设置页在「软件包」那一页、人格记忆那一组（施工 F-4 从「高级」那一页挪过来），记忆包没装的不画 |
+| `memory.extract_turns` | 整数 1 到 100 | `2` | 系统、个人 | 不能写 | `next_turn` | R-6 上：上次抽到以后至少有几轮她答了话才抽 |
+| `memory.organizer` | 引用 | 没有：照 `models.chat` | 系统、个人 | 不能写 | `next_turn` | R-6 上：抽取、合并（R-7 上）照哪个模型发，经一次性入口、用途 `memory` 记账。`memory.*` 几项由核心替人格记忆这个内置包声明，施工 F-4 起归它那一组（`miyu_core::settings` 的 `OWNED`），包没装的照样认、设置页不画 |
+| `memory.merge_every` | 时长，1 小时到 720 小时 | `24h` | 系统、个人 | 不能写 | `next_turn` | R-7 上（`memory.md` 第七条第 1 款）：离上次合并至少多久才再合；抽取记下以后照那一轮的配置读 |
+| `memory.merge_sessions` | 整数 1 到 100 | `5` | 系统、个人 | 不能写 | `next_turn` | R-7 上：上次合并以后至少抽过几个会话才再合 |
 | `persona.default` | 名字（人格的编号） | 没有 | 系统、个人 | 不能写 | `new_session` | P-1 上（`personas.md`）：没指定人格的新会话照它找；没设的无人格，指着没有的人格当没设（施工 P-4 上：出厂不设，原来是 `engineer`；预设不再管默认人格） |
 | `preset.default` | 名字（预设的编号） | `full` | 系统、个人 | 不能写 | `new_session` | P-2 上（`presets.md`）：没指定预设的新会话照它找；指着没有的预设，造会话回 `unknown_preset`，不悄悄换（Y12）。设置页在「通用」那一页的「预设」一组 |
 | `models.chat` | 引用 | 没有：`no_model` | 系统、个人 | 不能写 | `new_session` | 8-6 |
@@ -377,7 +382,7 @@ miyu_config::settings! {
 {"groups":[{"id":"display","name":"显示","page":"general"}],"items":[{"applies":"now","common":true,"control":"select","default":"auto","description":"终端、网页、命令行给你看的字用哪种话。auto 跟着终端或浏览器的语言。","group":"display","key":"ui.language","layers":["system","personal"],"name":"界面语言","options":[{"name":"跟随系统","value":"auto"},{"name":"中文","value":"zh"},{"name":"English","value":"en"},{"name":"日本語","value":"ja"}],"page":"general","type":"option"}],"pages":[{"id":"general","name":"通用"}]}
 ```
 
-- 每一项的格：`key`、`type`，照类型带 `options`（选项：`value` 和给人看的 `name`）、`min`、`max`、`max_chars`、`element`，再是 `default`、`layers`、`tighten`（没有不写）、`env`（没有不写）、`applies`、`name`、`description`、`page`、`group`、`common`、`control`，设置页不画的再带 `hidden: true`（施工 9-1 下：网页的空闲、票据那几项）。
+- 每一项的格：`key`、`type`，照类型带 `options`（选项：`value` 和给人看的 `name`；核心查得出的再带 `note`，头接在名字后面暗色写，施工 R-5 再补：现在只有 `models.embedding` 的 `local`，写内置模型的名字，照核心手里的本机清单的 `id`，本机的那一路用不上的没有；不进给人看的字；核心查得出用不了的再带 `available: false`，只写 `false`，头照样列着、画成灰的、选不了，为什么用不了的那一句头自己写，施工 R-5 三补：现在只有 `local`，本机的那一路没有时，就是没装内置语义模型的包）、`min`、`max`、`max_chars`、`element`，再是 `default`、`layers`、`tighten`（没有不写）、`env`（没有不写）、`applies`、`name`、`description`、`page`、`group`、`common`、`control`，设置页不画的再带 `hidden: true`（施工 9-1 下：网页的空闲、票据那几项）。
 - 写了清单里没有的键：`unknown_config_key`，`data.problems` 里每个不认识的一条：`code` 是 `unknown_key`，`level` 是 `error`（请求写错了，不是文件里的警告），`key`、`message`，有最近的键名的带 `suggest`，没有行列。
 - 名字、说明这种语言里没有的，照英文（`store/resources.md` 第 3 条的退法），英文也没有的名字照键、说明是空的；页、组的名字同样，都没有的照编号。
 
@@ -485,8 +490,8 @@ miyu_config::settings! {
 | 格 | 是什么 |
 |---|---|
 | `layer` | `system` 或 `personal`。项目配置不推：不监视，每一轮开始时读（第三条） |
-| `via` | `set` 经 `config.set` 改的，`edit` 经 `config.set` 整份换的，`file` 手改、核心看到文件变了 |
-| `by` | 谁改的，`via` 是 `set`、`edit` 才有。写法照 `kernel/ids.md`，`kind` 在最前 |
+| `via` | `set` 经 `config.set` 改的，`edit` 经 `config.set` 整份换的，`file` 手改、核心看到文件变了，`package` 装卸软件包以后配置清单换了、照新的清单重新认（施工 F-5 补：文件没变，认得的项、问题变了） |
+| `by` | 谁改的，`via` 是 `set`、`edit` 才有（`file`、`package` 没有）。写法照 `kernel/ids.md`，`kind` 在最前 |
 | `version` | 这份文件现在的版本。文件被删了是 `null` |
 | `keys` | 这一层里变了的每一项，格同 `config.set` 的回应 |
 | `problems` | 这份文件现在的全部问题。改好了的推一条空的，头照它收起报错 |
@@ -613,7 +618,7 @@ miyu_config::settings! {
 
 **一、清单和生成的文件**（8-1）
 
-1. 清单是各模块 `ITEMS` 登记成的一张表（`miyu-core/src/settings.rs` 的 `MODULES`），照登记的先后，一个模块里照声明的先后；后面接着软件包清单里声明的配置项（`Packaged`，施工 9-1 下，`packages.md`「配置项」）：键是 `<包的编号>.<名字>`，都在「软件包」那一页、一个包一组，名字、说明从清单来。核心起来时合成一次，之后不变；装卸软件包要重启核心。
+1. 清单是各模块 `ITEMS` 登记成的一张表（`miyu-core/src/settings.rs` 的 `MODULES`），照登记的先后，一个模块里照声明的先后；后面接着软件包清单里声明的配置项（`Packaged`，施工 9-1 下，`packages.md`「配置项」）：键是 `<包的编号>.<名字>`，都在「软件包」那一页、一个包一组，名字、说明从清单来。核心起来时合成一次；经 `package.install`、`package.remove` 装卸以后照新的清单再合一次、当场换上（施工 F-5 补，`packages.md`「配置项」第 2 条），别的时候不变。
 2. 键：至少两段，每一段是小写字母开头，只有小写字母、数字、`_`。第一段是声明它的模块的编号，`ext` 留给扩展，内置的不许用。
 3. 两个键不指同一件事：键不重复。一个键也不能是另一个键按段数的前缀（有了 `ui.language` 就不能再有一项叫 `ui`，不然 `ui` 那一格是表还是值说不清）。照段比：`ui.lang` 不是 `ui.language` 的前缀。
 4. 每一项的默认值要过它自己的校验（选项：是列出的之一，区分大小写）。选项至少两个、不重复，至少能放一层、层不写重。整数、小数、时长必写范围，文字必写最多几个字，随这几种类型加。
@@ -971,12 +976,33 @@ prepare = true
 # 能写：error、warn、info、debug、trace 或 off。只能写在系统配置里。当场生效。
 level = "info"
 
+[memory]
+# 整理记忆前等多久：聊完闲了这么久，她把新聊的内容里值得记的整理成记忆。
+# 能写：1m 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。下一轮生效。
+extract_idle = "3m"
+
+# 攒几轮再整理：上次整理以后至少聊了这么多轮才整理。
+# 能写：1 到 100 之间的整数。只能写在系统配置或个人设置里。下一轮生效。
+extract_turns = 2
+
+# 多久归纳一次记忆：隔这么久，她把新记的和以前的放在一起理一遍：重复的合掉，过时的作废，写一段对你的了解。
+# 能写：1h 到 720h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。下一轮生效。
+merge_every = "24h"
+
+# 攒几次聊天再归纳：上次归纳以后至少整理过这么多次聊天才归纳。
+# 能写：1 到 100 之间的整数。只能写在系统配置或个人设置里。下一轮生效。
+merge_sessions = 5
+
+# 整理记忆的模型：整理记忆时用的模型，照用量算钱。没选的用主对话的模型。
+# 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。
+# organizer =
+
 [models]
 # 主对话的模型：新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash；也能写 @池。
 # 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。以后开的会话生效。
 # chat =
 
-# 按意思找记忆：她搜记得的事和以前的对话时，意思对、字对不上的也找得到。本机的模型第一次用时下载约 24 MB；指定一家供应商的模型照用量算钱；关了只照关键词找。
+# 语义模型：提高记忆、知识库等内容的检索质量。
 # 能写：local、off 或 <供应商>/<模型>。只能写在系统配置或个人设置里。下一轮生效。
 # embedding =
 
@@ -1025,19 +1051,19 @@ base = "10s"
 max = "5m"
 
 [onebot]
-# QQ 桥的端口：NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/ws。
+# 接入QQ的端口：NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/ws。
 # 能写：1024 到 65535 之间的整数。只能写在系统配置里。当场生效。
 listen = 8301
 
-# QQ 桥的令牌：NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。写 { secret = "名字" }（用 miyu login 存）或 { env = "环境变量" }。没设的，QQ 桥照样起来，NapCat 连进来会被拒；在 QQ 桥的网页上能生成一个。改了以后，NapCat 下一次连进来就照新的。
+# 接入QQ的令牌：NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。写 { secret = "名字" }（用 miyu login 存）或 { env = "环境变量" }。没设的，接入QQ照样起来，NapCat 连进来会被拒；在接入QQ的网页上能生成一个。改了以后，NapCat 下一次连进来就照新的。
 # 能写：{ secret = "…" } 或 { env = "…" }。只能写在系统配置里。当场生效。
 # token =
 
-# QQ 桥的自己人：私聊里能叫她、不限流、睡着时私聊也放行的人，写平台上的身份的列表，例如 ["qq:20017"]。在 QQ 桥的网页上改。QQ 桥接通群以后才照它认人。
+# 接入QQ的自己人：私聊里能叫她、不限流、睡着时私聊也放行的人，写平台上的身份的列表，例如 ["qq:20017"]。在接入QQ的网页上改。接入QQ接通群以后才照它认人。
 # 能写：最多 128 个字的文字 的列表。只能写在系统配置里。当场生效。
 # trusted =
 
-# QQ 桥网页的端口：QQ 桥自己的网页（连接 NapCat、换令牌）的端口，只听本机。用 miyu-onebot web 打开。
+# 接入QQ网页的端口：接入QQ自己的网页（连接 NapCat、换令牌）的端口，只听本机。用 miyu-onebot web 打开。
 # 能写：1024 到 65535 之间的整数。只能写在系统配置里。当场生效。
 web = 8302
 
@@ -1226,6 +1252,46 @@ ticket_idle_seconds = 43200
       },
       "type": "object"
     },
+    "memory": {
+      "properties": {
+        "extract_idle": {
+          "default": "3m",
+          "description": "聊完闲了这么久，她把新聊的内容里值得记的整理成记忆。能写：1m 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。下一轮生效。",
+          "pattern": "^[0-9]+[smh]?$",
+          "title": "整理记忆前等多久",
+          "type": "string"
+        },
+        "extract_turns": {
+          "default": 2,
+          "description": "上次整理以后至少聊了这么多轮才整理。能写：1 到 100 之间的整数。只能写在系统配置或个人设置里。下一轮生效。",
+          "maximum": 100,
+          "minimum": 1,
+          "title": "攒几轮再整理",
+          "type": "integer"
+        },
+        "merge_every": {
+          "default": "24h",
+          "description": "隔这么久，她把新记的和以前的放在一起理一遍：重复的合掉，过时的作废，写一段对你的了解。能写：1h 到 720h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。下一轮生效。",
+          "pattern": "^[0-9]+[smh]?$",
+          "title": "多久归纳一次记忆",
+          "type": "string"
+        },
+        "merge_sessions": {
+          "default": 5,
+          "description": "上次归纳以后至少整理过这么多次聊天才归纳。能写：1 到 100 之间的整数。只能写在系统配置或个人设置里。下一轮生效。",
+          "maximum": 100,
+          "minimum": 1,
+          "title": "攒几次聊天再归纳",
+          "type": "integer"
+        },
+        "organizer": {
+          "description": "整理记忆时用的模型，照用量算钱。没选的用主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
+          "title": "整理记忆的模型",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "models": {
       "properties": {
         "catalog": {
@@ -1350,8 +1416,8 @@ ticket_idle_seconds = 43200
               "type": "string"
             }
           ],
-          "description": "她搜记得的事和以前的对话时，意思对、字对不上的也找得到。本机的模型第一次用时下载约 24 MB；指定一家供应商的模型照用量算钱；关了只照关键词找。能写：local、off 或 <供应商>/<模型>。只能写在系统配置或个人设置里。下一轮生效。",
-          "title": "按意思找记忆"
+          "description": "提高记忆、知识库等内容的检索质量。能写：local、off 或 <供应商>/<模型>。只能写在系统配置或个人设置里。下一轮生效。",
+          "title": "语义模型"
         },
         "vision": {
           "description": "主对话的模型看不了图时，替它看图的模型。写法同主对话的模型。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。下一轮生效。",
@@ -1807,9 +1873,19 @@ ticket_idle_seconds = 43200
 | 说明 | 这个模型的上下文窗口，单位 token。 | The context window of this model, in tokens. | このモデルのコンテキストウィンドウ。単位はトークン。 |
 | `models.vision` 名字（8-8） | 看图的模型 | Vision model | 画像を見るモデル |
 | 说明 | 主对话的模型看不了图时，替它看图的模型。写法同主对话的模型。 | Looks at images for the chat model when it cannot. Written like the chat model. | 会話のモデルが画像を見られないとき、代わりに見るモデル。書き方は会話のモデルと同じです。 |
-| `models.embedding` 名字（R-5 下） | 按意思找记忆 | Search by meaning | 意味で記憶を探す |
-| 说明 | 她搜记得的事和以前的对话时，意思对、字对不上的也找得到。不写的用本机的模型，第一次用时下载约 24 MB；写 off 只照关键词找。 | When she searches what she remembers and past conversations, she also finds what means the same in other words. Left out, the local model is used and downloads about 24 MB the first time; off searches by keywords only. | 覚えていることや以前の会話を探すとき、言葉が違っても意味が合うものも見つけます。書かなければローカルのモデルを使い、初回に約 24 MB をダウンロードします。off はキーワードだけで探します。 |
-| 选项 | `local` 本机的模型、`off` 关 | Local model、Off | ローカルのモデル、オフ |
+| `models.embedding` 名字（R-5 下；R-5 再补改名，2026-10-09 项目主人定） | 语义模型 | Semantic model | 意味モデル |
+| 说明 | 提高记忆、知识库等内容的检索质量。 | Improves search quality for memories, knowledge bases and more. | 記憶やナレッジベースなどの検索の質を高めます。 |
+| 选项 | `local` 内置模型、`off` 关 | Built-in model、Off | 内蔵モデル、オフ |
+| `memory.extract_idle` 名字（R-6 上） | 整理记忆前等多久 | Wait before organizing memories | 記憶を整理するまでの待ち時間 |
+| 说明 | 聊完闲了这么久，她把新聊的内容里值得记的整理成记忆。 | Once the conversation has been quiet this long, she turns what is worth keeping from the new part into memories. | 会話がこの時間止まると、新しい部分のうち覚えておく価値のあるものを記憶にまとめます。 |
+| `memory.extract_turns` 名字（R-6 上） | 攒几轮再整理 | Turns before organizing | 整理までのターン数 |
+| 说明 | 上次整理以后至少聊了这么多轮才整理。 | She organizes only after at least this many turns since the last time. | 前回の整理からこのターン数以上話したときだけ整理します。 |
+| `memory.organizer` 名字（R-6 上） | 整理记忆的模型 | Memory organizer model | 記憶を整理するモデル |
+| 说明 | 整理记忆时用的模型，照用量算钱。没选的用主对话的模型。 | The model used to organize memories, billed by usage. If none is chosen, the chat model is used. | 記憶の整理に使うモデルです。使った分だけ料金がかかります。選ばなければ会話のモデルを使います。 |
+| `memory.merge_every` 名字（R-7 上） | 多久归纳一次记忆 | How often to consolidate memories | 記憶をまとめる間隔 |
+| 说明 | 隔这么久，她把新记的和以前的放在一起理一遍：重复的合掉，过时的作废，写一段对你的了解。 | After this long she goes over new and older memories together: drops repeats and outdated ones, and writes a summary of what she knows about you. | この間隔で、新しい記憶と以前の記憶を見直します：重複や古くなったものを除き、あなたについての要約を書きます。 |
+| `memory.merge_sessions` 名字（R-7 上） | 攒几次聊天再归纳 | Chats before consolidating | まとめる前の会話数 |
+| 说明 | 上次归纳以后至少整理过这么多次聊天才归纳。 | Consolidate only after memories have been taken from at least this many chats since the last time. | 前回まとめてから、少なくともこの数の会話から記憶を取り出したらまとめます。 |
 | `pools.<id>.models` 名字（8-8） | 池的成员 | Pool members | プールのメンバー |
 | 说明 | 几个模型编成一组，每个写成 供应商/模型。 | A group of models, each written as provider/model. | いくつかのモデルをひとまとめにします。それぞれ プロバイダー/モデル の形で書きます。 |
 | `pools.<id>.strategy` 名字（8-8） | 池的分法 | Pool strategy | プールの分け方 |
@@ -1842,6 +1918,7 @@ ticket_idle_seconds = 43200
 | 组 `pools`（`models`，8-8） | 池 | Pools | プール |
 | 组 `providers`（`models`） | 供应商 | Providers | プロバイダー |
 | 组 `log`（`advanced`） | 运行日志 | Runtime log | 実行ログ |
+| 组 `memory`（`advanced`，R-6 上） | 记忆 | Memory | 記憶 |
 
 **生成的文件要的几句**（`core/human/<语言>.json` 的 `said`，编号前面加 `core/`，8-1）。日文照中文写，用词照终端界面的日文（施工 4-5 补），句子里用全角的「：」：
 
@@ -2093,6 +2170,7 @@ Options:
 | `crates/miyu-config/src/list/tests.rs` | 查清单：键重复、按段互为前缀（`ui.lang` 不算）、写法不对（一段、大写、别的字、空段、数字或 `_` 开头）、第一段 `ext`、默认值过不了校验、选项少于两个或写重、一层都没有或层写重，各一例；几处都错的全报 | 8-1 |
 | `crates/miyu-config/src/words/tests.rs` | 查资源的字：缺名字、说明、选项名，页和组没名字，资源里多了项、选项、页、组，各一例。几个里的一个怎么连（一个、两个、三个以上，值和字两种「或」）。一项说明后面那几句。缺了哪一句照实报 | 8-1 |
 | `crates/miyu-config/src/item/kind/model_or_tests.rs`、`dangling/tests.rs` 的 `a_model_or_word_is_not_checked_and_its_model_is` | 模型或几个字（R-5 补）：列出的字、模型都收，池、写错的、空的、不是字的拒；宏照 `model_or [..]` 声明；TOML、协议、人敲的都读得出；说法、Schema 的 `anyOf`；清单里字重了、带 `/`、一个都没有的报（参考文件里的样子由生成文件的样本守着）；`dangling` 不查字、查模型的供应商 | R-5 补 |
+| `crates/miyu-endpoint/tests/config.rs` 的 `a_model_or_item_lists_its_words`、`memory_meaning.rs` 的 `the_built_in_option_notes_the_local_model` | 协议上 `config.schema` 里 `models.embedding` 的类型是 `model_or`、带 `options`（那几个字和它们的名字）、控件 `text`（R-5 补）；名字「语义模型」、说明、`local` 叫「内置模型」，没接本机的那一路的不带 `note`，接上了的「内置模型」带 `note`（本机清单的 `id`），「关」不带（R-5 再补）；没接的「内置模型」带 `available: false`，接上了的、「关」都不带（R-5 三补） | R-5 补、R-5 再补、R-5 三补 |
 | `crates/miyu-config/src/schema/tests.rs`、`reference/tests.rs`、`value/tests.rs` | 拿假的字和手写的几项：Schema 只有这一层的项、一层层的表、格照字母先后、这一层什么都没有的；参考文件表照名字排、表里的项照名字排、不重开同一张表、每一项两行注释、项间空一行、多行的字每一行都是注释；缺字报是哪一句。值写成 TOML（引号、反斜杠、控制字符转义）、写成 JSON | 8-1 |
 | `crates/miyu-core/tests/settings.rs` | 登记的全部清单过 `list::check`，照登记的先后（8-3 起有 `tui.startup`、8-28 改名 `ui.startup`，8-6 起有模型那一块的六项，O-8 到 O-20 最后是 `onebot.*` 四项，O-20 挪进桥的清单）。`onebot.trusted`（O-17；O-20 起照出厂清单的 `[settings]` 拼进来的那一项查）的类型、层、生效、界面照 `onebot.md` 第一条「软件包清单」，读得出、不写是没有，写进个人设置、不是列表、元素不是字、空的、超过 128 个字的报问题。中文、英文、日文三份（直接读文件）过 `words::check`。照源码树的资源生成的两份 Schema、参考文件和样本逐字节一样（中文、英文），日文生成得出来 | 8-1 |
 | `crates/miyu-core/src/settings/tests.rs` | 起来时生成：字照系统的语言挑（日文、没有的照英文）。资源里缺字、读不懂的，三份各记一条 `WARN`，什么都不写 | 8-1 |
@@ -2118,6 +2196,7 @@ Options:
 | `crates/miyu-store/src/watch/tests.rs` | 先写新文件再改名的存法认得出、删掉的认得出。合并：连着的几下交一次、静够了才交，隔开的另一次。别的文件名、别的目录里同名的、只读的动静不理，事件丢了的每一份都交一次。链接指向的目录也看，经链接给的目录交的是给的那个路径。照真实的位置比（macOS 的临时目录在 `/var` 下）。系统的监视起不来退回轮询（Linux 上拿还没有的目录让 inotify 拒绝），轮询也看得到 | 8-4 |
 | `crates/miyu-endpoint/tests/config_watch.rs` | 手改推 `config.changed`（`via: file`，不带 `by`，样子逐格比）、记账号日志（`by` 是内核、没有 `cause`）、换上。`config.set` 先见推送、后见回应，推的和回应的一样，核心自己写的不重推、不重记。改坏了推问题（`using` 是 `last_good`，项照上一次的）、改好了推空的。只动注释的不推（换上），字节一样的什么都不做（不换），删了这一层变空（`version` 是 `null`）。订阅不带会话、`after`，别的流、`events` 不带会话的 `bad_params`；取消订阅以后不推，再订阅照推。掉队推 `resync`、之后不推、回应一条不丢。改了 `ui.language`，连接下一句的拒绝、`config.schema` 照新的语言。手改 `trust.toml` 记 `trust.changed`（`via: file`）、`config.get` 照新的信任、不推。每一轮照那一刻的配置：项目配置改了内容不算、回合之间 `config.set` 的下一轮用上 | 8-4 |
 | `crates/miyu-endpoint/tests/config_watch_log.rs` | 运行日志：手改被看到的记 `INFO config changed layer=… via=file keys=…`；监视起不来记 `WARN config watch unavailable`、退回轮询照样推（Linux） | 8-4 |
+| `crates/miyu-endpoint/tests/packages_config.rs`、`crates/miyu/tests/packages_live.rs`、`crates/miyu-core/src/settings/tests.rs` | 装上声明了配置项的包：早写着的它的键当场认得、推 `config.changed`（`via: package`，不带 `by`）、`config.get`、`config.schema` 有它；只有问题变了的那一层照样推；认得的没变的不推；卸掉又报不认识。真核心生成的参考文件照新的清单重写、卸掉又没了；配置清单变了、语言没变也重写 | F-5 补 |
 | `crates/miyu-session/tests/turn_config.rs` | 回合中途改了配置，这一轮的两次请求（出错再来的那一次也算）照开始时的，下一轮照新的。每一轮开始都照会话的目录重新取（造会话一次、每轮一次） | 8-4 |
 | `crates/miyu-core/src/settings/tests.rs` | 运行中换了配置：`log.level` 当场换级别、记 `INFO log level`，`ui.language` 变了重写生成的文件；`MIYU_LOG` 设了的，配置怎么改都不换级别 | 8-4 |
 | `crates/miyu-endpoint/src/config/journal/tests.rs`、`config/tests/trust.rs` | 手改被看到的日志：`by` 是内核、没有 `cause`，`trust.changed` 多 `via`。手改的信任记录只报回答变了的、新加的仓库，照最后一条算 | 8-4 |

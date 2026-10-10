@@ -89,6 +89,10 @@ pub struct JobStarted {
     /// 子代理的会话；后台命令没有。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session: Option<SessionId>,
+    /// 前台跑的子代理（施工 T-1 下）：后台运行关着的会话派的，派它的那一步等它报回来，回报不叫醒。内核记结果时照策略填；
+    /// 后台的、以前的日志不写。
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub foreground: bool,
 }
 
 /// `job.messaged`：给自己派的子代理留了言（施工 7-7，`agents.md` 第六条）。子代理收到父会话的留言就欠一份回报，父会话

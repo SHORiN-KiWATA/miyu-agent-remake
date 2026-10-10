@@ -75,6 +75,7 @@ fn policy_with(system: String) -> Policy {
         parameters: serde_json::from_str(PATH).expect("参数格式是 JSON"),
     };
     Policy {
+        foreground: false,
         assembler: Box::new(DefaultAssembler::new(stable(system), texts())),
         facts: templates(),
         tools: BTreeMap::from([

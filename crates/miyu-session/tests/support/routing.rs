@@ -29,6 +29,7 @@ pub fn items() -> Vec<Item> {
         UseSettings::ITEMS,
         PoolSettings::ITEMS,
         miyu_session::settings::CompactionSettings::ITEMS,
+        miyu_session::settings::MemorySettings::ITEMS,
     ]
     .concat()
 }

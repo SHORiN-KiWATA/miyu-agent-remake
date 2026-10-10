@@ -40,9 +40,9 @@ async fn set(client: &mut Client, id: &str, preset: &str, changes: Value) -> Val
         .await
 }
 
-/// 回应里软件 `id` 开不开；没有这一个的是没有。
+/// 回应里功能 `id` 开不开（施工 F-3 下）；没有这一个的是没有。
 fn on(reply: &Value, id: &str) -> Option<bool> {
-    reply["result"]["software"]
+    reply["result"]["features"]
         .as_array()?
         .iter()
         .find(|one| one["id"] == id)?["on"]
@@ -164,8 +164,8 @@ async fn changing_a_shipped_one_writes_only_what_changed_and_keeps_the_rest_of_t
     .await;
     assert_eq!(
         on(&unset, "memory"),
-        None,
-        "没装、也不再写着的不列：{unset}"
+        Some(false),
+        "删了回到下面那一层：基础功能没写记忆，照 unlisted 关着（施工 F-3 下起人格记忆随出厂的清单装着，一直列）：{unset}"
     );
 }
 
@@ -201,11 +201,11 @@ async fn conflicts_and_mistakes_write_nothing() {
         &mut client,
         "e9",
         "dev",
-        json!([{"key": "software.net", "value": false, "expect": {}}]),
+        json!([{"key": "features.files", "value": false, "expect": {}}]),
     )
     .await;
     assert_eq!(
-        on(&matching, "net"),
+        on(&matching, "files"),
         Some(false),
         "对得上的照写：{matching}"
     );
@@ -295,7 +295,11 @@ async fn deleting_your_layer_goes_back_to_what_is_below() {
     let got = client
         .call("g1", "preset.get", json!({"preset": "dev"}))
         .await;
-    assert_eq!(on(&got, "memory"), None, "回到出厂的：出厂的没写记忆");
+    assert_eq!(
+        on(&got, "memory"),
+        Some(false),
+        "回到出厂的：出厂的基础功能没写记忆，照 unlisted 关着"
+    );
     assert_eq!(got["result"]["remove"], Value::Null);
 
     let gone = client
@@ -456,44 +460,4 @@ async fn an_empty_summary_means_none_and_covers_the_lower_one() {
     assert_eq!(reason(&named), Some("preset_invalid"), "{named}");
 }
 
-/// 预设不再有默认人格（施工 P-4 上，2026-10-08 项目主人：只去掉预设的「默认人格」）：`preset.set` 写这个键参数不对，什么都不写；
-/// 旧文件里写了的，下一次写这份文件时去掉；`preset.get` 没有这一格。
-#[tokio::test]
-async fn the_default_persona_is_gone_from_presets() {
-    let home = Home::new();
-    let mut client = connected(&home).await;
-    for (n, changes) in [
-        json!([{"key": "preset.default_persona", "value": "engineer"}]),
-        json!([{"key": "preset.default_persona", "unset": true}]),
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let reply = set(&mut client, &format!("b{n}"), "dev", changes.clone()).await;
-        assert_eq!(reason(&reply), Some("bad_params"), "{changes}：{reply}");
-    }
-    assert_eq!(mine(&home, "dev"), None, "什么都没写");
-    let dir = home.root.path().join("home/alice/presets");
-    std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(
-        dir.join("old.toml"),
-        "[preset]\nname = \"我的\"\ndefault_persona = \"engineer\"\n",
-    )
-    .unwrap();
-    let got = client
-        .call("g", "preset.get", json!({"preset": "old"}))
-        .await;
-    assert!(got["result"].get("default_persona").is_none(), "{got}");
-    let reply = set(
-        &mut client,
-        "s",
-        "old",
-        json!([{"key": "preset.summary", "value": "改过"}]),
-    )
-    .await;
-    assert!(reply.get("error").is_none(), "{reply}");
-    assert_eq!(
-        mine(&home, "old").as_deref(),
-        Some("[preset]\nname = \"我的\"\nsummary = \"改过\"\n")
-    );
-}
+mod fields;

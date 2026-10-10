@@ -8,6 +8,7 @@ mod support;
 mod human;
 mod human_languages;
 mod memory;
+mod memory_extracted;
 mod recall;
 mod recall_marks;
 mod recall_vectors;

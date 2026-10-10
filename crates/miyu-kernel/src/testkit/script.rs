@@ -219,6 +219,7 @@ impl Play {
         Play::Starts {
             text: format!("Started {job}."),
             started: JobStarted {
+                foreground: false,
                 job,
                 what,
                 title: title.to_string(),

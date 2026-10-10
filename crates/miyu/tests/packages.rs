@@ -73,12 +73,12 @@ fn the_help_page_lists_package_commands_but_not_ones_taken_by_builtins() {
     install(&home, "taken", &manifest("ask", "miyu", "Not me"));
     let zh = text(&miyu(&home, "zh_CN.UTF-8", &["-h"]).stdout);
     assert!(
-        zh.contains("\n\n软件包加的命令：\n  onebot                开、关、查看 QQ 桥\n  probe                 Probe it（中）\n  tui                   打开终端界面\n\n"),
+        zh.contains("\n\n软件包加的命令：\n  onebot                开、关、查看接入QQ\n  probe                 Probe it（中）\n  tui                   打开终端界面\n\n"),
         "{zh}"
     );
     let en = text(&miyu(&home, "C", &["--help"]).stdout);
     assert!(
-        en.contains("\n\nCommands from packages:\n  onebot                Start, stop and look at the QQ bridge\n  probe                 Probe it\n  tui                   Open the terminal interface\n\n"),
+        en.contains("\n\nCommands from packages:\n  onebot                Start, stop and look at Connect QQ\n  probe                 Probe it\n  tui                   Open the terminal interface\n\n"),
         "{en}"
     );
     assert!(!en.contains("Not me"), "撞了内置的不列：{en}");
@@ -99,7 +99,7 @@ fn the_help_page_lists_package_commands_but_not_ones_taken_by_builtins() {
     let shipped = text(&miyu(&plain, "C", &["-h"]).stdout);
     assert!(
         shipped.contains(
-            "\n\nCommands from packages:\n  onebot                Start, stop and look at the QQ bridge\n  tui                   Open the terminal interface\n\n"
+            "\n\nCommands from packages:\n  onebot                Start, stop and look at Connect QQ\n  tui                   Open the terminal interface\n\n"
         ),
         "{shipped}"
     );
@@ -124,4 +124,38 @@ fn a_missing_program_is_said_and_an_unknown_word_is_still_refused() {
     let unknown = miyu(&home, "C", &["hello"]);
     assert_eq!(unknown.status.code(), Some(2), "不认识的照旧拒");
     assert!(!home.root.run().join("socket").exists(), "没拉起核心");
+}
+
+/// 清单是内置包、这一份核心没编进它的代码（施工 F-2，设计 30 第二节第 3 条）：真核心起来时照读坏了的清单记一行
+/// `WARN package invalid`，带 `not_built_in`；编进来了的出厂内置包不记。
+#[tokio::test]
+async fn the_core_says_which_builtin_it_lacks() {
+    let home = Home::new();
+    install(
+        &home,
+        "xghost",
+        "[package]\nkind = \"builtin\"\nprotocol = [1, 1]\nname = { en = \"Ghost\" }\n",
+    );
+    let (connection, token) = crate::support::within(
+        "拉起",
+        miyu_ipc::connect_or_start(&home.root, || home.core()),
+    )
+    .await
+    .expect("拉得起");
+    let reply = crate::support::hello(connection, &token).await;
+    assert!(reply.get("error").is_none(), "{reply}");
+    home.until_stopped().await;
+    let log = home.core_log();
+    let lacking: Vec<&str> = log
+        .lines()
+        .filter(|line| line.contains("package invalid"))
+        .collect();
+    assert_eq!(lacking.len(), 1, "{log}");
+    assert!(lacking[0].contains("xghost"), "{log}");
+    assert!(lacking[0].contains("built-in package xghost"), "{log}");
+    assert_eq!(
+        crate::support::count(&log, "required package missing"),
+        0,
+        "{log}"
+    );
 }
