@@ -4,12 +4,12 @@
 //! 记号在 `layout.json` 的 `note_marks`。
 
 import { res, t } from '../util/res.js';
-import { seconds, short } from './format.js';
+import { short } from './format.js';
 import { shortSession } from './words.js';
 
 /**
- * @typedef {{what: string, title: string, session: string|null, command: string|null, foreground?: boolean}} Job 派出去的一个任务（`tool.result` 的效果
- *   `job.started`；命令照派它的那次 `shell` 调用的 `command`）
+ * @typedef {{what: string, title: string, session: string|null, command: string|null}} Job 派出去的一个任务（会话状态的任务表、
+ *   后台任务的旁白；`model/entries.js` 的 `jobsOf`）
  * @typedef {{kind: string, account: string|null, name: string}} Speaker 一句话是谁说的
  * @typedef {{kind: 'output', command: string|null, hash: string|null, chars: number|null}|{kind: 'text', text: string, truncated: boolean}} Detail
  *   点开一行看什么：后台命令的命令和整份输出（blob），子代理交回的正文（Markdown）
@@ -17,21 +17,6 @@ import { shortSession } from './words.js';
 
 /** 内核自己查出来的几种错：不是供应商的原话，写分类的人话（`tui.md`「正文」第 4 条）。 */
 const KERNEL_CLASSES = ['bad_stream', 'empty_reply', 'bad_summary', 'compaction_paused', 'no_model', 'cooling'];
-
-/**
- * 一条 `tool.result` 里派出去的任务，记进 `jobs`（任务编号 → 种类、标题、子会话、命令）。
- * @param {any} e
- * @param {Map<string, Job>} jobs
- * @param {Map<string, string>} args 调用编号 → 那次调用的参数（原样的 JSON）
- */
-export function noteJobs(e, jobs, args) {
-  for (const fx of e.body.effects ?? []) {
-    if (fx.kind !== 'job.started') continue;
-    let command = null;
-    try { command = JSON.parse(args.get(e.body.call_id) ?? '{}').command ?? null; } catch { /* 参数读不懂的不写命令 */ }
-    jobs.set(fx.job, { what: fx.what, title: fx.title, session: fx.session ?? null, command: typeof command === 'string' ? command : null, foreground: fx.foreground === true });
-  }
-}
 
 /**
  * 一句话是谁说的：人照账号；子代理照派它的那次的标题；父会话写「派它的会话」，别的会话写「从会话 短编号 收到消息」；别的 harness 照它报的名字、注明是别的 agent；平台上的人写「外部」。
@@ -82,42 +67,6 @@ export function peerNote(e) {
   return { type: 'note', key: `n${e.seq}`, seq: e.seq, turn: null, tone, mark: marks[tone] ?? '', text, detail };
 }
 
-/**
- * 回报那一行（`job.reported`、`child.reported`）：不属于哪一轮。
- * @param {any} e
- * @param {Map<string, Job>} jobs
- */
-export function reportNote(e, jobs) {
-  const b = e.body;
-  const job = jobs.get(b.job);
-  const what = e.kind === 'child.reported' ? 'agent' : 'command';
-  const title = job?.title ?? b.job;
-  const texts = res.text.notes[what];
-  const marks = res.layout.note_marks;
-  let tone = 'dim';
-  let text;
-  if (what === 'command' && b.reason === 'exited') {
-    const ok = b.signal == null && b.exit_code === 0;
-    tone = ok ? 'good' : 'error';
-    text = ok ? t(`notes.${what}.done`, { title }) + (b.duration_ms != null ? ` · ${seconds(b.duration_ms)}` : '')
-      : b.signal != null ? t(`notes.${what}.signal`, { title, signal: b.signal }) : t(`notes.${what}.failed`, { title, code: b.exit_code });
-  } else if (what === 'agent' && b.reason === 'done') {
-    tone = 'good';
-    text = t(`notes.${what}.done`, { title });
-  } else if (texts[b.reason]) {
-    // 停掉的（人停的、她停的、随撤销、因重启、中断）：同一个实心圆点，不写是谁停的（2026-09-30 项目主人定）
-    tone = 'stopped';
-    text = t(`notes.${what}.${b.reason}`, { title });
-  } else {
-    text = t('notes.unknown', { what: texts.name, title, reason: b.reason });
-  }
-  /** @type {Detail} */
-  const detail = what === 'agent'
-    ? { kind: 'text', text: b.text ?? '', truncated: !!b.truncated }
-    : { kind: 'output', command: job?.command ?? null, hash: b.output ?? null, chars: b.chars ?? null };
-  return { type: 'note', key: `n${e.seq}`, seq: e.seq, turn: null, tone, mark: marks[tone] ?? '', text, detail };
-}
-
 /** 压缩、清空那一行（`context.compacted`）：清空的绿点「上下文已清空」，别的「上下文已压缩」，附了要求的接上。 */
 export function compactedNote(e, stats = null) {
   const b = e.body;
@@ -152,49 +101,6 @@ export function compactFailedNote(e) {
     type: 'note', key: `n${e.seq}`, seq: e.seq, turn: e.turn ?? null, tone: 'failed', mark: res.layout.note_marks.failed,
     text: t('notes.compact_failed', { reason: failureText(e.body.error ?? {}) }), detail: null,
   };
-}
-
-/**
- * 不在日志里的几条插进事件里：每条排在 `after` 号（那一刻最后一条落了盘的）后面，`after` 比日志里都大的排在最后。
- * @param {any[]} events
- * @param {{after: number, event: any}[]} extras
- */
-function interleave(events, extras) {
-  if (!extras.length) return events;
-  const out = [];
-  const pending = [...extras];
-  const flush = (seq) => {
-    for (const x of pending.filter((p) => p.after <= seq)) {
-      out.push(x.event);
-      pending.splice(pending.indexOf(x), 1);
-    }
-  };
-  for (const e of events) {
-    out.push(e);
-    flush(e.seq);
-  }
-  flush(Infinity);
-  return out;
-}
-
-/**
- * 回应里 `cached` 为真、照回应再画一次的回顾（蓝图「回顾」第 3 条）：插进事件里，排在要的那一刻最后一条后面，当成不在日志里的
- * `session.recapped`（`local`）。
- * @param {any[]} events
- * @param {{after: number, text: string}[]} again
- */
-export function withRecaps(events, again) {
-  return interleave(events, again.map((r) => ({ after: r.after, event: { kind: 'session.recapped', seq: r.after, local: true, body: { text: r.text } } })));
-}
-
-/**
- * 看着的时候出错换了模型（瞬时的 `model.changed`，核心施工 8-9；`core/store.js` 记下的）：插进事件里，排在收到时最后一条落了盘的
- * 后面。不落盘，刷新以后没有。
- * @param {any[]} events
- * @param {{after: number, at: string, body: any}[]} changes
- */
-export function withChanges(events, changes) {
-  return interleave(events, changes.map((c, i) => ({ after: c.after, event: { kind: 'model.changed', seq: c.after, local: i, at: c.at, body: c.body } })));
 }
 
 /**

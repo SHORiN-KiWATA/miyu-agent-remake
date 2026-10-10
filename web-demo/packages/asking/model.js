@@ -231,29 +231,8 @@ export function report(d, result) {
   };
 }
 
-/** 了结一个调用的事件：答了、决定了、有了结果。 */
-const SETTLES = new Set(['question.answered', 'tool.approval_decided', 'tool.result']);
-
 /**
- * 还没了结的提问、确认（蓝图「确认和提问」第 1 条）：这个调用后面还没有回答、决定、结果的 `question.asked`、`tool.approval_requested`，
- * 照先后。同一个调用答完了又问的（核心允许），照最后那一次算。
- * @param {any[]} events 这个会话的日志
- * @returns {Drawer[]}
- */
-export function pendingAsks(events) {
-  /** @type {Map<string, any>} 调用 → 在等的那一条 */
-  const open = new Map();
-  for (const e of events) {
-    const call = e.body?.call_id;
-    if (!call) continue;
-    if (e.kind === 'question.asked' || e.kind === 'tool.approval_requested') open.set(call, e);
-    else if (SETTLES.has(e.kind)) open.delete(call);
-  }
-  return [...open.values()].map((e) => (e.kind === 'question.asked' ? openAsk({ body: e.body }) : openApproval({ body: e.body })));
-}
-
-/**
- * 照条目画的（核心 9-8 补上）：会话状态的 `waiting` 里没了结的，照先后开：提问照那一步的参数（`ask_user` 的 `questions`），确认照那一步的
+ * 还没了结的提问、确认（蓝图「确认和提问」第 1 条；核心 9-8 补上的会话状态 `waiting`）：照先后开：提问照那一步的参数（`ask_user` 的 `questions`），确认照那一步的
  * `approval`（同 `tool.approval_requested` 的 `body`）。条目里找不到的跳过。
  * @param {any} status @param {any[]} entries
  */

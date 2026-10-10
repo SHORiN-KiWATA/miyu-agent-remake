@@ -32,7 +32,7 @@ export class Pulse {
   }
 
   /**
-   * 这一刻写哪个词。`beat` 是这一轮到现在出过的事的记号（`beatOf`），变了就是来了新的事。
+   * 这一刻写哪个词。`beat` 是这一轮到现在出过的事的记号（`entriesBeat`），变了就是来了新的事。
    * @param {Turn} turn
    * @param {unknown} beat
    * @param {number} now 毫秒
@@ -126,15 +126,8 @@ export function dotCount(t, sweep, count) {
 }
 
 /**
- * 这一轮出过的事的记号。照 TUI，算一件事的只有步与步的交界：开了新的一步（在收的回复多开一块，思考、调工具、
- * 开始写回答都是开一块）、一块收全了（想完、参数写完）、落了盘的事件（回复落盘、工具出了结果、一轮结束）。
- * 接着往一块里写字不算，不然她写回答时一直算在来事、词永远换不了。只比变没变，不比大小（回复落盘时在收的那一份
- * 扔掉，数会往回走）。
- * @param {any[]} events 这个会话的持久事件
- * @param {{seen: number, blocks: ({text: string, done: boolean}|undefined)[]}|null} live 在收的那一次回复（`core/store.js`）
- */
-/**
- * 照条目画的（核心 9-8）这一轮出过的事：条目的条数、几条还开着、会话状态正在做哪一样（同一阵里来的算一阵，换词照它）。
+ * 这一轮出过的事的记号（核心 9-8 的条目）。照 TUI，算一件事的只有步与步的交界：多了一条（开了新的一步、落了盘）、一条收全了
+ * （还开着的少了）、会话状态换了正在做的。接着往一条里写字不算，不然她写回答时一直算在来事、词永远换不了。只比变没变，不比大小。
  * @param {any[]} entries @param {any} status
  */
 export function entriesBeat(entries, status) {
@@ -151,13 +144,6 @@ export function statusRetry(status, turn) {
   if (d?.what !== 'retrying') return null;
   const due = d.at ? Date.parse(d.at) : Number.NaN;
   return { turn, attempt: d.attempt, limit: d.limit, message: d.message ?? '', failover: d.failover === true, ...(Number.isNaN(due) ? {} : { due }) };
-}
-
-export function beatOf(events, live) {
-  if (!live) return `${events.length}`;
-  const opened = live.blocks.filter(Boolean).length;
-  const done = live.blocks.filter((b) => b?.done).length;
-  return `${events.length}|${live.seen}|${opened}|${done}`;
 }
 
 /**

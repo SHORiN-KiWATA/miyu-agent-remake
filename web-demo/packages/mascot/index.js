@@ -11,7 +11,7 @@ import { h } from '../../src/lib/dom.js';
 import { Sprite } from './sprite.js';
 import { Props } from './props.js';
 import { Behavior } from './behavior.js';
-import { runningDeep, runningDeepStatus } from '../../src/lib/jobs.js';
+import { runningDeepStatus } from '../../src/lib/jobs.js';
 
 /** 窄屏（和左栏变抽屉的是同一个宽）不出来 */
 const NARROW = '(max-width: 836px)';
@@ -168,24 +168,14 @@ export function apply(ctx) {
     layer.remove();
   });
   // 她在回答、别的包叫它忙（引导里测连接）：掏电脑、灯一闪一闪；结束合上、跳一下、灯快闪两下。有后台任务在跑（连嵌套的）：灯隔一阵
-  // 亮一下。事件条数没变的不重算
+  // 亮一下（在跑的任务连子孙照会话状态的 `running_deep`，核心 9-8）
   let answering = false;
   let asked = false;
   const busy = (hop = true) => behavior.setBusy(answering || asked, hop);
-  let counted = '';
   ctx.on('view.changed', (v) => {
     answering = !!v.running;
     busy();
-    // 照条目画的（核心 9-8）：在跑的任务连子孙照会话状态（`running_deep`）
-    if (v.status) {
-      behavior.setJobs(v.session ? runningDeepStatus(v.session, (sid) => (sid === v.session ? v.status : ctx.sessions.sessions.get(sid)?.view?.status ?? null)) : 0);
-      return;
-    }
-    const events = (sid) => (sid === v.session ? v.events : ctx.sessions.sessions.get(sid)?.events ?? null);
-    const sig = `${v.session}|${v.events?.length ?? 0}|${[...ctx.sessions.sessions.values()].reduce((n, s) => n + s.events.length, 0)}`;
-    if (sig === counted) return;
-    counted = sig;
-    behavior.setJobs(v.session ? runningDeep(v.session, events) : 0);
+    behavior.setJobs(v.session ? runningDeepStatus(v.session, (sid) => (sid === v.session ? v.status : ctx.sessions.sessions.get(sid)?.view.status ?? null)) : 0);
   });
   ctx.provide('mascot', {
     /** 换到这个舞台上（跳过去）；交回撤销的函数，撤了跳回输入框。 @param {Stage} next */

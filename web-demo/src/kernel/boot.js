@@ -105,8 +105,9 @@ export async function boot(root) {
     console.error(`拿不到给人看的字：${err.message}`);
     return { tools: {}, said: {} };
   });
-  // 核心认视图投影的（握手的 `view` 是 1 起，核心 9-8）：照条目画（蓝图 `web.md`「照条目画」）
-  const store = new Store(conn, { view: (hello?.view ?? 0) >= 1 });
+  // 正文、状态照条目画（蓝图 `web.md`「照条目画」）：握手的 `view` 要 1 起（核心 9-8），旧核心不画，写「核心版本过旧」
+  if ((hello?.view ?? 0) < 1) throw new Offline('old');
+  const store = new Store(conn);
   await store.boot();
   // 断了又连上了（核心重启过）：重新握手，读进来了的会话重新订阅、补上漏掉的，断着时别处开的会话接上
   conn.onReopen(() => {
@@ -269,7 +270,7 @@ export async function boot(root) {
 
 /** 连不上桥（蓝图 `web.md`「连核心」第 9 条）：为什么是哪一种，入口照它画一张卡。 */
 export class Offline extends Error {
-  /** @param {'bad'|'none'|'down'|'core'} kind @param {string} [detail] 桥的原话 */
+  /** @param {'bad'|'none'|'down'|'core'|'old'} kind @param {string} [detail] 桥的原话 */
   constructor(kind, detail = '') {
     super(detail || kind);
     this.kind = kind;

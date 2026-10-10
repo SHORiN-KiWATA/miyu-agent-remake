@@ -1,12 +1,12 @@
 // @ts-check
 //! 确认和提问（软件包 `asking`，蓝图 `web.md`「确认和提问」）：抽屉挂进 `composer.takeover`，开着时占着输入框（服务 `composer` 的
-//! `takeover`）。数据照正在看的会话的事件（核心 D-1 `session.answer`、D-2 `ask_user`）：还没了结的 `question.asked`、
-//! `tool.approval_requested` 一个一个开，答了发 `session.answer`，取消是打断这一轮；别处先答了，开着的当场收掉。了结以后留下的由正文
-//! 那一层照日志排、交给挂载位 `chat.item`（键 `asking`）由这里画，夹在她这一轮里，刷新、别的设备照样有。
+//! `takeover`）。数据照正在看的会话的会话状态（核心 9-8 的 `waiting`；D-1 `session.answer`、D-2 `ask_user`）：在等的确认、提问
+//! 一个一个开，答了发 `session.answer`，取消是打断这一轮；别处先答了，开着的当场收掉。了结以后留下的由正文那一层照条目排、交给挂载位
+//! `chat.item`（键 `asking`）由这里画，夹在她这一轮里，刷新、别的设备照样有。
 
 import { Drawer } from './drawer.js';
 import { Reports } from './report.js';
-import { pendingAsks, pendingFromStatus, reportOf } from './model.js';
+import { pendingFromStatus, reportOf } from './model.js';
 
 /** @param {any} ctx */
 export function apply(ctx) {
@@ -26,7 +26,7 @@ export function apply(ctx) {
   const keyOf = (/** @type {string|null} */ session, /** @type {string} */ call) => `${session ?? ''} ${call}`;
   /** 开着的这一个 @type {{d: import('./model.js').Drawer, session: string|null}|null} */
   let showing = null;
-  /** 最近一次对话区画的（事件 `view.changed`）：会话和日志 @type {{session: string|null, events: any[]}|null} */
+  /** 最近一次对话区画的（事件 `view.changed`）：会话、会话状态、条目 @type {{session: string|null, status: any, entries: any[]}|null} */
   let view = null;
 
   const drawer = new Drawer(ctx.config, text, (result, d) => {
@@ -56,33 +56,29 @@ export function apply(ctx) {
       if (err?.reason !== 'not_asking') ctx.composer.say(err?.message ?? String(err));
     } finally {
       answering.delete(keyOf(session, d.id));
-      // 核心先推事件后回应：这时日志里已经有了结的那一条；拒了的照日志还没了结，再开
+      // 核心先推后回应：这时会话状态已经不等这一问了；拒了的照会话状态还在等，再开
       if (view) sync(view);
     }
   };
 
-  /** 告诉运行状态行在不在等你（状态事件 `asking.waiting`）。 */
-  const announce = () => ctx.publish('asking.waiting', showing ? { session: showing.session, kind: showing.d.kind } : null);
-
-  /** 还没了结的：照条目画的照会话状态的 `waiting`（核心 9-8 补上），照事件的照日志。 @param {any} v */
-  const pending = (v) => (v.status ? pendingFromStatus(v.status, v.entries ?? []) : pendingAsks(v.events));
+  /** 还没了结的：会话状态的 `waiting`（核心 9-8）。 @param {any} v */
+  const pending = (v) => pendingFromStatus(v.status, v.entries);
 
   /** 开着的没有了，开下一个：正在看的会话里还没了结的（不算正在等回应的）。 */
   const next = () => {
-    if (drawer.open) return announce();
+    if (drawer.open) return;
     const real = view ? pending(view).find((/** @type {any} */ d) => !answering.has(keyOf(view?.session ?? null, d.id))) : null;
-    if (!real) return announce();
+    if (!real) return;
     showing = { d: real, session: view?.session ?? null };
     // 先画好抽屉再占框：框照画好的抽屉量高度（反过来量到的是空的，先缩成一条再跳上去）
     drawer.show(real);
     ctx.composer.takeover(true);
     // 占了框、抽屉露出来以后才接得住焦点（藏着的时候给不上）
     drawer.focus();
-    announce();
   };
 
-  /** 日志变了：开着的那一个别处了结了、换了会话，收掉（不留提示）；再看要不要开下一个。 */
-  const sync = (/** @type {{session: string|null, events: any[], status?: any, entries?: any[]}} */ v) => {
+  /** 会话状态变了：开着的那一个别处了结了、换了会话，收掉（不留提示）；再看要不要开下一个。 */
+  const sync = (/** @type {{session: string|null, status: any, entries: any[]}} */ v) => {
     view = v;
     if (showing) {
       const still = showing.session === v.session && pending(v).some((/** @type {any} */ d) => d.id === showing?.d.id);
@@ -99,5 +95,5 @@ export function apply(ctx) {
     if (drawer.open) ctx.composer.takeover(false);
   });
   ctx.slots.mount('composer.takeover', { id: 'asking', order: 10, render: () => drawer.el });
-  ctx.on('view.changed', (/** @type {any} */ v) => sync({ session: v.session ?? null, events: v.events ?? [], status: v.status ?? null, entries: v.entries ?? [] }));
+  ctx.on('view.changed', (/** @type {any} */ v) => sync({ session: v.session ?? null, status: v.status ?? null, entries: v.entries ?? [] }));
 }

@@ -24,3 +24,10 @@ test('桥没在跑：说怎么起桥；桥连不上核心：照原话，叫看�
   assert.equal(core.why, '找不到数据根：没有权限');
   assert.match(core.how, /终端里的报错/);
 });
+
+test('连上了、核心太旧（握手没报视图投影）：写「核心版本过旧」，叫更新核心', () => {
+  const old = offline('old');
+  assert.equal(old.title, '核心版本过旧');
+  assert.match(old.why, /视图流/);
+  assert.match(old.how, /更新核心/);
+});

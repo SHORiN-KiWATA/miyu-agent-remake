@@ -1,6 +1,5 @@
 // @ts-check
-//! 测试用的底料：从磁盘读资源；拿仓库里事件的样本文件（`docs/designs/samples/events/`）拼成一个会话的日志。
-//! 样本是核心写出来的真样子（`kernel/events-bodies.md`），测试照它断言，格式变了这里先红。
+//! 测试用的底料：从磁盘读资源、给人看的字；造事件、时刻。
 //!
 //! 只在 node 里跑：`node --test web-demo/tests`。时刻按 UTC 读（收尾那一行写本地时间）。
 
@@ -56,16 +55,3 @@ export function ev(seq, at, kind, turn, body, by = { kind: 'kernel' }) {
 
 /** 从 10:00:00 起 `s` 秒的那一刻（毫秒）。 */
 export const ms = (s) => Date.UTC(2026, 8, 29, 10, 0, 0) + s * 1000;
-
-/**
- * 样本拼成的日志：所有种类的样本按序号排好，只要 `upto` 号以前的。1 到 84 号是一个连贯的会话：
- * 一轮看目录（42 号，后来撤销了）、一轮被打断（56 号，那时是只读）、一轮被拒绝以后照常说完（65 号）、
- * 一轮提问（76 号）；中间改过标题、权限。
- */
-export function sampleLog(upto = 84) {
-  const dir = here('../../docs/designs/samples/events/');
-  const events = readdirSync(dir)
-    .filter((f) => f.endsWith('.jsonl'))
-    .flatMap((f) => readFileSync(dir + f, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)));
-  return events.filter((e) => e.seq <= upto).sort((a, b) => a.seq - b.seq);
-}

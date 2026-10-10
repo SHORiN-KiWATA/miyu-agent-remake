@@ -1,12 +1,18 @@
 // @ts-check
 //! 照条目和会话状态算的几样（蓝图 `web.md`「照条目画」第 3、4 条）：压缩的进度那一行、在跑的这一轮她做没做事（两下 `Esc` 撤不撤）、
-//! 这一轮结束没有、开到第几轮、预览工作区里的文件。纯函数。原来这几样照事件算（`model/session.js`、`model/artifacts.js`）。
+//! 这一轮结束没有、开到第几轮、预览工作区里的文件。纯函数。
 
 import { seqOf } from './entries.js';
 
 /**
- * 压缩的进度（同 `core/store.js` 的 `Compacting`）：会话状态在压（`doing.compacting`）的照它写了多少、估计多少；不在压的是 `null`。
+ * @typedef {{seen: number, since: number, written: number, expected: number|null, done: {before: number, after: number}|null, note: number|null}} Compacting
+ *   压缩的进度那一行（`ui/compacting.js`）：从哪一条起、什么时候起、写了多少、估计多少
+ */
+
+/**
+ * 压缩的进度：会话状态在压（`doing.compacting`）的照它写了多少、估计多少；不在压的是 `null`。
  * @param {any[]} entries @param {any} status
+ * @returns {Compacting|null}
  */
 export function compactingOf(entries, status) {
   const d = status?.doing;

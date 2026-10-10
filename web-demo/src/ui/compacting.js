@@ -17,7 +17,7 @@ export class CompactingRow {
     this.session = /** @type {string|null} */ (null);
     this.onFinished = onFinished;
     this.el = h('div.compacting', { hidden: true, 'aria-live': 'polite' });
-    /** @type {import('../core/store.js').Compacting|null} */
+    /** @type {import('../model/view-state.js').Compacting|null} */
     this.state = null;
     this.shown = 0;
     this.finishing = false;
@@ -27,7 +27,7 @@ export class CompactingRow {
 
   /**
    * 照仓库里这个会话的压缩画：`null` 是没在压（没压成、这一轮结束了），当场拿掉；换了会话的也从头来。
-   * @param {import('../core/store.js').Compacting|null} state
+   * @param {import('../model/view-state.js').Compacting|null} state
    * @param {string|null} session
    */
   update(state, session) {

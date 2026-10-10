@@ -9,7 +9,6 @@
 import { h, icon } from './dom.js';
 import { res, t } from '../util/res.js';
 import { active } from '../model/timeline.js';
-import { summary } from '../model/words.js';
 import { seconds, jobDuration } from '../model/format.js';
 import { StepView, guard } from './steps.js';
 
@@ -84,8 +83,8 @@ export class SegmentView {
     this.summary.hidden = !segment.finished;
     if (segment.finished) {
       // 字变了才换：换一次淡入一次
-      // 照条目画的（核心 9-8）：收起那一行核心算好了；照事件算的照原来自己算
-      const s = segment.summary ?? summary(segment.steps, Date.now());
+      // 收起那一行核心算好了（核心 9-8）
+      const s = segment.summary ?? { failed: false, spans: [] };
       const sig = JSON.stringify(s);
       if (sig !== this.drawnSummary) {
         this.drawnSummary = sig;

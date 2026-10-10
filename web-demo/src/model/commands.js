@@ -8,8 +8,6 @@
 //! - 回车：`/名字` 是命令；带参数的命令名字后面空一格接着的字是参数；没有这个命令的弹「命令不存在」；
 //!   别的后面跟了字的是一句话。
 
-import { text, attachments } from './session.js';
-
 /**
  * @typedef {{name: string, aliases?: string[], summary: string, run: string, args?: boolean, argument?: string}} Spec
  *   一条命令：名字（不带 `/`）、别名、列表里的说明、做什么（`ui/commands.js` 照它找处理）、名字后面能不能接参数、参数的提示（核心的命令带）
@@ -130,41 +128,15 @@ export class Menu {
 }
 
 /**
- * 撤销成了，撤掉的那一轮里你说的话（整段，放回输入框，`tui.md`「输入框」第 7 条）：照回应里 `turn.reverted` 的序号找到
- * 撤掉的第一轮，再找引起它的那一条 `message.user`。那一条还没收到、那一轮不是人开的，是 `null`（由回应的 `said` 顶，
- * 它只有第一行，`protocol/undo.md`）。
- * @param {any[]} events 这个会话的持久事件
- * @param {number|undefined} seq 回应的 `events` 的第一条
- */
-export function revertedSaid(events, seq) {
-  const said = revertedMessage(events, seq);
-  const words = said ? text(said) : '';
-  return words.trim() ? words : null;
-}
-
-/**
- * 撤掉的第一轮是哪一条 `message.user` 开的（字和附件都从它取）；那一条还没收到、那一轮不是人开的是 `null`。
- * @param {any[]} events @param {number|undefined} seq 回应的 `events` 的第一条
- */
-export function revertedMessage(events, seq) {
-  const bySeq = new Map(events.map((e) => [e.seq, e]));
-  const reverted = bySeq.get(seq);
-  if (reverted?.kind !== 'turn.reverted' || !reverted.body.turns?.length) return null;
-  const started = bySeq.get(Math.min(...reverted.body.turns));
-  const said = bySeq.get(started?.body?.trigger);
-  return said?.kind === 'message.user' && said.by?.kind === 'person' ? said : null;
-}
-
-/**
- * 一条 `message.user` 带的附件，换成附件包放回框里的样子（`{blob, name, media_type, size}`，核心存好的那一份）：大小照这台设备的
- * 输入历史（发的时候记下的），查不到的是 `null`；没名字的图片照媒体类型起一个（`image.png`）。
- * @param {any} said
+ * 你的一句话（条目 `user`）带的附件，换成附件包放回框里的样子（`{blob, name, media_type, size}`，核心存好的那一份）：大小照这台设备的
+ * 输入历史（发的时候记下的），查不到的是 `null`；没名字的照种类和媒体类型起一个（`image.png`）。
+ * @param {{attachments?: {kind: string, blob: string, media_type: string, name?: string|null}[]}} said
  * @param {{parts?: Record<string, any>}[]} history 输入历史的条目
  */
 export function keptAttachments(said, history) {
   const sizes = new Map();
   for (const item of history ?? []) for (const k of item.parts?.attachments ?? []) if (k?.blob) sizes.set(k.blob, k.size);
-  return attachments(said).map((a) => ({
+  return (said.attachments ?? []).map((a) => ({
     blob: a.blob,
     name: a.name ?? `${a.kind}.${(a.media_type.split('/')[1] ?? 'bin').split('+')[0]}`,
     media_type: a.media_type,

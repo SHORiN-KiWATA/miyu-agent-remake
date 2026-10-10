@@ -4,7 +4,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { personaName, presetName, defaultUsable, presetInUse, personaInUse, dirName, readPath, remember, tilde, problemsOf, cleanPairs, halfPair, personaSave } from '../../packages/setup/model.js';
-import { sessionCwd } from '../../src/model/session.js';
 
 const list = [{ persona: 'engineer', name: null }, { persona: 'miyu', name: 'Miyu' }, { persona: 'bad', problem: 'persona.toml:2: …' }];
 
@@ -50,13 +49,6 @@ test('最近用过的：排到最前、去重、最多几个，默认工作区�
   assert.deepEqual(remember(['/b', '/a'], '/a', '/w', 3), ['/a', '/b']);
   assert.deepEqual(remember(['/a', '/b', '/c'], '/d', '/w', 3), ['/d', '/a', '/b']);
   assert.deepEqual(remember(['/a'], '/w', '/w', 3), ['/a']);
-});
-
-test('会话在哪干活：最后一条带 cwd 的 turn.started，没有的照 session.created', () => {
-  const created = { kind: 'session.created', body: { cwd: '/w' } };
-  assert.equal(sessionCwd([created]), '/w');
-  assert.equal(sessionCwd([created, { kind: 'turn.started', body: { cwd: '~/a' } }, { kind: 'turn.started', body: {} }]), '~/a');
-  assert.equal(sessionCwd([]), null);
 });
 
 test('预设：名字照显示名、没有的写编号；默认的能不能用照 preset 那一格认（P-2）', () => {

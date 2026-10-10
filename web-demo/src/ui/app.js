@@ -20,15 +20,12 @@ import { Composer } from './composer.js';
 import { Artifacts } from './artifacts.js';
 import { runCommand, refusalText, redo, copyTurn, Commands, revertLatest } from './commands.js';
 import { coreSpecs } from '../model/commands.js';
-import { project } from '../model/transcript.js';
-import { withRecaps, withChanges } from '../model/notes.js';
-import { rank, startupSession, untouchedTurn, sessionCwd } from '../model/session.js';
-import { footer, statusFooter, levelLabel, nextLevel, levelParams } from '../model/footer.js';
-import { levelOf } from '../model/transcript.js';
-import { itemsOf } from '../model/entries.js';
+import { rank, startupSession } from '../model/session.js';
+import { statusFooter, levelLabel, nextLevel, levelParams } from '../model/footer.js';
+import { itemsOf, levelOf } from '../model/entries.js';
 import { compactingOf, lastTurn, turnEnded, untouchedTurnOf, artifactEvents } from '../model/view-state.js';
 import { copy } from '../markdown/build.js';
-import { childrenOf, runningDeep, childrenFromStatus, runningDeepStatus } from '../lib/jobs.js';
+import { childrenFromStatus, runningDeepStatus } from '../lib/jobs.js';
 import { SessionsPage } from './sessions-page.js';
 import { listFiles } from '../core/files.js';
 import { footerOf, footerLabel, effortLevels, effortLabel, effortOf, effortChange, defaultModelChange } from '../model/model-menu.js';
@@ -152,8 +149,6 @@ export class App {
       // 打断那一轮后面那一句：打开后台任务的浮层（软件包 jobs 听这个事件）
       openJobs: () => this.ctx.emit('jobs.open'),
       openSession: (id) => this.open(id),
-      // 压缩的进度条走满了：进度那一行收掉，结果那一行露出来（蓝图「压缩的进度」第 5 条）
-      compacted: (session) => { if (session) this.store.finishCompaction(session); },
     }, this.ext);
     ctx.slots.watch('markdown.code', () => this.chat.redraw());
     // 正文里交给软件包画的条目（确认和提问了结以后留的，按 `asking`）；挂的变了，正文重画
@@ -321,9 +316,7 @@ export class App {
     ctx.on('theme.changed', () => this.sidebar.drawThemeButton());
     this.frame = 0;
     /** 会话 → 照回应再画一次的回顾（`/recap` 回应里 `cached` 为真的，蓝图「回顾」第 3 条；只在这一页里） */
-    this.recapsAgain = /** @type {Map<string, {after: number, text: string}[]>} */ (new Map());
-    /** 会话 → 它下面的子代理（照事件条数记着，`kids`） */
-    this.kidCache = new Map();
+    this.recapsAgain = /** @type {Map<string, {after: string, text: string}[]>} */ (new Map());
     // 新会话框下面写默认的模型：起来时问一次（问不到的不写，菜单打开时再问）
     this.loadModels().catch(() => {});
     // 模型、供应商、池的配置变了（设置页、第一次引导、别的头、命令行改的）：重读模型列表，新会话框下面照新的默认写（2026-10-10 项目主人：
@@ -352,8 +345,8 @@ export class App {
   /** 回顾没有新内容（`cached`）：照回应在这一刻的末尾再画一次；同一处同一句不重复。 @param {string} session @param {string} text */
   recapAgain(session, text) {
     const s = this.store.sessions.get(session);
-    // 照条目画的：排在这一刻最后一条条目后面（编号）；照事件的：排在最后一条事件后面（序号）
-    const after = s?.view ? s.view.list.at(-1)?.id ?? '' : s?.events.at(-1)?.seq ?? 0;
+    // 排在这一刻最后一条条目后面（编号）
+    const after = s?.view.list.at(-1)?.id ?? '';
     const list = this.recapsAgain.get(session) ?? [];
     if (list.some((r) => r.after === after && r.text === text)) return;
     this.recapsAgain.set(session, [...list, { after, text }]);
@@ -409,33 +402,29 @@ export class App {
    * 核心拒绝的，在输入框上面提示核心给的那一句。
    */
   /**
-   * 正在看的会话在哪个目录里干活：会话记着的工作区（核心 9-7，`sessionCwd`：订阅回应的、之后换了的）；还没开的新会话是选的工作区，
+   * 正在看的会话在哪个目录里干活：会话状态里的工作区（核心 9-7，订阅回应的、之后换了的）；还没开的新会话是选的工作区，
    * 没选的是账号的工作区。
    */
   workdir() {
     if (!this.current) return this.draft.cwd ?? this.cwd;
     const s = this.store.sessions.get(this.current);
-    if (s?.view) return s.view.status?.workspace?.cwd ?? s.base?.workspace?.cwd ?? this.cwd;
-    return sessionCwd(s?.events ?? [], s?.base ?? null) ?? this.cwd;
+    return s?.view.status?.workspace?.cwd ?? s?.base?.workspace?.cwd ?? this.cwd;
   }
 
-  /** 开到第几轮（换模型照它认选的生效没有）：照条目画的照最后一条的回合，照事件的数 `turn.started`。 @param {any} s */
+  /** 开到第几轮（换模型照它认选的生效没有）：照最后一条的回合。 @param {any} s */
   turnsOf(s) {
-    if (s?.view) return lastTurn(s.view.list);
-    return (s?.events ?? []).filter((/** @type {any} */ e) => e.kind === 'turn.started').length;
+    return s ? lastTurn(s.view.list) : 0;
   }
 
-  /** 一个会话里在跑的后台任务一共几个（连子孙）：照会话状态的（核心算好的整棵树），照事件的一层层数。 @param {string} id */
+  /** 一个会话里在跑的后台任务一共几个（连子孙）：照会话状态的（核心算好的整棵树）。 @param {string} id */
   jobsDeep(id) {
-    if (this.store.viewMode) return runningDeepStatus(id, (sid) => this.store.sessions.get(sid)?.view?.status ?? null);
-    return runningDeep(id, (sid) => this.store.sessions.get(sid)?.events ?? null);
+    return runningDeepStatus(id, (sid) => this.store.sessions.get(sid)?.view.status ?? null);
   }
 
-  /** 正在看的会话现在的权限级别：照会话状态的，照事件的（`footer` 那样算）。 @param {string} session */
+  /** 正在看的会话现在的权限级别：照会话状态的。 @param {string} session */
   levelNow(session) {
     const s = this.store.sessions.get(session);
-    if (s?.view) return levelOf(s.view.status?.permission ?? s.base?.permission);
-    return footer(s?.events ?? [], {}, undefined, null, s?.base ?? null).left.level;
+    return levelOf(s?.view.status?.permission ?? s?.base?.permission);
   }
 
   /**
@@ -548,7 +537,7 @@ export class App {
     const session = this.current;
     // 她还没开始做事（没写正文、没调工具）、又没有排着的话：记下这一轮，结束了撤掉、把话放回框里（2026-10-07 项目主人定，终端同一条）
     const s = this.store.sessions.get(session);
-    const turn = this.queuedNow?.length ? null : s?.view ? untouchedTurnOf(s.view.list, s.view.status) : untouchedTurn(s?.events ?? [], s?.live ?? null);
+    const turn = this.queuedNow?.length || !s ? null : untouchedTurnOf(s.view.list, s.view.status);
     try {
       await this.store.conn.request('session.interrupt', { session, queued: 'send' });
       if (turn != null) {
@@ -560,34 +549,23 @@ export class App {
     }
   }
 
-  /** 记着要撤的那一轮结束了（`turn.ended`）：撤掉、把话放回框里；撤不成的什么都不做。 */
+  /** 记着要撤的那一轮结束了（这一轮有了收尾那一条）：撤掉、把话放回框里；撤不成的什么都不做。 */
   takeBackIfEnded() {
     const pending = this.takeBack;
     if (!pending) return;
     const s = this.store.sessions.get(pending.session);
-    const ended = s?.view ? turnEnded(s.view.list, pending.turn) : (s?.events ?? []).some((e) => e.kind === 'turn.ended' && e.turn === pending.turn);
-    if (!ended) return;
+    if (!s || !turnEnded(s.view.list, pending.turn)) return;
     this.takeBack = null;
     revertLatest(this, pending.session).catch(() => {});
   }
 
   /**
-   * 一个会话下面的子代理（照它的事件，`lib/jobs.js`；读进来了的子代理照它自己的会话认停在半路）。照事件条数记着，没变的不重算
-   * （左栏每画一次都要问）。
+   * 一个会话下面的子代理：照它会话状态里的任务表（`lib/jobs.js`）。标题照派它时的，子会话自己改过标题的照会话表（蓝图「左栏」的
+   * 「子代理的会话」）。
    */
   kids(id) {
     const own = this.store.sessions.get(id);
-    // 照条目画的：照会话状态的任务表；子会话自己改过标题的照会话表
-    if (own?.view) return childrenFromStatus(own.view.status?.jobs).map((k) => ({ ...k, title: this.store.index.get(k.session)?.title ?? k.title }));
-    const events = own?.events ?? [];
-    const child = (sid) => this.store.sessions.get(sid)?.events ?? null;
-    const sig = `${events.length}|${[...this.store.sessions.values()].reduce((n, s) => n + s.events.length, 0)}`;
-    const hit = this.kidCache.get(id);
-    if (hit?.sig === sig) return hit.kids;
-    // 标题照派它时的；子会话自己改过标题的照它（蓝图「左栏」的「子代理的会话」）
-    const kids = childrenOf(events, child).map((k) => ({ ...k, title: metaTitle(child(k.session)) ?? k.title }));
-    this.kidCache.set(id, { sig, kids });
-    return kids;
+    return childrenFromStatus(own?.view.status?.jobs).map((k) => ({ ...k, title: this.store.index.get(k.session)?.title ?? k.title }));
   }
 
   /**
@@ -601,20 +579,9 @@ export class App {
     for (const id of want) if (!this.store.sessions.has(id)) this.store.ensure(id).catch(() => {});
   }
 
-  /**
-   * 派这个会话的会话（子会话 `session.created` 的 `parent`）；没读进来的先读进来（读到了再画一次，路径接上去）。
-   * @param {string} id
-   */
+  /** 派这个会话的会话：照会话表里子会话的 `parent`；会话表里没有的是 `null`。 @param {string} id */
   parentOf(id) {
-    // 会话表里有的照它（子会话的 `parent`），不用读进来
-    const entry = this.store.index.get(id);
-    if (entry) return entry.parent ?? null;
-    const s = this.store.sessions.get(id);
-    if (!s) {
-      this.store.ensure(id).catch(() => {});
-      return null;
-    }
-    return s.events.find((e) => e.kind === 'session.created')?.body.parent ?? null;
+    return this.store.index.get(id)?.parent ?? null;
   }
 
   /**
@@ -814,7 +781,6 @@ export class App {
 
   render() {
     const s = this.current ? this.store.sessions.get(this.current) : null;
-    const events = s?.events ?? [];
     this.sidebar.render(rank(this.store.order.map((id) => this.store.summary(id))), this.current);
     this.sessionsPage?.refresh();
     this.composer?.sessionList.refresh();
@@ -826,14 +792,9 @@ export class App {
     // 子会话的父会话照会话表（按页读时 `session.created` 可能还在没读的页里）
     const parent = this.current ? this.store.index.get(this.current)?.parent ?? null : null;
     const again = this.recapsAgain.get(this.current ?? '') ?? [];
-    // 照条目画的（核心 9-8，蓝图「照条目画」）：条目、会话状态换成正文；照事件的照原来自己算
-    const view = s?.view
-      ? withLocalRecaps(itemsOf(s.view.list, s.view.status, { account: this.ext.account, parent }), again)
-      : project(withChanges(withRecaps(events, again), s?.changes ?? []), s?.live ?? null, s?.marks, s?.compactStats, parent);
-    // 压好了、进度条还没走满：落了盘的那一行先不画（蓝图「压缩的进度」第 5 条）
-    const hold = s?.view ? null : s?.compacting?.note;
-    if (hold != null) view.items = view.items.filter((it) => it.seq !== hold);
-    this.chat.setCompacting(s?.view ? compactingOf(s.view.list, s.view.status) : s?.compacting ?? null, this.current);
+    // 条目、会话状态换成正文（核心 9-8，蓝图「照条目画」）
+    const view = withLocalRecaps(itemsOf(s?.view.list ?? [], s?.view.status ?? null, { account: this.ext.account, parent }), again);
+    this.chat.setCompacting(s ? compactingOf(s.view.list, s.view.status) : null, this.current);
     // 先照空不空摆好输入框（居中时对话区没有高度），再画对话：不然第一句话照 0 高算停在哪，被顶到视口上面
     this.centerIfEmpty(view.items.length === 0);
     this.chat.render(view.items);
@@ -853,13 +814,13 @@ export class App {
       this.commandsFor = this.current;
       this.refreshCommands();
     }
-    // 对话区画了一次：照它画的软件包（运行状态行这类）听这个事件；是状态事件，晚起来的包先拿到最后一份
-    // 照条目画的另带条目和会话状态（`entries`、`status`）：包照它们画，不再看事件（蓝图「照条目画」第 3 条）
-    this.ctx.publish('view.changed', { session: s?.id ?? null, running: view.running, events, live: s?.live ?? null, retry: s?.retry ?? null, queued: view.queued, todos: s?.todos ?? [], todosDone: s?.todosDone ?? null,
-      entries: s?.view?.list ?? null, status: s?.view?.status ?? null });
+    // 对话区画了一次：照它画的软件包（运行状态行这类）听这个事件；是状态事件，晚起来的包先拿到最后一份。
+    // 带条目和会话状态（`entries`、`status`）：包照它们画（蓝图「照条目画」第 3 条）
+    this.ctx.publish('view.changed', { session: s?.id ?? null, running: view.running, queued: view.queued, todos: s?.todos ?? [], todosDone: s?.todosDone ?? null,
+      entries: s?.view.list ?? [], status: s?.view.status ?? null });
     // 排着的话（打断时有排着的不撤那一轮）
     this.queuedNow = view.queued ?? [];
-    const f = s?.view ? statusFooter(s.view.status, s.limits ?? {}) : footer(events, s?.limits ?? {}, s?.compactStats, s?.model, s?.base ?? null);
+    const f = statusFooter(s?.view.status ?? null, s?.limits ?? {});
     // 框下面的模型（蓝图「换模型的菜单」第 1 条）：新会话、选过还没生效的、用着池的照引用写；别的照核心报的模型、端点
     const ref = this.modelRef();
     const picked = this.current ? this.picked.get(this.current) : null;
@@ -872,13 +833,13 @@ export class App {
     const level = this.current ? null : this.pendingLevel;
     if (level) f.left = { ...f.left, level, label: levelLabel(level) };
     this.composer.drawFooter(f);
-    this.artifacts.update(s?.view ? artifactEvents(s.view.list, this.workdir()) : events, this.chat.where);
+    this.artifacts.update(s ? artifactEvents(s.view.list, this.workdir()) : [], this.chat.where);
     this.followKids();
   }
 }
 
 /**
- * 回顾没有新内容（`cached`）的：照回应再画一次，排在要的那一刻最后一条条目后面（照条目画的；照事件的见 `withRecaps`）。
+ * 回顾没有新内容（`cached`）的：照回应再画一次，排在要的那一刻最后一条条目后面。
  * @param {{items: any[]}} view @param {{after: any, text: string}[]} again
  */
 function withLocalRecaps(view, again) {
@@ -892,8 +853,3 @@ function withLocalRecaps(view, again) {
   return { ...view, items };
 }
 
-/** 会话自己改过的标题（`session.meta_changed` 最后一次写的）；没改过、去掉了的是 `null`。 */
-function metaTitle(events) {
-  const last = (events ?? []).findLast((e) => e.kind === 'session.meta_changed' && 'title' in e.body);
-  return last?.body.title || null;
-}

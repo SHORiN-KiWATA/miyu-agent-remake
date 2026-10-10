@@ -1,35 +1,8 @@
 // @ts-check
-//! 左栏的一项，从这个会话的事件推出来：标题、在不在跑、什么时候开的（蓝图 `web.md`「会话表的一项」）。
-//!
-//! 读进来了的会话照日志推（每条事件都跟着走）；没读的照核心的会话表（9-5，`core/session-index.js`），两样由
-//! `Store.summary` 合起来。置顶、最近活动也一样，左栏照它们排（`rank`）。
+//! 会话的先后、打开页面时进哪个会话（蓝图 `web.md`「左栏」「连核心」第 4 条）。左栏的一项照核心的会话表（9-5，
+//! `core/session-index.js`）、读进来了的会话状态，由 `Store.summary` 合起来；置顶、最近活动也照它，左栏照它们排（`rank`）。
 
 import { uuidTime } from './ago.js';
-
-/**
- * @param {string} id 会话编号
- * @param {any[]} events 这个会话的持久事件，照序号
- * @returns {{session: string, title: string|null, running: boolean, created: string|null, pinned: boolean, active: number|null}}
- */
-export function summarize(id, events) {
-  let title = null;
-  let first = null;
-  let running = false;
-  let pinned = false;
-  for (const e of events) {
-    if (e.kind === 'session.meta_changed' && typeof e.body.pinned === 'boolean') pinned = e.body.pinned;
-    // 去掉标题写成空的（`kernel/events-bodies.md`）：回到照第一句话写
-    if (e.kind === 'session.meta_changed' && typeof e.body.title === 'string') title = e.body.title || null;
-    if (e.kind === 'message.user' && first == null) first = text(e);
-    if (e.kind === 'turn.started') running = true;
-    if (e.kind === 'turn.ended') running = false;
-  }
-  // 没起名字的拿第一句话顶：换行换成空格，一行里放不下由界面截掉
-  const fallback = first ? first.replace(/\s+/g, ' ').trim() : '';
-  // 最近活动：日志最后一条的时刻（和核心 C-3 的 `last_active` 同一个意思），左栏照它排
-  const last = events.at(-1)?.at;
-  return { session: id, title: title ?? (fallback || null), running, created: events[0]?.at ?? null, pinned, active: last ? Date.parse(last) : null };
-}
 
 /**
  * 会话的先后（蓝图 `web.md`「左栏」组头、「全部会话」第 3 条）：置顶的在最前，别的照最近活动从近到远；不知道活动时刻的（没读过日志、
@@ -43,26 +16,6 @@ export function rank(rows) {
   return [...rows].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || at(b) - at(a));
 }
 
-/** 一条 `message.user` 里的字：文字块接起来（现在经协议发来的只有一块文字，蓝图 `protocol.md`）。 */
-export function text(e) {
-  return (e.body.blocks ?? []).filter((b) => b.type === 'text').map((b) => b.text).join('\n');
-}
-
-/**
- * 一条消息里的附件（图片、文件块，`kernel/blocks.md`），照先后；格都写上，没有的是 `null`（蓝图 `web.md`「附件」第 6 条）。
- * @returns {{kind: 'image'|'file', blob: string, media_type: string, width: number|null, height: number|null, name: string|null}[]}
- */
-export function attachments(e) {
-  return (e.body.blocks ?? []).filter((b) => b.type === 'image' || b.type === 'file').map((b) => ({
-    kind: b.type,
-    blob: b.blob,
-    media_type: b.media_type,
-    width: b.width ?? null,
-    height: b.height ?? null,
-    name: b.name ?? null,
-  }));
-}
-
 /**
  * 打开页面时进哪个会话（蓝图「连核心」第 4 条）：共用的配置项 `ui.startup` 是 `recent` 的进最近动静的那个（一个都没有的是新会话），
  * 别的（出厂的 `new`、读不出来的）是一个空的新会话。
@@ -72,45 +25,4 @@ export function attachments(e) {
  */
 export function startupSession(reply, ranked) {
   return reply?.items?.['ui.startup']?.value === 'recent' ? ranked[0] ?? null : null;
-}
-
-/**
- * 正在跑的那一轮她还没开始做事（蓝图「按键」两下 `Esc`）：交回这一轮的编号；没在跑、已经开始了的交 `null`。开始了 = 写出了正文、
- * 调了工具（落了盘的 `message.assistant` 里有字的 `text` 块或 `tool_call` 块、这一轮的 `tool.result`；在收的块里有字的 `text`、
- * `tool_call`）；只在思考（`reasoning`）、还在等模型都算没开始。
- * @param {any[]} events 这个会话的日志
- * @param {{turn: number, blocks: any[]}|null} live 在收的那一次回复（`core/store.js`）
- * @returns {number|null}
- */
-export function untouchedTurn(events, live) {
-  let turn = null;
-  for (const e of events) {
-    if (e.kind === 'turn.started') turn = e.turn ?? e.seq;
-    if (e.kind === 'turn.ended' && e.turn === turn) turn = null;
-  }
-  if (turn == null) return null;
-  const said = (b) => (b?.type === 'text' && String(b.text ?? '').trim()) || b?.type === 'tool_call';
-  for (const e of events) {
-    if (e.turn !== turn) continue;
-    if (e.kind === 'message.assistant' && (e.body?.blocks ?? []).some(said)) return null;
-    if (e.kind === 'tool.result') return null;
-  }
-  if (live?.turn === turn && (live.blocks ?? []).some((b) => b && ((b.kind === 'text' && b.text.trim()) || b.kind === 'tool_call'))) return null;
-  return turn;
-}
-
-/**
- * 一个会话现在在哪个目录干活（蓝图「人格、预设、工作区」第 5 条；核心 9-7 起工作区是会话的属性）：订阅回应以后来的
- * `session.workspace_changed`（哪个头换的都算），没有的照订阅回应的 `workspace`；旧核心两样都没有，照最后一条带 `cwd` 的
- * `turn.started`、`session.created` 的。都没有的是 `null`。
- * @param {any[]} events
- * @param {{upto: number, workspace?: {cwd: string}|null}|null} [base] 订阅回应里「这一刻的」
- * @returns {string|null}
- */
-export function sessionCwd(events, base = null) {
-  const changed = events.findLast((e) => e.kind === 'session.workspace_changed' && typeof e.body?.cwd === 'string' && (!base || e.seq > base.upto));
-  if (changed) return changed.body.cwd;
-  if (base?.workspace?.cwd) return base.workspace.cwd;
-  const turn = events.findLast((e) => e.kind === 'turn.started' && typeof e.body?.cwd === 'string');
-  return turn?.body.cwd ?? events.find((e) => e.kind === 'session.created')?.body.cwd ?? null;
 }

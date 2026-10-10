@@ -4,8 +4,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadRes, sampleLog } from './support.js';
-import { typed, menuTyped, filter, find, read, Menu, revertedSaid, revertedMessage, keptAttachments } from '../src/model/commands.js';
+import { loadRes } from './support.js';
+import { typed, menuTyped, filter, find, read, Menu, keptAttachments } from '../src/model/commands.js';
 
 const res = loadRes();
 const list = res.commands.commands;
@@ -109,39 +109,18 @@ test('列表：Esc 关掉以后，字变了才再打开；删掉 / 再打一个�
   assert.deepEqual(m.sync('/zzz', list), [], '一条都没有不开');
 });
 
-test('撤销成了：撤掉的那一轮里你说的话（整段），照 turn.reverted 找回；找不到的是空的', () => {
-  const events = sampleLog(86);
-  assert.equal(revertedSaid(events, 53), '看看 src 目录');
-  assert.equal(revertedSaid(events, 85), '把旧的构建产物清一清');
-  assert.equal(revertedSaid(events, 86), null, '恢复那一条不是撤销');
-  assert.equal(revertedSaid(events, 999), null, '还没收到那一条');
-  assert.equal(revertedSaid(events, undefined), null);
-  const multi = [
-    { seq: 1, kind: 'message.user', by: { kind: 'person' }, body: { blocks: [{ type: 'text', text: '第一行\n第二行' }] } },
-    { seq: 2, kind: 'turn.started', turn: 2, body: { trigger: 1 } },
-    { seq: 3, kind: 'turn.reverted', body: { turns: [2] } },
-  ];
-  assert.equal(revertedSaid(multi, 3), '第一行\n第二行', '好几行的整段放回');
-  const kernel = [{ seq: 1, kind: 'turn.started', turn: 1, body: {} }, { seq: 2, kind: 'turn.reverted', body: { turns: [1] } }];
-  assert.equal(revertedSaid(kernel, 2), null, '不是人开的那一轮');
-});
-
-test('撤掉的那一句带的附件回到框里：照图片、文件块换成附件包的样子，大小照输入历史，查不到是 null，没名字的图片起一个', () => {
-  const said = { seq: 41, kind: 'message.user', by: { kind: 'person' }, body: { blocks: [
-    { type: 'text', text: '看看这两张' },
-    { type: 'image', blob: 'b1', media_type: 'image/png', width: 10, height: 10 },
-    { type: 'file', blob: 'b2', media_type: 'application/pdf', name: '报告.pdf' },
-  ] } };
-  const started = { seq: 42, kind: 'turn.started', turn: 42, body: { trigger: 41 } };
-  const reverted = { seq: 50, kind: 'turn.reverted', body: { turns: [42] } };
-  assert.equal(revertedMessage([said, started, reverted], 50), said);
-  assert.equal(revertedMessage([said, started], 50), null, '撤销那一条还没收到');
+test('撤掉的那一句带的附件回到框里：照条目的附件换成附件包的样子，大小照输入历史，查不到是 null，没名字的照种类起一个', () => {
+  const said = { id: 'm41', kind: 'user', text: '看看这两张', turn: 42, attachments: [
+    { kind: 'image', blob: 'b1', media_type: 'image/png', width: 10, height: 10 },
+    { kind: 'file', blob: 'b2', media_type: 'application/pdf', name: '报告.pdf' },
+  ] };
   const history = [{ sent: '看看这两张', parts: { attachments: [{ blob: 'b2', name: '报告.pdf', media_type: 'application/pdf', size: 2048 }] } }];
   assert.deepEqual(keptAttachments(said, history), [
     { blob: 'b1', name: 'image.png', media_type: 'image/png', size: null },
     { blob: 'b2', name: '报告.pdf', media_type: 'application/pdf', size: 2048 },
   ]);
-  assert.deepEqual(keptAttachments({ body: { blocks: [{ type: 'image', blob: 'b3', media_type: 'image/svg+xml' }] } }, []), [{ blob: 'b3', name: 'image.svg', media_type: 'image/svg+xml', size: null }]);
+  assert.deepEqual(keptAttachments({ attachments: [{ kind: 'image', blob: 'b3', media_type: 'image/svg+xml' }] }, []), [{ blob: 'b3', name: 'image.svg', media_type: 'image/svg+xml', size: null }]);
+  assert.deepEqual(keptAttachments({}, []), [], '不带附件的');
 });
 
 test('核心认的命令（command.catalog）：写成交给核心的命令，带参数的照提示；和网页自己的撞名、撞别名的不要，接在后面', async () => {

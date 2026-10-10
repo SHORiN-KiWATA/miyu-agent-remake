@@ -74,6 +74,9 @@
   "no_bridge": "Can't reach the bridge: open the link with #k= that the bridge printed",
   "boot": {
     "connecting": "Connecting to the bridge…",
+    "old_title": "Core is outdated",
+    "old_why": "This core doesn't support the view stream.",
+    "old_how": "Update the core, then reload the page.",
     "title": "Can't reach the bridge",
     "bad_why": "This link's key no longer works. The bridge issues a new key on every restart.",
     "none_why": "The address has no key.",

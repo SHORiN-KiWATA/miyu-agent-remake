@@ -14,7 +14,7 @@ import { Pulse, widest, dotCount, retryLine } from './model.js';
 
 /**
  * @typedef {{id: string, start: number, beat: unknown, retry: {attempt: number, limit: number, message: string, failover?: boolean, due?: number}|null, queued: string[], waiting?: string|null}} PulseState
- *   在跑的那一轮（会话加回合、开始的时刻）、这一轮出过的事的记号（`beatOf`）、在等的重试、排着的话（蓝图「排队的消息」）；`waiting` 是
+ *   在跑的那一轮（会话加回合、开始的时刻）、这一轮出过的事的记号（`entriesBeat`）、在等的重试、排着的话（蓝图「排队的消息」）；`waiting` 是
  *   在等你确认、回答时写的那几个字（「等你回答」：静止的，不扫流光、不轮点、不写用时）
  */
 

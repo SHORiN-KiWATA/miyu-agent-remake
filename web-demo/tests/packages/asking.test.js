@@ -5,7 +5,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { openAsk, openApproval, press, saveEdit, approvalHead, report, pendingAsks, reportOf, multiReady, submitMulti, withReason } from '../../packages/asking/model.js';
+import { openAsk, openApproval, press, saveEdit, approvalHead, report, pendingFromStatus, reportOf, multiReady, submitMulti, withReason } from '../../packages/asking/model.js';
 
 const fake = JSON.parse(readFileSync(new URL('../fixtures/asking.json', import.meta.url), 'utf8'));
 const ask = (id) => fake.asks.find((a) => a.body.call_id === id);
@@ -107,14 +107,23 @@ test('了结以后留下的：提问一道一块、记下是谁问的，多选�
   assert.deepEqual(report(a, { kind: 'approve', cancelled: true }), { type: 'cancelled', kind: 'approve' });
 });
 
-test('还没了结的：问了、后面还没有回答、决定、结果的，照先后；答过的、有了结果的不算', () => {
-  const asked = { seq: 79, kind: 'question.asked', turn: 76, body: { call_id: 'c1', questions: [{ header: 'build', question: '删掉还是保留？', options: [{ label: '删掉' }, { label: '保留' }] }] } };
-  const approve = { seq: 69, kind: 'tool.approval_requested', turn: 65, body: { call_id: 'c0', access: 'write', rule: { tool: 'write' } } };
-  assert.deepEqual(pendingAsks([approve, asked]).map((d) => [d.kind, d.id]), [['approve', 'c0'], ['ask', 'c1']]);
-  assert.deepEqual(pendingAsks([approve, asked, { seq: 80, kind: 'question.answered', body: { call_id: 'c1', answers: [{ picked: ['保留'] }] } }]).map((d) => d.id), ['c0']);
-  assert.deepEqual(pendingAsks([approve, { seq: 71, kind: 'tool.result', body: { call_id: 'c0', status: 'cancelled' } }]), [], '打断以后有了结果');
-  assert.deepEqual(pendingAsks([approve]).at(0)?.questions[0].options.map((o) => o.decision), ['once', 'session', 'deny'], '工作区那一项核心还不收');
-  assert.deepEqual(pendingAsks([{ ...approve, body: { call_id: 'c0', access: 'write' } }]).at(0)?.questions[0].options.map((o) => o.decision), ['once', 'deny'], '没提规则的两项');
+test('还没了结的：会话状态的 waiting 照先后开；提问照那一步的参数、确认照那一步的 approval；条目里找不到、参数读不懂的跳过', () => {
+  const questions = [{ header: 'build', question: '删掉还是保留？', options: [{ label: '删掉' }, { label: '保留' }] }];
+  const entries = [
+    { id: 'b65.0', kind: 'tool', name: 'write', call: 'c0', state: 'running', args: '{"file_path":"a"}', approval: { access: 'write', rule: { tool: 'write' } } },
+    { id: 'b76.0', kind: 'tool', name: 'ask_user', call: 'c1', state: 'running', args: JSON.stringify({ questions }) },
+    { id: 'b77.0', kind: 'tool', name: 'ask_user', call: 'c2', state: 'running', args: '{"quest' },
+  ];
+  const waiting = (...w) => ({ state: 'running', waiting: w });
+  const approve = { what: 'approve', entry: 'b65.0', call: 'c0' };
+  const ask = { what: 'ask', entry: 'b76.0', call: 'c1' };
+  assert.deepEqual(pendingFromStatus(waiting(approve, ask), entries).map((d) => [d.kind, d.id]), [['approve', 'c0'], ['ask', 'c1']]);
+  assert.equal(pendingFromStatus(waiting(ask), entries)[0].questions[0].question, '删掉还是保留？');
+  assert.deepEqual(pendingFromStatus(waiting({ what: 'ask', entry: 'nope', call: 'c9' }, { what: 'ask', entry: 'b77.0', call: 'c2' }), entries), [], '找不到的、读不懂的');
+  assert.deepEqual(pendingFromStatus({ state: 'idle' }, entries), []);
+  assert.deepEqual(pendingFromStatus(waiting(approve), entries).at(0)?.questions[0].options.map((o) => o.decision), ['once', 'session', 'deny'], '工作区那一项核心还不收');
+  const bare = [{ ...entries[0], approval: { access: 'write' } }];
+  assert.deepEqual(pendingFromStatus(waiting(approve), bare).at(0)?.questions[0].options.map((o) => o.decision), ['once', 'deny'], '没提规则的两项');
 });
 
 test('留下的照了结的那一条和问的那一条算：答了的卡片（题目照问的那一条）、确认了的（允许、不允许）都不留、问过没答就取消的一行', () => {

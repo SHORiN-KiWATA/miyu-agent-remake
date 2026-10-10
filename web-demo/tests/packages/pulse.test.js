@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { Pulse, widest, columns, dotCount, beatOf, localWords, retryLine } from '../../packages/pulse/model.js';
+import { Pulse, widest, columns, dotCount, entriesBeat, statusRetry, localWords, retryLine } from '../../packages/pulse/model.js';
 import { local } from '../../src/lib/text.js';
 
 /** 这个包的设置项的出厂值 */
@@ -102,16 +102,24 @@ test('最宽的词：中文一个字两格', () => {
   assert.equal(columns(widest(zh)), 8);
 });
 
-test('算一件事的只有这几样（照 TUI）：开了新的一步、想完、工具出了结果、开始写回答；接着写字不算', () => {
-  const events = [{ seq: 1, kind: 'turn.started' }];
-  const live = { turn: 3, seen: 3, blocks: [{ kind: 'reasoning', text: '想', done: false }] };
-  const writing = { ...live, blocks: [{ ...live.blocks[0], text: '想了很多很多' }] };
-  const thought = { ...live, blocks: [{ ...live.blocks[0], text: '想想', done: true }] };
-  const tool = { ...live, blocks: [thought.blocks[0], { kind: 'tool_call', text: '', done: false }] };
-  const result = [...events, { seq: 2, kind: 'message.assistant', body: { blocks: [{}, {}] } }, { seq: 3, kind: 'tool.result', body: {} }];
-  assert.equal(beatOf(events, live), beatOf(events, writing), '接着写字不算');
-  const beats = [beatOf(events, null), beatOf(events, live), beatOf(events, thought), beatOf(events, tool), beatOf(result, null)];
+test('算一件事的只有这几样（照 TUI）：多了一条（开了新的一步、落了盘）、一条收全了、会话状态换了正在做的；接着写字不算', () => {
+  const user = { id: 'm1', kind: 'user', text: '看看', turn: 3 };
+  const thinking = [user, { id: 'b1', kind: 'thought', text: '想', open: true }];
+  const writing = [user, { id: 'b1', kind: 'thought', text: '想了很多很多', open: true }];
+  const thought = [user, { id: 'b1', kind: 'thought', text: '想想' }];
+  const tool = [...thought, { id: 'b2', kind: 'tool', name: 'read', state: 'preparing', open: true }];
+  const running = { state: 'running', doing: { what: 'tool', entry: 'b2' } };
+  assert.equal(entriesBeat(thinking, null), entriesBeat(writing, null), '接着写字不算');
+  const beats = [entriesBeat([user], null), entriesBeat(thinking, null), entriesBeat(thought, null), entriesBeat(tool, null), entriesBeat(tool, running)];
   assert.equal(new Set(beats).size, beats.length, `每一件都变：${beats.join(' | ')}`);
+});
+
+test('重试照会话状态的 doing.retrying：第几次、上限、原话、换端点没有、什么时候再试；不在重试的是 null', () => {
+  const doing = { what: 'retrying', attempt: 2, limit: 5, message: '429 Too Many Requests', at: '2026-10-10T04:02:05.000Z' };
+  assert.deepEqual(statusRetry({ doing }, 7), { turn: 7, attempt: 2, limit: 5, message: '429 Too Many Requests', failover: false, due: Date.parse(doing.at) });
+  assert.deepEqual(statusRetry({ doing: { ...doing, failover: true, at: undefined } }, 7), { turn: 7, attempt: 2, limit: 5, message: '429 Too Many Requests', failover: true });
+  assert.equal(statusRetry({ doing: { what: 'replying' } }, 7), null);
+  assert.equal(statusRetry(null, 7), null);
 });
 
 test('词库照 TUI 的原样：三档，停 12–20 秒，安静 2 秒，没事件 30–45 秒', () => {

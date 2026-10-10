@@ -16,14 +16,13 @@ import { blobUrl } from '../core/host.js';
 export class StepView {
   /**
    * @param {import('../model/timeline.js').Step} step 第一次的样子：种类（思考、工具）以后不变
-   * @param {import('./rich.js').Where} where 看着的会话在哪：家目录（对象里的路径写成 `~/…`）
+   * @param {import('./rich.js').Where} where 看着的会话在哪（点开时问调用的输出）
    * @param {boolean} fresh 新来的：淡入一次（读回来的历史不淡入）
    * @param {() => void} [foldSegment] 收起它在的那一段：铺开画（`bare`）的时候，点内容收的是整段
    */
   constructor(step, where, fresh, foldSegment = () => {}) {
     this.where = where;
     this.foldSegment = foldSegment;
-    this.home = where.home;
     /** 人点过：开还是关；没点过的是 `null`。 */
     this.open = /** @type {boolean|null} */ (null);
     this.step = step;
@@ -105,7 +104,7 @@ export class StepView {
     this.live = live;
     this.step = step;
     this.spinning = spinning;
-    const r = row(step, this.home);
+    const r = row(step);
     const open = this.opened();
     this.el.classList.toggle('is-open', open);
     this.el.classList.toggle('is-bare', this.bare);

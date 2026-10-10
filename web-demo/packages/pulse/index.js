@@ -1,11 +1,11 @@
 // @ts-check
 //! 运行状态行（软件包 `pulse`，蓝图 `web.md`「运行状态行」「排队的消息」）：挂进输入框上面的挂载位 `composer.above`（排在
 //! 待办后面）；照对话区每画一次发的事件 `view.changed` 画：在跑的那一轮、这一轮出过的事（换词）、在等的重试、排着的话；在等你确认、
-//! 回答时（`asking.waiting`）换成静止的「等你回答」。
+//! 回答时（会话状态的 `waiting`）换成静止的「等待回答」「等待批准」。
 //! 提示浮在它上面：写一个页面变量 `--pulse-lines`（它占几行）。停用了回答时那一行没有，排着的话照样发。
 
 import { PulseLine } from './line.js';
-import { beatOf, entriesBeat, statusRetry, localWords } from './model.js';
+import { entriesBeat, statusRetry, localWords } from './model.js';
 
 /** @param {any} ctx */
 export function apply(ctx) {
@@ -17,29 +17,21 @@ export function apply(ctx) {
     root.style.removeProperty('--pulse-lines');
   });
   ctx.slots.mount('composer.above', { id: 'pulse', order: 20, render: () => line.el });
-  /** 在等你确认、回答（软件包 `asking` 发的状态事件 `asking.waiting`：`{session, kind}`，没在等是 `null`） */
-  let waiting = /** @type {{session: string|null, kind: string}|null} */ (null);
-  let last = /** @type {any} */ (null);
   const draw = (v) => {
-    last = v;
     const run = v.running;
-    // 照条目画的（核心 9-8）：在等什么、重试、出过的事都照会话状态和条目；照事件的照原来的
+    // 在等什么、重试、出过的事都照会话状态和条目（核心 9-8）
     const st = v.status;
-    const kind = st ? st.waiting?.[0]?.what ?? null : waiting && waiting.session === v.session ? waiting.kind : null;
+    const kind = st?.waiting?.[0]?.what ?? null;
     const wait = kind ? ctx.text(kind === 'approve' ? 'waiting_approve' : 'waiting_ask') : null;
     line.set(run ? {
       id: `${v.session}:${run.turn}`,
       start: run.start,
-      beat: v.entries ? entriesBeat(v.entries, st) : beatOf(v.events, v.live),
-      retry: st ? statusRetry(st, run.turn) : v.retry?.turn === run.turn ? v.retry : null,
+      beat: entriesBeat(v.entries, st),
+      retry: statusRetry(st, run.turn),
       queued: v.queued.map((q) => q.text),
       waiting: wait,
     } : null);
     root.style.setProperty('--pulse-lines', String(1 + (run ? v.queued.length : 0)));
   };
   ctx.on('view.changed', draw);
-  ctx.on('asking.waiting', (w) => {
-    waiting = w ?? null;
-    if (last) draw(last);
-  });
 }
