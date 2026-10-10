@@ -11,7 +11,7 @@ fn resources() -> std::path::PathBuf {
 
 /// 给人看的那几份，相对资源目录。
 const HUMAN_FACING: [&str; 6] = [
-    "packages/onebot.toml",
+    "packages/onebot/package.toml",
     "packages/onebot/page/texts.js",
     "software/onebot/human/zh.json",
     "software/onebot/human/en.json",

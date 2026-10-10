@@ -11,7 +11,7 @@ fn added(name: &str, program: &str) -> Added {
             ("en".to_string(), "Open the terminal interface".to_string()),
             ("zh".to_string(), "打开终端界面".to_string()),
         ]),
-        manifest: PathBuf::from("/data/home/admin/packages/tui.toml"),
+        manifest: PathBuf::from("/data/home/admin/packages/tui/package.toml"),
     }
 }
 
@@ -53,12 +53,12 @@ fn a_missing_program_is_named_with_its_manifest() {
         (
             &["tui", "--x"][..],
             Language::English,
-            "miyu-no-such-program-anywhere not found: /data/home/admin/packages/tui.toml says miyu tui runs it",
+            "miyu-no-such-program-anywhere not found: /data/home/admin/packages/tui/package.toml says miyu tui runs it",
         ),
         (
             &["help", "tui"][..],
             Language::Chinese,
-            "没找到 miyu-no-such-program-anywhere：清单 /data/home/admin/packages/tui.toml 说 miyu tui 由它跑",
+            "没找到 miyu-no-such-program-anywhere：清单 /data/home/admin/packages/tui/package.toml 说 miyu tui 由它跑",
         ),
     ] {
         let mut err = Vec::new();

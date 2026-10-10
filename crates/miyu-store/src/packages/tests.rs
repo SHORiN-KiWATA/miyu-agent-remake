@@ -71,10 +71,12 @@ fn brief(found: &[Found]) -> Vec<(String, Layer, Option<Code>)> {
 #[test]
 fn both_layers_are_read_in_order_of_id() {
     let places = Places::new();
-    places.write(Layer::Shipped, "web.toml", &ui("web"));
-    places.write(Layer::Home, "tui.toml", &ui("tui"));
+    places.write(Layer::Shipped, "web/package.toml", &ui("web"));
+    places.write(Layer::Home, "tui/package.toml", &ui("tui"));
     places.write(Layer::Home, "notes.txt", "不是清单");
-    places.write(Layer::Home, "Bad.toml", &ui("bad"));
+    places.write(Layer::Home, "empty/notes.toml", "文件夹里没有清单");
+    places.write(Layer::Home, "old.toml", &ui("old"));
+    places.write(Layer::Home, "Bad/package.toml", &ui("bad"));
     let found = places.packages.read();
     assert_eq!(
         brief(&found),
@@ -82,11 +84,11 @@ fn both_layers_are_read_in_order_of_id() {
             ("tui".to_string(), Layer::Home, None),
             ("web".to_string(), Layer::Shipped, None),
         ],
-        "不是 .toml 的、编号不合写法的不算"
+        "不是文件夹的、文件夹里没有 package.toml 的、编号不合写法的不算"
     );
     let web = found.iter().find(|found| found.id == "web").unwrap();
     assert_eq!(web.read.as_ref().unwrap().kind, PackageKind::Ui);
-    assert!(web.path.ends_with("res/packages/web.toml"));
+    assert!(web.path.ends_with("res/packages/web/package.toml"));
 }
 
 #[test]
@@ -97,8 +99,8 @@ fn nothing_installed_is_an_empty_list() {
 #[test]
 fn the_shipped_one_wins_a_duplicate_id() {
     let places = Places::new();
-    places.write(Layer::Shipped, "web.toml", &ui("web"));
-    places.write(Layer::Home, "web.toml", &ui("web2"));
+    places.write(Layer::Shipped, "web/package.toml", &ui("web"));
+    places.write(Layer::Home, "web/package.toml", &ui("web2"));
     assert_eq!(
         brief(&places.packages.read()),
         [
@@ -111,9 +113,9 @@ fn the_shipped_one_wins_a_duplicate_id() {
 #[test]
 fn a_command_name_is_taken_by_whoever_is_read_first() {
     let places = Places::new();
-    places.write(Layer::Shipped, "web.toml", &ui("open"));
-    places.write(Layer::Shipped, "zeta.toml", &ui("open"));
-    places.write(Layer::Home, "alpha.toml", &ui("open"));
+    places.write(Layer::Shipped, "web/package.toml", &ui("open"));
+    places.write(Layer::Shipped, "zeta/package.toml", &ui("open"));
+    places.write(Layer::Home, "alpha/package.toml", &ui("open"));
     let found = places.packages.read();
     assert_eq!(
         brief(&found),
@@ -143,10 +145,14 @@ fn served(command: &str) -> String {
 #[test]
 fn a_package_declaring_a_system_account_gets_one_named_after_it() {
     let places = Places::new();
-    places.write(Layer::Shipped, "onebot.toml", &served("onebot"));
-    places.write(Layer::Home, "admin.toml", &served("boss"));
-    places.write(Layer::Home, "tui.toml", &ui("tui"));
-    places.write(Layer::Home, "zz.toml", "[package]\nkind = \"daemon\"\n");
+    places.write(Layer::Shipped, "onebot/package.toml", &served("onebot"));
+    places.write(Layer::Home, "admin/package.toml", &served("boss"));
+    places.write(Layer::Home, "tui/package.toml", &ui("tui"));
+    places.write(
+        Layer::Home,
+        "zz/package.toml",
+        "[package]\nkind = \"daemon\"\n",
+    );
     let found = places.packages.read();
     assert_eq!(
         brief(&found),
@@ -181,14 +187,14 @@ fn builtin(feature: &str) -> String {
 #[test]
 fn a_feature_id_is_taken_by_whoever_is_read_first() {
     let places = Places::new();
-    places.write(Layer::Shipped, "basesystem.toml", &builtin("files"));
+    places.write(Layer::Shipped, "basesystem/package.toml", &builtin("files"));
     places.write(
         Layer::Shipped,
-        "files.toml",
+        "files/package.toml",
         "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = { en = \"Files\" }\n",
     );
-    places.write(Layer::Home, "alpha.toml", &builtin("files"));
-    places.write(Layer::Home, "beta.toml", &builtin("beta"));
+    places.write(Layer::Home, "alpha/package.toml", &builtin("files"));
+    places.write(Layer::Home, "beta/package.toml", &builtin("beta"));
     let found = places.packages.read();
     assert_eq!(
         brief(&found),
@@ -216,7 +222,11 @@ fn a_feature_id_is_taken_by_whoever_is_read_first() {
 #[test]
 fn a_broken_manifest_is_listed_with_its_problem() {
     let places = Places::new();
-    places.write(Layer::Shipped, "web.toml", "[package]\nkind = \"daemon\"\n");
+    places.write(
+        Layer::Shipped,
+        "web/package.toml",
+        "[package]\nkind = \"daemon\"\n",
+    );
     assert_eq!(
         brief(&places.packages.read()),
         [("web".to_string(), Layer::Shipped, Some(Code::BadKind))]

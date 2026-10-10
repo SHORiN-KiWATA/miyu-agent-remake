@@ -30,19 +30,23 @@ fn a_package_is_one_aligned_line_and_only_what_people_need() {
 }
 
 #[test]
-fn a_path_is_a_manifest_and_a_bare_word_is_a_package() {
-    let cwd = Path::new("/work");
+fn a_path_is_a_package_folder_and_a_bare_word_is_a_package() {
+    // 真的绝对路径：Windows 上 `/work` 不算绝对的，拼出来的样子两边不一样。
+    let temp = std::env::temp_dir();
+    let cwd = temp.join("work");
+    let cwd = cwd.as_path();
+    assert_eq!(installing("./x", cwd), json!({"path": cwd.join("x")}));
+    assert_eq!(installing("x/", cwd), json!({"path": cwd.join("x")}));
+    assert_eq!(installing(".", cwd), json!({"path": cwd}));
+    assert_eq!(installing("../y", cwd), json!({"path": temp.join("y")}));
     assert_eq!(
-        installing("./x.toml", cwd),
-        json!({"path": Path::new("/work").join("./x.toml")})
+        installing("package.toml", cwd),
+        json!({"path": cwd.join("package.toml")})
     );
+    let elsewhere = temp.join("abs").join("y");
     assert_eq!(
-        installing("x.toml", cwd),
-        json!({"path": cwd.join("x.toml")})
-    );
-    assert_eq!(
-        installing("/abs/y.toml", cwd),
-        json!({"path": Path::new("/abs/y.toml")})
+        installing(&elsewhere.to_string_lossy(), cwd),
+        json!({"path": elsewhere})
     );
     assert_eq!(installing("net", cwd), json!({"package": "net"}));
 }

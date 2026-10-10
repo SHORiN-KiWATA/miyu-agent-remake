@@ -19,7 +19,7 @@ fn relay(program: &str, extra: &str, tables: &str) -> String {
 /// `miyu-onebot`，借它的话先跑过桥的测试就红。
 fn ghost(home: &Home) {
     home.write(
-        "home/alice/packages/ghost.toml",
+        "home/alice/packages/ghost/package.toml",
         "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = { en = \"Ghost\" }\n\n[command]\nname = \"ghost\"\nprogram = \"miyu-no-such-program-anywhere\"\nabout = { en = \"G\" }\n\n[process]\n\n[features.haunt]\nname = { en = \"Haunt\" }\n\n[settings.port]\ntype = \"int\"\nlayers = [\"system\"]\nname = { en = \"Port\" }\n",
     );
 }
@@ -46,7 +46,7 @@ async fn the_list_says_status_switch_icon_and_page() {
     let home = Home::new();
     let program = Program::new();
     home.write(
-        "home/alice/packages/relay.toml",
+        "home/alice/packages/relay/package.toml",
         &relay(
             &program.name(),
             "icon = \"radio\"",
@@ -56,7 +56,7 @@ async fn the_list_says_status_switch_icon_and_page() {
     home.write("home/alice/packages/relay/page/index.html", "<p>relay</p>");
     // 写了后台页、目录里没有 index.html 的不带 `page`。
     home.write(
-        "home/alice/packages/bare.toml",
+        "home/alice/packages/bare/package.toml",
         &relay(&program.name(), "", "\n[page]\ndir = \"page\"\n")
             .replace("name = \"relay\"", "name = \"bare\""),
     );
@@ -106,7 +106,7 @@ async fn the_switch_starts_and_stops_an_extension() {
     let home = Home::new();
     let program = Program::new();
     home.write(
-        "home/alice/packages/relay.toml",
+        "home/alice/packages/relay/package.toml",
         &relay(&program.name(), "", ""),
     );
     let core = core(&home, quick());
@@ -226,7 +226,7 @@ async fn a_page_without_an_entry_is_a_warning() {
     let home = Home::new();
     let program = Program::new();
     home.write(
-        "home/alice/packages/relay.toml",
+        "home/alice/packages/relay/package.toml",
         &relay(&program.name(), "", "\n[page]\ndir = \"page\"\n"),
     );
     let mut client = Client::connect(core(&home, quick()));
@@ -245,7 +245,7 @@ async fn a_page_without_an_entry_is_a_warning() {
         pages(&reply),
         [json!({
             "kind": "package",
-            "file": "home/alice/packages/relay.toml",
+            "file": "home/alice/packages/relay/package.toml",
             "code": "page_missing",
             "level": "warning",
             "message": "page 里没有 index.html",

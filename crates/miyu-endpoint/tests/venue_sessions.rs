@@ -85,7 +85,7 @@ fn bot() -> AccountId {
 fn install_bridge(home: &Home, program: &str, args: &[String]) {
     let args: Vec<String> = args.iter().map(|arg| format!("{arg:?}")).collect();
     home.write(
-        "home/alice/packages/bot.toml",
+        "home/alice/packages/bot/package.toml",
         &format!(
             "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"Bridge\" }}\n\n[command]\nname = \"bot\"\nprogram = \"{program}\"\nabout = {{ en = \"B\" }}\n\n[process]\nargs = [{}]\nstart = \"always\"\nsystem_account = true\n\n[connection]\nplatform = \"qq\"\n",
             args.join(", ")

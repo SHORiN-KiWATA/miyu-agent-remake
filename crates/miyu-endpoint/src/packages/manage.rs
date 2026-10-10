@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 use miyu_config::package;
 use miyu_policy::preset::MEMORY;
 use miyu_store::packages::install::{self, Placed};
-use miyu_store::packages::{Found, Issue, Layer, Packages};
+use miyu_store::packages::{Found, Issue, Layer, MANIFEST, Packages};
 
 use super::{TARGET, compiled, listed, load, packages, sentence, settle};
 use crate::Core;
@@ -187,17 +187,22 @@ pub(super) async fn remove_package(core: &Arc<Core>, id: String) -> Result<Value
     Ok(json!({"package": removed, "removed": true}))
 }
 
-/// 从 `path` 这份清单装：读得成、不和出厂的撞、拷进去以后和别的包也不撞，才算装上。
+/// 从 `path` 这个包文件夹装（施工 F-8 上：一个文件夹就是一个包；写成文件夹里的 `package.toml` 也认）：读得成、不和出厂的撞、
+/// 拷进去以后和别的包也不撞，才算装上。编号是文件夹的名字。
 async fn from_path(core: &Arc<Core>, peer: Peer, path: &Path) -> Result<Value, Refusal> {
-    let id = path
+    let folder = match path.file_name().and_then(|name| name.to_str()) {
+        Some(MANIFEST) => path.parent().ok_or(Refusal::BAD_PARAMS)?,
+        _ => path,
+    };
+    let id = folder
         .file_name()
         .and_then(|name| name.to_str())
-        .and_then(|name| name.strip_suffix(".toml"))
         .filter(|id| miyu_store::personas::valid(id))
         .map(str::to_string)
-        .filter(|_| path.is_absolute())
+        .filter(|_| folder.is_absolute())
         .ok_or(Refusal::BAD_PARAMS)?;
-    let text = std::fs::read_to_string(path).map_err(|_| Refusal::PATH_UNREADABLE)?;
+    let text =
+        std::fs::read_to_string(folder.join(MANIFEST)).map_err(|_| Refusal::PATH_UNREADABLE)?;
     let words = words(core, peer.language)?;
     if let Err(problem) = package::read(&text) {
         return Err(invalid(&words, &problem));
@@ -208,17 +213,14 @@ async fn from_path(core: &Arc<Core>, peer: Peer, path: &Path) -> Result<Value, R
         return Err(Refusal::PACKAGE_EXISTS);
     }
     let home = home(core)?;
-    let files = path.with_extension("");
-    let files = files.is_dir().then_some(files);
-    let manifest = path.to_path_buf();
+    let source = folder.to_path_buf();
     let target = id.clone();
     // 升级的先停下原来的那一个再换文件（施工 F-5 补）：Windows 上开着的文件挪不走。换不成的照原来的清单换回来。
     let before = core.packages();
     let all = refs(&before);
     let without = leaving(&all, &id);
     core.switch_packages(&all, &without).await;
-    let placed =
-        blocking(move || install::place(&home, &target, &manifest, files.as_deref())).await;
+    let placed = blocking(move || install::place(&home, &target, &source)).await;
     let placed: Placed = match placed {
         Ok(placed) => placed,
         Err(refusal) => {

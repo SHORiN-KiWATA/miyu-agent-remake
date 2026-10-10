@@ -14,9 +14,9 @@ fn manifest(name: &str, program: &str, about: &str) -> String {
 }
 
 fn install(home: &Home, id: &str, text: &str) {
-    let dir = home.root.path().join("home/admin/packages");
+    let dir = home.root.path().join("home/admin/packages").join(id);
     std::fs::create_dir_all(&dir).expect("建得了目录");
-    std::fs::write(dir.join(format!("{id}.toml")), text).expect("写得进");
+    std::fs::write(dir.join("package.toml"), text).expect("写得进");
 }
 
 /// 在临时的数据根上跑 `miyu <args>`，界面语言是 `lang`。
@@ -118,7 +118,10 @@ fn a_missing_program_is_said_and_an_unknown_word_is_still_refused() {
     let said = text(&missing.stderr);
     assert!(
         said.starts_with("miyu-no-such-program-anywhere not found: ")
-            && said.contains("ghost.toml says miyu ghost runs it"),
+            && said.contains(&format!(
+                "{} says miyu ghost runs it",
+                std::path::Path::new("ghost").join("package.toml").display()
+            )),
         "{said}"
     );
     let unknown = miyu(&home, "C", &["hello"]);

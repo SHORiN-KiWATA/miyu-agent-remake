@@ -594,7 +594,7 @@
 
 **`package.install`、`package.remove`**（施工 F-5 上，`packages.md`「装卸」）
 
-- `package.install {"path"}`：`path` 是本机一份清单的绝对路径，文件名 `<编号>.toml`；旁边同名的目录一起拷。装进管理员家目录那一层，同一个编号已经有的换成新的。回应同 `package.list` 的一项。
+- `package.install {"path"}`：`path` 是本机一个包目录的绝对路径（文件夹名就是编号，里面有 `package.toml`），写成包目录里那份 `package.toml` 的路径也认（施工 F-8 上）；整个文件夹拷进去。装进管理员家目录那一层，同一个编号已经有的换成新的。回应同 `package.list` 的一项。
 - `package.install {"package"}`：把卸掉的出厂的包装回来。回应同 `package.list` 的一项。
 - `package.remove {"package"}`：家目录那一层的删掉；出厂的在家目录记一笔。回应 `{"package", "removed": true}`。
 - 拒绝：参数不对、两个都写、路径不是绝对的 `.toml` 的 `bad_params`；读不了的 `path_unreadable`；写错的、拷进去以后和别的包撞了的 `package_invalid`（`data.problem` 照连接的语言说一句，知道第几行的带 `data.line`，什么都不留）；和出厂的同编号的 `package_exists`；卸必需的 `package_required`；没装的、没卸过的 `unknown_package`。扩展自己调回 `local_only`。

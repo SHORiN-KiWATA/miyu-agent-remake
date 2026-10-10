@@ -11,7 +11,7 @@ use miyu_config::{Item, Words};
 use miyu_kernel::id::AccountId;
 use miyu_policy::features::{Feature, Features};
 use miyu_store::human::Human;
-use miyu_store::packages::{Found, Issue, Packages};
+use miyu_store::packages::{Found, Issue, Packages, migrate};
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
@@ -37,9 +37,23 @@ pub(crate) fn packages(core: &Core) -> Packages {
     Packages::new(&core.resources, &core.root, &core.admin)
 }
 
-/// 核心起来时读一次：写错的、撞了的各记一行 `WARN package invalid`，读不了的 `WARN package unreadable`。
+/// 核心起来时读一次：写错的、撞了的各记一行 `WARN package invalid`，读不了的 `WARN package unreadable`。读之前把家目录里
+/// 以前的写法挪成新的（施工 F-8 上），挪了的记一行 `INFO package moved`，挪不了的 `WARN package not moved`。
 pub fn load(resources: &ResourceRoot, root: &DataRoot, admin: &AccountId) -> Vec<Found> {
-    let found = Packages::new(resources, root, admin).read();
+    let packages = Packages::new(resources, root, admin);
+    if let Some(home) = packages.home_dir() {
+        for moved in migrate::old_layout(home) {
+            match &moved.result {
+                Ok(()) => {
+                    tracing::info!(target: TARGET, package = moved.id.as_str(), "package moved");
+                }
+                Err(why) => {
+                    tracing::warn!(target: TARGET, package = moved.id.as_str(), why = ?why, "package not moved");
+                }
+            }
+        }
+    }
+    let found = packages.read();
     for one in &found {
         match &one.read {
             Ok(_) => {}

@@ -41,19 +41,29 @@ fn a_missing_manifest_or_default_is_named() {
     let error = Defaults::load(&ResourceRoot::at(dir.clone())).expect_err("没有清单");
     assert!(error.contains("onebot"), "{error}");
     // 照出厂的清单写一份，去掉 `onebot.listen` 的默认值。
-    let shipped = std::fs::read_to_string(resources().join("packages").join("onebot.toml"))
-        .expect("读得到出厂的清单");
+    let shipped = std::fs::read_to_string(
+        resources()
+            .join("packages")
+            .join("onebot")
+            .join("package.toml"),
+    )
+    .expect("读得到出厂的清单");
     let without = shipped.replace("default = 8301\n", "");
     assert_ne!(without, shipped, "真的去掉了");
-    std::fs::write(packages.join("onebot.toml"), without).expect("写得进");
+    std::fs::create_dir_all(packages.join("onebot")).expect("建得了");
+    std::fs::write(packages.join("onebot").join("package.toml"), without).expect("写得进");
     let error = Defaults::load(&ResourceRoot::at(dir.clone())).expect_err("没写默认值");
+    let file = std::path::Path::new("onebot")
+        .join("package.toml")
+        .display()
+        .to_string();
     assert!(
-        error.contains("onebot.toml") && error.contains("onebot.listen"),
+        error.contains(&file) && error.contains("onebot.listen"),
         "{error}"
     );
-    std::fs::write(packages.join("onebot.toml"), "not toml [").expect("写得进");
+    std::fs::write(packages.join("onebot").join("package.toml"), "not toml [").expect("写得进");
     let error = Defaults::load(&ResourceRoot::at(dir.clone())).expect_err("读不成");
-    assert!(error.contains("onebot.toml"), "{error}");
+    assert!(error.contains(&file), "{error}");
     if std::fs::remove_dir_all(&dir).is_err() {
         // 删不掉就留在临时目录里，不影响测试。
     }

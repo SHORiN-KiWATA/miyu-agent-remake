@@ -19,7 +19,7 @@ fn with_page(home: &Home, id: &str) {
     let path = home
         .root
         .path()
-        .join(format!("home/alice/packages/{id}.toml"));
+        .join(format!("home/alice/packages/{id}/package.toml"));
     let text = std::fs::read_to_string(&path).expect("装好了");
     std::fs::write(&path, format!("{text}\n[page]\ndir = \"page\"\n")).expect("写得进");
 }

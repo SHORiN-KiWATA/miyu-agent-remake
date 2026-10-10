@@ -20,7 +20,7 @@ fn found(dir: &Path, id: &str, text: &str) -> Found {
     Found {
         id: id.to_string(),
         layer: Layer::Home,
-        path: dir.join(format!("{id}.toml")),
+        path: dir.join(id).join("package.toml"),
         read: miyu_config::package::read(text).map_err(miyu_store::packages::Issue::Wrong),
     }
 }
