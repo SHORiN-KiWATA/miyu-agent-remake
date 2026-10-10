@@ -4,8 +4,9 @@
 //! 最多 95%；过了一会儿还没压好，字和条一起呼吸。会话状态不在压了（压好了、没压成、这一轮先结束了），当场拿掉，压好了的结果
 //! 那一行照条目画。
 //!
-//! 自动压缩（`trigger` 是 `auto`）不画进度条：核心提前在后台压，到了线还没压完、停下来等的时候才在压（会话状态的 `doing`），只出一行
-//! 绿点「正在压缩上下文…」，样子同结果那一行（2026-10-10 项目主人定，终端一样）。手动 `/compact` 照旧有进度条。
+//! 不是手动压的（`trigger` 是 `auto`、放不下了停下来压的 `overflow`，核心 6-11 三补）不画进度条：核心提前在后台压，到了线还没压完、停下来
+//! 等的时候才在压（会话状态的 `doing`），只出一行绿点「正在压缩上下文…」，样子同结果那一行（2026-10-10 项目主人定，终端一样）。手动
+//! `/compact` 照旧有进度条。
 
 import { h } from './dom.js';
 import { res, t } from '../util/res.js';
@@ -45,7 +46,7 @@ export class CompactingRow {
 
   start(state) {
     this.stop();
-    if (state.trigger === 'auto') return this.waiting(state);
+    if (state.trigger !== 'manual') return this.waiting(state);
     const c = res.layout.compaction;
     this.state = state;
     this.shown = 0;
@@ -92,7 +93,7 @@ export class CompactingRow {
 
   draw() {
     const s = this.state;
-    if (!s || s.trigger === 'auto') return;
+    if (!s || s.trigger !== 'manual') return;
     const c = res.layout.compaction;
     if (reduced()) this.shown = this.real();
     this.count.textContent = s.written ? t('notes.compacting_count', { count: s.written.toLocaleString('en-US') }) : '';

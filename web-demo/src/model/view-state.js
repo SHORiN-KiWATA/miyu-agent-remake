@@ -6,7 +6,7 @@ import { seqOf } from './entries.js';
 
 /**
  * @typedef {{seen: number, since: number, written: number, expected: number|null, trigger: string}} Compacting
- *   压缩的进度那一行（`ui/compacting.js`）：从哪一条起、什么时候起、写了多少、估计多少、谁要压的（`auto` 自动、`manual` 手动 `/compact`）
+ *   压缩的进度那一行（`ui/compacting.js`）：从哪一条起、什么时候起、写了多少、估计多少、谁要压的（`auto` 自动、`overflow` 放不下了停下来压、`manual` 手动 `/compact`）
  */
 
 /**
