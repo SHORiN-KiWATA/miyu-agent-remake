@@ -7,9 +7,11 @@
  * @typedef {{key: string, kind: 'tool', name: string, args: string, parsed: any, state: 'preparing'|'running'|'done',
  *   status: string|null, output: string, said: {key: string, fields: Record<string, string>}|null, callId: string|null,
  *   start: number|null, end: number|null, duration: number|null, job?: string|null, toTitle?: string|null,
- *   title?: {name: string, object?: string, said?: string}|null, lines?: {added: number, removed: number}|null, images?: any[], approval?: any}} Tool
+ *   title?: {name: string, object?: string, said?: string}|null, lines?: {added: number, removed: number}|null, images?: any[], approval?: any,
+ *   files?: {path: string, action: 'created'|'changed'|'trashed'}[]}} Tool
  *   `duration` 是这一步的用时（执行命令写在名字后面）；`job` 是派出去的任务的编号（派子代理那一行写它）；`toTitle` 是留言发给的那个子代理的
- *   标题（点开写在「发给」里；找不到的是 `null`）；`title`、`lines`、`images`、`approval` 是核心给的标题那一句、改了多少行、结果里的图、确认
+ *   标题（点开写在「发给」里；找不到的是 `null`）；`title`、`lines`、`images`、`approval`、`files` 是核心给的标题那一句、改了多少行、
+ *   结果里的图、确认、改了哪些文件
  * @typedef {Thought|Tool} Step
  * @typedef {{type: 'steps', key: string, turn: number|null, finished: boolean, steps: Step[], summary?: {failed: boolean, spans: {text: string, tone: string}[]}}} Segment
  *   `summary` 是收起那一行（核心给的）

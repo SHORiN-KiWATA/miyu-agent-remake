@@ -115,10 +115,13 @@ test('点开执行命令：命令那几行留着，参数里不再写 command、
   assert.deepEqual(cut, [{ kind: 'text', label: '参数', text: `command: ${long}` }]);
 });
 
-test('点开的细节：编辑、写入是差异卡片，做成了不写结果；没做成的接着结果', () => {
-  const edit = details(tool('edit', { file_path: '/a.rs', edits: [{ old_string: 'a\n', new_string: 'b\n' }] }, { output: 'ok' }));
+test('点开的细节：编辑、写入是差异卡片，做成了不写结果；新建的照核心给的改了哪些文件写「新建」；没做成的接着结果', () => {
+  const edit = details(tool('edit', { file_path: '/a.rs', edits: [{ old_string: 'a\n', new_string: 'b\n' }] }, { output: 'ok', files: [{ path: '/w/a.rs', action: 'changed' }] }));
   assert.equal(edit.length, 1);
   assert.deepEqual([edit[0].kind, edit[0].op, edit[0].path, edit[0].diff.added, edit[0].diff.removed], ['diff', '修改', '/a.rs', 1, 1]);
+  const created = details(tool('write', { file_path: '/b.md', content: 'x\n' }, { files: [{ path: '/w/b.md', action: 'created' }] }));
+  assert.deepEqual([created[0].op, created[0].created], ['新建', true]);
+  assert.equal(details(tool('write', { file_path: '/b.md', content: 'x\n' }))[0].op, '修改', '核心没给的照修改');
   const failed = details(tool('edit', { file_path: '/a.rs', edits: [{ old_string: 'a', new_string: 'b' }] }, { status: 'error', output: '没读过' }));
   assert.deepEqual(failed.map((s) => s.kind === 'diff' ? 'diff' : s.label), ['diff', '结果']);
 });

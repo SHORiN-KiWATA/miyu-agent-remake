@@ -188,11 +188,12 @@ export function stepOf(e) {
     duration: done ? e.took_ms ?? null : null,
     job: e.job ?? null,
     toTitle: e.to_title ?? null,
-    // 核心给的（9-8）：标题那一句、改了多少行、结果里的图、确认
+    // 核心给的（9-8）：标题那一句、改了多少行、结果里的图、确认、改了哪些文件（三补，`action` 是 `created`、`changed`、`trashed`）
     title: e.title ?? null,
     lines: e.diff ?? null,
     images: e.images ?? [],
     approval: e.approval ?? null,
+    files: e.files ?? [],
   };
 }
 

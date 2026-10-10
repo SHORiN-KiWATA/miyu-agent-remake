@@ -192,7 +192,8 @@ export function details(step) {
   ];
   const diff = kindOf(step.name) === 'edit' ? fromArgs(step.parsed) : null;
   if (diff) {
-    const created = !!step.said?.key?.endsWith('/created');
+    // 新建的照核心给的改了哪些文件（9-8 三补的 `created`）
+    const created = (step.files ?? []).some((f) => f.action === 'created');
     const card = { kind: /** @type {const} */ ('diff'), op: t(created ? 'timeline.created' : 'timeline.changed'), created, path: arg(step, 'file_path') ?? '', diff };
     return step.status === 'ok' ? [card] : [card, ...result];
   }
