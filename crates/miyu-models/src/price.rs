@@ -79,7 +79,7 @@ impl Tariff {
         let real = |rate: Option<f64>| rate.map(Real::new);
         Some(Cost {
             amount: Real::new(sum / PER * self.multiplier),
-            currency: self.price.currency.clone(),
+            currency: self.price.currency.to_string(),
             price: Prices {
                 input: real(rates.input),
                 output: real(rates.output),

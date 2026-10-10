@@ -30,7 +30,7 @@ use crate::TARGET;
 use catalog::Places;
 use refresh::{Refresher, Schedule};
 
-/// 照资源目录造路由，模型资料还没读（目录、用出来的、供应商的列表随 [`start`]）。用出来的、列表写进 `state`
+/// 照资源目录造路由，模型资料还没读（目录、用出来的、供应商的列表随 [`begin`]、[`follow`]）。用出来的、列表写进 `state`
 /// （`state/models`，没有的不写）。
 ///
 /// # Errors
@@ -88,29 +88,38 @@ pub fn routes(resources: &ResourceRoot) -> Result<Arc<dyn Models>, String> {
     Ok(Arc::new(routes))
 }
 
-/// 写了 `ready` 以后：在阻塞线程里读目录（快照和缓存挑新的）、用出来的、供应商的列表，读完放行；再照 `settings` 在后台
-/// 更新目录。缓存目录 `cache`（`<缓存目录>/models`）算不出来的只读快照、不拉。
-pub fn start(
+/// 读目录（施工 V-2 下：造好路由就读，不等写 `ready`）：在阻塞线程里读目录（快照和缓存挑新的）、用出来的，读完放行要它的
+/// （造会话、载入、`model.list`）。核心别的起来的步子和它并着走：头一连上就要载入会话，原来写了 `ready` 才开始读，载入会话
+/// 白等约 30 ms。交回读好的图标表，[`follow`] 照它在后台拉图标。
+pub fn begin(
     data: Arc<ModelData>,
     snapshot: PathBuf,
     cache: Option<PathBuf>,
     state: Option<PathBuf>,
-    settings: watch::Receiver<Schedule>,
-) {
+) -> Reading {
     let table = snapshot.join(logos::TABLE);
-    let places = Places {
-        snapshot,
-        cache: cache.clone(),
-    };
+    let places = Places { snapshot, cache };
+    let reading = Arc::clone(&data);
+    let task = tokio::task::spawn_blocking(move || {
+        let observed = state.as_deref().map(read_observed).unwrap_or_default();
+        reading.loaded(catalog::load(&places), observed);
+        logos::table(&table)
+    });
+    Reading { data, task }
+}
+
+/// [`begin`] 起的那一次读。
+pub struct Reading {
+    data: Arc<ModelData>,
+    task: tokio::task::JoinHandle<Option<miyu_models::logos::LogoTable>>,
+}
+
+/// 写了 `ready` 以后：等读完，再照 `settings` 在后台更新目录、拉图标。缓存目录 `cache`（`<缓存目录>/models`）算不出来的只读
+/// 快照、不拉。
+pub fn follow(reading: Reading, cache: Option<PathBuf>, settings: watch::Receiver<Schedule>) {
     tokio::spawn(async move {
-        let reading = Arc::clone(&data);
-        let read = tokio::task::spawn_blocking(move || {
-            let observed = state.as_deref().map(read_observed).unwrap_or_default();
-            reading.loaded(catalog::load(&places), observed);
-            logos::table(&table)
-        })
-        .await;
-        let table = match read {
+        let Reading { data, task } = reading;
+        let table = match task.await {
             Ok(table) => table,
             Err(error) => {
                 tracing::error!(target: TARGET, error = %error, "catalog read panicked");

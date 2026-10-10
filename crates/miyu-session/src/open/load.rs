@@ -70,6 +70,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         owner_is_admin,
     } = setup;
     let span = actor::span(&id);
+    let loading = Instant::now();
     let config = Turning::start(configs, environment.cwd.clone()).await;
     let dir = root.session_dir(&owner, &id);
     let log_dir = LogDir(dir.clone());
@@ -90,12 +91,13 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         run,
         (guard, place),
         wired,
-        (read, connected),
+        (read, snapshotted, connected),
     ) = blocking(move || {
         // 载入各段用了多久（施工 V-2 中）：读、解日志，接上记忆，记进 `loaded` 那一行。
         let began = Instant::now();
         let (log, events) = SessionLog::open(&dir, SEGMENT_LIMIT).map_err(LoadError::Log)?;
         let read = began.elapsed();
+        let snapshotting = Instant::now();
         let (created, command) = match events.first() {
             Some(Event {
                 body: Body::SessionCreated(created),
@@ -119,6 +121,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         // 快照里的范围已经照预设、有没有人格算过（施工 P-2 中、P-4 上），这里只再管子会话。
         let persona = snapshot.persona.as_deref().unwrap_or_default();
         let scope = memory::scope(created.parent.is_some(), true, snapshot.memory_scope());
+        let snapshotted = snapshotting.elapsed();
         let connecting = Instant::now();
         let turns = connect(
             memory.as_ref(),
@@ -140,7 +143,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             run,
             (guard, place),
             turns,
-            (read, connecting.elapsed()),
+            (read, snapshotted, connecting.elapsed()),
         ))
     })
     .await?;
@@ -301,9 +304,11 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             target: TARGET,
             events = count,
             read_ms = millis(read),
+            snapshot_ms = millis(snapshotted),
             memory_ms = millis(connected),
             scan_ms = millis(scanned),
             replay_ms = millis(replayed),
+            total_ms = millis(loading.elapsed()),
             "loaded"
         );
     });

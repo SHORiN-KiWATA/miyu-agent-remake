@@ -283,7 +283,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | 级别 | 这件事 | 键 | 什么时候 |
 |---|---|---|---|
 | INFO | `created` | `persona`、`venue`、`tools`（几件） | 造好会话，起 actor 之前 |
-| INFO | `loaded` | `events`（几条）；`read_ms`、`memory_ms`、`scan_ms`、`replay_ms`：读、解日志，接上记忆，几样从日志重建的（看过的文件、任务、发给谁、累计用量），内核重放，各用了多少毫秒（施工 V-2 中） | 载入，起 actor 之前 |
+| INFO | `loaded` | `events`（几条）；`read_ms`、`snapshot_ms`、`memory_ms`、`scan_ms`、`replay_ms`、`total_ms`：读、解日志，读快照，接上记忆，几样从日志重建的（看过的文件、任务、发给谁、累计用量），内核重放，各用了多少毫秒，和载入一共用了多少（含等模型目录读完；施工 V-2 中、下） | 载入，起 actor 之前 |
 | INFO | `request` | `seen`、`endpoint`、`model`、`changed`（变了的才有） | 第 7 条 |
 | WARN | `no model` | `why`：`no_model` 的原话 | 路由挑不出端点，当场说完（第 8 条第 3 条，施工 8-6） |
 | INFO | `failed` | `seen`、`took_ms`、`class` | 请求出错收场 |

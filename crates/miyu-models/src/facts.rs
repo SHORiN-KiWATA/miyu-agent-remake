@@ -180,8 +180,8 @@ pub fn facts(
     let wire = entry
         .filter(|(_, matched, _)| matched.layer <= 2)
         .map_or_else(Wire::default, |(entry, _, _)| Wire {
-            npm: entry.npm.clone(),
-            interleaved: entry.interleaved.clone(),
+            npm: entry.npm.as_deref().map(str::to_string),
+            interleaved: entry.interleaved.as_deref().map(str::to_string),
         });
     // 能不能关思考、温度的上限照这个模型真走的驱动（施工 8-14、8-22）；它用不了的照这一家的（发的时候当场 `no_model`）。
     let speaking = provider
@@ -238,9 +238,10 @@ pub fn facts(
                 .or_else(|| from_catalog(&|entry| entry.max_output)),
         ),
         inputs: or_default(
-            written
-                .texts(&["inputs"])
-                .or_else(|| Some((model_data?.inputs.clone()?, borrowed.clone()?))),
+            written.texts(&["inputs"]).or_else(|| {
+                let inputs = model_data?.inputs?.names().map(str::to_string).collect();
+                Some((inputs, borrowed.clone()?))
+            }),
             vec!["text".to_string()],
         ),
         tools: fact(
@@ -260,10 +261,14 @@ pub fn facts(
             1.0,
         ),
         name: or_default(
-            model_data.and_then(|entry| Some((entry.name.clone()?, borrowed.clone()?))),
+            model_data
+                .and_then(|entry| Some((entry.name.as_deref()?.to_string(), borrowed.clone()?))),
             model.to_string(),
         ),
-        status: fact(model_data.and_then(|entry| Some((entry.status.clone()?, borrowed.clone()?)))),
+        status: fact(
+            model_data
+                .and_then(|entry| Some((entry.status.as_deref()?.to_string(), borrowed.clone()?))),
+        ),
         wire,
     };
     (facts, found)

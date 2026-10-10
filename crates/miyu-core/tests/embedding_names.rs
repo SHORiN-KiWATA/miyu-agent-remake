@@ -21,8 +21,11 @@ fn the_shipped_rules_pick_embedding_models_from_the_snapshot() {
             }
         }
     }
-    let has =
-        |provider: &str, model: &str| picked.iter().any(|(p, m, _)| p == provider && m == model);
+    let has = |provider: &str, model: &str| {
+        picked
+            .iter()
+            .any(|(p, m, _)| p == provider && **m == *model)
+    };
     for (provider, model) in [
         ("openai", "text-embedding-3-small"),
         ("google", "gemini-embedding-001"),

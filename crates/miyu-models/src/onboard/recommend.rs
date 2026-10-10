@@ -55,7 +55,8 @@ pub fn released(catalog: Option<&Loaded>, found: &Found) -> Option<String> {
         .catalog
         .model(&matched.provider, &matched.model)?
         .release_date
-        .clone()
+        .as_deref()
+        .map(str::to_string)
 }
 
 /// 照列表的先后 `offered` 挑一个；列表是空的没有。

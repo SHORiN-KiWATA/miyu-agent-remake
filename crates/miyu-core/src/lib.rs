@@ -11,8 +11,9 @@
 //! 5. 换本机令牌、在套接字上等连接（施工 3-8 下）；找沙盒的助手、探一次，只记日志（施工 5-1）；照编进来的可选
 //!    软件包往查询表里登记（[`packages::register`]，cargo 开关 `mermaid`、`net`，施工 W-4、W-7），交给 `Core`；清掉管理员
 //!    分块上传留下的暂存（[`packages::clear_uploads`]，施工 W-5）；
-//! 6. 往标准输出写一行 `ready`：拉起它的头等着这一行；接着照开关拉起开着的扩展（施工 9-4 上）；在后台读 models.dev 的目录、
-//!    用出来的、供应商的列表，读完再答要它的，之后在后台更新目录（施工 8-7）；在后台清一次回收处（施工 3-8 三补，`trash.rs`）。
+//! 6. 往标准输出写一行 `ready`：拉起它的头等着这一行；接着照开关拉起开着的扩展（施工 9-4 上）；在后台更新 models.dev 的
+//!    目录（施工 8-7；读目录、用出来的在第 4 步造好路由就在阻塞线程里开始了，读完再答要它的，施工 V-2 下）；在后台清一次
+//!    回收处（施工 3-8 三补，`trash.rs`）。
 //!
 //! 之后 [`serve()`] 一个个接连接：没有连接、也没有在跑的回合，空闲够久了就退出；收到停的信号，先让在跑的
 //! 会话有计划地停下再退出。起不来的，把原因写成那一行（`error …`）交给头。
@@ -277,10 +278,17 @@ async fn run(
         Err(error) => return failed("models", error),
     };
     let model_data = Arc::clone(&routes.data);
-    let catalog_places = (
-        resources.catalog_snapshot().parent().map(Path::to_path_buf),
-        models::cache(&env),
-        root.state().join("models"),
+    // 造好路由就读目录（施工 V-2 下）：和下面这几步并着走，不挡 `ready`；头一连上要载入会话时多半已经读完了。
+    let cache = models::cache(&env);
+    let reading = models::begin(
+        Arc::clone(&model_data),
+        resources
+            .catalog_snapshot()
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_default(),
+        cache.clone(),
+        Some(root.state().join("models")),
     );
     let sandbox = sandbox::probe(env.exe.as_deref());
     let sandbox_cache = sandbox::cache(&env, std::env::var_os("CARGO_HOME"));
@@ -331,15 +339,8 @@ async fn run(
     core.start_extensions();
     // 池的成员下架了的，路由确认以后从池里拿掉（施工 8-23）。
     core.start_retirement();
-    // 写了 `ready` 以后读目录、在后台更新（施工 8-7，「起草时定的」第 13 条）。
-    let (snapshot, cache, state) = catalog_places;
-    models::start(
-        model_data,
-        snapshot.unwrap_or_default(),
-        cache,
-        Some(state),
-        models::catalog_settings(core.config_now()),
-    );
+    // 写了 `ready` 以后在后台更新目录、拉图标（施工 8-7，「起草时定的」第 13 条）；读在上面已经开始了（施工 V-2 下）。
+    models::follow(reading, cache, models::catalog_settings(core.config_now()));
     let purging = trash::purge(trashed, admin());
     serve(opened.listener, core, options.idle, serve::signal()).await;
     if let Err(error) = purging.await {

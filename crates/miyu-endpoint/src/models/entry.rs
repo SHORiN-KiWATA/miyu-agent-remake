@@ -100,7 +100,10 @@ pub(crate) fn provider(
                     .and_then(|(recognized, loaded)| loaded.catalog.provider(&recognized.provider));
                 if let Some(entry) = catalog_models {
                     for model in entry.models.keys() {
-                        listed.entry(model.clone()).or_default().insert("catalog");
+                        listed
+                            .entry(model.to_string())
+                            .or_default()
+                            .insert("catalog");
                     }
                 }
                 let models: Vec<Value> = listed
@@ -134,7 +137,7 @@ pub(crate) fn provider(
                             entry["catalog_missing"] = json!(missing);
                         }
                         let family = catalog_models
-                            .and_then(|listed| listed.models.get(&model))
+                            .and_then(|listed| listed.models.get(model.as_str()))
                             .and_then(|known| known.family.as_deref());
                         if names.matches(&model, family) {
                             entry["embedding"] = json!(true);

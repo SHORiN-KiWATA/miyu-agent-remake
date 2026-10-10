@@ -29,7 +29,15 @@ fn shape(line: &str) -> String {
 }
 
 /// 量出来的用时，每次不一样：`took_ms`，载入会话那一行的四格（施工 V-2 中）。
-const TIMED: [&str; 5] = ["took_ms", "read_ms", "memory_ms", "scan_ms", "replay_ms"];
+const TIMED: [&str; 7] = [
+    "took_ms",
+    "read_ms",
+    "snapshot_ms",
+    "memory_ms",
+    "scan_ms",
+    "replay_ms",
+    "total_ms",
+];
 
 /// 等到日志里有一行以 `end` 结尾，最多六十秒。
 async fn wait_for(memory: &Memory, end: &str) {
@@ -117,7 +125,7 @@ async fn the_log_says_what_happened_and_nothing_that_was_said() {
             ),
             format!("INFO  session  {s} stopped"),
             format!(
-                "INFO  session  {s} loaded events={events} read_ms=_ memory_ms=_ scan_ms=_ replay_ms=_"
+                "INFO  session  {s} loaded events={events} read_ms=_ snapshot_ms=_ memory_ms=_ scan_ms=_ replay_ms=_ total_ms=_"
             ),
             format!("INFO  session  {s} closed"),
         ],
