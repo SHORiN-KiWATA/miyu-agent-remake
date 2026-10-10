@@ -1,0 +1,83 @@
+/* 第一次引导（软件包 welcome；蓝图 web.md「第一次引导」第 2、3 条）：盖着整页的一层（在吉祥物那一层下面），内容一列 560px 居中。
+   控件不描边：选项是一块底色，选中的浮起来（surface-1 加软影）。欢迎页后面两团慢慢飘的光、一些慢慢闪的星点 */
+.wl-layer {
+  position: fixed; z-index: 38; inset: 0; overflow: hidden; background: var(--surface); color: var(--text); font-family: var(--sans);
+  animation: fade-in var(--motion-in) var(--ease-out) both;
+}
+.wl-layer.is-leaving { animation: wl-out 0.28s var(--ease-in) both; pointer-events: none; }
+@keyframes wl-out { to { opacity: 0; } }
+.wl-page { position: relative; height: 100%; overflow-y: auto; }
+.wl-col { box-sizing: border-box; width: min(560px, 100% - 32px); margin: 0 auto; padding: 56px 0 64px; }
+.wl-layer.is-center .wl-col { display: grid; min-height: 100%; padding: 0; place-items: center; }
+.wl-head { display: flex; align-items: center; justify-content: space-between; height: 20px; margin-bottom: 52px; }
+.wl-head[hidden] { display: none; }
+.wl-brand { color: var(--text-soft); font-size: 13px; font-weight: 600; }
+.wl-steps { display: flex; align-items: center; margin: 0; padding: 0; color: var(--text-faint); font-size: 12.5px; list-style: none; gap: 8px; }
+.wl-steps li { display: flex; align-items: center; gap: 8px; }
+.wl-steps li + li::before { content: ''; width: 16px; height: 1px; background: var(--line); }
+.wl-steps li.is-now { color: var(--text); font-weight: 600; }
+
+/* 一屏：往前走的从右边滑进来 12px，往回的从左边 */
+.wl-screen { display: grid; gap: 0; animation: wl-in-fwd 0.2s var(--ease-out) both; }
+.wl-screen.is-back { animation-name: wl-in-back; }
+@keyframes wl-in-fwd { from { opacity: 0; transform: translateX(12px); } }
+@keyframes wl-in-back { from { opacity: 0; transform: translateX(-12px); } }
+.wl-title { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.4; }
+.wl-sub { margin: 4px 0 0; color: var(--text-soft); font-size: 14px; }
+.wl-body { margin-top: 18px; }
+.wl-wait { display: flex; justify-content: center; margin: 40px 0; color: var(--text-faint); }
+.wl-wait svg { width: 20px; height: 20px; animation: set-spin 0.9s linear infinite; }
+.wl-error { margin: 14px 0 0; color: var(--danger); font-size: 13px; white-space: pre-wrap; }
+.wl-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 22px; }
+.wl-link {
+  display: inline-flex; align-items: center; gap: 2px; height: 32px; padding: 0 6px 0 2px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text-soft); font: 13.5px var(--sans); cursor: pointer;
+}
+.wl-link:hover, .wl-link:focus-visible { outline: 0; background: var(--surface-2); color: var(--text); }
+.wl-link svg { width: 15px; height: 15px; }
+.wl-btn {
+  height: 32px; padding: 0 16px; border: 0; border-radius: 9px; background: var(--surface-2); color: var(--text);
+  font: 13.5px var(--sans); cursor: pointer;
+}
+.wl-btn.is-primary { background: var(--accent); color: var(--on-primary); }
+.wl-btn.is-primary:hover { filter: brightness(1.06); }
+.wl-btn.is-primary:focus-visible { outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 28%, transparent); }
+.wl-btn:disabled, .wl-btn.is-primary:disabled { background: var(--surface-2); color: var(--text-faint); filter: none; cursor: default; }
+
+/* 欢迎、完成：居中，标题大一些，按钮在下面正中 */
+.wl-screen.is-center { justify-items: center; padding: 150px 24px 0; text-align: center; }
+.wl-layer.is-hello .wl-screen.is-center { padding-top: 170px; }
+.wl-screen.is-center .wl-title { font-size: 20px; }
+.wl-layer.is-hello .wl-title { font-size: 28px; }
+.wl-screen.is-center .wl-body { order: 3; margin-top: 10px; }
+.wl-screen.is-center .wl-foot { order: 2; justify-content: center; margin-top: 22px; }
+.wl-screen.is-center .wl-foot > span:empty { display: none; }
+.wl-hint { margin: 0; color: var(--text-faint); font-size: 12.5px; }
+.wl-layer.is-hello .wl-screen > * { animation: fade-in 0.6s 0.25s var(--ease-out) both; }
+
+/* 界面语言：一行一种 */
+.wl-langs { display: grid; gap: 6px; }
+.wl-lang {
+  display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 14px; border: 0; border-radius: 10px;
+  background: var(--surface-2); color: var(--text); font: 14px var(--sans); text-align: left; cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+.wl-lang:hover { background: var(--surface-3); }
+.wl-lang.is-on { background: var(--surface-1); box-shadow: var(--card-shadow); }
+.wl-lang:focus-visible { outline: 0; box-shadow: var(--card-shadow); }
+.wl-tag { padding: 2px 8px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); font-size: 12px; }
+.wl-check { display: inline-flex; margin-left: auto; color: var(--accent); }
+.wl-check svg { width: 15px; height: 15px; }
+
+/* 欢迎页后面：两团糊开的光左右慢慢飘（一圈 24 秒），星点慢慢闪；别的几屏淡掉 */
+.wl-sky { position: absolute; inset: 0; overflow: hidden; opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
+.wl-layer.is-hello .wl-sky { opacity: 1; }
+.wl-glow { position: absolute; bottom: -30vh; width: 70vw; height: 60vh; border-radius: 50%; background: var(--accent); opacity: 0.1; filter: blur(80px); }
+.wl-glow.is-a { left: -10vw; animation: wl-drift 24s ease-in-out infinite alternate; }
+.wl-glow.is-b { right: -15vw; opacity: 0.07; animation: wl-drift 24s -12s ease-in-out infinite alternate-reverse; }
+@keyframes wl-drift { to { transform: translateX(20vw) translateY(-6vh); } }
+.wl-star { position: absolute; width: var(--size, 1px); height: var(--size, 1px); border-radius: 50%; background: var(--text-faint); animation: wl-twinkle 6s ease-in-out infinite; }
+@keyframes wl-twinkle { 0%, 100% { opacity: 0.15; } 50% { opacity: 0.8; } }
+@media (prefers-reduced-motion: reduce) {
+  .wl-glow, .wl-star, .wl-screen, .wl-layer, .wl-layer.is-hello .wl-screen > * { animation: none; }
+}

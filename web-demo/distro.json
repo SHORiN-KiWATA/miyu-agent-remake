@@ -15,7 +15,8 @@
     { "id": "attachments" },
     { "id": "jobs" },
     { "id": "settings" },
-    { "id": "mascot" }
+    { "id": "mascot" },
+    { "id": "welcome" }
   ],
   "seams": {}
 }
