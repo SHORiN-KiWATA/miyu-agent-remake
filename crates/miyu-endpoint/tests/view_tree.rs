@@ -111,7 +111,8 @@ async fn a_grandchild_counts_in_the_tree() {
     }
 }
 
-/// 连子代理一起的用量（施工 9-8 补下）：父会话说了两次、子代理说了一次，谁先到都一样，一共三次请求。
+/// 连子代理一起的用量（施工 9-8 补下）：父会话说了两次、子代理说了一次，谁先到都一样，一共三次请求。子代理报回来时父会话
+/// 那一轮已经结束的，回报另开一轮、多一次请求（机器忙时会这样，施工 9-8 补下修）：剧本多备一句，量到三次就断言。
 #[tokio::test]
 async fn the_tree_usage_adds_the_children() {
     let home = Home::new();
@@ -122,6 +123,7 @@ async fn the_tree_usage_adds_the_children() {
         Play::calls(&[("subagent", &args)]),
         Play::Says("好。"),
         Play::Says("查完了。"),
+        Play::Says("收到。"),
     ]);
     let mut client = Client::connect(home.core_with_tools(&script, tools, TOKEN));
     client.hello().await;

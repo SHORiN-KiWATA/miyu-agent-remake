@@ -101,7 +101,7 @@ async fn an_avatar_is_set_read_and_unset_back_to_the_layer_below() {
             .as_array()
             .expect("有")
             .contains(
-                &json!({"persona": "base", "name": "底", "summary": null, "avatar": version})
+                &json!({"persona": "base", "name": "底", "summary": null, "avatar": version, "background": null, "seed": null})
             ),
         "{listed}"
     );

@@ -30,6 +30,7 @@ mod memory_dream;
 mod memory_eval;
 mod memory_extract;
 mod memory_extract_more;
+mod memory_follow;
 mod memory_installed;
 mod memory_merge;
 mod memory_recall;

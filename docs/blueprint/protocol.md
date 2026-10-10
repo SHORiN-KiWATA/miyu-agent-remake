@@ -28,6 +28,7 @@
 | `crates/miyu-endpoint/src/subscriptions.rs` | 订阅：每个订阅一个转发任务，先写补发的（施工 3-8 六补），再推 `event`、`resync`；换掉一个订阅时等它写完 |
 | `crates/miyu-endpoint/src/subscriptions/later.rs` | 在后台答的回应照办完那一刻的会话订阅走（施工 R-7 补）：会话订阅交回应的通道由它开、开时记下弱引用，换订阅、取消订阅不等它 |
 | `crates/miyu-endpoint/src/subscriptions/config.rs` | 配置的订阅（施工 8-4，`config.md`「协议」）：推 `config.changed`、掉队推 `resync`，`config.set` 的回应排在推送后面 |
+| `crates/miyu-endpoint/src/subscriptions/memory.rs` | 记忆日志的订阅（施工 R-12 上，「记忆日志的推送」）：一间一个转发任务，先写补的、再写回应、再推 `memory.event`，掉队推 `resync`；找哪一间、补什么在 `memory.rs` 的 `follow` |
 | `crates/miyu-endpoint/src/undo.rs` | 撤销、恢复、重做的回应里给人看的几样（`protocol/undo.md`） |
 | `crates/miyu-endpoint/src/attach.rs` | 附件（施工 3-9 三补）：`blob.put` 读、存；`session.send`、`session.redo` 的附件变成内容块；认是什么、文件名和媒体类型怎么查、存好了怎么拼回应，和分块上传共用（施工 W-5）；`model.call` 的图照哈希变成图片块（`images`，施工 8-20） |
 | `crates/miyu-endpoint/src/attach/kind.rs` | 认一个附件是什么：图片、PDF、别的文件，媒体类型 |
@@ -151,6 +152,7 @@
 | `preset.set`、`preset.delete` | 新建、改一个预设（只写你家目录那一层），删掉你那一层（施工 P-3 中，`presets.md`「改」） |
 | `persona.set`、`persona.read`、`persona.delete` | 新建、改一个人格（只写你家目录那一层），读一份提示词的原文和版本，删掉你那一层（挪进回收处）（施工 P-3 下，`personas.md`「改」） |
 | `persona.avatar` | 读一个人格的头像：`{"avatar", "media_type", "data"}`，没有的 `null`（施工 P-5，`personas.md`「头像」） |
+| `persona.background` | 读一个人格的背景图：`{"background", "media_type", "data"}`，没有的 `null`（施工 P-6，`personas.md`「主题色、背景图」） |
 | `package.list` | 列出起来时读到的软件包清单（施工 9-1 上，`packages.md`）；装卸以后当场照新的，卸掉的出厂的带 `removed`（施工 F-5 上） |
 | `package.install`、`package.remove` | 装、卸软件包，当场生效（施工 F-5 上，`packages.md`「装卸」） |
 | `package.enable`、`package.disable` | 软件包列表上的开关：照种类开关扩展的进程，或者卸掉、装回来出厂的内置包（施工 F-6 上，`package-pages.md`「开关」） |
@@ -528,7 +530,7 @@
 
 **`persona.list`**（施工 P-1 上，`personas.md`「怎么走」第 7 条）
 
-没有参数。回应 `{"personas": [...]}`，照编号排，一个人格一格：`persona` 编号，`avatar` 头像的版本（没有的 `null`，施工 P-5），`name`、`summary` 一句字（施工 P-3 补：写成一句的就是它；以前写成语言表的、出厂的几个照这个连接的语言挑，这种语言没写的照 `en`、`zh`、`ja` 的先后，都没写的是 `null`；说明写成空的字的也是 `null`，施工 P-3 再补）。来自哪几层不给（施工 P-3 补，2026-10-08 项目主人：人看的是名字）。文件写错的只有 `persona`、`problem` 和知道第几行的 `line`：`problem` 照这个连接的语言说哪里写错了，同 `persona.*` 里 `persona_invalid` 的 `data.message`、`data.line`（施工 P-3 再补：原来是给排查看的英文原话，项目主人看不懂）。
+没有参数。回应 `{"personas": [...]}`，照编号排，一个人格一格：`persona` 编号，`avatar` 头像的版本（没有的 `null`，施工 P-5），`background` 背景图的版本、`seed` 主题色（小写的 `#rrggbb`），没有的 `null`（施工 P-6），`name`、`summary` 一句字（施工 P-3 补：写成一句的就是它；以前写成语言表的、出厂的几个照这个连接的语言挑，这种语言没写的照 `en`、`zh`、`ja` 的先后，都没写的是 `null`；说明写成空的字的也是 `null`，施工 P-3 再补）。来自哪几层不给（施工 P-3 补，2026-10-08 项目主人：人看的是名字）。文件写错的只有 `persona`、`problem` 和知道第几行的 `line`：`problem` 照这个连接的语言说哪里写错了，同 `persona.*` 里 `persona_invalid` 的 `data.message`、`data.line`（施工 P-3 再补：原来是给排查看的英文原话，项目主人看不懂）。
 
 **`preset.list`**（施工 P-2 上，`presets.md`「协议」）
 
@@ -567,11 +569,13 @@
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | `persona` | 字符串，可以不写 | 人格的编号；不写的是新建，编号由核心起 `persona-<n>`（同 `preset.set`，施工 P-3 补） |
-| `changes` | 数组，可以不写 | 改 `persona.toml`，写法同 `preset.set` 的 `changes`；键是 `persona.name`、`persona.summary`、`memory.scope` |
+| `changes` | 数组，可以不写 | 改 `persona.toml`，写法同 `preset.set` 的 `changes`；键是 `persona.name`、`persona.summary`、`memory.scope`、`appearance.seed`（施工 P-6；写的值照 `[appearance]` 的规矩查，写错的 `persona_invalid`） |
 | `prompts` | 对象，可以不写 | 提示词名（`persona`、`examples`、`reminders`）到 `{"text": "<整份>"}`、`{"unset": true}`，示范对话另可写 `{"pairs": [{"user", "assistant"}, …]}`（施工 P-3 补）；都可带 `"expect": "<版本>" \| null`（照 `persona.read` 给的） |
 | `avatar` | 对象，可以不写 | 头像（施工 P-5，`personas.md`「头像」）：`{"blob": <内容哈希>}` 换成传上来的那一张，`{"unset": true}` 删掉你那一层的；可带 `"expect": "<版本>" \| null` |
+| `background` | 对象，可以不写 | 背景图（施工 P-6，`personas.md`「主题色、背景图」），写法同 `avatar` |
+| `seed` | 字符串或对象，可以不写 | 主题色（施工 P-6）：`"#rrggbb"`（大小写都认，写成小写）写进你那一层的 `[appearance] seed`，`{"unset": true}` 删掉你那一层的；写错的、`changes` 里也改了 `appearance.seed` 的 `bad_params` |
 
-`changes`、`prompts`、`avatar` 至少写一样（只写 `avatar` 的要写 `persona`）。回应同 `persona.get`：改完叠好的样子（带着编号）。只写管理员家目录那一层：改出厂的、系统区的就是建同名覆盖，提示词整份换你那一层的那一份，`unset` 删掉你那一层的、回到下面的；空的字（`{"text": ""}`）就是这一段是空的（空的人设不进 system，空的角色扮演提示等于没有）。
+`changes`、`prompts`、`avatar`、`background`、`seed` 至少写一样（只写 `avatar`、`background` 的要写 `persona`；只写 `seed` 的可以新建）。回应同 `persona.get`：改完叠好的样子（带着编号）。只写管理员家目录那一层：改出厂的、系统区的就是建同名覆盖，提示词整份换你那一层的那一份，`unset` 删掉你那一层的、回到下面的；空的字（`{"text": ""}`）就是这一段是空的（空的人设不进 system，空的角色扮演提示等于没有）。
 
 1. 几样一起查：`persona.toml` 改完的一份、示范对话、连同叠好以后；有错什么都不写，`persona_invalid`，`data.problem` 是头一处（写法同 `persona.get`），`data.message`、`data.line` 照连接的语言说（施工 P-3 补）。和你那一层现在一样的不写，一样都没变的什么都不写。
 2. `pairs`（施工 P-3 补：界面里一对一对地编，格式留在核心）：核心写成 `user:` / `assistant:` 开头、对与对之间空一行的写法；一句里的空行去掉；空的 `pairs` 等于删掉。每一句去掉前后空白不能是空的（`bad_params`）；一句里有一行看起来像 `user:`、`assistant:` 开头、写了读不回原样的，`persona_invalid`（`data.message` 说是第几对）。
@@ -616,7 +620,7 @@
 |---|---|---|
 | `persona` | 字符串，必写 | 人格的编号 |
 
-回应 `{"persona", "name", "summary", "prompts": {"persona", "reminders"}, "examples", "avatar", "remove"}`（施工 P-3 补：只给人要看的；`avatar` 施工 P-5：头像的版本，图的字节的 SHA-256 前 16 位十六进制，没有的 `null`，图用 `persona.avatar` 读）：`name`、`summary` 一句字（挑法同 `persona.list`）；`prompts` 里是人设、角色扮演提示有没有字（`true`、`false`）；`examples` 是示范对话几轮；`remove` 是删了会怎样（同 `preset.get`）。原文照 `persona.read` 给。编号不合写法的 `bad_params`，没有的 `unknown_persona`，写错的 `persona_invalid`（带 `data.message`、`data.line`）。
+回应 `{"persona", "name", "summary", "prompts": {"persona", "reminders"}, "examples", "avatar", "background", "seed", "remove"}`（施工 P-3 补：只给人要看的；`avatar` 施工 P-5：头像的版本，图的字节的 SHA-256 前 16 位十六进制，没有的 `null`，图用 `persona.avatar` 读；`background` 施工 P-6：背景图的版本，写法同 `avatar`，图用 `persona.background` 读；`seed` 施工 P-6：主题色，小写的 `#rrggbb`，没有的 `null`，头从头像取色）：`name`、`summary` 一句字（挑法同 `persona.list`）；`prompts` 里是人设、角色扮演提示有没有字（`true`、`false`）；`examples` 是示范对话几轮；`remove` 是删了会怎样（同 `preset.get`）。原文照 `persona.read` 给。编号不合写法的 `bad_params`，没有的 `unknown_persona`，写错的 `persona_invalid`（带 `data.message`、`data.line`）。
 
 **`memory.*`**（施工 R-3 补，`memory.md`「协议」）
 
@@ -888,11 +892,12 @@
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
-| `session` | 字符串 | 哪个会话：`events`、`view` 必写，`config`、`sessions` 不写（写了 `bad_params`） |
-| `stream` | 字符串，必写 | `events` 会话的事件流；`view` 会话的视图流（施工 9-8 下，下面第 9 条、`view.md`「视图流」）；`config` 配置的推送（施工 8-4，`config.md`「订阅配置的推送」）；`sessions` 会话列表的推送（施工 9-5，下面「会话列表的推送」）；`extensions` 扩展的状态的推送（施工 9-4 补，`extensions.md`「推送」）。别的 `bad_params` |
-| `after` | 非负整数，可以不写 | 只有 `subscribe` 的 `events` 认（施工 3-8 六补，`view`、`config`、`sessions`、`extensions` 写了 `bad_params`）：先补发日志里序号大于它、落了盘的事件，`0` 是从头。见下面「补发」 |
+| `session` | 字符串 | 哪个会话：`events`、`view` 必写，`config`、`sessions` 不写（写了 `bad_params`）；`memory` 可以写，是那个会话用的那一间（施工 R-12 上） |
+| `persona` | 字符串 | 只有 `memory` 认：这个人格那一间（施工 R-12 上）。别的流写了不理 |
+| `stream` | 字符串，必写 | `events` 会话的事件流；`view` 会话的视图流（施工 9-8 下，下面第 9 条、`view.md`「视图流」）；`config` 配置的推送（施工 8-4，`config.md`「订阅配置的推送」）；`sessions` 会话列表的推送（施工 9-5，下面「会话列表的推送」）；`extensions` 扩展的状态的推送（施工 9-4 补，`extensions.md`「推送」）；`memory` 一间的记忆日志（施工 R-12 上，下面「记忆日志的推送」）。别的 `bad_params` |
+| `after` | 非负整数，可以不写 | 只有 `subscribe` 的 `events`、`memory` 认（施工 3-8 六补、R-12 上，`view`、`config`、`sessions`、`extensions` 写了 `bad_params`）：先补发日志里序号大于它、落了盘的事件，`0` 是从头。见下面「补发」、「记忆日志的推送」 |
 
-回应：`config` 的都是 `{}`；`sessions` 的 `subscribe` 是 `{"sessions": [<一项>, …]}`，`unsubscribe` 是 `{}`（施工 9-5）；`extensions` 的 `subscribe` 是 `{"extensions": [<一个>, …]}`，`unsubscribe` 是 `{}`（施工 9-4 补）。`subscribe` 的是 `{"limits": <限额>, "model": <模型>}`，写了 `after` 的多一格 `upto`（补到哪一条）：`{"limits": <限额>, "model": <模型>, "upto": <序号>}`。当前的待办不空的多一格 `todos`（施工 D-3，照 `todo.written` 的写法）；会话用哪个人格写在 `persona`（施工 P-1 下）、哪个预设写在 `preset`（施工 P-2 上），都照日志第一条 `session.created` 读，以前的日志没有的不写；之后变了照推送的瞬时事件 `todos.changed`，头只认这两样，不自己翻效果。施工 9-6 上起再多三格「当前的」，和订阅在会话 actor 的同一步里拿，头之后照推过来的事件往上加、不重不漏：`usage` 这个会话（不带子会话）累计的，写法、口径同 `usage.query {"session": <它>}` 那一行（`requests`、`usage`、`amounts`、`unpriced`），另加 `main`（只算主请求的四项用量：`purpose` 是空的，压缩的摘要请求也算，回顾、起标题这些辅助请求不算；头照它算命中率、上下文，施工 9-6 上补）、`compactions`（压缩的检查点有几个）、`cache_breaks`（意外断了缓存的主请求有几次：带 `first_difference`、`purpose` 是空的；压缩的摘要请求（带 `compaction`，或者看到的比之前的主请求少）不算；压缩、撤销以后的头一个主请求本来就会断，也不算；口径同终端，施工 9-6 再补）；`permission` 人这一刻设的权限 `{"level", "read_only"}`；`jobs` 还在跑的后台命令和子代理，照编号，每一个照 `job.started` 的写法（`job`、`what`、`title`，子代理带 `session`）。施工 9-7 上起再多 `workspace`：`{"cwd", "dirs"}`，会话在哪个目录干活，之后照推过来的 `session.workspace_changed` 换。已经订阅着、再订阅一次不带 `after` 的（「还是那一个」），这几格另要一份这一刻的。`unsubscribe` 的是空对象 `{}`。
+回应：`config` 的都是 `{}`；`sessions` 的 `subscribe` 是 `{"sessions": [<一项>, …]}`，`unsubscribe` 是 `{}`（施工 9-5）；`extensions` 的 `subscribe` 是 `{"extensions": [<一个>, …]}`，`unsubscribe` 是 `{}`（施工 9-4 补）；`memory` 的 `subscribe` 是 `{"upto": <序号>}`，`unsubscribe` 是 `{}`（施工 R-12 上）。`subscribe` 的是 `{"limits": <限额>, "model": <模型>}`，写了 `after` 的多一格 `upto`（补到哪一条）：`{"limits": <限额>, "model": <模型>, "upto": <序号>}`。当前的待办不空的多一格 `todos`（施工 D-3，照 `todo.written` 的写法）；会话用哪个人格写在 `persona`（施工 P-1 下）、哪个预设写在 `preset`（施工 P-2 上），都照日志第一条 `session.created` 读，以前的日志没有的不写；之后变了照推送的瞬时事件 `todos.changed`，头只认这两样，不自己翻效果。施工 9-6 上起再多三格「当前的」，和订阅在会话 actor 的同一步里拿，头之后照推过来的事件往上加、不重不漏：`usage` 这个会话（不带子会话）累计的，写法、口径同 `usage.query {"session": <它>}` 那一行（`requests`、`usage`、`amounts`、`unpriced`），另加 `main`（只算主请求的四项用量：`purpose` 是空的，压缩的摘要请求也算，回顾、起标题这些辅助请求不算；头照它算命中率、上下文，施工 9-6 上补）、`compactions`（压缩的检查点有几个）、`cache_breaks`（意外断了缓存的主请求有几次：带 `first_difference`、`purpose` 是空的；压缩的摘要请求（带 `compaction`，或者看到的比之前的主请求少）不算；压缩、撤销以后的头一个主请求本来就会断，也不算；口径同终端，施工 9-6 再补）；`permission` 人这一刻设的权限 `{"level", "read_only"}`；`jobs` 还在跑的后台命令和子代理，照编号，每一个照 `job.started` 的写法（`job`、`what`、`title`，子代理带 `session`）。施工 9-7 上起再多 `workspace`：`{"cwd", "dirs"}`，会话在哪个目录干活，之后照推过来的 `session.workspace_changed` 换。已经订阅着、再订阅一次不带 `after` 的（「还是那一个」），这几格另要一份这一刻的。`unsubscribe` 的是空对象 `{}`。
 
 **模型** `model`（施工 8-10，`models.md`「协议」）：会话接下来请求的。`ref` 是会话的引用（模型或 `@池`），`endpoint`、`model` 是接下来发给哪一家的哪个模型；轮换的池（每次都换）、解析不出的没有 `endpoint`、`model`，没配 `models.chat` 的会话没有 `ref`。一个都没有的不写这一格。回合开始重新解析过的、出错换了成员的是换了以后的。施工 8-18 多一格 `effort`：`{"level": <一档>, "from": "system" 或 "personal"}`，接下来那个模型真用的思考强度和从配置的哪一层来（8-18（补）起不再有 `session`）；请求里什么都不带的、轮换的池不写。
 
@@ -950,14 +955,26 @@
 6. 场所会话以后也不进这个流（`18-通讯平台.md` 第十一节）。
 7. 怎么知道变了（`session/actor.md`「推送和订阅」第 7 条）：会话每送完一批，照这一批推过的事件（`session.created`、`session.meta_changed`、`turn.started`、`turn.ended`）和忙不忙变没变，经会话表的端口报一声「这个会话的那一项变了」（`SessionPort::listing`）；端点照会话列表的索引只算这一个会话的一项（和 `session.list` 同一个函数）。造会话、删会话由会话表自己报。不靠订阅每个会话的事件流：订阅着就算有头在看着它（`subscribe` 第 8 条）。
 
+**记忆日志的推送**（施工 R-12 上，`memory.md`「协议」；2026-10-11 项目主人定：给什么核心定、照仿 Linux 的原则给，一切皆文件、日志式，怎么画是头的事）
+
+记忆日志就是真相：订阅它就是 `tail -f`，`memory.list` 是照它算好的现在的样子（`/proc`）。条数、分类、时间线这些头照这两样自己算，核心不另给汇总。
+
+1. `subscribe {"stream": "memory", "persona"? | "session"?, "after"?}`：找哪一间、装没装、听众同 `memory.*`（上面「`memory.*`」第一段）：人格记忆没装的 `memory_not_installed`，两样都写的 `bad_params`，没有记忆的 `memory_unavailable`，找不到的照那边。`after` 照「补发」第 8 条，写错了 `bad_params`、先于找那一间。记忆日志开不了、补的那一截读不出来：`internal_error`，记一行 `memory failed`，什么都没订阅。
+2. 写了 `after` 的：记忆日志里序号大于它、订阅那一刻落了盘的，照先后一条条推过来，再回应 `{"upto": <那一刻的最后一条，一条都没有的是 0>}`，之后从 `upto + 1` 接着推，中间不丢不重（读和登记在记忆日志的同一把锁里）。不写的不补，只推之后的。补的那一截在阻塞线程里一次读完。
+3. 推 `memory.event`：`{"event": <日志里那一行>, "persona"? | "session"?}`。`event` 是记忆日志里的事件原样（外壳同会话日志：`seq`、`at`、`kind`、`by`，人经协议、斜杠命令写的带 `cause`；`body` 照 `memory.md`「记忆日志」那张表），`persona`、`session` 照订阅时写的原样带回去（都没写的都不带）。
+4. 挑哪些：说的是一条的（`ext.memory.saved` 是它自己，`ext.memory.retired` 是它作废的那一条），那一条的听众不合这个连接的人的不推（同 `memory.*`）；整间的（`extracted`、`merged`、`summary`、`cleared`）照推。补的时候另外不补：清掉了的那几条和作废它们的、清空以前的摘要（里面有清掉的字；清掉的哪里都不出来，`memory.md` 第二条第 5 款），出处全死了的那几条和作废它们的（当它不在，`17-记忆.md` 第六节）。之后追加的推的时候还没清、出处刚记下，照推；之后清空了、撤销了一轮，现在的样子照 `memory.list` 重新列。
+5. 一个连接一间至多一个，照订阅时写的原样认（写法不同的，例如不写人格和写了默认人格，算两个）：再订阅同一间换一个新的；`unsubscribe {"stream": "memory", "persona"? | "session"?}` 停掉它，没订阅过的也回 `{}`，不找那一间。
+6. 读得太慢、掉了队：之后的最多攒 64 条没写出去的（「慢和掉队」第 1 条），再多推 `resync`（`{"stream": "memory", "persona"? | "session"?}`），这个订阅停了；头带上最后看到的序号（`after`）重新订阅，掉的那一截补回来。
+
 #### 推送
 
 | 方法 | `params` | 什么时候 |
 |---|---|---|
 | `event` | `{"session": <编号>, "event": <事件>}` | 订阅着的会话的每一条事件，一条一个；补发的也是它（施工 3-8 六补） |
-| `resync` | `{"session": <编号>, "stream": "events"}`；配置的是 `{"stream": "config"}`（施工 8-4），会话列表的是 `{"stream": "sessions"}`（施工 9-5） | 读得太慢，掉了队：这个订阅停了 |
+| `resync` | `{"session": <编号>, "stream": "events"}`；配置的是 `{"stream": "config"}`（施工 8-4），会话列表的是 `{"stream": "sessions"}`（施工 9-5），记忆日志的是 `{"stream": "memory"}` 加订阅时写的 `persona` 或 `session`（施工 R-12 上） | 读得太慢，掉了队：这个订阅停了 |
 | `sessions.changed` | `{"session": <编号>, "entry": <一项>}`，删了的 `{"session": <编号>, "removed": true}`（施工 9-5） | 订阅着会话列表的：上面「会话列表的推送」第 3 条那几种时刻 |
 | `config.changed` | 见 `config.md`「推送 `config.changed`」（施工 8-4） | 订阅着配置的：系统配置、个人设置每变一次 |
+| `memory.event` | `{"event": <记忆日志里那一行>}` 加订阅时写的 `persona` 或 `session`（施工 R-12 上） | 订阅着一间的记忆日志的：上面「记忆日志的推送」第 3、4 条 |
 
 推送的事件不都由这个连接的命令引起：内核自己起的标题（`session.set_meta` 第 6 条，施工 3-8 五补）一轮答完以后自己来，没有 `cause`。
 
@@ -981,7 +998,7 @@
 
 **慢和掉队**
 
-1. 头读得慢：写队列满了，转发任务等着，不再从会话那里拿。会话给每个订阅最多攒 1024 份没读走的推送，再多就掉了队。配置的推送最多攒 16 条（施工 8-4）。核心和会话都不等这个头。
+1. 头读得慢：写队列满了，转发任务等着，不再从会话那里拿。会话给每个订阅最多攒 1024 份没读走的推送，再多就掉了队。配置的推送最多攒 16 条（施工 8-4），记忆日志的 64 条（施工 R-12 上：一轮至多追加几条，整理一次几十条）。核心和会话都不等这个头。
 2. 掉了队：推一条 `resync`，这个订阅停了，之后不再推；回应照样到。头重新 `subscribe`：不写 `after` 的从那一刻起再推，掉了的不补；带上最后看到的序号（`after`）的，掉的那一截补回来（「补发」，施工 3-8 六补）。
 3. 会话停了：这个订阅也停了，推一条 `resync`（施工 4-9 再补三上）：头重新订阅，会话照「会话表」重新载入。
 
@@ -1054,6 +1071,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `program_missing`、`not_switchable` | -32010 | `package.enable`、`extension.enable`：包的程序不在 `miyu` 旁边，当没装，开不了；`package.enable`、`package.disable`：这个包没有开关（必需的照旧回 `package_required`）（施工 F-6 上，`package-pages.md`） |
 | `no_page`、`not_found`、`program_not_running`、`unregistered`、`method_failed`、`method_timeout` | -32010 | `package.file`：没有后台页；后台页里没有这份文件。`package.call`：程序没连着；没登记这个方法（`data.method`）；程序回了错（`data.message`、`data.code`）；到时限没回（施工 F-6 中，`package-pages.md`） |
 | `avatar_not_image`、`avatar_too_big` | -32010 | `persona.set` 的 `avatar`：不是 PNG、JPEG、WebP；超过 1 MiB 或 1024 像素，`data` 带量到的和上限（施工 P-5，`personas.md`「头像」） |
+| `background_not_image`、`background_too_big` | -32010 | `persona.set` 的 `background`：不是 PNG、JPEG、WebP；超过 5 MiB 或 4096 像素，`data` 同头像的（施工 P-6，`personas.md`「主题色、背景图」） |
 | `needs_approval` | -32010 | `extension.enable`、`extension.restart`：要的能力还有没批的，`data.capabilities` 是那几个（施工 9-4 下上，`extensions.md`「能力」） |
 | `session_not_found` | -32010 | 没有这个会话，删了的也是 |
 | `unknown_call` | -32010 | `view.detail` 的会话日志里没有这次调用的结果：编号对不上，或者还没回（施工 9-6 三补）；没有替代到这个序号的压缩（施工 9-8 中） |
@@ -1134,11 +1152,12 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `WARN` | `line too long, closed` | 一行太长 |
 | `INFO` | `disconnected` | 握过手的连接断了 |
 | `WARN` | `accept failed error=…` | 接不了连接 |
-| `WARN` | `memory failed error=…` | `memory.*`、`/remember` 写不进、读不了记忆日志（施工 R-3 补） |
+| `WARN` | `memory failed error=…` | `memory.*`、`/remember` 写不进、读不了记忆日志（施工 R-3 补）；订阅记忆日志读不了（施工 R-12 上） |
 | `ERROR` | `connection task failed error=…` | 一个连接的任务崩了 |
 | `WARN` | `create failed error=…`、`load failed session=… error=…` | 造不成、载入不了 |
 | `WARN` | `lagged, resync session=…` | 掉了队 |
 | `WARN` | `lagged, resync stream=config` | 配置的订阅掉了队（施工 8-4） |
+| `WARN` | `lagged, resync stream=memory` | 记忆日志的订阅掉了队（施工 R-12 上） |
 | `WARN` | `replay not read session=… error=…` | 带 `after` 订阅，补发的那一截读不了（施工 3-8 六补） |
 | `INFO` | `session stopped, resync session=…` | 订阅着的会话停了（施工 4-9 再补三上） |
 | `WARN` | `sessions not listed error=…`、`first event not read session=… error=…` | 列会话读不了 |
@@ -1217,6 +1236,8 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `method_timeout` | 方法超时。 | Method timed out. |
 | `avatar_not_image` | 头像只支持 PNG、JPEG、WebP。 | Avatars must be PNG, JPEG or WebP. |
 | `avatar_too_big` | 头像超过 1 MiB 或 1024 像素。 | Avatar over 1 MiB or 1024 pixels. |
+| `background_not_image` | 背景图只支持 PNG、JPEG、WebP。 | Backgrounds must be PNG, JPEG or WebP. |
+| `background_too_big` | 背景图超过 5 MiB 或 4096 像素。 | Background over 5 MiB or 4096 pixels. |
 | `not_an_extension` | 不是扩展。 | Not an extension. |
 | `extension_off` | 扩展已停用。 | Extension disabled. |
 | `needs_approval` | 扩展权限未批准。 | Extension permissions not approved. |
@@ -1352,6 +1373,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/model_call.rs`、`model_call_log.rs`（施工 8-20） | `model.call` 的回应形状、参数校验、blob 的账号、几种出错的 `data`、不进会话日志、运行日志那两行（`models.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/secrets.rs`、`secrets_log.rs`（施工 8-5） | `secret.*` 的回应、拒绝、日志；值不进回应、拒绝、系统日志、运行日志（`config.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/config_set.rs`（施工 8-3） | `config.set` 的回应、每一种拒绝、`expect`、版本、手改重读、全收或者全不收、写不成什么都没变、日志（`config.md`「守着它的」） |
+| `crates/miyu-endpoint/tests/memory_follow.rs`（施工 R-12 上） | 记忆日志的推送：带 `after` 的先补、再回应 `upto`、再推，推的是日志那一行原样（`body`、`by`、`cause`）；她在聊天里经工具记的照样推（`by` 是那次调用、出处是那个会话）；不写的只推之后的，另一个连接从中间补；会话那一间推的带 `session`，人格那一间的不串；再订阅换掉、取消了不推、没订阅的取消回 `{}`；写入堵着的连接掉队推 `resync`、回应一条不丢；`after` 写错、两样都写、没有的人格、没有记忆的会话、没装的照原因拒（挑哪些见 `memory.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/config_watch.rs`、`config_watch_log.rs`（施工 8-4） | 订阅配置、取消、参数不对；手改推 `config.changed`；`config.set` 先见推送后见回应；掉队推 `resync`；改了语言下一句照新的（`config.md`「守着它的」） |
 
 ### 出处

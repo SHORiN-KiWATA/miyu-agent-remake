@@ -117,6 +117,18 @@ assistant: 8640
 6. **列出来**：`persona.list` 的每一格、`persona.get` 多一格 `avatar`：头像的版本，图的字节的 SHA-256 前 16 位十六进制；没有的是 `null`。头照版本换缓存。
 7. 删人格（`persona.delete`）连头像一起挪进回收处。
 
+### 主题色、背景图（Y15，施工 P-6，2026-10-10；网页对过）
+
+1. **主题色**：`persona.toml` 的 `[appearance] seed`，一个 `#rrggbb`，大小写都认，读出来一律小写。照 `persona.toml` 逐项盖的规矩叠。核心不算配色，头照它算；没写的，头从头像取色。
+   - `persona.set` 多一格 `seed`：`"#rrggbb"` 写进管理员家目录那一层，`{"unset": true}` 删掉那一层的，回到下面那一层的。只改主题色的可以不写 `changes`、`prompts`，新建时也可以只写它。写错的、`changes` 里同时改 `appearance.seed` 的 `bad_params`。`changes` 照样能改 `appearance.seed`，值写错的照文件写错算 `persona_invalid`。
+   - 文件里写错（不是 `#rrggbb`）是 `persona_invalid`，`problem` 的 `code` 是 `bad_seed`；`[appearance]` 里多了别的键是 `unknown_key`。
+   - `persona.list` 的每一格、`persona.get` 多一格 `seed`，没有的是 `null`。
+2. **背景图**：同头像的第 1 到 7 条，换成这几处：
+   - 文件名 `background.png`、`background.jpg`、`background.webp`；`persona.set` 的 `background`；读 `persona.background {"persona"}`，回应 `{"background": <版本>, "media_type", "data"}`；`persona.list`、`persona.get` 的 `background` 是版本。
+   - 最大 5 MiB，宽、高都不超过 4096。5 MiB 是 `blob.put` 收图的上限：再大的传不上来。网页传之前缩到长边 2560。
+   - 拒绝是 `background_not_image`、`background_too_big`，`data` 同头像的 `{"bytes", "width", "height", "max_bytes", "max_side"}`。头像、背景图、主题色一起改的，先查两张图，有一张不合规矩的什么都不写。
+3. 只铺对话区、怎么铺、怎么配字的颜色是头的事（网页图纸 `web.md`「主题」）。
+
 ### 出错
 
 | 情形 | 原因码 |
@@ -131,6 +143,7 @@ assistant: 8640
 | 测试 | 守什么 |
 |---|---|
 | `crates/miyu-endpoint/tests/persona_avatar.rs`（施工 P-5） | 头像换上、读回、删了回到下面那一层、版本对不上不动、不合规矩的拒绝且什么都不写、新建时带头像 |
+| `crates/miyu-endpoint/tests/persona_appearance.rs`（施工 P-6） | 主题色大写写成小写、列出来带着、删了回到下面那一层、写错的和重复改的拒绝且什么都不写、只写主题色能新建；背景图比头像的上限大也收、读回、版本对不上不动、删了回到下面那一层、不合规矩的拒绝（`data` 带量到的和上限）且一起改的主题色也不写 |
 | `crates/miyu-policy/src/persona/tests.rs` | `persona.toml` 三种语言、写错的九种写明第几行（`[memory]` 的三种在内，R-3 下）、P-3 上写的 `base` 当没写（施工 P-3 再补）、`[memory] scope` 两种、不写是没有、上一层盖下面的、读不成 TOML 也说第几行；逐种语言叠；示范对话照旧版写法读（大小写、冒号后的空格、接着的行、空行）、写错的七种写明第几行；示范对话进请求在 system 后面历史前面、`stable` 数对、软件工程师的快照里没有 `demos` |
 | `crates/miyu-endpoint/tests/persona_set.rs`（施工 P-3 下、补、再补） | 不写编号新建、读原文和版本、一对一对的示范对话、防覆盖、空的字、删提示词、写错的什么都不写还带一句、参数不对、删了挪进回收处（`protocol.md` 测试表）；旧的 `base` 照常列出、下一次写时去掉，写错的一项列表里照连接的语言说、带行 |
 | `crates/miyu-store/src/trash/personas/tests.rs`（施工 P-3 下） | 挪进回收处整个目录不变、多 `deleted_at`、原处没了、同一个编号删两次各是各的、不在的报错；清的时候正好满的删、没满的留、读不出删的时刻的留并报出来、没有回收处什么都不做 |

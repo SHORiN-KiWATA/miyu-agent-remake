@@ -77,6 +77,11 @@ impl Listing {
         self.send(core, Job::Changed(session));
     }
 
+    /// 会话 `session` 的任务表变了（施工 9-8 补下修）：只告诉会话树重量，会话列表那一项不变，不推。
+    pub(crate) fn moved(&self, session: SessionId) {
+        drop(self.touched.send(session));
+    }
+
     /// 会话 `session` 删了。
     pub(crate) fn removed(&self, core: &Arc<Core>, session: SessionId) {
         drop(self.touched.send(session.clone()));

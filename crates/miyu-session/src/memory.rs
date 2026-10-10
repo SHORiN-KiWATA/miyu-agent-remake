@@ -6,6 +6,7 @@
 
 mod backfill;
 mod extract;
+mod follow;
 mod keeper;
 mod merge;
 mod port;
@@ -15,6 +16,7 @@ mod vectors;
 
 pub use extract::{ExtractTexts, Extraction};
 pub(crate) use extract::{Extractor, Job, plan};
+pub use follow::Following;
 pub use keeper::{Filter, Keeper, Stamp};
 pub use merge::{Dreamed, MergeTexts, NotDreamed};
 

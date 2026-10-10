@@ -101,8 +101,8 @@ pub(crate) struct Actor {
     finished_at: Option<Timestamp>,
     /// 「空了告诉我」被等的这一边：谁在等这个会话空下来（施工 C-6，`watchers.rs`）。
     waiters: watchers::Waiters,
-    /// 这一批推过会让会话列表那一项变的事件（施工 9-5，`listing.rs`）。
-    listed: bool,
+    /// 这一批推过的、要报会话表的（施工 9-5、9-8 补下修，`listing.rs`）。
+    marks: listing::Marks,
     /// 上一次交给内核的限额（施工 8-9，`model.rs`）：请求说完了、回合开始重新解析完和端口的比，变了再交。
     handed: Limits,
     /// 给头看的限额和会话接下来请求的模型，和 `Handle` 共用（施工 8-9、8-10）：交了新的限额、回合开始解析完写一次。
@@ -197,7 +197,7 @@ impl Actor {
             busy_seen,
             finished_at: None,
             waiters: watchers::Waiters::new(),
-            listed: false,
+            marks: listing::Marks::default(),
             handed,
             shown,
             persona: None,

@@ -43,6 +43,15 @@ impl Wanted {
     pub(crate) fn writes(&self) -> bool {
         self.value.is_some()
     }
+
+    /// 代码定的一项（施工 P-6：`persona.set` 的 `seed` 改的是 `appearance.seed`）：写一个字或者删掉，不比 `expect`。
+    pub(crate) fn text(key: &str, value: Option<&str>) -> Wanted {
+        Wanted {
+            key: key.to_string(),
+            value: value.map(|value| Value::Text(value.to_string().into())),
+            expect: None,
+        }
+    }
 }
 
 /// 查参数：同一个键不写两次，`value`、`unset` 正好一个，值是字、开关、数，`expect` 是 `{"value": …}` 或 `{}`。空的由调用的

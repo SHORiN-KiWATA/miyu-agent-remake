@@ -11,6 +11,10 @@ use toml_edit::{Document, Item};
 
 use crate::memory::MemoryScope;
 
+mod tables;
+pub use tables::color;
+use tables::{read_appearance, read_memory};
+
 /// `persona.toml` 在人格目录里的名字。
 pub const TOML: &str = "persona.toml";
 /// 示范对话在人格目录里的位置。
@@ -31,6 +35,8 @@ pub struct PersonaFile {
     pub summary: Option<Label>,
     /// 记忆的默认范围（`[memory] scope`，施工 R-3 下）：只能是 `persona`、`session`；没写的是没有，照 `persona` 算。
     pub memory: Option<MemoryScope>,
+    /// 主题色（`[appearance] seed`，施工 P-6）：`#rrggbb`，读进来一律小写；没写的是没有，头从头像取色。
+    pub seed: Option<String>,
 }
 
 impl PersonaFile {
@@ -40,6 +46,7 @@ impl PersonaFile {
         lower.name = self.name.or(lower.name);
         lower.summary = self.summary.or(lower.summary);
         lower.memory = self.memory.or(lower.memory);
+        lower.seed = self.seed.or(lower.seed);
         lower
     }
 }
@@ -109,6 +116,8 @@ pub enum Code {
     EmptyPhrase,
     /// `[memory]` 的 `scope` 不是 `persona`、`session`（施工 R-3 下加的读法）。
     BadMemoryScope,
+    /// `[appearance]` 的 `seed` 不是 `#rrggbb`（施工 P-6）。
+    BadSeed,
     /// 示范对话第一行不是人说的。
     FirstLine,
     /// 示范对话没有一问一答交替。
@@ -131,6 +140,7 @@ impl Code {
             Code::UnknownLanguage => "unknown_language",
             Code::EmptyPhrase => "empty_phrase",
             Code::BadMemoryScope => "bad_memory_scope",
+            Code::BadSeed => "bad_seed",
             Code::FirstLine => "first_line",
             Code::TakeTurns => "take_turns",
             Code::LastLine => "last_line",
@@ -139,7 +149,7 @@ impl Code {
     }
 
     /// 全部，照先后。
-    pub const ALL: [Code; 12] = [
+    pub const ALL: [Code; 13] = [
         Code::Syntax,
         Code::UnknownTable,
         Code::NotATable,
@@ -148,6 +158,7 @@ impl Code {
         Code::UnknownLanguage,
         Code::EmptyPhrase,
         Code::BadMemoryScope,
+        Code::BadSeed,
         Code::FirstLine,
         Code::TakeTurns,
         Code::LastLine,
@@ -165,7 +176,8 @@ impl fmt::Display for Problem {
 }
 
 /// 读 `persona.toml`：`[persona]` 一张表，里面只有 `name`、`summary`，各是一张语言到一句话的表（`zh`、`en`、`ja`），话不能是
-/// 空的；`[memory]` 一张表，里面只有 `scope`（`persona` 或 `session`，施工 R-3 下）。整个文件、这两张表、每一格都可以没有。
+/// 空的；`[memory]` 一张表，里面只有 `scope`（`persona` 或 `session`，施工 R-3 下）；`[appearance]` 一张表，里面只有 `seed`
+/// （`#rrggbb`，大小写都认，施工 P-6）。整个文件、这几张表、每一格都可以没有。
 ///
 /// # Errors
 ///
@@ -183,6 +195,10 @@ pub fn read_toml(text: &str) -> Result<PersonaFile, Problem> {
     for (key, item) in document.as_table().iter() {
         if key == "memory" {
             file.memory = read_memory(item, &at)?;
+            continue;
+        }
+        if key == "appearance" {
+            file.seed = read_appearance(item, &at)?;
             continue;
         }
         if key != "persona" {
@@ -220,44 +236,6 @@ pub fn read_toml(text: &str) -> Result<PersonaFile, Problem> {
         }
     }
     Ok(file)
-}
-
-/// `[memory]`：只有 `scope`，`persona` 或 `session`。`off` 不在这里：不开记忆是开会话时、预设的事。
-fn read_memory(
-    item: &Item,
-    at: &dyn Fn(&Item) -> Option<usize>,
-) -> Result<Option<MemoryScope>, Problem> {
-    let Some(table) = item.as_table_like() else {
-        return Err(problem(
-            at(item),
-            Code::NotATable,
-            "memory",
-            "memory must be a table".to_string(),
-        ));
-    };
-    let mut scope = None;
-    for (key, item) in table.iter() {
-        if key != "scope" {
-            return Err(problem(
-                at(item),
-                Code::UnknownKey,
-                &format!("memory.{key}"),
-                format!("unknown key memory.{key}"),
-            ));
-        }
-        scope = match item.as_str().and_then(MemoryScope::parse) {
-            Some(MemoryScope::Off) | None => {
-                return Err(problem(
-                    at(item),
-                    Code::BadMemoryScope,
-                    "memory.scope",
-                    "memory.scope must be persona or session".to_string(),
-                ));
-            }
-            found => found,
-        };
-    }
-    Ok(scope)
 }
 
 /// 名字、说明：一句字，或者以前的语言表。
