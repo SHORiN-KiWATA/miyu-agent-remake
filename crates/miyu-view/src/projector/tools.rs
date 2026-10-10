@@ -211,7 +211,11 @@ impl Projector {
             .filter_map(|effect| match effect {
                 Effect::FileChanged(changed) => Some(Touched {
                     path: changed.path.clone(),
-                    action: TouchKind::Changed,
+                    // 改之前没有的是新建的（施工 9-8 三补，网页要分「新建」「修改」）。
+                    action: match changed.before {
+                        Some(_) => TouchKind::Changed,
+                        None => TouchKind::Created,
+                    },
                 }),
                 Effect::FileTrashed(trashed) => Some(Touched {
                     path: trashed.path.clone(),

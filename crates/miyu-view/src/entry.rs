@@ -221,7 +221,9 @@ pub struct Touched {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TouchKind {
-    /// 新建、覆盖、编辑（`file.changed`）。
+    /// 新建：改之前没有这个文件（`file.changed` 没有 `before`）。
+    Created,
+    /// 覆盖、编辑已有的（`file.changed` 有 `before`）。
     Changed,
     /// 移进回收站（`file.trashed`）。
     Trashed,
