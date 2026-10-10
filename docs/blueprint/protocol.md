@@ -157,6 +157,7 @@
 | `package.list` | 列出起来时读到的软件包清单（施工 9-1 上，`packages.md`）；装卸以后当场照新的，卸掉的出厂的带 `removed`（施工 F-5 上） |
 | `package.install`、`package.remove` | 装、卸软件包，当场生效（施工 F-5 上，`packages.md`「装卸」） |
 | `package.info`、`package.files` | 一个包的信息、装了哪些文件（施工 F-8 中上，`packages.md`「本地库」） |
+| `package.owns`、`package.check` | 一个路径归哪个包；装好的文件改了、少了、多了（施工 F-8 中下，`packages.md`「本地库」） |
 | `package.enable`、`package.disable` | 软件包列表上的开关：照种类开关扩展的进程，或者卸掉、装回来出厂的内置包（施工 F-6 上，`package-pages.md`「开关」） |
 | `package.file`、`package.call` | 读一个包的后台页里的文件（吉祥物包读它的模型文件，施工 F-7）；调它的程序登记的方法，核心反向发 `method.call`，在后台答（施工 F-6 中，`package-pages.md`） |
 | `package.methods` | 核心拉起的扩展登记它的后台页要调的方法（施工 F-6 中，`package-pages.md`） |
@@ -597,6 +598,8 @@
 
 - `package.info`：`package`、`layer`（`home`、`shipped`）、`files`（几个文件）、`size`（一共多少字节）；写了的有 `version`；家目录里本地库记了的有 `installed`（装的时刻）、`source`（从哪个路径装的，核心起来时补的没有）。出厂的照现在的文件现算。
 - `package.files`：`files`，每个 `{"path", "sha256", "size"}`：`path` 相对包目录、用 `/` 分开，照路径排。
+- `package.owns {"path"}`（施工 F-8 中下）：`path` 是绝对路径（相对的 `bad_params`），换成真实的位置，看在哪个包的目录里（两层都找）。回应 `{"package": 编号}` 加 `layer`、`path`（相对包目录）、`recorded`（本地库里有没有记它，出厂的总是假）；哪个包都不在的 `{"package": null}`。
+- `package.check {"package"?}`（施工 F-8 中下）：家目录里本地库记了的包，照记的一个个比哈希：`{"packages": [{"package", "modified", "missing", "extra"}]}`，三格都是相对包目录的路径；没记的、出厂的不在里面。写了 `package` 的只查它，没装的 `unknown_package`。
 
 **`package.install`、`package.remove`**（施工 F-5 上，`packages.md`「装卸」）
 
