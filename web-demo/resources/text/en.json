@@ -1,6 +1,121 @@
 {
-  "note": "英文那一套（蓝图 web.md「界面语言」第 4 条）：现在只有时间线收起那一行，界面语言跟着浏览器（auto）时用它；以后加英文界面时补全。",
+  "status": {
+    "online": "Online",
+    "connecting": "Connecting",
+    "offline": "Offline"
+  },
+  "sidebar": {
+    "new_session": "New session",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
+    "menu": "Session actions",
+    "theme_to_light": "Switch to light",
+    "theme_to_dark": "Switch to dark",
+    "untitled": "New session",
+    "sessions": "Sessions",
+    "copy_id": "Copy session ID",
+    "rename": "Rename",
+    "delete": "Delete",
+    "not_yet": "{name}: not supported by the core",
+    "select": "Select",
+    "select_all": "Select all",
+    "selected": "{count} selected",
+    "bulk_failed": "{count} failed to delete: {reason}",
+    "select_exit": "Exit selection",
+    "fold": "Collapse subagents",
+    "unfold": "Expand subagents",
+    "done_kids": "{count} done",
+    "kids": "({count})",
+    "view_all": "View all",
+    "all_sessions": "View all sessions",
+    "paused": "Interrupted, waiting for input",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "pinned": "Pinned"
+  },
+  "crumbs": {
+    "label": "Subagent session path",
+    "back": "Back",
+    "back_to": "Back to “{title}”"
+  },
+  "placeholder": "Message {name}",
+  "placeholder_bare": "Message",
+  "send": "Send",
+  "esc_clear_hint": "Press Esc again to clear",
+  "cleared": "Cleared · ↑ to restore",
+  "done": "{time} · {endpoint}/{model} · {elapsed}",
+  "done_usage": " · {tokens}(C{percent}%)",
+  "interrupted": "Interrupted",
+  "failed": "Error: {message}",
+  "error_classes": {
+    "retryable": "Temporary error",
+    "rate_limited": "Rate limited",
+    "context_too_long": "Context too long",
+    "auth": "Authentication failed",
+    "content_policy": "Blocked by the content policy",
+    "bad_stream": "Malformed reply stream",
+    "empty_reply": "Empty reply",
+    "bad_summary": "Couldn't get a summary",
+    "compaction_paused": "Auto-compaction is paused",
+    "no_model": "No usable model",
+    "other": "Model error",
+    "cooling": "All models are cooling down"
+  },
+  "levels": {
+    "workspace": "Workspace",
+    "full": "Full access",
+    "read_only": "Read-only"
+  },
+  "speed": "{rate} tok/s",
+  "context": "{used}/{window}({percent}%)",
+  "total": "Σ{tokens}(C{percent}%)",
+  "refused": "Refused: {message}",
+  "payload_busy": "Attachments are uploading",
+  "no_bridge": "Can't reach the bridge: open the link with #k= that the bridge printed",
+  "boot": {
+    "connecting": "Connecting to the bridge…",
+    "title": "Can't reach the bridge",
+    "bad_why": "This link's key no longer works. The bridge issues a new key on every restart.",
+    "none_why": "The address has no key.",
+    "key_how": "Go back to the terminal that started the bridge and open the new link with #k=.",
+    "down_why": "The bridge isn't running.",
+    "down_how": "Start the bridge in web-demo/bridge (cargo run -- port), then open the link it prints.",
+    "core_how": "Check the errors in the terminal that started the bridge.",
+    "lost": "The bridge restarted and the key changed: open the new link it printed."
+  },
+  "level_tip": "Click to switch permission level: Workspace → Full access → Read-only",
+  "copied": "Copied {count} character(s)",
+  "copy_failed": "Couldn't copy: {reason}",
+  "reason_with": "{head}: {message}",
+  "list_sep": ", ",
   "timeline": {
+    "thinking": "Thinking",
+    "thought": "Thought",
+    "prepare": {
+      "command": "Preparing to run",
+      "edit": "Preparing to edit",
+      "tool": "Preparing to call tool"
+    },
+    "args": "Arguments",
+    "result": "Result",
+    "prompt": "Prompt",
+    "to": "To",
+    "message": "Message",
+    "parent": "Parent session",
+    "message_subject": "{to}",
+    "message_to": "{job} · {title}",
+    "message_session": "Session {id}",
+    "peek_sep": "·",
+    "agent_subject": "{job} · {title}",
+    "agent_pending": "{title}",
+    "created": "Created",
+    "trashed": "Moved to trash, no diff",
+    "diff_skipped": {
+      "too_big": "File too large, diff not shown",
+      "binary": "Not a text file, diff not shown",
+      "missing": "Can't get the content before and after the change"
+    },
+    "changed": "Changed",
     "summary": {
       "ran": [
         "Ran 1 command",
@@ -52,5 +167,282 @@
         "Messaged {count} sessions"
       ]
     }
+  },
+  "markdown": {
+    "code": "Code",
+    "copy_code": "Copy code"
+  },
+  "media": {
+    "image_failed": "Image failed to load",
+    "fullscreen": "Full screen",
+    "progress": "Playback progress",
+    "volume": "Volume",
+    "download": "Download",
+    "play": "Play",
+    "pause": "Pause",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "audio_failed": "Can't play"
+  },
+  "artifacts": {
+    "toggle": "Preview panel",
+    "preview": "Preview",
+    "source": "Source",
+    "copy": "Copy",
+    "download": "Download",
+    "maximize": "Maximize",
+    "restore": "Restore",
+    "close": "Close",
+    "list": "Artifacts",
+    "loading": "Loading…",
+    "failed": "Failed to load file",
+    "resize": "Drag to resize",
+    "types": {
+      "markdown": "MD",
+      "html": "HTML",
+      "image": "Image",
+      "video": "Video",
+      "code": "Code",
+      "text": "Text"
+    },
+    "failed_with": "Failed to load file: {reason}"
+  },
+  "commands": {
+    "nothing_to_clear": "The context is empty",
+    "nothing_to_recap": "Nothing to recap",
+    "turn_running": "Still replying",
+    "not_redoable": "Can't redo",
+    "header": "Commands · {count}",
+    "unknown": "No such command",
+    "not_open": "No session yet",
+    "undone": "Undone",
+    "theme_changed": "Theme: {name}",
+    "nothing_to_copy": "No reply to copy",
+    "undone_jobs": "Undone · stopped {count} task(s)",
+    "language_changed": "Interface language: {name}",
+    "language_unknown": "Language not supported. Available: {choices}",
+    "recap_working": "Recapping…",
+    "stop_idle": "Nothing is running",
+    "needs_session": "Start a session first",
+    "running": "Running {name}…"
+  },
+  "language": {
+    "title": "Interface language",
+    "hint": "↑↓ select · Enter switch · Esc close",
+    "auto": "Follow browser ({name})",
+    "current": "Current"
+  },
+  "history": {
+    "title": "History",
+    "count": "{count}",
+    "search": "Search",
+    "hint": "↑↓ select · Tab full text · Enter fill input · Esc close",
+    "empty": "No history",
+    "no_match": "No matches",
+    "lines": " · +{count} line(s)",
+    "more": "⋮ {count} more line(s)",
+    "attachments": " · {count} attachment(s)",
+    "attachments_only": "{count} attachment(s)"
+  },
+  "session_list": {
+    "title": "Sessions",
+    "count": "{count}",
+    "count_of": "{shown} / {total}",
+    "search": "Search title or ID",
+    "no_match": "No matching sessions",
+    "loading": "Loading sessions…",
+    "hint": "↑↓ select · Enter open · Esc close"
+  },
+  "mention": {
+    "title": "@{word} · {count}",
+    "partial": "Partial list, type / to browse folders",
+    "partial_layer": "Showing the first {shown}, keep typing",
+    "no_match": "No matches",
+    "hint": "↑↓ select · Tab open folder · Enter select · Esc close",
+    "no_api": "Core version too old to list files",
+    "reasons": {
+      "path_unreadable": "Can't read this directory",
+      "path_forbidden": "Miyu's data directory isn't listed"
+    }
+  },
+  "said": {
+    "copy": "Copy",
+    "edit": "Edit",
+    "redo": "Redo",
+    "cancel": "Cancel",
+    "send": "Send",
+    "download": "Download {name}",
+    "from": "From “{title}”",
+    "from_session": "Message from session {id} “{title}”"
+  },
+  "esc_interrupt_hint": "Press Esc again to interrupt",
+  "interrupt": "Interrupt",
+  "slot_failed": "This block failed ({owner}: {reason})",
+  "status_hints": {
+    "429": "Rate limited, try again later",
+    "402": "Out of credit",
+    "404": "Not found: check the endpoint address and the model name"
+  },
+  "notes": {
+    "command": {
+      "name": "Background command",
+      "done": "Background command done · {title}",
+      "failed": "Background command failed · {title} · exit code {code}",
+      "signal": "Background command failed · {title} · signal {signal}",
+      "stopped": "Background command stopped · {title}",
+      "undone": "Background command stopped by undo · {title}",
+      "restarted": "Background command stopped by restart · {title}",
+      "aborted": "Background command aborted: core exited · {title}"
+    },
+    "agent": {
+      "name": "Subagent",
+      "done": "Subagent submitted its report · {title}",
+      "stopped": "Subagent stopped · {title}",
+      "undone": "Subagent stopped by undo · {title}",
+      "restarted": "Subagent stopped by restart · {title}",
+      "aborted": "Subagent aborted: core exited · {title}"
+    },
+    "unknown": "{what} · {title} · {reason}",
+    "compacted": "Context compacted",
+    "cleared": "Context cleared",
+    "instructions": " · Instructions: {text}",
+    "agent_speaker": "Subagent · {title}",
+    "harness_speaker": "{name} · External agent",
+    "agent_plain": "Subagent",
+    "external": "External",
+    "tail": "Showing the last {count} lines",
+    "no_output": "No output saved",
+    "truncated": "(middle truncated)",
+    "loading": "Loading…",
+    "load_failed": "Failed to load: {reason}",
+    "command_label": "Command",
+    "output_label": "Output",
+    "parent_speaker": "Parent session",
+    "recap": "Recap",
+    "compact_failed": "Compaction failed: {reason}",
+    "compacted_stats": "Context compacted: {before} → {after} tokens",
+    "compacting": "Compacting context",
+    "compacting_count": "{count} characters",
+    "session_speaker": "Message from session {id}",
+    "peer": {
+      "idle": "Session {id} replied",
+      "idle_status": "Session {id} replied: {status}",
+      "expired": "Session {id} timed out",
+      "gone": "Session {id} no longer exists",
+      "unknown": "Session {id} · {reason}"
+    },
+    "changed": "Switched to {to} (previous model failed)",
+    "model_replaced": "{from} unavailable, switched to {to}",
+    "workspace": "Workspace: {path}"
+  },
+  "ago": {
+    "now": "Just now",
+    "minutes": "{n} min ago",
+    "hours": "{n} h ago",
+    "days": "{n} d ago",
+    "date": "{m}/{d}",
+    "full": "{y}-{m}-{d}"
+  },
+  "interrupted_jobs": " · Background tasks still running: {count}",
+  "sessions_page": {
+    "title": "All sessions",
+    "search": "Search sessions",
+    "select": "Select",
+    "new": "New session",
+    "untitled": "Untitled",
+    "empty": "No sessions",
+    "no_match": "No matches",
+    "jobs": "Background tasks: {count}",
+    "agents": "Subagents: {count}"
+  },
+  "turn_end": {
+    "restarted": "Restarted",
+    "aborted": "The core exited during this turn, not finished",
+    "step_limit": "Request limit reached"
+  },
+  "jump_bottom": "Jump to bottom",
+  "stash": {
+    "mark": "Stashed",
+    "hint": "Ctrl+S to restore",
+    "stashed": "Stashed · Ctrl+S to restore",
+    "empty": "Nothing stashed"
+  },
+  "model_menu": {
+    "tip": "Switch model",
+    "models": "Models",
+    "pools": "Model pools",
+    "pin": "Switch on error",
+    "rotate": "Rotate",
+    "cooling": "Cooling down until {time}",
+    "no_key": "No API key",
+    "pool_empty": "No usable models in the pool",
+    "failed": "Couldn't load models: {message}",
+    "loading": "Loading models…",
+    "empty": "No models configured",
+    "effort": {
+      "title": "Thinking effort",
+      "default": "Default",
+      "levels": {
+        "off": "Off",
+        "minimal": "Minimal",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "xhigh": "Extra high",
+        "max": "Max",
+        "on": "On"
+      }
+    },
+    "no_pools": "No model pools configured",
+    "search": "Search models",
+    "no_match": "No matches"
+  },
+  "help": {
+    "title": "Help",
+    "hint": "↑↓ scroll · Esc close",
+    "commands": "Commands",
+    "keys_title": "Keys",
+    "keys": [
+      [
+        "Enter",
+        "Send (queued while the AI is replying)"
+      ],
+      [
+        "Shift+Enter · Ctrl+J",
+        "New line"
+      ],
+      [
+        "Esc ×2",
+        "Interrupt while replying, clear the input when idle"
+      ],
+      [
+        "↑ · ↓",
+        "Browse input history"
+      ],
+      [
+        "Ctrl+R",
+        "Input history list"
+      ],
+      [
+        "Ctrl+S",
+        "Stash the input, press again to restore"
+      ],
+      [
+        "Tab · Shift+Tab",
+        "Switch permission level"
+      ],
+      [
+        "/",
+        "Focus the input"
+      ],
+      [
+        "@",
+        "Select a file"
+      ]
+    ]
+  },
+  "older": {
+    "loading": "Loading earlier messages…",
+    "start": "Start of conversation"
   }
 }

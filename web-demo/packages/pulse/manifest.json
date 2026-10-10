@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "name": {
     "zh": "运行状态行",
+    "en": "Status line",
     "ja": "実行状態行"
   },
   "summary": {
     "zh": "回答时在输入框上方显示进度和用时",
+    "en": "Show progress and elapsed time above the input while replying",
     "ja": "回答中に入力欄の上に出る行：何をしているか・経過時間"
   },
   "kind": "optional",
@@ -92,6 +94,15 @@
                 "容我想想",
                 "稍等片刻"
               ],
+              "en": [
+                "Deep-seeking",
+                "Thinking",
+                "Pondering",
+                "Mulling",
+                "Weighing",
+                "Hmm, let me see",
+                "One moment"
+              ],
               "ja": [
                 "深く探索中",
                 "思考中",
@@ -112,6 +123,12 @@
                 "仔细推敲",
                 "细细琢磨"
               ],
+              "en": [
+                "Untangling",
+                "Threading it through",
+                "Turning it over",
+                "Chewing on it"
+              ],
               "ja": [
                 "紐解き中",
                 "つなぎ合わせ中",
@@ -127,6 +144,11 @@
                 "深思熟虑",
                 "反复推敲",
                 "还在琢磨"
+              ],
+              "en": [
+                "Deliberating",
+                "Going over it again",
+                "Still mulling"
               ],
               "ja": [
                 "熟考中",
@@ -153,6 +175,13 @@
       "retry_failover": " · 换端点重试 {attempt}/{limit}：{message}",
       "waiting_ask": "等待回答",
       "waiting_approve": "等待批准"
+    },
+    "en": {
+      "retry": " · Retry {attempt}/{limit}: {message}",
+      "retry_wait": " · Retrying in {wait} {attempt}/{limit}: {message}",
+      "retry_failover": " · Retrying on another endpoint {attempt}/{limit}: {message}",
+      "waiting_ask": "Waiting for your answer",
+      "waiting_approve": "Waiting for your approval"
     },
     "ja": {
       "retry": " · 再試行 {attempt}/{limit}：{message}",

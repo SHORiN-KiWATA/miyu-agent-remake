@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "name": {
     "zh": "确认和提问",
+    "en": "Confirmations and questions",
     "ja": "確認と質問"
   },
   "summary": {
     "zh": "在输入框中批准操作、回答提问",
+    "en": "Approve actions and answer questions in the input box",
     "ja": "承認や質問への回答を入力欄で選べるようにする"
   },
   "kind": "optional",
@@ -90,6 +92,47 @@
       "answered_who": " · {who}",
       "notes_line": "补充：{notes}",
       "next_question": "下一题"
+    },
+    "en": {
+      "asking": "{who} is asking",
+      "review_tab": "Review",
+      "other": "Type another answer",
+      "custom": "Custom: {text}",
+      "notes_label": "Notes",
+      "notes_add": "Add notes",
+      "decision": {
+        "once": "Allow this time",
+        "session": "Allow for this session",
+        "workspace": "Allow in this workspace",
+        "deny": "Don't allow"
+      },
+      "reason_hint": "Reason (optional)",
+      "edit_hint": "Type, Enter to save",
+      "access": {
+        "write": "Write {count} file(s)",
+        "read": "Read {count} file(s)",
+        "exec": "Run {tool}"
+      },
+      "access_other": "Use {tool}",
+      "outside": "Outside workspace",
+      "exec_untitled": "Run command",
+      "outside_sandbox": "Runs outside the sandbox",
+      "unanswered": "Unanswered",
+      "keys": "↑↓ select · Enter submit · N notes · Esc ×2 cancel",
+      "keys_multi": "↑↓ select · Space check · Enter submit · N notes · Esc ×2 cancel",
+      "keys_approve": "↑↓ select · Enter confirm · Esc ×2 cancel",
+      "keys_review": "Enter submit · Esc ×2 cancel",
+      "keys_edit": "Enter save · Esc stop editing",
+      "keys_tabs": " · ←→ switch question",
+      "cancel_hint": "Press Esc again to cancel",
+      "cancel": "Cancel",
+      "submit": "Submit",
+      "answered_title": "Answered",
+      "cancelled_question": "Question cancelled",
+      "cancelled_approval": "Approval cancelled",
+      "answered_who": " · {who}",
+      "notes_line": "Notes: {notes}",
+      "next_question": "Next question"
     },
     "ja": {
       "asking": "{who} が質問しています",

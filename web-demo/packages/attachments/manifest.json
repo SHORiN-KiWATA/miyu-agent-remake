@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "name": {
     "zh": "附件",
+    "en": "Attachments",
     "ja": "添付ファイル"
   },
   "summary": {
     "zh": "在输入框中添加图片和文件",
+    "en": "Add images and files in the input box",
     "ja": "画像やファイルを入力欄に追加：ドラッグ・貼り付け"
   },
   "kind": "optional",
@@ -89,6 +91,23 @@
       },
       "drop_here": "把文件拖到这里",
       "lines": "{count} 行"
+    },
+    "en": {
+      "attach": "Add attachment",
+      "remove": "Remove",
+      "uploading": "Uploading",
+      "too_big": "{name} is too large: {mib} MiB max per file",
+      "too_many": "Up to {max} at a time",
+      "failed": "{name} failed to upload: {reason}",
+      "reasons": {
+        "attachment_too_big": "File too large (max 20 MiB; images max 5 MiB, 8000 px per side)",
+        "attachment_unreadable": "Can't read",
+        "attachment_in_data_root": "Files in the Miyu data directory can't be used",
+        "upload_unknown": "Upload expired",
+        "too_many_uploads": "Too many simultaneous uploads"
+      },
+      "drop_here": "Drop files here",
+      "lines": "{count} lines"
     },
     "ja": {
       "attach": "ファイルを添付",

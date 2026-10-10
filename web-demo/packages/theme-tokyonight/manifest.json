@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "name": {
     "zh": "tokyonight",
+    "en": "tokyonight",
     "ja": "tokyonight"
   },
   "summary": {
     "zh": "深色主题",
+    "en": "Dark theme",
     "ja": "ダークテーマ"
   },
   "kind": "optional",
@@ -769,6 +771,9 @@
   },
   "text": {
     "zh": {
+      "name": "tokyonight"
+    },
+    "en": {
       "name": "tokyonight"
     },
     "ja": {

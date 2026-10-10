@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "name": {
     "zh": "mermaid 图",
+    "en": "mermaid diagrams",
     "ja": "mermaid 図"
   },
   "summary": {
     "zh": "将回答中的 mermaid 代码渲染为图表",
+    "en": "Render mermaid code in replies as diagrams",
     "ja": "回答中の mermaid コードを図にする"
   },
   "kind": "optional",
@@ -54,6 +56,14 @@
       "diagram": "图表",
       "drawing": "正在绘制图表…",
       "copy": "复制源码"
+    },
+    "en": {
+      "label": "Diagram",
+      "zoom": "View original",
+      "source": "Source",
+      "diagram": "Diagram",
+      "drawing": "Drawing diagram…",
+      "copy": "Copy source"
     },
     "ja": {
       "label": "図",

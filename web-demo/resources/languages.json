@@ -1,5 +1,5 @@
 {
-  "note": "界面语言的表（蓝图 web.md「界面语言」，照 TUI 的 languages.json）：code 是语言代码（和核心资源目录的 human/<代码>.json 同一套），name 是它自己的名字，locales 是认哪些浏览器语言的前缀，tag 是页面的语言标签（<html lang>、握手的 locale）。fallback 是缺字时退回、浏览器的语言一个都认不出时用的那一种。加一种语言：这里加一行、写一份 text/<代码>.json，commands.json、运行状态行的词库、每个软件包清单的 text、name 加上这一种（tests/languages.test.js 查）。 auto_summary 是界面语言跟着浏览器（auto）时，时间线收起那一行用哪一种的字（英文，和正文区分开，设计 13 H3）；手动定了语言的用那一种自己的（2026-10-01 项目主人定）。",
+  "note": "界面语言的表（蓝图 web.md「界面语言」，照 TUI 的 languages.json）：code 是语言代码（和核心资源目录的 human/<代码>.json 同一套），name 是它自己的名字，locales 是认哪些浏览器语言的前缀，tag 是页面的语言标签（<html lang>、握手的 locale）。fallback 是缺字时退回、浏览器的语言一个都认不出时用的那一种。2026-10-10 项目主人要了英文，排在中文后面（第一次引导的语言页照这个先后）。加一种语言：这里加一行、写一份 text/<代码>.json，commands.json、运行状态行的词库、每个软件包清单的 text、name 加上这一种（tests/languages.test.js 查）。 auto_summary 是界面语言跟着浏览器（auto）时，时间线收起那一行用哪一种的字（英文，和正文区分开，设计 13 H3）；手动定了语言的用那一种自己的（2026-10-01 项目主人定）。",
   "fallback": "zh",
   "auto_summary": "en",
   "languages": [
@@ -9,6 +9,14 @@
       "tag": "zh-CN",
       "locales": [
         "zh"
+      ]
+    },
+    {
+      "code": "en",
+      "name": "English",
+      "tag": "en-US",
+      "locales": [
+        "en"
       ]
     },
     {

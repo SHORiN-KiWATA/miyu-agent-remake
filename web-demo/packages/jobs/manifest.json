@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "name": {
     "zh": "后台任务",
+    "en": "Background tasks",
     "ja": "バックグラウンドタスク"
   },
   "summary": {
     "zh": "查看和停止后台命令、子代理",
+    "en": "View and stop background commands and subagents",
     "ja": "バックグラウンドのコマンドとサブエージェントを確認・停止"
   },
   "kind": "optional",
@@ -93,6 +95,51 @@
         "no_command": "（无法读取命令）",
         "no_api": "核心版本过旧，不支持读取输出",
         "tail": "共 {total} 行，显示最后 {shown} 行"
+      }
+    },
+    "en": {
+      "pill": "Background tasks: {count}",
+      "open": "View background tasks",
+      "stop": "Stop",
+      "states": {
+        "running": "Running {elapsed}",
+        "done": "Done {elapsed}",
+        "done_plain": "Done",
+        "failed": "Failed · exit code {code}",
+        "signal": "Failed · signal {signal}",
+        "stopped": "Stopped",
+        "undone": "Stopped by undo",
+        "restarted": "Stopped by restart",
+        "aborted": "Aborted: core exited",
+        "paused": "Waiting for input",
+        "running_plain": "Running"
+      },
+      "reasons": {
+        "unknown_job": "Task already ended",
+        "not_a_command": "This is a subagent, open its session"
+      },
+      "enter": "Open subagent session",
+      "stop_all": "Stop all",
+      "title": "Background tasks",
+      "counts": {
+        "running": "{count} running",
+        "paused": "{count} waiting for input",
+        "done": "{count} finished"
+      },
+      "sections": {
+        "done": "Finished: {count}"
+      },
+      "spawned": "{count} spawned",
+      "empty": "No background tasks in this session",
+      "preview": {
+        "open": "View command and output",
+        "command": "Command",
+        "output": "Output",
+        "loading": "Loading…",
+        "empty": "(No output yet)",
+        "no_command": "(Can't read the command)",
+        "no_api": "Core version too old to read output",
+        "tail": "{total} lines, showing the last {shown}"
       }
     },
     "ja": {

@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "name": {
     "zh": "吉祥物",
+    "en": "Mascot",
     "ja": "マスコット"
   },
   "summary": {
     "zh": "页面上的像素吉祥物",
+    "en": "Pixel mascot on the page",
     "ja": "ページを歩き回るピクセルのマスコット"
   },
   "kind": "optional",
@@ -544,6 +546,9 @@
   "text": {
     "zh": {
       "label": "吉祥物"
+    },
+    "en": {
+      "label": "Mascot"
     },
     "ja": {
       "label": "マスコット"

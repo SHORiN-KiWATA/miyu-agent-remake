@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "name": {
     "zh": "主题",
+    "en": "Theme",
     "ja": "テーマ"
   },
   "kind": "base",

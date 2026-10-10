@@ -16,8 +16,8 @@ const TABLE = json('resources/languages.json');
 const CODES = TABLE.languages.map((l) => l.code);
 const BASE = TABLE.fallback;
 
-test('表：中文、日文两种，缺字退回中文；每种有名字、浏览器语言的前缀、页面的语言标签', () => {
-  assert.deepEqual(CODES, ['zh', 'ja']);
+test('表：中文、英文、日文三种（英文 2026-10-10 加），缺字退回中文；每种有名字、浏览器语言的前缀、页面的语言标签', () => {
+  assert.deepEqual(CODES, ['zh', 'en', 'ja']);
   assert.equal(BASE, 'zh');
   for (const l of TABLE.languages) {
     assert.ok(l.name && l.tag && l.locales.length, l.code);
@@ -26,8 +26,9 @@ test('表：中文、日文两种，缺字退回中文；每种有名字、浏�
 
 test('用哪一种：设置项写了哪种用哪种；auto 照浏览器的语言依次认前缀，一个都认不出的用退回的那一种', () => {
   assert.equal(pick('auto', ['ja-JP', 'en'], TABLE).code, 'ja');
-  assert.equal(pick('auto', ['en-US', 'zh-TW'], TABLE).code, 'zh', '认第一个认得出的');
-  assert.equal(pick('auto', ['en-US', 'fr'], TABLE).code, 'zh', '都认不出用退回的');
+  assert.equal(pick('auto', ['fr', 'zh-TW'], TABLE).code, 'zh', '认第一个认得出的');
+  assert.equal(pick('auto', ['en-US', 'zh-TW'], TABLE).code, 'en', '英文认得出');
+  assert.equal(pick('auto', ['fr', 'de'], TABLE).code, 'zh', '都认不出用退回的');
   assert.equal(pick('auto', [], TABLE).code, 'zh');
   assert.equal(pick('ja', ['zh-CN'], TABLE).code, 'ja', '写了的不看浏览器');
   const ja = pick('ja', [], TABLE);
@@ -38,17 +39,17 @@ test('用哪一种：设置项写了哪种用哪种；auto 照浏览器的语言
 
 test('/language 的浮层：先是跟着浏览器（写它现在认成的那一种），再是表里每一种写自己的名字；设置项现在写的那一行是当前', () => {
   const auto = options('auto', ['ja-JP'], TABLE);
-  assert.deepEqual(auto.items, [{ value: 'auto', name: '日本語', auto: true }, { value: 'zh', name: '中文', auto: false }, { value: 'ja', name: '日本語', auto: false }]);
+  assert.deepEqual(auto.items, [{ value: 'auto', name: '日本語', auto: true }, { value: 'zh', name: '中文', auto: false }, { value: 'en', name: 'English', auto: false }, { value: 'ja', name: '日本語', auto: false }]);
   assert.equal(auto.current, 0);
-  assert.equal(options('auto', ['en-US'], TABLE).items[0].name, '中文', '浏览器的认不出：跟着浏览器认成退回的那一种');
-  assert.equal(options('ja', [], TABLE).current, 2);
+  assert.equal(options('auto', ['fr'], TABLE).items[0].name, '中文', '浏览器的认不出：跟着浏览器认成退回的那一种');
+  assert.equal(options('ja', [], TABLE).current, 3);
   assert.equal(options('zh', [], TABLE).current, 1);
 });
 
 test('设置项：auto 加表里的每一种，出厂 auto，改了重新载入；分层照配置，写错的用下面一层的', () => {
   const spec = languageSpec(TABLE);
   assert.equal(spec.type, 'choice');
-  assert.deepEqual(spec.choices, ['auto', 'zh', 'ja']);
+  assert.deepEqual(spec.choices, ['auto', 'zh', 'en', 'ja']);
   assert.equal(spec.default, 'auto');
   assert.equal(spec.applies, 'reload');
   assert.equal(settingOf(TABLE, {}, {}), 'auto');
@@ -139,11 +140,14 @@ test('时间线收起那一行：跟着浏览器（auto）的用英文那一套�
   assert.equal(res.text.timeline.summary.ran[0], ja.timeline.summary.ran[0]);
 });
 
-test('个人设置写了网页的表里没有的语言（en）：界面照浏览器认，收起那一行照它写（有那一套字）（蓝图「界面语言」第 5 条）', () => {
+test('个人设置写了网页的表里没有的语言：界面照浏览器认，收起那一行照界面那一种；写了 en 的就是英文（2026-10-10 起表里有）（蓝图「界面语言」第 5 条）', () => {
   const table = JSON.parse(readFileSync(new URL('../resources/languages.json', import.meta.url), 'utf8'));
-  const got = pick('en', ['ja-JP'], table);
-  assert.equal(got.code, 'ja');
-  assert.equal(got.summary, 'en');
+  const en = pick('en', ['ja-JP'], table);
+  assert.equal(en.code, 'en');
+  assert.equal(en.summary, 'en');
+  const ko = pick('ko', ['ja-JP'], table);
+  assert.equal(ko.code, 'ja');
+  assert.equal(ko.summary, 'ja');
   assert.equal(pick('fr', ['zh-CN'], table).summary, 'zh', '连收起那一行的字都没有的：照界面那一种');
 });
 

@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "name": {
     "zh": "第一次引导",
+    "en": "First-run setup",
     "ja": "初回セットアップ"
   },
   "summary": {
     "zh": "第一次打开时配置语言、模型、人格和预设",
+    "en": "Set up language, model, persona and preset on first launch",
     "ja": "初回起動時に言語・モデル・人格・プリセットを設定"
   },
   "kind": "optional",
@@ -78,6 +80,36 @@
         "start": "开始聊天"
       },
       "failed": "保存失败：{reason}"
+    },
+    "en": {
+      "brand": "Miyu",
+      "steps": {
+        "language": "Language",
+        "model": "Model",
+        "persona": "Persona",
+        "preset": "Preset"
+      },
+      "hello": {
+        "title": "Welcome to Miyu",
+        "sub": "Set up a model, persona and preset",
+        "start": "Start",
+        "hint": "Press Enter to start"
+      },
+      "language": {
+        "title": "Interface language",
+        "sub": "Can be changed in Settings",
+        "system": "Follow system"
+      },
+      "back": "Back",
+      "next": "Next",
+      "done": {
+        "title": "Setup complete",
+        "model": "Model {name}",
+        "persona": "Persona {name}",
+        "preset": "Preset {name}",
+        "start": "Start chatting"
+      },
+      "failed": "Save failed: {reason}"
     },
     "ja": {
       "brand": "Miyu",

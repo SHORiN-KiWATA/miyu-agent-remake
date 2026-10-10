@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "name": {
     "zh": "灯箱",
+    "en": "Lightbox",
     "ja": "ライトボックス"
   },
   "summary": {
     "zh": "点击图片放大查看",
+    "en": "Click an image to enlarge it",
     "ja": "画像をクリックして拡大表示"
   },
   "kind": "optional",
@@ -30,6 +32,13 @@
       "workspace": "在预览工作区打开",
       "external": "在新标签页打开",
       "download": "下载"
+    },
+    "en": {
+      "label": "Image preview",
+      "close": "Close preview",
+      "workspace": "Open in preview workspace",
+      "external": "Open in new tab",
+      "download": "Download"
     },
     "ja": {
       "label": "画像プレビュー",

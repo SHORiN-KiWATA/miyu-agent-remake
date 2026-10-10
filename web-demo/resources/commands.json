@@ -8,6 +8,7 @@
       ],
       "summary": {
         "zh": "撤销上一轮，并还原 AI 修改的文件",
+        "en": "Undo the last turn and restore files the AI changed",
         "ja": "直前のやり取りを取り消し、変更されたファイルを元に戻す"
       },
       "run": "revert"
@@ -16,6 +17,7 @@
       "name": "restore",
       "summary": {
         "zh": "恢复上次撤销的回合",
+        "en": "Restore the last undone turn",
         "ja": "直前に取り消したやり取りを復元する"
       },
       "run": "unrevert"
@@ -24,6 +26,7 @@
       "name": "redo",
       "summary": {
         "zh": "重新生成本轮",
+        "en": "Regenerate this turn",
         "ja": "このやり取りをそのままやり直す"
       },
       "run": "redo"
@@ -32,6 +35,7 @@
       "name": "edit",
       "summary": {
         "zh": "编辑上一条消息并重新发送",
+        "en": "Edit the last message and resend",
         "ja": "直前のメッセージを編集して再送信する"
       },
       "run": "edit"
@@ -40,6 +44,7 @@
       "name": "compact",
       "summary": {
         "zh": "压缩上下文，可附摘要要求",
+        "en": "Compact the context, optionally with summary instructions",
         "ja": "今すぐコンテキストを圧縮する。続けて要約への指示を書ける"
       },
       "run": "compact",
@@ -52,6 +57,7 @@
       ],
       "summary": {
         "zh": "清空上下文（保留会话）",
+        "en": "Clear the context (keeps the session)",
         "ja": "コンテキストをクリアする（セッションは維持）"
       },
       "run": "clear"
@@ -60,6 +66,7 @@
       "name": "stop",
       "summary": {
         "zh": "停止全部：中断本轮、后台命令和子代理，丢弃排队的消息",
+        "en": "Stop everything: interrupt this turn, background commands and subagents, discard queued messages",
         "ja": "すべて止める：今の返信を中断し、バックグラウンドのコマンドとサブエージェントも止める。待機中のメッセージは送らない"
       },
       "run": "stop"
@@ -68,6 +75,7 @@
       "name": "recap",
       "summary": {
         "zh": "回顾 AI 的进展：进行中、已完成、待完成",
+        "en": "Recap the AI's progress: in progress, done, to do",
         "ja": "振り返り：何をしていて、何が終わり、何が残っているか"
       },
       "run": "recap"
@@ -76,6 +84,7 @@
       "name": "theme",
       "summary": {
         "zh": "切换主题",
+        "en": "Switch theme",
         "ja": "配色を切り替える：晨光、tokyonight を順に切り替え"
       },
       "run": "theme"
@@ -84,6 +93,7 @@
       "name": "new",
       "summary": {
         "zh": "新建会话",
+        "en": "New session",
         "ja": "新しいセッションを開始する"
       },
       "run": "new"
@@ -95,6 +105,7 @@
       ],
       "summary": {
         "zh": "会话列表，可附搜索词",
+        "en": "Session list, optionally with a search term",
         "ja": "セッション一覧：タイトル・ID で検索して Enter で開く。検索語を直接書くこともできる"
       },
       "run": "sessions",
@@ -104,6 +115,7 @@
       "name": "language",
       "summary": {
         "zh": "切换界面语言，可附 zh、ja、auto",
+        "en": "Switch interface language, optionally zh, en, ja or auto",
         "ja": "表示言語を切り替える：一覧から選ぶ。zh・ja・auto を直接指定することもできる"
       },
       "run": "language",
@@ -113,6 +125,7 @@
       "name": "model",
       "summary": {
         "zh": "切换本会话的模型，可附模型名或 @池名",
+        "en": "Switch this session's model, optionally a model name or @pool",
         "ja": "このセッションのモデルを変更する：メニューから選ぶ。モデルや @プールを直接指定することもできる"
       },
       "run": "model",
@@ -122,6 +135,7 @@
       "name": "copy",
       "summary": {
         "zh": "复制 AI 的上一条回答",
+        "en": "Copy the AI's last reply",
         "ja": "直前の返信をコピーする"
       },
       "run": "copy"
@@ -130,6 +144,7 @@
       "name": "help",
       "summary": {
         "zh": "查看按键和命令",
+        "en": "Show keys and commands",
         "ja": "キー操作とコマンドを見る"
       },
       "run": "help"

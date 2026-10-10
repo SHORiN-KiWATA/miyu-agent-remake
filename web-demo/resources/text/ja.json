@@ -220,7 +220,7 @@
     "recap_working": "振り返っています…",
     "stop_idle": "実行中ではありません",
     "needs_session": "会話を始めてから使えます",
-    "running": "{name}中…"
+    "running": "{name} を実行中…"
   },
   "language": {
     "title": "表示言語",

@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "name": {
     "zh": "待办",
+    "en": "To-dos",
     "ja": "ToDo"
   },
   "summary": {
     "zh": "在输入框上方显示 AI 的待办",
+    "en": "Show the AI's to-dos above the input",
     "ja": "入力欄の上に AI の ToDo を表示"
   },
   "kind": "optional",
@@ -56,6 +58,12 @@
       "folded": "已完成 {count} 项",
       "more": "… 还有 {count} 项",
       "toggle": "点击展开或收起"
+    },
+    "en": {
+      "title": "To-dos {done}/{total}",
+      "folded": "{count} done",
+      "more": "… {count} more",
+      "toggle": "Click to expand or collapse"
     },
     "ja": {
       "title": "ToDo {done}/{total}",

@@ -201,7 +201,7 @@ const RUNS = {
     }
     // 要等一会儿的（`/dream` 要等模型，十几秒）：过了一小会儿还没回，提示「正在 …」一直留着，回了换成回执
     let waiting = false;
-    const timer = setTimeout(() => { waiting = true; app.composer.say(t('commands.running', { name: spec.summary || `/${spec.name}` }), false, true); }, res.layout.command_wait_ms);
+    const timer = setTimeout(() => { waiting = true; app.composer.say(t('commands.running', { name: `/${spec.name}` }), false, true); }, res.layout.command_wait_ms);
     try {
       const got = await app.store.conn.request('command.run', { session: app.current, text: `/${spec.name}${words ? ` ${words}` : ''}` });
       if (got?.said) app.composer.say(got.said, true);

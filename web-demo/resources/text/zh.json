@@ -220,7 +220,7 @@
     "recap_working": "正在回顾…",
     "stop_idle": "未在运行",
     "needs_session": "需要先开始会话",
-    "running": "正在{name}…"
+    "running": "正在执行 {name}…"
   },
   "language": {
     "title": "界面语言",

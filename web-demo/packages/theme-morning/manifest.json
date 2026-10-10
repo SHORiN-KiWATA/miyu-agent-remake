@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "name": {
     "zh": "晨光",
+    "en": "Morning",
     "ja": "晨光"
   },
   "summary": {
     "zh": "浅色主题",
+    "en": "Light theme",
     "ja": "ライトテーマ"
   },
   "kind": "optional",
@@ -770,6 +772,9 @@
   "text": {
     "zh": {
       "name": "晨光"
+    },
+    "en": {
+      "name": "Morning"
     },
     "ja": {
       "name": "晨光"

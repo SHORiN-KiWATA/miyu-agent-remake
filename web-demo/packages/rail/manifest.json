@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "name": {
     "zh": "右边的跳转条",
+    "en": "Jump bar on the right",
     "ja": "右側のジャンプバー"
   },
   "summary": {
     "zh": "右侧消息导航，点击跳转到对应消息",
+    "en": "Message navigation on the right, click to jump to a message",
     "ja": "右端の短い線をクリックして自分の発言へジャンプ"
   },
   "kind": "optional",
