@@ -1867,9 +1867,11 @@ dependencies = [
  "miyu-store",
  "miyu-tool",
  "rusqlite",
+ "serde",
  "serde_json",
  "sha2",
  "tokio",
+ "toml_edit",
  "tracing",
  "uuid",
 ]

@@ -64,6 +64,9 @@ rusqlite = { version = "0.40", features = ["bundled"] }
 miyu-log = { path = "../miyu-log" }
 # 测试里真的经助手起命令（施工 5-4 上）：cargo 编出来的助手在哪。
 miyu-sandbox = { path = "../miyu-sandbox", features = ["testkit"] }
+# 读记忆的测评集（施工 R-11，`tests/fixtures/memory-eval/`）：和 miyu-recall 读 TOML 用的同一个库、同一个版本。
+serde = { version = "1.0", features = ["derive"] }
+toml_edit = { version = "0.25", default-features = false, features = ["parse", "serde"] }
 
 [lints]
 workspace = true

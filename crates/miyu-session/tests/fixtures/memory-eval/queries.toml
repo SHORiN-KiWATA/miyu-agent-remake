@@ -1,0 +1,298 @@
+# 记忆的测评集的问句（施工 R-11，`docs/blueprint/memory/eval.md`）：大多照人在聊天里真会说的话写（联想拿的就是这一轮人说的
+# 话），少数照她搜的时候写的关键词。
+#
+# 每条 `[[query]]`：`text`；`kind` 是六种之一：
+#   keyword    和该想起的至少一条有两个字连着重合；
+#   paraphrase 换了说法，和该想起的每一条都没有两个字连着重合；
+#   chat       聊天里顺口说的、该带上某几条的；
+#   cross      问句和该想起的不是同一种语言（也没有两个字连着重合）；
+#   changed    问改过口的事：该想起新的，作废的旧说法不该出来；
+#   none       平常的话，一条都不该想起。
+# `expect` 是该想起的那几条的键：`none` 的是空的，别的不空，不许指作废的。
+
+# —— keyword ——
+
+[[query]]
+text = "团子吃什么冻干"
+kind = "keyword"
+expect = ["cat-food"]
+
+[[query]]
+text = "我的日语老师叫什么"
+kind = "keyword"
+expect = ["japanese-teacher"]
+
+[[query]]
+text = "陈默是做什么的"
+kind = "keyword"
+expect = ["partner"]
+
+[[query]]
+text = "妈妈的高血压药"
+kind = "keyword"
+expect = ["mother-health"]
+
+[[query]]
+text = "记账小程序 仓库"
+kind = "keyword"
+expect = ["ledger-repo", "side-project"]
+
+[[query]]
+text = "GitHub 用户名"
+kind = "keyword"
+expect = ["github"]
+
+[[query]]
+text = "羽毛球一般什么时候打"
+kind = "keyword"
+expect = ["badminton"]
+
+[[query]]
+text = "N2 什么时候考"
+kind = "keyword"
+expect = ["japanese"]
+
+[[query]]
+text = "前端规范在哪看"
+kind = "keyword"
+expect = ["handbook"]
+
+[[query]]
+text = "厦门住的哪"
+kind = "keyword"
+expect = ["xiamen"]
+
+# —— paraphrase ——
+
+[[query]]
+text = "我家宠物叫什么来着"
+kind = "paraphrase"
+expect = ["cat-name"]
+
+[[query]]
+text = "我的眼睛度数多少"
+kind = "paraphrase"
+expect = ["glasses"]
+
+[[query]]
+text = "我哪天出生的"
+kind = "paraphrase"
+expect = ["birthday"]
+
+[[query]]
+text = "我对象写什么语言的代码"
+kind = "paraphrase"
+expect = ["partner"]
+
+[[query]]
+text = "换季的时候我容易犯什么毛病"
+kind = "paraphrase"
+expect = ["allergy"]
+
+[[query]]
+text = "我平时几点躺下"
+kind = "paraphrase"
+expect = ["sleep"]
+
+[[query]]
+text = "有没有什么动物让我害怕"
+kind = "paraphrase"
+expect = ["snake"]
+
+[[query]]
+text = "我是干哪一行的"
+kind = "paraphrase"
+expect = ["job"]
+
+[[query]]
+text = "我老家在哪"
+kind = "paraphrase"
+expect = ["hometown"]
+
+[[query]]
+text = "我本科在哪个城市念的"
+kind = "paraphrase"
+expect = ["university"]
+
+[[query]]
+text = "除了团子我以前还有过什么宠物"
+kind = "paraphrase"
+expect = ["hamster"]
+
+[[query]]
+text = "领导是谁"
+kind = "paraphrase"
+expect = ["team"]
+
+# —— chat ——
+
+[[query]]
+text = "周末带它去打疫苗，要提前预约吗"
+kind = "chat"
+expect = ["cat-vet", "vet-contact"]
+
+[[query]]
+text = "帮我推荐几家杭州好吃的川菜馆"
+kind = "chat"
+expect = ["spicy"]
+
+[[query]]
+text = "这周三晚上能约个饭吗"
+kind = "chat"
+expect = ["work-hours"]
+
+[[query]]
+text = "帮我写一个 React 的计数器组件"
+kind = "chat"
+expect = ["hooks", "typescript", "comments"]
+
+[[query]]
+text = "明年去京都玩，帮我排个行程"
+kind = "chat"
+expect = ["travel-plan", "kyoto-inn"]
+
+[[query]]
+text = "最近晚上总是睡不着，怎么办"
+kind = "chat"
+expect = ["coffee", "sleep"]
+
+[[query]]
+text = "给我妈买点什么保健品好"
+kind = "chat"
+expect = ["mother-health"]
+
+[[query]]
+text = "这个周日晚上有空出来吗"
+kind = "chat"
+expect = ["japanese-teacher", "mother"]
+
+[[query]]
+text = "想给猫换个口粮"
+kind = "chat"
+expect = ["cat-food"]
+
+[[query]]
+text = "下个月跑半马要怎么准备"
+kind = "chat"
+expect = ["marathon", "run"]
+
+# —— cross ——
+
+[[query]]
+text = "What's my cat's name?"
+kind = "cross"
+expect = ["cat-name"]
+
+[[query]]
+text = "家里的猫最讨厌什么"
+kind = "cross"
+expect = ["cat-vacuum"]
+
+[[query]]
+text = "我不爱吃哪样日本食物"
+kind = "cross"
+expect = ["natto"]
+
+[[query]]
+text = "我是怎么练日语听力的"
+kind = "cross"
+expect = ["nhk"]
+
+[[query]]
+text = "我 11 月要做什么分享"
+kind = "cross"
+expect = ["meetup-talk"]
+
+# —— changed ——
+
+[[query]]
+text = "我的显卡是什么"
+kind = "changed"
+expect = ["gpu-new"]
+
+[[query]]
+text = "我住在杭州哪个区"
+kind = "changed"
+expect = ["home-new"]
+
+[[query]]
+text = "我妹妹现在在读什么"
+kind = "changed"
+expect = ["sister"]
+
+[[query]]
+text = "我用的什么手机"
+kind = "changed"
+expect = ["phone"]
+
+[[query]]
+text = "我一天喝几杯咖啡"
+kind = "changed"
+expect = ["coffee"]
+
+# —— none ——
+
+[[query]]
+text = "帮我解释一下 TCP 三次握手"
+kind = "none"
+expect = []
+
+[[query]]
+text = "Python 里怎么读一个 CSV 文件"
+kind = "none"
+expect = []
+
+[[query]]
+text = "今天天气怎么样"
+kind = "none"
+expect = []
+
+[[query]]
+text = "给我讲个笑话"
+kind = "none"
+expect = []
+
+[[query]]
+text = "怎么把 Git 的最后一次提交撤回"
+kind = "none"
+expect = []
+
+[[query]]
+text = "量子计算和普通计算机有什么区别"
+kind = "none"
+expect = []
+
+[[query]]
+text = "把这句翻译成英文：明天下午开会"
+kind = "none"
+expect = []
+
+[[query]]
+text = "Docker 和虚拟机有什么区别"
+kind = "none"
+expect = []
+
+[[query]]
+text = "推荐几部科幻电影"
+kind = "none"
+expect = []
+
+[[query]]
+text = "这个正则什么意思：^\\d+$"
+kind = "none"
+expect = []
+
+[[query]]
+text = "嗯嗯，好的，谢谢"
+kind = "none"
+expect = []
+
+[[query]]
+text = "SQL 里 LEFT JOIN 和 INNER JOIN 有什么区别"
+kind = "none"
+expect = []
+
+[[query]]
+text = "怎么在 CSS 里让一个元素水平居中"
+kind = "none"
+expect = []
