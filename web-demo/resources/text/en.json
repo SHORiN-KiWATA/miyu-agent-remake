@@ -5,6 +5,8 @@
     "offline": "Offline"
   },
   "sidebar": {
+    "edit_persona": "Edit persona",
+    "personas": "Personas",
     "new_session": "New session",
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar",

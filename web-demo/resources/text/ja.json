@@ -5,6 +5,8 @@
     "offline": "オフライン"
   },
   "sidebar": {
+    "edit_persona": "人格を編集",
+    "personas": "人格の設定",
     "new_session": "新しいセッション",
     "collapse": "サイドバーを閉じる",
     "expand": "サイドバーを開く",

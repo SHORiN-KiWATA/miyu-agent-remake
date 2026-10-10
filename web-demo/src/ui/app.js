@@ -80,6 +80,8 @@ export class App {
     this.sidebar = new Sidebar({
       newSession: () => this.open(null),
       open: (id) => this.open(id),
+      // 左上角的头像：打开这个会话的人格的编辑页（软件包 setup 听这个事件，2026-10-10 项目主人）
+      identity: () => this.ctx.emit('persona.open'),
       // 临时浮出来时点收起那个按钮是真展开（蓝图「左栏」的「临时浮出」）
       collapse: () => this.collapse(!this.root.classList.contains('is-sidebar-peek')),
       close: () => this.drawer(false),
@@ -470,6 +472,7 @@ export class App {
     if (sig === this.lookSig) return;
     this.lookSig = sig;
     this.chat.setLook(look);
+    this.sidebar.setLook(look);
     this.composer.setName(look?.name ?? null);
     this.schedule();
   }

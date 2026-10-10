@@ -29,7 +29,8 @@
     "commands",
     "storage",
     "host",
-    "sessions"
+    "sessions",
+    "settings~"
   ],
   "settings": {
     "avatar_side": {

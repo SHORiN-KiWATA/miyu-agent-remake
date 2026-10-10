@@ -69,6 +69,9 @@ test('在跑：这一轮还没有她的条目画三个球；排着的话不进�
   assert.equal(got.items.at(-1).streaming, true);
   got = itemsOf(turn3.map((e) => (e.turn === 3 ? { ...e, hidden: true } : e)), { state: 'idle' });
   assert.deepEqual(got.items, []);
+  const compact = [{ id: 'm30', kind: 'user', text: '/compact', turn: 5, at: AT }, { id: 'c31', kind: 'notice', what: 'compaction', trigger: 'manual', state: 'running', turn: 5, at: AT }];
+  got = itemsOf(compact, { ...running, doing: { what: 'compacting', entry: 'c31', written: 0 } });
+  assert.equal(got.items.some((it) => it.type === 'waiting'), false, '在压缩的不画三个球，压缩的进度那一行说着');
 });
 
 test('收尾那一行：打断的接后台还在跑的任务数，出错的照出错那一句，别的原因照界面的字', () => {

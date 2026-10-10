@@ -5,6 +5,8 @@
     "offline": "离线"
   },
   "sidebar": {
+    "edit_persona": "编辑人格",
+    "personas": "人格设置",
     "new_session": "新会话",
     "collapse": "收起侧栏",
     "expand": "展开侧栏",

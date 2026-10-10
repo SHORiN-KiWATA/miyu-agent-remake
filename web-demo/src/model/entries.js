@@ -74,7 +74,9 @@ export function itemsOf(entries, status, opts = {}) {
   const level = status?.permission ? levelOf(status.permission) : items.findLast((it) => it.type === 'user')?.level ?? 'workspace';
   const busy = status && status.state && status.state !== 'idle';
   const turn = busy ? currentTurn(shown) : null;
-  if (busy && turn != null && !spoke.has(turn)) items.push({ type: 'waiting', key: `w${turn}`, turn });
+  // 在压缩的不画：压缩的进度那一行已经说着在做什么（2026-10-10 项目主人：手动压缩时进度条上面多一个头像和三个球）
+  const compacting = status?.doing?.what === 'compacting';
+  if (busy && turn != null && !spoke.has(turn) && !compacting) items.push({ type: 'waiting', key: `w${turn}`, turn });
   return {
     items,
     queued,

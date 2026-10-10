@@ -39,8 +39,18 @@
 
 /* 头上一块：头像、名字和状态、新会话、收起 */
 .brand-row { display: flex; min-height: 66px; align-items: center; padding: 13px 14px 11px; gap: 8px; }
-.brand-identity { display: flex; flex: 1; min-width: 0; align-items: center; gap: 10px; }
+/* 左上角：会话用的人格的头像、名字（和对话区她那一轮的头像同一份），点了进编辑人格；平常和左栏同底，悬停深一档（同旁边的按钮） */
+.brand-identity {
+  display: flex; flex: 1; min-width: 0; align-items: center; gap: 10px; margin: -4px 0 -4px -6px; padding: 4px 6px; border: 0; border-radius: 10px;
+  background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background-color 0.12s ease;
+}
+.brand-identity:hover, .brand-identity:focus-visible { outline: none; background: color-mix(in srgb, var(--text) 6%, transparent); }
+.brand-face { display: grid; flex: 0 0 38px; }
 .brand-avatar { width: 38px; height: 38px; flex: 0 0 38px; border: 2px solid var(--gold); border-radius: 50%; object-fit: cover; }
+.brand-avatar.is-initial {
+  display: grid; box-sizing: border-box; place-items: center; background: color-mix(in srgb, var(--accent) 16%, var(--surface-1)); color: var(--accent);
+  font-size: 16px; font-weight: 600;
+}
 .brand-identity > div { display: grid; min-width: 0; gap: 2px; }
 .brand-identity strong { font-family: var(--serif); font-size: 17px; font-weight: 600; letter-spacing: 0.04em; }
 .brand-identity > div > span { display: flex; min-width: 0; align-items: center; color: var(--text-soft); font-size: 11px; gap: 6px; }

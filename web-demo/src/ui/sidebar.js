@@ -63,12 +63,15 @@ export class Sidebar {
     /** 「会话」那一行、「置顶」那一栏的头：画在会话表里（和会话的行一起排，挪动时一起滑，蓝图「左栏」组头） */
     this.groupHeader = h('div.session-group-header', { dataset: { key: 'group:sessions' } }, icon('message-circle'), this.groupTitle, this.groupTools);
     this.pinnedHeader = h('div.session-group-header.is-pinned', { dataset: { key: 'group:pinned' } }, icon('pin'), h('span', t('sidebar.pinned')));
-    const p = res.persona;
+    /** 左上角的头像、名字：正在看的会话用的人格（`setLook`），点了打开这个人格的编辑页 */
+    this.face = h('span.brand-face');
+    this.name = h('strong');
+    this.identity = h('button.brand-identity', { type: 'button', onclick: () => on.identity?.() },
+      this.face, h('div', this.name, h('span', this.dot, this.status)));
+    this.setLook(null);
     this.el = h('aside.sidebar',
       h('header.brand-row',
-        h('div.brand-identity',
-          h('img.brand-avatar', { src: p.avatar, alt: p.name }),
-          h('div', h('strong', p.name), h('span', this.dot, this.status))),
+        this.identity,
         h('button.new-chat-button', { type: 'button', title: t('sidebar.new_session'), onclick: on.newSession }, icon('square-pen')),
         h('button.icon-button.sidebar-collapse-button', { type: 'button', title: t('sidebar.collapse'), onclick: on.collapse }, icon('panel-left-close')),
         h('button.icon-button.sidebar-close', { type: 'button', title: t('sidebar.collapse'), onclick: on.close }, icon('x'))),
@@ -98,6 +101,18 @@ export class Sidebar {
   }
 
   /** 连接的状态：在线、连接中、离线（圆点的颜色照它，蓝图「左栏」的「状态」）。 */
+  /**
+   * 左上角照会话用的人格画（2026-10-10 项目主人：和对话区她那一轮的头像同步，点了进编辑人格）：有头像的画头像，没有的画名字的第一个字；
+   * 无人格的会话画 Miyu 自己的（`resources/persona.json`）。
+   * @param {import('./chat.js').Look|null} look
+   */
+  setLook(look) {
+    const p = look ?? res.persona;
+    replace(this.face, p.avatar ? h('img.brand-avatar', { src: p.avatar, alt: '' }) : h('span.brand-avatar.is-initial', { 'aria-hidden': 'true' }, [...p.name][0] ?? ''));
+    this.name.textContent = p.name;
+    this.identity.title = t(look ? 'sidebar.edit_persona' : 'sidebar.personas');
+  }
+
   setStatus(status) {
     this.dot.className = `status-dot is-${status}`;
     this.status.textContent = t(`status.${status}`);
