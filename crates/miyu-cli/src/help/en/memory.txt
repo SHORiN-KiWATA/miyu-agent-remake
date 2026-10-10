@@ -1,6 +1,7 @@
 Usage: miyu memory [command] [options]
 
-See what she remembers about you; search, add, edit, forget, clear.
+See what she remembers about you; search, add, edit, forget, clear,
+organize.
 Without a command it is list.
 
 Commands:
@@ -12,6 +13,8 @@ Commands:
   clear session [<id>]    Clear what this session remembered; default is
                           the session the last miyu ask opened
   clear me                Clear everything she remembers about you
+  dream                   Organize now: merge duplicates, fix stale ones,
+                          refresh the summary
 
 Options:
       --persona <id>      Whose memory; default is the default persona

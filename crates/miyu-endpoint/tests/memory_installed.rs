@@ -1,6 +1,6 @@
 //! 记忆照包启用（施工 R-10，`docs/blueprint/memory.md` 第十一条）：真核心经 `package.remove` 卸掉出厂的人格记忆，`memory.*`
-//! 五个都回 `memory_not_installed`；`/remember` 回 `memory_unavailable`、为什么说没装，`command.catalog` 不列它；装回来以前记
-//! 的都在。
+//! 五个都回 `memory_not_installed`；`/remember` 回 `memory_unavailable`、为什么说没装，`command.catalog` 不列它（`/dream`
+//! 也不列）；装回来以前记的都在。
 
 use serde_json::{Value, json};
 
@@ -97,5 +97,8 @@ async fn without_the_package_remember_is_refused_and_not_listed() {
     let reply = client
         .call("c3", "command.catalog", json!({"session": session}))
         .await;
-    assert_eq!(names(&reply), ["clear", "remember", "stop", "workspace"]);
+    assert_eq!(
+        names(&reply),
+        ["clear", "dream", "remember", "stop", "workspace"]
+    );
 }

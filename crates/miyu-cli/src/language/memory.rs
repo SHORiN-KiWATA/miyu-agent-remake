@@ -43,6 +43,27 @@ impl Language {
         }
     }
 
+    /// `dream` 整理完了（施工 R-7 补，和 `/dream` 的回执同一句）：看了 `given` 条、改了 `revised` 条、作废 `retired` 条，
+    /// `summary` 是摘要更新了；一条都没看的说没有要整理的。
+    pub fn dreamed(&self, given: u64, revised: u64, retired: u64, summary: bool) -> String {
+        match (self, given, summary) {
+            (Language::Chinese, 0, _) => "没有要整理的。".to_string(),
+            (Language::English, 0, _) => "Nothing to organize.".to_string(),
+            (Language::Chinese, _, false) => {
+                format!("整理完了：看了 {given} 条，改了 {revised} 条，作废 {retired} 条。")
+            }
+            (Language::Chinese, _, true) => format!(
+                "整理完了：看了 {given} 条，改了 {revised} 条，作废 {retired} 条，摘要更新了。"
+            ),
+            (Language::English, _, false) => format!(
+                "Memory organized: looked at {given}, revised {revised}, retired {retired}."
+            ),
+            (Language::English, _, true) => format!(
+                "Memory organized: looked at {given}, revised {revised}, retired {retired}; summary updated."
+            ),
+        }
+    }
+
     /// 记的、改的太长：这一条 `chars` 个字，一条最多 `limit` 个。
     pub(crate) fn too_long(&self, chars: u64, limit: u64) -> String {
         match self {

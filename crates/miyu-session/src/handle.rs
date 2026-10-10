@@ -77,6 +77,8 @@ pub(crate) enum Message {
         job: JobId,
         reply: oneshot::Sender<Result<Output, Unreadable>>,
     },
+    /// 现在就整理记忆（施工 R-7 补）：先抽这个会话还没抽的，再合，交回几样数。
+    Dream(oneshot::Sender<Result<crate::memory::Dreamed, crate::memory::NotDreamed>>),
     /// 会话 `watcher` 等这个会话空下来（施工 C-6）：记进名单，不进内核、不写盘；`since` 是那一边这次订的起算时刻。
     Watch {
         watcher: SessionId,
@@ -394,6 +396,20 @@ impl Handle {
     pub async fn stopped_child(&self, job: JobId) -> Result<Result<(), JobError>, Stopped> {
         let (reply, answer) = oneshot::channel();
         self.send(Message::Halt(Halt::Deleted { job, reply }))?;
+        answer.await.map_err(|_| Stopped)
+    }
+
+    /// 现在就整理这个会话的记忆（施工 R-7 补，`/dream`、带 `session` 的 `memory.dream`，`memory.md` 第七条第 9 款）：先把这个
+    /// 会话还没抽的那一段抽了（不等闲、答了一轮就算；正忙的、正在抽的不抽），再不看会话数、间隔现在就合，交回几样数。
+    ///
+    /// # Errors
+    ///
+    /// 会话停了。里面那一层：这个会话的记忆关着、人格记忆没装（`Off`），这一间正在合（`Busy`），没合成（`Failed`）。
+    pub async fn dream(
+        &self,
+    ) -> Result<Result<crate::memory::Dreamed, crate::memory::NotDreamed>, Stopped> {
+        let (reply, answer) = oneshot::channel();
+        self.send(Message::Dream(reply))?;
         answer.await.map_err(|_| Stopped)
     }
 

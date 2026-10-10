@@ -37,7 +37,7 @@ use crate::methods;
 use crate::queries::Handler;
 use crate::refusal::{Locale, Refusal};
 use crate::reverse::Peer;
-use crate::subscriptions::{Subscriptions, Target};
+use crate::subscriptions::{Later, Subscriptions, Target};
 use crate::uploads::Uploads;
 use crate::wire::{self, Incoming, Read, Request};
 use crate::{Connected, Core};
@@ -230,8 +230,17 @@ async fn read_all<R: AsyncRead + Unpin>(
             ));
             continue;
         }
-        if peer.is_some() && methods::answered_later(&request.method) {
-            background.spawn(call_later(Arc::clone(&core), request, locale, out.clone()));
+        if let Some(peer) = peer
+            && methods::answered_later(&request)
+        {
+            let later = subscriptions.later();
+            background.spawn(call_later(
+                Arc::clone(&core),
+                peer,
+                request,
+                later,
+                out.clone(),
+            ));
             continue;
         }
         let id = || Value::String(request.id.as_str().to_string());
@@ -374,10 +383,18 @@ async fn answer_later(
     send(&out, answer(&request, result, locale)).await;
 }
 
-/// 在后台办一条自带的方法（施工 8-20 补，[`methods::answered_later`]）：办完了把回应放进写队列。
-async fn call_later(core: Arc<Core>, request: Request, locale: Locale, out: mpsc::Sender<String>) {
-    let result = methods::call_later(&core, &request).await;
-    send(&out, answer(&request, result, locale)).await;
+/// 在后台办一条自带的请求（施工 8-20 补、R-7 补，[`methods::answered_later`]）：办完了把回应照 `peer` 的语言写出去，经
+/// `later` 照那一刻的订阅走（给会话的排在它已经到了的推送后面，「先见结果，后见回应」）。
+async fn call_later(
+    core: Arc<Core>,
+    peer: crate::hello::Peer,
+    request: Request,
+    later: Later,
+    out: mpsc::Sender<String>,
+) {
+    let result = methods::call_later(&core, peer, &request).await;
+    let line = answer(&request, result, peer.locale);
+    later.reply(target(&request).as_ref(), line, &out).await;
 }
 
 /// 收掉办完了的后台任务，不让这一组越攒越多；崩了的记一行（它的回应永远不会来了）。

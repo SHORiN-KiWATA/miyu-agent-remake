@@ -172,6 +172,11 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "No memory here: no persona, memory is off, or this is a platform session.",
         ),
         "memory_not_installed" => ("没装人格记忆。", "Persona memory is not installed."),
+        "memory_busy" => (
+            "正在整理记忆，过一会儿再试。",
+            "Memory is being organized; try again shortly.",
+        ),
+        "dream_failed" => ("整理记忆没成。", "Organizing memory failed."),
         "unknown_memory" => ("没有这一条记忆。", "There is no such memory."),
         "memory_not_current" => (
             "这一条已经改掉、作废或者清掉了。",

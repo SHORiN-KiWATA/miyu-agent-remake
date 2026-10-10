@@ -2,7 +2,7 @@
 
 ### 是什么
 
-在 shell 里看她记了你什么，搜一条、记一条、改错的、忘掉一条、清空（施工 R-3 再补，`memory.md`「协议」）。连上核心（没在跑就拉起来），走 `memory.*`，不另起一套。给人看的只放人要的：那句话、哪天记的、作废了没有，编号留着好改、好忘；出处、谁记的、类、放在哪一间都不印（2026-10-08 项目主人定的设计原则）。
+在 shell 里看她记了你什么，搜一条、记一条、改错的、忘掉一条、清空（施工 R-3 再补，`memory.md`「协议」），叫她现在就整理（`dream`，施工 R-7 补，`memory.md` 第七条第 9 款）。连上核心（没在跑就拉起来），走 `memory.*`，不另起一套。给人看的只放人要的：那句话、哪天记的、作废了没有，编号留着好改、好忘；出处、谁记的、类、放在哪一间都不印（2026-10-08 项目主人定的设计原则）。
 
 ### 在哪
 
@@ -25,6 +25,7 @@
 | `forget <编号>` | 忘掉一条 | `memory.forget`，带 `--why` 的原因 |
 | `clear session [<会话>]` | 清掉这个会话记下的 | `memory.forget`，`clear: "session"`；不写会话的是上一次 `miyu ask` 开的 |
 | `clear me` | 清掉她关于你的全部记忆 | `memory.forget`，`clear: "me"` |
+| `dream` | 现在就整理：合掉重复的、改掉过时的、更新摘要 | `memory.dream`；要等模型，几秒到十几秒 |
 
 | 选项 | 做什么 |
 |---|---|
@@ -46,7 +47,7 @@
 3. **发**：照上面的表。
 4. **印**（标准输出）：
    - `list`、`search`：一条一行，`<编号>  <日期>  <正文>`，两个空格隔开；日期是记下的时刻照这台机器此刻的时区换成的那一天（`YYYY-MM-DD`）；作废的后面接 `（已作废：<原因>）`，原因是空的只接 `（已作废）`。一条都没有的：`list` 说「还没有记忆。」，`search` 说「没找到。」。
-   - `add`：「记下了：<编号>」；`edit`：「改好了：<新的编号>」；`forget`：什么都不印；清空：「清掉了 <几> 条。」。
+   - `add`：「记下了：<编号>」；`edit`：「改好了：<新的编号>」；`forget`：什么都不印；清空：「清掉了 <几> 条。」；`dream`：「整理完了：看了 <几> 条，改了 <几> 条，作废 <几> 条。」，摘要换了的句号前多「，摘要更新了」，一条都没看的「没有要整理的。」（和 `/dream` 的回执同一句）。
 5. **被拒绝**：核心的原话照原样印在标准错误上，退出码 1（`protocol.md` 的 `memory.*`）。太长的（`memory_too_long`）例外：核心的原话是给程序看的（说的是去 `data` 里看），这里照 `data.chars`、`data.limit` 说「太长了：这一条 121 个字，一条最多 120 个字。」。核心断开、请求写不出去照 `miyu rename`。
 
 ### 样子
@@ -78,6 +79,9 @@ m3   2026-10-07  用户养了两只猫（已作废：试一下）
 | 清掉了 | 清掉了 {n} 条。 | Cleared {n}. |
 | 作废了 | （已作废：{why}）、（已作废） | (forgotten: {why}), (forgotten) |
 | 太长了 | 太长了：这一条 {chars} 个字，一条最多 {limit} 个字。 | Too long: this one has {chars} characters, a memory takes at most {limit}. |
+| 整理完了 | 整理完了：看了 {given} 条，改了 {revised} 条，作废 {retired} 条。 | Memory organized: looked at {given}, revised {revised}, retired {retired}. |
+| 整理完了，摘要换了 | 整理完了：看了 {given} 条，改了 {revised} 条，作废 {retired} 条，摘要更新了。 | Memory organized: looked at {given}, revised {revised}, retired {retired}; summary updated. |
+| 没有要整理的 | 没有要整理的。 | Nothing to organize. |
 
 核心拒绝时说的话照核心写的原样印；没有一次性会话、核心断开照 `cli/undo.md`。
 
@@ -88,7 +92,7 @@ m3   2026-10-07  用户养了两只猫（已作废：试一下）
 ```text
 用法：miyu memory [命令] [选项]
 
-看她记了你什么，搜、记、改、忘、清空。不写命令就是 list。
+看她记了你什么，搜、记、改、忘、清空、整理。不写命令就是 list。
 
 命令：
   list                    列出记下的，新的在前
@@ -98,6 +102,7 @@ m3   2026-10-07  用户养了两只猫（已作废：试一下）
   forget <编号>           忘掉一条
   clear session [<会话>]  清掉这个会话记下的；不写是上一次 miyu ask 开的
   clear me                清掉她关于你的全部记忆
+  dream                   现在就整理：合掉重复的、改掉过时的、更新摘要
 
 选项：
       --persona <编号>    哪个人格的记忆；不写是默认人格
@@ -115,7 +120,8 @@ m3   2026-10-07  用户养了两只猫（已作废：试一下）
 ```text
 Usage: miyu memory [command] [options]
 
-See what she remembers about you; search, add, edit, forget, clear.
+See what she remembers about you; search, add, edit, forget, clear,
+organize.
 Without a command it is list.
 
 Commands:
@@ -127,6 +133,8 @@ Commands:
   clear session [<id>]    Clear what this session remembered; default is
                           the session the last miyu ask opened
   clear me                Clear everything she remembers about you
+  dream                   Organize now: merge duplicates, fix stale ones,
+                          refresh the summary
 
 Options:
       --persona <id>      Whose memory; default is the default persona
@@ -143,8 +151,8 @@ Options:
 
 | 测试 | 守哪几条 |
 |---|---|
-| `crates/miyu-cli/src/memory/tests.rs` | 一行的写法：编号对齐、日期照时区换天、作废的带原因、没原因的只写作废；一条都没有的两句 |
-| `crates/miyu-cli/tests/memory.rs` | 真的核心：每个子命令发什么、印什么、退出码；`--persona`、`-s` 找哪一间；`clear session` 不写会话的照上一次 `miyu ask`；没设默认人格、核心拒的照原话、退出码 1 |
+| `crates/miyu-cli/src/memory/tests.rs` | 一行的写法：编号对齐、日期照时区换天、作废的带原因、没原因的只写作废；一条都没有的两句；`dream` 的几句（R-7 补） |
+| `crates/miyu-cli/tests/memory.rs` | 真的核心：每个子命令发什么、印什么、退出码；`--persona`、`-s` 找哪一间；`clear session` 不写会话的照上一次 `miyu ask`；没设默认人格、核心拒的照原话、退出码 1。`dream`（R-7 补）在请求模型是真路由的核心上：合了印几样数、作废的 `list --forgotten` 看得到，再叫一次没有要整理的、不发，没有的人格退出码 1 |
 | `crates/miyu/tests/memory.rs` | 真跑主程序：`memory -h`、`--help`、`help memory`、几个子命令的 `-h` 印的都是这一页，跟着界面语言；参数写错的八种退出码 2 |
 | `crates/miyu-cli/src/help/tests.rs` | 这一页列的选项和程序真有的对得上 |
 
@@ -152,6 +160,7 @@ Options:
 
 - `17-记忆.md` 第八节（你能做什么：命令行用 `miyu memory`）、L17。
 - 施工单 `R-3-命令行（再补）.md`；全套子命令、清空不问（2026-10-07 项目主人定）；只放人要的（2026-10-08 项目主人定）。
+- 施工单 `R-7-现在就整理记忆（补）.md`：`dream` 只报数字（2026-10-10 项目主人定）。
 
 ### 还没有的
 

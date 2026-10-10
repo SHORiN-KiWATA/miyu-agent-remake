@@ -44,6 +44,7 @@ mod login;
 mod memory;
 mod memory_api;
 mod memory_clear;
+mod memory_dream;
 mod memory_installed;
 mod memory_meaning;
 mod memory_scope;

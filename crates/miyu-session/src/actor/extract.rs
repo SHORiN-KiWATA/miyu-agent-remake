@@ -15,9 +15,11 @@ use miyu_kernel::history::History;
 use miyu_kernel::id::Seq;
 use tracing::Instrument;
 
-use super::Actor;
+use tokio::sync::oneshot;
+
 use super::back::answer_back;
-use crate::memory::{Job, plan};
+use super::{Actor, answer};
+use crate::memory::{Dreamed, Job, NotDreamed, plan};
 use crate::port::Back;
 use crate::settings::MemorySettings;
 
@@ -111,6 +113,7 @@ impl Actor {
         let plan = plan(&spoken, &called, min_turns, offset, &extraction.texts);
         let job = Job {
             offset,
+            dream: None,
             keeper: keeper.clone(),
             extraction,
             config,
@@ -125,6 +128,96 @@ impl Actor {
                     answer_back(&backs, Back::ExtractDue { generation });
                 })
             },
+        };
+        tokio::spawn(job.run(plan).in_current_span());
+    }
+}
+
+impl Actor {
+    /// 人叫她现在就整理记忆（施工 R-7 补，`memory.md` 第七条第 9 款）：记忆开着的，在阻塞线程里读这一段（同闹钟响了的那一条
+    /// 路，不看闲没闲够）；正忙的、读不了会话日志的不抽，直接合。记忆关着的当场交回用不了。
+    pub(super) fn dream(&self, reply: oneshot::Sender<Result<Dreamed, NotDreamed>>) {
+        let Some((calls, offset)) = self.tools.memory() else {
+            return answer(reply, Err(NotDreamed::Off));
+        };
+        let (keeper, session, owner, extractor) = calls.extracting();
+        let config = Arc::clone(self.config.current());
+        let dir = self.store.as_ref().and_then(|store| store.dir());
+        let (Some(dir), true) = (dir, self.session.vacant()) else {
+            let (keeper, owner) = (keeper.clone(), owner.clone());
+            tokio::spawn(async move { answer(reply, keeper.dream(config, owner, offset).await) });
+            return;
+        };
+        let generation = extractor.arm();
+        let (keeper, session, backs) = (keeper.clone(), session.clone(), self.backs.clone());
+        tokio::task::spawn_blocking(move || {
+            let read = keeper
+                .extracted(&session)
+                .map_err(|refused| format!("{refused:?}"))
+                .and_then(|after| {
+                    let events =
+                        miyu_store::log::read_events(&dir).map_err(|error| error.to_string())?;
+                    Ok((after.unwrap_or(Seq::FIRST), events))
+                });
+            answer_back(
+                &backs,
+                Back::DreamRead {
+                    generation,
+                    read,
+                    reply,
+                },
+            );
+        });
+    }
+
+    /// 现在就整理的那一段读回来了：还闲着、没有一次在路上的，答了一轮就抽，抽完现在就合（`Job` 的 `dream`）；不然直接合。
+    pub(super) fn dream_read(
+        &self,
+        generation: u64,
+        read: Result<(Seq, Vec<Event>), String>,
+        reply: oneshot::Sender<Result<Dreamed, NotDreamed>>,
+    ) {
+        let Some((calls, offset)) = self.tools.memory() else {
+            return answer(reply, Err(NotDreamed::Off));
+        };
+        let (keeper, session, owner, extractor) = calls.extracting();
+        let config = Arc::clone(self.config.current());
+        let extraction = keeper.extraction();
+        let read = match (read, extraction) {
+            (Ok(read), Some(extraction))
+                if self.session.vacant() && extractor.start(generation) =>
+            {
+                Some((read, extraction))
+            }
+            (Err(error), _) => {
+                tracing::warn!(target: crate::TARGET, error = error.as_str(), "memory extraction failed");
+                None
+            }
+            _ => None,
+        };
+        let Some(((after, events), extraction)) = read else {
+            let (keeper, owner) = (keeper.clone(), owner.clone());
+            tokio::spawn(async move { answer(reply, keeper.dream(config, owner, offset).await) });
+            return;
+        };
+        let mut history = History::whole();
+        for event in events {
+            history.append(event);
+        }
+        let spoken = self.session.spoken_in(&history, after);
+        let called = history.called_since(after);
+        let plan = plan(&spoken, &called, 1, offset, &extraction.texts);
+        let job = Job {
+            offset,
+            dream: Some(reply),
+            keeper: keeper.clone(),
+            extraction,
+            config,
+            owner: owner.clone(),
+            session: session.clone(),
+            after,
+            extractor: Arc::clone(extractor),
+            again: Box::new(|| {}),
         };
         tokio::spawn(job.run(plan).in_current_span());
     }

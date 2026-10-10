@@ -146,5 +146,18 @@ async fn in_a_venue_remember_waits_for_the_o_line() {
         )
         .await;
     assert_eq!(reason(&reply), Some("memory_unavailable"), "{reply}");
+    // `/dream` 同一份判法（施工 R-7 补）。
+    let reply = client
+        .call(
+            "k2",
+            "command.run",
+            json!({"session": session, "text": "/dream", "as": owner}),
+        )
+        .await;
+    assert_eq!(reason(&reply), Some("memory_unavailable"), "{reply}");
+    let reply = client
+        .call("d1", "memory.dream", json!({"session": session}))
+        .await;
+    assert_eq!(reason(&reply), Some("memory_unavailable"), "{reply}");
     assert!(noted(&home.log(&session)).is_empty());
 }
