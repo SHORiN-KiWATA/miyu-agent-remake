@@ -105,7 +105,8 @@ export async function boot(root) {
     console.error(`拿不到给人看的字：${err.message}`);
     return { tools: {}, said: {} };
   });
-  const store = new Store(conn);
+  // 核心认视图投影的（握手的 `view` 是 1 起，核心 9-8）：照条目画（蓝图 `web.md`「照条目画」）
+  const store = new Store(conn, { view: (hello?.view ?? 0) >= 1 });
   await store.boot();
   // 断了又连上了（核心重启过）：重新握手，读进来了的会话重新订阅、补上漏掉的，断着时别处开的会话接上
   conn.onReopen(() => {

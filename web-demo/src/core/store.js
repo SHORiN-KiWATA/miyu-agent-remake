@@ -10,6 +10,7 @@
 import { res } from '../util/res.js';
 import { summarize } from '../model/session.js';
 import { SessionIndex } from './session-index.js';
+import { ViewLog, VIEW_PUSHES } from './view.js';
 
 /** @typedef {import('../model/timeline.js').Block} Block */
 /** @typedef {{turn: number, seen: number, blocks: Block[]}} Live */
@@ -22,7 +23,7 @@ import { SessionIndex } from './session-index.js';
  *   limits: any, replaying?: boolean, retry: Retry|null, compacting: Compacting|null, compactStats: Map<number, {before: number, after: number}>,
  *   compactReady: {before: number, after: number}|null, todos: {content: string, status: string}[], todosDone: {content: string, status: string}[]|null,
  *   changes: {after: number, at: string, body: any}[], model: {ref?: string, endpoint?: string, model?: string, effort?: {level: string, from: string}}|null,
- *   first: number|null, more: boolean, paged: boolean, older: boolean, base: Base|null, known: Map<string, any>}} Session
+ *   first: number|null, more: boolean, paged: boolean, older: boolean, base: Base|null, known: Map<string, any>, view?: import("./view.js").ViewLog, gone?: boolean}} Session
  *   `first` 读进来的最早一条的序号，`more` 还有更早的（`view.page`，核心 9-6 下），`paged` 往前翻过，`older` 正在读更早的一页
  */
 /**
@@ -44,9 +45,16 @@ export function emptySession(id) {
 }
 
 export class Store {
-  /** @param {import('./connection.js').Connection} conn */
-  constructor(conn) {
+  /**
+   * @param {import('./connection.js').Connection} conn
+   * @param {{view?: boolean}} [opts] 核心认视图投影（握手的 `view` 是 1 起）：读会话订阅视图流、照条目画（蓝图 `web.md`「照条目画」）
+   */
+  constructor(conn, opts = {}) {
     this.conn = conn;
+    /** 照条目画：会话订阅视图流（`subscribe {stream: "view"}`），不再自己从事件算 */
+    this.viewMode = !!opts.view;
+    /** 排着的话被退回了（视图流推到 `withdrawn` 的那一刻）：界面把字放回输入框 @type {(session: string, text: string) => void} */
+    this.withdrawn = () => {};
     /** @type {Map<string, Session>} */
     this.sessions = new Map();
     /** 会话表：全部会话，照核心推的跟着变 */
@@ -132,6 +140,11 @@ export class Store {
   async load(id) {
     const s = emptySession(id);
     this.sessions.set(id, s);
+    if (this.viewMode) {
+      s.view = new ViewLog();
+      await this.subscribeView(s);
+      return;
+    }
     const page = await this.conn.request('view.page', { session: id }).catch((err) => {
       if (err?.code === -32601) return null;
       throw err;
@@ -154,6 +167,19 @@ export class Store {
     if (!s || !s.more || s.older || s.first == null) return false;
     s.older = true;
     this.changed();
+    if (s.view) {
+      try {
+        const page = await this.conn.request('view.page', { session: id, view: true, before: s.first });
+        s.view.prepend(page);
+        s.first = s.view.first;
+        s.more = s.view.more;
+        s.paged = true;
+        return true;
+      } finally {
+        s.older = false;
+        this.changed();
+      }
+    }
     try {
       const page = await this.conn.request('view.page', { session: id, before: s.first });
       const known = new Set(s.events.map((e) => e.seq));
@@ -178,6 +204,23 @@ export class Store {
     } finally {
       s.replaying = false;
     }
+  }
+
+  /**
+   * 订阅视图流（核心 9-8 下）：回应是最新一页的条目和会话状态，换上手里的（掉了队、断了又连上也照这样重来一遍）；限额、模型、待办、
+   * 「这一刻的」底数照回应记下（会话状态里也有，之后照 `view.status` 换）。
+   * @param {Session} s
+   */
+  async subscribeView(s) {
+    const r = await this.conn.request('subscribe', { session: s.id, stream: 'view' });
+    s.view?.reset(r);
+    s.first = s.view?.first ?? null;
+    s.more = !!s.view?.more;
+    s.limits = r.limits ?? s.limits ?? {};
+    s.model = r.status?.model ?? r.model ?? null;
+    s.todos = r.status?.todos ?? r.todos ?? [];
+    s.todosDone = null;
+    s.base = { upto: r.last ?? 0, usage: r.usage ?? null, permission: r.permission ?? null, jobs: r.jobs ?? null, workspace: r.workspace ?? null };
   }
 
   /** 订阅（带 `after`）：补推的是历史，不记「没看过」；回应里的限额、模型、待办、「这一刻的」底数记下。 */
@@ -245,6 +288,12 @@ export class Store {
   summary(id) {
     const s = this.sessions.get(id);
     const e = this.index.get(id);
+    if (s?.view) {
+      // 照条目画的：在不在跑照会话状态，标题、置顶、最近活动照会话表
+      const listed = Date.parse(e?.last_active ?? '');
+      const state = s.view.status?.state;
+      return { session: id, title: e?.title ?? e?.preview ?? null, running: state ? state !== 'idle' : !!e?.busy, created: null, pinned: !!e?.pinned, active: Number.isNaN(listed) ? null : listed, unread: this.unread.has(id) };
+    }
     const log = summarize(id, s?.events ?? []);
     const read = !!s?.events.length;
     const listed = Date.parse(e?.last_active ?? '');
@@ -291,6 +340,11 @@ export class Store {
       this.catchUp(s).catch((err) => console.error(`会话 ${s.id} 掉队以后补不上：${err.message}`));
       return;
     }
+    if (s.view && VIEW_PUSHES.has(method)) {
+      this.viewPush(s, method, p);
+      this.changed();
+      return;
+    }
     if (method !== 'event') return;
     const e = p.event;
     if (e.seq != null) this.persisted(s, e);
@@ -312,8 +366,34 @@ export class Store {
     this.changed();
   }
 
+  /**
+   * 视图流的一条推送：照它改手里的条目；会话状态换了的，待办、模型跟着换，一轮做完了、你没在看的记成没看过；排着的话被退回的
+   * （`withdrawn`）告诉界面放回输入框。
+   * @param {Session} s @param {string} method @param {any} p
+   */
+  viewPush(s, method, p) {
+    const log = /** @type {ViewLog} */ (s.view);
+    const was = log.status?.state ?? 'idle';
+    if (method === 'view.update' && p.entry?.withdrawn && !log.list.find((e) => e.id === p.entry.id)?.withdrawn) this.withdrawn(s.id, p.entry.text ?? '');
+    log.apply(method, p);
+    if (method !== 'view.status') return;
+    const status = log.status ?? {};
+    // 待办全做完了清空的：待办那一块照清空前那一份停一下再收（同 `todos.changed` 的 `done`，会话状态里没有，照前后两份认）
+    const before = s.todos ?? [];
+    s.todos = status.todos ?? [];
+    if (s.todos.length) s.todosDone = null;
+    else if (before.length && before.every((t) => t.status === 'completed')) s.todosDone = before;
+    if (status.model) s.model = status.model;
+    if (was !== 'idle' && status.state === 'idle' && s.id !== this.viewing) this.unread.add(s.id);
+  }
+
   /** 掉了队、断线重连：带上最后看到的序号重新订阅，核心补上漏掉的（`04-核心协议.md` 第七节，施工 3-8 六补）。 */
   async catchUp(s) {
+    if (s.view) {
+      await this.subscribeView(s);
+      this.changed();
+      return;
+    }
     // 带上最后看到的序号重新订阅，核心补上漏掉的（施工 3-8 六补）
     await this.subscribe(s, s.events.at(-1)?.seq ?? 0);
     this.changed();

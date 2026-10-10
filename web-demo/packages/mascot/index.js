@@ -11,7 +11,7 @@ import { h } from '../../src/lib/dom.js';
 import { Sprite } from './sprite.js';
 import { Props } from './props.js';
 import { Behavior } from './behavior.js';
-import { runningDeep } from '../../src/lib/jobs.js';
+import { runningDeep, runningDeepStatus } from '../../src/lib/jobs.js';
 
 /** 窄屏（和左栏变抽屉的是同一个宽）不出来 */
 const NARROW = '(max-width: 836px)';
@@ -176,6 +176,11 @@ export function apply(ctx) {
   ctx.on('view.changed', (v) => {
     answering = !!v.running;
     busy();
+    // 照条目画的（核心 9-8）：在跑的任务连子孙照会话状态（`running_deep`）
+    if (v.status) {
+      behavior.setJobs(v.session ? runningDeepStatus(v.session, (sid) => (sid === v.session ? v.status : ctx.sessions.sessions.get(sid)?.view?.status ?? null)) : 0);
+      return;
+    }
     const events = (sid) => (sid === v.session ? v.events : ctx.sessions.sessions.get(sid)?.events ?? null);
     const sig = `${v.session}|${v.events?.length ?? 0}|${[...ctx.sessions.sessions.values()].reduce((n, s) => n + s.events.length, 0)}`;
     if (sig === counted) return;

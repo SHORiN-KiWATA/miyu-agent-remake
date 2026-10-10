@@ -36,8 +36,9 @@ function recipient(to, title) {
   return title ? t('timeline.message_to', { job: to, title }) : to;
 }
 
-/** 留言送到了（`sent`）：那一句和对象重了，不写；存下了（`held`）、只订了「空了告诉我」（`watching`）、没送到的照写。 */
+/** 留言送到了（`sent`）：那一句和对象重了，不写；存下了（`held`）、只订了「空了告诉我」（`watching`）、没送到的照写。核心给标题的（9-8）送到了不写 `said`。 */
 function delivered(step) {
+  if (step.title) return step.status === 'ok' && !step.title.said;
   return step.status === 'ok' && (!step.said || step.said.key.endsWith('/sent'));
 }
 
@@ -74,6 +75,7 @@ export function row(step, home) {
     return { ...base, icon: 'atom', name: t('timeline.thought'), took };
   }
   const kind = kindOf(step.name);
+  if (step.title) return titled(step, kind, base);
   if (step.state === 'preparing') {
     const which = kind === 'command' ? 'command' : kind === 'edit' || step.name === 'trash' ? 'edit' : 'tool';
     return { ...base, icon: 'loader-circle', name: t(`timeline.prepare.${which}`), timer: step.start != null ? { since: step.start, format: 'tenths' } : null };
@@ -107,6 +109,32 @@ export function row(step, home) {
 }
 
 /**
+ * 照核心给的标题那一句（9-8，`view.md`「标题那一句」）：显示名、对象、结果那一句都是核心照连接的语言写好的；派子代理写「编号 · 描述」，
+ * 留言的对象核心已经写成任务编号、「父会话」或「会话 短编号」；用时、走表、图标、出错照原来的规矩。
+ * @param {any} step @param {string|null} kind @param {any} base
+ */
+function titled(step, kind, base) {
+  const title = step.title;
+  if (step.state === 'preparing') return { ...base, icon: 'loader-circle', name: title.name ?? '', timer: step.start != null ? { since: step.start, format: 'tenths' } : null };
+  const bad = failed(step);
+  const icon = bad ? 'circle-alert' : res.timeline.icons[step.name] ?? res.timeline.icon_default;
+  const name = title.name ?? step.name;
+  const object = title.object ?? null;
+  const said = title.said ?? null;
+  if (kind === 'command') {
+    const took = step.state === 'done' && step.duration != null ? toolDuration(step.duration) : null;
+    const timer = step.state === 'running' && step.start != null ? { since: step.start, format: /** @type {const} */ ('job') } : null;
+    return { ...base, icon, name, subject: object, took, timer, failed: bad };
+  }
+  if (kind === 'agent') {
+    const subject = step.job ? t('timeline.agent_subject', { job: step.job, title: object ?? '' }) : t('timeline.agent_pending', { title: object ?? '' });
+    return { ...base, icon, name, subject, failed: bad };
+  }
+  if (kind === 'message') return { ...base, icon, name, subject: object, said: delivered(step) ? null : said, failed: bad };
+  return { ...base, icon, name, subject: object, mono: true, said, failed: bad, diff: counts(step) };
+}
+
+/**
  * 思考收着时接在那一行后面的一小段：最后 `peek_chars` 个字，空白压成一个空格（照旧版 `app.js:6563`）。截掉了前面的
  * 打头写 `…`；截在一个英文词中间的，那半个词不要，不然开头是 `hat to be` 这样的半截。
  */
@@ -137,6 +165,8 @@ function unchanged(step) {
  */
 function counts(step) {
   if (kindOf(step.name) !== 'edit' || unchanged(step)) return null;
+  // 核心给的（9-8）：有了结果是真数，之前照参数估
+  if (step.lines) return step.lines.added + step.lines.removed > 0 ? { added: step.lines.added, removed: step.lines.removed } : null;
   const d = fromArgs(step.parsed);
   return d && d.added + d.removed > 0 ? { added: d.added, removed: d.removed } : null;
 }

@@ -284,6 +284,7 @@
       "name": "后台命令",
       "done": "后台命令完成 · {title}",
       "failed": "后台命令失败 · {title} · 退出码 {code}",
+      "failed_plain": "后台命令失败 · {title}",
       "signal": "后台命令失败 · {title} · 信号 {signal}",
       "stopped": "后台命令已停止 · {title}",
       "undone": "后台命令随撤销停止 · {title}",

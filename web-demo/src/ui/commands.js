@@ -14,6 +14,7 @@ import { res, t } from '../util/res.js';
 import { fitAbove } from './fit.js';
 import { Menu, revertedSaid, revertedMessage, keptAttachments } from '../model/commands.js';
 import { project } from '../model/transcript.js';
+import { itemsOf } from '../model/entries.js';
 import { copy } from '../markdown/build.js';
 import { Refusal } from '../core/connection.js';
 
@@ -337,10 +338,12 @@ async function undo(app) {
  */
 export async function revertLatest(app, session) {
   const reply = await app.store.conn.request('session.revert', { session });
-  const events = app.store.sessions.get(session)?.events ?? [];
-  const said = revertedSaid(events, reply?.events?.[0]) ?? reply?.said ?? null;
+  const s = app.store.sessions.get(session);
+  const events = s?.events ?? [];
+  // 照条目画的（核心 9-8）：撤掉的第一轮开头那一句照条目找（回应排在推送后面，这时已经藏起了），字照回应的 `said`
+  const message = s?.view ? revertedEntry(s.view.list) : revertedMessage(events, reply?.events?.[0]);
+  const said = (s?.view ? null : revertedSaid(events, reply?.events?.[0])) ?? reply?.said ?? null;
   // 那句话带的附件一起放回去（2026-10-07 项目主人要的，终端同一条）
-  const message = revertedMessage(events, reply?.events?.[0]);
   const kept = message ? keptAttachments(message, app.composer.recall.items) : [];
   if ((said || kept.length) && app.current === session) app.composer.putBack(said ?? '', kept.length ? { session, parts: { attachments: kept } } : null);
   // 撤掉的那几轮派出去、还在跑的任务一起停了（施工 7-8，回应的 `jobs`）：说一句
@@ -377,10 +380,29 @@ export async function redo(app, text) {
   }
 }
 
+/**
+ * 撤掉的第一轮开头那一句（照条目画的）：最后一条撤销的旁白里最早的那一轮，这一轮里第一条你说的话（不是别处来的）；换成附件包认的样子
+ * （同 `message.user` 的 `body.blocks`）。没有的是 `null`。
+ * @param {any[]} entries
+ */
+function revertedEntry(entries) {
+  const note = entries.findLast((e) => e.kind === 'notice' && e.what === 'reverted');
+  if (!note?.turns?.length) return null;
+  const turn = Math.min(...note.turns);
+  const said = entries.find((e) => e.kind === 'user' && e.turn === turn && !e.from);
+  if (!said) return null;
+  return { kind: 'message.user', body: { blocks: [{ type: 'text', text: said.text ?? '' }, ...(said.attachments ?? []).map((/** @type {any} */ a) => ({ type: a.kind, ...a }))] } };
+}
+
+/** 正文的条目：照条目画的照条目，照事件的照原来算。 @param {any} s */
+function itemsNow(s) {
+  return s?.view ? itemsOf(s.view.list, s.view.status).items : project(s?.events ?? [], s?.live ?? null, s?.marks).items;
+}
+
 /** 复制她这一轮说的全部正文（原文，段与段之间空一行）。 */
 export async function copyTurn(app, turn) {
   const s = app.current ? app.store.sessions.get(app.current) : null;
-  const items = project(s?.events ?? [], s?.live ?? null, s?.marks).items;
+  const items = itemsNow(s);
   const text = items.filter((it) => it.type === 'reply' && it.turn === turn).map((it) => it.text.trim()).join('\n\n');
   if (!text) {
     app.composer.say(t('commands.nothing_to_copy'));
@@ -392,7 +414,7 @@ export async function copyTurn(app, turn) {
 /** `/copy`：她的上一段回答（原文，写完了的）；还没有的提示一句。 */
 async function copyReply(app) {
   const s = app.current ? app.store.sessions.get(app.current) : null;
-  const items = project(s?.events ?? [], s?.live ?? null, s?.marks).items;
+  const items = itemsNow(s);
   const reply = items.filter((it) => it.type === 'reply' && !it.streaming).at(-1);
   if (!reply) {
     app.composer.say(t('commands.nothing_to_copy'));

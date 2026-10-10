@@ -288,6 +288,7 @@
       "name": "Background command",
       "done": "Background command done · {title}",
       "failed": "Background command failed · {title} · exit code {code}",
+      "failed_plain": "Background command failed · {title}",
       "signal": "Background command failed · {title} · signal {signal}",
       "stopped": "Background command stopped · {title}",
       "undone": "Background command stopped by undo · {title}",

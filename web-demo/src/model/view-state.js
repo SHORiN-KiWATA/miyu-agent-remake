@@ -1,0 +1,60 @@
+// @ts-check
+//! 照条目和会话状态算的几样（蓝图 `web.md`「照条目画」第 3、4 条）：压缩的进度那一行、在跑的这一轮她做没做事（两下 `Esc` 撤不撤）、
+//! 这一轮结束没有、开到第几轮、预览工作区里的文件。纯函数。原来这几样照事件算（`model/session.js`、`model/artifacts.js`）。
+
+import { seqOf } from './entries.js';
+
+/**
+ * 压缩的进度（同 `core/store.js` 的 `Compacting`）：会话状态在压（`doing.compacting`）的照它写了多少、估计多少；不在压的是 `null`。
+ * @param {any[]} entries @param {any} status
+ */
+export function compactingOf(entries, status) {
+  const d = status?.doing;
+  if (d?.what !== 'compacting') return null;
+  const e = entries.find((x) => x.id === d.entry);
+  return { seen: seqOf(d.entry), since: e?.at ? Date.parse(e.at) : Date.now(), written: d.written ?? 0, expected: d.expected ?? null, done: null, note: null };
+}
+
+/** 最后一条带 `turn` 的条目的回合（开到第几轮）；一条都没有的是 0。 @param {any[]} entries */
+export function lastTurn(entries) {
+  return entries.reduce((n, e) => (e.turn != null && e.turn > n ? e.turn : n), 0);
+}
+
+/** 这一轮结束了没有（有它的 `end`）。 @param {any[]} entries @param {number} turn */
+export function turnEnded(entries, turn) {
+  return entries.some((e) => e.kind === 'end' && e.turn === turn);
+}
+
+/**
+ * 在跑的这一轮她还没开始做事（同 `model/session.js` 的 `untouchedTurn`）：交回这一轮的编号；没在跑、写了正文、调了工具的交 `null`。
+ * @param {any[]} entries @param {any} status
+ */
+export function untouchedTurnOf(entries, status) {
+  if (!status || status.state === 'idle') return null;
+  const turn = lastTurn(entries);
+  if (!turn || turnEnded(entries, turn)) return null;
+  const touched = entries.some((e) => e.turn === turn && ((e.kind === 'reply' && (e.text ?? '').trim()) || e.kind === 'tool'));
+  return touched ? null : turn;
+}
+
+/**
+ * 预览工作区（`model/artifacts.js`）照它认的那几条：写入、编辑成了的一步，路径照参数（相对的接在工作目录后面）；撤销藏起的不算。
+ * 条目里还没有改了哪些文件的真实路径（核心以后给），先照参数认。
+ * @param {any[]} entries @param {string|null} cwd
+ */
+export function artifactEvents(entries, cwd) {
+  const out = [];
+  for (const e of entries) {
+    if (e.kind !== 'tool' || e.hidden || e.state !== 'ok' || !(e.name === 'write' || e.name === 'edit' || e.name === 'trash')) continue;
+    let path = null;
+    try {
+      path = JSON.parse(e.args ?? '{}').file_path ?? JSON.parse(e.args ?? '{}').path ?? null;
+    } catch {
+      continue;
+    }
+    if (typeof path !== 'string' || !path) continue;
+    const full = path.startsWith('/') ? path : cwd ? `${cwd.replace(/\/$/, '')}/${path}` : path;
+    out.push({ seq: seqOf(e.id), kind: 'tool.result', turn: e.turn ?? null, body: { effects: [{ kind: e.name === 'trash' ? 'file.trashed' : 'file.changed', path: full }] } });
+  }
+  return out;
+}

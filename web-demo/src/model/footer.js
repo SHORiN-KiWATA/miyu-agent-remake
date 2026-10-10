@@ -4,7 +4,7 @@
 
 import { res, t } from '../util/res.js';
 import { short, hitRate, percentTenths } from './format.js';
-import { levelOf } from './transcript.js';
+import { levelOf } from './entries.js';
 
 const input = (u) => u.uncached + u.cache_read + u.cache_write;
 
@@ -70,6 +70,28 @@ export function footer(events, limits, stats = new Map(), next = null, base = nu
   }
   if (next?.model) ({ model, endpoint = null } = next);
   return { left: { level, label: levelLabel(level), model, endpoint }, right };
+}
+
+/**
+ * 照会话状态写（蓝图 `web.md`「照条目画」第 3 条；核心 9-8 补上的 `view.status`）：级别照 `permission`，模型照 `model`，速度照 `speed`
+ * （输出 ÷ 首字到说完），上下文照 `context.used`（窗口照 `context.window`，没有的照订阅回应的限额），累计照 `usage`（全部请求，命中率照
+ * 主请求）。形状同 `footer`。
+ * @param {any} status @param {{window?: number}} [limits]
+ */
+export function statusFooter(status, limits = {}) {
+  const level = status?.permission ? levelOf(status.permission) : 'workspace';
+  const right = [];
+  const speed = status?.speed;
+  if (speed && speed.output > 0 && speed.ms > 0) right.push({ key: 'speed', text: t('speed', { rate: Math.round((speed.output * 1000) / speed.ms) }) });
+  const used = status?.context?.used ?? 0;
+  const window = status?.context?.window ?? limits.window;
+  if (used > 0) right.push({ key: 'context', text: window ? t('context', { used: short(used), window: short(window), percent: percentTenths(used, window) }) : short(used) });
+  const all = status?.usage?.usage;
+  const main = status?.usage?.main;
+  if (all && input(all) + all.output > 0) {
+    right.push({ key: 'total', text: t('total', { tokens: short(input(all) + all.output), percent: hitRate(main?.cache_read ?? 0, main ? input(main) : 0) }) });
+  }
+  return { left: { level, label: levelLabel(level), model: status?.model?.model ?? null, endpoint: status?.model?.endpoint ?? null }, right };
 }
 
 /** 左边的级别：图标加名字，`▣ 工作区`（图标照 TUI 的 `layout.json`）。 */

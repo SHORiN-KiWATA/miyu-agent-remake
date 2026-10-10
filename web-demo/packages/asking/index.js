@@ -6,7 +6,7 @@
 
 import { Drawer } from './drawer.js';
 import { Reports } from './report.js';
-import { pendingAsks, reportOf } from './model.js';
+import { pendingAsks, pendingFromStatus, reportOf } from './model.js';
 
 /** @param {any} ctx */
 export function apply(ctx) {
@@ -64,10 +64,13 @@ export function apply(ctx) {
   /** 告诉运行状态行在不在等你（状态事件 `asking.waiting`）。 */
   const announce = () => ctx.publish('asking.waiting', showing ? { session: showing.session, kind: showing.d.kind } : null);
 
+  /** 还没了结的：照条目画的照会话状态的 `waiting`（核心 9-8 补上），照事件的照日志。 @param {any} v */
+  const pending = (v) => (v.status ? pendingFromStatus(v.status, v.entries ?? []) : pendingAsks(v.events));
+
   /** 开着的没有了，开下一个：正在看的会话里还没了结的（不算正在等回应的）。 */
   const next = () => {
     if (drawer.open) return announce();
-    const real = view ? pendingAsks(view.events).find((d) => !answering.has(keyOf(view?.session ?? null, d.id))) : null;
+    const real = view ? pending(view).find((/** @type {any} */ d) => !answering.has(keyOf(view?.session ?? null, d.id))) : null;
     if (!real) return announce();
     showing = { d: real, session: view?.session ?? null };
     // 先画好抽屉再占框：框照画好的抽屉量高度（反过来量到的是空的，先缩成一条再跳上去）
@@ -79,10 +82,10 @@ export function apply(ctx) {
   };
 
   /** 日志变了：开着的那一个别处了结了、换了会话，收掉（不留提示）；再看要不要开下一个。 */
-  const sync = (/** @type {{session: string|null, events: any[]}} */ v) => {
+  const sync = (/** @type {{session: string|null, events: any[], status?: any, entries?: any[]}} */ v) => {
     view = v;
     if (showing) {
-      const still = showing.session === v.session && pendingAsks(v.events).some((d) => d.id === showing?.d.id);
+      const still = showing.session === v.session && pending(v).some((/** @type {any} */ d) => d.id === showing?.d.id);
       if (!still) {
         showing = null;
         ctx.composer.takeover(false);
@@ -96,5 +99,5 @@ export function apply(ctx) {
     if (drawer.open) ctx.composer.takeover(false);
   });
   ctx.slots.mount('composer.takeover', { id: 'asking', order: 10, render: () => drawer.el });
-  ctx.on('view.changed', (/** @type {any} */ v) => sync({ session: v.session ?? null, events: v.events ?? [] }));
+  ctx.on('view.changed', (/** @type {any} */ v) => sync({ session: v.session ?? null, events: v.events ?? [], status: v.status ?? null, entries: v.entries ?? [] }));
 }

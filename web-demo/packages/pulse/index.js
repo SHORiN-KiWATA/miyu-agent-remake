@@ -5,7 +5,7 @@
 //! 提示浮在它上面：写一个页面变量 `--pulse-lines`（它占几行）。停用了回答时那一行没有，排着的话照样发。
 
 import { PulseLine } from './line.js';
-import { beatOf, localWords } from './model.js';
+import { beatOf, entriesBeat, statusRetry, localWords } from './model.js';
 
 /** @param {any} ctx */
 export function apply(ctx) {
@@ -23,12 +23,15 @@ export function apply(ctx) {
   const draw = (v) => {
     last = v;
     const run = v.running;
-    const wait = waiting && waiting.session === v.session ? ctx.text(waiting.kind === 'approve' ? 'waiting_approve' : 'waiting_ask') : null;
+    // 照条目画的（核心 9-8）：在等什么、重试、出过的事都照会话状态和条目；照事件的照原来的
+    const st = v.status;
+    const kind = st ? st.waiting?.[0]?.what ?? null : waiting && waiting.session === v.session ? waiting.kind : null;
+    const wait = kind ? ctx.text(kind === 'approve' ? 'waiting_approve' : 'waiting_ask') : null;
     line.set(run ? {
       id: `${v.session}:${run.turn}`,
       start: run.start,
-      beat: beatOf(v.events, v.live),
-      retry: v.retry?.turn === run.turn ? v.retry : null,
+      beat: v.entries ? entriesBeat(v.entries, st) : beatOf(v.events, v.live),
+      retry: st ? statusRetry(st, run.turn) : v.retry?.turn === run.turn ? v.retry : null,
       queued: v.queued.map((q) => q.text),
       waiting: wait,
     } : null);

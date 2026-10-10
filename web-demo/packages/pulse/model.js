@@ -133,6 +133,26 @@ export function dotCount(t, sweep, count) {
  * @param {any[]} events 这个会话的持久事件
  * @param {{seen: number, blocks: ({text: string, done: boolean}|undefined)[]}|null} live 在收的那一次回复（`core/store.js`）
  */
+/**
+ * 照条目画的（核心 9-8）这一轮出过的事：条目的条数、几条还开着、会话状态正在做哪一样（同一阵里来的算一阵，换词照它）。
+ * @param {any[]} entries @param {any} status
+ */
+export function entriesBeat(entries, status) {
+  const open = entries.filter((e) => e.open).length;
+  return `${entries.length}|${open}|${status?.doing?.what ?? ''}|${status?.doing?.entry ?? ''}`;
+}
+
+/**
+ * 照会话状态的重试（`doing.retrying`，核心 9-8 补上）：第几次、上限、原话、换端点没有、什么时候再试（`at`）；不在重试的是 `null`。
+ * @param {any} status @param {number|null} turn 在跑的那一轮
+ */
+export function statusRetry(status, turn) {
+  const d = status?.doing;
+  if (d?.what !== 'retrying') return null;
+  const due = d.at ? Date.parse(d.at) : Number.NaN;
+  return { turn, attempt: d.attempt, limit: d.limit, message: d.message ?? '', failover: d.failover === true, ...(Number.isNaN(due) ? {} : { due }) };
+}
+
 export function beatOf(events, live) {
   if (!live) return `${events.length}`;
   const opened = live.blocks.filter(Boolean).length;

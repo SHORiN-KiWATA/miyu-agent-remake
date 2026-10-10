@@ -45,13 +45,13 @@ export function apply(ctx) {
     /** 换这个会话在哪干活（核心 9-7 的 `session.set_workspace`）：交回实际的目录，拒了的抛出来；太宽退回工作区的来事件 `workdir.adjusted` */
     setWorkdir: (session, cwd) => app.setWorkdir(session, cwd),
     /** 会话用的人格（核心 P-1 下：`session.created` 的 `persona`，没读进来的照会话表那一项的；以前的日志没有，是 `null`） */
-    persona: (id) => app.store.sessions.get(id)?.events.find((e) => e.kind === 'session.created')?.body.persona ?? app.store.index.get(id)?.persona ?? null,
+    persona: (id) => app.store.sessions.get(id)?.view?.status?.persona ?? app.store.sessions.get(id)?.events.find((e) => e.kind === 'session.created')?.body.persona ?? app.store.index.get(id)?.persona ?? null,
     /** 会话用的人格画成什么样：交一个函数（会话 → `{name, avatar}`；无人格 `null`；还不知道 `undefined`），软件包 `setup` 给 */
     look: (fn) => app.setLooker(fn),
     /** 人格列表、新会话选的人格变了：照 `look` 重新取一次 */
     refreshLook: () => app.syncLook(),
     /** 会话用的预设（核心 P-2：`session.created` 的 `preset`，没读进来的照会话表；以前的会话没有，是 `null`） */
-    preset: (id) => app.store.sessions.get(id)?.events.find((e) => e.kind === 'session.created')?.body.preset ?? app.store.index.get(id)?.preset ?? null,
+    preset: (id) => app.store.sessions.get(id)?.view?.status?.preset ?? app.store.sessions.get(id)?.events.find((e) => e.kind === 'session.created')?.body.preset ?? app.store.index.get(id)?.preset ?? null,
   });
   // 输入框：提示、跟着发的东西变了、写字的那个框（附件这类包经它粘贴、提示）
   ctx.provide('composer', {

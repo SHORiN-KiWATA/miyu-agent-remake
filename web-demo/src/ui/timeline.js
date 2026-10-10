@@ -84,7 +84,8 @@ export class SegmentView {
     this.summary.hidden = !segment.finished;
     if (segment.finished) {
       // 字变了才换：换一次淡入一次
-      const s = summary(segment.steps, Date.now());
+      // 照条目画的（核心 9-8）：收起那一行核心算好了；照事件算的照原来自己算
+      const s = segment.summary ?? summary(segment.steps, Date.now());
       const sig = JSON.stringify(s);
       if (sig !== this.drawnSummary) {
         this.drawnSummary = sig;

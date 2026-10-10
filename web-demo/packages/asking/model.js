@@ -253,6 +253,32 @@ export function pendingAsks(events) {
 }
 
 /**
+ * 照条目画的（核心 9-8 补上）：会话状态的 `waiting` 里没了结的，照先后开：提问照那一步的参数（`ask_user` 的 `questions`），确认照那一步的
+ * `approval`（同 `tool.approval_requested` 的 `body`）。条目里找不到的跳过。
+ * @param {any} status @param {any[]} entries
+ */
+export function pendingFromStatus(status, entries) {
+  const byId = new Map(entries.map((e) => [e.id, e]));
+  /** @type {any[]} */
+  const out = [];
+  for (const w of status?.waiting ?? []) {
+    const e = byId.get(w.entry);
+    if (w.what === 'approve') {
+      if (e?.approval) out.push(openApproval({ body: { call_id: w.call, ...e.approval } }));
+      continue;
+    }
+    let questions = [];
+    try {
+      questions = JSON.parse(e?.args ?? '{}').questions ?? [];
+    } catch {
+      // 参数读不懂的跳过
+    }
+    if (Array.isArray(questions) && questions.length) out.push(openAsk({ body: { call_id: w.call, questions } }));
+  }
+  return out;
+}
+
+/**
  * 了结以后留下的（蓝图「确认和提问」第 6 条）：正文那一层在了结的那一条事件处放一条（`slot: 'asking'`），带着问的那一条；这里算留什么：
  * 回答了的提问一张卡片、问过没答就取消、跳过了的一行；别的（确认了的，允许、不允许都算）不留，交 `null`。
  * @param {any} settle 了结的那一条（`question.answered`、`tool.approval_decided`、`tool.result`）

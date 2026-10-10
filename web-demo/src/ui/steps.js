@@ -246,6 +246,11 @@ export class StepView {
     this.command.hidden = !lines;
     this.drawThumbs(step, open);
     if (!open) return;
+    // 照条目画的（核心 9-8）：条目里没有结果原文，点开时问一次核心（`view.detail` 的 `output`），问到了重画
+    if (step.title && !step.output && step.state === 'done') {
+      if (this.output == null) this.fetchOutput(step);
+      step = { ...step, output: this.output ?? '' };
+    }
     const body = JSON.stringify([step.output, step.status, step.args, step.said]);
     if (body === this.drawnBody) return;
     this.drawnBody = body;
@@ -260,6 +265,17 @@ export class StepView {
       return s.kind === 'images' ? this.imagesNode(s) : h('div.tl-detail', h('div.tl-label', s.label), h('pre', s.text));
     }));
     if (cards.length) this.fullDiff(step, cards);
+  }
+
+  /** 问核心这一步的结果原文（`view.detail` 的 `output`，同一次调用只问一次，`ui/app.js` 记着）；问到了照新的字重画。 @param {any} step */
+  fetchOutput(step) {
+    if (!step.callId || !this.where.detail || this.fetching) return;
+    this.fetching = true;
+    this.where.detail(step.callId).then((got) => {
+      this.output = typeof got?.output === 'string' ? got.output : '';
+      this.drawnBody = '';
+      if (this.el.isConnected) this.update(this.step, this.spinning, this.live);
+    });
   }
 
   /**

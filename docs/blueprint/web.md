@@ -71,6 +71,13 @@
 
 **会话表的一项**（子会话，也就是 `parent` 不是空的，不在顶层列，挂在派它的会话下面）：读进来了的照日志推（每条事件都跟着走）：标题照 `session.meta_changed` 的 `title`，没有的拿第一条 `message.user` 的字顶；`turn.started` 以后、`turn.ended` 以前是在跑。没读的照会话表：`title`，没有的拿 `preview`（第一句话的第一行，最多 50 个字）；`busy` 是在跑；置顶照 `pinned`，最近活动照 `last_active`。左栏列最近活动的 30 个（`layout.json` 的 `listed_sessions`），加上置顶的、全部会话那一页开过的。别的会话一轮结束了（读进来的来了 `turn.ended`，没读的会话表里 `busy` 去掉了）、你没在看它，记成没看过（2026-10-07，核心 9-5 以后）。
 
+**照条目画**（核心 9-8 中、下、补上：视图投影、视图流、会话状态，`view.md`；2026-10-10 起换）：核心算好「显示什么」，网页只管「怎么画」。握手的 `view` 是 `1` 起的核心，网页不再自己从事件算正文。
+1. 数据：开着的会话订阅视图流（`subscribe {session, stream: "view"}`），回应是最新一页的条目、`status` 和原来那几格；之后照推送改手里的那一份（`src/core/view.js`）：`view.add` 插在 `after` 后面、`view.update` 换掉（带 `after` 的挪位置）、`view.append` 接字（`reply`、`thought` 接 `text`，`tool` 接 `args`）、`view.hidden` 藏起或显示回来、`view.remove` 拿掉、`view.status` 整份换。`resync` 重新订阅。往前翻是 `view.page {session, view: true, before: <first>}`，拼在前面、照 `id` 去重。
+2. 正文：条目照先后画成原来的几种（`src/model/entries.js`）：`user` 是你的话（`queued` 的画在运行状态行下面，`withdrawn` 的不画，推到的那一刻放回输入框），`reply` 是她的回答（`open` 的照在收的画），`group` 连它的 `thought`、`tool` 是时间线的一段（收起那一行照条目的 `summary`、界面语言是自动的照 `summary_en`，`tone` 上色；一步的标题照 `title` 的 `name`、`object`、`said`），`end` 是收尾那一行（字照它的格由网页写），`notice` 是不挂在她头下的一行（照 `what`，字由网页写）。`hidden` 的不画。一轮在跑、这一轮还一条她的条目都没有的，画三个球。
+3. 状态（`status`）：框下面那一行（权限照 `permission`，模型照 `model`，速度照 `speed`，上下文照 `context`，累计照 `usage`）、运行状态行（在跑照 `state`、用时从 `since` 起、重试照 `doing.retrying`、等人照 `waiting`）、待办（`todos`）、后台任务（`jobs`）、确认和提问（`waiting` 里的条目）、吉祥物（`state`、`jobs`）、压缩的进度（`doing.compacting`）都照它，不再从事件算。
+4. 命令：`/undo` 撤哪一轮、撤掉的第一句照条目（`end`、`user`）；`/edit` 改的那一句是最后一条开轮的 `user`；`/copy` 是最后一条 `reply`。
+5. 原来从事件算正文、算状态的那几样（`model/transcript.js`、`timeline.js`、`notes.js` 的事件部分、`footer.js`、`lib/jobs.js`、`asking` 的 `pendingAsks`……）换完以后不再用：列清单等项目主人点头再删。
+
 **正文的条目**：规矩照 `tui.md`「正文」第 3、4、7 条和「时间线」全部，只有画法换成网页的（见「样子」）。一处不同：一轮开始、她还没出字的时候（TUI 第 19 条画一个转圈的地方），画旧版的三个球。
 
 **不是你说的话**（`web/architecture.md`「多用户、多终端」第 4 条；`by` 的几种见 `kernel/ids.md`）：`message.user` 的 `by` 是你（`person`，`account` 和握手回的一样）的照「你的话」画；别的也画成靠右的气泡，气泡上面一行小字写是谁（12px、`text_faint`）：别的账号写账号名；子代理发给她的（`session`，施工 7-7）写「子代理 · 标题」（标题照派它那次调用报的 `job.started` 的 `title`）；在子会话里，派它的会话发来的（`session` 是它的父会话）写「来自「父会话的标题」」，后面一个小箭头，点了回到父会话（2026-09-30 项目主人：原来写「父会话」，看不出是哪个）；两样都对不上的（别的会话发来的，施工 C-5）写「从会话 短编号「标题」收到消息」（短编号是会话编号最后 8 位，标题照会话表；没标题的不写「」），会话表里有它的，后面一个小箭头，点了打开那个会话（2026-10-01 项目主人定：照终端「从 X 收到消息」的写法，两边一样）。是不是父会话发的，看收话的这个会话自己的 `session.created` 的 `parent`，不看界面正在显示哪个；别的 harness 经 `miyu ask --from`、`session.send` 的 `from` 发来的（`harness`，施工 7-10）写「它报的名字 · 别的 agent」（名字是它自己报的，不可信，照字显示；只写名字会看成是哪个人，2026-09-30 核心那边提醒）；通讯平台上的人（`external`）写「外部」。这些话没有编辑（核心只重做人说的话开的那一轮）；复制照有。
