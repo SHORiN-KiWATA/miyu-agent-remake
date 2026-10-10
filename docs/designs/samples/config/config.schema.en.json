@@ -259,14 +259,6 @@
           ],
           "title": "Token"
         },
-        "web": {
-          "default": 8302,
-          "description": "The port of Connect QQ's own web page (NapCat connection, token), local only. Open it with miyu-onebot web. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect immediately.",
-          "maximum": 65535,
-          "minimum": 1024,
-          "title": "Web page port",
-          "type": "integer"
-        },
         "whitelist": {
           "description": "People who can chat with her in private, whose friend requests are accepted, who are not rate-limited or held off while she sleeps, and whom she answers directly in groups. Write each as qq:<QQ number>, for example qq:20017. Allowed: a list of text of at most 128 characters. Only in the system config. Takes effect immediately.",
           "items": {

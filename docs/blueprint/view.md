@@ -17,9 +17,10 @@
 | `crates/miyu-view/src/projector.rs`、`projector/`（新） | 投影这台小机器：喂一条事件交出它引起的变化（`Change`）；`users.rs` 消息和排着的话，`turns.rs` 开轮、收尾、每次请求，`blocks.rs` 回复的一块块和起止，`tools.rs` 调工具的一步、确认、提问，`notices.rs` 旁白，`undo.rs` 撤销恢复 |
 | `crates/miyu-view/src/entry.rs`、`notice.rs`、`change.rs`、`id.rs` | 条目、旁白、变化、编号的格 |
 | `crates/miyu-view/src/summary.rs`、`title.rs`、`estimate.rs`、`explain.rs`、`words.rs` | 收起那一行、标题那一句、照参数估的行数、出错说明；给人看的字的接口（`Words`、`Texts`）和工具分类（`Kinds`） |
-| `crates/miyu-view/tests/` | 照内核的替身跑真会话，每个测试都对照视图流和翻页最后一样（`support/mod.rs` 的 `same`）；`random.rs` 三百份随机剧本 |
+| `crates/miyu-view/tests/` | 照内核的替身跑真会话，每个测试都对照视图流和翻页最后一样（`support/mod.rs` 的 `same`）；`random.rs` 三百份随机剧本；`notices.rs` 另有切在派任务之后的一页（9-8 中） |
+| `crates/miyu-endpoint/tests/view_entries.rs`、`view_page.rs`、`view_detail.rs` | 真核心走一遍（9-8 中）：握手报版本；交条目的页、边界照旧、字照连接的语言；更早派出的任务照样有标题；调用的结果原文、压缩的摘要 |
 | `resources/core/view.json` | 工具算哪一类（命令、编辑、子代理、留言）、参数里哪一格是会话编号：数据，不登记 |
-| `crates/miyu-endpoint/src/view/` | `view.page` 多交条目、`view.detail` 多交的（9-8 中）；`subscribe` 的视图流（9-8 下） |
+| `crates/miyu-endpoint/src/view/` | `view.page` 多交条目、`view.detail` 多交的（9-8 中，`project.rs` 接上投影要的字和改了多少行）；`subscribe` 的视图流（9-8 下） |
 | `resources/core/human/<语言>.json` | `said` 的 `view/…`：收起那一行的字（照网页演示 `timeline.summary` 搬来，两个头一字不差）、准备中的显示名、「会话 短编号」「父会话」、出错说明（照终端的 `error_classes`、`status_hints`） |
 
 ### 对外的样子
@@ -107,7 +108,7 @@
 ### 怎么走
 
 1. 投影是一台小机器：事件照先后一条条喂进去（落了盘的照序号，瞬时的照到的先后），每喂一条交出这一条引起的变化（加、换、接字、藏起）。从哪一条开始喂都一样：编号只看日志里的位置，不看喂过多少。
-2. 一页的条目：照这一页的事件喂一遍，取最后的样子；视图流：每个订阅一台，喂它转发的每一条，变化照上面的表推。语言照这个连接的（`hello` 第 6 条），改了 `ui.language` 的从下一条起照新的；已经交过的不重推，头换了语言重新订阅、重新要页，换掉手里的。
+2. 一页的条目：先照切点前的日志学派出去的后台任务（`Projector::learn`：只记标题、命令，不出条目，9-8 中），再照这一页的事件喂一遍，取最后的样子；视图流：每个订阅一台，喂它转发的每一条，变化照上面的表推。语言照这个连接的（`hello` 第 6 条），改了 `ui.language` 的从下一条起照新的；已经交过的不重推，头换了语言重新订阅、重新要页，换掉手里的。
 3. 时间线的一段：思考、调工具记进在进行的那一段；她开口说话、插进一条旁白、这一轮结束，这一段结束（终端蓝图「时间线」第 1、21 条）。一块什么时候算完：这一块的 `end`，或者同一次请求里下一块开始了，先到的算（同第 10 条）。
 4. 只算显示什么，不管画成什么样。终端、网页各自的配置（收不收、铺不铺开、预览几行）留在头里。
 5. 视图流和翻页最后一样：块的开始时刻、思考用了多久照 `model.called` 的 `blocks`（请求发出去的时刻加 `start_ms`），压缩那一条的开始时刻照摘要请求发出去的时刻；只在视图流里有的只有 `x…` 旁白和压缩前后的用量。测试每一份都对照。

@@ -2,7 +2,7 @@
 
 ### 是什么
 
-一个只听本机的网页端口要的几样：给页面文件、核对 Host 和 Origin、`/ws` 原样转给核心、照终端的样子连核心要一次性码再开浏览器。网页软件 `miyu-web`（`web-ui.md`）和 QQ 桥的 WebUI（`onebot.md` 第二条）都用它（`docs/designs/18-通讯平台.md` 第三节「抽成两边共用的库，不抄一份」）。
+一个只听本机的网页端口要的几样：给页面文件、核对 Host 和 Origin、`/ws` 原样转给核心、照终端的样子连核心要一次性码再开浏览器。网页软件 `miyu-web`（`web-ui.md`）用它；QQ 桥原来的 WebUI 也用（`docs/designs/18-通讯平台.md` 第三节「抽成两边共用的库，不抄一份」），随施工 O-28 下去掉，桥只剩 `start`、`stop`、`restart`、`status` 照终端的样子连核心用 `open::Core`（`onebot.md` 第一条「施工时定的」第 166 条）。
 
 状态：施工 O-16 从 `miyu-web` 抽出来（2026-10-07）。函数原样搬，不改名、不改行为，`miyu-web` 的行为一个字节不变；每个函数从哪搬到哪见「搬家表」（W-11 打包的分支变基时照它挪）。
 
@@ -26,8 +26,7 @@
 | `crates/miyu-web/src/serve.rs` | `Site`（网页软件的 `Site` 实现它：数忙照空闲退出那一套）、`respond`、`pages::serve`、`ws::accept`；`CoreCommand`、`Body`、`full`、`empty`、`secure` 照原来的路径转出去（`miyu_web::serve::CoreCommand`，`media.rs` 的 `crate::serve::…` 不用改） |
 | `crates/miyu-web/src/settings.rs` | `Settings::type_of` 留着，转给 `pages::type_of`；`serve` 起来时问配置用 `open::Core::connect_running`（报 `miyu-web`） |
 | `crates/miyu-web/src/open.rs` | `open::Core`（报 `miyu-web`）；`Browser`、`SystemBrowser` 照原来的路径转出去（`miyu_web::open::Browser`） |
-| `crates/miyu-onebot/src/web.rs` | `Site`（桥的 WebUI 不数忙，`Busy` 是 `()`）、`respond`、`pages::serve`、`ws::accept` |
-| `crates/miyu-onebot/src/open.rs` | `open::Core`（报 `onebot`）、`Browser`、`SystemBrowser` |
+| `crates/miyu-onebot/src/control.rs` | `open::Core`（报 `onebot`）、`CoreCommand`（O-28 下起桥只用这两样：原来的 WebUI 用的 `Site`、`respond`、`pages::serve`、`ws::accept`、`Browser` 随它去掉） |
 
 ### 对外的样子
 
@@ -45,7 +44,7 @@
 | `open::Core::call(id, method, params)` | 一问一答，30 秒没回算没回；拒绝的交回核心的原话 |
 | `open::{Browser, SystemBrowser}`、`open::locale()` | 见 `web-ui.md`「怎么走」第二条第 4 款；`LC_ALL`、`LC_MESSAGES`、`LANG` 照先后 |
 
-运行日志的目标照搬来时的 `miyu::web`：网页软件的 `web.log` 一个字不变；在桥的 `onebot.log` 里，这几行的来源也写 `web`，说的是桥网页那一头（「施工时定的」第 3 条）。
+运行日志的目标照搬来时的 `miyu::web`：网页软件的 `web.log` 一个字不变（「施工时定的」第 3 条）。
 
 ### 搬家表
 
@@ -85,7 +84,6 @@
 | 测试 | 守着什么 |
 |---|---|
 | `crates/miyu-web/tests/serve.rs`、`ws.rs`、`open.rs`、`media.rs` | 原有的测试一个不改照过（`ws.rs` 查源码的那一条照搬过去的位置查）：网页软件的行为一个字节不变 |
-| `crates/miyu-onebot/tests/web.rs` | 照网页软件的测试搬一份对着桥的 WebUI：Host 三种写法、页面不出目录、响应头、Origin、`/ws` 一帧一行照转、核心断了 1012、连不上核心 `web.error`（`onebot.md` 第二条「守着它的」） |
 | `crates/miyu-webserve/src/tests.rs` | `hosts`、`host_allowed` 的写法；`type_of` 照扩展名、不分大小写、没有的不猜；`find` 带 `..`、`%2e%2e`、`%zz`、NUL、反斜杠的不要 |
 
 ### 施工时定的（施工 O-16，2026-10-07）

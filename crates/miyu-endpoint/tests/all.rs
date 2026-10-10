@@ -116,6 +116,7 @@ mod venue_judge;
 mod venue_records;
 mod venues;
 mod view_detail;
+mod view_entries;
 mod view_page;
 mod watch;
 mod welcomed;

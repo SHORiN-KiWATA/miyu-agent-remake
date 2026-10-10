@@ -204,6 +204,12 @@ impl Projector {
         self.drain()
     }
 
+    /// 翻页时，这一页之前的日志：只学派出去的后台任务（标题、命令），不出条目（施工 9-8 中）。这一页里报完了、派在更早的
+    /// 任务照它写那一行；不学的话，那一行没有标题、命令。
+    pub fn learn(&mut self, earlier: &[Event]) {
+        self.learn_jobs(earlier);
+    }
+
     /// 现在的全部条目，照显示的先后。
     #[must_use]
     pub fn entries(&self) -> &[Entry] {

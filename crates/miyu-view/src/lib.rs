@@ -15,6 +15,9 @@ mod summary;
 mod title;
 mod words;
 
+/// 视图投影的版本：握手时报给头（`docs/blueprint/view.md`「握手」）。条目的格只加不改；改了已有的格才加一。
+pub const VERSION: u32 = 1;
+
 pub use change::Change;
 pub use entry::{
     Answered, Approval, Attachment, Body, Diff, End, Entry, EntryId, Group, JobDone, JobEnd, Mark,

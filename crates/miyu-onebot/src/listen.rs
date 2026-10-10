@@ -4,7 +4,7 @@
 //! - 只认 `bridge.json` 的 `paths`（出厂是 `/onebot/v11/ws`、`/ws`），别的 404。
 //! - 令牌照 `Authorization: Bearer <令牌>`、`Authorization: Token <令牌>`、查询参数 `access_token` 的先后取，和桥手里最新的
 //!   （`crate::current`：握手交来的，核心推来新的就换上，施工 O-20）按常数时间比（长短不一样直接不对，一样长的每个字节都比，
-//!   照核心比本机令牌的规矩，`protocol.md`「握手」第 3 条）：令牌刚在 WebUI 或命令行里设、换、删的，不用重启就照新的。对不上、
+//!   照核心比本机令牌的规矩，`protocol.md`「握手」第 3 条）：令牌刚在后台页或命令行里设、换、删的，不用重启就照新的。对不上、
 //!   桥手里没有、没出示的 401。查询参数照原样比，不做百分号解码：NapCat 用头出示。
 //! - 不是 WebSocket 的升级请求：400。算出来的 `Sec-WebSocket-Accept` 放不进回应的头：也是 400，不升级。
 //! - 机器人的号照 `X-Self-ID` 头取，没有的等第一条事件的 `self_id`。
@@ -40,7 +40,7 @@ use bots::Bots;
 
 /// 各个连接共用的：桥手里的令牌、桥自己的数、连着的号、读出来的消息和撤回交给谁、说给人听的。
 pub(crate) struct Gate {
-    /// NapCat 要出示的令牌在这里（和 WebUI 共用，核心推来新的就换上，施工 O-20）。
+    /// NapCat 要出示的令牌在这里（和后台页的方法共用，核心推来新的就换上，施工 O-20）。
     pub(crate) current: Arc<Current>,
     /// 认哪几个路径、调用等多久、写队列多长（`bridge.json`）。
     pub(crate) tuning: Tuning,

@@ -14,7 +14,6 @@ use miyu_store::resources::ResourceRoot;
 
 use crate::control::{Halt, Report};
 use crate::logs::Heading;
-use crate::open::Opening;
 use crate::serve::{Failure, Notice};
 use crate::venue::Shown;
 
@@ -103,7 +102,6 @@ impl Texts {
                 self.say("notice/disconnected-as", &[("bot", bot.to_string())])
             }
             Notice::Disconnected { bot: None } => self.say("notice/disconnected", &[]),
-            Notice::Web { port } => self.say("notice/web", &[("port", port.to_string())]),
             Notice::NoToken => self.say("notice/no-token", &[]),
         }
     }
@@ -115,9 +113,6 @@ impl Texts {
             Failure::NotSpawned => self.say("failure/not-spawned", &[]),
             Failure::PortInUse(port) => {
                 self.say("failure/port-in-use", &[("port", port.to_string())])
-            }
-            Failure::WebPortInUse(port) => {
-                self.say("failure/web-port-in-use", &[("port", port.to_string())])
             }
             Failure::Crashed(reason) => self.say("failure/crashed", &[("reason", reason.clone())]),
             Failure::Start(reason) => self.say("failure/start", &[("reason", reason.clone())]),
@@ -219,20 +214,6 @@ impl Texts {
         self.say(key, &fields)
     }
 
-    /// `miyu-onebot web` 说的（施工 O-16）。
-    pub fn opening(&self, opening: &Opening) -> String {
-        match opening {
-            Opening::NotRunning(port) => {
-                self.say("open/not-running", &[("port", port.to_string())])
-            }
-            Opening::First => self.say("open/first", &[]),
-            Opening::Opened(url) => self.say("open/opened", &[("url", url.clone())]),
-            Opening::PrintHint => self.say("open/print-hint", &[]),
-            Opening::OpenThis => self.say("open/open-this", &[]),
-            Opening::CodeWarning => self.say("open/code-warning", &[]),
-        }
-    }
-
     /// `start`、`stop`、`restart`、`status` 说的一句（施工 O-18）。
     pub fn report(&self, report: &Report) -> String {
         match report {
@@ -267,10 +248,8 @@ impl Texts {
             ),
             Report::NapcatBot(bot) => self.say("status/napcat-bot", &[("bot", bot.clone())]),
             Report::NoNapcat => self.say("status/no-napcat", &[]),
-            Report::Ports { listen, web } => self.say(
-                "status/ports",
-                &[("listen", listen.to_string()), ("web", web.to_string())],
-            ),
+            Report::Listen(listen) => self.say("status/listen", &[("listen", listen.to_string())]),
+            Report::Page => self.say("status/page", &[]),
         }
     }
 

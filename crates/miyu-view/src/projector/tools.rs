@@ -2,11 +2,14 @@
 //! 估加减的行数；结果到了换成结果的状态、结果那一句、真的行数、结果里的图；派出去的后台任务记下来，了结时照它写。
 //! 要人确认的记在这一步上；一组题答了另起一条旁白。
 
+use std::collections::BTreeMap;
+
 use serde_json::Value;
 
 use miyu_kernel::block::Block as Content;
 use miyu_kernel::event::{
-    ApprovalDecided, ApprovalRequested, Effect, Event, QuestionAnswered, ToolResult,
+    ApprovalDecided, ApprovalRequested, Body as EventBody, Effect, Event, QuestionAnswered,
+    ToolResult,
 };
 use miyu_kernel::id::CallId;
 use miyu_kernel::time::Timestamp;
@@ -147,6 +150,38 @@ impl Projector {
     }
 
     /// 一次调用的结果。
+    /// 翻页时这一页之前的日志：派出去的后台任务记下标题、命令（命令照派它那次调用的参数），别的都不看。
+    pub(super) fn learn_jobs(&mut self, earlier: &[Event]) {
+        let mut commands: BTreeMap<CallId, Option<String>> = BTreeMap::new();
+        for event in earlier {
+            match &event.body {
+                EventBody::MessageAssistant(reply) => {
+                    for block in &reply.blocks {
+                        if let Content::ToolCall(call) = block {
+                            commands.insert(call.call_id, command_of(&call.args));
+                        }
+                    }
+                }
+                EventBody::ToolResult(result) => {
+                    for effect in &result.effects {
+                        if let Effect::JobStarted(started) = effect {
+                            let command = commands.get(&result.call_id).cloned().flatten();
+                            self.jobs.insert(
+                                started.job.clone(),
+                                Job {
+                                    what: started.what.clone(),
+                                    title: started.title.clone(),
+                                    command,
+                                },
+                            );
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
     pub(super) fn result(&mut self, event: &Event, result: &ToolResult) {
         let Some(id) = self.calls.get(&result.call_id).cloned() else {
             return;
@@ -172,9 +207,7 @@ impl Projector {
             if let Effect::JobStarted(started) = effect {
                 job = Some(started.job.clone());
                 let command = self.get(&id).and_then(|e| match &e.body {
-                    Body::Tool(tool) => serde_json::from_str::<Value>(&tool.args)
-                        .ok()
-                        .and_then(|a| a.get("command").and_then(Value::as_str).map(str::to_string)),
+                    Body::Tool(tool) => command_of(&tool.args),
                     _ => None,
                 });
                 self.jobs.insert(
@@ -274,4 +307,11 @@ impl Projector {
             }),
         );
     }
+}
+
+/// 参数原文里的 `command`：后台命令派出时的那一句。
+fn command_of(args: &str) -> Option<String> {
+    serde_json::from_str::<Value>(args)
+        .ok()
+        .and_then(|a| a.get("command").and_then(Value::as_str).map(str::to_string))
 }

@@ -8,7 +8,6 @@
 pub mod answering;
 pub mod fake_core;
 pub mod group;
-pub mod http;
 pub mod judge;
 pub mod napcat;
 pub mod pipe;
@@ -87,7 +86,7 @@ pub fn tuning() -> Tuning {
     Tuning::load(&resources()).expect("出厂的 bridge.json 读得出来")
 }
 
-/// 出厂的清单里两个端口的默认值（施工 O-20）。
+/// 出厂的清单里 NapCat 端口的默认值（施工 O-20）。
 pub fn defaults() -> Defaults {
     Defaults::load(&ResourceRoot::at(resources())).expect("出厂的清单读得出来")
 }
@@ -320,8 +319,6 @@ impl Drop for Home {
 pub struct Bridge {
     /// NapCat 连进来的端口，实际听的那一个。
     pub port: u16,
-    /// WebUI 实际听的端口。
-    pub web: u16,
     /// 它说给人听的，照先后。
     pub notices: Arc<Mutex<Vec<Notice>>>,
     stop: Option<oneshot::Sender<()>>,
@@ -345,21 +342,15 @@ impl Bridge {
     }
 }
 
-/// 拉不起来的核心：命令不存在。测试里核心已经在跑，用不上（WebUI、`start` 这几样连核心时才要）。
-pub fn no_core() -> std::process::Command {
-    std::process::Command::new("/nonexistent/miyu-core-for-tests")
-}
-
-/// 两个端口都是 0（让系统挑），令牌是 [`TOKEN`]。
+/// 端口是 0（让系统挑），令牌是 [`TOKEN`]。
 pub fn settings() -> Settings {
     with_token(Some(TOKEN))
 }
 
-/// 两个端口都是 0，令牌是 `token`；空的是没有令牌。
+/// 端口是 0，令牌是 `token`；空的是没有令牌。
 pub fn with_token(token: Option<&str>) -> Settings {
     Settings {
         port: 0,
-        web: 0,
         token: token.map(|token| Secret::new(token).expect("合写法")),
     }
 }
@@ -369,9 +360,9 @@ pub fn no_token() -> Notice {
     Notice::NoToken
 }
 
-/// 照核心拉起扩展时握手交的样子写 `settings`（施工 O-20，`extensions.md`「配置」）：两个端口、令牌的真值；没有令牌的不放这一键。
+/// 照核心拉起扩展时握手交的样子写 `settings`（施工 O-20，`extensions.md`「配置」）：端口、令牌的真值；没有令牌的不放这一键。
 pub fn handed(settings: &Settings) -> Value {
-    let mut config = json!({"onebot.listen": settings.port, "onebot.web": settings.web});
+    let mut config = json!({"onebot.listen": settings.port});
     if let Some(token) = &settings.token {
         config["onebot.token"] = json!(token.expose());
     }
@@ -379,8 +370,8 @@ pub fn handed(settings: &Settings) -> Value {
 }
 
 /// 在数据根 `root` 上起一个桥要的：握手交的配置照 `settings`，经内存里的管道连 `root` 上的那个核心（[`pipe::pipe_to`]，施工
-/// O-18），`accounts` 有的照它改写账号，WebUI 拉不起核心，说中文，出厂的 `bridge.json`、资源目录、清单的默认值和出厂的场所
-/// 规则这几样（施工 O-21）。另交回测试那一头的转接 [`Relay`]：推配置（施工 O-20）、看桥问了核心什么。
+/// O-18），`accounts` 有的照它改写账号，说中文，出厂的 `bridge.json`、资源目录、清单的默认值和出厂的场所规则这几样
+/// （施工 O-21）。另交回测试那一头的转接 [`Relay`]：推配置（施工 O-20）、看桥问了核心什么。
 pub fn serve_relayed(
     root: DataRoot,
     settings: Settings,
@@ -390,7 +381,6 @@ pub fn serve_relayed(
     let serve = Serve {
         pipe,
         root,
-        core: Arc::new(no_core),
         locale: Some("zh_CN.UTF-8".to_string()),
         tuning: tuning(),
         resources: ResourceRoot::at(resources()),
@@ -410,18 +400,17 @@ pub fn serve(root: DataRoot, settings: Settings) -> Serve {
     serve_pushing(root, settings).0
 }
 
-/// 在 `home` 上起一个桥：端口 0，令牌是 [`TOKEN`]，等它说在哪两个端口听。
+/// 在 `home` 上起一个桥：端口 0，令牌是 [`TOKEN`]，等它说在哪个端口听。
 pub async fn bridge(home: &Home) -> Bridge {
     start(serve(home.root.clone(), settings())).await
 }
 
-/// 照 `serve` 起一个桥，等它说在哪两个端口听（先说 NapCat 的，再说 WebUI 的）。
+/// 照 `serve` 起一个桥，等它说在哪个端口等 NapCat（施工 O-28 下起只这一个端口）。令牌没设的那一句跟在后面说，要看它的自己等。
 pub async fn start(serve: Serve) -> Bridge {
     let notices = Arc::new(Mutex::new(Vec::new()));
     let (stop, stopped) = oneshot::channel::<()>();
     let (told, mut telling) = tokio::sync::mpsc::unbounded_channel();
     let heard = Arc::clone(&notices);
-    let mut port = 0;
     let task = tokio::spawn(run(
         serve,
         |_| {},
@@ -437,20 +426,16 @@ pub async fn start(serve: Serve) -> Bridge {
             }
         },
     ));
-    // 说在哪等 NapCat 的那一句在 WebUI 那一句前面。
-    let web = within("WebUI 开始听", async {
+    let port = within("桥开始听", async {
         loop {
-            match telling.recv().await.expect("说了端口") {
-                Notice::Listening { port: heard, .. } => port = heard,
-                Notice::Web { port } => return port,
-                _ => {}
+            if let Notice::Listening { port } = telling.recv().await.expect("说了端口") {
+                return port;
             }
         }
     })
     .await;
     Bridge {
         port,
-        web,
         notices,
         stop: Some(stop),
         task,
@@ -462,4 +447,24 @@ pub async fn within<T>(what: &str, future: impl Future<Output = T>) -> T {
     tokio::time::timeout(Duration::from_secs(10), future)
         .await
         .unwrap_or_else(|_| panic!("十秒内没等到{what}"))
+}
+
+/// 照核心转来后台页调 `status` 的样子，经 `relay` 往桥推一条 `method.call`（编号 `id`，各次不重），等到桥回了交回 `result`
+/// （施工 O-28 下：原来看 WebUI 的 `/status`）。
+pub async fn page_status(relay: &Relay, id: &str) -> Value {
+    relay.request(json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "method": "method.call",
+        "params": {"method": "status", "params": {}},
+    }));
+    within("桥答 status", async {
+        loop {
+            if let Some(answer) = relay.answers().into_iter().find(|one| one["id"] == id) {
+                return answer["result"].clone();
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
 }

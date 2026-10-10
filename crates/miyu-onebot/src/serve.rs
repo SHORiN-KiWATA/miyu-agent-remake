@@ -3,21 +3,20 @@
 //!
 //! 1. 在 [`Pipe`] 上握手（`core`）：程序里是标准输入输出，核心拉起桥时接好的（施工 O-18，`extensions.md`），不带凭据。等不到
 //!    回应：[`Failure::NotSpawned`]；被拒、管道关了：[`Failure::Core`]。握手回了语言先告诉调的一方（之后说的都照它，端口被占
-//!    那一句也是，施工 O-20，「施工时定的」第 42 条）；回应里的 `config` 读成两个端口、令牌（[`Settings::handed`]，没交的端口
-//!    照清单的默认值）。握手以后读一次系统的场所规则，问题记运行日志（施工 O-21，[`Venues`]），交给跟核心的那一头，每一条
+//!    那一句也是，施工 O-20，「施工时定的」第 42 条）；回应里的 `config` 读成 NapCat 的端口、令牌（[`Settings::handed`]，没交的
+//!    端口照清单的默认值）。握手以后读一次系统的场所规则，问题记运行日志（施工 O-21，[`Venues`]），交给跟核心的那一头，每一条
 //!    消息照它套场所（施工 O-22）。限流满了发进群里的提示照握手回的语言说（施工 O-23，「群里怎么叫她」第 7 条）；那种语言的
 //!    字读不懂的照系统的语言（`main.rs` 那一头也是照原来的说，「施工时定的」第 80 条）。握手以后、开监听以前登记桥的工具
-//!    （施工 O-26，`core/provider.rs`）：写出去就接着起来，等回应、记运行日志的那一段放进下面第 3 条的任务组。开好两个监听、
-//!    WebUI 造好以后，把它交给答后台页方法的那一头、登记方法（施工 O-28 上，`core/methods.rs`）：同样写出去就接着起来。
-//! 2. 只听 `127.0.0.1` 的 `onebot.listen`。被占了：[`Failure::PortInUse`]。再听 `127.0.0.1` 的 `onebot.web`（WebUI，施工
-//!    O-16，第二条「怎么走」第 1 条）。被占了：[`Failure::WebPortInUse`]。听上了各说一行（[`Notice::Listening`]、
-//!    [`Notice::Web`]）。令牌没设的两个也照开，NapCat 连进来一律 401，人在 WebUI 里生成令牌，NapCat 下一次连就通
-//!    （O-16 补、补二，18 第三节「还没配好就 `start`」）：在两句中间说 [`Notice::NoToken`]，记一行运行日志。
-//! 3. 每个 TCP 连接一个任务（NapCat 的交给 `listen`，WebUI 的交给 `web`），跟核心的那一头一个任务（`core/route.rs`），写状态
-//!    文件的一个任务（`crate::status_file`，施工 O-18），都在一组里：停下时一起停。WebUI 的 `/apply` 开好的新监听经 `Swap`
-//!    送过来，换掉旧的，旧的随之关掉，状态文件跟着写；已经接进来的连接不断（O-16 补二，第二条「施工时定的」第 19 条）。
-//!    核心推来的配置（`extension.config`，施工 O-20）由跟核心的那一头交过来：换上桥手里的那一份（`crate::current`），两个
-//!    端口变了的另起一个任务照 `/apply` 的办法换（`web::latest`，「施工时定的」第 45 条）。
+//!    （施工 O-26，`core/provider.rs`）：写出去就接着起来，等回应、记运行日志的那一段放进下面第 3 条的任务组。开好监听、桥手里
+//!    的状态（`crate::running`）造好以后，把它交给答后台页方法的那一头、登记方法（施工 O-28 上，`core/methods.rs`）：同样写
+//!    出去就接着起来。
+//! 2. 只听 `127.0.0.1` 的 `onebot.listen`（施工 O-28 下起只开这一个：桥自己的网页去掉了）。被占了：[`Failure::PortInUse`]。
+//!    听上了说一行（[`Notice::Listening`]）。令牌没设的也照开，NapCat 连进来一律 401，人在后台页上生成令牌，NapCat 下一次连
+//!    就通（O-16 补、补二，18 第三节「还没配好就 `start`」）：接着说 [`Notice::NoToken`]，记一行运行日志。
+//! 3. 每个 NapCat 的 TCP 连接一个任务（交给 `listen`），跟核心的那一头一个任务（`core/route.rs`），写状态文件的一个任务
+//!    （`crate::status_file`，施工 O-18），都在一组里：停下时一起停。核心推来的配置（`extension.config`，施工 O-20）由跟核心的
+//!    那一头交过来：换上桥手里的那一份（`crate::current`），端口变了的另起一个任务换（`running::rebind`，「施工时定的」第 45、
+//!    167 条）；开好的新监听送过来，换掉旧的，旧的随之关掉，状态文件跟着写；已经接进来的连接不断。
 //! 4. 核心关了管道（标准输入读到头：核心请它退出，或者核心不在了）：好好停下，交回 `Ok`，退出码 0（第 11 条，「施工时定的」
 //!    第 5、21 条：崩了由核心退避重启，桥里不另写一套重连）。跟核心的那一头、发回话的任务崩了：[`Failure::Crashed`]，退出
 //!    （第 14 条）。NapCat 断了不退。
@@ -44,13 +43,11 @@ use crate::listen::bots::Bots;
 use crate::listen::{self, Gate};
 use crate::onebot::Members;
 use crate::rules::{Factory, Venues};
+use crate::running::{Running, rebind};
 use crate::settings::{Defaults, Settings};
 use crate::status_file;
 use crate::texts::{Texts, system_language};
 use crate::tuning::Tuning;
-use crate::web::{self, Web};
-
-pub use miyu_webserve::CoreCommand;
 
 /// 跟核心说协议的管道：读的一头、写的一头（施工 O-18）。程序里是核心拉起桥时接好的标准输入输出；测试里是内存里的管道。
 pub struct Pipe {
@@ -77,17 +74,15 @@ impl Pipe {
 pub struct Serve {
     /// 数据根。
     pub root: DataRoot,
-    /// 跟核心说协议的管道（施工 O-18）。握手的回应交来两个端口、令牌（施工 O-20）。
+    /// 跟核心说协议的管道（施工 O-18）。握手的回应交来 NapCat 的端口、令牌（施工 O-20）。
     pub pipe: Pipe,
-    /// WebUI 连核心（`/ws`、验登录令牌，经本机套接字）时，核心没在跑怎么拉起来。
-    pub core: CoreCommand,
     /// 系统的语言：握手时报给核心，`ui.language` 是 `auto` 的照它定说话的语言。
     pub locale: Option<String>,
     /// 桥自己的数（`bridge.json`）。
     pub tuning: Tuning,
-    /// 资源目录：WebUI 的页面（[`web::PAGES`]）、页面的字在这里。
+    /// 资源目录：给人看的字在这里（握手回了语言照它再读）。
     pub resources: ResourceRoot,
-    /// 清单 `[settings]` 里两个端口的默认值：握手没交、推来 `null` 的照它（施工 O-20）。
+    /// 清单 `[settings]` 里 NapCat 端口的默认值：握手没交、推来 `null` 的照它（施工 O-20）。
     pub defaults: Defaults,
     /// 出厂的场所规则、出厂参数、违规词表：握手以前读好、查过（施工 O-21，[`Factory::load`]）。
     pub factory: Factory,
@@ -111,21 +106,8 @@ pub enum Notice {
         /// 机器人的号：一直没认出来的是空的。
         bot: Option<i64>,
     },
-    /// WebUI 听上了：实际的端口。
-    Web {
-        /// 实际听的端口。
-        port: u16,
-    },
     /// 令牌没设：NapCat 连进来会被拒，说怎么设。跟在 [`Notice::Listening`] 后面说。
     NoToken,
-}
-
-/// `/apply` 开好的新监听（施工 O-16 补二）：`run` 收到就换掉旧的那一个。
-pub(crate) enum Swap {
-    /// NapCat 的。
-    Napcat(TcpListener),
-    /// WebUI 的。
-    Web(TcpListener),
 }
 
 /// 起不来、跑着跑着停了的（「出错」，退出码都是 1）。
@@ -137,8 +119,6 @@ pub enum Failure {
     NotSpawned,
     /// NapCat 的端口被占了。
     PortInUse(u16),
-    /// WebUI 的端口被占了。
-    WebPortInUse(u16),
     /// 别的原因起不来（听不了、起不了运行时、读不了数据根或 `bridge.json`）：原话。
     Start(String),
     /// 跟核心的那一头崩了、发回话的任务崩了（是 bug）：原话。
@@ -152,7 +132,7 @@ pub enum Failure {
 ///
 /// # Errors
 ///
-/// 握手不成（等不到、被拒、管道关了）、两个端口被占、听不了；跑着跑着跟核心的那一头、发回话的任务崩了。
+/// 握手不成（等不到、被拒、管道关了）、端口被占、听不了；跑着跑着跟核心的那一头、发回话的任务崩了。
 pub async fn run(
     serve: Serve,
     shaken: impl FnOnce(&str) + Send,
@@ -188,8 +168,7 @@ pub async fn run(
             )
         })
         .map_err(|error| Failure::Start(error.to_string()))?;
-    let (mut napcat, listen) = bind(settings.port, Failure::PortInUse).await?;
-    let (mut pages, web_port) = bind(settings.web, Failure::WebPortInUse).await?;
+    let (mut napcat, listen) = bind(settings.port).await?;
     let tell: Arc<dyn Fn(Notice) + Send + Sync> = Arc::new(tell);
     tracing::info!(target: TARGET, port = listen, "listening");
     tell(Notice::Listening { port: listen });
@@ -197,30 +176,22 @@ pub async fn run(
         tracing::warn!(target: TARGET, "no token yet");
         tell(Notice::NoToken);
     }
-    tracing::info!(target: TARGET, port = web_port, "web listening");
-    tell(Notice::Web { port: web_port });
     let bots = Arc::new(Bots::default());
     let (inbound, received) = mpsc::channel(serve.tuning.inbound_queue);
     let retry = serve.tuning.accept_retry();
-    let applied = (settings.port, settings.web);
+    let applied = settings.port;
     let current = Arc::new(Current::new(settings, serve.defaults));
     let (swap, mut swaps) = mpsc::unbounded_channel();
-    let web = Arc::new(Web {
-        root: serve.root.clone(),
-        port: AtomicU16::new(web_port),
+    let running = Arc::new(Running {
         listen: AtomicU16::new(listen),
-        core: serve.core,
-        resources: serve.resources,
-        language: core.language.clone(),
         tuning: serve.tuning.clone(),
         bots: Arc::clone(&bots),
         current: Arc::clone(&current),
-        checked: web::Checked::new(serve.tuning.web.status_cache()),
         applied: tokio::sync::Mutex::new(applied),
         swap,
     });
     // 后台页调的方法（施工 O-28 上）：桥手里的状态齐了，先交给答的那一头，再登记。
-    methods.ready(Arc::clone(&web));
+    methods.ready(Arc::clone(&running));
     let registered = register(&core.caller()).await;
     let changed = Arc::new(Notify::new());
     let gate = Arc::new(Gate {
@@ -264,7 +235,7 @@ pub async fn run(
     let route = tasks.spawn(async move { route.run(received).await }).id();
     tasks.spawn(status_file::keep(
         status_file::path(&serve.root),
-        Arc::clone(&web),
+        Arc::clone(&running),
         Arc::clone(&changed),
     ));
     tokio::pin!(stop);
@@ -284,38 +255,20 @@ pub async fn run(
                     tokio::time::sleep(retry).await;
                 }
             },
-            accepted = pages.accept() => match accepted {
-                Ok((stream, _)) => {
-                    let web = Arc::clone(&web);
-                    tasks.spawn(async move {
-                        web::accept(stream, web).await;
-                        None
-                    });
-                }
-                Err(error) => {
-                    tracing::warn!(target: TARGET, error = %error, "web accept failed");
-                    tokio::time::sleep(retry).await;
-                }
-            },
-            // 核心推来的配置（施工 O-20）：令牌当场换上；端口变了另起一个任务换，换的时候不耽误接连接。发的一头在跟核心的
-            // 那一头里，它停了收到空的，这一支不再看。
+            // 核心推来的配置（施工 O-20）：令牌当场换上；端口变了另起一个任务换，换的时候不耽误接连接（换不成的记了运行
+            // 日志，旧的照旧，「施工时定的」第 167 条）。发的一头在跟核心的那一头里，它停了收到空的，这一支不再看。
             Some(keys) = configs.recv() => {
                 if current.change(&keys) {
-                    let web = Arc::clone(&web);
+                    let running = Arc::clone(&running);
                     tasks.spawn(async move {
-                        if web::latest(&web).await.is_err() {
-                            // 换不成的（被占）已经记了运行日志，旧的照旧：页面接着调的 `/apply` 再试一次。
-                        }
+                        rebind::latest(&running).await;
                         None
                     });
                 }
             },
-            // 发的一头在 `web` 里，跑着时一直在：收不到空的。
-            Some(swapped) = swaps.recv() => {
-                match swapped {
-                    Swap::Napcat(listener) => napcat = listener,
-                    Swap::Web(listener) => pages = listener,
-                }
+            // 发的一头在 `running` 里，跑着时一直在：收不到空的。
+            Some(listener) = swaps.recv() => {
+                napcat = listener;
                 changed.notify_one();
             },
             Some(ended) = tasks.join_next_with_id() => match ended {
@@ -344,15 +297,14 @@ pub async fn run(
     }
 }
 
-/// 只听 `127.0.0.1` 的 `wanted`：交回监听和实际的端口（`0` 是系统挑的那一个）。被占了的照 `in_use` 说是哪个端口。起来时、
-/// `/apply` 换端口时用。
-pub(crate) async fn bind(
-    wanted: u16,
-    in_use: fn(u16) -> Failure,
-) -> Result<(TcpListener, u16), Failure> {
+/// 只听 `127.0.0.1` 的 `wanted`：交回监听和实际的端口（`0` 是系统挑的那一个）。被占了的说是哪个端口（[`Failure::PortInUse`]）。起来时、
+/// 推来的端口变化换端口时用（`running::rebind`）。
+pub(crate) async fn bind(wanted: u16) -> Result<(TcpListener, u16), Failure> {
     let listener = match TcpListener::bind(("127.0.0.1", wanted)).await {
         Ok(listener) => listener,
-        Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => return Err(in_use(wanted)),
+        Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
+            return Err(Failure::PortInUse(wanted));
+        }
         Err(error) => return Err(Failure::Start(error.to_string())),
     };
     let port = listener

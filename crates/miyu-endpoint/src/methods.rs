@@ -143,7 +143,7 @@ pub(crate) async fn call(
         "package.file" => crate::backstage::read(core, params(request)?).await,
         "package.methods" => crate::backstage::register(core, caller, params(request)?),
         "package.disable" => crate::packages::switch::disable(core, peer, params(request)?).await,
-        "view.page" => crate::view::page(core, params(request)?).await,
+        "view.page" => crate::view::page(core, peer, params(request)?).await,
         "view.detail" => crate::view::detail(core, params(request)?).await,
         "extension.status" => Ok(crate::extensions::status(core, peer)),
         "extension.enable" => crate::extensions::enable(core, peer, params(request)?).await,

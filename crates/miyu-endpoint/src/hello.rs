@@ -188,6 +188,8 @@ pub(crate) async fn hello(
         "host": host(core, account),
         "sandbox": sandbox(&core.sandbox),
         "language": language,
+        // 视图投影的版本（施工 9-8 中，`view.md`「握手」）：头照它决定用条目还是自己算。
+        "view": miyu_view::VERSION,
     });
     let errors = core.config().errors();
     if errors > 0 {
