@@ -25,10 +25,14 @@ const HOME_RIGHT = 40;
  */
 
 export class Guide {
-  /** @param {any} ctx `welcome` 包的 ctx @param {() => void} uncover 揭掉一打开就盖上的那层底色（收起时） */
-  constructor(ctx, uncover) {
+  /**
+   * @param {any} ctx `welcome` 包的 ctx @param {() => void} uncover 揭掉一打开就盖上的那层底色（收起时）
+   * @param {() => void} release 放开藏着的吉祥物（给了它舞台以后）
+   */
+  constructor(ctx, uncover, release) {
     this.ctx = ctx;
     this.uncover = uncover;
+    this.release = release;
     this.t = (/** @type {string} */ key, /** @type {any} */ fields) => ctx.text(key, fields);
     this.step = 'hello';
     /** @type {Screen|null} */
@@ -79,6 +83,7 @@ export class Guide {
       if (this.stageKind || !this.layer.isConnected) return;
       if (this.ctx.mascot) this.restage();
       else if (tries > 0) setTimeout(() => wait(tries - 1), 100);
+      else this.release();
     };
     wait(50);
   }
@@ -255,10 +260,11 @@ export class Guide {
     this.unstage = mascot.stage({
       root: this.layer,
       scale: kind === 'hello' ? this.ctx.config.mascot_scale : 1,
-      below: first,
+      drop: first,
       platforms: () => this.platforms(),
       home: () => this.home(),
     });
+    this.release();
     return true;
   }
 

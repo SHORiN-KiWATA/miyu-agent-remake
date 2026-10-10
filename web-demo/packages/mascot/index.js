@@ -5,7 +5,7 @@
 //! `props.js`，怎么动在 `behavior.js`、`world.js`。只有它自己接鼠标：左键拖、点它。跟着这些事动：打字（页面上哪个框都算）、鼠标动、她在
 //! 回答（事件 `view.changed`）、换主题（`theme.changed` 重取颜色）。窄屏不出来；停用了就没有。
 //! 给别的包一个服务 `mascot`（蓝图「第一次引导」第 11 条）：`stage(舞台)` 换到别的台子上站（撤了回到输入框），`hop()`、`droop()`、
-//! `busy(on)` 做动作。
+//! `busy(on)` 做动作。`<body data-mascot="hold">` 时先藏着不画（第一次引导一打开盖着底色、还没定站哪的那一下：不然先在输入框上露一下）。
 
 import { h } from '../../src/lib/dom.js';
 import { Sprite } from './sprite.js';
@@ -19,9 +19,10 @@ const NARROW = '(max-width: 836px)';
 const TEXTY = new Set(['text', 'search', 'url', 'email', 'password', 'number', '']);
 
 /**
- * 别的包交来的舞台：几段台子（地照旧是整页底边，不用交）、平常站哪、放大几倍（照输入框上那一只算）、看着哪一块变（变了推一帧）。
+ * 别的包交来的舞台：几段台子（地照旧是整页底边，不用交）、平常站哪、放大几倍（照输入框上那一只算）、看着哪一块变（变了推一帧）、
+ * 开场从窗口顶上掉下来。
  * @typedef {{platforms: () => import('./world.js').Platform[], home: () => {x: number, platform: import('./world.js').Platform}|null,
- *   scale?: number, root?: HTMLElement, below?: boolean}} Stage
+ *   scale?: number, root?: HTMLElement, drop?: boolean}} Stage
  */
 
 /** @param {any} ctx */
@@ -92,7 +93,7 @@ export function apply(ctx) {
     hold: (kind) => props.hold(kind),
     nextProp: () => props.next(),
     reduced,
-    hidden: () => narrow.matches,
+    hidden: () => narrow.matches || document.body.dataset.mascot === 'hold',
   });
   // 颜色照主题；换了主题重取
   sprite.recolor();
@@ -144,6 +145,9 @@ export function apply(ctx) {
   watch.observe(box, { subtree: true, attributes: true, attributeFilter: ['hidden', 'class'], childList: true });
   const resized = new ResizeObserver(wake);
   resized.observe(box);
+  // 别的包让它先藏着（`data-mascot="hold"`）、放开了：推一帧
+  const held = new MutationObserver(wake);
+  held.observe(document.body, { attributes: true, attributeFilter: ['data-mascot'] });
   const listen = [
     [document, 'pointermove', onMove, { passive: true }], [document, 'keydown', onKey, true], [document, 'input', onType, true], [document, 'focusout', onBlur, true],
     [canvas, 'pointerdown', onDown], [canvas, 'pointermove', onDrag], [canvas, 'pointerup', onUp], [canvas, 'pointercancel', onUp],
@@ -157,6 +161,7 @@ export function apply(ctx) {
     for (const [target, name, fn, opt] of listen) target.removeEventListener(name, fn, opt);
     stageWatch.disconnect();
     stageResized.disconnect();
+    held.disconnect();
     watch.disconnect();
     resized.disconnect();
     behavior.destroy();
@@ -187,7 +192,7 @@ export function apply(ctx) {
         stageWatch.observe(next.root, { subtree: true, childList: true, attributes: true, attributeFilter: ['hidden', 'class'] });
         stageResized.observe(next.root);
       }
-      behavior.goHome(!!next.below);
+      behavior.goHome(!!next.drop);
       return () => {
         if (stage !== next) return;
         stage = null;

@@ -49,7 +49,8 @@ export class Chat {
     // 底边的淡出（sticky 的一条，不用 mask：滚动时不用重画整片正文）
     /** 正文最上面一行（按页读，核心 9-6 下）：读更早的那一页时写「正在读更早的…」，往前翻到头了写「已经是开头」 */
     this.olderEl = h('div.chat-older', { hidden: true });
-    this.el = h('div.chat-scroll', this.olderEl, this.list, this.spacer, h('div.chat-fade', { 'aria-hidden': 'true' }));
+    // 顶上的淡出：左上角浮着那一条（挂载位 `stage.info`）露着时才有，正文滚到它下面淡掉、不透出字（2026-10-10 项目主人）
+    this.el = h('div.chat-scroll', h('div.chat-fade-top', { 'aria-hidden': 'true' }), this.olderEl, this.list, this.spacer, h('div.chat-fade', { 'aria-hidden': 'true' }));
     this.scroll = new Follow(this.el, this.list, this.spacer);
     /** 看着你说的话的（软件包 rail 这类，经服务 `chat`）：每画一次交一份；新来的先拿到现在的 */
     this.promptWatchers = new Set();

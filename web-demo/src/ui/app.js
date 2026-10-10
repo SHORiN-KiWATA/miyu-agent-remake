@@ -241,7 +241,7 @@ export class App {
       this.scrim,
       zone,
       this.sidebar.el,
-      h('main.stage',
+      this.stageEl = h('main.stage',
         h('div.stage-float',
           h('button.icon-button.sidebar-expand-button', { type: 'button', title: t('sidebar.expand'), onclick: () => this.collapse(false) }, icon('panel-left-open')),
           h('button.icon-button.mobile-menu-button', { type: 'button', title: t('sidebar.expand'), onclick: () => this.drawer(true) }, icon('panel-left'))),
@@ -252,6 +252,13 @@ export class App {
         this.chat.el,
         this.stageRight = h('div.stage-right'),
         this.composer.el));
+    // 左上角浮着的那一条露着没有、多高：露着时正文从它下面起、顶上淡出（`.has-info`、`--stage-info-h`，styles/chat.css）
+    const infoSize = new ResizeObserver(() => {
+      const tall = this.stageInfo.getBoundingClientRect().height;
+      this.stageEl.classList.toggle('has-info', tall > 0);
+      this.stageEl.style.setProperty('--stage-info-h', `${Math.round(tall)}px`);
+    });
+    infoSize.observe(this.stageInfo);
     // 开着的页面，桥重启过换了口令：不再白试重连，对话区顶上挂一条提示（蓝图「连核心」第 9 条）
     this.store.conn.onLost(() => show(this.lostBar));
     // 全部会话：占对话区那一块（左栏「查看全部」、`/sessions`）
@@ -313,6 +320,12 @@ export class App {
     this.kidCache = new Map();
     // 新会话框下面写默认的模型：起来时问一次（问不到的不写，菜单打开时再问）
     this.loadModels().catch(() => {});
+    // 模型、供应商、池的配置变了（设置页、第一次引导、别的头、命令行改的）：重读模型列表，新会话框下面照新的默认写（2026-10-10 项目主人：
+    // 引导里选了模型，框下面照旧写原来那个）
+    this.store.conn.onPush((method, params) => {
+      if (method !== 'config.changed') return;
+      if (Object.keys(params?.keys ?? {}).some((k) => /^(models|providers|pools)\./.test(k))) this.loadModels().catch(() => {});
+    });
   }
 
   /** @param {HTMLElement} el */

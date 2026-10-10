@@ -149,8 +149,10 @@
 .setup-area:hover { background: var(--surface-3); }
 .setup-area:focus { background: var(--surface-1); box-shadow: var(--card-shadow); }
 .setup-area::placeholder { color: var(--text-faint); }
-.setup-pairs { display: grid; gap: 10px; }
-.setup-pair { display: grid; gap: 6px; padding: 4px 0; border-radius: 10px; }
+/* 一对一块淡底（不描边）：对与对之间分得开（2026-10-10 项目主人：原来一列框连成一片，缺少分隔感） */
+.setup-pairs { display: grid; gap: 8px; }
+.setup-pair { display: grid; gap: 6px; padding: 8px 6px 8px 10px; border-radius: 12px; background: color-mix(in srgb, var(--text) 3.5%, transparent); }
+.setup-pairs:empty { display: none; }
 .setup-pair.is-bad { background: color-mix(in srgb, var(--danger) 10%, transparent); }
 .setup-turn { display: grid; grid-template-columns: 6em minmax(0, 1fr) 26px; gap: 8px; align-items: start; }
 .setup-who { overflow: hidden; padding-top: 6px; color: var(--text-faint); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
@@ -196,8 +198,8 @@
 .setup-choice-name { font-weight: 600; }
 .setup-choice-hint { color: var(--text-faint); font-size: 12.5px; }
 .setup-choice-check { position: absolute; top: 12px; right: 14px; color: var(--accent); font-weight: 600; }
-.setup-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.setup-chip { padding: 2px 8px; border-radius: 6px; background: var(--surface-3); color: var(--text-soft); font-size: 12px; }
+.setup-chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
+.setup-chip { overflow: hidden; padding: 2px 8px; border-radius: 6px; background: var(--surface-3); color: var(--text-soft); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .setup-chip.is-off { background: transparent; color: var(--text-faint); text-decoration: line-through; }
 .setup-choice-wrap { border-radius: 12px; }
 .setup-choice-wrap.is-on { background: var(--surface-1); box-shadow: var(--card-shadow); }

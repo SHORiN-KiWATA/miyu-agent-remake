@@ -250,9 +250,9 @@ export class Behavior {
     this.droopTimer = window.setTimeout(() => this.follow(), d.ms);
   }
 
-  /** 舞台换了：跳回家（`below` 的从整页底下跳上来）。 */
-  goHome(below = false) {
-    this.body.goHome(below);
+  /** 舞台换了：跳回家（`drop` 的从窗口顶上掉下来）。 */
+  goHome(drop = false) {
+    this.body.goHome(drop);
     this.wake();
   }
 

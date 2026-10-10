@@ -16,7 +16,13 @@ export function apply(ctx) {
     className: 'wl-cover',
     style: 'position: fixed; z-index: 37; inset: 0; background: var(--surface, #faf9f7); transition: opacity 0.2s ease',
   }));
+  // 吉祥物先藏着：盖着底色、还没定站哪时不在输入框上露一下（引导给了它舞台、或者揭掉底色时放开）
+  if (cover) document.body.dataset.mascot = 'hold';
+  const release = () => {
+    if (document.body.dataset.mascot === 'hold') delete document.body.dataset.mascot;
+  };
   const uncover = () => {
+    release();
     if (!cover) return;
     cover.style.opacity = '0';
     setTimeout(() => cover.remove(), 220);
@@ -37,12 +43,13 @@ export function apply(ctx) {
     }
     const step = ctx.storage.get(STEP_KEY, null);
     ctx.storage.set(STEP_KEY, null);
-    guide = new Guide(ctx, uncover);
+    guide = new Guide(ctx, uncover, release);
     guide.open(typeof step === 'string' ? step : 'hello');
   };
   start();
   ctx.effect(() => () => {
     guide?.close();
     cover?.remove();
+    release();
   });
 }

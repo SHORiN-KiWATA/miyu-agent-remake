@@ -17,6 +17,14 @@
   background: linear-gradient(to bottom, color-mix(in srgb, var(--surface) 0%, transparent), var(--surface));
 }
 .timeline { width: min(100%, 980px); margin: 0 auto; padding: 24px 30px 14px; }
+/* 顶上的淡出：左上角浮着的那一条（stage.info）露着时，正文滚到它下面淡掉（原来透出字），正文也从它下面起（原来「上下文已清空」
+   这类第一行被它挡住）；看着子代理时它在路径那一行里，不占正文，两样都不要（2026-10-10 项目主人） */
+.chat-fade-top {
+  position: sticky; z-index: 3; top: 0; display: none; height: calc(var(--stage-info-h, 0px) + 26px); margin-bottom: calc(-1 * (var(--stage-info-h, 0px) + 26px));
+  pointer-events: none; background: linear-gradient(to bottom, var(--surface) 62%, color-mix(in srgb, var(--surface) 0%, transparent));
+}
+.stage.has-info:not(:has(.chat-crumbs:not([hidden]))) .chat-fade-top { display: block; }
+.stage.has-info:not(:has(.chat-crumbs:not([hidden]))) .timeline { padding-top: calc(var(--stage-info-h, 0px) + 30px); }
 
 /* 你说的话：下面 27px 的空算在它里面，悬停到按钮上不断 */
 .user-message { position: relative; display: grid; justify-items: end; padding-bottom: 27px; }

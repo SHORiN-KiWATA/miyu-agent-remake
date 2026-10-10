@@ -217,7 +217,11 @@ export class PresetStep {
         const on = this.chosen === p.preset;
         return h(`button.setup-choice${on ? '.is-on' : ''}`, { type: 'button', onclick: () => { this.chosen = p.preset; draw(); this.host.ready(); } },
           h('span.setup-choice-name', presetName(p)),
-          h('span.setup-chips', (this.features.get(p.preset) ?? []).map((f) => h(`span.setup-chip${f.on ? '' : '.is-off'}`, f.name ?? f.id))),
+          // 每张卡片照同一个先后、排成对齐的格子：同一个功能在每张卡片的同一个位置，一眼比得出区别（2026-10-10 项目主人：全列，要方便读）
+          h('span.setup-chips', this.all.map((f) => {
+            const on = (this.features.get(p.preset) ?? []).find((x) => x.id === f.id)?.on ?? false;
+            return h(`span.setup-chip${on ? '' : '.is-off'}`, { title: f.name ?? f.id }, f.name ?? f.id);
+          })),
           on ? h('span.setup-choice-check', '✓') : null);
       });
       const custom = this.chosen === 'custom';

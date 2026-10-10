@@ -107,18 +107,24 @@ export class Body {
   }
 
   /**
-   * 舞台换了（第一次引导）：站在别处的原地起跳、跳回家（`arrive`）；已经在家、被拖着、在空中的不管（落地以后照 `wander` 回去）。
-   * `below` 的先放到整页底边、正对着家的地方，从下面跳上来（欢迎页开场）。减少动画的直接放到家。
-   * @param {boolean} [below]
+   * 舞台换了（第一次引导）：站在别处的原地起跳、跳回家（`arrive`）；被拖着的不管，在空中的落稳了再回。
+   * `drop` 的先放到窗口顶上外面、正对着家的地方，掉下来（欢迎页开场，2026-10-10 项目主人：从上面掉下来比从下面升上来有趣）。
+   * 减少动画的直接放到家。
+   * @param {boolean} [drop]
    */
-  goHome(below = false) {
+  goHome(drop = false) {
     const home = this.room.home();
     if (!home || this.drag) return;
     if (this.room.reduced()) {
       this.at = { x: home.x, y: home.platform.y, vx: 0, vy: 0, ground: home.platform };
       return;
     }
-    if (below || !this.at) {
+    if (drop) {
+      this.at = { x: home.x, y: -this.room.size().h, vx: 0, vy: 0, ground: null };
+      this.homeAfter = false;
+      return;
+    }
+    if (!this.at) {
       const floor = this.room.platforms().find((p) => p.id === 'floor') ?? null;
       this.at = { x: home.x, y: floor?.y ?? innerHeight, vx: 0, vy: 0, ground: floor };
     }

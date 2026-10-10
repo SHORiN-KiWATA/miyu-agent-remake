@@ -7,7 +7,7 @@
         "rewind"
       ],
       "summary": {
-        "zh": "撤销上一轮，并还原 AI 修改的文件",
+        "zh": "撤销上一轮，并还原AI修改的文件",
         "en": "Undo the last turn and restore files the AI changed",
         "ja": "直前のやり取りを取り消し、変更されたファイルを元に戻す"
       },
@@ -74,7 +74,7 @@
     {
       "name": "recap",
       "summary": {
-        "zh": "回顾 AI 的进展：进行中、已完成、待完成",
+        "zh": "回顾AI的进展：进行中、已完成、待完成",
         "en": "Recap the AI's progress: in progress, done, to do",
         "ja": "振り返り：何をしていて、何が終わり、何が残っているか"
       },
@@ -134,7 +134,7 @@
     {
       "name": "copy",
       "summary": {
-        "zh": "复制 AI 的上一条回答",
+        "zh": "复制AI的上一条回答",
         "en": "Copy the AI's last reply",
         "ja": "直前の返信をコピーする"
       },

@@ -337,7 +337,7 @@ export class ProviderFlow {
   }
 
   /**
-   * 存（第 6 条）：贴了密钥的先存成新名字的密钥，再一条 `config.set` 写进系统配置；交回出错的字，成了叫宿主 `done`。
+   * 存（第 6 条）：贴了密钥的先存成新名字的密钥，再一条 `config.set` 写进个人设置（同设置页）；交回出错的字，成了叫宿主 `done`。
    * @param {Target} target @param {any} key 这一次用的密钥 @param {boolean} pasted @param {string|null} model @param {string} name
    */
   async save(target, key, pasted, model, name) {
@@ -355,7 +355,8 @@ export class ProviderFlow {
         ref = { secret };
       }
       const { changes } = setupChanges(target, ref, { chat: welcome ? model : null, pools: welcome && noPools(items), taken });
-      if (changes.length) await core.request('config.set', { layer: 'system', changes });
+      // 写个人设置，同设置页（2026-10-10 项目主人：引导里选了 DeepSeek，会话照旧是原来的 magpie——原来写系统配置，被个人设置里写着的盖住了）
+      if (changes.length) await core.request('config.set', { layer: 'personal', changes });
       this.configured.add(id);
       this.stale = null;
       this.host.done({ id, model, name: name || id });
