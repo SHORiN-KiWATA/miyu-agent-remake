@@ -37,10 +37,16 @@ fn venue() -> String {
     format!("qq:group:{GROUP}")
 }
 
-/// 主人 @ 她：第 `message` 条。
-fn owner_calls(napcat: &Answering, message: i64) {
+/// 终端管理员 @ 她：第 `message` 条。
+fn admin_calls(napcat: &Answering, message: i64) {
     let words = json!([at(BOT), plain(" 在吗")]);
-    napcat.send(group_frame(GROUP, OWNER, message, words, ("主人", "o")));
+    napcat.send(group_frame(
+        GROUP,
+        ADMIN,
+        message,
+        words,
+        ("终端管理员", "o"),
+    ));
 }
 
 /// 等到群里有 `n` 条 `kind` 的事件：交回那时的全部事件。
@@ -85,7 +91,7 @@ async fn waiting_past_the_deadline_expires_muted_or_away() {
     // 禁言着排过了期限：记 `expired`，解禁以后不发。
     napcat.send(group_ban(GROUP, BOT, "ban", Some(600)));
     until_count(&home, "ext.onebot.venues.muted", 1).await;
-    owner_calls(&napcat, 1);
+    admin_calls(&napcat, 1);
     let events = until_count(&home, "message.user", 1).await;
     respond(
         &home,
@@ -102,7 +108,7 @@ async fn waiting_past_the_deadline_expires_muted_or_away() {
         json!({"queued": queued["seq"], "why": "expired"})
     );
     napcat.send(group_ban(GROUP, BOT, "lift_ban", None));
-    owner_calls(&napcat, 2);
+    admin_calls(&napcat, 2);
     assert_eq!(next_words(&mut napcat).await, "嗯", "过了期的那一句不发");
     // 没连着排过了期限：同样记 `expired`，连上以后不发。
     napcat.send(group_frame(
@@ -118,8 +124,8 @@ async fn waiting_past_the_deadline_expires_muted_or_away() {
     until_log(&home, "napcat disconnected", 1).await;
     respond(&home, &venue(), "expire-2", &[lin]).await;
     until_count(&home, FAILED, 2).await;
-    let mut napcat = owner_napcat(listen).await.answering(MEMBERS);
-    owner_calls(&napcat, 4);
+    let mut napcat = admin_napcat(listen).await.answering(MEMBERS);
+    admin_calls(&napcat, 4);
     assert_eq!(
         next_words(&mut napcat).await,
         "在",
@@ -139,7 +145,7 @@ async fn while_away_she_waits_and_speaks_on_reconnect() {
     let (release, released) = oneshot::channel();
     let lines = Lines::new([Line::says("在。").released_by(released)]);
     let (home, napcat, (listen, _)) = started_by(Arc::new(lines), RULES, MEMBERS).await;
-    owner_calls(&napcat, 1);
+    admin_calls(&napcat, 1);
     until_count(&home, "turn.started", 1).await;
     drop(napcat);
     until_log(&home, "napcat disconnected", 1).await;
@@ -147,7 +153,7 @@ async fn while_away_she_waits_and_speaks_on_reconnect() {
     let events = until_count(&home, QUEUED, 1).await;
     until_log(&home, "why=disconnected", 1).await;
     assert!(of_kind(&events, "venue.delivered").is_empty(), "还没发");
-    let mut napcat = owner_napcat(listen).await.answering(MEMBERS);
+    let mut napcat = admin_napcat(listen).await.answering(MEMBERS);
     assert_eq!(next_words(&mut napcat).await, "在。", "连上了就发");
     let events = until_count(&home, "venue.delivered", 1).await;
     let queued = of_kind(&events, QUEUED)[0]["seq"].as_u64();
@@ -166,7 +172,7 @@ async fn after_a_restart_what_was_queued_is_not_resent_but_still_counts() {
         Line::says("看完了。"),
     ]);
     let (home, napcat, (listen, web)) = started_by(Arc::new(lines), RULES, MEMBERS).await;
-    owner_calls(&napcat, 1);
+    admin_calls(&napcat, 1);
     until_count(&home, "turn.started", 1).await;
     // 没连着时她说了第一句：入队了、排着。
     drop(napcat);
@@ -185,7 +191,7 @@ async fn after_a_restart_what_was_queued_is_not_resent_but_still_counts() {
     bridge_up(&home.root, listen, web, before)
         .await
         .expect("桥重新起来");
-    let mut napcat = owner_napcat(listen).await.answering(MEMBERS);
+    let mut napcat = admin_napcat(listen).await.answering(MEMBERS);
     // 桥起来以后群里头一条消息来了才找这个群的会话、从头订阅（「群里怎么叫她」第 1 条）：小林说一句，判完了投影就重建好了。
     napcat.send(group_frame(
         GROUP,
@@ -237,8 +243,8 @@ async fn private_replies_wait_for_the_connection_and_are_not_repeated() {
             }
         })
     };
-    let mut napcat = owner_napcat(bridge.port).await;
-    napcat.owner_says(1, "在吗").await;
+    let mut napcat = admin_napcat(bridge.port).await;
+    napcat.admin_says(1, "在吗").await;
     let session = within("会话有了", async {
         loop {
             if let Some(session) = home.sessions().first() {
@@ -287,7 +293,7 @@ async fn private_replies_wait_for_the_connection_and_are_not_repeated() {
         ],
         "重复的那一句不入队"
     );
-    let mut napcat = owner_napcat(bridge.port).await;
+    let mut napcat = admin_napcat(bridge.port).await;
     assert_eq!(napcat.reply().await, "我在看这个问题。", "连上了照先后发");
     assert_eq!(napcat.reply().await, "看完了。");
     bridge.stop().await.expect("停得下");

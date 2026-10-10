@@ -9,7 +9,7 @@ use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::{Error, Message};
 use tokio_tungstenite::{WebSocketStream, client_async};
 
-use super::{BOT, OWNER, TIME, TOKEN, within};
+use super::{ADMIN, BOT, TIME, TOKEN, within};
 
 /// 令牌怎么出示。
 #[derive(Debug, Clone, Copy)]
@@ -106,7 +106,7 @@ pub fn private_frame(user: i64, message_id: i64, message: Value) -> Value {
 }
 
 /// 照真机的样子连：`/onebot/v11/ws`，`Bearer` 令牌，带 `X-Self-ID`。
-pub async fn owner_napcat(port: u16) -> NapCat {
+pub async fn admin_napcat(port: u16) -> NapCat {
     napcat(port, "/onebot/v11/ws", Auth::Bearer(TOKEN), Some(BOT))
         .await
         .expect("接了")
@@ -126,10 +126,10 @@ impl NapCat {
         self.send(private_frame(user, message_id, message)).await;
     }
 
-    /// 主人发一句文字。
-    pub async fn owner_says(&mut self, message_id: i64, text: &str) {
+    /// 终端管理员发一句文字。
+    pub async fn admin_says(&mut self, message_id: i64, text: &str) {
         self.private(
-            OWNER,
+            ADMIN,
             message_id,
             json!([{"type": "text", "data": {"text": text}}]),
         )
@@ -197,11 +197,11 @@ impl NapCat {
         }
     }
 
-    /// 下一个动作是给主人的 `send_private_msg`：交回里面的字（只有一个文字段）。
+    /// 下一个动作是给终端管理员的 `send_private_msg`：交回里面的字（只有一个文字段）。
     pub async fn reply(&mut self) -> String {
         let action = self.action().await;
         assert_eq!(action["action"], "send_private_msg", "{action}");
-        assert_eq!(action["params"]["user_id"], OWNER, "{action}");
+        assert_eq!(action["params"]["user_id"], ADMIN, "{action}");
         let message = action["params"]["message"]
             .as_array()
             .expect("段的数组")

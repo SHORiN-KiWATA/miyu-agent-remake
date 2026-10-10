@@ -121,7 +121,7 @@ async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
         json!([plain("我说的")]),
         ("米尤", "miyu"),
     ));
-    // 7：规则里的管理的人；8：群里的主人。
+    // 7：规则里的管理的人；8：群里的终端管理员。
     napcat.send(group_frame(
         GROUP,
         MANAGER,
@@ -131,10 +131,10 @@ async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
     ));
     napcat.send(group_frame(
         GROUP,
-        OWNER,
+        ADMIN,
         8,
         json!([plain("辛苦了")]),
-        ("主人", "o"),
+        ("终端管理员", "o"),
     ));
     // 睡着的群；规则写错的群连发两条。
     napcat.send(group_frame(
@@ -229,7 +229,10 @@ async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
         "命令编号同私聊的拼法"
     );
     assert_eq!(said[5]["by"]["role"], "manager", "规则的 managers");
-    assert_eq!(said[6]["by"]["account"], "admin", "群里的主人带 account");
+    assert_eq!(
+        said[6]["by"]["account"], "admin",
+        "群里的终端管理员带 account"
+    );
     assert!(
         events.iter().all(|event| event["kind"] != "turn.started"),
         "旁听的不开回合：{events:#?}"
@@ -276,13 +279,13 @@ async fn slash_commands_in_a_group_answer_in_the_group() {
         json!([plain("大家好")]),
         ("小林", "lin"),
     ));
-    // 主人、管理的人能用；别人照核心那一句被拒，什么都不记；认不出的记成旁听。
+    // 终端管理员、管理的人能用；别人照核心那一句被拒，什么都不记；认不出的记成旁听。
     napcat.send(group_frame(
         GROUP,
-        OWNER,
+        ADMIN,
         2,
         json!([plain("/stop")]),
-        ("主人", "o"),
+        ("终端管理员", "o"),
     ));
     assert_eq!(napcat.group_reply(GROUP).await, STOPPED);
     napcat.send(group_frame(

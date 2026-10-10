@@ -195,15 +195,15 @@ button.nav-item:hover { background: color-mix(in srgb, var(--text) 5%, transpare
 .note:empty { display: none; }
 .note.error { color: var(--danger); }
 
-/* 「主人与自己人」页（施工 O-17）：一行是号、账号的下拉、「删」、旁边一句；号不对的描红、那一句是红的。表空着时一句先做
+/* 「终端管理员与白名单成员」页（施工 O-17）：一行是号、账号的下拉、「删」、旁边一句；号不对的描红、那一句是红的。表空着时一句先做
    什么；「号被盗的代价」折起来 */
 .card > .hint { margin: -6px 0 10px; }
 .empty { margin: 4px 0 12px; color: var(--text-soft); }
 .people-rows { display: grid; gap: 8px; margin: 4px 0 12px; }
 .people-rows:empty { display: none; }
 .people-head, .people-row { display: grid; grid-template-columns: minmax(0, 200px) auto 1fr; align-items: center; gap: 8px 10px; }
-/* 主人表多一列账号：表头和每一行的列一样宽，对得齐 */
-.people-owners .people-head, .people-owners .people-row { grid-template-columns: minmax(0, 200px) 120px auto 1fr; }
+/* 终端管理员表多一列账号：表头和每一行的列一样宽，对得齐 */
+.people-admins .people-head, .people-admins .people-row { grid-template-columns: minmax(0, 200px) 120px auto 1fr; }
 .people-head { margin-top: 4px; color: var(--text-soft); font-size: 13px; }
 .aside { color: var(--text-soft); font-size: 13px; }
 .aside:empty { display: none; }
@@ -228,7 +228,7 @@ button.nav-item:hover { background: color-mix(in srgb, var(--text) 5%, transpare
   .value { padding-top: 0; }
   /* 号那一列占满剩下的，旁边那一句挪到下一行 */
   .people-head, .people-row { grid-template-columns: minmax(0, 1fr) auto; }
-  .people-owners .people-head, .people-owners .people-row { grid-template-columns: minmax(0, 1fr) 104px auto; }
+  .people-admins .people-head, .people-admins .people-row { grid-template-columns: minmax(0, 1fr) 104px auto; }
   .aside { grid-column: 1 / -1; margin-top: -4px; }
 }
 

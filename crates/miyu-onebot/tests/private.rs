@@ -1,5 +1,5 @@
-//! 主人的私聊（施工 O-8，`onebot.md` 第一条「怎么走」第 5 到 10 条）：送进场所会话、记成主人本人；她的回话发回 QQ；同一条
-//! 消息再来只算一次，同一个消息编号、时刻不同的是新的一条，没带时刻的照样送（O-8 补）；不是主人的不送也不回；段的数组、
+//! 终端管理员的私聊（施工 O-8，`onebot.md` 第一条「怎么走」第 5 到 10 条）：送进场所会话、记成终端管理员本人；她的回话发回 QQ；同一条
+//! 消息再来只算一次，同一个消息编号、时刻不同的是新的一条，没带时刻的照样送（O-8 补）；不是终端管理员的不送也不回；段的数组、
 //! CQ 字符串都认，只有图片的不送；同一个号再连进来，新的顶掉旧的。核心 O-4 中以后，`venue.session` 回的会话属主是桥自己
 //! （系统账号）的是陌生人，不接；属主是别的账号、没带属主的照常接（「施工时定的」第 49 条，测试那一头照那时的样子改写账号）。
 
@@ -21,12 +21,12 @@ async fn owned_by(home: &Home, venue: Option<&'static str>) -> (Bridge, Relay) {
 }
 
 #[tokio::test]
-async fn the_owners_private_chat_goes_in_and_her_reply_comes_back() {
+async fn the_admins_private_chat_goes_in_and_her_reply_comes_back() {
     let script = Script::new([Play::Says("在。")]);
     let home = Home::new(&script);
     let bridge = bridge(&home).await;
-    let mut napcat = owner_napcat(bridge.port).await;
-    napcat.owner_says(501, "在吗").await;
+    let mut napcat = admin_napcat(bridge.port).await;
+    napcat.admin_says(501, "在吗").await;
     assert_eq!(napcat.reply().await, "在。");
     let said = home.said();
     assert_eq!(said.len(), 1, "{said:?}");
@@ -50,11 +50,11 @@ async fn the_same_message_twice_is_said_once() {
     let script = Script::new([Play::Says("在。"), Play::Says("好。")]);
     let home = Home::new(&script);
     let bridge = bridge(&home).await;
-    let mut napcat = owner_napcat(bridge.port).await;
-    napcat.owner_says(7, "在吗").await;
-    napcat.owner_says(7, "在吗").await;
+    let mut napcat = admin_napcat(bridge.port).await;
+    napcat.admin_says(7, "在吗").await;
+    napcat.admin_says(7, "在吗").await;
     assert_eq!(napcat.reply().await, "在。");
-    napcat.owner_says(8, "那好").await;
+    napcat.admin_says(8, "那好").await;
     assert_eq!(napcat.reply().await, "好。");
     assert_eq!(home.said_texts(), ["在吗", "那好"]);
     assert_eq!(home.sessions().len(), 1);
@@ -67,10 +67,10 @@ async fn the_same_message_id_at_another_time_is_another_message() {
     let script = Script::new([Play::Says("在。"), Play::Says("好。")]);
     let home = Home::new(&script);
     let bridge = bridge(&home).await;
-    let mut napcat = owner_napcat(bridge.port).await;
-    napcat.owner_says(7, "在吗").await;
+    let mut napcat = admin_napcat(bridge.port).await;
+    napcat.admin_says(7, "在吗").await;
     assert_eq!(napcat.reply().await, "在。");
-    let mut again = private_frame(OWNER, 7, json!("又是我"));
+    let mut again = private_frame(ADMIN, 7, json!("又是我"));
     again["time"] = json!(TIME + 86_400);
     napcat.send(again).await;
     assert_eq!(napcat.reply().await, "好。");
@@ -96,8 +96,8 @@ async fn a_message_without_time_still_goes_in_with_time_zero() {
     let script = Script::new([Play::Says("在。")]);
     let home = Home::new(&script);
     let bridge = bridge(&home).await;
-    let mut napcat = owner_napcat(bridge.port).await;
-    let mut frame = private_frame(OWNER, 12, json!("没带时刻"));
+    let mut napcat = admin_napcat(bridge.port).await;
+    let mut frame = private_frame(ADMIN, 12, json!("没带时刻"));
     frame.as_object_mut().expect("是对象").remove("time");
     napcat.send(frame).await;
     assert_eq!(napcat.reply().await, "在。");
@@ -112,7 +112,7 @@ async fn a_strangers_private_chat_goes_nowhere() {
     let script = Script::new([Play::Says("在。"), Play::Says("嗯。")]);
     let home = Home::new(&script);
     let bridge = bridge(&home).await;
-    let mut napcat = owner_napcat(bridge.port).await;
+    let mut napcat = admin_napcat(bridge.port).await;
     napcat
         .private(
             STRANGER,
@@ -121,12 +121,12 @@ async fn a_strangers_private_chat_goes_nowhere() {
         )
         .await;
     napcat.private(STRANGER, 2, json!("还在吗")).await;
-    // 一条条照先后办：主人这一句的回话先到，前面陌生人的两句就是办完了、没回。
-    napcat.owner_says(3, "在吗").await;
+    // 一条条照先后办：终端管理员这一句的回话先到，前面陌生人的两句就是办完了、没回。
+    napcat.admin_says(3, "在吗").await;
     assert_eq!(napcat.reply().await, "在。");
-    // 主人的会话已经有了，陌生人再来也不进它。
+    // 终端管理员的会话已经有了，陌生人再来也不进它。
     napcat.private(STRANGER, 4, json!("我也在")).await;
-    napcat.owner_says(5, "好").await;
+    napcat.admin_says(5, "好").await;
     assert_eq!(napcat.reply().await, "嗯。");
     assert_eq!(home.said_texts(), ["在吗", "好"]);
     assert_eq!(home.sessions().len(), 1, "陌生人没有会话");
@@ -138,17 +138,17 @@ async fn segments_and_cq_strings_are_read_and_image_only_messages_are_not_sent()
     let script = Script::new([Play::Says("一。"), Play::Says("二。")]);
     let home = Home::new(&script);
     let bridge = bridge(&home).await;
-    let mut napcat = owner_napcat(bridge.port).await;
+    let mut napcat = admin_napcat(bridge.port).await;
     napcat
         .private(
-            OWNER,
+            ADMIN,
             1,
             json!([{"type": "image", "data": {"file": "a.png"}}]),
         )
         .await;
     napcat
         .private(
-            OWNER,
+            ADMIN,
             2,
             json!([
                 {"type": "text", "data": {"text": "你"}},
@@ -159,11 +159,11 @@ async fn segments_and_cq_strings_are_read_and_image_only_messages_are_not_sent()
         .await;
     assert_eq!(napcat.reply().await, "一。");
     napcat
-        .private(OWNER, 3, json!("[CQ:image,file=b.png]  "))
+        .private(ADMIN, 3, json!("[CQ:image,file=b.png]  "))
         .await;
     napcat
         .private(
-            OWNER,
+            ADMIN,
             4,
             json!("[CQ:face,id=14]在&#91;吗&#93;&#44;&amp;[CQ:at,qq=1]"),
         )
@@ -186,13 +186,13 @@ async fn a_new_connection_for_the_same_bot_takes_over() {
             }
         })
     };
-    let old = owner_napcat(bridge.port).await;
+    let old = admin_napcat(bridge.port).await;
     heard(Notice::Connected { bot: Some(BOT) }).await;
-    let mut new = owner_napcat(bridge.port).await;
+    let mut new = admin_napcat(bridge.port).await;
     // 旧的那一条断开了：号已经是新的那一条的，不跟着拿掉。
     drop(old);
     heard(Notice::Disconnected { bot: Some(BOT) }).await;
-    new.owner_says(9, "在吗").await;
+    new.admin_says(9, "在吗").await;
     assert_eq!(new.reply().await, "在。");
     bridge.stop().await.expect("停得下");
 }
@@ -201,11 +201,11 @@ async fn a_new_connection_for_the_same_bot_takes_over() {
 async fn a_venue_owned_by_the_bridge_itself_is_a_stranger_and_not_taken() {
     let home = Home::new(&Script::new([Play::Says("不该说话。")]));
     let (bridge, relay) = owned_by(&home, Some(SYSTEM)).await;
-    let mut napcat = owner_napcat(bridge.port).await;
-    napcat.owner_says(1, "在吗").await;
-    napcat.owner_says(2, "/stop").await;
-    napcat.owner_says(3, "还在吗").await;
-    napcat.owner_says(4, "在吗").await;
+    let mut napcat = admin_napcat(bridge.port).await;
+    napcat.admin_says(1, "在吗").await;
+    napcat.admin_says(2, "/stop").await;
+    napcat.admin_says(3, "还在吗").await;
+    napcat.admin_says(4, "在吗").await;
     // 一条条照先后办：第四条去问 `venue.session` 的时候，前三条已经办完了。会话编号不记进缓存：每一条都再问。
     let asks = |relay: &Relay| {
         relay
@@ -241,8 +241,8 @@ async fn a_venue_owned_by_someone_else_or_by_nobody_is_taken() {
     for venue in [Some("admin"), None] {
         let home = Home::new(&Script::new([Play::Says("在。")]));
         let (bridge, relay) = owned_by(&home, venue).await;
-        let mut napcat = owner_napcat(bridge.port).await;
-        napcat.owner_says(1, "在吗").await;
+        let mut napcat = admin_napcat(bridge.port).await;
+        napcat.admin_says(1, "在吗").await;
         assert_eq!(napcat.reply().await, "在。", "{venue:?}");
         assert_eq!(home.said_texts(), ["在吗"], "{venue:?}");
         // 她的回话先入队再发（施工 O-25 中）：多一个 `events.append`。头一个是起来时登记工具（施工 O-26）。
@@ -269,16 +269,16 @@ async fn the_private_chat_carries_its_venue_fields_and_a_recall_is_noted() {
     let dir = home.root.system().join("venues.d");
     std::fs::create_dir_all(&dir).expect("建得了目录");
     let rule =
-        format!("[[rule]]\nmatch = {{ kind = \"private\", user = [{OWNER}] }}\nshow_ids = true\n");
+        format!("[[rule]]\nmatch = {{ kind = \"private\", user = [{ADMIN}] }}\nshow_ids = true\n");
     std::fs::write(dir.join("80-test.toml"), rule).expect("写得进");
     let bridge = bridge(&home).await;
-    let mut napcat = owner_napcat(bridge.port).await;
+    let mut napcat = admin_napcat(bridge.port).await;
     let message = json!([
         {"type": "reply", "data": {"id": 77}},
         {"type": "text", "data": {"text": "看这个"}},
         {"type": "image", "data": {"file": "p.jpg", "sub_type": 0}},
     ]);
-    napcat.private(OWNER, 501, message).await;
+    napcat.private(ADMIN, 501, message).await;
     assert_eq!(napcat.reply().await, "在。");
     let said = home.said();
     assert_eq!(said.len(), 1, "{said:?}");
@@ -291,7 +291,7 @@ async fn the_private_chat_carries_its_venue_fields_and_a_recall_is_noted() {
         })
     );
     napcat
-        .send(crate::support::group::friend_recall(OWNER, 501))
+        .send(crate::support::group::friend_recall(ADMIN, 501))
         .await;
     let session = home.sessions()[0].clone();
     let recalled = within("记下撤回", async {

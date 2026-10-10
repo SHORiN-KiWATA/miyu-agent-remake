@@ -1,5 +1,5 @@
 //! 违规关键词（`docs/blueprint/chat.md` 第二条「怎么走」第 5、12 条，`18-通讯平台.md` 第六节）：正文里出现关键词，或者正文里
-//! 的 base64 解出来的字（[`Base64::reveal`]）出现关键词，插一面违规旗，交给线路规程让判官认真查一眼。只插旗，不拦。主人发的
+//! 的 base64 解出来的字（[`Base64::reveal`]）出现关键词，插一面违规旗，交给线路规程让判官认真查一眼。只插旗，不拦。终端管理员发的
 //! 不查（施工时定的第 1 条）。
 //!
 //! 关键词按子串比，短的 ASCII 词是灾难（旧版 `OD` 一个词 7 天误报 447 次）：词表是数据，改了拿真实聊天记录审一遍。
@@ -56,7 +56,7 @@ impl InboundRule for Rule {
     fn judge(&self, msg: &Inbound, ctx: &Ctx, _clock: Clock) -> Step {
         let moderation = &ctx.moderation;
         // 解出来的几段用换行接着：关键词一行一个、里面没有换行，不会跨两段对上。
-        let hit = msg.said.standing != Standing::Owner
+        let hit = msg.said.standing != Standing::Admin
             && (moderation.hits(&msg.text)
                 || moderation
                     .base64

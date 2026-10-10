@@ -46,8 +46,8 @@ use miyu_tool::Catalog;
 pub use napcat::*;
 pub use pipe::{Accounts, Relay};
 
-/// 主人的 QQ 号：系统配置里对着管理员。
-pub const OWNER: i64 = 10001;
+/// 终端管理员的 QQ 号：系统配置里对着管理员。
+pub const ADMIN: i64 = 10001;
 
 /// 不在对应表里的人。
 pub const STRANGER: i64 = 20002;
@@ -61,7 +61,7 @@ pub const TIME: i64 = 1_759_800_000;
 /// 桥的访问令牌。
 pub const TOKEN: &str = "napcat-test-token";
 
-/// 系统配置：主人对应表。
+/// 系统配置：终端管理员对应表。
 const CONFIG: &str = "[external.bindings]\n\"qq:10001\" = \"admin\"\n";
 
 /// 一个用完就删的临时数据根，里面跑着一个核心。
@@ -151,7 +151,7 @@ fn copy_tree(from: &Path, to: &Path) {
 }
 
 impl Home {
-    /// 起一个核心：请求模型照 `script`，没有工具，系统配置是主人对应表。
+    /// 起一个核心：请求模型照 `script`，没有工具，系统配置是终端管理员对应表。
     pub fn new(script: &Script) -> Home {
         Home::speaking(Arc::new(script.clone()))
     }
@@ -161,7 +161,7 @@ impl Home {
         Home::with_config(models, CONFIG, None, None, |_| resources())
     }
 
-    /// 起一个照开关拉起扩展的核心（施工 O-18）：系统配置是主人对应表接着 `more`（端口、令牌、语言），密钥文件里 `onebot` 是
+    /// 起一个照开关拉起扩展的核心（施工 O-18）：系统配置是终端管理员对应表接着 `more`（端口、令牌、语言），密钥文件里 `onebot` 是
     /// [`TOKEN`]（[`spawning::ports_config`] 引用它；核心起来以前写好：核心握手时交的是它起来时读到的，施工 O-20），退避从
     /// 20 毫秒起、最多 100 毫秒，请扩展退出以后照出厂的等 5 秒再杀（等的时候桥得自己退）。出厂的清单里有桥：开了就拉起测试程序
     /// 旁边的 `miyu-onebot`（[`spawning::linked`]）。

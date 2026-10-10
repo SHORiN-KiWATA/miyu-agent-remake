@@ -307,7 +307,7 @@
     "commands/stopped": "すべて止めました。",
     "commands/workspace": "作業ディレクトリを {cwd} に変えました。",
     "commands/workspace-is": "作業ディレクトリは {cwd} です。",
-    "commands/remembered": "覚えました：{id}。",
+    "commands/remembered": "覚えました：{text}",
     "commands/dreamed": "整理しました：{given} 件を確認、{revised} 件を修正、{retired} 件を廃止。",
     "commands/dreamed-summary": "整理しました：{given} 件を確認、{revised} 件を修正、{retired} 件を廃止、要約を更新。",
     "commands/dreamed-nothing": "整理するものはありません。",

@@ -52,13 +52,19 @@ fn reaction(message: i64, set: bool) -> Value {
     json!({"message_id": message.to_string(), "emoji_id": "289", "set": set})
 }
 
-/// 主人在群 `group` 里说第 `message` 条：`at` 的 @ 她。
-fn owner_says(napcat: &Answering, group: i64, message: i64, text: &str, at_her: bool) {
+/// 终端管理员在群 `group` 里说第 `message` 条：`at` 的 @ 她。
+fn admin_says(napcat: &Answering, group: i64, message: i64, text: &str, at_her: bool) {
     let words = match at_her {
         true => json!([at(BOT), plain(&format!(" {text}"))]),
         false => json!([plain(text)]),
     };
-    napcat.send(group_frame(group, OWNER, message, words, ("主人", "o")));
+    napcat.send(group_frame(
+        group,
+        ADMIN,
+        message,
+        words,
+        ("终端管理员", "o"),
+    ));
 }
 
 /// 她发进群 `group` 的下一句的字（段的最后一段）。
@@ -76,7 +82,7 @@ async fn until_count(home: &Home, group: i64, kind: &str, n: usize) -> Vec<Value
 }
 
 #[tokio::test]
-async fn an_owner_call_is_marked_until_her_first_piece() {
+async fn an_admin_call_is_marked_until_her_first_piece() {
     let (release, held) = oneshot::channel();
     let lines = Lines::new([
         Line::calls("在。"),
@@ -84,7 +90,7 @@ async fn an_owner_call_is_marked_until_her_first_piece() {
         Line::says("嗯。"),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines), &rules(), MEMBERS).await;
-    owner_says(&napcat, GROUP, 1, "在吗", true);
+    admin_says(&napcat, GROUP, 1, "在吗", true);
     assert_eq!(napcat.reacted().await, reaction(1, true), "先贴上");
     assert_eq!(next_words(&mut napcat, GROUP).await, "在。");
     // 这一轮还没完（第二句压着）：发出去第一段就摘。
@@ -93,7 +99,7 @@ async fn an_owner_call_is_marked_until_her_first_piece() {
     assert_eq!(next_words(&mut napcat, GROUP).await, "好了。");
     until_count(&home, GROUP, "turn.ended", 1).await;
     // 这一轮完了不再摘：下一个贴、摘是新叫的那一条。
-    owner_says(&napcat, GROUP, 2, "还在吗", true);
+    admin_says(&napcat, GROUP, 2, "还在吗", true);
     assert_eq!(napcat.reacted().await, reaction(2, true), "只摘一次");
     assert_eq!(next_words(&mut napcat, GROUP).await, "嗯。");
     assert_eq!(napcat.reacted().await, reaction(2, false));
@@ -107,13 +113,13 @@ async fn an_owner_call_is_marked_until_her_first_piece() {
 async fn a_continuation_is_marked_too() {
     let script = Script::new([Play::Says("在。"), Play::Says("好的。")]);
     let (home, mut napcat, _) = started(&script, &rules(), "", MEMBERS).await;
-    owner_says(&napcat, CALLED, 1, "在吗", true);
+    admin_says(&napcat, CALLED, 1, "在吗", true);
     assert_eq!(napcat.reacted().await, reaction(1, true));
     assert_eq!(next_words(&mut napcat, CALLED).await, "在。");
     assert_eq!(napcat.reacted().await, reaction(1, false));
-    // 她刚回过主人（续聊照送达算：等 `venue.delivered` 记下了，NapCat 收到她的话时还没记），主人不 @ 她接着说：续聊，照样贴。
+    // 她刚回过终端管理员（续聊照送达算：等 `venue.delivered` 记下了，NapCat 收到她的话时还没记），终端管理员不 @ 她接着说：续聊，照样贴。
     until_count(&home, CALLED, "venue.delivered", 1).await;
-    owner_says(&napcat, CALLED, 2, "那明天见", false);
+    admin_says(&napcat, CALLED, 2, "那明天见", false);
     assert_eq!(napcat.reacted().await, reaction(2, true));
     assert_eq!(next_words(&mut napcat, CALLED).await, "好的。");
     assert_eq!(napcat.reacted().await, reaction(2, false));
@@ -136,11 +142,11 @@ async fn superseding_moves_the_mark() {
         Line::says("嗯。"),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines), &rules(), MEMBERS).await;
-    owner_says(&napcat, GROUP, 1, "帮我看看", true);
+    admin_says(&napcat, GROUP, 1, "帮我看看", true);
     assert_eq!(napcat.reacted().await, reaction(1, true));
     until_count(&home, GROUP, "turn.started", 1).await;
-    // 主人马上补了一句：接过前一条，前一条的摘掉，贴到这一条上（谁先到不一定）。
-    owner_says(&napcat, GROUP, 2, "就是这个", false);
+    // 终端管理员马上补了一句：接过前一条，前一条的摘掉，贴到这一条上（谁先到不一定）。
+    admin_says(&napcat, GROUP, 2, "就是这个", false);
     let mut moved = vec![napcat.reacted().await, napcat.reacted().await];
     moved.sort_by_key(|params| params["set"].as_bool());
     assert_eq!(moved, [reaction(1, false), reaction(2, true)]);
@@ -157,7 +163,7 @@ async fn superseding_moves_the_mark() {
     assert_eq!(napcat.reacted().await, reaction(2, false));
     assert_eq!(next_words(&mut napcat, GROUP).await, "明白。");
     until_count(&home, GROUP, "turn.ended", 2).await;
-    owner_says(&napcat, GROUP, 3, "还在吗", true);
+    admin_says(&napcat, GROUP, 3, "还在吗", true);
     assert_eq!(
         napcat.reacted().await,
         reaction(3, true),
@@ -175,7 +181,7 @@ async fn a_late_reply_is_unmarked_in_time_and_only_once() {
         napcat.answering(MEMBERS)
     })
     .await;
-    owner_says(&napcat, GROUP, 1, "在吗", true);
+    admin_says(&napcat, GROUP, 1, "在吗", true);
     assert_eq!(napcat.reacted().await, reaction(1, true));
     // 她一直不回：到时候摘。
     assert_eq!(napcat.reacted().await, reaction(1, false));
@@ -183,7 +189,7 @@ async fn a_late_reply_is_unmarked_in_time_and_only_once() {
     assert_eq!(next_words(&mut napcat, GROUP).await, "在。");
     until_count(&home, GROUP, "turn.ended", 1).await;
     // 后来回了不再摘：下一个贴、摘是新叫的那一条。
-    owner_says(&napcat, GROUP, 2, "还在吗", true);
+    admin_says(&napcat, GROUP, 2, "还在吗", true);
     assert_eq!(napcat.reacted().await, reaction(2, true), "只摘一次");
     stopped(home).await;
 }
@@ -232,8 +238,8 @@ async fn judged_but_not_called_are_not_marked() {
         .map(|one| one["body"]["conditions"][0]["kind"].clone())
         .collect();
     assert_eq!(primaries, ["probability", "after_speaking"]);
-    // 4：主人 @ 她：头一个贴的是它，前面三条都没贴。
-    owner_says(&napcat, GROUP, 4, "在吗", true);
+    // 4：终端管理员 @ 她：头一个贴的是它，前面三条都没贴。
+    admin_says(&napcat, GROUP, 4, "在吗", true);
     assert_eq!(napcat.reacted().await, reaction(4, true), "前面的不贴");
     assert_eq!(next_words(&mut napcat, GROUP).await, "在。");
     stopped(home).await;

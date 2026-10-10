@@ -118,7 +118,7 @@ async fn frame_in(gate: &Gate, text: &str, bot: &mut Option<i64>, link: &Link) -
     true
 }
 
-/// 读出来的一件事记一行调试日志：谁、哪一条、几个字，不记原文。
+/// 读出来的一件事记一行调试日志：谁、哪一条、几个字，不记原文、请求的标记。
 fn noted(event: &Event) {
     match event {
         Event::Private(posted) => tracing::debug!(
@@ -148,6 +148,10 @@ fn noted(event: &Event) {
         }
         Event::Unmuted { group, .. } => tracing::debug!(target: TARGET, group, "unmuted"),
         Event::Connected { bot } => tracing::debug!(target: TARGET, bot, "bot known"),
+        Event::Befriend { user, .. } => tracing::debug!(target: TARGET, user, "friend request"),
+        Event::Invited { group, user, .. } => {
+            tracing::debug!(target: TARGET, group, user, "group invite");
+        }
     }
 }
 

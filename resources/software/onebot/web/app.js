@@ -1,4 +1,4 @@
-// QQ 桥的 WebUI（docs/blueprint/onebot.md 第二条，施工 O-16）：登录、骨架、「连接」页；「主人与自己人」页在 people.js（施工
+// QQ 桥的 WebUI（docs/blueprint/onebot.md 第二条，施工 O-16）：登录、骨架、「连接」页；「终端管理员与白名单成员」页在 people.js（施工
 // O-17），这里引进来，换页时交给它要用的几样。两个文件都是原生的模块（index.html 照 type="module" 载，「施工时定的」第 25 条）。
 //
 // - 页面自己说核心协议：经桥的 /ws 原样转给核心，握手带一次性码、用户名和密码，或者记住的登录令牌，核心验（照网页软件，
@@ -303,7 +303,7 @@ import { peoplePage } from './people.js';
     poll();
   }
 
-  /** 读配置，画上（在「连接」页的话）。不写 keys：要全部，主人表有哪些号事先不知道，两页共用这一份（「施工时定的」第 33 条）。 */
+  /** 读配置，画上（在「连接」页的话）。不写 keys：要全部，终端管理员表有哪些号事先不知道，两页共用这一份（「施工时定的」第 33 条）。 */
   async function load() {
     const got = await state.rpc.call('config.get', {});
     state.items = got.items ?? {};
@@ -396,7 +396,7 @@ import { peoplePage } from './people.js';
     const toggle = h('button', { class: 'icon-button', type: 'button', 'aria-label': say('web/menu'), onclick: drawer }, h('span', { class: 'burger' }));
     const off = (key) => h('span', { class: 'nav-item is-off', title: say('web/not-yet'), 'aria-disabled': 'true', text: say(key) });
     const go = (page, key) => h('button', { class: 'nav-item', type: 'button', text: say(key), onclick: () => show(page) });
-    parts.nav = { connection: go('connection', 'web/nav/connection'), people: go('people', 'web/nav/owners') };
+    parts.nav = { connection: go('connection', 'web/nav/connection'), people: go('people', 'web/nav/people') };
     app.className = 'shell';
     app.replaceChildren(
       h('header', { class: 'top' },
@@ -451,7 +451,7 @@ import { peoplePage } from './people.js';
     ];
   }
 
-  /** 「主人与自己人」页（people.js）：先读一遍配置；平台的名字照 /status 的 platform（「施工时定的」第 26 条），两样都到了
+  /** 「终端管理员与白名单成员」页（people.js）：先读一遍配置；平台的名字照 /status 的 platform（「施工时定的」第 26 条），两样都到了
    *  才画，之前说「正在连」。存表经核心的 config.set，只写系统配置，存好了重读配置。 */
   function peopleView(view) {
     const body = h('div', {}, h('p', { class: 'boot-wait', text: say('web/loading') }));
@@ -478,7 +478,7 @@ import { peoplePage } from './people.js';
     }, (error) => {
       if (state.view === view) body.replaceChildren(h('p', { class: 'error', text: say('web/failed', { reason: reasonOf(error) }) }));
     });
-    return [h('h1', { text: say('web/nav/owners') }), body];
+    return [h('h1', { text: say('web/nav/people') }), body];
   }
 
   /** NapCat 那边要填的：地址（照 onebot.listen 拼）、令牌、消息格式。配置读回来、/status 取回来以后照 `view.paintConfig`
@@ -607,7 +607,7 @@ import { peoplePage } from './people.js';
 
   /** 照 /status 画顶栏的那一格；在「连接」页的再画 NapCat 那一行、令牌那一行、没令牌时的三步：令牌不是 set 的时候出来，
    *  出来了就留到 NapCat 连上（令牌设好了第一步打勾），这一页里不再出来（onebot.md 第二条「施工时定的」第 22 条）；在
-   *  「主人与自己人」页的，等着平台名字的那一页照它画。 */
+   *  「终端管理员与白名单成员」页的，等着平台名字的那一页照它画。 */
   function paintStatus() {
     const { pill } = state.parts;
     if (!pill) return;

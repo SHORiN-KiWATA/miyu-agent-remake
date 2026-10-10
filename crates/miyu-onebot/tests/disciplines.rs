@@ -128,7 +128,7 @@ async fn each_discipline_goes_its_own_way() {
     let follow = until_decided(&home, CALLED, 5).await;
     assert!(follow["supersede"]["inherit"].is_u64(), "{follow}");
     assert_eq!(way(&follow), (json!("commit"), json!("reply")));
-    napcat.send(send(CALLED, OWNER, 6, json!([plain("/stop")])));
+    napcat.send(send(CALLED, ADMIN, 6, json!([plain("/stop")])));
     assert_eq!(napcat.group_reply(CALLED).await, STOPPED);
     until_turns(&home, CALLED, 1).await;
     // 有人说了违规词、没叫她：关键词只把判官拉起来。判官说严重程度 2，不够，不回；再一句判官说 8，回。
@@ -171,7 +171,7 @@ async fn each_discipline_goes_its_own_way() {
     let ignored = until_decided(&home, WAKE, 10).await;
     assert!(ignored.get("supersede").is_none(), "{ignored}");
     assert_eq!(way(&ignored), (json!("record"), json!("record")));
-    napcat.send(send(WAKE, OWNER, 11, json!([plain("/stop")])));
+    napcat.send(send(WAKE, ADMIN, 11, json!([plain("/stop")])));
     assert_eq!(napcat.group_reply(WAKE).await, STOPPED);
     until_turns(&home, WAKE, 1).await;
     napcat.send(send(WAKE, JIE, 12, json!([plain("米尤，几点了")])));

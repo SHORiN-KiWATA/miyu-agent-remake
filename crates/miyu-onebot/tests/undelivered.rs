@@ -184,7 +184,7 @@ async fn her_refused_words_come_back_to_her_in_the_same_turn() {
         "{:?}",
         requests[2]
     );
-    // 别人再叫她：限流的提示被拒了，不退；主人的 `/stop` 回执被拒了，不退。
+    // 别人再叫她：限流的提示被拒了，不退；终端管理员的 `/stop` 回执被拒了，不退。
     napcat.send(group_frame(
         GROUP,
         LIN,
@@ -195,10 +195,10 @@ async fn her_refused_words_come_back_to_her_in_the_same_turn() {
     until_count(&home, GROUP, FAILED, 4).await;
     napcat.send(group_frame(
         GROUP,
-        OWNER,
+        ADMIN,
         3,
         json!([plain("/stop")]),
-        ("主人", "o"),
+        ("终端管理员", "o"),
     ));
     let events = until_count(&home, GROUP, FAILED, 5).await;
     let kinds: Vec<Value> = of_kind(&events, QUEUED)
@@ -238,10 +238,10 @@ async fn expired_words_come_back_at_the_next_turn_once() {
     until_count(&home, QUIET, "ext.onebot.venues.muted", 1).await;
     napcat.send(group_frame(
         QUIET,
-        OWNER,
+        ADMIN,
         1,
         json!([at(BOT), plain(" 在吗")]),
-        ("主人", "o"),
+        ("终端管理员", "o"),
     ));
     let events = until_count(&home, QUIET, "message.user", 1).await;
     respond(
@@ -263,14 +263,14 @@ async fn expired_words_come_back_at_the_next_turn_once() {
         )],
         "只带头 30 个字符"
     );
-    // 解禁以后主人再叫她：下一轮开头看到，排在触发前面。
+    // 解禁以后终端管理员再叫她：下一轮开头看到，排在触发前面。
     napcat.send(group_ban(QUIET, BOT, "lift_ban", None));
     napcat.send(group_frame(
         QUIET,
-        OWNER,
+        ADMIN,
         2,
         json!([at(BOT), plain(" 还有别的吗")]),
-        ("主人", "o"),
+        ("终端管理员", "o"),
     ));
     let words = napcat.group_message(QUIET).await;
     assert_eq!(words.last().expect("有段")["data"]["text"], "嗯");
@@ -293,7 +293,7 @@ async fn private_words_come_back_too() {
         napcat.refusing(MEMBERS)
     })
     .await;
-    napcat.send(private_frame(OWNER, 51, json!([plain("在吗")])));
+    napcat.send(private_frame(ADMIN, 51, json!([plain("在吗")])));
     let sent = napcat.action().await;
     assert_eq!(sent["action"], "send_private_msg", "{sent}");
     let deadline = tokio::time::Instant::now() + WAIT;

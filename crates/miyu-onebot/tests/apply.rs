@@ -202,7 +202,7 @@ async fn applying_needs_the_login_token() {
 async fn a_pushed_napcat_port_takes_over_once_it_can() {
     let changing = Changing::start().await;
     let (first, web) = (changing.bridge.port, changing.bridge.web);
-    let _open = owner_napcat(first).await;
+    let _open = admin_napcat(first).await;
     let (port, applied) = taken_then_freed(&changing, web, "onebot.listen", (first, web)).await;
     assert_eq!(
         (applied.status, applied.json()),
@@ -289,7 +289,7 @@ async fn when_one_pushed_port_is_taken_neither_changes() {
         assert_eq!(body, json!({"in_use": port}));
         assert_eq!(status(web).await["listen"], listen, "NapCat 的端口也没换");
         closed(new).await;
-        owner_napcat(listen).await.close().await;
+        admin_napcat(listen).await.close().await;
         changing.stop().await;
         return;
     }
@@ -300,7 +300,7 @@ async fn when_one_pushed_port_is_taken_neither_changes() {
 async fn a_pushed_token_takes_over_and_the_open_connection_stays() {
     let changing = Changing::start().await;
     let (port, web) = (changing.bridge.port, changing.bridge.web);
-    let _open = owner_napcat(port).await;
+    let _open = admin_napcat(port).await;
     changing.push.config(json!({"onebot.token": NEW}));
     // 不报号：不顶掉连着的那一条。
     admitted(port, "/ws", Auth::Bearer(NEW), None)

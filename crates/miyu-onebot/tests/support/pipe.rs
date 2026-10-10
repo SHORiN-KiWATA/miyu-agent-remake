@@ -118,7 +118,7 @@ pub fn pipe_to(root: &DataRoot, config: Value, accounts: Option<Accounts>) -> (P
             if !config.is_null() {
                 reply["result"]["config"] = config;
             }
-            // 桥自己的账号照核心拉起它时的样子：系统账号 `onebot`（核心 O-4 下）。本机套接字上的核心当它是管理员，不改写的话主人
+            // 桥自己的账号照核心拉起它时的样子：系统账号 `onebot`（核心 O-4 下）。本机套接字上的核心当它是管理员，不改写的话终端管理员
             // 私聊的属主（管理员）和它一样，会被当成陌生人。
             reply["result"]["account"] = json!(accounts.map_or("onebot", |accounts| accounts.own));
         }

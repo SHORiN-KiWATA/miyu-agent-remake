@@ -1,12 +1,12 @@
 //! 桥用的配置（施工 O-20，`onebot.md` 第一条「怎么走」第 1 条、「施工时定的」第 38 条）：握手交来的 `config` 读成两个端口、
 //! 令牌；没交的、`null` 的、不是 0 到 65535 的整数的端口照清单的默认值；令牌是字的照它（去掉前后空白），别的是没有；推来的
-//! 只换带了的键，别的键不认。清单的默认值照出厂的清单读（8301、8302），读不出来的说是哪个文件。自己人（施工 O-23）：
-//! `onebot.trusted` 字的列表照收，别的是空的。
+//! 只换带了的键，别的键不认。清单的默认值照出厂的清单读（8301、8302），读不出来的说是哪个文件。白名单成员（施工 O-23）：
+//! `onebot.whitelist`（施工 O-27 改名，旧键 `onebot.trusted` 不认）字的列表照收，别的是空的。
 
 use serde_json::{Map, Value, json};
 
 use miyu_config::secret::Secret;
-use miyu_onebot::settings::{Defaults, Settings, trusted, trusted_key};
+use miyu_onebot::settings::{Defaults, Settings, whitelist, whitelist_key};
 use miyu_store::resources::ResourceRoot;
 
 use crate::support::{TOKEN, defaults, resources};
@@ -66,7 +66,7 @@ fn a_missing_manifest_or_default_is_named() {
 
 #[test]
 fn the_handed_config_is_taken_as_it_comes() {
-    let handed = json!({"onebot.listen": 9000, "onebot.web": 9001, "onebot.token": TOKEN, "onebot.trusted": ["qq:20017"]});
+    let handed = json!({"onebot.listen": 9000, "onebot.web": 9001, "onebot.token": TOKEN, "onebot.whitelist": ["qq:20017"]});
     assert_eq!(
         Settings::handed(&handed, &FALLBACK),
         Settings {
@@ -142,26 +142,27 @@ fn a_push_changes_only_the_keys_it_carries() {
         "null 当没有：端口照默认值，令牌没了"
     );
     settings.change(
-        &keys(json!({"onebot.trusted": ["qq:1"], "web.port": 1})),
+        &keys(json!({"onebot.whitelist": ["qq:1"], "web.port": 1})),
         &FALLBACK,
     );
     assert_eq!((settings.port, settings.web), (9100, 18302), "别的键不认");
 }
 
 #[test]
-fn trusted_people_are_a_list_of_text() {
-    assert_eq!(trusted_key(), "onebot.trusted");
-    let handed = json!({"onebot.trusted": ["qq:20003", 7, null, "qq:20005"]});
+fn whitelist_is_a_list_of_text() {
+    assert_eq!(whitelist_key(), "onebot.whitelist");
+    let handed = json!({"onebot.whitelist": ["qq:20003", 7, null, "qq:20005"]});
     assert_eq!(
-        trusted(&handed[trusted_key()]),
+        whitelist(&handed[whitelist_key()]),
         ["qq:20003", "qq:20005"],
         "列表里不是字的不要"
     );
     for nothing in [
         json!({}),
-        json!({"onebot.trusted": null}),
-        json!({"onebot.trusted": "qq:1"}),
+        json!({"onebot.whitelist": null}),
+        json!({"onebot.whitelist": "qq:1"}),
+        json!({"onebot.trusted": ["qq:20003"]}),
     ] {
-        assert!(trusted(&nothing[trusted_key()]).is_empty(), "{nothing}");
+        assert!(whitelist(&nothing[whitelist_key()]).is_empty(), "{nothing}");
     }
 }

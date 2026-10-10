@@ -1,8 +1,9 @@
-//! OneBot v11 这一头（`onebot.md` 第一条「怎么走」第 4 到 6 条、第 10 条，「群消息」「撤回」「出站队列」）：NapCat 发来的一帧
-//! 认成什么（回应、私聊、群消息、撤回、她被禁言和解禁（施工 O-25 中）、别的事件），私聊里的文字怎么读出来（`text`），
+//! OneBot v11 这一头（`onebot.md` 第一条「怎么走」第 4 到 6 条、第 10 条，「群消息」「撤回」「出站队列」「好友请求」）：NapCat
+//! 发来的一帧认成什么（回应、私聊、群消息、撤回、她被禁言和解禁（施工 O-25 中）、好友请求和群邀请（施工 O-27）、别的事件），
+//! 私聊里的文字怎么读出来（`text`），
 //! 消息段怎么认（`segments`，施工 O-22），群成员叫什么（`members`，施工 O-22），发出去的动作和回应怎么照 `echo` 配对
 //! （`calls`），`send_private_msg`、`send_group_msg`（施工 O-25 上：第一段能带引用和 @）、`delete_msg`（施工 O-25 上）、
-//! `set_msg_emoji_like`（施工 O-25 下）写成什么样。
+//! `set_msg_emoji_like`（施工 O-25 下）、`set_friend_add_request`（施工 O-27）写成什么样。
 //!
 //! 号（机器人的号、对方的号、消息编号）和时刻照 OneBot 是整数；有的实现写成字符串，也认。
 //!
@@ -135,6 +136,24 @@ pub enum Event {
         /// 机器人的号。
         bot: i64,
     },
+    /// 有人要加她好友（施工 O-27，「好友请求」）：`post_type = request`、`request_type = friend`。
+    Befriend {
+        /// 收到请求的机器人的号：同意时经它的连接回。
+        bot: i64,
+        /// 要加她的人的号。
+        user: i64,
+        /// 平台给这次请求的标记：同意时原样交回（`set_friend_add_request` 的 `flag`）。不进运行日志。
+        flag: String,
+    },
+    /// 有人邀请她进群（施工 O-27）：`request_type = group`、`sub_type = invite`。只记一行，放着。
+    Invited {
+        /// 收到邀请的机器人的号。
+        bot: i64,
+        /// 邀请她进的群。
+        group: i64,
+        /// 邀请的人。
+        user: i64,
+    },
 }
 
 /// NapCat 发来的一帧。
@@ -142,7 +161,7 @@ pub enum Event {
 pub enum Frame {
     /// 动作的回应：带 `echo`、不是事件。
     Reply(Value),
-    /// 一条消息、一次撤回、禁言和解禁（施工 O-25 中）。
+    /// 一条消息、一次撤回、禁言和解禁（施工 O-25 中）、好友请求和群邀请（施工 O-27）。
     Event(Event),
     /// 别的事件（别的通知、请求、心跳、生命周期、机器人自己发的……）或者读不懂的：`post_type`，没有的是空字。
     Other(String),
@@ -157,6 +176,7 @@ pub fn read(frame: Value) -> Frame {
     let event = match kind.as_str() {
         "message" => posted(&frame),
         "notice" => recall(&frame).or_else(|| ban(&frame)),
+        "request" => request(&frame),
         _ => None,
     };
     match event {
@@ -249,6 +269,28 @@ fn ban(frame: &Value) -> Option<Event> {
     })
 }
 
+/// 请求（施工 O-27，「好友请求」）：加好友的（`friend`，带得出号、不空的标记）、邀请她进群的（`group` 里 `sub_type` 是
+/// `invite`，带得出号、群号）才是；入群申请（`sub_type` 是 `add`，随入群审批那一步）、别的不是。
+fn request(frame: &Value) -> Option<Event> {
+    let (bot, user) = (number(&frame["self_id"])?, number(&frame["user_id"])?);
+    match frame["request_type"].as_str()? {
+        "friend" => {
+            let flag = frame["flag"].as_str().filter(|flag| !flag.is_empty())?;
+            Some(Event::Befriend {
+                bot,
+                user,
+                flag: flag.to_string(),
+            })
+        }
+        "group" if frame["sub_type"] == "invite" => Some(Event::Invited {
+            bot,
+            group: number(&frame["group_id"])?,
+            user,
+        }),
+        _ => None,
+    }
+}
+
 /// 事件里机器人的号（`self_id`）：连进来时没带 `X-Self-ID` 的，照第一条事件的认（第 2 条）。
 pub fn self_id(frame: &Value) -> Option<i64> {
     number(&frame["self_id"])
@@ -317,5 +359,14 @@ pub fn emoji_like(message: &str, emoji: &str, set: bool) -> (&'static str, Value
     (
         "set_msg_emoji_like",
         json!({"message_id": message, "emoji_id": emoji, "set": set}),
+    )
+}
+
+/// 同意标记是 `flag` 的那次好友请求的动作和参数：`set_friend_add_request {flag, approve: true}`（施工 O-27，「好友请求」）。
+/// 标记照平台给的原样交回。
+pub fn friend_add(flag: &str) -> (&'static str, Value) {
+    (
+        "set_friend_add_request",
+        json!({"flag": flag, "approve": true}),
     )
 }

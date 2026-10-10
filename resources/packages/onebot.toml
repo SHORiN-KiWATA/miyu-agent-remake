@@ -61,11 +61,12 @@ applies = "now"
 name = { en = "Token", zh = "令牌", ja = "トークン" }
 description = { en = "The access token NapCat shows when it connects; set the same one in NapCat. Without it NapCat is refused; you can generate one on Connect QQ web page.", zh = "NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。没设的，NapCat 连进来会被拒；在接入QQ的网页上能生成一个。", ja = "NapCat が接続するときに示すアクセストークンです。NapCat 側にも同じものを設定します。未設定だと NapCat の接続は拒否されます。QQ接続の Web ページで生成できます。" }
 
-[settings.trusted]
+# 白名单成员（施工 O-27，2026-10-10 项目主人定：原来的键叫 trusted，旧键不认）。
+[settings.whitelist]
 type = "list"
 element = "text"
 max = 128
 layers = ["system"]
 applies = "now"
 name = { en = "Whitelist", zh = "白名单成员", ja = "ホワイトリスト" }
-description = { en = 'People who can call her in private chat, with no rate limit, even while she sleeps. Write each as qq:<QQ number>, for example qq:20017. Used once groups are connected.', zh = '私聊里能叫她、不限流、睡着时私聊也放行的人。每一项写 qq:QQ号，例如 qq:20017。接通群以后才照它认人。', ja = '個人チャットで呼べて、回数制限がなく、寝ている間も個人チャットが通る人です。一つずつ qq:QQ番号 で書きます。例：qq:20017。グループにつながってから、これで人を見分けます。' }
+description = { en = 'People who can chat with her in private, whose friend requests are accepted, who are not rate-limited or held off while she sleeps, and whom she answers directly in groups. Write each as qq:<QQ number>, for example qq:20017.', zh = '能私聊她、加她好友自动通过、不受限流和睡觉影响、群里冲她来的直接回的人。每一项写 qq:QQ号，例如 qq:20017。', ja = '個人チャットで話せて、友だち申請が自動で通り、回数制限も睡眠時間もかからず、グループで彼女に向けた発言にはそのまま返事をもらえる人です。一つずつ qq:QQ番号 で書きます。例：qq:20017。' }

@@ -165,7 +165,7 @@ fn an_unjudged_one_says_why_and_is_only_recorded() {
             answer: &answer,
             score: None,
         };
-        let written = body(&asked, Standing::Trusted, Some(judged));
+        let written = body(&asked, Standing::Whitelisted, Some(judged));
         let mut wanted = json!({"mode": "moderation_only", "tries": 1, "millis": 5});
         for (key, value) in expected.as_object().expect("是对象") {
             wanted[key] = value.clone();
@@ -183,7 +183,7 @@ fn a_full_rate_writes_only_the_mode_and_why() {
     if let Some(passed) = skipped.passed.as_mut() {
         passed.rate_full = true;
     }
-    let written = body(&skipped, Standing::Trusted, None);
+    let written = body(&skipped, Standing::Whitelisted, None);
     assert_eq!(
         written["judge"],
         json!({"mode": "reply", "unjudged": "rate_full"})
@@ -220,7 +220,7 @@ fn a_follow_up_names_the_one_it_took_over_or_put_down() {
     );
     let plain = decision(Route::Commit, Conclusion::Reply, Supersede::None);
     assert!(
-        body(&plain, Standing::Owner, None)
+        body(&plain, Standing::Admin, None)
             .get("supersede")
             .is_none()
     );
@@ -249,7 +249,7 @@ fn kinds_read_back_as_written() {
                 }),
                 ..decision(Route::Commit, Conclusion::Reply, Supersede::None)
             },
-            Standing::Owner,
+            Standing::Admin,
             None,
         );
         let name = written["conditions"][0]["kind"].as_str().expect("写成字");

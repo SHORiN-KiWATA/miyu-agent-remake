@@ -18,7 +18,7 @@ use miyu_store::root::DataRoot;
 pub use super::answering::{Answering, FIRST_SENT, Member};
 use super::ports::on_free_ports;
 use super::spawning::{bridge_up, cli, ports_config_with, text};
-use super::{BOT, Home, NapCat, TIME, owner_napcat};
+use super::{BOT, Home, NapCat, TIME, admin_napcat};
 
 /// 正向的等待最多多久：真的程序、真的核心，负载高时慢。
 pub const WAIT: Duration = Duration::from_secs(60);
@@ -103,7 +103,7 @@ pub fn at(qq: impl Into<Value>) -> Value {
     json!({"type": "at", "data": {"qq": qq.into()}})
 }
 
-/// 起一个照开关拉起桥的核心：系统的场所规则 `80-test.toml` 写成 `rules`，系统配置的 `[onebot]` 多写 `onebot`（自己人这类），
+/// 起一个照开关拉起桥的核心：系统的场所规则 `80-test.toml` 写成 `rules`，系统配置的 `[onebot]` 多写 `onebot`（白名单成员这类），
 /// 桥起来、假 NapCat 连上交给任务应答，群成员照 `members`。挑的空端口被别人先占了的换一组再来（`ports.rs`）。交回核心、假
 /// NapCat 和两个端口（NapCat 的、WebUI 的：重启以后等桥、再连）。
 pub async fn started(
@@ -213,7 +213,7 @@ async fn up(
         Ok((home, (listen, web)))
     })
     .await;
-    let napcat = answer(owner_napcat(ports.0).await);
+    let napcat = answer(admin_napcat(ports.0).await);
     (home, napcat, ports)
 }
 
