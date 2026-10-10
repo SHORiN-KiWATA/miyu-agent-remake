@@ -63,6 +63,7 @@ mod orphans;
 mod owner;
 mod package_check;
 mod package_settings;
+mod package_switch;
 mod packages;
 mod packages_config;
 mod packages_embed;

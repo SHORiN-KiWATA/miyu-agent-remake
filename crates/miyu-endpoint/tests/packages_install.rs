@@ -12,8 +12,13 @@ use crate::support::*;
 
 /// 一份带两个功能的扩展清单，编号 `xtool`，子命令名 `command`。
 fn manifest(name: &str, command: &str) -> String {
+    manifest_running(name, command, "miyu-xtool")
+}
+
+/// 同 [`manifest`]，程序是 `program`：要它的功能、配置项算数的，程序得在测试程序旁边（施工 F-6 上：程序不在的当没装）。
+fn manifest_running(name: &str, command: &str, program: &str) -> String {
     format!(
-        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ zh = \"{name}\" }}\n\n[command]\nname = \"{command}\"\nprogram = \"miyu-xtool\"\nabout = {{ en = \"X\" }}\n\n[features.xread]\nname = {{ zh = \"读\" }}\n\n[features.xwrite]\nname = {{ zh = \"写\" }}\n"
+        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ zh = \"{name}\" }}\n\n[command]\nname = \"{command}\"\nprogram = \"{program}\"\nabout = {{ en = \"X\" }}\n\n[features.xread]\nname = {{ zh = \"读\" }}\n\n[features.xwrite]\nname = {{ zh = \"写\" }}\n"
     )
 }
 
@@ -59,7 +64,12 @@ async fn feature_installed(client: &mut Client, id: &str) -> Option<bool> {
 #[tokio::test]
 async fn a_manifest_installs_with_its_files_and_counts_at_once() {
     let home = Home::new();
-    let path = source(&home, "xtool.toml", &manifest("工具甲", "xtool"));
+    let program = crate::support::extensions::Program::new();
+    let path = source(
+        &home,
+        "xtool.toml",
+        &manifest_running("工具甲", "xtool", &program.name()),
+    );
     std::fs::create_dir_all(home.work.join("xtool/bin")).expect("建得了");
     std::fs::write(home.work.join("xtool/bin/data.txt"), "hi").expect("写得进");
     let mut client = connected(&home).await;
@@ -88,7 +98,11 @@ async fn a_manifest_installs_with_its_files_and_counts_at_once() {
     );
     // 升级：同一个编号再装一次，换成新的；这一次没有同名目录，原来的文件跟着没了。
     std::fs::remove_dir_all(home.work.join("xtool")).expect("删得掉");
-    let path = source(&home, "xtool.toml", &manifest("工具乙", "xtool"));
+    let path = source(
+        &home,
+        "xtool.toml",
+        &manifest_running("工具乙", "xtool", &program.name()),
+    );
     let reply = client
         .call("i2", "package.install", json!({"path": path}))
         .await;

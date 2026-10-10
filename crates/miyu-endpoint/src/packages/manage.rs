@@ -145,8 +145,12 @@ pub(crate) async fn install(
 
 /// `package.remove`：家目录那一层的删掉；出厂的记一笔；必需的拒绝。
 pub(crate) async fn remove(core: &Arc<Core>, params: RemoveParams) -> Result<Value, Refusal> {
+    remove_package(core, params.package).await
+}
+
+/// 卸包 `id`（`package.remove`，施工 F-6 上起 `package.disable` 关出厂的内置包也走这里）。
+pub(super) async fn remove_package(core: &Arc<Core>, id: String) -> Result<Value, Refusal> {
     let _one_at_a_time = core.packaging.lock().await;
-    let id = params.package;
     if !miyu_store::personas::valid(&id) {
         return Err(Refusal::BAD_PARAMS);
     }
@@ -246,11 +250,11 @@ async fn from_path(core: &Arc<Core>, peer: Peer, path: &Path) -> Result<Value, R
         .iter()
         .find(|one| one.id == id)
         .ok_or(Refusal::INTERNAL)?;
-    Ok(listed(mine, &places, &words, peer.language))
+    Ok(listed(core, mine, &places, &words, peer.language, false))
 }
 
 /// 把卸掉的出厂的包 `id` 装回来：删掉家目录里记的那一笔。
-async fn bring_back(core: &Arc<Core>, peer: Peer, id: &str) -> Result<Value, Refusal> {
+pub(super) async fn bring_back(core: &Arc<Core>, peer: Peer, id: &str) -> Result<Value, Refusal> {
     let places = packages(core);
     if !places.removed().iter().any(|removed| removed == id) {
         return Err(Refusal::UNKNOWN_PACKAGE);
@@ -269,7 +273,7 @@ async fn bring_back(core: &Arc<Core>, peer: Peer, id: &str) -> Result<Value, Ref
         .iter()
         .find(|one| one.id == id)
         .ok_or(Refusal::UNKNOWN_PACKAGE)?;
-    Ok(listed(back, &places, &words, peer.language))
+    Ok(listed(core, back, &places, &words, peer.language, false))
 }
 
 /// 管理员家目录那一层。

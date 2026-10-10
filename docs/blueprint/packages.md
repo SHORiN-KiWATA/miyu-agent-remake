@@ -116,9 +116,11 @@ program = "miyu-embed"
 | 种类 | 能写的表 |
 |---|---|
 | `ui` | `[package]`、`[command]`、`[ui]`、`[check]`、`[settings]`、`[depends]`、`[recommends]` |
-| `process` | `[package]`、`[command]`、`[process]`、`[check]`、`[settings]`、`[features]`、`[connection]`、`[depends]`、`[recommends]` |
-| `builtin` | `[package]`、`[features]`、`[depends]`、`[recommends]` |
+| `process` | `[package]`、`[command]`、`[process]`、`[check]`、`[settings]`、`[features]`、`[connection]`、`[depends]`、`[recommends]`、`[page]` |
+| `builtin` | `[package]`、`[features]`、`[depends]`、`[recommends]`、`[page]` |
 | `worker` | `[package]`、`[worker]` |
+
+施工 F-6 上加的两格（`package-pages.md`「清单多的几格」）：`[package] icon` 是 Lucide 的图标名，哪种包都能写；`[page] dir` 是软件后台页在包目录里的子目录，入口是里面的 `index.html`，只有扩展、内置包能写。
 
 **功能**（施工 F-1）：写了 `[features]` 的照写的先后；写了空的 `[features]` 的一个都没有；没写的内置包、扩展包整个算一个，编号、名字、说明照包的，下面的工具不列（都归它，F-3 照这一条挂）。界面、小程序没有功能。两个包的功能编号撞了：照读的先后（出厂的先于家目录，同一层照编号）先到先得，后到的那一份报 `feature_taken`、整份不收，报在那个功能那一行（照包算的那一个没有行号）。依赖的小程序装没装，这一步只读不查（F-2）。
 
@@ -140,7 +142,7 @@ program = "miyu-embed"
 1. 名字：小写字母开头，只有小写字母、数字、`_`，最多 64 个。键是 `<包的编号>.<名字>`，例如 `web.port`。
 2. 核心起来时读清单那一次，读成了的清单的配置项接在核心自己的配置项后面，进配置清单：读配置、`miyu check`、`config.schema`、`config.get`、`config.set`、生成的 Schema 和参考文件都照它。经 `package.install`、`package.remove` 装卸以后照新的清单再拼一次（`Builtins::settings`，`miyu-core` 装上），配置服务换上（`Config::refit`）：系统配置、个人设置照手里的字重新认，认得的项、问题变了的推 `config.changed`（`via: package`）；生成的三份照新的清单重写（施工 F-5 补）。卸掉的包的键照旧报不认识。
 3. 包的编号是核心自己某一段配置的第一段（`ui`、`persona`、`permission`、`models`、`providers`、`log`、`usage`、`external` 这些，照核心起来时的配置清单认）、又声明了配置项的，这一份报 `settings_taken`，当写错了的列出，配置项一项都不收。
-4. 设置页：都在一页 `packages`（「软件包」），一个包一组，组的编号是包的编号、名字是包的名字；每一项的名字、说明用清单里的，照连接的语言挑（这种语言、`en`、`zh`、`ja`），不进 `core/human`。控件照类型：开关 `toggle`、整数 `number`、选项 `select`、列表 `list`，别的 `text`。`config.schema` 里列表照核心自己的列表写：多 `element`，元素是选项的多 `options`。 平台接入的包（写了 `[connection]` 的）不在这一页：它的配置项挂在 `connections`（「接入」）那一页，一个包一组，头单独画（施工 F-4，设计 30 第五节）。核心替内置包声明的配置项（现在是人格记忆的三项）也挂在这一页、这个包那一组；包没装的照样认、照样有最终值，设置页不画（`hidden`，施工 F-4，设计 30 第七节）。
+4. 设置页：都在一页 `packages`（「软件包」），一个包一组，组的编号是包的编号、名字是包的名字；每一项的名字、说明用清单里的，照连接的语言挑（这种语言、`en`、`zh`、`ja`），不进 `core/human`。控件照类型：开关 `toggle`、整数 `number`、选项 `select`、列表 `list`，别的 `text`。`config.schema` 里列表照核心自己的列表写：多 `element`，元素是选项的多 `options`。 平台接入的包也在这一页（施工 F-6 上：「接入」页去掉了，设计 30 第十三节）。`config.schema` 里这一页的项多一格 `package`，就是组的编号，头照它把项画在那个软件的信息页上。程序不在 `miyu` 旁边的扩展、小程序当没装，配置项不进（`package-pages.md`「程序不在就当没装」）；界面不算。核心替内置包声明的配置项（现在是人格记忆的三项）也挂在这一页、这个包那一组；包没装的照样认、照样有最终值，设置页不画（`hidden`，施工 F-4，设计 30 第七节）。
 
 **两层怎么认**：一个包只有一份清单，不像人格那样一层层叠。同一个编号两层都有的，认出厂的，家目录那一份报 `duplicate`。两个包要同一个子命令名的，出厂的先于家目录、同一层照编号，先读到的得，后读到的那一份报 `command_taken`（报在子命令名那一行）。和内置子命令撞的，由 9-2 在命令行那一头拦。声明了系统账号、编号和管理员的账号一样的报 `account_taken`，整份不收（施工 O-4 下）。
 
@@ -162,9 +164,14 @@ program = "miyu-embed"
 | `opens`、`pages_dir` | `ui` 包；`pages_dir` 写了的 | |
 | `process` | `process` 包 | `{"args", "start"}` |
 | `check` | 有 `[check]` 的 | `{"args"}` |
+| `icon` | 写了的（施工 F-6 上） | 原样 |
+| `page` | 有后台页的（施工 F-6 上） | `true` |
+| `status` | 读成了的（施工 F-6 上） | `running`、`starting`、`stopped`、`off`、`ready`、`program_missing` 之一，算法见 `package-pages.md` |
+| `enabled` | 有开关的（施工 F-6 上） | 开关现在开没开：扩展照它的开关，出厂的、不是必需的内置包照有没有卸掉 |
+| `removed` | 卸掉了的出厂包（施工 F-5 上） | `true`，接在后面 |
 | `code`、`problem`、`line` | 写错的、撞了的、读不了的、协议版本对不上的 | 代码；给人看的一句（照连接的语言，`core/human` 的 `package-problems/<code>`，读不了的是 `config/unreadable`）；第几行，有的才有。写错的、撞了的、读不了的只有 `package`、`layer` 和这几格；协议版本对不上的（`code` 是 `protocol_mismatch`）照样带全，头自己决定用不用 |
 
-**`miyu check`**（`cli/check.md`）：多查两层里每一份清单，种类 `package`，写法同人格；协议版本对不上的是警告。写了文件的，某一层 `packages/` 下的 `<编号>.toml` 认作清单（两边换成真的路径比），还没有的报读不了。
+**`miyu check`**（`cli/check.md`）：多查两层里每一份清单，种类 `package`，写法同人格；协议版本对不上的是警告，写了后台页、目录里没有 `index.html` 的也是警告 `page_missing`（施工 F-6 上）。写了文件的，某一层 `packages/` 下的 `<编号>.toml` 认作清单（两边换成真的路径比），还没有的报读不了。
 
 ### 怎么走
 
@@ -206,6 +213,7 @@ program = "miyu-embed"
 | `bad_feature`、`bad_tool`、`bad_platform`、`bad_dependency` | 功能的编号写法不对；功能下的工具名写法不对（英文字母、数字、`_`、`-`，1 到 64 个）、同一个包里列了两次；平台名写法不对；依赖的包编号写法不对、重复（施工 F-1） |
 | `feature_taken` | 功能的编号被先读到的包占了（施工 F-1） |
 | `not_built_in` | 清单是内置包，这一份核心没编进它的代码（施工 F-2，核心起来时标；`miyu check` 不查） |
+| `bad_icon`、`bad_page_dir` | `[package] icon` 不是 Lucide 图标名的写法，`[page] dir` 不是包目录里的相对目录（施工 F-6 上） |
 | `protocol_mismatch` | 读成了，说的协议版本不包含 1（列表里照样带全；`miyu check` 是警告） |
 | `check_failed`、`check_unavailable`、`check_output` | 跑包的检查（施工 9-2，都是警告）：跑坏了、到时没完；程序没找到；印了看不懂的行 |
 

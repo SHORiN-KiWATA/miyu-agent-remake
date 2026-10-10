@@ -7,7 +7,7 @@
 
 mod approval;
 pub(crate) mod config;
-mod methods;
+pub(crate) mod methods;
 mod stderr;
 mod supervise;
 
@@ -322,9 +322,15 @@ impl Core {
         }
     }
 
-    /// 开着的拉起：要的能力还有没批的不拉起，记成停下（`needs_approval`）；拉起以前照登记缓存先登记它的工具。
+    /// 开着的拉起：程序不在的不拉起，记成停下（`not_installed`，施工 F-6 上）；要的能力还有没批的不拉起，记成停下
+    /// （`needs_approval`）；拉起以前照登记缓存先登记它的工具。
     fn start_one(self: &Arc<Self>, id: &str, manifest: &Manifest, switches: &Switches) {
         if !on(switches, id, manifest) {
+            return;
+        }
+        // 程序不在的当没装（施工 F-6 上）：不照缓存登记它的工具，记成停下。
+        if crate::packages::absent(manifest) {
+            self.extensions.hold(id, Reason::NotInstalled);
             return;
         }
         match approval::unapproved(self, id, manifest, switches).is_empty() {
@@ -390,6 +396,12 @@ pub(crate) fn processes(packages: &[Found]) -> impl Iterator<Item = (&str, &Mani
 fn process(found: &Found) -> Option<(&str, &Manifest)> {
     let manifest = found.read.as_ref().ok()?;
     (manifest.kind == PackageKind::Process).then_some((found.id.as_str(), manifest))
+}
+
+/// 包 `id` 的开关这时开没开（施工 F-6 上：`package.list` 的 `enabled`、`status` 照它）：照开关的文件。
+pub(crate) fn switched_on(core: &Core, id: &str, manifest: &Manifest) -> bool {
+    let (switches, _) = read_switches(core);
+    on(&switches, id, manifest)
 }
 
 /// 包 `id` 开没开：写了的照写的，没写的照清单的 `start`。

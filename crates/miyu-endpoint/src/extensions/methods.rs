@@ -61,22 +61,30 @@ pub(crate) async fn enable(
     peer: Peer,
     params: EnableParams,
 ) -> Result<Value, Refusal> {
-    let manifest = &extension(core, &params.package)?;
+    turn_on(core, peer, &params.package, params.approve.as_deref()).await
+}
+
+/// 打开扩展 `id`（`extension.enable`；施工 F-6 上起 `package.enable` 也走这里）：程序不在的拒绝 `program_missing`，开了也起不来
+/// （`package-pages.md`「程序不在就当没装」）。
+pub(crate) async fn turn_on(
+    core: &Arc<Core>,
+    peer: Peer,
+    id: &str,
+    approve: Option<&[String]>,
+) -> Result<Value, Refusal> {
+    let manifest = &extension(core, id)?;
+    if crate::packages::status::program_missing(manifest) {
+        return Err(Refusal::PROGRAM_MISSING);
+    }
     let _one_at_a_time = core.extensions.ops.lock().await;
     let (mut switches, version) = read_switches(core);
-    approval::approve(
-        core,
-        &params.package,
-        manifest,
-        &mut switches,
-        params.approve.as_deref(),
-    )?;
-    switches.on.insert(params.package.clone(), true);
-    write(core, &params.package, &switches, version.as_deref())?;
-    crate::provide::restore(core, &params.package);
-    core.extensions.launch(core, &params.package, manifest);
-    core.extensions.notify(&params.package);
-    Ok(one(core, &params.package, manifest, &switches, peer))
+    approval::approve(core, id, manifest, &mut switches, approve)?;
+    switches.on.insert(id.to_string(), true);
+    write(core, id, &switches, version.as_deref())?;
+    crate::provide::restore(core, id);
+    core.extensions.launch(core, id, manifest);
+    core.extensions.notify(id);
+    Ok(one(core, id, manifest, &switches, peer))
 }
 
 /// `extension.disable`：记成关着，在跑的请它退出、等它退出，它的工具出目录（施工 O-2 中）。
@@ -85,15 +93,20 @@ pub(crate) async fn disable(
     peer: Peer,
     params: PackageParams,
 ) -> Result<Value, Refusal> {
-    let manifest = &extension(core, &params.package)?;
+    turn_off(core, peer, &params.package).await
+}
+
+/// 关掉扩展 `id`（`extension.disable`；施工 F-6 上起 `package.disable` 也走这里）。
+pub(crate) async fn turn_off(core: &Arc<Core>, peer: Peer, id: &str) -> Result<Value, Refusal> {
+    let manifest = &extension(core, id)?;
     let _one_at_a_time = core.extensions.ops.lock().await;
     let (mut switches, version) = read_switches(core);
-    switches.on.insert(params.package.clone(), false);
-    write(core, &params.package, &switches, version.as_deref())?;
-    core.extensions.halt(&params.package).await;
-    crate::provide::withdraw(core, &params.package);
-    core.extensions.notify(&params.package);
-    Ok(one(core, &params.package, manifest, &switches, peer))
+    switches.on.insert(id.to_string(), false);
+    write(core, id, &switches, version.as_deref())?;
+    core.extensions.halt(id).await;
+    crate::provide::withdraw(core, id);
+    core.extensions.notify(id);
+    Ok(one(core, id, manifest, &switches, peer))
 }
 
 /// `extension.restart`：请它退出、等它退出，重新拉起，连续失败从零数。关着的拒绝；要的能力还有没批的拒绝

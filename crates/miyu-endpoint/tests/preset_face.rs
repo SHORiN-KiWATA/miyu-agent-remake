@@ -120,9 +120,9 @@ async fn the_dev_preset_drops_memory_and_says_so() {
     );
     let pin = snapshot.preset.expect("记了预设");
     assert_eq!(pin.id, "dev");
-    // 出厂的接入QQ（施工 O-18）的功能 QQ 工具装了、这个预设没开：快照照记，那一行不列（这里它没有工具）。施工 F-3 上起记的是
-    // 功能的编号。
-    assert_eq!(pin.off, ["memory", "qq", "roleplay"]);
+    // 施工 F-3 上起记的是功能的编号。出厂的接入QQ 的程序不在测试程序旁边，当没装（施工 F-6 上），它的 QQ 工具不在里面；装了、
+    // 没开、没有工具的包快照照记，见下一条。
+    assert_eq!(pin.off, ["memory", "roleplay"]);
     // 开会话时要了记忆也没用：开不开归预设。
     let (session, _) = first_request(
         &home,
@@ -141,9 +141,14 @@ fn memory_of(home: &Home, session: &str) -> Option<String> {
 #[tokio::test]
 async fn software_without_tools_is_pinned_off_but_left_out_of_the_line() {
     let home = Home::new();
+    // 程序要在测试程序旁边：不在的当没装（施工 F-6 上）。
+    let program = crate::support::extensions::Program::new();
     home.write(
         "home/alice/packages/quiet.toml",
-        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = { en = \"Quiet\" }\n\n[command]\nname = \"quiet\"\nprogram = \"miyu-quiet\"\nabout = { en = \"Q\" }\n\n[process]\nargs = []\n",
+        &format!(
+            "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"Quiet\" }}\n\n[command]\nname = \"quiet\"\nprogram = \"{}\"\nabout = {{ en = \"Q\" }}\n\n[process]\nargs = []\n",
+            program.name()
+        ),
     );
     home.write(
         "home/alice/presets/lean.toml",
@@ -252,7 +257,10 @@ async fn preset_get_lists_features_with_their_tools() {
         "{dev}"
     );
     assert!(listed.contains(&("memory", false, true)));
-    assert!(listed.contains(&("qq", false, true)));
+    assert!(
+        !listed.iter().any(|(id, _, _)| *id == "qq"),
+        "接入QQ 的程序不在测试程序旁边，当没装（施工 F-6 上）"
+    );
     assert_eq!(
         listed.last(),
         Some(&("goal", true, false)),
@@ -273,11 +281,6 @@ async fn preset_get_lists_features_with_their_tools() {
         ]),
         "功能关着的工具都是关着"
     );
-    assert_eq!(
-        feature(&dev, "qq")["tools"],
-        json!([]),
-        "桥没登记，没有工具"
-    );
     let nosh = client
         .call("g2", "preset.get", json!({"preset": "nosh"}))
         .await;
@@ -290,14 +293,21 @@ async fn preset_get_lists_features_with_their_tools() {
         ]),
         "[tools] 单件关掉的"
     );
-    assert_eq!(feature(&nosh, "qq")["on"], false);
+    // 写在 [features] 里、程序不在当没装的（施工 F-6 上）：照「写了没装」接在后面，只列一遍。
+    assert_eq!(
+        (
+            feature(&nosh, "qq")["on"].clone(),
+            feature(&nosh, "qq")["installed"].clone()
+        ),
+        (json!(false), json!(false))
+    );
     assert_eq!(
         switches(&nosh)
             .iter()
             .filter(|(id, _, _)| *id == "qq")
             .count(),
         1,
-        "写在 [features] 里的、装了的不另列一遍"
+        "只列一遍"
     );
     assert_eq!(feature(&nosh, "commands")["tools"][0]["label"], "执行命令");
 }

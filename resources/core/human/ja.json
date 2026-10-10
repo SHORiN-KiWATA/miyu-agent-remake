@@ -263,7 +263,6 @@
     },
     "pages": {
       "packages": "パッケージ",
-      "connections": "接続",
       "general": "一般",
       "advanced": "詳細",
       "models": "モデル"
@@ -414,6 +413,9 @@
     "package-problems/bad_dependency": "依存するパッケージ ID の書き方が正しくないか、重複しています: {detail}",
     "package-problems/feature_taken": "機能 {detail} はほかのパッケージが使っています。こちらは数えません",
     "package-problems/not_built_in": "このコアには組み込みパッケージ {detail} のコードがありません",
+    "package-problems/bad_icon": "{detail} は Lucide のアイコン名で書きます：小文字で始まり、小文字・数字・- だけ",
+    "package-problems/bad_page_dir": "{detail} はパッケージディレクトリ内の相対ディレクトリで、.. や先頭の / は使えません",
+    "package-problems/page_missing": "{detail} に index.html がありません",
     "package-problems/check_failed": "パッケージ自身のチェックが終わりませんでした：{detail}",
     "package-problems/check_unavailable": "{detail} が見つからないため、パッケージ自身のチェックは動きませんでした",
     "package-problems/check_output": "パッケージ自身のチェックが読めない行を {detail} 行出したので、飛ばしました",

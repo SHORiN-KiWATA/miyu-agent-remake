@@ -1,6 +1,6 @@
 ## 软件包页和软件后台
 
-状态：图纸，2026-10-10 主会话起草，网页、终端、接入QQ 三个会话同一天对过（改了五处：开关的格叫 `enabled`；界面包的配置项不看程序在不在；通道只交一次；响应头照 `web-ui.md`；`context` 多 `colors`）。设计 `30-插件框架.md` 第十三节：第 1 到 7 条项目主人定，这一页是第 8 条的技术形状。照它施工 F-6 上、F-6 中；网页软件给后台页的文件、框和网页之间的通道由网页的会话做，`miyu web --package` 也是它的。
+状态：「清单多的几格」「`package.list` 每一项多的几格」「程序不在就当没装」「开关」「`config.schema` 里包的配置项」施工 F-6 上做了（2026-10-10）；别的是图纸，F-6 中做。2026-10-10 主会话起草，网页、终端、接入QQ 三个会话同一天对过（改了五处：开关的格叫 `enabled`；界面包的配置项不看程序在不在；通道只交一次；响应头照 `web-ui.md`；`context` 多 `colors`）。设计 `30-插件框架.md` 第十三节：第 1 到 7 条项目主人定，这一页是第 8 条的技术形状。照它施工 F-6 上、F-6 中；网页软件给后台页的文件、框和网页之间的通道由网页的会话做，`miyu web --package` 也是它的。
 
 ### 是什么
 
@@ -133,7 +133,14 @@ dir = "page"              # 包目录 packages/<编号>/ 下的子目录，入�
 
 现在接入QQ 自己起一个网页（`web` 端口、`miyu-onebot web`）。挪成后台页：页面放进 `packages/onebot/page/`，页面要的操作做成桥登记的方法，经 `package.call` 调；桥自己的网页端口、一次性码去掉。先后和细节和接入QQ 的会话对。
 
-### 守着它的（施工时补）
+### 守着它的
+
+| 测试 | 守哪几条 |
+|---|---|
+| `crates/miyu-config/src/package/look/tests.rs`（施工 F-6 上） | `icon`、`[page] dir` 读得出；写法不对的 `bad_icon`、`bad_page_dir`，报在那一行；`[page]` 只给扩展、内置包 |
+| `crates/miyu-endpoint/tests/package_switch.rs`（施工 F-6 上） | `package.list` 的 `status`、`enabled`、`icon`、`page`（目录里没有 `index.html` 的不带）；开关开、关扩展，出厂内置包卸掉、装回来；必需的、界面、程序不在、没有的拒绝；程序不在的配置项不进 schema、功能不进预设，界面的照旧；`miyu check` 报 `page_missing` |
+| `crates/miyu-endpoint/tests/package_settings.rs`（施工 F-6 上改） | 包的配置项带 `package`，核心自己的不带；平台接入的在「软件包」页，没有 `connections` 页 |
+| `crates/miyu-endpoint/tests/extensions.rs`（施工 F-6 上改） | 程序不在的 `extension.enable` 回 `program_missing` |
 
 ### 还没有的
 

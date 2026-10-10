@@ -14,11 +14,9 @@ use crate::parse;
 use crate::phrases::Phrases;
 use crate::value::Value;
 
-/// 包的配置项都在设置页的这一页。
+/// 包的配置项都在设置页的这一页（施工 F-6 上起平台接入的也在这里：「接入」页去掉了，`package-pages.md`）。头照 `config.schema`
+/// 每一项的 `package` 把它们画在那个软件的信息页上。
 pub const PAGE: &str = "packages";
-
-/// 平台接入的包的配置项在这一页（施工 F-4，设计 `30-插件框架.md` 第五节）：头单独画「接入」，不在「软件包」那一页。
-pub const CONNECTIONS: &str = "connections";
 
 /// 文字不写 `max` 的，最多几个字符。
 const TEXT_MAX: usize = 200;
@@ -422,10 +420,9 @@ fn setting_name(name: &str) -> bool {
         && name.len() <= 64
 }
 
-/// 包 `package` 的配置项拼成配置清单的项：键 `<包>.<名字>`，挂在设置页的 `page` 那一页（「软件包」[`PAGE`]，平台接入的
-/// 「接入」[`CONNECTIONS`]）、这个包那一组。字留在进程里，一直用到
-/// 退出：只在核心起来时调一次。
-pub fn items(package: &str, settings: &[Setting], page: &'static str) -> Vec<Item> {
+/// 包 `package` 的配置项拼成配置清单的项：键 `<包>.<名字>`，挂在「软件包」那一页（[`PAGE`]）、这个包那一组。字留在进程里，
+/// 一直用到退出：只在核心起来、装卸时调。
+pub fn items(package: &str, settings: &[Setting]) -> Vec<Item> {
     let group: &'static str = leak(package);
     settings
         .iter()
@@ -438,7 +435,7 @@ pub fn items(package: &str, settings: &[Setting], page: &'static str) -> Vec<Ite
             env: None,
             applies: setting.applies,
             ui: Ui {
-                page,
+                page: PAGE,
                 group,
                 common: false,
                 control: setting.kind.control(),
