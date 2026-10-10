@@ -12,6 +12,7 @@ import { drawModels } from './models.js';
 import { sectionKit } from './kit.js';
 import { Extensions } from './extensions.js';
 import { drawCorePackages } from './core-packages.js';
+import { Subpage, swap } from './subpage.js';
 
 /** 上次看的那一页：这个终端记着（蓝图第 3 条），刷新就忘 */
 let lastPage = 'general';
@@ -44,10 +45,12 @@ export class SettingsDialog {
     this.nav = h('nav.set-nav');
     this.title = h('strong.set-title');
     this.body = h('div.set-body');
+    /** 点进去的一层（软件包的设置，`subpage.js`） */
+    this.sub = new Subpage();
     this.panel = h('section.set-panel', { role: 'dialog', 'aria-modal': 'true', 'aria-label': this.ctx.text('title'), style: `--set-w: ${cfg.width}px; --set-h: ${cfg.height}px` },
       h('aside.set-side', h('label.set-search-box', icon('search'), this.search), this.nav),
       h('div.set-main',
-        h('header.set-head', h('button.set-back', { type: 'button', onclick: () => this.root.classList.remove('is-inside') }, icon('chevron-left'), this.ctx.text('back')), this.title,
+        h('header.set-head', h('button.set-back', { type: 'button', onclick: () => this.back() }, icon('chevron-left'), h('span.set-back-text', this.ctx.text('back'))), this.title,
           h('button.icon-button.set-close', { type: 'button', title: this.ctx.text('close'), 'aria-label': this.ctx.text('close'), onclick: () => this.close() }, icon('x'))),
         this.body));
     this.root = h('div.set-layer', h('div.set-scrim', { onclick: () => this.close() }), this.panel);
@@ -133,6 +136,7 @@ export class SettingsDialog {
     if (!this.entries().some((e) => e.id === id)) id = 'general';
     this.current = id;
     lastPage = id;
+    this.sub.close();
     this.query = '';
     this.search.value = '';
     this.root.classList.add('is-inside');
@@ -147,9 +151,26 @@ export class SettingsDialog {
       icon(icons[e.id] ?? 'sliders-horizontal'), h('span', e.name), bad.has(e.id) ? h('i.set-dot') : null)));
   }
 
-  /** 右边：搜着的画结果，不然画这一页。 */
-  drawBody() {
+  /** 点进一层（软件包的设置）：滑进去，页头写它的名字、左边返回箭头。 @param {string} title @param {() => any} render */
+  openSub(title, render) {
+    this.sub.open(title, render, this.body.scrollTop);
+    this.drawBody('push');
+  }
+
+  /** 页头的返回：开着一层的回到列表（滑回来），窄的时候回到分页。 */
+  back() {
+    if (this.sub.page) this.drawBody('pop', this.sub.close());
+    else this.root.classList.remove('is-inside');
+  }
+
+  /**
+   * 右边：搜着的画结果，不然画这一页（开着一层的画那一层）。`dir` 是进出一层时滑的方向，`restore` 是回来时列表滚到哪。
+   * @param {import('./subpage.js').Dir|null} [dir] @param {number|null} [restore]
+   */
+  drawBody(dir = null, restore = null) {
     const scroll = this.body.scrollTop;
+    if (this.query.trim()) this.sub.close();
+    this.root.classList.toggle('has-sub', !!this.sub.page);
     // 模型的详情挂在右边整栏上：换页、搜索时收掉，模型页自己再挂
     this.panel.querySelector('.set-drawer')?.remove();
     if (this.query.trim()) {
@@ -163,6 +184,11 @@ export class SettingsDialog {
       const byPage = new Map();
       for (const f of found) byPage.set(f.page, [...(byPage.get(f.page) ?? []), f.item]);
       replace(this.body, [...byPage].map(([page, items]) => groupBlock(page.name, items.map((item) => coreRow(this, item)))));
+      return;
+    }
+    if (this.sub.page) {
+      this.title.textContent = this.sub.page.title;
+      swap(this.body, this.sub.page.render(), dir, dir === 'push' ? 0 : scroll);
       return;
     }
     const entry = this.entries().find((e) => e.id === this.current);
@@ -191,8 +217,7 @@ export class SettingsDialog {
           : groupBlock(g.name, g.items.map((item) => coreRow(this, item))))),
       ];
     }
-    replace(this.body, kids);
-    this.body.scrollTop = scroll;
+    swap(this.body, kids, dir, restore ?? scroll);
   }
 
   /**
@@ -286,6 +311,10 @@ export class SettingsDialog {
         this.search.value = '';
         this.drawNav();
         this.drawBody();
+        return;
+      }
+      if (this.sub.page) {
+        this.back();
         return;
       }
       this.close();

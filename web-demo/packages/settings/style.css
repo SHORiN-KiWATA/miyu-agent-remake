@@ -33,7 +33,19 @@
 .set-head { display: flex; align-items: center; gap: 8px; padding: 14px 14px 10px 24px; }
 .set-title { flex: 1; font-size: 17px; font-weight: 600; }
 .set-back { display: none; align-items: center; gap: 2px; padding: 4px 6px 4px 2px; border: 0; border-radius: 8px; background: transparent; color: var(--text-soft); font: 13px var(--sans); cursor: pointer; }
-.set-body { flex: 1; min-height: 0; padding: 0 24px 24px; overflow-y: auto; }
+.set-body { position: relative; flex: 1; min-height: 0; padding: 0 24px 24px; overflow-x: hidden; overflow-y: auto; }
+/* 点进去的一层（subpage.js）：页头左边的返回箭头一直在（不写字），进去新的从右边滑进来、原来的往左滑走，回来反过来 */
+.set-layer.has-sub .set-back { display: inline-flex; }
+.set-layer.has-sub .set-back-text { display: none; }
+.set-slide.is-push { animation: set-slide-from-right 0.26s var(--ease-out); }
+.set-slide.is-pop { animation: set-slide-from-left 0.26s var(--ease-out); }
+.set-slide-ghost { position: absolute; left: 24px; right: 24px; pointer-events: none; }
+.set-slide-ghost.is-push { animation: set-slide-to-left 0.26s var(--ease-out) forwards; }
+.set-slide-ghost.is-pop { animation: set-slide-to-right 0.26s var(--ease-out) forwards; }
+@keyframes set-slide-from-right { from { opacity: 0; transform: translateX(48px); } }
+@keyframes set-slide-from-left { from { opacity: 0; transform: translateX(-48px); } }
+@keyframes set-slide-to-left { to { opacity: 0; transform: translateX(-48px); } }
+@keyframes set-slide-to-right { to { opacity: 0; transform: translateX(48px); } }
 .set-empty { padding: 24px 0; color: var(--text-faint); font-size: 13px; }
 .set-empty.is-bad { color: var(--danger); }
 .set-group { margin-top: 12px; }
@@ -202,15 +214,13 @@
 .set-price { display: flex; flex-direction: column; gap: 4px; color: var(--text-faint); font-size: 12px; }
 .set-price .set-input.is-number { width: 100%; }
 .set-price.is-currency .set-input { width: 100%; font-family: var(--mono); text-transform: uppercase; }
+/* 软件包一行：点了滑进它的设置页，右边一个箭头 */
 .set-pkg.is-expandable { cursor: pointer; }
-.set-pkg-arrow { display: inline-grid; width: 16px; place-items: center; color: var(--text-faint); }
-.set-pkg-arrow .icon { transition: transform 0.16s var(--ease-out); }
-.set-pkg.is-open .set-pkg-arrow .icon { transform: rotate(90deg); }
-.set-pkg-block { border-bottom: 1px solid var(--line); }
-.set-pkg-block .set-pkg { border-bottom: 0; }
-.set-rows > .set-pkg-block:last-child { border-bottom: 0; }
-.set-pkg-settings { padding: 0 0 8px 28px; }
-.set-pkg-settings .set-row:last-child { border-bottom: 0; }
+.set-pkg.is-expandable:hover .set-name { color: var(--text); }
+.set-pkg-arrow { display: inline-grid; flex: none; width: 16px; place-items: center; color: var(--text-faint); }
+.set-pkg.is-expandable:hover .set-pkg-arrow { color: var(--text-soft); }
+/* 点进去的那一层顶上那一句说明 */
+.set-sub-desc { margin: 0 0 6px; color: var(--text-soft); font-size: 13px; }
 
 /* 供应商的表、两段切换、模型池的编辑 */
 .set-form { max-width: 560px; margin-top: 14px; }
