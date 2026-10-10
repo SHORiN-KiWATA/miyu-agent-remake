@@ -43,9 +43,9 @@ fn steady(screen: &str) -> String {
 fn no_key_on(home: &Home, screen: &str) {
     assert!(!screen.contains("FAKE"), "屏幕上有 key：{screen}");
     assert!(
-        !home.system_config().contains("FAKE"),
+        !home.personal_settings().contains("FAKE"),
         "{}",
-        home.system_config()
+        home.personal_settings()
     );
 }
 
@@ -80,7 +80,7 @@ async fn a_key_in_the_environment_is_referenced_never_copied() {
          \x20 3  deepseek-v4-pro\n\
          选一个编号，直接回车用推荐的：写好了：models.chat = deepseek/deepseek-flash\n"
     );
-    let config = home.system_config();
+    let config = home.personal_settings();
     assert!(
         config.contains("key = { env = \"DEEPSEEK_API_KEY\" }"),
         "只引用：{config}"
@@ -136,7 +136,7 @@ async fn a_pasted_key_is_tried_first_and_kept_only_once_it_works() {
         "{secrets}"
     );
     assert!(!secrets.contains(WRONG), "错的那个没存过：{secrets}");
-    let config = home.system_config();
+    let config = home.personal_settings();
     assert!(
         config.contains("key = { secret = \"deepseek\" }"),
         "{config}"
@@ -160,7 +160,7 @@ async fn cancelling_the_key_paste_writes_nothing() {
     let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;
     assert_eq!(asked.code, 130, "{}", asked.screen);
     assert!(asked.screen.ends_with("没存，取消了\n"), "{}", asked.screen);
-    assert_eq!(home.system_config(), "", "配置一个字都没写");
+    assert_eq!(home.personal_settings(), "", "配置一个字都没写");
     assert_eq!(home.secrets(), "", "密钥文件一个字都没写");
     assert!(server.received().is_empty(), "没发出去任何请求");
 }
@@ -188,7 +188,7 @@ async fn a_local_service_needs_no_key() {
         asked.screen
     );
     assert_eq!(typist.hidden, 0, "不要 key");
-    let config = home.system_config();
+    let config = home.personal_settings();
     assert!(
         config.contains("[providers.lab]\nlocal = true\n"),
         "本机的服务不要 key：写 local = true 算配好了（施工 8-25）：{config}"
@@ -211,8 +211,12 @@ async fn a_provider_already_set_up_only_gets_models_chat() {
         "{}",
         asked.screen
     );
-    let written = home.system_config();
-    assert!(written.starts_with(config), "原来的一个字没动：{written}");
+    let written = home.personal_settings();
+    assert_eq!(
+        home.system_config(),
+        config,
+        "系统配置一个字没动（施工 T-11 起写个人设置）"
+    );
     assert!(
         written.contains("chat = \"ds/deepseek-flash\""),
         "{written}"
@@ -250,7 +254,7 @@ async fn nothing_picked_or_no_key_ends_with_1() {
         "{}",
         asked.screen
     );
-    assert_eq!(home.system_config(), "", "什么都没写");
+    assert_eq!(home.personal_settings(), "", "什么都没写");
 }
 
 #[tokio::test]
@@ -274,7 +278,7 @@ async fn ask_without_a_model_goes_through_setup_first_at_a_terminal() {
         asked.screen
     );
     assert!(
-        home.system_config()
+        home.personal_settings()
             .contains("chat = \"deepseek/deepseek-flash\"")
     );
 
@@ -287,7 +291,7 @@ async fn ask_without_a_model_goes_through_setup_first_at_a_terminal() {
     assert_eq!(untouched.lines, 0);
 }
 
-/// 三个预设的池（施工 8-8 补，`cli/setup.md` 第 10 条）：配置里一个池都没有的，和 `models.chat` 一起写进系统配置，成员是空的、
+/// 三个预设的池（施工 8-8 补，`cli/setup.md` 第 10 条）：配置里一个池都没有的，和 `models.chat` 一起写进个人设置（施工 T-11），成员是空的、
 /// 开关开着、不带说明；已经有池的（连同只写了开关的）不写。屏幕上照旧只说 `models.chat`。
 #[tokio::test]
 async fn three_preset_pools_go_in_only_when_there_are_no_pools() {
@@ -307,9 +311,44 @@ async fn three_preset_pools_go_in_only_when_there_are_no_pools() {
             "{}",
             asked.screen
         );
-        let written = home.system_config();
+        let written = home.personal_settings();
         assert_eq!(written.contains(presets), wanted, "{config:?}：{written}");
-        assert!(written.starts_with(config), "原来的一个字没动：{written}");
+        assert_eq!(
+            home.system_config(),
+            config,
+            "系统配置一个字没动（施工 T-11 起写个人设置）"
+        );
         assert!(!written.contains("description"), "不带说明：{written}");
     }
+}
+
+/// 个人设置里已经有 `models.chat` 的（施工 T-11，网页的第一次引导先碰上的）：写进个人设置，换上的就是新选的，不被原来那一项
+/// 盖住。原来写系统配置，屏幕上说写好了，会话照旧用个人设置里那一个。
+#[tokio::test]
+async fn a_chat_model_in_personal_settings_is_replaced() {
+    let server = Server::start(vec![
+        listing(&["deepseek-v4-pro", "deepseek-flash", "a-tiny"]),
+        answer(),
+    ])
+    .await;
+    let home = Home::onboarding("", &[("DEEPSEEK_API_KEY", FAKE)], deepseek_at(&server));
+    let personal = home.root.path().join("home/admin/settings.toml");
+    std::fs::create_dir_all(personal.parent().expect("有上一层")).expect("建得了目录");
+    std::fs::write(&personal, "[models]\nchat = \"magpie/old-model\"\n").expect("写得进");
+    let mut typist = Typist::at_terminal(&["1", ""], &[]);
+    let asked = home
+        .setup(&plan(Setup::default(), &["DEEPSEEK_API_KEY"]), &mut typist)
+        .await;
+    assert_eq!(asked.code, 0, "{}", asked.screen);
+    let written = home.personal_settings();
+    assert!(
+        written.contains("chat = \"deepseek/deepseek-flash\""),
+        "换成新选的：{written}"
+    );
+    assert!(!written.contains("magpie/old-model"), "{written}");
+    assert!(
+        !home.system_config().contains("models"),
+        "系统配置不碰：{}",
+        home.system_config()
+    );
 }

@@ -1,4 +1,4 @@
-//! 会话这一块的配置项（`docs/blueprint/compaction.md` 第十五条第 6 条，施工 6-11 上）：提前压好 `compaction.prepare`。
+//! 会话这一块的配置项（`docs/blueprint/compaction.md` 第十五条第 7 条，施工 6-11 上）：提前压好 `compaction.prepare`。
 //!
 //! 会话 actor 在回合开始冻结这一轮的配置时读它（`actor/model.rs` 的 `turn_start`），跟着 `TurnStartHooksDone` 交给内核：
 //! 下一轮生效。不开回合的手动压缩照上一轮的。
@@ -18,7 +18,7 @@ miyu_config::settings! {
             kind: bool,
             layers: [System, Personal],
             applies: next_turn,
-            ui: { page: "advanced", group: "compaction", control: toggle },
+            ui: { page: "general", group: "compaction", control: toggle },
         },
     }
 }

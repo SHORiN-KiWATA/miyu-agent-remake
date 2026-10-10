@@ -62,6 +62,10 @@ fn a_background_command_reports_with_its_title_and_command() {
     assert_eq!(notice["mark"], "done");
     assert_eq!(notice["command"], "cargo build");
     assert_eq!(notice["output"]["chars"], 48_213);
+    // 施工 9-8 三补：退出码、用时照回报，没有信号的不写。
+    assert_eq!(notice["exit_code"], 0, "{notice}");
+    assert_eq!(notice["took_ms"], 81_234);
+    assert!(notice.get("signal").is_none(), "{notice}");
 }
 
 /// 翻页时任务派在更早的一页（施工 9-8 中）：先照切点前的日志学任务，这一页的回报照样有标题和命令。

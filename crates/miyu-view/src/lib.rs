@@ -22,8 +22,8 @@ pub const VERSION: u32 = 1;
 pub use change::Change;
 pub use entry::{
     Answered, Approval, Attachment, Body, Diff, End, Entry, EntryId, Group, JobDone, JobEnd, Mark,
-    ModelSwap, Output, Part, Peer, Picture, Reply, Thought, Title, Tone, Tool, ToolState, User,
-    Was,
+    ModelSwap, Output, Part, Peer, Picture, Reply, Thought, Title, Tone, Tool, ToolState,
+    TouchKind, Touched, User, Was,
 };
 pub use notice::{Compaction, CompactionState, Notice, RevertedFile};
 pub use projector::{Lines, Projector};

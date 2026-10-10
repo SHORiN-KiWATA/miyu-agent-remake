@@ -303,6 +303,9 @@ impl Projector {
                 report: None,
                 command: job.and_then(|j| j.command),
                 output,
+                exit_code: reported.exit_code,
+                signal: reported.signal,
+                took_ms: reported.duration_ms,
             }),
         );
     }
@@ -334,6 +337,9 @@ impl Projector {
                 report: Some(reported.text.clone()),
                 command: None,
                 output: None,
+                exit_code: None,
+                signal: None,
+                took_ms: None,
             }),
         );
     }

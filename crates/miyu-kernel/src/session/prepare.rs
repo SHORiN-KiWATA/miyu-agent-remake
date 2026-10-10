@@ -9,8 +9,12 @@
 //! 出错、取不出摘要的扔掉，不重试、不数进熔断；fork 式调了工具、策略里有隔离式的，照隔离式再发一次。只在内存里：载入、
 //! 重启以后没有，到了起压线再压一次。
 //!
-//! 到线时那一次还在路上、还用得上的（施工 6-11 下），回合进 [`Stage::Awaiting`] 等它：先推一条进度（写了的是已经收到的
-//! 字数），之后它每来一段正文推一次；回来了用得上的换上，用不上的当场压。等的时候打断、重启，它接着在后台跑。
+//! 到线了不停（施工 6-11 补，2026-10-10 项目主人定：压缩不等）：手里没有压好的、请求还放得下（加上输出预留不超过窗口）的，
+//! 照常发主请求；那一次还在路上就让它接着跑，没有的这时在后台起压。回来了放着，下一次发请求前到线就换上。尾巴照到线以后
+//! 还能长的那一截放宽（[`Session::tail_room`]）。
+//!
+//! 放不下了，那一次还在路上、还用得上的（施工 6-11 下），回合才进 [`Stage::Awaiting`] 等它：先推一条进度（写了的是已经收到
+//! 的字数），之后它每来一段正文推一次；回来了用得上的换上，用不上的当场压。等的时候打断、重启，它接着在后台跑。
 
 use std::hash::{DefaultHasher, Hash, Hasher};
 
@@ -87,25 +91,32 @@ impl Session {
         Some((tail, compaction.lead.min(quarter - tail)))
     }
 
+    /// 压好的、在路上的那一份能留多长的尾巴：T + G，加上到线以后不停、还能接着长的那一截（策略的余量，压缩线到
+    /// 「窗口减输出预留」之间，施工 6-11 补）。没有压缩线的没有。
+    fn tail_room(&self) -> Option<u64> {
+        let (tail, lead) = self.lead()?;
+        let margin = self.policy.compaction.as_ref()?.margin;
+        Some(tail + lead + margin)
+    }
+
     /// 发主请求之前（`turn.rs` 的 `ask`，熔断说照发以后）：该起压就起（第十五条第 1 条），交回旁路请求，排在主请求后面。
-    /// 开关关着、要关了、暂停着、G 是 0、用量没过起压线或者已经过了压缩线、有一次在路上、手里那一份还用得上的，不起；
-    /// 手里那一份用不上了的扔掉。
+    /// 过了压缩线、照发的（施工 6-11 补：到线不停）也起。开关关着、要关了、暂停着、用量没过起压线、有一次在路上、手里那一份
+    /// 还用得上的，不起；手里那一份用不上了的扔掉。
     pub(super) fn prepare_up(&mut self, request: &Request) -> Option<Action> {
         if !self.prepare.on || self.restarting || self.paused() {
             return None;
         }
         let (tail, lead) = self.lead()?;
         let line = self.line()?;
+        let room = self.tail_room()?;
         let used = self.used(request)?;
-        // G 是 0 的照这一条不起：用量没过线就不到起压线。
-        if used <= line - lead || used > line {
+        // G 是 0 的照这一条到线才起。
+        if used <= line - lead {
             return None;
         }
         match &self.prepare.state {
             Some(State::Asking { .. }) => return None,
-            Some(State::Ready(prepared))
-                if self.usable(prepared.upto, prepared.key, tail + lead) =>
-            {
+            Some(State::Ready(prepared)) if self.usable(prepared.upto, prepared.key, room) => {
                 return None;
             }
             _ => self.prepare.state = None,
@@ -174,7 +185,7 @@ impl Session {
         // 好」，这条 `model.called` 落了盘再组装、照现在的办法当场压（请求要等事件都落了盘才发）。回到「准备好」照别处一样
         // 先查事实：等的时候切了级别的，这时注入。
         if let Some(awaiting) = self.take_awaiting() {
-            let room = self.lead().map(|(tail, lead)| tail + lead);
+            let room = self.tail_room();
             match summary {
                 Ok(summary) if room.is_some_and(|room| self.usable(upto, key, room)) => {
                     let prepared = Prepared {
@@ -229,16 +240,39 @@ impl Session {
         }
     }
 
+    /// 自动压缩到线了先不压（施工 6-11 补，2026-10-10 项目主人定：压缩不等）：开关开着、手里没有一份用得上的（有的照
+    /// [`Session::begin_compaction`] 换上）、请求还放得下（加上输出预留不超过窗口），而且在路上的那一次还用得上、或者
+    /// 一次都没有（照发以后 [`Session::prepare_up`] 在后台起压）。
+    pub(super) fn defer_compaction(&self, due: &Due, request: &Request) -> bool {
+        if !self.prepare.on || self.restarting || due.instructions.is_some() {
+            return false;
+        }
+        let Some(room) = self.tail_room() else {
+            return false;
+        };
+        let waiting_one = match &self.prepare.state {
+            Some(State::Ready(prepared)) => {
+                // 用得上的照换上；用不上的扔掉以后照「一次都没有」。
+                if self.usable(prepared.upto, prepared.key, room) {
+                    return false;
+                }
+                true
+            }
+            Some(State::Asking { aside, key, .. }) => self.usable(aside.upto, *key, room),
+            None => true,
+        };
+        waiting_one && self.fits(request)
+    }
+
     /// 在路上的那一次等不等（施工 6-11 下）：这一轮开着、没附要求，它起压时的指纹和这时的一样、那里还切得开、以后的尾巴
-    /// 不超过 T + G 的等，交回它的名字和已经收到的正文字数。
+    /// 不超过 [`Session::tail_room`] 的等，交回它的名字和已经收到的正文字数。
     fn awaitable(&self, due: &Due) -> Option<(Seq, u64)> {
         let Some(State::Asking { aside, key, .. }) = &self.prepare.state else {
             return None;
         };
-        let (tail, lead) = self.lead()?;
+        let room = self.tail_room()?;
         let wanted = self.prepare.on && due.instructions.is_none();
-        (wanted && self.usable(aside.upto, *key, tail + lead))
-            .then(|| (aside.upto, aside.written()))
+        (wanted && self.usable(aside.upto, *key, room)).then(|| (aside.upto, aside.written()))
     }
 
     /// 等在路上的那一次（施工 6-11 下）：回合进 [`Stage::Awaiting`]，推一条进度：`seen` 是它的名字，写了的是已经收到的。
@@ -313,12 +347,12 @@ impl Session {
         };
         // 被动压缩不走这里（`overflow.rs` 照它自己的切法当场压）。
         let wanted = self.prepare.on && due.instructions.is_none();
-        let (tail, lead) = self.lead()?;
-        (wanted && self.usable(prepared.upto, prepared.key, tail + lead)).then_some(prepared)
+        let room = self.tail_room()?;
+        (wanted && self.usable(prepared.upto, prepared.key, room)).then_some(prepared)
     }
 
     /// 替代到 `upto`、起压时指纹是 `key` 的那一份还用得上：有效历史里 `upto` 以前没变，那里还切得开，以后的尾巴不超过
-    /// `room`（T + G）。压好了的、在路上的（施工 6-11 下）一样判。
+    /// `room`（[`Session::tail_room`]）。压好了的、在路上的（施工 6-11 下）一样判。
     fn usable(&self, upto: Seq, key: u64, room: u64) -> bool {
         if self.prefix_key(upto) != key {
             return false;

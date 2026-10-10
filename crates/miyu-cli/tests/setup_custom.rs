@@ -62,7 +62,7 @@ async fn a_custom_provider_asks_address_protocol_and_key_and_is_named_after_its_
          \x20 2  m-small\n\
          选一个编号，直接回车用推荐的：写好了：models.chat = local/m-small\n"
     );
-    let config = home.system_config();
+    let config = home.personal_settings();
     let wanted = format!(
         "[providers.local]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\nkey = {{ secret = \"local\" }}\n",
         remote(&server)
@@ -90,8 +90,12 @@ async fn a_taken_id_gets_a_number_and_an_empty_key_stores_nothing() {
     let mut typist = Typist::at_terminal(&[CUSTOM, base_url, "1", ""], &["  "]);
     let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;
     assert_eq!(asked.code, 0, "{}", asked.screen);
-    let written = home.system_config();
-    assert!(written.starts_with(config), "原来的一个字没动：{written}");
+    let written = home.personal_settings();
+    assert_eq!(
+        home.system_config(),
+        config,
+        "系统配置一个字没动（施工 T-11 起写个人设置）"
+    );
     let wanted =
         format!("[providers.local-2]\ndriver = \"openai-chat\"\nbase_url = \"{base_url}\"\n");
     assert!(written.contains(&wanted), "{written}");
@@ -125,9 +129,10 @@ async fn without_a_model_list_the_model_name_is_asked_and_tried() {
         serde_json::from_slice(&server.received()[2].body).expect("发的是 JSON");
     assert_eq!(sent["model"], json!("my-model"));
     assert!(
-        home.system_config().contains("chat = \"local/my-model\""),
+        home.personal_settings()
+            .contains("chat = \"local/my-model\""),
         "{}",
-        home.system_config()
+        home.personal_settings()
     );
 }
 
@@ -153,6 +158,6 @@ async fn an_empty_model_name_or_url_is_not_picked_and_writes_nothing() {
         "{}",
         asked.screen
     );
-    assert_eq!(home.system_config(), "", "什么都没写");
+    assert_eq!(home.personal_settings(), "", "什么都没写");
     assert_eq!(home.secrets(), "");
 }
