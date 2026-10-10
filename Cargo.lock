@@ -1554,6 +1554,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-client"
+version = "0.0.0"
+dependencies = [
+ "miyu-config",
+ "miyu-ipc",
+ "miyu-kernel",
+ "miyu-log",
+ "miyu-store",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "miyu-config"
 version = "0.0.0"
 dependencies = [
@@ -1770,6 +1783,7 @@ dependencies = [
  "hyper-util",
  "jiff",
  "miyu-chat",
+ "miyu-client",
  "miyu-config",
  "miyu-core",
  "miyu-endpoint",
@@ -1781,7 +1795,6 @@ dependencies = [
  "miyu-session",
  "miyu-store",
  "miyu-tool",
- "miyu-webserve",
  "serde",
  "serde_json",
  "tokio",
@@ -1929,6 +1942,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "miyu-client",
  "miyu-config",
  "miyu-ipc",
  "miyu-log",
@@ -1949,6 +1963,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "miyu-client",
  "miyu-ipc",
  "miyu-store",
  "serde_json",
