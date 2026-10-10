@@ -108,6 +108,7 @@
 | `account` | 你是谁：管理员的账号，核心里固定是 `admin`（`core.md`）；核心拉起的、清单声明了系统账号的包的扩展是那个系统账号，账号名是包的编号（施工 O-4 下，`packages.md`） |
 | `host` | `{"home": <系统的家目录>, "platform": "linux" 或 "macos" 或 "windows", "workspace": <这个账号的默认工作区>}`，总有（施工 W-3，`web-module.md`「四、路径」）：`home` 是核心起来时拿到的系统的家目录，照原样，读不出来的是 `null`；`platform` 是核心所在的平台；`workspace` 是这个账号的默认工作区，换成真实的位置（管理员、系统账号的默认工作区核心起来时就建好了，`core.md`、施工 O-4 下；握手不另外建） |
 | `language` | `zh`、`en`、`ja` 之一：这个连接给人看的字用哪种（施工 8-2，`config.md` 第二条第 8 条）。`ui.language` 的最终值（默认值、系统配置、个人设置）定了的就是它，`auto` 的照 `locale`。`ui.language` 改了，连接下一句就照新的说，不用再握手（施工 8-4）：回应里这一格只是握手那一刻的。核心拒绝时的话只有中文、英文，`ja` 的照英文；配置的名字、说明、报错的话有日文 |
+| `view` | 视图投影的版本，现在是 `1`（施工 9-8 中，`view.md`「握手」）：有它的核心能在 `view.page` 交条目；没有的是旧核心，头照旧照事件自己算。条目的格只加不改，改了已有的格才加一 |
 | `config_errors` | 系统配置、个人设置、密钥文件（施工 8-5）里现在有几处错误（不算警告，施工 8-2）。没有的不写 |
 | `config` | 只有核心拉起的扩展的连接有（施工 9-4 下下，`extensions.md`「配置」）：这个包自己的配置项的最终值，密钥是真值；之后变了推 `extension.config`（`{"keys": {键: 新值或 null}}`） |
 | `setup` | `true`：用一次性码连上的，只能设用户名和密码（施工 W-8）。别的不写 |
@@ -195,8 +196,8 @@
 | `mermaid.render` | mermaid 源码画成 SVG。编进了 `mermaid` 包才有，没编进来回 `unknown_method`（施工 W-4，`mermaid.md`） |
 | `link.preview` | 一个链接的卡片：标题、简介、图（存成 blob）。编进了 `net` 包才有，没编进来回 `unknown_method`；在后台答（施工 W-7，`net.md`） |
 | `subscribe`、`unsubscribe` | 订阅、取消订阅会话的事件流；配置、会话列表、扩展的状态的推送 |
-| `view.page` | 历史按页读：从末尾一页页往前，页的边界落在回合之间（施工 9-6 下） |
-| `view.detail` | 一次调用的完整差异：改了哪些文件、改前改后的统一格式差异（施工 9-6 三补） |
+| `view.page` | 历史按页读：从末尾一页页往前，页的边界落在回合之间（施工 9-6 下）；写了 `view: true` 的交视图投影的条目（施工 9-8 中） |
+| `view.detail` | 一次调用的完整差异和结果原文（施工 9-6 三补、9-8 中）；一次压缩的摘要原文（施工 9-8 中） |
 
 带 `session` 的，它要合会话编号的写法：UUID 的标准写法，小写十六进制，8-4-4-4-12；不合的 `bad_params`。找会话照下面「会话表」。
 
@@ -838,6 +839,7 @@
 | `session` | 字符串，必写 | 会话编号 |
 | `before` | 正整数，可以不写 | 只要序号小于它的；不写的是最新一页。往前翻拿上一页的 `first` |
 | `turns` | 整数 1 到 50，可以不写 | 最多几轮，不写是 20 |
+| `view` | 布尔，可以不写 | 写 `true` 的交条目、不交事件（施工 9-8 中，`view.md`）。不写是 `false` |
 
 回应 `{"events", "more"}`，有事件的再带 `first`、`last`，因为字节少给了轮数的带 `capped: true`，这一页里报完了、在更早派出去的任务带 `jobs`。`events` 是原始事件，写法同补发（`event` 推送里的那一个），照序号；核心不做视图投影。
 
@@ -847,7 +849,8 @@
 4. 这一页里报完了的任务（`job.reported`、`child.reported`，带进来的触发消息也算：后台命令跑完常引起下一轮），派它的 `job.started` 在切点前的，带在 `jobs` 里：照派出的先后，每一个照 `job.started` 的写法（`job`、`what`、`title`，子代理带 `session`），没有的不写这一格。头照它写「后台命令跑完了」那一行，不用为找标题往前翻（施工 9-6 再补）。
 5. `last` 是这一页最后一条：最新一页的 `last` 就是读的那一刻落了盘的最后一条，头接着 `subscribe {"after": last}`，只接新的。压缩、撤销照原样在页里，头照有效历史自己画：先拿到的总是更新的页，撤销总比被撤的那几轮先到。
 6. 只读地读会话目录里的日志，不为翻历史载入会话；读的时候会话照常跑，正在写的那半行不算。
-7. 会话编号不合写法、`before` 是 0 或不是正整数、`turns` 不在 1 到 50、写了别的格：`bad_params`。没有这个会话（删了的也是）：`session_not_found`。日志读不了：`session_broken`，记一行 `WARN log not read`。
+7. 写了 `view: true` 的（施工 9-8 中）：`events` 换成 `entries`，这一页的条目，照显示的先后、读的那一刻的状态，写法见 `view.md`「条目」；字照这个连接的语言。别的格（`first`、`last`、`more`、`capped`、`jobs`）照旧，切法同第 1 到 3 条。切点前派出去、在这一页报完的任务，条目里照样有标题和命令：核心先照切点前的日志学一遍派出去的任务。投影要的字读不成的：`internal_error`，记一行 `WARN view words not read`。
+8. 会话编号不合写法、`before` 是 0 或不是正整数、`turns` 不在 1 到 50、写了别的格：`bad_params`。没有这个会话（删了的也是）：`session_not_found`。日志读不了：`session_broken`，记一行 `WARN log not read`。
 
 
 **`view.detail`**（施工 9-6 三补，2026-10-09 形状和终端界面、网页的会话对过；`04-核心协议.md` 第九节「条目只带摘要，完整的 diff 头展开时用 `view.detail` 按需取」）
@@ -855,9 +858,12 @@
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | `session` | 字符串，必写 | 会话编号 |
-| `call` | 字符串，必写 | 那一次工具调用的编号（`tool.result` 的 `call_id`） |
+| `call` | 字符串 | 那一次工具调用的编号（`tool.result` 的 `call_id`） |
+| `compaction` | 正整数 | 那一次压缩替代到的序号，就是压缩那一条的编号 `c<序号>` 里的数（施工 9-8 中，`view.md`） |
 
-回应 `{"files": [...]}`，照那次调用的工具结果里效果的先后，一个文件一项：
+`call`、`compaction` 正好写一个。
+
+调用的回应 `{"files": [...], "output"}`：`output` 是这次调用的结果原文，给模型看的文字块照先后接起来、块之间空一行，整份不截（施工 9-8 中；图片在条目的 `images` 里）。`files` 照那次调用的工具结果里效果的先后，一个文件一项：
 
 | 格 | 说明 |
 |---|---|
@@ -868,13 +874,14 @@
 | `skipped` | 算不出差异的原因，有它的没有 `diff`、`added`、`removed`：`too_big`（一边超过 1 MiB）、`binary`（不是 UTF-8）、`missing`（改前改后的 blob 取不出来） |
 
 ```json
-{"id":"d1","jsonrpc":"2.0","result":{"files":[{"action":"write","added":1,"diff":["@@ -1,3 +1,3 @@"," a","-b","+B"," c"],"path":"/home/me/proj/a.txt","removed":1}]}}
+{"id":"d1","jsonrpc":"2.0","result":{"files":[{"action":"write","added":1,"diff":["@@ -1,3 +1,3 @@"," a","-b","+B"," c"],"path":"/home/me/proj/a.txt","removed":1}],"output":"Updated \"/home/me/proj/a.txt\"."}}
 ```
 
 1. 只读地读会话的日志（和 `view.page` 一样，不为它载入会话），找这次调用的工具结果；改前、改后都从属主的 blob 取，不读磁盘：之后又被改过的照样是那一次的。改前是 `null`（新建的文件）的当空的算：`diff` 只有 `+` 行，头一行 `@@ -0,0 +1,N @@`。
 2. 读文件、派任务这些效果不算；这次调用没改文件的，`files` 是空的。同一次调用的结果不会变，头照 `call` 记着、问一次就够。
-3. 会话编号、调用编号写错、写了别的格：`bad_params`。没有这个会话：`session_not_found`。日志里没有这次调用的结果（编号对不上、还没回）：`unknown_call`。日志读不了：`session_broken`，记一行 `WARN log not read`。
-4. 以后做视图投影，`view.detail` 还会交长输出这些，字段只加不改。
+3. 压缩的回应 `{"summary"}`：替代到这个序号的检查点的摘要原文（`context.compacted` 的 `summary`；清空上下文的是空的）。
+4. 会话编号、调用编号写错、`call` 和 `compaction` 都写或都不写、写了别的格：`bad_params`。没有这个会话：`session_not_found`。日志里没有这次调用的结果（编号对不上、还没回）、没有替代到这个序号的压缩：`unknown_call`。日志读不了：`session_broken`，记一行 `WARN log not read`。
+5. 字段只加不改。
 
 **`subscribe`、`unsubscribe`**
 
@@ -1046,7 +1053,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `avatar_not_image`、`avatar_too_big` | -32010 | `persona.set` 的 `avatar`：不是 PNG、JPEG、WebP；超过 1 MiB 或 1024 像素，`data` 带量到的和上限（施工 P-5，`personas.md`「头像」） |
 | `needs_approval` | -32010 | `extension.enable`、`extension.restart`：要的能力还有没批的，`data.capabilities` 是那几个（施工 9-4 下上，`extensions.md`「能力」） |
 | `session_not_found` | -32010 | 没有这个会话，删了的也是 |
-| `unknown_call` | -32010 | `view.detail` 的会话日志里没有这次调用的结果：编号对不上，或者还没回（施工 9-6 三补） |
+| `unknown_call` | -32010 | `view.detail` 的会话日志里没有这次调用的结果：编号对不上，或者还没回（施工 9-6 三补）；没有替代到这个序号的压缩（施工 9-8 中） |
 | `no_system_account` | -32010 | 场所会话的属主该是系统账号，这个连接不是（施工 O-3；O-4 下起核心拉起的、清单声明了系统账号的包的扩展是，别的连接还回它） |
 | `venue_session` | -32010 | 场所会话只收代表外部的人说的话：不带 `as` 的 `session.send`（施工 O-3）、`command.run`（施工 O-6）；`command.catalog` 只收本机的会话（施工 O-6 补） |
 | `unknown_command` | -32010 | `command.run` 认不出这个命令（施工 O-6） |

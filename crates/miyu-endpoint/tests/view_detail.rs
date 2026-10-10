@@ -126,7 +126,7 @@ async fn a_change_comes_whole_with_line_numbers() {
     assert_eq!((&file["added"], &file["removed"]), (&json!(13), &json!(13)));
     assert!(file.get("skipped").is_none(), "{file}");
     let reply = detail(&mut client, &session, &read.0).await;
-    assert_eq!(reply["result"], json!({"files": []}), "读文件的不算");
+    assert_eq!(reply["result"]["files"], json!([]), "读文件的不算");
 }
 
 #[tokio::test]

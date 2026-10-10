@@ -1634,6 +1634,7 @@ dependencies = [
  "miyu-session",
  "miyu-store",
  "miyu-tool",
+ "miyu-view",
  "rusqlite",
  "serde",
  "serde_json",
