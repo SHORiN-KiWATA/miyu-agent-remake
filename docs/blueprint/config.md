@@ -230,7 +230,7 @@ miyu_config::settings! {
             layers: [System, Personal, Project],
             tighten: true_only,
             applies: new_session,
-            ui: { page: "permissions", group: "sessions", control: toggle },
+            ui: { page: "general", group: "sessions", control: toggle },
         },
     }
 }
@@ -1903,16 +1903,15 @@ ticket_idle_seconds = 43200
 | `providers.<id>.models.<model>.temperature` 名字（8-22） | 默认的温度 | Default temperature | 既定の温度 |
 | 说明 | 这个模型默认的温度，0 到 2，越高回答越随意。不写的照供应商的默认；这个模型不收温度的不发。 | The temperature this model uses by default, from 0 to 2; higher gives looser answers. Left out, the provider decides. Not sent to models that do not take one. | このモデルが既定で使う温度。0 から 2 で、高いほど答えが自由になります。書かなければプロバイダーの既定に従います。温度を受け付けないモデルには送りません。 |
 
-页和组（`config.pages`、`config.groups`，编号到名字；资源里只放清单用到的，`permissions`、`sessions` 随 8-2 加；8-3 加过页 `interface`（界面）、组 `tui`（终端界面），8-28 `ui.startup` 挪进通用页以后没有项用它们，去掉了）：
+页和组（`config.pages`、`config.groups`，编号到名字；资源里只放清单用到的，`permissions`、`sessions` 随 8-2 加，页 `permissions` 2026-10-10 并进通用页去掉了（施工 F-4 再补，项目主人定）；8-3 加过页 `interface`（界面）、组 `tui`（终端界面），8-28 `ui.startup` 挪进通用页以后没有项用它们，去掉了）：
 
 | 编号 | 中文 | 英文 | 日文 |
 |---|---|---|---|
 | 页 `general` | 通用 | General | 一般 |
-| 页 `permissions` | 权限 | Permissions | 権限 |
 | 页 `advanced` | 高级 | Advanced | 詳細 |
 | 组 `display`（`general`） | 显示 | Display | 表示 |
 | 组 `persona`（`general`，P-1 上） | 人格 | Persona | ペルソナ |
-| 组 `sessions`（`permissions`） | 会话 | Sessions | セッション |
+| 组 `sessions`（`general`，F-4 再补以前在 `permissions`） | 会话 | Sessions | セッション |
 | 页 `models`（8-6，主会话定） | 模型 | Models | モデル |
 | 组 `uses`（`models`） | 用途 | Uses | 用途 |
 | 组 `pools`（`models`，8-8） | 池 | Pools | プール |
