@@ -450,6 +450,16 @@ impl ResourceRoot {
         self.read(&["core", "tool-results", "timed-out.txt"])
     }
 
+    /// 权限策略拒绝在场所里做的事（访问类别 `venue`）的那一句：会话不在场所里（施工 O-31 前，`session/guard.md` 第四条）。
+    /// 不进策略快照：本机的会话造、载入时读（同 [`ResourceRoot::tool_timed_out`]），进了快照以前造的会话换不了快照。
+    ///
+    /// # Errors
+    ///
+    /// 读不出来：写明是哪个文件。
+    pub fn not_in_venue(&self) -> Result<String, SourceError> {
+        self.read(&["core", "permissions", "not-in-venue.txt"])
+    }
+
     /// 读资源目录下的一份文件，路径一段一段地接上（三个平台一样）。
     fn read(&self, parts: &[&str]) -> Result<String, SourceError> {
         let path = parts

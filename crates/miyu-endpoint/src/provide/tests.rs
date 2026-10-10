@@ -35,6 +35,9 @@ fn access_and_venues_are_checked() {
             group: true
         }
     );
+    // 在场所里做的事（施工 O-31 前）：认 `venue`。
+    let Checked { spec, .. } = checked(tool("venue", json!(["group"]))).expect("合写法");
+    assert_eq!(spec.access, Access::Venue);
     assert_eq!(
         refused_for(tool("telepathy", json!(["local"]))),
         json!({"tool": "send_group", "problem": "access"})

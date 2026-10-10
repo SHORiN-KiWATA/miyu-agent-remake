@@ -27,12 +27,16 @@ text_enum!(
         Network = "network",
         /// 对外发消息。
         Outbound = "outbound",
+        /// 在通讯平台的场所里做的事（施工 O-31 前，`kernel/tools.md`）：撤回、禁言、戳一戳这些。只在场所会话里能用，
+        /// 权限策略放行、不问人；本机的会话里拒绝。谁能叫、能动谁由提供者照 `by`、`owner` 自己挡（`providers.md`）。
+        Venue = "venue",
     }
 );
 
 impl Access {
     /// 要不要写入：写文件的，和不认识的，按最严的算。只读时内核拦下的就是这些
-    /// （`02-内核.md` 第六节「权限级别怎么切」「确认怎么走」）。
+    /// （`02-内核.md` 第六节「权限级别怎么切」「确认怎么走」）。在场所里做的事（[`Access::Venue`]）不算：只读管的是这台机器，
+    /// 只读开着她照样能在群里回话，同理。
     pub fn writes(&self) -> bool {
         matches!(self, Access::Write | Access::Other(_))
     }

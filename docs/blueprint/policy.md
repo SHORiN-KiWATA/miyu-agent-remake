@@ -50,7 +50,7 @@
 | `peers` | 对象 | 别的会话发来的话怎么防刷屏（施工 C-2，`cross-session.md`「对外的样子」）：`burst` 同一个发话方一个窗口里最多几句、`window` 窗口多少秒、`unread` 没听到的最多几句，现在是 5、600、50（数是估的，待 C-7 实测）。排在 `title` 后面。以前造的快照里没有，读成没有、不写：照出厂的数，防刷屏不能因为会话旧就不管。施工 C-6 加两格，排在后面：`watch_hours` 订了多久没等到就作废（小时，出厂 12）、`status_chars` 通知那一行最多几个字（出厂 200）；C-2 时造的快照里没有这两格，读成没有、不写，照出厂的数 |
 | `memory` | 字符串 | 记忆的范围（施工 R-3 下，`memory.md`「范围」）：`persona`、`session`、`off`，造会话时定（`with_memory`），新造的都写明；排在 `peers` 后面、最后。以前造的快照里没有，读成没有、不写，照 `persona`；认不出的照 `off` |
 
-**`ToolEntry`**：`name`、`description`、`parameters`（参数的 JSON Schema，原样的 JSON）、`access`（`read`、`write`、`execute`、`network`、`outbound`，不认识的原样留着），照这个先后。
+**`ToolEntry`**：`name`、`description`、`parameters`（参数的 JSON Schema，原样的 JSON）、`access`（`read`、`write`、`execute`、`network`、`outbound`、`venue`（施工 O-31 前），不认识的原样留着），照这个先后。
 
 **`CoreTexts`**，每一格是 `resources/core/` 下一份文件的原文：
 

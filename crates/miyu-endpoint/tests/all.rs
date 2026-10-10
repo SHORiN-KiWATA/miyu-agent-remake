@@ -7,6 +7,7 @@ mod provide;
 mod provide_exit;
 mod provide_features;
 mod provide_later;
+mod provide_venue;
 mod support;
 
 mod answer;

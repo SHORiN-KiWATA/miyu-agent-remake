@@ -15,6 +15,7 @@ mod guard;
 mod guard_dirs;
 mod guard_grants;
 mod guard_thread;
+mod guard_venue;
 mod history;
 mod history_other;
 mod history_speed;

@@ -16,6 +16,8 @@ pub enum CreateError {
     Persona(SourceError),
     /// 随核心附带的字造不出策略：安装坏了。
     Policy(BuildError),
+    /// 随核心附带、不进快照的字读不出来（施工 O-31 前：拒绝在场所里做的事的那一句）：安装坏了。
+    Shipped(SourceError),
     /// 存不下快照、建不了会话目录和日志。
     Disk(io::Error),
     /// 造会话那一条没落盘，会话就停了。
@@ -35,6 +37,8 @@ pub enum LoadError {
     Snapshot(SnapshotError),
     /// 快照造不出策略。
     Policy(BuildError),
+    /// 随核心附带、不进快照的字读不出来（施工 O-31 前）：安装坏了。
+    Shipped(SourceError),
     /// 内核载入不了：日志过不了账本。
     Kernel(Broken),
 }
@@ -44,6 +48,7 @@ impl fmt::Display for CreateError {
         match self {
             CreateError::Persona(error) => write!(f, "persona not readable: {error}"),
             CreateError::Policy(error) => write!(f, "policy not built: {error}"),
+            CreateError::Shipped(error) => write!(f, "shipped text not readable: {error}"),
             CreateError::Disk(error) => write!(f, "session not created on disk: {error}"),
             CreateError::Stopped => write!(f, "session.created not stored; the session stopped"),
         }
@@ -60,6 +65,7 @@ impl fmt::Display for LoadError {
             LoadError::Blob(error) => write!(f, "policy snapshot not fetched: {error}"),
             LoadError::Snapshot(error) => write!(f, "policy snapshot not understood: {error}"),
             LoadError::Policy(error) => write!(f, "policy not built from the snapshot: {error}"),
+            LoadError::Shipped(error) => write!(f, "shipped text not readable: {error}"),
             LoadError::Kernel(error) => write!(f, "not loaded: {error}"),
         }
     }

@@ -643,6 +643,17 @@ The tool "{name}" did not answer within {seconds} seconds. It may have been part
 Can't tell where "{path}" points: {reason}.
 ```
 
+#### `core/permissions/not-in-venue.txt`
+
+- 什么时候加进来：权限策略拒绝：本机的会话调到在场所里做的事（访问类别 `venue`，施工 O-31 前，`session/guard.md` 第四条）；本机的会话的工具面本来没有这类工具，是兜底
+- token：20（2026-10-10 照开发端点量，接在 `hi` 和一个换行后面）
+- 为什么加：告诉她这件只在群聊、私聊里能用，别在这里再试；不进策略快照，本机的会话造、载入时读（同 `timed-out.txt`，进了以后以前造的会话换不了快照）
+- 指纹：`3ae63824`
+
+```text
+This tool only works in a group or private chat on a messaging platform, not in this session.
+```
+
 #### `software/basesystem/common/missing.txt`
 
 - 什么时候加进来：`read`、`glob`、`grep` 要的文件或目录不存在
