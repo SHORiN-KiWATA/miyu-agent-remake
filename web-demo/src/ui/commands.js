@@ -5,7 +5,7 @@
 //! `Menu` 定，这里只画、接键和鼠标。最多露 `layout.json` 的 `command_rows` 条，多的在里面滚，选中的滚进视野。
 //!
 //! 执行照清单里的 `run`，一种一个处理（`RUNS`）：加命令只登记（`resources/commands.json`），要新的一种才动这里。
-//! 命令不进正文、不发给她；核心拒绝的照原因码写一句短的（`text/zh.json` 的 `refusals`），查不到的写核心的原话，
+//! 命令不进正文、不发给 AI；核心拒绝的写核心给的那一句（核心 T-8 起照通用软件说法、照连接的语言，网页不另写一份），
 //! 都在提示那个小框里。
 
 import { h, replace } from './dom.js';
@@ -186,9 +186,9 @@ export async function runCommand(app, spec, words) {
   }
 }
 
-/** 核心拒绝的写一句短的：照原因码查 `refusals`，查不到的写核心的原话；别的错写它自己的话。 */
+/** 核心拒绝的写核心给的那一句（2026-10-10 起网页不再照原因码另写一份）；别的错写它自己的话。 */
 export function refusalText(err) {
-  return err instanceof Refusal ? res.text.refusals[err.reason ?? ''] ?? err.message : err.message;
+  return err.message;
 }
 
 /** @type {Record<string, (app: App, spec: Spec, words: string|null) => unknown>} */
@@ -220,7 +220,7 @@ const RUNS = {
   // 还没开的新会话当场说「上下文为空」，不去开会话
   clear: async (app) => {
     if (!app.current) {
-      app.composer.say(res.text.refusals.nothing_to_clear);
+      app.composer.say(t('commands.nothing_to_clear'));
       return;
     }
     await app.store.conn.request('command.run', { session: app.current, text: '/clear' });
@@ -240,7 +240,7 @@ const RUNS = {
   recap: async (app) => {
     const session = app.current;
     if (!session) {
-      app.composer.say(res.text.refusals.nothing_to_recap);
+      app.composer.say(t('commands.nothing_to_recap'));
       return;
     }
     app.composer.say(t('commands.recap_working'));
@@ -300,8 +300,8 @@ const RUNS = {
 
 /** `/redo`、`/edit` 能不能做：在回答时提示「回答进行中」，最新一轮不是你开的（或一轮都没有）提示「无法重做」。 */
 function latestTurn(app) {
-  if (app.composer.running) app.composer.say(res.text.refusals.turn_running);
-  else if (!app.chat.hasLatest()) app.composer.say(res.text.refusals.not_redoable);
+  if (app.composer.running) app.composer.say(t('commands.turn_running'));
+  else if (!app.chat.hasLatest()) app.composer.say(t('commands.not_redoable'));
   else return true;
   return false;
 }

@@ -6,7 +6,7 @@
     "ja": "mermaid 図"
   },
   "summary": {
-    "zh": "把回答里的 mermaid 代码画成图",
+    "zh": "将回答中的 mermaid 代码渲染为图表",
     "ja": "回答中の mermaid コードを図にする"
   },
   "kind": "optional",
@@ -49,10 +49,10 @@
   "text": {
     "zh": {
       "label": "图表",
-      "zoom": "点开看原图",
+      "zoom": "查看原图",
       "source": "源码",
       "diagram": "图表",
-      "drawing": "正在画图…",
+      "drawing": "正在绘制图表…",
       "copy": "复制源码"
     },
     "ja": {

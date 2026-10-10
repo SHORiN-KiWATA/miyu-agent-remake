@@ -6,7 +6,7 @@
     "ja": "バックグラウンドタスク"
   },
   "summary": {
-    "zh": "看、停后台命令和子代理",
+    "zh": "查看和停止后台命令、子代理",
     "ja": "バックグラウンドのコマンドとサブエージェントを確認・停止"
   },
   "kind": "optional",
@@ -52,8 +52,8 @@
   "text": {
     "zh": {
       "pill": "{count} 个后台任务",
-      "open": "看后台任务",
-      "stop": "停掉",
+      "open": "查看后台任务",
+      "stop": "停止",
       "states": {
         "running": "运行中 {elapsed}",
         "done": "完成 {elapsed}",
@@ -63,36 +63,36 @@
         "stopped": "已停止",
         "undone": "随撤销停止",
         "restarted": "因重启停止",
-        "aborted": "中断：核心退出过",
-        "paused": "等你说话",
+        "aborted": "中断：核心已退出",
+        "paused": "等待输入",
         "running_plain": "运行中"
       },
       "reasons": {
-        "unknown_job": "这个任务已经结束了",
-        "not_a_command": "这是子代理，点它进它的会话"
+        "unknown_job": "任务已结束",
+        "not_a_command": "这是子代理，请进入其会话"
       },
-      "enter": "进这个子代理的会话",
-      "stop_all": "全部停掉",
+      "enter": "进入子代理会话",
+      "stop_all": "全部停止",
       "title": "后台任务",
       "counts": {
-        "running": "{count} 个在跑",
-        "paused": "{count} 个等你说话",
+        "running": "{count} 个运行中",
+        "paused": "{count} 个等待输入",
         "done": "{count} 个已结束"
       },
       "sections": {
         "done": "已结束 {count} 个"
       },
-      "spawned": "派了 {count} 个",
-      "empty": "这个会话还没有后台任务",
+      "spawned": "已派出 {count} 个",
+      "empty": "本会话没有后台任务",
       "preview": {
-        "open": "看命令和输出",
+        "open": "查看命令和输出",
         "command": "命令",
         "output": "输出",
-        "loading": "读取中…",
-        "empty": "（还没有输出）",
-        "no_command": "（读不到命令）",
-        "no_api": "这个核心太旧，读不了输出（施工 7-4 补以后的核心才有）",
-        "tail": "共 {total} 行，这里是最后 {shown} 行"
+        "loading": "加载中…",
+        "empty": "（暂无输出）",
+        "no_command": "（无法读取命令）",
+        "no_api": "核心版本过旧，不支持读取输出",
+        "tail": "共 {total} 行，显示最后 {shown} 行"
       }
     },
     "ja": {

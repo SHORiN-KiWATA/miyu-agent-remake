@@ -6,7 +6,7 @@
     "ja": "添付ファイル"
   },
   "summary": {
-    "zh": "在输入框里放图片和文件：拖进来、粘贴",
+    "zh": "在输入框中添加图片和文件",
     "ja": "画像やファイルを入力欄に追加：ドラッグ・貼り付け"
   },
   "kind": "optional",
@@ -75,17 +75,17 @@
   "text": {
     "zh": {
       "attach": "添加附件",
-      "remove": "拿掉",
-      "uploading": "在传",
-      "too_big": "{name} 太大：一个最多 {mib} MiB",
-      "too_many": "一次最多 {max} 个",
-      "failed": "{name} 没传上：{reason}",
+      "remove": "移除",
+      "uploading": "上传中",
+      "too_big": "{name} 过大：单个最大 {mib} MiB",
+      "too_many": "单次最多 {max} 个",
+      "failed": "{name} 上传失败：{reason}",
       "reasons": {
-        "attachment_too_big": "太大了（最多 20 MiB，图片最多 5 MiB、每边 8000 像素）",
-        "attachment_unreadable": "读不了",
-        "attachment_in_data_root": "Miyu 的数据目录里的文件不能当附件",
-        "upload_unknown": "上传作废了：连接断过，或者停了太久",
-        "too_many_uploads": "同时在传的太多了"
+        "attachment_too_big": "文件过大（最大 20 MiB，图片最大 5 MiB、每边 8000 像素）",
+        "attachment_unreadable": "无法读取",
+        "attachment_in_data_root": "不能使用 Miyu 数据目录中的文件",
+        "upload_unknown": "上传已失效",
+        "too_many_uploads": "同时上传的文件过多"
       },
       "drop_here": "把文件拖到这里",
       "lines": "{count} 行"

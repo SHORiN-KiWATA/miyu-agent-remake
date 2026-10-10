@@ -29,15 +29,15 @@ test('模型那一页：一个模型一行，上面模型名、下面供应商�
     ['dev/cline-pass/deepseek-v4.1-flash', 'cline-pass/deepseek-v4.1-flash', 'dev', false, true, ''],
     ['dev/deepseek-v4-pro', 'deepseek-v4-pro', 'dev', true, true, ''],
     ['bigmodel/glm-5.3-flash', 'glm-5.3-flash', 'bigmodel', false, false, '冷却到 14:41'],
-    ['anthropic/claude-sonnet-5', 'claude-sonnet-5', 'anthropic', false, false, '没设 key'],
+    ['anthropic/claude-sonnet-5', 'claude-sonnet-5', 'anthropic', false, false, '未设置密钥'],
   ]);
 });
 
 test('模型池那一页：@名字，下面写分法和它的模型（照先后，只写模型名）；没配池的是空的', () => {
   const { pools } = menuOf(LIST, '@duo');
   assert.deepEqual(pools.map((r) => [r.ref, r.title, r.desc, r.current, r.usable]), [
-    ['@duo', '@duo', '出错换下一个 · glm-5.3-flash、cline-pass/deepseek-v4.1-flash', true, true],
-    ['@spread', '@spread', '轮流用 · deepseek-v4-pro', false, true],
+    ['@duo', '@duo', '出错时切换 · glm-5.3-flash、cline-pass/deepseek-v4.1-flash', true, true],
+    ['@spread', '@spread', '轮流使用 · deepseek-v4-pro', false, true],
   ]);
   assert.deepEqual(menuOf({ ...LIST, pools: [] }, null).pools, []);
 });
@@ -141,5 +141,5 @@ test('框下面那一截写显示名和供应商的显示名（重名的也写�
 
 test('模型池拿空了（核心 8-23 的 usable 是假）：暗着选不了，悬停写原因，下面一行只写怎么分', () => {
   const { pools } = menuOf({ ...LIST, pools: [{ name: 'gone', strategy: 'pin', models: [], usable: false }] }, null);
-  assert.deepEqual(pools.map((r) => [r.ref, r.desc, r.usable, r.why]), [['@gone', '出错换下一个', false, '池里没有能用的模型']]);
+  assert.deepEqual(pools.map((r) => [r.ref, r.desc, r.usable, r.why]), [['@gone', '出错时切换', false, '池中没有可用模型']]);
 });

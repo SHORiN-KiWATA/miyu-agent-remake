@@ -49,8 +49,8 @@ test('换掉框里的那个词：交回新的字和光标', () => {
 });
 
 test('问不到的写清楚为什么：桥太旧（核心回「没有这个方法」）说重新编、重启桥；别的照原话（2026-10-01）', () => {
-  assert.equal(failure({ code: -32601, message: 'Method not found' }), '核心太旧，列不了文件：换新的核心');
-  assert.equal(failure({ code: -32010, reason: 'path_forbidden', message: 'inside the data root' }), 'Miyu 自己的数据不列');
-  assert.equal(failure({ code: -32010, reason: 'path_unreadable', message: 'no such dir' }), '这个目录读不了');
+  assert.equal(failure({ code: -32601, message: 'Method not found' }), '核心版本过旧，不支持列出文件');
+  assert.equal(failure({ code: -32010, reason: 'path_forbidden', message: 'inside the data root' }), '不列出 Miyu 的数据目录');
+  assert.equal(failure({ code: -32010, reason: 'path_unreadable', message: 'no such dir' }), '无法读取该目录');
   assert.equal(failure(new Error('工作目录不在：/x')), '工作目录不在：/x');
 });

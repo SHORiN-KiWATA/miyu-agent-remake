@@ -6,8 +6,8 @@
     "ja": "ToDo"
   },
   "summary": {
-    "zh": "输入框上面列着她的待办",
-    "ja": "入力欄の上に彼女の ToDo を表示"
+    "zh": "在输入框上方显示 AI 的待办",
+    "ja": "入力欄の上に AI の ToDo を表示"
   },
   "kind": "optional",
   "description": {
@@ -53,9 +53,9 @@
   "text": {
     "zh": {
       "title": "待办 {done}/{total}",
-      "folded": "做完 {count} 项",
+      "folded": "已完成 {count} 项",
       "more": "… 还有 {count} 项",
-      "toggle": "点一下展开、收起"
+      "toggle": "点击展开或收起"
     },
     "ja": {
       "title": "ToDo {done}/{total}",

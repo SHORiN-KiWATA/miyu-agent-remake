@@ -6,7 +6,7 @@
     "ja": "実行状態行"
   },
   "summary": {
-    "zh": "回答时输入框上面那一行：在做什么、用了多久",
+    "zh": "回答时在输入框上方显示进度和用时",
     "ja": "回答中に入力欄の上に出る行：何をしているか・経過時間"
   },
   "kind": "optional",
@@ -151,8 +151,8 @@
       "retry": " · 重试 {attempt}/{limit}：{message}",
       "retry_wait": " · {wait} 后重试 {attempt}/{limit}：{message}",
       "retry_failover": " · 换端点重试 {attempt}/{limit}：{message}",
-      "waiting_ask": "等你回答",
-      "waiting_approve": "等你批准"
+      "waiting_ask": "等待回答",
+      "waiting_approve": "等待批准"
     },
     "ja": {
       "retry": " · 再試行 {attempt}/{limit}：{message}",

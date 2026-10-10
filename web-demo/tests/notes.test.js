@@ -50,7 +50,7 @@ test('后台命令的回报：完成带用时，失败带退出码或信号，�
     'error|●|后台命令失败 · 跑测试 · 退出码 101',
     'error|●|后台命令失败 · 跑测试 · 信号 9',
     'stopped|●|后台命令已停止 · 跑测试',
-    'stopped|●|后台命令中断：核心退出过 · j9',
+    'stopped|●|后台命令中断：核心已退出 · j9',
     'dim||后台命令 · 跑测试 · exploded',
   ]);
   const first = items.find((it) => it.type === 'note');
@@ -64,7 +64,7 @@ test('子代理的回报：交回报告的点开是正文，截过的记下；�
     ev(10, 31, 'child.reported', undefined, { job: 'j2', session: CHILD, reason: 'undone', text: '' }, { kind: 'session', id: CHILD }),
   ];
   const items = project(log).items;
-  assert.deepEqual(notes(items), ['good|●|子代理交回报告 · 查文档', 'stopped|●|子代理随撤销停止 · 查文档']);
+  assert.deepEqual(notes(items), ['good|●|子代理已提交报告 · 查文档', 'stopped|●|子代理随撤销停止 · 查文档']);
   assert.deepEqual(items.find((it) => it.type === 'note').detail, { kind: 'text', text: '文档在 docs/ 下', truncated: true });
 });
 
@@ -83,9 +83,9 @@ test('别的会话空下来了（peer.idle，C-6）：「会话 短编号 回复
   const items = project(log).items;
   assert.deepEqual(notes(items), [
     'good|●|会话 0000abcd 回复：构建修好了，测试全过',
-    'good|●|会话 0000abcd 回复了',
-    'stopped|●|会话 0000abcd 一直没空下来，不等了',
-    'stopped|●|会话 0000abcd 不在了，不等了',
+    'good|●|会话 0000abcd 已回复',
+    'stopped|●|会话 0000abcd 等待超时',
+    'stopped|●|会话 0000abcd 已不存在',
     'dim||会话 0000abcd · exploded',
   ]);
   const first = items.find((it) => it.type === 'note');
@@ -118,7 +118,7 @@ test('谁说的：你的、别的账号的、子代理发给她的（标题照�
     { kind: 'person', account: 'admin', name: 'admin' },
     { kind: 'person', account: 'alice', name: 'alice' },
     { kind: 'agent', account: null, name: '子代理 · 查文档' },
-    { kind: 'harness', account: null, name: 'claude-code · 别的 agent' },
+    { kind: 'harness', account: null, name: 'claude-code · 外部 agent' },
     { kind: 'external', account: null, name: '外部' },
   ]);
 });
@@ -163,13 +163,13 @@ test('自动压缩中途没压成：她那一轮中间也画「压缩失败」�
 });
 
 test('出错那一句：402、404 加人话；内核自己查出来的写分类，有原话的接后面；没原话的写分类', () => {
-  assert.equal(failureText({ class: 'other', message: 'no money', status: 402 }), '额度用完了：no money');
-  assert.equal(failureText({ class: 'other', message: 'model not found', status: 404 }), '找不到，检查端点地址和模型名：model not found');
-  assert.equal(failureText({ class: 'bad_stream', message: 'eof' }), '回复的流不对：eof');
-  assert.equal(failureText({ class: 'empty_reply', message: '' }), '回复是空的');
+  assert.equal(failureText({ class: 'other', message: 'no money', status: 402 }), '额度不足：no money');
+  assert.equal(failureText({ class: 'other', message: 'model not found', status: 404 }), '未找到，请检查端点地址和模型名：model not found');
+  assert.equal(failureText({ class: 'bad_stream', message: 'eof' }), '响应流异常：eof');
+  assert.equal(failureText({ class: 'empty_reply', message: '' }), '响应为空');
   assert.equal(failureText({ class: 'auth', message: '' }), '认证失败');
-  assert.equal(failureText({ class: 'no_model', message: 'models.chat is not set' }), '没配好模型：models.chat is not set', '没配好模型（8-6）是内核查出来的');
-  assert.equal(failureText({ class: 'cooling', message: 'all candidates cooling: dev/m key 1 rate_limited until 10:05' }), '候选全在冷却：all candidates cooling: dev/m key 1 rate_limited until 10:05', '候选全在冷却（8-9）没发出去，也是内核查出来的');
+  assert.equal(failureText({ class: 'no_model', message: 'models.chat is not set' }), '没有可用的模型：models.chat is not set', '没有可用的模型（8-6）是内核查出来的');
+  assert.equal(failureText({ class: 'cooling', message: 'all candidates cooling: dev/m key 1 rate_limited until 10:05' }), '模型都在冷却：all candidates cooling: dev/m key 1 rate_limited until 10:05', '模型都在冷却（8-9）没发出去，也是内核查出来的');
 });
 
 test('清空以后框下面那一行的上下文清零，下一次请求再照实际的写', () => {
@@ -187,7 +187,7 @@ test('出错换了模型（瞬时的 model.changed，8-9）：一行提示「换
   const changes = [{ after: 6, at: log[5].at, body: { ref: '@duo', endpoint: 'bigmodel', model: 'glm-5.3-flash', limits: { window: 200000 }, why: 'failover' } }];
   const items = project(withChanges(log, changes)).items;
   const note = items.find((it) => it.type === 'note');
-  assert.equal(`${note.tone}|${note.mark}|${note.text}`, 'stopped|●|换到 bigmodel/glm-5.3-flash：原来的出错了');
+  assert.equal(`${note.tone}|${note.mark}|${note.text}`, 'stopped|●|已切换到 bigmodel/glm-5.3-flash（原模型出错）');
   assert.equal(note.turn, null);
   // 排在 6 号后面、7 号（她的回答）前面
   const at = items.indexOf(note);
@@ -201,7 +201,7 @@ test('换了模型（session.policy_changed 带 model，8-10）：人换的不�
     ev(10, 41, 'session.policy_changed', 11, { model: 'dev/m', replaced: '@duo' }),
     ev(11, 42, 'session.policy_changed', undefined, { permission: { level: 'full', read_only: false } }, { kind: 'person', account: 'admin' }),
   ];
-  assert.deepEqual(notes(project(log).items), ['stopped|●|@duo 没了，换回 dev/m']);
+  assert.deepEqual(notes(project(log).items), ['stopped|●|@duo 不可用，已切换到 dev/m']);
 });
 
 test('框下面那一行的模型照会话接下来请求的那一个（subscribe 回应、model.changed 的 model）；轮换的池只有 ref，照最近一次请求', () => {
@@ -232,7 +232,7 @@ test('子会话里派它的会话发来的：写「派它的会话」；别的�
     ev(2, 0, 'message.user', undefined, { blocks: [{ type: 'text', text: '去查文档' }] }, { kind: 'session', id: PARENT }),
     ev(3, 1, 'message.user', undefined, { blocks: [{ type: 'text', text: '?' }] }, { kind: 'session', id: '0199a000-0000-7000-8000-00000000000f' }),
   ];
-  assert.deepEqual(project(log).items.filter((it) => it.type === 'user').map((u) => u.speaker.name), ['派它的会话', '从会话 0000000f 收到消息']);
+  assert.deepEqual(project(log).items.filter((it) => it.type === 'user').map((u) => u.speaker.name), ['父会话', '从会话 0000000f 收到消息']);
   assert.equal(project(log).items.filter((it) => it.type === 'user')[1].speaker.id, '0199a000-0000-7000-8000-00000000000f', '界面照编号找标题、打开');
 });
 

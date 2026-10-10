@@ -66,7 +66,7 @@ test('出错结束的一轮：红的一行；供应商的原话照写，429 这�
     { seq: 68, at: '2026-09-25T07:33:02.100Z', kind: 'turn.ended', turn: 65, by: { kind: 'kernel' }, body: { reason: 'error' } },
   );
   const done = project(log).items.at(-1);
-  assert.equal(done.text, '出错了：被限速了，或者额度不够，过一会儿再试：slow down');
+  assert.equal(done.text, '出错：请求受限，请稍后重试：slow down');
   assert.equal(done.tone, 'error');
 });
 
@@ -210,8 +210,8 @@ test('图片块带了名字的（核心 3-9 四补）照带着，灯箱的说明
 test('收尾那一行的别的原因：前面权限级别的图标，后面界面语言的字；不认识的照原样（2026-10-01）', () => {
   const ended = (reason) => project([...queuedLog(), ev(7, 5, 'turn.ended', 3, { reason })]).items.find((it) => it.type === 'done')?.text;
   assert.equal(ended('restarted'), '▣  已重启');
-  assert.equal(ended('aborted'), '▣  核心上次在这一轮崩了，没做完');
-  assert.equal(ended('step_limit'), '▣  请求次数到了上限，停了');
+  assert.equal(ended('aborted'), '▣  核心在本轮异常退出，未完成');
+  assert.equal(ended('step_limit'), '▣  已达请求次数上限');
   assert.equal(ended('mystery'), 'mystery');
 });
 

@@ -204,6 +204,10 @@
     "failed_with": "ファイルを読み込めませんでした：{reason}"
   },
   "commands": {
+    "nothing_to_clear": "コンテキストは空です。",
+    "nothing_to_recap": "振り返る内容がありません。",
+    "turn_running": "ターン実行中です。",
+    "not_redoable": "やり直せません。",
     "header": "コマンド · {count} 件",
     "unknown": "そのコマンドはありません",
     "not_open": "このセッションはまだ始まっていません",
@@ -256,26 +260,6 @@
       "path_unreadable": "このフォルダは読めません",
       "path_forbidden": "Miyu 自身のデータは一覧しません"
     }
-  },
-  "refusals": {
-    "nothing_to_revert": "取り消せるものがありません",
-    "nothing_to_unrevert": "復元できる取り消しがありません",
-    "nothing_to_compact": "コンテキストが少なすぎます",
-    "turn_running": "返信中です：先に中断するか、終わるまでお待ちください",
-    "unknown_turn": "取り消す対象のやり取りが見つかりません",
-    "restoring": "前回の取り消し・復元がまだ終わっていません、少々お待ちください",
-    "not_redoable": "やり直せません",
-    "not_running": "返信中ではありません",
-    "empty_message": "編集後に何も残りませんでした",
-    "unknown_attachment": "添付ファイルが見つかりません。もう一度アップロードしてください",
-    "attachment_too_big": "添付ファイルが大きすぎます（最大 20 MiB、画像は最大 5 MiB・各辺 8000 ピクセルまで）",
-    "attachment_unreadable": "添付ファイルを読み込めません",
-    "attachment_in_data_root": "Miyu のデータディレクトリにあるファイルは添付できません",
-    "session_not_found": "このセッションはもう存在しません",
-    "nothing_to_clear": "コンテキストは空です",
-    "nothing_to_recap": "まだ振り返る内容がありません",
-    "recap_failed": "振り返りを書けませんでした。もう一度どうぞ",
-    "unknown_model": "設定にそのモデル・プールがありません"
   },
   "said": {
     "copy": "コピー",

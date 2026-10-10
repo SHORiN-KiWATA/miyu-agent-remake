@@ -83,7 +83,7 @@ test('还在写参数：照种类写「准备执行」「准备编辑」「准�
   const r = row(tool('shell', null, { state: 'preparing', parsed: null, start: ms(2) }), HOME);
   assert.deepEqual([r.icon, r.name, r.timer], ['loader-circle', '准备执行', { since: ms(2), format: 'tenths' }]);
   assert.equal(row(tool('write', null, { state: 'preparing', parsed: null }), HOME).name, '准备编辑');
-  assert.equal(row(tool('read', null, { state: 'preparing', parsed: null }), HOME).name, '准备工具');
+  assert.equal(row(tool('read', null, { state: 'preparing', parsed: null }), HOME).name, '准备调用工具');
 });
 
 test('思考收着时的那一小段：最后 160 个字，空白压成一个空格，截了的打头写 …、不留半个英文词；在想时的窗口是最后 10 行', () => {

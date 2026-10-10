@@ -6,7 +6,7 @@
     "ja": "確認と質問"
   },
   "summary": {
-    "zh": "她要你批准或回答问题时，在输入框里让你选",
+    "zh": "在输入框中批准操作、回答提问",
     "ja": "承認や質問への回答を入力欄で選べるようにする"
   },
   "kind": "optional",
@@ -51,28 +51,28 @@
   ],
   "text": {
     "zh": {
-      "asking": "{who} 在问",
+      "asking": "{who} 提问",
       "review_tab": "确认",
       "other": "输入其他答案",
       "custom": "自定义：{text}",
       "notes_label": "补充",
-      "notes_add": "补充一句",
+      "notes_add": "添加补充",
       "decision": {
-        "once": "允许这一次",
-        "session": "这个会话都允许",
-        "workspace": "这个工作区都允许",
+        "once": "允许本次",
+        "session": "本会话内允许",
+        "workspace": "本工作区内允许",
         "deny": "不允许"
       },
-      "reason_hint": "写上理由（可以不写）",
-      "edit_hint": "打字，Enter 保存",
+      "reason_hint": "理由（可选）",
+      "edit_hint": "输入内容，Enter 保存",
       "access": {
-        "write": "要写 {count} 个文件",
-        "read": "要读 {count} 个文件",
-        "exec": "要运行 {tool}"
+        "write": "写入 {count} 个文件",
+        "read": "读取 {count} 个文件",
+        "exec": "运行 {tool}"
       },
-      "access_other": "要用 {tool}",
+      "access_other": "使用 {tool}",
       "outside": "工作区外",
-      "exec_untitled": "要运行一条命令",
+      "exec_untitled": "运行命令",
       "outside_sandbox": "沙盒外运行",
       "unanswered": "未回答",
       "keys": "↑↓ 选择 · Enter 提交 · N 补充 · Esc ×2 取消",
