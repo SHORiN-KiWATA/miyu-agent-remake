@@ -4,7 +4,7 @@
 //! （`look.js`）共用 `shell`。
 
 import { h, icon, replace } from '../../src/lib/dom.js';
-import { noteOf, envRef, inputText, layerFor, writtenIn, secretName } from './model.js';
+import { noteOf, envRef, inputText, layerFor, writtenIn, secretName, referenceOptions } from './model.js';
 
 /**
  * 一组：组名，下面一行行。
@@ -126,6 +126,12 @@ function control(dialog, item, value, save, saveSecret) {
   }
   if (item.control === 'list') return list(dialog, item, Array.isArray(value) ? value : [], (next) => save({ value: next }));
   const env = envRef(value);
+  if (item.type === 'reference' && !env) {
+    // 选模型的：下拉，第一项「不指定」（照核心的默认，写在说明里）；列表里没有的现值照原样留一项
+    const options = [{ value: null, name: ctx.text('ref_unset') }, ...referenceOptions(dialog.models)];
+    if (value != null && !options.some((o) => o.value === value)) options.push({ value, name: inputText(value) });
+    return select(dialog, options, value ?? null, (v) => save(v === null ? { unset: true } : { value: v }));
+  }
   if (item.type === 'secret' && saveSecret) {
     // 密钥：密码框，空着是不改（设了的占位写「已设置」），粘贴了 `Enter`、离开时存
     const field = /** @type {HTMLInputElement} */ (h('input.set-input.is-text', { type: 'password', autocomplete: 'off', spellcheck: 'false',
@@ -222,11 +228,24 @@ export function select(dialog, options, value, pick) {
 /** 在 `anchor` 下面开一个菜单；点外面、`Esc`、选了一项关上。 */
 export function menu(dialog, anchor, options, value, pick) {
   dialog.panel.querySelector('.set-menu')?.dispatchEvent(new CustomEvent('set-dismiss'));
-  const el = h('div.set-menu', { role: 'listbox' }, options.map((o) => h(`button.set-menu-item${JSON.stringify(o.value) === JSON.stringify(value) ? '.is-on' : ''}`, {
+  const items = options.map((o) => h(`button.set-menu-item${JSON.stringify(o.value) === JSON.stringify(value) ? '.is-on' : ''}`, {
     type: 'button',
     role: 'option',
     onclick: () => { close(); if (JSON.stringify(o.value) !== JSON.stringify(value)) pick(o.value); },
-  }, h('span', o.name), o.note ? h('em', o.note) : null, JSON.stringify(o.value) === JSON.stringify(value) ? icon('check') : null)));
+  }, h('span', o.name), o.note ? h('em', o.note) : null, JSON.stringify(o.value) === JSON.stringify(value) ? icon('check') : null));
+  // 选项多的（选模型的那种，上百个）顶上一个搜索框：照名字、暗字找，不分大小写；回车选第一个对得上的
+  const many = options.length > (dialog.ctx.config.menu_search_after ?? Infinity);
+  const find = many ? /** @type {HTMLInputElement} */ (h('input.set-input.set-menu-search', { type: 'search', placeholder: dialog.ctx.text('menu_search'), spellcheck: 'false', autocomplete: 'off' })) : null;
+  find?.addEventListener('input', () => {
+    const q = find.value.trim().toLowerCase();
+    for (const item of items) item.hidden = !!q && !item.textContent.toLowerCase().includes(q);
+  });
+  find?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    items.find((item) => !item.hidden)?.click();
+  });
+  const el = h('div.set-menu', { role: 'listbox' }, find, items);
   const outside = (e) => { if (!el.contains(e.target) && e.target !== anchor && !anchor.contains(e.target)) close(); };
   const close = () => {
     document.removeEventListener('pointerdown', outside, true);
@@ -242,6 +261,7 @@ export function menu(dialog, anchor, options, value, pick) {
   // 下面放不下往上开
   if (el.getBoundingClientRect().bottom > box.bottom - 8) el.style.top = `${(at.top - box.top) / scale - el.offsetHeight - 4}px`;
   document.addEventListener('pointerdown', outside, true);
+  find?.focus();
   return el;
 }
 

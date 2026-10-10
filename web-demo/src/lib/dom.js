@@ -10,6 +10,9 @@ export function useIcons(table) {
   icons = table;
 }
 
+/** 图标表里有没有这个名字（软件包、预设自己写的图标名，认不出的画通用的）。 @param {string} name */
+export const hasIcon = (name) => Object.hasOwn(icons, name);
+
 const SVG = 'http://www.w3.org/2000/svg';
 
 /**

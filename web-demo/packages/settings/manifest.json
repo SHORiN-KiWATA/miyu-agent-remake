@@ -36,6 +36,16 @@
         "zh": "框最高多少（px）"
       }
     },
+    "menu_search_after": {
+      "type": "number",
+      "default": 12,
+      "min": 1,
+      "integer": true,
+      "name": {
+        "zh": "下拉的选项多于这么多，顶上多一个搜索框"
+      },
+      "advanced": true
+    },
     "narrow": {
       "type": "number",
       "default": 640,
@@ -74,8 +84,7 @@
       "type": "map",
       "of": "text",
       "default": {
-        "interface": "general",
-        "connections": "packages"
+        "interface": "general"
       },
       "name": {
         "zh": "项少的核心页并进哪一页（页 → 页）"
@@ -185,6 +194,8 @@
       "secret_paste_keep": "已设置；要换就粘贴新的",
       "add": "添加",
       "enabled": "启用",
+      "ref_unset": "不指定",
+      "menu_search": "搜索",
       "advanced": "高级（{count}）",
       "theme": "主题",
       "follow_system": "跟随系统",
@@ -269,8 +280,29 @@
         "driver_guess": "没认出来，先这样用"
       },
       "changed": "已改",
-      "packages_core": "核心",
-      "packages_web": "网页"
+      "packages_web": "网页",
+      "pkg": {
+        "part": {
+          "connection": "接入",
+          "ui": "界面",
+          "feature": "功能"
+        },
+        "status": {
+          "running": "运行中",
+          "starting": "启动中",
+          "stopped": "已停止",
+          "off": "已停用",
+          "ready": "已启用",
+          "program_missing": "程序未安装"
+        },
+        "required": "必需",
+        "version": "版本 {version}",
+        "features": "功能",
+        "settings": "设置",
+        "uninstall": "卸载",
+        "uninstall_again": "再点一次卸载",
+        "gone": "软件包不存在"
+      }
     },
     "ja": {
       "title": "設定",
@@ -334,6 +366,8 @@
       "secret_paste_keep": "設定済み。変えるなら新しいものを貼り付け",
       "add": "追加",
       "enabled": "有効",
+      "ref_unset": "指定しない",
+      "menu_search": "検索",
       "advanced": "詳細（{count}）",
       "theme": "テーマ",
       "follow_system": "システムに合わせる",
@@ -418,8 +452,29 @@
         "driver_guess": "判別できず、仮にこれを使用"
       },
       "changed": "変更済み",
-      "packages_core": "コア",
-      "packages_web": "ウェブ"
+      "packages_web": "ウェブ",
+      "pkg": {
+        "part": {
+          "connection": "接続",
+          "ui": "画面",
+          "feature": "機能"
+        },
+        "status": {
+          "running": "実行中",
+          "starting": "起動中",
+          "stopped": "停止",
+          "off": "無効",
+          "ready": "有効",
+          "program_missing": "プログラム未インストール"
+        },
+        "required": "必須",
+        "version": "バージョン {version}",
+        "features": "機能",
+        "settings": "設定",
+        "uninstall": "アンインストール",
+        "uninstall_again": "もう一度押してアンインストール",
+        "gone": "パッケージがありません"
+      }
     }
   },
   "styles": [

@@ -256,6 +256,26 @@ export function filterModels(rows, query) {
 }
 
 /** 供应商的显示名（核心 8-21：`name.value`，已经照配置、目录、编号退好；旧核心是字或没有）。 @param {{id: string, name?: any}} p */
+/**
+ * 选模型的项（`type: reference`，例如整理记忆的模型）下拉里列什么：模型（显示名，有好几家的后面暗字写哪一家）、能用的模型池（`@名字`）。
+ * 能选的不做成手写（2026-10-09 项目主人：手写「供应商/模型」人不知道写什么）。
+ * @param {any} list `model.list` 的回应（还没读到是 `null`）
+ * @returns {{value: string, name: string, note?: string}[]}
+ */
+export function referenceOptions(list) {
+  const providers = list?.providers ?? [];
+  const many = providers.length > 1;
+  const rows = providers.flatMap((p) => (p.models ?? []).filter((m) => m.ref).map((m) => ({ p, m, name: m.facts?.name?.value ?? m.model })));
+  // 显示名重了的（同一个模型从好几条线路接进来）后面再写模型名，分得开
+  const dup = duplicates(rows.map((r) => r.name));
+  const models = rows.map(({ p, m, name }) => {
+    const note = [many ? providerName(p) : null, dup.has(name) && m.model !== name ? m.model : null].filter(Boolean).join(' · ');
+    return { value: m.ref, name, ...(note ? { note } : {}) };
+  });
+  const pools = (list?.pools ?? []).filter((x) => x.usable !== false).map((x) => ({ value: `@${x.name}`, name: `@${x.name}` }));
+  return [...models, ...pools];
+}
+
 export const providerName = (p) => (typeof p.name === 'object' ? p.name?.value : p.name) || p.id;
 
 /** 网页包的设置项里有控件能改的类型；结构复杂的（`json`、`map`、`list`）在设置页改不了，不列（蓝图「设置页」第 11 条）。 */

@@ -11,7 +11,7 @@ import { drawPackages } from './packages.js';
 import { drawModels } from './models.js';
 import { sectionKit } from './kit.js';
 import { Extensions } from './extensions.js';
-import { drawCorePackages } from './core-packages.js';
+import { drawCorePackages, followExtension } from './core-packages.js';
 import { Subpage, swap } from './subpage.js';
 
 /** 上次看的那一页：这个终端记着（蓝图第 3 条），刷新就忘 */
@@ -110,7 +110,8 @@ export class SettingsDialog {
       // 读不到的留着上一次的；第一次就读不到的，模型页写读不到
     } finally {
       this.modelsLoading = false;
-      if (this.isOpen && this.current === 'models' && !this.query && !this.editing()) this.drawBody();
+      // 模型页、选模型的项（下拉的选项照模型列表）都要：读完了没在改字的重画
+      if (this.isOpen && !this.query && !this.editing()) this.drawBody();
     }
   }
 
@@ -197,11 +198,11 @@ export class SettingsDialog {
     let kids;
     if (this.current === 'models') kids = drawModels(this);
     else if (this.current === 'packages') {
-      // 上面一段核心的软件包：一个包一行、点开看它的设置（扩展另有运行、权限两行，`core-packages.js`）；下面一段网页自己的组件
-      const core = drawCorePackages(this, page).filter(Boolean);
+      // 上面核心的软件包，按接入、界面、功能分段：一个包一行、点进去是它的信息页（`core-packages.js`）；下面一段网页自己的组件
+      const core = drawCorePackages(this, page);
       kids = [
         ...(page?.problems ?? []).map((p) => banner(p)),
-        core.length ? h('section.set-part', h('h2.set-part-name', this.ctx.text('packages_core')), core) : null,
+        ...core,
         h('section.set-part', core.length ? h('h2.set-part-name', this.ctx.text('packages_web')) : null, drawPackages(this)),
       ];
     }
@@ -290,7 +291,11 @@ export class SettingsDialog {
   /** 别处改了配置（别的终端、命令行、手改文件）：重读重画；扩展的状态变了只重画那一组。 */
   onPush(method, params) {
     if (!this.isOpen) return;
-    if (this.extensions.push(method, params)) return;
+    if (this.extensions.push(method, params)) {
+      // 扩展开了、停了：软件包列表那一行的状态、开关跟着换
+      if (method === 'extension.changed' && followExtension(this, params.entry) && this.current === 'packages' && !this.editing()) this.drawBody();
+      return;
+    }
     if (method !== 'config.changed') return;
     clearTimeout(this.pushTimer);
     this.pushTimer = setTimeout(() => this.reload().catch(() => {}), 80);

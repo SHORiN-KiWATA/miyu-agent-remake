@@ -201,3 +201,38 @@ test('扩展「运行」那一行：关着的只写关着（不管上一次为�
   assert.equal(stateText(t, { package: 'x', name: 'x', on: true, state: 'stopped', reason: 'weird' }), '<ext.state.stopped>');
   assert.equal(stateText(t, { package: 'x', name: 'x', on: true, state: 'waiting', retry_in: 2500, failures: 2 }), '<ext.state.waiting{"seconds":3,"failures":2}>');
 });
+
+test('扩展的状态推过来：软件包列表那一项的状态、开关跟着换；关着的算 off、waiting 算 starting；程序不在的不动', async () => {
+  const { followExtension } = await import('../../packages/settings/core-packages.js');
+  const dialog = { packages: [
+    { package: 'onebot', kind: 'process', status: 'off', enabled: false },
+    { package: 'gone', kind: 'process', status: 'program_missing', enabled: false },
+  ] };
+  assert.equal(followExtension(dialog, { package: 'onebot', on: true, state: 'waiting' }), true);
+  assert.deepEqual([dialog.packages[0].status, dialog.packages[0].enabled], ['starting', true]);
+  assert.equal(followExtension(dialog, { package: 'onebot', on: true, state: 'starting' }), false, '一样的不换');
+  assert.equal(followExtension(dialog, { package: 'onebot', on: true, state: 'running' }), true);
+  assert.equal(dialog.packages[0].status, 'running');
+  assert.equal(followExtension(dialog, { package: 'onebot', on: false, state: 'stopped' }), true);
+  assert.deepEqual([dialog.packages[0].status, dialog.packages[0].enabled], ['off', false]);
+  assert.equal(followExtension(dialog, { package: 'gone', on: true, state: 'running' }), false);
+  assert.equal(followExtension(dialog, { package: 'nope', on: true, state: 'running' }), false);
+});
+
+test('选模型的项的下拉：模型照显示名，有好几家的写是哪一家；能用的模型池写 @名字，用不了的不列；没有 ref 的不列', async () => {
+  const { referenceOptions } = await import('../../packages/settings/model.js');
+  const list = {
+    providers: [
+      { id: 'a', name: 'DeepSeek', models: [{ ref: 'a/flash', model: 'flash', facts: { name: { value: 'Flash' } } }, { model: 'broken' }] },
+      { id: 'b', name: { value: 'Other' }, models: [{ ref: 'b/x', model: 'x' }] },
+    ],
+    pools: [{ name: 'fast', usable: true }, { name: 'empty', usable: false }],
+  };
+  assert.deepEqual(referenceOptions(list), [
+    { value: 'a/flash', name: 'Flash', note: 'DeepSeek' },
+    { value: 'b/x', name: 'x', note: 'Other' },
+    { value: '@fast', name: '@fast' },
+  ]);
+  assert.deepEqual(referenceOptions({ providers: [{ id: 'a', models: [{ ref: 'a/m', model: 'm' }] }] }), [{ value: 'a/m', name: 'm' }], '只有一家的不写是哪一家');
+  assert.deepEqual(referenceOptions(null), []);
+});

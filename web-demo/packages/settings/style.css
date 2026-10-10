@@ -116,11 +116,13 @@
 /* 菜单（照「菜单」的浮层：半透明、毛玻璃） */
 .set-menu {
   position: absolute; z-index: 5; min-width: 160px; max-height: 280px; padding: 4px; overflow-y: auto;
-  border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--surface-1) 88%, transparent);
+  border-radius: 10px; background: color-mix(in srgb, var(--surface-1) 88%, transparent);
   -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); box-shadow: var(--float-shadow); animation: menu-grow var(--motion-in) var(--ease-out) both;
 }
 .set-menu-item { display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text); font: 13px var(--sans); text-align: left; cursor: pointer; }
 .set-menu-item span { flex: 1; }
+/* 选项多的下拉顶上的搜索框：贴着菜单顶，滚动时不跟着走 */
+.set-menu-search { position: sticky; top: -4px; z-index: 1; width: 100%; margin: -4px 0 4px; height: 30px; box-shadow: 0 4px 6px -6px var(--line); }
 .set-menu-item em { color: var(--text-faint); font-size: 12px; font-style: normal; }
 .set-menu-item:hover { background: var(--surface-2); }
 .set-toast { position: absolute; bottom: 16px; left: 50%; z-index: 6; padding: 7px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-1); box-shadow: var(--float-shadow); font-size: 12.5px; transform: translateX(-50%); animation: rise-in var(--motion-in) var(--ease-out) both; }
@@ -219,6 +221,16 @@
 .set-pkg.is-expandable:hover .set-name { color: var(--text); }
 .set-pkg-arrow { display: inline-grid; flex: none; width: 16px; place-items: center; color: var(--text-faint); }
 .set-pkg.is-expandable:hover .set-pkg-arrow { color: var(--text-soft); }
+/* 核心软件包的一行（core-packages.js）：左边图标，右边状态（只写要留意的）、开关、箭头 */
+.set-pkg-face { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--surface-2); color: var(--text-soft); }
+.set-pkg-face .icon { width: 17px; height: 17px; }
+.set-pkg-status { flex: none; display: inline-flex; align-items: center; gap: 6px; color: var(--text-faint); font-size: 12px; }
+.set-pkg-status.is-on::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--online); }
+.set-pkg-status.is-bad { color: var(--danger); }
+/* 信息页：状态和版本那一行、最下面的卸载 */
+.set-pkg-line { margin: 0 0 6px; color: var(--text-faint); font-size: 12.5px; }
+.set-pkg-line.is-bad { color: var(--danger); }
+.set-pkg-foot { margin-top: 18px; }
 /* 点进去的那一层顶上那一句说明 */
 .set-sub-desc { margin: 0 0 6px; color: var(--text-soft); font-size: 13px; }
 
