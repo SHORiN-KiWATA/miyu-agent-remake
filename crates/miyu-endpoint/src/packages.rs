@@ -19,6 +19,7 @@ use crate::Core;
 
 pub(crate) mod local;
 pub(crate) mod manage;
+pub(crate) mod methods;
 pub(crate) mod status;
 pub(crate) mod switch;
 use crate::config::methods::words;
