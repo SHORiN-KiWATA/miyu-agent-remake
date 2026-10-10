@@ -20,7 +20,7 @@ export function apply(ctx) {
   const t = (key, fields) => ctx.text(key, fields);
   const chat = ctx.chat;
   /** 有哪些人格、预设，默认是哪个；读不到（旧核心）的那一样的按钮不出 */
-  const catalog = new Catalog(ctx.core);
+  const catalog = new Catalog(ctx.core, () => ctx.icons.more());
 
   const menu = new Menu();
   const personaBtn = h('button.setup-btn', { type: 'button', onclick: () => openPersonas() });
@@ -50,7 +50,8 @@ export function apply(ctx) {
   };
 
   /**
-   * 会话用的人格画成什么样（对话区她那一轮的头、输入框的占位字，经 `chat.look`）：名字照人格列表，头像等核心给（现在没有，画名字的第一个字）。
+   * 会话用的人格画成什么样（对话区她那一轮的头、输入框的占位字，经 `chat.look`）：名字照人格列表，头像照 `persona.avatar`（核心 P-5，缓存在
+   * `catalog.avatars`，读到以前画名字的第一个字）。
    * 人格列表还没读到的交 `undefined`（照旧不动）；无人格、人格已经删了的交 `null`：不画头像和名字（2026-10-10 项目主人）。空会话照选的、默认的算。
    * @param {string|null} session
    */
@@ -58,9 +59,11 @@ export function apply(ctx) {
     if (!catalog.personas) return undefined;
     const id = session ? chat.persona(session) : inUse().persona;
     const p = id ? catalog.personas.find((x) => x.persona === id) : null;
-    return p ? { name: personaName(p), avatar: p.avatar ?? null } : null;
+    return p ? { name: personaName(p), avatar: catalog.avatars.url(p.persona, p.avatar) } : null;
   };
   chat.look(lookOf);
+  // 头像读到了：她那一轮的头换成图
+  catalog.listeners.add(() => chat.refreshLook());
 
   /** 读人格、预设的列表和默认的（进空会话时读一次，读完重画）。 */
   const load = async () => {

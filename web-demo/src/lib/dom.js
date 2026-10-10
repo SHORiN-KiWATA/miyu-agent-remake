@@ -10,6 +10,14 @@ export function useIcons(table) {
   icons = table;
 }
 
+/** 并进整套图标（`resources/lucide-all.json`，软件包、预设自己写的图标名要的）：原来那几个照旧。 */
+export function addIcons(table) {
+  icons = { ...table, ...icons };
+}
+
+/** 图标表里所有的名字（选预设图标时搜）。 */
+export const iconNames = () => Object.keys(icons);
+
 /** 图标表里有没有这个名字（软件包、预设自己写的图标名，认不出的画通用的）。 @param {string} name */
 export const hasIcon = (name) => Object.hasOwn(icons, name);
 

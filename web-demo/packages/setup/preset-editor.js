@@ -3,9 +3,10 @@
 //! 一个功能一个开关，有几件工具的把工具平铺在下面、一件一个开关——2026-10-09 项目主人：「每一个工具都是一个功能，直接平铺，用组名做分隔线」，
 //! 和终端对齐；2026-10-08 项目主人：预设不要说明，
 //! 「没什么意义」；不带默认人格，人格、预设互不引用）。都是点了当场存（`preset.set` 只带改的那一项，不带 `expect`）：名字回车、离开时存，开关点了就存；功能、工具照核心给的
-//! 名字（照连接的语言），没装的写「没安装」。删除照核心的 `remove`，同人格。
+//! 名字（照连接的语言），没装的写「没安装」。图标（核心 P-5，`preset.icon`，Lucide 的名字）：点开一排先列设置项 `preset_icons` 那些，能搜整套，
+//! 「不用图标」删掉这一层写的；选了当场存。删除照核心的 `remove`，同人格。
 
-import { h, replace } from '../../src/lib/dom.js';
+import { h, icon, replace, hasIcon, iconNames } from '../../src/lib/dom.js';
 import { field, twoClick } from './form.js';
 import { refusalText } from './persona-editor.js';
 
@@ -25,6 +26,8 @@ export class PresetEditor {
     this.t = (/** @type {string} */ key, /** @type {any} */ fields) => ctx.text(key, fields);
     this.title = h('span', look.name ?? id);
     this.body = h('div.setup-editor', h('p.setup-empty', this.t('page.loading')));
+    /** 选图标的那一排开着 */
+    this.picking = false;
   }
 
   async load() {
@@ -57,6 +60,7 @@ export class PresetEditor {
     const remove = got.remove ? twoClick(this.kit, t(`edit.${got.remove}`), t(`edit.${got.remove}_again`), () => this.drop()) : null;
     replace(this.body,
       field(t('edit.name'), name),
+      field(t('edit.icon'), this.iconRow(got, label)),
       field(t('edit.features'), list.length ? features : h('p.setup-empty', t('edit.no_features'))),
       this.note,
       remove ? h('div.setup-foot', remove) : null);
@@ -78,6 +82,37 @@ export class PresetEditor {
       if (!f.on) toggle.setAttribute('disabled', '');
       return h('div.setup-tool', h('span', tool.label ?? tool.name), toggle);
     }))];
+  }
+
+  /**
+   * 图标那一格：现在的图标（没写的、认不出的画名字的第一个字），点了展开选的那一排：搜索框、「不用图标」、一个个图标（搜的时候照名字找整套，
+   * 最多列设置项 `preset_icons` 那么多个）。
+   * @param {any} got @param {string} label
+   */
+  iconRow(got, label) {
+    const t = this.t;
+    const now = typeof got.icon === 'string' ? got.icon : null;
+    const face = now && hasIcon(now) ? icon(now) : h('span', [...label][0] ?? '');
+    const toggle = h(`button.setup-icon-now${this.picking ? '.is-open' : ''}`, { type: 'button', title: t('edit.icon'), 'aria-expanded': String(this.picking),
+      onclick: () => { this.picking = !this.picking; this.draw(got); } }, face, icon('chevron-down'));
+    if (!this.picking) return toggle;
+    const shown = /** @type {string[]} */ (this.ctx.config.preset_icons ?? []).filter((n) => hasIcon(n));
+    const grid = h('div.setup-icon-grid');
+    const pick = (/** @type {string|null} */ name) => {
+      this.picking = false;
+      this.set([name ? { key: 'preset.icon', value: name } : { key: 'preset.icon', unset: true }]);
+    };
+    const fill = (/** @type {string[]} */ names) => replace(grid,
+      names.length ? names.map((n) => h(`button.setup-icon${n === now ? '.is-on' : ''}`, { type: 'button', title: n, 'aria-label': n, onclick: () => pick(n) }, icon(n)))
+        : h('p.setup-empty', t('edit.icon_empty')));
+    const find = /** @type {HTMLInputElement} */ (this.kit.field('', t('edit.icon_search')));
+    find.addEventListener('input', () => {
+      const q = find.value.trim().toLowerCase();
+      fill(q ? iconNames().filter((n) => n.includes(q)).slice(0, Math.max(shown.length, 1)) : shown);
+    });
+    fill(shown);
+    return h('div.setup-icon-pick', toggle,
+      h('div.setup-icon-panel', h('div.setup-icon-tools', find, h('button.setup-icon-none', { type: 'button', onclick: () => pick(null) }, t('edit.icon_none'))), grid));
   }
 
   /** 改一项：成了照回应重画（回应同 `preset.get`），拒了写原因；交回存没存成（开关照它拨回去）。 @param {any[]} changes */

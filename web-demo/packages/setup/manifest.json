@@ -15,6 +15,7 @@
   },
   "inject": [
     "slots",
+    "icons",
     "chat",
     "composer",
     "core",
@@ -23,6 +24,108 @@
     "host",
     "sessions"
   ],
+  "settings": {
+    "avatar_side": {
+      "type": "number",
+      "default": 512,
+      "min": 64,
+      "max": 1024,
+      "integer": true,
+      "name": {
+        "zh": "换头像时图的长边最多多少像素，大的先缩小（核心收 1024 以内）",
+        "ja": "アバターを変えるとき画像の長辺の最大ピクセル（大きいものは縮小。コアの上限は 1024）"
+      }
+    },
+    "avatar_chunk_bytes": {
+      "type": "number",
+      "default": 262144,
+      "min": 1024,
+      "max": 524288,
+      "integer": true,
+      "name": {
+        "zh": "传头像时一块多少字节（核心收的上限 512 KiB）",
+        "ja": "アバターを送るときの 1 ブロックのバイト数（コアの上限 512 KiB）"
+      }
+    },
+    "avatar_tries": {
+      "type": "number",
+      "default": 3,
+      "min": 1,
+      "integer": true,
+      "name": {
+        "zh": "传头像接不上时，连着几次没往前走就算传不上",
+        "ja": "アバターの送信が続かないとき、何回連続で進まなければ失敗とみなすか"
+      }
+    },
+    "preset_icons": {
+      "type": "list",
+      "of": "text",
+      "default": [
+        "box",
+        "boxes",
+        "package",
+        "layers",
+        "wrench",
+        "hammer",
+        "code-xml",
+        "square-terminal",
+        "bot",
+        "brain",
+        "sparkles",
+        "zap",
+        "rocket",
+        "shield",
+        "lock",
+        "eye",
+        "book-open",
+        "pencil",
+        "pen-tool",
+        "palette",
+        "music",
+        "gamepad-2",
+        "heart",
+        "star",
+        "sun",
+        "moon",
+        "coffee",
+        "briefcase",
+        "graduation-cap",
+        "flask-conical",
+        "globe",
+        "message-circle",
+        "users",
+        "user-round",
+        "house",
+        "folder",
+        "file-text",
+        "search",
+        "settings",
+        "cpu",
+        "database",
+        "cloud",
+        "leaf",
+        "flame",
+        "feather",
+        "gem",
+        "crown",
+        "anchor",
+        "compass",
+        "map",
+        "camera",
+        "image",
+        "film",
+        "headphones",
+        "mic",
+        "calendar",
+        "clock"
+      ],
+      "name": {
+        "zh": "预设的图标先列哪些（Lucide 的名字；别的照搜索找）",
+        "ja": "プリセットのアイコンで先に並べるもの（Lucide の名前。ほかは検索で）"
+      },
+      "advanced": true
+    }
+  },
   "styles": [
     "style.css"
   ],
@@ -53,6 +156,13 @@
         "problem_file": "{file}：{message}"
       },
       "edit": {
+        "avatar": "头像",
+        "avatar_change": "更换头像",
+        "avatar_remove": "移除头像",
+        "icon": "图标",
+        "icon_none": "不用图标",
+        "icon_search": "搜索图标",
+        "icon_empty": "没有匹配的图标",
         "name": "名字",
         "name_hint": "起个名字",
         "summary": "说明",
@@ -135,6 +245,13 @@
         "problem_file": "{file}：{message}"
       },
       "edit": {
+        "avatar": "アバター",
+        "avatar_change": "アバターを変更",
+        "avatar_remove": "アバターを削除",
+        "icon": "アイコン",
+        "icon_none": "アイコンなし",
+        "icon_search": "アイコンを検索",
+        "icon_empty": "一致するアイコンがありません",
         "name": "名前",
         "name_hint": "名前をつける",
         "summary": "説明",

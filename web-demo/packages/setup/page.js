@@ -6,7 +6,7 @@
 //! 点一块在原地展开详情（`persona-editor.js`、`preset-editor.js`），一次开一个；顶上「＋ 新建」先只填名字（`form.js` 的 `nameFirst`），
 //! 建好接着在详情里写。一页是一个常驻的对象：设置页别处改了配置重画、关了再开，交回的是同一块，开着的详情和没存的字都还在。
 
-import { h, icon, replace } from '../../src/lib/dom.js';
+import { h, icon, replace, hasIcon } from '../../src/lib/dom.js';
 import { personaName, presetName } from './model.js';
 import { nameFirst } from './form.js';
 import { floatCard } from './float.js';
@@ -19,6 +19,19 @@ export function problemText(ctx, p) {
   return p.line != null ? ctx.text('page.problem_line', { file: p.file, line: p.line, message: p.message }) : ctx.text('page.problem_file', { file: p.file, message: p.message });
 }
 
+/**
+ * 人格的头像、预设的图标（核心 P-5）：人格有头像的画图（读到以前先画名字的第一个字），预设写了认得的图标的画图标；别的画名字的第一个字。
+ * @param {import('./catalog.js').Catalog} catalog @param {'persona'|'preset'} kind @param {any} p 列表里那一项 @param {string} name
+ */
+export function faceOf(catalog, kind, p, name) {
+  const face = (/** @type {any} */ inner) => h(`span.setup-face.is-${kind}`, { 'aria-hidden': 'true' }, inner);
+  if (kind === 'persona') {
+    const url = catalog.avatars.url(p.persona, p.avatar);
+    return url ? face(h('img', { src: url, alt: '' })) : face([...name][0] ?? '');
+  }
+  return p.icon && hasIcon(p.icon) ? face(icon(p.icon)) : face([...name][0] ?? '');
+}
+
 /** 写错的一块：编号（读不出名字），下面一处一行「persona.toml 第 3 行：哪里错了」。 */
 function badCard(ctx, id, problems) {
   return h('div.setup-card.is-bad', h('h4', id), problems.map((p) => h('p.setup-card-problem', problemText(ctx, p))));
@@ -29,7 +42,7 @@ const KINDS = {
   persona: {
     list: (c) => c.personas, fallback: (c) => c.personaDefault, name: personaName, none: 'page.none', add: 'edit.new_persona', intro: 'page.intro', summary: true,
     create: (core, name) => core.request('persona.set', { changes: [{ key: 'persona.name', value: name }] }).then((r) => r?.persona),
-    editor: (ctx, kit, catalog, id, hooks, look) => new PersonaEditor(ctx, kit, id, hooks, look),
+    editor: (ctx, kit, catalog, id, hooks, look) => new PersonaEditor(ctx, kit, catalog, id, hooks, look),
   },
   preset: {
     // 预设不写说明（2026-10-08 项目主人：没什么意义，名字已经说清了）
@@ -51,6 +64,8 @@ export class ListPage {
     this.open = null;
     /** @type {import('./form.js').Kit|null} */
     this.kit = null;
+    // 人格的头像读到了：列表在页面上的重画（头像在卡片上）
+    if (kind === 'persona') catalog.listeners.add(() => { if (this.el.isConnected && this.kit) this.draw(); });
   }
 
   /** 设置页画这一页：重读列表、交回同一块。 @param {import('./form.js').Kit} kit */
@@ -77,11 +92,11 @@ export class ListPage {
     const cards = list.map((p) => {
       const id = p[this.kind];
       if (p.problem) return badCard(this.ctx, id, this.catalog.problemOf(this.kind, p));
-      // 「默认」接在名字后面，不另占一行（2026-10-08 项目主人）；左边人格的头像、预设的图标，核心还没有的先画名字的第一个字
+      // 「默认」接在名字后面，不另占一行（2026-10-08 项目主人）；左边人格的头像、预设的图标（`faceOf`）
       // （2026-10-10 项目主人：长条里只有一点字不合理，改成卡片网格）
       const name = this.k.name(p);
       const card = h('div.setup-card.is-clickable', { tabindex: '0', role: 'button', onclick: () => this.show(id) },
-        h(`span.setup-face.is-${this.kind}`, { 'aria-hidden': 'true' }, [...name][0] ?? ''),
+        faceOf(this.catalog, this.kind, p, name),
         h('div.setup-card-text',
           h('h4', h('span.setup-card-name', name), id === fallback ? h('span.setup-tag', t('page.default')) : null),
           this.k.summary && p.summary ? h('p', p.summary) : null));

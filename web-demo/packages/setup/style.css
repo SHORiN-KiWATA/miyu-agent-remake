@@ -70,6 +70,30 @@
 /* 人格的头像、预设的图标：核心还没有，先画名字的第一个字；人格是圆的，预设是圆角方块 */
 .setup-face { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 16%, var(--surface-1)); color: var(--accent); font-size: 16px; font-weight: 600; }
 .setup-face.is-preset { border-radius: 10px; background: var(--surface-1); color: var(--text-soft); }
+/* 头像是图的铺满那个圆；预设的图标画在方块正中（核心 P-5） */
+.setup-face { overflow: hidden; }
+.setup-face img { width: 100%; height: 100%; object-fit: cover; }
+.setup-face .icon { width: 20px; height: 20px; }
+.setup-face.is-big { width: 56px; height: 56px; font-size: 22px; }
+/* 人格详情最上面的头像那一格：圆的图、两个按钮 */
+.setup-avatar-box { display: flex; align-items: center; gap: 10px; }
+/* 预设详情的图标那一格：现在的图标加一个下拉的箭头；点开下面一块（搜索、不用图标、一排图标），都不描边 */
+.setup-icon-pick { display: grid; gap: 8px; }
+.setup-icon-now { display: inline-flex; align-items: center; gap: 4px; width: fit-content; height: 36px; padding: 0 8px; border: 0; border-radius: 10px; background: var(--surface-2); color: var(--text); font: 15px var(--sans); cursor: pointer; }
+.setup-icon-now:hover { background: var(--surface-3); }
+.setup-icon-now .icon { width: 20px; height: 20px; }
+.setup-icon-now .icon:last-child { width: 14px; height: 14px; color: var(--text-faint); transition: transform 0.16s var(--ease-out); }
+.setup-icon-now.is-open .icon:last-child { transform: rotate(180deg); }
+.setup-icon-panel { display: grid; gap: 8px; padding: 10px; border-radius: 12px; background: var(--surface-2); }
+.setup-icon-tools { display: flex; gap: 8px; }
+.setup-icon-tools .set-input { flex: 1; background: var(--surface-1); }
+.setup-icon-none { flex: none; height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--surface-1); color: var(--text-soft); font: 12.5px var(--sans); cursor: pointer; }
+.setup-icon-none:hover { color: var(--text); }
+.setup-icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 4px; max-height: 200px; overflow-y: auto; }
+.setup-icon { display: grid; place-items: center; height: 36px; border: 0; border-radius: 8px; background: transparent; color: var(--text-soft); cursor: pointer; }
+.setup-icon:hover { background: var(--surface-1); color: var(--text); }
+.setup-icon.is-on { background: var(--accent); color: var(--on-primary); }
+.setup-icon .icon { width: 18px; height: 18px; }
 .setup-card {
   padding: 14px 16px; border-radius: 12px; background: var(--surface-2);
   transition: background-color var(--motion-collapse) ease, box-shadow var(--motion-collapse) ease, border-radius var(--motion-collapse) ease;

@@ -90,7 +90,9 @@ export class SettingsDialog {
     const core = this.ctx.core;
     const [schema, got, packages] = await Promise.all([core.request('config.schema', {}), core.request('config.get', { all: true }),
       // 核心的软件包（9-1）：「默认界面」的选项照它列（读不到的旧核心是空的）
-      core.request('package.list', {}).then((r) => r?.packages ?? [], () => [])]);
+      core.request('package.list', {}).then((r) => r?.packages ?? [], () => []),
+      // 软件包自己写的图标（清单的 `icon`，F-6 上）照整套图标画
+      this.ctx.icons.more()]);
     /** 能直接敲 `miyu` 打开的界面（`kind` 是 `ui`、有命令的包，核心 9-3） */
     this.heads = packages.filter((p) => p.kind === 'ui' && p.command);
     /** 核心认的软件包（「软件包」页上面那一段照它列） */

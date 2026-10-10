@@ -18,7 +18,7 @@ import { Slots } from './slots.js';
 import { Seams } from './seams.js';
 import { Loader, rows } from './loader.js';
 import { resolve } from './config.js';
-import { loadResources, useTexts, res, t } from '../util/res.js';
+import { loadResources, useTexts, moreIcons, res, t } from '../util/res.js';
 import { pick, settingOf, options, languageSpec, fromConfig } from './language.js';
 import { Connection } from '../core/connection.js';
 import { Store } from '../core/store.js';
@@ -205,6 +205,8 @@ export async function boot(root) {
       // 页面里的外链、下载：浏览器照原样，桌面端改走系统的浏览器、存文件的对话框
       ctx.effect(() => host.intercept(root));
       ctx.provide('page', { root });
+      // 整套图标（`lucide-all.json`）：软件包、预设自己写的图标名要的，用到时才读（核心 P-5、F-6 上）
+      ctx.provide('icons', { more: () => moreIcons() });
       ctx.provide('slots', slots);
       ctx.provide('seams', seams);
       ctx.provide('storage', storage);

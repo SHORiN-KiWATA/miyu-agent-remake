@@ -3,6 +3,7 @@
 //! 界面的字、命令的说明按语言写：内核定了界面语言以后照它装（`useTexts`，蓝图 `web.md`「界面语言」）。
 
 import { local, merge } from '../lib/text.js';
+import { addIcons } from '../lib/dom.js';
 
 /**
  * @typedef {{text: any, layout: any, persona: any, lucide: any, timeline: any, markdown: any, artifacts: any, cards: any,
@@ -16,6 +17,11 @@ export const res = /** @type {Res} */ (/** @type {any} */ ({}));
 
 const FILES = { layout: 'layout.json', persona: 'persona.json', lucide: 'lucide.json', timeline: 'timeline.json', markdown: 'markdown.json',
   artifacts: 'artifacts.json', cards: 'cards.json', commands: 'commands.json', languages: 'languages.json', media: 'media.json' };
+
+/** 资源目录的地址（`loadResources` 记下，按需读的几份用） */
+let resourcesBase = /** @type {URL|null} */ (null);
+/** 整套图标读着、读完的那一次（只读一次） */
+let allIcons = /** @type {Promise<void>|null} */ (null);
 
 /** 命令清单的原样（说明每种语言各一句）：换了语言照它重新挑 */
 let commands = /** @type {any[]} */ ([]);
@@ -39,10 +45,23 @@ async function get(base, p) {
  * 哪个文件读不到、不是 JSON，照原因抛出来：页面起不来，由入口写在页面上。
  */
 export async function loadResources(base) {
+  resourcesBase = base;
   const loaded = await Promise.all(Object.entries(FILES).map(async ([k, p]) => [k, await get(base, p)]));
   Object.assign(res, Object.fromEntries(loaded));
   commands = res.commands.commands;
   return res;
+}
+
+/**
+ * 整套图标（`lucide-all.json`，七百多 KiB，网页起来时不读）：要画软件包、预设自己写的图标时读一次，并进图标表。读不到的照旧，
+ * 认不出的图标名画通用的。
+ * @returns {Promise<void>}
+ */
+export function moreIcons() {
+  allIcons ??= (resourcesBase ? get(resourcesBase, 'lucide-all.json') : Promise.reject(new Error('no resources')))
+    .then((table) => addIcons(table.icons ?? {}))
+    .catch(() => {});
+  return allIcons;
 }
 
 /**
