@@ -17,8 +17,10 @@
 //! - 链接卡片不经桥：页面直接问核心的 `link.preview`，卡片的图是 blob，照 `/blob` 取（核心施工 W-7）。
 //! - `@` 选文件不经桥：页面直接问核心的 `fs.list`、`fs.find`（核心施工 W-2）。
 //! - 选工作区的「选择文件夹…」经 `/pick-dir?k=口令&title=…&start=…` 开系统的选目录对话框（`dialog.rs`），回选的绝对路径。
+//! - 软件后台页经 `POST /page` 换票据、`/p/<票据>/<包>/<路径>` 给文件（`pages.rs`，核心 F-6 中）：文件经核心的 `package.file` 读。
 //!
-//! 用法：`cargo run -- [端口]`，默认 8765；页面文件是这个 crate 上一层的 `web-demo/`。
+//! 用法：`cargo run -- [端口] [--package <编号>]`，默认 8765；页面文件是这个 crate 上一层的 `web-demo/`。带 `--package` 的打出的网址
+//! 打开时直接到「软件后台」里这个软件的页面（照 `miyu web --package`）。
 //! 核心没在跑、给了 `MIYU_CORE_BIN` 的，拉起来（`<它> core`）；别的环境变量（`MIYU_HOME`、数据根的配置里
 //! key 引用的那个，开发用的是 `DEEPSEEK_API_KEY`）由拉起的核心照常读。
 
@@ -27,6 +29,7 @@ mod dialog;
 mod files;
 mod link;
 mod media;
+mod pages;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -43,11 +46,21 @@ pub struct Site {
     pub port: u16,
     /// 给本机文件、blob 时的媒体类型（`/file`、`/blob`）。
     pub types: media::Types,
+    /// 软件后台页的票据（`/page`、`/p/`）。
+    pub pages: pages::Tickets,
+    /// 软件后台页的文件的媒体类型（资源目录的 `web/web.json`）。
+    pub page_types: pages::PageTypes,
 }
 
 #[tokio::main]
 async fn main() {
-    let port = std::env::args().nth(1).and_then(|p| p.parse().ok()).unwrap_or(8765);
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let port = args.iter().find_map(|a| a.parse().ok()).unwrap_or(8765);
+    // 打开时直接到哪个软件的后台页：只认包编号的写法（字母、数字、`-`、`_`、`.`），别的不带
+    let launch = args.iter().position(|a| a == "--package").and_then(|i| args.get(i + 1))
+        .filter(|id| !id.is_empty() && id.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b)))
+        .map(|id| format!("&package={id}"))
+        .unwrap_or_default();
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
     let dir = match dir.canonicalize() {
         Ok(dir) => dir,
@@ -66,8 +79,12 @@ async fn main() {
         Ok(t) => t,
         Err(e) => return eprintln!("{e}"),
     };
-    let site = Arc::new(Site { dir, key, port, types });
-    println!("网页演示（真核心）：http://127.0.0.1:{port}/#k={}", site.key);
+    let page_types = match pages::PageTypes::load() {
+        Ok(t) => t,
+        Err(e) => return eprintln!("{e}"),
+    };
+    let site = Arc::new(Site { dir, key, port, types, pages: pages::Tickets::default(), page_types });
+    println!("网页演示（真核心）：http://127.0.0.1:{port}/#k={}{launch}", site.key);
     println!("这个链接这一次启动有效；只在本机能打开。Ctrl+C 停。");
     loop {
         match listener.accept().await {

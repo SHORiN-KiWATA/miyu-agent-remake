@@ -1,4 +1,5 @@
-//! 页面文件：只认 `GET`，路径落在页面目录里才给；别的 404。开发用，不缓存。`/file`、`/blob` 交给 `media.rs`，`/pick-dir` 交给 `dialog.rs`。
+//! 页面文件：只认 `GET`，路径落在页面目录里才给；别的 404。开发用，不缓存。`/file`、`/blob` 交给 `media.rs`，`/pick-dir` 交给 `dialog.rs`，
+//! 软件后台页的 `POST /page`、`/p/…` 交给 `pages.rs`。
 
 use std::io;
 use std::path::Path;
@@ -31,8 +32,15 @@ pub async fn serve(mut stream: TcpStream, site: &Site) -> io::Result<()> {
     let (method, target) = (parts.next().unwrap_or(""), parts.next().unwrap_or("/"));
     let path = target.split(['?', '#']).next().unwrap_or("/");
     let query = target.split_once('?').map_or("", |(_, q)| q.split('#').next().unwrap_or(""));
+    if method == "POST" && path == "/page" {
+        let body = body(&mut stream, &buf[end..], &head).await?;
+        return crate::pages::issue(&mut stream, site, &head, &body).await;
+    }
     if method != "GET" {
         return reply(&mut stream, "405 Method Not Allowed", "text/plain; charset=utf-8", b"only GET").await;
+    }
+    if path.starts_with("/p/") {
+        return crate::pages::serve(&mut stream, site, path).await;
     }
     if path == "/file" || path == "/blob" {
         return media::serve(&mut stream, site, path, query, &head).await;
@@ -60,6 +68,27 @@ pub async fn serve(mut stream: TcpStream, site: &Site) -> io::Result<()> {
         Ok(body) => reply(&mut stream, "200 OK", kind(&file), &body).await,
         Err(_) => reply(&mut stream, "404 Not Found", "text/plain; charset=utf-8", b"not found").await,
     }
+}
+
+/// 正文最多多大（`POST /page` 只有一个包的编号）。
+const BODY_MAX: usize = 16 * 1024;
+
+/// 读请求的正文：照 `Content-Length`，已经读进来的接着读，最多 `BODY_MAX`。
+async fn body(stream: &mut TcpStream, got: &[u8], head: &str) -> io::Result<Vec<u8>> {
+    let len = head.lines().find_map(|l| {
+        let (name, value) = l.split_once(':')?;
+        name.trim().eq_ignore_ascii_case("content-length").then(|| value.trim().parse::<usize>().ok()).flatten()
+    }).unwrap_or(0).min(BODY_MAX);
+    let mut body = got[..got.len().min(len)].to_vec();
+    let mut chunk = [0u8; 2048];
+    while body.len() < len {
+        let n = stream.read(&mut chunk).await?;
+        if n == 0 {
+            break;
+        }
+        body.extend_from_slice(&chunk[..n.min(len - body.len())]);
+    }
+    Ok(body)
 }
 
 /// 路径换成页面目录里的文件：带 `..` 的、跑到目录外的、不是文件的都不给。

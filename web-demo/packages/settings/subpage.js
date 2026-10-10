@@ -9,19 +9,26 @@ import { h, replace } from '../../src/lib/dom.js';
 
 export class Subpage {
   constructor() {
-    /** 开着的那一层：名字、画法、进去前列表滚到哪；没开是 `null` @type {{title: string, render: () => any, scroll: number}|null} */
+    /**
+     * 开着的那一层：名字、画法、进去前列表滚到哪；`keep` 的画过一次就不重画（软件后台页的框：重画会把框挪出、挪进文档，页面整个重新载入），
+     * `leave` 是收掉时要做的；没开是 `null`
+     * @type {{title: string, render: () => any, scroll: number, keep: boolean, shown: boolean, leave: (() => void)|null}|null}
+     */
     this.page = null;
   }
 
-  /** 进去：记下列表滚到哪。 @param {string} title @param {() => any} render @param {number} scroll */
-  open(title, render, scroll) {
-    this.page = { title, render, scroll };
+  /** 进去：记下列表滚到哪。 @param {string} title @param {() => any} render @param {number} scroll @param {{keep?: boolean, leave?: () => void}} [opts] */
+  open(title, render, scroll, opts = {}) {
+    this.close();
+    this.page = { title, render, scroll, keep: !!opts.keep, shown: false, leave: opts.leave ?? null };
   }
 
   /** 回来：交回进去前列表滚到哪。 */
   close() {
     const scroll = this.page?.scroll ?? 0;
+    const leave = this.page?.leave;
     this.page = null;
+    leave?.();
     return scroll;
   }
 }

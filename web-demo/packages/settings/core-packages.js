@@ -8,6 +8,7 @@
 
 import { h, icon, hasIcon } from '../../src/lib/dom.js';
 import { coreRow, groupBlock, toggle } from './rows.js';
+import { openBackstage } from './backstage.js';
 
 /** 段：照核心核实过的标记分，先后照这里 */
 const PARTS = /** @type {const} */ (['connection', 'ui', 'feature']);
@@ -114,6 +115,8 @@ function infoPage(dialog, id) {
   const head = [
     p.summary ? h('p.set-sub-desc', p.summary) : null,
     line ? h(`p.set-pkg-line${missing ? '.is-bad' : ''}`, line) : null,
+    // 有后台页的：一个按钮跳到「软件后台」里它的页面
+    p.page && !missing ? h('div.set-pkg-actions', h('button.set-btn', { type: 'button', onclick: () => openBackstage(dialog, id) }, t('pkg.open_backstage'))) : null,
   ];
   const group = (dialog.pages ?? []).find((x) => x.id === 'packages')?.groups.find((g) => g.id === id);
   const settings = (group?.items ?? []).map((item) => coreRow(dialog, item)).filter(Boolean);

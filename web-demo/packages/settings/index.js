@@ -1,11 +1,13 @@
 // @ts-check
 //! 设置页（软件包 `settings`，蓝图 `web.md`「设置页」、`web/architecture.md`「设置页」）：页面正中的弹窗，核心的配置和网页自己的
-//! 设置都在这里改。打开：左栏底下的齿轮、`/settings`、`/config`（直接到「模型」）、`/pkg`（直接到「软件包」）、`Ctrl+,`（macOS `⌘,`）。
+//! 设置都在这里改。打开：左栏底下的齿轮、`/settings`、`/config`（直接到「模型」）、`/pkg`（直接到「软件包」）、`Ctrl+,`（macOS `⌘,`）；
+//! 网址点名了软件后台页的（`miyu web --package <编号>`），页面起来就打开到它。
 //! 声明 `settings.section`（多一页：桌面端的设置以后挂这里；人格那一页由软件包 `setup` 挂）、`settings.editor`（keyed，照配置项的键：
 //! `{options(): [{value, name}], hidden(): boolean}`，给这一项下拉的选项、没得选时藏了这一行；默认人格由软件包 `setup` 给）。
 
 import { h, icon } from '../../src/lib/dom.js';
 import { SettingsDialog } from './dialog.js';
+import { openBackstage } from './backstage.js';
 
 /** @param {any} ctx */
 export function apply(ctx) {
@@ -22,6 +24,15 @@ export function apply(ctx) {
     dialog.open(page);
   };
   ctx.effect(() => () => dialog?.close());
+  // `miyu web --package <编号>` 打出的网址：打开时直接到「软件后台」里这个软件的页面
+  const launch = ctx.host.pages?.launch;
+  if (launch) {
+    queueMicrotask(async () => {
+      dialog = new SettingsDialog(ctx);
+      await dialog.open('backstage');
+      if (dialog.isOpen) openBackstage(dialog, launch);
+    });
+  }
   // 「默认界面」（`ui.head`，核心 9-3）：下拉的选项照核心的软件包清单（界面包），名字照清单
   ctx.slots.mount('settings.editor', {
     id: 'settings-head',

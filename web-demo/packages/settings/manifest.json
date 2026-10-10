@@ -73,6 +73,7 @@
         "personas",
         "presets",
         "packages",
+        "backstage",
         "advanced"
       ],
       "name": {
@@ -123,7 +124,8 @@
         "models": "cpu",
         "presets": "toggle-right",
         "advanced": "wrench",
-        "packages": "package"
+        "packages": "package",
+        "backstage": "gauge"
       },
       "name": {
         "zh": "分页的图标（Lucide 的名字；没配的用 sliders-horizontal）"
@@ -144,7 +146,8 @@
       "loading": "正在读配置…",
       "load_failed": "读不到配置：{reason}",
       "pages": {
-        "packages": "软件包"
+        "packages": "软件包",
+        "backstage": "软件后台"
       },
       "layers": {
         "none": "没有设"
@@ -281,6 +284,7 @@
       },
       "changed": "已改",
       "packages_web": "网页",
+      "backstage": {"none": "没有带后台页的软件", "by": "这个页面由「{name}」提供", "failed": "打不开这个软件的后台页", "forbidden": "只能改这个软件自己的设置"},
       "pkg": {
         "part": {
           "connection": "接入",
@@ -301,6 +305,7 @@
         "settings": "设置",
         "uninstall": "卸载",
         "uninstall_again": "再点一次卸载",
+        "open_backstage": "打开软件后台",
         "gone": "软件包不存在"
       }
     },
@@ -316,7 +321,8 @@
       "loading": "設定を読み込み中…",
       "load_failed": "設定を読み込めません：{reason}",
       "pages": {
-        "packages": "パッケージ"
+        "packages": "パッケージ",
+        "backstage": "ソフトの管理画面"
       },
       "layers": {
         "none": "未設定"
@@ -453,6 +459,7 @@
       },
       "changed": "変更済み",
       "packages_web": "ウェブ",
+      "backstage": {"none": "管理画面のあるソフトはありません", "by": "このページは「{name}」が提供しています", "failed": "このソフトの管理画面を開けません", "forbidden": "このソフト自身の設定だけ変更できます"},
       "pkg": {
         "part": {
           "connection": "接続",
@@ -473,6 +480,7 @@
         "settings": "設定",
         "uninstall": "アンインストール",
         "uninstall_again": "もう一度押してアンインストール",
+        "open_backstage": "管理画面を開く",
         "gone": "パッケージがありません"
       }
     }

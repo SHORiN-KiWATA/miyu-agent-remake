@@ -12,6 +12,7 @@ import { drawModels } from './models.js';
 import { sectionKit } from './kit.js';
 import { Extensions } from './extensions.js';
 import { drawCorePackages, followExtension } from './core-packages.js';
+import { drawBackstage } from './backstage.js';
 import { Subpage, swap } from './subpage.js';
 
 /** 上次看的那一页：这个终端记着（蓝图第 3 条），刷新就忘 */
@@ -80,6 +81,7 @@ export class SettingsDialog {
     document.removeEventListener('keydown', this.onKey, true);
     this.ctx.core.pushes?.delete(this.onPush);
     this.extensions.stop();
+    this.sub.close();
     leave(this.root, () => this.root.remove());
   }
 
@@ -123,6 +125,8 @@ export class SettingsDialog {
       ...this.pages.map((p) => ({ id: p.id, name: p.name })),
       // 核心也有一页「软件包」（9-1 下，一个包一组）：和网页自己的组件合成一页，上面核心、下面网页（2026-10-07 项目主人定）
       ...(this.pages.some((p) => p.id === 'packages') ? [] : [{ id: 'packages', name: named('packages') }]),
+      // 软件后台（核心 F-6 中）：带自己页面的软件，点进去是它的页面
+      { id: 'backstage', name: named('backstage') },
       ...this.ctx.slots.list('settings.section').map((s) => ({ id: s.id, name: s.name, section: s })),
     ];
     const rank = (id) => {
@@ -152,9 +156,9 @@ export class SettingsDialog {
       icon(icons[e.id] ?? 'sliders-horizontal'), h('span', e.name), bad.has(e.id) ? h('i.set-dot') : null)));
   }
 
-  /** 点进一层（软件包的设置）：滑进去，页头写它的名字、左边返回箭头。 @param {string} title @param {() => any} render */
-  openSub(title, render) {
-    this.sub.open(title, render, this.body.scrollTop);
+  /** 点进一层（软件包的设置、软件后台页）：滑进去，页头写它的名字、左边返回箭头。 @param {string} title @param {() => any} render @param {{keep?: boolean, leave?: () => void}} [opts] */
+  openSub(title, render, opts) {
+    this.sub.open(title, render, this.body.scrollTop, opts);
     this.drawBody('push');
   }
 
@@ -189,7 +193,10 @@ export class SettingsDialog {
     }
     if (this.sub.page) {
       this.title.textContent = this.sub.page.title;
+      // 画过一次就不重画的（软件后台页的框）：别处改了配置、重读完也不动它
+      if (this.sub.page.keep && this.sub.page.shown && !dir) return;
       swap(this.body, this.sub.page.render(), dir, dir === 'push' ? 0 : scroll);
+      this.sub.page.shown = true;
       return;
     }
     const entry = this.entries().find((e) => e.id === this.current);
@@ -197,6 +204,7 @@ export class SettingsDialog {
     const page = this.pages.find((p) => p.id === this.current);
     let kids;
     if (this.current === 'models') kids = drawModels(this);
+    else if (this.current === 'backstage') kids = drawBackstage(this);
     else if (this.current === 'packages') {
       // 上面核心的软件包，按接入、界面、功能分段：一个包一行、点进去是它的信息页（`core-packages.js`）；下面一段网页自己的组件
       const core = drawCorePackages(this, page);
@@ -297,8 +305,14 @@ export class SettingsDialog {
       return;
     }
     if (method !== 'config.changed') return;
+    // 攒着变了的键：重读完以后告诉开着的软件后台页（`settings.changed`）
+    this.changedKeys = [...(this.changedKeys ?? []), ...Object.keys(params?.keys ?? {})];
     clearTimeout(this.pushTimer);
-    this.pushTimer = setTimeout(() => this.reload().catch(() => {}), 80);
+    this.pushTimer = setTimeout(() => {
+      const keys = this.changedKeys ?? [];
+      this.changedKeys = [];
+      this.reload().then(() => this.frame?.configChanged(keys)).catch(() => {});
+    }, 80);
   }
 
   /** `Esc`：先关框里开着的菜单、详情，再关弹窗；焦点关在框里（`Tab` 不跑到后面）。 */

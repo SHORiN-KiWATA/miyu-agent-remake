@@ -198,6 +198,7 @@ export async function boot(root) {
         cwd: info.cwd,
         home: info.home,
         files: host.files,
+        pages: host.pages,
         open: host.open,
         clipboard: host.clipboard,
       });

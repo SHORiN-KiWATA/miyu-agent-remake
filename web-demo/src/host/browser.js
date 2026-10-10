@@ -10,6 +10,8 @@
 //! - 链接照网页的写法（`target=_blank`、`download`），浏览器自己会办，`intercept` 什么都不做。
 //! - 选目录：浏览器给不了本机路径，请桥开系统的选目录对话框（`/pick-dir`，桥的 `dialog.rs`）；页面开在别的机器上的（地址不是本机）
 //!   不请，对话框会开在桥那台机器上、人看不到。
+//! - 软件后台页：带着口令 `POST /page` 请桥造一张票据，交回框的地址（地址里只有票据，框里的页面读得到自己的地址，口令不能给它）。
+//! - 打开时直接到哪个软件的后台页：`miyu web --package <编号>` 打出的网址在 `#` 后面多一个 `package=<编号>`，和口令一起读、一起抹掉。
 
 /**
  * @typedef {{name: string, size: number, type: string, file?: Blob, path?: string, stored?: {session: string, hash: string}}} FileRef
@@ -209,8 +211,26 @@ async function pickDir(key, opts = {}) {
   }
 }
 
+/**
+ * 软件后台页（核心 F-6 中，`package-pages.md`）：带着口令请桥造一张票据，交回框的地址；没有后台页、问不到桥的交 `null`。
+ * @param {string} key @param {string} id 软件包的编号
+ * @returns {Promise<string|null>}
+ */
+async function packagePage(key, id) {
+  try {
+    const got = await fetch('/page', { method: 'POST', cache: 'no-store', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ package: id }) });
+    if (!got.ok) return null;
+    const body = await got.json();
+    return typeof body?.url === 'string' ? body.url : null;
+  } catch {
+    return null;
+  }
+}
+
 /** 起浏览器这个宿主；链接里、这个标签页里都没有桥的口令的交 `null`（页面说连不上桥）。 */
 export function browserHost() {
+  // 网址里 `#` 后面点名要打开的软件后台页（`package=<编号>`）：先读下来，`bridgeKey` 会把 `#` 后面抹掉
+  const launchPackage = location.hash.match(/(?:^#|&)package=([A-Za-z0-9_.-]+)/)?.[1] ?? null;
   const key = bridgeKey();
   if (!key) return null;
   return {
@@ -230,6 +250,8 @@ export function browserHost() {
       /** 选目录：请桥开系统的对话框（见上面的 `pickDir`） */
       pickDir: (/** @type {{title?: string, start?: string}} */ opts) => pickDir(key, opts),
     },
+    /** 软件后台页：框的地址（见上面的 `packagePage`）；`launch` 是打开时点名的软件（没有是 `null`） */
+    pages: { open: (/** @type {string} */ id) => packagePage(key, id), launch: launchPackage },
     /** 外面的链接：新标签页。 */
     open: (/** @type {string} */ url) => { window.open(url, '_blank', 'noopener'); },
     /** 接住页面里的链接：浏览器自己会办，什么都不做；交回怎么不接。 */

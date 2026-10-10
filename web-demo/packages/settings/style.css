@@ -231,6 +231,12 @@
 .set-pkg-line { margin: 0 0 6px; color: var(--text-faint); font-size: 12.5px; }
 .set-pkg-line.is-bad { color: var(--danger); }
 .set-pkg-foot { margin-top: 18px; }
+.set-pkg-actions { margin: 4px 0 10px; }
+/* 软件后台页（backstage.js）：框占满右边那一栏，下面一行暗字写是谁提供的；框不描边，底色加浮起来的影 */
+.set-backstage { display: flex; flex-direction: column; gap: 8px; height: 100%; }
+.set-slide:has(> .set-backstage) { height: 100%; }
+.set-backstage-frame { flex: 1; width: 100%; min-height: 0; border: 0; border-radius: 12px; background: var(--surface-1); box-shadow: var(--card-shadow); }
+.set-backstage-by { margin: 0 2px; color: var(--text-faint); font-size: 12px; }
 /* 点进去的那一层顶上那一句说明 */
 .set-sub-desc { margin: 0 0 6px; color: var(--text-soft); font-size: 13px; }
 
