@@ -50,29 +50,49 @@ export class PersonaImages {
 }
 
 /**
- * 要传的那张图：核心收的类型、长边不超过 `side`、不比 `maxBytes` 大的照原样；别的在浏览器里画到一张小画布上重新存（WebP，浏览器存不了 WebP
- * 的存 `fallback`：头像 PNG，背景图是照片、PNG 太大，存 JPEG）。
+ * 要传的那张图（2026-10-11 项目主人定：各个头先缩小再传，核心的上限只当兜底）：核心收的类型、长边不超过 `side`、不比 `maxBytes` 大的照原样；
+ * 别的在浏览器里照比例画到长边 `side` 的画布上重新存：先存 WebP，浏览器存不了的存 `fallback`（头像 PNG，背景图 JPEG），还比 `maxBytes`
+ * 大的存成 JPEG（透明的地方铺白）。都超的交最小的那一份，由核心照上限拒（写它的原话）。
  * @param {File} file @param {number} side 长边最多多少像素 @param {{fallback?: string, maxBytes?: number}} [opts]
  * @returns {Promise<Blob>}
  */
 export async function shrink(file, side, opts = {}) {
+  const max = opts.maxBytes ?? Infinity;
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, side / Math.max(bitmap.width, bitmap.height));
-  if (scale === 1 && KINDS.includes(file.type) && file.size <= (opts.maxBytes ?? Infinity)) {
+  if (scale === 1 && KINDS.includes(file.type) && file.size <= max) {
     bitmap.close();
     return file;
   }
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-  canvas.getContext('2d')?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+  /** 画一张、存成这一种；JPEG 没有透明，先铺白 @param {string} type @param {number} quality */
+  const encode = (type, quality) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const g = canvas.getContext('2d');
+    if (!g) return Promise.resolve(null);
+    if (type === 'image/jpeg') {
+      g.fillStyle = '#ffffff';
+      g.fillRect(0, 0, w, h);
+    }
+    g.drawImage(bitmap, 0, 0, w, h);
+    return new Promise((resolve) => canvas.toBlob((b) => resolve(b?.type === type ? b : null), type, quality));
+  };
+  const tried = [];
+  for (const [type, quality] of [['image/webp', 0.9], [opts.fallback ?? 'image/png', 0.9], ['image/jpeg', 0.8]]) {
+    const got = /** @type {Blob|null} */ (await encode(type, quality));
+    if (!got) continue;
+    if (got.size <= max) {
+      bitmap.close();
+      return got;
+    }
+    tried.push(got);
+  }
   bitmap.close();
-  const encode = (/** @type {string} */ type) => new Promise((resolve) => canvas.toBlob(resolve, type, 0.9));
-  const webp = /** @type {Blob|null} */ (await encode('image/webp'));
-  if (webp?.type === 'image/webp') return webp;
-  const other = /** @type {Blob|null} */ (await encode(opts.fallback ?? 'image/png'));
-  if (!other) throw new Error('canvas');
-  return other;
+  if (!tried.length) throw new Error('canvas');
+  return tried.reduce((a, b) => (b.size < a.size ? b : a));
 }
 
 /**

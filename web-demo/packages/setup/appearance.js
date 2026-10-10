@@ -8,7 +8,8 @@
 import { h, replace } from '../../src/lib/dom.js';
 import { shrink, store } from './avatars.js';
 
-/** 核心收背景图的上限（P-6：`blob.put` 收图就封在 5 MiB） */
+/** 核心收头像、背景图的上限（P-5 头像 1 MiB；P-6 背景图 5 MiB，`blob.put` 收图就封在 5 MiB）：缩小以后还超的再压（`avatars.js` 的 `shrink`） */
+const AVATAR_BYTES = 1024 * 1024;
 const BACKGROUND_BYTES = 5 * 1024 * 1024;
 
 export class Appearance {
@@ -113,7 +114,7 @@ export class Appearance {
     const cfg = this.ctx.config;
     try {
       const blob = part === 'avatar'
-        ? await shrink(file, cfg.avatar_side)
+        ? await shrink(file, cfg.avatar_side, { maxBytes: AVATAR_BYTES })
         : await shrink(file, cfg.background_side, { fallback: 'image/jpeg', maxBytes: BACKGROUND_BYTES });
       const hash = await store(this.ctx.core, blob, { chunk: cfg.avatar_chunk_bytes, tries: cfg.avatar_tries }, part);
       await this.setPart(part, { blob: hash });

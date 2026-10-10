@@ -118,7 +118,7 @@ export class PersonaStep {
   async choose(file) {
     const cfg = this.ctx.config;
     try {
-      const blob = await shrink(file, cfg.avatar_side);
+      const blob = await shrink(file, cfg.avatar_side, { maxBytes: 1024 * 1024 });
       const hash = await store(this.ctx.core, blob, { chunk: cfg.avatar_chunk_bytes, tries: cfg.avatar_tries });
       if (this.avatar) URL.revokeObjectURL(this.avatar.url);
       this.avatar = { hash, url: URL.createObjectURL(blob) };
