@@ -75,6 +75,7 @@ mod packages_install;
 mod packages_live;
 mod peers;
 mod permission;
+mod persona_appearance;
 mod persona_avatar;
 mod persona_set;
 mod persona_swap;

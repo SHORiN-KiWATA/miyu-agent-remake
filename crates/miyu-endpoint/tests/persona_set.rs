@@ -66,6 +66,8 @@ async fn a_new_persona_is_made_in_one_call_with_its_prompts() {
             "prompts": {"persona": true, "reminders": true},
             "examples": 2,
             "avatar": null,
+            "background": null,
+            "seed": null,
             "remove": "delete",
         }),
         "{made}"

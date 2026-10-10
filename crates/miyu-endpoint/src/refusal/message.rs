@@ -48,6 +48,14 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "头像超过 1 MiB 或 1024 像素。",
             "Avatar over 1 MiB or 1024 pixels.",
         ),
+        "background_not_image" => (
+            "背景图只支持 PNG、JPEG、WebP。",
+            "Backgrounds must be PNG, JPEG or WebP.",
+        ),
+        "background_too_big" => (
+            "背景图超过 5 MiB 或 4096 像素。",
+            "Background over 5 MiB or 4096 pixels.",
+        ),
         "not_switchable" => ("不能启用或停用。", "Cannot be enabled or disabled."),
         "not_an_extension" => ("不是扩展。", "Not an extension."),
         "extension_off" => ("扩展已停用。", "Extension disabled."),

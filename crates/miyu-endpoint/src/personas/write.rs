@@ -23,6 +23,7 @@ use miyu_store::layers::valid;
 use miyu_store::personas::{Edits, Found, PERSONA_MD, Personas, REMINDERS_MD};
 use miyu_store::trash;
 
+use super::picture::{Picture, PictureParams};
 use super::{TARGET, describe, personas, told};
 use crate::Core;
 use crate::config::methods::words;
@@ -53,7 +54,46 @@ pub(crate) struct SetParams {
     prompts: BTreeMap<String, PromptParams>,
     /// 头像（施工 P-5）：换成一张传上来的图，或者删掉家目录那一层的。
     #[serde(default)]
-    avatar: Option<super::avatar::AvatarParams>,
+    avatar: Option<PictureParams>,
+    /// 背景图（施工 P-6）：同头像。
+    #[serde(default)]
+    background: Option<PictureParams>,
+    /// 主题色（施工 P-6）：`#rrggbb`（大小写都认，写成小写），或者 `{"unset": true}` 删掉家目录那一层的。
+    #[serde(default)]
+    seed: Option<SeedParams>,
+}
+
+/// `persona.set` 的 `seed`：一个颜色，或者删掉。
+#[derive(Debug, Deserialize)]
+#[serde(untagged, deny_unknown_fields)]
+enum SeedParams {
+    /// `#rrggbb`。
+    Color(String),
+    /// `{"unset": true}`。
+    Unset {
+        /// 只能是 `true`。
+        unset: bool,
+    },
+}
+
+/// 主题色在 `persona.toml` 里的键。
+const SEED: &str = "appearance.seed";
+
+/// 查 `seed`，改成 `appearance.seed` 那一项：颜色不是 `#rrggbb`、`unset` 不是 `true`、`changes` 里也改了这一项的 `bad_params`。
+fn seed(params: Option<SeedParams>, wanted: &mut Vec<Wanted>) -> Result<(), Refusal> {
+    let Some(params) = params else {
+        return Ok(());
+    };
+    let color = match params {
+        SeedParams::Color(text) => Some(persona::color(&text).ok_or(Refusal::BAD_PARAMS)?),
+        SeedParams::Unset { unset: true } => None,
+        SeedParams::Unset { unset: false } => return Err(Refusal::BAD_PARAMS),
+    };
+    if wanted.iter().any(|want| want.key() == SEED) {
+        return Err(Refusal::BAD_PARAMS);
+    }
+    wanted.push(Wanted::text(SEED, color.as_deref()));
+    Ok(())
 }
 
 /// `prompts` 的一份：`text`、`unset`、`pairs`（只给示范对话）正好写一个；`expect` 是 `persona.read` 给的版本，`null` 是
@@ -101,33 +141,45 @@ struct Pending {
 /// `persona.set`：改家目录那一层，交回改完叠好的样子（同 `persona.get`）。不写 `persona` 的是新建（施工 P-3 补）：编号由
 /// 核心起，至少要写一样东西。
 pub(crate) async fn set(core: &Core, peer: Peer, params: SetParams) -> Result<Json, Refusal> {
-    let empty = params.changes.is_empty() && params.prompts.is_empty() && params.avatar.is_none();
+    let empty = params.changes.is_empty()
+        && params.prompts.is_empty()
+        && params.avatar.is_none()
+        && params.background.is_none()
+        && params.seed.is_none();
     if empty || params.persona.as_deref().is_some_and(|id| !valid(id)) {
         return Err(Refusal::BAD_PARAMS);
     }
     let said = words(core, peer.language).ok();
-    let wanted = wanted(params.changes)?;
+    let mut wanted = wanted(params.changes)?;
+    seed(params.seed, &mut wanted)?;
     let prompts = prompts(params.prompts, said.as_ref())?;
     let writes =
         wanted.iter().any(Wanted::writes) || prompts.iter().any(|prompt| prompt.text.is_some());
     if params.persona.is_none() && !writes {
         return Err(Refusal::BAD_PARAMS);
     }
-    // 头像先查：不合规矩的什么都不写（施工 P-5）。
-    let avatar = match params.avatar {
-        Some(avatar) => Some(super::avatar::check(core, avatar).await?),
-        None => None,
-    };
+    // 头像、背景图先查：不合规矩的什么都不写（施工 P-5、P-6）。
+    let mut pictures = Vec::new();
+    for (picture, params) in [
+        (Picture::Avatar, params.avatar),
+        (Picture::Background, params.background),
+    ] {
+        if let Some(params) = params {
+            pictures.push(super::picture::check(core, picture, params).await?);
+        }
+    }
     let personas = personas(core);
     let found = tokio::task::spawn_blocking(move || {
         let found = match params.persona {
             Some(id) => write(&personas, &id, &wanted, &prompts, said.as_ref()),
             None => create(&personas, &wanted, &prompts, said.as_ref()),
         }?;
-        let Some(avatar) = avatar else {
+        if pictures.is_empty() {
             return Ok(found);
-        };
-        super::avatar::apply(&personas, &found.id, &avatar)?;
+        }
+        for checked in &pictures {
+            super::picture::apply(&personas, &found.id, checked)?;
+        }
         personas
             .find(&found.id)
             .map_err(|error| super::told(&error, said.as_ref()))

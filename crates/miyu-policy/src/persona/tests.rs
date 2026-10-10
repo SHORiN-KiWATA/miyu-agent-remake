@@ -92,11 +92,13 @@ fn an_upper_layer_replaces_what_it_writes() {
         name: phrases(&[("en", "Engineer"), ("zh", "工程师")]),
         summary: phrases(&[("en", "Helps.")]),
         memory: None,
+        seed: None,
     };
     let mine = PersonaFile {
         name: one("我的工程师"),
         summary: None,
         memory: None,
+        seed: None,
     };
     let merged = mine.over(shipped);
     assert_eq!(merged.name, one("我的工程师"), "写了的整格换掉");
@@ -261,6 +263,28 @@ fn the_memory_scope_is_persona_or_session_and_an_upper_layer_wins() {
     assert_eq!(upper.over(lower).memory, Some(MemoryScope::Persona));
 }
 
+/// 主题色（施工 P-6）：`#rrggbb` 大小写都认、读成小写；上一层写了的盖下面的，没写沿用下面的。
+#[test]
+fn the_seed_is_a_lowercase_color_and_an_upper_layer_wins() {
+    let read = |text: &str| read_toml(text).unwrap().seed;
+    assert_eq!(
+        read("[appearance]\nseed = \"#3368C0\"\n").as_deref(),
+        Some("#3368c0")
+    );
+    assert_eq!(read("[appearance]\n"), None, "不写是没有，头从头像取色");
+    let lower = read_toml("[appearance]\nseed = \"#112233\"\n").unwrap();
+    assert_eq!(
+        PersonaFile::default().over(lower.clone()).seed.as_deref(),
+        Some("#112233"),
+        "上一层没写沿用下面的"
+    );
+    let upper = read_toml("[appearance]\nseed = \"#abcdef\"\n").unwrap();
+    assert_eq!(upper.over(lower).seed.as_deref(), Some("#abcdef"));
+    for wrong in ["3368c0", "#3368c", "#3368c00", "#3368cg", "red"] {
+        assert_eq!(color(wrong), None, "{wrong}");
+    }
+}
+
 /// 每一种错有自己的代码，错的那一处另放一格：给人看的那一句照它们写（施工 8-30）。
 #[test]
 fn each_mistake_carries_its_code_and_where() {
@@ -277,6 +301,22 @@ fn each_mistake_carries_its_code_and_where() {
             "[memory]\nscope = \"off\"\n",
             Code::BadMemoryScope,
             Some("memory.scope"),
+        ),
+        ("appearance = 1\n", Code::NotATable, Some("appearance")),
+        (
+            "[appearance]\ncolor = 1\n",
+            Code::UnknownKey,
+            Some("appearance.color"),
+        ),
+        (
+            "[appearance]\nseed = \"blue\"\n",
+            Code::BadSeed,
+            Some("appearance.seed"),
+        ),
+        (
+            "[appearance]\nseed = 7\n",
+            Code::BadSeed,
+            Some("appearance.seed"),
         ),
         ("persona = 3\n", Code::NotATable, Some("persona")),
         (

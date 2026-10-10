@@ -121,7 +121,8 @@ async fn everything_is_checked_from_disk_layer_by_layer() {
     );
     let unknown_table = &problems[4]["message"];
     assert_eq!(
-        unknown_table, "不认识的表 [voice]：persona.toml 里只能有 [persona]、[memory]",
+        unknown_table,
+        "不认识的表 [voice]：persona.toml 里只能有 [persona]、[memory]、[appearance]",
         "照连接的语言（握手报的中文）"
     );
 }

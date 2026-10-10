@@ -27,9 +27,22 @@ pub const REMINDERS_MD: &str = "prompts/reminders.md";
 /// 头像的文件名（施工 P-5，`personas.md`「头像」）：同一层有好几张的照这个先后挑。
 pub const AVATARS: [&str; 3] = ["avatar.png", "avatar.jpg", "avatar.webp"];
 
+/// 背景图的文件名（施工 P-6，`personas.md`「主题色、背景图」）：同一层有好几张的照这个先后挑。
+pub const BACKGROUNDS: [&str; 3] = ["background.png", "background.jpg", "background.webp"];
+
 /// 人格目录 `dir` 里的头像：照 [`AVATARS`] 的先后，第一张是普通文件的。
 pub fn avatar_in(dir: &Path) -> Option<PathBuf> {
-    AVATARS
+    picture_in(dir, &AVATARS)
+}
+
+/// 人格目录 `dir` 里的背景图：照 [`BACKGROUNDS`] 的先后，第一张是普通文件的（施工 P-6）。
+pub fn background_in(dir: &Path) -> Option<PathBuf> {
+    picture_in(dir, &BACKGROUNDS)
+}
+
+/// 人格目录 `dir` 里照 `names` 的先后，第一张是普通文件的图。
+fn picture_in(dir: &Path, names: &[&str]) -> Option<PathBuf> {
+    names
         .iter()
         .map(|name| dir.join(name))
         .find(|path| path.is_file())
@@ -60,6 +73,8 @@ pub struct Found {
     pub home: Option<AccountId>,
     /// 头像（施工 P-5，`personas.md`「头像」）：有头像的最上面那一层里的那一张；没有的是没有。
     pub avatar: Option<PathBuf>,
+    /// 背景图（施工 P-6）：有背景图的最上面那一层里的那一张；没有的是没有。
+    pub background: Option<PathBuf>,
 }
 
 /// 找人格出了错。
@@ -154,6 +169,7 @@ impl Personas {
             reminders_from: None,
             home: None,
             avatar: None,
+            background: None,
         };
         for (layer, dir) in &self.dirs {
             let dir = dir.join(id);
@@ -170,6 +186,9 @@ impl Personas {
             found.layers.push(*layer);
             if let Some(avatar) = avatar_in(&dir) {
                 found.avatar = Some(avatar);
+            }
+            if let Some(background) = background_in(&dir) {
+                found.background = Some(background);
             }
             if *layer == Layer::Home {
                 found.home = Some(self.admin.clone());
