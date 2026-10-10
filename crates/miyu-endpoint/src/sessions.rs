@@ -229,6 +229,12 @@ impl Sessions {
         })
     }
 
+    /// 会话 `id` 在跑的话交回它的把手，没在跑的不载入、交回空的（施工 9-8 补下：算会话树时只看载入了的）。
+    pub(crate) async fn loaded(&self, id: &SessionId) -> Option<Handle> {
+        let open = self.open.lock().await;
+        open.running.get(id).map(|running| running.handle.clone())
+    }
+
     /// 找会话 `id`：在跑的直接交回；没在跑的从磁盘载入。施工 9-7 上起头每句话报的工作目录不再换会话的：换工作区另走
     /// `session.set_workspace`（`workspace.rs`）。
     pub(crate) async fn get(&self, core: &Arc<Core>, id: &SessionId) -> Result<Found, Refusal> {

@@ -46,6 +46,8 @@ enum Job {
 pub(crate) struct Listing {
     queue: OnceLock<mpsc::UnboundedSender<Job>>,
     pushes: broadcast::Sender<Arc<Change>>,
+    /// 哪个会话动了（施工 9-8 补下）：只带编号，视图流照它看自己的子孙会话有没有动。
+    touched: broadcast::Sender<SessionId>,
 }
 
 impl Default for Listing {
@@ -53,6 +55,7 @@ impl Default for Listing {
         Listing {
             queue: OnceLock::new(),
             pushes: broadcast::channel(QUEUE).0,
+            touched: broadcast::channel(QUEUE).0,
         }
     }
 }
@@ -63,13 +66,20 @@ impl Listing {
         self.pushes.subscribe()
     }
 
+    /// 哪个会话动了：一轮开始、空下来、改名、删了（施工 9-8 补下）。没人收的不算错。
+    pub(crate) fn touched(&self) -> broadcast::Receiver<SessionId> {
+        self.touched.subscribe()
+    }
+
     /// 会话 `session` 那一项变了。
     pub(crate) fn changed(&self, core: &Arc<Core>, session: SessionId) {
+        drop(self.touched.send(session.clone()));
         self.send(core, Job::Changed(session));
     }
 
     /// 会话 `session` 删了。
     pub(crate) fn removed(&self, core: &Arc<Core>, session: SessionId) {
+        drop(self.touched.send(session.clone()));
         self.send(core, Job::Removed(session));
     }
 

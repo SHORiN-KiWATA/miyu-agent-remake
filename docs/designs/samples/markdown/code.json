@@ -1,0 +1,22 @@
+[
+  {
+    "type": "code",
+    "lang": "rust",
+    "text": "fn main() {}\n"
+  },
+  {
+    "type": "code",
+    "lang": null,
+    "text": "没写语言\n"
+  },
+  {
+    "type": "code",
+    "lang": null,
+    "text": "缩进四格\n"
+  },
+  {
+    "type": "code",
+    "lang": "mermaid",
+    "text": "graph TD; A-->B\n"
+  }
+]

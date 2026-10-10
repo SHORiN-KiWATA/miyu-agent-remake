@@ -120,6 +120,7 @@ mod view_entries;
 mod view_page;
 mod view_status;
 mod view_stream;
+mod view_tree;
 mod watch;
 mod welcomed;
 mod workspace;

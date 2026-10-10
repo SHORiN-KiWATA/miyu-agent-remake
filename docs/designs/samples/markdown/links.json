@@ -1,0 +1,69 @@
+[
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "text",
+        "text": "见 "
+      },
+      {
+        "type": "link",
+        "href": "https://example.com/a",
+        "children": [
+          {
+            "type": "text",
+            "text": "https://example.com/a"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": " 和 "
+      },
+      {
+        "type": "link",
+        "href": "https://example.com/doc",
+        "children": [
+          {
+            "type": "text",
+            "text": "文档"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": "。"
+      }
+    ]
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "image",
+        "src": "https://example.com/a.png",
+        "alt": "图"
+      }
+    ]
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "image",
+        "src": "data:image/png;base64,AAAA",
+        "alt": "内嵌",
+        "width": 32
+      }
+    ]
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "text",
+        "text": "不做成链接"
+      }
+    ]
+  }
+]

@@ -181,6 +181,89 @@ fn row(group: &[Group], total: Total, first: &str) -> Value {
 
 /// 订阅的回应里这个会话累计的（施工 9-6 上，`protocol.md` 的 `subscribe`）：和 `usage.query {"session": <它>}` 那一行同一个
 /// 写法、同一个口径（金额照这一刻的 `usage.currency` 排），另加只算主请求的用量（`main`，施工 9-6 上补）、压缩过几次、缓存断了几次。
+/// 会话 `session` 那一支（连它派的子会话）一共用了多少（施工 9-8 补下）：先补再查，在阻塞线程里。读不了的是空的。
+pub(crate) async fn branch(core: &Core, session: &SessionId) -> Option<Total> {
+    let usage = Arc::clone(&core.usage);
+    let accounts = core.accounts();
+    let query = Query {
+        from: None,
+        until: None,
+        group: Vec::new(),
+        session: Some((session.clone(), true)),
+        offset: crate::sessions::offset(),
+    };
+    let totals = tokio::task::spawn_blocking(move || caught_up(&usage, &accounts, &query))
+        .await
+        .ok()?;
+    match totals {
+        Ok(totals) => Some(totals.into_iter().next().unwrap_or_else(empty)),
+        Err(error) => {
+            tracing::warn!(target: TARGET, error = %error, "usage not read");
+            None
+        }
+    }
+}
+
+/// 一行都没有时的总计：全是零。
+fn empty() -> Total {
+    Total {
+        keys: Vec::new(),
+        requests: 0,
+        usage: miyu_kernel::event::Usage {
+            uncached: 0,
+            cache_read: 0,
+            cache_write: 0,
+            output: 0,
+            reasoning: None,
+        },
+        amounts: Vec::new(),
+        unpriced: 0,
+    }
+}
+
+/// 写成一行（施工 9-8 补下）：写法同 `usage.query` 的一行，币种照这一刻的配置排。
+pub(crate) fn total_row(core: &Core, total: Total) -> Value {
+    let currency = UsageSettings::from(&core.config().resolved().values()).currency;
+    row(&[], total, &currency)
+}
+
+/// 两份加起来：请求数、四项、金额（同一币种相加）、没价格的次数。
+pub(crate) fn plus(mut one: Total, other: &Total) -> Total {
+    one.requests += other.requests;
+    one.usage.uncached += other.usage.uncached;
+    one.usage.cache_read += other.usage.cache_read;
+    one.usage.cache_write += other.usage.cache_write;
+    one.usage.output += other.usage.output;
+    one.usage.reasoning = match (one.usage.reasoning, other.usage.reasoning) {
+        (None, None) => None,
+        (a, b) => Some(a.unwrap_or(0) + b.unwrap_or(0)),
+    };
+    one.unpriced += other.unpriced;
+    for (currency, amount) in &other.amounts {
+        match one.amounts.iter_mut().find(|(have, _)| have == currency) {
+            Some((_, sum)) => *sum += amount,
+            None => one.amounts.push((currency.clone(), *amount)),
+        }
+    }
+    one.amounts.sort_by(|a, b| a.0.cmp(&b.0));
+    one
+}
+
+/// 一个会话自己累计的写成 [`Total`]。
+pub(crate) fn own(tally: &miyu_session::Tally) -> Total {
+    Total {
+        keys: Vec::new(),
+        requests: tally.requests,
+        usage: tally.usage,
+        amounts: tally
+            .amounts
+            .iter()
+            .map(|(currency, amount)| (currency.clone(), *amount))
+            .collect(),
+        unpriced: tally.unpriced,
+    }
+}
+
 pub(crate) fn tallied(core: &Core, tally: &miyu_session::Tally) -> Value {
     let currency = UsageSettings::from(&core.config().resolved().values()).currency;
     let total = Total {

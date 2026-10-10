@@ -20,6 +20,7 @@
 | `crates/miyu-view/tests/` | 照内核的替身跑真会话，每个测试都对照视图流和翻页最后一样（`support/mod.rs` 的 `same`）；`random.rs` 三百份随机剧本；`notices.rs` 另有切在派任务之后的一页（9-8 中） |
 | `crates/miyu-endpoint/tests/view_entries.rs`、`view_page.rs`、`view_detail.rs` | 真核心走一遍（9-8 中）：握手报版本；交条目的页、边界照旧、字照连接的语言；更早派出的任务照样有标题；调用的结果原文、压缩的摘要 |
 | `crates/miyu-view/tests/status.rs`（9-8 补上） | 闲着、在跑、在等人（确认、提问到了结）；正在写、在调工具；重试和都在冷却出现又消失；上下文用了多少；任务从派出到了结、停了的为什么 |
+| `crates/miyu-endpoint/tests/view_tree.rs`（9-8 补下） | 派出去的子代理在跑一轮：那一项带 `busy`、`spawned`、`running_deep`、`usage`，整份带 `running_deep`、`usage_tree`；子代理派了孙代理也数进来；连子代理一起的用量 |
 | `crates/miyu-endpoint/tests/view_status.rs`（9-8 补上） | 订阅回应带整份状态；跑一轮推 `running` 再推 `idle`、用量跟着变、没变的不推；切权限也推 |
 | `crates/miyu-endpoint/tests/view_stream.rs`、`src/subscriptions/view/tests.rs` | 视图流（9-8 下）：回应排在推送前面、推送拼到那一页上和翻页一样、`turn.started` 另推；改了语言之后的照新的字；带 `after` 的拒、退订了不推；接着的 `view.append` 并成一条 |
 | `resources/core/view.json` | 工具算哪一类（命令、编辑、子代理、留言）、参数里哪一格是会话编号：数据，不登记 |
@@ -128,9 +129,14 @@
 | `persona`、`preset` | 同订阅回应的那几格，订阅时定下 |
 | `jobs` | 这个会话直接派出去的任务：在跑的和最近做完的 20 个，照派出的先后。一项 `{job, what, title, state, started, ended?, session?, command?, exit_code?, signal?, why?}`：`what` 是 `command`、`agent`；`state` 是 `running`、`done`（命令退出码 0；子代理那一轮结束了，还能留言叫醒，叫醒了回到 `running`）、`failed`（退出码不是 0、被信号杀了）、`stopped`（`why` 是 `stopped` 人停或她自己停的、`undone` 撤销时停的、`restarted` 有计划重启时停的）、`aborted`（核心崩了，断了）。翻页、订阅时切点前派出、了结的照日志补上 |
 
+| `running_deep` | 这个会话在跑的任务一共几个，连子孙的（施工 9-8 补下） |
+| `usage_tree` | 连子代理一起累计用了多少，写法同 `usage`：自己的加上每个子代理那一支的（施工 9-8 补下） |
+
+子代理任务（`jobs` 里 `what: agent` 的）另带四格（施工 9-8 补下，2026-10-10 和终端界面对过）：`busy`（子会话这会儿有没有在跑一轮）、`spawned`（它自己派出、还在跑的有几个）、`running_deep`（它那一支在跑的一共几个，不算它自己）、`usage`（它那一支一共用了多少，照账本连子会话一起查）。子代理此刻在做哪一步不在这里：要的头订阅那个子会话的视图流，看它的 `status.doing`。
+
 1. 投影算得出的那一半（`state`、`waiting`、`since`、`doing`、`used`、`speed`、`cooling_until`、`jobs`）在 `miyu-view` 的 `projector/status.rs`，喂事件时顺手记；别的向会话要，在 `miyu-endpoint` 的 `view/status.rs` 拼。
 2. 一批里有落了盘的事件才向会话 actor 重要一份「当前的」（用量、权限、工作区）；只有增量的不打扰它。
-3. 整棵会话树（子树里在跑几个、每个任务在做什么、每一支的用量、自己又派了几个）随 9-8 补下。
+3. 会话树在 `view/tree.rs` 量：只看载入了的会话（在跑的子代理一定载入着，没载入的那一支算没有在跑的），往下最多走 8 层；用量照账本（`usage::branch`）。任务表变了（编号、状态），或者有子代理时别的会话动了（会话列表报的：一轮开始、空下来、改名、删了，`Listing::touched`；子代理新派的孙会话还不知道是谁的，所以不只看已知的子孙）才重量，量完照样和上一份比，变了才推。
 
 ### 怎么走
 
@@ -144,6 +150,5 @@
 
 ### 还没有的
 
-- 会话状态的整棵会话树（`running_deep`、每个任务的 `doing`、每一支的用量、自己又派了几个；含子代理的累计用量），9-8 补下。
 - 两个头共用的 Markdown 约定（公式分隔符、认哪些 HTML、没写完的块怎么算、本机路径），主会话起草。
 - 运行状态行的词库挂在人格上，等项目主人定。
