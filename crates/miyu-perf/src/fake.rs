@@ -1,6 +1,7 @@
 //! 假模型服务：本机回环上的 HTTP/1.1，照 openai-chat 的写法回（施工 V-1）。
 //!
-//! 每个 `POST` 都回同一段字（一块正文、一块收尾带用量、`[DONE]`），别的请求回一个空的模型列表。它记下每个请求的头
+//! 每个 `POST` 都回同一段字（一块正文、一块收尾带用量、`[DONE]`），别的请求回一个空的模型列表。用量照请求体、正文的字节数
+//! 估，四个字节一个 token；摘要请求（带出厂摘要指令的那一句）回一段摘要，好让长会话照真用时那样到线就压（施工 V-2 上）。它记下每个请求的头
 //! 什么时候读全了：量尺照这个时刻算「说一句到模型收到请求」。驱动先把整份请求体编好才发头，所以头到的时刻已经包含了
 //! 组装和编码；请求体在回环上传多久不算进去。
 //!
@@ -45,7 +46,7 @@ impl Fake {
             .local_addr()
             .map_err(|e| format!("假模型服务的端口读不出：{e}"))?
             .port();
-        let reply: Arc<[u8]> = stream_body(&filler(reply_bytes)).into_bytes().into();
+        let reply: Arc<str> = filler(reply_bytes).into();
         let (sender, arrivals) = mpsc::unbounded_channel();
         tokio::spawn(async move {
             while let Ok((socket, _)) = listener.accept().await {
@@ -82,7 +83,7 @@ impl Fake {
 }
 
 /// 一个连接：读一个请求，记下，回完关上。
-async fn serve(mut socket: TcpStream, reply: Arc<[u8]>, arrivals: mpsc::UnboundedSender<Arrival>) {
+async fn serve(mut socket: TcpStream, reply: Arc<str>, arrivals: mpsc::UnboundedSender<Arrival>) {
     let Some((head, body, at)) = read_request(&mut socket).await else {
         return;
     };
@@ -90,7 +91,7 @@ async fn serve(mut socket: TcpStream, reply: Arc<[u8]>, arrivals: mpsc::Unbounde
         let mut response =
             b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n"
                 .to_vec();
-        response.extend_from_slice(&reply);
+        response.extend_from_slice(answer(&body, &reply).as_bytes());
         response
     } else {
         let list = r#"{"object":"list","data":[]}"#;
@@ -173,12 +174,33 @@ pub fn mentions(body: &[u8], marker: &[u8]) -> bool {
             .any(|window| window == marker)
 }
 
-/// 回答的事件流：正文一块，收尾一块带用量，最后 `[DONE]`。
-pub fn stream_body(text: &str) -> String {
+/// 摘要请求认的那一句：出厂摘要指令（`resources/core/compaction/summarize-task.txt`）第二段的开头。
+const SUMMARY_MARKER: &[u8] = b"Write a detailed summary of the conversation above";
+
+/// 量尺的摘要：草稿一句、摘要一段，几百字节。
+const SUMMARY: &str = "<analysis>量尺的摘要草稿。</analysis>\n<summary>量尺的摘要：用户一直在让模型回长段的字，好让会话长大；没有要接着做的事，也没有改过的文件。The measuring session only grows; nothing is pending.</summary>";
+
+/// 照请求体 `body` 回的事件流（施工 V-2 上）：摘要请求回 [`SUMMARY`]，别的回 `text`；用量照请求体、正文的字节数估。
+pub fn answer(body: &[u8], text: &str) -> String {
+    let said = match mentions(body, SUMMARY_MARKER) {
+        true => SUMMARY,
+        false => text,
+    };
+    stream_body(said, tokens(body.len()), tokens(said.len()))
+}
+
+/// 字节数折成 token：四个字节一个，往上取整。
+fn tokens(bytes: usize) -> usize {
+    bytes.div_ceil(4)
+}
+
+/// 回答的事件流：正文一块，收尾一块带用量（输入 `prompt`、输出 `completion` 个 token），最后 `[DONE]`。
+pub fn stream_body(text: &str, prompt: usize, completion: usize) -> String {
     let said = json!({"choices": [{"index": 0, "delta": {"role": "assistant", "content": text},
         "finish_reason": null}]});
     let done = json!({"choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
-        "usage": {"prompt_tokens": 1000, "completion_tokens": 800, "total_tokens": 1800}});
+        "usage": {"prompt_tokens": prompt, "completion_tokens": completion,
+            "total_tokens": prompt + completion}});
     format!("data: {said}\n\ndata: {done}\n\ndata: [DONE]\n\n")
 }
 
