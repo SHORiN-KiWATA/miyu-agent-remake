@@ -180,10 +180,10 @@
 | `config.schema` | 配置清单，名字和说明照这个连接的语言（施工 8-2，`config.md`「协议」）；选项可以带 `note`：只有核心查得出的才有，头接在名字后面暗色写（施工 R-5 再补）；可以带 `available: false`：核心查得出用不了的才有，头画成灰的、选不了（施工 R-5 三补） |
 | `config.get` | 最终值和来源，每一份文件在哪、版本，现在的全部问题；带 `cwd` 的算上那个目录的项目配置（施工 8-2）。`files` 多 `secrets`，只有 `file`；问题里有密钥文件的、引用取不到的（施工 8-5） |
 | `config.check` | 把一段字当成一层的配置查，不生效（施工 8-2） |
-| `config.set` | 在系统配置或个人设置里改一项或几项、恢复默认，或者整份换掉；只动那几项，落了盘、记了日志才回应（施工 8-3） |
-| `config.trust` | 信任、不信任一份项目配置，带人看过的那一份的版本（施工 8-3） |
-| `secret.set` | 写入或者换掉一个密钥（`name`、`value`），落了盘、记了日志才回应 `{"replaced"}`（施工 8-5，`config.md`「协议」） |
-| `secret.delete` | 删掉一个密钥（`name`），回应 `{}`（施工 8-5） |
+| `config.set` | 在系统配置或个人设置里改一项或几项、恢复默认，或者整份换掉；只动那几项，落了盘、记了日志才回应（施工 8-3）；扩展进程调回 `local_only`（施工 T-9） |
+| `config.trust` | 信任、不信任一份项目配置，带人看过的那一份的版本（施工 8-3）；扩展进程调回 `local_only`（施工 T-9） |
+| `secret.set` | 写入或者换掉一个密钥（`name`、`value`），落了盘、记了日志才回应 `{"replaced"}`（施工 8-5，`config.md`「协议」）；扩展进程调回 `local_only`（施工 T-9） |
+| `secret.delete` | 删掉一个密钥（`name`），回应 `{}`（施工 8-5）；扩展进程调回 `local_only`（施工 T-9） |
 | `secret.list` | 密钥的名字、设没设、谁在用（`used_by`），从不交出值（施工 8-5） |
 | `model.list` | 配好的供应商和模型，每一格资料的值和来源、状态，在用的目录（施工 8-7）；池、两种用途（施工 8-8：`pools`、`uses` 多 `vision`；8-8 补去掉 `tiers`，池多 `subagent`、`description`）；模型、key 的状态多 `cooling`，带 `until`、`class`（施工 8-9）；每个模型的 `facts` 多 `effort`（施工 8-18），多一格 `key`（8-18（补））。参数 `provider`（只看这一家）、`refresh`（先拉一遍供应商的模型列表）都可以不写；形状照 `models.md`「协议」`model.list` |
 | `provider.detect` | 找现成的：核心的环境里设了的 key（不交值）、本机跑着的模型服务、找了哪些环境变量（施工 8-11）；形状照 `models.md`「协议」 |
@@ -1029,7 +1029,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `hello_first` | -32010 | 握手以前发了别的方法 |
 | `protocol_mismatch` | -32010 | 头支持的主版本里没有 1（之后断开） |
 | `bad_token` | -32010 | 凭据一种都没写、本机令牌不对（之后断开） |
-| `bad_code`、`bad_login`、`bad_password`、`login_throttled`、`setup_first`、`local_only` | -32010 | 网页登录的几种（施工 W-8，`web-module.md`「出错」）；扩展调 `extension.*` 也回 `local_only`（施工 9-4 上），调 `preset.set`、`preset.delete` 也是（施工 P-3 中），`persona.set`、`persona.delete` 也是（施工 P-3 下） |
+| `bad_code`、`bad_login`、`bad_password`、`login_throttled`、`setup_first`、`local_only` | -32010 | 网页登录的几种（施工 W-8，`web-module.md`「出错」）；扩展调 `extension.*` 也回 `local_only`（施工 9-4 上），调 `preset.set`、`preset.delete` 也是（施工 P-3 中），`persona.set`、`persona.delete` 也是（施工 P-3 下），`package.install`、`package.remove`、`package.enable`、`package.disable`、`package.file`、`package.call` 也是（施工 F-5 上、F-6 上、F-6 中），`config.set`、`config.trust`、`secret.set`、`secret.delete` 也是（施工 T-9） |
 | `unknown_persona` | -32010 | 造会话、`persona.get` 时三层都没有这个人格（施工 P-1 上起三层，`personas.md`） |
 | `persona_invalid` | -32010 | 人格的文件写错了；`data.problem` 写明哪一层、哪个文件第几行（施工 P-1 上）；`persona.*` 里另带 `data.message`（照连接的语言）、`data.line`（施工 P-3 补） |
 | `unknown_preset` | -32010 | 造会话、`preset.get` 时三层都没有这个预设，默认预设指着没有的也一样（施工 P-2 上，`presets.md`） |
