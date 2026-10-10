@@ -142,7 +142,7 @@ fn extension(core: &Core, id: &str) -> Result<Manifest, Refusal> {
         .ok_or(Refusal::UNKNOWN_PACKAGE)?;
     match manifest.kind {
         PackageKind::Process => Ok(manifest),
-        PackageKind::Ui | PackageKind::Builtin | PackageKind::Worker => {
+        PackageKind::Ui | PackageKind::Builtin | PackageKind::Worker | PackageKind::Mascot => {
             Err(Refusal::NOT_AN_EXTENSION)
         }
     }

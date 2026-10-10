@@ -128,7 +128,9 @@ fn listed(
 /// 读成了的几格；没有的不写。
 fn fill(item: &mut Value, id: &str, manifest: &Manifest, language: &str) {
     item["kind"] = json!(manifest.kind.as_str());
-    item["protocol"] = json!(manifest.protocol);
+    if let Some(protocol) = manifest.protocol {
+        item["protocol"] = json!(protocol);
+    }
     item["name"] = json!(pick(&manifest.name, language));
     if let Some(version) = &manifest.version {
         item["version"] = json!(version);
@@ -194,11 +196,14 @@ fn links(item: &mut Value, id: &str, manifest: &Manifest, language: &str) {
     if let Some(icon) = &manifest.icon {
         item["icon"] = json!(icon);
     }
+    if let Some(mascot) = &manifest.mascot {
+        item["mascot"] = json!({"model": mascot.model});
+    }
 }
 
-/// 说的协议版本不包含核心的：交回给人看的那个范围，例如 `2–3`；包含的没有。
+/// 说的协议版本不包含核心的：交回给人看的那个范围，例如 `2–3`；包含的、不说协议的（吉祥物包）没有。
 pub(crate) fn mismatch(manifest: &Manifest) -> Option<String> {
-    let [low, high] = manifest.protocol;
+    let [low, high] = manifest.protocol?;
     if (low..=high).contains(&PROTOCOL) {
         return None;
     }

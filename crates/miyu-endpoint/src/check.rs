@@ -233,6 +233,13 @@ async fn check_packages(
                     let message = crate::packages::sentence(words, "page_missing", dir);
                     problems.push(json!({"kind": "package", "file": file, "code": "page_missing", "level": "warning", "message": message.unwrap_or_default()}));
                 }
+                // 吉祥物包的模型文件（施工 F-7）：在、不超过 256 KiB、是 JSON 的对象。
+                if let Some(mascot) = &manifest.mascot
+                    && let Some(code) = crate::packages::status::mascot_problem(one, mascot)
+                {
+                    let message = crate::packages::sentence(words, code, &mascot.model);
+                    problems.push(json!({"kind": "package", "file": file, "code": code, "level": "error", "message": message.unwrap_or_default()}));
+                }
             }
             Err(Issue::Wrong(problem)) => {
                 let message =

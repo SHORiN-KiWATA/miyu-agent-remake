@@ -119,6 +119,7 @@ program = "miyu-embed"
 | `process` | `[package]`、`[command]`、`[process]`、`[check]`、`[settings]`、`[features]`、`[connection]`、`[depends]`、`[recommends]`、`[page]` |
 | `builtin` | `[package]`、`[features]`、`[depends]`、`[recommends]`、`[page]` |
 | `worker` | `[package]`、`[worker]` |
+| `mascot` | `[package]`、`[mascot]`（施工 F-7） |
 
 施工 F-6 上加的两格（`package-pages.md`「清单多的几格」）：`[package] icon` 是 Lucide 的图标名，哪种包都能写；`[page] dir` 是软件后台页在包目录里的子目录，入口是里面的 `index.html`，只有扩展、内置包能写。
 
@@ -183,6 +184,26 @@ program = "miyu-embed"
 5. **转交**（施工 9-2，`cli/main.md`「怎么走」第 0 条）：`miyu <名字> …` 不是内置的子命令，照磁盘读两层的清单，`[command]` 的名字是它的那一个包：程序只找 `miyu` 真实位置旁边的（`miyu_store::packages::locate`；不找 `PATH`，别的程序冒充不了，2026-10-01 项目主人定），参数、环境、标准输入输出原样，Unix 上换成它，Windows 上起它、等它，退出码照它的；`miyu help <名字>` 转成 `--help`。没找到程序说没装、退出码 1。撞了内置子命令的：内置的优先，不转交，帮助页不列；装包时拦随装包那一步。`miyu -h` 多一节「软件包加的命令」。
 6. **跑包的检查**（施工 9-2，`crates/miyu-endpoint/src/check/run.rs`）：核心的 `check` 不写文件时，照起来时读到的清单，有 `[check]` 的每个包跑 `<程序> <args…>`（程序同第 5 条找），标准输入是空的、标准错误不要、环境照核心的，最多等 30 秒、收 1 MiB。标准输出一行一个 JSON：`kind`、`file`、`level`（`error`、`warning`）、`message` 必有，`line`、`column`（正整数）、`code`、`key`、`rule`、`source` 有的才收，别的格不收，接在核心自己查的后面，照包的编号的先后。退出码 0、1 是正常的；别的、被信号杀掉的、跑不起来的、到时没完的报一条警告 `check_failed`；程序没找到的报 `check_unavailable`；有看不懂的行的报 `check_output`（几行），都写清单的位置。写了文件的照旧只认核心自己认得出的。
 7. **入口**（施工 9-3，`cli/main.md`「怎么走」第 3 条）：不带子命令的 `miyu`、不带子命令的 `miyu config` 在终端里时照配置 `ui.head` 找界面包拉起，`miyu config` 带 `--page config`，要清单的 `[ui] opens` 认 `config` 这一页；`miyu web` 照子命令是 `web` 的那一份找网页软件。程序都只找 `miyu` 旁边的。
+
+### 吉祥物包（施工 F-7，2026-10-11 项目主人定，终端界面的会话转来）
+
+终端界面的吉祥物做成专门的一种包，在配置页「通用 › 终端界面 › 吉祥物」里换；长相、颜色、小动作都写在模型文件里，格式由终端定（终端的图纸 `tui.md`「吉祥物包」），核心只认它在哪。
+
+```toml
+# packages/pudding.toml
+[package]
+kind = "mascot"
+name = { zh = "布丁", en = "Pudding" }
+
+[mascot]
+model = "mascot.json"   # 包目录 packages/pudding/ 里的相对路径
+```
+
+1. **清单**：只能写 `[package]`、`[mascot]`，`[package]` 里可以写 `icon`；不说协议，写了 `protocol` 报 `wrong_kind`，写了别的表照样 `wrong_kind`。`[mascot]` 只有 `model`、必写，写法同 `[page] dir`：包目录里的相对路径，不许 `..`、开头的 `/`，写错 `bad_mascot_model`；没有 `[mascot]` 的 `missing_key`。
+2. **列出来**：`package.list` 的一项多 `mascot: {"model"}`，没有 `protocol`。
+3. **读模型**：`package.file {"package", "path"}` 对吉祥物包只给 `model` 那一份（`path` 照原样写），照真实路径找，链接出了包目录的不认；别的路径 `file_not_found`。分块、512 KiB 一块照旧。
+4. **`miyu check`**：模型文件不在（照真实路径，出了包目录的也算不在）`mascot_missing`，超过 256 KiB `mascot_too_big`，不是 JSON 的对象 `mascot_not_json`，都是错误，写清哪个包、哪个文件。模型里面写得对不对由终端查。
+5. **装卸照常**：`package.install`、`package.remove`；没有开关（`package.enable`、`package.disable` 回 `not_switchable`）、没有配置项、不拉起程序。终端照配置项 `tui.mascot`（终端的清单 `[settings.mascot]`，填包的编号）挑用哪一个。
 
 ### 装卸（施工 F-5 上，设计 `30-插件框架.md` 第九节）
 

@@ -156,7 +156,7 @@
 | `package.list` | 列出起来时读到的软件包清单（施工 9-1 上，`packages.md`）；装卸以后当场照新的，卸掉的出厂的带 `removed`（施工 F-5 上） |
 | `package.install`、`package.remove` | 装、卸软件包，当场生效（施工 F-5 上，`packages.md`「装卸」） |
 | `package.enable`、`package.disable` | 软件包列表上的开关：照种类开关扩展的进程，或者卸掉、装回来出厂的内置包（施工 F-6 上，`package-pages.md`「开关」） |
-| `package.file`、`package.call` | 读一个包的后台页里的文件；调它的程序登记的方法，核心反向发 `method.call`，在后台答（施工 F-6 中，`package-pages.md`） |
+| `package.file`、`package.call` | 读一个包的后台页里的文件（吉祥物包读它的模型文件，施工 F-7）；调它的程序登记的方法，核心反向发 `method.call`，在后台答（施工 F-6 中，`package-pages.md`） |
 | `package.methods` | 核心拉起的扩展登记它的后台页要调的方法（施工 F-6 中，`package-pages.md`） |
 | `extension.status`、`extension.enable`、`extension.disable`、`extension.restart` | 核心拉起的扩展：列状态、开、关、重启（施工 9-4 上，`extensions.md`） |
 | `check` | 查人手写的文件：配置、密钥文件、人格，照磁盘上现在的字（施工 8-30，`cli/check.md`） |
@@ -589,7 +589,7 @@
 
 **`package.list`**（施工 9-1 上，`packages.md`「协议」）
 
-不带参数。回应 `{"packages": [...]}`：核心手里这时的两层清单（出厂的、管理员家目录里的），照编号排。每一项的格子见 `packages.md` 的表：读成了的有 `kind`、`protocol`、`name`、`state`，写了的有 `version`、`summary`、`command`、`opens`、`pages_dir`、`process`、`check`；施工 F-1 起，必需的有 `required`，内置包、扩展包有 `features`（没写的照包算一个），写了的有 `connection`、`depends`、`recommends`、`worker`，`kind` 多 `builtin`、`worker`；写错的、撞了的、读不了的只有 `package`、`layer`、`code`、`problem`（照连接的语言）和有的话 `line`；协议版本对不上的照样带全，多 `code: "protocol_mismatch"` 和 `problem`。名字、说明照连接的语言挑。经 `package.install`、`package.remove` 装卸的当场换（施工 F-5）；手改了磁盘上的清单的要重启核心才认。施工 F-6 上起每一项多 `icon`（写了的）、`page`（有后台页的）、`status`、`enabled`（有开关的），见 `package-pages.md`。
+不带参数。回应 `{"packages": [...]}`：核心手里这时的两层清单（出厂的、管理员家目录里的），照编号排。每一项的格子见 `packages.md` 的表：读成了的有 `kind`、`protocol`、`name`、`state`，写了的有 `version`、`summary`、`command`、`opens`、`pages_dir`、`process`、`check`；施工 F-1 起，必需的有 `required`，内置包、扩展包有 `features`（没写的照包算一个），写了的有 `connection`、`depends`、`recommends`、`worker`，`kind` 多 `builtin`、`worker`；施工 F-7 起 `kind` 多 `mascot`（吉祥物包），这一种没有 `protocol`、多 `mascot: {"model"}`（`packages.md`「吉祥物包」）；写错的、撞了的、读不了的只有 `package`、`layer`、`code`、`problem`（照连接的语言）和有的话 `line`；协议版本对不上的照样带全，多 `code: "protocol_mismatch"` 和 `problem`。名字、说明照连接的语言挑。经 `package.install`、`package.remove` 装卸的当场换（施工 F-5）；手改了磁盘上的清单的要重启核心才认。施工 F-6 上起每一项多 `icon`（写了的）、`page`（有后台页的）、`status`、`enabled`（有开关的），见 `package-pages.md`。
 
 **`package.install`、`package.remove`**（施工 F-5 上，`packages.md`「装卸」）
 

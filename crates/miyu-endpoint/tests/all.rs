@@ -65,6 +65,7 @@ mod note;
 mod orphans;
 mod owner;
 mod package_check;
+mod package_mascot;
 mod package_settings;
 mod package_switch;
 mod packages;

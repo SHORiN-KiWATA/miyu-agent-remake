@@ -54,7 +54,7 @@ fn a_ui_package_reads_every_field() {
     let manifest = read(TUI).unwrap();
     assert_eq!(manifest.kind, PackageKind::Ui);
     assert_eq!(manifest.version.as_deref(), Some("0.0.1"));
-    assert_eq!(manifest.protocol, [1, 1]);
+    assert_eq!(manifest.protocol, Some([1, 1]));
     assert_eq!(
         manifest.name.get("zh").map(String::as_str),
         Some("终端界面")
@@ -76,7 +76,7 @@ fn a_ui_package_reads_every_field() {
 fn a_process_package_reads_its_start_check_and_settings() {
     let manifest = read(BRIDGE).unwrap();
     assert_eq!(manifest.kind, PackageKind::Process);
-    assert_eq!(manifest.protocol, [1, 2]);
+    assert_eq!(manifest.protocol, Some([1, 2]));
     assert_eq!(manifest.version, None);
     assert_eq!(
         manifest.process,
@@ -333,10 +333,10 @@ fn every_code_has_a_name_and_the_message_is_english() {
     assert_eq!(problem.detail, "daemon");
     assert_eq!(
         problem.message,
-        "package.kind must be ui, process, builtin or worker, not \"daemon\""
+        "package.kind must be ui, process, builtin, worker or mascot, not \"daemon\""
     );
     assert_eq!(
         problem.to_string(),
-        "line 2: package.kind must be ui, process, builtin or worker, not \"daemon\""
+        "line 2: package.kind must be ui, process, builtin, worker or mascot, not \"daemon\""
     );
 }
