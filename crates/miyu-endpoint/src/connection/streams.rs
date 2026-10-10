@@ -13,7 +13,7 @@ use miyu_session::Handle;
 use crate::Core;
 use crate::hello::Shaken;
 use crate::refusal::Refusal;
-use crate::subscriptions::{Subscriptions, Target, View};
+use crate::subscriptions::{MemoryAt, Subscriptions, Target, View};
 use crate::view::status::Fixed;
 use crate::wire::Request;
 
@@ -22,6 +22,9 @@ use crate::wire::Request;
 struct StreamParams {
     #[serde(default)]
     session: Option<String>,
+    /// 记忆日志的流照人格找那一间（施工 R-12 上）。
+    #[serde(default)]
+    persona: Option<String>,
     stream: String,
 }
 
@@ -37,6 +40,8 @@ pub(super) enum Stream {
     Sessions,
     /// 扩展的状态的推送（施工 9-4 补）。
     Extensions,
+    /// 一间的记忆日志（施工 R-12 上，`memory.md`「协议」）。
+    Memory(MemoryAt),
 }
 
 /// 会话 `session` 的 `session.created`：日志第一条，在阻塞线程里读一行。读不了、第一条不是它的是没有。
@@ -89,6 +94,10 @@ pub(super) async fn subscribe(
         (Ok(Stream::View(session)), Some(shook)) => {
             session_reply(view(core, subscriptions, session, shook, out).await)
         }
+        (Ok(Stream::Memory(at)), _) => match memory(core, subscriptions, request, at, out).await {
+            Ok((result, at)) => (Ok(result), Some(Target::Memory(at))),
+            Err(refusal) => (Err(refusal), None),
+        },
         (Ok(Stream::Extensions | Stream::View(_)), None) => (Err(Refusal::HELLO_FIRST), None),
         (Err(refusal), _) => (Err(refusal), None),
     }
@@ -260,6 +269,22 @@ async fn subscribe_after(
     Ok((upto, current))
 }
 
+/// 订阅一间的记忆日志（施工 R-12 上）：找哪一间、补什么、之后的照 `crate::memory::follow`；回应 `{"upto"}` 交给新的转发任务，
+/// 排在补的后面。
+async fn memory(
+    core: &Arc<Core>,
+    subscriptions: &mut Subscriptions,
+    request: &Request,
+    at: MemoryAt,
+    out: &mpsc::Sender<String>,
+) -> Result<(Value, MemoryAt), Refusal> {
+    let after = after_of(request)?;
+    let following = crate::memory::follow(core, &at, after).await?;
+    let upto = following.upto;
+    subscriptions.add_memory(at.clone(), following, out);
+    Ok((json!({ "upto": upto }), at))
+}
+
 /// `subscribe` 的 `after`（施工 3-8 六补）：可以不写，写 `null` 等于没写；写了要是非负整数，别的 `bad_params`。
 fn after_of(request: &Request) -> Result<Option<u64>, Refusal> {
     match request.params.get("after") {
@@ -269,10 +294,17 @@ fn after_of(request: &Request) -> Result<Option<u64>, Refusal> {
 }
 
 /// 订阅的参数：`events` 带会话编号；`config`、`sessions`、`extensions` 不带会话、不带 `after`，带了是参数不对（施工 8-4、9-5、
-/// 9-4 补）。
+/// 9-4 补）；`memory` 带 `persona` 或 `session`、可以带 `after`，原样交给找那一间的一方（施工 R-12 上）。
 pub(super) fn stream_of(request: &Request) -> Result<Stream, Refusal> {
     let params: StreamParams =
         serde_json::from_value(request.params.clone()).map_err(|_| Refusal::BAD_PARAMS)?;
+    if params.stream == "memory" {
+        // 找哪一间同 `memory.*`：两样都写的、写错的由那边判（施工 R-12 上）。
+        return Ok(Stream::Memory(MemoryAt {
+            persona: params.persona,
+            session: params.session,
+        }));
+    }
     match (params.stream.as_str(), params.session) {
         ("events", Some(session)) => SessionId::parse(&session)
             .map(Stream::Events)

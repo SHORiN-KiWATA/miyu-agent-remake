@@ -44,4 +44,20 @@ impl Refusal {
             data: measured.as_object().cloned(),
         }
     }
+
+    /// 人格的背景图不是 PNG、JPEG、WebP（施工 P-6）。
+    pub(crate) const BACKGROUND_NOT_IMAGE: Refusal = Refusal {
+        code: REFUSED,
+        reason: "background_not_image",
+        data: None,
+    };
+
+    /// 人格的背景图太大、太宽太高（施工 P-6）：`data` 同头像的，量到的和上限。
+    pub(crate) fn background_too_big(measured: serde_json::Value) -> Refusal {
+        Refusal {
+            code: REFUSED,
+            reason: "background_too_big",
+            data: measured.as_object().cloned(),
+        }
+    }
 }

@@ -6,8 +6,10 @@
 //! - 底账（`miyu_recall::MemoryBook`）跟着日志在内存里，打开时照日志算一遍：一个人格的记忆几百到几千条，不多背。
 //! - 记忆库是派生的检索库（`index/recall/memory-<人格>.db`，键是编号，照到的来源是 `log`）：追加时顺手写，写不进不挡住
 //!   追加，交回给调的一方记日志（[`Appended::indexed`]）；打开时照到的位置比日志短就照日志补。
+//! - 跟着看（施工 R-12 上，[`MemoryLog::follow`]，`tail -f`）：登记一个回调，之后追加的落了盘、算进底账就交给它。
 
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use miyu_kernel::event::Event;
@@ -16,7 +18,7 @@ use miyu_kernel::origin::By;
 use miyu_kernel::time::Timestamp;
 use miyu_recall::{MemoryBook, MemoryEvent, MemoryId, from_event, to_event};
 
-use crate::log::{OpenError, SEGMENT_LIMIT, SessionLog};
+use crate::log::{OpenError, SEGMENT_LIMIT, SessionLog, read_events};
 use crate::recall::{DbError, Edit, Opened, RecallIndex, Room};
 use crate::root::DataRoot;
 
@@ -39,12 +41,30 @@ pub struct MemoryLog {
     inner: Mutex<Inner>,
     /// 记忆库：派生的。
     index: RecallIndex,
+    /// 日志在哪个目录：跟着看的补以前的那一截照它读（施工 R-12 上）。
+    dir: PathBuf,
 }
 
 #[derive(Debug)]
 struct Inner {
     log: SessionLog,
     book: MemoryBook,
+    followers: Followers,
+}
+
+/// 跟着看这一份日志的一方（施工 R-12 上，[`MemoryLog::follow`]）：之后追加的一条落了盘、算进底账以后交给它，连同这时的
+/// 底账（判这一条给不给看）。拿着日志的锁调：只做不等的事。交回 `false` 的不再交：那一头不要了、跟不上了。那一头先走了的
+/// （连接断了），下一次追加问到它时才去掉：在那之前占的只是一个回调。
+pub type Follower = Box<dyn FnMut(&Event, &MemoryBook) -> bool + Send>;
+
+/// 登记着的几个跟着看的。
+#[derive(Default)]
+struct Followers(Vec<Follower>);
+
+impl std::fmt::Debug for Followers {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Followers({})", self.0.len())
+    }
 }
 
 /// 这一回第一次开一份记忆日志时，派生的那些是什么情形：调的一方照它记运行日志。
@@ -123,8 +143,13 @@ impl MemoryLogs {
             Err(error) => (0, Some(error)),
         };
         let log = Arc::new(MemoryLog {
-            inner: Mutex::new(Inner { log, book }),
+            inner: Mutex::new(Inner {
+                log,
+                book,
+                followers: Followers::default(),
+            }),
             index,
+            dir,
         });
         open.insert(room.clone(), Arc::clone(&log));
         Ok((
@@ -181,6 +206,10 @@ impl MemoryLog {
         };
         // 刚写成的一定读得懂：读不懂的是 bug，照样不挡住，底账照旧。
         let shown = inner.book.see(&line).map_err(MemoryError::Encode)?;
+        let Inner {
+            book, followers, ..
+        } = &mut *inner;
+        followers.0.retain_mut(|follow| follow(&line, book));
         let indexed = match event {
             MemoryEvent::Saved(saved) => self.index.apply(
                 SOURCE,
@@ -204,6 +233,32 @@ impl MemoryLog {
             indexed,
             cleared: shown,
         })
+    }
+
+    /// 跟着看（施工 R-12 上，`tail -f`）：交回序号大于 `after` 的、这一刻落了盘的事件（`after` 是 `None` 的不补），和这一刻
+    /// 落了盘的最后一条的序号（一条都没有的是 0）；之后追加的交给 `follower`。读和登记在同一把锁里：补的和之后交的不丢不重。
+    /// 补的那一截从磁盘读，调的一方放在阻塞线程里。
+    ///
+    /// # Errors
+    ///
+    /// 要补的那一截读不出来：没登记。
+    pub fn follow(
+        &self,
+        after: Option<u64>,
+        follower: Follower,
+    ) -> Result<(Vec<Event>, u64), MemoryError> {
+        let mut inner = self.lock();
+        let upto = inner.log.next_seq().get() - 1;
+        let filled = match after {
+            Some(after) if after < upto => read_events(&self.dir)
+                .map_err(MemoryError::Open)?
+                .into_iter()
+                .filter(|event| event.seq.get() > after)
+                .collect(),
+            _ => Vec::new(),
+        };
+        inner.followers.0.push(follower);
+        Ok((filled, upto))
     }
 
     /// 照底账读：`read` 拿着锁跑，别做慢的事。

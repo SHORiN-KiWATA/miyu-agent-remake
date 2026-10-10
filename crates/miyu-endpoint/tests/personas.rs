@@ -293,9 +293,9 @@ async fn personas_are_listed_and_read() {
     assert_eq!(
         listed["result"]["personas"],
         json!([
-            {"persona": "broken", "problem": "不认识的表 [voice]：persona.toml 里只能有 [persona]、[memory]", "line": 1},
-            {"persona": "engineer", "name": "软件工程师", "summary": "我的工程师", "avatar": null},
-            {"persona": "miyu", "name": "美羽", "summary": "Mine.", "avatar": null},
+            {"persona": "broken", "problem": "不认识的表 [voice]：persona.toml 里只能有 [persona]、[memory]、[appearance]", "line": 1},
+            {"persona": "engineer", "name": "软件工程师", "summary": "我的工程师", "avatar": null, "background": null, "seed": null},
+            {"persona": "miyu", "name": "美羽", "summary": "Mine.", "avatar": null, "background": null, "seed": null},
         ]),
         "握手说的是中文，挑中文，没有中文的照英文；来自哪几层不给（施工 P-3 补）"
     );
@@ -311,6 +311,8 @@ async fn personas_are_listed_and_read() {
             "prompts": {"persona": false, "reminders": true},
             "examples": 2,
             "avatar": null,
+            "background": null,
+            "seed": null,
             "remove": "delete",
         })
     );

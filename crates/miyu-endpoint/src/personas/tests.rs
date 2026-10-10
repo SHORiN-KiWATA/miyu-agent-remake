@@ -13,6 +13,7 @@ fn found(home: Option<&str>) -> Found {
         reminders_from: None,
         home: home.map(|account| AccountId::parse(account).unwrap()),
         avatar: None,
+        background: None,
     }
 }
 

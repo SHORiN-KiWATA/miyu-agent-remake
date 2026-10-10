@@ -18,12 +18,14 @@
 //! 的推送也是（施工 9-5，`subscriptions/sessions.rs`）：订阅的回应经它写出去，排在推送前面。扩展的状态的推送同会话列表（施工
 //! 9-4 补，`subscriptions/extensions.rs`）。
 //!
-//! 在后台答的回应（施工 R-7 补，`/dream`）办完了照那一刻的会话订阅走，表在 `subscriptions/later.rs`（[`Later`]）。
+//! 在后台答的回应（施工 R-7 补，`/dream`）办完了照那一刻的会话订阅走，表在 `subscriptions/later.rs`（[`Later`]）。记忆日志的
+//! 订阅（施工 R-12 上，`subscriptions/memory.rs`）：一间至多一个，先补、再回应、再推。
 
 mod config;
 mod extension_config;
 mod extensions;
 mod later;
+mod memory;
 mod sessions;
 mod view;
 
@@ -43,6 +45,8 @@ use config::ConfigForwarder;
 use extension_config::ExtensionConfigForwarder;
 use extensions::ExtensionsForwarder;
 pub(crate) use later::Later;
+pub(crate) use memory::MemoryAt;
+use memory::MemoryForwarder;
 use sessions::SessionsForwarder;
 pub(crate) use view::View;
 
@@ -57,6 +61,8 @@ pub(crate) struct Subscriptions {
     extension_config: Option<ExtensionConfigForwarder>,
     /// 会话订阅交回应的那一头的弱引用：开通道时一起记下，在后台答的回应照它走（施工 R-7 补）。
     later: Later,
+    /// 记忆日志的订阅（施工 R-12 上）：照订阅时写的那一间，一间一个。
+    memory: BTreeMap<MemoryAt, MemoryForwarder>,
 }
 
 /// 一条回应经哪个订阅写出去。
@@ -70,6 +76,8 @@ pub(crate) enum Target {
     Sessions,
     /// 扩展的状态的订阅的回应：同上（施工 9-4 补）。
     Extensions,
+    /// 记忆日志的订阅的回应：经它写出去，排在补的后面、之后的推送前面（施工 R-12 上）。
+    Memory(MemoryAt),
 }
 
 /// 一个订阅的转发任务，交回应给它的那一头，和这个订阅还在不在推。
@@ -256,6 +264,23 @@ impl Subscriptions {
         self.extensions = None;
     }
 
+    /// 订阅记忆日志的 `at` 那一间（施工 R-12 上）：起一个转发任务，先写补的；原来订阅着这一间的换掉。订阅的回应经
+    /// [`Target::Memory`] 交给它。
+    pub(crate) fn add_memory(
+        &mut self,
+        at: MemoryAt,
+        following: miyu_session::Following,
+        out: &mpsc::Sender<String>,
+    ) {
+        let forwarder = MemoryForwarder::start(at.clone(), following, out.clone());
+        drop(self.memory.insert(at, forwarder));
+    }
+
+    /// 取消订阅记忆日志的 `at` 那一间：转发任务当场停。没订阅着的不碍事。
+    pub(crate) fn remove_memory(&mut self, at: &MemoryAt) {
+        drop(self.memory.remove(at));
+    }
+
     /// 写一条回应：`target` 订阅着的，交给它的转发任务，排在已经到了的推送后面；没订阅的直接放进写
     /// 队列。写队列关了（连接断了），交回 `false`。
     pub(crate) async fn reply(
@@ -280,6 +305,13 @@ impl Subscriptions {
                 None => line,
             },
             Some(Target::Extensions) => match &mut self.extensions {
+                Some(forwarder) => match forwarder.reply(line) {
+                    Ok(()) => return true,
+                    Err(line) => line,
+                },
+                None => line,
+            },
+            Some(Target::Memory(at)) => match self.memory.get_mut(at) {
                 Some(forwarder) => match forwarder.reply(line) {
                     Ok(()) => return true,
                     Err(line) => line,

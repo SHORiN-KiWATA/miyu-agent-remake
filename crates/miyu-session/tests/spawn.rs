@@ -28,6 +28,10 @@ mod depth;
 #[path = "spawn/pool.rs"]
 mod pool;
 
+/// 任务表变了报一声（施工 9-8 补下修）。
+#[path = "spawn/moved.rs"]
+mod moved;
+
 /// 场所说明的原文。
 const VENUE: &str = include_str!("../../../resources/core/jobs/subagent-venue.txt");
 /// 核心的几行（施工 2-7 补）：权限那一句、本机文件的路径那一句，一行一句。
@@ -42,6 +46,8 @@ struct Table {
     made: Mutex<Vec<Child>>,
     sent: Mutex<Vec<(SessionId, CommandId, By, Command)>>,
     failing: Vec<usize>,
+    /// 报过任务表变了的会话（施工 9-8 补下修）。
+    moved: Mutex<Vec<SessionId>>,
 }
 
 impl Table {
@@ -65,9 +71,23 @@ impl Table {
             .unwrap_or_else(PoisonError::into_inner)
             .clone()
     }
+
+    fn moved(&self) -> Vec<SessionId> {
+        self.moved
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
 }
 
 impl SessionPort for Table {
+    fn moved(&self, session: SessionId) {
+        self.moved
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(session);
+    }
+
     fn create(&self, child: Child) -> Pending<'_, Result<SessionId, String>> {
         let mut made = self.made.lock().unwrap_or_else(PoisonError::into_inner);
         made.push(child);

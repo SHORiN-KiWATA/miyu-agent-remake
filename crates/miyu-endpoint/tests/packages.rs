@@ -270,7 +270,7 @@ async fn broken_taken_and_mismatched_ones_carry_a_code_and_a_sentence() {
             "layer": "home",
             "code": "bad_kind",
             "line": 2,
-            "problem": "package.kind 只能是 ui、process、builtin 或 worker，写的是 daemon",
+            "problem": "package.kind 只能是 ui、process、builtin、worker 或 mascot，写的是 daemon",
         })]
     );
     let web = by_id("web");
@@ -330,7 +330,7 @@ async fn check_reads_the_manifests_from_disk() {
             "code": "bad_kind",
             "level": "error",
             "line": 2,
-            "message": "package.kind 只能是 ui、process、builtin 或 worker，写的是 daemon",
+            "message": "package.kind 只能是 ui、process、builtin、worker 或 mascot，写的是 daemon",
         })],
         "{reply}"
     );

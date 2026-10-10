@@ -26,6 +26,10 @@ pub trait SessionPort: Send + Sync {
     /// 空下来。只报「变了」，那一项由会话表照索引算。默认什么都不做。
     fn listing(&self, _session: SessionId) {}
 
+    /// 会话 `session` 的任务表变了：派出、了结（施工 9-8 补下修）。只报一声给会话树重量，会话列表那一项不变。默认什么都
+    /// 不做。
+    fn moved(&self, _session: SessionId) {}
+
     /// 照 `child` 造一个子会话：`session.created` 落了盘、会话表里有了它才交回编号。
     fn create(&self, child: Child) -> Pending<'_, Result<SessionId, String>>;
 

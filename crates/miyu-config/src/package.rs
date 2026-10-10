@@ -31,8 +31,8 @@ pub struct Manifest {
     pub kind: PackageKind,
     /// 版本，给人看的字；没写的没有。
     pub version: Option<String>,
-    /// 说得了的协议主版本 `[最低, 最高]`，和握手一样。
-    pub protocol: [u32; 2],
+    /// 说得了的协议主版本 `[最低, 最高]`，和握手一样；吉祥物包不说协议，没有（施工 F-7）。
+    pub protocol: Option<[u32; 2]>,
     /// 名字。
     pub name: Phrases,
     /// 一句说明；没写的是空的。
@@ -63,6 +63,15 @@ pub struct Manifest {
     pub icon: Option<String>,
     /// 软件后台页（施工 F-6 上）：包目录里的子目录，入口是里面的 `index.html`；没写的没有。只有扩展、内置包能写。
     pub page: Option<String>,
+    /// 吉祥物（`kind = "mascot"`，施工 F-7）：模型文件在包目录里的相对路径。
+    pub mascot: Option<Mascot>,
+}
+
+/// 吉祥物包的 `[mascot]`（施工 F-7，`packages.md`「吉祥物包」）：模型文件的格式由终端定，核心只认它在哪。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Mascot {
+    /// 模型文件：包目录里的相对路径，例如 `mascot.json`。
+    pub model: String,
 }
 
 /// 包的种类：只说它跑在哪（设计 `30-插件框架.md` 第二节）。
@@ -76,6 +85,8 @@ pub enum PackageKind {
     Builtin,
     /// 小程序（施工 F-1）：核心按需拉起、空闲退出，说它自己的协议。
     Worker,
+    /// 吉祥物（施工 F-7）：只有数据，终端照它画；不说协议、不跑程序、没有开关和配置项。
+    Mascot,
 }
 
 impl PackageKind {
@@ -86,6 +97,7 @@ impl PackageKind {
             PackageKind::Process => "process",
             PackageKind::Builtin => "builtin",
             PackageKind::Worker => "worker",
+            PackageKind::Mascot => "mascot",
         }
     }
 
@@ -115,6 +127,7 @@ impl PackageKind {
             ],
             PackageKind::Builtin => &["package", "features", "depends", "recommends", "page"],
             PackageKind::Worker => &["package", "worker"],
+            PackageKind::Mascot => &["package", "mascot"],
         }
     }
 }
@@ -204,7 +217,7 @@ impl fmt::Display for Problem {
 }
 
 /// 清单里认得的表；哪种包能写哪几张见 [`PackageKind::tables`]。
-const TABLES: [&str; 12] = [
+const TABLES: [&str; 13] = [
     "package",
     "command",
     "process",
@@ -217,6 +230,7 @@ const TABLES: [&str; 12] = [
     "recommends",
     "worker",
     "page",
+    "mascot",
 ];
 
 /// 读一份清单。
@@ -322,6 +336,18 @@ pub fn read(text: &str) -> Result<Manifest, Problem> {
         Some(table) => Some(look::page(&reader, table, &root["page"])?),
         None => None,
     };
+    let mascot = match root.get("mascot").and_then(Item::as_table_like) {
+        Some(table) => Some(look::mascot(&reader, table, &root["mascot"])?),
+        None if kind == PackageKind::Mascot => {
+            return Err(reader.problem(
+                None,
+                Code::MissingKey,
+                "mascot",
+                "a mascot package needs a [mascot] table to name its model".to_string(),
+            ));
+        }
+        None => None,
+    };
     Ok(Manifest {
         kind,
         version: head.version,
@@ -341,6 +367,7 @@ pub fn read(text: &str) -> Result<Manifest, Problem> {
         worker,
         icon: head.icon,
         page,
+        mascot,
     })
 }
 

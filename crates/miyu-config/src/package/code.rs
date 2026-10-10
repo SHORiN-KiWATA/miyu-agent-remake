@@ -85,6 +85,8 @@ pub enum Code {
     BadIcon,
     /// `[page] dir` 不是包目录里的相对目录（施工 F-6 上）。
     BadPageDir,
+    /// `[mascot] model` 不是包目录里的相对路径（施工 F-7）。
+    BadMascotModel,
 }
 
 impl Code {
@@ -132,11 +134,12 @@ impl Code {
             Code::NotBuiltIn => "not_built_in",
             Code::BadIcon => "bad_icon",
             Code::BadPageDir => "bad_page_dir",
+            Code::BadMascotModel => "bad_mascot_model",
         }
     }
 
     /// 全部代码：给人看的字的门禁照它查三种语言都有。
-    pub const ALL: [Code; 41] = [
+    pub const ALL: [Code; 42] = [
         Code::Syntax,
         Code::UnknownTable,
         Code::NotATable,
@@ -178,5 +181,6 @@ impl Code {
         Code::NotBuiltIn,
         Code::BadIcon,
         Code::BadPageDir,
+        Code::BadMascotModel,
     ];
 }

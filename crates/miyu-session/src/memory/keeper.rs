@@ -421,7 +421,7 @@ impl Keeper {
     }
 
     /// 这次会被谁看到的人，都在这一条的听众里。
-    fn hears(&self, entry: &Entry) -> bool {
+    pub(super) fn hears(&self, entry: &Entry) -> bool {
         self.hearers.iter().all(|hearer| {
             entry
                 .audience
@@ -431,7 +431,7 @@ impl Keeper {
     }
 
     /// 出处还活着：一处都没有的算活；有的，活着一处就算。回合库读不了的当活的：宁可多想起来，不吞掉人说过的。
-    fn alive(&self, entry: &Entry) -> bool {
+    pub(super) fn alive(&self, entry: &Entry) -> bool {
         entry.sources.is_empty()
             || entry
                 .sources
@@ -447,7 +447,7 @@ fn done(log: &MemoryLog, stamp: &Stamp) -> Option<(MemoryId, usize)> {
 }
 
 /// 开不了日志说成一句。
-fn failed(refused: Refused) -> String {
+pub(super) fn failed(refused: Refused) -> String {
     match refused {
         Refused::Failed(why) => why,
         other => format!("{other:?}"),

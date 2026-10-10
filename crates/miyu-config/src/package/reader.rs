@@ -9,7 +9,7 @@ use crate::phrases::{self, PhraseError, Phrases};
 pub(super) struct Head {
     pub(super) kind: PackageKind,
     pub(super) version: Option<String>,
-    pub(super) protocol: [u32; 2],
+    pub(super) protocol: Option<[u32; 2]>,
     pub(super) name: Phrases,
     pub(super) summary: Phrases,
     pub(super) required: bool,
@@ -93,6 +93,7 @@ impl Reader<'_> {
             Some("process") => PackageKind::Process,
             Some("builtin") => PackageKind::Builtin,
             Some("worker") => PackageKind::Worker,
+            Some("mascot") => PackageKind::Mascot,
             other => {
                 let shown = other.map_or_else(
                     || {
@@ -108,7 +109,9 @@ impl Reader<'_> {
                     Some(item),
                     Code::BadKind,
                     &shown,
-                    format!("package.kind must be ui, process, builtin or worker, not \"{shown}\""),
+                    format!(
+                        "package.kind must be ui, process, builtin, worker or mascot, not \"{shown}\""
+                    ),
                 ));
             }
         };
@@ -116,15 +119,7 @@ impl Reader<'_> {
             Some(item) => Some(self.text(item, "package.version")?),
             None => None,
         };
-        let item = self.required(table, at, "package", "protocol")?;
-        let protocol = protocol(item).ok_or_else(|| {
-            self.problem(
-                Some(item),
-                Code::BadProtocol,
-                "package.protocol",
-                "package.protocol must be two non-negative integers [lowest, highest]".to_string(),
-            )
-        })?;
+        let protocol = super::look::protocol(self, kind, table, at)?;
         let name = self.phrases(self.required(table, at, "package", "name")?, "package.name")?;
         let summary = match table.get("summary") {
             Some(item) => self.phrases(item, "package.summary")?,
@@ -424,7 +419,7 @@ impl Reader<'_> {
 }
 
 /// `[最低, 最高]`：两个非负整数，最低不大于最高。
-fn protocol(item: &Item) -> Option<[u32; 2]> {
+pub(super) fn protocol(item: &Item) -> Option<[u32; 2]> {
     let array = item.as_array()?;
     let numbers: Vec<u32> = array
         .iter()

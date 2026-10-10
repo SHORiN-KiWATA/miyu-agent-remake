@@ -28,7 +28,7 @@ pub struct Feature {
 
 impl Manifest {
     /// 这个包带的功能，`id` 是包的编号：写了 `[features]` 的照写的（空表就是一个都没有）；没写的内置包、扩展包整个算一个，
-    /// 编号、名字、说明照包的；界面、小程序没有。
+    /// 编号、名字、说明照包的；界面、小程序、吉祥物没有。
     pub fn features_of(&self, id: &str) -> Vec<Feature> {
         match (&self.features, self.kind) {
             (Some(features), _) => features.clone(),
@@ -39,7 +39,7 @@ impl Manifest {
                 tools: Vec::new(),
                 line: None,
             }],
-            (None, PackageKind::Ui | PackageKind::Worker) => Vec::new(),
+            (None, PackageKind::Ui | PackageKind::Worker | PackageKind::Mascot) => Vec::new(),
         }
     }
 }
