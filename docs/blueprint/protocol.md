@@ -905,7 +905,7 @@
 |---|---|---|
 | `session` | 字符串 | 哪个会话：`events`、`view` 必写，`config`、`sessions` 不写（写了 `bad_params`）；`memory` 可以写，是那个会话用的那一间（施工 R-12 上） |
 | `persona` | 字符串 | 只有 `memory` 认：这个人格那一间（施工 R-12 上）。别的流写了不理 |
-| `stream` | 字符串，必写 | `events` 会话的事件流；`view` 会话的视图流（施工 9-8 下，下面第 9 条、`view.md`「视图流」）；`config` 配置的推送（施工 8-4，`config.md`「订阅配置的推送」）；`sessions` 会话列表的推送（施工 9-5，下面「会话列表的推送」）；`extensions` 扩展的状态的推送（施工 9-4 补，`extensions.md`「推送」）；`memory` 一间的记忆日志（施工 R-12 上，下面「记忆日志的推送」）。别的 `bad_params` |
+| `stream` | 字符串，必写 | `events` 会话的事件流；`view` 会话的视图流（施工 9-8 下，下面第 9 条、`view.md`「视图流」）；`config` 配置的推送（施工 8-4，`config.md`「订阅配置的推送」）；`sessions` 会话列表的推送（施工 9-5，下面「会话列表的推送」）；`extensions` 扩展的状态的推送（施工 9-4 补，`extensions.md`「推送」）；`packages` 软件包列表的推送（施工 F-8 三补，下面「软件包列表的推送」）；`memory` 一间的记忆日志（施工 R-12 上，下面「记忆日志的推送」）。别的 `bad_params` |
 | `after` | 非负整数，可以不写 | 只有 `subscribe` 的 `events`、`memory` 认（施工 3-8 六补、R-12 上，`view`、`config`、`sessions`、`extensions` 写了 `bad_params`）：先补发日志里序号大于它、落了盘的事件，`0` 是从头。见下面「补发」、「记忆日志的推送」 |
 
 回应：`config` 的都是 `{}`；`sessions` 的 `subscribe` 是 `{"sessions": [<一项>, …]}`，`unsubscribe` 是 `{}`（施工 9-5）；`extensions` 的 `subscribe` 是 `{"extensions": [<一个>, …]}`，`unsubscribe` 是 `{}`（施工 9-4 补）；`memory` 的 `subscribe` 是 `{"upto": <序号>}`，`unsubscribe` 是 `{}`（施工 R-12 上）。`subscribe` 的是 `{"limits": <限额>, "model": <模型>}`，写了 `after` 的多一格 `upto`（补到哪一条）：`{"limits": <限额>, "model": <模型>, "upto": <序号>}`。当前的待办不空的多一格 `todos`（施工 D-3，照 `todo.written` 的写法）；会话用哪个人格写在 `persona`（施工 P-1 下）、哪个预设写在 `preset`（施工 P-2 上），都照日志第一条 `session.created` 读，以前的日志没有的不写；之后变了照推送的瞬时事件 `todos.changed`，头只认这两样，不自己翻效果。施工 9-6 上起再多三格「当前的」，和订阅在会话 actor 的同一步里拿，头之后照推过来的事件往上加、不重不漏：`usage` 这个会话（不带子会话）累计的，写法、口径同 `usage.query {"session": <它>}` 那一行（`requests`、`usage`、`amounts`、`unpriced`），另加 `main`（只算主请求的四项用量：`purpose` 是空的，压缩的摘要请求也算，回顾、起标题这些辅助请求不算；头照它算命中率、上下文，施工 9-6 上补）、`compactions`（压缩的检查点有几个）、`cache_breaks`（意外断了缓存的主请求有几次：带 `first_difference`、`purpose` 是空的；压缩的摘要请求（带 `compaction`，或者看到的比之前的主请求少）不算；压缩、撤销以后的头一个主请求本来就会断，也不算；口径同终端，施工 9-6 再补）；`permission` 人这一刻设的权限 `{"level", "read_only"}`；`jobs` 还在跑的后台命令和子代理，照编号，每一个照 `job.started` 的写法（`job`、`what`、`title`，子代理带 `session`）。施工 9-7 上起再多 `workspace`：`{"cwd", "dirs"}`，会话在哪个目录干活，之后照推过来的 `session.workspace_changed` 换。已经订阅着、再订阅一次不带 `after` 的（「还是那一个」），这几格另要一份这一刻的。`unsubscribe` 的是空对象 `{}`。
@@ -965,6 +965,13 @@
 5. 读得太慢、掉了队：推 `resync`（`{"stream": "sessions"}`），这个订阅停了，头重新订阅。
 6. 场所会话以后也不进这个流（`18-通讯平台.md` 第十一节）。
 7. 怎么知道变了（`session/actor.md`「推送和订阅」第 7 条）：会话每送完一批，照这一批推过的事件（`session.created`、`session.meta_changed`、`turn.started`、`turn.ended`）和忙不忙变没变，经会话表的端口报一声「这个会话的那一项变了」（`SessionPort::listing`）；端点照会话列表的索引只算这一个会话的一项（和 `session.list` 同一个函数）。造会话、删会话由会话表自己报。不靠订阅每个会话的事件流：订阅着就算有头在看着它（`subscribe` 第 8 条）。
+
+**软件包列表的推送**（施工 F-8 三补，0.0.1 差距清单「别的头装卸软件包时推」，主会话定的形状：照会话列表、扩展的状态的推送）
+
+1. `subscribe {"stream": "packages"}`：要先握手（`hello_first`），不带 `after`（写了 `bad_params`）。回应 `{"packages": […]}`，同 `package.list`，照这个连接的语言。一个连接至多一个；再订阅换一个新的。`unsubscribe` 停掉它，没订阅过的也回 `{}`。
+2. 之后推 `package.changed`：`{"package": <编号>, "entry": <一项>}`，头照编号整项替换；列表里没有了的（家目录里装的卸掉了）`entry` 是 `null`。卸掉的出厂包照旧列着，`entry` 带 `removed: true`。
+3. 什么时候推：核心重读清单的前后（装、升级、卸、装回、关掉出厂的内置包，哪个连接、命令行做的都算），照英文各算一份每个包在列表里的样子，多了的、少了的、变了的各推一条（`packages/changes.rs`）；扩展的开关、状态变了，列表里那一项的 `status`、`enabled` 跟着变，也推（和 `extension.changed` 同一个时候）。推的是这一刻照这个连接的语言算的整项，重复了、晚到的都对。
+4. 读得太慢、掉了队：推 `resync`（`{"stream": "packages"}`），这个订阅停了，头重新订阅。
 
 **记忆日志的推送**（施工 R-12 上，`memory.md`「协议」；2026-10-11 项目主人定：给什么核心定、照仿 Linux 的原则给，一切皆文件、日志式，怎么画是头的事）
 

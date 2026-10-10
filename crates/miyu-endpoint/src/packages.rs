@@ -17,6 +17,7 @@ use miyu_store::root::DataRoot;
 
 use crate::Core;
 
+pub(crate) mod changes;
 pub(crate) mod local;
 pub(crate) mod manage;
 pub(crate) mod methods;
@@ -102,6 +103,18 @@ pub(crate) fn list(core: &Core, peer: Peer) -> Result<Value, Refusal> {
             .map(|found| listed(core, found, &places, &words, peer.language, true)),
     );
     Ok(json!({ "packages": items }))
+}
+
+/// 列表里包 `id` 那一项，照 `peer` 的语言（施工 F-8 三补：推送照它算）；装着的、卸掉了的出厂的都有，都不是的没有。
+pub(crate) fn entry(core: &Core, id: &str, peer: Peer) -> Option<Value> {
+    let words = words(core, peer.language).ok()?;
+    let places = packages(core);
+    if let Some(found) = core.packages().iter().find(|found| found.id == id) {
+        return Some(listed(core, found, &places, &words, peer.language, false));
+    }
+    let removed = places.read_removed();
+    let found = removed.iter().find(|found| found.id == id)?;
+    Some(listed(core, found, &places, &words, peer.language, true))
 }
 
 /// 一项。`removed` 是卸掉了的出厂的包（带 `removed: true`）。

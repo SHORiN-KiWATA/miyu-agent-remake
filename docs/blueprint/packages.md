@@ -151,7 +151,7 @@ program = "miyu-embed"
 
 **系统账号**（施工 O-4 下，`06-多用户与身份.md` U14、`18-通讯平台.md` Q19）：`[process] system_account = true` 的包有一个系统账号，账号名就是包的编号（一个包一个，编号两层里不重）。核心起来时读清单那一次建它的 `home/<编号>/` 和 `workspace/`（已经有的不动，建不成的记 `WARN system account not prepared`、账号照样算有），拉起扩展前开它自己的会话列表索引（`home/<编号>/index/sessions.db`）；名单照核心手里这时的清单算，不落盘；装上、装回来的当场建，卸掉的不再算，家目录、索引留着、装回来接着用（施工 F-5 下）。核心拉起的这个包的扩展以它的身份连进来（`extensions.md`「握手」），群、陌生人私聊的场所会话归它（`venues.md`）。没有密码、不能登录；人格、预设、软件包照管理员的找，记忆归管理员（`personas.md`「怎么走」第 5 条）。彻底卸载时连数据一起删：随 `12-进程形态与分发.md` R9。
 
-**协议**（`protocol.md`）：`package.list`，不带参数，交回 `{"packages": [...]}`，照编号排（同编号出厂的在前）。
+**协议**（`protocol.md`）：`package.list`，不带参数，交回 `{"packages": [...]}`，照编号排（同编号出厂的在前）。列表里变了的经订阅 `packages` 推 `package.changed`（施工 F-8 三补，`protocol.md`「软件包列表的推送」，端点的 `packages/changes.rs`、`subscriptions/listed.rs`）。
 
 | 格 | 什么时候有 | 是什么 |
 |---|---|---|
@@ -273,6 +273,7 @@ model = "mascot.json"   # 包目录 packages/pudding/ 里的相对路径
 | `crates/miyu-endpoint/tests/packages_extensions.rs`、`tests/system_account.rs`、`src/system_accounts/tests.rs`（施工 F-5 下） | 真核心装上的扩展当场拉起、卸掉的当场停下、旧会话调到它的工具报「已卸载」、升级了的重起、没变的不动；起来以后装上、装回来的声明了系统账号的包当场有账号；再走一遍时开过的索引不再开 |
 | `crates/miyu-endpoint/tests/packages_live.rs`（施工 F-5 中） | 真核心卸掉一个内置包：查询当没有、用过它的会话工具面不变、调到报「已卸载」、新开的会话没有；装回来工具、查询都回来 |
 | `crates/miyu-endpoint/tests/packages_preview.rs`（施工 F-8 下补） | 看一眼：装的说带了什么、要什么能力、几个文件多大，升级的说换下哪个版本，写错的、撞了出厂的照真装一样拒；卸的说哪一层、写了的设置键、有没有状态目录，必需的拒；装回出厂的；都什么都不动 |
+| `crates/miyu-endpoint/tests/packages_push.rs`（施工 F-8 三补） | 订阅的回应是整份列表；别的连接装上、卸掉家目录里的、卸掉和装回出厂的，各推变了的那一项，照这个连接的语言，卸没了的是 `null`；取消了不推；没握手、带 `after` 的拒 |
 | `crates/miyu-endpoint/tests/packages_purge.rs`（施工 F-8 中下补） | 真核心卸掉家目录里装的、出厂的包：系统配置、个人设置里它的项删了、空了的表头也删了，别的项和注释不动；状态目录删了 |
 | `crates/miyu-endpoint/tests/packages_install.rs`（施工 F-5 上） | 装一份清单、同名目录一起拷、列表和预设的功能当场有；升级换掉、升级撞了放回原来的、不留暂存；写错的、和出厂撞了的、和别的包撞了的不装；卸家目录的删掉；卸出厂的记一笔、列表里标卸掉、装得回来；必需的、没装的不能卸 |
 | `crates/miyu-endpoint/tests/packages.rs` | `package.list` 的每一格、照语言挑；施工 F-1 的几格（必需、功能、平台接入、依赖、小程序）；没编进来的内置包报 `not_built_in`、只认读成了的内置包算装了（施工 F-2）；写错的、同编号、撞名、协议版本对不上、`process` 和 `check`；起来时读一次；`check` 查清单、写了文件的认得出、别的文件认不出。只断言出厂的网页和测试自己放的几份，家目录里的编号、子命令名避开出厂会有的（施工 9-1 补：终端界面要出厂 `tui`）；家目录里以前的写法读时挪成新的（施工 F-8 上） |

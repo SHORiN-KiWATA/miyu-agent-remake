@@ -47,6 +47,8 @@ impl Core {
     /// 照两层重读软件包清单，标没编进来的内置包、认配置项撞没撞，当场换掉核心手里的那一份（施工 F-5 上）。整份配置清单照
     /// 端口拼、配置服务换上（施工 F-5 补）；没设端口的（测试里造的核心）照手里的清单认撞没撞，配置清单不换。
     pub(crate) fn reload_packages(&self) {
+        // 列表里变了的推出去（施工 F-8 三补）：前后各照英文算一份比。
+        let before = super::changes::snapshot(self);
         let mut found = load(&self.resources, &self.root, &self.admin);
         if let Some(built_in) = &self.built_in {
             compiled(&mut found, built_in);
@@ -67,6 +69,7 @@ impl Core {
         if let Some(items) = items {
             crate::config::refit::refit(self, items);
         }
+        super::changes::announce(self, &before, &super::changes::snapshot(self));
     }
 
     /// 装卸时照清单从 `before` 换到 `now`（施工 F-5 下、补、再补）：人格记忆装没装照 `now` 设（`Memory::set_installed`，施工

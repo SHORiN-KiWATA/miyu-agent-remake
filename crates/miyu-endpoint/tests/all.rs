@@ -77,6 +77,7 @@ mod packages_live;
 mod packages_local;
 mod packages_preview;
 mod packages_purge;
+mod packages_push;
 mod peers;
 mod permission;
 mod persona_appearance;

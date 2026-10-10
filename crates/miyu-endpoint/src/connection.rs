@@ -306,7 +306,8 @@ async fn read_all<R: AsyncRead + Unpin>(
                         }
                         Stream::Config => subscriptions.remove_config(),
                         Stream::Sessions => subscriptions.remove_sessions(),
-                        Stream::Extensions => subscriptions.remove_extensions(),
+                        Stream::Extensions => subscriptions.remove_listed(false),
+                        Stream::Packages => subscriptions.remove_listed(true),
                         Stream::Memory(at) => subscriptions.remove_memory(&at),
                     }
                     json!({})

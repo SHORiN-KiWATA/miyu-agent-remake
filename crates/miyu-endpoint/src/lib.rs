@@ -178,6 +178,8 @@ pub struct Core {
     builtins: Option<Arc<dyn builtins::Builtins>>,
     /// 扩展进程（施工 9-4 上，`extensions.rs`）：核心拉起的 `process` 包。
     extensions: extensions::Extensions,
+    /// 软件包列表里哪个包变了（施工 F-8 三补，`packages/changes.rs`）。
+    package_changes: packages::changes::Changes,
 }
 
 /// 空的模型资料：没有档案、没有目录，读完了。
@@ -273,6 +275,7 @@ impl Core {
             packaging: tokio::sync::Mutex::new(()),
             builtins: None,
             extensions: extensions::Extensions::new(extensions::Timing::default()),
+            package_changes: packages::changes::Changes::default(),
         }
     }
 

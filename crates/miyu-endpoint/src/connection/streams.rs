@@ -40,6 +40,8 @@ pub(super) enum Stream {
     Sessions,
     /// 扩展的状态的推送（施工 9-4 补）。
     Extensions,
+    /// 软件包列表的推送（施工 F-8 三补）。
+    Packages,
     /// 一间的记忆日志（施工 R-12 上，`memory.md`「协议」）。
     Memory(MemoryAt),
 }
@@ -85,8 +87,12 @@ pub(super) async fn subscribe(
             Err(refusal) => (Err(refusal), None),
         },
         (Ok(Stream::Extensions), Some(shook)) => {
-            let listed = subscriptions.add_extensions(core, shook, out);
-            (Ok(listed), Some(Target::Extensions))
+            let listed = subscriptions.add_listed(core, false, shook, out);
+            (listed, Some(Target::Extensions))
+        }
+        (Ok(Stream::Packages), Some(shook)) => {
+            let listed = subscriptions.add_listed(core, true, shook, out);
+            (listed, Some(Target::Packages))
         }
         (Ok(Stream::Events(session)), _) => {
             session_reply(events(core, subscriptions, request, session, out).await)
@@ -98,7 +104,9 @@ pub(super) async fn subscribe(
             Ok((result, at)) => (Ok(result), Some(Target::Memory(at))),
             Err(refusal) => (Err(refusal), None),
         },
-        (Ok(Stream::Extensions | Stream::View(_)), None) => (Err(Refusal::HELLO_FIRST), None),
+        (Ok(Stream::Extensions | Stream::Packages | Stream::View(_)), None) => {
+            (Err(Refusal::HELLO_FIRST), None)
+        }
         (Err(refusal), _) => (Err(refusal), None),
     }
 }
@@ -318,6 +326,7 @@ pub(super) fn stream_of(request: &Request) -> Result<Stream, Refusal> {
         ("config", None) if request.params.get("after").is_none() => Ok(Stream::Config),
         ("sessions", None) if request.params.get("after").is_none() => Ok(Stream::Sessions),
         ("extensions", None) if request.params.get("after").is_none() => Ok(Stream::Extensions),
+        ("packages", None) if request.params.get("after").is_none() => Ok(Stream::Packages),
         _ => Err(Refusal::BAD_PARAMS),
     }
 }
