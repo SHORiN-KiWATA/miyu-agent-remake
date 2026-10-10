@@ -16,7 +16,7 @@ use miyu_store::root::DataRoot;
 
 #[allow(unused_imports, reason = "几个测试程序各用其中一部分")]
 pub use super::answering::{Answering, FIRST_SENT, Member};
-use super::ports::on_free_ports;
+use super::ports::on_free_port;
 use super::spawning::{bridge_up, cli, ports_config_with, text};
 use super::{BOT, Home, NapCat, TIME, admin_napcat};
 
@@ -104,14 +104,14 @@ pub fn at(qq: impl Into<Value>) -> Value {
 }
 
 /// 起一个照开关拉起桥的核心：系统的场所规则 `80-test.toml` 写成 `rules`，系统配置的 `[onebot]` 多写 `onebot`（白名单成员这类），
-/// 桥起来、假 NapCat 连上交给任务应答，群成员照 `members`。挑的空端口被别人先占了的换一组再来（`ports.rs`）。交回核心、假
-/// NapCat 和两个端口（NapCat 的、WebUI 的：重启以后等桥、再连）。
+/// 桥起来、假 NapCat 连上交给任务应答，群成员照 `members`。挑的空端口被别人先占了的换一个再来（`ports.rs`）。交回核心、假
+/// NapCat 和 NapCat 的端口（重启以后等桥、再连）。
 pub async fn started(
     script: &Script,
     rules: &str,
     onebot: &str,
     members: &[Member],
-) -> (Home, Answering, (u16, u16)) {
+) -> (Home, Answering, u16) {
     started_with(script, rules, onebot, |napcat| napcat.answering(members)).await
 }
 
@@ -120,7 +120,7 @@ pub async fn started_by(
     models: Arc<dyn Models>,
     rules: &str,
     members: &[Member],
-) -> (Home, Answering, (u16, u16)) {
+) -> (Home, Answering, u16) {
     up(models, ("", &Value::Null), (rules, ""), "", |napcat| {
         napcat.answering(members)
     })
@@ -134,7 +134,7 @@ pub async fn started_tuned(
     rules: &str,
     tuned: &Value,
     answer: impl FnOnce(NapCat) -> Answering,
-) -> (Home, Answering, (u16, u16)) {
+) -> (Home, Answering, u16) {
     up(models, ("", tuned), (rules, ""), "", answer).await
 }
 
@@ -144,7 +144,7 @@ pub async fn started_with(
     rules: &str,
     onebot: &str,
     answer: impl FnOnce(NapCat) -> Answering,
-) -> (Home, Answering, (u16, u16)) {
+) -> (Home, Answering, u16) {
     up(
         Arc::new(script.clone()),
         ("", &Value::Null),
@@ -163,7 +163,7 @@ pub async fn started_judged(
     (rules, words): (&str, &str),
     onebot: &str,
     members: &[Member],
-) -> (Home, Answering, (u16, u16)) {
+) -> (Home, Answering, u16) {
     let models = super::judge::models(script);
     started_with_models(models, judge, (rules, words), onebot, members).await
 }
@@ -175,7 +175,7 @@ pub async fn started_with_models(
     (rules, words): (&str, &str),
     onebot: &str,
     members: &[Member],
-) -> (Home, Answering, (u16, u16)) {
+) -> (Home, Answering, u16) {
     let more = super::judge::config(judge);
     up(
         models,
@@ -195,9 +195,9 @@ async fn up(
     (rules, words): (&str, &str),
     onebot: &str,
     answer: impl FnOnce(NapCat) -> Answering,
-) -> (Home, Answering, (u16, u16)) {
-    let (home, ports) = on_free_ports(async |listen, web| {
-        let config = format!("{}{more}", ports_config_with(listen, web, onebot));
+) -> (Home, Answering, u16) {
+    let (home, listen) = on_free_port(async |listen| {
+        let config = format!("{}{more}", ports_config_with(listen, onebot));
         let home = Home::spawning_tuned(Arc::clone(&models), &config, tuned);
         let dir = home.root.system().join("venues.d");
         std::fs::create_dir_all(&dir).expect("建得了目录");
@@ -209,12 +209,12 @@ async fn up(
         }
         let started = cli(&home.root, &["start"]).await;
         assert_eq!(started.status.code(), Some(0), "{}", text(&started.stderr));
-        bridge_up(&home.root, listen, web, None).await?;
-        Ok((home, (listen, web)))
+        bridge_up(&home.root, listen, None).await?;
+        Ok((home, listen))
     })
     .await;
-    let napcat = answer(admin_napcat(ports.0).await);
-    (home, napcat, ports)
+    let napcat = answer(admin_napcat(listen).await);
+    (home, napcat, listen)
 }
 
 /// 停下桥、核心拉起的扩展。

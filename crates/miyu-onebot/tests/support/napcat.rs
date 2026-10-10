@@ -170,7 +170,7 @@ impl NapCat {
         }
     }
 
-    /// 等桥连上就调的 `get_version_info`，照 NapCat 的样子回（施工 O-16：`/status` 照它说是哪个实现）。最多等十秒。
+    /// 等桥连上就调的 `get_version_info`，照 NapCat 的样子回（施工 O-16：后台页的 `status`、状态文件照它说是哪个实现）。最多等十秒。
     pub async fn version(&mut self) {
         loop {
             let frame = within("桥问版本", self.ws.next())

@@ -3,12 +3,13 @@
 //! （`{"keys": {键: 新值或 null}}`，只放变了的键；`extensions.md`「配置」）。桥不读系统配置、密钥文件，不依赖核心的 crate
 //! （「施工时定的」第 6 条）。
 //!
-//! - 两个端口 `onebot.listen`、`onebot.web`：0 到 65535 的整数照它（核心只收 1024 到 65535；0 是测试让系统挑）；没有的、
-//!   `null` 的、不是的，照清单 `[settings]` 的默认值（[`Defaults`]，「施工时定的」第 38 条）。
+//! - NapCat 的端口 `onebot.listen`：0 到 65535 的整数照它（核心只收 1024 到 65535；0 是测试让系统挑）；没有的、`null` 的、
+//!   不是的，照清单 `[settings]` 的默认值（[`Defaults`]，「施工时定的」第 38 条）。原来桥自己的网页的端口 `onebot.web` 随施工
+//!   O-28 下去掉：交来了也不认（第 170 条）。
 //! - 令牌 `onebot.token`：是字的照它，去掉前后空白（[`Secret::new`]）；没有的、`null`、空的、不是字的就是没有：桥照样起来，
 //!   NapCat 连进来一律 401（第 1、2 条）。核心不交取不到的引用，桥分不出「没写引用」和「取不到」（「施工时定的」第 41 条）。
 //! - 白名单成员 `onebot.whitelist`（施工 O-23；O-27 从 `onebot.trusted` 改名，旧键不认）：跟核心的那一头照 [`whitelist`] 读
-//!   一份、推来的换（「群里怎么叫她」第 3 条），不进 [`Settings`]：NapCat 的监听、WebUI 用不上它。别的键不认。
+//!   一份、推来的换（「群里怎么叫她」第 3 条），不进 [`Settings`]：NapCat 的监听、后台页的方法用不上它。别的键不认。
 //!
 //! 键是 `<包的编号>.<名字>`（`packages.md`「配置项」第 1 条）：名字在这里写一次，清单的默认值、握手和推送的键都照它。
 
@@ -23,41 +24,34 @@ use crate::PACKAGE;
 /// NapCat 反连进来的端口：清单里的名字。
 const LISTEN: &str = "listen";
 
-/// WebUI 的端口：清单里的名字。
-const WEB: &str = "web";
-
 /// NapCat 要出示的令牌：清单里的名字。
 const TOKEN: &str = "token";
 
 /// 白名单成员：清单里的名字（施工 O-23；O-27 从 `trusted` 改名，旧键不认）。
 const WHITELIST: &str = "whitelist";
 
-/// 桥用的三项。
+/// 桥用的两项。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Settings {
     /// NapCat 反连进来的端口，只听 `127.0.0.1`；`0` 是让系统挑一个（测试用）。
     pub port: u16,
-    /// WebUI 的端口，只听 `127.0.0.1`；`0` 是让系统挑一个（测试用）。
-    pub web: u16,
     /// NapCat 连进来时要出示的访问令牌；没有的是空的。`Debug` 只印 `Secret(…)`。
     pub token: Option<Secret>,
 }
 
-/// 清单 `[settings]` 里两个端口的默认值：握手没交、推来 `null` 的照它（「施工时定的」第 38 条）。
+/// 清单 `[settings]` 里 NapCat 端口的默认值：握手没交、推来 `null` 的照它（「施工时定的」第 38 条）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Defaults {
     /// `onebot.listen` 的默认值（出厂 8301）。
     pub listen: u16,
-    /// `onebot.web` 的默认值（出厂 8302）。
-    pub web: u16,
 }
 
 impl Defaults {
-    /// 读资源目录 `resources` 里这个包的清单（出厂那一层的 [`PACKAGE`]，`miyu_store::packages`），取两个端口的默认值。
+    /// 读资源目录 `resources` 里这个包的清单（出厂那一层的 [`PACKAGE`]，`miyu_store::packages`），取 NapCat 端口的默认值。
     ///
     /// # Errors
     ///
-    /// 清单不在、读不成、写错了，两个端口没声明、没写默认值、默认值不是端口：原话里说是哪个文件。
+    /// 清单不在、读不成、写错了，端口没声明、没写默认值、默认值不是端口：原话里说是哪个文件。
     pub fn load(resources: &ResourceRoot) -> Result<Defaults, String> {
         let found = Packages::shipped(resources)
             .read()
@@ -75,21 +69,16 @@ impl Defaults {
             Err(Issue::Wrong(problem)) => return Err(bad(problem.message.clone())),
             Err(Issue::Unreadable(error)) => return Err(bad(error.to_string())),
         };
-        let port = |name: &str| {
-            manifest
-                .settings
-                .iter()
-                .find(|setting| setting.name == name)
-                .and_then(|setting| match setting.default {
-                    Some(miyu_config::Value::Int(port)) => u16::try_from(port).ok(),
-                    _ => None,
-                })
-                .ok_or_else(|| bad(format!("no port default for {PACKAGE}.{name}")))
-        };
-        Ok(Defaults {
-            listen: port(LISTEN)?,
-            web: port(WEB)?,
-        })
+        let listen = manifest
+            .settings
+            .iter()
+            .find(|setting| setting.name == LISTEN)
+            .and_then(|setting| match setting.default {
+                Some(miyu_config::Value::Int(port)) => u16::try_from(port).ok(),
+                _ => None,
+            })
+            .ok_or_else(|| bad(format!("no port default for {PACKAGE}.{LISTEN}")))?;
+        Ok(Defaults { listen })
     }
 }
 
@@ -99,7 +88,6 @@ impl Settings {
     pub fn handed(config: &Value, defaults: &Defaults) -> Settings {
         let mut settings = Settings {
             port: defaults.listen,
-            web: defaults.web,
             token: None,
         };
         if let Some(config) = config.as_object() {
@@ -117,7 +105,6 @@ impl Settings {
                 .and_then(|rest| rest.strip_prefix('.'));
             match name {
                 Some(LISTEN) => self.port = port(value).unwrap_or(defaults.listen),
-                Some(WEB) => self.web = port(value).unwrap_or(defaults.web),
                 Some(TOKEN) => {
                     self.token = value.as_str().and_then(|token| Secret::new(token).ok())
                 }

@@ -13,7 +13,7 @@ use miyu_ipc::Connection;
 use miyu_session::testkit::{Play, Script};
 use miyu_store::root::DataRoot;
 
-use crate::support::ports::on_free_ports;
+use crate::support::ports::on_free_port;
 use crate::support::spawning::{bridge_up, cli, ports_config, served_up, text};
 use crate::support::*;
 
@@ -155,11 +155,11 @@ fn files(dir: &Path, prefix: &str, found: &mut Vec<String>) {
 #[tokio::test]
 async fn the_page_reaches_the_bridge_through_the_core() {
     let script = Script::new([Play::Says("在。")]);
-    let (home, listen) = on_free_ports(async |listen, web| {
-        let home = Home::spawning(&script, &ports_config(listen, web));
+    let (home, listen) = on_free_port(async |listen| {
+        let home = Home::spawning(&script, &ports_config(listen));
         let started = cli(&home.root, &["start"]).await;
         assert_eq!(started.status.code(), Some(0), "{}", text(&started.stderr));
-        bridge_up(&home.root, listen, web, None).await?;
+        bridge_up(&home.root, listen, None).await?;
         Ok((home, listen))
     })
     .await;
@@ -254,7 +254,7 @@ async fn the_page_reaches_the_bridge_through_the_core() {
 async fn the_bridge_registers_its_methods_and_refuses_ones_it_does_not_know() {
     let (dir, root) = temp_root();
     let (mut served, listen) =
-        on_free_ports(async |listen, web| Ok((served_up(&root, listen, web).await?, listen))).await;
+        on_free_port(async |listen| Ok((served_up(&root, listen).await?, listen))).await;
     // 握手以后先登记工具，再登记方法（不写时限）。
     let registered = within("桥登记方法", async {
         loop {

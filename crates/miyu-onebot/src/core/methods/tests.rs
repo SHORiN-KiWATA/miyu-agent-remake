@@ -1,5 +1,5 @@
 //! 后台页调的方法（施工 O-28 上，`onebot.md` 第一条「后台页」第 2 条）：登记的参数；桥手里的状态还没交进来的、不认识的方法怎么回。
-//! 交进状态以后答的 `status`、`connection.token` 要一个跑着的 WebUI，在集成测试里（`tests/backstage.rs`）。
+//! 交进状态以后答的 `status`、`connection.token` 要一个跑着的桥，在集成测试里（`tests/backstage.rs`、`apply.rs`、`no_token.rs`）。
 
 use serde_json::json;
 

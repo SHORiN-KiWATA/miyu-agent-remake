@@ -51,16 +51,6 @@ applies = "now"
 name = { en = "Port", zh = "端口", ja = "ポート" }
 description = { en = "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws.", zh = "NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/ws。", ja = "NapCat のリバース WebSocket が接続してくるポートです。このマシンからだけ受け付けます。NapCat 側のアドレスは ws://127.0.0.1:<ポート>/ws です。" }
 
-[settings.web]
-type = "int"
-min = 1024
-max = 65535
-default = 8302
-layers = ["system"]
-applies = "now"
-name = { en = "Web page port", zh = "网页端口", ja = "Web ページのポート" }
-description = { en = "The port of Connect QQ's own web page (NapCat connection, token), local only. Open it with miyu-onebot web.", zh = "接入QQ自己的网页（连接 NapCat、换令牌）的端口，只听本机。用 miyu-onebot web 打开。", ja = "QQ接続自身の Web ページ（NapCat の接続、トークン）のポートです。このマシンからだけ受け付けます。miyu-onebot web で開きます。" }
-
 [settings.token]
 type = "secret"
 layers = ["system"]

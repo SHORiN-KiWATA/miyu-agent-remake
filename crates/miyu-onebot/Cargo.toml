@@ -13,15 +13,12 @@ name = "miyu-onebot"
 path = "src/main.rs"
 
 [dependencies]
-# WebUI 验登录令牌时经本机套接字连核心，没在跑就拉起来（`connect_or_start_bare`）。桥自己跟核心说话走核心给的标准输入
-# 输出（施工 O-18），不用它。
-miyu-ipc = { path = "../miyu-ipc" }
 # 数据根；系统的语言；资源目录和给人看的字（`Human::load`）。
 miyu-store = { path = "../miyu-store" }
 # 运行日志 `state/logs/onebot.log`，满了照核心的换法。
 miyu-log = { path = "../miyu-log" }
-# WebUI（施工 O-16）：给页面、核对 Host 和 Origin、`/ws` 原样转给核心、照终端的样子连核心和开浏览器，和网页软件共用的底子
-# （webserve.md）。
+# `start`、`stop`、`restart`、`status` 照终端的样子连核心、一问一答（`open::Core`），和网页软件共用的底子（webserve.md）。
+# 施工 O-28 下桥自己的网页去掉以后只用这一样（onebot.md「施工时定的」第 166 条）。
 miyu-webserve = { path = "../miyu-webserve" }
 # 给人看的字照说法换（`Said`，`Human::say`）；场所、平台上的人的编号是内核的 `VenueId`、`ExternalId`。
 miyu-kernel = { path = "../miyu-kernel" }
@@ -42,8 +39,6 @@ tokio-tungstenite = { version = "0.29", default-features = false, features = ["h
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 # 跟核心说的命令编号的随机前缀：桥重启以后不撞上一次的编号（`venue.session` 同一个编号交回上一次的那一个）。
 getrandom = { version = "0.4", features = ["std"] }
-# WebUI 的 `/status` 验过的登录令牌只记 SHA-256（和别的 crate 用的同一份，只开要的）。
-sha2 = { version = "0.11", default-features = false }
 # OneBot 和核心协议都是 JSON；读 `bridge.json`。
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -58,6 +53,8 @@ jiff = "0.2"
 workspace = true
 
 [dev-dependencies]
+# 测试里核心的替身、头经本机套接字连核心（施工 O-16；O-28 下桥自己不再直接用它）。
+miyu-ipc = { path = "../miyu-ipc" }
 # 测试里在进程里起一个真的核心：协议端点、请求模型照剧本回、读会话日志；配置清单照真核心起来时那样拼进出厂的包的配置项
 # （`miyu_core::settings::Packaged`，施工 O-20）。不要核心的可选软件包。
 miyu-core = { path = "../miyu-core", default-features = false }

@@ -12,7 +12,7 @@ use miyu_kernel::request::Request;
 use miyu_session::Models;
 
 use crate::support::group::*;
-use crate::support::ports::on_free_ports;
+use crate::support::ports::on_free_port;
 use crate::support::spawning::{bridge_up, cli, ports_config, text};
 use crate::support::speaking::{Line, Lines, SKIP_REPLY};
 use crate::support::*;
@@ -218,15 +218,11 @@ async fn a_private_turn_can_be_skipped_and_local_sessions_never_see_the_tool() {
 async fn refused_tools_are_logged_and_the_bridge_goes_on() {
     let lines = Lines::new([Line::says("在。")]);
     let models: Arc<dyn Models> = Arc::new(lines.clone());
-    let (home, listen) = on_free_ports(async |listen, web| {
-        let home = Home::spawning_edited(
-            Arc::clone(&models),
-            &ports_config(listen, web),
-            unacceptable,
-        );
+    let (home, listen) = on_free_port(async |listen| {
+        let home = Home::spawning_edited(Arc::clone(&models), &ports_config(listen), unacceptable);
         let started = cli(&home.root, &["start"]).await;
         assert_eq!(started.status.code(), Some(0), "{}", text(&started.stderr));
-        bridge_up(&home.root, listen, web, None).await?;
+        bridge_up(&home.root, listen, None).await?;
         Ok((home, listen))
     })
     .await;

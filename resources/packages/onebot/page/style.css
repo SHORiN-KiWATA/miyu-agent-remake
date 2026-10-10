@@ -1,5 +1,5 @@
-/* 接入QQ 的后台页（docs/blueprint/onebot.md 第一条「后台页」第 3 条，施工 O-28 上）。卡片、按钮、字体照桥自己的网页
-   （resources/software/onebot/web/style.css），看着和网页软件是一家。颜色：网页在 context 里给了的，app.js 写进 --accent、
+/* 接入QQ 的后台页（docs/blueprint/onebot.md 第一条「后台页」第 3 条，施工 O-28 上）。卡片、按钮、字体照原来桥自己的网页
+   （O-28 下去掉了），看着和网页软件是一家。颜色：网页在 context 里给了的，app.js 写进 --accent、
    --surface、--surface-2、--text、--text-soft、--line、--danger 七个变量；没给的照 <html data-theme> 用下面两套（浅色照「晨光」、
    深色照「tokyonight」，同桥自己的网页）。别的颜色由这七个调出来，网页换了颜色跟着变（「施工时定的」第 160 条）。框撑满网页
    右边一栏，页面自己滚。 */

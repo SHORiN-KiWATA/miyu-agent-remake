@@ -259,14 +259,6 @@
           ],
           "title": "令牌"
         },
-        "web": {
-          "default": 8302,
-          "description": "接入QQ自己的网页（连接 NapCat、换令牌）的端口，只听本机。用 miyu-onebot web 打开。能写：1024 到 65535 之间的整数。只能写在系统配置里。立即生效。",
-          "maximum": 65535,
-          "minimum": 1024,
-          "title": "网页端口",
-          "type": "integer"
-        },
         "whitelist": {
           "description": "能私聊她、加她好友自动通过、不受限流和睡觉影响、群里冲她来的直接回的人。每一项写 qq:QQ号，例如 qq:20017。能写：最多 128 个字的文字 的列表。只能写在系统配置里。立即生效。",
           "items": {

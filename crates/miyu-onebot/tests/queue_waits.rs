@@ -86,7 +86,7 @@ async fn waiting_past_the_deadline_expires_muted_or_away() {
     ]);
     let tuned = json!({"queue_expire_seconds": 1});
     let models = Arc::new(script);
-    let (home, mut napcat, (listen, _)) =
+    let (home, mut napcat, listen) =
         started_tuned(models, RULES, &tuned, |napcat| napcat.answering(MEMBERS)).await;
     // 禁言着排过了期限：记 `expired`，解禁以后不发。
     napcat.send(group_ban(GROUP, BOT, "ban", Some(600)));
@@ -144,7 +144,7 @@ async fn waiting_past_the_deadline_expires_muted_or_away() {
 async fn while_away_she_waits_and_speaks_on_reconnect() {
     let (release, released) = oneshot::channel();
     let lines = Lines::new([Line::says("在。").released_by(released)]);
-    let (home, napcat, (listen, _)) = started_by(Arc::new(lines), RULES, MEMBERS).await;
+    let (home, napcat, listen) = started_by(Arc::new(lines), RULES, MEMBERS).await;
     admin_calls(&napcat, 1);
     until_count(&home, "turn.started", 1).await;
     drop(napcat);
@@ -171,7 +171,7 @@ async fn after_a_restart_what_was_queued_is_not_resent_but_still_counts() {
         Line::calls("我在看这个问题！").released_by(second_released),
         Line::says("看完了。"),
     ]);
-    let (home, napcat, (listen, web)) = started_by(Arc::new(lines), RULES, MEMBERS).await;
+    let (home, napcat, listen) = started_by(Arc::new(lines), RULES, MEMBERS).await;
     admin_calls(&napcat, 1);
     until_count(&home, "turn.started", 1).await;
     // 没连着时她说了第一句：入队了、排着。
@@ -188,7 +188,7 @@ async fn after_a_restart_what_was_queued_is_not_resent_but_still_counts() {
         "{}",
         text(&restarted.stderr)
     );
-    bridge_up(&home.root, listen, web, before)
+    bridge_up(&home.root, listen, before)
         .await
         .expect("桥重新起来");
     let mut napcat = admin_napcat(listen).await.answering(MEMBERS);

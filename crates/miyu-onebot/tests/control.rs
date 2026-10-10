@@ -1,6 +1,6 @@
 //! `miyu onebot status` 说什么（施工 O-18，`onebot.md` 第一条「对外的样子」、「状态文件」）：照 `extension.status` 的那一项
-//! 说开没开、在不在跑、停下的原因和标准错误；在跑的、状态文件的进程号对得上的，再说 NapCat 和两个地址，对不上、读不懂的
-//! 不说。怎么换成字由 `texts.rs` 守着。
+//! 说开没开、在不在跑、停下的原因和标准错误；在跑的、状态文件的进程号对得上的，再说 NapCat、NapCat 那边的地址，接一句设置和
+//! 状态在网页的软件后台（施工 O-28 下：原来说两个地址），对不上、读不懂的不说。怎么换成字由 `texts.rs` 守着。
 
 use serde_json::{Value, json};
 
@@ -13,7 +13,7 @@ fn running(pid: u64) -> Value {
 
 /// 状态文件：进程号 `pid`，NapCat 照 `napcat`。
 fn board(pid: u64, napcat: Value) -> Value {
-    json!({"pid": pid, "listen": 8301, "web": 8302, "napcat": napcat})
+    json!({"pid": pid, "listen": 8301, "napcat": napcat})
 }
 
 fn said(reports: &[Report]) -> Vec<Line> {
@@ -35,7 +35,7 @@ fn off_and_starting_say_one_line() {
 }
 
 #[test]
-fn running_says_napcat_and_the_addresses_only_from_its_own_status_file() {
+fn running_says_napcat_the_address_and_the_page_only_from_its_own_status_file() {
     let connected = json!({"connected": true, "self_id": "30003", "implementation": "NapCat.Onebot", "version": "4.8.0"});
     assert_eq!(
         describe(&running(7), Some(&board(7, connected.clone()))),
@@ -46,10 +46,8 @@ fn running_says_napcat_and_the_addresses_only_from_its_own_status_file() {
                 version: "4.8.0".to_string(),
                 bot: "30003".to_string(),
             },
-            Report::Ports {
-                listen: 8301,
-                web: 8302
-            },
+            Report::Listen(8301),
+            Report::Page,
         ])
     );
     assert_eq!(
@@ -60,10 +58,8 @@ fn running_says_napcat_and_the_addresses_only_from_its_own_status_file() {
         said(&[
             Report::Running(7),
             Report::NapcatBot("30003".to_string()),
-            Report::Ports {
-                listen: 8301,
-                web: 8302
-            },
+            Report::Listen(8301),
+            Report::Page,
         ]),
         "还没问到是哪个实现"
     );
@@ -72,10 +68,8 @@ fn running_says_napcat_and_the_addresses_only_from_its_own_status_file() {
         said(&[
             Report::Running(7),
             Report::NoNapcat,
-            Report::Ports {
-                listen: 8301,
-                web: 8302
-            },
+            Report::Listen(8301),
+            Report::Page,
         ])
     );
     assert_eq!(
@@ -88,6 +82,14 @@ fn running_says_napcat_and_the_addresses_only_from_its_own_status_file() {
         describe(&running(7), Some(&json!({"pid": 7}))),
         said(&[Report::Running(7)]),
         "读不懂的不用"
+    );
+    assert_eq!(
+        describe(
+            &running(7),
+            Some(&json!({"pid": 7, "web": 8302, "napcat": {"connected": false}}))
+        ),
+        said(&[Report::Running(7)]),
+        "没有 NapCat 的端口的不用（只有网页的那种旧文件也是）"
     );
     assert_eq!(
         describe(&running(7), Some(&json!({"pid": "7", "napcat": connected}))),

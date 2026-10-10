@@ -1,5 +1,5 @@
 //! 连着的机器人号（`onebot.md` 第一条「怎么走」第 2、10 条）：一个号一条连接，同一个号再连进来，新的顶掉旧的（旧的关掉）；
-//! 回话照号找它现在的连接。WebUI 的 `/status`、状态文件照这里说连着哪个号、是哪个实现（施工 O-16、O-18）。
+//! 回话照号找它现在的连接。后台页的 `status`、状态文件照这里说连着哪个号、是哪个实现（施工 O-16、O-18、O-28）。
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
@@ -49,7 +49,7 @@ impl Bots {
         self.lock().get(&bot).cloned()
     }
 
-    /// 连着的号里最小的那一个和它的连接：`/status` 只说一个（`onebot.md` 第二条「对外的样子」）。没有连着的是空的。
+    /// 连着的号里最小的那一个和它的连接：`status` 只说一个（`onebot.md` 第一条「后台页」第 2 条）。没有连着的是空的。
     pub(crate) fn first(&self) -> Option<(i64, Link)> {
         self.lock()
             .iter()
@@ -58,7 +58,7 @@ impl Bots {
     }
 
     /// NapCat 连没连上、是哪个号、哪个实现：连着的号里最小的那一个，`connected`、`self_id`，问到了是哪个实现的再带
-    /// `implementation`、`version`；没连着的只有 `connected: false`（`onebot.md` 第二条 `/status`，第一条「状态文件」）。
+    /// `implementation`、`version`；没连着的只有 `connected: false`（`onebot.md` 第一条「后台页」第 2 条、「状态文件」）。
     pub(crate) fn napcat(&self) -> Value {
         let Some((bot, link)) = self.first() else {
             return json!({"connected": false});

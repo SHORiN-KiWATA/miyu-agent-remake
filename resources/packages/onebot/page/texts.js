@@ -1,5 +1,5 @@
 // 接入QQ 后台页的字（施工 O-28 上，docs/blueprint/onebot.md 第一条「后台页」第 4 条）：框里连不了网，读不到桥的 human/*.json，
-// 三种语言放在这里，照 context 的 language 挑（app.js）。说法照桥自己的网页的 web/ 那几句；ja 照英文写（同桥的规矩）。
+// 三种语言放在这里，照 context 的 language 挑（app.js）。说法 O-28 上从桥自己的网页的 web/ 那几句搬来，那几句 O-28 下删了，字只在这里；ja 照英文写（同桥的规矩）。
 // 字段写 {名字}。
 //
 // 写法要守（「施工时定的」第 159 条）：`export const TEXTS = ` 后面到最后的 `;` 是一段 JSON：不写注释、不写结尾的逗号，键用双引号。
