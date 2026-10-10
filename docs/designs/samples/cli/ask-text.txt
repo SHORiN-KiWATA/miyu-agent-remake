@@ -4,7 +4,7 @@
 
 → 读取 notes.md · 3 行
 → 读取 missing.md · 出错：没有这个文件
-→ 读取 ~/.gitconfig · 没做：要确认，这里没人能确认
+→ 读取 ~/.gitconfig · 没做：需要确认，无人确认
 
 $ ls
 notes.md

@@ -178,10 +178,10 @@ fn the_reply_cwd_is_taken_without_saying_it_is_too_wide() {
 #[test]
 fn a_refused_redo_says_what_the_core_said() {
     let refused = json!({"jsonrpc": "2.0", "id": "ask-4",
-        "error": {"code": -32010, "message": "无法重做", "data": {"reason": "not_redoable"}}});
+        "error": {"code": -32010, "message": "无法重做。", "data": {"reason": "not_redoable"}}});
     let Fed { step, err, .. } = feed_redo(&printing(Language::Chinese), false, &[refused]);
     assert_eq!(step, Step::Done(exit::ERROR));
-    assert!(err.contains("无法重做"), "{err}");
+    assert!(err.contains("无法重做。"), "{err}");
 }
 
 #[test]

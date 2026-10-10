@@ -290,5 +290,5 @@ async fn refusals_are_in_the_heads_language() {
     let reply = english
         .call("e1", "blob.get", json!({"blob": hash.as_str()}))
         .await;
-    assert_eq!(reply["error"]["message"], "This content cannot be found.");
+    assert_eq!(reply["error"]["message"], "Content not found.");
 }

@@ -95,7 +95,7 @@ async fn set_and_unset_say_what_happened_in_one_gray_line() {
         (
             set("ui.language", "zh", false),
             0,
-            "· ui.language = \"zh\" 写进了个人设置，当场生效\n",
+            "· ui.language = \"zh\" 写进了个人设置，立即生效\n",
         ),
         (
             set("ui.language", "\"zh\"", false),
@@ -110,7 +110,7 @@ async fn set_and_unset_say_what_happened_in_one_gray_line() {
         (
             set("permission.start_read_only", "true", false),
             0,
-            "· permission.start_read_only = true 写进了个人设置，以后开的会话生效\n",
+            "· permission.start_read_only = true 写进了个人设置，新会话生效\n",
         ),
         (
             unset("ui.language"),
@@ -126,7 +126,7 @@ async fn set_and_unset_say_what_happened_in_one_gray_line() {
         (
             set("ui.language", "zh", true),
             0,
-            "· ui.language = \"zh\" saved to the system config, takes effect at once\n",
+            "· ui.language = \"zh\" saved to the system config, takes effect immediately\n",
         ),
     ];
     for (command, code, said) in cases {
@@ -174,10 +174,10 @@ async fn edit_asks_again_until_it_checks_out_and_keeps_what_was_typed() {
     assert_eq!(
         asked.err,
         format!(
-            "{shown}:2:12 错误：ui.language 只能是 auto、zh、en 或 ja，写的是 \"cn\"。改成其中一个，例如 ui.language = \"auto\"。这一项先照 \"auto\" 用着（默认值）。\n\
+            "{shown}:2:12 错误：ui.language 只能是 auto、zh、en 或 ja，写的是 \"cn\"。改成其中一个，例如 ui.language = \"auto\"。暂用 \"auto\"（默认值）。\n\
              有 1 处错误，还没存。回车接着改，输入 q 放弃：\
-             {shown}:4:1 警告：没有 ui.langauge 这一项。是不是想写 ui.language？这一行先不管，原样留着。\n\
-             · 存好了，当场生效\n"
+             {shown}:4:1 警告：没有 ui.langauge 这一项。是不是想写 ui.language？已忽略此行。\n\
+             · 存好了，立即生效\n"
         )
     );
     assert_eq!(asked.code, 0);

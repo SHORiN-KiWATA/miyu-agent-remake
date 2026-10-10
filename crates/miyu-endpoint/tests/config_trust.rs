@@ -279,7 +279,7 @@ async fn the_answer_must_be_about_the_version_that_was_looked_at() {
     );
     let nowhere = answer(&mut client, "c2", &home.work, STRICT, true).await;
     assert_eq!(reason(&nowhere), Some("no_project_config"));
-    assert_eq!(nowhere["error"]["message"], "这个目录找不到项目配置。");
+    assert_eq!(nowhere["error"]["message"], "未找到项目配置。");
     let missing = client
         .call(
             "c3",

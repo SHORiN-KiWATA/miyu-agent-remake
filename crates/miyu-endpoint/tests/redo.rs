@@ -200,7 +200,7 @@ async fn a_turn_not_opened_by_a_person_is_refused_in_the_heads_language() {
         .call("c2", "session.redo", json!({"session": session}))
         .await;
     assert_eq!(reason(&reply), Some("not_redoable"), "{reply}");
-    assert_eq!(reply["error"]["message"], json!("无法重做"));
+    assert_eq!(reply["error"]["message"], json!("无法重做。"));
     // 最后一轮是清空的。
     client.say("c3", &session, "hi").await;
     home.until_turns(&session, 1).await;
@@ -240,7 +240,7 @@ async fn a_running_turn_or_an_empty_text_is_refused() {
         )
         .await;
     assert_eq!(reason(&reply), Some("empty_message"), "{reply}");
-    assert_eq!(reply["error"]["message"], json!("消息是空的。"));
+    assert_eq!(reply["error"]["message"], json!("消息为空。"));
     client.say("c4", &session, "再来").await;
     until("请求停住", || script.requests().len() == 2).await;
     let reply = client

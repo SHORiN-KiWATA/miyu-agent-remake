@@ -133,11 +133,11 @@ fn facts_say_values_layers_and_timing() {
     let words = words(&[]);
     assert_eq!(
         facts(&words, &level).as_deref(),
-        Ok("能写：error、warn 或 info。只能写在系统配置里。当场生效。")
+        Ok("能写：error、warn 或 info。只能写在系统配置里。立即生效。")
     );
     assert_eq!(
         facts(&words, &language).as_deref(),
-        Ok("能写：auto 或 zh。只能写在系统配置或个人设置里。当场生效。")
+        Ok("能写：auto 或 zh。只能写在系统配置或个人设置里。立即生效。")
     );
 }
 

@@ -92,7 +92,7 @@ async fn the_last_ask_or_the_given_session_is_the_one_redone() {
         assert_eq!(redone.status.code(), Some(1), "{flag}：{redone:?}");
         assert_eq!(
             String::from_utf8_lossy(&redone.stderr),
-            "没有这个会话。\n",
+            "会话不存在。\n",
             "{flag}"
         );
     }

@@ -818,7 +818,7 @@ miyu_config::settings! {
 ```text
 $ miyu check
 ~/.miyu/home/admin/settings.toml:7:1 警告：没有 ui.langauge 这一项。是不是想写 ui.language？这一行先不管，原样留着。
-~/.miyu/system/config.toml:2:9 错误：log.level 只能是 error、warn、info、debug、trace 或 off，写的是 "verbose"。改成其中一个，例如 log.level = "info"。这一项先照 "info" 用着（默认值）。
+~/.miyu/system/config.toml:2:9 错误：log.level 只能是 error、warn、info、debug、trace 或 off，写的是 "verbose"。改成其中一个，例如 log.level = "info"。暂用 "info"（默认值）。
 ~/src/app/.miyu/config.toml:3:19 错误：项目配置只能让限制更严。permission.start_read_only 现在是 true，这里写的 false 更宽，不算。
 2 处错误，1 处警告
 ```
@@ -840,7 +840,7 @@ $ miyu check
 ~/.miyu/home/admin/settings.toml:4:12 error: Not valid TOML: invalid basic string. Using what was read from this file last time.
 ~/.miyu/home/admin/settings.toml:9:9 错误：log.level 只能写在系统配置里，写在个人设置里不算。挪到系统配置里去。
 ~/.miyu/home/admin/settings.toml:9:9 error: log.level belongs in the system config. It does not count in personal settings. Move it to the system config.
-~/.miyu/home/admin/settings.toml:5:19 错误：permission.start_read_only 要写 true 或 false，写的是 "yes"。改成 permission.start_read_only = true。这一项先照 false 用着（默认值）。
+~/.miyu/home/admin/settings.toml:5:19 错误：permission.start_read_only 要写 true 或 false，写的是 "yes"。改成 permission.start_read_only = true。暂用 false（默认值）。
 ~/.miyu/home/admin/settings.toml:5:19 error: permission.start_read_only needs true or false, not "yes". Write permission.start_read_only = true. Using false (the default) for now.
 ```
 
@@ -858,7 +858,7 @@ $ miyu config explain ui.language
 
 ```text
 $ miyu config explain ui.language
-Interface language (ui.language): The language terminals, the web page and the command line use for you. auto follows the terminal or browser. Takes effect at once.
+Interface language (ui.language): The language terminals, the web page and the command line use for you. auto follows the terminal or browser. Takes effect immediately.
   "zh"    personal settings  ~/.miyu/home/admin/settings.toml:3  ← in effect
   "en"    system config      ~/.miyu/system/config.toml:5
   "auto"  default
@@ -884,13 +884,13 @@ ui.startup = "new"
 
 | 什么时候 | 中文 | 英文 |
 |---|---|---|
-| 改了 | `· ui.language = "zh" 写进了个人设置，当场生效` | `· ui.language = "zh" saved to personal settings, takes effect at once` |
+| 改了 | `· ui.language = "zh" 写进了个人设置，立即生效` | `· ui.language = "zh" saved to personal settings, takes effect immediately` |
 | 改了，上面一层压着 | `· ui.language = "en" 写进了系统配置，个人设置里写着 "zh"，用的还是 "zh"` | `· ui.language = "en" saved to the system config, but personal settings say "zh", so "zh" stays in use` |
 | 本来就是 | `· 本来就是 "zh"，没改` | `· Already "zh", nothing changed` |
 | 删掉了 | `· 从个人设置里删掉了 ui.language，现在是 "en"（系统配置）` | `· Removed ui.language from personal settings. It is now "en" (system config)` |
 | 本来就没写 | `· 个人设置里本来就没写 ui.language` | `· Personal settings did not have ui.language` |
 
-「当场生效」按 `applies` 换：`当场生效`、`以后开的会话生效`、`这个程序下次启动时生效`、`下一轮生效`、`重启核心后生效`（`takes effect at once`、`applies to sessions opened from now on`、`takes effect the next time the program starts`、`takes effect next turn`、`takes effect after the core restarts`）。M8 用得上前四种（`head_start` 8-3 加，`next_turn` 8-6 起）。认不出的（核心比命令行新）不说什么时候生效：`· providers.dev.models.m-1.window = 4096 写进了个人设置`（施工 8-3 补）。
+「立即生效」按 `applies` 换：`立即生效`、`新会话生效`、`重启后生效`、`下一轮生效`、`重启核心后生效`（`takes effect immediately`、`applies to new sessions`、`takes effect after restart`、`takes effect next turn`、`takes effect after the core restarts`）。M8 用得上前四种（`head_start` 8-3 加，`next_turn` 8-6 起）。认不出的（核心比命令行新）不说什么时候生效：`· providers.dev.models.m-1.window = 4096 写进了个人设置`（施工 8-3 补）。
 
 - 上面一层压着的，那一层照句子里的叫法：个人设置、系统配置、环境变量（`personal settings say`、`the system config says`、`the environment says`）。
 - 删掉了以后括号里是现在那个值从哪一层来：默认值、系统配置、个人设置（`default`、`system config`、`personal settings`），和 `explain` 的层名一样。
@@ -900,14 +900,14 @@ ui.startup = "new"
 
 ```text
 $ miyu config edit
-~/.miyu/home/admin/settings.toml:3:13 错误：ui.language 只能是 auto、zh、en 或 ja，写的是 "cn"。改成其中一个，例如 ui.language = "auto"。这一项先照 "auto" 用着（默认值）。
+~/.miyu/home/admin/settings.toml:3:13 错误：ui.language 只能是 auto、zh、en 或 ja，写的是 "cn"。改成其中一个，例如 ui.language = "auto"。暂用 "auto"（默认值）。
 有 1 处错误，还没存。回车接着改，输入 q 放弃：
 ```
 
-- 一项的问题照 `config.check` 带「这一项先照…用着」（8-2 定的，8-3 照它改了这个例子）。
+- 一项的问题照 `config.check` 带「暂用…」（8-2 定的，8-3 照它改了这个例子）。
 - 问的那一句后面不换行，等人敲。英文的末尾冒号后面空一格。
 - 放弃：删掉副本，说「放弃了，文件没动」，退出码 1。读到头（Ctrl+D、管道关了）也算放弃。
-- 存好了：`· 存好了，当场生效`；改了几种生效时机不一样的项，接在一起（`· 存好了，当场生效、以后开的会话生效`）；只动了注释的 `· 存好了`。
+- 存好了：`· 存好了，立即生效`；改了几种生效时机不一样的项，接在一起（`· 存好了，立即生效、新会话生效`）；只动了注释的 `· 存好了`。
 
 **`miyu config trust`**：
 
@@ -968,12 +968,12 @@ prepare = true
 
 [external.bindings]
 # 终端管理员的平台账号：通讯平台上的哪个号是哪个本机账号本人。键写平台上的身份（例如 qq:10001），值写本机账号。私聊里，这个号就是那个账号本人。
-# 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置里。当场生效。
+# 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置里。立即生效。
 # "<external>" =
 
 [log]
 # 运行日志的级别：运行日志记到哪一级。排查问题时调成 debug。设了环境变量 MIYU_LOG 的，那一次启动照它。
-# 能写：error、warn、info、debug、trace 或 off。只能写在系统配置里。当场生效。
+# 能写：error、warn、info、debug、trace 或 off。只能写在系统配置里。立即生效。
 level = "info"
 
 [memory]
@@ -999,7 +999,7 @@ merge_sessions = 5
 
 [models]
 # 主对话的模型：新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash；也能写 @池。
-# 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。以后开的会话生效。
+# 能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。新会话生效。
 # chat =
 
 # 语义模型：提高记忆、知识库等内容的检索质量。
@@ -1012,74 +1012,74 @@ merge_sessions = 5
 
 [models.catalog]
 # 多久更新一次：缓存的目录旧过这么久才再拉。
-# 能写：1h 到 720h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+# 能写：1h 到 720h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。立即生效。
 every = "24h"
 
 # 后台更新目录：在后台去 models.dev 拉新的模型目录。关掉只用安装包带的和已经拉过的。
-# 能写：true 或 false。只能写在系统配置或个人设置里。当场生效。
+# 能写：true 或 false。只能写在系统配置或个人设置里。立即生效。
 update = true
 
 # 目录的地址：从哪拉模型目录。
-# 能写：http:// 或 https:// 开头的网址 或 { env = "…" }。只能写在系统配置或个人设置里。当场生效。
+# 能写：http:// 或 https:// 开头的网址 或 { env = "…" }。只能写在系统配置或个人设置里。立即生效。
 url = "https://models.dev/api.json"
 
 [models.cooldown.auth]
 # 认证失败先停用多久：认证失败、额度用完时，整家供应商第一次停用这么久，连着再失败就翻倍。
-# 能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+# 能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。立即生效。
 base = "10m"
 
 # 认证失败最多停用多久：整家供应商的停用翻倍到这么久为止。
-# 能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+# 能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。立即生效。
 max = "2h"
 
 [models.cooldown.rate_limited]
 # 限速后先冷却多久：一个端点被限速，第一次停用这么久，连着再被限速就翻倍。
-# 能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+# 能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。立即生效。
 base = "30s"
 
 # 限速最多冷却多久：限速的冷却翻倍到这么久为止，供应商说要等更久的也不超过它。
-# 能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+# 能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。立即生效。
 max = "10m"
 
 [models.cooldown.retryable]
 # 出错后先冷却多久：连不上、服务端出错，第一次停用这么久，连着再出错就翻倍。
-# 能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+# 能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。立即生效。
 base = "10s"
 
 # 出错最多冷却多久：这类错的冷却翻倍到这么久为止。
-# 能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。
+# 能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。立即生效。
 max = "5m"
 
 [onebot]
 # 端口：NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/ws。
-# 能写：1024 到 65535 之间的整数。只能写在系统配置里。当场生效。
+# 能写：1024 到 65535 之间的整数。只能写在系统配置里。立即生效。
 listen = 8301
 
 # 令牌：NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。没设的，NapCat 连进来会被拒；在接入QQ的网页上能生成一个。
-# 能写：{ secret = "…" } 或 { env = "…" }。只能写在系统配置里。当场生效。
+# 能写：{ secret = "…" } 或 { env = "…" }。只能写在系统配置里。立即生效。
 # token =
 
 # 网页端口：接入QQ自己的网页（连接 NapCat、换令牌）的端口，只听本机。用 miyu-onebot web 打开。
-# 能写：1024 到 65535 之间的整数。只能写在系统配置里。当场生效。
+# 能写：1024 到 65535 之间的整数。只能写在系统配置里。立即生效。
 web = 8302
 
 # 白名单成员：能私聊她、加她好友自动通过、不受限流和睡觉影响、群里冲她来的直接回的人。每一项写 qq:QQ号，例如 qq:20017。
-# 能写：最多 128 个字的文字 的列表。只能写在系统配置里。当场生效。
+# 能写：最多 128 个字的文字 的列表。只能写在系统配置里。立即生效。
 # whitelist =
 
 [permission]
 # 新会话开局只读：打开以后，新会话一开始就是只读。她只能查、写计划，要改文件时你再关掉只读。项目配置里只能把它打开。
-# 能写：true 或 false。只能写在系统配置、个人设置或项目配置里。以后开的会话生效。
+# 能写：true 或 false。只能写在系统配置、个人设置或项目配置里。新会话生效。
 start_read_only = false
 
 [persona]
 # 默认人格：新会话默认用哪个人格。不设的话，新会话无人格：不带人设，记忆不生效。
-# 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。
+# 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。新会话生效。
 # default =
 
 [pools."<id>"]
 # 给模型看的说明：她派子代理时看到的一句，接在池名后面。用英文写，一行。
-# 能写：最多 60 个字的一行英文。只能写在系统配置或个人设置里。以后开的会话生效。
+# 能写：最多 60 个字的一行英文。只能写在系统配置或个人设置里。新会话生效。
 # description =
 
 # 池的成员：几个模型编成一组，每个写成 供应商/模型。
@@ -1091,12 +1091,12 @@ start_read_only = false
 # strategy =
 
 # 子代理能选：打开以后，新会话里她派子代理时能选这个池。池里有成员才列出来。
-# 能写：true 或 false。只能写在系统配置或个人设置里。以后开的会话生效。
+# 能写：true 或 false。只能写在系统配置或个人设置里。新会话生效。
 subagent = false
 
 [preset]
 # 默认预设：新会话默认用哪个预设。
-# 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。
+# 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。新会话生效。
 default = "full"
 
 [providers."<id>"]
@@ -1125,7 +1125,7 @@ default = "full"
 # local =
 
 # 显示名：界面上给人看的名字。编号只用来引用模型；不写的照资料里那一家的名字，再没有的照编号。
-# 能写：最多 64 个字的文字。只能写在系统配置或个人设置里。当场生效。
+# 能写：最多 64 个字的文字。只能写在系统配置或个人设置里。立即生效。
 # name =
 
 # 倍率：这家的价格照它乘，不写是 1。模型上写的盖过它。
@@ -1192,46 +1192,46 @@ default = "full"
 
 [tui]
 # 图标：终端界面用哪一套图标：Nerd Font 的图标，或者没装这种字体时用的普通字符。
-# 能写：nerd 或 plain。只能写在系统配置或个人设置里。当场生效。
+# 能写：nerd 或 plain。只能写在系统配置或个人设置里。立即生效。
 icons = "nerd"
 
 [ui]
 # 默认界面：直接敲 miyu 时打开哪个界面。
-# 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。这个程序下次启动时生效。
+# 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。重启后生效。
 head = "tui"
 
 # 界面语言：终端、网页、命令行给你看的字用哪种话。auto 跟着终端或浏览器的语言。
-# 能写：auto、zh、en 或 ja。只能写在系统配置或个人设置里。当场生效。
+# 能写：auto、zh、en 或 ja。只能写在系统配置或个人设置里。立即生效。
 language = "auto"
 
 # 启动时打开：打开终端界面或网页时，开一个新会话，还是接着最近的那一个。
-# 能写：new 或 recent。只能写在系统配置或个人设置里。这个程序下次启动时生效。
+# 能写：new 或 recent。只能写在系统配置或个人设置里。重启后生效。
 startup = "new"
 
 # 第一次引导走过了：这个账号已经走完第一次引导，终端、网页不再打开引导。
-# 能写：true 或 false。只能写在个人设置里。当场生效。
+# 能写：true 或 false。只能写在个人设置里。立即生效。
 welcomed = false
 
 [usage]
 # 显示的币种：用量的金额照币种各加各的，不换算；这一种排在最前，别的照代码的字母先后。三个大写字母，例如 USD、CNY。
-# 能写：最多 3 个字的文字。只能写在系统配置或个人设置里。当场生效。
+# 能写：最多 3 个字的文字。只能写在系统配置或个人设置里。立即生效。
 currency = "USD"
 
 [web]
 # 空闲多久退出（秒）：没有浏览器连着、没有媒体在给，连续这么多秒就退出。
-# 能写：1 到 86400 之间的整数。只能写在系统配置里。这个程序下次启动时生效。
+# 能写：1 到 86400 之间的整数。只能写在系统配置里。重启后生效。
 idle_seconds = 600
 
 # 最多几张媒体票据：/media 的票据最多几张，满了丢最久没用的。
-# 能写：1 到 1000000 之间的整数。只能写在系统配置里。这个程序下次启动时生效。
+# 能写：1 到 1000000 之间的整数。只能写在系统配置里。重启后生效。
 most_tickets = 4096
 
 # 网页的端口：网页界面听本机的哪个端口。
-# 能写：1 到 65535 之间的整数。只能写在系统配置里。这个程序下次启动时生效。
+# 能写：1 到 65535 之间的整数。只能写在系统配置里。重启后生效。
 port = 8300
 
 # 媒体票据多久作废（秒）：/media 的票据这么多秒没用过就作废。
-# 能写：1 到 2592000 之间的整数。只能写在系统配置里。这个程序下次启动时生效。
+# 能写：1 到 2592000 之间的整数。只能写在系统配置里。重启后生效。
 ticket_idle_seconds = 43200
 ```
 
@@ -1298,20 +1298,20 @@ ticket_idle_seconds = 43200
           "properties": {
             "every": {
               "default": "24h",
-              "description": "缓存的目录旧过这么久才再拉。能写：1h 到 720h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+              "description": "缓存的目录旧过这么久才再拉。能写：1h 到 720h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。立即生效。",
               "pattern": "^[0-9]+[smh]?$",
               "title": "多久更新一次",
               "type": "string"
             },
             "update": {
               "default": true,
-              "description": "在后台去 models.dev 拉新的模型目录。关掉只用安装包带的和已经拉过的。能写：true 或 false。只能写在系统配置或个人设置里。当场生效。",
+              "description": "在后台去 models.dev 拉新的模型目录。关掉只用安装包带的和已经拉过的。能写：true 或 false。只能写在系统配置或个人设置里。立即生效。",
               "title": "后台更新目录",
               "type": "boolean"
             },
             "url": {
               "default": "https://models.dev/api.json",
-              "description": "从哪拉模型目录。能写：http:// 或 https:// 开头的网址 或 { env = \"…\" }。只能写在系统配置或个人设置里。当场生效。",
+              "description": "从哪拉模型目录。能写：http:// 或 https:// 开头的网址 或 { env = \"…\" }。只能写在系统配置或个人设置里。立即生效。",
               "oneOf": [
                 {
                   "format": "uri",
@@ -1336,7 +1336,7 @@ ticket_idle_seconds = 43200
           "type": "object"
         },
         "chat": {
-          "description": "新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash；也能写 @池。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。以后开的会话生效。",
+          "description": "新会话默认用的模型，写成 供应商/模型，例如 deepseek/deepseek-flash；也能写 @池。能写：<供应商>/<模型> 或 @<池>。只能写在系统配置或个人设置里。新会话生效。",
           "title": "主对话的模型",
           "type": "string"
         },
@@ -1346,14 +1346,14 @@ ticket_idle_seconds = 43200
               "properties": {
                 "base": {
                   "default": "10m",
-                  "description": "认证失败、额度用完时，整家供应商第一次停用这么久，连着再失败就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "description": "认证失败、额度用完时，整家供应商第一次停用这么久，连着再失败就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。立即生效。",
                   "pattern": "^[0-9]+[smh]?$",
                   "title": "认证失败先停用多久",
                   "type": "string"
                 },
                 "max": {
                   "default": "2h",
-                  "description": "整家供应商的停用翻倍到这么久为止。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "description": "整家供应商的停用翻倍到这么久为止。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。立即生效。",
                   "pattern": "^[0-9]+[smh]?$",
                   "title": "认证失败最多停用多久",
                   "type": "string"
@@ -1365,14 +1365,14 @@ ticket_idle_seconds = 43200
               "properties": {
                 "base": {
                   "default": "30s",
-                  "description": "一个端点被限速，第一次停用这么久，连着再被限速就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "description": "一个端点被限速，第一次停用这么久，连着再被限速就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。立即生效。",
                   "pattern": "^[0-9]+[smh]?$",
                   "title": "限速后先冷却多久",
                   "type": "string"
                 },
                 "max": {
                   "default": "10m",
-                  "description": "限速的冷却翻倍到这么久为止，供应商说要等更久的也不超过它。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "description": "限速的冷却翻倍到这么久为止，供应商说要等更久的也不超过它。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。立即生效。",
                   "pattern": "^[0-9]+[smh]?$",
                   "title": "限速最多冷却多久",
                   "type": "string"
@@ -1384,14 +1384,14 @@ ticket_idle_seconds = 43200
               "properties": {
                 "base": {
                   "default": "10s",
-                  "description": "连不上、服务端出错，第一次停用这么久，连着再出错就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "description": "连不上、服务端出错，第一次停用这么久，连着再出错就翻倍。能写：1s 到 1h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。立即生效。",
                   "pattern": "^[0-9]+[smh]?$",
                   "title": "出错后先冷却多久",
                   "type": "string"
                 },
                 "max": {
                   "default": "5m",
-                  "description": "这类错的冷却翻倍到这么久为止。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。当场生效。",
+                  "description": "这类错的冷却翻倍到这么久为止。能写：1s 到 24h 之间的时长，写成 30s、10m、1h 这样。只能写在系统配置或个人设置里。立即生效。",
                   "pattern": "^[0-9]+[smh]?$",
                   "title": "出错最多冷却多久",
                   "type": "string"
@@ -1431,7 +1431,7 @@ ticket_idle_seconds = 43200
       "properties": {
         "start_read_only": {
           "default": false,
-          "description": "打开以后，新会话一开始就是只读。她只能查、写计划，要改文件时你再关掉只读。项目配置里只能把它打开。能写：true 或 false。只能写在系统配置、个人设置或项目配置里。以后开的会话生效。",
+          "description": "打开以后，新会话一开始就是只读。她只能查、写计划，要改文件时你再关掉只读。项目配置里只能把它打开。能写：true 或 false。只能写在系统配置、个人设置或项目配置里。新会话生效。",
           "title": "新会话开局只读",
           "type": "boolean"
         }
@@ -1441,7 +1441,7 @@ ticket_idle_seconds = 43200
     "persona": {
       "properties": {
         "default": {
-          "description": "新会话默认用哪个人格。不设的话，新会话无人格：不带人设，记忆不生效。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。",
+          "description": "新会话默认用哪个人格。不设的话，新会话无人格：不带人设，记忆不生效。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。新会话生效。",
           "title": "默认人格",
           "type": "string"
         }
@@ -1452,7 +1452,7 @@ ticket_idle_seconds = 43200
       "additionalProperties": {
         "properties": {
           "description": {
-            "description": "她派子代理时看到的一句，接在池名后面。用英文写，一行。能写：最多 60 个字的一行英文。只能写在系统配置或个人设置里。以后开的会话生效。",
+            "description": "她派子代理时看到的一句，接在池名后面。用英文写，一行。能写：最多 60 个字的一行英文。只能写在系统配置或个人设置里。新会话生效。",
             "maxLength": 60,
             "minLength": 1,
             "title": "给模型看的说明",
@@ -1477,7 +1477,7 @@ ticket_idle_seconds = 43200
           },
           "subagent": {
             "default": false,
-            "description": "打开以后，新会话里她派子代理时能选这个池。池里有成员才列出来。能写：true 或 false。只能写在系统配置或个人设置里。以后开的会话生效。",
+            "description": "打开以后，新会话里她派子代理时能选这个池。池里有成员才列出来。能写：true 或 false。只能写在系统配置或个人设置里。新会话生效。",
             "title": "子代理能选",
             "type": "boolean"
           }
@@ -1490,7 +1490,7 @@ ticket_idle_seconds = 43200
       "properties": {
         "default": {
           "default": "full",
-          "description": "新会话默认用哪个预设。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。以后开的会话生效。",
+          "description": "新会话默认用哪个预设。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。新会话生效。",
           "title": "默认预设",
           "type": "string"
         }
@@ -1703,7 +1703,7 @@ ticket_idle_seconds = 43200
             "type": "object"
           },
           "name": {
-            "description": "界面上给人看的名字。编号只用来引用模型；不写的照资料里那一家的名字，再没有的照编号。能写：最多 64 个字的文字。只能写在系统配置或个人设置里。当场生效。",
+            "description": "界面上给人看的名字。编号只用来引用模型；不写的照资料里那一家的名字，再没有的照编号。能写：最多 64 个字的文字。只能写在系统配置或个人设置里。立即生效。",
             "maxLength": 64,
             "minLength": 1,
             "title": "显示名",
@@ -1725,7 +1725,7 @@ ticket_idle_seconds = 43200
       "properties": {
         "icons": {
           "default": "nerd",
-          "description": "终端界面用哪一套图标：Nerd Font 的图标，或者没装这种字体时用的普通字符。能写：nerd 或 plain。只能写在系统配置或个人设置里。当场生效。",
+          "description": "终端界面用哪一套图标：Nerd Font 的图标，或者没装这种字体时用的普通字符。能写：nerd 或 plain。只能写在系统配置或个人设置里。立即生效。",
           "enum": [
             "nerd",
             "plain"
@@ -1740,13 +1740,13 @@ ticket_idle_seconds = 43200
       "properties": {
         "head": {
           "default": "tui",
-          "description": "直接敲 miyu 时打开哪个界面。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。这个程序下次启动时生效。",
+          "description": "直接敲 miyu 时打开哪个界面。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。重启后生效。",
           "title": "默认界面",
           "type": "string"
         },
         "language": {
           "default": "auto",
-          "description": "终端、网页、命令行给你看的字用哪种话。auto 跟着终端或浏览器的语言。能写：auto、zh、en 或 ja。只能写在系统配置或个人设置里。当场生效。",
+          "description": "终端、网页、命令行给你看的字用哪种话。auto 跟着终端或浏览器的语言。能写：auto、zh、en 或 ja。只能写在系统配置或个人设置里。立即生效。",
           "enum": [
             "auto",
             "zh",
@@ -1758,7 +1758,7 @@ ticket_idle_seconds = 43200
         },
         "startup": {
           "default": "new",
-          "description": "打开终端界面或网页时，开一个新会话，还是接着最近的那一个。能写：new 或 recent。只能写在系统配置或个人设置里。这个程序下次启动时生效。",
+          "description": "打开终端界面或网页时，开一个新会话，还是接着最近的那一个。能写：new 或 recent。只能写在系统配置或个人设置里。重启后生效。",
           "enum": [
             "new",
             "recent"
@@ -1768,7 +1768,7 @@ ticket_idle_seconds = 43200
         },
         "welcomed": {
           "default": false,
-          "description": "这个账号已经走完第一次引导，终端、网页不再打开引导。能写：true 或 false。只能写在个人设置里。当场生效。",
+          "description": "这个账号已经走完第一次引导，终端、网页不再打开引导。能写：true 或 false。只能写在个人设置里。立即生效。",
           "title": "第一次引导走过了",
           "type": "boolean"
         }
@@ -1779,7 +1779,7 @@ ticket_idle_seconds = 43200
       "properties": {
         "currency": {
           "default": "USD",
-          "description": "用量的金额照币种各加各的，不换算；这一种排在最前，别的照代码的字母先后。三个大写字母，例如 USD、CNY。能写：最多 3 个字的文字。只能写在系统配置或个人设置里。当场生效。",
+          "description": "用量的金额照币种各加各的，不换算；这一种排在最前，别的照代码的字母先后。三个大写字母，例如 USD、CNY。能写：最多 3 个字的文字。只能写在系统配置或个人设置里。立即生效。",
           "maxLength": 3,
           "minLength": 1,
           "title": "显示的币种",
@@ -1793,7 +1793,7 @@ ticket_idle_seconds = 43200
 }
 ```
 
-- 英文的参考文件，`[log]` 那一项的两行注释是 `# Runtime log level: How much the runtime log records. …` 和 `# Allowed: error, warn, info, debug, trace or off. Only in the system config. Takes effect at once.`。
+- 英文的参考文件，`[log]` 那一项的两行注释是 `# Runtime log level: How much the runtime log records. …` 和 `# Allowed: error, warn, info, debug, trace or off. Only in the system config. Takes effect immediately.`。
 - 系统配置的 Schema 多一张 `log` 表（`log.level` 只能放在系统配置里）。
 
 **给模型看的字**：没有。配置这一块不往请求里加字。开局只读的会话，第一轮的权限那一块事实照原来的模板写（`facts/permission.txt`），不加新的。
@@ -1932,7 +1932,7 @@ ticket_idle_seconds = 43200
 | `config/or` | `rest`、`last` | {rest}或{last} | {rest} or {last} | {rest}または{last} |
 | `config/list` | `rest`、`next` | {rest}、{next} | {rest}, {next} | {rest}、{next} |
 | `config/layer/system`、`personal` | | 系统配置、个人设置 | the system config、personal settings | システム設定、個人設定 |
-| `config/applies/now` | | 当场生效 | Takes effect at once | すぐに反映されます |
+| `config/applies/now` | | 立即生效 | Takes effect immediately | すぐに反映 |
 
 - 连词、标点、句末的「。」也是字，不写在代码里：`config/or-values` 连写成代码的值，中文「或」两边空一格；`config/or` 连层的名字这类字，不空格（「怎么走」第一条第 11 条）。
 - 说明（`description`）自己带句末的标点；英文里说明和后面那几句之间空一格，中文、日文不空。
@@ -1953,7 +1953,7 @@ ticket_idle_seconds = 43200
 | `config/wrong-layer` | `key`、`layers`、`layer` | {key} 只能写在{layers}里，写在{layer}里不算 | {key} belongs in {layers}. It does not count in {layer} |
 | `config/not-tightening` | `key`、`current`、`got` | 项目配置只能让限制更严。{key} 现在是 {current}，这里写的 {got} 更宽，不算 | A project config can only make limits stricter. {key} is {current}, and {got} here is looser, so it does not count |
 | `config/unknown-secret` | `key`、`name` | {key} 引用的密钥 {name} 还没设 | {key} refers to the secret {name}, which is not set |
-| `config/untrusted-project` | | 这份项目配置还没信任，先不用 | This project config is not trusted yet and is not used |
+| `config/untrusted-project` | | 项目配置未信任，已忽略 | Project config not trusted, ignored |
 | `config/sentence` | `text` | {text}。 | {text}. |
 | `config/then` | `rest`、`next` | {rest}{next} | {rest} {next} |
 | `config/stops` | | 。？！ | .?! |
@@ -1964,10 +1964,10 @@ ticket_idle_seconds = 43200
 | `config/fix-example` | `example` | 改成其中一个，例如 {example} | Write one of them, e.g. {example} |
 | `config/fix-write` | `example` | 改成 {example} | Write {example} |
 | `config/fix-move` | `layers` | 挪到{layers}里去 | Move it to {layers} |
-| `config/kept` | | 这一行先不管，原样留着 | The line is ignored and kept as it is |
-| `config/using-value` | `value`、`from` | 这一项先照 {value} 用着（{from}） | Using {value} ({from}) for now |
-| `config/using-last-good` | | 这份文件先照上一次读进来的用着 | Using what was read from this file last time |
-| `config/using-nothing` | | 这份文件先不用 | The file is not used for now |
+| `config/kept` | | 已忽略此行 | Line ignored |
+| `config/using-value` | `value`、`from` | 暂用 {value}（{from}） | Using {value} ({from}) for now |
+| `config/using-last-good` | | 暂用上次的有效配置 | Using the last valid config |
+| `config/using-nothing` | | 已忽略此文件 | File ignored |
 | `config/layer/default`、`project`、`env`（`system`、`personal` 8-1 就有；编号照层的写法） | | 默认值、项目配置、环境变量 | the default、a project config、the environment |
 | `config/expected/bool`、`option`、`int`、`float`、`text`、`list`、`table` | | true 或 false、其中一个、整数、数、带引号的字、列表、一张表 | true or false、one of them、a whole number、a number、quoted text、a list、a table |
 | `config/applies/new_session`、`head_start`、`next_turn`、`restart`（`now` 8-1 就有；编号照 `applies` 的写法，程序照它拼） | | 以后开的会话生效、这个程序下次启动时生效、下一轮生效、重启核心后生效 | Applies to sessions opened from now on、Takes effect the next time the program starts、Takes effect next turn、Takes effect after the core restarts |
@@ -1992,18 +1992,18 @@ ticket_idle_seconds = 43200
 
 一句由几段接成时（第四条第 7 条）：不是以 `config/stops` 里的字结尾的段照 `config/sentence` 补上句号，段和段照 `config/then` 接。中文、日文补「。」、段和段直接接，英文补「.」、段和段之间空一格。
 
-8-2 加进资源的是用得上的几句：上表里除了 `config/out-of-range`、`config/unknown-secret`、`config/env-not-set`、`config/untrusted`、`config/secrets-header`、`config/trust-header`，`config/expected/` 只有 `bool`、`table`，`config/applies/` 只有 `new_session`；别的随用到它的那一步（8-3、8-5、第一项有范围的那一步）。日文的一份照中文写（施工 8-2）。8-3 加了 `config/trust-header`、`config/applies/head_start`（日文照中文写：「Miyu が記録しているプロジェクト設定の信頼：どのリポジトリの、どの内容を、信頼するかどうか。」「このプログラムを次に起動したときに反映されます」）。8-5 加了 `config/secrets-header`、`config/unknown-secret`、`config/env-not-set`、`config/bad-secret-name`、`config/bad-secret-value`（后两句 2026-10-01 主会话定；日文照中文写）。类型是密钥的一项写错了（`wrong_type`）：期望照 `config/or-values` 把两种写法连起来（`{ secret = "…" } 或 { env = "…" }`），不另说改法，不加新的字。8-6 加了 `config/applies/next_turn`、`config/out-of-range`、`config/bad-format`、`config/bad-segment`、`config/expected/` 的 `int`、`url`、`name`、`reference`、`list`、`id`、`model-name`（施工员照推荐写、日文照中文写）：`int` 带上范围、`list` 带上元素，期望说得出能写什么（参考文件、Schema 的说明里「能写：…」也照它）。8-7 加了 `config/expected/` 的 `float`、`text`、`duration`（施工员照推荐写、日文照中文写）：小数、时长带上范围（时长的范围写成 `1h`、`720h` 这样），文字带上最多几个字。
+8-2 加进资源的是用得上的几句：上表里除了 `config/out-of-range`、`config/unknown-secret`、`config/env-not-set`、`config/untrusted`、`config/secrets-header`、`config/trust-header`，`config/expected/` 只有 `bool`、`table`，`config/applies/` 只有 `new_session`；别的随用到它的那一步（8-3、8-5、第一项有范围的那一步）。日文的一份照中文写（施工 8-2）。8-3 加了 `config/trust-header`、`config/applies/head_start`（日文照中文写：「Miyu が記録しているプロジェクト設定の信頼：どのリポジトリの、どの内容を、信頼するかどうか。」「再起動後に反映」）。8-5 加了 `config/secrets-header`、`config/unknown-secret`、`config/env-not-set`、`config/bad-secret-name`、`config/bad-secret-value`（后两句 2026-10-01 主会话定；日文照中文写）。类型是密钥的一项写错了（`wrong_type`）：期望照 `config/or-values` 把两种写法连起来（`{ secret = "…" } 或 { env = "…" }`），不另说改法，不加新的字。8-6 加了 `config/applies/next_turn`、`config/out-of-range`、`config/bad-format`、`config/bad-segment`、`config/expected/` 的 `int`、`url`、`name`、`reference`、`list`、`id`、`model-name`（施工员照推荐写、日文照中文写）：`int` 带上范围、`list` 带上元素，期望说得出能写什么（参考文件、Schema 的说明里「能写：…」也照它）。8-7 加了 `config/expected/` 的 `float`、`text`、`duration`（施工员照推荐写、日文照中文写）：小数、时长带上范围（时长的范围写成 `1h`、`720h` 这样），文字带上最多几个字。
 
 **协议拒绝时的话**（`protocol.md`「给人看的字」多的几行）：
 
 | 原因码 | 中文 | 英文 |
 |---|---|---|
-| `unknown_config_key` | 没有这一项配置。 | There is no such setting. |
-| `config_invalid` | 配置有几处不对，没有改。 | Some settings are not right. Nothing was changed. |
-| `config_conflict` | 这一项刚被别处改过，没有改：先看看现在的值。 | This was just changed elsewhere. Nothing was changed. Look at the current value first. |
-| `config_file_broken` | 配置文件现在读不进来，没法只改一项：先把它改好，比如用 miyu config edit。 | The config file cannot be read right now, so a single setting cannot be changed. Fix the file first, e.g. with miyu config edit. |
-| `no_project_config` | 这个目录找不到项目配置。 | There is no project config for this directory. |
-| `unknown_secret` | 没有这个密钥。 | There is no such secret. |
+| `unknown_config_key` | 配置项不存在。 | Config key not found. |
+| `config_invalid` | 配置有误，未保存。 | Invalid config, not saved. |
+| `config_conflict` | 配置已被修改，请刷新后重试。 | Config was modified. Refresh and try again. |
+| `config_file_broken` | 配置文件有误，请先修复。 | Config file is invalid. Fix it first. |
+| `no_project_config` | 未找到项目配置。 | Project config not found. |
+| `unknown_secret` | 密钥不存在。 | Secret not found. |
 
 **命令行**（`crates/miyu-cli` 的界面语言，中文、英文）：
 
@@ -2022,7 +2022,7 @@ ticket_idle_seconds = 43200
 | `check` 一行的级别（8-2） | 错误、警告，后面接「：」 | error、warning，后面接「: 」 |
 | `check` 命令行自己读不了的文件（8-2） | 读不了这份文件：<原因>。这份文件超过 1 MiB，不读。这份文件不是 UTF-8。 | Cannot read this file: <why>. The file is over 1 MiB and is not read. The file is not UTF-8. |
 | `explain` 第一行（8-2） | <名字>（<键>）：<说明><生效>。 | <name> (<key>): <description> <applies>. |
-| `explain` 生效（8-2） | 当场生效、以后开的会话生效 | Takes effect at once、Applies to sessions opened from now on |
+| `explain` 生效（8-2） | 立即生效、新会话生效 | Takes effect immediately、Applies to new sessions |
 | `explain` 层的名字（8-2） | 默认值、系统配置、个人设置、项目配置、环境变量 | default、system config、personal settings、project config、environment |
 | `explain` 生效的那一行（8-2） | ← 生效；环境变量的：← 生效，只管这一次启动 | ← in effect；环境变量的：← in effect, for this launch only |
 | `explain` 不算的那一行（8-2） | ← 不算：还没信任、比下面几层宽、不能写在这一层 | ← does not count: not trusted yet、looser than the layers below、not allowed in this layer |
@@ -2268,7 +2268,7 @@ Options:
 | 保留格式用 `toml_edit`（MIT 或 Apache-2.0），加进纯逻辑两层的白名单 | S9 要保留注释、排版、不认识的键。它是 cargo 自己在用的 | 自己写：不值。`toml`：读写不保留注释 |
 | 监视用 `notify`（CC0-1.0），起不来退回每 2 秒轮询 | 三个平台一份代码，底下就是设计点名的三种接口 | 自己调三个平台的接口：三份代码。只轮询：慢、一直醒着 |
 | 版本：整份换用文件字节的 SHA-256。改一项用 `expect` 比这一项在这一层的值（主会话认了） | G5 第 5 条说的是「这一项被别处改过」：改别的项不该冲突。哈希和值都不随核心重启丢 | 只有文件的版本：改无关的两项也冲突。核心里的计数：重启就丢 |
-| 生效时机多一种 `new_session`（主会话认了） | 「新会话默认用什么」改了，开着的会话本来不该变，写成下一轮会让人以为当前会话也换了 | 照 G7 只有三种，把这类写成 `now`：界面上说「当场生效」，人以为开着的会话也变了 |
+| 生效时机多一种 `new_session`（主会话认了） | 「新会话默认用什么」改了，开着的会话本来不该变，写成下一轮会让人以为当前会话也换了 | 照 G7 只有三种，把这类写成 `now`：界面上说「立即生效」，人以为开着的会话也变了 |
 | `ui.language` 的 `auto` 在核心里照握手的 `locale` 算，回应带 `language`。改了以后连接照新的说，不用重新握手（主会话认了） | 头拿到的一种语言就是它该说的。核心的拒绝和头的字一致 | 头自己读配置再算：每个头都写一遍 |
 | 报错一行的开头是 `路径:行:列`（主会话定） | 编辑器、很多终端能照它点过去，和编译器的写法一样 | 「第 2 行第 9 列」：读着顺，点不过去 |
 | `miyu config edit` 存盘有错：指出来，回车接着改，q 放弃（主会话定） | 照 `14-配置.md` 第九节本来的 visudo 说法 | 错误写成注释放顶上再打开：动了人的字。印了就退：改的还得自己找回来 |
@@ -2378,7 +2378,7 @@ Options:
 | 日志每追加一条都重新打开、读整份拿最后一行；`cause` 是这条命令的编号，时刻照核心的钟 | 改配置很少；不用留着开着的文件，手改过的也认得；和会话日志一样查得到是哪一次命令 | 开着文件、只读末尾：多一份要管的状态 |
 | 日志的样本 `seq` 是 1 | 样本是一份新日志的第一行，测试照它逐字节比 | 照起草时的 3、5：测试得先垫几行 |
 | `trust.toml` 同一个仓库有几条的换最后一条，没有的加在末尾；新建的开头注释照这个连接的语言；读不懂、写不成的 `internal_error` | 读的时候最后一条算；回答的人就在这个连接上；手改坏了的不替人修 | 照管理员的 `ui.language` 另算一次：结果一样，多一段代码 |
-| 生效时机多一种 `head_start`，字是「这个程序下次启动时生效」 | 头自己读、启动时读一次，核心不管它；「界面」不说是哪一种头，网页以后也用得上 | 写成 `restart`：那是重启核心 |
+| 生效时机多一种 `head_start`，字是「重启后生效」 | 头自己读、启动时读一次，核心不管它；「界面」不说是哪一种头，网页以后也用得上 | 写成 `restart`：那是重启核心 |
 | `tui.startup` 先在 `miyu-core/src/settings.rs` 替终端界面声明；登记在 `ui` 后面，页排成通用、界面、权限、高级（8-28 改成 `ui.startup`，挪进 `UiSettings`，页「界面」去掉） | 终端界面还没进工作区，核心不用它；界面的设置挨着通用 | 放端点：端点也不用它；放最后：界面排到高级后面 |
 | 名字、说明：「启动时打开」「终端界面启动时开一个新会话，还是接着最近的那一个。」，选项「新会话」「最近的会话」，页「界面」、组「终端界面」（中英日） | 照施工单给的形状写，说的是做什么，不说怎么做 | |
 | 命令行的 `set --project`、不在终端里的 `edit` 连核心以前就拦下，退出码 2 | 参数不对不该拉起核心；没设 key 时也该是 2，不是 5 | 连上核心再说：没设 key 的先报 5 |

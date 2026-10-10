@@ -67,7 +67,7 @@ async fn each_step_is_one_line_before_the_answer() {
     assert_eq!(
         screen,
         format!(
-            "→ 读取 notes.md · 3 行\n→ 读取 missing.md · 出错：没有这个文件\n← 写入 {outside} · 没做：要确认，这里没人能确认\n\n读完了。\n· 输入 400 · 命中缓存 160（40%）· 输出 40\n· 1 步没做：要你确认，miyu ask 里确认不了\n"
+            "→ 读取 notes.md · 3 行\n→ 读取 missing.md · 出错：没有这个文件\n← 写入 {outside} · 没做：需要确认，无人确认\n\n读完了。\n· 输入 400 · 命中缓存 160（40%）· 输出 40\n· 1 步没做：要你确认，miyu ask 里确认不了\n"
         ),
         "工作区里的写相对的，外面的照原样；最后说有几步因为要确认没做（施工 4-9）"
     );

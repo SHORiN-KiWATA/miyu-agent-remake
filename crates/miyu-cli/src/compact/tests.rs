@@ -213,7 +213,7 @@ fn a_failed_compaction_says_why_and_exits_one() {
     assert_eq!(step, Step::Done(exit::ERROR));
     assert_eq!(
         err,
-        "· 压缩失败：取不出摘要\n出错了：取不出摘要：no summary in the reply\n"
+        "· 压缩失败：摘要提取失败\n出错了：摘要提取失败：no summary in the reply\n"
     );
 }
 
@@ -256,13 +256,10 @@ fn an_interrupted_compaction_exits_three() {
 fn a_refusal_is_said_as_the_core_says_it() {
     let refused = json!({"jsonrpc": "2.0", "id": "compact-1", "error": {"code": -32010,
         "data": {"reason": "nothing_to_compact"},
-        "message": "没有能压的：还没压过的内容都在原样留着的最近一段里。"}});
+        "message": "没有可压缩的内容。"}});
     let Fed { step, err, .. } = feed(Language::Chinese, false, &[refused]);
     assert_eq!(step, Step::Done(exit::ERROR));
-    assert_eq!(
-        err,
-        "没有能压的：还没压过的内容都在原样留着的最近一段里。\n"
-    );
+    assert_eq!(err, "没有可压缩的内容。\n");
 }
 
 #[test]

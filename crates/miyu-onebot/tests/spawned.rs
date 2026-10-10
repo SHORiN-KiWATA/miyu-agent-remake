@@ -252,7 +252,7 @@ async fn restarting_an_extension_that_is_off_is_refused_in_the_cores_words() {
         assert_eq!(text(&refused.stdout), "");
         assert_eq!(
             text(&refused.stderr),
-            "这个扩展关着，先打开它。\n",
+            "扩展已停用。\n",
             "照核心的原话（握手说中文）"
         );
         // 开了再重启：换一个新进程。

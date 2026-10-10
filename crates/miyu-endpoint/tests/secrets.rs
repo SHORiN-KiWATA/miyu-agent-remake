@@ -118,7 +118,7 @@ async fn setting_replacing_and_deleting_answer_and_leave_a_trail() {
         .call("secret-5", "secret.delete", json!({"name": "deepseek"}))
         .await;
     assert_eq!(reason(&again), Some("unknown_secret"));
-    assert_eq!(again["error"]["message"], "没有这个密钥。");
+    assert_eq!(again["error"]["message"], "密钥不存在。");
     assert_eq!(
         read(&home, SECRETS).as_deref(),
         Some(format!("{HEADER}bigmodel-2 = \"{FAKE}\"\n").as_str())

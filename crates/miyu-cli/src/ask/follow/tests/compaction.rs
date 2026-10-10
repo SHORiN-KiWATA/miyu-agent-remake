@@ -80,7 +80,7 @@ fn in_a_pipe_only_the_result_is_printed() {
 fn a_failed_summary_is_red_and_says_why() {
     let plan = plan(Format::Text, Language::Chinese);
     for (message, why) in [
-        ("no summary in the reply", "取不出摘要"),
+        ("no summary in the reply", "摘要提取失败"),
         ("the summary reply called a tool", "摘要请求里调了工具"),
     ] {
         let turn = compacted(vec![summary_called(
@@ -108,7 +108,7 @@ fn in_english_too() {
     )]);
     let Fed { screen, .. } = feed(&plan, false, &turn);
     assert!(
-        screen.starts_with("· Compaction failed: no summary in the reply\n"),
+        screen.starts_with("· Compaction failed: summary extraction failed\n"),
         "{screen:?}"
     );
 }
@@ -227,7 +227,7 @@ fn a_request_that_would_not_fit_while_paused_ends_the_turn_with_the_class() {
     let Fed { screen, step, .. } = feed(&plan, false, &turn);
     assert_eq!(step, Step::Done(exit::ERROR));
     assert!(
-        screen.ends_with(&format!("出错了：自动压缩暂停着：{message}\n")),
+        screen.ends_with(&format!("出错了：自动压缩已暂停：{message}\n")),
         "{screen:?}"
     );
 }

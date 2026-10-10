@@ -148,14 +148,14 @@
 
 | 名字 | 中文 | 英文 |
 |---|---|---|
-| `denied` | 你拒绝了 | you said no |
+| `denied` | 已拒绝 | Denied |
 | `denied-with-reason` | 你拒绝了：{reason} | you said no: {reason} |
-| `unattended` | 要确认，这里没人能确认 | needs a confirmation nobody here can give |
-| `question-interrupted` | 打断了，没回答 | interrupted before the answer |
-| `question-voided` | 你发了一句话，这一题作废了 | dropped: you sent a message |
-| `question-unattended` | 这里没人能回答 | nobody here can answer |
+| `unattended` | 需要确认，无人确认 | Needs confirmation, no one to confirm |
+| `question-interrupted` | 已中断，未回答 | Interrupted, not answered |
+| `question-voided` | 已作废 | Voided |
+| `question-unattended` | 无人回答 | No one to answer |
 
-链拒绝的，说法是模块交的，没交就没有。`not_asking`、`unknown_decision`、`no_rule`、`unexpected_reason`、`bad_answer` 这几个原因码，核心现在还没配专门的话，照「被拒绝了。」「Refused.」说（`crates/miyu-endpoint/src/refusal.rs`）。
+链拒绝的，说法是模块交的，没交就没有。`not_asking`、`unknown_decision`、`no_rule`、`unexpected_reason`、`bad_answer` 这几个原因码，核心现在还没配专门的话，照「已拒绝。」「Refused.」说（`crates/miyu-endpoint/src/refusal.rs`）。
 
 ### 守着它的
 

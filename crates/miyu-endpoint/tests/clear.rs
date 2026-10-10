@@ -1,6 +1,6 @@
 //! 清空上下文（施工 6-8 补，`docs/blueprint/protocol.md` 的 `session.clear`）：协议上清一次，回应是单开的那一轮的开头，推送
 //! 里是那一轮的开头、空的检查点、结束，下一次请求里没有清空以前的；撤掉那一轮，回应数的是清空、不是压缩，上下文回来了。
-//! 有回合在进行、上下文本来就是空的，照头的语言拒绝；会话编号不对的是参数不对。
+//! 有回合在进行、上下文本来就是空的，照头的语言拒绝；会话编号不对的是参数错误。
 
 use serde_json::json;
 
@@ -134,13 +134,13 @@ async fn nothing_to_clear_is_refused_in_the_heads_language() {
         .call("c2", "session.clear", json!({"session": session}))
         .await;
     assert_eq!(reason(&reply), Some("nothing_to_clear"), "{reply}");
-    assert_eq!(reply["error"]["message"], json!("上下文为空"));
+    assert_eq!(reply["error"]["message"], json!("上下文为空。"));
     let mut english = Client::connect(core);
     english.hello_without_input().await;
     let reply = english
         .call("e1", "session.clear", json!({"session": session}))
         .await;
-    assert_eq!(reply["error"]["message"], json!("The context is empty."));
+    assert_eq!(reply["error"]["message"], json!("Context is empty."));
     assert_eq!(home.log(&session).len(), 1, "拒绝的什么都不写");
 }
 
@@ -157,10 +157,7 @@ async fn a_running_turn_refuses_a_clear() {
         .call("c3", "session.clear", json!({"session": session}))
         .await;
     assert_eq!(reason(&reply), Some("turn_running"), "{reply}");
-    assert_eq!(
-        reply["error"]["message"],
-        json!("有回合在进行：先打断，或者等它做完。")
-    );
+    assert_eq!(reply["error"]["message"], json!("回合进行中。"));
 }
 
 #[tokio::test]

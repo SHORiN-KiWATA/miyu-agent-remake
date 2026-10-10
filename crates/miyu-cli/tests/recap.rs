@@ -94,5 +94,5 @@ async fn a_failed_recap_or_no_session_says_so() {
     let recapped = recap(&home, &recapping(None, Language::Chinese)).await;
     assert_eq!(recapped.code, 1);
     assert_eq!(recapped.out, "");
-    assert_eq!(recapped.err, "回顾没写成：请求模型出错了。\n");
+    assert_eq!(recapped.err, "生成回顾失败。\n");
 }

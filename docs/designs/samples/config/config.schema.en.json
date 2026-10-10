@@ -16,7 +16,7 @@
       "properties": {
         "bindings": {
           "additionalProperties": {
-            "description": "Which platform identity is which local account. The key is the platform identity (for example qq:10001), the value is the local account. In private chats that identity is that account itself. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config. Takes effect at once.",
+            "description": "Which platform identity is which local account. The key is the platform identity (for example qq:10001), the value is the local account. In private chats that identity is that account itself. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config. Takes effect immediately.",
             "title": "Terminal admin's platform accounts",
             "type": "string"
           },
@@ -29,7 +29,7 @@
       "properties": {
         "level": {
           "default": "info",
-          "description": "How much the runtime log records. Set debug when chasing a problem. MIYU_LOG, when set, wins for that launch. Allowed: error, warn, info, debug, trace or off. Only in the system config. Takes effect at once.",
+          "description": "How much the runtime log records. Set debug when chasing a problem. MIYU_LOG, when set, wins for that launch. Allowed: error, warn, info, debug, trace or off. Only in the system config. Takes effect immediately.",
           "enum": [
             "error",
             "warn",
@@ -90,20 +90,20 @@
           "properties": {
             "every": {
               "default": "24h",
-              "description": "Fetch again once the cached catalog is this old. Allowed: a length of time from 1h to 720h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+              "description": "Fetch again once the cached catalog is this old. Allowed: a length of time from 1h to 720h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect immediately.",
               "pattern": "^[0-9]+[smh]?$",
               "title": "Update every",
               "type": "string"
             },
             "update": {
               "default": true,
-              "description": "Fetch a newer model catalog from models.dev in the background. Off uses only the bundled and already fetched ones. Allowed: true or false. Only in the system config or personal settings. Takes effect at once.",
+              "description": "Fetch a newer model catalog from models.dev in the background. Off uses only the bundled and already fetched ones. Allowed: true or false. Only in the system config or personal settings. Takes effect immediately.",
               "title": "Update the catalog",
               "type": "boolean"
             },
             "url": {
               "default": "https://models.dev/api.json",
-              "description": "Where to fetch the model catalog from. Allowed: an address starting with http:// or https:// or { env = \"…\" }. Only in the system config or personal settings. Takes effect at once.",
+              "description": "Where to fetch the model catalog from. Allowed: an address starting with http:// or https:// or { env = \"…\" }. Only in the system config or personal settings. Takes effect immediately.",
               "oneOf": [
                 {
                   "format": "uri",
@@ -128,7 +128,7 @@
           "type": "object"
         },
         "chat": {
-          "description": "The model new sessions use, written as provider/model, for example deepseek/deepseek-flash, or @pool. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Applies to sessions opened from now on.",
+          "description": "The model new sessions use, written as provider/model, for example deepseek/deepseek-flash, or @pool. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Applies to new sessions.",
           "title": "Chat model",
           "type": "string"
         },
@@ -138,14 +138,14 @@
               "properties": {
                 "base": {
                   "default": "10m",
-                  "description": "How long a whole provider rests the first time it fails to authenticate or runs out of quota. It doubles each time in a row. Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "description": "How long a whole provider rests the first time it fails to authenticate or runs out of quota. It doubles each time in a row. Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect immediately.",
                   "pattern": "^[0-9]+[smh]?$",
                   "title": "Auth failure pause",
                   "type": "string"
                 },
                 "max": {
                   "default": "2h",
-                  "description": "The pause for a whole provider stops doubling here. Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "description": "The pause for a whole provider stops doubling here. Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect immediately.",
                   "pattern": "^[0-9]+[smh]?$",
                   "title": "Auth failure pause cap",
                   "type": "string"
@@ -157,14 +157,14 @@
               "properties": {
                 "base": {
                   "default": "30s",
-                  "description": "How long an endpoint rests the first time it is rate limited. It doubles each time in a row. Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "description": "How long an endpoint rests the first time it is rate limited. It doubles each time in a row. Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect immediately.",
                   "pattern": "^[0-9]+[smh]?$",
                   "title": "Rate limit cooldown",
                   "type": "string"
                 },
                 "max": {
                   "default": "10m",
-                  "description": "The rate limit cooldown stops doubling here, even when the provider asks for longer. Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "description": "The rate limit cooldown stops doubling here, even when the provider asks for longer. Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect immediately.",
                   "pattern": "^[0-9]+[smh]?$",
                   "title": "Rate limit cooldown cap",
                   "type": "string"
@@ -176,14 +176,14 @@
               "properties": {
                 "base": {
                   "default": "10s",
-                  "description": "How long an endpoint rests the first time it cannot be reached or fails on its side. It doubles each time in a row. Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "description": "How long an endpoint rests the first time it cannot be reached or fails on its side. It doubles each time in a row. Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect immediately.",
                   "pattern": "^[0-9]+[smh]?$",
                   "title": "Error cooldown",
                   "type": "string"
                 },
                 "max": {
                   "default": "5m",
-                  "description": "The cooldown for these errors stops doubling here. Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.",
+                  "description": "The cooldown for these errors stops doubling here. Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect immediately.",
                   "pattern": "^[0-9]+[smh]?$",
                   "title": "Error cooldown cap",
                   "type": "string"
@@ -223,14 +223,14 @@
       "properties": {
         "listen": {
           "default": 8301,
-          "description": "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect at once.",
+          "description": "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect immediately.",
           "maximum": 65535,
           "minimum": 1024,
           "title": "Port",
           "type": "integer"
         },
         "token": {
-          "description": "The access token NapCat shows when it connects; set the same one in NapCat. Without it NapCat is refused; you can generate one on Connect QQ web page. Allowed: { secret = \"…\" } or { env = \"…\" }. Only in the system config. Takes effect at once.",
+          "description": "The access token NapCat shows when it connects; set the same one in NapCat. Without it NapCat is refused; you can generate one on Connect QQ web page. Allowed: { secret = \"…\" } or { env = \"…\" }. Only in the system config. Takes effect immediately.",
           "oneOf": [
             {
               "additionalProperties": false,
@@ -261,14 +261,14 @@
         },
         "web": {
           "default": 8302,
-          "description": "The port of Connect QQ's own web page (NapCat connection, token), local only. Open it with miyu-onebot web. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect at once.",
+          "description": "The port of Connect QQ's own web page (NapCat connection, token), local only. Open it with miyu-onebot web. Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect immediately.",
           "maximum": 65535,
           "minimum": 1024,
           "title": "Web page port",
           "type": "integer"
         },
         "whitelist": {
-          "description": "People who can chat with her in private, whose friend requests are accepted, who are not rate-limited or held off while she sleeps, and whom she answers directly in groups. Write each as qq:<QQ number>, for example qq:20017. Allowed: a list of text of at most 128 characters. Only in the system config. Takes effect at once.",
+          "description": "People who can chat with her in private, whose friend requests are accepted, who are not rate-limited or held off while she sleeps, and whom she answers directly in groups. Write each as qq:<QQ number>, for example qq:20017. Allowed: a list of text of at most 128 characters. Only in the system config. Takes effect immediately.",
           "items": {
             "maxLength": 128,
             "minLength": 1,
@@ -284,7 +284,7 @@
       "properties": {
         "start_read_only": {
           "default": false,
-          "description": "When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on. Allowed: true or false. Only in the system config, personal settings or a project config. Applies to sessions opened from now on.",
+          "description": "When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on. Allowed: true or false. Only in the system config, personal settings or a project config. Applies to new sessions.",
           "title": "Start new sessions read-only",
           "type": "boolean"
         }
@@ -294,7 +294,7 @@
     "persona": {
       "properties": {
         "default": {
-          "description": "The persona new sessions use. When unset, new sessions have no persona: no character prompt, and memory is off. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to sessions opened from now on.",
+          "description": "The persona new sessions use. When unset, new sessions have no persona: no character prompt, and memory is off. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to new sessions.",
           "title": "Default persona",
           "type": "string"
         }
@@ -305,7 +305,7 @@
       "additionalProperties": {
         "properties": {
           "description": {
-            "description": "One line she sees after the pool name when she starts a subagent. Write it in English. Allowed: one line of English, at most 60 characters. Only in the system config or personal settings. Applies to sessions opened from now on.",
+            "description": "One line she sees after the pool name when she starts a subagent. Write it in English. Allowed: one line of English, at most 60 characters. Only in the system config or personal settings. Applies to new sessions.",
             "maxLength": 60,
             "minLength": 1,
             "title": "Description for the model",
@@ -330,7 +330,7 @@
           },
           "subagent": {
             "default": false,
-            "description": "When on, she can pick this pool for a subagent in new sessions. It is listed only once it has members. Allowed: true or false. Only in the system config or personal settings. Applies to sessions opened from now on.",
+            "description": "When on, she can pick this pool for a subagent in new sessions. It is listed only once it has members. Allowed: true or false. Only in the system config or personal settings. Applies to new sessions.",
             "title": "Subagents can pick it",
             "type": "boolean"
           }
@@ -343,7 +343,7 @@
       "properties": {
         "default": {
           "default": "full",
-          "description": "The preset new sessions use. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to sessions opened from now on.",
+          "description": "The preset new sessions use. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to new sessions.",
           "title": "Default preset",
           "type": "string"
         }
@@ -556,7 +556,7 @@
             "type": "object"
           },
           "name": {
-            "description": "The name people see. The id is only for referring to models; without one, the model data's name for this provider is used, then the id. Allowed: text of at most 64 characters. Only in the system config or personal settings. Takes effect at once.",
+            "description": "The name people see. The id is only for referring to models; without one, the model data's name for this provider is used, then the id. Allowed: text of at most 64 characters. Only in the system config or personal settings. Takes effect immediately.",
             "maxLength": 64,
             "minLength": 1,
             "title": "Display name",
@@ -578,7 +578,7 @@
       "properties": {
         "icons": {
           "default": "nerd",
-          "description": "Which icon set the terminal interface draws: Nerd Font glyphs, or plain characters for fonts without them. Allowed: nerd or plain. Only in the system config or personal settings. Takes effect at once.",
+          "description": "Which icon set the terminal interface draws: Nerd Font glyphs, or plain characters for fonts without them. Allowed: nerd or plain. Only in the system config or personal settings. Takes effect immediately.",
           "enum": [
             "nerd",
             "plain"
@@ -593,13 +593,13 @@
       "properties": {
         "head": {
           "default": "tui",
-          "description": "The interface plain miyu opens. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Takes effect the next time the program starts.",
+          "description": "The interface plain miyu opens. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Takes effect after restart.",
           "title": "Default interface",
           "type": "string"
         },
         "language": {
           "default": "auto",
-          "description": "The language terminals, the web page and the command line use for you. auto follows the terminal or browser. Allowed: auto, zh, en or ja. Only in the system config or personal settings. Takes effect at once.",
+          "description": "The language terminals, the web page and the command line use for you. auto follows the terminal or browser. Allowed: auto, zh, en or ja. Only in the system config or personal settings. Takes effect immediately.",
           "enum": [
             "auto",
             "zh",
@@ -611,7 +611,7 @@
         },
         "startup": {
           "default": "new",
-          "description": "Whether a terminal interface or the web page opens a new session or picks up the most recent one. Allowed: new or recent. Only in the system config or personal settings. Takes effect the next time the program starts.",
+          "description": "Whether a terminal interface or the web page opens a new session or picks up the most recent one. Allowed: new or recent. Only in the system config or personal settings. Takes effect after restart.",
           "enum": [
             "new",
             "recent"
@@ -626,7 +626,7 @@
       "properties": {
         "currency": {
           "default": "USD",
-          "description": "Amounts are added up per currency, never converted. This one is listed first, the others by code. Three capital letters such as USD or CNY. Allowed: text of at most 3 characters. Only in the system config or personal settings. Takes effect at once.",
+          "description": "Amounts are added up per currency, never converted. This one is listed first, the others by code. Three capital letters such as USD or CNY. Allowed: text of at most 3 characters. Only in the system config or personal settings. Takes effect immediately.",
           "maxLength": 3,
           "minLength": 1,
           "title": "Currency shown first",
@@ -639,7 +639,7 @@
       "properties": {
         "idle_seconds": {
           "default": 600,
-          "description": "Quit after this many seconds with no browser connected and no media being served. Allowed: a whole number from 1 to 86400. Only in the system config. Takes effect the next time the program starts.",
+          "description": "Quit after this many seconds with no browser connected and no media being served. Allowed: a whole number from 1 to 86400. Only in the system config. Takes effect after restart.",
           "maximum": 86400,
           "minimum": 1,
           "title": "Idle seconds",
@@ -647,7 +647,7 @@
         },
         "most_tickets": {
           "default": 4096,
-          "description": "At most this many /media tickets; the one unused longest goes first. Allowed: a whole number from 1 to 1000000. Only in the system config. Takes effect the next time the program starts.",
+          "description": "At most this many /media tickets; the one unused longest goes first. Allowed: a whole number from 1 to 1000000. Only in the system config. Takes effect after restart.",
           "maximum": 1000000,
           "minimum": 1,
           "title": "Most media tickets",
@@ -655,7 +655,7 @@
         },
         "port": {
           "default": 8300,
-          "description": "Which local port the web interface listens on. Allowed: a whole number from 1 to 65535. Only in the system config. Takes effect the next time the program starts.",
+          "description": "Which local port the web interface listens on. Allowed: a whole number from 1 to 65535. Only in the system config. Takes effect after restart.",
           "maximum": 65535,
           "minimum": 1,
           "title": "Web port",
@@ -663,7 +663,7 @@
         },
         "ticket_idle_seconds": {
           "default": 43200,
-          "description": "A /media ticket unused for this many seconds stops working. Allowed: a whole number from 1 to 2592000. Only in the system config. Takes effect the next time the program starts.",
+          "description": "A /media ticket unused for this many seconds stops working. Allowed: a whole number from 1 to 2592000. Only in the system config. Takes effect after restart.",
           "maximum": 2592000,
           "minimum": 1,
           "title": "Media ticket idle seconds",

@@ -89,7 +89,7 @@
 
 → 读取 notes.md · 3 行
 → 读取 missing.md · 出错：没有这个文件
-→ 读取 ~/.gitconfig · 没做：要确认，这里没人能确认
+→ 读取 ~/.gitconfig · 没做：需要确认，无人确认
 
 $ ls
 notes.md
@@ -129,7 +129,7 @@ todo.md
 - 压好了：`· 上下文已压缩：812.3k → 31k token`。终端里擦掉进度那一行换成它。token 数不到一千照写，一千以上写 `k`、一百万以上写 `M`，一位小数，整的不写小数；数是估算（`compaction.md` 第一条），和供应商下一次报的会差一点。
 - 失败：`· 压缩失败：<原因>`，红。原因照摘要请求出错的分类说；取不出摘要的（`bad_summary`）分两种，原话说调了工具的说「摘要请求里调了工具」。被打断的不说：这一轮的收尾会说。
 - 调了工具、改走隔离式（`bad_summary`，原话末尾是 `trying again without tools`，施工 6-6 下）：不是失败，灰色一行 `· 摘要请求里调了工具，改用不带工具的再压`（英文 `· The summary called a tool; compacting again without tools`），这次压缩接着来进度。
-- 暂停了（`context.compaction_paused`，施工 6-6 上）：红，照 `reason` 印一行，写法见下表。不认识的 `reason`、缺了次数或序号的，印「自动压缩已暂停」那一行（见下表）。暂停着、这一次放不下的，照出错那一行印，分类说「自动压缩暂停着」。
+- 暂停了（`context.compaction_paused`，施工 6-6 上）：红，照 `reason` 印一行，写法见下表。不认识的 `reason`、缺了次数或序号的，印「自动压缩已暂停」那一行（见下表）。暂停着、这一次放不下的，照出错那一行印，分类说「自动压缩已暂停」。
 - `--format json` 不印：脚本读事件流里的 `compaction.done`。
 
 **上色**：标准错误是终端、`NO_COLOR` 没设或者设成空的才上色：no-color.org 的约定是设了、不是空的才不上色（施工 4-9 再补四上：原来设成空的也不上色）。灰是 `ESC[90m`，红是 `ESC[31m`，绿是 `ESC[32m`。一行分几段，换颜色时写新颜色，换回原色写 `ESC[0m`；上过色的行，行尾写 `ESC[0m`，中途退出也不会把终端留成灰的。思考一段一段写，每一段各自包在 `ESC[90m` 和 `ESC[0m` 里。标准输出从不上色。
@@ -171,7 +171,7 @@ todo.md
 | `error` | 「出错」（红），有说法的跟 `：` 和说法 |
 | `denied` | 「没做」（红），有说法的跟 `：` 和说法 |
 | `cancelled` | 有说法的写说法；没有的写「打断了」 |
-| `skipped` | 有说法的写说法；没有的写「跳过了」 |
+| `skipped` | 有说法的写说法；没有的写「已跳过」 |
 | 别的 | 同 `ok` |
 
 **执行命令那一块**（`block` 是 `command`）：
@@ -206,7 +206,7 @@ todo.md
 | `completed` | 不印 | 0；有几步因为要确认没做的，4 |
 | `interrupted` | 打断了 | 3 |
 | `error`，没发出去、分类是 `no_model`（施工 8-6；以前认的是没发出去的认证失败） | 没有可用的模型：还没配。运行 miyu setup。 | 5 |
-| `error`，没发出去、分类是 `cooling`（施工 8-9：候选全在冷却，`models.md`「怎么走」第五条第 6 条） | 出错了：候选都在冷却：<原话> | 5 |
+| `error`，没发出去、分类是 `cooling`（施工 8-9：候选全在冷却，`models.md`「怎么走」第五条第 6 条） | 出错了：模型冷却中：<原话> | 5 |
 | `error`，别的 | 出错了：<分类>：<原话>；原话去掉前后空白是空的，只写分类；最后一次请求没出错、一次都没请求的，是「出错了：模型出错」 | 1 |
 | 别的原因 | 这一轮没走完：<原因> | 1 |
 
@@ -352,14 +352,14 @@ C 也查完了。
 
 | 分类 | 中文 | 英文 |
 |---|---|---|
-| `retryable` | 暂时出错 | temporary error |
-| `rate_limited` | 被限速了 | rate limited |
+| `retryable` | 临时错误 | temporary error |
+| `rate_limited` | 请求受限 | rate limited |
 | `context_too_long` | 上下文太长 | context too long |
 | `auth` | 认证失败 | authentication failed |
-| `content_policy` | 被内容策略拦下了 | blocked by content policy |
-| `bad_stream` | 回复的流不对 | bad stream |
-| `empty_reply` | 回复是空的 | empty reply |
-| `bad_summary` | 取不出摘要 | no summary in the reply |
+| `content_policy` | 内容被拦截 | blocked by content policy |
+| `bad_stream` | 响应流异常 | malformed response stream |
+| `empty_reply` | 响应为空 | empty reply |
+| `bad_summary` | 摘要提取失败 | summary extraction failed |
 | 别的 | 模型出错 | model error |
 
 - 核心拒绝时说的话，照核心写的原样印（它照握手时的语言写，`protocol.md`）。

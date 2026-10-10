@@ -47,7 +47,7 @@ async fn an_installed_extension_asks_for_its_capabilities_when_enabled() {
     assert_eq!(
         off["capabilities"],
         json!([
-            {"id": "events.read", "name": "读会话", "summary": "读会话里的全部记录"},
+            {"id": "events.read", "name": "读取会话", "summary": "读会话里的全部记录"},
             {"id": "network", "name": "联网", "summary": "访问网络、开端口"},
         ]),
         "照能力表的先后，名字照连接的语言：{off}"

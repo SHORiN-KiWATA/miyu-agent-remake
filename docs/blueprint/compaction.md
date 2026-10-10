@@ -321,7 +321,7 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 
 1. `session.clear`，空闲时才收：有回合在进行的拒绝，`turn_running`；正在改回文件的拒绝，`restoring`。自动压缩暂停着也收。
 2. **上下文本来就是空的**，拒绝，`nothing_to_clear`：有效历史里没有检查点，或者最近的检查点就是清空的，而且它后面没有人的消息、回复、工具结果、回报。
-   - 最近的检查点是一份摘要的（自动、手动、被动压的），后面什么都没有也收：摘要还在上下文里，这时拒绝说「上下文为空」不对。回报也算：它们进上下文（`kernel/request.md`「回报」）。这两条 2026-09-30 施工 6-8 补时定。
+   - 最近的检查点是一份摘要的（自动、手动、被动压的），后面什么都没有也收：摘要还在上下文里，这时拒绝说「上下文为空。」不对。回报也算：它们进上下文（`kernel/request.md`「回报」）。这两条 2026-09-30 施工 6-8 补时定。
    - 事实、回合的开头结尾不算：清了，下一轮开头照样注入、照样有。
 3. **单开一轮**，一批三条，`by` 都是内核，`cause` 都是这个命令：
    - `turn.started`：没有 `trigger`，`cwd`、`dirs` 照会话现在的环境写；
@@ -400,9 +400,9 @@ INFO  session  <会话> compacted seen=24 trigger=auto before=15465 after=2675 s
 | 失败 | 压缩失败：<原因> | Compaction failed: <reason> |
 | 暂停 | 自动压缩连续失败 <n> 次，已暂停：可以手动压缩、换一个模型，或者开新会话 | Automatic compaction failed <n> times and is paused: compact manually, switch models, or start a new session |
 | 内容太大 | 第 <序号> 条内容太大，压完很快又满了，自动压缩已暂停 | Entry <seq> is too large and keeps filling the context; automatic compaction is paused |
-| 暂停着、这一次放不下（出错那一行的分类） | 自动压缩暂停着 | automatic compaction is paused |
-| 没有能压的（`nothing_to_compact` 的那一句，`protocol.md`） | 没有能压的：还没压过的内容都在原样留着的最近一段里。 | Not enough to compact: everything not yet compacted is in the recent part that stays as it is. |
-| 上下文本来就是空的（`nothing_to_clear` 的那一句，头当一条提示通知显示，2026-09-30 项目主人定） | 上下文为空 | The context is empty. |
+| 暂停着、这一次放不下（出错那一行的分类） | 自动压缩已暂停 | Auto-compaction paused |
+| 没有能压的（`nothing_to_compact` 的那一句，`protocol.md`） | 没有可压缩的内容。 | Nothing to compact. |
+| 上下文本来就是空的（`nothing_to_clear` 的那一句，头当一条提示通知显示，2026-09-30 项目主人定） | 上下文为空。 | Context is empty. |
 | 撤掉了压缩（撤掉一次、几次都是这一句，2026-09-29 项目主人定） | 撤掉了压缩，上下文回到了压缩前 | Undid the compaction; the context is back to how it was before |
 | 撤掉了清空（撤掉一次、几次都是这一句，2026-09-30 项目主人定） | 撤掉了清空，上下文回到了清空以前 | Undid the clear; the context is back to before it. |
 | 快满了（M8） | 上下文快满了，到线会自动压缩 | The context is nearly full; it will be compacted automatically |

@@ -214,7 +214,7 @@ async fn slash_dream_extracts_the_session_merges_in_the_background_and_says_how_
     assert_eq!(dreamed["result"]["command"], "dream", "{dreamed}");
     assert_eq!(
         dreamed["result"]["said"],
-        "整理完了：看了 1 条，改了 0 条，作废 0 条，摘要更新了。"
+        "整理完成：检查 1 条，修改 0 条，作废 0 条，摘要已更新。"
     );
     assert_eq!(
         server.received().len(),
@@ -234,7 +234,7 @@ async fn slash_dream_extracts_the_session_merges_in_the_background_and_says_how_
         ))
         .await;
     let (pushed, again) = client.until_reply("k3").await;
-    assert_eq!(again["result"]["said"], "没有要整理的。", "{again}");
+    assert_eq!(again["result"]["said"], "无需整理。", "{again}");
     assert!(
         pushed
             .iter()

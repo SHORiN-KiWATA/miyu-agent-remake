@@ -180,7 +180,7 @@
 |---|---|---|
 | `core/permissions/forbidden` | 这是 Miyu 自己的数据，谁都不能碰 | Miyu's own data, off limits |
 | `core/permissions/unresolvable` | 说不清它指向哪里：{reason} | can't tell where it points: {reason} |
-| `core/tool-results/read-only` | 只读，没写 | read-only, not written |
+| `core/tool-results/read-only` | 只读模式，未执行 | Read-only mode, not run |
 
 字在 `resources/core/human/{zh,en}.json`（`store/resources.md`）。
 

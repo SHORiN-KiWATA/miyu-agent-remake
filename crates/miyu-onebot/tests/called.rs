@@ -25,7 +25,7 @@ const JIE: i64 = 20003;
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
 /// 核心照中文写的 `/stop` 的回执（`resources/core/human/zh.json`）。
-const STOPPED: &str = "已全部停下。";
+const STOPPED: &str = "已全部停止。";
 
 /// 系统的场所规则：两个群都不抽样（判断不随序号变）、她的话一段最多 4 个字符；[`GROUP`] 的触发词是她的名字，[`SLEEPY`] 的
 /// 睡觉时间盖住此刻（前后各一个小时，照本机的时区）。

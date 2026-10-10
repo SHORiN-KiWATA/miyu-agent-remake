@@ -21,7 +21,7 @@ const LIN: i64 = 20002;
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
 /// 核心照中文写的 `/stop` 的回执（`resources/core/human/zh.json`）。
-const STOPPED: &str = "已全部停下。";
+const STOPPED: &str = "已全部停止。";
 
 /// 一个 `send_group_msg`、`send_private_msg` 动作里的字（只有一个文字段）。
 fn text_of(action: &Value) -> &str {

@@ -69,7 +69,7 @@ impl Watch {
             Expect::Refused(command, reason) => {
                 self.seen_paths.insert(match reason {
                     Reason::TurnRunning => "有回合在进行时清空被拒",
-                    _ => "上下文为空被拒",
+                    _ => "上下文为空。被拒",
                 });
                 assert_eq!(
                     actions,

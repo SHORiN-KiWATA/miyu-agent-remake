@@ -1,50 +1,38 @@
 //! 拒绝时给人看的话（`docs/designs/04-核心协议.md` 第六节第 4 条）：一个原因码一句中文、一句英文。施工 W-8 从
 //! `refusal.rs` 挪出来（那一份过了 500 行）。
 
-/// 原因码 `reason` 的中文、英文。不认识的说「被拒绝了」。
+/// 原因码 `reason` 的中文、英文。不认识的说「已拒绝」。
 pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
     match reason {
-        "parse_error" => ("读不懂这条消息。", "The message could not be read."),
-        "invalid_request" => ("这不是一条请求。", "This is not a request."),
-        "unknown_method" => ("没有这个方法。", "There is no such method."),
-        "bad_params" => ("参数不对。", "The parameters are not right."),
+        "parse_error" => ("消息格式错误。", "Malformed message."),
+        "invalid_request" => ("无效的请求。", "Invalid request."),
+        "unknown_method" => ("方法不存在。", "Method not found."),
+        "bad_params" => ("参数错误。", "Invalid parameters."),
         "internal_error" => (
-            "核心出了问题，详情在运行日志里。",
-            "The core ran into a problem; the runtime log has the details.",
+            "内部错误，详见运行日志。",
+            "Internal error. See the runtime log.",
         ),
-        "hello_first" => (
-            "连上以后要先打招呼（hello）。",
-            "Say hello first after connecting.",
-        ),
+        "hello_first" => ("请先握手（hello）。", "Send hello first."),
         "protocol_mismatch" => (
-            "头和核心的协议版本对不上，请把它们升级到同一个版本。",
-            "The head and the core speak different protocol versions; upgrade them to the same release.",
+            "协议版本不兼容，请升级到同一版本。",
+            "Protocol version mismatch. Upgrade to the same release.",
         ),
-        "bad_token" => ("本机令牌不对。", "The local token is wrong."),
-        "unknown_persona" => ("没有这个人格。", "There is no such persona."),
-        "persona_invalid" => (
-            "这个人格的文件写错了，详情在 data.problem 里。",
-            "This persona's files have a mistake; data.problem says where.",
-        ),
-        "unknown_preset" => ("没有这个预设。", "There is no such preset."),
-        "preset_invalid" => (
-            "这个预设的文件写错了，详情在 data.problem 里。",
-            "This preset's file has a mistake; data.problem says where.",
-        ),
-        "not_a_directory" => ("这不是一个目录。", "This is not a directory."),
-        "unknown_package" => ("没有这个软件包。", "There is no such package."),
+        "bad_token" => ("本机令牌无效。", "Invalid local token."),
+        "unknown_persona" => ("人格不存在。", "Persona not found."),
+        "persona_invalid" => ("人格文件有误。", "Invalid persona files."),
+        "unknown_preset" => ("预设不存在。", "Preset not found."),
+        "preset_invalid" => ("预设文件有误。", "Invalid preset file."),
+        "not_a_directory" => ("不是目录。", "Not a directory."),
+        "unknown_package" => ("软件包不存在。", "Package not found."),
         "package_exists" => (
-            "出厂的软件包里已经有这个编号。",
-            "A shipped package already has this id.",
+            "编号与内置软件包重复。",
+            "Id conflicts with a built-in package.",
         ),
         "package_required" => (
-            "这个软件包是必需的，不能卸。",
-            "This package is required and cannot be removed.",
+            "必需的软件包，无法卸载。",
+            "Required package, cannot be removed.",
         ),
-        "package_invalid" => (
-            "这份清单装不上，详情在 data.problem 里。",
-            "This manifest cannot be installed; data.problem says why.",
-        ),
+        "package_invalid" => ("清单有误，无法安装。", "Invalid manifest, cannot install."),
         "program_missing" => ("程序未安装。", "Program not installed."),
         "no_page" => ("没有后台页。", "No admin page."),
         "not_found" => ("文件不存在。", "File not found."),
@@ -61,240 +49,135 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "Avatar over 1 MiB or 1024 pixels.",
         ),
         "not_switchable" => ("不能启用或停用。", "Cannot be enabled or disabled."),
-        "not_an_extension" => (
-            "这个软件包是界面，不由核心拉起。",
-            "This package is an interface; the core does not start it.",
-        ),
-        "extension_off" => (
-            "这个扩展关着，先打开它。",
-            "This extension is off; turn it on first.",
-        ),
-        "needs_approval" => (
-            "这个扩展要的能力还没批准。",
-            "This extension's capabilities are not approved yet.",
-        ),
-        "session_not_found" => ("没有这个会话。", "There is no such session."),
-        "unknown_call" => ("没有这次调用。", "There is no such tool call."),
-        "no_system_account" => (
-            "这个场所的会话要归系统账号，只有带系统账号的扩展能开。",
-            "This venue's session belongs to a system account; only an extension with one can open it.",
-        ),
+        "not_an_extension" => ("不是扩展。", "Not an extension."),
+        "extension_off" => ("扩展已停用。", "Extension disabled."),
+        "needs_approval" => ("扩展权限未批准。", "Extension permissions not approved."),
+        "session_not_found" => ("会话不存在。", "Session not found."),
+        "unknown_call" => ("调用不存在。", "Call not found."),
+        "no_system_account" => ("需要系统账号。", "System account required."),
         "venue_session" => (
-            "这是通讯平台的场所会话，本机的头不能直接说话。",
-            "This is a chat platform venue session; local heads cannot talk in it directly.",
+            "平台会话不能直接发消息。",
+            "Cannot send messages directly to a platform session.",
         ),
-        "unknown_command" => ("没有这个命令。", "There is no such command."),
-        "unknown_file" => (
-            "Miyu 不读这个文件：能查的是配置、密钥文件、人格目录里的 persona.toml 和 prompts/examples.md、预设、软件包清单。",
-            "Miyu does not read this file: it checks the config, the secrets file, persona.toml and prompts/examples.md in persona directories, presets and package manifests.",
-        ),
+        "unknown_command" => ("命令不存在。", "Command not found."),
+        "unknown_file" => ("不支持检查这个文件。", "This file cannot be checked."),
         "command_not_allowed" => (
-            "只有主人和管理的人能用命令。",
-            "Only the owner and managers can use commands.",
+            "仅终端管理员和群管理员可用。",
+            "Terminal and group admins only.",
         ),
-        "nothing_to_delete" => (
-            "你这一层本来就没有，没有可删的。",
-            "There is nothing of yours to delete here.",
-        ),
+        "nothing_to_delete" => ("没有可删除的内容。", "Nothing to delete."),
         "persona_conflict" => (
-            "这个人格刚被别处改过，重新读一遍再改。",
-            "This persona was just changed elsewhere; read it again and retry.",
+            "人格已被修改，请刷新后重试。",
+            "Persona was modified. Refresh and try again.",
         ),
         "preset_conflict" => (
-            "这个预设刚被别处改过，重新读一遍再改。",
-            "This preset was just changed elsewhere; read it again and retry.",
+            "预设已被修改，请刷新后重试。",
+            "Preset was modified. Refresh and try again.",
         ),
-        "owner_only" => (
-            "只有主人能用这个命令。",
-            "Only the owner can use this command.",
-        ),
+        "owner_only" => ("仅终端管理员可用。", "Terminal admin only."),
         "session_stopped" => (
-            "这个会话停了，详情在运行日志里；再发一次会重新载入。",
-            "This session has stopped; the runtime log has the details. Sending again reloads it.",
+            "会话已停止，重新发送即可载入。",
+            "Session stopped. Send again to reload.",
         ),
         "session_broken" => (
-            "这个会话载入不了：它的日志或者策略快照坏了。",
-            "This session cannot be loaded: its log or policy snapshot is broken.",
+            "会话已损坏，无法载入。",
+            "Session is corrupted and cannot be loaded.",
         ),
-        "empty_message" => ("消息是空的。", "The message is empty."),
-        "dir_too_wide" => (
-            "加进来的目录太宽：家目录、根目录、Miyu 的数据根不能整个放行。",
-            "An added directory is too wide: the home directory, the root and Miyu's data root cannot be opened up whole.",
-        ),
-        "attachment_unreadable" => (
-            "读不了这个文件：没有、不是普通文件，或者没有权限。",
-            "This file cannot be read: it is missing, not a regular file, or not permitted.",
-        ),
+        "empty_message" => ("消息为空。", "Empty message."),
+        "dir_too_wide" => ("目录范围过大。", "Directory too broad."),
+        "attachment_unreadable" => ("无法读取文件。", "Cannot read file."),
         "attachment_too_big" => (
-            "附件太大：一个最多 20 MiB，图片最多 5 MiB、每边最多 8000 像素。",
-            "The attachment is too big: at most 20 MiB, and an image at most 5 MiB and 8000 pixels a side.",
+            "附件过大（最大 20 MiB，图片 5 MiB、8000 像素）。",
+            "Attachment too large (max 20 MiB; images 5 MiB, 8000 px).",
         ),
         "attachment_in_data_root" => (
-            "Miyu 的数据根里的文件不能当附件。",
-            "Files in Miyu's data root cannot be attached.",
+            "不能附加数据目录里的文件。",
+            "Files in the data directory cannot be attached.",
         ),
-        "unknown_attachment" => (
-            "附件不在核心里：先用 blob.put 传上来。",
-            "The attachment is not in the core; upload it with blob.put first.",
-        ),
+        "unknown_attachment" => ("附件不存在。", "Attachment not found."),
         // 施工 W-2（`web-module.md`「给人看的字」）。
-        "path_unreadable" => ("读不了这个路径。", "This path cannot be read."),
-        "path_forbidden" => (
-            "这是 Miyu 自己的数据，不给看。",
-            "This is Miyu's own data and is not shown.",
-        ),
+        "path_unreadable" => ("无法读取路径。", "Cannot read path."),
+        "path_forbidden" => ("无权访问。", "Access denied."),
         // 施工 W-4（`mermaid.md`「给人看的字」）。
-        "mermaid_too_long" => ("这张图的源码太长了。", "The diagram source is too long."),
-        "mermaid_failed" => ("这张图画不出来。", "The diagram could not be drawn."),
+        "mermaid_too_long" => ("图表源码过长。", "Diagram source too long."),
+        "mermaid_failed" => ("图表渲染失败。", "Diagram rendering failed."),
         // 施工 W-5（`web-module.md`「给人看的字」）。
-        "too_many_uploads" => (
-            "同时传的文件太多了，等前面的传完。",
-            "Too many uploads at once; wait for the others to finish.",
-        ),
-        "upload_unknown" => (
-            "没有这个上传，可能等太久作废了，重新传一次。",
-            "No such upload; it may have expired. Upload the file again.",
-        ),
-        "upload_offset" => (
-            "上传接不上，从核心说的地方接着传。",
-            "The upload is out of step; continue from where the core says.",
-        ),
-        "upload_incomplete" => ("文件还没传完。", "The file is not fully uploaded yet."),
+        "too_many_uploads" => ("同时上传的文件过多。", "Too many uploads at once."),
+        "upload_unknown" => ("上传已失效，请重新上传。", "Upload expired. Upload again."),
+        "upload_offset" => ("上传位置不一致。", "Upload offset mismatch."),
+        "upload_incomplete" => ("上传未完成。", "Upload incomplete."),
         // 施工 W-6（`web-module.md`「给人看的字」）。
-        "unknown_blob" => ("找不到这份内容。", "This content cannot be found."),
-        "not_running" => (
-            "没有正在进行的回合，打断不了。",
-            "No turn is running, so there is nothing to interrupt.",
-        ),
-        "turn_running" => (
-            "有回合在进行：先打断，或者等它做完。",
-            "A turn is running; interrupt it or wait for it to finish.",
-        ),
-        "unknown_turn" => (
-            "没有这一轮，或者它已经撤掉了。",
-            "There is no such turn, or it has already been undone.",
-        ),
-        "nothing_to_unrevert" => (
-            "没有能恢复的撤销：没撤过，或者撤了以后又开过一轮、压缩过。",
-            "There is nothing to restore: nothing was undone, or a turn or compaction came since.",
-        ),
-        "restoring" => (
-            "正在撤销、恢复，等它做完再来。",
-            "An undo or restore is still in progress; try again when it is done.",
-        ),
-        "nothing_to_revert" => ("没有能撤销的回合。", "There is no turn to undo."),
-        "memory_unavailable" => (
-            "这里没有记忆：没有人格、记忆关着，或者是通讯平台的会话。",
-            "No memory here: no persona, memory is off, or this is a platform session.",
-        ),
-        "memory_not_installed" => ("没装人格记忆。", "Persona memory is not installed."),
-        "memory_busy" => (
-            "正在整理记忆，过一会儿再试。",
-            "Memory is being organized; try again shortly.",
-        ),
-        "dream_failed" => ("整理记忆没成。", "Organizing memory failed."),
-        "unknown_memory" => ("没有这一条记忆。", "There is no such memory."),
-        "memory_not_current" => (
-            "这一条已经改掉、作废或者清掉了。",
-            "That memory was already replaced, forgotten or cleared.",
-        ),
-        "memory_too_long" => (
-            "一条记忆太长了，字数和上限在 data 里。",
-            "The memory is too long; data has its length and the limit.",
-        ),
-        "unknown_job" => (
-            "没有这个任务，或者它已经结束了。",
-            "There is no such job, or it has already ended.",
-        ),
-        "not_a_command" => (
-            "这是子代理，不是后台命令：去看它的会话。",
-            "This is a subagent, not a background command; open its session instead.",
-        ),
-        "nothing_to_compact" => (
-            "没有能压的：还没压过的内容都在原样留着的最近一段里。",
-            "Not enough to compact: everything not yet compacted is in the recent part that stays as it is.",
-        ),
+        "unknown_blob" => ("内容不存在。", "Content not found."),
+        "not_running" => ("没有进行中的回合。", "No turn in progress."),
+        "turn_running" => ("回合进行中。", "A turn is in progress."),
+        "unknown_turn" => ("回合不存在。", "Turn not found."),
+        "nothing_to_unrevert" => ("没有可恢复的撤销。", "Nothing to restore."),
+        "restoring" => ("正在撤销或恢复。", "Undo or restore in progress."),
+        "nothing_to_revert" => ("没有可撤销的回合。", "Nothing to undo."),
+        "memory_unavailable" => ("记忆不可用。", "Memory unavailable."),
+        "memory_not_installed" => ("人格记忆未安装。", "Persona memory not installed."),
+        "memory_busy" => ("正在整理记忆。", "Memory is being organized."),
+        "dream_failed" => ("整理记忆失败。", "Memory organization failed."),
+        "unknown_memory" => ("记忆不存在。", "Memory not found."),
+        "memory_not_current" => ("记忆已失效。", "Memory no longer current."),
+        "memory_too_long" => ("记忆过长。", "Memory too long."),
+        "unknown_job" => ("任务不存在或已结束。", "Job not found or finished."),
+        "not_a_command" => ("不是后台命令。", "Not a background command."),
+        "nothing_to_compact" => ("没有可压缩的内容。", "Nothing to compact."),
         // 2026-09-30 项目主人定（施工 6-8 补）：头把它当一条提示通知显示。
-        "nothing_to_clear" => ("上下文为空", "The context is empty."),
+        "nothing_to_clear" => ("上下文为空。", "Context is empty."),
         // 2026-09-30 项目主人定（施工 4-7 再补）：两种情况一句话，头把它当一条提示通知显示。
-        "not_redoable" => ("无法重做", "Cannot redo."),
+        "not_redoable" => ("无法重做。", "Cannot redo."),
         // 施工 O-14 上：`session.respond` 的两个。
-        "not_ambient" => ("不是旁听记下的消息", "Not an overheard message."),
+        "not_ambient" => ("不是旁听消息。", "Not an overheard message."),
         // 施工 O-2 上：`provide` 的两个。
-        "not_a_provider" => ("只有扩展能提供工具", "Only extensions can provide tools."),
-        "bad_tool" => ("工具规格不对", "Bad tool spec."),
-        "already_answered" => ("已经回过", "Already answered."),
+        "not_a_provider" => ("仅扩展可提供工具。", "Only extensions can provide tools."),
+        "bad_tool" => ("工具规格有误。", "Invalid tool spec."),
+        "already_answered" => ("已回复。", "Already answered."),
         // 施工 D-1：`session.answer` 碰得到的四个（`unknown_decision` 协议上碰不到，`protocol.md`「出错」）。
-        "not_asking" => (
-            "它没在等回答：已经答过，或者已经了结了。",
-            "It is not waiting for an answer: it was answered or settled already.",
-        ),
-        "no_rule" => (
-            "这一次只能允许这一次，或者拒绝。",
-            "This one can only be allowed once or denied.",
-        ),
-        "unexpected_reason" => ("只有拒绝能带理由。", "Only a denial can carry a reason."),
-        "bad_answer" => (
-            "回答和题目对不上：几道题几条，只能选题目里的选项。",
-            "The answers do not fit the questions: one per question, picking only their options.",
-        ),
+        "not_asking" => ("不在等待回答。", "Not waiting for an answer."),
+        "no_rule" => ("只能允许本次或拒绝。", "Only allow once or deny."),
+        "unexpected_reason" => ("仅拒绝可附理由。", "Only a denial can carry a reason."),
+        "bad_answer" => ("回答与题目不匹配。", "Answers do not match the questions."),
         // 2026-10-01 主会话定（施工 3-8 四补）。
-        "nothing_to_recap" => ("还没有可回顾的内容", "There is nothing to recap yet."),
+        "nothing_to_recap" => ("没有可回顾的内容。", "Nothing to recap."),
         // 施工 8-2（`config.md`「协议拒绝时的话」）。
-        "unknown_config_key" => ("没有这一项配置。", "There is no such setting."),
+        "unknown_config_key" => ("配置项不存在。", "Config key not found."),
         // 施工 8-3（`config.md`「协议拒绝时的话」）。
-        "config_invalid" => (
-            "配置有几处不对，没有改。",
-            "Some settings are not right. Nothing was changed.",
-        ),
+        "config_invalid" => ("配置有误，未保存。", "Invalid config, not saved."),
         "config_conflict" => (
-            "这一项刚被别处改过，没有改：先看看现在的值。",
-            "This was just changed elsewhere. Nothing was changed. Look at the current value first.",
+            "配置已被修改，请刷新后重试。",
+            "Config was modified. Refresh and try again.",
         ),
         "config_file_broken" => (
-            "配置文件现在读不进来，没法只改一项：先把它改好，比如用 miyu config edit。",
-            "The config file cannot be read right now, so a single setting cannot be changed. Fix the file first, e.g. with miyu config edit.",
+            "配置文件有误，请先修复。",
+            "Config file is invalid. Fix it first.",
         ),
-        "no_project_config" => (
-            "这个目录找不到项目配置。",
-            "There is no project config for this directory.",
-        ),
-        "unknown_secret" => ("没有这个密钥。", "There is no such secret."),
-        "unknown_provider" => ("没有这个供应商。", "There is no such provider."),
-        "unknown_model" => (
-            "配置里没有这个模型或者池。",
-            "There is no such model or pool in the configuration.",
-        ),
-        "recap_failed" => (
-            "回顾没写成：请求模型出错了。",
-            "The recap could not be written: the model request failed.",
-        ),
+        "no_project_config" => ("未找到项目配置。", "Project config not found."),
+        "unknown_secret" => ("密钥不存在。", "Secret not found."),
+        "unknown_provider" => ("供应商不存在。", "Provider not found."),
+        "unknown_model" => ("模型或模型池不存在。", "Model or pool not found."),
+        "recap_failed" => ("生成回顾失败。", "Recap failed."),
         // 施工 8-20（`models.md`「给人看的字」）。
         "no_model" => ("没有可用的模型。", "No model is available."),
         "cooling" => (
-            "模型都在冷却，稍后再试。",
-            "All models are cooling down; try again later.",
+            "模型冷却中，请稍后重试。",
+            "Models cooling down. Try again later.",
         ),
-        "model_failed" => ("请求模型出错了。", "The model request failed."),
+        "model_failed" => ("模型请求失败。", "Model request failed."),
         // 施工 W-8（`web-module.md`「给人看的字」）。
-        "bad_code" => (
-            "这个一次性码用不了了：过期了，或者已经用过。再运行一次 miyu web。",
-            "This one-time code no longer works: it expired or was already used. Run miyu web again.",
-        ),
-        "bad_login" => (
-            "登录过期了，或者被退出了，用用户名和密码再登录一次。",
-            "The login expired or was signed out. Sign in with your username and password.",
-        ),
-        "bad_password" => ("用户名或者密码不对。", "Wrong username or password."),
+        "bad_code" => ("一次性码已失效。", "One-time code expired."),
+        "bad_login" => ("登录已失效，请重新登录。", "Login expired. Sign in again."),
+        "bad_password" => ("用户名或密码错误。", "Incorrect username or password."),
         "login_throttled" => (
-            "错的次数太多了，过一分钟再试。忘了密码的话，在本机运行 miyu web --reset。",
-            "Too many failed attempts. Try again in a minute. Forgot the password? Run miyu web --reset on this machine.",
+            "尝试次数过多，请一分钟后重试。",
+            "Too many attempts. Try again in a minute.",
         ),
-        "setup_first" => ("先设好用户名和密码。", "Set a username and password first."),
-        "local_only" => (
-            "只有本机的终端能要一次性码。",
-            "Only a terminal on this machine can ask for a one-time code.",
+        "setup_first" => (
+            "请先设置用户名和密码。",
+            "Set a username and password first.",
         ),
-        _ => ("被拒绝了。", "Refused."),
+        "local_only" => ("仅限本机。", "Local only."),
+        _ => ("已拒绝。", "Refused."),
     }
 }

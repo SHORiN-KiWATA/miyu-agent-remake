@@ -38,8 +38,8 @@ const MEMBERS: &[Member] = &[
 ];
 
 /// 核心照中文写的几句（`resources/core/human/zh.json`、`protocol.md`「给人看的字」）。
-const STOPPED: &str = "已全部停下。";
-const NOT_ALLOWED: &str = "只有主人和管理的人能用命令。";
+const STOPPED: &str = "已全部停止。";
+const NOT_ALLOWED: &str = "仅终端管理员和群管理员可用。";
 
 /// 系统的场所规则：[`GROUP`] 写 `show_ids`、`managers`，[`SLEEPY`] 的睡觉时间盖住此刻（前后各一个小时，照本机的时区），
 /// [`BROKEN`] 写一个不存在的人格。

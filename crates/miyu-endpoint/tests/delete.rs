@@ -1,5 +1,5 @@
 //! 删除会话（施工 3-8 三补，`docs/blueprint/protocol.md` 的 `session.delete`）：空闲的会话挪进回收处
-//! `home/<账号>/trash/sessions/<会话编号>/`，写下 `deleted_at`，回应 `{}`；删了的列不出来，再发命令是没有这个会话。有回合在
+//! `home/<账号>/trash/sessions/<会话编号>/`，写下 `deleted_at`，回应 `{}`；删了的列不出来，再发命令是会话不存在。有回合在
 //! 进行的拒绝、什么都不动。没在跑的会话不载入就删：被重启打断的那一轮不接着干。子会话的几种在 `delete_children.rs`。
 
 use serde_json::json;
@@ -48,7 +48,7 @@ async fn an_idle_session_moves_to_the_trash_and_is_gone() {
     let at = Timestamp::parse(written.trim_end()).expect("写的是事件的时刻写法");
     assert!(before <= at && at <= after, "删的时刻：{written}");
 
-    // 列不出来；再发命令、订阅、改名、再删：没有这个会话。另一个会话照旧。
+    // 列不出来；再发命令、订阅、改名、再删：会话不存在。另一个会话照旧。
     assert_eq!(listed(&mut client, "l1").await, [kept.as_str()]);
     for (id, method, params) in [
         (
@@ -93,10 +93,7 @@ async fn a_running_turn_is_refused_and_nothing_moves() {
     client.say("m1", &session, "在吗").await;
     let (_, reply) = delete(&mut client, "d1", &session).await;
     assert_eq!(reason(&reply), Some("turn_running"), "{reply}");
-    assert_eq!(
-        reply["error"]["message"],
-        json!("有回合在进行：先打断，或者等它做完。")
-    );
+    assert_eq!(reply["error"]["message"], json!("回合进行中。"));
     assert!(in_place(&home, &session));
     assert!(!trashed(&home, &session).exists());
     // 会话照常：打断得了，打断以后删得掉。

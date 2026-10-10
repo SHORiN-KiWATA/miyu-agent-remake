@@ -33,7 +33,7 @@ async fn without_a_session_every_command_is_listed_in_the_connections_language()
         json!([
             {"name": "clear", "aliases": ["reset"], "summary": "清空上下文"},
             {"name": "dream", "aliases": [], "summary": "整理记忆"},
-            {"name": "remember", "aliases": [], "summary": "记一条记忆", "argument": "<内容>"},
+            {"name": "remember", "aliases": [], "summary": "添加记忆", "argument": "<内容>"},
             {"name": "stop", "aliases": [], "summary": "全部停止"},
             {"name": "workspace", "aliases": [], "summary": "切换工作区", "argument": "<路径>"},
         ]),

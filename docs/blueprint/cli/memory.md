@@ -47,7 +47,7 @@
 3. **发**：照上面的表。
 4. **印**（标准输出）：
    - `list`、`search`：一条一行，`<编号>  <日期>  <正文>`，两个空格隔开；日期是记下的时刻照这台机器此刻的时区换成的那一天（`YYYY-MM-DD`）；作废的后面接 `（已作废：<原因>）`，原因是空的只接 `（已作废）`。一条都没有的：`list` 说「还没有记忆。」，`search` 说「没找到。」。
-   - `add`：「记下了：<编号>」；`edit`：「改好了：<新的编号>」；`forget`：什么都不印；清空：「清掉了 <几> 条。」；`dream`：「整理完了：看了 <几> 条，改了 <几> 条，作废 <几> 条。」，摘要换了的句号前多「，摘要更新了」，一条都没看的「没有要整理的。」（和 `/dream` 的回执同一句）。
+   - `add`：「记下了：<编号>」；`edit`：「改好了：<新的编号>」；`forget`：什么都不印；清空：「清掉了 <几> 条。」；`dream`：「整理完成：检查 <几> 条，修改 <几> 条，作废 <几> 条。」，摘要换了的句号前多「，摘要已更新」，一条都没看的「无需整理。」（和 `/dream` 的回执同一句）。
 5. **被拒绝**：核心的原话照原样印在标准错误上，退出码 1（`protocol.md` 的 `memory.*`）。太长的（`memory_too_long`）例外：核心的原话是给程序看的（说的是去 `data` 里看），这里照 `data.chars`、`data.limit` 说「太长了：这一条 121 个字，一条最多 120 个字。」。核心断开、请求写不出去照 `miyu rename`。
 
 ### 样子
@@ -79,9 +79,9 @@ m3   2026-10-07  用户养了两只猫（已作废：试一下）
 | 清掉了 | 清掉了 {n} 条。 | Cleared {n}. |
 | 作废了 | （已作废：{why}）、（已作废） | (forgotten: {why}), (forgotten) |
 | 太长了 | 太长了：这一条 {chars} 个字，一条最多 {limit} 个字。 | Too long: this one has {chars} characters, a memory takes at most {limit}. |
-| 整理完了 | 整理完了：看了 {given} 条，改了 {revised} 条，作废 {retired} 条。 | Memory organized: looked at {given}, revised {revised}, retired {retired}. |
-| 整理完了，摘要换了 | 整理完了：看了 {given} 条，改了 {revised} 条，作废 {retired} 条，摘要更新了。 | Memory organized: looked at {given}, revised {revised}, retired {retired}; summary updated. |
-| 没有要整理的 | 没有要整理的。 | Nothing to organize. |
+| 整理完了 | 整理完成：检查 {given} 条，修改 {revised} 条，作废 {retired} 条。 | Memory organized: {given} checked, {revised} revised, {retired} retired. |
+| 整理完了，摘要换了 | 整理完成：检查 {given} 条，修改 {revised} 条，作废 {retired} 条，摘要已更新。 | Memory organized: {given} checked, {revised} revised, {retired} retired; summary updated. |
+| 没有要整理的 | 无需整理。 | Nothing to organize. |
 
 核心拒绝时说的话照核心写的原样印；没有一次性会话、核心断开照 `cli/undo.md`。
 

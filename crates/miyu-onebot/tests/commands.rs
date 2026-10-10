@@ -12,9 +12,9 @@ use crate::support::*;
 
 /// 核心照中文写的几句（`resources/core/human/zh.json` 的 `commands/*`、`protocol.md`「给人看的字」）。
 const CLEARED: &str = "已清空上下文。";
-const STOPPED: &str = "已全部停下。";
-const NOTHING_TO_CLEAR: &str = "上下文为空";
-const NO_MEMORY: &str = "这里没有记忆：没有人格、记忆关着，或者是通讯平台的会话。";
+const STOPPED: &str = "已全部停止。";
+const NOTHING_TO_CLEAR: &str = "上下文为空。";
+const NO_MEMORY: &str = "记忆不可用。";
 
 /// 全部会话里记下的命令：正名、原文、起因。
 fn ran(home: &Home) -> Vec<(String, String, String)> {
@@ -98,7 +98,7 @@ async fn refusals_and_answers_come_back_even_when_a_command_comes_first() {
     let session = &home.sessions()[0];
     let created = &home.events(session)[0];
     let cwd = created["body"]["cwd"].as_str().expect("会话有工作目录");
-    assert_eq!(napcat.reply().await, format!("现在的工作区是 {cwd}。"));
+    assert_eq!(napcat.reply().await, format!("当前工作区：{cwd}"));
     // 场所会话没有记忆：核心拒了，原文不交给她。
     napcat.admin_says(3, "/remember 喜欢猫").await;
     assert_eq!(napcat.reply().await, NO_MEMORY);

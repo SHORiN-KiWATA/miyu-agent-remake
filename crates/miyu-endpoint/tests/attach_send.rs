@@ -139,10 +139,7 @@ async fn a_blob_the_core_does_not_have_is_refused_and_nothing_is_written() {
         )
         .await;
     assert_eq!(reason(&reply), Some("unknown_attachment"), "{reply}");
-    assert_eq!(
-        reply["error"]["message"],
-        "附件不在核心里：先用 blob.put 传上来。"
-    );
+    assert_eq!(reply["error"]["message"], "附件不存在。");
     assert_eq!(home.log(&session).len(), before, "什么都没写");
     // 附件先查、再找会话：换过的工作目录也没送进会话，下一句开的回合照旧。
     let reply = client.say("c3", &session, "在吗").await;

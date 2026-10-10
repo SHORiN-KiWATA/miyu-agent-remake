@@ -81,7 +81,7 @@
 拒绝的，`code` 是 JSON-RPC 的错误码，`message` 照握手时的语言写，`data.reason` 是给程序看的原因码（「出错」一节）：
 
 ```json
-{"error":{"code":-32010,"data":{"reason":"session_not_found"},"message":"没有这个会话。"},"id":"c7","jsonrpc":"2.0"}
+{"error":{"code":-32010,"data":{"reason":"session_not_found"},"message":"会话不存在。"},"id":"c7","jsonrpc":"2.0"}
 ```
 
 有的拒绝在 `data` 里多几格，和 `reason` 排在一起（施工 8-2 起：`unknown_config_key` 多 `problems`；施工 8-3：`config_invalid`、`config_file_broken` 多 `problems`，`config_conflict` 多 `current` 或 `version`）。
@@ -495,8 +495,8 @@
 5. `/workspace <路径>` 同 `session.set_workspace` 只换工作目录，加进来的目录照旧（施工 9-7 下）：绝对的、`~` 开头的照原样；相对的照 `cwd` 接成真实的位置（`/workspace .` 就是头所在的目录），没带 `cwd` 的照会话现在的工作区接；路径里的空白照留，不认引号。写错的照那几种原因拒绝（`path_unreadable`、`not_a_directory`、`path_forbidden`，核心读不出家目录时的 `~` 也是读不了）；太宽的照人选的用，回执说一声范围大（「工作区换到了 ~（范围很大）。」，施工 9-7 补，原来退回账号的默认工作区）；和现在一样的不记换，照样记下命令。不带路径的什么都不换，回执说现在在哪。
 6. 执行了的记一条 `command.ran`（`kernel/events-bodies.md`），`cause` 是 `<id>/ran`；被拒的什么都不记。它不进模型的请求。
 7. 同一个 `id` 再发只算一次，核心重启以后也是：回应和头一次一样。
-8. `/remember <话>`（施工 R-3 补，`memory.md`「协议」）：名字后面跟的字是那一条，类 `user`，记进这个会话那一间，`by` 是打命令的人，出处空，听众是这个人；回执说记下了那句话（`commands/remembered`：「记下了：用户喜欢猫」，那句话里的换行、制表换成空格），不露编号（施工 R-3 四补，2026-10-10 项目主人定）。不请求模型。场所会话、范围 `off`、人格记忆没装的（施工 R-10）回 `memory_unavailable`，`data.why` 是照连接语言说的为什么（施工 O-6 再补：没装人格记忆的「没装人格记忆。」，先于别的，施工 R-10；没有人格的「没有人格的会话记忆不生效」，预设没开记忆的带上预设的名字，字在 `core/human/<语言>.json` 的 `commands/unavailable/…`，别的照拒绝的那一句）；空的 `bad_params`，超过 120 字的 `memory_too_long`。先判身份，再查这个会话有没有记忆，再查字。同一个 `id` 再发只记一次（记忆事件的 `cause`，`memory.*` 第 5 条）。
-9. `/dream`（施工 R-7 补，`memory.md` 第七条第 9 款）：不带字（跟了的不看）。能不能用照 `/remember`（同第 8 条的判法和 `data.why`）；做的就是带这个会话的 `memory.dream`（`memory.*` 第 6 条），拒绝照它的。回执照几样数说：「整理完了：看了 1 条，改了 0 条，作废 0 条，摘要更新了。」（`commands/dreamed`，摘要换了的 `commands/dreamed-summary`），什么都没交进去的「没有要整理的。」（`commands/dreamed-nothing`）。在后台答（「一个连接」第 1 条）：只有它，别的命令照旧按顺序答。同一个 `id` 再发照第 7 条只记一次 `command.ran`，整理照样再做一次（多半没有要整理的）。
+8. `/remember <话>`（施工 R-3 补，`memory.md`「协议」）：名字后面跟的字是那一条，类 `user`，记进这个会话那一间，`by` 是打命令的人，出处空，听众是这个人；回执说记下了那句话（`commands/remembered`：「记下了：用户喜欢猫」，那句话里的换行、制表换成空格），不露编号（施工 R-3 四补，2026-10-10 项目主人定）。不请求模型。场所会话、范围 `off`、人格记忆没装的（施工 R-10）回 `memory_unavailable`，`data.why` 是照连接语言说的为什么（施工 O-6 再补：没装人格记忆的「人格记忆未安装。」，先于别的，施工 R-10；没有人格的「没有人格的会话记忆不生效」，预设没开记忆的带上预设的名字，字在 `core/human/<语言>.json` 的 `commands/unavailable/…`，别的照拒绝的那一句）；空的 `bad_params`，超过 120 字的 `memory_too_long`。先判身份，再查这个会话有没有记忆，再查字。同一个 `id` 再发只记一次（记忆事件的 `cause`，`memory.*` 第 5 条）。
+9. `/dream`（施工 R-7 补，`memory.md` 第七条第 9 款）：不带字（跟了的不看）。能不能用照 `/remember`（同第 8 条的判法和 `data.why`）；做的就是带这个会话的 `memory.dream`（`memory.*` 第 6 条），拒绝照它的。回执照几样数说：「整理完成：检查 1 条，修改 0 条，作废 0 条，摘要已更新。」（`commands/dreamed`，摘要换了的 `commands/dreamed-summary`），什么都没交进去的「无需整理。」（`commands/dreamed-nothing`）。在后台答（「一个连接」第 1 条）：只有它，别的命令照旧按顺序答。同一个 `id` 再发照第 7 条只记一次 `command.ran`，整理照样再做一次（多半没有要整理的）。
 
 **`command.catalog`**（施工 O-6 补，网页的会话要的，终端也用）
 
@@ -703,7 +703,7 @@
 回应：`{"language": <语言>, "said": {<说法的编号>: <模板>}, "tools": {<工具名>: <样子>}}`。查询，不改会话：不推送。例子（格照名字的字母先后排）：
 
 ```json
-{"id":"h1","jsonrpc":"2.0","result":{"language":"zh","said":{"core/tool-results/unattended":"要确认，这里没人能确认"},"tools":{"read":{"icon":"→","name":"读取","subject":"file_path"}}}}
+{"id":"h1","jsonrpc":"2.0","result":{"language":"zh","said":{"core/tool-results/unattended":"需要确认，无人确认"},"tools":{"read":{"icon":"→","name":"读取","subject":"file_path"}}}}
 ```
 
 1. 每次现读资源目录，照 `store/resources.md`「怎么走」第 3 条的读法：先读内核的 `core/human/<语言>.json`，再照名字的先后读 `software/` 下每个软件包的 `human/<语言>.json`，哪一份没有这种语言照英文。开发时改了资源，下一次调就是新的，不用重启核心。在阻塞线程里读。
@@ -1110,7 +1110,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `restoring` | -32010 | 撤销、恢复还没做完（正在读回更早的日志、正在改回文件）时来的命令、删会话。兜底：会话做完才接下一个命令，照常碰不到 |
 
 - 从 `empty_message` 起，除了 `dir_too_wide`、附件的四个和 `not_a_command`，十三个是内核拒命令时给的原因码（`kernel/session.md`）；施工 D-1 起加上 `session.answer` 的四个（`not_asking`、`no_rule`、`unexpected_reason`、`bad_answer`），十七个。
-- 内核还有两个原因码，现在没有方法碰得到：`unknown_level`（协议上的级别只认两种，别的先是 `bad_params`）、`unknown_decision`（协议上的决定只认三种，施工 D-1）。它们没有配话，说的是最后那一句「被拒绝了」。
+- 内核还有两个原因码，现在没有方法碰得到：`unknown_level`（协议上的级别只认两种，别的先是 `bad_params`）、`unknown_decision`（协议上的决定只认三种，施工 D-1）。它们没有配话，说的是最后那一句「已拒绝。」。
 
 运行日志（目标 `miyu::endpoint`，`log.md`）：
 
@@ -1175,28 +1175,28 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 
 | 原因码 | 中文 | 英文 |
 |---|---|---|
-| `parse_error` | 读不懂这条消息。 | The message could not be read. |
-| `invalid_request` | 这不是一条请求。 | This is not a request. |
-| `unknown_method` | 没有这个方法。 | There is no such method. |
-| `bad_params` | 参数不对。 | The parameters are not right. |
-| `internal_error` | 核心出了问题，详情在运行日志里。 | The core ran into a problem; the runtime log has the details. |
-| `hello_first` | 连上以后要先打招呼（hello）。 | Say hello first after connecting. |
-| `protocol_mismatch` | 头和核心的协议版本对不上，请把它们升级到同一个版本。 | The head and the core speak different protocol versions; upgrade them to the same release. |
-| `bad_token` | 本机令牌不对。 | The local token is wrong. |
+| `parse_error` | 消息格式错误。 | Malformed message. |
+| `invalid_request` | 无效的请求。 | Invalid request. |
+| `unknown_method` | 方法不存在。 | Method not found. |
+| `bad_params` | 参数错误。 | Invalid parameters. |
+| `internal_error` | 内部错误，详见运行日志。 | Internal error. See the runtime log. |
+| `hello_first` | 请先握手（hello）。 | Send hello first. |
+| `protocol_mismatch` | 协议版本不兼容，请升级到同一版本。 | Protocol version mismatch. Upgrade to the same release. |
+| `bad_token` | 本机令牌无效。 | Invalid local token. |
 | `bad_code` 到 `local_only` | 照 `web-module.md`「给人看的字」（施工 W-8） | |
-| `unknown_persona` | 没有这个人格。 | There is no such persona. |
-| `persona_invalid` | 这个人格的文件写错了，详情在 data.problem 里。 | This persona's files have a mistake; data.problem says where. |
-| `unknown_preset` | 没有这个预设。 | There is no such preset. |
-| `preset_invalid` | 这个预设的文件写错了，详情在 data.problem 里。 | This preset's file has a mistake; data.problem says where. |
-| `preset_conflict` | 这个预设刚被别处改过，重新读一遍再改。 | This preset was just changed elsewhere; read it again and retry. |
-| `persona_conflict` | 这个人格刚被别处改过，重新读一遍再改。 | This persona was just changed elsewhere; read it again and retry. |
-| `nothing_to_delete` | 你这一层本来就没有，没有可删的。 | There is nothing of yours to delete here. |
-| `unknown_file` | Miyu 不读这个文件：能查的是配置、密钥文件、人格目录里的 persona.toml 和 prompts/examples.md、预设、软件包清单。 | Miyu does not read this file: it checks the config, the secrets file, persona.toml and prompts/examples.md in persona directories, presets and package manifests. |
-| `not_a_directory` | 这不是一个目录。 | This is not a directory. |
-| `unknown_package` | 没有这个软件包。 | There is no such package. |
-| `package_exists` | 出厂的软件包里已经有这个编号。 | A shipped package already has this id. |
-| `package_required` | 这个软件包是必需的，不能卸。 | This package is required and cannot be removed. |
-| `package_invalid` | 这份清单装不上，详情在 data.problem 里。 | This manifest cannot be installed; data.problem says why. |
+| `unknown_persona` | 人格不存在。 | Persona not found. |
+| `persona_invalid` | 人格文件有误。 | Invalid persona files. |
+| `unknown_preset` | 预设不存在。 | Preset not found. |
+| `preset_invalid` | 预设文件有误。 | Invalid preset file. |
+| `preset_conflict` | 预设已被修改，请刷新后重试。 | Preset was modified. Refresh and try again. |
+| `persona_conflict` | 人格已被修改，请刷新后重试。 | Persona was modified. Refresh and try again. |
+| `nothing_to_delete` | 没有可删除的内容。 | Nothing to delete. |
+| `unknown_file` | 不支持检查这个文件。 | This file cannot be checked. |
+| `not_a_directory` | 不是目录。 | Not a directory. |
+| `unknown_package` | 软件包不存在。 | Package not found. |
+| `package_exists` | 编号与内置软件包重复。 | Id conflicts with a built-in package. |
+| `package_required` | 必需的软件包，无法卸载。 | Required package, cannot be removed. |
+| `package_invalid` | 清单有误，无法安装。 | Invalid manifest, cannot install. |
 | `program_missing` | 程序未安装。 | Program not installed. |
 | `not_switchable` | 不能启用或停用。 | Cannot be enabled or disabled. |
 | `no_page` | 没有后台页。 | No admin page. |
@@ -1207,73 +1207,73 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `method_timeout` | 方法超时。 | Method timed out. |
 | `avatar_not_image` | 头像只支持 PNG、JPEG、WebP。 | Avatars must be PNG, JPEG or WebP. |
 | `avatar_too_big` | 头像超过 1 MiB 或 1024 像素。 | Avatar over 1 MiB or 1024 pixels. |
-| `not_an_extension` | 这个软件包是界面，不由核心拉起。 | This package is an interface; the core does not start it. |
-| `extension_off` | 这个扩展关着，先打开它。 | This extension is off; turn it on first. |
-| `needs_approval` | 这个扩展要的能力还没批准。 | This extension's capabilities are not approved yet. |
-| `session_not_found` | 没有这个会话。 | There is no such session. |
-| `unknown_call` | 没有这次调用。 | There is no such tool call. |
-| `no_system_account` | 这个场所的会话要归系统账号，只有带系统账号的扩展能开。 | This venue's session belongs to a system account; only an extension with one can open it. |
-| `venue_session` | 这是通讯平台的场所会话，本机的头不能直接说话。 | This is a chat platform venue session; local heads cannot talk in it directly. |
-| `unknown_command` | 没有这个命令。 | There is no such command. |
-| `command_not_allowed` | 只有主人和管理的人能用命令。 | Only the owner and managers can use commands. |
-| `owner_only` | 只有主人能用这个命令。 | Only the owner can use this command. |
-| `session_stopped` | 这个会话停了，详情在运行日志里；再发一次会重新载入。 | This session has stopped; the runtime log has the details. Sending again reloads it. |
-| `session_broken` | 这个会话载入不了：它的日志或者策略快照坏了。 | This session cannot be loaded: its log or policy snapshot is broken. |
-| `empty_message` | 消息是空的。 | The message is empty. |
-| `dir_too_wide` | 加进来的目录太宽：家目录、根目录、Miyu 的数据根不能整个放行。 | An added directory is too wide: the home directory, the root and Miyu's data root cannot be opened up whole. |
-| `attachment_unreadable` | 读不了这个文件：没有、不是普通文件，或者没有权限。 | This file cannot be read: it is missing, not a regular file, or not permitted. |
-| `attachment_too_big` | 附件太大：一个最多 20 MiB，图片最多 5 MiB、每边最多 8000 像素。 | The attachment is too big: at most 20 MiB, and an image at most 5 MiB and 8000 pixels a side. |
-| `attachment_in_data_root` | Miyu 的数据根里的文件不能当附件。 | Files in Miyu's data root cannot be attached. |
-| `unknown_attachment` | 附件不在核心里：先用 blob.put 传上来。 | The attachment is not in the core; upload it with blob.put first. |
-| `path_unreadable` | 读不了这个路径。 | This path cannot be read. |
-| `path_forbidden` | 这是 Miyu 自己的数据，不给看。 | This is Miyu's own data and is not shown. |
-| `mermaid_too_long` | 这张图的源码太长了。 | The diagram source is too long. |
-| `mermaid_failed` | 这张图画不出来。 | The diagram could not be drawn. |
-| `too_many_uploads` | 同时传的文件太多了，等前面的传完。 | Too many uploads at once; wait for the others to finish. |
-| `upload_unknown` | 没有这个上传，可能等太久作废了，重新传一次。 | No such upload; it may have expired. Upload the file again. |
-| `upload_offset` | 上传接不上，从核心说的地方接着传。 | The upload is out of step; continue from where the core says. |
-| `upload_incomplete` | 文件还没传完。 | The file is not fully uploaded yet. |
-| `unknown_blob` | 找不到这份内容。 | This content cannot be found. |
-| `not_running` | 没有正在进行的回合，打断不了。 | No turn is running, so there is nothing to interrupt. |
-| `turn_running` | 有回合在进行：先打断，或者等它做完。 | A turn is running; interrupt it or wait for it to finish. |
-| `unknown_turn` | 没有这一轮，或者它已经撤掉了。 | There is no such turn, or it has already been undone. |
-| `nothing_to_unrevert` | 没有能恢复的撤销：没撤过，或者撤了以后又开过一轮、压缩过。 | There is nothing to restore: nothing was undone, or a turn or compaction came since. |
-| `restoring` | 正在撤销、恢复，等它做完再来。 | An undo or restore is still in progress; try again when it is done. |
-| `nothing_to_revert` | 没有能撤销的回合。 | There is no turn to undo. |
-| `nothing_to_compact` | 没有能压的：还没压过的内容都在原样留着的最近一段里。 | Not enough to compact: everything not yet compacted is in the recent part that stays as it is. |
-| `nothing_to_clear` | 上下文为空 | The context is empty. |
-| `unknown_job` | 没有这个任务，或者它已经结束了。 | There is no such job, or it has already ended. |
-| `not_a_command` | 这是子代理，不是后台命令：去看它的会话。 | This is a subagent, not a background command; open its session instead. |
-| `not_redoable` | 无法重做 | Cannot redo. |
-| `nothing_to_recap` | 还没有可回顾的内容 | There is nothing to recap yet. |
-| `not_asking` | 它没在等回答：已经答过，或者已经了结了。 | It is not waiting for an answer: it was answered or settled already. |
-| `not_ambient` | 不是旁听记下的消息 | Not an overheard message. |
-| `not_a_provider` | 只有扩展能提供工具 | Only extensions can provide tools. |
-| `bad_tool` | 工具规格不对 | Bad tool spec. |
-| `already_answered` | 已经回过 | Already answered. |
-| `no_rule` | 这一次只能允许这一次，或者拒绝。 | This one can only be allowed once or denied. |
-| `unexpected_reason` | 只有拒绝能带理由。 | Only a denial can carry a reason. |
-| `bad_answer` | 回答和题目对不上：几道题几条，只能选题目里的选项。 | The answers do not fit the questions: one per question, picking only their options. |
-| `unknown_config_key` | 没有这一项配置。 | There is no such setting. |
-| `config_invalid` | 配置有几处不对，没有改。 | Some settings are not right. Nothing was changed. |
-| `config_conflict` | 这一项刚被别处改过，没有改：先看看现在的值。 | This was just changed elsewhere. Nothing was changed. Look at the current value first. |
-| `config_file_broken` | 配置文件现在读不进来，没法只改一项：先把它改好，比如用 miyu config edit。 | The config file cannot be read right now, so a single setting cannot be changed. Fix the file first, e.g. with miyu config edit. |
-| `no_project_config` | 这个目录找不到项目配置。 | There is no project config for this directory. |
-| `unknown_secret` | 没有这个密钥。 | There is no such secret. |
-| `unknown_provider` | 没有这个供应商。 | There is no such provider. |
-| `unknown_model` | 配置里没有这个模型或者池。 | There is no such model or pool in the configuration. |
+| `not_an_extension` | 不是扩展。 | Not an extension. |
+| `extension_off` | 扩展已停用。 | Extension disabled. |
+| `needs_approval` | 扩展权限未批准。 | Extension permissions not approved. |
+| `session_not_found` | 会话不存在。 | Session not found. |
+| `unknown_call` | 调用不存在。 | Call not found. |
+| `no_system_account` | 需要系统账号。 | System account required. |
+| `venue_session` | 平台会话不能直接发消息。 | Cannot send messages directly to a platform session. |
+| `unknown_command` | 命令不存在。 | Command not found. |
+| `command_not_allowed` | 仅终端管理员和群管理员可用。 | Terminal and group admins only. |
+| `owner_only` | 仅终端管理员可用。 | Terminal admin only. |
+| `session_stopped` | 会话已停止，重新发送即可载入。 | Session stopped. Send again to reload. |
+| `session_broken` | 会话已损坏，无法载入。 | Session is corrupted and cannot be loaded. |
+| `empty_message` | 消息为空。 | Empty message. |
+| `dir_too_wide` | 目录范围过大。 | Directory too broad. |
+| `attachment_unreadable` | 无法读取文件。 | Cannot read file. |
+| `attachment_too_big` | 附件过大（最大 20 MiB，图片 5 MiB、8000 像素）。 | Attachment too large (max 20 MiB; images 5 MiB, 8000 px). |
+| `attachment_in_data_root` | 不能附加数据目录里的文件。 | Files in the data directory cannot be attached. |
+| `unknown_attachment` | 附件不存在。 | Attachment not found. |
+| `path_unreadable` | 无法读取路径。 | Cannot read path. |
+| `path_forbidden` | 无权访问。 | Access denied. |
+| `mermaid_too_long` | 图表源码过长。 | Diagram source too long. |
+| `mermaid_failed` | 图表渲染失败。 | Diagram rendering failed. |
+| `too_many_uploads` | 同时上传的文件过多。 | Too many uploads at once. |
+| `upload_unknown` | 上传已失效，请重新上传。 | Upload expired. Upload again. |
+| `upload_offset` | 上传位置不一致。 | Upload offset mismatch. |
+| `upload_incomplete` | 上传未完成。 | Upload incomplete. |
+| `unknown_blob` | 内容不存在。 | Content not found. |
+| `not_running` | 没有进行中的回合。 | No turn in progress. |
+| `turn_running` | 回合进行中。 | A turn is in progress. |
+| `unknown_turn` | 回合不存在。 | Turn not found. |
+| `nothing_to_unrevert` | 没有可恢复的撤销。 | Nothing to restore. |
+| `restoring` | 正在撤销或恢复。 | Undo or restore in progress. |
+| `nothing_to_revert` | 没有可撤销的回合。 | Nothing to undo. |
+| `nothing_to_compact` | 没有可压缩的内容。 | Nothing to compact. |
+| `nothing_to_clear` | 上下文为空。 | Context is empty. |
+| `unknown_job` | 任务不存在或已结束。 | Job not found or finished. |
+| `not_a_command` | 不是后台命令。 | Not a background command. |
+| `not_redoable` | 无法重做。 | Cannot redo. |
+| `nothing_to_recap` | 没有可回顾的内容。 | Nothing to recap. |
+| `not_asking` | 不在等待回答。 | Not waiting for an answer. |
+| `not_ambient` | 不是旁听消息。 | Not an overheard message. |
+| `not_a_provider` | 仅扩展可提供工具。 | Only extensions can provide tools. |
+| `bad_tool` | 工具规格有误。 | Invalid tool spec. |
+| `already_answered` | 已回复。 | Already answered. |
+| `no_rule` | 只能允许本次或拒绝。 | Only allow once or deny. |
+| `unexpected_reason` | 仅拒绝可附理由。 | Only a denial can carry a reason. |
+| `bad_answer` | 回答与题目不匹配。 | Answers do not match the questions. |
+| `unknown_config_key` | 配置项不存在。 | Config key not found. |
+| `config_invalid` | 配置有误，未保存。 | Invalid config, not saved. |
+| `config_conflict` | 配置已被修改，请刷新后重试。 | Config was modified. Refresh and try again. |
+| `config_file_broken` | 配置文件有误，请先修复。 | Config file is invalid. Fix it first. |
+| `no_project_config` | 未找到项目配置。 | Project config not found. |
+| `unknown_secret` | 密钥不存在。 | Secret not found. |
+| `unknown_provider` | 供应商不存在。 | Provider not found. |
+| `unknown_model` | 模型或模型池不存在。 | Model or pool not found. |
 | `no_model` | 没有可用的模型。 | No model is available. |
-| `cooling` | 模型都在冷却，稍后再试。 | All models are cooling down; try again later. |
-| `model_failed` | 请求模型出错了。 | The model request failed. |
-| `recap_failed` | 回顾没写成：请求模型出错了。 | The recap could not be written: the model request failed. |
-| `memory_unavailable` | 这里没有记忆：没有人格、记忆关着，或者是通讯平台的会话。 | No memory here: no persona, memory is off, or this is a platform session. |
-| `memory_not_installed` | 没装人格记忆。 | Persona memory is not installed. |
-| `memory_busy` | 正在整理记忆，过一会儿再试。 | Memory is being organized; try again shortly. |
-| `dream_failed` | 整理记忆没成。 | Organizing memory failed. |
-| `unknown_memory` | 没有这一条记忆。 | There is no such memory. |
-| `memory_not_current` | 这一条已经改掉、作废或者清掉了。 | That memory was already replaced, forgotten or cleared. |
-| `memory_too_long` | 一条记忆太长了，字数和上限在 data 里。 | The memory is too long; data has its length and the limit. |
-| 别的 | 被拒绝了。 | Refused. |
+| `cooling` | 模型冷却中，请稍后重试。 | Models cooling down. Try again later. |
+| `model_failed` | 模型请求失败。 | Model request failed. |
+| `recap_failed` | 生成回顾失败。 | Recap failed. |
+| `memory_unavailable` | 记忆不可用。 | Memory unavailable. |
+| `memory_not_installed` | 人格记忆未安装。 | Persona memory not installed. |
+| `memory_busy` | 正在整理记忆。 | Memory is being organized. |
+| `dream_failed` | 整理记忆失败。 | Memory organization failed. |
+| `unknown_memory` | 记忆不存在。 | Memory not found. |
+| `memory_not_current` | 记忆已失效。 | Memory no longer current. |
+| `memory_too_long` | 记忆过长。 | Memory too long. |
+| 别的 | 已拒绝。 | Refused. |
 
 ### 守着它的
 

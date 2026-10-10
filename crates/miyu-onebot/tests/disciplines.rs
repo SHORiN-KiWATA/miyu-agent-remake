@@ -26,7 +26,7 @@ const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 const BAD: &str = "坏词";
 
 /// 核心照中文写的 `/stop` 的回执。
-const STOPPED: &str = "已全部停下。";
+const STOPPED: &str = "已全部停止。";
 
 /// 系统的场所规则：群都抽样必中；三个群各挂一种线路规程，[`WAKE`] 的唤醒词是她的名字。
 fn rules() -> String {

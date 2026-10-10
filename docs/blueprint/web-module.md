@@ -429,21 +429,21 @@ http://127.0.0.1:<端口>/#setup=9f03b21c…
 
 | 原因码 | 中文 | 英文 |
 |---|---|---|
-| `bad_code` | 这个一次性码用不了了：过期了，或者已经用过。再运行一次 miyu web。 | This one-time code no longer works: it expired or was already used. Run miyu web again. |
-| `bad_login` | 登录过期了，或者被退出了，用用户名和密码再登录一次。 | The login expired or was signed out. Sign in with your username and password. |
-| `bad_password` | 用户名或者密码不对。 | Wrong username or password. |
-| `login_throttled` | 错的次数太多了，过一分钟再试。忘了密码的话，在本机运行 miyu web --reset。 | Too many failed attempts. Try again in a minute. Forgot the password? Run miyu web --reset on this machine. |
-| `setup_first` | 先设好用户名和密码。 | Set a username and password first. |
-| `local_only` | 只有本机的终端能要一次性码。 | Only a terminal on this machine can ask for a one-time code. |
-| `path_unreadable` | 读不了这个路径。 | This path cannot be read. |
-| `path_forbidden` | 这是 Miyu 自己的数据，不给看。 | This is Miyu's own data and is not shown. |
-| `mermaid_too_long` | 这张图的源码太长了。 | The diagram source is too long. |
-| `mermaid_failed` | 这张图画不出来。 | The diagram could not be drawn. |
-| `too_many_uploads` | 同时传的文件太多了，等前面的传完。 | Too many uploads at once; wait for the others to finish. |
-| `upload_unknown` | 没有这个上传，可能等太久作废了，重新传一次。 | No such upload; it may have expired. Upload the file again. |
-| `upload_offset` | 上传接不上，从核心说的地方接着传。 | The upload is out of step; continue from where the core says. |
-| `upload_incomplete` | 文件还没传完。 | The file is not fully uploaded yet. |
-| `unknown_blob` | 找不到这份内容。 | This content cannot be found. |
+| `bad_code` | 一次性码已失效。 | One-time code expired. |
+| `bad_login` | 登录已失效，请重新登录。 | Login expired. Sign in again. |
+| `bad_password` | 用户名或密码错误。 | Incorrect username or password. |
+| `login_throttled` | 尝试次数过多，请一分钟后重试。 | Too many attempts. Try again in a minute. |
+| `setup_first` | 请先设置用户名和密码。 | Set a username and password first. |
+| `local_only` | 仅限本机。 | Local only. |
+| `path_unreadable` | 无法读取路径。 | Cannot read path. |
+| `path_forbidden` | 无权访问。 | Access denied. |
+| `mermaid_too_long` | 图表源码过长。 | Diagram source too long. |
+| `mermaid_failed` | 图表渲染失败。 | Diagram rendering failed. |
+| `too_many_uploads` | 同时上传的文件过多。 | Too many uploads at once. |
+| `upload_unknown` | 上传已失效，请重新上传。 | Upload expired. Upload again. |
+| `upload_offset` | 上传位置不一致。 | Upload offset mismatch. |
+| `upload_incomplete` | 上传未完成。 | Upload incomplete. |
+| `unknown_blob` | 内容不存在。 | Content not found. |
 
 `miyu web` 和网页软件印的（照 `ui.language`，和 `miyu ask` 一样）：
 

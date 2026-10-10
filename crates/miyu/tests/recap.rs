@@ -72,7 +72,7 @@ async fn the_last_ask_or_the_given_session_is_the_one_recapped() {
     assert!(recapped.stdout.is_empty());
     assert_eq!(
         String::from_utf8_lossy(&recapped.stderr),
-        "还没有可回顾的内容\n"
+        "没有可回顾的内容。\n"
     );
     // `-s`、`--session` 回顾的是写的那个：写一个不在的，照核心说的。
     let missing = "0192f3a0-1111-7abc-8def-001122334455";
@@ -81,7 +81,7 @@ async fn the_last_ask_or_the_given_session_is_the_one_recapped() {
         assert_eq!(recapped.status.code(), Some(1), "{flag}：{recapped:?}");
         assert_eq!(
             String::from_utf8_lossy(&recapped.stderr),
-            "没有这个会话。\n",
+            "会话不存在。\n",
             "{flag}"
         );
     }

@@ -102,7 +102,7 @@ async fn with_nothing_left_to_undo_it_says_so() {
     let again = home.undo(&undo(Direction::Undo)).await;
     assert_eq!(again.code, 1);
     assert_eq!(again.out, "");
-    assert_eq!(again.err, "没有能撤销的回合。\n");
+    assert_eq!(again.err, "没有可撤销的回合。\n");
 }
 
 #[tokio::test]

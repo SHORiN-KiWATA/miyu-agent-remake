@@ -312,6 +312,6 @@ async fn a_too_wide_added_dir_is_refused_before_a_session_is_made() {
     };
     let Asked { code, err, .. } = home.ask(&wide).await;
     assert_eq!(code, 1, "{err}");
-    assert!(err.contains("加进来的目录太宽"), "中文的拒绝：{err}");
+    assert!(err.contains("目录范围过大"), "中文的拒绝：{err}");
     assert!(home.sessions().is_empty(), "没留下空的会话");
 }

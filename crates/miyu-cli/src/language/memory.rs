@@ -47,19 +47,19 @@ impl Language {
     /// `summary` 是摘要更新了；一条都没看的说没有要整理的。
     pub fn dreamed(&self, given: u64, revised: u64, retired: u64, summary: bool) -> String {
         match (self, given, summary) {
-            (Language::Chinese, 0, _) => "没有要整理的。".to_string(),
+            (Language::Chinese, 0, _) => "无需整理。".to_string(),
             (Language::English, 0, _) => "Nothing to organize.".to_string(),
             (Language::Chinese, _, false) => {
-                format!("整理完了：看了 {given} 条，改了 {revised} 条，作废 {retired} 条。")
+                format!("整理完成：检查 {given} 条，修改 {revised} 条，作废 {retired} 条。")
             }
             (Language::Chinese, _, true) => format!(
-                "整理完了：看了 {given} 条，改了 {revised} 条，作废 {retired} 条，摘要更新了。"
+                "整理完成：检查 {given} 条，修改 {revised} 条，作废 {retired} 条，摘要已更新。"
             ),
-            (Language::English, _, false) => format!(
-                "Memory organized: looked at {given}, revised {revised}, retired {retired}."
-            ),
+            (Language::English, _, false) => {
+                format!("Memory organized: {given} checked, {revised} revised, {retired} retired.")
+            }
             (Language::English, _, true) => format!(
-                "Memory organized: looked at {given}, revised {revised}, retired {retired}; summary updated."
+                "Memory organized: {given} checked, {revised} revised, {retired} retired; summary updated."
             ),
         }
     }
