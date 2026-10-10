@@ -2,8 +2,9 @@
 //! 「软件包」页上面「核心」那一段（蓝图 `web.md`「设置页」第 13 条）：核心认的软件包一行一个，和下面「网页」那一段一个样子
 //! （2026-10-09 项目主人：原来核心的包全摊开、只有 QQ 那个是展开的，看着不一致）：箭头、名字、一句说明（`package.list` 的 `summary`）；
 //! 扩展在名字后面暗色写现在怎样（关着、在运行……）。点开：扩展先是「运行」「权限」两行（`extensions.js`），再是这个包的设置项（照
-//! `config.schema` 那一组）。没设置项、又不是扩展的不列。通讯平台的接入（`venue: true`，核心 9-4 再补）不在这里画：它在桥自己的页里配
-//! （项目主人：通讯平台的接入应该是单独的页面，不应该出现在终端界面和网页界面的设置页里）。
+//! `config.schema` 那一组）。没设置项、又不是扩展的不列。通讯平台的接入（`package.list` 带 `connection` 的）不在这里画：它的设置项在
+//! 单独的「接入」页（核心 F-4 的 `connections` 页；项目主人：通讯平台的接入应该是单独的页面，不应该出现在终端界面和网页界面的设置页里——
+//! 「接入」页算不算合他的意，交验收时请他确认），设置项画在别的页的包这里也不列。
 
 import { h, icon } from '../../src/lib/dom.js';
 import { coreRow, groupBlock } from './rows.js';
@@ -17,7 +18,9 @@ export function drawCorePackages(dialog, page) {
   const ctx = dialog.ctx;
   const groups = page?.groups ?? [];
   const ext = dialog.extensions;
-  const packages = (dialog.packages ?? []).filter((p) => !p.venue && !ext.entries.get(p.package)?.venue);
+  // 平台接入、设置项画在别的页的包不在这里列
+  const elsewhere = new Set((dialog.schema?.groups ?? []).filter((g) => g.page !== 'packages').map((g) => g.id));
+  const packages = (dialog.packages ?? []).filter((p) => !p.connection && !elsewhere.has(p.package));
   const rows = packages.map((p) => {
     const id = p.package;
     const group = groups.find((g) => g.id === id);

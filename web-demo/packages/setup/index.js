@@ -226,6 +226,8 @@ export function apply(ctx) {
   ctx.on('session.opened', (id) => { if (id === null) load(); else draw(); });
   ctx.on('session.created', () => draw());
   // 核心照「工作目录太宽」退回了工作区：照实际的提示一句，用不了的那个不留在最近用过里
+  // 工作区设成了很大的目录（家目录、根目录…）：照人选的用着，提醒一句工作区级别下她改里面的文件不先问（核心 9-7 补）
+  ctx.on('workdir.wide', ({ cwd }) => ctx.composer.say(t('workspace_wide', { path: tilde(cwd ?? '', home()) })));
   ctx.on('workdir.adjusted', ({ asked, cwd }) => {
     ctx.storage.set(RECENT, recent().filter((p) => p !== asked));
     ctx.composer.say(t('workspace_adjusted', { path: tilde(cwd, home()) }));

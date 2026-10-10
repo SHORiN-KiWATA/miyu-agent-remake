@@ -437,6 +437,8 @@ export class App {
     }
     const got = await this.store.conn.request('session.set_workspace', { session, cwd });
     if (typeof got?.cwd === 'string' && got.cwd !== cwd) this.ctx.emit('workdir.adjusted', { session, asked: cwd, cwd: got.cwd });
+    // 太宽、照人设的用着（核心 9-7 补）：提醒一句，不改
+    if (got?.wide === true) this.ctx.emit('workdir.wide', { session, cwd: got.cwd ?? cwd });
     this.schedule();
     return got?.cwd ?? cwd;
   }
@@ -444,7 +446,9 @@ export class App {
   async send(text, extra = {}) {
     try {
       if (!this.current) {
-        this.current = await this.store.create(this.draft.cwd ?? this.cwd, this.pendingModel, this.draft.persona, this.draft.preset);
+        const asked = this.draft.cwd;
+        this.current = await this.store.create(asked ?? this.cwd, this.pendingModel, this.draft.persona, this.draft.preset, !!asked);
+        if (this.store.createdWide === this.current) this.ctx.emit('workdir.wide', { session: this.current, cwd: asked });
         this.pendingModel = null;
         this.draft = { persona: null, preset: null, cwd: null };
         this.store.view(this.current);

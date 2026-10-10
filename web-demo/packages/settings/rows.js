@@ -4,7 +4,7 @@
 //! （`look.js`）共用 `shell`。
 
 import { h, icon, replace } from '../../src/lib/dom.js';
-import { noteOf, envRef, inputText, layerFor, writtenIn } from './model.js';
+import { noteOf, envRef, inputText, layerFor, writtenIn, secretName } from './model.js';
 
 /**
  * 一组：组名，下面一行行。
@@ -79,13 +79,28 @@ export function coreRow(dialog, item, opts = {}) {
     if (why) row.fail(why);
     else row.done();
   };
+  // 密钥（`type: secret`）：粘贴的先存成一个新名字的密钥（`secret.set`，不覆盖原来的），再把引用写进配置——人不用知道
+  // `{ secret = … }` 怎么写（2026-10-10 当用户试「接入QQ的令牌」：写纯文字会被核心拒）
+  const saveSecret = async (text) => {
+    row.busy();
+    const name = secretName(item.key.toLowerCase().replace(/[^a-z0-9]+/g, '-'), Date.now());
+    try {
+      await ctx.core.request('secret.set', { name, value: text });
+    } catch (err) {
+      row.fail(err?.message ?? String(err));
+      return;
+    }
+    const why = await dialog.save(item, { value: { secret: name } });
+    if (why) row.fail(why);
+    else row.done();
+  };
   const written = writtenIn(item.entry, layerFor(item));
   row = shell({
     name: item.name,
     description: opts.compact ? '' : item.description,
     source: appliesLine(dialog, item, opts.compact),
     problems: item.problems,
-    control: editor?.options ? control(dialog, { ...item, control: 'select', options: editor.options() }, value, save) : control(dialog, item, value, save),
+    control: editor?.options ? control(dialog, { ...item, control: 'select', options: editor.options() }, value, save) : control(dialog, item, value, save, saveSecret),
     reset: written ? () => save({ unset: true }) : null,
     resetTitle: ctx.text('reset'),
   });
@@ -98,8 +113,9 @@ export function coreRow(dialog, item, opts = {}) {
  * @param {import('./model.js').Item} item
  * @param {any} value 最终值
  * @param {(change: {value?: any, input?: string}) => void} save
+ * @param {(text: string) => void} [saveSecret] 密钥：粘贴的那一串
  */
-function control(dialog, item, value, save) {
+function control(dialog, item, value, save, saveSecret) {
   const ctx = dialog.ctx;
   if (item.control === 'toggle') return toggle(!!value, (on) => save({ value: on }));
   if (item.control === 'select') {
@@ -108,9 +124,24 @@ function control(dialog, item, value, save) {
     return select(dialog, options, value ?? null, (v) => save(v === null ? { unset: true } : { value: v }));
   }
   if (item.control === 'list') return list(dialog, item, Array.isArray(value) ? value : [], (next) => save({ value: next }));
+  const env = envRef(value);
+  if (item.type === 'secret' && saveSecret) {
+    // 密钥：密码框，空着是不改（设了的占位写「已设置」），粘贴了 `Enter`、离开时存
+    const field = /** @type {HTMLInputElement} */ (h('input.set-input.is-text', { type: 'password', autocomplete: 'off', spellcheck: 'false',
+      placeholder: ctx.text(value && typeof value === 'object' && !env ? 'secret_paste_keep' : 'secret_paste') }));
+    const done = () => {
+      const text = field.value.trim();
+      field.value = '';
+      if (text) saveSecret(text);
+    };
+    field.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); field.blur(); } });
+    field.addEventListener('blur', done);
+    if (!env) return field;
+    const label = h('button.set-env', { type: 'button', onclick: () => { label.replaceWith(field); field.focus(); } }, ctx.text('from_env', { name: env }));
+    return label;
+  }
   // 文字、数：一行字，`Enter`、离开时存，整串交给核心照类型读（`input`）；清空了是从这一层删掉（回到默认）；环境变量引用的先写
   // 「来自环境变量 X」，点了才改
-  const env = envRef(value);
   const field = textField(inputText(env ? '' : value), item.control === 'number' ? 'number' : 'text', item.max != null && item.min != null ? `${item.min} – ${item.max}` : '', (text) => save(text === '' ? { unset: true } : { input: text }));
   if (!env) return field;
   const label = h('button.set-env', { type: 'button', onclick: () => { label.replaceWith(field); field.focus(); } }, ctx.text('from_env', { name: env }));

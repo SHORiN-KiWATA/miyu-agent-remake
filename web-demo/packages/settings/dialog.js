@@ -183,9 +183,12 @@ export class SettingsDialog {
     }
     else if (entry?.section) kids = entry.section.render?.(sectionKit(this)) ?? null;
     else if (page) {
+      // 一组就是一个核心拉起的扩展的（「接入」页的接入QQ，设计 30 第五节）：组名下面先是运行、权限两行，再是它的设置项
       kids = [
         ...page.problems.map((p) => banner(p)),
-        ...page.groups.map((g) => groupBlock(g.name, g.items.map((item) => coreRow(this, item)))),
+        ...page.groups.map((g) => (this.extensions.entries.has(g.id)
+          ? h('section.set-group', h('h3.set-group-name', g.name), this.extensions.body(g.id, g.items.map((item) => coreRow(this, item)).filter(Boolean)))
+          : groupBlock(g.name, g.items.map((item) => coreRow(this, item))))),
       ];
     }
     replace(this.body, kids);

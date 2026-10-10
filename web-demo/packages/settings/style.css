@@ -316,3 +316,7 @@
 .set-embed-desc { margin: 12px 0 12px; }
 /* 「软件包」页核心那一段：扩展的名字后面暗色写现在怎样 */
 .set-pkg-state { margin-left: 8px; color: var(--text-faint); font-size: 12px; font-style: normal; font-weight: 400; }
+
+/* 用不了的单选（内置模型没装）：暗着、不能点 */
+.set-pick.is-off { cursor: default; opacity: 0.55; }
+.set-pick.is-off:hover { background: transparent; }

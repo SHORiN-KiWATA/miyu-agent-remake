@@ -266,3 +266,15 @@ test('换了工作区：一行「工作区：路径」，不属于哪一轮，�
   assert.equal(notes[0].path, '/home/u/b');
   assert.equal(notes[0].turn, null);
 });
+
+test('前台跑的子代理（job.started 带 foreground）：报回来不另起回报那一行', () => {
+  const log = [
+    ev(1, 0, 'session.created', null, { cwd: '/w' }),
+    ev(2, 1, 'turn.started', 't1', {}),
+    ev(3, 2, 'message.assistant', 't1', { blocks: [{ type: 'tool_call', call_id: 'c1', name: 'subagent', args: '{"description":"查一下","prompt":"x"}' }] }),
+    ev(4, 9, 'child.reported', 't1', { job: 'j1', reason: 'done', text: '查完了' }),
+    ev(5, 9, 'tool.result', 't1', { call_id: 'c1', status: 'ok', blocks: [{ type: 'text', text: '查完了' }], effects: [{ kind: 'job.started', job: 'j1', what: 'agent', title: '查一下', session: 's2', foreground: true }] }),
+  ];
+  const notes = project(log).items.filter((it) => it.type === 'note');
+  assert.equal(notes.length, 0);
+});

@@ -69,6 +69,12 @@ export function project(events, live = null, marks = new Map(), stats = new Map(
     items.push(...heard);
   };
   let level = 'workspace';
+  /** 前台跑的子代理（`job.started` 带 `foreground`，核心 T-1 下）：派它的那一步的结果在它报回来以后才落盘，先过一遍认出来 */
+  const foreground = new Set();
+  for (const e of events) {
+    if (e.kind !== 'tool.result') continue;
+    for (const fx of e.body?.effects ?? []) if (fx.kind === 'job.started' && fx.foreground) foreground.add(fx.job);
+  }
   /** 开过的轮，照先后：回顾记它讲到哪一轮 */
   const started = [];
   for (const e of events) {
@@ -168,6 +174,8 @@ export function project(events, live = null, marks = new Map(), stats = new Map(
         break;
       case 'job.reported':
       case 'child.reported':
+        // 前台跑的子代理（核心 T-1 下）：报告就是派它的那一步的结果，不另起回报那一行
+        if (foreground.has(b.job)) break;
         // 她正在回答时来的：在进行的那段时间线收起，她接着的步另起一段排在这一行下面
         timeline.speak(Date.parse(e.at));
         items.push(reportNote(e, jobs));

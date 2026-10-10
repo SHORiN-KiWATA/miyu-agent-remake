@@ -61,6 +61,8 @@ export function tasksOf(events, child = () => null) {
       for (const block of e.body.blocks ?? []) if (block.type === 'tool_call') args.set(block.call_id, block.args);
     } else if (e.kind === 'tool.result') {
       for (const fx of e.body.effects ?? []) {
+        // 前台跑的子代理（后台运行关着的会话派的，核心 T-1 下）：派它的那一步等它报回来，不是后台任务，不进任务条
+        if (fx.kind === 'job.started' && fx.foreground) continue;
         if (fx.kind === 'job.started') {
           const command = fx.what === 'command' ? commandOf(args.get(e.body.call_id)) : null;
           tasks.set(fx.job, { job: fx.job, what: fx.what, title: fx.title, session: fx.session ?? null, state: 'running', since: at, ended: null, duration: null, code: null, signal: null, command });

@@ -8,7 +8,7 @@ import { seconds, short } from './format.js';
 import { shortSession } from './words.js';
 
 /**
- * @typedef {{what: string, title: string, session: string|null, command: string|null}} Job 派出去的一个任务（`tool.result` 的效果
+ * @typedef {{what: string, title: string, session: string|null, command: string|null, foreground?: boolean}} Job 派出去的一个任务（`tool.result` 的效果
  *   `job.started`；命令照派它的那次 `shell` 调用的 `command`）
  * @typedef {{kind: string, account: string|null, name: string}} Speaker 一句话是谁说的
  * @typedef {{kind: 'output', command: string|null, hash: string|null, chars: number|null}|{kind: 'text', text: string, truncated: boolean}} Detail
@@ -29,7 +29,7 @@ export function noteJobs(e, jobs, args) {
     if (fx.kind !== 'job.started') continue;
     let command = null;
     try { command = JSON.parse(args.get(e.body.call_id) ?? '{}').command ?? null; } catch { /* 参数读不懂的不写命令 */ }
-    jobs.set(fx.job, { what: fx.what, title: fx.title, session: fx.session ?? null, command: typeof command === 'string' ? command : null });
+    jobs.set(fx.job, { what: fx.what, title: fx.title, session: fx.session ?? null, command: typeof command === 'string' ? command : null, foreground: fx.foreground === true });
   }
 }
 
