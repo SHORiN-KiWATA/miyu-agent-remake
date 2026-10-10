@@ -21,6 +21,8 @@ fn compaction(pause: Option<Pause>) -> Compaction {
     Compaction {
         reserve_cap: 10,
         margin: 100,
+        line_percent: 100,
+        margin_percent: 100,
         tail: 0,
         lead: 0,
         price: crate::estimate::Flat {

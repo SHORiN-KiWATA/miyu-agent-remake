@@ -14,17 +14,21 @@ use crate::preset::{PresetPin, ROLEPLAY};
 use crate::rebuild::REBUILD;
 use crate::recap::RECAP;
 use crate::shorten::SHORTEN;
-use crate::snapshot::{CompactionNumbers, CoreTexts, LEAD, Snapshot, TAIL};
+use crate::snapshot::{
+    CompactionNumbers, CoreTexts, LEAD, LINE_PERCENT, MARGIN_PERCENT, Snapshot, TAIL,
+};
 
 /// 有计划的重启打断了一轮，再起来时连着接着干几次：`02-内核.md` 第六节「载入、崩溃、重启」的初值。
 const RESUMES: u32 = 3;
 
-/// 压缩用的数的出厂值（`compaction.md`「对外的样子」）：输出预留的上限 20000、余量 13000（照 Claude Code），
-/// 一张图、一个文件各算 2000，尾巴至多 16000（2026-09-29 项目主人定），提前压好的提前量至多 16000（2026-10-07 项目主人
+/// 压缩用的数的出厂值（`compaction.md`「对外的样子」）：输出预留的上限 20000、余量 13000（照 Claude Code），压缩线至多
+/// 窗口的 85%（2026-10-10 项目主人定）、余量至多窗口的 5%，一张图、一个文件各算 2000，尾巴至多 16000（2026-09-29 项目主人定），提前压好的提前量至多 16000（2026-10-07 项目主人
 /// 定）；压后重建、熔断、截短重试照各自的出厂数。
 const COMPACTION: CompactionNumbers = CompactionNumbers {
     reserve_cap: 20_000,
     margin: 13_000,
+    line_percent: LINE_PERCENT,
+    margin_percent: MARGIN_PERCENT,
     image: 2_000,
     file: 2_000,
     tail: TAIL,

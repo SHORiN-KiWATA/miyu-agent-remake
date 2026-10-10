@@ -26,8 +26,12 @@ use super::input::Reread;
 use super::summary::{Summarized, called_tool};
 use super::turn::Stage;
 use crate::estimate;
-use crate::event::{Body, CallError, CompactionProgress, Cost, Purpose, Usage};
+use crate::event::{
+    Body, CallError, CompactionProgress, CompactionStarted, Cost, Purpose, Transient,
+    TransientBody, Usage,
+};
 use crate::id::Seq;
+use crate::origin::By;
 use crate::request::Request;
 use crate::time::Timestamp;
 
@@ -91,18 +95,38 @@ impl Session {
         Some((tail, compaction.lead.min(quarter - tail)))
     }
 
-    /// 压好的、在路上的那一份能留多长的尾巴：T + G，加上到线以后不停、还能接着长的那一截（策略的余量，压缩线到
-    /// 「窗口减输出预留」之间，施工 6-11 补）。没有压缩线的没有。
+    /// 压好的、在路上的那一份能留多长的尾巴：T + G，加上到线以后不停、还能接着长的那一截（压缩线到「窗口减输出预留」之间，
+    /// 施工 6-11 补，[`Session::headroom`]）。没有压缩线的没有。
     fn tail_room(&self) -> Option<u64> {
         let (tail, lead) = self.lead()?;
-        let margin = self.policy.compaction.as_ref()?.margin;
-        Some(tail + lead + margin)
+        Some(tail + lead + self.headroom()?)
     }
 
-    /// 发主请求之前（`turn.rs` 的 `ask`，熔断说照发以后）：该起压就起（第十五条第 1 条），交回旁路请求，排在主请求后面。
-    /// 过了压缩线、照发的（施工 6-11 补：到线不停）也起。开关关着、要关了、暂停着、用量没过起压线、有一次在路上、手里那一份
-    /// 还用得上的，不起；手里那一份用不上了的扔掉。
-    pub(super) fn prepare_up(&mut self, request: &Request) -> Option<Action> {
+    /// 发主请求之前（`turn.rs` 的 `ask`，熔断说照发以后）：该起压就起（第十五条第 1 条），交回旁路请求，排在主请求后面，
+    /// 再推一条 `compaction.started`（施工 6-11 再补）。过了压缩线、照发的（施工 6-11 补：到线不停）也起。开关关着、要关了、
+    /// 暂停着、用量没过起压线、有一次在路上、手里那一份还用得上的，不起；手里那一份用不上了的扔掉。
+    pub(super) fn prepare_up(&mut self, at: Timestamp, request: &Request) -> Vec<Action> {
+        let Some(upto) = self.prepare_due(request) else {
+            return Vec::new();
+        };
+        let aside = self.prepare_ask(upto, self.prefix_key(upto), false);
+        let started = CompactionStarted {
+            seen: upto,
+            prepared: true,
+        };
+        let (turn, cause) = self.turn_cause().unzip();
+        let started = Transient {
+            at,
+            turn,
+            by: By::Kernel,
+            cause: cause.flatten(),
+            body: TransientBody::CompactionStarted(started),
+        };
+        vec![aside, Action::PushTransient(started)]
+    }
+
+    /// 该不该起压（[`Session::prepare_up`]）：该起的交回替代到哪。手里那一份用不上了的这时扔掉。
+    fn prepare_due(&mut self, request: &Request) -> Option<Seq> {
         if !self.prepare.on || self.restarting || self.paused() {
             return None;
         }
@@ -122,8 +146,7 @@ impl Session {
             _ => self.prepare.state = None,
         }
         let price = self.price()?;
-        let upto = self.compaction_upto(tail, &price, false)?;
-        Some(self.prepare_ask(upto, self.prefix_key(upto), false))
+        self.compaction_upto(tail, &price, false)
     }
 
     /// 发提前压好的摘要请求：和当场压的一样（有效历史到 `upto` 的投影加摘要指令，看不了图的照样换成转述），`isolated` 的
@@ -286,9 +309,11 @@ impl Session {
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();
         };
+        let trigger = due.trigger.clone();
         turn.stage = Stage::Awaiting(Box::new(Awaiting { due, expected }));
         let progress = CompactionProgress {
             seen,
+            trigger,
             written,
             expected,
         };
@@ -313,6 +338,7 @@ impl Session {
         };
         let progress = CompactionProgress {
             seen: upto,
+            trigger: awaiting.due.trigger.clone(),
             written,
             expected: awaiting.expected,
         };

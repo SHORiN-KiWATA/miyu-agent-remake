@@ -178,31 +178,6 @@ fn every_kind_of_block_is_counted() {
 }
 
 #[test]
-fn the_line_is_the_window_less_the_reserve_and_the_margin() {
-    // deepseek-flash：窗口一百万，最大输出 393216，预留封顶 20000。
-    assert_eq!(
-        line(Some(1_000_000), Some(393_216), 20_000, 13_000),
-        Some(967_000)
-    );
-    // 最大输出比封顶小，照最大输出留。
-    assert_eq!(
-        line(Some(128_000), Some(8_000), 20_000, 13_000),
-        Some(107_000)
-    );
-    // 没报最大输出，按封顶留。
-    assert_eq!(line(Some(128_000), None, 20_000, 13_000), Some(95_000));
-}
-
-#[test]
-fn there_is_no_line_without_a_window_or_when_it_is_too_small() {
-    assert_eq!(line(None, Some(8_000), 20_000, 13_000), None);
-    // 正好减到 0，也算没有线：不然一请求就压。
-    assert_eq!(line(Some(33_000), None, 20_000, 13_000), None);
-    assert_eq!(line(Some(32_000), None, 20_000, 13_000), None);
-    assert_eq!(line(Some(33_001), None, 20_000, 13_000), Some(1));
-}
-
-#[test]
 fn the_anchor_is_the_latest_finished_call_with_usage() {
     let history = history(vec![
         event(1, None, ALICE, "message.user", r#"{"blocks":[]}"#),

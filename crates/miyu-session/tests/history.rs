@@ -21,7 +21,7 @@ async fn after_a_compaction_she_finds_what_was_said_before_it() {
     // 测的是到线当场压：关掉提前压（施工 6-11 补起开着的会接着说，压缩挪到下一步，见内核的 `scenario/prepare_go.rs`）。
     let mut home = Home::new();
     home.configs = crate::support::routing::configs("[compaction]\nprepare = false\n", &[]);
-    // 窗口 33180，压缩线 180。带着基础系统八件工具，每次请求估出来都上千，比剧本报的 110 大，照估的算：第二轮一开头
+    // 窗口 21242，压缩线 180（减掉预留 20000、窗口的 5% 1062）。带着基础系统八件工具，每次请求估出来都上千，比剧本报的 110 大，照估的算：第二轮一开头
     // 压一次，找回来以后又压一次（每一步至多压一次）。
     let script = Script::new([
         Play::Says("记下了：项目代号 BLUE-WHALE-7。"),
@@ -30,7 +30,7 @@ async fn after_a_compaction_she_finds_what_was_said_before_it() {
         Play::Says("<summary>用户问代号，她翻记录找到了。</summary>"),
         Play::Says("代号是 BLUE-WHALE-7。"),
     ])
-    .window(33_180);
+    .window(21_242);
     let cwd = home.scratch.0.join("work").to_string_lossy().into_owned();
     let opening = Opening {
         permission: Permission {

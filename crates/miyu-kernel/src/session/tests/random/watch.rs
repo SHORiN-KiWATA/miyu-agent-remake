@@ -301,6 +301,7 @@ impl Watch {
             self.check(action);
         }
         self.reread_unfollowed();
+        self.prepare_announced();
         self.interrupting = None;
         // 取回原文：执行器做完才收收件箱，马上交回（施工 6-9）。
         if let Some(recalled) = self.recall_answer() {

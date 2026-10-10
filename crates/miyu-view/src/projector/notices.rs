@@ -123,12 +123,13 @@ impl Projector {
         );
     }
 
-    /// 摘要写到哪了（瞬时的）：在压的那一条没有就开出来，有了就改进度。
+    /// 摘要写到哪了（瞬时的）：在压的那一条没有就开出来，有了就改进度；自动的还是手动的照进度带的（施工 6-11 再补）。
     pub(super) fn progress(&mut self, at: Timestamp, progress: &CompactionProgress) {
         let id = compaction_id(progress.seen);
         if self.at.contains_key(&id) {
             self.touch(&id, |entry| {
                 if let Body::Notice(Notice::Compaction(c)) = &mut entry.body {
+                    c.trigger = Some(progress.trigger.clone());
                     c.written = Some(progress.written);
                     c.expected = Some(progress.expected);
                 }
@@ -138,6 +139,7 @@ impl Projector {
                 id.clone(),
                 at,
                 Notice::Compaction(Compaction {
+                    trigger: Some(progress.trigger.clone()),
                     written: Some(progress.written),
                     expected: Some(progress.expected),
                     seen: Some(progress.seen.get()),

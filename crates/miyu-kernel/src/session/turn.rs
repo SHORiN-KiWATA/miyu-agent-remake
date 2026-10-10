@@ -330,7 +330,7 @@ impl Session {
             .and_then(|before| fingerprint.first_difference(before));
         self.last_request = Some(fingerprint);
         // 过了起压线的，在后台提前压（施工 6-11 上，`prepare.rs`）：排在主请求后面。
-        let prepare = self.prepare_up(&request);
+        let prepare = self.prepare_up(at, &request);
         let asked = self.newly_asked();
         let Some(turn) = self.turn.as_mut() else {
             return Vec::new();

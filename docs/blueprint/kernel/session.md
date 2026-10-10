@@ -180,7 +180,7 @@
 | `attended` | 有没有人能确认、回答 | 造会话的那个连接握手时的 `caps.input` |
 | `resumes` | 有计划的重启打断了一轮，连着接着干几次 | 3 |
 | `reports` | 子会话回报的正文怎么截（`Reports`，施工 7-6）：`chars` 最多几个字，`omitted` 截在中间的那一行（字段 `count`） | 快照里的 `jobs.report_chars`（出厂 30000）、`core/jobs/subagent-omitted.txt`；以前造的快照没有的，照出厂的数、空的那一行 |
-| `compaction` | 压缩用的数：`reserve_cap` 输出预留的上限、`margin` 余量、`tail` 尾巴的上限、`price` 估算时一张图、一个文件各算多少；`None` 不主动压 | 20000、13000、16000、各 2000（`miyu-policy` 的 `compose`，施工 6-2）；以前造的快照里没有的是 `None` |
+| `compaction` | 压缩用的数：`reserve_cap` 输出预留的上限、`margin` 余量、`line_percent`、`margin_percent` 压缩线、余量各至多窗口的百分之几（施工 6-11 再补，压缩线照 `Compaction::line` 算）、`tail` 尾巴的上限、`price` 估算时一张图、一个文件各算多少；`None` 不主动压 | 20000、13000、85、5、16000、各 2000（`miyu-policy` 的 `compose`，施工 6-2）；以前造的快照里没有的是 `None` |
 | `titles` | 起标题的两个数（`Titles`，施工 3-8 五补）：`tries` 一个会话最多试几次，`chars` 标题最多几个字；`None` 不起标题 | 快照里的 `title.tries`、`title.chars`（出厂 2、50），快照里还得有起标题的字；以前造的快照里没有的是 `None` |
 | `peers` | 别的会话发来的话怎么防刷屏（`Peers`，施工 C-2）：`burst` 同一个发话方一个窗口里最多几句、`window` 窗口多少秒、`unread` 没听到的最多几句 | 快照里的 `peers`（出厂 5、600、50，`cross-session.md`「对外的样子」）；以前造的快照没有的，照出厂的数 |
 

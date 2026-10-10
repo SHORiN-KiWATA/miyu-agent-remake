@@ -31,7 +31,7 @@ async fn a_prepared_summary_is_swapped_in_without_asking_again() {
         None,
     ));
     let home = Home::new();
-    // 窗口 113000：压缩线 80000，尾巴的预算 16000，提前量 4000，过了 76000 起压。剧本每次报 77000：第一轮整份照本地估、
+    // 窗口 105263：压缩线 80000（减掉预留 20000、窗口的 5% 5263），尾巴的预算 16000，提前量 4000，过了 76000 起压。剧本每次报 77000：第一轮整份照本地估、
     // 不到起压线；第二轮过了起压线，主请求、提前压各一次；第三轮说一大段（约 5000 token）过了线，换上。
     let script = Script::new([
         Play::Says("好。"),
@@ -39,7 +39,7 @@ async fn a_prepared_summary_is_swapped_in_without_asking_again() {
         Play::Says("<summary>提前压好的摘要</summary>"),
         Play::Says("行。"),
     ])
-    .window(113_000)
+    .window(105_263)
     .reports(77_000);
     let handle = home.create(&script).await;
     let mut pushes = watch(&handle).await;
@@ -87,7 +87,7 @@ async fn a_prepared_summary_is_swapped_in_without_asking_again() {
             wait_ms: None,
         },
     ])
-    .window(113_000)
+    .window(105_263)
     .reports(77_000);
     let handle = home.create(&script).await;
     let mut pushes = watch(&handle).await;
