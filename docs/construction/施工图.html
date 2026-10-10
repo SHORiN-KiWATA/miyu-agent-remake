@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>387</b><span>/ 400 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>388</b><span>/ 401 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
-    <li><b class="mono">cd387fc2</b><span>最近一步（F-8 下 命令行查包）的提交</span></li>
+    <li><b class="mono">dbb42a97</b><span>最近一步（5-12 下 外部身份的命令关进工作区）的提交</span></li>
   </ul>
 </header>
 
@@ -463,6 +463,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#s5-11"><span class="n">5-11</span>M5 验收<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s5-11b"><span class="n">5-11</span>运行目录用完删掉（补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#s5-12a"><span class="n">5-12 上</span>外部身份只碰自己的工作区<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#s5-12b"><span class="n">5-12 下</span>外部身份的命令关进工作区<span class="st">✓</span></a></li>
       </ol>
     </li>
     <li>
@@ -8969,6 +8970,58 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/5-12-外部身份只碰工作区（上）.md</code>、图纸 <code>docs/blueprint/session/guard.md</code>、设计 <code>11-权限与沙盒.md</code> 第三节。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="s5-12b" aria-labelledby="h-s512b">
+  <div class="sheet-head"><h2 id="h-s512b"><span class="no">5-12 下</span>外部身份的命令关进工作区</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">群会话有 shell，在沙盒里跑，读写都只限这个会话的工作区，联网不限（项目主人 2026-10-11 定）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">外部身份的命令关进工作区</span><span class="dir-note">5-12 下</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>沙盒规格多一格 <code>read</code>：写了的只准读名单里的；Linux 的 Landlock 照名单收紧，别的平台收到它不跑</li>
+              <li>外部身份的会话读只准系统目录、<code>/dev</code>、<code>/proc/self</code>、工作区，写工作区和 <code>.tmp</code></li>
+              <li>权限策略：沙盒能用又关得住读的放行命令，别的照 5-12 上拒；要在沙盒外跑的一律拒</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">不给整个 /proc</span><span class="rl">同一个用户的进程的环境变量读得到，核心的环境里有 key</span></div>
+          <div class="tile new"><span class="nm">macOS、Windows</span><span class="rl">照旧没有命令，另起一步</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">5-12 下</dd></div>
+        <div><dt>名称</dt><dd>外部身份的命令关进工作区</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-11</dd></div>
+        <div><dt>提交</dt><dd class="mono">dbb42a97</dd></div>
+        <div><dt>验收</dt><dd>八项、三台 CI（run 1696）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>名单外的读不到、/proc/1/environ 读不到</span></li>
+        <li><span class="ok">✓</span><span>关不住读的平台不跑</span></li>
+        <li><span class="ok">✓</span><span>Landlock 不看名单、照旧拒命令，各报红</span></li>
+        <li><span class="ok">✓</span><span>八项门禁</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/5-12-外部身份只碰工作区（下）.md</code>、图纸 <code>docs/blueprint/sandbox.md</code>、<code>session/guard.md</code>。</li>
       </ul>
     </div>
   </div>
