@@ -100,7 +100,8 @@ fn a_failed_or_empty_one_is_dropped_and_the_line_compacts_as_before() {
     for line in [Line::fails(ErrorClass::Retryable, "503"), Line::says("")] {
         let mut stage = preparing(60);
         stage.prepare_model([line]);
-        two_turns(&mut stage, 330, 390);
+        // 第三轮的请求 415 放不下了（施工 6-11 补：放得下的照发、后台再起一次，见 `prepare_go.rs`）。
+        two_turns(&mut stage, 330, 400);
         let calls = prepared_calls(&stage);
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0].result, CallResult::Error, "{:?}", calls[0]);

@@ -317,6 +317,8 @@ impl Session {
         }
         match self.before_asking(&request) {
             Before::Send => {}
+            // 到线不停（施工 6-11 补）：还放得下、提前压的在路上或者这就起的，照发。
+            Before::Compact(due) if self.defer_compaction(&due, &request) => {}
             Before::Compact(due) => return self.begin_compaction(at, due),
             Before::Pause(paused) => return self.pause(at, paused),
             Before::Refuse(error) => return self.refuse(at, seen, &request, error),

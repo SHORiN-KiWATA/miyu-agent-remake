@@ -33,7 +33,9 @@ fn is_summary(request: &miyu_kernel::request::Request) -> bool {
 
 #[tokio::test]
 async fn a_new_session_knows_the_window_and_compacts_at_the_line() {
-    let home = Home::new();
+    // 测的是到线当场压：关掉提前压（施工 6-11 补起开着的会接着说，压缩挪到下一步，见内核的 `scenario/prepare_go.rs`）。
+    let mut home = Home::new();
+    home.configs = crate::support::routing::configs("[compaction]\nprepare = false\n", &[]);
     let script = script();
     let handle = home.create(&script).await;
     let mut pushes = watch(&handle).await;
@@ -60,7 +62,9 @@ async fn a_new_session_knows_the_window_and_compacts_at_the_line() {
 
 #[tokio::test]
 async fn a_loaded_session_knows_the_window_too() {
-    let home = Home::new();
+    // 测的是到线当场压：关掉提前压（施工 6-11 补起开着的会接着说，压缩挪到下一步，见内核的 `scenario/prepare_go.rs`）。
+    let mut home = Home::new();
+    home.configs = crate::support::routing::configs("[compaction]\nprepare = false\n", &[]);
     let script = script();
     let handle = home.create(&script).await;
     let mut pushes = watch(&handle).await;

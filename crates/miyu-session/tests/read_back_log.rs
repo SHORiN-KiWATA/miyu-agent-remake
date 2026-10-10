@@ -20,7 +20,9 @@ async fn a_log_that_cannot_be_read_back_stops_the_session() {
         LevelFilter::INFO,
         None,
     ));
-    let home = Home::new();
+    // 要第二轮里当场压出一个检查点：关掉提前压（施工 6-11 补起开着的会接着说，压缩挪到下一步）。
+    let mut home = Home::new();
+    home.configs = support::routing::configs("[compaction]\nprepare = false\n", &[]);
     // 窗口 33100，压缩线 100：剧本报 110，第二轮一开头就压（`tests/limits.rs`）。
     let script = Script::new([
         Play::Says("你好。"),
