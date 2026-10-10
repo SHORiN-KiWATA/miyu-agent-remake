@@ -4,6 +4,8 @@
 //! 在 `Cargo.toml` 里另列。新加的测试文件在下面添一行。
 
 mod provide;
+mod provide_exit;
+mod provide_features;
 mod provide_later;
 mod support;
 
@@ -42,6 +44,7 @@ mod login;
 mod memory;
 mod memory_api;
 mod memory_clear;
+mod memory_installed;
 mod memory_meaning;
 mod memory_scope;
 mod messages;
@@ -49,6 +52,7 @@ mod meta;
 mod model_call;
 mod models;
 mod models_effort;
+mod models_embedding;
 mod models_name;
 mod models_pools;
 mod models_retire;
@@ -59,12 +63,18 @@ mod owner;
 mod package_check;
 mod package_settings;
 mod packages;
+mod packages_config;
+mod packages_embed;
+mod packages_extensions;
+mod packages_install;
+mod packages_live;
 mod peers;
 mod permission;
 mod persona_set;
 mod persona_swap;
 mod persona_swap_upgrade;
 mod personas;
+mod preset_background;
 mod preset_face;
 mod preset_set;
 mod preset_swap;

@@ -236,3 +236,45 @@ fn the_catalog_knows_which_tools_came_from_a_provider() {
     assert_eq!(names(&emptied), ["read"]);
     assert_eq!(emptied.packages().collect::<Vec<_>>(), ["basesystem"]);
 }
+
+/// 内置包装上、卸掉（施工 F-5 中）：卸掉的拿掉、记下随包卸掉了；装回来换上、不再算卸掉；都不算经提供者登记的。
+#[test]
+fn a_builtin_package_is_placed_and_removed_without_becoming_provided() {
+    let catalog = Catalog::in_packages([
+        ("basesystem", vec![object("read")]),
+        ("memory", vec![object("remember"), object("forget")]),
+    ])
+    .unwrap();
+    let removed = catalog.removing("memory");
+    assert_eq!(names(&removed), ["read"]);
+    assert!(removed.gone("remember") && removed.gone("forget"));
+    assert!(!removed.gone("read"), "别的包的不算");
+    assert!(!removed.provided("read"));
+    let back = removed.placing("memory", vec![object("remember")]).unwrap();
+    assert_eq!(names(&back), ["read", "remember"]);
+    assert!(
+        !back.gone("remember") && !back.gone("forget"),
+        "装回来不再算卸掉"
+    );
+    assert!(!back.provided("remember"), "内置的不算提供者登记的");
+    assert_eq!(back.package_of("remember"), Some("memory"));
+    let clash = back.placing("other", vec![object("read")]);
+    assert!(clash.is_err(), "撞了别的包照样拒");
+}
+
+/// 卸掉的扩展装回来、又登记了（施工 F-5 补）：它的几件不再算随包卸掉的，之后关掉照「用不了」说。
+#[test]
+fn a_provider_registering_again_is_no_longer_gone() {
+    let catalog = Catalog::in_packages([("basesystem", vec![object("read")])]).unwrap();
+    let provided = catalog
+        .replacing("xbridge", vec![object("echo_back")])
+        .unwrap();
+    let removed = provided.removing("xbridge");
+    assert!(removed.gone("echo_back"));
+    let back = removed
+        .replacing("xbridge", vec![object("echo_back")])
+        .unwrap();
+    assert!(!back.gone("echo_back"), "装回来登记了不再算卸掉");
+    let off = back.replacing("xbridge", Vec::new()).unwrap();
+    assert!(!off.gone("echo_back"), "关掉的不算卸掉");
+}

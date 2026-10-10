@@ -47,6 +47,8 @@ pub struct Policy {
     /// 别的会话发来的话怎么防刷屏（施工 C-2，`peers.rs`）。以前造的快照里没有的，执行器照出厂的数交进来：防刷屏不能因为
     /// 会话旧就不管（`docs/blueprint/cross-session.md`「对外的样子」）。
     pub peers: Peers,
+    /// 后台运行关着（施工 T-1 上、下）：派的子代理前台跑，派它的那一步等它报回来。
+    pub foreground: bool,
 }
 
 /// 起标题的两个数（施工 3-8 五补，`docs/blueprint/kernel/session.md`「起标题」）：数值是数据，放在策略快照里。

@@ -13,6 +13,7 @@ use miyu_config::{Item, Kind, Layer, Words};
 use miyu_store::human::{FALLBACK, Human};
 
 use super::file::File;
+use super::options::{note, usable};
 use super::{Config, Project, TARGET, wire};
 use crate::Core;
 use crate::hello::Peer;
@@ -87,11 +88,17 @@ pub(crate) fn schema(core: &Core, peer: Peer, params: SchemaParams) -> Result<Va
     let mut pages: Vec<Value> = Vec::new();
     let mut groups: Vec<Value> = Vec::new();
     let mut listed = Vec::new();
+    let local = core
+        .memory
+        .vectors()
+        .and_then(|vectors| vectors.local_name());
     for item in items {
         let said = words
             .item(item.key)
             .or_else(|| english.as_ref().and_then(|english| english.item(item.key)));
-        listed.push(schema_item(item, said));
+        let notes = |option: &str| note(item.key, option, local.as_deref());
+        let usable = |option: &str| usable(item.key, option, local.is_some());
+        listed.push(schema_item(item, said, &notes, &usable));
         let page = item.ui.page;
         if !pages.iter().any(|seen| seen["id"] == page) {
             let name = config_name(&words, english.as_ref(), "pages", page);
@@ -106,8 +113,13 @@ pub(crate) fn schema(core: &Core, peer: Peer, params: SchemaParams) -> Result<Va
     Ok(json!({"groups": groups, "items": listed, "pages": pages}))
 }
 
-/// 一项在 `config.schema` 里的样子。
-fn schema_item(item: &Item, said: Option<&miyu_config::ItemWords>) -> Value {
+/// 一项在 `config.schema` 里的样子：选项后面暗字写的照 `notes` 查，用不了的照 `usable` 标。
+fn schema_item(
+    item: &Item,
+    said: Option<&miyu_config::ItemWords>,
+    notes: &dyn Fn(&str) -> Option<String>,
+    usable: &dyn Fn(&str) -> bool,
+) -> Value {
     let mut map = Map::new();
     map.insert("key".to_string(), json!(item.key));
     map.insert("type".to_string(), json!(item.kind.as_str()));
@@ -126,7 +138,14 @@ fn schema_item(item: &Item, said: Option<&miyu_config::ItemWords>) -> Value {
                 let name = said
                     .and_then(|said| said.options.get(*option))
                     .map_or(*option, String::as_str);
-                json!({"name": name, "value": option})
+                let mut named = json!({"name": name, "value": option});
+                if let Some(note) = notes(option) {
+                    named["note"] = json!(note);
+                }
+                if !usable(option) {
+                    named["available"] = json!(false);
+                }
+                named
             })
             .collect();
         map.insert("options".to_string(), json!(named));
@@ -386,8 +405,9 @@ pub(super) fn told(
 
 /// 这个连接的语言的字。读不懂是装坏了：内部出错。
 pub(crate) fn words(core: &Core, language: &str) -> Result<Human, Refusal> {
+    let packages = core.packages();
     Human::load(&core.resources, language)
-        .map(|human| human.with_packages(crate::packages::manifests(&core.packages), language))
+        .map(|human| human.with_packages(crate::packages::manifests(&packages), language))
         .map_err(|error| {
             tracing::warn!(target: TARGET, error = %error, "resource unreadable");
             Refusal::INTERNAL

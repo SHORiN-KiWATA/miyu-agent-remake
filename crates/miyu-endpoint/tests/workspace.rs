@@ -160,7 +160,7 @@ async fn the_replies_say_where_the_session_works() {
         .await;
     assert_eq!(reply["result"]["cwd"], json!(project), "{reply}");
     home.until_turns(&session, 1).await;
-    // 人明着换到太宽的目录：退回的工作区，回应说实际用的。
+    // 人明着换到太宽的目录：照人选的用，回应带 `wide`（施工 9-7 补，原来退回账号的工作区）。
     let reply = client
         .call(
             "w1",
@@ -168,7 +168,8 @@ async fn the_replies_say_where_the_session_works() {
             json!({"session": session, "cwd": "~"}),
         )
         .await;
-    assert_eq!(reply["result"]["cwd"], json!(own), "{reply}");
+    assert_eq!(reply["result"]["cwd"], json!("~"), "{reply}");
+    assert_eq!(reply["result"]["wide"], json!(true), "{reply}");
     // 之后说话的回应，是会话现在的。
     let reply = client
         .call(
@@ -177,13 +178,41 @@ async fn the_replies_say_where_the_session_works() {
             json!({"session": session, "text": "hi"}),
         )
         .await;
-    assert_eq!(reply["result"]["cwd"], json!(own), "{reply}");
+    assert_eq!(reply["result"]["cwd"], json!("~"), "{reply}");
     home.until_turns(&session, 2).await;
-    // 造会话时就太宽的；同一个命令编号重发的，说的一样。
+    // 造会话时就太宽的、头自己带上的：照旧退回；同一个命令编号重发的，说的一样。
     for _ in 0..2 {
         let reply = client
             .call("c4", "session.create", json!({"cwd": "~"}))
             .await;
         assert_eq!(reply["result"]["cwd"], json!(own), "{reply}");
+        assert!(reply["result"].get("wide").is_none(), "{reply}");
     }
+    // 人明着选的：照用，带 `wide`。
+    let reply = client
+        .call("c5", "session.create", json!({"cwd": "~", "chosen": true}))
+        .await;
+    assert_eq!(reply["result"]["cwd"], json!("~"), "{reply}");
+    assert_eq!(reply["result"]["wide"], json!(true), "{reply}");
+    // 明着选了数据根里面、又不是账号自己的工作区的：照不了，照旧退回。
+    let state = home.root.state().to_string_lossy().into_owned();
+    let reply = client
+        .call(
+            "c7",
+            "session.create",
+            json!({"cwd": state, "chosen": true}),
+        )
+        .await;
+    assert_eq!(reply["result"]["cwd"], json!(own), "{reply}");
+    assert!(reply["result"].get("wide").is_none(), "{reply}");
+    // 不太宽的明着选，和不选一样，不带 `wide`。
+    let reply = client
+        .call(
+            "c6",
+            "session.create",
+            json!({"cwd": project, "chosen": true}),
+        )
+        .await;
+    assert_eq!(reply["result"]["cwd"], json!(project), "{reply}");
+    assert!(reply["result"].get("wide").is_none(), "{reply}");
 }

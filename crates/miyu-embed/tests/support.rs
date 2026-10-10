@@ -7,10 +7,9 @@ pub fn fixtures() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
 }
 
-/// 出厂的清单（`resources/models/embed/bge-small-zh-v1.5.toml`）。
+/// 内置语义模型的包里的模型清单的原本（`package/embed/model.toml`，施工 R-5 三补）。
 pub fn shipped_manifest() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../resources/models/embed/bge-small-zh-v1.5.toml")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("package/embed/model.toml")
 }
 
 /// 读 `tests/fixtures/` 下的一份字。

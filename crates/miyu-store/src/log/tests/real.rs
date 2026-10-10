@@ -51,6 +51,7 @@ impl Assembler for Nothing {
 /// 替身用的策略：一件读的工具，句子短，一眼认得出。
 fn policy() -> Policy {
     Policy {
+        foreground: false,
         assembler: Box::new(Nothing),
         facts: FactTemplates::new(
             r#"<e t="{time}" d="{cwd}"/>"#,

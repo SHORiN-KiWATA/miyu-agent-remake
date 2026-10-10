@@ -5,16 +5,25 @@
 //! 回合库是派生的：更新失败记一行 `WARN memory index not updated`，会话照常；照到的位置没往前挪，下次载入照日志补。
 
 mod backfill;
+mod extract;
 mod keeper;
+mod merge;
 mod port;
 mod summary;
 mod vectors;
 
+pub use extract::{ExtractTexts, Extraction};
+pub(crate) use extract::{Extractor, Job, plan};
 pub use keeper::{Filter, Keeper, Stamp};
+pub use merge::MergeTexts;
+
+/// 记忆模块的编号：注入、抽取记下的 `by` 都是它（施工 R-4 上、R-6 上）。
+pub(crate) const MODULE: &str = "memory";
 pub(crate) use port::Calls;
 pub use summary::SummaryTexts;
-pub use vectors::{Query, Using, Vectors};
+pub use vectors::{LOCAL as EMBED_LOCAL, Query, Using, Vectors};
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
 
 use miyu_kernel::event::Event;
@@ -40,6 +49,12 @@ pub struct Memory {
     pub summary: Option<SummaryTexts>,
     /// 照意思找的那一路（施工 R-5 下）：核心起来时接上（[`Memory::give_vectors`]），没接的只照关键词找。
     vectors: OnceLock<Arc<Vectors>>,
+    /// 抽取要的几样（施工 R-6 上）：核心起来时交（[`Memory::give_extraction`]），没交的不抽。
+    extraction: OnceLock<Extraction>,
+    /// 人格记忆这个软件包这时装着没有（施工 R-10）：开着的会话照它交不交摘要、抽不抽。
+    installed: AtomicBool,
+    /// 合并（施工 R-7 上）：哪几间在合、同一批失败了几次。
+    merges: merge::Merges,
 }
 
 impl Memory {
@@ -74,6 +89,9 @@ impl Memory {
             logs: Arc::new(MemoryLogs::new(root)),
             summary,
             vectors: OnceLock::new(),
+            extraction: OnceLock::new(),
+            installed: AtomicBool::new(true),
+            merges: merge::Merges::default(),
         })
     }
 }
@@ -87,6 +105,27 @@ impl Memory {
     /// 照意思找的那一路：没接的没有。
     pub fn vectors(&self) -> Option<&Arc<Vectors>> {
         self.vectors.get()
+    }
+
+    /// 交上抽取要的几样（施工 R-6 上）：核心起来、造好一次性入口以后交一次；交过的再交不算，交回 `false`。
+    pub fn give_extraction(&self, extraction: Extraction) -> bool {
+        self.extraction.set(extraction).is_ok()
+    }
+
+    /// 抽取要的几样：没交的没有，不抽。
+    pub(crate) fn extraction(&self) -> Option<&Extraction> {
+        self.extraction.get()
+    }
+
+    /// 人格记忆这个软件包装没装（施工 R-10，`memory.md` 第十一条）：核心起来时照清单设一次，装卸以后照新的清单设（卸包在动
+    /// 文件以前）。没设过的当装着。没装的时候开着的会话不交摘要、不抽；磁盘上的不动，装回来接着用。
+    pub fn set_installed(&self, installed: bool) {
+        self.installed.store(installed, Ordering::SeqCst);
+    }
+
+    /// 人格记忆这个软件包这时装着没有（[`Memory::set_installed`]）。
+    pub fn installed(&self) -> bool {
+        self.installed.load(Ordering::SeqCst)
     }
 }
 

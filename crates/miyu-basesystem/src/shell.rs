@@ -137,6 +137,7 @@ impl Shell {
                 Done::ok(say(&self.texts.started, &[("job", &id)]))
                     .said(said("shell/background").with("job", id))
                     .effect(Effect::JobStarted(JobStarted {
+                        foreground: false,
                         job,
                         what: JobKind::Command,
                         title: args.description,

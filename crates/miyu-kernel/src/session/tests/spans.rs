@@ -69,6 +69,17 @@ fn written(actions: &[Action]) -> (Vec<Block>, ModelCalled) {
     (reply.unwrap_or_default(), called)
 }
 
+/// 这一步写的回复的 `indexes`（施工 9-8 上）：每一块在流里是第几块，错开时才写。
+fn indexes(actions: &[Action]) -> Vec<usize> {
+    appended_events(actions)
+        .iter()
+        .find_map(|event| match &event.body {
+            Body::MessageAssistant(reply) => Some(reply.indexes.clone()),
+            _ => None,
+        })
+        .expect("写了回复")
+}
+
 #[test]
 fn each_block_runs_from_its_first_delta_to_its_last_and_the_end_marks_do_not_count() {
     // 照驱动的样子：字交错着来，私有数据跟在思考的字后面，流完了才一起收块（07:00:45）。
@@ -89,8 +100,10 @@ fn each_block_runs_from_its_first_delta_to_its_last_and_the_end_marks_do_not_cou
         (45, end(1)),
         (45, end(2)),
     ]);
-    let (reply, called) = written(&session.handle(ended(5)));
+    let actions = session.handle(ended(5));
+    let (reply, called) = written(&actions);
     assert_eq!(reply.len(), 3);
+    assert!(indexes(&actions).is_empty(), "没错开的不写");
     assert_eq!(called.first_token_ms, Some(1000));
     assert_eq!(called.duration_ms, Some(5000));
     assert_eq!(
@@ -114,9 +127,15 @@ fn blocks_left_out_of_the_reply_are_left_out_of_the_times() {
         (44, end(2)),
         (44, end(3)),
     ]);
-    let (reply, called) = written(&session.handle(ended(5)));
+    let actions = session.handle(ended(5));
+    let (reply, called) = written(&actions);
     assert_eq!(reply.len(), 2, "{reply:?}");
     assert_eq!(called.blocks, spans(&[(2000, 2000), (4000, 4000)]));
+    assert_eq!(
+        indexes(&actions),
+        [1, 3],
+        "空块不占位置，留下的记流里的块号"
+    );
 }
 
 #[test]
@@ -132,9 +151,11 @@ fn a_broken_reply_times_only_what_it_keeps() {
         (44, text(2, "我读")),
         (44, start(3, read())),
     ]);
-    let (reply, called) = written(&session.handle(failed(5, ErrorClass::Unclassified, "HTTP 500")));
+    let actions = session.handle(failed(5, ErrorClass::Unclassified, "HTTP 500"));
+    let (reply, called) = written(&actions);
     assert_eq!(reply.len(), 2, "{reply:?}");
     assert_eq!(called.blocks, spans(&[(1000, 2000), (3000, 4000)]));
+    assert_eq!(indexes(&actions), [0, 2], "去掉的调用不占位置");
 }
 
 #[test]
@@ -149,10 +170,15 @@ fn an_interrupted_reply_times_only_what_it_keeps() {
         (44, start(2, read())),
         (44, text(2, "{")),
     ]);
-    let (reply, called) = written(&session.handle(interrupt(46)));
+    let actions = session.handle(interrupt(46));
+    let (reply, called) = written(&actions);
     assert_eq!(reply.len(), 2, "{reply:?}");
     assert_eq!(called.duration_ms, Some(6000), "算到打断为止");
     assert_eq!(called.blocks, spans(&[(1000, 2000), (2000, 3000)]));
+    assert!(
+        indexes(&actions).is_empty(),
+        "丢的是最后一块，前面没错开，不写"
+    );
 }
 
 #[test]

@@ -5,7 +5,8 @@
 //! 生成的三份是派生的：一样的不重写，写不成的记一条 `WARN config schema not written`，照样起来，缺了只是编辑器没有
 //! 补全。字照管理员的 `ui.language` 的最终值，`auto` 的照核心所在系统的语言。
 //!
-//! 运行中配置换了（施工 8-4，[`follow()`]）：`log.level` 变了当场换级别，`ui.language` 变了照新的语言重写这三份。
+//! 运行中配置换了（施工 8-4，[`follow()`]）：`log.level` 变了当场换级别，`ui.language` 变了照新的语言重写这三份；装卸
+//! 软件包以后配置清单变了也重写（施工 F-5 补）。
 
 use std::path::Path;
 
@@ -23,7 +24,7 @@ use miyu_models::settings::{
     AuthCooldown, CatalogSettings, ModelSettings, PoolSettings, PriceSettings, ProviderSettings,
     RateLimitedCooldown, RetryableCooldown, UsageSettings, UseSettings,
 };
-use miyu_session::settings::CompactionSettings;
+use miyu_session::settings::{CompactionSettings, MemorySettings};
 use miyu_store::generated;
 use miyu_store::human::Human;
 use miyu_store::packages::Found;
@@ -38,7 +39,7 @@ const TARGET: &str = "miyu::config";
 /// 后面（施工 8-8；「挡位」8-8 补去掉了），「冷却」排在「目录」后面（施工 8-9）；高级那一页先「压缩」再「运行日志」（施工
 /// 6-11 上）。施工 O-8 到 O-20 最后还有通讯平台的桥的几项（`OnebotSettings`）：O-20 挪进桥自己的清单 `[settings]`
 /// （`docs/blueprint/onebot.md` 第一条「软件包清单」），在「软件包」那一页。
-const MODULES: [&[Item]; 17] = [
+const MODULES: [&[Item]; 18] = [
     UiSettings::ITEMS,
     PersonaSettings::ITEMS,
     PresetSettings::ITEMS,
@@ -55,8 +56,13 @@ const MODULES: [&[Item]; 17] = [
     RetryableCooldown::ITEMS,
     AuthCooldown::ITEMS,
     CompactionSettings::ITEMS,
+    MemorySettings::ITEMS,
     LogSettings::ITEMS,
 ];
+
+/// 核心替内置包声明的配置项（施工 F-4，设计 `30-插件框架.md` 第七节）：包的编号和它的几项。它们照样在 [`MODULES`] 里（包没装
+/// 的也照样认，写了不报不认识），包没装的设置页不画（[`Packaged::all`]）。
+const OWNED: [(&str, &[Item]); 1] = [(miyu_memory::PACKAGE, MemorySettings::ITEMS)];
 
 /// 生成的三份放在状态区的这个目录里：`state/config/`。
 const DIR: &str = "config";
@@ -69,26 +75,42 @@ pub struct Packaged {
     pub items: Vec<Item>,
     /// 读成了的清单：编号和样子，配置项的名字、说明照它。
     pub manifests: Vec<(String, Manifest)>,
+    /// 核心替它声明了配置项、这台机器上又没装的内置包（施工 F-4）。
+    pub absent: Vec<&'static str>,
 }
 
 impl Packaged {
     /// 照两层清单拼：编号撞了核心自己的模块的，那一份改报 `settings_taken`（[`miyu_endpoint::packages::settle`]）。
     pub fn of(found: &mut [Found]) -> Packaged {
         let items = miyu_endpoint::packages::settle(found, &items());
-        let manifests = found
+        let manifests = manifests(found);
+        let absent = OWNED
             .iter()
-            .filter_map(|one| match &one.read {
-                Ok(manifest) => Some((one.id.clone(), manifest.clone())),
-                Err(_) => None,
-            })
+            .map(|(package, _)| *package)
+            .filter(|package| !miyu_endpoint::packages::is_installed(found, package))
             .collect();
-        Packaged { items, manifests }
+        Packaged {
+            items,
+            manifests,
+            absent,
+        }
     }
 
-    /// 登记的全部配置项，接上包的。
+    /// 登记的全部配置项，接上包的。核心替没装的内置包声明的那几项照样在，只是设置页不画（施工 F-4）。
     pub fn all(&self) -> Vec<Item> {
+        let hidden: Vec<&str> = OWNED
+            .iter()
+            .filter(|(package, _)| self.absent.contains(package))
+            .flat_map(|(_, items)| items.iter().map(|item| item.key))
+            .collect();
         items()
             .into_iter()
+            .map(|mut item| {
+                if hidden.contains(&item.key) {
+                    item.ui.hidden = true;
+                }
+                item
+            })
             .chain(self.items.iter().cloned())
             .collect()
     }
@@ -157,24 +179,37 @@ fn set_level(config: &Config, levels: &Levels) {
     tracing::info!(target: TARGET, level = %settings.level, from, "log level");
 }
 
-/// 核心起来时写生成的三份：字照 `ui.language` 的最终值 `values`，`auto` 的照系统的语言 `locale`。写不成的一份记一条
-/// `WARN`，不影响起不起得来。
+/// 读成了的清单：编号和样子（施工 9-1 下）。包的配置项的名字、说明照它。
+pub fn manifests(found: &[Found]) -> Vec<(String, Manifest)> {
+    found
+        .iter()
+        .filter_map(|one| match &one.read {
+            Ok(manifest) => Some((one.id.clone(), manifest.clone())),
+            Err(_) => None,
+        })
+        .collect()
+}
+
+/// 这时读成了的清单从哪拿（施工 F-5 补）：装卸以后配置清单变了，重写生成的文件时照它找包的配置项的字。
+pub type Manifests = Box<dyn Fn() -> Vec<(String, Manifest)> + Send>;
+
+/// 写生成的三份：清单照 `items`，包的配置项的字照 `manifests`，字照 `ui.language` 的最终值 `values`，`auto` 的照系统的
+/// 语言 `locale`。核心起来时写一次，之后照 [`follow()`]。写不成的一份记一条 `WARN`，不影响起不起得来。
 pub fn generate(
     root: &DataRoot,
     resources: &ResourceRoot,
     locale: Option<&str>,
     values: &Values,
-    packaged: &Packaged,
+    items: &[Item],
+    manifests: &[(String, Manifest)],
 ) {
-    let items = packaged.all();
     let ui = UiSettings::from(values);
     let language = ui.language_for(locale);
-    let manifests = packaged
-        .manifests
+    let manifests = manifests
         .iter()
         .map(|(id, manifest)| (id.as_str(), manifest));
     let texts = match Human::load(resources, language) {
-        Ok(words) => render(&items, &words.with_packages(manifests, language))
+        Ok(words) => render(items, &words.with_packages(manifests, language))
             .map(|text| text.map_err(|error| error.to_string())),
         Err(error) => FILES.map(|_| Err(error.to_string())),
     };

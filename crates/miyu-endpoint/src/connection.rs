@@ -218,6 +218,7 @@ async fn read_all<R: AsyncRead + Unpin>(
             continue;
         }
         if peer.is_some()
+            && core.serves(&request.method)
             && let Some(handler) = core.queries.background(&request.method)
         {
             background.spawn(answer_later(
@@ -428,12 +429,18 @@ async fn send(out: &mpsc::Sender<String>, line: String) -> bool {
     out.send(line).await.is_ok()
 }
 
-/// 只给人用、扩展进程调了回 `local_only` 的方法：开关、重启扩展（施工 9-4 上），改、删人格和预设（施工 P-3 中）。
+/// 只给人用、扩展进程调了回 `local_only` 的方法：开关、重启扩展（施工 9-4 上），改、删人格和预设（施工 P-3 中），装、卸软件包
+/// （施工 F-5 上）。
 fn people_only(method: &str) -> bool {
     method.starts_with("extension.")
         || matches!(
             method,
-            "preset.set" | "preset.delete" | "persona.set" | "persona.delete"
+            "preset.set"
+                | "preset.delete"
+                | "persona.set"
+                | "persona.delete"
+                | "package.install"
+                | "package.remove"
         )
 }
 

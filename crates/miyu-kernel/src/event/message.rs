@@ -30,6 +30,28 @@ pub struct MessageAssistant {
     /// （03 第五节）。只在被打断时写这一格；读的时候没有，就是没被打断。
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub interrupted: bool,
+    /// 每一块在流里是第几块（`model.delta` 的 `index`），照 `blocks` 的先后（施工 9-8 上，视图投影照它给块起编号）。
+    /// 空块、丢掉的工具调用不进回复，后面的块的位置和块号就错开了：只在错开时写，和位置一样的不写；以前的日志
+    /// 没有这一格。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub indexes: Vec<usize>,
+}
+
+impl MessageAssistant {
+    /// 留下的每一块在流里是第几块（`kept`，照留下的先后）写成 `indexes`：和位置一样的不写（施工 9-8 上）。
+    #[must_use]
+    pub fn indexes_for(kept: &[usize]) -> Vec<usize> {
+        match kept.iter().copied().eq(0..kept.len()) {
+            true => Vec::new(),
+            false => kept.to_vec(),
+        }
+    }
+
+    /// 第 `position` 块在流里是第几块：写了 `indexes` 的照它，没写的就是位置。
+    #[must_use]
+    pub fn index_of(&self, position: usize) -> usize {
+        self.indexes.get(position).copied().unwrap_or(position)
+    }
 }
 
 /// `message.withdrawn`：撤回排着队、她还没听到的消息（`02-内核.md` 第六节「排队的消息」）。

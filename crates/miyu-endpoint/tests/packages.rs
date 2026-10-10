@@ -89,6 +89,147 @@ async fn shipped_and_home_packages_are_listed_in_the_connections_language() {
     );
 }
 
+/// 种类多的两种、功能、平台接入、依赖、小程序（施工 F-1，设计 30）：照连接的语言列出来；没写功能的扩展包列出照包算的那一个，
+/// 界面、小程序没有 `features`；必需的才有 `required`。
+#[tokio::test]
+async fn features_connections_and_workers_are_listed() {
+    let home = Home::new();
+    mine(
+        &home,
+        "xbase.toml",
+        r#"[package]
+kind = "builtin"
+required = true
+protocol = [1, 1]
+name = { en = "Base", zh = "基础" }
+
+[features.xfiles]
+name = { en = "Files", zh = "文件读写" }
+summary = { zh = "读写文件" }
+tools = ["read"]
+
+[features.xcmd]
+name = { en = "Commands" }
+
+[recommends]
+workers = ["xembed"]
+"#,
+    );
+    mine(
+        &home,
+        "xbridge.toml",
+        r#"[package]
+kind = "process"
+protocol = [1, 1]
+name = { en = "Connect X", zh = "接入X" }
+
+[connection]
+platform = "x"
+
+[depends]
+workers = ["xembed"]
+"#,
+    );
+    mine(
+        &home,
+        "xembed.toml",
+        r#"[package]
+kind = "worker"
+protocol = [1, 1]
+name = { en = "Model" }
+
+[worker]
+program = "miyu-xembed"
+args = ["serve"]
+"#,
+    );
+    let packages = listed(&home).await;
+    let mut got = only(&packages, &["xbase", "xbridge", "xembed"]);
+    for package in &mut got {
+        package.as_object_mut().unwrap().remove("state");
+    }
+    assert_eq!(
+        got,
+        [
+            json!({
+                "package": "xbase",
+                "layer": "home",
+                "kind": "builtin",
+                "protocol": [1, 1],
+                "name": "基础",
+                "required": true,
+                "features": [
+                    {"id": "xfiles", "name": "文件读写", "summary": "读写文件"},
+                    {"id": "xcmd", "name": "Commands"},
+                ],
+                "recommends": {"workers": ["xembed"]},
+            }),
+            json!({
+                "package": "xbridge",
+                "layer": "home",
+                "kind": "process",
+                "protocol": [1, 1],
+                "name": "接入X",
+                "features": [{"id": "xbridge", "name": "接入X"}],
+                "connection": {"platform": "x"},
+                "depends": {"workers": ["xembed"]},
+            }),
+            json!({
+                "package": "xembed",
+                "layer": "home",
+                "kind": "worker",
+                "protocol": [1, 1],
+                "name": "Model",
+                "worker": {"program": "miyu-xembed", "args": ["serve"]},
+            }),
+        ]
+    );
+}
+
+/// 清单是内置包、核心里却没编进它的代码（施工 F-2，设计 30 第二节第 3 条）：照读坏了的清单报 `not_built_in`，别的不动。
+#[test]
+fn a_builtin_the_core_lacks_is_not_built_in() {
+    let home = Home::new();
+    mine(
+        &home,
+        "xghost.toml",
+        "[package]\nkind = \"builtin\"\nprotocol = [1, 1]\nname = { en = \"Ghost\" }\n",
+    );
+    mine(&home, "term.toml", TERM);
+    let resources = miyu_store::resources::ResourceRoot::at(default_resources());
+    let mut found = miyu_endpoint::packages::load(&resources, &home.root, &alice());
+    miyu_endpoint::packages::compiled(
+        &mut found,
+        &["basesystem", "memory", "mermaid", "net", "roleplay"],
+    );
+    let codes: Vec<(&str, Option<&str>)> = found
+        .iter()
+        .map(|one| {
+            let code = match &one.read {
+                Ok(_) => None,
+                Err(miyu_store::packages::Issue::Wrong(problem)) => Some(problem.code.as_str()),
+                Err(miyu_store::packages::Issue::Unreadable(_)) => Some("unreadable"),
+            };
+            (one.id.as_str(), code)
+        })
+        .collect();
+    assert!(
+        codes.contains(&("xghost", Some("not_built_in"))),
+        "{codes:?}"
+    );
+    assert!(codes.contains(&("term", None)), "不是内置的不管");
+    assert!(codes.contains(&("basesystem", None)), "编进来了的照常");
+    assert!(
+        miyu_endpoint::packages::is_installed(&found, "memory"),
+        "读成了的内置包算装了"
+    );
+    assert!(!miyu_endpoint::packages::is_installed(&found, "xghost"));
+    assert!(
+        !miyu_endpoint::packages::is_installed(&found, "term"),
+        "只认内置包"
+    );
+}
+
 #[tokio::test]
 async fn broken_taken_and_mismatched_ones_carry_a_code_and_a_sentence() {
     let home = Home::new();
@@ -123,7 +264,7 @@ async fn broken_taken_and_mismatched_ones_carry_a_code_and_a_sentence() {
             "layer": "home",
             "code": "bad_kind",
             "line": 2,
-            "problem": "package.kind 只能是 ui 或 process，写的是 daemon",
+            "problem": "package.kind 只能是 ui、process、builtin 或 worker，写的是 daemon",
         })]
     );
     let web = by_id("web");
@@ -183,7 +324,7 @@ async fn check_reads_the_manifests_from_disk() {
             "code": "bad_kind",
             "level": "error",
             "line": 2,
-            "message": "package.kind 只能是 ui 或 process，写的是 daemon",
+            "message": "package.kind 只能是 ui、process、builtin 或 worker，写的是 daemon",
         })],
         "{reply}"
     );

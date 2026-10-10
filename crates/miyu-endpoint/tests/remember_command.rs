@@ -83,9 +83,40 @@ async fn remember_saves_in_the_sessions_room_without_asking_the_model() {
     let off = off["result"]["session"].as_str().expect("造了").to_string();
     let reply = run(&mut client, "k5", &off, "/remember 用户喜欢猫").await;
     assert_eq!(reason(&reply), Some("memory_unavailable"), "{reply}");
+    // 人格、预设都开着记忆、是造会话时关的：说不准是哪一样，照拒绝的那一句（施工 O-6 再补）。
+    assert_eq!(
+        reply["error"]["data"]["why"], "这里没有记忆：没有人格、记忆关着，或者是通讯平台的会话。",
+        "{reply}"
+    );
     assert_eq!(
         reply["error"]["message"],
         "这里没有记忆：没有人格、记忆关着，或者是通讯平台的会话。"
+    );
+}
+
+/// 记不了的说具体（施工 O-6 再补，2026-10-09 项目主人在网页上验收）：没有人格的、预设没开记忆的带上预设的名字。
+#[tokio::test]
+async fn a_refused_remember_says_exactly_why() {
+    let home = Home::new();
+    let script = Script::new([]);
+    let mut client = Client::connect(home.core(&script));
+    client.hello().await;
+    let session = client.create("c1", "~").await;
+    let reply = run(&mut client, "k1", &session, "/remember 用户喜欢猫").await;
+    assert_eq!(reason(&reply), Some("memory_unavailable"), "{reply}");
+    assert_eq!(reply["error"]["data"]["why"], "没有人格的会话记忆不生效。");
+
+    let home = Home::new();
+    let mut client = Client::connect(with_persona(&home, &script, Catalog::default()));
+    client.hello().await;
+    let session = client
+        .create_with("c1", json!({"cwd": "~", "preset": "dev"}))
+        .await;
+    let reply = run(&mut client, "k2", &session, "/remember 用户喜欢猫").await;
+    assert_eq!(reason(&reply), Some("memory_unavailable"), "{reply}");
+    assert_eq!(
+        reply["error"]["data"]["why"],
+        "这个会话的预设「基础功能」没开记忆。"
     );
 }
 

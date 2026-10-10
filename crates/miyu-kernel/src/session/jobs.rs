@@ -10,6 +10,7 @@
 
 use super::action::{Action, Reason};
 use super::input::Input;
+use super::turn::Stage;
 use super::{Session, rejected};
 use crate::event::{Body, ChildReason, ChildReported, Event, JobReason, JobReported};
 use crate::id::{CommandId, JobId, Seq, SessionId, TurnId};
@@ -77,6 +78,7 @@ impl Session {
             jobs,
             by: by.clone(),
             cause: cause.clone(),
+            undone: true,
         })
     }
 
@@ -96,12 +98,32 @@ impl Session {
             self.recent.insert(id.clone(), vec![seq]);
             return self.reply_when_stored(id, vec![seq]);
         }
+        let job = reported.job.clone();
         let body = Body::ChildReported(reported);
-        let Ok(events) = self.arrive(at, by, Some(id.clone()), body) else {
+        let Ok(mut events) = self.arrive(at, by, Some(id.clone()), body) else {
             return vec![rejected(id, Reason::UnknownJob)];
         };
         self.accept(id, vec![events[0].seq]);
+        events.extend(self.heard(at, &job));
         vec![Action::Append(events)]
+    }
+
+    /// 等着的前台子代理 `job` 报回来了（施工 T-1 下）：这一步不再等它；都报回来、调用也都有了结果的，这一步齐了，落了盘请求
+    /// 下一次。不是这一步在等的，什么都不做。交回追加的事件。
+    fn heard(&mut self, at: Timestamp, job: &JobId) -> Vec<Event> {
+        let Some(turn) = self.turn.as_mut() else {
+            return Vec::new();
+        };
+        let cause = turn.cause.clone();
+        let Stage::Tools(step) = &mut turn.stage else {
+            return Vec::new();
+        };
+        let before = step.awaiting.len();
+        step.awaiting.retain(|waiting| waiting != job);
+        if step.awaiting.len() == before || !step.finished() {
+            return Vec::new();
+        }
+        self.finish_step(at, cause)
     }
 
     /// 执行器交来的后台命令结束：记一条 `job.reported`，`by`、`cause` 照交来的。对不上一个还没结束的后台命令的，不理。
@@ -136,7 +158,9 @@ impl Session {
         cause: Option<CommandId>,
         body: Body,
     ) -> Result<Vec<Event>, LedgerError> {
-        let wake = job_of(&body).filter(|_| wakes(&body)).map(Waker::Job);
+        let wake = job_of(&body)
+            .filter(|job| wakes(&body) && !self.ledger.foreground(job))
+            .map(Waker::Job);
         self.land(at, by, cause, body, wake)
     }
 
@@ -292,6 +316,8 @@ pub(super) fn waking(ledger: &Ledger, event: &Event) -> Option<Waker> {
     match &event.body {
         Body::MessageUser(_) => super::messages::sent_by(ledger, &event.by),
         Body::PeerIdle(idle) => super::peers::idle_wakes(idle).then_some(Waker::Peer),
-        body => job_of(body).filter(|_| wakes(body)).map(Waker::Job),
+        body => job_of(body)
+            .filter(|job| wakes(body) && !ledger.foreground(job))
+            .map(Waker::Job),
     }
 }

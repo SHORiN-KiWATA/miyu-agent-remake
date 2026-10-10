@@ -156,8 +156,7 @@ async fn wrong_places_are_refused_on_the_spot() {
             .any(|event| matches!(event.body, Body::WorkspaceChanged(_))),
         "拒绝的什么都没记"
     );
-    // `~` 本身总是太宽：读不出家目录（这个核心没有）也退回账号的工作区，同造会话（施工 9-7 下）。
-    let own = home.root.workspace(&alice()).to_string_lossy().into_owned();
+    // 人明着要 `~`、核心读不出家目录（这个核心没有）：照不了，说读不了，不悄悄退回（施工 9-7 补，原来退回账号的工作区）。
     let wide = client
         .call(
             "w",
@@ -165,7 +164,7 @@ async fn wrong_places_are_refused_on_the_spot() {
             json!({"session": session, "cwd": "~"}),
         )
         .await;
-    assert_eq!(wide["result"]["cwd"], json!(own), "{wide}");
+    assert_eq!(reason(&wide), Some("path_unreadable"), "{wide}");
 }
 
 #[tokio::test]
@@ -195,6 +194,36 @@ async fn a_change_survives_a_restart_before_any_turn() {
     assert_eq!(
         watched["result"]["workspace"],
         json!({"cwd": other, "dirs": [extra]}),
+        "{watched}"
+    );
+}
+
+/// 人选的太宽的工作区，核心重启以后照旧（施工 9-7 补：原来载入时再判一次太宽，人选的 `~` 被换成账号的工作区）。
+#[tokio::test]
+async fn a_chosen_wide_workspace_survives_a_restart() {
+    let home = Home::new();
+    let script = Script::new([]);
+    let own_home = home.work.join("home");
+    std::fs::create_dir_all(&own_home).expect("建得了");
+    let first = home.core_at_home(&script, own_home.clone());
+    let mut client = Client::connect(first.clone());
+    client.hello().await;
+    let made = client
+        .call("c1", "session.create", json!({"cwd": "~", "chosen": true}))
+        .await;
+    assert_eq!(made["result"]["cwd"], json!("~"), "{made}");
+    let session = made["result"]["session"]
+        .as_str()
+        .expect("造出来了")
+        .to_string();
+    first.stop_sessions().await;
+    drop(client);
+    let mut client = Client::connect(home.core_at_home(&script, own_home));
+    client.hello().await;
+    let watched = client.subscribe("w1", &session).await;
+    assert_eq!(
+        watched["result"]["workspace"]["cwd"],
+        json!("~"),
         "{watched}"
     );
 }

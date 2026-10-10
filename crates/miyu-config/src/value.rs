@@ -167,6 +167,16 @@ impl Setting for Address {
     }
 }
 
+/// 有默认值的整数（施工 R-6 上：`memory.extract_turns`）：最终值都校验过、总有它；读不成的（只有手写的值里有）是 0。
+impl Setting for i64 {
+    fn read(value: Option<&Value>) -> i64 {
+        match value {
+            Some(Value::Int(number)) => *number,
+            _ => 0,
+        }
+    }
+}
+
 /// 没有默认值的整数（施工 8-6）。
 impl Setting for Option<i64> {
     fn read(value: Option<&Value>) -> Option<i64> {

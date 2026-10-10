@@ -333,10 +333,10 @@ fn every_code_has_a_name_and_the_message_is_english() {
     assert_eq!(problem.detail, "daemon");
     assert_eq!(
         problem.message,
-        "package.kind must be ui or process, not \"daemon\""
+        "package.kind must be ui, process, builtin or worker, not \"daemon\""
     );
     assert_eq!(
         problem.to_string(),
-        "line 2: package.kind must be ui or process, not \"daemon\""
+        "line 2: package.kind must be ui, process, builtin or worker, not \"daemon\""
     );
 }

@@ -85,6 +85,10 @@ pub struct Snapshot {
     /// 没有：不写，字节和以前一样。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<GroupChat>,
+    /// 后台运行关着（施工 T-1 上，设计 30 第三节第 7 条）：这个会话没有后台，`shell` 不放到后台、执行器不给任务端口。照预设
+    /// 定；开着的、以前造的不写，字节和以前一样。
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub foreground: bool,
 }
 
 /// 压缩用的数（`compaction.md`「对外的样子」的策略数据）。
@@ -263,6 +267,10 @@ pub struct ToolResultTexts {
     /// 工具执行时崩了（`crashed.txt`，施工 4-2）：执行器写。读不到的同上。
     #[serde(default)]
     pub crashed: String,
+    /// 快照里有、随包卸掉了的工具（`uninstalled.txt`，施工 F-5 中，设计 30 第九节）：执行器写。以前造的快照里没有，读成空的，
+    /// 照 `unavailable` 说。
+    #[serde(default)]
+    pub uninstalled: String,
 }
 
 impl Snapshot {
@@ -385,6 +393,7 @@ impl Snapshot {
             reports: self.reports()?,
             titles: self.titles(),
             peers: self.peers(),
+            foreground: self.foreground,
         })
     }
 

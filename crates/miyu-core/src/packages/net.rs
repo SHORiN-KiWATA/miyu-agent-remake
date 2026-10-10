@@ -22,10 +22,14 @@ struct Params {
 /// 登记 `link.preview`：一个核心一份 [`LinkPreview`]，交给闭包捕获，和核心的生命周期一样长；图存进 `blobs`。
 pub(super) fn register(resources: &ResourceRoot, blobs: Blobs, queries: Queries) -> Queries {
     let links = Arc::new(LinkPreview::new(resources.path(), blobs));
-    queries.register_background("link.preview", move |_core: Arc<Core>, params: Value| {
-        let links = Arc::clone(&links);
-        async move { preview(&links, params).await }
-    })
+    queries.register_background_for(
+        "net",
+        "link.preview",
+        move |_core: Arc<Core>, params: Value| {
+            let links = Arc::clone(&links);
+            async move { preview(&links, params).await }
+        },
+    )
 }
 
 /// 真正办事：参数读不成是 `bad_params`；做不出卡片不是拒绝，回 `{"card": null, "why": …}`。

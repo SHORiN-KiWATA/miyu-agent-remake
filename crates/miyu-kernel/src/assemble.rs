@@ -6,8 +6,25 @@
 
 use crate::block::{Block, Image};
 use crate::history::History;
-use crate::id::Seq;
+use crate::id::{Seq, TurnId};
 use crate::request::Request;
+use crate::time::Timestamp;
+
+/// 一段话（施工 R-6 上，`docs/blueprint/memory.md` 第六条）：人这边说的一句，或者她一轮最后一条有正文的回答，照组装器的
+/// 写法渲染成字。抽取的那一段照它取，取法和回顾的请求同一份。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Spoken {
+    /// 日志里第几条。
+    pub seq: Seq,
+    /// 哪一轮；不在回合里的没有。
+    pub turn: Option<TurnId>,
+    /// 什么时候。
+    pub at: Timestamp,
+    /// 是不是她的回答。
+    pub assistant: bool,
+    /// 字，去掉了前后空白，不是空的。
+    pub text: String,
+}
 
 /// 组装请求：给一段有效历史，出一份统一的请求。
 ///
@@ -62,6 +79,14 @@ pub trait Assembler {
     fn title(&self, history: &History) -> Option<(Request, Seq)> {
         let _ = history;
         None
+    }
+
+    /// `history` 里第 `after` 条以后的几段话（施工 R-6 上）：人这边的话照主请求里的写法渲染，她每一轮只取最后一条有正文的
+    /// 回答，只要字；照投影的先后，撤掉的回合不算。`history` 可以是留着一切的那一份（[`History::whole`]）：压缩替代掉的也在。
+    /// 同样是纯函数。默认的是空的：不做这一种渲染。
+    fn spoken(&self, history: &History, after: Seq) -> Vec<Spoken> {
+        let _ = (history, after);
+        Vec::new()
     }
 
     /// 转述一张图的请求（施工 8-17，`docs/blueprint/kernel/request.md`「替它看的图」）：主对话的模型看不了图，内核把 `image`

@@ -7,7 +7,7 @@
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::Instrument;
@@ -35,6 +35,7 @@ use crate::store::Store;
 use crate::tools::{Dispatch, ToolKit, Tools};
 
 mod back;
+mod extract;
 mod halt;
 mod listing;
 mod mail;
@@ -384,7 +385,12 @@ impl Actor {
                 asked,
             } => {
                 let at = self.clock.now();
-                let jobs = self.jobs.port(call_id, cause);
+                // 后台运行关着的会话不给任务端口（施工 T-1 上）：`shell` 要放到后台的照「这里不能放到后台」说。
+                let foreground = self
+                    .persona
+                    .as_ref()
+                    .is_some_and(|refresh| refresh.snapshot.foreground);
+                let jobs = (!foreground).then(|| self.jobs.port(call_id, cause));
                 let usage = crate::usage::asked(&name, &self.session, self.config.current());
                 self.tools.run(
                     at,
@@ -438,8 +444,13 @@ impl Actor {
                 texts: self.tools.recall(blobs).await,
             }),
             // 停掉撤掉的那几轮派出去的（施工 7-8，`halt.rs`）：不送回，回报照停好了的样子另外交来。
-            Action::StopJobs { jobs, by, cause } => {
-                self.undo_jobs(jobs, by, cause).await;
+            Action::StopJobs {
+                jobs,
+                by,
+                cause,
+                undone,
+            } => {
+                self.stop_jobs(jobs, by, cause, undone).await;
                 None
             }
             // 向上回报（施工 7-6）：交给交回报的那一头，不等。没有的（测试里自己造的子会话）交不出去，运行日志里的
@@ -470,19 +481,6 @@ impl Actor {
         if let Some(reply) = first {
             answer(reply, outcome);
         }
-    }
-
-    /// 到点叫醒：起一个定时的任务，到 `at` 这一刻送回「到点了」。
-    fn wake(&mut self, at: Timestamp, seen: Seq) {
-        let wait = at
-            .unix_millis()
-            .saturating_sub(self.clock.now().unix_millis());
-        let wait = Duration::from_millis(u64::try_from(wait).unwrap_or(0));
-        let backs = self.backs.clone();
-        tokio::spawn(async move {
-            tokio::time::sleep(wait).await;
-            answer_back(&backs, Back::Woke { seen });
-        });
     }
 }
 

@@ -26,6 +26,7 @@
 
 mod appending;
 mod attach;
+pub mod builtins;
 mod check;
 mod commands;
 pub mod config;
@@ -60,6 +61,8 @@ pub mod settings;
 mod spawn;
 mod subscriptions;
 mod system_accounts;
+#[cfg(test)]
+mod test_support;
 mod toml_changes;
 mod undo;
 mod uploads;
@@ -81,11 +84,9 @@ use std::time::Duration;
 use miyu_kernel::id::AccountId;
 use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
+use miyu_policy::preset::MEMORY;
 use miyu_sandbox::{Availability, Unusable};
-use miyu_session::{
-    EmbedSetup, Embedder, Jobs, Memory, ModelData, Models, Observed, SandboxCache, SummaryTexts,
-    Vectors,
-};
+use miyu_session::{Jobs, Memory, ModelData, Models, Observed, SandboxCache, SummaryTexts};
 use miyu_store::index::SessionIndex;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
@@ -126,8 +127,9 @@ pub struct Core {
     sessions: Sessions,
     /// 管理员的会话列表的索引（施工 3-8 七补）：起来时开一次，一直开着；会话落盘时更新、删会话时删行、列会话时读。
     index: Arc<SessionIndex>,
-    /// 系统账号各自的会话列表的索引（施工 O-4 下）：在它们自己的家目录下，拉起扩展前开（`system_accounts::prepare`）。
-    system_indexes: std::sync::OnceLock<std::collections::BTreeMap<AccountId, Arc<SessionIndex>>>,
+    /// 系统账号各自的会话列表的索引（施工 O-4 下）：在它们自己的家目录下，拉起扩展前开（`system_accounts::prepare`）；
+    /// 装上新的跟着开，卸掉的留着、装回来接着用（施工 F-5 下）。
+    system_indexes: std::sync::Mutex<std::collections::BTreeMap<AccountId, Arc<SessionIndex>>>,
     /// 用量汇总（施工 8-15，`state/usage.db`）：起来时开一次，一直开着；会话落盘时写、一次性入口记账（交给模型资料）、
     /// `usage.query` 和 `session_usage` 查之前补。
     usage: Arc<UsageIndex>,
@@ -163,8 +165,14 @@ pub struct Core {
     listing: listing::Listing,
     /// 找回、造场所会话排着来（施工 O-3）：同一个场所同时来两次，不造出两个主线会话。
     venues: tokio::sync::Mutex<()>,
-    /// 软件包清单（施工 9-1 上，`packages.rs`）：起来时读一次，装卸要重启。
-    packages: Vec<miyu_store::packages::Found>,
+    /// 软件包清单（施工 9-1 上，`packages.rs`）：起来时读一次；装、卸以后当场换成重读的一份（施工 F-5 上）。
+    packages: std::sync::RwLock<Arc<Vec<miyu_store::packages::Found>>>,
+    /// 这一份核心编进来的内置包（施工 F-2、F-5 上）：装卸以后重读清单时照它标没编进来的。没设的不标（测试里造的核心）。
+    built_in: Option<Vec<&'static str>>,
+    /// 装、卸一次只做一件（施工 F-5 上）。
+    packaging: tokio::sync::Mutex<()>,
+    /// 内置包的工具从哪来（施工 F-5 中）：装卸以后照它换工具目录；没设的不换。
+    builtins: Option<Arc<dyn builtins::Builtins>>,
     /// 扩展进程（施工 9-4 上，`extensions.rs`）：核心拉起的 `process` 包。
     extensions: extensions::Extensions,
 }
@@ -219,10 +227,17 @@ impl Core {
         let summary = SummaryTexts::load(resources.path())
             .inspect_err(|error| tracing::warn!(target: "miyu::endpoint", error = %error, "memory summary texts unreadable"))
             .ok();
+        let memory = Memory::new(&root, summary);
+        // 人格记忆装没装（施工 R-10）：照这时读到的清单；交进来另一份的照那一份（[`Core::with_packages`]）。
+        memory.set_installed(packages::is_installed(&found, MEMORY));
+        // 抽取（施工 R-6 上）：照一次性入口发；字、key 的写法读不出来的，这个核心不抽。
+        if let Some(extraction) = memory::extraction(&*models, &resources, &root, &admin) {
+            memory.give_extraction(extraction);
+        }
         Core {
-            memory: Memory::new(&root, summary),
+            memory,
             index,
-            system_indexes: std::sync::OnceLock::new(),
+            system_indexes: std::sync::Mutex::default(),
             usage,
             hub: Hub::new(&config),
             config: std::sync::Mutex::new(config),
@@ -248,7 +263,10 @@ impl Core {
             identity: login::Identity::new(login::CODE_TTL),
             listing: listing::Listing::default(),
             venues: tokio::sync::Mutex::new(()),
-            packages: found,
+            packages: std::sync::RwLock::new(Arc::new(found)),
+            built_in: None,
+            packaging: tokio::sync::Mutex::new(()),
+            builtins: None,
             extensions: extensions::Extensions::new(extensions::Timing::default()),
         }
     }
@@ -315,8 +333,34 @@ impl Core {
     /// 交进来，`package.list`、包的配置项的字照它。没设的是 `Core::new` 自己读的那一份。
     #[must_use]
     pub fn with_packages(mut self, packages: Vec<miyu_store::packages::Found>) -> Core {
-        self.packages = packages;
+        self.memory
+            .set_installed(packages::is_installed(&packages, MEMORY));
+        self.packages = std::sync::RwLock::new(Arc::new(packages));
         self
+    }
+
+    /// 同一份家底，这一份核心编进来的内置包照 `built_in`（施工 F-5 上）：装卸以后重读清单时照它标没编进来的。
+    #[must_use]
+    pub fn with_built_in(mut self, built_in: Vec<&'static str>) -> Core {
+        self.built_in = Some(built_in);
+        self
+    }
+
+    /// 同一份家底，内置包的工具照 `builtins` 要（施工 F-5 中）：装卸以后当场换进工具目录。
+    #[must_use]
+    pub fn with_builtins(mut self, builtins: Arc<dyn builtins::Builtins>) -> Core {
+        self.builtins = Some(builtins);
+        self
+    }
+
+    /// 这时的软件包清单（施工 F-5 上：装卸以后当场换）。
+    pub fn packages(&self) -> Arc<Vec<miyu_store::packages::Found>> {
+        Arc::clone(
+            &self
+                .packages
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        )
     }
 
     /// 同一份家底，扩展进程等多久、退避多久照 `timing`（施工 9-4 上）：测试里设短的，不用真等。
@@ -364,16 +408,6 @@ impl Core {
         self
     }
 
-    /// 同一份家底，接上照意思找的那一路（施工 R-5 下、补，`recall.md` 第四条）：本机的照 `local` 算（找不到小程序、缓存目录
-    /// 的是空的），远程的照模型资料里的供应商发。核心起来时接一次，接在 [`Core::with_model_data`] 后面（远程的照那一份查
-    /// 供应商、记账）；不接的（测试里）只照关键词找。
-    #[must_use]
-    pub fn with_vectors(self, local: Option<EmbedSetup>) -> Core {
-        let vectors = Vectors::new(local.map(Embedder::new), Arc::clone(&self.model_data));
-        self.memory.give_vectors(Arc::new(vectors));
-        self
-    }
-
     /// 账号 `owner` 的那一份沙盒的缓存。
     pub(crate) fn sandbox_cache_of(&self, owner: &AccountId) -> Option<SandboxCache> {
         self.sandbox_cache
@@ -390,18 +424,16 @@ impl Core {
         if *owner == self.admin {
             return Some(Arc::clone(&self.index));
         }
-        self.system_indexes.get()?.get(owner).map(Arc::clone)
+        self.system_indexes
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(owner)
+            .map(Arc::clone)
     }
 
     /// 账号 `owner` 的会话写哪份用量汇总（施工 8-15）：核心一份、行里带属主，管理员和系统账号的会话写（施工 O-4 下）。
     pub(crate) fn usage_for(&self, owner: &AccountId) -> Option<Arc<UsageIndex>> {
         self.knows(owner).then(|| Arc::clone(&self.usage))
-    }
-
-    /// 账号 `owner` 的会话用的记忆的登记，交给造的、载入的会话（施工 R-2 上、R-3 中）：管理员和系统账号的会话有（施工 O-4
-    /// 下）；记忆归哪个账号另照 [`Core::memory_owner`] 算，系统账号的归管理员。
-    pub(crate) fn memory_for(&self, owner: &AccountId) -> Option<Arc<Memory>> {
-        self.knows(owner).then(|| Arc::clone(&self.memory))
     }
 
     /// 连着几个连接。

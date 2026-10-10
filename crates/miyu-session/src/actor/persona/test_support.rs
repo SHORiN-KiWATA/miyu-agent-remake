@@ -7,6 +7,7 @@ use std::sync::Arc;
 use miyu_config::Values;
 use miyu_kernel::id::{AccountId, VenueId};
 use miyu_kernel::tool::Access;
+use miyu_policy::features::{Feature, Features};
 use miyu_policy::memory::MemoryScope;
 use miyu_policy::preset::{self, Chosen};
 use miyu_store::env::{Env, Platform};
@@ -62,7 +63,19 @@ pub(super) fn catalog() -> Catalog {
     .expect("合写法")
 }
 
-pub(super) const INSTALLED: [&str; 3] = ["basesystem", "memory", "roleplay"];
+/// 装了的功能（施工 F-3 上）：基础系统、人格记忆、人设防失忆提醒各算一个，编号和包一样。
+pub(super) fn installed() -> Features {
+    Features::new(
+        ["basesystem", "memory", "roleplay"]
+            .into_iter()
+            .map(|id| Feature {
+                id: id.to_string(),
+                package: id.to_string(),
+                tools: Vec::new(),
+            })
+            .collect(),
+    )
+}
 
 /// 一个会话：人格 Miyu，预设是家目录里的 `p.toml`（内容 `text`），照它筛好的工具面、算好的范围拼的快照。
 pub(super) fn setup(name: &str, text: &str) -> (Scratch, DataRoot, Refresh) {
@@ -73,7 +86,7 @@ pub(super) fn setup(name: &str, text: &str) -> (Scratch, DataRoot, Refresh) {
     let personas = Personas::new(&resources, &root, &alice);
     let presets = Presets::new(&resources, &root, &alice);
     let found = presets.find("p").expect("找得到预设");
-    let chosen = Chosen::new(found.id, found.file, INSTALLED);
+    let chosen = Chosen::new(found.id, found.file, &installed());
     let venue = VenueId::parse("local").expect("场所合写法");
     let scope = if chosen.file.opens(preset::MEMORY) {
         MemoryScope::Persona
@@ -91,7 +104,7 @@ pub(super) fn setup(name: &str, text: &str) -> (Scratch, DataRoot, Refresh) {
         &Offers::of(&Values::default(), Vec::new()),
         true,
         scope,
-        Some(&chosen.file),
+        Some((&chosen.file, Some(&installed()))),
     );
     let parts = Parts {
         name: Some("miyu".to_string()),
@@ -101,8 +114,10 @@ pub(super) fn setup(name: &str, text: &str) -> (Scratch, DataRoot, Refresh) {
         memory: Some(scope.as_str().to_string()),
         child: false,
         preset: Some(chosen.pin()),
-        tooled: tooled(&tools),
+        tooled: tooled(&tools, Some(&installed())),
+        roleplay: true,
         group: None,
+        foreground: false,
     };
     let snapshot = build(&resources, parts).expect("拼得成");
     let refresh = Refresh {
@@ -113,7 +128,7 @@ pub(super) fn setup(name: &str, text: &str) -> (Scratch, DataRoot, Refresh) {
         child: false,
         presets: Some(PresetPlaces {
             presets,
-            installed: INSTALLED.iter().map(|one| one.to_string()).collect(),
+            features: installed(),
         }),
         seen: Some(Shelf::new(tools.clone()).edition()),
         tools: Shelf::new(tools),

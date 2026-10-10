@@ -1,0 +1,1 @@
+Start a subagent in a new session to do one task and wait for it; its report arrives as a message before your next step. It sees nothing of this conversation, so the prompt must stand on its own: background, what is already known, the goal and what to report.

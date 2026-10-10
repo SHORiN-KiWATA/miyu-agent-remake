@@ -49,7 +49,15 @@ enum Run {
 /// （`crates/miyu-core/src/packages.rs`）。
 #[derive(Default)]
 pub struct Queries {
-    handlers: Vec<(&'static str, Handler, Run)>,
+    handlers: Vec<Entry>,
+}
+
+/// 登记的一行：方法名、怎么答、照一条条办还是在后台、属于哪个软件包（施工 F-5 中：包没装的当没有这个方法）。
+struct Entry {
+    method: &'static str,
+    handler: Handler,
+    run: Run,
+    package: Option<&'static str>,
 }
 
 impl Queries {
@@ -70,7 +78,47 @@ impl Queries {
         F: Fn(Arc<Core>, Value) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<Value, QueryError>> + Send + 'static,
     {
-        self.add(method, handler, Run::InTurn)
+        self.add(method, handler, Run::InTurn, None)
+    }
+
+    /// 登记软件包 `package` 的 `method`（施工 F-5 中）：同 [`Queries::register`]，包没装的时候端点当没有这个方法
+    /// （`unknown_method`）；装卸当场生效，登记一次就行。
+    ///
+    /// # Panics
+    ///
+    /// 同 [`Queries::register`]。
+    #[must_use]
+    pub fn register_for<F, Fut>(
+        self,
+        package: &'static str,
+        method: &'static str,
+        handler: F,
+    ) -> Queries
+    where
+        F: Fn(Arc<Core>, Value) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<Value, QueryError>> + Send + 'static,
+    {
+        self.add(method, handler, Run::InTurn, Some(package))
+    }
+
+    /// 登记软件包 `package` 的 `method`，在后台答（施工 F-5 中）：同 [`Queries::register_background`]、
+    /// [`Queries::register_for`]。
+    ///
+    /// # Panics
+    ///
+    /// 同 [`Queries::register`]。
+    #[must_use]
+    pub fn register_background_for<F, Fut>(
+        self,
+        package: &'static str,
+        method: &'static str,
+        handler: F,
+    ) -> Queries
+    where
+        F: Fn(Arc<Core>, Value) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<Value, QueryError>> + Send + 'static,
+    {
+        self.add(method, handler, Run::Background, Some(package))
     }
 
     /// 登记 `method`，在后台答（施工 W-7）：端点收到它，交给一个后台任务办，接着读这个连接的下一行；办完了回应照
@@ -85,21 +133,32 @@ impl Queries {
         F: Fn(Arc<Core>, Value) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<Value, QueryError>> + Send + 'static,
     {
-        self.add(method, handler, Run::Background)
+        self.add(method, handler, Run::Background, None)
     }
 
     /// 登记一行。
-    fn add<F, Fut>(mut self, method: &'static str, handler: F, run: Run) -> Queries
+    fn add<F, Fut>(
+        mut self,
+        method: &'static str,
+        handler: F,
+        run: Run,
+        package: Option<&'static str>,
+    ) -> Queries
     where
         F: Fn(Arc<Core>, Value) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<Value, QueryError>> + Send + 'static,
     {
         assert!(
-            !self.handlers.iter().any(|(name, _, _)| *name == method),
+            !self.handlers.iter().any(|entry| entry.method == method),
             "`{method}` 登记了不止一次"
         );
         let wrapped: Handler = Arc::new(move |core, params| Box::pin(handler(core, params)));
-        self.handlers.push((method, wrapped, run));
+        self.handlers.push(Entry {
+            method,
+            handler: wrapped,
+            run,
+            package,
+        });
         self
     }
 
@@ -109,16 +168,24 @@ impl Queries {
     pub(crate) fn get(&self, method: &str) -> Option<Handler> {
         self.handlers
             .iter()
-            .find(|(name, _, _)| *name == method)
-            .map(|(_, handler, _)| Arc::clone(handler))
+            .find(|entry| entry.method == method)
+            .map(|entry| Arc::clone(&entry.handler))
     }
 
     /// `method` 登记成在后台答的话，交回它的处理函数；没登记的、照一条条办的交回 `None`（施工 W-7）。
     pub(crate) fn background(&self, method: &str) -> Option<Handler> {
         self.handlers
             .iter()
-            .find(|(name, _, run)| *name == method && *run == Run::Background)
-            .map(|(_, handler, _)| Arc::clone(handler))
+            .find(|entry| entry.method == method && entry.run == Run::Background)
+            .map(|entry| Arc::clone(&entry.handler))
+    }
+
+    /// `method` 属于哪个软件包（施工 F-5 中）；没写的、没登记的没有。
+    pub(crate) fn package_of(&self, method: &str) -> Option<&'static str> {
+        self.handlers
+            .iter()
+            .find(|entry| entry.method == method)
+            .and_then(|entry| entry.package)
     }
 }
 

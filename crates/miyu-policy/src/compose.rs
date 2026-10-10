@@ -89,6 +89,7 @@ pub fn compose(persona: Option<&str>, sources: Sources, attended: bool) -> Snaps
         persona_digest: digest,
         preset: None,
         group: None,
+        foreground: false,
     }
 }
 
@@ -121,7 +122,8 @@ pub struct CoreLines {
     pub local_paths: String,
     /// 风格锁（`core/style-lock.txt`）：只有带角色扮演提示的人格带（[`Snapshot::with_style_lock`]）。
     pub style_lock: String,
-    /// 装了、这个预设没开的软件那一行（`core/preset-off.txt`，施工 P-2 中，Y8）：`{packages}` 换成逗号隔开的编号。
+    /// 装了、这个预设没开的那一行（`core/preset-off.txt`，施工 P-2 中，Y8）：`{packages}` 换成逗号隔开的编号；施工 F-3 上起是功能
+    /// 的编号（以前造的快照记的包编号照原样）。
     pub preset_off: String,
 }
 

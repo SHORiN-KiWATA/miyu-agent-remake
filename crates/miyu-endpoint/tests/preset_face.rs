@@ -120,8 +120,9 @@ async fn the_dev_preset_drops_memory_and_says_so() {
     );
     let pin = snapshot.preset.expect("记了预设");
     assert_eq!(pin.id, "dev");
-    // 出厂的桥（施工 O-18）装了、这个预设没开：快照照记，那一行不列（它没有工具）。
-    assert_eq!(pin.off, ["memory", "onebot", "roleplay"]);
+    // 出厂的接入QQ（施工 O-18）的功能 QQ 工具装了、这个预设没开：快照照记，那一行不列（这里它没有工具）。施工 F-3 上起记的是
+    // 功能的编号。
+    assert_eq!(pin.off, ["memory", "qq", "roleplay"]);
     // 开会话时要了记忆也没用：开不开归预设。
     let (session, _) = first_request(
         &home,
@@ -231,44 +232,91 @@ async fn roleplay_off_drops_the_reminder_and_the_style_lock_and_the_line_comes_b
     assert!(snapshot(&home, &session).reminder.is_none());
 }
 
+/// `preset.get` 照功能列（施工 F-3 下，设计 30 第四节）：装了的每个功能都有开关，各带归它的工具（显示名照给人看的字，开不开
+/// 照功能和 `[tools]`）；写了没装的标着没装，接在后面。
 #[tokio::test]
-async fn preset_get_names_software_that_is_not_installed() {
+async fn preset_get_lists_features_with_their_tools() {
     let home = Home::new();
+    home.write(
+        "home/alice/presets/nosh.toml",
+        "[preset]\nname = { en = \"No sh\" }\n\n[features]\nqq = false\n\n[tools]\nforget = false\n",
+    );
     let mut client = connected(configured(&home, &Script::new([]))).await;
     let dev = client
         .call("g1", "preset.get", json!({"preset": "dev"}))
         .await;
+    let listed = switches(&dev);
     assert_eq!(
-        switches(&dev),
-        [
-            ("basesystem", true, true),
-            ("net", true, false),
-            ("goal", true, false),
-            ("memory", false, true),
-            ("roleplay", false, true),
-            ("onebot", false, true),
-        ],
-        "装了的每一个都有开关（施工 P-2 补），写了没装的标着没装，内置的照固定的先后（施工 P-3 补）；清单装的桥接在后面（施工 O-18）：{dev}"
+        listed[..2],
+        [("files", true, true), ("commands", true, true)],
+        "{dev}"
     );
-    let full = client
-        .call("g2", "preset.get", json!({"preset": "full"}))
+    assert!(listed.contains(&("memory", false, true)));
+    assert!(listed.contains(&("qq", false, true)));
+    assert_eq!(
+        listed.last(),
+        Some(&("goal", true, false)),
+        "写了没装的接在后面"
+    );
+    let files = feature(&dev, "files");
+    assert_eq!(
+        files["tools"],
+        json!([{"name": "read", "label": "读取", "on": true}]),
+        "目录里只有 read 归文件读写"
+    );
+    assert_eq!(
+        feature(&dev, "memory")["tools"],
+        json!([
+            {"name": "forget", "label": "忘掉", "on": false},
+            {"name": "memory_search", "label": "翻记忆", "on": false},
+            {"name": "remember", "label": "记住", "on": false},
+        ]),
+        "功能关着的工具都是关着"
+    );
+    assert_eq!(
+        feature(&dev, "qq")["tools"],
+        json!([]),
+        "桥没登记，没有工具"
+    );
+    let nosh = client
+        .call("g2", "preset.get", json!({"preset": "nosh"}))
         .await;
     assert_eq!(
-        switches(&full),
-        [
-            ("basesystem", true, true),
-            ("memory", true, true),
-            ("roleplay", true, true),
-            ("onebot", true, true),
-        ]
+        feature(&nosh, "memory")["tools"],
+        json!([
+            {"name": "forget", "label": "忘掉", "on": false},
+            {"name": "memory_search", "label": "翻记忆", "on": true},
+            {"name": "remember", "label": "记住", "on": true},
+        ]),
+        "[tools] 单件关掉的"
     );
+    assert_eq!(feature(&nosh, "qq")["on"], false);
+    assert_eq!(
+        switches(&nosh)
+            .iter()
+            .filter(|(id, _, _)| *id == "qq")
+            .count(),
+        1,
+        "写在 [features] 里的、装了的不另列一遍"
+    );
+    assert_eq!(feature(&nosh, "commands")["tools"][0]["label"], "执行命令");
 }
 
-/// `preset.get` 的软件：编号、开不开、装没装。
-fn switches(reply: &serde_json::Value) -> Vec<(&str, bool, bool)> {
-    reply["result"]["software"]
+/// 回应里编号是 `id` 的那个功能。
+fn feature<'a>(reply: &'a serde_json::Value, id: &str) -> &'a serde_json::Value {
+    reply["result"]["features"]
         .as_array()
-        .expect("是一个个软件")
+        .expect("是一个个功能")
+        .iter()
+        .find(|one| one["id"] == id)
+        .unwrap_or_else(|| panic!("没有 {id}：{reply}"))
+}
+
+/// `preset.get` 的功能：编号、开不开、装没装（施工 F-3 下）。
+fn switches(reply: &serde_json::Value) -> Vec<(&str, bool, bool)> {
+    reply["result"]["features"]
+        .as_array()
+        .expect("是一个个功能")
         .iter()
         .map(|one| {
             (
@@ -297,11 +345,136 @@ async fn a_package_turned_off_takes_all_its_tools_and_is_named() {
         ["forget", "memory_search", "remember"],
         "基础系统的两件都没了，记忆照开"
     );
+    // 施工 F-3 上起那一行写功能的编号：关掉的包，写它下面有工具的功能。
     assert!(
         request
             .system
-            .ends_with("Installed but off in this session's preset: basesystem."),
+            .ends_with("Installed but off in this session's preset: commands, files."),
         "{}",
         request.system
     );
+}
+
+/// 同 `configured`，但核心认的清单照 `packages`（施工 F-3 上：没装哪个包就是没有它的清单）。
+fn configured_with(home: &Home, script: &Script, without: &[&str]) -> Arc<Core> {
+    let items = [
+        miyu_endpoint::settings::UiSettings::ITEMS,
+        miyu_endpoint::settings::PersonaSettings::ITEMS,
+        miyu_endpoint::settings::PresetSettings::ITEMS,
+        miyu_endpoint::settings::PermissionSettings::ITEMS,
+        miyu_endpoint::settings::EXTERNAL_BINDINGS,
+    ]
+    .concat();
+    let config = miyu_endpoint::config::Config::load(
+        &home.root,
+        &alice(),
+        None,
+        items,
+        miyu_endpoint::config::Environment::of(&[]),
+    );
+    let resources = miyu_store::resources::ResourceRoot::at(default_resources());
+    let mut found = miyu_endpoint::packages::load(&resources, &home.root, &alice());
+    found.retain(|one| !without.contains(&one.id.as_str()));
+    Arc::new(
+        home.core_full(script, catalog(), None, TOKEN)
+            .with_config(config)
+            .with_packages(found),
+    )
+}
+
+/// 照 `params` 造一个会话、说一句：核心照 `configured_with` 造，交回会话编号和那一次请求。
+async fn first_request_without(home: &Home, without: &[&str], params: Value) -> (String, Request) {
+    let script = Script::new([Play::Says("嗯。")]);
+    let mut client = connected(configured_with(home, &script, without)).await;
+    let reply = client.call("c1", "session.create", params).await;
+    let session = reply["result"]["session"]
+        .as_str()
+        .unwrap_or_else(|| panic!("没造出来：{reply}"))
+        .to_string();
+    client.say("s1", &session, "hi").await;
+    home.until_turns(&session, 1).await;
+    let (_, request) = script.requests().into_iter().next().expect("发了请求");
+    (session, request)
+}
+
+/// 预设照功能开关（施工 F-3 上，设计 30 第四节）：`[features]` 关掉运行命令，`shell` 不给，那一行写功能的编号；文件读写照开。
+#[tokio::test]
+async fn a_feature_switched_off_takes_its_tools_and_is_named() {
+    let home = Home::new();
+    home.write(
+        "home/alice/presets/noshell.toml",
+        "[preset]\nname = { en = \"No shell\" }\n\n[features]\ncommands = false\n",
+    );
+    let (session, request) = first_request(
+        &home,
+        json!({"cwd": "~", "persona": "engineer", "preset": "noshell"}),
+    )
+    .await;
+    assert_eq!(
+        tool_names(&request),
+        ["forget", "memory_search", "read", "remember"]
+    );
+    assert!(
+        request
+            .system
+            .ends_with("Installed but off in this session's preset: commands."),
+        "{}",
+        request.system
+    );
+    let pin = snapshot(&home, &session).preset.expect("记了预设");
+    assert_eq!(pin.off, ["commands"]);
+}
+
+/// 没装人格记忆（没有它的清单，施工 F-3 上）：全部功能的预设、带人格的会话，记忆的范围也是 `off`，三件工具不给，那一行也不写
+/// （没装的不是「装了没开」）。
+#[tokio::test]
+async fn memory_not_installed_is_off_and_not_named() {
+    let home = Home::new();
+    let (session, request) = first_request_without(
+        &home,
+        &["memory"],
+        json!({"cwd": "~", "persona": "engineer", "preset": "full"}),
+    )
+    .await;
+    assert_eq!(memory_of(&home, &session).as_deref(), Some("off"));
+    assert_eq!(tool_names(&request), ["read", "shell"]);
+    assert!(!request.system.contains(OFF_LINE), "{}", request.system);
+}
+
+/// 交进来的清单里没有人格记忆（`Core::with_packages`，核心起来时的那一份）：`memory.*` 说没装（施工 R-10，`memory.md` 第十一条
+/// 第 1 款）。
+#[tokio::test]
+async fn memory_not_in_the_given_list_says_not_installed() {
+    let home = Home::new();
+    let mut client = connected(configured_with(&home, &Script::new([]), &["memory"])).await;
+    let reply = client.call("m1", "memory.list", json!({})).await;
+    assert_eq!(reason(&reply), Some("memory_not_installed"), "{reply}");
+}
+
+/// 没装人设防失忆提醒（施工 F-3 上）：人格写了提醒短语，全部功能的预设里也没有提醒、没有风格锁。
+#[tokio::test]
+async fn reminders_not_installed_drop_the_reminder_and_the_lock() {
+    let home = Home::new();
+    home.write(
+        "home/alice/personas/miyu/prompts/persona.md",
+        "You are Miyu.\n",
+    );
+    home.write(
+        "home/alice/personas/miyu/prompts/reminders.md",
+        "Stay soft.\n",
+    );
+    let lock = std::fs::read_to_string(default_resources().join("core/style-lock.txt"))
+        .expect("读得出风格锁");
+    let (session, request) = first_request_without(
+        &home,
+        &["roleplay"],
+        json!({"cwd": "~", "persona": "miyu", "preset": "full"}),
+    )
+    .await;
+    assert!(
+        !format!("{request:?}").contains("Stay soft."),
+        "{request:?}"
+    );
+    assert!(!request.system.contains(lock.trim_end()), "没有风格锁");
+    assert!(snapshot(&home, &session).reminder.is_none());
 }

@@ -7,6 +7,16 @@
 //! 查和停（施工 7-4，`docs/blueprint/tools/jobs.md`）：`jobs` 经同一个端口列出这个会话派出去的任务、读输出、停掉。后台命令和
 //! 子代理都管：子代理那一头执行器经会话表的端口去读、去停，工具不认识会话表。
 
+/// 「后台运行」这个功能的编号（施工 T-1 上，设计 `30-插件框架.md` 第三节第 6、7 条）：基础系统里管 `jobs`、`shell` 放到后台、
+/// 子代理在后台跑。关着的会话没有后台。
+pub const BACKGROUND: &str = "background";
+
+/// `shell` 这件工具的名字。
+pub const SHELL: &str = "shell";
+
+/// `shell` 放到后台那一项参数的名字：后台运行关着的会话里工具面上没有它（施工 T-1 上）。
+pub const RUN_IN_BACKGROUND: &str = "run_in_background";
+
 use std::fmt;
 use std::future::Future;
 use std::io::{self, Read};

@@ -61,6 +61,17 @@ impl Ledger {
     pub fn reported_as(&self, job: &JobId, id: &CommandId) -> Option<Seq> {
         self.jobs.reported_as(job, id)
     }
+
+    /// `job` 是前台跑的子代理（施工 T-1 下）：派它的那一步等它，回报不叫醒。
+    pub fn foreground(&self, job: &JobId) -> bool {
+        matches!(
+            self.jobs.0.get(job),
+            Some(Job::Agent {
+                foreground: true,
+                ..
+            })
+        )
+    }
 }
 
 /// 账本记着的一个任务：是什么，还会不会再报。
@@ -76,6 +87,7 @@ enum Job {
         stopped: bool,
         last: Option<(Option<CommandId>, Seq)>,
         messaged: bool,
+        foreground: bool,
     },
     /// 不认识的种类：编号占着，两种回报都对不上它。
     Other,
@@ -196,12 +208,17 @@ impl Jobs {
         self.running()
             .into_iter()
             .filter_map(|job| {
-                let (what, session) = match self.0.get(&job)? {
-                    Job::Command { .. } => (JobKind::Command, None),
-                    Job::Agent { session, .. } => (JobKind::Agent, Some(session.clone())),
+                let (what, session, foreground) = match self.0.get(&job)? {
+                    Job::Command { .. } => (JobKind::Command, None, false),
+                    Job::Agent {
+                        session,
+                        foreground,
+                        ..
+                    } => (JobKind::Agent, Some(session.clone()), *foreground),
                     Job::Other => return None,
                 };
                 Some(JobStarted {
+                    foreground,
                     title: self.1.get(&job).cloned().unwrap_or_default(),
                     job,
                     what,
@@ -270,6 +287,7 @@ impl Jobs {
                             stopped: false,
                             last: None,
                             messaged: false,
+                            foreground: started.foreground,
                         },
                         _ => Job::Other,
                     };

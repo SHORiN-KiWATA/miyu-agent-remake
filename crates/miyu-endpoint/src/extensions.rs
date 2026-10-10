@@ -24,7 +24,7 @@ use tokio::task::JoinHandle;
 use miyu_config::package::{Manifest, PackageKind, Start};
 use miyu_store::config_file;
 use miyu_store::extensions::{self as file, Switches};
-use miyu_store::packages::locate;
+use miyu_store::packages::{Found, locate};
 
 use crate::Core;
 
@@ -316,17 +316,54 @@ impl Core {
         // 扩展以系统账号的身份连进来：先建它们的家目录（施工 O-4 下）。
         crate::system_accounts::prepare(self);
         let (switches, _) = read_switches(self);
-        for (id, manifest) in processes(self) {
-            if !on(&switches, id, manifest) {
-                continue;
+        let packages = self.packages();
+        for (id, manifest) in processes(&packages) {
+            self.start_one(id, manifest, &switches);
+        }
+    }
+
+    /// 开着的拉起：要的能力还有没批的不拉起，记成停下（`needs_approval`）；拉起以前照登记缓存先登记它的工具。
+    fn start_one(self: &Arc<Self>, id: &str, manifest: &Manifest, switches: &Switches) {
+        if !on(switches, id, manifest) {
+            return;
+        }
+        match approval::unapproved(self, id, manifest, switches).is_empty() {
+            true => {
+                crate::provide::restore(self, id);
+                self.extensions.launch(self, id, manifest);
             }
-            match approval::unapproved(self, id, manifest, &switches).is_empty() {
-                true => {
-                    crate::provide::restore(self, id);
-                    self.extensions.launch(self, id, manifest);
-                }
-                false => self.extensions.hold(id, Reason::NeedsApproval),
+            false => self.extensions.hold(id, Reason::NeedsApproval),
+        }
+    }
+
+    /// 装卸时照清单从 `before` 换到 `now` 跟着拉起、停下扩展（施工 F-5 下，设计 30 第九节）。卸包是删文件以前先换到去掉它
+    /// 以后的那一份，删不成的再换回来（施工 F-5 补）。
+    /// - 卸掉的停下，它登记的工具拿掉、记下随包卸掉了：用过它的会话照旧留着、调到时报已卸载。
+    /// - 新装上的照开关拉起；升级了的（清单变了）先停下，再照开关拉起。
+    /// - 系统账号照核心这时的清单先建好家目录。
+    pub(crate) async fn follow_packages(
+        self: &Arc<Self>,
+        old: &Processes<'_>,
+        new: &Processes<'_>,
+    ) {
+        crate::system_accounts::prepare(self);
+        for id in old.keys().filter(|id| !new.contains_key(*id)) {
+            self.extensions.halt(id).await;
+            let removed = self
+                .tools
+                .replace(|catalog| Ok::<_, miyu_tool::CatalogError>(catalog.removing(id)));
+            if let Err(error) = removed {
+                tracing::error!(target: "miyu::endpoint", package = *id, error = %error, "tools not withdrawn");
             }
+        }
+        let (switches, _) = read_switches(self);
+        for (id, manifest) in new {
+            match old.get(id) {
+                Some(previous) if previous == manifest => continue,
+                Some(_) => self.extensions.halt(id).await,
+                None => {}
+            }
+            self.start_one(id, manifest, &switches);
         }
     }
 
@@ -337,11 +374,22 @@ impl Core {
 }
 
 /// 起来时读到的 `process` 包：编号和清单，照编号排。
-fn processes(core: &Core) -> impl Iterator<Item = (&str, &Manifest)> {
-    core.packages.iter().filter_map(|found| {
-        let manifest = found.read.as_ref().ok()?;
-        (manifest.kind == PackageKind::Process).then_some((found.id.as_str(), manifest))
-    })
+/// 一份清单里的扩展包：编号到清单（施工 F-5 下、补：装卸时照它对）。
+pub(crate) type Processes<'a> = BTreeMap<&'a str, &'a Manifest>;
+
+/// 清单 `packages` 里的扩展包，收成 [`Processes`]。
+pub(crate) fn processes_of<'a>(packages: &[&'a Found]) -> Processes<'a> {
+    packages.iter().filter_map(|found| process(found)).collect()
+}
+
+pub(crate) fn processes(packages: &[Found]) -> impl Iterator<Item = (&str, &Manifest)> {
+    packages.iter().filter_map(process)
+}
+
+/// 读成了的扩展包：编号和清单。
+fn process(found: &Found) -> Option<(&str, &Manifest)> {
+    let manifest = found.read.as_ref().ok()?;
+    (manifest.kind == PackageKind::Process).then_some((found.id.as_str(), manifest))
 }
 
 /// 包 `id` 开没开：写了的照写的，没写的照清单的 `start`。

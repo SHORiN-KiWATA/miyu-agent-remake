@@ -12,6 +12,46 @@
       },
       "type": "object"
     },
+    "memory": {
+      "properties": {
+        "extract_idle": {
+          "default": "3m",
+          "description": "Once the conversation has been quiet this long, she turns what is worth keeping from the new part into memories. Allowed: a length of time from 1m to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect next turn.",
+          "pattern": "^[0-9]+[smh]?$",
+          "title": "Wait before organizing memories",
+          "type": "string"
+        },
+        "extract_turns": {
+          "default": 2,
+          "description": "She organizes only after at least this many turns since the last time. Allowed: a whole number from 1 to 100. Only in the system config or personal settings. Takes effect next turn.",
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Turns before organizing",
+          "type": "integer"
+        },
+        "merge_every": {
+          "default": "24h",
+          "description": "After this long she goes over new and older memories together: drops repeats and outdated ones, and writes a summary of what she knows about you. Allowed: a length of time from 1h to 720h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect next turn.",
+          "pattern": "^[0-9]+[smh]?$",
+          "title": "How often to consolidate memories",
+          "type": "string"
+        },
+        "merge_sessions": {
+          "default": 5,
+          "description": "Consolidate only after memories have been taken from at least this many chats since the last time. Allowed: a whole number from 1 to 100. Only in the system config or personal settings. Takes effect next turn.",
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Chats before consolidating",
+          "type": "integer"
+        },
+        "organizer": {
+          "description": "The model used to organize memories, billed by usage. If none is chosen, the chat model is used. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.",
+          "title": "Memory organizer model",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "models": {
       "properties": {
         "catalog": {
@@ -136,8 +176,8 @@
               "type": "string"
             }
           ],
-          "description": "When she searches what she remembers and past conversations, she also finds what means the same in other words. The local model downloads about 24 MB the first time; a provider's model is billed by usage; turned off, she searches by keywords only. Allowed: local, off or <provider>/<model>. Only in the system config or personal settings. Takes effect next turn.",
-          "title": "Search by meaning"
+          "description": "Improves search quality for memories, knowledge bases and more. Allowed: local, off or <provider>/<model>. Only in the system config or personal settings. Takes effect next turn.",
+          "title": "Semantic model"
         },
         "vision": {
           "description": "Looks at images for the chat model when it cannot. Written like the chat model. Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Takes effect next turn.",

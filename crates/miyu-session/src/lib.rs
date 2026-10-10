@@ -67,7 +67,10 @@ pub use current::{Current, Tally};
 pub use embed::{EmbedSetup, Embedder, IDLE as EMBED_IDLE, Unavailable};
 pub use handle::{Ended, Handle, Pushed, Stopped, Subscription};
 pub use jobs::{Jobs, Peek, Unreadable, peek};
-pub use memory::{Filter, Keeper, Memory, Query, Stamp, SummaryTexts, Using, Vectors};
+pub use memory::{
+    EMBED_LOCAL, ExtractTexts, Extraction, Filter, Keeper, Memory, MergeTexts, Query, Stamp,
+    SummaryTexts, Using, Vectors,
+};
 pub use open::{Create, CreateError, Load, LoadError, PresetPlaces, create, load};
 pub use port::{Cancel, ForSession, ModelPort, Models, Reports, Sight};
 pub use route::{

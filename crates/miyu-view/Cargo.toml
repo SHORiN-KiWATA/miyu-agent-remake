@@ -1,0 +1,28 @@
+[package]
+name = "miyu-view"
+description = "视图投影：会话的事件算成头直接画的条目，纯逻辑"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+autotests = false
+
+[dependencies]
+miyu-kernel = { path = "../miyu-kernel" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# 编辑、写入照参数估加减的行数（结果来之前）：和端点算差异用的同一个库。
+similar = { version = "2", default-features = false, features = ["text"] }
+
+[dev-dependencies]
+# 测试照真会话跑出日志和推送：执行器替身在内核的 testkit 开关后面。
+miyu-kernel = { path = "../miyu-kernel", features = ["testkit"] }
+
+[lints]
+workspace = true
+
+# 集成测试并成一个程序（施工 0-3 三补）。
+[[test]]
+name = "all"
+path = "tests/all.rs"

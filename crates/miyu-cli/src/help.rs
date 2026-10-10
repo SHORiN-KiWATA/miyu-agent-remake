@@ -38,6 +38,8 @@ pub enum Page {
     Check,
     /// `miyu memory -h`，各个子命令的 `-h` 也印它（施工 R-3 再补）。
     Memory,
+    /// `miyu pkg -h`，各个子命令的 `-h` 也印它（施工 T-3）。
+    Pkg,
 }
 
 /// 这种语言的这一页，以一个换行结尾。
@@ -75,6 +77,8 @@ pub fn page(language: Language, page: Page) -> &'static str {
         (Language::English, Page::Web) => include_str!("help/en/web.txt"),
         (Language::Chinese, Page::Memory) => include_str!("help/zh/memory.txt"),
         (Language::English, Page::Memory) => include_str!("help/en/memory.txt"),
+        (Language::Chinese, Page::Pkg) => include_str!("help/zh/pkg.txt"),
+        (Language::English, Page::Pkg) => include_str!("help/en/pkg.txt"),
     }
 }
 

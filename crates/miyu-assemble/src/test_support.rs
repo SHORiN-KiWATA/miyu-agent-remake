@@ -174,6 +174,17 @@ impl Log {
         log
     }
 
+    /// 同 [`Log::new`]，有效历史是留着一切的那一份（`History::whole`，施工 R-6 上：抽取照日志拼的就是这一种）。
+    pub(crate) fn whole() -> Log {
+        let mut log = Log {
+            ledger: Ledger::default(),
+            history: History::whole(),
+            turn: None,
+        };
+        log.push(KERNEL, "session.created", CREATED);
+        log
+    }
+
     /// 会话 `parent` 派出来的一个子会话，刚创建（施工 C-2：父会话的话不是别的会话的）。
     pub(crate) fn child(parent: &str) -> Log {
         let mut log = Log {

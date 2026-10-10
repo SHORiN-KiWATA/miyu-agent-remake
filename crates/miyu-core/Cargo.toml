@@ -75,3 +75,7 @@ workspace = true
 [[test]]
 name = "all"
 path = "tests/all.rs"
+
+[[test]]
+name = "embed_log"
+path = "tests/embed_log.rs"

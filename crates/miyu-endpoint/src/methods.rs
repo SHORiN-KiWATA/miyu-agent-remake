@@ -98,6 +98,7 @@ pub(crate) async fn call(
                 memory,
                 preset: params.preset,
                 group: false,
+                chosen: params.chosen,
             };
             let created = core
                 .sessions
@@ -115,11 +116,16 @@ pub(crate) async fn call(
             if let Some(file) = created.untrusted {
                 reply["untrusted_project"] = json!(file);
             }
+            if created.wide {
+                reply["wide"] = json!(true);
+            }
             Ok(reply)
         }
         "check" => crate::check::check(core, peer, params(request)?).await,
         "persona.list" => personas::list(core, peer).await,
         "package.list" => crate::packages::list(core, peer),
+        "package.install" => crate::packages::manage::install(core, peer, params(request)?).await,
+        "package.remove" => crate::packages::manage::remove(core, params(request)?).await,
         "view.page" => crate::view::page(core, params(request)?).await,
         "view.detail" => crate::view::detail(core, params(request)?).await,
         "extension.status" => Ok(crate::extensions::status(core, peer)),
@@ -385,7 +391,7 @@ pub(crate) async fn call(
             core.sessions.delete(core, &session).await?;
             Ok(json!({}))
         }
-        other => match core.queries.get(other) {
+        other => match core.queries.get(other).filter(|_| core.serves(other)) {
             // 可选软件包登记的查询（施工 W-4，`queries.rs`）：没登记的方法，这张表之外当没有这个方法。
             Some(handler) => handler(Arc::clone(core), request.params.clone())
                 .await
