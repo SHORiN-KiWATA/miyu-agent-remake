@@ -136,3 +136,23 @@ async fn a_closed_pipe_is_gone() {
         Err(Gone)
     ));
 }
+
+/// 同一条连接上另拿的调用口（`Core::caller` 每次造一个：登记工具、登记方法、问判官各拿一份）编号也不撞：撞了的回应交错了人
+/// （施工 O-28 上碰到：登记方法和登记工具都编成 `-side-1`，登记方法的回应被当成登记工具的）。
+#[tokio::test]
+async fn callers_on_one_connection_never_share_a_number() {
+    let (caller, waiting, mut lines) = caller();
+    let other = Caller::new(Arc::clone(&caller.writer), waiting.clone());
+    let one = caller.send("provide", json!({})).await.expect("写得出");
+    let first = request(&mut lines).await;
+    let two = other
+        .send("package.methods", json!({}))
+        .await
+        .expect("写得出");
+    let second = request(&mut lines).await;
+    assert_ne!(first["id"], second["id"], "编号各是各的");
+    assert_eq!(waiting.sort(reply(&second["id"], json!("two"))), None);
+    assert_eq!(waiting.sort(reply(&first["id"], json!("one"))), None);
+    assert_eq!(one.wait().await.expect("回了")["result"], "one");
+    assert_eq!(two.wait().await.expect("回了")["result"], "two");
+}

@@ -1,6 +1,6 @@
 //! 手动压缩（施工 6-8，`docs/blueprint/protocol.md` 的 `session.compact`）：协议上压一次，回应是单开的那一轮的开头，
 //! 人附的要求原样到了摘要请求里、记进了压缩，撤掉那一轮的回应里没有人说的话；有回合在进行、没有能压的，照头的语言
-//! 拒绝；要求不是字的是参数不对。
+//! 拒绝；要求不是字的是参数错误。
 
 use serde_json::json;
 
@@ -97,21 +97,13 @@ async fn nothing_to_compact_is_refused_in_the_heads_language() {
         .call("c2", "session.compact", json!({"session": session}))
         .await;
     assert_eq!(reason(&reply), Some("nothing_to_compact"), "{reply}");
-    assert_eq!(
-        reply["error"]["message"],
-        json!("没有能压的：还没压过的内容都在原样留着的最近一段里。")
-    );
+    assert_eq!(reply["error"]["message"], json!("没有可压缩的内容。"));
     let mut english = Client::connect(core);
     english.hello_without_input().await;
     let reply = english
         .call("e1", "session.compact", json!({"session": session}))
         .await;
-    assert_eq!(
-        reply["error"]["message"],
-        json!(
-            "Not enough to compact: everything not yet compacted is in the recent part that stays as it is."
-        )
-    );
+    assert_eq!(reply["error"]["message"], json!("Nothing to compact."));
     assert_eq!(home.log(&session).len(), 1, "拒绝的什么都不写");
 }
 
@@ -128,10 +120,7 @@ async fn a_running_turn_refuses_a_compaction() {
         .call("c3", "session.compact", json!({"session": session}))
         .await;
     assert_eq!(reason(&reply), Some("turn_running"), "{reply}");
-    assert_eq!(
-        reply["error"]["message"],
-        json!("有回合在进行：先打断，或者等它做完。")
-    );
+    assert_eq!(reply["error"]["message"], json!("回合进行中。"));
 }
 
 #[tokio::test]

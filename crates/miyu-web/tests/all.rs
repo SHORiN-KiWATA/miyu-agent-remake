@@ -5,6 +5,11 @@
 
 mod support;
 
+// 核心的替身：`/media`、软件后台页两份测试共用（施工 F-6 下）
+#[path = "media/fake.rs"]
+mod fake;
+
+mod backstage;
 mod media;
 mod open;
 mod serve;

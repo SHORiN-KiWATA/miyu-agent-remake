@@ -5,8 +5,8 @@
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
-use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use serde_json::Value;
@@ -234,20 +234,47 @@ pub struct Served {
     pub stdin: Option<tokio::process::ChildStdin>,
     /// 它的标准输出上的每一行（握手也算），读到头才交回。
     pub stdout: tokio::task::JoinHandle<Vec<String>>,
+    /// 到这一刻为止标准输出上的每一行（握手以后的，施工 O-28 上：等它回核心发去的请求，不用等它退出）。
+    pub seen: Arc<Mutex<Vec<String>>>,
 }
 
 impl Served {
     /// 照核心的样子推一次配置的变化（`extension.config`，施工 O-20）：`keys` 是 `{键: 新值或 null}`。
     pub async fn config(&mut self, keys: Value) {
+        let pushed = serde_json::json!({"jsonrpc": "2.0", "method": "extension.config", "params": {"keys": keys}});
+        self.send(&pushed).await;
+    }
+
+    /// 照核心的样子往它的标准输入写一行 `message`（推送、核心发去的请求，施工 O-28 上）。
+    pub async fn send(&mut self, message: &Value) {
         use tokio::io::AsyncWriteExt;
 
-        let pushed = serde_json::json!({"jsonrpc": "2.0", "method": "extension.config", "params": {"keys": keys}});
         let stdin = self.stdin.as_mut().expect("标准输入还开着");
         stdin
-            .write_all(format!("{pushed}\n").as_bytes())
+            .write_all(format!("{message}\n").as_bytes())
             .await
             .expect("写得进");
         stdin.flush().await.expect("写得出");
+    }
+
+    /// 等到它在标准输出上回了编号是 `id` 的那一条（施工 O-28 上），交回它。最多等十秒。
+    pub async fn answer(&self, id: &str) -> Value {
+        within("桥回核心", async {
+            loop {
+                let found = self
+                    .seen
+                    .lock()
+                    .expect("没 panic")
+                    .iter()
+                    .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+                    .find(|one| one["id"] == id && one.get("method").is_none());
+                if let Some(found) = found {
+                    return found;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
     }
 }
 
@@ -280,9 +307,12 @@ pub async fn served(root: &DataRoot, config: Value) -> Served {
         .await
         .expect("写得进");
     stdin.flush().await.expect("写得出");
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let seeing = Arc::clone(&seen);
     let stdout = tokio::spawn(async move {
         let mut all = vec![first];
         while let Ok(Some(line)) = lines.next_line().await {
+            seeing.lock().expect("没 panic").push(line.clone());
             all.push(line);
         }
         all
@@ -292,6 +322,7 @@ pub async fn served(root: &DataRoot, config: Value) -> Served {
         hello,
         stdin: Some(stdin),
         stdout,
+        seen,
     }
 }
 

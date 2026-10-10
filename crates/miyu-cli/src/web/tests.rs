@@ -9,10 +9,20 @@ fn the_flags_pass_through_in_order() {
         print: true,
         reset: true,
         logout: true,
+        package: Some("onebot".to_string()),
     };
     assert_eq!(
         all.args(),
-        ["open", "--port", "8300", "--print", "--reset", "--logout"]
+        [
+            "open",
+            "--port",
+            "8300",
+            "--print",
+            "--reset",
+            "--logout",
+            "--package",
+            "onebot"
+        ]
     );
     assert_eq!(Web::default().args(), ["open"]);
 }

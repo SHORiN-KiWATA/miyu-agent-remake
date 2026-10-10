@@ -97,7 +97,7 @@ fn a_kernel_error_explains_with_its_class_only() {
     let end = json(of_kind(&entries, "end")[0]);
     assert_eq!(end["error"]["class"], "bad_stream", "{end}");
     assert_eq!(
-        end["explain"], "Malformed reply stream",
+        end["explain"], "Malformed response stream",
         "不写给运行日志的原话"
     );
 }

@@ -202,7 +202,7 @@ async fn one_bad_item_stops_them_all() {
     )
     .await;
     assert_eq!(reason(&invalid), Some("config_invalid"), "{invalid}");
-    assert_eq!(invalid["error"]["message"], "配置有几处不对，没有改。");
+    assert_eq!(invalid["error"]["message"], "配置有误，未保存。");
     let problems = invalid["error"]["data"]["problems"]
         .as_array()
         .expect("是数组");

@@ -63,7 +63,7 @@ async fn pkg_lists_installs_and_removes_through_a_real_core() {
 
     let required = run(&root, &cwd, zh, &["pkg", "remove", "basesystem"]).await;
     assert_eq!(required.status.code(), Some(1));
-    assert_eq!(stderr(&required), "这个软件包是必需的，不能卸。\n");
+    assert_eq!(stderr(&required), "必需的软件包，无法卸载。\n");
     let bad = run(&root, &cwd, zh, &["pkg", "install", "bad.toml"]).await;
     assert_eq!(bad.status.code(), Some(1));
     assert!(stderr(&bad).starts_with("装不上："), "{}", stderr(&bad));

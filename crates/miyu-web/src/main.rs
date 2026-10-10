@@ -2,7 +2,7 @@
 //! 拉起来的，不写进帮助。
 //!
 //! - `miyu-web serve [--port <端口>]`
-//! - `miyu-web open [--port <端口>] [--print] [--reset] [--logout]`
+//! - `miyu-web open [--port <端口>] [--print] [--reset] [--logout] [--package <编号>]`
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
@@ -114,7 +114,7 @@ async fn serve(root: DataRoot, env: &Env, port: Option<u16>) -> u8 {
     u8::from(ran.is_err())
 }
 
-/// 读参数：`--port <端口>`、`--print`、`--reset`、`--logout`，别的不认。
+/// 读参数：`--port <端口>`、`--print`、`--reset`、`--logout`、`--package <编号>`（编号的写法不对的不认），别的不认。
 fn parse(args: &[String]) -> Option<Open> {
     let mut open = Open::default();
     let mut args = args.iter();
@@ -124,6 +124,13 @@ fn parse(args: &[String]) -> Option<Open> {
             "--print" => open.print = true,
             "--reset" => open.reset = true,
             "--logout" => open.logout = true,
+            "--package" => {
+                open.package = Some(
+                    args.next()
+                        .filter(|id| miyu_web::backstage::valid_package(id))?
+                        .clone(),
+                );
+            }
             _ => return None,
         }
     }
@@ -132,7 +139,9 @@ fn parse(args: &[String]) -> Option<Open> {
 
 /// 用法不对。
 fn usage() -> ExitCode {
-    eprintln!("usage: miyu-web open [--port <port>] [--print] [--reset] [--logout]");
+    eprintln!(
+        "usage: miyu-web open [--port <port>] [--print] [--reset] [--logout] [--package <id>]"
+    );
     ExitCode::from(USAGE)
 }
 

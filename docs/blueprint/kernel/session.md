@@ -583,15 +583,15 @@
 
 | 名字 | 中文 | 英文 |
 |---|---|---|
-| `unknown` | 没有这件工具 | no such tool |
-| `not-an-object` | 参数不是一个 JSON 对象 | the arguments are not a JSON object |
-| `read-only` | 只读，没写 | read-only, not written |
-| `cancelled-before` | 打断了，没跑 | interrupted before it ran |
-| `cancelled-running` | 打断了，跑到一半 | interrupted while running |
-| `skipped` | 跳过了 | skipped |
-| `restarted` | Miyu 重启了，没跑完 | Miyu restarted before it finished |
+| `unknown` | 工具不存在 | Tool not found |
+| `not-an-object` | 参数格式错误 | Invalid arguments |
+| `read-only` | 只读模式，未执行 | Read-only mode, not run |
+| `cancelled-before` | 已取消 | Cancelled |
+| `cancelled-running` | 已中断 | Interrupted |
+| `skipped` | 已跳过 | Skipped |
+| `restarted` | 重启中断 | Interrupted by restart |
 
-原因码给人看的那句话由核心照头的语言配（`crates/miyu-endpoint/src/refusal.rs`，`protocol.md`）。`unknown_level` 还没配专门的话，照「被拒绝了。」「Refused.」说（确认、提问的五个见 `asking.md`）。
+原因码给人看的那句话由核心照头的语言配（`crates/miyu-endpoint/src/refusal.rs`，`protocol.md`）。`unknown_level` 还没配专门的话，照「已拒绝。」「Refused.」说（确认、提问的五个见 `asking.md`）。
 
 ### 守着它的
 

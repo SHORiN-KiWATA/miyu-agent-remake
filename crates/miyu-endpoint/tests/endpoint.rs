@@ -26,10 +26,7 @@ async fn hello_comes_first_and_is_checked() {
     assert_eq!(reason(&reply), Some("hello_first"), "{reply}");
     assert_eq!(reply["error"]["code"], json!(-32010));
     assert_eq!(reply["id"], json!("c1"));
-    assert_eq!(
-        reply["error"]["message"],
-        json!("Say hello first after connecting.")
-    );
+    assert_eq!(reply["error"]["message"], json!("Send hello first."));
 
     // 握手：选定的主版本、核心的版本、你是谁。
     let reply = client.hello().await;
@@ -130,7 +127,7 @@ async fn an_unknown_session_is_not_found() {
         )
         .await;
     assert_eq!(reason(&reply), Some("session_not_found"), "{reply}");
-    assert_eq!(reply["error"]["message"], json!("没有这个会话。"));
+    assert_eq!(reply["error"]["message"], json!("会话不存在。"));
 }
 
 #[tokio::test]
@@ -218,10 +215,7 @@ async fn interrupting_nothing_is_refused_in_the_heads_language() {
         .await;
     assert_eq!(reason(&reply), Some("not_running"), "{reply}");
     assert_eq!(reply["error"]["code"], json!(-32010));
-    assert_eq!(
-        reply["error"]["message"],
-        json!("没有正在进行的回合，打断不了。")
-    );
+    assert_eq!(reply["error"]["message"], json!("没有进行中的回合。"));
 }
 
 #[tokio::test]

@@ -1,6 +1,6 @@
 //! `miyu redo`（施工 4-7 再补，`docs/blueprint/cli/redo.md`）：在进程里起一个核心，她用 `miyu ask` 答过一轮，`miyu redo` 重做
 //! 上一次 `miyu ask` 开的那个会话的最后一轮：先印撤掉了哪一轮，再照 `miyu ask` 印新的回答，日志里撤掉了上一轮、原话又发
-//! 了一次，退出码 0；写了话的换成这句；一轮都没有的照核心的话说「无法重做」，退出码 1；一个会话都没有的，说清楚，退出码 1；
+//! 了一次，退出码 0；写了话的换成这句；一轮都没有的照核心的话说「无法重做。」，退出码 1；一个会话都没有的，说清楚，退出码 1；
 //! `--session` 重做的是指定的那个。
 
 use std::sync::Arc;
@@ -98,7 +98,7 @@ async fn nothing_to_redo_says_what_the_core_said() {
     let redone = home.redo(&redoing(Some(&session), None)).await;
     assert_eq!(redone.code, 1);
     assert_eq!(redone.out, "");
-    assert_eq!(redone.err, "无法重做\n");
+    assert_eq!(redone.err, "无法重做。\n");
 }
 
 #[tokio::test]

@@ -83,13 +83,10 @@ fn every_kernel_sentence_has_one_for_people_in_both_languages() {
 #[test]
 fn a_said_turns_into_words_in_the_language_asked_for() {
     let said = Said::new("core/tool-results/unattended");
-    assert_eq!(
-        load("zh").say(&said).as_deref(),
-        Some("要确认，这里没人能确认")
-    );
+    assert_eq!(load("zh").say(&said).as_deref(), Some("需要确认，无人确认"));
     assert_eq!(
         load("en").say(&said).as_deref(),
-        Some("needs a confirmation nobody here can give")
+        Some("Needs confirmation, no one to confirm")
     );
     let lines = Said::new("software/basesystem/read/lines").with("count", "37");
     assert_eq!(load("zh").say(&lines).as_deref(), Some("37 行"));
@@ -307,7 +304,7 @@ fn config_words_go_to_the_settings_list_with_the_core_prefix() {
     }
     assert_eq!(
         Words::sentence(&zh, "config/applies/now", &[]).as_deref(),
-        Some("当场生效")
+        Some("立即生效")
     );
     assert_eq!(
         Words::sentence(

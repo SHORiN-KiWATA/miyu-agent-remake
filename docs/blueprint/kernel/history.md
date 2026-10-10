@@ -330,12 +330,12 @@
 
 | 原因码 | 中文 | 英文 |
 |---|---|---|
-| `turn_running` | 有回合在进行：先打断，或者等它做完。 | A turn is running; interrupt it or wait for it to finish. |
-| `unknown_turn` | 没有这一轮，或者它已经撤掉了。 | There is no such turn, or it has already been undone. |
-| `nothing_to_unrevert` | 没有能恢复的撤销：没撤过，或者撤了以后又开过一轮、压缩过。 | There is nothing to restore: nothing was undone, or a turn or compaction came since. |
-| `restoring` | 正在撤销、恢复，等它做完再来。 | An undo or restore is still in progress; try again when it is done. |
-| `nothing_to_revert` | 没有能撤销的回合。 | There is no turn to undo. |
-| `not_redoable` | 无法重做 | Cannot redo. |
+| `turn_running` | 回合进行中。 | A turn is in progress. |
+| `unknown_turn` | 回合不存在。 | Turn not found. |
+| `nothing_to_unrevert` | 没有可恢复的撤销。 | Nothing to restore. |
+| `restoring` | 正在撤销或恢复。 | Undo or restore in progress. |
+| `nothing_to_revert` | 没有可撤销的回合。 | Nothing to undo. |
+| `not_redoable` | 无法重做。 | Cannot redo. |
 
 给人看的话由核心照头的语言配（`crates/miyu-endpoint/src/refusal.rs`）。`not_redoable` 一个原因码管两种（最后一轮不是人的话开的、一轮都没有），说法 2026-09-30 项目主人定，头当一条提示通知显示。
 

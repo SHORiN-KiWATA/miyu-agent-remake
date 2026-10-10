@@ -311,7 +311,7 @@ fn no_model_is_5_and_other_errors_are_1() {
     );
 }
 
-/// 候选全在冷却、没发出去的（施工 8-9）：和没有模型一样是 5，说候选都在冷却、接原话。
+/// 候选全在冷却、没发出去的（施工 8-9）：和没有模型一样是 5，说模型冷却中、接原话。
 #[test]
 fn cooling_is_5_too() {
     let plan = plan(Format::Text, Language::Chinese);
@@ -327,7 +327,7 @@ fn cooling_is_5_too() {
     assert_eq!(step, Step::Done(exit::NO_MODEL));
     assert_eq!(
         err,
-        "出错了：候选都在冷却：all candidates cooling: a/m key 1 rate_limited until 2026-10-01T08:12:30.000Z\n"
+        "出错了：模型冷却中：all candidates cooling: a/m key 1 rate_limited until 2026-10-01T08:12:30.000Z\n"
     );
 }
 
@@ -385,10 +385,10 @@ fn thinking_cut_short_still_ends_its_line() {
 #[test]
 fn a_refused_message_says_why_and_a_lagging_one_resubscribes() {
     let plan = plan(Format::Text, Language::Chinese);
-    let refused = json!({"jsonrpc": "2.0", "id": "ask-4", "error": {"code": -32010, "message": "没有这个会话。"}});
+    let refused = json!({"jsonrpc": "2.0", "id": "ask-4", "error": {"code": -32010, "message": "会话不存在。"}});
     let Fed { step, err, .. } = feed(&plan, false, &[refused]);
     assert_eq!(step, Step::Done(exit::ERROR));
-    assert_eq!(err, "没有这个会话。\n");
+    assert_eq!(err, "会话不存在。\n");
     let resync = json!({"jsonrpc": "2.0", "method": "resync", "params": {"session": "s1", "stream": "events"}});
     let Fed { step, .. } = feed(&plan, false, &[resync]);
     assert_eq!(step, Step::Resubscribe);

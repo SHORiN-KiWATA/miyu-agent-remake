@@ -218,6 +218,6 @@ fn japanese_turns_into_japanese() {
         words
             .say(&Said::new("core/tool-results/cancelled-before"))
             .as_deref(),
-        Some("中断しました：実行していません")
+        Some("キャンセルしました")
     );
 }

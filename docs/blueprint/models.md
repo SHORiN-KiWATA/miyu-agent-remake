@@ -1021,11 +1021,11 @@ mimo = ["xiaomi"]
 
 | 原因码 | 中文 | 英文 |
 |---|---|---|
-| `unknown_model` | 配置里没有这个模型或者池。 | There is no such model or pool in the configuration. |
-| `unknown_provider` | 没有这个供应商。 | There is no such provider. |
+| `unknown_model` | 模型或模型池不存在。 | Model or pool not found. |
+| `unknown_provider` | 供应商不存在。 | Provider not found. |
 | `no_model` | 没有可用的模型。 | No model is available. |
-| `cooling` | 模型都在冷却，稍后再试。 | All models are cooling down; try again later. |
-| `model_failed` | 请求模型出错了。 | The model request failed. |
+| `cooling` | 模型冷却中，请稍后重试。 | Models cooling down. Try again later. |
+| `model_failed` | 模型请求失败。 | Model request failed. |
 
 资料的来源，头照 `from` 说（草稿，界面那一步定样子）：
 
@@ -1310,7 +1310,7 @@ mimo = ["xiaomi"]
 
 | 定了什么 | 为什么 | 别的选法 |
 |---|---|---|
-| 冷却表放在会话那一层的 `ModelData`（`route/shared.rs`），单独一把锁；`[models.cooldown]` 的值也存在那里，核心照配置的变化当场换（`miyu-core` 的 `models.rs`，照 `[models.catalog]` 的做法） | 冷却表核心一份，路由在会话那一层；图纸写的是「当场生效」 | 照这一轮冻结的配置取：开着的回合要下一轮才用上新的数 |
+| 冷却表放在会话那一层的 `ModelData`（`route/shared.rs`），单独一把锁；`[models.cooldown]` 的值也存在那里，核心照配置的变化当场换（`miyu-core` 的 `models.rs`，照 `[models.catalog]` 的做法） | 冷却表核心一份，路由在会话那一层；图纸写的是「立即生效」 | 照这一轮冻结的配置取：开着的回合要下一轮才用上新的数 |
 | 冷却的单位认 key 的引用（`secret:<名字>`、`env:<变量>`，和 `model.list` 的 `ref` 一样），不认第几个；没写 key 的（本机的服务）是这一家没有 key 的那一个单位。运行日志的 `key=` 照这一轮写的第几个，从 1 数 | 配置里改了 key 的先后，冷却跟着 key 走 | 认第几个：调了先后，冷却记到别的 key 头上 |
 | `[models.cooldown]` 的六项：`base` 1 秒到 1 小时，`max` 1 秒到 1 天；`base` 写得比 `max` 大的，照 `max` 冷却。设置页在 `models` 页的 `cooldown` 组 | 范围够调，又不会写出一冷一个月的；算式里取小的本来就兜住了 | 校验 `base` 不大于 `max`：两项跨着查，配置那一层没有这种查法 |
 | 成了才钉：钉住的池，钉着的成员只在请求成了时换成真发的那一个（8-8 的「这时用不了」跳过的也一样）；会话的 key 也是成了才换。钉着的成员换了，端口的限额跟着换成它的 | 图纸第四条第 5 条；出错换过去的那一个可能也不行，成了才说明它能用 | 挑到就钉（8-8 的做法）：换过去又失败，钉着的已经不是原来那个 |
@@ -1320,7 +1320,7 @@ mimo = ["xiaomi"]
 | `model.changed` 由会话 actor 造：请求说完以后比端口的 `limits()` 和上一次交给内核的，变了交 `Input::Limits`，`Handle` 的限额跟着换（`subscribe` 交新的）；限额里的模型变了、不是 `none` 的推 `model.changed`。`turn`、`cause` 照内核这时的回合（内核多一个只读的 `Session::turn_cause()`），`limits` 照交完以后内核算的 | 图纸第五条第 7 条；回合、`cause`、压缩线都在内核手里，只读拿来用，不为一条推送加一种输入 | 内核加一种输入、由内核推：随机测试的输入清单、生成器、看守都要跟着加 |
 | 轮换的池不推 `model.changed`：它的限额里的模型总是 `none`，换成员不算「接下来请求的模型变了」 | 图纸 `model.changed` 那张表：轮换的池没有 `endpoint`、`model` | 每次请求都推：头的时间线上每一次请求都多一条通知 |
 | 内核：`failover` 是真、没带要等多久的等 0 毫秒，照样走「到点叫醒」（交 `Wake`、推 `status`）；`cooling` 算能再来的分类，没带 `wait_ms` 的照退避 | 不另开一条「当场再来」的路，打断、重启、来了消息照「出错再来」第 8 条走 | 当场组装再发：等的时候打断、来消息要另写一遍 |
-| `miyu ask` 碰到没发出去的 `cooling` 退出码 5，说「候选都在冷却」再接原话 | 第五条第 6 条；和 `no_model` 一样是「这时没有能用的模型」 | 退出码 1：和请求本身出错混在一起 |
+| `miyu ask` 碰到没发出去的 `cooling` 退出码 5，说「模型冷却中」再接原话 | 第五条第 6 条；和 `no_model` 一样是「这时没有能用的模型」 | 退出码 1：和请求本身出错混在一起 |
 | `model.list` 的 `until` 是时刻（和 `fetched` 一样的写法）。模型的状态照它能用的 key（取得到值的）里最好的：有一个不在冷却就是 `ok`；都在冷却的取最早恢复的那一个；一个 key 的整个 key 在冷却和这个模型在冷却都算，取晚的 | 第三条「它看这个模型能用的 key 里最好的那个」 | 只看模型那一格：认证失败停了整个 key，模型还显示能用 |
 | 换端点的测试另开 `crates/miyu-session/tests/route_failover.rs` | `route.rs` 再加就过了行数上限 | 塞进 `route.rs`：过了上限 |
 
@@ -1337,7 +1337,7 @@ mimo = ["xiaomi"]
 | `session.configure` 的 `model` 是空字（`""`）的 `bad_params`；先查参数，再找会话，再照这时的配置解析（`record`） | 图纸第 1 条的先后；只有空白的照写法不对算 `unknown_model` | 去掉空白再比：一样的结果，多一条规矩 |
 | `miyu ask --model` 接旧会话：找到会话以后、订阅之前发 `session.configure`；被拒的照核心的原话说，退出码 1，不发话 | 换不成就不该用旧模型说这一句 | 换不成照样说：人以为换了 |
 | 内核 `session.rs` 长过 500 行：发一条消息挪进 `session/send.rs`；actor 回合开始那一段挪进 `actor/model.rs` | 行数门禁 | 塞在原文件里：过了上限 |
-| `providers.<id>.models.<model>.window`、`max_output` 的生效时机从 `new_session` 改成 `next_turn` | 8-6 定 `new_session` 是因为那时开着的会话限额不变；8-10 起下一个回合开始照新的重算，写 `new_session` 就和真的行为对不上 | 照旧写 `new_session`：设置页说「以后开的会话生效」，人以为开着的会话不变 |
+| `providers.<id>.models.<model>.window`、`max_output` 的生效时机从 `new_session` 改成 `next_turn` | 8-6 定 `new_session` 是因为那时开着的会话限额不变；8-10 起下一个回合开始照新的重算，写 `new_session` 就和真的行为对不上 | 照旧写 `new_session`：设置页说「新会话生效」，人以为开着的会话不变 |
 | 钉着的没了退回默认记一行 `INFO model fallback from=… to=…`，会话编号在 span 里；会话没有记下的引用、只是还没配 `models.chat` 的那种（`from` 没有），不记 | 「出错」那张表早有这一行；没有原来的就不是退回 | 每次退都记，`from` 写 `none` |
 | 随机测试换模型另用一串随机数和一串命令编号（`model-<n>`），四个种子里一个，挂接点的结果三回里一回带着退回（多半对得上） | 原来那串输入不跟着错开，难得走到的几条路照样走得到；对不上的退回也要走到 | 夹在原来的随机输入里：别的种子的路跟着变 |
 

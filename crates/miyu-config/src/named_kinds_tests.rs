@@ -253,7 +253,7 @@ fn named_items_are_described_in_the_schema_and_the_reference() {
     );
     assert_eq!(
         size["description"],
-        "shops.<id>.models.<model>.window 的说明。能写：1 到 1000 之间的整数。只能写在系统配置或个人设置里。以后开的会话生效。"
+        "shops.<id>.models.<model>.window 的说明。能写：1 到 1000 之间的整数。只能写在系统配置或个人设置里。新会话生效。"
     );
     let reference = crate::reference::render(&items(), &words).expect("字够");
     assert!(reference.contains("\n[shops.\"<id>\"]\n"), "{reference}");

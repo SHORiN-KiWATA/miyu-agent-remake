@@ -1,17 +1,14 @@
 //! `/media`（施工 W-10，`web-ui.md`「怎么走」第三条）：带登录令牌换票据，照票据一块块给，能分段；类型照表、关在空的来源里；
 //! 下载的名字照 RFC 5987 转义；令牌作废了票据一起作废；有媒体在给不算空闲；票据不用了会过期，有上限。
 
-#[path = "media/fake.rs"]
-mod fake;
-
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use serde_json::{Value, json};
 
+use crate::fake::{self, CHUNK, Core, LOGIN};
 use crate::support::*;
-use fake::{CHUNK, Core, LOGIN};
 use miyu_web::serve::address;
 
 const SMALL: &[u8] = b"hello, media";

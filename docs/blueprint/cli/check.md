@@ -34,7 +34,7 @@
 
 ```text
 $ miyu check
-~/.miyu/system/config.toml:2:9 错误：log.level 只能是 error、warn、info、debug、trace 或 off，写的是 "verbose"。改成其中一个，例如 log.level = "info"。这一项先照 "info" 用着（默认值）。
+~/.miyu/system/config.toml:2:9 错误：log.level 只能是 error、warn、info、debug、trace 或 off，写的是 "verbose"。改成其中一个，例如 log.level = "info"。暂用 "info"（默认值）。
 ~/.miyu/home/admin/personas/miyu/prompts/examples.md:12 错误：user 和 assistant 要一问一答交替
 2 处错误
 ```

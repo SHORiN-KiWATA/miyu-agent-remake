@@ -130,7 +130,7 @@ async fn unknown_commands_and_plain_text_are_refused_and_nothing_is_noted() {
         json!({"session": session, "text": "/nope"}),
     )
     .await;
-    assert_eq!(reply["error"]["message"], "没有这个命令。", "{reply}");
+    assert_eq!(reply["error"]["message"], "命令不存在。", "{reply}");
     let reply = run(
         &mut client,
         "k7",
@@ -222,7 +222,7 @@ async fn stop_interrupts_keeps_the_queued_and_stops_subagents() {
     )
     .await;
     assert_eq!(reply["result"]["command"], "stop", "{reply}");
-    assert_eq!(reply["result"]["said"], "已全部停下。");
+    assert_eq!(reply["result"]["said"], "已全部停止。");
     until("子代理停了", || {
         home.log(&parent)
             .iter()
@@ -268,7 +268,7 @@ async fn stop_interrupts_keeps_the_queued_and_stops_subagents() {
 }
 
 /// 场所会话（`18-通讯平台.md` 第十二节）：主人、管理的人能用，别人 `command_not_allowed`；不带 `as` 的 `venue_session`，
-/// 本机的会话带 `as` 的参数不对。
+/// 本机的会话带 `as` 的参数错误。
 #[tokio::test]
 async fn in_a_venue_only_the_owner_and_managers_may_run_commands() {
     let home = Home::new();
@@ -306,7 +306,7 @@ async fn in_a_venue_only_the_owner_and_managers_may_run_commands() {
     )
     .await;
     assert_eq!(reason(&reply), Some("command_not_allowed"), "{reply}");
-    assert_eq!(reply["error"]["message"], "只有主人和管理的人能用命令。");
+    assert_eq!(reply["error"]["message"], "仅终端管理员和群管理员可用。");
     let member = json!({"external": "qq:20002", "role": "member"});
     let reply = run(
         &mut client,

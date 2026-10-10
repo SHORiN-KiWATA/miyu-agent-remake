@@ -69,8 +69,8 @@ pub fn find(pages: &Path, path: &str) -> Option<PathBuf> {
     (real.starts_with(&root) && real.is_file()).then_some(real)
 }
 
-/// 解开 `%xx`：解出来不是 UTF-8、有 NUL 的不要。
-fn decode(path: &str) -> Option<String> {
+/// 解开 `%xx`：解出来不是 UTF-8、有 NUL 的不要（网页软件的软件后台页拆地址也用，施工 F-6 下）。
+pub fn decode(path: &str) -> Option<String> {
     let bytes = path.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());
     let mut at = 0;

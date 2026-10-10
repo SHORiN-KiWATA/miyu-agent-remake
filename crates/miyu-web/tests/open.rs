@@ -1,5 +1,5 @@
 //! `miyu-web open`（施工 W-9，`web-module.md`「怎么走」第十一条）：网页软件没在跑先拉起来（真的 `miyu-web serve`）；
-//! 没设过密码、`--reset` 的网址带 `#setup=<一次性码>`，别的不带；`--print` 印网址和提醒；交不给浏览器的照 `--print` 办；
+//! 没设过密码、`--reset` 的网址带 `#setup=<一次性码>`，别的不带；`--package` 的再带 `package=<编号>`（施工 F-6 下）；`--print` 印网址和提醒；交不给浏览器的照 `--print` 办；
 //! `--logout` 说作废了几个。核心是替身：照方法名答。
 
 use std::path::Path;
@@ -197,6 +197,44 @@ async fn later_opens_carry_no_code_unless_reset() {
     )
     .await;
     assert_eq!(reset, [format!("{site}/#setup={CODE}")]);
+}
+
+#[tokio::test]
+async fn a_named_package_rides_after_the_hash() {
+    let home = Home::new();
+    answer(fake_core(&home), false);
+    let browser = browser(true);
+    let (code, _, err) = run_open(
+        &home,
+        Open {
+            port: Some(0),
+            package: Some("onebot".to_string()),
+            ..Open::default()
+        },
+        &browser,
+    )
+    .await;
+    assert_eq!(code, 0, "{err}");
+    let site = miyu_web::serve::address(&home.root).expect("有地址");
+    assert_eq!(
+        *browser.opened.lock().expect("没坏"),
+        [format!("{site}/#package=onebot")]
+    );
+    let reset = browser_again(
+        &home,
+        Open {
+            reset: true,
+            package: Some("onebot".to_string()),
+            ..Open::default()
+        },
+        true,
+    )
+    .await;
+    assert_eq!(
+        reset,
+        [format!("{site}/#setup={CODE}&package=onebot")],
+        "和一次性码一起"
+    );
 }
 
 #[tokio::test]

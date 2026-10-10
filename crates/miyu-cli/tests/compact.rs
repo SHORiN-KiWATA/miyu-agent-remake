@@ -74,10 +74,7 @@ async fn the_last_ask_is_compacted_with_what_was_asked() {
     // 刚压过，没有新内容：照核心的话说，退出码 1。
     let again = home.compact(&compacting(None, None)).await;
     assert_eq!(again.code, 1);
-    assert_eq!(
-        again.err,
-        "没有能压的：还没压过的内容都在原样留着的最近一段里。\n"
-    );
+    assert_eq!(again.err, "没有可压缩的内容。\n");
 }
 
 #[tokio::test]

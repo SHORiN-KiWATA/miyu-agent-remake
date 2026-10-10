@@ -11,9 +11,11 @@
 //!
 //! 问判官的任务不等这一个用的人：经并着发的调用口（[`Caller`]，施工 O-23 下）调，回应由读的一头照编号分出去。
 //!
-//! 桥也是提供者（施工 O-26，`provider`）：核心发来的请求（`tool.call`）读的一头当场答，不交给这一个用的人。
+//! 桥也是提供者（施工 O-26，`provider`）：核心发来的请求（`tool.call`）读的一头当场答，不交给这一个用的人。后台页调的方法
+//! （`method.call`，施工 O-28 上，`methods`）也一样。
 
 mod caller;
+pub(crate) mod methods;
 mod provider;
 pub(crate) mod route;
 
@@ -31,6 +33,7 @@ use crate::rules::Tools;
 use crate::serve::{Failure, Pipe};
 pub(crate) use caller::Caller;
 use caller::{Waiting, Writer, write_line};
+use methods::Methods;
 use provider::Heard;
 pub(crate) use provider::provide;
 
@@ -65,7 +68,7 @@ pub(crate) struct Core {
 
 impl Core {
     /// 在管道 `pipe` 上握手：哪个头、系统的语言 `locale`、没有人能当场回答，不带凭据（管道是核心亲手给的）。回应最多等
-    /// `wait`。核心发来的请求照 `tools` 答（施工 O-26）。
+    /// `wait`。核心发来的请求照 `tools` 答（施工 O-26），`method.call` 照 `methods` 答（施工 O-28 上）。
     ///
     /// # Errors
     ///
@@ -76,6 +79,7 @@ impl Core {
         locale: Option<&str>,
         wait: Duration,
         tools: Arc<Tools>,
+        methods: Arc<Methods>,
     ) -> Result<Core, Failure> {
         let (sender, incoming) = mpsc::unbounded_channel();
         let prefix = format!("onebot-{}", prefix());
@@ -83,6 +87,7 @@ impl Core {
         let writer: Writer = Arc::new(tokio::sync::Mutex::new(pipe.write));
         let asked = Asked {
             tools,
+            methods,
             writer: Arc::clone(&writer),
         };
         let reading = tokio::spawn(read_all(
@@ -212,9 +217,10 @@ fn prefix() -> String {
     }
 }
 
-/// 核心发来的请求怎么答（施工 O-26）：照桥的工具答，回应往这一头写。
+/// 核心发来的请求怎么答（施工 O-26）：照桥的工具答，后台页调的方法照 `methods` 答（施工 O-28 上），回应往这一头写。
 struct Asked {
     tools: Arc<Tools>,
+    methods: Arc<Methods>,
     writer: Writer,
 }
 
@@ -249,7 +255,7 @@ async fn read_lines(
                 let Some(message) = waiting.sort(message) else {
                     continue;
                 };
-                let message = match provider::heard(&asked.tools, message) {
+                let message = match provider::heard(&asked.tools, &asked.methods, message) {
                     Heard::Asked(reply) => {
                         provider::reply(&asked.writer, reply);
                         continue;

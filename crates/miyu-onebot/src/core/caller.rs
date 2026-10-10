@@ -33,6 +33,9 @@ pub(super) struct Waiting {
     prefix: String,
     /// 等着的。
     table: Arc<Mutex<Table>>,
+    /// 下一个序号：同一条连接上的调用口共用一个（`Core::caller` 每次另造一个调用口，各数各的会编出同一个编号，回应交错了人；
+    /// 施工 O-28 上碰到）。
+    next: Arc<AtomicU64>,
 }
 
 impl Waiting {
@@ -41,6 +44,7 @@ impl Waiting {
         Waiting {
             prefix,
             table: Arc::new(Mutex::new(Some(HashMap::new()))),
+            next: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -79,20 +83,14 @@ impl Waiting {
 pub(crate) struct Caller {
     /// 写的一头。
     writer: Writer,
-    /// 等着回应的。
+    /// 等着回应的；序号也在它身上，同一条连接上的调用口共用。
     waiting: Waiting,
-    /// 下一个序号。
-    next: Arc<AtomicU64>,
 }
 
 impl Caller {
     /// 往 `writer` 写、回应照 `waiting` 分的一个调用口。
     pub(super) fn new(writer: Writer, waiting: Waiting) -> Caller {
-        Caller {
-            writer,
-            waiting,
-            next: Arc::new(AtomicU64::new(0)),
-        }
+        Caller { writer, waiting }
     }
 
     /// 发一条请求，编号自己编，等到它的回应（接受的、拒绝的都交回原样）。不等了（放下这个 future）的，编号从表里拿掉，回应
@@ -112,7 +110,7 @@ impl Caller {
     ///
     /// 写不出去、读的一头已经停了（核心断开）。
     pub(crate) async fn send(&self, method: &str, params: Value) -> Result<Answer, Gone> {
-        let n = self.next.fetch_add(1, Ordering::Relaxed) + 1;
+        let n = self.waiting.next.fetch_add(1, Ordering::Relaxed) + 1;
         let id = format!("{}{n}", self.waiting.prefix);
         let (sender, answer) = oneshot::channel();
         match self.waiting.lock().as_mut() {

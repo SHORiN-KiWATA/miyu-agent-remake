@@ -4,7 +4,7 @@
 
 软件包 `miyu-onebot`：经 OneBot v11 接 QQ 的桥，和终端界面、网页平级的一个头（`docs/designs/18-通讯平台.md` 第三节、Q17）。它把 QQ 上的人接进场所会话，把她的回复发回 QQ；要不要开口、限流、出站这些和平台无关的部分在群聊内核 `miyu-chat`（`chat.md`），这里只管 QQ 这一头和跟核心的那一头。
 
-状态：图纸，随施工 O-8 起草（2026-10-07）。O-8 只有骨架：终端管理员的私聊、只有文字（第一条）；O-8 补照 `chat.md` 第七条第 1 条改了编号的拼法（第一条第 7、8 条）；WebUI（第二条）随 O-16、O-17 起草，O-16 做了骨架和「连接」页，O-17 做了「终端管理员与白名单成员」页。O-18 改成由核心拉起：经标准输入输出说协议，`miyu onebot start/stop/restart/status/logs`（第一条，2026-10-08）。O-19 接上斜杠命令：终端管理员的私聊里 `/` 开头的先交核心的 `command.run`（第一条「斜杠命令」，2026-10-08）。O-20 改成用核心交的配置：握手回应的 `config`、推送 `extension.config`，桥不再自己读系统配置和密钥文件，`onebot.*` 四项挪进清单的 `[settings]`（第一条，2026-10-09）。O-21 读场所规则和出厂数据：出厂的、系统的规则文件、出厂参数、违规词表照群聊内核读好、套到场所上，系统的改了下一次用就照新的；`miyu onebot venue show` 印一个场所每一项的值和来处（第一条「场所规则和出厂数据」，2026-10-09）。O-22 把群消息记进场所会话：一律旁听、不开回合，名字、@、引用、带的东西记进场所的格，群里的斜杠命令照私聊的办法交，撤回记 `venue.recalled`，私聊也带上场所的格（第一条「群消息」「撤回」，2026-10-09）。O-23（上）群里叫她就回：订阅群会话、从日志投影、过进站链、判走哪条路，终端管理员冲她来的开一轮，她的回话照纯文本拆段发回群里、记 `venue.delivered`，每判一条记 `ext.onebot.chat.decided`；要问判官的两条路只记判断（第一条「群里怎么叫她」，2026-10-09）。O-23（下）接上判官：线路规程四种分开走，同一个人补发的照群聊内核顶替，要问判官的经核心的 `model.call` 问、读回答算分，`ext.onebot.chat.decided` 记全（第一条「群里怎么叫她」第 10 到 14 条，2026-10-09）。O-23（补）判官带人格：群会话用的人格照订阅回应记下，原文经 `persona.read` 读、记一阵，夹进判官的请求，场所规则写了 `judge = { persona = false }` 的群不带（「群里怎么叫她」第 1 条、第 12 条第 3 款，2026-10-09 项目主人定）。O-25（上）接上出站链：她的每一条话（群、私聊）先过群聊内核的出站链（清理、去重、引用和 @），过了的照纯文本拆段、第一段带上引用和 @，丢了的记一行运行日志；群里的命令回执发出 3 秒后撤回（第一条「群里怎么叫她」第 9 条、「怎么走」第 10 条、「斜杠命令」第 7 条，2026-10-09）。O-25（中）接上出站队列：她要说出去的一切（群里她的话、限流的提示、命令回执，私聊的回话）先记 `ext.onebot.venues.queued` 再交 NapCat，失败、过期的记 `ext.onebot.venues.failed`；她被禁言（`group_ban` 通知）记 `ext.onebot.venues.muted`、`unmuted`，禁言时这个群的出站排着、进站链照它算；没连着的排着、连上了发；排着的过了 `queue_expire_seconds` 作废；去重照入队算（第一条「出站队列」，2026-10-09）。O-25（下）接上退信和贴表情：她的话没发出去的，经核心的 `session.note` 给那个会话记一块 `undelivered` 事实，她下一步看到；群里判过要回、主触发是冲她来或续聊的，在她要回的那一条上贴表情，她回了第一段、那一轮完了或者过了 `reaction_seconds` 摘掉（第一条「退信」「贴表情」，2026-10-09）。O-26 接上提供者和「不说话」：桥起来时经 `provide` 登记自己的工具，核心反向发来的 `tool.call` 当场答；头一件是 `skip_reply`，她调了，这一轮什么都不发（第一条「提供者和不说话」，2026-10-09）。O-27 改叫法、接上白名单成员（2026-10-10 项目主人定）：「主人」叫终端管理员、「自己人」叫白名单成员，配置键 `onebot.trusted` 改名 `onebot.whitelist`；白名单成员能私聊她（第 7 条）、加好友自动通过（「好友请求」）、睡觉时间里群里也放行、群里冲她来的不过判官（「群里怎么叫她」第 3、14 条）。下载图片和文件、WebUI 的其余几页随后面的步子。
+状态：图纸，随施工 O-8 起草（2026-10-07）。O-8 只有骨架：终端管理员的私聊、只有文字（第一条）；O-8 补照 `chat.md` 第七条第 1 条改了编号的拼法（第一条第 7、8 条）；WebUI（第二条）随 O-16、O-17 起草，O-16 做了骨架和「连接」页，O-17 做了「终端管理员与白名单成员」页。O-18 改成由核心拉起：经标准输入输出说协议，`miyu onebot start/stop/restart/status/logs`（第一条，2026-10-08）。O-19 接上斜杠命令：终端管理员的私聊里 `/` 开头的先交核心的 `command.run`（第一条「斜杠命令」，2026-10-08）。O-20 改成用核心交的配置：握手回应的 `config`、推送 `extension.config`，桥不再自己读系统配置和密钥文件，`onebot.*` 四项挪进清单的 `[settings]`（第一条，2026-10-09）。O-21 读场所规则和出厂数据：出厂的、系统的规则文件、出厂参数、违规词表照群聊内核读好、套到场所上，系统的改了下一次用就照新的；`miyu onebot venue show` 印一个场所每一项的值和来处（第一条「场所规则和出厂数据」，2026-10-09）。O-22 把群消息记进场所会话：一律旁听、不开回合，名字、@、引用、带的东西记进场所的格，群里的斜杠命令照私聊的办法交，撤回记 `venue.recalled`，私聊也带上场所的格（第一条「群消息」「撤回」，2026-10-09）。O-23（上）群里叫她就回：订阅群会话、从日志投影、过进站链、判走哪条路，终端管理员冲她来的开一轮，她的回话照纯文本拆段发回群里、记 `venue.delivered`，每判一条记 `ext.onebot.chat.decided`；要问判官的两条路只记判断（第一条「群里怎么叫她」，2026-10-09）。O-23（下）接上判官：线路规程四种分开走，同一个人补发的照群聊内核顶替，要问判官的经核心的 `model.call` 问、读回答算分，`ext.onebot.chat.decided` 记全（第一条「群里怎么叫她」第 10 到 14 条，2026-10-09）。O-23（补）判官带人格：群会话用的人格照订阅回应记下，原文经 `persona.read` 读、记一阵，夹进判官的请求，场所规则写了 `judge = { persona = false }` 的群不带（「群里怎么叫她」第 1 条、第 12 条第 3 款，2026-10-09 项目主人定）。O-25（上）接上出站链：她的每一条话（群、私聊）先过群聊内核的出站链（清理、去重、引用和 @），过了的照纯文本拆段、第一段带上引用和 @，丢了的记一行运行日志；群里的命令回执发出 3 秒后撤回（第一条「群里怎么叫她」第 9 条、「怎么走」第 10 条、「斜杠命令」第 7 条，2026-10-09）。O-25（中）接上出站队列：她要说出去的一切（群里她的话、限流的提示、命令回执，私聊的回话）先记 `ext.onebot.venues.queued` 再交 NapCat，失败、过期的记 `ext.onebot.venues.failed`；她被禁言（`group_ban` 通知）记 `ext.onebot.venues.muted`、`unmuted`，禁言时这个群的出站排着、进站链照它算；没连着的排着、连上了发；排着的过了 `queue_expire_seconds` 作废；去重照入队算（第一条「出站队列」，2026-10-09）。O-25（下）接上退信和贴表情：她的话没发出去的，经核心的 `session.note` 给那个会话记一块 `undelivered` 事实，她下一步看到；群里判过要回、主触发是冲她来或续聊的，在她要回的那一条上贴表情，她回了第一段、那一轮完了或者过了 `reaction_seconds` 摘掉（第一条「退信」「贴表情」，2026-10-09）。O-26 接上提供者和「不说话」：桥起来时经 `provide` 登记自己的工具，核心反向发来的 `tool.call` 当场答；头一件是 `skip_reply`，她调了，这一轮什么都不发（第一条「提供者和不说话」，2026-10-09）。O-27 改叫法、接上白名单成员（2026-10-10 项目主人定）：「主人」叫终端管理员、「自己人」叫白名单成员，配置键 `onebot.trusted` 改名 `onebot.whitelist`；白名单成员能私聊她（第 7 条）、加好友自动通过（「好友请求」）、睡觉时间里群里也放行、群里冲她来的不过判官（「群里怎么叫她」第 3、14 条）。O-28（上）做了接入QQ 的后台页（2026-10-10 项目主人定，设计 30 第十三节、`package-pages.md`）：清单写 `icon`、`[page]`，页面在 `resources/packages/onebot/page/`，桥握手以后经 `package.methods` 登记 `status`、`connection.token`，答核心转来的 `method.call`（第一条「后台页」）；桥自己的网页（第二条）先留着，O-28（下）去掉。下载图片和文件、WebUI 的其余几页随后面的步子。
 
 ### 在哪
 
@@ -12,17 +12,18 @@
 |---|---|
 | `crates/miyu-onebot/`（第 5 层，头） | 桥 |
 | `crates/miyu-onebot/src/main.rs` | 程序的入口：先找资源目录、读给人看的字（照系统的语言），再认子命令。`serve`（只由核心拉起，O-18）：装运行日志、读 `bridge.json` 和清单里两个端口的默认值（O-20），标准输入输出交给 `serve.rs`，握手回了语言就照它说（O-20）；`start`、`stop`、`restart`、`status`（O-18）交给 `control.rs`；`logs [-f]`（O-18）交给 `logs.rs`；`web [--print]`（O-16）：WebUI 的端口照状态文件的 `web`，没有状态文件的照清单的默认值（O-20），交给 `open.rs`；`venue show <场所>`（O-21）交给 `venue.rs`；`-h`、`--help` 印用法（O-18）。`serve` 握手以前还读出厂的场所规则、出厂参数、违规词表（`rules.rs` 的 `Factory`，O-21） |
-| `resources/packages/onebot.toml`（O-18） | 软件包清单：`process` 包，子命令 `onebot`、程序 `miyu-onebot`，`[process] args = ["serve"]`、`start = "manual"`；`[settings]` 四项（O-20；O-27 `trusted` 改名 `whitelist`）；`capabilities` O-23 多 `events.write`、O-26 多 `tools`（「软件包清单」） |
+| `resources/packages/onebot.toml`（O-18） | 软件包清单：`process` 包，子命令 `onebot`、程序 `miyu-onebot`，`[process] args = ["serve"]`、`start = "manual"`；`[settings]` 四项（O-20；O-27 `trusted` 改名 `whitelist`）；`capabilities` O-23 多 `events.write`、O-26 多 `tools`；O-28 上多 `[package] icon`、`[page] dir`（「软件包清单」「后台页」） |
+| `resources/packages/onebot/page/`（O-28 上） | 后台页：`index.html`、`app.js`（通道、页签、颜色和明暗）、`connection.js`（「连接」）、`whitelist.js`（「白名单成员」）、`texts.js`（三种语言的字）、`style.css`，原生 JS 的模块（「后台页」）；资源目录最上一层的 `packages/` 整个不进登记簿（`xtask/src/ledger.rs`：给人看的、给浏览器的），门禁不用改 |
 | `crates/miyu-onebot/src/settings.rs` | 桥用的配置（O-20）：握手交来的 `config`、推送来的 `extension.config` 照键读成两个端口、令牌（`Settings`），没有的、`null` 的端口照清单 `[settings]` 的默认值（`Defaults`，照资源目录里的清单读），令牌没有就是没有；`onebot.whitelist`（O-27 以前叫 `onebot.trusted`）读成白名单成员的平台身份（`whitelist`，O-23：跟核心的那一头照它认白名单成员） |
 | `crates/miyu-onebot/src/tuning.rs` | 读 `bridge.json`：桥自己的数（O-16 多 `web` 一格；O-23 下多判官的全局并发、排队等多久两格；O-23 补多判官带的人格原文记多久；O-25 上多命令回执几秒后撤回一格；O-25 中多出站排着的多久过期一格；O-25 下多贴的表情、多久摘两格） |
-| `crates/miyu-onebot/src/serve.rs` | 起来：经核心亲手给的管道（标准输入输出，O-18）握手、开两个监听（NapCat 的、WebUI 的），把几样接起来；推来的配置交给 `current.rs`，端口变了照 `/apply` 的办法当场换（O-20）；`/apply` 开好的新监听换掉旧的（O-16 补二）；状态文件跟着写（O-18）；核心关了管道就停，跟核心的那一头崩了就退 |
+| `crates/miyu-onebot/src/serve.rs` | 起来：经核心亲手给的管道（标准输入输出，O-18）握手、开两个监听（NapCat 的、WebUI 的），把几样接起来；推来的配置交给 `current.rs`，端口变了照 `/apply` 的办法当场换（O-20）；`/apply` 开好的新监听换掉旧的（O-16 补二）；状态文件跟着写（O-18）；WebUI 造好以后把桥手里的状态交给后台页的方法、发 `package.methods`（O-28 上）；核心关了管道就停，跟核心的那一头崩了就退 |
 | `crates/miyu-onebot/src/status_file.rs`（O-18） | 状态文件 `state/packages/onebot/status.json`：起来时、NapCat 连上断开、问到是哪个实现、换了端口时（推送来的、`/apply` 的）照这一刻写（「状态文件」） |
 | `crates/miyu-onebot/src/control.rs`（O-18） | `start`、`stop`、`restart`、`status`：照终端的样子连核心，调 `extension.enable`、`disable`、`restart`、`status`；`status` 再读状态文件；照回应说 |
 | `crates/miyu-onebot/src/logs.rs`（O-18） | `logs [-f]`：印运行日志，标准错误那一份有内容的先另起一段；`-f` 跟着看 |
 | `crates/miyu-onebot/src/current.rs`（O-16 补二，O-20 改） | 桥手里最新的配置：握手交来的那一份，推送来了照它换（O-20）；NapCat 的监听、WebUI 共用 |
 | `crates/miyu-onebot/src/web.rs`（O-16） | WebUI：核对 Host，`/ws` 原样转给核心、`/status`、`/token`、`/apply`（补二）、`/human`、页面文件；底子是共用的 `miyu-webserve`（`webserve.md`） |
 | `crates/miyu-onebot/src/web/login.rs`、`web/checked.rs`（O-16） | 登录令牌拿去和核心握手验、验过的记一阵（只记哈希）；`/status`、`/token`、`/apply` 都照它（补二从 `status.rs` 挪出来） |
-| `crates/miyu-onebot/src/web/status.rs`、`web/token.rs`、`web/apply.rs`（O-16，后两个补二） | `/status`：NapCat 的状态、两个端口、令牌设没设、平台的名字（O-17）；`/token`：令牌的值；`/apply`：照桥手里最新的配置换端口，推送来的端口变化也照它换（O-20） |
+| `crates/miyu-onebot/src/web/status.rs`、`web/token.rs`、`web/apply.rs`（O-16，后两个补二） | `/status`：NapCat 的状态、两个端口、令牌设没设、平台的名字（O-17）；NapCat 的状态、NapCat 的端口、令牌设没设、平台的名字这几格和后台页的 `status` 方法是同一份（`status::shared`，O-28 上）；`/token`：令牌的值；`/apply`：照桥手里最新的配置换端口，推送来的端口变化也照它换（O-20） |
 | `crates/miyu-onebot/src/web/human.rs`（O-16） | `/human`：登录以前页面要的字 |
 | `crates/miyu-onebot/src/open.rs`（O-16） | `miyu-onebot web`：桥在不在跑、要一次性码、开浏览器 |
 | `crates/miyu-onebot/src/listen.rs` | NapCat 反连进来的那一下：路径、令牌（和桥手里最新的比，O-20）、升级 |
@@ -31,7 +32,8 @@
 | `crates/miyu-onebot/src/onebot/segments.rs`（O-22） | 认消息段：正文（字、@、占位）、引用、@全体、带的东西（「群消息」第 2 条） |
 | `crates/miyu-onebot/src/onebot/members.rs`（O-22） | 群成员的名字缓存：按群、按号记一阵；`get_group_member_info` 的参数和回应里的名字（「群消息」第 5 条） |
 | `crates/miyu-onebot/src/core.rs`、`core/route.rs` | 跟核心的那一头：在给的管道上（`Pipe`：程序里是标准输入输出，O-18；测试里是内存里的管道）握手、不带凭据，取握手回应的 `config`（O-20）、桥自己的 `account`（第 7 条），私聊带 `as`、`venue` 的 `session.send`（O-22 带 `venue`）、她的回复发回去；推来的 `extension.config` 交给 `serve.rs`（O-20），`onebot.whitelist` 自己记一份（O-23），换了的私聊找过的会话都忘掉（O-27）；`core.rs` 交出留着的一个会话的推送（O-23，「群里怎么叫她」第 3 条）；`core.rs` 读的一头读到核心发来的请求交给 `core/provider.rs` 当场答（O-26，「提供者和不说话」第 2 条） |
-| `crates/miyu-onebot/src/core/provider.rs`（O-26） | 桥当提供者：起来时经并着发的调用口发 `provide`，写出去就交回等回应、记运行日志的那一段；核心发来的请求（`tool.call`、别的方法）的回应，`tool.cancel` 记一行调试日志（「提供者和不说话」第 1、2 条） |
+| `crates/miyu-onebot/src/core/provider.rs`（O-26） | 桥当提供者：起来时经并着发的调用口发 `provide`，写出去就交回等回应、记运行日志的那一段；核心发来的请求（`tool.call`、别的方法）的回应，`tool.cancel` 记一行调试日志（「提供者和不说话」第 1、2 条）；`method.call` 交给 `core/methods.rs` 答（O-28 上） |
+| `crates/miyu-onebot/src/core/methods.rs`（O-28 上） | 后台页调的方法：`package.methods` 的参数，写出去就交回等回应、记运行日志的那一段；`method.call` 照方法名答（`status`、`connection.token`），桥手里的状态在 WebUI 造好以后交进来（`Methods::ready`）（「后台页」第 2 条） |
 | `crates/miyu-onebot/src/core/caller.rs`（O-23 下） | 并着发的调用口（`Caller`）：问判官的任务经它调 `venue.records`、`model.call`，不等跟核心的那一头手上的事；回应照编号分给等它的那一个，等不到了的回应来了丢掉（「群里怎么叫她」第 12 条，「施工时定的」第 86 条）；O-26 多一步 `send`：写出去就交回等回应的那一段（`provide` 用，「提供者和不说话」第 1 条） |
 | `crates/miyu-onebot/src/core/route/session.rs`（O-22 从 `route.rs` 挪出来） | 找会话：`venue.session`（私聊认陌生人，白名单成员的照接、照场所规则带人格、预设、工作区（O-27）；群的规则写错只记一行）、订阅私聊的、群的从头订阅（O-23）、会话不在了再找一次 |
 | `crates/miyu-onebot/src/core/route/group.rs`、`route/names.rs`（O-22） | 群消息：套场所规则、找会话、正文里的 @ 写成名字（缓存里没有的问 NapCat）、记成旁听（「群消息」），记下了交给 `called.rs` 判（O-23） |
@@ -131,6 +133,7 @@ kind = "process"
 protocol = [1, 1]
 name = { en = "Connect QQ", zh = "接入QQ", ja = "QQ接続" }
 summary = { en = "Talk with her on QQ through NapCat", zh = "经 NapCat 在 QQ 上和她说话", ja = "NapCat 経由で QQ で会話する" }
+icon = "message-circle"
 
 [command]
 name = "onebot"
@@ -148,6 +151,9 @@ platform = "qq"
 
 [features.qq]
 name = { en = "QQ tools", zh = "QQ 工具", ja = "QQ ツール" }
+
+[page]
+dir = "page"
 
 [settings.listen]
 type = "int"
@@ -186,7 +192,7 @@ name = { … }
 description = { … }
 ```
 
-不写 `[check]`：随 `miyu onebot check` 那一步。`capabilities` 随 9-4（下上）；O-23 多 `events.write`：桥记 `ext.onebot.*`、`venue.*`（`events.append`，`05-内核接口.md` 第三节）；O-26 多 `tools`：桥经 `provide` 给工具目录提供工具（`skip_reply`，05 第三节那张能力表的「提供工具」，「提供者和不说话」第 1 条），都归功能 `qq`（`[features.qq]`，施工 F-2、T-2）。`system_account`：群、陌生人私聊、白名单成员私聊的场所会话归系统账号 `onebot`（O-4 下）。出厂的包算批过的，不用人批（`extensions.md`「能力」第 3 条）。`[settings]` 四项（O-20）照核心原来替桥声明的那一份（O-8 的 `OnebotSettings`）：类型、默认值、层一样；生效时机都是 `now`（两个端口原来是 `head_start`：推送来了桥当场换，「施工时定的」第 40 条）；设置页在头的「接入」页（施工 F-4，设计 30 第三节）。名字、说明（`name`、`description`，三种语言写在清单里，不进 `core/human`；F-4 补改了名字、说明的写法，O-27 改了 `whitelist` 的说明）：
+不写 `[check]`：随 `miyu onebot check` 那一步。`capabilities` 随 9-4（下上）；O-23 多 `events.write`：桥记 `ext.onebot.*`、`venue.*`（`events.append`，`05-内核接口.md` 第三节）；O-26 多 `tools`：桥经 `provide` 给工具目录提供工具（`skip_reply`，05 第三节那张能力表的「提供工具」，「提供者和不说话」第 1 条），都归功能 `qq`（`[features.qq]`，施工 F-2、T-2）。O-28 上多 `[package] icon`（Lucide 的 `message-circle`）、`[page] dir = "page"`：后台页（「后台页」第 1 条，`package-pages.md`「清单多的几格」）。`system_account`：群、陌生人私聊、白名单成员私聊的场所会话归系统账号 `onebot`（O-4 下）。出厂的包算批过的，不用人批（`extensions.md`「能力」第 3 条）。`[settings]` 四项（O-20）照核心原来替桥声明的那一份（O-8 的 `OnebotSettings`）：类型、默认值、层一样；生效时机都是 `now`（两个端口原来是 `head_start`：推送来了桥当场换，「施工时定的」第 40 条）；设置页在头的「接入」页（施工 F-4，设计 30 第三节）。名字、说明（`name`、`description`，三种语言写在清单里，不进 `core/human`；F-4 补改了名字、说明的写法，O-27 改了 `whitelist` 的说明）：
 
 | 键 | 中文 | 英文 | 日文 |
 |---|---|---|---|
@@ -379,7 +385,7 @@ O-25 中（2026-10-09；施工单「要定的」六条照推荐定：排着的 6
    | `line`、`turn` | `reply` | 这个场所会话的编号（主线）、她说这一段的回合编号 |
    | `reason` | `notice` | `rate_limited` |
 
-   例子：`{"kind": "reply", "text": "看完了。", "line": "01a0d78c-…", "turn": 42}`、`{"kind": "notice", "reason": "rate_limited", "text": "这会儿叫的人太多了，过几分钟再来吧。"}`、`{"kind": "receipt", "text": "已全部停下。"}`。记成了（回应交回序号）才往下走：她的话这时就算进这一回合已经入队的（群里先算进投影，私聊记进桥内存里的 `Spoken`；去重照它，「群里怎么叫她」第 2、9 条，「怎么走」第 10 条，「施工时定的」第 112、113 条）。核心拒了的（照说不会）记一行 `WARN event not appended`，不发；核心断开了照第 11 条桥停下。本机的钟读不出的（照说不会）记一行 `WARN clock not readable, reply dropped`，不入队。
+   例子：`{"kind": "reply", "text": "看完了。", "line": "01a0d78c-…", "turn": 42}`、`{"kind": "notice", "reason": "rate_limited", "text": "这会儿叫的人太多了，过几分钟再来吧。"}`、`{"kind": "receipt", "text": "已全部停止。"}`。记成了（回应交回序号）才往下走：她的话这时就算进这一回合已经入队的（群里先算进投影，私聊记进桥内存里的 `Spoken`；去重照它，「群里怎么叫她」第 2、9 条，「怎么走」第 10 条，「施工时定的」第 112、113 条）。核心拒了的（照说不会）记一行 `WARN event not appended`，不发；核心断开了照第 11 条桥停下。本机的钟读不出的（照说不会）记一行 `WARN clock not readable, reply dropped`，不入队。
 3. **发**：一个场所会话一条队，先进先出。门开着（这个群没被禁言，第 7 条；收进这个会话的那个机器人号连着）的照入队的先后交 NapCat：一段一段放进那个号现在的连接的写队列，前一段放进去了才放下一段，等回应交给别的任务（「施工时定的」第 10、84 条）。门关着的排着，运行日志记一行 `INFO reply waiting venue=… why=muted|disconnected chars=…`。什么时候再看一遍排着的：入队以后；机器人号连上了（`Event::Connected`，「怎么走」第 2 条）；记下禁言、解禁以后；到了最早的过期时刻、禁言到期的时刻（第 8 条）。看的时候先把过期的记了，再照先后交门开着的（「施工时定的」第 123、125 条）。
 4. **结局**：照放进写队列的先后交回来（第 84 条）。NapCat 回了成功的，运行日志一行 `INFO reply sent venue=… chars=…`；群里她的话记 `venue.delivered`（「群里怎么叫她」第 9 条第 4 项），群里的回执回了编号的过几秒撤回（「斜杠命令」第 7 条），提示、私聊的不再记。没成的记 `events.append {kind: "ext.onebot.venues.failed", body: {queued, why, detail?}}`（命令编号自己编；`queued` 是入队那一条的序号），运行日志一行 `WARN reply not sent venue=… why=… chars=…`：
 
@@ -490,6 +496,7 @@ O-25 中（2026-10-09；施工单「要定的」六条照推荐定：排着的 6
 | 别的原因起不来：听不了、起不了运行时、数据根用不了、`bridge.json` 读不进来、清单里两个端口的默认值读不出来（O-20） | 起不来，带原话 | 1 |
 | 出厂的场所规则、出厂参数、违规词表有问题、不在、读不成（O-21，打包的错；`serve` 握手以前、`venue show`）；判官的说明、退信的模板（O-23 下、O-25 下）、桥的工具的说明和答的两句（O-26）也是 | `failure/factory`，接着每一条问题缩进两格一行 | 1 |
 | 核心不收桥的工具（`provide` 被拒，O-26） | 不说；运行日志一行 `ERROR tools not provided`，照常收发消息 | 不退 |
+| 核心不收桥登记的方法（`package.methods` 被拒，O-28 上） | 不说；运行日志一行 `ERROR methods not registered`，照常收发消息，后台页调不到方法 | 不退 |
 | 系统的场所规则、违规词表写错了、读不成（O-21） | 不说；运行日志每条一行 `WARN venue rules problem`，坏的丢、别的照用 | 不退 |
 | 找不到资源目录、给人看的字读不懂 | 这时还没有字可用：`miyu-onebot: <原话>` | 1 |
 | `start`、`stop`、`restart`、`status` 连不上核心（O-18） | 连不上核心，带原因 | 1 |
@@ -581,7 +588,7 @@ O-25 中（2026-10-09；施工单「要定的」六条照推荐定：排着的 6
 - 不是终端管理员的私聊：不进任何会话（终端管理员的会话已经有了也不进），不回话。`venue.session` 回应的 `account` 是桥自己的账号（测试那一头照核心 O-4 中以后的样子改写握手和 `venue.session` 的回应）：不接、不交 `session.send`、`command.run`、不订阅，下一条照样再问；`account` 是别的账号、没带这一格的照常接、照常回。同一个陌生人连发几条，运行日志只记一行（`stranger_log.rs`，自己一个测试程序，装着日志订阅者）。
 - 段的数组、CQ 字符串两种格式；只有图片的消息不送。同一个号再连进来，新的顶掉旧的，旧的断开不拿掉新的。
 - 陌生人的私聊走真核心那条（核心 O-4 下合了以后补，真核心拉起真桥）：陌生人连发两条，核心把场所会话归系统账号 `onebot`、只造一个，桥认出属主是自己，不接：那个会话里没有人说的话，不回话，运行日志 `not admin or whitelisted, not taken` 只一行；终端管理员的私聊照常来回。（`spawned.rs`）
-- 斜杠命令（O-19，真核心加真桥、假 NapCat）：`/clear`、`/stop` 成了，核心照中文写的回执发回 QQ，她不开新的一轮，会话里记一条 `command.ran`；没东西可清的 `/reset` 回核心「上下文为空」那一句、什么都不记、不交给她；`/workspace` 不带路径回现在在哪；`/remember 某句` 回核心 `memory_unavailable` 那一句、不交给她；`/xxx`、`/ 你好`、`/` 照普通的话进会话、她回话；同一条命令平台重发两次只执行一次（回执两次）；开头有空白的 `  /stop` 也认；不是终端管理员的 `/stop` 不进任何会话、不回；会话被删了，命令照第 7 条再找、再交一次；`/stop` 打断她还没开口的一轮，不发空的，桥不卡住、下一句照常来回。（`commands.rs`，下面一条同）
+- 斜杠命令（O-19，真核心加真桥、假 NapCat）：`/clear`、`/stop` 成了，核心照中文写的回执发回 QQ，她不开新的一轮，会话里记一条 `command.ran`；没东西可清的 `/reset` 回核心「上下文为空。」那一句、什么都不记、不交给她；`/workspace` 不带路径回现在在哪；`/remember 某句` 回核心 `memory_unavailable` 那一句、不交给她；`/xxx`、`/ 你好`、`/` 照普通的话进会话、她回话；同一条命令平台重发两次只执行一次（回执两次）；开头有空白的 `  /stop` 也认；不是终端管理员的 `/stop` 不进任何会话、不回；会话被删了，命令照第 7 条再找、再交一次；`/stop` 打断她还没开口的一轮，不发空的，桥不卡住、下一句照常来回。（`commands.rs`，下面一条同）
 - 运行日志（O-19，真核心拉起真的桥）：记 `command ran` 带正名、`command refused` 带原因码，`/remember` 后面的原文不进日志。
 - 思考、工具调用不发回去；空的回复不发。（`replies.rs`，下面一条同）
 - 桥重启以后，以前的回复不再发一遍。
@@ -708,7 +715,7 @@ O-25 中（2026-10-09；施工单「要定的」六条照推荐定：排着的 6
 | 43 | `miyu-onebot web` 照状态文件的 `web` 找桥的网页，没有状态文件的照清单的默认值；`open/not-running` 去掉「改过 onebot.web 的，miyu onebot restart」 | 桥不再自己读配置；状态文件写的是桥实际听的端口（推送、`/apply` 换过的照换过的），比配置里写的准（新端口被占、没换成的，配置里是新的、桥还在旧的上）；端口改了当场换，不用 `restart` | 经核心的 `config.get` 问 `onebot.web`（要先连核心，桥没在跑也拉起核心；被占没换成时问到的不对） |
 | 44 | `start`、`stop`、`restart`、`status`、`logs` 握手以前照系统的语言，不再读 `ui.language`；系统的语言照 `zh`、`ja` 开头的认，别的英文，和核心照 `locale` 算的一样，写在 `texts.rs` | 桥不读配置；`start` 这几样握手以后照核心回的语言说（照旧），握手以前只有连不上核心那一句；`logs` 只说标题和「还没有」那一句 | 经核心问语言（`logs` 不连核心） |
 | 45 | 推来的 `extension.config` 由跟核心的那一头（`core/route.rs`）交给 `serve.rs`：令牌当场换上；两个端口变了另起一个任务照 `/apply` 的办法换 | 拿着跟核心的连接的只有那一个任务，它够不着监听；换端口和 `/apply` 是同一段代码（`web/apply.rs` 的 `latest`），同时来的几次锁着一个一个办，每次照这时手里最新的 | 跟核心的那一头自己换端口 |
-| 46 | 两个端口的说明去掉「在 QQ 桥的网页上改、保存的，当场生效」，别的照核心那一份原样搬 | 生效时机改成 `now`，参考文件自己写「当场生效」；只说网页上的，像是命令行改的不当场生效 | 一字不改地搬过来 |
+| 46 | 两个端口的说明去掉「在 QQ 桥的网页上改、保存的，当场生效」，别的照核心那一份原样搬 | 生效时机改成 `now`，参考文件自己写「立即生效」；只说网页上的，像是命令行改的不当场生效 | 一字不改地搬过来 |
 | 47 | 测试：测试里的核心照出厂的清单拼进包的配置项（`miyu-core` 的 `Packaged`，和真核心起来时一样；`miyu-core` 挪进开发依赖）；进程里跑的桥，测试那一头的转接在握手的回应里填 `config`，要改配置的照推送的样子写 `extension.config`；真核心拉起真桥的测试守着核心真的交、真的推 | 握手交配置、推送只给核心亲手拉起的连接，进程里跑的桥连的是本机套接字，核心不给；转接照样子填，桥的代码走的是同一条路 | 核心为测试公开「当成亲手拉起的」入口 |
 | 48 | 依赖照 `cargo metadata` 查（测试 `dependencies.rs`） | 施工单验收第 1 条；分层门禁只管层，第 5 层依赖第 4 层是允许的，和门禁读同一份 | 改分层门禁（全仓的规则，不为一个包加） |
 
@@ -817,7 +824,7 @@ O-25 中（2026-10-09；施工单「要定的」六条照推荐定：排着的 6
 | 112 | 群里这一回合已经发出去的照投影里这一轮入队了的她的话（`ext.onebot.venues.queued` 里 `kind` 是 `reply` 的正文）：桥入队记成了就先算进投影，日志推来的同一段照正文认（这一轮已经有一样正文的不再加），桥重启照日志补。拆成几段的照段比，整句重复比不出来（出厂一段 3000 个字符，很少拆）。`superseded.rs` 里她连着说的后一句带不带引用不看（剧本说得快，前一句回执记没记下不一定，引用照回执算，那条测的是回给谁）。O-25 上照 `venue.delivered`、前一句 NapCat 还没回的不算，是过渡，O-25 中收掉 | 施工单 O-25 中「要定的」第 5 条：日志推来的入队事件可能比她下一句话晚到（她说得快），只靠日志会漏；先后照入队，没有「前一句 NapCat 还没回、下一句已经来了」的空当；正文一样的两段对去重是一回事 | 只照日志推来的（还有空当）；照 `venue.delivered`（O-25 上的过渡） |
 | 113 | 私聊这一回合已经发出去的照桥这一轮自己入队了的那几段（`Spoken`：入队记成了就记上，内存里一个会话一份，换回合就清，桥重启就丢）；私聊也照 `plain`、`split`（这个私聊套出来的 `Params::split_chars`）拆段，不记 `venue.delivered`（2026-10-09 主会话定；O-25 中改成入队时记，施工单 O-25 中「要定的」第 4、5 条） | 私聊的订阅不补从前的（「怎么走」第 9 条），照日志算不了；私聊没有 `venue.delivered`，记了会改她私聊里看到的渲染 | 私聊不去重；私聊也从头订阅（多补一遍私聊的整个日志）；私聊也记 `venue.delivered` |
 | 114 | 命令回执不过出站链；群里撤的是斜杠命令发回去的那一句（成了的回执、被拒的那一句），限流的提示不撤；撤是另起的任务（等几秒、撤），撤的时候照那个机器人号那时的连接；几秒放 `bridge.json` 的 `receipt_recall_seconds`（出厂 3）。O-25 中：回执和别的一样入队，等 NapCat 回应在照先后交回的那一串里，回了编号才另起撤的任务（第 119 条） | 回执是核心写的，不是她的话；被拒的那一句也是机器人的内部状态（18 第十节「群里不留机器人的内部状态」）；等几秒放进照先后交回的那一串，她后面的话记 `venue.delivered` 要跟着等 3 秒；中间断了重连的照新连接撤；秒数是桥这个进程的，不按场所改（和判官的并发一样，`chat.md` 第八条施工时定的第 5 条） | 被拒的不撤；放进 `sending`；按场所改 |
-| 115 | 测试的模型替身另写一个（`support/speaking.rs`）：一次回复里能既说一句、又调一件不存在的工具（内核当场答「没有这件工具」、接着请求），能等测试放行再说 | 去重要「同一回合说两句」，剧本（`Script`）的一次回复要么只说话、要么只调工具；引用、@ 要她还没开口时群里先说几句、等够时候。核心的测试替身不动 | 改核心的剧本 |
+| 115 | 测试的模型替身另写一个（`support/speaking.rs`）：一次回复里能既说一句、又调一件不存在的工具（内核当场答「工具不存在」、接着请求），能等测试放行再说 | 去重要「同一回合说两句」，剧本（`Script`）的一次回复要么只说话、要么只调工具；引用、@ 要她还没开口时群里先说几句、等够时候。核心的测试替身不动 | 改核心的剧本 |
 
 **施工时定的**（O-25 中，2026-10-09；施工单「要定的」六条照推荐定：排着的 60 秒过期、放 `bridge.json`，全员禁言不认，桥重启时入队了没结局的不补发，私聊不记 `venue.delivered`，去重入队记成了就算上，禁言的复查随 quirk 那一步）
 
@@ -879,11 +886,71 @@ O-25 中（2026-10-09；施工单「要定的」六条照推荐定：排着的 6
 | 149 | 运行日志：陌生人的私聊记 `not admin or whitelisted, not taken`（原来 `not the owner, not taken`），白名单换了记 `whitelist changed count=…`（原来 `trusted changed`）；好友请求、群邀请见「好友请求」 | 跟着叫法和键名改；`owner` 在这里说不清是会话的属主还是终端管理员 | 照旧 |
 | 150 | 场所规则 `allow = false` 的群，白名单成员照旧只记下（`chat.md` 第二条施工时定的第 2 条） | 项目主人这次放开的是睡觉、判官、限流、私聊，`allow = false` 是终端管理员说这个群不让叫她 | 白名单成员在群里也豁免 `allow` |
 
+**后台页**（O-28 上，2026-10-10 项目主人定：接入QQ 在软件包列表里、带自己的页面，照 AstrBot 的插件；施工单「要定的」四条照推荐定：页面生成令牌、`settings.set` 交网页代存，方法叫 `status`、`connection.token`，字放 `page/texts.js`，端口写完等推送生效再调 `status` 看实际的；设计 30 第十三节，`package-pages.md`）：接入QQ 的设置和状态做成网页「软件后台」里它自己的页面。页面是包里的静态文件，跑在网页给的隔离框里：读写接入QQ 自己的设置项、调桥登记的方法，别的都碰不到。桥自己的网页（第二条）先留着，网页能显示后台页以后 O-28（下）去掉。不占编号的几段同「提供者和不说话」。
+
+1. **清单**：`resources/packages/onebot.toml` 写 `[package] icon = "message-circle"`、`[page] dir = "page"`；包目录照 `Found::files_dir` 算，出厂的是资源目录的 `packages/onebot/`，页面在 `resources/packages/onebot/page/`，入口 `index.html`（`package-pages.md`「清单多的几格」第 3 条）。
+2. **桥登记的方法**（`core/methods.rs`）：
+   - **登记**：开好两个监听、WebUI 造好以后（桥手里的状态这时才齐：NapCat 的连接表、实际听的端口、最新的配置），先把它交给答方法的那一头，再经并着发的调用口发 `package.methods {"methods": [{"name": "status"}, {"name": "connection.token"}]}`（不写 `timeout_ms`，照核心的 30 秒）。和 `provide` 分开，桥每次起来、连上核心都发。写出去就接着起来，不等回应（同 `provide`，第 139 条）：成了记一行 `INFO methods registered count=…`；被拒的（进程里的测试经本机套接字连核心，回 `not_an_extension`）记一行 `ERROR methods not registered reason=… detail=…`，桥照跑：后台页调不到方法，别的照旧（第 154 条）。
+   - **答**：`method.call {"method", "params"}` 和 `tool.call` 一样由读的一头当场答（第 140 条，`core/provider.rs` 交过来）：`{"jsonrpc": "2.0", "id": <原样>, "result": …}`。
+   - `status`：不看参数，回 `{"napcat": {"connected", "implementation", "version", "self_id"}, "listen": 端口, "path": "/ws", "token": "set" | "none", "platform": "qq"}`：照桥手里最新的（不读盘），`napcat`、`listen`、`token`、`platform` 和 `/status` 同一份（`web/status.rs` 的 `shared`，第二条「对外的样子」那一行的写法）；`path` 是 NapCat 那边地址的路径，照 `bridge.json` 的 `paths` 里最短的那个（出厂 `/ws`，第 152 条）；`platform` 白名单成员页拼 `qq:<号>` 用（第 151 条）。
+   - `connection.token`：不看参数，回 `{"token": "<值>" | null}`：照桥手里最新的，同 `/token`；运行日志一行 `INFO page token read`，不记值。令牌是桥自己的凭据，由桥经核心交给管理员在后台页上看（`package-pages.md`「还没有的」第 2 条：核心不为后台页开交出密钥的口子）。
+   - 不认识的方法：回 JSON-RPC 的「没有这个方法」`{"code": -32601, "message": "unknown_method", "data": {"reason": "unknown_method"}}`（核心交回 `method_failed`，`data.code` 是 -32601），记一行 `WARN page method not understood method=…`。答方法的那一头还没拿到桥手里的状态时来的（核心只转登记了的方法，登记在交进状态以后，照说来不了）也这样回（第 153 条）。
+3. **页面**（`resources/packages/onebot/page/`，原生 JS 的模块，`index.html` 照 `type="module"` 载 `app.js`）：只经网页交来的 `MessageChannel` 照 JSON-RPC 说（`package-pages.md`「框和网页之间怎么说」：`context`、`settings.get`、`settings.set`、`call`，推送 `settings.changed`、`theme.changed`）。通道只交一次，页面是单页：两个页签在页里切，不跳页（第 155 条）。
+   - **起来**：等网页交通道（`{"miyu": "port"}` 带的那一头），先 `context`：照 `language` 挑字、照 `theme`、`colors` 上色；再 `settings.get`、`call status`，画「连接」页。通道没来之前只有一句「正在连」（字照浏览器的语言挑）。
+   - **样子**：没有网页软件的顶栏、左栏（框外是网页的），页顶一排两个页签「连接」「白名单成员」，下面是卡片，页名不另写一行（页签就是）；框撑满网页右边一栏，页面自己滚；字体、按钮、卡片照桥自己的网页，看着和网页软件是一家（第 163 条）。颜色：`context` 带了 `colors` 的照它（`accent`、`surface`、`surface_2`、`text`、`text_soft`、`line`、`danger`），没带的照 `theme` 用页面自己的两套（照桥自己的网页的「晨光」「tokyonight」）；`theme.changed` 来了跟着换（第 160 条）。
+   - **「连接」**：
+     - NapCat 的状态照 `status`，每 5 秒调一次：「已连上」带实现、版本、机器人的号；「没连上」；调不到的「看不到桥的状态」带原话。
+     - 没令牌时页顶的三步，出不出来、第一步打勾照桥自己的网页（第二条「施工时定的」第 22 条）。
+     - NapCat 那边要填的：地址 `ws://127.0.0.1:<listen>/ws`（照 `status` 的 `listen`、`path` 拼）带「复制」；令牌照 `status` 的 `token`：`set` 的「已设 ········」（`settings.get` 的值是 `{env}` 引用的写「照环境变量 <名字>」），「显示」（调 `connection.token`，显示在那一行，按钮变「收起」）、「复制」（调 `connection.token` 放进剪贴板）、「换一个」（先在页面里的对话框问一句，「取消」「换一个」，先停在「取消」上）；`none` 的「没设」和一个主按钮「生成」，不问。生成、换：页面 `crypto.getRandomValues` 生成 32 个字节写成十六进制，`settings.set {"changes": [{"key": "onebot.token", "value": "<十六进制>"}]}`，网页先 `secret.set` 存成密钥、再写成引用（`package-pages.md` 方法表 `settings.set` 那一行）；成了把生成的这一个显示在那一行（第 157 条），再调 `status`。消息格式「数组」。
+     - 复制：先用 `navigator.clipboard`，框里用不了的退到选中一段字 `document.execCommand("copy")`；都不成的不说，令牌按「显示」自己选（第 158 条）。
+     - NapCat 的端口：一格数字（1024 到 65535，超出的浏览器先拦）和「保存」，`settings.set {"changes": [{"key": "onebot.listen", "input": "<格里的字>"}]}`；写错的网页交回核心的问题，照原话说在下面。成了等桥收到推送当场换（第一条第 1 条，O-20）：隔 0.5 秒调一次 `status`，`listen` 是新端口的说「NapCat 的端口换成了 …，NapCat 那边的地址也要跟着改」；10 次（5 秒）还不是的说「端口 … 被占了，桥照旧用原来的端口」（第 156 条）。WebUI 的端口 `onebot.web` 不在这页：桥自己的网页随 O-28（下）去掉。
+   - **「白名单成员」**：`settings.get` 的值 `onebot.whitelist`，这个平台（`status` 的 `platform`）的身份一行一个号；号的规矩、标错（不是 1 到 20 位数字、以 0 开头的「号只能是数字，不以 0 开头」，同一张表里重复的「这个号重复了」）、空着的行不算、有标着的不让存、「加一个」「删」、没改动灰着「保存」照桥自己的网页（第二条「怎么走」第 4 条、「施工时定的」第 28、29 条）；保存整张写回 `settings.set {"changes": [{"key": "onebot.whitelist", "value": [...]}]}`，别的平台的身份照原样留在前面。成了说「存好了」、重读重画；没成的照原话说在表下面，表里的东西不丢。表空着时「还没有白名单成员。」。页上一句：终端管理员（这台机器的账号对应的 QQ 号）在网页的「高级」页里改，这里只管白名单成员。没有「已经是终端管理员」那一句：页面读不到终端管理员对应表（`external.bindings` 是核心的配置项）。
+   - **设置项变了的推送** `settings.changed`：重读 `settings.get`；「连接」页重画令牌那一行，白名单成员表没改动的重画，有没存的改动的留着（第 161 条）。
+   - **出错**：`context`、`settings.get` 不成的，整页一句原话、一个「重试」；`call`、`settings.set` 不成的说在那一张卡片下面（`没成：<原话>`，原话照网页回的错误的 `message`，带 `data.problems` 的一条条接在后面，同桥自己的网页）。
+4. **页面的字**（`page/texts.js`）：框里连不了网（`connect-src 'none'`），读不到 `/human`、`human.get`，三种语言的字放进页面自己的一个模块：`export const TEXTS = ` 后面是一段 JSON（`{"zh": {…}, "en": {…}, "ja": {…}}`，测试照它读、比三种的键），照 `context` 的 `language` 挑，不认识的照英文；`ja` 照英文写（同「给人看的字」，第 159 条）。字段写 `{名字}`，同桥自己的网页。说法照桥自己的网页的 `web/` 那几句（第二条「给人看的字」）：编号去掉 `web/`，白名单成员那几句的 `web/people/` 改成 `whitelist/`（`whitelist/title`、`hint`、`empty`、`number`、`add`、`remove`、`bad-number`、`duplicate`）；`fill/url` 写成 `ws://127.0.0.1:{port}{path}`（路径照 `status`）；`loading` 说「正在连接入QQ…」「Connecting to Connect QQ…」。多的几句：
+
+| 编号 | 中文 | 英文 |
+|---|---|---|
+| `nav/whitelist` | 白名单成员 | Whitelist |
+| `napcat/unknown` | 看不到桥的状态：{reason} | Bridge status unavailable: {reason} |
+| `whitelist/admins` | 终端管理员（这台机器的账号对应的 QQ 号）在网页的「高级」页里改，这里只管白名单成员。 | Terminal admins (QQ numbers that are a local account here) are set on the Advanced page of the web UI; this page only manages the whitelist. |
+| `ports/listen-in-use` | 端口 {port} 被占了，桥照旧用原来的端口。换一个再保存。 | Port {port} is in use, so the bridge keeps its old port. Pick another one and save again. |
+
+5. **桥自己的网页**这一步不删、不改行为：两份页面并存，字各放各的（`human/*.json` 的 `web/` 那几句照旧给桥自己的网页）。
+
+**守着它的**（O-28 上）
+
+- 后台页（真核心拉起真桥，`backstage.rs`）：桥起来以后核心的 `package.list` 里接入QQ 带 `icon: "message-circle"`、`page: true`；头经 `package.call` 调 `status`：NapCat 没连上时 `connected: false`、`listen` 是实际的端口、`path` 是 `/ws`、`token` 是 `set`、`platform` 是 `qq`，假 NapCat 连上以后带实现、版本、号；调 `connection.token` 回密钥里的令牌，`onebot.token` 去掉以后（`config.set` 恢复默认）`token` 是 `none`、`connection.token` 回 `null`；没登记的方法核心不转、回 `unregistered`；`package.file` 拿得到 `index.html` 和页面目录里的每一份文件，字节和出厂的一样。运行日志有 `methods registered count=2`、两行 `page token read`，不带令牌的值。测试当核心跑真的 `serve`（`backstage.rs`）：握手以后发的 `package.methods` 是两个方法、不写时限；直接发来的 `method.call`：不认识的回 -32601、`unknown_method`，运行日志 `page method not understood method=…`；`status`、`connection.token` 照握手交的（没交令牌的 `none`、`null`）。
+- 同一条连接上另拿的调用口编号不撞，回应各拿各的（`src/core/caller/tests.rs`，第 165 条）。
+- 答方法（`src/core/methods/tests.rs`）：`package.methods` 的参数是两个方法、不写时限；状态还没交进来的、不认识的方法回 -32601、编号原样。核心发来的 `method.call` 交给它答，推送照旧交回（`src/core/provider/tests.rs`）。
+- 页面的文件（`page.rs`）：每一份 `.js` 照模块过 `node --check`（机器上没有 `node` 的跳过、印一句，第 162 条）；`texts.js` 读得出，三种语言的键一样多、一样名；页面脚本里 `say('…')` 用到的编号三种语言都有；`index.html` 照 `type="module"` 载 `app.js`。
+- 页面的样子靠人看：本地的测试页把 `index.html` 放进 `sandbox="allow-scripts allow-forms"` 的框、照通道喂假的回答，无头浏览器截图（O-28 上施工单「验收结果」）。
+
+**施工时定的**（O-28 上，2026-10-10）
+
+| # | 定了什么 | 为什么 | 没选 |
+|---|---|---|---|
+| 151 | `status` 多一格 `platform`（同 `/status`） | 白名单成员页拼 `qq:<号>`、认这个平台的身份要平台的名字；平台的名字只写一处（第一条「施工时定的」第 16 条、第二条第 26 条），页面里不再写一份 `qq` | 页面里写死 `qq` |
+| 152 | `status` 的 `path` 照 `bridge.json` 的 `paths` 里最短的那个，一样短的取先写的 | 桥认的路径住在 `bridge.json`；页面上写短的那个（第二条「施工时定的」第 20 条：两个桥都认，短的好填） | 写死 `/ws`；取最后一个（换了先后就变） |
+| 153 | 方法在读的一头当场答（同 `tool.call`，第 140 条）；桥手里的状态在 WebUI 造好以后交进去（`Methods::ready`，`OnceLock`），`package.methods` 跟在后面发；还没交进来时来的照不认识的回 | 读的一头在握手时就起来了，那时连接表、端口、配置都还没有；核心只转登记了的方法，登记在交进状态以后，那一支照说走不到，不为它另设一种错 | 交给跟核心的那一头照先后办（手上可能正等着别的回应）；另回一种「还没好」的错 |
+| 154 | `package.methods` 写出去就交回等回应、记运行日志的那一段，放进 `serve` 的任务组（同 `provide`，第 139 条）；被拒了记 `ERROR`，桥照跑 | 后台页调不到方法不该让 QQ 也断了；进程里的测试经本机套接字连核心，核心回 `not_an_extension`，正好守着「被拒了照跑」 | 等到回应再接着起来；被拒了退出 |
+| 155 | 页面是单页：两个页签在页里切；页面的节奏（5 秒调一次 `status`，端口存好以后隔 0.5 秒看一次、看 10 次）写在 `app.js`、`connection.js` 顶上 | 通道只交一次，跳页就断了（`package-pages.md`「框和网页之间怎么说」第 1 条）；节奏是页面自己的，同第二条「施工时定的」第 11 条 | 一页一个 HTML；节奏放进设置项 |
+| 156 | 端口存好以后照 `status` 的 `listen` 认换没换成：5 秒里变成新端口的说换成了，到时还不是的照被占说 | 推送是异步的，`settings.set` 回了桥不一定换完；被占的桥照旧听原来的端口、只记运行日志（第一条「施工时定的」第 39 条），`status` 没有别的格说被占。施工单「要定的」第 4 条：不另调 apply | `status` 多一格 `in_use`（要桥另记一份换不成的端口）；另登记一个 `apply` 方法 |
+| 157 | 生成、换令牌：`settings.set` 成了直接显示页面生成的那一个，不再调 `connection.token` | 网页存好、核心推给桥（`extension.config`）和核心转来的 `method.call` 在桥里走两条路：推送经跟核心的那一头交给 `serve`，方法由读的一头当场答，刚写完就调可能拿到旧的；生成的那一个页面手里本来就有 | 写完调 `connection.token`（会看到旧的）；等几百毫秒再调 |
+| 158 | 复制先用 `navigator.clipboard`，不成的退到选中一段字 `document.execCommand("copy")`；都不成的不说 | 框是沙箱、来源是空的，`navigator.clipboard` 要框外给 `clipboard-write` 的许可（图纸的框没给）；退的那一种在用户按下按钮时还能用；令牌能「显示」，人可以自己选 | 只用 `navigator.clipboard`（框里多半复制不了）；请网页给框加 `allow="clipboard-write"`（网页的会话的事，记进风险） |
+| 159 | `texts.js` 写成 `export const TEXTS = <JSON>;`：前面只有注释，JSON 里不写注释、不写结尾的逗号；语言照 `context` 的 `language` 的头一段（`zh-CN` 算 `zh`）挑，不认识的照英文 | 测试不用 JS 引擎就读得出、比得了三种的键；网页的 `language` 是它的界面语言，写法照网页 | 三份 `.json`（框里不能联网，读不到）；写成普通的 JS 对象（测试要 JS 引擎才读得出） |
+| 160 | 颜色：`context`、`theme.changed` 带 `colors` 的照它写进 CSS 变量，没带的照 `theme` 用页面自己的两套；`<html>` 上记 `data-theme` | 跟着网页这时的样子，网页换主题时跟着换；网页没给颜色的也分得出明暗 | 跟着 `prefers-color-scheme`（框里的明暗不一定是网页选的那一种） |
+| 161 | `settings.changed` 来了：重读；白名单成员表有没存的改动的不重画 | 自己存好也会收到推送，别处改了也要看到；人正改着的表被推送冲掉不对（同第二条「施工时定的」第 31 条：没存的改动留着） | 一律重画；不理推送 |
+| 162 | 页面脚本的语法检查写成桥的一个测试（`page.rs`）：每一份 `.js` 经标准输入交 `node --check --input-type=module`；机器上没有 `node` 的跳过、在标准错误上印一句 | 页面没有构建工具、没有测试框架，写坏了一个字整页就白了；照模块读：严格模式、`import`/`export` 照模块认。三台 CI 的机器都带 `node`；不加依赖、不动门禁 | 写进门禁（门禁不该要 `node`）；靠人记得跑 |
+| 163 | 页面不画顶栏、左栏，页签在页顶，页名不另写一行；卡片、按钮、字体照桥自己的网页 | 框外是网页的「软件后台」，网页有自己的顶栏、菜单；样子要和网页一家 | 照搬桥自己的网页的骨架（框里多一套菜单） |
+| 164 | 白名单成员页不画终端管理员表，也不说「已经是终端管理员」 | 终端管理员的平台账号在核心的「高级」页改（项目主人 2026-10-10 定，施工单）；`settings.get` 只给这个包自己的项，页面读不到 `external.bindings` | 经桥再登记一个方法交出对应表（桥手里没有） |
+| 165 | 同一条连接上的调用口共用一个序号，放在 `Waiting` 上（O-28 上碰到的：登记方法和登记工具撞号，后台页那条测试离了它就红） | `Core::caller` 每次另造一个调用口，原来序号在调用口上、各从 1 数：登记工具、登记方法都编成 `<前缀>-side-1`，等着的表里后写的顶掉先写的，回应交错了人、或者没人等（桥的运行日志里时有时无 `methods registered`）（问判官的调用口也从 1 数，起来时撞上的机会小，一直没露出来） | 只造一个调用口、到处传（`route` 那边要改一串参数） |
+
 ### 二、WebUI（施工 O-16 起）
 
 `miyu-onebot` 自己的配置页（`docs/designs/18-通讯平台.md` 第三节、Q18）：桥进程开一个只听本机的 HTTP 端口，给页面、把 `/ws` 原样转给核心。页面自己说核心协议：用户名、密码登录（核心验，`web-module.md` 第一条 W-8），改配置、存密钥调核心现成的 `config.set`、`secret.set`，校验只在核心那一处。只有桥自己知道的由桥另给：只读的 `/status`（NapCat 连没连上、是哪个实现、令牌设没设）、`/token`（令牌的值），和照桥手里最新的配置换端口的 `/apply`（O-16 补二，O-20 改）。终端界面、网页软件的设置页里只有一行「QQ：打开 miyu-onebot」，不画 QQ 的配置。
 
-状态：图纸，2026-10-07 起草，项目主人过目（登录用 Miyu 网页的账号、先做两页，照推荐定）。O-16 做好了骨架和「连接」页（施工时补的见「施工时定的」第 7 到 13 条；没设令牌也起来、在「连接」页生成第一个，见第 14 到 16 条）。2026-10-08 项目主人在自己的 NapCat 上试过以后改了四处（补二，第 17 到 24 条）：令牌随时能看能复制、没令牌时页顶写清三步、改了令牌和端口当场生效不用重启、地址写短的 `/ws`。O-17 做好了「终端管理员与白名单成员」页（施工时补的见「施工时定的」第 25 到 36 条）；场所和规则、平台工具、插件、日志几页等群接通以后再做。
+状态：图纸，2026-10-07 起草，项目主人过目（登录用 Miyu 网页的账号、先做两页，照推荐定）。O-16 做好了骨架和「连接」页（施工时补的见「施工时定的」第 7 到 13 条；没设令牌也起来、在「连接」页生成第一个，见第 14 到 16 条）。2026-10-08 项目主人在自己的 NapCat 上试过以后改了四处（补二，第 17 到 24 条）：令牌随时能看能复制、没令牌时页顶写清三步、改了令牌和端口当场生效不用重启、地址写短的 `/ws`。O-17 做好了「终端管理员与白名单成员」页（施工时补的见「施工时定的」第 25 到 36 条）；场所和规则、平台工具、插件、日志几页等群接通以后再做。O-28（上）把「连接」「白名单成员」做成了网页「软件后台」里的后台页（第一条「后台页」，2026-10-10 项目主人定）；这里的网页、`onebot.web`、一次性码登录、`miyu-onebot web` 这一步照旧，O-28（下）去掉。
 
 **共用的底子**：给页面文件、核对 Host 和 Origin、`/ws` 原样转给核心、安全响应头、带一次性码打开浏览器，这几样网页软件（`web-ui.md` 第一条、第二条）已经写好了，从 `miyu-web` 抽进一个第 3 层的新 crate，`miyu-web` 和 `miyu-onebot` 都用它，`miyu-web` 的行为一个字节不变（18 第三节「抽成两边共用的库，不抄一份」）。这个 crate 叫 `miyu-webserve`，在第 3 层，交出什么、从哪搬来见 `webserve.md`（「施工时定的」第 1 条）。
 

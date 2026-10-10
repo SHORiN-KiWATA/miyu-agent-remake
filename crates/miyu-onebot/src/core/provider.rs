@@ -4,12 +4,14 @@
 //! - 登记（[`provide`]）：经并着发的调用口发，写出去就交回等回应、记运行日志的那一段（「施工时定的」第 139 条）：核心一个连接的
 //!   请求照先后一条条办，先写出去的先登记；回应不等，核心那一头慢了、不答，桥照样起来。被拒了只记一行 `ERROR`，话照说。
 //! - 答请求（[`heard`]）：读的一头读到一行就问它（`core.rs` 的 `read_lines`），不交给跟核心的那一头：那一头手上可能正等着别的
-//!   回应，核心那边的回合在等这一次调用（第 140 条）。回应另起一个小任务写，读的一头接着读。
+//!   回应，核心那边的回合在等这一次调用（第 140 条）。回应另起一个小任务写，读的一头接着读。后台页调的方法（`method.call`，
+//!   施工 O-28 上）也从这里交给 `super::methods` 答。
 
 use serde_json::{Value, json};
 
 use super::caller::{Caller, Writer, write_line};
 use crate::TARGET;
+use crate::core::methods::Methods;
 use crate::core::{Gone, reason};
 use crate::rules::Tools;
 
@@ -24,8 +26,9 @@ pub(super) enum Heard {
     Other(Value),
 }
 
-/// 核心说的一行 `message` 分成哪一种；请求照 `tools` 答好（「提供者和不说话」第 2 条）。
-pub(super) fn heard(tools: &Tools, message: Value) -> Heard {
+/// 核心说的一行 `message` 分成哪一种；请求照 `tools` 答好（「提供者和不说话」第 2 条），`method.call` 照 `methods` 答（施工
+/// O-28 上，「后台页」第 2 条）。
+pub(super) fn heard(tools: &Tools, methods: &Methods, message: Value) -> Heard {
     let Some(method) = message["method"].as_str() else {
         return Heard::Other(message);
     };
@@ -38,6 +41,9 @@ pub(super) fn heard(tools: &Tools, message: Value) -> Heard {
         return Heard::Cancelled;
     }
     let id = message["id"].clone();
+    if method == "method.call" {
+        return Heard::Asked(methods.answer(id, &message["params"]));
+    }
     if method != "tool.call" {
         tracing::warn!(target: TARGET, method, "core request not understood");
         let error = json!({"code": -32601, "message": "unknown_method", "data": {"reason": "unknown_method"}});

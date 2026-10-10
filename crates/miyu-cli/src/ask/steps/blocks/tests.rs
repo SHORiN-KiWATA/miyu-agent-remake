@@ -135,18 +135,18 @@ fn a_command_not_run_says_why_on_its_title() {
             false
         ),
         (
-            "$ rm -rf build · 没做：要确认，这里没人能确认\n".to_string(),
+            "$ rm -rf build · 没做：需要确认，无人确认\n".to_string(),
             false
         )
     );
     // 几行的命令，续行照样在下面。
     let (text, block) = drawn("shell", &json!({"command": "a\nb"}), &result, false, false);
-    assert_eq!(text, "$ a · 没做：要确认，这里没人能确认\n> b\n");
+    assert_eq!(text, "$ a · 没做：需要确认，无人确认\n> b\n");
     assert!(block);
     // 没有命令的：只写符号。
     assert_eq!(
         drawn("shell", &json!({}), &result, false, false).0,
-        "$ · 没做：要确认，这里没人能确认\n"
+        "$ · 没做：需要确认，无人确认\n"
     );
 }
 

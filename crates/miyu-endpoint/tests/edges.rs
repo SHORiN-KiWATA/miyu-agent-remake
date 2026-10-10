@@ -56,10 +56,10 @@ async fn a_refused_hello_speaks_the_language_it_asked_for() {
         )
         .await;
     assert_eq!(reason(&reply), Some("bad_token"), "{reply}");
-    assert_eq!(reply["error"]["message"], json!("本机令牌不对。"));
+    assert_eq!(reply["error"]["message"], json!("本机令牌无效。"));
 }
 
-/// 人格的目录不存在：没有这个人格。目录在、里面读不了（安装坏了）：内部出错。
+/// 人格的目录不存在：人格不存在。目录在、里面读不了（安装坏了）：内部出错。
 #[tokio::test]
 async fn a_broken_persona_is_an_internal_error() {
     let home = Home::new();

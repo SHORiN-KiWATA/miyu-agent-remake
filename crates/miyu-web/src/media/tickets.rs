@@ -1,6 +1,6 @@
-//! 票据（`web-ui.md`「怎么走」第三条第 4 款）：32 个随机字节，64 位小写十六进制，只记在网页软件的内存里。同一个登录令牌、
-//! 同一个资源、同样三格（`type`、`name`、`download`）的交回原来那一张；多久没用过的作废；满了丢最久没用的。网页软件重启，
-//! 票据全作废。
+//! 票据（`web-ui.md`「怎么走」第三条第 4 款、第四条第 3 款）：32 个随机字节，64 位小写十六进制，只记在网页软件的内存里。
+//! 要的东西一样的（同一个登录令牌、同一个资源、同样几格）交回原来那一张；多久没用过的作废；满了丢最久没用的。网页软件重启，
+//! 票据全作废。`/media` 和软件后台页（`/p/`）各一份，要的东西各是各的（施工 F-6 下）。
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -14,7 +14,13 @@ pub(crate) enum Source {
     Path(String),
 }
 
-/// 一张票据管的：谁换的、给什么、怎么给。
+/// 一张票据要的东西：认得出是哪个登录令牌换的（令牌作废了，它的票据一起作废）。
+pub(crate) trait Owned: Clone + PartialEq {
+    /// 换票据的登录令牌。
+    fn login(&self) -> &str;
+}
+
+/// `/media` 的一张票据管的：谁换的、给什么、怎么给。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Wanted {
     /// 换票据的登录令牌：给的时候照它连核心。
@@ -28,22 +34,28 @@ pub(crate) struct Wanted {
     pub(crate) download: bool,
 }
 
-struct Entry {
-    wanted: Wanted,
+impl Owned for Wanted {
+    fn login(&self) -> &str {
+        &self.login
+    }
+}
+
+struct Entry<W> {
+    wanted: W,
     used: Instant,
 }
 
 /// 全部的票据。
-pub(crate) struct Tickets {
-    entries: HashMap<String, Entry>,
+pub(crate) struct Tickets<W> {
+    entries: HashMap<String, Entry<W>>,
     /// 多久没用过的作废。
     idle: Duration,
     /// 最多几张。
     most: usize,
 }
 
-impl Tickets {
-    pub(crate) fn new(idle: Duration, most: usize) -> Tickets {
+impl<W: Owned> Tickets<W> {
+    pub(crate) fn new(idle: Duration, most: usize) -> Tickets<W> {
         Tickets {
             entries: HashMap::new(),
             idle,
@@ -52,7 +64,7 @@ impl Tickets {
     }
 
     /// 换一张：一样的交回原来那一张，不然用 `fresh` 造一张新的。
-    pub(crate) fn issue(&mut self, wanted: Wanted, fresh: impl FnOnce() -> String) -> String {
+    pub(crate) fn issue(&mut self, wanted: W, fresh: impl FnOnce() -> String) -> String {
         self.sweep();
         let now = Instant::now();
         if let Some((ticket, entry)) = self
@@ -81,7 +93,7 @@ impl Tickets {
     }
 
     /// 照票据找：认识的记一次用过。
-    pub(crate) fn find(&mut self, ticket: &str) -> Option<Wanted> {
+    pub(crate) fn find(&mut self, ticket: &str) -> Option<W> {
         self.sweep();
         let entry = self.entries.get_mut(ticket)?;
         entry.used = Instant::now();
@@ -90,7 +102,8 @@ impl Tickets {
 
     /// 这个登录令牌的票据全作废（令牌作废了）。
     pub(crate) fn revoke(&mut self, login: &str) {
-        self.entries.retain(|_, entry| entry.wanted.login != login);
+        self.entries
+            .retain(|_, entry| entry.wanted.login() != login);
     }
 
     /// 丢掉多久没用过的。

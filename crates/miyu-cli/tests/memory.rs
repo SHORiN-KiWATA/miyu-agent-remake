@@ -176,10 +176,7 @@ async fn list_add_search_edit_and_forget() {
 
     let again = run(&home, &["edit", "m1", "再改一次"]).await;
     assert_eq!(again.code, 1);
-    assert_eq!(
-        again.err, "这一条已经改掉、作废或者清掉了。\n",
-        "照核心的原话"
-    );
+    assert_eq!(again.err, "记忆已失效。\n", "照核心的原话");
     let long = "长".repeat(121);
     let too_long = run(&home, &["add", &long]).await;
     assert_eq!(too_long.code, 1);
@@ -188,10 +185,7 @@ async fn list_add_search_edit_and_forget() {
         "照 data 说清楚，不说「在 data 里」"
     );
     let unknown = run(&home, &["forget", "m99"]).await;
-    assert_eq!(
-        (unknown.code, unknown.err.as_str()),
-        (1, "没有这一条记忆。\n")
-    );
+    assert_eq!((unknown.code, unknown.err.as_str()), (1, "记忆不存在。\n"));
 }
 
 #[tokio::test]
@@ -244,7 +238,7 @@ async fn which_room_and_wrong_arguments() {
     let home = Home::new(Arc::new(Script::new([])));
     let no_persona = run(&home, &["list"]).await;
     assert_eq!(no_persona.code, 1, "没设默认人格：照核心的原话");
-    assert!(no_persona.err.contains("没有人格"), "{}", no_persona.err);
+    assert!(no_persona.err.contains("记忆不可用"), "{}", no_persona.err);
     let named = run(&home, &["add", "--persona", "engineer", "用户养猫"]).await;
     assert_eq!(
         (named.code, named.out.as_str()),
@@ -291,13 +285,13 @@ async fn dream_organizes_now_and_says_how_much() {
         (dreamed.code, dreamed.out.as_str()),
         (
             0,
-            "整理完了：看了 2 条，改了 0 条，作废 1 条，摘要更新了。\n"
+            "整理完成：检查 2 条，修改 0 条，作废 1 条，摘要已更新。\n"
         ),
         "{}",
         dreamed.err
     );
     let again = run(&home, &["dream"]).await;
-    assert_eq!((again.code, again.out.as_str()), (0, "没有要整理的。\n"));
+    assert_eq!((again.code, again.out.as_str()), (0, "无需整理。\n"));
     assert_eq!(server.received().len(), 1, "没有要整理的不发");
     let forgotten = run(&home, &["list", "--forgotten"]).await;
     assert!(

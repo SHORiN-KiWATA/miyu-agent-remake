@@ -98,7 +98,7 @@ fn a_reply_is_one_line() {
         json!({
             "jsonrpc": "2.0",
             "id": "c1",
-            "error": {"code": -32010, "message": "没有这个会话。", "data": {"reason": "session_not_found"}},
+            "error": {"code": -32010, "message": "会话不存在。", "data": {"reason": "session_not_found"}},
         })
     );
 }

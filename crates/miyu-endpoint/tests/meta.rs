@@ -261,7 +261,7 @@ async fn wrong_params_are_refused_before_looking_for_the_session() {
     )
     .await;
     assert_eq!(reason(&reply), Some("session_not_found"), "{reply}");
-    assert_eq!(reply["error"]["message"], json!("没有这个会话。"));
+    assert_eq!(reply["error"]["message"], json!("会话不存在。"));
     assert!(meta_events(&home.log(&session)).is_empty());
 }
 

@@ -63,7 +63,7 @@ async fn without_the_package_memory_methods_say_it_is_not_installed_and_nothing_
             Some("memory_not_installed"),
             "{method}：{reply}"
         );
-        assert_eq!(reply["error"]["message"], "没装人格记忆。", "{reply}");
+        assert_eq!(reply["error"]["message"], "人格记忆未安装。", "{reply}");
     }
     restore(&mut client).await;
     let listed = client.call("l1", "memory.list", json!({})).await;
@@ -88,7 +88,7 @@ async fn without_the_package_remember_is_refused_and_not_listed() {
         )
         .await;
     assert_eq!(reason(&reply), Some("memory_unavailable"), "{reply}");
-    assert_eq!(reply["error"]["data"]["why"], "没装人格记忆。");
+    assert_eq!(reply["error"]["data"]["why"], "人格记忆未安装。");
     let reply = client
         .call("c2", "command.catalog", json!({"session": session}))
         .await;
