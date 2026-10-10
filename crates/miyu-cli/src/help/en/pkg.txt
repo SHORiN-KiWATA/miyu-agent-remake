@@ -5,7 +5,7 @@ Without a command it is list.
 
 Commands:
   list                    List packages
-  install <manifest|id>   Install a manifest (path to <id>.toml), or bring back a removed shipped one
+  install <folder|id>     Install a package folder (with package.toml in it), or bring back a removed shipped one
   remove <id>             Remove a package
 
 Options:

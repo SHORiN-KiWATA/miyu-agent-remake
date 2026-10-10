@@ -320,14 +320,14 @@ async fn what_cannot_start_says_why_and_wrong_packages_are_refused() {
         &[],
     );
     home.write(
-        "home/alice/packages/future.toml",
+        "home/alice/packages/future/package.toml",
         &format!(
             "[package]\nkind = \"process\"\nprotocol = [2, 3]\nname = {{ en = \"F\" }}\n\n[command]\nname = \"future\"\nprogram = \"{}\"\nabout = {{ en = \"F\" }}\n",
             program.name()
         ),
     );
     home.write(
-        "home/alice/packages/face.toml",
+        "home/alice/packages/face/package.toml",
         "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = { en = \"Face\" }\n",
     );
     let core = core(&home, quick());

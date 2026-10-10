@@ -40,7 +40,7 @@ fn a_marker_is_found_anywhere() {
 
 #[test]
 fn the_reply_is_an_openai_chat_stream() {
-    let body = stream_body("你好 \"quoted\"");
+    let body = stream_body("你好 \"quoted\"", 1000, 800);
     let chunks: Vec<&str> = body
         .split("\n\n")
         .filter(|chunk| !chunk.is_empty())
@@ -100,4 +100,34 @@ async fn it_answers_and_hands_over_the_marked_request() {
 
     let arrival = fake.request_with("perf-1").await.unwrap();
     assert_eq!(arrival.body, body.as_bytes());
+}
+
+/// 回答里收尾那一块的用量：照请求体估的输入、照正文估的输出（施工 V-2 上）。
+fn usage_of(stream: &str) -> serde_json::Value {
+    stream
+        .lines()
+        .filter_map(|line| line.strip_prefix("data: "))
+        .filter_map(|data| serde_json::from_str::<serde_json::Value>(data).ok())
+        .find_map(|chunk| chunk.get("usage").cloned())
+        .expect("收尾那一块带用量")
+}
+
+#[test]
+fn usage_follows_the_size_of_the_request() {
+    let small = answer(&[b'x'; 4_000], "reply");
+    let large = answer(&[b'x'; 400_000], "reply");
+    assert_eq!(usage_of(&small)["prompt_tokens"], 1_000);
+    assert_eq!(usage_of(&large)["prompt_tokens"], 100_000);
+    assert!(small.contains("reply"), "{small}");
+}
+
+#[test]
+fn a_summary_request_gets_a_summary() {
+    let body =
+        br#"{"messages":[{"content":"Write a detailed summary of the conversation above. ..."}]}"#;
+    let answered = answer(body, "ordinary reply");
+    assert!(answered.contains("<summary>"), "{answered}");
+    assert!(!answered.contains("ordinary reply"), "{answered}");
+    let ordinary = answer(b"{\"messages\":[]}", "ordinary reply");
+    assert!(!ordinary.contains("<summary>"), "{ordinary}");
 }

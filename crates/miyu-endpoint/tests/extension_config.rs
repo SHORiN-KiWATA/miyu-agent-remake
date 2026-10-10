@@ -78,7 +78,7 @@ async fn the_handshake_hands_over_its_own_settings_and_changes_follow() {
     let program = Program::new();
     let (path, keep) = record(&home, "echo");
     home.write(
-        "home/alice/packages/echo.toml",
+        "home/alice/packages/echo/package.toml",
         &manifest(&program.name(), &steps(&[&keep, "hello", "listen"])),
     );
     home.write(

@@ -144,7 +144,7 @@ async fn software_without_tools_is_pinned_off_but_left_out_of_the_line() {
     // 程序要在测试程序旁边：不在的当没装（施工 F-6 上）。
     let program = crate::support::extensions::Program::new();
     home.write(
-        "home/alice/packages/quiet.toml",
+        "home/alice/packages/quiet/package.toml",
         &format!(
             "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"Quiet\" }}\n\n[command]\nname = \"quiet\"\nprogram = \"{}\"\nabout = {{ en = \"Q\" }}\n\n[process]\nargs = []\n",
             program.name()

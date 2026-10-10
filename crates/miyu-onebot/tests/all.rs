@@ -16,6 +16,7 @@ mod control;
 mod core;
 mod dependencies;
 mod disciplines;
+mod followed;
 mod frames;
 mod group;
 mod ids;

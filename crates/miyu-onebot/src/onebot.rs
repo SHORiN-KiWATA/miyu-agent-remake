@@ -66,6 +66,28 @@ pub fn command_id(bot: i64, message_id: i64, time: i64) -> String {
     format!("{PLATFORM}:{bot}:{message_id}:{time}")
 }
 
+/// 命令编号 `id` 是哪个机器人号收进来的：[`command_id`] 拼的 `qq:<机器人的号>:…` 的第二段（施工 O-32：桥起来时照日志里最近一条
+/// 人话认，「群里怎么叫她」第 1 条）。后面加了 `/decided` 这类的也认。别的平台、不是这样拼的（自己编的）是空的。
+pub fn bot_of(id: &str) -> Option<i64> {
+    let mut parts = id.split(':');
+    if parts.next()? != PLATFORM {
+        return None;
+    }
+    parts.next()?.parse().ok()
+}
+
+/// 场所 `venue` 发到哪（施工 O-32）：平台是 [`PLATFORM`] 的，私聊发给对方、群发进群；别的平台、号不是整数的是空的。
+pub fn to_of(venue: &Venue) -> Option<To> {
+    if venue.platform() != PLATFORM {
+        return None;
+    }
+    let number = venue.number().parse().ok()?;
+    Some(match venue.kind() {
+        VenueKind::Private => To::Private(number),
+        VenueKind::Group => To::Group(number),
+    })
+}
+
 /// 一条消息：私聊的或者群里的（第 5 条，「群消息」第 1 条）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Posted {

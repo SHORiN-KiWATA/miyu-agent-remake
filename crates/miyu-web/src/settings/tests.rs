@@ -1,4 +1,4 @@
-//! 网页软件的数（施工 9-1 下）：默认值照清单 `packages/web.toml`，常量照 `web/web.json`；核心交回的最终值盖上去，不合范围的
+//! 网页软件的数（施工 9-1 下）：默认值照清单 `packages/web/package.toml`，常量照 `web/web.json`；核心交回的最终值盖上去，不合范围的
 //! 照旧。
 
 use std::path::Path;

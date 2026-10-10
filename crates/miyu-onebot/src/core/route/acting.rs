@@ -213,7 +213,7 @@ impl Route {
 
     /// 把会话 `session` 留着的推送收进来：群的进投影（同「群里怎么叫她」第 3 条），私聊的照「怎么走」第 9 条那条路（记下最近一条
     /// 的引用）。
-    async fn gather(&mut self, session: &str) -> Result<(), Gone> {
+    pub(super) async fn gather(&mut self, session: &str) -> Result<(), Gone> {
         if self.groups.contains_key(session) {
             return self.catch_up(session).await;
         }

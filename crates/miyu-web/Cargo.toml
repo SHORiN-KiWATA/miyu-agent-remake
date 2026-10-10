@@ -18,7 +18,7 @@ path = "src/main.rs"
 miyu-ipc = { path = "../miyu-ipc" }
 # 数据根、资源目录在哪。
 miyu-store = { path = "../miyu-store" }
-# 读自己的清单 `packages/web.toml`：端口、空闲、票据那几项的默认值（施工 9-1 下）。
+# 读自己的清单 `packages/web/package.toml`：端口、空闲、票据那几项的默认值（施工 9-1 下）。
 miyu-config = { path = "../miyu-config" }
 # 运行日志 `state/logs/web.log`，满了照核心的换法。
 miyu-log = { path = "../miyu-log" }

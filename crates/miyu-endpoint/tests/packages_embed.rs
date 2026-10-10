@@ -57,12 +57,11 @@ impl Builtins for Port {
 /// 小程序包的清单。
 const XEMBED: &str = "[package]\nkind = \"worker\"\nprotocol = [1, 1]\nname = { en = \"X model\" }\n\n[worker]\nprogram = \"miyu-nothing\"\n";
 
-/// 要装的那一份放在工作目录：清单，旁边的包目录里一份模型清单，模型名是 `id`（文件不摆：只看名字，不算）。
+/// 要装的那个包放在工作目录：文件夹里一份包清单、一份模型清单，模型名是 `id`（文件不摆：只看名字，不算）。交回文件夹。
 fn source(home: &Home, id: &str) -> std::path::PathBuf {
-    let path = home.work.join("xembed.toml");
-    std::fs::write(&path, XEMBED).expect("写得进");
     let dir = home.work.join("xembed");
     std::fs::create_dir_all(&dir).expect("建得了");
+    std::fs::write(dir.join("package.toml"), XEMBED).expect("写得进");
     let zero = "0".repeat(64);
     let model = format!(
         "id = \"{id}\"\ndims = 4\npooling = \"cls\"\nmax_tokens = 6\n\n\
@@ -70,7 +69,7 @@ fn source(home: &Home, id: &str) -> std::path::PathBuf {
          [[files]]\nrole = \"vocab\"\nname = \"vocab.txt\"\nsha256 = \"{zero}\"\nsize = 1\n"
     );
     std::fs::write(Path::new(&dir).join("model.toml"), model).expect("写得进");
-    path
+    dir
 }
 
 /// `config.schema` 里「内置模型」那一个选项。

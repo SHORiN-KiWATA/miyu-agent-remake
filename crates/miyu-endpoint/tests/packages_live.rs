@@ -120,7 +120,7 @@ async fn ping(client: &mut Client) -> Value {
 #[tokio::test]
 async fn a_removed_builtin_leaves_old_sessions_saying_uninstalled_and_comes_back() {
     let home = Home::new();
-    home.write("home/alice/packages/xkit.toml", XKIT);
+    home.write("home/alice/packages/xkit/package.toml", XKIT);
     let script = Script::new([
         Play::Says("在。"),
         Play::calls(&[("xprobe", "{}")]),
@@ -163,13 +163,11 @@ async fn a_removed_builtin_leaves_old_sessions_saying_uninstalled_and_comes_back
         "新开的会话没有"
     );
 
-    std::fs::write(home.work.join("xkit.toml"), XKIT).expect("写得进");
+    let source = home.work.join("xkit");
+    std::fs::create_dir_all(&source).expect("建得了");
+    std::fs::write(source.join("package.toml"), XKIT).expect("写得进");
     let back = client
-        .call(
-            "i1",
-            "package.install",
-            json!({"path": home.work.join("xkit.toml")}),
-        )
+        .call("i1", "package.install", json!({"path": source}))
         .await;
     assert_eq!(back["result"]["package"], "xkit", "{back}");
     assert_eq!(

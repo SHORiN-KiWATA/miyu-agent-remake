@@ -28,8 +28,10 @@ async fn pkg_lists_installs_and_removes_through_a_real_core() {
         .expect("拉得起");
     let cwd = home.dir.with_extension("work");
     std::fs::create_dir_all(&cwd).expect("建得了目录");
-    std::fs::write(cwd.join("xpkg.toml"), XPKG).expect("写得进");
-    std::fs::write(cwd.join("bad.toml"), "[package]\nkind = \"process\"\n").expect("写得进");
+    for (id, text) in [("xpkg", XPKG), ("bad", "[package]\nkind = \"process\"\n")] {
+        std::fs::create_dir_all(cwd.join(id)).expect("建得了目录");
+        std::fs::write(cwd.join(id).join("package.toml"), text).expect("写得进");
+    }
     let zh = "zh_CN.UTF-8";
 
     let listed = run(&root, &cwd, zh, &["pkg"]).await;
@@ -40,7 +42,7 @@ async fn pkg_lists_installs_and_removes_through_a_real_core() {
         "{text}"
     );
 
-    let installed = run(&root, &cwd, zh, &["pkg", "install", "xpkg.toml"]).await;
+    let installed = run(&root, &cwd, zh, &["pkg", "install", "./xpkg"]).await;
     assert_eq!(stdout(&installed), "装好了：xpkg\n", "{installed:?}");
     let text = stdout(&run(&root, &cwd, zh, &["pkg", "list"]).await);
     assert!(
@@ -64,7 +66,7 @@ async fn pkg_lists_installs_and_removes_through_a_real_core() {
     let required = run(&root, &cwd, zh, &["pkg", "remove", "basesystem"]).await;
     assert_eq!(required.status.code(), Some(1));
     assert_eq!(stderr(&required), "必需的软件包，无法卸载。\n");
-    let bad = run(&root, &cwd, zh, &["pkg", "install", "bad.toml"]).await;
+    let bad = run(&root, &cwd, zh, &["pkg", "install", "bad/"]).await;
     assert_eq!(bad.status.code(), Some(1));
     assert!(stderr(&bad).starts_with("装不上："), "{}", stderr(&bad));
 

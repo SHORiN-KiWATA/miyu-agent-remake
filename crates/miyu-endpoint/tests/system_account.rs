@@ -313,12 +313,8 @@ async fn a_package_installed_later_gets_its_system_account_at_once() {
         "always",
         true,
     );
-    let source = home.work.join("bot.toml");
-    std::fs::rename(
-        home.root.path().join("home/alice/packages/bot.toml"),
-        &source,
-    )
-    .expect("挪得动");
+    let source = home.work.join("bot");
+    std::fs::rename(home.root.path().join("home/alice/packages/bot"), &source).expect("挪得动");
     let mut client = Client::connect(core.clone());
     client.hello().await;
     let reply = client

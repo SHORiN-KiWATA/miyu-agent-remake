@@ -187,6 +187,10 @@ pub(crate) async fn call(
         "venue.session" => {
             venues::session(core, &caller.account, request.id.clone(), params(request)?).await
         }
+        "venue.sessions" => {
+            let params: venues::SessionsParams = params(request)?;
+            venues::sessions(core, &caller.account, params).await
+        }
         "session.send" => {
             let params: SendParams = params(request)?;
             // 别的 harness 报的名字先查（施工 7-10）：不对的，会话里什么都不送。代表外部的人（施工 O-3）和它不能同时写。

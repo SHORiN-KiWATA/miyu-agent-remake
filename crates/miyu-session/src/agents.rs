@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use miyu_config::Values;
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::Permission;
+use miyu_kernel::event::{Effect, JobKind, JobStarted, Permission};
 use miyu_kernel::id::{AccountId, CommandId, JobId, SessionId, VenueId};
 use miyu_kernel::origin::{By, Session};
 use miyu_kernel::session::{Command, Outcome};
@@ -337,6 +337,12 @@ impl AgentPort for Spawner {
                 tracing::warn!(target: TARGET, job = job_text.as_str(), error = error.as_str(), "subagent not created");
                 NotSpawned
             })?;
+            // 造好了、还没交回：这时被掐掉（打断、来了一句话），守着的停掉它（施工 7-5 补）。
+            let mut unclaimed = Unclaimed {
+                agents: Arc::clone(agents),
+                job: job.clone(),
+                child: Some(session.clone()),
+            };
             // 交代原样送进去，不加包装：子会话的场所说明已经说了它来自父会话（第一条第 2 条）。
             let by = By::Session(Session { id: parent.clone() });
             let send = Command::Send {
@@ -358,6 +364,7 @@ impl AgentPort for Spawner {
             let why = match sent {
                 Ok(Outcome::Accepted { .. } | Outcome::Recapped { .. }) => {
                     tracing::info!(target: TARGET, job = job_text.as_str(), child = session.as_str(), "subagent started");
+                    unclaimed.child = None;
                     return Ok(Spawned { job, session });
                 }
                 Ok(Outcome::Rejected { reason, .. }) => {
@@ -376,6 +383,59 @@ impl AgentPort for Spawner {
 
     fn personas(&self) -> &[String] {
         &self.agents.personas
+    }
+}
+
+/// 造好了、还没交回的子会话（施工 7-5 补，`agents.md` 第一条第 9 条）：派到一半被掐掉的，丢掉时停掉它，不留没人管的
+/// 子代理；交回了就不管（`child` 拿走）。
+struct Unclaimed {
+    agents: Arc<Agents>,
+    job: JobId,
+    child: Option<SessionId>,
+}
+
+impl Drop for Unclaimed {
+    fn drop(&mut self) {
+        if let Some(child) = self.child.take() {
+            self.agents.stop_unclaimed(&self.job, child);
+        }
+    }
+}
+
+/// 一份结果的效果里派出去的子代理：任务编号和子会话（施工 7-5 补）。后台命令、没有子会话的不算。
+pub(crate) fn spawned_in(effects: &[Effect]) -> Vec<(JobId, SessionId)> {
+    effects
+        .iter()
+        .filter_map(|effect| match effect {
+            Effect::JobStarted(JobStarted {
+                job,
+                what: JobKind::Agent,
+                session: Some(child),
+                ..
+            }) => Some((job.clone(), child.clone())),
+            _ => None,
+        })
+        .collect()
+}
+
+impl Agents {
+    /// 停掉一个没人管的子会话（施工 7-5 补）：派到一半被掐掉的，派完了结果却没人要的（调用已经被掐掉，`tools/back.rs`）。
+    /// 在别的任务里发，不等；核心正在停、没有运行时的不发，父会话下次载入时照样收掉它（第一条第 8 条）。
+    pub(crate) fn stop_unclaimed(&self, job: &JobId, child: SessionId) {
+        let Ok(runtime) = tokio::runtime::Handle::try_current() else {
+            return;
+        };
+        let port = Arc::clone(&self.port);
+        let id = command_id(&self.session, job, "/stop");
+        let by = By::Session(Session {
+            id: self.session.clone(),
+        });
+        tracing::info!(target: TARGET, job = job.to_string().as_str(), child = child.as_str(), "unclaimed subagent stopped");
+        runtime.spawn(async move {
+            if let Err(error) = port.stop(child, id, by).await {
+                tracing::warn!(target: TARGET, error = error.as_str(), "unclaimed subagent not stopped");
+            }
+        });
     }
 }
 

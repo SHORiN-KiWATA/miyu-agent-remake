@@ -9,7 +9,7 @@
 - **代表外部的人说话**：`session.send` 多一格 `as`，桥说明这一句是平台上的谁说的、他在场所里是什么身份。代表别人只能降权：认主人是核心自己查表。
 - **不在本机的头上**：场所会话不进 `session.list`、`sessions.changed`，跨会话的工具也不列它们（`18-通讯平台.md` 第十一节）。
 
-状态：图纸，施工 O-3 做了（2026-10-07 主会话；形状给通讯平台的会话对过，对应表的写法、换了属主怎么找回由项目主人同一天定）。由施工 O-3 做，斜杠命令施工 O-6 做了（2026-10-07 主会话；命令名、`/stop` 停到哪由项目主人同一天定），属主是系统账号 `onebot` 的场所会话施工 O-4 下做了（2026-10-09 主会话；回应带 `account` 是通讯平台的会话同一天要的）。
+状态：图纸，施工 O-3 做了（2026-10-07 主会话；形状给通讯平台的会话对过，对应表的写法、换了属主怎么找回由项目主人同一天定）。由施工 O-3 做，斜杠命令施工 O-6 做了（2026-10-07 主会话；命令名、`/stop` 停到哪由项目主人同一天定），属主是系统账号 `onebot` 的场所会话施工 O-4 下做了（2026-10-09 主会话；回应带 `account` 是通讯平台的会话同一天要的）。`venue.binding` 施工 O-31 前、`venue.sessions` 施工 O-32 前做了（通讯平台的会话写、核心审）。
 
 ### 在哪
 
@@ -20,9 +20,11 @@
 | `crates/miyu-kernel/src/origin.rs` | `Person` 多 `via`（私聊里经哪个平台身份认出来的本人）；`External` 多 `account`（对应表里对着的本机账号）、`role`（桥报的场所里的身份） |
 | `crates/miyu-store/src/index.rs`、`index/row.rs` | 索引一行多 `venue`，版本 3 |
 | `crates/miyu-endpoint/src/venues.rs` | `venue.session`：照场所加属主找回或者造；`as` 怎么认、记成谁（照会话的属主比，施工 O-4 下）；`venue.binding`：问一个平台身份在对应表里对着谁（施工 O-31 前） |
+| `crates/miyu-endpoint/src/venues/sessions.rs`（施工 O-32 前） | `venue.sessions`：列出系统账号名下的场所会话和终端管理员在这个平台的私聊，每个场所一个 |
 | `crates/miyu-endpoint/src/venues/message.rs`、`crates/miyu-kernel/src/event/venue.rs` | `session.send` 的 `venue` 怎么查、记成什么（施工 O-13 上） |
 | `crates/miyu-endpoint/src/appending.rs` | `events.append`：种类、大小、格怎么查，记成谁（施工 O-13 上） |
 | `crates/miyu-endpoint/tests/venue_binding.rs`（施工 O-31 前） | `venue.binding`：系统账号的扩展问对着管理员的、没写的、对着不存在的账号的；写错的、多写格的、一次问几个的 `bad_params`；本机的头 `no_system_account`；只读 |
+| `crates/miyu-endpoint/tests/venue_sessions.rs`（施工 O-32 前） | `venue.sessions`（两、三份核心先后起在同一个数据根上）：列得出、从新到旧；终端管理员这个平台的私聊列得出；删了的、别的平台的、系统账号自己造的本机会话不列；从回收处拿回来的旧的、属主换过的旧的不列；对应表里没有这个平台的身份了，管理员名下的不列；多写格的 `bad_params`；本机的头 `no_system_account` |
 | `crates/miyu-endpoint/src/venues/records.rs` | `venue.records`：照会话日志和快照里的时区渲染判官看的记录（施工 O-24） |
 | `crates/miyu-endpoint/tests/venue_judge.rs` | `venue.records` 的写法、写错的、没有的会话（施工 O-24） |
 | `crates/miyu-endpoint/src/responding.rs` | `session.respond`：参数怎么查，交给内核的 `Respond`（施工 O-14 上）；`session.note`：交给内核的 `Note`，事实的查法两边共用（施工 O-14 补） |
@@ -54,6 +56,15 @@
 1. 一次只问一个号；只读，对应表照旧。照这时的配置答（对应表改了，下一次问照新的）。
 2. 只给系统账号的连接（核心拉起的、清单声明了系统账号的包的扩展，同 `venue.session` 第 1 条）；别的连接回 `no_system_account`。
 3. `id` 写错的（不合短名字的写法，例如空的）、多写格的、少写的回 `bad_params`。
+
+**列场所会话**（施工 O-32 前，2026-10-11 和通讯平台的会话对过形状：桥起来就订阅，不等每个场所来一条消息才找；终端管理员的私聊同一天核心审时定的）：`venue.sessions {}`，回应 `{"sessions": [{"session": <编号>, "venue": <场所>}, …]}`，从新到旧（照会话编号，就是照造的先后）。只给这两格。
+
+1. 每个场所只看最新的那一个主会话（场所不是 `local` 的；照核心认的账号名下各自的看，删了的不算），属主是下面两种的列：
+   - 这个连接的系统账号：就是 `venue.session` 照「场所加属主」找回的那一个。
+   - 场所编号的平台前缀（第一个 `:` 前面那一段）是这个包清单 `[connection] platform` 的，属主是对应表里这个平台的身份（键的前缀同样写法）对着的本机账号（现在只有管理员）：终端管理员在这个平台的私聊。平台只认前缀，不算解读场所编号；清单没写 `[connection]` 的只列自己名下的。对应表里的账号现在只认管理员（`core.admin`），对着别的账号的不算：多用户以后再看这里。
+2. 别的不列：属主换过、旧的留在系统账号名下的（私聊的对方后来写进对应表、再来一句造在主人名下，这个场所最新的是主人那一个，列它）；别的平台的；对应表里已经没有这个平台的身份对着那个账号的。对方写进对应表、还没来过一句的，主人名下还没有，系统账号名下旧的照列。写进又删掉的：这个场所最新的在主人名下，主人又没有这个平台的身份对着了，两个都不列；`venue.session` 这时找回的是系统账号名下旧的那一个，等那个私聊来一句再找（核心认不出私聊的对方是谁，只照属主和前缀）。
+3. 不分页：一个系统账号名下的场所是它进过的群和私聊，桥起来时一次要全。
+4. 只给系统账号的连接，别的连接回 `no_system_account`（同 `venue.binding`）。多写格的回 `bad_params`。只读。
 
 **`venue.session`**（命令）：找回或者造一个场所的主线会话。
 

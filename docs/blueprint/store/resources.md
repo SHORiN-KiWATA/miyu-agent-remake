@@ -59,7 +59,7 @@
 │   ├── jobs/<哪一份>.txt                 两种回报的写法，11 份（施工 7-2）；回报截在中间的那一行（施工 7-6）；留言的标签，2 份（施工 7-7）；人停的那一句（施工 7-2 补）
 │   └── human/zh.json、en.json、ja.json   给人看的字
 ├── personas/<人格>/prompts/persona.md    人设；出厂的只有 engineer
-├── packages/<编号>.toml                  软件包清单：出厂的只有 web（施工 9-1 上，`packages.md`）
+├── packages/<编号>/package.toml          软件包：一个文件夹一个包，清单在里面（施工 9-1 上、F-8 上，`packages.md`）
 ├── presets/<编号>.toml                   预设：出厂的 full、dev（施工 P-2 上，`presets.md`）
 └── software/<软件包>/                    出厂的有 basesystem、mermaid、net、onebot
     ├── tools/<工具>.json                 给模型看的说明和参数格式（basesystem）

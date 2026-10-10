@@ -1,13 +1,17 @@
 //! 沙盒数据根和拉起的核心（施工 V-1）：照 `cargo xtask dev-home` 的写法建骨架、写一份系统配置，模型指到假服务。
 //!
 //! 环境照集成测试拉核心的那一套（`crates/miyu/tests/support`）：不去 models.dev 拉目录，缓存目录放进数据根，不用
-//! `$XDG_RUNTIME_DIR`，不走代理。模型的资料不写窗口，所以没有压缩线，长会话不会自动压（`models.md`「模型的资料」）。
+//! `$XDG_RUNTIME_DIR`，不走代理。模型的窗口写成 [`WINDOW`]（施工 V-2 上）：长会话照真用时那样到线就压，量的是压过的会话；
+//! V-1 没写窗口，会话一直不压，大会话的投影是把一万条事件整份组装，真用时到不了。
 
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
+
+/// 量尺的模型的上下文窗口（施工 V-2 上）：常见的 20 万，压缩线 17 万。
+pub const WINDOW: u64 = 200_000;
 
 use miyu_ipc::Lock;
 use miyu_store::env::{Env, Platform};
@@ -57,7 +61,7 @@ impl Sandbox {
         .map_err(|e| format!("数据根找不到：{e}"))?;
         root.prepare().map_err(|e| format!("数据根建不了：{e}"))?;
         let config = format!(
-            "[providers.perf]\ndriver = \"openai-chat\"\nbase_url = \"{base_url}\"\nkey = {{ env = \"MIYU_PERF_KEY\" }}\n\n[models]\nchat = \"perf/perf-model\"\n"
+            "[providers.perf]\ndriver = \"openai-chat\"\nbase_url = \"{base_url}\"\nkey = {{ env = \"MIYU_PERF_KEY\" }}\n\n[providers.perf.models.perf-model]\nwindow = {WINDOW}\n\n[models]\nchat = \"perf/perf-model\"\n"
         );
         std::fs::write(root.system().join("config.toml"), config)
             .map_err(|e| format!("系统配置写不进：{e}"))?;

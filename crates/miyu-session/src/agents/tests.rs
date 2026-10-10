@@ -70,3 +70,26 @@ fn provided_tools_go_to_the_kind_of_session_they_are_for() {
     assert_eq!(names("qq:private:10001", false), ["read", "skip_reply"]);
     assert_eq!(names("qq:group:1", true), ["mute", "read", "skip_reply"]);
 }
+
+/// 结果没人要了时停哪几个（施工 7-5 补）：派出去的子代理，后台命令、没有子会话的不算。
+#[test]
+fn only_spawned_subagents_count_as_unclaimed() {
+    let job = |n: &str| JobId::parse(n).expect("合写法");
+    let child = SessionId::parse("01a0d78c-ca52-7d19-8b64-0e3f5a7c2d91").expect("合写法");
+    let started = |n: &str, what: JobKind, session: Option<SessionId>| {
+        Effect::JobStarted(JobStarted {
+            foreground: false,
+            job: job(n),
+            what,
+            title: "查".to_string(),
+            session,
+        })
+    };
+    let effects = [
+        started("j1", JobKind::Command, None),
+        started("j2", JobKind::Agent, Some(child.clone())),
+        started("j3", JobKind::Agent, None),
+    ];
+    assert_eq!(spawned_in(&effects), [(job("j2"), child)]);
+    assert!(spawned_in(&[]).is_empty());
+}

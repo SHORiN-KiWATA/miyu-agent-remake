@@ -51,11 +51,12 @@ fn manifest(id: &str, program: &str) -> String {
     )
 }
 
-/// 要装的那一份：放在数据根外面的工作目录里。
+/// 要装的那个包：放在数据根外面的工作目录里，交回包目录。
 fn source(home: &Home, id: &str, program: &str) -> std::path::PathBuf {
-    let path = home.work.join(format!("{id}.toml"));
-    std::fs::write(&path, manifest(id, program)).expect("写得进");
-    path
+    let folder = home.work.join(id);
+    std::fs::create_dir_all(&folder).expect("建得了");
+    std::fs::write(folder.join("package.toml"), manifest(id, program)).expect("写得进");
+    folder
 }
 
 /// 照磁盘上的系统配置起来、装了端口的核心。

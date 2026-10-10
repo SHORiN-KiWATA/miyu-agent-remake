@@ -185,7 +185,7 @@ fn unreadable(words: &Human, shown: &str, kind: &str, error: &ReadError) -> Valu
 }
 
 /// 软件包清单（施工 9-1 上，`packages.md`）：照磁盘读两层。`wanted` 没写的交回全部的问题；写了的，它是某一层 `packages/`
-/// 下的 `<编号>.toml` 才交回这一份的（还没有的报读不了），不是的交回没有。
+/// 下的 `<编号>/package.toml` 才交回这一份的（还没有的报读不了），不是的交回没有（施工 F-8 上：一个文件夹一个包）。
 async fn check_packages(
     core: &Core,
     words: &Human,
@@ -193,15 +193,17 @@ async fn check_packages(
 ) -> Result<Option<Vec<Value>>, Refusal> {
     let places = crate::packages::packages(core);
     if let Some(path) = wanted {
-        let in_a_layer = path
+        let folder = path
             .parent()
+            .filter(|_| path.file_name() == Some(miyu_store::packages::MANIFEST.as_ref()));
+        let in_a_layer = folder
+            .and_then(Path::parent)
             .is_some_and(|parent| places.dirs().any(|(_, dir)| real(dir) == parent));
-        let manifest = path
-            .file_name()
+        let named = folder
+            .and_then(Path::file_name)
             .and_then(|name| name.to_str())
-            .and_then(|name| name.strip_suffix(".toml"))
             .is_some_and(miyu_store::personas::valid);
-        if !(in_a_layer && manifest) {
+        if !(in_a_layer && named) {
             return Ok(None);
         }
     }

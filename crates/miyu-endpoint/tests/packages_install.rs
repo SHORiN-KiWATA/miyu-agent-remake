@@ -1,4 +1,5 @@
-//! 装、卸软件包（施工 F-5 上，`docs/blueprint/packages.md`「装卸」）：真核心走一遍。装进管理员家目录那一层、同名目录一起拷；
+//! 装、卸软件包（施工 F-5 上，`docs/blueprint/packages.md`「装卸」）：真核心走一遍。装进管理员家目录那一层，整个包文件夹拷进去
+//! （施工 F-8 上：一个文件夹就是一个包）；
 //! 写错的、和出厂的撞了的、和别的包撞了的不装、什么都不留；升级换掉；卸家目录的删掉；卸出厂的记一笔、列表里标卸掉、装得回来；
 //! 必需的、没装的不能卸。装卸以后 `package.list`、预设的功能当场照新的。
 
@@ -22,11 +23,12 @@ fn manifest_running(name: &str, command: &str, program: &str) -> String {
     )
 }
 
-/// 在工作目录里放一份要装的清单（数据根外面），交回它的路径。
-fn source(home: &Home, file: &str, text: &str) -> PathBuf {
-    let path = home.work.join(file);
-    std::fs::write(&path, text).expect("写得进");
-    path
+/// 在工作目录里放一个要装的包（数据根外面）：`id` 这个文件夹里写一份清单，交回文件夹的路径。
+fn source(home: &Home, id: &str, text: &str) -> PathBuf {
+    let folder = home.work.join(id);
+    std::fs::create_dir_all(&folder).expect("建得了");
+    std::fs::write(folder.join("package.toml"), text).expect("写得进");
+    folder
 }
 
 /// 管理员家目录那一层里的这个文件。
@@ -67,7 +69,7 @@ async fn a_manifest_installs_with_its_files_and_counts_at_once() {
     let program = crate::support::extensions::Program::new();
     let path = source(
         &home,
-        "xtool.toml",
+        "xtool",
         &manifest_running("工具甲", "xtool", &program.name()),
     );
     std::fs::create_dir_all(home.work.join("xtool/bin")).expect("建得了");
@@ -84,7 +86,7 @@ async fn a_manifest_installs_with_its_files_and_counts_at_once() {
     assert_eq!(reply["result"]["package"], "xtool", "{reply}");
     assert_eq!(reply["result"]["layer"], "home");
     assert_eq!(reply["result"]["name"], "工具甲");
-    assert!(mine(&home, "xtool.toml").is_file());
+    assert!(mine(&home, "xtool/package.toml").is_file());
     assert_eq!(
         std::fs::read_to_string(mine(&home, "xtool/bin/data.txt")).expect("拷了"),
         "hi"
@@ -96,18 +98,18 @@ async fn a_manifest_installs_with_its_files_and_counts_at_once() {
         Some(true),
         "带的功能当场进预设"
     );
-    // 升级：同一个编号再装一次，换成新的；这一次没有同名目录，原来的文件跟着没了。
+    // 升级：同一个编号再装一次，换成新的；这一次的文件夹里只有清单，原来的文件跟着没了。
     std::fs::remove_dir_all(home.work.join("xtool")).expect("删得掉");
     let path = source(
         &home,
-        "xtool.toml",
+        "xtool",
         &manifest_running("工具乙", "xtool", &program.name()),
     );
     let reply = client
         .call("i2", "package.install", json!({"path": path}))
         .await;
     assert_eq!(reply["result"]["name"], "工具乙", "{reply}");
-    assert!(!mine(&home, "xtool").exists());
+    assert!(!mine(&home, "xtool/bin").exists());
     assert!(
         leftovers(&home).is_empty(),
         "升级成了删掉备份：{:?}",
@@ -121,7 +123,7 @@ async fn a_manifest_installs_with_its_files_and_counts_at_once() {
         reply["result"],
         json!({"package": "xtool", "removed": true})
     );
-    assert!(!mine(&home, "xtool.toml").exists());
+    assert!(!mine(&home, "xtool").exists());
     assert!(find(&list(&mut client).await, "xtool").is_none());
     assert_eq!(feature_installed(&mut client, "xread").await, None);
 }
@@ -130,7 +132,7 @@ async fn a_manifest_installs_with_its_files_and_counts_at_once() {
 async fn a_wrong_or_clashing_manifest_installs_nothing() {
     let home = Home::new();
     let mut client = connected(&home).await;
-    let broken = source(&home, "xbad.toml", "[package]\nkind = \"daemon\"\n");
+    let broken = source(&home, "xbad", "[package]\nkind = \"daemon\"\n");
     let reply = client
         .call("i1", "package.install", json!({"path": broken}))
         .await;
@@ -142,24 +144,24 @@ async fn a_wrong_or_clashing_manifest_installs_nothing() {
             .is_some_and(|said| said.contains("daemon")),
         "{reply}"
     );
-    let shipped = source(&home, "web.toml", &manifest("网页", "xweb"));
+    let shipped = source(&home, "web", &manifest("网页", "xweb"));
     let reply = client
         .call("i2", "package.install", json!({"path": shipped}))
         .await;
     assert_eq!(reason(&reply), Some("package_exists"), "{reply}");
     // 读得成，可子命令名和出厂的接入QQ 撞了：拷进去以后认出来，撤回。
-    let clash = source(&home, "xclash.toml", &manifest("撞了", "onebot"));
+    let clash = source(&home, "xclash", &manifest("撞了", "onebot"));
     let reply = client
         .call("i3", "package.install", json!({"path": clash}))
         .await;
     assert_eq!(reason(&reply), Some("package_invalid"), "{reply}");
-    for left in ["xbad.toml", "web.toml", "xclash.toml"] {
+    for left in ["xbad", "web", "xclash"] {
         assert!(!mine(&home, left).exists(), "{left} 不留");
     }
     assert!(find(&list(&mut client).await, "xclash").is_none());
     for params in [
         json!({}),
-        json!({"path": "xtool.toml"}),
+        json!({"path": "xtool"}),
         json!({"path": "/nowhere/x.txt"}),
         json!({"path": "/a.toml", "package": "a"}),
     ] {
@@ -228,7 +230,7 @@ async fn required_and_unknown_packages_cannot_be_removed() {
 async fn a_failed_upgrade_keeps_the_old_one() {
     let home = Home::new();
     let mut client = connected(&home).await;
-    let path = source(&home, "xkeep.toml", &manifest("旧的", "xkeep"));
+    let path = source(&home, "xkeep", &manifest("旧的", "xkeep"));
     std::fs::create_dir_all(home.work.join("xkeep")).expect("建得了");
     std::fs::write(home.work.join("xkeep/v.txt"), "1").expect("写得进");
     let reply = client
@@ -236,7 +238,7 @@ async fn a_failed_upgrade_keeps_the_old_one() {
         .await;
     assert_eq!(reply["result"]["name"], "旧的", "{reply}");
     std::fs::write(home.work.join("xkeep/v.txt"), "2").expect("写得进");
-    let path = source(&home, "xkeep.toml", &manifest("新的", "onebot"));
+    let path = source(&home, "xkeep", &manifest("新的", "onebot"));
     let reply = client
         .call("i2", "package.install", json!({"path": path}))
         .await;

@@ -152,6 +152,8 @@ async fn what_she_remembers_comes_from_this_turn_and_is_found_from_another_sessi
     );
     assert!(matches!(entry.by, By::Tool(_)), "{:?}", entry.by);
     assert_eq!(entry.audience, [alice()], "听众是属主");
+    // 日志先落盘，回合库后写：磁盘上看到这一轮结束时，它可能还没进回合库（Windows 上慢，CI 见过）。停下要等手上那一批写完。
+    stop(&first).await;
 
     let script = Script::new([
         call("memory_search", serde_json::json!({"query":"显卡"})),

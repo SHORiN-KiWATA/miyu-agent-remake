@@ -6,7 +6,7 @@
 mod shown;
 
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 use clap::{Args, Subcommand};
@@ -159,14 +159,33 @@ async fn act(
     Ok(())
 }
 
-/// `install` 装的是什么：带 `/`、`\`、以 `.toml` 结尾的是一份清单，换成绝对路径（相对的照 `cwd` 算）；别的是卸掉了的出厂的
-/// 包的编号。
+/// `install` 装的是什么：带 `/`、`\`，是 `.`、`..`，或以 `.toml` 结尾的是一个包目录（或它里面的清单），换成绝对路径（相对的
+/// 照 `cwd` 算，施工 F-8 上）；别的是卸掉了的出厂的包的编号。
 fn installing(what: &str, cwd: &Path) -> Value {
-    let manifest = what.contains('/') || what.contains('\\') || what.ends_with(".toml");
-    match manifest {
-        true => json!({"path": cwd.join(what)}),
+    let path = what.contains('/')
+        || what.contains('\\')
+        || what == "."
+        || what == ".."
+        || what.ends_with(".toml");
+    match path {
+        true => json!({"path": joined(cwd, what)}),
         false => json!({"package": what}),
     }
+}
+
+/// 相对的照 `cwd` 接成绝对的，`.`、`..` 照字面去掉（不碰磁盘）：核心照最后一段认编号，`.` 认不出来。
+fn joined(cwd: &Path, what: &str) -> PathBuf {
+    let mut path = PathBuf::new();
+    for part in cwd.join(what).components() {
+        match part {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                path.pop();
+            }
+            other => path.push(other),
+        }
+    }
+    path
 }
 
 /// `list` 的回应印出来：`json` 的原样印那一串；`text` 的一行一个。

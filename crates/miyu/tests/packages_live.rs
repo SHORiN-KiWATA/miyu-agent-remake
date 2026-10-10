@@ -59,8 +59,9 @@ async fn generated_files_follow_an_installed_package() {
     let home = Home::new();
     let source_dir = home.dir.with_extension("src");
     std::fs::create_dir_all(&source_dir).expect("建得了目录");
-    let source = source_dir.join("xcfg.toml");
-    std::fs::write(&source, XCFG).expect("写得进");
+    let source = source_dir.join("xcfg");
+    std::fs::create_dir_all(&source).expect("建得了目录");
+    std::fs::write(source.join("package.toml"), XCFG).expect("写得进");
     let (connection, token) = within("拉起", connect_or_start(&home.root, || home.core()))
         .await
         .expect("拉得起");

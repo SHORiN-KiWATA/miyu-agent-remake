@@ -19,7 +19,7 @@
 
 | 参数 | 是什么 |
 |---|---|
-| `[文件]` | 只查这一份；相对的照当前目录接。照它在哪认是哪一种：`system/config.toml`、个人设置、某个目录下的 `.miyu/config.toml`、密钥文件、某一层人格目录里的 `persona.toml` 或 `prompts/examples.md`、某一层 `presets/` 下的 `<编号>.toml`（施工 P-2 上）、某一层 `packages/` 下的 `<编号>.toml`（施工 9-1 上）。认不出的照核心的原话报（`unknown_file`） |
+| `[文件]` | 只查这一份；相对的照当前目录接。照它在哪认是哪一种：`system/config.toml`、个人设置、某个目录下的 `.miyu/config.toml`、密钥文件、某一层人格目录里的 `persona.toml` 或 `prompts/examples.md`、某一层 `presets/` 下的 `<编号>.toml`（施工 P-2 上）、某一层 `packages/` 下的 `<编号>/package.toml`（施工 9-1 上，F-8 上改成一个文件夹一个包）。认不出的照核心的原话报（`unknown_file`） |
 | `--format text\|json` | `text` 给人看（默认），`json` 给脚本：核心的回应原样，`{"problems":[…]}` |
 
 退出码：0 没有错误（只有警告也是 0）；1 有错误、核心拒绝了、连不上核心；2 参数不对。

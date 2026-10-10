@@ -209,7 +209,7 @@ fn the_builtin_port_sets_up_the_local_model_from_the_list() {
     let embed = Found {
         id: "embed".to_string(),
         layer: miyu_store::packages::Layer::Home,
-        path: std::env::temp_dir().join("embed.toml"),
+        path: std::env::temp_dir().join("embed").join("package.toml"),
         read: read(
             "[package]\nkind = \"worker\"\nprotocol = [1, 1]\nname = { en = \"Model\" }\n\n[worker]\nprogram = \"miyu-embed\"\n",
         ),

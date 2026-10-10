@@ -47,6 +47,7 @@ fn speaking(others: u64) -> Speaking {
         others,
         last_is_own: false,
         sent: vec!["说过的".to_string()],
+        replayed: false,
     }
 }
 

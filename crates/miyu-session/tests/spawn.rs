@@ -32,6 +32,10 @@ mod pool;
 #[path = "spawn/moved.rs"]
 mod moved;
 
+/// 派到一半被打断，子代理停掉（施工 7-5 补）。
+#[path = "spawn/unclaimed.rs"]
+mod unclaimed;
+
 /// 场所说明的原文。
 const VENUE: &str = include_str!("../../../resources/core/jobs/subagent-venue.txt");
 /// 核心的几行（施工 2-7 补）：权限那一句、本机文件的路径那一句，一行一句。
@@ -48,6 +52,10 @@ struct Table {
     failing: Vec<usize>,
     /// 报过任务表变了的会话（施工 9-8 补下修）。
     moved: Mutex<Vec<SessionId>>,
+    /// 交代送进去时卡住不回（施工 7-5 补）：有的一直等它，测派到一半被打断。
+    hold: Option<Arc<tokio::sync::Notify>>,
+    /// 叫停过的会话（施工 7-5 补）。
+    stopped: Mutex<Vec<SessionId>>,
 }
 
 impl Table {
@@ -67,6 +75,13 @@ impl Table {
 
     fn sent(&self) -> Vec<(SessionId, CommandId, By, Command)> {
         self.sent
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    fn stopped(&self) -> Vec<SessionId> {
+        self.stopped
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .clone()
@@ -139,16 +154,21 @@ impl SessionPort for Table {
             .unwrap_or_else(PoisonError::into_inner)
             .push((session, id, by, command));
         let events = vec![Seq::new(2).expect("从 1 数起")];
-        Box::pin(async move { Ok(Outcome::Accepted { events }) })
+        let hold = self.hold.clone();
+        Box::pin(async move {
+            if let Some(hold) = hold {
+                hold.notified().await;
+            }
+            Ok(Outcome::Accepted { events })
+        })
     }
 
     /// 派子代理用不到停和看（施工 7-4）。
-    fn stop(
-        &self,
-        _session: SessionId,
-        _id: CommandId,
-        _by: By,
-    ) -> Pending<'_, Result<(), String>> {
+    fn stop(&self, session: SessionId, _id: CommandId, _by: By) -> Pending<'_, Result<(), String>> {
+        self.stopped
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(session);
         Box::pin(async { Ok(()) })
     }
 

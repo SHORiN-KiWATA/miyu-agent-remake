@@ -12,8 +12,10 @@
 //!   O-25 上）发回群里（`speak`）。要问判官的（O-23 下）交给 `judges`，任务（`ask`）经并着发的调用口
 //!   问，跟核心的那一头接着办别的；判官回来了照号收回来、算分、记判断（`judged`）。判官带这个群会话所用的人格的说明（O-23
 //!   补，`persona`）。
-//! - 找会话（`session`）：「场所 → 会话编号」只记在内存里，每个场所桥起来以后第一次要用时问一次 `venue.session`；私聊的
-//!   问到了订阅（不写 `after`），群的从头订阅（施工 O-23）。会话不在了（`session_not_found`、`session_stopped`）
+//! - 起来就订阅（施工 O-32，`revive`）：每次连上核心、握手以后先经 `venue.sessions` 列出名下的场所会话和终端管理员的私聊，群的
+//!   从头订阅，白名单成员的、终端管理员的私聊也从头订阅一次；补来的（`backlog`）认出发到哪，期限以内、没入队的她的话补发。
+//! - 找会话（`session`）：「场所 → 会话编号」只记在内存里，每个场所桥起来以后第一次要用时问一次 `venue.session`（起来时订阅了的
+//!   群不再问）；私聊的问到了订阅（不写 `after`），群的从头订阅（施工 O-23）。会话不在了（`session_not_found`、`session_stopped`）
 //!   忘掉，再问一次、再交一次，只重来一次。私聊不是终端管理员、也不在白名单里的（`no_system_account`，或者会话的属主是桥
 //!   自己，「施工时定的」第 49 条，施工 O-27）、群的规则写错的不接，同一个场所只记一行运行日志。
 //! - 好友请求（施工 O-27，`request`）：白名单成员的另起任务同意，别的放着；群邀请只记一行。
@@ -36,6 +38,7 @@
 mod acting;
 mod applied;
 mod ask;
+mod backlog;
 mod bindings;
 mod body;
 mod called;
@@ -58,6 +61,7 @@ mod reaction;
 mod recall;
 mod receipt;
 mod request;
+mod revive;
 mod sending;
 mod session;
 mod speak;
@@ -85,6 +89,7 @@ use crate::serve::Failure;
 use crate::settings::{whitelist, whitelist_key};
 use crate::texts::Texts;
 pub(crate) use ask::Slots;
+use backlog::Backlog;
 use bindings::Bindings;
 use fields::{Flags, fields};
 use judges::Judges;
@@ -166,6 +171,8 @@ pub(crate) struct Route {
     bindings: Bindings,
     /// 私聊会话编号 → 推来的最近一条人说的话引用的平台编号（没引用的是空的，施工 O-31，`acting`：私聊里叫她做的那条）。
     quotes: HashMap<String, Option<String>>,
+    /// 会话编号 → 订阅补来的那一段（施工 O-32，`backlog`）：只在订阅到补完的这一会儿有，补完了补发、拿掉。
+    backlogs: HashMap<String, Backlog>,
     /// 推来的配置变化交给 `serve`（施工 O-20）。
     configured: mpsc::UnboundedSender<Map<String, Value>>,
 }
@@ -217,15 +224,21 @@ impl Route {
             tools,
             bindings: Bindings::new(binding),
             quotes: HashMap::new(),
+            backlogs: HashMap::new(),
             configured,
         }
     }
 
-    /// 一直办，直到办不下去：核心关了管道、写不出去（核心请它退出、核心不在了，第 11 条），交回空的，桥好好停下；发回话
+    /// 先订阅名下的场所会话（施工 O-32，`revive`），再一直办，直到办不下去：核心关了管道、写不出去（核心请它退出、核心不在了，
+    /// 第 11 条），交回空的，桥好好停下；发回话
     /// 的任务、问判官的任务（施工 O-23 下）、撤回执、贴表情的任务（施工 O-25 上、下）崩了，交回 [`Failure::Crashed`]（「施工时定的」
     /// 第 14 条），桥照它退出。`inbound` 关了就只看核心：桥在停、读 NapCat 的那一头都放下了。有东西排着的，另睡到最早的过期、
     /// 禁言到期的时刻，醒了再看一遍（施工 O-25 中，「出站队列」第 8 条）。
     pub(crate) async fn run(mut self, mut inbound: mpsc::Receiver<Event>) -> Option<Failure> {
+        // 起来就订阅（施工 O-32，「群里怎么叫她」第 1 条）：NapCat 那头来的先排着，订阅完了再办。
+        if self.revive().await.is_err() {
+            return None;
+        }
         let mut open = true;
         loop {
             let wake = self.wake();
@@ -402,7 +415,7 @@ impl Route {
             }
             (Some("resync"), None) if params["stream"] == "events" => {
                 let session = session.to_string();
-                self.subscribe(&session).await?;
+                self.subscribe(&session, None).await?;
             }
             _ => {}
         }
