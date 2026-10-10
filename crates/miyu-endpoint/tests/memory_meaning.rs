@@ -1,5 +1,5 @@
 //! 人经协议照意思找记忆（施工 R-5 下，`docs/blueprint/recall.md` 第三条）：真核心接上本机 embedding（手造的小模型、真的
-//! `miyu-embed`，小模型的测试数据目录当包目录：只读、核对得上），`memory.search` 第一次只走关键词，搜的时候起的后台补齐向量以后照意思找得到。
+//! `miyu-embed`，小模型的测试数据目录当包目录：只读、核对得上），`memory.remember` 记下的时候就在后台补它的向量（施工 R-5 五补），补上以后 `memory.search` 照意思找得到。
 //! 远程的（施工 R-5 补）照这时的配置发给假服务器，用量记在管理员名下。`off` 的那一路和她的工具共用一个判法
 //! （`miyu_session::Vectors` 照 `Using` 的配置挑），在会话的测试里。
 
@@ -88,7 +88,7 @@ fn remote(home: &Home, server: &Server) -> Arc<miyu_endpoint::Core> {
     Arc::new(core)
 }
 
-/// 记一条「我的猫」，搜「喝茶」：第一次只走关键词，补齐以后照意思找得到。
+/// 记一条「我的猫」，搜「喝茶」：记下的时候就在后台补它的向量（施工 R-5 五补），补上以后照意思找得到。
 async fn found_by_meaning(client: &mut Client) {
     let reply = client
         .call(
@@ -98,10 +98,6 @@ async fn found_by_meaning(client: &mut Client) {
         )
         .await;
     assert_eq!(reply["result"], json!({"id": "m1"}), "{reply}");
-    let first = client
-        .call("c2", "memory.search", json!({"query": "喝茶"}))
-        .await;
-    assert!(texts(&first).is_empty(), "第一次只走关键词：{first}");
     let mut found = Vec::new();
     for n in 0..600 {
         let reply = client
@@ -189,4 +185,67 @@ async fn the_built_in_option_notes_the_local_model() {
     assert!(options[1].get("note").is_none(), "关没有暗字：{reply}");
     assert!(options[0].get("available").is_none(), "{reply}");
     assert!(options[1].get("available").is_none(), "{reply}");
+}
+
+/// 记忆库里 `key` 那一条有没有小模型的向量（不经 `memory.search`）。
+fn vectored(home: &Home, key: &str) -> bool {
+    let path = home
+        .root
+        .account_dir(&alice())
+        .join("index/recall/memory-engineer.db");
+    let (index, _) = miyu_store::recall::RecallIndex::open(&path);
+    let missing = index.missing("local:tiny", 0, 1000).unwrap_or_default();
+    index
+        .keys()
+        .unwrap_or_default()
+        .iter()
+        .any(|have| have == key)
+        && !missing.iter().any(|(_, gone, _)| gone == key)
+}
+
+/// 等 `key` 补上向量（最多 10 秒）。
+async fn until_vectored(home: &Home, key: &str) {
+    for _ in 0..200 {
+        if vectored(home, key) {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    panic!("十秒没补上 {key}");
+}
+
+/// 记下的时候就补（施工 R-5 五补）：`memory.remember`、`memory.update`、`/remember` 以后不搜，记忆库里就有了它的向量。
+#[tokio::test]
+async fn remembering_updating_and_slash_remember_fill_vectors_without_a_search() {
+    let home = Home::new();
+    let mut client = Client::connect(core(&home));
+    client.hello().await;
+    let reply = client
+        .call(
+            "c1",
+            "memory.remember",
+            json!({"class": "user", "text": "我的猫"}),
+        )
+        .await;
+    assert_eq!(reply["result"], json!({"id": "m1"}), "{reply}");
+    until_vectored(&home, "m1").await;
+    let reply = client
+        .call(
+            "u1",
+            "memory.update",
+            json!({"id": "m1", "text": "我的橘猫"}),
+        )
+        .await;
+    assert_eq!(reply["result"], json!({"id": "m2"}), "{reply}");
+    until_vectored(&home, "m2").await;
+    let session = client.create("s1", "~").await;
+    let reply = client
+        .call(
+            "k1",
+            "command.run",
+            json!({"session": session, "text": "/remember 我喜欢喝乌龙茶"}),
+        )
+        .await;
+    assert!(reply.get("error").is_none(), "{reply}");
+    until_vectored(&home, "m3").await;
 }

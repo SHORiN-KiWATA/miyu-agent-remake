@@ -669,6 +669,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sR-5e"><span class="n">R-5</span>语义模型这一项（再补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-5f"><span class="n">R-5</span>内置模型做成小程序包（三补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-5g"><span class="n">R-5</span>本机模型当场换（四补）<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sR-5h"><span class="n">R-5</span>本机模型冷启动（五补）<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sR-6"><span class="n">R-6</span>抽取（上）<span class="st">✓</span></a></li>
         <li><span class="step"><span class="n">R-6</span>抽取（下，暂不做）</span></li>
         <li><a class="step done" href="#sR-7"><span class="n">R-7</span>合并（上）<span class="st">✓</span></a></li>
@@ -17512,6 +17513,55 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/R-5-换本机模型（四补）.md</code>；蓝图 <code>recall.md</code> 第四条第 1、4 款。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sR-5h" aria-labelledby="h-sR5h">
+  <div class="sheet-head"><h2 id="h-sR5h"><span class="no">R-5</span>本机模型冷启动（五补）</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">核心起来以后的第一次搜就能照意思找，刚记的马上搜得到。慢的不是模型（拉起 45 毫秒、一句 1.5 毫秒），是三处等待。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">miyu-session · embed · memory · miyu-endpoint</span><span class="dir-note">R-5</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li>第一次要的等核对、拉起，不交「还在备」</li>
+              <li>补的不再每秒问一次</li>
+              <li>记下的时候就在后台补向量</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">一次核对</span><span class="rl">同时来的等同一次</span></div>
+          <div class="tile new"><span class="nm">1.02 秒 → 75 毫秒</span><span class="rl">记完马上搜</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">R-5</dd></div>
+        <div><dt>名称</dt><dd>本机模型冷启动（五补）</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-10</dd></div>
+        <div><dt>提交</dt><dd class="mono">（合进 main 时填）</dd></div>
+        <div><dt>验收</dt><dd>变异、CI、真核心 release 重量 · 自己验收，通过</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>（合进 main 时填）</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/R-5-本机模型冷启动（五补）.md</code>；蓝图 <code>recall.md</code> 第三条第 4、5 款、第四条第 3、4、6 款。</li>
       </ul>
     </div>
   </div>

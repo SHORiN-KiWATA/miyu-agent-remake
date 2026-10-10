@@ -433,6 +433,9 @@ impl Job {
                 if let Some(count) = recorded {
                     let took_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
                     tracing::info!(target: TARGET, session = %self.session, count, took_ms, "memory extracted");
+                    if count > 0 {
+                        self.fill().await;
+                    }
                     self.merge();
                 }
                 self.extractor.finish(self.after, true);
@@ -447,6 +450,16 @@ impl Job {
                 false
             }
         }
+    }
+
+    /// 记下了几条以后在后台补它们的向量（施工 R-5 五补：不等下一次搜）。
+    async fn fill(&self) {
+        let keeper = self.keeper.clone();
+        let using = super::Using {
+            config: Arc::clone(&self.config),
+            owner: self.owner.clone(),
+        };
+        blocking(move || keeper.fill(&using)).await;
     }
 
     /// 记下了抽到哪以后看一眼够不够合并（施工 R-7 上，`merge.rs`）：够的在后台合。

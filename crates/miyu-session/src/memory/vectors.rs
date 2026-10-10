@@ -3,10 +3,11 @@
 //! - 照哪一路算（施工 R-5 补）：照调的一方手里的配置（[`Using`]）的 `models.embedding`。不写、写 `local` 的照本机的
 //!   （`embed.rs`），写 `<供应商>/<模型>` 的照那一家（`embed/remote.rs`），`off` 的不算问句、不补。向量照模型的编号存：本机的
 //!   是 `local:<id>`，远程的是 `<供应商>/<模型>`；换了的照新的补，旧的留着。
-//! - 问句：最多等 [`WAIT`]（第一次拉起小程序要一两百毫秒）。等不到的这一回只走关键词；那一条照样在后台算完，不把小程序的
+//! - 问句：最多等 [`WAIT`]（第一次要核对包里的文件、拉起小程序，release 下合计约 60 毫秒，施工 R-5 五补量）。等不到的这一回只走
+//!   关键词；那一条照样在后台算完，不把小程序的
 //!   一问一答打断（打断了它回的那一行就对不上下一问）。
-//! - 补：搜的时候起。照这一间的记忆库、回合库各起一个后台的，一次取 [`BATCH`] 条还没有这个模型的向量的，一条一条算、写回；
-//!   模型还在备的等它备好；这一回算不出的那几条跳过（照行号往后取，不挡住后面的），下次再补；连着 [`STREAK`] 条算不出的这一回
+//! - 补：搜的时候、记下的时候起（施工 R-5 五补）。照这一间的记忆库、回合库各起一个后台的，一次取 [`BATCH`] 条还没有这个模型的
+//!   向量的，一条一条算、写回；冷的那一条照样等核对、拉起（不轮询）；这一回算不出的那几条跳过（照行号往后取，不挡住后面的），下次再补；连着 [`STREAK`] 条算不出的这一回
 //!   不补了（远程那一家挂了、key 错了，不一条一条地等）。同一份库同一时刻只有一个在补。
 //! - 换本机的（施工 R-5 四补）：装卸内置模型那个包以后核心照新的清单调 [`Vectors::replace_local`]，一样的不动。
 
@@ -30,9 +31,6 @@ const WAIT: Duration = Duration::from_secs(1);
 
 /// 补的时候一次取几条。
 const BATCH: usize = 16;
-
-/// 模型还在备的时候隔多久再问一次。
-const PREPARING: Duration = Duration::from_secs(1);
 
 /// 补的时候连着几条算不出，这一回就不补了。
 const STREAK: u32 = 3;
@@ -175,7 +173,7 @@ impl Vectors {
         }
     }
 
-    /// 照 `using` 算问句 `text` 的向量，最多等 1 秒；`off` 的、还在备、用不了、算不出、等不到的没有。
+    /// 照 `using` 算问句 `text` 的向量，最多等 1 秒（冷的核对、拉起都算在里面）；`off` 的、用不了、算不出、等不到的没有。
     pub async fn query(&self, using: &Using, text: &str) -> Option<Query> {
         let (model, way) = self.way(using)?;
         let text = text.to_string();
@@ -267,15 +265,12 @@ async fn fill_all(way: &Way, model: &str, target: &Target) -> usize {
     }
 }
 
-/// 一条的向量：模型还在备的等它备好。
+/// 一条的向量。
 async fn vector_of(way: &Way, text: &str) -> Got {
-    loop {
-        match way.embed(text).await {
-            Ok(vector) => return Got::Vector(vector),
-            Err(Unavailable::Preparing) => tokio::time::sleep(PREPARING).await,
-            Err(Unavailable::Failed(_)) => return Got::Skip,
-            Err(Unavailable::Off(_)) => return Got::Stop,
-        }
+    match way.embed(text).await {
+        Ok(vector) => Got::Vector(vector),
+        Err(Unavailable::Failed(_)) => Got::Skip,
+        Err(Unavailable::Off(_)) => Got::Stop,
     }
 }
 
