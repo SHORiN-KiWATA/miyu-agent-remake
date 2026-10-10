@@ -22,7 +22,7 @@ use std::collections::BTreeMap;
 
 use crate::event::{Body, ContextInjected, Level, Permission};
 use crate::history::History;
-use crate::id::{FactKind, ModuleId, SessionId};
+use crate::id::{FactKind, ModuleId, SessionId, TurnId};
 use crate::origin::By;
 use crate::template::{Template, TemplateError};
 use crate::time::{Timestamp, UtcOffset};
@@ -347,6 +347,27 @@ pub fn present(history: &History) -> Vec<Present> {
             _ => None,
         })
         .collect()
+}
+
+/// 触发 `turn` 这一轮的人话（施工 R-8，`memory.md` 第四条第 1 款）：回合开始交给挂接点（`Action::RunTurnStartHooks` 的
+/// `said`），记忆照它联想。照这一轮 `turn.started` 的 `trigger` 在有效历史里找那条 `message.user`，是人说的
+/// （[`By::is_person`]）才算，交回它的字（[`crate::block::words`]，原样，长短由挂接点自己截）。没有 `trigger` 的（人要的压缩
+/// 单开的）、触发的不是消息的（回报）、不是人说的（别的会话、子代理、别的 harness）、只有附件没有字的，没有。排着的几句一起
+/// 开的一轮只取触发的那一句（最后一句）：前面几句在她忙着时就进了上下文，回合索引也是这个口径。
+pub fn said(history: &History, turn: TurnId) -> Option<String> {
+    // 这一轮的 `turn.started` 和触发它的那句都在末尾附近：从后往前找，长会话每开一轮不用扫一整遍。
+    let events = history.events();
+    let trigger = events.iter().rev().find_map(|event| match &event.body {
+        Body::TurnStarted(started) if event.seq == turn.started() => started.trigger,
+        _ => None,
+    })?;
+    let words = events.iter().rev().find_map(|event| match &event.body {
+        Body::MessageUser(message) if event.seq == trigger && event.by.is_person() => {
+            Some(crate::block::words(&message.blocks))
+        }
+        _ => None,
+    })?;
+    (!words.is_empty()).then_some(words)
 }
 
 /// 有效历史里，这个来源、这一类的最近一块的原文。

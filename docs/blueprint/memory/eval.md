@@ -60,7 +60,8 @@ MIYU_EMBED_MODEL_DIR=<Release models-bge-small-zh-v1.5 的文件> \
 1. 临时数据根里开一间（alice 的软件工程师那一间），照日期把每条记进去（人记的，没有出处），作废的作废。
 2. 每句照 `Keeper::search` 搜前 5 条（不带 `forgotten`），先只走关键词。
 3. 设了 `MIYU_EMBED_MODEL_DIR` 的（同 `crates/miyu-embed/tests/real.rs`，CI 里不跑）：模型清单照出厂的（`crates/miyu-embed/package/embed/model.toml`），连同那两个文件摆成内置语义模型的包目录，接上本机的那一路，补齐向量，每句算问句的向量，两路合并再搜一遍。没设的只量关键词。
-4. 断言结果不断言耗时：作废的一条都没搜出来，每句都搜了。
+4. 联想（施工 R-8，同样要设了 `MIYU_EMBED_MODEL_DIR`）：每句照出厂的门槛表（`core/memory/recall.toml`）、`miyu_recall::associate::pick` 挑，和会话里同一个挑法，不算这一段的去重和一块的字节。
+5. 断言结果不断言耗时：作废的一条都没搜出来，每句都搜了。
 
 印的表，照种类一行，最后一行 `all` 是有答案的几种合在一起：
 
@@ -73,6 +74,8 @@ MIYU_EMBED_MODEL_DIR=<Release models-bge-small-zh-v1.5 的文件> \
 | 平均条数 | 平均搜出几条 |
 
 `none` 的前四列写「—」。
+
+联想另印一张，列是：带了东西的占几成（`none` 的看这一格，该是 0）、带了的里正是该想起的占几成（一条都没带的写「—」）、这一轮至少带对一条的占几成（`none` 的写「—」）、平均带几条。
 
 ### 基线
 
@@ -102,12 +105,25 @@ MIYU_EMBED_MODEL_DIR=<Release models-bge-small-zh-v1.5 的文件> \
 | none | 13 | — | — | — | — | 100% | 4.38 |
 | all | 42 | 57% | 66% | 81% | 0.68 | 100% | 4.79 |
 
+联想（门槛照出厂的表，`local:bge-small-zh-v1.5` 是 0.60；施工 R-8）：
+
+| 种类 | 句数 | 带了东西 | 带了的里该带的 | 这一轮带对了 | 平均带几条 |
+|---|---|---|---|---|---|
+| keyword | 10 | 100% | 79% | 100% | 1.40 |
+| paraphrase | 12 | 25% | 50% | 17% | 0.33 |
+| chat | 10 | 70% | 75% | 50% | 0.80 |
+| cross | 5 | 20% | 0% | 0% | 0.20 |
+| changed | 5 | 40% | 100% | 40% | 0.40 |
+| none | 13 | 0% | — | — | 0.00 |
+| all | 42 | 55% | 72% | 45% | 0.69 |
+
 看得出的几件，留给用它的那几步：
 
 - 照意思那一路把换了说法的从找不到提到前 5 条里八成，有答案的合起来 recall@5 从 48% 到 81%。
 - 跨语言的两路都几乎找不到：bge-small-zh-v1.5 的英文、日文弱，大写英文和片假名切成 `[UNK]`（`recall.md` 第四条第 5 款）。
 - `none` 的只走关键词就有六成搜得出东西，加了向量全都搜得出、平均四条多：联想不能拿「搜到了」当带不带的依据，要有自己的门槛（R-8）。
 - 加了向量，`chat` 的 hit@1 从 70% 掉到 60%：向量那一路找到的挤到了前面。
+- 联想照门槛 0.60（`memory.md` 第四条）：平常的话一句都不带；换了说法的只带上 17%，这是「严」的代价。比过的几种规矩在施工单 `R-8-联想.md`。
 
 ### 守着它的
 
@@ -116,7 +132,8 @@ MIYU_EMBED_MODEL_DIR=<Release models-bge-small-zh-v1.5 的文件> \
 | `crates/miyu-session/tests/memory_eval.rs` 的 `the_eval_set_is_well_formed` | 仓库里那一份合「格式」的每一条（CI 里也跑） |
 | 同上 `broken_sets_are_caught` | 键重了、键写法不对、类不认识、日期写错、超长、作废的没写为什么、指了作废的、`none` 带了答案、别的没答案、指了两次、指了没有的、种类不认识、换了说法的有重合、关键词的没重合、条数不够、少了一种、`none` 不到两成，都查得出；多写了格的读不进 |
 | 同上 `scores_follow_their_definitions` | 表里每一格照上面的定义算 |
-| 同上 `measure_the_eval_set`（`#[ignore]`） | 量尺：作废的一条都没搜出来、每句都搜了；印两张表 |
+| 同上 `recall_scores_follow_their_definitions`（施工 R-8） | 联想那张表每一格照定义算，一条都没带的没有准不准 |
+| 同上 `measure_the_eval_set`（`#[ignore]`） | 量尺：作废的一条都没搜出来、每句都搜了；印三张表（关键词、关键词加 bge、联想） |
 
 ### 出处
 

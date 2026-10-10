@@ -392,6 +392,16 @@ impl ResourceRoot {
         self.read(&["core", "memory", "secrets.toml"])
     }
 
+    /// 联想的门槛表的原文（`core/memory/recall.toml`，施工 R-8）：照模型，相似度不到门槛的不带。怎么读由
+    /// `miyu_recall::associate` 定。
+    ///
+    /// # Errors
+    ///
+    /// 读不出来：写明是哪个文件。
+    pub fn memory_recall(&self) -> Result<String, SourceError> {
+        self.read(&["core", "memory", "recall.toml"])
+    }
+
     /// 认能出向量的模型的规矩的原文（`models/embedding.toml`，施工 R-5 再补）：`model.list` 的 `embedding` 照它标。怎么读由
     /// `miyu_models::embedding` 定。
     ///

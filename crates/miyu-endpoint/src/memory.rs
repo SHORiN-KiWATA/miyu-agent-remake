@@ -9,6 +9,8 @@
 
 pub(crate) mod dream;
 mod params;
+#[cfg(test)]
+mod tests;
 
 use std::sync::Arc;
 
@@ -369,6 +371,22 @@ async fn blocking<T: Send + 'static>(
         Err(error) => {
             tracing::warn!(target: "miyu::endpoint", error = %error, "memory failed");
             Err(Refusal::INTERNAL)
+        }
+    }
+}
+
+/// 联想要的几样（施工 R-8，`memory.md` 第四条）：外壳的字、门槛表照资源目录读好交给记忆；读不出来的（安装坏了）记一行，这个
+/// 核心不联想，别的照常。
+pub(crate) fn give_recall(
+    memory: &miyu_session::Memory,
+    resources: &miyu_store::resources::ResourceRoot,
+) {
+    match miyu_session::RecallTexts::load(resources) {
+        Ok(recall) => {
+            memory.give_recall(recall);
+        }
+        Err(error) => {
+            tracing::warn!(target: "miyu::endpoint", error = error.as_str(), "memory recall texts unreadable");
         }
     }
 }

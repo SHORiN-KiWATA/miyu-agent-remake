@@ -123,6 +123,7 @@ impl Stage {
             verdicts: VecDeque::new(),
             injections: VecDeque::new(),
             presents: Vec::new(),
+            saids: Vec::new(),
             held_model: None,
             hold_wakes: false,
             held_wake: None,

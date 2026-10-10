@@ -3066,6 +3066,32 @@ Start a subagent in a new session to do one task and wait for it; its report arr
 About the user: {text}
 ```
 
+### 事实：联想那一块的开头
+
+#### `software/memory/recall/open.txt`
+
+- 什么时候加进来：人开的一轮，照这一句话照意思找到的记忆有过门槛的、这一段上下文里还没交过的（`memory.md` 第四条）
+- token：4（2026-10-10 照开发端点量，带行尾换行）
+- 为什么加：人说到的事和她记得的某件有关时，这一轮就带上那一两条，不用她自己去搜（施工 R-8，`17-记忆.md` L5，2026-10-07 项目主人定三层召回，10-10 定要「严」）；标签夹着，和常驻那一块（`<memories>`）、人说的话分得开
+- 指纹：`977df343`
+
+```text
+<recalled>
+```
+
+### 事实：联想那一块的收尾
+
+#### `software/memory/recall/close.txt`
+
+- 什么时候加进来：同上
+- token：4（2026-10-10 量）
+- 为什么加：同上
+- 指纹：`b4eea292`
+
+```text
+</recalled>
+```
+
 ### 抽取那一次请求，不进主对话
 
 #### `software/memory/extract/instruction.txt`

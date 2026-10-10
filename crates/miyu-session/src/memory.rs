@@ -9,6 +9,7 @@ mod extract;
 mod keeper;
 mod merge;
 mod port;
+mod recall;
 mod summary;
 mod vectors;
 
@@ -20,6 +21,7 @@ pub use merge::{Dreamed, MergeTexts, NotDreamed};
 /// 记忆模块的编号：注入、抽取记下的 `by` 都是它（施工 R-4 上、R-6 上）。
 pub(crate) const MODULE: &str = "memory";
 pub(crate) use port::Calls;
+pub use recall::RecallTexts;
 pub use summary::SummaryTexts;
 pub use vectors::{LOCAL as EMBED_LOCAL, Query, Using, Vectors};
 
@@ -51,6 +53,8 @@ pub struct Memory {
     vectors: OnceLock<Arc<Vectors>>,
     /// 抽取要的几样（施工 R-6 上）：核心起来时交（[`Memory::give_extraction`]），没交的不抽。
     extraction: OnceLock<Extraction>,
+    /// 联想要的几样（施工 R-8）：核心起来时交（[`Memory::give_recall`]），没交的不联想。
+    recall: OnceLock<RecallTexts>,
     /// 人格记忆这个软件包这时装着没有（施工 R-10）：开着的会话照它交不交摘要、抽不抽。
     installed: AtomicBool,
     /// 合并（施工 R-7 上）：哪几间在合、同一批失败了几次。
@@ -90,6 +94,7 @@ impl Memory {
             summary,
             vectors: OnceLock::new(),
             extraction: OnceLock::new(),
+            recall: OnceLock::new(),
             installed: AtomicBool::new(true),
             merges: merge::Merges::default(),
         })
@@ -115,6 +120,16 @@ impl Memory {
     /// 抽取要的几样：没交的没有，不抽。
     pub(crate) fn extraction(&self) -> Option<&Extraction> {
         self.extraction.get()
+    }
+
+    /// 交上联想要的几样（施工 R-8）：核心起来时读好资源目录交一次；交过的再交不算，交回 `false`。
+    pub fn give_recall(&self, recall: RecallTexts) -> bool {
+        self.recall.set(recall).is_ok()
+    }
+
+    /// 联想要的几样：没交的没有，不联想。
+    pub(crate) fn recall(&self) -> Option<&RecallTexts> {
+        self.recall.get()
     }
 
     /// 人格记忆这个软件包装没装（施工 R-10，`memory.md` 第十一条）：核心起来时照清单设一次，装卸以后照新的清单设（卸包在动
@@ -167,7 +182,8 @@ pub(crate) fn connect(
         }
         None
     };
-    (turns, Some(Calls::new(memory, room, owner, session)))
+    let local = venue.as_str() == LOCAL;
+    (turns, Some(Calls::new(memory, room, owner, session, local)))
 }
 
 /// 场所会话 `session` 以前进了 `room` 那一间回合库的（施工 O-4 下到 R-2 再补之间）拿掉：只拿掉、不埋墓碑，会话还在。拿不掉的

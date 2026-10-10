@@ -64,9 +64,14 @@ const ONEBOT_DATA: [&str; 4] = [
 const DATA_PACKAGES: [&str; 2] = ["mermaid", "net"];
 
 /// `core/view.json` 是数据，不发给模型，不登记：视图投影照它认哪件工具算命令、编辑、子代理、留言（施工 9-8 上，`view.md`）。
-/// `core/memory/secrets.toml` 也是：抽取照它认常见的 key 写法、遮掉，不发给模型（施工 R-6 上，`memory.md` 第六条）。只豁免
-/// 这几份：`core/` 里别的照查。
-const CORE_DATA: [&str; 2] = ["core/view.json", "core/memory/secrets.toml"];
+/// `core/memory/secrets.toml` 也是：抽取照它认常见的 key 写法、遮掉，不发给模型（施工 R-6 上，`memory.md` 第六条）。
+/// `core/memory/recall.toml` 也是：联想照它定每个模型的门槛，不发给模型（施工 R-8，第四条）。只豁免这几份：`core/` 里别的
+/// 照查。
+const CORE_DATA: [&str; 3] = [
+    "core/view.json",
+    "core/memory/secrets.toml",
+    "core/memory/recall.toml",
+];
 
 /// 查一遍，交回对不上的地方。
 pub fn check(root: &Path) -> Vec<String> {

@@ -29,15 +29,18 @@ pub(crate) struct Calls {
     owner: AccountId,
     /// 这个会话的抽取（施工 R-6 上）：闹钟、在路上的那一次。
     extractor: Arc<Extractor>,
+    /// 是本机的会话（施工 R-8）：只有本机的联想。群里的听众还没接上（`memory.md` 第一条第 1 款），主人的事不往群里带。
+    local: bool,
 }
 
 impl Calls {
-    /// 会话 `session`（属主 `owner`）的记忆，放在 `room` 那一间；听众是属主（本机的会话）。
+    /// 会话 `session`（属主 `owner`）的记忆，放在 `room` 那一间；听众是属主（本机的会话）。`local` 是本机的会话（不是场所的）。
     pub(crate) fn new(
         memory: &Arc<Memory>,
         room: Room,
         owner: &AccountId,
         session: &SessionId,
+        local: bool,
     ) -> Calls {
         let hearers = vec![By::Person(Person::new(owner.clone()))];
         Calls {
@@ -45,6 +48,7 @@ impl Calls {
             session: session.clone(),
             owner: owner.clone(),
             extractor: Arc::default(),
+            local,
         }
     }
 
@@ -66,6 +70,25 @@ impl Calls {
     ) -> Option<Injection> {
         let keeper = self.keeper.clone();
         blocking(move || keeper.summary(offset, &present)).await
+    }
+
+    /// 这一轮联想带什么（施工 R-8，`recall.rs`）：只给本机的会话；`said` 是这一轮人说的话，照意思找照这一轮的配置 `config`
+    /// （`models.embedding`，远程的用量记在属主名下），日期照会话的时区 `offset`。
+    pub(crate) async fn recall(
+        &self,
+        said: String,
+        offset: UtcOffset,
+        present: Vec<Present>,
+        config: &TurnConfig,
+    ) -> Option<Injection> {
+        if !self.local {
+            return None;
+        }
+        let using = Using {
+            config: Arc::clone(config),
+            owner: self.owner.clone(),
+        };
+        self.keeper.recall(&using, &said, offset, &present).await
     }
 
     /// 这一次调用的端口：第 `turn` 轮（没有在跑的回合的没有）、调用 `call_id`、派出去的时刻 `at`；照意思找照这一轮的配置

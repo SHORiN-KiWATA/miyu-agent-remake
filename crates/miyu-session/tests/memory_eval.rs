@@ -5,15 +5,19 @@
 //! 跑量尺：`MIYU_EMBED_MODEL_DIR=<Release 的文件> cargo test -p miyu-session --release --test all memory_eval -- --ignored
 //! --nocapture`（不设只量关键词那一路）。
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
+use miyu_recall::associate::{Thresholds, pick};
 use miyu_session::{EmbedSetup, Embedder, Keeper, Stamp, Turn, Using, Vectors};
 use miyu_tool::Remember;
 
-use crate::support::eval::{EvalSet, Found, Row, day, parse, problems, score, shipped, table};
+use crate::support::eval::{
+    Brought, EvalSet, Found, Picked, Row, brought, brought_table, day, parse, problems, score,
+    shipped, table,
+};
 use crate::support::meaning::{filled, model_data, persona};
 use crate::support::package::program;
 use crate::support::{Home, alice, alice_account};
@@ -203,6 +207,50 @@ fn scores_follow_their_definitions() {
     );
 }
 
+#[test]
+fn recall_scores_follow_their_definitions() {
+    let picked = |kind: &str, expect: &[&str], got: &[&str]| Picked {
+        kind: kind.into(),
+        expect: expect.iter().map(|key| key.to_string()).collect(),
+        picked: got.iter().map(|key| key.to_string()).collect(),
+    };
+    let rows = brought(&[
+        picked("chat", &["a"], &["a", "b"]),
+        picked("chat", &["a", "b"], &[]),
+        picked("chat", &["c"], &["d"]),
+        picked("none", &[], &[]),
+        picked("none", &[], &["x"]),
+    ]);
+    let chat = Brought {
+        kind: "chat".into(),
+        queries: 3,
+        fired: 2.0 / 3.0,
+        precision: Some(1.0 / 3.0),
+        hit: 1.0 / 3.0,
+        mean: 1.0,
+    };
+    assert_eq!(
+        rows,
+        [
+            chat.clone(),
+            Brought {
+                kind: "none".into(),
+                queries: 2,
+                fired: 0.5,
+                precision: Some(0.0),
+                hit: 0.0,
+                mean: 0.5,
+            },
+            Brought {
+                kind: "all".into(),
+                ..chat
+            },
+        ]
+    );
+    let quiet = brought(&[picked("none", &[], &[])]);
+    assert_eq!(quiet[0].precision, None, "一条都没带的没有准不准");
+}
+
 /// 每句照 `near` 交的向量搜前 5 条，交回搜出来的键。
 async fn run(
     keeper: &Keeper,
@@ -322,4 +370,49 @@ async fn measure_the_eval_set() {
     let both = run(&keeper, &set, &keys, Some((&vectors, &using))).await;
     sound(&set, &both);
     println!("{}", table("关键词加 bge-small-zh-v1.5", &score(&both)));
+    let picked = recall(&home, &set, &keys, &vectors, &using).await;
+    println!(
+        "{}",
+        brought_table("联想（门槛照出厂的表）", &brought(&picked))
+    );
+}
+
+/// 联想（施工 R-8）：每句照出厂的门槛表、`miyu_recall::associate::pick` 挑（不算这一段的去重和一块的字节）。
+async fn recall(
+    home: &Home,
+    set: &EvalSet,
+    keys: &BTreeMap<String, String>,
+    vectors: &Vectors,
+    using: &Using,
+) -> Vec<Picked> {
+    let shipped = std::fs::read_to_string(home.resources.path().join("core/memory/recall.toml"))
+        .expect("读得到");
+    let thresholds = Thresholds::parse(&shipped).expect("合写法");
+    let (log, _) = home.logs.open(&persona()).expect("开得了");
+    let live = |key: &String| {
+        set.memories
+            .iter()
+            .any(|memory| &memory.key == key && memory.retired.is_none())
+    };
+    let mut picked = Vec::new();
+    for query in &set.queries {
+        let near = vectors.query(using, &query.text).await.expect("算得出");
+        let threshold = thresholds.of(&near.model).expect("门槛表里有 bge");
+        let scored: Vec<(String, f32)> = log
+            .index()
+            .nearest(&near.model, &near.vector, 32)
+            .expect("搜得了")
+            .into_iter()
+            .filter_map(|hit| {
+                let key = keys.get(&hit.key)?;
+                live(key).then(|| (key.clone(), hit.similar))
+            })
+            .collect();
+        picked.push(Picked {
+            kind: query.kind.clone(),
+            expect: query.expect.clone(),
+            picked: pick(&scored, threshold, &BTreeSet::new(), 0),
+        });
+    }
+    picked
 }

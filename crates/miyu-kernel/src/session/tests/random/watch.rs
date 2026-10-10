@@ -337,11 +337,8 @@ impl Watch {
                 turn,
                 model,
                 present,
-            } => {
-                self.start_hooks(turn);
-                self.hooks_present(&present);
-                self.hooks_model(model.as_deref());
-            }
+                said,
+            } => self.turn_start_hooks(turn, &present, said.as_deref(), model.as_deref()),
             Action::CallModel { seen, request, .. } => self.called(seen, &request),
             Action::Aside {
                 purpose: crate::event::Purpose::Compaction,

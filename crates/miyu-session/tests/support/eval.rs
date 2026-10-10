@@ -320,3 +320,88 @@ pub fn table(title: &str, rows: &[Row]) -> String {
     }
     out
 }
+
+/// 一句联想挑中的（施工 R-8）：种类、该想起的、挑中的（照先后）。
+#[derive(Debug, Clone)]
+pub struct Picked {
+    pub kind: String,
+    pub expect: Vec<String>,
+    pub picked: Vec<String>,
+}
+
+/// 联想那张表的一行：一种问句，或者有答案的几种合在一起（`all`）。
+#[derive(Debug, Clone, PartialEq)]
+pub struct Brought {
+    pub kind: String,
+    /// 几句。
+    pub queries: usize,
+    /// 带了东西的占几成（`none` 的看这一格：该是 0）。
+    pub fired: f64,
+    /// 带了的里正是该想起的占几成；一条都没带的没有。
+    pub precision: Option<f64>,
+    /// 至少带对一条的占几成（`none` 的不算）。
+    pub hit: f64,
+    /// 平均带几条。
+    pub mean: f64,
+}
+
+/// 照种类算联想的分，照 [`KINDS`] 的先后，最后一行 `all` 是有答案的几种合在一起；一句都没有的种类不出行。
+pub fn brought(picked: &[Picked]) -> Vec<Brought> {
+    let mut rows: Vec<Brought> = KINDS
+        .iter()
+        .filter_map(|kind| brought_row(kind, picked.iter().filter(|one| one.kind == *kind)))
+        .collect();
+    rows.extend(brought_row(
+        "all",
+        picked.iter().filter(|one| !one.expect.is_empty()),
+    ));
+    rows
+}
+
+fn brought_row<'a>(kind: &str, picked: impl Iterator<Item = &'a Picked>) -> Option<Brought> {
+    let picked: Vec<&Picked> = picked.collect();
+    if picked.is_empty() {
+        return None;
+    }
+    let count = picked.len() as f64;
+    let total: usize = picked.iter().map(|one| one.picked.len()).sum();
+    let right = |one: &Picked| {
+        one.picked
+            .iter()
+            .filter(|key| one.expect.contains(key))
+            .count()
+    };
+    let correct: usize = picked.iter().map(|one| right(one)).sum();
+    Some(Brought {
+        kind: kind.to_string(),
+        queries: picked.len(),
+        fired: picked.iter().filter(|one| !one.picked.is_empty()).count() as f64 / count,
+        precision: (total > 0).then(|| correct as f64 / total as f64),
+        hit: picked.iter().filter(|one| right(one) > 0).count() as f64 / count,
+        mean: total as f64 / count,
+    })
+}
+
+/// 印成一张表：百分数取整，平均条数两位小数；`none` 的「带对」写「—」，没带的「准」写「—」。
+pub fn brought_table(title: &str, rows: &[Brought]) -> String {
+    let mut out = format!(
+        "{title}\n| 种类 | 句数 | 带了东西 | 带了的里该带的 | 这一轮带对了 | 平均带几条 |\n|---|---|---|---|---|---|\n"
+    );
+    let percent = |share: f64| format!("{:.0}%", share * 100.0);
+    for row in rows {
+        out.push_str(&format!(
+            "| {} | {} | {} | {} | {} | {:.2} |\n",
+            row.kind,
+            row.queries,
+            percent(row.fired),
+            row.precision.map_or("—".to_string(), percent),
+            if row.kind == "none" {
+                "—".to_string()
+            } else {
+                percent(row.hit)
+            },
+            row.mean,
+        ));
+    }
+    out
+}
