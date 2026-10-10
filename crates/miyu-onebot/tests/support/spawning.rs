@@ -252,6 +252,30 @@ impl Served {
         stdin.flush().await.expect("写得出");
     }
 
+    /// 等它起来时问的 `venue.sessions`（施工 O-32），照核心的样子回名下一个场所会话都没有：它等到回应才往下办推来的配置。最多等
+    /// 十秒。
+    pub async fn listed(&mut self) {
+        let asked = within("桥列场所会话", async {
+            loop {
+                let found = self
+                    .seen
+                    .lock()
+                    .expect("没 panic")
+                    .iter()
+                    .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+                    .find(|one| one["method"] == "venue.sessions");
+                if let Some(found) = found {
+                    return found;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await;
+        let reply =
+            serde_json::json!({"jsonrpc": "2.0", "id": asked["id"], "result": {"sessions": []}});
+        self.send(&reply).await;
+    }
+
     /// 等到它在标准输出上回了编号是 `id` 的那一条（施工 O-28 上），交回它。最多等十秒。
     pub async fn answer(&self, id: &str) -> Value {
         within("桥回核心", async {
@@ -321,7 +345,8 @@ pub async fn served(root: &DataRoot, config: Value) -> Served {
     }
 }
 
-/// 照 [`served`] 跑 `serve`（握手交的端口是 `listen`，没有令牌），等它端口听上：状态文件的进程号是它的。它退了、标准错误
+/// 照 [`served`] 跑 `serve`（握手交的端口是 `listen`，没有令牌），等它端口听上：状态文件的进程号是它的；再答它起来时问的
+/// `venue.sessions`（[`Served::listed`]，施工 O-32）。它退了、标准错误
 /// 说的是这个端口被占了：[`Taken`]（`ports.rs`）；别的原因退出的当失败。
 pub async fn served_up(root: &DataRoot, listen: u16) -> Result<Served, Taken> {
     served_with(root, serde_json::json!({"onebot.listen": listen}), listen).await
@@ -344,6 +369,7 @@ pub async fn served_with(root: &DataRoot, config: Value, listen: u16) -> Result<
     })
     .await;
     if up {
+        served.listed().await;
         return Ok(served);
     }
     let exited = served.child.wait_with_output().await.expect("等得到");

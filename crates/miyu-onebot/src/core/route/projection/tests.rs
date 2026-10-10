@@ -150,11 +150,12 @@ fn ext(seq: u64, seconds: i64, kind: &str, body: Value) -> Event {
     event(seq, seconds, kind, None, by, body)
 }
 
-/// 照先后收一串事件，交回她新说的话。
+/// 照先后收一串事件，交回她新说的话（补来的不算）。
 pub(super) fn take_all(projection: &mut Projection, events: Vec<Event>) -> Vec<Speaking> {
     events
         .iter()
         .filter_map(|event| projection.take(event))
+        .filter(|speaking| !speaking.replayed)
         .collect()
 }
 
@@ -373,6 +374,25 @@ fn history_is_not_spoken_and_old_or_repeated_events_are_skipped() {
     let spoken = take_all(&mut projection, vec![assistant(10, 2), assistant(11, 2)]);
     assert_eq!(spoken.len(), 1, "掉队再补来的不发，upto 只往后挪");
     assert_eq!(projection.last(), 11);
+}
+
+#[test]
+fn what_she_said_before_upto_comes_out_marked_as_replayed() {
+    let mut projection = Projection::new(3);
+    let taken: Vec<Option<bool>> = [
+        user(1, 20002, false),
+        started(2, 0, &[1]),
+        assistant(3, 2),
+        assistant(4, 2),
+    ]
+    .iter()
+    .map(|event| projection.take(event).map(|speaking| speaking.replayed))
+    .collect();
+    assert_eq!(
+        taken,
+        [None, None, Some(true), Some(false)],
+        "补来的照样交出这一刻群里的样子，标上补来的（O-32：期限以内、没入队的补发）"
+    );
 }
 
 #[test]

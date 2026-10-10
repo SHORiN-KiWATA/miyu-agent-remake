@@ -192,7 +192,8 @@ async fn after_a_restart_what_was_queued_is_not_resent_but_still_counts() {
         .await
         .expect("桥重新起来");
     let mut napcat = admin_napcat(listen).await.answering(MEMBERS);
-    // 桥起来以后群里头一条消息来了才找这个群的会话、从头订阅（「群里怎么叫她」第 1 条）：小林说一句，判完了投影就重建好了。
+    // 桥起来就从头订阅了这个群（施工 O-32，「群里怎么叫她」第 1 条），投影照日志重建好了：入队过的第一句不补发。小林说一句，
+    // 判完了再放她接着说。
     napcat.send(group_frame(
         GROUP,
         LIN,

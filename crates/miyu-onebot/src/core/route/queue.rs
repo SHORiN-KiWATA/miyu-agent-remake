@@ -61,6 +61,12 @@ impl<T> Queue<T> {
         }
     }
 
+    /// 此刻是 `now`，说的时刻晚于它（毫秒）的还在期限里（施工 O-32，「出站队列」第 6 条：订阅补来的她的话照它补发）：和排着的
+    /// 一个算法，此刻减期限。
+    pub(super) fn since(&self, now: Timestamp) -> i64 {
+        now.unix_millis().saturating_sub(self.expire)
+    }
+
     /// 会话 `session` 在 `at` 入队了一段 `item`：排在这个会话的最后。
     pub(super) fn push(&mut self, session: &str, at: Timestamp, item: T) {
         self.lines

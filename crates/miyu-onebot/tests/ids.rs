@@ -4,7 +4,10 @@
 use serde_json::{Value, json};
 
 use miyu_chat::{Venue, VenueKind};
-use miyu_onebot::onebot::{Event, Frame, PLATFORM, command_id, person, private_venue, read};
+use miyu_kernel::id::VenueId;
+use miyu_onebot::onebot::{
+    Event, Frame, PLATFORM, To, bot_of, command_id, person, private_venue, read, to_of,
+};
 
 #[test]
 fn venue_and_person_are_made_by_the_chat_kernel() {
@@ -46,6 +49,27 @@ fn the_command_id_carries_the_platforms_time() {
         "同一个消息编号、时刻不同，是两条"
     );
     assert_eq!(command_id(30003, 7, 0), "qq:30003:7:0");
+}
+
+#[test]
+fn the_bot_and_the_place_are_read_back() {
+    assert_eq!(bot_of(&command_id(30003, 501, 1_759_800_000)), Some(30003));
+    assert_eq!(
+        bot_of("qq:30003:501:1759800000/decided"),
+        Some(30003),
+        "加了后缀的也认"
+    );
+    for other in ["onebot-1a2b-3", "tg:30003:1:0", "qq:x:1:0", "qq", ""] {
+        assert_eq!(bot_of(other), None, "{other}");
+    }
+    let place = |venue: &str| {
+        let id = VenueId::parse(venue).expect("合写法");
+        to_of(&Venue::parse(&id).expect("解得出"))
+    };
+    assert_eq!(place("qq:group:668"), Some(To::Group(668)));
+    assert_eq!(place("qq:private:20003"), Some(To::Private(20003)));
+    assert_eq!(place("tg:group:668"), None, "别的平台");
+    assert_eq!(place("qq:group:abc"), None, "号不是整数");
 }
 
 /// 一条私聊事件，`time` 照给的写；`None` 是不带。

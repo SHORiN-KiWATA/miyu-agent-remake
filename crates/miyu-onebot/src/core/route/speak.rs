@@ -1,6 +1,7 @@
 //! 她的话发回去（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 1、9 条；O-25 上接上出站链，私聊的「怎么走」第 10 条也在
-//! 这里）：群会话推来的事件（订阅时从头补来的、之后推来的）走同一条路收进这个群的投影（`projection`）；她新说的话（序号大于
-//! 订阅时的 `upto`）先过出站链（`outbound`），丢了的记一行，过了的照纯文本拆段，一段一条入队（`sending`，O-25 中：先记
+//! 这里）：群会话推来的事件（订阅时从头补来的、之后推来的）走同一条路收进这个群的投影（`projection`）；补来的她的话交给补来的
+//! 那一段（`backlog`，施工 O-32：期限以内、没入队的由 `revive` 补发）；她新说的话（序号大于订阅时的 `upto`）先过出站链
+//! （`outbound`），丢了的记一行，过了的照纯文本拆段，一段一条入队（`sending`，O-25 中：先记
 //! `ext.onebot.venues.queued` 再照先后交 NapCat，群里的成了记 `venue.delivered`），第一段带引用和 @。私聊里她的话也过出站链、
 //! 拆段、入队，不记 `venue.delivered`。这一轮她调过 `skip_reply` 的（施工 O-26，`quiet`）不过链、不入队，记一行
 //! `reply dropped why=skipped`。
@@ -10,6 +11,7 @@ use miyu_kernel::event::Event;
 use miyu_kernel::id::VenueId;
 use serde_json::Value;
 
+use super::backlog::queued_reply;
 use super::outbound::{Passed, group_ctx, pass, private_ctx, why_name};
 use super::projection::{Aim, Speaking};
 use super::sending::{Piece, What};
@@ -42,7 +44,23 @@ impl Route {
         let speaking = group.take(&event);
         self.reactions.seen(session, &event);
         let quiet = self.quiet.heard(session, raw);
+        let backlog = self
+            .backlogs
+            .get_mut(session)
+            .filter(|backlog| backlog.replayed(raw));
+        if let Some(backlog) = backlog {
+            backlog.take(raw);
+        }
         match speaking {
+            // 补来的不照常发：这一轮没说不说话的交给补来的那一段，期限以内、没入队的补完了补发（施工 O-32，`revive`）。
+            Some(speaking) if speaking.replayed => {
+                if let Some(backlog) = self.backlogs.get_mut(session)
+                    && !quiet
+                {
+                    backlog.said(raw, reply_text(raw), Some(speaking));
+                }
+                Ok(())
+            }
             Some(_) if quiet => {
                 self.hushed(session, &reply_text(raw));
                 Ok(())
@@ -113,6 +131,23 @@ impl Route {
                 .map(str::to_string);
             self.quotes.insert(session.to_string(), quote);
         }
+        if let Some(backlog) = self.backlogs.get_mut(session)
+            && backlog.replayed(event)
+        {
+            // 补来的（桥起来时从头订阅，施工 O-32）：不照常发。这一轮入队了的照日志补回 `Spoken`，重启以后同一轮里照旧去重；她的话
+            // 交给补来的那一段，期限以内、没入队的补完了补发（`revive`）。
+            backlog.take(event);
+            if let Some((turn, text)) = queued_reply(event) {
+                self.spoken
+                    .entry(session.to_string())
+                    .or_default()
+                    .add(turn, text);
+            }
+            if event["kind"] == "message.assistant" && !quiet {
+                backlog.said(event, reply_text(event), None);
+            }
+            return Ok(());
+        }
         if event["kind"] != "message.assistant" {
             return Ok(());
         }
@@ -142,7 +177,12 @@ impl Route {
     }
 
     /// 把过了链的 `passed` 一段一条照先后入队（施工 O-25 中，`sending`），第一段带上引用和 @。
-    async fn say(&mut self, session: &str, passed: Passed, what: What) -> Result<(), Gone> {
+    pub(super) async fn say(
+        &mut self,
+        session: &str,
+        passed: Passed,
+        what: What,
+    ) -> Result<(), Gone> {
         let mut lead = passed.lead;
         for text in passed.pieces {
             let piece = Piece {
