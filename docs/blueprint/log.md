@@ -135,7 +135,7 @@
 | `core` | INFO | `stopped` | `reason`：`idle` 或 `signal` | 空闲够久了，或者收到停的信号 |
 | `core` | WARN | `SIGTERM not watched`、`Ctrl+C not watched` | `error` | 装不上信号的监听 |
 | `core` | INFO | `model profiles loaded` | `profiles`（档案里几家） | 起来时读完供应商的档案（施工 8-6，`core.md`「模型」） |
-| `core` | INFO | `catalog loaded` | `source`（`snapshot` 或 `cache`）、`fetched`、`providers`、`models`、`ms` | 读完 models.dev 的目录（施工 8-7，`models.md`「怎么走」第二条第 2 条；V-2 下起造好路由就读，不等 `ready`） |
+| `core` | INFO | `catalog loaded` | `source`（`snapshot` 或 `cache`）、`fetched`、`providers`、`models`、`ms` | 读完 models.dev 的目录（施工 8-7，`models.md`「怎么走」第二条第 2 条；V-2 下补起找到资源目录就读，不等 `ready`） |
 | `core` | WARN | `catalog unreadable`、`catalog empty` | `source`、`error`；`catalog empty` 没有键 | 一份目录读不了；两份都读不了 |
 | `core` | DEBUG | `catalog entry skipped` | `entry`（`<供应商>/<模型>` 或 `<供应商>`） | 目录里坏了、跳过的一个 |
 | `core` | INFO | `catalog refreshed`、`catalog not modified` | `fetched`、`providers`、`models`；304 的没有键 | 后台拉到了新目录、服务器说没变（第二条第 3 条） |

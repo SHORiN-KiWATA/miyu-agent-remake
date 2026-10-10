@@ -12,6 +12,8 @@ use miyu_kernel::id::Seq;
 
 use super::{Mark, SessionLog};
 
+mod parse;
+
 /// 打开不了会话日志。
 #[derive(Debug)]
 pub enum OpenError {
@@ -240,12 +242,8 @@ fn read_segment(
         }
     }
     let mut events = Vec::with_capacity(lines.len());
-    for (k, line) in lines.iter().enumerate() {
-        let number = k + 1;
-        let text =
-            std::str::from_utf8(line).map_err(|_| broken(path, number, "not UTF-8".to_string()))?;
-        let event = Event::from_line(text)
-            .map_err(|error| broken(path, number, format!("not readable: {error}")))?;
+    for parsed in parse::lines(&lines) {
+        let (number, event) = parsed.map_err(|(number, why)| broken(path, number, why))?;
         if event.seq != *next {
             return Err(broken(
                 path,

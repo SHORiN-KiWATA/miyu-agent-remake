@@ -19,6 +19,7 @@ use tokio::sync::watch;
 
 use miyu_config::secret::Reference;
 use miyu_http::{Proxy, client, fetcher};
+use miyu_models::catalog::Loaded;
 use miyu_models::cooldown::Rules;
 use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
@@ -88,21 +89,56 @@ pub fn routes(resources: &ResourceRoot) -> Result<Arc<dyn Models>, String> {
     Ok(Arc::new(routes))
 }
 
-/// 读目录（施工 V-2 下：造好路由就读，不等写 `ready`）：在阻塞线程里读目录（快照和缓存挑新的）、用出来的，读完放行要它的
-/// （造会话、载入、`model.list`）。核心别的起来的步子和它并着走：头一连上就要载入会话，原来写了 `ready` 才开始读，载入会话
-/// 白等约 30 ms。交回读好的图标表，[`follow`] 照它在后台拉图标。
-pub fn begin(
-    data: Arc<ModelData>,
-    snapshot: PathBuf,
-    cache: Option<PathBuf>,
-    state: Option<PathBuf>,
-) -> Reading {
-    let table = snapshot.join(logos::TABLE);
+/// 最早的一步（施工 V-2 下补）：找到资源目录就在一个线程里读目录（快照和缓存挑新的），和读配置、生成文件这些起来的步子
+/// 并着走。头一连上就要载入会话，载入要等目录读完：原来造好路由才开始读，起来约 15 ms 以后才动手。线程起不来的，到
+/// [`begin`] 再读。
+pub fn read_early(snapshot: PathBuf, cache: Option<PathBuf>) -> Early {
     let places = Places { snapshot, cache };
+    let reading = places.clone();
+    let thread = std::thread::Builder::new()
+        .name("catalog".to_string())
+        .spawn(move || catalog::load(&reading));
+    if let Err(error) = &thread {
+        tracing::warn!(target: TARGET, error = %error, "catalog thread not started");
+    }
+    Early {
+        places,
+        thread: thread.ok(),
+    }
+}
+
+/// [`read_early`] 起的那一次读。
+pub struct Early {
+    places: Places,
+    thread: Option<std::thread::JoinHandle<Option<Loaded>>>,
+}
+
+impl Early {
+    /// 缓存目录（`<缓存目录>/models`）：写了 `ready` 以后照它在后台更新（[`follow`]）。算不出来的没有。
+    pub fn cache(&self) -> Option<PathBuf> {
+        self.places.cache.clone()
+    }
+
+    /// 等它读完；线程没起来的现在读，读的线程 panic 了的当没读到。在阻塞线程里调。
+    fn finish(self) -> Option<Loaded> {
+        let Some(thread) = self.thread else {
+            return catalog::load(&self.places);
+        };
+        thread.join().unwrap_or_else(|_| {
+            tracing::error!(target: TARGET, "catalog read panicked");
+            None
+        })
+    }
+}
+
+/// 造好路由以后（施工 V-2 下）：在阻塞线程里等 [`read_early`] 的目录、读用出来的，读完放行要它的（造会话、载入、
+/// `model.list`）。不等写 `ready`。交回读好的图标表，[`follow`] 照它在后台拉图标。
+pub fn begin(data: Arc<ModelData>, early: Early, state: Option<PathBuf>) -> Reading {
+    let table = early.places.snapshot.join(logos::TABLE);
     let reading = Arc::clone(&data);
     let task = tokio::task::spawn_blocking(move || {
         let observed = state.as_deref().map(read_observed).unwrap_or_default();
-        reading.loaded(catalog::load(&places), observed);
+        reading.loaded(early.finish(), observed);
         logos::table(&table)
     });
     Reading { data, task }

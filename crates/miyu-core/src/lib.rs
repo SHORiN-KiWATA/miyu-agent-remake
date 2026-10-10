@@ -109,6 +109,15 @@ pub fn main(options: Options) -> ExitCode {
         Ok(resources) => resources,
         Err(error) => return failed("resources", error.to_string()),
     };
+    // 目录最先读（施工 V-2 下补）：和下面读清单、配置、生成文件并着走。
+    let catalog = models::read_early(
+        resources
+            .catalog_snapshot()
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_default(),
+        models::cache(&env),
+    );
     let mut found = load_packages(&resources, &root);
     let packaged = settings::Packaged::of(&mut found);
     let config = settings::read(&root, &admin(), env.home.as_deref(), &packaged);
@@ -135,7 +144,13 @@ pub fn main(options: Options) -> ExitCode {
         Ok(runtime) => runtime,
         Err(error) => return failed("runtime", error.to_string()),
     };
-    let outcome = runtime.block_on(run(env, root, resources, lock, options, (config, live)));
+    let outcome = runtime.block_on(run(
+        env,
+        (root, resources, lock),
+        options,
+        (config, live),
+        catalog,
+    ));
     drop(log);
     outcome
 }
@@ -263,11 +278,10 @@ struct Live {
 /// 起来时读的配置和当场生效要的。开始监视配置文件、跟着配置换级别和重写生成的文件（施工 8-4）在说「好了」之前。
 async fn run(
     env: Env,
-    root: DataRoot,
-    resources: ResourceRoot,
-    lock: Lock,
+    (root, resources, lock): (DataRoot, ResourceRoot, Lock),
     options: Options,
     (config, live): (miyu_endpoint::config::Config, Live),
+    catalog: models::Early,
 ) -> ExitCode {
     let opened = match miyu_ipc::open_locked(&root, &Dirs::current(), lock) {
         Ok(opened) => opened,
@@ -278,16 +292,12 @@ async fn run(
         Err(error) => return failed("models", error),
     };
     let model_data = Arc::clone(&routes.data);
-    // 造好路由就读目录（施工 V-2 下）：和下面这几步并着走，不挡 `ready`；头一连上要载入会话时多半已经读完了。
-    let cache = models::cache(&env);
+    // 造好路由就放行目录（施工 V-2 下）：读在找到资源目录时就开始了（施工 V-2 下补），这里等它读完、读用出来的，不挡
+    // `ready`。
+    let cache = catalog.cache();
     let reading = models::begin(
         Arc::clone(&model_data),
-        resources
-            .catalog_snapshot()
-            .parent()
-            .map(Path::to_path_buf)
-            .unwrap_or_default(),
-        cache.clone(),
+        catalog,
         Some(root.state().join("models")),
     );
     let sandbox = sandbox::probe(env.exe.as_deref());
