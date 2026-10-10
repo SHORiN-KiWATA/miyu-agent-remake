@@ -1,0 +1,52 @@
+[
+  {
+    "type": "table",
+    "align": [
+      "left",
+      "center",
+      "right"
+    ],
+    "rows": [
+      [
+        [
+          {
+            "type": "text",
+            "text": "左"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "中"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "右"
+          }
+        ]
+      ],
+      [
+        [
+          {
+            "type": "text",
+            "text": "a"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "b"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "c"
+          }
+        ]
+      ]
+    ]
+  }
+]

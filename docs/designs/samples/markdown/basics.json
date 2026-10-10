@@ -1,0 +1,213 @@
+[
+  {
+    "type": "heading",
+    "level": 1,
+    "children": [
+      {
+        "type": "text",
+        "text": "标题"
+      }
+    ]
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "text",
+        "text": "一段话，有"
+      },
+      {
+        "type": "strong",
+        "children": [
+          {
+            "type": "text",
+            "text": "粗体"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": "、"
+      },
+      {
+        "type": "em",
+        "children": [
+          {
+            "type": "text",
+            "text": "斜体"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": "、"
+      },
+      {
+        "type": "del",
+        "children": [
+          {
+            "type": "text",
+            "text": "删掉的"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": "和 "
+      },
+      {
+        "type": "code_inline",
+        "text": "行内代码"
+      },
+      {
+        "type": "text",
+        "text": "。"
+      }
+    ]
+  },
+  {
+    "type": "heading",
+    "level": 2,
+    "children": [
+      {
+        "type": "text",
+        "text": "第二级"
+      }
+    ]
+  },
+  {
+    "type": "list",
+    "ordered": false,
+    "items": [
+      {
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "第一项"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "第二项"
+              }
+            ]
+          },
+          {
+            "type": "list",
+            "ordered": false,
+            "items": [
+              {
+                "children": [
+                  {
+                    "type": "paragraph",
+                    "children": [
+                      {
+                        "type": "text",
+                        "text": "嵌套的一项"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "list",
+    "ordered": true,
+    "start": 3,
+    "items": [
+      {
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "从三开始"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "第四"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "list",
+    "ordered": false,
+    "items": [
+      {
+        "task": false,
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "没做的"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "task": true,
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "text",
+                "text": "做完的"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "quote",
+    "children": [
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "引用的一段"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "hr"
+  }
+]
