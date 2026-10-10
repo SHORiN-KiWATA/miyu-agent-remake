@@ -43,7 +43,7 @@
   "center_move_ms": 280,
   "pin_margin": 16,
   "sidebar_peek": {
-    "zone": 56,
+    "zone": 10,
     "open_ms": 120,
     "close_ms": 260
   },

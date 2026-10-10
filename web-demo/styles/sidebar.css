@@ -45,8 +45,8 @@
   background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background-color 0.12s ease;
 }
 .brand-identity:not(:disabled):hover, .brand-identity:focus-visible { outline: none; background: color-mix(in srgb, var(--text) 6%, transparent); }
-/* 无人格：不画头像、名称写 Miyu，不能点 */
-.brand-identity:disabled { cursor: default; }
+/* 无人格：不画头像、名称写 Miyu，不能点；名称和在线的圆点跟下面「会话」那一行的图标对齐（2026-10-10 项目主人：原来贴得太靠左） */
+.brand-identity:disabled { padding-left: 11px; cursor: default; }
 .brand-face[hidden] { display: none; }
 .brand-face { display: grid; flex: 0 0 38px; }
 .brand-avatar { width: 38px; height: 38px; flex: 0 0 38px; border: 2px solid var(--gold); border-radius: 50%; object-fit: cover; }
