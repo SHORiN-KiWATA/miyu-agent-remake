@@ -225,6 +225,7 @@ model = "mascot.json"   # 包目录 packages/pudding/ 里的相对路径
 5. **卸掉的出厂的**：读两层时不算装了（`Packages::read`）；`package.list` 照样列它，带 `removed: true`（`Packages::read_removed`），好让头给人装回来。
 6. 装、卸一次只做一件；只给本机的人用，扩展进程调回 `local_only`；做成了记一行运行日志 `INFO package installed`、`package removed`、`package restored`。
 7. **卸就是清干净**（施工 F-8 中下补，设计 31 第三节第 3 条）：换下清单以后，系统配置和管理员的个人设置里这个包清单列的项照原文删掉（`miyu_config::edit` 的 `Unset`，空了的表头一起删，注释、别的项不动），走 `config.set` 那一条写盘、记日志、推 `config.changed`，改的人记成管理员（端点的 `config/forget.rs`）；包的状态目录 `state/packages/<编号>/` 整个删掉。家目录里装的、出厂的都一样，重装回来从头设。不碰的：密钥文件（一条密钥可能别处也在引用）、项目目录里的 `.miyu/config.toml`、系统账号的家目录（群里的会话是人的数据）。写不进、删不掉的记一行 `WARN`，卸照算成。
+8. **先看一眼**（施工 F-8 下补，端点的 `packages/preview.rs`）：`package.install`、`package.remove` 带 `preview: true` 的照真做之前查的那几样查一遍（装、看一眼共用 `manage.rs` 的 `source`，卸、看一眼共用 `removable`），交回要做什么（`protocol.md`），文件、配置、清单一样都不动；和装卸一样排队（拿同一把锁），看到的是前一件做完的样子。命令行照它印一份、问一句（`cli/pkg.md`）。
 
 ### 出错
 
@@ -271,6 +272,7 @@ model = "mascot.json"   # 包目录 packages/pudding/ 里的相对路径
 | `crates/miyu-endpoint/tests/packages_config.rs`、`crates/miyu/tests/packages_live.rs`、`crates/miyu-core/tests/tools.rs`、`crates/miyu-tool/src/catalog/tests.rs`（施工 F-5 补） | 装卸以后配置项当场换（见 `config.md`「守着它的」）；端口交的整份配置清单和起来时读配置用的一样、没装的人格记忆的几项不画；卸掉的提供者装回来登记了不再算卸掉 |
 | `crates/miyu-endpoint/tests/packages_extensions.rs`、`tests/system_account.rs`、`src/system_accounts/tests.rs`（施工 F-5 下） | 真核心装上的扩展当场拉起、卸掉的当场停下、旧会话调到它的工具报「已卸载」、升级了的重起、没变的不动；起来以后装上、装回来的声明了系统账号的包当场有账号；再走一遍时开过的索引不再开 |
 | `crates/miyu-endpoint/tests/packages_live.rs`（施工 F-5 中） | 真核心卸掉一个内置包：查询当没有、用过它的会话工具面不变、调到报「已卸载」、新开的会话没有；装回来工具、查询都回来 |
+| `crates/miyu-endpoint/tests/packages_preview.rs`（施工 F-8 下补） | 看一眼：装的说带了什么、要什么能力、几个文件多大，升级的说换下哪个版本，写错的、撞了出厂的照真装一样拒；卸的说哪一层、写了的设置键、有没有状态目录，必需的拒；装回出厂的；都什么都不动 |
 | `crates/miyu-endpoint/tests/packages_purge.rs`（施工 F-8 中下补） | 真核心卸掉家目录里装的、出厂的包：系统配置、个人设置里它的项删了、空了的表头也删了，别的项和注释不动；状态目录删了 |
 | `crates/miyu-endpoint/tests/packages_install.rs`（施工 F-5 上） | 装一份清单、同名目录一起拷、列表和预设的功能当场有；升级换掉、升级撞了放回原来的、不留暂存；写错的、和出厂撞了的、和别的包撞了的不装；卸家目录的删掉；卸出厂的记一笔、列表里标卸掉、装得回来；必需的、没装的不能卸 |
 | `crates/miyu-endpoint/tests/packages.rs` | `package.list` 的每一格、照语言挑；施工 F-1 的几格（必需、功能、平台接入、依赖、小程序）；没编进来的内置包报 `not_built_in`、只认读成了的内置包算装了（施工 F-2）；写错的、同编号、撞名、协议版本对不上、`process` 和 `check`；起来时读一次；`check` 查清单、写了文件的认得出、别的文件认不出。只断言出厂的网页和测试自己放的几份，家目录里的编号、子命令名避开出厂会有的（施工 9-1 补：终端界面要出厂 `tui`）；家目录里以前的写法读时挪成新的（施工 F-8 上） |

@@ -94,6 +94,16 @@ pub(super) fn shown(
     switches: &Switches,
     language: &str,
 ) -> Option<(Value, Option<Value>)> {
+    let listed = described(core, manifest, language)?;
+    let left = unapproved(core, id, manifest, switches);
+    let left =
+        (!left.is_empty()).then(|| json!(left.iter().map(|it| it.as_str()).collect::<Vec<_>>()));
+    Some((listed, left))
+}
+
+/// 清单声明的每一个能力 `{"id", "name", "summary"}`（名字、一句说明照 `language` 挑，没有字的名字是编号、说明是 `null`）；
+/// 没声明能力的没有。装之前看一眼也照它说（施工 F-8 下补）。
+pub(crate) fn described(core: &Core, manifest: &Manifest, language: &str) -> Option<Value> {
     let declared = declared(manifest);
     if declared.is_empty() {
         return None;
@@ -115,8 +125,5 @@ pub(super) fn shown(
             })
         })
         .collect();
-    let left = unapproved(core, id, manifest, switches);
-    let left =
-        (!left.is_empty()).then(|| json!(left.iter().map(|it| it.as_str()).collect::<Vec<_>>()));
-    Some((json!(listed), left))
+    Some(json!(listed))
 }

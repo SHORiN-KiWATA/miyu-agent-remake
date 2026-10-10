@@ -61,3 +61,23 @@ pub(crate) fn forget(core: &Core, keys: &[String]) {
         }
     }
 }
+
+/// `keys` 里系统配置或者个人设置写了的那几个，照 `keys` 的先后（施工 F-8 下补：卸之前看一眼，说要一并删掉几项）。
+pub(crate) fn present(core: &Core, keys: &[String]) -> Vec<String> {
+    let mut config = core.config();
+    let texts: Vec<String> = [Layer::System, Layer::Personal]
+        .into_iter()
+        .map(|layer| {
+            observe(core, &mut config, layer);
+            config.file(layer).text.clone()
+        })
+        .collect();
+    keys.iter()
+        .filter(|key| {
+            texts
+                .iter()
+                .any(|text| edit::apply(text, Change::Unset(key)).is_ok_and(|after| after != *text))
+        })
+        .cloned()
+        .collect()
+}

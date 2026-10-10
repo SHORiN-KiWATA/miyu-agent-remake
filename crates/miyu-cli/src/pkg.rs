@@ -5,10 +5,11 @@
 //! 做成了退出码 0；核心拒的照核心的原话印在标准错误上（清单装不上的照 `data` 说哪里不对），退出码 1；`owns` 哪个包都没有的、
 //! `check` 查出改了少了的也是 1（照 pacman）；参数写错的 2，由 clap 管。
 
+mod confirm;
 mod query;
 mod shown;
 
-use std::io::{self, Write};
+use std::io::{self, BufRead, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, ExitCode};
 
@@ -21,7 +22,7 @@ use miyu_store::root::DataRoot;
 
 use crate::ask::Format;
 use crate::exit;
-use crate::language::{self, Language};
+use crate::language::{self, Doing, Language};
 use crate::link;
 use crate::rpc::Rpc;
 use crate::shown::{offset, say};
@@ -35,6 +36,9 @@ pub struct Pkg {
     /// `list`、`info`、`files`、`owns`、`check` 输出的格式。
     #[arg(long, global = true, value_enum, default_value_t = Format::Text)]
     pub format: Format,
+    /// 装、卸之前不问（施工 F-8 下补）；`--noconfirm` 是 pacman 的写法。
+    #[arg(long, visible_alias = "noconfirm", global = true)]
+    pub yes: bool,
 }
 
 /// `miyu pkg` 的子命令。
@@ -175,17 +179,20 @@ async fn run(args: Pkg, start: impl FnOnce() -> Command) -> u8 {
         connection,
         &token,
         &plan,
+        &mut io::stdin().lock(),
         &mut io::stdout(),
         &mut io::stderr(),
     )
     .await
 }
 
-/// 在一条连上了的连接上做一次：握手、照子命令发、印，交回退出码；印的写在 `out`，出错的写在 `err`。测试照它在进程里走一遍。
+/// 在一条连上了的连接上做一次：握手、照子命令发、印，交回退出码；装、卸之前问的答从 `input` 读，印的写在 `out`，出错的写在
+/// `err`。测试照它在进程里走一遍。
 pub async fn pkg_on(
     connection: Connection,
     token: &str,
     plan: &PkgPlan,
+    input: &mut dyn BufRead,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> u8 {
@@ -194,7 +201,7 @@ pub async fn pkg_on(
     if let Err(code) = link::hello(&mut rpc, token, language, false, err).await {
         return code;
     }
-    match act(&mut rpc, plan, out, err).await {
+    match act(&mut rpc, plan, (input, out, err)).await {
         Ok(()) => exit::OK,
         Err(code) => code,
     }
@@ -204,8 +211,7 @@ pub async fn pkg_on(
 async fn act(
     rpc: &mut Rpc,
     plan: &PkgPlan,
-    out: &mut dyn Write,
-    err: &mut dyn Write,
+    (input, out, err): (&mut dyn BufRead, &mut dyn Write, &mut dyn Write),
 ) -> Result<(), u8> {
     let language = &plan.language;
     let json = plan.args.format == Format::Json;
@@ -222,12 +228,26 @@ async fn act(
         }
         PkgCommand::Install { what } => {
             let params = installing(&what, &plan.cwd);
+            if !plan.args.yes {
+                let doing = match params.get("path") {
+                    Some(_) => Doing::Install,
+                    None => Doing::Restore,
+                };
+                let shown = ask(rpc, "package.install", previewed(&params), language, err).await?;
+                lines(out, confirm::plan(&shown, doing, language));
+                confirm::asked(input, out, err, doing, language)?;
+            }
             let result = ask(rpc, "package.install", params, language, err).await?;
             say(out, &language.installed(package_of(&result)));
             Ok(())
         }
         PkgCommand::Remove { package } => {
             let params = json!({"package": package});
+            if !plan.args.yes {
+                let shown = ask(rpc, "package.remove", previewed(&params), language, err).await?;
+                lines(out, confirm::plan(&shown, Doing::Remove, language));
+                confirm::asked(input, out, err, Doing::Remove, language)?;
+            }
             let result = ask(rpc, "package.remove", params, language, err).await?;
             say(out, &language.uninstalled(package_of(&result)));
             Ok(())
@@ -304,6 +324,13 @@ async fn ask(
         refused(error, language)
     })
     .await
+}
+
+/// 同一条请求，只看一眼（`preview`，施工 F-8 下补）。
+fn previewed(params: &Value) -> Value {
+    let mut params = params.clone();
+    params["preview"] = json!(true);
+    params
 }
 
 /// 一行一行印。

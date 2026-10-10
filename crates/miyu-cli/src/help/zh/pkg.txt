@@ -18,4 +18,5 @@ pacman 的写法也认：
 
 选项：
       --format text|json  list、info、files、owns、check：json 给脚本
+      --yes, --noconfirm  install、remove：不问，直接做
   -h, --help              印帮助

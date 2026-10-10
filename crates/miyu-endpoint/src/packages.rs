@@ -20,6 +20,7 @@ use crate::Core;
 pub(crate) mod local;
 pub(crate) mod manage;
 pub(crate) mod methods;
+pub(crate) mod preview;
 pub(crate) mod status;
 pub(crate) mod switch;
 pub(crate) mod verify;

@@ -8,7 +8,13 @@ use super::MIYU;
 
 /// 在数据根 `root` 上、工作目录 `cwd` 里跑 `miyu <args>`：没有 key，界面语言是 `lang`。
 pub fn miyu(root: &Path, cwd: &Path, lang: &str, args: &[&str]) -> Output {
-    Command::new(MIYU)
+    command(root, cwd, lang, args).output().expect("跑得起来")
+}
+
+/// 同 [`miyu`] 的那一条命令，还没跑：要往标准输入写字的照它自己接（施工 F-8 下补）。
+pub fn command(root: &Path, cwd: &Path, lang: &str, args: &[&str]) -> Command {
+    let mut command = Command::new(MIYU);
+    command
         .args(args)
         .current_dir(cwd)
         .env("MIYU_HOME", root)
@@ -18,9 +24,8 @@ pub fn miyu(root: &Path, cwd: &Path, lang: &str, args: &[&str]) -> Output {
         .env_remove("LC_ALL")
         .env_remove("LC_MESSAGES")
         .env_remove("XDG_RUNTIME_DIR")
-        .env_remove("NO_COLOR")
-        .output()
-        .expect("跑得起来")
+        .env_remove("NO_COLOR");
+    command
 }
 
 /// 在阻塞线程里跑：核心在这个测试的运行时里。

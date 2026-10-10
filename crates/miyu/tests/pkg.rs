@@ -2,10 +2,13 @@
 //! 装回来；必需的卸不掉、写错的清单装不上，退出码 1；`--format json` 原样印那一串；`-h` 印那一页。看一个包的信息、装了哪些
 //! 文件、文件归哪个包、文件改没改，pacman 的写法也认（施工 F-8 下）。
 
+use std::path::Path;
+use std::process::Output;
+
 use serde_json::Value;
 
-use crate::support::cli::{run, stderr, stdout};
-use crate::support::{Home, within};
+use crate::support::cli::{command, run, stderr, stdout};
+use crate::support::{Home, run_starting, within};
 use miyu_cli::help::{Page, page};
 use miyu_cli::language::Language;
 use miyu_ipc::connect_or_start;
@@ -43,31 +46,31 @@ async fn pkg_lists_installs_and_removes_through_a_real_core() {
         "{text}"
     );
 
-    let installed = run(&root, &cwd, zh, &["pkg", "install", "./xpkg"]).await;
+    let installed = run(&root, &cwd, zh, &["pkg", "install", "./xpkg", "--yes"]).await;
     assert_eq!(stdout(&installed), "装好了：xpkg\n", "{installed:?}");
     let text = stdout(&run(&root, &cwd, zh, &["pkg", "list"]).await);
     assert!(
         line(&text, "xpkg").is_some_and(|line| line.ends_with("测试包")),
         "{text}"
     );
-    let removed = run(&root, &cwd, zh, &["pkg", "remove", "xpkg"]).await;
+    let removed = run(&root, &cwd, zh, &["pkg", "remove", "xpkg", "--yes"]).await;
     assert_eq!(stdout(&removed), "卸掉了：xpkg\n", "{removed:?}");
     assert!(line(&stdout(&run(&root, &cwd, zh, &["pkg"]).await), "xpkg").is_none());
 
     // 出厂的：卸掉的照样列、标「已卸载」，照编号装回来。
-    run(&root, &cwd, zh, &["pkg", "remove", "net"]).await;
+    run(&root, &cwd, zh, &["pkg", "remove", "net", "--yes"]).await;
     let text = stdout(&run(&root, &cwd, zh, &["pkg"]).await);
     assert!(
         line(&text, "net").is_some_and(|line| line.ends_with("（已卸载）")),
         "{text}"
     );
-    let back = run(&root, &cwd, zh, &["pkg", "install", "net"]).await;
+    let back = run(&root, &cwd, zh, &["pkg", "install", "net", "--yes"]).await;
     assert_eq!(stdout(&back), "装好了：net\n", "{back:?}");
 
-    let required = run(&root, &cwd, zh, &["pkg", "remove", "basesystem"]).await;
+    let required = run(&root, &cwd, zh, &["pkg", "remove", "basesystem", "--yes"]).await;
     assert_eq!(required.status.code(), Some(1));
     assert_eq!(stderr(&required), "必需的软件包，无法卸载。\n");
-    let bad = run(&root, &cwd, zh, &["pkg", "install", "bad/"]).await;
+    let bad = run(&root, &cwd, zh, &["pkg", "install", "bad/", "--yes"]).await;
     assert_eq!(bad.status.code(), Some(1));
     assert!(stderr(&bad).starts_with("装不上："), "{}", stderr(&bad));
 
@@ -98,7 +101,7 @@ async fn pkg_tells_about_installed_files_through_a_real_core() {
     std::fs::write(cwd.join("xpkg/bin/data.txt"), "1").expect("写得进");
     let zh = "zh_CN.UTF-8";
 
-    let installed = run(&root, &cwd, zh, &["pkg", "-U", "./xpkg"]).await;
+    let installed = run(&root, &cwd, zh, &["pkg", "-U", "./xpkg", "--yes"]).await;
     assert_eq!(
         stdout(&installed),
         "装好了：xpkg\n",
@@ -139,6 +142,69 @@ async fn pkg_tells_about_installed_files_through_a_real_core() {
     assert_eq!(
         (changed.status.code(), stdout(&changed)),
         (Some(1), "xpkg：已修改 bin/data.txt\n".to_string())
+    );
+    drop(held);
+    if let Err(error) = std::fs::remove_dir_all(&cwd) {
+        eprintln!("临时目录没删掉：{error}");
+    }
+}
+
+/// 同 [`run`]，标准输入写 `input` 再关上（施工 F-8 下补：装、卸之前问的答）。
+async fn answering(root: &Path, cwd: &Path, args: &[&str], input: &str) -> Output {
+    let command = command(root, cwd, "zh_CN.UTF-8", args);
+    let (dir, input) = (cwd.to_path_buf(), input.to_string());
+    tokio::task::spawn_blocking(move || run_starting(&dir, command, &input))
+        .await
+        .expect("没 panic")
+}
+
+#[tokio::test]
+async fn pkg_shows_what_it_will_do_and_asks_first() {
+    let home = Home::new();
+    let root = home.root.path().to_path_buf();
+    let (held, _) = within("拉起", connect_or_start(&home.root, || home.core()))
+        .await
+        .expect("拉得起");
+    let cwd = home.dir.with_extension("ask");
+    std::fs::create_dir_all(cwd.join("xpkg")).expect("建得了目录");
+    std::fs::write(cwd.join("xpkg/package.toml"), XPKG).expect("写得进");
+    let zh = "zh_CN.UTF-8";
+    let asked = "\n继续安装？[Y/n] ";
+
+    let no = answering(&root, &cwd, &["pkg", "install", "./xpkg"], "n\n").await;
+    let shown = stdout(&no);
+    assert!(
+        shown.starts_with("将安装 xpkg\n包含：扩展程序、命令 miyu xpkg\n大小：")
+            && shown.ends_with(asked),
+        "{shown}"
+    );
+    assert_eq!(
+        (no.status.code(), stderr(&no)),
+        (Some(1), "已取消\n".to_string())
+    );
+    assert!(
+        line(&stdout(&run(&root, &cwd, zh, &["pkg"]).await), "xpkg").is_none(),
+        "答了不就没装"
+    );
+
+    let yes = answering(&root, &cwd, &["pkg", "install", "./xpkg"], "\n").await;
+    assert!(
+        stdout(&yes).ends_with(&format!("{asked}装好了：xpkg\n")),
+        "{yes:?}"
+    );
+
+    let closed = run(&root, &cwd, zh, &["pkg", "remove", "xpkg"]).await;
+    assert_eq!(closed.status.code(), Some(1));
+    assert!(
+        stdout(&closed).starts_with("将卸载 xpkg\n大小："),
+        "{closed:?}"
+    );
+    assert_eq!(stderr(&closed), "已取消：没有确认（不问用 --yes）\n");
+    let gone = run(&root, &cwd, zh, &["pkg", "-R", "xpkg", "--noconfirm"]).await;
+    assert_eq!(
+        stdout(&gone),
+        "卸掉了：xpkg\n",
+        "pacman 的写法不问：{gone:?}"
     );
     drop(held);
     if let Err(error) = std::fs::remove_dir_all(&cwd) {

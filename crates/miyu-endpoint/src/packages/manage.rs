@@ -28,6 +28,9 @@ pub(crate) struct InstallParams {
     path: Option<String>,
     #[serde(default)]
     package: Option<String>,
+    /// 只看一眼、什么都不动（施工 F-8 下补，`preview.rs`）。
+    #[serde(default)]
+    preview: bool,
 }
 
 /// `package.remove` 的参数。
@@ -35,6 +38,9 @@ pub(crate) struct InstallParams {
 #[serde(deny_unknown_fields)]
 pub(crate) struct RemoveParams {
     package: String,
+    /// 只看一眼、什么都不动（施工 F-8 下补）。
+    #[serde(default)]
+    preview: bool,
 }
 
 impl Core {
@@ -136,25 +142,29 @@ pub(crate) async fn install(
     params: InstallParams,
 ) -> Result<Value, Refusal> {
     let _one_at_a_time = core.packaging.lock().await;
-    match (params.path, params.package) {
-        (Some(path), None) => from_path(core, peer, Path::new(&path)).await,
-        (None, Some(id)) => bring_back(core, peer, &id).await,
+    match (params.path, params.package, params.preview) {
+        (Some(path), None, false) => from_path(core, peer, Path::new(&path)).await,
+        (None, Some(id), false) => bring_back(core, peer, &id).await,
+        (Some(path), None, true) => super::preview::installing(core, peer, Path::new(&path)).await,
+        (None, Some(id), true) => super::preview::restoring(core, peer, &id),
         _ => Err(Refusal::BAD_PARAMS),
     }
 }
 
 /// `package.remove`：家目录那一层的删掉；出厂的记一笔；必需的拒绝。
 pub(crate) async fn remove(core: &Arc<Core>, params: RemoveParams) -> Result<Value, Refusal> {
+    if params.preview {
+        let _one_at_a_time = core.packaging.lock().await;
+        return super::preview::removing(core, &params.package).await;
+    }
     remove_package(core, params.package).await
 }
 
-/// 卸包 `id`（`package.remove`，施工 F-6 上起 `package.disable` 关出厂的内置包也走这里）。
-pub(super) async fn remove_package(core: &Arc<Core>, id: String) -> Result<Value, Refusal> {
-    let _one_at_a_time = core.packaging.lock().await;
-    if !miyu_store::personas::valid(&id) {
+/// 卸 `id` 之前查的（卸、看一眼共用）：编号合写法、装着、不是必需的。
+pub(super) fn removable<'a>(found: &'a [Found], id: &str) -> Result<&'a Found, Refusal> {
+    if !miyu_store::personas::valid(id) {
         return Err(Refusal::BAD_PARAMS);
     }
-    let found = core.packages();
     let one = found
         .iter()
         .find(|one| one.id == id)
@@ -162,21 +172,33 @@ pub(super) async fn remove_package(core: &Arc<Core>, id: String) -> Result<Value
     if one.read.as_ref().is_ok_and(|manifest| manifest.required) {
         return Err(Refusal::PACKAGE_REQUIRED);
     }
-    let home = home(core)?;
-    let local_root = packages(core).local_root();
-    let state = packages(core).state_dir(&id);
-    // 卸就是清干净（施工 F-8 中下补，设计 31 定了的 H）：它的配置项照清单列的删，状态目录整个删。
-    let keys: Vec<String> = one
-        .read
+    Ok(one)
+}
+
+/// 包 `one` 的配置项的真的键（`<编号>.<名字>`），照清单列的；读坏了的清单没有。
+pub(super) fn setting_keys(one: &Found) -> Vec<String> {
+    one.read
         .as_ref()
         .map(|manifest| {
             manifest
                 .settings
                 .iter()
-                .map(|setting| format!("{id}.{}", setting.name))
+                .map(|setting| format!("{}.{}", one.id, setting.name))
                 .collect()
         })
-        .unwrap_or_default();
+        .unwrap_or_default()
+}
+
+/// 卸包 `id`（`package.remove`，施工 F-6 上起 `package.disable` 关出厂的内置包也走这里）。
+pub(super) async fn remove_package(core: &Arc<Core>, id: String) -> Result<Value, Refusal> {
+    let _one_at_a_time = core.packaging.lock().await;
+    let found = core.packages();
+    let one = removable(&found, &id)?;
+    let home = home(core)?;
+    let local_root = packages(core).local_root();
+    let state = packages(core).state_dir(&id);
+    // 卸就是清干净（施工 F-8 中下补，设计 31 定了的 H）：它的配置项照清单列的删，状态目录整个删。
+    let keys = setting_keys(one);
     let layer = one.layer;
     // 先停下用着它的、再删文件（施工 F-5 补）：Windows 上开着的文件删不掉。删不成的照原来的清单换回来。
     let all = refs(&found);
@@ -211,30 +233,11 @@ pub(super) async fn remove_package(core: &Arc<Core>, id: String) -> Result<Value
 /// 从 `path` 这个包文件夹装（施工 F-8 上：一个文件夹就是一个包；写成文件夹里的 `package.toml` 也认）：读得成、不和出厂的撞、
 /// 拷进去以后和别的包也不撞，才算装上。编号是文件夹的名字。
 async fn from_path(core: &Arc<Core>, peer: Peer, path: &Path) -> Result<Value, Refusal> {
-    let folder = match path.file_name().and_then(|name| name.to_str()) {
-        Some(MANIFEST) => path.parent().ok_or(Refusal::BAD_PARAMS)?,
-        _ => path,
-    };
-    let id = folder
-        .file_name()
-        .and_then(|name| name.to_str())
-        .filter(|id| miyu_store::personas::valid(id))
-        .map(str::to_string)
-        .filter(|_| folder.is_absolute())
-        .ok_or(Refusal::BAD_PARAMS)?;
-    let text =
-        std::fs::read_to_string(folder.join(MANIFEST)).map_err(|_| Refusal::PATH_UNREADABLE)?;
+    let (folder, id, _) = source(core, peer, path)?;
     let words = words(core, peer.language)?;
-    if let Err(problem) = package::read(&text) {
-        return Err(invalid(&words, &problem));
-    }
     let places = packages(core);
-    let shipped = Packages::shipped(&core.resources).read();
-    if shipped.iter().any(|one| one.id == id) {
-        return Err(Refusal::PACKAGE_EXISTS);
-    }
     let home = home(core)?;
-    let source = folder.to_path_buf();
+    let source = folder.clone();
     let target = id.clone();
     // 升级的先停下原来的那一个再换文件（施工 F-5 补）：Windows 上开着的文件挪不走。换不成的照原来的清单换回来。
     let before = core.packages();
@@ -285,6 +288,36 @@ async fn from_path(core: &Arc<Core>, peer: Peer, path: &Path) -> Result<Value, R
         .find(|one| one.id == id)
         .ok_or(Refusal::INTERNAL)?;
     Ok(listed(core, mine, &places, &words, peer.language, false))
+}
+
+/// 从 `path` 装之前查的（装、看一眼共用）：包文件夹（写成里面的 `package.toml` 的取它的上一层）、编号（文件夹名）、读成了的
+/// 清单。路径不是绝对的、编号不合写法的 `bad_params`；读不了的 `path_unreadable`；写错的 `package_invalid`；和出厂的撞了的
+/// `package_exists`。
+pub(super) fn source(
+    core: &Core,
+    peer: Peer,
+    path: &Path,
+) -> Result<(PathBuf, String, package::Manifest), Refusal> {
+    let folder = match path.file_name().and_then(|name| name.to_str()) {
+        Some(MANIFEST) => path.parent().ok_or(Refusal::BAD_PARAMS)?,
+        _ => path,
+    };
+    let id = folder
+        .file_name()
+        .and_then(|name| name.to_str())
+        .filter(|id| miyu_store::personas::valid(id))
+        .map(str::to_string)
+        .filter(|_| folder.is_absolute())
+        .ok_or(Refusal::BAD_PARAMS)?;
+    let text =
+        std::fs::read_to_string(folder.join(MANIFEST)).map_err(|_| Refusal::PATH_UNREADABLE)?;
+    let words = words(core, peer.language)?;
+    let manifest = package::read(&text).map_err(|problem| invalid(&words, &problem))?;
+    let shipped = Packages::shipped(&core.resources).read();
+    if shipped.iter().any(|one| one.id == id) {
+        return Err(Refusal::PACKAGE_EXISTS);
+    }
+    Ok((folder.to_path_buf(), id, manifest))
 }
 
 /// 把卸掉的出厂的包 `id` 装回来：删掉家目录里记的那一笔。

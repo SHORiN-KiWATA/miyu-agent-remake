@@ -19,4 +19,5 @@ pacman options work too:
 
 Options:
       --format text|json  list, info, files, owns, check: json for scripts
+      --yes, --noconfirm  install, remove: do not ask first
   -h, --help              Print help

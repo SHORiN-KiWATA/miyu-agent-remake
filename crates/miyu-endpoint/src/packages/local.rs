@@ -68,16 +68,16 @@ pub(crate) struct InfoParams {
 }
 
 /// 一个包这时的样子：哪一层、包目录、清单写的版本，和它的记录。
-struct Looked {
-    layer: Layer,
-    dir: PathBuf,
-    version: Option<String>,
-    desc: Option<Desc>,
-    files: Vec<Entry>,
+pub(super) struct Looked {
+    pub(super) layer: Layer,
+    pub(super) dir: PathBuf,
+    pub(super) version: Option<String>,
+    pub(super) desc: Option<Desc>,
+    pub(super) files: Vec<Entry>,
 }
 
 /// 一个包这时的记录：家目录里的照本地库（没记的现算），出厂的现算。
-async fn entry(core: &Arc<Core>, id: &str) -> Result<Looked, Refusal> {
+pub(super) async fn entry(core: &Arc<Core>, id: &str) -> Result<Looked, Refusal> {
     let now = core.packages();
     let found: &Found = now
         .iter()
