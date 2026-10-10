@@ -51,6 +51,9 @@ pub(crate) struct SetParams {
     changes: Vec<ChangeParams>,
     #[serde(default)]
     prompts: BTreeMap<String, PromptParams>,
+    /// 头像（施工 P-5）：换成一张传上来的图，或者删掉家目录那一层的。
+    #[serde(default)]
+    avatar: Option<super::avatar::AvatarParams>,
 }
 
 /// `prompts` 的一份：`text`、`unset`、`pairs`（只给示范对话）正好写一个；`expect` 是 `persona.read` 给的版本，`null` 是
@@ -98,7 +101,7 @@ struct Pending {
 /// `persona.set`：改家目录那一层，交回改完叠好的样子（同 `persona.get`）。不写 `persona` 的是新建（施工 P-3 补）：编号由
 /// 核心起，至少要写一样东西。
 pub(crate) async fn set(core: &Core, peer: Peer, params: SetParams) -> Result<Json, Refusal> {
-    let empty = params.changes.is_empty() && params.prompts.is_empty();
+    let empty = params.changes.is_empty() && params.prompts.is_empty() && params.avatar.is_none();
     if empty || params.persona.as_deref().is_some_and(|id| !valid(id)) {
         return Err(Refusal::BAD_PARAMS);
     }
@@ -110,10 +113,24 @@ pub(crate) async fn set(core: &Core, peer: Peer, params: SetParams) -> Result<Js
     if params.persona.is_none() && !writes {
         return Err(Refusal::BAD_PARAMS);
     }
+    // 头像先查：不合规矩的什么都不写（施工 P-5）。
+    let avatar = match params.avatar {
+        Some(avatar) => Some(super::avatar::check(core, avatar).await?),
+        None => None,
+    };
     let personas = personas(core);
-    let found = tokio::task::spawn_blocking(move || match params.persona {
-        Some(id) => write(&personas, &id, &wanted, &prompts, said.as_ref()),
-        None => create(&personas, &wanted, &prompts, said.as_ref()),
+    let found = tokio::task::spawn_blocking(move || {
+        let found = match params.persona {
+            Some(id) => write(&personas, &id, &wanted, &prompts, said.as_ref()),
+            None => create(&personas, &wanted, &prompts, said.as_ref()),
+        }?;
+        let Some(avatar) = avatar else {
+            return Ok(found);
+        };
+        super::avatar::apply(&personas, &found.id, &avatar)?;
+        personas
+            .find(&found.id)
+            .map_err(|error| super::told(&error, said.as_ref()))
     })
     .await
     .map_err(|_| Refusal::INTERNAL)??;

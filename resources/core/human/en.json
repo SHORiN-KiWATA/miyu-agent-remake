@@ -373,6 +373,7 @@
     "preset-problems/bad_tool": "{detail}: a tool name has only letters, digits, - and _, at most 64",
     "preset-problems/not_false": "{detail} can only be false: a preset can only turn single tools off",
     "preset-problems/bad_feature": "Badly written feature id: {detail}",
+    "preset-problems/bad_icon": "{detail} must be a Lucide icon name: a lowercase letter, then lowercase letters, digits and -",
     "package-problems/syntax": "Not valid TOML: {detail}",
     "package-problems/unknown_table": "Unknown table [{detail}]: a manifest only takes [package], [command], [process], [ui], [check] and [settings]",
     "package-problems/not_a_table": "{detail} must be a table [{detail}]",

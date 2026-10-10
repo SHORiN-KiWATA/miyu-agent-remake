@@ -12,6 +12,7 @@ fn found(home: Option<&str>) -> Found {
         examples_from: None,
         reminders_from: None,
         home: home.map(|account| AccountId::parse(account).unwrap()),
+        avatar: None,
     }
 }
 

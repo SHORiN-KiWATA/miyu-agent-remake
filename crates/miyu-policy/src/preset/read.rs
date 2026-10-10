@@ -55,6 +55,8 @@ pub enum Code {
     NotFalse,
     /// `[features]` 的键不是合写法的功能编号（施工 F-3 上）。
     BadFeature,
+    /// `icon` 不是 Lucide 图标名的写法（施工 P-5）。
+    BadIcon,
 }
 
 impl Code {
@@ -74,11 +76,12 @@ impl Code {
             Code::BadTool => "bad_tool",
             Code::NotFalse => "not_false",
             Code::BadFeature => "bad_feature",
+            Code::BadIcon => "bad_icon",
         }
     }
 
     /// 全部，照先后：给人看的字的门禁照它查三种语言都有。
-    pub const ALL: [Code; 13] = [
+    pub const ALL: [Code; 14] = [
         Code::Syntax,
         Code::UnknownTable,
         Code::NotATable,
@@ -92,6 +95,7 @@ impl Code {
         Code::BadTool,
         Code::NotFalse,
         Code::BadFeature,
+        Code::BadIcon,
     ];
 }
 
@@ -207,6 +211,21 @@ impl Reader<'_> {
             match key {
                 "name" => file.name = Some(self.label(key, item)?),
                 "summary" => file.summary = Some(self.label(key, item)?),
+                "icon" => {
+                    file.icon = Some(
+                        item.as_str()
+                            .filter(|icon| icon_name(icon))
+                            .map(str::to_string)
+                            .ok_or_else(|| {
+                                self.problem(
+                                    item,
+                                    Code::BadIcon,
+                                    "preset.icon",
+                                    "preset.icon must be a Lucide icon name".to_string(),
+                                )
+                            })?,
+                    );
+                }
                 // P-3 上那几个小时里写进去的「以谁为底」（施工 P-3 再补）、P-4 上撤掉的默认人格：认出来就当没写，下一次写这份
                 // 文件时去掉。
                 crate::persona::BASE | DEFAULT_PERSONA => {}
@@ -308,4 +327,14 @@ fn line_of(text: &str, offset: usize) -> usize {
         .filter(|&&byte| byte == b'\n')
         .count()
         + 1
+}
+
+/// Lucide 图标名的写法（施工 P-5，同软件包清单的 `icon`）：小写字母开头，只有小写字母、数字、`-`，最多 64 个。核心只查写法，
+/// 不查 Lucide 里有没有。
+fn icon_name(name: &str) -> bool {
+    name.len() <= 64
+        && name.starts_with(|c: char| c.is_ascii_lowercase())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
 }

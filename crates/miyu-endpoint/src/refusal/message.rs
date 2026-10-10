@@ -52,6 +52,14 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
         "method_timeout" => ("方法超时。", "Method timed out."),
         "unregistered" => ("方法未登记。", "Method not registered."),
         "method_failed" => ("方法执行失败。", "Method failed."),
+        "avatar_not_image" => (
+            "头像只支持 PNG、JPEG、WebP。",
+            "Avatars must be PNG, JPEG or WebP.",
+        ),
+        "avatar_too_big" => (
+            "头像超过 1 MiB 或 1024 像素。",
+            "Avatar over 1 MiB or 1024 pixels.",
+        ),
         "not_switchable" => ("不能启用或停用。", "Cannot be enabled or disabled."),
         "not_an_extension" => (
             "这个软件包是界面，不由核心拉起。",

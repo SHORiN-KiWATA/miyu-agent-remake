@@ -17,6 +17,7 @@ use crate::hello::Peer;
 use crate::refusal::Refusal;
 use crate::settings::PersonaSettings;
 
+pub(crate) mod avatar;
 pub(crate) mod write;
 
 const TARGET: &str = "miyu::endpoint";
@@ -161,6 +162,7 @@ pub(crate) async fn list(core: &Core, peer: Peer) -> Result<Value, Refusal> {
                 "persona": id,
                 "name": label(found.file.name.as_ref(), peer.language),
                 "summary": label(found.file.summary.as_ref(), peer.language),
+                "avatar": avatar::version(&found),
             }),
             Err(error) => listed_problem(&id, &error, said.as_ref()),
         })
@@ -198,6 +200,7 @@ fn describe(found: &Found, language: &str) -> Value {
             "reminders": !found.texts.reminders.trim().is_empty(),
         },
         "examples": found.texts.examples.len(),
+        "avatar": avatar::version(found),
         "remove": remove(&found.layers),
     })
 }
