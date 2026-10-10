@@ -15,6 +15,8 @@ fn extensions_cannot_switch_extensions_or_write_personas_and_presets() {
         "package.remove",
         "package.enable",
         "package.disable",
+        "package.file",
+        "package.call",
     ] {
         assert!(people_only(method), "{method}");
     }

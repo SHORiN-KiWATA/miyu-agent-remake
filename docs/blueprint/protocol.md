@@ -151,6 +151,8 @@
 | `package.list` | 列出起来时读到的软件包清单（施工 9-1 上，`packages.md`）；装卸以后当场照新的，卸掉的出厂的带 `removed`（施工 F-5 上） |
 | `package.install`、`package.remove` | 装、卸软件包，当场生效（施工 F-5 上，`packages.md`「装卸」） |
 | `package.enable`、`package.disable` | 软件包列表上的开关：照种类开关扩展的进程，或者卸掉、装回来出厂的内置包（施工 F-6 上，`package-pages.md`「开关」） |
+| `package.file`、`package.call` | 读一个包的后台页里的文件；调它的程序登记的方法，核心反向发 `method.call`，在后台答（施工 F-6 中，`package-pages.md`） |
+| `package.methods` | 核心拉起的扩展登记它的后台页要调的方法（施工 F-6 中，`package-pages.md`） |
 | `extension.status`、`extension.enable`、`extension.disable`、`extension.restart` | 核心拉起的扩展：列状态、开、关、重启（施工 9-4 上，`extensions.md`） |
 | `check` | 查人手写的文件：配置、密钥文件、人格，照磁盘上现在的字（施工 8-30，`cli/check.md`） |
 | `memory.list`、`memory.search`、`memory.remember`、`memory.update`、`memory.forget` | 人不经过她列、搜、记、改、忘和清空记忆（施工 R-3 补，`memory.md`「协议」） |
@@ -594,6 +596,12 @@
 - 扩展：同 `extension.enable`、`extension.disable`。出厂的、不是必需的内置包：关是卸掉（同 `package.remove`，在家目录记一笔），开是装回来（同 `package.install {"package"}`）。卸掉了的出厂扩展，开时先装回来再开。关着的再关、开着的再开，什么都不动。
 - 拒绝：没有的 `unknown_package`；必需的 `package_required`；界面、小程序 `not_switchable`；程序不在 `miyu` 旁边的开不了，`program_missing`；扩展要的能力还有没批的照 `extension.enable` 回 `needs_approval`。扩展自己调回 `local_only`。
 
+**`package.file`、`package.methods`、`package.call`**（施工 F-6 中，`package-pages.md`）
+
+- `package.file {"package", "path", "offset"?}`：回应 `{"data", "size", "eof"}`，一次最多 512 KiB。拒绝：路径写法不对 `bad_params`；没有的包 `unknown_package`；没有后台页 `no_page`；没有、跑出目录、不是普通文件 `not_found`。扩展调回 `local_only`。
+- `package.methods {"methods": [{"name", "timeout_ms"?}]}`：只给核心拉起的扩展，别的连接 `not_an_extension`；换掉这个包上一次登记的，回应 `{"methods": 个数}`；写法不对的 `bad_params`。
+- `package.call {"package", "method", "params"?}`：核心发 `method.call {"method", "params"}` 给那个扩展，回什么交回什么；在后台答。拒绝：`unknown_package`、`program_not_running`、`unregistered`（`data.method`）、`method_failed`（`data.message`、`data.code`）、`method_timeout`。扩展调回 `local_only`。
+
 **`extension.status`、`extension.enable`、`extension.disable`、`extension.restart`**（施工 9-4 上，`extensions.md`「对外的样子」）
 
 `status` 不带参数，回应 `{"extensions": [...]}`，照编号排，只列读成了的 `process` 包；`disable`、`restart` 带 `{"package"}`，`enable` 带 `{"package", "approve"?}`（批的能力名，施工 9-4 下上），回应是那一个。一个的格子见 `extensions.md` 的表：`package`、`name`（照连接的语言挑）、`start`、`on`、`state`（`off`、`starting`、`running`、`waiting`、`stopped`）、`failures`，在跑的带 `pid`，在等的带 `retry_in`，停下的带 `reason` 和标准错误的最后几行 `stderr`；声明了能力的带 `capabilities`（`[{id, name, summary}]`），还有没批的带 `unapproved`（施工 9-4 下上）。`enable`、`disable` 先写开关再动进程；`restart` 关着的回 `extension_off`；要的能力还有没批的，`enable` 没盖住、`restart` 回 `needs_approval`（`data.capabilities`）。没有这个包、清单读不成的 `unknown_package`，界面包 `not_an_extension`。扩展自己调回 `local_only`。
@@ -1032,6 +1040,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `unknown_package`、`not_an_extension`、`extension_off` | -32010 | `extension.*`：没有这个包、清单读不成；是界面包；重启一个关着的（施工 9-4 上，`extensions.md`）。`package.remove`、`package.install {"package"}` 也回 `unknown_package`（施工 F-5 上） |
 | `package_invalid`、`package_exists`、`package_required` | -32010 | `package.install`、`package.remove`：清单写错了、和别的包撞了；和出厂的同编号；卸必需的（施工 F-5 上，`packages.md`「装卸」） |
 | `program_missing`、`not_switchable` | -32010 | `package.enable`、`extension.enable`：包的程序不在 `miyu` 旁边，当没装，开不了；`package.enable`、`package.disable`：这个包没有开关（必需的照旧回 `package_required`）（施工 F-6 上，`package-pages.md`） |
+| `no_page`、`not_found`、`program_not_running`、`unregistered`、`method_failed`、`method_timeout` | -32010 | `package.file`：没有后台页；后台页里没有这份文件。`package.call`：程序没连着；没登记这个方法（`data.method`）；程序回了错（`data.message`、`data.code`）；到时限没回（施工 F-6 中，`package-pages.md`） |
 | `needs_approval` | -32010 | `extension.enable`、`extension.restart`：要的能力还有没批的，`data.capabilities` 是那几个（施工 9-4 下上，`extensions.md`「能力」） |
 | `session_not_found` | -32010 | 没有这个会话，删了的也是 |
 | `unknown_call` | -32010 | `view.detail` 的会话日志里没有这次调用的结果：编号对不上，或者还没回（施工 9-6 三补） |
@@ -1187,6 +1196,12 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `package_invalid` | 这份清单装不上，详情在 data.problem 里。 | This manifest cannot be installed; data.problem says why. |
 | `program_missing` | 程序未安装。 | Program not installed. |
 | `not_switchable` | 不能启用或停用。 | Cannot be enabled or disabled. |
+| `no_page` | 没有后台页。 | No admin page. |
+| `not_found` | 文件不存在。 | File not found. |
+| `program_not_running` | 程序未运行。 | Program not running. |
+| `unregistered` | 方法未登记。 | Method not registered. |
+| `method_failed` | 方法执行失败。 | Method failed. |
+| `method_timeout` | 方法超时。 | Method timed out. |
 | `not_an_extension` | 这个软件包是界面，不由核心拉起。 | This package is an interface; the core does not start it. |
 | `extension_off` | 这个扩展关着，先打开它。 | This extension is off; turn it on first. |
 | `needs_approval` | 这个扩展要的能力还没批准。 | This extension's capabilities are not approved yet. |

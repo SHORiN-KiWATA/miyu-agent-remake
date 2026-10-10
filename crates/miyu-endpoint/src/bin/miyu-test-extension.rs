@@ -14,7 +14,8 @@
 //! - `wait`：读标准输入直到读到头；
 //! - `listen`：读标准输入直到读到头，读到的每一行都记下（施工 9-4 下下：核心推来的 `extension.config`）；
 //! - `serve`：读标准输入直到读到头，每一行都记下；是核心发来的 `tool.call` 的，照工具名答（施工 O-2 上）：`boom` 回一个错误，
-//!   `garbled` 回写法不对的结果，`oops` 回一段字、说出了错，别的回一段字 `served <工具名>`；
+//!   `garbled` 回写法不对的结果，`oops` 回一段字、说出了错，别的回一段字 `served <工具名>`；是 `method.call` 的照方法名答
+//!   （施工 F-6 中）：`boom` 回一个错误，`slow` 不答，别的回 `{"answered": <方法名>}`；
 //! - `hang`：不管标准输入，一直睡；
 //! - `exit:<数>`：以这个退出码退出。
 //!
@@ -92,6 +93,12 @@ fn main() {
                 {
                     send(&answer);
                 }
+                if line.contains(r#""method":"method.call""#)
+                    && let Some(id) = field(&line, "id")
+                    && let Some(answer) = answered(&id, &inner_method(&line).unwrap_or_default())
+                {
+                    send(&answer);
+                }
             }
         } else if step == "hang" {
             loop {
@@ -148,6 +155,24 @@ fn served(id: &str, tool: &str) -> Option<String> {
         _ => format!(
             r#"{{"jsonrpc":"2.0","id":"{id}","result":{{"blocks":[{{"type":"text","text":"served {tool}"}}]}}}}"#
         ),
+    })
+}
+
+/// `method.call` 的 `params` 里的方法名：`"params":{"method":"…"` 那一个。
+fn inner_method(line: &str) -> Option<String> {
+    let (_, rest) = line.split_once(r#""params":{"method":""#)?;
+    let (value, _) = rest.split_once('"')?;
+    Some(value.to_string())
+}
+
+/// 答编号是 `id`、方法是 `method` 的那一次 `method.call`（施工 F-6 中）；`slow` 不答，等核心到时限。
+fn answered(id: &str, method: &str) -> Option<String> {
+    Some(match method {
+        "slow" => return None,
+        "boom" => {
+            format!(r#"{{"jsonrpc":"2.0","id":"{id}","error":{{"code":-32001,"message":"boom"}}}}"#)
+        }
+        _ => format!(r#"{{"jsonrpc":"2.0","id":"{id}","result":{{"answered":"{method}"}}}}"#),
     })
 }
 

@@ -53,6 +53,8 @@
 
 **给模型看的字**：出厂的包（随 Miyu 装的，通讯平台的桥）的工具说明放在资源目录 `software/<包>/tools/<名字>.json`，和核心自带的一个写法（`{description, parameters}`），扩展启动时经 `miyu_tool::load::spec` 读它们再 `provide`；登记进 `26-提示词.md` 第十节（登记簿门禁照资源目录查，不用另做），包自己的工具面预算照记忆的办法在它自己的 crate 里守（`crates/miyu-memory/tests/budget.rs`，量法记进 `10-自带软件.md` 第九节）（2026-10-09 和通讯平台的会话定）。第三方的扩展不在仓库里，不管。
 
+**后台页的方法**（施工 F-6 中）：扩展另用 `package.methods` 登记它的后台页要调的方法，核心反向发 `method.call`，和登记工具的 `provide` 分开、不缓存，见 `package-pages.md`。
+
 **`tool.call`**（反向调用，核心发给提供者，施工 O-2 上）：`{"jsonrpc":"2.0","id":"core-<n>","method":"tool.call","params":{…}}`，`params`：
 
 | 格 | 是什么 |

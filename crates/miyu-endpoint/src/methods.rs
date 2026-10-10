@@ -60,7 +60,7 @@ use params::*;
 /// 对上。`command.run` 的照命令表问（[`commands::answered_later`]），别的命令照旧按顺序答。
 pub(crate) fn answered_later(request: &Request) -> bool {
     match request.method.as_str() {
-        "model.call" | "memory.dream" => true,
+        "model.call" | "memory.dream" | "package.call" => true,
         "command.run" => commands::answered_later(request),
         _ => false,
     }
@@ -75,6 +75,7 @@ pub(crate) async fn call_later(
     match request.method.as_str() {
         "model.call" => models::call(core, params(request)?).await,
         "memory.dream" => memory::dream::call(core, &request.params).await,
+        "package.call" => crate::backstage::call(core, params(request)?).await,
         "command.run" => commands::run(core, &peer, &request.id, params(request)?).await,
         _ => Err(Refusal::UNKNOWN_METHOD),
     }
@@ -138,6 +139,8 @@ pub(crate) async fn call(
         "package.install" => crate::packages::manage::install(core, peer, params(request)?).await,
         "package.remove" => crate::packages::manage::remove(core, params(request)?).await,
         "package.enable" => crate::packages::switch::enable(core, peer, params(request)?).await,
+        "package.file" => crate::backstage::read(core, params(request)?).await,
+        "package.methods" => crate::backstage::register(core, caller, params(request)?),
         "package.disable" => crate::packages::switch::disable(core, peer, params(request)?).await,
         "view.page" => crate::view::page(core, params(request)?).await,
         "view.detail" => crate::view::detail(core, params(request)?).await,

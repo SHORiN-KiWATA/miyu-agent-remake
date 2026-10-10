@@ -1,6 +1,6 @@
 ## 软件包页和软件后台
 
-状态：「清单多的几格」「`package.list` 每一项多的几格」「程序不在就当没装」「开关」「`config.schema` 里包的配置项」施工 F-6 上做了（2026-10-10）；别的是图纸，F-6 中做。2026-10-10 主会话起草，网页、终端、接入QQ 三个会话同一天对过（改了五处：开关的格叫 `enabled`；界面包的配置项不看程序在不在；通道只交一次；响应头照 `web-ui.md`；`context` 多 `colors`）。设计 `30-插件框架.md` 第十三节：第 1 到 7 条项目主人定，这一页是第 8 条的技术形状。照它施工 F-6 上、F-6 中；网页软件给后台页的文件、框和网页之间的通道由网页的会话做，`miyu web --package` 也是它的。
+状态：「清单多的几格」「`package.list` 每一项多的几格」「程序不在就当没装」「开关」「`config.schema` 里包的配置项」施工 F-6 上做了，「`package.file`」「`package.methods`、`package.call`、`method.call`」施工 F-6 中做了（2026-10-10）；「网页软件怎么给后台页」「框和网页之间怎么说」「终端」是网页、终端的会话照着做的图纸。2026-10-10 主会话起草，网页、终端、接入QQ 三个会话同一天对过（改了五处：开关的格叫 `enabled`；界面包的配置项不看程序在不在；通道只交一次；响应头照 `web-ui.md`；`context` 多 `colors`）。设计 `30-插件框架.md` 第十三节：第 1 到 7 条项目主人定，这一页是第 8 条的技术形状。照它施工 F-6 上、F-6 中；网页软件给后台页的文件、框和网页之间的通道由网页的会话做，`miyu web --package` 也是它的。
 
 ### 是什么
 
@@ -79,9 +79,9 @@ dir = "page"              # 包目录 packages/<编号>/ 下的子目录，入�
 | `path` | 字符串，必写 | 后台页目录里的相对路径，`/` 隔开；空的是 `index.html` |
 | `offset` | 非负整数，可以不写 | 从第几个字节读起，不写是 0 |
 
-回应 `{"data": <base64>, "media_type", "size", "eof"}`：一次最多 512 KiB（同 `fs.read`），`size` 是整份多大，`eof` 读到头了没有。类型照扩展名查 `web.json` 的表那一套（核心这边一份同样的表，`store/resources.md`），查不到的 `application/octet-stream`。
+回应 `{"data": <base64>, "size", "eof"}`：一次最多 512 KiB（同 `fs.read`），`size` 是整份多大，`eof` 读到头了没有。媒体类型不给：网页软件照扩展名查它自己给页面用的那张表（`web.json` 的 `types`），核心不另放一份（施工 F-6 中定）。
 
-1. 路径：带 `..`、绝对路径、`\`、控制字符的 `bad_params`；照真实的位置打开，不走链接，跑出后台页目录的、不是普通文件的 `not_found`（`fs.md`「安全地打开」）。
+1. 路径：`/` 隔开的一段段，有空段、`.`、`..`、`\`、`:`、控制字符的 `bad_params`（以 `/` 开头的就有空段）；换成真实的位置以后跑出后台页目录的（链接指出去的）、不是普通文件的、没有的 `not_found`。
 2. 没有这个包、没装的 `unknown_package`；没有后台页的 `no_page`。
 
 ### `package.methods`、`package.call`、`method.call`
@@ -91,12 +91,12 @@ dir = "page"              # 包目录 packages/<编号>/ 下的子目录，入�
 1. **登记**：扩展连上以后发 `package.methods {"methods": [{"name", "timeout_ms"?}]}`。
    - `name`：小写字母开头，小写字母、数字、`_`、`.`、`-`，1 到 64 个；同一次里不重复；`timeout_ms` 同工具的，1000 到 600000，不写是 30000。
    - 换掉这个包上一次登记的；不用另批能力：只有管理员的头在这个软件自己的页上调得到。
-   - 不缓存：连接断了、扩展停了就没有了，调到的回 `not_running`。
-   - 不是核心拉起的扩展的连接调它，`not_an_extension`。写法不对的 `bad_params`，`data.method` 是哪一个。回应 `{"methods": 个数}`。
+   - 不缓存：连接断了、扩展停了就没有了，调到的回 `program_not_running`。
+   - 不是核心拉起的扩展的连接调它，`not_an_extension`。名字写法不对、重复、时限不在范围里的 `bad_params`，什么都不换。回应 `{"methods": 个数}`。
 2. **调**：头发 `package.call {"package", "method", "params"?}`。只给出示本机令牌、登录令牌的连接。
-   - 没有这个包 `unknown_package`；它的程序没连着 `not_running`；没登记这个方法 `unknown_method`，`data.method` 是哪一个。
+   - 没有这个包 `unknown_package`；它的程序没连着、还没登记方法 `program_not_running`；没登记这个方法 `unregistered`，`data.method` 是哪一个。
    - 核心发反向请求 `{"jsonrpc":"2.0","id":"core-<n>","method":"method.call","params":{"method","params"}}` 给扩展，等它回，回什么交回什么（`result` 原样）。
-   - 扩展回了错：`method_failed`，`data.message` 是它说的那一句（照不可信的字转义），`data.code` 是它的错误码。到了 `timeout_ms` 没回：`method_timeout`，核心不再等，扩展晚回的扔掉。
+   - 扩展回了错：`method_failed`，`data.message` 是它说的那一句，`data.code` 是它的错误码（没有的不写）。到了 `timeout_ms` 没回：`method_timeout`，核心不再等，扩展晚回的扔掉。等着时连接断了：`program_not_running`。
    - 在后台答：这个连接后面的请求不等它（同 `link.preview`，`methods::answered_later`）。
 3. 扩展这边：收到 `method.call` 照自己的方法表办；不认识的回 JSON-RPC 的 `-32601`（核心交回 `method_failed`）。
 
@@ -141,6 +141,8 @@ dir = "page"              # 包目录 packages/<编号>/ 下的子目录，入�
 | `crates/miyu-endpoint/tests/package_switch.rs`（施工 F-6 上） | `package.list` 的 `status`、`enabled`、`icon`、`page`（目录里没有 `index.html` 的不带）；开关开、关扩展，出厂内置包卸掉、装回来；必需的、界面、程序不在、没有的拒绝；程序不在的配置项不进 schema、功能不进预设，界面的照旧；`miyu check` 报 `page_missing` |
 | `crates/miyu-endpoint/tests/package_settings.rs`（施工 F-6 上改） | 包的配置项带 `package`，核心自己的不带；平台接入的在「软件包」页，没有 `connections` 页 |
 | `crates/miyu-endpoint/tests/extensions.rs`（施工 F-6 上改） | 程序不在的 `extension.enable` 回 `program_missing` |
+| `crates/miyu-endpoint/src/backstage/file/tests.rs`、`calls/tests.rs`（施工 F-6 中） | 后台页里的路径怎么拆、哪些不收；方法名的写法 |
+| `crates/miyu-endpoint/tests/backstage.rs`（施工 F-6 中） | `package.file` 读入口、子目录、从中间读、超过 512 KiB 分两块；出目录的、目录、没有的、没有后台页的、没有的包；链接指出去的（Unix）；测试用的扩展登记三个方法，调得到、回错、超时、没登记、包没有、关掉以后没连着；扩展登记不了写法不对的名字、调不了 `package.call`、`package.file`，人登记不了方法 |
 
 ### 还没有的
 

@@ -28,6 +28,50 @@ impl Refusal {
         reason: "not_switchable",
         data: None,
     };
+    /// 这个包没有后台页（施工 F-6 中，`package-pages.md`「`package.file`」）。
+    pub(crate) const NO_PAGE: Refusal = Refusal {
+        code: REFUSED,
+        reason: "no_page",
+        data: None,
+    };
+    /// 后台页里没有这份文件、跑出了后台页的目录、不是普通文件（施工 F-6 中）。
+    pub(crate) const FILE_NOT_FOUND: Refusal = Refusal {
+        code: REFUSED,
+        reason: "not_found",
+        data: None,
+    };
+    /// 包的程序没连着：没开、停了、还没登记方法（施工 F-6 中，`package.call`）。
+    pub(crate) const NOT_RUNNING: Refusal = Refusal {
+        code: REFUSED,
+        reason: "program_not_running",
+        data: None,
+    };
+    /// 程序到时限没回（施工 F-6 中）。
+    pub(crate) const METHOD_TIMEOUT: Refusal = Refusal {
+        code: REFUSED,
+        reason: "method_timeout",
+        data: None,
+    };
+    /// 程序没登记这个方法（施工 F-6 中）：`data.method` 是哪一个。
+    pub(crate) fn unregistered(method: &str) -> Refusal {
+        Refusal::with(
+            "unregistered",
+            "method",
+            serde_json::Value::String(method.to_string()),
+        )
+    }
+    /// 程序回了错（施工 F-6 中）：`data.message` 是它说的那一句，`data.code` 是它的错误码，没有的不写。
+    pub(crate) fn method_failed(message: String, code: Option<serde_json::Value>) -> Refusal {
+        let mut refusal = Refusal::with(
+            "method_failed",
+            "message",
+            serde_json::Value::String(message),
+        );
+        if let (Some(data), Some(code)) = (&mut refusal.data, code) {
+            data.insert("code".to_string(), code);
+        }
+        refusal
+    }
     /// 装的清单写错了、和别的包撞了（施工 F-5 上）：`data.problem` 照连接的语言说一句，知道第几行的带 `data.line`。
     pub(crate) fn package_invalid(problem: String, line: Option<usize>) -> Refusal {
         let mut refusal = Refusal::with(
