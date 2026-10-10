@@ -391,6 +391,8 @@ export class App {
     // 没读过的会话第一次打开时才读、订阅：子代理的不进会话表的顶层；全部会话那一页开的老会话进（`listed`）
     if (id) this.store.ensure(id, listed).catch((err) => this.composer.say(refusalText(err)));
     this.chat.reset();
+    // 换会话当场摆好输入框，不播从中间滑下去的动画（2026-10-10 项目主人：切换会话每次都动一下）
+    this.centerIfEmpty(!id, false);
     this.syncLook();
     this.store.view(id);
     this.drawer(false);
@@ -610,11 +612,12 @@ export class App {
   }
 
   /**
-   * 空会话（新会话、还没有一句话）：输入框在对话区正中；有了第一句话，输入框从中间滑到底下（蓝图「对话区」的「空会话」）。
+   * 空会话（还没开的新会话）：输入框在对话区正中；发出第一句话、会话开了，输入框从中间滑到底下（蓝图「对话区」的「空会话」）。开着的会话
+   * 不管读没读进来都在底下（原来照有没有条目算，没读过的会话读的那一下是空的，切过去先居中再滑下来，2026-10-10 项目主人）。
    * 位置照 `offsetTop`（对话区自己的像素，整页放大不影响）。
-   * @param {boolean} empty
+   * @param {boolean} empty @param {boolean} [animate] 换会话的不播
    */
-  centerIfEmpty(empty) {
+  centerIfEmpty(empty, animate = true) {
     const stage = /** @type {HTMLElement} */ (this.root.querySelector('.stage'));
     if (stage.classList.contains('is-empty') === empty) return;
     const dock = this.composer.el;
@@ -622,7 +625,7 @@ export class App {
     stage.classList.toggle('is-empty', empty);
     const moved = before - dock.offsetTop;
     const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (moved && !reduced && stage.isConnected) {
+    if (animate && moved && !reduced && stage.isConnected) {
       dock.animate([{ transform: `translateY(${moved}px)` }, { transform: 'none' }], { duration: res.layout.center_move_ms, easing: 'cubic-bezier(0.22, 0.61, 0.36, 1)' });
     }
   }
@@ -799,7 +802,7 @@ export class App {
     const view = withLocalRecaps(itemsOf(s?.view.list ?? [], s?.view.status ?? null, { account: this.ext.account, parent }), again);
     this.chat.setCompacting(s ? compactingOf(s.view.list, s.view.status) : null, this.current);
     // 先照空不空摆好输入框（居中时对话区没有高度），再画对话：不然第一句话照 0 高算停在哪，被顶到视口上面
-    this.centerIfEmpty(view.items.length === 0);
+    this.centerIfEmpty(!this.current);
     this.chat.render(view.items);
     // 更早的一页刚接在前面：正在看的那一句不跳（照离底边的距离放回去）；最上面那一行照读到哪写
     if (this.keepFromBottom != null && !s?.older) {

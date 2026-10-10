@@ -64,19 +64,8 @@ export class ListPage {
     this.open = null;
     /** @type {import('./form.js').Kit|null} */
     this.kit = null;
-    /** 画出来以后要打开的那一个（`focus`） @type {string|null} */
-    this.want = null;
     // 人格的头像读到了：列表在页面上的重画（头像在卡片上）
     if (kind === 'persona') catalog.listeners.add(() => { if (this.el.isConnected && this.kit) this.draw(); });
-  }
-
-  /**
-   * 这一页画出来（或者已经画着）以后打开这个人格、预设的编辑卡片（左上角的头像点进来的）；`null` 只开这一页。开着别的卡片的不换。
-   * @param {string|null} id
-   */
-  focus(id) {
-    this.want = id;
-    if (this.el.isConnected && this.kit) this.refresh();
   }
 
   /** 设置页画这一页：重读列表、交回同一块。 @param {import('./form.js').Kit} kit */
@@ -94,9 +83,6 @@ export class ListPage {
       return;
     }
     this.draw();
-    const want = this.want;
-    this.want = null;
-    if (want && (this.k.list(this.catalog) ?? []).some((p) => p[this.kind] === want && !p.problem)) this.show(want);
   }
 
   draw() {

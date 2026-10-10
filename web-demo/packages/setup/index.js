@@ -4,8 +4,8 @@
 //!   的用，开会话时由整页带上（服务 `chat` 的 `draft`、`setDraft`）。默认的预设、（照预设算出来的）默认人格用不了，锁住输入框，选了才能打字。
 //! - 开着的会话：对话区左上角一小条（挂载位 `stage.info`）：人格名 · 预设名 · 工作目录，点目录那一截换工作区。
 //! - `/workspace [路径]`：换这个会话在哪干活（服务 `chat` 的 `setWorkdir`，核心 9-7 的 `session.set_workspace`）；不带路径的开工作区的菜单。
-//! - 设置页：「人格」「预设」两页（`settings.section`），通用页的默认人格、默认预设给下拉的选项（`settings.editor`）；左栏左上角的头像
-//!   点了（事件 `persona.open`）打开「人格」页、开着这个会话用的人格。
+//! - 设置页：「人格」「预设」两页（`settings.section`），通用页的默认人格、默认预设给下拉的选项（`settings.editor`）。
+//! - 左栏左上角的头像点了（事件 `persona.open`）：直接在页面上开这个会话用的人格的编辑卡片（`quick-edit.js`）。
 
 import { h, icon, replace } from '../../src/lib/dom.js';
 import { Menu } from './menu.js';
@@ -14,6 +14,7 @@ import { Catalog } from './catalog.js';
 import { ListPage, problemText } from './page.js';
 import { browse } from './folders.js';
 import { PersonaStep, PresetStep } from './welcome.js';
+import { editPersona } from './quick-edit.js';
 
 const RECENT = 'setup.recent';
 
@@ -235,12 +236,16 @@ export function apply(ctx) {
   const presetPage = new ListPage(ctx, catalog, 'preset');
   ctx.slots.mount('settings.section', { id: 'personas', name: t('page.title'), render: (kit) => personaPage.render(kit) });
   ctx.slots.mount('settings.section', { id: 'presets', name: t('presets.title'), render: (kit) => presetPage.render(kit) });
-  // 左上角的头像（事件 `persona.open`，2026-10-10 项目主人）：打开设置页的「人格」页，开着这个会话用的人格（空会话照选的、默认的）的编辑卡片；
-  // 无人格的只开这一页
-  ctx.on('persona.open', () => {
+  // 左上角的头像（事件 `persona.open`，2026-10-10 项目主人）：直接在页面上开这个会话用的人格（空会话照选的、默认的）的编辑卡片，不先开设置页；
+  // 无人格的开设置页的「人格」页
+  ctx.on('persona.open', async () => {
     const session = chat.current();
-    personaPage.focus(session ? chat.persona(session) ?? null : inUse().persona ?? null);
-    ctx.settings?.open('personas');
+    const id = session ? chat.persona(session) ?? null : inUse().persona ?? null;
+    const settings = ctx.settings;
+    if (!settings) return;
+    if (!id) return settings.open('personas');
+    if (!catalog.personas) await catalog.load().catch(() => {});
+    editPersona(ctx, catalog, id, settings.kit);
   });
   ctx.slots.mount('settings.editor', {
     id: 'setup-persona',

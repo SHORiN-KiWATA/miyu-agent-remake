@@ -127,6 +127,9 @@
   animation: fade-in var(--motion-in) var(--ease-out) both;
 }
 .setup-float-scrim.is-leaving { animation: fade-out var(--motion-out) var(--ease-in) both; }
+/* 直接开在页面上的（左上角的头像点进来的）：盖整页，在设置页那一层的高度 */
+.setup-float-scrim.is-page { position: fixed; z-index: 90; }
+.setup-float:focus { outline: none; }
 .setup-float {
   display: flex; flex-direction: column; width: min(620px, 100%); max-height: 100%; overflow: hidden;
   border-radius: 14px; background: var(--surface-1); box-shadow: var(--float-shadow);
