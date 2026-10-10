@@ -19,7 +19,7 @@ impl Route {
     ///
     /// 写不出去、等的时候核心断开。
     pub(super) async fn command(&mut self, message: &Message) -> Result<bool, Gone> {
-        let Some((session, reply)) = self.deliver(message, "command.run").await? else {
+        let Some((session, reply)) = self.deliver(message, "command.run", &[]).await? else {
             return Ok(true);
         };
         let (venue, number) = (&message.place.peer.venue, message.number);

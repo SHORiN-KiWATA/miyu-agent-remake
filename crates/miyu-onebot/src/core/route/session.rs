@@ -79,23 +79,28 @@ impl Place {
     }
 
     /// 是不是私聊。
-    fn private_chat(&self) -> bool {
+    pub(super) fn private_chat(&self) -> bool {
         matches!(self.peer.to, To::Private(_))
     }
 }
 
 impl Route {
     /// 把 `message` 照 `method`（[`SEND`]、`command.run`）交给它那个场所的会话：`{session, text, as}`，[`SEND`] 另带
-    /// `venue`，编号是这条消息的命令编号（第 8 条）。交回会话编号和最后一次的回应（接受的、拒绝的都原样），这时记下这个
-    /// 会话的回执、回话发给谁（「施工时定的」第 36 条）；不接的、找不到会话的是空的（已经记了运行日志）。
+    /// `venue`，有图的带 `attachments`（施工 O-33），编号是这条消息的命令编号（第 8 条）。交回会话编号和最后一次的回应（接受的、
+    /// 拒绝的都原样），这时记下这个会话的回执、回话发给谁（「施工时定的」第 36 条）；不接的、找不到会话的是空的（已经记了运行
+    /// 日志）。
     pub(super) async fn deliver(
         &mut self,
         message: &Message,
         method: &str,
+        attachments: &[Value],
     ) -> Result<Option<(String, Value)>, Gone> {
         let mut params = json!({"text": message.text, "as": message.acting});
         if method == SEND {
             params["venue"] = message.fields.clone();
+        }
+        if !attachments.is_empty() {
+            params["attachments"] = json!(attachments);
         }
         let found = self
             .on_session(&message.place, Some(&message.id), method, params)
@@ -145,6 +150,18 @@ impl Route {
             return Ok(Some((session, reply)));
         }
         Ok(None)
+    }
+
+    /// 场所 `place` 的会话找得到（施工 O-33：取图以前先看接不接）：记着的是，没记着的照 [`Route::find`] 找。
+    ///
+    /// # Errors
+    ///
+    /// 写不出去、等的时候核心断开。
+    pub(super) async fn found(&mut self, place: &Place) -> Result<bool, Gone> {
+        if self.venues.contains_key(place.peer.venue.as_str()) {
+            return Ok(true);
+        }
+        Ok(self.find(place).await?.is_some())
     }
 
     /// 找回场所 `place` 的会话，私聊的再订阅它，群的从头订阅（第 7、9 条，「群消息」第 3 条，「群里怎么叫她」第 1 条）。不接的、

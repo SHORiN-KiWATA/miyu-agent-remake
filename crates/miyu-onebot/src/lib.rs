@@ -17,6 +17,7 @@
 //!   （施工 O-28 下从桥自己的 WebUI 挪出来；桥自己的网页随 O-28 下去掉）。
 //! - [`rules`]：场所规则和出厂数据（施工 O-21）：出厂的起来时读一次，系统的照群聊内核读好、合起来、套到场所上，变了下一次
 //!   用就照新的。
+//! - `media`：取图、视频、文件到手，视频、文件存进会话工作区的 `qq-files/`（施工 O-33）。
 //! - [`venue`]：`miyu onebot venue show <场所>`：一个场所每一项的值和来处（施工 O-21）。
 //! - [`web`]：`miyu onebot web`：跑旁边的 `miyu web --package onebot`，打开网页软件里接入QQ 的后台页（施工 O-28 补）。
 //!
@@ -29,6 +30,7 @@ mod core;
 mod current;
 mod listen;
 pub mod logs;
+mod media;
 pub mod onebot;
 pub mod rules;
 mod running;

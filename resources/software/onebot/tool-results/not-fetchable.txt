@@ -1,0 +1,1 @@
+Not fetched: voice and QQ emoji can't be fetched.

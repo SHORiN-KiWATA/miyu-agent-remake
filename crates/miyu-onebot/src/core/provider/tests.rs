@@ -47,7 +47,7 @@ fn asked(heard: Heard) -> Value {
 #[test]
 fn the_provide_params_follow_the_shipped_spec() {
     // 施工 O-31 起四件：`recall`、`poke` 给私聊和群，`mute` 只给群；三件平台工具是 `venue`（在场所里做的事），`skip_reply` 是
-    // `read`（`onebot.md` 施工时定的第 177 条）。
+    // `read`（`onebot.md` 施工时定的第 177 条）。施工 O-33 加 `fetch_media`：`venue`，只给群。
     let spec = |name: &str| -> Value {
         serde_json::from_str(&shipped(&format!("tools/{name}.json"))).expect("是 JSON")
     };
@@ -68,6 +68,7 @@ fn the_provide_params_follow_the_shipped_spec() {
             entry("recall", "venue", both.clone()),
             entry("mute", "venue", json!(["group"])),
             entry("poke", "venue", both),
+            entry("fetch_media", "venue", json!(["group"])),
         ]})
     );
 }
@@ -149,7 +150,8 @@ fn a_method_call_is_answered_by_the_methods() {
 #[test]
 fn platform_tool_calls_pass_on_to_the_route() {
     // 施工 O-31：撤回、禁言、戳一戳要投影和 NapCat 的连接，读的一头不当场答，原样交给跟核心的那一头（「平台工具（一）」第 2 条）。
-    for tool in ["recall", "mute", "poke"] {
+    // 施工 O-33：`fetch_media` 要会话发到哪、这一轮取了几次，也交过去。
+    for tool in ["recall", "mute", "poke", "fetch_media"] {
         let message = tool_call("core-10", tool);
         match heard(&tools(), &Methods::new(), message.clone()) {
             Heard::Other(passed) => assert_eq!(passed, message),

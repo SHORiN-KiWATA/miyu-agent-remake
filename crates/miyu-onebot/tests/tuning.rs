@@ -1,6 +1,6 @@
 //! 桥自己的数（施工 O-8，`onebot.md`「施工时定的」第 15 条）：出厂的 `bridge.json` 读得出来，数和图纸写的一样；队列写 0、
 //! 判官的并发写 0（施工 O-23 下）、排着的过期写 0（施工 O-25 中）、多出不认识的格（施工 O-28 下去掉的 `web` 也是）、少了一格
-//! （施工 O-25 下的贴表情两格也是）、读不了的，读不进来，说是哪个文件。
+//! （施工 O-25 下的贴表情两格也是，施工 O-33 的取东西三格也是）、读不了的，读不进来，说是哪个文件。
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -51,6 +51,10 @@ fn the_shipped_numbers_are_the_blueprints() {
     assert_eq!(tuning.reaction(), Duration::from_secs(600));
     // 平台身份是不是终端管理员问到了记一分钟（施工 O-31，「平台工具（一）」第 3 条）。
     assert_eq!(tuning.binding(), Duration::from_secs(60));
+    // 冲她来的那条带 4 张原图，一轮取 4 次，取一次最多等两分钟（施工 O-33，「平台工具（二）」）。
+    assert_eq!(tuning.message_images, 4);
+    assert_eq!(tuning.fetch_per_turn, 4);
+    assert_eq!(tuning.fetch(), Duration::from_secs(120));
 }
 
 #[test]
@@ -137,6 +141,22 @@ fn a_bad_file_is_not_read_and_named() {
         (
             "binding-missing",
             good.replace("\"binding_seconds\": 60", "\"b\": 1"),
+        ),
+        (
+            "images-missing",
+            good.replace("\"message_images\": 4", "\"a\": 1"),
+        ),
+        (
+            "fetches-missing",
+            good.replace("\"fetch_per_turn\": 4", "\"c\": 1"),
+        ),
+        (
+            "fetch-wait-missing",
+            good.replace("\"fetch_seconds\": 120", "\"d\": 1"),
+        ),
+        (
+            "images-negative",
+            good.replace("\"message_images\": 4", "\"message_images\": -1"),
         ),
         ("not-json", "nope".to_string()),
     ] {

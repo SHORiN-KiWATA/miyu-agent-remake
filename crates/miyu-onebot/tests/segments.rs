@@ -1,16 +1,31 @@
 //! 认消息段（施工 O-22，`onebot.md` 第一条「群消息」第 2 条）：每一种段记成什么；带的东西的编号取哪一格、整数也认；几段引用
-//! 只认第一段；@ 同一个人两次只算一次；CQ 字符串只读字。
+//! 只认第一段；@ 同一个人两次只算一次；CQ 字符串只读字。大小照 `file_size`（字、整数都认），怎么取照段（施工 O-33）。
 
 use serde_json::{Value, json};
 
-use miyu_onebot::onebot::{Media, MediaKind, Piece, Segments, segments};
+use miyu_onebot::onebot::{Fetch, Media, MediaKind, Piece, Segments, segments};
 
-/// 一样带的东西。
+/// 一样带的东西：没有大小；怎么取照种类（图 `get_image`，视频、文件 `get_file`，别的取不了）。
 fn media(kind: MediaKind, id: &str, name: Option<&str>) -> Media {
+    let fetch = match kind {
+        MediaKind::Image => Some(Fetch::Image),
+        MediaKind::Video | MediaKind::File => Some(Fetch::File),
+        MediaKind::Voice | MediaKind::Sticker => None,
+    };
     Media {
         kind,
         id: id.to_string(),
         name: name.map(str::to_string),
+        size: None,
+        fetch,
+    }
+}
+
+/// 图片段里的表情（表情包、商城表情）：照图取。
+fn sticker_image(id: &str, name: Option<&str>) -> Media {
+    Media {
+        fetch: Some(Fetch::Image),
+        ..media(MediaKind::Sticker, id, name)
     }
 }
 
@@ -79,14 +94,14 @@ fn each_kind_of_media_is_named_right() {
         only(
             json!({"type": "image", "data": {"file": "b.gif", "sub_type": "1", "summary": "[动画表情]"}})
         ),
-        [media(MediaKind::Sticker, "b.gif", None)],
+        [sticker_image("b.gif", None)],
         "表情包是表情，「[动画表情]」不是表情的字"
     );
     assert_eq!(
         only(
             json!({"type": "image", "data": {"file": "x.gif", "emoji_id": "e1", "summary": "[吃瓜]"}})
         ),
-        [media(MediaKind::Sticker, "x.gif", Some("[吃瓜]"))],
+        [sticker_image("x.gif", Some("[吃瓜]"))],
         "NapCat 把商城表情发成图片"
     );
     assert_eq!(
@@ -156,4 +171,59 @@ fn a_cq_string_is_read_as_words_only() {
         Segments::default()
     );
     assert_eq!(segments(&json!(null)), Segments::default());
+}
+
+/// 施工 O-33：大小照 NapCat 段里的 `file_size`（NT 给的是字，整数也认），读不出的不写；图片段里的照图取，视频、文件照文件取，
+/// 语音、小黄脸、商城表情（`mface`）取不了。
+#[test]
+fn sizes_and_how_to_fetch_are_read() {
+    let sized = |segment: Value| only(segment).first().map(|media| (media.size, media.fetch));
+    assert_eq!(
+        sized(json!({"type": "image", "data": {"file": "a.jpg", "file_size": "834213"}})),
+        Some((Some(834_213), Some(Fetch::Image)))
+    );
+    assert_eq!(
+        sized(
+            json!({"type": "image", "data": {"file": "b.gif", "sub_type": 1, "file_size": 2048}})
+        ),
+        Some((Some(2048), Some(Fetch::Image))),
+        "表情包照图取"
+    );
+    assert_eq!(
+        sized(json!({"type": "video", "data": {"file": "code", "file_size": "12345678"}})),
+        Some((Some(12_345_678), Some(Fetch::File)))
+    );
+    assert_eq!(
+        sized(
+            json!({"type": "file", "data": {"file": "排班.pdf", "file_id": "u-1", "file_size": "0"}})
+        ),
+        Some((Some(0), Some(Fetch::File)))
+    );
+    assert_eq!(
+        sized(json!({"type": "record", "data": {"file": "v.amr", "file_size": "5321"}})),
+        Some((Some(5321), None)),
+        "语音有大小，取不了"
+    );
+    assert_eq!(
+        sized(json!({"type": "face", "data": {"id": "14"}})),
+        Some((None, None))
+    );
+    assert_eq!(
+        sized(json!({"type": "mface", "data": {"emoji_id": "m1", "summary": "[比心]"}})),
+        Some((None, None))
+    );
+    for size in [
+        json!("-1"),
+        json!(""),
+        json!("1.5"),
+        json!(-3),
+        json!(null),
+        json!("12 KB"),
+    ] {
+        assert_eq!(
+            sized(json!({"type": "image", "data": {"file": "a.jpg", "file_size": size.clone()}})),
+            Some((None, Some(Fetch::Image))),
+            "{size}"
+        );
+    }
 }

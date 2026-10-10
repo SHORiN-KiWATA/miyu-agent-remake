@@ -4,7 +4,7 @@
 //! 消息段怎么认（`segments`，施工 O-22），群成员叫什么（`members`，施工 O-22），发出去的动作和回应怎么照 `echo` 配对
 //! （`calls`），`send_private_msg`、`send_group_msg`（施工 O-25 上：第一段能带引用和 @）、`delete_msg`（施工 O-25 上）、
 //! `set_msg_emoji_like`（施工 O-25 下）、`set_friend_add_request`（施工 O-27）、`set_group_ban`、`group_poke`、`friend_poke`
-//! （施工 O-31）写成什么样。
+//! （施工 O-31）写成什么样；取带的东西的 `get_msg`、`get_image`、`get_file`（施工 O-33，`media`）。
 //!
 //! 号（机器人的号、对方的号、消息编号）和时刻照 OneBot 是整数；有的实现写成字符串，也认。
 //!
@@ -12,6 +12,7 @@
 //! 桥不手拼（`chat.md` 第七条第 1 条）。
 
 mod calls;
+pub mod media;
 mod members;
 mod segments;
 mod text;
@@ -21,9 +22,9 @@ use miyu_kernel::FormatError;
 use miyu_kernel::id::{ExternalId, VenueId};
 use serde_json::{Value, json};
 
-pub use calls::{CallError, Calls, Pending};
+pub use calls::{CallError, Calls, DETAIL, Pending, said};
 pub use members::{MEMBER_INFO, Members, Rank, display_name, member_info, rank_of};
-pub use segments::{Media, MediaKind, Piece, Segments, segments};
+pub use segments::{Fetch, Media, MediaKind, Piece, Segments, segments};
 pub use text::text_of;
 
 /// 平台的名字：场所、平台上的人、命令编号的头一段（第 7、8 条）。

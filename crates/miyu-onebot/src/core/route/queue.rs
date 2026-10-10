@@ -10,7 +10,7 @@ use std::time::Duration;
 use miyu_kernel::time::Timestamp;
 use serde_json::Value;
 
-use crate::onebot::{CallError, number};
+use crate::onebot::{CallError, DETAIL, number};
 
 /// `failed` 的 `why`：NapCat 回了失败。
 pub(super) const REJECTED: &str = "rejected";
@@ -23,9 +23,6 @@ pub(super) const DISCONNECTED: &str = "disconnected";
 
 /// `failed` 的 `why`：排着过了期限（第 5 条）。
 pub(super) const EXPIRED: &str = "expired";
-
-/// `failed` 的 `detail` 最多几个字符（第 4 条）：NapCat 说的原因截到这么长。平台工具（一）答的原话也照它（施工 O-31）。
-pub(super) const DETAIL: usize = 200;
 
 /// 排着的一段：入队的时刻、要发的。
 struct Waiting<T> {

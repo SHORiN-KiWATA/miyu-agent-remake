@@ -9,6 +9,7 @@ pub mod answering;
 pub mod fake_core;
 pub mod group;
 pub mod judge;
+pub mod media;
 pub mod napcat;
 pub mod pipe;
 pub mod platform;

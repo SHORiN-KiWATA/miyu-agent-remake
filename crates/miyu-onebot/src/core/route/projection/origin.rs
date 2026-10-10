@@ -1,5 +1,5 @@
 //! 叫她做的那条（施工 O-31，`onebot.md` 第一条「平台工具（一）」第 3 条）：投影交给平台工具的两样，照投影里记的人说的话、她发过的
-//! 编号算，纯逻辑。从 `projection.rs` 分出来（那一份行数到了上限）。
+//! 编号算，纯逻辑；主线这一轮的回合编号（施工 O-33，`fetch_media` 数次数）。从 `projection.rs` 分出来（那一份行数到了上限）。
 
 use miyu_kernel::id::ExternalId;
 
@@ -26,6 +26,11 @@ impl Projection {
             quote,
             mentions: aimed.mentions.clone(),
         })
+    }
+
+    /// 主线这一轮的回合编号（施工 O-33：`fetch_media` 一轮取几次照它数）；主线不在跑的是空的。
+    pub(in crate::core::route) fn turn(&self) -> Option<u64> {
+        self.running.as_ref().map(|running| running.turn)
     }
 
     /// 平台上的 `who` 是不是终端管理员（O-31：禁言不动他）：他在这个群说过的话带 `account`（「施工时定的」第 183 条）。

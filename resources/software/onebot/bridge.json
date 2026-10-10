@@ -15,5 +15,8 @@
   "queue_expire_seconds": 60,
   "reaction_emoji": "289",
   "reaction_seconds": 600,
-  "binding_seconds": 60
+  "binding_seconds": 60,
+  "message_images": 4,
+  "fetch_per_turn": 4,
+  "fetch_seconds": 120
 }

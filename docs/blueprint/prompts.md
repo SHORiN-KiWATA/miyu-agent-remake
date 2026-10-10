@@ -2183,6 +2183,83 @@ Not done: QQ is not reachable right now.
 QQ did not answer in time; it may or may not have happened.
 ```
 
+#### `software/onebot/tool-results/saved.txt`
+
+- 什么时候加进来：`fetch_media` 把视频、文件（存不成图的图）写进了工作区，`path` 是落到的真实路径
+- token：33（`path` 填 `/home/me/.local/share/miyu/home/onebot/workspace/qq-files/8816-1-排班.pdf`）
+- 为什么加：她拿路径再 `read`（视频以后 `shell` 调 ffmpeg）
+- 指纹：`b0a83124`
+
+```text
+Saved to {path}.
+```
+
+#### `software/onebot/tool-results/not-found.txt`
+
+- 什么时候加进来：`fetch_media` 的 `msg` 不是整数、QQ 说没有这一条、那一条不在这个群
+- token：12
+- 为什么加：编号不对、过期了、别处的都照没有说：不让她拿编号看别的群
+- 指纹：`25ddb28b`
+
+```text
+Not found: no message with that msg in this group.
+```
+
+#### `software/onebot/tool-results/no-item.txt`
+
+- 什么时候加进来：`fetch_media` 的 `index` 不对：那一条没有第几样
+- token：16（`count` 填 2）
+- 为什么加：说清那一条有几样、从 1 数，她改了再取
+- 指纹：`e9233523`
+
+```text
+Not found: that message has {count} item(s), counted from 1.
+```
+
+#### `software/onebot/tool-results/not-fetchable.txt`
+
+- 什么时候加进来：`fetch_media` 点到的是语音、小黄脸、`mface` 商城表情
+- token：13
+- 为什么加：语音先不转文字（2026-10-11 项目主人定），表情没有可取的原图：说清取不了，不再试
+- 指纹：`cb87ab72`
+
+```text
+Not fetched: voice and QQ emoji can't be fetched.
+```
+
+#### `software/onebot/tool-results/unfetched.txt`
+
+- 什么时候加进来：NapCat 回了，东西拿不到手：地址下不下来、路径读不到、没有 base64；`detail` 是每一样为什么（截到 200 个字符）
+- token：9（`detail` 填 `url: HTTP 404`）
+- 为什么加：照实说没取到、为什么
+- 指纹：`2418337c`
+
+```text
+Not fetched: {detail}
+```
+
+#### `software/onebot/tool-results/too-many.txt`
+
+- 什么时候加进来：这一轮已经取了 `fetch_per_turn` 次（出厂 4）
+- token：12（`count` 填 4）
+- 为什么加：照旧 Miyu 的配额，一轮不取太多；说清上限，她下一轮再取
+- 指纹：`4cec53d7`
+
+```text
+Not fetched: at most {count} fetches per turn.
+```
+
+#### `software/onebot/tool-results/not-saved.txt`
+
+- 什么时候加进来：取到了，写不进工作区：`qq-files` 不是真目录、落到了工作区外面、写不了；`detail` 是为什么
+- token：12（`detail` 填 `qq-files is not a folder`）
+- 为什么加：照实说没存下，不装作存了
+- 指纹：`44b686f0`
+
+```text
+Not saved: {detail}
+```
+
 #### `software/basesystem/common/not-read.txt`
 
 - 什么时候加进来：`write`、`edit` 要改的文件已经在了、她这个会话里没看过
@@ -3220,6 +3297,20 @@ Start a subagent in a new session to do one task and wait for it; its report arr
 {
   "description": "Poke the one person @-mentioned in the message you are answering, or its sender if nobody is.",
   "parameters": {"type":"object","properties":{}}
+}
+```
+
+#### `software/onebot/tools/fetch_media.json`
+
+- 什么时候加进来：群会话的工具面里有 `fetch_media`（施工 O-33；私聊、本机的会话没有）
+- token：114（2026-10-11，二十件一起的边际份量；第一稿 122）
+- 为什么加：按需看（2026-10-11 项目主人定）：群里的图、视频、文件她要看才去 QQ 取。说明一句说清取什么、图回来看、视频文件存进 `qq-files/`；`index` 写明是那一条里第几样、从 1 数（近况那一行的 `#n`，核心审时要的）
+- 指纹：`25552e26`
+
+```json
+{
+  "description": "Fetch an image, video or file from a group message. Images come back to view; videos and files are saved to qq-files/ in your workspace.",
+  "parameters": {"type":"object","properties":{"msg":{"type":"string","description":"The msg= id."},"index":{"type":"integer","description":"Which item in that message, from 1 (the #n); default 1."}},"required":["msg"]}
 }
 ```
 

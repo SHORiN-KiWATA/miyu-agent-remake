@@ -133,6 +133,7 @@ async fn a_strangers_private_chat_goes_nowhere() {
     bridge.stop().await.expect("停得下");
 }
 
+/// 只有图的私聊：施工 O-33 起去 QQ 取图、带上交；这个假 NapCat 取不到（回失败），没有字的照旧不送。
 #[tokio::test]
 async fn segments_and_cq_strings_are_read_and_image_only_messages_are_not_sent() {
     let script = Script::new([Play::Says("一。"), Play::Says("二。")]);

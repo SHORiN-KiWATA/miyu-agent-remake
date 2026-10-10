@@ -213,7 +213,8 @@ async fn group_messages_are_recorded_as_ambient_with_their_venue_fields() {
             {"kind": "sticker", "id": "m1", "name": "[比心]"},
             {"kind": "voice", "id": "v.amr"},
             {"kind": "video", "id": "77"},
-            {"kind": "file", "id": "/f-1", "name": "排班.pdf"},
+            // 施工 O-33：段里的 `file_size` 记成 `size`。
+            {"kind": "file", "id": "/f-1", "name": "排班.pdf", "size": 12},
         ])
     );
     for one in &said {

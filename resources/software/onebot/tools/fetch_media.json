@@ -1,0 +1,4 @@
+{
+  "description": "Fetch an image, video or file from a group message. Images come back to view; videos and files are saved to qq-files/ in your workspace.",
+  "parameters": {"type":"object","properties":{"msg":{"type":"string","description":"The msg= id."},"index":{"type":"integer","description":"Which item in that message, from 1 (the #n); default 1."}},"required":["msg"]}
+}

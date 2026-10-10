@@ -25,6 +25,7 @@ mod judged_persona;
 mod linking;
 mod listen;
 mod logs;
+mod media;
 mod members;
 mod no_token;
 mod outbound;

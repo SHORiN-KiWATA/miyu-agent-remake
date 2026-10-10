@@ -15,6 +15,7 @@
 //! （`method.call`，施工 O-28 上，`methods`）也一样。撤回、禁言、戳一戳（施工 O-31）照推送交给这一个用的人，答的时候照
 //! [`Core::answerer`] 写回去。
 
+pub(crate) mod blobs;
 mod caller;
 pub(crate) mod methods;
 mod provider;

@@ -15,7 +15,7 @@
 | `resources/packages/onebot/package.toml`（O-18） | 软件包清单：`process` 包，子命令 `onebot`、程序 `miyu-onebot`，`[process] args = ["serve"]`、`start = "manual"`；`[settings]` 三项（O-20 挪过来四项；O-27 `trusted` 改名 `whitelist`；O-28 下去掉 `web`）；`capabilities` O-23 多 `events.write`、O-26 多 `tools`；O-28 上多 `[package] icon`、`[page] dir`（「软件包清单」「后台页」） |
 | `resources/packages/onebot/page/`（O-28 上） | 后台页：`index.html`、`app.js`（通道、页签、颜色和明暗）、`connection.js`（「连接」）、`whitelist.js`（「白名单成员」）、`texts.js`（三种语言的字）、`style.css`，原生 JS 的模块（「后台页」）；资源目录最上一层的 `packages/` 整个不进登记簿（`xtask/src/ledger.rs`：给人看的、给浏览器的），门禁不用改 |
 | `crates/miyu-onebot/src/settings.rs` | 桥用的配置（O-20）：握手交来的 `config`、推送来的 `extension.config` 照键读成 NapCat 的端口、令牌（`Settings`；网页的端口 O-28 下去掉），没有的、`null` 的端口照清单 `[settings]` 的默认值（`Defaults`，照资源目录里的清单读），令牌没有就是没有；`onebot.whitelist`（O-27 以前叫 `onebot.trusted`）读成白名单成员的平台身份（`whitelist`，O-23：跟核心的那一头照它认白名单成员） |
-| `crates/miyu-onebot/src/tuning.rs` | 读 `bridge.json`：桥自己的数（O-16 多的 `web` 一格 O-28 下去掉；O-23 下多判官的全局并发、排队等多久两格；O-23 补多判官带的人格原文记多久；O-25 上多命令回执几秒后撤回一格；O-25 中多出站排着的多久过期一格；O-25 下多贴的表情、多久摘两格） |
+| `crates/miyu-onebot/src/tuning.rs` | 读 `bridge.json`：桥自己的数（O-33 多取东西三格；O-16 多的 `web` 一格 O-28 下去掉；O-23 下多判官的全局并发、排队等多久两格；O-23 补多判官带的人格原文记多久；O-25 上多命令回执几秒后撤回一格；O-25 中多出站排着的多久过期一格；O-25 下多贴的表情、多久摘两格） |
 | `crates/miyu-onebot/src/serve.rs` | 起来：经核心亲手给的管道（标准输入输出，O-18）握手、开 NapCat 的监听（O-28 下起只开这一个），把几样接起来；推来的配置交给 `current.rs`，端口变了另起一个任务当场换（O-20，`running/rebind.rs`），开好的新监听换掉旧的；状态文件跟着写（O-18）；桥手里的状态（`running.rs`）造好以后交给后台页的方法、发 `package.methods`（O-28 上）；核心关了管道就停，跟核心的那一头崩了就退 |
 | `crates/miyu-onebot/src/status_file.rs`（O-18） | 状态文件 `state/packages/onebot/status.json`：起来时、NapCat 连上断开、问到是哪个实现、换了端口时（推送来的）照这一刻写（「状态文件」） |
 | `crates/miyu-onebot/src/control.rs`（O-18） | `start`、`stop`、`restart`、`status`：照终端的样子连核心，调 `extension.enable`、`disable`、`restart`、`status`；`status` 再读状态文件；照回应说，`start`、`status` 末尾接设置在哪那一句（O-28 补） |
@@ -51,6 +51,11 @@
 | `crates/miyu-onebot/src/core/route/bindings.rs`（O-31） | 问到的「是不是终端管理员」：按号记 `binding_seconds`（纯逻辑，钟由调的一方交；「平台工具（一）」第 3 条） |
 | `crates/miyu-onebot/src/core/route/projection/origin.rs`（O-31） | 投影交给平台工具的两样（纯逻辑）：叫她做的那条连同引用、@，某人是不是终端管理员（「平台工具（一）」第 3、4 条） |
 | `crates/miyu-onebot/src/core/route/acting.rs`（O-31） | 平台工具（一）的那一头：核心转来的 `tool.call` 收投影、交 `platform.rs` 定，不做的当场答；做的另起任务问身份、调 NapCat、答核心（「平台工具（一）」第 2、5、6 条） |
+| `crates/miyu-onebot/src/core/route/pictures.rs`（O-33） | 冲她来的那条给原图：群里冲她来的、私聊收下的，这一条和它引用的那一条（`get_msg` 现认段）里的图取来、存成 blob，`session.send` 的 `attachments` 带上（「平台工具（二）」第 3 条） |
+| `crates/miyu-onebot/src/core/route/fetching.rs`（O-33） | `fetch_media` 的那一头：读参数、数一轮几次（纯逻辑）；找到会话发到哪，另起任务 `get_msg` 认段、取、图存成 blob 交回图片块，视频、文件写进 `qq-files/` 回路径（「平台工具（二）」第 4 到 7 条） |
+| `crates/miyu-onebot/src/core/blobs.rs`（O-33） | 取来的字节经 `blob.open`、`blob.write`、`blob.close` 分块存成 blob（「平台工具（二）」第 3、4 条） |
+| `crates/miyu-onebot/src/media.rs`（O-33） | 取到手、存下来：照 url、本机路径、base64 的先后拿字节（url 经 `miyu-http`）；视频、文件存进工作区的 `qq-files/`：洗文件名、先写临时文件再改名、不跟链接走（「平台工具（二）」第 5 条） |
+| `crates/miyu-onebot/src/onebot/media.rs`（O-33） | 取东西的 OneBot 动作：`get_msg`、`get_image`、`get_file` 的参数，回应里东西在哪（「平台工具（二）」第 2 条） |
 | `crates/miyu-onebot/src/core/route/quiet.rs`（O-26） | 这一轮不说话了的（纯逻辑）：推来的她的回复里有 `skip_reply` 的调用块的，记下这个会话这一轮；`turn.ended` 清掉（「提供者和不说话」第 3 条） |
 | `crates/miyu-onebot/src/core/route/queue.rs`（O-25 中） | 出站队列（纯逻辑，钟由调的一方交进来）：每个场所会话一条先进先出的队，排着的过期没有，门开着的照先后交出来；下一次该醒的时刻（最早的过期、禁言到期）；禁言到什么时候（此刻加秒数）；NapCat 的回应算成功还是失败、为什么（「出站队列」） |
 | `crates/miyu-onebot/src/core/route/sending.rs`（O-25 中） | 出站队列的那一头：入队先记 `ext.onebot.venues.queued`、拿到序号，门开着（没被禁言、号连着）的照先后放进写队列、回应交给别的任务等；结局照放进写队列的先后交回来，群里她的话记 `venue.delivered`、群里的回执交 `receipt.rs` 撤，失败的记 `ext.onebot.venues.failed`，她的话失败了经 `session.note` 退信（O-25 下，「退信」）；连上了、解禁了、定时醒了把排着的再看一遍（「出站队列」） |
@@ -70,9 +75,10 @@
 | `crates/miyu-onebot/src/rules/files.rs`（O-21） | 读文件：照配置文件的读法读一份（`miyu_store::config_file::read`），读不了的变成群聊内核的 `Problem`；列出 `venues.d/` 里的规则文件；系统的两处这一刻的样子（文件列表、修改时刻、大小） |
 | `crates/miyu-onebot/src/venue.rs`（O-21） | `venue show <场所>`：不连核心，照 `rules.rs` 读同样的文件，一项一行印值和来处，问题印在后面 |
 | `crates/miyu-onebot/src/texts.rs` | 说给人听的字：挑哪一句、换进什么字段，字照 `Human::load` 读（「给人看的字」）；O-23 多发进群里的限流提示 |
-| `resources/software/onebot/bridge.json` | 桥自己的数：认的路径、调用等多久、两个队列多长、接不了连接歇多久、握手等多久和 `logs -f` 隔多久看一次（O-18）、隔多久看一次系统的场所规则变没变（O-21）、群成员的名字记多久（O-22）、判官全局最多同时问几个、排队等多久（O-23 下）、判官带的人格原文记多久（O-23 补）、群里的命令回执几秒后撤回（O-25 上）、出站排着的多久过期（O-25 中）、贴的表情和多久摘（O-25 下）（「对外的样子」） |
+| `resources/software/onebot/bridge.json` | 桥自己的数：认的路径、调用等多久、两个队列多长、接不了连接歇多久、握手等多久和 `logs -f` 隔多久看一次（O-18）、隔多久看一次系统的场所规则变没变（O-21）、群成员的名字记多久（O-22）、判官全局最多同时问几个、排队等多久（O-23 下）、判官带的人格原文记多久（O-23 补）、群里的命令回执几秒后撤回（O-25 上）、出站排着的多久过期（O-25 中）、贴的表情和多久摘（O-25 下）、冲她来的那条带几张图、一轮取几次、取一次等多久（O-33）（「对外的样子」） |
 | `resources/software/onebot/venues.d/`、`defaults.toml`、`moderation.txt` | 出厂的场所规则、出厂参数、违规词表（写法、内容在 `chat.md` 第一条、第八条、第二条）；O-21 起桥读它们（「场所规则和出厂数据」） |
 | `resources/software/onebot/facts/undelivered.txt`（O-25 下） | 退信那一块事实的模板（给模型看的字，登记在 26 第十节；「退信」第 3 条） |
+| `resources/software/onebot/tools/fetch_media.json`，`tool-results/` 里 `saved`、`not-found`、`no-item`、`not-fetchable`、`unfetched`、`too-many`、`not-saved` 七句（O-33） | `fetch_media` 的说明和答的话（给模型看的字，登记在 26 第十节；说明同一份预算；「平台工具（二）」第 1、6 条） |
 | `resources/software/onebot/tools/recall.json`、`mute.json`、`poke.json`，`tool-results/` 里成了、不做的十三句（O-31） | 平台工具（一）的说明和答的话（给模型看的字，登记在 26 第十节；说明同 `skip_reply` 一份预算；「平台工具（一）」第 1、5 条） |
 | `resources/software/onebot/tools/skip_reply.json`、`tool-results/skipped.txt`、`tool-results/unknown.txt`（O-26） | 桥的工具说明和答的两句（给模型看的字，登记在 26 第十节；说明照字节守预算，`10-自带软件.md` 第九节；「提供者和不说话」） |
 | `resources/software/onebot/human/{zh,en,ja}.json` | 桥说给人听的字（「给人看的字」；O-16 起桥自己的网页的 `web/` 那几句随 O-28 下删掉）；`tools` 是桥的工具的显示名（O-26，「提供者和不说话」第 4 条） |
@@ -111,6 +117,9 @@
 | `reaction_emoji` | `"289"` | 群里判过要回的那一条上贴哪个表情：QQ 表情的编号，写成字（O-25 下，「贴表情」第 2 条；18 第七节） |
 | `reaction_seconds` | 600 | 贴了以后过几秒她还没回、这一轮还没完的，摘掉（O-25 下，「贴表情」第 3 条）。0 是贴了就摘 |
 | `binding_seconds` | 60 | 平台身份是不是终端管理员（核心的 `venue.binding`）问到了记几秒（O-31，「平台工具（一）」第 3 条）：终端管理员改了对应表，桥最多晚这么久照新的认。0 是每次都问 |
+| `message_images` | 4 | 冲她来的那条、它引用的那条各最多带几张原图（O-33，「平台工具（二）」第 3 条；照旧 Miyu 的实测）。0 是不带 |
+| `fetch_per_turn` | 4 | `fetch_media` 一轮最多取几次（O-33，「平台工具（二）」第 4 条；照旧 Miyu 的配额）。0 是一次都不给 |
+| `fetch_seconds` | 120 | `fetch_media` 等 NapCat 回 `get_image`、`get_file`，下载，各最多几秒（O-33）：大的视频 NapCat 要先下完才回 |
 
 多一格、少一格、队列写 0、判官的并发写 0、排着的过期写 0、读不了：起不来（「出错」）。
 
@@ -244,7 +253,7 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
    | `text` | 正文，`data.text` 照原样接 |
    | `at` | `data.qq` 是 `all` 的：`mentions_all`，正文里不写（「施工时定的」第 60 条）；是号的：正文里写 `@名字`（第 5 条），是机器人的号的记 `mentions_me`，别人的进 `mentions`（照先后、不重） |
    | `reply` | `reply_to`：`data.id`；几段的只认第一段 |
-   | `image` | `image`；`sub_type` 是 1 的（表情包）记成 `sticker`；带 `emoji_id` 的（NapCat 把商城表情发成 `image`）记成 `sticker`，`name` 取 `summary` |
+   | `image` | `image`；`sub_type` 是 1 的（表情包）记成 `sticker`；带 `emoji_id` 的（NapCat 把商城表情发成 `image`）记成 `sticker`，`name` 取 `summary`。都照图取（`get_image`，O-33） |
    | `mface` | `sticker`，`name` 取 `summary` |
    | `face`（QQ 的小黄脸） | `sticker`，`name` 取 `raw.faceText`（有的话） |
    | `record` | `voice` |
@@ -254,7 +263,7 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
    | `json`、`xml`（卡片） | 正文里写占位 `[card]` |
    | 别的（`poke`、`dice`、`rps`、`markdown`……） | 不记 |
 
-   带的东西的平台编号取 `data` 里 `file_id`、`file`、`id`、`emoji_id` 头一个有的（字，或者写成十进制的整数），一个都没有的那一样不记。不下载（随平台工具那一步）。`message` 是字符串（CQ 码）的照第 6 条只读字，@、引用、带的东西都不认（「施工时定的」第 62 条）。
+   带的东西的平台编号取 `data` 里 `file_id`、`file`、`id`、`emoji_id` 头一个有的（字，或者写成十进制的整数），一个都没有的那一样不记。大小（O-33）取 `file_size`：非负整数，NapCat 照 NT 给的是字，整数也认，读不出的不写；NapCat 的段里没有时长（`video`、`record` 只有 `file_size`，照主线源码 `api/msg.ts` 核过），不记。怎么取（O-33）：`image` 段照图取（`get_image`），`video`、`file` 照文件取（`get_file`），`record`、`face`、`mface` 取不了。记下时不下载：冲她来的那条的图、她要看的才取（「平台工具（二）」）。`message` 是字符串（CQ 码）的照第 6 条只读字，@、引用、带的东西都不认（「施工时定的」第 62 条）。
 3. **找会话**：先把场所规则套到这个群上（`Loaded::at`；隔 `rules_check_millis` 才看一眼系统的变没变，「场所规则和出厂数据」第 3、5 条）。`venue.session {venue: "qq:group:<群号>", kind: "group", persona?, preset?, cwd?}`：`persona`、`preset` 照规则的同名项，`cwd` 照 `workspace`，没设的不写。场所编号经群聊内核拼（`Venue::new("qq", VenueKind::Group, <群号>)`，桥里是 `onebot::venue`），拼不出的同第 7 条。群的会话归系统账号，回应的 `account` 本来就是桥自己的账号：群里不照第 7 条认陌生人。回 `unknown_persona`、`unknown_preset`、`preset_invalid`：这一条不记，同一个群只记一行运行日志 `WARN group not recorded, fix the venue rules venue=… reason=…`（桥起来以后，同私聊的陌生人，「施工时定的」第 66 条）；别的原因同第 7 条。会话编号记进「场所 → 会话」（第 7 条），会话不在了同第 7 条忘掉、再找一次。找到了从头订阅（O-23，「群里怎么叫她」第 1 条；O-22 不订阅，「施工时定的」第 64 条）。
 4. **发的人**：`as: {external: "qq:<user_id>", role}`：`role` 照规则的 `managers` 认，这个人的平台身份在里面的是 `manager`，别的 `member`；QQ 的群主、管理员不自动算（`managers` 管的是谁能用管理命令，和群管理员是两回事，「施工时定的」第 58 条）。终端管理员由核心照对应表认（记成外部身份带 `account`），桥不另报。
 5. **正文**：照段的先后接起来。`@名字` 的名字照群成员的缓存（`onebot/members.rs`）：按群、按号记 `bridge.json` 的 `member_names_seconds`（出厂 600 秒），过了的不用。每一条群消息的发的人顺手记下（名字同第 6 条的 `name`，没有的不记）；@ 了缓存里没有的人，经收进这条消息的那个机器人号现在的连接调 `get_group_member_info {group_id, user_id, no_cache: false}`，回的 `card` 去掉首尾空白不空的照它、不然 `nickname`，记下。没连着、过了时、失败、回的两个都是空的：写 `@<号>`；这一条里有一个调不成的，后面缓存里没有的不再调，也写号（「施工时定的」第 59 条）。名字照第 6 条洗过。O-31 起缓存另记身份（`sender.role`、`get_group_member_info` 回的 `role`），见「平台工具（一）」第 7 条。
@@ -263,10 +272,12 @@ NapCat 那边要配成「反向 WebSocket」（NapCat 的网络配置里叫「We
    - `name`：`sender.card` 去掉首尾空白不空的照它，不然 `sender.nickname`；去掉控制字符，截到 64 个字符；去掉首尾空白是空的不写。
    - `reply_to`：引用的编号，1 到 128 个字符、没有控制字符的才写。
    - `mentions`（平台身份 `qq:<号>`）、`mentions_me`、`mentions_all`：第 2 条。
-   - `media`：第 2 条；编号 1 到 128 个字符、没有控制字符的才记，不合的那一样不记、消息照记；`name` 同 `name` 的洗法，截到 200 个字符（「施工时定的」第 63 条）。
+   - `media`：第 2 条；编号 1 到 128 个字符、没有控制字符的才记，不合的那一样不记、消息照记；`name` 同 `name` 的洗法，截到 200 个字符（「施工时定的」第 63 条）；有大小的写 `size`（O-33）。
    - `ambient`：一律真。
    - `asleep`：此刻落在这个群的 `sleep` 规则里的真。照群聊内核的回合闸问（`gate()`，只交睡眠：闸说推迟就是睡着），时区照本机此刻的偏移（「施工时定的」第 65 条）。
    - `show_ids`：规则的 `show_ids` 是真的才写。
+
+   冲她来的（第 4 条的「冲她来」：@ 她、引用她、关键词开头）交以前取这一条和它引用的那一条的图，`attachments` 带上（O-33，「平台工具（二）」第 3 条）。
 
    正文去掉首尾空白是空的、又没有带的东西的，不送（记一行调试日志 `nothing to send`）。只有带的东西的照样交，`text` 是空的字：核心 O-13 补以后收它，记成没有内容块的 `message.user`（`venue.media` 照记）；桥没有为它改（「施工时定的」第 67 条）。成了记一行 `INFO message sent in venue=… message=… chars=…`，和私聊一样，不记原文。
 7. **斜杠命令**：正文去掉开头的空白以后以 `/` 开头的，照「斜杠命令」交 `command.run {session, text, as}`（`as` 带 `role`，不带 `venue`）；回执、被拒的那一句经 `send_group_msg {group_id, message}` 发回这个群，走收进它的那个机器人号现在的连接（同第 10 条：入队，空的不发，没连着、她被禁言的排着），发出去 3 秒后撤回（O-25 上，「斜杠命令」第 7 条）；认不出的照第 6 条记成旁听。
@@ -475,6 +486,46 @@ O-25 中（2026-10-09；施工单「要定的」六条照推荐定：排着的 6
 7. **群成员的缓存多记身份**（「群消息」第 5 条）：群消息的 `sender.role`、`get_group_member_info` 回的 `data.role`（`owner`、`admin`、`member`；别的、没有的不记）按群、按号记，记多久同名字（`member_names_seconds`）。禁言问身份的回了成功、没有 `role` 的当普通成员（第 184 条）。
 8. **给人看的**：显示名在 `human/{zh,en,ja}.json` 的 `tools`：`recall`「撤回」「Recall」，`mute`「禁言」「Mute」（`subject` 是 `seconds`），`poke`「戳一戳」「Poke」（`ja.json` 照英文写，同「提供者和不说话」第 4 条）。
 
+**平台工具（二）：取图、视频、文件**（O-33，2026-10-11；项目主人定的四条：近况那一行写清种类、名字、大小，一条里几样的标第几个；冲她来的那条和它引用的那条里的图当场取、带上原图，旁听的不带；她调 `fetch_media` 才去取，图交回看、视频文件存进工作区；语音先不转文字、写一句占位。施工单「要定的」四条照推荐定：工具名 `fetch_media`，图作为工具结果的图片块交回，视频、文件放会话工作区的 `qq-files/<编号>-<第几个>-<名字>`，一条最多 4 张。施工中 2026-10-11 主会话定：第几个不分种类数、私聊这一步不给 `fetch_media`、先下 url 再读本机路径再解 base64、桥依赖 `miyu-http` 和 `base64`）：群里带的东西她原来只看到 `[image]` 这样的记号。近况那一行的写法是核心的（`kernel/request.md`「群里的一行」）；桥填大小、当场取图、答 `fetch_media`。照「提供者和不说话」那条路登记、答。不占编号。
+
+1. **登记**：同「平台工具（一）」第 1 条，说明照资源 `software/onebot/tools/fetch_media.json`：
+
+   | 工具 | 参数 | `venues` | `access` | 调的动作 |
+   |---|---|---|---|---|
+   | `fetch_media` | `msg`（字，必填：近况那一行的 `msg=`；整数也认），`index`（整数，可以不写：那一条里第几样，从 1 数，就是那一行的 `#n`；不写是 1） | `group` | `venue` | `get_msg {message_id}`，再 `get_image {file}`（图）或 `get_file {file}`（视频、文件） |
+
+   只给群：私聊里人说的话照原样渲染，她看不到消息编号（2026-10-11 主会话定；私聊的视频、文件以后私聊渲染带编号时再开）。`access` 是 `venue`：去平台取东西、写进这个会话自己的工作区，是在场所里做的事（同「平台工具（一）」第 1 条）。预设关了「QQ 工具」的会话没有。
+2. **认段、取法**（照 NapCat 主线源码核过：`GetFile.ts`、`GetImage.ts`、`GetMsg.ts`、`api/msg.ts`，「施工时定的」第 195 条）：「群消息」第 2 条认段时记下大小（`file_size`）和怎么取：`image` 段（图、表情包、NapCat 发成图的商城表情）照图取，`video`、`file` 照文件取，`record`、`face`、`mface` 取不了。`get_image`、`get_file` 的 `file` 是段里的编号（图的 `file`、视频的 `file`、文件的 `file_id`）：NapCat 先把东西下到它那台机器上再回，回应里 `url`（图、视频是下载地址；文件是它那台机器上的路径）、`file`（它那台机器上的路径）、`file_name`，开了 `enableLocalFile2Url` 的另有 `base64`。群文件也照 `get_file` 取（`get_group_file_url` 只回地址、要 packet 后端，不用）。
+3. **冲她来的那条给原图**（`route/pictures.rs`）：群里冲她来的（「群里怎么叫她」第 4 条：@ 她、引用她（照这个群的投影）、关键词开头）、私聊收下的（「怎么走」第 7 条：找得到会话的才取，陌生人的不取），交 `session.send` 以前，引用的那一条（`get_msg` 现认段）和这一条里照图取的那几样，各取头 `message_images` 张（出厂 4，照段的先后），经收进它的机器人号的连接 `get_image`（等 `call_timeout_seconds`），照第 5 条拿到字节（下载也等这么久），经 `blob.open`、`blob.write`、`blob.close` 存成 blob（名字 `msg-<编号>-<第几个>`，第几个照那一条带的东西从 1 数），`attachments` 带上，引用的那一条的在前。几张一起取，等最慢的那一张。取不到的、存不成图的不带，记一行 `WARN picture not fetched venue=… message=… index=… why=…`（`why` 是 `failed`、`unanswered`、`unreachable`、`unfetched`、`not_an_image` 或核心的原因码），消息照送。群消息都先记下再判开不开一轮（「群消息」第 6 条），交的时候还不知道，照「冲她来」取（2026-10-11 主会话定）：判下来只记下的，图在 blob 里，近况那一行只写字，她看不到；旁听的不取。私聊只有图、取到了的照送（`text` 是空的），一张都没取到、又没有字的照旧不送（「施工时定的」第 67 条）。核心照会话的属主把 blob 拷过去（`venues.md`「`venue.session`」第 3 条）。
+4. **`fetch_media`**（`route/fetching.rs`）：读的一头照推送交给跟核心的那一头（同「平台工具（一）」第 2 条）。先收这个会话留着的推送；桥不认识这个会话的答 `unreachable`；私聊里调到的（照说不会）照不认识的工具答。一轮最多取 `fetch_per_turn` 次（出厂 4，照旧 Miyu 的配额；照投影里主线这一轮的回合编号数，换一轮从头数；取没取到都算），满了答 `too-many {count}`。`msg` 不是整数（字也认，最多 20 位，可以有负号）的答 `not-found`。别的另起任务（`chores`），跟核心的那一头不等 QQ：
+   1. `get_msg {message_id: msg}`（等 `call_timeout_seconds`）：回失败的（没有这一条、过期了）、回的 `group_id` 不是这个群的答 `not-found`（编号是她给的，不拿去看别处的消息）；没连着、等不到的同「平台工具（一）」答 `unreachable`、`unanswered`。
+   2. 照「群消息」第 2 条现认段（桥重启了也认得），和交给核心的 `venue.media` 一样洗过（第 6 条），取第 `index` 样：没有的（`index` 写错的当 0）答 `no-item {count}`（那一条有几样）；取不了的（语音、小黄脸、`mface`）答 `not-fetchable`。
+   3. 照第 2 条取（`get_image`、`get_file` 等 `fetch_seconds`，出厂 120 秒：大的视频 NapCat 要先下完），照第 5 条拿到字节。NapCat 回失败的答 `failed {detail}`（它说的，同「平台工具（一）」）；回了但哪儿都拿不到的答 `unfetched {detail}`（每一样为什么，截到 200 个字符）。
+   4. 图：存成 blob（名字同第 3 条），答一块图片块 `{type: "image", blob, name, media_type, width, height}`（照 `blob.close` 的回应），`error` 是假。核心照调用它的会话属主拷 blob（核心 O-2 三补，`providers.md`）。存不成图的（太大、不是图）照文件存。
+   5. 视频、文件（和存不成图的图）：照第 5 条写进工作区，答 `saved {path}`（相对工作区的路径，用 `/` 隔开，例如 `qq-files/602-1-排班.pdf`；她 `read` 照工作区解析相对路径），她再 `read`（视频以后用 `shell` 调 ffmpeg）。写不了的答 `not-saved {detail}`。文件名的名字那一段照段的 `name`，没有的照 NapCat 回的 `file_name`，再没有的照编号。
+   6. 不设大小上限（2026-10-11 项目主人定）：整个读进内存再写（「施工时定的」第 199 条）。
+5. **拿到字节、写进工作区**（`media.rs`）：
+   - 照先后试：回应里 `http`、`https` 的地址（`miyu-http` 的 GET 客户端：连接 10 秒，整个照这一次等多久；回环地址不走代理，别的照环境变量；地址只认这两种协议，2026-10-11 主会话定：很多人的 NapCat 跑在 Docker 里，本机路径读不到）；`file`、`url` 里的本机绝对路径（`file://` 开头的去掉这一段；要是普通文件）；`base64`（`base64://` 开头的去掉这一段）。都不行的交回每一样为什么。
+   - 工作区是 `tool.call` 的 `cwd`（这一轮的工作目录，`providers.md`「`tool.call`」）：`~`、`~/…` 换成系统的家目录；换完不是绝对路径的（`~别人`、相对的）不写。只写进它下面的 `qq-files/`：没有的建上；是链接、不是目录的不写；`qq-files` 的真实位置要还在工作区的真实位置里。
+   - 文件名 `<编号>-<第几个>-<名字>`：名字去掉 `/`、`\`、`:*?"<>|`、控制字符，去掉开头的点和空白、结尾的点和空白，留 80 个字符；洗完是空的写 `<编号>-<第几个>`。编号只会是整数（第 4 条）。
+   - 先在 `qq-files/` 里写一个临时文件（`.<16 位随机十六进制>.part`，新建、不跟链接），写完、落盘、改名成那个名字：同一个文件取两次照新的换掉，读的一方看不到写了一半的；名字那里原来是链接的，换掉的是链接本身，不写进它指的地方。写不成的删掉临时文件。
+   - `qq-files/` 里的东西这一步不清（她要的才下，不多）：以后再看（「施工时定的」第 201 条）。
+6. **答**（资源 `software/onebot/tool-results/`，给模型看的字，登记在 26 第十节）：成了的 `saved {path}`（`error` 是假）和图片块；不做的、没成的 `error` 是真：
+
+   | 句 | 什么时候 |
+   |---|---|
+   | `not-found` | `msg` 不是整数；QQ 说没有这一条；那一条不在这个群 |
+   | `no-item {count}` | 那一条没有第 `index` 样 |
+   | `not-fetchable` | 那一样是语音、小黄脸、`mface` 商城表情 |
+   | `too-many {count}` | 这一轮已经取了 `count` 次 |
+   | `failed {detail}` | NapCat 回了失败（同「平台工具（一）」） |
+   | `unfetched {detail}` | NapCat 回了，东西拿不到手 |
+   | `not-saved {detail}` | 写不进工作区 |
+   | `unreachable`、`unanswered` | 同「平台工具（一）」 |
+
+7. **记**：不另记事件：调用、参数、结果（图片块里的 blob）都在会话日志里。运行日志：成了 `INFO platform tool done venue=… tool=fetch_media`；`not-found`、`no-item`、`not-fetchable`、`too-many` 和参数不对的 `INFO platform tool refused … why=…`；别的 `WARN platform tool failed … why=…`。
+8. **给人看的**：显示名在 `human/{zh,en,ja}.json` 的 `tools`：`fetch_media`「取图和文件」「Fetch media」（`subject` 是 `msg`；`ja.json` 照英文写）。
+
 **场所规则和出厂数据**（O-21，2026-10-09；施工单「要定的」三条照推荐定：用的时候看一眼修改时刻、系统的写错了只丢坏的、系统的违规词表放 `system/modules/onebot/`）：写法、怎么套由群聊内核管（`chat.md` 第一条、第八条、第二条第 12 条），读文件是桥的事（群聊内核在第 2 层，不碰磁盘）。不占编号，和「斜杠命令」一样。
 
 1. **在哪**：
@@ -630,7 +681,7 @@ O-25 中（2026-10-09；施工单「要定的」六条照推荐定：排着的 6
 - 思考、工具调用不发回去；空的回复不发。（`replies.rs`，下面一条同）
 - 桥重启以后，以前的回复不再发一遍。
 - 调用等了给的时限（测试给 3 秒，和出厂的不一样）还等不到算失败，到时以前还在等；连接断了在等的算失败；同时在等的几个照 `echo` 各拿各的。（`calls.rs`，钟停住，照停住的钟算）
-- 出厂的 `bridge.json` 读得进、数和上面的表一样（O-21 多 `rules_check_millis`，O-23 下多判官的两格，O-23 补多 `judge_persona_seconds`，O-25 上多 `receipt_recall_seconds`，O-25 中多 `queue_expire_seconds`，O-28 下去掉 `web`：再写它是多一格，O-31 多 `binding_seconds`）；队列写 0、判官的并发写 0、排着的过期写 0、多一格、少一格、不是 JSON、没有文件，都读不进来，说是哪个文件。（`tuning.rs`）
+- 出厂的 `bridge.json` 读得进、数和上面的表一样（O-21 多 `rules_check_millis`，O-23 下多判官的两格，O-23 补多 `judge_persona_seconds`，O-25 上多 `receipt_recall_seconds`，O-25 中多 `queue_expire_seconds`，O-28 下去掉 `web`：再写它是多一格，O-31 多 `binding_seconds`，O-33 多 `message_images`、`fetch_per_turn`、`fetch_seconds`）；队列写 0、判官的并发写 0、排着的过期写 0、多一格、少一格、不是 JSON、没有文件，都读不进来，说是哪个文件。（`tuning.rs`）
 - 三种语言里桥说的每一句都换得出来（O-21 多 `failure/factory`、`venue/`、`problem/` 开头的，O-23 多 `group/rate-limited`，O-28 补多 `web/no-miyu`）；中文照上面的表、字段换进去；日文和英文一字不差；换语言照新的说；握手以前照系统的语言（`zh`、`ja` 开头的照它，别的英文）。（`texts.rs`）
 - 文字怎么读出来：别的段跳过；CQ 码去掉，`&amp;` 最后换。（`text.rs`）
 - 编号：场所、平台上的人和群聊内核拼的一样（`qq:private:<号>`、`qq:<号>`，解得回原样）；命令编号带时刻，同一个消息编号、时刻不同的两条编号不同；`time` 是整数、写成整数的字符串都认，没带、读不出（`null`、不是数的字、小数）的是 `0`。O-32 多认回来的两样：命令编号的机器人号（加了后缀的也认；自己编的、别的平台的、号不是数的不认），场所发到哪（别的平台、号不是整数的不认）。（`ids.rs`）
@@ -680,14 +731,17 @@ O-25 中（2026-10-09；施工单「要定的」六条照推荐定：排着的 6
 - 贴着的几条（O-25 下，`src/core/route/reaction/tests.rs`，钟停住）：推来的 `turn.started`、`turn.joined` 记下进了哪一轮，那一轮的 `venue.delivered`、`turn.ended` 发摘的信号，别的轮的、别的会话的（序号、回合编号各数各的）不发，没进哪一轮的不发，同一条只发一次；贴、等、摘的任务：信号来了或者到了时候摘一次，经那时的连接，贴不上的不摘，信号的一头放下了（桥在停）不摘。
 - 提供者和「不说话」（O-26，真核心拉起真桥、假 NapCat、她照台词说，`skipped.rs`）：群会话、私聊会话的工具面里有 `skip_reply`，本机的会话没有；她在群里的一条回复里说一句、接着调 `skip_reply`：那一句和这一轮以后说的都不入队、不发，模型替身收到的工具结果是 `skipped.txt` 那一句、不算出错，运行日志两行 `why=skipped`；下一轮照常发；这一轮调用以前已经发出去的照旧，之后的不发；私聊也是。核心不收桥的工具（资源目录抄一份，说明的参数改成不是对象）：运行日志一行 `ERROR` 的 `tools not provided`、带 `reason=bad_tool`，私聊照样来回。
 - 答核心的请求（O-26，进程里的桥，`provider.rs`）：桥连上核心头一个发的是 `provide`（本机套接字上的核心回 `not_a_provider`，照样收发）；推来的 `tool.call`：`skip_reply` 回 `skipped.txt` 那一句、`error` 是假，不认识的工具回 `error: true` 和 `unknown.txt` 填上那个名字，编号原样；别的方法回 -32601、`unknown_method`；`tool.cancel` 不回，之后照样答。出厂的说明、答的两句读得出；说明写坏了、答的那一句要了别的字段、不在的起不来，问题的文件是 `tools/skip_reply.json`、`tool-results/<名字>.txt`。
-- 工具面预算（O-26，`budget.rs`；O-31 改）：`resources/software/onebot/tools/` 一件一份说明，四件（`mute`、`poke`、`recall`、`skip_reply`），合计不超过 910 字节（`10-自带软件.md` 第九节）。
+- 工具面预算（O-26，`budget.rs`；O-31、O-33 改）：`resources/software/onebot/tools/` 一件一份说明，五件（`fetch_media`、`mute`、`poke`、`recall`、`skip_reply`），合计不超过 1327 字节（`10-自带软件.md` 第九节）。
+- 平台工具（二）（O-33，真核心拉起真桥、假 NapCat 答 `get_msg`、`get_image`、`get_file`（`support/answering.rs` 的 `stock_message`、`stock_file`）、本机回环上的假 HTTP 服务器给图、她照台词说，`media.rs`，夹具在 `support/media.rs`）：旁听的那条不取；终端管理员引用它、@ 她，两条的图都到了她的请求里（名字 `msg-<编号>-<第几个>`，引用的在前），一条走 url、一条走 base64，近况那一行写着大小、`#n`，blob 拷进了系统账号名下；`fetch_media` 取图交回图片块（宽高、名字对，blob 在管理员名下，核心照会话属主拷进了系统账号名下：她看得到）、取文件写进 `qq-files/<编号>-<第几个>-<名字>` 回路径、小黄脸和语音取不了、没有的编号和别的群的回 `not-found`、第几个超了回 `no-item`（带几样）、QQ 回失败照原话、一轮第五次回 `too-many`、同一个文件再取换成新的、名字里的 `../` 和开头的点洗掉、视频照 NapCat 的 `file_name` 起名、没有临时文件留下、`qq-files` 换成文件以后回 `not-saved` 不写；私聊只有图的照交带图、取不到图又没字的不送、私聊的工具面没有 `fetch_media`。
+- 取到手、存下来（O-33，`src/media/tests.rs`）：url 连不上换路径，路径不是文件、base64 坏了都说为什么，一样都没有说没有；文件名去掉 `/`、`\`、Windows 不许的字符、控制字符、开头的点和空白、结尾的点，留 80 个字符，洗完是空的不接；只写进 `qq-files/`，再取换成新的、不留临时文件；`~` 换家目录，`~别人`、相对路径、没有的工作区不写；`qq-files` 是指到外面的链接的不写，文件名那里是链接的换掉链接本身、外面的文件不动（这台机器建得了链接才测）；名字不是一段的不写。
+- 取东西的动作（O-33，`src/onebot/media/tests.rs`、`tests/segments.rs`、`src/core/route/fields/tests.rs`、`src/core/route/fetching/tests.rs`）：`get_msg`、`get_image`、`get_file` 的参数；回应里 url（只认 `http`、`https`，大小写都认）、本机绝对路径（`file://` 去掉，同一个只算一次，相对的不认）、base64（`base64://` 去掉，空的不算）照先后；段的大小照 `file_size`（字、整数都认，负的、小数、带单位的不认），怎么取照段；`size` 写进场所的格，0 也写；`fetch_media` 的 `msg` 只认整数（字也认），`index` 不写是 1、写错的是 0；一轮到了上限的不给，换一轮从头数，主线没在跑的也数。
 - 平台工具（一）（O-31，真核心拉起真桥、假 NapCat、她照台词说，`platform.rs`，夹具在 `support/platform.rs`）：终端管理员回复别人的一条叫她撤，NapCat 收到 `delete_msg`、编号照引用的原样；群名片写成「终端管理员」的普通成员叫她撤别人的回 `not-allowed`、不撤；撤她自己的谁叫都行；没引用的回 `no-quote`；NapCat 回失败的照原话（截到 200 个字符）回 `failed`。禁言：引用和 @ 是同一个人的禁他，`set_group_ban` 的秒数照给的，结果写 `10m`；0 秒解禁、结果写解禁；冒充的不能叫；@ 了两个人的、引用她自己的消息的、只 @ 了她的、秒数出了范围的各回那一句；30 天写 `30d`；群主（说的话没带身份，禁以前问 NapCat）、QQ 的管理员（照他说的话带的 `sender.role`，不再问）、白名单成员、终端管理员（引用他在这个群说过的话）、终端管理员的小号（对应表里有、没在这个群说过话，照 `venue.binding` 认）回 `protected`。戳一戳：@ 的那一个 `group_poke`，没 @ 的戳叫她的人，@ 了两个人的回 `many-targets`。私聊：引用的撤 `delete_msg`、戳一戳 `friend_poke` 戳对方，工具面有 `recall`、`poke`、没有 `mute`；群会话三件都有；本机的会话一件都没有。
 - 平台工具做不做、对谁做（O-31，`src/core/route/platform/tests.rs`）：工具名、秒数（边界、负的、小数、字）怎么读；管理的人只照 `owner`、`by.role`，私聊的终端管理员照 `by.via`；撤回照引用，她的谁都撤、别人的要管理的人，桥不认识的当别人的；叫她做的那条和叫的人对不上的当没有；禁言去掉她、去重，引用一个 @ 另一个算两个，终端管理员、白名单成员动不得，解禁谁都解；先看谁叫的再看秒数；戳一戳 @ 一个的戳他、两个的不戳、没 @ 的戳叫的人（引用不算）；私聊撤回不分谁的、戳一戳只戳对方；每一种不做的对上那一句的名字；时长的写法。
 - NapCat 没成算成哪一句（O-31，`src/core/route/acting/tests.rs`）：回了失败的照 `message`、空的换 `wording`、再空的写 `retcode`，去掉首尾空白、截到 200 个字符；等不到是 `unanswered`，断了是 `unreachable`。
 - 叫她做的那条（O-31，`src/core/route/projection/origin_tests.rs`）：主线这一轮她回的那一条带引用和 @，并进来的换上，这一轮完了没有；引用她的、别人的、桥不认识的；终端管理员照他在这个群说过的话认。
 - 群成员的身份（O-31，`members.rs`、`frames.rs`）：身份同名字一样记一阵、按群分开、不混进名字；`role` 只认 `owner`、`admin`、`member`；群消息的 `sender.role` 认进 `Posted`。
 - 问到的「是不是终端管理员」（O-31，`src/core/route/bindings/tests.rs`）：记下的取得到，过了 `binding_seconds` 的要再问，不是的也记，再记一次照新的，0 是每次都问。
-- 交给跟核心的那一头（O-31，`src/core/provider/tests.rs`、`provider.rs`）：三件的 `tool.call` 读的一头原样交出去；登记的参数四件、`access`（三件 `venue`、`skip_reply` 是 `read`）、`venues` 照表；进程里的桥在不认识的会话里答 `unreachable`；三件的说明、答的话写坏了的桥起不来。
+- 交给跟核心的那一头（O-31，`src/core/provider/tests.rs`、`provider.rs`）：三件（O-33 起四件，加 `fetch_media`）的 `tool.call` 读的一头原样交出去；登记的参数四件（O-33 起五件，`fetch_media` 是 `venue`、只给群）、`access`（三件 `venue`、`skip_reply` 是 `read`）、`venues` 照表；进程里的桥在不认识的会话里答 `unreachable`；三件的说明、答的话写坏了的桥起不来。
 - 这一轮不说话了（O-26，`src/core/route/quiet/tests.rs`）：回复里有 `skip_reply` 的调用块的，这一轮记下，同一轮以后的回复也算；别的回合、别的会话的不算；调别的工具的、只有字的不算；那一轮的 `turn.ended` 清掉，别的回合的不清；没有回合编号的不看。
 - 核心发来的请求（O-26，`src/core/provider/tests.rs`）：`tool.call` 的回应带原样的编号、照工具答；没有这个方法的回 -32601；推送、回应原样交回；`tool.cancel` 不交回。`provide` 的参数（`src/core/provider/tests.rs`）：每件五格，`skip_reply` 的说明、参数照资源原样，`access` 是 `read`，`venues` 是私聊、群，不写 `timeout_ms`。
 
@@ -1039,6 +1093,21 @@ O-25 中（2026-10-09；施工单「要定的」六条照推荐定：排着的 6
 | 192 | 掉了队再订阅补来的，照同一个规矩补发 | 都是订阅补来的、桥没见过的她的话 | 掉了队的照旧不补（期限以内的话白丢） |
 | 193 | 起来时订阅完了才办 NapCat 那头来的（在通道里排着） | 投影先照日志建好再判下一条；补发的排在新说的前面 | 先办消息、订阅另起任务（投影没建好就判、补发和新话交错） |
 | 194 | 测试：测试当核心跑 `serve` 的答 `venue.sessions` 一个都没有（`Served::listed`），核心的替身也这样答（原来只答握手）；她照台词说的群、私聊停了再起照 `cli stop`、`start`、`restart` | 桥等到这个回应才往下办，推来的配置也排在后面 | 起来时不等回应（订阅要回应的 `upto`，等的那一会儿本来就短） |
+
+**施工时定的**（O-33，2026-10-11；项目主人定的四条和施工单「要定的」四条见「平台工具（二）」开头；施工中主会话定的五样同上）
+
+| # | 定了什么 | 为什么 | 没选 |
+|---|---|---|---|
+| 195 | NapCat 的取法照主线源码核过：段里有 `file_size`（NT 给的是字），没有时长；`get_image`、`get_file` 是同一段代码，先下到 NapCat 那台机器上，回 `url`、`file`、`file_name`，`base64` 只在开了 `enableLocalFile2Url` 时有；`get_file` 认得群文件的 `file_id`（段转出来时登记过） | 照实填；核心的 `venue.media` 只加 `size`、不加 `duration`（2026-10-11 主会话、核心定：没人填，不为以后写） | `get_group_file_url`（只回地址，要 packet 后端）；照旧 Miyu 先问群文件地址再兜底 |
+| 196 | 第几个不分种类、照一条带的东西的先后从 1 数，近况那一行不止一样的每样标 `#n`；`fetch_media` 的 `index` 一个数法 | QQ 里一条带几样的几乎只有图和表情混着，分种类数的话只有 `index` 没有种类就对不上（2026-10-11 主会话定） | 同一种不止一个才标（施工单原来的写法）；`fetch_media` 多一个种类参数（多 token） |
+| 197 | 冲她来的那条照「冲她来」在交 `session.send` 时取，不等判下来；判下来只记下的，图在 blob 里、她看不到 | 群消息先记下再判，记下以后加不了块（2026-10-11 主会话定） | 判下来才取（得另加核心的方法补块）；每条都取（旁听的白费流量） |
+| 198 | `fetch_media` 每次 `get_msg` 现认段，不记在内存里；不是这个群的当没有 | 桥重启了也认得；编号是她给的，不能拿去看别的群（往坏里测） | 内存里记「编号 → 带的东西」（重启就丢）；不查群 |
+| 199 | 不设大小上限：整个读进内存再写 | 项目主人定；她要的才取，一轮最多 4 次 | 边下边写（`miyu-http` 的 GET 是读完再交，要另写一条流式的） |
+| 200 | 桥依赖工作区的 `miyu-http`（第 3 层，带的 reqwest 仓库里已有、许可证查过）和 `base64`（同核心用的那一份），不算新加第三方依赖（2026-10-11 主会话定） | 下地址要 HTTP 客户端；解 NapCat 的 base64、`blob.write` 分块上传要 base64 | 只读本机路径和 base64（Docker 里的 NapCat 取不到）；上传写临时文件再 `blob.put {path}`（NapCat 的 base64 就解不了） |
+| 201 | `qq-files/` 不清；工作区的路径照 `tool.call` 的 `cwd`，`~` 桥自己换 | 她要的才下，不多，以后再看；`venue.session` 的回应里没有工作目录，`tool.call` 每次带这一轮的 | 定时清（这一步没有要清的量）；问核心要工作区 |
+| 202 | 名字：带进请求的图、`fetch_media` 交回的图叫 `msg-<编号>-<第几个>`；文件 `<编号>-<第几个>-<名字>` | 图片块带名字她分得清是哪一条的第几样（驱动把名字写在图前后的标签里）；文件名带编号不撞 | 照 NapCat 的文件名（一串哈希，她认不出是哪条） |
+| 203 | 测试：假 NapCat 照放进去的答 `get_msg`、`get_image`、`get_file`（`stock_message`、`stock_file`，没放的回失败），问过的记下；简单的那个假 NapCat（`napcat.rs`）这三个一律回失败、不交出去 | 测得到 url、base64、失败几条路；原来的私聊测试（只有图的不送）照旧成立：取不到图、没有字的不送 | 起一个真的 NapCat |
+| 204 | `fetch_media` 存下视频、文件以后答相对工作区的路径（`qq-files/<名字>`，用 `/` 隔开），不答落到的真实路径 | 她 `read` 照工作区解析相对路径，Windows 上 `/` 也认；真实路径在 Windows 上带 `\\?\` 前缀，反斜杠进模板还要转义，给她看的字三个平台就不一样了（CI 的 Windows 撞出来的，2026-10-11）；相对的也更短 | 答真实路径 |
 
 ### 二、设置和状态（O-28 下）
 

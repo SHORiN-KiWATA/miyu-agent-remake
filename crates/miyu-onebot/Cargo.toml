@@ -45,6 +45,12 @@ serde_json = "1.0"
 # `io-std`：`serve` 的标准输入输出是跟核心说协议的管道（施工 O-18）。
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "io-std", "sync", "time", "signal"] }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
+# 取图、视频、文件（施工 O-33，`onebot.md`「平台工具（二）」）：NapCat 回的 url 照核心的 HTTP 客户端下（第 3 层，只 http、https，
+# 超时、代理照它；reqwest 本来就在依赖图里）。
+miyu-http = { path = "../miyu-http" }
+# NapCat 回的 base64 解出来、`blob.write` 分块上传时编成 base64（施工 O-33）。本来就在依赖图里，和核心用的同一份。MIT OR
+# Apache-2.0。
+base64 = "0.22"
 # 本机此刻的时区偏移：群里的睡觉时间照它换成当地时间（施工 O-22，和核心造会话时钉下时区的办法一样）。本来就在依赖图里
 # （`miyu-log` 用它）。Unlicense 或 MIT。
 jiff = "0.2"

@@ -5,8 +5,11 @@
 //! 发的先后：[`NapCat::reversing`] 把头几条发消息的回应倒着回。[`NapCat::refusing`] 发消息的一律回失败（施工 O-25 中）。贴、摘表情
 //! （`set_msg_emoji_like`，施工 O-25 下）回成了、不占编号，另放一处给测试看（[`Answering::reacted`]）。平台工具（施工 O-31）：
 //! 问群成员照给的身份回 `role`（[`NapCat::ranked`]，没给的是 `member`）；`set_group_ban`、`group_poke`、`friend_poke` 回成了、
-//! 不占编号，交出来和发消息的放一处（[`Answering::action`]）；撤回编号是 [`UNRECALLABLE`] 的回失败（[`unrecallable`]）。
+//! 不占编号，交出来和发消息的放一处（[`Answering::action`]）；撤回编号是 [`UNRECALLABLE`] 的回失败（[`unrecallable`]）。取东西
+//! （施工 O-33）：`get_msg` 照放进去的消息回（[`Answering::stock_message`]），`get_image`、`get_file` 照放进去的回应回
+//! （[`Answering::stock_file`]），没放的回失败；不占编号，问过的记下（[`Answering::fetched`]）。
 
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -45,6 +48,20 @@ pub fn unrecallable() -> String {
 /// 照 NapCat 的样子回、不占发出去的编号的平台动作（施工 O-31）。
 const PLATFORM: [&str; 3] = ["set_group_ban", "group_poke", "friend_poke"];
 
+/// 取东西的动作（施工 O-33）：照放进去的回，不占编号、不交给 [`Answering::action`]。
+const FETCHING: [&str; 3] = ["get_msg", "get_image", "get_file"];
+
+/// 放进去的消息、东西（施工 O-33）和问过的。
+#[derive(Default)]
+struct Stock {
+    /// `get_msg` 的编号（字）→ 回应的 `data`。
+    messages: HashMap<String, Value>,
+    /// `get_image`、`get_file` 的 `file` → 回应的 `data`，或者回失败时说的。
+    files: HashMap<String, Result<Value, String>>,
+    /// 问过的：动作和 `message_id` 或 `file`，照先后。
+    asked: Vec<(String, String)>,
+}
+
 /// 交给任务应答的假 NapCat。放下了任务跟着停。
 pub struct Answering {
     /// 要发给桥的帧。
@@ -57,6 +74,8 @@ pub struct Answering {
     reactions: mpsc::UnboundedReceiver<Value>,
     /// 桥问过哪些群成员（号），照先后。
     asked: Arc<Mutex<Vec<i64>>>,
+    /// 放进去的消息、东西和问过的（施工 O-33）。
+    stock: Arc<Mutex<Stock>>,
     task: JoinHandle<()>,
 }
 
@@ -93,6 +112,8 @@ impl NapCat {
         let (reacted, reactions) = mpsc::unbounded_channel();
         let asked = Arc::new(Mutex::new(Vec::new()));
         let noted = Arc::clone(&asked);
+        let stock = Arc::new(Mutex::new(Stock::default()));
+        let stocked = Arc::clone(&stock);
         let (mut sink, mut stream) = self.ws.split();
         let task = tokio::spawn(async move {
             let mut sent = FIRST_SENT;
@@ -115,8 +136,12 @@ impl NapCat {
                             }
                         };
                         let action: Value = serde_json::from_str(&text).expect("是 JSON");
-                        let mut answer = answer(&action, (&members, &ranks), &noted, &mut sent);
                         let kind = action["action"].as_str().unwrap_or_default();
+                        let mut answer = if FETCHING.contains(&kind) {
+                            fetched(&action, &stocked)
+                        } else {
+                            answer(&action, (&members, &ranks), &noted, &mut sent)
+                        };
                         let recall = kind == "delete_msg";
                         let reaction = kind == "set_msg_emoji_like";
                         let platform = PLATFORM.contains(&kind);
@@ -124,7 +149,8 @@ impl NapCat {
                             && !reaction
                             && !platform
                             && kind != "get_version_info"
-                            && kind != "get_group_member_info";
+                            && kind != "get_group_member_info"
+                            && !FETCHING.contains(&kind);
                         if sending && refuse {
                             answer = json!({"status": "failed", "retcode": 1200, "data": null, "message": refused(), "wording": "", "echo": action["echo"]});
                         }
@@ -165,7 +191,43 @@ impl NapCat {
             recalls,
             reactions,
             asked,
+            stock,
             task,
+        }
+    }
+}
+
+/// 照放进去的回取东西的动作 `action`（施工 O-33），记下问的是什么；没放的回失败，像 NapCat 说的那样。
+fn fetched(action: &Value, stock: &Mutex<Stock>) -> Value {
+    let kind = action["action"].as_str().unwrap_or_default().to_string();
+    let params = &action["params"];
+    let key = match kind.as_str() {
+        "get_msg" => params["message_id"]
+            .to_string()
+            .trim_matches('"')
+            .to_string(),
+        _ => params["file"].as_str().unwrap_or_default().to_string(),
+    };
+    let mut stock = stock.lock().expect("没 panic");
+    stock.asked.push((kind.clone(), key.clone()));
+    let found = match kind.as_str() {
+        "get_msg" => stock
+            .messages
+            .get(&key)
+            .cloned()
+            .ok_or_else(|| "消息不存在".to_string()),
+        _ => stock
+            .files
+            .get(&key)
+            .cloned()
+            .unwrap_or_else(|| Err("file not found".to_string())),
+    };
+    match found {
+        Ok(data) => {
+            json!({"status": "ok", "retcode": 0, "data": data, "message": "", "wording": "", "echo": action["echo"]})
+        }
+        Err(said) => {
+            json!({"status": "failed", "retcode": 1200, "data": null, "message": said, "wording": "", "echo": action["echo"]})
         }
     }
 }
@@ -290,6 +352,25 @@ impl Answering {
     /// 桥问过哪些群成员，照先后。
     pub fn asked(&self) -> Vec<i64> {
         self.asked.lock().expect("没 panic").clone()
+    }
+
+    /// 放进去一条消息（施工 O-33）：`get_msg` 问编号 `id` 的回 `data`（`message`、`group_id` 这些）。
+    pub fn stock_message(&self, id: i64, data: Value) {
+        let mut stock = self.stock.lock().expect("没 panic");
+        stock.messages.insert(id.to_string(), data);
+    }
+
+    /// 放进去一样东西（施工 O-33）：`get_image`、`get_file` 问 `file` 是它的回 `data`；`Err` 的回失败，说的是它。
+    pub fn stock_file(&self, file: &str, data: Result<Value, &str>) {
+        let mut stock = self.stock.lock().expect("没 panic");
+        stock
+            .files
+            .insert(file.to_string(), data.map_err(str::to_string));
+    }
+
+    /// 桥取过的：动作和 `message_id` 或 `file`，照先后（施工 O-33）。
+    pub fn fetched(&self) -> Vec<(String, String)> {
+        self.stock.lock().expect("没 panic").asked.clone()
     }
 }
 

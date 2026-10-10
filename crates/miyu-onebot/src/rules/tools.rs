@@ -1,5 +1,5 @@
 //! 桥的工具（施工 O-26，`onebot.md` 第一条「提供者和不说话」，「场所规则和出厂数据」第 1、2 条；O-31 加撤回、禁言、戳一戳，
-//! 「平台工具（一）」）：桥答得了哪几件、各自的访问类别和给哪种会话写在 [`TOOLS`] 这张表里（跟着答它的代码，「施工时定的」
+//! 「平台工具（一）」；O-33 加 `fetch_media`，「平台工具（二）」）：桥答得了哪几件、各自的访问类别和给哪种会话写在 [`TOOLS`] 这张表里（跟着答它的代码，「施工时定的」
 //! 第 138 条）；说明照资源 `software/onebot/tools/<名字>.json` 读（`miyu_tool::load::spec`，`providers.md`「给模型看的字」），答的
 //! 话照 `software/onebot/tool-results/` 读（`miyu_tool::load::text`，试换过字段）。都是给模型看的字，登记在 `26-提示词.md` 第十节；
 //! 桥起来时和别的出厂数据一起读，写坏了是打包的错，起不来。
@@ -33,17 +33,23 @@ pub(crate) const MUTE: &str = "mute";
 /// 戳一戳（施工 O-31）。
 pub(crate) const POKE: &str = "poke";
 
+/// 取图、视频、文件（施工 O-33，「平台工具（二）」）：这一步只给群。
+pub(crate) const FETCH_MEDIA: &str = "fetch_media";
+
 /// 私聊、群都给。
 const VENUES: &[&str] = &["private", "group"];
 
 /// 桥答得了的工具：名字、访问类别、给哪种会话（`providers.md` 的 `venues`）。`skip_reply` 只读：不碰主机、不往外发（O-26
 /// 施工单「要定的」第 4 条）；平台工具（一）在平台上留下后果，是在场所里做的事（`venue`）：权限策略在场所会话里放行、本机的
 /// 会话里拒绝，谁能叫、能动谁由桥自己挡（`providers.md`「在场所里做的事」，「施工时定的」第 177 条）。本机的会话都没有。
-const TOOLS: [(&str, Access, &[&str]); 4] = [
+/// `fetch_media` 也是在场所里做的事（施工 O-33：去平台取东西、写进这个会话自己的工作区），这一步只给群（私聊里她看不到消息
+/// 编号，2026-10-11 主会话定）。
+const TOOLS: [(&str, Access, &[&str]); 5] = [
     (SKIP_REPLY, Access::Read, VENUES),
     (RECALL, Access::Venue, VENUES),
     (MUTE, Access::Venue, &["group"]),
     (POKE, Access::Venue, VENUES),
+    (FETCH_MEDIA, Access::Venue, &["group"]),
 ];
 
 /// 答的那几句在 `software/onebot/` 下的哪个目录里（照核心的 `core/tool-results/`）。
@@ -55,8 +61,9 @@ const SKIPPED: &str = "skipped";
 /// 不认识的工具答的那一句：字段只认 `name`（工具名）。
 const UNKNOWN: &str = "unknown";
 
-/// 平台工具（一）答的话（施工 O-31，「平台工具（一）」第 5 条）：名字（`tool-results/<名字>.txt`）和认的字段。
-const ANSWERS: [(&str, &[&str]); 13] = [
+/// 平台工具（一）答的话（施工 O-31，「平台工具（一）」第 5 条）：名字（`tool-results/<名字>.txt`）和认的字段；`saved` 以后是
+/// `fetch_media` 的（施工 O-33，「平台工具（二）」第 6 条），`failed`、`unreachable`、`unanswered` 共用。
+const ANSWERS: [(&str, &[&str]); 20] = [
     ("recalled", &[]),
     ("muted", &["who", "duration"]),
     ("unmuted", &["who"]),
@@ -70,6 +77,13 @@ const ANSWERS: [(&str, &[&str]); 13] = [
     ("failed", &["detail"]),
     ("unreachable", &[]),
     ("unanswered", &[]),
+    ("saved", &["path"]),
+    ("not-found", &[]),
+    ("no-item", &["count"]),
+    ("not-fetchable", &[]),
+    ("unfetched", &["detail"]),
+    ("too-many", &["count"]),
+    ("not-saved", &["detail"]),
 ];
 
 /// 读好、查过的桥的工具。
@@ -106,9 +120,9 @@ impl Tools {
     }
 
     /// 工具 `tool` 是不是交给跟核心的那一头答的（施工 O-31，「平台工具（一）」第 2 条）：撤回、禁言、戳一戳要投影、群成员的
-    /// 缓存和机器人号的连接。
+    /// 缓存和机器人号的连接；`fetch_media`（施工 O-33）要会话发到哪、这一轮取了几次。
     pub(crate) fn routed(&self, tool: &str) -> bool {
-        [RECALL, MUTE, POKE].contains(&tool)
+        [RECALL, MUTE, POKE, FETCH_MEDIA].contains(&tool)
     }
 
     /// 读的一头当场答的 `tool.call` 的结果（`tool.call` 回应的 `result`，「提供者和不说话」第 2、3 条）：`skip_reply` 答出厂的
