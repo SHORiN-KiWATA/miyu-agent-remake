@@ -13,6 +13,11 @@
   "description": {
     "zh": "空会话里输入框上面三个按钮「选择人格」「选择预设」「设置工作区」，没选的照默认；默认的预设、人格用不了时锁住输入框。开着的会话左上角写人格、预设、工作目录；/workspace 换工作区。设置页的「人格」「预设」两页。"
   },
+  "provides": {
+    "services": [
+      "personas"
+    ]
+  },
   "inject": [
     "slots",
     "icons",
@@ -217,7 +222,19 @@
         "title": "预设",
         "none": "还没有预设"
       },
-      "not_a_dir": "这不是一个目录"
+      "not_a_dir": "这不是一个目录",
+      "welcome": {
+        "name_hint": "名称",
+        "persona_title": "创建人格",
+        "persona_edit": "编辑人格",
+        "persona_sub": "人格决定 AI 的说话方式和记忆，可在设置中修改",
+        "avatar_pick": "选择图片",
+        "preset_title": "选择预设",
+        "preset_sub": "预设决定启用哪些功能，可在设置中修改，也可为每个会话单独选择",
+        "custom": "自定义",
+        "custom_hint": "选择启用的功能",
+        "save_failed": "保存失败"
+      }
     },
     "ja": {
       "choose_persona": "人格を選ぶ",
@@ -306,7 +323,19 @@
         "title": "プリセット",
         "none": "プリセットがありません"
       },
-      "not_a_dir": "これはディレクトリではありません"
+      "not_a_dir": "これはディレクトリではありません",
+      "welcome": {
+        "name_hint": "名前",
+        "persona_title": "人格を作成",
+        "persona_edit": "人格を編集",
+        "persona_sub": "人格は AI の話し方と記憶を決めます。設定で変更できます",
+        "avatar_pick": "画像を選択",
+        "preset_title": "プリセットを選択",
+        "preset_sub": "プリセットで有効にする機能を決めます。設定で変更でき、セッションごとにも選べます",
+        "custom": "カスタム",
+        "custom_hint": "有効にする機能を選択",
+        "save_failed": "保存に失敗しました"
+      }
     }
   }
 }

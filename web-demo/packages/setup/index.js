@@ -12,6 +12,7 @@ import { personaName, presetName, defaultUsable, presetInUse, personaInUse, dirN
 import { Catalog } from './catalog.js';
 import { ListPage, problemText } from './page.js';
 import { browse } from './folders.js';
+import { PersonaStep, PresetStep } from './welcome.js';
 
 const RECENT = 'setup.recent';
 
@@ -62,6 +63,13 @@ export function apply(ctx) {
     return p ? { name: personaName(p), avatar: catalog.avatars.url(p.persona, p.avatar) } : null;
   };
   chat.look(lookOf);
+  // 第一次引导里人格、预设那两屏（蓝图「第一次引导」第 8、9 条）：控件照引导交来的 `kit`（设置页那一套）
+  ctx.provide('personas', {
+    /** @param {import('./form.js').Kit} kit @param {import('./welcome.js').Host} host */
+    persona: (kit, host) => new PersonaStep(ctx, kit, catalog, host),
+    /** @param {import('./form.js').Kit} kit @param {import('./welcome.js').Host} host */
+    preset: (kit, host) => new PresetStep(ctx, kit, catalog, host),
+  });
   // 头像读到了：她那一轮的头换成图
   catalog.listeners.add(() => chat.refreshLook());
 
