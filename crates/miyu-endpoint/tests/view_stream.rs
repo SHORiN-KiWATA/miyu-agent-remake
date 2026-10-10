@@ -1,5 +1,5 @@
 //! 视图流（施工 9-8 下，`docs/blueprint/view.md`「视图流」）：订阅的回应带最新一页的条目，排在所有推送前面；之后的推送
-//! 拼到这一页上，最后和 `view.page {view: true}` 一样；`turn.started`、`turn.ended` 照原样另推；连接的语言改了，之后的
+//! 拼到这一页上，最后和 `view.page {view: true}` 一样，不推原始事件；连接的语言改了，之后的
 //! 条目照新的字；带 `after` 的不收；退订了不再推。
 
 use std::path::Path;
@@ -77,7 +77,7 @@ fn apply(entries: &mut Vec<Value>, push: &Value) {
     }
 }
 
-/// 发一句话，读到它的回应和这一轮结束都到了：交回之间推来的。回合跑得快的，`turn.ended` 可能排在回应前面。
+/// 发一句话，读到它的回应和这一轮结束都到了（会话状态回到闲着）：交回之间推来的。回合跑得快的，结束可能排在回应前面。
 async fn say_through(client: &mut Client, id: &str, session: &str, text: &str) -> Vec<Value> {
     let request = json!({"jsonrpc": "2.0", "id": id, "method": "session.send",
         "params": {"session": session, "text": text}});
@@ -90,8 +90,10 @@ async fn say_through(client: &mut Client, id: &str, session: &str, text: &str) -
             replied = true;
             continue;
         }
+        // 一轮结束以后还有一条会话状态（施工 9-8 补上）：等到它回到闲着。
         ended |= next["params"]["session"] == json!(session)
-            && next["params"]["event"]["kind"] == json!("turn.ended");
+            && next["method"] == json!("view.status")
+            && next["params"]["status"]["state"] == json!("idle");
         pushed.push(next);
     }
     pushed
@@ -131,11 +133,8 @@ async fn the_stream_builds_on_the_page_and_ends_like_it() {
 
     let pushed = say_through(&mut client, "s2", &session, "b").await;
     assert!(
-        pushed
-            .iter()
-            .any(|push| push["method"] == "event"
-                && push["params"]["event"]["kind"] == "turn.started"),
-        "turn.started 照原样另推：{pushed:#?}"
+        pushed.iter().all(|push| push["method"] != "event"),
+        "视图流不推原始事件，在跑没跑看 view.status（施工 9-8 补上）：{pushed:#?}"
     );
     assert!(
         pushed.iter().any(|push| push["method"] == "view.add"),

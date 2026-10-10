@@ -4,8 +4,9 @@
 //! - 订阅的回应带着最新一页的条目，它一定先写出去：之后的推送都是在它上面的变化。
 //! - 读得慢的：攒着的推送一次喂完，同一条接着的 `view.append` 并成一条；还是掉了队的推 `resync`（`stream: "view"`），这个
 //!   订阅停了，头重新订阅拿新的一页。
-//! - 会话状态（9-8 补）做出来以前，`turn.started`、`turn.ended`、`status` 三种另照原样推 `event`（`view.md`「还没有的」）。
 //! - 连接的 `ui.language` 改了，从下一批起照新的字（[`Projector::retext`]）。
+//! - 会话状态（施工 9-8 补上，`view/status.rs`）：一批算完和上一份比，变了推整份 `view.status`。批里有落了盘的事件才向会话
+//!   actor 重要一份「当前的」（用量、权限、工作区），只有增量的不打扰它。
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -13,23 +14,27 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use serde_json::json;
 use tokio::sync::mpsc;
 
-use miyu_kernel::event::{Body, TransientBody};
 use miyu_kernel::id::SessionId;
-use miyu_session::{Ended, Pushed, Subscription};
+use miyu_session::{Current, Ended, Handle, Pushed, Subscription};
 use miyu_view::{Change, Projector};
 
 use crate::Core;
 use crate::hello::Shaken;
+use crate::view::status::{Fixed, whole};
 
 /// 一次最多攒几份推送一起喂：再多就先写出去，免得回应等太久。
 const BATCH: usize = 64;
 
-/// 视图流要的：喂过订阅那一页的投影，和换字时用的连接、语言。
+/// 视图流要的：喂过订阅那一页的投影，换字时用的连接、语言，算会话状态要的会话、定下的几样、上一份。
 pub(crate) struct View {
     core: Arc<Core>,
     shaken: Shaken,
     language: &'static str,
     projector: Projector,
+    handle: Handle,
+    fixed: Fixed,
+    current: Option<Current>,
+    status: serde_json::Value,
 }
 
 impl std::fmt::Debug for View {
@@ -41,19 +46,60 @@ impl std::fmt::Debug for View {
 }
 
 impl View {
-    /// 订阅那一刻的：`projector` 喂过回应里那一页，字是 `language` 的。
+    /// 订阅那一刻的：`projector` 喂过回应里那一页，字是 `language` 的；`current` 是和订阅同一步拿的「当前的」。
     pub(crate) fn new(
         core: Arc<Core>,
         shaken: Shaken,
         language: &'static str,
         projector: Projector,
+        handle: Handle,
+        fixed: Fixed,
+        current: Option<Current>,
     ) -> View {
-        View {
+        let mut view = View {
             core,
             shaken,
             language,
             projector,
+            handle,
+            fixed,
+            current,
+            status: serde_json::Value::Null,
+        };
+        view.status = view.whole();
+        view
+    }
+
+    /// 这一刻的整份会话状态：订阅的回应带它。
+    pub(crate) fn status(&self) -> &serde_json::Value {
+        &self.status
+    }
+
+    fn whole(&self) -> serde_json::Value {
+        whole(
+            &self.core,
+            &self.handle,
+            self.projector.status(),
+            self.current.as_ref(),
+            &self.fixed,
+        )
+    }
+
+    /// 一批喂完以后：有落了盘的事件的，重要一份「当前的」；和上一份比，变了交回要推的那一条。
+    async fn restatus(&mut self, session: &SessionId, persisted: bool) -> Option<String> {
+        if persisted && let Ok(current) = self.handle.current().await {
+            self.current = Some(current);
         }
+        let status = self.whole();
+        if status == self.status {
+            return None;
+        }
+        self.status = status;
+        Some(
+            json!({"jsonrpc": "2.0", "method": "view.status",
+                "params": {"session": session, "status": self.status}})
+            .to_string(),
+        )
     }
 
     /// 连接的语言改了：换一套字。读不成的照旧用原来的（运行日志里记过了）。
@@ -80,19 +126,9 @@ impl View {
                 Pushed::Events(events) => {
                     for event in events {
                         changes.extend(self.projector.event(event));
-                        if matches!(event.body, Body::TurnStarted(_) | Body::TurnEnded(_)) {
-                            flush(session, &mut changes, &mut lines);
-                            lines.push(super::notification(session, &event.to_line()));
-                        }
                     }
                 }
-                Pushed::Transient(transient) => {
-                    changes.extend(self.projector.transient(transient));
-                    if matches!(transient.body, TransientBody::Status(_)) {
-                        flush(session, &mut changes, &mut lines);
-                        lines.push(super::notification(session, &transient.to_line()));
-                    }
-                }
+                Pushed::Transient(transient) => changes.extend(self.projector.transient(transient)),
             }
         }
         flush(session, &mut changes, &mut lines);
@@ -231,7 +267,12 @@ async fn drain(
         next = subscription.try_next();
     }
     view.follow_language().await;
-    for line in view.feed(session, &batch) {
+    let persisted = batch
+        .iter()
+        .any(|pushed| matches!(pushed.as_ref(), Pushed::Events(_)));
+    let mut lines = view.feed(session, &batch);
+    lines.extend(view.restatus(session, persisted).await);
+    for line in lines {
         if out.send(line).await.is_err() {
             return false;
         }

@@ -6,6 +6,7 @@
 
 mod blocks;
 mod notices;
+mod status;
 mod tools;
 mod turns;
 mod undo;
@@ -75,6 +76,8 @@ pub struct Projector {
     turns: Vec<TurnId>,
     /// 最近一条事件的时刻：块收全、步停表照它。
     now: Timestamp,
+    /// 会话状态里投影算得出的那一半（施工 9-8 补上）。
+    tracking: status::Tracking,
 }
 
 /// 在跑的这一轮。
@@ -148,6 +151,7 @@ impl Projector {
             last: (0, 0),
             turns: Vec::new(),
             now: Timestamp::from_unix_millis(0).unwrap_or_else(|| unreachable!("0 是合法的时刻")),
+            tracking: status::Tracking::default(),
         }
     }
 
@@ -188,6 +192,7 @@ impl Projector {
             EventBody::PeerIdle(idle) => self.peer(event, idle),
             _ => {}
         }
+        self.track(event);
         self.drain()
     }
 
@@ -201,6 +206,7 @@ impl Projector {
             TransientBody::ModelChanged(changed) => self.model_changed(transient.at, changed),
             _ => {}
         }
+        self.track_transient(transient);
         self.drain()
     }
 
@@ -210,9 +216,10 @@ impl Projector {
     }
 
     /// 翻页时，这一页之前的日志：只学派出去的后台任务（标题、命令），不出条目（施工 9-8 中）。这一页里报完了、派在更早的
-    /// 任务照它写那一行；不学的话，那一行没有标题、命令。
+    /// 任务照它写那一行；不学的话，那一行没有标题、命令。会话状态的任务表也照它补上更早派出、了结的（施工 9-8 补上）。
     pub fn learn(&mut self, earlier: &[Event]) {
         self.learn_jobs(earlier);
+        self.learn_rows(earlier);
     }
 
     /// 现在的全部条目，照显示的先后。

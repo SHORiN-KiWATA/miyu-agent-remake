@@ -11,6 +11,7 @@ mod explain;
 mod id;
 mod notice;
 mod projector;
+mod status;
 mod summary;
 mod title;
 mod words;
@@ -26,4 +27,5 @@ pub use entry::{
 };
 pub use notice::{Compaction, CompactionState, Notice, RevertedFile};
 pub use projector::{Lines, Projector};
+pub use status::{Doing, FINISHED_KEPT, JobRow, JobState, Speed, State, Status, Wait, Waiting};
 pub use words::{Face, Kinds, Texts, ToolKind, Words};

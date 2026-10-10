@@ -14,6 +14,7 @@ use crate::Core;
 use crate::hello::Shaken;
 use crate::refusal::Refusal;
 use crate::subscriptions::{Subscriptions, Target, View};
+use crate::view::status::Fixed;
 use crate::wire::Request;
 
 /// `subscribe`、`unsubscribe` 的参数。
@@ -175,7 +176,21 @@ async fn view(
         reply.extend(page);
     }
     now(core, &mut reply, current.as_ref());
-    let view = View::new(Arc::clone(core), shaken, language, projector);
+    // 会话状态（施工 9-8 补上）：人格、预设照回应里已经读出来的。
+    let fixed = Fixed {
+        persona: reply.get("persona").cloned(),
+        preset: reply.get("preset").cloned(),
+    };
+    let view = View::new(
+        Arc::clone(core),
+        shaken,
+        language,
+        projector,
+        handle.clone(),
+        fixed,
+        current,
+    );
+    reply["status"] = view.status().clone();
     subscriptions.add_view(session.clone(), subscription, view, out.clone());
     Ok((reply, Some(session)))
 }

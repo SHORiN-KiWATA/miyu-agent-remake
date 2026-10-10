@@ -10,6 +10,7 @@
 mod detail;
 mod page;
 mod project;
+pub(crate) mod status;
 
 pub(crate) use detail::detail;
 
