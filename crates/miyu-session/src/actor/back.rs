@@ -40,6 +40,14 @@ impl Actor {
                 self.extract_due(generation);
                 return None;
             }
+            Back::DreamRead {
+                generation,
+                read,
+                reply,
+            } => {
+                self.dream_read(generation, read, reply);
+                return None;
+            }
             Back::ExtractRead { generation, read } => {
                 self.extract_read(generation, read);
                 return None;

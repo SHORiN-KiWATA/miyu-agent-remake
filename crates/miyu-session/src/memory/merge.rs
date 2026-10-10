@@ -9,13 +9,15 @@
 //!   合剩下的。发出去以前遮 key。
 //! - **交回、怎么落**：读法在 `miyu_recall::merge`；改的指着旧的（类、出处、听众照旧）、作废的带为什么、摘要、合到哪的记号，
 //!   都由记忆模块记。落的时候还算数、听众合的才落。
+//! - **现在就整理**（施工 R-7 补，`/dream`、`memory.dream`）：不看会话数、间隔，现在就合到没有剩下的，交回几样数
+//!   （[`Dreamed`]）；同一间正在合的交回忙。
 //! - **出错**：不动真相，下次抽完再来；同一间连着 [`TRIES`] 次不成的，记一条失败的记号、跳过这一批（成了一次、跳过一次都重新
 //!   数：这一批从哪起只在这两种时候变）。
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::id::{AccountId, Seq};
@@ -100,6 +102,61 @@ pub(super) fn made_by_merge(entry: &Entry) -> bool {
         && matches!(&entry.by, miyu_kernel::origin::By::Module(module) if module.id.as_str() == super::MODULE)
 }
 
+/// 现在就整理一次的结果（施工 R-7 补，`memory.md` 第七条第 9 款）：交进去几条（新记的加相关的，几次合的加起来）、改了几条、
+/// 作废几条、摘要换没换。没有要整理的四样都是零。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Dreamed {
+    /// 交进去几条。
+    pub given: u32,
+    /// 改了几条。
+    pub revised: u32,
+    /// 作废几条。
+    pub retired: u32,
+    /// 写了新的摘要。
+    pub summary: bool,
+}
+
+/// 没整理成。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NotDreamed {
+    /// 这一间正在合（定时的那一次，或者别的人先按了）。
+    Busy,
+    /// 这里没有记忆可整理：人格记忆没装、核心没交整理要的几样、这个会话的记忆关着。
+    Off,
+    /// 请求模型没成、交回的读不成、记忆日志写不进：为什么（英文的一句，运行日志里另有那一行）。真相没动。
+    Failed(String),
+}
+
+impl Keeper {
+    /// 现在就整理这一间（施工 R-7 补，`memory.md` 第七条第 9 款）：不看会话数、间隔，照 `config`（`memory.organizer` 和 key）
+    /// 发，记在 `owner` 的账上，日期照时区 `offset` 写。不经会话的那一路（协议带 `persona` 的 `memory.dream`）；会话里的先抽
+    /// 再调它（`Handle::dream`）。
+    ///
+    /// # Errors
+    ///
+    /// 人格记忆没装、核心没交整理要的几样（[`NotDreamed::Off`]）；这一间正在合（[`NotDreamed::Busy`]）；有一次没成
+    /// （[`NotDreamed::Failed`]）。
+    pub async fn dream(
+        &self,
+        config: TurnConfig,
+        owner: AccountId,
+        offset: UtcOffset,
+    ) -> Result<Dreamed, NotDreamed> {
+        let Some(extraction) = self.extraction() else {
+            return Err(NotDreamed::Off);
+        };
+        MergeJob {
+            keeper: self.clone(),
+            extraction,
+            config,
+            owner,
+            offset,
+        }
+        .now()
+        .await
+    }
+}
+
 /// 核心一份的合并状态：哪几间在合、每一间同一批失败了几次。
 #[derive(Debug, Default)]
 pub(crate) struct Merges {
@@ -180,32 +237,61 @@ impl MergeJob {
             if !self.keeper.memory.merges.start(&room) {
                 return;
             }
-            self.run().await;
+            let settings = MemorySettings::from(&self.config.resolved.values());
+            let sessions = usize::try_from(settings.merge_sessions).unwrap_or(usize::MAX);
+            // 出错的当场记了 `WARN`：真相没动，下次抽完再来。
+            if let Err(why) = self.run(Some((settings.merge_every, sessions))).await {
+                tracing::debug!(target: TARGET, room = %room, error = why.as_str(), "memory merge stopped");
+            }
             self.keeper.memory.merges.finish(&room);
         });
     }
 
-    /// 合到没有剩下的：头一批看够不够，接着合的只看还有没有新记的（放不下的、合着的时候又记的）。
-    async fn run(&self) {
-        let settings = MemorySettings::from(&self.config.resolved.values());
-        let sessions = usize::try_from(settings.merge_sessions).unwrap_or(usize::MAX);
-        let mut check = Some((settings.merge_every, sessions));
+    /// 现在就整理（施工 R-7 补）：不看会话数、间隔，合到没有剩下的，交回几样数。
+    ///
+    /// # Errors
+    ///
+    /// 人格记忆没装（[`NotDreamed::Off`]）；这一间正在合（[`NotDreamed::Busy`]）；有一次没成（[`NotDreamed::Failed`]，之前
+    /// 合成的几次照样记下了）。
+    pub(crate) async fn now(self) -> Result<Dreamed, NotDreamed> {
+        if !self.keeper.installed() {
+            return Err(NotDreamed::Off);
+        }
+        let room = self.keeper.room().clone();
+        if !self.keeper.memory.merges.start(&room) {
+            return Err(NotDreamed::Busy);
+        }
+        let done = self.run(None).await.map_err(NotDreamed::Failed);
+        self.keeper.memory.merges.finish(&room);
+        done
+    }
+
+    /// 合到没有剩下的，交回合了多少：`check` 是头一批看的间隔和会话数（没有的不看），接着合的只看还有没有新记的（放不下的、
+    /// 合着的时候又记的）。
+    ///
+    /// # Errors
+    ///
+    /// 记忆日志读不了、有一次没成：英文的一句为什么，当场记了 `WARN`。
+    async fn run(&self, mut check: Option<(Duration, usize)>) -> Result<Dreamed, String> {
+        let mut done = Dreamed::default();
         loop {
             let keeper = self.keeper.clone();
             let found = blocking(move || keeper.merge_batch(wall_now(), check)).await;
             let batch = match found {
                 Ok(Some(batch)) => batch,
-                Ok(None) => return,
+                Ok(None) => return Ok(done),
                 Err(refused) => {
                     tracing::warn!(target: TARGET, room = %self.keeper.room(), error = ?refused, "memory merge failed");
-                    return;
+                    return Err(format!("{refused:?}"));
                 }
             };
             check = None;
             let asked = self.compose(batch).await;
-            if !self.ask(&asked).await {
-                return;
-            }
+            let round = self.ask(&asked).await?;
+            done.given += round.given;
+            done.revised += round.revised;
+            done.retired += round.retired;
+            done.summary |= round.summary;
         }
     }
 
@@ -298,8 +384,12 @@ impl MergeJob {
         }
     }
 
-    /// 发、读、遮、记；交回记成了没有。
-    async fn ask(&self, asked: &Asked) -> bool {
+    /// 发、读、遮、记；交回这一次合了多少。
+    ///
+    /// # Errors
+    ///
+    /// 发不出去、交回读不成、记忆日志写不进：英文的一句为什么，当场记了 `WARN`。
+    async fn ask(&self, asked: &Asked) -> Result<Dreamed, String> {
         let started = Instant::now();
         let room = self.keeper.room().to_string();
         let secrets = secrets(&self.config);
@@ -338,6 +428,7 @@ impl MergeJob {
                 if let Some(summary) = &mut decided.summary {
                     *summary = redact(summary, &secrets, shapes);
                 }
+                let summary = decided.summary.is_some();
                 let (keeper, upto) = (self.keeper.clone(), asked.upto);
                 let recorded =
                     blocking(move || keeper.record_merge(wall_now(), &decided, upto, given)).await;
@@ -356,11 +447,16 @@ impl MergeJob {
                             };
                             blocking(move || keeper.fill(&using)).await;
                         }
-                        true
+                        Ok(Dreamed {
+                            given,
+                            revised,
+                            retired,
+                            summary,
+                        })
                     }
                     Err(refused) => {
                         tracing::warn!(target: TARGET, room = room.as_str(), error = ?refused, "memory merge not recorded");
-                        false
+                        Err(format!("{refused:?}"))
                     }
                 }
             }
@@ -375,7 +471,7 @@ impl MergeJob {
                         tracing::warn!(target: TARGET, room = room.as_str(), error = ?refused, "memory merge not recorded");
                     }
                 }
-                false
+                Err(why)
             }
         }
     }

@@ -117,13 +117,18 @@ pub fn listing(models: &[&str]) -> Reply {
 
 /// 回一句 OK、说完。
 pub fn answer() -> Reply {
+    said("OK")
+}
+
+/// 回一句 `text`、说完（施工 R-7 补：整理记忆交回的那一段）。
+pub fn said(text: &str) -> Reply {
     let chunk = |delta: serde_json::Value, finish: serde_json::Value| {
         let event = json!({"id": "c1", "object": "chat.completion.chunk", "model": "x",
             "choices": [{"index": 0, "delta": delta, "finish_reason": finish}]});
         format!("data: {event}\n\n")
     };
     let text = [
-        chunk(json!({"role": "assistant", "content": "OK"}), json!(null)),
+        chunk(json!({"role": "assistant", "content": text}), json!(null)),
         chunk(json!({}), json!("stop")),
         "data: [DONE]\n\n".to_string(),
     ]
@@ -145,7 +150,7 @@ pub fn profiles(extra: Value) -> Profiles {
 }
 
 /// 真目录裁出来的一份、档案 `profiles`，拉列表、探本机都不走代理。
-fn data(profiles: Profiles) -> Arc<ModelData> {
+pub(super) fn data(profiles: Profiles) -> Arc<ModelData> {
     let text = include_str!("../../../miyu-models/testdata/models-dev-trimmed.json");
     let vendors = Vendors::parse(&json!({"deepseek": ["deepseek"]})).expect("读得进");
     let data = ModelData::new(profiles, vendors, None)

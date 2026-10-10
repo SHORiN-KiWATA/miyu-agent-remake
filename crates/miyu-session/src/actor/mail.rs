@@ -78,6 +78,11 @@ impl Actor {
                 self.add_waiter(watcher, since);
                 Mail::Done
             }
+            // 人叫她现在就整理记忆（施工 R-7 补，`extract.rs`）：先抽再合，在后台，合完交回去。
+            Message::Dream(reply) => {
+                self.dream(reply);
+                Mail::Done
+            }
         }
     }
 

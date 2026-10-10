@@ -4,7 +4,12 @@
 use miyu_kernel::id::{AccountId, ExternalId, VenueId};
 use miyu_kernel::origin::{By, External, Person, Role};
 
-use super::{Slash, may_run, parse};
+use serde_json::{Value, json};
+
+use miyu_kernel::id::CommandId;
+
+use super::{Slash, answered_later, may_run, parse};
+use crate::wire::Request;
 
 fn external(account: Option<&str>, role: Option<Role>) -> By {
     By::External(External {
@@ -52,4 +57,33 @@ fn names_and_aliases() {
         parse("stop").err().map(|refusal| refusal.reason),
         Some("bad_params")
     );
+}
+
+#[test]
+fn only_dream_is_answered_later() {
+    let run = |text: Value| Request {
+        id: CommandId::parse("k1").expect("合写法"),
+        method: "command.run".to_string(),
+        params: json!({"session": "s", "text": text}),
+    };
+    assert!(answered_later(&run(json!("/dream"))));
+    assert!(answered_later(&run(json!("  /dream 现在"))));
+    for text in [
+        json!("/clear"),
+        json!("/reset"),
+        json!("/stop"),
+        json!("/remember 用户喜欢猫"),
+        json!("/workspace ~"),
+        json!("/dreams"),
+        json!("dream"),
+        json!(3),
+    ] {
+        assert!(!answered_later(&run(text.clone())), "{text}");
+    }
+    let no_text = Request {
+        params: json!({"session": "s"}),
+        ..run(json!(""))
+    };
+    assert!(!answered_later(&no_text));
+    assert_eq!(parse("/dream").ok(), Some((Slash::Dream, "")));
 }

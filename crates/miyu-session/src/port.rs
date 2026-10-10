@@ -340,6 +340,14 @@ pub(crate) enum Back {
         generation: u64,
         read: Result<(Seq, Vec<miyu_kernel::event::Event>), String>,
     },
+    /// 人叫她现在就整理（施工 R-7 补，`/dream`）读回来的：第几个闹钟；上次抽到哪、日志里的事件，读不成的是为什么；合完把结果
+    /// 交回的那一头。
+    DreamRead {
+        generation: u64,
+        read: Result<(Seq, Vec<miyu_kernel::event::Event>), String>,
+        reply:
+            tokio::sync::oneshot::Sender<Result<crate::memory::Dreamed, crate::memory::NotDreamed>>,
+    },
     /// 等会话 `session` 等不到了（施工 C-6，`peers.rs`）：到点了是 `expired`，订的时候它不在了是 `gone`。
     WatchEnded {
         session: miyu_kernel::id::SessionId,

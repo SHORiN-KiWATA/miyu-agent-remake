@@ -1,14 +1,17 @@
 //! `miyu memory`（施工 R-3 再补，`docs/blueprint/cli/memory.md`）：在进程里起一个核心，每个子命令走一遍：印什么、退出码；
-//! `--persona`、`-s` 找哪一间；`clear session` 不写会话的照上一次 `miyu ask`；没设默认人格、核心拒的照原话说。
+//! `--persona`、`-s` 找哪一间；`clear session` 不写会话的照上一次 `miyu ask`；没设默认人格、核心拒的照原话说。`dream`（施工
+//! R-7 补）在请求模型是真路由的核心上：整理记忆发给假服务器，印几样数。
 
 use std::sync::Arc;
 
 use clap::Parser;
 use serde_json::Value;
 
+use crate::support::onboarding::said;
 use crate::support::{Asked, Home, Tape, plan, within};
 use miyu_cli::language::Language;
 use miyu_cli::{Memory, MemoryPlan, memory_on};
+use miyu_http::testkit::Server;
 use miyu_kernel::time::{Timestamp, UtcOffset};
 use miyu_session::testkit::{Play, Script};
 
@@ -268,4 +271,40 @@ async fn which_room_and_wrong_arguments() {
     ] {
         assert!(parsed(&words).is_err(), "{words:?} 该是参数不对");
     }
+}
+
+#[tokio::test]
+async fn dream_organizes_now_and_says_how_much() {
+    let server = Server::start(vec![said(
+        &serde_json::json!({"retired": [{"id": "m1", "why": "重复"}], "summary": "用户养猫。"})
+            .to_string(),
+    )])
+    .await;
+    let home = Home::routed(&format!(
+        "[persona]\ndefault = \"engineer\"\n\n[providers.a]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\n\n[models]\nchat = \"a/m\"\n",
+        server.base_url
+    ));
+    run(&home, &["add", "用户养了一只猫"]).await;
+    run(&home, &["add", "用户养了一只猫，叫团子"]).await;
+    let dreamed = run(&home, &["dream"]).await;
+    assert_eq!(
+        (dreamed.code, dreamed.out.as_str()),
+        (
+            0,
+            "整理完了：看了 2 条，改了 0 条，作废 1 条，摘要更新了。\n"
+        ),
+        "{}",
+        dreamed.err
+    );
+    let again = run(&home, &["dream"]).await;
+    assert_eq!((again.code, again.out.as_str()), (0, "没有要整理的。\n"));
+    assert_eq!(server.received().len(), 1, "没有要整理的不发");
+    let forgotten = run(&home, &["list", "--forgotten"]).await;
+    assert!(
+        forgotten.out.contains("（已作废：重复）"),
+        "{}",
+        forgotten.out
+    );
+    let refused = run(&home, &["dream", "--persona", "nobody"]).await;
+    assert_eq!(refused.code, 1, "{}", refused.screen);
 }
