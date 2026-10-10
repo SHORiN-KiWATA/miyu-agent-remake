@@ -323,14 +323,14 @@ async fn answers_that_cannot_be_read_or_come_too_late_are_not_replied() {
             .is_some_and(|millis| millis >= 1000),
         "{late}"
     );
-    // 晚到的回答丢掉：等假服务器把它回完，主人再叫她一次，这一轮只有主人的，判断只多主人那一笔。
+    // 晚到的回答丢掉：等假服务器把它回完，终端管理员再叫她一次，这一轮只有终端管理员的，判断只多终端管理员那一笔。
     server.wait_closed(5).await;
     napcat.send(group_frame(
         SLOW,
-        OWNER,
+        ADMIN,
         4,
         json!([at(BOT), plain(" 在吗")]),
-        ("主人", "o"),
+        ("终端管理员", "o"),
     ));
     assert_eq!(napcat.group_reply(SLOW).await, "嗯。");
     let slow = until_decided(&home, SLOW, 4).await;

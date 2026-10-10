@@ -1,11 +1,13 @@
 //! 人经协议碰记忆（施工 R-3 补，`docs/blueprint/memory.md`「协议」、第二条、第九条；`protocol.md` 的 `memory.*`）：列、搜、
-//! 记、改、忘和清空。怎么记、怎么挑在会话那一层的 [`Keeper`]，她的工具也用它；这里只管找哪一间、读参数、写回应。
+//! 记、改、忘和清空。怎么记、怎么挑在会话那一层的 [`Keeper`]，她的工具也用它；这里只管找哪一间、读参数、写回应。现在就整理
+//! （`memory.dream`、`/dream`，施工 R-7 补）在 `memory/dream.rs`。
 //!
 //! - 哪一间：`persona` 是这个人格那一间（记忆账号照 `personas.md` 第 5 条，属主是这个连接的账号）；`session` 是那个会话用的
 //!   那一间（照会话交出来的 [`Handle::memory_room`]）；都不写照默认人格，没有默认人格的没有哪一间（不带人格记忆不生效）。
 //! - 听众是这个连接的人：本机的令牌、网页登录都是管理员。代表外部的人（`as`）不收，随 O 线。
 //! - 碰记忆日志、检索库的在阻塞线程里做。
 
+pub(crate) mod dream;
 mod params;
 
 use std::sync::Arc;
@@ -77,7 +79,7 @@ pub(crate) async fn call(
 }
 
 /// 会话 `handle` 里人记一条（`/remember`，施工 R-3 补）：记进这个会话那一间，类 `user`，出处空，听众是 `by`，命令编号是
-/// `id`（同一个编号再来交回头一次的）。交回编号。
+/// `id`（同一个编号再来交回头一次的）。交回记下的那句话（去掉了前后空白的）：回执照它说，不露编号（施工 R-3 四补）。
 ///
 /// # Errors
 ///
@@ -88,11 +90,12 @@ pub(crate) async fn remember_in(
     id: &CommandId,
     by: By,
     text: &str,
-) -> Result<MemoryId, Refusal> {
+) -> Result<String, Refusal> {
     let keeper = keeper_of(core, handle, by.clone())?;
+    let text = checked(text)?;
     let remember = Remember {
         class: "user".to_string(),
-        text: checked(text)?,
+        text: text.clone(),
         replaces: None,
     };
     let stamp = Stamp {
@@ -100,7 +103,13 @@ pub(crate) async fn remember_in(
         by,
         cause: Some(id.clone()),
     };
-    blocking(move || keeper.save(stamp, remember, Vec::new())).await
+    blocking({
+        let keeper = keeper.clone();
+        move || keeper.save(stamp, remember, Vec::new())
+    })
+    .await?;
+    fill(core, keeper).await;
+    Ok(text)
 }
 
 async fn list(core: &Arc<Core>, params: List) -> Result<Value, Refusal> {
@@ -124,13 +133,7 @@ async fn search(core: &Arc<Core>, params: Search) -> Result<Value, Refusal> {
     let (query, forgotten) = (params.query, params.forgotten);
     // 照意思找（施工 R-5 下）照这时的配置：先算问句的向量（`off` 的、等不到的只走关键词），搜完在后台补这一间缺的。远程的
     // 用量记在管理员名下（M8 只有他，和 `model.call` 一样）。
-    let config = core.config_now().borrow().clone();
-    let resolved = config.resolved().clone();
-    let source: Arc<dyn ConfigSource> = config;
-    let using = Using {
-        config: Arc::new(Turn::new(resolved, source)),
-        owner: core.admin.clone(),
-    };
+    let using = using(core);
     let near = match keeper.vectors() {
         Some(vectors) => vectors.query(&using, &query).await,
         None => None,
@@ -166,7 +169,12 @@ async fn remember(
         replaces: None,
     };
     let keeper = find(core, params.at).await?;
-    let id = blocking(move || keeper.save(stamp, remember, Vec::new())).await?;
+    let id = blocking({
+        let keeper = keeper.clone();
+        move || keeper.save(stamp, remember, Vec::new())
+    })
+    .await?;
+    fill(core, keeper).await;
     Ok(json!({"id": id.to_string()}))
 }
 
@@ -174,7 +182,12 @@ async fn update(core: &Arc<Core>, stamp: Stamp, params: Update) -> Result<Value,
     let id = memory_id(&params.id)?;
     let text = checked(&params.text)?;
     let keeper = find(core, params.at).await?;
-    let id = blocking(move || keeper.update(stamp, id, text)).await?;
+    let id = blocking({
+        let keeper = keeper.clone();
+        move || keeper.update(stamp, id, text)
+    })
+    .await?;
+    fill(core, keeper).await;
     Ok(json!({"id": id.to_string()}))
 }
 
@@ -251,6 +264,31 @@ fn room(handle: &Handle) -> Option<&Room> {
     handle
         .memory_room()
         .filter(|_| handle.venue().as_str() == LOCAL)
+}
+
+/// 照意思找的那一路照这时的配置（施工 R-5 下）：远程的用量记在管理员名下（M8 只有他，和 `model.call` 一样）。
+fn using(core: &Core) -> Using {
+    let config = core.config_now().borrow().clone();
+    let resolved = config.resolved().clone();
+    let source: Arc<dyn ConfigSource> = config;
+    Using {
+        config: Arc::new(Turn::new(resolved, source)),
+        owner: core.admin.clone(),
+    }
+}
+
+/// 记下、改了以后在后台补这一间缺的向量（施工 R-5 五补：不等下一次搜）。没接向量的、`off` 的什么都不做。
+async fn fill(core: &Core, keeper: Keeper) {
+    if keeper.vectors().is_none() {
+        return;
+    }
+    let using = using(core);
+    // 记下已经成了，回应照常：补不成的 `blocking` 记了 `WARN memory failed`，补本身的出错 `Keeper::fill` 自己记。
+    let _filled: Result<(), Refusal> = blocking(move || {
+        keeper.fill(&using);
+        Ok(())
+    })
+    .await;
 }
 
 /// 人格记忆这个软件包这时装着没有（施工 R-10）：核心照清单设在记忆上（`Memory::set_installed`）。没有记忆的核心照装着算，

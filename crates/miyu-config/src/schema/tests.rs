@@ -15,7 +15,7 @@ const SYSTEM: &str = r#"{
           "properties": {
             "c": {
               "default": "x",
-              "description": "a.b.c 的说明。能写：x 或 y。只能写在系统配置或个人设置里。当场生效。",
+              "description": "a.b.c 的说明。能写：x 或 y。只能写在系统配置或个人设置里。立即生效。",
               "enum": [
                 "x",
                 "y"
@@ -28,7 +28,7 @@ const SYSTEM: &str = r#"{
         },
         "d": {
           "default": "on",
-          "description": "a.d 的说明。能写：on 或 off。只能写在系统配置里。当场生效。",
+          "description": "a.d 的说明。能写：on 或 off。只能写在系统配置里。立即生效。",
           "enum": [
             "on",
             "off"
@@ -53,7 +53,7 @@ const PERSONAL: &str = r#"{
           "properties": {
             "c": {
               "default": "x",
-              "description": "a.b.c 的说明。能写：x 或 y。只能写在系统配置或个人设置里。当场生效。",
+              "description": "a.b.c 的说明。能写：x 或 y。只能写在系统配置或个人设置里。立即生效。",
               "enum": [
                 "x",
                 "y"

@@ -1,6 +1,7 @@
 //! 撤回（`onebot.md` 第一条「撤回」，施工 O-22）：群里的（`group_recall`）、私聊的（`friend_recall`）都记
 //! `events.append {session, kind: "venue.recalled", body: {msg, by}}`：被撤的平台编号、谁撤的平台身份。会话照群消息、私聊
-//! 一样找（私聊的陌生人照旧不接）；会话不在了再找一次。命令编号自己编：平台不重发通知（「施工时定的」第 70 条）。
+//! 一样找（私聊的陌生人照旧不接，白名单成员的照接，施工 O-27）；会话不在了再找一次。命令编号自己编：平台不重发通知
+//! （「施工时定的」第 70 条）。
 
 use miyu_chat::VenueKind;
 use serde_json::json;
@@ -27,9 +28,13 @@ impl Route {
                 return Ok(());
             }
         };
+        let applied = self.applied(&venue);
         let place = match recall.group {
-            Some(group) => Place::group(&venue, &self.applied(&venue), recall.bot, group),
-            None => Place::private(&venue, &user, recall.bot, recall.user),
+            Some(group) => Place::group(&venue, &applied, recall.bot, group),
+            None => {
+                let listed = self.whitelisted(&user).then_some(&applied);
+                Place::private(&venue, &user, (recall.bot, recall.user), listed)
+            }
         };
         let body = json!({"msg": recall.message_id.to_string(), "by": by});
         let params = json!({"kind": "venue.recalled", "body": body});

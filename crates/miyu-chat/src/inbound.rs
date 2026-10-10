@@ -31,10 +31,11 @@ use crate::VenueKind;
 /// 发消息的人是谁（`18-通讯平台.md` 第三节）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Standing {
-    /// 主人：核心照 `external.bindings` 认出来的本机账号本人。睡眠、谁能叫她都豁免，不查违规关键词，不计限流。
-    Owner,
-    /// 自己人：私聊里豁免睡眠和谁能叫她，在哪都不计限流（施工时定的第 2 条）。
-    Trusted,
+    /// 终端管理员：核心照 `external.bindings` 认出来的本机账号本人。睡眠、谁能叫她都豁免，不查违规关键词，不计限流。
+    Admin,
+    /// 白名单成员（`onebot` 配置里的那一串号）：睡眠在哪都豁免（施工 O-27，2026-10-10 项目主人定），谁能叫她只在私聊里
+    /// 豁免，在哪都不计限流（施工时定的第 2 条）；违规关键词照查。
+    Whitelisted,
     /// 别的人。
     Member,
 }
@@ -56,7 +57,7 @@ pub struct Said {
 /// 进来的一条消息，桥照驱动报上来的填好交进来。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Inbound {
-    /// 场所是群还是私聊：自己人只在私聊里豁免睡眠和谁能叫她。
+    /// 场所是群还是私聊：白名单成员只在私聊里豁免谁能叫她。
     pub kind: VenueKind,
     /// 谁发的、他是谁、是不是冲她来的。
     pub said: Said,
@@ -84,7 +85,7 @@ pub struct Ctx {
     pub allow: Option<bool>,
     /// 她在这个场所被禁言了没有。
     pub muted: bool,
-    /// 最近开过的回合的开始时刻，不算主人、自己人开的：外面交进来时就去掉了。先后不要紧；只看窗口里的，交多了不要紧。
+    /// 最近开过的回合的开始时刻，不算终端管理员、白名单成员开的：外面交进来时就去掉了。先后不要紧；只看窗口里的，交多了不要紧。
     pub turns: Vec<Timestamp>,
     /// 限流提示过的时刻（`ext.onebot.venues.queued` 里种类是提示、原因是限流的）。先后不要紧。
     pub notices: Vec<Timestamp>,
@@ -190,11 +191,17 @@ impl Chain {
 }
 
 impl Inbound {
-    /// 睡眠、谁能叫她都豁免的人：主人在哪都豁免，自己人只在私聊里（施工时定的第 2 条）。
+    /// 睡着时照样放行的人：终端管理员、白名单成员，私聊、群里都是（施工 O-27，2026-10-10 项目主人定；原来白名单成员只在
+    /// 私聊里）。
+    fn wakes_her(&self) -> bool {
+        matches!(self.said.standing, Standing::Admin | Standing::Whitelisted)
+    }
+
+    /// 场所不让叫她（`allow = false`）也照样放行的人：终端管理员在哪都豁免，白名单成员只在私聊里（施工时定的第 2 条）。
     fn excused(&self) -> bool {
         match self.said.standing {
-            Standing::Owner => true,
-            Standing::Trusted => self.kind == VenueKind::Private,
+            Standing::Admin => true,
+            Standing::Whitelisted => self.kind == VenueKind::Private,
             Standing::Member => false,
         }
     }

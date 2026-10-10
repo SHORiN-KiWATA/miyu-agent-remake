@@ -15,7 +15,7 @@ mod vectors;
 pub use extract::{ExtractTexts, Extraction};
 pub(crate) use extract::{Extractor, Job, plan};
 pub use keeper::{Filter, Keeper, Stamp};
-pub use merge::MergeTexts;
+pub use merge::{Dreamed, MergeTexts, NotDreamed};
 
 /// 记忆模块的编号：注入、抽取记下的 `by` 都是它（施工 R-4 上、R-6 上）。
 pub(crate) const MODULE: &str = "memory";

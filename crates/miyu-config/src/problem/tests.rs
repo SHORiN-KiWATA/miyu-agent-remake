@@ -111,12 +111,12 @@ fn an_unknown_key_suggests_and_keeps_the_line() {
     problem.suggest = Some("ui.language");
     assert_eq!(
         said(&problem, None).message,
-        "没有 ui.langauge 这一项。是不是想写 ui.language？这一行先不管，原样留着。"
+        "没有 ui.langauge 这一项。是不是想写 ui.language？已忽略此行。"
     );
     problem.suggest = None;
     assert_eq!(
         said(&problem, None).message,
-        "没有 ui.langauge 这一项。这一行先不管，原样留着。"
+        "没有 ui.langauge 这一项。已忽略此行。"
     );
     problem.at = None;
     assert_eq!(
@@ -141,7 +141,7 @@ fn a_bad_option_lists_the_options_and_says_what_is_used() {
         Told {
             expected: Some("error、warn、info、debug、trace 或 off".to_string()),
             message: "log.level 只能是 error、warn、info、debug、trace 或 off，写的是 \"verbose\"。改成其中一个，\
-                      例如 log.level = \"info\"。这一项先照 \"info\" 用着（默认值）。"
+                      例如 log.level = \"info\"。暂用 \"info\"（默认值）。"
                 .to_string(),
         }
     );
@@ -178,7 +178,7 @@ fn a_bad_switch_expects_true_or_false_and_offers_the_other_one() {
         Told {
             expected: Some("true 或 false".to_string()),
             message: "permission.start_read_only 要写 true 或 false，写的是 \"yes\"。\
-                      改成 permission.start_read_only = true。这一项先照 true 用着（系统配置）。"
+                      改成 permission.start_read_only = true。暂用 true（系统配置）。"
                 .to_string(),
         }
     );
@@ -250,7 +250,7 @@ fn whole_file_problems_say_what_the_file_is_used_as() {
     };
     assert_eq!(
         said(&syntax, Some(&Using::LastGood)).message,
-        "TOML 写法不对：invalid basic string。这份文件先照上一次读进来的用着。"
+        "TOML 写法不对：invalid basic string。暂用上次的有效配置。"
     );
     let unreadable = Problem::file(
         Code::Unreadable,
@@ -259,20 +259,17 @@ fn whole_file_problems_say_what_the_file_is_used_as() {
     );
     assert_eq!(
         said(&unreadable, Some(&Using::Nothing)).message,
-        "读不了这份文件：Permission denied。这份文件先不用。"
+        "读不了这份文件：Permission denied。已忽略此文件。"
     );
     let big = Problem::file(Code::TooBig, Layer::System, None);
     assert_eq!(said(&big, None).message, "这份文件超过 1 MiB，不读。");
     let utf8 = Problem::file(Code::NotUtf8, Layer::System, None);
     assert_eq!(
         said(&utf8, Some(&Using::LastGood)).message,
-        "这份文件不是 UTF-8。这份文件先照上一次读进来的用着。"
+        "这份文件不是 UTF-8。暂用上次的有效配置。"
     );
     let untrusted = Problem::file(Code::UntrustedProject, Layer::Project, None);
-    assert_eq!(
-        said(&untrusted, None).message,
-        "这份项目配置还没信任，先不用。"
-    );
+    assert_eq!(said(&untrusted, None).message, "项目配置未信任，已忽略。");
 }
 
 #[test]
@@ -283,7 +280,7 @@ fn english_joins_with_a_space_and_a_full_stop() {
             "config/unknown-key",
             "There is no {key}. Did you mean {suggest}?",
         ),
-        ("config/kept", "The line is ignored and kept as it is"),
+        ("config/kept", "Line ignored"),
         ("config/sentence", "{text}."),
         ("config/then", "{rest} {next}"),
         ("config/stops", ".?!"),
@@ -304,7 +301,7 @@ fn english_joins_with_a_space_and_a_full_stop() {
         tell(&problem, &items(), None, &english)
             .expect("字齐全")
             .message,
-        "There is no ui.langauge. Did you mean ui.language? The line is ignored and kept as it is."
+        "There is no ui.langauge. Did you mean ui.language? Line ignored."
     );
 }
 

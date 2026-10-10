@@ -212,11 +212,14 @@ async fn passwords_log_in_and_too_many_failures_are_refused_without_checking() {
         .as_u64()
         .expect("说要等多久");
     assert!(wait > 0 && wait <= 60_000, "{wait}");
+    // 忘了密码怎么办由头自己给（2026-10-10 项目主人定），拒绝的话只说结果。
+    let message = refused["error"]["message"].as_str().unwrap_or("");
     assert!(
-        refused["error"]["message"]
-            .as_str()
-            .unwrap_or("")
-            .contains("miyu web --reset")
+        matches!(
+            message,
+            "尝试次数过多，请一分钟后重试。" | "Too many attempts. Try again in a minute."
+        ),
+        "{message}"
     );
 }
 

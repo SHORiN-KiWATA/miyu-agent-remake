@@ -215,7 +215,7 @@ fn primary_keeps_the_original() {
     let conditions = merged(&got).expect("该重判");
     assert_eq!(conditions.primary(), Some(Kind::Direct));
     assert_eq!(
-        route(conditions, Standing::Owner),
+        route(conditions, Standing::Admin),
         Route::Commit,
         "合起来的照第三条走路"
     );

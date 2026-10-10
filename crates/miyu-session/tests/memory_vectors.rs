@@ -119,6 +119,34 @@ async fn past_conversations_are_found_by_meaning_too() {
     stop(&handle).await;
 }
 
+/// 记下的时候也补（施工 R-5 五补）：她 `remember` 了一条，不搜，后台就补上了它的向量；下一轮头一次搜就照意思找得到。
+#[tokio::test]
+async fn a_remembered_memory_is_filled_at_once_and_found_on_the_first_search() {
+    let home = Home::new();
+    meaning(&home);
+    let remember = serde_json::json!({"class": "user", "text": "我的猫"}).to_string();
+    let script = Script::new([
+        Play::calls(&[("remember", &remember)]),
+        Play::Says("记下了。"),
+        search("喝茶"),
+        Play::Says("找到了。"),
+    ]);
+    let handle = home
+        .create_full(
+            &script,
+            &catalog(&home),
+            Opening::default(),
+            Lines::default(),
+        )
+        .await;
+    chat(&home, &handle, 1, "记住我的猫").await;
+    filled(&home, MODEL, true, "m1").await;
+    let log = chat(&home, &handle, 2, "我喝什么").await;
+    let found = last_result(&log);
+    assert!(found.contains("我的猫"), "头一次搜就照意思找得到：{found}");
+    stop(&handle).await;
+}
+
 #[tokio::test]
 async fn off_means_keywords_only_and_nothing_runs() {
     let mut home = Home::new();
@@ -154,8 +182,7 @@ async fn off_means_keywords_only_and_nothing_runs() {
     stop(&handle).await;
 }
 
-/// 包里的文件还在核对的时候，补的那一个等它核对完再补（`recall.md` 第三条第 5 款）：补的是头一个要向量的，头一次要的一定交回
-/// 「还在备」（核对在后台），等过了照样补齐。
+/// 补的是头一个要向量的（`recall.md` 第三条第 5 款）：它等那一次核对、拉起（施工 R-5 五补：不交「还在备」、不轮询），照样补齐。
 #[tokio::test]
 async fn the_fill_waits_while_the_files_are_checked() {
     let home = Home::new();
@@ -255,4 +282,70 @@ async fn measure_meaning_with_the_real_model() {
     keeper.fill(&using);
     filled(&home, REAL, true, "m108").await;
     eprintln!("补一百条：{:?}", hundred.elapsed());
+}
+
+/// 抽取、合并记下的也当场补（施工 R-5 五补）：抽到的那几条、合并改出来的那一条，不搜就补上了向量。
+#[tokio::test]
+async fn extracted_and_merged_memories_are_filled_without_a_search() {
+    use crate::support::extracting::{every_turn, organizer, stream};
+    use miyu_http::testkit::Server;
+    let merge = serde_json::json!({"revised": [{"id": "m1", "text": "用户养了一只橘猫"}]});
+    let server = Server::start(vec![
+        every_turn("用户养了一只猫"),
+        stream(&merge.to_string()),
+    ])
+    .await;
+    let mut home = Home::new();
+    organizer(&mut home, &server, "merge_sessions = 1\n");
+    meaning(&home);
+    let handle = home
+        .create_full(
+            &Script::new([Play::Says("好。"), Play::Says("嗯。")]),
+            &catalog(&home),
+            Opening::default(),
+            Lines::default(),
+        )
+        .await;
+    chat(&home, &handle, 1, "我养了一只猫").await;
+    chat(&home, &handle, 2, "橘猫").await;
+    filled(&home, MODEL, true, "m1").await;
+    let (log, _) = home.logs.open(&persona()).expect("开得了");
+    let mut revised = None;
+    for _ in 0..200 {
+        revised = log.book(|book| {
+            book.all()
+                .find(|entry| entry.text == "用户养了一只橘猫")
+                .map(|entry| entry.id)
+        });
+        if revised.is_some() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    let revised = revised.expect("合并改了 m1");
+    filled(&home, MODEL, true, &revised.to_string()).await;
+    stop(&handle).await;
+}
+
+/// 只抽、不合（会话数不够，默认五个）的也当场补：抽到的那几条不搜就补上了向量。
+#[tokio::test]
+async fn extracted_memories_are_filled_even_without_a_merge() {
+    use crate::support::extracting::{every_turn, organizer};
+    use miyu_http::testkit::Server;
+    let server = Server::start(vec![every_turn("用户养了一只猫")]).await;
+    let mut home = Home::new();
+    organizer(&mut home, &server, "");
+    meaning(&home);
+    let handle = home
+        .create_full(
+            &Script::new([Play::Says("好。"), Play::Says("嗯。")]),
+            &catalog(&home),
+            Opening::default(),
+            Lines::default(),
+        )
+        .await;
+    chat(&home, &handle, 1, "我养了一只猫").await;
+    chat(&home, &handle, 2, "橘猫").await;
+    filled(&home, MODEL, true, "m1").await;
+    stop(&handle).await;
 }

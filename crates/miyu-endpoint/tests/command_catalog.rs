@@ -32,7 +32,8 @@ async fn without_a_session_every_command_is_listed_in_the_connections_language()
         reply["result"]["commands"],
         json!([
             {"name": "clear", "aliases": ["reset"], "summary": "清空上下文"},
-            {"name": "remember", "aliases": [], "summary": "记一条记忆", "argument": "<内容>"},
+            {"name": "dream", "aliases": [], "summary": "整理记忆"},
+            {"name": "remember", "aliases": [], "summary": "添加记忆", "argument": "<内容>"},
             {"name": "stop", "aliases": [], "summary": "全部停止"},
             {"name": "workspace", "aliases": [], "summary": "切换工作区", "argument": "<路径>"},
         ]),
@@ -63,7 +64,10 @@ async fn with_a_session_only_what_would_be_accepted_is_listed() {
     let reply = client
         .call("c2", "command.catalog", json!({"session": session}))
         .await;
-    assert_eq!(names(&reply), ["clear", "remember", "stop", "workspace"]);
+    assert_eq!(
+        names(&reply),
+        ["clear", "dream", "remember", "stop", "workspace"]
+    );
 }
 
 #[tokio::test]

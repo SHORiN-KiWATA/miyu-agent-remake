@@ -166,14 +166,11 @@ async fn nothing_to_recap_and_a_failed_recap_are_refused_in_the_heads_language()
         .call("c2", "session.recap", json!({"session": session}))
         .await;
     assert_eq!(reason(&reply), Some("nothing_to_recap"), "{reply}");
-    assert_eq!(reply["error"]["message"], json!("还没有可回顾的内容"));
+    assert_eq!(reply["error"]["message"], json!("没有可回顾的内容。"));
     let reply = english
         .call("e1", "session.recap", json!({"session": session}))
         .await;
-    assert_eq!(
-        reply["error"]["message"],
-        json!("There is nothing to recap yet.")
-    );
+    assert_eq!(reply["error"]["message"], json!("Nothing to recap."));
     assert_eq!(home.log(&session).len(), 1, "拒绝的什么都不写");
 
     client.say("c3", &session, "hi").await;
@@ -182,17 +179,11 @@ async fn nothing_to_recap_and_a_failed_recap_are_refused_in_the_heads_language()
         .call("c4", "session.recap", json!({"session": session}))
         .await;
     assert_eq!(reason(&reply), Some("recap_failed"), "{reply}");
-    assert_eq!(
-        reply["error"]["message"],
-        json!("回顾没写成：请求模型出错了。")
-    );
+    assert_eq!(reply["error"]["message"], json!("生成回顾失败。"));
     let reply = english
         .call("e2", "session.recap", json!({"session": session}))
         .await;
-    assert_eq!(
-        reply["error"]["message"],
-        json!("The recap could not be written: the model request failed.")
-    );
+    assert_eq!(reply["error"]["message"], json!("Recap failed."));
     assert_eq!(script.requests().len(), 3, "没写成的不再来");
 }
 

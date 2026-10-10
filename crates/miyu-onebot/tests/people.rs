@@ -1,7 +1,7 @@
-//! 「主人与自己人」页（施工 O-17，`onebot.md` 第二条「怎么走」第 4 条、「施工时定的」第 26 到 36 条）：真的核心加真的桥，
+//! 「终端管理员与白名单成员」页（施工 O-17，`onebot.md` 第二条「怎么走」第 4 条、「施工时定的」第 26 到 36 条）：真的核心加真的桥，
 //! 浏览器经桥的 `/ws` 照页面（`people.js`）的样子发。还没设好密码的连接改系统配置被拒、什么都没写（核心现在只有管理员一个
-//! 账号，第 35 条）；设好以后加一个主人、删一个主人（恢复默认）、整张写回自己人，换一条连接 `config.get` 读得回；新主人的
-//! 私聊当场认得是管理员本人。自己人写进个人设置、写成一个字、元素是空的字，整条不收、什么都没变。
+//! 账号，第 35 条）；设好以后加一个终端管理员、删一个终端管理员（恢复默认）、整张写回白名单成员，换一条连接 `config.get` 读得回；新终端管理员的
+//! 私聊当场认得是管理员本人。白名单成员写进个人设置、写成一个字、元素是空的字，整条不收、什么都没变。
 
 use futures_util::SinkExt;
 use serde_json::{Value, json};
@@ -12,10 +12,10 @@ use miyu_session::testkit::{Play, Script};
 use crate::support::http::*;
 use crate::support::*;
 
-/// 页面加的第二个主人（主人的小号）。
+/// 页面加的第二个终端管理员（终端管理员的小号）。
 const SECOND: i64 = 10_002;
 
-/// 主人对应表里一格的键，照页面拼：`external.bindings."qq:<号>"`。
+/// 终端管理员对应表里一格的键，照页面拼：`external.bindings."qq:<号>"`。
 fn binding(number: i64) -> String {
     format!("external.bindings.\"qq:{number}\"")
 }
@@ -83,8 +83,8 @@ fn why(reply: &Value) -> &str {
     reply["error"]["data"]["reason"].as_str().unwrap_or("")
 }
 
-/// `items` 里主人对应表的每一格：键到账号，照键排。
-fn owners(items: &Value) -> Vec<(String, Value)> {
+/// `items` 里终端管理员对应表的每一格：键到账号，照键排。
+fn admins(items: &Value) -> Vec<(String, Value)> {
     items
         .as_object()
         .expect("是对象")
@@ -127,7 +127,7 @@ async fn set_up(page: &mut Page) -> String {
 }
 
 #[tokio::test]
-async fn the_page_adds_and_removes_owners_and_writes_friends_back_whole() {
+async fn the_page_adds_and_removes_admins_and_writes_the_whitelist_back_whole() {
     let script = Script::new([Play::Says("在。")]);
     let home = Home::new(&script);
     let bridge = bridge(&home).await;
@@ -145,11 +145,11 @@ async fn the_page_adds_and_removes_owners_and_writes_friends_back_whole() {
     );
     let login = set_up(&mut page).await;
     assert_eq!(
-        owners(&page.items().await),
-        [(binding(OWNER), json!("admin"))],
+        admins(&page.items().await),
+        [(binding(ADMIN), json!("admin"))],
         "被拒的那一条什么都没写"
     );
-    // 加一个主人：照页面拼的键写进系统配置。
+    // 加一个终端管理员：照页面拼的键写进系统配置。
     let added = page
         .save(json!([{"key": binding(SECOND), "value": "admin"}]))
         .await;
@@ -158,32 +158,32 @@ async fn the_page_adds_and_removes_owners_and_writes_friends_back_whole() {
         "now",
         "{added}"
     );
-    // 删一个主人：恢复默认，去掉这一格。
+    // 删一个终端管理员：恢复默认，去掉这一格。
     let removed = page
-        .save(json!([{"key": binding(OWNER), "unset": true}]))
+        .save(json!([{"key": binding(ADMIN), "unset": true}]))
         .await;
     assert!(
-        removed["result"]["keys"][binding(OWNER)].is_object(),
+        removed["result"]["keys"][binding(ADMIN)].is_object(),
         "{removed}"
     );
-    // 自己人整张写回。
-    let friends = json!(["qq:20017", format!("qq:{SECOND}")]);
+    // 白名单成员整张写回。
+    let whitelist = json!(["qq:20017", format!("qq:{SECOND}")]);
     let written = page
-        .save(json!([{"key": "onebot.trusted", "value": friends}]))
+        .save(json!([{"key": "onebot.whitelist", "value": whitelist}]))
         .await;
     assert_eq!(
-        written["result"]["keys"]["onebot.trusted"]["applies"], "now",
+        written["result"]["keys"]["onebot.whitelist"]["applies"], "now",
         "{written}"
     );
     // 换一条连接（记住的登录令牌），读得回。
     let (mut again, hello) = Page::open(bridge.web, json!({"login": login})).await;
     assert_eq!(hello["result"]["account"], "admin", "{hello}");
     let items = again.items().await;
-    assert_eq!(owners(&items), [(binding(SECOND), json!("admin"))]);
-    assert_eq!(items["onebot.trusted"]["value"], friends);
-    assert_eq!(items["onebot.trusted"]["origin"]["layer"], "system");
-    // 新主人的私聊当场认得是管理员本人：页面拼的键和桥拼的平台身份对得上。
-    let mut napcat = owner_napcat(bridge.port).await;
+    assert_eq!(admins(&items), [(binding(SECOND), json!("admin"))]);
+    assert_eq!(items["onebot.whitelist"]["value"], whitelist);
+    assert_eq!(items["onebot.whitelist"]["origin"]["layer"], "system");
+    // 新终端管理员的私聊当场认得是管理员本人：页面拼的键和桥拼的平台身份对得上。
+    let mut napcat = admin_napcat(bridge.port).await;
     napcat
         .private(
             SECOND,
@@ -204,7 +204,7 @@ async fn the_page_adds_and_removes_owners_and_writes_friends_back_whole() {
 }
 
 #[tokio::test]
-async fn friends_written_wrong_or_to_the_personal_layer_are_refused_whole() {
+async fn a_whitelist_written_wrong_or_to_the_personal_layer_is_refused_whole() {
     let home = Home::new(&Script::new([]));
     let bridge = bridge(&home).await;
     let mut page = with_code(&home, bridge.web).await;
@@ -212,7 +212,7 @@ async fn friends_written_wrong_or_to_the_personal_layer_are_refused_whole() {
     let personal = page
         .call(
             "config.set",
-            json!({"layer": "personal", "changes": [{"key": "onebot.trusted", "value": ["qq:20017"]}]}),
+            json!({"layer": "personal", "changes": [{"key": "onebot.whitelist", "value": ["qq:20017"]}]}),
         )
         .await;
     assert_eq!(why(&personal), "config_invalid", "{personal}");
@@ -224,7 +224,7 @@ async fn friends_written_wrong_or_to_the_personal_layer_are_refused_whole() {
         let refused = page
             .save(json!([
                 {"key": binding(SECOND), "value": "admin"},
-                {"key": "onebot.trusted", "value": wrong},
+                {"key": "onebot.whitelist", "value": wrong},
             ]))
             .await;
         assert_eq!(why(&refused), "config_invalid", "{wrong}: {refused}");
@@ -234,19 +234,19 @@ async fn friends_written_wrong_or_to_the_personal_layer_are_refused_whole() {
         assert!(
             problems
                 .iter()
-                .all(|problem| problem["key"] == "onebot.trusted"
+                .all(|problem| problem["key"] == "onebot.whitelist"
                     && problem["message"]
                         .as_str()
                         .is_some_and(|message| !message.is_empty())),
-            "问题说在自己人那一项上、带一句给人看的话：{refused}"
+            "问题说在白名单成员那一项上、带一句给人看的话：{refused}"
         );
     }
     let items = page.items().await;
-    assert!(items.get("onebot.trusted").is_none(), "{items}");
+    assert!(items.get("onebot.whitelist").is_none(), "{items}");
     assert_eq!(
-        owners(&items),
-        [(binding(OWNER), json!("admin"))],
-        "一起发的主人也没写：整条不收"
+        admins(&items),
+        [(binding(ADMIN), json!("admin"))],
+        "一起发的终端管理员也没写：整条不收"
     );
     bridge.stop().await.expect("停得下");
 }

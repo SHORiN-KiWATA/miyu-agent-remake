@@ -1,6 +1,6 @@
 //! 群里叫她就回（施工 O-23，`onebot.md` 第一条「群里怎么叫她」）：真核心照开关拉起真桥，假 NapCat 发群消息，模型替身照剧本
-//! 说。主人 @ 她、叫她的名字（触发词开头）、引用她的消息，各开一轮，她的回话转成纯文本发回群里、记 `venue.delivered`；别人的
-//! @ 要问判官，照剧本回的核心没有一次性入口、回 `no_model`，判不了、不回（O-23 下；判官说回、说不回的在 `judged.rs`）；没条件的只记下；每一条都记一笔 `ext.onebot.chat.decided`。睡觉时间里主人照回、别人只记下；主人连发两条，
+//! 说。终端管理员 @ 她、叫她的名字（触发词开头）、引用她的消息，各开一轮，她的回话转成纯文本发回群里、记 `venue.delivered`；别人的
+//! @ 要问判官，照剧本回的核心没有一次性入口、回 `no_model`，判不了、不回（O-23 下；判官说回、说不回的在 `judged.rs`）；没条件的只记下；每一条都记一笔 `ext.onebot.chat.decided`。睡觉时间里终端管理员照回、别人只记下；终端管理员连发两条，
 //! 正在跑的一轮并进去；同一条消息平台重发不再判。她的话拆成几段发，NapCat 回的先后和发的先后不一样，`venue.delivered` 也照
 //! 发的先后记。
 
@@ -25,7 +25,7 @@ const JIE: i64 = 20003;
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
 /// 核心照中文写的 `/stop` 的回执（`resources/core/human/zh.json`）。
-const STOPPED: &str = "已全部停下。";
+const STOPPED: &str = "已全部停止。";
 
 /// 系统的场所规则：两个群都不抽样（判断不随序号变）、她的话一段最多 4 个字符；[`GROUP`] 的触发词是她的名字，[`SLEEPY`] 的
 /// 睡觉时间盖住此刻（前后各一个小时，照本机的时区）。
@@ -93,14 +93,14 @@ async fn until_answered(home: &Home, group: i64, turns: usize, delivered: usize)
 }
 
 #[tokio::test]
-async fn the_owner_calling_her_gets_an_answer_in_the_group() {
+async fn the_admin_calling_her_gets_an_answer_in_the_group() {
     let script = Script::new([
         Play::Says("在。"),
         Play::Says("叫我？"),
         Play::Says("**看到**了。"),
     ]);
     let (home, mut napcat, _) = started(&script, &rules(), "", MEMBERS).await;
-    // 1：没条件的只记下。2：主人 @ 她。
+    // 1：没条件的只记下。2：终端管理员 @ 她。
     napcat.send(group_frame(
         GROUP,
         LIN,
@@ -110,27 +110,27 @@ async fn the_owner_calling_her_gets_an_answer_in_the_group() {
     ));
     napcat.send(group_frame(
         GROUP,
-        OWNER,
+        ADMIN,
         2,
         json!([at(BOT), plain(" 在吗")]),
-        ("主人", "o"),
+        ("终端管理员", "o"),
     ));
     assert_eq!(napcat.group_reply(GROUP).await, "在。");
     until_answered(&home, GROUP, 1, 1).await;
     // 3：叫她的名字（触发词开头）。
     napcat.send(group_frame(
         GROUP,
-        OWNER,
+        ADMIN,
         3,
         json!([plain("米尤，帮个忙")]),
-        ("主人", "o"),
+        ("终端管理员", "o"),
     ));
     assert_eq!(napcat.group_reply(GROUP).await, "叫我？");
     until_answered(&home, GROUP, 2, 2).await;
     // 4：引用她说的第一句（假 NapCat 回的编号）。
     let quoting =
         json!([{"type": "reply", "data": {"id": FIRST_SENT.to_string()}}, plain("这个呢")]);
-    napcat.send(group_frame(GROUP, OWNER, 4, quoting, ("主人", "o")));
+    napcat.send(group_frame(GROUP, ADMIN, 4, quoting, ("终端管理员", "o")));
     assert_eq!(napcat.group_reply(GROUP).await, "看到了。", "转成纯文本");
     until_answered(&home, GROUP, 3, 3).await;
     // 5：别人的 @：只记判断，不回。
@@ -156,10 +156,10 @@ async fn the_owner_calling_her_gets_an_answer_in_the_group() {
     assert_eq!(
         decided(&events, 2),
         Some(json!({
-            "msgs": [seqs[1]], "standing": "owner", "inbound": "pass", "discipline": "chatty",
+            "msgs": [seqs[1]], "standing": "admin", "inbound": "pass", "discipline": "chatty",
             "conditions": [{"kind": "direct", "bonus": 0.3}], "route": "commit", "outcome": "reply",
         })),
-        "主人 @ 她：主人照核心记下的 by 认"
+        "终端管理员 @ 她：终端管理员照核心记下的 by 认"
     );
     for message in [3, 4] {
         let body = decided(&events, message).expect("记了判断");
@@ -178,7 +178,7 @@ async fn the_owner_calling_her_gets_an_answer_in_the_group() {
     assert_eq!(other["outcome"], "record", "判不了照不回算：{other}");
 
     let started = of_kind(&events, "turn.started");
-    assert_eq!(started.len(), 3, "主人叫了三次，开三轮：{started:#?}");
+    assert_eq!(started.len(), 3, "终端管理员叫了三次，开三轮：{started:#?}");
     for (turn, message) in started.iter().zip([2, 3, 4]) {
         assert_eq!(turn["cause"], cause(message, "respond"), "{turn}");
         assert_eq!(
@@ -215,15 +215,21 @@ async fn the_owner_calling_her_gets_an_answer_in_the_group() {
 async fn asleep_joined_and_resent() {
     let script = Script::new([Play::Stalls, Play::Says("醒着呢\n\n别吵")]);
     let (home, mut napcat, _) = started(&script, &rules(), "", MEMBERS).await;
-    // 主人 @ 她，她还没开口；主人又 @ 一次：并进正在跑的这一轮。
+    // 终端管理员 @ 她，她还没开口；终端管理员又 @ 一次：并进正在跑的这一轮。
     let first = json!([at(BOT), plain(" 在吗")]);
-    napcat.send(group_frame(GROUP, OWNER, 1, first, ("主人", "o")));
+    napcat.send(group_frame(GROUP, ADMIN, 1, first, ("终端管理员", "o")));
     until_event(&home.root, &venue(GROUP), |event| {
         event["kind"] == "turn.started"
     })
     .await;
     let again = json!([at(BOT), plain(" 还有这个")]);
-    napcat.send(group_frame(GROUP, OWNER, 2, again.clone(), ("主人", "o")));
+    napcat.send(group_frame(
+        GROUP,
+        ADMIN,
+        2,
+        again.clone(),
+        ("终端管理员", "o"),
+    ));
     let events = until_event(&home.root, &venue(GROUP), |event| {
         event["kind"] == "turn.joined"
     })
@@ -231,20 +237,20 @@ async fn asleep_joined_and_resent() {
     let joined = &of_kind(&events, "turn.joined")[0];
     assert_eq!(joined["body"]["triggers"], json!([seq_of(&events, 2)]));
     assert_eq!(joined["cause"], cause(2, "respond"));
-    // 平台重发第 2 条：不再判。主人 /stop 停下这一轮，她没开口，不发空的。
-    napcat.send(group_frame(GROUP, OWNER, 2, again, ("主人", "o")));
+    // 平台重发第 2 条：不再判。终端管理员 /stop 停下这一轮，她没开口，不发空的。
+    napcat.send(group_frame(GROUP, ADMIN, 2, again, ("终端管理员", "o")));
     napcat.send(group_frame(
         GROUP,
-        OWNER,
+        ADMIN,
         3,
         json!([plain("/stop")]),
-        ("主人", "o"),
+        ("终端管理员", "o"),
     ));
     assert_eq!(napcat.group_reply(GROUP).await, STOPPED);
-    // 睡着的群：别人冲她来只记下，主人照回；她的话照这个群的参数拆成两段，一段一条、各记一笔。
+    // 睡着的群：别人冲她来只记下，终端管理员照回；她的话照这个群的参数拆成两段，一段一条、各记一笔。
     let waking = json!([at(BOT), plain(" 醒醒")]);
     napcat.send(group_frame(SLEEPY, LIN, 4, waking.clone(), ("小林", "lin")));
-    napcat.send(group_frame(SLEEPY, OWNER, 5, waking, ("主人", "o")));
+    napcat.send(group_frame(SLEEPY, ADMIN, 5, waking, ("终端管理员", "o")));
     assert_eq!(napcat.group_reply(SLEEPY).await, "醒着呢");
     assert_eq!(napcat.group_reply(SLEEPY).await, "别吵");
     let sleepy = until_events(&home.root, &venue(SLEEPY), |events| {
@@ -297,7 +303,7 @@ async fn asleep_joined_and_resent() {
     assert_eq!(
         script.requests().len(),
         2,
-        "并进去的没再请求，睡着的群主人那一轮"
+        "并进去的没再请求，睡着的群终端管理员那一轮"
     );
     assert!(napcat.pending().is_none(), "别的什么都不发");
     stopped(home).await;
@@ -310,7 +316,7 @@ async fn her_pieces_are_noted_in_the_order_they_were_sent() {
     let (home, mut napcat, _) =
         started_with(&script, &rules(), "", |napcat| napcat.reversing(MEMBERS, 2)).await;
     let calling = json!([at(BOT), plain(" 在吗")]);
-    napcat.send(group_frame(GROUP, OWNER, 1, calling, ("主人", "o")));
+    napcat.send(group_frame(GROUP, ADMIN, 1, calling, ("终端管理员", "o")));
     assert_eq!(napcat.group_reply(GROUP).await, "醒着呢");
     assert_eq!(napcat.group_reply(GROUP).await, "别吵");
     let events = until_events(&home.root, &venue(GROUP), |events| {

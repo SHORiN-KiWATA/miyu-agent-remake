@@ -253,10 +253,7 @@ async fn what_cannot_be_read_is_refused() {
         .call("s1", "job.output", json!({"session": session, "job": "j1"}))
         .await;
     assert_eq!(reason(&reply), Some("unknown_job"), "{reply}");
-    assert_eq!(
-        reply["error"]["message"],
-        json!("没有这个任务，或者它已经结束了。")
-    );
+    assert_eq!(reply["error"]["message"], json!("任务不存在或已结束。"));
     let mut english = Client::connect(core);
     english.hello_without_input().await;
     let reply = english
@@ -264,7 +261,7 @@ async fn what_cannot_be_read_is_refused() {
         .await;
     assert_eq!(
         reply["error"]["message"],
-        json!("There is no such job, or it has already ended.")
+        json!("Job not found or finished.")
     );
     for job in [
         json!("1"),
@@ -342,10 +339,7 @@ async fn a_subagent_is_not_a_command() {
         .call("o1", "job.output", json!({"session": parent, "job": "j1"}))
         .await;
     assert_eq!(reason(&reply), Some("not_a_command"), "{reply}");
-    assert_eq!(
-        reply["error"]["message"],
-        json!("这是子代理，不是后台命令：去看它的会话。")
-    );
+    assert_eq!(reply["error"]["message"], json!("不是后台命令。"));
     let mut english = Client::connect(core);
     english.hello_without_input().await;
     let reply = english
@@ -353,6 +347,6 @@ async fn a_subagent_is_not_a_command() {
         .await;
     assert_eq!(
         reply["error"]["message"],
-        json!("This is a subagent, not a background command; open its session instead.")
+        json!("Not a background command.")
     );
 }

@@ -7,13 +7,13 @@
 prepare = true
 
 [external.bindings]
-# Owner's platform accounts: Which platform identity is which local account. The key is the platform identity (for example qq:10001), the value is the local account. In private chats that identity is that account itself.
-# Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config. Takes effect at once.
+# Terminal admin's platform accounts: Which platform identity is which local account. The key is the platform identity (for example qq:10001), the value is the local account. In private chats that identity is that account itself.
+# Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config. Takes effect immediately.
 # "<external>" =
 
 [log]
 # Runtime log level: How much the runtime log records. Set debug when chasing a problem. MIYU_LOG, when set, wins for that launch.
-# Allowed: error, warn, info, debug, trace or off. Only in the system config. Takes effect at once.
+# Allowed: error, warn, info, debug, trace or off. Only in the system config. Takes effect immediately.
 level = "info"
 
 [memory]
@@ -39,7 +39,7 @@ merge_sessions = 5
 
 [models]
 # Chat model: The model new sessions use, written as provider/model, for example deepseek/deepseek-flash, or @pool.
-# Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Applies to sessions opened from now on.
+# Allowed: <provider>/<model> or @<pool>. Only in the system config or personal settings. Applies to new sessions.
 # chat =
 
 # Semantic model: Improves search quality for memories, knowledge bases and more.
@@ -52,74 +52,74 @@ merge_sessions = 5
 
 [models.catalog]
 # Update every: Fetch again once the cached catalog is this old.
-# Allowed: a length of time from 1h to 720h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
+# Allowed: a length of time from 1h to 720h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect immediately.
 every = "24h"
 
 # Update the catalog: Fetch a newer model catalog from models.dev in the background. Off uses only the bundled and already fetched ones.
-# Allowed: true or false. Only in the system config or personal settings. Takes effect at once.
+# Allowed: true or false. Only in the system config or personal settings. Takes effect immediately.
 update = true
 
 # Catalog address: Where to fetch the model catalog from.
-# Allowed: an address starting with http:// or https:// or { env = "…" }. Only in the system config or personal settings. Takes effect at once.
+# Allowed: an address starting with http:// or https:// or { env = "…" }. Only in the system config or personal settings. Takes effect immediately.
 url = "https://models.dev/api.json"
 
 [models.cooldown.auth]
 # Auth failure pause: How long a whole provider rests the first time it fails to authenticate or runs out of quota. It doubles each time in a row.
-# Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
+# Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect immediately.
 base = "10m"
 
 # Auth failure pause cap: The pause for a whole provider stops doubling here.
-# Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
+# Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect immediately.
 max = "2h"
 
 [models.cooldown.rate_limited]
 # Rate limit cooldown: How long an endpoint rests the first time it is rate limited. It doubles each time in a row.
-# Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
+# Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect immediately.
 base = "30s"
 
 # Rate limit cooldown cap: The rate limit cooldown stops doubling here, even when the provider asks for longer.
-# Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
+# Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect immediately.
 max = "10m"
 
 [models.cooldown.retryable]
 # Error cooldown: How long an endpoint rests the first time it cannot be reached or fails on its side. It doubles each time in a row.
-# Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
+# Allowed: a length of time from 1s to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect immediately.
 base = "10s"
 
 # Error cooldown cap: The cooldown for these errors stops doubling here.
-# Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect at once.
+# Allowed: a length of time from 1s to 24h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect immediately.
 max = "5m"
 
 [onebot]
-# Connect QQ port: The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws.
-# Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect at once.
+# Port: The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws.
+# Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect immediately.
 listen = 8301
 
-# Connect QQ token: The access token NapCat shows when it connects; set the same one in NapCat. Write { secret = "name" } (saved with miyu login) or { env = "VARIABLE" }. Without it Connect QQ still starts but refuses NapCat; you can generate one on Connect QQ web page. After a change, NapCat's next connection uses the new one.
-# Allowed: { secret = "…" } or { env = "…" }. Only in the system config. Takes effect at once.
+# Token: The access token NapCat shows when it connects; set the same one in NapCat. Without it NapCat is refused; you can generate one on Connect QQ web page.
+# Allowed: { secret = "…" } or { env = "…" }. Only in the system config. Takes effect immediately.
 # token =
 
-# Connect QQ friends: People who can call her in private chat, with no rate limit, even while she sleeps: a list of platform identities, for example ["qq:20017"]. Edit it on Connect QQ web page. Connect QQ uses it once groups are connected.
-# Allowed: a list of text of at most 128 characters. Only in the system config. Takes effect at once.
-# trusted =
-
-# Connect QQ web port: The port of Connect QQ's own web page (NapCat connection, token), local only. Open it with miyu-onebot web.
-# Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect at once.
+# Web page port: The port of Connect QQ's own web page (NapCat connection, token), local only. Open it with miyu-onebot web.
+# Allowed: a whole number from 1024 to 65535. Only in the system config. Takes effect immediately.
 web = 8302
+
+# Whitelist: People who can chat with her in private, whose friend requests are accepted, who are not rate-limited or held off while she sleeps, and whom she answers directly in groups. Write each as qq:<QQ number>, for example qq:20017.
+# Allowed: a list of text of at most 128 characters. Only in the system config. Takes effect immediately.
+# whitelist =
 
 [permission]
 # Start new sessions read-only: When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on.
-# Allowed: true or false. Only in the system config, personal settings or a project config. Applies to sessions opened from now on.
+# Allowed: true or false. Only in the system config, personal settings or a project config. Applies to new sessions.
 start_read_only = false
 
 [persona]
 # Default persona: The persona new sessions use. When unset, new sessions have no persona: no character prompt, and memory is off.
-# Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to sessions opened from now on.
+# Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to new sessions.
 # default =
 
 [pools."<id>"]
 # Description for the model: One line she sees after the pool name when she starts a subagent. Write it in English.
-# Allowed: one line of English, at most 60 characters. Only in the system config or personal settings. Applies to sessions opened from now on.
+# Allowed: one line of English, at most 60 characters. Only in the system config or personal settings. Applies to new sessions.
 # description =
 
 # Pool members: A group of models, each written as provider/model.
@@ -131,12 +131,12 @@ start_read_only = false
 # strategy =
 
 # Subagents can pick it: When on, she can pick this pool for a subagent in new sessions. It is listed only once it has members.
-# Allowed: true or false. Only in the system config or personal settings. Applies to sessions opened from now on.
+# Allowed: true or false. Only in the system config or personal settings. Applies to new sessions.
 subagent = false
 
 [preset]
 # Default preset: The preset new sessions use.
-# Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to sessions opened from now on.
+# Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Applies to new sessions.
 default = "full"
 
 [providers."<id>"]
@@ -165,7 +165,7 @@ default = "full"
 # local =
 
 # Display name: The name people see. The id is only for referring to models; without one, the model data's name for this provider is used, then the id.
-# Allowed: text of at most 64 characters. Only in the system config or personal settings. Takes effect at once.
+# Allowed: text of at most 64 characters. Only in the system config or personal settings. Takes effect immediately.
 # name =
 
 # Price multiplier: Prices of this provider are multiplied by it. 1 if left out. A multiplier on the model wins.
@@ -232,44 +232,44 @@ default = "full"
 
 [tui]
 # Icons: Which icon set the terminal interface draws: Nerd Font glyphs, or plain characters for fonts without them.
-# Allowed: nerd or plain. Only in the system config or personal settings. Takes effect at once.
+# Allowed: nerd or plain. Only in the system config or personal settings. Takes effect immediately.
 icons = "nerd"
 
 [ui]
 # Default interface: The interface plain miyu opens.
-# Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Takes effect the next time the program starts.
+# Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Takes effect after restart.
 head = "tui"
 
 # Interface language: The language terminals, the web page and the command line use for you. auto follows the terminal or browser.
-# Allowed: auto, zh, en or ja. Only in the system config or personal settings. Takes effect at once.
+# Allowed: auto, zh, en or ja. Only in the system config or personal settings. Takes effect immediately.
 language = "auto"
 
 # On start, open: Whether a terminal interface or the web page opens a new session or picks up the most recent one.
-# Allowed: new or recent. Only in the system config or personal settings. Takes effect the next time the program starts.
+# Allowed: new or recent. Only in the system config or personal settings. Takes effect after restart.
 startup = "new"
 
 # First-run guide done: This account has finished the first-run guide; the terminal and web pages no longer open it.
-# Allowed: true or false. Only in personal settings. Takes effect at once.
+# Allowed: true or false. Only in personal settings. Takes effect immediately.
 welcomed = false
 
 [usage]
 # Currency shown first: Amounts are added up per currency, never converted. This one is listed first, the others by code. Three capital letters such as USD or CNY.
-# Allowed: text of at most 3 characters. Only in the system config or personal settings. Takes effect at once.
+# Allowed: text of at most 3 characters. Only in the system config or personal settings. Takes effect immediately.
 currency = "USD"
 
 [web]
 # Idle seconds: Quit after this many seconds with no browser connected and no media being served.
-# Allowed: a whole number from 1 to 86400. Only in the system config. Takes effect the next time the program starts.
+# Allowed: a whole number from 1 to 86400. Only in the system config. Takes effect after restart.
 idle_seconds = 600
 
 # Most media tickets: At most this many /media tickets; the one unused longest goes first.
-# Allowed: a whole number from 1 to 1000000. Only in the system config. Takes effect the next time the program starts.
+# Allowed: a whole number from 1 to 1000000. Only in the system config. Takes effect after restart.
 most_tickets = 4096
 
 # Web port: Which local port the web interface listens on.
-# Allowed: a whole number from 1 to 65535. Only in the system config. Takes effect the next time the program starts.
+# Allowed: a whole number from 1 to 65535. Only in the system config. Takes effect after restart.
 port = 8300
 
 # Media ticket idle seconds: A /media ticket unused for this many seconds stops working.
-# Allowed: a whole number from 1 to 2592000. Only in the system config. Takes effect the next time the program starts.
+# Allowed: a whole number from 1 to 2592000. Only in the system config. Takes effect after restart.
 ticket_idle_seconds = 43200

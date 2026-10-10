@@ -2,11 +2,11 @@
 //! blob 或者一份本机文件，能带 `Range`。内容由核心照 `blob.get`、`fs.read` 一块 512 KiB 地给，读一块写一块，不整个读进内存。
 //! 回应关在一个空的来源里（`sandbox`）：有人直接打开这个地址，它碰不到页面。
 
-mod link;
+pub(crate) mod link;
 mod range;
 #[cfg(test)]
 mod tests;
-mod tickets;
+pub(crate) mod tickets;
 
 use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -32,7 +32,7 @@ use tickets::{Source, Tickets, Wanted};
 const CHUNK: u64 = 512 * 1024;
 
 /// 换票据的正文最长多少字节。
-const MOST_BODY: usize = 64 * 1024;
+pub(crate) const MOST_BODY: usize = 64 * 1024;
 
 /// 给媒体时的 `Content-Security-Policy`：一个空的来源。
 const SANDBOX: &str =
@@ -43,8 +43,9 @@ const OCTET: &str = "application/octet-stream";
 
 /// 网页软件里管媒体的：票据、连着的核心。
 pub(crate) struct Media {
-    tickets: Mutex<Tickets>,
-    cores: Cores,
+    tickets: Mutex<Tickets<Wanted>>,
+    /// 照登录令牌连着的核心：软件后台页（`backstage`）也用这一份。
+    pub(crate) cores: Cores,
 }
 
 impl Media {
@@ -58,7 +59,7 @@ impl Media {
         }
     }
 
-    fn tickets(&self) -> std::sync::MutexGuard<'_, Tickets> {
+    fn tickets(&self) -> std::sync::MutexGuard<'_, Tickets<Wanted>> {
         self.tickets.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
@@ -291,7 +292,7 @@ fn refused(site: &Site, login: &str, failed: &Failed) -> Response<Body> {
 }
 
 /// `Authorization: Bearer <登录令牌>`。
-fn bearer(request: &Request<Incoming>) -> Option<String> {
+pub(crate) fn bearer(request: &Request<Incoming>) -> Option<String> {
     let value = request
         .headers()
         .get(header::AUTHORIZATION)?
@@ -345,7 +346,7 @@ fn content_type(settings: &Settings, wanted: &Wanted) -> String {
 }
 
 /// 写一个头；写不成的（有控制字符）不写。
-fn insert(headers: &mut hyper::HeaderMap, name: header::HeaderName, value: &str) {
+pub(crate) fn insert(headers: &mut hyper::HeaderMap, name: header::HeaderName, value: &str) {
     if let Ok(value) = HeaderValue::from_str(value) {
         headers.insert(name, value);
     }

@@ -75,7 +75,7 @@ async fn it_moves_the_workspace_like_the_method_and_keeps_the_dirs() {
     assert_eq!(reply["result"]["command"], "workspace", "{reply}");
     assert_eq!(
         reply["result"]["said"],
-        json!(format!("工作区换到了 {other}。"))
+        json!(format!("工作区已切换到 {other}。"))
     );
     let log = home.log(&session);
     assert_eq!(moves(&log), [start.clone(), other.clone()]);
@@ -92,7 +92,7 @@ async fn it_moves_the_workspace_like_the_method_and_keeps_the_dirs() {
     .await;
     assert_eq!(
         again["result"]["said"],
-        json!(format!("工作区换到了 {other}。")),
+        json!(format!("工作区已切换到 {other}。")),
         "{again}"
     );
     assert_eq!(moves(&home.log(&session)).len(), 2);
@@ -104,7 +104,7 @@ async fn it_moves_the_workspace_like_the_method_and_keeps_the_dirs() {
     .await;
     assert_eq!(
         now["result"]["said"],
-        json!(format!("现在的工作区是 {other}。")),
+        json!(format!("当前工作区：{other}")),
         "会话表跟着换了：{now}"
     );
     let watched = client.subscribe("w1", &session).await;
@@ -181,7 +181,7 @@ async fn without_a_path_it_only_says_where() {
     .await;
     assert_eq!(
         reply["result"]["said"],
-        json!(format!("现在的工作区是 {start}。")),
+        json!(format!("当前工作区：{start}")),
         "{reply}"
     );
     let log = home.log(&session);
@@ -244,7 +244,7 @@ async fn wrong_places_are_refused_and_too_wide_is_kept() {
     .await;
     assert_eq!(
         reply["result"]["said"],
-        json!("工作区换到了 ~（范围很大）。"),
+        json!("工作区已切换到 ~（范围较大）。"),
         "{reply}"
     );
     assert_eq!(moves(&home.log(&session)).last(), Some(&"~".to_string()));
@@ -277,7 +277,7 @@ async fn in_a_venue_only_the_owner_may_move_it() {
     )
     .await;
     assert_eq!(reason(&reply), Some("owner_only"), "{reply}");
-    assert_eq!(reply["error"]["message"], "只有主人能用这个命令。");
+    assert_eq!(reply["error"]["message"], "仅终端管理员可用。");
     let owner = json!({"external": "qq:10001"});
     let reply = run(
         &mut client,

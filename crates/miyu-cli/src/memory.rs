@@ -1,4 +1,5 @@
-//! `miyu memory`（`docs/blueprint/cli/memory.md`，施工 R-3 再补）：在 shell 里看她记了你什么，搜、记、改、忘、清空。连上
+//! `miyu memory`（`docs/blueprint/cli/memory.md`，施工 R-3 再补）：在 shell 里看她记了你什么，搜、记、改、忘、清空，现在就
+//! 整理（`dream`，施工 R-7 补）。连上
 //! 核心（照 `miyu rename`：没在跑就拉起来），照子命令发 `memory.*`（`protocol.md`），照回应印一句或者一行一条。
 //!
 //! 做成了退出码 0；核心拒的照核心的原话印在标准错误上，退出码 1；参数写错的 2，由 clap 管。
@@ -88,6 +89,8 @@ pub enum MemoryCommand {
         #[command(subcommand)]
         what: Clear,
     },
+    /// 现在就整理：合掉重复的、改掉过时的、更新摘要（`memory.md` 第七条第 9 款）。
+    Dream,
 }
 
 /// 清空的两种（`memory.md` 第二条第 5 款，一般知识那一层随 O 线）。
@@ -220,6 +223,7 @@ async fn act(
             params = json!({"session": session});
             ("memory.forget", json!({"clear": "session"}))
         }
+        MemoryCommand::Dream => ("memory.dream", json!({})),
     };
     merge(&mut params, extra);
     let result = link::request_saying(rpc, method, params, language, err, |error| {
@@ -234,6 +238,15 @@ async fn act(
         MemoryCommand::Edit { .. } => language.changed(id_of(&result)),
         MemoryCommand::Forget { .. } => return Ok(()),
         MemoryCommand::Clear { .. } => language.cleared(result["cleared"].as_u64().unwrap_or(0)),
+        MemoryCommand::Dream => {
+            let count = |field: &str| result[field].as_u64().unwrap_or(0);
+            language.dreamed(
+                count("given"),
+                count("revised"),
+                count("retired"),
+                result["summary"].as_bool().unwrap_or(false),
+            )
+        }
     };
     say(out, &said);
     Ok(())

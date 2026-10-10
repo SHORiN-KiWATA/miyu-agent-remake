@@ -197,8 +197,5 @@ async fn the_kernel_refusals_come_back_with_their_reasons() {
     let reply = answer(&mut client, "answer-3", params).await;
     assert_eq!(reason_of(&reply), &json!("not_asking"), "{reply}");
     // 测试的头握手时说中文。
-    assert_eq!(
-        reply["error"]["message"],
-        json!("它没在等回答：已经答过，或者已经了结了。")
-    );
+    assert_eq!(reply["error"]["message"], json!("不在等待回答。"));
 }

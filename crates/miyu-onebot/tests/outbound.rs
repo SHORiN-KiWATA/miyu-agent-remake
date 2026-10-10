@@ -39,10 +39,16 @@ fn venue(group: i64) -> String {
     format!("qq:group:{group}")
 }
 
-/// 主人在群 `group` 里 @ 她：第 `message` 条。
-fn owner_calls(napcat: &Answering, group: i64, message: i64) {
+/// 终端管理员在群 `group` 里 @ 她：第 `message` 条。
+fn admin_calls(napcat: &Answering, group: i64, message: i64) {
     let words = json!([at(BOT), plain(" 在吗")]);
-    napcat.send(group_frame(group, OWNER, message, words, ("主人", "o")));
+    napcat.send(group_frame(
+        group,
+        ADMIN,
+        message,
+        words,
+        ("终端管理员", "o"),
+    ));
 }
 
 /// 别人 `user` 在群 `group` 里说一句没冲她来的：第 `message` 条。
@@ -75,7 +81,7 @@ async fn leaks_are_cleaned_and_blanks_asides_and_bare_calls_are_not_sent() {
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines), RULES, MEMBERS).await;
     for message in 1..=5 {
-        owner_calls(&napcat, PLAIN, message);
+        admin_calls(&napcat, PLAIN, message);
         until_count(&home, PLAIN, "turn.ended", message as usize).await;
     }
     assert_eq!(napcat.group_message(PLAIN).await, [words("看到了")]);
@@ -101,7 +107,7 @@ async fn saying_the_same_twice_in_a_turn_sends_it_once() {
         Line::says("看完了。"),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines), RULES, MEMBERS).await;
-    owner_calls(&napcat, PLAIN, 1);
+    admin_calls(&napcat, PLAIN, 1);
     assert_eq!(
         napcat.group_message(PLAIN).await,
         [words("我在看这个问题。")]
@@ -135,7 +141,7 @@ async fn four_others_later_only_the_first_piece_quotes() {
     let (release, released) = oneshot::channel();
     let lines = Lines::new([Line::says("看到大家了").released_by(released)]);
     let (home, mut napcat, _) = started_by(Arc::new(lines), RULES, MEMBERS).await;
-    owner_calls(&napcat, QUOTED, 21);
+    admin_calls(&napcat, QUOTED, 21);
     // 她还没开口，别人说了四句。
     for (n, user) in [LIN, JIE, LIN, JIE].into_iter().enumerate() {
         other_says(&napcat, QUOTED, user, 22 + n as i64);
@@ -146,7 +152,7 @@ async fn four_others_later_only_the_first_piece_quotes() {
     assert_eq!(
         napcat.group_message(QUOTED).await,
         [quote, words("看到大家")],
-        "第一段引用主人那一条，@ 要隔一个小时"
+        "第一段引用终端管理员那一条，@ 要隔一个小时"
     );
     assert_eq!(
         napcat.group_message(QUOTED).await,
@@ -165,21 +171,21 @@ async fn a_while_later_with_others_talking_she_mentions_but_not_right_away() {
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines), RULES, MEMBERS).await;
     // 刚说完紧接着回：两样都不带。
-    owner_calls(&napcat, PROMPT, 31);
+    admin_calls(&napcat, PROMPT, 31);
     assert_eq!(napcat.group_message(PROMPT).await, [words("在。")]);
     until_count(&home, PROMPT, "turn.ended", 1).await;
     // 再叫她，她还没开口，别人说了一句，过了一秒多。
-    owner_calls(&napcat, PROMPT, 32);
+    admin_calls(&napcat, PROMPT, 32);
     until_count(&home, PROMPT, "turn.started", 2).await;
     other_says(&napcat, PROMPT, LIN, 33);
     until_count(&home, PROMPT, "message.user", 3).await;
     tokio::time::sleep(Duration::from_millis(1100)).await;
     release.send(()).expect("她在等");
-    let mention = json!({"type": "at", "data": {"qq": OWNER.to_string()}});
+    let mention = json!({"type": "at", "data": {"qq": ADMIN.to_string()}});
     assert_eq!(
         napcat.group_message(PROMPT).await,
         [mention, words(" "), words("嗯，刚才在忙。")],
-        "@ 主人，只隔了一条不引用"
+        "@ 终端管理员，只隔了一条不引用"
     );
     stopped(home).await;
 }
@@ -193,8 +199,8 @@ async fn private_replies_carry_neither_and_are_not_repeated() {
     ]);
     let home = Home::speaking(Arc::new(lines));
     let bridge = bridge(&home).await;
-    let mut napcat = owner_napcat(bridge.port).await;
-    napcat.owner_says(41, "在吗").await;
+    let mut napcat = admin_napcat(bridge.port).await;
+    napcat.admin_says(41, "在吗").await;
     // 私聊的回话只有一个文字段（`reply` 验）：不带引用、@。
     assert_eq!(napcat.reply().await, "我在看这个问题。");
     assert_eq!(napcat.reply().await, "看完了。", "同一轮重复的那一句不发");

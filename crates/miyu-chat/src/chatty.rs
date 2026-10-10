@@ -37,7 +37,7 @@ pub struct Facts {
     pub venue: VenueId,
     /// 这条消息：它在场所主线会话日志里的序号（`chat.md` 第七条第 1 条），进抽样的种子；顶替、承诺也认它。
     pub msg: Seq,
-    /// 谁发的、他是谁、是不是冲她来的：和进站链共用一份（[`Said`]）。主人冲她来的不过判官（[`route`]）。
+    /// 谁发的、他是谁、是不是冲她来的：和进站链共用一份（[`Said`]）。终端管理员、白名单成员冲她来的不过判官（[`route`]）。
     pub said: Said,
     /// @ 了别人没有：@ 了别人的不算续聊。
     pub mentions_others: bool,
@@ -261,19 +261,21 @@ pub fn conditions(
 pub enum Route {
     /// 一个条件都没有：只记下。
     Record,
-    /// 主人冲她来：直接回，不过判官（Q4）。
+    /// 终端管理员、白名单成员冲她来：直接回，不过判官（Q4；白名单成员施工 O-27，2026-10-10 项目主人定）。
     Commit,
     /// 只有违规旗：判官只查违规。
     ModerationOnly,
-    /// 交给判官打分。自己人、别的人的 @ 也走这条。
+    /// 交给判官打分。别的人的 @ 也走这条。
     Judge,
 }
 
-/// 一条消息走哪条路：没有条件只记下；主人冲她来直接回；只有违规旗判官只查违规；别的交给判官打分（「怎么走」第 8 条）。
+/// 一条消息走哪条路：没有条件只记下；终端管理员、白名单成员冲她来直接回；只有违规旗判官只查违规；别的交给判官打分（「怎么走」
+/// 第 8 条）。
 pub fn route(conditions: &Conditions, standing: Standing) -> Route {
+    let known = matches!(standing, Standing::Admin | Standing::Whitelisted);
     if conditions.hits.is_empty() {
         Route::Record
-    } else if conditions.has(Kind::Direct) && standing == Standing::Owner {
+    } else if conditions.has(Kind::Direct) && known {
         Route::Commit
     } else if conditions.only_moderation() {
         Route::ModerationOnly

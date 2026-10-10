@@ -21,7 +21,7 @@ const LIN: i64 = 20002;
 const MEMBERS: &[Member] = &[(BOT, "米尤", "miyu")];
 
 /// 核心照中文写的 `/stop` 的回执（`resources/core/human/zh.json`）。
-const STOPPED: &str = "已全部停下。";
+const STOPPED: &str = "已全部停止。";
 
 /// 一个 `send_group_msg`、`send_private_msg` 动作里的字（只有一个文字段）。
 fn text_of(action: &Value) -> &str {
@@ -34,17 +34,17 @@ fn text_of(action: &Value) -> &str {
 async fn group_receipts_are_recalled_and_private_ones_are_not() {
     let (home, mut napcat, _) = started(&Script::new([]), "", "", MEMBERS).await;
     // 私聊的 `/stop`：回执不撤。
-    napcat.send(private_frame(OWNER, 51, json!([plain("/stop")])));
+    napcat.send(private_frame(ADMIN, 51, json!([plain("/stop")])));
     let private = napcat.action().await;
     assert_eq!(private["action"], "send_private_msg", "{private}");
     assert_eq!(text_of(&private), STOPPED);
-    // 群里主人的 `/stop`：回执撤；别人的 `/stop` 被拒，那一句也撤。
+    // 群里终端管理员的 `/stop`：回执撤；别人的 `/stop` 被拒，那一句也撤。
     napcat.send(group_frame(
         GROUP,
-        OWNER,
+        ADMIN,
         52,
         json!([plain("/stop")]),
-        ("主人", "o"),
+        ("终端管理员", "o"),
     ));
     let receipt = napcat.action().await;
     assert_eq!(text_of(&receipt), STOPPED, "{receipt}");

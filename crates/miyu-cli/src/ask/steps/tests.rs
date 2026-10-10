@@ -105,14 +105,14 @@ fn each_status_reads_as_decided() {
         (
             "denied",
             core("unattended"),
-            "→ 读取 src/lib.rs · 没做：要确认，这里没人能确认\n",
+            "→ 读取 src/lib.rs · 没做：需要确认，无人确认\n",
         ),
         (
             "cancelled",
             core("cancelled-before"),
-            "→ 读取 src/lib.rs · 打断了，没跑\n",
+            "→ 读取 src/lib.rs · 已取消\n",
         ),
-        ("skipped", core("skipped"), "→ 读取 src/lib.rs · 跳过了\n"),
+        ("skipped", core("skipped"), "→ 读取 src/lib.rs · 已跳过\n"),
     ];
     for (status, human, want) in cases {
         assert_eq!(
@@ -128,7 +128,7 @@ fn each_status_reads_as_decided() {
         ("error", "⚙ web_fetch · 出错\n"),
         ("denied", "⚙ web_fetch · 没做\n"),
         ("cancelled", "⚙ web_fetch · 打断了\n"),
-        ("skipped", "⚙ web_fetch · 跳过了\n"),
+        ("skipped", "⚙ web_fetch · 已跳过\n"),
         ("later", "⚙ web_fetch\n"),
     ];
     for (status, want) in cases {

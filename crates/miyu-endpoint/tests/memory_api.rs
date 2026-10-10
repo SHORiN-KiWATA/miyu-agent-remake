@@ -293,7 +293,12 @@ async fn the_room_is_the_personas_the_sessions_or_the_defaults() {
         .as_str()
         .expect("造了")
         .to_string();
-    for method in ["memory.list", "memory.search", "memory.remember"] {
+    for method in [
+        "memory.list",
+        "memory.search",
+        "memory.remember",
+        "memory.dream",
+    ] {
         let reply = client
             .call(
                 method,

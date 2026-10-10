@@ -1,5 +1,5 @@
-//! 核心的替身（施工 W-10）：照登录令牌握手，答 `blob.get`、`fs.read`。每一问单开一个任务答，慢的 blob 晚一点答：同一条连接上
-//! 的回应会乱序到，网页软件要照编号分回去。
+//! 核心的替身（施工 W-10）：照登录令牌握手，答 `blob.get`、`fs.read`；软件后台页用的 `package.list`、`package.file`
+//! （施工 F-6 下）。每一问单开一个任务答，慢的 blob 晚一点答：同一条连接上的回应会乱序到，网页软件要照编号分回去。
 
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -36,6 +36,10 @@ pub struct Core {
     pub delay_ms: AtomicUsize,
     /// 多给：比要的多给几个字节（网页软件只照要的写）。
     pub overfill: AtomicBool,
+    /// 有后台页的包：编号 → 页面目录里的相对路径 → 内容。
+    pub pages: BTreeMap<String, BTreeMap<String, Vec<u8>>>,
+    /// 装着、没有后台页的包。
+    pub plain: Vec<String>,
 }
 
 impl Core {
@@ -48,6 +52,21 @@ impl Core {
     /// 一份本机文件。
     pub fn file(mut self, path: &str, bytes: Vec<u8>) -> Core {
         self.files.insert(path.to_string(), bytes);
+        self
+    }
+
+    /// 一个包后台页里的一份文件。
+    pub fn page(mut self, package: &str, path: &str, bytes: Vec<u8>) -> Core {
+        self.pages
+            .entry(package.to_string())
+            .or_default()
+            .insert(path.to_string(), bytes);
+        self
+    }
+
+    /// 一个没有后台页的包。
+    pub fn plain(mut self, package: &str) -> Core {
+        self.plain.push(package.to_string());
         self
     }
 }
@@ -97,9 +116,57 @@ pub fn serve(mut listener: Listener, core: Arc<Core>) {
     });
 }
 
+/// 答 `package.list`：有后台页的 `page` 是真的。
+fn list(core: &Core) -> Value {
+    let paged = core
+        .pages
+        .keys()
+        .map(|package| json!({"package": package, "page": true, "status": "ready"}));
+    let plain = core
+        .plain
+        .iter()
+        .map(|package| json!({"package": package, "status": "ready"}));
+    json!({"packages": paged.chain(plain).collect::<Vec<_>>()})
+}
+
+/// 答 `package.file`：一次最多 512 KiB，带 `size`、`eof`；路径照核心的规矩（空的是 `index.html`，带 `..` 的拒）。
+fn page_file(core: &Core, params: &Value) -> Result<Value, &'static str> {
+    let package = params["package"].as_str().unwrap_or_default();
+    let Some(files) = core.pages.get(package) else {
+        return Err(match core.plain.iter().any(|p| p == package) {
+            true => "no_page",
+            false => "unknown_package",
+        });
+    };
+    let path = match params["path"].as_str().unwrap_or_default() {
+        "" => "index.html",
+        path => path,
+    };
+    if path.split('/').any(|part| part == "..") || path.starts_with('/') || path.contains('\\') {
+        return Err("bad_params");
+    }
+    let bytes = files.get(path).ok_or("not_found")?;
+    let offset = params["offset"].as_u64().unwrap_or(0);
+    core.reads
+        .lock()
+        .expect("没崩")
+        .push((offset, CHUNK as u64));
+    let size = bytes.len() as u64;
+    let start = offset.min(size) as usize;
+    let end = (start + CHUNK).min(bytes.len());
+    Ok(
+        json!({"data": STANDARD.encode(&bytes[start..end]), "size": size, "eof": end == bytes.len()}),
+    )
+}
+
 /// 答 `blob.get`、`fs.read`：照 `offset`、`length` 切一段。
 async fn read(core: &Core, request: &Value) -> Result<Value, &'static str> {
     let params = &request["params"];
+    match request["method"].as_str() {
+        Some("package.list") => return Ok(list(core)),
+        Some("package.file") => return page_file(core, params),
+        _ => {}
+    }
     let bytes = match request["method"].as_str() {
         Some("blob.get") => core
             .blobs

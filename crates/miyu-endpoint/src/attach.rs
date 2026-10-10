@@ -224,6 +224,28 @@ pub(crate) async fn images(core: &Core, hashes: Vec<ContentHash>) -> Result<Vec<
     .await
 }
 
+/// 管理员的一个 blob 读出来、照内容认（施工 P-5：人格的头像）：交回字节和认出来的图；不是图、超了图的上限的交回 `None` 的图。
+/// blob 没有的 `unknown_attachment`。
+pub(crate) async fn picture(
+    core: &Core,
+    blob: ContentHash,
+) -> Result<(Vec<u8>, Option<(MediaType, u32, u32)>), Refusal> {
+    let place = place(core);
+    blocking(move || {
+        let bytes = read_blob(&Blobs::new(place.root.blobs(&place.admin)), &blob)?;
+        let image = match kind(&bytes, None) {
+            Ok(Kind::Image {
+                media_type,
+                width,
+                height,
+            }) => Some((media_type, width, height)),
+            Ok(Kind::File { .. }) | Err(_) => None,
+        };
+        Ok((bytes, image))
+    })
+    .await
+}
+
 /// 取一个 blob：没有的 `unknown_attachment`，读不了的记一行、`internal_error`。
 fn read_blob(blobs: &Blobs, blob: &ContentHash) -> Result<Vec<u8>, Refusal> {
     blobs.get(blob).map_err(|error| match error {

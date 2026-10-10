@@ -152,9 +152,7 @@ async fn check_reports_each_problem_on_a_line_and_the_total() {
         "个人设置定了英文：{text}"
     );
     assert!(
-        lines[1].ends_with(
-            "settings.toml:2:1 warning: There is no x.y. The line is ignored and kept as it is."
-        ),
+        lines[1].ends_with("settings.toml:2:1 warning: There is no x.y. Line ignored."),
         "{text}"
     );
     assert_eq!(lines[2], "1 error, 1 warning");
@@ -338,7 +336,7 @@ async fn set_unset_and_trust_go_through_a_real_core() {
     assert_eq!(set.status.code(), Some(0), "{set:?}");
     assert_eq!(
         stderr(&set),
-        "· ui.language = \"zh\" 写进了个人设置，当场生效\n",
+        "· ui.language = \"zh\" 写进了个人设置，立即生效\n",
         "不是终端，灰字不上色"
     );
     let personal = root.join("home").join("admin").join("settings.toml");

@@ -55,16 +55,28 @@ mod params;
 
 use params::*;
 
-/// 在后台答的自带方法（施工 8-20 补，`protocol.md`「一个连接」第 1 条）：`model.call` 要等模型说完，几秒到几分钟；同一个连接
-/// 后面的请求不等它，回应照 `id` 对上。
-pub(crate) fn answered_later(method: &str) -> bool {
-    method == "model.call"
+/// 在后台答的自带请求（施工 8-20 补，`protocol.md`「一个连接」第 1 条）：`model.call` 要等模型说完，几秒到几分钟；现在就整理
+/// 记忆（`memory.dream`，`command.run` 的 `/dream`，施工 R-7 补）几秒到十几秒。同一个连接后面的请求不等它，回应照 `id`
+/// 对上。`command.run` 的照命令表问（[`commands::answered_later`]），别的命令照旧按顺序答。
+pub(crate) fn answered_later(request: &Request) -> bool {
+    match request.method.as_str() {
+        "model.call" | "memory.dream" | "package.call" => true,
+        "command.run" => commands::answered_later(request),
+        _ => false,
+    }
 }
 
-/// 在后台办一条 [`answered_later`] 认的请求。
-pub(crate) async fn call_later(core: &Arc<Core>, request: &Request) -> Result<Value, Refusal> {
+/// 在后台办一条 [`answered_later`] 认的请求，连接的这一头是 `peer`（`command.run` 的回执照它的语言写）。
+pub(crate) async fn call_later(
+    core: &Arc<Core>,
+    peer: Peer,
+    request: &Request,
+) -> Result<Value, Refusal> {
     match request.method.as_str() {
         "model.call" => models::call(core, params(request)?).await,
+        "memory.dream" => memory::dream::call(core, &request.params).await,
+        "package.call" => crate::backstage::call(core, params(request)?).await,
+        "command.run" => commands::run(core, &peer, &request.id, params(request)?).await,
         _ => Err(Refusal::UNKNOWN_METHOD),
     }
 }
@@ -123,9 +135,14 @@ pub(crate) async fn call(
         }
         "check" => crate::check::check(core, peer, params(request)?).await,
         "persona.list" => personas::list(core, peer).await,
+        "persona.avatar" => personas::avatar::read(core, params(request)?).await,
         "package.list" => crate::packages::list(core, peer),
         "package.install" => crate::packages::manage::install(core, peer, params(request)?).await,
         "package.remove" => crate::packages::manage::remove(core, params(request)?).await,
+        "package.enable" => crate::packages::switch::enable(core, peer, params(request)?).await,
+        "package.file" => crate::backstage::read(core, params(request)?).await,
+        "package.methods" => crate::backstage::register(core, caller, params(request)?),
+        "package.disable" => crate::packages::switch::disable(core, peer, params(request)?).await,
         "view.page" => crate::view::page(core, params(request)?).await,
         "view.detail" => crate::view::detail(core, params(request)?).await,
         "extension.status" => Ok(crate::extensions::status(core, peer)),

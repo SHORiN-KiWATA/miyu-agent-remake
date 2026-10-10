@@ -6,6 +6,8 @@
 //! 握手交配置、推送 `extension.config` 只给核心亲手拉起的连接（施工 O-20，`extensions.md`「配置」），本机套接字上的核心不给：
 //! 这一层照它的样子在握手的回应里填上 `config`，测试要改配置的经 [`Relay`] 照推送的样子写给桥（「施工时定的」第 47 条）。
 //! 要的话再照核心 O-4 中（系统账号）以后的样子改写账号（[`Accounts`]，「施工时定的」第 49 条），记下桥问了核心哪些方法。
+//! 施工 O-26：照核心反向调用的样子往桥推一条请求（[`Relay::request`]），记下桥回核心的回应（[`Relay::answers`]）；回应照转给
+//! 核心，核心对不上编号的不理。
 
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
@@ -32,6 +34,8 @@ pub struct Accounts {
 pub struct Relay {
     push: mpsc::UnboundedSender<Value>,
     asked: Arc<Mutex<Vec<String>>>,
+    /// 桥回核心的回应（没有 `method` 的一行），照先后（施工 O-26）。
+    answers: Arc<Mutex<Vec<Value>>>,
 }
 
 impl Relay {
@@ -49,6 +53,18 @@ impl Relay {
     pub fn asked(&self) -> Vec<String> {
         self.asked.lock().expect("没 panic").clone()
     }
+
+    /// 照核心反向调用的样子往桥推一条请求或者通知 `message`（施工 O-26）：插在核心说的两行之间，不切断哪一行。
+    pub fn request(&self, message: Value) {
+        if self.push.send(message).is_err() {
+            // 照转已经停了：推不过去，和核心那边断了一样。
+        }
+    }
+
+    /// 桥回核心的回应（施工 O-26），照先后。
+    pub fn answers(&self) -> Vec<Value> {
+        self.answers.lock().expect("没 panic").clone()
+    }
 }
 
 /// 一条接到数据根 `root` 上那个核心的管道：握手接受了的回应里填上 `config`（`null` 的不填），`accounts` 有的照它改写账号。
@@ -57,9 +73,11 @@ pub fn pipe_to(root: &DataRoot, config: Value, accounts: Option<Accounts>) -> (P
     let (bridge, near) = tokio::io::duplex(1 << 16);
     let (push, mut pushes) = mpsc::unbounded_channel::<Value>();
     let asked = Arc::new(Mutex::new(Vec::new()));
+    let answers = Arc::new(Mutex::new(Vec::new()));
     let relay = Relay {
         push,
         asked: Arc::clone(&asked),
+        answers: Arc::clone(&answers),
     };
     let root = root.clone();
     tokio::spawn(async move {
@@ -100,7 +118,7 @@ pub fn pipe_to(root: &DataRoot, config: Value, accounts: Option<Accounts>) -> (P
             if !config.is_null() {
                 reply["result"]["config"] = config;
             }
-            // 桥自己的账号照核心拉起它时的样子：系统账号 `onebot`（核心 O-4 下）。本机套接字上的核心当它是管理员，不改写的话主人
+            // 桥自己的账号照核心拉起它时的样子：系统账号 `onebot`（核心 O-4 下）。本机套接字上的核心当它是管理员，不改写的话终端管理员
             // 私聊的属主（管理员）和它一样，会被当成陌生人。
             reply["result"]["account"] = json!(accounts.map_or("onebot", |accounts| accounts.own));
         }
@@ -112,20 +130,23 @@ pub fn pipe_to(root: &DataRoot, config: Value, accounts: Option<Accounts>) -> (P
             return;
         }
         // 之后两头照转（读整行用 `read_until`：取消了的话读了一半的留在 `line` 里，不丢）。桥发的记下方法，`venue.session` 记下
-        // 编号；核心回它的照 `accounts` 改写；推送插在核心说的两行之间。
+        // 编号，回应（施工 O-26：答核心的请求）记下整行；核心回它的照 `accounts` 改写；推送插在核心说的两行之间。
         let venues = Mutex::new(HashSet::new());
         let up = async {
             let mut line = Vec::new();
             while matches!(near_read.read_until(b'\n', &mut line).await, Ok(read) if read > 0) {
-                if let Ok(request) = serde_json::from_slice::<Value>(&line)
-                    && let Some(method) = request["method"].as_str()
-                {
-                    asked.lock().expect("没 panic").push(method.to_string());
-                    if method == "venue.session" {
-                        venues
-                            .lock()
-                            .expect("没 panic")
-                            .insert(request["id"].to_string());
+                if let Ok(request) = serde_json::from_slice::<Value>(&line) {
+                    match request["method"].as_str() {
+                        Some(method) => {
+                            asked.lock().expect("没 panic").push(method.to_string());
+                            if method == "venue.session" {
+                                venues
+                                    .lock()
+                                    .expect("没 panic")
+                                    .insert(request["id"].to_string());
+                            }
+                        }
+                        None => answers.lock().expect("没 panic").push(request),
                     }
                 }
                 if core_write.write_all(&line).await.is_err() {

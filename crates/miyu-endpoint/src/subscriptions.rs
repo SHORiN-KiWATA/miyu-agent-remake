@@ -14,10 +14,13 @@
 //! 配置的推送另有一个订阅（施工 8-4，`subscriptions/config.rs`）：一个连接至多一个，`config.set` 的回应经它写出去。会话列表
 //! 的推送也是（施工 9-5，`subscriptions/sessions.rs`）：订阅的回应经它写出去，排在推送前面。扩展的状态的推送同会话列表（施工
 //! 9-4 补，`subscriptions/extensions.rs`）。
+//!
+//! 在后台答的回应（施工 R-7 补，`/dream`）办完了照那一刻的会话订阅走，表在 `subscriptions/later.rs`（[`Later`]）。
 
 mod config;
 mod extension_config;
 mod extensions;
+mod later;
 mod sessions;
 
 use std::collections::BTreeMap;
@@ -35,6 +38,7 @@ use crate::Core;
 use config::ConfigForwarder;
 use extension_config::ExtensionConfigForwarder;
 use extensions::ExtensionsForwarder;
+pub(crate) use later::Later;
 use sessions::SessionsForwarder;
 
 /// 一个连接上的订阅：一个会话一个，配置的至多一个（施工 8-4）。
@@ -46,6 +50,8 @@ pub(crate) struct Subscriptions {
     extensions: Option<ExtensionsForwarder>,
     /// 核心拉起的扩展自己的配置的推送（施工 9-4 下下）：握手以后起，不用订阅。
     extension_config: Option<ExtensionConfigForwarder>,
+    /// 会话订阅交回应的那一头的弱引用：开通道时一起记下，在后台答的回应照它走（施工 R-7 补）。
+    later: Later,
 }
 
 /// 一条回应经哪个订阅写出去。
@@ -71,6 +77,11 @@ struct Forwarder {
 }
 
 impl Subscriptions {
+    /// 在后台答的任务拿的那一份（施工 R-7 补）：办完了照那一刻的会话订阅写回应。
+    pub(crate) fn later(&self) -> Later {
+        self.later.clone()
+    }
+
     /// 这个会话有没有还在推的订阅。掉了队、会话停了的，不算：头重新订阅，换一个新的。
     pub(crate) fn has(&self, session: &SessionId) -> bool {
         self.live
@@ -87,7 +98,7 @@ impl Subscriptions {
         backlog: Vec<Event>,
         out: mpsc::Sender<String>,
     ) {
-        let (replies, waiting) = mpsc::unbounded_channel();
+        let (replies, waiting) = self.later.open(session.clone());
         let pushing = Arc::new(AtomicBool::new(true));
         let task = tokio::spawn(forward(
             session.clone(),

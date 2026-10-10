@@ -19,10 +19,11 @@ fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-/// 出厂带的软件包拼好的配置项（施工 9-1 下）：真核心起来时也带着它们。
+/// 出厂带的软件包拼好的配置项（施工 9-1 下）：真核心起来时也带着它们。照发行包的样子，程序都在 `miyu` 旁边（施工 F-6 上：
+/// 跑测试的这台机器上测试程序旁边没有 `miyu-onebot`，照它算接入QQ 的几项就没了）。
 fn shipped() -> Packaged {
     let mut found = Packages::shipped(&ResourceRoot::at(repository().join("resources"))).read();
-    Packaged::of(&mut found)
+    Packaged::as_released(&mut found)
 }
 
 /// 这种语言的字，照源码树的资源目录读，并进出厂的包的字。
@@ -205,12 +206,13 @@ fn tiers_are_unknown_now_and_pools_take_the_two_new_items() {
     assert_eq!(codes, [Code::BadFormat], "说明要写英文");
 }
 
-/// 施工 O-17：自己人 `onebot.trusted`（`onebot.md` 第二条「对外的样子」）是平台身份的列表：读得出，不写是没有；只能写在系统
-/// 配置、当场生效、界面是列表；不是列表的、元素不是字的、空的、超过 128 个字的报问题，128 个字的照收。施工 O-20 起它在 QQ 桥
-/// 自己的清单 `[settings]` 里（`onebot.md` 第一条「软件包清单」），照出厂的包拼进来，在「软件包」那一页、这个包那一组；核心
-/// 自己不再声明 `onebot.` 开头的项（声明了，清单的 `[settings]` 整份报 `settings_taken`）。
+/// 施工 O-17：白名单成员 `onebot.whitelist`（`onebot.md` 第二条「对外的样子」；施工 O-27 从 `onebot.trusted` 改名，旧键当
+/// 不认识）是平台身份的列表：读得出，不写是没有；只能写在系统配置、当场生效、界面是列表；不是列表的、元素不是字的、空的、
+/// 超过 128 个字的报问题，128 个字的照收。施工 O-20 起它在 QQ 桥自己的清单 `[settings]` 里（`onebot.md` 第一条「软件包
+/// 清单」），照出厂的包拼进来，在「软件包」那一页、这个包那一组；核心自己不再声明 `onebot.` 开头的项
+/// （声明了，清单的 `[settings]` 整份报 `settings_taken`）。
 #[test]
-fn onebot_trusted_is_a_system_list_of_identities() {
+fn onebot_whitelist_is_a_system_list_of_identities() {
     use miyu_config::problem::Code;
     use miyu_config::{Applies, Control, Kind, Layer, Value, Values};
     assert!(
@@ -220,7 +222,7 @@ fn onebot_trusted_is_a_system_list_of_identities() {
     let listed = shipped().all();
     let item = listed
         .iter()
-        .find(|item| item.key == "onebot.trusted")
+        .find(|item| item.key == "onebot.whitelist")
         .expect("出厂的桥声明了");
     assert_eq!(item.kind, Kind::List(&Kind::Text { max: 128 }));
     assert_eq!(item.default, None);
@@ -228,8 +230,8 @@ fn onebot_trusted_is_a_system_list_of_identities() {
     assert_eq!(item.applies, Applies::Now);
     assert_eq!(
         (item.ui.page, item.ui.group, item.ui.control),
-        ("connections", "onebot", Control::List),
-        "平台接入的配置项在「接入」那一页（施工 F-4）"
+        ("packages", "onebot", Control::List),
+        "平台接入的配置项和别的包一样在「软件包」那一页（施工 F-6 上：「接入」页去掉了）"
     );
     let parse = |layer: Layer, source: &str| {
         miyu_config::parse::parse(&listed, layer, source).expect("写法对")
@@ -242,56 +244,61 @@ fn onebot_trusted_is_a_system_list_of_identities() {
             .collect()
     };
     let values = Values::defaults(&listed);
-    assert_eq!(values.get("onebot.trusted"), None, "不写是没有");
+    assert_eq!(values.get("onebot.whitelist"), None, "不写是没有");
     let parsed = parse(
         Layer::System,
-        "[onebot]\ntrusted = [\"qq:20017\", \"qq:10002\"]\n",
+        "[onebot]\nwhitelist = [\"qq:20017\", \"qq:10002\"]\n",
     );
     assert!(parsed.problems.is_empty(), "{:?}", parsed.problems);
     assert_eq!(
-        parsed.entries["onebot.trusted"].value,
+        parsed.entries["onebot.whitelist"].value,
         Value::List(vec![
             Value::Text("qq:20017".into()),
             Value::Text("qq:10002".into())
         ])
     );
     assert_eq!(
-        codes(Layer::System, "[onebot]\ntrusted = []\n"),
+        codes(Layer::System, "[onebot]\nwhitelist = []\n"),
         Vec::<Code>::new(),
         "空表照收"
     );
     assert_eq!(
-        codes(Layer::Personal, "[onebot]\ntrusted = [\"qq:20017\"]\n"),
+        codes(Layer::Personal, "[onebot]\nwhitelist = [\"qq:20017\"]\n"),
         [Code::WrongLayer],
         "只能写在系统配置"
     );
     assert_eq!(
-        codes(Layer::System, "[onebot]\ntrusted = \"qq:20017\"\n"),
+        codes(Layer::System, "[onebot]\nwhitelist = \"qq:20017\"\n"),
         [Code::WrongType]
     );
     assert_eq!(
-        codes(Layer::System, "[onebot]\ntrusted = [20017]\n"),
+        codes(Layer::System, "[onebot]\nwhitelist = [20017]\n"),
         [Code::WrongType]
     );
     assert_eq!(
-        codes(Layer::System, "[onebot]\ntrusted = [\"\"]\n"),
+        codes(Layer::System, "[onebot]\nwhitelist = [\"\"]\n"),
         [Code::BadFormat]
     );
     let longest = format!("qq:{}", "1".repeat(125));
     assert_eq!(
         codes(
             Layer::System,
-            &format!("[onebot]\ntrusted = [\"{longest}\"]\n")
+            &format!("[onebot]\nwhitelist = [\"{longest}\"]\n")
         ),
         Vec::<Code>::new()
     );
     assert_eq!(
         codes(
             Layer::System,
-            &format!("[onebot]\ntrusted = [\"{longest}1\"]\n")
+            &format!("[onebot]\nwhitelist = [\"{longest}1\"]\n")
         ),
         [Code::BadFormat],
         "超过 128 个字"
+    );
+    assert_eq!(
+        codes(Layer::System, "[onebot]\ntrusted = [\"qq:20017\"]\n"),
+        [Code::UnknownKey],
+        "旧键不认（施工 O-27）"
     );
 }
 
@@ -316,7 +323,7 @@ fn builtin_package_settings_follow_their_package() {
     }
     let mut found = Packages::shipped(&ResourceRoot::at(repository().join("resources"))).read();
     found.retain(|one| one.id != "memory");
-    let absent = Packaged::of(&mut found).all();
+    let absent = Packaged::as_released(&mut found).all();
     let memory: Vec<_> = absent
         .iter()
         .filter(|item| item.key.starts_with("memory."))

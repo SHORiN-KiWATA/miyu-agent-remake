@@ -308,12 +308,12 @@ async fn a_changed_language_is_spoken_on_the_next_request() {
     let mut client = subscribed(&core).await;
     let unknown = json!({"keys": ["ui.langauge"]});
     let before = client.call("g1", "config.get", unknown.clone()).await;
-    assert_eq!(before["error"]["message"], "没有这一项配置。", "{before}");
+    assert_eq!(before["error"]["message"], "配置项不存在。", "{before}");
     save(&home, PERSONAL, "[ui]\nlanguage = \"en\"\n");
     pushed(&mut client).await;
     let after = client.call("g2", "config.get", unknown).await;
     assert_eq!(
-        after["error"]["message"], "There is no such setting.",
+        after["error"]["message"], "Config key not found.",
         "{after}"
     );
     let schema = client

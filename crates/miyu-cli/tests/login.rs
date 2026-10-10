@@ -212,7 +212,7 @@ async fn a_piped_key_is_read_whole_without_asking() {
     .await;
     assert_eq!(
         (asked.code, asked.err.as_str()),
-        (1, "参数不对。\n"),
+        (1, "参数错误。\n"),
         "核心拒了照原话说"
     );
 }

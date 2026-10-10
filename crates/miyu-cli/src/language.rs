@@ -84,7 +84,7 @@ impl Language {
             Word::Failed => ("出错", "failed"),
             Word::Denied => ("没做", "not done"),
             Word::Cancelled => ("打断了", "interrupted"),
-            Word::Skipped => ("跳过了", "skipped"),
+            Word::Skipped => ("已跳过", "skipped"),
         };
         match self {
             Language::Chinese => chinese,
@@ -180,18 +180,18 @@ impl Language {
 
     fn class(&self, class: &str) -> &'static str {
         let (chinese, english) = match class {
-            "retryable" => ("暂时出错", "temporary error"),
-            "rate_limited" => ("被限速了", "rate limited"),
+            "retryable" => ("临时错误", "temporary error"),
+            "rate_limited" => ("请求受限", "rate limited"),
             "context_too_long" => ("上下文太长", "context too long"),
             "auth" => ("认证失败", "authentication failed"),
-            "content_policy" => ("被内容策略拦下了", "blocked by content policy"),
-            "bad_stream" => ("回复的流不对", "bad stream"),
-            "empty_reply" => ("回复是空的", "empty reply"),
-            "bad_summary" => ("取不出摘要", "no summary in the reply"),
-            "compaction_paused" => ("自动压缩暂停着", "automatic compaction is paused"),
+            "content_policy" => ("内容被拦截", "blocked by content policy"),
+            "bad_stream" => ("响应流异常", "malformed response stream"),
+            "empty_reply" => ("响应为空", "empty response"),
+            "bad_summary" => ("摘要提取失败", "summary extraction failed"),
+            "compaction_paused" => ("自动压缩已暂停", "auto-compaction paused"),
             "no_model" => ("没有可用的模型", "no model available"),
-            "cooling" => ("候选都在冷却", "all candidates are cooling down"),
-            _ => ("模型出错", "model error"),
+            "cooling" => ("模型冷却中", "models cooling down"),
+            _ => ("模型错误", "model error"),
         };
         match self {
             Language::Chinese => chinese,

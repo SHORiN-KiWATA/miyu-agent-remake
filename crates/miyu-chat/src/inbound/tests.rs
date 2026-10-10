@@ -61,14 +61,14 @@ fn earlier_stop_hides_later_rules() {
 }
 
 #[test]
-fn owner_passes_sleep_and_allow_but_not_mute() {
+fn admin_passes_sleep_and_allow_but_not_mute() {
     let mut all = ctx();
     all.sleep = sleep("11:00-13:00");
     all.allow = Some(false);
-    let owner = msg(Standing::Owner, VenueKind::Group);
-    assert_eq!(judge(&owner, &all, at(12, 0)), pass());
+    let admin = msg(Standing::Admin, VenueKind::Group);
+    assert_eq!(judge(&admin, &all, at(12, 0)), pass());
     all.muted = true;
-    assert_eq!(judge(&owner, &all, at(12, 0)), record(Why::Muted));
+    assert_eq!(judge(&admin, &all, at(12, 0)), record(Why::Muted));
 }
 
 /// 场所睡在 `span`，此刻 `clock`，群里别的人发的消息：睡着没有。
@@ -145,14 +145,15 @@ fn sleep_before_the_epoch() {
 }
 
 #[test]
-fn sleep_excuses_owner_and_trusted_in_private() {
+fn sleep_excuses_admin_and_whitelisted_anywhere() {
+    // 白名单成员睡觉时间里私聊、群里都放行（施工 O-27，2026-10-10 项目主人定）。
     let mut night = ctx();
     night.sleep = sleep("23:00-07:00");
     let clock = utc(1, 0, 0);
     let expected = [
         pass(),
         pass(),
-        record(Why::Asleep),
+        pass(),
         record(Why::Asleep),
         record(Why::Asleep),
     ];
@@ -177,7 +178,7 @@ fn muted_records_everyone() {
 }
 
 #[test]
-fn not_allowed_excuses_owner_and_trusted_in_private() {
+fn not_allowed_excuses_admin_and_whitelisted_in_private() {
     let mut closed = ctx();
     closed.allow = Some(false);
     let expected = [

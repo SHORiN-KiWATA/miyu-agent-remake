@@ -1,4 +1,7 @@
 {
+  "tools": {
+    "skip_reply": { "name": "不说话", "subject": "reason" }
+  },
   "said": {
     "usage": "用法：miyu onebot start | stop | restart | status | logs [-f] | web [--print] | venue show <场所>（serve 只由核心拉起）",
     "no-log": "运行日志写不了：{reason}",
@@ -85,7 +88,7 @@
     "web/later": "以后",
     "web/not-yet": "这一页以后做",
     "web/nav/connection": "连接",
-    "web/nav/owners": "主人与自己人",
+    "web/nav/people": "终端管理员与白名单成员",
     "web/nav/venues": "场所",
     "web/nav/tools": "平台工具",
     "web/nav/plugins": "插件",
@@ -127,23 +130,22 @@
     "web/ports/web-moved": "WebUI 换到了端口 {port}，马上跳过去。登录记在浏览器里、按地址分，到了新地址要再登录一次。",
     "web/ports/in-use": "端口 {port} 被占了，桥照旧用原来的端口。换一个再保存。",
     "web/cancel": "取消",
-    "web/people/owners/title": "主人",
-    "web/people/owners/hint": "这些号的私聊就是本机账号本人；在群里多管理命令的权限。",
-    "web/people/owners/empty": "还没有主人。按「加一个」，填上你自己的 QQ 号，再按「保存」：以后你私聊她，她就认得是你。",
+    "web/people/admins/title": "终端管理员",
+    "web/people/admins/hint": "这些号的私聊就是本机账号本人；在群里多管理命令的权限。",
+    "web/people/admins/empty": "还没有终端管理员。按「加一个」，填上你自己的 QQ 号，再按「保存」：以后你私聊她，她就认得是你。",
     "web/people/number": "QQ 号",
     "web/people/account": "本机账号",
     "web/people/add": "加一个",
     "web/people/remove": "删",
     "web/people/bad-number": "号只能是数字，不以 0 开头",
     "web/people/duplicate": "这个号重复了",
-    "web/people/already-owner": "已经是主人",
-    "web/people/trusted/title": "自己人",
-    "web/people/trusted/hint": "私聊里能叫她，不限流，睡着时私聊也放行。",
-    "web/people/trusted/later": "QQ 桥接通群以后才照这张表认人，现在先记下。",
-    "web/people/trusted/empty": "还没有自己人。",
-    "web/people/risk/title": "主人的号就是你本人：先知道这三条代价",
+    "web/people/already-admin": "已经是终端管理员",
+    "web/people/whitelist/title": "白名单成员",
+    "web/people/whitelist/hint": "能私聊她，加她好友自动通过，不限流，睡觉时间里照样放行，群里冲她来的直接回。",
+    "web/people/whitelist/empty": "还没有白名单成员。",
+    "web/people/risk/title": "终端管理员的号就是你本人：先知道这三条代价",
     "web/people/risk/stolen": "QQ 号被盗，就等于这台机器在你的权限下被别人用。",
-    "web/people/risk/forged": "「这是主人发的」只能听 NapCat 报上来的：NapCat 被人拿下、或者本身不怀好意，就能冒充你的私聊。",
+    "web/people/risk/forged": "「这是终端管理员发的」只能听 NapCat 报上来的：NapCat 被人拿下、或者本身不怀好意，就能冒充你的私聊。",
     "web/people/risk/injection": "网页、文件里藏着的提示词注入，能让她在沙盒允许的范围里乱改工作区的文件；越过沙盒的操作在私聊里一律做不了。"
   }
 }

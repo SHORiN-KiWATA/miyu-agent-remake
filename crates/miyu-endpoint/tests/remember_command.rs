@@ -1,5 +1,6 @@
 //! 斜杠命令 `/remember`（施工 R-3 补，`docs/blueprint/memory.md`「协议」）：真核心走一遍。记进这个会话那一间，`by` 是打命令
-//! 的人、出处空，回执照连接的语言带编号，记一条 `command.ran`；不请求模型。空的、超长的、记忆关着的、场所会话里的不记。
+//! 的人、出处空，回执照连接的语言说记下了那句话（不露编号，施工 R-3 四补），记一条 `command.ran`；不请求模型。空的、超长的、
+//! 记忆关着的、场所会话里的不记。
 
 use serde_json::{Value, json};
 
@@ -35,7 +36,7 @@ async fn remember_saves_in_the_sessions_room_without_asking_the_model() {
     let session = client.create("c1", "~").await;
     let reply = run(&mut client, "k1", &session, "/remember   用户喜欢猫  ").await;
     assert_eq!(reply["result"]["command"], "remember", "{reply}");
-    assert_eq!(reply["result"]["said"], "记下了：m1。");
+    assert_eq!(reply["result"]["said"], "记下了：用户喜欢猫", "不露编号");
     assert_eq!(noted(&home.log(&session)), ["remember"]);
     assert!(script.requests().is_empty(), "不请求模型");
     let again = run(&mut client, "k1", &session, "/remember   用户喜欢猫  ").await;
@@ -65,6 +66,25 @@ async fn remember_saves_in_the_sessions_room_without_asking_the_model() {
         "{listed}"
     );
     assert_eq!(memory["sources"], json!([]));
+    // 回执里换行、制表换成空格，花括号照原样；记下的原文不动（施工 R-3 四补）。
+    let reply = run(
+        &mut client,
+        "k9",
+        &session,
+        "/remember 第一行\n{id}\t第二行",
+    )
+    .await;
+    assert_eq!(
+        reply["result"]["said"], "记下了：第一行 {id} 第二行",
+        "{reply}"
+    );
+    let listed = client
+        .call("l2", "memory.list", json!({"session": session}))
+        .await;
+    assert_eq!(
+        listed["result"]["memories"][0]["text"],
+        "第一行\n{id}\t第二行"
+    );
 
     let long = format!("/remember {}", "长".repeat(121));
     for (id, text, why) in [
@@ -75,7 +95,11 @@ async fn remember_saves_in_the_sessions_room_without_asking_the_model() {
         let reply = run(&mut client, id, &session, text).await;
         assert_eq!(reason(&reply), Some(why), "{text}：{reply}");
     }
-    assert_eq!(noted(&home.log(&session)), ["remember"], "被拒的不记");
+    assert_eq!(
+        noted(&home.log(&session)),
+        ["remember", "remember"],
+        "被拒的不记"
+    );
 
     let off = client
         .call("c2", "session.create", json!({"cwd": "~", "memory": "off"}))
@@ -84,14 +108,8 @@ async fn remember_saves_in_the_sessions_room_without_asking_the_model() {
     let reply = run(&mut client, "k5", &off, "/remember 用户喜欢猫").await;
     assert_eq!(reason(&reply), Some("memory_unavailable"), "{reply}");
     // 人格、预设都开着记忆、是造会话时关的：说不准是哪一样，照拒绝的那一句（施工 O-6 再补）。
-    assert_eq!(
-        reply["error"]["data"]["why"], "这里没有记忆：没有人格、记忆关着，或者是通讯平台的会话。",
-        "{reply}"
-    );
-    assert_eq!(
-        reply["error"]["message"],
-        "这里没有记忆：没有人格、记忆关着，或者是通讯平台的会话。"
-    );
+    assert_eq!(reply["error"]["data"]["why"], "记忆不可用。", "{reply}");
+    assert_eq!(reply["error"]["message"], "记忆不可用。");
 }
 
 /// 记不了的说具体（施工 O-6 再补，2026-10-09 项目主人在网页上验收）：没有人格的、预设没开记忆的带上预设的名字。
@@ -104,7 +122,7 @@ async fn a_refused_remember_says_exactly_why() {
     let session = client.create("c1", "~").await;
     let reply = run(&mut client, "k1", &session, "/remember 用户喜欢猫").await;
     assert_eq!(reason(&reply), Some("memory_unavailable"), "{reply}");
-    assert_eq!(reply["error"]["data"]["why"], "没有人格的会话记忆不生效。");
+    assert_eq!(reply["error"]["data"]["why"], "无人格会话不支持记忆。");
 
     let home = Home::new();
     let mut client = Client::connect(with_persona(&home, &script, Catalog::default()));
@@ -116,7 +134,7 @@ async fn a_refused_remember_says_exactly_why() {
     assert_eq!(reason(&reply), Some("memory_unavailable"), "{reply}");
     assert_eq!(
         reply["error"]["data"]["why"],
-        "这个会话的预设「基础功能」没开记忆。"
+        "预设「基础功能」未启用记忆。"
     );
 }
 
@@ -144,6 +162,19 @@ async fn in_a_venue_remember_waits_for_the_o_line() {
             "command.run",
             json!({"session": session, "text": "/remember 用户喜欢猫", "as": owner}),
         )
+        .await;
+    assert_eq!(reason(&reply), Some("memory_unavailable"), "{reply}");
+    // `/dream` 同一份判法（施工 R-7 补）。
+    let reply = client
+        .call(
+            "k2",
+            "command.run",
+            json!({"session": session, "text": "/dream", "as": owner}),
+        )
+        .await;
+    assert_eq!(reason(&reply), Some("memory_unavailable"), "{reply}");
+    let reply = client
+        .call("d1", "memory.dream", json!({"session": session}))
         .await;
     assert_eq!(reason(&reply), Some("memory_unavailable"), "{reply}");
     assert!(noted(&home.log(&session)).is_empty());

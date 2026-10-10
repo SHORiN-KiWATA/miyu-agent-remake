@@ -224,6 +224,15 @@ async fn check_packages(
                     let message = crate::packages::sentence(words, "protocol_mismatch", &range);
                     problems.push(json!({"kind": "package", "file": file, "code": "protocol_mismatch", "level": "warning", "message": message.unwrap_or_default()}));
                 }
+                // 写了后台页、目录里没有入口（施工 F-6 上，`package-pages.md`）：`package.list` 不带 `page`，这里说一声。
+                if let Some(dir) = manifest
+                    .page
+                    .as_ref()
+                    .filter(|_| !crate::packages::status::page(one, manifest))
+                {
+                    let message = crate::packages::sentence(words, "page_missing", dir);
+                    problems.push(json!({"kind": "package", "file": file, "code": "page_missing", "level": "warning", "message": message.unwrap_or_default()}));
+                }
             }
             Err(Issue::Wrong(problem)) => {
                 let message =

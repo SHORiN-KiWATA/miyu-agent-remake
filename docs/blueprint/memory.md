@@ -31,14 +31,15 @@
 | `crates/miyu-session/src/memory/backfill.rs` | 补齐旧会话：照账号的会话一个个读日志、照载入时的判法补（第一条第 9 款） | R-2 下 |
 | `crates/miyu-session/src/memory/summary.rs` | 常驻的摘要（R-7 下：有摘要时头一行是摘要、后面接之后新记的）：交不交、交什么、上限，外壳的字（`SummaryTexts`）；`memory/port.rs` 在阻塞线程里读，`actor/model.rs` 的 `hooks` 在回合开始问它、限时（第三条） | R-4 上 |
 | `crates/miyu-recall/src/extract.rs`、`redact.rs` | 抽取交回的怎么读（第六条第 5 款）；遮 key 和 key 写法的读法（第六条第 7 款） | R-6 上 |
-| `crates/miyu-session/src/memory/extract.rs` | 抽取：给模型看的字、一个会话的抽取状态（闹钟、在路上的、失败几次）、照这一段拼请求（几轮怎么接、放不下的分几次、截中间）、派出去的那一件活（发、读、遮、记） | R-6 上 |
-| `crates/miyu-session/src/actor/extract.rs` | 什么时候抽、这一段从哪来：闹钟、在阻塞线程里读两份日志、拼留着一切的历史交给组装器渲染（第六条第 1、2 款） | R-6 上 |
+| `crates/miyu-session/src/memory/extract.rs`、`extract/job.rs` | 抽取：给模型看的字、一个会话的抽取状态（闹钟、在路上的、失败几次）、照这一段拼请求（几轮怎么接、放不下的分几次、截中间）；`job.rs` 是派出去的那一件活（发、读、遮、记，记下以后看够不够合并；人叫的现在就合，R-7 补挪出来） | R-6 上 |
+| `crates/miyu-session/src/actor/extract.rs` | 什么时候抽、这一段从哪来：闹钟、在阻塞线程里读两份日志、拼留着一切的历史交给组装器渲染（第六条第 1、2 款）；人叫的现在就抽（`Handle::dream`，第七条第 9 款，R-7 补） | R-6 上 |
 | `crates/miyu-recall/src/merge.rs` | 合并交回的怎么读（第七条第 3 款） | R-7 上 |
-| `crates/miyu-session/src/memory/merge.rs`、`merge/land.rs` | 合并：给模型看的字（`MergeTexts`）、一间一把锁和失败几次（`Merges`）、什么时候合、拼请求（新记的、相关的、放不下的分几次）、发、读、遮；`land.rs` 是够不够合、合什么、怎么落（第七条） | R-7 上 |
+| `crates/miyu-session/src/memory/merge.rs`、`merge/land.rs` | 合并：给模型看的字（`MergeTexts`）、一间一把锁和失败几次（`Merges`）、什么时候合、拼请求（新记的、相关的、放不下的分几次）、发、读、遮；现在就合（`Keeper::dream`、`Dreamed`、`NotDreamed`，第七条第 9 款，R-7 补）；`land.rs` 是够不够合、合什么、怎么落（第七条） | R-7 上 |
 | `crates/miyu-session/src/memory/keeper.rs` | 一间记忆和这次的听众（`Keeper`）：记、改、忘、清空、搜、列、搜以前的对话，她的工具和协议共用；`memory/port.rs` 是她的工具的端口，只管出处是这一轮、`by` 是那次调用 | R-3 中、补 |
 | `crates/miyu-memory/` | 记忆这个软件包（可选、能关，`10-自带软件.md` 第三节）：三件工具 `memory_search`、`remember`、`forget`，经端口碰记忆日志和检索库；不放进基础系统 | R-3 中 |
 | `crates/miyu-endpoint/src/memory.rs`、`memory/params.rs` | 协议 `memory.*`：找哪一间、读参数、写回应；`/remember` 记一条（`commands.rs` 调它）；人格记忆没装的拒绝（R-10，第十一条）；`Core::with_vectors`、`memory_for`（R-10 从 `lib.rs` 挪过来） | R-3 补 |
-| `crates/miyu-cli/src/memory.rs`、`memory/shown.rs` | `miyu memory`：照子命令发 `memory.*`，一条印成一行（`cli/memory.md`） | R-3 再补 |
+| `crates/miyu-endpoint/src/memory/dream.rs` | 现在就整理：`memory.dream`、`/dream`（`commands.rs` 调它）；带会话的交给那个会话，不带的照那一间直接合；会话那一层交回的写成拒绝（第七条第 9 款） | R-7 补 |
+| `crates/miyu-cli/src/memory.rs`、`memory/shown.rs` | `miyu memory`：照子命令发 `memory.*`，一条印成一行（`cli/memory.md`）；`dream` 印几样数（R-7 补） | R-3 再补 |
 | `resources/software/memory/` | 给她看的字（说明、规则、摘要和联想的外壳、整理的指令），进登记簿；`extract/` 是抽取那一次请求的六份（R-6 上），`merge/` 是合并那一次的五份（R-7 上） | R-3 中起 |
 | `resources/core/memory/secrets.toml` | 常见的 key 写法（数据，不给模型看，不进登记簿） | R-6 上 |
 
@@ -105,7 +106,7 @@
 - 结果：`remember` 说记成了哪个编号（改的另说改了哪一条）；超过 120 字、`replaces` 没有这一条、那一条已经改掉或作废了，不记，说一句。`forget` 说作废了哪一条。`memory_search` 记下的一条一行（编号、类、记下的日期、正文），以前的对话一条一行（日期、会话的短编号、截到 300 字的字），记下的最多 10 条在前、对话最多 5 条在后；只给现在算数的、出处还活着的、听众合的（第二条、第九条）；什么都没有说一句。照关键词找，`models.embedding` 不是 `off` 的再照意思找、两路照名次合（施工 R-5 下，`recall.md` 第三条第 3 到 6 款）：意思对、字对不上的也找得到。原文见「样子」，施工时定。
 - 她当场记的那一段，后台不再抽（第六条第 3 款，R-6）。
 
-**协议**（R-3 补，`17-记忆.md` 第九节；原文写法见 `protocol.md`）：人不经过她碰记忆。五个方法都能写 `persona` 或 `session`（最多一个）指哪一间：`persona` 是这个人格那一间（记忆账号照 `personas.md` 第 5 条，属主是这个连接的账号）；`session` 是那个会话用的那一间（照它的快照；`off` 的、不带人格的、场所会话 `memory_unavailable`）；都不写照默认人格，没设默认人格的 `memory_unavailable`（不带人格记忆不生效，17 L17）。人格记忆这个软件包没装的，五个都回 `memory_not_installed`，先于别的检查（第十一条，R-10）。听众照这个连接的人（本机的是管理员）：只列、只搜、只改得到听众合的（第九条），不合的当没有。
+**协议**（R-3 补，`17-记忆.md` 第九节；原文写法见 `protocol.md`）：人不经过她碰记忆。六个方法都能写 `persona` 或 `session`（最多一个）指哪一间：`persona` 是这个人格那一间（记忆账号照 `personas.md` 第 5 条，属主是这个连接的账号）；`session` 是那个会话用的那一间（照它的快照；`off` 的、不带人格的、场所会话 `memory_unavailable`）；都不写照默认人格，没设默认人格的 `memory_unavailable`（不带人格记忆不生效，17 L17）。人格记忆这个软件包没装的，六个都回 `memory_not_installed`，先于别的检查（第十一条，R-10）。听众照这个连接的人（本机的是管理员）：只列、只搜、只改得到听众合的（第九条），不合的当没有。
 
 | 方法 | 类型 | 参数 | 回应 |
 |---|---|---|---|
@@ -114,12 +115,14 @@
 | `memory.remember` | 命令 | `class`（四类）、`text`（不超过 120 字） | `{"id"}` |
 | `memory.update` | 命令 | `id`、`text` | `{"id"}`：新的一条，`replaces` 旧的，类照旧的 |
 | `memory.forget` | 命令 | `id`、`why`（可以不写，写成空的）；或者 `clear`：`session`（清掉从这个会话来的，那个会话就是写的 `session`）、`me`（整间） | 作废的 `{}`；清空的 `{"cleared": <几条>}`（不算改掉的旧版本） |
+| `memory.dream` | 命令 | 只有 `persona`、`session`（R-7 补） | `{"given", "revised", "retired", "summary"}`：现在就整理（第七条第 9 款），交进去几条、改了几条、作废几条、摘要换没换；没有要整理的 `given` 是 0。在后台答（`protocol.md`「一个连接」第 1 条） |
 
 - 一条：`{"at", "by", "class", "id", "retired", "sources", "text"}`。`by` 是 `person`（人记的）或 `tool`（她记的）；`sources` 是 `[{"session", "turn"}]`；`retired` 是作废的原因，没作废的 `null`。只给现在算数的、出处活着的；`forgotten` 时作废的也给，清掉的、改掉的不给。
 - 人记的、改的：`by` 是这个人，出处空，听众是这个人。
 - 记、改、忘、清空同一个命令编号再发只算一次，回应和头一次一样，核心重启以后也是（上面 `cause`）：先认编号再查参数，改一条重发时那一条已经不算了，照样回头一次的。`/remember` 照 `command.run` 的编号。
-- 出错：`memory_unavailable`、`unknown_memory`（没有这一条，或者听众不合）、`memory_not_current`（已经改掉、作废、清掉了）、`memory_too_long`（`data.limit`、`data.chars`）；类不认识、空的、`persona` 和 `session` 都写、`id` 和 `clear` 都写或都不写、写了 `as`（代表外部的人碰记忆随 O 线）：`bad_params`。
-- 斜杠命令 `/remember <话>`（`command.run`，项目主人 2026-10-07 定只做这一个）：记进这个会话那一间，类 `user`，`by` 是打命令的人，出处空，听众是这个人；回执照连接的语言说记成了哪个编号。不经过模型、不花 token。只在本机的会话里：`off` 的、场所会话 `memory_unavailable`；空的 `bad_params`，超长的 `memory_too_long`。
+- 出错：`memory_unavailable`、`unknown_memory`（没有这一条，或者听众不合）、`memory_not_current`（已经改掉、作废、清掉了）、`memory_too_long`（`data.limit`、`data.chars`）、`memory_busy`（这一间正在整理，R-7 补）、`dream_failed`（整理没成，`data.message` 是英文的一句为什么，R-7 补）；类不认识、空的、`persona` 和 `session` 都写、`id` 和 `clear` 都写或都不写、写了 `as`（代表外部的人碰记忆随 O 线）：`bad_params`。
+- 斜杠命令 `/remember <话>`（`command.run`，项目主人 2026-10-07 定只做这一个）：记进这个会话那一间，类 `user`，`by` 是打命令的人，出处空，听众是这个人；回执照连接的语言说记下了那句话（「记下了：用户喜欢猫」，换行这些换成空格），不露编号（界面不露存储结构，2026-10-08；回执的写法 2026-10-10 项目主人定，施工 R-3 四补）。不经过模型、不花 token。只在本机的会话里：`off` 的、场所会话 `memory_unavailable`；空的 `bad_params`，超长的 `memory_too_long`。
+- 斜杠命令 `/dream`（R-7 补，2026-10-10 项目主人定：名字 `/dream`、界面写「整理记忆」、回执只报数字）：不带字，能不能用照 `/remember`（会话开着记忆）；做的就是带这个会话的 `memory.dream`，回执照连接的语言说看了几条、改了几条、作废几条，摘要换了的多半句，什么都没交进去的说没有要整理的（`core/human` 的 `commands/dreamed`、`commands/dreamed-summary`、`commands/dreamed-nothing`）；在后台答。要看改了什么的用 `memory.list` 带 `forgotten`。
 - 清空先做两种（项目主人 2026-10-07 定）：这个会话记下的、她关于我的（整间）；一般知识那一层随 O 线，到时候再加第三种。
 
 **配置**（`memory.*`，照 `crates/miyu-core/src/settings.rs` 的 `MODULES` 登记，各步加自己用的）：整理用的模型 `memory.organizer`（默认空，照 `models.chat`）、闲多久抽 `memory.extract_idle`、合并的间隔 `memory.merge_every`（24 小时）和会话数 `memory.merge_sessions`（5，R-7 上）、摘要和联想的上限。数是起点，各步实测后定。
@@ -219,6 +222,7 @@
 6. **出错**：发不出去、交回读不成的不动真相，下次抽完再来；同一间连着 3 次不成的记一条 `ext.memory.merged`（`failed: true`，`upto` 是这一次交进去的最后那一条），跳过这一批。成了一次、跳过一次都重新数：这一批从哪起只在这两种时候变；不照这一批合到哪认，新记的一直在加，那样永远到不了三次。失败的次数记在核心里，核心重起来重新数。记忆日志写不进的记一行，下次再来。
 7. **日志**（目标 `miyu::session`，带房间）：开始 `INFO memory merge started room=… given=…`，记下了 `INFO memory merged room=… revised=… retired=… took_ms=…`；没成 `WARN memory merge failed room=… tries=… error=…`，搜相关的出错 `WARN memory merge search failed`，写不进 `WARN memory merge not recorded`。
 8. **摘要什么时候不算数**（R-7 下，忘了就是忘了）：摘要写下以后，人或者她改了、作废了它合进去的一条（编号不大于摘要的 `upto`；合并自己的改、作废记在摘要前面，不算），或者清空了（整间、一个会话的都算），这一份就不算了：常驻的那一块照没有摘要的样子只列条目（第三条第 2 款），下一次合并照没合并过的从头来（现在算数的都当新记的，摘要照还没有；放不下的分几次，每次接着上一次的摘要写）。底账记着（`MemoryBook::summary`、`summary_stale`），不另写事件。之后才记的、作废之后才记的不碍事。
+9. **现在就整理**（R-7 补，2026-10-10 项目主人定：命令叫 `/dream`、界面写「整理记忆」、回执只报数字）：人叫的（`memory.dream`、`/dream`、`miyu memory dream`）不看 `memory.merge_sessions`、`memory.merge_every`，现在就合，放不下的接着合完，交回几样数（`Dreamed`）：交进去几条（新记的加相关的，几次加起来）、改了几条、作废几条、摘要换没换；没有要整理的四样都是零、不发请求。带会话的（`/dream`、带 `session` 的 `memory.dream`，`Handle::dream`）先叫那个会话把还没抽的那一段抽了：同闹钟响了的那一条路（第六条第 2、3 款），只是不等闲、答了一轮就够，她调过 `remember`、`forget` 的照样跳过，放不下 32 KiB 的只抽头一截（剩下的照平常等闲了再抽）；那个会话正忙、正在抽的不抽。抽完了、没得抽、抽不成的都接着合。不带会话的（`Keeper::dream`）直接合。同一间一把锁照旧：定时的那一次在合、别人先叫了的回忙（`memory_busy`），不排队。请求、落法、日志同第 2 到 7 款；失败照第 6 款数，回 `dream_failed`，之前合成的几次照样记下了。经一次性入口发 `memory.organizer`；带会话的记在会话属主名下、日期照会话的时区，不带的记在管理员名下、日期照核心这台机器的时区。
 
 **八、遗忘和排名**（R-4 下起）
 
@@ -242,7 +246,7 @@
 **十一、装没装**（R-10，2026-10-09 项目主人定：记忆的代码编在核心里，照装没装人格记忆这个包启用，包出厂装着，卸了全没有、磁盘上的数据不删；形状 2026-10-10 和核心的主会话对过）
 
 1. 装没装记在核心一份的 `miyu_session::Memory` 上（`set_installed`、`installed`，没设过的当装着）：核心起来时照读到的清单设一次（`Core::new`、`Core::with_packages`），装卸以后照新的清单设（`Core::switch_packages` 最先做，卸包在动文件以前，删不成照原来的清单设回去，`packages.md`「装卸」第 2 条）。会话手里的功能表是开会话时那一份、不跟装卸，所以开着的会话看这个开关。
-2. 没装的时候：工具不在目录里、新开的会话不接记忆（F-2、F-3 上、F-5 中）；开着的会话这一轮不交摘要（第三条），闲了不上闹钟、上了的响的时候和读回来的时候没装了也不抽（第六条）；协议的 `memory.*` 回 `memory_not_installed`（「协议」），命令行 `miyu memory` 照这一句说；`/remember` 回 `memory_unavailable`，为什么那一句是「没装人格记忆。」（`commands/unavailable/not-installed`，先于没有人格、预设没开），`command.catalog` 带会话的不列它。
+2. 没装的时候：工具不在目录里、新开的会话不接记忆（F-2、F-3 上、F-5 中）；开着的会话这一轮不交摘要（第三条），闲了不上闹钟、上了的响的时候和读回来的时候没装了也不抽（第六条）；协议的 `memory.*` 回 `memory_not_installed`（「协议」），命令行 `miyu memory` 照这一句说；`/remember` 回 `memory_unavailable`，为什么那一句是「人格记忆未安装。」（`commands/unavailable/not-installed`，先于没有人格、预设没开），`command.catalog` 带会话的不列它。
 3. 装回来：开着的会话下一轮照常交摘要、闲了照常抽（开会话时就接着记忆的那些）；开会话时没装的照旧不接，记忆照开会话时的（L3），换个新会话才有。磁盘上的记忆日志、检索库、回合库卸包时一个不动，装回来照旧读。
 
 ### 出错
@@ -256,6 +260,8 @@
 | `crates/miyu-session/tests/memory_extract.rs`、`memory_extract_more.rs`（R-6 上） | 第六条，真会话、整理记忆的模型是假服务器：两轮以后闲了就抽，一条 user、指令在前、一轮一块、没有 system、照 `memory.organizer`；记下的 `by` 是记忆模块、出处是那一轮、听众是属主，记下抽到了哪；轮数不够的不抽、够了再抽；她调过 `remember` 的整段跳过、不发；人说的 key（配置里引用的、常见写法）发出去以前遮掉；两次抽取之间压缩过，检查点以前的那一轮照样抽到（太长的截了中间）；重开会话照抽到的地方接着、抽过的不重抽；一段放不下的分两次抽完；同一段连着三次不成的放过、往前走，后来的照常抽 |
 | `crates/miyu-session/tests/memory_merge.rs`（R-7 上） | 第七条，真会话、整理记忆的模型是假服务器：够会话的抽完就合，一条 user、指令、还没有摘要、新记的；改的指着旧的、类出处听众照旧、`by` 是记忆模块，作废的带为什么，摘要和合到哪记下；不够会话的不合、够了再合；合过的、会话够了间隔没到的不再合；改的类照旧（`feedback` 的还是 `feedback`）、和原文一样的不记；相关的旧记忆跟着交、作废的和听众不合的不交；放不下 32 KiB 的分两次、头一次取老的、合并自己改出来的不算新记的、合完没有剩下的不再发；连着三次读不成记失败的记号（`failed: true`）、什么都不改。「不再发」的几条多备一个回答：假服务器只收备了回答的那几个请求 |
 | `crates/miyu-session/tests/memory_digest.rs`（R-7 下） | 第三条第 2 款、第七条第 8 款，真会话、真记忆日志：有摘要的头一轮那一块逐字节是摘要一行加之后新记的（新的在前，合并改出来的、合进摘要的不在），`refs` 不算摘要；之后没记的只有摘要一行；截满了不过 3000 字节、说还有几条、新的在前；摘要合进去的一条作废了以后没有摘要、照只列条目、作废的那一条不出来 |
+| `crates/miyu-session/tests/memory_dream.rs`（R-7 补） | 第七条第 9 款，真会话、整理记忆的模型是假服务器：抽取要攒五轮、合并要五个会话的配置下，`Handle::dream` 答了一轮就抽、抽完马上合，交回的几样数对得上；不经会话的 `Keeper::dream` 照样合，再叫一次没有要整理的、四样是零、不发；这一间正在合的回忙；没装人格记忆的用不了、不发 |
+| `crates/miyu-endpoint/tests/memory_dream.rs`、`src/commands/tests.rs` 的 `only_dream_is_answered_later`（R-7 补） | 第七条第 9 款、「协议」，真核心、请求模型是真路由：`memory.dream` 照人格那一间合、回几样数，再叫一次是零、不发；在后台答，同一个连接后面的请求先回，同时叫的回 `memory_busy`；卸了人格记忆的回 `memory_not_installed`、不发；`/dream` 在命令表里，先抽这一段再合，在后台答（订阅着的它那条 `command.ran` 先到），回执逐字对、记 `command.ran`，再打一次说没有要整理的；在后台答的命令只有 `/dream`（别名、认不出的、参数不对的都按顺序答） |
 | `crates/miyu-recall/src/memory/tests/merged.rs` 的 `a_summary_stops_counting_once_what_it_covered_is_changed_or_cleared`（R-7 下） | 第七条第 8 款：作废了、改了合进去的一条，清空了一个会话的、整间的，摘要不算、下次从头来；新的一份又算；之后才记的、作废之后才记的不碍事；合并那一次的改、作废记在摘要前面不碍事 |
 | `crates/miyu-recall/src/merge/tests.rs`、`memory/tests/merged.rs`（R-7 上） | 第七条第 3、4 款：前后多的话不管、没写的列表是空的、空的摘要当没写；不是交进去的编号、空的或超长的正文、空的 `why`、编号写错、写了两次的丢掉，正好 120 字收；又改又作废的照作废；摘要截在句子边界上、一句都放不下照字截、英文句号也算；读不成的整次失败；两种事件读写得回、没失败的不写 `failed`；底账照最后一份摘要、最后一次合并，那以后抽过几个会话（同一个算一个）重新数，摘要、记号不是记忆；一条记得它改的是哪一条 |
 | `crates/miyu-session/src/memory/extract/tests.rs`（R-6 上） | 第六条第 3、4 款：请求的字逐字节对；还没答的那一句不算；轮数不够的等；调过 `remember`、`forget` 的跳过；放不下的分几次、一轮自己就放不下的截了中间也抽；闹钟作废、在路上的只有一个、读不成的放下不算失败、同一段失败三次才放过、换一段重新数 |
@@ -281,7 +287,7 @@
 | `crates/miyu-endpoint/tests/memory_installed.rs`（R-10） | 第十一条，真核心经 `package.remove` 卸掉出厂的人格记忆：`memory.*` 五个都回 `memory_not_installed`、原话照语言；`/remember` 回 `memory_unavailable`、为什么说没装，`command.catalog` 不列它；装回来以前记的都在、又列出来 |
 | `crates/miyu-core/tests/packages.rs` 的 `memory_removed_before_start_says_not_installed`、`crates/miyu-endpoint/tests/preset_face.rs` 的 `memory_not_in_the_given_list_says_not_installed`（R-10） | 第十一条第 1 款：起来时就卸掉了的（`Core::new` 读的那一份、`Core::with_packages` 交进来的那一份），`memory.*` 回 `memory_not_installed` |
 | `crates/miyu-endpoint/tests/memory_clear.rs` | 清空：她记的和人记的一起清，清一个会话的回一条、清掉的作废的里也没有，清整间回两条、搜不到、改它说不算了；会话那一间清会话的就是整间 |
-| `crates/miyu-endpoint/tests/remember_command.rs` | `/remember`：记进会话那一间、`by` 是人、出处空、回执带编号、记 `command.ran`、不请求模型；空的、只有空白的、超长的不记；`off` 的、场所会话里 `memory_unavailable` |
+| `crates/miyu-endpoint/tests/remember_command.rs` | `/remember`：记进会话那一间、`by` 是人、出处空、回执是那句话不带编号（换行、制表换成空格，花括号照原样，记下的原文不动，R-3 四补）、记 `command.ran`、不请求模型；空的、只有空白的、超长的不记；`off` 的、场所会话里 `memory_unavailable` |
 | `crates/miyu-session/tests/memory_summary.rs` | 第三条：真会话、真记忆日志，第一轮的请求里有那一块、在触发的那句前面、新的在前、一行逐字节对、`refs` 是那几条；第二轮不再交、第一轮那一块原样还在；清空以后又交一次；一条都没有的、范围 `off` 的不交；听众不合的、作废的、改掉的不进；正文的换行换成空格，日期照会话的时区（UTC 的 7 日 20 点在东九区写 8 日）；六十条截在一条的边界上、不超过 3000 字节、说还有几条；另一个线程握着记忆日志的锁，这一轮过了时限照常请求、不带，下一轮交了 |
 | `crates/miyu-kernel/src/session/tests/present.rs` | 第三条第 7 款：模块交的一块下一轮在 `present` 里、`refs` 原样记原样交回；清空、撤掉带着它的那一轮以后不在；内核自己的两块不算；旧的 `context.injected`（没有 `refs`）读进来写出去一字不差。随机测试的看守（`random/watch/present.rs`）照自己的有效历史对一遍 |
 | `crates/miyu-assemble/tests/sample_session.rs`（R-4 上的一条） | 第三条第 7 款：样本第 151 条，记忆交的一块进请求只有原文，`refs` 不进 |
@@ -328,6 +334,7 @@
 | R-10 | 记忆照包启用：卸了人格记忆，开着的会话不交摘要、不抽，`memory.*`、`/remember` 说没装；装回来接着（第十一条） |
 | R-7 上 | 合并：抽取记下以后够会话够时间的合，交新记的和相关的旧记忆、读交回的、改的作废的摘要合到哪都记成事件（第七条） |
 | R-7 下 | 有了摘要以后常驻的那一块交「摘要加之后新记的」（第三条，2026-10-09 项目主人定） |
+| R-7 补 | 现在就整理：`memory.dream`、`/dream`、`miyu memory dream`，先抽当前会话、不看定时的条件现在就合，回几样数（第七条第 9 款，2026-10-10 项目主人定） |
 | R-8 | 联想（测评集上定门槛） |
 | R-9 | 记忆验收：真模型，缓存命中和每轮的 token |
 

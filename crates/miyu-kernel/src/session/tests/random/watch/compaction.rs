@@ -3,7 +3,7 @@
 //! - 摘要请求：替身的组装最后一条写着 `summarize`；照的是有效历史到第 N 条；N 看守自己照规矩算（这一轮要回应的话都在
 //!   它后面，比上一次压缩的 `upto` 晚）；不算步数；
 //! - 它的 `model.called`：说完了的，后面紧跟着替代到 N 的 `context.compacted`，`trigger` 是 `auto`、`by` 是内核；
-//!   取不出摘要的（`bad_summary`），紧跟着出错的回合结束；
+//!   摘要提取失败的（`bad_summary`），紧跟着出错的回合结束；
 //! - 推给头的进度是在路上的那次摘要请求的，字数只增不减；摘要请求不推增量；
 //! - 压完以后：请求照还算数的检查点以后的事件（`Watch::effective_events`）；撤销能撤掉压缩（施工 6-9，`watch/undo.rs`）。
 
@@ -278,7 +278,7 @@ impl Watch {
         history.ordered().into_iter().cloned().collect()
     }
 
-    /// 摘要请求的 `model.called`：说完了的，后面紧跟着替代到它的压缩；取不出摘要的，紧跟着出错的回合结束；别的错
+    /// 摘要请求的 `model.called`：说完了的，后面紧跟着替代到它的压缩；摘要提取失败的，紧跟着出错的回合结束；别的错
     /// 照重试的规矩。
     pub(super) fn summary_ended(&mut self, called: &ModelCalled, events: &[Event], k: usize) {
         let seed = self.seed;
@@ -325,12 +325,12 @@ impl Watch {
                 self.passive_again();
             }
             (CallResult::Error, Some(ErrorClass::BadSummary)) => {
-                self.seen_paths.insert("取不出摘要");
+                self.seen_paths.insert("摘要提取失败");
                 // 连续失败到了次数的，中间夹一条暂停（施工 6-6 上）。
                 let after = self.breaker_failed(events, k);
                 assert!(
                     matches!(after, Some(Body::TurnEnded(ended)) if ended.reason == EndReason::Error),
-                    "种子 {seed}：取不出摘要的，紧跟着出错的回合结束"
+                    "种子 {seed}：摘要提取失败的，紧跟着出错的回合结束"
                 );
             }
             (CallResult::Interrupted, _) => {

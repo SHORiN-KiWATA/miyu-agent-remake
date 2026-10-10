@@ -26,12 +26,13 @@
 | `crates/miyu-endpoint/src/spawn.rs` | 会话表交给会话的端口：造子会话、给会话发命令（施工 7-5，`session/tools.md`「派子代理」）；停下子会话、照日志看它（施工 7-4）；列主会话（施工 C-3） |
 | `crates/miyu-endpoint/src/list.rs` | `session.list`：标题、置顶照日志算（施工 3-8 三补）；工作目录、最近一次动静、忙不忙（施工 C-3）；读会话列表的索引、照日志补，起来时打开它，删会话删行（施工 3-8 七补，`store/index.md`）。她用 `sessions` 列会话也是这一个 `scan`（`tools/sessions.md`） |
 | `crates/miyu-endpoint/src/subscriptions.rs` | 订阅：每个订阅一个转发任务，先写补发的（施工 3-8 六补），再推 `event`、`resync`；换掉一个订阅时等它写完 |
+| `crates/miyu-endpoint/src/subscriptions/later.rs` | 在后台答的回应照办完那一刻的会话订阅走（施工 R-7 补）：会话订阅交回应的通道由它开、开时记下弱引用，换订阅、取消订阅不等它 |
 | `crates/miyu-endpoint/src/subscriptions/config.rs` | 配置的订阅（施工 8-4，`config.md`「协议」）：推 `config.changed`、掉队推 `resync`，`config.set` 的回应排在推送后面 |
 | `crates/miyu-endpoint/src/undo.rs` | 撤销、恢复、重做的回应里给人看的几样（`protocol/undo.md`） |
 | `crates/miyu-endpoint/src/attach.rs` | 附件（施工 3-9 三补）：`blob.put` 读、存；`session.send`、`session.redo` 的附件变成内容块；认是什么、文件名和媒体类型怎么查、存好了怎么拼回应，和分块上传共用（施工 W-5）；`model.call` 的图照哈希变成图片块（`images`，施工 8-20） |
 | `crates/miyu-endpoint/src/attach/kind.rs` | 认一个附件是什么：图片、PDF、别的文件，媒体类型 |
 | `crates/miyu-endpoint/src/uploads.rs` | `blob.open`、`blob.write`、`blob.close`：跟着连接走的上传表，60 秒不写、连接断了都作废（施工 W-5） |
-| `crates/miyu-endpoint/src/refusal.rs`、`refusal/` | 拒绝：错误码、原因码、中英文的话；改人格、预设的两种在 `refusal/edits.rs`，人碰记忆的四种在 `refusal/memory.rs`（施工 R-3 补） |
+| `crates/miyu-endpoint/src/refusal.rs`、`refusal/` | 拒绝：错误码、原因码、中英文的话；改人格、预设的两种在 `refusal/edits.rs`，人碰记忆的几种在 `refusal/memory.rs`（施工 R-3 补；R-7 补多了整理的两种） |
 | `crates/miyu-endpoint/src/settings.rs` | 端点的配置项：界面语言 `ui.language`，`auto` 照系统的语言算出 `zh`、`en`、`ja`（施工 8-1 声明，8-2 握手时用）；新会话开局只读 `permission.start_read_only`（施工 8-2） |
 | `crates/miyu-endpoint/src/config.rs`、`config/` | 配置服务：起来时读的几份配置、最终值，照目录找项目配置、认信不信任；`config.schema`、`config.get`、`config.check`（施工 8-2，`config.md`）；`config.set`、`config.trust`，住在核心家底的一把锁里（施工 8-3）；监视配置文件、推 `config.changed`（施工 8-4）；密钥文件也住在这里（施工 8-5） |
 | `crates/miyu-endpoint/src/secrets.rs`、`secrets/` | `secret.set`、`secret.delete`、`secret.list`：只能写、删、列名字，从不交出值；手改密钥文件被看到的、留痕（施工 8-5，`config.md` 第九条） |
@@ -80,7 +81,7 @@
 拒绝的，`code` 是 JSON-RPC 的错误码，`message` 照握手时的语言写，`data.reason` 是给程序看的原因码（「出错」一节）：
 
 ```json
-{"error":{"code":-32010,"data":{"reason":"session_not_found"},"message":"没有这个会话。"},"id":"c7","jsonrpc":"2.0"}
+{"error":{"code":-32010,"data":{"reason":"session_not_found"},"message":"会话不存在。"},"id":"c7","jsonrpc":"2.0"}
 ```
 
 有的拒绝在 `data` 里多几格，和 `reason` 排在一起（施工 8-2 起：`unknown_config_key` 多 `problems`；施工 8-3：`config_invalid`、`config_file_broken` 多 `problems`，`config_conflict` 多 `current` 或 `version`）。
@@ -147,11 +148,16 @@
 | `preset.list`、`preset.get` | 列出预设、读一个预设叠好的样子（施工 P-2 上，`presets.md`） |
 | `preset.set`、`preset.delete` | 新建、改一个预设（只写你家目录那一层），删掉你那一层（施工 P-3 中，`presets.md`「改」） |
 | `persona.set`、`persona.read`、`persona.delete` | 新建、改一个人格（只写你家目录那一层），读一份提示词的原文和版本，删掉你那一层（挪进回收处）（施工 P-3 下，`personas.md`「改」） |
+| `persona.avatar` | 读一个人格的头像：`{"avatar", "media_type", "data"}`，没有的 `null`（施工 P-5，`personas.md`「头像」） |
 | `package.list` | 列出起来时读到的软件包清单（施工 9-1 上，`packages.md`）；装卸以后当场照新的，卸掉的出厂的带 `removed`（施工 F-5 上） |
 | `package.install`、`package.remove` | 装、卸软件包，当场生效（施工 F-5 上，`packages.md`「装卸」） |
+| `package.enable`、`package.disable` | 软件包列表上的开关：照种类开关扩展的进程，或者卸掉、装回来出厂的内置包（施工 F-6 上，`package-pages.md`「开关」） |
+| `package.file`、`package.call` | 读一个包的后台页里的文件；调它的程序登记的方法，核心反向发 `method.call`，在后台答（施工 F-6 中，`package-pages.md`） |
+| `package.methods` | 核心拉起的扩展登记它的后台页要调的方法（施工 F-6 中，`package-pages.md`） |
 | `extension.status`、`extension.enable`、`extension.disable`、`extension.restart` | 核心拉起的扩展：列状态、开、关、重启（施工 9-4 上，`extensions.md`） |
 | `check` | 查人手写的文件：配置、密钥文件、人格，照磁盘上现在的字（施工 8-30，`cli/check.md`） |
 | `memory.list`、`memory.search`、`memory.remember`、`memory.update`、`memory.forget` | 人不经过她列、搜、记、改、忘和清空记忆（施工 R-3 补，`memory.md`「协议」） |
+| `memory.dream` | 现在就整理记忆：先抽、再合，回几样数；在后台答（施工 R-7 补，`memory.md` 第七条第 9 款） |
 | `command.run` | 执行一条斜杠命令：头把人打的原文交过来，核心认、判谁能用、执行（施工 O-6） |
 | `command.catalog` | 列核心认的斜杠命令，给头的命令菜单、`/help`；带会话的只列这个会话里真能用的（施工 O-6 补） |
 | `session.answer` | 回答一次确认（允许这一次、本会话都允许、拒绝），或者一组题（施工 D-1） |
@@ -480,16 +486,17 @@
 | `as` | 对象，可以不写 | 代表通讯平台上的人，同 `session.send` 的 `as`：只给场所会话，场所会话也只收带它的 |
 | `cwd` | 字符串，可以不写 | 头所在的目录，绝对的或者 `~` 开头的：只用来接 `/workspace` 后面相对的路径（施工 9-7 下） |
 
-回应 `{"command": "clear"|"stop"|"workspace"|"remember", "events": [...], "said": "<回执>"}`：`command` 是正名（别名换成了正名），`events` 是这一次追加的全部事件的序号、最后一条是记下的 `command.ran`，`said` 是回执那一句，照这个连接的语言（`ui.language`），头原样发给人。
+回应 `{"command": "clear"|"stop"|"workspace"|"remember"|"dream", "events": [...], "said": "<回执>"}`：`command` 是正名（别名换成了正名），`events` 是这一次追加的全部事件的序号、最后一条是记下的 `command.ran`，`said` 是回执那一句，照这个连接的语言（`ui.language`），头原样发给人。
 
-1. 认法：开头的空白不算，原文要以 `/` 开头（不是的回 `bad_params`），名字紧跟着 `/`、到空白为止，后面跟的字去掉前后空白，只有 `/workspace`、`/remember` 用。认得的：`clear`（别名 `reset`）、`stop`、`workspace`（施工 9-7 下）、`remember`（施工 R-3 补）。认不出的回 `unknown_command`，`/` 后面是空白的也是。`cwd` 不是绝对的、也不是 `~` 开头的回 `bad_params`。
+1. 认法：开头的空白不算，原文要以 `/` 开头（不是的回 `bad_params`），名字紧跟着 `/`、到空白为止，后面跟的字去掉前后空白，只有 `/workspace`、`/remember` 用。认得的：`clear`（别名 `reset`）、`stop`、`workspace`（施工 9-7 下）、`remember`（施工 R-3 补）、`dream`（施工 R-7 补）。认不出的回 `unknown_command`，`/` 后面是空白的也是。`cwd` 不是绝对的、也不是 `~` 开头的回 `bad_params`。
 2. 谁能用：本机的会话（本机的头就是管理员本人）；场所会话里主人对应表认出的本人（记成带 `via` 的本人）、对应表里有的外部身份（群里的主人，`account`）、`role` 是 `manager` 的。别人回 `command_not_allowed`。`/workspace` 动的是沙盒能写的地方，只有主人本人能用（本机的会话、对应表认出的本人、群里的主人），管理的人回 `owner_only`。先查参数、再找会话、再判身份。
 3. `/clear` 同 `session.clear`：内核拒的照原因回（`turn_running`、`nothing_to_clear`、`restoring`）。
 4. `/stop` 全停：打断这一轮，排着的照 `keep` 留着；没有回合在进行的照样往下走。再停掉这个会话派出去的后台命令和子代理（同 `job.stop`，停的人记成说命令的人）。
 5. `/workspace <路径>` 同 `session.set_workspace` 只换工作目录，加进来的目录照旧（施工 9-7 下）：绝对的、`~` 开头的照原样；相对的照 `cwd` 接成真实的位置（`/workspace .` 就是头所在的目录），没带 `cwd` 的照会话现在的工作区接；路径里的空白照留，不认引号。写错的照那几种原因拒绝（`path_unreadable`、`not_a_directory`、`path_forbidden`，核心读不出家目录时的 `~` 也是读不了）；太宽的照人选的用，回执说一声范围大（「工作区换到了 ~（范围很大）。」，施工 9-7 补，原来退回账号的默认工作区）；和现在一样的不记换，照样记下命令。不带路径的什么都不换，回执说现在在哪。
 6. 执行了的记一条 `command.ran`（`kernel/events-bodies.md`），`cause` 是 `<id>/ran`；被拒的什么都不记。它不进模型的请求。
 7. 同一个 `id` 再发只算一次，核心重启以后也是：回应和头一次一样。
-8. `/remember <话>`（施工 R-3 补，`memory.md`「协议」）：名字后面跟的字是那一条，类 `user`，记进这个会话那一间，`by` 是打命令的人，出处空，听众是这个人；回执带编号（`commands/remembered`）。不请求模型。场所会话、范围 `off`、人格记忆没装的（施工 R-10）回 `memory_unavailable`，`data.why` 是照连接语言说的为什么（施工 O-6 再补：没装人格记忆的「没装人格记忆。」，先于别的，施工 R-10；没有人格的「没有人格的会话记忆不生效」，预设没开记忆的带上预设的名字，字在 `core/human/<语言>.json` 的 `commands/unavailable/…`，别的照拒绝的那一句）；空的 `bad_params`，超过 120 字的 `memory_too_long`。先判身份，再查这个会话有没有记忆，再查字。同一个 `id` 再发只记一次（记忆事件的 `cause`，`memory.*` 第 5 条）。
+8. `/remember <话>`（施工 R-3 补，`memory.md`「协议」）：名字后面跟的字是那一条，类 `user`，记进这个会话那一间，`by` 是打命令的人，出处空，听众是这个人；回执说记下了那句话（`commands/remembered`：「记下了：用户喜欢猫」，那句话里的换行、制表换成空格），不露编号（施工 R-3 四补，2026-10-10 项目主人定）。不请求模型。场所会话、范围 `off`、人格记忆没装的（施工 R-10）回 `memory_unavailable`，`data.why` 是照连接语言说的为什么（施工 O-6 再补：没装人格记忆的「人格记忆未安装。」，先于别的，施工 R-10；没有人格的「没有人格的会话记忆不生效」，预设没开记忆的带上预设的名字，字在 `core/human/<语言>.json` 的 `commands/unavailable/…`，别的照拒绝的那一句）；空的 `bad_params`，超过 120 字的 `memory_too_long`。先判身份，再查这个会话有没有记忆，再查字。同一个 `id` 再发只记一次（记忆事件的 `cause`，`memory.*` 第 5 条）。
+9. `/dream`（施工 R-7 补，`memory.md` 第七条第 9 款）：不带字（跟了的不看）。能不能用照 `/remember`（同第 8 条的判法和 `data.why`）；做的就是带这个会话的 `memory.dream`（`memory.*` 第 6 条），拒绝照它的。回执照几样数说：「整理完成：检查 1 条，修改 0 条，作废 0 条，摘要已更新。」（`commands/dreamed`，摘要换了的 `commands/dreamed-summary`），什么都没交进去的「无需整理。」（`commands/dreamed-nothing`）。在后台答（「一个连接」第 1 条）：只有它，别的命令照旧按顺序答。同一个 `id` 再发照第 7 条只记一次 `command.ran`，整理照样再做一次（多半没有要整理的）。
 
 **`command.catalog`**（施工 O-6 补，网页的会话要的，终端也用）
 
@@ -500,7 +507,7 @@
 回应 `{"commands": [{"name": "clear", "aliases": ["reset"], "summary": "清空上下文"}, {"name": "workspace", "aliases": [], "summary": "切换工作区", "argument": "<路径>"}, …]}`：照名字排；`summary`、`argument` 照这个连接的语言，字在 `core/human/<语言>.json` 的 `commands/summary/<名字>`、`commands/argument/<名字>`；名字后面要跟字的（`workspace`、`remember`）才有 `argument`。
 
 1. 不写 `session`：列核心认的全部（头还没造会话、`/help` 列全部时用）。
-2. 写了：只列这个连接在这个会话里打了不会被拒的，和 `command.run` 第 2、8 条同一份判法（谁能用；`/workspace` 只给主人本人；`/remember` 要这个会话开着记忆）。用不了的不列（2026-10-09 项目主人定）：人打了菜单里没有的命令，头照样交给 `command.run`，照拒绝的 `data.why` 说为什么，不自己说「没有这个命令」。
+2. 写了：只列这个连接在这个会话里打了不会被拒的，和 `command.run` 第 2、8 条同一份判法（谁能用；`/workspace` 只给主人本人；`/remember`、`/dream` 要这个会话开着记忆）。用不了的不列（2026-10-09 项目主人定）：人打了菜单里没有的命令，头照样交给 `command.run`，照拒绝的 `data.why` 说为什么，不自己说「没有这个命令」。
 3. 不推送：头换会话、打开命令菜单时问一次。头自己的命令（`help`、`theme` 这些）、软件包登记的同名命令由头自己拼、自己去重；核心这份里没有只有头懂的命令。
 
 **`check`**（施工 8-30，`cli/check.md`）
@@ -519,11 +526,11 @@
 
 **`persona.list`**（施工 P-1 上，`personas.md`「怎么走」第 7 条）
 
-没有参数。回应 `{"personas": [...]}`，照编号排，一个人格一格：`persona` 编号，`name`、`summary` 一句字（施工 P-3 补：写成一句的就是它；以前写成语言表的、出厂的几个照这个连接的语言挑，这种语言没写的照 `en`、`zh`、`ja` 的先后，都没写的是 `null`；说明写成空的字的也是 `null`，施工 P-3 再补）。来自哪几层不给（施工 P-3 补，2026-10-08 项目主人：人看的是名字）。文件写错的只有 `persona`、`problem` 和知道第几行的 `line`：`problem` 照这个连接的语言说哪里写错了，同 `persona.*` 里 `persona_invalid` 的 `data.message`、`data.line`（施工 P-3 再补：原来是给排查看的英文原话，项目主人看不懂）。
+没有参数。回应 `{"personas": [...]}`，照编号排，一个人格一格：`persona` 编号，`avatar` 头像的版本（没有的 `null`，施工 P-5），`name`、`summary` 一句字（施工 P-3 补：写成一句的就是它；以前写成语言表的、出厂的几个照这个连接的语言挑，这种语言没写的照 `en`、`zh`、`ja` 的先后，都没写的是 `null`；说明写成空的字的也是 `null`，施工 P-3 再补）。来自哪几层不给（施工 P-3 补，2026-10-08 项目主人：人看的是名字）。文件写错的只有 `persona`、`problem` 和知道第几行的 `line`：`problem` 照这个连接的语言说哪里写错了，同 `persona.*` 里 `persona_invalid` 的 `data.message`、`data.line`（施工 P-3 再补：原来是给排查看的英文原话，项目主人看不懂）。
 
 **`preset.list`**（施工 P-2 上，`presets.md`「协议」）
 
-没有参数。回应 `{"presets": [...]}`，照编号排，一个预设一格：`preset` 编号，`name`、`summary` 一句字（挑法同 `persona.list`）。文件写错的只有 `preset`、`problem` 和知道第几行的 `line`，写法同 `persona.list`（施工 P-3 再补）。
+没有参数。回应 `{"presets": [...]}`，照编号排，一个预设一格：`preset` 编号，`icon` 图标（Lucide 名字，没写的 `null`，施工 P-5），`name`、`summary` 一句字（挑法同 `persona.list`）。文件写错的只有 `preset`、`problem` 和知道第几行的 `line`，写法同 `persona.list`（施工 P-3 再补）。
 
 **`preset.get`**（施工 P-2 上，`presets.md`「协议」）
 
@@ -531,7 +538,7 @@
 |---|---|---|
 | `preset` | 字符串，必写 | 预设的编号 |
 
-回应 `{"preset", "name", "summary", "unlisted", "features", "remove"}`（施工 P-3 补：只给人要看的；`default_persona` 施工 P-4 上撤了；施工 F-3 下 `software`、`tools` 换成 `features`）：`name`、`summary` 一句字（挑法同 `persona.list`）；`unlisted` 是叠好以后的 `on`、`off`（几层都没写的是 `on`）；`remove` 是删了会怎样：`restore`（有你那一层、下面还有：删了回到出厂的样子）、`delete`（只有你那一层：删了就没了）、`null`（没有你那一层，没什么可删）。
+回应 `{"preset", "name", "summary", "icon", "unlisted", "features", "remove"}`（`icon` 施工 P-5）（施工 P-3 补：只给人要看的；`default_persona` 施工 P-4 上撤了；施工 F-3 下 `software`、`tools` 换成 `features`）：`name`、`summary` 一句字（挑法同 `persona.list`）；`unlisted` 是叠好以后的 `on`、`off`（几层都没写的是 `on`）；`remove` 是删了会怎样：`restore`（有你那一层、下面还有：删了回到出厂的样子）、`delete`（只有你那一层：删了就没了）、`null`（没有你那一层，没什么可删）。
 - `features` 是一个个功能（施工 F-3 下，设计 `30-插件框架.md` 第三节、第四节）：装了的照清单读的先后（包照编号，包里照写的先后），每个 `{"id", "name", "summary", "on", "installed": true, "tools"}`：`name`、`summary` 照它的清单、照这个连接的语言挑，没说明的没有 `summary`；`on` 是叠好以后开不开；`tools` 是归它的、工具目录里现在有的工具，照名字排，每件 `{"name", "label", "on"}`，`label` 是给人看的显示名（没有的是工具名），功能关着的都是 `false`，开着的照 `[tools]` 关没关。预设的 `[features]`、`[software]` 里写了、没装的接在后面，照编号排：`{"id", "name", "on", "installed": false, "tools": []}`，名字照给人看的字 `software/<编号>`，没有的是编号；写的是装了的包的编号的不另列。`id` 是 `preset.set` 写 `features.<id>` 用的，`tools[].name` 是写 `tools.<name>` 用的，不往界面上露。头照它一个功能一个开关画，展开能逐件关。
 - 编号不合写法的 `bad_params`，没有的 `unknown_preset`，写错的 `preset_invalid`（`data.message` 照这个连接的语言说一句、`data.line` 第几行，施工 P-3 补）。
 
@@ -540,7 +547,7 @@
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | `preset` | 字符串，可以不写 | 预设的编号；不写的是新建，编号由核心起 `preset-<n>`（几层里都还没有的最小的 n，施工 P-3 补，2026-10-08 项目主人定：新建不填编号） |
-| `changes` | 数组，必写、不能是空的 | 每一项 `{"key", "value" \| "unset": true, "expect"?}`，照 `config.set` 的 `changes`：`key` 是文件里的键（`preset.name`、`preset.summary`、`preset.unlisted`、`software.<包>`、`tools.<工具>`；写 `preset.default_persona` 的 `bad_params`，施工 P-4 上撤了），`value` 是字、开关、数，`expect` 是你那一层里这一项现在应当是什么（`{"value": …}` 或者 `{}` 没写） |
+| `changes` | 数组，必写、不能是空的 | 每一项 `{"key", "value" \| "unset": true, "expect"?}`，照 `config.set` 的 `changes`：`key` 是文件里的键（`preset.name`、`preset.summary`、`preset.unlisted`、`features.<功能>`（施工 F-3 下，编号照 `preset.get` 的 `features[].id`；以前的 `software.<包>` 照认）、`tools.<工具>`；写 `preset.default_persona` 的 `bad_params`，施工 P-4 上撤了），`value` 是字、开关、数，`expect` 是你那一层里这一项现在应当是什么（`{"value": …}` 或者 `{}` 没写） |
 
 回应同 `preset.get`：改完叠好的样子（带着编号）。只写管理员家目录那一层的 `<编号>.toml`：改出厂的、系统区的就是建同名覆盖，只写改了的项。名字、说明写成一句字（施工 P-3 补，2026-10-08 项目主人：不分语言），以前写成语言表的整格换成一句。说明能写空的字（`"value": ""`）：就是没有说明，盖住出厂的那句，`unset` 才回到出厂的（施工 P-3 再补）；名字照旧不收空的。人格同样。新建的什么开关都不写，就是全开（`unlisted` 没写是开）。
 
@@ -560,8 +567,9 @@
 | `persona` | 字符串，可以不写 | 人格的编号；不写的是新建，编号由核心起 `persona-<n>`（同 `preset.set`，施工 P-3 补） |
 | `changes` | 数组，可以不写 | 改 `persona.toml`，写法同 `preset.set` 的 `changes`；键是 `persona.name`、`persona.summary`、`memory.scope` |
 | `prompts` | 对象，可以不写 | 提示词名（`persona`、`examples`、`reminders`）到 `{"text": "<整份>"}`、`{"unset": true}`，示范对话另可写 `{"pairs": [{"user", "assistant"}, …]}`（施工 P-3 补）；都可带 `"expect": "<版本>" \| null`（照 `persona.read` 给的） |
+| `avatar` | 对象，可以不写 | 头像（施工 P-5，`personas.md`「头像」）：`{"blob": <内容哈希>}` 换成传上来的那一张，`{"unset": true}` 删掉你那一层的；可带 `"expect": "<版本>" \| null` |
 
-`changes`、`prompts` 至少写一样。回应同 `persona.get`：改完叠好的样子（带着编号）。只写管理员家目录那一层：改出厂的、系统区的就是建同名覆盖，提示词整份换你那一层的那一份，`unset` 删掉你那一层的、回到下面的；空的字（`{"text": ""}`）就是这一段是空的（空的人设不进 system，空的角色扮演提示等于没有）。
+`changes`、`prompts`、`avatar` 至少写一样（只写 `avatar` 的要写 `persona`）。回应同 `persona.get`：改完叠好的样子（带着编号）。只写管理员家目录那一层：改出厂的、系统区的就是建同名覆盖，提示词整份换你那一层的那一份，`unset` 删掉你那一层的、回到下面的；空的字（`{"text": ""}`）就是这一段是空的（空的人设不进 system，空的角色扮演提示等于没有）。
 
 1. 几样一起查：`persona.toml` 改完的一份、示范对话、连同叠好以后；有错什么都不写，`persona_invalid`，`data.problem` 是头一处（写法同 `persona.get`），`data.message`、`data.line` 照连接的语言说（施工 P-3 补）。和你那一层现在一样的不写，一样都没变的什么都不写。
 2. `pairs`（施工 P-3 补：界面里一对一对地编，格式留在核心）：核心写成 `user:` / `assistant:` 开头、对与对之间空一行的写法；一句里的空行去掉；空的 `pairs` 等于删掉。每一句去掉前后空白不能是空的（`bad_params`）；一句里有一行看起来像 `user:`、`assistant:` 开头、写了读不回原样的，`persona_invalid`（`data.message` 说是第几对）。
@@ -575,7 +583,7 @@
 
 **`package.list`**（施工 9-1 上，`packages.md`「协议」）
 
-不带参数。回应 `{"packages": [...]}`：核心手里这时的两层清单（出厂的、管理员家目录里的），照编号排。每一项的格子见 `packages.md` 的表：读成了的有 `kind`、`protocol`、`name`、`state`，写了的有 `version`、`summary`、`command`、`opens`、`pages_dir`、`process`、`check`；施工 F-1 起，必需的有 `required`，内置包、扩展包有 `features`（没写的照包算一个），写了的有 `connection`、`depends`、`recommends`、`worker`，`kind` 多 `builtin`、`worker`；写错的、撞了的、读不了的只有 `package`、`layer`、`code`、`problem`（照连接的语言）和有的话 `line`；协议版本对不上的照样带全，多 `code: "protocol_mismatch"` 和 `problem`。名字、说明照连接的语言挑。经 `package.install`、`package.remove` 装卸的当场换（施工 F-5）；手改了磁盘上的清单的要重启核心才认。
+不带参数。回应 `{"packages": [...]}`：核心手里这时的两层清单（出厂的、管理员家目录里的），照编号排。每一项的格子见 `packages.md` 的表：读成了的有 `kind`、`protocol`、`name`、`state`，写了的有 `version`、`summary`、`command`、`opens`、`pages_dir`、`process`、`check`；施工 F-1 起，必需的有 `required`，内置包、扩展包有 `features`（没写的照包算一个），写了的有 `connection`、`depends`、`recommends`、`worker`，`kind` 多 `builtin`、`worker`；写错的、撞了的、读不了的只有 `package`、`layer`、`code`、`problem`（照连接的语言）和有的话 `line`；协议版本对不上的照样带全，多 `code: "protocol_mismatch"` 和 `problem`。名字、说明照连接的语言挑。经 `package.install`、`package.remove` 装卸的当场换（施工 F-5）；手改了磁盘上的清单的要重启核心才认。施工 F-6 上起每一项多 `icon`（写了的）、`page`（有后台页的）、`status`、`enabled`（有开关的），见 `package-pages.md`。
 
 **`package.install`、`package.remove`**（施工 F-5 上，`packages.md`「装卸」）
 
@@ -583,6 +591,18 @@
 - `package.install {"package"}`：把卸掉的出厂的包装回来。回应同 `package.list` 的一项。
 - `package.remove {"package"}`：家目录那一层的删掉；出厂的在家目录记一笔。回应 `{"package", "removed": true}`。
 - 拒绝：参数不对、两个都写、路径不是绝对的 `.toml` 的 `bad_params`；读不了的 `path_unreadable`；写错的、拷进去以后和别的包撞了的 `package_invalid`（`data.problem` 照连接的语言说一句，知道第几行的带 `data.line`，什么都不留）；和出厂的同编号的 `package_exists`；卸必需的 `package_required`；没装的、没卸过的 `unknown_package`。扩展自己调回 `local_only`。
+
+**`package.enable`、`package.disable`**（施工 F-6 上，`package-pages.md`「开关」）
+
+- 参数 `{"package"}`，`package.enable` 另可带 `approve`（同 `extension.enable`）。回应同 `package.list` 的一项。
+- 扩展：同 `extension.enable`、`extension.disable`。出厂的、不是必需的内置包：关是卸掉（同 `package.remove`，在家目录记一笔），开是装回来（同 `package.install {"package"}`）。卸掉了的出厂扩展，开时先装回来再开。关着的再关、开着的再开，什么都不动。
+- 拒绝：没有的 `unknown_package`；必需的 `package_required`；界面、小程序 `not_switchable`；程序不在 `miyu` 旁边的开不了，`program_missing`；扩展要的能力还有没批的照 `extension.enable` 回 `needs_approval`。扩展自己调回 `local_only`。
+
+**`package.file`、`package.methods`、`package.call`**（施工 F-6 中，`package-pages.md`）
+
+- `package.file {"package", "path", "offset"?}`：回应 `{"data", "size", "eof"}`，一次最多 512 KiB。拒绝：路径写法不对 `bad_params`；没有的包 `unknown_package`；没有后台页 `no_page`；没有、跑出目录、不是普通文件 `not_found`。扩展调回 `local_only`。
+- `package.methods {"methods": [{"name", "timeout_ms"?}]}`：只给核心拉起的扩展，别的连接 `not_an_extension`；换掉这个包上一次登记的，回应 `{"methods": 个数}`；写法不对的 `bad_params`。
+- `package.call {"package", "method", "params"?}`：核心发 `method.call {"method", "params"}` 给那个扩展，回什么交回什么；在后台答。拒绝：`unknown_package`、`program_not_running`、`unregistered`（`data.method`）、`method_failed`（`data.message`、`data.code`）、`method_timeout`。扩展调回 `local_only`。
 
 **`extension.status`、`extension.enable`、`extension.disable`、`extension.restart`**（施工 9-4 上，`extensions.md`「对外的样子」）
 
@@ -594,11 +614,11 @@
 |---|---|---|
 | `persona` | 字符串，必写 | 人格的编号 |
 
-回应 `{"persona", "name", "summary", "prompts": {"persona", "reminders"}, "examples", "remove"}`（施工 P-3 补：只给人要看的）：`name`、`summary` 一句字（挑法同 `persona.list`）；`prompts` 里是人设、角色扮演提示有没有字（`true`、`false`）；`examples` 是示范对话几轮；`remove` 是删了会怎样（同 `preset.get`）。原文照 `persona.read` 给。编号不合写法的 `bad_params`，没有的 `unknown_persona`，写错的 `persona_invalid`（带 `data.message`、`data.line`）。
+回应 `{"persona", "name", "summary", "prompts": {"persona", "reminders"}, "examples", "avatar", "remove"}`（施工 P-3 补：只给人要看的；`avatar` 施工 P-5：头像的版本，图的字节的 SHA-256 前 16 位十六进制，没有的 `null`，图用 `persona.avatar` 读）：`name`、`summary` 一句字（挑法同 `persona.list`）；`prompts` 里是人设、角色扮演提示有没有字（`true`、`false`）；`examples` 是示范对话几轮；`remove` 是删了会怎样（同 `preset.get`）。原文照 `persona.read` 给。编号不合写法的 `bad_params`，没有的 `unknown_persona`，写错的 `persona_invalid`（带 `data.message`、`data.line`）。
 
 **`memory.*`**（施工 R-3 补，`memory.md`「协议」）
 
-人格记忆这个软件包没装的，五个方法都回 `memory_not_installed`，先于别的检查（施工 R-10，`memory.md` 第十一条）。五个方法都收 `persona`（字符串）或 `session`（会话编号）指哪一间，最多写一个，都不写照默认人格（同 `session.create`），没设默认人格的 `memory_unavailable`（不带人格记忆不生效）；人格编号的写法、找不到的照 `session.create` 第 6 条，会话找不到的 `session_not_found`，会话那一间没有（范围 `off`、不带人格、场所会话）的 `memory_unavailable`。写了 `as` 的 `bad_params`。听众是这个连接的人（本机的是管理员）。
+人格记忆这个软件包没装的，六个方法都回 `memory_not_installed`，先于别的检查（施工 R-10，`memory.md` 第十一条）。六个方法都收 `persona`（字符串）或 `session`（会话编号）指哪一间，最多写一个，都不写照默认人格（同 `session.create`），没设默认人格的 `memory_unavailable`（不带人格记忆不生效）；人格编号的写法、找不到的照 `session.create` 第 6 条，会话找不到的 `session_not_found`，会话那一间没有（范围 `off`、不带人格、场所会话）的 `memory_unavailable`。写了 `as` 的 `bad_params`。听众是这个连接的人（本机的是管理员）。
 
 | 方法 | 参数 | 回应 |
 |---|---|---|
@@ -607,12 +627,14 @@
 | `memory.remember` | `class`（`user`、`feedback`、`episode`、`reference`，必写）、`text`（必写） | `{"id": "m<序号>"}` |
 | `memory.update` | `id`、`text`，必写 | `{"id"}`：新记的那一条 |
 | `memory.forget` | `id`（可以带 `why`，不写是空的）；或者 `clear`：`session`（这时 `session` 必写）、`me` | 作废的 `{}`，清空的 `{"cleared": <几条>}` |
+| `memory.dream` | 只有 `persona`、`session`（施工 R-7 补） | `{"given", "retired", "revised", "summary"}`：交进去几条、作废几条、改了几条（整数），摘要换没换（布尔） |
 
 1. 一条：`{"at", "by", "class", "id", "retired", "sources", "text"}`（照名字排）：`by` 是 `person` 或 `tool`，`sources` 是 `[{"session", "turn"}]`，`retired` 是作废的原因、没作废的 `null`，`at` 是记下的时刻。
 2. `text` 去掉前后空白再记；空的 `bad_params`，超过 120 字（数 Unicode 字符）的 `memory_too_long`，`data.chars`、`data.limit`。`class` 不是那四种、`id` 不合 `m<序号>` 的写法、`limit` 出了范围、`id` 和 `clear` 都写或都不写、`clear` 不是那两种：`bad_params`。
 3. `id` 没有这一条、听众不合：`unknown_memory`；已经改掉、作废、清掉了：`memory_not_current`。
 4. 记、改、作废、清空落了盘才回应；写不进记忆日志的 `internal_error`，原因记一行 `WARN memory failed`。
 5. 记、改、作废、清空，同一个 `id` 再发只算一次，核心重启以后也是：回应和头一次一样（编号记在记忆事件的 `cause` 里，`memory.md`）。先认编号，再查参数。清空的 `cleared` 不算改掉的旧版本。
+6. `memory.dream`（施工 R-7 补，`memory.md` 第七条第 9 款）：带 `session` 的叫那个会话先把还没抽的那一段抽了，再合；不带的照那一间直接合。不看定时的条件，放不下的接着合完；没有要整理的回四样是零，不请求模型。这一间正在整理（定时的那一次、别人先叫的）回 `memory_busy`，不排队；没合成的回 `dream_failed`（`data.message` 是英文的一句为什么），之前合成的几次照样记下了；核心没有整理要的几样（请求模型照剧本回的端口没有一次性入口）回 `memory_unavailable`。不认编号：同一个 `id` 再发再整理一次。在后台答（「一个连接」第 1 条），几秒到十几秒。
 
 **`session.recap`**（施工 3-8 四补，`04-核心协议.md` 第九节，`kernel/session.md`「回顾」）
 
@@ -681,7 +703,7 @@
 回应：`{"language": <语言>, "said": {<说法的编号>: <模板>}, "tools": {<工具名>: <样子>}}`。查询，不改会话：不推送。例子（格照名字的字母先后排）：
 
 ```json
-{"id":"h1","jsonrpc":"2.0","result":{"language":"zh","said":{"core/tool-results/unattended":"要确认，这里没人能确认"},"tools":{"read":{"icon":"→","name":"读取","subject":"file_path"}}}}
+{"id":"h1","jsonrpc":"2.0","result":{"language":"zh","said":{"core/tool-results/unattended":"需要确认，无人确认"},"tools":{"read":{"icon":"→","name":"读取","subject":"file_path"}}}}
 ```
 
 1. 每次现读资源目录，照 `store/resources.md`「怎么走」第 3 条的读法：先读内核的 `core/human/<语言>.json`，再照名字的先后读 `software/` 下每个软件包的 `human/<语言>.json`，哪一份没有这种语言照英文。开发时改了资源，下一次调就是新的，不用重启核心。在阻塞线程里读。
@@ -935,7 +957,7 @@
 
 **一个连接**
 
-1. 请求一条条办：上一条的回应放进了写队列（订阅着的会话的，交给了它的转发任务，下面「先见结果，后见回应」），才读下一行。要等的（`session.send` 等落盘，撤销等改完文件，载入会话）等着的时候，这个连接上的下一条也等着。例外是在后台答的：登记成在后台答的查询（现在只有 `link.preview`，施工 W-7），和自带的 `model.call`（要等模型说完，施工 8-20 补，`methods.rs` 的 `answered_later`）：交给这个连接的一个后台任务，接着读下一行；办完了回应照 `id` 对上，直接放进写队列，不经会话的订阅；连接断了，这些任务一起停。
+1. 请求一条条办：上一条的回应放进了写队列（订阅着的会话的，交给了它的转发任务，下面「先见结果，后见回应」），才读下一行。要等的（`session.send` 等落盘，撤销等改完文件，载入会话）等着的时候，这个连接上的下一条也等着。例外是在后台答的：登记成在后台答的查询（现在只有 `link.preview`，施工 W-7），和自带的 `model.call`（要等模型说完，施工 8-20 补）、`memory.dream`、`command.run` 的 `/dream`（几秒到十几秒，施工 R-7 补；`command.run` 的照命令表问，别的命令照旧按顺序答），由 `methods.rs` 的 `answered_later` 认：交给这个连接的一个后台任务，接着读下一行；办完了回应照 `id` 对上，照办完那一刻的订阅走「先见结果，后见回应」第 1 条（`/dream` 的回应排在它那条 `command.ran` 后面，和按顺序答的命令一样；`subscriptions/later.rs`），别的直接放进写队列；连接断了，这些任务一起停。
 2. 读和写分开：写的一头从写队列里一行行写出去，队列最多攒 256 行。写不出去就停；读的一头往写队列放回应、放不进去时发现，断开（交给转发任务的那一条放得进，要到再下一条）。
 3. 断开：一行太长的，回 `parse_error`（`id` 是 `null`）；`protocol_mismatch`、`bad_token` 回完；对方关了、读出错。
 4. 断开以后，这个连接的订阅都停了。会话照常跑：头走了，在跑的那一轮照样跑完。
@@ -943,7 +965,7 @@
 
 **先见结果，后见回应**
 
-1. 方法的回应，`params.session` 这个会话在这个连接上有订阅的，交给这个订阅的转发任务；`config.set` 的回应，这个连接订阅着配置的，交给配置的转发任务（施工 8-4）：它先把已经到了的推送都放进写队列，再放回应。会话先推送、后回应（`session/actor.md`），回应到的时候，这条命令产生的推送一定已经到了。
+1. 方法的回应，`params.session` 这个会话在这个连接上有订阅的，交给这个订阅的转发任务；`config.set` 的回应，这个连接订阅着配置的，交给配置的转发任务（施工 8-4）：它先把已经到了的推送都放进写队列，再放回应。会话先推送、后回应（`session/actor.md`），回应到的时候，这条命令产生的推送一定已经到了。在后台答的（「一个连接」第 1 条）照办完那一刻有没有订阅（施工 R-7 补）。
 2. 别的回应直接放进写队列：没订阅的会话的；`params` 是数组的；`hello`、不写 `after` 的和被拒的 `subscribe`、`unsubscribe` 的；握手以前的拒绝；读不懂的行的。写了 `after`、订阅上了的 `subscribe`，回应交给新订阅的转发任务，排在补发的后面（「补发」第 2 条，施工 3-8 六补）。
 3. 订阅停了推（掉了队、会话停了），转发任务接着替这个会话转回应，直到这个订阅被取消、被新的换掉，或者连接断了。
 
@@ -1019,6 +1041,9 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `not_a_directory` | -32010 | `session.set_workspace` 换到的是文件（施工 9-7 上）；`/workspace` 也一样（施工 9-7 下） |
 | `unknown_package`、`not_an_extension`、`extension_off` | -32010 | `extension.*`：没有这个包、清单读不成；是界面包；重启一个关着的（施工 9-4 上，`extensions.md`）。`package.remove`、`package.install {"package"}` 也回 `unknown_package`（施工 F-5 上） |
 | `package_invalid`、`package_exists`、`package_required` | -32010 | `package.install`、`package.remove`：清单写错了、和别的包撞了；和出厂的同编号；卸必需的（施工 F-5 上，`packages.md`「装卸」） |
+| `program_missing`、`not_switchable` | -32010 | `package.enable`、`extension.enable`：包的程序不在 `miyu` 旁边，当没装，开不了；`package.enable`、`package.disable`：这个包没有开关（必需的照旧回 `package_required`）（施工 F-6 上，`package-pages.md`） |
+| `no_page`、`not_found`、`program_not_running`、`unregistered`、`method_failed`、`method_timeout` | -32010 | `package.file`：没有后台页；后台页里没有这份文件。`package.call`：程序没连着；没登记这个方法（`data.method`）；程序回了错（`data.message`、`data.code`）；到时限没回（施工 F-6 中，`package-pages.md`） |
+| `avatar_not_image`、`avatar_too_big` | -32010 | `persona.set` 的 `avatar`：不是 PNG、JPEG、WebP；超过 1 MiB 或 1024 像素，`data` 带量到的和上限（施工 P-5，`personas.md`「头像」） |
 | `needs_approval` | -32010 | `extension.enable`、`extension.restart`：要的能力还有没批的，`data.capabilities` 是那几个（施工 9-4 下上，`extensions.md`「能力」） |
 | `session_not_found` | -32010 | 没有这个会话，删了的也是 |
 | `unknown_call` | -32010 | `view.detail` 的会话日志里没有这次调用的结果：编号对不上，或者还没回（施工 9-6 三补） |
@@ -1076,14 +1101,16 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `cooling` | -32010 | `model.call` 的候选全在冷却，没发；`data.message` 是原话，`data.wait_ms` 是最早恢复的那一个还要多久（施工 8-20） |
 | `model_failed` | -32010 | `model.call` 发了、出错了：`data.class`、`data.status`（有状态码的才写）、`data.message`，和 `model.called` 的 `error` 一样（施工 8-20） |
 | `memory_unavailable` | -32010 | 这里没有记忆：不带人格（没写人格、又没设默认人格的也是）、范围 `off`、场所会话（施工 R-3 补，`memory.*`、`/remember`；施工 R-3 再补那句话也说没有人格） |
-| `memory_not_installed` | -32010 | 人格记忆这个软件包没装：`memory.*` 五个（施工 R-10）；装上就能用，以前记的都在 |
+| `memory_not_installed` | -32010 | 人格记忆这个软件包没装：`memory.*` 六个（施工 R-10）；装上就能用，以前记的都在 |
+| `memory_busy` | -32010 | 这一间正在整理记忆：定时的那一次在合，或者别人先叫了 `memory.dream`、`/dream`（施工 R-7 补） |
+| `dream_failed` | -32010 | 整理记忆没成：请求模型出错、交回的读不成、记忆日志写不进；`data.message` 是英文的一句为什么（施工 R-7 补） |
 | `unknown_memory` | -32010 | 没有这一条记忆，或者听众不合（施工 R-3 补） |
 | `memory_not_current` | -32010 | 那一条记忆已经改掉、作废、清掉了（施工 R-3 补） |
 | `memory_too_long` | -32010 | 一条记忆超过 120 字；`data.chars`、`data.limit`（施工 R-3 补） |
 | `restoring` | -32010 | 撤销、恢复还没做完（正在读回更早的日志、正在改回文件）时来的命令、删会话。兜底：会话做完才接下一个命令，照常碰不到 |
 
 - 从 `empty_message` 起，除了 `dir_too_wide`、附件的四个和 `not_a_command`，十三个是内核拒命令时给的原因码（`kernel/session.md`）；施工 D-1 起加上 `session.answer` 的四个（`not_asking`、`no_rule`、`unexpected_reason`、`bad_answer`），十七个。
-- 内核还有两个原因码，现在没有方法碰得到：`unknown_level`（协议上的级别只认两种，别的先是 `bad_params`）、`unknown_decision`（协议上的决定只认三种，施工 D-1）。它们没有配话，说的是最后那一句「被拒绝了」。
+- 内核还有两个原因码，现在没有方法碰得到：`unknown_level`（协议上的级别只认两种，别的先是 `bad_params`）、`unknown_decision`（协议上的决定只认三种，施工 D-1）。它们没有配话，说的是最后那一句「已拒绝。」。
 
 运行日志（目标 `miyu::endpoint`，`log.md`）：
 
@@ -1148,93 +1175,105 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 
 | 原因码 | 中文 | 英文 |
 |---|---|---|
-| `parse_error` | 读不懂这条消息。 | The message could not be read. |
-| `invalid_request` | 这不是一条请求。 | This is not a request. |
-| `unknown_method` | 没有这个方法。 | There is no such method. |
-| `bad_params` | 参数不对。 | The parameters are not right. |
-| `internal_error` | 核心出了问题，详情在运行日志里。 | The core ran into a problem; the runtime log has the details. |
-| `hello_first` | 连上以后要先打招呼（hello）。 | Say hello first after connecting. |
-| `protocol_mismatch` | 头和核心的协议版本对不上，请把它们升级到同一个版本。 | The head and the core speak different protocol versions; upgrade them to the same release. |
-| `bad_token` | 本机令牌不对。 | The local token is wrong. |
+| `parse_error` | 消息格式错误。 | Malformed message. |
+| `invalid_request` | 无效的请求。 | Invalid request. |
+| `unknown_method` | 方法不存在。 | Method not found. |
+| `bad_params` | 参数错误。 | Invalid parameters. |
+| `internal_error` | 内部错误，详见运行日志。 | Internal error. See the runtime log. |
+| `hello_first` | 请先握手（hello）。 | Send hello first. |
+| `protocol_mismatch` | 协议版本不兼容，请升级到同一版本。 | Protocol version mismatch. Upgrade to the same release. |
+| `bad_token` | 本机令牌无效。 | Invalid local token. |
 | `bad_code` 到 `local_only` | 照 `web-module.md`「给人看的字」（施工 W-8） | |
-| `unknown_persona` | 没有这个人格。 | There is no such persona. |
-| `persona_invalid` | 这个人格的文件写错了，详情在 data.problem 里。 | This persona's files have a mistake; data.problem says where. |
-| `unknown_preset` | 没有这个预设。 | There is no such preset. |
-| `preset_invalid` | 这个预设的文件写错了，详情在 data.problem 里。 | This preset's file has a mistake; data.problem says where. |
-| `preset_conflict` | 这个预设刚被别处改过，重新读一遍再改。 | This preset was just changed elsewhere; read it again and retry. |
-| `persona_conflict` | 这个人格刚被别处改过，重新读一遍再改。 | This persona was just changed elsewhere; read it again and retry. |
-| `nothing_to_delete` | 你这一层本来就没有，没有可删的。 | There is nothing of yours to delete here. |
-| `unknown_file` | Miyu 不读这个文件：能查的是配置、密钥文件、人格目录里的 persona.toml 和 prompts/examples.md、预设、软件包清单。 | Miyu does not read this file: it checks the config, the secrets file, persona.toml and prompts/examples.md in persona directories, presets and package manifests. |
-| `not_a_directory` | 这不是一个目录。 | This is not a directory. |
-| `unknown_package` | 没有这个软件包。 | There is no such package. |
-| `package_exists` | 出厂的软件包里已经有这个编号。 | A shipped package already has this id. |
-| `package_required` | 这个软件包是必需的，不能卸。 | This package is required and cannot be removed. |
-| `package_invalid` | 这份清单装不上，详情在 data.problem 里。 | This manifest cannot be installed; data.problem says why. |
-| `not_an_extension` | 这个软件包是界面，不由核心拉起。 | This package is an interface; the core does not start it. |
-| `extension_off` | 这个扩展关着，先打开它。 | This extension is off; turn it on first. |
-| `needs_approval` | 这个扩展要的能力还没批准。 | This extension's capabilities are not approved yet. |
-| `session_not_found` | 没有这个会话。 | There is no such session. |
-| `unknown_call` | 没有这次调用。 | There is no such tool call. |
-| `no_system_account` | 这个场所的会话要归系统账号，只有带系统账号的扩展能开。 | This venue's session belongs to a system account; only an extension with one can open it. |
-| `venue_session` | 这是通讯平台的场所会话，本机的头不能直接说话。 | This is a chat platform venue session; local heads cannot talk in it directly. |
-| `unknown_command` | 没有这个命令。 | There is no such command. |
-| `command_not_allowed` | 只有主人和管理的人能用命令。 | Only the owner and managers can use commands. |
-| `owner_only` | 只有主人能用这个命令。 | Only the owner can use this command. |
-| `session_stopped` | 这个会话停了，详情在运行日志里；再发一次会重新载入。 | This session has stopped; the runtime log has the details. Sending again reloads it. |
-| `session_broken` | 这个会话载入不了：它的日志或者策略快照坏了。 | This session cannot be loaded: its log or policy snapshot is broken. |
-| `empty_message` | 消息是空的。 | The message is empty. |
-| `dir_too_wide` | 加进来的目录太宽：家目录、根目录、Miyu 的数据根不能整个放行。 | An added directory is too wide: the home directory, the root and Miyu's data root cannot be opened up whole. |
-| `attachment_unreadable` | 读不了这个文件：没有、不是普通文件，或者没有权限。 | This file cannot be read: it is missing, not a regular file, or not permitted. |
-| `attachment_too_big` | 附件太大：一个最多 20 MiB，图片最多 5 MiB、每边最多 8000 像素。 | The attachment is too big: at most 20 MiB, and an image at most 5 MiB and 8000 pixels a side. |
-| `attachment_in_data_root` | Miyu 的数据根里的文件不能当附件。 | Files in Miyu's data root cannot be attached. |
-| `unknown_attachment` | 附件不在核心里：先用 blob.put 传上来。 | The attachment is not in the core; upload it with blob.put first. |
-| `path_unreadable` | 读不了这个路径。 | This path cannot be read. |
-| `path_forbidden` | 这是 Miyu 自己的数据，不给看。 | This is Miyu's own data and is not shown. |
-| `mermaid_too_long` | 这张图的源码太长了。 | The diagram source is too long. |
-| `mermaid_failed` | 这张图画不出来。 | The diagram could not be drawn. |
-| `too_many_uploads` | 同时传的文件太多了，等前面的传完。 | Too many uploads at once; wait for the others to finish. |
-| `upload_unknown` | 没有这个上传，可能等太久作废了，重新传一次。 | No such upload; it may have expired. Upload the file again. |
-| `upload_offset` | 上传接不上，从核心说的地方接着传。 | The upload is out of step; continue from where the core says. |
-| `upload_incomplete` | 文件还没传完。 | The file is not fully uploaded yet. |
-| `unknown_blob` | 找不到这份内容。 | This content cannot be found. |
-| `not_running` | 没有正在进行的回合，打断不了。 | No turn is running, so there is nothing to interrupt. |
-| `turn_running` | 有回合在进行：先打断，或者等它做完。 | A turn is running; interrupt it or wait for it to finish. |
-| `unknown_turn` | 没有这一轮，或者它已经撤掉了。 | There is no such turn, or it has already been undone. |
-| `nothing_to_unrevert` | 没有能恢复的撤销：没撤过，或者撤了以后又开过一轮、压缩过。 | There is nothing to restore: nothing was undone, or a turn or compaction came since. |
-| `restoring` | 正在撤销、恢复，等它做完再来。 | An undo or restore is still in progress; try again when it is done. |
-| `nothing_to_revert` | 没有能撤销的回合。 | There is no turn to undo. |
-| `nothing_to_compact` | 没有能压的：还没压过的内容都在原样留着的最近一段里。 | Not enough to compact: everything not yet compacted is in the recent part that stays as it is. |
-| `nothing_to_clear` | 上下文为空 | The context is empty. |
-| `unknown_job` | 没有这个任务，或者它已经结束了。 | There is no such job, or it has already ended. |
-| `not_a_command` | 这是子代理，不是后台命令：去看它的会话。 | This is a subagent, not a background command; open its session instead. |
-| `not_redoable` | 无法重做 | Cannot redo. |
-| `nothing_to_recap` | 还没有可回顾的内容 | There is nothing to recap yet. |
-| `not_asking` | 它没在等回答：已经答过，或者已经了结了。 | It is not waiting for an answer: it was answered or settled already. |
-| `not_ambient` | 不是旁听记下的消息 | Not an overheard message. |
-| `not_a_provider` | 只有扩展能提供工具 | Only extensions can provide tools. |
-| `bad_tool` | 工具规格不对 | Bad tool spec. |
-| `already_answered` | 已经回过 | Already answered. |
-| `no_rule` | 这一次只能允许这一次，或者拒绝。 | This one can only be allowed once or denied. |
-| `unexpected_reason` | 只有拒绝能带理由。 | Only a denial can carry a reason. |
-| `bad_answer` | 回答和题目对不上：几道题几条，只能选题目里的选项。 | The answers do not fit the questions: one per question, picking only their options. |
-| `unknown_config_key` | 没有这一项配置。 | There is no such setting. |
-| `config_invalid` | 配置有几处不对，没有改。 | Some settings are not right. Nothing was changed. |
-| `config_conflict` | 这一项刚被别处改过，没有改：先看看现在的值。 | This was just changed elsewhere. Nothing was changed. Look at the current value first. |
-| `config_file_broken` | 配置文件现在读不进来，没法只改一项：先把它改好，比如用 miyu config edit。 | The config file cannot be read right now, so a single setting cannot be changed. Fix the file first, e.g. with miyu config edit. |
-| `no_project_config` | 这个目录找不到项目配置。 | There is no project config for this directory. |
-| `unknown_secret` | 没有这个密钥。 | There is no such secret. |
-| `unknown_provider` | 没有这个供应商。 | There is no such provider. |
-| `unknown_model` | 配置里没有这个模型或者池。 | There is no such model or pool in the configuration. |
+| `unknown_persona` | 人格不存在。 | Persona not found. |
+| `persona_invalid` | 人格文件有误。 | Invalid persona files. |
+| `unknown_preset` | 预设不存在。 | Preset not found. |
+| `preset_invalid` | 预设文件有误。 | Invalid preset file. |
+| `preset_conflict` | 预设已被修改，请刷新后重试。 | Preset was modified. Refresh and try again. |
+| `persona_conflict` | 人格已被修改，请刷新后重试。 | Persona was modified. Refresh and try again. |
+| `nothing_to_delete` | 没有可删除的内容。 | Nothing to delete. |
+| `unknown_file` | 不支持检查这个文件。 | This file cannot be checked. |
+| `not_a_directory` | 不是目录。 | Not a directory. |
+| `unknown_package` | 软件包不存在。 | Package not found. |
+| `package_exists` | 编号与内置软件包重复。 | Id conflicts with a built-in package. |
+| `package_required` | 必需的软件包，无法卸载。 | Required package, cannot be removed. |
+| `package_invalid` | 清单有误，无法安装。 | Invalid manifest, cannot install. |
+| `program_missing` | 程序未安装。 | Program not installed. |
+| `not_switchable` | 不能启用或停用。 | Cannot be enabled or disabled. |
+| `no_page` | 没有后台页。 | No admin page. |
+| `not_found` | 文件不存在。 | File not found. |
+| `program_not_running` | 程序未运行。 | Program not running. |
+| `unregistered` | 方法未登记。 | Method not registered. |
+| `method_failed` | 方法执行失败。 | Method failed. |
+| `method_timeout` | 方法超时。 | Method timed out. |
+| `avatar_not_image` | 头像只支持 PNG、JPEG、WebP。 | Avatars must be PNG, JPEG or WebP. |
+| `avatar_too_big` | 头像超过 1 MiB 或 1024 像素。 | Avatar over 1 MiB or 1024 pixels. |
+| `not_an_extension` | 不是扩展。 | Not an extension. |
+| `extension_off` | 扩展已停用。 | Extension disabled. |
+| `needs_approval` | 扩展权限未批准。 | Extension permissions not approved. |
+| `session_not_found` | 会话不存在。 | Session not found. |
+| `unknown_call` | 调用不存在。 | Call not found. |
+| `no_system_account` | 需要系统账号。 | System account required. |
+| `venue_session` | 平台会话不能直接发消息。 | Cannot send messages directly to a platform session. |
+| `unknown_command` | 命令不存在。 | Command not found. |
+| `command_not_allowed` | 仅终端管理员和群管理员可用。 | Terminal and group admins only. |
+| `owner_only` | 仅终端管理员可用。 | Terminal admin only. |
+| `session_stopped` | 会话已停止，重新发送即可载入。 | Session stopped. Send again to reload. |
+| `session_broken` | 会话已损坏，无法载入。 | Session is corrupted and cannot be loaded. |
+| `empty_message` | 消息为空。 | Empty message. |
+| `dir_too_wide` | 目录范围过大。 | Directory too broad. |
+| `attachment_unreadable` | 无法读取文件。 | Cannot read file. |
+| `attachment_too_big` | 附件过大（最大 20 MiB，图片 5 MiB、8000 像素）。 | Attachment too large (max 20 MiB; images 5 MiB, 8000 px). |
+| `attachment_in_data_root` | 不能附加数据目录里的文件。 | Files in the data directory cannot be attached. |
+| `unknown_attachment` | 附件不存在。 | Attachment not found. |
+| `path_unreadable` | 无法读取路径。 | Cannot read path. |
+| `path_forbidden` | 无权访问。 | Access denied. |
+| `mermaid_too_long` | 图表源码过长。 | Diagram source too long. |
+| `mermaid_failed` | 图表渲染失败。 | Diagram rendering failed. |
+| `too_many_uploads` | 同时上传的文件过多。 | Too many uploads at once. |
+| `upload_unknown` | 上传已失效，请重新上传。 | Upload expired. Upload again. |
+| `upload_offset` | 上传位置不一致。 | Upload offset mismatch. |
+| `upload_incomplete` | 上传未完成。 | Upload incomplete. |
+| `unknown_blob` | 内容不存在。 | Content not found. |
+| `not_running` | 没有进行中的回合。 | No turn in progress. |
+| `turn_running` | 回合进行中。 | A turn is in progress. |
+| `unknown_turn` | 回合不存在。 | Turn not found. |
+| `nothing_to_unrevert` | 没有可恢复的撤销。 | Nothing to restore. |
+| `restoring` | 正在撤销或恢复。 | Undo or restore in progress. |
+| `nothing_to_revert` | 没有可撤销的回合。 | Nothing to undo. |
+| `nothing_to_compact` | 没有可压缩的内容。 | Nothing to compact. |
+| `nothing_to_clear` | 上下文为空。 | Context is empty. |
+| `unknown_job` | 任务不存在或已结束。 | Job not found or finished. |
+| `not_a_command` | 不是后台命令。 | Not a background command. |
+| `not_redoable` | 无法重做。 | Cannot redo. |
+| `nothing_to_recap` | 没有可回顾的内容。 | Nothing to recap. |
+| `not_asking` | 不在等待回答。 | Not waiting for an answer. |
+| `not_ambient` | 不是旁听消息。 | Not an overheard message. |
+| `not_a_provider` | 仅扩展可提供工具。 | Only extensions can provide tools. |
+| `bad_tool` | 工具规格有误。 | Invalid tool spec. |
+| `already_answered` | 已回复。 | Already answered. |
+| `no_rule` | 只能允许本次或拒绝。 | Only allow once or deny. |
+| `unexpected_reason` | 仅拒绝可附理由。 | Only a denial can carry a reason. |
+| `bad_answer` | 回答与题目不匹配。 | Answers do not match the questions. |
+| `unknown_config_key` | 配置项不存在。 | Config key not found. |
+| `config_invalid` | 配置有误，未保存。 | Invalid config, not saved. |
+| `config_conflict` | 配置已被修改，请刷新后重试。 | Config was modified. Refresh and try again. |
+| `config_file_broken` | 配置文件有误，请先修复。 | Config file is invalid. Fix it first. |
+| `no_project_config` | 未找到项目配置。 | Project config not found. |
+| `unknown_secret` | 密钥不存在。 | Secret not found. |
+| `unknown_provider` | 供应商不存在。 | Provider not found. |
+| `unknown_model` | 模型或模型池不存在。 | Model or pool not found. |
 | `no_model` | 没有可用的模型。 | No model is available. |
-| `cooling` | 模型都在冷却，稍后再试。 | All models are cooling down; try again later. |
-| `model_failed` | 请求模型出错了。 | The model request failed. |
-| `recap_failed` | 回顾没写成：请求模型出错了。 | The recap could not be written: the model request failed. |
-| `memory_unavailable` | 这里没有记忆：没有人格、记忆关着，或者是通讯平台的会话。 | No memory here: no persona, memory is off, or this is a platform session. |
-| `memory_not_installed` | 没装人格记忆。 | Persona memory is not installed. |
-| `unknown_memory` | 没有这一条记忆。 | There is no such memory. |
-| `memory_not_current` | 这一条已经改掉、作废或者清掉了。 | That memory was already replaced, forgotten or cleared. |
-| `memory_too_long` | 一条记忆太长了，字数和上限在 data 里。 | The memory is too long; data has its length and the limit. |
-| 别的 | 被拒绝了。 | Refused. |
+| `cooling` | 模型冷却中，请稍后重试。 | Models cooling down. Try again later. |
+| `model_failed` | 模型请求失败。 | Model request failed. |
+| `recap_failed` | 生成回顾失败。 | Recap failed. |
+| `memory_unavailable` | 记忆不可用。 | Memory unavailable. |
+| `memory_not_installed` | 人格记忆未安装。 | Persona memory not installed. |
+| `memory_busy` | 正在整理记忆。 | Memory is being organized. |
+| `dream_failed` | 整理记忆失败。 | Memory organization failed. |
+| `unknown_memory` | 记忆不存在。 | Memory not found. |
+| `memory_not_current` | 记忆已失效。 | Memory no longer current. |
+| `memory_too_long` | 记忆过长。 | Memory too long. |
+| 别的 | 已拒绝。 | Refused. |
 
 ### 守着它的
 
@@ -1299,6 +1338,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `crates/miyu-endpoint/tests/models_pools.rs`（施工 8-8） | `model.list` 的 `pools`（8-8 补多 `subagent`、`description`，没有 `tiers`）、`uses`；`session.create` 的 `model` 记下解析出的、`unknown_model` 什么都不造、不是字符串的 `bad_params`；`session.configure` 照这时的配置解析好记一条、先推再回应、一样的不记，参数不对的几种 `bad_params`、先找会话、解析不出的 `unknown_model`、都什么都不记；`subscribe` 的 `model` 照真路由解析出的写，轮换的池只有 `ref`，一个都没有的不写（施工 8-10，`models.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/models_effort.rs`（施工 8-18；8-18（补）去掉会话那一层） | `session.configure` 写了 `effort` 回 `bad_params`、不写 `model` 回 `bad_params`；`subscribe` 的 `model` 多 `effort`，`from` 是配置的哪一层；`model.list` 的 `facts.effort`、多一格 `key`；配置里写错的 `unknown_effort`（`models.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/providers.rs`、`providers_test.rs`、`providers_log.rs`（施工 8-11） | `provider.detect`、`provider.catalog`、`provider.test` 的形状、参数不对、`unknown_provider`，`{value}` 的 key 不进回应和运行日志（`models.md`「守着它的」） |
+| `crates/miyu-endpoint/tests/memory_dream.rs`、`src/commands/tests.rs` 的 `only_dream_is_answered_later`、`src/subscriptions/later/tests.rs`（施工 R-7 补） | `memory.dream` 的回应、再叫一次是零、`memory_busy`、`memory_not_installed`、在后台答（同一个连接后面的请求先回）；`/dream` 的回执、命令表里列、在后台答，订阅着的 `command.ran` 先到；在后台答的命令只有 `/dream`；在后台答的回应照办完那一刻的订阅走：订阅着的交给转发任务，没订阅的、不是给会话的、放下了的直接写，换了的交给新的，只拿弱的一头、转发任务退得了，放下了的下一次开通道时清掉（细节见 `memory.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/model_call.rs`、`model_call_log.rs`（施工 8-20） | `model.call` 的回应形状、参数校验、blob 的账号、几种出错的 `data`、不进会话日志、运行日志那两行（`models.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/secrets.rs`、`secrets_log.rs`（施工 8-5） | `secret.*` 的回应、拒绝、日志；值不进回应、拒绝、系统日志、运行日志（`config.md`「守着它的」） |
 | `crates/miyu-endpoint/tests/config_set.rs`（施工 8-3） | `config.set` 的回应、每一种拒绝、`expect`、版本、手改重读、全收或者全不收、写不成什么都没变、日志（`config.md`「守着它的」） |

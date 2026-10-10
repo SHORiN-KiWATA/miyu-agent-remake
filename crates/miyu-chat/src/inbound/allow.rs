@@ -1,5 +1,5 @@
 //! 谁能叫她（`docs/blueprint/chat.md` 第二条「怎么走」第 4 条，`18-通讯平台.md` 第三节、第六节）：场所规则的 `allow` 是
-//! `false` 时，只放行主人和私聊里的自己人，别的只记下。没设 `allow` 当 `true`。
+//! `false` 时，只放行终端管理员和私聊里的白名单成员，别的只记下。没设 `allow` 当 `true`。
 
 use super::{Clock, Ctx, Inbound, InboundRule, Outcome, Step, Why};
 

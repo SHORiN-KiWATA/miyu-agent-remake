@@ -1,5 +1,5 @@
 //! 撤销、恢复（施工 4-7 上）：协议上撤掉一轮、再恢复它，回应的是它们产生的事件；没有能恢复的、没有这一轮的，照头的
-//! 语言拒绝；回合编号写成 0 的是参数不对。改回文件的那一半在会话的测试里（`miyu-session` 的 tests/restore.rs）。
+//! 语言拒绝；回合编号写成 0 的是参数错误。改回文件的那一半在会话的测试里（`miyu-session` 的 tests/restore.rs）。
 
 use serde_json::json;
 
@@ -48,10 +48,7 @@ async fn a_turn_is_undone_and_redone_over_the_protocol() {
         .call("c5", "session.unrevert", json!({"session": session}))
         .await;
     assert_eq!(reason(&reply), Some("nothing_to_unrevert"), "{reply}");
-    assert_eq!(
-        reply["error"]["message"],
-        json!("没有能恢复的撤销：没撤过，或者撤了以后又开过一轮、压缩过。")
-    );
+    assert_eq!(reply["error"]["message"], json!("没有可恢复的撤销。"));
 }
 
 #[tokio::test]
@@ -68,10 +65,7 @@ async fn a_turn_that_is_not_there_is_refused() {
         )
         .await;
     assert_eq!(reason(&reply), Some("unknown_turn"), "{reply}");
-    assert_eq!(
-        reply["error"]["message"],
-        json!("没有这一轮，或者它已经撤掉了。")
-    );
+    assert_eq!(reply["error"]["message"], json!("回合不存在。"));
     let reply = client
         .call(
             "c3",
@@ -93,5 +87,5 @@ async fn with_no_turn_there_is_nothing_to_undo() {
         .call("c2", "session.revert", json!({"session": session}))
         .await;
     assert_eq!(reason(&reply), Some("nothing_to_revert"), "{reply}");
-    assert_eq!(reply["error"]["message"], json!("没有能撤销的回合。"));
+    assert_eq!(reply["error"]["message"], json!("没有可撤销的回合。"));
 }

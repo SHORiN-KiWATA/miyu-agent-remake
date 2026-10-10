@@ -102,12 +102,12 @@ fn chinese_says_what_the_blueprint_shows() {
     assert_eq!(
         told("zh"),
         [
-            "没有 ui.langauge 这一项。是不是想写 ui.language？这一行先不管，原样留着。",
-            "log.level 只能是 error、warn、info、debug、trace 或 off，写的是 \"verbose\"。改成其中一个，例如 log.level = \"info\"。这一项先照 \"info\" 用着（默认值）。",
+            "没有 ui.langauge 这一项。是不是想写 ui.language？已忽略此行。",
+            "log.level 只能是 error、warn、info、debug、trace 或 off，写的是 \"verbose\"。改成其中一个，例如 log.level = \"info\"。暂用 \"info\"（默认值）。",
             "项目配置只能让限制更严。permission.start_read_only 现在是 true，这里写的 false 更宽，不算。",
-            "TOML 写法不对：invalid basic string。这份文件先照上一次读进来的用着。",
+            "TOML 写法不对：invalid basic string。暂用上次的有效配置。",
             "log.level 只能写在系统配置里，写在个人设置里不算。挪到系统配置里去。",
-            "permission.start_read_only 要写 true 或 false，写的是 \"yes\"。改成 permission.start_read_only = true。这一项先照 false 用着（默认值）。",
+            "permission.start_read_only 要写 true 或 false，写的是 \"yes\"。改成 permission.start_read_only = true。暂用 false（默认值）。",
         ]
     );
 }
@@ -117,10 +117,10 @@ fn english_says_what_the_blueprint_shows() {
     assert_eq!(
         told("en"),
         [
-            "There is no ui.langauge. Did you mean ui.language? The line is ignored and kept as it is.",
+            "There is no ui.langauge. Did you mean ui.language? Line ignored.",
             "log.level must be error, warn, info, debug, trace or off, not \"verbose\". Write one of them, e.g. log.level = \"info\". Using \"info\" (the default) for now.",
             "A project config can only make limits stricter. permission.start_read_only is true, and false here is looser, so it does not count.",
-            "Not valid TOML: invalid basic string. Using what was read from this file last time.",
+            "Not valid TOML: invalid basic string. Using the last valid config.",
             "log.level belongs in the system config. It does not count in personal settings. Move it to the system config.",
             "permission.start_read_only needs true or false, not \"yes\". Write permission.start_read_only = true. Using false (the default) for now.",
         ]

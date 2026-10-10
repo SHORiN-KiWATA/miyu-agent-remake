@@ -1,6 +1,6 @@
 //! 协议上停掉一个任务（施工 7-4，`docs/blueprint/protocol.md` 的 `job.stop`）：真核心走一遍。人停子代理：子会话那一轮被打断，
 //! 父会话记下 `child.reported`（`stopped`，不是她停的）；回应是 `{}`。没有这个任务、已经结束了的拒绝，`unknown_job`，中文、英文
-//! 各一句；任务编号不合写法的参数不对。
+//! 各一句；任务编号不合写法的参数错误。
 
 use serde_json::{Value, json};
 
@@ -102,10 +102,7 @@ async fn what_is_not_there_is_refused() {
         .call("s1", "job.stop", json!({"session": session, "job": "j1"}))
         .await;
     assert_eq!(reason(&reply), Some("unknown_job"), "{reply}");
-    assert_eq!(
-        reply["error"]["message"],
-        json!("没有这个任务，或者它已经结束了。")
-    );
+    assert_eq!(reply["error"]["message"], json!("任务不存在或已结束。"));
     let mut english = Client::connect(core);
     english.hello_without_input().await;
     let reply = english
@@ -113,7 +110,7 @@ async fn what_is_not_there_is_refused() {
         .await;
     assert_eq!(
         reply["error"]["message"],
-        json!("There is no such job, or it has already ended.")
+        json!("Job not found or finished.")
     );
     for job in [
         json!("1"),

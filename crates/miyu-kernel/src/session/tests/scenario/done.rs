@@ -71,7 +71,7 @@ fn done_carries_the_usage_before_and_after() {
 fn nothing_is_done_when_the_summary_fails_or_is_interrupted() {
     let mut stage = compacting();
     second_turn(&mut stage, 5_000, Line::says("").thinking("只想了"));
-    assert!(done(&stage).is_empty(), "取不出摘要");
+    assert!(done(&stage).is_empty(), "摘要提取失败");
     let mut stage = compacting();
     stage.model([Line::says("好。").reports(5_000)]);
     stage.say("hi");

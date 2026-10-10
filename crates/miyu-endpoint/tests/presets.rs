@@ -260,8 +260,8 @@ async fn presets_are_listed_and_read_by_layer() {
         listed["result"]["presets"],
         json!([
             {"preset": "broken", "problem": "不认识的表 [colors]：预设文件里只能有 [preset]、[features]、[software]、[tools]", "line": 1},
-            {"preset": "dev", "name": "大家的开发", "summary": null},
-            {"preset": "full", "name": "全部功能", "summary": null},
+            {"preset": "dev", "name": "大家的开发", "summary": null, "icon": "box"},
+            {"preset": "full", "name": "全部功能", "summary": null, "icon": "boxes"},
         ]),
         "照连接的语言挑"
     );
@@ -288,6 +288,8 @@ async fn presets_are_listed_and_read_by_layer() {
                 one["installed"].as_bool().unwrap_or_default(),
             )
         })
+        // 出厂的接入QQ 的功能 qq 在不在看测试程序旁边有没有 `miyu-onebot`（桥的测试会链一个过去），这里不比它。
+        .filter(|(id, _, _, _)| *id != "qq")
         .collect();
     assert_eq!(
         features,
@@ -302,14 +304,18 @@ async fn presets_are_listed_and_read_by_layer() {
             ("history", "翻查本会话", true, true),
             ("usage", "用量", true, true),
             ("memory", "人格记忆", true, true),
-            ("qq", "QQ 工具", false, true),
             ("roleplay", "人设防失忆提醒", false, true),
             ("goal", "长期目标", true, false),
         ],
         "装了的照清单读的先后、名字照它的清单（施工 F-3 下）；写了没装的接在后面，名字照给人看的字；装了的包的编号（net）不另列"
     );
     assert_eq!(
-        got["features"][11]["summary"],
+        got["features"]
+            .as_array()
+            .expect("是一个个功能")
+            .iter()
+            .find(|one| one["id"] == "roleplay")
+            .expect("有人设防失忆提醒")["summary"],
         "隔几轮把人设提醒短语再给她看一遍，聊久了也不出戏"
     );
     assert!(got["features"][0].get("summary").is_none(), "没说明的不写");

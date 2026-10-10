@@ -84,7 +84,7 @@ async fn a_new_token_takes_over_and_the_open_connection_stays() {
     let home = Home::new(&Script::new([Play::Says("在。")]));
     let (serve, push) = serve_pushing(home.root.clone(), settings());
     let bridge = start(serve).await;
-    let mut open = owner_napcat(bridge.port).await;
+    let mut open = admin_napcat(bridge.port).await;
     push.config(json!({"onebot.token": NEW}));
     // 不报号：不顶掉连着的那一条。
     let fresh = admitted(bridge.port, "/ws", Auth::Bearer(NEW), None).await;
@@ -96,7 +96,7 @@ async fn a_new_token_takes_over_and_the_open_connection_stays() {
     )
     .await;
     assert_eq!(old.err(), Some(401), "旧的不收");
-    open.owner_says(1, "还在吗").await;
+    open.admin_says(1, "还在吗").await;
     assert_eq!(open.reply().await, "在。", "已经连着的那一条照样收发");
     fresh.close().await;
     bridge.stop().await.expect("停得下");

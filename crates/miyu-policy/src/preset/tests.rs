@@ -150,7 +150,7 @@ fn a_problem_reads_as_a_line_and_a_sentence() {
         message: "broken".to_string(),
     };
     assert_eq!(no_line.to_string(), "broken");
-    assert_eq!(Code::ALL.len(), 13);
+    assert_eq!(Code::ALL.len(), 14);
 }
 
 #[test]
@@ -308,4 +308,28 @@ fn a_base_written_by_p3_is_read_as_unwritten() {
         Code::NotBool,
         "别的表里照旧"
     );
+}
+
+/// 图标（施工 P-5，`presets.md`「图标」）：Lucide 的名字，只查写法；上一层的盖下面的；不进指纹（界面上的事，换了不该换快照）。
+#[test]
+fn the_icon_is_read_layered_and_left_out_of_the_digest() {
+    let upper = read("[preset]\nicon = \"boxes\"\n").unwrap();
+    assert_eq!(upper.icon.as_deref(), Some("boxes"));
+    let lower = read("[preset]\nname = \"Lean\"\nicon = \"box\"\n").unwrap();
+    let stacked = upper.clone().over(lower.clone());
+    assert_eq!(stacked.icon.as_deref(), Some("boxes"));
+    assert_eq!(
+        PresetFile::default().over(lower.clone()).icon.as_deref(),
+        Some("box"),
+        "上一层没写的照下面的"
+    );
+    let plain = read("[preset]\nname = \"Lean\"\n").unwrap();
+    assert_eq!(lower.digest(), plain.digest(), "图标不进指纹");
+    for icon in ["\"\"", "\"Box\"", "\"1box\"", "\"a_b\"", "1"] {
+        assert_eq!(
+            wrong(&format!("[preset]\nicon = {icon}\n")),
+            (Code::BadIcon, Some(2)),
+            "{icon}"
+        );
+    }
 }

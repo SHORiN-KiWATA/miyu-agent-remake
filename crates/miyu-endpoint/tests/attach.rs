@@ -140,7 +140,7 @@ async fn too_big_is_refused_and_the_limits_themselves_are_taken() {
     assert_eq!(reason(&reply), Some("attachment_too_big"), "{reply}");
     assert_eq!(
         reply["error"]["message"],
-        "附件太大：一个最多 20 MiB，图片最多 5 MiB、每边最多 8000 像素。"
+        "附件过大（最大 20 MiB，图片 5 MiB、8000 像素）。"
     );
     // 图片照图片的上限：宽高、大小。
     let wide = write(&home, "wide.png", &png(8001, 10));
@@ -177,10 +177,7 @@ async fn files_in_the_data_root_are_not_given_but_the_workspace_is() {
     std::fs::write(&inside, b"secret").unwrap();
     let reply = put(&mut client, "b1", json!({"path": inside})).await;
     assert_eq!(reason(&reply), Some("attachment_in_data_root"), "{reply}");
-    assert_eq!(
-        reply["error"]["message"],
-        "Miyu 的数据根里的文件不能当附件。"
-    );
+    assert_eq!(reply["error"]["message"], "不能附加数据目录里的文件。");
     // 管理员的工作区在数据根里，照边界表是能读能写的那一片：给。
     let workspace = home.root.workspace(&alice());
     std::fs::create_dir_all(&workspace).unwrap();
@@ -209,10 +206,7 @@ async fn what_cannot_be_read_is_refused() {
     let missing = home.work.join("missing.txt");
     let reply = put(&mut client, "b1", json!({"path": missing})).await;
     assert_eq!(reason(&reply), Some("attachment_unreadable"), "{reply}");
-    assert_eq!(
-        reply["error"]["message"],
-        "读不了这个文件：没有、不是普通文件，或者没有权限。"
-    );
+    assert_eq!(reply["error"]["message"], "无法读取文件。");
     let reply = put(&mut client, "b2", json!({"path": home.work})).await;
     assert_eq!(
         reason(&reply),
@@ -260,10 +254,7 @@ async fn refusals_are_in_the_heads_language() {
     english.hello_without_input().await;
     let missing = home.work.join("missing.txt");
     let reply = put(&mut english, "e1", json!({"path": missing})).await;
-    assert_eq!(
-        reply["error"]["message"],
-        "This file cannot be read: it is missing, not a regular file, or not permitted."
-    );
+    assert_eq!(reply["error"]["message"], "Cannot read file.");
     let reply = english
         .call(
             "e2",
@@ -272,21 +263,18 @@ async fn refusals_are_in_the_heads_language() {
                    "attachments": [{"blob": ContentHash::of(b"none").as_str(), "name": "a", "media_type": "text/plain"}]}),
         )
         .await;
-    assert_eq!(
-        reply["error"]["message"],
-        "The attachment is not in the core; upload it with blob.put first."
-    );
+    assert_eq!(reply["error"]["message"], "Attachment not found.");
     let over = write(&home, "wide.png", &png(9000, 1));
     let reply = put(&mut english, "e3", json!({"path": over})).await;
     assert_eq!(
         reply["error"]["message"],
-        "The attachment is too big: at most 20 MiB, and an image at most 5 MiB and 8000 pixels a side."
+        "Attachment too large (max 20 MiB; images 5 MiB, 8000 px)."
     );
     let inside = home.root.path().join("state").join("x.txt");
     std::fs::write(&inside, b"x").unwrap();
     let reply = put(&mut english, "e4", json!({"path": inside})).await;
     assert_eq!(
         reply["error"]["message"],
-        "Files in Miyu's data root cannot be attached."
+        "Files in the data directory cannot be attached."
     );
 }

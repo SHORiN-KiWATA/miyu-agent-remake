@@ -8,6 +8,7 @@
 //! | 违规词表 | `moderation.txt` | `modules/onebot/moderation.txt`，在的话整份替换出厂的 |
 //! | 判官的说明（施工 O-23 下） | `judge/*.txt` 十三份 | 没有：给模型看的字随包走 |
 //! | 给她看的事实的模板（施工 O-25 下） | `facts/undelivered.txt` | 没有：同上 |
+//! | 桥的工具（施工 O-26） | `tools/*.json` 的说明，`tool-results/` 答的两句 | 没有：同上 |
 //!
 //! - 出厂的起来时读一次、单独查一次（[`Factory::load`]）：有一条问题就是打包的错，桥起不来；之后放在内存里，跑着不再读
 //!   （「施工时定的」第 52 条）。
@@ -19,6 +20,7 @@
 mod facts;
 mod files;
 mod judge;
+mod tools;
 
 use std::fmt::Display;
 use std::io;
@@ -34,6 +36,8 @@ use miyu_store::root::DataRoot;
 
 use crate::{PACKAGE, TARGET};
 use files::Stamp;
+pub(crate) use tools::SKIP_REPLY;
+pub use tools::Tools;
 
 /// 场所规则的目录：出厂的在资源目录的 `software/onebot/` 里，系统的在数据根的 `system/` 里。
 const VENUES: &str = "venues.d";
@@ -60,18 +64,21 @@ pub struct Factory {
     judge: Arc<JudgeTexts>,
     /// 退信的模板（施工 O-25 下，`onebot.md`「退信」第 3 条）：查过字段。
     undelivered: Template,
+    /// 桥的工具（施工 O-26，`onebot.md`「提供者和不说话」）：说明、答的两句，查过字段。
+    tools: Arc<Tools>,
 }
 
 impl Factory {
     /// 读资源目录 `resources` 里的出厂数据：规则文件单独过一遍 [`Rules::parse`]（合上系统的以后，被同名替换的那一份不读，
     /// 单独过才查得全），出厂参数过 [`Params::read`]，违规词表过 [`Moderation::parse_keywords`]，判官的说明过
-    /// [`JudgeTexts::new`]（施工 O-23 下），退信的模板过 [`Template::parse`]、只认三个字段（施工 O-25 下）。
+    /// [`JudgeTexts::new`]（施工 O-23 下），退信的模板过 [`Template::parse`]、只认三个字段（施工 O-25 下），桥的工具的说明、
+    /// 答的两句照 `miyu_tool::load` 读、查过字段（施工 O-26）。
     ///
     /// # Errors
     ///
     /// 有一条问题就是打包的错（警告也算，照 `chat.md` 第八条施工时定的第 10 条），交回全部问题：规则写错、出厂参数写错、
-    /// 判官的说明、退信的模板写坏了、哪一份不在或读不成（`venues.d` 列不出来也是）。问题照规则文件、出厂参数、违规词表、判官
-    /// 的说明、退信的模板的先后。
+    /// 判官的说明、退信的模板、桥的工具写坏了、哪一份不在或读不成（`venues.d` 列不出来也是）。问题照规则文件、出厂参数、违规
+    /// 词表、判官的说明、退信的模板、桥的工具的先后。
     pub fn load(resources: &ResourceRoot) -> Result<Factory, Vec<Problem>> {
         let dir = resources.path().join("software").join(PACKAGE);
         let mut problems = Vec::new();
@@ -98,8 +105,9 @@ impl Factory {
             .map(|text| Moderation::parse_keywords(&text));
         let judge = judge::texts(&dir, &mut problems);
         let undelivered = facts::undelivered(&dir, &mut problems);
-        match (params, keywords, judge, undelivered) {
-            (Some(params), Some(keywords), Some(judge), Some(undelivered))
+        let tools = tools::load(resources.path(), &mut problems);
+        match (params, keywords, judge, undelivered, tools) {
+            (Some(params), Some(keywords), Some(judge), Some(undelivered), Some(tools))
                 if problems.is_empty() =>
             {
                 Ok(Factory {
@@ -108,10 +116,16 @@ impl Factory {
                     keywords,
                     judge: Arc::new(judge),
                     undelivered,
+                    tools: Arc::new(tools),
                 })
             }
             _ => Err(problems),
         }
+    }
+
+    /// 桥的工具（施工 O-26）：出厂的，跑着不再读。跟核心的那一头登记、答请求各拿一份引用。
+    pub fn tools(&self) -> Arc<Tools> {
+        Arc::clone(&self.tools)
     }
 }
 

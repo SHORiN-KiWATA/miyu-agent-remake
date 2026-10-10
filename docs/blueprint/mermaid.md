@@ -78,8 +78,8 @@ mermaid 源码画成 SVG 由核心做一次：同一张图，终端和网页看�
 
 | 原因码 | 中文 | 英文 |
 |---|---|---|
-| `mermaid_too_long` | 这张图的源码太长了。 | The diagram source is too long. |
-| `mermaid_failed` | 这张图画不出来。 | The diagram could not be drawn. |
+| `mermaid_too_long` | 图表源码过长。 | Diagram source too long. |
+| `mermaid_failed` | 图表渲染失败。 | Diagram rendering failed. |
 
 ### 守着它的
 

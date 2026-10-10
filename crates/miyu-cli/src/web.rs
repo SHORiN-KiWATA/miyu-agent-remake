@@ -37,6 +37,9 @@ pub struct Web {
     /// 作废全部浏览器的登录。
     #[arg(long)]
     pub logout: bool,
+    /// 打开时直接到「软件后台」里这个软件的页面（施工 F-6 下）。
+    #[arg(long, value_name = "ID")]
+    pub package: Option<String>,
 }
 
 impl Web {
@@ -54,6 +57,9 @@ impl Web {
             if on {
                 args.push(flag.to_string());
             }
+        }
+        if let Some(package) = &self.package {
+            args.extend(["--package".to_string(), package.clone()]);
         }
         args
     }

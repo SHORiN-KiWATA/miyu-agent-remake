@@ -160,21 +160,21 @@
 
 | 说法 | 中文 | 英文 |
 |---|---|---|
-| `core/tool-results/unknown` | 没有这件工具 | no such tool |
-| `core/tool-results/not-an-object` | 参数不是一个 JSON 对象 | the arguments are not a JSON object |
-| `core/tool-results/read-only` | 只读，没写 | read-only, not written |
-| `core/tool-results/unattended` | 要确认，这里没人能确认 | needs a confirmation nobody here can give |
-| `core/tool-results/denied` | 你拒绝了 | you said no |
+| `core/tool-results/unknown` | 工具不存在 | Tool not found |
+| `core/tool-results/not-an-object` | 参数格式错误 | Invalid arguments |
+| `core/tool-results/read-only` | 只读模式，未执行 | Read-only mode, not run |
+| `core/tool-results/unattended` | 需要确认，无人确认 | Needs confirmation, no one to confirm |
+| `core/tool-results/denied` | 已拒绝 | Denied |
 | `core/tool-results/denied-with-reason` | 你拒绝了：{reason} | you said no: {reason} |
-| `core/tool-results/cancelled-before` | 打断了，没跑 | interrupted before it ran |
-| `core/tool-results/cancelled-running` | 打断了，跑到一半 | interrupted while running |
-| `core/tool-results/question-interrupted` | 打断了，没回答 | interrupted before the answer |
-| `core/tool-results/skipped` | 跳过了 | skipped |
-| `core/tool-results/question-voided` | 你发了一句话，这一题作废了 | dropped: you sent a message |
-| `core/tool-results/question-unattended` | 这里没人能回答 | nobody here can answer |
-| `core/tool-results/restarted` | Miyu 重启了，没跑完 | Miyu restarted before it finished |
-| `core/tool-results/unavailable` | 现在用不了 | not available right now |
-| `core/tool-results/crashed` | 内部出错了，可能做了一部分 | crashed, may be partly done |
+| `core/tool-results/cancelled-before` | 已取消 | Cancelled |
+| `core/tool-results/cancelled-running` | 已中断 | Interrupted |
+| `core/tool-results/question-interrupted` | 已中断，未回答 | Interrupted, not answered |
+| `core/tool-results/skipped` | 已跳过 | Skipped |
+| `core/tool-results/question-voided` | 已作废 | Voided |
+| `core/tool-results/question-unattended` | 无人回答 | No one to answer |
+| `core/tool-results/restarted` | 重启中断 | Interrupted by restart |
+| `core/tool-results/unavailable` | 不可用 | not available right now |
+| `core/tool-results/crashed` | 内部错误，可能已部分执行 | Internal error, may be partly done |
 | `core/permissions/forbidden` | 这是 Miyu 自己的数据，谁都不能碰 | Miyu's own data, off limits |
 | `core/permissions/unresolvable` | 说不清它指向哪里：{reason} | can't tell where it points: {reason} |
 

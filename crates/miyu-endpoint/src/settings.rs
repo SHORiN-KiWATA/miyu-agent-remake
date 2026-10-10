@@ -79,7 +79,7 @@ miyu_config::settings! {
             layers: [System, Personal, Project],
             tighten: true_only,
             applies: new_session,
-            ui: { page: "permissions", group: "sessions", control: toggle },
+            ui: { page: "general", group: "sessions", control: toggle },
         },
     }
 }
@@ -105,7 +105,7 @@ impl UiSettings {
 #[cfg(test)]
 mod tests;
 
-/// 主人对应表（施工 O-3，`docs/blueprint/venues.md`）：`external.bindings.<external>`，键是通讯平台上的身份，值是本机账号。
+/// 终端管理员的平台账号（施工 O-3；以前叫主人对应表，`docs/blueprint/venues.md`）：`external.bindings.<external>`，键是通讯平台上的身份，值是本机账号。
 /// `settings!` 只认「段加字段名」，最后一段是占位的这一项手写。只能写在系统配置，当场生效：下一句就照新的认。
 pub const EXTERNAL_BINDINGS: &[miyu_config::Item] = &[miyu_config::Item {
     key: "external.bindings.<external>",
@@ -116,7 +116,7 @@ pub const EXTERNAL_BINDINGS: &[miyu_config::Item] = &[miyu_config::Item {
     env: None,
     applies: miyu_config::Applies::Now,
     ui: miyu_config::Ui {
-        page: "permissions",
+        page: "advanced",
         group: "external",
         common: false,
         control: miyu_config::Control::Text,

@@ -1,0 +1,4 @@
+{
+  "description": "Stay silent this turn: nothing you write in this turn is sent. Use it when the message is not for you or a reply adds nothing.",
+  "parameters": {"type":"object","properties":{"reason":{"type":"string"}},"required":["reason"]}
+}

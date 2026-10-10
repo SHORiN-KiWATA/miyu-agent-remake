@@ -2,7 +2,7 @@
 //! 核心一份 [`Embedder`]，给要向量的一方（R-5 下接进 `memory_search`）。
 //!
 //! - **核对文件**（`embed/files.rs`，施工 R-5 三补）：模型文件在内置模型那个小程序包的目录里，装好就能用、不下。第一次要时在
-//!   后台照模型清单核对大小、SHA-256；核对着的时候交回 [`Unavailable::Preparing`]，要的一方照只有关键词走，不等。对不上的
+//!   阻塞线程里照模型清单核对大小、SHA-256，同时来的等同一次（施工 R-5 五补：24 MB 十来毫秒，不先交「还在备」）；对不上的
 //!   这一回用不了，不删包里的东西。
 //! - **小程序**（`embed/worker.rs`）：要用时拉起 `miyu-embed`，一次一条，后来的排队；[`IDLE`] 没有新的请求就让它退出，下一条
 //!   再拉起。它起不来、坏了，这一条交回 [`Unavailable::Failed`]；这一回起不来过三次，就不再拉起。
@@ -19,7 +19,7 @@ mod worker;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, PoisonError, Weak};
+use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
 use miyu_recall::embedding::Manifest;
@@ -51,8 +51,6 @@ pub struct EmbedSetup {
 /// 这一回算不出向量。原话是英文短句，进运行日志。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Unavailable {
-    /// 模型还在核对、在下：这一回只有关键词。
-    Preparing,
     /// 这台机器、这一阵用不了：没有小程序、模型清单读不了、包里的文件少了或对不上、起不来过三次；远程的那一家没配、地址或
     /// key 取不到。
     Off(String),
@@ -63,7 +61,6 @@ pub enum Unavailable {
 impl fmt::Display for Unavailable {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Unavailable::Preparing => write!(f, "the embedding model is being prepared"),
             Unavailable::Off(why) | Unavailable::Failed(why) => write!(f, "{why}"),
         }
     }
@@ -95,21 +92,9 @@ struct Shared {
     ready: Result<Ready, String>,
     /// 关掉了（换下来了）：以后每一条都交回用不了，不再拉起（施工 R-5 四补）。
     shut: AtomicBool,
-    files: Mutex<Files>,
+    /// 包里的文件核对过没有、对不对得上：只核对一次，同时来的等同一次（施工 R-5 五补）。对不上的是为什么。
+    files: tokio::sync::OnceCell<Result<(), String>>,
     slot: tokio::sync::Mutex<Slot>,
-}
-
-/// 模型的文件备到哪了。
-#[derive(Debug)]
-enum Files {
-    /// 这一回还没看过。
-    Unchecked,
-    /// 在后台核对。
-    Preparing,
-    /// 齐了、核对过。
-    Ready,
-    /// 对不上、少了：为什么。这一个不再核对；装卸以后另造一个换上（施工 R-5 四补）。
-    Failed(String),
 }
 
 /// 拉起着的小程序。
@@ -138,7 +123,7 @@ impl Embedder {
                 made_from: (setup, text.ok()),
                 ready,
                 shut: AtomicBool::new(false),
-                files: Mutex::new(Files::Unchecked),
+                files: tokio::sync::OnceCell::new(),
                 slot: tokio::sync::Mutex::new(Slot::default()),
             }),
         }
@@ -148,10 +133,10 @@ impl Embedder {
     ///
     /// # Errors
     ///
-    /// 模型还在备（[`Unavailable::Preparing`]）；用不了（[`Unavailable::Off`]）；这一条算不出（[`Unavailable::Failed`]）。
+    /// 用不了（[`Unavailable::Off`]）；这一条算不出（[`Unavailable::Failed`]）。
     pub async fn embed(&self, text: &str) -> Result<Vec<f32>, Unavailable> {
         self.shared.open()?;
-        let ready = self.shared.files_ready()?;
+        let ready = self.shared.files_ready().await?;
         let mut slot = self.shared.slot.lock().await;
         // 排队的时候关掉的：拿到锁再看一次，不然会把换下来的又拉起。
         self.shared.open()?;
@@ -252,34 +237,31 @@ impl Shared {
         Ok(())
     }
 
-    /// 文件齐了交回备好的几样；没看过的在后台开始备，交回「还在备」。
-    fn files_ready(self: &Arc<Self>) -> Result<&Ready, Unavailable> {
+    /// 文件齐了交回备好的几样：头一回在阻塞线程里核对，同时来的等同一次；对不上的交回用不了。
+    async fn files_ready(self: &Arc<Self>) -> Result<&Ready, Unavailable> {
         let ready = self
             .ready
             .as_ref()
             .map_err(|why| Unavailable::Off(why.clone()))?;
-        let mut files = self.files.lock().unwrap_or_else(PoisonError::into_inner);
-        match &*files {
-            Files::Ready => return Ok(ready),
-            Files::Preparing => return Err(Unavailable::Preparing),
-            Files::Failed(why) => return Err(Unavailable::Off(why.clone())),
-            Files::Unchecked => {}
-        }
-        *files = Files::Preparing;
         let shared = Arc::clone(self);
-        tokio::task::spawn_blocking(move || {
-            let Ok(ready) = &shared.ready else { return };
-            let checked = files::check(&ready.manifest, &ready.dir);
-            if let Err(why) = &checked {
-                tracing::warn!(target: TARGET, model = ready.manifest.id.as_str(), error = why.as_str(), "embedder unavailable");
-            }
-            let mut files = shared.files.lock().unwrap_or_else(PoisonError::into_inner);
-            *files = match checked {
-                Ok(()) => Files::Ready,
-                Err(why) => Files::Failed(why),
-            };
-        });
-        Err(Unavailable::Preparing)
+        let checked = self
+            .files
+            .get_or_init(|| async move {
+                let checked = tokio::task::spawn_blocking(move || match &shared.ready {
+                    Ok(ready) => files::check(&ready.manifest, &ready.dir)
+                        .inspect_err(|why| {
+                            tracing::warn!(target: TARGET, model = ready.manifest.id.as_str(), error = why.as_str(), "embedder unavailable");
+                        }),
+                    Err(why) => Err(why.clone()),
+                })
+                .await;
+                checked.unwrap_or_else(|error| Err(format!("checking the model files failed: {error}")))
+            })
+            .await;
+        checked
+            .as_ref()
+            .map(|()| ready)
+            .map_err(|why| Unavailable::Off(why.clone()))
     }
 }
 

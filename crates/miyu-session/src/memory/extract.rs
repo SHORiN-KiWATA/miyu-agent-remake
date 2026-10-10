@@ -14,30 +14,21 @@
 
 use std::collections::BTreeSet;
 use std::path::Path;
-use std::sync::{Arc, Mutex, PoisonError};
-use std::time::Instant;
+use std::sync::{Mutex, PoisonError};
 
 use miyu_config::Value;
 use miyu_config::secret::Reference;
 use miyu_kernel::assemble::Spoken;
-use miyu_kernel::block::{Block, Text};
-use miyu_kernel::id::{AccountId, Seq, SessionId, TurnId};
-use miyu_kernel::request::Message;
+use miyu_kernel::id::{Seq, TurnId};
 use miyu_kernel::template::Template;
 use miyu_kernel::time::{Timestamp, UtcOffset};
-use miyu_recall::Skipped;
-use miyu_recall::extract::candidates;
-use miyu_recall::redact::{KeyShapes, redact};
+use miyu_recall::redact::KeyShapes;
 use miyu_store::blob::Blobs;
 use miyu_tool::load::{self, LoadError, say};
-use miyu_tool::{FORGET, REMEMBER, TEXT_CHARS};
+use miyu_tool::{FORGET, REMEMBER};
 
-use super::Keeper;
-use crate::TARGET;
-use crate::blocking::blocking;
-use crate::clock::wall_now;
-use crate::config::{Turn, TurnConfig};
-use crate::route::{Ask, OneShot};
+use crate::config::Turn;
+use crate::route::OneShot;
 
 /// 这一段最多几个字节：和回顾的对话记录一个量级（约 8000 token）。
 pub(crate) const ROOM: usize = 32 * 1024;
@@ -345,140 +336,9 @@ pub(super) fn secrets(config: &Turn) -> Vec<String> {
     found
 }
 
-/// 派出去抽的一次。
-pub(crate) struct Job {
-    /// 记在哪一间、听众是谁。
-    pub(crate) keeper: Keeper,
-    /// 字、key 的写法、一次性入口。
-    pub(crate) extraction: Extraction,
-    /// 这一轮的配置：照它取 key、发。
-    pub(crate) config: TurnConfig,
-    /// 记在谁的账上：会话的属主。
-    pub(crate) owner: AccountId,
-    /// 哪个会话。
-    pub(crate) session: SessionId,
-    /// 从第几条以后抽（上次抽到的；没抽过的是 0 那种，照 `Seq` 最小的）。
-    pub(crate) after: Seq,
-    /// 这一回的状态：走完了清掉。
-    pub(crate) extractor: Arc<Extractor>,
-    /// 放不下、还剩几轮的，抽完了照它马上再起一次（不用再等闲）。
-    pub(crate) again: Box<dyn Fn() + Send + Sync>,
-    /// 会话的时区：合并的日期照它写（施工 R-7 上）。
-    pub(crate) offset: UtcOffset,
-}
+mod job;
 
-impl Job {
-    /// 照 `plan` 走一次：跳过的只记抽到了哪；要发的发、读、遮、记。
-    pub(crate) async fn run(self, plan: Plan) {
-        match plan {
-            Plan::Wait => {
-                self.extractor.finish(self.after, true);
-            }
-            Plan::Skip { upto } => {
-                if self
-                    .mark(upto, Vec::new(), Some(Skipped::Remembered))
-                    .await
-                    .is_some()
-                {
-                    self.merge();
-                }
-                self.extractor.finish(self.after, true);
-            }
-            Plan::Ask {
-                upto,
-                text,
-                turns,
-                more,
-            } => {
-                if self.ask(upto, text, turns).await && more {
-                    (self.again)();
-                }
-            }
-        }
-    }
-
-    /// 发、读、遮、记；交回记成了没有。
-    async fn ask(&self, upto: Seq, text: String, turns: BTreeSet<u64>) -> bool {
-        let started = Instant::now();
-        let secrets = secrets(&self.config);
-        let shapes = self.extraction.shapes.clone();
-        let organizer =
-            crate::settings::MemorySettings::from(&self.config.resolved.values()).organizer;
-        tracing::info!(target: TARGET, session = %self.session, turns = turns.len(), "memory extraction started");
-        let ask = Ask {
-            model: organizer,
-            purpose: PURPOSE.to_string(),
-            system: String::new(),
-            messages: vec![Message::User {
-                blocks: vec![Block::Text(Text {
-                    text: redact(&text, &secrets, &shapes),
-                })],
-            }],
-            max_tokens: None,
-            owner: self.owner.clone(),
-        };
-        let answered = self
-            .extraction
-            .ask
-            .call(&self.config, &self.extraction.blobs, ask)
-            .await
-            .map_err(|unanswered| unanswered.reason().to_string())
-            .and_then(|answer| candidates(&answer.text, &turns, TEXT_CHARS));
-        match answered {
-            Ok(mut found) => {
-                for candidate in &mut found {
-                    candidate.text = redact(&candidate.text, &secrets, &shapes);
-                }
-                let recorded = self.mark(upto, found, None).await;
-                if let Some(count) = recorded {
-                    let took_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
-                    tracing::info!(target: TARGET, session = %self.session, count, took_ms, "memory extracted");
-                    self.merge();
-                }
-                self.extractor.finish(self.after, true);
-                recorded.is_some()
-            }
-            Err(why) => {
-                let tries = self.extractor.finish(self.after, false);
-                tracing::warn!(target: TARGET, session = %self.session, tries, error = why.as_str(), "memory extraction failed");
-                if tries >= TRIES {
-                    self.mark(upto, Vec::new(), Some(Skipped::Failed)).await;
-                }
-                false
-            }
-        }
-    }
-
-    /// 记下了抽到哪以后看一眼够不够合并（施工 R-7 上，`merge.rs`）：够的在后台合。
-    fn merge(&self) {
-        super::merge::MergeJob {
-            keeper: self.keeper.clone(),
-            extraction: self.extraction.clone(),
-            config: Arc::clone(&self.config),
-            owner: self.owner.clone(),
-            offset: self.offset,
-        }
-        .start();
-    }
-
-    /// 记下几条、记抽到了第 `upto` 条，交回记下几条；写不进的记一行，交回没有。
-    async fn mark(
-        &self,
-        upto: Seq,
-        found: Vec<miyu_recall::extract::Candidate>,
-        skipped: Option<Skipped>,
-    ) -> Option<u32> {
-        let (keeper, session) = (self.keeper.clone(), self.session.clone());
-        let recorded =
-            blocking(move || keeper.record_extraction(wall_now(), &session, upto, found, skipped))
-                .await;
-        recorded
-            .inspect_err(|error| {
-                tracing::warn!(target: TARGET, session = %self.session, error = ?error, "memory extraction not recorded");
-            })
-            .ok()
-    }
-}
+pub(crate) use job::Job;
 
 #[cfg(test)]
 mod tests;

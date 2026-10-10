@@ -103,6 +103,20 @@ assistant: 8640
 - 写 `persona.toml` 时顺手去掉 P-3 上写进去的 `base`（施工 P-3 再补），不留迁移步骤给人做。
 - 运行日志 `INFO persona saved`、`persona deleted`。不推 `persona.changed`：两个头都是每次打开重新读。
 
+### 头像（Y13，施工 P-5 做了，2026-10-10；网页、终端对过）
+
+1. **在哪**：人格目录里的 `avatar.png`、`avatar.jpg`、`avatar.webp` 之一，和 `persona.toml` 放在一起。照人格的层叠走：哪一层有就用最上面那一层的，同一层有好几张的照 `png`、`jpg`、`webp` 的先后挑一张，记一条警告。
+2. **什么样的图**：PNG、JPEG、WebP，照内容认（同 `blob.put` 第 4 条），不照扩展名；最大 1 MiB，宽、高都不超过 1024。头传之前自己缩到 512 以内。SVG 不收：它能带脚本。
+3. **换**：`persona.set` 多一格 `avatar`：
+   - `{"blob": "<内容哈希>"}`：先 `blob.put` 传上来，再交它的哈希。核心照内容再认一遍，合规矩的写进管理员家目录那一层，名字照类型起，那一层原来的头像删掉。
+   - `{"unset": true}`：删掉家目录那一层的，回到下面那一层的；下面没有的就是没有头像。
+   - 可以带 `"expect": "<版本>" | null`，同提示词的：对不上 `persona_conflict`。
+   - 只改头像的 `persona.set` 可以不写 `changes`、`prompts`。
+4. **拒绝**：blob 不在管理员的 blob 里 `unknown_attachment`；不是这三种图 `avatar_not_image`；太大、太宽太高 `avatar_too_big`，`data` 带 `{"bytes", "width", "height", "max_bytes", "max_side"}`；`blob`、`unset` 不是正好一个的 `bad_params`。先查头像再写别的：拒了的什么都不写。写的时候先写临时文件再改名。
+5. **读**：`persona.avatar {"persona"}`，回应 `{"avatar": <版本>, "media_type", "data": <base64>}`；没有头像的回 `null`；没有这个人格 `unknown_persona`。
+6. **列出来**：`persona.list` 的每一格、`persona.get` 多一格 `avatar`：头像的版本，图的字节的 SHA-256 前 16 位十六进制；没有的是 `null`。头照版本换缓存。
+7. 删人格（`persona.delete`）连头像一起挪进回收处。
+
 ### 出错
 
 | 情形 | 原因码 |
@@ -116,6 +130,7 @@ assistant: 8640
 
 | 测试 | 守什么 |
 |---|---|
+| `crates/miyu-endpoint/tests/persona_avatar.rs`（施工 P-5） | 头像换上、读回、删了回到下面那一层、版本对不上不动、不合规矩的拒绝且什么都不写、新建时带头像 |
 | `crates/miyu-policy/src/persona/tests.rs` | `persona.toml` 三种语言、写错的九种写明第几行（`[memory]` 的三种在内，R-3 下）、P-3 上写的 `base` 当没写（施工 P-3 再补）、`[memory] scope` 两种、不写是没有、上一层盖下面的、读不成 TOML 也说第几行；逐种语言叠；示范对话照旧版写法读（大小写、冒号后的空格、接着的行、空行）、写错的七种写明第几行；示范对话进请求在 system 后面历史前面、`stable` 数对、软件工程师的快照里没有 `demos` |
 | `crates/miyu-endpoint/tests/persona_set.rs`（施工 P-3 下、补、再补） | 不写编号新建、读原文和版本、一对一对的示范对话、防覆盖、空的字、删提示词、写错的什么都不写还带一句、参数不对、删了挪进回收处（`protocol.md` 测试表）；旧的 `base` 照常列出、下一次写时去掉，写错的一项列表里照连接的语言说、带行 |
 | `crates/miyu-store/src/trash/personas/tests.rs`（施工 P-3 下） | 挪进回收处整个目录不变、多 `deleted_at`、原处没了、同一个编号删两次各是各的、不在的报错；清的时候正好满的删、没满的留、读不出删的时刻的留并报出来、没有回收处什么都不做 |

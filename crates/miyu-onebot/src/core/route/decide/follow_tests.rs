@@ -63,7 +63,7 @@ fn other_disciplines_ask_the_judge_only_about_violations() {
         ..ctx(&params)
     };
     let held = judged_in(
-        facts(Standing::Trusted, false),
+        facts(Standing::Whitelisted, false),
         "这是违规的话",
         full,
         chatty,
@@ -71,7 +71,7 @@ fn other_disciplines_ask_the_judge_only_about_violations() {
     );
     assert_eq!(held.conclusion, Conclusion::Record, "额度满了不问判官");
     assert_eq!(
-        written(&held, Standing::Trusted, None)["judge"],
+        written(&held, Standing::Whitelisted, None)["judge"],
         json!({"mode": "moderation_only", "unjudged": "rate_full"})
     );
     let both = judged_in(
@@ -184,16 +184,16 @@ fn a_follow_up_takes_over_or_is_judged_with_the_one_before() {
             conditions: pending(10, &[], ago(3), Status::Judging).conditions,
         })
     );
-    // 主人补一句 @ 她：几条一起，不过判官，回。
-    let owner = judged_in(
-        facts(Standing::Owner, true),
+    // 终端管理员补一句 @ 她：几条一起，不过判官，回。
+    let admin = judged_in(
+        facts(Standing::Admin, true),
         "@米尤 我是说明天",
         ctx(&params),
         chatty,
         &around,
     );
-    assert_eq!(owner.conclusion, Conclusion::Reply);
-    assert_eq!(owner.msgs, [8, 10, 12]);
+    assert_eq!(admin.conclusion, Conclusion::Reply);
+    assert_eq!(admin.msgs, [8, 10, 12]);
     // 正好 7 秒以前的不算顶替；差一毫秒的算。
     let late = [pending(10, &[], ago(7), Status::Committed)];
     let around = Around {

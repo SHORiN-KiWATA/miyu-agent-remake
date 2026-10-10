@@ -66,6 +66,7 @@ fn summary_key(slash: Slash) -> &'static str {
         Slash::Stop => "commands/summary/stop",
         Slash::Workspace => "commands/summary/workspace",
         Slash::Remember => "commands/summary/remember",
+        Slash::Dream => "commands/summary/dream",
     }
 }
 

@@ -26,6 +26,7 @@
 
 mod appending;
 mod attach;
+mod backstage;
 pub mod builtins;
 mod check;
 mod commands;
@@ -111,6 +112,8 @@ pub struct Core {
     tools: Shelf,
     /// 哪个包现在由哪个连接提供工具（施工 O-2 上，`provide.rs`）。
     provided: Arc<provide::Provided>,
+    /// 后台页的方法：哪个包登记了哪些、由哪个连接答（施工 F-6 中，`backstage.rs`）。
+    backstage: backstage::Methods,
     /// 系统的家目录：权限策略照它换 `~`，头报来的工作目录是它的就退回管理员的工作区（施工 4-3 下）。
     home: Option<PathBuf>,
     /// 这台机器上的沙盒能不能用（核心起来时探的）：握手时报给头（施工 5-4 下）；能用的，造会话、载入时把助手交给会话
@@ -246,6 +249,7 @@ impl Core {
             models,
             tools: Shelf::new(tools),
             provided: Arc::default(),
+            backstage: backstage::Methods::default(),
             home,
             sandbox: Availability::Unusable(Unusable::HelperMissing),
             sandbox_cache: None,

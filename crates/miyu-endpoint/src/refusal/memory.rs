@@ -28,6 +28,22 @@ impl Refusal {
         reason: "memory_not_current",
         data: None,
     };
+    /// 这一间正在整理（施工 R-7 补，`memory.md` 第七条第 9 款）：定时的那一次在合，或者别的人先叫了 `memory.dream`、`/dream`。
+    /// 过一会儿再叫。
+    pub(crate) const MEMORY_BUSY: Refusal = Refusal {
+        code: REFUSED,
+        reason: "memory_busy",
+        data: None,
+    };
+    /// 整理记忆没成（施工 R-7 补）：请求模型出错、交回的读不成、记忆日志写不进；`data.message` 是英文的一句为什么。之前合成的
+    /// 几次照样记下了，真相没动。
+    pub(crate) fn dream_failed(message: String) -> Refusal {
+        Refusal::with(
+            "dream_failed",
+            "message",
+            serde_json::Value::String(message),
+        )
+    }
     /// 一条记忆太长（施工 R-3 补）：`data.chars` 是它有几个字，`data.limit` 是上限。
     pub(crate) fn memory_too_long(chars: usize, limit: usize) -> Refusal {
         let mut refusal = Refusal::with("memory_too_long", "chars", serde_json::json!(chars));

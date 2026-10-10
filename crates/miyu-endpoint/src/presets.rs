@@ -130,6 +130,7 @@ pub(crate) async fn list(core: &Core, peer: Peer) -> Result<Value, Refusal> {
                 "preset": id,
                 "name": label(found.file.name.as_ref(), peer.language),
                 "summary": label(found.file.summary.as_ref(), peer.language),
+                "icon": found.file.icon,
             }),
             Err(error) => listed_problem(&id, &error, said.as_ref()),
         })
@@ -163,6 +164,7 @@ fn describe(core: &Core, found: &Found, language: &str) -> Value {
         "preset": found.id,
         "name": label(found.file.name.as_ref(), language),
         "summary": label(found.file.summary.as_ref(), language),
+        "icon": found.file.icon,
         "unlisted": found.file.unlisted().as_str(),
         "features": features::listed(core, found, language),
         "remove": remove(&found.layers),

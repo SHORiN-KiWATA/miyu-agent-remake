@@ -65,17 +65,17 @@ impl Language {
     }
 
     /// 什么时候生效，句首大写（`explain`）：五种照 `config.md`「`miyu config set`、`unset` 印的那一行」（施工 8-3 补：以前
-    /// 只认两种，`next_turn` 说成了「当场生效」）。认不出的（核心比命令行新）是 `None`：不说，不瞎说「当场」。
+    /// 只认两种，`next_turn` 说成了「当场生效」）。认不出的（核心比命令行新）是 `None`：不说，不瞎说。
     fn applies(&self, applies: &str) -> Option<&'static str> {
         Some(match (self, applies) {
-            (Language::Chinese, "now") => "当场生效",
-            (Language::Chinese, "new_session") => "以后开的会话生效",
-            (Language::Chinese, "head_start") => "这个程序下次启动时生效",
+            (Language::Chinese, "now") => "立即生效",
+            (Language::Chinese, "new_session") => "新会话生效",
+            (Language::Chinese, "head_start") => "重启后生效",
             (Language::Chinese, "next_turn") => "下一轮生效",
             (Language::Chinese, "restart") => "重启核心后生效",
-            (Language::English, "now") => "Takes effect at once",
-            (Language::English, "new_session") => "Applies to sessions opened from now on",
-            (Language::English, "head_start") => "Takes effect the next time the program starts",
+            (Language::English, "now") => "Takes effect immediately",
+            (Language::English, "new_session") => "Applies to new sessions",
+            (Language::English, "head_start") => "Takes effect after restart",
             (Language::English, "next_turn") => "Takes effect next turn",
             (Language::English, "restart") => "Takes effect after the core restarts",
             _ => return None,

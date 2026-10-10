@@ -58,6 +58,8 @@ pub struct PresetFile {
     pub software: BTreeMap<String, bool>,
     /// 关掉的单件工具（开着的包里的）。
     pub tools_off: BTreeSet<String>,
+    /// 图标（施工 P-5）：Lucide 的名字，只查过写法。界面上的事，不进 [`PresetFile::digest`]。
+    pub icon: Option<String>,
 }
 
 impl PresetFile {
@@ -67,6 +69,7 @@ impl PresetFile {
     pub fn over(self, mut lower: PresetFile) -> PresetFile {
         lower.name = self.name.or(lower.name);
         lower.summary = self.summary.or(lower.summary);
+        lower.icon = self.icon.or(lower.icon);
         lower.unlisted = self.unlisted.or(lower.unlisted);
         lower.features.extend(self.features);
         lower.software.extend(self.software);

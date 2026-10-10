@@ -24,6 +24,17 @@ pub const PERSONA_MD: &str = "prompts/persona.md";
 /// 角色扮演提示在人格目录里的位置（施工 P-1 补）。
 pub const REMINDERS_MD: &str = "prompts/reminders.md";
 
+/// 头像的文件名（施工 P-5，`personas.md`「头像」）：同一层有好几张的照这个先后挑。
+pub const AVATARS: [&str; 3] = ["avatar.png", "avatar.jpg", "avatar.webp"];
+
+/// 人格目录 `dir` 里的头像：照 [`AVATARS`] 的先后，第一张是普通文件的。
+pub fn avatar_in(dir: &Path) -> Option<PathBuf> {
+    AVATARS
+        .iter()
+        .map(|name| dir.join(name))
+        .find(|path| path.is_file())
+}
+
 /// 家目录那一层里一个人格的几份改成什么（施工 P-3 下）：键是人格目录里的位置（`persona.toml`、`prompts/persona.md` 这些），
 /// 值是改完的字，`None` 是删掉。
 pub type Edits = BTreeMap<&'static str, Option<String>>;
@@ -47,6 +58,8 @@ pub struct Found {
     pub reminders_from: Option<Layer>,
     /// 它住在谁的家目录里：有家目录那一层的是那个账号，只有出厂、系统区的没有（记忆归哪个账号照它，`personas.md`）。
     pub home: Option<AccountId>,
+    /// 头像（施工 P-5，`personas.md`「头像」）：有头像的最上面那一层里的那一张；没有的是没有。
+    pub avatar: Option<PathBuf>,
 }
 
 /// 找人格出了错。
@@ -140,6 +153,7 @@ impl Personas {
             examples_from: None,
             reminders_from: None,
             home: None,
+            avatar: None,
         };
         for (layer, dir) in &self.dirs {
             let dir = dir.join(id);
@@ -154,6 +168,9 @@ impl Personas {
                 None => read(&inside(&dir, relative)),
             };
             found.layers.push(*layer);
+            if let Some(avatar) = avatar_in(&dir) {
+                found.avatar = Some(avatar);
+            }
             if *layer == Layer::Home {
                 found.home = Some(self.admin.clone());
             }

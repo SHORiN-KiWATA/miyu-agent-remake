@@ -2,8 +2,9 @@
 //! （`crates/miyu-embed/tests/fixtures/tiny/`）放进一份包目录（模型清单 `model.toml` 加两个文件），真的 `miyu-embed`（cargo
 //! 编在测试程序旁边），都在临时目录里。不联网：没有下载那一条路了。
 //!
-//! 第一次要的交回「还没好」、在后台核对，核对完算得出、和小程序直接算的一样，包里的文件一个不动；对不上的、少了的这一回用
-//! 不了、不删；没有小程序、模型清单读不了的用不了；两个一起要的都拿到；闲了它退出，下一条再拉起；起不来过三次以后不再拉起。
+//! 第一次要的等核对、拉起，当场算得出（施工 R-5 五补：不交「还在备」）、和小程序直接算的一样，包里的文件一个不动；头一回两个
+//! 一起要的都拿到；对不上的、少了的这一回用不了、不删；没有小程序、模型清单读不了的用不了；闲了它退出，下一条再拉起；起不来过三次
+//! 以后不再拉起。
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -62,17 +63,6 @@ impl Stage {
     }
 }
 
-/// 一直要，直到不再是「还没好」（最多 30 秒）。
-async fn settled(embedder: &Embedder, text: &str) -> Result<Vec<f32>, Unavailable> {
-    for _ in 0..600 {
-        match embedder.embed(text).await {
-            Err(Unavailable::Preparing) => tokio::time::sleep(Duration::from_millis(50)).await,
-            other => return other,
-        }
-    }
-    panic!("三十秒还没好");
-}
-
 /// 每一格差不过 1e-6。
 fn same(got: &[f32], want: &[f32]) -> bool {
     got.len() == want.len() && got.iter().zip(want).all(|(a, b)| (a - b).abs() <= 1e-6)
@@ -98,8 +88,8 @@ fn listed(dir: &Path) -> Vec<String> {
 async fn the_first_call_checks_the_package_and_then_it_answers() {
     let stage = Stage::new();
     let embedder = Embedder::new(stage.setup());
-    assert_eq!(embedder.embed("我的猫").await, Err(Unavailable::Preparing));
-    let vector = settled(&embedder, "我的猫").await.expect("算得出");
+    // 第一次要的等核对、拉起，当场算得出（施工 R-5 五补：不交「还在备」）。
+    let vector = embedder.embed("我的猫").await.expect("第一次就算得出");
     assert!(same(&vector, &cat()), "{vector:?}");
     assert_eq!(
         listed(&stage.dir),
@@ -116,7 +106,7 @@ async fn a_file_that_does_not_match_or_is_missing_is_off_and_left_alone() {
     let mut wrong = model.clone();
     wrong[0] ^= 1;
     std::fs::write(stage.dir.join("model.onnx"), &wrong).expect("写得进");
-    let off = settled(&Embedder::new(stage.setup()), "猫").await;
+    let off = Embedder::new(stage.setup()).embed("猫").await;
     assert!(
         matches!(&off, Err(Unavailable::Off(why)) if why.contains("model.onnx") && why.contains("does not match")),
         "{off:?}"
@@ -128,13 +118,13 @@ async fn a_file_that_does_not_match_or_is_missing_is_off_and_left_alone() {
     );
     let stage = Stage::new();
     std::fs::remove_file(stage.dir.join("vocab.txt")).expect("删得掉");
-    let off = settled(&Embedder::new(stage.setup()), "猫").await;
+    let off = Embedder::new(stage.setup()).embed("猫").await;
     assert!(
         matches!(&off, Err(Unavailable::Off(why)) if why.contains("vocab.txt") && why.contains("missing")),
         "{off:?}"
     );
     let embedder = Embedder::new(stage.setup());
-    settled(&embedder, "猫").await.expect_err("用不了");
+    embedder.embed("猫").await.expect_err("用不了");
     assert!(
         matches!(embedder.embed("猫").await, Err(Unavailable::Off(_))),
         "这一回不再核对：装卸要重启核心"
@@ -166,7 +156,7 @@ async fn without_the_program_or_a_manifest_it_is_off() {
 async fn two_at_once_both_get_answers() {
     let stage = Stage::new();
     let embedder = Embedder::new(stage.setup());
-    settled(&embedder, "我的猫").await.expect("好了");
+    embedder.embed("我的猫").await.expect("好了");
     let (a, b) = tokio::join!(embedder.embed("我的猫"), embedder.embed("我的猫"));
     assert!(same(&a.expect("算得出"), &cat()));
     assert!(same(&b.expect("算得出"), &cat()));
@@ -178,7 +168,7 @@ async fn it_leaves_when_idle_and_comes_back_for_the_next_one() {
     let mut setup = stage.setup();
     setup.idle = Duration::from_millis(300);
     let embedder = Embedder::new(setup);
-    settled(&embedder, "我的猫").await.expect("好了");
+    embedder.embed("我的猫").await.expect("好了");
     assert!(embedder.running().await);
     for _ in 0..100 {
         if !embedder.running().await {
@@ -198,7 +188,7 @@ async fn a_program_that_cannot_start_is_given_up_after_three_tries() {
     let stage = Stage::with(b"not an onnx model\n");
     let embedder = Embedder::new(stage.setup());
     for k in 0..3 {
-        let failed = settled(&embedder, "猫").await;
+        let failed = embedder.embed("猫").await;
         assert!(
             matches!(&failed, Err(Unavailable::Failed(why)) if why.contains("cannot load")),
             "第 {k} 次：{failed:?}"
@@ -209,4 +199,13 @@ async fn a_program_that_cannot_start_is_given_up_after_three_tries() {
         matches!(&off, Err(Unavailable::Off(why)) if why.contains("3 times")),
         "{off:?}"
     );
+}
+
+#[tokio::test]
+async fn two_first_calls_at_once_both_wait_for_one_check() {
+    let stage = Stage::new();
+    let embedder = Embedder::new(stage.setup());
+    let (a, b) = tokio::join!(embedder.embed("我的猫"), embedder.embed("我的猫"));
+    assert!(same(&a.expect("算得出"), &cat()));
+    assert!(same(&b.expect("算得出"), &cat()));
 }

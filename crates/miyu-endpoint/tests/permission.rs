@@ -134,7 +134,7 @@ async fn switching_to_the_same_permission_records_nothing() {
     assert_eq!(home.log(&session).len(), 1, "一样的什么都不记");
 }
 
-/// 两格都不写：参数不对，不找会话，没有的会话也是参数不对。
+/// 两格都不写：参数不对，不找会话，没有的会话也是参数错误。
 #[tokio::test]
 async fn neither_field_is_bad_params() {
     let home = Home::new();
@@ -152,7 +152,7 @@ async fn neither_field_is_bad_params() {
     ] {
         let (_, reply) = switch(&mut client, id, params).await;
         assert_eq!(reason(&reply), Some("bad_params"), "{reply}");
-        assert_eq!(reply["error"]["message"], json!("参数不对。"));
+        assert_eq!(reply["error"]["message"], json!("参数错误。"));
     }
     assert_eq!(home.log(&session).len(), 1, "拒绝的什么都不写");
 }

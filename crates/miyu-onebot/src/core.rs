@@ -10,8 +10,13 @@
 //! 的编号由调的一方拼（第 8 条）。
 //!
 //! 问判官的任务不等这一个用的人：经并着发的调用口（[`Caller`]，施工 O-23 下）调，回应由读的一头照编号分出去。
+//!
+//! 桥也是提供者（施工 O-26，`provider`）：核心发来的请求（`tool.call`）读的一头当场答，不交给这一个用的人。后台页调的方法
+//! （`method.call`，施工 O-28 上，`methods`）也一样。
 
 mod caller;
+pub(crate) mod methods;
+mod provider;
 pub(crate) mod route;
 
 use std::collections::VecDeque;
@@ -24,9 +29,13 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
+use crate::rules::Tools;
 use crate::serve::{Failure, Pipe};
 pub(crate) use caller::Caller;
 use caller::{Waiting, Writer, write_line};
+use methods::Methods;
+use provider::Heard;
+pub(crate) use provider::provide;
 
 /// 核心关了管道、写不出去：桥照第 11 条好好停下。
 #[derive(Debug)]
@@ -59,7 +68,7 @@ pub(crate) struct Core {
 
 impl Core {
     /// 在管道 `pipe` 上握手：哪个头、系统的语言 `locale`、没有人能当场回答，不带凭据（管道是核心亲手给的）。回应最多等
-    /// `wait`。
+    /// `wait`。核心发来的请求照 `tools` 答（施工 O-26），`method.call` 照 `methods` 答（施工 O-28 上）。
     ///
     /// # Errors
     ///
@@ -69,13 +78,26 @@ impl Core {
         pipe: Pipe,
         locale: Option<&str>,
         wait: Duration,
+        tools: Arc<Tools>,
+        methods: Arc<Methods>,
     ) -> Result<Core, Failure> {
         let (sender, incoming) = mpsc::unbounded_channel();
         let prefix = format!("onebot-{}", prefix());
         let waiting = Waiting::new(format!("{prefix}-side-"));
-        let reading = tokio::spawn(read_all(BufReader::new(pipe.read), sender, waiting.clone()));
+        let writer: Writer = Arc::new(tokio::sync::Mutex::new(pipe.write));
+        let asked = Asked {
+            tools,
+            methods,
+            writer: Arc::clone(&writer),
+        };
+        let reading = tokio::spawn(read_all(
+            BufReader::new(pipe.read),
+            sender,
+            waiting.clone(),
+            asked,
+        ));
         let mut core = Core {
-            writer: Arc::new(tokio::sync::Mutex::new(pipe.write)),
+            writer,
             waiting,
             incoming,
             held: VecDeque::new(),
@@ -195,14 +217,22 @@ fn prefix() -> String {
     }
 }
 
-/// 读的一头：一行一条，读不懂的不要；并着发的调用口的回应照编号交给 `waiting`（施工 O-23 下）。读到头（核心关了管道）就停：
-/// `incoming` 跟着关、`waiting` 关上，用的一方看到的是断开。
+/// 核心发来的请求怎么答（施工 O-26）：照桥的工具答，后台页调的方法照 `methods` 答（施工 O-28 上），回应往这一头写。
+struct Asked {
+    tools: Arc<Tools>,
+    methods: Arc<Methods>,
+    writer: Writer,
+}
+
+/// 读的一头：一行一条，读不懂的不要；并着发的调用口的回应照编号交给 `waiting`（施工 O-23 下），核心发来的请求照 `asked` 当场
+/// 答（施工 O-26）。读到头（核心关了管道）就停：`incoming` 跟着关、`waiting` 关上，用的一方看到的是断开。
 async fn read_all(
     reader: BufReader<Box<dyn AsyncRead + Send + Unpin>>,
     sender: mpsc::UnboundedSender<Value>,
     waiting: Waiting,
+    asked: Asked,
 ) {
-    read_lines(reader, &sender, &waiting).await;
+    read_lines(reader, &sender, &waiting, &asked).await;
     waiting.close();
 }
 
@@ -211,6 +241,7 @@ async fn read_lines(
     mut reader: BufReader<Box<dyn AsyncRead + Send + Unpin>>,
     sender: &mpsc::UnboundedSender<Value>,
     waiting: &Waiting,
+    asked: &Asked,
 ) {
     let mut line = String::new();
     loop {
@@ -223,6 +254,14 @@ async fn read_lines(
             Ok(message) => {
                 let Some(message) = waiting.sort(message) else {
                     continue;
+                };
+                let message = match provider::heard(&asked.tools, &asked.methods, message) {
+                    Heard::Asked(reply) => {
+                        provider::reply(&asked.writer, reply);
+                        continue;
+                    }
+                    Heard::Cancelled => continue,
+                    Heard::Other(message) => message,
                 };
                 if sender.send(message).is_err() {
                     return;

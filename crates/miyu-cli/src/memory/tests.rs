@@ -63,4 +63,17 @@ fn nothing_says_so() {
     assert_eq!(Language::Chinese.changed("m5"), "改好了：m5");
     assert_eq!(Language::Chinese.cleared(3), "清掉了 3 条。");
     assert_eq!(Language::English.cleared(3), "Cleared 3.");
+    assert_eq!(Language::Chinese.dreamed(0, 0, 0, false), "无需整理。");
+    assert_eq!(
+        Language::Chinese.dreamed(4, 1, 2, false),
+        "整理完成：检查 4 条，修改 1 条，作废 2 条。"
+    );
+    assert_eq!(
+        Language::English.dreamed(4, 1, 2, true),
+        "Memory organized: 4 checked, 1 revised, 2 retired; summary updated."
+    );
+    assert_eq!(
+        Language::English.dreamed(0, 0, 0, true),
+        "Nothing to organize."
+    );
 }

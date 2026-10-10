@@ -58,11 +58,11 @@ fn values_are_written_as_toml() {
 #[test]
 fn a_problem_line_starts_with_path_line_and_column() {
     let found = json!({"code":"unknown_key","column":1,"level":"warning","line":7,
-        "message":"没有 ui.langauge 这一项。是不是想写 ui.language？这一行先不管，原样留着。"});
+        "message":"没有 ui.langauge 这一项。是不是想写 ui.language？已忽略此行。"});
     let file = "~/.miyu/home/admin/settings.toml";
     assert_eq!(
         problem(file, &found, Language::Chinese).paint(false),
-        "~/.miyu/home/admin/settings.toml:7:1 警告：没有 ui.langauge 这一项。是不是想写 ui.language？这一行先不管，原样留着。\n"
+        "~/.miyu/home/admin/settings.toml:7:1 警告：没有 ui.langauge 这一项。是不是想写 ui.language？已忽略此行。\n"
     );
     let english = json!({"level":"error","line":2,"column":9,"message":"Not valid TOML."});
     assert_eq!(
@@ -135,7 +135,7 @@ fn explain_lines_up_the_layers_like_the_blueprint() {
     assert_eq!(
         lines.concat(),
         format!(
-            "界面语言（ui.language）：终端、网页、命令行给你看的字用哪种话。auto 跟着终端或浏览器的语言。当场生效。\n\
+            "界面语言（ui.language）：终端、网页、命令行给你看的字用哪种话。auto 跟着终端或浏览器的语言。立即生效。\n\
              \x20 \"zh\"    个人设置  {personal}:3  ← 生效\n\
              \x20 \"en\"    系统配置  {system}:5\n\
              \x20 \"auto\"  默认值\n"
@@ -150,7 +150,7 @@ fn explain_lines_up_the_layers_like_the_blueprint() {
     assert_eq!(
         lines.concat(),
         format!(
-            "Interface language (ui.language): The language terminals, the web page and the command line use for you. auto follows the terminal or browser. Takes effect at once.\n\
+            "Interface language (ui.language): The language terminals, the web page and the command line use for you. auto follows the terminal or browser. Takes effect immediately.\n\
              \x20 \"zh\"    personal settings  {personal}:3  ← in effect\n\
              \x20 \"en\"    system config      {system}:5\n\
              \x20 \"auto\"  default\n"
@@ -242,11 +242,11 @@ fn set_and_unset_lines_match_the_blueprint() {
     let (zh, en) = (Language::Chinese, Language::English);
     assert_eq!(
         zh.saved("ui.language", "\"zh\"", "personal", "now"),
-        "· ui.language = \"zh\" 写进了个人设置，当场生效"
+        "· ui.language = \"zh\" 写进了个人设置，立即生效"
     );
     assert_eq!(
         en.saved("ui.language", "\"zh\"", "personal", "now"),
-        "· ui.language = \"zh\" saved to personal settings, takes effect at once"
+        "· ui.language = \"zh\" saved to personal settings, takes effect immediately"
     );
     assert_eq!(
         en.saved(
@@ -255,11 +255,11 @@ fn set_and_unset_lines_match_the_blueprint() {
             "system",
             "new_session"
         ),
-        "· permission.start_read_only = true saved to the system config, applies to sessions opened from now on"
+        "· permission.start_read_only = true saved to the system config, applies to new sessions"
     );
     assert_eq!(
         zh.saved("ui.startup", "\"recent\"", "personal", "head_start"),
-        "· ui.startup = \"recent\" 写进了个人设置，这个程序下次启动时生效"
+        "· ui.startup = \"recent\" 写进了个人设置，重启后生效"
     );
     assert_eq!(
         zh.saved_below("ui.language", "\"en\"", "system", "personal", "\"zh\""),
@@ -308,10 +308,10 @@ fn edit_and_trust_words_match_the_blueprint() {
         en.edit_errors(2),
         "2 errors. Nothing saved yet. Press Enter to keep editing, or type q to give up: "
     );
-    assert_eq!(zh.edit_saved(&["now"]), "· 存好了，当场生效");
+    assert_eq!(zh.edit_saved(&["now"]), "· 存好了，立即生效");
     assert_eq!(
         en.edit_saved(&["now", "new_session"]),
-        "· Saved, takes effect at once, applies to sessions opened from now on"
+        "· Saved, takes effect immediately, applies to new sessions"
     );
     assert_eq!(en.edit_saved(&[]), "· Saved");
     assert_eq!(
@@ -345,7 +345,7 @@ fn edit_and_trust_words_match_the_blueprint() {
     );
     assert_eq!(
         zh.explain_header("启动时打开", "ui.startup", "说明。", "head_start"),
-        "启动时打开（ui.startup）：说明。这个程序下次启动时生效。"
+        "启动时打开（ui.startup）：说明。重启后生效。"
     );
 }
 
@@ -391,17 +391,9 @@ fn every_applies_value_is_said_like_the_blueprint() {
     let (zh, en) = (Language::Chinese, Language::English);
     let key = "providers.dev.models.m-1.window";
     let said = [
-        ("now", "当场生效", "takes effect at once"),
-        (
-            "new_session",
-            "以后开的会话生效",
-            "applies to sessions opened from now on",
-        ),
-        (
-            "head_start",
-            "这个程序下次启动时生效",
-            "takes effect the next time the program starts",
-        ),
+        ("now", "立即生效", "takes effect immediately"),
+        ("new_session", "新会话生效", "applies to new sessions"),
+        ("head_start", "重启后生效", "takes effect after restart"),
         ("next_turn", "下一轮生效", "takes effect next turn"),
         (
             "restart",
@@ -446,7 +438,7 @@ fn every_applies_value_is_said_like_the_blueprint() {
     assert_eq!(zh.edit_saved(&["someday"]), "· 存好了");
     assert_eq!(
         en.edit_saved(&["now", "someday"]),
-        "· Saved, takes effect at once"
+        "· Saved, takes effect immediately"
     );
     assert_eq!(
         zh.explain_header("窗口", key, "说明。", "someday"),

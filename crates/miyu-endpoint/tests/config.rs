@@ -52,7 +52,7 @@ async fn hello_says_the_language_by_the_setting_or_the_system() {
     assert_eq!(reply["result"]["language"], "en", "定了的照定的");
     let refused = client.call("c1", "no.such", json!({})).await;
     assert_eq!(
-        refused["error"]["message"], "There is no such method.",
+        refused["error"]["message"], "Method not found.",
         "拒绝的话也照它"
     );
     home.write("home/alice/settings.toml", "[ui]\nlanguage = \"ja\"\n");
@@ -63,7 +63,7 @@ async fn hello_says_the_language_by_the_setting_or_the_system() {
     );
     let refused = client.call("c1", "no.such", json!({})).await;
     assert_eq!(
-        refused["error"]["message"], "There is no such method.",
+        refused["error"]["message"], "Method not found.",
         "日文的拒绝照英文"
     );
 }
@@ -150,7 +150,7 @@ async fn the_schema_lists_the_items_in_the_language_of_the_connection() {
     assert_eq!(all["result"]["items"][5]["env"], "MIYU_LOG");
     assert_eq!(
         all["result"]["pages"],
-        json!([{"id":"general","name":"通用"},{"id":"permissions","name":"权限"},{"id":"advanced","name":"高级"}])
+        json!([{"id":"general","name":"通用"},{"id":"advanced","name":"高级"}])
     );
 }
 
@@ -168,7 +168,7 @@ async fn unknown_keys_are_refused_with_the_nearest_ones() {
             )
             .await;
         assert_eq!(reason(&reply), Some("unknown_config_key"), "{method}");
-        assert_eq!(reply["error"]["message"], "没有这一项配置。");
+        assert_eq!(reply["error"]["message"], "配置项不存在。");
         assert_eq!(
             reply["error"]["data"]["problems"],
             json!([
@@ -275,12 +275,12 @@ async fn a_broken_item_is_dropped_and_reported_with_what_is_used() {
         reply["result"]["problems"],
         json!([
             {"code":"not_an_option","column":9,"expected":"error、warn、info、debug、trace 或 off","file":"system/config.toml","got":"\"verbose\"","key":"log.level","level":"error","line":2,
-             "message":"log.level 只能是 error、warn、info、debug、trace 或 off，写的是 \"verbose\"。改成其中一个，例如 log.level = \"info\"。这一项先照 \"info\" 用着（默认值）。",
+             "message":"log.level 只能是 error、warn、info、debug、trace 或 off，写的是 \"verbose\"。改成其中一个，例如 log.level = \"info\"。暂用 \"info\"（默认值）。",
              "using":{"from":"default","value":"info"}},
             {"code":"unknown_key","column":1,"file":"home/alice/settings.toml","got":"\"zh\"","key":"ui.langauge","level":"warning","line":7,
-             "message":"没有 ui.langauge 这一项。是不是想写 ui.language？这一行先不管，原样留着。","suggest":"ui.language"},
+             "message":"没有 ui.langauge 这一项。是不是想写 ui.language？已忽略此行。","suggest":"ui.language"},
             {"code":"wrong_type","column":19,"expected":"true 或 false","file":"home/alice/settings.toml","got":"\"yes\"","key":"permission.start_read_only","level":"error","line":9,
-             "message":"permission.start_read_only 要写 true 或 false，写的是 \"yes\"。改成 permission.start_read_only = true。这一项先照 false 用着（默认值）。",
+             "message":"permission.start_read_only 要写 true 或 false，写的是 \"yes\"。改成 permission.start_read_only = true。暂用 false（默认值）。",
              "using":{"from":"default","value":false}},
         ])
     );
@@ -304,8 +304,7 @@ async fn a_file_that_cannot_be_read_is_used_as_nothing() {
     );
     let message = problem["message"].as_str().expect("有话");
     assert!(
-        message.starts_with("Not valid TOML: ")
-            && message.ends_with(". The file is not used for now."),
+        message.starts_with("Not valid TOML: ") && message.ends_with(". File ignored."),
         "{message}"
     );
 }

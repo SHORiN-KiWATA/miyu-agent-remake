@@ -1,8 +1,9 @@
 //! 找会话（`onebot.md` 第一条「怎么走」第 7、9 条，「群消息」第 3 条；施工 O-22 从 `route.rs` 挪出来，群也走这里）：场所
 //! → 会话编号只记在内存里，每个场所桥起来以后第一次要用时问一次 `venue.session`；会话不在了忘掉、再问一次。
 //!
-//! - 私聊：`venue.session {venue, kind: "private", peer}`；不是主人（`no_system_account`），或者回应的属主是桥自己（核心
-//!   O-4 中以后陌生人的会话归系统账号，「施工时定的」第 49 条）：不接，会话编号不记、不订阅。问到了订阅（第 9 条）。
+//! - 私聊：`venue.session {venue, kind: "private", peer}`；不是终端管理员（`no_system_account`），或者回应的属主是桥自己（核心
+//!   O-4 中以后陌生人的会话归系统账号，「施工时定的」第 49 条）、对方又不在白名单里的：不接，会话编号不记、不订阅。白名单成员
+//!   的照接（施工 O-27，2026-10-10 项目主人定），`venue.session` 照场所规则带人格、预设、工作区（同群）。问到了订阅（第 9 条）。
 //! - 群：`venue.session {venue, kind: "group", persona?, preset?, cwd?}`（照场所规则，`applied`）；群的会话本来就归桥自己的
 //!   系统账号，不照属主认陌生人。规则写了不存在的人格、预设（`unknown_persona`、`unknown_preset`、`preset_invalid`）：不接。
 //!   问到了从头订阅（`after: 0`，施工 O-23，「群里怎么叫她」第 1 条）：补来的收进这个群的投影；会话不在了连投影一起忘掉。
@@ -29,18 +30,33 @@ pub(super) struct Place {
     opening: Value,
     /// 回执、回话发到哪；场所编号在这里。
     pub(super) peer: Peer,
+    /// 私聊的对方在白名单里（施工 O-27）：会话归系统账号的也接。群的是假（群的会话本来就归系统账号，不照属主认）。
+    listed: bool,
 }
 
 impl Place {
-    /// 机器人号 `bot` 收进来的、和号 `user`（平台上是 `external`）的私聊 `venue`（第 7 条）。
-    pub(super) fn private(venue: &Venue, external: &ExternalId, bot: i64, user: i64) -> Place {
+    /// 机器人号 `bot` 收进来的、和号 `user`（平台上是 `external`）的私聊 `venue`（第 7 条）。对方是白名单成员的，`listed` 是
+    /// 套到这个私聊上的场所规则：`venue.session` 照它带人格、预设、工作区（施工 O-27，同群），会话归系统账号的也接。
+    pub(super) fn private(
+        venue: &Venue,
+        external: &ExternalId,
+        (bot, user): (i64, i64),
+        listed: Option<&Applied>,
+    ) -> Place {
+        let mut opening = json!({"venue": venue.id(), "kind": "private", "peer": external});
+        if let Some(applied) = listed {
+            for (key, value) in super::applied::opening(applied) {
+                opening[key] = json!(value);
+            }
+        }
         Place {
-            opening: json!({"venue": venue.id(), "kind": "private", "peer": external}),
+            opening,
             peer: Peer {
                 bot,
                 to: To::Private(user),
                 venue: venue.id().clone(),
             },
+            listed: listed.is_some(),
         }
     }
 
@@ -57,6 +73,7 @@ impl Place {
                 to: To::Group(group),
                 venue: venue.id().clone(),
             },
+            listed: false,
         }
     }
 
@@ -137,17 +154,19 @@ impl Route {
             .core
             .call("venue.session", place.opening.clone())
             .await?;
-        // 私聊的回应带了会话的属主、正是桥自己的账号：陌生人（核心 O-4 中以后照常造会话，属主是系统账号）。私聊只接主人，
-        // 照 `no_system_account` 办（「施工时定的」第 49 条）。没带属主的照常接。群的会话本来就归桥自己的账号。
-        let own = place.private_chat()
+        // 私聊的回应带了会话的属主、正是桥自己的账号：不是终端管理员（核心 O-4 中以后照常造会话，属主是系统账号）。对方在白名单
+        // 里的照接（施工 O-27），别的是陌生人，照 `no_system_account` 办（「施工时定的」第 49 条）。没带属主的照常接。群的会话
+        // 本来就归桥自己的账号。
+        let stranger = place.private_chat()
+            && !place.listed
             && reply["result"]["account"]
                 .as_str()
                 .is_some_and(|owner| Some(owner) == self.core.account.as_deref());
         match reason(&reply) {
-            None if !own => {}
+            None if !stranger => {}
             None | Some("no_system_account") => {
                 if self.refused.insert(venue.to_string()) {
-                    tracing::info!(target: TARGET, venue = %venue, "not the owner, not taken");
+                    tracing::info!(target: TARGET, venue = %venue, "not admin or whitelisted, not taken");
                 }
                 return Ok(None);
             }

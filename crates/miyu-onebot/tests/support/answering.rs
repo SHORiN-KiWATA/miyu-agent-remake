@@ -152,8 +152,8 @@ fn answer(action: &Value, members: &[Member], asked: &Mutex<Vec<i64>>, sent: &mu
             "ok",
             json!({"app_name": "NapCat.Onebot", "app_version": "4.8.0", "protocol_version": "v11"}),
         ),
-        // 撤回（施工 O-25 上）、贴摘表情（施工 O-25 下）：回成了，不占发出去的编号。
-        Some("delete_msg" | "set_msg_emoji_like") => ("ok", Value::Null),
+        // 撤回（施工 O-25 上）、贴摘表情（施工 O-25 下）、同意加好友（施工 O-27）：回成了，不占发出去的编号。
+        Some("delete_msg" | "set_msg_emoji_like" | "set_friend_add_request") => ("ok", Value::Null),
         Some("get_group_member_info") => {
             let user = action["params"]["user_id"].as_i64().expect("问的是号");
             asked.lock().expect("没 panic").push(user);

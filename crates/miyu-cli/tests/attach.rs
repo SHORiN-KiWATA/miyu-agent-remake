@@ -72,10 +72,7 @@ async fn a_file_that_cannot_go_is_named_and_nothing_is_said() {
     let Asked { code, out, err, .. } = home.ask(&with).await;
     assert_eq!(code, 1, "{err}");
     assert_eq!(out, "");
-    assert_eq!(
-        err,
-        format!("附不上 {missing}：读不了这个文件：没有、不是普通文件，或者没有权限。\n")
-    );
+    assert_eq!(err, format!("附不上 {missing}：无法读取文件。\n"));
     assert!(home.sessions().is_empty(), "没造会话");
     // 太大的一样：说是哪个、为什么。
     let big = outside.0.join("big.bin");
@@ -89,7 +86,7 @@ async fn a_file_that_cannot_go_is_named_and_nothing_is_said() {
     let Asked { code, err, .. } = home.ask(&with).await;
     assert_eq!(code, 1, "{err}");
     assert!(
-        err.starts_with(&format!("Cannot attach {big}: The attachment is too big")),
+        err.starts_with(&format!("Cannot attach {big}: Attachment too large")),
         "{err}"
     );
     assert!(home.sessions().is_empty(), "没造会话");

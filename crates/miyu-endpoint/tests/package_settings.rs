@@ -103,6 +103,11 @@ async fn package_settings_join_the_schema_on_the_packages_page() {
         (json!("packages"), json!("clock"))
     );
     assert_eq!(port["control"], "number");
+    assert_eq!(port["package"], "clock", "归哪个包（施工 F-6 上）");
+    assert!(
+        item(&schema, "ui.language").get("package").is_none(),
+        "核心自己的项不带 package"
+    );
     assert!(port.get("hidden").is_none(), "露的不写这一格");
     let idle = item(&schema, "clock.idle_seconds");
     assert_eq!(idle["hidden"], true);
@@ -211,32 +216,31 @@ async fn a_package_named_like_a_core_module_declares_no_settings() {
     );
 }
 
-/// 平台接入的包（施工 F-4，设计 30 第五节）：它的配置项挂在单独的「接入」页，不在「软件包」那一页；组照包的名字。
+/// 平台接入的包（施工 F-6 上，`package-pages.md`：「接入」页去掉了）：它的配置项和别的包一样在「软件包」那一页、带 `package`。
+/// 程序要在测试程序旁边，不然当没装（`package_switch.rs` 测）。
 #[tokio::test]
-async fn a_connection_package_has_its_settings_on_the_connections_page() {
+async fn a_connection_package_has_its_settings_on_the_packages_page() {
     let home = Home::new();
-    home.write("home/alice/packages/clock.toml", CLOCK);
+    let program = crate::support::extensions::Program::new();
+    let relay = format!(
+        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"Relay\", zh = \"中转\" }}\n\n[command]\nname = \"relay\"\nprogram = \"{}\"\nabout = {{ en = \"Relay\" }}\n\n[process]\n\n[connection]\nplatform = \"relay\"\n\n[settings.port]\ntype = \"int\"\nlayers = [\"system\"]\nname = {{ en = \"Port\", zh = \"端口\" }}\n",
+        program.name()
+    );
+    home.write("home/alice/packages/relay.toml", &relay);
     let mut client = connected(&home).await;
     let schema = client.call("s1", "config.schema", json!({})).await["result"].clone();
-    let listen = item(&schema, "onebot.listen");
+    let port = item(&schema, "relay.port");
     assert_eq!(
-        (listen["page"].clone(), listen["group"].clone()),
-        (json!("connections"), json!("onebot"))
-    );
-    assert_eq!(
-        item(&schema, "clock.port")["page"],
-        "packages",
-        "别的包照旧"
+        (
+            port["page"].clone(),
+            port["group"].clone(),
+            port["package"].clone()
+        ),
+        (json!("packages"), json!("relay"), json!("relay"))
     );
     let pages = schema["pages"].as_array().expect("有");
     assert!(
-        pages.contains(&json!({"id": "connections", "name": "接入"})),
+        !pages.iter().any(|page| page["id"] == "connections"),
         "{pages:?}"
-    );
-    assert!(
-        schema["groups"]
-            .as_array()
-            .expect("有")
-            .contains(&json!({"id": "onebot", "name": "接入QQ", "page": "connections"}))
     );
 }

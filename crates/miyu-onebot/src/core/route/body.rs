@@ -196,11 +196,11 @@ fn kind_name(kind: Kind) -> &'static str {
         .map_or("", |(_, written)| written)
 }
 
-/// 发的人是谁的写法。
+/// 发的人是谁的写法（施工 O-27 随叫法改：原来写 `owner`、`trusted`）。
 fn standing_name(standing: Standing) -> &'static str {
     match standing {
-        Standing::Owner => "owner",
-        Standing::Trusted => "trusted",
+        Standing::Admin => "admin",
+        Standing::Whitelisted => "whitelisted",
         Standing::Member => "member",
     }
 }

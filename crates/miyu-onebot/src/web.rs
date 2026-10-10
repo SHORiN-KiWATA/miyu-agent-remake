@@ -15,7 +15,7 @@ mod apply;
 mod checked;
 mod human;
 mod login;
-mod status;
+pub(crate) mod status;
 #[cfg(test)]
 mod tests;
 mod token;
