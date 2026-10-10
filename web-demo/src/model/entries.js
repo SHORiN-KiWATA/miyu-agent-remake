@@ -290,7 +290,8 @@ function jobNote(e, jobs) {
   let text;
   if (e.mark === 'done') {
     tone = 'good';
-    text = t(`notes.${what}.done`, { title });
+    // 后台命令完成的接用时（核心 9-8 三补起旁白带 `took_ms`）
+    text = t(`notes.${what}.done`, { title }) + (what === 'command' && e.took_ms != null ? ` · ${seconds(e.took_ms)}` : '');
   } else if (e.mark === 'failed') {
     tone = 'error';
     text = e.signal != null ? t(`notes.${what}.signal`, { title, signal: e.signal }) : e.exit_code != null ? t(`notes.${what}.failed`, { title, code: e.exit_code }) : t('notes.command.failed_plain', { title });

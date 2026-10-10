@@ -38,14 +38,20 @@ export function untouchedTurnOf(entries, status) {
 }
 
 /**
- * 预览工作区（`model/artifacts.js`）照它认的那几条：写入、编辑成了的一步，路径照参数（相对的接在工作目录后面）；撤销藏起的不算。
- * 条目里还没有改了哪些文件的真实路径（核心以后给），先照参数认。
+ * 预览工作区（`model/artifacts.js`）照它认的那几条：改了文件的一步（撤销藏起的不算）。核心给了改了哪些文件的真实路径的（9-8 三补起
+ * `files: [{path, action}]`）照它；没有的照写入、编辑的参数认，相对的接在工作目录后面。
  * @param {any[]} entries @param {string|null} cwd
  */
 export function artifactEvents(entries, cwd) {
   const out = [];
   for (const e of entries) {
-    if (e.kind !== 'tool' || e.hidden || e.state !== 'ok' || !(e.name === 'write' || e.name === 'edit' || e.name === 'trash')) continue;
+    if (e.kind !== 'tool' || e.hidden) continue;
+    if (Array.isArray(e.files)) {
+      const effects = e.files.map((/** @type {any} */ f) => ({ kind: f.action === 'trashed' ? 'file.trashed' : 'file.changed', path: f.path }));
+      if (effects.length) out.push({ seq: seqOf(e.id), kind: 'tool.result', turn: e.turn ?? null, body: { effects } });
+      continue;
+    }
+    if (e.state !== 'ok' || !(e.name === 'write' || e.name === 'edit' || e.name === 'trash')) continue;
     let path = null;
     try {
       path = JSON.parse(e.args ?? '{}').file_path ?? JSON.parse(e.args ?? '{}').path ?? null;

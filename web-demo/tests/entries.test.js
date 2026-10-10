@@ -121,3 +121,16 @@ test('别处来的话写是谁：子代理照任务的标题，父会话写「�
   const got = itemsOf(entries, { state: 'idle', jobs: [{ job: 'j1', what: 'agent', title: '查文档', session: 'kid-1', state: 'running' }] }, { parent: 'dad-1' });
   assert.deepEqual(got.items.map((it) => it.speaker.name), ['子代理 · 查文档', '父会话']);
 });
+
+test('核心补上的格（9-8 三补）：后台命令的回报带退出码、用时；改文件的一步带真实路径，预览工作区照它', async () => {
+  const { artifactEvents } = await import('../src/model/view-state.js');
+  const jobs = [
+    { id: 'e1', kind: 'notice', what: 'job', job: 'j1', job_kind: 'command', title: '跑测试', mark: 'done', took_ms: 20000, at: AT },
+    { id: 'e2', kind: 'notice', what: 'job', job: 'j2', job_kind: 'command', title: '编译', mark: 'failed', exit_code: 101, at: AT },
+    { id: 'e3', kind: 'notice', what: 'job', job: 'j3', job_kind: 'command', title: '睡', mark: 'failed', signal: 9, at: AT },
+  ];
+  assert.deepEqual(itemsOf(jobs, { state: 'idle' }).items.map((it) => it.text), ['后台命令完成 · 跑测试 · 20.0s', '后台命令失败 · 编译 · 退出码 101', '后台命令失败 · 睡 · 信号 9']);
+  const tool = { id: 'b9.0', kind: 'tool', name: 'write', state: 'ok', args: '{"file_path":"x.md"}', files: [{ path: '/real/ws/out/x.md', action: 'changed' }, { path: '/real/ws/out/y.md', action: 'trashed' }], turn: 2, at: AT };
+  assert.deepEqual(artifactEvents([tool], '/ws')[0].body.effects, [{ kind: 'file.changed', path: '/real/ws/out/x.md' }, { kind: 'file.trashed', path: '/real/ws/out/y.md' }]);
+  assert.deepEqual(artifactEvents([{ ...tool, files: undefined }], '/ws')[0].body.effects, [{ kind: 'file.changed', path: '/ws/x.md' }], '没有 files 的照参数拼工作目录');
+});
