@@ -6,6 +6,8 @@ kind = "process"
 protocol = [1, 1]
 name = { en = "Connect QQ", zh = "接入QQ", ja = "QQ接続" }
 summary = { en = "Talk with her on QQ through NapCat", zh = "经 NapCat 在 QQ 上和她说话", ja = "NapCat 経由で QQ で会話する" }
+# 软件包页上的图标（Lucide 的名字，施工 O-28 上，docs/blueprint/package-pages.md「清单多的几格」）。
+icon = "message-circle"
 
 [command]
 name = "onebot"
@@ -30,6 +32,11 @@ platform = "qq"
 
 [features.qq]
 name = { en = "QQ tools", zh = "QQ 工具", ja = "QQ ツール" }
+
+# 后台页（施工 O-28 上，docs/blueprint/onebot.md 第一条「后台页」）：包目录 packages/onebot/ 下的 page/，入口 index.html；网页把它
+# 放在隔离的框里，它读写这个包的设置项、调桥登记的方法（status、connection.token）。
+[page]
+dir = "page"
 
 # 桥的配置（施工 O-20，docs/blueprint/onebot.md 第一条「软件包清单」）：O-8 起由核心替桥声明（OnebotSettings），这一步挪过来。
 # 都只能写系统配置、当场生效：核心拉起桥时在握手的回应里交最终值，变了推 extension.config，桥照新的用。

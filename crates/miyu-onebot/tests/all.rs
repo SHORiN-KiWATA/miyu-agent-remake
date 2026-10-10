@@ -6,6 +6,7 @@
 mod support;
 
 mod apply;
+mod backstage;
 mod budget;
 mod called;
 mod called_limits;
@@ -27,6 +28,7 @@ mod members;
 mod no_token;
 mod open;
 mod outbound;
+mod page;
 mod people;
 mod pipe;
 mod private;

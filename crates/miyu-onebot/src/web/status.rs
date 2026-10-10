@@ -10,12 +10,14 @@
 //!   「施工时定的」第 41 条：原来的 `missing` 没了）。
 //! - `platform`：桥的平台名（[`crate::onebot::PLATFORM`]）。「终端管理员与白名单成员」页照它拼 `qq:<号>`，平台的名字还是只写一处
 //!   （O-17，第二条「施工时定的」第 26 条）。
+//!
+//! 除了 `web`，这几格和后台页的 `status` 方法是同一份（[`shared`]，施工 O-28 上，第一条「后台页」第 2 条）。
 
 use std::sync::atomic::Ordering;
 
 use hyper::body::Incoming;
 use hyper::{Method, Request, Response, StatusCode};
-use serde_json::json;
+use serde_json::{Map, Value, json};
 
 use miyu_webserve::respond::{Body, empty};
 
@@ -30,16 +32,21 @@ pub(super) async fn get(request: &Request<Incoming>, web: &Web) -> Response<Body
     if let Some(refused) = login::refused(request, web).await {
         return refused;
     }
+    let mut status = shared(web);
+    status.insert("web".into(), json!(web.port.load(Ordering::Relaxed)));
+    reply(StatusCode::OK, &Value::Object(status))
+}
+
+/// `/status` 和后台页的 `status` 方法共用的几格（施工 O-28 上）：`napcat`、`listen`、`token`、`platform`，照桥手里最新的。
+pub(crate) fn shared(web: &Web) -> Map<String, Value> {
     let token = match web.current.token() {
         Some(_) => "set",
         None => "none",
     };
-    let status = json!({
-        "napcat": web.bots.napcat(),
-        "listen": web.listen.load(Ordering::Relaxed),
-        "web": web.port.load(Ordering::Relaxed),
-        "token": token,
-        "platform": PLATFORM,
-    });
-    reply(StatusCode::OK, &status)
+    let mut status = Map::new();
+    status.insert("napcat".into(), web.bots.napcat());
+    status.insert("listen".into(), json!(web.listen.load(Ordering::Relaxed)));
+    status.insert("token".into(), json!(token));
+    status.insert("platform".into(), json!(PLATFORM));
+    status
 }

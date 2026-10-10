@@ -7,7 +7,8 @@
 //!    照清单的默认值）。握手以后读一次系统的场所规则，问题记运行日志（施工 O-21，[`Venues`]），交给跟核心的那一头，每一条
 //!    消息照它套场所（施工 O-22）。限流满了发进群里的提示照握手回的语言说（施工 O-23，「群里怎么叫她」第 7 条）；那种语言的
 //!    字读不懂的照系统的语言（`main.rs` 那一头也是照原来的说，「施工时定的」第 80 条）。握手以后、开监听以前登记桥的工具
-//!    （施工 O-26，`core/provider.rs`）：写出去就接着起来，等回应、记运行日志的那一段放进下面第 3 条的任务组。
+//!    （施工 O-26，`core/provider.rs`）：写出去就接着起来，等回应、记运行日志的那一段放进下面第 3 条的任务组。开好两个监听、
+//!    WebUI 造好以后，把它交给答后台页方法的那一头、登记方法（施工 O-28 上，`core/methods.rs`）：同样写出去就接着起来。
 //! 2. 只听 `127.0.0.1` 的 `onebot.listen`。被占了：[`Failure::PortInUse`]。再听 `127.0.0.1` 的 `onebot.web`（WebUI，施工
 //!    O-16，第二条「怎么走」第 1 条）。被占了：[`Failure::WebPortInUse`]。听上了各说一行（[`Notice::Listening`]、
 //!    [`Notice::Web`]）。令牌没设的两个也照开，NapCat 连进来一律 401，人在 WebUI 里生成令牌，NapCat 下一次连就通
@@ -35,6 +36,7 @@ use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
 use crate::TARGET;
+use crate::core::methods::{Methods, register};
 use crate::core::route::{Personas, Reactions, Route, Slots};
 use crate::core::{Core, provide};
 use crate::current::Current;
@@ -158,11 +160,13 @@ pub async fn run(
     stop: impl Future<Output = ()>,
 ) -> Result<(), Failure> {
     let tools = serve.factory.tools();
+    let methods = Arc::new(Methods::new());
     let core = Core::connect(
         serve.pipe,
         serve.locale.as_deref(),
         serve.tuning.hello(),
         Arc::clone(&tools),
+        Arc::clone(&methods),
     )
     .await?;
     shaken(&core.language);
@@ -215,6 +219,9 @@ pub async fn run(
         applied: tokio::sync::Mutex::new(applied),
         swap,
     });
+    // 后台页调的方法（施工 O-28 上）：桥手里的状态齐了，先交给答的那一头，再登记。
+    methods.ready(Arc::clone(&web));
+    let registered = register(&core.caller()).await;
     let changed = Arc::new(Notify::new());
     let gate = Arc::new(Gate {
         current: Arc::clone(&current),
@@ -230,6 +237,12 @@ pub async fn run(
     if let Some(provided) = provided {
         tasks.spawn(async move {
             provided.await;
+            None
+        });
+    }
+    if let Some(registered) = registered {
+        tasks.spawn(async move {
+            registered.await;
             None
         });
     }

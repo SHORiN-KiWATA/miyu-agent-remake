@@ -9,6 +9,7 @@ use serde_json::{Value, json};
 use miyu_store::resources::ResourceRoot;
 
 use super::{Heard, heard};
+use crate::core::methods::Methods;
 use crate::rules::{Factory, Tools};
 
 /// 源码树里的资源目录。
@@ -61,7 +62,11 @@ fn the_provide_params_follow_the_shipped_spec() {
 #[test]
 fn a_tool_call_is_answered_under_its_own_id() {
     assert_eq!(
-        asked(heard(&tools(), tool_call("core-7", "skip_reply"))),
+        asked(heard(
+            &tools(),
+            &Methods::new(),
+            tool_call("core-7", "skip_reply")
+        )),
         json!({"jsonrpc": "2.0", "id": "core-7", "result": {
             "blocks": [{"type": "text", "text": shipped("tool-results/skipped.txt")}],
             "error": false,
@@ -69,7 +74,11 @@ fn a_tool_call_is_answered_under_its_own_id() {
     );
     let unknown = shipped("tool-results/unknown.txt").replace("{name}", "recall");
     assert_eq!(
-        asked(heard(&tools(), tool_call("core-8", "recall"))),
+        asked(heard(
+            &tools(),
+            &Methods::new(),
+            tool_call("core-8", "recall")
+        )),
         json!({"jsonrpc": "2.0", "id": "core-8", "result": {
             "blocks": [{"type": "text", "text": unknown}],
             "error": true,
@@ -81,6 +90,7 @@ fn a_tool_call_is_answered_under_its_own_id() {
 fn other_methods_are_unknown() {
     let reply = asked(heard(
         &tools(),
+        &Methods::new(),
         json!({"jsonrpc": "2.0", "id": 9, "method": "tool.peek", "params": {}}),
     ));
     assert_eq!(
@@ -99,11 +109,26 @@ fn pushes_and_answers_pass_on_and_cancels_stop_here() {
         json!({"jsonrpc": "2.0", "id": "onebot-1", "result": {}}),
         json!({"jsonrpc": "2.0", "id": "onebot-2", "error": {"code": -32010}}),
     ] {
-        match heard(&tools(), message.clone()) {
+        match heard(&tools(), &Methods::new(), message.clone()) {
             Heard::Other(passed) => assert_eq!(passed, message),
             other => panic!("原样交回：{other:?}"),
         }
     }
     let cancel = json!({"jsonrpc": "2.0", "method": "tool.cancel", "params": {"session": "s1", "call_id": "c1"}});
-    assert!(matches!(heard(&tools(), cancel), Heard::Cancelled));
+    assert!(matches!(
+        heard(&tools(), &Methods::new(), cancel),
+        Heard::Cancelled
+    ));
+}
+
+#[test]
+fn a_method_call_is_answered_by_the_methods() {
+    let reply = asked(heard(
+        &tools(),
+        &Methods::new(),
+        json!({"jsonrpc": "2.0", "id": "core-9", "method": "method.call", "params": {"method": "status", "params": {}}}),
+    ));
+    // 状态还没交进来：同不认识的方法（`core/methods.rs`），编号原样。
+    assert_eq!(reply["id"], "core-9", "{reply}");
+    assert_eq!(reply["error"]["code"], -32601, "{reply}");
 }

@@ -1,0 +1,153 @@
+/* 接入QQ 的后台页（docs/blueprint/onebot.md 第一条「后台页」第 3 条，施工 O-28 上）。卡片、按钮、字体照桥自己的网页
+   （resources/software/onebot/web/style.css），看着和网页软件是一家。颜色：网页在 context 里给了的，app.js 写进 --accent、
+   --surface、--surface-2、--text、--text-soft、--line、--danger 七个变量；没给的照 <html data-theme> 用下面两套（浅色照「晨光」、
+   深色照「tokyonight」，同桥自己的网页）。别的颜色由这七个调出来，网页换了颜色跟着变（「施工时定的」第 160 条）。框撑满网页
+   右边一栏，页面自己滚。 */
+
+:root {
+  color-scheme: light;
+  --surface: #faf9f7;
+  --surface-2: #efece7;
+  --text: #1d1c1a;
+  --text-soft: #625d56;
+  --line: #e7e3dc;
+  --accent: #3a63c9;
+  --danger: #c2413b;
+  --gold: #b8892f;
+  --online: #2e8b57;
+  --scrim: rgba(28, 24, 18, 0.32);
+  --sans: Inter, "Adwaita Sans", "Noto Sans", "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, "Noto Sans Mono CJK SC", monospace;
+  --radius: 8px;
+  --line-strong: color-mix(in srgb, var(--line) 75%, var(--text));
+  --text-faint: color-mix(in srgb, var(--text-soft) 62%, var(--surface));
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  --card: color-mix(in srgb, var(--surface-2) 35%, var(--surface));
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface: #1a1b26;
+  --surface-2: #262a3d;
+  --text: #c0caf5;
+  --text-soft: #9aa3c7;
+  --line: #272b3e;
+  --accent: #7aa2f7;
+  --danger: #f7768e;
+  --gold: #e0af68;
+  --online: #9ece6a;
+  --scrim: rgba(6, 7, 12, 0.5);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--surface);
+  color: var(--text);
+  font: 14px/1.5 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+button, input { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+h2 { margin: 0 0 12px; font-size: 14px; font-weight: 600; color: var(--text-soft); }
+code { font-family: var(--mono); font-size: 13px; word-break: break-all; }
+
+/* 按钮：圆角 8，悬停铺一层很淡的底；主按钮是强调色，字用底色（深浅两种都看得清） */
+.button {
+  padding: 6px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius);
+  background: var(--surface); cursor: pointer; white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.button:hover { background: color-mix(in srgb, var(--text) 6%, var(--surface)); }
+.button.primary { border-color: var(--accent); background: var(--accent); color: var(--surface); }
+.button.primary:hover { background: color-mix(in srgb, var(--accent) 88%, var(--text)); }
+.button:disabled { opacity: 0.55; cursor: default; }
+button:focus-visible, input:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; }
+input {
+  width: 100%; padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: var(--radius);
+  background: var(--surface);
+}
+input[aria-invalid="true"] { border-color: var(--danger); }
+/* 复制时退到 execCommand 用的那一段字：放在看不见的地方 */
+.offscreen { position: fixed; top: 0; left: -9999px; opacity: 0; }
+
+/* 在线的圆点：连着绿，没连着红，不知道金（照桥自己的网页） */
+.status-dot { display: inline-block; width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--danger); }
+.status-dot.is-online { background: var(--online); }
+.status-dot.is-unknown { background: var(--gold); }
+
+/* 通道来之前、读不到设置项：正中一句话（读不到的带「重试」） */
+#app.boot { display: grid; min-height: 100vh; place-content: center; justify-items: center; gap: 12px; padding: 16px; }
+.boot-wait { margin: 0; color: var(--text-faint); }
+.hint { margin: 0; color: var(--text-soft); font-size: 13px; }
+.error { margin: 0; color: var(--danger); }
+.error:empty { display: none; }
+.actions { display: flex; justify-content: flex-end; }
+
+/* 问一句的对话框（换令牌之前）：照桥自己的网页 */
+dialog.confirm {
+  width: min(400px, calc(100% - 32px)); padding: 20px 22px; border: 1px solid var(--line); border-radius: 14px;
+  background: var(--surface); color: var(--text);
+}
+dialog.confirm::backdrop { background: var(--scrim); }
+dialog.confirm p { margin: 0 0 16px; }
+dialog.confirm .actions { gap: 8px; }
+
+/* 页顶一排页签（框外是网页的顶栏、菜单，「施工时定的」第 163 条），下面是页 */
+.tabs {
+  position: sticky; top: 0; z-index: 2; display: flex; gap: 4px; padding: 10px 20px 0;
+  border-bottom: 1px solid var(--line); background: var(--surface);
+}
+.tab {
+  margin-bottom: -1px; padding: 7px 12px; border: 0; border-bottom: 2px solid transparent;
+  background: transparent; color: var(--text-soft); cursor: pointer;
+}
+.tab:hover { color: var(--text); }
+.tab.is-on { border-bottom-color: var(--accent); color: var(--text); font-weight: 600; }
+.page { padding: 20px 20px 40px; }
+.page > * { max-width: 760px; }
+
+.card {
+  margin-bottom: 16px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--card);
+}
+.row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 12px; padding: 6px 0; }
+.label { width: 150px; flex: none; padding-top: 6px; color: var(--text-soft); }
+.value { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; padding-top: 6px; }
+.value.line, .line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.detail { color: var(--text-soft); }
+/* 没令牌时页顶的三步：强调色的底，做完的那一步打勾、变淡 */
+.guide { border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: var(--accent-soft); }
+.guide h2 { color: var(--text); }
+.guide ol { display: grid; gap: 6px; margin: 0; padding-left: 22px; }
+.guide li.done { color: var(--text-faint); text-decoration: line-through; }
+.guide li.done::marker { content: "✓  "; color: var(--online); }
+.card > .error { margin: 4px 0; }
+.ports { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; }
+.ports label { display: grid; gap: 4px; width: 150px; }
+.ports label span { color: var(--text-soft); font-size: 13px; }
+.note { margin: 10px 0 0; color: var(--text-soft); }
+.note:empty { display: none; }
+.note.error { color: var(--danger); }
+
+/* 「白名单成员」：一行是号、「删」、旁边一句；号不对的描红、那一句是红的。表空着时一句；下面一句终端管理员在哪改 */
+.card > .hint { margin: -6px 0 10px; }
+.empty { margin: 4px 0 12px; color: var(--text-soft); }
+.people-rows { display: grid; gap: 8px; margin: 4px 0 12px; }
+.people-rows:empty { display: none; }
+.people-row { display: grid; grid-template-columns: minmax(0, 200px) auto 1fr; align-items: center; gap: 8px 10px; }
+.aside { font-size: 13px; }
+.aside:empty { display: none; }
+.aside.error { color: var(--danger); }
+.people-actions { display: flex; justify-content: space-between; gap: 8px; }
+.aside-note { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); color: var(--text-soft); font-size: 13px; }
+
+/* 窄：名字那一列占满一行，号那一列占满剩下的，旁边那一句挪到下一行 */
+@media (max-width: 560px) {
+  .tabs { padding: 8px 12px 0; }
+  .page { padding: 16px 12px 32px; }
+  .label { width: 100%; padding-top: 0; }
+  .value { padding-top: 0; }
+  .people-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .aside { grid-column: 1 / -1; margin-top: -4px; }
+}
