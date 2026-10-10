@@ -24,7 +24,7 @@ use crate::agents::{Agents, Offers, Site, job_in};
 use crate::blocking::blocking;
 use crate::clock::Clock;
 use crate::config::Turning;
-use crate::guard::{Guard, Place};
+use crate::guard::{Confined, Guard, Place};
 use crate::handle::{Handle, Ids};
 use crate::job_ids::JobIds;
 use crate::jobs::Roster;
@@ -87,6 +87,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         preset,
         presets,
         group,
+        owner_is_admin,
     } = setup;
     let span = actor::span(&id);
     let config = Turning::start(configs, environment.cwd.clone()).await;
@@ -165,7 +166,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         let texts = snapshot.driver_texts().map_err(CreateError::Policy)?;
         let run = snapshot.run_texts().map_err(CreateError::Policy)?;
         let guard = snapshot.guard_texts().map_err(CreateError::Policy)?;
-        let place = place(&place_venue, &place_resources).map_err(CreateError::Shipped)?;
+        let place =
+            place(&place_venue, &place_resources, owner_is_admin).map_err(CreateError::Shipped)?;
         store.put(&snapshot.to_bytes()).map_err(CreateError::Disk)?;
         let log = SessionLog::create(&dir, SEGMENT_LIMIT).map_err(CreateError::Disk)?;
         let turns = connect(
@@ -257,7 +259,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         root.path().to_path_buf(),
         home.map(Path::to_path_buf),
         Arc::clone(&lettering),
-        (sandbox.is_some(), place),
+        (sandbox.is_some(), place.0, place.1),
     );
     let who = Who {
         owner: owner.clone(),
@@ -359,11 +361,27 @@ fn ledger_of(usage: Option<&Arc<UsageIndex>>, id: &SessionId, owner: &AccountId)
 mod tests;
 
 /// 会话在哪（施工 O-31 前，`session/guard.md` 第四条）：场所是 `local` 的是本机的会话，读出厂的那一句拒绝在场所里做的事；别的
-/// 是场所会话。造会话、载入时各读一次，不进策略快照（[`ResourceRoot::not_in_venue`]）。
-fn place(venue: &VenueId, resources: &ResourceRoot) -> Result<Place, SourceError> {
+/// 是场所会话，属主不是管理员的只碰得到自己的工作区（施工 5-12，[`Confined`]）。造会话、载入时各读一次，不进策略快照
+/// （[`ResourceRoot::not_in_venue`]、[`ResourceRoot::confined_texts`]）。
+pub(super) fn place(
+    venue: &VenueId,
+    resources: &ResourceRoot,
+    owner_is_admin: bool,
+) -> Result<(Place, Option<Confined>), SourceError> {
     if venue.as_str() == crate::agents::LOCAL {
-        Ok(Place::local(resources.not_in_venue()?))
-    } else {
-        Ok(Place::Venue)
+        return Ok((Place::local(resources.not_in_venue()?), None));
     }
+    if owner_is_admin {
+        return Ok((Place::Venue, None));
+    }
+    let (outside, no_commands) = resources.confined_texts()?;
+    let confined = Confined::new(&outside, no_commands).map_err(|error| SourceError::Read {
+        path: resources
+            .path()
+            .join("core")
+            .join("permissions")
+            .join("outside-workspace.txt"),
+        error: std::io::Error::new(std::io::ErrorKind::InvalidData, error.to_string()),
+    })?;
+    Ok((Place::Venue, Some(confined)))
 }

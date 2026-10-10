@@ -462,6 +462,20 @@ impl ResourceRoot {
         self.read(&["core", "permissions", "not-in-venue.txt"])
     }
 
+    /// 只碰得到自己工作区的会话（外部身份的场所会话，施工 5-12，`11-权限与沙盒.md` 第三节）拒绝时写给她的两句：要碰的路径在
+    /// 工作区外面（`outside-workspace.txt`，字段 `path`）、这里还不能跑命令（`no-commands.txt`）。不进策略快照，同
+    /// [`ResourceRoot::not_in_venue`]：这种会话造、载入时读。
+    ///
+    /// # Errors
+    ///
+    /// 读不出来：写明是哪个文件。
+    pub fn confined_texts(&self) -> Result<(String, String), SourceError> {
+        Ok((
+            self.read(&["core", "permissions", "outside-workspace.txt"])?,
+            self.read(&["core", "permissions", "no-commands.txt"])?,
+        ))
+    }
+
     /// 读资源目录下的一份文件，路径一段一段地接上（三个平台一样）。
     fn read(&self, parts: &[&str]) -> Result<String, SourceError> {
         let path = parts

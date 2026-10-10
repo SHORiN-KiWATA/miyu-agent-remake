@@ -110,6 +110,9 @@ pub struct Create<'a> {
     /// 是不是群会话（施工 O-13 中）：`venue.session` 的 `kind` 是 `group` 的。是的 system 接上群聊的格式说明，快照钉下这时的
     /// 时区，群里的人说的渲染成一行一条。
     pub group: bool,
+    /// 属主是不是管理员（施工 5-12）：场所会话、属主不是管理员的（群会话、陌生人和成员的私聊）只碰得到自己的工作区
+    /// （`11-权限与沙盒.md` 第三节「外部身份」）。
+    pub owner_is_admin: bool,
 }
 
 /// 载入一个会话要的。
@@ -154,4 +157,6 @@ pub struct Load<'a> {
     pub memory: Option<Arc<crate::Memory>>,
     /// 同 [`Create::presets`]。
     pub presets: Option<PresetPlaces>,
+    /// 同 [`Create::owner_is_admin`]。
+    pub owner_is_admin: bool,
 }

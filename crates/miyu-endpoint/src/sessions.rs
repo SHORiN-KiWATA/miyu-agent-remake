@@ -199,6 +199,7 @@ impl Sessions {
             preset: Some(presets::chosen(core, preset)),
             presets: Some(presets::places(core)),
             group: who.group,
+            owner_is_admin: who.owner == core.admin,
         })
         .await;
         let handle = match created {
@@ -324,6 +325,7 @@ impl Sessions {
             preset,
             presets: Some(presets::places(core)),
             group: false,
+            owner_is_admin: child.owner == core.admin,
         })
         .await
         .map_err(|error| error.to_string())?;

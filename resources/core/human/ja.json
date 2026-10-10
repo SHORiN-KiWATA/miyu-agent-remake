@@ -304,6 +304,8 @@
     "permissions/forbidden": "Miyu 自身のデータなので、誰も触れられません",
     "permissions/unresolvable": "どこを指しているか判断できません：{reason}",
     "permissions/not-in-venue": "グループやプライベートチャットでのみ使えます",
+    "permissions/outside-workspace": "ワークスペースの外のため実行しません",
+    "permissions/no-commands": "ここではコマンドを実行できません",
     "commands/cleared": "コンテキストを消去しました。",
     "commands/stopped": "すべて停止しました。",
     "commands/workspace": "ワークスペースを {cwd} に切り替えました。",

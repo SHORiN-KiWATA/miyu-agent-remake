@@ -190,6 +190,7 @@ impl Home {
             preset: lines.preset,
             presets: None,
             group: lines.group,
+            owner_is_admin: lines.owner_is_admin,
         });
         within("造会话", created).await.expect("造得出会话")
     }
@@ -272,6 +273,7 @@ impl Home {
             configs: self.configs.clone(),
             memory: Some(self.memory()),
             presets: None,
+            owner_is_admin: true,
         });
         within("载入", loaded).await.expect("载入得了会话")
     }

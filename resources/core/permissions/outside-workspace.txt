@@ -1,0 +1,1 @@
+"{path}" is outside this chat's workspace. Here you can only use files inside it.

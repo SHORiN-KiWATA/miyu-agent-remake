@@ -304,6 +304,8 @@
     "permissions/forbidden": "这是 Miyu 自己的数据，谁都不能碰",
     "permissions/unresolvable": "说不清它指向哪里：{reason}",
     "permissions/not-in-venue": "只能在群聊、私聊里用",
+    "permissions/outside-workspace": "工作区外，未执行",
+    "permissions/no-commands": "这里不能执行命令",
     "commands/cleared": "已清空上下文。",
     "commands/stopped": "已全部停止。",
     "commands/workspace": "工作区已切换到 {cwd}。",

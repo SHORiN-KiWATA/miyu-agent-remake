@@ -12,6 +12,7 @@ mod embed;
 mod embed_replace;
 mod group;
 mod guard;
+mod guard_confined;
 mod guard_dirs;
 mod guard_grants;
 mod guard_thread;

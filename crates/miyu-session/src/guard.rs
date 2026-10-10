@@ -30,6 +30,10 @@ use miyu_tool::{Call, Shelf, Stop, Target, Tool};
 
 use crate::lettering::Lettering;
 
+mod confined;
+
+pub(crate) use confined::Confined;
+
 /// 权限策略：一个会话一份。
 pub(crate) struct Guard {
     /// 工具目录的架子：判的时候照现在的那一份找（施工 O-2 中）。
@@ -48,6 +52,8 @@ pub(crate) struct Guard {
     sandboxed: bool,
     /// 会话在不在场所里（施工 O-31 前）：在场所里做的事照它判。
     place: Place,
+    /// 只碰得到自己工作区的会话才有（施工 5-12，[`Confined`]）：文件类工具只放行工作区里的，命令一律拒。
+    confined: Option<Confined>,
 }
 
 /// 会话在哪（施工 O-31 前，`session/guard.md` 第四条）：在场所里做的事（访问类别 `venue`）只在场所会话里放行。
@@ -102,13 +108,13 @@ struct Asked {
 
 impl Guard {
     /// 照目录 `catalog` 找工具，数据根是 `data_root`，家目录是 `home`，拒绝时的话照 `lettering`，这台机器上的沙盒能不能用
-    /// 是 `sandboxed`，会话在 `place`（施工 O-31 前）。
+    /// 是 `sandboxed`，会话在 `place`（施工 O-31 前），只碰得到自己工作区的有 `confined`（施工 5-12）。
     pub(crate) fn new(
         catalog: Shelf,
         data_root: PathBuf,
         home: Option<PathBuf>,
         lettering: Arc<Lettering>,
-        (sandboxed, place): (bool, Place),
+        (sandboxed, place, confined): (bool, Place, Option<Confined>),
     ) -> Guard {
         let places = Places::here(PathBuf::new(), data_root.clone(), home.as_deref());
         let real_home = home
@@ -123,6 +129,7 @@ impl Guard {
             lettering,
             sandboxed,
             place,
+            confined,
         }
     }
 
@@ -146,6 +153,12 @@ impl Guard {
         // 在场所里做的事不报路径、不在沙盒外跑：只看会话在不在场所里（施工 O-31 前）。
         if access == Access::Venue {
             return in_venue(&self.place);
+        }
+        // 只碰得到自己工作区的会话还不能跑命令（施工 5-12：沙盒把读也关进工作区以后再放开）。
+        if let Some(confined) = &self.confined
+            && access == Access::Execute
+        {
+            return deny(confined.no_commands());
         }
         // 报要碰的路径、要不要在沙盒外跑都只看参数，用不着她看过的。
         let call = Call {
@@ -230,6 +243,12 @@ impl Guard {
                     );
                 }
             };
+            // 只碰得到自己工作区的：工作区、加进来的目录以外的一律拒（施工 5-12）。
+            if let Some(confined) = &self.confined
+                && !confined::inside(&real, &cwd, &places.dirs)
+            {
+                return deny(confined.outside(&target.path));
+            }
             let zone = boundary.zone(&real);
             match mark(level, zone, target.write) {
                 Mark::Allow => {}

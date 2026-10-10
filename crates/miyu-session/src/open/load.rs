@@ -66,6 +66,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         configs,
         memory,
         presets,
+        owner_is_admin,
     } = setup;
     let span = actor::span(&id);
     let config = Turning::start(configs, environment.cwd.clone()).await;
@@ -106,7 +107,8 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         let texts = snapshot.driver_texts().map_err(LoadError::Policy)?;
         let run = snapshot.run_texts().map_err(LoadError::Policy)?;
         let guard = snapshot.guard_texts().map_err(LoadError::Policy)?;
-        let place = place(&created.venue, &place_resources).map_err(LoadError::Shipped)?;
+        let place =
+            place(&created.venue, &place_resources, owner_is_admin).map_err(LoadError::Shipped)?;
         // 能选的池照快照读回（施工 8-8 补）：造会话时拼的那一份，不重拼。
         let pools = Agents::pools_in(&snapshot.tools);
         // 快照里的范围已经照预设、有没有人格算过（施工 P-2 中、P-4 上），这里只再管子会话。
@@ -222,7 +224,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         root.path().to_path_buf(),
         home.map(Path::to_path_buf),
         Arc::clone(&lettering),
-        (sandbox.is_some(), place),
+        (sandbox.is_some(), place.0, place.1),
     );
     let ledger = ledger_of(usage.as_ref(), &id, &owner);
     let mut actor = Actor::new(
