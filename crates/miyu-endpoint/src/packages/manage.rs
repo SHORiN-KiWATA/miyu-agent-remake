@@ -164,6 +164,19 @@ pub(super) async fn remove_package(core: &Arc<Core>, id: String) -> Result<Value
     }
     let home = home(core)?;
     let local_root = packages(core).local_root();
+    let state = packages(core).state_dir(&id);
+    // 卸就是清干净（施工 F-8 中下补，设计 31 定了的 H）：它的配置项照清单列的删，状态目录整个删。
+    let keys: Vec<String> = one
+        .read
+        .as_ref()
+        .map(|manifest| {
+            manifest
+                .settings
+                .iter()
+                .map(|setting| format!("{id}.{}", setting.name))
+                .collect()
+        })
+        .unwrap_or_default();
     let layer = one.layer;
     // 先停下用着它的、再删文件（施工 F-5 补）：Windows 上开着的文件删不掉。删不成的照原来的清单换回来。
     let all = refs(&found);
@@ -187,6 +200,10 @@ pub(super) async fn remove_package(core: &Arc<Core>, id: String) -> Result<Value
     core.reload_packages();
     let now = core.packages();
     core.switch_packages(&without, &refs(&now)).await;
+    crate::config::forget::forget(core, &keys);
+    if let Err(refusal) = blocking(move || remove_dir_if_there(&state)).await {
+        tracing::warn!(target: TARGET, package = removed.as_str(), reason = refusal.reason, "package state not removed");
+    }
     tracing::info!(target: TARGET, package = removed.as_str(), "package removed");
     Ok(json!({"package": removed, "removed": true}))
 }
@@ -330,4 +347,12 @@ fn refs(found: &[Found]) -> Vec<&Found> {
 /// 去掉编号是 `id` 的那一份。
 fn leaving<'a>(all: &[&'a Found], id: &str) -> Vec<&'a Found> {
     all.iter().copied().filter(|one| one.id != id).collect()
+}
+
+/// 删掉目录 `dir`；本来就没有的不算错。
+fn remove_dir_if_there(dir: &Path) -> std::io::Result<()> {
+    match std::fs::remove_dir_all(dir) {
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error),
+        _ => Ok(()),
+    }
 }

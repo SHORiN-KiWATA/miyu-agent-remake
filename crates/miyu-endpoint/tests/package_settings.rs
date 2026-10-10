@@ -3,13 +3,7 @@
 //! 说明照连接的语言从清单来，隐藏的带标记；写进系统配置读得到最终值，写错 `check` 报；编号撞了核心自己的模块的，整份报
 //! `settings_taken`、一项都不收。
 
-use std::sync::Arc;
-
 use serde_json::{Value, json};
-
-use miyu_endpoint::Core;
-use miyu_endpoint::config::{Config, Environment};
-use miyu_session::testkit::Script;
 
 use crate::support::*;
 
@@ -45,30 +39,8 @@ name = { en = "Time zones", zh = "时区" }
 [ui]
 "#;
 
-/// 照 `miyu-core` 起来时那样造核心：清单读一次，照核心自己的几项 `settle`，拼进配置清单。
-fn core(home: &Home) -> Arc<Core> {
-    let core_items = [
-        miyu_endpoint::settings::UiSettings::ITEMS,
-        miyu_endpoint::settings::PersonaSettings::ITEMS,
-        miyu_endpoint::settings::PresetSettings::ITEMS,
-        miyu_endpoint::settings::PermissionSettings::ITEMS,
-    ]
-    .concat();
-    let resources = miyu_store::resources::ResourceRoot::at(default_resources());
-    let alice = miyu_kernel::id::AccountId::parse("alice").expect("账号合写法");
-    let mut found = miyu_endpoint::packages::load(&resources, &home.root, &alice);
-    let packaged = miyu_endpoint::packages::settle(&mut found, &core_items);
-    let items = core_items.into_iter().chain(packaged).collect();
-    let config = Config::load(&home.root, &alice, None, items, Environment::of(&[]));
-    Arc::new(
-        home.core_full(&Script::new([]), miyu_tool::Catalog::default(), None, TOKEN)
-            .with_config(config)
-            .with_packages(found),
-    )
-}
-
 async fn connected(home: &Home) -> Client {
-    let mut client = Client::connect(core(home));
+    let mut client = Client::connect(packaged::core(home));
     client.hello().await;
     client
 }
