@@ -103,7 +103,7 @@ test('了结以后留下的：提问一道一块、记下是谁问的，多选�
   assert.equal(report(other, { kind: 'ask', answers: [{ picked: [] }] }).who, '子代理 查资料', '子代理、后台命令问的记下是谁');
   const a = openApproval(approval('demo_approve_1'));
   assert.equal(report(a, { kind: 'approve', decision: 'once' }), null);
-  assert.deepEqual(report(a, { kind: 'approve', decision: 'deny', reason: '别动' }), { type: 'denied', reason: '别动' });
+  assert.equal(report(a, { kind: 'approve', decision: 'deny', reason: '别动' }), null);
   assert.deepEqual(report(a, { kind: 'approve', cancelled: true }), { type: 'cancelled', kind: 'approve' });
 });
 
@@ -117,13 +117,13 @@ test('还没了结的：问了、后面还没有回答、决定、结果的，�
   assert.deepEqual(pendingAsks([{ ...approve, body: { call_id: 'c0', access: 'write' } }]).at(0)?.questions[0].options.map((o) => o.decision), ['once', 'deny'], '没提规则的两项');
 });
 
-test('留下的照了结的那一条和问的那一条算：答了的卡片（题目照问的那一条）、不允许的带理由、允许的不留、问过没答就取消的一行', () => {
+test('留下的照了结的那一条和问的那一条算：答了的卡片（题目照问的那一条）、确认了的（允许、不允许）都不留、问过没答就取消的一行', () => {
   const asked = { seq: 79, kind: 'question.asked', body: { call_id: 'c1', questions: [{ header: 'build', question: '删掉还是保留？', options: [{ label: '删掉' }, { label: '保留' }] }] } };
   const answered = reportOf({ seq: 80, kind: 'question.answered', body: { call_id: 'c1', answers: [{ picked: ['保留'], notes: '下次再说' }] } }, asked);
   assert.deepEqual([answered?.type, answered?.rows], ['answered', [{ label: 'build', answer: { text: '保留', notes: '下次再说' } }]]);
   const req = { seq: 81, kind: 'tool.approval_requested', body: { call_id: 'a', access: 'write', rule: {} } };
   const denied = reportOf({ seq: 82, kind: 'tool.approval_decided', body: { call_id: 'a', decision: 'deny', reason: '别覆盖' } }, req);
-  assert.deepEqual([denied?.type, denied?.reason], ['denied', '别覆盖']);
+  assert.equal(denied, null);
   assert.equal(reportOf({ seq: 85, kind: 'tool.approval_decided', body: { call_id: 'a', decision: 'once' } }, req), null, '允许了的不留');
   const cancelled = reportOf({ seq: 87, kind: 'tool.result', body: { call_id: 'c1', status: 'cancelled' } }, asked);
   assert.deepEqual([cancelled?.type, cancelled?.kind], ['cancelled', 'ask']);

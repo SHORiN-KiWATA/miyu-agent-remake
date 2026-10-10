@@ -109,16 +109,12 @@
   background: var(--surface-1); box-shadow: var(--card-shadow);
 }
 .asking-card-head { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; color: var(--text-faint); font-size: 12px; }
-.asking-card-head .icon, .asking-card-line .icon { width: 14px; height: 14px; flex: none; }
+.asking-card-head .icon { width: 14px; height: 14px; flex: none; }
 .asking-card-rows { display: grid; gap: 10px; }
 .asking-card-label { color: var(--text-faint); font-size: 12px; line-height: 1.5; }
 .asking-card-answer { color: var(--text); font-size: 14px; font-weight: 500; line-height: 1.5; overflow-wrap: anywhere; }
 .asking-card-answer.is-missing { color: var(--danger); font-weight: 400; }
 .asking-card-notes { margin-top: 2px; color: var(--text-soft); font-size: 12.5px; line-height: 1.5; }
-.asking-card-line { display: flex; align-items: center; gap: 6px; font-size: 14px; line-height: 1.5; }
-.asking-card-line .icon { color: var(--danger); }
-.asking-card-denied { color: var(--danger); font-weight: 500; }
-.asking-card-reason { color: var(--text); overflow-wrap: anywhere; }
 .asking-report.is-cancelled { display: flex; align-items: center; gap: 8px; color: var(--text-faint); font-size: 13px; }
 .asking-dot { font-size: 9px; }
 

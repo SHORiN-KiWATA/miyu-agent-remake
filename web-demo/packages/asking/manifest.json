@@ -85,12 +85,10 @@
       "cancel": "取消",
       "submit": "提交",
       "answered_title": "已回答",
-      "denied": "不允许",
       "cancelled_question": "提问已取消",
       "cancelled_approval": "批准已取消",
       "answered_who": " · {who}",
       "notes_line": "补充：{notes}",
-      "denied_reason": " · {reason}",
       "next_question": "下一题"
     },
     "ja": {
@@ -128,12 +126,10 @@
       "cancel": "取り消し",
       "submit": "送信",
       "answered_title": "回答済み",
-      "denied": "許可しない",
       "cancelled_question": "質問を取り消しました",
       "cancelled_approval": "許可の確認を取り消しました",
       "answered_who": " · {who}",
       "notes_line": "補足：{notes}",
-      "denied_reason": " · {reason}",
       "next_question": "次へ"
     }
   }

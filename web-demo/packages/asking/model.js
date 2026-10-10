@@ -212,14 +212,14 @@ export function approvalHead(body, home, text) {
 }
 
 /**
- * 了结以后正文末尾留什么：提问一道一块、记下是谁问的（没有短名的写问题；没答的 `answer` 是 `null`）；确认允许的不留（`null`），不允许的带理由；
- * 取消的一行。
+ * 了结以后正文末尾留什么：提问一道一块、记下是谁问的（没有短名的写问题；没答的 `answer` 是 `null`）；确认不论允许、不允许都不留（`null`：
+ * 不允许的那一步工具行已经是红的、点开看得到，2026-10-10 项目主人：不需要「不允许」这样的输出）；取消的一行。
  * @param {Drawer} d
  * @param {Result} result
  */
 export function report(d, result) {
   if ('cancelled' in result) return { type: 'cancelled', kind: d.kind };
-  if (result.kind === 'approve') return result.decision === 'deny' ? { type: 'denied', reason: result.reason ?? null } : null;
+  if (result.kind === 'approve') return null;
   return {
     type: 'answered',
     who: d.who,
@@ -254,7 +254,7 @@ export function pendingAsks(events) {
 
 /**
  * 了结以后留下的（蓝图「确认和提问」第 6 条）：正文那一层在了结的那一条事件处放一条（`slot: 'asking'`），带着问的那一条；这里算留什么：
- * 回答了的提问一张卡片、不允许的一张、问过没答就取消、跳过了的一行；别的（允许了的）不留，交 `null`。
+ * 回答了的提问一张卡片、问过没答就取消、跳过了的一行；别的（确认了的，允许、不允许都算）不留，交 `null`。
  * @param {any} settle 了结的那一条（`question.answered`、`tool.approval_decided`、`tool.result`）
  * @param {any} asked 问的那一条（`question.asked`、`tool.approval_requested`）
  */
