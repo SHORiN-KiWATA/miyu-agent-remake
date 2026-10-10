@@ -153,6 +153,13 @@
   box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--gold) 75%, transparent);
 }
 .assistant-label strong { color: var(--text-soft); font-size: 11.5px; font-weight: 600; letter-spacing: 0.01em; }
+/* 人格没有头像：名字的第一个字（核心还没有人格的头像） */
+.assistant-initial {
+  position: absolute; top: 0; left: 0; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--surface-3); color: var(--text-soft); font-size: 13px; font-weight: 600;
+}
+/* 无人格的会话：她那一轮不画头像和名字，内容、提示行、压缩的进度不缩进（2026-10-10 项目主人） */
+.timeline.is-bare .assistant-message, .timeline.is-bare .note, .timeline.is-bare .compacting, .timeline.is-bare .chat-tail { padding-left: 0; }
 .assistant-content { color: var(--text); font-size: 15px; line-height: 1.75; }
 .assistant-content > * + * { margin-top: 10px; }
 
@@ -210,7 +217,7 @@
   .timeline { padding: 22px 13px 12px; }
   .user-bubble, .user-attachments { max-width: 86%; }
   .assistant-message { max-width: 100%; padding-left: 38px; }
-  .assistant-label img { width: 28px; height: 28px; }
+  .assistant-label img, .assistant-initial { width: 28px; height: 28px; }
 }
 
 

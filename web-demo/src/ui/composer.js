@@ -249,8 +249,19 @@ export class Composer {
   lock(text) {
     this.locked = text;
     this.input.disabled = !!text;
-    this.input.placeholder = text ?? t('placeholder', { name: res.persona.name });
+    this.input.placeholder = text ?? this.placeholder();
     this.syncButton();
+  }
+
+  /** 空着时的占位字：照会话用的人格写「给 X 发消息」，无人格的会话不写名字（`setName`）。 */
+  placeholder() {
+    return this.name ? t('placeholder', { name: this.name }) : t('placeholder_bare');
+  }
+
+  /** 换会话用的人格的名字（`null` 是无人格）：没锁着的换掉占位字。 @param {string|null} name */
+  setName(name) {
+    this.name = name;
+    if (!this.locked) this.input.placeholder = this.placeholder();
   }
 
   async submit() {

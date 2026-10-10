@@ -65,6 +65,10 @@ export class App {
     /** 还没开的新会话里选的人格、预设、工作区（软件包 `setup` 经服务 `chat` 改）：开会话时带上，没选的照默认 */
     // 人格 `null` 是没选（照默认的），`false` 是明着不用人格
     this.draft = /** @type {{persona: string|false|null, preset: string|null, cwd: string|null}} */ ({ persona: null, preset: null, cwd: null });
+    /** 会话用的人格画成什么样（名字、头像）：软件包 `setup` 经 `chat.look` 交来；没人交的照旧的一份（`resources/persona.json`） */
+    this.looker = /** @type {((session: string|null) => import('./chat.js').Look|null|undefined)|null} */ (null);
+    /** 上一次交给对话区、输入框的（一样的不再交） */
+    this.lookSig = '';
     /** 会话 → 选过、还没生效的模型（下一轮才换）和那时开过几轮：开了新的一轮就照核心推的 */
     this.picked = /** @type {Map<string, {ref: string, turns: number}>} */ (new Map());
     /** 会话（新会话是空的）→ 模型 → 选过、还没生效的思考强度和那时开过几轮（核心施工 8-18：强度是这个会话里这一个模型的一格） */
@@ -369,6 +373,7 @@ export class App {
     // 没读过的会话第一次打开时才读、订阅：子代理的不进会话表的顶层；全部会话那一页开的老会话进（`listed`）
     if (id) this.store.ensure(id, listed).catch((err) => this.composer.say(refusalText(err)));
     this.chat.reset();
+    this.syncLook();
     this.store.view(id);
     this.drawer(false);
     this.render();
@@ -418,6 +423,27 @@ export class App {
   }
 
   /** 还没开的新会话改人格、预设、工作区（软件包 `setup`）：告诉软件包（`draft.changed`），重画（`@` 照它列文件）。 @param {Partial<{persona: string|false|null, preset: string|null, cwd: string|null}>} patch */
+  /**
+   * 正在看的会话的人格画成什么样，交给对话区（她那一轮的头）和输入框（占位字）。`looker` 交 `undefined` 的是还不知道（人格列表没读完），
+   * 照旧不动；`null` 是无人格（2026-10-10 项目主人：无人格的会话不应该显示头像和 AI 名称）。
+   */
+  syncLook() {
+    const look = this.looker ? this.looker(this.current) : res.persona;
+    if (look === undefined) return;
+    const sig = JSON.stringify(look);
+    if (sig === this.lookSig) return;
+    this.lookSig = sig;
+    this.chat.setLook(look);
+    this.composer.setName(look?.name ?? null);
+    this.schedule();
+  }
+
+  /** @param {(session: string|null) => import('./chat.js').Look|null|undefined} fn */
+  setLooker(fn) {
+    this.looker = fn;
+    this.syncLook();
+  }
+
   setDraft(patch) {
     this.draft = { ...this.draft, ...patch };
     this.ctx.emit('draft.changed', { ...this.draft });

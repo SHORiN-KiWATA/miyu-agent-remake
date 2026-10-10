@@ -49,6 +49,19 @@ export function apply(ctx) {
     return { preset: presetInUse(draft.preset, catalog.presetDefault), persona: personaInUse(draft.persona, catalog.personaDefault, catalog.personas ?? []) };
   };
 
+  /**
+   * 会话用的人格画成什么样（对话区她那一轮的头、输入框的占位字，经 `chat.look`）：名字照人格列表，头像等核心给（现在没有，画名字的第一个字）。
+   * 人格列表还没读到的交 `undefined`（照旧不动）；无人格、人格已经删了的交 `null`：不画头像和名字（2026-10-10 项目主人）。空会话照选的、默认的算。
+   * @param {string|null} session
+   */
+  const lookOf = (session) => {
+    if (!catalog.personas) return undefined;
+    const id = session ? chat.persona(session) : inUse().persona;
+    const p = id ? catalog.personas.find((x) => x.persona === id) : null;
+    return p ? { name: personaName(p), avatar: p.avatar ?? null } : null;
+  };
+  chat.look(lookOf);
+
   /** 读人格、预设的列表和默认的（进空会话时读一次，读完重画）。 */
   const load = async () => {
     await catalog.load();
@@ -59,6 +72,7 @@ export function apply(ctx) {
   let drawn = '';
   const draw = (force = false) => {
     const session = chat.current();
+    chat.refreshLook();
     // 新的空会话（三样都还空着：人选过的哪怕是「无人格」「默认工作区」也不是空的）：人格、预设的列表读到了，照上一次的会话先选上
     const fresh = chat.draft();
     if (!session && fresh.persona == null && fresh.preset == null && fresh.cwd == null && catalog.personas && catalog.presets) {

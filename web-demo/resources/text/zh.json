@@ -39,6 +39,7 @@
     "back_to": "回到「{title}」"
   },
   "placeholder": "给 {name} 发消息",
+  "placeholder_bare": "发消息",
   "send": "发送",
   "esc_clear_hint": "再按一次 Esc 清空",
   "cleared": "已清空 · ↑ 找回",

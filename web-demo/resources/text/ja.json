@@ -39,6 +39,7 @@
     "back_to": "「{title}」に戻る"
   },
   "placeholder": "{name} にメッセージを送信",
+  "placeholder_bare": "メッセージを送信",
   "send": "送信",
   "esc_clear_hint": "もう一度 Esc でクリア",
   "cleared": "クリアしました · ↑ で復元",

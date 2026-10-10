@@ -35,6 +35,8 @@ export class Chat {
     /** 画回答时带着的（`markdown/render.js`）：提示；扩展点（图、卡片）照一条回答的范围取。 */
     this.markdown = { say: this.say, hooks: richHooks(this.where, this.say, ext) };
     this.list = h('div.timeline');
+    /** 她那一轮头上画的（会话用的人格的名字、头像，`setLook`）；`null` 是无人格的会话：不画头像和名字，内容不缩进 */
+    this.look = /** @type {Look|null} */ (res.persona);
     /** 正文末尾、最后一轮下面（挂载位 `chat.tail`：确认和提问了结以后留的）：一直是正文那一列的最后一个，画的时候不动它 */
     this.tail = h('div.chat-tail');
     /** 压缩的进度那一行（`compacting.js`）：正文末尾、`chat.tail` 前面，一直是同一个节点 */
@@ -129,6 +131,16 @@ export class Chat {
   }
 
   /** 换了会话：从头排，跟着最新的；点过的展开收起跟着节点一起扔掉（编号照回合，别的会话也有）。 */
+  /**
+   * 换她那一轮头上画的（软件包 `setup` 照会话的人格交来，经 `App.syncLook`）：`null` 是无人格的会话（2026-10-10 项目主人：无人格的会话
+   * 不应该显示头像和 AI 名称）。头上的块下一次画时照新的重画（块的签名带着它）。
+   * @param {Look|null} look
+   */
+  setLook(look) {
+    this.look = look;
+    this.list.classList.toggle('is-bare', !look);
+  }
+
   reset() {
     this.blocks.clear();
     this.anchored.clear();
@@ -249,12 +261,12 @@ export class Chat {
 
   /** 一块：你的（别人的）一句话、她的一轮，或者不挂在她头下的一行。没变的直接用记着的节点。 */
   block(block) {
-    const sig = block.kind === 'her' ? `her${block.cont ? '+' : ''}` : JSON.stringify(block.item);
+    const sig = block.kind === 'her' ? `her${block.cont ? '+' : ''}|${this.look ? `${this.look.name}|${this.look.avatar ?? ''}` : '-'}` : JSON.stringify(block.item);
     let rec = this.blocks.get(block.key);
     if (!rec || rec.sig !== sig) {
       const node = block.kind === 'user'
         ? userNode(block.item, this.on, { session: this.where.session, lightbox: this.ext.lightbox, mine: this.mine(block.item), titleOf: this.ext.titleOf })
-        : block.kind === 'note' ? (block.item.slot ? slotNode(block.item, this) : noteNode(block.item, this.where, this.markdown)) : herNode(!!block.cont);
+        : block.kind === 'note' ? (block.item.slot ? slotNode(block.item, this) : noteNode(block.item, this.where, this.markdown)) : herNode(!!block.cont, this.look);
       rec?.node.replaceWith(node);
       // 记下这是哪一块：钉在它后面的照它找（`anchor`）
       node.dataset.block = block.key;
@@ -328,14 +340,18 @@ function slotNode(it, chat) {
   return h('div.note.is-empty');
 }
 
-/** 她的一轮：头像和名字，下面是内容；`cont` 的是接着她同一轮的（中间插进来一句话），只有内容。 */
-function herNode(cont) {
-  const p = res.persona;
-  if (cont) return h('article.assistant-message.is-cont', h('div.assistant-content'));
-  return h('article.assistant-message',
-    h('header.assistant-label', h('img', { src: p.avatar, alt: '' }), h('strong', p.name)),
-    h('div.assistant-content'));
+/**
+ * 她的一轮：头像和名字，下面是内容；`cont` 的是接着她同一轮的（中间插进来一句话），只有内容；无人格的会话（`look` 是 `null`）也只有内容。
+ * 人格没有头像的画名字的第一个字（核心还没有人格的头像）。
+ * @param {boolean} cont @param {Look|null} look
+ */
+function herNode(cont, look) {
+  if (cont || !look) return h(`article.assistant-message${cont ? '.is-cont' : ''}`, h('div.assistant-content'));
+  const face = look.avatar ? h('img', { src: look.avatar, alt: '' }) : h('span.assistant-initial', { 'aria-hidden': 'true' }, [...look.name][0] ?? '');
+  return h('article.assistant-message', h('header.assistant-label', face, h('strong', look.name)), h('div.assistant-content'));
 }
+
+/** @typedef {{name: string, avatar?: string|null}} Look */
 
 /**
  * 她的一条：回答、三个球、收尾那一行、夹在中间的回报。时间线的一段见 `reconcile`。
