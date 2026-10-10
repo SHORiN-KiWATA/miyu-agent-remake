@@ -15,6 +15,15 @@ fn relay(program: &str, extra: &str, tables: &str) -> String {
     )
 }
 
+/// 一个程序一定不在的扩展：带一个功能、一项配置。演「程序不在」的样子：不借出厂的接入QQ，桥的测试会往测试程序旁边链
+/// `miyu-onebot`，借它的话先跑过桥的测试就红。
+fn ghost(home: &Home) {
+    home.write(
+        "home/alice/packages/ghost.toml",
+        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = { en = \"Ghost\" }\n\n[command]\nname = \"ghost\"\nprogram = \"miyu-no-such-program-anywhere\"\nabout = { en = \"G\" }\n\n[process]\n\n[features.haunt]\nname = { en = \"Haunt\" }\n\n[settings.port]\ntype = \"int\"\nlayers = [\"system\"]\nname = { en = \"Port\" }\n",
+    );
+}
+
 /// `package.list` 里编号是 `id` 的那一项。
 async fn entry(client: &mut Client, id: &str) -> Value {
     let reply = client.call("l", "package.list", json!({})).await;
@@ -51,6 +60,7 @@ async fn the_list_says_status_switch_icon_and_page() {
         &relay(&program.name(), "", "\n[page]\ndir = \"page\"\n")
             .replace("name = \"relay\"", "name = \"bare\""),
     );
+    ghost(&home);
     let core = core(&home, quick());
     let mut client = Client::connect(Arc::clone(&core));
     client.hello().await;
@@ -79,11 +89,11 @@ async fn the_list_says_status_switch_icon_and_page() {
         (memory["status"].clone(), memory["enabled"].clone()),
         (json!("ready"), json!(true))
     );
-    let onebot = entry(&mut client, "onebot").await;
+    let ghost = entry(&mut client, "ghost").await;
     assert_eq!(
-        (onebot["status"].clone(), onebot["enabled"].clone()),
+        (ghost["status"].clone(), ghost["enabled"].clone()),
         (json!("program_missing"), json!(false)),
-        "{onebot}"
+        "{ghost}"
     );
     let tui = entry(&mut client, "tui").await;
     assert_eq!(tui["status"], "program_missing");
@@ -150,6 +160,7 @@ async fn a_shipped_built_in_package_is_switched_off_by_removing_it() {
 #[tokio::test]
 async fn switches_that_do_not_apply_are_refused() {
     let home = Home::new();
+    ghost(&home);
     let core = core(&home, quick());
     let mut client = Client::connect(Arc::clone(&core));
     client.hello().await;
@@ -158,8 +169,8 @@ async fn switches_that_do_not_apply_are_refused() {
         ("package.disable", "basesystem", "package_required"),
         ("package.enable", "tui", "not_switchable"),
         ("package.disable", "web", "not_switchable"),
-        ("package.enable", "onebot", "program_missing"),
-        ("extension.enable", "onebot", "program_missing"),
+        ("package.enable", "ghost", "program_missing"),
+        ("extension.enable", "ghost", "program_missing"),
         ("package.enable", "nothing", "unknown_package"),
     ] {
         let reply = switch(&mut client, method, id).await;
@@ -169,7 +180,7 @@ async fn switches_that_do_not_apply_are_refused() {
         );
     }
     assert_eq!(
-        entry(&mut client, "onebot").await["enabled"],
+        entry(&mut client, "ghost").await["enabled"],
         false,
         "程序不在的开不了"
     );
@@ -178,6 +189,7 @@ async fn switches_that_do_not_apply_are_refused() {
 #[tokio::test]
 async fn a_package_whose_program_is_missing_counts_as_not_installed() {
     let home = Home::new();
+    ghost(&home);
     let core = core_with_settings(&home, quick());
     let mut client = Client::connect(Arc::clone(&core));
     client.hello().await;
@@ -188,10 +200,7 @@ async fn a_package_whose_program_is_missing_counts_as_not_installed() {
         .iter()
         .filter_map(|item| item["key"].as_str())
         .collect();
-    assert!(
-        !keys.iter().any(|key| key.starts_with("onebot.")),
-        "{keys:?}"
-    );
+    assert!(!keys.contains(&"ghost.port"), "{keys:?}");
     assert!(
         keys.contains(&"tui.icons"),
         "界面的程序不在，配置项照旧在：{keys:?}"
@@ -206,7 +215,7 @@ async fn a_package_whose_program_is_missing_counts_as_not_installed() {
         .filter(|feature| feature["installed"] == true)
         .filter_map(|feature| feature["id"].as_str())
         .collect();
-    assert!(!installed.contains(&"qq"), "{installed:?}");
+    assert!(!installed.contains(&"haunt"), "{installed:?}");
     core.stop_extensions().await;
 }
 

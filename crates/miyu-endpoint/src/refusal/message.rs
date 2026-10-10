@@ -46,6 +46,12 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "This manifest cannot be installed; data.problem says why.",
         ),
         "program_missing" => ("程序未安装。", "Program not installed."),
+        "no_page" => ("没有后台页。", "No admin page."),
+        "not_found" => ("文件不存在。", "File not found."),
+        "program_not_running" => ("程序未运行。", "Program not running."),
+        "method_timeout" => ("方法超时。", "Method timed out."),
+        "unregistered" => ("方法未登记。", "Method not registered."),
+        "method_failed" => ("方法执行失败。", "Method failed."),
         "not_switchable" => ("不能启用或停用。", "Cannot be enabled or disabled."),
         "not_an_extension" => (
             "这个软件包是界面，不由核心拉起。",

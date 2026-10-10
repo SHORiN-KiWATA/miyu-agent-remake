@@ -12,6 +12,7 @@ mod support;
 mod answer;
 mod attach;
 mod attach_send;
+mod backstage;
 mod check;
 mod clear;
 mod command_catalog;

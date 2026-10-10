@@ -288,6 +288,8 @@ async fn presets_are_listed_and_read_by_layer() {
                 one["installed"].as_bool().unwrap_or_default(),
             )
         })
+        // 出厂的接入QQ 的功能 qq 在不在看测试程序旁边有没有 `miyu-onebot`（桥的测试会链一个过去），这里不比它。
+        .filter(|(id, _, _, _)| *id != "qq")
         .collect();
     assert_eq!(
         features,
@@ -302,14 +304,18 @@ async fn presets_are_listed_and_read_by_layer() {
             ("history", "翻查本会话", true, true),
             ("usage", "用量", true, true),
             ("memory", "人格记忆", true, true),
-            // 接入QQ 的程序不在测试程序旁边，当没装（施工 F-6 上），它的 QQ 工具不列。
             ("roleplay", "人设防失忆提醒", false, true),
             ("goal", "长期目标", true, false),
         ],
         "装了的照清单读的先后、名字照它的清单（施工 F-3 下）；写了没装的接在后面，名字照给人看的字；装了的包的编号（net）不另列"
     );
     assert_eq!(
-        got["features"][10]["summary"],
+        got["features"]
+            .as_array()
+            .expect("是一个个功能")
+            .iter()
+            .find(|one| one["id"] == "roleplay")
+            .expect("有人设防失忆提醒")["summary"],
         "隔几轮把人设提醒短语再给她看一遍，聊久了也不出戏"
     );
     assert!(got["features"][0].get("summary").is_none(), "没说明的不写");
