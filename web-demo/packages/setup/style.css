@@ -59,6 +59,17 @@
 
 /* 设置页的「人格」页：一个人格一块，底色一块不画描边 */
 .setup-cards { display: grid; gap: 10px; margin-top: 4px; }
+/* 一个一张卡片，排成网格（2026-10-10 项目主人：长条里只有一点字不合理）；写错了的那一张占满一行 */
+.setup-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.setup-grid .setup-card.is-bad { grid-column: 1 / -1; }
+.setup-card.is-clickable { display: flex; align-items: center; gap: 12px; min-height: 68px; padding: 14px; }
+.setup-card-text { flex: 1; min-width: 0; }
+.setup-card .setup-card-text h4 { margin: 0; }
+.setup-card-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.setup-card .setup-card-text p { margin: 2px 0 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12.5px; }
+/* 人格的头像、预设的图标：核心还没有，先画名字的第一个字；人格是圆的，预设是圆角方块 */
+.setup-face { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 16%, var(--surface-1)); color: var(--accent); font-size: 16px; font-weight: 600; }
+.setup-face.is-preset { border-radius: 10px; background: var(--surface-1); color: var(--text-soft); }
 .setup-card {
   padding: 14px 16px; border-radius: 12px; background: var(--surface-2);
   transition: background-color var(--motion-collapse) ease, box-shadow var(--motion-collapse) ease, border-radius var(--motion-collapse) ease;

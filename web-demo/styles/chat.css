@@ -156,7 +156,7 @@
 /* 人格没有头像：名字的第一个字（核心还没有人格的头像） */
 .assistant-initial {
   position: absolute; top: 0; left: 0; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
-  background: var(--surface-3); color: var(--text-soft); font-size: 13px; font-weight: 600;
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-1)); color: var(--accent); font-size: 13px; font-weight: 600;
 }
 /* 无人格的会话：她那一轮不画头像和名字，内容、提示行、压缩的进度不缩进（2026-10-10 项目主人） */
 .timeline.is-bare .assistant-message, .timeline.is-bare .note, .timeline.is-bare .compacting, .timeline.is-bare .chat-tail { padding-left: 0; }

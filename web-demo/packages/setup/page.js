@@ -77,10 +77,14 @@ export class ListPage {
     const cards = list.map((p) => {
       const id = p[this.kind];
       if (p.problem) return badCard(this.ctx, id, this.catalog.problemOf(this.kind, p));
-      // 「默认」接在名字后面，不另占一行（2026-10-08 项目主人）
+      // 「默认」接在名字后面，不另占一行（2026-10-08 项目主人）；左边人格的头像、预设的图标，核心还没有的先画名字的第一个字
+      // （2026-10-10 项目主人：长条里只有一点字不合理，改成卡片网格）
+      const name = this.k.name(p);
       const card = h('div.setup-card.is-clickable', { tabindex: '0', role: 'button', onclick: () => this.show(id) },
-        h('h4', this.k.name(p), id === fallback ? h('span.setup-tag', t('page.default')) : null),
-        this.k.summary && p.summary ? h('p', p.summary) : null);
+        h(`span.setup-face.is-${this.kind}`, { 'aria-hidden': 'true' }, [...name][0] ?? ''),
+        h('div.setup-card-text',
+          h('h4', h('span.setup-card-name', name), id === fallback ? h('span.setup-tag', t('page.default')) : null),
+          this.k.summary && p.summary ? h('p', p.summary) : null));
       card.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter' && e.key !== ' ') return;
         e.preventDefault();
@@ -90,7 +94,7 @@ export class ListPage {
     });
     // 顶上一行：这一页管什么（人格页，2026-10-08 项目主人），右边「＋ 新建」
     const add = h('div.setup-bar', this.k.intro ? h('p.setup-intro', t(this.k.intro)) : null, h('button.setup-new', { type: 'button', onclick: () => this.startNew() }, icon('plus'), h('span', t(this.k.add))));
-    replace(this.el, add, cards.length ? cards : h('p.setup-empty', t(this.k.none)));
+    replace(this.el, add, cards.length ? h('div.setup-grid', cards) : h('p.setup-empty', t(this.k.none)));
   }
 
   /** 点卡片外面、`Esc`、✕：开着编辑器的交给它（人格改了没存的不关、提示一句），新建只填名字那一步直接关。 */
