@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use miyu_kernel::event::Effect;
 use miyu_kernel::session::Input;
 use miyu_kernel::time::Timestamp;
 
@@ -11,7 +12,17 @@ use crate::effects;
 use crate::lines::millis;
 
 impl Tools {
-    /// 跑工具的任务送回来的，写成内核的输入。不在跑的（已经叫停了的）不理。
+    /// 结果没人要了（调用已经被掐掉）里派出去的子代理（施工 7-5 补）：没记成任务，没人管，停掉它。
+    fn unclaimed(&self, effects: &[Effect]) {
+        let Some(agents) = self.agents() else {
+            return;
+        };
+        for (job, child) in crate::agents::spawned_in(effects) {
+            agents.stop_unclaimed(&job, child);
+        }
+    }
+
+    /// 跑工具的任务送回来的，写成内核的输入。不在跑的（已经叫停了的）不理，派出去的子代理停掉（施工 7-5 补）。
     pub(crate) fn back(&mut self, at: Timestamp, back: ToolBack) -> Option<Input> {
         match back {
             ToolBack::Asks {
@@ -28,7 +39,10 @@ impl Tools {
                 done,
                 effects,
             } => {
-                let running = self.running.remove(&call_id)?;
+                let Some(running) = self.running.remove(&call_id) else {
+                    self.unclaimed(&effects);
+                    return None;
+                };
                 effects::saw(Arc::make_mut(&mut self.seen), &effects);
                 let took_ms = millis(running.started.elapsed());
                 tracing::info!(
