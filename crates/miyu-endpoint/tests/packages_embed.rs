@@ -55,7 +55,7 @@ impl Builtins for Port {
 }
 
 /// 小程序包的清单。
-const XEMBED: &str = "[package]\nkind = \"worker\"\nprotocol = [1, 1]\nname = { en = \"X model\" }\n\n[worker]\nprogram = \"miyu-nothing\"\n";
+const XEMBED: &str = "[package]\nprotocol = [1, 1]\nname = { en = \"X model\" }\n\n[worker]\nprogram = \"miyu-nothing\"\n";
 
 /// 要装的那个包放在工作目录：文件夹里一份包清单、一份模型清单，模型名是 `id`（文件不摆：只看名字，不算）。交回文件夹。
 fn source(home: &Home, id: &str) -> std::path::PathBuf {

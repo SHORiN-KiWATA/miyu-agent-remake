@@ -15,7 +15,6 @@ use crate::support::*;
 
 /// 一个带两项配置的界面包。
 const CLOCK: &str = r#"[package]
-kind = "ui"
 protocol = [1, 1]
 name = { en = "Clock", zh = "时钟" }
 
@@ -42,6 +41,8 @@ max = 40
 default = ["UTC"]
 layers = ["system"]
 name = { en = "Time zones", zh = "时区" }
+
+[ui]
 "#;
 
 /// 照 `miyu-core` 起来时那样造核心：清单读一次，照核心自己的几项 `settle`，拼进配置清单。
@@ -226,7 +227,7 @@ async fn a_connection_package_has_its_settings_on_the_packages_page() {
     let home = Home::new();
     let program = crate::support::extensions::Program::new();
     let relay = format!(
-        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"Relay\", zh = \"中转\" }}\n\n[command]\nname = \"relay\"\nprogram = \"{}\"\nabout = {{ en = \"Relay\" }}\n\n[process]\n\n[connection]\nplatform = \"relay\"\n\n[settings.port]\ntype = \"int\"\nlayers = [\"system\"]\nname = {{ en = \"Port\", zh = \"端口\" }}\n",
+        "[package]\nprotocol = [1, 1]\nname = {{ en = \"Relay\", zh = \"中转\" }}\n\n[command]\nname = \"relay\"\nprogram = \"{}\"\nabout = {{ en = \"Relay\" }}\n\n[process]\n\n[connection]\nplatform = \"relay\"\n\n[settings.port]\ntype = \"int\"\nlayers = [\"system\"]\nname = {{ en = \"Port\", zh = \"端口\" }}\n",
         program.name()
     );
     home.write("home/alice/packages/relay/package.toml", &relay);

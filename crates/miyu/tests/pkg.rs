@@ -10,7 +10,7 @@ use miyu_cli::language::Language;
 use miyu_ipc::connect_or_start;
 
 /// 一份手动拉起的扩展包的清单（不会真的起）。
-const XPKG: &str = "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = { en = \"X\", zh = \"测试包\" }\n\n[command]\nname = \"xpkg\"\nprogram = \"miyu-nothing\"\nabout = { en = \"X\" }\n\n[process]\nstart = \"manual\"\n";
+const XPKG: &str = "[package]\nprotocol = [1, 1]\nname = { en = \"X\", zh = \"测试包\" }\n\n[command]\nname = \"xpkg\"\nprogram = \"miyu-nothing\"\nabout = { en = \"X\" }\n\n[process]\nstart = \"manual\"\n";
 
 /// 列出来的那几行里，编号是 `id` 的那一行。
 fn line<'a>(listed: &'a str, id: &str) -> Option<&'a str> {
@@ -28,7 +28,7 @@ async fn pkg_lists_installs_and_removes_through_a_real_core() {
         .expect("拉得起");
     let cwd = home.dir.with_extension("work");
     std::fs::create_dir_all(&cwd).expect("建得了目录");
-    for (id, text) in [("xpkg", XPKG), ("bad", "[package]\nkind = \"process\"\n")] {
+    for (id, text) in [("xpkg", XPKG), ("bad", "[package]\n\n[process]\n")] {
         std::fs::create_dir_all(cwd.join(id)).expect("建得了目录");
         std::fs::write(cwd.join(id).join("package.toml"), text).expect("写得进");
     }

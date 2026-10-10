@@ -9,7 +9,7 @@ use crate::support::{Home, MIYU};
 /// 一份清单：子命令 `name` 跑 `program`。
 fn manifest(name: &str, program: &str, about: &str) -> String {
     format!(
-        "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = {{ en = \"P\" }}\n\n[command]\nname = \"{name}\"\nprogram = \"{program}\"\nabout = {{ en = \"{about}\", zh = \"{about}（中）\" }}\n"
+        "[package]\nprotocol = [1, 1]\nname = {{ en = \"P\" }}\n\n[command]\nname = \"{name}\"\nprogram = \"{program}\"\nabout = {{ en = \"{about}\", zh = \"{about}（中）\" }}\n\n[ui]\n"
     )
 }
 
@@ -137,7 +137,7 @@ async fn the_core_says_which_builtin_it_lacks() {
     install(
         &home,
         "xghost",
-        "[package]\nkind = \"builtin\"\nprotocol = [1, 1]\nname = { en = \"Ghost\" }\n",
+        "[package]\nprotocol = [1, 1]\nname = { en = \"Ghost\" }\n\n[builtin]\n",
     );
     let (connection, token) = crate::support::within(
         "拉起",

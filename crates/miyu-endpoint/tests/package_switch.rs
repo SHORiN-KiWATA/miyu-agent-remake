@@ -11,7 +11,7 @@ use crate::support::*;
 /// 一个自己装的扩展：程序是 `program`；`extra` 接在 `[package]` 里，`tables` 接在最后。
 fn relay(program: &str, extra: &str, tables: &str) -> String {
     format!(
-        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"Relay\", zh = \"中转\" }}\n{extra}\n\n[command]\nname = \"relay\"\nprogram = \"{program}\"\nabout = {{ en = \"Relay\" }}\n\n[process]\nargs = [\"hello\", \"wait\"]\nstart = \"manual\"\n{tables}"
+        "[package]\nprotocol = [1, 1]\nname = {{ en = \"Relay\", zh = \"中转\" }}\n{extra}\n\n[command]\nname = \"relay\"\nprogram = \"{program}\"\nabout = {{ en = \"Relay\" }}\n\n[process]\nargs = [\"hello\", \"wait\"]\nstart = \"manual\"\n{tables}"
     )
 }
 
@@ -20,7 +20,7 @@ fn relay(program: &str, extra: &str, tables: &str) -> String {
 fn ghost(home: &Home) {
     home.write(
         "home/alice/packages/ghost/package.toml",
-        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = { en = \"Ghost\" }\n\n[command]\nname = \"ghost\"\nprogram = \"miyu-no-such-program-anywhere\"\nabout = { en = \"G\" }\n\n[process]\n\n[features.haunt]\nname = { en = \"Haunt\" }\n\n[settings.port]\ntype = \"int\"\nlayers = [\"system\"]\nname = { en = \"Port\" }\n",
+        "[package]\nprotocol = [1, 1]\nname = { en = \"Ghost\" }\n\n[command]\nname = \"ghost\"\nprogram = \"miyu-no-such-program-anywhere\"\nabout = { en = \"G\" }\n\n[process]\n\n[features.haunt]\nname = { en = \"Haunt\" }\n\n[settings.port]\ntype = \"int\"\nlayers = [\"system\"]\nname = { en = \"Port\" }\n",
     );
 }
 

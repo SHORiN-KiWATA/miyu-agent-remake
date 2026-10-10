@@ -2,8 +2,9 @@
 # 给人看的字，不发给模型。
 
 [package]
-kind = "builtin"
 protocol = [1, 1]
 name = { en = "Web", zh = "联网", ja = "ウェブ" }
 
 [features]
+
+[builtin]

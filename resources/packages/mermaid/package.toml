@@ -1,8 +1,9 @@
 # 画 mermaid（施工 F-2，设计 30 第二节）：内置包，给头画 mermaid 图（mermaid.render）。不带功能，预设不列。给人看的字，不发给模型。
 
 [package]
-kind = "builtin"
 protocol = [1, 1]
 name = { en = "Mermaid diagrams", zh = "画 mermaid 图", ja = "Mermaid 図" }
 
 [features]
+
+[builtin]

@@ -322,13 +322,13 @@ async fn what_cannot_start_says_why_and_wrong_packages_are_refused() {
     home.write(
         "home/alice/packages/future/package.toml",
         &format!(
-            "[package]\nkind = \"process\"\nprotocol = [2, 3]\nname = {{ en = \"F\" }}\n\n[command]\nname = \"future\"\nprogram = \"{}\"\nabout = {{ en = \"F\" }}\n",
+            "[package]\nprotocol = [2, 3]\nname = {{ en = \"F\" }}\n\n[command]\nname = \"future\"\nprogram = \"{}\"\nabout = {{ en = \"F\" }}\n\n[process]\n",
             program.name()
         ),
     );
     home.write(
         "home/alice/packages/face/package.toml",
-        "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = { en = \"Face\" }\n",
+        "[package]\nprotocol = [1, 1]\nname = { en = \"Face\" }\n\n[ui]\n",
     );
     let core = core(&home, quick());
     let mut client = Client::connect(Arc::clone(&core));

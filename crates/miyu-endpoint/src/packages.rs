@@ -38,7 +38,8 @@ pub(crate) fn packages(core: &Core) -> Packages {
 }
 
 /// 核心起来时读一次：写错的、撞了的各记一行 `WARN package invalid`，读不了的 `WARN package unreadable`。读之前把家目录里
-/// 以前的写法挪成新的（施工 F-8 上），挪了的记一行 `INFO package moved`，挪不了的 `WARN package not moved`。
+/// 以前的写法挪成新的（施工 F-8 上），挪了的记一行 `INFO package moved`，挪不了的 `WARN package not moved`；写了 `kind` 的
+/// 改成照表认的（施工 F-8 上补），`INFO package rewritten`、`WARN package not rewritten`。
 pub fn load(resources: &ResourceRoot, root: &DataRoot, admin: &AccountId) -> Vec<Found> {
     let packages = Packages::new(resources, root, admin);
     if let Some(home) = packages.home_dir() {
@@ -49,6 +50,16 @@ pub fn load(resources: &ResourceRoot, root: &DataRoot, admin: &AccountId) -> Vec
                 }
                 Err(why) => {
                     tracing::warn!(target: TARGET, package = moved.id.as_str(), why = ?why, "package not moved");
+                }
+            }
+        }
+        for rewritten in migrate::old_kind(home) {
+            match &rewritten.result {
+                Ok(()) => {
+                    tracing::info!(target: TARGET, package = rewritten.id.as_str(), "package rewritten");
+                }
+                Err(why) => {
+                    tracing::warn!(target: TARGET, package = rewritten.id.as_str(), why = ?why, "package not rewritten");
                 }
             }
         }

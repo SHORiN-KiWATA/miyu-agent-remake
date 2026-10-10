@@ -8,7 +8,7 @@ use miyu_store::env::{Env, Platform};
 use miyu_store::packages::{Found, Issue, Layer};
 
 /// 人格记忆的清单：推荐内置语义模型。
-const MEMORY: &str = "[package]\nkind = \"builtin\"\nprotocol = [1, 1]\nname = { en = \"Persona memory\" }\n\n[recommends]\nworkers = [\"embed\"]\n";
+const MEMORY: &str = "[package]\nprotocol = [1, 1]\nname = { en = \"Persona memory\" }\n\n[recommends]\nworkers = [\"embed\"]\n\n[builtin]\n";
 
 fn memory(dir: &Path) -> Found {
     Found {

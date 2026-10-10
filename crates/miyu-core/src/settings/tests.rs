@@ -216,7 +216,7 @@ async fn a_changed_level_and_language_take_effect_right_away() {
 }
 
 /// 一份声明了一项配置的扩展包的清单。
-const XCFG: &str = "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = { en = \"X\" }\n\n[command]\nname = \"xcfg\"\nprogram = \"miyu-nothing\"\nabout = { en = \"X\" }\n\n[settings.port]\ntype = \"int\"\ndefault = 8400\nlayers = [\"system\"]\nname = { en = \"Port\" }\n";
+const XCFG: &str = "[package]\nprotocol = [1, 1]\nname = { en = \"X\" }\n\n[command]\nname = \"xcfg\"\nprogram = \"miyu-nothing\"\nabout = { en = \"X\" }\n\n[settings.port]\ntype = \"int\"\ndefault = 8400\nlayers = [\"system\"]\nname = { en = \"Port\" }\n\n[ui]\n";
 
 /// 配置清单变了（施工 F-5 补：装卸软件包以后）：语言没变也照新的清单重写，包的配置项的字照这时交回的清单。
 #[tokio::test]

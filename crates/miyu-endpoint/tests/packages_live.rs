@@ -19,7 +19,7 @@ use miyu_tool::{Catalog, Tool};
 use crate::support::*;
 
 /// 测试用的内置包：一件工具 `xprobe`，一个查询 `xkit.ping`。
-const XKIT: &str = "[package]\nkind = \"builtin\"\nprotocol = [1, 1]\nname = { en = \"X kit\" }\n";
+const XKIT: &str = "[package]\nprotocol = [1, 1]\nname = { en = \"X kit\" }\n\n[builtin]\n";
 
 /// 照清单给内置包 `xkit` 的工具：装着才有。
 struct Kit;

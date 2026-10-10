@@ -12,7 +12,6 @@ use crate::support::*;
 
 /// 终端界面的会话 2026-10-07 给的那份草稿：编号、子命令名改成 `term`，出厂以后才有的 `tui` 撞不上它。
 const TERM: &str = r#"[package]
-kind = "ui"
 version = "0.0.1"
 protocol = [1, 1]
 name = { en = "Terminal interface", zh = "终端界面", ja = "ターミナル画面" }
@@ -100,7 +99,6 @@ async fn features_connections_and_workers_are_listed() {
         &home,
         "xbase",
         r#"[package]
-kind = "builtin"
 required = true
 protocol = [1, 1]
 name = { en = "Base", zh = "基础" }
@@ -115,28 +113,35 @@ name = { en = "Commands" }
 
 [recommends]
 workers = ["xembed"]
+
+[builtin]
 "#,
     );
     mine(
         &home,
         "xbridge",
         r#"[package]
-kind = "process"
 protocol = [1, 1]
 name = { en = "Connect X", zh = "接入X" }
+
+[command]
+name = "xbridge"
+program = "miyu-xbridge"
+about = { en = "Connect X", zh = "接入X" }
 
 [connection]
 platform = "x"
 
 [depends]
 workers = ["xembed"]
+
+[process]
 "#,
     );
     mine(
         &home,
         "xembed",
         r#"[package]
-kind = "worker"
 protocol = [1, 1]
 name = { en = "Model" }
 
@@ -173,10 +178,12 @@ args = ["serve"]
                 "kind": "process",
                 "protocol": [1, 1],
                 "name": "接入X",
+                "command": {"name": "xbridge", "program": "miyu-xbridge", "about": "接入X"},
+                "process": {"args": [], "start": "manual"},
                 "features": [{"id": "xbridge", "name": "接入X"}],
                 "connection": {"platform": "x"},
                 "depends": {"workers": ["xembed"]},
-                "status": "off",
+                "status": "program_missing",
                 "enabled": false,
             }),
             json!({
@@ -199,7 +206,7 @@ fn a_builtin_the_core_lacks_is_not_built_in() {
     mine(
         &home,
         "xghost",
-        "[package]\nkind = \"builtin\"\nprotocol = [1, 1]\nname = { en = \"Ghost\" }\n",
+        "[package]\nprotocol = [1, 1]\nname = { en = \"Ghost\" }\n\n[builtin]\n",
     );
     mine(&home, "term", TERM);
     let resources = miyu_store::resources::ResourceRoot::at(default_resources());
@@ -239,7 +246,7 @@ fn a_builtin_the_core_lacks_is_not_built_in() {
 #[tokio::test]
 async fn broken_taken_and_mismatched_ones_carry_a_code_and_a_sentence() {
     let home = Home::new();
-    mine(&home, "bad", "[package]\nkind = \"daemon\"\n");
+    mine(&home, "bad", "[package]\n\n[ui]\n\n[process]\n");
     mine(&home, "web", TERM);
     mine(&home, "web2", &TERM.replace("\"term\"", "\"web\""));
     mine(
@@ -253,7 +260,7 @@ async fn broken_taken_and_mismatched_ones_carry_a_code_and_a_sentence() {
         &home,
         "bridge",
         // 子命令不叫 onebot：出厂的桥占着它（施工 O-18）。
-        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = { en = \"Bridge\" }\n\n[command]\nname = \"bridge\"\nprogram = \"miyu-onebot\"\nabout = { en = \"QQ\" }\n\n[process]\nargs = [\"serve\"]\n\n[check]\nargs = [\"check\"]\n",
+        "[package]\nprotocol = [1, 1]\nname = { en = \"Bridge\" }\n\n[command]\nname = \"bridge\"\nprogram = \"miyu-onebot\"\nabout = { en = \"QQ\" }\n\n[process]\nargs = [\"serve\"]\n\n[check]\nargs = [\"check\"]\n",
     );
     let packages = listed(&home).await;
     let by_id = |id: &str| {
@@ -268,9 +275,9 @@ async fn broken_taken_and_mismatched_ones_carry_a_code_and_a_sentence() {
         [json!({
             "package": "bad",
             "layer": "home",
-            "code": "bad_kind",
-            "line": 2,
-            "problem": "package.kind 只能是 ui、process、builtin、worker 或 mascot，写的是 daemon",
+            "code": "two_programs",
+            "line": 5,
+            "problem": "一个包只带一个程序：[ui], [process] 只能留一张",
         })]
     );
     let web = by_id("web");
@@ -313,7 +320,7 @@ async fn check_reads_the_manifests_from_disk() {
     let home = Home::new();
     let mut client = Client::connect(home.core(&Script::new([])));
     client.hello().await;
-    mine(&home, "bad", "[package]\nkind = \"daemon\"\n");
+    mine(&home, "bad", "[package]\n\n[ui]\n\n[process]\n");
     mine(&home, "term", TERM);
     let reply = client.call("c1", "check", json!({})).await;
     let packages: Vec<&Value> = reply["result"]["problems"]
@@ -327,10 +334,10 @@ async fn check_reads_the_manifests_from_disk() {
         [&json!({
             "kind": "package",
             "file": "home/alice/packages/bad/package.toml",
-            "code": "bad_kind",
+            "code": "two_programs",
             "level": "error",
-            "line": 2,
-            "message": "package.kind 只能是 ui、process、builtin、worker 或 mascot，写的是 daemon",
+            "line": 5,
+            "message": "一个包只带一个程序：[ui], [process] 只能留一张",
         })],
         "{reply}"
     );
@@ -350,7 +357,7 @@ async fn check_reads_the_manifests_from_disk() {
         .call("c3", "check", json!({"file": file.to_string_lossy()}))
         .await;
     assert_eq!(
-        reply["result"]["problems"][0]["code"], "bad_kind",
+        reply["result"]["problems"][0]["code"], "two_programs",
         "{reply}"
     );
     // 包目录里别的文件、以前那种放在 `packages/` 下的 `<编号>.toml` 都不是清单（施工 F-8 上）。

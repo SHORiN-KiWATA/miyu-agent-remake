@@ -87,7 +87,7 @@ fn install_bridge(home: &Home, program: &str, args: &[String]) {
     home.write(
         "home/alice/packages/bot/package.toml",
         &format!(
-            "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"Bridge\" }}\n\n[command]\nname = \"bot\"\nprogram = \"{program}\"\nabout = {{ en = \"B\" }}\n\n[process]\nargs = [{}]\nstart = \"always\"\nsystem_account = true\n\n[connection]\nplatform = \"qq\"\n",
+            "[package]\nprotocol = [1, 1]\nname = {{ en = \"Bridge\" }}\n\n[command]\nname = \"bot\"\nprogram = \"{program}\"\nabout = {{ en = \"B\" }}\n\n[process]\nargs = [{}]\nstart = \"always\"\nsystem_account = true\n\n[connection]\nplatform = \"qq\"\n",
             args.join(", ")
         ),
     );

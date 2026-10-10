@@ -5,7 +5,6 @@ use crate::package::{Code, Connection, PackageKind, Worker, read};
 
 /// 内置模型那种小程序。
 const EMBED: &str = r#"[package]
-kind = "worker"
 protocol = [1, 1]
 name = { en = "Built-in model", zh = "内置模型" }
 
@@ -16,17 +15,17 @@ args = ["serve"]
 
 /// 人格记忆那种：内置、推荐内置模型。
 const MEMORY: &str = r#"[package]
-kind = "builtin"
 protocol = [1, 1]
 name = { en = "Memory", zh = "人格记忆" }
 
 [recommends]
 workers = ["embed"]
+
+[builtin]
 "#;
 
 /// 接入QQ 那种：扩展、平台接入。
 const BRIDGE: &str = r#"[package]
-kind = "process"
 protocol = [1, 1]
 name = { en = "Connect QQ" }
 
@@ -72,14 +71,14 @@ fn a_worker_must_name_its_program() {
     );
     assert_eq!(wrong(&text), (Code::MissingKey, None));
     let text = EMBED.replace("program = \"miyu-embed\"\n", "");
-    assert_eq!(wrong(&text), (Code::MissingKey, Some(6)));
+    assert_eq!(wrong(&text), (Code::MissingKey, Some(5)));
     let text = EMBED.replace("\"miyu-embed\"", "\"bin/miyu-embed\"");
-    assert_eq!(wrong(&text), (Code::BadProgram, Some(7)));
+    assert_eq!(wrong(&text), (Code::BadProgram, Some(6)));
     let text = EMBED.replace(
         "args = [\"serve\"]",
         "args = [\"serve\"]\nstart = \"always\"",
     );
-    assert_eq!(wrong(&text), (Code::UnknownKey, Some(9)));
+    assert_eq!(wrong(&text), (Code::UnknownKey, Some(8)));
 }
 
 #[test]
@@ -97,13 +96,13 @@ fn a_builtin_reads_what_it_recommends_and_depends_on() {
 #[test]
 fn dependencies_are_package_ids_listed_once() {
     let text = MEMORY.replace("[\"embed\"]", "[\"Embed\"]");
-    assert_eq!(wrong(&text), (Code::BadDependency, Some(7)));
+    assert_eq!(wrong(&text), (Code::BadDependency, Some(6)));
     let text = MEMORY.replace("[\"embed\"]", "[\"embed\", \"embed\"]");
-    assert_eq!(wrong(&text), (Code::BadDependency, Some(7)));
+    assert_eq!(wrong(&text), (Code::BadDependency, Some(6)));
     let text = MEMORY.replace("[\"embed\"]", "\"embed\"");
-    assert_eq!(wrong(&text), (Code::NotTexts, Some(7)));
+    assert_eq!(wrong(&text), (Code::NotTexts, Some(6)));
     let text = MEMORY.replace("workers = [\"embed\"]", "tools = [\"embed\"]");
-    assert_eq!(wrong(&text), (Code::UnknownKey, Some(7)));
+    assert_eq!(wrong(&text), (Code::UnknownKey, Some(6)));
 }
 
 #[test]
@@ -116,21 +115,18 @@ fn a_process_package_reads_its_connection() {
         })
     );
     let text = BRIDGE.replace("platform = \"qq\"", "platform = \"QQ\"");
-    assert_eq!(wrong(&text), (Code::BadPlatform, Some(15)));
+    assert_eq!(wrong(&text), (Code::BadPlatform, Some(14)));
     let text = BRIDGE.replace("platform = \"qq\"\n", "");
-    assert_eq!(wrong(&text), (Code::MissingKey, Some(14)));
+    assert_eq!(wrong(&text), (Code::MissingKey, Some(13)));
 }
 
 #[test]
 fn only_builtins_are_required() {
-    let text = BRIDGE.replace("kind = \"process\"", "kind = \"process\"\nrequired = true");
-    assert_eq!(wrong(&text), (Code::WrongKind, Some(3)));
-    let text = MEMORY.replace(
-        "kind = \"builtin\"",
-        "kind = \"builtin\"\nrequired = \"yes\"",
-    );
-    assert_eq!(wrong(&text), (Code::NotBool, Some(3)));
-    let text = MEMORY.replace("kind = \"builtin\"", "kind = \"builtin\"\nrequired = false");
+    let text = BRIDGE.replace("[package]\n", "[package]\nrequired = true\n");
+    assert_eq!(wrong(&text), (Code::WrongKind, Some(2)));
+    let text = MEMORY.replace("[package]\n", "[package]\nrequired = \"yes\"\n");
+    assert_eq!(wrong(&text), (Code::NotBool, Some(2)));
+    let text = MEMORY.replace("[package]\n", "[package]\nrequired = false\n");
     assert!(!read(&text).unwrap().required);
 }
 
@@ -142,7 +138,12 @@ fn each_kind_writes_only_its_own_tables() {
     let settings = "\n[settings.port]\ntype = \"int\"\nname = { en = \"Port\" }\n";
     let connection = "\n[connection]\nplatform = \"qq\"\n";
     let worker = "\n[worker]\nprogram = \"miyu-embed\"\n";
-    for extra in [command, &check, settings, connection, worker] {
+    assert_eq!(
+        wrong(&format!("{MEMORY}{worker}")).0,
+        Code::TwoPrograms,
+        "内置包再带一个小程序就是两个程序"
+    );
+    for extra in [command, &check, settings, connection] {
         assert_eq!(
             wrong(&format!("{MEMORY}{extra}")).0,
             Code::WrongKind,
@@ -162,19 +163,26 @@ fn each_kind_writes_only_its_own_tables() {
             "小程序不能写：{extra}"
         );
     }
-    let ui = "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = { en = \"Web\" }\n";
+    let ui = "[package]\nprotocol = [1, 1]\nname = { en = \"Web\" }\n\n[ui]\n";
     assert_eq!(wrong(&format!("{ui}{connection}")).0, Code::WrongKind);
-    assert_eq!(wrong(&format!("{ui}{worker}")).0, Code::WrongKind);
+    assert_eq!(
+        wrong(&format!("{ui}{worker}")).0,
+        Code::TwoPrograms,
+        "小程序也是一个程序"
+    );
     assert_eq!(
         wrong(&BRIDGE.replace("[connection]", "[worker]\nprogram = \"x\"\n\n[connection]")).0,
-        Code::WrongKind
+        Code::TwoPrograms
     );
 }
 
+/// 程序表至多一张（施工 F-8 上补）：第二张报在它那一行；`kind` 不再认。
 #[test]
-fn the_kind_is_one_of_four() {
-    let text = MEMORY.replace("\"builtin\"", "\"daemon\"");
-    let problem = read(&text).expect_err("不认识的种类");
-    assert_eq!((problem.code, problem.line), (Code::BadKind, Some(2)));
-    assert!(problem.message.contains("builtin"), "{}", problem.message);
+fn a_package_carries_one_program() {
+    let problem = read(&format!("{MEMORY}\n[ui]\n")).expect_err("两个程序");
+    assert_eq!(problem.code, Code::TwoPrograms);
+    assert_eq!(problem.detail, "[ui], [builtin]");
+    let kind = MEMORY.replace("[package]\n", "[package]\nkind = \"builtin\"\n");
+    let problem = read(&kind).expect_err("kind 不再认");
+    assert_eq!((problem.code, problem.line), (Code::UnknownKey, Some(2)));
 }

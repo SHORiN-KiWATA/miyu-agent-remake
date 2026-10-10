@@ -69,7 +69,7 @@ pub(super) fn mascot(
         })
 }
 
-/// `[package] protocol`：说协议的几种必写；吉祥物包只有数据、不说协议，写了报 `wrong_kind`（施工 F-7）。
+/// `[package] protocol`：带程序的必写；只带吉祥物的只有数据、不说协议，写了报 `wrong_kind`（施工 F-7）。
 pub(super) fn protocol(
     reader: &Reader<'_>,
     kind: PackageKind,
@@ -83,7 +83,7 @@ pub(super) fn protocol(
                 Some(item),
                 Code::WrongKind,
                 "package.protocol",
-                "package.protocol is not for kind = \"mascot\"".to_string(),
+                "package.protocol is only for a package with a program".to_string(),
             )),
         };
     }

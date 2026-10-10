@@ -13,7 +13,7 @@ fn install(home: &Home, id: &str, program: &str, args: &[&str]) {
     home.write(
         &format!("home/alice/packages/{id}/package.toml"),
         &format!(
-            "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"P\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"P\" }}\n\n[process]\n\n[check]\nargs = [{}]\n",
+            "[package]\nprotocol = [1, 1]\nname = {{ en = \"P\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"P\" }}\n\n[process]\n\n[check]\nargs = [{}]\n",
             args.join(", ")
         ),
     );

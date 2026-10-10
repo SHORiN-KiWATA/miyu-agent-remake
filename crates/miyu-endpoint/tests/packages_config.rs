@@ -47,7 +47,7 @@ impl Builtins for Port {
 /// 一份手动拉起的扩展包的清单：带一项系统配置的整数 `port`。程序要在测试程序旁边（施工 F-6 上：程序不在的当没装，配置项不算）。
 fn manifest(id: &str, program: &str) -> String {
     format!(
-        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"X\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"X\" }}\n\n[process]\nstart = \"manual\"\n\n[settings.port]\ntype = \"int\"\ndefault = 8400\nlayers = [\"system\"]\nname = {{ en = \"Port\" }}\n"
+        "[package]\nprotocol = [1, 1]\nname = {{ en = \"X\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"X\" }}\n\n[process]\nstart = \"manual\"\n\n[settings.port]\ntype = \"int\"\ndefault = 8400\nlayers = [\"system\"]\nname = {{ en = \"Port\" }}\n"
     )
 }
 

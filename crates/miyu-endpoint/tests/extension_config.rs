@@ -14,7 +14,6 @@ fn manifest(program: &str, args: &[String]) -> String {
     let args: Vec<String> = args.iter().map(|arg| format!("{arg:?}")).collect();
     format!(
         r#"[package]
-kind = "process"
 protocol = [1, 1]
 name = {{ en = "Echo" }}
 

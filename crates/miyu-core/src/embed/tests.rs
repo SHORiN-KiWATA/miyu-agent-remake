@@ -9,12 +9,12 @@ use miyu_store::packages::{Found, Layer};
 
 use super::*;
 
-const MEMORY: &str = "[package]\nkind = \"builtin\"\nprotocol = [1, 1]\nname = { en = \"Persona memory\" }\n\n[recommends]\nworkers = [\"embed\"]\n";
+const MEMORY: &str = "[package]\nprotocol = [1, 1]\nname = { en = \"Persona memory\" }\n\n[recommends]\nworkers = [\"embed\"]\n\n[builtin]\n";
 const PLAIN_MEMORY: &str =
-    "[package]\nkind = \"builtin\"\nprotocol = [1, 1]\nname = { en = \"Persona memory\" }\n";
-const EMBED: &str = "[package]\nkind = \"worker\"\nprotocol = [1, 1]\nname = { en = \"Built-in semantic model\" }\n\n[worker]\nprogram = \"miyu-embed\"\n";
+    "[package]\nprotocol = [1, 1]\nname = { en = \"Persona memory\" }\n\n[builtin]\n";
+const EMBED: &str = "[package]\nprotocol = [1, 1]\nname = { en = \"Built-in semantic model\" }\n\n[worker]\nprogram = \"miyu-embed\"\n";
 const NOT_A_WORKER: &str =
-    "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = { en = \"Not a worker\" }\n";
+    "[package]\nprotocol = [1, 1]\nname = { en = \"Not a worker\" }\n\n[ui]\n";
 
 fn found(dir: &Path, id: &str, text: &str) -> Found {
     Found {

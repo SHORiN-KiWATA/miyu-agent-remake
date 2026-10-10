@@ -56,3 +56,42 @@ fn an_existing_manifest_is_not_overwritten() {
     assert!(dir.join("relay.toml").is_file());
     assert!(dir.join("Bad.toml").is_file());
 }
+
+/// 写了 `kind` 的改成照表认的：`kind` 那一行去掉、补上程序表；没写的不在结果里，写的不认识的不动。
+#[test]
+fn an_old_kind_is_rewritten_into_its_table() {
+    let home = temp();
+    let dir = home.path();
+    fs::create_dir_all(dir.join("relay")).unwrap();
+    fs::write(
+        dir.join("relay/package.toml"),
+        "[package]\nkind = \"ui\"\nname = { en = \"R\" }\n",
+    )
+    .unwrap();
+    fs::create_dir_all(dir.join("fresh")).unwrap();
+    fs::write(dir.join("fresh/package.toml"), "[package]\n\n[ui]\n").unwrap();
+    fs::create_dir_all(dir.join("odd")).unwrap();
+    fs::write(
+        dir.join("odd/package.toml"),
+        "[package]\nkind = \"daemon\"\n",
+    )
+    .unwrap();
+    let moved = old_kind(dir);
+    assert_eq!(
+        moved
+            .iter()
+            .map(|m| (m.id.as_str(), m.result.is_ok()))
+            .collect::<Vec<_>>(),
+        [("relay", true)]
+    );
+    assert_eq!(
+        fs::read_to_string(dir.join("relay/package.toml")).unwrap(),
+        "[package]\nname = { en = \"R\" }\n\n[ui]\n"
+    );
+    assert!(!dir.join("relay/.package.toml.new").exists());
+    assert_eq!(
+        fs::read_to_string(dir.join("odd/package.toml")).unwrap(),
+        "[package]\nkind = \"daemon\"\n"
+    );
+    assert!(old_kind(dir).is_empty(), "改过的再来一次什么都不做");
+}

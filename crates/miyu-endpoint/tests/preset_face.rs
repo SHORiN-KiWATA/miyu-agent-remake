@@ -146,7 +146,7 @@ async fn software_without_tools_is_pinned_off_but_left_out_of_the_line() {
     home.write(
         "home/alice/packages/quiet/package.toml",
         &format!(
-            "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"Quiet\" }}\n\n[command]\nname = \"quiet\"\nprogram = \"{}\"\nabout = {{ en = \"Q\" }}\n\n[process]\nargs = []\n",
+            "[package]\nprotocol = [1, 1]\nname = {{ en = \"Quiet\" }}\n\n[command]\nname = \"quiet\"\nprogram = \"{}\"\nabout = {{ en = \"Q\" }}\n\n[process]\nargs = []\n",
             program.name()
         ),
     );

@@ -11,23 +11,26 @@ use crate::phrases::Phrases;
 mod capability;
 mod code;
 mod features;
+mod kinds;
 mod links;
 mod look;
 mod reader;
 pub mod settings;
+mod upgrade;
 
 pub use capability::Capability;
 pub use code::Code;
 pub use features::Feature;
 pub use links::{Connection, Worker};
 pub use settings::{Setting, SettingKind};
+pub use upgrade::without_kind;
 
 use reader::{Reader, line_of};
 
 /// 读好的一份清单。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Manifest {
-    /// 什么样的包。
+    /// 什么样的包：照带的表认（施工 F-8 上补，清单不写种类）。
     pub kind: PackageKind,
     /// 版本，给人看的字；没写的没有。
     pub version: Option<String>,
@@ -74,7 +77,7 @@ pub struct Mascot {
     pub model: String,
 }
 
-/// 包的种类：只说它跑在哪（设计 `30-插件框架.md` 第二节）。
+/// 包的种类：只说它跑在哪（设计 `30-插件框架.md` 第二节）；施工 F-8 上补起照带的表认（`kinds::of`），清单不写。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PackageKind {
     /// 界面：有人看着用，自己起来、经本机套接字连核心。
@@ -98,36 +101,6 @@ impl PackageKind {
             PackageKind::Builtin => "builtin",
             PackageKind::Worker => "worker",
             PackageKind::Mascot => "mascot",
-        }
-    }
-
-    /// 这种包能写哪几张表（施工 F-1）：别的写了报 `wrong_kind`。
-    pub fn tables(self) -> &'static [&'static str] {
-        match self {
-            PackageKind::Ui => &[
-                "package",
-                "command",
-                "ui",
-                "check",
-                "settings",
-                "depends",
-                "recommends",
-            ],
-            PackageKind::Process => &[
-                "package",
-                "command",
-                "process",
-                "check",
-                "settings",
-                "features",
-                "connection",
-                "depends",
-                "recommends",
-                "page",
-            ],
-            PackageKind::Builtin => &["package", "features", "depends", "recommends", "page"],
-            PackageKind::Worker => &["package", "worker"],
-            PackageKind::Mascot => &["package", "mascot"],
         }
     }
 }
@@ -216,9 +189,10 @@ impl fmt::Display for Problem {
     }
 }
 
-/// 清单里认得的表；哪种包能写哪几张见 [`PackageKind::tables`]。
-const TABLES: [&str; 13] = [
+/// 清单里认得的表；哪种包能写哪几张见 `kinds::tables`。
+const TABLES: [&str; 14] = [
     "package",
+    "builtin",
     "command",
     "process",
     "ui",
@@ -273,8 +247,8 @@ pub fn read(text: &str) -> Result<Manifest, Problem> {
             "the [package] table is missing".to_string(),
         ));
     };
-    let head = reader.package(package, &root["package"])?;
-    let kind = head.kind;
+    let kind = kinds::of(&reader, root)?;
+    let head = reader.package(package, &root["package"], kind)?;
     for (key, item) in root.iter() {
         reader.belongs(kind, key, item)?;
     }
@@ -322,30 +296,17 @@ pub fn read(text: &str) -> Result<Manifest, Problem> {
     });
     let worker = match root.get("worker").and_then(Item::as_table_like) {
         Some(table) => Some(links::worker(&reader, table, &root["worker"])?),
-        None if kind == PackageKind::Worker => {
-            return Err(reader.problem(
-                None,
-                Code::MissingKey,
-                "worker",
-                "a worker needs a [worker] table to name its program".to_string(),
-            ));
-        }
         None => None,
     };
+    if let Some(table) = root.get("builtin").and_then(Item::as_table_like) {
+        reader.only(table, "builtin", &[])?;
+    }
     let page = match root.get("page").and_then(Item::as_table_like) {
         Some(table) => Some(look::page(&reader, table, &root["page"])?),
         None => None,
     };
     let mascot = match root.get("mascot").and_then(Item::as_table_like) {
         Some(table) => Some(look::mascot(&reader, table, &root["mascot"])?),
-        None if kind == PackageKind::Mascot => {
-            return Err(reader.problem(
-                None,
-                Code::MissingKey,
-                "mascot",
-                "a mascot package needs a [mascot] table to name its model".to_string(),
-            ));
-        }
         None => None,
     };
     Ok(Manifest {

@@ -2,7 +2,6 @@
 # 给人看的字，不发给模型。
 
 [package]
-kind = "builtin"
 required = true
 protocol = [1, 1]
 name = { en = "Base system", zh = "基础系统", ja = "基本システム" }
@@ -43,3 +42,5 @@ tools = ["history"]
 [features.usage]
 name = { en = "Usage", zh = "用量", ja = "使用量" }
 tools = ["session_usage"]
+
+[builtin]

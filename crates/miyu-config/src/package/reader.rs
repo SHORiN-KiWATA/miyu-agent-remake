@@ -7,7 +7,6 @@ use crate::phrases::{self, PhraseError, Phrases};
 
 /// `[package]` 读出来的几格。
 pub(super) struct Head {
-    pub(super) kind: PackageKind,
     pub(super) version: Option<String>,
     pub(super) protocol: Option<[u32; 2]>,
     pub(super) name: Phrases,
@@ -79,42 +78,17 @@ impl Reader<'_> {
     }
 
     /// `[package]`。
-    pub(super) fn package(&self, table: &dyn TableLike, at: &Item) -> Result<Head, Problem> {
+    pub(super) fn package(
+        &self,
+        table: &dyn TableLike,
+        at: &Item,
+        kind: PackageKind,
+    ) -> Result<Head, Problem> {
         self.only(
             table,
             "package",
-            &[
-                "kind", "version", "protocol", "name", "summary", "required", "icon",
-            ],
+            &["version", "protocol", "name", "summary", "required", "icon"],
         )?;
-        let item = self.required(table, at, "package", "kind")?;
-        let kind = match item.as_str() {
-            Some("ui") => PackageKind::Ui,
-            Some("process") => PackageKind::Process,
-            Some("builtin") => PackageKind::Builtin,
-            Some("worker") => PackageKind::Worker,
-            Some("mascot") => PackageKind::Mascot,
-            other => {
-                let shown = other.map_or_else(
-                    || {
-                        item.span()
-                            .and_then(|span| self.text.get(span))
-                            .unwrap_or_default()
-                            .trim()
-                            .to_string()
-                    },
-                    str::to_string,
-                );
-                return Err(self.problem(
-                    Some(item),
-                    Code::BadKind,
-                    &shown,
-                    format!(
-                        "package.kind must be ui, process, builtin, worker or mascot, not \"{shown}\""
-                    ),
-                ));
-            }
-        };
         let version = match table.get("version") {
             Some(item) => Some(self.text(item, "package.version")?),
             None => None,
@@ -134,7 +108,6 @@ impl Reader<'_> {
             None => None,
         };
         Ok(Head {
-            kind,
             version,
             protocol,
             name,
@@ -151,7 +124,7 @@ impl Reader<'_> {
                 Some(item),
                 Code::WrongKind,
                 "package.required",
-                "package.required is only for kind = \"builtin\"".to_string(),
+                "package.required is only for a [builtin] package".to_string(),
             ));
         }
         item.as_bool().ok_or_else(|| {
@@ -318,16 +291,16 @@ impl Reader<'_> {
         Ok(Pages { opens, pages_dir })
     }
 
-    /// 这张表给不给 `kind` 这种包（施工 F-1，[`PackageKind::tables`]）。
+    /// 这张表给不给 `kind` 这种包（施工 F-1，`kinds::tables`）。
     pub(super) fn belongs(&self, kind: PackageKind, name: &str, at: &Item) -> Result<(), Problem> {
-        if kind.tables().contains(&name) {
+        if super::kinds::tables(kind).contains(&name) {
             return Ok(());
         }
         Err(self.problem(
             Some(at),
             Code::WrongKind,
             &format!("[{name}]"),
-            format!("[{name}] is not for kind = \"{}\"", kind.as_str()),
+            format!("[{name}] is not for a [{}] package", kind.as_str()),
         ))
     }
 

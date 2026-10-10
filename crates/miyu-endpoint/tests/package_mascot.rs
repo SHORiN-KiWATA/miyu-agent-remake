@@ -10,7 +10,7 @@ use crate::support::*;
 use miyu_session::testkit::Script;
 
 /// 吉祥物包的清单。
-const PUDDING: &str = "[package]\nkind = \"mascot\"\nname = { zh = \"布丁\", en = \"Pudding\" }\n\n[mascot]\nmodel = \"art/mascot.json\"\n";
+const PUDDING: &str = "[package]\nname = { zh = \"布丁\", en = \"Pudding\" }\n\n[mascot]\nmodel = \"art/mascot.json\"\n";
 
 async fn connected(home: &Home) -> Client {
     let mut client = Client::connect(home.core(&Script::new([])));
@@ -153,7 +153,7 @@ async fn a_mascot_takes_no_protocol_and_no_other_tables() {
     );
     home.write(
         "home/alice/packages/d/package.toml",
-        "[package]\nkind = \"mascot\"\nname = { en = \"D\" }\n",
+        "[package]\nname = { en = \"D\" }\n\n[mascot]\n",
     );
     let mut client = connected(&home).await;
     let reply = client.call("c", "check", json!({})).await;

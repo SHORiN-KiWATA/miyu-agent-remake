@@ -10,7 +10,7 @@ use crate::support::{Home, within};
 use miyu_ipc::{Connection, connect_or_start};
 
 /// 一份声明了一项配置的界面包的清单：程序不在也照样有配置项（施工 F-6 上：程序不在的扩展、小程序当没装，界面不算）。
-const XCFG: &str = "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = { en = \"X\" }\n\n[command]\nname = \"xcfg\"\nprogram = \"miyu-nothing\"\nabout = { en = \"X\" }\n\n[settings.port]\ntype = \"int\"\ndefault = 8400\nlayers = [\"system\"]\nname = { en = \"Port\" }\n";
+const XCFG: &str = "[package]\nprotocol = [1, 1]\nname = { en = \"X\" }\n\n[command]\nname = \"xcfg\"\nprogram = \"miyu-nothing\"\nabout = { en = \"X\" }\n\n[settings.port]\ntype = \"int\"\ndefault = 8400\nlayers = [\"system\"]\nname = { en = \"Port\" }\n\n[ui]\n";
 
 /// 连接的两头。
 struct Talk {

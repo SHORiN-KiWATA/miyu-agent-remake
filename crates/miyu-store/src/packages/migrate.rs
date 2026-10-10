@@ -61,5 +61,32 @@ fn move_one(home: &Path, id: &str) -> Result<(), Unmoved> {
     fs::rename(home.join(format!("{id}.toml")), &target).map_err(Unmoved::Io)
 }
 
+/// 以前写 `[package] kind` 的清单改成照表认的（施工 F-8 上补，设计 `31-软件包.md` 第七节第 2 条）：家目录这一层每个包目录里的
+/// `package.toml` 照 [`miyu_config::package::without_kind`] 改，先写进点开头的临时文件再换上。没写 `kind` 的不在结果里；
+/// 写了却改不了的（读不成、写的不是那几种）原样不动，读的时候照写错了报。
+pub fn old_kind(home: &Path) -> Vec<Moved> {
+    let Ok(entries) = fs::read_dir(home) else {
+        return Vec::new();
+    };
+    let mut ids: Vec<String> = entries
+        .flatten()
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter(|id| crate::personas::valid(id))
+        .collect();
+    ids.sort();
+    ids.into_iter()
+        .filter_map(|id| {
+            let manifest = home.join(&id).join(MANIFEST);
+            let text = fs::read_to_string(&manifest).ok()?;
+            let new = miyu_config::package::without_kind(&text)?;
+            let staged = home.join(&id).join(format!(".{MANIFEST}.new"));
+            let result = fs::write(&staged, new)
+                .and_then(|()| fs::rename(&staged, &manifest))
+                .map_err(Unmoved::Io);
+            Some(Moved { id, result })
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests;

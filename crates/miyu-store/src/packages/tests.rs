@@ -49,7 +49,7 @@ impl Places {
 /// 一份最小的界面清单，子命令名是 `command`。
 fn ui(command: &str) -> String {
     format!(
-        "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = {{ en = \"{command}\" }}\n\n[command]\nname = \"{command}\"\nprogram = \"miyu-{command}\"\nabout = {{ en = \"Open {command}\" }}\n"
+        "[package]\nprotocol = [1, 1]\nname = {{ en = \"{command}\" }}\n\n[command]\nname = \"{command}\"\nprogram = \"miyu-{command}\"\nabout = {{ en = \"Open {command}\" }}\n\n[ui]\n"
     )
 }
 
@@ -130,15 +130,12 @@ fn a_command_name_is_taken_by_whoever_is_read_first() {
         panic!("撞了");
     };
     assert_eq!(problem.detail, "open");
-    assert_eq!(problem.line, Some(7), "报在子命令名那一行");
+    assert_eq!(problem.line, Some(6), "报在子命令名那一行");
 }
 
 /// 一份最小的扩展清单，声明了系统账号。
 fn served(command: &str) -> String {
-    format!(
-        "{}\n[process]\nsystem_account = true\n",
-        ui(command).replace("kind = \"ui\"", "kind = \"process\"")
-    )
+    ui(command).replace("\n[ui]\n", "\n[process]\nsystem_account = true\n")
 }
 
 /// 系统账号（施工 O-4 下）：读成了的、声明了的包各一个，账号名是编号；编号是管理员的那一份报 `account_taken`、整份不收。
@@ -151,7 +148,7 @@ fn a_package_declaring_a_system_account_gets_one_named_after_it() {
     places.write(
         Layer::Home,
         "zz/package.toml",
-        "[package]\nkind = \"daemon\"\n",
+        "[package]\n\n[ui]\n\n[process]\n",
     );
     let found = places.packages.read();
     assert_eq!(
@@ -160,7 +157,7 @@ fn a_package_declaring_a_system_account_gets_one_named_after_it() {
             ("admin".to_string(), Layer::Home, Some(Code::AccountTaken)),
             ("onebot".to_string(), Layer::Shipped, None),
             ("tui".to_string(), Layer::Home, None),
-            ("zz".to_string(), Layer::Home, Some(Code::BadKind)),
+            ("zz".to_string(), Layer::Home, Some(Code::TwoPrograms)),
         ]
     );
     assert_eq!(
@@ -178,7 +175,7 @@ fn a_package_declaring_a_system_account_gets_one_named_after_it() {
 /// 一份内置包的清单，带一个功能 `feature`，写在第 6 行。
 fn builtin(feature: &str) -> String {
     format!(
-        "[package]\nkind = \"builtin\"\nprotocol = [1, 1]\nname = {{ en = \"B\" }}\n\n[features.{feature}]\nname = {{ en = \"F\" }}\n"
+        "[package]\nprotocol = [1, 1]\nname = {{ en = \"B\" }}\n\n[features.{feature}]\nname = {{ en = \"F\" }}\n\n[builtin]\n"
     )
 }
 
@@ -191,7 +188,7 @@ fn a_feature_id_is_taken_by_whoever_is_read_first() {
     places.write(
         Layer::Shipped,
         "files/package.toml",
-        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = { en = \"Files\" }\n",
+        "[package]\nprotocol = [1, 1]\nname = { en = \"Files\" }\n\n[command]\nname = \"files\"\nprogram = \"miyu-files\"\nabout = { en = \"F\" }\n\n[process]\n",
     );
     places.write(Layer::Home, "alpha/package.toml", &builtin("files"));
     places.write(Layer::Home, "beta/package.toml", &builtin("beta"));
@@ -212,7 +209,7 @@ fn a_feature_id_is_taken_by_whoever_is_read_first() {
     let Err(Issue::Wrong(problem)) = &found[0].read else {
         panic!("撞了");
     };
-    assert_eq!((problem.detail.as_str(), problem.line), ("files", Some(6)));
+    assert_eq!((problem.detail.as_str(), problem.line), ("files", Some(5)));
     let Err(Issue::Wrong(problem)) = &found[3].read else {
         panic!("没写功能的照包的编号算");
     };
@@ -225,11 +222,11 @@ fn a_broken_manifest_is_listed_with_its_problem() {
     places.write(
         Layer::Shipped,
         "web/package.toml",
-        "[package]\nkind = \"daemon\"\n",
+        "[package]\n\n[ui]\n\n[process]\n",
     );
     assert_eq!(
         brief(&places.packages.read()),
-        [("web".to_string(), Layer::Shipped, Some(Code::BadKind))]
+        [("web".to_string(), Layer::Shipped, Some(Code::TwoPrograms))]
     );
 }
 

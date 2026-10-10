@@ -2,7 +2,6 @@
 # model.toml 和两个模型文件，miyu-embed 放在 miyu 旁边。人格记忆的清单推荐它（[recommends] workers = ["embed"]）。给人看的字，
 # 不发给模型。
 [package]
-kind = "worker"
 protocol = [1, 1]
 name = { en = "Built-in semantic model", zh = "内置语义模型", ja = "内蔵の意味モデル" }
 summary = { en = "Search memories by meaning on this machine, no network needed", zh = "在本机照意思找记忆，不用联网", ja = "この機械の上で記憶を意味で探します。ネットは要りません" }

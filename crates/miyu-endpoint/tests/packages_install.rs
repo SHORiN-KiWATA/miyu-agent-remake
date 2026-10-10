@@ -19,7 +19,7 @@ fn manifest(name: &str, command: &str) -> String {
 /// 同 [`manifest`]，程序是 `program`：要它的功能、配置项算数的，程序得在测试程序旁边（施工 F-6 上：程序不在的当没装）。
 fn manifest_running(name: &str, command: &str, program: &str) -> String {
     format!(
-        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ zh = \"{name}\" }}\n\n[command]\nname = \"{command}\"\nprogram = \"{program}\"\nabout = {{ en = \"X\" }}\n\n[features.xread]\nname = {{ zh = \"读\" }}\n\n[features.xwrite]\nname = {{ zh = \"写\" }}\n"
+        "[package]\nprotocol = [1, 1]\nname = {{ zh = \"{name}\" }}\n\n[command]\nname = \"{command}\"\nprogram = \"{program}\"\nabout = {{ en = \"X\" }}\n\n[features.xread]\nname = {{ zh = \"读\" }}\n\n[features.xwrite]\nname = {{ zh = \"写\" }}\n\n[process]\n"
     )
 }
 
@@ -132,16 +132,16 @@ async fn a_manifest_installs_with_its_files_and_counts_at_once() {
 async fn a_wrong_or_clashing_manifest_installs_nothing() {
     let home = Home::new();
     let mut client = connected(&home).await;
-    let broken = source(&home, "xbad", "[package]\nkind = \"daemon\"\n");
+    let broken = source(&home, "xbad", "[package]\n\n[ui]\n\n[process]\n");
     let reply = client
         .call("i1", "package.install", json!({"path": broken}))
         .await;
     assert_eq!(reason(&reply), Some("package_invalid"), "{reply}");
-    assert_eq!(reply["error"]["data"]["line"], 2);
+    assert_eq!(reply["error"]["data"]["line"], 5);
     assert!(
         reply["error"]["data"]["problem"]
             .as_str()
-            .is_some_and(|said| said.contains("daemon")),
+            .is_some_and(|said| said.contains("[ui], [process]")),
         "{reply}"
     );
     let shipped = source(&home, "web", &manifest("网页", "xweb"));
