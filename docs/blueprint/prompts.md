@@ -654,6 +654,28 @@ Can't tell where "{path}" points: {reason}.
 This tool only works in a group or private chat on a messaging platform, not in this session.
 ```
 
+#### `core/permissions/outside-workspace.txt`
+
+- 什么时候加进来：权限策略拒绝：只碰得到自己工作区的会话（外部身份的场所会话）要碰工作区外面的路径（施工 5-12）
+- token：约 22（路径按 `~/notes/a.md` 算，按 o200k 估）
+- 为什么加：告诉她哪一条、为什么，别换个说法再试，只用工作区里的；不进策略快照，这种会话造、载入时读（同 `not-in-venue.txt`）
+- 指纹：`235676a5`
+
+```text
+"{path}" is outside this chat's workspace. Here you can only use files inside it.
+```
+
+#### `core/permissions/no-commands.txt`
+
+- 什么时候加进来：权限策略拒绝：只碰得到自己工作区的会话要跑命令（施工 5-12：沙盒把读也关进工作区以前）
+- token：约 9（按 o200k 估）
+- 为什么加：告诉她这里不能跑命令，别再试；同上不进策略快照
+- 指纹：`4d0ca87a`
+
+```text
+Commands can't run in this chat yet.
+```
+
 #### `software/basesystem/common/missing.txt`
 
 - 什么时候加进来：`read`、`glob`、`grep` 要的文件或目录不存在

@@ -286,6 +286,7 @@ impl Sessions {
             )),
             None => None,
         };
+        let owner_is_admin = child.owner == core.admin;
         let handle = create(Create {
             root: &core.root,
             resources: &core.resources,
@@ -325,7 +326,7 @@ impl Sessions {
             preset,
             presets: Some(presets::places(core)),
             group: false,
-            owner_is_admin: child.owner == core.admin,
+            owner_is_admin,
         })
         .await
         .map_err(|error| error.to_string())?;
