@@ -105,7 +105,7 @@ dir = "page"              # 包目录 packages/<编号>/ 下的子目录，入�
 1. `POST /page`：`Authorization: Bearer <登录令牌>`，正文 `{"package"}`。网页软件照这个令牌连核心，`package.list` 查它有没有后台页，没有的 404；有的造一张票据（同媒体地址的票据，第三条第 4 款），回 `{"url": "/p/<票据>/<包的编号>/"}`。
 2. `GET /p/<票据>/<包的编号>/<路径>`：票据不认识、包对不上的 404；照 `package.file` 一块块读、一块块写。相对路径照目录解析，页面里的相对地址自然带着票据。
 3. 响应头照 `web-ui.md`（网页的会话施工时在几种浏览器上实测后写定）。要守的几条：沙箱，只许脚本、表单；不许联网（`connect-src 'none'`）；只许嵌在网页软件自己的页面里；`nosniff`、`no-referrer`、`Cache-Control: no-cache`。框的来源是空的（`null`），ES 模块脚本、`@font-face` 字体照跨源取，`/p/` 的回应要带 `Access-Control-Allow-Origin`：票据本身就是凭据，不多开口子。
-4. 框：`<iframe sandbox="allow-scripts allow-forms" src="<url>">`，不给 `allow-same-origin`：页面在一个空的来源里跑，读不到网页的存储、口令，`connect-src 'none'` 让它连不了网、连不了 `/ws`。
+4. 框：`<iframe sandbox="allow-scripts allow-forms" allow="clipboard-write" src="<url>">`，不给 `allow-same-origin`；`clipboard-write` 让页面能把令牌这类字写进剪贴板，不给读（2026-10-10 网页的会话实测：不给时 `navigator.clipboard.writeText` 报 `NotAllowedError`）：页面在一个空的来源里跑，读不到网页的存储、口令，`connect-src 'none'` 让它连不了网、连不了 `/ws`。
 5. 有后台页在给，网页软件不算空闲（同 `/media`）。
 
 ### 框和网页之间怎么说（网页的会话做）
