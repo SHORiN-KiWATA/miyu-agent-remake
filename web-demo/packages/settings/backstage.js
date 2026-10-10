@@ -1,7 +1,7 @@
 // @ts-check
 //! 「软件后台」页（蓝图 `web.md`「设置页」第 19 条；核心 F-6 中，`package-pages.md`；2026-10-10 项目主人：软件后台只列带自己页面的软件，
 //! 照 AstrBot 的插件那样由软件自己带页面）：一个一行，点进去滑进它自己的页面。页面放在隔离的框里（`sandbox="allow-scripts allow-forms"`，
-//! 不给 `allow-same-origin`：来源是空的，读不到网页的存储、口令；桥的响应头不许它联网）。框的地址经宿主请桥造票据（`host.pages.open`）。
+//! 不给 `allow-same-origin`：来源是空的，读不到网页的存储、口令；桥的响应头不许它联网；`allow="clipboard-write"` 能往剪贴板里写、不能读）。框的地址经宿主请桥造票据（`host.pages.open`）。
 //!
 //! 框和网页之间（`FrameHost`）：框第一次载入完，网页造一个 `MessageChannel`，把一头交给框（只交这一次，后台页做成单页）；以后照 JSON-RPC
 //! 的写法说话，网页认的一律照它给框的那个包，框说自己是谁不算数。方法只有 `context`、`settings.get`、`settings.set`（键要是它自己的，
@@ -39,7 +39,8 @@ export function openBackstage(dialog, id) {
 function framePage(dialog, id) {
   const t = (/** @type {string} */ key, /** @type {any} */ fields) => dialog.ctx.text(key, fields);
   const p = (dialog.packages ?? []).find((x) => x.package === id);
-  const frame = /** @type {HTMLIFrameElement} */ (h('iframe.set-backstage-frame', { sandbox: 'allow-scripts allow-forms', referrerpolicy: 'no-referrer', title: p?.name ?? id }));
+  // 能往剪贴板里写（`allow="clipboard-write"`，2026-10-10 接入QQ 的会话要的：令牌要能随时复制）；读剪贴板不给
+  const frame = /** @type {HTMLIFrameElement} */ (h('iframe.set-backstage-frame', { sandbox: 'allow-scripts allow-forms', allow: 'clipboard-write', referrerpolicy: 'no-referrer', title: p?.name ?? id }));
   const box = h('div.set-backstage', frame, h('p.set-backstage-by', t('backstage.by', { name: p?.name ?? id })));
   dialog.frame?.close();
   dialog.frame = new FrameHost(dialog, id, frame);
