@@ -83,6 +83,9 @@ pub fn settings(idle_seconds: u64) -> Settings {
         port: 0,
         idle_seconds,
         csp: "default-src 'self'; connect-src 'self'; frame-ancestors 'none'".to_string(),
+        backstage_csp:
+            "sandbox allow-scripts allow-forms; connect-src 'none'; frame-ancestors 'self'"
+                .to_string(),
         types,
         ticket_idle_seconds: 43_200,
         most_tickets: 4096,

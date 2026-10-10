@@ -35,6 +35,8 @@ pub struct Settings {
     pub idle_seconds: u64,
     /// 页面的 `Content-Security-Policy`。
     pub csp: String,
+    /// 软件后台页（`/p/`）的 `Content-Security-Policy`：沙箱、不许联网、只许嵌在网页里（施工 F-6 下）。
+    pub backstage_csp: String,
     /// 扩展名（小写）→ 媒体类型。`/media` 认页面说的类型也照它：表里出现过的才认（施工 W-10）。
     pub types: BTreeMap<String, String>,
     /// `/media` 的票据多少秒没用过就作废（施工 W-10）。
@@ -48,6 +50,7 @@ pub struct Settings {
 #[serde(deny_unknown_fields)]
 struct Constants {
     csp: String,
+    backstage_csp: String,
     types: BTreeMap<String, String>,
 }
 
@@ -83,6 +86,7 @@ impl Settings {
             port: number(default("port")?, &path)?,
             idle_seconds: number(default("idle_seconds")?, &path)?,
             csp: constants.csp,
+            backstage_csp: constants.backstage_csp,
             types: constants.types,
             ticket_idle_seconds: number(default("ticket_idle_seconds")?, &path)?,
             most_tickets: number(default("most_tickets")?, &path)?,

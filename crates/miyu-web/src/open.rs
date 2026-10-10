@@ -35,6 +35,8 @@ pub struct Open {
     pub reset: bool,
     /// 作废全部浏览器的登录。
     pub logout: bool,
+    /// 打开时直接到「软件后台」里这个软件的页面（`--package <编号>`，施工 F-6 下）：网址 `#` 后面多一个 `package=<编号>`。
+    pub package: Option<String>,
 }
 
 /// 怎么拉起东西：`serve`、核心。
@@ -101,10 +103,7 @@ pub async fn open(
         .as_str()
         .filter(|_| open.reset || first)
         .map(str::to_string);
-    let url = match &code {
-        Some(code) => format!("{site}/#setup={code}"),
-        None => format!("{site}/"),
-    };
+    let url = address_of(&site, code.as_deref(), open.package.as_deref());
     if !open.print && browser.open(&url) {
         if first && !open.reset {
             say(err, &language.first());
@@ -124,6 +123,21 @@ pub async fn open(
 }
 
 /// 印一行；印不出来也没有别处可说了。
+/// 交给浏览器的网址：`#` 后面是一次性码（`setup=`）、点名的软件后台页（`package=`），都没有的不带 `#`。
+fn address_of(site: &str, code: Option<&str>, package: Option<&str>) -> String {
+    let parts: Vec<String> = [
+        code.map(|code| format!("setup={code}")),
+        package.map(|package| format!("package={package}")),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    match parts.is_empty() {
+        true => format!("{site}/"),
+        false => format!("{site}/#{}", parts.join("&")),
+    }
+}
+
 fn say(to: &mut dyn Write, line: &str) {
     if writeln!(to, "{line}").is_err() {
         // 标准输出、标准错误关了：没有别处可说。

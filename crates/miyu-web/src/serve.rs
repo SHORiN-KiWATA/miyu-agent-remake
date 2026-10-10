@@ -1,12 +1,13 @@
 //! `miyu-web serve`（`web-ui.md`「怎么走」第一条）：单实例、只听 `127.0.0.1`、写 `run/web` 和那一行、空闲退出；每个
-//! 请求先核对 Host，`/ws` 交给 `miyu_webserve::ws`，`/media` 交给 `media`（施工 W-10），别的当页面文件
+//! 请求先核对 Host，`/ws` 交给 `miyu_webserve::ws`，`/media` 交给 `media`（施工 W-10），`/page`、`/p/` 交给
+//! `backstage`（软件后台页，施工 F-6 下），别的当页面文件
 //! （`miyu_webserve::pages`）。核对 Host、给页面、`/ws` 照转、回应的几样在共用的 `miyu-webserve`（施工 O-16，
 //! `webserve.md`「搬家表」）。
 //!
 //! 1. 先拿 `run/web.lock`，拿不到写 `running` 走。
 //! 2. 听端口：被占了写 `error port <端口> in use`（`open` 认这个前缀，照人的语言说），别的起不来写 `error <原因>`。
 //! 3. 地址写进 `run/web`（先写临时文件再改名），写一行 `ready`。
-//! 4. 没有 WebSocket 连着、没有 `/media` 在给，连续空闲到点就退出；收到停的信号也退出。退出时先删 `run/web`、再放锁。
+//! 4. 没有 WebSocket 连着、没有 `/media`、后台页在给，连续空闲到点就退出；收到停的信号也退出。退出时先删 `run/web`、再放锁。
 
 use std::convert::Infallible;
 use std::fs::{File, OpenOptions, TryLockError};
@@ -25,9 +26,10 @@ use miyu_ipc::Ready;
 use miyu_store::root::DataRoot;
 use miyu_webserve::Site as _;
 
+use crate::backstage::Backstage;
 use crate::media::Media;
 use crate::settings::Settings;
-use crate::{TARGET, media};
+use crate::{TARGET, backstage, media};
 
 pub use miyu_webserve::CoreCommand;
 pub(crate) use miyu_webserve::respond::{Body, empty, full, secure};
@@ -61,7 +63,9 @@ pub(crate) struct Site {
     pub(crate) core: CoreCommand,
     /// `/media` 的票据、连着的核心。
     pub(crate) media: Media,
-    /// 连着几个 WebSocket、几个 `/media` 在给。
+    /// 软件后台页的票据（连着的核心用 `media` 那一份）。
+    pub(crate) backstage: Backstage,
+    /// 连着几个 WebSocket、几个 `/media`、后台页在给。
     active: AtomicUsize,
     /// 最后一个走的时候。
     quiet_since: Mutex<Instant>,
@@ -164,6 +168,7 @@ pub async fn run(serve: Serve, said: impl FnOnce(Ready)) -> Result<(), String> {
     said(Ready::Ready);
     tracing::info!(target: TARGET, url = %url, "listening");
     let media = Media::new(&serve.settings);
+    let backstage = Backstage::new(&serve.settings);
     let site = Arc::new(Site {
         root: serve.root,
         port,
@@ -171,6 +176,7 @@ pub async fn run(serve: Serve, said: impl FnOnce(Ready)) -> Result<(), String> {
         settings: serve.settings,
         core: serve.core,
         media,
+        backstage,
         active: AtomicUsize::new(0),
         quiet_since: Mutex::new(Instant::now()),
     });
@@ -206,6 +212,7 @@ async fn accept(listener: &TcpListener, site: &Arc<Site>) -> &'static str {
             }
             _ = tick.tick() => {
                 site.media.sweep();
+                site.backstage.sweep();
                 if site.idle_for().is_some_and(|quiet| quiet >= idle) {
                     return "idle";
                 }
@@ -239,6 +246,12 @@ async fn handle(request: Request<Incoming>, site: Arc<Site>) -> Result<Response<
     }
     if path.starts_with("/media/") {
         return Ok(media::get(request, site).await);
+    }
+    if path == "/page" {
+        return Ok(backstage::post(request, site).await);
+    }
+    if path.starts_with("/p/") {
+        return Ok(backstage::get(request, site).await);
     }
     let settings = &site.settings;
     Ok(miyu_webserve::pages::serve(&request, &site.pages, &settings.csp, &settings.types).await)

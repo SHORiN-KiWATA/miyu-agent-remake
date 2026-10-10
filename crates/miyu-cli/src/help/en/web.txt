@@ -11,6 +11,7 @@ Options:
       --reset        Forgot the password: open with a one-time code to set
                      a new username and password
       --logout       Sign out every browser
+      --package <id> Open straight at this software's page under Backstage
   -h, --help         Print help
 
 The web UI is a separate program, miyu-web, installed next to miyu; if it
