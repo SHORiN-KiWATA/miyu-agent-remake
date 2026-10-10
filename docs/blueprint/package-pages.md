@@ -118,7 +118,7 @@ dir = "page"              # 包目录 packages/<编号>/ 下的子目录，入�
 |---|---|---|---|
 | `context` | 无 | 照网页这时的样子答 | `{"package", "language", "theme": "light" \| "dark", "colors"?}`：`colors` 是网页这时的几个主色（`accent`、`surface`、`surface_2`、`text`、`text_soft`、`line`、`danger`），可以没有 |
 | `settings.get` | 无 | `config.schema`、`config.get`，只留 `package` 是它的项 | `{"items": [...], "values": {键: 最终值}}`；密钥照 `config.get` 的写法，不给值 |
-| `settings.set` | `{"changes": [...]}`，写法同 `config.set` | 每一项的键要是 `<它的编号>.` 开头，不是的整个不办，回 `forbidden`；照 `config.set` 写进系统配置 | `config.set` 的回应 |
+| `settings.set` | `{"changes": [...]}`，写法同 `config.set` | 每一项的键要是 `<它的编号>.` 开头，不是的整个不办，回 `forbidden`；照 `config.set` 写进系统配置。密钥类型的项给的是字的，网页照设置页画密钥框的办法先 `secret.set` 存成密钥、再写成 `{ secret = … }` 的引用（2026-10-10 主会话定：接入QQ 的令牌要在后台页上生成、换） | `config.set` 的回应 |
 | `call` | `{"method", "params"?}` | `package.call`，`package` 照框是谁的填，框写不了 | `package.call` 的回应 |
 
 4. 推送：`settings.changed {"keys"}`（`config.changed` 里有它的项时）、`theme.changed {"theme", "colors"?}`。

@@ -28,4 +28,20 @@ impl Refusal {
         }
         self
     }
+
+    /// 人格的头像不是 PNG、JPEG、WebP（施工 P-5）。
+    pub(crate) const AVATAR_NOT_IMAGE: Refusal = Refusal {
+        code: REFUSED,
+        reason: "avatar_not_image",
+        data: None,
+    };
+
+    /// 人格的头像太大、太宽太高（施工 P-5）：`data` 是量到的和上限。
+    pub(crate) fn avatar_too_big(measured: serde_json::Value) -> Refusal {
+        Refusal {
+            code: REFUSED,
+            reason: "avatar_too_big",
+            data: measured.as_object().cloned(),
+        }
+    }
 }

@@ -260,8 +260,8 @@ async fn presets_are_listed_and_read_by_layer() {
         listed["result"]["presets"],
         json!([
             {"preset": "broken", "problem": "不认识的表 [colors]：预设文件里只能有 [preset]、[features]、[software]、[tools]", "line": 1},
-            {"preset": "dev", "name": "大家的开发", "summary": null},
-            {"preset": "full", "name": "全部功能", "summary": null},
+            {"preset": "dev", "name": "大家的开发", "summary": null, "icon": "box"},
+            {"preset": "full", "name": "全部功能", "summary": null, "icon": "boxes"},
         ]),
         "照连接的语言挑"
     );
