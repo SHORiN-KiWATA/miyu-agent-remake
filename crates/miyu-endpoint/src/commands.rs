@@ -190,9 +190,10 @@ pub(crate) async fn run(
         }
         Slash::Remember => {
             let remembered = memory::remember_in(core, &handle, id, by.clone(), rest).await?;
+            // 回执说记下了那句话，不露编号（施工 R-3 四补）；换行这些在一行回执里换成空格，记下的原文不动。
             Said {
                 key: "commands/remembered",
-                fields: vec![("id", remembered.to_string())],
+                fields: vec![("text", remembered.replace(char::is_control, " "))],
             }
         }
         Slash::Dream => dreamed(memory::dream::in_session(core, &session, &handle).await?),

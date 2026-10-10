@@ -121,7 +121,7 @@
 - 人记的、改的：`by` 是这个人，出处空，听众是这个人。
 - 记、改、忘、清空同一个命令编号再发只算一次，回应和头一次一样，核心重启以后也是（上面 `cause`）：先认编号再查参数，改一条重发时那一条已经不算了，照样回头一次的。`/remember` 照 `command.run` 的编号。
 - 出错：`memory_unavailable`、`unknown_memory`（没有这一条，或者听众不合）、`memory_not_current`（已经改掉、作废、清掉了）、`memory_too_long`（`data.limit`、`data.chars`）、`memory_busy`（这一间正在整理，R-7 补）、`dream_failed`（整理没成，`data.message` 是英文的一句为什么，R-7 补）；类不认识、空的、`persona` 和 `session` 都写、`id` 和 `clear` 都写或都不写、写了 `as`（代表外部的人碰记忆随 O 线）：`bad_params`。
-- 斜杠命令 `/remember <话>`（`command.run`，项目主人 2026-10-07 定只做这一个）：记进这个会话那一间，类 `user`，`by` 是打命令的人，出处空，听众是这个人；回执照连接的语言说记成了哪个编号。不经过模型、不花 token。只在本机的会话里：`off` 的、场所会话 `memory_unavailable`；空的 `bad_params`，超长的 `memory_too_long`。
+- 斜杠命令 `/remember <话>`（`command.run`，项目主人 2026-10-07 定只做这一个）：记进这个会话那一间，类 `user`，`by` 是打命令的人，出处空，听众是这个人；回执照连接的语言说记下了那句话（「记下了：用户喜欢猫」，换行这些换成空格），不露编号（界面不露存储结构，2026-10-08；回执的写法 2026-10-10 项目主人定，施工 R-3 四补）。不经过模型、不花 token。只在本机的会话里：`off` 的、场所会话 `memory_unavailable`；空的 `bad_params`，超长的 `memory_too_long`。
 - 斜杠命令 `/dream`（R-7 补，2026-10-10 项目主人定：名字 `/dream`、界面写「整理记忆」、回执只报数字）：不带字，能不能用照 `/remember`（会话开着记忆）；做的就是带这个会话的 `memory.dream`，回执照连接的语言说看了几条、改了几条、作废几条，摘要换了的多半句，什么都没交进去的说没有要整理的（`core/human` 的 `commands/dreamed`、`commands/dreamed-summary`、`commands/dreamed-nothing`）；在后台答。要看改了什么的用 `memory.list` 带 `forgotten`。
 - 清空先做两种（项目主人 2026-10-07 定）：这个会话记下的、她关于我的（整间）；一般知识那一层随 O 线，到时候再加第三种。
 
@@ -287,7 +287,7 @@
 | `crates/miyu-endpoint/tests/memory_installed.rs`（R-10） | 第十一条，真核心经 `package.remove` 卸掉出厂的人格记忆：`memory.*` 五个都回 `memory_not_installed`、原话照语言；`/remember` 回 `memory_unavailable`、为什么说没装，`command.catalog` 不列它；装回来以前记的都在、又列出来 |
 | `crates/miyu-core/tests/packages.rs` 的 `memory_removed_before_start_says_not_installed`、`crates/miyu-endpoint/tests/preset_face.rs` 的 `memory_not_in_the_given_list_says_not_installed`（R-10） | 第十一条第 1 款：起来时就卸掉了的（`Core::new` 读的那一份、`Core::with_packages` 交进来的那一份），`memory.*` 回 `memory_not_installed` |
 | `crates/miyu-endpoint/tests/memory_clear.rs` | 清空：她记的和人记的一起清，清一个会话的回一条、清掉的作废的里也没有，清整间回两条、搜不到、改它说不算了；会话那一间清会话的就是整间 |
-| `crates/miyu-endpoint/tests/remember_command.rs` | `/remember`：记进会话那一间、`by` 是人、出处空、回执带编号、记 `command.ran`、不请求模型；空的、只有空白的、超长的不记；`off` 的、场所会话里 `memory_unavailable` |
+| `crates/miyu-endpoint/tests/remember_command.rs` | `/remember`：记进会话那一间、`by` 是人、出处空、回执是那句话不带编号（换行、制表换成空格，花括号照原样，记下的原文不动，R-3 四补）、记 `command.ran`、不请求模型；空的、只有空白的、超长的不记；`off` 的、场所会话里 `memory_unavailable` |
 | `crates/miyu-session/tests/memory_summary.rs` | 第三条：真会话、真记忆日志，第一轮的请求里有那一块、在触发的那句前面、新的在前、一行逐字节对、`refs` 是那几条；第二轮不再交、第一轮那一块原样还在；清空以后又交一次；一条都没有的、范围 `off` 的不交；听众不合的、作废的、改掉的不进；正文的换行换成空格，日期照会话的时区（UTC 的 7 日 20 点在东九区写 8 日）；六十条截在一条的边界上、不超过 3000 字节、说还有几条；另一个线程握着记忆日志的锁，这一轮过了时限照常请求、不带，下一轮交了 |
 | `crates/miyu-kernel/src/session/tests/present.rs` | 第三条第 7 款：模块交的一块下一轮在 `present` 里、`refs` 原样记原样交回；清空、撤掉带着它的那一轮以后不在；内核自己的两块不算；旧的 `context.injected`（没有 `refs`）读进来写出去一字不差。随机测试的看守（`random/watch/present.rs`）照自己的有效历史对一遍 |
 | `crates/miyu-assemble/tests/sample_session.rs`（R-4 上的一条） | 第三条第 7 款：样本第 151 条，记忆交的一块进请求只有原文，`refs` 不进 |

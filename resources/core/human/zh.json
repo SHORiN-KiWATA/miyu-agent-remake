@@ -307,7 +307,7 @@
     "commands/stopped": "已全部停下。",
     "commands/workspace": "工作区换到了 {cwd}。",
     "commands/workspace-is": "现在的工作区是 {cwd}。",
-    "commands/remembered": "记下了：{id}。",
+    "commands/remembered": "记下了：{text}",
     "commands/dreamed": "整理完了：看了 {given} 条，改了 {revised} 条，作废 {retired} 条。",
     "commands/dreamed-summary": "整理完了：看了 {given} 条，改了 {revised} 条，作废 {retired} 条，摘要更新了。",
     "commands/dreamed-nothing": "没有要整理的。",

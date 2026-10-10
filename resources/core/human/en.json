@@ -307,7 +307,7 @@
     "commands/stopped": "Everything stopped.",
     "commands/workspace": "The workspace is now {cwd}.",
     "commands/workspace-is": "The workspace is {cwd}.",
-    "commands/remembered": "Remembered as {id}.",
+    "commands/remembered": "Remembered: {text}",
     "commands/dreamed": "Memory organized: looked at {given}, revised {revised}, retired {retired}.",
     "commands/dreamed-summary": "Memory organized: looked at {given}, revised {revised}, retired {retired}; summary updated.",
     "commands/dreamed-nothing": "Nothing to organize.",

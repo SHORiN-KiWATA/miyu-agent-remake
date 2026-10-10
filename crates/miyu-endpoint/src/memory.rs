@@ -79,7 +79,7 @@ pub(crate) async fn call(
 }
 
 /// 会话 `handle` 里人记一条（`/remember`，施工 R-3 补）：记进这个会话那一间，类 `user`，出处空，听众是 `by`，命令编号是
-/// `id`（同一个编号再来交回头一次的）。交回编号。
+/// `id`（同一个编号再来交回头一次的）。交回记下的那句话（去掉了前后空白的）：回执照它说，不露编号（施工 R-3 四补）。
 ///
 /// # Errors
 ///
@@ -90,11 +90,12 @@ pub(crate) async fn remember_in(
     id: &CommandId,
     by: By,
     text: &str,
-) -> Result<MemoryId, Refusal> {
+) -> Result<String, Refusal> {
     let keeper = keeper_of(core, handle, by.clone())?;
+    let text = checked(text)?;
     let remember = Remember {
         class: "user".to_string(),
-        text: checked(text)?,
+        text: text.clone(),
         replaces: None,
     };
     let stamp = Stamp {
@@ -102,13 +103,13 @@ pub(crate) async fn remember_in(
         by,
         cause: Some(id.clone()),
     };
-    let saved = blocking({
+    blocking({
         let keeper = keeper.clone();
         move || keeper.save(stamp, remember, Vec::new())
     })
     .await?;
     fill(core, keeper).await;
-    Ok(saved)
+    Ok(text)
 }
 
 async fn list(core: &Arc<Core>, params: List) -> Result<Value, Refusal> {
