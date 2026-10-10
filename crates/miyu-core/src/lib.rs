@@ -142,12 +142,17 @@ pub fn main(options: Options) -> ExitCode {
 /// 这一份核心编进来的内置包（施工 F-2，设计 `30-插件框架.md` 第二节）：清单是内置包、编号不在这里的，照读坏了的清单报
 /// （`miyu_endpoint::packages::compiled`）。画 mermaid、联网照 cargo 开关。
 pub fn built_in() -> Vec<&'static str> {
-    let mut built_in = vec![miyu_tool::BASESYSTEM, miyu_memory::PACKAGE, ROLEPLAY];
-    #[cfg(feature = "mermaid")]
-    built_in.push("mermaid");
-    #[cfg(feature = "net")]
-    built_in.push("net");
-    built_in
+    // 照开关挑，不用 `#[cfg]` 掉 `push`：两个开关都关着时 `mut` 就成了多余的（单独编 `miyu-onebot` 时 clippy 报）。
+    [
+        Some(miyu_tool::BASESYSTEM),
+        Some(miyu_memory::PACKAGE),
+        Some(ROLEPLAY),
+        cfg!(feature = "mermaid").then_some("mermaid"),
+        cfg!(feature = "net").then_some("net"),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
 }
 
 /// 人设遵循提醒这个内置包的编号（施工 F-2）：代码在策略、会话两层，核心这里只认编号。
