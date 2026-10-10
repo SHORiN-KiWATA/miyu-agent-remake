@@ -75,7 +75,6 @@
       "of": "text",
       "default": {
         "interface": "general",
-        "permissions": "general",
         "connections": "packages"
       },
       "name": {
