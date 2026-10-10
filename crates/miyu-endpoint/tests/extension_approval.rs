@@ -195,6 +195,7 @@ async fn a_shipped_extension_counts_as_approved() {
     assert_eq!(
         declared,
         [
+            "tools",
             "events.read",
             "events.write",
             "sessions.drive",

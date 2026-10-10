@@ -6,6 +6,7 @@
 mod support;
 
 mod apply;
+mod budget;
 mod called;
 mod called_limits;
 mod calls;
@@ -29,6 +30,7 @@ mod outbound;
 mod people;
 mod pipe;
 mod private;
+mod provider;
 mod queue;
 mod queue_waits;
 mod reactions;
@@ -38,6 +40,7 @@ mod replies;
 mod rules;
 mod segments;
 mod settings;
+mod skipped;
 mod spawned;
 mod status;
 mod status_file;

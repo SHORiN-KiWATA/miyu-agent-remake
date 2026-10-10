@@ -1,4 +1,7 @@
 {
+  "tools": {
+    "skip_reply": { "name": "不说话", "subject": "reason" }
+  },
   "said": {
     "usage": "用法：miyu onebot start | stop | restart | status | logs [-f] | web [--print] | venue show <场所>（serve 只由核心拉起）",
     "no-log": "运行日志写不了：{reason}",

@@ -5,6 +5,7 @@
 //! - 编号是跟核心的那一头的前缀加 `-side-` 和序号：读的一头认得出哪些回应是这里的，不交给跟核心的那一头。
 //! - 等的一方不等了（超时、任务被放下）：编号从等着的表里拿掉；回应晚来了，读的一头照编号认出是这里的、没人等，丢掉。
 //! - 读的一头停了（核心关了管道）：等着的表清掉、关上，等着的和再来的都交回 [`Gone`]。
+//! - 写出去就交回等回应的那一段（[`Caller::send`]，施工 O-26）：起来时登记工具，写出去就接着起来，回应另起一个任务等。
 //!
 //! 核心的 `model.call` 在后台答（施工 8-20 补，`protocol.md` 的 `model.call` 第 2 条）：判官一次几十秒，这段时间这条连接上别的
 //! 请求不等它。
@@ -101,6 +102,16 @@ impl Caller {
     ///
     /// 写不出去、读的一头停了（核心断开）。
     pub(crate) async fn call(&self, method: &str, params: Value) -> Result<Value, Gone> {
+        self.send(method, params).await?.wait().await
+    }
+
+    /// 发一条请求，编号自己编，写出去就交回等它的回应的那一段（[`Answer`]，施工 O-26）。放下那一段的，编号从表里拿掉，
+    /// 回应晚来了丢掉；写不出去的也拿掉。
+    ///
+    /// # Errors
+    ///
+    /// 写不出去、读的一头已经停了（核心断开）。
+    pub(crate) async fn send(&self, method: &str, params: Value) -> Result<Answer, Gone> {
         let n = self.next.fetch_add(1, Ordering::Relaxed) + 1;
         let id = format!("{}{n}", self.waiting.prefix);
         let (sender, answer) = oneshot::channel();
@@ -108,13 +119,35 @@ impl Caller {
             Some(table) => table.insert(id.clone(), sender),
             None => return Err(Gone),
         };
-        let _forget = Forget {
-            waiting: &self.waiting,
-            id: &id,
+        let forget = Forget {
+            waiting: self.waiting.clone(),
+            id: id.clone(),
         };
         let request = json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params});
         write_line(&self.writer, &request).await?;
-        answer.await.map_err(|_| Gone)
+        Ok(Answer {
+            answer,
+            _forget: forget,
+        })
+    }
+}
+
+/// 写出去了的一条请求：等它的回应（施工 O-26）。放下了就不等了。
+pub(crate) struct Answer {
+    /// 读的一头照编号交来的回应。
+    answer: oneshot::Receiver<Value>,
+    /// 放下时把编号从等着的表里拿掉。
+    _forget: Forget,
+}
+
+impl Answer {
+    /// 等到回应（接受的、拒绝的都交回原样）。
+    ///
+    /// # Errors
+    ///
+    /// 读的一头停了（核心断开）。
+    pub(crate) async fn wait(self) -> Result<Value, Gone> {
+        self.answer.await.map_err(|_| Gone)
     }
 }
 
@@ -133,15 +166,15 @@ pub(super) async fn write_line(writer: &Writer, message: &Value) -> Result<(), G
 }
 
 /// 放下时把编号从等着的表里拿掉：等的一方不等了（超时、被放下），回应晚来了没人收。
-struct Forget<'a> {
-    waiting: &'a Waiting,
-    id: &'a str,
+struct Forget {
+    waiting: Waiting,
+    id: String,
 }
 
-impl Drop for Forget<'_> {
+impl Drop for Forget {
     fn drop(&mut self) {
         if let Some(table) = self.waiting.lock().as_mut() {
-            table.remove(self.id);
+            table.remove(&self.id);
         }
     }
 }

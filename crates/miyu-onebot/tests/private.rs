@@ -220,9 +220,16 @@ async fn a_venue_owned_by_the_bridge_itself_is_a_stranger_and_not_taken() {
         }
     })
     .await;
+    // 头一个是起来时登记工具（施工 O-26）。
     assert_eq!(
         relay.asked(),
-        ["venue.session"; 4],
+        [
+            "provide",
+            "venue.session",
+            "venue.session",
+            "venue.session",
+            "venue.session"
+        ],
         "不交 session.send、command.run，不订阅"
     );
     assert!(home.said().is_empty(), "不进任何会话：{:?}", home.said());
@@ -238,10 +245,11 @@ async fn a_venue_owned_by_someone_else_or_by_nobody_is_taken() {
         napcat.owner_says(1, "在吗").await;
         assert_eq!(napcat.reply().await, "在。", "{venue:?}");
         assert_eq!(home.said_texts(), ["在吗"], "{venue:?}");
-        // 她的回话先入队再发（施工 O-25 中）：多一个 `events.append`。
+        // 她的回话先入队再发（施工 O-25 中）：多一个 `events.append`。头一个是起来时登记工具（施工 O-26）。
         assert_eq!(
             relay.asked(),
             [
+                "provide",
                 "venue.session",
                 "subscribe",
                 "session.send",

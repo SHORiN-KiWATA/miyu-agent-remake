@@ -24,6 +24,7 @@
 //!   经核心的 `session.note` 退信（施工 O-25 下，「退信」，在 `sending`）。
 //! - 贴表情（施工 O-25 下，「贴表情」）：判下来要回、主触发是冲她来或续聊的，在她要回的那一条上贴，那一轮发出去第一段、结束了、
 //!   到时候了摘（`reaction`）。
+//! - 不说话（施工 O-26，「提供者和不说话」）：她的回复里有 `skip_reply` 的调用块，这一轮的字都不发（`quiet` 认，`speak` 不发）。
 //! - 核心推来的 `extension.config`（施工 O-20）：`keys` 原样交给 `serve`，它换上手里的配置、端口变了照 `/apply` 的办法换
 //!   （「施工时定的」第 45 条）：这里够不着监听。自己人 `onebot.trusted` 这里记一份（施工 O-23）。
 
@@ -44,6 +45,7 @@ mod outbound;
 mod persona;
 mod projection;
 mod queue;
+mod quiet;
 mod reaction;
 mod recall;
 mod receipt;
@@ -80,6 +82,7 @@ use outbound::Spoken;
 pub(crate) use persona::Personas;
 use projection::Projection;
 use queue::Queue;
+use quiet::Quiet;
 pub(crate) use reaction::Reactions;
 use sending::{Answered, Item};
 use session::Place;
@@ -145,6 +148,8 @@ pub(crate) struct Route {
     judges: Judges,
     /// 贴着的表情（施工 O-25 下，`reaction`）。
     reactions: Reactions,
+    /// 这一轮不说话了的（施工 O-26，`quiet`）：群里、私聊的都在这一张表里。
+    quiet: Quiet,
     /// 推来的配置变化交给 `serve`（施工 O-20）。
     configured: mpsc::UnboundedSender<Map<String, Value>>,
 }
@@ -189,6 +194,7 @@ impl Route {
             recall,
             judges,
             reactions,
+            quiet: Quiet::default(),
             configured,
         }
     }
@@ -314,8 +320,8 @@ impl Route {
     }
 
     /// 核心推来的一条：配置变了的（`extension.config`）交给 `serve`（施工 O-20），自己人在里面的换上（施工 O-23）；群会话的
-    /// 事件收进投影、她新说的话发回群里（施工 O-23）；私聊里她的回话发回去（第 10 条）；掉了队、会话停了的（`resync`）再订阅
-    /// 一次，群的照收到的最后一条接着补。
+    /// 事件收进投影、她新说的话发回群里（施工 O-23）；私聊会话的事件交给 `say_privately`：她的回话发回去（第 10 条），这一轮
+    /// 不说话了的不发（施工 O-26，要看 `turn.ended`）；掉了队、会话停了的（`resync`）再订阅一次，群的照收到的最后一条接着补。
     async fn pushed(&mut self, pushed: Value) -> Result<(), Gone> {
         let params = &pushed["params"];
         if pushed["method"] == "extension.config" {
@@ -344,7 +350,7 @@ impl Route {
                 let session = session.to_string();
                 self.follow(&session, last).await?;
             }
-            (Some("event"), None) if params["event"]["kind"] == "message.assistant" => {
+            (Some("event"), None) => {
                 let session = session.to_string();
                 self.say_privately(&session, &params["event"]).await?;
             }

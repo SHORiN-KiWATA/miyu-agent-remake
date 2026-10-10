@@ -1,4 +1,7 @@
 {
+  "tools": {
+    "skip_reply": { "name": "Skip reply", "subject": "reason" }
+  },
   "said": {
     "usage": "usage: miyu onebot start | stop | restart | status | logs [-f] | web [--print] | venue show <venue> (serve is started by the core only)",
     "no-log": "The run log cannot be written: {reason}",

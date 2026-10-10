@@ -17,8 +17,9 @@ args = ["serve"]
 start = "manual"
 # 要的扩展能力（施工 9-4 下上，05-内核接口.md 第三节）：venue.session、session.send、session.respond 是操作会话，带 as 是代
 # 平台上的人发话，subscribe 是读会话，events.append 记 ext.onebot.*、venue.* 是写事件（施工 O-23），开本机的两个端口、NapCat
-# 连进来是联网。出厂的包算批过的，不用人批。
-capabilities = ["sessions.drive", "act_for_external", "events.read", "events.write", "network"]
+# 连进来是联网；provide 是提供工具：桥给场所会话登记 skip_reply 这些平台工具（施工 O-26，docs/blueprint/onebot.md 第一条
+# 「提供者和不说话」）。出厂的包算批过的，不用人批。
+capabilities = ["tools", "sessions.drive", "act_for_external", "events.read", "events.write", "network"]
 # 自己的系统账号 onebot（施工 O-4 下，06-多用户与身份.md U14）：群、陌生人私聊的场所会话归它，桥以它的身份连进来。
 system_account = true
 

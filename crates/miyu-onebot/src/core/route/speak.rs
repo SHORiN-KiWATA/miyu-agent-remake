@@ -2,7 +2,8 @@
 //! 这里）：群会话推来的事件（订阅时从头补来的、之后推来的）走同一条路收进这个群的投影（`projection`）；她新说的话（序号大于
 //! 订阅时的 `upto`）先过出站链（`outbound`），丢了的记一行，过了的照纯文本拆段，一段一条入队（`sending`，O-25 中：先记
 //! `ext.onebot.venues.queued` 再照先后交 NapCat，群里的成了记 `venue.delivered`），第一段带引用和 @。私聊里她的话也过出站链、
-//! 拆段、入队，不记 `venue.delivered`。
+//! 拆段、入队，不记 `venue.delivered`。这一轮她调过 `skip_reply` 的（施工 O-26，`quiet`）不过链、不入队，记一行
+//! `reply dropped why=skipped`。
 
 use miyu_chat::{OutCtx, Venue};
 use miyu_kernel::event::Event;
@@ -18,7 +19,7 @@ use crate::core::Gone;
 
 impl Route {
     /// 群会话 `session` 推来的一条 `pushed`（`event` 推送）：落了盘的收进投影（瞬时的没有序号，不看），交给贴着的表情看要不要摘
-    /// （施工 O-25 下，`reaction`），她新说的话发回群里。
+    /// （施工 O-25 下，`reaction`）、交给 `quiet` 看这一轮说不说话（施工 O-26），她新说的话发回群里，这一轮不说话了的不发。
     ///
     /// # Errors
     ///
@@ -40,9 +41,22 @@ impl Route {
         };
         let speaking = group.take(&event);
         self.reactions.seen(session, &event);
+        let quiet = self.quiet.heard(session, raw);
         match speaking {
+            Some(_) if quiet => {
+                self.hushed(session, &reply_text(raw));
+                Ok(())
+            }
             Some(speaking) => self.speak(session, speaking, &reply_text(raw)).await,
             None => Ok(()),
+        }
+    }
+
+    /// 会话 `session` 这一轮不说话了，她说的 `text` 不发：记一行 `reply dropped`（`why=skipped`，不记原文，施工 O-26）。
+    fn hushed(&self, session: &str, text: &str) {
+        if let Some(peer) = self.peers.get(session) {
+            let chars = text.chars().count();
+            tracing::info!(target: TARGET, venue = %peer.venue, why = "skipped", chars, "reply dropped");
         }
     }
 
@@ -84,13 +98,21 @@ impl Route {
         self.say(session, passed, what).await
     }
 
-    /// 私聊会话 `session` 推来的、她的一条回话 `event`（「怎么走」第 10 条）：过出站链（两样都是假，这一轮发出去的照桥入队时
-    /// 自己记的 `Spoken`），过了的一段一条入队。
+    /// 私聊会话 `session` 推来的一条事件 `event`：先交给 `quiet` 看这一轮说不说话（施工 O-26）；是她的回话的（「怎么走」第 10
+    /// 条），这一轮不说话了的不发，别的过出站链（两样都是假，这一轮发出去的照桥入队时自己记的 `Spoken`），过了的一段一条入队。
     ///
     /// # Errors
     ///
     /// 同 [`Route::heard`]。
     pub(super) async fn say_privately(&mut self, session: &str, event: &Value) -> Result<(), Gone> {
+        let quiet = self.quiet.heard(session, event);
+        if event["kind"] != "message.assistant" {
+            return Ok(());
+        }
+        if quiet {
+            self.hushed(session, &reply_text(event));
+            return Ok(());
+        }
         let Some(peer) = self.peers.get(session).cloned() else {
             return Ok(());
         };

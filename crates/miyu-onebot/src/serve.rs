@@ -6,7 +6,8 @@
 //!    那一句也是，施工 O-20，「施工时定的」第 42 条）；回应里的 `config` 读成两个端口、令牌（[`Settings::handed`]，没交的端口
 //!    照清单的默认值）。握手以后读一次系统的场所规则，问题记运行日志（施工 O-21，[`Venues`]），交给跟核心的那一头，每一条
 //!    消息照它套场所（施工 O-22）。限流满了发进群里的提示照握手回的语言说（施工 O-23，「群里怎么叫她」第 7 条）；那种语言的
-//!    字读不懂的照系统的语言（`main.rs` 那一头也是照原来的说，「施工时定的」第 80 条）。
+//!    字读不懂的照系统的语言（`main.rs` 那一头也是照原来的说，「施工时定的」第 80 条）。握手以后、开监听以前登记桥的工具
+//!    （施工 O-26，`core/provider.rs`）：写出去就接着起来，等回应、记运行日志的那一段放进下面第 3 条的任务组。
 //! 2. 只听 `127.0.0.1` 的 `onebot.listen`。被占了：[`Failure::PortInUse`]。再听 `127.0.0.1` 的 `onebot.web`（WebUI，施工
 //!    O-16，第二条「怎么走」第 1 条）。被占了：[`Failure::WebPortInUse`]。听上了各说一行（[`Notice::Listening`]、
 //!    [`Notice::Web`]）。令牌没设的两个也照开，NapCat 连进来一律 401，人在 WebUI 里生成令牌，NapCat 下一次连就通
@@ -34,8 +35,8 @@ use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
 use crate::TARGET;
-use crate::core::Core;
 use crate::core::route::{Personas, Reactions, Route, Slots};
+use crate::core::{Core, provide};
 use crate::current::Current;
 use crate::listen::bots::Bots;
 use crate::listen::{self, Gate};
@@ -156,8 +157,17 @@ pub async fn run(
     tell: impl Fn(Notice) + Send + Sync + 'static,
     stop: impl Future<Output = ()>,
 ) -> Result<(), Failure> {
-    let core = Core::connect(serve.pipe, serve.locale.as_deref(), serve.tuning.hello()).await?;
+    let tools = serve.factory.tools();
+    let core = Core::connect(
+        serve.pipe,
+        serve.locale.as_deref(),
+        serve.tuning.hello(),
+        Arc::clone(&tools),
+    )
+    .await?;
     shaken(&core.language);
+    // 登记桥的工具（施工 O-26）：写出去就接着起来，之后的 `venue.session` 造的会话就有它们。
+    let provided = provide(&core.caller(), &tools).await;
     // 场所规则和出厂数据（施工 O-21）：读一次系统的，问题记进运行日志。跟核心的那一头每一条消息照它套场所（施工 O-22）。
     let venues = Venues::new(
         serve.factory,
@@ -217,6 +227,12 @@ pub async fn run(
     });
     // 跟核心的那一头停了，交回为什么（空的是核心关了管道、发回话的任务崩了是那个原因）；接连接的、写状态文件的停了不要紧。
     let mut tasks = JoinSet::new();
+    if let Some(provided) = provided {
+        tasks.spawn(async move {
+            provided.await;
+            None
+        });
+    }
     let (configured, mut configs) = mpsc::unbounded_channel();
     let members = Members::new(gate.tuning.member_names());
     let slots = Slots::new(gate.tuning.judge_concurrency, gate.tuning.judge_queue());
