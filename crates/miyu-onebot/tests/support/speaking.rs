@@ -2,7 +2,8 @@
 //!
 //! - 一次回复里可以既说一句、又调一件工具（[`Line::calls`]）：内核答完工具再请求一次，同一回合里她就说了两句，测得到去重。
 //!   调的是不存在的 [`NO_TOOL`]：内核当场答「没有这件工具」，接着请求（`02-内核.md`），什么都不用装。也可以调桥提供的
-//!   `skip_reply`（[`Line::skips`]，施工 O-26）：核心反向调桥，桥答完接着请求。
+//!   `skip_reply`（[`Line::skips`]，施工 O-26）：核心反向调桥，桥答完接着请求。别的工具、参数照给的调（[`Line::uses`]，施工
+//!   O-31：撤回、禁言、戳一戳）。
 //! - 可以等测试放行再说（[`Line::released_by`]）：引用、@ 看「她回的那条之后群里来了几条」「过了多久」，先压着，群里说完了、
 //!   等够了再放；去重看「这一回合已经发出去的」（O-25 中起照入队算，桥入队记成了就算上，`onebot.md`「施工时定的」第 112 条）。
 //!   不靠谁快。
@@ -63,6 +64,14 @@ impl Line {
     pub fn skips(text: &'static str) -> Line {
         Line {
             call: Some((SKIP_REPLY, SKIP_ARGS)),
+            ..Line::says(text)
+        }
+    }
+
+    /// 说一句，同一次回复里调工具 `name`，参数是 `args`（施工 O-31）：这一轮接着往下走。
+    pub fn uses(text: &'static str, name: &'static str, args: &'static str) -> Line {
+        Line {
+            call: Some((name, args)),
             ..Line::says(text)
         }
     }

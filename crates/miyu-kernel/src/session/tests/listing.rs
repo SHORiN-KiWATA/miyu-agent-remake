@@ -35,6 +35,7 @@ impl Assembler for Listing {
             stable: 0,
             continuation: false,
             described: Default::default(),
+            output_cap: None,
         }
     }
 
@@ -128,6 +129,7 @@ impl Assembler for Listing {
             stable: 0,
             continuation: false,
             described: Default::default(),
+            output_cap: None,
         };
         Some((request, upto))
     }
@@ -167,6 +169,7 @@ impl Assembler for Listing {
             stable: 0,
             continuation: false,
             described: Default::default(),
+            output_cap: None,
         };
         Some((request, events[answer].seq))
     }
@@ -183,6 +186,7 @@ impl Assembler for Listing {
             stable: 0,
             continuation: false,
             described: Default::default(),
+            output_cap: None,
         })
     }
 

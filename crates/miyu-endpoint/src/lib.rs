@@ -231,6 +231,7 @@ impl Core {
             .inspect_err(|error| tracing::warn!(target: "miyu::endpoint", error = %error, "memory summary texts unreadable"))
             .ok();
         let memory = Memory::new(&root, summary);
+        memory::give_recall(&memory, &resources);
         // 人格记忆装没装（施工 R-10）：照这时读到的清单；交进来另一份的照那一份（[`Core::with_packages`]）。
         memory.set_installed(packages::is_installed(&found, MEMORY));
         // 抽取（施工 R-6 上）：照一次性入口发；字、key 的写法读不出来的，这个核心不抽。

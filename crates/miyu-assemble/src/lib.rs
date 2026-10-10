@@ -82,6 +82,7 @@ impl Assembler for DefaultAssembler {
             stable: self.stable.demos.len(),
             continuation: render::continues(history),
             described: Default::default(),
+            output_cap: None,
         }
     }
 

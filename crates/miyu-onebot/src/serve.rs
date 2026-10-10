@@ -230,6 +230,7 @@ pub async fn run(
         recall,
         gate.tuning.queue_expire(),
         reactions,
+        gate.tuning.binding(),
     );
     let route = Route::new(core, bots, venues, members, parts, configured);
     let route = tasks.spawn(async move { route.run(received).await }).id();

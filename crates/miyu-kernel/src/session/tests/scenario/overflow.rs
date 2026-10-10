@@ -33,6 +33,8 @@ fn overflowing_limited(pause: Pause, step_limit: Option<u32>) -> Stage {
         policy.compaction = Some(Compaction {
             reserve_cap: 10,
             margin: 10,
+            line_percent: 100,
+            margin_percent: 100,
             tail: 3,
             lead: 0,
             price: crate::estimate::Flat {

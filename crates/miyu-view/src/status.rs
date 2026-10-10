@@ -3,7 +3,7 @@
 
 use serde::Serialize;
 
-use miyu_kernel::event::{ErrorClass, JobKind};
+use miyu_kernel::event::{CompactTrigger, ErrorClass, JobKind};
 use miyu_kernel::id::{CallId, JobId, SessionId};
 use miyu_kernel::time::Timestamp;
 
@@ -35,6 +35,9 @@ pub struct Status {
     /// 候选都在冷却，最早恢复的时刻；没在冷却的没有。只认订阅以后看到的。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cooling_until: Option<Timestamp>,
+    /// 后台在提前压（施工 6-11 三补）：起压时有，那一次说完了、换上了、压过了以后没有。只认订阅以后看到的开始，重连的不补。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preparing: Option<Preparing>,
     /// 这个会话直接派出去的任务：在跑的，和最近做完的 [`FINISHED_KEPT`] 个，照派出的先后。
     pub jobs: Vec<JobRow>,
 }
@@ -114,11 +117,22 @@ pub enum Doing {
     Compacting {
         /// 压缩那一条。
         entry: EntryId,
+        /// 哪一种压缩（施工 6-11 三补）：头照它分，自动的只写一行，手动的画进度。
+        trigger: CompactTrigger,
         /// 摘要写了多少 token。
         written: u64,
         /// 估计一共多少。
         expected: u64,
     },
+}
+
+/// 后台在提前压的那一次（施工 6-11 三补，`compaction.started`）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct Preparing {
+    /// 它替代到哪一条：换上时压缩那一条是 `c<它>`。
+    pub seen: u64,
+    /// 起压的时刻。
+    pub since: Timestamp,
 }
 
 /// 一次主请求的速度：输出多少 token、首字到结束多少毫秒，每秒多少由头算。

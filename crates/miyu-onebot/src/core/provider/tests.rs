@@ -46,16 +46,29 @@ fn asked(heard: Heard) -> Value {
 
 #[test]
 fn the_provide_params_follow_the_shipped_spec() {
-    let spec: Value = serde_json::from_str(&shipped("tools/skip_reply.json")).expect("是 JSON");
+    // 施工 O-31 起四件：`recall`、`poke` 给私聊和群，`mute` 只给群；三件平台工具是 `venue`（在场所里做的事），`skip_reply` 是
+    // `read`（`onebot.md` 施工时定的第 177 条）。
+    let spec = |name: &str| -> Value {
+        serde_json::from_str(&shipped(&format!("tools/{name}.json"))).expect("是 JSON")
+    };
+    let entry = |name: &str, access: &str, venues: Value| {
+        json!({
+            "name": name,
+            "description": spec(name)["description"],
+            "input_schema": spec(name)["parameters"],
+            "access": access,
+            "venues": venues,
+        })
+    };
+    let both = json!(["private", "group"]);
     assert_eq!(
         tools().provided(),
-        json!({"tools": [{
-            "name": "skip_reply",
-            "description": spec["description"],
-            "input_schema": spec["parameters"],
-            "access": "read",
-            "venues": ["private", "group"],
-        }]})
+        json!({"tools": [
+            entry("skip_reply", "read", both.clone()),
+            entry("recall", "venue", both.clone()),
+            entry("mute", "venue", json!(["group"])),
+            entry("poke", "venue", both),
+        ]})
     );
 }
 
@@ -72,12 +85,12 @@ fn a_tool_call_is_answered_under_its_own_id() {
             "error": false,
         }})
     );
-    let unknown = shipped("tool-results/unknown.txt").replace("{name}", "recall");
+    let unknown = shipped("tool-results/unknown.txt").replace("{name}", "kick");
     assert_eq!(
         asked(heard(
             &tools(),
             &Methods::new(),
-            tool_call("core-8", "recall")
+            tool_call("core-8", "kick")
         )),
         json!({"jsonrpc": "2.0", "id": "core-8", "result": {
             "blocks": [{"type": "text", "text": unknown}],
@@ -131,4 +144,16 @@ fn a_method_call_is_answered_by_the_methods() {
     // 状态还没交进来：同不认识的方法（`core/methods.rs`），编号原样。
     assert_eq!(reply["id"], "core-9", "{reply}");
     assert_eq!(reply["error"]["code"], -32601, "{reply}");
+}
+
+#[test]
+fn platform_tool_calls_pass_on_to_the_route() {
+    // 施工 O-31：撤回、禁言、戳一戳要投影和 NapCat 的连接，读的一头不当场答，原样交给跟核心的那一头（「平台工具（一）」第 2 条）。
+    for tool in ["recall", "mute", "poke"] {
+        let message = tool_call("core-10", tool);
+        match heard(&tools(), &Methods::new(), message.clone()) {
+            Heard::Other(passed) => assert_eq!(passed, message),
+            other => panic!("{tool} 交给那一头：{other:?}"),
+        }
+    }
 }

@@ -29,6 +29,7 @@ mod no_token;
 mod outbound;
 mod page;
 mod pipe;
+mod platform;
 mod private;
 mod pronoun;
 mod provider;

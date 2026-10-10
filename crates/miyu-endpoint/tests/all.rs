@@ -7,6 +7,7 @@ mod provide;
 mod provide_exit;
 mod provide_features;
 mod provide_later;
+mod provide_venue;
 mod support;
 
 mod answer;
@@ -112,6 +113,7 @@ mod undo;
 mod undo_jobs;
 mod uploads;
 mod usage;
+mod venue_binding;
 mod venue_judge;
 mod venue_records;
 mod venues;

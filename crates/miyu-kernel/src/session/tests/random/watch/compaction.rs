@@ -162,10 +162,15 @@ impl Watch {
         self.expected_cut(turn.started(), trigger, budget, keep_last, seq(self.last()))
     }
 
-    /// 压缩线：交过的限额照随机测试的策略算（输出预留的上限、余量各 10）；没交、没窗口的没有。
+    /// 压缩线：交过的限额照随机测试的策略算（输出预留的上限、余量各 10，不按窗口的百分比封）：窗口减输出预留减 10；没交、
+    /// 没窗口的、减出来不是正数的没有。
     pub(super) fn line(&self) -> Option<u64> {
         let limits = self.compactions.limits.as_ref()?;
-        crate::estimate::line(limits.window, limits.max_output, 10, 10)
+        limits
+            .window?
+            .checked_sub(crate::estimate::reserve(limits.max_output, 10))?
+            .checked_sub(10)
+            .filter(|line| *line > 0)
     }
 
     /// 照 `started` 那一轮算 N（施工 6-8 从上面拆出来，手动压缩照还没开的那一轮算）：以前的请求（`started` 以前的

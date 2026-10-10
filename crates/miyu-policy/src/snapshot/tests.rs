@@ -38,7 +38,7 @@ fn the_same_sources_give_the_same_bytes_and_they_read_back() {
     let text = crate::test_support::text_without_digest(&one);
     assert!(text.starts_with(r#"{"persona":"engineer","system":"You are a helpful software engineer.","core":{"checkpoint_open":"#), "{text}");
     assert!(
-        text.ends_with(r#""step_limit":null,"attended":true,"resumes":3,"compaction":{"reserve_cap":20000,"margin":13000,"image":2000,"file":2000,"tail":16000,"lead":16000,"rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10},"pause":{"failures":3,"turns":3,"refills":3},"shorten":{"tries":3,"percent":20}},"jobs":{"report_chars":30000},"recap":{"turns":8,"tokens":8192},"title":{"tokens":1024,"chars":50,"tries":2},"peers":{"burst":5,"window":600,"unread":50,"watch_hours":12,"status_chars":200}}"#),
+        text.ends_with(r#""step_limit":null,"attended":true,"resumes":3,"compaction":{"reserve_cap":20000,"margin":13000,"line_percent":85,"margin_percent":5,"image":2000,"file":2000,"tail":16000,"lead":16000,"rebuild":{"files":5,"file_tokens":5000,"total":50000,"min_window":32000,"candidates":10},"pause":{"failures":3,"turns":3,"refills":3},"shorten":{"tries":3,"percent":20}},"jobs":{"report_chars":30000},"recap":{"turns":8,"tokens":8192},"title":{"tokens":1024,"chars":50,"tries":2},"peers":{"burst":5,"window":600,"unread":50,"watch_hours":12,"status_chars":200}}"#),
         "{text}"
     );
     // 改一个字，哈希就变了。
@@ -199,6 +199,29 @@ fn the_lead_is_16000_and_older_snapshots_read_it_so() {
     assert_eq!(older.compaction.unwrap().lead, 16_000);
     snapshot.compaction.as_mut().unwrap().lead = 7;
     assert_eq!(snapshot.policy().unwrap().compaction.unwrap().lead, 7);
+}
+
+/// 压缩线、余量各至多窗口的百分之几（施工 6-11 再补）：出厂 85、5，排在余量后面；以前造的快照里没有这两格，读成出厂的，
+/// 内核拿到的照它。
+#[test]
+fn the_line_is_capped_at_85_percent_and_older_snapshots_read_it_so() {
+    let mut snapshot = engineer();
+    let text = crate::test_support::text_without_digest(&snapshot);
+    let pair = r#""margin":13000,"line_percent":85,"margin_percent":5,"image""#;
+    assert!(text.contains(pair), "{text}");
+    let older = text.replace(r#""line_percent":85,"margin_percent":5,"#, "");
+    let older = Snapshot::from_bytes(older.as_bytes())
+        .unwrap()
+        .compaction
+        .unwrap();
+    assert_eq!((older.line_percent, older.margin_percent), (85, 5));
+    let numbers = snapshot.compaction.as_mut().unwrap();
+    (numbers.line_percent, numbers.margin_percent) = (90, 3);
+    let compaction = snapshot.policy().unwrap().compaction.unwrap();
+    assert_eq!(
+        (compaction.line_percent, compaction.margin_percent),
+        (90, 3)
+    );
 }
 
 /// 压后重建（施工 6-5）：出厂的快照带着字和数，内核拿到几段的模板和重建的数，组装器拿到重读的文件那一块的头尾；以前

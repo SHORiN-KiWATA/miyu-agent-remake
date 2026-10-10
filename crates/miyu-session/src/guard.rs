@@ -10,6 +10,8 @@
 //!
 //! 施工 D-4：工具报「这一次要在沙盒外跑」的（`Tool::outside_sandbox`），完全放开照判的，只读拒绝，工作区问人、不提规则；
 //! 执行器照同一个报不写沙盒的规格。问人时的说明并进工具交的几格（`Tool::asking`），执行类的写明 `sandbox: false`。
+//!
+//! 施工 O-31 前：在场所里做的事（访问类别 `venue`）只看会话在不在场所里（[`Place`]）：在的放行、不问，不在的拒绝。
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -17,7 +19,7 @@ use std::sync::Arc;
 use serde_json::{Value, json};
 
 use miyu_fs::{Boundary, Places, ResolveError, Zone, resolve, resolve_itself};
-use miyu_kernel::event::{Level, Permission};
+use miyu_kernel::event::{Level, Permission, Said};
 use miyu_kernel::id::ModuleId;
 use miyu_kernel::raw::RawJson;
 use miyu_kernel::session::Verdict;
@@ -44,6 +46,27 @@ pub(crate) struct Guard {
     lettering: Arc<Lettering>,
     /// 这台机器上的沙盒能不能用（核心起来时探的）：执行命令照它判。
     sandboxed: bool,
+    /// 会话在不在场所里（施工 O-31 前）：在场所里做的事照它判。
+    place: Place,
+}
+
+/// 会话在哪（施工 O-31 前，`session/guard.md` 第四条）：在场所里做的事（访问类别 `venue`）只在场所会话里放行。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Place {
+    /// 通讯平台的场所会话（场所不是 `local` 的）：放行，不问人，有没有人能确认都一样。
+    Venue,
+    /// 本机的会话（终端、网页）：拒绝，写给她这一句。
+    Local(Worded),
+}
+
+impl Place {
+    /// 本机的会话，拒绝时写给她 `text`（出厂的 `core/permissions/not-in-venue.txt`），说法是 `core/permissions/not-in-venue`。
+    pub(crate) fn local(text: String) -> Place {
+        Place::Local(Worded {
+            text,
+            said: Some(Said::new("core/permissions/not-in-venue")),
+        })
+    }
 }
 
 /// 实际生效的那一级。
@@ -79,13 +102,13 @@ struct Asked {
 
 impl Guard {
     /// 照目录 `catalog` 找工具，数据根是 `data_root`，家目录是 `home`，拒绝时的话照 `lettering`，这台机器上的沙盒能不能用
-    /// 是 `sandboxed`。
+    /// 是 `sandboxed`，会话在 `place`（施工 O-31 前）。
     pub(crate) fn new(
         catalog: Shelf,
         data_root: PathBuf,
         home: Option<PathBuf>,
         lettering: Arc<Lettering>,
-        sandboxed: bool,
+        (sandboxed, place): (bool, Place),
     ) -> Guard {
         let places = Places::here(PathBuf::new(), data_root.clone(), home.as_deref());
         let real_home = home
@@ -99,6 +122,7 @@ impl Guard {
             places,
             lettering,
             sandboxed,
+            place,
         }
     }
 
@@ -119,6 +143,10 @@ impl Guard {
         };
         let level = effective(permission);
         let access = tool.spec().access.clone();
+        // 在场所里做的事不报路径、不在沙盒外跑：只看会话在不在场所里（施工 O-31 前）。
+        if access == Access::Venue {
+            return in_venue(&self.place);
+        }
         // 报要碰的路径、要不要在沙盒外跑都只看参数，用不着她看过的。
         let call = Call {
             args,
@@ -284,6 +312,14 @@ fn untargeted(
         access,
         rule: None,
         detail: Some(detail),
+    }
+}
+
+/// 在场所里做的事（访问类别 `venue`，施工 O-31 前，第四条）：场所会话里放行、不问人；本机的会话拒绝。
+fn in_venue(place: &Place) -> Verdict {
+    match place {
+        Place::Venue => Verdict::Allow,
+        Place::Local(worded) => deny(worded.clone()),
     }
 }
 

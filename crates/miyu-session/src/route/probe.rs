@@ -236,6 +236,7 @@ async fn ask(
         stable: 0,
         continuation: false,
         described: Default::default(),
+        output_cap: None,
     };
     // 占位工具（施工 8-14 补）：试一家时工具面里缺 `shell`、`read` 的照档案补上（Zen 免费档要这两件）。
     super::placeholder::fill(&mut request, placeholders);

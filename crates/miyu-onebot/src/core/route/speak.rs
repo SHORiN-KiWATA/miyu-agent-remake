@@ -98,7 +98,7 @@ impl Route {
         self.say(session, passed, what).await
     }
 
-    /// 私聊会话 `session` 推来的一条事件 `event`：先交给 `quiet` 看这一轮说不说话（施工 O-26）；是她的回话的（「怎么走」第 10
+    /// 私聊会话 `session` 推来的一条事件 `event`：先交给 `quiet` 看这一轮说不说话（施工 O-26），人说的话记下引用（施工 O-31）；是她的回话的（「怎么走」第 10
     /// 条），这一轮不说话了的不发，别的过出站链（两样都是假，这一轮发出去的照桥入队时自己记的 `Spoken`），过了的一段一条入队。
     ///
     /// # Errors
@@ -106,6 +106,13 @@ impl Route {
     /// 同 [`Route::heard`]。
     pub(super) async fn say_privately(&mut self, session: &str, event: &Value) -> Result<(), Gone> {
         let quiet = self.quiet.heard(session, event);
+        if event["kind"] == "message.user" {
+            // 平台工具（一）照它找私聊里叫她做的那条引用的是哪一条（施工 O-31，`acting`）。
+            let quote = event["body"]["venue"]["reply_to"]
+                .as_str()
+                .map(str::to_string);
+            self.quotes.insert(session.to_string(), quote);
+        }
         if event["kind"] != "message.assistant" {
             return Ok(());
         }

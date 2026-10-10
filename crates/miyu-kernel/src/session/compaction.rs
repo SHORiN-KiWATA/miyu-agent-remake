@@ -82,6 +82,7 @@ impl Compacting {
     pub(super) fn started(&self) -> CompactionProgress {
         CompactionProgress {
             seen: self.upto,
+            trigger: self.trigger.clone(),
             written: 0,
             expected: self.expected,
         }
@@ -144,6 +145,7 @@ impl Compacting {
     pub(super) fn take(&mut self, delta: &Delta) -> Option<CompactionProgress> {
         self.written.take(delta).then(|| CompactionProgress {
             seen: self.upto,
+            trigger: self.trigger.clone(),
             written: self.written.chars(),
             expected: self.expected,
         })
@@ -168,16 +170,24 @@ impl Session {
         Some((self.compaction_upto(budget, &price, false)?, used))
     }
 
-    /// 压缩线（`compaction.md` 第二条第 2 条）。策略里没有压缩、没交限额、没有窗口的，没有。
+    /// 压缩线（`compaction.md` 第二条第 2 条，[`super::Compaction::line`]）。策略里没有压缩、没交限额、没有窗口的，没有。
     pub(super) fn line(&self) -> Option<u64> {
-        let compaction = self.policy.compaction.as_ref()?;
         let limits = self.limits.as_ref()?;
-        estimate::line(
-            limits.window,
+        self.policy
+            .compaction
+            .as_ref()?
+            .line(limits.window, limits.max_output)
+    }
+
+    /// 压缩线以上、「窗口减输出预留」以下还能长多少（施工 6-11 补、再补）：到线不停的那一截。没有压缩线的没有。
+    pub(super) fn headroom(&self) -> Option<u64> {
+        let line = self.line()?;
+        let limits = self.limits.as_ref()?;
+        let reserve = estimate::reserve(
             limits.max_output,
-            compaction.reserve_cap,
-            compaction.margin,
-        )
+            self.policy.compaction.as_ref()?.reserve_cap,
+        );
+        Some(limits.window?.saturating_sub(reserve).saturating_sub(line))
     }
 
     /// 估算图片、文件的办法：驱动交了图片算法的照它，别的照策略里的固定数。策略里没有压缩、没交限额的，没有。
@@ -417,6 +427,7 @@ impl Session {
             notes: rebuilt.notes,
             restored: rebuilt.restored,
             refills,
+            prepared,
         });
         let mut events = vec![self.record(at, By::Kernel, cause.clone(), body)];
         self.history.recall(rebuilt.texts);

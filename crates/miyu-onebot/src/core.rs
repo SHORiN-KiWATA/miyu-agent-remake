@@ -12,7 +12,8 @@
 //! 问判官的任务不等这一个用的人：经并着发的调用口（[`Caller`]，施工 O-23 下）调，回应由读的一头照编号分出去。
 //!
 //! 桥也是提供者（施工 O-26，`provider`）：核心发来的请求（`tool.call`）读的一头当场答，不交给这一个用的人。后台页调的方法
-//! （`method.call`，施工 O-28 上，`methods`）也一样。
+//! （`method.call`，施工 O-28 上，`methods`）也一样。撤回、禁言、戳一戳（施工 O-31）照推送交给这一个用的人，答的时候照
+//! [`Core::answerer`] 写回去。
 
 mod caller;
 pub(crate) mod methods;
@@ -35,7 +36,7 @@ pub(crate) use caller::Caller;
 use caller::{Waiting, Writer, write_line};
 use methods::Methods;
 use provider::Heard;
-pub(crate) use provider::provide;
+pub(crate) use provider::{Answerer, provide};
 
 /// 核心关了管道、写不出去：桥照第 11 条好好停下。
 #[derive(Debug)]
@@ -171,6 +172,11 @@ impl Core {
             Some(message) => Some(message),
             None => self.incoming.recv().await,
         }
+    }
+
+    /// 往核心写 `tool.call` 回应的一头（施工 O-31）：平台工具的任务各拿一份。
+    pub(crate) fn answerer(&self) -> Answerer {
+        Answerer::new(&self.writer)
     }
 
     /// 并着发的调用口（施工 O-23 下）：问判官的任务各拿一份，不等这一头手上的事。

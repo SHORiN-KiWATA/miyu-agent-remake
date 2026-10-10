@@ -8,7 +8,7 @@
 //! | 违规词表 | `moderation.txt` | `modules/onebot/moderation.txt`，在的话整份替换出厂的 |
 //! | 判官的说明（施工 O-23 下） | `judge/*.txt` 十三份 | 没有：给模型看的字随包走 |
 //! | 给她看的事实的模板（施工 O-25 下） | `facts/undelivered.txt` | 没有：同上 |
-//! | 桥的工具（施工 O-26） | `tools/*.json` 的说明，`tool-results/` 答的两句 | 没有：同上 |
+//! | 桥的工具（施工 O-26，O-31 加平台工具） | `tools/*.json` 的说明，`tool-results/` 答的话 | 没有：同上 |
 //!
 //! - 出厂的起来时读一次、单独查一次（[`Factory::load`]）：有一条问题就是打包的错，桥起不来；之后放在内存里，跑着不再读
 //!   （「施工时定的」第 52 条）。
@@ -36,8 +36,8 @@ use miyu_store::root::DataRoot;
 
 use crate::{PACKAGE, TARGET};
 use files::Stamp;
-pub(crate) use tools::SKIP_REPLY;
 pub use tools::Tools;
+pub(crate) use tools::{MUTE, POKE, RECALL, SKIP_REPLY};
 
 /// 场所规则的目录：出厂的在资源目录的 `software/onebot/` 里，系统的在数据根的 `system/` 里。
 const VENUES: &str = "venues.d";
@@ -256,6 +256,11 @@ impl Venues {
             stamp,
             loaded,
         }
+    }
+
+    /// 桥的工具（施工 O-31：平台工具的话由跟核心的那一头答）：出厂的，跑着不再读。
+    pub fn tools(&self) -> Arc<Tools> {
+        self.factory.tools()
     }
 
     /// 判官的说明（施工 O-23 下）：出厂的，跑着不再读。

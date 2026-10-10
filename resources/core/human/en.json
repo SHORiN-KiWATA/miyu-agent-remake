@@ -303,6 +303,7 @@
     "tool-results/crashed": "Internal error, may be partly done",
     "permissions/forbidden": "Miyu's own data, off limits",
     "permissions/unresolvable": "can't tell where it points: {reason}",
+    "permissions/not-in-venue": "Only works in a group or private chat",
     "commands/cleared": "Context cleared.",
     "commands/stopped": "All stopped.",
     "commands/workspace": "Workspace switched to {cwd}.",

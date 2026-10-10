@@ -237,6 +237,7 @@ fn compact_rereading(log: &mut Vec<Event>, restored: Vec<RestoredFile>) {
             notes: String::new(),
             restored,
             refills: None,
+            prepared: false,
         }),
     ));
     log.push(event(

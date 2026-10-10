@@ -28,7 +28,7 @@
 |---|---|
 | `Allow` | — |
 | `Deny { module, text, human }` | 哪个模块拒的；写给模型的那一句；给人看的说法，模块没交的是空的 |
-| `Ask { module, access, rule, detail }` | 哪个模块问的；要的是哪一类访问（`read`、`write`、`execute`、`network`、`outbound`，不认识的原样留着）；提的放行规则，没提就没有；给头看的为什么要问。`rule`、`detail` 是 JSON，内核原样记，不看里面 |
+| `Ask { module, access, rule, detail }` | 哪个模块问的；要的是哪一类访问（`read`、`write`、`execute`、`network`、`outbound`、`venue`，不认识的原样留着；`venue` 权限策略从不问人）；提的放行规则，没提就没有；给头看的为什么要问。`rule`、`detail` 是 JSON，内核原样记，不看里面 |
 
 **回答**（`Command::Answer { call_id, answer }`，`session.answer`）：
 

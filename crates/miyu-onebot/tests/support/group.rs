@@ -15,7 +15,7 @@ use miyu_store::log::read_events;
 use miyu_store::root::DataRoot;
 
 #[allow(unused_imports, reason = "几个测试程序各用其中一部分")]
-pub use super::answering::{Answering, FIRST_SENT, Member};
+pub use super::answering::{Answering, FIRST_SENT, Member, Rank, UNRECALLABLE, unrecallable};
 use super::ports::on_free_port;
 use super::spawning::{bridge_up, cli, ports_config_with, text};
 use super::{BOT, Home, NapCat, TIME, admin_napcat};
@@ -30,7 +30,19 @@ pub fn group_frame(
     user: i64,
     message_id: i64,
     message: Value,
+    names: (&str, &str),
+) -> Value {
+    group_frame_as(group, user, message_id, message, names, "member")
+}
+
+/// 同 [`group_frame`]，发的人在群里的身份 `sender.role` 是 `role`（`owner`、`admin`、`member`，施工 O-31）。
+pub fn group_frame_as(
+    group: i64,
+    user: i64,
+    message_id: i64,
+    message: Value,
     (card, nickname): (&str, &str),
+    role: &str,
 ) -> Value {
     json!({
         "time": TIME,
@@ -44,7 +56,7 @@ pub fn group_frame(
         "message": message,
         "raw_message": "",
         "font": 14,
-        "sender": {"user_id": user, "nickname": nickname, "card": card, "role": "member"},
+        "sender": {"user_id": user, "nickname": nickname, "card": card, "role": role},
     })
 }
 
@@ -93,6 +105,11 @@ pub fn group_ban(group: i64, user: i64, sub_type: &str, duration: Option<i64>) -
     frame
 }
 
+/// 引用平台编号是 `id` 的那一条（施工 O-31）。
+pub fn quote(id: i64) -> Value {
+    json!({"type": "reply", "data": {"id": id.to_string()}})
+}
+
 /// 一段文字。
 pub fn plain(text: &str) -> Value {
     json!({"type": "text", "data": {"text": text}})
@@ -123,6 +140,20 @@ pub async fn started_by(
 ) -> (Home, Answering, u16) {
     up(models, ("", &Value::Null), (rules, ""), "", |napcat| {
         napcat.answering(members)
+    })
+    .await
+}
+
+/// 同 [`started_by`]，系统配置的 `[onebot]` 多写 `onebot`（白名单成员这类），假 NapCat 问群成员时照 `ranks` 回身份（施工
+/// O-31，[`NapCat::ranked`]）。
+pub async fn started_ranked(
+    models: Arc<dyn Models>,
+    rules: &str,
+    onebot: &str,
+    (members, ranks): (&[Member], &[Rank]),
+) -> (Home, Answering, u16) {
+    up(models, ("", &Value::Null), (rules, ""), onebot, |napcat| {
+        napcat.ranked(members, ranks)
     })
     .await
 }

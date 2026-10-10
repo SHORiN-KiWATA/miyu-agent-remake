@@ -21,13 +21,13 @@ async fn a_compaction_writes_one_line_of_numbers() {
     // 测的是到线当场压的那一行：关掉提前压（施工 6-11 补起开着的会接着说，压缩挪到下一步）。
     let mut home = Home::new();
     home.configs = support::routing::configs("[compaction]\nprepare = false\n", &[]);
-    // 窗口 33100，压缩线 100：剧本报 110，第二轮一开头就压（`tests/limits.rs`）。
+    // 窗口 21157，压缩线 100（减掉预留 20000、窗口的 5% 1057）：剧本报 110，第二轮一开头就压（`tests/limits.rs`）。
     let script = Script::new([
         Play::Says("你好。"),
         Play::Says("<summary>用户打了招呼。</summary>"),
         Play::Says("好的。"),
     ])
-    .window(33_100);
+    .window(21_157);
     let handle = home.create(&script).await;
     let mut pushes = watch(&handle).await;
     ask(&handle, "cmd-1", say("hi")).await.expect("会话在跑");

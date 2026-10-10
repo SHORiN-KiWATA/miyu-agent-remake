@@ -301,6 +301,7 @@ impl Watch {
             self.check(action);
         }
         self.reread_unfollowed();
+        self.prepare_announced();
         self.interrupting = None;
         // 取回原文：执行器做完才收收件箱，马上交回（施工 6-9）。
         if let Some(recalled) = self.recall_answer() {
@@ -336,11 +337,8 @@ impl Watch {
                 turn,
                 model,
                 present,
-            } => {
-                self.start_hooks(turn);
-                self.hooks_present(&present);
-                self.hooks_model(model.as_deref());
-            }
+                said,
+            } => self.turn_start_hooks(turn, &present, said.as_deref(), model.as_deref()),
             Action::CallModel { seen, request, .. } => self.called(seen, &request),
             Action::Aside {
                 purpose: crate::event::Purpose::Compaction,

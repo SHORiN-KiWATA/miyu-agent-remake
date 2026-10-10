@@ -82,7 +82,7 @@
 | 格 | 类型 | JSON 里 |
 |---|---|---|
 | `at` | 时刻 | 必有 |
-| `kind` | `model.delta`、`tool.progress`、`status`、`compaction.progress`、`compaction.done`、`model.changed`、`todos.changed` 七种之一 | 必有 |
+| `kind` | `model.delta`、`tool.progress`、`status`、`compaction.progress`、`compaction.started`、`compaction.done`、`model.changed`、`todos.changed` 八种之一 | 必有 |
 | `turn` | 回合编号 | 没有就不写 |
 | `by` | 「谁」 | 必有 |
 | `cause` | 命令编号 | 没有就不写 |
@@ -96,7 +96,8 @@
 | `model.delta` | 模型输出的一段增量：`seen` 这次请求看到了第几条为止，和这次响应最后写成的回复的 `seen` 一样；`index` 第几块，从 0 数起；再加下面五种写法之一 | 模型 |
 | `tool.progress` | 工具执行中的一段输出：`call_id` 哪一次调用，`text` 一段输出。结果以 `tool.result` 为准，这些只给人看着它在跑 | 那次调用 |
 | `status` | 出了错，等着重试：`seen` 哪一次请求；`retry` 里 `attempt` 这是第几次重试（从 1 数起）、`limit` 一共最多几次（现在是 5，`kernel/session.md`）、`wait_ms` 等多久（毫秒）、`class` 出错的分类、`message` 出错的原话、`status` 出错的 HTTP 状态码（照那一次的 `model.called` 带过来，没有的不写；施工 3-5 三补）、`failover` 换了端点当场再来（是 `true` 才写，施工 8-9） | 内核 |
-| `compaction.progress` | 摘要写到哪了（施工 6-2 上）：`seen` 哪一次摘要请求（它替代到的那一条）、`written` 到这时收到的正文字数（草稿加摘要，照 Unicode 字符数）、`expected` 估计要写多少字（压缩前的用量，夹在 20000 到 80000 之间） | 内核 |
+| `compaction.progress` | 摘要写到哪了（施工 6-2 上）：`seen` 哪一次摘要请求（它替代到的那一条）、`trigger` 哪一种压缩（`auto`、`manual`、`overflow`，和压好了写的 `context.compacted` 一样，施工 6-11 再补）、`written` 到这时收到的正文字数（草稿加摘要，照 Unicode 字符数）、`expected` 估计要写多少字（压缩前的用量，夹在 20000 到 80000 之间） | 内核 |
+| `compaction.started` | 在后台提前压的那一次摘要请求发出去了（施工 6-11 再补，`compaction.md` 第十五条第 1 条）：`seen` 它的 N（换上时 `compaction.done` 的 `seen` 也是它）、`prepared` 现在总是 `true`。当场压的不推它 | 内核（`turn`、`cause` 照这时的回合） |
 | `compaction.done` | 压好了（施工 6-3 下）：`seen` 哪一次摘要请求；`trigger` 哪一种压缩，`auto`、`manual`，和那一条 `context.compacted` 一样（施工 6-8：运行日志照它写）；`before` 压之前的用量（自动的是过了线的那一次主请求算出的，手动的是那一轮开头落了盘时照有效历史组装一次算的）、`after` 压完的用量（照这时的有效历史组装一次算的），都是估算，和压缩线同一个算法；`usage` 摘要请求的用量、`duration_ms` 它的用时，照它的 `model.called`，没有就不写；`prepared` 换上的是提前压好的那一份（施工 6-11 上，`compaction.md` 第十五条：前面没推过进度，用量、用时是提前那一次的），当场压的不写 | 内核 |
 | `model.changed` | 会话接下来请求的模型、限额变了（施工 8-9，`models.md`「瞬时事件」）：`ref` 会话的引用；`endpoint`、`model` 接下来发给谁；`effort` 接下来那个模型真用的思考强度 `{"level", "from"}`（施工 8-18，`from` 是配置的哪一层，`system` 或 `personal`，8-18（补）起；轮换的池、什么都不带的没有）；`limits` 和 `subscribe` 回应里的一样（`window`、`compaction_line`，没有的不写）；`why` 为什么：`turn` 回合开始时重新解析，头看得到的变了（施工 8-10）；`failover` 出错换到了池里别的模型，成了才推（施工 8-9）。没有的格不写 | 内核（会话 actor 造，`turn`、`cause` 照内核这时的回合） |
 | `todos.changed` | 当前的待办变了（施工 D-3，`kernel/session.md`「待办」）：`todos` 现在的整份，照 `todo.written` 的写法，清空了、写过的都撤掉了的是空列表。因为全部做完而清空的多一格 `done`（做完的那一份，施工 D-3 补，`kernel/session.md`「待办」第 3 条）。写了、撤销、恢复都推；和上次告诉头的一样的不推。头照它换掉手里的那份 | 内核（`turn` 照这时的回合，没有 `cause`） |
@@ -140,7 +141,7 @@
 15. `model.delta`：驱动交来的增量，照收到的先后一段推一条。私有数据不推；对不上的（累积器不收的）不推，这次请求按出错算（`kernel/session.md`）。`index` 是驱动给的块编号，`seen` 是这次请求的。
 16. `tool.progress` 只推在跑的调用的；不是这一步在跑的，不推（`kernel/session.md`）。
 17. `status` 在一次请求出了可以重试的错、要等一会儿再试时推一条（`kernel/session.md`）。
-18. `compaction.progress` 在摘要请求报发出去时先推一条 `written` 是 0 的（施工 6-3 下：头一收到就能印「正在压缩」），之后正文块每来一段推一条；摘要请求不推 `model.delta`（`compaction.md` 第三条第 8 条）。
+18. `compaction.progress` 在摘要请求报发出去时先推一条 `written` 是 0 的（施工 6-3 下：头一收到就能印「正在压缩」），之后正文块每来一段推一条；摘要请求不推 `model.delta`（`compaction.md` 第三条第 8 条）。后台提前压的那一次不推进度，交出去的同一批推一条 `compaction.started`；改走隔离式再发的、压失败的、作废的不另推（施工 6-11 再补）。
 19. `compaction.done` 在取到摘要、写下 `context.compacted` 的同时推一条；压缩中途被打断、出错的不推（`compaction.md` 第三条第 11 条）。
 20. `model.changed` 由会话 actor 推（`session/actor.md` 第 7 条第 8 款）：请求说完了，端口的限额里的模型变了（不是 `none`）才推，排在那一次说完了之前，`why` 是 `failover`；只换 key 的、轮换的池不推（施工 8-9）。回合开始重新解析完，头看得到的几格（引用、接下来发给谁、窗口、压缩线）变了推一条，`why` 是 `turn`，排在挂接点跑完了之前（施工 8-10）。
 
@@ -149,7 +150,7 @@
 一条事件的样子，就是日志里的那一行。样本：
 
 - `docs/designs/samples/events/<种类>.jsonl`：内核认识的每一种一份，文件名是种类名加 `.jsonl`。内容就是日志里的那几行，这一种在样本会话里出现几次就写几行，以一个换行结尾，没有空行。几份样本讲的是同一个会话：序号不重复，时刻跟着序号不往回走。只有一条例外：带 `parent` 的那一条 `session.created` 是它派的子代理的会话日志里的第 1 条（施工 7-1），把样本当一个会话用的测试都跳过它。样本会话在 126、134 号订了两个别的会话的「空了告诉我」（`tool.result` 的效果 `peer.watch`），130 号等到了第一个空下来，138 号第二个 12 小时没等到、作废（施工 C-1；排在回顾的 121、122 号后面）；给她看的那两句、给人看的说法照 `cross-session.md`「样子」写（施工 C-6 定了）。145 号是 143 号那一轮里替她看的一张截图的转述（`image.described`，施工 8-17）：那时会话退回的 `deepseek/deepseek-v4` 在这里当作看不了图，`models.vision` 是 `bigmodel/glm-5.3-flash`。46 号 `model.called` 带着金额（`cost`，施工 8-15）：目录的价格、倍率 1；别的几条照以前的日志没有这一格。
-- `docs/designs/samples/transient/model.delta.jsonl`、`tool.progress.jsonl`、`status.jsonl`、`compaction.progress.jsonl`、`compaction.done.jsonl`、`model.changed.jsonl`：样本会话里 44 号请求的回复一段段推给头的样子、那次 `read` 执行中的一段输出、44 号请求出了限速的错等 1 秒再试（第二条是 117 号请求的限速，带着 429，和 118 号 `model.called` 对得上；44 号那一条写在施工 3-5 下，还没有 `status` 那一格）、54 号压缩写摘要时的两段进度、一次压好了（81 万压到 3 万）；`compaction.done.jsonl` 第二条是另一个会话到线时换上了提前压好的那一份（带 `prepared`，施工 6-11 上）。`status.jsonl` 第三条、`model.changed.jsonl` 第一条（施工 8-9）不是样本会话里的：另一个会话里池 `@duo` 的一个成员限速，换到下一个当场再来，换过去成了以后推的那一条。`model.changed.jsonl` 第二条是样本会话 143 号回合开始时池 `free` 没了、退回 `models.chat` 推的（`why` 是 `turn`，施工 8-10），和 144 号 `session.policy_changed` 对得上；它的 `effort` 是 `deepseek/deepseek-v4` 配置的默认思考强度 `high`，`from` 是 `system`（施工 8-18；8-18（补）起不再是会话记的一格）。瞬时事件内核不读，测试在代码里照着造，写出去和样本一字不差。
+- `docs/designs/samples/transient/model.delta.jsonl`、`tool.progress.jsonl`、`status.jsonl`、`compaction.progress.jsonl`、`compaction.done.jsonl`、`model.changed.jsonl`：样本会话里 44 号请求的回复一段段推给头的样子、那次 `read` 执行中的一段输出、44 号请求出了限速的错等 1 秒再试（第二条是 117 号请求的限速，带着 429，和 118 号 `model.called` 对得上；44 号那一条写在施工 3-5 下，还没有 `status` 那一格）、54 号压缩写摘要时的两段进度、一次压好了（81 万压到 3 万）；`compaction.done.jsonl` 第二条是另一个会话到线时换上了提前压好的那一份（带 `prepared`，施工 6-11 上），`compaction.started.jsonl` 是同一个会话起压那一刻推的（施工 6-11 再补）。`status.jsonl` 第三条、`model.changed.jsonl` 第一条（施工 8-9）不是样本会话里的：另一个会话里池 `@duo` 的一个成员限速，换到下一个当场再来，换过去成了以后推的那一条。`model.changed.jsonl` 第二条是样本会话 143 号回合开始时池 `free` 没了、退回 `models.chat` 推的（`why` 是 `turn`，施工 8-10），和 144 号 `session.policy_changed` 对得上；它的 `effort` 是 `deepseek/deepseek-v4` 配置的默认思考强度 `high`，`from` 是 `system`（施工 8-18；8-18（补）起不再是会话记的一格）。瞬时事件内核不读，测试在代码里照着造，写出去和样本一字不差。
 
 ### 出错
 

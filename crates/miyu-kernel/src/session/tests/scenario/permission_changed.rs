@@ -167,6 +167,8 @@ fn after_a_compaction_the_level_is_told_plainly() {
         policy.compaction = Some(Compaction {
             reserve_cap: 10,
             margin: 10,
+            line_percent: 100,
+            margin_percent: 100,
             tail: 0,
             lead: 0,
             price: crate::estimate::Flat {

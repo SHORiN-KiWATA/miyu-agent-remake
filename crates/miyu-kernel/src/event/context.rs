@@ -51,6 +51,10 @@ pub struct ContextCompacted {
     /// 前一个检查点时照它原样用，以后改了几个回合算快，旧检查点照旧。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refills: Option<u32>,
+    /// 换上的是提前在后台压好的那一份（施工 6-11 三补，`compaction.md` 第十五条第 3 条）：头照它不画压缩的结果，翻页也认得出。
+    /// 当场压的、以前的日志里没有的是假，不写这一格。
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub prepared: bool,
 }
 
 /// `context.compaction_paused`：暂停了自动压缩（`compaction.md` 第十条，施工 6-6 上）。不进上下文；有效历史里、最近

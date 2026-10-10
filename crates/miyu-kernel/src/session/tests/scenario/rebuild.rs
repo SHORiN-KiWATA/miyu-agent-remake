@@ -25,6 +25,8 @@ fn rebuilding_with(tail: u64, total: u64, todos: bool) -> Stage {
         policy.compaction = Some(Compaction {
             reserve_cap: 10,
             margin: 10,
+            line_percent: 100,
+            margin_percent: 100,
             tail,
             lead: 0,
             price: crate::estimate::Flat {

@@ -23,6 +23,10 @@ use crate::origin::By;
 use crate::request::Request;
 use crate::time::Timestamp;
 
+/// 发一次主请求至少给回答留多少 token（施工 6-11 三补，2026-10-10 终端界面的会话转来项目主人的意思：还有空间就不停）：和输出
+/// 预留取小的。工具调用那几步的回答通常几百 token，整份输出预留（至多 20000）让停下等的点提前了一大截。
+const LEAST_OUTPUT: u64 = 4096;
+
 /// 发主请求之前，熔断这边的结论（[`Session::before_asking`]）。
 pub(super) enum Before {
     /// 照发。
@@ -153,33 +157,45 @@ impl Session {
         self.policy.compaction.as_ref()?.pause
     }
 
-    /// 这份请求明知放不下：用量加输出预留超过窗口。没交限额、没有窗口的，不知道，照发。
-    /// 这一次请求放得下：用量加上输出预留不超过窗口（施工 6-11 补：到线不停，放得下就照发）。算不了的当放不下。
-    pub(super) fn fits(&self, request: &Request) -> bool {
-        let fits = || {
-            let compaction = self.policy.compaction.as_ref()?;
-            let limits = self.limits.as_ref()?;
-            let window = limits.window?;
-            let reserve = estimate::reserve(limits.max_output, compaction.reserve_cap);
-            let used = self.used_in(&self.history, request)?;
-            Some(used.saturating_add(reserve) <= window)
-        };
-        fits().unwrap_or(false)
-    }
-
-    fn cannot_fit(&self, request: &Request) -> Option<CallError> {
+    /// 这份请求的用量、窗口，和至少要给回答留的（输出预留和 [`LEAST_OUTPUT`] 取小的，施工 6-11 三补）。策略里没有压缩、
+    /// 没交限额、没有窗口的，没有。
+    fn measure(&self, request: &Request) -> Option<(u64, u64, u64)> {
         let compaction = self.policy.compaction.as_ref()?;
         let limits = self.limits.as_ref()?;
         let window = limits.window?;
         let reserve = estimate::reserve(limits.max_output, compaction.reserve_cap);
         let used = self.used_in(&self.history, request)?;
-        (used.saturating_add(reserve) > window).then(|| CallError {
+        Some((used, window, reserve.min(LEAST_OUTPUT)))
+    }
+
+    /// 这一次请求放得下：用量加上回答的下限不超过窗口（施工 6-11 补：到线不停，放得下就照发；三补：下限是输出预留和
+    /// [`LEAST_OUTPUT`] 取小的，真满了才停）。算不了的当放不下。
+    pub(super) fn fits(&self, request: &Request) -> bool {
+        self.measure(request)
+            .is_some_and(|(used, window, least)| used.saturating_add(least) <= window)
+    }
+
+    /// 这份请求明知放不下：用量加回答的下限超过窗口。没交限额、没有窗口的，不知道，照发。
+    fn cannot_fit(&self, request: &Request) -> Option<CallError> {
+        let (used, window, least) = self.measure(request)?;
+        (used.saturating_add(least) > window).then(|| CallError {
             class: ErrorClass::CompactionPaused,
             message: format!(
-                "the request would not fit: {used} tokens used + {reserve} reserved for output > window {window}"
+                "the request would not fit: {used} tokens used + {least} reserved for output > window {window}"
             ),
             status: None,
         })
+    }
+
+    /// 这一次回答至多多少（施工 6-11 三补，[`Request::output_cap`]）：用量加输出预留超过窗口的，是窗口减用量；放得下整份输出
+    /// 预留的、算不了的没有，照模型的。
+    pub(super) fn output_cap(&self, request: &Request) -> Option<u64> {
+        let compaction = self.policy.compaction.as_ref()?;
+        let limits = self.limits.as_ref()?;
+        let window = limits.window?;
+        let reserve = estimate::reserve(limits.max_output, compaction.reserve_cap);
+        let used = self.used_in(&self.history, request)?;
+        (used.saturating_add(reserve) > window).then(|| window.saturating_sub(used))
     }
 
     /// 这一次压缩是不是压完很快又到线（第十条第 5 条）：上一个检查点所在的那一轮算第 1 个回合，这一轮在策略的

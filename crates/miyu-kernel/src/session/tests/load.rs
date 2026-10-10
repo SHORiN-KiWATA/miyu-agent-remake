@@ -308,6 +308,7 @@ fn a_checkpoint_with_reread_files_recalls_them_first() {
                 tokens: 4,
             }],
             refills: None,
+            prepared: false,
         }),
     });
     let (_, actions) = load(logged.log);

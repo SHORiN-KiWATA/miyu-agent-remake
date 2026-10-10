@@ -8,7 +8,8 @@
 //!   （施工 3-5 三补）；另一个会话里池的一个成员限速、换到下一个当场再来的状态（带 `failover`），和换过去成了以后推的
 //!   `model.changed`（施工 8-9）；人换了模型、下一轮开始时池没了退回默认，推的 `model.changed`（`why` 是 `turn`，施工 8-10）；
 //! - 54 号压缩写摘要时的两段进度（`compaction.progress`，施工 6-2 上），和压好了的那一条（`compaction.done`，
-//!   施工 6-3 下）；另一个会话到线时换上了提前压好的那一份（带 `prepared`，施工 6-11 上）；
+//!   施工 6-3 下）；另一个会话过了起压线、在后台提前压的那一次发出去了（`compaction.started`，施工 6-11 再补），到线时
+//!   换上了它（带 `prepared`，施工 6-11 上）；
 //! - 65 号回合里换上了一份待办以后推的 `todos.changed`（施工 D-3）。
 //!
 //! 瞬时事件内核只推不读，所以样本在代码里照着造，不从文件读回来。
@@ -18,9 +19,9 @@ use std::path::PathBuf;
 
 use miyu_kernel::accumulate::{Accumulator, Delta, Kind};
 use miyu_kernel::event::{
-    Body, ChangeWhy, CompactTrigger, CompactionDone, CompactionProgress, EffortInUse, EffortSource,
-    ErrorClass, Event, ModelChanged, ModelDelta, Piece, Retry, Status, Todo, TodoStatus,
-    TodosChanged, ToolProgress, Transient, TransientBody, Usage,
+    Body, ChangeWhy, CompactTrigger, CompactionDone, CompactionProgress, CompactionStarted,
+    EffortInUse, EffortSource, ErrorClass, Event, ModelChanged, ModelDelta, Piece, Retry, Status,
+    Todo, TodoStatus, TodosChanged, ToolProgress, Transient, TransientBody, Usage,
 };
 use miyu_kernel::id::{CallId, CommandId, ModelName, ProviderId, Seq, TurnId};
 use miyu_kernel::origin::{By, Model, Tool};
@@ -231,7 +232,7 @@ fn the_model_changed_sample_is_written_exactly() {
             }),
             limits: ContextLimits {
                 window: Some(1_000_000),
-                compaction_line: Some(967_000),
+                compaction_line: Some(850_000),
             },
             why: ChangeWhy::Turn,
         })),
@@ -248,7 +249,7 @@ fn the_model_changed_sample_is_written_exactly() {
             effort: None,
             limits: ContextLimits {
                 window: Some(200_000),
-                compaction_line: Some(167_000),
+                compaction_line: Some(170_000),
             },
             why: ChangeWhy::Failover,
         })),
@@ -269,6 +270,7 @@ fn the_compaction_progress_sample_is_written_exactly() {
             cause: Some(CommandId::parse("cmd-b5e2").expect("命令编号合写法")),
             body: TransientBody::CompactionProgress(CompactionProgress {
                 seen: Seq::new(53).expect("53 是合法的序号"),
+                trigger: CompactTrigger::Auto,
                 written,
                 expected: 20000,
             }),
@@ -281,6 +283,24 @@ fn the_compaction_progress_sample_is_written_exactly() {
             progress("2026-09-25T07:29:58.400Z", 412),
             progress("2026-09-25T07:29:59.100Z", 957),
         ]
+    );
+}
+
+#[test]
+fn the_compaction_started_sample_is_written_exactly() {
+    let started = Transient {
+        at: Timestamp::parse("2026-10-08T03:12:21.500Z").expect("样本的时刻合写法"),
+        turn: Some(TurnId::new(Seq::new(84).expect("84 是合法的序号"))),
+        by: By::Kernel,
+        cause: Some(CommandId::parse("cmd-c7a1").expect("命令编号合写法")),
+        body: TransientBody::CompactionStarted(CompactionStarted {
+            seen: Seq::new(88).expect("88 是合法的序号"),
+            prepared: true,
+        }),
+    };
+    assert_eq!(
+        lines("transient/compaction.started.jsonl"),
+        [started.to_line()]
     );
 }
 

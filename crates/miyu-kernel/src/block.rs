@@ -26,6 +26,20 @@ pub enum Block {
     Unknown(RawJson),
 }
 
+/// 一串块里的字（施工 R-8 从回合索引挪进内核，两处共用）：字块照先后用换行连起来，去掉前后空白；图片、文件、思考、工具
+/// 调用不要。一个字块都没有的是空的。
+#[must_use]
+pub fn words(blocks: &[Block]) -> String {
+    let texts: Vec<&str> = blocks
+        .iter()
+        .filter_map(|block| match block {
+            Block::Text(text) => Some(text.text.as_str()),
+            _ => None,
+        })
+        .collect();
+    texts.join("\n").trim().to_string()
+}
+
 /// 文本。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Text {

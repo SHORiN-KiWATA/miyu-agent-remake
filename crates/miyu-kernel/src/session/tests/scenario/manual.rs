@@ -23,6 +23,8 @@ fn manual(pause: Option<Pause>) -> Stage {
         policy.compaction = Some(Compaction {
             reserve_cap: 10,
             margin: 10,
+            line_percent: 100,
+            margin_percent: 100,
             tail: 0,
             lead: 0,
             price: crate::estimate::Flat {
@@ -140,6 +142,20 @@ fn asked_to_compact_she_does_it_in_a_turn_of_its_own() {
     assert_eq!(done.0, Some(TurnId::new(seq(9))));
     assert_eq!(done.1.seen, seq(8));
     assert_eq!(done.1.trigger, CompactTrigger::Manual);
+    // 进度也带着（施工 6-11 再补）：头照它画进度条。
+    let triggers: Vec<_> = stage
+        .transients()
+        .iter()
+        .filter_map(|transient| match &transient.body {
+            TransientBody::CompactionProgress(progress) => Some(progress.trigger.clone()),
+            _ => None,
+        })
+        .collect();
+    assert!(!triggers.is_empty());
+    assert!(
+        triggers.iter().all(|t| *t == CompactTrigger::Manual),
+        "{triggers:?}"
+    );
     // 下一轮开头照常比着注入事实：检查点后面还没有。
     stage.model([Line::says("嗯。")]);
     stage.say("again");

@@ -1,7 +1,7 @@
 //! 桥当提供者（施工 O-26，`onebot.md` 第一条「提供者和不说话」第 1、2 条）：进程里的桥经内存里的管道连核心（本机套接字上的
 //! 核心不认提供者，`provide` 回 `not_a_provider`，桥照样收发）。桥连上核心头一个发 `provide`；测试照核心反向调用的样子推请求：
-//! `tool.call` 照工具答（`skip_reply` 答出厂的那一句，不认识的回 `error: true`），别的方法回「没有这个方法」，`tool.cancel`
-//! 不回。说明、答的两句是出厂数据：写坏了、要了别的字段、不在的桥起不来。
+//! `tool.call` 照工具答（`skip_reply` 答出厂的那一句，不认识的回 `error: true`，平台工具在不认识的会话里答 `unreachable`），别的
+//! 方法回「没有这个方法」，`tool.cancel` 不回。说明、答的话是出厂数据：写坏了、要了别的字段、不在的桥起不来。
 
 use std::time::Duration;
 
@@ -73,7 +73,7 @@ async fn the_bridge_provides_first_and_answers_the_cores_requests() {
         "params": {"session": "0190f3a1-0000-7000-8000-000000000001", "call_id": "c0"},
     }));
     relay.request(tool_call("core-1", "skip_reply"));
-    relay.request(tool_call("core-2", "recall"));
+    relay.request(tool_call("core-2", "kick"));
     relay.request(json!({"jsonrpc": "2.0", "id": "core-3", "method": "tool.peek", "params": {}}));
     assert_eq!(
         answer(&relay, "core-1").await,
@@ -82,7 +82,7 @@ async fn the_bridge_provides_first_and_answers_the_cores_requests() {
             "error": false,
         }})
     );
-    let unknown = shipped("tool-results/unknown.txt").replace("{name}", "recall");
+    let unknown = shipped("tool-results/unknown.txt").replace("{name}", "kick");
     assert_eq!(
         answer(&relay, "core-2").await,
         json!({"jsonrpc": "2.0", "id": "core-2", "result": {
@@ -96,11 +96,20 @@ async fn the_bridge_provides_first_and_answers_the_cores_requests() {
         refused["error"]["data"]["reason"], "unknown_method",
         "{refused}"
     );
+    // 平台工具（施工 O-31）交给跟核心的那一头答：桥不认识这个会话，答够不着 QQ。
+    relay.request(tool_call("core-4", "recall"));
+    assert_eq!(
+        answer(&relay, "core-4").await,
+        json!({"jsonrpc": "2.0", "id": "core-4", "result": {
+            "blocks": [{"type": "text", "text": shipped("tool-results/unreachable.txt")}],
+            "error": true,
+        }})
+    );
     // `tool.cancel` 不回；桥照样收发。
     let mut napcat = admin_napcat(bridge.port).await;
     napcat.admin_says(1, "在吗").await;
     assert_eq!(napcat.reply().await, "在。", "provide 被拒了，话照说");
-    assert_eq!(relay.answers().len(), 3, "{:?}", relay.answers());
+    assert_eq!(relay.answers().len(), 4, "{:?}", relay.answers());
     bridge.stop().await.expect("停得下");
 }
 
@@ -117,6 +126,14 @@ fn the_shipped_tools_are_read_and_broken_ones_stop_the_bridge() {
         ),
         ("tool-results/skipped.txt", "Skipped {name}.\n", "name"),
         ("tool-results/unknown.txt", "No tool {tool}.\n", "tool"),
+        // 施工 O-31：平台工具（一）的说明和答的话同样是出厂数据。
+        ("tools/mute.json", "{\"parameters\": {}}", "description"),
+        (
+            "tool-results/muted.txt",
+            "Muted {who} for {seconds}.\n",
+            "seconds",
+        ),
+        ("tool-results/failed.txt", "Failed {why}.\n", "why"),
     ] {
         let path = software.join(file);
         let kept = std::fs::read_to_string(&path).expect("读得出");

@@ -6,7 +6,7 @@
 mod stage;
 mod words;
 
-pub use stage::{stage, summarizes};
+pub use stage::{policy, policy_stage, stage, summarizes};
 pub use words::texts;
 
 use std::sync::Arc;
@@ -103,7 +103,6 @@ pub fn same(stage: &Stage) -> Vec<Entry> {
                 if let Body::Notice(Notice::Compaction(c)) = &mut e.body {
                     c.before = None;
                     c.after = None;
-                    c.prepared = false;
                 }
                 e
             })

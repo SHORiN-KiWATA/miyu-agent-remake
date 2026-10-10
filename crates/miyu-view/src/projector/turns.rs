@@ -2,7 +2,7 @@
 //! 结束时没结果的步记成打断了，写收尾那一条（手动压缩、清空那一轮不写）；每次主请求的用量加到这一轮上。
 
 use miyu_kernel::event::{
-    EndReason, Event, ModelCalled, TurnEnded, TurnJoined, TurnStarted, Usage,
+    EndReason, Event, ModelCalled, Purpose, TurnEnded, TurnJoined, TurnStarted, Usage,
 };
 use miyu_kernel::id::TurnId;
 
@@ -117,6 +117,11 @@ impl Projector {
     /// 一次模型请求记下了。辅助请求（回顾、起标题）不算；摘要请求记在压缩那一条上。
     pub(super) fn called(&mut self, event: &Event, called: &ModelCalled) {
         if called.purpose.is_some() {
+            // 后台提前压的那一次（施工 6-11 三补）：用量、用时记下，换上时接在压缩那一条上。
+            if called.purpose == Some(Purpose::Compaction) {
+                self.prepared
+                    .insert(called.seen, (called.usage, called.duration_ms));
+            }
             return;
         }
         if called.compaction.is_some() {

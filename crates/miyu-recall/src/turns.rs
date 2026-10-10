@@ -12,10 +12,9 @@ mod tests;
 
 use std::collections::BTreeMap;
 
-use miyu_kernel::block::Block;
+use miyu_kernel::block::words;
 use miyu_kernel::event::{Body, Event};
 use miyu_kernel::id::{Seq, SessionId, TurnId};
-use miyu_kernel::origin::By;
 use miyu_kernel::time::Timestamp;
 
 /// 回合索引里的一条。
@@ -85,7 +84,7 @@ impl TurnFeed {
     /// 看一条事件，交回要对回合库做的（照先后）。
     pub fn see(&mut self, event: &Event) -> Vec<Change> {
         match &event.body {
-            Body::MessageUser(message) if is_person(&event.by) => {
+            Body::MessageUser(message) if event.by.is_person() => {
                 self.said.insert(event.seq, words(&message.blocks));
                 Vec::new()
             }
@@ -185,21 +184,4 @@ pub fn replay(events: &[Event]) -> Vec<TurnItem> {
 /// 照它拿掉。
 pub fn key(session: &SessionId, turn: TurnId) -> String {
     format!("{session}/{}", turn.started().get())
-}
-
-/// 人：有账号的人、通讯平台上的人。
-fn is_person(by: &By) -> bool {
-    matches!(by, By::Person(_) | By::External(_))
-}
-
-/// 一串内容块里的字：字块照先后用换行连起来，去掉前后空白；图片、文件、思考、工具调用不要。
-fn words(blocks: &[Block]) -> String {
-    let texts: Vec<&str> = blocks
-        .iter()
-        .filter_map(|block| match block {
-            Block::Text(text) => Some(text.text.as_str()),
-            _ => None,
-        })
-        .collect();
-    texts.join("\n").trim().to_string()
 }

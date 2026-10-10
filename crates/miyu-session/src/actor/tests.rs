@@ -140,7 +140,7 @@ async fn a_write_that_fails_stops_the_session() {
         std::path::PathBuf::new(),
         None,
         Arc::clone(&lettering),
-        false,
+        (false, crate::guard::Place::Venue),
     );
     let mut actor = Actor::new(
         session,

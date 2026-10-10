@@ -27,6 +27,7 @@ impl Assembler for Nothing {
             stable: 0,
             continuation: false,
             described: Default::default(),
+            output_cap: None,
         }
     }
 

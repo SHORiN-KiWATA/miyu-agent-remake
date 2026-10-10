@@ -303,6 +303,7 @@
     "tool-results/crashed": "内部エラー。一部実行された可能性があります",
     "permissions/forbidden": "Miyu 自身のデータなので、誰も触れられません",
     "permissions/unresolvable": "どこを指しているか判断できません：{reason}",
+    "permissions/not-in-venue": "グループやプライベートチャットでのみ使えます",
     "commands/cleared": "コンテキストを消去しました。",
     "commands/stopped": "すべて停止しました。",
     "commands/workspace": "ワークスペースを {cwd} に切り替えました。",
