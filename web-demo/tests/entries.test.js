@@ -97,6 +97,8 @@ test('旁白：压缩、清空、后台任务、换了模型、工作区、别�
     { id: 'e28', kind: 'notice', what: 'reverted', turns: [3], said: '你好', at: AT },
     { id: 'e29', kind: 'notice', what: 'recap', text: '做了这些', covers: 3, at: AT },
   ];
+  const prepared = { id: 'c30', kind: 'notice', what: 'compaction', trigger: 'auto', state: 'done', prepared: true, before: 90000, after: 20000, at: AT };
+  assert.deepEqual(itemsOf([prepared], { state: 'idle' }).items, [], '提前压好直接换上的不画（核心 6-11 三补）');
   const got = itemsOf(notices, { state: 'idle' });
   assert.deepEqual(brief(got.items), [
     'note: 上下文已压缩：120k → 30k token',

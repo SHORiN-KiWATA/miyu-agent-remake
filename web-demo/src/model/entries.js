@@ -247,6 +247,8 @@ function noticeItem(e, jobs) {
     case 'compaction':
       if (e.state === 'failed') return keyed(compactFailedNote(event('model.called', { error: e.error ?? {} })));
       if (e.state === 'running') return null;
+      // 提前在后台压好、直接换上的（核心 6-11 三补的 `prepared`）：正文里不画，起压那一刻已经弹过「已触发上下文压缩」（2026-10-10 项目主人）
+      if (e.prepared) return null;
       return keyed(withTurnUsage(compactedNote(event('context.compacted', { trigger: e.trigger, instructions: e.instructions }), e.before != null ? { before: e.before, after: e.after } : null), e, true));
     case 'cleared':
       return keyed(compactedNote(event('context.compacted', { trigger: 'clear' })));

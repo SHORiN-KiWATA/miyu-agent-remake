@@ -271,6 +271,7 @@
     "compacted_stats": "上下文已压缩：{before} → {after} token",
     "compacting": "正在压缩上下文",
     "compacting_wait": "正在压缩上下文…",
+    "compaction_started": "已触发上下文压缩",
     "compacting_count": "{count} 字",
     "session_speaker": "从会话 {id} 收到消息",
     "peer": {

@@ -278,6 +278,8 @@ export class App {
     // 别处（终端、别的页面）删掉了读进来的会话：和这里删的一样收掉，正在看的换到下一个
     this.store.removed = (id) => this.sidebar.on.dropped(id);
     // 排着的话被退回了（视图流推到 `withdrawn`，打断时没听到的那几条）：正在看的会话的放回输入框（核心 `view.md`「种类」的 `user`）
+    // 后台开始提前压缩了（核心 6-11 三补）：正在看的会话弹一句，正文里不画（2026-10-10 项目主人）
+    this.store.preparing = (session) => { if (session === this.current) this.composer.say(t('notes.compaction_started')); };
     this.store.withdrawn = (id, text) => {
       if (id === this.current && text) this.composer.putBack(text);
     };

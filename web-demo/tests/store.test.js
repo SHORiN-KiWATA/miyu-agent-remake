@@ -144,6 +144,21 @@ test('会话状态换了：待办、模型跟着换；待办做完清空的留�
   assert.equal(store.summary('S').unread, false);
 });
 
+test('后台开始提前压缩（会话状态的 preparing 从没有变成有，核心 6-11 三补）：告诉界面一次；一直有、变回没有的不再说', () => {
+  const store = new Store(/** @type {any} */ ({ onPush() {}, request: async () => ({}) }));
+  store.sessions.set('S', emptySession('S'));
+  const said = [];
+  store.preparing = (session) => said.push(session);
+  const status = (preparing) => store.push('view.status', { session: 'S', status: { state: 'running', preparing } });
+  status(null);
+  status({ seen: 40, since: '2026-10-10T04:02:00Z' });
+  status({ seen: 40, since: '2026-10-10T04:02:00Z' });
+  status(null);
+  assert.deepEqual(said, ['S']);
+  status({ seen: 52, since: '2026-10-10T04:09:00Z' });
+  assert.deepEqual(said, ['S', 'S'], '下一次提前压又说一次');
+});
+
 test('掉了队（resync）：重新订阅视图流、换上最新的一页；正在删的不补', async () => {
   let n = 0;
   const conn = {

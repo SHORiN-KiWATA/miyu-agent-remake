@@ -271,6 +271,7 @@
     "compacted_stats": "コンテキストを圧縮しました：{before} → {after} トークン",
     "compacting": "コンテキストを圧縮しています",
     "compacting_wait": "コンテキストを圧縮中…",
+    "compaction_started": "コンテキストの圧縮を開始しました",
     "compacting_count": "{count} 字",
     "session_speaker": "セッション {id} からのメッセージ",
     "peer": {

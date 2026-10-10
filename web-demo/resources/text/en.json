@@ -271,6 +271,7 @@
     "compacted_stats": "Context compacted: {before} → {after} tokens",
     "compacting": "Compacting context",
     "compacting_wait": "Compacting context…",
+    "compaction_started": "Context compaction started",
     "compacting_count": "{count} characters",
     "session_speaker": "Message from session {id}",
     "peer": {

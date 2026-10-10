@@ -44,6 +44,8 @@ export class Store {
     this.removed = () => {};
     /** 排着的话被退回了（视图流推到 `withdrawn` 的那一刻）：界面把字放回输入框 @type {(session: string, text: string) => void} */
     this.withdrawn = () => {};
+    /** 后台开始提前压缩了（会话状态的 `preparing` 从没有变成有，核心 6-11 三补）：界面弹一句；重新订阅换上的不算 @type {(session: string) => void} */
+    this.preparing = () => {};
     this.listeners = new Set();
     conn.onPush((method, params) => this.push(method, params));
     this.index.on((id, before, after) => this.entryChanged(id, before, after));
@@ -248,6 +250,7 @@ export class Store {
   viewPush(s, method, p) {
     const log = s.view;
     const was = log.status?.state ?? 'idle';
+    const wasPreparing = !!log.status?.preparing;
     if (method === 'view.update' && p.entry?.withdrawn && !log.list.find((e) => e.id === p.entry.id)?.withdrawn) this.withdrawn(s.id, p.entry.text ?? '');
     log.apply(method, p);
     if (method !== 'view.status') return;
@@ -259,6 +262,7 @@ export class Store {
     else if (before.length && before.every((t) => t.status === 'completed')) s.todosDone = before;
     if (status.model) s.model = status.model;
     if (was !== 'idle' && status.state === 'idle' && s.id !== this.viewing) this.unread.add(s.id);
+    if (!wasPreparing && status.preparing) this.preparing(s.id);
   }
 
   /**
