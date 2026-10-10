@@ -111,13 +111,12 @@ export class SettingsDialog {
     }
   }
 
-  /** 左栏的分页：核心的照 `pages`，网页的「外观」「软件包」，挂进 `settings.section` 的；先后照设置项 `order`。 */
+  /** 左栏的分页：核心的照 `pages`，网页的「软件包」，挂进 `settings.section` 的；先后照设置项 `order`。主题在通用页最上面，不单开一页。 */
   entries() {
     const order = this.ctx.config.order;
     const named = (id) => this.ctx.text(`pages.${id}`);
     const all = [
       ...this.pages.map((p) => ({ id: p.id, name: p.name })),
-      { id: 'appearance', name: named('appearance') },
       // 核心也有一页「软件包」（9-1 下，一个包一组）：和网页自己的组件合成一页，上面核心、下面网页（2026-10-07 项目主人定）
       ...(this.pages.some((p) => p.id === 'packages') ? [] : [{ id: 'packages', name: named('packages') }]),
       ...this.ctx.slots.list('settings.section').map((s) => ({ id: s.id, name: s.name, section: s })),
@@ -171,7 +170,6 @@ export class SettingsDialog {
     const page = this.pages.find((p) => p.id === this.current);
     let kids;
     if (this.current === 'models') kids = drawModels(this);
-    else if (this.current === 'appearance') kids = drawLook(this);
     else if (this.current === 'packages') {
       // 上面一段核心的软件包：一个包一行、点开看它的设置（扩展另有运行、权限两行，`core-packages.js`）；下面一段网页自己的组件
       const core = drawCorePackages(this, page).filter(Boolean);
@@ -183,9 +181,11 @@ export class SettingsDialog {
     }
     else if (entry?.section) kids = entry.section.render?.(sectionKit(this)) ?? null;
     else if (page) {
+      // 通用页最上面是主题卡片（2026-10-10 项目主人：外观页只有主题三个选择，并进通用、放在最上面）。
       // 一组就是一个核心拉起的扩展的（「接入」页的接入QQ，设计 30 第五节）：组名下面先是运行、权限两行，再是它的设置项
       kids = [
         ...page.problems.map((p) => banner(p)),
+        this.current === 'general' ? drawLook(this) : null,
         ...page.groups.map((g) => (this.extensions.entries.has(g.id)
           ? h('section.set-group', h('h3.set-group-name', g.name), this.extensions.body(g.id, g.items.map((item) => coreRow(this, item)).filter(Boolean)))
           : groupBlock(g.name, g.items.map((item) => coreRow(this, item))))),

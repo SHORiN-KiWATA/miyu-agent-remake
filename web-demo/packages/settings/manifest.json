@@ -62,10 +62,8 @@
         "models",
         "personas",
         "presets",
-        "advanced",
-        "appearance",
         "packages",
-        "connections"
+        "advanced"
       ],
       "name": {
         "zh": "分页的先后（编号；核心多出来的页接在 advanced 前面）"
@@ -77,7 +75,8 @@
       "of": "text",
       "default": {
         "interface": "general",
-        "permissions": "general"
+        "permissions": "general",
+        "connections": "packages"
       },
       "name": {
         "zh": "项少的核心页并进哪一页（页 → 页）"
@@ -113,12 +112,10 @@
       "default": {
         "general": "sliders-horizontal",
         "personas": "user-round",
-        "appearance": "palette",
         "models": "cpu",
         "presets": "toggle-right",
         "advanced": "wrench",
-        "packages": "package",
-        "connections": "message-circle"
+        "packages": "package"
       },
       "name": {
         "zh": "分页的图标（Lucide 的名字；没配的用 sliders-horizontal）"
@@ -139,7 +136,6 @@
       "loading": "正在读配置…",
       "load_failed": "读不到配置：{reason}",
       "pages": {
-        "appearance": "外观",
         "packages": "软件包"
       },
       "layers": {
@@ -288,7 +284,6 @@
       "loading": "設定を読み込み中…",
       "load_failed": "設定を読み込めません：{reason}",
       "pages": {
-        "appearance": "外観",
         "packages": "パッケージ"
       },
       "layers": {
