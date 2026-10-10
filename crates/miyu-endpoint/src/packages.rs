@@ -22,6 +22,7 @@ pub(crate) mod manage;
 pub(crate) mod methods;
 pub(crate) mod status;
 pub(crate) mod switch;
+pub(crate) mod verify;
 use crate::config::methods::words;
 use crate::hello::Peer;
 use crate::personas::pick;

@@ -24,6 +24,8 @@ pub(crate) async fn call(
         "package.remove" => super::manage::remove(core, params(request)?).await,
         "package.info" => super::local::info(core, params(request)?).await,
         "package.files" => super::local::files(core, params(request)?).await,
+        "package.owns" => super::verify::owns(core, params(request)?).await,
+        "package.check" => super::verify::check(core, params(request)?).await,
         "package.enable" => super::switch::enable(core, peer, params(request)?).await,
         "package.disable" => super::switch::disable(core, peer, params(request)?).await,
         "package.file" => crate::backstage::read(core, params(request)?).await,

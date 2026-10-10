@@ -428,6 +428,8 @@
     "package-problems/check_failed": "The package's own check did not finish: {detail}",
     "package-problems/check_unavailable": "{detail} was not found, so the package's own check did not run",
     "package-problems/check_output": "The package's own check printed {detail} lines that are not problems; they were skipped",
+    "package-problems/files_modified": "{detail} files differ from when the package was installed",
+    "package-problems/files_missing": "{detail} files from the install are missing",
     "config/reference-header": "Every Miyu setting and its default. This file is generated. Editing it has no effect.",
     "config/reference-where": "Write the system config in system/config.toml and personal settings in home/<account>/settings.toml.",
     "config/reference-item": "{name}: {description}",

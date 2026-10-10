@@ -428,6 +428,8 @@
     "package-problems/check_failed": "这个包自己的检查没跑完：{detail}",
     "package-problems/check_unavailable": "没找到 {detail}，这个包自己的检查没跑",
     "package-problems/check_output": "这个包自己的检查印了 {detail} 行看不懂的，跳过了",
+    "package-problems/files_modified": "有 {detail} 个文件和装的时候不一样",
+    "package-problems/files_missing": "装的时候有的文件少了 {detail} 个",
     "config/reference-header": "Miyu 的全部配置项和默认值。这份是生成的，改它没有用。",
     "config/reference-where": "系统配置写在 system/config.toml，个人设置写在 home/<账号>/settings.toml。",
     "config/reference-item": "{name}：{description}",

@@ -133,3 +133,80 @@ async fn an_older_install_is_recorded_when_the_core_reads_its_packages() {
     assert!(info["result"].get("source").is_none(), "补的不知道从哪装的");
     assert!(recorded(&home, "xtool").join("files").is_file());
 }
+
+/// `package.owns`（施工 F-8 中下）：包目录里的文件归那个包、本地库里记没记它；别处的没有包；相对路径 `bad_params`。
+#[tokio::test]
+async fn a_path_names_the_package_that_owns_it() {
+    let home = Home::new();
+    let mut client = Client::connect(home.core(&Script::new([])));
+    client.hello().await;
+    let folder = source(&home, "1.0", &[("bin/data.txt", "hi")]);
+    call(&mut client, "package.install", json!({"path": folder})).await;
+    let inside = home
+        .root
+        .path()
+        .join("home/alice/packages/xtool/bin/data.txt");
+    let owns = call(&mut client, "package.owns", json!({"path": inside})).await;
+    assert_eq!(
+        owns["result"],
+        json!({"package": "xtool", "layer": "home", "path": "bin/data.txt", "recorded": true}),
+        "{owns}"
+    );
+    let later = home.root.path().join("home/alice/packages/xtool/cache.db");
+    std::fs::write(&later, "x").expect("写得进");
+    let owns = call(&mut client, "package.owns", json!({"path": later})).await;
+    assert_eq!(
+        owns["result"]["recorded"], false,
+        "包自己后写的不在本地库里"
+    );
+    let nowhere = call(
+        &mut client,
+        "package.owns",
+        json!({"path": home.work.join("x")}),
+    )
+    .await;
+    assert_eq!(nowhere["result"], json!({"package": null}));
+    let relative = call(&mut client, "package.owns", json!({"path": "bin/data.txt"})).await;
+    assert_eq!(reason(&relative), Some("bad_params"));
+}
+
+/// `package.check`（施工 F-8 中下）：照本地库比，改了的、少了的、多出来的；`miyu check` 也报改了、少了的。
+#[tokio::test]
+async fn changed_and_missing_files_are_found() {
+    let home = Home::new();
+    let mut client = Client::connect(home.core(&Script::new([])));
+    client.hello().await;
+    let folder = source(
+        &home,
+        "1.0",
+        &[("bin/data.txt", "hi"), ("bin/gone.txt", "bye")],
+    );
+    call(&mut client, "package.install", json!({"path": folder})).await;
+    let clean = call(&mut client, "package.check", json!({})).await;
+    assert_eq!(
+        clean["result"]["packages"],
+        json!([{"package": "xtool", "modified": [], "missing": [], "extra": []}]),
+        "{clean}"
+    );
+    let dir = home.root.path().join("home/alice/packages/xtool");
+    std::fs::write(dir.join("bin/data.txt"), "changed").expect("写得进");
+    std::fs::remove_file(dir.join("bin/gone.txt")).expect("删得掉");
+    std::fs::write(dir.join("new.txt"), "x").expect("写得进");
+    let found = call(&mut client, "package.check", json!({"package": "xtool"})).await;
+    assert_eq!(
+        found["result"]["packages"],
+        json!([{"package": "xtool", "modified": ["bin/data.txt"], "missing": ["bin/gone.txt"], "extra": ["new.txt"]}]),
+        "{found}"
+    );
+    let unknown = call(&mut client, "package.check", json!({"package": "nope"})).await;
+    assert_eq!(reason(&unknown), Some("unknown_package"));
+    let checked = call(&mut client, "check", json!({})).await;
+    let codes: Vec<&str> = checked["result"]["problems"]
+        .as_array()
+        .expect("有")
+        .iter()
+        .filter(|problem| problem["file"] == "home/alice/packages/xtool/package.toml")
+        .filter_map(|problem| problem["code"].as_str())
+        .collect();
+    assert_eq!(codes, ["files_modified", "files_missing"], "{checked}");
+}

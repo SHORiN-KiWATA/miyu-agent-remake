@@ -428,6 +428,8 @@
     "package-problems/check_failed": "パッケージ自身のチェックが終わりませんでした：{detail}",
     "package-problems/check_unavailable": "{detail} が見つからないため、パッケージ自身のチェックは動きませんでした",
     "package-problems/check_output": "パッケージ自身のチェックが読めない行を {detail} 行出したので、飛ばしました",
+    "package-problems/files_modified": "{detail} 個のファイルがインストール時と違います",
+    "package-problems/files_missing": "インストール時にあったファイルが {detail} 個ありません",
     "config/reference-header": "Miyu のすべての設定項目と既定値です。このファイルは生成されたもので、編集しても効果はありません。",
     "config/reference-where": "システム設定は system/config.toml に、個人設定は home/<アカウント>/settings.toml に書きます。",
     "config/reference-item": "{name}：{description}",

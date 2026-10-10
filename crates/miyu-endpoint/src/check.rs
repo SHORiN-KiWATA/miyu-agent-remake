@@ -81,6 +81,19 @@ pub(crate) async fn check(core: &Core, peer: Peer, params: CheckParams) -> Resul
             );
             // 包自己的检查（施工 9-2）：照起来时读到的清单跑，接在核心自己查的后面。
             problems.extend(run::packages(core, &words).await);
+            // 装好的文件改了、少了（施工 F-8 中下）：本地库记了的才查，各一条警告。
+            for (path, drift) in crate::packages::verify::drifted(core).await {
+                let file = shown(core, &path);
+                for (code, count) in [
+                    ("files_modified", drift.modified.len()),
+                    ("files_missing", drift.missing.len()),
+                ] {
+                    if count > 0 {
+                        let message = crate::packages::sentence(&words, code, &count.to_string());
+                        problems.push(json!({"kind": "package", "file": file, "code": code, "level": "warning", "message": message.unwrap_or_default()}));
+                    }
+                }
+            }
         }
         Some(file) => {
             let path = real(&expand(&file, home.as_deref(), cwd.as_deref()));
