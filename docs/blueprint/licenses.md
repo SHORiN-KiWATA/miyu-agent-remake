@@ -75,6 +75,7 @@ GPL-3.0-or-later，见 `LICENSE`。
 |---|---|---|---|
 | `crates/miyu-embed/tests/fixtures/bge-vocab.txt` | bge-small-zh-v1.5 的词表（施工 R-5 上，分词的测试用） | MIT（FlagEmbedding 仓库的 `LICENSE`：模型卡写明 bge 模型照它发布，可免费商用） | 原文放在旁边的 `bge-vocab.LICENSE`。只在测试里，不随安装包发；模型文件本身不进仓库，放在 Release `models-bge-small-zh-v1.5`，同一份许可证跟着 |
 | `resources/models/models-dev.json` | models.dev 的 `api.json`（模型目录，施工 8-7） | MIT（models.dev 仓库的 `LICENSE`，2025 models.dev） | 原文放在旁边的 `models-dev.LICENSE`，跟着快照一起发。MIT 能和 GPL-3.0 合在一起发 |
+| 供应商图标（不随安装包发，核心拉到缓存目录，施工 8-31） | models.dev 的 `logos/<编号>.svg`；lobe-icons 的 `@lobehub/icons-static-svg`（钉住版本） | 两份都是 MIT（models.dev 仓库的 `LICENSE`；lobe-icons 仓库的 `LICENSE`） | 只拉、只缓存，不改不发；标志是各家的商标，归各自所有者（README 写一句）。资源里只有对照表 `resources/models/logos.json`，是我们写的 |
 
 - 施工 8-7 定的（2026-10-01，施工员确认，主会话同意照图纸带快照）：快照约 5.3 MB，进仓库压缩以后约 0.5 MB，仓库的包原来约 13.5 MB，涨不到 4%。刷新一次快照是一次替换，照「怎么刷新」（`store/resources.md`）做。
 

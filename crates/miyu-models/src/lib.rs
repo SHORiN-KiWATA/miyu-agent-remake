@@ -26,6 +26,7 @@ pub mod embedding;
 pub mod facts;
 pub mod headers;
 mod knowledge;
+pub mod logos;
 pub mod matching;
 pub mod observed;
 pub mod onboard;

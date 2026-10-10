@@ -1,0 +1,13 @@
+{
+  "models_dev": "https://models.dev/logos/{id}.svg",
+  "lobe": "https://cdn.jsdelivr.net/npm/@lobehub/icons-static-svg@1.95.1/icons/{name}.svg",
+  "colored": {
+    "alibaba": "qwen-color",
+    "alibaba-cn": "qwen-color",
+    "deepseek": "deepseek-color",
+    "minimax": "minimax-color",
+    "minimax-cn": "minimax-color",
+    "openrouter": "openrouter-color",
+    "zhipuai": "zhipu-color"
+  }
+}

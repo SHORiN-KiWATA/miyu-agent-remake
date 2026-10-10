@@ -74,6 +74,7 @@ pub(crate) fn provider(
                     "base_url": settings.base_url.as_ref().map(address_json),
                     "problem": problem,
                     "models": [],
+                    "logo": null,
                 });
                 if let Some(key) = &key {
                     entry["key"] = key.clone();
@@ -161,6 +162,9 @@ pub(crate) fn provider(
                     entry["catalog"] =
                         json!({"provider": recognized.provider, "how": recognized.how.as_str()});
                 }
+                // 图标照认出来的目录里那一家（施工 8-31）；认不出的（自定义、本机服务）是 null。
+                entry["logo"] =
+                    crate::providers::logo(data, recognized.map(|known| known.provider.as_str()));
                 entry
             }
         },

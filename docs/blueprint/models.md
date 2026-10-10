@@ -339,6 +339,14 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 {"keys":[{"env":"DEEPSEEK_API_KEY","provider":"deepseek","name":"DeepSeek","driver":"openai-chat","supported":true}],"local":[{"provider":"lmstudio","name":"LMStudio","base_url":"http://127.0.0.1:1234/v1","models":["qwen3-8b"]}],"looked_for":["302AI_API_KEY","ABOVE_API_KEY","…"]}
 ```
 
+**图标**（施工 8-31，2026-10-11 项目主人定：彩色的用 lobe-icons 的彩色版，别的用 models.dev 的单色版；网页的会话转来）：
+
+1. **从哪拉**：资源目录 `models/logos.json`：`models_dev` 是 models.dev 单色图的地址（`{id}` 换成目录里的编号），`lobe` 是 lobe-icons（`@lobehub/icons-static-svg`）钉住版本的地址（`{name}` 换成它的名字），`colored` 是有彩色版的几家（目录编号 → lobe 的名字）；以后加家只改表。两份都是 MIT（「许可证」），标志是各家的商标。
+2. **什么时候拉**（`crates/miyu-core/src/models/logos.rs`）：和目录一个节奏（`[models.catalog]` 的 `update`、`every`），另一个任务；`update` 关了的不拉、只读缓存；失败的一小时后再试。核心起来时先把缓存里的换上。头不连外网：目录里每一家的都拉（同时最多 8 张、每张 10 秒），外网看不出用的是哪一家。
+3. **收不收**（`miyu_models::logos::accept`）：UTF-8、不超过 32 KiB、是一张 SVG；models.dev 没有这一家的回一张默认图（200），先照一个不存在的编号拉一次记下，单色的内容一样的当没有。默认图拉不到的这一次不拉。
+4. **存在哪**：`<缓存目录>/models/logos/`，单色的 `<编号>.svg`，彩色的 `<编号>.color.svg`，拉完的时刻写 `fetched`；一次整份换掉，记 `INFO logos refreshed logos=…`，失败的 `WARN logos refresh failed`。
+5. **交给头**：`provider.catalog` 每一项（`featured` 的也是）、`model.list` 每一家多一格 `logo`：`{"svg": <SVG 原文>, "tint": 布尔}` 或 `null`。`tint` 是真的是单色，头照字色画；假的是彩色，照原样画。`model.list` 的照这一家认出来的目录里那一家（`catalog.provider`）给，认不出的（自定义、本机服务）是 `null`。有这一格（哪怕是 `null`）的头就是新核心；没图的画名字的第一个字。网页照 CSS mask 或 `<img>` 的 data 地址画，不把 SVG 插进页面。
+
 **`provider.catalog`**（查询，8-11）：先等目录读完。
 
 | 参数 | 类型 | 说明 |
@@ -347,7 +355,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 | `limit` | 正整数，不写是 50 | 最多几家。0、负数、不是整数的 `bad_params` |
 | `featured` | 布尔，不写是假 | 只要常用的几家（8-11 再补，第七条第 3 条）：不看 `query`、`limit`。不是布尔的 `bad_params` |
 
-回应 `providers`：每一家 `id`、`name`（档案写的，再是目录的，都没有的是编号）、`driver`（档案的，再是目录的 `npm` 照 `[npm]` 换的，认不出的是 `null`）、`base_url`（档案的，再是目录的 `api`，都没有的是 `null`）、`env`（目录里找 key 的变量，原样）、`doc`（没有的是 `null`）、`models`（目录里有几个模型）、`supported`（驱动是现在有的、有地址）、`local`（地址在本机：不要 key，8-11 施工时加）。能用的排前面，再照名字排（不分大小写，一样的照编号）。目录和档案的合起来：只在档案里的（`ollama`）也列。
+回应 `providers`：每一家 `id`、`name`（档案写的，再是目录的，都没有的是编号）、`driver`（档案的，再是目录的 `npm` 照 `[npm]` 换的，认不出的是 `null`）、`base_url`（档案的，再是目录的 `api`，都没有的是 `null`）、`env`（目录里找 key 的变量，原样）、`doc`（没有的是 `null`）、`models`（目录里有几个模型）、`supported`（驱动是现在有的、有地址）、`local`（地址在本机：不要 key，8-11 施工时加）、`logo`（这一家的图标 `{"svg", "tint"}`，没有的是 `null`，施工 8-31，「图标」）。能用的排前面，再照名字排（不分大小写，一样的照编号）。目录和档案的合起来：只在档案里的（`ollama`）也列。
 
 写了 `featured` 的：照资源目录 `models/featured.toml` 的先后，交目录、档案里有的那几家，每一家的写法同上；`id` 照这个连接的语言挑（中文的，写了 `catalog_zh` 的用它；施工 T-12 起国内外分开各列一行，没有一家写），`name` 换成它写的（照语言挑，没有这种语言的用目录的）。目录里没有的跳过。`featured.toml` 读不了、写错了的 `internal_error`，记一行 `WARN`。
 

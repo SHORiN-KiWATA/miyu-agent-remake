@@ -9,6 +9,7 @@
 //! 档案、认原厂的表是 TOML，这里读成 JSON 交给 `miyu-models`（那一层只用白名单里的 `serde_json`）。
 
 pub mod catalog;
+pub mod logos;
 pub mod refresh;
 
 use std::path::PathBuf;
@@ -96,6 +97,7 @@ pub fn start(
     state: Option<PathBuf>,
     settings: watch::Receiver<Schedule>,
 ) {
+    let table = snapshot.join(logos::TABLE);
     let places = Places {
         snapshot,
         cache: cache.clone(),
@@ -105,18 +107,35 @@ pub fn start(
         let read = tokio::task::spawn_blocking(move || {
             let observed = state.as_deref().map(read_observed).unwrap_or_default();
             reading.loaded(catalog::load(&places), observed);
+            logos::table(&table)
         })
         .await;
-        if let Err(error) = read {
-            tracing::error!(target: TARGET, error = %error, "catalog read panicked");
-            data.loaded(None, Observed::default());
-        }
+        let table = match read {
+            Ok(table) => table,
+            Err(error) => {
+                tracing::error!(target: TARGET, error = %error, "catalog read panicked");
+                data.loaded(None, Observed::default());
+                None
+            }
+        };
         // 缓存目录算不出来的不拉：算的时候已经记过一行 `WARN catalog cache unavailable`（[`cache`]）。
         let Some(cache) = cache else {
             return;
         };
         // 和拉供应商的列表用同一个 GET 的客户端（[`prepare`] 造的）。
         if let Some(client) = data.fetcher().cloned() {
+            // 供应商的图标（施工 8-31）：和目录一个节奏，另一个任务。
+            if let Some(table) = table {
+                tokio::spawn(
+                    logos::Logos {
+                        data: Arc::clone(&data),
+                        client: client.clone(),
+                        dir: cache.join("logos"),
+                        table,
+                    }
+                    .run(settings.clone()),
+                );
+            }
             Refresher {
                 data,
                 client,
