@@ -137,6 +137,8 @@ pub(crate) async fn call(
         "package.list" => crate::packages::list(core, peer),
         "package.install" => crate::packages::manage::install(core, peer, params(request)?).await,
         "package.remove" => crate::packages::manage::remove(core, params(request)?).await,
+        "package.enable" => crate::packages::switch::enable(core, peer, params(request)?).await,
+        "package.disable" => crate::packages::switch::disable(core, peer, params(request)?).await,
         "view.page" => crate::view::page(core, params(request)?).await,
         "view.detail" => crate::view::detail(core, params(request)?).await,
         "extension.status" => Ok(crate::extensions::status(core, peer)),

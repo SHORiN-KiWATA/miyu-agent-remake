@@ -44,17 +44,17 @@ impl Builtins for Port {
     }
 }
 
-/// 一份手动拉起的扩展包的清单：带一项系统配置的整数 `port`。
-fn manifest(id: &str) -> String {
+/// 一份手动拉起的扩展包的清单：带一项系统配置的整数 `port`。程序要在测试程序旁边（施工 F-6 上：程序不在的当没装，配置项不算）。
+fn manifest(id: &str, program: &str) -> String {
     format!(
-        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"X\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"miyu-nothing\"\nabout = {{ en = \"X\" }}\n\n[process]\nstart = \"manual\"\n\n[settings.port]\ntype = \"int\"\ndefault = 8400\nlayers = [\"system\"]\nname = {{ en = \"Port\" }}\n"
+        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"X\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"X\" }}\n\n[process]\nstart = \"manual\"\n\n[settings.port]\ntype = \"int\"\ndefault = 8400\nlayers = [\"system\"]\nname = {{ en = \"Port\" }}\n"
     )
 }
 
 /// 要装的那一份：放在数据根外面的工作目录里。
-fn source(home: &Home, id: &str) -> std::path::PathBuf {
+fn source(home: &Home, id: &str, program: &str) -> std::path::PathBuf {
     let path = home.work.join(format!("{id}.toml"));
-    std::fs::write(&path, manifest(id)).expect("写得进");
+    std::fs::write(&path, manifest(id, program)).expect("写得进");
     path
 }
 
@@ -100,6 +100,7 @@ async fn changed(client: &mut Client, before: Vec<Value>, n: usize) -> Vec<Value
 #[tokio::test]
 async fn an_installed_packages_settings_are_known_at_once_and_forgotten_once_removed() {
     let home = Home::new();
+    let program = crate::support::extensions::Program::new();
     home.write("system/config.toml", "xcfg.port = 9000\n");
     home.root.prepare_home(&alice()).expect("建得了家目录");
     // 只能放系统配置的项写进了个人设置：装上以后这一层认得的项没变，问题变了（不认识换成放错了层），照样推。
@@ -122,7 +123,7 @@ async fn an_installed_packages_settings_are_known_at_once_and_forgotten_once_rem
         "装之前不认识：{before}"
     );
 
-    let path = source(&home, "xcfg");
+    let path = source(&home, "xcfg", &program.name());
     let (pushes, reply) = ask(&mut client, "i1", "package.install", json!({"path": path})).await;
     assert_eq!(reply["result"]["package"], "xcfg", "{reply}");
     let pushed = changed(&mut client, pushes, 2).await;
@@ -161,7 +162,7 @@ async fn an_installed_packages_settings_are_known_at_once_and_forgotten_once_rem
     );
 
     // 再装一个带配置项、哪一层都没写它的：清单换了，认得的、问题都没变，不推。之后的第一条推送是 `config.set` 的。
-    let plain = source(&home, "xquiet");
+    let plain = source(&home, "xquiet", &program.name());
     let (pushes, reply) = ask(&mut client, "i2", "package.install", json!({"path": plain})).await;
     assert_eq!(reply["result"]["package"], "xquiet", "{reply}");
     let (more, reply) = ask(

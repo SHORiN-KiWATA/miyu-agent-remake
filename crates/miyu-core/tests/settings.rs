@@ -19,10 +19,11 @@ fn repository() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-/// 出厂带的软件包拼好的配置项（施工 9-1 下）：真核心起来时也带着它们。
+/// 出厂带的软件包拼好的配置项（施工 9-1 下）：真核心起来时也带着它们。照发行包的样子，程序都在 `miyu` 旁边（施工 F-6 上：
+/// 跑测试的这台机器上测试程序旁边没有 `miyu-onebot`，照它算接入QQ 的几项就没了）。
 fn shipped() -> Packaged {
     let mut found = Packages::shipped(&ResourceRoot::at(repository().join("resources"))).read();
-    Packaged::of(&mut found)
+    Packaged::as_released(&mut found)
 }
 
 /// 这种语言的字，照源码树的资源目录读，并进出厂的包的字。
@@ -228,8 +229,8 @@ fn onebot_trusted_is_a_system_list_of_identities() {
     assert_eq!(item.applies, Applies::Now);
     assert_eq!(
         (item.ui.page, item.ui.group, item.ui.control),
-        ("connections", "onebot", Control::List),
-        "平台接入的配置项在「接入」那一页（施工 F-4）"
+        ("packages", "onebot", Control::List),
+        "平台接入的配置项和别的包一样在「软件包」那一页（施工 F-6 上：「接入」页去掉了）"
     );
     let parse = |layer: Layer, source: &str| {
         miyu_config::parse::parse(&listed, layer, source).expect("写法对")
@@ -316,7 +317,7 @@ fn builtin_package_settings_follow_their_package() {
     }
     let mut found = Packages::shipped(&ResourceRoot::at(repository().join("resources"))).read();
     found.retain(|one| one.id != "memory");
-    let absent = Packaged::of(&mut found).all();
+    let absent = Packaged::as_released(&mut found).all();
     let memory: Vec<_> = absent
         .iter()
         .filter(|item| item.key.starts_with("memory."))

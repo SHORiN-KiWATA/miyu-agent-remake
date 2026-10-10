@@ -447,7 +447,7 @@ async fn send(out: &mpsc::Sender<String>, line: String) -> bool {
 }
 
 /// 只给人用、扩展进程调了回 `local_only` 的方法：开关、重启扩展（施工 9-4 上），改、删人格和预设（施工 P-3 中），装、卸软件包
-/// （施工 F-5 上）。
+/// （施工 F-5 上），软件包的开关（施工 F-6 上）。
 fn people_only(method: &str) -> bool {
     method.starts_with("extension.")
         || matches!(
@@ -458,6 +458,8 @@ fn people_only(method: &str) -> bool {
                 | "persona.delete"
                 | "package.install"
                 | "package.remove"
+                | "package.enable"
+                | "package.disable"
         )
 }
 

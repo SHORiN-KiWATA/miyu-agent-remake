@@ -18,10 +18,13 @@ use miyu_store::root::DataRoot;
 use crate::Core;
 
 pub(crate) mod manage;
+pub(crate) mod status;
+pub(crate) mod switch;
 use crate::config::methods::words;
 use crate::hello::Peer;
 use crate::personas::pick;
 use crate::refusal::Refusal;
+pub use status::absent;
 
 /// 核心说的协议主版本。
 const PROTOCOL: u32 = 1;
@@ -59,22 +62,42 @@ pub(crate) fn list(core: &Core, peer: Peer) -> Result<Value, Refusal> {
     let mut items: Vec<Value> = core
         .packages()
         .iter()
-        .map(|found| listed(found, &places, &words, peer.language))
+        .map(|found| listed(core, found, &places, &words, peer.language, false))
         .collect();
-    items.extend(places.read_removed().iter().map(|found| {
-        let mut item = listed(found, &places, &words, peer.language);
-        item["removed"] = json!(true);
-        item
-    }));
+    items.extend(
+        places
+            .read_removed()
+            .iter()
+            .map(|found| listed(core, found, &places, &words, peer.language, true)),
+    );
     Ok(json!({ "packages": items }))
 }
 
-/// 一项。
-fn listed(found: &Found, places: &Packages, words: &Human, language: &str) -> Value {
+/// 一项。`removed` 是卸掉了的出厂的包（带 `removed: true`）。
+fn listed(
+    core: &Core,
+    found: &Found,
+    places: &Packages,
+    words: &Human,
+    language: &str,
+    removed: bool,
+) -> Value {
     let mut item = json!({"package": found.id, "layer": found.layer.as_str()});
+    if removed {
+        item["removed"] = json!(true);
+    }
     match &found.read {
         Ok(manifest) => {
             fill(&mut item, &found.id, manifest, language);
+            // 施工 F-6 上（`package-pages.md`）：状态、开关、后台页。
+            item["status"] = json!(status::status(core, &found.id, manifest, removed));
+            let shipped = found.layer == miyu_store::packages::Layer::Shipped;
+            if let Some(on) = status::enabled(core, &found.id, manifest, shipped, removed) {
+                item["enabled"] = json!(on);
+            }
+            if status::page(found, manifest) {
+                item["page"] = json!(true);
+            }
             item["state"] = json!(places.state_dir(&found.id).to_string_lossy());
             if let Some(range) = mismatch(manifest) {
                 item["code"] = json!("protocol_mismatch");
@@ -168,6 +191,9 @@ fn links(item: &mut Value, id: &str, manifest: &Manifest, language: &str) {
     if let Some(worker) = &manifest.worker {
         item["worker"] = json!({"program": worker.program, "args": worker.args});
     }
+    if let Some(icon) = &manifest.icon {
+        item["icon"] = json!(icon);
+    }
 }
 
 /// 说的协议版本不包含核心的：交回给人看的那个范围，例如 `2–3`；包含的没有。
@@ -187,10 +213,20 @@ pub(crate) fn mismatch(manifest: &Manifest) -> Option<String> {
 /// 是核心自己的某个模块（`core_items` 里键的第一段，「软件包」那一页的不算）的，那一份改报 `settings_taken`、一项都不收。
 /// 核心起来时调一次：拼出来的项一直用到退出（`miyu_config::package::settings::items`）。
 pub fn settle(found: &mut [Found], core_items: &[Item]) -> Vec<Item> {
+    settle_with(found, core_items, &|manifest| !absent(manifest))
+}
+
+/// 同 [`settle`]，程序在不在照 `present` 认：生成配置的样本、测出厂的清单时照发行包的样子算，程序都在 `miyu` 旁边（施工
+/// F-6 上：不照跑测试的这台机器）。
+pub fn settle_with(
+    found: &mut [Found],
+    core_items: &[Item],
+    present: &dyn Fn(&Manifest) -> bool,
+) -> Vec<Item> {
     let modules: BTreeSet<&str> = core_items
         .iter()
-        // 「接入」那一页的也是包的（施工 F-4）：`miyu check` 照起来以后的清单认，里面已经有包的项。
-        .filter(|item| ![settings::PAGE, settings::CONNECTIONS].contains(&item.ui.page))
+        // 「软件包」那一页的是包的：`miyu check` 照起来以后的清单认，里面已经有包的项。
+        .filter(|item| item.ui.page != settings::PAGE)
         .filter_map(|item| item.key.split('.').next())
         .collect();
     let mut items = Vec::new();
@@ -213,12 +249,12 @@ pub fn settle(found: &mut [Found], core_items: &[Item]) -> Vec<Item> {
             }));
             continue;
         }
-        // 平台接入的包挂在「接入」那一页（施工 F-4）。
-        let page = match manifest.connection {
-            Some(_) => settings::CONNECTIONS,
-            None => settings::PAGE,
-        };
-        items.extend(settings::items(&one.id, &manifest.settings, page));
+        // 程序不在的扩展、小程序当没装，配置项不进（施工 F-6 上，`package-pages.md`「程序不在就当没装」）。
+        if !present(manifest) {
+            continue;
+        }
+        // 一律在「软件包」那一页、这个包那一组（施工 F-6 上：「接入」页去掉了）。
+        items.extend(settings::items(&one.id, &manifest.settings));
     }
     items
 }
@@ -265,6 +301,8 @@ pub fn features(found: &[Found]) -> Features {
         found
             .iter()
             .filter_map(|one| one.read.as_ref().ok().map(|manifest| (one, manifest)))
+            // 程序不在的扩展当没装，它的功能不算（施工 F-6 上）。
+            .filter(|(_, manifest)| !absent(manifest))
             .flat_map(|(one, manifest)| {
                 manifest
                     .features_of(&one.id)

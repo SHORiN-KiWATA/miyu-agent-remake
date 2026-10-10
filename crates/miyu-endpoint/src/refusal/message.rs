@@ -45,6 +45,8 @@ pub(super) fn of(reason: &str) -> (&'static str, &'static str) {
             "这份清单装不上，详情在 data.problem 里。",
             "This manifest cannot be installed; data.problem says why.",
         ),
+        "program_missing" => ("程序未安装。", "Program not installed."),
+        "not_switchable" => ("不能启用或停用。", "Cannot be enabled or disabled."),
         "not_an_extension" => (
             "这个软件包是界面，不由核心拉起。",
             "This package is an interface; the core does not start it.",

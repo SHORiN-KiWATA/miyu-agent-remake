@@ -71,6 +71,7 @@ async fn shipped_and_home_packages_are_listed_in_the_connections_language() {
                 "command": {"name": "term", "program": "miyu-tui", "about": "打开终端界面"},
                 "opens": ["config"],
                 "state": state.to_string_lossy(),
+                "status": "program_missing",
             }),
             json!({
                 "package": "web",
@@ -83,6 +84,7 @@ async fn shipped_and_home_packages_are_listed_in_the_connections_language() {
                 "opens": [],
                 "pages_dir": "web/pages",
                 "state": home.root.path().join("state").join("packages").join("web").to_string_lossy(),
+                "status": "program_missing",
             }),
         ],
         "握手说的是中文，照中文挑；没写的格不写"
@@ -163,6 +165,7 @@ args = ["serve"]
                     {"id": "xcmd", "name": "Commands"},
                 ],
                 "recommends": {"workers": ["xembed"]},
+                "status": "ready",
             }),
             json!({
                 "package": "xbridge",
@@ -173,6 +176,8 @@ args = ["serve"]
                 "features": [{"id": "xbridge", "name": "接入X"}],
                 "connection": {"platform": "x"},
                 "depends": {"workers": ["xembed"]},
+                "status": "off",
+                "enabled": false,
             }),
             json!({
                 "package": "xembed",
@@ -181,6 +186,7 @@ args = ["serve"]
                 "protocol": [1, 1],
                 "name": "Model",
                 "worker": {"program": "miyu-xembed", "args": ["serve"]},
+                "status": "program_missing",
             }),
         ]
     );

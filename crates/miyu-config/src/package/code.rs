@@ -81,6 +81,10 @@ pub enum Code {
     FeatureTaken,
     /// 清单是内置包，核心里没编进它的代码（施工 F-2，核心起来时认）。
     NotBuiltIn,
+    /// `[package] icon` 不是 Lucide 图标名的写法（施工 F-6 上）。
+    BadIcon,
+    /// `[page] dir` 不是包目录里的相对目录（施工 F-6 上）。
+    BadPageDir,
 }
 
 impl Code {
@@ -126,11 +130,13 @@ impl Code {
             Code::BadDependency => "bad_dependency",
             Code::FeatureTaken => "feature_taken",
             Code::NotBuiltIn => "not_built_in",
+            Code::BadIcon => "bad_icon",
+            Code::BadPageDir => "bad_page_dir",
         }
     }
 
     /// 全部代码：给人看的字的门禁照它查三种语言都有。
-    pub const ALL: [Code; 39] = [
+    pub const ALL: [Code; 41] = [
         Code::Syntax,
         Code::UnknownTable,
         Code::NotATable,
@@ -170,5 +176,7 @@ impl Code {
         Code::BadDependency,
         Code::FeatureTaken,
         Code::NotBuiltIn,
+        Code::BadIcon,
+        Code::BadPageDir,
     ];
 }

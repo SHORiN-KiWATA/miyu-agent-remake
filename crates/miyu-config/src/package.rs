@@ -12,6 +12,7 @@ mod capability;
 mod code;
 mod features;
 mod links;
+mod look;
 mod reader;
 pub mod settings;
 
@@ -58,6 +59,10 @@ pub struct Manifest {
     pub recommends: Vec<String>,
     /// 小程序怎么拉起（`kind = "worker"`，施工 F-1）。
     pub worker: Option<Worker>,
+    /// 图标（施工 F-6 上）：Lucide 的图标名，只查过写法；没写的没有。
+    pub icon: Option<String>,
+    /// 软件后台页（施工 F-6 上）：包目录里的子目录，入口是里面的 `index.html`；没写的没有。只有扩展、内置包能写。
+    pub page: Option<String>,
 }
 
 /// 包的种类：只说它跑在哪（设计 `30-插件框架.md` 第二节）。
@@ -106,8 +111,9 @@ impl PackageKind {
                 "connection",
                 "depends",
                 "recommends",
+                "page",
             ],
-            PackageKind::Builtin => &["package", "features", "depends", "recommends"],
+            PackageKind::Builtin => &["package", "features", "depends", "recommends", "page"],
             PackageKind::Worker => &["package", "worker"],
         }
     }
@@ -198,7 +204,7 @@ impl fmt::Display for Problem {
 }
 
 /// 清单里认得的表；哪种包能写哪几张见 [`PackageKind::tables`]。
-const TABLES: [&str; 11] = [
+const TABLES: [&str; 12] = [
     "package",
     "command",
     "process",
@@ -210,6 +216,7 @@ const TABLES: [&str; 11] = [
     "depends",
     "recommends",
     "worker",
+    "page",
 ];
 
 /// 读一份清单。
@@ -311,6 +318,10 @@ pub fn read(text: &str) -> Result<Manifest, Problem> {
         }
         None => None,
     };
+    let page = match root.get("page").and_then(Item::as_table_like) {
+        Some(table) => Some(look::page(&reader, table, &root["page"])?),
+        None => None,
+    };
     Ok(Manifest {
         kind,
         version: head.version,
@@ -328,6 +339,8 @@ pub fn read(text: &str) -> Result<Manifest, Problem> {
         depends: depends?,
         recommends: recommends?,
         worker,
+        icon: head.icon,
+        page,
     })
 }
 

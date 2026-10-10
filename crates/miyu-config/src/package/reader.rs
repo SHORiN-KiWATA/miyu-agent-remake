@@ -13,6 +13,7 @@ pub(super) struct Head {
     pub(super) name: Phrases,
     pub(super) summary: Phrases,
     pub(super) required: bool,
+    pub(super) icon: Option<String>,
 }
 
 /// 照原文算行号。
@@ -82,7 +83,9 @@ impl Reader<'_> {
         self.only(
             table,
             "package",
-            &["kind", "version", "protocol", "name", "summary", "required"],
+            &[
+                "kind", "version", "protocol", "name", "summary", "required", "icon",
+            ],
         )?;
         let item = self.required(table, at, "package", "kind")?;
         let kind = match item.as_str() {
@@ -131,6 +134,10 @@ impl Reader<'_> {
             None => false,
             Some(item) => self.required_flag(kind, item)?,
         };
+        let icon = match table.get("icon") {
+            Some(item) => Some(super::look::icon(self, item)?),
+            None => None,
+        };
         Ok(Head {
             kind,
             version,
@@ -138,6 +145,7 @@ impl Reader<'_> {
             name,
             summary,
             required,
+            icon,
         })
     }
 
@@ -454,7 +462,7 @@ fn page_name(page: &str) -> bool {
 }
 
 /// 相对资源目录的目录：`/` 分隔，每一段不空、不是 `.`、`..`，不以 `/` 开头，不带 `\`、`:`。
-fn relative_dir(dir: &str) -> bool {
+pub(super) fn relative_dir(dir: &str) -> bool {
     !dir.is_empty()
         && !dir.contains(['\\', ':'])
         && dir

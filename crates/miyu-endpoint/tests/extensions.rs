@@ -311,6 +311,7 @@ async fn restart_starts_a_new_process_and_the_count_again() {
 #[tokio::test]
 async fn what_cannot_start_says_why_and_wrong_packages_are_refused() {
     let home = Home::new();
+    let program = Program::new();
     install(
         &home,
         "ghost",
@@ -320,7 +321,10 @@ async fn what_cannot_start_says_why_and_wrong_packages_are_refused() {
     );
     home.write(
         "home/alice/packages/future.toml",
-        "[package]\nkind = \"process\"\nprotocol = [2, 3]\nname = { en = \"F\" }\n\n[command]\nname = \"future\"\nprogram = \"miyu-no-such-program-anywhere\"\nabout = { en = \"F\" }\n",
+        &format!(
+            "[package]\nkind = \"process\"\nprotocol = [2, 3]\nname = {{ en = \"F\" }}\n\n[command]\nname = \"future\"\nprogram = \"{}\"\nabout = {{ en = \"F\" }}\n",
+            program.name()
+        ),
     );
     home.write(
         "home/alice/packages/face.toml",
@@ -329,9 +333,12 @@ async fn what_cannot_start_says_why_and_wrong_packages_are_refused() {
     let core = core(&home, quick());
     let mut client = Client::connect(Arc::clone(&core));
     client.hello().await;
+    // 程序不在的开不了（施工 F-6 上：当没装）。
     let ghost = call(&mut client, "extension.enable", "ghost").await;
-    assert_eq!(ghost["result"]["state"], "stopped", "{ghost}");
-    assert_eq!(ghost["result"]["reason"], "not_installed");
+    assert_eq!(
+        ghost["error"]["data"]["reason"], "program_missing",
+        "{ghost}"
+    );
     let future = call(&mut client, "extension.enable", "future").await;
     assert_eq!(future["result"]["reason"], "protocol_mismatch", "{future}");
     let listed = client.call("s", "extension.status", json!({})).await;
