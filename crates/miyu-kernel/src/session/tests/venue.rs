@@ -15,6 +15,7 @@ fn venue(msg: &str, ambient: bool) -> VenueMessage {
             kind: MediaKind::File,
             id: "f1".to_string(),
             name: Some("报告.pdf".to_string()),
+            size: Some(1_200_000),
         }],
         ambient,
         ..VenueMessage::default()

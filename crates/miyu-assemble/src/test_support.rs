@@ -81,9 +81,19 @@ pub(crate) fn group_texts_within(minutes: i32, budget: usize) -> Texts {
                 omitted: Template::parse("<omitted {count}>\n").expect("模板合写法"),
                 budget,
             }),
+            voice: None,
         }),
         ..texts()
     }
+}
+
+/// O-33 起造的群会话的替身字：同 [`group_texts`]，语音写 `<voice>`，带的东西不止一样的标第几个。
+pub(crate) fn group_texts_o33(minutes: i32) -> Texts {
+    let mut texts = group_texts(minutes);
+    if let Some(group) = texts.group.as_mut() {
+        group.voice = Some("<voice>".to_string());
+    }
+    texts
 }
 
 /// 替身的转述一张图的字（施工 8-17）：短，一眼认得出。

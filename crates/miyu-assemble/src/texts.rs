@@ -55,7 +55,7 @@ pub struct Texts {
     pub group: Option<GroupChat>,
 }
 
-/// 群里的一行要用的（施工 O-13 中）：会话的时区，和正文、带的东西都没有时写的那一句。
+/// 群里的一行要用的（施工 O-13 中）：会话的时区，和正文、带的东西都没有时写的那一句；语音的那一句（施工 O-33）。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GroupChat {
     /// 造会话时钉下的时区：一行的钟点照它算，换了时区的机器上载入也不变。
@@ -64,6 +64,9 @@ pub struct GroupChat {
     pub no_text: String,
     /// 群聊近况（施工 O-13 下，`group/recent.rs`）。O-13（中）造的群会话没有：不出近况。
     pub recent: Option<GroupRecent>,
+    /// 语音后面接的那一句（施工 O-33，`core/venues/voice.txt`），不带行尾的换行。有它的是 O-33 起造的群会话：带的东西
+    /// 不止一样的照先后标第几个、语音接这一句；以前造的没有，照旧写，前缀一个字节不变。
+    pub voice: Option<String>,
 }
 
 /// 群聊近况要用的（施工 O-13 下）：块头、缺口提示、预算。

@@ -7,6 +7,7 @@ fn chat(offset: i32) -> GroupChat {
         offset,
         no_text: "[no text content]\n".to_string(),
         recent: None,
+        voice: None,
     }
 }
 

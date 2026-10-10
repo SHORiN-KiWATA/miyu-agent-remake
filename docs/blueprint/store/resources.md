@@ -22,7 +22,7 @@
 | `ResourceRoot::path()` | 资源目录本身 |
 | `ResourceRoot::sources(人格)` | 读出这个人格要用的原文，交给 `miyu-policy` 拼策略快照（`policy.md`） |
 | `ResourceRoot::subagent_venue()` | 读出子会话的场所说明 `core/jobs/subagent-venue.txt`，造子会话时接在人设后面（施工 7-5）；读不了的写明是哪一份 |
-| `ResourceRoot::group_note()`、`group_chat(时区)` | 群会话的两份（施工 O-13 中）：格式说明 `core/venues/group.txt` 的原文；`GroupChat`，时区照交进来的，空的一条写什么照 `core/venues/no-text.txt` 的原文，群聊近况（施工 O-13 下）的块头、缺口提示照 `recent-open.txt`、`recent-omitted.txt` 的原文，预算是出厂的。读不了的写明是哪一份 |
+| `ResourceRoot::group_note()`、`group_chat(时区)` | 群会话的两份（施工 O-13 中）：格式说明 `core/venues/group.txt` 的原文；`GroupChat`，时区照交进来的，空的一条写什么照 `core/venues/no-text.txt` 的原文，群聊近况（施工 O-13 下）的块头、缺口提示照 `recent-open.txt`、`recent-omitted.txt` 的原文，预算是出厂的，语音那一句（施工 O-33）照 `voice.txt` 的原文。读不了的写明是哪一份 |
 | `ResourceRoot::catalog_snapshot()` | models.dev 目录的快照在哪（`models/models-dev.json`，旁边是 `models-dev.meta.json`，施工 8-7）：约 5 MB，核心写了 `ready` 以后在后台读，读不了的照样起来（`models.md`「怎么走」第二条） |
 | `ResourceRoot::vendors()` | 认原厂的表的原文（`models/vendors.toml`，施工 8-7），怎么读由核心定 |
 | `ResourceRoot::profiles()` | 供应商的档案的原文（`models/profiles.toml`，施工 8-6），怎么读由核心定（`core.md`「模型」，`models.md`） |
@@ -74,7 +74,7 @@
 |---|---|---|
 | `core/` 下的 `.txt`（两份 `*-rule.txt`、`style-lock.txt`、`jobs/subagent-venue.txt`、`venues/` 下的除外）、`personas/<人格>/prompts/persona.md` | `ResourceRoot::sources` | 造会话时，拼进策略快照；`facts/reminder-*.txt` 只拼进快照的 `reminder`，不另存（施工 P-1 补） |
 | `core/jobs/subagent-venue.txt` | `ResourceRoot::subagent_venue` | 造子会话时，接进 system（施工 7-5） |
-| `core/venues/group.txt`、`core/venues/no-text.txt`、`recent-open.txt`、`recent-omitted.txt` | `ResourceRoot::group_note`、`group_chat` | 造群会话时：第一份接进 system，别的记进快照的 `group`（施工 O-13 中、下） |
+| `core/venues/group.txt`、`core/venues/no-text.txt`、`recent-open.txt`、`recent-omitted.txt`、`voice.txt` | `ResourceRoot::group_note`、`group_chat` | 造群会话时：第一份接进 system，别的记进快照的 `group`（施工 O-13 中、下；`voice.txt` 施工 O-33） |
 | `core/permission-rule.txt`、`core/local-paths-rule.txt`、`core/style-lock.txt` | `ResourceRoot::core_lines` | 造会话时，接在 system 最后（施工 2-7 补，`policy.md` 的 `with_core_lines`）；风格锁再接在它们后面，只有带角色扮演提示的人格（施工 P-1 补，`with_style_lock`） |
 | `core/human/`、`software/<软件包>/human/` | `Human::load` | `miyu ask` 起来时读一次，印每一步用（`cli/ask.md`）；核心起来时照系统的语言读一次，生成配置的 Schema 和参考文件（施工 8-1，`config.md`） |
 | `software/basesystem/` 下别的 | `miyu-basesystem` | 核心起来时登记工具（`tools/*.md`） |

@@ -48,6 +48,9 @@ struct MediaParams {
     id: String,
     #[serde(default)]
     name: Option<String>,
+    /// 多少字节（施工 O-33）：非负整数，不是的整条 `bad_params`。
+    #[serde(default)]
+    size: Option<u64>,
 }
 
 /// 带的东西是哪一种：只认这五种。
@@ -78,6 +81,7 @@ impl VenueMessageParams {
                     },
                     id: platform_id(media.id)?,
                     name: media.name.map(|name| words(name, MEDIA_NAME)).transpose()?,
+                    size: media.size,
                 })
             })
             .collect::<Result<Vec<_>, Refusal>>()?;

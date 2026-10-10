@@ -1,6 +1,6 @@
 //! 群会话（施工 O-13 中）：格式说明接在人设后面、记下 `group`，字节读得回来；没有的不写这一格；交给组装器的时区和空的那一句；
 //! 时区坏了的快照造不出策略。群聊近况（施工 O-13 下）：交给组装器的块头、缺口提示的模板、预算；O-13（中）造的没有、不写；
-//! 缺口提示写错了的造不出策略。
+//! 缺口提示写错了的造不出策略。语音那一句（施工 O-33）：交给组装器的去掉行尾换行；以前造的没有、不写。
 
 use miyu_kernel::template::Template;
 use miyu_kernel::time::UtcOffset;
@@ -19,6 +19,7 @@ fn tokyo() -> GroupChat {
             omitted: "({count} left out)\n".to_string(),
             budget: RECENT_BUDGET,
         }),
+        voice: Some("(voice note)\n".to_string()),
     }
 }
 
@@ -52,8 +53,23 @@ fn the_assembler_gets_the_pinned_offset_and_the_bare_line() {
                 omitted: Template::parse("({count} left out)\n").unwrap(),
                 budget: 80_000,
             }),
+            voice: Some("(voice note)".to_string()),
         }
     );
+}
+
+/// 施工 O-33：以前造的没有语音那一句：组装器照旧写记号，快照不写这一格（字节不变）。
+#[test]
+fn a_group_made_before_the_voice_note_has_none_and_writes_none() {
+    let older = GroupChat {
+        voice: None,
+        ..tokyo()
+    };
+    assert_eq!(older.texts().unwrap().voice, None);
+    let bytes = String::from_utf8(engineer().with_group(NOTE, older).to_bytes()).unwrap();
+    assert!(!bytes.contains("\"voice\""), "{bytes}");
+    let made = engineer().with_group(NOTE, tokyo());
+    assert_eq!(Snapshot::from_bytes(&made.to_bytes()).unwrap(), made);
 }
 
 #[test]

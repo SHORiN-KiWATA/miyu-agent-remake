@@ -174,7 +174,8 @@ impl ResourceRoot {
     }
 
     /// 群会话钉下的（施工 O-13 中）：时区 `offset`（比 UTC 早多少分钟），空的一条写什么照 `core/venues/no-text.txt` 的原文；
-    /// 群聊近况（施工 O-13 下）的块头、缺口提示照 `core/venues/recent-open.txt`、`recent-omitted.txt` 的原文，预算是出厂的。
+    /// 群聊近况（施工 O-13 下）的块头、缺口提示照 `core/venues/recent-open.txt`、`recent-omitted.txt` 的原文，预算是出厂的；
+    /// 语音那一句（施工 O-33）照 `core/venues/voice.txt` 的原文。
     ///
     /// # Errors
     ///
@@ -188,6 +189,7 @@ impl ResourceRoot {
                 omitted: self.read(&["core", "venues", "recent-omitted.txt"])?,
                 budget: miyu_policy::RECENT_BUDGET,
             }),
+            voice: Some(self.read(&["core", "venues", "voice.txt"])?),
         })
     }
 

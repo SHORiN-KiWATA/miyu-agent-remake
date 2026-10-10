@@ -2719,6 +2719,19 @@ Group messages look like [HH:MM] name (id=..., role) [msg=...]: text, with optio
 ({count} earlier messages did not fit here; fetch them with history.)
 ```
 
+### 人这边：群里一行的内容，语音的记号后面空一格
+
+#### `core/venues/voice.txt`
+
+- 什么时候加进来：群会话里，群里的人发的一条带着语音（施工 O-33）；O-33 起造的群会话才有（快照的 `group.voice`），以前造的一个字节不变
+- token：6（2026-10-11，接在 `[voice]` 后面比只有 `[voice]` 多 6；单独接在 `hi` 后面也是 6）
+- 为什么加：语音先不转文字（2026-10-11 项目主人定）：只写 `[voice]` 她会当听到了、编内容，告诉她这一条听不了。英文短句，括号是记号的一部分
+- 指纹：`9c24eebb`
+
+```text
+(not playable yet)
+```
+
 ### 回顾那一次请求，不进主对话
 
 #### `core/recap/instruction.txt`
