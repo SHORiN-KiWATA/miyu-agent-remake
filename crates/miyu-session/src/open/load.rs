@@ -3,6 +3,7 @@
 
 use std::path::Path;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use tokio::sync::mpsc;
 
@@ -89,8 +90,12 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         run,
         (guard, place),
         wired,
+        (read, connected),
     ) = blocking(move || {
+        // 载入各段用了多久（施工 V-2 中）：读、解日志，接上记忆，记进 `loaded` 那一行。
+        let began = Instant::now();
         let (log, events) = SessionLog::open(&dir, SEGMENT_LIMIT).map_err(LoadError::Log)?;
+        let read = began.elapsed();
         let (created, command) = match events.first() {
             Some(Event {
                 body: Body::SessionCreated(created),
@@ -114,6 +119,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         // 快照里的范围已经照预设、有没有人格算过（施工 P-2 中、P-4 上），这里只再管子会话。
         let persona = snapshot.persona.as_deref().unwrap_or_default();
         let scope = memory::scope(created.parent.is_some(), true, snapshot.memory_scope());
+        let connecting = Instant::now();
         let turns = connect(
             memory.as_ref(),
             scope,
@@ -134,6 +140,7 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
             run,
             (guard, place),
             turns,
+            (read, connecting.elapsed()),
         ))
     })
     .await?;
@@ -180,14 +187,18 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         .last()
         .map_or_else(Clock::default, |event| Clock::since(event.at));
     let count = events.len();
+    let scanning = Instant::now();
     // 她看过的文件（施工 4-6 上）、派出去的任务（施工 7-4）、最近发给了谁（施工 8-8）从日志里重建：内核收走日志之前。
     let seen = effects::seen_in(&events);
     let roster = Roster::from_events(&events);
     let sent = last_sent(&events);
     // 累计的用量和计数（施工 9-6 上）：订阅的回应照它答，之后每落一批盘加上这一批。
     let tally = Tally::of(&events);
+    let scanned = scanning.elapsed();
+    let replaying = Instant::now();
     let (mut session, first) = Session::load(id.clone(), events, clock.now(), policy, environment)
         .map_err(LoadError::Kernel)?;
+    let replayed = replaying.elapsed();
     // 路由照内核从日志算的引用造（施工 8-10）：换过模型的是换过以后的。
     let model = models.port(ForSession {
         id: id.clone(),
@@ -286,7 +297,15 @@ pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
         lineage: refresh_lineage,
     });
     span.in_scope(|| {
-        tracing::info!(target: TARGET, events = count, "loaded");
+        tracing::info!(
+            target: TARGET,
+            events = count,
+            read_ms = millis(read),
+            memory_ms = millis(connected),
+            scan_ms = millis(scanned),
+            replay_ms = millis(replayed),
+            "loaded"
+        );
     });
     if let Some(port) = &port {
         wake_children(port, waiting, &span);
@@ -314,4 +333,9 @@ fn last_sent(events: &[Event]) -> Option<Model> {
         }),
         _ => None,
     })
+}
+
+/// 毫秒，一位小数：运行日志里写载入各段用了多久（施工 V-2 中）。
+fn millis(took: Duration) -> f64 {
+    (took.as_secs_f64() * 10_000.0).round() / 10.0
 }
