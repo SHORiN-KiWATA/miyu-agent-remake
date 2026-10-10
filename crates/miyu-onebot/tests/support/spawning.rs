@@ -1,7 +1,7 @@
 //! 真的程序（施工 O-18，`onebot.md` 第一条「守着它的」、「施工时定的」第 28 条）：`miyu-onebot` 的子命令照真的跑；核心照开关
 //! 拉起的桥是硬链接在测试程序旁边的 `miyu-onebot`（包的程序只找主程序旁边的，测试里的主程序就是测试程序自己，照核心测扩展
 //! 的办法）。不拷：拷的时候开着写的句柄，同一个测试程序里别的测试这时起的子进程会带着它，接着拉起时 Linux 回 `ETXTBSY`。
-//! 等真的程序两个端口都听上照状态文件（[`bridge_up`]、[`served_up`]）：挑的空端口被别人先占了的报出来，换一组再来（`ports.rs`）。
+//! 等真的程序端口听上照状态文件（[`bridge_up`]、[`served_up`]）：挑的空端口被别人先占了的报出来，换一个再来（`ports.rs`）。
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -177,15 +177,10 @@ pub async fn until_port(port: u16, open: bool) {
     }
 }
 
-/// 等核心拉起的桥两个端口都听上：`extension.status` 说在跑、状态文件的进程号是它的（两个端口都绑上了才写）。`before` 是
-/// 上一个桥的进程号的，等的是换了进程号的那一个（被杀、重启以后核心拉起的新的）。交回它的进程号。桥停下了、标准错误说的是
-/// `listen`、`web` 被占了：[`Taken`]（`ports.rs`）；别的原因停下的当失败。
-pub async fn bridge_up(
-    root: &DataRoot,
-    listen: u16,
-    web: u16,
-    before: Option<u64>,
-) -> Result<u64, Taken> {
+/// 等核心拉起的桥端口听上：`extension.status` 说在跑、状态文件的进程号是它的（端口绑上了才写）。`before` 是上一个桥的
+/// 进程号的，等的是换了进程号的那一个（被杀、重启以后核心拉起的新的）。交回它的进程号。桥停下了、标准错误说的是 `listen`
+/// 被占了：[`Taken`]（`ports.rs`）；别的原因停下的当失败。
+pub async fn bridge_up(root: &DataRoot, listen: u16, before: Option<u64>) -> Result<u64, Taken> {
     let one = until_extension(root, |one| {
         let pid = one["pid"].as_u64();
         one["state"] == "stopped"
@@ -196,7 +191,7 @@ pub async fn bridge_up(
     .await;
     if one["state"] == "stopped" {
         assert!(
-            taken(one["stderr"].as_str().unwrap_or_default(), listen, web),
+            taken(one["stderr"].as_str().unwrap_or_default(), listen),
             "桥停下了：{one}"
         );
         return Err(Taken);
@@ -326,13 +321,17 @@ pub async fn served(root: &DataRoot, config: Value) -> Served {
     }
 }
 
-/// 照 [`served`] 跑 `serve`（握手交的两个端口是 `listen`、`web`，没有令牌），等它两个端口都听上：状态文件的进程号是它的。
-/// 它退了、标准错误说的是这两个端口被占了：[`Taken`]（`ports.rs`）；别的原因退出的当失败。
-pub async fn served_up(root: &DataRoot, listen: u16, web: u16) -> Result<Served, Taken> {
-    let config = serde_json::json!({"onebot.listen": listen, "onebot.web": web});
+/// 照 [`served`] 跑 `serve`（握手交的端口是 `listen`，没有令牌），等它端口听上：状态文件的进程号是它的。它退了、标准错误
+/// 说的是这个端口被占了：[`Taken`]（`ports.rs`）；别的原因退出的当失败。
+pub async fn served_up(root: &DataRoot, listen: u16) -> Result<Served, Taken> {
+    served_with(root, serde_json::json!({"onebot.listen": listen}), listen).await
+}
+
+/// 同 [`served_up`]，握手交的配置是 `config`（里面的 `onebot.listen` 是 `listen`）。
+pub async fn served_with(root: &DataRoot, config: Value, listen: u16) -> Result<Served, Taken> {
     let mut served = served(root, config).await;
     let pid = served.child.id().map(u64::from);
-    let up = within("桥两个端口都听上", async {
+    let up = within("桥端口听上", async {
         loop {
             if status_file::read(root).is_some_and(|file| file["pid"].as_u64() == pid) {
                 return true;
@@ -349,23 +348,19 @@ pub async fn served_up(root: &DataRoot, listen: u16, web: u16) -> Result<Served,
     }
     let exited = served.child.wait_with_output().await.expect("等得到");
     let said = text(&exited.stderr);
-    assert!(
-        taken(&said, listen, web),
-        "桥退了：{}，{said}",
-        exited.status
-    );
+    assert!(taken(&said, listen), "桥退了：{}，{said}", exited.status);
     Err(Taken)
 }
 
-/// 系统配置：两个端口照写，令牌是 `onebot.token` 引用密钥 `onebot`（密钥文件由 `Home::spawning` 写），说中文。终端管理员对应表由
+/// 系统配置：端口照写，令牌是 `onebot.token` 引用密钥 `onebot`（密钥文件由 `Home::spawning` 写），说中文。终端管理员对应表由
 /// `Home` 写在前面。
-pub fn ports_config(listen: u16, web: u16) -> String {
-    ports_config_with(listen, web, "")
+pub fn ports_config(listen: u16) -> String {
+    ports_config_with(listen, "")
 }
 
 /// 同 [`ports_config`]，`[onebot]` 里接着写 `onebot`（一行一项，例如白名单成员，施工 O-23）。
-pub fn ports_config_with(listen: u16, web: u16, onebot: &str) -> String {
+pub fn ports_config_with(listen: u16, onebot: &str) -> String {
     format!(
-        "\n[onebot]\nlisten = {listen}\nweb = {web}\ntoken = {{ secret = \"onebot\" }}\n{onebot}\n[ui]\nlanguage = \"zh\"\n"
+        "\n[onebot]\nlisten = {listen}\ntoken = {{ secret = \"onebot\" }}\n{onebot}\n[ui]\nlanguage = \"zh\"\n"
     )
 }

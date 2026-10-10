@@ -103,7 +103,7 @@
 ```text
 用法：miyu redo [选项] [话]
 
-撤掉最后一轮，把你那句话再发一次，让她重新做。后面写了话的，换成这句再发。
+撤掉最后一轮，把你那句话再发一次，让 AI 重新做。后面写了话的，换成这句再发。
 
 选项：
   -s, --session <编号>  哪个会话；不写就是上一次 miyu ask 开的
@@ -115,7 +115,7 @@
 ```text
 Usage: miyu redo [options] [words]
 
-Undo the last turn and send what you said again, so she does it over.
+Undo the last turn and send what you said again, so the AI does it over.
 Any words are sent instead of what you said.
 
 Options:

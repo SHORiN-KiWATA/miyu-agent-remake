@@ -1,14 +1,14 @@
 Usage: miyu <command> [options]
 
 Commands:
-  ask <words>           Say something and print her answer
-  undo, rewind          Undo the last turn and restore the files she changed
+  ask <words>           Say something and print the AI's answer
+  undo, rewind          Undo the last turn and restore the files the AI changed
   restore               Bring back what the latest undo took
   redo [words]          Redo the last turn, or redo it with new words
   compact [words]       Compact the context into a summary
   recap                 Recap the session: goal, progress, blockers
   rename <title>        Give the session a title
-  memory [command]      See what she remembers; search, add, edit, forget, clear
+  memory [command]      What the AI remembers: search, add, edit, forget, clear
   pkg [command]         See installed packages; install, remove
   config <command>      See and change settings, trust a project config
   check [file]          Check config, secrets, personas, presets and packages
@@ -22,7 +22,7 @@ ask options:
   -c, --continue          Go on in the session the last miyu ask opened
   -s, --session <id>      Go on in this session
       --format text|json  text for people (default), json for scripts
-      --add-dir <dir>     Let her read and write this directory too; repeatable
+      --add-dir <dir>     The AI may read and write it too; repeatable
       --file <file>       Attach a file: image, PDF, text…; repeatable
       --timeout <time>    Stop waiting after this long: 30s, 10m, 1h
       --from <name>       For another harness: its name, e.g. claude-code

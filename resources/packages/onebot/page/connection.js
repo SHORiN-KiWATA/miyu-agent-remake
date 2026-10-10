@@ -1,5 +1,5 @@
 // 接入QQ 后台页的「连接」页（docs/blueprint/onebot.md 第一条「后台页」第 3 条，施工 O-28 上）：没令牌时的三步、NapCat 的状态、
-// NapCat 那边要填的（地址、令牌、消息格式）、NapCat 的端口。照桥自己的网页的「连接」页（第二条「怎么走」第 3 条），换成经网页的
+// NapCat 那边要填的（地址、令牌、消息格式）、NapCat 的端口。照原来桥自己的网页的「连接」页（O-28 下去掉了），换成经网页的
 // 通道说：状态、令牌的值调桥登记的 status、connection.token，令牌、端口经 settings.set 写。
 //
 // 骨架、字、通道都在 app.js，经 connectionView 的参数交过来；这里不碰全局的东西。
@@ -20,7 +20,7 @@ const hex = (n) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => 
 /** 等 ms 毫秒。 */
 const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 
-/** 没令牌时的三步要不要出来：令牌不是 set 的时候出来，出来了就留到 NapCat 连上（第二条「施工时定的」第 22 条）。在这个框里
+/** 没令牌时的三步要不要出来：令牌不是 set 的时候出来，出来了就留到 NapCat 连上（「后台页」第 3 条「连接」）。在这个框里
  *  记着：换页再回来照实画。 */
 let guided = false;
 

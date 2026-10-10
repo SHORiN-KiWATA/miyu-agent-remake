@@ -170,7 +170,7 @@ fn software_opens_as_written_and_unlisted_ones_follow_unlisted() {
     assert!(!dev.keeps("memory", "memory", "remember"), "包没开的");
 }
 
-/// 装了的几个功能：基础系统两个，人格记忆、人设防失忆提醒、QQ 工具各一个。
+/// 装了的几个功能：基础系统两个，人格记忆、人设遵循提醒、QQ 工具各一个。
 fn installed() -> Features {
     let feature = |id: &str, package: &str| crate::features::Feature {
         id: id.to_string(),

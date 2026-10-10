@@ -21,6 +21,7 @@ mod peers;
 mod permission_changed;
 mod prepare;
 mod prepare_drop;
+mod prepare_go;
 mod prepare_wait;
 mod present;
 mod rebuild;

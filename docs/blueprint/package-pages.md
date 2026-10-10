@@ -124,14 +124,21 @@ dir = "page"              # 包目录 packages/<编号>/ 下的子目录，入�
 4. 推送：`settings.changed {"keys"}`（`config.changed` 里有它的项时）、`theme.changed {"theme", "colors"?}`。
 5. 别的方法回 `-32601`；写法不对的回 `-32600`。网页认的一律照它给框的那个包，框说自己是谁不算数。
 
+### 平台接入的软件：终端管理员的平台账号（2026-10-10 项目主人定）
+
+1. 平台接入那个软件（`package.list` 里带 `connection` 的）的信息页上多一项，名字照平台写，接入QQ 的叫「终端管理员的 QQ 号」，只填号码。
+2. 头替人写成配置 `external.bindings.<平台>:<号>`，值是本机账号（`config.set`，`config.md` 的 `external.bindings`）。平台照这一项的 `connection.platform`，不写死 QQ。现在只有管理员一个账号，值写 `admin`，不画账号那一列；多用户以后再加。
+3. 删掉一个号是 `unset` 那一键。系统配置里手写的、别的平台的照样认，信息页只列这个平台的。
+
 ### 终端
 
-1. 「软件包」页、信息页照上面的协议画；`page: true` 的写一行「这个软件有自己的页面，在网页里打开」，接一条命令 `miyu web --package <编号>`。
+1. 「软件包」页、信息页照上面的协议画；`page: true` 的写一行「这个软件有自己的页面，在网页里打开」，接一条打开它的命令：包有自己的命令、命令里有打开后台页的子命令的（下面第 3 条），写那一条（接入QQ 是 `miyu onebot web`）；没有的写 `miyu web --package <编号>`。
 2. `miyu web --package <编号>`：同 `miyu web`，打开的地址直接到「软件后台」里这个软件（网页软件的路由，`cli/web.md`）。
+3. 约定（2026-10-10 主会话定，接入QQ 的会话提的）：有自己命令（清单的 `[command]`）、又有后台页的包，在自己的命令里放一个打开后台页的子命令，叫 `web`：跑 `miyu web --package <编号>`，退出码照传。通用的 `miyu web --package <编号>` 照留。
 
 ### 接入QQ 怎么挪过来（接入QQ 的会话做）
 
-现在接入QQ 自己起一个网页（`web` 端口、`miyu-onebot web`）。挪成后台页：页面放进 `packages/onebot/page/`，页面要的操作做成桥登记的方法，经 `package.call` 调；桥自己的网页端口、一次性码去掉。先后和细节和接入QQ 的会话对。
+挪好了：接入QQ 的页面在 `packages/onebot/page/`，页面要的操作是桥登记的方法（`status`、`connection.token`），经 `package.call` 调（施工 O-28 上）；桥自己起的网页（`web` 端口、开它的 `miyu-onebot web`、一次性码）去掉了（施工 O-28 下）；`miyu onebot web` 随施工 O-28 补加回来，跑 `miyu web --package onebot`（上面「终端」第 2 条）。细节见 `onebot.md` 第一条「后台页」。
 
 ### 守着它的
 

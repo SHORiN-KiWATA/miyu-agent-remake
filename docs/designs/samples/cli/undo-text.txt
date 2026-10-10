@@ -3,7 +3,7 @@
 · 移回 docs/old.md
 · 删掉 notes/new.txt → 移进了回收站
 · 改回 src/b.rs → 没动：之后又被改过
-    --- 她改完的
+    --- AI 改完的
     +++ 现在
     @@ -3 +3 @@
     -fn main() {}

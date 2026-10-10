@@ -1,5 +1,6 @@
-//! 状态文件（施工 O-18，`onebot.md` 第一条「状态文件」）：桥听上了就写进程号、两个实际的端口、NapCat 没连着；NapCat 连上以后
-//! 说号、问到了再说实现和版本，断了说没连着。`/apply` 换端口跟着换由 `apply.rs` 守着。核心是替身。
+//! 状态文件（施工 O-18，`onebot.md` 第一条「状态文件」）：桥听上了就写进程号、实际的 NapCat 端口、NapCat 没连着（施工 O-28 下
+//! 起没有网页的 `web`）；NapCat 连上以后说号、问到了再说实现和版本，断了说没连着。推来的端口换了跟着换由 `apply.rs` 守着。
+//! 核心是替身。
 
 use std::time::Duration;
 
@@ -43,7 +44,7 @@ async fn the_status_file_follows_napcat() {
     let first = until_file(&root, |file| file["pid"] == pid).await;
     assert_eq!(
         first,
-        json!({"pid": pid, "listen": bridge.port, "web": bridge.web, "napcat": {"connected": false}})
+        json!({"pid": pid, "listen": bridge.port, "napcat": {"connected": false}})
     );
     let mut napcat = admitted(bridge.port, "/ws", Auth::Bearer(TOKEN), Some(BOT)).await;
     napcat.version().await;

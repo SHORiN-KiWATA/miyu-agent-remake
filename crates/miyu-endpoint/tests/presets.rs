@@ -304,7 +304,7 @@ async fn presets_are_listed_and_read_by_layer() {
             ("history", "翻查本会话", true, true),
             ("usage", "用量", true, true),
             ("memory", "人格记忆", true, true),
-            ("roleplay", "人设防失忆提醒", false, true),
+            ("roleplay", "人设遵循提醒", false, true),
             ("goal", "长期目标", true, false),
         ],
         "装了的照清单读的先后、名字照它的清单（施工 F-3 下）；写了没装的接在后面，名字照给人看的字；装了的包的编号（net）不另列"
@@ -315,8 +315,8 @@ async fn presets_are_listed_and_read_by_layer() {
             .expect("是一个个功能")
             .iter()
             .find(|one| one["id"] == "roleplay")
-            .expect("有人设防失忆提醒")["summary"],
-        "隔几轮把人设提醒短语再给她看一遍，聊久了也不出戏"
+            .expect("有人设遵循提醒")["summary"],
+        "隔几轮把人设提醒短语再给 AI 看一遍，聊久了也不出戏"
     );
     assert!(got["features"][0].get("summary").is_none(), "没说明的不写");
     assert!(got.get("software").is_none() && got.get("tools").is_none());

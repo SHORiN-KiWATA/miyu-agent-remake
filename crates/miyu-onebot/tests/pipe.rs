@@ -19,8 +19,8 @@ async fn when_the_core_closes_the_pipe_the_bridge_stops_quietly() {
         let mut lines = BufReader::new(reader).lines();
         let line = lines.next_line().await.expect("读得了").expect("有一行");
         let hello: Value = serde_json::from_str(&line).expect("是 JSON");
-        // 照核心拉起扩展的样子交两个端口（施工 O-20）：0 让系统挑，不碰出厂的 8301、8302。
-        let config = json!({"onebot.listen": 0, "onebot.web": 0});
+        // 照核心拉起扩展的样子交端口（施工 O-20）：0 让系统挑，不碰出厂的 8301。
+        let config = json!({"onebot.listen": 0});
         let reply = json!({"jsonrpc": "2.0", "id": hello["id"], "result": {"protocol": 1, "language": "zh", "config": config}});
         writer
             .write_all(format!("{reply}\n").as_bytes())

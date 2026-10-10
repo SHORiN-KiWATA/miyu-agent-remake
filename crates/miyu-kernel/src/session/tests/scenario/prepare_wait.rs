@@ -1,5 +1,6 @@
-//! 场景：到线时提前那一次还在路上，等它回来（`docs/blueprint/compaction.md` 第十五条第 4 条，施工 6-11 下）。数同
-//! `prepare.rs`：压缩线 400，T = 40，G = 60，过了 340 起压；第一轮切到第 8 条，第三轮的请求过了线。
+//! 场景：到线时提前那一次还在路上，等它回来（`docs/blueprint/compaction.md` 第十五条第 5 条，施工 6-11 下）。数同
+//! `prepare.rs`：压缩线 400，T = 40，G = 60，过了 340 起压；第一轮切到第 8 条，第三轮的请求 415 过了线，也放不下了（窗口 420
+//! 减输出预留 10 是 410，施工 6-11 补：放得下的不等，见 `prepare_go.rs`）。
 
 use super::prepare::{compactions, done, preparing, two_turns, words};
 use super::*;
@@ -41,7 +42,7 @@ fn summary(stage: &Stage) -> String {
 fn one_on_its_way_at_the_line_is_waited_for_and_swapped_in() {
     let mut stage = preparing(60);
     stage.prepare_model([Line::says("P1-summary").held_after(3)]);
-    two_turns(&mut stage, 330, 390);
+    two_turns(&mut stage, 330, 400);
     assert_eq!(written(&stage), [], "后台压的时候不推进度");
     // 第三轮过了线，它还在路上：不当场压，等它；先推一条进度，写了的是已经收到的三个字。
     stage.model([Line::says("好")]);
@@ -80,7 +81,7 @@ fn a_failed_or_tool_calling_one_waited_for_compacts_on_the_spot_from_zero() {
     ] {
         let mut stage = preparing(60);
         stage.prepare_model([line.clone()]);
-        two_turns(&mut stage, 330, 390);
+        two_turns(&mut stage, 330, 400);
         stage.model([Line::says("S1"), Line::says("好")]);
         stage.say(&words(10));
         assert_eq!(on_the_spot(&stage), 0, "{line:?}：还在等");
@@ -130,7 +131,7 @@ fn one_asked_before_an_undo_into_it_is_not_waited_for() {
     two_turns(&mut stage, 330, 345);
     let turns = stage.turns();
     stage.revert(turns[0]);
-    two_turns(&mut stage, 330, 390);
+    two_turns(&mut stage, 330, 400);
     assert_eq!(stage.prepares().len(), 1, "在路上的挡着再压");
     stage.model([Line::says("S1"), Line::says("好")]);
     stage.say(&words(10));
@@ -166,7 +167,7 @@ fn manual_compaction_waits_unless_words_are_attached() {
 fn interrupted_while_waiting_it_is_kept_for_the_next_line() {
     let mut stage = preparing(60);
     stage.prepare_model([Line::says("P1").held_after(1)]);
-    two_turns(&mut stage, 330, 390);
+    two_turns(&mut stage, 330, 400);
     stage.say(&words(10));
     stage.interrupt(Queued::Return);
     assert!(
@@ -189,7 +190,7 @@ fn interrupted_while_waiting_it_is_kept_for_the_next_line() {
 fn restarted_while_waiting_the_resumed_turn_compacts_as_before() {
     let mut stage = preparing(60);
     stage.prepare_model([Line::says("P1").held()]);
-    two_turns(&mut stage, 330, 390);
+    two_turns(&mut stage, 330, 400);
     stage.say(&words(10));
     assert!(compactions(&stage).is_empty(), "在等");
     // 有计划地重启：载入以后接着走这一轮，手里没有压好的，当场压。
@@ -215,7 +216,7 @@ fn a_permission_switched_while_waiting_is_told_before_the_next_request() {
     ] {
         let mut stage = preparing(60);
         stage.prepare_model([line.clone()]);
-        two_turns(&mut stage, 330, 390);
+        two_turns(&mut stage, 330, 400);
         stage.model([Line::says("S1"), Line::says("好")]);
         stage.say(&words(10));
         stage.set_permission(Some(Level::Full), None);

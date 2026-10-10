@@ -5,7 +5,7 @@
 kind = "process"
 protocol = [1, 1]
 name = { en = "Connect QQ", zh = "接入QQ", ja = "QQ接続" }
-summary = { en = "Talk with her on QQ through NapCat", zh = "经 NapCat 在 QQ 上和她说话", ja = "NapCat 経由で QQ で会話する" }
+summary = { en = "Talk with the AI on QQ through NapCat", zh = "经 NapCat 在 QQ 上和 AI 说话", ja = "NapCat 経由で QQ で会話する" }
 # 软件包页上的图标（Lucide 的名字，施工 O-28 上，docs/blueprint/package-pages.md「清单多的几格」）。
 icon = "message-circle"
 
@@ -51,16 +51,6 @@ applies = "now"
 name = { en = "Port", zh = "端口", ja = "ポート" }
 description = { en = "The port NapCat's reverse WebSocket connects to, local only. In NapCat use ws://127.0.0.1:<port>/ws.", zh = "NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/ws。", ja = "NapCat のリバース WebSocket が接続してくるポートです。このマシンからだけ受け付けます。NapCat 側のアドレスは ws://127.0.0.1:<ポート>/ws です。" }
 
-[settings.web]
-type = "int"
-min = 1024
-max = 65535
-default = 8302
-layers = ["system"]
-applies = "now"
-name = { en = "Web page port", zh = "网页端口", ja = "Web ページのポート" }
-description = { en = "The port of Connect QQ's own web page (NapCat connection, token), local only. Open it with miyu-onebot web.", zh = "接入QQ自己的网页（连接 NapCat、换令牌）的端口，只听本机。用 miyu-onebot web 打开。", ja = "QQ接続自身の Web ページ（NapCat の接続、トークン）のポートです。このマシンからだけ受け付けます。miyu-onebot web で開きます。" }
-
 [settings.token]
 type = "secret"
 layers = ["system"]
@@ -76,4 +66,4 @@ max = 128
 layers = ["system"]
 applies = "now"
 name = { en = "Whitelist", zh = "白名单成员", ja = "ホワイトリスト" }
-description = { en = 'People who can chat with her in private, whose friend requests are accepted, who are not rate-limited or held off while she sleeps, and whom she answers directly in groups. Write each as qq:<QQ number>, for example qq:20017.', zh = '能私聊她、加她好友自动通过、不受限流和睡觉影响、群里冲她来的直接回的人。每一项写 qq:QQ号，例如 qq:20017。', ja = '個人チャットで話せて、友だち申請が自動で通り、回数制限も睡眠時間もかからず、グループで彼女に向けた発言にはそのまま返事をもらえる人です。一つずつ qq:QQ番号 で書きます。例：qq:20017。' }
+description = { en = 'People who can chat with the AI in private, whose friend requests are accepted, who are not rate-limited or held off while the AI sleeps, and who get a direct reply when they address the AI in groups. Write each as qq:<QQ number>, for example qq:20017.', zh = '能私聊 AI、加 AI 好友自动通过、不受限流和睡觉影响、群里冲 AI 来的直接回的人。每一项写 qq:QQ号，例如 qq:20017。', ja = '個人チャットで話せて、友だち申請が自動で通り、回数制限も睡眠時間もかからず、グループで AI に向けた発言にはそのまま返事をもらえる人です。一つずつ qq:QQ番号 で書きます。例：qq:20017。' }

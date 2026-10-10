@@ -170,12 +170,12 @@ fn only_one_is_prepared_at_a_time() {
 
 #[test]
 fn a_tail_grown_past_t_plus_g_compacts_as_before() {
-    // 第二轮回了 120 个 token：N 以后的尾巴 140，超了 T + G = 100。
+    // 第二轮回了 120 个 token：N 以后的尾巴 140，超了 T + G 加余量 = 110（施工 6-11 补）；第三轮的请求 415 也放不下了。
     let mut stage = preparing(60);
     stage.prepare_model([Line::says("P1")]);
     stage.model([
         Line::says(&words(50)).reports(330),
-        Line::says(&words(120)).reports(390),
+        Line::says(&words(120)).reports(400),
         Line::says("S1"),
         Line::says("好"),
     ]);

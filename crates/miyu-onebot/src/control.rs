@@ -2,11 +2,14 @@
 //! 核心那边（`extensions.md`），这里只调核心的方法、照回应说。
 //!
 //! 1. 照终端的样子连核心：出示本机令牌，没在跑就拉起（「施工时定的」第 24 条：开关在核心那边，核心不在开不了也关不了），
-//!    和 `miyu-onebot web` 同一个 `miyu_webserve::open::Core`；握手以后照核心回的语言说。连不上：`failure/core`，退出码 1。
+//!    用 `miyu_webserve::open::Core`（和网页软件同一个，「施工时定的」第 166 条）；握手以后照核心回的语言说。连不上：
+//!    `failure/core`，退出码 1。
 //! 2. `start`、`stop`、`restart` 调 `extension.enable`、`disable`、`restart`，`status` 调 `extension.status` 取 [`PACKAGE`]
 //!    那一个。核心拒绝的照核心的原话说（它已经照连接的语言说了），退出码 1。核心那边没有这个包：[`Report::Missing`]，退出码 1。
 //! 3. 照那一个说（[`describe`]）：`start`、`restart` 先说一句做了什么，再说它这时的样子；`stop` 只说关了；`status` 说它的样子，
-//!    在跑的、状态文件（`crate::status_file`）的进程号对得上的，再说 NapCat 和两个地址。
+//!    在跑的、状态文件（`crate::status_file`）的进程号对得上的，再说 NapCat、NapCat 那边的地址（施工 O-28 下）。`start`、
+//!    `status` 末尾一律接一句设置和状态在网页里、用 `miyu onebot web` 打开（[`Report::Page`]，施工 O-28 补，「施工时定的」
+//!    第 174 条）：关着、停下了的也说，人要去那里设令牌、改端口；`restart` 不说。
 //!
 //! 说的印在标准输出上，出错的在标准错误上。
 
@@ -15,8 +18,10 @@ use std::io::Write;
 use serde_json::{Value, json};
 
 use miyu_store::root::DataRoot;
-use miyu_webserve::CoreCommand;
 use miyu_webserve::open::Core;
+
+/// 拉起核心的命令（`start` 这几样连核心时核心没在跑就照它拉起），和网页软件同一个写法。
+pub use miyu_webserve::CoreCommand;
 
 use crate::serve::Failure;
 use crate::texts::Texts;
@@ -81,13 +86,10 @@ pub enum Report {
     NapcatBot(String),
     /// NapCat 没连着。
     NoNapcat,
-    /// 两个实际听的端口：NapCat 连进来的、WebUI 的。
-    Ports {
-        /// NapCat 连进来的端口。
-        listen: u64,
-        /// WebUI 的端口。
-        web: u64,
-    },
+    /// NapCat 那边的地址：实际听的端口（施工 O-28 下：原来连着网页的地址一起说）。
+    Listen(u64),
+    /// 设置和状态在网页里、用 `miyu onebot web` 打开（施工 O-28 下；O-28 补改了说法）：`start`、`status` 说完跟上。
+    Page,
 }
 
 /// 停下的原因（`extensions.md`「对外的样子」的 `reason`）。
@@ -167,6 +169,9 @@ pub async fn control(
     if which != Control::Stop {
         lines.extend(describe(&entry, status_file::read(root).as_ref()));
     }
+    if matches!(which, Control::Start | Control::Status) {
+        lines.push(Line::Say(Report::Page));
+    }
     for line in lines {
         match line {
             Line::Say(report) => say(out, &texts.report(&report)),
@@ -225,13 +230,13 @@ fn halt(entry: &Value) -> Halt {
     }
 }
 
-/// 状态文件里的 NapCat 和两个地址；读不懂的不说。
+/// 状态文件里的 NapCat、NapCat 那边的地址；读不懂的不说。
 fn napcat(board: &Value) -> Vec<Report> {
     let napcat = &board["napcat"];
     let Some(connected) = napcat["connected"].as_bool() else {
         return Vec::new();
     };
-    let (Some(listen), Some(web)) = (board["listen"].as_u64(), board["web"].as_u64()) else {
+    let Some(listen) = board["listen"].as_u64() else {
         return Vec::new();
     };
     let text = |key: &str| napcat[key].as_str().map(str::to_string);
@@ -249,7 +254,7 @@ fn napcat(board: &Value) -> Vec<Report> {
             }
         }
     };
-    vec![first, Report::Ports { listen, web }]
+    vec![first, Report::Listen(listen)]
 }
 
 /// 印一行；印不出来也没有别处可说了。

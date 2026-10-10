@@ -1,0 +1,152 @@
+[
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "strong",
+        "children": [
+          {
+            "type": "text",
+            "text": "粗"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": "、"
+      },
+      {
+        "type": "em",
+        "children": [
+          {
+            "type": "text",
+            "text": "斜"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": "、"
+      },
+      {
+        "type": "underline",
+        "children": [
+          {
+            "type": "text",
+            "text": "下划线"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": "、"
+      },
+      {
+        "type": "del",
+        "children": [
+          {
+            "type": "text",
+            "text": "删"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": "、"
+      },
+      {
+        "type": "code_inline",
+        "text": "Ctrl"
+      },
+      {
+        "type": "text",
+        "text": "、"
+      },
+      {
+        "type": "mark",
+        "children": [
+          {
+            "type": "text",
+            "text": "高亮"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": "、H"
+      },
+      {
+        "type": "sub",
+        "children": [
+          {
+            "type": "text",
+            "text": "2"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": "O、x"
+      },
+      {
+        "type": "sup",
+        "children": [
+          {
+            "type": "text",
+            "text": "2"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": "、只留字、"
+      },
+      {
+        "type": "link",
+        "href": "https://example.com",
+        "children": [
+          {
+            "type": "text",
+            "text": "链接"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "text": "、"
+      },
+      {
+        "type": "html_raw",
+        "text": "<table>"
+      },
+      {
+        "type": "text",
+        "text": "原文"
+      },
+      {
+        "type": "html_raw",
+        "text": "</table>"
+      }
+    ]
+  },
+  {
+    "type": "details",
+    "summary": [
+      {
+        "type": "text",
+        "text": "点开"
+      }
+    ],
+    "children": [
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "text",
+            "text": "藏着的一段"
+          }
+        ]
+      }
+    ]
+  }
+]

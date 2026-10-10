@@ -10,7 +10,7 @@ use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
 use crate::rules::{copied_resources, system_rule};
-use crate::support::ports::on_free_ports;
+use crate::support::ports::on_free_port;
 use crate::support::spawning::{program, served_up, text};
 use crate::support::*;
 
@@ -235,7 +235,7 @@ fn serve_with_broken_factory_data_stops_before_the_handshake() {
 async fn serve_with_a_system_mistake_starts_and_logs_it() {
     let (dir, root) = temp_root();
     test_rules(&root);
-    let mut served = on_free_ports(async |listen, web| served_up(&root, listen, web).await).await;
+    let mut served = on_free_port(async |listen| served_up(&root, listen).await).await;
     // 核心请它退出：关它的标准输入；好好停下，运行日志写完。
     drop(served.stdin.take());
     let exited = tokio::time::timeout(Duration::from_secs(5), served.child.wait_with_output())

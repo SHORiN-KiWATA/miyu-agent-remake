@@ -263,6 +263,12 @@ impl Home {
         std::fs::read_to_string(self.root.path().join("system/config.toml")).unwrap_or_default()
     }
 
+    /// 管理员的个人设置现在的字：`miyu setup` 写在这里（施工 T-11）。
+    pub fn personal_settings(&self) -> String {
+        std::fs::read_to_string(self.root.path().join("home/admin/settings.toml"))
+            .unwrap_or_default()
+    }
+
     /// 密钥文件现在的字。
     pub fn secrets(&self) -> String {
         std::fs::read_to_string(self.root.path().join("system/secrets.toml")).unwrap_or_default()

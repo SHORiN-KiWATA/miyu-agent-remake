@@ -1,6 +1,6 @@
 //! 桥自己的数（施工 O-8，`onebot.md`「施工时定的」第 15 条）：出厂的 `bridge.json` 读得出来，数和图纸写的一样；队列写 0、
-//! 判官的并发写 0（施工 O-23 下）、排着的过期写 0（施工 O-25 中）、多出不认识的格、少了一格（施工 O-25 下的贴表情两格也是）、读
-//! 不了的，读不进来，说是哪个文件。
+//! 判官的并发写 0（施工 O-23 下）、排着的过期写 0（施工 O-25 中）、多出不认识的格（施工 O-28 下去掉的 `web` 也是）、少了一格
+//! （施工 O-25 下的贴表情两格也是）、读不了的，读不进来，说是哪个文件。
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -49,19 +49,6 @@ fn the_shipped_numbers_are_the_blueprints() {
     // 群里判过要回的那一条贴 QQ 表情 289，十分钟还没回的摘掉（施工 O-25 下，18 第七节）。
     assert_eq!(tuning.reaction_emoji, "289");
     assert_eq!(tuning.reaction(), Duration::from_secs(600));
-    // WebUI（施工 O-16）：页面只有三种文件；内容安全策略只许连自己、不许被框起来；验过的登录令牌记 60 秒。
-    assert_eq!(
-        tuning.web.types.keys().collect::<Vec<_>>(),
-        ["css", "html", "js"]
-    );
-    for must in [
-        "default-src 'self'",
-        "connect-src 'self'",
-        "frame-ancestors 'none'",
-    ] {
-        assert!(tuning.web.csp.contains(must), "{must}");
-    }
-    assert_eq!(tuning.web.status_cache(), Duration::from_secs(60));
 }
 
 #[test]
@@ -78,15 +65,9 @@ fn a_bad_file_is_not_read_and_named() {
         ),
         ("unknown", good.replacen('{', "{\"extra\": 1,", 1)),
         (
-            "web-unknown",
-            good.replace(
-                "\"status_cache_seconds\"",
-                "\"extra\": 1, \"status_cache_seconds\"",
-            ),
-        ),
-        (
-            "web-missing",
-            good.replace("\"status_cache_seconds\"", "\"cache\""),
+            // 桥自己的网页的数随网页去掉了（施工 O-28 下）：再写它是多一格。
+            "web-again",
+            good.replacen('{', "{\"web\": {\"status_cache_seconds\": 60},", 1),
         ),
         (
             "missing",

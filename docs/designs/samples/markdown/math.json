@@ -1,0 +1,57 @@
+[
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "text",
+        "text": "行内 "
+      },
+      {
+        "type": "math",
+        "display": false,
+        "text": "a+b"
+      },
+      {
+        "type": "text",
+        "text": " 和 "
+      },
+      {
+        "type": "math",
+        "display": false,
+        "text": "c"
+      },
+      {
+        "type": "text",
+        "text": "，花了 $5 和 $10，转义的 $。"
+      }
+    ]
+  },
+  {
+    "type": "math",
+    "display": true,
+    "text": "E = mc^2"
+  },
+  {
+    "type": "math",
+    "display": true,
+    "text": "x^2"
+  },
+  {
+    "type": "paragraph",
+    "children": [
+      {
+        "type": "text",
+        "text": "夹在行里的 "
+      },
+      {
+        "type": "math",
+        "display": true,
+        "text": "y"
+      },
+      {
+        "type": "text",
+        "text": " 公式。"
+      }
+    ]
+  }
+]

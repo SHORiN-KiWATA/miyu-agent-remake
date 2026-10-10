@@ -341,7 +341,7 @@ fn leaving_while_waiting_says_why_after_the_usage() {
     });
     assert_eq!((step, left), (Step::Going, Some(exit::INTERRUPTED)));
     assert!(
-        screen.ends_with("派出去了。\n\r\x1b[2K· 等 2 个子代理回报…（按 Ctrl+C 不等了）\r\x1b[2K· 输入 100 · 命中缓存 40（40%）· 输出 10\n· 不等了，子代理还在后台跑，下次 miyu ask -c 时她会看到结果\n"),
+        screen.ends_with("派出去了。\n\r\x1b[2K· 等 2 个子代理回报…（按 Ctrl+C 不等了）\r\x1b[2K· 输入 100 · 命中缓存 40（40%）· 输出 10\n· 不等了，子代理还在后台跑，下次 miyu ask -c 时 AI 会看到结果\n"),
         "终端里等的那一行擦掉：{screen:?}"
     );
     // 到时间了：还有没报的、都报了（只剩一轮在跑）说法不一样。
@@ -414,7 +414,7 @@ fn json_lists_each_turn_and_prints_nothing_while_waiting() {
     assert_eq!(printed["turns"].as_array().map(Vec::len), Some(1));
     assert_eq!(
         said,
-        "· 不等了，子代理还在后台跑，下次 miyu ask -c 时她会看到结果\n"
+        "· 不等了，子代理还在后台跑，下次 miyu ask -c 时 AI 会看到结果\n"
     );
 }
 
@@ -449,7 +449,7 @@ fn english_says_the_same() {
     );
     assert_eq!(
         language.stopped_waiting(),
-        "· Stopped waiting; the subagents keep running, and she will see their results at the next miyu ask -c"
+        "· Stopped waiting; the subagents keep running, and the AI will see their results at the next miyu ask -c"
     );
     assert_eq!(language.timed_out(false), "· Time is up");
 }

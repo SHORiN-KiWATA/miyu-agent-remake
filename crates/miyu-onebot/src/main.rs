@@ -4,30 +4,32 @@
 //!   协议；说给人听的在标准错误上，核心收进 `state/logs/onebot.stderr`。核心关了标准输入、Ctrl+C、SIGTERM 好好停下。
 //! - `start`、`stop`、`restart`、`status`：调核心的 `extension.*`（施工 O-18，[`control`]）。
 //! - `logs [-f]`：印运行日志和标准错误（施工 O-18，[`logs`]）。
-//! - `web [--print]`：打开桥的 WebUI（第二条，施工 O-16，[`open`]）。
 //! - `venue show <场所>`：一个场所每一项的值和来处（施工 O-21，[`show`]）。
+//! - `web`：跑旁边的 `miyu web --package onebot`，打开网页软件里接入QQ 的后台页（施工 O-28 补，[`web`]）：不连核心、不读
+//!   数据根，照系统的语言说。
 //! - `-h`、`--help`：用法印在标准输出上，退出码 0（`miyu help onebot` 转成 `--help`）。
 //!
 //! 先找资源目录、读给人看的字（[`Texts`]，照系统的语言），之后说给人听的都照它。`serve` 再装运行日志
-//! `state/logs/onebot.log`，读 `bridge.json`、清单里两个端口的默认值（[`Defaults`]）和出厂的场所规则、出厂参数、违规词表
+//! `state/logs/onebot.log`，读 `bridge.json`、清单里 NapCat 端口的默认值（[`Defaults`]）和出厂的场所规则、出厂参数、违规词表
 //! （[`Factory`]，施工 O-21：有问题是打包的错，说 [`Failure::Factory`]、退出码 1），交给 [`run`]：配置由核心在握手的回应里
 //! 交、变了推过来，桥不读系统配置（施工 O-20）。握手以前不说话：起不来的照系统的语言说一句；运行日志装不上的那一句等握手回了
-//! 语言再说；握手回了语言就照它说，端口被占那一句也是（「施工时定的」第 42 条）。`start`、`stop`、`restart`、`status`、`web`
-//! 握手以后照核心回的语言说，`logs`、`venue show` 照系统的语言。找不到资源目录、给人看的字读不懂，这时还没有字可用，印原话。
+//! 语言再说；握手回了语言就照它说，端口被占那一句也是（「施工时定的」第 42 条）。`start`、`stop`、`restart`、`status`
+//! 握手以后照核心回的语言说，`logs`、`venue show`、`web` 照系统的语言。找不到资源目录、给人看的字读不懂，这时还没有字可用，
+//! 印原话。
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex, PoisonError};
 
-use miyu_onebot::control::{Control, control};
+use miyu_onebot::control::{Control, CoreCommand, control};
 use miyu_onebot::logs::logs;
-use miyu_onebot::open::{Open, SystemBrowser, open, port};
 use miyu_onebot::rules::Factory;
-use miyu_onebot::serve::{CoreCommand, Failure, Notice, Pipe, Serve, run};
+use miyu_onebot::serve::{Failure, Notice, Pipe, Serve, run};
 use miyu_onebot::settings::Defaults;
 use miyu_onebot::texts::{Texts, system_language};
 use miyu_onebot::tuning::Tuning;
 use miyu_onebot::venue::show;
+use miyu_onebot::web::web;
 use miyu_onebot::{PROGRAM, TARGET};
 use miyu_store::env::Env;
 use miyu_store::resources::ResourceRoot;
@@ -47,8 +49,6 @@ enum Command {
     Control(Control),
     /// `logs`，带不带 `-f`。
     Logs { follow: bool },
-    /// `web`，带不带 `--print`。
-    Web(Open),
     /// `venue show`：场所编号的原文。
     Venue(String),
 }
@@ -78,9 +78,8 @@ fn main() -> ExitCode {
         ["status"] => Command::Control(Control::Status),
         ["logs"] => Command::Logs { follow: false },
         ["logs", "-f"] => Command::Logs { follow: true },
-        ["web"] => Command::Web(Open::default()),
-        ["web", "--print"] => Command::Web(Open { print: true }),
         ["venue", "show", venue] => Command::Venue(venue.to_string()),
+        ["web"] => return ExitCode::from(web(&beside("miyu"), &texts, &mut std::io::stderr())),
         ["-h"] | ["--help"] => {
             println!("{}", texts.usage());
             return ExitCode::SUCCESS;
@@ -132,7 +131,6 @@ fn main() -> ExitCode {
                 &mut std::io::stderr(),
             )
         }
-        Command::Web(wanted) => runtime.block_on(web(root, &wanted, &mut texts)),
         Command::Venue(venue) => show(
             &root,
             &venue,
@@ -146,30 +144,7 @@ fn main() -> ExitCode {
     ExitCode::from(code)
 }
 
-/// `web`：桥的网页的端口照状态文件，没有的照清单的默认值（[`port`]），照 [`open`] 开浏览器。交回退出码。
-async fn web(root: DataRoot, wanted: &Open, texts: &mut Texts) -> u8 {
-    let fallback = match Defaults::load(texts.resources()) {
-        Ok(defaults) => defaults.web,
-        Err(reason) => {
-            eprintln!("{}", texts.failure(&Failure::Start(reason)));
-            return FAILED;
-        }
-    };
-    let core: CoreCommand = Arc::new(core);
-    open(
-        &root,
-        port(&root, fallback),
-        wanted,
-        &core,
-        &SystemBrowser,
-        texts,
-        &mut std::io::stdout(),
-        &mut std::io::stderr(),
-    )
-    .await
-}
-
-/// 装运行日志、读 `bridge.json`、清单里两个端口的默认值和出厂的场所规则这几样、跑到停。`locale` 是系统的语言。交回退出码。
+/// 装运行日志、读 `bridge.json`、清单里 NapCat 端口的默认值和出厂的场所规则这几样、跑到停。`locale` 是系统的语言。交回退出码。
 async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Texts) -> u8 {
     let log = miyu_log::install(
         &root.state().join("logs"),
@@ -200,7 +175,6 @@ async fn serve(root: DataRoot, env: &Env, locale: Option<String>, texts: &mut Te
     let serve = Serve {
         root,
         pipe: Pipe::new(tokio::io::stdin(), tokio::io::stdout()),
-        core: Arc::new(core),
         locale,
         tuning,
         resources: texts.resources().clone(),
@@ -245,12 +219,17 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// 拉起核心：自己真实位置旁边的主程序 `miyu` 加 `core`（照网页软件）。WebUI、`start` 这几样连核心时用。
+/// 拉起核心：自己真实位置旁边的主程序 `miyu` 加 `core`（照网页软件）。`start` 这几样连核心时用。
 fn core() -> std::process::Command {
-    let myself = std::env::current_exe().unwrap_or_else(|_| PathBuf::from(PROGRAM));
-    let mut core = std::process::Command::new(sibling(&myself, "miyu"));
+    let mut core = std::process::Command::new(beside("miyu"));
     core.arg("core");
     core
+}
+
+/// 自己真实位置旁边叫 `name` 的程序（[`sibling`]）；找不到自己的照名字找。
+fn beside(name: &str) -> PathBuf {
+    let myself = std::env::current_exe().unwrap_or_else(|_| PathBuf::from(PROGRAM));
+    sibling(&myself, name)
 }
 
 /// `program` 真实位置旁边叫 `name` 的程序（Windows 上加 `.exe`）。

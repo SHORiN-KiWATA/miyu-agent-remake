@@ -2,9 +2,10 @@
 //! 核心照出厂的清单拉起硬链接在测试程序旁边的 `miyu-onebot`，`start`、`stop`、`restart`、`status` 是真的程序。`start` 以后
 //! NapCat 连得进来、终端管理员的私聊照旧来回，`status` 说在跑、NapCat 连着；`stop` 以后桥自己退出、端口关了；桥被杀掉，核心拉起新的
 //! 一个，NapCat 重连得上；端口被占，核心停下，`status` 说是配置错、带出「端口被占」那一句；关着的不能 `restart`。核心改了桥的
-//! 配置（施工 O-20）：令牌、两个端口不重启当场换，令牌删了一律 401。陌生人的私聊（「施工时定的」第 49 条，核心 O-4 下合了以后
-//! 补的）：核心把它归系统账号 `onebot`、造了会话，桥认出属主是自己，照旧不接；终端管理员的照常来回。不靠墙钟睡，等状态。挑的空端口
-//! 在桥起来以前被别人占了的，换一组从头再来（`support/ports.rs`）。
+//! 配置（施工 O-20）：令牌、NapCat 的端口不重启当场换，令牌删了一律 401。`status` 在跑时说 NapCat 那边的地址（施工 O-28 下）；
+//! `start`、`status` 末尾一律接一句设置和状态在网页里、用 `miyu onebot web` 打开（施工 O-28 补），`restart` 不说。陌生人的
+//! 私聊（「施工时定的」第 49 条，核心 O-4 下合了以后补的）：核心把它归系统账号 `onebot`、造了会话，桥认出属主是自己，照旧
+//! 不接；终端管理员的照常来回。不靠墙钟睡，等状态。挑的空端口在桥起来以前被别人占了的，换一个从头再来（`support/ports.rs`）。
 
 use std::time::Duration;
 
@@ -19,8 +20,7 @@ use miyu_store::log::read_events;
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
-use crate::support::http::get;
-use crate::support::ports::{TRIES, on_free_ports};
+use crate::support::ports::{TRIES, on_free_port};
 use crate::support::spawning::*;
 use crate::support::*;
 
@@ -40,9 +40,9 @@ fn zh(report: &Report) -> String {
         .report(report)
 }
 
-/// 一个照开关拉起扩展的核心，两个端口照 `listen`、`web`，令牌是 [`TOKEN`]，说中文。
-fn home(script: &Script, listen: u16, web: u16) -> Home {
-    Home::spawning(script, &ports_config(listen, web))
+/// 一个照开关拉起扩展的核心，NapCat 的端口照 `listen`，令牌是 [`TOKEN`]，说中文。
+fn home(script: &Script, listen: u16) -> Home {
+    Home::spawning(script, &ports_config(listen))
 }
 
 /// 经核心调一次 `method`（`secret.set`、`config.set`），照页面、命令行的样子：核心收了才回。
@@ -89,19 +89,20 @@ async fn until_refused(port: u16, token: &str) {
     }
 }
 
-/// 经核心把 `key`（`onebot.listen`、`onebot.web`）改成挑的一个空端口，等桥当场换上：状态文件里的 `field` 是它。桥说它被占了
-/// （运行日志 `apply port in use port=<它>`：挑来放掉以后被别人先拿走了，`support/ports.rs`）的换一个再来，最多 [`TRIES`] 次。
-/// 交回换上的端口。
-async fn moved(root: &DataRoot, key: &str, field: &str) -> u16 {
+/// 经核心把 `onebot.listen` 改成挑的一个空端口，等桥当场换上：状态文件里的 `listen` 是它。桥说它被占了（运行日志
+/// `apply port in use port=<它>`：挑来放掉以后被别人先拿走了，`support/ports.rs`）的换一个再来，最多 [`TRIES`] 次。交回换上的
+/// 端口。
+async fn moved(root: &DataRoot) -> u16 {
     let log = root.state().join("logs").join("onebot.log");
     for _ in 0..TRIES {
         let new = free_port();
-        let change = json!({"layer": "system", "changes": [{"key": key, "value": new}]});
+        let change =
+            json!({"layer": "system", "changes": [{"key": "onebot.listen", "value": new}]});
         core_call(root, "config.set", change).await;
         let in_use = format!("apply port in use port={new}");
         let deadline = tokio::time::Instant::now() + WAIT;
         loop {
-            if status_file::read(root).is_some_and(|file| file[field] == new) {
+            if status_file::read(root).is_some_and(|file| file["listen"] == new) {
                 return new;
             }
             if std::fs::read_to_string(&log).is_ok_and(|log| log.contains(&in_use)) {
@@ -109,7 +110,7 @@ async fn moved(root: &DataRoot, key: &str, field: &str) -> u16 {
             }
             assert!(
                 tokio::time::Instant::now() < deadline,
-                "桥一直没换 {key}：{:?}",
+                "桥一直没换端口：{:?}",
                 status_file::read(root)
             );
             tokio::time::sleep(Duration::from_millis(20)).await;
@@ -134,19 +135,24 @@ async fn ok(root: &DataRoot, args: &[&str]) -> String {
 #[tokio::test]
 async fn start_lets_the_core_run_the_bridge_and_stop_closes_it() {
     let script = Script::new([Play::Says("在。")]);
-    let (home, listen, web, pid) = on_free_ports(async |listen, web| {
-        let home = home(&script, listen, web);
+    let (home, listen, pid) = on_free_port(async |listen| {
+        let home = home(&script, listen);
         assert_eq!(
             ok(&home.root, &["status"]).await,
-            format!("{}\n", zh(&Report::Off))
+            format!("{}\n{}\n", zh(&Report::Off), zh(&Report::Page)),
+            "关着的也说设置在哪"
         );
         let started = ok(&home.root, &["start"]).await;
         assert!(
             started.starts_with(&format!("{}\n", zh(&Report::Started))),
             "{started}"
         );
-        let pid = bridge_up(&home.root, listen, web, None).await?;
-        Ok((home, listen, web, pid))
+        assert!(
+            started.ends_with(&format!("\n{}\n", zh(&Report::Page))),
+            "起好了说设置在哪：{started}"
+        );
+        let pid = bridge_up(&home.root, listen, None).await?;
+        Ok((home, listen, pid))
     })
     .await;
     let mut napcat = admin_napcat(listen).await;
@@ -160,10 +166,8 @@ async fn start_lets_the_core_run_the_bridge_and_stop_closes_it() {
             version: "4.8.0".to_string(),
             bot: BOT.to_string(),
         }),
-        zh(&Report::Ports {
-            listen: u64::from(listen),
-            web: u64::from(web),
-        }),
+        zh(&Report::Listen(u64::from(listen))),
+        zh(&Report::Page),
     ];
     assert_eq!(status, format!("{}\n", expected.join("\n")));
     assert_eq!(
@@ -179,7 +183,7 @@ async fn start_lets_the_core_run_the_bridge_and_stop_closes_it() {
     );
     assert_eq!(
         ok(&home.root, &["status"]).await,
-        format!("{}\n", zh(&Report::Off))
+        format!("{}\n{}\n", zh(&Report::Off), zh(&Report::Page))
     );
     let log = std::fs::read_to_string(home.root.state().join("logs").join("onebot.log"))
         .expect("桥写了运行日志");
@@ -194,13 +198,13 @@ async fn start_lets_the_core_run_the_bridge_and_stop_closes_it() {
 #[tokio::test]
 async fn a_killed_bridge_is_started_again_and_napcat_comes_back() {
     let script = Script::new([Play::Says("回来了。")]);
-    // 核心拉起的新桥照样绑这两个端口：杀掉以后到它绑上之间被别人占了的，也换一组从头再来。
-    let (home, listen) = on_free_ports(async |listen, web| {
-        let home = home(&script, listen, web);
+    // 核心拉起的新桥照样绑这个端口：杀掉以后到它绑上之间被别人占了的，也换一个从头再来。
+    let (home, listen) = on_free_port(async |listen| {
+        let home = home(&script, listen);
         ok(&home.root, &["start"]).await;
-        let first = bridge_up(&home.root, listen, web, None).await?;
+        let first = bridge_up(&home.root, listen, None).await?;
         kill(first);
-        bridge_up(&home.root, listen, web, Some(first)).await?;
+        bridge_up(&home.root, listen, Some(first)).await?;
         Ok((home, listen))
     })
     .await;
@@ -216,11 +220,10 @@ async fn a_killed_bridge_is_started_again_and_napcat_comes_back() {
 
 #[tokio::test]
 async fn a_port_in_use_stops_it_and_status_says_why() {
-    // 占着的端口由测试自己从系统挑来、一直拿着，没有放掉再绑的空当；桥先绑 NapCat 的这一个，绑不上就停，WebUI 的那个用不上。
+    // 占着的端口由测试自己从系统挑来、一直拿着，没有放掉再绑的空当；桥绑不上就停。
     let taken = std::net::TcpListener::bind("127.0.0.1:0").expect("挑得到");
     let listen = taken.local_addr().expect("有地址").port();
-    let web = free_port();
-    let home = home(&Script::new([]), listen, web);
+    let home = home(&Script::new([]), listen);
     ok(&home.root, &["start"]).await;
     let stopped = until_extension(&home.root, |one| one["state"] == "stopped").await;
     assert_eq!(stopped["reason"], "config_error", "{stopped}");
@@ -238,6 +241,10 @@ async fn a_port_in_use_stops_it_and_status_says_why() {
         status.contains(&format!("  {port_in_use}\n")),
         "带出标准错误里「端口被占」那一句：{status}"
     );
+    assert!(
+        status.ends_with(&format!("\n{}\n", zh(&Report::Page))),
+        "停下了也说设置在哪：{status}"
+    );
     drop(taken);
     home.stop_extensions().await;
 }
@@ -245,8 +252,8 @@ async fn a_port_in_use_stops_it_and_status_says_why() {
 #[tokio::test]
 async fn restarting_an_extension_that_is_off_is_refused_in_the_cores_words() {
     let script = Script::new([]);
-    let home = on_free_ports(async |listen, web| {
-        let home = home(&script, listen, web);
+    let home = on_free_port(async |listen| {
+        let home = home(&script, listen);
         let refused = cli(&home.root, &["restart"]).await;
         assert_eq!(refused.status.code(), Some(1));
         assert_eq!(text(&refused.stdout), "");
@@ -257,13 +264,17 @@ async fn restarting_an_extension_that_is_off_is_refused_in_the_cores_words() {
         );
         // 开了再重启：换一个新进程。
         ok(&home.root, &["start"]).await;
-        let first = bridge_up(&home.root, listen, web, None).await?;
+        let first = bridge_up(&home.root, listen, None).await?;
         let restarted = ok(&home.root, &["restart"]).await;
         assert!(
             restarted.starts_with(&format!("{}\n", zh(&Report::Restarted))),
             "{restarted}"
         );
-        bridge_up(&home.root, listen, web, Some(first)).await?;
+        assert!(
+            !restarted.contains(&zh(&Report::Page)),
+            "重启不说设置在哪：{restarted}"
+        );
+        bridge_up(&home.root, listen, Some(first)).await?;
         Ok(home)
     })
     .await;
@@ -276,14 +287,14 @@ async fn restarting_an_extension_that_is_off_is_refused_in_the_cores_words() {
 #[tokio::test]
 async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
     let script = Script::new([Play::Says("在。"), Play::Says("还在。")]);
-    let (home, listen, web) = on_free_ports(async |listen, web| {
-        let home = home(&script, listen, web);
+    let (home, listen) = on_free_port(async |listen| {
+        let home = home(&script, listen);
         ok(&home.root, &["start"]).await;
-        bridge_up(&home.root, listen, web, None).await?;
-        Ok((home, listen, web))
+        bridge_up(&home.root, listen, None).await?;
+        Ok((home, listen))
     })
     .await;
-    // 照握手交的：配置里写的两个端口、密钥文件里的令牌。
+    // 照握手交的：配置里写的端口、密钥文件里的令牌。
     let mut open = admin_napcat(listen).await;
     // 只换密钥的值（`secret.set`，引用不变）：新的收、旧的拒，连着的那一条照样收发。
     core_call(
@@ -310,20 +321,13 @@ async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
     let old = napcat(listen, "/ws", Auth::Bearer(NEW), None).await;
     assert_eq!(old.err(), Some(401), "换下来的不收");
     // NapCat 的端口：当场换，旧的关了，连着的那一条照样收发。
-    let new_listen = moved(&home.root, "onebot.listen", "listen").await;
+    let new_listen = moved(&home.root).await;
     until_port(listen, false).await;
     until_admitted(new_listen, OTHER).await.close().await;
     open.admin_says(2, "还在吗").await;
     assert_eq!(open.reply().await, "还在。", "换端口不断连着的");
-    // WebUI 的端口：新地址上有页面，旧的关了。
-    let new_web = moved(&home.root, "onebot.web", "web").await;
-    until_port(web, false).await;
-    assert_eq!(get(new_web, "/", &[]).await.status, 200, "新地址上有页面");
-    let ports = zh(&Report::Ports {
-        listen: u64::from(new_listen),
-        web: u64::from(new_web),
-    });
-    until_status(&home.root, |out| out.contains(&ports)).await;
+    let address = zh(&Report::Listen(u64::from(new_listen)));
+    until_status(&home.root, |out| out.contains(&address)).await;
     // 删了令牌：以后连进来的一律 401。
     let unset = json!({"layer": "system", "changes": [{"key": "onebot.token", "unset": true}]});
     core_call(&home.root, "config.set", unset).await;
@@ -336,10 +340,10 @@ async fn the_running_bridge_takes_changes_from_the_core_without_a_restart() {
 #[tokio::test]
 async fn a_strangers_private_chat_is_still_not_taken_when_the_core_runs_the_bridge() {
     let script = Script::new([Play::Says("在。")]);
-    let (home, listen) = on_free_ports(async |listen, web| {
-        let home = home(&script, listen, web);
+    let (home, listen) = on_free_port(async |listen| {
+        let home = home(&script, listen);
         ok(&home.root, &["start"]).await;
-        bridge_up(&home.root, listen, web, None).await?;
+        bridge_up(&home.root, listen, None).await?;
         Ok((home, listen))
     })
     .await;

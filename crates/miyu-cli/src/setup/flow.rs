@@ -330,8 +330,12 @@ impl<'a> Flow<'a> {
                 changes.push(json!({"key": format!("pools.{pool}.subagent"), "value": true}));
             }
         }
-        self.request("config.set", json!({"layer": "system", "changes": changes}))
-            .await?;
+        // 写个人设置（施工 T-11）：和设置页、网页的第一次引导一样，写了就生效；写系统配置会被个人设置里的同一项盖住。
+        self.request(
+            "config.set",
+            json!({"layer": "personal", "changes": changes}),
+        )
+        .await?;
         say(self.err, &self.plan.language.set_up(&reference));
         Ok(())
     }

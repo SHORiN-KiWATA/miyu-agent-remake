@@ -8,7 +8,7 @@ kind = "ui"
 version = "0.0.1"
 protocol = [1, 1]
 name = { en = "Terminal interface", zh = "终端界面", ja = "ターミナル画面" }
-summary = { en = "Chat with her in the terminal", zh = "在终端里和她对话" }
+summary = { en = "Chat with the AI in the terminal", zh = "在终端里和 AI 对话" }
 
 [command]
 name = "tui"

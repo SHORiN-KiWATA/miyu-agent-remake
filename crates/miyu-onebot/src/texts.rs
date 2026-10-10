@@ -1,7 +1,8 @@
 //! `miyu-onebot` 在标准错误上说给人听的字（`onebot.md` 第一条「样子」「出错」「给人看的字」）：字放在
 //! `resources/software/onebot/human/{zh,en,ja}.json`，照 [`Human::load`] 读（`store/resources.md`「怎么走」第 3 条），说法的
 //! 编号是 `software/onebot/<哪一句>`。这里只管挑哪一句、换进什么字段。`start`、`stop`、`restart`、`status`、`logs` 说的
-//! （施工 O-18）、`venue show` 说的和场所规则的问题说成话（施工 O-21）、限流满了发进群里的那一句（施工 O-23）也在这里。
+//! （施工 O-18）、`venue show` 说的和场所规则的问题说成话（施工 O-21）、限流满了发进群里的那一句（施工 O-23）、`web` 找不到
+//! `miyu` 的那一句（施工 O-28 补）也在这里。
 //!
 //! 说话的语言：握手以前照系统的语言（[`system_language`]；施工 O-20 起桥不读配置，不看 `ui.language`），握手以后照核心回的
 //! `language`。日文没有专门写的，`ja.json` 照英文写，和核心拒绝时的话一样（`protocol.md`「握手」`language`）。
@@ -14,7 +15,6 @@ use miyu_store::resources::ResourceRoot;
 
 use crate::control::{Halt, Report};
 use crate::logs::Heading;
-use crate::open::Opening;
 use crate::serve::{Failure, Notice};
 use crate::venue::Shown;
 
@@ -84,6 +84,14 @@ impl Texts {
         self.say("no-log", &[("reason", reason.to_string())])
     }
 
+    /// `web` 跑不了旁边的 `miyu`（施工 O-28 补）：`path` 是找的那个，`reason` 是系统说的原因。
+    pub fn no_miyu(&self, path: &str, reason: &str) -> String {
+        self.say(
+            "web/no-miyu",
+            &[("path", path.to_string()), ("reason", reason.to_string())],
+        )
+    }
+
     /// 限流满了、别人冲她来时发进群里的那一句（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 7 条）：说话的是桥，不是她。
     pub fn rate_limited(&self) -> String {
         self.say("group/rate-limited", &[])
@@ -103,7 +111,6 @@ impl Texts {
                 self.say("notice/disconnected-as", &[("bot", bot.to_string())])
             }
             Notice::Disconnected { bot: None } => self.say("notice/disconnected", &[]),
-            Notice::Web { port } => self.say("notice/web", &[("port", port.to_string())]),
             Notice::NoToken => self.say("notice/no-token", &[]),
         }
     }
@@ -115,9 +122,6 @@ impl Texts {
             Failure::NotSpawned => self.say("failure/not-spawned", &[]),
             Failure::PortInUse(port) => {
                 self.say("failure/port-in-use", &[("port", port.to_string())])
-            }
-            Failure::WebPortInUse(port) => {
-                self.say("failure/web-port-in-use", &[("port", port.to_string())])
             }
             Failure::Crashed(reason) => self.say("failure/crashed", &[("reason", reason.clone())]),
             Failure::Start(reason) => self.say("failure/start", &[("reason", reason.clone())]),
@@ -219,20 +223,6 @@ impl Texts {
         self.say(key, &fields)
     }
 
-    /// `miyu-onebot web` 说的（施工 O-16）。
-    pub fn opening(&self, opening: &Opening) -> String {
-        match opening {
-            Opening::NotRunning(port) => {
-                self.say("open/not-running", &[("port", port.to_string())])
-            }
-            Opening::First => self.say("open/first", &[]),
-            Opening::Opened(url) => self.say("open/opened", &[("url", url.clone())]),
-            Opening::PrintHint => self.say("open/print-hint", &[]),
-            Opening::OpenThis => self.say("open/open-this", &[]),
-            Opening::CodeWarning => self.say("open/code-warning", &[]),
-        }
-    }
-
     /// `start`、`stop`、`restart`、`status` 说的一句（施工 O-18）。
     pub fn report(&self, report: &Report) -> String {
         match report {
@@ -267,10 +257,8 @@ impl Texts {
             ),
             Report::NapcatBot(bot) => self.say("status/napcat-bot", &[("bot", bot.clone())]),
             Report::NoNapcat => self.say("status/no-napcat", &[]),
-            Report::Ports { listen, web } => self.say(
-                "status/ports",
-                &[("listen", listen.to_string()), ("web", web.to_string())],
-            ),
+            Report::Listen(listen) => self.say("status/listen", &[("listen", listen.to_string())]),
+            Report::Page => self.say("status/page", &[]),
         }
     }
 

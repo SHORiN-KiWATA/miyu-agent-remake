@@ -1,6 +1,6 @@
 //! 历史按页读（施工 9-6 下，`docs/blueprint/protocol.md`「`view.page`」）：真核心走一遍。一页一页往前翻，照序号去重以后
 //! 拼起来就是整份日志；最新一页的 `last` 接 `subscribe {"after"}`，什么都不补。后台命令跑完的回报在这一页、派它的在更早
-//! 一页的，带上派出时的样子（施工 9-6 再补）。参数不对、没有这个会话的拒绝。
+//! 一页的，带上派出时的样子（施工 9-6 再补），要条目的那一条照样有标题（施工 9-8 中）。参数不对、没有这个会话的拒绝。
 
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -138,6 +138,22 @@ async fn a_job_reported_on_this_page_comes_with_how_it_was_started() {
     assert!(
         whole["result"].get("jobs").is_none(),
         "派它的也在这一页：不另带"
+    );
+    // 要条目的（施工 9-8 中）：派它的那一步在更早的一页，回报那一条照样有标题。
+    let entries = page(
+        &mut client,
+        "p3",
+        json!({"session": session, "turns": 1, "view": true}),
+    )
+    .await;
+    let job = entries["result"]["entries"]
+        .as_array()
+        .and_then(|entries| entries.iter().find(|entry| entry["what"] == "job"))
+        .unwrap_or_else(|| panic!("有任务的旁白：{entries}"));
+    assert_eq!(job["title"], started[0]["title"], "{job}");
+    assert!(
+        !job["title"].as_str().unwrap_or_default().is_empty(),
+        "{job}"
     );
 }
 

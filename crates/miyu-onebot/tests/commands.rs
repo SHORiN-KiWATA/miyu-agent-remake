@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use miyu_session::testkit::{Play, Script};
 
-use crate::support::ports::on_free_ports;
+use crate::support::ports::on_free_port;
 use crate::support::spawning::*;
 use crate::support::*;
 
@@ -236,11 +236,11 @@ async fn a_command_after_the_session_was_deleted_finds_it_again() {
 #[tokio::test]
 async fn the_run_log_names_the_command_and_the_reason_but_not_the_words() {
     let script = Script::new([]);
-    let (home, listen) = on_free_ports(async |listen, web| {
-        let home = Home::spawning(&script, &ports_config(listen, web));
+    let (home, listen) = on_free_port(async |listen| {
+        let home = Home::spawning(&script, &ports_config(listen));
         let started = cli(&home.root, &["start"]).await;
         assert_eq!(started.status.code(), Some(0), "{}", text(&started.stderr));
-        bridge_up(&home.root, listen, web, None).await?;
+        bridge_up(&home.root, listen, None).await?;
         Ok((home, listen))
     })
     .await;

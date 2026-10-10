@@ -54,7 +54,7 @@
 · 移回 docs/old.md
 · 删掉 notes/new.txt → 移进了回收站
 · 改回 src/b.rs → 没动：之后又被改过
-    --- 她改完的
+    --- AI 改完的
     +++ 现在
     @@ -3 +3 @@
     -fn main() {}
@@ -144,7 +144,7 @@
 
 **差异**：这一项带着不空的 `diff` 才印，印在它那一行下面，每一行缩进四格。施工 4-7 再补（2026-10-02）起改回了的（`restored`、写回内容的）也带：差异是改回以前对改回以后，头两行照旧（撤销是「她改完的」对「现在」，恢复是「撤销以后的」对「现在」），代码不用改。
 
-1. 头两行：`--- 她改完的`（恢复时是 `--- 撤销以后的`），`+++ 现在`。
+1. 头两行：`--- AI 改完的`（恢复时是 `--- 撤销以后的`），`+++ 现在`。
 2. 接着照原样印 `diff` 的每一行，控制字符换成 `�`，制表符照原样留着。第一个字是 `-` 的红，是 `+` 的绿，别的（`@@` 那一行、上下文）灰。
 3. 有 `more` 的，最后一行 `还有 <more> 行`。核心每个文件最多交 20 行（`protocol/undo.md`）。
 
@@ -184,7 +184,7 @@ ESC[90m    ESC[31m-fn main() {}ESC[0m
 | 没动 | 没动 | left alone |
 | 出错 | 出错 | failed |
 | 原因和前面之间 | `：` | `: ` |
-| 差异的头一行，撤销 | `--- 她改完的` | `--- as she left it` |
+| 差异的头一行，撤销 | `--- AI 改完的` | `--- as the AI left it` |
 | 差异的头一行，恢复 | `--- 撤销以后的` | `--- as undone` |
 | 差异的第二行 | `+++ 现在` | `+++ now` |
 | 差异没印完 | `还有 <几> 行` | 一行：`1 more line`；几行：`<几> more lines` |
@@ -205,7 +205,7 @@ ESC[90m    ESC[31m-fn main() {}ESC[0m
 ```text
 用法：miyu undo [选项]
 
-撤掉最后一轮，把她改过的文件改回去。也可以写成 miyu rewind。
+撤掉最后一轮，把 AI 改过的文件改回去。也可以写成 miyu rewind。
 
 选项：
   -s, --session <编号>  哪个会话；不写就是上一次 miyu ask 开的
@@ -217,7 +217,7 @@ ESC[90m    ESC[31m-fn main() {}ESC[0m
 ```text
 Usage: miyu undo [options]
 
-Undo the last turn and restore the files she changed. Also: miyu rewind.
+Undo the last turn and restore the files the AI changed. Also: miyu rewind.
 
 Options:
   -s, --session <id>  Which session; default is the one the last miyu ask opened

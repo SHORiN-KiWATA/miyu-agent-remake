@@ -1,4 +1,4 @@
-//! 提前压好的开关（施工 6-11 上，`docs/blueprint/compaction.md` 第十五条第 6 条）：配置 `compaction.prepare = false` 的，过了起压线
+//! 提前压好的开关（施工 6-11 上，`docs/blueprint/compaction.md` 第十五条第 7 条）：配置 `compaction.prepare = false` 的，过了起压线
 //! 也不提前压，到线照现在的办法当场压。开着的另见 `prepare_log.rs`。
 
 use miyu_kernel::event::{Body, Purpose};

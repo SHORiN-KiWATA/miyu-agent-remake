@@ -6,6 +6,7 @@ mod lines;
 mod notices;
 mod queue;
 mod random;
+mod status;
 mod steps;
 mod turns;
 mod undo;

@@ -21,7 +21,7 @@ const TOOL_CHARS: usize = 64;
 /// `miyu_memory::PACKAGE` 是同一个编号：包没写功能，整个包算一个。
 pub const MEMORY: &str = "memory";
 
-/// 人设防失忆提醒这个功能（施工 P-2 中，原来叫角色扮演；施工 F-3 上起是功能的编号）：人格的提醒短语和风格锁。它没有工具。
+/// 人设遵循提醒这个功能（施工 P-2 中，原来叫角色扮演；施工 F-3 上起是功能的编号）：人格的提醒短语和风格锁。它没有工具。
 pub const ROLEPLAY: &str = "roleplay";
 
 /// 没列在 `[features]`、`[software]` 里的功能（包括以后新装的）开不开（Y7）。
@@ -93,7 +93,7 @@ impl PresetFile {
             .unwrap_or(self.unlisted() == Unlisted::On)
     }
 
-    /// 编号和包一样的功能 `feature` 开不开：人格记忆、人设防失忆提醒这种没写功能、整个包算一个的（[`PresetFile::opens_in`]）。
+    /// 编号和包一样的功能 `feature` 开不开：人格记忆、人设遵循提醒这种没写功能、整个包算一个的（[`PresetFile::opens_in`]）。
     pub fn opens(&self, feature: &str) -> bool {
         self.opens_in(feature, feature)
     }

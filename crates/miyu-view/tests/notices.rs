@@ -1,8 +1,11 @@
-//! 旁白：手动压缩、后台任务了结、一组题答了（施工 9-8 上）。
+//! 旁白：手动压缩、后台任务了结、一组题答了（施工 9-8 上）；翻页时派在更早一页的任务（9-8 中）。
+
+use std::sync::Arc;
 
 use miyu_kernel::event::{Choice, JobReason, Question, Response};
 use miyu_kernel::origin::By;
 use miyu_kernel::testkit::{Line, Play};
+use miyu_view::Projector;
 
 use crate::support::*;
 
@@ -59,6 +62,50 @@ fn a_background_command_reports_with_its_title_and_command() {
     assert_eq!(notice["mark"], "done");
     assert_eq!(notice["command"], "cargo build");
     assert_eq!(notice["output"]["chars"], 48_213);
+}
+
+/// 翻页时任务派在更早的一页（施工 9-8 中）：先照切点前的日志学任务，这一页的回报照样有标题和命令。
+#[test]
+fn a_page_cut_after_the_start_still_names_the_job() {
+    let mut stage = stage();
+    stage.model([
+        Line::calls(
+            "",
+            &[(
+                "shell",
+                r#"{"command":"cargo build","description":"Build","run_in_background":true}"#,
+            )],
+        ),
+        Line::says("Started."),
+        Line::says("Build finished."),
+    ]);
+    stage.tools([Play::starts_command(1, "Build")]);
+    stage.say("build");
+    stage.job_ends(1, JobReason::Exited, By::Kernel, None);
+    let log = stage.log();
+    let cut = log
+        .iter()
+        .position(|event| matches!(event.body, miyu_kernel::event::Body::JobReported(_)))
+        .expect("有回报");
+    let mut projector = Projector::new(Arc::new(texts("en")), None);
+    projector.learn(&log[..cut]);
+    for event in &log[cut..] {
+        projector.event(event);
+    }
+    let entries = projector.entries();
+    assert!(
+        of_kind(entries, "tool").is_empty(),
+        "派它的那一步在更早的一页"
+    );
+    let notice = json(
+        entries
+            .iter()
+            .find(|e| json(e)["what"] == "job")
+            .expect("有任务的旁白"),
+    );
+    assert_eq!(notice["title"], "Build");
+    assert_eq!(notice["job_kind"], "command");
+    assert_eq!(notice["command"], "cargo build");
 }
 
 #[test]

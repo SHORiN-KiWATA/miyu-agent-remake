@@ -16,7 +16,7 @@ kind = "ui"
 version = "0.0.1"
 protocol = [1, 1]
 name = { en = "Terminal interface", zh = "终端界面", ja = "ターミナル画面" }
-summary = { en = "Chat with her in the terminal", zh = "在终端里和她对话" }
+summary = { en = "Chat with the AI in the terminal", zh = "在终端里和 AI 对话" }
 
 [command]
 name = "term"
@@ -67,7 +67,7 @@ async fn shipped_and_home_packages_are_listed_in_the_connections_language() {
                 "version": "0.0.1",
                 "protocol": [1, 1],
                 "name": "终端界面",
-                "summary": "在终端里和她对话",
+                "summary": "在终端里和 AI 对话",
                 "command": {"name": "term", "program": "miyu-tui", "about": "打开终端界面"},
                 "opens": ["config"],
                 "state": state.to_string_lossy(),
@@ -79,7 +79,7 @@ async fn shipped_and_home_packages_are_listed_in_the_connections_language() {
                 "kind": "ui",
                 "protocol": [1, 1],
                 "name": "网页界面",
-                "summary": "在浏览器里和她对话、改配置",
+                "summary": "在浏览器里和 AI 对话、改配置",
                 "command": {"name": "web", "program": "miyu-web", "about": "打开网页界面"},
                 "opens": [],
                 "pages_dir": "web/pages",

@@ -1,5 +1,5 @@
 // 接入QQ 后台页的字（施工 O-28 上，docs/blueprint/onebot.md 第一条「后台页」第 4 条）：框里连不了网，读不到桥的 human/*.json，
-// 三种语言放在这里，照 context 的 language 挑（app.js）。说法照桥自己的网页的 web/ 那几句；ja 照英文写（同桥的规矩）。
+// 三种语言放在这里，照 context 的 language 挑（app.js）。说法 O-28 上从桥自己的网页的 web/ 那几句搬来，那几句 O-28 下删了，字只在这里；ja 照英文写（同桥的规矩）。
 // 字段写 {名字}。
 //
 // 写法要守（「施工时定的」第 159 条）：`export const TEXTS = ` 后面到最后的 `;` 是一段 JSON：不写注释、不写结尾的逗号，键用双引号。
@@ -49,7 +49,7 @@ export const TEXTS = {
     "whitelist/bad-number": "号只能是数字，不以 0 开头",
     "whitelist/duplicate": "这个号重复了",
     "whitelist/empty": "还没有白名单成员。",
-    "whitelist/hint": "能私聊她，加她好友自动通过，不限流，睡觉时间里照样放行，群里冲她来的直接回。",
+    "whitelist/hint": "能私聊 AI，加 AI 好友自动通过，不限流，睡觉时间里照样放行，群里冲 AI 来的直接回。",
     "whitelist/number": "QQ 号",
     "whitelist/remove": "删",
     "whitelist/title": "白名单成员"
@@ -98,7 +98,7 @@ export const TEXTS = {
     "whitelist/bad-number": "Digits only, not starting with 0",
     "whitelist/duplicate": "This number is listed twice",
     "whitelist/empty": "No one on the whitelist yet.",
-    "whitelist/hint": "They can chat with her in private, their friend requests are accepted, no rate limit, even while she sleeps; in groups she answers them directly.",
+    "whitelist/hint": "They can chat with the AI in private, their friend requests are accepted, no rate limit, even while the AI sleeps; in groups the AI answers them directly.",
     "whitelist/number": "QQ number",
     "whitelist/remove": "Remove",
     "whitelist/title": "Whitelist"
@@ -147,7 +147,7 @@ export const TEXTS = {
     "whitelist/bad-number": "Digits only, not starting with 0",
     "whitelist/duplicate": "This number is listed twice",
     "whitelist/empty": "No one on the whitelist yet.",
-    "whitelist/hint": "They can chat with her in private, their friend requests are accepted, no rate limit, even while she sleeps; in groups she answers them directly.",
+    "whitelist/hint": "They can chat with the AI in private, their friend requests are accepted, no rate limit, even while the AI sleeps; in groups the AI answers them directly.",
     "whitelist/number": "QQ number",
     "whitelist/remove": "Remove",
     "whitelist/title": "Whitelist"

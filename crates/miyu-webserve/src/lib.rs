@@ -1,5 +1,5 @@
-//! 只听本机的网页端口共用的底子（`docs/blueprint/webserve.md`，施工 O-16）：网页软件 `miyu-web`（`web-ui.md`）和 QQ 桥的
-//! WebUI（`onebot.md` 第二条）都用它，`18-通讯平台.md` 第三节「抽成两边共用的库，不抄一份」。
+//! 只听本机的网页端口共用的底子（`docs/blueprint/webserve.md`，施工 O-16）：网页软件 `miyu-web`（`web-ui.md`）用它；QQ 桥原来
+//! 的 WebUI 随施工 O-28 下去掉，桥只用 [`open::Core`] 照终端的样子连核心（`18-通讯平台.md` 第三节「抽成两边共用的库，不抄一份」）。
 //!
 //! - [`respond`]：回应的正文、一律带的安全响应头。
 //! - [`pages`]：页面文件：路径不出页面目录、类型照扩展名、响应头。

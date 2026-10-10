@@ -24,7 +24,7 @@
 | `resources/packages/web.toml` | 出厂的网页界面的清单 |
 | `resources/packages/tui.toml` | 出厂的终端界面的清单（9-3 补：终端的会话给的，和 proto 上的一字不差；程序 `miyu-tui` 随 M9）；9-3 再补多配置项 `tui.icons`（图标：`nerd`、`plain`，第一次打开的引导写它） |
 | `resources/packages/onebot.toml` | 出厂的接入QQ 的清单（施工 O-18；`[settings]` 四项随 O-20，原来核心替它声明，`onebot.md` 第一条「软件包清单」；施工 F-2 改名、多平台接入和功能 `qq`） |
-| `resources/packages/basesystem.toml`、`memory.toml`、`roleplay.toml`、`mermaid.toml`、`net.toml` | 出厂的内置包的清单（施工 F-2）：基础系统必需、九个功能；人格记忆、人设防失忆提醒各算一个功能；画 mermaid、联网不带功能；人格记忆推荐小程序 `embed`（施工 R-5 三补） |
+| `resources/packages/basesystem.toml`、`memory.toml`、`roleplay.toml`、`mermaid.toml`、`net.toml` | 出厂的内置包的清单（施工 F-2）：基础系统必需、九个功能；人格记忆、人设遵循提醒各算一个功能；画 mermaid、联网不带功能；人格记忆推荐小程序 `embed`（施工 R-5 三补） |
 | `crates/miyu-embed/package/embed.toml`、`package/embed/model.toml` | 「内置语义模型」这个小程序包的原本（施工 R-5 三补，`recall.md` 第四条）：出厂不装，不在资源目录里；模型文件不进仓库，做包时从 Release 取 |
 | `crates/miyu-core/src/lib.rs`、`packages.rs` | 编进来的内置包那张表（`built_in`）；起来时照清单登记工具（`tools`）、查询（`packages::register`）（施工 F-2） |
 

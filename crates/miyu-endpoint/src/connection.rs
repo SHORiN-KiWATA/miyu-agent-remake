@@ -29,7 +29,7 @@ mod streams;
 #[cfg(test)]
 mod tests;
 
-use streams::{Stream, stream_of, subscribe};
+use streams::{Stream, stream_of};
 
 use crate::hello::{Caller, Shaken, hello};
 use crate::login::{self, Revoked, Via};
@@ -205,7 +205,7 @@ async fn read_all<R: AsyncRead + Unpin>(
             told_cwd = true;
             tracing::warn!(target: "miyu::endpoint", "session.send cwd ignored");
         }
-        // 扩展不能开关、重启扩展（施工 9-4 上），也不能改、删人格和预设（施工 P-3 中）：那是人的事。
+        // 扩展不能开关、重启扩展（施工 9-4 上），也不能改、删人格和预设（施工 P-3 中），不能改配置、存删密钥（施工 T-9）：那是人的事。
         if via == Some(Via::Spawned) && people_only(&request.method) {
             let refused = wire::error(
                 Value::String(request.id.as_str().to_string()),
@@ -272,31 +272,8 @@ async fn read_all<R: AsyncRead + Unpin>(
             }
             (_, None) => (wire::error(id(), Refusal::HELLO_FIRST, locale), None, false),
             ("subscribe", Some(peer)) => {
-                let (result, target) = match stream_of(&request) {
-                    Ok(Stream::Config) => {
-                        let system = shaken.map_or("en", Shaken::system);
-                        subscriptions.add_config(&core, system, &out);
-                        (Ok(json!({})), None)
-                    }
-                    Ok(Stream::Sessions) => match subscriptions.add_sessions(&core, &out).await {
-                        Ok(result) => (Ok(result), Some(Target::Sessions)),
-                        Err(refusal) => (Err(refusal), None),
-                    },
-                    Ok(Stream::Extensions) => match shaken {
-                        Some(shook) => {
-                            let listed = subscriptions.add_extensions(&core, shook, &out);
-                            (Ok(listed), Some(Target::Extensions))
-                        }
-                        None => (Err(Refusal::HELLO_FIRST), None),
-                    },
-                    Ok(Stream::Events(session)) => {
-                        match subscribe(&core, &mut subscriptions, &request, session, &out).await {
-                            Ok((result, target)) => (Ok(result), target.map(Target::Session)),
-                            Err(refusal) => (Err(refusal), None),
-                        }
-                    }
-                    Err(refusal) => (Err(refusal), None),
-                };
+                let (result, target) =
+                    streams::subscribe(&core, &mut subscriptions, &request, shaken, &out).await;
                 (answer(&request, result, peer.locale), target, false)
             }
             ("account.setup_code", Some(_)) => {
@@ -324,7 +301,9 @@ async fn read_all<R: AsyncRead + Unpin>(
             ("unsubscribe", Some(_)) => {
                 let result = stream_of(&request).map(|stream| {
                     match stream {
-                        Stream::Events(session) => subscriptions.remove(&session),
+                        Stream::Events(session) | Stream::View(session) => {
+                            subscriptions.remove(&session);
+                        }
                         Stream::Config => subscriptions.remove_config(),
                         Stream::Sessions => subscriptions.remove_sessions(),
                         Stream::Extensions => subscriptions.remove_extensions(),
@@ -447,7 +426,8 @@ async fn send(out: &mpsc::Sender<String>, line: String) -> bool {
 }
 
 /// 只给人用、扩展进程调了回 `local_only` 的方法：开关、重启扩展（施工 9-4 上），改、删人格和预设（施工 P-3 中），装、卸软件包
-/// （施工 F-5 上），软件包的开关（施工 F-6 上），后台页的文件和方法（施工 F-6 中）。
+/// （施工 F-5 上），软件包的开关（施工 F-6 上），后台页的文件和方法（施工 F-6 中），改配置、信任项目配置、存删密钥（施工 T-9：
+/// 改了能放宽权限、换模型、拿走别的软件的 key）。读配置、列密钥的名字照旧给。
 fn people_only(method: &str) -> bool {
     method.starts_with("extension.")
         || matches!(
@@ -462,6 +442,10 @@ fn people_only(method: &str) -> bool {
                 | "package.disable"
                 | "package.file"
                 | "package.call"
+                | "config.set"
+                | "config.trust"
+                | "secret.set"
+                | "secret.delete"
         )
 }
 

@@ -154,6 +154,19 @@ impl Session {
     }
 
     /// 这份请求明知放不下：用量加输出预留超过窗口。没交限额、没有窗口的，不知道，照发。
+    /// 这一次请求放得下：用量加上输出预留不超过窗口（施工 6-11 补：到线不停，放得下就照发）。算不了的当放不下。
+    pub(super) fn fits(&self, request: &Request) -> bool {
+        let fits = || {
+            let compaction = self.policy.compaction.as_ref()?;
+            let limits = self.limits.as_ref()?;
+            let window = limits.window?;
+            let reserve = estimate::reserve(limits.max_output, compaction.reserve_cap);
+            let used = self.used_in(&self.history, request)?;
+            Some(used.saturating_add(reserve) <= window)
+        };
+        fits().unwrap_or(false)
+    }
+
     fn cannot_fit(&self, request: &Request) -> Option<CallError> {
         let compaction = self.policy.compaction.as_ref()?;
         let limits = self.limits.as_ref()?;

@@ -1,291 +1,194 @@
-//! 桥的 WebUI（施工 O-16，`onebot.md` 第二条「怎么走」第 1 条）：照网页软件的测试搬一份，对着 `miyu-onebot` 跑。Host 只认三种
-//! 写法；页面文件不出页面目录、响应头一个不少、内容安全策略照 `bridge.json`；`/ws` 的 Origin 要对，两头一帧一行照转、一个
-//! 字节不改，核心断了 1012，连不上核心发 `web.error` 再关；端口被占了说是哪个端口；`/human` 交出页面的字。核心是替身。
+//! `miyu onebot web`（施工 O-28 补，`onebot.md` 第一条「对外的样子」）：跑 `miyu-onebot` 旁边的 `miyu`，参数是
+//! `web --package onebot`，标准输入输出照原样接着，退出码照它的；跑不了的照人的语言说、退出码 1。
+//!
+//! `miyu` 是测试放的替身：Unix 上是一段 shell，Windows 上是一份 `.cmd`，都把参数写进旁边的 `seen`、在标准输出上印一行、照
+//! 要求的退出码退出。真的程序找的是自己旁边的 `miyu`（Windows 上带 `.exe`，替身写不出来），那一条只在 Unix 上跑：把
+//! `miyu-onebot` 硬链接进 `target/tmp` 里的一个目录，替身放在它旁边。
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use futures_util::SinkExt;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
-use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
-
-use miyu_onebot::serve::{Failure, Serve, run};
-use miyu_onebot::settings::Settings;
-use miyu_onebot::web::PAGES;
+use miyu_onebot::texts::Texts;
+use miyu_onebot::web::web;
 use miyu_store::resources::ResourceRoot;
-use miyu_store::root::DataRoot;
 
-use crate::support::fake_core::{FakeCore, fake_core};
-use crate::support::http::*;
-use crate::support::*;
+use crate::support::resources;
 
-/// 一个临时的数据根，里面跑着核心的替身；另有一个临时的资源目录，页面目录里放了几份页面。
-struct Site {
-    dir: PathBuf,
-    root: DataRoot,
-    core: FakeCore,
-    resources: ResourceRoot,
-}
+/// `target/tmp` 下这一条测试自己的目录（和 `target/debug` 在同一个文件系统上，硬链接得过去），用完删掉。
+struct Dir(PathBuf);
 
-impl Site {
-    fn new() -> Site {
-        let (dir, root) = temp_root();
-        let core = fake_core(&root);
-        let resources = dir.join("resources");
-        let pages = resources.join(PAGES);
-        std::fs::create_dir_all(pages.join("sub")).expect("建得了");
-        std::fs::write(pages.join("index.html"), "<h1>onebot</h1>").expect("写得进");
-        std::fs::write(pages.join("app.js"), "let x = 1;").expect("写得进");
-        std::fs::write(pages.join("sub/style.css"), "p{}").expect("写得进");
-        std::fs::write(pages.join("data.unknown"), "?").expect("写得进");
-        std::fs::write(resources.join("secret.txt"), "secret").expect("写得进");
-        Site {
-            dir,
-            root,
-            core,
-            resources: ResourceRoot::at(resources),
-        }
+impl Dir {
+    fn new(name: &str) -> Dir {
+        static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let dir = Path::new(env!("CARGO_TARGET_TMPDIR"))
+            .join(format!("onebot-web-{name}-{}-{n}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("建得了目录");
+        Dir(dir)
     }
 
-    /// 页面目录。只有符号链接那一段用它，那一段只在 Unix 上编译；别处不标会是死代码，Windows 上 clippy 拦。
-    #[cfg(unix)]
-    fn pages(&self) -> PathBuf {
-        self.resources.path().join(PAGES)
-    }
-
-    /// 在它上面起一个桥：资源目录照这里的。
-    async fn bridge(&self) -> Bridge {
-        start(Serve {
-            resources: self.resources.clone(),
-            ..serve(self.root.clone(), settings())
-        })
-        .await
+    /// 替身印过的参数，一个一行；没跑过的是 `None`。
+    fn seen(&self) -> Option<String> {
+        let seen = std::fs::read_to_string(self.0.join("seen")).ok()?;
+        Some(seen.lines().map(str::trim).collect::<Vec<_>>().join(" "))
     }
 }
 
-impl Drop for Site {
+impl Drop for Dir {
     fn drop(&mut self) {
-        if std::fs::remove_dir_all(&self.dir).is_err() {
-            // 删不掉就留在临时目录里，不影响测试。
+        if std::fs::remove_dir_all(&self.0).is_err() {
+            // 删不掉就留在 `target/tmp` 里，不影响测试。
         }
     }
 }
 
-#[tokio::test]
-async fn pages_stay_inside_and_carry_the_headers() {
-    let site = Site::new();
+/// 在 `dir` 里放一个叫 `name` 的替身（Windows 上另加 `.cmd`）：参数写进 `dir/seen`，标准输出印 `opened`，以 `code` 退出。
+/// 交回它的路径。
+fn stand_in(dir: &Path, name: &str, code: u8) -> PathBuf {
+    let seen = dir.join("seen");
     #[cfg(unix)]
-    std::os::unix::fs::symlink(
-        site.resources.path().join("secret.txt"),
-        site.pages().join("link.txt"),
-    )
-    .expect("建得了");
-    let bridge = site.bridge().await;
-    let port = bridge.web;
-    let index = get(port, "/", &[]).await;
-    assert_eq!(index.status, 200);
-    assert_eq!(index.body, b"<h1>onebot</h1>");
-    assert_eq!(
-        index.header("content-type"),
-        Some("text/html; charset=utf-8")
-    );
-    assert_eq!(index.header("x-content-type-options"), Some("nosniff"));
-    assert_eq!(index.header("referrer-policy"), Some("no-referrer"));
-    assert_eq!(index.header("cache-control"), Some("no-cache"));
-    let csp = tuning().web.csp;
-    assert_eq!(index.header("content-security-policy"), Some(csp.as_str()));
-    assert!(csp.contains("connect-src 'self'") && csp.contains("frame-ancestors 'none'"));
-    assert_eq!(index.header("set-cookie"), None, "从不设 cookie");
-    assert_eq!(
-        get(port, "/app.js", &[]).await.header("content-type"),
-        Some("text/javascript; charset=utf-8")
-    );
-    assert_eq!(
-        get(port, "/sub/style.css", &[])
-            .await
-            .header("content-type"),
-        Some("text/css; charset=utf-8")
-    );
-    assert_eq!(
-        get(port, "/data.unknown", &[]).await.header("content-type"),
-        Some("application/octet-stream"),
-        "表里没有的不猜"
-    );
-    let head = request(port, "HEAD", "/app.js", &format!("127.0.0.1:{port}"), &[]).await;
-    assert_eq!((head.status, head.body.len()), (200, 0));
-    for outside in [
-        "/../secret.txt",
-        "/%2e%2e/secret.txt",
-        "/sub/../../secret.txt",
-        "/sub/../app.js",
-        "/sub",
-        "/nope.js",
-        "/link.txt",
-        "/%zz",
-    ] {
-        let answer = get(port, outside, &[]).await;
-        assert_eq!(answer.status, 404, "{outside}");
-        assert_eq!(answer.header("x-content-type-options"), Some("nosniff"));
-    }
-    let host = format!("127.0.0.1:{port}");
-    assert_eq!(request(port, "POST", "/", &host, &[]).await.status, 405);
-    bridge.stop().await.expect("停得下");
-}
-
-#[tokio::test]
-async fn only_the_three_loopback_hosts_get_in() {
-    let site = Site::new();
-    let bridge = site.bridge().await;
-    let port = bridge.web;
-    for good in [
-        format!("127.0.0.1:{port}"),
-        format!("localhost:{port}"),
-        format!("LOCALHOST:{port}"),
-        format!("[::1]:{port}"),
-    ] {
-        assert_eq!(
-            request(port, "GET", "/", &good, &[]).await.status,
-            200,
-            "{good}"
+    {
+        let path = dir.join(name);
+        script(
+            &path,
+            &format!(
+                "#!/bin/sh\nfor arg in \"$@\"; do echo \"$arg\"; done > '{}'\necho opened\nexit {code}\n",
+                seen.display()
+            ),
         );
+        path
     }
-    for bad in [
-        format!("evil.example:{port}"),
-        "127.0.0.1".to_string(),
-        format!("127.0.0.1:{}", bridge.port),
-        format!("127.0.0.1:{}", port + 1),
-    ] {
-        for path in ["/", "/status", "/human", "/ws"] {
-            let answer = request(port, "GET", path, &bad, &[]).await;
-            assert_eq!(answer.status, 403, "{bad} {path}");
-        }
-    }
-    bridge.stop().await.expect("停得下");
-}
-
-#[tokio::test]
-async fn the_origin_must_be_this_page() {
-    let site = Site::new();
-    let bridge = site.bridge().await;
-    let port = bridge.web;
-    for origin in [
-        None,
-        Some("http://evil.example".to_string()),
-        Some("https://127.0.0.1".to_string()),
-        Some("null".to_string()),
-        Some(format!("http://127.0.0.1:{}", bridge.port)),
-        Some(format!("https://127.0.0.1:{port}")),
-    ] {
-        let refused = browser(port, origin.as_deref()).await.expect_err("不接");
-        assert!(refused.contains("403"), "{origin:?}: {refused}");
-    }
-    for origin in [
-        format!("http://localhost:{port}"),
-        format!("http://[::1]:{port}"),
-    ] {
-        assert!(browser(port, Some(&origin)).await.is_ok(), "{origin}");
-    }
-    bridge.stop().await.expect("停得下");
-}
-
-#[tokio::test]
-async fn frames_and_lines_pass_through_untouched() {
-    let mut site = Site::new();
-    let bridge = site.bridge().await;
-    let port = bridge.web;
-    let mut ws = browser(port, Some(&format!("http://127.0.0.1:{port}")))
-        .await
-        .expect("接了");
-    let hello = r#"{"id":"h","jsonrpc":"2.0","method":"hello","params":{"user":"admin","password":"密码 \t ","protocol":[1,1]}}"#;
-    ws.send(Message::text(hello)).await.expect("发得出");
-    let mut forwarded = within("核心接到", site.core.forwarded.recv())
-        .await
-        .expect("转过来了");
-    assert_eq!(forwarded.first, format!("{hello}\n"), "凭据原样到核心");
-    let chinese = r#"{"text":"你好，Miyu  \t空白照留"}"#;
-    ws.send(Message::text(chinese)).await.expect("发得出");
-    let mut line = String::new();
-    within("核心读到", forwarded.lines.read_line(&mut line))
-        .await
-        .expect("读得到");
-    assert_eq!(line, format!("{chinese}\n"));
-    let long = format!(r#"{{"x":"{}"}}"#, "字".repeat(200_000));
-    forwarded
-        .write
-        .write_all(format!("{long}\n").as_bytes())
-        .await
+    #[cfg(windows)]
+    {
+        let path = dir.join(format!("{name}.cmd"));
+        std::fs::write(
+            &path,
+            format!(
+                "@echo off\r\necho %*> \"{}\"\r\necho opened\r\nexit /b {code}\r\n",
+                seen.display()
+            ),
+        )
         .expect("写得进");
-    match next(&mut ws).await {
-        Some(Message::Text(text)) => assert_eq!(text.as_str(), long, "一行去掉换行是一帧"),
-        other => panic!("{other:?}"),
+        path
     }
-    // 核心那头断了：关 1012。
-    drop(forwarded);
-    assert_eq!(close_code(next(&mut ws).await), Some(CloseCode::Restart));
-    bridge.stop().await.expect("停得下");
 }
 
-#[tokio::test]
-async fn an_unreachable_core_is_reported_then_closed() {
-    let site = Site::new();
-    let bridge = site.bridge().await;
-    site.core.close();
-    let port = bridge.web;
-    let mut ws = browser(port, Some(&format!("http://127.0.0.1:{port}")))
-        .await
-        .expect("接了");
-    match next(&mut ws).await {
-        Some(Message::Text(text)) => {
-            let notice: serde_json::Value = serde_json::from_str(text.as_str()).expect("是 JSON");
-            assert_eq!(notice["method"], "web.error", "{notice}");
-            assert!(notice["params"]["message"].is_string());
-        }
-        other => panic!("{other:?}"),
+/// 把 `body` 写成能跑的 `path`。经 `sh` 写（照 `miyu-core` 测假助手的办法）：这个进程不拿着它的写端，别的测试这时起的进程
+/// 带不走，跑它不会撞 ETXTBSY（直接写撞过：同一个测试程序里别的测试正起着进程）。
+#[cfg(unix)]
+fn script(path: &Path, body: &str) {
+    let status = std::process::Command::new("/bin/sh")
+        .args(["-c", r#"printf '%s' "$2" > "$1" && chmod 755 "$1""#, "sh"])
+        .arg(path)
+        .arg(body)
+        .status()
+        .expect("起得来");
+    assert!(status.success());
+}
+
+fn zh() -> Texts {
+    Texts::load(ResourceRoot::at(resources()), "zh").expect("读得出来")
+}
+
+/// 照系统的说法，`program` 为什么跑不了。
+fn why_not(program: &Path) -> String {
+    std::process::Command::new(program)
+        .status()
+        .expect_err("跑不了")
+        .to_string()
+}
+
+#[test]
+fn miyu_gets_web_package_onebot_and_its_exit_code_comes_back() {
+    for code in [7, 0] {
+        let dir = Dir::new("code");
+        let miyu = stand_in(&dir.0, "miyu", code);
+        let mut err = Vec::new();
+        assert_eq!(web(&miyu, &zh(), &mut err), code, "照它的退出码");
+        assert_eq!(dir.seen().as_deref(), Some("web --package onebot"));
+        assert!(err.is_empty(), "{}", String::from_utf8_lossy(&err));
     }
-    assert_eq!(close_code(next(&mut ws).await), Some(CloseCode::Normal));
 }
 
-#[tokio::test]
-async fn a_taken_web_port_is_named() {
-    let site = Site::new();
-    let taken = tokio::net::TcpListener::bind(("127.0.0.1", 0))
-        .await
-        .expect("挑得到");
-    let port = taken.local_addr().expect("有地址").port();
-    let serve = serve(
-        site.root.clone(),
-        Settings {
-            web: port,
-            ..settings()
-        },
-    );
-    let ran = within("起不来", run(serve, |_| {}, |_| {}, std::future::pending())).await;
-    assert_eq!(ran, Err(Failure::WebPortInUse(port)));
-}
-
-#[tokio::test]
-async fn the_page_words_come_in_the_bridges_language() {
-    let site = Site::new();
-    let bridge = start(serve(site.root.clone(), settings())).await;
-    let words = get(bridge.web, "/human", &[]).await;
-    assert_eq!(words.status, 200);
-    assert_eq!(words.header("content-type"), Some("application/json"));
-    assert_eq!(words.header("x-content-type-options"), Some("nosniff"));
-    let words = words.json();
-    assert_eq!(words["language"], "zh", "照握手回的语言");
-    let said = words["said"].as_object().expect("是表");
-    assert!(!said.is_empty());
-    assert!(
-        said.keys()
-            .all(|key| key.starts_with("software/onebot/web/")),
-        "只给页面的字：{said:?}"
-    );
-    let host = format!("127.0.0.1:{}", bridge.web);
+#[test]
+fn without_miyu_it_says_so_and_exits_1() {
+    let dir = Dir::new("missing");
+    let miyu = dir.0.join("miyu");
+    let mut err = Vec::new();
+    assert_eq!(web(&miyu, &zh(), &mut err), 1);
     assert_eq!(
-        request(bridge.web, "POST", "/human", &host, &[])
-            .await
-            .status,
-        405
+        String::from_utf8(err).expect("UTF-8"),
+        format!(
+            "{}\n",
+            zh().no_miyu(&miyu.display().to_string(), &why_not(&miyu))
+        )
     );
-    bridge.stop().await.expect("停得下");
+}
+
+#[cfg(unix)]
+#[test]
+fn a_miyu_stopped_by_a_signal_counts_as_failed() {
+    let dir = Dir::new("signal");
+    let miyu = dir.0.join("miyu");
+    script(&miyu, "#!/bin/sh\nkill -9 $$\n");
+    let mut err = Vec::new();
+    assert_eq!(web(&miyu, &zh(), &mut err), 1);
+    assert!(err.is_empty(), "{}", String::from_utf8_lossy(&err));
+}
+
+/// 跑 `dir` 里的 `miyu-onebot web`（数据根是临时的，说中文），交回它的输出。
+#[cfg(unix)]
+fn run_web(dir: &Dir, args: &[&str]) -> std::process::Output {
+    let (home, root) = crate::support::temp_root();
+    let program = dir.0.join("miyu-onebot");
+    crate::support::spawning::link_beside(Path::new(env!("CARGO_BIN_EXE_miyu-onebot")), &program);
+    let output = std::process::Command::new(&program)
+        .args(args)
+        .env("MIYU_HOME", root.path())
+        .env("MIYU_RESOURCES", resources())
+        .env("LC_ALL", "zh_CN.UTF-8")
+        .stdin(std::process::Stdio::null())
+        .output()
+        .expect("跑得了");
+    if std::fs::remove_dir_all(&home).is_err() {
+        // 删不掉就留在临时目录里，不影响测试。
+    }
+    output
+}
+
+#[cfg(unix)]
+#[test]
+fn the_program_runs_the_miyu_beside_it_and_passes_its_output_through() {
+    let dir = Dir::new("beside");
+    stand_in(&dir.0, "miyu", 7);
+    let ran = run_web(&dir, &["web"]);
+    assert_eq!(
+        ran.status.code(),
+        Some(7),
+        "{}",
+        String::from_utf8_lossy(&ran.stderr)
+    );
+    assert_eq!(dir.seen().as_deref(), Some("web --package onebot"));
+    assert_eq!(
+        String::from_utf8_lossy(&ran.stdout),
+        "opened\n",
+        "标准输出照原样接着"
+    );
+    assert_eq!(String::from_utf8_lossy(&ran.stderr), "");
+}
+
+#[cfg(unix)]
+#[test]
+fn the_program_without_miyu_beside_it_says_so_in_the_system_language() {
+    let dir = Dir::new("alone");
+    let ran = run_web(&dir, &["web"]);
+    assert_eq!(ran.status.code(), Some(1));
+    let miyu = dir.0.join("miyu");
+    assert_eq!(
+        String::from_utf8_lossy(&ran.stderr),
+        format!(
+            "{}\n",
+            zh().no_miyu(&miyu.display().to_string(), &why_not(&miyu))
+        )
+    );
+    assert_eq!(String::from_utf8_lossy(&ran.stdout), "");
 }

@@ -69,7 +69,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
         Play::Says("五"),
     ]);
     let whitelist = format!("whitelist = [\"qq:{JIE}\"]\n");
-    let (home, mut napcat, (listen, web)) = started(&script, &rules(), &whitelist, MEMBERS).await;
+    let (home, mut napcat, listen) = started(&script, &rules(), &whitelist, MEMBERS).await;
     let venue = format!("qq:group:{GROUP}");
     // 1：小林说一句，只记下；测试照判官点了头的样子开一轮（别人开的，算进限流）：一小时一轮满了。
     napcat.send(group_frame(
@@ -180,7 +180,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
         "{}",
         text(&restarted.stderr)
     );
-    bridge_up(&home.root, listen, web, before)
+    bridge_up(&home.root, listen, before)
         .await
         .expect("桥重新起来");
     let mut napcat = admin_napcat(listen).await.answering(MEMBERS);
