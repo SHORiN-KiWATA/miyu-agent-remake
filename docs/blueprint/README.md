@@ -81,6 +81,7 @@
 | `net.md` | 链接卡片：可选软件包 `net`、crate `miyu-net`、`link.preview`，地址闸、钉地址、代理、跳转、元数据、图存成 blob、在后台答（施工 W-7，2026-10-02 从 `web-module.md` 搬出来独立成页） |
 | `recall.md` | 检索的底子：中文两字切分加 FTS5、向量、两路合并、embedding（`miyu-embed`、`models.embedding`）：图纸，2026-10-07 起草，R 线照它施工 |
 | `memory.md` | 记忆：回合索引、记下的四类、记忆日志、常驻摘要、联想、抽取、合并、听众、缓存和 token 的账：图纸，2026-10-07 起草，R 线照它施工 |
+| `memory/eval.md` | 记忆的测评集：虚构的一份、格式、量尺怎么量、量什么、基线（施工 R-11） |
 | `perf.md` | 量尺 `miyu-perf`：`cargo xtask perf`，假模型、沙盒、每一项量的是哪一段、对照预算的表（施工 V-1） |
 | `licenses.md` | 仓库用什么许可证；门禁查依赖的许可证能不能和它合在一起发（施工 4-12） |
 | `prompts.md` | 给模型看的每一份字的原文，按进到请求的哪里分组，带 token 数、什么时候出现；由门禁从 `resources/` 和登记簿生成（施工 4-9 三补） |

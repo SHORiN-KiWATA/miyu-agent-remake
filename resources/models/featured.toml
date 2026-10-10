@@ -1,20 +1,31 @@
-# 第一次接入时先列的常用几家（施工 8-11 再补，2026-10-08 项目主人定）：`miyu setup`、头的第一次引导照这个先后列，经
+# 第一次接入时先列的常用几家（施工 8-11 再补，2026-10-08 项目主人定；施工 T-12 照 2026-10-10 项目主人的意思改：照 opencode
+# 的常用供应商，国内外分开的各列一行，不再照界面语言自动换）：`miyu setup`、头的第一次引导照这个先后列，经
 # `provider.catalog {"featured": true}` 交出去。
 #
-# - `catalog`：目录、档案里的编号；写了 `catalog_zh` 的，中文界面用它（国内的地址）。目录里没有的跳过。
+# - `catalog`：目录、档案里的编号。目录里没有的跳过。（还认 `catalog_zh`：中文界面换成它，现在没有一家写。）
 # - `name`：给人看的名字，一句字，或者语言到一句话的表（照连接的语言挑）。
+# - Google 不列：目录里它走 Gemini 自己的接口，核心没有这种驱动；等有 key 实测、档案里配上它的兼容接口再加。GitHub Copilot 要
+#   OAuth 登录，Vercel 的网关没实测过，也不列。
+
+[[providers]]
+catalog = "opencode"
+name = "OpenCode Zen"
+
+[[providers]]
+catalog = "opencode-go"
+name = "OpenCode Go"
 
 [[providers]]
 catalog = "deepseek"
 name = "DeepSeek"
 
 [[providers]]
-catalog = "openai"
-name = "OpenAI"
-
-[[providers]]
 catalog = "anthropic"
 name = "Anthropic"
+
+[[providers]]
+catalog = "openai"
+name = "OpenAI"
 
 [[providers]]
 catalog = "openrouter"
@@ -22,18 +33,32 @@ name = "OpenRouter"
 
 [[providers]]
 catalog = "moonshotai"
-catalog_zh = "moonshotai-cn"
-name = "Kimi"
+name = { zh = "Moonshot 国际版", en = "Moonshot (Global)", ja = "Moonshot (Global)" }
+
+[[providers]]
+catalog = "moonshotai-cn"
+name = { zh = "Moonshot 国内版", en = "Moonshot (China)", ja = "Moonshot (China)" }
 
 [[providers]]
 catalog = "zhipuai"
-name = { zh = "智谱 GLM", en = "Zhipu GLM", ja = "Zhipu GLM" }
+name = { zh = "智谱 GLM 国内版", en = "Zhipu GLM (China)", ja = "Zhipu GLM (China)" }
+
+[[providers]]
+catalog = "zai"
+name = { zh = "Z.AI 国际版", en = "Z.AI (Global)", ja = "Z.AI (Global)" }
 
 [[providers]]
 catalog = "alibaba"
-catalog_zh = "alibaba-cn"
-name = { zh = "通义千问", en = "Qwen", ja = "Qwen" }
+name = { zh = "通义千问 国际版", en = "Qwen (Global)", ja = "Qwen (Global)" }
 
 [[providers]]
-catalog = "opencode"
-name = "opencode Zen"
+catalog = "alibaba-cn"
+name = { zh = "通义千问 国内版", en = "Qwen (China)", ja = "Qwen (China)" }
+
+[[providers]]
+catalog = "minimax"
+name = { zh = "MiniMax 国际版", en = "MiniMax (Global)", ja = "MiniMax (Global)" }
+
+[[providers]]
+catalog = "minimax-cn"
+name = { zh = "MiniMax 国内版", en = "MiniMax (China)", ja = "MiniMax (China)" }

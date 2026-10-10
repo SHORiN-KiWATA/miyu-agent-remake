@@ -120,3 +120,30 @@ fn the_next_block_starting_finishes_the_ones_before() {
         "调工具那一块开始，思考就收全了"
     );
 }
+
+/// 改了文件的一步带改了哪些（施工 9-8 三补，网页的预览工作区照它认产物）：真实位置、新建（改之前没有）、改了还是移进
+/// 回收站，照效果的先后。
+#[test]
+fn a_step_that_changed_files_lists_them() {
+    const EMPTY: &str = "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+    let result = format!(
+        r#"{{"seq":5,"at":"2026-09-25T07:00:04.000Z","kind":"tool.result","turn":3,"by":{{"kind":"tool","call_id":"call_4_1"}},"cause":"cmd-1","body":{{"call_id":"call_4_1","status":"ok","blocks":[{{"type":"text","text":"done"}}],"effects":[{{"kind":"file.read","path":"/w/read.md","hash":"{EMPTY}"}},{{"kind":"file.changed","path":"/w/out/a.md","after":"{EMPTY}"}},{{"kind":"file.changed","path":"/w/b.md","before":"{EMPTY}","after":"{EMPTY}"}},{{"kind":"file.trashed","path":"/w/old.md","trash":"/t/1"}}]}}}}"#
+    );
+    let entries = feed(&[
+        CREATED,
+        ASKED,
+        STARTED,
+        r#"{"seq":4,"at":"2026-09-25T07:00:03.000Z","kind":"message.assistant","turn":3,"by":{"kind":"model","endpoint":"e","model":"m"},"cause":"cmd-1","body":{"blocks":[{"type":"tool_call","call_id":"call_4_1","name":"write","args":"{\"file_path\":\"out/a.md\",\"content\":\"\"}"}],"seen":3}}"#,
+        &result,
+    ]);
+    let tool = json(of_kind(&entries, "tool")[0]);
+    assert_eq!(
+        tool["files"],
+        serde_json::json!([
+            {"path": "/w/out/a.md", "action": "created"},
+            {"path": "/w/b.md", "action": "changed"},
+            {"path": "/w/old.md", "action": "trashed"}
+        ]),
+        "读的不算：{tool}"
+    );
+}

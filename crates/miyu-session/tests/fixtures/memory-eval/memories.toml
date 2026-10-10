@@ -1,0 +1,612 @@
+# 记忆的测评集（施工 R-11，`docs/blueprint/memory/eval.md`）：一个虚构的用户记下的全部。杭州的前端工程师，养了一只猫，在学
+# 日语。人名、地名、账号都是编的。
+#
+# 每条 `[[memory]]`：`key` 是问句的 `expect` 指它用的键（小写字母、数字、`-`）；`class` 是四类之一；`at` 是记下的那一天；
+# `text` 不超过 120 字；改过口的旧说法另写 `retired`（为什么），量的时候它们一条都不该出来。
+
+# —— 关于用户（user） ——
+
+[[memory]]
+key = "cat-name"
+class = "user"
+at = "2026-03-02"
+text = "用户养了一只橘猫，叫团子，三岁"
+
+[[memory]]
+key = "cat-food"
+class = "user"
+at = "2026-04-11"
+text = "团子只吃一个牌子的鸡肉味冻干，换别的会吐"
+
+[[memory]]
+key = "cat-vet"
+class = "user"
+at = "2026-03-15"
+text = "团子每年三月去小区门口的宠物医院打疫苗"
+
+[[memory]]
+key = "cat-vacuum"
+class = "user"
+at = "2026-07-19"
+text = "The user's cat Tuanzi hates the vacuum cleaner and hides under the bed whenever it runs."
+
+[[memory]]
+key = "home-old"
+class = "user"
+at = "2025-11-20"
+text = "用户住在杭州西湖区的一个老小区"
+retired = "2026 年 5 月搬到滨江了"
+
+[[memory]]
+key = "home-new"
+class = "user"
+at = "2026-05-20"
+text = "用户 2026 年 5 月搬到了杭州滨江区，离公司走路十分钟"
+
+[[memory]]
+key = "rent"
+class = "user"
+at = "2026-05-20"
+text = "用户现在的房子是租的，一室一厅，月租四千五"
+
+[[memory]]
+key = "hometown"
+class = "user"
+at = "2026-01-15"
+text = "用户的家乡是宁波，过年回宁波"
+
+[[memory]]
+key = "university"
+class = "user"
+at = "2026-01-15"
+text = "用户大学在南京读的计算机"
+
+[[memory]]
+key = "job"
+class = "user"
+at = "2026-01-05"
+text = "用户是前端工程师，在一家做跨境电商的公司，主要写 React 和 TypeScript"
+
+[[memory]]
+key = "team"
+class = "user"
+at = "2026-01-08"
+text = "用户的组长叫王磊，组里一共五个人"
+
+[[memory]]
+key = "work-hours"
+class = "user"
+at = "2026-01-08"
+text = "用户公司十点上班，周三晚上常常加班到九点以后"
+
+[[memory]]
+key = "lunch"
+class = "user"
+at = "2026-02-03"
+text = "用户中午一般在公司食堂吃，周五会和同事出去吃"
+
+[[memory]]
+key = "gpu-old"
+class = "user"
+at = "2026-02-01"
+text = "用户台式机的显卡是 RTX 4090"
+retired = "8 月换成 RTX 5090 了"
+
+[[memory]]
+key = "gpu-new"
+class = "user"
+at = "2026-08-18"
+text = "用户 2026 年 8 月把台式机的显卡换成了 RTX 5090"
+
+[[memory]]
+key = "phone-old"
+class = "user"
+at = "2025-12-10"
+text = "用户的手机是 iPhone 12"
+retired = "换了 iPhone 15"
+
+[[memory]]
+key = "phone"
+class = "user"
+at = "2026-04-30"
+text = "用户的手机换成了 iPhone 15，工作用 MacBook Pro M3"
+
+[[memory]]
+key = "desktop-os"
+class = "user"
+at = "2026-07-02"
+text = "用户家里的台式机装了双系统：Windows 打游戏，Arch Linux 写代码"
+
+[[memory]]
+key = "editor"
+class = "user"
+at = "2026-01-20"
+text = "用户写代码用 VS Code，配色是 Solarized Light"
+
+[[memory]]
+key = "keyboard"
+class = "user"
+at = "2026-02-10"
+text = "用户用 HHKB 键盘，习惯 Emacs 风格的快捷键"
+
+[[memory]]
+key = "coffee-old"
+class = "user"
+at = "2025-12-01"
+text = "用户每天要喝三杯美式"
+retired = "下午三点以后不喝了"
+
+[[memory]]
+key = "coffee"
+class = "user"
+at = "2026-01-12"
+text = "用户下午三点以后不喝咖啡，不然晚上睡不着"
+
+[[memory]]
+key = "tea"
+class = "user"
+at = "2026-01-12"
+text = "用户喜欢喝乌龙茶，尤其是凤凰单丛"
+
+[[memory]]
+key = "allergy"
+class = "user"
+at = "2026-03-20"
+text = "用户对花粉过敏，春天出门要戴口罩"
+
+[[memory]]
+key = "spicy"
+class = "user"
+at = "2026-02-14"
+text = "用户不太能吃辣，川菜只点微辣"
+
+[[memory]]
+key = "coriander"
+class = "user"
+at = "2026-02-14"
+text = "用户不吃香菜"
+
+[[memory]]
+key = "natto"
+class = "user"
+at = "2026-06-14"
+text = "ユーザーは納豆が苦手で、匂いだけでも無理だと言っていた。"
+
+[[memory]]
+key = "diet"
+class = "user"
+at = "2026-04-15"
+text = "用户在控制体重，晚饭尽量不吃主食"
+
+[[memory]]
+key = "run"
+class = "user"
+at = "2026-04-02"
+text = "用户每周二、周四早上沿钱塘江跑五公里"
+
+[[memory]]
+key = "badminton"
+class = "user"
+at = "2026-04-02"
+text = "用户周六下午和同事打羽毛球"
+
+[[memory]]
+key = "swim"
+class = "user"
+at = "2026-07-08"
+text = "用户不会游泳，今年夏天在报班学"
+
+[[memory]]
+key = "carsick"
+class = "user"
+at = "2026-05-02"
+text = "用户晕车，坐长途大巴之前要吃药"
+
+[[memory]]
+key = "cold-hands"
+class = "user"
+at = "2026-01-22"
+text = "用户冬天手脚冰凉，办公室备着暖宝宝"
+
+[[memory]]
+key = "glasses"
+class = "user"
+at = "2026-02-28"
+text = "用户近视 500 度，平时戴隐形"
+
+[[memory]]
+key = "sleep"
+class = "user"
+at = "2026-01-25"
+text = "用户一般十二点半睡，早上八点起"
+
+[[memory]]
+key = "bilibili"
+class = "user"
+at = "2026-03-03"
+text = "用户睡前会刷二十分钟 B 站"
+
+[[memory]]
+key = "japanese"
+class = "user"
+at = "2026-03-08"
+text = "用户在学日语，准备 2026 年 12 月考 N2"
+
+[[memory]]
+key = "japanese-teacher"
+class = "user"
+at = "2026-03-08"
+text = "用户的日语老师是田中老师，每周日晚上上网课"
+
+[[memory]]
+key = "nhk"
+class = "user"
+at = "2026-04-20"
+text = "ユーザーは毎朝NHKのニュースを聞いて、日本語の聞き取りを練習している。"
+
+[[memory]]
+key = "ghibli"
+class = "user"
+at = "2026-02-20"
+text = "用户喜欢宫崎骏的动画，最喜欢《千与千寻》"
+
+[[memory]]
+key = "zelda"
+class = "user"
+at = "2026-02-21"
+text = "用户在 Switch 上玩《塞尔达传说：王国之泪》，玩了一百多个小时"
+
+[[memory]]
+key = "camera"
+class = "user"
+at = "2026-05-09"
+text = "用户喜欢拍照，用一台富士 X100V，常拍街景"
+
+[[memory]]
+key = "music"
+class = "user"
+at = "2026-02-25"
+text = "用户写代码时听 lo-fi，通勤路上听播客"
+
+[[memory]]
+key = "book"
+class = "user"
+at = "2026-07-15"
+text = "用户最近在读《置身事内》，读了一半"
+
+[[memory]]
+key = "plants"
+class = "user"
+at = "2026-05-25"
+text = "用户阳台上养了一盆龟背竹和几盆多肉"
+
+[[memory]]
+key = "snake"
+class = "user"
+at = "2026-03-30"
+text = "用户怕蛇，看到图片都会不舒服"
+
+[[memory]]
+key = "phone-call"
+class = "user"
+at = "2026-01-30"
+text = "用户不喜欢打电话，更喜欢发消息"
+
+[[memory]]
+key = "color"
+class = "user"
+at = "2026-06-01"
+text = "用户最喜欢的颜色是雾霾蓝"
+
+[[memory]]
+key = "bike"
+class = "user"
+at = "2026-04-26"
+text = "用户周末喜欢沿着西湖骑共享单车"
+
+[[memory]]
+key = "mother"
+class = "user"
+at = "2026-01-15"
+text = "用户的妈妈住在宁波，用户每周日晚上给她打电话"
+
+[[memory]]
+key = "mother-health"
+class = "user"
+at = "2026-06-03"
+text = "用户的妈妈有高血压，在吃氨氯地平"
+
+[[memory]]
+key = "sister-old"
+class = "user"
+at = "2025-10-01"
+text = "用户的妹妹林雨在上海读本科"
+retired = "本科毕业了，现在读研"
+
+[[memory]]
+key = "sister"
+class = "user"
+at = "2026-02-01"
+text = "用户的妹妹林雨在上海读研究生，学建筑"
+
+[[memory]]
+key = "partner"
+class = "user"
+at = "2026-03-01"
+text = "用户的男朋友叫陈默，是做后端的，用 Go"
+
+[[memory]]
+key = "anniversary"
+class = "user"
+at = "2026-05-30"
+text = "用户和陈默的纪念日是 6 月 18 日"
+
+[[memory]]
+key = "birthday"
+class = "user"
+at = "2026-01-05"
+text = "用户的生日是 11 月 3 日"
+
+[[memory]]
+key = "commute"
+class = "user"
+at = "2026-05-20"
+text = "用户没有车，搬家以后走路上班"
+
+[[memory]]
+key = "fund"
+class = "user"
+at = "2026-05-01"
+text = "用户每个月定投一笔沪深 300 指数基金"
+
+[[memory]]
+key = "savings"
+class = "user"
+at = "2026-05-01"
+text = "用户希望三十岁之前存够首付"
+
+[[memory]]
+key = "side-project"
+class = "user"
+at = "2026-06-10"
+text = "用户业余在做一个记账小程序，后端用 Rust 写"
+
+[[memory]]
+key = "rust-level"
+class = "user"
+at = "2026-06-10"
+text = "用户学 Rust 三个月，所有权和生命周期还不太熟"
+
+[[memory]]
+key = "travel-plan"
+class = "user"
+at = "2026-08-01"
+text = "用户计划 2027 年春天去京都看樱花"
+
+[[memory]]
+key = "kyoto-inn"
+class = "user"
+at = "2026-09-01"
+text = "ユーザーは京都の宿をもう予約していて、場所は嵐山の近く。"
+
+[[memory]]
+key = "meetup-talk"
+class = "user"
+at = "2026-09-10"
+text = "The user is preparing a talk on React Server Components for a frontend meetup in November."
+
+[[memory]]
+key = "catchphrase"
+class = "user"
+at = "2026-03-18"
+text = "用户的口头禅是「问题不大」"
+
+# —— 对回答的要求（feedback） ——
+
+[[memory]]
+key = "short"
+class = "feedback"
+at = "2026-01-10"
+text = "回答要短，先说结论"
+
+[[memory]]
+key = "nickname"
+class = "feedback"
+at = "2026-01-06"
+text = "用户希望被叫小夏"
+
+[[memory]]
+key = "comments"
+class = "feedback"
+at = "2026-01-18"
+text = "代码示例里的注释用中文写"
+
+[[memory]]
+key = "hooks"
+class = "feedback"
+at = "2026-01-18"
+text = "写 React 用函数组件和 Hooks，不要用 class 组件"
+
+[[memory]]
+key = "typescript"
+class = "feedback"
+at = "2026-02-06"
+text = "The user wants code examples in TypeScript with strict mode, never plain JavaScript."
+
+[[memory]]
+key = "no-emoji"
+class = "feedback"
+at = "2026-02-02"
+text = "回答里不要用表情符号"
+
+[[memory]]
+key = "why"
+class = "feedback"
+at = "2026-03-12"
+text = "讲技术方案时要说清楚为什么这样选，不能只给结论"
+
+[[memory]]
+key = "narrow"
+class = "feedback"
+at = "2026-04-08"
+text = "用户常在手机上看，别用太宽的表格"
+
+[[memory]]
+key = "comfort"
+class = "feedback"
+at = "2026-05-12"
+text = "用户难过的时候别讲大道理，陪着说说话就好"
+
+[[memory]]
+key = "grammar"
+class = "feedback"
+at = "2026-03-10"
+text = "用户用日语说话时，要指出语法错误"
+
+[[memory]]
+key = "professional"
+class = "feedback"
+at = "2026-06-05"
+text = "说到医学、法律的事，要提醒用户去问专业的人"
+
+[[memory]]
+key = "commits"
+class = "feedback"
+at = "2026-02-22"
+text = "提交信息照 Conventional Commits 的格式写"
+
+# —— 发生过的事（episode） ——
+
+[[memory]]
+key = "promotion"
+class = "episode"
+at = "2026-07-05"
+text = "用户 2026 年 7 月升了高级工程师"
+
+[[memory]]
+key = "cat-sick"
+class = "episode"
+at = "2026-06-21"
+text = "6 月团子拉肚子去看过医生，吃了一周益生菌就好了"
+
+[[memory]]
+key = "moving"
+class = "episode"
+at = "2026-05-21"
+text = "用户 5 月搬家时找的搬家公司，搬坏了一个柜子，赔了三百"
+
+[[memory]]
+key = "xiamen"
+class = "episode"
+at = "2026-10-08"
+text = "用户 2026 年国庆去了厦门，住在鼓浪屿上的民宿"
+
+[[memory]]
+key = "interview"
+class = "episode"
+at = "2026-09-20"
+text = "用户 9 月面试过一家做 AI 的公司，拿到了 offer 但没去"
+
+[[memory]]
+key = "marathon"
+class = "episode"
+at = "2026-08-25"
+text = "用户报名了 11 月杭州马拉松的半程"
+
+[[memory]]
+key = "incident"
+class = "episode"
+at = "2026-09-28"
+text = "用户负责的页面 9 月底出过一次线上事故，原因是缓存没有失效"
+
+[[memory]]
+key = "mother-hospital"
+class = "episode"
+at = "2026-06-03"
+text = "用户的妈妈 6 月住院做过一次全面检查，结果没大问题"
+
+[[memory]]
+key = "n3"
+class = "episode"
+at = "2026-03-08"
+text = "用户 2025 年 12 月考过了日语 N3"
+
+[[memory]]
+key = "quarrel"
+class = "episode"
+at = "2026-08-12"
+text = "用户和陈默 8 月为要不要养第二只猫吵过一架，后来说好明年再说"
+
+[[memory]]
+key = "laptop-repair"
+class = "episode"
+at = "2026-04-28"
+text = "用户的 MacBook 键盘坏过一次，在苹果店免费换的"
+
+[[memory]]
+key = "hackathon"
+class = "episode"
+at = "2026-09-05"
+text = "用户参加公司黑客松，做了一个自动生成表单的工具，拿了二等奖"
+
+[[memory]]
+key = "hamster"
+class = "episode"
+at = "2026-03-02"
+text = "用户养猫之前养过一只仓鼠，叫豆豆"
+
+# —— 去哪找（reference） ——
+
+[[memory]]
+key = "github"
+class = "reference"
+at = "2026-02-01"
+text = "用户的 GitHub 用户名是 linxia-dev"
+
+[[memory]]
+key = "blog"
+class = "reference"
+at = "2026-02-01"
+text = "用户的技术博客是 linxia.dev，主要写 React 性能优化"
+
+[[memory]]
+key = "ledger-repo"
+class = "reference"
+at = "2026-06-10"
+text = "记账小程序的代码在 GitHub 的 linxia-dev/ledger 仓库"
+
+[[memory]]
+key = "handbook"
+class = "reference"
+at = "2026-01-09"
+text = "公司的前端规范在内部 Confluence 的「前端手册」空间"
+
+[[memory]]
+key = "vet-contact"
+class = "reference"
+at = "2026-03-15"
+text = "宠物医院的电话存在用户手机通讯录里，名字是「团子医生」"
+
+[[memory]]
+key = "grammar-book"
+class = "reference"
+at = "2026-03-08"
+text = "用户用的日语教材是《新完全掌握 N2 语法》"
+
+[[memory]]
+key = "recipes"
+class = "reference"
+at = "2026-04-15"
+text = "用户收藏的减脂食谱在小红书的「晚饭」收藏夹里"
+
+[[memory]]
+key = "postmortem"
+class = "reference"
+at = "2026-09-29"
+text = "那次线上事故的复盘文档在公司 Wiki 的「2026 年 9 月事故」页面"
+
+[[memory]]
+key = "meetup-link"
+class = "reference"
+at = "2026-09-10"
+text = "11 月前端 meetup 的报名确认邮件在用户的工作邮箱里"

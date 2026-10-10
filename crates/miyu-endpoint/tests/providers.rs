@@ -199,7 +199,7 @@ async fn the_catalog_is_searched_and_usable_ones_come_first() {
 }
 
 /// 常用的几家（施工 8-11 再补）：照资源目录 `models/featured.toml` 的先后，目录、档案里没有的跳过；写法和搜到的同一家一样，
-/// 名字换成它写的、照连接的语言挑；中文的 Kimi、通义用国内的那一家。不看 `query`、`limit`。
+/// 名字换成它写的、照连接的语言挑。施工 T-12 起国内外分开各列一行，哪种语言列的都是同一批，只是名字不同。不看 `query`、`limit`。
 #[tokio::test]
 async fn featured_ones_follow_the_resource_order_and_the_language() {
     let profile = |name: &str, base_url: &str| json!({"name": name, "driver": "openai-chat", "base_url": base_url});
@@ -221,12 +221,14 @@ async fn featured_ones_follow_the_resource_order_and_the_language() {
     assert_eq!(
         shown(&reply),
         pairs(&[
+            ("opencode", "OpenCode Zen"),
+            ("opencode-go", "OpenCode Go"),
             ("deepseek", "DeepSeek"),
-            ("openai", "OpenAI"),
             ("anthropic", "Anthropic"),
-            ("moonshotai-cn", "Kimi"),
-            ("alibaba-cn", "通义千问"),
-            ("opencode", "opencode Zen"),
+            ("openai", "OpenAI"),
+            ("moonshotai", "Moonshot 国际版"),
+            ("moonshotai-cn", "Moonshot 国内版"),
+            ("alibaba-cn", "通义千问 国内版"),
         ])
     );
     let searched = ask(
@@ -238,8 +240,8 @@ async fn featured_ones_follow_the_resource_order_and_the_language() {
     )
     .await;
     assert_eq!(
-        reply["result"]["providers"][0], searched["result"]["providers"][0],
-        "写法和搜到的同一家一样"
+        reply["result"]["providers"][2], searched["result"]["providers"][0],
+        "名单里的 DeepSeek 写法和搜到的同一家一样"
     );
 
     let english = Home::new();
@@ -255,13 +257,16 @@ async fn featured_ones_follow_the_resource_order_and_the_language() {
     assert_eq!(
         shown(&reply),
         pairs(&[
+            ("opencode", "OpenCode Zen"),
+            ("opencode-go", "OpenCode Go"),
             ("deepseek", "DeepSeek"),
-            ("openai", "OpenAI"),
             ("anthropic", "Anthropic"),
-            ("moonshotai", "Kimi"),
-            ("opencode", "opencode Zen"),
+            ("openai", "OpenAI"),
+            ("moonshotai", "Moonshot (Global)"),
+            ("moonshotai-cn", "Moonshot (China)"),
+            ("alibaba-cn", "Qwen (China)"),
         ]),
-        "国际的通义目录里没有，跳过"
+        "同一批，名字照英文；测试目录里没有的几家跳过"
     );
 
     let plain = ask(

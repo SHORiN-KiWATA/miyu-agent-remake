@@ -203,6 +203,30 @@ pub struct Tool {
     /// 用了多久；还没结果的没有。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub took_ms: Option<u64>,
+    /// 改了哪些文件（施工 9-8 三补）：照结果的效果，换成真实位置以后的绝对路径，照先后；读的不算。没有的不写。
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub files: Vec<Touched>,
+}
+
+/// 一步改了的一个文件（施工 9-8 三补）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Touched {
+    /// 换成真实位置以后的绝对路径。
+    pub path: String,
+    /// 改了还是移进了回收站。
+    pub action: TouchKind,
+}
+
+/// 文件怎么了。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TouchKind {
+    /// 新建：改之前没有这个文件（`file.changed` 没有 `before`）。
+    Created,
+    /// 覆盖、编辑已有的（`file.changed` 有 `before`）。
+    Changed,
+    /// 移进回收站（`file.trashed`）。
+    Trashed,
 }
 
 /// 标题那一句，照连接的语言。
@@ -374,6 +398,15 @@ pub struct JobDone {
     /// 后台命令的输出。
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output: Option<Output>,
+    /// 后台命令的退出码（施工 9-8 三补）：照回报，没有的不写。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exit_code: Option<i32>,
+    /// 杀掉后台命令的信号（施工 9-8 三补）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signal: Option<u32>,
+    /// 后台命令从起到结束的毫秒数（施工 9-8 三补）：照回报，核心崩了补的没有。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub took_ms: Option<u64>,
 }
 
 /// 后台任务了结的原因：后台命令的、子代理的。

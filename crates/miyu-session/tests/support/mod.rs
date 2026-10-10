@@ -4,6 +4,7 @@
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
 
 pub mod calling;
+pub mod eval;
 pub mod extracting;
 pub mod meaning;
 mod opening;
