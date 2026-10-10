@@ -232,7 +232,7 @@ async fn a_changed_item_list_rewrites_the_files() {
     let mut found = vec![Found {
         id: "xcfg".to_string(),
         layer: miyu_store::packages::Layer::Home,
-        path: root.path().join("xcfg.toml"),
+        path: root.path().join("xcfg").join("package.toml"),
         read: Ok(manifest),
     }];
     let packaged = Packaged::of(&mut found);
