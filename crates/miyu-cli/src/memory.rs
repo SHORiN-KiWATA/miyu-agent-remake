@@ -22,7 +22,7 @@ use crate::exit;
 use crate::language::{self, Language};
 use crate::link;
 use crate::rpc::Rpc;
-use crate::shown::say;
+use crate::shown::{offset, say};
 
 /// 出厂认识的四类（`memory.md` 的记忆日志）：`add --class` 只收它们，`list --class` 照它们挑。
 const CLASSES: [&str; 4] = ["user", "feedback", "episode", "reference"];
@@ -313,12 +313,6 @@ fn merge(params: &mut Value, extra: Value) {
 
 fn id_of(result: &Value) -> &str {
     result["id"].as_str().unwrap_or_default()
-}
-
-/// 这台机器此刻的时区（照核心给会话的环境的算法，`miyu-endpoint` 的 `sessions.rs`）。
-fn offset() -> UtcOffset {
-    let minutes = jiff::Zoned::now().offset().seconds() / 60;
-    UtcOffset::from_minutes(minutes).unwrap_or(UtcOffset::UTC)
 }
 
 /// 连上核心之前就出错了：原因写在标准错误上。

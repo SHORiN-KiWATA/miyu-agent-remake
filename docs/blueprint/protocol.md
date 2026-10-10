@@ -597,7 +597,7 @@
 **`package.info`、`package.files`**（施工 F-8 中上，`packages.md`「本地库」）：参数都是 `{"package"}`，多写的格 `bad_params`，没装的（或者卸掉了的出厂包）`unknown_package`。
 
 - `package.info`：`package`、`layer`（`home`、`shipped`）、`files`（几个文件）、`size`（一共多少字节）；写了的有 `version`；家目录里本地库记了的有 `installed`（装的时刻）、`source`（从哪个路径装的，核心起来时补的没有）。出厂的照现在的文件现算。
-- `package.files`：`files`，每个 `{"path", "sha256", "size"}`：`path` 相对包目录、用 `/` 分开，照路径排。
+- `package.files`：`dir`（包目录的绝对路径，施工 F-8 下）、`files`，每个 `{"path", "sha256", "size"}`：`path` 相对 `dir`、用 `/` 分开，照路径排。
 - `package.owns {"path"}`（施工 F-8 中下）：`path` 是绝对路径（相对的 `bad_params`），换成真实的位置，看在哪个包的目录里（两层都找）。回应 `{"package": 编号}` 加 `layer`、`path`（相对包目录）、`recorded`（本地库里有没有记它，出厂的总是假）；哪个包都不在的 `{"package": null}`。
 - `package.check {"package"?}`（施工 F-8 中下）：家目录里本地库记了的包，照记的一个个比哈希：`{"packages": [{"package", "modified", "missing", "extra"}]}`，三格都是相对包目录的路径；没记的、出厂的不在里面。写了 `package` 的只查它，没装的 `unknown_package`。
 

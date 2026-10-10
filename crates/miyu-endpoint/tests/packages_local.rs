@@ -74,6 +74,11 @@ async fn an_installed_package_is_recorded_listed_and_forgotten() {
         "{files}"
     );
     assert_eq!(files["result"]["files"][1]["path"], "package.toml");
+    assert_eq!(
+        PathBuf::from(files["result"]["dir"].as_str().unwrap_or_default()),
+        home.root.path().join("home/alice/packages/xtool"),
+        "包目录是绝对路径：{files}"
+    );
     // 升级：换成新的那一份。
     let folder = source(&home, "2.0", &[]);
     call(&mut client, "package.install", json!({"path": folder})).await;

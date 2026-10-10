@@ -1,13 +1,22 @@
 Usage: miyu pkg [command] [options]
 
-See which packages are installed; install, remove.
+See which packages are installed; install, remove, check installed files.
 Without a command it is list.
+A package folder holds a package.toml; the folder name is the id.
 
 Commands:
   list                    List packages
-  install <folder|id>     Install a package folder (with package.toml in it), or bring back a removed shipped one
-  remove <id>             Remove a package
+  install <folder|id>     Install a folder, or restore a removed shipped package
+  remove <id>             Remove a package with its settings and state
+  info <id>               Show a package
+  files <id>              List the files a package installed
+  owns <path>             Show which package a file belongs to
+  check [<id>]            Check installed files; all packages if none given
+
+pacman options work too:
+  -U, -R, -Q              install, remove, list
+  -Qi, -Ql, -Qo, -Qk      info, files, owns, check
 
 Options:
-      --format text|json  list: json for scripts
+      --format text|json  list, info, files, owns, check: json for scripts
   -h, --help              Print help

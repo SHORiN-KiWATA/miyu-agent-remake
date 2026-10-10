@@ -15,6 +15,8 @@ mod sandbox;
 mod setup;
 mod undo;
 
+pub(crate) use pkg::Checked;
+
 /// 界面语言。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Language {

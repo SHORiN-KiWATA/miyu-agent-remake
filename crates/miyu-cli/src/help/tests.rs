@@ -247,6 +247,9 @@ fn each_page_is_its_own_file() {
             (Page::Login, "login"),
             (Page::Logout, "logout"),
             (Page::Setup, "setup"),
+            (Page::Web, "web"),
+            (Page::Memory, "memory"),
+            (Page::Pkg, "pkg"),
         ] {
             let file = dir.join(code).join(format!("{name}.txt"));
             let on_disk = std::fs::read_to_string(&file).expect("有这一页");
@@ -288,6 +291,9 @@ fn pages_fit_in_eighty_columns_and_end_with_one_newline() {
             Page::Login,
             Page::Logout,
             Page::Setup,
+            Page::Web,
+            Page::Memory,
+            Page::Pkg,
         ] {
             let text = page(language, which);
             assert!(

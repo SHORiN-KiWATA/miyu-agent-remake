@@ -2,7 +2,7 @@
 //! （每个文件的路径、SHA-256、字节数），卸掉的删掉那一份；核心起来时给以前装的、还没记的补上（照现在的文件算）。
 //! `package.info`、`package.files` 照它答；出厂的不进本地库，照现在的文件现算。
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde::Deserialize;
@@ -67,9 +67,10 @@ pub(crate) struct InfoParams {
     package: String,
 }
 
-/// 一个包这时的样子：哪一层、清单写的版本，和它的记录。
+/// 一个包这时的样子：哪一层、包目录、清单写的版本，和它的记录。
 struct Looked {
     layer: Layer,
+    dir: PathBuf,
     version: Option<String>,
     desc: Option<Desc>,
     files: Vec<Entry>,
@@ -90,6 +91,7 @@ async fn entry(core: &Arc<Core>, id: &str) -> Result<Looked, Refusal> {
     let places = packages(core);
     let (folder, root, layer) = (found.files_dir(), places.local_root(), found.layer);
     let target = id.to_string();
+    let dir = folder.clone();
     let read = tokio::task::spawn_blocking(move || {
         let recorded = (layer == Layer::Home)
             .then(|| local::read(&root, &target))
@@ -107,6 +109,7 @@ async fn entry(core: &Arc<Core>, id: &str) -> Result<Looked, Refusal> {
     })?;
     Ok(Looked {
         layer,
+        dir,
         version,
         desc,
         files,
@@ -120,6 +123,7 @@ pub(crate) async fn info(core: &Arc<Core>, params: InfoParams) -> Result<Value, 
         version,
         desc,
         files,
+        ..
     } = entry(core, &params.package).await?;
     let mut answer = json!({
         "package": params.package,
@@ -143,15 +147,16 @@ pub(crate) async fn info(core: &Arc<Core>, params: InfoParams) -> Result<Value, 
     Ok(answer)
 }
 
-/// `package.files {package}`：每个文件的 `path`（相对包目录，`/` 分开）、`sha256`、`size`，照路径排。
+/// `package.files {package}`：包目录 `dir`（绝对路径，施工 F-8 下：命令行照 pacman 印绝对路径），每个文件的 `path`（相对
+/// 包目录，`/` 分开）、`sha256`、`size`，照路径排。
 pub(crate) async fn files(core: &Arc<Core>, params: InfoParams) -> Result<Value, Refusal> {
-    let files: Vec<Value> = entry(core, &params.package)
-        .await?
+    let looked = entry(core, &params.package).await?;
+    let files: Vec<Value> = looked
         .files
         .iter()
         .map(|file| json!({"path": file.path, "sha256": file.sha256, "size": file.size}))
         .collect();
-    Ok(json!({ "files": files }))
+    Ok(json!({ "dir": looked.dir, "files": files }))
 }
 
 /// 本地库里删掉包 `id`（卸掉以后）；删不掉的记一行，不算卸失败。
