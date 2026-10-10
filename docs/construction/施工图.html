@@ -276,9 +276,9 @@ a.step:hover{border-color:var(--primary)}
   <h1>Miyu 施工图</h1>
   <p class="lede">一步一张图：这一步做完以后仓库长成什么样、新加了什么、怎么验收的。施工方案和每一步的施工单在 <code>docs/construction/</code>，这张图跟着它们一起更新。</p>
   <ul class="facts">
-    <li><b>386</b><span>/ 399 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
+    <li><b>387</b><span>/ 400 步（不算取消的两步）<strong>已完成</strong>，M6 长会话验收过了：到线就压，压完不失忆、接着干，换出去的她用 <code>history</code> 找得回；一直失败、压完很快又满的会暂停；摘要请求超长截短再试、调了工具改走隔离式；主请求超长先压再重发；撤销能撤掉压缩；人能自己叫她压、附一句要求；M7 分身验收过了：日志记得下任务的开始、结束和回报，回报到了她闲着就开一轮、正忙就在下一步看到；她能派子代理、把命令放到后台跑，子代理做完一层层报上来；她能用 jobs 看、读、停自己派出去的；父子之间能来回说话；<code>miyu ask</code> 派了子代理的，等它们都报回来、她说完才退出；撤销一轮时它派出去的任务一起停，核心崩了后台命令跟着死；Claude Code 这类别的 agent 能用 <code>miyu ask --from</code> 往她的会话里说话，她分得清不是人说的；头能读后台命令跑到一半的输出；M8 配置与模型验收过了：不靠开发用的环境变量，第一次接入找现成的 key、试通、写进配置，三种接口只用配置接上，会话里换模型，池里出错换下一个，思考强度、温度、金额都对；网页登录的核心那一半：第一次用本机终端给的一次性码设用户名和密码，以后用它们登录，记住 30 天</span></li>
     <li><b>8-23</b><span>下一步：M8 要补的 8-21、8-22 做完了，接着 8-23、8-25、8-24（网页演示转来的下架模型移出池；一家供应商一个 key；<code>miyu config</code> 拉起终端界面停在配置页）；网页模块做到 W-10（打包 W-11 暂停：还没到打包那一步），拆 M9（有界面）等终端界面、网页演示改好合进来再接着做</span></li>
-    <li><b class="mono">75499997</b><span>最近一步（F-8 中下补 卸就是清干净）的提交</span></li>
+    <li><b class="mono">cd387fc2</b><span>最近一步（F-8 下 命令行查包）的提交</span></li>
   </ul>
 </header>
 
@@ -779,6 +779,7 @@ a.step:hover{border-color:var(--primary)}
         <li><a class="step done" href="#sF-8c"><span class="n">F-8 中上</span>本地库<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sF-8d"><span class="n">F-8 中下</span>查装好的文件<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sF-8e"><span class="n">F-8 中下补</span>卸就是清干净<span class="st">✓</span></a></li>
+        <li><a class="step done" href="#sF-8f"><span class="n">F-8 下</span>命令行查包<span class="st">✓</span></a></li>
         <li><a class="step done" href="#sS-1"><span class="n">S-1</span>给界面用的门面 miyu-client<span class="st">✓</span></a></li>
       </ol>
       <p class="later">框架搭好了（2026-10-09）：接着整理现有功能和代码（T 线），再做性能检查（设计 30 第十二节）。</p>
@@ -21817,6 +21818,59 @@ a.step:hover{border-color:var(--primary)}
       <h3>图纸</h3>
       <ul>
         <li><code>docs/construction/F-8中下补-卸载清干净.md</code>、图纸 <code>docs/blueprint/packages.md</code>「装卸」第 7 条、设计 <code>31-软件包.md</code> 第三节。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="sheet" id="sF-8f" aria-labelledby="h-sF8f">
+  <div class="sheet-head"><h2 id="h-sF8f"><span class="no">F-8 下</span>命令行查包</h2><span class="pill done">已完成</span></div>
+  <p class="purpose">照 pacman 在终端里查装了的包：信息、装了哪些文件、一个文件归哪个包、文件改没改；pacman 的写法当别名（设计 31 第一节，定了的 A）。</p>
+  <figure class="frame">
+    <div class="drawing">
+      <div class="d01">
+        <div class="d01-left">
+          <div class="dir">
+            <div class="dir-label"><span class="path">命令行查包</span><span class="dir-note">F-8 下</span></div>
+            <ol class="pipe" aria-label="做了什么">
+              <li><code>miyu pkg info</code>、<code>files</code>、<code>owns</code>、<code>check</code>，<code>--format json</code> 印核心的原样</li>
+              <li><code>-U</code>、<code>-R</code>、<code>-Q</code>、<code>-Qi</code>、<code>-Ql</code>、<code>-Qo</code>、<code>-Qk</code> 换成正式的子命令</li>
+              <li><code>package.files</code> 多一格 <code>dir</code>：照 pacman 印绝对路径</li>
+            </ol>
+          </div>
+        </div>
+        <div class="rules">
+          <p class="rules-title">这一步定下的</p>
+          <div class="tile new"><span class="nm">退出码照 pacman</span><span class="rl">owns 没有、check 查出改了少了的是 1</span></div>
+          <div class="tile new"><span class="nm">只印人要的</span><span class="rl">从哪装的、哈希、哪一层不印</span></div>
+        </div>
+      </div>
+    </div>
+    <figcaption class="titleblock">
+      <dl>
+        <div><dt>图号</dt><dd class="mono">F-8 下</dd></div>
+        <div><dt>名称</dt><dd>命令行查包</dd></div>
+        <div><dt>日期</dt><dd class="mono">2026-10-11</dd></div>
+        <div><dt>提交</dt><dd class="mono">cd387fc2</dd></div>
+        <div><dt>验收</dt><dd>八项、三台 CI（run 1697）</dd></div>
+      </dl>
+    </figcaption>
+  </figure>
+  <div class="notes">
+    <div>
+      <h3>验收</h3>
+      <ul class="checks">
+        <li><span class="ok">✓</span><span>几行的样子、字节数的写法</span></li>
+        <li><span class="ok">✓</span><span>pacman 的写法、写错的不认</span></li>
+        <li><span class="ok">✓</span><span>真跑 -U、info、-Ql、-Qo、-Qk</span></li>
+        <li><span class="ok">✓</span><span>check 多出来的也算错、owns 没记的当属于，各报红</span></li>
+        <li><span class="ok">✓</span><span>八项门禁</span></li>
+      </ul>
+    </div>
+    <div>
+      <h3>图纸</h3>
+      <ul>
+        <li><code>docs/construction/F-8下-命令行.md</code>、图纸 <code>docs/blueprint/cli/pkg.md</code>、设计 <code>31-软件包.md</code> 第一节。</li>
       </ul>
     </div>
   </div>
