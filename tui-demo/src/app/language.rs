@@ -66,6 +66,11 @@ impl App {
     /// 换成第 `index` 行那一档（第 0 行自动，跟启动时认出来的系统语言），关框，提示一句；选的就是现在的只关框。
     fn choose_language(&mut self, index: usize) {
         self.panel = None;
+        self.switch_language(index, true);
+    }
+
+    /// 换成第 `index` 行那一档并写进个人设置；`announce` 时提示一句（引导里换的不提示）。
+    pub(super) fn switch_language(&mut self, index: usize, announce: bool) {
         let table = &self.config.language_table;
         let (next, auto) = if index == 0 {
             (self.system_language.clone(), true)
@@ -81,7 +86,7 @@ impl App {
         // 写进个人设置的 `ui.language`：这个人所有的头都照它（2026-10-01 项目主人定 A）。当场换，不等回应。
         let code = if auto { "auto" } else { next.code() };
         self.core.send(Command::SetLanguage(code.to_string()));
-        self.use_language(next, auto, true);
+        self.use_language(next, auto, announce);
     }
 
     /// 配置里的界面语言（连上时读的、别处改了推来的）：`auto` 跟系统，表里认得的换成那种，认不得的当 `auto`。

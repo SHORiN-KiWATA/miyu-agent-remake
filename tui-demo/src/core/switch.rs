@@ -6,15 +6,15 @@ use std::io;
 use serde_json::{Value, json};
 
 use super::push::{self, Push};
-use super::replay::Replay;
 use super::rpc::{self, Rpc};
 use super::serve::Link;
 use super::sessions;
 
-/// 带 `after` 订阅 `session`：从读到的最后一个序号往后补（没读过的从头）。记进补发中的，交回请求编号。
+/// 带 `after` 订阅 `session`：从读到的最后一个序号往后补（没读过的从头）。记进补发中的（已经在补发的接着用：最新一页
+/// 里还记着的回答等订阅补来的 `model.called`），交回请求编号。
 pub(super) async fn replay(rpc: &mut Rpc, link: &mut Link, session: &str) -> io::Result<String> {
     let after = link.seen.get(session).copied().unwrap_or(0);
-    link.replays.insert(session.to_string(), Replay::default());
+    link.replays.entry(session.to_string()).or_default();
     let params = json!({"session": session, "stream": "events", "after": after});
     rpc.send("subscribe", params).await
 }

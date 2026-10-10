@@ -20,11 +20,19 @@ impl Drawer {
             .modifiers
             .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT);
         let count = self.items(self.tab).len();
-        match key.code {
+        // 没在写字：认 vim 的 `h` `j` `k` `l`，同引导（「确认和提问的抽屉」第 4 条，2026-10-11 项目主人）。
+        let code = match key.code {
+            KeyCode::Char('j') if plain => KeyCode::Down,
+            KeyCode::Char('k') if plain => KeyCode::Up,
+            KeyCode::Char('h') if plain => KeyCode::Left,
+            KeyCode::Char('l') if plain => KeyCode::Right,
+            code => code,
+        };
+        match code {
             KeyCode::Esc => return Step::Escape,
             KeyCode::Up | KeyCode::Down if count > 0 => {
                 let cursor = &mut self.cursor[self.tab];
-                *cursor = if key.code == KeyCode::Up {
+                *cursor = if code == KeyCode::Up {
                     cursor.saturating_sub(1)
                 } else {
                     (*cursor + 1).min(count - 1)

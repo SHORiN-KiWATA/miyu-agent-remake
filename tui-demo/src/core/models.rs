@@ -39,8 +39,8 @@ pub enum ChoiceState {
     NoKey,
 }
 
-/// 照 `model.list` 排出 `/model` 的一行行：池、模型，照这个先后。没有挡位（核心 8-8 补）；一个成员都没有的池不列：
-/// 选了核心也只会拒。
+/// 照 `model.list` 排出 `/model` 的一行行：池、模型，照这个先后。没有挡位（核心 8-8 补）；用不了的池不列（核心 8-23 的
+/// `usable` 是假的，旧核心没有这一格的照成员是空的认）：选了核心也只会拒。
 pub fn choices(result: &Value) -> Vec<Choice> {
     let mut out = Vec::new();
     for pool in result["pools"].as_array().into_iter().flatten() {
@@ -48,7 +48,7 @@ pub fn choices(result: &Value) -> Vec<Choice> {
             continue;
         };
         let members = pool["models"].as_array().map_or(0, Vec::len);
-        if members == 0 {
+        if members == 0 || pool["usable"] == false {
             continue;
         }
         out.push(Choice {
@@ -131,6 +131,18 @@ mod tests {
             "2026-10-01T08:02:00Z"
         );
         assert_eq!(earliest_cooling(&json!({"providers":[]})), None);
+    }
+
+    #[test]
+    fn a_pool_the_core_says_is_unusable_is_not_listed() {
+        // 核心 8-23：池的 `usable` 是假的不列（成员都下架了被拿空的、以后别的原因用不了的），没有这一格的照成员认。
+        let list = json!({"pools": [
+            {"name": "gone", "strategy": "pin", "models": ["dev/old"], "usable": false},
+            {"name": "duo", "strategy": "pin", "models": ["dev/m1"], "usable": true},
+            {"name": "legacy", "strategy": "pin", "models": ["dev/m1"]}],
+            "providers": []});
+        let refs: Vec<String> = choices(&list).into_iter().map(|c| c.reference).collect();
+        assert_eq!(refs, ["@duo", "@legacy"]);
     }
 
     #[test]

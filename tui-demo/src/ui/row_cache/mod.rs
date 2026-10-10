@@ -224,6 +224,8 @@ fn fingerprint(i: usize, entry: &Entry, ctx: &Ctx, figures: Option<u64>) -> Opti
         level,
         theme::generation(),
         &ctx.config.icons.name,
+        // 时间线的几个开关（配置页能改，「时间线」第 18 条）。
+        ctx.config.timeline.shape(),
         // 语言连同是不是自动：自动的中文和手动的中文代码一样，收起那一行却一个英文一个中文。
         (ctx.config.language.code(), ctx.config.auto),
         figures,
@@ -250,7 +252,7 @@ fn fingerprint(i: usize, entry: &Entry, ctx: &Ctx, figures: Option<u64>) -> Opti
     if let Some(segment) = &entry.segment {
         (segment.finished, segment.open, segment.steps.len()).hash(&mut h);
         for step in &segment.steps {
-            (step.took, step.open).hash(&mut h);
+            (step.took, step.open, &step.answers).hash(&mut h);
             match &step.kind {
                 StepKind::Thought { text } => text.len().hash(&mut h),
                 StepKind::Tool {

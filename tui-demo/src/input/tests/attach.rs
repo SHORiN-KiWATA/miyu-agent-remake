@@ -47,7 +47,7 @@ fn dropped_files_become_blocks_by_kind_and_other_files_stay_paths() {
         .iter()
         .map(|p| format!("'{}'", p.display()))
         .collect();
-    i.paste(&quoted.join(" "));
+    i.paste_files(&quoted.join(" "));
     assert_eq!(i.editor.text(), "[图片 1] [PDF 1] [音频 1] [视频 1]");
     let draft = submit(&mut i);
     assert_eq!(draft.attachments(), f[..4].to_vec(), "文件照先后跟着发");
@@ -57,14 +57,14 @@ fn dropped_files_become_blocks_by_kind_and_other_files_stay_paths() {
         "字里照留块上的字"
     );
     let mut i = attaching();
-    i.paste(&f[4].display().to_string());
+    i.paste_files(&f[4].display().to_string());
     assert_eq!(i.editor.text(), "[说明.txt]");
     let draft = submit(&mut i);
     assert_eq!(draft.expand(), f[4].display().to_string(), "发出去是路径");
     assert!(draft.attachments().is_empty(), "不当附件");
     // 目录也是，名字后面带 /；点它打开的是那个目录。
     let mut i = attaching();
-    i.paste(&dir.display().to_string());
+    i.paste_files(&dir.display().to_string());
     let name = dir.file_name().unwrap().to_string_lossy().into_owned();
     let name = crate::input::attach::short_name(&name, 24);
     assert_eq!(i.editor.text(), format!("[{name}/]"));
@@ -84,16 +84,16 @@ fn numbers_follow_the_session_and_close_up_when_a_block_goes() {
     let mut i = attaching();
     i.renumber(HashMap::from([("image".to_string(), 2)]));
     i.editor.insert("看");
-    i.paste(&f[0].display().to_string());
-    i.paste(&f[1].display().to_string());
-    i.paste(&f[2].display().to_string());
+    i.paste_files(&f[0].display().to_string());
+    i.paste_files(&f[1].display().to_string());
+    i.paste_files(&f[2].display().to_string());
     assert_eq!(i.editor.text(), "看[图片 3][图片 4][PDF 1]");
     // 删掉中间一块：后面的照先后重编，不会出两个一样的号。
     let at = i.editor.text().find("[PDF 1]").unwrap();
     i.editor.move_to(at, false);
     backspace(&mut i);
     assert_eq!(i.editor.text(), "看[图片 3][PDF 1]");
-    i.paste(&f[0].display().to_string());
+    i.paste_files(&f[0].display().to_string());
     assert_eq!(i.editor.text(), "看[图片 3][图片 4][PDF 1]");
     // 正文里又多了几个（比如撤销的恢复了）：输入框里的跟着挪号，光标、后面的块跟着挪。
     let end = i.editor.text().len();
@@ -115,7 +115,7 @@ fn numbers_follow_the_session_and_close_up_when_a_block_goes() {
 fn a_draft_from_history_gets_the_numbers_of_now() {
     let (dir, f) = files("history", &["a.png"]);
     let mut i = attaching();
-    i.paste(&f[0].display().to_string());
+    i.paste_files(&f[0].display().to_string());
     let sent = submit(&mut i);
     assert_eq!(sent.text, "[图片 1]");
     i.remember(sent);
@@ -143,11 +143,11 @@ fn a_kitty_drop_of_a_mixed_batch_splits_by_line_and_keeps_other_files_as_paths()
         ],
     );
     let mut i = attaching();
-    i.paste(&f[0].display().to_string());
+    i.paste_files(&f[0].display().to_string());
     assert_eq!(i.editor.text(), "[PDF 1]", "名字带空格的一行是一个文件");
     let mut i = attaching();
     let lines: Vec<String> = f[1..].iter().map(|p| p.display().to_string()).collect();
-    i.paste(&lines.join("\n"));
+    i.paste_files(&lines.join("\n"));
     assert_eq!(
         i.editor.text(),
         "[视频 1] [图片 1] [links.md] [my notes.txt]",
@@ -173,7 +173,7 @@ fn clicking_an_attachment_in_the_box_opens_it_and_leaves_the_cursor() {
     let (dir, f) = files("click", &["a.png"]);
     let mut i = attaching();
     i.editor.insert("看");
-    i.paste(&f[0].display().to_string());
+    i.paste_files(&f[0].display().to_string());
     i.editor.insert("吧");
     let end = i.editor.cursor();
     // 框在第 10 列、第 5 行起；「看」占两列，块占第 2 到 10 列。
@@ -226,4 +226,24 @@ fn a_picked_mention_becomes_a_block_with_a_space_after() {
     i.retype_mention(0, "@src/");
     assert_eq!(i.editor.text(), "@src/");
     std::fs::remove_dir_all(&dir).unwrap_or_default();
+}
+
+#[test]
+fn a_terminal_paste_of_a_path_stays_text_and_only_ctrl_v_makes_blocks() {
+    // 2026-10-10 项目主人：「ctrl+shift+V 粘贴文字，ctrl+V 粘贴占位符」。终端送来的粘贴（Ctrl+Shift+V、拖文件进来，
+    // 哪个终端都一样）照原样是字；`Ctrl+V` 读剪贴板时才收成块（`paste_files`）。
+    let (dir, f) = files("terminal", &["a.png"]);
+    let path = f[0].display().to_string();
+    let mut i = attaching();
+    i.paste(&path);
+    assert_eq!(i.editor.text(), path, "路径就是路径");
+    assert!(submit(&mut i).attachments().is_empty());
+    let mut i = attaching();
+    assert!(i.paste_files(&path));
+    assert_eq!(i.editor.text(), "[图片 1]");
+    assert!(
+        !attaching().paste_files("不是路径的一句话"),
+        "不是文件的不动"
+    );
+    std::fs::remove_dir_all(dir).unwrap_or_default();
 }

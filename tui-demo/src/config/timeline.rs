@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 
 use serde::Deserialize;
+use serde_json::Value;
 
 /// 时间线收起那一行的几种说法。两个的是 `[一个的写法, 几个的写法]`，`{count}` 是几个。
 #[derive(Debug, Clone, Deserialize)]
@@ -66,6 +67,44 @@ pub struct Timeline {
     pub expand: Expand,
 }
 
+impl Timeline {
+    /// 终端自己的配置项里管时间线的那几个键（终端软件包清单 `[settings.timeline_*]`，「时间线」第 18 条）。
+    pub const KEYS: [&'static str; 5] = [
+        "tui.timeline_fold",
+        "tui.timeline_expand_thought",
+        "tui.timeline_expand_command",
+        "tui.timeline_expand_edit",
+        "tui.timeline_limit_live",
+    ];
+
+    /// 照 `config.get` 读来的这几项改：写了的盖过 `timeline.json`，没有的（旧核心没这几项）照原样。
+    pub fn apply(&mut self, got: &Value) {
+        let read = |key: &str| got["items"][key]["value"].as_bool();
+        let [fold, thought, command, edit, limit] = Self::KEYS.map(read);
+        let pick = |slot: &mut bool, value: Option<bool>| {
+            if let Some(value) = value {
+                *slot = value;
+            }
+        };
+        pick(&mut self.fold, fold);
+        pick(&mut self.expand.thought, thought);
+        pick(&mut self.expand.command, command);
+        pick(&mut self.expand.edit, edit);
+        pick(&mut self.limit_live, limit);
+    }
+
+    /// 能配的那几样现在是什么：排版缓存的指纹带它，改了就重排。
+    pub fn shape(&self) -> (bool, bool, bool, bool, bool) {
+        (
+            self.fold,
+            self.expand.thought,
+            self.expand.command,
+            self.expand.edit,
+            self.limit_live,
+        )
+    }
+}
+
 /// 一件工具在时间线上算哪一类：数收起那一行、画预览和差异照它。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -90,4 +129,29 @@ pub struct Expand {
     pub command: bool,
     /// 编辑、写入的差异。
     pub edit: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use crate::config::Config;
+
+    #[test]
+    fn the_terminals_settings_override_the_shipped_timeline() {
+        // 「时间线」第 18 条（2026-10-10）：配置页改的 `tui.timeline_*` 盖过 `timeline.json`，没写的照出厂。
+        let mut timeline = Config::builtin().unwrap().timeline;
+        let shipped = timeline.shape();
+        timeline.apply(&json!({"items": {}}));
+        assert_eq!(timeline.shape(), shipped, "没写的照出厂");
+        timeline.apply(&json!({"items": {
+            "tui.timeline_fold": {"value": false},
+            "tui.timeline_expand_thought": {"value": true},
+            "tui.timeline_expand_command": {"value": true},
+            "tui.timeline_expand_edit": {"value": true},
+            "tui.timeline_limit_live": {"value": false}
+        }}));
+        assert!(!timeline.fold && !timeline.limit_live);
+        assert!(timeline.expand.thought && timeline.expand.command && timeline.expand.edit);
+    }
 }

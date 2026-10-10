@@ -43,6 +43,13 @@ pub enum Panel {
         /// 选中第几行。
         selected: usize,
     },
+    /// 新会话的人格框、预设框：哪一样、选中第几个。
+    Pick {
+        /// 人格还是预设。
+        kind: super::new_session::Kind,
+        /// 选中第几个。
+        selected: usize,
+    },
     /// 用量（`/usage`）：第几页、往下滚了几行、热度图照花费（`t`）；读回来的在 [`App::usage`](super::App) 上。
     Usage {
         /// 第几页：总览、最近 30 天、按模型、按会话。
@@ -201,6 +208,7 @@ impl App {
             Panel::Usage { tab, scroll, money } => {
                 return self.usage_key((tab, scroll, money), key);
             }
+            Panel::Pick { kind, selected } => return self.pick_key(kind, selected, key),
         };
         let items = self.board.panel_items(all);
         let at = |selected| {

@@ -274,8 +274,18 @@ fn detail(frame: &mut Frame, area: Rect, page: &Settings, texts: &Texts) {
     let used = match usage {
         Use::Chat => view.chat.clone(),
         Use::Vision => view.vision.clone(),
+        Use::Embedding => None,
     };
     let mut lines: Vec<(String, Line)> = Vec::new();
+    // 语义模型：写现在的值（没写的暗色写 `local` 那一项的名字），再写用途一句（「配置页」第 21 条）。
+    if usage == Use::Embedding {
+        lines.push((texts.detail[0].clone(), embedding_now(page)));
+        lines.push((
+            texts.detail[5].clone(),
+            Line::styled(texts.use_notes[at].clone(), theme::dim()),
+        ));
+        return put_lines(frame, area, lines);
+    }
     let reference = used.unwrap_or_default();
     let pool = reference.strip_prefix('@').and_then(|n| view.pool(n));
     let model = view.model(&reference).map(|(_, m)| m);
@@ -326,6 +336,31 @@ fn detail(frame: &mut Frame, area: Rect, page: &Settings, texts: &Texts) {
         texts.detail[5].clone(),
         Line::styled(texts.use_notes[at].clone(), theme::dim()),
     ));
+    put_lines(frame, area, lines);
+}
+
+/// 语义模型现在的值：核心不认这一项的（旧核心）写「—」。
+fn embedding_now(page: &Settings) -> Line<'static> {
+    let key = crate::settings::nav::EMBEDDING;
+    let Some(item) = page
+        .more
+        .schema
+        .as_ref()
+        .and_then(|s| s.items.iter().find(|i| i.key == key))
+    else {
+        return Line::styled("—", theme::dim());
+    };
+    let value = page
+        .view
+        .values
+        .get(key)
+        .map_or(&serde_json::Value::Null, |(v, _)| v);
+    let (text, unset) = crate::settings::pages::model_or::shown(&item.options, value);
+    Line::styled(text, if unset { theme::dim() } else { Style::new() })
+}
+
+/// 左边暗色的名字、右边的字，一行一样。
+fn put_lines(frame: &mut Frame, area: Rect, lines: Vec<(String, Line)>) {
     let label_width = lines.iter().map(|(l, _)| l.width()).max().unwrap_or(0) as u16 + 2;
     for (i, (label, line)) in lines.into_iter().enumerate() {
         let y = area.y + i as u16;

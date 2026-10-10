@@ -37,15 +37,21 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
         frame: usize::try_from(app.started.elapsed().as_millis() / u128::from(spinner_ms))
             .unwrap_or(0),
     };
-    // 整份重排时一帧只排预算这么多，视口附近先排（蓝图「正文」第 8 条）：翻上去看着的照上一帧视口顶上那一条。
+    // 整份重排时一帧只排预算这么多，视口附近先排（蓝图「正文」第 8 条）：翻上去看着的照上一帧视口顶上那一条；前面刚拼进
+    // 更早的一页的，照钉住的那一条。
+    let pinned = app.view.pinned.take();
+    let pinned_at = pinned
+        .and_then(|p| p.top)
+        .and_then(|(id, _)| app.transcript.entries.iter().position(|e| e.id == id));
     let plan = row_cache::Plan {
         budget: Some(std::time::Duration::from_millis(
             app.config.layout.relayout_budget_ms,
         )),
-        anchor: app
-            .view
-            .top
-            .and_then(|_| app.view.rows.entry_at(app.view.first)),
+        anchor: pinned_at.or_else(|| {
+            app.view
+                .top
+                .and_then(|_| app.view.rows.entry_at(app.view.first))
+        }),
     };
     let mut rows = crate::frame_log::section("rows", || {
         row_cache::build(&app.transcript.entries, &ctx, &app.row_cache, plan)
@@ -61,6 +67,10 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
         let start = rows.start_of(i).filter(|_| super::rows::shown(entry))?;
         Some((entry.id, start, writing))
     });
+    if let Some(pinned) = pinned {
+        app.view
+            .unpin(pinned, &app.transcript.entries, |i| rows.start_of(i));
+    }
     app.view.reading = still_reading(&app.view, latest);
     app.view.latest = latest.map(|(id, start, _)| (id, start));
     let settled = app.row_cache.borrow().stale == 0;

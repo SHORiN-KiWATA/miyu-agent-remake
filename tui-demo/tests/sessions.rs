@@ -87,7 +87,7 @@ fn switching_draws_the_other_ones_past_without_flashing_an_empty_session() {
     tui.wait_for("2 个");
     tui.wait_for("● ");
     tui.key(CTRL_D);
-    tui.wait_for("正在用的会话不能删");
+    tui.wait_for("无法删除当前会话");
     tui.key(DOWN);
     tui.record();
     tui.key(b"\r");
@@ -153,16 +153,16 @@ fn ticked_ones_go_on_one_confirmation_and_the_pick_stays_in_place() {
     tui.key(b" ");
     tui.key(DOWN);
     tui.key(b" ");
-    tui.wait_for("已勾 2");
+    tui.wait_for("已选 2");
     // Ctrl+A：全都勾着的时候全部取消，没全勾的勾上全部（正在用的除外）。
     tui.key(b"\x01");
-    tui.wait_for("已勾 3");
+    tui.wait_for("已选 3");
     tui.key(b"\x01");
     assert!(!tui.shows("已勾"), "{}", tui.lines().join("\n"));
     tui.key(b" ");
     tui.key(b"\x1b[A");
     tui.key(b" ");
-    tui.wait_for("已勾 2");
+    tui.wait_for("已选 2");
     tui.key(CTRL_D);
     tui.wait_for("再按一次 Ctrl+D 删除 2 个会话");
     tui.key(CTRL_D);

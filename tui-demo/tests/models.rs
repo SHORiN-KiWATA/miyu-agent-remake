@@ -112,7 +112,7 @@ fn effort_is_chosen_from_a_panel_and_written_to_personal_settings() {
     tui.say("在吗");
     tui.wait_for("▣  ");
     tui.say("/effort");
-    tui.wait_for("默认（供应商定）");
+    tui.wait_for("默认（由供应商决定）");
     assert!(tui.shows("high"), "{}", tui.lines().join("\n"));
     // 第 0 行默认，下面 off、low、high。
     for _ in 0..3 {
@@ -151,7 +151,7 @@ fn the_footer_shows_the_default_model_and_effort_before_a_session_and_follows_a_
         tui.pump(Duration::from_millis(100));
     }
     tui.say("/effort");
-    tui.wait_for("默认（供应商定）");
+    tui.wait_for("默认（由供应商决定）");
     // 第 0 行默认，下面 off、low、high：现在选着 low（第 2 行），再往下一行是 high。
     tui.key(DOWN);
     tui.key(b"\r");
@@ -175,7 +175,11 @@ fn a_pool_does_not_let_effort_change() {
     tui.wait_for("工作区");
     tui.say("/effort");
     tui.wait_for("当前使用的是模型池");
-    assert!(!tui.shows("默认（供应商定）"), "{}", tui.lines().join("\n"));
+    assert!(
+        !tui.shows("默认（由供应商决定）"),
+        "{}",
+        tui.lines().join("\n")
+    );
 }
 
 #[test]
@@ -188,7 +192,7 @@ fn a_new_session_does_not_flash_an_empty_footer() {
     tui.wait_for("▣  ");
     // 假核心开了会话以后不报思考强度（不照配置算）：用 /effort 换成 high，底栏当场照 `model.list` 写上。
     tui.say("/effort");
-    tui.wait_for("默认（供应商定）");
+    tui.wait_for("默认（由供应商决定）");
     tui.key(DOWN);
     tui.key(b"\r");
     wait_footer(&mut tui, "high");

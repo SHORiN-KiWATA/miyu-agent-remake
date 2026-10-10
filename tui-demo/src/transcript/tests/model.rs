@@ -69,8 +69,8 @@ fn a_failover_changes_the_model_and_says_why_in_a_dim_line() {
     assert_eq!(
         notes,
         [
-            "↻ 换了模型：deepseek/deepseek-v4 → bigmodel/glm-5.3-flash",
-            "被限速了"
+            "↻ 已切换模型：deepseek/deepseek-v4 → bigmodel/glm-5.3-flash",
+            "请求受限"
         ]
     );
 }
@@ -156,7 +156,7 @@ fn a_change_that_is_not_a_failover_writes_nothing() {
 fn cooling_is_noted_until_a_call_goes_through() {
     let mut t = Transcript::default();
     apply(&mut t, vec![failed("cooling")]);
-    assert_eq!(t.cooling(), Some(None), "都在冷却，还不知道几时恢复");
+    assert_eq!(t.cooling(), Some(None), "模型均在冷却，还不知道几时恢复");
     let until: Timestamp = "2026-10-01T08:02:00Z".parse().unwrap();
     t.cooling_until(Some(until));
     assert_eq!(t.cooling(), Some(Some(until)));
@@ -207,7 +207,7 @@ fn a_pinned_model_that_went_away_says_so() {
     );
     assert_eq!(t.model_ref(), Some("dev/m1"));
     let notes: Vec<&str> = t.entries.iter().map(|e| e.text.as_str()).collect();
-    assert_eq!(notes, ["↻ 原来的模型没了，换回默认：old/m0 → dev/m1"]);
+    assert_eq!(notes, ["↻ 原模型不可用，已切换为默认：old/m0 → dev/m1"]);
     apply(
         &mut t,
         vec![Push::ModelSet {

@@ -48,10 +48,10 @@ fn a_write_outside_the_workspace_asks_and_allowing_once_lets_it_through() {
     let mut tui = home.tui("zh_CN.UTF-8");
     tui.wait_for("工作区");
     tui.say("写个文件");
-    tui.wait_for("允许这一次");
+    tui.wait_for("允许本次");
     assert!(!target.exists(), "还没答就没写");
     // 有放行规则：三项都在。
-    tui.wait_for("这个会话都允许");
+    tui.wait_for("本会话内始终允许");
     assert!(
         !tui.lines().iter().any(|l| l.contains("在问")),
         "她自己问的不写谁在问"
@@ -60,7 +60,7 @@ fn a_write_outside_the_workspace_asks_and_allowing_once_lets_it_through() {
     wait(&mut tui, "文件写出来", || target.exists());
     tui.wait_for("写好了。");
     assert!(
-        !tui.lines().iter().any(|l| l.contains("允许这一次")),
+        !tui.lines().iter().any(|l| l.contains("允许本次")),
         "答了收起"
     );
     std::fs::remove_dir_all(&outside).expect("删得掉测试建的目录");
@@ -79,7 +79,7 @@ fn denying_with_a_reason_tells_her_and_writes_a_red_line() {
     let mut tui = home.tui("zh_CN.UTF-8");
     tui.wait_for("工作区");
     tui.say("写个文件");
-    tui.wait_for("允许这一次");
+    tui.wait_for("允许本次");
     // 移到「不允许」就在写理由：直接打字，回车交（2026-10-07 项目主人：不用按两次回车）。
     tui.key(DOWN);
     tui.key(DOWN);
@@ -103,18 +103,18 @@ fn a_command_approval_shows_its_short_title_and_the_command() {
     let mut tui = home.tui("zh_CN.UTF-8");
     tui.wait_for("工作区");
     tui.say("看看系统");
-    tui.wait_for("允许这一次");
+    tui.wait_for("允许本次");
     let screen = tui.lines().join("\n");
     assert!(
         screen.contains("看看系统信息"),
         "短标题当问题行：\n{screen}"
     );
     assert!(screen.contains("$ uname -a"), "命令原文：\n{screen}");
-    assert!(!screen.contains("要用 shell"), "{screen}");
+    assert!(!screen.contains("使用 shell"), "{screen}");
     // 测试里的核心没有沙盒助手：命令不在沙盒里跑，核心 D-4 的 `detail.sandbox` 是 `false`。
     assert!(screen.contains("沙盒外运行"), "{screen}");
     assert!(
-        !screen.contains("这个会话都允许"),
+        !screen.contains("本会话内始终允许"),
         "跑命令的没有放行规则：{screen}"
     );
     tui.key(b"\r");
@@ -135,7 +135,8 @@ fn ask_user_opens_the_question_drawer_and_the_answers_reach_her() {
         Play::Calls(vec![("ask_user".into(), args)]),
         Play::Says("好，照你说的写。"),
     ]);
-    let home = Home::with_tools(script, "");
+    // 不收起时间线：回答接在「提问」那一步下面，这一段收起时跟着收（「确认和提问的抽屉」第 6 条，2026-10-11 项目主人）。
+    let home = Home::with_tools(script, "[tui]\ntimeline_fold = false\n");
     let mut tui = home.tui("zh_CN.UTF-8");
     tui.wait_for("工作区");
     tui.say("帮我写个小工具");
@@ -151,10 +152,13 @@ fn ask_user_opens_the_question_drawer_and_the_answers_reach_her() {
     tui.wait_for("测试：不要");
     tui.key(b"\r");
     tui.wait_for("好，照你说的写。");
+    tui.wait_for("│ 语言：Rust（推荐）");
     let screen = tui.lines().join("\n");
-    assert!(screen.contains("已回答"), "{screen}");
-    assert!(screen.contains("语言：Rust（推荐）"), "{screen}");
-    assert!(screen.contains("测试：不要（补充：以后再说）"), "{screen}");
+    assert!(!screen.contains("已回答"), "不另起引用块：{screen}");
+    assert!(
+        screen.contains("│ 测试：不要（补充：以后再说）"),
+        "{screen}"
+    );
 }
 
 #[test]
@@ -201,13 +205,13 @@ fn the_same_call_id_in_a_new_session_still_asks() {
     let mut tui = home.tui("zh_CN.UTF-8");
     tui.wait_for("工作区");
     tui.say("写个文件");
-    tui.wait_for("允许这一次");
+    tui.wait_for("允许本次");
     tui.key(b"\r");
     tui.wait_for("写好了。");
     tui.say("/new");
     tui.pump(Duration::from_millis(300));
     tui.say("写个文件");
-    tui.wait_for("允许这一次");
+    tui.wait_for("允许本次");
     tui.key(b"\r");
     wait(&mut tui, "第二个文件写出来", || second.exists());
     tui.wait_for("又写好了。");

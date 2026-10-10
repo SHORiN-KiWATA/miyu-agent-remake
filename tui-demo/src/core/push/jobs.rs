@@ -43,6 +43,9 @@ pub struct JobStart {
     pub title: String,
     /// 子代理的会话。
     pub session: Option<String>,
+    /// 前台跑的子代理（核心 T-1 下：预设关了「后台运行」时）：派它的那一步等它报回来，结果到的时候它已经做完了。不是后台
+    /// 任务：不进任务条、侧边栏（蓝图「后台命令、子代理和侧边栏」）。
+    pub foreground: bool,
 }
 
 /// 为什么结束。
@@ -100,10 +103,31 @@ pub(super) fn effects(body: &Value, out: &mut Vec<Push>) {
                 agent: effect["what"] == "subagent",
                 title: text(&effect["title"]),
                 session: effect["session"].as_str().map(str::to_string),
+                foreground: effect["foreground"] == true,
             })),
             Some("job.messaged") => out.push(Push::JobMessaged(text(&effect["job"]))),
             _ => {}
         }
+    }
+}
+
+impl JobStart {
+    /// 列着的一个（订阅回应、`view.page` 回应里的 `jobs`，核心 9-6）：写法同 `job.started`，不知道是哪一步派的。
+    pub fn listed(item: &Value) -> JobStart {
+        let text = |v: &Value| v.as_str().unwrap_or_default().to_string();
+        JobStart {
+            call_id: String::new(),
+            job: text(&item["job"]),
+            agent: item["what"] == "subagent",
+            title: text(&item["title"]),
+            session: item["session"].as_str().map(str::to_string),
+            foreground: item["foreground"] == true,
+        }
+    }
+
+    /// 一格 `jobs` 里列着的全部；没有这一格的是 `None`。
+    pub fn list(jobs: &Value) -> Option<Vec<JobStart>> {
+        Some(jobs.as_array()?.iter().map(JobStart::listed).collect())
     }
 }
 

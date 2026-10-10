@@ -52,6 +52,9 @@ pub(super) fn request(command: &Command) -> Option<(&'static str, Value, Option<
             json!({"session": session, "job": job, "tail": tail}),
             Some(Awaiting::Output(session.clone(), job.clone())),
         ),
+        Command::ListPersonas => ("persona.list", json!({}), Some(Awaiting::Personas)),
+        Command::ListPresets => ("preset.list", json!({}), Some(Awaiting::Presets)),
+        Command::ListPackages => ("package.list", json!({}), Some(Awaiting::Packages)),
         Command::Usage(ask) => ("usage.query", ask.params(), Some(Awaiting::Usage(ask.kind))),
         Command::Ask {
             tag,

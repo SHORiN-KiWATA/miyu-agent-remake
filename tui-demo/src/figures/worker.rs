@@ -133,7 +133,7 @@ fn draw(
     let max_rows = job.rows.min(look.max_rows).max(1);
     let mut zoom = None;
     let (image, fit) = match job.kind {
-        FigureKind::Image => {
+        FigureKind::Image | FigureKind::Preview => {
             file::draw(&job.source, job.size, cell, job.cols, max_rows, &look.fonts)?
         }
         FigureKind::Svg => svg::draw(&job.source, &look.fonts, cell, job.cols, max_rows)?,

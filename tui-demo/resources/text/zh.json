@@ -4,18 +4,18 @@
     "Ctrl+R 翻输入历史",
     "/ 打开命令列表",
     "Shift+Enter 换行",
-    "↑ 翻出上一句发过的话",
-    "Ctrl+S 暂存这段话，再按一下取回",
-    "两下 Esc 清空输入框",
+    "↑ 上一条输入",
+    "Ctrl+S 暂存输入，再按一次取回",
+    "按两次 Esc 清空输入框",
     "拖选正文，Ctrl+C 复制",
-    "PgUp、PgDn 翻正文",
-    "Ctrl+Z 挂到后台，fg 回来",
+    "PgUp、PgDn 滚动正文",
+    "Ctrl+Z 挂起，fg 恢复",
     "/undo 撤销上一轮，/restore 恢复",
-    "有后台命令时，空着按 ↓ 打开后台面板"
+    "有后台命令时，在空输入框按 ↓ 打开后台面板"
   ],
   "untitled": "未命名会话",
   "side_id": "#{id}",
-  "side_cwd": "工作目录",
+  "side_cwd": "工作区",
   "side_context": "上下文",
   "side_context_value": "{used} / {window} · {percent}%",
   "side_usage": "用量",
@@ -25,58 +25,59 @@
   "side_compactions": "压缩 {n} 次",
   "side_breaks": "缓存断裂 {n} 次",
   "side_cost": "花费 {amounts}",
-  "side_unpriced": "{n} 次请求没有价格",
-  "copied": "已复制 {count} 个字",
+  "copied": "已复制 {count} 个字符",
   "copy_failed": "复制失败：{reason}",
-  "nothing_to_copy": "还没有能复制的回答",
-  "connecting": "正在连核心…",
-  "no_core_bin": "核心没在跑：启动时设 MIYU_CORE_BIN 指向重制版的 miyu",
+  "nothing_to_copy": "没有可复制的回答",
+  "connecting": "正在连接核心…",
+  "no_core_bin": "核心未运行：设置 MIYU_CORE_BIN 指向 miyu",
   "core_failed": "连不上核心：{reason}",
-  "reconnecting": "核心断开了，正在重新连接…",
+  "reconnecting": "核心已断开，正在重新连接…",
   "turn_cut": "核心断开连接",
   "missing_core": "找不到核心程序：{path}",
   "not_connected": "核心未连接",
-  "crash_saved": "调用栈记在 {path}",
+  "crash_saved": "调用栈已保存到 {path}",
   "notify": {
     "title": "Miyu",
     "replied": "已完成",
-    "failed": "出错了",
-    "approving": "在等你确认",
-    "asking": "在等你回答"
+    "failed": "出错",
+    "approving": "等待确认",
+    "asking": "等待回答"
   },
-  "refused": "核心拒绝了：{reason}",
+  "refused": "核心拒绝：{reason}",
   "interrupted": "已中断",
-  "failed": "出错了：{reason}",
+  "failed": "出错：{reason}",
   "reason_with": "{head}：{message}",
   "status_hints": {
-    "402": "额度用完了",
-    "404": "找不到，检查端点地址和模型名",
-    "429": "被限速了，或者额度不够，过一会儿再试"
+    "402": "额度已用完",
+    "404": "未找到：请检查端点地址和模型名",
+    "429": "请求受限或额度不足，请稍后重试"
   },
   "retry": "重试 {attempt}/{limit}：{message}",
+  "older": "正在加载更早的内容…",
+  "older_failed": "无法加载更早的内容：{reason}",
   "total": "Σ{tokens}(C{percent}%)",
   "done": "{time} · {endpoint}/{model} · {elapsed}",
   "speed": "{rate} tok/s",
   "context": "{used}/{window}({percent}%)",
   "undone": "已撤销",
   "undo_restore": "/restore 恢复",
-  "undo_compactions": "撤掉了压缩，上下文回到了压缩前",
-  "undo_clears": "撤掉了清空，上下文回到了清空以前",
-  "restored": "改回 {count} 个文件",
+  "undo_compactions": "已撤销压缩，上下文恢复到压缩前",
+  "undo_clears": "已撤销清空，上下文恢复到清空前",
+  "restored": "已还原 {count} 个文件",
   "undo_files": {
-    "restored": "已改回",
-    "changed": "没动：之后又被改过",
-    "missing": "没动：已经不在了",
-    "occupied": "没动：原处被占了",
-    "gone": "没动：回收站里已经没有了",
-    "unsaved": "没动：改之前的内容没存下来",
-    "unavailable": "没动：回收站收不了",
-    "failed": "没动：出错了",
-    "other": "没动",
+    "restored": "已还原",
+    "changed": "未还原：之后已被修改",
+    "missing": "未还原：文件已不存在",
+    "occupied": "未还原：原位置已被占用",
+    "gone": "未还原：回收站中已不存在",
+    "unsaved": "未还原：未保存修改前的内容",
+    "unavailable": "未还原：回收站不可用",
+    "failed": "未还原：出错",
+    "other": "未还原",
     "more": "⋯ 还有 {count} 行"
   },
   "unknown_command": "命令不存在",
-  "fake_command": "/{name} 是演示用的假命令，还不做事",
+  "fake_command": "/{name} 尚未实现",
   "thinking": "思考中",
   "thought": "已思考",
   "prepare": "准备{name}",
@@ -88,8 +89,8 @@
       "执行了 {count} 条命令"
     ],
     "used": [
-      "用了 1 个工具",
-      "用了 {count} 个工具"
+      "使用了 1 个工具",
+      "使用了 {count} 个工具"
     ],
     "made": [
       "编辑了 1 处",
@@ -112,7 +113,7 @@
       "{count} 个出错"
     ],
     "thought_for": "思考了 {elapsed}",
-    "spawned": ["派了 1 个子代理", "派了 {count} 个子代理"],
+    "spawned": ["派出 1 个子代理", "派出 {count} 个子代理"],
     "messaged": ["给 1 个子代理留言", "给 {count} 个子代理留言"],
     "messaged_sessions": ["给 1 个会话留言", "给 {count} 个会话留言"],
     "agents": ["1 个子代理", "{count} 个子代理"],
@@ -125,21 +126,22 @@
   },
   "home_placeholder": "Tab 切换权限级别",
   "exit_hint": "按 Ctrl+D 退出",
-  "input_cleared": "已清空 · ↑ 找回",
-  "editing": " 编辑上一句 · Esc 取消 ",
+  "input_cleared": "已清空 · ↑ 恢复",
+  "editing": " 编辑上一条 · Esc 取消 ",
   "open": {
-    "refused": "不开这种地址：{url}",
-    "missing": "找不到这个文件：{path}",
-    "failed": "打不开：{reason}"
+    "refused": "不支持打开此地址：{url}",
+    "missing": "文件不存在：{path}",
+    "failed": "无法打开：{reason}"
   },
-  "esc_hint": "再按一次 Esc 打断",
+  "esc_hint": "再按一次 Esc 中断",
   "stashed": "> 暂存",
   "esc_clear_hint": "再按一次 Esc 清空",
-  "no_clear_running": "回答进行中不清屏",
+  "no_clear_running": "回答进行中，无法清屏",
   "theme_changed": "主题：{name}",
   "icons_changed": "图标：{name}",
-  "figure_pending": "⋯ 正在画图",
-  "figure_zoom": "点开看大图",
+  "figure_pending": "⋯ 正在渲染图片",
+  "mascot_failed": "吉祥物包无法读取，已使用内置吉祥物",
+  "figure_zoom": "查看大图",
   "markdown": {
     "image": "[图片: ",
     "details": "详细信息",
@@ -154,27 +156,31 @@
     ]
   },
   "refusal_hints": {
-    "session_not_found": "这个会话已经不在了",
-    "nothing_to_rename": "还没开会话，说一句再改名",
-    "nothing_to_recap": "还没有可回顾的内容",
-    "recap_failed": "回顾没写成，再要一次就是",
-    "nothing_to_compact": "上下文过少",
-    "nothing_to_stop": "没在运行",
+    "path_unreadable": "目录不存在或无法读取",
+    "not_a_directory": "不是目录",
+    "path_forbidden": "该目录不能用作工作区",
+    "owner_only": "仅终端管理员可用",
+    "session_not_found": "会话不存在",
+    "nothing_to_rename": "会话尚未创建，无法重命名",
+    "nothing_to_recap": "没有可回顾的内容",
+    "recap_failed": "生成回顾失败",
+    "nothing_to_compact": "没有可压缩的内容",
+    "nothing_to_stop": "没有运行中的任务",
     "nothing_to_clear": "上下文为空",
     "not_redoable": "无法重做",
-    "empty_message": "改完一个字都不剩了",
-    "unknown_job": "这个任务已经结束了",
-    "nothing_to_unrevert": "没有能恢复的撤销",
-    "nothing_to_revert": "没有能撤销的",
-    "turn_running": "回答进行中：先打断，或者等它做完",
-    "unknown_turn": "找不到要撤的那一轮",
-    "restoring": "上一次撤销、恢复还没做完，稍等"
+    "empty_message": "消息为空",
+    "unknown_job": "任务不存在或已结束",
+    "nothing_to_unrevert": "没有可恢复的撤销",
+    "nothing_to_revert": "没有可撤销的回合",
+    "turn_running": "回合进行中",
+    "unknown_turn": "回合不存在",
+    "restoring": "正在撤销或恢复"
   },
   "models": {
-    "failover": "↻ 换了模型：{from} → {to}",
-    "cooling": "都在冷却",
-    "cooling_until": "都在冷却，{n} 分钟后恢复",
-    "replaced": "↻ 原来的模型没了，换回默认：{from} → {to}"
+    "failover": "↻ 已切换模型：{from} → {to}",
+    "cooling": "模型均在冷却",
+    "cooling_until": "模型均在冷却，{n} 分钟后恢复",
+    "replaced": "↻ 原模型不可用，已切换为默认：{from} → {to}"
   },
   "recap": {
     "label": "回顾：{text}",
@@ -182,7 +188,7 @@
   },
   "rename": {
     "done": "已改名：{title}",
-    "removed": "已去掉标题",
+    "removed": "已清除标题",
     "too_long": "标题最多 {max} 个字"
   },
   "done_usage": " · {tokens}(C{percent}%)",
@@ -191,6 +197,7 @@
     "count": " {count} 条"
   },
   "compaction": {
+    "triggered": "已触发上下文压缩",
     "progress": "正在压缩上下文",
     "written": " {written}",
     "percent": " {percent}%",
@@ -198,48 +205,48 @@
     "done_mark": "● ",
     "cleared": "上下文已清空",
     "failed": "· 压缩失败：{reason}",
-    "called_a_tool": "摘要请求里调了工具",
-    "isolating": "· 摘要请求里调了工具，改用不带工具的再压",
-    "paused_failures": "· 自动压缩连续失败 {n} 次，已暂停：可以手动压缩、换一个模型，或者开新会话",
-    "paused_too_large": "· 第 {entry} 条内容太大，压完很快又满了，自动压缩已暂停",
-    "paused": "· 自动压缩已暂停：可以手动压缩、换一个模型，或者开新会话"
+    "called_a_tool": "摘要请求调用了工具",
+    "isolating": "· 摘要请求调用了工具，改为不带工具重新压缩",
+    "paused_failures": "· 自动压缩连续失败 {n} 次，已暂停",
+    "paused_too_large": "· 第 {entry} 条内容过大，压缩后很快再次占满，自动压缩已暂停",
+    "paused": "· 自动压缩已暂停"
   },
   "error_classes": {
-    "retryable": "暂时出错",
-    "rate_limited": "被限速了",
+    "retryable": "临时错误",
+    "rate_limited": "请求受限",
     "context_too_long": "上下文太长",
     "auth": "认证失败",
     "no_model": "没有可用的模型",
     "cooling": "模型都在冷却",
-    "content_policy": "被内容策略拦下了",
-    "bad_stream": "回复的流不对",
-    "empty_reply": "回复是空的",
-    "bad_summary": "取不出摘要",
-    "compaction_paused": "自动压缩暂停着",
+    "content_policy": "被内容策略拦截",
+    "bad_stream": "响应流异常",
+    "empty_reply": "回复为空",
+    "bad_summary": "无法提取摘要",
+    "compaction_paused": "自动压缩已暂停",
     "other": "模型出错"
   },
   "mention": {
     "title": "@ {query}",
     "count": " · {count} 个",
-    "layer": " · 只读这一层",
-    "indexing": " · 找文件中…",
-    "partial": " · 只列了一部分，打 / 按目录找",
-    "empty": "没有对得上的",
-    "hints": "↑/↓ 选 · Tab 进目录 · Enter 收成块 · Esc 关闭"
+    "layer": " · 仅当前目录",
+    "indexing": " · 正在索引文件…",
+    "partial": " · 仅显示部分结果，输入 / 按目录查找",
+    "empty": "无匹配项",
+    "hints": "↑/↓ 选择 · Tab 进入目录 · Enter 插入 · Esc 关闭"
   },
   "history": {
     "title": "历史",
     "count": "  {count} 条",
     "query": " · 搜索：",
-    "empty": "没有对得上的",
+    "empty": "无匹配项",
     "lines": " · +{count} 行",
     "more": "⋮ 还有 {count} 行",
-    "hints": "↑/↓ 选 · Tab 看全文 · Enter 填进输入框 · Esc 关闭",
+    "hints": "↑/↓ 选择 · Tab 查看全文 · Enter 填入输入框 · Esc 关闭",
     "now": "刚才",
     "minutes": "{n} 分钟前",
     "hours": "{n} 小时前",
     "days": "{n} 天前",
-    "none": "历史发送为空"
+    "none": "暂无历史记录"
   },
   "usage": {
     "title": "用量",
@@ -253,9 +260,9 @@
     "today": "今天",
     "requests": "{n} 次",
     "unpriced": "{n} 次没有价格",
-    "loading": "正在读用量…",
-    "empty": "还没有用量",
-    "failed": "读不了用量：{reason}",
+    "loading": "正在加载用量…",
+    "empty": "暂无用量",
+    "failed": "无法加载用量：{reason}",
     "hint": "Tab 换页 · t token/花费 · ↑/↓ 滚动 · Esc 关闭",
     "lifetime": "累计",
     "peak": "单日最高",
@@ -300,21 +307,21 @@
   },
   "help": {
     "title": "帮助",
-    "hint": "↑/↓ 滚 · Esc 关闭",
+    "hint": "↑/↓ 滚动 · Esc 关闭",
     "commands": "命令",
     "keys_title": "按键",
     "keys": [
       [
         "Enter",
-        "发出去；列表开着时执行选中的"
+        "发送；列表打开时执行选中项"
       ],
       [
         "Shift+Enter、Ctrl+J",
-        "换行（Alt+Enter 也行）"
+        "换行（也可用 Alt+Enter）"
       ],
       [
         "↑ ↓",
-        "在第一行、最后一行时翻输入历史"
+        "在首行、末行时浏览输入历史"
       ],
       [
         "Ctrl+R",
@@ -326,7 +333,7 @@
       ],
       [
         "Tab、Shift+Tab",
-        "切权限级别"
+        "切换权限级别"
       ],
       [
         "Ctrl+A",
@@ -334,47 +341,47 @@
       ],
       [
         "Ctrl+← Ctrl+→",
-        "按词跳"
+        "按词移动"
       ],
       [
         "Ctrl+W、Alt+Backspace",
-        "删掉前一个词"
+        "删除前一个词"
       ],
       [
         "Ctrl+C",
-        "复制选中的；清空输入框（↑ 找回）；在回答时打断"
+        "复制选中内容；清空输入框（↑ 恢复）；回答时中断"
       ],
       [
         "Ctrl+G",
-        "用编辑器写这句话（$VISUAL、$EDITOR）"
+        "在外部编辑器中编辑（$VISUAL、$EDITOR）"
       ],
       [
         "Ctrl+Enter",
-        "在回答时马上发出排着的（连输入框里的）"
+        "回答时立即发送排队的消息（含输入框）"
       ],
       [
         "Esc Esc",
-        "在回答时打断，排着的接着发；不在回答时清空输入框"
+        "回答时中断并发送排队的消息；否则清空输入框"
       ],
       [
         "Ctrl+S",
-        "暂存输入框，再按一下取回"
+        "暂存输入，再按一次取回"
       ],
       [
         "Ctrl+V",
-        "粘贴，剪贴板里的图收成附件"
+        "粘贴；剪贴板中的图片作为附件"
       ],
       [
-        "↓（输入框空着）",
-        "到后台按钮、子代理状态行"
+        "↓（输入框为空时）",
+        "聚焦后台按钮、子代理状态行"
       ],
       [
         "PgUp PgDn",
-        "翻正文"
+        "滚动正文"
       ],
       [
         "Ctrl+End",
-        "回到正文最底下"
+        "跳到正文底部"
       ],
       [
         "Ctrl+L",
@@ -382,19 +389,19 @@
       ],
       [
         "Ctrl+Z",
-        "挂到后台，fg 回来"
+        "挂起，fg 恢复"
       ],
       [
         "Ctrl+D",
-        "输入框空着时退出"
+        "输入框为空时退出"
       ]
     ]
   },
   "jobs": {
     "button": "{count} 个后台命令",
     "title": "后台",
-    "active": "{count} 个在跑的命令",
-    "hint": "↑/↓ 选 · Enter 展开 · x 停止 · Esc 关闭",
+    "active": "{count} 个运行中的命令",
+    "hint": "↑/↓ 选择 · Enter 展开 · x 停止 · Esc 关闭",
     "running": "（运行中 {elapsed}）",
     "done": "（完成 {elapsed}）",
     "failed": "（失败 · 退出码 {code}）",
@@ -409,29 +416,29 @@
     "ok_mark": "● ",
     "fail_mark": "✗ ",
     "stop_mark": "● ",
-    "todo_folded": "做完 {count} 项",
+    "todo_folded": "已完成 {count} 项",
     "todo_more": "… 还有 {count} 项",
     "killed": "（失败 · 信号 {signal}）",
-    "undone": "（撤销时停了）",
-    "restarted": "（核心重启时停了）",
+    "undone": "（撤销时已停止）",
+    "restarted": "（核心重启时已停止）",
     "no_output": "没有输出",
     "more_ended": "已收起 {count} 个",
     "less_ended": "收起已结束的",
     "killed_note": "后台命令失败 · {title} · 信号 {signal}",
     "agent_stopped_note": "后台任务已停止 · {title}{why}",
-    "why_undone": " · 撤销时停了",
-    "why_restarted": " · 核心重启时停了",
+    "why_undone": " · 撤销时已停止",
+    "why_restarted": " · 核心重启时已停止",
     "doing_thinking": "思考中",
     "doing_replying": "回答中",
-    "from_person": "从别处收到你的消息",
+    "from_person": "收到你在其他端发送的消息",
     "from_main": "从主会话收到消息",
     "from_session": "从会话 {id}「{title}」收到消息",
     "from_session_untitled": "从会话 {id} 收到消息",
     "peer_who": "{id}「{title}」",
     "peer_who_untitled": "{id} ",
     "peer_idle": "会话 {who}回复",
-    "peer_expired": "会话 {who}等了 12 小时没空下来，不等了",
-    "peer_gone": "会话 {who}已经不在了，不等了",
+    "peer_expired": "会话 {who}12 小时内未空闲，已停止等待",
+    "peer_gone": "会话 {who}已不存在，已停止等待",
     "peer_other": "会话 {who}· {reason}",
     "from_agent": "从子代理 {job} 收到消息",
     "from_harness": "从 {name} 收到消息",
@@ -453,18 +460,18 @@
     "custom": "自定义：{text}",
     "notes_label": "补充",
     "decisions": [
-      "允许这一次",
-      "这个会话都允许",
+      "允许本次",
+      "本会话内始终允许",
       "不允许"
     ],
-    "reason_hint": "写上理由（可以不写）",
+    "reason_hint": "理由（可选）",
     "access": {
-      "execute": "要运行一条命令",
-      "write": "要写 {count} 个文件",
-      "read": "要读 {count} 个文件",
-      "exec": "要运行 {tool}"
+      "execute": "运行一条命令",
+      "write": "写入 {count} 个文件",
+      "read": "读取 {count} 个文件",
+      "exec": "运行 {tool}"
     },
-    "access_other": "要用 {tool}",
+    "access_other": "使用 {tool}",
     "outside": "工作区外",
     "unanswered": "未回答",
     "keys": "↑/↓ 选择 · Enter 提交 · n 补充 · Esc ×2 取消",
@@ -473,16 +480,13 @@
     "keys_review": "Enter 提交 · Esc ×2 取消",
     "keys_edit": "Enter 保存 · Esc 退出编辑",
     "keys_tabs": " · ←/→ 换题",
-    "answered_title": "已回答",
     "answered_line": "{label}：{answer}",
     "notes_suffix": "（补充：{notes}）",
     "denied_with": "不允许 · {reason}",
-    "cancelled_question": "提问已取消",
-    "cancelled_approval": "批准已取消",
     "cancel_hint": "再按一次 Esc 取消"
   },
-  "clipboard_unreadable": "读不到剪贴板：用终端自己的粘贴（kitty 是 Ctrl+Shift+V）",
-  "clipboard_empty": "剪贴板是空的",
+  "clipboard_unreadable": "无法读取剪贴板：请使用终端的粘贴（kitty 为 Ctrl+Shift+V）",
+  "clipboard_empty": "剪贴板为空",
   "paste_label": "[已粘贴 {lines} 行]",
   "attach": {
     "labels": {
@@ -492,10 +496,36 @@
       "video": "[视频 {n}]"
     },
     "file": "[{name}]",
-    "folder": "[{name}/]"
+    "folder": "[{name}/]",
+    "names": {
+      "image": "图片",
+      "pdf": "PDF",
+      "audio": "音频",
+      "video": "视频"
+    },
+    "refused": "当前模型不支持{kinds}，已改为文件路径"
   },
-  "stopped_jobs": "停掉了 {count} 个任务",
+  "stopped_jobs": "已停止 {count} 个任务",
   "language_switched": "界面语言：中文",
+  "persona_box": {
+    "title": "请选择人格",
+    "hint": "↑/↓ 选择 · Enter 确定",
+    "default_mark": "默认",
+    "locked": "会话已创建，无法更换人格：使用 /new 新建会话",
+    "chosen": "人格 {name}",
+    "preset_title": "请选择预设",
+    "preset_need": "请先选择预设",
+    "preset_locked": "会话已创建，无法更换预设：使用 /new 新建会话",
+    "preset_chosen": "预设 {name}",
+    "none": "无人格",
+    "none_note": "不使用人格，记忆不生效"
+  },
+  "workspace": {
+    "need_path": "请指定路径",
+    "pending": "新会话的工作区：{path}",
+    "elsewhere": "工作区：{path} · /workspace . 切换到当前目录",
+    "changed": "工作区已切换到 {path}"
+  },
   "languages": {
     "title": "界面语言",
     "hint": "↑/↓ 选择 · Enter 切换 · Esc 关闭",
@@ -507,44 +537,44 @@
     "title": "会话",
     "count": "  {count} 个",
     "query": " · 搜索：",
-    "hint": "↑/↓ 选 · Enter 切过去 · 空格 勾选 · Ctrl+P 置顶 · Ctrl+D 删除 · Esc 关闭",
-    "loading": "正在读会话…",
-    "empty": "没有对得上的会话",
+    "hint": "↑/↓ 选择 · Enter 切换 · 空格 勾选 · Ctrl+P 置顶 · Ctrl+D 删除 · Esc 关闭",
+    "loading": "正在加载会话…",
+    "empty": "无匹配的会话",
     "now": "刚才",
     "minutes": "{n} 分钟前",
     "hours": "{n} 小时前",
     "days": "{n} 天前",
     "delete_again": "再按一次 Ctrl+D 删除「{title}」",
     "deleted": "已删除「{title}」",
-    "delete_current": "正在用的会话不能删，先切走",
+    "delete_current": "无法删除当前会话",
     "pinned": "已置顶",
     "unpinned": "已取消置顶",
-    "ticked": " · 已勾 {count}",
+    "ticked": " · 已选 {count}",
     "delete_many": "再按一次 Ctrl+D 删除 {count} 个会话",
     "deleted_many": "已删除 {count} 个会话"
   },
   "effort": {
     "title": "思考强度 · {model}",
     "loading_title": "思考强度",
-    "hint": "↑/↓ 选 · Enter 换 · Esc 关闭",
-    "default": "默认（供应商定）",
-    "loading": "正在读模型…",
-    "none": "这个模型没有可选的思考强度",
+    "hint": "↑/↓ 选择 · Enter 切换 · Esc 关闭",
+    "default": "默认（由供应商决定）",
+    "loading": "正在加载模型…",
+    "none": "该模型没有可选的思考强度",
     "need_model": "当前使用的是模型池"
   },
   "model_panel": {
     "title": "模型",
     "count": "  {count} 个",
     "query": " · 搜索：",
-    "hint": "↑/↓ 选 · Enter 换 · Esc 关闭",
-    "loading": "正在读模型…",
-    "empty": "没有对得上的模型",
+    "hint": "↑/↓ 选择 · Enter 切换 · Esc 关闭",
+    "loading": "正在加载模型…",
+    "empty": "无匹配的模型",
     "current": "当前",
     "cooling": "冷却 {n}m",
     "cooling_bare": "冷却中",
-    "no_key": "没有 key",
-    "refuse_cooling": "这个模型在冷却，{n} 分钟后能用",
-    "refuse_no_key": "这个模型没有 key"
+    "no_key": "未设置 key",
+    "refuse_cooling": "模型冷却中，{n} 分钟后可用",
+    "refuse_no_key": "该模型未设置 key"
   },
   "settings": {
     "title": "配置",
@@ -569,11 +599,13 @@
     ],
     "uses": [
       "默认文本模型",
-      "默认视觉模型"
+      "默认视觉模型",
+      "语义模型"
     ],
     "use_notes": [
-      "回合里没指定模型时用它",
-      "对话模型看不了图时，用它读图"
+      "回合未指定模型时使用",
+      "对话模型不支持图片时用于读图",
+      "提高记忆、知识库等内容的检索质量"
     ],
     "detail": [
       "当前",
@@ -586,7 +618,7 @@
     "pool_kind": "模型池 · {how}",
     "tags": [
       "图",
-      "自加"
+      "自定义"
     ],
     "pool_tag": "{how} · {n}",
     "empty_pool": "空池",
@@ -630,18 +662,18 @@
     },
     "hints": {
       "id": "小写字母开头，字母、数字、-、_",
-      "name": "空着就显示 ID",
+      "name": "留空则显示 ID",
       "base_url": "请求目标地址",
-      "key_set": "已存在密钥库 · 留空不改",
+      "key_set": "已保存到密钥库 · 留空保持不变",
       "key_unset": "未设置",
       "env_key": "例如 DEEPSEEK_API_KEY",
-      "model": "照供应商那边的叫法",
+      "model": "与供应商一致的模型名",
       "pool": "例如 daily",
-      "no_temperature": "这个模型不收温度",
+      "no_temperature": "该模型不支持温度",
       "unknown": "未知",
       "empty": "空",
       "inherit": "继承",
-      "temperature": "不发，用供应商的默认",
+      "temperature": "不发送，使用供应商默认值",
       "input": "未知",
       "output": "未知",
       "cache_read": "未知",
@@ -677,11 +709,11 @@
         ],
         [
           "Enter",
-          "改"
+          "编辑"
         ],
         [
           "←→",
-          "换"
+          "切换"
         ],
         [
           "s",
@@ -689,17 +721,17 @@
         ],
         [
           "Esc",
-          "不存关闭"
+          "不保存关闭"
         ]
       ],
       [
         [
           "Enter",
-          "记下这一项"
+          "确认"
         ],
         [
           "Esc",
-          "不改这一项"
+          "取消"
         ]
       ],
       [
@@ -709,7 +741,7 @@
         ],
         [
           "Enter",
-          "选这个"
+          "选择"
         ],
         [
           "/",
@@ -717,13 +749,13 @@
         ],
         [
           "Esc",
-          "关掉"
+          "关闭"
         ]
       ],
       [
         [
           "←→",
-          "选"
+          "选择"
         ],
         [
           "Enter",
@@ -737,55 +769,55 @@
     ],
     "pick": [
       "模型池",
-      "只列能看图的",
-      "有成员不能看图",
-      "空池用不了",
+      "仅列出支持图片的",
+      "有成员不支持图片",
+      "空池不可用",
       "/ 搜索"
     ],
     "confirm": [
       "删除供应商 {name}？",
       "删除模型 {name}？",
       "删除模型池 {name}？",
-      "{list} 在用它，删了以后标成失效",
+      "{list} 正在使用，删除后将标记为失效",
       "池 {name}",
       "删除",
       "、"
     ],
     "status": {
-      "loading": "正在读配置…",
+      "loading": "正在加载配置…",
       "fetched": "已获取 {n} 个模型",
-      "no_models": "还没有模型 · 存下以后按 r 获取",
+      "no_models": "暂无模型 · 保存后按 r 获取",
       "pools": "{n} 个池",
-      "testing": "正在测试 {name}…（会花一点额度）",
+      "testing": "正在测试 {name}…（会消耗少量额度）",
       "tested": "{name} 已获取 {n} 个模型",
-      "test_failed": "{name} 没连上：{why}",
-      "save_first": "新供应商先按 s 存下，再测试",
+      "test_failed": "{name} 连接失败：{why}",
+      "save_first": "请先按 s 保存新供应商再测试",
       "saved": "已保存",
       "saving": "正在保存…",
-      "conflict": "别处刚改过这里（现在是 {current}），改动留着：重开这一项看看再存",
-      "offline": "没连上核心",
-      "not_custom": "目录和供应商列出来的模型删不掉，只有 n 加的能删",
-      "in_system": "这一样写在系统配置里，这里删不掉",
-      "members_hint": "成员在池的编辑窗里勾掉（Enter）",
-      "nothing_here": "这一页没有能删的",
-      "no_new": "这一页不用新建",
+      "conflict": "此项已在别处修改（当前为 {current}）：请重新打开后再保存",
+      "offline": "核心未连接",
+      "not_custom": "只能删除手动添加的模型",
+      "in_system": "此项位于系统配置，无法在此删除",
+      "members_hint": "在模型池编辑窗中移除成员（Enter）",
+      "nothing_here": "此页没有可删除的项",
+      "no_new": "此页不支持新建",
       "fetching": "正在获取 {name} 的模型列表…",
-      "fetch_failed": "{name} 没取到模型列表：按 r 测试看看为什么",
-      "no_driver": "认不出接口：打开它，把「接口」选成 openai-chat 这类",
-      "no_base_url": "用不了：打开它，填上请求目标地址"
+      "fetch_failed": "{name} 获取模型列表失败：按 r 测试",
+      "no_driver": "无法识别接口：请在「接口」中选择",
+      "no_base_url": "缺少 Base URL"
     },
     "errors": {
-      "bad_id": "「{name}」不能当名字：要小写字母开头，只有小写字母、数字、-、_，最长 64 个字符",
-      "taken": "已经有 {name} 了",
-      "need_name": "模型名不能空",
-      "bad_number": "这一项要写数",
-      "need_key": "填上变量名，或者换成 API Key"
+      "bad_id": "「{name}」无效：须以小写字母开头，仅含小写字母、数字、-、_，最长 64 个字符",
+      "taken": "{name} 已存在",
+      "need_name": "模型名不能为空",
+      "bad_number": "请输入数字",
+      "need_key": "请填写变量名或改用 API Key"
     },
     "empty": [
-      "没有项目",
-      "没有匹配的",
-      "还没有池 · a 新建",
-      "空池用不了 · Enter 加成员"
+      "无项目",
+      "无匹配项",
+      "暂无模型池 · a 新建",
+      "空池不可用 · Enter 添加成员"
     ],
     "key_hints": [
       [
@@ -843,11 +875,11 @@
         ],
         [
           "Enter",
-          "选模型"
+          "选择模型"
         ],
         [
           "h/l",
-          "到边换页"
+          "切换页面"
         ]
       ],
       [
@@ -893,9 +925,412 @@
         ],
         [
           "Esc",
-          "不筛了"
+          "取消筛选"
         ]
       ]
-    ]
+    ],
+    "more": {
+      "personas": [
+        "人格",
+        "决定AI的人格和记忆"
+      ],
+      "presets": [
+        "预设",
+        "决定开关哪些功能"
+      ],
+      "preset_detail": [
+        "功能 {on}/{all}",
+        "未安装"
+      ],
+      "origins": {
+        "default": "默认",
+        "system": "系统配置",
+        "personal": "个人设置",
+        "project": "项目配置"
+      },
+      "toggle": [
+        "开",
+        "关"
+      ],
+      "secret": [
+        "已设置",
+        "未设置"
+      ],
+      "no_editor": "终端暂不支持修改此项",
+      "bad_number": "请输入数字",
+      "unset": [
+        "恢复默认：{name}？",
+        "移除个人设置中的此项，恢复为{from}的值",
+        "恢复",
+        "取消"
+      ],
+      "nothing_to_unset": "个人设置中未设置此项",
+      "default_mark": "默认",
+      "no_personas": "暂无人格",
+      "loading": "正在加载…",
+      "detail": [
+        "名称",
+        "人格提示词",
+        "示范对话",
+        "人设提醒短语",
+        "{n} 轮",
+        "已写"
+      ],
+      "hints": [
+        [
+          [
+            "Enter",
+            "编辑"
+          ],
+          [
+            "d",
+            "恢复默认"
+          ],
+          [
+            "Esc",
+            "返回"
+          ]
+        ],
+        [
+          [
+            "Enter",
+            "查看"
+          ],
+          [
+            "Esc",
+            "返回"
+          ]
+        ],
+        [
+          [
+            "↑/↓",
+            "选择"
+          ],
+          [
+            "Enter",
+            "确定"
+          ],
+          [
+            "Esc",
+            "取消"
+          ]
+        ],
+        [
+          [
+            "Enter",
+            "保存"
+          ],
+          [
+            "Esc",
+            "取消"
+          ]
+        ],
+        [
+          [
+            "Esc",
+            "关闭"
+          ]
+        ],
+        [
+          [
+            "Enter",
+            "打开"
+          ],
+          [
+            "a",
+            "新建"
+          ],
+          [
+            "d",
+            "删除"
+          ],
+          [
+            "Esc",
+            "返回"
+          ]
+        ],
+        [
+          [
+            "↑/↓",
+            "选择"
+          ],
+          [
+            "Enter",
+            "编辑"
+          ],
+          [
+            "d",
+            "删除"
+          ],
+          [
+            "Esc",
+            "关闭"
+          ]
+        ],
+        [
+          [
+            "↑/↓",
+            "选择"
+          ],
+          [
+            "空格",
+            "开关"
+          ],
+          [
+            "Ctrl+A",
+            "全开/全关"
+          ],
+          [
+            "Enter",
+            "编辑"
+          ],
+          [
+            "d",
+            "删除"
+          ],
+          [
+            "Esc",
+            "关闭"
+          ]
+        ],
+        [
+          [
+            "Enter",
+            "编辑"
+          ],
+          [
+            "a",
+            "添加"
+          ],
+          [
+            "d",
+            "删除"
+          ],
+          [
+            "J/K",
+            "移动"
+          ],
+          [
+            "Esc",
+            "返回"
+          ]
+        ],
+        [
+          [
+            "↑/↓",
+            "切换"
+          ],
+          [
+            "Enter",
+            "下一格/保存"
+          ],
+          [
+            "Esc",
+            "取消"
+          ]
+        ]
+      ],
+      "persona_edit": {
+        "new_name": "新人格名称",
+        "deleted": "已删除（回收站保留 7 天）",
+        "restored": "已恢复为出厂设置",
+        "avatar": "头像",
+        "avatar_set": "已设置",
+        "avatar_path": "头像图片路径",
+        "conflict": "已在别处修改，未保存：请重新打开后再编辑",
+        "reading": "正在加载…",
+        "remove": {
+          "delete": [
+            "删除人格 {name}？",
+            "删除后在回收站保留 7 天",
+            "删除",
+            "取消"
+          ],
+          "restore": [
+            "将 {name} 恢复为出厂设置？",
+            "所有修改将丢失",
+            "恢复"
+          ],
+          "nothing": "出厂设置未修改，无可删除内容"
+        }
+      },
+      "preset_edit": {
+        "new_name": "新预设名称",
+        "deleted": "已删除",
+        "restored": "已恢复为出厂设置",
+        "remove": {
+          "delete": [
+            "删除预设 {name}？",
+            "删除后无法恢复",
+            "删除",
+            "取消"
+          ],
+          "restore": [
+            "将 {name} 恢复为出厂设置？",
+            "所有修改将丢失",
+            "恢复"
+          ],
+          "nothing": "出厂设置未修改，无可删除内容"
+        }
+      },
+      "dialogs": {
+        "title": "示范对话",
+        "empty": "暂无示范对话 · a 添加",
+        "add": "添加一轮",
+        "edit": "编辑这一轮",
+        "sides": [
+          "你问的",
+          "AI回的"
+        ],
+        "both": "两项都需填写"
+      },
+      "no_persona": "无人格",
+      "builtin_mascot": "内置",
+      "mascot_missing": "{id}（未安装）",
+      "own_groups": {"timeline": "时间线", "mascot": "吉祥物"},
+      "unavailable": "未安装",
+      "custom_model": "输入模型…"
+    }
+  },
+  "oobe": {
+    "welcome": {
+      "title": "欢迎使用 Miyu",
+      "sub": "花一分钟配置模型和人格",
+      "start": "按 Enter 开始"
+    },
+    "steps": [
+      "语言",
+      "图标",
+      "模型",
+      "人格",
+      "预设"
+    ],
+    "keys": {
+      "searching": "输入以搜索 · Ctrl+J/K 选择 · Enter 完成 · Esc 取消",
+      "editing": "Enter 完成 · Esc 取消",
+      "test": "Enter 测试连接 · j/k 移动 · Esc 更换供应商",
+      "pick": "↑↓ 选择 · Enter 下一步 · Esc 上一步",
+      "form": "Enter 编辑 · j/k 移动 · Esc 更换供应商",
+      "driver": "←→ 切换接口 · j/k 移动 · Esc 更换供应商",
+      "models": "/ 搜索 · j/k 选择 · Enter 确定 · Esc 更换供应商",
+      "persona": "Enter 编辑 · j/k 移动 · Esc 上一步",
+      "edit": "Enter 编辑 · j/k 移动 · Esc 上一步",
+      "writing": "Enter 换行 · Ctrl+G 外部编辑器 · Esc 完成",
+      "custom": "空格 开关 · Ctrl+A 全部开关 · j/k 移动 · Esc 关闭",
+      "custom_name": "Enter 编辑 · j/k 移动 · Esc 关闭",
+      "create": "Enter 创建 · j/k 移动 · Esc 关闭",
+      "view": "j/k 滚动 · 空格 关闭",
+      "enter_edit": "Enter 编辑",
+      "presets": "↑↓ 选择 · 空格 详情 · Enter 下一步 · Esc 上一步",
+      "more": "输入以搜索 · ↑↓ 选择 · Enter 确定 · Esc 关闭"
+    },
+    "language": {
+      "title": "界面语言",
+      "sub": "可在设置中修改",
+      "auto": "跟随系统（{name}）"
+    },
+    "icons": {
+      "title": "图标",
+      "sub": "你看到的是图标，还是方块或乱码？",
+      "yes": "图标",
+      "no": "方块或乱码"
+    },
+    "model": {
+      "test": "测试连接",
+      "title": "选择模型供应商",
+      "sub": "选择供应商并填写密钥",
+      "loading": "正在检测…",
+      "found": "已找到 key",
+      "configured": "已配置",
+      "local": "本机",
+      "other": "其他",
+      "more": "更多供应商…",
+      "more_title": "更多供应商",
+      "more_search": "输入以搜索",
+      "no_match": "无匹配结果",
+      "search_cue": "/ 搜索",
+      "custom": "自定义…",
+      "custom_note": "填写地址和接口",
+      "ready_title": "模型",
+      "ready": "已配置：{name}",
+      "keep": "使用",
+      "change": "更换",
+      "key": "密钥",
+      "key_env": "来自环境变量 {env}",
+      "key_none": "无需密钥",
+      "key_needed": "请填写密钥",
+      "cost": "将发送一条测试请求，消耗少量额度",
+      "custom_head": {
+        "title": "自定义",
+        "sub": "支持兼容接口"
+      },
+      "url": "地址",
+      "url_example": "https://api.example.com/v1",
+      "url_bad": "须以 http:// 或 https:// 开头",
+      "driver": "接口",
+      "drivers": [
+        "OpenAI 兼容",
+        "Anthropic",
+        "OpenAI Responses"
+      ],
+      "testing": "正在连接…",
+      "connected": "连接成功，找到 {count} 个模型",
+      "pick_sub": "选择模型",
+      "no_list": "未获取到模型列表，请填写模型名后重试",
+      "model_name": "模型名",
+      "model_example": "例如 gpt-4o",
+      "failed": "连接失败（{stage}）：{message}",
+      "stages": {
+        "list": "获取模型列表",
+        "request": "发送请求",
+        "config": "配置"
+      },
+      "search": "搜索模型",
+      "more_above": "↑ 还有 {n} 个",
+      "more_below": "↓ 还有 {n} 个",
+      "saving": "正在保存…"
+    },
+    "persona": {
+      "title": "创建人格",
+      "sub": "人格决定 AI 的说话方式和记忆，可在设置中修改",
+      "fields": [
+        "名称",
+        "人格提示词",
+        "示范对话",
+        "人设提醒短语"
+      ],
+      "hints": [
+        "输入名称",
+        "这个人格是谁、怎么说话、怎么待你",
+        "按 Enter 添加",
+        "一句简短的提醒，不定期提醒 AI 遵循人格设定"
+      ],
+      "examples_some": "{n} 轮",
+      "next": "下一步",
+      "name_needed": "请填写名称",
+      "existing": "已创建，可继续编辑",
+      "saving": "正在保存…",
+      "avatar": "头像",
+      "avatar_hint": "图片路径",
+      "avatar_set": "已设置"
+    },
+    "preset": {
+      "title": "选择预设",
+      "sub": "预设决定启用哪些功能，可在设置中修改，也可为每个会话单独选择",
+      "custom": "自定义",
+      "custom_note": "自选启用的功能",
+      "name": "名称",
+      "name_hint": "输入名称",
+      "name_needed": "请填写名称",
+      "loading": "正在加载…",
+      "create": "创建"
+    },
+    "done": {
+      "title": "完成",
+      "summary": "模型 {model} · 人格 {persona} · 预设 {preset}",
+      "start": "按 Enter 开始对话"
+    },
+    "offline": "核心未连接",
+    "unmarked": "未能保存引导完成状态：{message}"
   }
 }

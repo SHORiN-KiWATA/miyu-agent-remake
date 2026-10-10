@@ -4,6 +4,27 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// 暂存截图的那一层在缓存目录下的哪儿：`tui/pasted`。
+const ROOT: [&str; 2] = ["tui", "pasted"];
+
+/// 暂存截图的那一层：`<缓存目录>/tui/pasted`。
+pub fn root(cache: &Path) -> PathBuf {
+    ROOT.iter()
+        .fold(cache.to_path_buf(), |dir, part| dir.join(part))
+}
+
+/// 这个文件是剪贴板贴进来暂存的（`<缓存目录>/tui/pasted/<进程号>/<文件>`）：不是人本机原来的文件。
+pub fn is_staged(file: &Path) -> bool {
+    let Some(layer) = file.parent().and_then(Path::parent) else {
+        return false;
+    };
+    let tail: Vec<_> = layer.components().rev().take(ROOT.len()).collect();
+    tail.iter()
+        .rev()
+        .map(|c| c.as_os_str())
+        .eq(ROOT.iter().map(std::ffi::OsStr::new))
+}
+
 /// 这个界面暂存截图的目录：用到时才建，放下时删掉。
 #[derive(Debug)]
 pub struct Staging {

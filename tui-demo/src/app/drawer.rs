@@ -8,7 +8,7 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use super::App;
 use crate::commands::Run;
 use crate::core::Command;
-use crate::drawer::{Drawer, Edit, Mark, Outcome, Report, Step};
+use crate::drawer::{Drawer, Edit, Outcome, Report, Step};
 use crate::transcript::{JobMark, Kind};
 
 impl App {
@@ -157,32 +157,30 @@ impl App {
 impl App {
     /// 正文末尾写一问的结果（第 6 条）。
     pub(super) fn write_report(&mut self, drawer: &crate::drawer::Drawer, outcome: &Outcome) {
-        match drawer.report(outcome, &self.config.text.drawer) {
-            Report::Block(lines) => self.transcript.note(Kind::Answered, lines.join("\n")),
-            Report::Line(mark, text) => self.transcript.job(job_mark(mark), text, String::new()),
-            Report::Nothing => {}
+        report_into(
+            &mut self.transcript,
+            drawer,
+            outcome,
+            &self.config.text.drawer,
+        );
+    }
+}
+
+/// 在 `transcript` 里写一问的结果：回答挂到时间线里「提问」那一步下面，找不到那一步的（按页读更早的一页时那一步不在这一份
+/// 里）写在末尾；不允许的末尾一行红 `✗`（第 6 条）。按页读更早的一页时写进那一份临时的正文（`pages.rs`）。
+pub(super) fn report_into(
+    transcript: &mut crate::transcript::Transcript,
+    drawer: &Drawer,
+    outcome: &Outcome,
+    texts: &crate::drawer::Texts,
+) {
+    match drawer.report(outcome, texts) {
+        Report::Answers(lines) => {
+            if !transcript.answered(&drawer.call_id, lines.clone()) {
+                transcript.note(Kind::Answered, lines.join("\n"));
+            }
         }
-    }
-}
-
-/// 了结那一行的记号：不允许是红 `✗`，取消和后台命令停了一样是暗 `●`（第 6 条）。
-fn job_mark(mark: Mark) -> JobMark {
-    match mark {
-        Mark::Bad => JobMark::Failed,
-        Mark::Void => JobMark::Stopped,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::job_mark;
-    use crate::drawer::Mark;
-    use crate::transcript::JobMark;
-
-    #[test]
-    fn a_cancelled_drawer_leaves_a_dim_dot_like_a_stopped_job() {
-        // 2026-10-01 项目主人：「已取消」加点。
-        assert_eq!(job_mark(Mark::Void), JobMark::Stopped);
-        assert_eq!(job_mark(Mark::Bad), JobMark::Failed);
+        Report::Denied(text) => transcript.job(JobMark::Failed, text, String::new()),
+        Report::Nothing => {}
     }
 }

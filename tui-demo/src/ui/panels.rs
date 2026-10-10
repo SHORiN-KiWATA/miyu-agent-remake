@@ -7,7 +7,8 @@ use ratatui::text::Line;
 
 use super::panel::Chrome;
 use super::{
-    background, effort_list, help, languages, model_list, session_list, spin_frame, usage,
+    background, effort_list, help, languages, model_list, persona_list, session_list, spin_frame,
+    usage,
 };
 use crate::app::App;
 
@@ -52,6 +53,18 @@ pub(super) fn content(
             let (chrome, lines) = usage::lines(app, (tab, scroll, money), width, max);
             let map = vec![None; lines.len()];
             (chrome, lines, map)
+        }
+        Some(crate::app::Panel::Pick { kind, selected }) => {
+            let (list, default) = app.pick_list(kind);
+            persona_list::lines(
+                list,
+                default,
+                kind,
+                selected,
+                &app.config.text.persona_box,
+                width,
+                max,
+            )
         }
         _ => background::lines(app.panel, &app.board, &app.config, width, now, max),
     }

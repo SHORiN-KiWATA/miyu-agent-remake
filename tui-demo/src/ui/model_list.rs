@@ -185,7 +185,7 @@ mod tests {
             "{text:#?}"
         );
         assert!(text[1].trim_end().ends_with("冷却 2m"), "{text:#?}");
-        assert!(text[2].trim_end().ends_with("没有 key"), "{text:#?}");
+        assert!(text[2].trim_end().ends_with("未设置 key"), "{text:#?}");
         assert!(text.iter().all(|l| l.contains("dev · 300k")));
     }
 }

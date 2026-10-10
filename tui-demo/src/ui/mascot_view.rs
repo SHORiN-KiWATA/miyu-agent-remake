@@ -5,8 +5,6 @@ use std::time::{Duration, Instant};
 
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::text::{Line, Span};
-use ratatui::widgets::Paragraph;
 
 use crate::app::App;
 use crate::{mascot, theme};
@@ -60,18 +58,36 @@ pub fn draw(frame: &mut Frame, rect: Rect, app: &mut App, far: bool) {
         mouth,
         ..mascot::Pose::facing(yaw, pitch)
     };
-    let lines: Vec<Line> = mascot::render(look, &pose)
-        .into_iter()
-        .map(|row| {
-            let spans: Vec<Span> = row
-                .into_iter()
-                .map(|cell| match cell {
-                    Some(c) => Span::styled(c.mark.to_string(), theme::mascot(c.part)),
-                    None => Span::raw(" "),
-                })
-                .collect();
-            Line::from(spans)
-        })
-        .collect();
-    frame.render_widget(Paragraph::new(lines), areas_mascot);
+    paint(frame, areas_mascot, look, &pose);
+}
+
+/// 照 `pose` 把吉祥物画进 `rect`（它自己那么大的一块）：首页、侧边栏、引导都用（引导摆姿势的在 `ui/oobe/figure.rs`）。
+/// 没打中的格子不写，底下的东西（引导的星点）照样露着。
+pub fn paint(frame: &mut Frame, rect: Rect, look: &mascot::Look, pose: &mascot::Pose) {
+    let area = rect.intersection(frame.area());
+    let buf = frame.buffer_mut();
+    for (r, row) in mascot::render(look, pose).into_iter().enumerate() {
+        for (c, cell) in row.into_iter().enumerate() {
+            let (Ok(dx), Ok(dy)) = (u16::try_from(c), u16::try_from(r)) else {
+                continue;
+            };
+            let at = ratatui::layout::Position::new(
+                rect.x.saturating_add(dx),
+                rect.y.saturating_add(dy),
+            );
+            if !area.contains(at) {
+                continue;
+            }
+            if let Some(cell) = cell
+                && let Some(slot) = buf.cell_mut(at)
+            {
+                // 吉祥物包写了颜色的照它，没写的照主题（「吉祥物包」第 4 条）。
+                let style = look.colors.of(cell.part).map_or_else(
+                    || theme::mascot(cell.part),
+                    |color| ratatui::style::Style::new().fg(color),
+                );
+                slot.set_char(cell.mark).set_style(style);
+            }
+        }
+    }
 }

@@ -54,15 +54,25 @@ impl Rpc {
     ///
     /// 写不出去、核心断开、被拒绝：交回说清楚的一句。
     pub async fn call(&mut self, method: &str, params: Value) -> Result<Value, Failure> {
+        let message = self.reply(method, params).await?;
+        match message.get("error") {
+            None => Ok(message["result"].clone()),
+            Some(error) => Err(Failure::Refused(
+                error["message"].as_str().unwrap_or_default().to_string(),
+            )),
+        }
+    }
+
+    /// 发一条请求，等它的回应，整条交回（拒了的照样交回，原因码在 `error.data.reason`）；中间来的别的留着。
+    ///
+    /// # Errors
+    ///
+    /// 写不出去、核心断开。
+    pub async fn reply(&mut self, method: &str, params: Value) -> Result<Value, Failure> {
         let id = self.send(method, params).await.map_err(Failure::Io)?;
         while let Some(message) = self.incoming.recv().await {
             if message["id"] == json!(id) {
-                return match message.get("error") {
-                    None => Ok(message["result"].clone()),
-                    Some(error) => Err(Failure::Refused(
-                        error["message"].as_str().unwrap_or_default().to_string(),
-                    )),
-                };
+                return Ok(message);
             }
             self.held.push_back(message);
         }

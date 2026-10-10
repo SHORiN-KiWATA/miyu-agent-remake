@@ -1,5 +1,5 @@
 //! 往输入框里放一个本机的文件（蓝图 `tui.md`「输入框」第 12 条、「`@` 文件列表」第 5 条）：拖进来的、`@` 列表里选的都走
-//! 这里。图片、PDF、音频、视频是附件块，别的文件、目录是文件块。
+//! 这里。图片、PDF、音频、视频是附件块（模型收不了的那几种也收成文件块），别的文件、目录是文件块。
 
 use std::path::PathBuf;
 
@@ -15,11 +15,23 @@ impl InputBox {
             .map(str::to_string);
         match kind {
             Some(kind) => self.attach(path, &kind),
-            None => {
-                let label = self.attach_rule.file_label(&path);
-                self.editor.insert_file(label, dropped::quoted(&path), path);
-            }
+            None => self.put_path(path),
         }
+    }
+
+    /// 收成文件块：块上写文件名，发出去换回路径。
+    pub(super) fn put_path(&mut self, path: PathBuf) {
+        let label = self.attach_rule.file_label(&path);
+        self.editor.insert_file(label, dropped::quoted(&path), path);
+    }
+
+    /// 模型收不了这一种：记下要提示（同一种只提示一次），交回 `true`（「照模型收」）。
+    pub(super) fn refuses(&mut self, kind: &str) -> bool {
+        let refused = self.refused.iter().any(|k| k == kind);
+        if refused && !self.demoted.iter().any(|k| k == kind) {
+            self.demoted.push(kind.to_string());
+        }
+        refused
     }
 
     /// `@` 列表选中了一个：从 `start`（`@` 在哪）到光标的那个词换成一块，后面补一个空格。

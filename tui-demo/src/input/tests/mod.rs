@@ -369,6 +369,7 @@ fn tail_pieces_match_the_end_of_a_full_wrap() {
 mod attach;
 mod paste;
 mod recover;
+mod refused;
 
 /// 选中的字（没选中是 `None`）。
 fn selected(i: &InputBox) -> Option<&str> {

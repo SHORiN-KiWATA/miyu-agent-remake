@@ -322,6 +322,7 @@ impl Figures {
 pub fn room(look: &FigureLook, kind: FigureKind) -> Room {
     match kind {
         FigureKind::Image => look.picture_room,
+        FigureKind::Preview => look.preview_room,
         FigureKind::Mermaid | FigureKind::Math | FigureKind::Svg => look.room,
     }
 }

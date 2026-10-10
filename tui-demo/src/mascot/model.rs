@@ -199,4 +199,49 @@ pub struct Look {
     pub perch: Perch,
     /// 转头。
     pub gaze: Gaze,
+    /// 吉祥物包写的颜色（蓝图「吉祥物包」第 4 条）：写了的盖过主题的 `mascot_*`；内置的不写。
+    #[serde(default)]
+    pub colors: Colors,
+}
+
+/// 吉祥物各块的颜色：写法同主题文件。
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Colors {
+    /// 头，连脸上的锯齿线。
+    pub head: Option<crate::theme::Tone>,
+    /// 耳朵。
+    pub ear: Option<crate::theme::Tone>,
+    /// 眼睛。
+    pub eye: Option<crate::theme::Tone>,
+    /// 鳍。
+    pub fin: Option<crate::theme::Tone>,
+}
+
+impl Colors {
+    /// 这一块写了的颜色；没写的是 `None`（照主题）。
+    pub fn of(&self, part: Part) -> Option<ratatui::style::Color> {
+        let tone = match part {
+            Part::Head => self.head,
+            Part::Ear => self.ear,
+            Part::Eye => self.eye,
+            Part::Fin => self.fin,
+        };
+        tone.map(|t| t.0)
+    }
+}
+
+impl Look {
+    /// 放大 `k` 倍：画出来的行列、头的半径、中心在第几行一起放大，样子不变（引导的欢迎页，「第一次打开的引导」第 9 条）。
+    #[must_use]
+    pub fn scaled(&self, k: f64) -> Self {
+        let size = |n: u16| (f64::from(n) * k).round().clamp(1.0, f64::from(u16::MAX)) as u16;
+        Self {
+            cols: size(self.cols),
+            rows: size(self.rows),
+            radius: self.radius * k,
+            center_row: self.center_row * k,
+            ..self.clone()
+        }
+    }
 }

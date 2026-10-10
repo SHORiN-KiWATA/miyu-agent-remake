@@ -117,8 +117,9 @@ impl App {
     /// 编辑器用完了、回到界面：起不来的提示一句。
     pub fn edited(&mut self, result: std::io::Result<()>) {
         self.figures.borrow_mut().forget();
-        // `Ctrl+G` 开的：读回输入框（`compose.rs`）。
-        if self.composed() && result.is_ok() {
+        // `Ctrl+G` 开的：读回输入框（`compose.rs`）；配置页改提示词开的：交还配置页（`settings.rs`）；引导开的交还引导（`oobe.rs`）。
+        let ours = self.oobe_edited() | self.settings_prompt_edited() | self.composed();
+        if ours && result.is_ok() {
             return;
         }
         if let Err(e) = result {

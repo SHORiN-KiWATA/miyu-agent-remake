@@ -56,16 +56,10 @@ pub struct Texts {
     pub keys_edit: String,
     /// 见 `keys`。
     pub keys_tabs: String,
-    /// 留下的引用块第一行。
-    pub answered_title: String,
-    /// 引用块里一道一行，`{label}` `{answer}`。
+    /// 回答在时间线里一道一行，`{label}` `{answer}`。
     pub answered_line: String,
     /// 补充的话接在那一行后面，`{notes}`。
     pub notes_suffix: String,
-    /// 按两下 `Esc` 取消了：提问取消的那一行（第 6 条）。
-    pub cancelled_question: String,
-    /// 确认取消的那一行。
-    pub cancelled_approval: String,
     /// 按过一下 `Esc` 以后，按键提示那一行换成的。
     pub cancel_hint: String,
     /// 不允许并写了理由，`{reason}`。

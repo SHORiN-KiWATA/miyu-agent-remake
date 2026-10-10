@@ -69,7 +69,7 @@ fn provider(
     }
     if !pasted.is_empty() {
         if auth == "env" {
-            draft.set(&key("keys"), json!([{"env": pasted}]), data);
+            draft.set(&key("key"), json!({"env": pasted}), data);
         } else {
             draft.set_secret(&id, pasted);
         }

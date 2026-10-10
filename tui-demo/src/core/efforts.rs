@@ -1,6 +1,6 @@
 //! `/effort` 要的（蓝图 `tui.md`「配置与模型」思考强度，核心 8-18 补）：`model.list` 里每个模型有哪几级
 //! （`facts.reasoning`）、配置的默认是哪一级、写哪个配置键（`facts.effort` 的 `value`、`key`），默认的聊天模型、哪些池是
-//! 轮换的（落到轮换的池上没有固定的模型可改）。
+//! 轮换的（落到轮换的池上没有固定的模型可改）；顺带每个模型收哪几种附件（`abilities.rs`）。
 
 use serde_json::Value;
 
@@ -28,6 +28,8 @@ pub struct EffortList {
     pub chat: Option<String>,
     /// 轮换的池（`@名字`）。
     pub rotating: Vec<String>,
+    /// 每个模型、池收哪几种附件（「输入框」第 12 条「照模型收」）。
+    pub abilities: super::Abilities,
 }
 
 impl EffortList {
@@ -68,13 +70,16 @@ impl EffortList {
             models,
             chat: text(&result["uses"]["chat"]),
             rotating,
+            abilities: super::Abilities::read(result),
         }
     }
 
     /// 改哪个模型：`in_use` 是正在请求的那个（推来的 `endpoint/model`），`session` 是会话的引用；都没有的照默认的聊天
     /// 模型。用的是池的（钉住的、轮换的都算）不让改，是 `None`（2026-10-02 项目主人定）。正在请求的那个列表里找不到的，
-    /// 退回会话的引用、默认的聊天模型。
+    /// 退回会话的引用、默认的聊天模型。没开会话的不看 `in_use`：那是底栏上一次写的默认模型，默认换了要跟着换（2026-10-09
+    /// 项目主人报：引导里换了模型，空会话的底栏还是旧的）。
     pub fn target(&self, in_use: Option<&str>, session: Option<&str>) -> Option<&Efforts> {
+        let in_use = in_use.filter(|_| session.is_some());
         let reference = session.or(self.chat.as_deref())?;
         if reference.starts_with('@') {
             return None;
@@ -144,6 +149,13 @@ mod tests {
             target(Some("other/x"), Some("dev/beta")).as_deref(),
             Some("dev/beta"),
             "正在请求的列表里没有：退回会话的引用"
+        );
+        // 2026-10-09 项目主人报：引导里换了默认模型，空会话的底栏还写着旧的。没开会话时底栏上的是上一次写的默认模型，
+        // 不是正在请求的，不能拿它挑。
+        assert_eq!(
+            target(Some("dev/beta"), None).as_deref(),
+            Some("dev/alpha"),
+            "没开会话照新的默认模型"
         );
     }
 }

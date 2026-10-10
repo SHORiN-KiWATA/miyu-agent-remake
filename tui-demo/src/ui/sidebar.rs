@@ -230,19 +230,16 @@ pub fn info_lines(
     (out, id_row)
 }
 
-/// 花了多少：「花费 $0.42 + ¥1.30」，有没价格的再一行暗色「N 次请求没有价格」；一笔都算不出的只写暗色那一行。
-fn spent_lines((amounts, unpriced): (Option<String>, u64), config: &Config) -> Vec<Line<'static>> {
-    let text = &config.text;
-    let mut out = Vec::new();
-    if let Some(amounts) = amounts {
-        let line = text.side_cost.replace("{amounts}", &amounts);
-        out.push(Line::styled(format!("  {line}"), theme::dim()));
-    }
-    if unpriced > 0 {
-        let line = text.side_unpriced.replace("{n}", &unpriced.to_string());
-        out.push(Line::styled(format!("  {line}"), theme::dim()));
-    }
-    out
+/// 花了多少：「花费 $0.42 + ¥1.30」；一笔都算不出的不写。没有价格的请求不提（2026-10-10 项目主人：「没有费用记录的请求
+/// 不需要出现在侧边栏中」）。
+fn spent_lines(amounts: Option<String>, config: &Config) -> Vec<Line<'static>> {
+    amounts
+        .map(|amounts| {
+            let line = config.text.side_cost.replace("{amounts}", &amounts);
+            Line::styled(format!("  {line}"), theme::dim())
+        })
+        .into_iter()
+        .collect()
 }
 
 /// 上下文那根进度条：用了的强调色、没用的暗；压缩线落在的那一格换成警示色（黄），字不变（2026-09-30 项目主人定）。
@@ -344,16 +341,28 @@ pub fn draw(frame: &mut Frame, area: Rect, app: &mut App) {
     );
     let inner = area.width.saturating_sub(2);
     let mut top = area.y + 1;
-    if app.config.layout.mascot_sidebar {
+    // 人格有头像的画头像，不受吉祥物的开关管（「空会话的首页」第 10 条）。
+    if super::avatar_view::slot_shown(app, crate::app::Place::Sidebar) {
         let look = &app.config.mascot;
         let cols = look.cols.min(area.width);
         let mascot =
             Rect::new(area.x + (area.width - cols) / 2, top, cols, look.rows).intersection(area);
-        super::mascot_view::draw(frame, mascot, app, true);
+        super::avatar_view::draw(frame, mascot, app, crate::app::Place::Sidebar, true);
         top = mascot.bottom() + 1;
     }
     let total = app.usage_total();
-    let (mut info, id_row) = info_lines(&app.transcript, &total, &app.config, inner, &app.cwd);
+    // 工作目录照会话的（核心 9-7 上）；还没开会话、核心旧的照终端所在的。
+    let cwd = app.current_workspace();
+    let (mut info, id_row) = info_lines(&app.transcript, &total, &app.config, inner, cwd);
+    // 会话名下面、短编号后面写人格、预设，一样一行（「新会话：人格、工作区」第 3、6 条）。
+    if let Some(row) = id_row {
+        for (n, label) in app.session_picks().into_iter().enumerate() {
+            info.insert(
+                row + 1 + n,
+                Line::styled(format!("  {label}"), theme::dim()),
+            );
+        }
+    }
     // 「用量」那一段最后接花了多少（核心 8-15）：用量那一段在最后，接在后面就是。
     info.extend(spent_lines(app.spent(), &app.config));
     let tall = u16::try_from(info.len()).unwrap_or(u16::MAX);

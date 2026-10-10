@@ -3,6 +3,8 @@
 
 mod support;
 
+use std::time::Duration;
+
 use miyu_models::catalog::{Price, Rates};
 use miyu_models::price::Tariff;
 use miyu_session::testkit::{Play, Script};
@@ -86,11 +88,14 @@ fn requests_without_a_price_are_counted_not_guessed() {
     tui.wait_for("工作区");
     tui.say("在吗");
     tui.wait_for("好。");
-    tui.wait_for("1 次请求没有价格");
+    tui.wait_for("缓存命中");
+    tui.pump(Duration::from_millis(300));
     let screen = tui.lines().join("\n");
     assert!(
         !screen.contains("花费"),
         "一次都算不出的不写花费：\n{screen}"
     );
+    // 2026-10-10 项目主人：「没有费用记录的请求不需要出现在侧边栏中」。
+    assert!(!screen.contains("没有价格"), "{screen}");
     assert!(!screen.contains('$'), "框下面那一行也不写：\n{screen}");
 }

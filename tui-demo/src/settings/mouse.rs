@@ -28,7 +28,10 @@ impl Settings {
         };
         let enter = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
         match hit {
-            Hit::Menu => return self.key(enter, texts),
+            Hit::Menu(i) => {
+                self.more.menu_at = i;
+                return self.key(enter, texts);
+            }
             Hit::Tab(i) if self.popup.is_none() => {
                 self.nav.turn(PAGES[i.min(PAGES.len() - 1)]);
                 self.nav.col = 0;

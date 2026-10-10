@@ -286,6 +286,8 @@ mod tests {
             busy: false,
             last_active: None,
             preview: None,
+            persona: None,
+            preset: None,
         }
     }
 

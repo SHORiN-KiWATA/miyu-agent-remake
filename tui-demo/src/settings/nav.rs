@@ -48,10 +48,15 @@ pub enum Use {
     Chat,
     /// 视觉（`models.vision`）。
     Vision,
+    /// 语义模型（`models.embedding`，4a 的 R-5 补：`model_or`，不收池）。
+    Embedding,
 }
 
-/// 两种用途的先后。
-pub const USES: [Use; 2] = [Use::Chat, Use::Vision];
+/// 几种用途的先后。
+pub const USES: [Use; 3] = [Use::Chat, Use::Vision, Use::Embedding];
+
+/// 语义模型那一项的键。
+pub const EMBEDDING: &str = "models.embedding";
 
 /// 组织栏的一项。
 #[derive(Debug, Clone, PartialEq, Eq)]

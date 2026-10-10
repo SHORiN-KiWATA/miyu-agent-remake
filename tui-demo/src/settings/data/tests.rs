@@ -8,7 +8,11 @@ fn providers_models_pools_and_uses_come_from_the_model_list() {
     assert_eq!(data.providers.len(), 2);
     let relay = data.provider("relay").unwrap();
     assert_eq!(relay.shown(), "中转站");
-    assert_eq!(relay.keys, vec![("secret:relay-key".to_string(), true)]);
+    assert_eq!(
+        relay.key,
+        Some(("secret:relay-key".to_string(), true)),
+        "一家一个 key（核心 8-25）"
+    );
     let (_, glm) = data.model("relay/zhipu/glm-5v").unwrap();
     assert!(glm.sees());
     assert_eq!(glm.window(), Some(64000));
@@ -32,8 +36,8 @@ fn only_models_listed_by_the_config_alone_are_custom() {
 fn the_personal_layer_and_system_keys_are_remembered_for_expect_and_deletes() {
     let data = sample();
     assert_eq!(
-        data.personal.get("providers.relay.keys"),
-        Some(&json!([{"secret": "relay-key"}]))
+        data.personal.get("providers.relay.key"),
+        Some(&json!({"secret": "relay-key"}))
     );
     assert!(data.in_system("providers.relay"), "地址写在系统层");
     assert!(!data.in_system("providers.dev"));

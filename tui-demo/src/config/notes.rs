@@ -6,6 +6,8 @@ use serde::Deserialize;
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CompactionTexts {
+    /// 提前在后台开始压时弹的提示（「正文」第 9 条）。
+    pub triggered: String,
     /// 压缩中那一行被流光扫的那几个字；后面的数字照 `written` 写。
     pub progress: String,
     /// 压缩中那一行后面的数字，`{written}` 已经写了多少字（三位一撇）。

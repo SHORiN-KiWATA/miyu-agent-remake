@@ -13,6 +13,18 @@ pub enum Popup {
     Pick(Pick),
     /// 问一句。
     Confirm(Confirm),
+    /// 下拉的选择窗（通用这类的页）。
+    Choose(super::pages::choose::Choose),
+    /// 填一行字的编辑窗（通用这类的页）。
+    Line(super::pages::choose::LineEdit),
+    /// 人格的详情窗。
+    Persona(super::pages::choose::PersonaView),
+    /// 预设的详情窗。
+    Preset(super::pages::choose::PresetView),
+    /// 示范对话列表。
+    Dialogs(super::pages::dialogs::DialogsView),
+    /// 改、加一轮示范对话的两格窗。
+    Pair(super::pages::dialogs::PairEdit),
 }
 
 /// 选默认模型的窗。
@@ -70,6 +82,7 @@ impl Pick {
         let current = match usage {
             Use::Chat => view.chat.clone(),
             Use::Vision => view.vision.clone(),
+            Use::Embedding => None,
         };
         let items = pick.items(view);
         pick.sel = items
@@ -213,6 +226,12 @@ pub enum Delete {
     Model(String, String),
     /// 池：名字。
     Pool(String),
+    /// 个人设置里的一项（恢复默认）：键。
+    Setting(String),
+    /// 一个预设的个人那一层（核心 P-3 中）：编号。
+    Preset(String),
+    /// 一个人格的个人那一层（核心 P-3 下）：编号。
+    Persona(String),
 }
 
 #[cfg(test)]

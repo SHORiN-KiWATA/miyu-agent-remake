@@ -22,3 +22,64 @@ default = "nerd"
 applies = "now"
 name = { en = "Icons", zh = "图标", ja = "アイコン" }
 description = { en = "Which icon set the terminal interface draws: Nerd Font glyphs, or plain characters for fonts without them.", zh = "终端界面用哪一套图标：Nerd Font 的图标，或者没装这种字体时用的普通字符。", ja = "ターミナル画面のアイコン：Nerd Font のアイコンか、そのフォントがない場合の普通の文字か。" }
+
+# 时间线的几个开关（终端蓝图 `docs/blueprint/tui.md`「时间线」第 18、20 条，2026-10-10 项目主人：通用页要能改、是终端自己的）。
+# 出厂值同 `tui-demo/resources/timeline.json`；终端连上时读、改了当场照新的画。
+[settings.timeline_fold]
+type = "bool"
+default = true
+applies = "now"
+name = { en = "Fold the timeline after a reply", zh = "回复完成后折叠时间线", ja = "返答後にタイムラインを折りたたむ" }
+description = { en = "Fold the finished steps into one line once the reply is done.", zh = "回复完成后，把这一段的步骤折叠为一行。", ja = "返答が終わったら、その一連のステップを1行に折りたたむ。" }
+
+[settings.timeline_expand_thought]
+type = "bool"
+default = false
+applies = "now"
+name = { en = "Expand thoughts", zh = "展开思考", ja = "思考を展開" }
+description = { en = "Show thoughts in full instead of a preview.", zh = "思考默认显示全文，不只显示预览。", ja = "思考をプレビューではなく全文で表示する。" }
+
+[settings.timeline_expand_command]
+type = "bool"
+default = false
+applies = "now"
+name = { en = "Expand commands", zh = "展开命令", ja = "コマンドを展開" }
+description = { en = "Show commands in full instead of a preview.", zh = "命令默认显示全文，不只显示预览。", ja = "コマンドをプレビューではなく全文で表示する。" }
+
+[settings.timeline_expand_edit]
+type = "bool"
+default = false
+applies = "now"
+name = { en = "Expand edits", zh = "展开编辑", ja = "編集を展開" }
+description = { en = "Show edit diffs in full instead of a preview.", zh = "编辑的差异默认显示全文，不只显示预览。", ja = "編集の差分をプレビューではなく全文で表示する。" }
+
+[settings.timeline_limit_live]
+type = "bool"
+default = true
+applies = "now"
+name = { en = "Limit timeline area height", zh = "限制时间线区域高度", ja = "タイムライン領域の高さを制限" }
+description = { en = "Show only the latest lines of the running steps.", zh = "进行中的步骤只显示最新的几行。", ja = "実行中のステップは最新の数行だけ表示する。" }
+
+# 吉祥物的两个开关（终端蓝图 `docs/blueprint/tui.md`「后台命令、子代理和侧边栏」第 7 条，2026-10-11 项目主人：搬进配置页）。
+# 出厂值同 `tui-demo/resources/layout.json`；人格设了头像的照样画头像，不受这两项管（「空会话的首页」第 10 条）。
+[settings.mascot_home]
+type = "bool"
+default = true
+applies = "now"
+name = { en = "Show the mascot on the home screen", zh = "首页显示吉祥物", ja = "ホーム画面にマスコットを表示" }
+description = { en = "Show the mascot above the input box of an empty session. A persona's avatar shows regardless.", zh = "在空会话的输入框上方显示吉祥物。人格设了头像的照样显示头像。", ja = "空のセッションの入力欄の上にマスコットを表示する。ペルソナのアバターは設定に関わらず表示される。" }
+
+[settings.mascot_sidebar]
+type = "bool"
+default = true
+applies = "now"
+name = { en = "Show the mascot in the sidebar", zh = "侧边栏显示吉祥物", ja = "サイドバーにマスコットを表示" }
+description = { en = "Show the mascot at the top of the sidebar. A persona's avatar shows regardless.", zh = "在侧边栏顶部显示吉祥物。人格设了头像的照样显示头像。", ja = "サイドバーの上部にマスコットを表示する。ペルソナのアバターは設定に関わらず表示される。" }
+
+# 换哪一只吉祥物（终端蓝图 `docs/blueprint/tui.md`「吉祥物包」第 3 条，2026-10-11 项目主人）：值是一个吉祥物包的编号，
+# 没写的就是内置的；配置页照 `package.list` 列出装了的吉祥物包让选。
+[settings.mascot]
+type = "name"
+applies = "now"
+name = { en = "Mascot", zh = "吉祥物", ja = "マスコット" }
+description = { en = "Which mascot to show. Leave unset for the built-in one.", zh = "显示哪一只吉祥物；不设置就是内置的。", ja = "表示するマスコット。未設定なら内蔵のもの。" }

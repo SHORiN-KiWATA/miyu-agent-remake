@@ -55,7 +55,7 @@ impl App {
         let Some(session) = self.transcript.session.clone() else {
             return false;
         };
-        self.special(&session, push)
+        self.special(&session, push, true)
     }
 
     /// 停放着的会话推来的。
@@ -63,7 +63,7 @@ impl App {
         match update {
             Update::Push(push) => {
                 let replayed = matches!(push, Push::Clock(None));
-                if !self.special(session, &push)
+                if !self.special(session, &push, true)
                     && let Some(parked) = self.parked.get_mut(session)
                 {
                     parked
@@ -86,17 +86,31 @@ impl App {
         }
     }
 
-    /// 任务的几种、别处来的话在会话 `session` 里办了，交回 `true`；别的交回 `false`（照常交给正文）。
-    fn special(&mut self, session: &str, push: &Push) -> bool {
+    /// 任务的几种、别处来的话在会话 `session` 里办了，交回 `true`；别的交回 `false`（照常交给正文）。`live` 是假的：
+    /// 按页读更早的一页（`pages.rs`），只记进任务表、画进正文，不另订阅子代理的会话、不动待办、不退订。
+    pub(super) fn special(&mut self, session: &str, push: &Push, live: bool) -> bool {
         let now = Instant::now();
         let words = self.config.text.jobs.clone();
         match push {
-            Push::JobStarted(start) => self.started(session, start, now, &words),
+            // 前台跑的子代理不是后台任务：结果到的时候已经做完了，不进任务条（核心 T-1 下）。
+            Push::JobStarted(start) | Push::JobEarlier(start) if start.foreground => {}
+            Push::JobStarted(start) if live => self.started(session, start, now, &words),
+            // 以前派的、页里带的跨页任务：只记进任务表，结束的那一行照它的标题写。
+            Push::JobStarted(start) | Push::JobEarlier(start) => {
+                let command = self.command_of(session, &start.call_id);
+                if let Some((_, board)) = self.slot(session)
+                    && board.by_job_mut(&start.job).is_none()
+                {
+                    board.start(start, command, now);
+                }
+            }
             Push::JobMessaged(job) => {
                 if let Some((_, board)) = self.slot(session) {
                     board.messaged(job);
                 }
             }
+            // 以前的待办不算：现在的照订阅的回应。
+            Push::Todos { .. } if !live => {}
             // 待办换了（核心 D-3）：整份换上，空的是清空了。
             Push::Todos { todos, done } => {
                 let linger = std::time::Duration::from_millis(self.config.layout.todo_linger_ms);
@@ -116,7 +130,9 @@ impl App {
                 if command {
                     self.fetch_final(session, &end.job);
                 }
-                self.prune();
+                if live {
+                    self.prune();
+                }
             }
             Push::PeerIdle {
                 session: peer,
@@ -141,8 +157,22 @@ impl App {
         true
     }
 
+    /// 派它的那一步的命令本身（照时间线里这一步的参数）；拿不到的是 `None`。
+    fn command_of(&mut self, session: &str, call_id: &str) -> Option<String> {
+        let (transcript, _) = self.slot(session)?;
+        transcript.call_args(call_id)?["command"]
+            .as_str()
+            .map(str::to_string)
+    }
+
     /// 派出去一个：记进任务表；子代理另订阅它的会话，停放一份它的正文，开头画上交代的活（「切进子会话」第 1 条）。
-    fn started(&mut self, session: &str, start: &JobStart, now: Instant, words: &JobTexts) {
+    pub(super) fn started(
+        &mut self,
+        session: &str,
+        start: &JobStart,
+        now: Instant,
+        words: &JobTexts,
+    ) {
         let args = self
             .slot(session)
             .and_then(|(t, _)| t.call_args(&start.call_id).cloned());
@@ -175,7 +205,7 @@ impl App {
     }
 
     /// 最近一次会话列表里这个会话的标题；没见过的顺手要一次列表（「别处来的话」第 2 条）。
-    fn session_title(&self, id: &str) -> Option<String> {
+    pub(super) fn session_title(&self, id: &str) -> Option<String> {
         let known = self
             .sessions_seen
             .iter()
@@ -330,11 +360,10 @@ impl App {
         notes::tree_bill(&self.transcript.bill, &self.board, &self.parked)
     }
 
-    /// 花了多少写成字（`$0.42 + ¥1.30`，一笔都算不出的是 `None`），和没有价格的几次：侧边栏、框下面那一行用。
-    pub fn spent(&self) -> (Option<String>, u64) {
+    /// 花了多少写成字（`$0.42 + ¥1.30`，一笔都算不出的是 `None`）：侧边栏、框下面那一行用。
+    pub fn spent(&self) -> Option<String> {
         let bill = self.bill_total();
-        let amounts = crate::money::amounts(&bill, &self.currency, &self.config.layout.currencies);
-        (amounts, bill.unpriced)
+        crate::money::amounts(&bill, &self.currency, &self.config.layout.currencies)
     }
 
     /// 正在看的子会话；看着主会话是 `None`。

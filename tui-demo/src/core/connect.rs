@@ -51,28 +51,79 @@ pub(super) async fn connect() -> Result<Rpc, Update> {
     Ok(rpc)
 }
 
-/// 开一个会话（`cwd` 是启动时的目录），交回编号。
-pub(super) async fn create(rpc: &mut Rpc, model: Option<&str>) -> Result<String, Update> {
-    let mut params = json!({"cwd": cwd()});
-    // `/new` 以后、开会话以前在 `/model` 选的：开会话时带上（核心 8-8）。
-    if let Some(model) = model {
-        params["model"] = json!(model);
-    }
+/// 开会话时带上的：`/model` 选的模型、人格框、预设框选的（没选的不写，核心照默认），`/workspace` 换的目录。
+#[derive(Debug, Default)]
+pub(super) struct Chosen {
+    pub model: Option<String>,
+    pub persona: Option<String>,
+    pub preset: Option<String>,
+    /// 验过的工作区（核心 9-7 下）；没换的照终端所在的目录。
+    pub cwd: Option<String>,
+}
+
+/// 开一个会话：工作目录照换过的、没换的照终端现在的，带上选了的模型、人格、预设（核心 8-8、P-1 上、P-2 上）。
+pub(super) async fn create(rpc: &mut Rpc, chosen: &Chosen) -> Result<String, Update> {
+    let params = create_params(chosen, cwd);
     let created = rpc.call("session.create", params).await.map_err(refused)?;
     Ok(created["session"].as_str().unwrap_or_default().to_string())
 }
 
-/// 订阅一个会话的事件流，交回订阅的回应里的限额和会话现在用的模型。核心重启以后，订阅时才载入这个会话。
-pub(super) async fn subscribe(
-    rpc: &mut Rpc,
-    session: &str,
-) -> Result<(Limits, Option<super::Current>), Update> {
+/// `session.create` 的参数。`/workspace` 换过的目录带 `chosen: true`：人明着选的，太宽（`~` 这类）也照用；没换的照终端
+/// 现在的目录（`here`），不带，太宽的核心照旧退回默认工作区（核心 9-7 补，2026-10-09 项目主人选的 A；「新会话」第 4 条）。
+fn create_params(chosen: &Chosen, here: impl FnOnce() -> String) -> serde_json::Value {
+    let mut params = match &chosen.cwd {
+        Some(dir) => json!({"cwd": dir, "chosen": true}),
+        None => json!({"cwd": here()}),
+    };
+    for (key, value) in [
+        ("model", &chosen.model),
+        ("persona", &chosen.persona),
+        ("preset", &chosen.preset),
+    ] {
+        if let Some(value) = value {
+            params[key] = json!(value);
+        }
+    }
+    // 选了「无人格」：明着不带人格，不看默认的（核心 P-4 上，`"persona": null`）。
+    if chosen.persona.as_deref() == Some("") {
+        params["persona"] = serde_json::Value::Null;
+    }
+    params
+}
+
+/// 订阅回应里头要的几样：限额、现在用的模型、人格、预设（以前的会话没有人格、预设的不写）。
+#[derive(Debug)]
+pub(super) struct Joined {
+    pub limits: Limits,
+    pub current: Option<super::Current>,
+    pub persona: Option<String>,
+    pub preset: Option<String>,
+    /// 累计用量、权限、还在跑的（核心 9-6 上）：重连以后照它换，断开那一段漏掉的补回来。
+    pub snapshot: Option<super::Snapshot>,
+    /// 会话的工作区（核心 9-7 上）：侧边栏照它写。
+    pub workspace: Option<String>,
+}
+
+/// 订阅一个会话的事件流，交回订阅的回应里头要的几样。核心重启以后，订阅时才载入这个会话。
+pub(super) async fn subscribe(rpc: &mut Rpc, session: &str) -> Result<Joined, Update> {
     let subscribed = rpc
         .call("subscribe", json!({"session": session, "stream": "events"}))
         .await
         .map_err(refused)?;
-    let limits = Limits::of(&json!({ "result": subscribed })).unwrap_or_default();
-    Ok((limits, super::models::current(&subscribed)))
+    let text = |key: &str| subscribed[key].as_str().map(str::to_string);
+    Ok(Joined {
+        limits: Limits::of(&json!({ "result": subscribed })).unwrap_or_default(),
+        current: super::models::current(&subscribed),
+        persona: text("persona"),
+        preset: text("preset"),
+        snapshot: super::Snapshot::read(&subscribed),
+        workspace: workspace(&subscribed),
+    })
+}
+
+/// 订阅回应里会话的工作区（核心 9-7 上）；以前的核心没有。
+pub(super) fn workspace(reply: &serde_json::Value) -> Option<String> {
+    reply["workspace"]["cwd"].as_str().map(str::to_string)
 }
 
 /// 请求没成：连接断了的说断开，别的说连不上和原因。
@@ -106,7 +157,7 @@ mod tests {
 
     use miyu_ipc::StartError;
 
-    use super::{Update, start_failed};
+    use super::{Chosen, Update, create_params, start_failed};
 
     #[test]
     fn a_missing_core_program_names_its_path() {
@@ -122,5 +173,24 @@ mod tests {
             start_failed(StartError::Busy, gone),
             Update::Failed(_)
         ));
+    }
+
+    #[test]
+    fn a_chosen_workspace_is_marked_and_the_terminal_one_is_not() {
+        // 2026-10-09 项目主人报：手动 `/workspace ~` 以后开会话，又被退回默认工作区。人明着选的带 `chosen`。
+        let here = || "/home/me".to_string();
+        let picked = Chosen {
+            cwd: Some("/home/me".into()),
+            ..Chosen::default()
+        };
+        assert_eq!(
+            create_params(&picked, here),
+            serde_json::json!({"cwd": "/home/me", "chosen": true})
+        );
+        assert_eq!(
+            create_params(&Chosen::default(), here),
+            serde_json::json!({"cwd": "/home/me"}),
+            "终端起来时的目录不写 chosen"
+        );
     }
 }

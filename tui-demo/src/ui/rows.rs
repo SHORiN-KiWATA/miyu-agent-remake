@@ -296,7 +296,7 @@ pub(super) fn md_row(line: MdLine, ctx: &Ctx) -> Row {
 fn text_rows(entry: &Entry, ctx: &Ctx) -> Vec<Row> {
     let layout = &ctx.config.layout;
     let (slot, style) = match entry.kind {
-        Kind::Note | Kind::Done => (ctx.blank_slot(), theme::dim()),
+        Kind::Note | Kind::Done | Kind::Older => (ctx.blank_slot(), theme::dim()),
         Kind::Answered => (
             Span::styled(layout.user_bar.clone(), theme::dim()),
             theme::dim(),

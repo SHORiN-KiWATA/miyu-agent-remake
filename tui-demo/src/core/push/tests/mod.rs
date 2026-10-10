@@ -6,6 +6,8 @@ use super::ToolStatus;
 
 use super::{Block, CallError, Push};
 
+mod jobs;
+
 #[test]
 fn a_new_title_comes_from_meta_changed() {
     // 照 docs/designs/samples/events/session.meta_changed.jsonl。
@@ -15,6 +17,17 @@ fn a_new_title_comes_from_meta_changed() {
     let pinned =
         json!({"kind": "session.meta_changed", "by": {"kind": "person"}, "body": {"pinned": true}});
     assert!(read_mine(&pinned).is_empty(), "没带标题的不算");
+}
+
+#[test]
+fn a_new_workspace_comes_from_workspace_changed() {
+    // 照 docs/designs/samples/events/session.workspace_changed.jsonl（核心 9-7 上）。
+    let event = json!({"seq": 12, "kind": "session.workspace_changed", "by": {"kind": "person", "account": "alice"},
+        "body": {"cwd": "/home/alice/proj", "dirs": ["/home/alice/docs"]}});
+    assert_eq!(
+        read_mine(&event),
+        vec![Push::Workspace("/home/alice/proj".into())]
+    );
 }
 
 #[test]
@@ -104,16 +117,27 @@ fn compaction_events_are_read() {
         read_mine(&progress),
         vec![Push::Compaction(Compaction::Progress {
             written: 3120,
-            expected: Some(40000)
+            expected: Some(40000),
+            manual: None,
         })]
     );
+    let manual = json!({"kind": "compaction.progress", "by": {"kind": "kernel"},
+        "body": {"seen": 8, "written": 0, "expected": 40000, "trigger": "manual"}});
+    assert!(matches!(
+        read_mine(&manual)[..],
+        [Push::Compaction(Compaction::Progress {
+            manual: Some(true),
+            ..
+        })]
+    ));
     let done = json!({"kind": "compaction.done", "by": {"kind": "kernel"},
         "body": {"seen": 8, "before": 812_300, "after": 31_000}});
     assert_eq!(
         read_mine(&done),
         vec![Push::Compaction(Compaction::Done {
             before: 812_300,
-            after: 31_000
+            after: 31_000,
+            prepared: false,
         })]
     );
     let paused = json!({"kind": "context.compaction_paused", "by": {"kind": "kernel"},
@@ -211,6 +235,28 @@ fn tool_calls_and_results_carry_their_ids() {
 }
 
 #[test]
+fn a_tool_result_with_images_also_hands_over_their_blobs() {
+    // 读了图片文件的 `read`：结果里的图片块（核心 2026-10-09 告知形状）另交一条，时间线照它把图接在这一步下面。
+    let result = json!({"kind": "tool.result", "by": {"kind": "tool"},
+        "body": {"call_id": "c1", "status": "ok", "blocks": [
+            {"type": "text", "text": "cat.png"},
+            {"type": "image", "blob": "sha256:aa", "media_type": "image/png"},
+            {"type": "image", "blob": "sha256:bb", "media_type": "image/jpeg"}]}});
+    let got = read_mine(&result);
+    assert!(matches!(&got[0], Push::ToolResult { text, .. } if text == "cat.png"));
+    assert_eq!(
+        got[1],
+        Push::ToolImages {
+            call_id: "c1".into(),
+            blobs: vec!["sha256:aa".into(), "sha256:bb".into()],
+        }
+    );
+    let plain = json!({"kind": "tool.result", "by": {"kind": "tool"},
+        "body": {"call_id": "c2", "status": "ok", "blocks": [{"type": "text", "text": "a"}]}});
+    assert_eq!(read_mine(&plain).len(), 1, "没有图的不另交");
+}
+
+#[test]
 fn events_the_screen_ignores_read_as_nothing() {
     assert!(read_mine(&json!({"kind": "session.created", "by": {"kind": "person"}})).is_empty());
 }
@@ -275,91 +321,31 @@ fn a_clear_is_a_compaction_marked_clear() {
 }
 
 /// 测试里的话都当是这个界面发的。
-fn read_mine(event: &serde_json::Value) -> Vec<Push> {
+pub(super) fn read_mine(event: &serde_json::Value) -> Vec<Push> {
     super::read(event, &|_| true)
 }
 
 #[test]
-fn job_effects_reports_and_foreign_messages_are_read() {
-    // 施工 7-1…7-10：工具结果的 effects 里是派出去的任务；两种回报；不是这个界面发的话单独认出来。
-    use super::{JobEnd, JobReason, JobStart, Sender};
-    let result = json!({"seq": 9, "kind": "tool.result", "by": {"kind": "tool", "call_id": "call_1"},
-        "body": {"call_id": "call_1", "status": "ok", "blocks": [{"type": "text", "text": "j2"}],
-            "effects": [{"kind": "job.started", "job": "j2", "what": "subagent", "title": "查文档",
-                "session": "s-child"}, {"kind": "job.messaged", "job": "j1"}]}});
-    let got = read_mine(&result);
-    assert_eq!(
-        got[0],
-        Push::JobStarted(JobStart {
-            call_id: "call_1".into(),
-            job: "j2".into(),
-            agent: true,
-            title: "查文档".into(),
-            session: Some("s-child".into()),
-        })
+fn a_summary_prepared_in_the_background_only_counts_as_usage() {
+    // 核心 6-11 上：后台提前压的摘要请求 `purpose` 是 `compaction`，不带 `compaction` 那一格；出错了不算压缩失败，也不算
+    // 这一轮的错，只算用量。
+    let call = json!({"seq": 40, "kind": "model.called", "by": {"kind": "model"},
+        "body": {"purpose": "compaction", "request": {}, "seen": 120, "result": "error",
+            "usage": {"uncached": 900, "cache_read": 0, "cache_write": 0, "output": 80},
+            "error": {"class": "server", "message": "boom"}}});
+    let got = read_mine(&call);
+    assert!(
+        got.iter()
+            .any(|p| matches!(p, Push::AuxUsage(u) if u.uncached == 900)),
+        "{got:?}"
     );
-    assert_eq!(got[1], Push::JobMessaged("j1".into()));
-    assert!(matches!(got[2], Push::ToolResult { .. }), "工具结果照旧");
-    let reported = json!({"seq": 10, "kind": "job.reported", "by": {"kind": "tool"},
-        "body": {"job": "j1", "reason": "exited", "exit_code": 2, "duration_ms": 81234}});
-    assert_eq!(
-        read_mine(&reported),
-        [Push::JobEnded(JobEnd {
-            job: "j1".into(),
-            reason: JobReason::Finished,
-            exit_code: Some(2),
-            signal: None,
-            duration_ms: Some(81234),
-            text: String::new(),
-        })]
+    assert!(
+        !got.iter().any(|p| matches!(
+            p,
+            Push::Usage(_) | Push::Sent { .. } | Push::CallFailed(_) | Push::Compaction(_)
+        )),
+        "{got:?}"
     );
-    let child = json!({"seq": 11, "kind": "child.reported", "by": {"kind": "session", "id": "s-child"},
-        "body": {"job": "j2", "session": "s-child", "reason": "undone", "text": "查到一半"}});
-    let Push::JobEnded(end) = &read_mine(&child)[0] else {
-        panic!("子代理的回报")
-    };
-    assert_eq!(
-        (end.reason, end.text.as_str()),
-        (JobReason::Undone, "查到一半")
-    );
-    // message.user：这个界面发的（cause 认得）是序号，别的带来处和字。
-    let said = |by: serde_json::Value, cause: &str| {
-        json!({"seq": 12, "kind": "message.user", "by": by, "cause": cause,
-            "body": {"blocks": [{"type": "text", "text": "看看测试"}]}})
-    };
-    let mine = |c: &str| c == "tui-1";
-    let person = json!({"kind": "person", "account": "admin"});
-    assert_eq!(
-        super::read(&said(person.clone(), "tui-1"), &mine),
-        [Push::UserMessage(12)]
-    );
-    let foreign = |by| match super::read(&said(by, "web-7"), &mine).remove(0) {
-        Push::Foreign(f) => (f.seq, f.from, f.text),
-        other => panic!("{other:?}"),
-    };
-    assert_eq!(
-        foreign(person),
-        (12, Sender::Person, "看看测试".into()),
-        "同一个人在别处说的"
-    );
-    let harness = json!({"kind": "harness", "name": "claude-code"});
-    assert_eq!(foreign(harness).1, Sender::Harness("claude-code".into()));
-    let session = json!({"kind": "session", "id": "s-child"});
-    assert_eq!(foreign(session).1, Sender::Session("s-child".into()));
-}
-
-#[test]
-fn only_a_subagent_effect_is_read_as_an_agent() {
-    // 2026-10-01 核心把派子代理的工具从 agent 改名 subagent，同一天项目主人定不认旧名、不留兼容。
-    for (what, agent) in [("subagent", true), ("agent", false)] {
-        let result = json!({"seq": 9, "kind": "tool.result", "by": {"kind": "tool", "call_id": "c"},
-            "body": {"call_id": "c", "status": "ok", "blocks": [],
-                "effects": [{"kind": "job.started", "job": "j3", "what": what, "title": "t"}]}});
-        let Push::JobStarted(start) = &read_mine(&result)[0] else {
-            panic!("派出去的任务")
-        };
-        assert_eq!(start.agent, agent, "{what}");
-    }
 }
 
 #[test]
@@ -389,32 +375,6 @@ fn a_recap_call_only_counts_as_usage_and_the_recap_is_read() {
     let recapped = json!({"seq": 31, "kind": "session.recapped", "by": {"kind": "kernel"},
         "body": {"text": "  在做回顾。  ", "upto": 28}});
     assert_eq!(read_mine(&recapped), [Push::Recapped("在做回顾。".into())]);
-}
-
-#[test]
-fn a_peer_going_idle_is_read_with_its_reason_and_last_line() {
-    // 核心 C-6「空了告诉我」：`peer.idle`，`status` 可以没有。
-    let idle = json!({"seq": 30, "kind": "peer.idle", "by": {"kind": "session", "id": "w"},
-        "cause": "w/idle/m/1", "body": {"session": "0192f3a0-1111-7abc-8def-001122334455",
-        "reason": "idle", "status": "算完了，结果是 55"}});
-    assert_eq!(
-        read_mine(&idle),
-        vec![Push::PeerIdle {
-            session: "0192f3a0-1111-7abc-8def-001122334455".into(),
-            reason: "idle".into(),
-            status: Some("算完了，结果是 55".into()),
-        }]
-    );
-    let gone = json!({"seq": 31, "kind": "peer.idle", "by": {"kind": "kernel"},
-        "body": {"session": "s", "reason": "gone"}});
-    assert_eq!(
-        read_mine(&gone),
-        vec![Push::PeerIdle {
-            session: "s".into(),
-            reason: "gone".into(),
-            status: None
-        }]
-    );
 }
 
 #[test]
@@ -455,4 +415,31 @@ fn a_failover_model_change_is_read_with_its_limits() {
             effort: Some("high".into()),
         }]
     );
+}
+
+#[test]
+fn a_policy_change_with_only_the_policy_draws_nothing() {
+    // 核心 P-1 再补：改了人格的文件，下一个回合开头内核推一条只带 `policy` 的，`permission`、`model` 都没有。
+    let event = json!({"kind": "session.policy_changed", "turn": 7, "by": {"kind": "kernel"},
+        "body": {"policy": "sha256:0123"}});
+    assert!(read_mine(&event).is_empty(), "不改权限、不换模型");
+}
+
+#[test]
+fn venue_events_are_skipped_and_a_venue_on_a_message_changes_nothing() {
+    // 核心 O-13 上：场所会话多两种事件、`message.user` 多一格 `venue`（本机的头本来看不到这些会话）；O-14 下多
+    // `turn.joined`（桥把群里的几条并进这一轮）。认不得的跳过，不画。
+    let mine = |c: &str| c == "tui-1";
+    for kind in ["venue.recalled", "venue.delivered", "turn.joined"] {
+        let event =
+            json!({"seq": 3, "kind": kind, "by": {"kind": "kernel"}, "body": {"message": "m-1"}});
+        assert!(super::read(&event, &mine).is_empty(), "{kind}");
+    }
+    let said = json!({"seq": 4, "kind": "message.user", "by": {"kind": "person", "account": "admin"},
+        "cause": "tui-1", "body": {"blocks": [{"type": "text", "text": "在吗"}], "venue": {"id": "qq-group-1"}}});
+    assert_eq!(super::read(&said, &mine), [Push::UserMessage(4)]);
+    // 核心 O-2 中：扩展登记、关掉工具以后，下一个回合开头多一条只带 `policy` 的 `session.policy_changed`，不画。
+    let tools = json!({"seq": 5, "kind": "session.policy_changed", "by": {"kind": "kernel"},
+        "body": {"policy": {"tools": {"off": ["web_fetch"]}}}});
+    assert!(super::read(&tools, &mine).is_empty());
 }

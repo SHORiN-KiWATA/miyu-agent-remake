@@ -15,7 +15,7 @@
   ],
   "untitled": "無題のセッション",
   "side_id": "#{id}",
-  "side_cwd": "作業ディレクトリ",
+  "side_cwd": "ワークスペース",
   "side_context": "コンテキスト",
   "side_context_value": "{used} / {window} · {percent}%",
   "side_usage": "使用量",
@@ -25,7 +25,6 @@
   "side_compactions": "圧縮 {n} 回",
   "side_breaks": "キャッシュ断絶 {n} 回",
   "side_cost": "費用 {amounts}",
-  "side_unpriced": "価格のないリクエスト {n} 件",
   "copied": "{count} 文字をコピーしました",
   "copy_failed": "コピーに失敗：{reason}",
   "nothing_to_copy": "コピーできる返信がまだありません",
@@ -54,6 +53,8 @@
     "429": "レート制限か利用枠不足です。しばらくして再試行してください"
   },
   "retry": "再試行 {attempt}/{limit}：{message}",
+  "older": "以前の会話を読み込み中…",
+  "older_failed": "以前の会話を読み込めませんでした：{reason}",
   "total": "Σ{tokens}(C{percent}%)",
   "done": "{time} · {endpoint}/{model} · {elapsed}",
   "speed": "{rate} tok/s",
@@ -139,6 +140,7 @@
   "theme_changed": "テーマ：{name}",
   "icons_changed": "アイコン：{name}",
   "figure_pending": "⋯ 描画中",
+  "mascot_failed": "マスコットパッケージを読み込めないため、内蔵のマスコットを使用しています",
   "figure_zoom": "クリックで拡大",
   "markdown": {
     "image": "[画像: ",
@@ -154,6 +156,10 @@
     ]
   },
   "refusal_hints": {
+    "path_unreadable": "ディレクトリが見つからないか、読めません",
+    "not_a_directory": "ファイルです。ディレクトリではありません",
+    "path_forbidden": "ここは作業場所にできません",
+    "owner_only": "作業場所を変えられるのは持ち主だけです",
     "session_not_found": "そのセッションはもうありません",
     "nothing_to_rename": "まだセッションがありません。何か話してから名前を変えてください",
     "nothing_to_recap": "まだ振り返る内容がありません",
@@ -191,6 +197,7 @@
     "count": " {count}"
   },
   "compaction": {
+    "triggered": "コンテキストの圧縮を開始しました",
     "progress": "コンテキストを圧縮中",
     "written": " {written}",
     "percent": " {percent}%",
@@ -473,12 +480,9 @@
     "keys_review": "Enter 送信 · Esc ×2 キャンセル",
     "keys_edit": "Enter 保存 · Esc 編集終了",
     "keys_tabs": " · ←/→ 質問切り替え",
-    "answered_title": "回答済み",
     "answered_line": "{label}：{answer}",
     "notes_suffix": "（補足：{notes}）",
     "denied_with": "許可しません · {reason}",
-    "cancelled_question": "質問をキャンセルしました",
-    "cancelled_approval": "承認をキャンセルしました",
     "cancel_hint": "もう一度 Esc でキャンセル"
   },
   "clipboard_unreadable": "クリップボードを読み取れません：ターミナル自体の貼り付けを使ってください（kitty では Ctrl+Shift+V）",
@@ -492,10 +496,36 @@
       "video": "[動画 {n}]"
     },
     "file": "[{name}]",
-    "folder": "[{name}/]"
+    "folder": "[{name}/]",
+    "names": {
+      "image": "画像",
+      "pdf": "PDF",
+      "audio": "音声",
+      "video": "動画"
+    },
+    "refused": "このモデルは{kinds}を受け取れないため、ファイルのパスにしました"
   },
   "stopped_jobs": "{count} 件のタスクを停止しました",
   "language_switched": "表示言語：日本語",
+  "persona_box": {
+    "title": "ペルソナを選んでください",
+    "hint": "↑/↓ 選択 · Enter 決定 · Esc 既定のまま",
+    "default_mark": "既定",
+    "locked": "始まったセッションのペルソナは変えられません。/new のあとで選んでください",
+    "chosen": "ペルソナ {name}",
+    "preset_title": "プリセットを選んでください",
+    "preset_need": "先にプリセットを選んでください",
+    "preset_locked": "始まったセッションのプリセットは変えられません。/new のあとで選んでください",
+    "preset_chosen": "プリセット {name}",
+    "none": "人格なし",
+    "none_note": "人物設定なし、記憶は無効"
+  },
+  "workspace": {
+    "need_path": "パスを指定してください",
+    "pending": "新しいセッションは {path} で開きます",
+    "elsewhere": "{path} で作業しています · /workspace . でここに移る",
+    "changed": "作業場所を {path} に変更しました"
+  },
   "languages": {
     "title": "表示言語",
     "hint": "↑/↓ 選択 · Enter 切り替え · Esc 閉じる",
@@ -569,11 +599,13 @@
     ],
     "uses": [
       "既定のテキストモデル",
-      "既定のビジョンモデル"
+      "既定のビジョンモデル",
+      "セマンティックモデル"
     ],
     "use_notes": [
       "ターンでモデルを指定しないときに使う",
-      "会話モデルが画像を読めないときに使う"
+      "会話モデルが画像を読めないときに使う",
+      "記憶やナレッジベースなどの検索の質を上げる"
     ],
     "detail": [
       "現在",
@@ -896,6 +928,409 @@
           "clear"
         ]
       ]
-    ]
+    ],
+    "more": {
+      "personas": [
+        "ペルソナ",
+        "AI の人格と記憶を決める"
+      ],
+      "presets": [
+        "プリセット",
+        "どの機能をオンにするかを決める"
+      ],
+      "preset_detail": [
+        "機能 {on}/{all}",
+        "未インストール"
+      ],
+      "origins": {
+        "default": "既定",
+        "system": "システム設定",
+        "personal": "個人設定",
+        "project": "プロジェクト設定"
+      },
+      "toggle": [
+        "オン",
+        "オフ"
+      ],
+      "secret": [
+        "設定済み",
+        "未設定"
+      ],
+      "no_editor": "この項目は端末ではまだ変更できません",
+      "bad_number": "数値を入力してください",
+      "unset": [
+        "既定に戻す：{name}？",
+        "個人設定からこの項目を外し、{from}の値に戻します",
+        "戻す",
+        "キャンセル"
+      ],
+      "nothing_to_unset": "個人設定にこの項目はありません",
+      "default_mark": "既定",
+      "no_personas": "ペルソナがまだありません",
+      "loading": "読み込み中…",
+      "detail": [
+        "名前",
+        "ペルソナプロンプト",
+        "会話例",
+        "ペルソナ維持リマインド",
+        "{n} 往復",
+        "設定済み"
+      ],
+      "hints": [
+        [
+          [
+            "Enter",
+            "変更"
+          ],
+          [
+            "d",
+            "既定に戻す"
+          ],
+          [
+            "Esc",
+            "戻る"
+          ]
+        ],
+        [
+          [
+            "Enter",
+            "詳細"
+          ],
+          [
+            "Esc",
+            "戻る"
+          ]
+        ],
+        [
+          [
+            "↑/↓",
+            "選択"
+          ],
+          [
+            "Enter",
+            "決定"
+          ],
+          [
+            "Esc",
+            "キャンセル"
+          ]
+        ],
+        [
+          [
+            "Enter",
+            "保存"
+          ],
+          [
+            "Esc",
+            "キャンセル"
+          ]
+        ],
+        [
+          [
+            "Esc",
+            "閉じる"
+          ]
+        ],
+        [
+          [
+            "Enter",
+            "開く"
+          ],
+          [
+            "a",
+            "新規"
+          ],
+          [
+            "d",
+            "削除"
+          ],
+          [
+            "Esc",
+            "戻る"
+          ]
+        ],
+        [
+          [
+            "↑/↓",
+            "選択"
+          ],
+          [
+            "Enter",
+            "変更"
+          ],
+          [
+            "d",
+            "削除"
+          ],
+          [
+            "Esc",
+            "閉じる"
+          ]
+        ],
+        [
+          [
+            "↑/↓",
+            "選択"
+          ],
+          [
+            "Space",
+            "切り替え"
+          ],
+          [
+            "Ctrl+A",
+            "全部オン/オフ"
+          ],
+          [
+            "Enter",
+            "変更"
+          ],
+          [
+            "d",
+            "削除"
+          ],
+          [
+            "Esc",
+            "閉じる"
+          ]
+        ],
+        [
+          [
+            "Enter",
+            "変更"
+          ],
+          [
+            "a",
+            "1 往復追加"
+          ],
+          [
+            "d",
+            "削除"
+          ],
+          [
+            "J/K",
+            "移動"
+          ],
+          [
+            "Esc",
+            "戻る"
+          ]
+        ],
+        [
+          [
+            "↑/↓",
+            "切り替え"
+          ],
+          [
+            "Enter",
+            "次へ/保存"
+          ],
+          [
+            "Esc",
+            "キャンセル"
+          ]
+        ]
+      ],
+      "persona_edit": {
+        "new_name": "新しいペルソナの名前",
+        "deleted": "削除しました（ごみ箱に 7 日残ります）",
+        "restored": "出荷時の状態に戻しました",
+        "avatar": "アバター",
+        "avatar_set": "設定済み",
+        "avatar_path": "アバター画像のパス",
+        "conflict": "その間に別の場所で変更されたため保存していません。開き直してやり直してください",
+        "reading": "読み込み中…",
+        "remove": {
+          "delete": [
+            "ペルソナ {name} を削除？",
+            "ごみ箱に 7 日残ります",
+            "削除",
+            "キャンセル"
+          ],
+          "restore": [
+            "{name} を出荷時の状態に戻す？",
+            "変更した内容は失われます",
+            "戻す"
+          ],
+          "nothing": "出荷時のものは変更されていないので、削除するものはありません"
+        }
+      },
+      "preset_edit": {
+        "new_name": "新しいプリセットの名前",
+        "deleted": "削除しました",
+        "restored": "出荷時の状態に戻しました",
+        "remove": {
+          "delete": [
+            "プリセット {name} を削除？",
+            "削除すると元に戻せません",
+            "削除",
+            "キャンセル"
+          ],
+          "restore": [
+            "{name} を出荷時の状態に戻す？",
+            "変更した内容は失われます",
+            "戻す"
+          ],
+          "nothing": "出荷時のものは変更されていないので、削除するものはありません"
+        }
+      },
+      "dialogs": {
+        "title": "会話例",
+        "empty": "会話例はまだありません。a で 1 往復追加",
+        "add": "1 往復追加",
+        "edit": "この往復を変更",
+        "sides": [
+          "あなたの質問",
+          "AI の返事"
+        ],
+        "both": "両方とも入力してください"
+      },
+      "no_persona": "人格なし",
+      "builtin_mascot": "内蔵",
+      "mascot_missing": "{id}（未インストール）",
+      "own_groups": {"timeline": "タイムライン", "mascot": "マスコット"},
+      "unavailable": "未インストール",
+      "custom_model": "モデルを入力…"
+    }
+  },
+  "oobe": {
+    "welcome": {
+      "title": "Miyu へようこそ",
+      "sub": "1 分ほどでモデルと人格を設定しましょう",
+      "start": "Enter で開始"
+    },
+    "steps": [
+      "言語",
+      "アイコン",
+      "モデル",
+      "人格",
+      "プリセット"
+    ],
+    "keys": {
+      "searching": "入力して検索 · Ctrl+J/K 選択 · Enter 完了 · Esc 取消",
+      "editing": "Enter 完了 · Esc 取消",
+      "test": "Enter 接続テスト · j/k 移動 · Esc 別のプロバイダ",
+      "pick": "↑↓ 選ぶ · Enter 次へ · Esc 戻る",
+      "form": "Enter 編集 · j/k 移動 · Esc 別のプロバイダ",
+      "driver": "←→ インターフェース切替 · j/k 移動 · Esc 別のプロバイダ",
+      "models": "/ 検索 · j/k 選択 · Enter 決定 · Esc 別のプロバイダ",
+      "persona": "Enter 編集 · j/k 移動 · Esc 戻る",
+      "edit": "Enter 編集 · j/k 移動 · Esc 戻る",
+      "writing": "Enter 改行 · Ctrl+G 外部エディタ · Esc 完了",
+      "custom": "Space 切替 · Ctrl+A すべて · j/k 移動 · Esc 閉じる",
+      "custom_name": "Enter 編集 · j/k 移動 · Esc 閉じる",
+      "create": "Enter 作成 · j/k 移動 · Esc 閉じる",
+      "view": "j/k スクロール · Space 閉じる",
+      "enter_edit": "Enter で編集",
+      "presets": "↑↓ 選ぶ · Space 詳細 · Enter 次へ · Esc 戻る",
+      "more": "入力して検索 · ↑↓ 選ぶ · Enter 確定 · Esc 閉じる"
+    },
+    "language": {
+      "title": "表示言語",
+      "sub": "あとで設定から変えられます",
+      "auto": "システムに合わせる（{name}）"
+    },
+    "icons": {
+      "title": "アイコン",
+      "sub": "アイコンが見えますか、それとも四角や文字化けですか？",
+      "yes": "アイコン",
+      "no": "四角や文字化け"
+    },
+    "model": {
+      "test": "接続テスト",
+      "title": "モデルの提供元を選ぶ",
+      "sub": "ひとつ選んでキーを入れれば使えます",
+      "loading": "探しています…",
+      "found": "キーあり",
+      "configured": "設定済み",
+      "local": "このマシン",
+      "other": "その他",
+      "more": "その他のプロバイダー…",
+      "more_title": "その他のプロバイダー",
+      "more_search": "入力して検索",
+      "no_match": "一致なし",
+      "search_cue": "/ で検索",
+      "custom": "カスタム…",
+      "custom_note": "アドレスと API を入力",
+      "ready_title": "モデル",
+      "ready": "設定済み：{name}",
+      "keep": "これを使う",
+      "change": "ほかにする",
+      "key": "キー",
+      "key_env": "環境変数 {env} から",
+      "key_none": "キー不要",
+      "key_needed": "キーを入力してください",
+      "cost": "実際に一文送るので少し料金がかかります",
+      "custom_head": {
+        "title": "カスタム",
+        "sub": "互換 API ならつなげます"
+      },
+      "url": "アドレス",
+      "url_example": "https://api.example.com/v1",
+      "url_bad": "http:// か https:// で始めてください",
+      "driver": "API",
+      "drivers": [
+        "OpenAI 互換",
+        "Anthropic",
+        "OpenAI Responses"
+      ],
+      "testing": "接続しています…",
+      "connected": "つながりました。モデルが {count} 個あります",
+      "pick_sub": "テスト成功。モデルを選んでください",
+      "no_list": "モデル一覧を取得できませんでした。モデル名を入れてもう一度テストしてください",
+      "model_name": "モデル名",
+      "model_example": "例：gpt-4o",
+      "failed": "つながりません（{stage}）：{message}",
+      "stages": {
+        "list": "モデル一覧",
+        "request": "リクエスト",
+        "config": "設定"
+      },
+      "search": "モデルを検索",
+      "more_above": "↑ ほか {n} 件",
+      "more_below": "↓ ほか {n} 件",
+      "saving": "保存しています…"
+    },
+    "persona": {
+      "title": "人格を作る",
+      "sub": "人格は AI の話し方と覚えることを決めます。あとで設定から変えられます",
+      "fields": [
+        "名前",
+        "人物設定",
+        "会話例",
+        "ロールプレイのリマインダー"
+      ],
+      "hints": [
+        "名前をつける",
+        "どんな人物か、どう話すか、どう接するか",
+        "",
+        "人格設定を守るよう AI にときどき促す短い一言"
+      ],
+      "examples_some": "{n} 組",
+      "next": "次へ",
+      "name_needed": "名前を入れてください",
+      "existing": "作成済み。続けて編集できます",
+      "saving": "保存しています…",
+      "avatar": "アバター",
+      "avatar_hint": "画像のパス",
+      "avatar_set": "設定済み"
+    },
+    "preset": {
+      "title": "プリセットを選ぶ",
+      "sub": "プリセットはどの機能を使うかを決めます。設定やセッションごとに変えられます",
+      "custom": "カスタム",
+      "custom_note": "使う機能を自分で選ぶ",
+      "name": "名前",
+      "name_hint": "名前をつける",
+      "name_needed": "名前を入れてください",
+      "loading": "読み込んでいます…",
+      "create": "作成"
+    },
+    "done": {
+      "title": "準備完了",
+      "summary": "モデル {model} · 人格 {persona} · プリセット {preset}",
+      "start": "Enter で会話を始める"
+    },
+    "offline": "コアにつながっていません",
+    "unmarked": "初回ガイドの完了を記録できませんでした：{message}"
   }
 }

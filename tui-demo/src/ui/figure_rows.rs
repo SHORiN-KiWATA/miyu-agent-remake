@@ -1,8 +1,6 @@
 //! 正文里的图（蓝图 `tui.md`「图片、公式和 mermaid 图」第 2、6 条）：排行时一张图占几行就是几行，
 //! 没好是一行占位，画不成的写源码；画的时候照露出来的那一截切片画。
 
-use std::collections::HashSet;
-
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::text::Span;
@@ -103,29 +101,39 @@ pub fn is_picture(cell: &ratatui::buffer::Cell) -> bool {
         || cell.symbol().starts_with('\u{10EEEE}')
 }
 
-/// 画视口里露出来的图：每张图从它第 0 行该在的位置画起（在视口上面的是负的），
-/// 视口外的那一截由 `SlicedImage` 切掉。`first` 是视口第一行是正文的第几行。露出来的记下露过：编好的图记满了
-/// 扔没露出来的，被扔了的这一帧先空着、交给后台重做（蓝图「图片、公式和 mermaid 图」第 6 条）。
+/// 一张图画在哪：做好的图的键、第 0 行在视口第几行（上面的是负的）、从第几列画起。
+type Placed = (u64, i64, u16);
+
+/// 画视口里露出来的图：每张图从它第 0 行该在的位置画起（在视口上面的是负的），只画进它自己那几行（露出来的第一行到
+/// 最后一行），别的切掉——不然图的头被切掉时（进行中那一段只露最新的十几行，2026-10-10 项目主人截图）切掉的那一截会盖到
+/// 前面的字上。`first` 是视口第一行是正文的第几行。露出来的记下露过：编好的图记满了扔没露出来的，被扔了的这一帧先空着、
+/// 交给后台重做（蓝图「图片、公式和 mermaid 图」第 6 条）。
 pub fn draw(buf: &mut Buffer, area: Rect, rows: &Rows, first: usize, figures: &mut Figures) {
     figures.next_frame();
-    let mut drawn = HashSet::new();
+    // 每张图（照它第 0 行在哪认：同一张图出现在两处的各画各的）露在视口里的第一行、最后一行。
+    let mut spans: Vec<(Placed, (u16, u16))> = Vec::new();
     let visible = rows.window(first, usize::from(area.height));
     for (i, row) in visible {
+        let at_row = u16::try_from(i - first).unwrap_or(u16::MAX);
         for FigureCell { key, row: at, x } in row.figure.into_iter().chain(row.icon) {
-            let top = i64::try_from(i - first).unwrap_or(0) - i64::from(at);
-            // 一张图画一次：同一张图出现在两处（你说的话和她的回答都贴了同一个链接）各画各的，照它第 0 行在哪认。
-            if !drawn.insert((key, top, x)) {
-                continue;
+            let top = i64::from(at_row) - i64::from(at);
+            let id = (key, top, row.content_x + x);
+            match spans.iter_mut().find(|(k, _)| *k == id) {
+                Some((_, (_, last))) => *last = at_row,
+                None => spans.push((id, (at_row, at_row))),
             }
-            let Some(figure) = figures.shown(key) else {
-                continue;
-            };
-            let position = SignedPosition {
-                x: i16::try_from(row.content_x + x).unwrap_or(i16::MAX),
-                y: i16::try_from(top).unwrap_or(i16::MIN),
-            };
-            SlicedImage::new(&figure.protocol, position).render(area, buf);
         }
+    }
+    for ((key, top, x), (from, to)) in spans {
+        let Some(figure) = figures.shown(key) else {
+            continue;
+        };
+        let own = Rect::new(area.x, area.y + from, area.width, to - from + 1);
+        let position = SignedPosition {
+            x: i16::try_from(x).unwrap_or(i16::MAX),
+            y: i16::try_from(top - i64::from(from)).unwrap_or(i16::MIN),
+        };
+        SlicedImage::new(&figure.protocol, position).render(own, buf);
     }
 }
 
@@ -381,9 +389,72 @@ mod tests {
         let wallpaper = picture("wallpaper.png", 1600, 900);
         assert_eq!(drawn_rows(&wallpaper, &ctx, &done), 15, "高最多三分之一屏");
         std::fs::remove_dir_all(&dir).unwrap_or_default();
+        // 工具结果里的图（read 读的）：长宽各是回答里的图的一半（2026-10-10 项目主人：「有现在的四分之一就差不多了」）。
+        assert_eq!(
+            figures::room(&config.figures, FigureKind::Preview).fit(100, 45),
+            (30, 7)
+        );
         // mermaid、公式、`<svg>` 里是字：照旧最多正文宽、半屏。
         for kind in [FigureKind::Mermaid, FigureKind::Math, FigureKind::Svg] {
             assert_eq!(figures::room(&config.figures, kind).fit(100, 45), (100, 22));
         }
+    }
+
+    #[test]
+    fn a_picture_with_its_top_cut_off_does_not_spill_over_the_rows_above() {
+        // 2026-10-10 项目主人截图：read 读的图在进行中那一段里（只露最新的十几行，上面的不画），整张图往上盖住了前面的字。
+        use ratatui::buffer::Buffer;
+        use ratatui::layout::Rect;
+        use ratatui::text::Span;
+
+        use crate::ui::row_cache::Rows;
+        let config = Config::builtin().unwrap();
+        let human = Human::default();
+        let md = RefCell::new(MdCache::new(8));
+        let mut picker = Picker::halfblocks();
+        picker.set_protocol_type(ProtocolType::Kitty);
+        let (sender, done) = mpsc::channel();
+        let figures = RefCell::new(Figures::start(
+            Some(Graphics { picker }),
+            &config.figures,
+            None,
+            move |d| sender.send(d).is_ok(),
+        ));
+        let ctx = Ctx {
+            config: &config,
+            human: &human,
+            indent: String::new(),
+            width: 100,
+            hover: None,
+            frame: 0,
+            md: &md,
+            figures: &figures,
+            cards: &RefCell::default(),
+            diagrams: &RefCell::default(),
+            writing: None,
+            level: Level::Workspace,
+            screen_rows: 45,
+        };
+        let dir = std::env::temp_dir().join(format!("miyu-spill-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("banner.png");
+        image::RgbaImage::from_pixel(3000, 1000, image::Rgba([0, 128, 255, 255]))
+            .save(&path)
+            .unwrap();
+        let banner = figure(&config, &format!("![]({})", path.display()));
+        assert_eq!(drawn_rows(&banner, &ctx, &done), 10);
+        let picture = rows(Vec::new(), &banner, &ctx);
+        std::fs::remove_dir_all(&dir).unwrap_or_default();
+        // 前面两行别的字，图的头三行切掉了。
+        let text = ctx.row(ctx.blank_slot(), vec![Span::raw("字")]);
+        let mut list = vec![text.clone(), text];
+        list.extend(picture.into_iter().skip(3));
+        let cache = Rows::of_rows(list);
+        let area = Rect::new(0, 0, 100, 12);
+        let mut buf = Buffer::empty(area);
+        super::draw(&mut buf, area, &cache, 0, &mut figures.borrow_mut());
+        let held = |y: u16| (0..area.width).any(|x| super::is_picture(&buf[(x, y)]));
+        assert!(!held(0) && !held(1), "图没盖到前面的字上");
+        assert!(held(2) && held(8), "露出来的那一截照画");
     }
 }

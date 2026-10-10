@@ -4,10 +4,12 @@ use super::{Kind, StepKind, Tally, ToolState, Transcript};
 use crate::config::Config;
 use crate::core::{Block, CallError, Push, Update};
 
+mod answers;
 mod beat;
 mod cache;
 mod chips;
 mod compaction;
+mod compaction_auto;
 mod copy;
 mod done;
 mod failure;
@@ -123,6 +125,15 @@ fn a_tool_goes_from_preparing_to_its_result() {
         }],
     );
     assert!(tool(&t).failed() && !tool(&t).busy());
+    // 结果里带图的：图记在这一步上（「时间线」第 8 条）。
+    apply(
+        &mut t,
+        vec![Push::ToolImages {
+            call_id: "c1".into(),
+            blobs: vec!["sha256:aa".into()],
+        }],
+    );
+    assert_eq!(tool(&t).images, ["sha256:aa"]);
 }
 
 #[test]
@@ -289,7 +300,7 @@ fn an_error_turn_says_why() {
         ],
     );
     assert_eq!(t.entries[0].kind, Kind::Error);
-    assert_eq!(t.entries[0].text, "出错了：no key", "供应商的原话照样写");
+    assert_eq!(t.entries[0].text, "出错：no key", "供应商的原话照样写");
 }
 
 #[test]
@@ -373,7 +384,7 @@ fn undo_counts_only_say_how_many_jobs_stopped() {
     };
     assert_eq!(
         super::words::undo_counts(&report, &texts).as_deref(),
-        Some("停掉了 1 个任务")
+        Some("已停止 1 个任务")
     );
     assert_eq!(super::words::undo_counts(&Default::default(), &texts), None);
 }

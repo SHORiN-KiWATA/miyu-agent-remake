@@ -11,6 +11,7 @@ use super::lit;
 use crate::config::ToolKind;
 use crate::diff;
 use crate::input::{pieces, tail_pieces};
+use crate::markdown::{Figure, FigureKind};
 use crate::meter;
 use crate::theme;
 use crate::transcript::{Step, StepKind, ToolState};
@@ -204,6 +205,17 @@ pub fn preview(step: &Step, style: Style, ctx: &Ctx) -> Vec<Piece> {
             }
             out
         }
+        // 提问答了：一道一行接在这一步的竖线后面（「确认和提问的抽屉」第 6 条）。
+        StepKind::Tool { .. } if !step.answers.is_empty() => step
+            .answers
+            .iter()
+            .flat_map(|a| pieces(a, width))
+            .map(|(l, joined)| Piece {
+                lead: bar(rail),
+                content: vec![Span::styled(l, style)],
+                joined,
+            })
+            .collect(),
         _ => Vec::new(),
     }
 }
@@ -221,6 +233,10 @@ pub fn body(step: &Step, style: Style, width: u16, ctx: &Ctx) -> Vec<Piece> {
     };
     match &step.kind {
         StepKind::Thought { text } => each(text.trim(), theme::thought()).collect(),
+        // 提问答了：点开也是这几行回答（「确认和提问的抽屉」第 6 条）。
+        StepKind::Tool { .. } if !step.answers.is_empty() => {
+            step.answers.iter().flat_map(|a| each(a, style)).collect()
+        }
         StepKind::Tool { output, parsed, .. } => {
             let diff = (kind(step, ctx) == Some(ToolKind::Edit))
                 .then(|| diff::from_args(parsed))
@@ -271,4 +287,21 @@ fn thought_text(style: Style) -> Style {
     } else {
         theme::thought_hover()
     }
+}
+
+/// 结果里带的图（「时间线」第 8 条）：照内容的哈希读回来存成的文件交给画图的那一套；还没读回来的记进单子（和链接卡片
+/// 的图同一份账，读回来就重排），读不成的不画。
+pub fn figures(step: &Step, ctx: &Ctx) -> Vec<Figure> {
+    let mut cards = ctx.cards.borrow_mut();
+    step.images
+        .iter()
+        .filter_map(|blob| cards.file(blob).map(|p| p.display().to_string()))
+        .map(|source| Figure {
+            kind: FigureKind::Preview,
+            source,
+            fallback: Vec::new(),
+            width: None,
+            height: None,
+        })
+        .collect()
 }

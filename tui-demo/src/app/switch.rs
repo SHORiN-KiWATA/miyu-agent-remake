@@ -42,6 +42,8 @@ impl App {
         if let Some(list) = &mut self.session_list {
             list.replace(seen.clone());
         }
+        self.titles_from_list();
+        self.repoint_pick();
     }
 
     /// 核心交回了列表。
@@ -49,6 +51,28 @@ impl App {
         self.sessions_seen = Some(all.clone());
         if let Some(list) = &mut self.session_list {
             list.replace(all);
+        }
+        self.titles_from_list();
+        self.repoint_pick();
+    }
+
+    /// 按页读的会话，起标题、改名的事件可能在更早的页里：正文里还没有标题的照会话列表补上（「会话列表」第 5 条「按页
+    /// 读」）。读最新一页那一刻会话列表可能还没到，到了再补。
+    fn titles_from_list(&mut self) {
+        let Some(seen) = &self.sessions_seen else {
+            return;
+        };
+        let transcripts = std::iter::once(&mut self.transcript)
+            .chain(self.parked.values_mut().map(|p| &mut p.transcript));
+        for transcript in transcripts.filter(|t| t.title.is_none()) {
+            let listed = transcript
+                .session
+                .as_deref()
+                .and_then(|id| seen.iter().find(|s| s.session == id))
+                .and_then(|s| s.title.clone());
+            if listed.is_some() {
+                transcript.title = listed;
+            }
         }
     }
 

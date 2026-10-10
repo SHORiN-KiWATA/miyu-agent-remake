@@ -21,6 +21,10 @@ pub(super) enum Awaiting {
     Rename(Option<String>),
     /// 带 `after` 订阅：回应到了算补完（「会话列表」第 5 条）。
     Replay(String),
+    /// 要最新一页（核心 9-6 下）：到了画进去，再带 `after` 订阅；核心旧的照旧补整份。
+    Page(String),
+    /// 要更早的一页：到了交给界面拼在前面。
+    Older(String),
     /// 列出会话：回应交给界面。
     List,
     /// 订阅会话列表（核心 9-5）：回应的整张列表交给界面；老核心不认的不说。
@@ -47,6 +51,12 @@ pub(super) enum Awaiting {
     Configure(String),
     /// 配置页的一条请求：界面给的编号。
     Ask(u64),
+    /// 列人格：回应交给界面。
+    Personas,
+    /// 列预设：回应交给界面。
+    Presets,
+    /// 列软件包：回应交给界面。
+    Packages,
     /// 查用量（`/usage`）：哪一样。
     Usage(super::UsageKind),
     /// 斜杠命令（`command.run`）：回执交给界面。

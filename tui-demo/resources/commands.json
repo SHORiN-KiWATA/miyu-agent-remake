@@ -6,8 +6,8 @@
         "rewind"
       ],
       "summary": {
-        "zh": "撤销上一轮，她改过的文件改回去",
-        "en": "Undo the last turn and revert the files she changed",
+        "zh": "撤销上一轮并还原改过的文件",
+        "en": "Undo the last turn and revert the files it changed",
         "ja": "直前のやり取りを取り消し、変更されたファイルを元に戻す"
       },
       "run": "revert"
@@ -129,6 +129,34 @@
       "run": "sessions"
     },
     {
+      "name": "persona",
+      "summary": {
+        "zh": "新会话用哪个人格：开会话以前能换",
+        "en": "Which persona the new session uses; can change before it starts",
+        "ja": "新しいセッションのペルソナ：始まる前なら変えられる"
+      },
+      "run": "persona"
+    },
+    {
+      "name": "preset",
+      "summary": {
+        "zh": "新会话用哪个预设：开会话以前能换",
+        "en": "Which preset the new session uses; can change before it starts",
+        "ja": "新しいセッションのプリセット：始まる前なら変えられる"
+      },
+      "run": "preset"
+    },
+    {
+      "name": "workspace",
+      "summary": {
+        "zh": "切换工作区：/workspace <路径>",
+        "en": "Change the workspace: /workspace <path>",
+        "ja": "作業場所を変える：/workspace <パス>"
+      },
+      "run": "workspace",
+      "args": true
+    },
+    {
       "name": "model",
       "summary": {
         "zh": "换这个会话的模型",
@@ -206,8 +234,8 @@
     {
       "name": "copy",
       "summary": {
-        "zh": "复制她上一轮的回答",
-        "en": "Copy her last reply",
+        "zh": "复制上一轮的回答",
+        "en": "Copy the last reply",
         "ja": "直前の返信をコピーする"
       },
       "run": "copy"
@@ -251,8 +279,8 @@
     {
       "name": "demo-ask",
       "summary": {
-        "zh": "演示：她问一个假的问题，看提问的抽屉",
-        "en": "Demo: she asks a fake question, to see the question drawer",
+        "zh": "演示：提问的抽屉",
+        "en": "Demo: the question drawer",
         "ja": "デモ：ダミーの質問をして、質問ドロワーを表示する"
       },
       "run": "demo_ask"

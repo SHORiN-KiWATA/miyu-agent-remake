@@ -25,6 +25,10 @@ pub struct AttachTexts {
     pub file: String,
     /// 目录块：`{name}` 目录名。
     pub folder: String,
+    /// 每一种的名字（提示里用）：`image` 是「图片」。
+    pub names: HashMap<String, String>,
+    /// 模型收不了、改成了文件块时提示的（「输入框」第 12 条「照模型收」）：`{kinds}` 那几种的名字。
+    pub refused: String,
 }
 
 /// 一种附件。
@@ -51,6 +55,11 @@ mod tests {
                 .get(&kind.name)
                 .unwrap_or_else(|| panic!("{} 没有块上的字", kind.name));
             assert!(label.contains("{n}"), "{} 的块上要写第几个", kind.name);
+            assert!(
+                config.text.attach.names.contains_key(&kind.name),
+                "{} 没有名字",
+                kind.name
+            );
             assert!(
                 kind.extensions
                     .iter()

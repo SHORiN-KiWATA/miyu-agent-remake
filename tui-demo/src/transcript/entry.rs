@@ -29,6 +29,8 @@ pub enum Kind {
     Answered,
     /// 一段回顾：和提问答了的引用块一个样子（蓝图「回顾」第 2 条）。
     Recap,
+    /// 老会话按页读，更早的还有：正文最上面一行暗色的「正在读更早的…」（蓝图「会话列表」第 5 条「按页读」）。
+    Older,
 }
 
 /// 后台任务结束的通知：成败决定记号的颜色（蓝图「后台命令、子代理和侧边栏」第 5 条）。
@@ -92,4 +94,30 @@ pub struct Entry {
     pub progress: Option<Progress>,
     /// 旁白前面绿色的记号（压好了的 `● `，蓝图「正文」第 9 条）；别的是 `None`。
     pub mark: Option<String>,
+}
+
+impl Entry {
+    /// 只有种类和字的一条，别的都空着。
+    pub fn new(id: u64, kind: Kind, text: String) -> Entry {
+        Entry {
+            id,
+            kind,
+            text,
+            segment: None,
+            turn: None,
+            covers: None,
+            hidden: false,
+            queued: false,
+            seq: None,
+            undo: None,
+            open: false,
+            level: None,
+            job: None,
+            from: None,
+            pasted: Vec::new(),
+            details: Vec::new(),
+            progress: None,
+            mark: None,
+        }
+    }
 }

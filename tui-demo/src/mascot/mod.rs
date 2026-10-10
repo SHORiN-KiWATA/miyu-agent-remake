@@ -5,6 +5,7 @@ mod attention;
 mod idle;
 mod model;
 mod mouth;
+pub mod package;
 mod perch;
 mod render;
 
@@ -12,7 +13,7 @@ use std::time::{Duration, Instant};
 
 pub use attention::Attention;
 pub use idle::Idle;
-pub use model::{Gaze as GazeLook, Look, Part};
+pub use model::{Gaze as GazeLook, Idle as IdleLook, Look, Part};
 pub use mouth::Mouth;
 pub use perch::Perch;
 pub use render::render;
@@ -30,6 +31,14 @@ pub struct Pose {
     pub ear: f64,
     /// 嘴张多大：0 合着、1 张到最大（第 9 条）。
     pub mouth: f64,
+    /// 整个身子左右转多少（度，往右为正）：头、耳朵、鳍一起转，不照 `follow`、不受转头的上限管（引导的开场转一圈，
+    /// 「第一次打开的引导」第 8、28 条）。
+    pub spin: f64,
+    /// 暗多少：0 照常，1 全黑什么都不画；过了一半脸上的记号也不画（引导的开场从黑到亮）。
+    pub dark: f64,
+    /// 歪头多少（度，往右为正）：头、耳朵绕着朝人的那根轴转，鳍照 `follow` 跟几成（引导里打字时歪着头看，
+    /// 「第一次打开的引导」第 10 条）。
+    pub roll: f64,
 }
 
 impl Pose {

@@ -36,7 +36,8 @@ pub fn lines(
             | Panel::Sessions
             | Panel::Models
             | Panel::Effort { .. }
-            | Panel::Usage { .. },
+            | Panel::Usage { .. }
+            | Panel::Pick { .. },
         ) => (Chrome::default(), Vec::new(), Vec::new()),
         Some(Panel::Background {
             selected,
@@ -203,6 +204,7 @@ mod tests {
             agent: false,
             title: String::new(),
             session: None,
+            foreground: false,
         };
         board.start(&start("j1"), Some("cargo test".into()), t0);
         board.start(&start("j2"), Some("npm run build".into()), t0);
@@ -239,10 +241,10 @@ mod tests {
         let text: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
         // 2026-09-30 项目主人：三样一个框，标题嵌在上边框、按键提示嵌在下边框，框里不空行。
         let title: String = chrome.title.iter().map(|s| s.content.as_ref()).collect();
-        assert_eq!(title, "后台 · 1 个在跑的命令");
+        assert_eq!(title, "后台 · 1 个运行中的命令");
         assert_eq!(
             chrome.hint.as_deref(),
-            Some("↑/↓ 选 · Enter 展开 · x 停止 · Esc 关闭")
+            Some("↑/↓ 选择 · Enter 展开 · x 停止 · Esc 关闭")
         );
         assert!(
             text[0].starts_with("❯ npm run build"),
@@ -338,6 +340,7 @@ mod tests {
             agent: false,
             title: String::new(),
             session: None,
+            foreground: false,
         };
         board.start(&start, Some("ls".into()), t0);
         let done = JobEnd {

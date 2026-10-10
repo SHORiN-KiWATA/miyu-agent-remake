@@ -67,6 +67,12 @@ pub fn draw(
             lines.button = Some(confirm.sel);
             lines.hints = texts.popup_hints[3].clone();
         }
+        Popup::Choose(choose) => super::more_popups::choose(&mut lines, choose, texts, width),
+        Popup::Line(edit) => super::more_popups::line(&mut lines, edit, texts),
+        Popup::Persona(view) => super::more_popups::persona(&mut lines, view, page, texts),
+        Popup::Preset(view) => super::more_popups::preset(&mut lines, view, page, texts),
+        Popup::Dialogs(view) => super::dialog_popups::dialogs(&mut lines, view, texts, width),
+        Popup::Pair(edit) => super::dialog_popups::pair(&mut lines, edit, texts),
     }
     let height = (lines.body.len() as u16 + 8 + u16::from(lines.error.is_some())).min(max_height);
     let rect = Rect::new(
@@ -81,30 +87,30 @@ pub fn draw(
 
 /// 窗里的一行行，画之前先排好。
 #[derive(Default)]
-struct Lines {
-    title: Option<(String, String)>,
-    body: Vec<Body>,
-    error: Option<String>,
-    buttons: Vec<(String, bool)>,
-    button: Option<usize>,
-    hints: Vec<[String; 2]>,
+pub(super) struct Lines {
+    pub(super) title: Option<(String, String)>,
+    pub(super) body: Vec<Body>,
+    pub(super) error: Option<String>,
+    pub(super) buttons: Vec<(String, bool)>,
+    pub(super) button: Option<usize>,
+    pub(super) hints: Vec<[String; 2]>,
     /// 正在改的那一行：第几行、光标在第几列。
-    caret: Option<(usize, u16)>,
+    pub(super) caret: Option<(usize, u16)>,
 }
 
 /// 一行：字、选中没有、点到它是什么。
-struct Body {
-    line: Line<'static>,
-    focused: bool,
-    hit: Option<Hit>,
+pub(super) struct Body {
+    pub(super) line: Line<'static>,
+    pub(super) focused: bool,
+    pub(super) hit: Option<Hit>,
 }
 
 impl Lines {
-    fn title(&mut self, title: String, sub: String) {
+    pub(super) fn title(&mut self, title: String, sub: String) {
         self.title = Some((title, sub));
     }
 
-    fn plain(&mut self, line: Line<'static>) {
+    pub(super) fn plain(&mut self, line: Line<'static>) {
         self.body.push(Body {
             line,
             focused: false,
@@ -210,6 +216,7 @@ fn pick_lines(lines: &mut Lines, pick: &Pick, page: &Settings, texts: &Texts, wi
     let current = match pick.usage {
         Use::Chat => page.view.chat.clone(),
         Use::Vision => page.view.vision.clone(),
+        Use::Embedding => None,
     };
     let right = width.saturating_sub(4) as usize;
     for (i, item) in pick.items(&page.view).into_iter().enumerate() {

@@ -78,8 +78,8 @@ fn slash_stop_interrupts_and_keeps_the_queued_message_without_starting_a_turn() 
     tui.say("排着的一句");
     tui.wait_for("↳ 排着的一句");
     tui.say("/stop");
-    tui.wait_for("已全部停下");
-    assert!(!tui.shows("已全部停下。"), "提示框里不要句号");
+    tui.wait_for("已全部停止");
+    assert!(!tui.shows("已全部停止。"), "提示框里不要句号");
     tui.wait_for("已中断");
     tui.wait_for("┃ 排着的一句");
     tui.pump(Duration::from_millis(1500));

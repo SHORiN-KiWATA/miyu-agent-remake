@@ -1992,16 +1992,20 @@ dependencies = [
  "base64 0.22.1",
  "getrandom 0.4.3",
  "jiff",
+ "miyu-assemble",
  "miyu-config",
  "miyu-drivers",
  "miyu-fs",
  "miyu-ipc",
  "miyu-kernel",
  "miyu-models",
+ "miyu-policy",
+ "miyu-recall",
  "miyu-sandbox",
  "miyu-session",
  "miyu-store",
  "miyu-tool",
+ "miyu-view",
  "serde",
  "serde_json",
  "similar",
@@ -2101,6 +2105,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.11.0",
+ "toml_edit",
 ]
 
 [[package]]
@@ -2131,6 +2136,7 @@ name = "miyu-policy"
 version = "0.0.0"
 dependencies = [
  "miyu-assemble",
+ "miyu-config",
  "miyu-drivers",
  "miyu-kernel",
  "serde",
@@ -2145,6 +2151,7 @@ dependencies = [
  "miyu-kernel",
  "serde",
  "serde_json",
+ "toml_edit",
 ]
 
 [[package]]
@@ -2177,6 +2184,7 @@ dependencies = [
  "miyu-store",
  "miyu-tool",
  "serde_json",
+ "sha2 0.11.0",
  "tokio",
  "tracing",
  "uuid",
@@ -2245,6 +2253,16 @@ dependencies = [
  "unicode-segmentation",
  "unicode-width",
  "vt100",
+]
+
+[[package]]
+name = "miyu-view"
+version = "0.0.0"
+dependencies = [
+ "miyu-kernel",
+ "serde",
+ "serde_json",
+ "similar",
 ]
 
 [[package]]
@@ -2977,9 +2995,9 @@ dependencies = [
 
 [[package]]
 name = "ratatui-image"
-version = "11.1.0"
+version = "12.0.0-rc.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9593d10c61ec2007f429d1fafc4f4a19fecdbae4d06b531a2d505227fb82f5ea"
+checksum = "a4a226637f1c19a2883869f56d39855b53e8f568d9df5240e48e014711fbfbf5"
 dependencies = [
  "base64-simd",
  "flate2",
@@ -3614,6 +3632,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_spanned"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e7523beb55eece201a2356bee0bbca0d1ab466c14c07703b2e0ee6d42cb0c2c"
+dependencies = [
+ "serde_core",
+]
+
+[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4230,6 +4257,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1340ea94a5856333492c9064b02c778b191dd2c853778d9609debdcdfea3a614"
 dependencies = [
  "indexmap",
+ "serde_core",
+ "serde_spanned",
  "toml_datetime",
  "toml_parser",
  "winnow",

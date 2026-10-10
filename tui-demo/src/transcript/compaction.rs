@@ -19,25 +19,44 @@ impl Transcript {
         let words = &texts.compaction;
         match push {
             // 流光、点、下面的进度条画的时候加（`ui/compaction_rows.rs`）。
-            Compaction::Progress { written, expected } => {
+            Compaction::Progress {
+                written,
+                expected,
+                manual,
+            } => {
                 self.settle_filling();
+                // 自动压缩停下来等：行首绿点、不画进度条；手动的（`/compact`）照旧有（「正文」第 9 条，2026-10-10 项目
+                // 主人）。旧核心不带 `trigger`：这个头自己发了 `/compact` 的算手动。
+                let manual = manual.unwrap_or(self.manual_compaction);
+                let expected = expected.filter(|_| manual);
                 let count = words
                     .written
                     .replace("{written}", &meter::thousands(written));
                 let text = format!("{}{count}", words.progress);
-                // 同一次压缩接着记：进度条亮到哪、这次从哪一刻开始都留着。
+                // 同一次压缩接着记：进度条亮到哪、这次从哪一刻开始都留着。字数变小是重来了（核心 6-11 下：提前压的那一次
+                // 出错、改当场压），从零画。
                 let progress = match self.compacting_progress() {
-                    Some(mut p) => {
+                    Some(mut p) if written >= p.written => {
                         p.written = written;
                         p.expected = expected;
                         p
                     }
-                    None => Progress::new(written, expected, Instant::now()),
+                    _ => Progress::new(written, expected, Instant::now()),
                 };
                 self.compacting_line(Kind::Note, text, Some(progress));
+                if !manual && let Some(entry) = self.compacting_mut() {
+                    entry.mark = Some(words.done_mark.clone());
+                }
             }
             // 有进度条的先走满、停一下再换（`climb`）；没有条的当场换。
-            Compaction::Done { before, after } => {
+            // 提前在后台开始压：正文不写（提示由 App 弹，「正文」第 9 条）。
+            Compaction::Started => {}
+            // 提前在后台压好、没停下来等就换上了：正文不写（同上）。
+            Compaction::Done { prepared: true, .. } if self.compacting.is_none() => {
+                self.manual_compaction = false;
+            }
+            Compaction::Done { before, after, .. } => {
+                self.manual_compaction = false;
                 let text = words
                     .done
                     .replace("{before}", &meter::short(before))
@@ -65,6 +84,7 @@ impl Transcript {
                 self.compacting = None;
             }
             Compaction::Failed(error) => {
+                self.manual_compaction = false;
                 let reason =
                     if error.class == "bad_summary" && error.message.contains("called a tool") {
                         words.called_a_tool.clone()
@@ -97,6 +117,7 @@ impl Transcript {
     /// 一轮结束：还在「正在压缩」的那一行藏起来，这一轮的收尾会说。压好了、条还在走满的留着接着走
     /// （手动压缩那一轮压好就结束），走满了由 `climb` 换成结果。
     pub(super) fn drop_compacting(&mut self) {
+        self.manual_compaction = false;
         let filling = self
             .compacting_mut()
             .is_some_and(|e| e.progress.as_ref().is_some_and(|p| p.finish.is_some()));

@@ -15,6 +15,7 @@ mod failure;
 mod foreign;
 mod jobs;
 mod model;
+mod pages;
 mod queue;
 mod recap;
 mod redo;
@@ -24,6 +25,7 @@ mod steps;
 mod turn;
 mod undo;
 mod words;
+pub mod workspace;
 
 #[cfg(test)]
 mod tests;
@@ -90,6 +92,10 @@ pub struct Transcript {
     pub total: Usage,
     /// 这个会话花了多少：每次有用量的请求的金额照币种加起来，算不出的数几次（核心 8-15）。
     pub bill: Bill,
+    /// 会话用哪个人格、哪个预设（订阅的回应里的，核心 P-1 下、P-2 上）：侧边栏照它写。
+    pub persona: Option<String>,
+    /// 见 `persona`。
+    pub preset: Option<String>,
     /// 这一轮每次请求的用量加起来：收尾行写它（`tui.md`「正文」第 4 条）。
     turn_usage: Usage,
     /// 这一轮开始时的权限级别：收尾行打头的图标照它，之后换了级别也不变。
@@ -102,6 +108,8 @@ pub struct Transcript {
     pub limits: Limits,
     /// 正在压缩的那一行是第几条（`compaction.rs`）。
     compacting: Option<usize>,
+    /// 这个头发了 `/compact`、还没压完：旧核心的进度不带 `trigger` 时照它认手动（`compaction.rs`）。
+    pub manual_compaction: bool,
     /// 这一轮她出过字了（来过一块）：出过就不再算在等第一个字（[`Transcript::waiting`]）。
     spoke: bool,
     /// 这一轮是手动压缩（`turn.started` 没有 `trigger`，施工 6-8）：压好了不另起收尾行。
@@ -126,6 +134,12 @@ pub struct Transcript {
     reverted: Vec<u64>,
     /// 下一条正文的编号。
     next_id: u64,
+    /// 老会话按页读读到哪了（`pages.rs`）。
+    older: pages::Older,
+    /// 会话在哪个目录干活（订阅回应、`session.workspace_changed`，核心 9-7 上）；还没开会话、核心旧的是 `None`。
+    pub workspace: Option<String>,
+    /// 接上时已经说过她在哪干活了（`workspace.rs`）。
+    workspace_told: bool,
 }
 
 impl Default for Transcript {
@@ -144,12 +158,15 @@ impl Default for Transcript {
             level: Level::Workspace,
             total: Usage::default(),
             bill: Bill::default(),
+            persona: None,
+            preset: None,
             turn_usage: Usage::default(),
             turn_level: Level::Workspace,
             context: 0,
             cache: CacheWatch::default(),
             limits: Limits::default(),
             compacting: None,
+            manual_compaction: false,
             spoke: false,
             manual: false,
             cleared: false,
@@ -160,6 +177,9 @@ impl Default for Transcript {
             turn: None,
             reverted: Vec::new(),
             next_id: 0,
+            older: pages::Older::default(),
+            workspace: None,
+            workspace_told: false,
             returned: Vec::new(),
             opened_by: Vec::new(),
         }
@@ -183,26 +203,12 @@ impl Transcript {
     pub fn note(&mut self, kind: Kind, text: String) {
         self.finish_segment();
         let id = self.fresh_id();
-        self.entries.push(Entry {
-            id,
-            kind,
-            text,
-            segment: None,
-            turn: None,
-            covers: None,
-            hidden: false,
-            queued: false,
-            seq: None,
-            undo: None,
-            open: false,
-            level: None,
-            job: None,
-            pasted: Vec::new(),
-            from: None,
-            details: Vec::new(),
-            progress: None,
-            mark: None,
-        });
+        self.entries.push(Entry::new(id, kind, text));
+    }
+
+    /// 正文里有正在压缩的那一行（停下来等、手动压缩）。
+    pub fn compacting_shown(&self) -> bool {
+        self.compacting.is_some()
     }
 
     /// 有没有还在进行的步骤、正在压缩：有就要转圈。
@@ -235,9 +241,16 @@ impl Transcript {
             | Update::Renamed(_)
             | Update::Sessions(_)
             | Update::HeadConfig(_)
-            | Update::Human(_) => {}
+            | Update::Human(_)
+            | Update::Older { .. }
+            | Update::Workspace { .. }
+            | Update::DirChecked(_) => {}
             Update::CoolingUntil(until) => self.cooling_until(until),
             Update::CurrentModel(current) => self.current_model(current),
+            Update::SessionPersona(persona) => self.persona = Some(persona),
+            Update::Paged(more) => self.paged(more, texts),
+            Update::Snapshot(snapshot) => self.snapshot(snapshot.usage.as_ref(), snapshot.level),
+            Update::SessionPreset(preset) => self.preset = Some(preset),
             Update::Configured(reference) => self.configured(reference),
             Update::Choices(_)
             | Update::Files { .. }
@@ -248,6 +261,9 @@ impl Transcript {
             | Update::Answer { .. }
             | Update::CommandRan { .. }
             | Update::UsageRows { .. }
+            | Update::Personas(_)
+            | Update::Packages(_)
+            | Update::Presets(_)
             | Update::AnswerRefused { .. }
             | Update::ConfigChanged
             | Update::SessionChanged(_) => {}
@@ -301,15 +317,20 @@ impl Transcript {
             }
             // 去掉标题推来的是空的：读成没有标题。
             Push::Title(title) => self.title = (!title.is_empty()).then_some(title),
+            Push::Workspace(cwd) => self.workspace_changed(cwd, texts),
             Push::Policy { level, read_only } => {
                 self.level = if read_only { Level::ReadOnly } else { level };
             }
             Push::Reverted(turns) => {
                 self.cache.reverted();
                 self.hide(&turns, true);
+                self.decided(&turns, true);
                 self.reverted = turns;
             }
-            Push::Unreverted(turns) => self.hide(&turns, false),
+            Push::Unreverted(turns) => {
+                self.hide(&turns, false);
+                self.decided(&turns, false);
+            }
             Push::UndoLine => self.undo_line(crate::core::Report::default()),
             Push::UndoFiles(files) => self.undo_files(files),
             Push::UndoGone => self.undo_gone(),
@@ -371,9 +392,16 @@ impl Transcript {
                     }
                 }
             }
+            Push::ToolImages { call_id, blobs } => {
+                let at = self.calls.get(&call_id).copied();
+                if let Some(step) = at.and_then(|at| self.step_mut(at)) {
+                    step.images = blobs;
+                }
+            }
             // 别处来的话、后台任务：界面照会话、任务表先办了（`app/sessions.rs`），正文不直接收。
             Push::Foreign(_)
             | Push::JobStarted(_)
+            | Push::JobEarlier(_)
             | Push::JobMessaged(_)
             | Push::JobEnded(_)
             | Push::PeerIdle { .. } => {}
@@ -435,19 +463,6 @@ impl Transcript {
         std::mem::take(&mut self.returned)
     }
 
-    pub(super) fn hide(&mut self, turns: &[u64], hidden: bool) {
-        // 别处来的话撤销不带走它（「别处来的话」第 3 条）。
-        for entry in self.entries.iter_mut().filter(|e| e.from.is_none()) {
-            if entry
-                .turn
-                .or(entry.covers)
-                .is_some_and(|t| turns.contains(&t))
-            {
-                entry.hidden = hidden;
-            }
-        }
-    }
-
     /// 记一条。你说的话等开轮时再归；别的归到在跑的这一轮。
     fn push(&mut self, kind: Kind, text: String) {
         let user = kind == Kind::User;
@@ -461,24 +476,10 @@ impl Transcript {
         };
         let id = self.fresh_id();
         self.entries.push(Entry {
-            id,
-            kind,
-            text,
-            segment: None,
             turn,
-            covers: None,
-            hidden: false,
             queued,
-            seq: None,
-            undo: None,
-            open: false,
             level,
-            job: None,
-            pasted: Vec::new(),
-            from: None,
-            details: Vec::new(),
-            progress: None,
-            mark: None,
+            ..Entry::new(id, kind, text)
         });
     }
 

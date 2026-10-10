@@ -10,7 +10,7 @@ use super::rpc::Rpc;
 use super::serve::Link;
 use super::sessions;
 use super::switch;
-use super::{JobOutput, Push, Report, Update, config};
+use super::{JobOutput, Push, Report, Snapshot, Update, config};
 
 /// 处理一条读进来的：推送、回应。交回界面还在不在。
 pub(super) async fn take(
@@ -40,6 +40,11 @@ pub(super) async fn take(
                 }),
             }),
             Some(Awaiting::Send | Awaiting::Redo) => notify(Update::Unsent { reason, message }),
+            // 读不了人格（旧核心）：当没有，不弹人格框。
+            Some(Awaiting::Personas) => notify(Update::Personas(Vec::new())),
+            Some(Awaiting::Presets) => notify(Update::Presets(Vec::new())),
+            // 读不了软件包（旧核心）：当没有，输入历史照旧放老位置。
+            Some(Awaiting::Packages) => notify(Update::Packages(Vec::new())),
             Some(Awaiting::Usage(kind)) => notify(Update::UsageRows {
                 kind,
                 rows: Err(message),
@@ -59,6 +64,15 @@ pub(super) async fn take(
             // 画不出、太长、核心没编进 mermaid（`unknown_method`）：写源码。
             Some(Awaiting::Mermaid(source)) => notify(Update::Mermaid { source, svg: None }),
             Some(Awaiting::Files(word)) => notify(Update::Files { word, result: None }),
+            // 要最新一页被拒了：核心旧的补整份，别的照补发不成办（`page.rs`）。
+            Some(Awaiting::Page(session)) => {
+                super::page::take_refused(rpc, link, session, (reason, message), awaiting, notify)
+                    .await
+            }
+            // 更早的一页读不成：界面去掉顶上那一行、弹原因。
+            Some(Awaiting::Older(session)) => {
+                super::page::take_older(link, session, Err(message), notify)
+            }
             // 切过去订阅不上（会话删了、日志坏了）：不再当它在补发，照一般的拒绝说。
             Some(Awaiting::Replay(session)) => {
                 link.replays.remove(&session);
@@ -89,6 +103,24 @@ pub(super) async fn take(
                 || notify(Update::Recap(text.to_string()));
         }
         Some(Awaiting::Rename(title)) => return notify(Update::Renamed(title)),
+        Some(Awaiting::Packages) => {
+            let packages = message["result"]["packages"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|p| {
+                    let id = p["package"].as_str()?.to_string();
+                    Some((id, p["state"].as_str().map(std::path::PathBuf::from)))
+                })
+                .collect();
+            return notify(Update::Packages(packages));
+        }
+        Some(Awaiting::Presets) => {
+            return notify(Update::Presets(super::read_presets(&message["result"])));
+        }
+        Some(Awaiting::Personas) => {
+            return notify(Update::Personas(super::read_personas(&message["result"])));
+        }
         Some(Awaiting::Usage(kind)) => {
             let rows = Ok(super::cost::rows(&message["result"]));
             return notify(Update::UsageRows { kind, rows });
@@ -158,6 +190,21 @@ pub(super) async fn take(
         Some(Awaiting::List | Awaiting::SessionsStream) => {
             return notify(Update::Sessions(sessions::read(&message["result"])));
         }
+        // 最新一页到了：画进去，再带 `after` 订阅（`page.rs`）。
+        Some(Awaiting::Page(session)) => {
+            return super::page::take_latest(
+                rpc,
+                link,
+                session,
+                &message["result"],
+                awaiting,
+                notify,
+            )
+            .await;
+        }
+        Some(Awaiting::Older(session)) => {
+            return super::page::take_older(link, session, Ok(&message["result"]), notify);
+        }
         // 补完了：还记着的读出来、钟回到现在，再交限额（「会话列表」第 5 条）。
         Some(Awaiting::Replay(session)) => {
             let wrap = |update: Update| Update::Elsewhere {
@@ -171,6 +218,17 @@ pub(super) async fn take(
             {
                 return false;
             }
+            // 会话用哪个人格、哪个预设（核心 P-1 下、P-2 上）。
+            if let Some(persona) = message["result"]["persona"].as_str()
+                && !notify(wrap(Update::SessionPersona(persona.to_string())))
+            {
+                return false;
+            }
+            if let Some(preset) = message["result"]["preset"].as_str()
+                && !notify(wrap(Update::SessionPreset(preset.to_string())))
+            {
+                return false;
+            }
             // 现在的待办（核心 D-3）：订阅回应里带着，补发的事件里没有（`todos.changed` 是瞬时的）。
             if let Some(todos) = super::todos::read(&message["result"])
                 && !notify(wrap(Update::Push(Push::Todos {
@@ -180,15 +238,58 @@ pub(super) async fn take(
             {
                 return false;
             }
+            // 累计用量、权限、还在跑的（核心 9-6 上）：整个换掉页里的事件算出来的，换上来以前就对。
+            if let Some(snapshot) = Snapshot::read(&message["result"])
+                && !notify(wrap(Update::Snapshot(snapshot)))
+            {
+                return false;
+            }
+            // 会话的工作区（核心 9-7 上）：补完、换上来以后再交，终端在别的目录时正文末尾写一句。
+            let workspace = super::connect::workspace(&message["result"])
+                .map(|cwd| Update::Workspace { cwd, joined: true });
             return pushes.into_iter().all(|p| notify(wrap(Update::Push(p))))
-                && Limits::of(message).is_none_or(|limits| notify(wrap(Update::Limits(limits))));
+                && Limits::of(message).is_none_or(|limits| notify(wrap(Update::Limits(limits))))
+                && workspace.is_none_or(|w| notify(wrap(w)));
         }
         Some(Awaiting::Watch(session)) => {
+            let reply = &message["result"];
+            let named = [
+                reply["persona"]
+                    .as_str()
+                    .map(|p| Update::SessionPersona(p.to_string())),
+                reply["preset"]
+                    .as_str()
+                    .map(|p| Update::SessionPreset(p.to_string())),
+            ];
+            for update in named.into_iter().flatten() {
+                let update = Box::new(update);
+                if !notify(Update::Elsewhere {
+                    session: session.clone(),
+                    update,
+                }) {
+                    return false;
+                }
+            }
             if let Some(todos) = super::todos::read(&message["result"]) {
                 let update = Box::new(Update::Push(Push::Todos {
                     todos,
                     done: Vec::new(),
                 }));
+                let session = session.clone();
+                if !notify(Update::Elsewhere { session, update }) {
+                    return false;
+                }
+            }
+            if let Some(cwd) = super::connect::workspace(reply) {
+                let update = Box::new(Update::Workspace { cwd, joined: false });
+                let session = session.clone();
+                if !notify(Update::Elsewhere { session, update }) {
+                    return false;
+                }
+            }
+            // 不带 `after` 订阅的（重连时也重订）：累计用量照三格换，中间漏掉的补回来（核心 9-6 上）。
+            if let Some(snapshot) = Snapshot::read(reply) {
+                let update = Box::new(Update::Snapshot(snapshot));
                 let session = session.clone();
                 if !notify(Update::Elsewhere { session, update }) {
                     return false;

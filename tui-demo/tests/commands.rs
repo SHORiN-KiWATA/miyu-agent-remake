@@ -29,5 +29,5 @@ fn slash_stop_before_any_session_says_nothing_is_running() {
     let mut tui = home.tui("zh_CN.UTF-8");
     tui.wait_for("工作区");
     tui.say("/stop");
-    tui.wait_for("没在运行");
+    tui.wait_for("没有运行中的任务");
 }

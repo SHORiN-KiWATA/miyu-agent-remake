@@ -75,8 +75,6 @@ pub struct Texts {
     pub side_breaks: String,
     /// 花了多少，`{amounts}`（`$0.42 + ¥1.30`，核心 8-15）；一笔都算不出的不写。
     pub side_cost: String,
-    /// 有几次请求没有价格，`{n}`；都有价格的不写。
-    pub side_unpriced: String,
     /// 后台命令、子代理、待办的字。
     pub jobs: JobTexts,
     /// 帮助框里的字（`/help`）。
@@ -141,6 +139,10 @@ pub struct Texts {
     pub status_hints: HashMap<String, String>,
     /// 正在重试。
     pub retry: String,
+    /// 老会话按页读，正文最上面那一行：更早的还有，正在读（蓝图「会话列表」第 5 条「按页读」）。
+    pub older: String,
+    /// 更早的一页读不成，弹的提示：`{reason}` 是核心的原话。
+    pub older_failed: String,
     /// 上下文用量，紧凑写法照旧版：`{used}` 用了多少，`{window}` 窗口多大，`{percent}` 一位小数的百分比。
     pub context: String,
     /// 空着按 `Ctrl+C` 的提示。
@@ -180,6 +182,8 @@ pub struct Texts {
     pub error_classes: HashMap<String, String>,
     /// 图还在做时那一行占位。
     pub figure_pending: String,
+    /// 吉祥物包读不成、查不过，换回内置的（蓝图「吉祥物包」第 3 条）。
+    pub mascot_failed: String,
     /// mermaid 图下面那一行，点了开大图。
     pub figure_zoom: String,
     /// 换了主题，`{name}` 是名字。
@@ -204,6 +208,10 @@ pub struct Texts {
     pub language_switched: String,
     /// `/language` 开的框里的字。
     pub languages: crate::ui::languages::Texts,
+    /// 新会话的人格框（蓝图「新会话：人格、工作区」）。
+    pub persona_box: crate::ui::persona_list::Texts,
+    /// 工作区那几句（「新会话：人格、工作区」第 4、5 条）。
+    pub workspace: crate::transcript::workspace::Texts,
     /// `/sessions` 开的框里的字（蓝图「会话列表」）。
     pub sessions: crate::ui::session_list::Texts,
     /// `/model` 开的框里的字（「配置与模型」第 1 条）。
@@ -228,6 +236,8 @@ pub struct Texts {
     pub summary: Summary,
     /// 累计用量和缓存命中率，紧凑写法照旧版：`{tokens}` 写短的 token 数，`{percent}` 命中率的整数。
     pub total: String,
+    /// 第一次打开的引导上的字（蓝图「第一次打开的引导」）。
+    pub oobe: crate::oobe::Texts,
 }
 
 /// 全部配置。
@@ -257,6 +267,8 @@ pub struct Config {
     pub pulse: Words,
     /// 首页的吉祥物。
     pub mascot: Look,
+    /// 第一次打开的引导的数值（`resources/oobe.json`）。
+    pub oobe: crate::oobe::look::Look,
     /// 演示用的假数据源的脚本（后台命令、子代理、待办）。
     pub fake: Script,
     /// 出厂的主题：名字和颜色，照登记的先后。
@@ -330,6 +342,7 @@ impl Config {
                 &table,
             )?,
             mascot: parse("mascot.json", include_str!("../../resources/mascot.json"))?,
+            oobe: parse("oobe.json", include_str!("../../resources/oobe.json"))?,
             fake: parse("fake.json", include_str!("../../resources/fake.json"))?,
             themes: crate::theme::builtin()?,
             icons,
@@ -378,7 +391,7 @@ mod tests {
             text.refusal_hints
                 .get("nothing_to_compact")
                 .map(String::as_str),
-            Some("上下文过少")
+            Some("没有可压缩的内容")
         );
     }
 

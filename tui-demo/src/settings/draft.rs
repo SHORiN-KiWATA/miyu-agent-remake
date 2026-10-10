@@ -1,5 +1,6 @@
 //! 草稿（蓝图「配置页」第 16、24 条）：悬浮窗「确定」记进这里，`s` 一起存。草稿就是要发的那条 `config.set`：键 → 改成什么
-//! 或删掉；另记要存进密钥库的明文 key（照供应商记，存的时候才起名字）。
+//! 或删掉；另记要存进密钥库的明文 key（照供应商记，存的时候才起名字）。平常写个人设置；只有系统配置这一层的项（运行日志
+//! 级别这类，第 33 条）当场存，那一次写系统配置。
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -29,21 +30,32 @@ pub struct Draft {
     pub new_models: Vec<(String, String)>,
     /// 新建的池，照建的先后。
     pub new_pools: Vec<String>,
+    /// 这一份写系统配置（不是个人设置）：改只有系统配置这一层的项时设上，存完、扔掉时回到个人设置。
+    pub system: bool,
 }
 
 impl Draft {
-    /// 改成 `value`；和个人层现在写的一样的不算改动。
+    /// 写到的那一层现在写着的：个人设置，或者系统配置（[`Draft::system`]）。
+    fn written<'a>(&self, data: &'a Data) -> &'a BTreeMap<String, Value> {
+        if self.system {
+            &data.system
+        } else {
+            &data.personal
+        }
+    }
+
+    /// 改成 `value`；和那一层现在写的一样的不算改动。
     pub fn set(&mut self, key: &str, value: Value, data: &Data) {
-        if data.personal.get(key) == Some(&value) {
+        if self.written(data).get(key) == Some(&value) {
             self.changes.remove(key);
         } else {
             self.changes.insert(key.to_string(), Change::Set(value));
         }
     }
 
-    /// 从个人层删掉；个人层本来就没写的不算改动。
+    /// 从那一层删掉；本来就没写的不算改动。
     pub fn unset(&mut self, key: &str, data: &Data) {
-        if data.personal.contains_key(key) {
+        if self.written(data).contains_key(key) {
             self.changes.insert(key.to_string(), Change::Unset);
         } else {
             self.changes.remove(key);
@@ -69,19 +81,19 @@ impl Draft {
         self.new_pools.retain(|p| keys::pool(p) != prefix);
     }
 
-    /// 新贴了一家供应商的 key：存的时候先 `secret.set`，再把引用写进 `keys`。
+    /// 新贴了一家供应商的 key：存的时候先 `secret.set`，再把引用写进 `key`（一家一个，核心 8-25）。
     pub fn set_secret(&mut self, provider: &str, value: String) {
         self.changes
-            .remove(&format!("{}.keys", keys::provider(provider)));
+            .remove(&format!("{}.key", keys::provider(provider)));
         self.secrets.insert(provider.to_string(), value);
     }
 
-    /// 草稿里这一项是什么：写了的值，删了的 `None`，没改的照个人层。
+    /// 草稿里这一项是什么：写了的值，删了的 `None`，没改的照那一层。
     pub fn value<'a>(&'a self, key: &str, data: &'a Data) -> Option<&'a Value> {
         match self.changes.get(key) {
             Some(Change::Set(v)) => Some(v),
             Some(Change::Unset) => None,
-            None => data.personal.get(key),
+            None => self.written(data).get(key),
         }
     }
 
@@ -138,7 +150,7 @@ impl Draft {
             if matches!(change, Change::Set(_))
                 && parts.len() == 3
                 && parts[0] == "providers"
-                && matches!(parts[2].as_str(), "base_url" | "driver" | "keys")
+                && matches!(parts[2].as_str(), "base_url" | "driver" | "key")
             {
                 ids.push(parts[1].trim_matches('"').to_string());
             }
@@ -162,19 +174,19 @@ impl Draft {
             .collect()
     }
 
-    /// 要发的 `config.set` 参数：个人层，每项带 `expect`（个人层原来写的什么）；`named` 是存好了的 key（供应商、名字），
-    /// 引用写进这一家的 `keys`。
+    /// 要发的 `config.set` 参数：个人层（或系统配置），每项带 `expect`（那一层原来写的什么）；`named` 是存好了的 key
+    /// （供应商、名字），引用写进这一家的 `key`。
     pub fn request(&self, data: &Data, named: &[(String, String)]) -> Value {
         let mut all = self.changes.clone();
         for (provider, name) in named {
-            let key = format!("{}.keys", keys::provider(provider));
-            all.insert(key, Change::Set(json!([{"secret": name}])));
+            let key = format!("{}.key", keys::provider(provider));
+            all.insert(key, Change::Set(json!({"secret": name})));
         }
         let changes: Vec<Value> = all
             .iter()
             .map(|(key, change)| {
-                let expect = data
-                    .personal
+                let expect = self
+                    .written(data)
                     .get(key)
                     .map_or_else(|| json!({}), |v| json!({"value": v}));
                 match change {
@@ -183,7 +195,8 @@ impl Draft {
                 }
             })
             .collect();
-        json!({"layer": "personal", "changes": changes})
+        let layer = if self.system { "system" } else { "personal" };
+        json!({"layer": layer, "changes": changes})
     }
 }
 

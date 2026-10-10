@@ -11,6 +11,7 @@ use crate::transcript::{Segment, Step, StepKind, ToolState};
 use crate::ui::rows::Row;
 use crate::ui::test_support::Fixture;
 
+mod images;
 mod language;
 
 /// 一步：从 `start` 秒开始，用了 `took` 秒。
@@ -535,8 +536,10 @@ fn folding_and_opening_follow_the_config_until_someone_clicks() {
 }
 
 mod agent;
+mod answers;
 mod icons;
 mod live;
 mod narrow;
 mod session_arg;
+mod unfolded;
 mod waiting;

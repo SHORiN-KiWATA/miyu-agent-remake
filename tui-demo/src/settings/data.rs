@@ -20,10 +20,12 @@ pub struct Data {
     pub vision: Option<String>,
     /// 个人层写着的每一项：键 → 值（存的时候做 `expect`）。
     pub personal: BTreeMap<String, Value>,
-    /// 系统层写了的键：删供应商、池时看写没写在这里。
-    pub system: BTreeSet<String>,
+    /// 系统层写着的每一项：键 → 值（删供应商、池时看写没写在这里；只有系统配置这一层的项存的时候做 `expect`）。
+    pub system: BTreeMap<String, Value>,
     /// 密钥库里已有的名字：新存的 key 不撞它们。
     pub secrets: BTreeSet<String>,
+    /// 每一项的最终值和来自哪一层（`default`、`system`、`personal`、`project`）：通用这类的页照它写。
+    pub values: BTreeMap<String, (Value, String)>,
 }
 
 /// 一家供应商。
@@ -37,8 +39,8 @@ pub struct Provider {
     pub base_url: Value,
     /// 写了的驱动；没写的是 `None`（核心照目录、地址推）。
     pub driver: Option<String>,
-    /// 每个 key 的引用（`secret:<名字>`、`env:<变量>`）和设没设。
-    pub keys: Vec<(String, bool)>,
+    /// 这一家的 key（一家一个，核心 8-25）：引用（`secret:<名字>`、`env:<变量>`）和设没设；没写 key 的是 `None`。
+    pub key: Option<(String, bool)>,
     /// 模型，照核心交回的先后。
     pub models: Vec<Model>,
     /// 用不了的原因（`problem`）。
@@ -90,17 +92,21 @@ impl Data {
     pub fn read_config(&mut self, got: &Value) {
         self.personal.clear();
         self.system.clear();
+        self.values.clear();
         let Some(items) = got["items"].as_object() else {
             return;
         };
         for (key, item) in items {
+            let origin = item["origin"]["layer"].as_str().unwrap_or("default");
+            self.values
+                .insert(key.clone(), (item["value"].clone(), origin.to_string()));
             for layer in item["layers"].as_array().into_iter().flatten() {
                 match layer["origin"]["layer"].as_str() {
                     Some("personal") => {
                         self.personal.insert(key.clone(), layer["value"].clone());
                     }
                     Some("system") => {
-                        self.system.insert(key.clone());
+                        self.system.insert(key.clone(), layer["value"].clone());
                     }
                     _ => {}
                 }
@@ -140,7 +146,7 @@ impl Data {
 
     /// 这个前缀下面，系统层写了东西：这里删不掉。
     pub fn in_system(&self, prefix: &str) -> bool {
-        self.system.iter().any(|k| keys::under(k, prefix))
+        self.system.keys().any(|k| keys::under(k, prefix))
     }
 
     /// 这个前缀下面个人层写着的键。
@@ -213,12 +219,12 @@ fn provider(p: &Value) -> Provider {
             .map(str::to_string),
         base_url: p["base_url"].clone(),
         driver: p["driver"].as_str().map(str::to_string),
-        keys: p["keys"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .map(|k| (text(&k["ref"]), k["set"].as_bool().unwrap_or(false)))
-            .collect(),
+        key: p["key"].is_object().then(|| {
+            (
+                text(&p["key"]["ref"]),
+                p["key"]["set"].as_bool().unwrap_or(false),
+            )
+        }),
         models,
         problem: p["problem"].as_str().map(str::to_string),
         id,

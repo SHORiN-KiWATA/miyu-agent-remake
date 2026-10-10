@@ -200,6 +200,21 @@ impl Board {
         Some(job.id)
     }
 
+    /// 更早的一页里的任务接在前面（老会话按页读）：任务编号已经有的不重记，界面里的编号接着发。
+    pub fn prepend(&mut self, older: Board) {
+        let mut front: Vec<Job> = older
+            .jobs
+            .into_iter()
+            .filter(|old| self.jobs.iter().all(|j| j.job != old.job))
+            .collect();
+        for job in &mut front {
+            self.next_id += 1;
+            job.id = self.next_id;
+        }
+        front.append(&mut self.jobs);
+        self.jobs = front;
+    }
+
     /// 还有在跑的。
     pub fn busy(&self) -> bool {
         self.jobs.iter().any(Job::running)

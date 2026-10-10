@@ -15,7 +15,7 @@
   ],
   "untitled": "Untitled session",
   "side_id": "#{id}",
-  "side_cwd": "Working directory",
+  "side_cwd": "Workspace",
   "side_context": "Context",
   "side_context_value": "{used} / {window} · {percent}%",
   "side_usage": "Usage",
@@ -25,7 +25,6 @@
   "side_compactions": "Compactions: {n}",
   "side_breaks": "Cache breaks: {n}",
   "side_cost": "Spent {amounts}",
-  "side_unpriced": "{n} requests without a price",
   "copied": "Copied {count} character(s)",
   "copy_failed": "Couldn't copy: {reason}",
   "nothing_to_copy": "No reply to copy yet",
@@ -54,6 +53,8 @@
     "429": "Rate limited or out of credit, try again later"
   },
   "retry": "Retry {attempt}/{limit}: {message}",
+  "older": "Loading earlier…",
+  "older_failed": "Couldn't load earlier messages: {reason}",
   "total": "Σ{tokens}(C{percent}%)",
   "done": "{time} · {endpoint}/{model} · {elapsed}",
   "speed": "{rate} tok/s",
@@ -135,10 +136,11 @@
   "esc_hint": "Press Esc again to interrupt",
   "stashed": "> stashed",
   "esc_clear_hint": "Press Esc again to clear",
-  "no_clear_running": "Can't clear the screen while she's replying",
+  "no_clear_running": "Can't clear the screen while a reply is running",
   "theme_changed": "Theme: {name}",
   "icons_changed": "Icons: {name}",
   "figure_pending": "⋯ drawing",
+  "mascot_failed": "Mascot package unreadable, using the built-in mascot",
   "figure_zoom": "Click to enlarge",
   "markdown": {
     "image": "[image: ",
@@ -154,6 +156,10 @@
     ]
   },
   "refusal_hints": {
+    "path_unreadable": "Can't find or read that directory",
+    "not_a_directory": "That's a file, not a directory",
+    "path_forbidden": "That can't be a workspace",
+    "owner_only": "Only the owner can change the workspace",
     "session_not_found": "That session no longer exists",
     "nothing_to_rename": "No session yet; say something first, then rename",
     "nothing_to_recap": "Nothing to recap yet",
@@ -191,6 +197,7 @@
     "count": " {count}"
   },
   "compaction": {
+    "triggered": "Context compaction started",
     "progress": "Compacting the context",
     "written": " {written}",
     "percent": " {percent}%",
@@ -342,7 +349,7 @@
       ],
       [
         "Ctrl+C",
-        "Copy the selection; clear the input (↑ to bring it back); interrupt while she's replying"
+        "Copy the selection; clear the input (↑ to bring it back); interrupt while a reply is running"
       ],
       [
         "Ctrl+G",
@@ -354,7 +361,7 @@
       ],
       [
         "Esc Esc",
-        "Interrupt while she's replying, queued messages go right after; otherwise clear the input"
+        "Interrupt a running reply and send queued messages; otherwise clear the input"
       ],
       [
         "Ctrl+S",
@@ -473,12 +480,9 @@
     "keys_review": "Enter submit · Esc ×2 cancel",
     "keys_edit": "Enter save · Esc stop editing",
     "keys_tabs": " · ←/→ switch question",
-    "answered_title": "Answered",
     "answered_line": "{label}: {answer}",
     "notes_suffix": " (notes: {notes})",
     "denied_with": "Not allowed · {reason}",
-    "cancelled_question": "Question cancelled",
-    "cancelled_approval": "Approval cancelled",
     "cancel_hint": "Press Esc again to cancel"
   },
   "clipboard_unreadable": "Can't read the clipboard: use your terminal's own paste (Ctrl+Shift+V in kitty)",
@@ -492,10 +496,36 @@
       "video": "[video {n}]"
     },
     "file": "[{name}]",
-    "folder": "[{name}/]"
+    "folder": "[{name}/]",
+    "names": {
+      "image": "images",
+      "pdf": "PDFs",
+      "audio": "audio",
+      "video": "video"
+    },
+    "refused": "This model doesn't take {kinds}, sent as file paths"
   },
   "stopped_jobs": "Stopped {count} task(s)",
   "language_switched": "Interface language: English",
+  "persona_box": {
+    "title": "Choose a persona",
+    "hint": "↑/↓ choose · Enter confirm · Esc use the default",
+    "default_mark": "default",
+    "locked": "The persona can't change once the session has started; pick one after /new",
+    "chosen": "Persona {name}",
+    "preset_title": "Choose a preset",
+    "preset_need": "Pick a preset first",
+    "preset_locked": "The preset can't change once the session has started; pick one after /new",
+    "preset_chosen": "Preset {name}",
+    "none": "No persona",
+    "none_note": "No persona prompt; memory is off"
+  },
+  "workspace": {
+    "need_path": "Specify a path",
+    "pending": "New session will open in {path}",
+    "elsewhere": "Workspace: {path} · /workspace . to switch here",
+    "changed": "Workspace changed to {path}"
+  },
   "languages": {
     "title": "Interface language",
     "hint": "↑/↓ select · Enter switch · Esc close",
@@ -569,11 +599,13 @@
     ],
     "uses": [
       "Default text model",
-      "Default vision model"
+      "Default vision model",
+      "Semantic model"
     ],
     "use_notes": [
       "Used when a turn names no model",
-      "Reads images when the chat model can't"
+      "Reads images when the chat model can't",
+      "Improves search quality for memories, knowledge bases and the like"
     ],
     "detail": [
       "Now",
@@ -896,6 +928,409 @@
           "clear"
         ]
       ]
-    ]
+    ],
+    "more": {
+      "personas": [
+        "Personas",
+        "Decides the AI's persona and memory"
+      ],
+      "presets": [
+        "Presets",
+        "Decides which features are on"
+      ],
+      "preset_detail": [
+        "Features {on}/{all}",
+        "Not installed"
+      ],
+      "origins": {
+        "default": "default",
+        "system": "system config",
+        "personal": "personal settings",
+        "project": "project config"
+      },
+      "toggle": [
+        "on",
+        "off"
+      ],
+      "secret": [
+        "set",
+        "not set"
+      ],
+      "no_editor": "The terminal can't edit this yet",
+      "bad_number": "Enter a number",
+      "unset": [
+        "Reset to default: {name}?",
+        "Removes this from your personal settings and goes back to the {from} value",
+        "Reset",
+        "Cancel"
+      ],
+      "nothing_to_unset": "Your personal settings don't set this",
+      "default_mark": "default",
+      "no_personas": "No personas yet",
+      "loading": "Reading…",
+      "detail": [
+        "Name",
+        "Persona prompt",
+        "Example dialog",
+        "Persona reminders",
+        "{n} rounds",
+        "Written"
+      ],
+      "hints": [
+        [
+          [
+            "Enter",
+            "change"
+          ],
+          [
+            "d",
+            "reset"
+          ],
+          [
+            "Esc",
+            "back"
+          ]
+        ],
+        [
+          [
+            "Enter",
+            "details"
+          ],
+          [
+            "Esc",
+            "back"
+          ]
+        ],
+        [
+          [
+            "↑/↓",
+            "choose"
+          ],
+          [
+            "Enter",
+            "confirm"
+          ],
+          [
+            "Esc",
+            "cancel"
+          ]
+        ],
+        [
+          [
+            "Enter",
+            "save"
+          ],
+          [
+            "Esc",
+            "cancel"
+          ]
+        ],
+        [
+          [
+            "Esc",
+            "close"
+          ]
+        ],
+        [
+          [
+            "Enter",
+            "open"
+          ],
+          [
+            "a",
+            "new"
+          ],
+          [
+            "d",
+            "delete"
+          ],
+          [
+            "Esc",
+            "back"
+          ]
+        ],
+        [
+          [
+            "↑/↓",
+            "select"
+          ],
+          [
+            "Enter",
+            "change"
+          ],
+          [
+            "d",
+            "delete"
+          ],
+          [
+            "Esc",
+            "close"
+          ]
+        ],
+        [
+          [
+            "↑/↓",
+            "select"
+          ],
+          [
+            "Space",
+            "toggle"
+          ],
+          [
+            "Ctrl+A",
+            "all on/off"
+          ],
+          [
+            "Enter",
+            "change"
+          ],
+          [
+            "d",
+            "delete"
+          ],
+          [
+            "Esc",
+            "close"
+          ]
+        ],
+        [
+          [
+            "Enter",
+            "edit"
+          ],
+          [
+            "a",
+            "add a round"
+          ],
+          [
+            "d",
+            "delete"
+          ],
+          [
+            "J/K",
+            "move"
+          ],
+          [
+            "Esc",
+            "back"
+          ]
+        ],
+        [
+          [
+            "↑/↓",
+            "switch"
+          ],
+          [
+            "Enter",
+            "next/save"
+          ],
+          [
+            "Esc",
+            "cancel"
+          ]
+        ]
+      ],
+      "persona_edit": {
+        "new_name": "Name of the new persona",
+        "deleted": "Deleted (kept in the trash for 7 days)",
+        "restored": "Restored to the shipped one",
+        "avatar": "Avatar",
+        "avatar_set": "Set",
+        "avatar_path": "Avatar image path",
+        "conflict": "Changed elsewhere meanwhile, not saved: open it again and redo",
+        "reading": "Reading…",
+        "remove": {
+          "delete": [
+            "Delete persona {name}?",
+            "It stays in the trash for 7 days",
+            "Delete",
+            "Cancel"
+          ],
+          "restore": [
+            "Restore {name} to how it shipped?",
+            "Your changes will be lost",
+            "Restore"
+          ],
+          "nothing": "The shipped one hasn't been changed; nothing to delete"
+        }
+      },
+      "preset_edit": {
+        "new_name": "Name of the new preset",
+        "deleted": "Deleted",
+        "restored": "Restored to the shipped one",
+        "remove": {
+          "delete": [
+            "Delete preset {name}?",
+            "It will be gone",
+            "Delete",
+            "Cancel"
+          ],
+          "restore": [
+            "Restore {name} to how it shipped?",
+            "Your changes will be lost",
+            "Restore"
+          ],
+          "nothing": "The shipped one hasn't been changed; nothing to delete"
+        }
+      },
+      "dialogs": {
+        "title": "Example dialog",
+        "empty": "No example dialog yet; press a to add a round",
+        "add": "Add a round",
+        "edit": "Edit this round",
+        "sides": [
+          "You ask",
+          "AI replies"
+        ],
+        "both": "Fill in both"
+      },
+      "no_persona": "No persona",
+      "builtin_mascot": "Built-in",
+      "mascot_missing": "{id} (not installed)",
+      "own_groups": {"timeline": "Timeline", "mascot": "Mascot"},
+      "unavailable": "Not installed",
+      "custom_model": "Enter a model…"
+    }
+  },
+  "oobe": {
+    "welcome": {
+      "title": "Welcome to Miyu",
+      "sub": "Take a minute to set up a model and a persona",
+      "start": "Press Enter to start"
+    },
+    "steps": [
+      "Language",
+      "Icons",
+      "Model",
+      "Persona",
+      "Preset"
+    ],
+    "keys": {
+      "searching": "Type to search · Ctrl+J/K select · Enter done · Esc cancel",
+      "editing": "Enter done · Esc cancel",
+      "test": "Enter test connection · j/k move · Esc another provider",
+      "pick": "↑↓ choose · Enter next · Esc back",
+      "form": "Enter edit · j/k move · Esc another provider",
+      "driver": "←→ change interface · j/k move · Esc another provider",
+      "models": "/ search · j/k select · Enter choose · Esc another provider",
+      "persona": "Enter edit · j/k move · Esc back",
+      "edit": "Enter edit · j/k move · Esc back",
+      "writing": "Enter new line · Ctrl+G external editor · Esc done",
+      "custom": "Space toggle · Ctrl+A all · j/k move · Esc close",
+      "custom_name": "Enter edit · j/k move · Esc close",
+      "create": "Enter create · j/k move · Esc close",
+      "view": "j/k scroll · Space close",
+      "enter_edit": "Enter to edit",
+      "presets": "↑↓ choose · Space details · Enter next · Esc back",
+      "more": "Type to search · ↑↓ choose · Enter confirm · Esc close"
+    },
+    "language": {
+      "title": "Language",
+      "sub": "You can change it later in settings",
+      "auto": "Follow the system ({name})"
+    },
+    "icons": {
+      "title": "Icons",
+      "sub": "Do you see icons, or boxes and garbled text?",
+      "yes": "Icons",
+      "no": "Boxes or garbage"
+    },
+    "model": {
+      "test": "Test connection",
+      "title": "Choose a model provider",
+      "sub": "Pick one and add its key to get started",
+      "loading": "Looking…",
+      "found": "key found",
+      "configured": "set up",
+      "local": "This machine",
+      "other": "Other",
+      "more": "More providers…",
+      "more_title": "More providers",
+      "more_search": "Type to search",
+      "no_match": "No matches",
+      "search_cue": "/ to search",
+      "custom": "Custom…",
+      "custom_note": "enter an address and API",
+      "ready_title": "Model",
+      "ready": "Already set up: {name}",
+      "keep": "Use it",
+      "change": "Choose another",
+      "key": "Key",
+      "key_env": "from environment variable {env}",
+      "key_none": "no key needed",
+      "key_needed": "Enter a key",
+      "cost": "Sends one real message and costs a little",
+      "custom_head": {
+        "title": "Custom",
+        "sub": "Any compatible API works"
+      },
+      "url": "Address",
+      "url_example": "https://api.example.com/v1",
+      "url_bad": "Must start with http:// or https://",
+      "driver": "API",
+      "drivers": [
+        "OpenAI compatible",
+        "Anthropic",
+        "OpenAI Responses"
+      ],
+      "testing": "Connecting…",
+      "connected": "Connected, found {count} models",
+      "pick_sub": "It works. Pick a model",
+      "no_list": "Couldn't get the model list. Enter a model name and test again",
+      "model_name": "Model name",
+      "model_example": "e.g. gpt-4o",
+      "failed": "Didn't work ({stage}): {message}",
+      "stages": {
+        "list": "listing models",
+        "request": "sending a request",
+        "config": "configuration"
+      },
+      "search": "Search models",
+      "more_above": "↑ {n} more",
+      "more_below": "↓ {n} more",
+      "saving": "Saving…"
+    },
+    "persona": {
+      "title": "Create a persona",
+      "sub": "A persona decides how the AI talks and what it remembers. You can change it later in settings",
+      "fields": [
+        "Name",
+        "Character",
+        "Example dialogs",
+        "Roleplay reminder"
+      ],
+      "hints": [
+        "Give it a name",
+        "Who it is, how it talks, how it treats you",
+        "",
+        "A short reminder that keeps the AI in character now and then"
+      ],
+      "examples_some": "{n} rounds",
+      "next": "Next",
+      "name_needed": "A name is needed",
+      "existing": "Already created, you can keep editing",
+      "saving": "Saving…",
+      "avatar": "Avatar",
+      "avatar_hint": "Image path",
+      "avatar_set": "Set"
+    },
+    "preset": {
+      "title": "Choose a preset",
+      "sub": "A preset decides which features are on. You can change it in settings or per session",
+      "custom": "Custom",
+      "custom_note": "pick the features yourself",
+      "name": "Name",
+      "name_hint": "Give it a name",
+      "name_needed": "A name is needed",
+      "loading": "Loading…",
+      "create": "Create"
+    },
+    "done": {
+      "title": "All set",
+      "summary": "Model {model} · Persona {persona} · Preset {preset}",
+      "start": "Press Enter to start chatting"
+    },
+    "offline": "Not connected to the core",
+    "unmarked": "Couldn't record that setup is done: {message}"
   }
 }

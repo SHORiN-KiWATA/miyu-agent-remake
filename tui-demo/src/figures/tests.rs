@@ -248,3 +248,27 @@ fn while_resizing_only_the_latest_size_of_each_picture_is_made() {
     );
     assert_eq!(jobs.try_recv().unwrap().key, keys[0]);
 }
+
+#[test]
+fn a_kitty_picture_tells_the_terminal_how_many_cells_it_spans() {
+    // 2026-10-09 项目主人报：`read` 读的图比留的行大，盖住了上面的正文。虚拟放置不写占几列几行，终端照像素和它自己的
+    // 格子推，格子大小和启动时问出来的对不上就推错（蓝图「图片、公式和 mermaid 图」第 2 条）。
+    use ratatui::buffer::Buffer;
+    use ratatui::layout::{Rect, Size};
+    use ratatui::widgets::Widget;
+    use ratatui_image::Resize;
+    use ratatui_image::sliced::{SignedPosition, SlicedImage};
+
+    let mut picker = Picker::halfblocks();
+    picker.set_protocol_type(ProtocolType::Kitty);
+    let image = DynamicImage::ImageRgba8(RgbaImage::new(40, 60));
+    let protocol =
+        SlicedProtocol::new_with_resize(&picker, image, Size::new(4, 3), Resize::Fit(None))
+            .unwrap();
+    let area = Rect::new(0, 0, 10, 5);
+    let mut buf = Buffer::empty(area);
+    SlicedImage::new(&protocol, SignedPosition { x: 0, y: 0 }).render(area, &mut buf);
+    let sent: String = buf.content.iter().map(|c| c.symbol()).collect();
+    assert!(sent.contains("U=1"), "是 kitty 的虚拟放置");
+    assert!(sent.contains("c=4,r=3"), "带占几列几行");
+}

@@ -30,6 +30,10 @@ impl App {
         self.transcript.keep_footer_model(shown);
         // 空会话的底栏照默认的聊天模型写（`effort.rs`）。
         self.refresh_effort();
+        // 每个新会话都先选人格、预设（「新会话：人格、工作区」第 1、3 条）：选的清掉，再读一次，读到了开框。
+        self.forget_picks();
+        // 工作区回到终端所在的目录（第 4 条）。
+        self.forget_workspace();
     }
 
     /// 正在看的会话换下来：还忙着的（`keep`）停放着，等它空下来再退订；不然连它的子代理一起不要了。换上一份空的正文。

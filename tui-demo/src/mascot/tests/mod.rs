@@ -419,3 +419,4 @@ fn a_perched_mascot_waits_then_walks_down_row_by_row() {
 }
 
 mod face;
+mod spin;

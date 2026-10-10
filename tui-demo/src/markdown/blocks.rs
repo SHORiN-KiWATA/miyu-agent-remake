@@ -20,6 +20,8 @@ pub type Size = (Option<u32>, Option<u32>);
 pub enum FigureKind {
     /// 本机的图片文件，源码是写着的地址。
     Image,
+    /// 工具结果里的图（`read` 读的），源码是存好的文件：照 `figures.json` 的 `preview_room`，比回答里的小（「时间线」第 8 条）。
+    Preview,
     /// mermaid 图，源码是图的定义。
     Mermaid,
     /// 块级公式，源码是 LaTeX。

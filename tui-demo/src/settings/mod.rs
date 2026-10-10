@@ -10,7 +10,9 @@ pub mod keys;
 pub mod merge;
 mod mouse;
 pub mod nav;
+pub mod pages;
 pub mod popup;
+mod saving;
 pub mod texts;
 
 #[cfg(test)]
@@ -43,8 +45,8 @@ pub enum Tone {
 /// 鼠标点得到的东西（画的时候记下位置，蓝图「配置页」第 6、15 条）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Hit {
-    /// 主菜单那一项。
-    Menu,
+    /// 主菜单的第几项。
+    Menu(usize),
     /// 第几个分页。
     Tab(usize),
     /// 一栏的第几行。
@@ -81,6 +83,38 @@ enum Waiting {
     Test(String),
     /// 重取一家的模型列表（`model.list` 带 `refresh`）：编号、显示名。
     Refresh(String, String),
+    /// 读配置清单（`config.schema`）：通用、权限、高级这几页照它画。
+    Schema,
+    /// 读人格（`persona.list`）。
+    Personas,
+    /// 读一个人格的详情（`persona.get`）：编号。
+    PersonaDetail(String),
+    /// 读预设（`preset.list`）。
+    Presets,
+    /// 读装了的吉祥物包（`package.list`，「吉祥物包」第 3 条）。
+    Mascots,
+    /// 读一个预设的详情（`preset.get`）：编号。
+    PresetDetail(String),
+    /// 改、建一个预设（`preset.set`，核心 P-3）：存好了要不要开它的窗（新建的）。
+    PresetSaved(bool),
+    /// 删一个预设的个人那一层（`preset.delete`）。
+    PresetDeleted,
+    /// 改、建一个人格（`persona.set`，核心 P-3 下）：编号、存好了要不要开它的详情窗（新建的）。
+    PersonaSaved(String, bool),
+    /// 删一个人格的个人那一层（`persona.delete`）。
+    PersonaDeleted,
+    /// 传头像（`blob.put`）：人格、换掉的头像的版本（「配置页」第 36 条）。
+    AvatarPut(String, Option<String>),
+    /// 读一份提示词的原文（`persona.read`），回来了交给编辑器：人格、哪一份。
+    PromptRead(String, String),
+    /// 读示范对话（`persona.read` 的 `pairs`）：人格。
+    ExamplesRead(String),
+    /// 存示范对话：人格。
+    ExamplesSaved(String),
+    /// 列表页 `d`：先读一次详情看能不能删、删了是什么（`remove`）。
+    PresetRemove(String),
+    /// 同上，人格。
+    PersonaRemove(String),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -109,6 +143,8 @@ pub struct Settings {
     pub nav: Nav,
     /// 开着的悬浮窗。
     pub popup: Option<Popup>,
+    /// 通用、权限、高级、人格这几页（`pages/`）。
+    pub more: pages::More,
     /// 状态行那一句。
     pub status: Option<(String, Tone)>,
     /// 连着核心。
@@ -127,6 +163,10 @@ pub struct Settings {
     again: bool,
     secrets_left: usize,
     named: Vec<(String, String)>,
+    /// 交给编辑器的那一份提示词（`pages/persona_edit.rs`）：编辑器退出以后照它存。
+    prompt: Option<pages::persona_edit::PromptEdit>,
+    /// 刚读到、要交给编辑器的：`App` 拿走一次（[`Settings::take_prompt`]）。
+    editing: bool,
 }
 
 impl Settings {
@@ -179,6 +219,7 @@ impl Settings {
             Waiting::Load(Load::Config),
         );
         self.ask("secret.list", json!({}), Waiting::Load(Load::Secrets));
+        self.load_more();
     }
 
     /// 草稿、读来的变了：重拼界面看的那一份，选中的别越界。
@@ -210,6 +251,24 @@ impl Settings {
             Waiting::Save => self.saved(result, texts),
             Waiting::Test(name) => self.tested(&name, result, texts),
             Waiting::Refresh(id, name) => self.refreshed(&id, &name, result, texts),
+            more @ (Waiting::Schema
+            | Waiting::Personas
+            | Waiting::PersonaDetail(_)
+            | Waiting::Presets
+            | Waiting::Mascots
+            | Waiting::PresetDetail(_)) => {
+                self.more_answer(more, result, &texts.more);
+            }
+            Waiting::PresetSaved(open) => self.preset_saved(open, result),
+            Waiting::PresetDeleted => self.preset_deleted(result, texts),
+            Waiting::PersonaSaved(id, open) => self.persona_saved((id, open), result, texts),
+            Waiting::PersonaDeleted => self.persona_deleted(result, texts),
+            Waiting::AvatarPut(id, version) => self.avatar_put((id, version), result),
+            Waiting::PromptRead(id, prompt) => self.prompt_read((id, prompt), result),
+            Waiting::ExamplesRead(id) => self.examples_read(id, result),
+            Waiting::ExamplesSaved(id) => self.examples_saved(id, result, texts),
+            Waiting::PresetRemove(id) => self.preset_remove_read(&id, result, texts),
+            Waiting::PersonaRemove(id) => self.persona_remove_read(&id, result, texts),
         }
     }
 
@@ -260,132 +319,6 @@ impl Settings {
     /// 状态行写一句。
     pub fn say(&mut self, text: String, tone: Tone) {
         self.status = Some((text, tone));
-    }
-
-    /// 存（悬浮窗里 `s`、`q`，删除、选默认模型确认了也是）：先把新贴的 key 存进密钥库，全成了再一次 `config.set`
-    /// （「配置页」第 24 条）。`close` 是存成了关掉悬浮窗。
-    pub fn save(&mut self, close: bool, texts: &Texts) {
-        if self.draft.is_empty() {
-            if close {
-                self.popup = None;
-            }
-            return;
-        }
-        let Some(data) = self.data.as_ref().filter(|_| self.online) else {
-            self.draft.clear();
-            self.refresh();
-            self.failed(texts.status("offline"));
-            return;
-        };
-        if self
-            .waiting
-            .values()
-            .any(|w| matches!(w, Waiting::Save | Waiting::Secret(..)))
-        {
-            return;
-        }
-        let secrets = self.draft.secrets(data);
-        self.close_after_save = close;
-        self.named.clear();
-        self.say(texts.status("saving"), Tone::Busy);
-        if secrets.is_empty() {
-            self.send_config();
-        } else {
-            self.secrets_left = secrets.len();
-            for (provider, name, value) in secrets {
-                let params = json!({"name": name, "value": value});
-                self.ask("secret.set", params, Waiting::Secret(provider, name));
-            }
-        }
-    }
-
-    /// 没存成：这一次的改动扔掉（界面照回读来的），原因写在开着的编辑窗里，没开着的写在状态行。
-    fn failed(&mut self, text: String) {
-        self.close_after_save = false;
-        self.draft.clear();
-        self.refresh();
-        match &mut self.popup {
-            Some(Popup::Form(form)) => {
-                form.error = Some(text);
-                self.status = None;
-            }
-            _ => self.say(text, Tone::Bad),
-        }
-    }
-
-    fn send_config(&mut self) {
-        let Some(data) = &self.data else {
-            return;
-        };
-        let params = self.draft.request(data, &self.named);
-        self.ask("config.set", params, Waiting::Save);
-    }
-
-    fn secret_saved(&mut self, provider: String, name: String, result: Result<Value, Refusal>) {
-        match result {
-            Ok(_) => {
-                self.named.push((provider, name));
-                self.secrets_left = self.secrets_left.saturating_sub(1);
-                if self.secrets_left == 0 && !self.draft.is_empty() {
-                    self.send_config();
-                }
-            }
-            Err(refusal) => {
-                // 一个没存成：别的存成了的留在密钥库里，配置里的引用照旧。
-                self.secrets_left = 0;
-                self.failed(refusal.message);
-            }
-        }
-    }
-
-    fn saved(&mut self, result: Result<Value, Refusal>, texts: &Texts) {
-        match result {
-            Ok(_) => {
-                // 存成了：界面上看的那一份先当成读来的，等重读回来再换成核心的（不闪一下旧的）。
-                let reconnect = self
-                    .data
-                    .as_ref()
-                    .map(|d| self.draft.reconnects(d))
-                    .unwrap_or_default();
-                self.data = Some(self.view.clone());
-                self.draft.clear();
-                self.named.clear();
-                self.say(texts.status("saved"), Tone::Good);
-                self.reload();
-                self.refresh();
-                // 新加的、换了地址、key 的：马上取模型列表，不用再按 r（2026-10-07 项目主人）。
-                for id in reconnect {
-                    let name = self
-                        .view
-                        .provider(&id)
-                        .map_or(id.clone(), |p| p.shown().to_string());
-                    self.say(
-                        texts.status("fetching").replace("{name}", &name),
-                        Tone::Busy,
-                    );
-                    let params = json!({"provider": id, "refresh": true});
-                    self.ask("model.list", params, Waiting::Refresh(id, name));
-                }
-                if std::mem::take(&mut self.close_after_save) {
-                    self.popup = None;
-                }
-            }
-            Err(refusal) => {
-                // 核心那一句是总的（「配置有几处不对」）：接上第一处具体的。
-                let first = refusal.data["problems"][0]["message"].as_str();
-                let text = if refusal.reason.as_deref() == Some("config_conflict") {
-                    texts.status("conflict").replace(
-                        "{current}",
-                        &forms::plain(&refusal.data["current"]["value"]),
-                    )
-                } else if let Some(first) = first {
-                    format!("{} {first}", refusal.message)
-                } else {
-                    refusal.message
-                };
-                self.failed(text);
-            }
-        }
     }
 
     /// 测一家（`r`）：焦点在模型栏的试选中的模型，在供应商栏由核心挑；还没存的新供应商先要存。
@@ -482,6 +415,7 @@ impl Settings {
         let popup = match &self.popup {
             Some(Popup::Form(form)) => form.editing.is_some(),
             Some(Popup::Pick(pick)) => pick.typing,
+            Some(Popup::Line(_) | Popup::Pair(_)) => true,
             _ => false,
         };
         popup || self.nav.search.as_ref().is_some_and(|s| s.typing)

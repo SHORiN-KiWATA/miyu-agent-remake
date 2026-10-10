@@ -27,6 +27,10 @@ impl App {
             .chain(clock)
             .chain(spin)
             .chain(self.mascot_deadline(Instant::now()))
+            // 引导里在动的（`oobe.rs`）。
+            .chain(self.oobe_deadline(Instant::now()))
+            // 还在等 `ui.welcomed`：到点画首页（`oobe.rs`）。
+            .chain(self.welcome_deadline(Instant::now()))
             .chain(self.jobs_deadline())
             .chain(self.drawer_deadline())
             // 做完的待办全打勾露着：到点醒来收（「后台命令、子代理和侧边栏」第 4 条）。

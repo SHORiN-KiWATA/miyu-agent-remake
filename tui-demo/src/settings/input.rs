@@ -14,7 +14,9 @@ type Uses = Box<dyn Fn(&str) -> bool>;
 impl Settings {
     /// 按了一个键。
     pub fn key(&mut self, key: KeyEvent, texts: &Texts) -> Outcome {
-        if key.modifiers.contains(KeyModifiers::CONTROL) {
+        // 带 Ctrl 的配置页不管，只有预设的窗认 Ctrl+A（全开、全关，「配置页」第 38 条）。
+        let all = key.code == KeyCode::Char('a') && matches!(self.popup, Some(Popup::Preset(_)));
+        if key.modifiers.contains(KeyModifiers::CONTROL) && !all {
             return Outcome::Stay;
         }
         if self.popup.is_some() {
@@ -25,15 +27,10 @@ impl Settings {
             return Outcome::Stay;
         }
         if self.on_menu {
-            return match key.code {
-                KeyCode::Enter | KeyCode::Char('l') | KeyCode::Right => {
-                    self.on_menu = false;
-                    self.status = None;
-                    Outcome::Stay
-                }
-                KeyCode::Esc | KeyCode::Char('q') => self.back(),
-                _ => Outcome::Stay,
-            };
+            return self.menu_key(key);
+        }
+        if self.more.section.is_some() {
+            return self.section_key(key, texts);
         }
         if self.loading() {
             return match key.code {
@@ -55,6 +52,8 @@ impl Settings {
                     editor.insert(clean);
                 }
             }
+            Some(Popup::Line(edit)) => edit.editor.insert(clean),
+            Some(Popup::Pair(edit)) => Settings::pair_paste(edit, clean),
             Some(Popup::Pick(pick)) if pick.typing => {
                 pick.search.push_str(clean);
                 pick.refilter(&self.view);
@@ -79,7 +78,7 @@ impl Settings {
             // 开着中文输入法时收到的是全角的。
             KeyCode::Char(',' | '，' | '<') => self.nav.page_step(false),
             KeyCode::Char('.' | '。' | '>') => self.nav.page_step(true),
-            KeyCode::Enter => self.enter(),
+            KeyCode::Enter => self.enter(texts),
             KeyCode::Char('a') => self.add(texts),
             KeyCode::Char('n') if self.nav.page == Page::Providers => {
                 if let Some(p) = self.nav.provider(&self.view) {
@@ -144,7 +143,7 @@ impl Settings {
     }
 
     /// `Enter`：照焦点在哪一栏开窗。
-    fn enter(&mut self) {
+    fn enter(&mut self, texts: &Texts) {
         let col = self.nav.focus(&self.view);
         match col {
             Col::Provider => {
@@ -159,6 +158,10 @@ impl Settings {
                 if let (Some(p), Some(m)) = (p, m) {
                     self.open_form(|v, d, dr| forms::model(v, d, dr, &p, Some(&m)));
                 }
+            }
+            // 语义模型：不选池，开选择窗（「配置页」第 21 条，`pages/model_or.rs`）。
+            Col::Use if self.nav.usage() == super::nav::Use::Embedding => {
+                self.open_model_or(super::nav::EMBEDDING, texts);
             }
             Col::Use => {
                 self.popup = Some(Popup::Pick(Pick::open(self.nav.usage(), &self.view)));
@@ -245,7 +248,15 @@ impl Settings {
         }
         // 只说谁在用它，一行（2026-10-07 项目主人：原来那样太啰嗦）；没人用的什么都不写。
         let mut users = Vec::new();
-        for (i, used) in [&self.view.chat, &self.view.vision].iter().enumerate() {
+        let embedding = self
+            .view
+            .values
+            .get(super::nav::EMBEDDING)
+            .and_then(|(v, _)| v.as_str().map(str::to_string));
+        for (i, used) in [&self.view.chat, &self.view.vision, &embedding]
+            .iter()
+            .enumerate()
+        {
             if used.as_deref().is_some_and(&uses) {
                 users.push(texts.uses[i].clone());
             }
@@ -281,6 +292,7 @@ impl Settings {
             },
             Some(Popup::Pick(pick)) => self.pick_key(pick, key, texts),
             Some(Popup::Confirm(confirm)) => return self.confirm_key(confirm, key, texts),
+            Some(popup) => self.more_popup_key(popup, key, texts),
             None => {}
         }
         Outcome::Stay
@@ -351,6 +363,7 @@ impl Settings {
                         let key = match pick.usage {
                             super::nav::Use::Chat => "models.chat",
                             super::nav::Use::Vision => "models.vision",
+                            super::nav::Use::Embedding => super::nav::EMBEDDING,
                         };
                         self.draft.set(key, serde_json::json!(reference), data);
                         self.refresh();
@@ -391,16 +404,37 @@ impl Settings {
 
     /// 问的那一句选了第几个按钮：删除的当场存。
     fn decide(&mut self, ask: &Delete, button: usize, texts: &Texts) -> Outcome {
-        let Some(data) = &self.data else {
-            return Outcome::Stay;
-        };
         if button != 0 {
             return Outcome::Stay;
         }
+        // 删预设不碰个人设置：交给核心（`pages/preset_edit.rs`）。
+        match ask {
+            Delete::Preset(id) => {
+                self.delete_preset(id);
+                return Outcome::Stay;
+            }
+            Delete::Persona(id) => {
+                self.delete_persona(id);
+                return Outcome::Stay;
+            }
+            _ => {}
+        }
+        let Some(data) = &self.data else {
+            return Outcome::Stay;
+        };
         let prefix = match ask {
             Delete::Provider(id) => super::keys::provider(id),
             Delete::Model(p, m) => super::keys::model_table(p, m),
             Delete::Pool(name) => super::keys::pool(name),
+            Delete::Preset(_) | Delete::Persona(_) => return Outcome::Stay,
+            // 恢复默认：只去掉个人设置里的这一项（只有系统配置这一层的去掉系统配置里的）。
+            Delete::Setting(key) => {
+                self.draft.system = self.system_only(key);
+                self.draft.unset(key, data);
+                self.refresh();
+                self.save(true, texts);
+                return Outcome::Stay;
+            }
         };
         self.draft.unset_all(&prefix, data);
         self.refresh();

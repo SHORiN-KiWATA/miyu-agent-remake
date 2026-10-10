@@ -83,7 +83,7 @@ fn undoing_a_clear_says_so_under_the_undo_line() {
     assert!(
         lines
             .iter()
-            .any(|l| l.contains("撤掉了清空，上下文回到了清空以前")),
+            .any(|l| l.contains("已撤销清空，上下文恢复到清空前")),
         "{lines:?}"
     );
 }
@@ -106,7 +106,7 @@ fn undoing_a_compaction_says_so_under_the_undo_line() {
     assert_eq!(lines.len(), 2, "{lines:?}");
     assert_eq!(
         lines[1].trim(),
-        "撤掉了压缩，上下文回到了压缩前",
+        "已撤销压缩，上下文恢复到压缩前",
         "几次都是这一句"
     );
     assert_eq!(
@@ -227,7 +227,7 @@ fn an_opened_undo_lists_each_file_and_opens_a_diff_on_click() {
     let rows = super::entry_rows(0, &t.entries[0], &f.ctx());
     let head = rows[0].line.to_string();
     assert!(
-        head.contains("已撤销 · 改回 1 个文件 · /restore 恢复 · 改一下"),
+        head.contains("已撤销 · 已还原 1 个文件 · /restore 恢复 · 改一下"),
         "{head}"
     );
     t.entries[0].open = true;
@@ -235,11 +235,11 @@ fn an_opened_undo_lists_each_file_and_opens_a_diff_on_click() {
     let text: Vec<String> = rows.iter().map(|r| r.line.to_string()).collect();
     let a = text
         .iter()
-        .position(|l| l.contains("✓ src/a.rs  已改回  +1 −1"));
+        .position(|l| l.contains("✓ src/a.rs  已还原  +1 −1"));
     assert!(a.is_some(), "{text:#?}");
     assert!(
         text.iter()
-            .any(|l| l.contains("✗ README.md  没动：之后又被改过")),
+            .any(|l| l.contains("✗ README.md  未还原：之后已被修改")),
         "{text:#?}"
     );
     assert!(!text.iter().any(|l| l.contains("命令")), "{text:#?}");

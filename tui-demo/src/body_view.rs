@@ -10,6 +10,7 @@ use ratatui::crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 use ratatui::layout::Rect;
 use unicode_width::UnicodeWidthChar;
 
+use crate::transcript::{Entry, Kind};
 use crate::ui::row_cache::Rows;
 use crate::ui::rows::Target;
 
@@ -71,6 +72,17 @@ pub struct BodyView {
     pub select: Option<(Point, Point)>,
     /// 按下左键的地方；松开时没拖过就算点了一下。
     press: Option<Point>,
+    /// 前面拼进了更早的一页，下一帧照条目编号找回原来的位置（[`BodyView::pin_top`]）。
+    pub pinned: Option<Pinned>,
+}
+
+/// 拼更早的一页以前记下的位置：条目编号、往下第几行（可以是负的：在它上面的空行）。
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Pinned {
+    /// 视口第一行（滚过的才记）。
+    pub top: Option<(u64, isize)>,
+    /// 清屏那一行（`cleared_at`）的前一行。
+    pub cleared: Option<(u64, isize)>,
 }
 
 impl BodyView {
@@ -220,6 +232,51 @@ impl BodyView {
     /// 不贴着底边往下落，顶出屏幕的行不回来（`tui.md`「正文」第 1 条）。只管下一帧。
     pub fn hold(&mut self) {
         self.hold = true;
+    }
+
+    /// 正文前面要拼进更早的一页（老会话按页读，`tui.md`「会话列表」第 5 条「按页读」）：照行号记的位置换成「哪一条
+    /// 往下第几行」，拼好了下一帧照编号找回来（[`BodyView::unpin`]）。跟着最新的不记，照旧跟着。露在最上面的是那一行
+    /// 「正在读更早的…」的，它要去掉，钉它下面那一条。上一帧的行、悬停、选区照的是拼之前的排法，都不要了。
+    pub fn pin_top(&mut self, entries: &[Entry]) {
+        let mark = |row: usize| {
+            let first = self.rows.entry_at(row)?;
+            let i = (first..entries.len())
+                .find(|&i| entries[i].kind != Kind::Older && self.rows.start_of(i).is_some())?;
+            let start = self.rows.start_of(i)?;
+            Some((entries[i].id, row as isize - start as isize))
+        };
+        let top = self.top.and_then(|_| mark(self.first));
+        let cleared = self
+            .cleared_at
+            .filter(|&at| at > 0)
+            .and_then(|at| mark(at - 1));
+        self.pinned = Some(Pinned { top, cleared });
+        self.rows = Rows::default();
+        self.hover = None;
+        self.anchor = None;
+        self.select = None;
+        self.press = None;
+        self.floor_end = 0;
+    }
+
+    /// 拼好以后头一帧：照编号找回 [`BodyView::pin_top`] 记下的位置。`start` 交回第几条从第几行起。
+    pub fn unpin(
+        &mut self,
+        pinned: Pinned,
+        entries: &[Entry],
+        start: impl Fn(usize) -> Option<usize>,
+    ) {
+        let find = |(id, offset): (u64, isize)| {
+            let i = entries.iter().position(|e| e.id == id)?;
+            let row = start(i)? as isize + offset;
+            Some(usize::try_from(row).unwrap_or(0))
+        };
+        if let Some(top) = pinned.top.and_then(find) {
+            self.top = Some(top);
+        }
+        if let Some(row) = pinned.cleared.and_then(find) {
+            self.cleared_at = Some(row + 1);
+        }
     }
 
     /// Ctrl+L：把视口顶空，往回滚内容还在（照旧版）。新的字从空着的视口顶上往下长：

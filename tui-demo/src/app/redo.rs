@@ -40,7 +40,9 @@ impl App {
     }
 
     /// 编辑上一句回车了：照改过的重来。字照改过的发；附件和改之前的不一样才带（换成没有的带空的）。
-    pub(super) fn submit_edit(&mut self, original: Draft, draft: Draft) {
+    pub(super) fn submit_edit(&mut self, original: Draft, mut draft: Draft) {
+        // 收不了的附件改成文件块写路径（「输入框」第 12 条「照模型收」）。
+        self.demote_for_send(&mut draft);
         let files = draft.attachments();
         let files = (files != original.attachments()).then_some(files);
         let turn = self.send_redo(draft.text.clone(), paste::chips(&draft));

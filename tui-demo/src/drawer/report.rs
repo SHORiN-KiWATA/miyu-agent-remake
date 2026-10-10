@@ -4,23 +4,14 @@
 use super::{Answer, Ask, Decision, Drawer, Outcome, Texts};
 use crate::local::home_short;
 
-/// 一行结果的记号。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Mark {
-    /// 不允许：红 `✗`。
-    Bad,
-    /// 取消了：暗 `●`，整行暗。
-    Void,
-}
-
 /// 了结以后留什么。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Report {
-    /// 提问答了：旧版的引用块，一行一个字符串。
-    Block(Vec<String>),
-    /// 一行：不允许、取消。
-    Line(Mark, String),
-    /// 什么都不留：允许了。
+    /// 提问答了：一道一行「问题：回答」，接在时间线里「提问」那一步下面（第 6 条，2026-10-11 项目主人）。
+    Answers(Vec<String>),
+    /// 不允许：红 `✗` 一行。
+    Denied(String),
+    /// 什么都不留：允许了、取消了（取消一定顺带打断这一轮，那一步的结果和「已中断」已经说了，2026-10-11 项目主人）。
     Nothing,
 }
 
@@ -29,8 +20,7 @@ impl Drawer {
     pub fn report(&self, outcome: &Outcome, texts: &Texts) -> Report {
         match outcome {
             Outcome::Answered(a) => {
-                let mut lines = vec![texts.answered_title.clone()];
-                lines.extend(a.answers.iter().enumerate().map(|(p, answer)| {
+                let lines = a.answers.iter().enumerate().map(|(p, answer)| {
                     let said = if empty(answer) {
                         texts.unanswered.clone()
                     } else {
@@ -44,24 +34,17 @@ impl Drawer {
                         line.push_str(&texts.notes_suffix.replace("{notes}", &inline(notes)));
                     }
                     line
-                }));
-                Report::Block(lines)
+                });
+                Report::Answers(lines.collect())
             }
-            // 写清取消的是哪一种：提问、确认（第 6 条）。
-            Outcome::Cancelled => {
-                let text = match self.ask {
-                    Ask::Approval(_) => &texts.cancelled_approval,
-                    _ => &texts.cancelled_question,
-                };
-                Report::Line(Mark::Void, text.clone())
-            }
+            Outcome::Cancelled => Report::Nothing,
             Outcome::Decided(d) if d.decision != Decision::Deny => Report::Nothing,
             Outcome::Decided(d) => {
                 let text = d.reason.as_ref().map_or_else(
                     || texts.decisions[2].clone(),
                     |r| texts.denied_with.replace("{reason}", &inline(r)),
                 );
-                Report::Line(Mark::Bad, text)
+                Report::Denied(text)
             }
         }
     }

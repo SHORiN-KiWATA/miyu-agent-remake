@@ -55,8 +55,8 @@ mod tests {
 
     #[test]
     fn a_key_is_under_a_table_only_at_a_dot() {
-        assert!(under("providers.dev.keys", "providers.dev"));
+        assert!(under("providers.dev.key", "providers.dev"));
         assert!(under("providers.dev", "providers.dev"));
-        assert!(!under("providers.dev2.keys", "providers.dev"));
+        assert!(!under("providers.dev2.key", "providers.dev"));
     }
 }

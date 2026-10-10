@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use ratatui::layout::Rect;
 use ratatui::style::Modifier;
 
-use super::{split, todo_lines};
+use super::{spent_lines, split, todo_lines};
 use crate::config::Config;
 use crate::jobs::{Board, Feed, Todo, TodoState};
 
@@ -104,7 +104,7 @@ fn a_long_list_shows_only_what_is_in_progress() {
     let text: Vec<String> = lines.iter().map(|l| l.to_string()).collect();
     assert_eq!(text.len(), 6, "标题加 5 行：{text:?}");
     assert_eq!(text[0], "待办 12/20");
-    assert_eq!(text[1], "☑ 做完 12 项", "做完的收成一行");
+    assert_eq!(text[1], "☑ 已完成 12 项", "做完的收成一行");
     assert!(text[2].starts_with("■ 第 12 项"), "接着是在做的那项");
     assert!(text[2].ends_with('…'), "长的截掉加 …");
     assert!(text[3].starts_with("☐ 第 13 项"));
@@ -146,7 +146,7 @@ fn the_sidebar_is_laid_out_in_sections() {
             // 短编号是最后 8 个字符（核心 C-1）：打头的是时间，挨着开的会话一样。
             "  #7b3c1d4e",
             "",
-            "工作目录",
+            "工作区",
             "  ~/Documents/github/",
             "  miyu-agent-remake/.worktrees/",
             "  proto-tui-demo/tui-demo",
@@ -321,4 +321,17 @@ fn the_window_comes_from_the_core_not_the_model_name() {
     let after = text(&t);
     assert_eq!(after[at(&after) + 1], "  12k / 300k · 4%");
     assert!(after[at(&after) + 2].contains('▰'), "有窗口就画条");
+}
+
+#[test]
+fn requests_without_a_price_are_not_mentioned() {
+    // 2026-10-10 项目主人：「没有费用记录的请求不需要出现在侧边栏中」。
+    let config = Config::builtin().unwrap();
+    let text = |lines: Vec<ratatui::text::Line<'static>>| {
+        lines.iter().map(ToString::to_string).collect::<Vec<_>>()
+    };
+    let lines = text(spent_lines(Some("$0.42".into()), &config));
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert!(lines[0].contains("$0.42"));
+    assert!(spent_lines(None, &config).is_empty(), "一笔都算不出的不写");
 }

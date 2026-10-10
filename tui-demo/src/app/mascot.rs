@@ -5,12 +5,17 @@ use std::time::{Duration, Instant};
 use super::App;
 
 impl App {
-    /// 吉祥物画着的时候，下一次该画的时刻：转头、待机小动作、鼠标停够了转回来、走下来、嘴在动。
+    /// 吉祥物画着的时候，下一次该画的时刻：转头、待机小动作、鼠标停够了转回来、走下来、嘴在动。头像替掉吉祥物的只照
+    /// 走下来（「空会话的首页」第 10 条）。
     pub(super) fn mascot_deadline(&self, now: Instant) -> Vec<Instant> {
-        if !self.mascot_shown() {
-            return Vec::new();
-        }
         let look = &self.config.mascot;
+        let walking = self
+            .home_slot_shown()
+            .then(|| self.perch.wake(now, &look.perch))
+            .flatten();
+        if !self.mascot_shown() {
+            return walking.into_iter().collect();
+        }
         // 转头：照它的节拍画，转到了就停（第 7 条）。
         let turning = self
             .gaze
@@ -22,10 +27,6 @@ impl App {
             .then(|| self.attention.settles_at(settle))
             .flatten()
             .filter(|at| *at > now);
-        let walking = self
-            .home()
-            .then(|| self.perch.wake(now, &look.perch))
-            .flatten();
         [
             turning,
             self.idle.wake(now, &look.idle),

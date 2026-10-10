@@ -64,6 +64,6 @@ mod tests {
 
     #[test]
     fn osc9_is_one_line_without_controls() {
-        assert_eq!(osc9("Miyu", "出错了\x07"), "\x1b]9;Miyu: 出错了\x07");
+        assert_eq!(osc9("Miyu", "出错\x07"), "\x1b]9;Miyu: 出错\x07");
     }
 }

@@ -28,6 +28,9 @@ impl App {
 
     /// 核心交回了：底栏照它写；框开着的，找出改哪个模型、选着配置的默认那一级，用的是模型池的关框、提示一句。
     pub(super) fn efforts_listed(&mut self, list: EffortList) {
+        // 收哪几种附件照同一份 `model.list`（`attachments.rs`）。
+        self.abilities = list.abilities.clone();
+        self.default_chat = list.chat.clone();
         self.footer_effort(&list);
         if !matches!(self.panel, Some(Panel::Effort { .. })) {
             return;

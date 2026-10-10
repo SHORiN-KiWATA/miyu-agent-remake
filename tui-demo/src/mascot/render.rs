@@ -22,7 +22,10 @@ const SAMPLES: [(f64, f64); 4] = [(0.25, 0.25), (0.75, 0.25), (0.25, 0.75), (0.7
 
 /// 摆成 `pose` 时画成的格子：`rows` 行、每行 `cols` 格；没打中的、脸上的洞是 `None`。
 pub fn render(look: &Look, pose: &Pose) -> Vec<Vec<Option<Cell>>> {
-    let head = turn(pose.yaw, pose.pitch);
+    let head = turn(pose.yaw + pose.spin, pose.pitch, pose.roll);
+    // 暗：亮度照比例压下去，过了一半脸上的记号也不画（引导的开场，「第一次打开的引导」第 8 条）。
+    let bright = (1.0 - pose.dark).clamp(0.0, 1.0);
+    let with_face = pose.dark <= 0.5;
     let pieces = placed(look, pose);
     let light = normalize(look.light);
     let ramp: Vec<char> = look.ramp.chars().collect();
@@ -39,8 +42,11 @@ pub fn render(look: &Look, pose: &Pose) -> Vec<Vec<Option<Cell>>> {
                         let Some((part, normal, point)) = shoot(&pieces, &head, x, y) else {
                             continue;
                         };
-                        let lum = look.ambient + (1.0 - look.ambient) * dot(normal, light).max(0.0);
-                        match (part, face(&look.face, point, pose)) {
+                        let lum = (look.ambient
+                            + (1.0 - look.ambient) * dot(normal, light).max(0.0))
+                            * bright;
+                        let mark = with_face.then(|| face(&look.face, point, pose)).flatten();
+                        match (part, mark) {
                             (Part::Head, Some(mark)) => tally.face[mark as usize] += 1,
                             _ => tally.lit(part, lum),
                         }
@@ -127,7 +133,11 @@ fn placed(look: &Look, pose: &Pose) -> Vec<Placed> {
     let mut out = Vec::new();
     for shape in &look.shapes {
         let [x, y, z] = shape.center;
-        let body = turn(pose.yaw * shape.follow, pose.pitch * shape.follow);
+        let body = turn(
+            pose.yaw * shape.follow + pose.spin,
+            pose.pitch * shape.follow,
+            pose.roll * shape.follow,
+        );
         // 耳朵绕耳根往外歪：耳根不动，尖往外甩。
         let (tilt, [x, y, z]) = if shape.part == Part::Ear && pose.ear != 0.0 {
             let tilt = shape.tilt + pose.ear * shape.tilt.signum();
@@ -153,9 +163,13 @@ fn placed(look: &Look, pose: &Pose) -> Vec<Placed> {
     out
 }
 
-/// 朝 `yaw`、`pitch`（度）的旋转：先左右，再上下。
-fn turn(yaw: f64, pitch: f64) -> M3 {
-    matmul(&rot_x(pitch.to_radians()), &rot_y(yaw.to_radians()))
+/// 朝 `yaw`、`pitch`、歪 `roll`（度）的旋转：先左右，再上下，最后绕朝人的那根轴歪（往右为正）。
+fn turn(yaw: f64, pitch: f64, roll: f64) -> M3 {
+    let facing = matmul(&rot_x(pitch.to_radians()), &rot_y(yaw.to_radians()));
+    if roll == 0.0 {
+        return facing;
+    }
+    matmul(&rot_z(-roll.to_radians()), &facing)
 }
 
 /// 一根光线：从 `(x, y)` 朝 −z 打进去，停在最近的面上。给出打中哪一块、那里的法线（世界里）、

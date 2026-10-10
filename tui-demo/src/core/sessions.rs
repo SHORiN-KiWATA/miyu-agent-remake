@@ -20,6 +20,10 @@ pub struct SessionInfo {
     pub last_active: Option<jiff::Timestamp>,
     /// 没标题时核心给的预览：第一句话的第一行，最多 50 个字（核心 9-5）。
     pub preview: Option<String>,
+    /// 用的人格的编号；没带人格（无人格）的是 `None`。新会话的人格框照最近那个会话停（「新会话」第 1 条）。
+    pub persona: Option<String>,
+    /// 用的预设的编号。
+    pub preset: Option<String>,
 }
 
 /// 读 `session.list` 的回应、订阅会话列表的回应（两样一个形状）：子会话、一次性会话不要，照核心交回的先后（新的在前）。
@@ -46,6 +50,20 @@ fn entry(s: &Value) -> Option<SessionInfo> {
         busy: s["busy"] == true,
         last_active: s["last_active"].as_str().and_then(|t| t.parse().ok()),
         preview: text(&s["preview"]),
+        persona: text(&s["persona"]),
+        preset: text(&s["preset"]),
+    })
+}
+
+/// 最近的那个会话：最近一次动静最晚的，一样晚（都没有）的取排在前面的（核心交回的新的在前）。新会话的人格、预设框照
+/// 它停在上一次选的（蓝图「新会话：人格、工作区」第 1、3 条，2026-10-09 项目主人定）。
+pub fn latest(list: &[SessionInfo]) -> Option<&SessionInfo> {
+    list.iter().reduce(|best, s| {
+        if s.last_active > best.last_active {
+            s
+        } else {
+            best
+        }
     })
 }
 
@@ -110,6 +128,21 @@ mod tests {
         assert!(list[1].busy);
         assert_eq!(list[1].cwd.as_deref(), Some("/src"));
         assert!(list[1].last_active.is_some());
+    }
+
+    #[test]
+    fn the_latest_session_is_the_last_active_one_and_carries_its_picks() {
+        let list = read(&json!({"sessions":[
+            {"session":"pinned","parent":null,"oneshot":false,"pinned":true,
+             "last_active":"2026-10-01T08:00:00Z","persona":"old"},
+            {"session":"new","parent":null,"oneshot":false,
+             "last_active":"2026-10-09T08:00:00Z","preset":"full"},
+        ]}));
+        let latest = super::latest(&list).unwrap();
+        assert_eq!(latest.session, "new", "置顶的排在前面，照动静挑");
+        assert_eq!(latest.persona, None, "没带人格");
+        assert_eq!(latest.preset.as_deref(), Some("full"));
+        assert!(super::latest(&[]).is_none());
     }
 
     #[test]

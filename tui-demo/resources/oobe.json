@@ -1,0 +1,61 @@
+{
+  "welcome": { "scale": 1.6, "height": 0.5, "gap": 1 },
+  "stage": { "content_width": 60, "margin": 6, "gap": 4, "max_height": 24 },
+  "intro": {
+    "spin_ms": 2400,
+    "spin_swing": 1.3,
+    "fade_ms": 1800,
+    "settle_ms": 780,
+    "twitch_ms": 350,
+    "twitch_tilt": 0.5,
+    "blink_ms": 110,
+    "blink_gap_ms": 130,
+    "type_ms": 75,
+    "talk": 0.45,
+    "sub_ms": 500
+  },
+  "stars": {
+    "count": 46,
+    "gather_ms": 1700,
+    "lead_ms": 700,
+    "linger": 16,
+    "twinkle_ms": [900, 2600],
+    "scatter_ms": 700,
+    "marks": [".", "·", "*", "✦"],
+    "frame_ms": 66
+  },
+  "slide_ms": 220,
+  "react": {
+    "hop_ms": 280,
+    "hop_rows": 2,
+    "hop_mouth": 0.7,
+    "shake_ms": 650,
+    "shakes": 2,
+    "shake_yaw": 16.0,
+    "droop": 0.6,
+    "look_up": -14.0,
+    "blink_ms": 110,
+    "blink_gap_ms": 130,
+    "name_ms": 90,
+    "hop_ear": 0.45,
+    "tilt": 9.0,
+    "tilt_hold_ms": 900,
+    "tilt_ease_ms": 260,
+    "type_ear": 0.22,
+    "type_ear_ms": 140
+  },
+  "idle": {
+    "after_ms": 1500,
+    "glance_hold_ms": [600, 2000],
+    "glance_yaw": 16.0,
+    "twitch_every_ms": [2500, 6000],
+    "glance_roll": 0.5
+  },
+  "done": { "walk_ms": 650, "spin_ms": 1800, "leave_ms": 700 },
+  "popup": { "width": 0.8, "height": 0.75, "max_width": 110 },
+  "frame_ms": 33,
+  "sample_icons": ["edit", "read", "grep", "history", "subagent", "jobs", "send_message", "sessions", "ask_user", "todowrite"],
+  "welcome_wait_ms": 3000,
+  "catalog_limit": 10000,
+  "avatar_rows": 4
+}

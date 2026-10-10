@@ -179,6 +179,22 @@ impl Line {
     }
 }
 
+/// 输入历史放哪（蓝图「输入历史列表」第 8 条，核心 9-1 上）：`state` 是终端这个软件包放状态的目录，没有的（旧核心、
+/// 没装终端的清单）照旧放 `old`。新位置还没有、老位置有的，先搬过去；搬不动的照旧用老位置。目录自己建。
+pub fn place(state: Option<&Path>, old: Option<PathBuf>) -> Option<PathBuf> {
+    let Some(state) = state else {
+        return old;
+    };
+    let new = state.join("history.jsonl");
+    if let Some(old) = old.filter(|o| o.exists() && !new.exists()) {
+        let moved = std::fs::create_dir_all(state).and_then(|()| std::fs::rename(&old, &new));
+        if moved.is_err() {
+            return Some(old);
+        }
+    }
+    Some(new)
+}
+
 /// 现在的时刻（发一句时记）。
 pub fn now() -> SystemTime {
     SystemTime::now()
@@ -186,7 +202,7 @@ pub fn now() -> SystemTime {
 
 #[cfg(test)]
 mod tests {
-    use super::{Saved, now};
+    use super::{Saved, now, place};
     use crate::input::{Block, Draft, Sent};
 
     fn sent(text: &str) -> Sent {
@@ -250,6 +266,27 @@ mod tests {
         let lines = std::fs::read_to_string(&path).unwrap().lines().count();
         assert_eq!(lines, 3, "多过两倍：重写成只留这几条");
         assert!(Saved::default().load(3).is_empty(), "没有文件的什么都不记");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn history_moves_from_the_old_place_into_the_package_state_dir_once() {
+        let dir = std::env::temp_dir().join(format!("miyu-tui-place-{}", std::process::id()));
+        let old = dir.join("state/tui/history.jsonl");
+        let state = dir.join("state/packages/tui");
+        std::fs::create_dir_all(old.parent().unwrap()).unwrap();
+        std::fs::write(&old, "旧的\n").unwrap();
+        let got = place(Some(&state), Some(old.clone())).unwrap();
+        assert_eq!(got, state.join("history.jsonl"));
+        assert_eq!(std::fs::read_to_string(&got).unwrap(), "旧的\n", "搬过去了");
+        assert!(!old.exists());
+        // 新位置已经有的不再搬：老位置又出现的（别的老版本写的）不动。
+        std::fs::write(&old, "又一份\n").unwrap();
+        place(Some(&state), Some(old.clone()));
+        assert!(old.exists());
+        assert_eq!(std::fs::read_to_string(&got).unwrap(), "旧的\n");
+        // 拿不到状态目录：照旧用老位置。
+        assert_eq!(place(None, Some(old.clone())), Some(old));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

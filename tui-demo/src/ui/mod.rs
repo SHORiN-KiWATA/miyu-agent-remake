@@ -4,6 +4,7 @@
 //! 框下面一行左边是模式和模型，右边是临时的状态和用量。
 
 mod agents;
+mod avatar_view;
 mod background;
 mod body;
 mod bottom_button;
@@ -27,8 +28,11 @@ mod margins;
 mod mascot_view;
 mod md_cache;
 pub mod model_list;
+mod oobe;
+pub use oobe::idle_look as oobe_idle_look;
 mod panel;
 mod panels;
+pub mod persona_list;
 pub mod session_list;
 pub mod settings;
 mod sidebar;
@@ -224,9 +228,18 @@ fn text_width(area_width: u16, layout: &Layout) -> u16 {
 /// 画一帧。顺手把各块的位置记进 `app`，鼠标事件要用。
 pub fn draw(frame: &mut Frame, app: &mut App) {
     app.caret.begin();
+    // 第一次打开的引导开着：整屏归它（蓝图「第一次打开的引导」第 1 条）。
+    if app.oobe.is_some() {
+        oobe::draw(frame, app);
+        return;
+    }
     // 配置页开着：整屏归它，对话不画（图片也不画），关了照原样画回来（蓝图「配置页」第 1 条）。
     if let Some(page) = app.settings.as_mut() {
         settings::draw(frame, page, &app.config, &mut app.caret);
+        return;
+    }
+    // 还在问 `ui.welcomed`：整屏空着，免得进引导前闪一下首页（「第一次打开的引导」第 1 条）。
+    if app.welcome_pending(std::time::Instant::now()) {
         return;
     }
     // 不在首页、够宽时右边分出侧边栏，别的都画在主列里（`tui.md`「后台命令、子代理和侧边栏」第 7 条）。
@@ -299,8 +312,8 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     let place = |menu_rows: u16| {
         if home {
             let look = &app.config.mascot;
-            // 首页的吉祥物能关（「后台命令、子代理和侧边栏」第 7 条）。
-            let mascot = if app.config.layout.mascot_home {
+            // 首页的吉祥物能关（「后台命令、子代理和侧边栏」第 7 条）；人格有头像的照样留这一块（「空会话的首页」第 10 条）。
+            let mascot = if avatar_view::slot_shown(app, crate::app::Place::Home) {
                 (look.cols, look.rows)
             } else {
                 (0, 0)

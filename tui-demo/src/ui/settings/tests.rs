@@ -85,7 +85,7 @@ fn a_model_form_masks_nothing_but_keys_and_shows_sources() {
     press(&mut p, &config, KeyCode::Enter);
     let (text, _) = screen(&mut p, &config, 120, 34);
     assert!(text.contains("编辑供应商 · 中转站"));
-    assert!(text.contains("已存在密钥库"), "key 不显示值：\n{text}");
+    assert!(text.contains("已保存到密钥库"), "key 不显示值：\n{text}");
     // 已有的 ID 只读，开窗停在显示名称：往下四行是 key。
     for _ in 0..4 {
         press(&mut p, &config, KeyCode::Down);

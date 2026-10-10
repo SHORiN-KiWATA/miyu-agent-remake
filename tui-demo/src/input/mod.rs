@@ -25,7 +25,7 @@ pub use attach::{AttachKind, AttachRule, Attachment};
 use dropped::Dropped;
 pub use editor::Editor;
 pub use pasted::{Block, Draft, PasteRule, Sent};
-pub use saved::Saved;
+pub use saved::{Saved, place};
 pub use wrap::{VisualLine, locate, offset_at, pieces, tail_pieces, wrap, wrap_words};
 
 /// 输入框处理完一个事件后，要外面做的事。
@@ -92,6 +92,10 @@ pub struct InputBox {
     hover: Option<(usize, usize)>,
     /// 附件认哪几种、块上写什么（`attach.rs`）。
     attach_rule: AttachRule,
+    /// 这个会话的模型收不了的那几种附件：拖进来、贴进来时收成文件块（「输入框」第 12 条「照模型收」）。
+    refused: Vec<String>,
+    /// 改成了文件块的那几种，还没提示的。
+    demoted: Vec<String>,
     /// 正文里每一种附件已经有几个：输入框里的接着编号（蓝图「输入框」第 12 条）。
     attach_base: HashMap<String, usize>,
 }
@@ -121,6 +125,8 @@ impl InputBox {
             pressed: None,
             hover: None,
             attach_rule: AttachRule::default(),
+            refused: Vec::new(),
+            demoted: Vec::new(),
             attach_base: HashMap::new(),
         }
     }
@@ -128,6 +134,16 @@ impl InputBox {
     /// 照配置设大段粘贴收成一块的门槛和写法（蓝图「输入框」第 11 条）。
     pub fn set_paste_rule(&mut self, rule: PasteRule) {
         self.paste_rule = rule;
+    }
+
+    /// 这个会话的模型收不了的那几种附件（「输入框」第 12 条「照模型收」）。
+    pub fn set_refused(&mut self, kinds: Vec<String>) {
+        self.refused = kinds;
+    }
+
+    /// 拖进来、贴进来时改成了文件块的那几种（提示一句），拿走就清掉。
+    pub fn take_demoted(&mut self) -> Vec<String> {
+        std::mem::take(&mut self.demoted)
     }
 
     /// 照配置设附件认哪几种、块上写什么（蓝图「输入框」第 12 条）。
@@ -242,22 +258,31 @@ impl InputBox {
         Action::None
     }
 
-    /// 处理一次粘贴。拖进终端的一批文件里认得出种类的收成附件，别的收成文件块（蓝图「输入框」第 12 条）。
+    /// `Ctrl+V` 读来的是一批本机现成的文件、目录（文件管理器里复制的、复制的路径）：认得出种类的收成附件，别的收成
+    /// 文件块，交回 `true`；不是的什么都不做，交回 `false`（蓝图「输入框」第 12 条）。
+    pub fn paste_files(&mut self, text: &str) -> bool {
+        let home = std::env::var("HOME").ok();
+        let Some(items) = dropped::dropped(text, home.as_deref(), &self.attach_rule) else {
+            return false;
+        };
+        self.goal_col = None;
+        self.follow = true;
+        for (i, item) in items.into_iter().enumerate() {
+            if i > 0 {
+                self.editor.insert(" ");
+            }
+            match item {
+                Dropped::File(path, _) | Dropped::Path(path) => self.put_file(path),
+            }
+        }
+        true
+    }
+
+    /// 处理一次粘贴（终端送来的：`Ctrl+Shift+V`、拖文件进来）：照原样是字，路径也是字（2026-10-10 项目主人：
+    /// 「ctrl+shift+V 粘贴文字，ctrl+V 粘贴占位符」）；大段的收成一块（蓝图「输入框」第 11 条）。
     pub fn paste(&mut self, text: &str) {
         self.goal_col = None;
         self.follow = true;
-        let home = std::env::var("HOME").ok();
-        if let Some(items) = dropped::dropped(text, home.as_deref(), &self.attach_rule) {
-            for (i, item) in items.into_iter().enumerate() {
-                if i > 0 {
-                    self.editor.insert(" ");
-                }
-                match item {
-                    Dropped::File(path, _) | Dropped::Path(path) => self.put_file(path),
-                }
-            }
-            return;
-        }
         let clean = editor::clean(text);
         if self.paste_rule.folds(&clean) {
             let label = self.paste_rule.label(&clean);
@@ -271,6 +296,10 @@ impl InputBox {
     pub fn attach(&mut self, file: std::path::PathBuf, kind: &str) {
         self.goal_col = None;
         self.follow = true;
+        // 模型收不了这一种：收成文件块，发出去写路径（「照模型收」）。
+        if self.refuses(kind) {
+            return self.put_path(file);
+        }
         let label = self.attach_rule.label(kind, 0);
         let kind = kind.to_string();
         self.editor

@@ -12,6 +12,8 @@ pub struct FigureLook {
     pub room: Room,
     /// 图片（本机的文件、`<img>`）最多多大。
     pub picture_room: Room,
+    /// 工具结果里的图（`read` 读的）最多多大（「时间线」第 8 条：长宽各是 `picture_room` 的一半）。
+    pub preview_room: Room,
     /// mermaid 图里的字体，照先后找；都没有的由 resvg 从系统里找。
     pub fonts: Vec<String>,
     /// 块级公式的字号是一格高的几倍。

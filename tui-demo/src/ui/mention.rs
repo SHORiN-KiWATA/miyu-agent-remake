@@ -122,7 +122,7 @@ mod tests {
         };
         let (chrome, rows) = lines(&found, 0, None, 8, 60, &words);
         let title: String = chrome.title.iter().map(|s| s.content.as_ref()).collect();
-        assert_eq!(title, "@ main · 2 个 · 只列了一部分，打 / 按目录找");
+        assert_eq!(title, "@ main · 2 个 · 仅显示部分结果，输入 / 按目录查找");
         // 没选中的那条（选中的字色由底色定）：对上的字强调色，目录的部分最淡。
         let spans = &rows[1].spans;
         let hit = spans
@@ -140,6 +140,6 @@ mod tests {
             ..found
         };
         let (_, rows) = lines(&empty, 0, None, 8, 60, &words);
-        assert!(rows[0].to_string().contains("没有对得上的"));
+        assert!(rows[0].to_string().contains("无匹配项"));
     }
 }

@@ -11,6 +11,10 @@ use super::rpc::Rpc;
 const LANGUAGE: &str = "ui.language";
 /// 金额哪种币排最前的配置项。
 const CURRENCY: &str = "usage.currency";
+/// 默认人格的配置项：新会话的人格框光标停在它上面。
+const PERSONA: &str = "persona.default";
+/// 默认预设的配置项：新会话的预设框光标停在它上面（核心 P-2 上）。
+const PRESET: &str = "preset.default";
 
 /// 头要的几项配置的最终值。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,6 +23,10 @@ pub struct HeadConfig {
     pub language: String,
     /// 金额排最前的币种，没有的是 `USD`。
     pub currency: String,
+    /// 默认人格的编号；核心不认这一项的（旧核心）是 `None`。
+    pub persona: Option<String>,
+    /// 默认预设的编号；同上。
+    pub preset: Option<String>,
 }
 
 /// 连上以后：订阅配置流（别处改了推 `config.changed`），读一次界面语言。交回读的那条请求的编号。
@@ -29,8 +37,11 @@ pub(super) async fn follow(rpc: &mut Rpc) -> io::Result<String> {
 
 /// 读头要的几项的最终值。交回请求编号。
 pub(super) async fn read(rpc: &mut Rpc) -> io::Result<String> {
-    rpc.send("config.get", json!({"keys": [LANGUAGE, CURRENCY]}))
-        .await
+    rpc.send(
+        "config.get",
+        json!({"keys": [LANGUAGE, CURRENCY, PERSONA, PRESET]}),
+    )
+    .await
 }
 
 /// `config.get` 的回应里那几项；界面语言没有的是 `auto`，币种没有的是 `USD`。
@@ -44,14 +55,27 @@ pub(super) fn head(result: &Value) -> HeadConfig {
     HeadConfig {
         language: value(LANGUAGE, "auto"),
         currency: value(CURRENCY, "USD"),
+        persona: result["items"][PERSONA]["value"]
+            .as_str()
+            .map(str::to_string),
+        preset: result["items"][PRESET]["value"]
+            .as_str()
+            .map(str::to_string),
     }
 }
 
-/// 推来的 `config.changed` 动了头要的哪一项。
+/// 终端自己的配置项（终端软件包清单声明的）打头的那一截：改了的也要重读（图标、时间线的开关，`app/head_settings.rs`）。
+const OWN: &str = "tui.";
+
+/// 推来的 `config.changed` 动了头要的哪一项：上面那几项，或者终端自己的任何一项。
 pub(super) fn touches(params: &Value) -> bool {
-    [LANGUAGE, CURRENCY]
+    let keys = &params["keys"];
+    [LANGUAGE, CURRENCY, PERSONA, PRESET]
         .iter()
-        .any(|key| params["keys"].get(key).is_some())
+        .any(|key| keys.get(key).is_some())
+        || keys
+            .as_object()
+            .is_some_and(|keys| keys.keys().any(|k| k.starts_with(OWN)))
 }
 
 /// 新会话默认用哪个（手动换的模型，`/model`）：写进个人设置的 `models.chat`。
@@ -94,6 +118,10 @@ mod tests {
             !touches(&json!({"keys":{},"layer":"personal"})),
             "只改了注释"
         );
+        // 终端自己的配置项（`tui.*`）改了也重读（2026-10-10 项目主人报：时间线的开关调了没生效）。
+        assert!(touches(
+            &json!({"keys":{"tui.timeline_fold":{"value":false}},"layer":"personal"})
+        ));
         assert_eq!(
             set_language("auto"),
             json!({"layer":"personal","changes":[{"key":"ui.language","value":"auto"}]})

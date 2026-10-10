@@ -10,6 +10,11 @@
     "width": [3, 5],
     "min_rows": 3
   },
+  "preview_room": {
+    "height": [1, 6],
+    "width": [3, 10],
+    "min_rows": 3
+  },
   "fonts": [
     "Noto Sans CJK SC",
     "PingFang SC"

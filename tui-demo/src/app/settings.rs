@@ -81,11 +81,52 @@ impl App {
         self.send_settings_asks();
     }
 
+    /// 配置页读到了要交给编辑器的提示词（「配置页」第 40 条）：写临时文件、让出终端，同 Ctrl+G（`compose.rs`）。编辑器
+    /// 照 `$VISUAL`、`$EDITOR`，都没有的用 `vi`；Windows 上没有的不开。
+    fn open_prompt_editor(&mut self) {
+        let Some(page) = self.settings.as_mut() else {
+            return;
+        };
+        let Some(text) = page.take_prompt() else {
+            return;
+        };
+        let editor = self
+            .editor
+            .clone()
+            .or_else(|| cfg!(unix).then(|| "vi".to_string()));
+        let file = std::env::temp_dir().join(format!("miyu-persona-{}.md", std::process::id()));
+        match editor.map(|e| (e, std::fs::write(&file, &text))) {
+            Some((editor, Ok(()))) => {
+                self.settings_prompt = Some(file.clone());
+                self.edit = Some((editor, file));
+            }
+            _ => page.prompt_edited(None),
+        }
+    }
+
+    /// 编辑器退出了：是配置页的提示词就读回来交还配置页、删掉临时文件。交回是不是它。
+    pub(super) fn settings_prompt_edited(&mut self) -> bool {
+        let Some(file) = self.settings_prompt.take() else {
+            return false;
+        };
+        let text = std::fs::read_to_string(&file).ok();
+        drop(std::fs::remove_file(&file));
+        if let Some(page) = self.settings.as_mut() {
+            page.prompt_edited(text);
+        }
+        self.send_settings_asks();
+        true
+    }
+
     /// 关配置页、退出程序。
     fn settings_outcome(&mut self, outcome: Outcome) {
         match outcome {
             Outcome::Stay => {}
-            Outcome::Back => self.settings = None,
+            Outcome::Back => {
+                self.settings = None;
+                // 配置页里可能换了人格的头像：重读人格列表，照新的版本换（「空会话的首页」第 10 条）。
+                self.core.send(Command::ListPersonas);
+            }
             Outcome::Quit => self.quit = true,
         }
     }
@@ -115,6 +156,7 @@ impl App {
             }
             _ => false,
         };
+        self.open_prompt_editor();
         self.send_settings_asks();
         mine
     }

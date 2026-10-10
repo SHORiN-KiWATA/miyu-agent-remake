@@ -8,13 +8,10 @@ use super::Command;
 pub(super) fn request(
     command: Command,
     session: &str,
-    cwd: &str,
 ) -> Option<(&'static str, serde_json::Value)> {
     Some(match command {
-        Command::Send { text, .. } => (
-            "session.send",
-            json!({"session": session, "text": text, "cwd": cwd}),
-        ),
+        // 不再带 `cwd`：工作区是会话的属性，核心照收不理（核心 9-7 上）。
+        Command::Send { text, .. } => ("session.send", json!({"session": session, "text": text})),
         Command::Interrupt { send } => {
             let queued = if send { "send" } else { "return" };
             (
@@ -23,6 +20,11 @@ pub(super) fn request(
             )
         }
         Command::Revert => ("session.revert", json!({"session": session})),
+        // 换工作区：相对的照终端所在的目录接（核心 9-7 下）。
+        Command::Workspace { path, cwd } => (
+            "command.run",
+            json!({"session": session, "text": format!("/workspace {path}"), "cwd": cwd}),
+        ),
         // 回答的是问的那个会话：子会话的带着它的编号，不管现在看的是哪个（「确认和提问的抽屉」第 8 条）。
         Command::Answer {
             session: asker,
@@ -85,6 +87,14 @@ pub(super) fn request(
         | Command::RenderMermaid(_)
         | Command::Ask { .. }
         | Command::Usage(_)
+        | Command::ListPersonas
+        | Command::ListPackages
+        | Command::ListPresets
+        | Command::Preset(_)
+        | Command::Persona(_)
+        | Command::Older(_)
+        | Command::CheckDir { .. }
+        | Command::NewWorkspace(_)
         | Command::SetEffort { .. }
         | Command::Output { .. } => {
             return None;
@@ -100,6 +110,28 @@ mod tests {
     use crate::core::Command;
 
     #[test]
+    fn saying_something_no_longer_reports_the_directory() {
+        // 核心 9-7 上：工作区是会话的属性，`session.send` 带的 `cwd`、`dirs` 照收不理（蓝图「新会话：人格、工作区」）。
+        let said = Command::Send {
+            text: "你好".into(),
+            files: Vec::new(),
+        };
+        let expected = json!({"session": "s", "text": "你好"});
+        assert_eq!(request(said, "s"), Some(("session.send", expected)));
+    }
+
+    #[test]
+    fn the_workspace_command_carries_where_the_terminal_is() {
+        // 核心 9-7 下：相对的路径照终端所在的目录接（蓝图「新会话：人格、工作区」第 4 条）。
+        let moved = Command::Workspace {
+            path: "../b".into(),
+            cwd: "/home/a/x".into(),
+        };
+        let expected = json!({"session": "s", "text": "/workspace ../b", "cwd": "/home/a/x"});
+        assert_eq!(request(moved, "s"), Some(("command.run", expected)));
+    }
+
+    #[test]
     fn redo_only_says_what_changed() {
         // `/redo` 原样重来什么都不带；`/edit` 带改过的字（蓝图「斜杠命令」`/redo`、「输入框」第 13 条）。
         let plain = request(
@@ -108,7 +140,6 @@ mod tests {
                 files: None,
             },
             "s",
-            "~",
         );
         assert_eq!(plain, Some(("session.redo", json!({"session": "s"}))));
         let edited = Command::Redo {
@@ -116,17 +147,17 @@ mod tests {
             files: None,
         };
         let expected = json!({"session": "s", "text": "改过的"});
-        assert_eq!(request(edited, "s", "~"), Some(("session.redo", expected)));
+        assert_eq!(request(edited, "s"), Some(("session.redo", expected)));
     }
 
     #[test]
     fn a_rename_sets_the_title_and_a_bare_one_removes_it() {
         assert_eq!(
-            request(Command::Rename(Some("回文".into())), "s", "~"),
+            request(Command::Rename(Some("回文".into())), "s"),
             Some(("session.set_meta", json!({"session": "s", "title": "回文"})))
         );
         assert_eq!(
-            request(Command::Rename(None), "s", "~"),
+            request(Command::Rename(None), "s"),
             Some(("session.set_meta", json!({"session": "s", "title": null})))
         );
     }
@@ -134,7 +165,7 @@ mod tests {
     #[test]
     fn a_recap_asks_for_this_session() {
         assert_eq!(
-            request(Command::Recap, "s", "~"),
+            request(Command::Recap, "s"),
             Some(("session.recap", json!({"session": "s"})))
         );
     }

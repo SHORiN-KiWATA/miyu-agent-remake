@@ -59,7 +59,7 @@ fn deleting_a_table_unsets_every_personal_key_under_it() {
 }
 
 #[test]
-fn a_new_key_gets_a_fresh_secret_name_and_the_reference_goes_into_keys() {
+fn a_new_key_gets_a_fresh_secret_name_and_the_reference_goes_into_key() {
     let data = sample();
     let mut draft = Draft::default();
     draft.set_secret("relay", "sk-relay".into());
@@ -78,8 +78,8 @@ fn a_new_key_gets_a_fresh_secret_name_and_the_reference_goes_into_keys() {
     assert_eq!(sent["layer"], "personal");
     assert_eq!(
         sent["changes"],
-        json!([{"key": "providers.relay.keys", "value": [{"secret": "relay-key-2"}],
-                "expect": {"value": [{"secret": "relay-key"}]}}])
+        json!([{"key": "providers.relay.key", "value": {"secret": "relay-key-2"},
+                "expect": {"value": {"secret": "relay-key"}}}])
     );
     assert!(
         !sent.to_string().contains("sk-relay"),

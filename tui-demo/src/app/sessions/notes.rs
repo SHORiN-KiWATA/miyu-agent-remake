@@ -306,6 +306,7 @@ mod tests {
             agent,
             title: "查文档".into(),
             session: agent.then(|| format!("s-{job}")),
+            foreground: false,
         };
         let end = |job: &str, reason, exit_code| JobEnd {
             job: job.into(),
@@ -337,7 +338,7 @@ mod tests {
                 false,
                 JobReason::Undone,
                 None,
-                "后台命令已停止 · cargo test · 撤销时停了",
+                "后台命令已停止 · cargo test · 撤销时已停止",
             ),
             (
                 "j4",
@@ -351,7 +352,7 @@ mod tests {
                 true,
                 JobReason::Restarted,
                 None,
-                "后台任务已停止 · 查文档 · 核心重启时停了",
+                "后台任务已停止 · 查文档 · 核心重启时已停止",
             ),
         ];
         for (job, agent, reason, code, text) in cases {
@@ -392,6 +393,7 @@ mod tests {
             agent: true,
             title: String::new(),
             session: Some(session.into()),
+            foreground: false,
         };
         let mut main = Board::default();
         main.start(&start("j1", "s1"), None, t0);
@@ -463,9 +465,9 @@ mod tests {
         assert_eq!(text, "会话 22334455 回复 · 55");
         let (mark, text) = super::peer_note(id, None, "expired", None, &words);
         assert!(matches!(mark, JobMark::Stopped));
-        assert_eq!(text, "会话 22334455 等了 12 小时没空下来，不等了");
+        assert_eq!(text, "会话 22334455 12 小时内未空闲，已停止等待");
         let (_, text) = super::peer_note(id, Some("工人"), "gone", None, &words);
-        assert_eq!(text, "会话 22334455「工人」已经不在了，不等了");
+        assert_eq!(text, "会话 22334455「工人」已不存在，已停止等待");
         let (mark, text) = super::peer_note(id, None, "paused", None, &words);
         assert!(matches!(mark, JobMark::Stopped));
         assert_eq!(text, "会话 22334455 · paused", "认不得的原样写");

@@ -139,6 +139,25 @@ pub fn item(
     bar(Line::from(spans), picked)
 }
 
+/// 放进 `width` 列：放不下的从前面截掉、打头写 `…`（路径的末段最有用，首页那一行、工作区框用）。
+pub fn tail(text: &str, width: usize) -> String {
+    use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+    if text.width() <= width {
+        return text.to_string();
+    }
+    let mut kept: Vec<char> = Vec::new();
+    let mut used = 1;
+    for c in text.chars().rev() {
+        let w = c.width().unwrap_or(0);
+        if used + w > width {
+            break;
+        }
+        used += w;
+        kept.push(c);
+    }
+    std::iter::once('…').chain(kept.into_iter().rev()).collect()
+}
+
 /// 接着上一条往下写的一行（展开的全文）：行首空两格，和上一条的字对齐；选中的照 [`item`] 铺底。
 pub fn more(picked: bool, content: Vec<Span<'static>>, width: u16) -> Line<'static> {
     let width = usize::from(width);

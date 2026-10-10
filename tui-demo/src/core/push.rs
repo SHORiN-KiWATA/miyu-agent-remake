@@ -81,13 +81,19 @@ pub enum Compaction {
         written: u64,
         /// 核心估计要写多少字（压前的用量夹在 2 万到 8 万之间）；以前的核心不给。
         expected: Option<u64>,
+        /// 手动压缩（`trigger` 是 `manual`）、自动的（`auto`）；以前的核心不给。
+        manual: Option<bool>,
     },
+    /// 提前在后台开始压了（瞬时的 `compaction.started`，核心 6-11 再补）。
+    Started,
     /// 压好了（瞬时的 `compaction.done`）：压之前、压完的用量，都是估算。
     Done {
         /// 压之前的用量。
         before: u64,
         /// 压完的用量。
         after: u64,
+        /// 换上的是提前在后台压好的那一份（`prepared: true`）。
+        prepared: bool,
     },
     /// 摘要请求出错（`model.called` 带 `compaction`、`result` 是 `error`）。
     Failed(CallError),
@@ -122,6 +128,10 @@ pub enum Push {
     Foreign(Foreign),
     /// 派出去一个后台任务（工具结果 `effects` 里的 `job.started`）。
     JobStarted(JobStart),
+    /// 按页读时页里带的、派出去在切点前的任务（核心 9-6 再补）：只记进任务表，不另订阅子代理的会话。
+    JobEarlier(JobStart),
+    /// 会话换了工作区（`session.workspace_changed`，核心 9-7 上）：换到的目录。
+    Workspace(String),
     /// 给报过的子代理留了言，它又在跑了（`job.messaged`），带着任务编号。
     JobMessaged(String),
     /// 一个后台任务结束了：后台命令（`job.reported`）、子代理（`child.reported`）。
@@ -187,6 +197,13 @@ pub enum Push {
         text: String,
         /// 给人看的结果那一句（`human`）：哪一句、换进去的字段；头照资源里的字换。
         said: Option<Said>,
+    },
+    /// 结果里的图（读了图片文件的 `read`）：这一次调用、每张图的内容哈希（蓝图「时间线」第 8 条）。
+    ToolImages {
+        /// 调用编号。
+        call_id: String,
+        /// 图的内容哈希，照块的先后。
+        blobs: Vec<String>,
     },
     /// 确认、提问（核心 D-1、D-2）：开、收抽屉，写结果。
     Asking(Asking),
@@ -326,6 +343,11 @@ pub fn read(event: &Value, mine: &dyn Fn(&str) -> bool) -> Vec<Push> {
                 out.push(Push::Recapped(text.trim().to_string()));
             }
         }
+        "session.workspace_changed" => {
+            if let Some(cwd) = body["cwd"].as_str() {
+                out.push(Push::Workspace(cwd.to_string()));
+            }
+        }
         "session.meta_changed" => {
             if let Some(title) = body["title"].as_str() {
                 out.push(Push::Title(title.to_string()));
@@ -352,11 +374,14 @@ pub fn read(event: &Value, mine: &dyn Fn(&str) -> bool) -> Vec<Push> {
         "compaction.progress" => out.push(Push::Compaction(Compaction::Progress {
             written: body["written"].as_u64().unwrap_or_default(),
             expected: body["expected"].as_u64().filter(|&n| n > 0),
+            manual: body["trigger"].as_str().map(|t| t == "manual"),
         })),
         "compaction.done" => out.push(Push::Compaction(Compaction::Done {
             before: body["before"].as_u64().unwrap_or_default(),
             after: body["after"].as_u64().unwrap_or_default(),
+            prepared: body["prepared"] == true,
         })),
+        "compaction.started" => out.push(Push::Compaction(Compaction::Started)),
         "context.compaction_paused" => out.push(Push::Compaction(Compaction::Paused {
             reason: text(&body["reason"]),
             failures: body["failures"].as_u64(),
@@ -412,6 +437,17 @@ pub fn read(event: &Value, mine: &dyn Fn(&str) -> bool) -> Vec<Push> {
                     .join("\n"),
                 said: serde_json::from_value(body["human"].clone()).ok(),
             });
+            // 结果里的图（读了图片文件的 `read`）另交一条：时间线把图接在这一步下面（蓝图「时间线」第 8 条）。
+            let blobs: Vec<String> = blocks(body)
+                .filter(|b| b["type"] == "image")
+                .filter_map(|b| b["blob"].as_str().map(str::to_string))
+                .collect();
+            if !blobs.is_empty() {
+                out.push(Push::ToolImages {
+                    call_id: text(&body["call_id"]),
+                    blobs,
+                });
+            }
         }
         "model.called" => called::read(body, &mut out),
         "status" if body["retry"].is_object() => {

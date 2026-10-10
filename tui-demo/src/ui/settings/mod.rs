@@ -2,7 +2,10 @@
 //! 细线、两行按键提示；悬浮窗盖在上面，背后调暗。只画，不改数据（选中行滚到哪、鼠标点得到哪记在页面上）。
 
 mod columns;
+mod dialog_popups;
 mod fields;
+mod more_popups;
+mod pages;
 mod popup;
 
 use ratatui::Frame;
@@ -38,6 +41,8 @@ pub struct Look {
     pub pool_width: u16,
     /// 栏和栏之间空几列。
     pub column_gap: u16,
+    /// 主菜单项和项之间空几行。
+    pub menu_gap: u16,
     /// 悬浮窗多宽。
     pub popup_width: u16,
     /// 宽一些的悬浮窗（模型、池、选模型）多宽。
@@ -54,7 +59,9 @@ pub fn draw(frame: &mut Frame, page: &mut Settings, config: &Config, caret: &mut
     let area = frame.area();
     let stage = stage(area, look);
     if page.on_menu {
-        menu(frame, stage, page, texts);
+        pages::menu(frame, stage, page, texts, look.menu_gap);
+    } else if page.more.section.is_some() {
+        pages::draw(frame, stage, page, texts);
     } else {
         models(frame, stage, page, texts, look, caret);
     }
@@ -87,34 +94,6 @@ fn stage(area: Rect, look: &Look) -> Rect {
     )
 }
 
-/// 主菜单：面包屑、一项、状态行、细线、按键提示。
-fn menu(frame: &mut Frame, stage: Rect, page: &mut Settings, texts: &Texts) {
-    crumb(frame, stage, texts, false);
-    if stage.height > 4 {
-        let row = Rect::new(
-            stage.x,
-            stage.y + 2,
-            stage.width.min(46),
-            2.min(stage.height - 2),
-        );
-        let buf = frame.buffer_mut();
-        buf.set_style(row, theme::row_focus());
-        bar(frame, row);
-        let name = Line::from(Span::raw(texts.entry.as_str()));
-        frame
-            .buffer_mut()
-            .set_line(row.x + 2, row.y, &name, row.width.saturating_sub(2));
-        if row.height > 1 {
-            let note = Line::from(Span::styled(texts.entry_note.as_str(), theme::dim()));
-            frame
-                .buffer_mut()
-                .set_line(row.x + 2, row.y + 1, &note, row.width.saturating_sub(2));
-        }
-        page.hits.push((row, Hit::Menu));
-    }
-    footer(frame, stage, page, texts, &texts.key_hints[0], None, None);
-}
-
 /// 「供应商和模型」：面包屑、分页、几栏、状态行、细线、两行按键提示。
 fn models(
     frame: &mut Frame,
@@ -124,7 +103,7 @@ fn models(
     look: &Look,
     caret: &mut Caret,
 ) {
-    crumb(frame, stage, texts, true);
+    crumb(frame, stage, texts, Some(&texts.entry));
     if stage.height < 8 {
         return;
     }
@@ -175,15 +154,15 @@ fn models(
     }
 }
 
-/// 面包屑：`● 配置`，进了一页再接 ` — ◉ 供应商和模型`。
-fn crumb(frame: &mut Frame, stage: Rect, texts: &Texts, inside: bool) {
+/// 面包屑：`● 配置`，进了一页再接 ` — ◉ 页名`。
+pub(super) fn crumb(frame: &mut Frame, stage: Rect, texts: &Texts, inside: Option<&str>) {
     let mut spans = vec![Span::styled("● ", theme::accent())];
-    if inside {
+    if let Some(name) = inside {
         spans.push(Span::styled(texts.title.as_str(), theme::dim()));
         spans.push(Span::styled(" — ", theme::dim()));
         spans.push(Span::styled("◉ ", theme::accent()));
         spans.push(Span::styled(
-            texts.entry.as_str(),
+            name.to_string(),
             theme::accent().add_modifier(Modifier::BOLD),
         ));
     } else {
@@ -229,7 +208,7 @@ fn tabs(frame: &mut Frame, row: Rect, page: &mut Settings, texts: &Texts) {
 }
 
 /// 下面四行：状态行（右边写有几项没存）、细线、一两行按键提示（第二行右边写第几个）。
-fn footer(
+pub(super) fn footer(
     frame: &mut Frame,
     stage: Rect,
     page: &Settings,
@@ -318,15 +297,16 @@ fn status(page: &Settings, texts: &Texts) -> (String, Style) {
     (text, theme::warn())
 }
 
-/// 一行按键提示：键黄色，说明暗色，每格隔三列。
+/// 一行按键提示：整行暗下去，键暗色、说明更暗，每格隔三列（「配置页」第 42 条，2026-10-09 项目主人：「底下这种按键提示
+/// 我觉得才应该是暗色」；原来键是黄的，比内容还亮）。
 pub(super) fn hint_line(hints: &[[String; 2]]) -> Line<'_> {
     let mut spans = Vec::new();
     for (i, [key, what]) in hints.iter().enumerate() {
         if i > 0 {
             spans.push(Span::raw("   "));
         }
-        spans.push(Span::styled(key.as_str(), theme::warn()));
-        spans.push(Span::styled(format!(" {what}"), theme::dim()));
+        spans.push(Span::styled(key.as_str(), theme::dim()));
+        spans.push(Span::styled(format!(" {what}"), theme::faint()));
     }
     Line::from(spans)
 }

@@ -5,6 +5,20 @@ use super::{Kind, Transcript};
 use crate::core::{Report, UndoFile};
 
 impl Transcript {
+    /// 撤掉、恢复的那几轮的条目藏起来、显示回来（从 `mod.rs` 挪过来）。
+    pub(super) fn hide(&mut self, turns: &[u64], hidden: bool) {
+        // 别处来的话撤销不带走它（「别处来的话」第 3 条）。
+        for entry in self.entries.iter_mut().filter(|e| e.from.is_none()) {
+            if entry
+                .turn
+                .or(entry.covers)
+                .is_some_and(|t| turns.contains(&t))
+            {
+                entry.hidden = hidden;
+            }
+        }
+    }
+
     /// 画一行撤销说明：全文照这一次撤掉的第一轮里你说的话，没有的照回应里的第一行。
     pub(super) fn undo_line(&mut self, report: Report) {
         let said = self

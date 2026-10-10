@@ -13,10 +13,12 @@ fn shown(t: &Transcript) -> Vec<(Kind, String)> {
         .collect()
 }
 
+/// 手动压缩（`/compact`）的进度：带进度条。
 fn progress(written: u64) -> Push {
     Push::Compaction(Compaction::Progress {
         written,
         expected: Some(20000),
+        manual: Some(true),
     })
 }
 
@@ -41,6 +43,7 @@ fn progress_updates_one_line_then_becomes_the_result() {
     let done = Compaction::Done {
         before: 812_300,
         after: 31_000,
+        prepared: false,
     };
     apply(&mut t, vec![Push::Compaction(done)]);
     assert!(t.entries[0].progress.is_some(), "压好了先走满进度条");
@@ -51,6 +54,49 @@ fn progress_updates_one_line_then_becomes_the_result() {
     );
     assert_eq!(t.entries[0].progress, None, "走满以后不转、不画进度条");
     assert_eq!(t.entries[0].mark.as_deref(), Some("● "), "前面绿点");
+}
+
+#[test]
+fn a_summary_prepared_in_advance_writes_the_line_without_a_bar() {
+    // 核心 6-11 上：提前压好、到线换上的，`compaction.done` 前面没有进度，直接写结果那一行，不画进度条。带了
+    // `prepared: true` 的不写（下一个测试）；这里是不带它的旧核心。
+    let mut t = Transcript::default();
+    let done = Compaction::Done {
+        before: 812_300,
+        after: 31_000,
+        prepared: false,
+    };
+    apply(
+        &mut t,
+        vec![Push::TurnStarted(1, None), Push::Compaction(done)],
+    );
+    assert_eq!(
+        shown(&t),
+        [(Kind::Note, "上下文已压缩：812.3k → 31k token".to_string())]
+    );
+    assert_eq!(t.entries[0].progress, None, "不画进度条");
+    assert_eq!(t.entries[0].mark.as_deref(), Some("● "), "前面绿点");
+}
+
+#[test]
+fn progress_may_start_midway_and_a_smaller_count_starts_over() {
+    // 核心 6-11 下：到线时提前压的那一次还在路上，第一条进度可能不从 0 起；它出错改当场压，字数从 0 重来，进度条也从零
+    // 画（蓝图「正文」第 9 条：`written` 变小当重来）。
+    let mut t = Transcript::default();
+    apply(&mut t, vec![Push::TurnStarted(1, None), progress(5000)]);
+    assert_eq!(
+        shown(&t),
+        [(Kind::Note, "正在压缩上下文 5,000".to_string())]
+    );
+    t.entries[0].progress.as_mut().unwrap().lit = 7;
+    apply(&mut t, vec![progress(200)]);
+    let progress = t.entries[0].progress.as_ref().unwrap();
+    assert_eq!(
+        (progress.written, progress.lit),
+        (200, 0),
+        "重来：亮的格子清零"
+    );
+    assert_eq!(t.entries.len(), 1, "还是那一行");
 }
 
 #[test]
@@ -76,8 +122,7 @@ fn a_failed_summary_is_red_with_its_reason_and_not_the_turns_error() {
         shown(&t),
         [(
             Kind::Error,
-            "· 压缩失败：被限速了，或者额度不够，过一会儿再试：HTTP 429: Rate limit reached"
-                .to_string()
+            "· 压缩失败：请求受限或额度不足，请稍后重试：HTTP 429: Rate limit reached".to_string()
         )]
     );
     apply(
@@ -87,10 +132,10 @@ fn a_failed_summary_is_red_with_its_reason_and_not_the_turns_error() {
             failed("bad_summary", "the summary called a tool"),
         ],
     );
-    assert_eq!(shown(&t)[1].1, "· 压缩失败：摘要请求里调了工具");
+    assert_eq!(shown(&t)[1].1, "· 压缩失败：摘要请求调用了工具");
     apply(&mut t, vec![Push::TurnEnded(EndReason::Completed)]);
     assert!(
-        !shown(&t).iter().any(|(_, text)| text.starts_with("出错了")),
+        !shown(&t).iter().any(|(_, text)| text.starts_with("出错")),
         "摘要请求出错不算这一轮出错"
     );
 }
@@ -127,16 +172,13 @@ fn a_pause_is_one_red_line_by_its_reason() {
     };
     assert_eq!(
         paused("failures", Some(3), None),
-        [(
-            Kind::Error,
-            "· 自动压缩连续失败 3 次，已暂停：可以手动压缩、换一个模型，或者开新会话".to_string()
-        )]
+        [(Kind::Error, "· 自动压缩连续失败 3 次，已暂停".to_string())]
     );
     assert_eq!(
         paused("too_large", None, Some(1234))[0].1,
-        "· 第 1234 条内容太大，压完很快又满了，自动压缩已暂停"
+        "· 第 1234 条内容过大，压缩后很快再次占满，自动压缩已暂停"
     );
-    let other = "· 自动压缩已暂停：可以手动压缩、换一个模型，或者开新会话";
+    let other = "· 自动压缩已暂停";
     assert_eq!(paused("too_large", None, None)[0].1, other, "缺了序号");
     assert_eq!(paused("new_reason", None, None)[0].1, other, "认不得的原因");
 }
@@ -157,7 +199,7 @@ fn the_error_line_names_its_class() {
         ],
     );
     // 内核自己查出来的只写人话，不接英文原话（2026-10-01 项目主人）。
-    assert_eq!(shown(&t).last().unwrap().1, "出错了：自动压缩暂停着");
+    assert_eq!(shown(&t).last().unwrap().1, "出错：自动压缩已暂停");
 }
 
 #[test]
@@ -184,7 +226,7 @@ fn a_summary_that_called_a_tool_tries_again_without_tools_in_grey() {
         [
             (
                 Kind::Note,
-                "· 摘要请求里调了工具，改用不带工具的再压".to_string()
+                "· 摘要请求调用了工具，改为不带工具重新压缩".to_string()
             ),
             (Kind::Note, "正在压缩上下文 40".to_string()),
         ],
@@ -203,6 +245,7 @@ fn while_compacting_only_that_line_spins() {
     let done = Compaction::Done {
         before: 12_200,
         after: 3_800,
+        prepared: false,
     };
     apply(&mut t, vec![Push::Compaction(done)]);
     assert!(!t.waiting(), "条在走满：还是它在动");
@@ -238,6 +281,7 @@ fn when_done_the_bar_fills_up_then_turns_into_the_result() {
     let done = Compaction::Done {
         before: 12_300,
         after: 4_000,
+        prepared: false,
     };
     apply(&mut t, vec![progress(8_000), Push::Compaction(done)]);
     let entry = |t: &Transcript| {
@@ -266,6 +310,7 @@ fn a_turn_that_ends_while_filling_keeps_filling_and_is_not_hidden() {
     let done = Compaction::Done {
         before: 12_300,
         after: 4_000,
+        prepared: false,
     };
     apply(
         &mut t,
@@ -319,6 +364,7 @@ fn a_manual_compaction_puts_its_time_and_usage_on_the_result_line() {
     let done = Compaction::Done {
         before: 66_300,
         after: 17_100,
+        prepared: false,
     };
     apply(
         &mut t,
@@ -356,6 +402,7 @@ fn a_manual_compaction_puts_its_time_and_usage_on_the_result_line() {
     let done = Compaction::Done {
         before: 66_300,
         after: 17_100,
+        prepared: false,
     };
     apply(
         &mut t,

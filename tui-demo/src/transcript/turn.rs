@@ -167,6 +167,21 @@ impl Transcript {
             })
     }
 
+    /// 提问答了：回答挂到调用编号是 `call_id` 的那一步上（「确认和提问的抽屉」第 6 条）；找不到那一步的交回 `false`。
+    pub fn answered(&mut self, call_id: &str, lines: Vec<String>) -> bool {
+        let segments = self.entries.iter_mut().filter_map(|e| e.segment.as_mut());
+        let step = segments
+            .flat_map(|s| s.steps.iter_mut())
+            .find(|step| step.call_id.as_deref() == Some(call_id));
+        match step {
+            Some(step) => {
+                step.answers = lines;
+                true
+            }
+            None => false,
+        }
+    }
+
     /// 这一轮结束了还没有结果的步骤（被打断的）：停表、不再转圈。
     pub(super) fn settle_leftovers(&mut self) {
         let now = self.clock.now();

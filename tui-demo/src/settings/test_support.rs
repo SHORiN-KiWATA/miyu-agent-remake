@@ -15,7 +15,7 @@ pub fn model_list() -> Value {
         "providers": [
             {"id": "dev", "name": {"value": "dev", "from": "id"}, "driver": "openai-chat",
              "base_url": {"env": "MIYU_DEV_BASE_URL"},
-             "keys": [{"ref": "env:DEEPSEEK_API_KEY", "set": true, "state": "ok"}],
+             "key": {"ref": "env:DEEPSEEK_API_KEY", "set": true, "state": "ok"},
              "models": [
                 {"model": "flash", "ref": "dev/flash", "listed": ["config"],
                  "facts": {
@@ -30,7 +30,7 @@ pub fn model_list() -> Value {
              ]},
             {"id": "relay", "name": {"value": "中转站", "from": "config"}, "driver": "openai-chat",
              "base_url": "https://relay.example.invalid/v1",
-             "keys": [{"ref": "secret:relay-key", "set": true, "state": "ok"}],
+             "key": {"ref": "secret:relay-key", "set": true, "state": "ok"},
              "models": [
                 {"model": "cline/deepseek-v4", "ref": "relay/cline/deepseek-v4", "listed": ["provider", "catalog"],
                  "facts": {
@@ -63,7 +63,7 @@ pub fn config_all() -> Value {
     json!({"items": {
         "providers.dev.models.flash.window": {"layers": [personal(json!(128000))]},
         "providers.relay.name": {"layers": [personal(json!("中转站"))]},
-        "providers.relay.keys": {"layers": [personal(json!([{"secret": "relay-key"}]))]},
+        "providers.relay.key": {"layers": [personal(json!({"secret": "relay-key"}))]},
         "providers.relay.base_url": {"layers": [system(json!("https://relay.example.invalid/v1"))]},
         "models.chat": {"layers": [personal(json!("@daily"))]},
         "pools.daily.models": {"layers": [personal(json!(["dev/flash", "relay/cline/deepseek-v4"]))]},

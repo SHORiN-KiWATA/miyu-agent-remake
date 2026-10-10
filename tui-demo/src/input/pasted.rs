@@ -169,6 +169,22 @@ impl Draft {
             .collect()
     }
 
+    /// 收不了的附件改成文件块：发出去写路径、不当附件（「输入框」第 12 条「照模型收」）。交回改了的那几种。
+    pub fn demote(&mut self, refused: &[String]) -> Vec<String> {
+        let mut kinds: Vec<String> = Vec::new();
+        for block in &mut self.blocks {
+            let Some(attached) = block.attachment.take_if(|a| refused.contains(&a.kind)) else {
+                continue;
+            };
+            block.text = super::dropped::quoted(&attached.file);
+            block.path = Some(attached.file);
+            if !kinds.contains(&attached.kind) {
+                kinds.push(attached.kind);
+            }
+        }
+        kinds
+    }
+
     /// 接上另一段，中间隔 `sep`（几条被退回的消息拼成一段）。
     pub fn append(&mut self, other: Draft, sep: &str) {
         if !self.text.is_empty() {

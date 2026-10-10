@@ -33,7 +33,7 @@ fn recap_says_there_is_nothing_yet_then_draws_a_block() {
     let mut tui = home.tui("zh_CN.UTF-8");
     tui.wait_for("工作区");
     tui.say("/recap");
-    tui.wait_for("还没有可回顾的内容");
+    tui.wait_for("没有可回顾的内容");
     tui.say("在吗");
     tui.wait_for("▣  ");
     tui.say("/recap");
@@ -128,13 +128,13 @@ fn rename_sets_removes_and_refuses_a_too_long_title() {
     tui.wait_for("标题最多 200 个字");
     tui.pump(Duration::from_millis(500));
     tui.say("/rename");
-    tui.wait_for("已去掉标题");
+    tui.wait_for("已清除标题");
     // `/new` 以后、说第一句以前还没开会话。
     tui.pump(Duration::from_millis(500));
     tui.say("/new");
     tui.pump(Duration::from_millis(500));
     tui.say("/rename 早");
-    tui.wait_for("还没开会话，说一句再改名");
+    tui.wait_for("会话尚未创建，无法重命名");
 }
 
 #[test]
@@ -197,7 +197,7 @@ fn the_at_list_asks_the_core_and_the_data_root_stays_closed() {
     tui.key(b"\x03");
     tui.pump(Duration::from_millis(300));
     tui.type_text(&format!("@{}/", home.root().display()));
-    tui.wait_for("没有对得上的");
+    tui.wait_for("无匹配项");
     assert!(!tui.shows("home/"), "{}", tui.lines().join("\n"));
 }
 
@@ -230,8 +230,7 @@ fn commands_that_change_nothing_only_flash_a_notice() {
     tui.say("/undo");
     tui.wait_for("已撤销");
     tui.pump(Duration::from_millis(500));
-    for (command, words) in [("/undo", "没有能撤销的"), ("/readonly", "是演示用的假命令")]
-    {
+    for (command, words) in [("/undo", "没有可撤销的回合"), ("/readonly", "尚未实现")] {
         tui.say(command);
         tui.wait_for(words);
         tui.pump(Duration::from_millis(2600));
@@ -241,9 +240,9 @@ fn commands_that_change_nothing_only_flash_a_notice() {
     tui.wait_for("好。");
     tui.pump(Duration::from_millis(500));
     tui.say("/restore");
-    tui.wait_for("没有能恢复的撤销");
+    tui.wait_for("没有可恢复的撤销");
     tui.pump(Duration::from_millis(2600));
-    assert!(!tui.shows("没有能恢复的撤销"), "{}", tui.lines().join("\n"));
+    assert!(!tui.shows("没有可恢复的撤销"), "{}", tui.lines().join("\n"));
 }
 
 #[cfg(unix)]
@@ -291,7 +290,7 @@ fn ctrl_enter_interrupts_and_sends_what_is_queued_now() {
     tui.key(b"\x1b[13;5u");
     tui.wait_for("收到插的那句。");
     assert!(tui.shows("┃ 插一句"), "{}", tui.lines().join("\n"));
-    assert!(!tui.shows("再按一次"), "不提示");
+    assert!(!tui.shows("再按一次 Esc"), "不提示");
 }
 
 #[test]

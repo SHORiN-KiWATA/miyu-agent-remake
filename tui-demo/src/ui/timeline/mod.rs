@@ -32,7 +32,10 @@ pub fn rows(entry: usize, segment: &Segment, ctx: &Ctx) -> Vec<Row> {
     let target = Target::Segment(entry);
     let mut out = Vec::new();
     let fold = ctx.config.timeline.fold;
-    if !segment.expanded(fold) || segment.finished {
+    // 只有一步、做完了、不是人点开整段的（不收起的配置让它展开着）：照进行中的样子，一行步骤加预览，不画收起那一行
+    // （「时间线」第 15 条，2026-10-11 项目主人报：关了折叠、没开「展开思考」，思考却铺开了全文）。
+    let lone = segment.steps.len() == 1 && segment.open != Some(true);
+    if !segment.expanded(fold) || (segment.finished && !lone) {
         let base = lit(theme::dim(), ctx.hover == Some(target));
         let mut row = ctx.row(ctx.blank_slot(), summary::line(segment, ctx, base));
         row.target = Some(target);
@@ -40,10 +43,9 @@ pub fn rows(entry: usize, segment: &Segment, ctx: &Ctx) -> Vec<Row> {
         if !segment.expanded(fold) {
             return out;
         }
-        // 只有一步的：直接铺开这一步的内容，连收起那一行一起铺底色（`tui.md`「时间线」第 15 条）。
+        // 只有一步、人点开了的：直接铺开这一步的内容，连收起那一行一起铺底色（`tui.md`「时间线」第 15 条）。
         if let [only] = segment.steps.as_slice() {
-            let style = step::style(only, false);
-            out.extend(block(step::body(only, style, body_width(ctx), ctx), ctx));
+            out.extend(opened(only, step::style(only, false), ctx));
             for row in &mut out {
                 row.shade = true;
                 row.target = Some(target);
@@ -121,7 +123,7 @@ fn step_rows(target: Target, step: &Step, spinning: bool, ctx: &Ctx) -> Vec<Row>
     head.target = Some(target);
     let mut out = vec![head];
     if step.opened(&ctx.config.timeline) {
-        out.extend(block(step::body(step, style, body_width(ctx), ctx), ctx));
+        out.extend(opened(step, style, ctx));
         for row in &mut out {
             row.shade = true;
         }
@@ -131,6 +133,12 @@ fn step_rows(target: Target, step: &Step, spinning: bool, ctx: &Ctx) -> Vec<Row>
                 .into_iter()
                 .map(|piece| line(piece, ctx)),
         );
+        // 结果里带图的：图接在预览下面，左边接这一步的竖线（「时间线」第 8 条）。
+        let rail = if step.failed() { style } else { theme::dim() };
+        for figure in step::figures(step, ctx) {
+            let lead = vec![Span::styled(format!("{} ", ctx.config.timeline.line), rail)];
+            out.extend(super::figure_rows::rows(lead, &figure, ctx));
+        }
     }
     for row in &mut out {
         row.target = Some(target);
@@ -143,6 +151,31 @@ pub(super) fn spinner(ctx: &Ctx) -> Span<'static> {
     let tl = &ctx.config.timeline;
     let frame = &tl.spinner[ctx.frame % tl.spinner.len().max(1)];
     Span::styled(format!("{frame} "), theme::dim())
+}
+
+/// 点开的一步：空行、全部内容、结果里的图、空行，整块铺底色（「时间线」第 8 条）。只读了图、没有字的结果不留空的
+/// 内容行。
+fn opened(step: &Step, style: Style, ctx: &Ctx) -> Vec<Row> {
+    let figures = step::figures(step, ctx);
+    let mut pieces = step::body(step, style, body_width(ctx), ctx);
+    let blank = |p: &Piece| p.content.iter().all(|s| s.content.trim().is_empty());
+    if !figures.is_empty() && pieces.iter().all(blank) {
+        pieces.clear();
+    }
+    let mut out = block(pieces, ctx);
+    let end = out.pop();
+    for figure in &figures {
+        out.extend(super::figure_rows::rows(
+            vec![Span::raw(INDENT)],
+            figure,
+            ctx,
+        ));
+    }
+    out.extend(end);
+    for row in &mut out {
+        row.shade = true;
+    }
+    out
 }
 
 /// 点开的内容：空行、全部内容、空行；内容缩进两格，和图标后面的字对齐。

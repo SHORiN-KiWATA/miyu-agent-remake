@@ -251,6 +251,9 @@ impl App {
             return;
         }
         self.view.follow();
+        // 附了以后才换的模型：收不了的附件改成文件块写路径（第 12 条「照模型收」）。
+        let mut draft = draft;
+        self.demote_for_send(&mut draft);
         // 输入框里的粘贴块发出去换回原文；输入历史和正文里照输入框的样子（`tui.md`「输入框」第 11 条）。附件（图）的
         // 块照留 `[图片 1]`，文件跟着发（第 12 条）。
         let full = draft.expand();
@@ -313,8 +316,11 @@ impl App {
                 self.hint(note, false);
             }
             Run::Rename => self.rename(words),
+            Run::Workspace => self.workspace_command(words.unwrap_or_default()),
             Run::Sessions => self.open_sessions(),
             Run::Model => self.open_models(),
+            Run::Persona => self.pick_command(super::new_session::Kind::Persona),
+            Run::Preset => self.pick_command(super::new_session::Kind::Preset),
             Run::Config => self.open_settings(false),
             Run::Connect => self.open_connect(),
             Run::Effort => self.open_effort(),
@@ -323,7 +329,11 @@ impl App {
             Run::New => self.new_session(),
             Run::Revert => self.core.send(Command::Revert),
             Run::Unrevert => self.core.send(Command::Unrevert),
-            Run::Compact => self.core.send(Command::Compact(words.map(str::to_string))),
+            Run::Compact => {
+                // 旧核心的压缩进度不说手动、自动：自己发的照手动画进度条（「正文」第 9 条）。
+                self.transcript.manual_compaction = true;
+                self.core.send(Command::Compact(words.map(str::to_string)));
+            }
             Run::Theme => self.next_theme(),
             Run::Icons => self.next_icons(),
             Run::Quit => self.quit = true,

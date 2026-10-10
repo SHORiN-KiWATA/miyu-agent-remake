@@ -8,6 +8,7 @@
     "on": ["fcitx5-remote", "-o"]
   },
   "settings": {
+    "menu_gap": 0,
     "width_percent": 80,
     "height_percent": 86,
     "narrow_below": 100,

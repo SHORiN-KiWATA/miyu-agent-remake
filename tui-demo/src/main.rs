@@ -3,6 +3,7 @@
 //! 设计见仓库的 `docs/designs/13-终端界面.md`；连核心的走法照 `miyu ask`（`docs/blueprint/cli/ask.md`）。
 
 mod app;
+mod avatars;
 mod body_view;
 mod caret;
 mod clipboard;
@@ -14,6 +15,7 @@ mod diagrams;
 mod diff;
 mod drawer;
 mod editor;
+mod features;
 mod figures;
 mod focus;
 mod frame_log;
@@ -35,8 +37,10 @@ mod meter;
 mod model_list;
 mod money;
 mod notify;
+mod oobe;
 mod open;
 mod pacing;
+mod pairs;
 mod pointer;
 mod pulse;
 mod reader;
@@ -202,9 +206,15 @@ fn run(
     ));
     let human = human::Human::default();
     let mut app = App::new(config, core, human, figures);
+    // `MIYU_TUI_MASCOT`：照本机的模型文件画吉祥物（蓝图「吉祥物包」第 5 条）。
+    app.mascot_preview();
     // `--page config`：一起来就停在配置页（蓝图「配置页」第 1 条）。
     if launch.page == Some("config") {
         app.open_settings(true);
+    }
+    // `--page oobe`：不看标记，重走一遍第一次打开的引导（蓝图「第一次打开的引导」第 3 条）。
+    if launch.page == Some("oobe") {
+        app.open_oobe();
     }
     let mut pointer = pointer::Pointer::default();
     // 终端显示得了几种颜色，启动时看一次（蓝图「主题」第 5 条）。

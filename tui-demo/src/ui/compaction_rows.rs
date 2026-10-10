@@ -1,7 +1,7 @@
 //! 正在压缩的那一行（蓝图 `tui.md`「正文」第 9 条）：行首不留东西，「正在压缩上下文」连着一到三个点，照运行状态行
 //! 一起被流光扫，后面是已经写了多少字；下面一行进度条和字对齐：已经亮的静着，最前面那一格明暗来回，亮几格照
 //! [`Progress::lit`]（按整格一顿一顿地追真实的字数），百分比照真实的字数。这次压缩过一会儿，字和条一起往白里呼吸。
-//! 核心没给估计要写多少字的，不画进度条。
+//! 核心没给估计要写多少字的、自动压缩停下来等的（行首绿点），不画进度条。
 
 use std::f64::consts::TAU;
 use std::time::Duration;
@@ -30,14 +30,16 @@ pub fn rows(entry: &Entry, ctx: &Ctx) -> Vec<Row> {
         layout.shimmer.sweep_seconds,
     );
     let chars: Vec<char> = swept.chars().collect();
-    let mut spans: Vec<Span<'static>> = chars
+    // 自动压缩停下来等的那一行行首绿点（「正文」第 9 条）。
+    let mut spans: Vec<Span<'static>> = entry
+        .mark
         .iter()
-        .enumerate()
-        .map(|(i, c)| {
-            let style = theme::shimmer(i, chars.len(), t, &layout.shimmer);
-            Span::styled(c.to_string(), theme::lifted(style, glow))
-        })
+        .map(|mark| Span::styled(mark.clone(), theme::good()))
         .collect();
+    spans.extend(chars.iter().enumerate().map(|(i, c)| {
+        let style = theme::shimmer(i, chars.len(), t, &layout.shimmer);
+        Span::styled(c.to_string(), theme::lifted(style, glow))
+    }));
     // 还一个字都没写的不写 0（「正文」第 9 条）。
     if let Some(progress) = entry.progress.as_ref().filter(|p| p.written > 0) {
         let count = texts

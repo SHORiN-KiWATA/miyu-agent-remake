@@ -41,7 +41,7 @@ pub fn draw(frame: &mut Frame, area: Rect, app: &App) -> Rect {
     let total = app.usage_total();
     let mut cells = right(&app.transcript, &total, &app.config);
     // 花了多少：接在累计后面，只写算得出的那部分（2026-10-07 项目主人定）。
-    if let (Some(amounts), _) = app.spent() {
+    if let Some(amounts) = app.spent() {
         cells.push(Part {
             keep: 2,
             spans: vec![Span::styled(amounts, theme::dim())],
@@ -337,11 +337,11 @@ mod tests {
         let at = |s: &str| Some(s.parse::<jiff::Timestamp>().unwrap());
         assert_eq!(
             super::cooling_word(None, now, &texts).as_deref(),
-            Some("都在冷却")
+            Some("模型均在冷却")
         );
         assert_eq!(
             super::cooling_word(at("2026-10-01T08:01:10Z"), now, &texts).as_deref(),
-            Some("都在冷却，2 分钟后恢复"),
+            Some("模型均在冷却，2 分钟后恢复"),
             "向上取整"
         );
         assert_eq!(

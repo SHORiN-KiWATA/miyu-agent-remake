@@ -24,7 +24,7 @@ fn busy_draft(tag: &str) -> (InputBox, std::path::PathBuf) {
             .collect::<Vec<_>>()
             .join("\n"),
     );
-    i.paste(&file.display().to_string());
+    i.paste_files(&file.display().to_string());
     (i, file)
 }
 

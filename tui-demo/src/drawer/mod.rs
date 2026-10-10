@@ -16,7 +16,7 @@ mod asks;
 
 pub use asks::Asks;
 pub use event::{Answer, Answered, Approval, Asked, Decided, Decision, Fake, Question};
-pub use report::{Mark, Report, inline, said};
+pub use report::{Report, inline, said};
 pub use texts::Texts;
 
 /// 问的是什么。

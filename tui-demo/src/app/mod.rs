@@ -1,6 +1,8 @@
 //! 程序的状态，和把终端事件、核心的消息分给各块。按键在 `keys.rs`，鼠标在 `mouse.rs`。
 
 mod asking;
+mod attachments;
+mod avatars;
 mod build;
 mod cards;
 mod compose;
@@ -10,17 +12,24 @@ mod drawer;
 mod effort;
 mod jobs;
 
+pub use avatars::{Avatar, Place};
 pub use jobs::Panel;
 pub use usage::UsageData;
+mod head_settings;
 mod help;
 mod keys;
 mod language;
 mod mascot;
+mod mascot_pick;
 mod mention;
 mod models;
 mod mouse;
+pub mod new_session;
 mod notify;
+mod oobe;
 mod output;
+mod packages;
+mod pages;
 mod paste;
 mod redo;
 mod session;
@@ -31,6 +40,7 @@ mod takeback;
 mod updates;
 pub mod usage;
 mod vim;
+mod workspace;
 
 use std::cell::RefCell;
 use std::time::{Duration, Instant};
@@ -153,6 +163,10 @@ pub struct App {
     asks: crate::drawer::Asks,
     /// 链接卡片的账：排正文时记下要的卡片、图，主循环每一帧以后发（`cards.rs`）。
     pub cards: std::cell::RefCell<crate::link_cards::LinkCards>,
+    /// 换吉祥物：配置选的吉祥物包、本机试画的（`mascot_pick.rs`）。
+    mascot_pick: mascot_pick::MascotPick,
+    /// 人格头像的账：首页、侧边栏要画的，主循环每一帧以后挑一张去要（`avatars.rs`）。
+    avatars: crate::avatars::Avatars,
     /// mermaid 图的账：排正文时记下要画的，主循环每一帧以后交给核心（`diagrams.rs`）。
     pub diagrams: std::cell::RefCell<crate::diagrams::Diagrams>,
     /// `/effort` 框里那个模型的几级；还没交回来的是 `None`（`effort.rs`）。
@@ -221,6 +235,32 @@ pub struct App {
     pub currency: String,
     /// `/usage` 框读回来的（开着才有）。
     pub usage: Option<usage::UsageData>,
+    /// 新会话要选的人格（`new_session.rs`）。
+    persona: new_session::Pick,
+    /// 新会话要选的预设。
+    preset: new_session::Pick,
+    /// 9-1 以前输入历史的老位置：拿不到包的状态目录的照它，拿到了的搬过去（`packages.rs`）。
+    old_history: Option<std::path::PathBuf>,
+    /// 输入历史放好了（照 `package.list` 定了在哪、读进来了）。
+    history_placed: bool,
+    /// 还没开会话时 `/workspace` 换的、验过的目录：新会话开在这里（`workspace.rs`）。
+    workspace_pending: Option<String>,
+    /// 配置页交给编辑器的提示词写在哪个临时文件（`settings.rs`）。
+    settings_prompt: Option<std::path::PathBuf>,
+    /// 第一次打开的引导；没开是 `None`（`oobe.rs`）。
+    pub oobe: Option<crate::oobe::Oobe>,
+    /// 读过 `ui.welcomed` 了：一次启动只读一次（「第一次打开的引导」第 1 条）。
+    welcome_checked: bool,
+    /// `ui.welcomed` 问到了（或者连不上核心）：这以前不画首页（`oobe.rs` 的 [`App::welcome_pending`]）。
+    welcome_known: bool,
+    /// 这一次提前压已经弹过「已触发上下文压缩」（`updates.rs`）。
+    compaction_announced: bool,
+    /// 引导交给编辑器的字写在哪个临时文件（`oobe.rs`）。
+    oobe_editing: Option<std::path::PathBuf>,
+    /// 每个模型、池收哪几种附件（`attachments.rs`，照 `model.list`）。
+    abilities: crate::core::Abilities,
+    /// 默认的聊天模型（`uses.chat`）：还没开会话的照它认收哪几种附件。
+    default_chat: Option<String>,
 }
 
 impl App {
@@ -256,6 +296,11 @@ impl App {
                 self.attention.pointed(Instant::now());
             }
             _ => {}
+        }
+        // 引导开着：按键、鼠标、粘贴都归它（`oobe.rs`）。
+        if self.oobe.is_some() {
+            self.oobe_event(event);
+            return;
         }
         // 配置页开着：按键、鼠标、粘贴都归它（`settings.rs`）。
         if self.settings.is_some() {
@@ -332,11 +377,19 @@ impl App {
         });
     }
 
-    /// 吉祥物画着：在首页或宽屏的侧边栏里，而且那里的开关开着（`tui.md`「后台命令、子代理和侧边栏」第 7 条）。
+    /// 吉祥物画着：在首页或宽屏的侧边栏里，那里的开关开着，人格也没有头像替掉它（`tui.md`「后台命令、子代理和侧边栏」
+    /// 第 7 条，「空会话的首页」第 10 条）。
     fn mascot_shown(&self) -> bool {
         let layout = &self.config.layout;
-        (self.home() && layout.mascot_home)
-            || (self.areas.sidebar.width > 0 && layout.mascot_sidebar)
+        (self.home() && layout.mascot_home && self.avatar(Place::Home) == Avatar::None)
+            || (self.areas.sidebar.width > 0
+                && layout.mascot_sidebar
+                && self.avatar(Place::Sidebar) == Avatar::None)
+    }
+
+    /// 首页吉祥物那一块在：吉祥物或者头像（被顶上去、走下来照它）。
+    fn home_slot_shown(&self) -> bool {
+        self.home() && (self.config.layout.mascot_home || self.avatar(Place::Home) != Avatar::None)
     }
 
     /// 是首页：正文里一条都没有，也没在回答（`tui.md`「空会话的首页」第 1 条）。
@@ -346,16 +399,24 @@ impl App {
 
     /// 到点了：收掉过期的提示。
     pub fn tick(&mut self) {
+        // 引导走完了：关掉，回到首页（`oobe.rs`）。
+        self.oobe_tick();
+        // 附件照模型收：收不了的那几种交给输入框，刚改成文件块的提示一句（`attachments.rs`）。
+        self.sync_refused();
         // 做完的待办全打勾露够了：收掉（「后台命令、子代理和侧边栏」第 4 条）。
         self.board.expire_todos(Instant::now());
-        // 配置页里不在打字的时候输入法关成英文，打字时开回来；对话里的输入框一直算在打字（`ime.rs`）。
-        let typing = self
-            .settings
-            .as_ref()
-            .is_none_or(crate::settings::Settings::typing);
+        // 配置页、引导里不在打字的时候输入法关成英文，打字时开回来；对话里的输入框一直算在打字（`ime.rs`）。
+        let typing = match (&self.oobe, &self.settings) {
+            (Some(oobe), _) => oobe.editing(),
+            (None, Some(page)) => page.typing(),
+            (None, None) => true,
+        };
         self.ime.typing(typing);
         self.advance_jobs();
+        // 老会话按页读：最上面那一行露出来了，要更早的一页（`pages.rs`）。
+        self.ask_older();
         self.send_card_asks();
+        self.ask_avatars();
         self.send_diagram_asks();
         self.renumber_attachments();
         // 压缩那一行的进度条追一下（`tui.md`「正文」第 9 条）。

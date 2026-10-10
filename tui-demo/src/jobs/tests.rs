@@ -17,6 +17,7 @@ fn started(job: &str, agent: bool) -> JobStart {
         agent,
         title: "跑测试".into(),
         session: agent.then(|| "s-child".into()),
+        foreground: false,
     }
 }
 

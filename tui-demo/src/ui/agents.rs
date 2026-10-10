@@ -197,6 +197,7 @@ mod tests {
             agent: true,
             title: title.into(),
             session: Some(session.into()),
+            foreground: false,
         };
         board.start(&start, None, t0);
         let row = board.agent_mut(session).unwrap();

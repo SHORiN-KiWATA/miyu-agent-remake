@@ -14,4 +14,11 @@ impl Rows {
         }
         out
     }
+
+    /// 照给的行拼成一块。
+    pub fn of_rows(rows: Vec<Row>) -> Rows {
+        let mut out = Rows::default();
+        out.push_owned(Rc::from(rows), None);
+        out
+    }
 }

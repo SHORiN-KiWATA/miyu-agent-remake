@@ -147,6 +147,22 @@ pub struct Layout {
     pub done_gap: HashMap<Level, String>,
 }
 
+impl Layout {
+    /// 吉祥物的两个开关在终端软件包里的名字（`resources/packages/tui/package.toml`，「后台命令、子代理和侧边栏」第 7 条）。
+    pub const MASCOT_KEYS: [&'static str; 2] = ["tui.mascot_home", "tui.mascot_sidebar"];
+
+    /// 照 `config.get` 读来的两个开关改：写了的盖过 `layout.json`，没有的（旧核心没这两项）照原样。
+    pub fn apply_mascot(&mut self, got: &serde_json::Value) {
+        let [home, sidebar] = Self::MASCOT_KEYS.map(|key| got["items"][key]["value"].as_bool());
+        if let Some(home) = home {
+            self.mascot_home = home;
+        }
+        if let Some(sidebar) = sidebar {
+            self.mascot_sidebar = sidebar;
+        }
+    }
+}
+
 /// 运行状态行的流光明暗：主题的 `accent` 打底，一道亮光从左往右扫过。颜色不变，只变明暗。
 #[derive(Debug, Clone, Deserialize)]
 pub struct Shimmer {
@@ -206,4 +222,24 @@ pub struct OutputLook {
     pub poll_ms: u64,
     /// 制表符换成几个空格。
     pub tab: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use crate::config::Config;
+
+    #[test]
+    fn the_terminals_mascot_switches_override_the_shipped_layout() {
+        // 2026-10-11 项目主人：吉祥物的开关搬进配置页；没写的照出厂。
+        let mut layout = Config::builtin().unwrap().layout;
+        layout.apply_mascot(&json!({"items": {}}));
+        assert!(layout.mascot_home && layout.mascot_sidebar, "没写的照出厂");
+        layout.apply_mascot(&json!({"items": {
+            "tui.mascot_home": {"value": false},
+            "tui.mascot_sidebar": {"value": false}
+        }}));
+        assert!(!layout.mascot_home && !layout.mascot_sidebar);
+    }
 }

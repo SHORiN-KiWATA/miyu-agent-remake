@@ -274,8 +274,8 @@ pub fn provider(view: &Data, data: &Data, draft: &Draft, id: Option<&str>) -> Fo
         let v = v.as_str()?.to_string();
         drivers.iter().position(|d| *d == v)
     });
-    // 认证：照这一家第一个 key 的引用；没有的当 API Key。
-    let first = p.and_then(|p| p.keys.first());
+    // 认证：照这一家的 key 的引用（一家一个，核心 8-25）；没有的当 API Key。
+    let first = p.and_then(|p| p.key.as_ref());
     let env = first.and_then(|(r, _)| r.strip_prefix("env:"));
     let auth = usize::from(env.is_some());
     let key_set = first.is_some_and(|(r, set)| r.starts_with("secret:") && *set)

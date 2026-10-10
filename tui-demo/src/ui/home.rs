@@ -87,12 +87,10 @@ pub fn areas(
 /// 画吉祥物；顺手定吉祥物往哪看（`tui.md`「空会话的首页」第 6、7 条）：输入框里有字看输入光标，
 /// 没字看鼠标指针，都没有看正前方。输入框、框下面那一行照平常画，要先画好输入框（光标的位置照它）。
 pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
-    // 工作目录：暗，放不下从前面截掉（第 2 条）。
-    let cwd = tail(&app.cwd, usize::from(areas.cwd.width));
-    frame.render_widget(
-        ratatui::widgets::Paragraph::new(ratatui::text::Line::styled(cwd, crate::theme::dim())),
-        areas.cwd,
-    );
+    // 工作目录：暗，放不下从前面截掉（第 2 条）。人格、预设不写（2026-10-08 项目主人：不用显示，侧边栏有）。
+    let cwd = super::panel::tail(app.current_workspace(), usize::from(areas.cwd.width));
+    let line = ratatui::text::Line::from(ratatui::text::Span::styled(cwd, crate::theme::dim()));
+    frame.render_widget(ratatui::widgets::Paragraph::new(line), areas.cwd);
     if areas.mascot.height == 0 {
         return;
     }
@@ -122,26 +120,7 @@ pub fn draw(frame: &mut Frame, areas: Areas, app: &mut App) {
         mascot: Rect { y, ..areas.mascot },
         ..areas
     };
-    super::mascot_view::draw(frame, areas.mascot, app, false);
-}
-
-/// 放进 `width` 列：放不下的从前面截掉、打头写 `…`。
-fn tail(text: &str, width: usize) -> String {
-    use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
-    if text.width() <= width {
-        return text.to_string();
-    }
-    let mut kept: Vec<char> = Vec::new();
-    let mut used = 1;
-    for c in text.chars().rev() {
-        let w = c.width().unwrap_or(0);
-        if used + w > width {
-            break;
-        }
-        used += w;
-        kept.push(c);
-    }
-    std::iter::once('…').chain(kept.into_iter().rev()).collect()
+    super::avatar_view::draw(frame, areas.mascot, app, crate::app::Place::Home, false);
 }
 
 #[cfg(test)]
@@ -276,8 +255,11 @@ mod tests {
 
     #[test]
     fn a_long_directory_is_cut_from_the_front() {
-        assert_eq!(super::tail("~/Documents/github/miyu", 10), "…thub/miyu");
-        assert_eq!(super::tail("~/src", 10), "~/src");
+        assert_eq!(
+            crate::ui::panel::tail("~/Documents/github/miyu", 10),
+            "…thub/miyu"
+        );
+        assert_eq!(crate::ui::panel::tail("~/src", 10), "~/src");
     }
 
     #[test]

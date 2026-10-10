@@ -2,12 +2,28 @@
 //! 只弹提示的拒绝、撤销恢复时输入框里的那句、视口跟不跟、系统通知、被退回的排队消息放回输入框。
 
 use super::App;
-use crate::core::{Block, Command, Push, Update};
+use crate::core::{Block, Command, Compaction, Push, Update};
 use crate::transcript::Kind;
 
 impl App {
     /// 收一条核心那边的消息。撤销成了、排队的消息被退回了，字放回输入框（`tui.md`「输入框」第 7、8 条）。
     pub fn core(&mut self, update: Update) {
+        // 引导的回应归它；连上、断开也告诉它；头的配置读到了去看引导走过没有（`oobe.rs`）。
+        if self.oobe_update(&update) {
+            return;
+        }
+        // 终端自己的配置项（图标、时间线的开关）的回应归它；头的配置读到了也去读（`head_settings.rs`）。
+        if self.head_settings_update(&update) {
+            return;
+        }
+        // 换吉祥物的几个回应归它；头的配置读到了也去读（`mascot_pick.rs`）。
+        if self.mascot_pick_update(&update) {
+            return;
+        }
+        // 人格头像的回应归它（`avatars.rs`）。
+        if self.avatar_update(&update) {
+            return;
+        }
         // 配置页的回应归它；配置变了、断开、连上也告诉它（`settings.rs`）。
         if self.settings_update(&update) {
             return;
@@ -45,8 +61,25 @@ impl App {
             self.usage_rows(kind, rows);
             return;
         }
+        // 软件包：照终端那一项的状态目录放输入历史（`packages.rs`）。
+        if let Update::Packages(list) = update {
+            self.packages_arrived(&list);
+            return;
+        }
+        // 人格：记下，该问的时候开人格框（`persona.rs`）。
+        if let Update::Personas(list) = update {
+            self.listed(super::new_session::Kind::Persona, list);
+            return;
+        }
+        if let Update::Presets(list) = update {
+            self.listed(super::new_session::Kind::Preset, list);
+            return;
+        }
         if let Update::HeadConfig(head) = update {
             self.refresh_effort();
+            // 连上、配置变了都会来：默认人格、默认预设照它，两样的列表顺手再要一次（新会话的框用）。
+            self.picks_configured(head.persona.clone(), head.preset.clone());
+            self.ask_packages();
             self.currency = head.currency;
             self.language_from_config(&head.language);
             return;
@@ -90,6 +123,15 @@ impl App {
             self.session_changed(change);
             return;
         }
+        // 还没开会话时 `/workspace` 验完了（`workspace.rs`）。
+        if let Update::DirChecked(result) = update {
+            self.dir_checked(result);
+            return;
+        }
+        // 按页读：订阅回应的三格、更早的一页照会话办（`pages.rs`）。
+        let Some(update) = self.page_update(update) else {
+            return;
+        };
         // 照会话分：别的会话的交给停放着的那一份；任务的几种、别处来的话照任务表、正文先办（`sessions.rs`）。
         let Some(update) = self.route(update) else {
             return;
@@ -168,6 +210,8 @@ impl App {
         }
         // 系统通知、报给 herdr：在正文收它之前量这一轮用了多久（「系统通知」）。
         self.notify_core(&update);
+        // 提前在后台压的：正文不写，弹「已触发上下文压缩」（「正文」第 9 条）。
+        self.background_compaction(&update);
         // 清空了：像 Ctrl+L 一样清屏，「上下文已清空」在新的一屏顶上（「正文」第 9 条）。
         if matches!(update, Update::Push(Push::Compacted { clear: true })) {
             self.view.clear();
@@ -195,6 +239,32 @@ impl App {
             if let Some(said) = said.map(|e| e.text.clone()) {
                 self.input.put_back(&said);
             }
+        }
+    }
+
+    /// 提前在后台压：开始的那一刻弹「已触发上下文压缩」；旧核心不推开始的，没停下来等就换上了的那一刻弹（「正文」第 9 条，
+    /// 2026-10-10 项目主人：「异步压缩的时候是不需要有任何提示的，可以给一个通知说：已触发上下文压缩，但是文中不要有」）。
+    fn background_compaction(&mut self, update: &Update) {
+        let Update::Push(Push::Compaction(push)) = update else {
+            return;
+        };
+        let say = match push {
+            Compaction::Started => {
+                self.compaction_announced = true;
+                true
+            }
+            Compaction::Done { prepared: true, .. } if !self.transcript.compacting_shown() => {
+                !std::mem::take(&mut self.compaction_announced)
+            }
+            Compaction::Done { .. } | Compaction::Failed(_) => {
+                self.compaction_announced = false;
+                false
+            }
+            _ => false,
+        };
+        if say {
+            let text = self.config.text.compaction.triggered.clone();
+            self.hint(text, true);
         }
     }
 }

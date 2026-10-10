@@ -3,7 +3,7 @@
 
 use ratatui::Frame;
 use ratatui::layout::Rect;
-use ratatui::text::Line;
+use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Paragraph};
 use unicode_width::UnicodeWidthStr;
 
@@ -82,8 +82,12 @@ fn draw_input(frame: &mut Frame, areas: Areas, input: &mut InputBox, config: &Co
     let scroll = input.place(areas.text);
     let editor = &input.editor;
     let blocks = editor.blocks();
+    // 空着：提示从光标后面空一格写起，光标停在空格上，不压着提示的第一个字（「输入框」第 9 条）。
     let body = if editor.is_empty() {
-        vec![Line::styled(placeholder, theme::dim())]
+        vec![Line::from(vec![
+            Span::raw(PLACEHOLDER_GAP),
+            Span::styled(placeholder, theme::dim()),
+        ])]
     } else {
         let lines = input.lines(areas.text.width);
         lines
@@ -101,7 +105,7 @@ fn draw_input(frame: &mut Frame, areas: Areas, input: &mut InputBox, config: &Co
     if input.stashed() {
         let mark = config.text.stashed.as_str();
         let first = if editor.is_empty() {
-            placeholder.width()
+            PLACEHOLDER_GAP.width() + placeholder.width()
         } else {
             input
                 .lines(areas.text.width)
@@ -133,6 +137,9 @@ fn draw_input(frame: &mut Frame, areas: Areas, input: &mut InputBox, config: &Co
         frame.render_widget(Paragraph::new(Line::styled(prompt, prompt_style)), at);
     }
 }
+
+/// 空着时提示前面空的那一格：光标停在它上面。
+const PLACEHOLDER_GAP: &str = " ";
 
 /// 输入框空着时写的提示（`tui.md`「输入框」第 9 条）：首页固定写怎么切权限级别，别处照轮到的那一条。
 pub(super) fn placeholder(config: &Config, home: bool, tip: usize) -> &str {

@@ -52,16 +52,13 @@ mod tests {
 
     #[test]
     fn the_system_gets_the_title_and_the_body() {
-        let (program, args) = command("Miyu", "Miyu", "出错了");
+        let (program, args) = command("Miyu", "Miyu", "出错");
         if cfg!(target_os = "macos") {
             assert_eq!(program, "osascript");
-            assert_eq!(
-                args[1],
-                "display notification \"出错了\" with title \"Miyu\""
-            );
+            assert_eq!(args[1], "display notification \"出错\" with title \"Miyu\"");
         } else {
             assert_eq!(program, "notify-send");
-            assert_eq!(args, ["-a", "Miyu", "--", "Miyu", "出错了"]);
+            assert_eq!(args, ["-a", "Miyu", "--", "Miyu", "出错"]);
         }
     }
 

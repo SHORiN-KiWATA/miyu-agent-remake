@@ -74,6 +74,10 @@ pub struct Step {
     pub open: Option<bool>,
     /// 调工具的调用编号，`message.assistant` 来了才知道；工具结果照它找回这一步。
     pub call_id: Option<String>,
+    /// 结果里的图的内容哈希（读了图片文件的 `read`）：时间线把图接在这一步下面（「时间线」第 8 条）。
+    pub images: Vec<String>,
+    /// 提问的回答（`ask_user` 答了以后）：一道一行「问题：回答」，时间线接在这一步下面（「确认和提问的抽屉」第 6 条）。
+    pub answers: Vec<String>,
 }
 
 /// 一步的种类。
@@ -136,6 +140,8 @@ impl Step {
             took: None,
             open: None,
             call_id: None,
+            images: Vec::new(),
+            answers: Vec::new(),
         }
     }
 

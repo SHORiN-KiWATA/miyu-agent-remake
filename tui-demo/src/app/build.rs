@@ -32,19 +32,18 @@ impl App {
             label: config.text.paste_label.clone(),
         });
         input.set_attach_rule(paste::attach_rule(&config));
-        // 输入历史记在数据根的 `state/tui/history.jsonl`：所有会话一起、重启以后还在（「输入历史列表」第 8 条）。
-        // 单元测试不记：数据根是人在用的。
-        let saved = miyu_store::root::DataRoot::locate(&miyu_store::env::Env::current())
+        // 输入历史连上以后照 `package.list` 放进终端这个包的状态目录（`app/packages.rs`）；这里先记着 9-1 以前的老位置
+        // （数据根的 `state/tui/history.jsonl`），拿不到状态目录的照旧用它。单元测试不记：数据根是人在用的。
+        let old_history = miyu_store::root::DataRoot::locate(&miyu_store::env::Env::current())
             .ok()
             .filter(|_| !cfg!(test))
             .map(|root| root.state().join("tui").join("history.jsonl"));
-        input.keep_history(crate::input::Saved::at(saved), layout.history_keep);
         // 提示音、暂存的截图放机器缓存目录（「系统通知」第 5 条、「输入框」第 12 条）；找不到的不响、贴不了图。
         let cache = miyu_store::root::cache_root(&miyu_store::env::Env::current()).ok();
         let sounds = cache.as_ref().map(|root| root.join("tui").join("sounds"));
         let staging = cache
             .as_ref()
-            .map(|root| crate::clipboard::Staging::new(&root.join("tui").join("pasted")));
+            .map(|root| crate::clipboard::Staging::new(&crate::clipboard::staging_root(root)));
         let mut notifier = Notifier::new(
             config.notify.clone(),
             config.text.notify.clone(),
@@ -97,6 +96,8 @@ impl App {
             asks: Default::default(),
             efforts: None,
             cards: std::cell::RefCell::new(crate::link_cards::LinkCards::cached()),
+            avatars: crate::avatars::Avatars::cached(),
+            mascot_pick: Default::default(),
             diagrams: std::cell::RefCell::default(),
             drawers: Drawers::default(),
             drawer_rows: Vec::new(),
@@ -139,6 +140,19 @@ impl App {
             composing: None,
             currency: "USD".to_string(),
             usage: None,
+            old_history,
+            history_placed: false,
+            workspace_pending: None,
+            settings_prompt: None,
+            oobe: None,
+            welcome_checked: false,
+            welcome_known: false,
+            compaction_announced: false,
+            oobe_editing: None,
+            abilities: crate::core::Abilities::default(),
+            default_chat: None,
+            persona: super::new_session::Pick::from_env("MIYU_TUI_PERSONA"),
+            preset: super::new_session::Pick::from_env("MIYU_TUI_PRESET"),
             edit: None,
         }
     }

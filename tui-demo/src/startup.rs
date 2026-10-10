@@ -11,19 +11,20 @@ pub const USAGE: &str = "Usage: miyu-tui-demo [--resume <session UUID> | --page 
   (no arguments)        start as configured (ui.startup: new or recent session)
   --resume <UUID>       open this session; fail if it can't be loaded
   --page config, config open the settings page without a session; Esc on its menu exits
+  --page oobe           walk through the first-run guide again
   -h, --help            print this help
 
 Environment: MIYU_HOME, MIYU_RESOURCES, MIYU_CORE_BIN, MIYU_TUI_IME=0 (don't switch the input method)";
 
 /// 认得的页名。认不出的照常打开首页、不报错。
-const PAGES: [&str; 1] = ["config"];
+const PAGES: [&str; 2] = ["config", "oobe"];
 
 /// 照参数怎么起来。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Launch {
     /// 进哪个会话。
     pub start: Start,
-    /// 直接停在哪一页（现在只有 `config`）。
+    /// 直接停在哪一页（`config`；`oobe` 不看标记重走一遍引导）。
     pub page: Option<&'static str>,
     /// 只印用法（`-h`、`--help`）。
     pub help: bool,

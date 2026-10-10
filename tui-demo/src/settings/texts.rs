@@ -21,10 +21,10 @@ pub struct Texts {
     pub cols: [String; 6],
     /// 组织栏的「全部」「其他」。
     pub orgs: [String; 2],
-    /// 两种用途、各自一句用途。
-    pub uses: [String; 2],
-    /// 两种用途各用在哪。
-    pub use_notes: [String; 2],
+    /// 几种用途的名字（照 [`USES`](super::nav::USES) 的先后）。
+    pub uses: [String; 3],
+    /// 几种用途各用在哪。
+    pub use_notes: [String; 3],
     /// 详情的几格：当前、类型、成员、窗口、输入、用途。
     pub detail: [String; 6],
     /// 「模型池 · {how}」。
@@ -63,6 +63,8 @@ pub struct Texts {
     pub empty: [String; 4],
     /// 按键提示：主菜单、供应商页、默认模型页、模型池页、每页都有的、在筛。
     pub key_hints: [Vec<Hint>; 6],
+    /// 通用、权限、高级、人格这几页的字。
+    pub more: super::pages::Texts,
 }
 
 impl Texts {

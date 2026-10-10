@@ -14,7 +14,7 @@ use ratatui::style::{Color, Modifier, Style};
 
 pub use depth::{Depth, degrade};
 pub use motion::{frontier, lifted};
-pub use palette::{Palette, builtin};
+pub use palette::{Palette, Tone, builtin};
 
 use crate::config::Shimmer;
 use crate::core::Level;

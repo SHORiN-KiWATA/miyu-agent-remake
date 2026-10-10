@@ -173,6 +173,8 @@ mod tests {
             busy: false,
             last_active: active.map(|a| a.parse().unwrap()),
             preview: None,
+            persona: None,
+            preset: None,
         }
     }
 

@@ -6,6 +6,7 @@
 //! 拉起核心只认 `MIYU_CORE_BIN`，不去 PATH 里找 `miyu`：装着旧版的机器上，PATH 里的 `miyu` 是旧版，
 //! 给它 `core` 这个参数，它会把这个词当成一句话发给旧版的后台。
 
+mod abilities;
 mod asides;
 mod awaiting;
 mod backoff;
@@ -19,17 +20,22 @@ mod links;
 mod mermaid;
 mod models;
 mod output;
+mod page;
+mod personas;
 mod push;
 mod replay;
 mod request;
 mod rpc;
 mod serve;
 mod sessions;
+mod snapshot;
+mod spawn;
 mod switch;
 mod take;
 mod todos;
 mod undo;
 mod upload;
+mod workspace;
 
 use std::thread;
 
@@ -38,6 +44,7 @@ use tokio::sync::mpsc;
 use backoff::Backoff;
 use connect::{connect, subscribe};
 
+pub use abilities::Abilities;
 pub use config::HeadConfig;
 pub use cost::{Bill, Cost, UsageAsk, UsageKind, UsageRow};
 pub use efforts::{EffortList, Efforts};
@@ -47,11 +54,16 @@ pub use links::{Card, CardKind, blob_path, cards_dir};
 pub use mermaid::{Marks, Rendered};
 pub use models::{Choice, ChoiceState, Current};
 pub use output::JobOutput;
+pub use personas::{Persona, Preset, read_personas, read_presets};
 pub use push::{
     Asking, Block, CallError, Compaction, JobEnd, JobReason, JobStart, Push, Sender, Usage,
 };
 use rpc::Rpc;
-pub use sessions::{Change as SessionChange, SessionInfo, apply as apply_session_change};
+pub use sessions::{
+    Change as SessionChange, SessionInfo, apply as apply_session_change, latest as latest_session,
+};
+pub use snapshot::{Snapshot, Spent};
+pub use spawn::spawn;
 pub use todos::TodoItem;
 pub use undo::{Report, UndoFile};
 
@@ -158,6 +170,34 @@ pub enum Command {
     Level(Level),
     /// 查用量（`usage.query`，`/usage`）。
     Usage(UsageAsk),
+    /// 列人格（`persona.list`）：新会话的人格框用。
+    ListPersonas,
+    /// 列软件包（`package.list`，核心 9-1 上）：终端照 `tui` 那一项的 `state` 放输入历史。
+    ListPackages,
+    /// 下一个新会话用这个人格（开会话时 `session.create` 带上；会话开着时不管，开了不能换）。
+    Persona(String),
+    /// 列预设（`preset.list`，核心 P-2 上）：新会话的预设框用。
+    ListPresets,
+    /// 下一个新会话用这个预设，和 [`Command::Persona`] 一样。
+    Preset(String),
+    /// 要这个会话更早的一页（`view.page {before}`，核心 9-6 下）：往上滚到顶、`more` 是真的。
+    Older(String),
+    /// 开着的会话换工作区（`command.run "/workspace <路径>"`，核心 9-7 下）：打的路径、终端所在的目录（接相对的）。
+    Workspace {
+        /// 打的路径。
+        path: String,
+        /// 终端所在的目录。
+        cwd: String,
+    },
+    /// 还没开会话时验一个目录（`fs.realpath` 再 `fs.list`）：打的路径、终端所在的目录。
+    CheckDir {
+        /// 打的路径。
+        path: String,
+        /// 终端所在的目录。
+        cwd: String,
+    },
+    /// 新会话开在哪（`session.create` 的 `cwd`）：验过的目录；`None` 回到终端所在的目录。
+    NewWorkspace(Option<String>),
     /// 一条斜杠命令交给核心办（`command.run`，核心 O-6）：`/stop`、`/clear`，原文照规范的名字。
     Run(String),
     /// 要一段回顾（`session.recap`，`/recap`）。
@@ -265,6 +305,16 @@ pub enum Update {
     Sessions(Vec<SessionInfo>),
     /// 改名成了（`None` 是去掉了标题）：弹一句提示，标题照推送换（蓝图「改名」第 3 条）。
     Renamed(Option<String>),
+    /// 软件包（[`Command::ListPackages`] 的回应）：编号、放状态的目录；读不了、核心不认的是空的。
+    Packages(Vec<(String, Option<std::path::PathBuf>)>),
+    /// 会话用哪个人格（订阅的回应里的 `persona`，核心 P-1 下）：人格编号。
+    SessionPersona(String),
+    /// 会话用哪个预设（订阅的回应里的 `preset`，核心 P-2 上）：预设编号。
+    SessionPreset(String),
+    /// 预设一行行（[`Command::ListPresets`] 的回应）；读不了、核心不认的是空的。
+    Presets(Vec<Preset>),
+    /// 人格一行行（[`Command::ListPersonas`] 的回应）；读不了、核心不认的是空的。
+    Personas(Vec<Persona>),
     /// `usage.query` 的回应（`/usage`）：哪一样、一行行；拒了的是核心的原话。
     UsageRows {
         /// 哪一样。
@@ -287,6 +337,28 @@ pub enum Update {
         restore: bool,
         /// 回应里给人看的几样。
         report: Report,
+    },
+    /// 订阅回应里「当前的」累计用量、权限、还在跑的（核心 9-6 上）：整个换掉事件算出来的。
+    Snapshot(Snapshot),
+    /// 最新一页读进来了：更早的还有没有（核心 9-6 下）。
+    Paged(bool),
+    /// [`Command::CheckDir`] 验完了：真实的位置，或者核心拒绝的原因。
+    DirChecked(Result<String, Refusal>),
+    /// 订阅回应里会话的工作区（核心 9-7 上）：目录、是不是切过去、接上老会话的那一次（终端在别的目录时写一句）。
+    Workspace {
+        /// 会话在哪个目录干活。
+        cwd: String,
+        /// 切过去、启动时接上的那一次订阅。
+        joined: bool,
+    },
+    /// 更早的一页（[`Command::Older`] 的回应）：读成的推送、再往前还有没有；读不成的是核心的原话。
+    Older {
+        /// 照补发的读成的推送。
+        pushes: Vec<Push>,
+        /// 再往前还有。
+        more: bool,
+        /// 读不成：核心的原话。
+        failed: Option<String>,
     },
     /// 另外订阅着的会话推来的（推送、限额），带着是哪个会话。
     Elsewhere {
@@ -369,129 +441,6 @@ pub enum Start {
     Resume(String),
     /// 不进任何会话、不看 `ui.startup`（`--page config`，蓝图「配置页」第 1 条）。
     Bare,
-}
-
-/// 起一个线程去连核心。`reconnect` 是连不上时隔多久再试（`layout.json` 的 `reconnect_ms`）；`notify` 把消息
-/// 交给界面，界面那头关了就交回 `false`，这边跟着停。
-pub fn spawn(
-    reconnect: [u64; 2],
-    start: Start,
-    notify: impl Fn(Update) -> bool + Send + 'static,
-) -> Core {
-    let (commands, receiver) = mpsc::unbounded_channel();
-    thread::spawn(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build();
-        match runtime {
-            Ok(runtime) => runtime.block_on(run(receiver, Backoff::new(reconnect), start, &notify)),
-            Err(e) => {
-                notify(Update::Failed(e.to_string()));
-            }
-        }
-    });
-    Core { commands }
-}
-
-/// 一条连接用到头了：界面关了，或者连接断了。
-enum Served {
-    Quit,
-    Lost,
-}
-
-/// 连上、开会话、订阅，然后收发；断了就重连，订阅原来那个会话（蓝图「连核心」第 7 条）。
-async fn run(
-    mut commands: mpsc::UnboundedReceiver<Command>,
-    mut wait: Backoff,
-    start: Start,
-    notify: &impl Fn(Update) -> bool,
-) {
-    let recent = start == Start::Usual;
-    let resume = match start {
-        Start::Resume(id) => Some(id),
-        Start::Usual | Start::Bare => None,
-    };
-    // 主会话、另外订阅着的、命令对着哪个：断了重连也记着（`serve.rs`）。
-    let mut link = serve::Link::default();
-    // 启动时进最近的那个会话只在头一次连上时看（「会话列表」第 8 条）；之后重连、`/new` 照旧。
-    let mut first = true;
-    loop {
-        // 连不上一直试；这期间界面发的命令在通道里排着，连上再发（第 1、7 条）。
-        let mut rpc = loop {
-            match open(
-                link.main
-                    .as_deref()
-                    .or(if first { resume.as_deref() } else { None }),
-                first,
-                recent,
-            )
-            .await
-            {
-                Ok((rpc, opened, limits)) => {
-                    // 进了已有的会话：订阅留给收发时带 `after` 做，以前的补发过来。
-                    link.replay_main = limits.is_none() && opened.is_some();
-                    first = false;
-                    // 新开的会话（刚启动；按过 `/new` 还没说话就断了的）告诉界面编号，订阅原来的只说又连上了。
-                    let said = match (&link.main, &opened) {
-                        (None, Some(id)) => notify(Update::Ready(id.clone())),
-                        _ => notify(Update::Reconnected),
-                    };
-                    let (limits, current) = limits.map_or((None, None), |(l, c)| (Some(l), c));
-                    if !said
-                        || limits.is_some_and(|l| !notify(Update::Limits(l)))
-                        || current.is_some_and(|c| !notify(Update::CurrentModel(c)))
-                    {
-                        return;
-                    }
-                    link.main = opened;
-                    break rpc;
-                }
-                Err(update) => {
-                    if !notify(update) {
-                        return;
-                    }
-                    tokio::time::sleep(wait.next()).await;
-                }
-            }
-        };
-        wait.reset();
-        match serve::serve(&mut rpc, &mut link, &mut commands, notify).await {
-            Served::Quit => return,
-            Served::Lost if !notify(Update::Disconnected) => return,
-            Served::Lost => {}
-        }
-    }
-}
-
-/// 连上；有会话的订阅它。还没有的（刚启动、`/new` 以后）不开，和 `/new` 一样等第一句话时才开（蓝图「连核心」第 4 条：
-/// 没说话就退出的不留空会话）。`first`：头一次连上，配置 `ui.startup` 是 `recent` 的进最近的那个已有会话，不在这里
-/// 订阅（限额交回 `None`），收发时带 `after` 订阅；一个都没有的照样等第一句话。显式恢复的先验证 ID，
-/// 成功后从头补发，失败不回退到 recent。交回连接、会话和限额。
-async fn open(
-    session: Option<&str>,
-    first: bool,
-    recent: bool,
-) -> Result<(Rpc, Option<String>, Option<(Limits, Option<Current>)>), Update> {
-    let mut rpc = connect().await?;
-    if first && let Some(id) = session {
-        // 先验证指定会话可载入，成功以后统一从头补发；失败留在原 ID，不挑 recent。
-        subscribe(&mut rpc, id).await?;
-        return Ok((rpc, Some(id.to_string()), None));
-    }
-    if session.is_none() && first && recent && switch::wants_recent(&mut rpc).await {
-        let list = rpc
-            .call("session.list", serde_json::json!({}))
-            .await
-            .map_err(connect::refused)?;
-        if let Some(id) = switch::recent(&list) {
-            return Ok((rpc, Some(id), None));
-        }
-    }
-    let Some(session) = session else {
-        return Ok((rpc, None, None));
-    };
-    let (limits, current) = subscribe(&mut rpc, session).await?;
-    Ok((rpc, Some(session.to_string()), Some((limits, current))))
 }
 
 #[cfg(test)]

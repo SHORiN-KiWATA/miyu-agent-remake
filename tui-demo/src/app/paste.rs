@@ -62,10 +62,15 @@ impl App {
         }
     }
 
-    /// `Ctrl+V`：剪贴板里是图的收成一块附件（输入框、没开列表和抽屉时；`tui.md`「输入框」第 12 条）；不然读字，照粘贴
-    /// 处理；读不到、是空的，提示一句（「按键」）。
+    /// `Ctrl+V`（输入框、没开列表和抽屉时）：复制的是文件的收成块（图片是附件），剪贴板里有图的收成一块附件，读来的字
+    /// 全是本机现成的文件的也收成块；别的照字粘贴（`tui.md`「输入框」第 12 条，2026-10-10 项目主人：「ctrl+shift+V
+    /// 粘贴文字，ctrl+V 粘贴占位符」）。读不到、是空的，提示一句（「按键」）。
     pub(super) fn paste_clipboard(&mut self) {
-        if !self.history.open && !self.drawers.open() {
+        let into_input = !self.history.open && !self.drawers.open();
+        if into_input {
+            if clipboard::read_files().is_some_and(|files| self.input.paste_files(&files)) {
+                return;
+            }
             let dir = self.staging.as_ref().map(clipboard::Staging::dir);
             if let Some(file) = dir.and_then(clipboard::read_image) {
                 self.input.attach(file, IMAGE);
@@ -76,6 +81,7 @@ impl App {
             Ok(text) if text.is_empty() => {
                 self.hint(self.config.text.clipboard_empty.clone(), false);
             }
+            Ok(text) if into_input && self.input.paste_files(&text) => {}
             Ok(text) => self.paste(&text),
             Err(_) => self.hint(self.config.text.clipboard_unreadable.clone(), false),
         }

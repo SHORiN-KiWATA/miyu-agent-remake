@@ -4,7 +4,7 @@
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use super::{
-    Answer, Approval, Asked, Decision, Drawer, Drawers, Edit, Item, Mark, Outcome, Report, Step,
+    Answer, Approval, Asked, Decision, Drawer, Drawers, Edit, Item, Outcome, Report, Step,
 };
 use crate::config::Config;
 
@@ -76,7 +76,7 @@ fn the_kernel_samples_read_and_there_is_no_decline() {
     assert_eq!(
         a.items(0).len(),
         3,
-        "允许这一次、这个会话都允许、不允许（核心 D-1 还没有工作区）"
+        "允许本次、本会话内始终允许、不允许（核心 D-1 还没有工作区）"
     );
     let mut bare = approval();
     bare.rule = None;
@@ -86,7 +86,7 @@ fn the_kernel_samples_read_and_there_is_no_decline() {
             Item::Decision(Decision::Once),
             Item::Decision(Decision::Deny)
         ],
-        "没提放行规则的不给「这个会话都允许」：选了核心回 no_rule"
+        "没提放行规则的不给「本会话内始终允许」：选了核心回 no_rule"
     );
     assert!(!d.has_review(), "一道题没有「确认」页");
     assert!(Drawer::question(None, two()).has_review());
@@ -275,8 +275,8 @@ fn what_is_left_behind() {
     };
     assert_eq!(
         d.report(&outcome, &texts),
-        Report::Block(vec![
-            "已回答".into(),
+        // 2026-10-11 项目主人：回答写进时间线里「提问」那一步下面，不写「已回答」那一行。
+        Report::Answers(vec![
             "build：删掉（补充：快点）".into(),
             "要哪几样？：未回答".into(),
         ])
@@ -296,17 +296,11 @@ fn what_is_left_behind() {
     });
     assert_eq!(
         a.report(&deny, &texts),
-        Report::Line(Mark::Bad, "不允许 · 不要".into())
+        Report::Denied("不允许 · 不要".into())
     );
-    // 2026-10-01 项目主人：取消的写清是哪一种。
-    assert_eq!(
-        a.report(&Outcome::Cancelled, &texts),
-        Report::Line(Mark::Void, "批准已取消".into())
-    );
-    assert_eq!(
-        d.report(&Outcome::Cancelled, &texts),
-        Report::Line(Mark::Void, "提问已取消".into())
-    );
+    // 2026-10-11 项目主人：取消一定顺带打断这一轮，那一步的结果、「已中断」已经说了，不再写「提问已取消」「批准已取消」。
+    assert_eq!(a.report(&Outcome::Cancelled, &texts), Report::Nothing);
+    assert_eq!(d.report(&Outcome::Cancelled, &texts), Report::Nothing);
 }
 
 #[test]
@@ -314,7 +308,7 @@ fn landing_on_deny_opens_the_reason_and_one_enter_submits() {
     // 2026-10-07 项目主人：光标移到「不允许」就能写理由，回车直接交，不用按两次。
     let mut d = Drawer::approval(None, approval());
     d.key(key(KeyCode::Down));
-    assert_eq!(d.editing, None, "「这个会话都允许」上不写字");
+    assert_eq!(d.editing, None, "「本会话内始终允许」上不写字");
     d.key(key(KeyCode::Down));
     assert_eq!(d.editing, Some(Edit::Reason), "落到「不允许」就在写理由");
     typed(&mut d, "jk别动");
@@ -356,5 +350,22 @@ fn a_command_ask_takes_its_title_and_command_from_the_core_and_says_when_unsandb
         Some("rm -rf build")
     );
     assert!(d.unsandboxed(), "sandbox:false 要写出来");
-    assert_eq!(d.items(0).len(), 2, "没有 rule：只有允许这一次、不允许");
+    assert_eq!(d.items(0).len(), 2, "没有 rule：只有允许本次、不允许");
+}
+
+#[test]
+fn vim_keys_move_and_turn_pages_while_not_typing() {
+    // 2026-10-11 项目主人：「问问题抽屉不支持 vimkey 是个问题」。没在写字时 `j` `k` 上下、`h` `l` 换题，同引导。
+    let mut d = Drawer::question(None, two());
+    d.key(key(KeyCode::Char('j')));
+    assert_eq!(d.cursor[0], 1, "j 往下");
+    d.key(key(KeyCode::Char('k')));
+    assert_eq!(d.cursor[0], 0, "k 往上");
+    d.key(key(KeyCode::Char('l')));
+    assert_eq!(d.tab, 1, "l 下一题");
+    d.key(key(KeyCode::Char('h')));
+    assert_eq!(d.tab, 0, "h 上一题");
+    d.key(key(KeyCode::Char('n')));
+    typed(&mut d, "jk");
+    assert_eq!(d.notes[0], "jk", "写字时照常打字");
 }
