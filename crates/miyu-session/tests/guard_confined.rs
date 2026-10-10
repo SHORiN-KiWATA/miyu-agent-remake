@@ -152,7 +152,13 @@ async fn a_group_session_only_touches_its_workspace_and_runs_no_command() {
     let all = results(&log);
     assert_eq!(
         text(&all[2]),
-        shipped("outside-workspace.txt").replace("{path}", &outside),
+        miyu_kernel::template::Template::parse(&shipped("outside-workspace.txt"))
+            .expect("出厂的写法对")
+            .render(&std::collections::BTreeMap::from([(
+                "path",
+                outside.as_str()
+            )]))
+            .expect("换得进"),
         "照出厂的那一句"
     );
     assert_eq!(
