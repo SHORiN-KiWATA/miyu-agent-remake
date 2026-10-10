@@ -33,6 +33,8 @@ export class Commands {
     this.extra = [];
     /** @type {Spec[]} 核心认的（`command.catalog`，照正在看的会话问；空会话里没有：核心的命令要造好的会话） */
     this.core = [];
+    /** 空会话里：核心认的那些命令的名字、别名（小写），打了提示开了会话才能用，不当话发出去 @type {Set<string>} */
+    this.later = new Set();
   }
 
   /** 现在的全部：出厂的在前，登记的照登记的先后，核心的接在后面（和网页撞名的不要，`mergeSpecs`）。 */
@@ -40,6 +42,9 @@ export class Commands {
 
   /** 换上核心的那一份。 @param {Spec[]} specs */
   setCore(specs) { this.core = specs; }
+
+  /** 换上空会话里要等会话的那几个名字。 @param {Set<string>} names */
+  setLater(names) { this.later = names; }
 
   /** 网页自己的加上给的这一份核心的（`/help` 列核心认的全部）。 @param {Spec[]} core */
   listWith(core) { return mergeSpecs([...this.base, ...this.extra], core); }

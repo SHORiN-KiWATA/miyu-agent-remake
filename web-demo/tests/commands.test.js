@@ -155,3 +155,15 @@ test('核心认的命令（command.catalog）：写成交给核心的命令，�
   const local = [{ name: 'clear', aliases: ['reset'], summary: '网页的清空', run: 'clear' }, { name: 'help', summary: '帮助', run: 'help' }];
   assert.deepEqual(mergeSpecs(local, core).map((s) => `${s.name}:${s.run}`), ['clear:clear', 'help:help', 'remember:core']);
 });
+
+test('空会话里打了核心认的命令（要造好的会话才能用）：不当话发出去，交 later；别的照旧（2026-10-10）', () => {
+  const later = new Set(['remember', 'dream', 'memo', 'reset']);
+  assert.equal(read(list, '/remember 我喜欢猫', later).kind, 'later', '带着内容的也不发');
+  assert.equal(read(list, '/remember', later).kind, 'later');
+  assert.equal(read(list, '/Dream', later).kind, 'later', '不分大小写');
+  assert.equal(read(list, '/memo', later).kind, 'later', '别名一样');
+  assert.equal(read(list, '/reset', later).kind, 'command', '网页自己也有的（/clear 的别名）照网页的，它自己管空会话怎么说');
+  assert.equal(read(list, '/etc 目录是干什么的', later).kind, 'talk', '不是核心的照旧是一句话');
+  assert.equal(read(list, '/nosuch', later).kind, 'unknown');
+  assert.equal(read(list, '/compact 重点', later).kind, 'command', '网页自己的照旧执行');
+});

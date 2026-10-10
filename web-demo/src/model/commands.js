@@ -32,7 +32,7 @@ export function mergeSpecs(local, core) {
   const taken = new Set(local.flatMap((s) => [s.name, ...(s.aliases ?? [])]));
   return [...local, ...core.filter((s) => ![s.name, ...(s.aliases ?? [])].some((n) => taken.has(n)))];
 }
-/** @typedef {{kind: 'command', spec: Spec, words: string|null}|{kind: 'unknown'}|{kind: 'talk'}} Line 回车时框里那一行是什么 */
+/** @typedef {{kind: 'command', spec: Spec, words: string|null}|{kind: 'unknown'}|{kind: 'later'}|{kind: 'talk'}} Line 回车时框里那一行是什么（`later`：空会话里打了核心的命令） */
 
 /** 框里的字像不像命令：像的交回命令名（刚打一个 `/` 的是空的），不像的是 `null`。名字要紧挨着 `/`。 */
 export function typed(value) {
@@ -67,18 +67,21 @@ export function find(list, name) {
 }
 
 /**
- * 回车时这一行是什么。
+ * 回车时这一行是什么：`later` 是核心认、要造好的会话才能用的命令名和别名（小写；空会话里不列，打了也不当话发，提示开了会话才能用）。
  * @param {Spec[]} list
  * @param {string} value 框里的字
+ * @param {Set<string>} [later]
  * @returns {Line}
  */
-export function read(list, value) {
+export function read(list, value, later = new Set()) {
   const name = typed(value);
   if (name == null) return { kind: 'talk' };
   const words = value.slice(1 + name.length).trim();
   const spec = find(list, name);
   if (spec && !words) return { kind: 'command', spec, words: null };
   if (spec?.args) return { kind: 'command', spec, words };
+  // 核心认、要造好的会话才能用的（空会话里不列）：不当话发出去（2026-10-10：空会话里打 `/remember 内容` 被当成一句话发给了她）
+  if (!spec && name && later.has(name.toLowerCase())) return { kind: 'later' };
   if (!spec && !words) return { kind: 'unknown' };
   return { kind: 'talk' };
 }

@@ -166,6 +166,8 @@ export class App {
       command: (spec, words) => runCommand(this, spec, words),
       // 命令列表开了：照正在看的会话重问核心认哪些（预设、记忆开关换了，下一次打开就是新的）
       commandsOpened: () => this.refreshCommands(),
+      // 空会话里核心认、要等会话的命令名（打了不当话发）
+      laterCommands: () => this.commands.later,
       // `/help`：核心认的全部（不照会话筛）
       allCommands: async () => this.commands.listWith(coreSpecs((await this.store.conn.request('command.catalog', {}))?.commands ?? [])),
       // 输入历史：记在这台设备上、按账号分开（内核的 `storage`）；读到坏的丢掉
@@ -413,9 +415,13 @@ export class App {
   async refreshCommands() {
     const session = this.current;
     if (!session) {
+      // 空会话里不列核心的，可打了它们的名字要认得出来：不带会话问一遍，记下名字、别名
       this.commands.setCore([]);
+      const all = await this.store.conn.request('command.catalog', {}).catch(() => null);
+      if (this.current === null && all) this.commands.setLater(new Set((all.commands ?? []).flatMap((c) => [c.name, ...(c.aliases ?? [])].map((n) => String(n).toLowerCase()))));
       return;
     }
+    this.commands.setLater(new Set());
     const got = await this.store.conn.request('command.catalog', { session }).catch(() => null);
     if (this.current !== session || !got) return;
     this.commands.setCore(coreSpecs(got.commands ?? []));

@@ -267,7 +267,7 @@ export class Composer {
   async submit() {
     if (this.locked) return this.say(this.locked);
     const text = this.input.value;
-    const line = read(this.specs(), text);
+    const line = read(this.specs(), text, this.on.laterCommands?.());
     if (line.kind === 'command') {
       this.remember(text);
       this.run(line.spec, line.words);
@@ -275,6 +275,10 @@ export class Composer {
     }
     if (line.kind === 'unknown') {
       this.say(t('commands.unknown'));
+      return;
+    }
+    if (line.kind === 'later') {
+      this.say(t('commands.needs_session'));
       return;
     }
     const parts = this.payload();

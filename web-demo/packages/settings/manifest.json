@@ -155,13 +155,13 @@
       },
       "from_env": "来自环境变量 {name}",
       "applies": {
-        "now": "当场生效",
-        "new_session": "以后开的会话生效",
+        "now": "立即生效",
+        "new_session": "新会话生效",
         "next_turn": "下一轮生效",
         "restart": "重启核心后生效",
-        "head_start": "这个程序下次启动时生效",
-        "live": "当场生效",
-        "reload": "这个包重新加载"
+        "head_start": "重启后生效",
+        "live": "立即生效",
+        "reload": "重新加载后生效"
       },
       "ext": {
         "run": "运行",
@@ -331,12 +331,12 @@
       "from_env": "環境変数 {name} から",
       "applies": {
         "now": "すぐに反映",
-        "new_session": "新しいセッションから反映",
-        "next_turn": "次のターンから反映",
+        "new_session": "新しいセッションに反映",
+        "next_turn": "次のターンから反映されます",
         "restart": "コア再起動後に反映",
-        "head_start": "このプログラムを次に起動したときに反映されます",
+        "head_start": "再起動後に反映",
         "live": "すぐに反映",
-        "reload": "このパッケージを再読み込み"
+        "reload": "再読み込み後に反映"
       },
       "ext": {
         "run": "実行",
