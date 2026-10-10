@@ -1,6 +1,6 @@
 ## 软件包页和软件后台
 
-状态：图纸，2026-10-10 主会话起草，待网页、终端、接入QQ 三个会话对过。设计 `30-插件框架.md` 第十三节：第 1 到 7 条项目主人定，这一页是第 8 条的技术形状。照它施工 F-6 上、F-6 中；网页软件给后台页的文件、框和网页之间的通道由网页的会话做，`miyu web --package` 也是它的。
+状态：图纸，2026-10-10 主会话起草，网页、终端、接入QQ 三个会话同一天对过（改了五处：开关的格叫 `enabled`；界面包的配置项不看程序在不在；通道只交一次；响应头照 `web-ui.md`；`context` 多 `colors`）。设计 `30-插件框架.md` 第十三节：第 1 到 7 条项目主人定，这一页是第 8 条的技术形状。照它施工 F-6 上、F-6 中；网页软件给后台页的文件、框和网页之间的通道由网页的会话做，`miyu web --package` 也是它的。
 
 ### 是什么
 
@@ -40,12 +40,13 @@ dir = "page"              # 包目录 packages/<编号>/ 下的子目录，入�
 
 ### 程序不在就当没装
 
-`status` 是 `program_missing` 的包：
+`status` 是 `program_missing` 的扩展、小程序（核心拉起的那两种）：
 
 1. 它的配置项不进 `config.schema`、参考文件，和没装一样；写在配置文件里的不报不认识（同没装的包，`config.md`）。
 2. `package.enable`、`extension.enable` 拒绝，`program_missing`。
 3. 它带的功能不进预设（`preset.get` 照「写了没装」列，`installed: false`）。内置包没有程序，不会是这一种。
 4. 程序放回去以后：核心下一次重读清单时照新的算。装卸以后、核心起来时都重读；人手放回程序的要重启核心，或者再开一次开关（`package.enable` 先重查一遍程序在不在）。
+5. 界面包（`ui`）的程序不在，`status` 照样写 `program_missing`，配置项照旧在：界面不是核心拉起的，它的配置项就是给那个界面自己读写的，连得上核心的界面自己就是程序在的证明（终端的会话 2026-10-10 提：开发时界面的程序不在 `miyu` 旁边，引导写 `tui.icons` 会被拒）。
 
 ### 开关
 
@@ -103,24 +104,24 @@ dir = "page"              # 包目录 packages/<编号>/ 下的子目录，入�
 
 1. `POST /page`：`Authorization: Bearer <登录令牌>`，正文 `{"package"}`。网页软件照这个令牌连核心，`package.list` 查它有没有后台页，没有的 404；有的造一张票据（同媒体地址的票据，第三条第 4 款），回 `{"url": "/p/<票据>/<包的编号>/"}`。
 2. `GET /p/<票据>/<包的编号>/<路径>`：票据不认识、包对不上的 404；照 `package.file` 一块块读、一块块写。相对路径照目录解析，页面里的相对地址自然带着票据。
-3. 响应头：`Content-Security-Policy: sandbox allow-scripts allow-forms; default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'none'; frame-ancestors 'self'`，加上 `nosniff`、`no-referrer`、`Cache-Control: no-cache`。
+3. 响应头照 `web-ui.md`（网页的会话施工时在几种浏览器上实测后写定）。要守的几条：沙箱，只许脚本、表单；不许联网（`connect-src 'none'`）；只许嵌在网页软件自己的页面里；`nosniff`、`no-referrer`、`Cache-Control: no-cache`。框的来源是空的（`null`），ES 模块脚本、`@font-face` 字体照跨源取，`/p/` 的回应要带 `Access-Control-Allow-Origin`：票据本身就是凭据，不多开口子。
 4. 框：`<iframe sandbox="allow-scripts allow-forms" src="<url>">`，不给 `allow-same-origin`：页面在一个空的来源里跑，读不到网页的存储、口令，`connect-src 'none'` 让它连不了网、连不了 `/ws`。
 5. 有后台页在给，网页软件不算空闲（同 `/media`）。
 
 ### 框和网页之间怎么说（网页的会话做）
 
-1. 框载入完，网页造一个 `MessageChannel`，把一头经 `postMessage({"miyu": "port"}, "*", [port])` 交给框；以后两边只在这条通道上说。框自己跳去别的地址，新页面拿不到这一头。
+1. 框第一次载入完，网页造一个 `MessageChannel`，把一头经 `postMessage({"miyu": "port"}, "*", [port])` 交给框；以后两边只在这条通道上说。只交这一次：框后来再载入，不管是跳到自己目录里别的页还是跳出去，都不再交。沙箱里的框能把自己导航到外面的网址，网页分不出载入的是谁。所以后台页要做成单页。
 2. 照 JSON-RPC 2.0 的写法：框发请求，网页回；网页另发推送（不带 `id`）。
 3. 方法表，只有这几样：
 
 | 方法 | 参数 | 网页怎么办 | 回 |
 |---|---|---|---|
-| `context` | 无 | 照网页这时的样子答 | `{"package", "language", "theme": "light" \| "dark"}` |
+| `context` | 无 | 照网页这时的样子答 | `{"package", "language", "theme": "light" \| "dark", "colors"?}`：`colors` 是网页这时的几个主色（`accent`、`surface`、`surface_2`、`text`、`text_soft`、`line`、`danger`），可以没有 |
 | `settings.get` | 无 | `config.schema`、`config.get`，只留 `package` 是它的项 | `{"items": [...], "values": {键: 最终值}}`；密钥照 `config.get` 的写法，不给值 |
 | `settings.set` | `{"changes": [...]}`，写法同 `config.set` | 每一项的键要是 `<它的编号>.` 开头，不是的整个不办，回 `forbidden`；照 `config.set` 写进系统配置 | `config.set` 的回应 |
 | `call` | `{"method", "params"?}` | `package.call`，`package` 照框是谁的填，框写不了 | `package.call` 的回应 |
 
-4. 推送：`settings.changed {"keys"}`（`config.changed` 里有它的项时）、`theme.changed {"theme"}`。
+4. 推送：`settings.changed {"keys"}`（`config.changed` 里有它的项时）、`theme.changed {"theme", "colors"?}`。
 5. 别的方法回 `-32601`；写法不对的回 `-32600`。网页认的一律照它给框的那个包，框说自己是谁不算数。
 
 ### 终端
@@ -137,4 +138,5 @@ dir = "page"              # 包目录 packages/<编号>/ 下的子目录，入�
 ### 还没有的
 
 - 第三方包的后台页能不能直接用核心的别的能力（读会话这些）：现在只能经它自己的程序。
+- 后台页要看密钥：`settings.get` 不给值，要给看的由它的程序经方法交回（接入QQ 的令牌就这样，项目主人 2026-10-08 定了令牌能看能复制）。核心不为后台页开交出密钥的口子。
 - 后台页的文件改了要不要推给开着的框：现在不推，重开就是新的。
