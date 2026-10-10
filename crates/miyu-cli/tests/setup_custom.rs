@@ -10,7 +10,7 @@ use miyu_cli::Setup;
 use miyu_http::testkit::{Reply, Server};
 
 /// 表里「自定义」那一行的编号：DeepSeek、opencode Zen 之后（OpenAI、Anthropic 在裁出来的目录里没有地址，不编号）。
-const CUSTOM: &str = "3";
+const CUSTOM: &str = "4";
 
 /// 列模型那一下：没有这个接口。
 fn no_listing() -> Reply {
@@ -46,7 +46,7 @@ async fn a_custom_provider_asks_address_protocol_and_key_and_is_named_after_its_
     let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;
     assert_eq!(asked.code, 0, "{}", asked.screen);
     let shown = steady(&asked.screen);
-    let (_, after) = shown.split_once("  3  自定义\n").expect("有自定义那一行");
+    let (_, after) = shown.split_once("  4  自定义\n").expect("有自定义那一行");
     assert_eq!(
         after,
         "选一个编号：Base URL：要以 http:// 或 https:// 开头\n\

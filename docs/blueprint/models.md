@@ -349,7 +349,7 @@ Miyu 怎么接上模型：配置里写几家供应商，每家带驱动、地址
 
 回应 `providers`：每一家 `id`、`name`（档案写的，再是目录的，都没有的是编号）、`driver`（档案的，再是目录的 `npm` 照 `[npm]` 换的，认不出的是 `null`）、`base_url`（档案的，再是目录的 `api`，都没有的是 `null`）、`env`（目录里找 key 的变量，原样）、`doc`（没有的是 `null`）、`models`（目录里有几个模型）、`supported`（驱动是现在有的、有地址）、`local`（地址在本机：不要 key，8-11 施工时加）。能用的排前面，再照名字排（不分大小写，一样的照编号）。目录和档案的合起来：只在档案里的（`ollama`）也列。
 
-写了 `featured` 的：照资源目录 `models/featured.toml` 的先后，交目录、档案里有的那几家，每一家的写法同上；`id` 照这个连接的语言挑（中文的，写了 `catalog_zh` 的用它：Kimi、通义的国内地址），`name` 换成它写的（照语言挑，没有这种语言的用目录的）。目录里没有的跳过。`featured.toml` 读不了、写错了的 `internal_error`，记一行 `WARN`。
+写了 `featured` 的：照资源目录 `models/featured.toml` 的先后，交目录、档案里有的那几家，每一家的写法同上；`id` 照这个连接的语言挑（中文的，写了 `catalog_zh` 的用它；施工 T-12 起国内外分开各列一行，没有一家写），`name` 换成它写的（照语言挑，没有这种语言的用目录的）。目录里没有的跳过。`featured.toml` 读不了、写错了的 `internal_error`，记一行 `WARN`。
 
 ```json
 {"providers":[{"id":"deepseek","name":"DeepSeek","driver":"openai-chat","base_url":"https://api.deepseek.com","env":["DEEPSEEK_API_KEY"],"doc":"https://api-docs.deepseek.com/quick_start/pricing","models":4,"supported":true,"local":false},{"id":"anthropic","name":"Anthropic","driver":"anthropic","base_url":null,"env":["ANTHROPIC_API_KEY"],"doc":"https://docs.anthropic.com/en/docs/about-claude/models","models":16,"supported":false,"local":false}]}
@@ -682,7 +682,7 @@ flowchart TB
    - 已经登录的 agent CLI 不找：借订阅以后再说（施工方案第三节 M8 下第一条）。
    - **核心看不到头的环境变量时**（2026-10-01 主会话定）：核心的环境是拉起它的那个头的，别的终端里后来设的它看不到。`miyu setup` 拿 `looked_for` 和自己的环境比：头看得到、核心的 `keys` 里没有的，说清是哪几个变量，给出让核心看到的办法：等核心空闲了自己退出，再在这个终端里运行 `miyu setup`，由这个终端拉起它；或者选这一家、把 key 贴进来。不复制 key。「让核心空闲时重启」要一个新的协议方法，没有做（「还没有的」）。
 3. **`provider.catalog`**：照目录和档案列（`miyu_models::onboard::listed`、`search`）。驱动是现在有的（`openai-chat`）、有地址的算 `supported`。别的也列、标出来，人知道为什么选不了：`driver` 是 `null` 的认不出接口，`base_url` 是 `null` 的没有地址，都有的是驱动还没有。
-   - **常用的几家**（8-11 再补，2026-10-08 项目主人定）：`featured` 交回资源目录 `models/featured.toml` 列的几家：DeepSeek、OpenAI、Anthropic、OpenRouter、Kimi、智谱、通义、opencode Zen，照这个先后。一家一项 `[[providers]]`：`catalog` 是目录、档案里的编号，`catalog_zh` 是中文界面用的（国内的地址），`name` 是一句字或者语言到一句话的表。`miyu setup` 和头的第一次引导列的是同一份，改它不用改代码。
+   - **常用的几家**（8-11 再补，2026-10-08 项目主人定）：`featured` 交回资源目录 `models/featured.toml` 列的几家，照这个先后：OpenCode Zen、OpenCode Go、DeepSeek、Anthropic、OpenAI、OpenRouter、Moonshot 国际版和国内版、智谱 GLM 国内版、Z.AI 国际版、通义千问国际版和国内版、MiniMax 国际版和国内版（施工 T-12，2026-10-10 项目主人定照 opencode 的常用供应商，国内外分开的各列一行；Google 目录里走 Gemini 自己的接口、核心接不上，GitHub Copilot 要 OAuth，Vercel 没实测，都不列）。一家一项 `[[providers]]`：`catalog` 是目录、档案里的编号，`catalog_zh` 是中文界面用的（国内的地址），`name` 是一句字或者语言到一句话的表。`miyu setup` 和头的第一次引导列的是同一份，改它不用改代码。
 4. **`provider.test`**（`route/probe.rs`）：
    1. 照配置（`provider`）或者照候选写成的一份最终值（`candidate`，`miyu_models::onboard::candidate`）推这一家，和会话的路由走同一条路（`miyu_models::provider::provider`）。推不出驱动、地址的，地址是环境变量的引用、取不到的，写了 key 一个都取不到的：`stage` 是 `config`，分类 `no_model`，原话照路由的。
    2. 列模型：照驱动的 `models_path()`，带第一个取得到的 key，整个 30 秒（和拉列表一样，`route/lists.rs` 的 `list_models`）。拉到了的，配好了的供应商顺手存进供应商的列表（第二条第 10 条），候选不存。拉不到的不算失败：照目录里对上的那一家列，`listed` 是 `catalog`。模型名照字节排、去重。
