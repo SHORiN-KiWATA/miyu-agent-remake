@@ -3,6 +3,8 @@
 .mascot-layer { position: fixed; z-index: 40; inset: 0; overflow: hidden; pointer-events: none; }
 .mascot { position: absolute; top: 0; left: 0; line-height: 0; will-change: transform; }
 .mascot-body { position: relative; }
+/* 舞台的放大（第一次引导的欢迎页）慢慢变过去 */
+.mascot-scale { transition: transform 320ms var(--ease-out, ease-out); }
 .mascot-canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; cursor: grab; pointer-events: auto; touch-action: none; }
 .mascot.is-dragging .mascot-canvas { cursor: grabbing; }
 .mascot-prop {
@@ -18,4 +20,5 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .mascot-prop, .mascot-prop.is-leaving { animation: none; }
+  .mascot-scale { transition: none; }
 }

@@ -54,6 +54,7 @@ export class Behavior {
     this.busy = false;
     this.frame = 0;
     this.last = 0;
+    this.droopTimer = 0;
     /** @type {number[]} */
     this.timers = [];
     this.schedule();
@@ -149,13 +150,13 @@ export class Behavior {
     this.touch();
   }
 
-  /** 她在回答没有：回答时掏电脑敲；这一轮结束收起来、跳一下。 */
-  setBusy(busy) {
+  /** 她在回答没有：回答时掏电脑敲；这一轮结束收起来、跳一下（`hop` 是假的不跳：引导里没连上）。 */
+  setBusy(busy, hop = true) {
     if (busy === this.busy) return;
     this.busy = busy;
     this.settle();
     this.light();
-    if (!busy) {
+    if (!busy && hop) {
       this.hop();
       this.lamp.flash();
     }
@@ -240,6 +241,21 @@ export class Behavior {
     this.wake();
   }
 
+  /** 耷拉一下耳朵、低头（第一次引导里没连上），过一会儿抬回来。 */
+  droop() {
+    const d = this.config.droop;
+    this.face.droop(d.tilt, d.ms);
+    this.look(0, d.pitch, this.config.gaze.half_life_ms);
+    window.clearTimeout(this.droopTimer);
+    this.droopTimer = window.setTimeout(() => this.follow(), d.ms);
+  }
+
+  /** 舞台换了：跳回家（`below` 的从整页底下跳上来）。 */
+  goHome(below = false) {
+    this.body.goHome(below);
+    this.wake();
+  }
+
   /** 左键按下：抓起来。 */
   grab(x, y) {
     this.body.grab(x, y);
@@ -310,6 +326,7 @@ export class Behavior {
   destroy() {
     for (const id of this.timers) clearTimeout(id);
     clearTimeout(this.pointerTimer);
+    clearTimeout(this.droopTimer);
     clearInterval(this.propTimer);
     this.lamp.destroy();
     if (this.frame) cancelAnimationFrame(this.frame);

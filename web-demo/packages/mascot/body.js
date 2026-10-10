@@ -104,6 +104,40 @@ export class Body {
     }
   }
 
+  /**
+   * 舞台换了（第一次引导）：站在别处的原地起跳、跳回家（`arrive`）；已经在家、被拖着、在空中的不管（落地以后照 `wander` 回去）。
+   * `below` 的先放到整页底边、正对着家的地方，从下面跳上来（欢迎页开场）。减少动画的直接放到家。
+   * @param {boolean} [below]
+   */
+  goHome(below = false) {
+    const home = this.room.home();
+    if (!home || this.drag) return;
+    if (this.room.reduced()) {
+      this.at = { x: home.x, y: home.platform.y, vx: 0, vy: 0, ground: home.platform };
+      return;
+    }
+    if (below || !this.at) {
+      const floor = this.room.platforms().find((p) => p.id === 'floor') ?? null;
+      this.at = { x: home.x, y: floor?.y ?? innerHeight, vx: 0, vy: 0, ground: floor };
+    }
+    const g = this.at.ground;
+    if (!g || g.id === home.platform.id) return;
+    const gone = !this.room.platforms().some((p) => p.id === g.id);
+    // 换了一屏、新的台子还在原来的高度（标题上沿没挪）：直接站上去，不跳
+    if (gone && Math.abs(home.platform.y - this.at.y) < 2 && this.at.x >= home.platform.x1 && this.at.x <= home.platform.x2) {
+      this.at = { ...this.at, ground: home.platform };
+      return;
+    }
+    this.homing = true;
+    this.arrive(this.at, performance.now(), home.x);
+    // 脚下的台子跟着换走的那一屏没了：不蹲了，当场起跳（蹲着的下一帧就悬空掉下去，跳不起来）
+    const w = this.windup;
+    if (w && gone) {
+      this.at = { ...this.at, vy: w.vy, vx: w.vx ?? 0, ground: null };
+      this.windup = null;
+    }
+  }
+
   /** 别走了（往家走的、往外让的不停）。 */
   halt() {
     if (!this.homing && !this.leaving) this.walkTo = null;
@@ -287,7 +321,7 @@ export class Body {
    * 走到了：往家走的先蹲下，再起跳，跳得比输入框高一点，落在它上面；站在输入框旁边的斜着跳，横着的速度照落到它上沿要多久算
    * （往上到最高、再落下 `home_extra_px` 的时间）。
    */
-  arrive(b, now) {
+  arrive(b, now, to = b.x) {
     this.walkTo = null;
     this.leaving = false;
     const home = this.homing ? this.room.home() : null;
@@ -298,8 +332,10 @@ export class Body {
     const up = Math.sqrt(2 * g * Math.max(0, b.y - home.platform.y + extra));
     const p = home.platform;
     const margin = this.config.home.edge;
-    const target = Math.max(p.x1 + margin, Math.min(p.x2 - margin, b.x));
-    const flight = up / g + Math.sqrt((2 * extra) / g);
+    const target = Math.max(p.x1 + margin, Math.min(p.x2 - margin, to));
+    // 落到家要多久：升到最高（`up / g`），再从最高落到家的高度；家在下面的（换了一屏）落得更远，横着的速度照它算，不然飞过头
+    const drop = home.platform.y - (b.y - (up * up) / (2 * g));
+    const flight = up / g + Math.sqrt((2 * Math.max(extra, drop)) / g);
     this.windup = { at: now, vy: -up, vx: (target - b.x) / flight };
   }
 

@@ -1,6 +1,6 @@
 // @ts-check
 //! 吉祥物的脸（软件包 `mascot`，蓝图 `web.md`「吉祥物」第 5–6 条；照 TUI `tui-demo/src/mascot/idle.rs`）：转头照目标缓动过去、
-//! 眨眼（有时连眨两下）、耳朵往外抖一下、摔重了闭眼晕一会儿；嘴张多大也缓着变：打哈欠（张到最大、闭眼）。只记状态、
+//! 眨眼（有时连眨两下）、耳朵往外抖一下、耷拉一下、摔重了闭眼晕一会儿；嘴张多大也缓着变：打哈欠（张到最大、闭眼）。只记状态、
 //! 一帧一帧推，什么时候做由 `behavior.js` 定。
 
 /** 缓动：过 `dt` 毫秒，离目标的差剩 `0.5^(dt/半衰期)` */
@@ -21,6 +21,8 @@ export class Face {
     /** 抖耳朵：什么时候开始、往外歪多少 */
     this.twitchAt = /** @type {number|null} */ (null);
     this.twitchTilt = 0;
+    /** 耷拉耳朵：什么时候开始、歪多少、多久 */
+    this.drooping = /** @type {{at: number, tilt: number, ms: number}|null} */ (null);
     /** 嘴：这一帧张多大；一会儿张成多大、到什么时候、缓多快 */
     this.mouth = 0;
     this.gaping = /** @type {{level: number, until: number, half: number}|null} */ (null);
@@ -61,6 +63,11 @@ export class Face {
     this.dizzyUntil = performance.now() + ms;
   }
 
+  /** 耷拉耳朵：耳朵往外歪下去 `tilt`、低头，`ms` 毫秒以后抬回来（没连上，第一次引导）。 */
+  droop(tilt, ms) {
+    this.drooping = { at: performance.now(), tilt, ms };
+  }
+
   /** 推一帧：转头、眨眼、抖耳朵、嘴；交回还在不在动。 */
   tick(dt, now) {
     const p = this.pose;
@@ -86,16 +93,25 @@ export class Face {
     else moving = true;
     if (gaping) moving = true;
     p.mouth = this.mouth;
+    let ear = 0;
     if (this.twitchAt != null) {
       const k = (now - this.twitchAt) / c.idle.twitch_ms;
-      if (k >= 1) {
-        this.twitchAt = null;
-        p.ear = 0;
-      } else {
-        p.ear = Math.sin(Math.PI * k) * this.twitchTilt;
+      if (k >= 1) this.twitchAt = null;
+      else {
+        ear = Math.sin(Math.PI * k) * this.twitchTilt;
         moving = true;
       }
     }
+    // 耷拉：头一成半的时间歪下去，最后三成抬回来
+    if (this.drooping) {
+      const k = (now - this.drooping.at) / this.drooping.ms;
+      if (k >= 1) this.drooping = null;
+      else {
+        ear += this.drooping.tilt * Math.min(1, k / 0.15, (1 - k) / 0.3);
+        moving = true;
+      }
+    }
+    p.ear = ear;
     return moving;
   }
 }
