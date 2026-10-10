@@ -170,7 +170,7 @@ impl Tools {
                 helper,
                 kit.home.clone(),
                 kit.data_root.clone(),
-                kit.sandbox_cache,
+                (kit.sandbox_cache, kit.confined),
             )
         });
         Tools {

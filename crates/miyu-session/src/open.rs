@@ -254,6 +254,8 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
     };
     let (inbox, mailbox) = mpsc::unbounded_channel();
     let lettering = Arc::new(Lettering::new(run, guard));
+    // 外部身份的会话（施工 5-12）：权限策略、命令的沙盒都照它。
+    let confined = place.1.is_some();
     let guard = Guard::new(
         tools.clone(),
         root.path().to_path_buf(),
@@ -280,6 +282,7 @@ pub async fn create(setup: Create<'_>) -> Result<Handle, CreateError> {
         ToolKit {
             session: id.clone(),
             owner: owner.clone(),
+            confined,
             catalog: tools.clone(),
             lettering,
             home: home.map(Path::to_path_buf),

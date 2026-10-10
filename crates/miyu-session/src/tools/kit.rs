@@ -20,6 +20,8 @@ pub(crate) struct ToolKit {
     pub(crate) session: SessionId,
     /// 会话的属主（施工 O-2 三补）：每次调用带上，提供者的工具交回的图照它拷进属主名下。
     pub(crate) owner: AccountId,
+    /// 外部身份的会话（施工 5-12 下）：命令的沙盒读写都只限工作区。
+    pub(crate) confined: bool,
     /// 工具目录的架子：执行时照现在的那一份找（施工 O-2 中）。
     pub(crate) catalog: Shelf,
     /// 替工具写的两句，和权限策略同一份（施工 P-1 三补：换快照时跟着换）。

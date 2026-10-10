@@ -16,6 +16,10 @@ pub struct Spec {
     /// 读写都不行的，例如数据根：里面有本机令牌，读到就能冒充本人。
     #[serde(default)]
     pub hidden: Vec<PathBuf>,
+    /// 只准读这些（施工 5-12 下，外部身份的会话）：写了的，除了它们和 `write` 的，别处都读不到，`hidden` 不再另算；没写的
+    /// 照旧整盘能读。这台机器上关不住读的（[`crate::CONFINES_READS`] 是假的），助手收到写了它的规格不跑。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub read: Option<Vec<PathBuf>>,
 }
 
 impl Spec {

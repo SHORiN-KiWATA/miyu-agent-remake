@@ -154,9 +154,11 @@ impl Guard {
         if access == Access::Venue {
             return in_venue(&self.place);
         }
-        // 只碰得到自己工作区的会话还不能跑命令（施工 5-12：沙盒把读也关进工作区以后再放开）。
+        // 只碰得到自己工作区的会话：命令只在把读也关进工作区的沙盒里跑（施工 5-12 下），关不住读的平台、沙盒用不了的
+        // 机器上一律拒。
         if let Some(confined) = &self.confined
             && access == Access::Execute
+            && !(self.sandboxed && miyu_sandbox::CONFINES_READS)
         {
             return deny(confined.no_commands());
         }
@@ -182,6 +184,12 @@ impl Guard {
         };
         let asking = tool.asking(&call);
         let verdict = self.paths(tool.as_ref(), name, level, &call, dirs, grants, &asking);
+        // 要在沙盒外跑的：只碰得到自己工作区的会话一律拒，没人能放行（施工 5-12 下）。
+        if let Some(confined) = &self.confined
+            && tool.outside_sandbox(&call)
+        {
+            return deny(confined.no_commands());
+        }
         if tool.outside_sandbox(&call) {
             beyond(
                 verdict,

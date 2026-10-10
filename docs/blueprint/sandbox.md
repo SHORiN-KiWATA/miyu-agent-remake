@@ -51,7 +51,9 @@
 {"write":["/home/me/project","/tmp/miyu-sandbox"],"hidden":["/home/me/.miyu"]}
 ```
 
-读的时候，认不得的格（包括原来的 `read`、`readonly`、`network`）、类型不对的，都当规格写坏了：助手不懂的限制，不能悄悄跳过。两格不写都是空的。
+读的时候，认不得的格（包括原来的 `readonly`、`network`）、类型不对的，都当规格写坏了：助手不懂的限制，不能悄悄跳过。两格不写都是空的。
+
+**只准读名单里的**（`read`，施工 5-12 下，外部身份的会话，`11-权限与沙盒.md` 第三节）：写了的，除了它列的和 `write` 的，别处都读不到、列不出、执行不了，`hidden` 不再另算；不写的照旧整盘能读。现在只有 Linux 照它收紧（Landlock：根目录不再整个放列目录、执行，名单里的每一条放读、列目录、执行）；别的平台（`miyu_sandbox::CONFINES_READS` 是假的）助手收到写了它的规格说 `cannot confine: reads cannot be confined on this platform`、退出 125、不跑，宁可不跑也不漏读。
 
 **助手的命令行**：
 

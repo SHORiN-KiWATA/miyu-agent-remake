@@ -82,15 +82,15 @@ impl Places {
     }
 }
 
-/// 这台机器的系统目录。
+/// 这台机器的系统目录：只能读的那一片（11 第四节）；外部身份的会话的沙盒只准读它们和自己的工作区（施工 5-12 下）。
 #[cfg(unix)]
-fn system_dirs() -> Vec<PathBuf> {
+pub fn system_dirs() -> Vec<PathBuf> {
     SYSTEM.iter().map(PathBuf::from).collect()
 }
 
 /// 这台机器的系统目录：`%SystemRoot%`、`%ProgramFiles%`、`%ProgramFiles(x86)%`，没设的不算。
 #[cfg(windows)]
-fn system_dirs() -> Vec<PathBuf> {
+pub fn system_dirs() -> Vec<PathBuf> {
     ["SystemRoot", "ProgramFiles", "ProgramFiles(x86)"]
         .iter()
         .filter_map(std::env::var_os)

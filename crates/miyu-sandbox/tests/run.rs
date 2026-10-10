@@ -24,6 +24,7 @@ fn spec() -> String {
             Vec::new()
         },
         hidden: Vec::new(),
+        read: None,
     }
     .to_json()
     .expect("写得成")
@@ -213,4 +214,32 @@ fn the_probe_says_this_platform_in_one_line() {
     let probe: Probe = serde_json::from_str(&stdout).expect("读得懂");
     assert_eq!(probe.platform, Platform::current());
     assert_eq!(Platform::current().name(), expected);
+}
+
+/// 关不住读的平台（施工 5-12 下）：写了只准读一部分的规格，助手不跑，宁可不跑也不漏读。
+#[test]
+#[cfg(not(target_os = "linux"))]
+fn a_read_list_is_refused_where_reads_cannot_be_confined() {
+    let spec = Spec {
+        write: Vec::new(),
+        hidden: Vec::new(),
+        read: Some(Vec::new()),
+    }
+    .to_json()
+    .expect("写得成");
+    let (program, args) = sample_command();
+    let mut wrapped: Vec<OsString> = vec!["run".into(), "--spec".into(), spec.into(), "--".into()];
+    wrapped.push(program.into());
+    wrapped.extend(args.into_iter().map(OsString::from));
+    let out = Command::new(HELPER)
+        .args(&wrapped)
+        .stdin(Stdio::null())
+        .output()
+        .expect("起得来");
+    assert_eq!(out.status.code(), Some(i32::from(EXIT_HELPER)), "{out:?}");
+    assert_eq!(
+        String::from_utf8_lossy(&out.stderr),
+        "miyu-sandbox: cannot confine: reads cannot be confined on this platform\n"
+    );
+    assert!(out.stdout.is_empty(), "没跑");
 }

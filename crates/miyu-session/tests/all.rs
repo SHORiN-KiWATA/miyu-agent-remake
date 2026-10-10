@@ -66,6 +66,7 @@ mod route_turn;
 mod route_vision;
 mod route_zen;
 mod sandbox;
+mod sandbox_confined;
 mod search;
 mod session_fact;
 mod session_usage;

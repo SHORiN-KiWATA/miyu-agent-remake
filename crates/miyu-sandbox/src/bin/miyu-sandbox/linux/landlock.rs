@@ -29,16 +29,26 @@ pub(super) fn available() -> Result<(), String> {
 }
 
 /// 照规格收紧自己：根目录往下都能列目录、执行；读照 [`plan`] 一级级放，绕开藏起来的；`write` 和 `/dev/null` 放行
-/// 全部。规格里的路径不在的跳过。
+/// 全部。写了 `read` 的（施工 5-12 下）：只有它列的能读、列目录、执行，根目录不再整个放，`hidden` 不另算。规格里的路径不在
+/// 的跳过。
 pub(super) fn confine(spec: &Spec) -> Result<(), String> {
     let mut created = ruleset()?;
-    created = add(
-        created,
-        Path::new("/"),
-        AccessFs::ReadDir | AccessFs::Execute,
-    )?;
-    for path in plan(&spec.hidden)? {
-        created = add_readable(created, &path)?;
+    match &spec.read {
+        None => {
+            created = add(
+                created,
+                Path::new("/"),
+                AccessFs::ReadDir | AccessFs::Execute,
+            )?;
+            for path in plan(&spec.hidden)? {
+                created = add_readable(created, &path)?;
+            }
+        }
+        Some(read) => {
+            for path in read {
+                created = add_readable(created, path)?;
+            }
+        }
     }
     let null = PathBuf::from("/dev/null");
     for path in spec.write.iter().chain([&null]) {

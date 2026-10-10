@@ -25,7 +25,7 @@ mod resolve;
 pub mod trash;
 mod wide;
 
-pub use boundary::{Boundary, Places, Zone, within};
+pub use boundary::{Boundary, Places, Zone, system_dirs, within};
 pub use find::{Built, CAP, DEPTH, FRESH_SECS, Found, Index, MAX_INDEXES, SHOWN, score};
 pub use list::{Entry, list_dir};
 pub use open::{Kind, OpenError, open_file};

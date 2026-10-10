@@ -8,6 +8,7 @@ fn spec(write: &[&str], hidden: &[&str]) -> Spec {
     Spec {
         write: paths(write),
         hidden: paths(hidden),
+        read: None,
     }
 }
 
