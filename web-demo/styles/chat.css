@@ -43,12 +43,15 @@
 /* 不挂在她头下的一行：回报、压缩、清空（蓝图 web.md「后台命令、子代理的回报」「压缩、清空」）。和收尾那一行一样对齐、
    一样大：缩进到她的内容那一列，等宽 13px，字暗、记号有颜色；能点开的悬停亮一档，点开下面铺底色 */
 /* 提示行（回报、压缩、清空）：和时间线收起那一行一个样子（正文字体 600、11.5px、text 的六成二），记号照旧有颜色（蓝图 web.md「后台命令、子代理的回报」） */
-.note { margin-bottom: 30px; padding-left: 40px; color: color-mix(in srgb, var(--text) 62%, var(--surface)); font: 600 11.5px/1.5 var(--sans); }
+.note { margin-bottom: 19px; padding-left: 40px; color: color-mix(in srgb, var(--text) 62%, var(--surface)); font: 600 11.5px/1.5 var(--sans); }
+/* 上下各空一行（正文的一行高，同回答和结尾那一行之间；2026-10-10 项目主人：原来空得好大）：上面那一块的下边距 30 收掉 7，下面接收起那一行时
+   它自己还有 7 的留白 */
+.assistant-message + .note, .assistant-message + .compacting { margin-top: -7px; }
 /* 压缩的进度（蓝图 web.md「压缩的进度」，方案 A）：和回报那一行一样缩进；流光照运行状态行，下面一根细条，过了一会儿呼吸 */
 .compacting {
   --cp-base: color-mix(in srgb, var(--accent) 85%, black);
   --cp-peak: color-mix(in srgb, white 55%, var(--accent));
-  margin-bottom: 30px; padding-left: 40px; animation: fade-in var(--motion-in) var(--ease-out);
+  margin-bottom: 19px; padding-left: 40px; animation: fade-in var(--motion-in) var(--ease-out);
 }
 .compacting.is-breathing .compacting-line, .compacting.is-breathing .compacting-bar { animation: compacting-breathe 2s ease-in-out infinite; }
 /* 自动压缩停下来等的那一行：同结果那一行（.note 的字） */
@@ -94,7 +97,8 @@
 /* 停掉的（人停的、她停的、随撤销、因重启、中断）：同一个实心圆点，text_soft（2026-09-30 项目主人定） */
 .note-line.tone-stopped .note-mark { color: var(--text-soft); }
 .note-line.tone-error .note-mark { color: var(--t-error); }
-.note.is-expandable .note-line { cursor: pointer; transition: color 0.15s ease; }
+/* 能点开的：只有字那一截能点、能悬停（同收起那一行；2026-10-10 项目主人：原来整行都算，指针在右边也变深） */
+.note.is-expandable .note-line { width: fit-content; max-width: 100%; cursor: pointer; transition: color 0.15s ease; }
 .note.is-expandable .note-line:hover { color: color-mix(in srgb, var(--text) 84%, var(--surface)); }
 /* 提示行的小箭头：悬停才露，点开以后一直露着、转成朝下（和时间线一个规矩，timeline.css 的 .tl-chevron） */
 .note-line > .tl-chevron { align-self: center; margin-left: -2px; }
