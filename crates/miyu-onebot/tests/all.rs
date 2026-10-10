@@ -30,6 +30,7 @@ mod outbound;
 mod page;
 mod pipe;
 mod private;
+mod pronoun;
 mod provider;
 mod queue;
 mod queue_waits;

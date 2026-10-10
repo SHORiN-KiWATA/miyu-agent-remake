@@ -99,7 +99,7 @@ listen = 8301
 # Allowed: { secret = "…" } or { env = "…" }. Only in the system config. Takes effect immediately.
 # token =
 
-# Whitelist: People who can chat with her in private, whose friend requests are accepted, who are not rate-limited or held off while she sleeps, and whom she answers directly in groups. Write each as qq:<QQ number>, for example qq:20017.
+# Whitelist: People who can chat with the AI in private, whose friend requests are accepted, who are not rate-limited or held off while the AI sleeps, and who get a direct reply when they address the AI in groups. Write each as qq:<QQ number>, for example qq:20017.
 # Allowed: a list of text of at most 128 characters. Only in the system config. Takes effect immediately.
 # whitelist =
 

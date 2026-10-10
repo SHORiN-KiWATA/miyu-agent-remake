@@ -129,7 +129,7 @@
 kind = "process"
 protocol = [1, 1]
 name = { en = "Connect QQ", zh = "接入QQ", ja = "QQ接続" }
-summary = { en = "Talk with her on QQ through NapCat", zh = "经 NapCat 在 QQ 上和她说话", ja = "NapCat 経由で QQ で会話する" }
+summary = { en = "Talk with the AI on QQ through NapCat", zh = "经 NapCat 在 QQ 上和 AI 说话", ja = "NapCat 経由で QQ で会話する" }
 icon = "message-circle"
 
 [command]
@@ -188,7 +188,7 @@ description = { … }
 | `token` 名字 | 令牌 | Token | トークン |
 | 说明 | NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。没设的，NapCat 连进来会被拒；在接入QQ的网页上能生成一个。 | The access token NapCat shows when it connects; set the same one in NapCat. Without it NapCat is refused; you can generate one on Connect QQ web page. | NapCat が接続するときに示すアクセストークンです。NapCat 側にも同じものを設定します。未設定だと NapCat の接続は拒否されます。QQ接続の Web ページで生成できます。 |
 | `whitelist` 名字 | 白名单成员 | Whitelist | ホワイトリスト |
-| 说明 | 能私聊她、加她好友自动通过、不受限流和睡觉影响、群里冲她来的直接回的人。每一项写 qq:QQ号，例如 qq:20017。 | People who can chat with her in private, whose friend requests are accepted, who are not rate-limited or held off while she sleeps, and whom she answers directly in groups. Write each as qq:<QQ number>, for example qq:20017. | 個人チャットで話せて、友だち申請が自動で通り、回数制限も睡眠時間もかからず、グループで彼女に向けた発言にはそのまま返事をもらえる人です。一つずつ qq:QQ番号 で書きます。例：qq:20017。 |
+| 说明 | 能私聊 AI、加 AI 好友自动通过、不受限流和睡觉影响、群里冲 AI 来的直接回的人。每一项写 qq:QQ号，例如 qq:20017。 | People who can chat with the AI in private, whose friend requests are accepted, who are not rate-limited or held off while the AI sleeps, and who get a direct reply when they address the AI in groups. Write each as qq:<QQ number>, for example qq:20017. | 個人チャットで話せて、友だち申請が自動で通り、回数制限も睡眠時間もかからず、グループで AI に向けた発言にはそのまま返事をもらえる人です。一つずつ qq:QQ番号 で書きます。例：qq:20017。 |
 
 **状态文件**（O-18）：桥把这一刻的样子写进 `<数据根>/state/packages/onebot/status.json`（核心给的工作目录就是这个目录；照数据根算，不照相对路径）：
 
