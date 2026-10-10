@@ -1191,6 +1191,38 @@ default = "full"
 # 能写：nerd 或 plain。只能写在系统配置或个人设置里。立即生效。
 icons = "nerd"
 
+# 吉祥物：显示哪一只吉祥物；不设置就是内置的。
+# 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。立即生效。
+# mascot =
+
+# 首页显示吉祥物：在空会话的输入框上方显示吉祥物。人格设了头像的照样显示头像。
+# 能写：true 或 false。只能写在系统配置或个人设置里。立即生效。
+mascot_home = true
+
+# 侧边栏显示吉祥物：在侧边栏顶部显示吉祥物。人格设了头像的照样显示头像。
+# 能写：true 或 false。只能写在系统配置或个人设置里。立即生效。
+mascot_sidebar = true
+
+# 展开命令：命令默认显示全文，不只显示预览。
+# 能写：true 或 false。只能写在系统配置或个人设置里。立即生效。
+timeline_expand_command = false
+
+# 展开编辑：编辑的差异默认显示全文，不只显示预览。
+# 能写：true 或 false。只能写在系统配置或个人设置里。立即生效。
+timeline_expand_edit = false
+
+# 展开思考：思考默认显示全文，不只显示预览。
+# 能写：true 或 false。只能写在系统配置或个人设置里。立即生效。
+timeline_expand_thought = false
+
+# 回复完成后折叠时间线：回复完成后，把这一段的步骤折叠为一行。
+# 能写：true 或 false。只能写在系统配置或个人设置里。立即生效。
+timeline_fold = true
+
+# 限制时间线区域高度：进行中的步骤只显示最新的几行。
+# 能写：true 或 false。只能写在系统配置或个人设置里。立即生效。
+timeline_limit_live = true
+
 [ui]
 # 默认界面：直接敲 miyu 时打开哪个界面。
 # 能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。重启后生效。
@@ -1231,7 +1263,7 @@ port = 8300
 ticket_idle_seconds = 43200
 ```
 
-样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `compaction.prepare`（6-11 上）、`models.chat`、`models.vision`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`models.cooldown.*`（8-9）、`permission.start_read_only`、`persona.default`（P-1 上）、`preset.default`（P-2 上）、`providers.<id>.*`、`tui.icons`（9-3 再补，终端界面的清单声明的）、`ui.language`、`ui.startup`）：
+样本 `docs/designs/samples/config/settings.schema.zh.json`（个人设置的 JSON Schema，中文：能放进个人设置的 `compaction.prepare`（6-11 上）、`models.chat`、`models.vision`、`pools.<id>.*`（8-8）、`models.catalog.*`（8-7）、`models.cooldown.*`（8-9）、`permission.start_read_only`、`persona.default`（P-1 上）、`preset.default`（P-2 上）、`providers.<id>.*`、`tui.*`（9-3 再补起，终端界面的清单声明的：图标、时间线、吉祥物）、`ui.language`、`ui.startup`）：
 
 ```json
 {
@@ -1728,6 +1760,53 @@ ticket_idle_seconds = 43200
           ],
           "title": "图标",
           "type": "string"
+        },
+        "mascot": {
+          "description": "显示哪一只吉祥物；不设置就是内置的。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置或个人设置里。立即生效。",
+          "title": "吉祥物",
+          "type": "string"
+        },
+        "mascot_home": {
+          "default": true,
+          "description": "在空会话的输入框上方显示吉祥物。人格设了头像的照样显示头像。能写：true 或 false。只能写在系统配置或个人设置里。立即生效。",
+          "title": "首页显示吉祥物",
+          "type": "boolean"
+        },
+        "mascot_sidebar": {
+          "default": true,
+          "description": "在侧边栏顶部显示吉祥物。人格设了头像的照样显示头像。能写：true 或 false。只能写在系统配置或个人设置里。立即生效。",
+          "title": "侧边栏显示吉祥物",
+          "type": "boolean"
+        },
+        "timeline_expand_command": {
+          "default": false,
+          "description": "命令默认显示全文，不只显示预览。能写：true 或 false。只能写在系统配置或个人设置里。立即生效。",
+          "title": "展开命令",
+          "type": "boolean"
+        },
+        "timeline_expand_edit": {
+          "default": false,
+          "description": "编辑的差异默认显示全文，不只显示预览。能写：true 或 false。只能写在系统配置或个人设置里。立即生效。",
+          "title": "展开编辑",
+          "type": "boolean"
+        },
+        "timeline_expand_thought": {
+          "default": false,
+          "description": "思考默认显示全文，不只显示预览。能写：true 或 false。只能写在系统配置或个人设置里。立即生效。",
+          "title": "展开思考",
+          "type": "boolean"
+        },
+        "timeline_fold": {
+          "default": true,
+          "description": "回复完成后，把这一段的步骤折叠为一行。能写：true 或 false。只能写在系统配置或个人设置里。立即生效。",
+          "title": "回复完成后折叠时间线",
+          "type": "boolean"
+        },
+        "timeline_limit_live": {
+          "default": true,
+          "description": "进行中的步骤只显示最新的几行。能写：true 或 false。只能写在系统配置或个人设置里。立即生效。",
+          "title": "限制时间线区域高度",
+          "type": "boolean"
         }
       },
       "type": "object"
