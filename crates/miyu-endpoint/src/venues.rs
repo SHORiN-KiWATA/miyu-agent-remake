@@ -1,4 +1,5 @@
-//! 场所会话与外部身份（施工 O-3，`docs/blueprint/venues.md`）：主人对应表 `external.bindings` 怎么查；`venue.session` 找回或者造
+//! 场所会话与外部身份（施工 O-3，`docs/blueprint/venues.md`）：主人对应表 `external.bindings` 怎么查，扩展经 `venue.binding`
+//! 问一个平台身份对着谁（施工 O-31 前）；`venue.session` 找回或者造
 //! 一个场所的主线会话；`session.send` 的 `as` 记成谁。核心不认识 QQ：场所编号不解读，是不是私聊、对方是谁，桥照实报。
 
 use std::sync::Arc;
@@ -84,6 +85,29 @@ pub(crate) fn bound(core: &Core, id: &ExternalId) -> Option<AccountId> {
         return None;
     }
     Some(account)
+}
+
+/// `venue.binding` 的参数（施工 O-31 前）：一次问一个平台身份。
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct BindingParams {
+    id: String,
+}
+
+/// `venue.binding`（施工 O-31 前，`venues.md`「问对应表」）：平台身份 `id` 在主人对应表里对着的本机账号，没写的、对着不存在的
+/// 账号的是 `null`。只给系统账号的连接（核心拉起的、声明了系统账号的包的扩展）：提供者照它挡在场所里做的事（`providers.md`
+/// 「在场所里做的事」），别的连接回 `no_system_account`。只读。
+pub(crate) fn binding(
+    core: &Core,
+    caller: &AccountId,
+    params: BindingParams,
+) -> Result<Value, Refusal> {
+    if !core.is_system(caller) {
+        return Err(Refusal::NO_SYSTEM_ACCOUNT);
+    }
+    let id = ExternalId::parse(&params.id).map_err(|_| Refusal::BAD_PARAMS)?;
+    let account = bound(core, &id);
+    Ok(json!({"account": account.as_ref().map(AccountId::as_str)}))
 }
 
 /// `venue.session`：找回或者造场所 `venue` 的主线会话（`venues.md`「对外的样子」）。属主：私聊、对方在对应表里的是那个本机

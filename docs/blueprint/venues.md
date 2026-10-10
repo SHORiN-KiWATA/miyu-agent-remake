@@ -19,9 +19,10 @@
 | `crates/miyu-endpoint/src/settings.rs` | `ExternalSettings`：`external.bindings.<external>`，只能写在系统配置 |
 | `crates/miyu-kernel/src/origin.rs` | `Person` 多 `via`（私聊里经哪个平台身份认出来的本人）；`External` 多 `account`（对应表里对着的本机账号）、`role`（桥报的场所里的身份） |
 | `crates/miyu-store/src/index.rs`、`index/row.rs` | 索引一行多 `venue`，版本 3 |
-| `crates/miyu-endpoint/src/venues.rs` | `venue.session`：照场所加属主找回或者造；`as` 怎么认、记成谁（照会话的属主比，施工 O-4 下） |
+| `crates/miyu-endpoint/src/venues.rs` | `venue.session`：照场所加属主找回或者造；`as` 怎么认、记成谁（照会话的属主比，施工 O-4 下）；`venue.binding`：问一个平台身份在对应表里对着谁（施工 O-31 前） |
 | `crates/miyu-endpoint/src/venues/message.rs`、`crates/miyu-kernel/src/event/venue.rs` | `session.send` 的 `venue` 怎么查、记成什么（施工 O-13 上） |
 | `crates/miyu-endpoint/src/appending.rs` | `events.append`：种类、大小、格怎么查，记成谁（施工 O-13 上） |
+| `crates/miyu-endpoint/tests/venue_binding.rs`（施工 O-31 前） | `venue.binding`：系统账号的扩展问对着管理员的、没写的、对着不存在的账号的；写错的、多写格的、一次问几个的 `bad_params`；本机的头 `no_system_account`；只读 |
 | `crates/miyu-endpoint/src/venues/records.rs` | `venue.records`：照会话日志和快照里的时区渲染判官看的记录（施工 O-24） |
 | `crates/miyu-endpoint/tests/venue_judge.rs` | `venue.records` 的写法、写错的、没有的会话（施工 O-24） |
 | `crates/miyu-endpoint/src/responding.rs` | `session.respond`：参数怎么查，交给内核的 `Respond`（施工 O-14 上）；`session.note`：交给内核的 `Note`，事实的查法两边共用（施工 O-14 补） |
@@ -47,6 +48,12 @@
 
 - 键是平台身份，照短名字的写法（1 到 128 字节，没有控制字符），裸着写不下的照 TOML 加引号。一个号只能对一个账号（TOML 的键本来就不能重），一个账号可以对几个号。
 - 值是本机账号。写了没有的账号（现在只有管理员）：配置照常读进来，认的时候当没写，记一行运行日志 `binding to an unknown account ignored`。
+
+**问对应表**（施工 O-31 前，2026-10-10 核心定；通讯平台的桥挡在场所里做的事要的，`providers.md`「在场所里做的事」）：`venue.binding {"id": <平台身份>}`，回应 `{"account": <本机账号>}`，不在对应表里的、对着不存在的账号的（同上，当没写）是 `{"account": null}`。
+
+1. 一次只问一个号；只读，对应表照旧。照这时的配置答（对应表改了，下一次问照新的）。
+2. 只给系统账号的连接（核心拉起的、清单声明了系统账号的包的扩展，同 `venue.session` 第 1 条）；别的连接回 `no_system_account`。
+3. `id` 写错的（不合短名字的写法，例如空的）、多写格的、少写的回 `bad_params`。
 
 **`venue.session`**（命令）：找回或者造一个场所的主线会话。
 
