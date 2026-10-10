@@ -102,15 +102,22 @@ export class Sidebar {
 
   /** 连接的状态：在线、连接中、离线（圆点的颜色照它，蓝图「左栏」的「状态」）。 */
   /**
-   * 左上角照会话用的人格画（2026-10-10 项目主人：和对话区她那一轮的头像同步，点了进编辑人格）：有头像的画头像，没有的画名字的第一个字；
-   * 无人格的会话画 Miyu 自己的（`resources/persona.json`）。
+   * 左上角照会话用的人格画（2026-10-10 项目主人：和对话区她那一轮的头像同步，点了直接开编辑卡片）：有头像的画头像，没有的画名字的第一个
+   * 字。无人格的会话不画头像，名称写「Miyu」（`resources/persona.json` 的名字），不能点（同一天项目主人选的）；人格还不知道的时候也这样。
    * @param {import('./chat.js').Look|null} look
    */
   setLook(look) {
-    const p = look ?? res.persona;
-    replace(this.face, p.avatar ? h('img.brand-avatar', { src: p.avatar, alt: '' }) : h('span.brand-avatar.is-initial', { 'aria-hidden': 'true' }, [...p.name][0] ?? ''));
-    this.name.textContent = p.name;
-    this.identity.title = t(look ? 'sidebar.edit_persona' : 'sidebar.personas');
+    this.face.hidden = !look;
+    this.identity.disabled = !look;
+    if (!look) {
+      replace(this.face);
+      this.name.textContent = res.persona.name;
+      this.identity.removeAttribute('title');
+      return;
+    }
+    replace(this.face, look.avatar ? h('img.brand-avatar', { src: look.avatar, alt: '' }) : h('span.brand-avatar.is-initial', { 'aria-hidden': 'true' }, [...look.name][0] ?? ''));
+    this.name.textContent = look.name;
+    this.identity.title = t('sidebar.edit_persona');
   }
 
   setStatus(status) {

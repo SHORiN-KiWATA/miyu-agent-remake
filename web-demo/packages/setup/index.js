@@ -237,15 +237,13 @@ export function apply(ctx) {
   ctx.slots.mount('settings.section', { id: 'personas', name: t('page.title'), render: (kit) => personaPage.render(kit) });
   ctx.slots.mount('settings.section', { id: 'presets', name: t('presets.title'), render: (kit) => presetPage.render(kit) });
   // 左上角的头像（事件 `persona.open`，2026-10-10 项目主人）：直接在页面上开这个会话用的人格（空会话照选的、默认的）的编辑卡片，不先开设置页；
-  // 无人格的开设置页的「人格」页
+  // 无人格的左上角不画头像、点不了
   ctx.on('persona.open', async () => {
     const session = chat.current();
     const id = session ? chat.persona(session) ?? null : inUse().persona ?? null;
-    const settings = ctx.settings;
-    if (!settings) return;
-    if (!id) return settings.open('personas');
+    if (!id || !ctx.settings) return;
     if (!catalog.personas) await catalog.load().catch(() => {});
-    editPersona(ctx, catalog, id, settings.kit);
+    editPersona(ctx, catalog, id, ctx.settings.kit);
   });
   ctx.slots.mount('settings.editor', {
     id: 'setup-persona',

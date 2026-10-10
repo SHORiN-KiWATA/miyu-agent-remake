@@ -28,8 +28,6 @@ export function apply(ctx) {
   ctx.effect(() => () => dialog?.close());
   // 给第一次引导的（蓝图「第一次引导」第 12 条）：和设置页一个样子的控件、接一家供应商的几屏（设置页的「＋ 添加供应商」也是它）
   ctx.provide('settings', {
-    /** 打开设置页到这一页（`settings.section` 的编号、核心的页名；开着的换过去）：左上角的头像打开「人格」页 @param {string|null} page */
-    open: (page) => open(page),
     /** 控件画在 `panel` 里（菜单开在它上面），提示交给 `toast`。 @param {HTMLElement} panel @param {(text: string) => void} toast */
     kit: (panel, toast) => sectionKit({ panel, ctx, toast }),
     /** @param {import('./onboard/flow.js').Host} host */
