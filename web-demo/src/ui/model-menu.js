@@ -9,6 +9,7 @@ import { h, icon, replace, scaleOf } from './dom.js';
 import { show, hide, span, cubicBezier, parseBezier, snapToPixels } from '../lib/motion.js';
 import { res, t } from '../util/res.js';
 import { menuOf, filterRows, effortRows, effortLabel } from '../model/model-menu.js';
+import { logoEl } from '../lib/logo.js';
 
 /**
  * @typedef {import('../model/model-menu.js').Row} Row
@@ -266,7 +267,7 @@ export class ModelMenu {
         if (i >= 0 && i !== this.at) this.mark(i, false);
       },
       onclick: () => this.choose(row),
-    }, h('span.model-menu-text', h('span.model-menu-title', { title: row.title }, row.title), h('span.model-menu-desc', row.desc)), icon('check'));
+    }, 'logo' in row ? logoEl(row.logo, row.brand ?? '') : null, h('span.model-menu-text', h('span.model-menu-title', { title: row.title }, row.title), h('span.model-menu-desc', row.desc)), icon('check'));
     el.classList.toggle('is-current', row.current);
     return el;
   }

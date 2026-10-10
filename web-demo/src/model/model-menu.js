@@ -6,8 +6,9 @@ import { res, t } from '../util/res.js';
 import { hhmm } from './format.js';
 
 /**
- * @typedef {{ref: string, title: string, desc: string, current: boolean, usable: boolean, why: string, find: string}} Row 一行：选了交给
- *   核心的引用、上面一行、下面一行小字、是不是现在用着的、能不能选、不能选为什么（悬停写）、搜索照着找的字（显示名、模型名、供应商）
+ * @typedef {{ref: string, title: string, desc: string, current: boolean, usable: boolean, why: string, find: string, logo?: any, brand?: string}} Row 一行：选了交给
+ *   核心的引用、上面一行、下面一行小字、是不是现在用着的、能不能选、不能选为什么（悬停写）、搜索照着找的字（显示名、模型名、供应商）；
+ *   `logo`、`brand` 是供应商的图标和名称（核心给图标的才有，`src/lib/logo.js`）
  */
 
 /**
@@ -19,12 +20,14 @@ export function menuOf(list, current) {
   if (!list) return { models: [], pools: [] };
   // 上面写显示名（目录里没有的写模型名），下面写供应商的显示名；显示名重了的（同一个模型的几条线路）下面接模型名分开它们
   const all = (list.providers ?? []).flatMap((p) => (p.models ?? []).map((m) => ({ p, m, name: m.facts?.name?.value || m.model, provider: providerName(p) })));
+  // 供应商的图标：核心给 `logo` 的每一行都带（没有的 `null`，画名称的第一个字），老核心的不带
+  const logos = (list.providers ?? []).some((p) => p && typeof p === 'object' && 'logo' in p);
   const seen = new Map();
   for (const x of all) seen.set(x.name, (seen.get(x.name) ?? 0) + 1);
-  const models = all.map(({ m, name, provider }) => {
+  const models = all.map(({ p, m, name, provider }) => {
     const usable = m.state === 'ok';
     const desc = (seen.get(name) ?? 0) > 1 && name !== m.model ? `${provider} · ${m.model}` : provider;
-    return { ref: m.ref, title: name, desc, current: m.ref === current, usable, why: usable ? '' : why(m), find: `${name}\n${m.model}\n${provider}` };
+    return { ref: m.ref, title: name, desc, current: m.ref === current, usable, why: usable ? '' : why(m), find: `${name}\n${m.model}\n${provider}`, ...(logos ? { logo: p.logo ?? null, brand: provider } : {}) };
   });
   const pools = (list.pools ?? []).map((pool) => {
     const ref = `@${pool.name}`;

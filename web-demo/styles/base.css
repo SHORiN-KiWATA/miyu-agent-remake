@@ -159,3 +159,11 @@ button, textarea { font: inherit; color: inherit; }
 @keyframes sink-out { to { opacity: 0; transform: translateY(4px); } }
 @keyframes drop-in { from { opacity: 0; transform: translateY(-3px); } }
 @keyframes lift-out { to { opacity: 0; transform: translateY(-3px); } }
+
+/* 供应商的图标（src/lib/logo.js）：单色的照字色（遮罩铺 currentColor），彩色的照原样，没有图的写名称的第一个字 */
+.prov-logo { flex: none; width: 18px; height: 18px; }
+.prov-logo.is-tint { background: currentColor; -webkit-mask: var(--logo) center / contain no-repeat; mask: var(--logo) center / contain no-repeat; }
+.prov-logo.is-initial {
+  display: grid; place-items: center; border-radius: 5px; background: color-mix(in srgb, var(--text) 8%, transparent);
+  color: var(--text-soft); font-size: 10.5px; font-weight: 600; line-height: 1;
+}

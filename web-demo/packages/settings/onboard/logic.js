@@ -53,9 +53,10 @@ export function validUrl(text) {
 export const cleanUrl = (text) => text.trim().replace(/\/+$/, '');
 
 /**
- * @typedef {{kind: 'catalog', id: string, name: string, supported: boolean, configured: string|null, env: string|null}
- *   | {kind: 'local', id: string, name: string, base_url: string, host: string, configured: string|null}} Row
- *   一行：常用的一家（`configured` 是配置里的编号，没配的是 `null`；`env` 是找到的变量），本机的一家
+ * @typedef {{kind: 'catalog', id: string, name: string, supported: boolean, configured: string|null, env: string|null, logo?: any}
+ *   | {kind: 'local', id: string, name: string, base_url: string, host: string, configured: string|null, logo?: any}} Row
+ *   一行：常用的一家（`configured` 是配置里的编号，没配的是 `null`；`env` 是找到的变量），本机的一家；`logo` 是核心给的图标（`src/lib/logo.js`），
+ *   核心给图标的（目录里有一项带 `logo` 这一格）每一行都带（没有的 `null`，画名称的第一个字），老核心的不带（不画图标位）
  */
 
 /**
@@ -67,11 +68,14 @@ export const cleanUrl = (text) => text.trim().replace(/\/+$/, '');
  */
 export function providerRows(featured, detect, configured) {
   const keys = /** @type {any[]} */ (detect?.keys ?? []);
+  // 核心给不给图标（2026-10-11 起 `provider.catalog` 每一项带 `logo`）：给的每一行都带，好对齐
+  const logos = featured.some((p) => p && typeof p === 'object' && 'logo' in p);
+  const logoOf = (/** @type {any} */ x) => (logos ? { logo: x?.logo ?? null } : {});
   const common = featured.map((p) => {
     const id = configId(p.id);
     const key = keys.find((k) => k.provider === p.id && k.supported);
     const configuredAs = configured.has(id) ? id : keys.find((k) => k.provider === p.id && k.configured)?.configured ?? null;
-    return /** @type {Row} */ ({ kind: 'catalog', id: p.id, name: p.name || p.id, supported: !!p.supported, configured: configuredAs, env: key?.env ?? null });
+    return /** @type {Row} */ ({ kind: 'catalog', id: p.id, name: p.name || p.id, supported: !!p.supported, configured: configuredAs, env: key?.env ?? null, ...logoOf(p) });
   });
   const local = (/** @type {any[]} */ (detect?.local ?? [])).map((l) => {
     let host = l.base_url;
@@ -80,7 +84,7 @@ export function providerRows(featured, detect, configured) {
     } catch {
       // 读不出的照原样写
     }
-    return /** @type {Row} */ ({ kind: 'local', id: l.provider, name: l.name || l.provider, base_url: l.base_url, host, configured: l.configured ?? null });
+    return /** @type {Row} */ ({ kind: 'local', id: l.provider, name: l.name || l.provider, base_url: l.base_url, host, configured: l.configured ?? null, ...logoOf(l) });
   });
   return { common, local };
 }

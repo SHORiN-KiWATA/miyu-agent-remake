@@ -5,6 +5,7 @@
 //! 模型池在 `pools.js`。
 
 import { h, icon, replace } from '../../src/lib/dom.js';
+import { hasLogos, logoEl } from '../../src/lib/logo.js';
 import { coreRow, textField } from './rows.js';
 import { itemFor, plainItem, shortCount, inputText, duplicates, layerFor, writtenIn, expectFor, providerName, filterModels } from './model.js';
 import { providerForm, openForm } from './provider-form.js';
@@ -60,9 +61,11 @@ function providers(dialog, list) {
   const all = list.providers ?? [];
   // 记着的那一家（刚建好、模型列表还没读回来的）不在表里时先看第一家，不改记着的
   const p = all.find((x) => x.id === dialog.provider) ?? all[0];
+  // 供应商的图标（核心给 `logo` 的才画，`src/lib/logo.js`）
+  const logos = hasLogos(all);
   const side = h('div.set-prov-list',
     all.map((x) => h(`button.set-prov${x.id === p?.id ? '.is-on' : ''}`, { type: 'button', onclick: () => { dialog.provider = x.id; dialog.modelDetail = null; if (dialog.modelQuery) dialog.modelQuery.providers = ''; dialog.drawBody(); } },
-      h('span', providerName(x)), sharedState(x.models ?? []) ? h('i.set-warn-dot') : null)),
+      logos ? logoEl(x.logo ?? null, providerName(x)) : null, h('span', providerName(x)), sharedState(x.models ?? []) ? h('i.set-warn-dot') : null)),
     h('button.set-prov.is-add', { type: 'button', onclick: () => openAdd(dialog) }, icon('plus'), ctx.text('models.add_provider')));
   if (!p) return h('div.set-prov-wrap', side);
   const models = p.models ?? [];

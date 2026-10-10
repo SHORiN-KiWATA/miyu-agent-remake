@@ -6,6 +6,7 @@
 //! 测的时候叫吉祥物敲电脑（宿主交来的 `mascot`），成了收起来跳一下，没成耷拉一下耳朵。
 
 import { h, icon, replace } from '../../../src/lib/dom.js';
+import { logoEl } from '../../../src/lib/logo.js';
 import { secretName } from '../model.js';
 import { select } from '../rows.js';
 import { providerRows, testParams, setupChanges, noPools, modelOrder, filterNames, failureOf, validUrl, cleanUrl } from './logic.js';
@@ -118,7 +119,7 @@ export class ProviderFlow {
     const tag = r.configured ? ['is-good', t('onboard.tag.configured')] : r.kind === 'catalog' && !r.supported ? ['is-off', t('onboard.tag.unsupported')] : r.kind === 'catalog' && r.env ? ['', t('onboard.tag.found')] : null;
     const off = r.kind === 'catalog' && !r.supported;
     return h(`button.ob-row${off ? '.is-off' : ''}`, { type: 'button', disabled: off, onclick: () => this.host.show(this.provider(r), 1) },
-      h('span.ob-row-name', r.name), r.kind === 'local' ? h('span.ob-row-hint', r.host) : null,
+      'logo' in r ? logoEl(r.logo, r.name) : null, h('span.ob-row-name', r.name), r.kind === 'local' ? h('span.ob-row-hint', r.host) : null,
       tag ? h(`span.ob-tag${tag[0] ? `.${tag[0]}` : ''}`, tag[1]) : null, h('span.ob-row-arrow', icon('chevron-right')));
   }
 
