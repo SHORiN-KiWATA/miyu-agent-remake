@@ -131,7 +131,8 @@
 | 方法 | 做什么 |
 |---|---|
 | `session.create` | 造会话 |
-| `venue.session` | 找回或者造一个通讯平台场所的主线会话（施工 O-3，`venues.md`） |
+| `venue.session` | 找回或者造一个通讯平台场所的主线会话：收到一条消息时找它（施工 O-3，`venues.md`） |
+| `venue.sessions` | 列出系统账号名下的场所会话和终端管理员在这个平台的私聊，一个场所一个：桥起来时照它订阅（施工 O-32 前，`venues.md`「列场所会话」） |
 | `session.respond` | 照已经旁听记下的几条开一轮，带几块事实（施工 O-14 上，`venues.md`「照记下的几条开一轮」） |
 | `session.note` | 只记几块事实，不开回合（施工 O-14 补，`venues.md`「记几块事实」） |
 | `provide` | 核心拉起的扩展登记它提供的工具（施工 O-2 上，`providers.md`）；核心照登记反向调用 `tool.call`，超时、打断时发通知 `tool.cancel`（施工 O-2 下） |
@@ -1075,7 +1076,7 @@ JSON-RPC 自己的几种照它的标准码；Miyu 的一律 `-32010`，原因写
 | `needs_approval` | -32010 | `extension.enable`、`extension.restart`：要的能力还有没批的，`data.capabilities` 是那几个（施工 9-4 下上，`extensions.md`「能力」） |
 | `session_not_found` | -32010 | 没有这个会话，删了的也是 |
 | `unknown_call` | -32010 | `view.detail` 的会话日志里没有这次调用的结果：编号对不上，或者还没回（施工 9-6 三补）；没有替代到这个序号的压缩（施工 9-8 中） |
-| `no_system_account` | -32010 | 场所会话的属主该是系统账号，这个连接不是（施工 O-3；O-4 下起核心拉起的、清单声明了系统账号的包的扩展是，别的连接还回它）；`venue.binding` 只给系统账号的连接，别的也回它（施工 O-31 前） |
+| `no_system_account` | -32010 | 场所会话的属主该是系统账号，这个连接不是（施工 O-3；O-4 下起核心拉起的、清单声明了系统账号的包的扩展是，别的连接还回它）；`venue.binding`、`venue.sessions` 只给系统账号的连接，别的也回它（施工 O-31 前、O-32 前） |
 | `venue_session` | -32010 | 场所会话只收代表外部的人说的话：不带 `as` 的 `session.send`（施工 O-3）、`command.run`（施工 O-6）；`command.catalog` 只收本机的会话（施工 O-6 补） |
 | `unknown_command` | -32010 | `command.run` 认不出这个命令（施工 O-6） |
 | `command_not_allowed` | -32010 | `command.run`：场所里既不是主人、也不是管理的人（施工 O-6） |

@@ -1,6 +1,6 @@
 //! 场所会话与外部身份（施工 O-3，`docs/blueprint/venues.md`）：主人对应表 `external.bindings` 怎么查，扩展经 `venue.binding`
 //! 问一个平台身份对着谁（施工 O-31 前）；`venue.session` 找回或者造
-//! 一个场所的主线会话；`session.send` 的 `as` 记成谁。核心不认识 QQ：场所编号不解读，是不是私聊、对方是谁，桥照实报。
+//! 一个场所的主线会话，`venue.sessions` 列出系统账号名下的（施工 O-32 前，`sessions`）；`session.send` 的 `as` 记成谁。核心不认识 QQ：场所编号不解读，是不是私聊、对方是谁，桥照实报。
 
 use std::sync::Arc;
 
@@ -13,15 +13,17 @@ use miyu_store::index::Row;
 use miyu_tool::Stop;
 
 use crate::Core;
-use crate::list::scan;
+use crate::list::{Listed, scan};
 use crate::refusal::Refusal;
 use crate::sessions::Opening;
 
 mod message;
 mod records;
+mod sessions;
 
 pub(crate) use message::{VenueMessageParams, platform_id};
 pub(crate) use records::records;
+pub(crate) use sessions::{SessionsParams, sessions};
 
 /// 主人对应表在配置里的样子（`settings::EXTERNAL_BINDINGS`）。
 const BINDINGS: &str = "external.bindings.<external>";
@@ -64,27 +66,36 @@ pub(crate) struct AsParams {
 
 /// 平台身份 `id` 在主人对应表里对着的本机账号。没写的、写了不存在的账号（现在只有管理员）当没写：后者记一行运行日志。
 pub(crate) fn bound(core: &Core, id: &ExternalId) -> Option<AccountId> {
-    let values = core.config().resolved().values();
-    let found = values.keys().find_map(|key| {
-        let segments = miyu_config::key::split(key)?;
-        match miyu_config::key::fit(BINDINGS, &segments) {
-            miyu_config::key::Fit::Yes(names)
-                if names.first().map(String::as_str) == Some(id.as_str()) =>
-            {
-                match values.get(key) {
-                    Some(miyu_config::Value::Text(account)) => Some(account.to_string()),
-                    _ => None,
-                }
-            }
-            _ => None,
-        }
-    })?;
+    let (_, found) = written(core)
+        .into_iter()
+        .find(|(key, _)| key == id.as_str())?;
     let account = AccountId::parse(&found).ok()?;
     if account != core.admin {
         tracing::warn!(target: "miyu::endpoint", external = id.as_str(), account = account.as_str(), "binding to an unknown account ignored");
         return None;
     }
     Some(account)
+}
+
+/// 主人对应表照写的样子：（平台身份，本机账号），都是原文，没查账号在不在。值不是字的不算。
+fn written(core: &Core) -> Vec<(String, String)> {
+    let values = core.config().resolved().values();
+    values
+        .keys()
+        .filter_map(|key| {
+            let segments = miyu_config::key::split(key)?;
+            let miyu_config::key::Fit::Yes(names) = miyu_config::key::fit(BINDINGS, &segments)
+            else {
+                return None;
+            };
+            match values.get(key) {
+                Some(miyu_config::Value::Text(account)) => {
+                    Some((names.first()?.clone(), account.to_string()))
+                }
+                _ => None,
+            }
+        })
+        .collect()
 }
 
 /// `venue.binding` 的参数（施工 O-31 前）：一次问一个平台身份。
@@ -165,30 +176,43 @@ pub(crate) async fn session(
     Ok(json!({"session": created.id.as_str(), "created": true, "account": owner.as_str()}))
 }
 
-/// 属主 `owner` 的主会话里，场所是 `venue` 的最新的那一个：照会话列表的索引找，和 `session.list` 同一个读法。
+/// 属主 `owner` 的主会话里，场所是 `venue` 的最新的那一个。
 async fn find(
     core: &Arc<Core>,
     owner: &AccountId,
     venue: &VenueId,
 ) -> Result<Option<miyu_kernel::id::SessionId>, Refusal> {
+    let venue = venue.as_str().to_string();
+    let found = mains(core, owner, move |row| row.venue == venue, Some(1)).await?;
+    Ok(found.into_iter().next().map(|listed| listed.id))
+}
+
+/// 属主 `owner` 的主会话（不是子会话）里合 `pick` 的，从新到旧，最多 `limit` 个：照会话列表的索引找，和 `session.list` 同一个
+/// 读法。
+async fn mains(
+    core: &Arc<Core>,
+    owner: &AccountId,
+    pick: impl Fn(&Row) -> bool + Send + 'static,
+    limit: Option<usize>,
+) -> Result<Vec<Listed>, Refusal> {
     let root = core.root.clone();
     let index = core.index_for(owner);
-    let (owner, venue) = (owner.clone(), venue.as_str().to_string());
+    let owner = owner.clone();
     let found = tokio::task::spawn_blocking(move || {
-        let pick = |row: &Row| row.parent.is_none() && row.venue == venue;
+        let pick = |row: &Row| row.parent.is_none() && pick(row);
         scan(
             &root,
             &owner,
             index.as_deref(),
             &Default::default(),
             pick,
-            Some(1),
+            limit,
             &Stop::default(),
         )
     })
     .await;
     match found {
-        Ok(Ok(listed)) => Ok(listed.into_iter().next().map(|listed| listed.id)),
+        Ok(Ok(listed)) => Ok(listed),
         Ok(Err(error)) => {
             tracing::warn!(target: "miyu::endpoint", error = %error, "venue session not found");
             Err(Refusal::INTERNAL)

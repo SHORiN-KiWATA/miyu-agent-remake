@@ -119,6 +119,7 @@ mod usage;
 mod venue_binding;
 mod venue_judge;
 mod venue_records;
+mod venue_sessions;
 mod venues;
 mod view_detail;
 mod view_entries;
