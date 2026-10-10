@@ -110,6 +110,14 @@ shell = false
 - 写盘照配置文件的规矩（`miyu_store::config_file`）：顺着链接写、先写临时文件再替换、替换之前再读一次本体，撞上手改的从头再来，三次还不行的 `preset_conflict`。写成了记一行运行日志 `INFO preset saved`，删了 `INFO preset deleted`；不进配置的留痕日志。
 - 只给本机的连接：扩展进程调回 `local_only`。不推 `preset.changed`：两个头都是每次打开重新读（2026-10-08 和两个头对过）。
 
+### 图标（图纸，Y14，2026-10-10 主会话起草，待网页、终端对过；施工 P-5）
+
+1. **在哪**：预设文件 `[preset]` 里的 `icon`：Lucide 的图标名，小写字母开头，只有小写字母、数字、`-`，最多 64 个。核心只查写法，不查 Lucide 里有没有；头认不出的照没写画一个通用的。不合写法的报 `preset.icon must be a lucide icon name`（照预设别的错的写法，带行号）。
+2. **叠**：同 `name`、`summary`，上一层写了的盖下面的。
+3. **改**：`preset.set` 的键多 `preset.icon`，值是名字，`unset` 回到下面那一层的。
+4. **列出来**：`preset.list` 的每一格、`preset.get` 多一格 `icon`，没写的是 `null`。
+5. 出厂的两个预设各写一个（施工时和网页的会话对着挑）。
+
 ### 出错
 
 | 代码 | 什么时候 |

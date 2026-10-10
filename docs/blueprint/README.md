@@ -66,6 +66,7 @@
 | `models.md` | 供应商和模型：供应商的配置、模型资料和四层对目录、用途和池、出错换端点和冷却、会话里换模型、第一次接入、opencode Zen、用量和金额：图纸，定稿（2026-10-01 项目主人批准），M8 照它施工 |
 | `config.md` | 配置和密钥：清单、分层、项目配置的信任、校验和报错、写盘、留痕、监视和生效、密钥、`config.*`、`secret.*`、`miyu config`、`miyu login`、`miyu logout`：图纸，定稿（2026-10-01 项目主人批准），M8 的 8-1 到 8-5 照它施工 |
 | `packages.md` | 软件包清单：在哪、格式、两层怎么认、`package.list`、`miyu check` 查清单（施工 9-1 上起） |
+| `package-pages.md` | 软件包页和软件后台：清单的图标和后台页、`package.list` 的状态和开关、程序不在当没装、配置项归包、`package.file`、`package.call`、网页软件怎么给后台页、框和网页之间的方法表：图纸，2026-10-10 起草，F-6 照它施工 |
 | `extensions.md` | 扩展进程：核心拉起 `process` 包、开关、退避重启、随核心退出、`extension.*`（施工 9-4 上起） |
 | `providers.md` | 提供者：扩展经 `provide` 登记工具，核心反向调用 `tool.call`（施工 O-2 上起） |
 | `presets.md` | 预设：在哪、格式、三层怎么叠、默认预设、找人格的先后、`preset.list`、`preset.get`（施工 P-2 上起） |
