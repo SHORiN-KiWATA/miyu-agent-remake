@@ -14,10 +14,11 @@
 //! - [`texts`]：说给人听的字（`resources/software/onebot/human/`）。
 //! - `current`：桥手里最新的配置：握手交来的，核心推来新的就换上，改了不用重启（施工 O-20）。
 //! - `running`：桥跑着的样子：实际听的端口、连着的号、最新的配置；后台页的 `status`、状态文件照它说，推来的端口变化照它换
-//!   （施工 O-28 下从桥自己的 WebUI 挪出来；桥自己的网页、`miyu-onebot web` 随 O-28 下去掉）。
+//!   （施工 O-28 下从桥自己的 WebUI 挪出来；桥自己的网页随 O-28 下去掉）。
 //! - [`rules`]：场所规则和出厂数据（施工 O-21）：出厂的起来时读一次，系统的照群聊内核读好、合起来、套到场所上，变了下一次
 //!   用就照新的。
 //! - [`venue`]：`miyu onebot venue show <场所>`：一个场所每一项的值和来处（施工 O-21）。
+//! - [`web`]：`miyu onebot web`：跑旁边的 `miyu web --package onebot`，打开网页软件里接入QQ 的后台页（施工 O-28 补）。
 //!
 //! 分层照 `01-架构.md` 第九节第 5 层：只用本机传输连核心（`start` 这几样照终端的样子连，用 `miyu-webserve` 的 `open::Core`）；场所、平台上的人的编号经第 2
 //! 层的群聊内核 `miyu-chat` 拼；不依赖核心的 crate（`miyu-core`、`miyu-endpoint`，`18-通讯平台.md` 第一节）：配置由核心交
@@ -37,6 +38,7 @@ pub mod status_file;
 pub mod texts;
 pub mod tuning;
 pub mod venue;
+pub mod web;
 
 /// 运行日志的目标。
 pub const TARGET: &str = "miyu::onebot";

@@ -5,6 +5,8 @@
 //! - `start`、`stop`、`restart`、`status`：调核心的 `extension.*`（施工 O-18，[`control`]）。
 //! - `logs [-f]`：印运行日志和标准错误（施工 O-18，[`logs`]）。
 //! - `venue show <场所>`：一个场所每一项的值和来处（施工 O-21，[`show`]）。
+//! - `web`：跑旁边的 `miyu web --package onebot`，打开网页软件里接入QQ 的后台页（施工 O-28 补，[`web`]）：不连核心、不读
+//!   数据根，照系统的语言说。
 //! - `-h`、`--help`：用法印在标准输出上，退出码 0（`miyu help onebot` 转成 `--help`）。
 //!
 //! 先找资源目录、读给人看的字（[`Texts`]，照系统的语言），之后说给人听的都照它。`serve` 再装运行日志
@@ -12,7 +14,8 @@
 //! （[`Factory`]，施工 O-21：有问题是打包的错，说 [`Failure::Factory`]、退出码 1），交给 [`run`]：配置由核心在握手的回应里
 //! 交、变了推过来，桥不读系统配置（施工 O-20）。握手以前不说话：起不来的照系统的语言说一句；运行日志装不上的那一句等握手回了
 //! 语言再说；握手回了语言就照它说，端口被占那一句也是（「施工时定的」第 42 条）。`start`、`stop`、`restart`、`status`
-//! 握手以后照核心回的语言说，`logs`、`venue show` 照系统的语言。找不到资源目录、给人看的字读不懂，这时还没有字可用，印原话。
+//! 握手以后照核心回的语言说，`logs`、`venue show`、`web` 照系统的语言。找不到资源目录、给人看的字读不懂，这时还没有字可用，
+//! 印原话。
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -26,6 +29,7 @@ use miyu_onebot::settings::Defaults;
 use miyu_onebot::texts::{Texts, system_language};
 use miyu_onebot::tuning::Tuning;
 use miyu_onebot::venue::show;
+use miyu_onebot::web::web;
 use miyu_onebot::{PROGRAM, TARGET};
 use miyu_store::env::Env;
 use miyu_store::resources::ResourceRoot;
@@ -75,6 +79,7 @@ fn main() -> ExitCode {
         ["logs"] => Command::Logs { follow: false },
         ["logs", "-f"] => Command::Logs { follow: true },
         ["venue", "show", venue] => Command::Venue(venue.to_string()),
+        ["web"] => return ExitCode::from(web(&beside("miyu"), &texts, &mut std::io::stderr())),
         ["-h"] | ["--help"] => {
             println!("{}", texts.usage());
             return ExitCode::SUCCESS;
@@ -216,10 +221,15 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 
 /// 拉起核心：自己真实位置旁边的主程序 `miyu` 加 `core`（照网页软件）。`start` 这几样连核心时用。
 fn core() -> std::process::Command {
-    let myself = std::env::current_exe().unwrap_or_else(|_| PathBuf::from(PROGRAM));
-    let mut core = std::process::Command::new(sibling(&myself, "miyu"));
+    let mut core = std::process::Command::new(beside("miyu"));
     core.arg("core");
     core
+}
+
+/// 自己真实位置旁边叫 `name` 的程序（[`sibling`]）；找不到自己的照名字找。
+fn beside(name: &str) -> PathBuf {
+    let myself = std::env::current_exe().unwrap_or_else(|_| PathBuf::from(PROGRAM));
+    sibling(&myself, name)
 }
 
 /// `program` 真实位置旁边叫 `name` 的程序（Windows 上加 `.exe`）。

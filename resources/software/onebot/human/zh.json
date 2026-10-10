@@ -3,8 +3,9 @@
     "skip_reply": { "name": "不说话", "subject": "reason" }
   },
   "said": {
-    "usage": "用法：miyu onebot start | stop | restart | status | logs [-f] | venue show <场所>（serve 只由核心拉起）",
+    "usage": "用法：miyu onebot start | stop | restart | status | web | logs [-f] | venue show <场所>（serve 只由核心拉起）",
     "no-log": "运行日志写不了：{reason}",
+    "web/no-miyu": "打不开网页：跑不了 {path}（{reason}）。miyu-onebot 在自己旁边找 miyu，两个要放在同一个目录。",
     "notice/listening": "在 127.0.0.1:{port} 等 NapCat 连进来。",
     "notice/connected": "NapCat 连上了。",
     "notice/connected-as": "NapCat 连上了（{bot}）。",
@@ -14,7 +15,7 @@
     "failure/port-in-use": "端口 {port} 被占了。换一个：miyu config set --system onebot.listen <端口>，NapCat 那边跟着改。",
     "failure/crashed": "QQ 桥出了错，停下：{reason}",
     "failure/start": "QQ 桥起不来：{reason}",
-    "notice/no-token": "还没设令牌（onebot.token），NapCat 连进来会被拒。到网页的软件后台生成一个（miyu web --package onebot），填进 NapCat，几秒内就连上。",
+    "notice/no-token": "还没设令牌（onebot.token），NapCat 连进来会被拒。到网页的软件后台生成一个（miyu onebot web），填进 NapCat，几秒内就连上。",
     "failure/not-spawned": "没等到核心的握手回应。miyu-onebot serve 只由核心拉起：用 miyu onebot start 打开 QQ 桥。",
     "control/started": "QQ 桥开了：核心拉起它，以后核心每次起来都拉起它。",
     "control/stopped": "QQ 桥关了：核心停下它，以后不再拉起。",
@@ -31,7 +32,7 @@
     "status/napcat-bot": "NapCat 连上了：机器人 {bot}。",
     "status/no-napcat": "NapCat 还没连上。",
     "status/listen": "NapCat 连 ws://127.0.0.1:{listen}/ws。",
-    "status/page": "设置和状态在网页的软件后台：miyu web --package onebot",
+    "status/page": "设置和状态在网页里：miyu onebot web",
     "reason/config_error": "配置错了或者端口被占（退出码 1）。改好以后 miyu onebot restart。",
     "reason/failed_repeatedly": "连续失败了 {failures} 次。看 miyu onebot logs，修好以后 miyu onebot restart。",
     "reason/not_installed": "miyu 旁边没有 miyu-onebot 这个程序。",

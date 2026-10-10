@@ -138,7 +138,7 @@ dir = "page"              # 包目录 packages/<编号>/ 下的子目录，入�
 
 ### 接入QQ 怎么挪过来（接入QQ 的会话做）
 
-挪好了：接入QQ 的页面在 `packages/onebot/page/`，页面要的操作是桥登记的方法（`status`、`connection.token`），经 `package.call` 调（施工 O-28 上）；桥自己起的网页（`web` 端口、`miyu-onebot web`、一次性码）去掉了（施工 O-28 下）。细节见 `onebot.md` 第一条「后台页」。
+挪好了：接入QQ 的页面在 `packages/onebot/page/`，页面要的操作是桥登记的方法（`status`、`connection.token`），经 `package.call` 调（施工 O-28 上）；桥自己起的网页（`web` 端口、开它的 `miyu-onebot web`、一次性码）去掉了（施工 O-28 下）；`miyu onebot web` 随施工 O-28 补加回来，跑 `miyu web --package onebot`（上面「终端」第 2 条）。细节见 `onebot.md` 第一条「后台页」。
 
 ### 守着它的
 
