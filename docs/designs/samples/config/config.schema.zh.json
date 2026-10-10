@@ -17,7 +17,7 @@
         "bindings": {
           "additionalProperties": {
             "description": "通讯平台上的哪个号是哪个本机账号本人。键写平台上的身份（例如 qq:10001），值写本机账号。私聊里，这个号就是那个账号本人。能写：小写字母开头的名字，只有小写字母、数字、-、_，最长 64 个字符。只能写在系统配置里。当场生效。",
-            "title": "主人的平台账号",
+            "title": "终端管理员的平台账号",
             "type": "string"
           },
           "type": "object"
@@ -226,11 +226,11 @@
           "description": "NapCat 反向 WebSocket 连进来的端口，只听本机。NapCat 那边的地址填 ws://127.0.0.1:<端口>/ws。能写：1024 到 65535 之间的整数。只能写在系统配置里。当场生效。",
           "maximum": 65535,
           "minimum": 1024,
-          "title": "接入QQ的端口",
+          "title": "端口",
           "type": "integer"
         },
         "token": {
-          "description": "NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。写 { secret = \"名字\" }（用 miyu login 存）或 { env = \"环境变量\" }。没设的，接入QQ照样起来，NapCat 连进来会被拒；在接入QQ的网页上能生成一个。改了以后，NapCat 下一次连进来就照新的。能写：{ secret = \"…\" } 或 { env = \"…\" }。只能写在系统配置里。当场生效。",
+          "description": "NapCat 连进来时要出示的访问令牌，NapCat 那边填同一个。没设的，NapCat 连进来会被拒；在接入QQ的网页上能生成一个。能写：{ secret = \"…\" } 或 { env = \"…\" }。只能写在系统配置里。当场生效。",
           "oneOf": [
             {
               "additionalProperties": false,
@@ -257,16 +257,16 @@
               "type": "object"
             }
           ],
-          "title": "接入QQ的令牌"
+          "title": "令牌"
         },
         "trusted": {
-          "description": "私聊里能叫她、不限流、睡着时私聊也放行的人，写平台上的身份的列表，例如 [\"qq:20017\"]。在接入QQ的网页上改。接入QQ接通群以后才照它认人。能写：最多 128 个字的文字 的列表。只能写在系统配置里。当场生效。",
+          "description": "私聊里能叫她、不限流、睡着时私聊也放行的人。每一项写 qq:QQ号，例如 qq:20017。接通群以后才照它认人。能写：最多 128 个字的文字 的列表。只能写在系统配置里。当场生效。",
           "items": {
             "maxLength": 128,
             "minLength": 1,
             "type": "string"
           },
-          "title": "接入QQ的自己人",
+          "title": "白名单成员",
           "type": "array"
         },
         "web": {
@@ -274,7 +274,7 @@
           "description": "接入QQ自己的网页（连接 NapCat、换令牌）的端口，只听本机。用 miyu-onebot web 打开。能写：1024 到 65535 之间的整数。只能写在系统配置里。当场生效。",
           "maximum": 65535,
           "minimum": 1024,
-          "title": "接入QQ网页的端口",
+          "title": "网页端口",
           "type": "integer"
         }
       },
