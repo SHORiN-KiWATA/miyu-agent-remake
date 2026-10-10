@@ -7,7 +7,8 @@
 //! 设置项（`config.schema` 里 `package` 是它的）、卸载（管理员自己装的才有）。程序不在的只有状态（界面包核心照旧给设置项，照画）。
 
 import { h, icon, hasIcon } from '../../src/lib/dom.js';
-import { coreRow, groupBlock, toggle } from './rows.js';
+import { coreRow, groupBlock, toggle, textField } from './rows.js';
+import { splitKey, itemFor } from './model.js';
 import { openBackstage } from './backstage.js';
 
 /** 段：照核心核实过的标记分，先后照这里 */
@@ -131,8 +132,10 @@ function infoPage(dialog, id) {
     // 扩展：运行、权限、要批准的那一块，再接设置项；别的：启用一行（有开关的），设置项另起一组
     isExt ? h('section.set-group', dialog.extensions.body(id, settings))
       : 'enabled' in p ? h('section.set-group', h('div.set-rows', h('div.set-row', h('div.set-text', h('div.set-name', h('span', t('enabled')))), h('div.set-control', switchFor(dialog, p))))) : null,
-    features.length ? groupBlock(t('pkg.features'), features) : null,
     !isExt && settings.length ? groupBlock(t('pkg.settings'), settings) : null,
+    // 平台接入的：终端管理员在这个平台上的号，接在它的设置项后面
+    p.connection?.platform ? ownerAccounts(dialog, p.connection.platform) : null,
+    features.length ? groupBlock(t('pkg.features'), features) : null,
     removeButton(dialog, p),
   ];
 }
@@ -161,3 +164,51 @@ function removeButton(dialog, p) {
   } }, t('pkg.uninstall'));
   return h('div.set-pkg-foot', button);
 }
+
+/** 平台接入那个软件的信息页上，终端管理员在这个平台上的号用的配置项（带占位，核心 O-3）。 */
+const BINDING = 'external.bindings.<external>';
+
+/**
+ * 「终端管理员的 QQ 号」（2026-10-10 项目主人选 B：放在平台接入那个软件的信息页上，只填号码）：一个号一块，✕ 删掉，＋ 加一个。头替人写成
+ * `external.bindings.<平台>:<号>`，值是这个页面登录的账号；现在只有管理员一个账号，账号那一列不画。平台照 `package.list` 的
+ * `connection.platform`，不写死 QQ。写在系统配置，当场生效。
+ * @param {any} dialog @param {string} platform
+ */
+function ownerAccounts(dialog, platform) {
+  const ctx = dialog.ctx;
+  const t = (/** @type {string} */ key, /** @type {any} */ fields) => ctx.text(key, fields);
+  const prefix = `${platform}:`;
+  const numbers = Object.keys(dialog.got?.items ?? {})
+    .map((key) => splitKey(key))
+    .filter((parts) => parts.length === 3 && parts[0] === 'external' && parts[1] === 'bindings' && parts[2].startsWith(prefix))
+    .map((parts) => parts[2].slice(prefix.length));
+  const item = (/** @type {string} */ number) => itemFor(dialog.schema, dialog.got, BINDING, { external: `${prefix}${number}` });
+  const save = async (/** @type {string} */ number, /** @type {any} */ change) => {
+    const it = item(number);
+    if (!it) return;
+    const why = await dialog.save(it, change);
+    if (why) dialog.toast(why);
+  };
+  const name = ctx.text(`platforms.${platform}`);
+  const label = t('pkg.owner_accounts', { platform: name.startsWith('platforms.') ? platform : name });
+  const chips = numbers.map((n) => h('span.set-chip', h('span', n), h('button', { type: 'button', 'aria-label': '×', onclick: () => save(n, { unset: true }) }, icon('x'))));
+  const add = h('button.set-chip.is-add', { type: 'button', title: ctx.text('add'), 'aria-label': ctx.text('add') }, icon('plus'));
+  add.addEventListener('click', () => {
+    const field = textField('', 'text', '', (text) => {
+      const n = text.trim();
+      if (!n) return;
+      if (!/^[^\s]{1,64}$/u.test(n)) {
+        dialog.toast(t('pkg.owner_bad'));
+        return;
+      }
+      if (!numbers.includes(n)) save(n, { value: ctx.host.account ?? 'admin' });
+    });
+    field.placeholder = t('pkg.owner_hint');
+    add.replaceWith(field);
+    field.focus();
+  });
+  return h('section.set-group', h('div.set-rows', h('div.set-row',
+    h('div.set-text', h('div.set-name', h('span', label)), h('p.set-desc', t('pkg.owner_desc'))),
+    h('div.set-control', h('div.set-chips', chips, add)))));
+}
+

@@ -285,6 +285,7 @@
       },
       "changed": "已改",
       "packages_web": "网页",
+      "platforms": {"qq": "QQ"},
       "backstage": {"none": "没有带后台页的软件", "by": "这个页面由「{name}」提供", "failed": "打不开这个软件的后台页", "forbidden": "只能改这个软件自己的设置"},
       "pkg": {
         "part": {
@@ -307,6 +308,10 @@
         "uninstall": "卸载",
         "uninstall_again": "再点一次卸载",
         "open_backstage": "打开软件后台",
+        "owner_accounts": "终端管理员的 {platform} 号",
+        "owner_desc": "私聊时视为终端管理员本人",
+        "owner_hint": "号码",
+        "owner_bad": "号码不能有空格",
         "gone": "软件包不存在"
       }
     },
@@ -460,6 +465,7 @@
       },
       "changed": "変更済み",
       "packages_web": "ウェブ",
+      "platforms": {"qq": "QQ"},
       "backstage": {"none": "管理画面のあるソフトはありません", "by": "このページは「{name}」が提供しています", "failed": "このソフトの管理画面を開けません", "forbidden": "このソフト自身の設定だけ変更できます"},
       "pkg": {
         "part": {
@@ -482,6 +488,10 @@
         "uninstall": "アンインストール",
         "uninstall_again": "もう一度押してアンインストール",
         "open_backstage": "管理画面を開く",
+        "owner_accounts": "端末管理者の {platform} アカウント",
+        "owner_desc": "個人チャットでは端末管理者本人として扱います",
+        "owner_hint": "番号",
+        "owner_bad": "番号に空白は使えません",
         "gone": "パッケージがありません"
       }
     }
