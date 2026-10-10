@@ -127,7 +127,7 @@ async fn the_list_has_providers_models_facts_and_states() {
     assert_eq!(
         providers[0],
         json!({"id": "broken", "name": {"value": "broken", "from": "id", "key": "providers.broken.name"},
-               "driver": null, "base_url": null, "models": [],
+               "driver": null, "base_url": null, "models": [], "logo": null,
                "problem": "provider \"broken\" needs base_url: it matches nothing in the catalog"})
     );
     // DeepSeek：档案推出驱动、地址，编号认出目录里的那一家，模型是目录里那一家的四个；key 的值不交出去。
