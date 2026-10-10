@@ -1,23 +1,20 @@
 //! 只听本机的网页端口共用的底子（`docs/blueprint/webserve.md`，施工 O-16）：网页软件 `miyu-web`（`web-ui.md`）用它；QQ 桥原来
-//! 的 WebUI 随施工 O-28 下去掉，桥只用 [`open::Core`] 照终端的样子连核心（`18-通讯平台.md` 第三节「抽成两边共用的库，不抄一份」）。
+//! 的 WebUI 随施工 O-28 下去掉；照终端的样子连核心的 `open` 施工 S-1 挪进了 `miyu-client`（设计 32 第一节）。
 //!
 //! - [`respond`]：回应的正文、一律带的安全响应头。
 //! - [`pages`]：页面文件：路径不出页面目录、类型照扩展名、响应头。
 //! - [`Site`]：Host、Origin 认的三种写法；`/ws` 要的数据根、怎么拉起核心、连着的怎么数。
 //! - [`ws`]：`/ws` 原样转给核心，一帧一行。
-//! - [`open`]：照终端的样子连核心要一次性码、把网址交给浏览器。
 //!
 //! 函数都从 `miyu-web` 原样搬来，不改名、不改行为（`webserve.md`「搬家表」）。听端口、单实例、空闲退出、`/media` 这些
 //! 各家不一样的，留在各家。分层照 `01-架构.md` 第九节第 3 层：只依赖 `miyu-ipc`、`miyu-store`，不依赖任何一个头。
 
-pub mod open;
 pub mod pages;
 pub mod respond;
 #[cfg(test)]
 mod tests;
 pub mod ws;
 
-use std::process::Command;
 use std::sync::Arc;
 
 use miyu_store::root::DataRoot;
@@ -26,8 +23,7 @@ use miyu_store::root::DataRoot;
 /// `web`，说的是它网页那一头。
 const TARGET: &str = "miyu::web";
 
-/// 拉起核心的命令：主程序 `miyu` 加 `core`。
-pub type CoreCommand = Arc<dyn Fn() -> Command + Send + Sync>;
+use miyu_client::CoreCommand;
 
 /// 一个跑着的网页端口，各个连接共用：Host、Origin 照它的端口核对（`web-ui.md`「怎么走」第一条第 4、7 款），`/ws` 照它
 /// 连核心、数忙（[`ws::accept`]）。网页软件、QQ 桥各实现一份，只交出自己手里的几样。

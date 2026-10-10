@@ -2,7 +2,7 @@
 //! 核心那边（`extensions.md`），这里只调核心的方法、照回应说。
 //!
 //! 1. 照终端的样子连核心：出示本机令牌，没在跑就拉起（「施工时定的」第 24 条：开关在核心那边，核心不在开不了也关不了），
-//!    用 `miyu_webserve::open::Core`（和网页软件同一个，「施工时定的」第 166 条）；握手以后照核心回的语言说。连不上：
+//!    用 `miyu_client::open::Core`（和网页软件同一个，「施工时定的」第 166 条）；握手以后照核心回的语言说。连不上：
 //!    `failure/core`，退出码 1。
 //! 2. `start`、`stop`、`restart` 调 `extension.enable`、`disable`、`restart`，`status` 调 `extension.status` 取 [`PACKAGE`]
 //!    那一个。核心拒绝的照核心的原话说（它已经照连接的语言说了），退出码 1。核心那边没有这个包：[`Report::Missing`]，退出码 1。
@@ -17,11 +17,11 @@ use std::io::Write;
 
 use serde_json::{Value, json};
 
+use miyu_client::open::Core;
 use miyu_store::root::DataRoot;
-use miyu_webserve::open::Core;
 
 /// 拉起核心的命令（`start` 这几样连核心时核心没在跑就照它拉起），和网页软件同一个写法。
-pub use miyu_webserve::CoreCommand;
+pub use miyu_client::CoreCommand;
 
 use crate::serve::Failure;
 use crate::texts::Texts;

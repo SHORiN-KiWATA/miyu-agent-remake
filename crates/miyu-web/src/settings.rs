@@ -97,7 +97,7 @@ impl Settings {
     /// `serve`，核心总在跑；直接起 `serve`、核心没在跑的照默认，记一行 `INFO web config from defaults`。连上了却拒了的照默认，
     /// 记一行 `WARN web config not read`。
     pub async fn from_core(self, root: &DataRoot) -> Settings {
-        let mut client = match miyu_webserve::open::Core::connect_running(root, "miyu-web").await {
+        let mut client = match miyu_client::open::Core::connect_running(root, "miyu-web").await {
             Ok(client) => client,
             Err(error) => {
                 tracing::info!(target: crate::TARGET, error = %error, "web config from defaults");

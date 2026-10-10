@@ -16,10 +16,10 @@ use std::time::Duration;
 
 use serde_json::json;
 
+use miyu_client::open::Core;
+pub use miyu_client::open::{Browser, SystemBrowser};
 use miyu_ipc::Ready;
 use miyu_store::root::DataRoot;
-use miyu_webserve::open::Core;
-pub use miyu_webserve::open::{Browser, SystemBrowser};
 
 use crate::serve::{CoreCommand, address, running};
 use crate::texts::Language;

@@ -12,6 +12,8 @@ publish.workspace = true
 miyu-ipc = { path = "../miyu-ipc" }
 # 数据根。
 miyu-store = { path = "../miyu-store" }
+# 拉起核心的命令（`CoreCommand`）：照终端的样子连核心那一块挪进了门面（施工 S-1）。
+miyu-client = { path = "../miyu-client" }
 # HTTP/1 的回应、请求的类型（照网页软件，本来就在依赖图里）。MIT。
 hyper = { version = "1", features = ["server", "http1"] }
 hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }

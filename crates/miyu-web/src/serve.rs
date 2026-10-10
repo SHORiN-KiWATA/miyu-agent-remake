@@ -31,7 +31,7 @@ use crate::media::Media;
 use crate::settings::Settings;
 use crate::{TARGET, backstage, media};
 
-pub use miyu_webserve::CoreCommand;
+pub use miyu_client::CoreCommand;
 pub(crate) use miyu_webserve::respond::{Body, empty, full, secure};
 
 /// 单实例的锁，在 `run/` 里。

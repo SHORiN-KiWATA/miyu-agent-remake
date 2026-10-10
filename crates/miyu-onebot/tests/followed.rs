@@ -275,7 +275,7 @@ async fn an_old_private_session_whose_owner_changed_is_not_followed() {
     assert_eq!(private_reply(&mut napcat).await, "在的。");
     // 她在旧会话里还没说完，白名单成员写进了对应表（成了终端管理员的号）；白名单一换，桥忘掉找过的私聊，下一条照新的找：
     // 归终端管理员的新会话。
-    let mut core = miyu_webserve::open::Core::connect_running(&home.root, "test")
+    let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await
         .expect("连得上核心");
     let changes = json!({"layer": "system", "changes": [
@@ -319,7 +319,7 @@ async fn a_private_chat_dropped_from_the_whitelist_is_not_followed() {
     napcat.send(private_frame(JIE, 1, json!([plain("在吗")])));
     assert_eq!(private_reply(&mut napcat).await, "在的。");
     // 她还没说完，白名单成员被删了：重启以后这个私聊照私聊的办法认，是陌生人，不订阅。
-    let mut core = miyu_webserve::open::Core::connect_running(&home.root, "test")
+    let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await
         .expect("连得上核心");
     let changes = json!({"layer": "system", "changes": [{"key": "onebot.whitelist", "value": []}]});

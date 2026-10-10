@@ -17,9 +17,9 @@ path = "src/main.rs"
 miyu-store = { path = "../miyu-store" }
 # 运行日志 `state/logs/onebot.log`，满了照核心的换法。
 miyu-log = { path = "../miyu-log" }
-# `start`、`stop`、`restart`、`status` 照终端的样子连核心、一问一答（`open::Core`），和网页软件共用的底子（webserve.md）。
-# 施工 O-28 下桥自己的网页去掉以后只用这一样（onebot.md「施工时定的」第 166 条）。
-miyu-webserve = { path = "../miyu-webserve" }
+# `start`、`stop`、`restart`、`status` 照终端的样子连核心、一问一答（`open::Core`），和网页软件同一个（onebot.md「施工时定的」
+# 第 166 条）；施工 S-1 起在门面 miyu-client 里。
+miyu-client = { path = "../miyu-client" }
 # 给人看的字照说法换（`Said`，`Human::say`）；场所、平台上的人的编号是内核的 `VenueId`、`ExternalId`。
 miyu-kernel = { path = "../miyu-kernel" }
 # 群聊内核（第 2 层）：场所、平台上的人的编号经它拼，桥不手拼（`chat.md` 第七条第 1 条）。

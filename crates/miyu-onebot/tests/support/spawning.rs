@@ -132,7 +132,7 @@ pub async fn until_status(root: &DataRoot, wanted: impl Fn(&str) -> bool) -> Str
 
 /// 核心的 `extension.status` 里桥的那一个。
 pub async fn extension(root: &DataRoot) -> Value {
-    let mut core = miyu_webserve::open::Core::connect_running(root, "test")
+    let mut core = miyu_client::open::Core::connect_running(root, "test")
         .await
         .expect("连得上核心");
     let listed = core

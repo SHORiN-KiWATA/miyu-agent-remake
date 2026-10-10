@@ -81,7 +81,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
     ));
     let events = until_decided(&home, 1).await;
     let (session, _) = venue_session(&home.root, &venue).expect("有会话");
-    let mut core = miyu_webserve::open::Core::connect_running(&home.root, "test")
+    let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await
         .expect("连得上核心");
     let seq = said(&events)[0]["seq"].clone();

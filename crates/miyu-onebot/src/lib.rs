@@ -20,7 +20,7 @@
 //! - [`venue`]：`miyu onebot venue show <场所>`：一个场所每一项的值和来处（施工 O-21）。
 //! - [`web`]：`miyu onebot web`：跑旁边的 `miyu web --package onebot`，打开网页软件里接入QQ 的后台页（施工 O-28 补）。
 //!
-//! 分层照 `01-架构.md` 第九节第 5 层：只用本机传输连核心（`start` 这几样照终端的样子连，用 `miyu-webserve` 的 `open::Core`）；场所、平台上的人的编号经第 2
+//! 分层照 `01-架构.md` 第九节第 5 层：只用本机传输连核心（`start` 这几样照终端的样子连，用 `miyu-client` 的 `open::Core`）；场所、平台上的人的编号经第 2
 //! 层的群聊内核 `miyu-chat` 拼；不依赖核心的 crate（`miyu-core`、`miyu-endpoint`，`18-通讯平台.md` 第一节）：配置由核心交
 //! （施工 O-20）。
 
