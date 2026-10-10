@@ -376,7 +376,11 @@ async fn check_reads_the_manifests_from_disk() {
 #[test]
 fn an_old_layout_in_the_home_is_moved_when_read() {
     let home = Home::new();
-    home.write("home/alice/packages/term.toml", TERM);
+    // 施工 F-8 上补以前的清单还写着 `kind`：挪的同时改成照表认的。
+    home.write(
+        "home/alice/packages/term.toml",
+        &TERM.replace("[package]\n", "[package]\nkind = \"ui\"\n"),
+    );
     home.write("home/alice/packages/term/page/index.html", "<p>");
     let resources = miyu_store::resources::ResourceRoot::at(default_resources());
     let found = miyu_endpoint::packages::load(&resources, &home.root, &alice());
@@ -391,4 +395,6 @@ fn an_old_layout_in_the_home_is_moved_when_read() {
         dir.join("term/page/index.html").is_file(),
         "包自己的文件照旧在"
     );
+    let text = std::fs::read_to_string(dir.join("term/package.toml")).expect("在");
+    assert!(!text.contains("kind"), "{text}");
 }

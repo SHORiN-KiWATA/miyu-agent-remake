@@ -134,7 +134,6 @@
 
 ```toml
 [package]
-kind = "process"
 protocol = [1, 1]
 name = { en = "Connect QQ", zh = "接入QQ", ja = "QQ接続" }
 summary = { en = "Talk with the AI on QQ through NapCat", zh = "经 NapCat 在 QQ 上和 AI 说话", ja = "NapCat 経由で QQ で会話する" }

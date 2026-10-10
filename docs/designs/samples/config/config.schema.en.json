@@ -577,6 +577,53 @@
           ],
           "title": "Icons",
           "type": "string"
+        },
+        "mascot": {
+          "description": "Which mascot to show. Leave unset for the built-in one. Allowed: a name starting with a lowercase letter, using only lowercase letters, digits, - and _, up to 64 characters. Only in the system config or personal settings. Takes effect immediately.",
+          "title": "Mascot",
+          "type": "string"
+        },
+        "mascot_home": {
+          "default": true,
+          "description": "Show the mascot above the input box of an empty session. A persona's avatar shows regardless. Allowed: true or false. Only in the system config or personal settings. Takes effect immediately.",
+          "title": "Show the mascot on the home screen",
+          "type": "boolean"
+        },
+        "mascot_sidebar": {
+          "default": true,
+          "description": "Show the mascot at the top of the sidebar. A persona's avatar shows regardless. Allowed: true or false. Only in the system config or personal settings. Takes effect immediately.",
+          "title": "Show the mascot in the sidebar",
+          "type": "boolean"
+        },
+        "timeline_expand_command": {
+          "default": false,
+          "description": "Show commands in full instead of a preview. Allowed: true or false. Only in the system config or personal settings. Takes effect immediately.",
+          "title": "Expand commands",
+          "type": "boolean"
+        },
+        "timeline_expand_edit": {
+          "default": false,
+          "description": "Show edit diffs in full instead of a preview. Allowed: true or false. Only in the system config or personal settings. Takes effect immediately.",
+          "title": "Expand edits",
+          "type": "boolean"
+        },
+        "timeline_expand_thought": {
+          "default": false,
+          "description": "Show thoughts in full instead of a preview. Allowed: true or false. Only in the system config or personal settings. Takes effect immediately.",
+          "title": "Expand thoughts",
+          "type": "boolean"
+        },
+        "timeline_fold": {
+          "default": true,
+          "description": "Fold the finished steps into one line once the reply is done. Allowed: true or false. Only in the system config or personal settings. Takes effect immediately.",
+          "title": "Fold the timeline after a reply",
+          "type": "boolean"
+        },
+        "timeline_limit_live": {
+          "default": true,
+          "description": "Show only the latest lines of the running steps. Allowed: true or false. Only in the system config or personal settings. Takes effect immediately.",
+          "title": "Limit timeline area height",
+          "type": "boolean"
         }
       },
       "type": "object"
