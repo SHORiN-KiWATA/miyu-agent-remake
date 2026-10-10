@@ -57,7 +57,7 @@ async fn a_key_in_the_environment_is_referenced_never_copied() {
     ])
     .await;
     let home = Home::onboarding("", &[("DEEPSEEK_API_KEY", FAKE)], deepseek_at(&server));
-    let mut typist = Typist::at_terminal(&["1", ""], &[]);
+    let mut typist = Typist::at_terminal(&["3", ""], &[]);
     let here = ["OPENAI_API_KEY", "DEEPSEEK_API_KEY", "NOT_LOOKED_FOR"];
     let asked = home
         .setup(&plan(Setup::default(), &here), &mut typist)
@@ -67,11 +67,12 @@ async fn a_key_in_the_environment_is_referenced_never_copied() {
         steady(&asked.screen),
         "· 核心未读到 OPENAI_API_KEY（核心启动后才设置）。核心空闲退出后重新运行 miyu setup，或选这一家贴 key。\n\
          选一家：\n\
-         \x20 1  DeepSeek      已找到 key\n\
-         \x20    OpenAI        用不了：目录里没有它的地址\n\
+         \x20 1  OpenCode Zen\n\
+         \x20 2  OpenCode Go\n\
+         \x20 3  DeepSeek      已找到 key\n\
          \x20    Anthropic     用不了：目录里没有它的地址\n\
-         \x20 2  opencode Zen\n\
-         \x20 3  自定义\n\
+         \x20    OpenAI        用不了：目录里没有它的地址\n\
+         \x20 4  自定义\n\
          选一个编号：试一下 DeepSeek……\n\
          · 通了：试的 deepseek-flash，N 毫秒收到第一个字。\n\
          选主对话的模型：\n\
@@ -108,17 +109,18 @@ async fn a_pasted_key_is_tried_first_and_kept_only_once_it_works() {
     ])
     .await;
     let home = Home::onboarding("", &[], deepseek_at(&server));
-    let mut typist = Typist::at_terminal(&["1", "2"], &[WRONG, FAKE]);
+    let mut typist = Typist::at_terminal(&["3", "2"], &[WRONG, FAKE]);
     let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;
     assert_eq!(asked.code, 0, "{}", asked.screen);
     assert_eq!(
         steady(&asked.screen),
         "选一家：\n\
-         \x20 1  DeepSeek\n\
-         \x20    OpenAI        用不了：目录里没有它的地址\n\
+         \x20 1  OpenCode Zen\n\
+         \x20 2  OpenCode Go\n\
+         \x20 3  DeepSeek\n\
          \x20    Anthropic     用不了：目录里没有它的地址\n\
-         \x20 2  opencode Zen\n\
-         \x20 3  自定义\n\
+         \x20    OpenAI        用不了：目录里没有它的地址\n\
+         \x20 4  自定义\n\
          选一个编号：粘贴 deepseek 的 key（不显示）：试一下 DeepSeek……\n\
          不通（发请求）：认证失败：HTTP 401: Authentication Fails (no such user)\n\
          粘贴 deepseek 的 key（不显示）：试一下 DeepSeek……\n\
@@ -155,7 +157,7 @@ async fn a_pasted_key_is_tried_first_and_kept_only_once_it_works() {
 async fn cancelling_the_key_paste_writes_nothing() {
     let server = Server::start(vec![]).await;
     let home = Home::onboarding("", &[], deepseek_at(&server));
-    let mut typist = Typist::at_terminal(&["1"], &[]);
+    let mut typist = Typist::at_terminal(&["3"], &[]);
     typist.cancel_key = true;
     let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;
     assert_eq!(asked.code, 130, "{}", asked.screen);
@@ -176,12 +178,12 @@ async fn a_local_service_needs_no_key() {
     let profiles =
         json!({"lab": {"name": "Lab", "driver": "openai-chat", "base_url": server.base_url}});
     let home = Home::onboarding("", &[], profiles);
-    let mut typist = Typist::at_terminal(&["3", ""], &[]);
+    let mut typist = Typist::at_terminal(&["4", ""], &[]);
     let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;
     assert_eq!(asked.code, 0, "{}", asked.screen);
     assert!(
         asked.screen.contains(&format!(
-            "  2  opencode Zen\n  3  Lab           本机 {}\n  4  自定义\n",
+            "  3  DeepSeek\n     Anthropic     用不了：目录里没有它的地址\n     OpenAI        用不了：目录里没有它的地址\n  4  Lab           本机 {}\n  5  自定义\n",
             server.base_url
         )),
         "{}",
@@ -203,11 +205,11 @@ async fn a_provider_already_set_up_only_gets_models_chat() {
     let server = Server::start(vec![listing(&["deepseek-flash"]), answer()]).await;
     let config = "[providers.ds]\ncatalog = \"deepseek\"\nkey = { env = \"DEEPSEEK_API_KEY\" }\nprice_multiplier = 0.5\n";
     let home = Home::onboarding(config, &[("DEEPSEEK_API_KEY", FAKE)], deepseek_at(&server));
-    let mut typist = Typist::at_terminal(&["1", ""], &[]);
+    let mut typist = Typist::at_terminal(&["3", ""], &[]);
     let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;
     assert_eq!(asked.code, 0, "{}", asked.screen);
     assert!(
-        asked.screen.contains("  1  DeepSeek      已配好\n"),
+        asked.screen.contains("  3  DeepSeek      已配好\n"),
         "{}",
         asked.screen
     );
@@ -246,7 +248,7 @@ async fn nothing_picked_or_no_key_ends_with_1() {
     );
 
     // opencode Zen：环境里没有它的 key，要贴（DeepSeek 找到了 key，选它就真的发出去了）。
-    let mut typist = Typist::at_terminal(&["2"], &["  "]);
+    let mut typist = Typist::at_terminal(&["1"], &["  "]);
     let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;
     assert_eq!(asked.code, 1);
     assert!(
@@ -267,7 +269,7 @@ async fn ask_without_a_model_goes_through_setup_first_at_a_terminal() {
     assert_eq!(asked.err, "没有可用的模型：还没配。运行 miyu setup。\n");
     assert_eq!(home.sessions().len(), 0, "不造会话");
 
-    let mut typist = Typist::at_terminal(&["1", ""], &[]);
+    let mut typist = Typist::at_terminal(&["3", ""], &[]);
     let (ready, asked) = home.ready(&plan(Setup::default(), &[]), &mut typist).await;
     assert_eq!(ready, Ok(()), "{}", asked.screen);
     assert!(
@@ -301,7 +303,7 @@ async fn three_preset_pools_go_in_only_when_there_are_no_pools() {
     for (config, wanted) in [("", true), ("[pools.mine]\nsubagent = true\n", false)] {
         let server = Server::start(vec![listing(&["deepseek-flash"]), answer()]).await;
         let home = Home::onboarding(config, &[("DEEPSEEK_API_KEY", FAKE)], deepseek_at(&server));
-        let mut typist = Typist::at_terminal(&["1", ""], &[]);
+        let mut typist = Typist::at_terminal(&["3", ""], &[]);
         let asked = home.setup(&plan(Setup::default(), &[]), &mut typist).await;
         assert_eq!(asked.code, 0, "{}", asked.screen);
         assert!(
@@ -335,7 +337,7 @@ async fn a_chat_model_in_personal_settings_is_replaced() {
     let personal = home.root.path().join("home/admin/settings.toml");
     std::fs::create_dir_all(personal.parent().expect("有上一层")).expect("建得了目录");
     std::fs::write(&personal, "[models]\nchat = \"magpie/old-model\"\n").expect("写得进");
-    let mut typist = Typist::at_terminal(&["1", ""], &[]);
+    let mut typist = Typist::at_terminal(&["3", ""], &[]);
     let asked = home
         .setup(&plan(Setup::default(), &["DEEPSEEK_API_KEY"]), &mut typist)
         .await;

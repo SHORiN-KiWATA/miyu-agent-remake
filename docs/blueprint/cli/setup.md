@@ -67,17 +67,23 @@
 ```text
 $ miyu setup
 选一家：
-  1   DeepSeek      已找到 key
-  2   OpenAI
-  3   Anthropic
-  4   OpenRouter
-  5   Kimi
-  6   智谱 GLM
-  7   通义千问
-  8   opencode Zen
-  9   LMStudio      本机 http://127.0.0.1:1234/v1
-  10  自定义
-选一个编号：1
+  1   OpenCode Zen
+  2   OpenCode Go
+  3   DeepSeek          已找到 key
+  4   Anthropic
+  5   OpenAI
+  6   OpenRouter
+  7   Moonshot 国际版
+  8   Moonshot 国内版
+  9   智谱 GLM 国内版
+  10  Z.AI 国际版
+  11  通义千问 国际版
+  12  通义千问 国内版
+  13  MiniMax 国际版
+  14  MiniMax 国内版
+  15  LMStudio          本机 http://127.0.0.1:1234/v1
+  16  自定义
+选一个编号：3
 试一下 DeepSeek……
 · 通了：试的 deepseek-flash，812 毫秒收到第一个字。
 选主对话的模型：
@@ -92,11 +98,11 @@ $ miyu setup
 ```text
 $ miyu setup
 选一家：
-  1  DeepSeek
+  1   OpenCode Zen
   …
-  8  opencode Zen
-  9  自定义
-选一个编号：9
+  14  MiniMax 国内版
+  15  自定义
+选一个编号：15
 Base URL：https://api.example.com/v1/
 接口协议：
   1  OpenAI 兼容

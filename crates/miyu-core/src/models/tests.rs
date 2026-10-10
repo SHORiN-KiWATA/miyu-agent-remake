@@ -176,7 +176,11 @@ fn every_featured_provider_is_usable_with_the_bundled_data() {
         lists: &BTreeMap::new(),
     };
     let listed = miyu_models::onboard::listed(&knowledge);
-    assert_eq!(featured.len(), 8, "项目主人定的八家");
+    assert_eq!(
+        featured.len(),
+        14,
+        "项目主人 2026-10-10 照 opencode 定的，Google 接不上不列（施工 T-12）"
+    );
     for one in &featured {
         for id in std::iter::once(&one.catalog).chain(&one.catalog_zh) {
             let entry = listed.iter().find(|entry| &entry.id == id);
