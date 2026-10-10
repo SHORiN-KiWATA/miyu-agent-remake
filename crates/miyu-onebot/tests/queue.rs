@@ -1,6 +1,6 @@
 //! 出站队列（施工 O-25 中，`onebot.md` 第一条「出站队列」）：真核心拉起真桥、假 NapCat，她照剧本、台词说。群里她的每一段先记
 //! `ext.onebot.venues.queued` 再发，日志里入队在送达前面；NapCat 回失败的记 `failed {why: rejected, detail}`；她被禁言（假
-//! NapCat 推 `group_ban`）记 `muted {until}`，禁言时主人 @ 她只记下，主线开的一轮她的话排着，解禁的通知来了照先后发，`until`
+//! NapCat 推 `group_ban`）记 `muted {until}`，禁言时终端管理员 @ 她只记下，主线开的一轮她的话排着，解禁的通知来了照先后发，`until`
 //! 到了自己发；别人被禁言、全员禁言不认；去重照入队算（排着的也算）。要等过期、断开再连、桥重启、私聊的在 `queue_waits.rs`。
 
 use std::sync::Arc;
@@ -42,10 +42,16 @@ fn venue(group: i64) -> String {
     format!("qq:group:{group}")
 }
 
-/// 主人在群 `group` 里 @ 她：第 `message` 条。
-fn owner_calls(napcat: &Answering, group: i64, message: i64) {
+/// 终端管理员在群 `group` 里 @ 她：第 `message` 条。
+fn admin_calls(napcat: &Answering, group: i64, message: i64) {
     let words = json!([at(BOT), plain(" 在吗")]);
-    napcat.send(group_frame(group, OWNER, message, words, ("主人", "o")));
+    napcat.send(group_frame(
+        group,
+        ADMIN,
+        message,
+        words,
+        ("终端管理员", "o"),
+    ));
 }
 
 /// 等到群 `group` 里有 `n` 条 `kind` 的事件：交回那时的全部事件。
@@ -78,7 +84,7 @@ fn seq_of(events: &[Value], n: usize) -> Value {
 async fn each_piece_is_queued_before_it_is_delivered() {
     let script = Script::new([Play::Says("看到大家了")]);
     let (home, mut napcat, _) = started(&script, RULES, "", MEMBERS).await;
-    owner_calls(&napcat, SPLIT, 1);
+    admin_calls(&napcat, SPLIT, 1);
     assert_eq!(napcat.group_message(SPLIT).await, [words("看到大家")]);
     assert_eq!(napcat.group_message(SPLIT).await, [words("了")]);
     let events = until_count(&home, SPLIT, "venue.delivered", 2).await;
@@ -112,7 +118,7 @@ async fn a_refused_piece_is_failed_as_rejected() {
         napcat.refusing(MEMBERS)
     })
     .await;
-    owner_calls(&napcat, PLAIN, 1);
+    admin_calls(&napcat, PLAIN, 1);
     assert_eq!(napcat.group_message(PLAIN).await, [words("在。")]);
     let events = until_count(&home, PLAIN, FAILED, 1).await;
     let queued = &of_kind(&events, QUEUED)[0];
@@ -144,8 +150,8 @@ async fn while_muted_she_only_listens_and_speaks_after_the_lift() {
         (600_000..660_000).contains(&ahead),
         "本机此刻加 600 秒：{ahead}"
     );
-    // 禁言时主人 @ 她也只记下。
-    owner_calls(&napcat, SPLIT, 1);
+    // 禁言时终端管理员 @ 她也只记下。
+    admin_calls(&napcat, SPLIT, 1);
     let body = decided(&home, SPLIT, 1).await;
     assert_eq!(
         (&body["inbound"], &body["why"], &body["outcome"]),
@@ -166,8 +172,8 @@ async fn while_muted_she_only_listens_and_speaks_after_the_lift() {
     assert_eq!(napcat.group_message(SPLIT).await, [words("了")]);
     let events = until_count(&home, SPLIT, "venue.delivered", 2).await;
     assert_eq!(of_kind(&events, UNMUTED)[0]["body"], json!({}));
-    // 解禁以后主人 @ 她照回。
-    owner_calls(&napcat, SPLIT, 2);
+    // 解禁以后终端管理员 @ 她照回。
+    admin_calls(&napcat, SPLIT, 2);
     assert_eq!(napcat.group_message(SPLIT).await, [words("嗯")]);
     assert!(napcat.pending().is_none());
     stopped(home).await;
@@ -179,7 +185,7 @@ async fn a_shorter_ban_ends_by_itself() {
     let (home, mut napcat, _) = started(&script, RULES, "", MEMBERS).await;
     napcat.send(group_ban(PLAIN, BOT, "ban", Some(600)));
     until_count(&home, PLAIN, MUTED, 1).await;
-    owner_calls(&napcat, PLAIN, 1);
+    admin_calls(&napcat, PLAIN, 1);
     decided(&home, PLAIN, 1).await;
     let events = venue_events(&home.root, &venue(PLAIN));
     respond(&home, &venue(PLAIN), "muted-2", &[seq_of(&events, 0)]).await;
@@ -201,7 +207,7 @@ async fn someone_else_or_everyone_banned_is_not_her() {
     napcat.send(group_ban(PLAIN, LIN, "ban", Some(600)));
     napcat.send(group_ban(PLAIN, 0, "ban", Some(600)));
     napcat.send(group_ban(PLAIN, BOT, "ban", None));
-    owner_calls(&napcat, PLAIN, 1);
+    admin_calls(&napcat, PLAIN, 1);
     assert_eq!(napcat.group_message(PLAIN).await, [words("在。")]);
     let events = until_count(&home, PLAIN, "venue.delivered", 1).await;
     assert!(of_kind(&events, MUTED).is_empty(), "{events:#?}");
@@ -223,7 +229,7 @@ async fn what_waits_in_the_queue_counts_for_repeats() {
     let (home, mut napcat, _) = started_by(Arc::new(lines), RULES, MEMBERS).await;
     napcat.send(group_ban(PLAIN, BOT, "ban", Some(600)));
     until_count(&home, PLAIN, MUTED, 1).await;
-    owner_calls(&napcat, PLAIN, 1);
+    admin_calls(&napcat, PLAIN, 1);
     decided(&home, PLAIN, 1).await;
     let events = venue_events(&home.root, &venue(PLAIN));
     respond(&home, &venue(PLAIN), "muted-3", &[seq_of(&events, 0)]).await;

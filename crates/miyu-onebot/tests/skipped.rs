@@ -17,7 +17,7 @@ use crate::support::spawning::{bridge_up, cli, ports_config, text};
 use crate::support::speaking::{Line, Lines, SKIP_REPLY};
 use crate::support::*;
 
-/// 不抽样的群：别人的话只记下，主人 @ 她开一轮。
+/// 不抽样的群：别人的话只记下，终端管理员 @ 她开一轮。
 const GROUP: i64 = 777;
 
 /// 系统的场所规则：群都不抽样。
@@ -34,10 +34,16 @@ fn venue(group: i64) -> String {
     format!("qq:group:{group}")
 }
 
-/// 主人在群 `group` 里 @ 她：第 `message` 条。
-fn owner_calls(napcat: &Answering, group: i64, message: i64) {
+/// 终端管理员在群 `group` 里 @ 她：第 `message` 条。
+fn admin_calls(napcat: &Answering, group: i64, message: i64) {
     let words = json!([at(BOT), plain(" 在吗")]);
-    napcat.send(group_frame(group, OWNER, message, words, ("主人", "o")));
+    napcat.send(group_frame(
+        group,
+        ADMIN,
+        message,
+        words,
+        ("终端管理员", "o"),
+    ));
 }
 
 /// 等到群 `group` 里有 `n` 条 `kind` 的事件：交回那时的全部事件。
@@ -90,7 +96,7 @@ async fn a_skipped_turn_sends_nothing_and_the_next_turn_speaks() {
         Line::says("在。"),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines.clone()), RULES, MEMBERS).await;
-    owner_calls(&napcat, GROUP, 1);
+    admin_calls(&napcat, GROUP, 1);
     let events = until_count(&home, GROUP, "turn.ended", 1).await;
     // 调用块记在她的回复里；桥答的那一句交给了她，不算出错。
     let assistant = of_kind(&events, "message.assistant");
@@ -109,7 +115,7 @@ async fn a_skipped_turn_sends_nothing_and_the_next_turn_speaks() {
         requests[1]
     );
     // 下一轮照常发：群里收到的头一条就是它，前一轮的两句都没发、没入队。
-    owner_calls(&napcat, GROUP, 2);
+    admin_calls(&napcat, GROUP, 2);
     assert_eq!(napcat.group_message(GROUP).await, [words("在。")]);
     let events = until_count(&home, GROUP, "venue.delivered", 1).await;
     let queued: Vec<Value> = of_kind(&events, QUEUED)
@@ -134,7 +140,7 @@ async fn words_sent_before_the_call_stay_sent() {
         Line::says("算了。"),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines), RULES, MEMBERS).await;
-    owner_calls(&napcat, GROUP, 1);
+    admin_calls(&napcat, GROUP, 1);
     assert_eq!(napcat.group_message(GROUP).await, [words("我先看看。")]);
     until_count(&home, GROUP, "turn.ended", 1).await;
     // 调用以后的两条都过完了才看：等运行日志记下两行。
@@ -166,10 +172,10 @@ async fn a_private_turn_can_be_skipped_and_local_sessions_never_see_the_tool() {
         Line::says("本机。"),
     ]);
     let (home, mut napcat, _) = started_by(Arc::new(lines.clone()), RULES, MEMBERS).await;
-    napcat.send(private_frame(OWNER, 51, json!([plain("在吗")])));
+    napcat.send(private_frame(ADMIN, 51, json!([plain("在吗")])));
     // 这一轮完了再说下一句：还在跑的时候来的，核心会并进这一轮。
     until_private_turns(&home, 1).await;
-    napcat.send(private_frame(OWNER, 52, json!([plain("再说一句")])));
+    napcat.send(private_frame(ADMIN, 52, json!([plain("再说一句")])));
     let sent = napcat.action().await;
     assert_eq!(sent["action"], "send_private_msg", "{sent}");
     assert_eq!(
@@ -224,8 +230,8 @@ async fn refused_tools_are_logged_and_the_bridge_goes_on() {
         Ok((home, listen))
     })
     .await;
-    let mut napcat = owner_napcat(listen).await;
-    napcat.owner_says(1, "在吗").await;
+    let mut napcat = admin_napcat(listen).await;
+    napcat.admin_says(1, "在吗").await;
     assert_eq!(napcat.reply().await, "在。", "工具没了，话照说");
     assert!(!offers_skip(&lines.requests()[0]), "核心没收，工具面里没有");
     let deadline = tokio::time::Instant::now() + WAIT;
@@ -249,7 +255,7 @@ fn unacceptable(copy: &Path) {
     std::fs::write(file, spec.to_string()).expect("写得进");
 }
 
-/// 等到主人的私聊会话（管理员名下）里有 `n` 条 `turn.ended`。
+/// 等到终端管理员的私聊会话（管理员名下）里有 `n` 条 `turn.ended`。
 async fn until_private_turns(home: &Home, n: usize) {
     let deadline = tokio::time::Instant::now() + WAIT;
     while !home

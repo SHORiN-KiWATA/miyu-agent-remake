@@ -73,12 +73,12 @@ fn a_group_message_carries_its_group_sender_name_and_segments() {
 fn a_private_message_carries_the_senders_name() {
     let frame = json!({
         "self_id": 30003, "post_type": "message", "message_type": "private", "message_id": 1, "user_id": 10001,
-        "message": "在吗", "sender": {"user_id": 10001, "nickname": "主人"},
+        "message": "在吗", "sender": {"user_id": 10001, "nickname": "终端管理员"},
     });
     let Event::Private(posted) = event(frame) else {
         panic!("该认成私聊");
     };
-    assert_eq!(posted.name.as_deref(), Some("主人"));
+    assert_eq!(posted.name.as_deref(), Some("终端管理员"));
     assert_eq!(posted.text, "在吗");
 }
 

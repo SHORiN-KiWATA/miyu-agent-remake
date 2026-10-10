@@ -1,6 +1,6 @@
 [package]
 name = "miyu-onebot"
-description = "通讯平台的桥：经 OneBot v11 的反向 WebSocket 接 NapCat，把 QQ 上主人的私聊、群消息送进场所会话，把她的回复发回 QQ（施工 O-8、O-22，onebot.md）"
+description = "通讯平台的桥：经 OneBot v11 的反向 WebSocket 接 NapCat，把 QQ 上终端管理员的私聊、群消息送进场所会话，把她的回复发回 QQ（施工 O-8、O-22，onebot.md）"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

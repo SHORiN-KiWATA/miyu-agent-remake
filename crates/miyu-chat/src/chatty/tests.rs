@@ -298,29 +298,29 @@ fn primary_order() {
 #[test]
 fn routes() {
     use Kind::{AfterSpeaking, Direct, Moderation, Probability};
-    assert_eq!(route(&of(&[]), Standing::Owner), Route::Record);
-    assert_eq!(route(&of(&[Direct]), Standing::Owner), Route::Commit);
+    assert_eq!(route(&of(&[]), Standing::Admin), Route::Record);
+    assert_eq!(route(&of(&[Direct]), Standing::Admin), Route::Commit);
     assert_eq!(
-        route(&of(&[Direct, Moderation]), Standing::Owner),
+        route(&of(&[Direct, Moderation]), Standing::Admin),
         Route::Commit
     );
     assert_eq!(
-        route(&of(&[Direct]), Standing::Trusted),
+        route(&of(&[Direct]), Standing::Whitelisted),
         Route::Judge,
-        "自己人的 @ 也过判官"
+        "白名单成员的 @ 也过判官"
     );
     assert_eq!(route(&of(&[Direct]), Standing::Member), Route::Judge);
     assert_eq!(
-        route(&of(&[AfterSpeaking]), Standing::Owner),
+        route(&of(&[AfterSpeaking]), Standing::Admin),
         Route::Judge,
-        "主人没 @ 照样过判官"
+        "终端管理员没 @ 照样过判官"
     );
     assert_eq!(
         route(&of(&[Moderation]), Standing::Member),
         Route::ModerationOnly
     );
     assert_eq!(
-        route(&of(&[Moderation]), Standing::Owner),
+        route(&of(&[Moderation]), Standing::Admin),
         Route::ModerationOnly
     );
     assert_eq!(route(&of(&[Probability]), Standing::Member), Route::Judge);
@@ -331,9 +331,9 @@ fn routes() {
 }
 
 #[test]
-fn owner_addressing_commits_end_to_end() {
+fn admin_addressing_commits_end_to_end() {
     let mut msg = facts();
-    msg.said.standing = Standing::Owner;
+    msg.said.standing = Standing::Admin;
     msg.said.addressed = true;
     let got = conditions(&msg, &[], &[], now(), &chatty());
     assert_eq!(route(&got, msg.said.standing), Route::Commit);

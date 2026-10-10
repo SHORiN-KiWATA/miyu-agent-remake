@@ -27,9 +27,9 @@ async fn a_stranger_is_logged_once() {
     };
     let (serve, relay) = serve_relayed(home.root.clone(), settings(), Some(accounts));
     let bridge = start(serve).await;
-    let mut napcat = owner_napcat(bridge.port).await;
+    let mut napcat = admin_napcat(bridge.port).await;
     for message in 1..=4 {
-        napcat.owner_says(message, "在吗").await;
+        napcat.admin_says(message, "在吗").await;
     }
     // 一条条照先后办：第四条去问 `venue.session` 的时候，前三条已经办完了。
     within("四条都问过会话", async {

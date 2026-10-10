@@ -97,8 +97,8 @@ async fn the_bridge_provides_first_and_answers_the_cores_requests() {
         "{refused}"
     );
     // `tool.cancel` 不回；桥照样收发。
-    let mut napcat = owner_napcat(bridge.port).await;
-    napcat.owner_says(1, "在吗").await;
+    let mut napcat = admin_napcat(bridge.port).await;
+    napcat.admin_says(1, "在吗").await;
     assert_eq!(napcat.reply().await, "在。", "provide 被拒了，话照说");
     assert_eq!(relay.answers().len(), 3, "{:?}", relay.answers());
     bridge.stop().await.expect("停得下");

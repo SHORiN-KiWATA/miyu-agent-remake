@@ -1,7 +1,7 @@
 //! 找会话（`onebot.md` 第一条「怎么走」第 7、9 条，「群消息」第 3 条；施工 O-22 从 `route.rs` 挪出来，群也走这里）：场所
 //! → 会话编号只记在内存里，每个场所桥起来以后第一次要用时问一次 `venue.session`；会话不在了忘掉、再问一次。
 //!
-//! - 私聊：`venue.session {venue, kind: "private", peer}`；不是主人（`no_system_account`），或者回应的属主是桥自己（核心
+//! - 私聊：`venue.session {venue, kind: "private", peer}`；不是终端管理员（`no_system_account`），或者回应的属主是桥自己（核心
 //!   O-4 中以后陌生人的会话归系统账号，「施工时定的」第 49 条）：不接，会话编号不记、不订阅。问到了订阅（第 9 条）。
 //! - 群：`venue.session {venue, kind: "group", persona?, preset?, cwd?}`（照场所规则，`applied`）；群的会话本来就归桥自己的
 //!   系统账号，不照属主认陌生人。规则写了不存在的人格、预设（`unknown_persona`、`unknown_preset`、`preset_invalid`）：不接。
@@ -137,7 +137,7 @@ impl Route {
             .core
             .call("venue.session", place.opening.clone())
             .await?;
-        // 私聊的回应带了会话的属主、正是桥自己的账号：陌生人（核心 O-4 中以后照常造会话，属主是系统账号）。私聊只接主人，
+        // 私聊的回应带了会话的属主、正是桥自己的账号：陌生人（核心 O-4 中以后照常造会话，属主是系统账号）。私聊只接终端管理员，
         // 照 `no_system_account` 办（「施工时定的」第 49 条）。没带属主的照常接。群的会话本来就归桥自己的账号。
         let own = place.private_chat()
             && reply["result"]["account"]

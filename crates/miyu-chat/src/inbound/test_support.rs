@@ -82,11 +82,11 @@ pub(crate) fn member() -> Inbound {
     msg(Standing::Member, VenueKind::Group)
 }
 
-/// 发的人的几种组合：主人在群里、自己人在私聊里、自己人在群里、别的人在私聊里、别的人在群里。
+/// 发的人的几种组合：终端管理员在群里、白名单成员在私聊里、白名单成员在群里、别的人在私聊里、别的人在群里。
 pub(crate) const PEOPLE: [(Standing, VenueKind); 5] = [
-    (Standing::Owner, VenueKind::Group),
-    (Standing::Trusted, VenueKind::Private),
-    (Standing::Trusted, VenueKind::Group),
+    (Standing::Admin, VenueKind::Group),
+    (Standing::Whitelisted, VenueKind::Private),
+    (Standing::Whitelisted, VenueKind::Group),
     (Standing::Member, VenueKind::Private),
     (Standing::Member, VenueKind::Group),
 ];

@@ -1,6 +1,6 @@
-//! 判一条群消息（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 5、6、10、11、14 条）：主人冲她来的回；没条件的只记下；
-//! 别人、自己人冲她来的问判官打分，只有违规旗的问判官只查违规；限流满了冲她来的头一回提示、再来只记下，自己人、主人不受限流，
-//! 可额度满了的这段时间不抽样、不问判官；睡着、不让叫的只记下，主人照回。线路规程（O-23 下）：`when-called`、`every-message`
+//! 判一条群消息（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 5、6、10、11、14 条）：终端管理员冲她来的回；没条件的只记下；
+//! 别人、白名单成员冲她来的问判官打分，只有违规旗的问判官只查违规；限流满了冲她来的头一回提示、再来只记下，白名单成员、终端管理员不受限流，
+//! 可额度满了的这段时间不抽样、不问判官；睡着、不让叫的只记下，终端管理员照回。线路规程（O-23 下）：`when-called`、`every-message`
 //! 不问判官（`follow_tests.rs`）；顶替：同一个人在窗口里，前一条判过要回的接过去，还在判的几条一起重判（同上）。参数照出厂的
 //! `defaults.toml`。
 
@@ -160,17 +160,17 @@ pub(super) fn pending(msg: u64, absorbed: &[u64], at: Timestamp, status: Status)
 }
 
 #[test]
-fn the_owner_calling_her_is_answered_and_the_decision_reads_as_drawn() {
+fn the_admin_calling_her_is_answered_and_the_decision_reads_as_drawn() {
     let params = params();
     let decision = judged(
-        facts(Standing::Owner, true),
+        facts(Standing::Admin, true),
         "@米尤 在吗",
         ctx(&params),
         &params.chatty,
     );
     assert_eq!(decision.conclusion, Conclusion::Reply);
     assert_eq!(
-        written(&decision, Standing::Owner, None),
+        written(&decision, Standing::Admin, None),
         json!({
             "msgs": [12], "standing": "owner", "inbound": "pass", "discipline": "chatty",
             "conditions": [{"kind": "direct", "bonus": 0.3}], "route": "commit", "outcome": "reply",
@@ -194,7 +194,7 @@ fn nothing_holding_is_recorded_and_others_go_to_the_judge() {
         (&body["conditions"], &body["route"]),
         (&json!([]), &json!("record"))
     );
-    for standing in [Standing::Member, Standing::Trusted] {
+    for standing in [Standing::Member, Standing::Whitelisted] {
         let calling = judged(facts(standing, true), "@米尤 在吗", ctx(&params), chatty);
         assert_eq!(
             calling.conclusion,
@@ -217,18 +217,18 @@ fn nothing_holding_is_recorded_and_others_go_to_the_judge() {
     let body = written(&flagged, Standing::Member, None);
     assert_eq!(body["flags"], json!(["moderation"]), "{body}");
     assert_eq!(body["route"], "moderation_only", "{body}");
-    // 主人没冲她来、什么都没成立的只记下。
-    let owner = judged(
-        facts(Standing::Owner, false),
+    // 终端管理员没冲她来、什么都没成立的只记下。
+    let admin = judged(
+        facts(Standing::Admin, false),
         "辛苦了",
         ctx(&params),
         chatty,
     );
-    assert_eq!(owner.conclusion, Conclusion::Record);
+    assert_eq!(admin.conclusion, Conclusion::Record);
 }
 
 #[test]
-fn a_full_rate_notices_once_then_records_and_spares_owner_and_trusted() {
+fn a_full_rate_notices_once_then_records_and_spares_admin_and_whitelisted() {
     let params = params();
     let chatty = &params.chatty;
     let full = Ctx {
@@ -260,15 +260,15 @@ fn a_full_rate_notices_once_then_records_and_spares_owner_and_trusted() {
         chatty,
     );
     assert_eq!(quiet.conclusion, Conclusion::Record, "不冲她来的不提示");
-    // 自己人不受限流，可额度满了的这段时间不问判官：只记下（第 14 条）。
-    let trusted = judged(
-        facts(Standing::Trusted, true),
+    // 白名单成员不受限流，可额度满了的这段时间不问判官：只记下（第 14 条）。
+    let whitelisted = judged(
+        facts(Standing::Whitelisted, true),
         "@米尤",
         full.clone(),
         chatty,
     );
-    assert_eq!(trusted.conclusion, Conclusion::Record);
-    let body = written(&trusted, Standing::Trusted, None);
+    assert_eq!(whitelisted.conclusion, Conclusion::Record);
+    let body = written(&whitelisted, Standing::Whitelisted, None);
     assert_eq!(
         (&body["inbound"], &body["route"], &body["judge"]),
         (
@@ -278,11 +278,11 @@ fn a_full_rate_notices_once_then_records_and_spares_owner_and_trusted() {
         ),
         "{body}"
     );
-    let owner = judged(facts(Standing::Owner, true), "@米尤", full, chatty);
+    let admin = judged(facts(Standing::Admin, true), "@米尤", full, chatty);
     assert_eq!(
-        owner.conclusion,
+        admin.conclusion,
         Conclusion::Reply,
-        "主人不受限流、不过判官"
+        "终端管理员不受限流、不过判官"
     );
 }
 
@@ -291,7 +291,7 @@ fn a_full_rate_samples_nothing() {
     let params = sampling();
     let chatty = &params.chatty;
     let open = judged(
-        facts(Standing::Trusted, false),
+        facts(Standing::Whitelisted, false),
         "大家好",
         ctx(&params),
         chatty,
@@ -302,15 +302,15 @@ fn a_full_rate_samples_nothing() {
         turns: vec![ago(60)],
         ..ctx(&params)
     };
-    let closed = judged(facts(Standing::Trusted, false), "大家好", full, chatty);
+    let closed = judged(facts(Standing::Whitelisted, false), "大家好", full, chatty);
     assert_eq!(closed.conclusion, Conclusion::Record);
-    let body = written(&closed, Standing::Trusted, None);
+    let body = written(&closed, Standing::Whitelisted, None);
     assert_eq!(body["conditions"], json!([]), "额度满了不抽样：{body}");
     assert!(body.get("judge").is_none(), "没条件，不是没问判官：{body}");
 }
 
 #[test]
-fn asleep_or_not_allowed_only_records_but_the_owner_is_answered() {
+fn asleep_or_not_allowed_only_records_but_the_admin_is_answered() {
     let params = params();
     let chatty = &params.chatty;
     let asleep = Ctx {
@@ -327,19 +327,19 @@ fn asleep_or_not_allowed_only_records_but_the_owner_is_answered() {
         written(&member, Standing::Member, None),
         json!({"msgs": [12], "standing": "member", "inbound": "record_only", "why": "asleep", "outcome": "record"})
     );
-    let trusted = judged(
-        facts(Standing::Trusted, true),
+    let whitelisted = judged(
+        facts(Standing::Whitelisted, true),
         "@米尤",
         asleep.clone(),
         chatty,
     );
     assert_eq!(
-        trusted.conclusion,
+        whitelisted.conclusion,
         Conclusion::Record,
-        "群里的自己人不豁免睡眠"
+        "群里的白名单成员不豁免睡眠"
     );
-    let owner = judged(facts(Standing::Owner, true), "@米尤", asleep, chatty);
-    assert_eq!(owner.conclusion, Conclusion::Reply);
+    let admin = judged(facts(Standing::Admin, true), "@米尤", asleep, chatty);
+    assert_eq!(admin.conclusion, Conclusion::Reply);
     let closed = Ctx {
         allow: Some(false),
         ..ctx(&params)

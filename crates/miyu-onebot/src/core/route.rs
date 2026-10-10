@@ -13,7 +13,7 @@
 //!   补，`persona`）。
 //! - 找会话（`session`）：「场所 → 会话编号」只记在内存里，每个场所桥起来以后第一次要用时问一次 `venue.session`；私聊的
 //!   问到了订阅（不写 `after`），群的从头订阅（施工 O-23）。会话不在了（`session_not_found`、`session_stopped`）
-//!   忘掉，再问一次、再交一次，只重来一次。私聊不是主人的（`no_system_account`，或者会话的属主是桥自己，「施工时定的」第
+//!   忘掉，再问一次、再交一次，只重来一次。私聊不是终端管理员的（`no_system_account`，或者会话的属主是桥自己，「施工时定的」第
 //!   49 条）、群的规则写错的不接，同一个场所只记一行运行日志。
 //! - `/` 开头的先当斜杠命令交 `command.run`（`command`，O-19，第 7、8 条之间的「斜杠命令」），核心说不是命令的才照普通的话发；
 //!   回执交 `receipt`，群里的过几秒撤回（施工 O-25 上）。
@@ -26,7 +26,7 @@
 //!   到时候了摘（`reaction`）。
 //! - 不说话（施工 O-26，「提供者和不说话」）：她的回复里有 `skip_reply` 的调用块，这一轮的字都不发（`quiet` 认，`speak` 不发）。
 //! - 核心推来的 `extension.config`（施工 O-20）：`keys` 原样交给 `serve`，它换上手里的配置、端口变了照 `/apply` 的办法换
-//!   （「施工时定的」第 45 条）：这里够不着监听。自己人 `onebot.trusted` 这里记一份（施工 O-23）。
+//!   （「施工时定的」第 45 条）：这里够不着监听。白名单成员 `onebot.trusted` 这里记一份（施工 O-23）。
 
 mod applied;
 mod ask;
@@ -73,7 +73,7 @@ use crate::listen::bots::Bots;
 use crate::onebot::{Event, Members, Posted, To, command_id, person, venue};
 use crate::rules::{Applied, Venues};
 use crate::serve::Failure;
-use crate::settings::{trusted, trusted_key};
+use crate::settings::{whitelist, whitelist_key};
 use crate::texts::Texts;
 pub(crate) use ask::Slots;
 use fields::{Flags, fields};
@@ -123,12 +123,12 @@ pub(crate) struct Route {
     venues: HashMap<String, String>,
     /// 会话编号 → 回执、回话发到哪（第 10 条）。
     peers: HashMap<String, Peer>,
-    /// 记过一行「不接」的场所（第 7 条、「群消息」第 3 条）：私聊不是主人的，群的规则写错的。
+    /// 记过一行「不接」的场所（第 7 条、「群消息」第 3 条）：私聊不是终端管理员的，群的规则写错的。
     refused: HashSet<String>,
     /// 群会话编号 → 这个群的投影（施工 O-23，「群里怎么叫她」第 1、2 条）：订阅了的群才有。
     groups: HashMap<String, Projection>,
-    /// 自己人的平台身份（`onebot.trusted`，施工 O-23）：握手交来的，推来新的就换。
-    trusted: Vec<String>,
+    /// 白名单成员的平台身份（`onebot.trusted`，施工 O-23）：握手交来的，推来新的就换。
+    whitelist: Vec<String>,
     /// 发进群里的提示照它说（施工 O-23）：握手回的语言。
     texts: Texts,
     /// 出站排着的（施工 O-25 中，「出站队列」）：门关着（她被禁言、号没连着）的照会话排着，过了期作废。
@@ -158,7 +158,7 @@ impl Route {
     /// 拿着连接 `core`，回话照 `bots` 找连接，场所规则照 `rules`，群成员的名字记进 `members`，发进群里的提示照 `texts`
     /// 说，问判官照全局的名额 `slots` 排队（施工 O-23 下）、判官带的人格原文照 `personas` 记（施工 O-23 补），群里的命令回执
     /// `recall` 以后撤回（施工 O-25 上），出站排着的过了 `expire` 作废（施工 O-25 中），表情照 `reactions` 贴、摘（施工 O-25 下），
-    /// 推来的配置变化交给 `configured`。自己人照握手交来的配置（`core.config`）。
+    /// 推来的配置变化交给 `configured`。白名单成员照握手交来的配置（`core.config`）。
     pub(crate) fn new(
         core: Core,
         bots: Arc<Bots>,
@@ -174,7 +174,7 @@ impl Route {
         ),
         configured: mpsc::UnboundedSender<Map<String, Value>>,
     ) -> Route {
-        let trusted = trusted(&core.config[trusted_key()]);
+        let whitelist = whitelist(&core.config[whitelist_key()]);
         let judges = Judges::new(core.caller(), rules.judge_texts(), slots, personas);
         Route {
             core,
@@ -185,7 +185,7 @@ impl Route {
             peers: HashMap::new(),
             refused: HashSet::new(),
             groups: HashMap::new(),
-            trusted,
+            whitelist,
             texts,
             waiting: Queue::new(expire),
             sending: FuturesOrdered::new(),
@@ -319,7 +319,7 @@ impl Route {
         self.rules.current(Instant::now()).at(venue)
     }
 
-    /// 核心推来的一条：配置变了的（`extension.config`）交给 `serve`（施工 O-20），自己人在里面的换上（施工 O-23）；群会话的
+    /// 核心推来的一条：配置变了的（`extension.config`）交给 `serve`（施工 O-20），白名单成员在里面的换上（施工 O-23）；群会话的
     /// 事件收进投影、她新说的话发回群里（施工 O-23）；私聊会话的事件交给 `say_privately`：她的回话发回去（第 10 条），这一轮
     /// 不说话了的不发（施工 O-26，要看 `turn.ended`）；掉了队、会话停了的（`resync`）再订阅一次，群的照收到的最后一条接着补。
     async fn pushed(&mut self, pushed: Value) -> Result<(), Gone> {
@@ -328,9 +328,9 @@ impl Route {
             let Some(keys) = params["keys"].as_object() else {
                 return Ok(());
             };
-            if let Some(value) = keys.get(&trusted_key()) {
-                self.trusted = trusted(value);
-                tracing::info!(target: TARGET, count = self.trusted.len(), "trusted changed");
+            if let Some(value) = keys.get(&whitelist_key()) {
+                self.whitelist = whitelist(value);
+                tracing::info!(target: TARGET, count = self.whitelist.len(), "trusted changed");
             }
             if self.configured.send(keys.clone()).is_err() {
                 // `serve` 不收了：桥在停，没有别处可交。

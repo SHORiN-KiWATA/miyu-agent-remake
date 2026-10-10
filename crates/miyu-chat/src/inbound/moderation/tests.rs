@@ -1,4 +1,4 @@
-//! 违规关键词（`chat.md` 第二条「守着它的」）：大小写、中文、空关键词、主人不查；base64 够长的、不够长的、解出来不可打印的、
+//! 违规关键词（`chat.md` 第二条「守着它的」）：大小写、中文、空关键词、终端管理员不查；base64 够长的、不够长的、解出来不可打印的、
 //! 读不成 UTF-8 的、只看前几个字符、关键词在 `max_chars` 之后的、带 `=` 的、长度不是 4 的倍数的、被别的字截开的。违规词表的
 //! 读法（O-15 下）：一行一个、空行、注释、首尾空白、`\r\n`、重复、BOM；仓库里的出厂词表是旧版的 153 个词。
 
@@ -102,16 +102,19 @@ fn any_keyword_hits_and_empty_ones_do_not_count() {
 }
 
 #[test]
-fn owner_is_not_checked_but_trusted_is() {
+fn admin_is_not_checked_but_the_whitelist_is() {
     for kind in [VenueKind::Group, VenueKind::Private] {
         let mut watch = ctx();
         watch.moderation.keywords = vec!["spam".to_string()];
-        let mut owner = msg(Standing::Owner, kind);
-        owner.text = "spam".to_string();
-        assert!(judge(&owner, &watch, at(12, 0)).flags.is_empty());
-        let mut trusted = msg(Standing::Trusted, kind);
-        trusted.text = "spam".to_string();
-        assert_eq!(judge(&trusted, &watch, at(12, 0)).flags, [Flag::Moderation]);
+        let mut admin = msg(Standing::Admin, kind);
+        admin.text = "spam".to_string();
+        assert!(judge(&admin, &watch, at(12, 0)).flags.is_empty());
+        let mut whitelisted = msg(Standing::Whitelisted, kind);
+        whitelisted.text = "spam".to_string();
+        assert_eq!(
+            judge(&whitelisted, &watch, at(12, 0)).flags,
+            [Flag::Moderation]
+        );
     }
 }
 
@@ -271,11 +274,11 @@ fn base64_ratio_counts_only_the_first_max_chars() {
 }
 
 #[test]
-fn base64_owner_is_not_checked() {
+fn base64_admin_is_not_checked() {
     assert!(!flagged_with(
         &["spam"],
         usual(),
-        Standing::Owner,
+        Standing::Admin,
         "c3BhbQ=="
     ));
 }

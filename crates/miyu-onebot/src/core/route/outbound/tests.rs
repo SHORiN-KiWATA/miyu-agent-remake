@@ -29,7 +29,7 @@ fn at(seconds: i64) -> Timestamp {
     Timestamp::from_unix_millis(1_760_000_000_000 + seconds * 1000).expect("在范围里")
 }
 
-/// 主人第 0 秒说的、编号是 `21` 的那一条。
+/// 终端管理员第 0 秒说的、编号是 `21` 的那一条。
 fn aim() -> Aim {
     Aim {
         msg: Some("21".to_string()),

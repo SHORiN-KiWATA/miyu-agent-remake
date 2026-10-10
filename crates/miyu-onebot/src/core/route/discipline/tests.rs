@@ -112,12 +112,12 @@ fn each_goes_its_own_way() {
     let none = only(&[]);
     let direct = only(&[Kind::Direct]);
     let flagged = only(&[Kind::Moderation]);
-    // chatty 照群聊内核：没条件只记下，主人冲她来开一轮，只有违规旗只查违规，别的问判官。
+    // chatty 照群聊内核：没条件只记下，终端管理员冲她来开一轮，只有违规旗只查违规，别的问判官。
     let chatty = Discipline::Chatty;
     assert_eq!(chatty.route(&none, Standing::Member, false), Route::Record);
-    assert_eq!(chatty.route(&direct, Standing::Owner, false), Route::Commit);
+    assert_eq!(chatty.route(&direct, Standing::Admin, false), Route::Commit);
     assert_eq!(
-        chatty.route(&direct, Standing::Trusted, false),
+        chatty.route(&direct, Standing::Whitelisted, false),
         Route::Judge
     );
     assert_eq!(

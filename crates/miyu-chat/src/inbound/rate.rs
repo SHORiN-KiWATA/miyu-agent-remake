@@ -1,5 +1,5 @@
 //! 限流（`docs/blueprint/chat.md` 第二条「怎么走」第 6、7 条，`18-通讯平台.md` 第六节 Q22）：数这个场所最近一段时间开了
-//! 几个回合（不数消息），滑动窗口。满了，冲她来的这一回第一次回一句，之后只记下；不冲她来的只记下。主人、自己人不限。
+//! 几个回合（不数消息），滑动窗口。满了，冲她来的这一回第一次回一句，之后只记下；不冲她来的只记下。终端管理员、白名单成员不限。
 //!
 //! 回合的时刻、提示过的时刻由外面从场所会话的日志投影出来交进来，核心或桥重启都不丢。
 
@@ -58,7 +58,7 @@ pub(super) struct Rule;
 
 impl InboundRule for Rule {
     fn judge(&self, msg: &Inbound, ctx: &Ctx, clock: Clock) -> Step {
-        // 主人、自己人开的回合本来就不在 `turns` 里，他们也不受限。
+        // 终端管理员、白名单成员开的回合本来就不在 `turns` 里，他们也不受限。
         if msg.said.standing != Standing::Member {
             return Step::Continue;
         }

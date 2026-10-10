@@ -2,8 +2,8 @@
 //! 事件（订阅时从头补来的、之后推来的）照序号收进来，算出判一条群消息要的几样。纯逻辑：不碰 I/O、时钟。内存里只放从日志
 //! 算得出的，桥重启照日志重建（「施工时定的」第 71、83 条）。
 //!
-//! - 人说的话：序号 → 发的人、是不是主人（`by` 是外部身份、带 `account`）、什么时刻（O-23 下：顶替窗口从它数）。
-//! - 开过的回合：开始的时刻、触发的人；进站链的 `Ctx.turns` 交触发的人全是主人或自己人以外的那些（[`Projection::turns`]）。
+//! - 人说的话：序号 → 发的人、是不是终端管理员（`by` 是外部身份、带 `account`）、什么时刻（O-23 下：顶替窗口从它数）。
+//! - 开过的回合：开始的时刻、触发的人；进站链的 `Ctx.turns` 交触发的人全是终端管理员或白名单成员以外的那些（[`Projection::turns`]）。
 //!   并进一轮的几条（`turn.joined`）那一轮没再请求就结束的，核心接着开一轮，它的 `turn.started` 没有 `triggers`、`trigger`
 //!   指向那条 `turn.joined`：照那条的 `triggers` 找回触发的人（O-23 下）。
 //! - 主线这一轮：回合编号、回的人（`turn.started`、`turn.joined` 的 `triggers` 的发的人）；`turn.ended` 这一轮完了。
@@ -54,8 +54,8 @@ pub(super) const RATE_LIMITED: &str = "rate_limited";
 struct Speaker {
     /// 平台上的身份（`by.id`）。
     id: ExternalId,
-    /// 是不是主人：核心照对应表认出来、记在 `by.account` 上的（`chat.md` 第七条第 4 条）。
-    owner: bool,
+    /// 是不是终端管理员：核心照对应表认出来、记在 `by.account` 上的（`chat.md` 第七条第 4 条）。
+    admin: bool,
     /// 这一条记下的时刻（`message.user` 的 `at`）。
     at: Timestamp,
     /// 这一条的平台编号（`venue.msg`，O-25 上：引用它）；没有的（照说不会）是空的。
@@ -198,7 +198,7 @@ impl Projection {
                 if let By::External(external) = &event.by {
                     let speaker = Speaker {
                         id: external.id.clone(),
-                        owner: external.account.is_some(),
+                        admin: external.account.is_some(),
                         at: event.at,
                         msg: user.venue.as_ref().map(|venue| venue.msg.clone()),
                     };
@@ -373,16 +373,16 @@ impl Projection {
         self.committed.iter().map(|committed| &committed.pending)
     }
 
-    /// 序号是 `seq` 的这一条是不是主人说的；没收过的不是。
-    pub(super) fn owner(&self, seq: u64) -> bool {
-        self.said.get(&seq).is_some_and(|speaker| speaker.owner)
+    /// 序号是 `seq` 的这一条是不是终端管理员说的；没收过的不是。
+    pub(super) fn admin(&self, seq: u64) -> bool {
+        self.said.get(&seq).is_some_and(|speaker| speaker.admin)
     }
 
-    /// 进站链的 `Ctx.turns`：开过的回合的开始时刻，去掉触发的人全是主人或自己人（`trusted`，平台身份的原文）的；没有
+    /// 进站链的 `Ctx.turns`：开过的回合的开始时刻，去掉触发的人全是终端管理员或白名单成员（`whitelist`，平台身份的原文）的；没有
     /// `triggers` 的照算（`chat.md` 第七条第 4 条）。
-    pub(super) fn turns(&self, trusted: &[String]) -> Vec<Timestamp> {
+    pub(super) fn turns(&self, whitelist: &[String]) -> Vec<Timestamp> {
         let exempt = |speaker: &Speaker| {
-            speaker.owner || trusted.iter().any(|one| one == speaker.id.as_str())
+            speaker.admin || whitelist.iter().any(|one| one == speaker.id.as_str())
         };
         self.turns
             .iter()

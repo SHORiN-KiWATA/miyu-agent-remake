@@ -199,8 +199,8 @@ fn kind_name(kind: Kind) -> &'static str {
 /// 发的人是谁的写法。
 fn standing_name(standing: Standing) -> &'static str {
     match standing {
-        Standing::Owner => "owner",
-        Standing::Trusted => "trusted",
+        Standing::Admin => "owner",
+        Standing::Whitelisted => "trusted",
         Standing::Member => "member",
     }
 }

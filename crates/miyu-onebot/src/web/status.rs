@@ -8,7 +8,7 @@
 //! - `listen`、`web`：实际听的两个端口（换过的照换过的：推送来的、`/apply` 的）。
 //! - `token`：桥手里有令牌的 `set`，没有的 `none`（`crate::current`）。没写引用、引用取不到，核心都不交，分不出（第一条
 //!   「施工时定的」第 41 条：原来的 `missing` 没了）。
-//! - `platform`：桥的平台名（[`crate::onebot::PLATFORM`]）。「主人与自己人」页照它拼 `qq:<号>`，平台的名字还是只写一处
+//! - `platform`：桥的平台名（[`crate::onebot::PLATFORM`]）。「终端管理员与白名单成员」页照它拼 `qq:<号>`，平台的名字还是只写一处
 //!   （O-17，第二条「施工时定的」第 26 条）。
 
 use std::sync::atomic::Ordering;

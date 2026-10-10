@@ -1,5 +1,5 @@
 //! 限流（`chat.md` 第二条「守着它的」）：边界（正好 `window` 以前的不算、`now` 那一刻的算、以后的不算）、不冲她来的、
-//! 第一次满提示、再来只记下、降下去再满又提示、不限、主人和自己人；`rate_full`。
+//! 第一次满提示、再来只记下、降下去再满又提示、不限、终端管理员和白名单成员；`rate_full`。
 
 use crate::VenueKind;
 
@@ -148,7 +148,7 @@ fn unlimited_never_fills() {
 }
 
 #[test]
-fn owner_and_trusted_are_not_limited() {
+fn admin_and_whitelisted_are_not_limited() {
     let full = limited("1/60s", &[0], &[]);
     let expected = [Outcome::Pass, Outcome::Pass, Outcome::Pass, NOTICE, NOTICE];
     for ((standing, kind), expected) in PEOPLE.into_iter().zip(expected) {

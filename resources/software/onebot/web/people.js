@@ -1,16 +1,16 @@
-// QQ 桥 WebUI 的「主人与自己人」页（docs/blueprint/onebot.md 第二条「怎么走」第 4 条，施工 O-17）：两张表，各有一个「保存」。
+// QQ 桥 WebUI 的「终端管理员与白名单成员」页（docs/blueprint/onebot.md 第二条「怎么走」第 4 条，施工 O-17）：两张表，各有一个「保存」。
 //
-// - 主人：系统配置的 external.bindings，一格是一个平台身份对一个本机账号。页面只画、只改这个桥的平台（/status 的
+// - 终端管理员：系统配置的 external.bindings，一格是一个平台身份对一个本机账号。页面只画、只改这个桥的平台（/status 的
 //   platform）的，别的平台的不碰。存的时候照改动发一条 config.set：加的、改了账号的写值，删的恢复默认（unset）。
-// - 自己人：系统配置的 onebot.trusted，平台身份的列表，整张写回；别的平台的身份照原样留在前面。
+// - 白名单成员：系统配置的 onebot.trusted，平台身份的列表，整张写回；别的平台的身份照原样留在前面。
 // - 号去掉前后空白，照 1 到 9 开头、一共 1 到 20 位数字认；空着的行不算；不对的、重复的标出来，有标着的不让存（「施工时
 //   定的」第 28 条）。页面的校验只是让人早点看见，算数的是核心：核心回的问题照原话说在那张表下面，表里的东西不丢。
 //
 // 骨架、字、核心连接都在 app.js，经 peoplePage 的参数交过来；这里不碰全局的东西。
 
-/** 主人对应表的键的前缀、自己人那一项的键（config.md 配置项表）。 */
+/** 终端管理员对应表的键的前缀、白名单成员那一项的键（config.md 配置项表）。 */
 const BINDINGS = 'external.bindings.';
-const TRUSTED = 'onebot.trusted';
+const WHITELIST = 'onebot.trusted';
 
 /** 号：1 到 9 开头，一共 1 到 20 位数字。桥照整数拼 `qq:<号>`，以 0 开头的写进去永远对不上。 */
 const NUMBER = /^[1-9][0-9]{0,19}$/;
@@ -21,12 +21,12 @@ function numberOf(identity, platform) {
   return identity.startsWith(prefix) ? identity.slice(prefix.length) : null;
 }
 
-/** 主人对应表里一格的键：`external.bindings."qq:10001"`。带冒号的那一段照核心的键的写法写成带双引号的字。 */
+/** 终端管理员对应表里一格的键：`external.bindings."qq:10001"`。带冒号的那一段照核心的键的写法写成带双引号的字。 */
 const bindingKey = (platform, number) => BINDINGS + JSON.stringify(`${platform}:${number}`);
 
-/** 配置 `items`（config.get 的）里这个平台的主人：号到账号。键的那一段读不懂的跳过。 */
-function savedOwners(items, platform) {
-  const owners = new Map();
+/** 配置 `items`（config.get 的）里这个平台的终端管理员：号到账号。键的那一段读不懂的跳过。 */
+function savedAdmins(items, platform) {
+  const admins = new Map();
   for (const [key, item] of Object.entries(items)) {
     if (!key.startsWith(BINDINGS)) continue;
     let identity = key.slice(BINDINGS.length);
@@ -34,13 +34,13 @@ function savedOwners(items, platform) {
       if (identity.startsWith('"')) identity = JSON.parse(identity);
     } catch { continue; }
     const number = numberOf(identity, platform);
-    if (number != null) owners.set(number, item.value);
+    if (number != null) admins.set(number, item.value);
   }
-  return owners;
+  return admins;
 }
 
-/** 配置 `items` 里的自己人，整张（别的平台的也在）；没写的是空表。 */
-const savedTrusted = (items) => items[TRUSTED]?.value ?? [];
+/** 配置 `items` 里的白名单成员，整张（别的平台的也在）；没写的是空表。 */
+const savedWhitelist = (items) => items[WHITELIST]?.value ?? [];
 
 /** 每一行号的毛病：空着的、对的是 ''，不是号的 'bad-number'，同一张表里重复的 'duplicate'（几行都标）。 */
 function marks(numbers) {
@@ -53,8 +53,8 @@ function marks(numbers) {
   });
 }
 
-/** 主人表要发的改动：`rows` 是填着的几行 `{number, account}`，`saved` 是存着的号到账号。 */
-function ownerChanges(saved, rows, platform) {
+/** 终端管理员表要发的改动：`rows` 是填着的几行 `{number, account}`，`saved` 是存着的号到账号。 */
+function adminChanges(saved, rows, platform) {
   const changes = rows
     .filter(({ number, account }) => saved.get(number) !== account)
     .map(({ number, account }) => ({ key: bindingKey(platform, number), value: account }));
@@ -65,19 +65,19 @@ function ownerChanges(saved, rows, platform) {
   return changes;
 }
 
-/** 自己人要发的改动：整张写回，别的平台的照原样在前面；和存着的 `saved` 一样的没有改动。 */
-function trustedChanges(saved, numbers, platform) {
+/** 白名单成员要发的改动：整张写回，别的平台的照原样在前面；和存着的 `saved` 一样的没有改动。 */
+function whitelistChanges(saved, numbers, platform) {
   const others = saved.filter((identity) => numberOf(identity, platform) == null);
   const value = [...others, ...numbers.map((number) => `${platform}:${number}`)];
   const same = value.length === saved.length && value.every((identity, at) => identity === saved[at]);
-  return same ? [] : [{ key: TRUSTED, value }];
+  return same ? [] : [{ key: WHITELIST, value }];
 }
 
 /** 一张能加、能删、能存的表。`spec`：
- *  - `name`：字的编号里的那一段（owners、trusted）；
+ *  - `name`：字的编号里的那一段（admins、whitelist）；
  *  - `rows()`：照存着的配置，一行行的初值 `{number, account?}`；
- *  - `cells(start, changed)`：号后面多的格（主人的账号下拉），交回 [元素, 读出多的那几格的函数]，改了调 `changed`；
- *  - `aside(number)`：号没毛病时旁边说的一句（自己人的「已经是主人」），没有的是空的；
+ *  - `cells(start, changed)`：号后面多的格（终端管理员的账号下拉），交回 [元素, 读出多的那几格的函数]，改了调 `changed`；
+ *  - `aside(number)`：号没毛病时旁边说的一句（白名单成员的「已经是终端管理员」），没有的是空的；
  *  - `changes(rows)`：照填着的几行要发的改动，没改动的是空的；
  *  - `head`、`before`、`after`：表头、提示下面、表下面多的；`changed()`：表里改了、存好了告诉谁。
  *  交回卡片、重标一遍的 `refresh`、表里现在填着的号 `numbers`。 */
@@ -180,25 +180,25 @@ function editable(ui, spec) {
   return { el, refresh, numbers: () => filled().map(({ number }) => number) };
 }
 
-/** 「主人与自己人」页的两张卡片。`ui`：`h`、`say`（app.js 的），`platform`（/status 的），`account`（握手回的账号），
+/** 「终端管理员与白名单成员」页的两张卡片。`ui`：`h`、`say`（app.js 的），`platform`（/status 的），`account`（握手回的账号），
  *  `items()`（这时的配置），`save(changes)`（config.set 写系统配置、重读配置），`failed(error)`（核心拒绝的原话）。 */
 export function peoplePage(ui) {
   const { h, say, platform } = ui;
-  let trusted = null;
-  const owners = editable(ui, {
-    name: 'owners',
-    rows: () => [...savedOwners(ui.items(), platform)].map(([number, account]) => ({ number, account })),
+  let whitelist = null;
+  const admins = editable(ui, {
+    name: 'admins',
+    rows: () => [...savedAdmins(ui.items(), platform)].map(([number, account]) => ({ number, account })),
     // 账号的下拉：协议里没有列账号的方法，下拉里是握手回的账号，加上表里已经写着的（手写的别的账号照原样留着）。
     cells: (start, changed) => {
-      const names = new Set([ui.account, ...savedOwners(ui.items(), platform).values(), start.account]);
+      const names = new Set([ui.account, ...savedAdmins(ui.items(), platform).values(), start.account]);
       const select = h('select', { 'aria-label': say('web/people/account') },
         [...names].filter(Boolean).map((name) => h('option', { value: name, text: name })));
       select.value = start.account ?? ui.account;
       select.addEventListener('change', changed);
       return [select, () => ({ account: select.value })];
     },
-    changes: (rows) => ownerChanges(savedOwners(ui.items(), platform), rows, platform),
-    changed: () => trusted?.refresh(),
+    changes: (rows) => adminChanges(savedAdmins(ui.items(), platform), rows, platform),
+    changed: () => whitelist?.refresh(),
     head: h('div', { class: 'people-head' },
       h('span', { text: say('web/people/number') }),
       h('span', { text: say('web/people/account') })),
@@ -206,16 +206,16 @@ export function peoplePage(ui) {
       h('summary', { text: say('web/people/risk/title') }),
       h('ul', {}, ['stolen', 'forged', 'injection'].map((key) => h('li', { text: say(`web/people/risk/${key}`) })))),
   });
-  trusted = editable(ui, {
-    name: 'trusted',
-    rows: () => savedTrusted(ui.items())
+  whitelist = editable(ui, {
+    name: 'whitelist',
+    rows: () => savedWhitelist(ui.items())
       .map((identity) => numberOf(identity, platform))
       .filter((number) => number != null)
       .map((number) => ({ number })),
-    changes: (rows) => trustedChanges(savedTrusted(ui.items()), rows.map(({ number }) => number), platform),
-    // 主人的权限包含自己人的：照样能存，只说一句（施工单「要定的」第 3 条）。
-    aside: (number) => (owners.numbers().includes(number) ? say('web/people/already-owner') : ''),
-    before: h('p', { class: 'hint', text: say('web/people/trusted/later') }),
+    changes: (rows) => whitelistChanges(savedWhitelist(ui.items()), rows.map(({ number }) => number), platform),
+    // 终端管理员的权限包含白名单成员的：照样能存，只说一句（施工单「要定的」第 3 条）。
+    aside: (number) => (admins.numbers().includes(number) ? say('web/people/already-admin') : ''),
+    before: h('p', { class: 'hint', text: say('web/people/whitelist/later') }),
   });
-  return [owners.el, trusted.el];
+  return [admins.el, whitelist.el];
 }

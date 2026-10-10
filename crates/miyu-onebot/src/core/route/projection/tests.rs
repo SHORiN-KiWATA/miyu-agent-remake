@@ -1,5 +1,5 @@
-//! 从日志投影一个群（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 1、2 条）：发的人、是不是主人；开过的回合去掉主人、
-//! 自己人开的；主线这一轮回的人并进 `turn.joined` 的；她的回复一轮一笔、回的人取并集；她发过的编号；限流的提示；补来的她的
+//! 从日志投影一个群（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 1、2 条）：发的人、是不是终端管理员；开过的回合去掉终端管理员、
+//! 白名单成员开的；主线这一轮回的人并进 `turn.joined` 的；她的回复一轮一笔、回的人取并集；她发过的编号；限流的提示；补来的她的
 //! 话不交出来；重的、更早的不收。判过要回的（O-23 下）：判断的结论是回的那几条，到收了它们的那一轮完了为止。交给出站链的
 //! （O-25 上）在 `outbound_tests.rs`，夹具在这里。
 
@@ -40,10 +40,10 @@ pub(super) fn event(
     serde_json::from_value(line).expect("读得成事件")
 }
 
-/// 号是 `user` 的人在群里说的一句；`owner` 的带 `account`。
-fn user(seq: u64, user: i64, owner: bool) -> Event {
+/// 号是 `user` 的人在群里说的一句；`admin` 的带 `account`。
+fn user(seq: u64, user: i64, admin: bool) -> Event {
     let mut by = json!({"kind": "external", "venue": "qq:group:5", "id": format!("qq:{user}")});
-    if owner {
+    if admin {
         by["account"] = json!("admin");
     }
     let body = json!({"blocks": [{"type": "text", "text": "嗨"}], "venue": {"msg": seq.to_string(), "ambient": true}});
@@ -167,21 +167,21 @@ fn turns_to(spoken: &[Speaking]) -> Vec<(u64, Vec<ExternalId>)> {
 }
 
 #[test]
-fn who_said_it_and_whether_the_owner_did() {
+fn who_said_it_and_whether_the_admin_did() {
     let mut projection = Projection::new(0);
     take_all(
         &mut projection,
         vec![user(1, 10001, true), user(2, 20002, false)],
     );
-    assert!(projection.owner(1), "带 account 的是主人");
-    assert!(!projection.owner(2));
-    assert!(!projection.owner(9), "没收过的不是");
+    assert!(projection.admin(1), "带 account 的是终端管理员");
+    assert!(!projection.admin(2));
+    assert!(!projection.admin(9), "没收过的不是");
     assert!(projection.knows(1) && projection.knows(2));
     assert!(!projection.knows(3), "回合、别的事件不算人说的话");
 }
 
 #[test]
-fn turns_only_owners_or_trusted_started_are_left_out() {
+fn turns_only_admins_or_whitelisted_started_are_left_out() {
     let mut projection = Projection::new(0);
     take_all(
         &mut projection,
@@ -197,16 +197,16 @@ fn turns_only_owners_or_trusted_started_are_left_out() {
             started(9, 90, &[1, 3]),
         ],
     );
-    let trusted = ["qq:20003".to_string()];
+    let whitelist = ["qq:20003".to_string()];
     assert_eq!(
-        projection.turns(&trusted),
+        projection.turns(&whitelist),
         [at(50), at(70), at(80)],
-        "主人、自己人开的不算；没有触发的照算；有一个别人的就算"
+        "终端管理员、白名单成员开的不算；没有触发的照算；有一个别人的就算"
     );
     assert_eq!(
         projection.turns(&[]),
         [at(50), at(60), at(70), at(80), at(90)],
-        "不是自己人了就算"
+        "不是白名单成员了就算"
     );
 }
 
@@ -276,7 +276,7 @@ fn a_turn_opened_for_what_joined_answers_whoever_joined() {
     assert_eq!(
         projection.turns(&["qq:20002".to_string()]),
         [at(0), at(9)],
-        "触发的人照找回的算：全是自己人的那一轮不计限流"
+        "触发的人照找回的算：全是白名单成员的那一轮不计限流"
     );
 }
 
@@ -366,7 +366,7 @@ fn history_is_not_spoken_and_old_or_repeated_events_are_skipped() {
         [(2, vec![qq(20002)])],
         "不大于 upto 的是从前的（正好是 upto 的也是）；重的、比收过的早的不收"
     );
-    assert!(!projection.owner(1), "重的不收");
+    assert!(!projection.admin(1), "重的不收");
     assert_eq!(projection.last(), 6);
     projection.caught_up(10);
     projection.caught_up(7);

@@ -1,7 +1,7 @@
 //! 群里的限流和桥重启（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 1、2、5、7 条）：真核心照开关拉起真桥，假 NapCat 发群
-//! 消息。限流满了（规则 `rate = "1/1h"`，别人的那一轮由测试照判官点了头的样子经 `session.respond` 开），主人照样回；自己人
+//! 消息。限流满了（规则 `rate = "1/1h"`，别人的那一轮由测试照判官点了头的样子经 `session.respond` 开），终端管理员照样回；白名单成员
 //! （握手交来的 `onebot.trusted`）不受限流，可额度满了的这段时间不问判官，只记下（O-23 下，「群里怎么叫她」第 14 条）；别人冲她来回一句提示、记 `ext.onebot.venues.queued`，再来只记下。桥重启以后照日志
-//! 重建：限流照旧满、提示过的不再提示、引用她以前的话照样认得，以前的回复不再发一遍。改了自己人，推来就照新的认。
+//! 重建：限流照旧满、提示过的不再提示、引用她以前的话照样认得，以前的回复不再发一遍。改了白名单成员，推来就照新的认。
 
 use serde_json::{Value, json};
 
@@ -14,7 +14,7 @@ use crate::support::*;
 /// 限流是一小时一轮的群。
 const GROUP: i64 = 555;
 
-/// 群里的别人、自己人。
+/// 群里的别人、白名单成员。
 const LIN: i64 = 20002;
 const JIE: i64 = 20003;
 const WANG: i64 = 20005;
@@ -61,8 +61,8 @@ async fn until_decided(home: &Home, message: i64) -> Vec<Value> {
 #[tokio::test]
 async fn the_rate_limit_holds_and_survives_a_restart() {
     let script = Script::new([Play::Says("一"), Play::Says("二"), Play::Says("三")]);
-    let trusted = format!("trusted = [\"qq:{JIE}\"]\n");
-    let (home, mut napcat, (listen, web)) = started(&script, &rules(), &trusted, MEMBERS).await;
+    let whitelist = format!("trusted = [\"qq:{JIE}\"]\n");
+    let (home, mut napcat, (listen, web)) = started(&script, &rules(), &whitelist, MEMBERS).await;
     let venue = format!("qq:group:{GROUP}");
     // 1：小林说一句，只记下；测试照判官点了头的样子开一轮（别人开的，算进限流）：一小时一轮满了。
     napcat.send(group_frame(
@@ -90,13 +90,13 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
         of_kind(events, "turn.ended").len() == 1
     })
     .await;
-    // 2：主人照样回。3：自己人不受限流（要问判官）。4：别人冲她来回一句提示。5：再来只记下。
+    // 2：终端管理员照样回。3：白名单成员不受限流（要问判官）。4：别人冲她来回一句提示。5：再来只记下。
     napcat.send(group_frame(
         GROUP,
-        OWNER,
+        ADMIN,
         2,
         json!([at(BOT), plain(" 在吗")]),
-        ("主人", "o"),
+        ("终端管理员", "o"),
     ));
     assert_eq!(napcat.group_reply(GROUP).await, "二");
     napcat.send(group_frame(
@@ -174,8 +174,8 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
     bridge_up(&home.root, listen, web, before)
         .await
         .expect("桥重新起来");
-    let mut napcat = owner_napcat(listen).await.answering(MEMBERS);
-    // 6：小林冲她来：限流照旧满、这一回提示过了，只记下。7：主人引用她以前的「一」：照样认得，回。
+    let mut napcat = admin_napcat(listen).await.answering(MEMBERS);
+    // 6：小林冲她来：限流照旧满、这一回提示过了，只记下。7：终端管理员引用她以前的「一」：照样认得，回。
     napcat.send(group_frame(
         GROUP,
         LIN,
@@ -184,7 +184,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
         ("小林", "lin"),
     ));
     let quoting = json!([{"type": "reply", "data": {"id": FIRST_SENT.to_string()}}, plain("这个")]);
-    napcat.send(group_frame(GROUP, OWNER, 7, quoting, ("主人", "o")));
+    napcat.send(group_frame(GROUP, ADMIN, 7, quoting, ("终端管理员", "o")));
     assert_eq!(
         napcat.group_reply(GROUP).await,
         "三",
@@ -205,7 +205,7 @@ async fn the_rate_limit_holds_and_survives_a_restart() {
     assert_eq!(quoted["conditions"][0]["kind"], "direct", "{quoted}");
     assert_eq!(quoted["outcome"], "reply", "{quoted}");
     assert_eq!(of_kind(&events, "turn.started").len(), 3);
-    // 改了自己人（核心推来 `extension.config`）：不重启，老王从下一条起不受限流。
+    // 改了白名单成员（核心推来 `extension.config`）：不重启，老王从下一条起不受限流。
     let changes = json!({"layer": "system", "changes": [
         {"key": "onebot.trusted", "value": [format!("qq:{JIE}"), format!("qq:{WANG}")]},
     ]});
