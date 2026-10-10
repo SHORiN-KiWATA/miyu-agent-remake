@@ -1790,6 +1790,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-perf"
+version = "0.0.0"
+dependencies = [
+ "miyu-ipc",
+ "miyu-kernel",
+ "miyu-store",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "miyu-pipe"
 version = "0.0.0"
 dependencies = [

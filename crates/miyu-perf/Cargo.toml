@@ -1,0 +1,27 @@
+[package]
+name = "miyu-perf"
+description = "量尺：拉起 release 构建的真 miyu，量启动、内存、长会话上的请求、追加并同步、二进制大小（施工 V-1）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "miyu-perf"
+path = "src/main.rs"
+
+[dependencies]
+# 连核心：找套接字、读本机令牌、等核心放开数据根的锁。
+miyu-ipc = { path = "../miyu-ipc" }
+# 追加并同步在进程里量：会话日志的事件。
+miyu-kernel = { path = "../miyu-kernel" }
+# 沙盒数据根，会话的目录，会话日志。
+miyu-store = { path = "../miyu-store" }
+# 协议是一行一个 JSON；原始数据也写成 JSON。
+serde_json = "1.0"
+# 假模型服务和连核心都是异步的，跑在同一个进程里，时刻可以直接比。
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+
+[lints]
+workspace = true
