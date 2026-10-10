@@ -63,7 +63,7 @@ async fn undo_puts_the_file_back_and_says_so_and_restore_brings_it_again() {
     assert_eq!(undone.code, 0, "{}", undone.err);
     assert_eq!(
         undone.out,
-        "· 撤销「改一下」这一轮\n· 改回 a.txt\n    --- 她改完的\n    +++ 现在\n    @@ -1 +1 @@\n    -new\n    +old\n发下一句之前，可以用 miyu restore 恢复。\n"
+        "· 撤销「改一下」这一轮\n· 改回 a.txt\n    --- AI 改完的\n    +++ 现在\n    @@ -1 +1 @@\n    -new\n    +old\n发下一句之前，可以用 miyu restore 恢复。\n"
     );
     assert_eq!(undone.err, "", "结果走标准输出");
     assert_eq!(std::fs::read_to_string(&file).expect("在"), "old\n");
@@ -87,7 +87,7 @@ async fn a_file_changed_since_is_shown_with_its_diff() {
     assert_eq!(undone.code, 0, "有文件没动也是 0：{}", undone.err);
     assert_eq!(
         undone.out,
-        "· 撤销「改一下」这一轮\n· 改回 a.txt → 没动：之后又被改过\n    --- 她改完的\n    +++ 现在\n    @@ -1 +1 @@\n    -new\n    +someone\n发下一句之前，可以用 miyu restore 恢复。\n"
+        "· 撤销「改一下」这一轮\n· 改回 a.txt → 没动：之后又被改过\n    --- AI 改完的\n    +++ 现在\n    @@ -1 +1 @@\n    -new\n    +someone\n发下一句之前，可以用 miyu restore 恢复。\n"
     );
     assert_eq!(std::fs::read_to_string(&file).expect("在"), "someone\n");
 }

@@ -59,7 +59,7 @@
    3. 别的照下面走。
 1. 先照界面语言给主程序和 `ask`、`undo`、`restore`、`redo`、`compact`、`recap`、`rename`、`memory`（连同它的子命令，施工 R-3 再补）、`pkg`（连同它的子命令，施工 T-3）、`config`（连同它的八个子命令）、`login`、`logout`、`setup`、`sandbox`（连同它的 `setup`、`remove`）换上帮助页（clap 的 `override_help`；`rewind` 是 `undo` 的别名，用同一页），再解析参数。
 2. 解析参数，不对的：
-   1. 不认识的子命令：标准错误上说「没有 <名字> 这个子命令。想和她对话，用 miyu ask "…"」，退出码 2。不连核心，不拉起，什么都不发。
+   1. 不认识的子命令：标准错误上说「没有 <名字> 这个子命令。想和 AI 对话，用 miyu ask "…"」，退出码 2。不连核心，不拉起，什么都不发。
    2. `-h`、`--help`、`help`、`help <子命令>`：把那一页原样印在标准输出上，退出码 0。`-V`、`--version`：印 `miyu <版本>`，退出码 0。
    3. 别的：标准错误上说一句（下面「参数写错时」），退出码 2。
 3. 没写子命令（施工 9-3，`crates/miyu-cli/src/head.rs`）：标准输入、标准输出都是终端的，连上核心（没在跑就拉起）问 `config.get` 拿 `ui.head`（出厂 `tui`），照两层清单找这个编号的界面包（`kind = "ui"`、有 `[command]`），程序只找 `miyu` 旁边的，换成它、不带参数，退出码照它的。没有这个界面（没清单、不是界面、没有子命令）：标准错误上说没装哪一个、装了的界面有哪几个、`miyu config set ui.head <编号>` 换一个（一个都没装的说先用 `miyu ask`），退出码 1。有清单、程序不在旁边的（出厂带了终端的清单，程序随 M9；9-3 补）：说这个界面的程序叫什么、不在 `miyu` 旁边，后半句同上，退出码 1。「装了的界面」只算程序在 `miyu` 旁边的：只有清单的列出来也打不开。不在终端里（被脚本调、接管道）：把主程序的帮助页印在标准输出上，退出码 2，不连核心。
@@ -78,14 +78,14 @@
 用法：miyu <命令> [选项]
 
 命令：
-  ask <要说的话>        说一句话，打印她的回答
-  undo、rewind          撤掉最后一轮，把她改过的文件改回去
+  ask <要说的话>        说一句话，打印 AI 的回答
+  undo、rewind          撤掉最后一轮，把 AI 改过的文件改回去
   restore               发下一句之前，恢复最近一次撤销
   redo [话]             撤掉最后一轮，重新做；写了话的换成这句
   compact [要求]        把上下文压缩成摘要，可以附上要求
   recap                 一句话回顾：在做什么、做完了什么、卡在哪
   rename <标题>         给会话起名
-  memory [命令]         看她记了你什么，搜、记、改、忘、清空
+  memory [命令]         看 AI 记了你什么，搜、记、改、忘、清空
   pkg [命令]            看装了哪些软件包，装、卸
   config <命令>         看配置、改配置、信任项目配置
   check [文件]          查手写的文件有没有写错：配置、密钥、人格、预设、清单
@@ -99,7 +99,7 @@ ask 的选项：
   -c, --continue          接着上一次 miyu ask 开的会话说
   -s, --session <编号>    接着这个会话说
       --format text|json  text 给人看（默认），json 给脚本
-      --add-dir <目录>    多放行一个目录，她能读能写，可以写好几次
+      --add-dir <目录>    多放行一个目录，AI 能读能写，可以写好几次
       --file <文件>       附上一个文件，图片、PDF、文本都行，可以写好几次
       --timeout <时长>    最多等多久，到了就不等了：30s、10m、1h
       --from <名字>       别的 harness 用：写上它的名字，例如 claude-code
@@ -128,14 +128,14 @@ recap、rename 管的是上一次开的那个。
 Usage: miyu <command> [options]
 
 Commands:
-  ask <words>           Say something and print her answer
-  undo, rewind          Undo the last turn and restore the files she changed
+  ask <words>           Say something and print the AI's answer
+  undo, rewind          Undo the last turn and restore the files the AI changed
   restore               Bring back what the latest undo took
   redo [words]          Redo the last turn, or redo it with new words
   compact [words]       Compact the context into a summary
   recap                 Recap the session: goal, progress, blockers
   rename <title>        Give the session a title
-  memory [command]      See what she remembers; search, add, edit, forget, clear
+  memory [command]      What the AI remembers: search, add, edit, forget, clear
   pkg [command]         See installed packages; install, remove
   config <command>      See and change settings, trust a project config
   check [file]          Check config, secrets, personas, presets and packages
@@ -149,7 +149,7 @@ ask options:
   -c, --continue          Go on in the session the last miyu ask opened
   -s, --session <id>      Go on in this session
       --format text|json  text for people (default), json for scripts
-      --add-dir <dir>     Let her read and write this directory too; repeatable
+      --add-dir <dir>     The AI may read and write it too; repeatable
       --file <file>       Attach a file: image, PDF, text…; repeatable
       --timeout <time>    Stop waiting after this long: 30s, 10m, 1h
       --from <name>       For another harness: its name, e.g. claude-code
@@ -218,8 +218,8 @@ Examples:
 
 | 什么时候 | 中文 | 英文 |
 |---|---|---|
-| 不认识的子命令 | 没有 <名字> 这个子命令。想和她对话，用 miyu ask "…" | There is no <name> command. To talk to her, use miyu ask "…" |
-| 只敲了 `miyu` | 终端界面还没做好。想和她对话，用 miyu ask "…" | The terminal interface is not ready yet. To talk to her, use miyu ask "…" |
+| 不认识的子命令 | 没有 <名字> 这个子命令。想和 AI 对话，用 miyu ask "…" | There is no <name> command. To talk to the AI, use miyu ask "…" |
+| 只敲了 `miyu` | 终端界面还没做好。想和 AI 对话，用 miyu ask "…" | The terminal interface is not ready yet. To talk to the AI, use miyu ask "…" |
 
 - 引号是半角的 `"`，中间是省略号 `…`。
 - 帮助页、参数写错时的那一句，见上面「怎么走」。

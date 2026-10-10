@@ -237,21 +237,21 @@ fn left(language: Language, why: Leaving, waited: bool) -> String {
 #[test]
 fn another_harness_leaving_a_running_turn_says_it_keeps_going() {
     let said = |language, why| left(language, why, false);
-    assert!(said(Language::Chinese, Leaving::Pressed).ends_with("· 不等了，她那一轮还在接着跑\n"));
+    assert!(said(Language::Chinese, Leaving::Pressed).ends_with("· 不等了，AI 那一轮还在接着跑\n"));
     assert!(
-        said(Language::Chinese, Leaving::TimedOut).ends_with("· 等到时间了，她那一轮还在接着跑\n")
+        said(Language::Chinese, Leaving::TimedOut).ends_with("· 等到时间了，AI 那一轮还在接着跑\n")
     );
     assert!(
         said(Language::English, Leaving::Pressed)
-            .ends_with("· Stopped waiting; her turn keeps going\n")
+            .ends_with("· Stopped waiting; the AI's turn keeps going\n")
     );
     assert!(
         said(Language::English, Leaving::TimedOut)
-            .ends_with("· Time is up; her turn keeps going\n")
+            .ends_with("· Time is up; the AI's turn keeps going\n")
     );
     // 她那一轮结束了、在等子代理：照等子代理时的说法。
     assert!(
         left(Language::Chinese, Leaving::Pressed, true)
-            .ends_with("· 不等了，子代理还在后台跑，下次 miyu ask -c 时她会看到结果\n")
+            .ends_with("· 不等了，子代理还在后台跑，下次 miyu ask -c 时 AI 会看到结果\n")
     );
 }

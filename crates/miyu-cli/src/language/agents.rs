@@ -32,9 +32,9 @@ impl Language {
     pub(crate) fn stopped_waiting(&self) -> String {
         match self {
             Language::Chinese => {
-                "· 不等了，子代理还在后台跑，下次 miyu ask -c 时她会看到结果".to_string()
+                "· 不等了，子代理还在后台跑，下次 miyu ask -c 时 AI 会看到结果".to_string()
             }
-            Language::English => "· Stopped waiting; the subagents keep running, and she will see their results at the next miyu ask -c".to_string(),
+            Language::English => "· Stopped waiting; the subagents keep running, and the AI will see their results at the next miyu ask -c".to_string(),
         }
     }
 

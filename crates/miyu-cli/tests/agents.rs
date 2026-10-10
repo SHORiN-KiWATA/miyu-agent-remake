@@ -314,7 +314,7 @@ async fn ctrl_c_while_waiting_leaves_and_the_late_report_is_only_recorded() {
     assert_eq!(code, 3, "{err}");
     assert_eq!(
         screen,
-        "↗ 派子代理 查 A · 派出去了：j1\n\n派出去了。\n· 等 1 个子代理回报…（按 Ctrl+C 不等了）\n· 输入 200 · 命中缓存 80（40%）· 输出 20\n· 不等了，子代理还在后台跑，下次 miyu ask -c 时她会看到结果\n"
+        "↗ 派子代理 查 A · 派出去了：j1\n\n派出去了。\n· 等 1 个子代理回报…（按 Ctrl+C 不等了）\n· 输入 200 · 命中缓存 80（40%）· 输出 20\n· 不等了，子代理还在后台跑，下次 miyu ask -c 时 AI 会看到结果\n"
     );
     // 头走了才回报：只记下，不叫醒她。
     let main = home.oneshot().await;

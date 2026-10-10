@@ -7,8 +7,9 @@
 //! 2. `start`、`stop`、`restart` 调 `extension.enable`、`disable`、`restart`，`status` 调 `extension.status` 取 [`PACKAGE`]
 //!    那一个。核心拒绝的照核心的原话说（它已经照连接的语言说了），退出码 1。核心那边没有这个包：[`Report::Missing`]，退出码 1。
 //! 3. 照那一个说（[`describe`]）：`start`、`restart` 先说一句做了什么，再说它这时的样子；`stop` 只说关了；`status` 说它的样子，
-//!    在跑的、状态文件（`crate::status_file`）的进程号对得上的，再说 NapCat、NapCat 那边的地址，接一句设置和状态在网页的软件
-//!    后台（施工 O-28 下，「施工时定的」第 169 条）。
+//!    在跑的、状态文件（`crate::status_file`）的进程号对得上的，再说 NapCat、NapCat 那边的地址（施工 O-28 下）。`start`、
+//!    `status` 末尾一律接一句设置和状态在网页里、用 `miyu onebot web` 打开（[`Report::Page`]，施工 O-28 补，「施工时定的」
+//!    第 174 条）：关着、停下了的也说，人要去那里设令牌、改端口；`restart` 不说。
 //!
 //! 说的印在标准输出上，出错的在标准错误上。
 
@@ -87,7 +88,7 @@ pub enum Report {
     NoNapcat,
     /// NapCat 那边的地址：实际听的端口（施工 O-28 下：原来连着网页的地址一起说）。
     Listen(u64),
-    /// 设置和状态在网页的软件后台（施工 O-28 下）：跟在 [`Report::Listen`] 后面说。
+    /// 设置和状态在网页里、用 `miyu onebot web` 打开（施工 O-28 下；O-28 补改了说法）：`start`、`status` 说完跟上。
     Page,
 }
 
@@ -168,6 +169,9 @@ pub async fn control(
     if which != Control::Stop {
         lines.extend(describe(&entry, status_file::read(root).as_ref()));
     }
+    if matches!(which, Control::Start | Control::Status) {
+        lines.push(Line::Say(Report::Page));
+    }
     for line in lines {
         match line {
             Line::Say(report) => say(out, &texts.report(&report)),
@@ -226,7 +230,7 @@ fn halt(entry: &Value) -> Halt {
     }
 }
 
-/// 状态文件里的 NapCat、NapCat 那边的地址，接着设置在哪那一句；读不懂的不说。
+/// 状态文件里的 NapCat、NapCat 那边的地址；读不懂的不说。
 fn napcat(board: &Value) -> Vec<Report> {
     let napcat = &board["napcat"];
     let Some(connected) = napcat["connected"].as_bool() else {
@@ -250,7 +254,7 @@ fn napcat(board: &Value) -> Vec<Report> {
             }
         }
     };
-    vec![first, Report::Listen(listen), Report::Page]
+    vec![first, Report::Listen(listen)]
 }
 
 /// 印一行；印不出来也没有别处可说了。

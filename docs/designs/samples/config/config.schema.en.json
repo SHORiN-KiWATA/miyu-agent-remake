@@ -48,14 +48,14 @@
       "properties": {
         "extract_idle": {
           "default": "3m",
-          "description": "Once the conversation has been quiet this long, she turns what is worth keeping from the new part into memories. Allowed: a length of time from 1m to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect next turn.",
+          "description": "Once the conversation has been quiet this long, the AI turns what is worth keeping from the new part into memories. Allowed: a length of time from 1m to 1h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect next turn.",
           "pattern": "^[0-9]+[smh]?$",
           "title": "Wait before organizing memories",
           "type": "string"
         },
         "extract_turns": {
           "default": 2,
-          "description": "She organizes only after at least this many turns since the last time. Allowed: a whole number from 1 to 100. Only in the system config or personal settings. Takes effect next turn.",
+          "description": "The AI organizes only after at least this many turns since the last time. Allowed: a whole number from 1 to 100. Only in the system config or personal settings. Takes effect next turn.",
           "maximum": 100,
           "minimum": 1,
           "title": "Turns before organizing",
@@ -63,7 +63,7 @@
         },
         "merge_every": {
           "default": "24h",
-          "description": "After this long she goes over new and older memories together: drops repeats and outdated ones, and writes a summary of what she knows about you. Allowed: a length of time from 1h to 720h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect next turn.",
+          "description": "After this long the AI goes over new and older memories together: drops repeats and outdated ones, and writes a summary of what it knows about you. Allowed: a length of time from 1h to 720h, written like 30s, 10m or 1h. Only in the system config or personal settings. Takes effect next turn.",
           "pattern": "^[0-9]+[smh]?$",
           "title": "How often to consolidate memories",
           "type": "string"
@@ -260,7 +260,7 @@
           "title": "Token"
         },
         "whitelist": {
-          "description": "People who can chat with her in private, whose friend requests are accepted, who are not rate-limited or held off while she sleeps, and whom she answers directly in groups. Write each as qq:<QQ number>, for example qq:20017. Allowed: a list of text of at most 128 characters. Only in the system config. Takes effect immediately.",
+          "description": "People who can chat with the AI in private, whose friend requests are accepted, who are not rate-limited or held off while the AI sleeps, and who get a direct reply when they address the AI in groups. Write each as qq:<QQ number>, for example qq:20017. Allowed: a list of text of at most 128 characters. Only in the system config. Takes effect immediately.",
           "items": {
             "maxLength": 128,
             "minLength": 1,
@@ -276,7 +276,7 @@
       "properties": {
         "start_read_only": {
           "default": false,
-          "description": "When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on. Allowed: true or false. Only in the system config, personal settings or a project config. Applies to new sessions.",
+          "description": "When on, new sessions begin read-only. The AI can look around and plan, and you turn read-only off when files should change. A project config can only turn it on. Allowed: true or false. Only in the system config, personal settings or a project config. Applies to new sessions.",
           "title": "Start new sessions read-only",
           "type": "boolean"
         }
@@ -297,7 +297,7 @@
       "additionalProperties": {
         "properties": {
           "description": {
-            "description": "One line she sees after the pool name when she starts a subagent. Write it in English. Allowed: one line of English, at most 60 characters. Only in the system config or personal settings. Applies to new sessions.",
+            "description": "One line the AI sees after the pool name when it starts a subagent. Write it in English. Allowed: one line of English, at most 60 characters. Only in the system config or personal settings. Applies to new sessions.",
             "maxLength": 60,
             "minLength": 1,
             "title": "Description for the model",
@@ -322,7 +322,7 @@
           },
           "subagent": {
             "default": false,
-            "description": "When on, she can pick this pool for a subagent in new sessions. It is listed only once it has members. Allowed: true or false. Only in the system config or personal settings. Applies to new sessions.",
+            "description": "When on, the AI can pick this pool for a subagent in new sessions. It is listed only once it has members. Allowed: true or false. Only in the system config or personal settings. Applies to new sessions.",
             "title": "Subagents can pick it",
             "type": "boolean"
           }

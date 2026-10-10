@@ -1,5 +1,5 @@
 //! 订阅哪一个流、订阅会话的事件流（`docs/blueprint/protocol.md`「`subscribe`、`unsubscribe`」「补发」）：施工 9-4 补从
-//! `connection.rs` 挪出来（那一份到了 500 行）。
+//! `connection.rs` 挪出来（那一份到了 500 行）。会话的视图流（施工 9-8 下）也在这里订。
 
 use std::sync::Arc;
 
@@ -11,8 +11,10 @@ use miyu_kernel::id::SessionId;
 use miyu_session::Handle;
 
 use crate::Core;
+use crate::hello::Shaken;
 use crate::refusal::Refusal;
-use crate::subscriptions::Subscriptions;
+use crate::subscriptions::{Subscriptions, Target, View};
+use crate::view::status::Fixed;
 use crate::wire::Request;
 
 /// `subscribe`、`unsubscribe` 的参数。
@@ -27,6 +29,8 @@ struct StreamParams {
 pub(super) enum Stream {
     /// 一个会话的事件流。
     Events(SessionId),
+    /// 一个会话的视图流（施工 9-8 下）。
+    View(SessionId),
     /// 配置的推送（施工 8-4）。
     Config,
     /// 会话列表的推送（施工 9-5）。
@@ -52,10 +56,48 @@ async fn created_of(
     }
 }
 
+/// `subscribe`：照 `stream` 订阅哪一个流，交回回应和它经哪个订阅写出去。`shaken` 是握手时记下的：配置、扩展的状态、视图流
+/// 照它挑语言。
+pub(super) async fn subscribe(
+    core: &Arc<Core>,
+    subscriptions: &mut Subscriptions,
+    request: &Request,
+    shaken: Option<Shaken>,
+    out: &mpsc::Sender<String>,
+) -> (Result<Value, Refusal>, Option<Target>) {
+    let session_reply = |done: Result<(Value, Option<SessionId>), Refusal>| match done {
+        Ok((result, target)) => (Ok(result), target.map(Target::Session)),
+        Err(refusal) => (Err(refusal), None),
+    };
+    match (stream_of(request), shaken) {
+        (Ok(Stream::Config), _) => {
+            let system = shaken.map_or("en", Shaken::system);
+            subscriptions.add_config(core, system, out);
+            (Ok(json!({})), None)
+        }
+        (Ok(Stream::Sessions), _) => match subscriptions.add_sessions(core, out).await {
+            Ok(result) => (Ok(result), Some(Target::Sessions)),
+            Err(refusal) => (Err(refusal), None),
+        },
+        (Ok(Stream::Extensions), Some(shook)) => {
+            let listed = subscriptions.add_extensions(core, shook, out);
+            (Ok(listed), Some(Target::Extensions))
+        }
+        (Ok(Stream::Events(session)), _) => {
+            session_reply(events(core, subscriptions, request, session, out).await)
+        }
+        (Ok(Stream::View(session)), Some(shook)) => {
+            session_reply(view(core, subscriptions, session, shook, out).await)
+        }
+        (Ok(Stream::Extensions | Stream::View(_)), None) => (Err(Refusal::HELLO_FIRST), None),
+        (Err(refusal), _) => (Err(refusal), None),
+    }
+}
+
 /// 订阅会话的事件流：没在跑的照样先载入；已经订阅着的，还是那一个。回应带会话的限额（施工 6-3 补）、会话接下来请求的模型
 /// （施工 8-10，一个都没有的不写）：订阅着的也从会话表拿，在跑的直接用，不多载入。写了 `after` 的，先补之前的事件（[`subscribe_after`]）。交回回应，和回应经哪个订阅写出去：
 /// 补了的经新的订阅，排在补的后面；别的直接写。
-pub(super) async fn subscribe(
+async fn events(
     core: &Arc<Core>,
     subscriptions: &mut Subscriptions,
     request: &Request,
@@ -64,12 +106,103 @@ pub(super) async fn subscribe(
 ) -> Result<(Value, Option<SessionId>), Refusal> {
     let after = after_of(request)?;
     let handle = core.sessions.get(core, &session).await?.handle;
+    let mut reply = head(core, &handle, &session).await;
+    if let Some(after) = after {
+        let (upto, current) =
+            subscribe_after(core, subscriptions, &handle, &session, after, out).await?;
+        reply["upto"] = json!(upto);
+        now(core, &mut reply, current.as_ref());
+        return Ok((reply, Some(session)));
+    }
+    let current = match subscriptions.has(&session) {
+        // 还是那一个（第 2 条）：不另起订阅，另要一份这一刻的。
+        true => handle.current().await.ok(),
+        false => {
+            // 原来是视图流的，先拿掉它（施工 9-8 下）：等它放完交给它的回应。
+            drop(subscriptions.take(&session).await);
+            let Ok(subscription) = handle.subscribe().await else {
+                core.sessions.forget(&session).await;
+                return Err(Refusal::STOPPED);
+            };
+            let current = subscription.current().cloned();
+            subscriptions.add(session, subscription, Vec::new(), out.clone());
+            current
+        }
+    };
+    now(core, &mut reply, current.as_ref());
+    Ok((reply, None))
+}
+
+/// 订阅会话的视图流（施工 9-8 下，`view.md`「视图流」）：总是换一个新的。和事件流的回应一样带限额、模型、人格、预设、待办、
+/// 「当前的」几格，另带最新一页的条目（同 `view.page {view: true}`，字照这个连接的语言）。那一页和新的订阅在会话 actor 的
+/// 同一步里拿，之后的推送接着喂同一台投影，不重不漏。回应经新的订阅写出去，排在所有推送前面。
+async fn view(
+    core: &Arc<Core>,
+    subscriptions: &mut Subscriptions,
+    session: SessionId,
+    shaken: Shaken,
+    out: &mpsc::Sender<String>,
+) -> Result<(Value, Option<SessionId>), Refusal> {
+    let handle = core.sessions.get(core, &session).await?.handle;
+    let mut reply = head(core, &handle, &session).await;
+    let owner = core
+        .sessions
+        .owner(core, &session)
+        .await
+        .ok_or(Refusal::NOT_FOUND)?;
+    let old = subscriptions.take(&session).await;
+    let Ok((subscription, backlog)) = handle.subscribe_after(0).await else {
+        core.sessions.forget(&session).await;
+        return Err(Refusal::STOPPED);
+    };
+    drop(old);
+    let events = backlog.read().await.map_err(|error| {
+        tracing::warn!(target: "miyu::endpoint", session = session.as_str(), error = %error, "view not read");
+        Refusal::BROKEN
+    })?;
+    let current = subscription.current().cloned();
+    let language = shaken.now(core).language;
+    let resources = core.resources.clone();
+    let blobs = miyu_store::blob::Blobs::new(core.root.blobs(&owner));
+    let (page, projector) = tokio::task::spawn_blocking(move || {
+        crate::view::texts(&resources, language)
+            .map(|texts| crate::view::newest(&events, texts, blobs))
+    })
+    .await
+    .map_err(|_| Refusal::INTERNAL)??;
+    // 那一页的 `jobs`（切点前派出、这一页报完的）条目里已经写了；回应的 `jobs` 是「当前的」在跑的任务（[`now`]）。
+    if let (Some(reply), Value::Object(mut page)) = (reply.as_object_mut(), page) {
+        page.remove("jobs");
+        reply.extend(page);
+    }
+    now(core, &mut reply, current.as_ref());
+    // 会话状态（施工 9-8 补上）：人格、预设照回应里已经读出来的。
+    let fixed = Fixed {
+        persona: reply.get("persona").cloned(),
+        preset: reply.get("preset").cloned(),
+    };
+    let view = View::new(
+        Arc::clone(core),
+        shaken,
+        language,
+        projector,
+        handle.clone(),
+        fixed,
+        current,
+    );
+    reply["status"] = view.status().clone();
+    subscriptions.add_view(session.clone(), subscription, view, out.clone());
+    Ok((reply, Some(session)))
+}
+
+/// 两种流的回应都带的：会话的限额、接下来请求的模型、人格、预设、待办。
+async fn head(core: &Core, handle: &Handle, session: &SessionId) -> Value {
     let mut reply = json!({"limits": handle.limits()});
     if let Some(model) = crate::models::next(&handle.next()) {
         reply["model"] = model;
     }
     // 会话用哪个人格（施工 P-1 下）、哪个预设（施工 P-2 上）：照日志第一条 `session.created` 读，以前的日志没有的不写。
-    if let Some(created) = created_of(core, &session).await {
+    if let Some(created) = created_of(core, session).await {
         if let Some(persona) = created.persona {
             reply["persona"] = json!(persona);
         }
@@ -82,28 +215,7 @@ pub(super) async fn subscribe(
     if !todos.is_empty() {
         reply["todos"] = json!(todos);
     }
-    if let Some(after) = after {
-        let (upto, current) =
-            subscribe_after(core, subscriptions, &handle, &session, after, out).await?;
-        reply["upto"] = json!(upto);
-        now(core, &mut reply, current.as_ref());
-        return Ok((reply, Some(session)));
-    }
-    let current = match subscriptions.has(&session) {
-        // 还是那一个（第 2 条）：不另起订阅，另要一份这一刻的。
-        true => handle.current().await.ok(),
-        false => {
-            let Ok(subscription) = handle.subscribe().await else {
-                core.sessions.forget(&session).await;
-                return Err(Refusal::STOPPED);
-            };
-            let current = subscription.current().cloned();
-            subscriptions.add(session, subscription, Vec::new(), out.clone());
-            current
-        }
-    };
-    now(core, &mut reply, current.as_ref());
-    Ok((reply, None))
+    reply
 }
 
 /// 回应里「当前的」三格（施工 9-6 上）：这个会话累计的用量和计数（`usage`，写法同 `usage.query` 的一行），人设的权限
@@ -164,6 +276,12 @@ pub(super) fn stream_of(request: &Request) -> Result<Stream, Refusal> {
         ("events", Some(session)) => SessionId::parse(&session)
             .map(Stream::Events)
             .map_err(|_| Refusal::BAD_PARAMS),
+        // 视图流总是从最新一页起（施工 9-8 下）：不带 `after`。
+        ("view", Some(session)) if request.params.get("after").is_none() => {
+            SessionId::parse(&session)
+                .map(Stream::View)
+                .map_err(|_| Refusal::BAD_PARAMS)
+        }
         ("config", None) if request.params.get("after").is_none() => Ok(Stream::Config),
         ("sessions", None) if request.params.get("after").is_none() => Ok(Stream::Sessions),
         ("extensions", None) if request.params.get("after").is_none() => Ok(Stream::Extensions),

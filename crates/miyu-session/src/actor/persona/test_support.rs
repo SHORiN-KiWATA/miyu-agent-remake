@@ -63,7 +63,7 @@ pub(super) fn catalog() -> Catalog {
     .expect("合写法")
 }
 
-/// 装了的功能（施工 F-3 上）：基础系统、人格记忆、人设防失忆提醒各算一个，编号和包一样。
+/// 装了的功能（施工 F-3 上）：基础系统、人格记忆、人设遵循提醒各算一个，编号和包一样。
 pub(super) fn installed() -> Features {
     Features::new(
         ["basesystem", "memory", "roleplay"]

@@ -129,7 +129,7 @@ fn the_undo_lines_are_asides_without_the_restore_hint() {
     assert_eq!(out, "");
     assert_eq!(
         err,
-        "· 撤销最后一轮，重新做\n· 撤掉了压缩，上下文回到了压缩前\n· 改回 a.rs → 没动：之后又被改过\n    --- 她改完的\n    +++ 现在\n    @@ -1 +1 @@\n    -a\n    +b\n"
+        "· 撤销最后一轮，重新做\n· 撤掉了压缩，上下文回到了压缩前\n· 改回 a.rs → 没动：之后又被改过\n    --- AI 改完的\n    +++ 现在\n    @@ -1 +1 @@\n    -a\n    +b\n"
     );
 }
 

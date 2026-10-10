@@ -78,7 +78,7 @@ fn each_kind_of_mistake_has_one_sentence() {
     // 不认识的子命令照 22 第二节的那一句。
     assert_eq!(
         said(&["hello"], Language::Chinese),
-        "没有 hello 这个子命令。想和她对话，用 miyu ask \"…\""
+        "没有 hello 这个子命令。想和 AI 对话，用 miyu ask \"…\""
     );
 }
 
@@ -164,7 +164,7 @@ fn nested_commands_have_their_own_sentences() {
     // 最外面那一层写错的，照旧那一句。
     assert_eq!(
         said(&["sandboxx"], Language::English),
-        "There is no sandboxx command. To talk to her, use miyu ask \"…\""
+        "There is no sandboxx command. To talk to the AI, use miyu ask \"…\""
     );
 }
 

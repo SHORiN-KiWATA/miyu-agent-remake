@@ -8,7 +8,7 @@
 
 不搬的：怎么画（布局、颜色、图标、动效、预览几行、滚动、同一时刻只转一处），人亲手点开收起，底栏、运行状态行的词库、侧边栏，预览工作区放哪些文件，待办（另有流）。
 
-分五步（主会话定）：9-8 上 投影本身；9-8 中 `view.page` 交条目、握手、`view.detail` 多交的；9-8 下 视图流；9-8 补 会话状态 `view.status`；9-8 再补 Markdown 解析。
+分步（主会话定）：9-8 上 投影本身；9-8 中 `view.page` 交条目、握手、`view.detail` 多交的；9-8 下 视图流；9-8 补 会话状态 `view.status`（补上本会话的，补下整棵会话树，2026-10-10 和两个头对过）。原来排的 9-8 再补「Markdown 由核心解析」拿掉了：核心只交 Markdown 原文，解析和渲染都归头（2026-10-10 项目主人定：核心保持输出文字）；两个头照一页共用的约定解析，理解才一致。
 
 ### 在哪
 
@@ -19,8 +19,12 @@
 | `crates/miyu-view/src/summary.rs`、`title.rs`、`estimate.rs`、`explain.rs`、`words.rs` | 收起那一行、标题那一句、照参数估的行数、出错说明；给人看的字的接口（`Words`、`Texts`）和工具分类（`Kinds`） |
 | `crates/miyu-view/tests/` | 照内核的替身跑真会话，每个测试都对照视图流和翻页最后一样（`support/mod.rs` 的 `same`）；`random.rs` 三百份随机剧本；`notices.rs` 另有切在派任务之后的一页（9-8 中） |
 | `crates/miyu-endpoint/tests/view_entries.rs`、`view_page.rs`、`view_detail.rs` | 真核心走一遍（9-8 中）：握手报版本；交条目的页、边界照旧、字照连接的语言；更早派出的任务照样有标题；调用的结果原文、压缩的摘要 |
+| `crates/miyu-view/tests/status.rs`（9-8 补上） | 闲着、在跑、在等人（确认、提问到了结）；正在写、在调工具；重试和都在冷却出现又消失；上下文用了多少；任务从派出到了结、停了的为什么 |
+| `crates/miyu-endpoint/tests/view_status.rs`（9-8 补上） | 订阅回应带整份状态；跑一轮推 `running` 再推 `idle`、用量跟着变、没变的不推；切权限也推 |
+| `crates/miyu-endpoint/tests/view_stream.rs`、`src/subscriptions/view/tests.rs` | 视图流（9-8 下）：回应排在推送前面、推送拼到那一页上和翻页一样、`turn.started` 另推；改了语言之后的照新的字；带 `after` 的拒、退订了不推；接着的 `view.append` 并成一条 |
 | `resources/core/view.json` | 工具算哪一类（命令、编辑、子代理、留言）、参数里哪一格是会话编号：数据，不登记 |
-| `crates/miyu-endpoint/src/view/` | `view.page` 多交条目、`view.detail` 多交的（9-8 中，`project.rs` 接上投影要的字和改了多少行）；`subscribe` 的视图流（9-8 下） |
+| `crates/miyu-endpoint/src/view/` | `view.page` 多交条目、`view.detail` 多交的（9-8 中，`project.rs` 接上投影要的字和改了多少行）；视图流订阅时的最新一页（9-8 下，`newest`） |
+| `crates/miyu-endpoint/src/subscriptions/view.rs`、`connection/streams.rs` 的 `subscribe_view` | 视图流（9-8 下）：订阅、转发、合并 `view.append`、换字 |
 | `resources/core/human/<语言>.json` | `said` 的 `view/…`：收起那一行的字（照网页演示 `timeline.summary` 搬来，两个头一字不差）、准备中的显示名、「会话 短编号」「父会话」、出错说明（照终端的 `error_classes`、`status_hints`） |
 
 ### 对外的样子
@@ -103,7 +107,30 @@
 | `view.hidden {session, ids, hidden}` | 撤销、恢复：这几条藏起、显示回来，编号不删 |
 | `view.remove {session, id}` | 拿掉一条：流式时开了、落了盘的回复里却没有的块（出错时去掉的、打断时丢掉的半截工具调用；空了的那一段跟着拿掉），一轮结束时还在压的压缩（被打断了，翻页本来就没有它）。正文、思考出了字才开条目，空块不会推 |
 
-慢的头：同一条的 `view.append` 先合并；还放不下推 `resync`，头重新订阅拿新的一页（`04-核心协议.md` 第七节）。
+慢的头：同一条的 `view.append` 先合并；还放不下推 `resync`（`stream: "view"`），头重新订阅拿新的一页（`04-核心协议.md` 第七节）。订阅时的那一页和订阅在会话 actor 的同一步里拿（`subscribe_after(0)` 交回的订阅和日志），回应排在所有推送前面；之后的推送接着喂同一台投影（9-8 下，`crates/miyu-endpoint/src/subscriptions/view.rs`）。连接的 `ui.language` 改了，下一批起换字（`Projector::retext`）。
+
+### 会话状态（施工 9-8 补上，2026-10-10 和两个头对过）
+
+视图流订阅的回应带一格 `status`；之后一批推送算完，和上一份比，变了推整份 `view.status {session, status}`，不推增量、不按秒推。视图流不推原始事件，在跑没跑、在等什么都看它。
+
+| 格 | 说明 |
+|---|---|
+| `state` | `idle`、`running`、`waiting`（有没了结的确认、提问） |
+| `waiting` | `[{what: "approve"\|"ask", entry, call}]`：没了结的确认、提问，照先后；要确认的工具和参数、题目在那一步的条目里（`args`、`approval`）。没有的不写 |
+| `since` | 这一轮开始的时刻；用时由头算。没在跑的不写 |
+| `doing` | 在跑时正在做什么：`{what: "thinking"\|"writing"\|"tool", entry}`；`{what: "retrying", attempt, limit, at, class, message, status?, failover?}`（`at` 是再试的时刻，照 `status` 瞬时事件）；`{what: "compacting", entry, written, expected}`。没在跑的不写 |
+| `context` | `{window?, compaction_line?, used?}`：限额同订阅回应的 `limits`；`used` 是最近一次主请求的输入（三项加起来），压完的照 `compaction.done` 的 `after`，压缩落了盘还没有新请求的不写 |
+| `speed` | `{output, ms}`：最近一次主请求的输出 token、首字到结束的毫秒数（没报首字的照整次）；每秒多少由头算 |
+| `cooling_until` | 候选都在冷却时最早恢复的时刻（照 `class: cooling` 的重试算），说成了一次就不写。只认订阅以后看到的 |
+| `usage` | 本会话累计，写法同 `usage.query` 的一行（含子代理的随 9-8 补下） |
+| `model` | 同订阅回应的 `model`（带思考强度 `effort`） |
+| `permission`、`todos`、`workspace` | 同订阅回应的那几格 |
+| `persona`、`preset` | 同订阅回应的那几格，订阅时定下 |
+| `jobs` | 这个会话直接派出去的任务：在跑的和最近做完的 20 个，照派出的先后。一项 `{job, what, title, state, started, ended?, session?, command?, exit_code?, signal?, why?}`：`what` 是 `command`、`agent`；`state` 是 `running`、`done`（命令退出码 0；子代理那一轮结束了，还能留言叫醒，叫醒了回到 `running`）、`failed`（退出码不是 0、被信号杀了）、`stopped`（`why` 是 `stopped` 人停或她自己停的、`undone` 撤销时停的、`restarted` 有计划重启时停的）、`aborted`（核心崩了，断了）。翻页、订阅时切点前派出、了结的照日志补上 |
+
+1. 投影算得出的那一半（`state`、`waiting`、`since`、`doing`、`used`、`speed`、`cooling_until`、`jobs`）在 `miyu-view` 的 `projector/status.rs`，喂事件时顺手记；别的向会话要，在 `miyu-endpoint` 的 `view/status.rs` 拼。
+2. 一批里有落了盘的事件才向会话 actor 重要一份「当前的」（用量、权限、工作区）；只有增量的不打扰它。
+3. 整棵会话树（子树里在跑几个、每个任务在做什么、每一支的用量、自己又派了几个）随 9-8 补下。
 
 ### 怎么走
 
@@ -117,6 +144,6 @@
 
 ### 还没有的
 
-- 会话状态（`view.status`：在跑、正在做什么、用时、上下文用量、后台任务表），9-8 补。在那以前，视图流里照原样另转发 `turn.started`、`turn.ended`、`status` 这三种事件（`event` 推送，同事件流），头照它转第一个字之前的圈、写重试。
-- Markdown 解析，9-8 再补。
+- 会话状态的整棵会话树（`running_deep`、每个任务的 `doing`、每一支的用量、自己又派了几个；含子代理的累计用量），9-8 补下。
+- 两个头共用的 Markdown 约定（公式分隔符、认哪些 HTML、没写完的块怎么算、本机路径），主会话起草。
 - 运行状态行的词库挂在人格上，等项目主人定。

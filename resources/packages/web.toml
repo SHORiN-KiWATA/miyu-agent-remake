@@ -4,7 +4,7 @@
 kind = "ui"
 protocol = [1, 1]
 name = { en = "Web interface", zh = "网页界面", ja = "ウェブ画面" }
-summary = { en = "Chat with her and change settings in the browser", zh = "在浏览器里和她对话、改配置", ja = "ブラウザで会話し、設定を変える" }
+summary = { en = "Chat with the AI and change settings in the browser", zh = "在浏览器里和 AI 对话、改配置", ja = "ブラウザで会話し、設定を変える" }
 
 [command]
 name = "web"

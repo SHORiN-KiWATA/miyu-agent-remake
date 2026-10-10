@@ -2,10 +2,10 @@
 //! 核心照出厂的清单拉起硬链接在测试程序旁边的 `miyu-onebot`，`start`、`stop`、`restart`、`status` 是真的程序。`start` 以后
 //! NapCat 连得进来、终端管理员的私聊照旧来回，`status` 说在跑、NapCat 连着；`stop` 以后桥自己退出、端口关了；桥被杀掉，核心拉起新的
 //! 一个，NapCat 重连得上；端口被占，核心停下，`status` 说是配置错、带出「端口被占」那一句；关着的不能 `restart`。核心改了桥的
-//! 配置（施工 O-20）：令牌、NapCat 的端口不重启当场换，令牌删了一律 401。`status` 在跑时说 NapCat 那边的地址，接一句设置和状态
-//! 在网页的软件后台（施工 O-28 下）。陌生人的私聊（「施工时定的」第 49 条，核心 O-4 下合了以后
-//! 补的）：核心把它归系统账号 `onebot`、造了会话，桥认出属主是自己，照旧不接；终端管理员的照常来回。不靠墙钟睡，等状态。挑的空端口
-//! 在桥起来以前被别人占了的，换一个从头再来（`support/ports.rs`）。
+//! 配置（施工 O-20）：令牌、NapCat 的端口不重启当场换，令牌删了一律 401。`status` 在跑时说 NapCat 那边的地址（施工 O-28 下）；
+//! `start`、`status` 末尾一律接一句设置和状态在网页里、用 `miyu onebot web` 打开（施工 O-28 补），`restart` 不说。陌生人的
+//! 私聊（「施工时定的」第 49 条，核心 O-4 下合了以后补的）：核心把它归系统账号 `onebot`、造了会话，桥认出属主是自己，照旧
+//! 不接；终端管理员的照常来回。不靠墙钟睡，等状态。挑的空端口在桥起来以前被别人占了的，换一个从头再来（`support/ports.rs`）。
 
 use std::time::Duration;
 
@@ -139,12 +139,17 @@ async fn start_lets_the_core_run_the_bridge_and_stop_closes_it() {
         let home = home(&script, listen);
         assert_eq!(
             ok(&home.root, &["status"]).await,
-            format!("{}\n", zh(&Report::Off))
+            format!("{}\n{}\n", zh(&Report::Off), zh(&Report::Page)),
+            "关着的也说设置在哪"
         );
         let started = ok(&home.root, &["start"]).await;
         assert!(
             started.starts_with(&format!("{}\n", zh(&Report::Started))),
             "{started}"
+        );
+        assert!(
+            started.ends_with(&format!("\n{}\n", zh(&Report::Page))),
+            "起好了说设置在哪：{started}"
         );
         let pid = bridge_up(&home.root, listen, None).await?;
         Ok((home, listen, pid))
@@ -178,7 +183,7 @@ async fn start_lets_the_core_run_the_bridge_and_stop_closes_it() {
     );
     assert_eq!(
         ok(&home.root, &["status"]).await,
-        format!("{}\n", zh(&Report::Off))
+        format!("{}\n{}\n", zh(&Report::Off), zh(&Report::Page))
     );
     let log = std::fs::read_to_string(home.root.state().join("logs").join("onebot.log"))
         .expect("桥写了运行日志");
@@ -236,6 +241,10 @@ async fn a_port_in_use_stops_it_and_status_says_why() {
         status.contains(&format!("  {port_in_use}\n")),
         "带出标准错误里「端口被占」那一句：{status}"
     );
+    assert!(
+        status.ends_with(&format!("\n{}\n", zh(&Report::Page))),
+        "停下了也说设置在哪：{status}"
+    );
     drop(taken);
     home.stop_extensions().await;
 }
@@ -260,6 +269,10 @@ async fn restarting_an_extension_that_is_off_is_refused_in_the_cores_words() {
         assert!(
             restarted.starts_with(&format!("{}\n", zh(&Report::Restarted))),
             "{restarted}"
+        );
+        assert!(
+            !restarted.contains(&zh(&Report::Page)),
+            "重启不说设置在哪：{restarted}"
         );
         bridge_up(&home.root, listen, Some(first)).await?;
         Ok(home)

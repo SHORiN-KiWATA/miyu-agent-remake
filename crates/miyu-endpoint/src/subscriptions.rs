@@ -11,6 +11,9 @@
 //! 带 `after` 订阅的（施工 3-8 六补），转发任务先把补发的那一截一条条放进写队列，再转推送、回应：订阅的回应也交给它，
 //! 排在补的后面。换掉原来那一个时，先等它把交给它的都放完、交回它的订阅（[`Subscriptions::take`]），补的才不和它的交错。
 //!
+//! 会话的视图流（施工 9-8 下，`subscriptions/view.rs`）占同一个位置：一个会话在一个连接上要么是事件流、要么是视图流，回应
+//! 一样经它写出去。
+//!
 //! 配置的推送另有一个订阅（施工 8-4，`subscriptions/config.rs`）：一个连接至多一个，`config.set` 的回应经它写出去。会话列表
 //! 的推送也是（施工 9-5，`subscriptions/sessions.rs`）：订阅的回应经它写出去，排在推送前面。扩展的状态的推送同会话列表（施工
 //! 9-4 补，`subscriptions/extensions.rs`）。
@@ -22,6 +25,7 @@ mod extension_config;
 mod extensions;
 mod later;
 mod sessions;
+mod view;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -40,6 +44,7 @@ use extension_config::ExtensionConfigForwarder;
 use extensions::ExtensionsForwarder;
 pub(crate) use later::Later;
 use sessions::SessionsForwarder;
+pub(crate) use view::View;
 
 /// 一个连接上的订阅：一个会话一个，配置的至多一个（施工 8-4）。
 #[derive(Debug, Default)]
@@ -72,6 +77,8 @@ pub(crate) enum Target {
 struct Forwarder {
     replies: mpsc::UnboundedSender<String>,
     pushing: Arc<AtomicBool>,
+    /// 是视图流（施工 9-8 下）：一个会话在一个连接上只有一个订阅，事件流和视图流互相换掉。
+    view: bool,
     /// 放完交回订阅：换一个新的时，旧的拿回来再放下，这个头一直算看着（施工 3-8 六补）。
     task: JoinHandle<Subscription>,
 }
@@ -82,11 +89,11 @@ impl Subscriptions {
         self.later.clone()
     }
 
-    /// 这个会话有没有还在推的订阅。掉了队、会话停了的，不算：头重新订阅，换一个新的。
+    /// 这个会话有没有还在推的事件流订阅。掉了队、会话停了的，不算：头重新订阅，换一个新的；视图流也不算，订阅事件流换掉它。
     pub(crate) fn has(&self, session: &SessionId) -> bool {
         self.live
             .get(session)
-            .is_some_and(|forwarder| forwarder.pushing.load(Ordering::Acquire))
+            .is_some_and(|forwarder| !forwarder.view && forwarder.pushing.load(Ordering::Acquire))
     }
 
     /// 订阅会话 `session`：起一个转发任务，先把补发的 `backlog` 照先后写进 `out`（不补的是空的），再写推送。原来有一个的，
@@ -111,9 +118,38 @@ impl Subscriptions {
         let forwarder = Forwarder {
             replies,
             pushing,
+            view: false,
             task,
         };
         // 旧的不掐：丢掉它交回应的那一头，它放完排着的就退。
+        drop(self.live.insert(session, forwarder));
+    }
+
+    /// 订阅会话 `session` 的视图流（施工 9-8 下）：起一个转发任务，先写订阅的回应（交给它的第一条回应，带着最新一页的条目），
+    /// 再把推送喂进 `view` 的投影、写成变化。原来有一个的，调之前先 [`Subscriptions::take`] 拿掉。
+    pub(crate) fn add_view(
+        &mut self,
+        session: SessionId,
+        subscription: Subscription,
+        view: View,
+        out: mpsc::Sender<String>,
+    ) {
+        let (replies, waiting) = self.later.open(session.clone());
+        let pushing = Arc::new(AtomicBool::new(true));
+        let task = tokio::spawn(view::forward(
+            session.clone(),
+            subscription,
+            view,
+            waiting,
+            out,
+            Arc::clone(&pushing),
+        ));
+        let forwarder = Forwarder {
+            replies,
+            pushing,
+            view: true,
+            task,
+        };
         drop(self.live.insert(session, forwarder));
     }
 

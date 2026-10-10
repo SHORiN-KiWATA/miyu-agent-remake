@@ -136,9 +136,9 @@ impl Language {
     /// 没有这个子命令。
     pub fn no_such_command(&self, name: &str) -> String {
         match self {
-            Language::Chinese => format!("没有 {name} 这个子命令。想和她对话，用 miyu ask \"…\""),
+            Language::Chinese => format!("没有 {name} 这个子命令。想和 AI 对话，用 miyu ask \"…\""),
             Language::English => {
-                format!("There is no {name} command. To talk to her, use miyu ask \"…\"")
+                format!("There is no {name} command. To talk to the AI, use miyu ask \"…\"")
             }
         }
     }

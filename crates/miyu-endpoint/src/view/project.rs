@@ -8,7 +8,7 @@ use miyu_kernel::id::ContentHash;
 use miyu_store::blob::Blobs;
 use miyu_store::human::Human;
 use miyu_store::resources::ResourceRoot;
-use miyu_view::{Entry, Face, Kinds, Lines, Projector, Texts, Words};
+use miyu_view::{Face, Kinds, Lines, Projector, Texts, Words};
 
 use crate::diffs;
 
@@ -72,17 +72,12 @@ pub(super) fn texts(resources: &ResourceRoot, language: &str) -> Result<Texts, U
     })
 }
 
-/// 这一页的条目：先照 `earlier`（切点前的日志）学派出去的任务，再把这一页的事件 `page` 喂一遍，取最后的样子。
-pub(super) fn entries(
-    texts: Texts,
-    blobs: Blobs,
-    earlier: &[Event],
-    page: &[&Event],
-) -> Vec<Entry> {
+/// 喂过这一页的投影：先照 `earlier`（切点前的日志）学派出去的任务，再把这一页的事件 `page` 喂一遍。
+pub(super) fn fed(texts: Texts, blobs: Blobs, earlier: &[Event], page: &[&Event]) -> Projector {
     let mut projector = Projector::new(Arc::new(texts), Some(Arc::new(BlobLines(blobs))));
     projector.learn(earlier);
     for event in page {
         projector.event(event);
     }
-    projector.entries().to_vec()
+    projector
 }

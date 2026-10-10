@@ -49,7 +49,7 @@ export const TEXTS = {
     "whitelist/bad-number": "号只能是数字，不以 0 开头",
     "whitelist/duplicate": "这个号重复了",
     "whitelist/empty": "还没有白名单成员。",
-    "whitelist/hint": "能私聊她，加她好友自动通过，不限流，睡觉时间里照样放行，群里冲她来的直接回。",
+    "whitelist/hint": "能私聊 AI，加 AI 好友自动通过，不限流，睡觉时间里照样放行，群里冲 AI 来的直接回。",
     "whitelist/number": "QQ 号",
     "whitelist/remove": "删",
     "whitelist/title": "白名单成员"
@@ -98,7 +98,7 @@ export const TEXTS = {
     "whitelist/bad-number": "Digits only, not starting with 0",
     "whitelist/duplicate": "This number is listed twice",
     "whitelist/empty": "No one on the whitelist yet.",
-    "whitelist/hint": "They can chat with her in private, their friend requests are accepted, no rate limit, even while she sleeps; in groups she answers them directly.",
+    "whitelist/hint": "They can chat with the AI in private, their friend requests are accepted, no rate limit, even while the AI sleeps; in groups the AI answers them directly.",
     "whitelist/number": "QQ number",
     "whitelist/remove": "Remove",
     "whitelist/title": "Whitelist"
@@ -147,7 +147,7 @@ export const TEXTS = {
     "whitelist/bad-number": "Digits only, not starting with 0",
     "whitelist/duplicate": "This number is listed twice",
     "whitelist/empty": "No one on the whitelist yet.",
-    "whitelist/hint": "They can chat with her in private, their friend requests are accepted, no rate limit, even while she sleeps; in groups she answers them directly.",
+    "whitelist/hint": "They can chat with the AI in private, their friend requests are accepted, no rate limit, even while the AI sleeps; in groups the AI answers them directly.",
     "whitelist/number": "QQ number",
     "whitelist/remove": "Remove",
     "whitelist/title": "Whitelist"

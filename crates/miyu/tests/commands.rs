@@ -28,7 +28,7 @@ fn an_unknown_command_is_refused_and_never_sent() {
     let said = String::from_utf8_lossy(&output.stderr);
     assert_eq!(
         said.trim_end(),
-        "没有 hello 这个子命令。想和她对话，用 miyu ask \"…\""
+        "没有 hello 这个子命令。想和 AI 对话，用 miyu ask \"…\""
     );
     assert!(output.stdout.is_empty());
     assert!(!home.root.run().join("socket").exists(), "没拉起核心");
@@ -38,7 +38,7 @@ fn an_unknown_command_is_refused_and_never_sent() {
     assert_eq!(output.status.code(), Some(2));
     assert_eq!(
         String::from_utf8_lossy(&output.stderr).trim_end(),
-        "There is no hello command. To talk to her, use miyu ask \"…\""
+        "There is no hello command. To talk to the AI, use miyu ask \"…\""
     );
 }
 

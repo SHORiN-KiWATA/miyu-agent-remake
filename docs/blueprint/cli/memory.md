@@ -92,7 +92,7 @@ m3   2026-10-07  用户养了两只猫（已作废：试一下）
 ```text
 用法：miyu memory [命令] [选项]
 
-看她记了你什么，搜、记、改、忘、清空、整理。不写命令就是 list。
+看 AI 记了你什么，搜、记、改、忘、清空、整理。不写命令就是 list。
 
 命令：
   list                    列出记下的，新的在前
@@ -101,7 +101,7 @@ m3   2026-10-07  用户养了两只猫（已作废：试一下）
   edit <编号> <话>        改一条，印出新的编号
   forget <编号>           忘掉一条
   clear session [<会话>]  清掉这个会话记下的；不写是上一次 miyu ask 开的
-  clear me                清掉她关于你的全部记忆
+  clear me                清掉 AI 关于你的全部记忆
   dream                   现在就整理：合掉重复的、改掉过时的、更新摘要
 
 选项：
@@ -120,7 +120,7 @@ m3   2026-10-07  用户养了两只猫（已作废：试一下）
 ```text
 Usage: miyu memory [command] [options]
 
-See what she remembers about you; search, add, edit, forget, clear,
+See what the AI remembers about you; search, add, edit, forget, clear,
 organize.
 Without a command it is list.
 
@@ -132,7 +132,7 @@ Commands:
   forget <id>             Forget one
   clear session [<id>]    Clear what this session remembered; default is
                           the session the last miyu ask opened
-  clear me                Clear everything she remembers about you
+  clear me                Clear everything the AI remembers about you
   dream                   Organize now: merge duplicates, fix stale ones,
                           refresh the summary
 

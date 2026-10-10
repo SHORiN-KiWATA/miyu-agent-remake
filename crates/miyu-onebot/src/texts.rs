@@ -1,7 +1,8 @@
 //! `miyu-onebot` 在标准错误上说给人听的字（`onebot.md` 第一条「样子」「出错」「给人看的字」）：字放在
 //! `resources/software/onebot/human/{zh,en,ja}.json`，照 [`Human::load`] 读（`store/resources.md`「怎么走」第 3 条），说法的
 //! 编号是 `software/onebot/<哪一句>`。这里只管挑哪一句、换进什么字段。`start`、`stop`、`restart`、`status`、`logs` 说的
-//! （施工 O-18）、`venue show` 说的和场所规则的问题说成话（施工 O-21）、限流满了发进群里的那一句（施工 O-23）也在这里。
+//! （施工 O-18）、`venue show` 说的和场所规则的问题说成话（施工 O-21）、限流满了发进群里的那一句（施工 O-23）、`web` 找不到
+//! `miyu` 的那一句（施工 O-28 补）也在这里。
 //!
 //! 说话的语言：握手以前照系统的语言（[`system_language`]；施工 O-20 起桥不读配置，不看 `ui.language`），握手以后照核心回的
 //! `language`。日文没有专门写的，`ja.json` 照英文写，和核心拒绝时的话一样（`protocol.md`「握手」`language`）。
@@ -81,6 +82,14 @@ impl Texts {
     /// 运行日志装不上（照样跑）。
     pub fn no_log(&self, reason: &str) -> String {
         self.say("no-log", &[("reason", reason.to_string())])
+    }
+
+    /// `web` 跑不了旁边的 `miyu`（施工 O-28 补）：`path` 是找的那个，`reason` 是系统说的原因。
+    pub fn no_miyu(&self, path: &str, reason: &str) -> String {
+        self.say(
+            "web/no-miyu",
+            &[("path", path.to_string()), ("reason", reason.to_string())],
+        )
     }
 
     /// 限流满了、别人冲她来时发进群里的那一句（施工 O-23，`onebot.md` 第一条「群里怎么叫她」第 7 条）：说话的是桥，不是她。

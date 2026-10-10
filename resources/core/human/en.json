@@ -7,11 +7,11 @@
       },
       "memory.extract_idle": {
         "name": "Wait before organizing memories",
-        "description": "Once the conversation has been quiet this long, she turns what is worth keeping from the new part into memories."
+        "description": "Once the conversation has been quiet this long, the AI turns what is worth keeping from the new part into memories."
       },
       "memory.extract_turns": {
         "name": "Turns before organizing",
-        "description": "She organizes only after at least this many turns since the last time."
+        "description": "The AI organizes only after at least this many turns since the last time."
       },
       "memory.organizer": {
         "name": "Memory organizer model",
@@ -19,7 +19,7 @@
       },
       "memory.merge_every": {
         "name": "How often to consolidate memories",
-        "description": "After this long she goes over new and older memories together: drops repeats and outdated ones, and writes a summary of what she knows about you."
+        "description": "After this long the AI goes over new and older memories together: drops repeats and outdated ones, and writes a summary of what it knows about you."
       },
       "memory.merge_sessions": {
         "name": "Chats before consolidating",
@@ -77,7 +77,7 @@
       },
       "permission.start_read_only": {
         "name": "Start new sessions read-only",
-        "description": "When on, new sessions begin read-only. She can look around and plan, and you turn read-only off when files should change. A project config can only turn it on."
+        "description": "When on, new sessions begin read-only. The AI can look around and plan, and you turn read-only off when files should change. A project config can only turn it on."
       },
       "models.chat": {
         "name": "Chat model",
@@ -109,11 +109,11 @@
       },
       "pools.<id>.subagent": {
         "name": "Subagents can pick it",
-        "description": "When on, she can pick this pool for a subagent in new sessions. It is listed only once it has members."
+        "description": "When on, the AI can pick this pool for a subagent in new sessions. It is listed only once it has members."
       },
       "pools.<id>.description": {
         "name": "Description for the model",
-        "description": "One line she sees after the pool name when she starts a subagent. Write it in English."
+        "description": "One line the AI sees after the pool name when it starts a subagent. Write it in English."
       },
       "providers.<id>.driver": {
         "name": "Driver",
@@ -324,11 +324,11 @@
     "software/memory": "Persona memory",
     "software/roleplay": "Role-play",
     "extensions/capabilities/tools": "Provide tools",
-    "extensions/capabilities/tools/summary": "Add tools she can call",
+    "extensions/capabilities/tools/summary": "Add tools the AI can call",
     "extensions/capabilities/commands": "Provide commands",
     "extensions/capabilities/commands/summary": "Add slash commands",
     "extensions/capabilities/context.inject": "Add to context",
-    "extensions/capabilities/context.inject/summary": "Add content to what she sees at the start of each turn",
+    "extensions/capabilities/context.inject/summary": "Add content to what the AI sees at the start of each turn",
     "extensions/capabilities/tool.guard": "Intercept tool calls",
     "extensions/capabilities/tool.guard/summary": "Allow, deny or ask you before a tool runs",
     "extensions/capabilities/tool.rewrite": "Modify tool results",

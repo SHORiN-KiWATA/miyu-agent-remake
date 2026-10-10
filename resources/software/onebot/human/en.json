@@ -3,8 +3,9 @@
     "skip_reply": { "name": "Skip reply", "subject": "reason" }
   },
   "said": {
-    "usage": "usage: miyu onebot start | stop | restart | status | logs [-f] | venue show <venue> (serve is started by the core only)",
+    "usage": "usage: miyu onebot start | stop | restart | status | web | logs [-f] | venue show <venue> (serve is started by the core only)",
     "no-log": "The run log cannot be written: {reason}",
+    "web/no-miyu": "Could not open the web app: cannot run {path} ({reason}). miyu-onebot looks for miyu in its own directory; keep the two together.",
     "notice/listening": "Waiting for NapCat on 127.0.0.1:{port}.",
     "notice/connected": "NapCat connected.",
     "notice/connected-as": "NapCat connected ({bot}).",
@@ -14,7 +15,7 @@
     "failure/port-in-use": "Port {port} is in use. Pick another: miyu config set --system onebot.listen <port>, and change NapCat to match.",
     "failure/crashed": "The QQ bridge hit a bug and stops: {reason}",
     "failure/start": "The QQ bridge could not start: {reason}",
-    "notice/no-token": "No token (onebot.token) yet, so NapCat will be refused. Generate one on its page in the web app (miyu web --package onebot) and put it into NapCat; it connects within seconds.",
+    "notice/no-token": "No token (onebot.token) yet, so NapCat will be refused. Generate one on its page in the web app (miyu onebot web) and put it into NapCat; it connects within seconds.",
     "failure/not-spawned": "No handshake reply from the core. miyu-onebot serve is started by the core only: turn the QQ bridge on with miyu onebot start.",
     "control/started": "The QQ bridge is on: the core starts it now and every time the core starts.",
     "control/stopped": "The QQ bridge is off: the core stopped it and will not start it again.",
@@ -31,7 +32,7 @@
     "status/napcat-bot": "NapCat connected: bot {bot}.",
     "status/no-napcat": "NapCat is not connected.",
     "status/listen": "NapCat connects to ws://127.0.0.1:{listen}/ws.",
-    "status/page": "Settings and status are on its page in the web app: miyu web --package onebot",
+    "status/page": "Settings and status are in the web app: miyu onebot web",
     "reason/config_error": "a configuration error or a port in use (exit code 1). Fix it, then run miyu onebot restart.",
     "reason/failed_repeatedly": "it failed {failures} times in a row. See miyu onebot logs, then run miyu onebot restart.",
     "reason/not_installed": "there is no miyu-onebot program next to miyu.",
