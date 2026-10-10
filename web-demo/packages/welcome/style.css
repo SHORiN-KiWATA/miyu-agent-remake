@@ -59,12 +59,12 @@
 .wl-langs { display: grid; gap: 6px; }
 .wl-lang {
   display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 14px; border: 0; border-radius: 10px;
-  background: var(--surface-2); color: var(--text); font: 14px var(--sans); text-align: left; cursor: pointer;
-  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  background: transparent; color: var(--text); font: 14px var(--sans); text-align: left; cursor: pointer;
+  transition: background-color 0.15s ease;
 }
-.wl-lang:hover { background: var(--surface-3); }
-.wl-lang.is-on { background: var(--surface-1); box-shadow: var(--card-shadow); }
-.wl-lang:focus-visible { outline: 0; box-shadow: var(--card-shadow); }
+/* 照「深度」：平常不铺底，悬停深一档，选中再深一档（蓝图 web.md「深度」） */
+.wl-lang:hover, .wl-lang:focus-visible { outline: 0; background: var(--surface-2); }
+.wl-lang.is-on { background: var(--surface-3); }
 .wl-tag { padding: 2px 8px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); font-size: 12px; }
 .wl-check { display: inline-flex; margin-left: auto; color: var(--accent); }
 .wl-check svg { width: 15px; height: 15px; }

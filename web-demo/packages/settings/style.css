@@ -78,7 +78,8 @@
 .set-status.is-busy .icon { animation: set-spin 0.9s linear infinite; }
 .set-status.is-done { color: var(--online); animation: fade-out 0.4s 1s var(--ease-in) both; }
 @keyframes set-spin { to { transform: rotate(360deg); } }
-.set-switch { position: relative; width: 36px; height: 20px; padding: 0; border: 0; border-radius: 999px; background: var(--surface-3); cursor: pointer; transition: background-color 0.16s ease; }
+/* 关着的轨道是半透明的深色：放在哪一档上都看得见（选中的卡片是 surface_3，原来照它铺就看不见了） */
+.set-switch { position: relative; width: 36px; height: 20px; padding: 0; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--text) 16%, transparent); cursor: pointer; transition: background-color 0.16s ease; }
 .set-switch i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--surface-1); box-shadow: var(--bubble-shadow); transition: transform 0.16s var(--ease-out); }
 .set-switch.is-on { background: var(--accent); }
 .set-switch.is-on i { transform: translateX(16px); }
@@ -145,15 +146,18 @@
 .set-theme.is-on { color: var(--text); }
 
 /* 模型（第 14 条） */
-.set-tabs { display: flex; gap: 4px; margin-top: 4px; padding: 3px; border-radius: 10px; background: var(--surface-2); width: fit-content; }
+/* 标签页、分段切换照「深度」：平常不铺底，悬停深一档，选中再深一档（蓝图 web.md「深度」，2026-10-10） */
+.set-tabs { display: flex; gap: 4px; margin-top: 4px; padding: 3px 0; border-radius: 10px; width: fit-content; }
 .set-tabbar { height: 28px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text-soft); font: 13px var(--sans); cursor: pointer; }
-.set-tabbar.is-on { background: var(--surface-1); box-shadow: var(--card-shadow); color: var(--text); }
+.set-tabbar { transition: background-color 0.15s ease, color 0.15s ease; }
+.set-tabbar:hover { background: var(--surface-2); color: var(--text); }
+.set-tabbar.is-on { background: var(--surface-3); color: var(--text); }
 .set-prov-wrap { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 16px; min-height: 320px; margin-top: 14px; }
 .set-prov-list { display: flex; flex-direction: column; gap: 2px; }
 .set-prov { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text-soft); font: 13px var(--sans); text-align: left; cursor: pointer; }
 .set-prov span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .set-prov em { color: var(--text-faint); font: 11px var(--mono); font-style: normal; }
-.set-prov:hover { background: color-mix(in srgb, var(--text) 4%, transparent); color: var(--text); }
+.set-prov:hover { background: var(--surface-2); color: var(--text); }
 .set-prov.is-on { background: var(--sidebar-active); box-shadow: var(--sidebar-active-shadow); color: var(--text); }
 .set-prov.is-add { color: var(--text-faint); }
 .set-prov-main { min-width: 0; }
@@ -169,8 +173,8 @@
 .set-model-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px 12px; margin-top: 10px; }
 .set-pick { display: flex; align-items: center; gap: 10px; min-width: 0; min-height: 34px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: 13px var(--sans); text-align: left; cursor: pointer; }
 .set-model { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 34px; padding: 5px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: 13px var(--sans); text-align: left; cursor: pointer; }
-.set-model:hover, .set-pick:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
-.set-model.is-on { background: var(--surface-2); }
+.set-model:hover, .set-pick:hover { background: var(--surface-2); }
+.set-model.is-on, .set-pick.is-on { background: var(--surface-3); }
 .set-model-id { display: block; overflow: hidden; color: var(--text-faint); font: 11px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .set-model-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .set-model-meta { display: inline-flex; align-items: center; gap: 5px; color: var(--text-faint); font: 11.5px var(--mono); }
@@ -253,9 +257,10 @@
 .set-btn.is-primary:disabled { background: var(--surface-2); color: var(--text-faint); filter: none; opacity: 1; }
 .set-btn.is-danger { color: var(--danger); }
 .set-btn.is-danger.is-armed { background: color-mix(in srgb, var(--danger) 14%, transparent); }
-.set-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--surface-2); width: fit-content; }
+.set-seg { display: inline-flex; gap: 2px; border-radius: 8px; width: fit-content; }
 .set-seg-item { height: 24px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text-soft); font: 12.5px var(--sans); cursor: pointer; }
-.set-seg-item.is-on { background: var(--surface-1); box-shadow: var(--card-shadow); color: var(--text); }
+.set-seg-item:hover { background: var(--surface-2); color: var(--text); }
+.set-seg-item.is-on { background: var(--surface-3); color: var(--text); }
 .set-pool-head .set-seg { margin-left: auto; }
 .set-reset.is-shown { opacity: 1; }
 .set-chip.is-member { padding: 0 4px; }
@@ -302,7 +307,7 @@
 .set-members.is-bottom { --fade-bottom: 0px; }
 .set-member { flex: none; }
 .set-member { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 3px 6px; border-radius: 6px; font-size: 13px; }
-.set-member:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
+.set-member:hover { background: var(--surface-2); }
 .set-member-n { flex: 0 0 16px; color: var(--text-faint); font: 11px var(--mono); text-align: right; }
 .set-member .set-pick-provider { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .set-member-tools { display: flex; flex: none; gap: 2px; opacity: 0; transition: opacity 0.12s ease; }

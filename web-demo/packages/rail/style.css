@@ -30,6 +30,6 @@
   display: block; max-width: 100%; padding: 7px 10px; overflow: hidden; border: 0; border-radius: 9px; background: transparent;
   color: var(--text-soft); font: 13px/1.45 var(--sans); text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer;
 }
-.rail-item:hover { background: color-mix(in srgb, var(--text) 5%, transparent); color: var(--text); }
-.rail-item.is-current { background: var(--surface-2); color: var(--text); }
+.rail-item:hover { background: var(--surface-2); color: var(--text); }
+.rail-item.is-current { background: var(--surface-3); color: var(--text); }
 @media (max-width: 836px) { .prompt-rail { display: none; } }

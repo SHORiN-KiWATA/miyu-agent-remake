@@ -91,11 +91,11 @@
 .setup-icon-none:hover { color: var(--text); }
 .setup-icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)); gap: 4px; max-height: 200px; overflow-y: auto; }
 .setup-icon { display: grid; place-items: center; height: 36px; border: 0; border-radius: 8px; background: transparent; color: var(--text-soft); cursor: pointer; }
-.setup-icon:hover { background: var(--surface-1); color: var(--text); }
+.setup-icon:hover { background: var(--surface-3); color: var(--text); }
 .setup-icon.is-on { background: var(--accent); color: var(--on-primary); }
 .setup-icon .icon { width: 18px; height: 18px; }
 .setup-card {
-  padding: 14px 16px; border-radius: 12px; background: var(--surface-2);
+  padding: 14px 16px; border-radius: 12px; background: transparent;
   transition: background-color var(--motion-collapse) ease, box-shadow var(--motion-collapse) ease, border-radius var(--motion-collapse) ease;
 }
 .setup-card h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 4px; color: var(--text); font-size: 14px; }
@@ -119,8 +119,8 @@
 .setup-new:hover { background: var(--surface-3); }
 .setup-new svg { width: 14px; height: 14px; }
 .setup-card.is-clickable { cursor: pointer; transition: background-color 0.15s ease; }
-.setup-card.is-clickable:hover { background: var(--surface-3); }
-.setup-card.is-clickable:focus-visible { outline: 0; box-shadow: var(--card-shadow); }
+.setup-card.is-clickable:hover { background: var(--surface-2); }
+.setup-card.is-clickable:focus-visible { outline: 0; background: var(--surface-2); }
 .setup-float-scrim {
   position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; padding: 24px;
   background: color-mix(in srgb, var(--surface) 55%, transparent); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
@@ -190,19 +190,23 @@
 .setup-choices { display: grid; gap: 8px; }
 .setup-choice {
   position: relative; display: grid; width: 100%; padding: 12px 40px 12px 14px; border: 0; border-radius: 12px;
-  background: var(--surface-2); color: var(--text); font: 14px var(--sans); text-align: left; cursor: pointer; gap: 8px;
-  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  background: transparent; color: var(--text); font: 14px var(--sans); text-align: left; cursor: pointer; gap: 8px;
+  transition: background-color 0.15s ease;
 }
-.setup-choice:hover { background: var(--surface-3); }
-.setup-choice.is-on { background: var(--surface-1); box-shadow: var(--card-shadow); cursor: default; }
+/* 照「深度」：平常不铺底，悬停深一档，选中再深一档（蓝图 web.md「深度」） */
+.setup-choice:hover { background: var(--surface-2); }
+.setup-choice.is-on { background: var(--surface-3); cursor: default; }
 .setup-choice-name { font-weight: 600; }
 .setup-choice-hint { color: var(--text-faint); font-size: 12.5px; }
 .setup-choice-check { position: absolute; top: 12px; right: 14px; color: var(--accent); font-weight: 600; }
-.setup-chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
-.setup-chip { overflow: hidden; padding: 2px 8px; border-radius: 6px; background: var(--surface-3); color: var(--text-soft); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.setup-chip.is-off { background: transparent; color: var(--text-faint); text-decoration: line-through; }
+/* 功能：对齐的几列字，开着的前面打勾，关着的灰字（2026-10-10 项目主人：小块撑满格子空档大、字不居中，不好看；改成这样，「深度」那一节） */
+.setup-chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 3px 16px; }
+.setup-chip { overflow: hidden; color: var(--text-soft); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.setup-chip::before { content: '✓'; display: inline-block; width: 1.1em; color: var(--accent); }
+.setup-chip.is-off { color: var(--text-faint); }
+.setup-chip.is-off::before { content: '–'; color: var(--text-faint); }
 .setup-choice-wrap { border-radius: 12px; }
-.setup-choice-wrap.is-on { background: var(--surface-1); box-shadow: var(--card-shadow); }
-.setup-choice-wrap.is-on > .setup-choice { box-shadow: none; }
+.setup-choice-wrap.is-on { background: var(--surface-3); }
+.setup-choice-wrap.is-on > .setup-choice { background: transparent; }
 .setup-choice-open { display: grid; padding: 0 14px 12px; gap: 4px; animation: fade-in var(--motion-in) var(--ease-out) both; }
 .setup-editor.is-welcome { padding: 0; }

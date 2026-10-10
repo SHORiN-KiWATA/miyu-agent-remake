@@ -10,7 +10,8 @@
   height: 23px; padding: 0 8px; border: 0; border-radius: var(--radius); background: transparent; color: var(--text-faint);
   font: inherit; white-space: nowrap; cursor: pointer;
 }
-.mermaid-source-toggle:hover, .mermaid-source-toggle.is-active { background: var(--surface-2); color: var(--text); }
+.mermaid-source-toggle:hover { background: var(--surface-2); color: var(--text); }
+.mermaid-source-toggle.is-active { background: var(--surface-3); color: var(--text); }
 .mermaid-figure {
   display: flex; justify-content: center; padding: 6px 0 4px; overflow-x: auto; color: var(--text-faint); font-size: 12px;
 }

@@ -33,7 +33,8 @@
   position: relative; display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 2px 8px 2px calc(10px + var(--indent));
   border-radius: 9px; color: var(--text);
 }
-.jobs-row:hover, .jobs-row.is-previewing { background: var(--surface-2); }
+.jobs-row:hover { background: var(--surface-2); }
+.jobs-row.is-previewing { background: var(--surface-3); }
 .jobs-row { cursor: pointer; }
 /* 左边：照种类的图标（子代理机器人、后台命令终端） */
 .jobs-mark { display: grid; width: 16px; height: 16px; flex: none; place-items: center; color: var(--text-soft); }

@@ -4,13 +4,13 @@
 .ob-rows { display: grid; gap: 6px; }
 .ob-row {
   display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 12px 0 14px; border: 0; border-radius: 10px;
-  background: var(--surface-2); color: var(--text); font: 14px var(--sans); text-align: left; cursor: pointer;
+  background: transparent; color: var(--text); font: 14px var(--sans); text-align: left; cursor: pointer;
   transition: background-color 0.15s ease;
 }
-.ob-row:hover { background: var(--surface-3); }
-.ob-row:focus-visible { outline: 0; background: var(--surface-3); box-shadow: var(--card-shadow); }
+/* 一行一个照「深度」：平常不铺底，悬停、键盘停着深一档（蓝图 web.md「深度」） */
+.ob-row:hover, .ob-row:focus-visible { outline: 0; background: var(--surface-2); }
 .ob-row.is-off { color: var(--text-faint); cursor: default; }
-.ob-row.is-off:hover { background: var(--surface-2); }
+.ob-row.is-off:hover { background: transparent; }
 .ob-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ob-row-hint { overflow: hidden; color: var(--text-faint); font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
 .ob-row-arrow { display: inline-flex; margin-left: auto; color: var(--text-faint); }
@@ -42,13 +42,13 @@
   -webkit-box-orient: vertical; -webkit-line-clamp: 2;
 }
 .ob-models { display: grid; gap: 8px; }
-.ob-model-list { display: grid; max-height: min(320px, 42vh); padding: 4px; overflow-y: auto; border-radius: 10px; background: var(--surface-2); gap: 2px; }
+.ob-model-list { display: grid; max-height: min(320px, 42vh); overflow-y: auto; gap: 2px; }
 .ob-model {
   display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 10px; border: 0; border-radius: 8px;
   background: transparent; color: var(--text); font: 13px var(--mono); text-align: left; cursor: pointer;
 }
-.ob-model:hover { background: var(--surface-3); }
-.ob-model.is-on { background: var(--surface-1); box-shadow: var(--card-shadow); }
+.ob-model:hover { background: var(--surface-2); }
+.ob-model.is-on { background: var(--surface-3); }
 .ob-model-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ob-model-note { color: var(--text-faint); font: 12px var(--sans); }
 .ob-model-check { display: inline-flex; margin-left: auto; color: var(--accent); }
