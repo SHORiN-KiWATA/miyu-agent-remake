@@ -1,4 +1,4 @@
-# 三平台 CI：每台机器跑 cargo xtask check，和本地验收是同一条命令；另有一项长跑，只在 Linux 上。
+# 三平台 CI：每台机器跑 cargo xtask check，和本地验收是同一条命令；另有长跑、量尺两项，只在 Linux 上。
 # 为什么这样定，见 docs/construction/0-3-三平台CI.md；2026-10-08 提速（缓存、长跑只编有长跑测试的两个 crate）见
 # docs/construction/0-3-三平台CI（补）.md。
 name: CI
@@ -59,3 +59,24 @@ jobs:
           add-rust-environment-hash-key: false
       - name: 长跑
         run: cargo test --release -p miyu-kernel -p miyu-assemble -- --ignored for_longer
+
+  # 量尺（施工 V-3，23 F4）：照 23 第二节的预算量核心这一边，表贴进这一次跑的摘要和日志。只在 Linux 上：预算照 Linux 定的。
+  # 不等会话闲够了退下（--idle-wait 0）：那一项没有预算，等它要多三分多钟。闸门：时间超过预算的 1.5 倍、内存超过预算的红
+  # （倍数照这台机器实测定，见 docs/blueprint/perf.md「闸门」）。
+  perf:
+    timeout-minutes: 45
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: 装上 rust-toolchain.toml 钉住的工具链
+        run: rustup toolchain install
+      - name: 取编译缓存
+        uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          add-rust-environment-hash-key: false
+      - name: 量尺
+        run: cargo xtask perf --idle-wait 0 --gate 1.5 --out "$GITHUB_WORKSPACE/target/perf-out"
+      - name: 表贴进摘要
+        if: always()
+        run: cat "$GITHUB_WORKSPACE"/target/perf-out/*.md | tee -a "$GITHUB_STEP_SUMMARY" || true

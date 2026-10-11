@@ -246,3 +246,57 @@ fn raw_data_from_before_v2_middle_reads_projection_as_the_whole_request() {
     assert_eq!((said.request, said.projection), (2.0, 2.0));
     assert_eq!(read.large.first_projection, vec![120.0]);
 }
+
+#[test]
+fn the_gate_names_only_the_rows_past_the_factor() {
+    // 追加的 p99 约 30 ms，预算 20 ms：一倍拦下它一行，两倍都放过（施工 V-3）。
+    let over = gate::over(&results(true), &budgets(), 1.0).unwrap();
+    assert_eq!(over.len(), 1, "{over:?}");
+    assert!(over[0].starts_with("追加一条事件并同步：量到 "), "{over:?}");
+    assert!(
+        over[0].contains("预算 p99 20 ms，闸门是它的 1 倍（20.0 ms）"),
+        "{over:?}"
+    );
+    assert!(
+        gate::over(&results(true), &budgets(), 2.0)
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn the_gate_holds_memory_to_the_budget_itself() {
+    // 内存不随机器快慢变：倍数再大，空闲的核心超了预算照拦；没量的不算超（施工 V-3）。
+    let mut tight = budgets();
+    tight.insert(
+        "核心空闲、没有会话载入".to_string(),
+        Budget {
+            quantile: 50,
+            value: 10.0,
+            unit: Unit::Mb,
+        },
+    );
+    let over = gate::over(&results(true), &tight, 100.0).unwrap();
+    assert_eq!(over.len(), 1, "{over:?}");
+    assert!(
+        over[0].starts_with("核心空闲、没有会话载入：量到 20.0 MB"),
+        "{over:?}"
+    );
+    assert!(over[0].contains("闸门是它的 1 倍（10.0 MB）"), "{over:?}");
+    assert!(
+        gate::over(&results(false), &tight, 100.0)
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn the_gate_fails_the_run_only_when_asked_and_over() {
+    assert_eq!(gate::enforce(&results(true), &budgets(), None), Ok(()));
+    assert_eq!(gate::enforce(&results(true), &budgets(), Some(2.0)), Ok(()));
+    let error = gate::enforce(&results(true), &budgets(), Some(1.0)).unwrap_err();
+    assert!(
+        error.starts_with("闸门没过：\n追加一条事件并同步："),
+        "{error}"
+    );
+}

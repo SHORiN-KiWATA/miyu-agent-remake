@@ -62,3 +62,17 @@ fn mistakes_say_what_is_wrong() {
     let error = parse(&words(&format!("{PATHS_GIVEN} --runs"))).unwrap_err();
     assert!(error.starts_with("--runs 后面要跟一个值"), "{error}");
 }
+
+#[test]
+fn the_gate_is_a_positive_factor() {
+    assert_eq!(parse(&words(PATHS_GIVEN)).unwrap().gate, None);
+    let args = parse(&words(&format!("{PATHS_GIVEN} --gate 1.5"))).unwrap();
+    assert_eq!(args.gate, Some(1.5));
+    for wrong in ["0", "-1", "x", "inf"] {
+        let error = parse(&words(&format!("{PATHS_GIVEN} --gate {wrong}"))).unwrap_err();
+        assert!(
+            error.starts_with(&format!("--gate 要一个正数，收到「{wrong}」")),
+            "{error}"
+        );
+    }
+}

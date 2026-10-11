@@ -19,16 +19,24 @@ const PER_SESSION: &str = "核心里每多一个活动会话";
 /// 要和 23 第二节比的几项：名字照那张表的第一格。
 pub const ITEMS: &[&str] = &[HOT, PROJECTION, FROM_SCRATCH, APPEND, IDLE, PER_SESSION];
 
-/// 整份 `.md`。
+/// 对照预算的一行：说的是什么、量到的那一格、照预算的分位量到的数（没量的没有）、预算。
+pub struct Check {
+    /// 表里第一格。
+    pub label: String,
+    /// 表里「量到」那一格。
+    pub cell: String,
+    /// 照预算的分位（内存照 PSS）量到的数。
+    pub measured: Option<f64>,
+    /// 预算。
+    pub budget: Budget,
+}
+
+/// 有预算的几行，照表里的先后（施工 V-3：表和闸门照同一份）。
 ///
 /// # Errors
 ///
 /// 预算表里缺了要比的一项。
-pub fn markdown(
-    results: &Results,
-    budgets: &BTreeMap<String, Budget>,
-    name: &str,
-) -> Result<String, String> {
+pub fn checks(results: &Results, budgets: &BTreeMap<String, Budget>) -> Result<Vec<Check>, String> {
     let budget = |item: &str| {
         budgets
             .get(item)
@@ -37,14 +45,6 @@ pub fn markdown(
     };
     let large = &results.large;
     let tail: Vec<f64> = tail_of(large).map(|said| said.projection).collect();
-
-    let mut text = format!("## 量尺 {name}\n\n");
-    conditions(&mut text, results);
-    text.push_str("### 对照预算\n\n");
-    text.push_str(
-        "只写了一个数的预算照 p50 比，写了分位的照那个分位比。内存照核心进程的 PSS 比。\n\n",
-    );
-    text.push_str("| 项目 | 量到 | 预算 | 判 |\n|---|---|---|---|\n");
     let timed: [(String, &[f64], Budget); 5] = [
         (
             format!("{HOT}：连上、握手、订阅一个没载入的小会话"),
@@ -72,55 +72,80 @@ pub fn markdown(
             budget(APPEND)?,
         ),
     ];
-    for (label, values, budget) in &timed {
-        let measured = percentile(values, f64::from(budget.quantile));
-        let cell = match (
-            percentile(values, 50.0),
-            percentile(values, 95.0),
-            percentile(values, 99.0),
-        ) {
-            (Some(p50), Some(p95), Some(p99)) => format!(
-                "p50 {p50:.1} / p95 {p95:.1} / p99 {p99:.1} ms（{} 次）",
-                values.len()
-            ),
-            _ => "—".to_string(),
-        };
-        line(
-            &mut text,
-            &format!(
-                "| {label} | {cell} | {} | {} |",
-                budget.show(),
-                verdict(measured, budget)
-            ),
-        );
-    }
-
-    let idle = budget(IDLE)?;
-    line(
-        &mut text,
-        &format!(
-            "| {IDLE} | {} | {} | {} |",
-            memory_cell(results.hot.idle.first()),
-            idle.show(),
-            verdict(core_pss(&results.hot.idle), &idle)
-        ),
-    );
-    let per = budget(PER_SESSION)?;
+    let mut checks: Vec<Check> = timed
+        .into_iter()
+        .map(|(label, values, budget)| {
+            let cell = match (
+                percentile(values, 50.0),
+                percentile(values, 95.0),
+                percentile(values, 99.0),
+            ) {
+                (Some(p50), Some(p95), Some(p99)) => format!(
+                    "p50 {p50:.1} / p95 {p95:.1} / p99 {p99:.1} ms（{} 次）",
+                    values.len()
+                ),
+                _ => "—".to_string(),
+            };
+            Check {
+                label,
+                cell,
+                measured: percentile(values, f64::from(budget.quantile)),
+                budget,
+            }
+        })
+        .collect();
+    checks.push(Check {
+        label: IDLE.to_string(),
+        cell: memory_cell(results.hot.idle.first()),
+        measured: core_pss(&results.hot.idle),
+        budget: budget(IDLE)?,
+    });
     let per_session = core_pss(&results.hot.active)
         .zip(core_pss(&results.hot.idle))
         .map(|(active, idle)| (active - idle) / results.hot.sessions.max(1) as f64);
-    line(
-        &mut text,
-        &format!(
-            "| {PER_SESSION}（{} 个小会话订阅着、各说过两句，核心 PSS 涨的平均） | {} | {} | {} |",
-            results.hot.sessions,
-            per_session.map_or("不量".to_string(), |mb| format!("{mb:.2} MB")),
-            per.show(),
-            verdict(per_session, &per)
+    checks.push(Check {
+        label: format!(
+            "{PER_SESSION}（{} 个小会话订阅着、各说过两句，核心 PSS 涨的平均）",
+            results.hot.sessions
         ),
+        cell: per_session.map_or("不量".to_string(), |mb| format!("{mb:.2} MB")),
+        measured: per_session,
+        budget: budget(PER_SESSION)?,
+    });
+    Ok(checks)
+}
+
+/// 整份 `.md`。
+///
+/// # Errors
+///
+/// 预算表里缺了要比的一项。
+pub fn markdown(
+    results: &Results,
+    budgets: &BTreeMap<String, Budget>,
+    name: &str,
+) -> Result<String, String> {
+    let mut text = format!("## 量尺 {name}\n\n");
+    conditions(&mut text, results);
+    text.push_str("### 对照预算\n\n");
+    text.push_str(
+        "只写了一个数的预算照 p50 比，写了分位的照那个分位比。内存照核心进程的 PSS 比。\n\n",
     );
+    text.push_str("| 项目 | 量到 | 预算 | 判 |\n|---|---|---|---|\n");
+    for check in checks(results, budgets)? {
+        line(
+            &mut text,
+            &format!(
+                "| {} | {} | {} | {} |",
+                check.label,
+                check.cell,
+                check.budget.show(),
+                verdict(check.measured, &check.budget)
+            ),
+        );
+    }
     unbudgeted(&mut text, results);
-    growth(&mut text, large);
+    growth(&mut text, &results.large);
     memory(&mut text, results);
     Ok(text)
 }

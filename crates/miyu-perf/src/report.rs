@@ -1,6 +1,7 @@
 //! 结果写成两份（`23-性能预算.md` 第一节「原始数据入库」）：`.json` 是原始数据（`report/raw.rs`），`.md` 是条件和
 //! 对照预算的表。预算改了，照原始数据读回来（`report/load.rs`）重出表，不用再量。表里每一行照哪个预算比、量的是哪一段，写在 `docs/blueprint/perf.md`。
 
+mod gate;
 mod load;
 mod raw;
 mod rows;
@@ -16,6 +17,7 @@ use crate::measure::sessions::Hot;
 use crate::measure::size::Size;
 use crate::measure::startup::Cold;
 
+pub use gate::enforce;
 pub use load::results as load;
 pub use rows::ITEMS;
 

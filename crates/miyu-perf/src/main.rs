@@ -97,5 +97,5 @@ async fn run(args: Args) -> Result<(), String> {
     };
     let written = report::write(&results, &budgets, &args.out)?;
     eprintln!("写好了 {}", written.display());
-    Ok(())
+    report::enforce(&results, &budgets, args.gate)
 }
