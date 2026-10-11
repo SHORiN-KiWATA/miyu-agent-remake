@@ -81,6 +81,19 @@ pub(crate) async fn check(core: &Core, peer: Peer, params: CheckParams) -> Resul
             );
             // 包自己的检查（施工 9-2）：照起来时读到的清单跑，接在核心自己查的后面。
             problems.extend(run::packages(core, &words).await);
+            // 装好的文件改了、少了（施工 F-8 中下）：本地库记了的才查，各一条警告。
+            for (path, drift) in crate::packages::verify::drifted(core).await {
+                let file = shown(core, &path);
+                for (code, count) in [
+                    ("files_modified", drift.modified.len()),
+                    ("files_missing", drift.missing.len()),
+                ] {
+                    if count > 0 {
+                        let message = crate::packages::sentence(&words, code, &count.to_string());
+                        problems.push(json!({"kind": "package", "file": file, "code": code, "level": "warning", "message": message.unwrap_or_default()}));
+                    }
+                }
+            }
         }
         Some(file) => {
             let path = real(&expand(&file, home.as_deref(), cwd.as_deref()));
@@ -185,7 +198,7 @@ fn unreadable(words: &Human, shown: &str, kind: &str, error: &ReadError) -> Valu
 }
 
 /// 软件包清单（施工 9-1 上，`packages.md`）：照磁盘读两层。`wanted` 没写的交回全部的问题；写了的，它是某一层 `packages/`
-/// 下的 `<编号>.toml` 才交回这一份的（还没有的报读不了），不是的交回没有。
+/// 下的 `<编号>/package.toml` 才交回这一份的（还没有的报读不了），不是的交回没有（施工 F-8 上：一个文件夹一个包）。
 async fn check_packages(
     core: &Core,
     words: &Human,
@@ -193,15 +206,17 @@ async fn check_packages(
 ) -> Result<Option<Vec<Value>>, Refusal> {
     let places = crate::packages::packages(core);
     if let Some(path) = wanted {
-        let in_a_layer = path
+        let folder = path
             .parent()
+            .filter(|_| path.file_name() == Some(miyu_store::packages::MANIFEST.as_ref()));
+        let in_a_layer = folder
+            .and_then(Path::parent)
             .is_some_and(|parent| places.dirs().any(|(_, dir)| real(dir) == parent));
-        let manifest = path
-            .file_name()
+        let named = folder
+            .and_then(Path::file_name)
             .and_then(|name| name.to_str())
-            .and_then(|name| name.strip_suffix(".toml"))
             .is_some_and(miyu_store::personas::valid);
-        if !(in_a_layer && manifest) {
+        if !(in_a_layer && named) {
             return Ok(None);
         }
     }
@@ -232,6 +247,13 @@ async fn check_packages(
                 {
                     let message = crate::packages::sentence(words, "page_missing", dir);
                     problems.push(json!({"kind": "package", "file": file, "code": "page_missing", "level": "warning", "message": message.unwrap_or_default()}));
+                }
+                // 吉祥物包的模型文件（施工 F-7）：在、不超过 256 KiB、是 JSON 的对象。
+                if let Some(mascot) = &manifest.mascot
+                    && let Some(code) = crate::packages::status::mascot_problem(one, mascot)
+                {
+                    let message = crate::packages::sentence(words, code, &mascot.model);
+                    problems.push(json!({"kind": "package", "file": file, "code": code, "level": "error", "message": message.unwrap_or_default()}));
                 }
             }
             Err(Issue::Wrong(problem)) => {

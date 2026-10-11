@@ -23,7 +23,7 @@
 | `crates/miyu-web/src/media/range.rs` | `Range` 要哪一段；下载的名字照 RFC 5987 转义 |
 | `crates/miyu-web/src/backstage.rs` | 软件后台页：`/page` 换票据、`/p/<票据>/<包>/<路径>` 照 `package.file` 一块块给、响应头（施工 F-6 下）；票据和连着的核心同 `/media` 那一套（`media/tickets.rs` 的 `Tickets` 两边各一份，`media/link.rs` 的 `Cores` 共用） |
 | `crates/miyu-web/src/open.rs`、`texts.rs` | `open`：确保 `serve` 在跑；要一次性码；开浏览器；给人看的字。照终端的样子连核心一问一答（`open` 要一次性码、`serve` 起来时问配置）、开浏览器的那两样在 `crates/miyu-webserve/src/open.rs`（施工 9-1 下从 `open.rs` 挪进 `client.rs`，施工 O-16 搬过去） |
-| `crates/miyu-web/src/settings.rs`、`resources/web/web.json`、`resources/packages/web.toml` | 端口（出厂 8300）、空闲多久、票据多久不用作废、最多几张是配置项（`web.port`、`web.idle_seconds`、`web.ticket_idle_seconds`、`web.most_tickets`），声明在网页自己的清单里，默认值照清单读，起来时问核心拿最终值（施工 9-1 下）；内容安全策略（页面的、软件后台页的 `backstage_csp`）、页面的媒体类型是常量，在 `web.json` |
+| `crates/miyu-web/src/settings.rs`、`resources/web/web.json`、`resources/packages/web/package.toml` | 端口（出厂 8300）、空闲多久、票据多久不用作废、最多几张是配置项（`web.port`、`web.idle_seconds`、`web.ticket_idle_seconds`、`web.most_tickets`），声明在网页自己的清单里，默认值照清单读，起来时问核心拿最终值（施工 9-1 下）；内容安全策略（页面的、软件后台页的 `backstage_csp`）、页面的媒体类型是常量，在 `web.json` |
 | `resources/web/pages/` | 页面文件。M9 的网页搬进主仓库以前是空的，开发时设 `MIYU_WEB_PAGES` 指到网页演示的 `web-demo/` |
 | `crates/miyu-cli/src/web.rs`、`help/{zh,en}/web.txt` | 主程序的 `miyu web` 和它的帮助页 |
 | `crates/miyu-ipc/src/start.rs` 的 `spawn_detached` | 拉起、跟终端脱开、等那一行：核心和 `serve` 共用 |

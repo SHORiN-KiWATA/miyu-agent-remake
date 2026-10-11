@@ -63,6 +63,10 @@ fn run(args: &[OsString]) -> ExitCode {
         Some(Err(error)) => return fail(&format!("bad spec: {error}")),
         None => return fail("bad spec: not UTF-8"),
     };
+    // 关不住读的平台收到只准读一部分的规格：不跑，宁可不跑也不漏读（施工 5-12 下）。
+    if spec.read.is_some() && !miyu_sandbox::CONFINES_READS {
+        return fail("cannot confine: reads cannot be confined on this platform");
+    }
     platform::run(&spec, program, rest)
 }
 

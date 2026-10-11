@@ -156,11 +156,13 @@ fn main() -> ExitCode {
         })
         .mut_subcommand("pkg", |pkg| {
             let help = page(language, Page::Pkg);
-            ["list", "install", "remove"]
-                .into_iter()
-                .fold(pkg.override_help(help), |pkg, name| {
-                    pkg.mut_subcommand(name, |sub| sub.override_help(help))
-                })
+            [
+                "list", "install", "remove", "info", "files", "owns", "check", "query",
+            ]
+            .into_iter()
+            .fold(pkg.override_help(help), |pkg, name| {
+                pkg.mut_subcommand(name, |sub| sub.override_help(help))
+            })
         })
         .mut_subcommand("sandbox", |sandbox| {
             let help = page(language, Page::Sandbox);

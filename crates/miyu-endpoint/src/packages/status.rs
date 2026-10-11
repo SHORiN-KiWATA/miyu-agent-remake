@@ -3,13 +3,13 @@
 
 use std::path::PathBuf;
 
-use miyu_config::package::{Manifest, PackageKind};
+use miyu_config::package::{Manifest, Mascot, PackageKind};
 use miyu_store::packages::{Found, locate};
 
 use crate::Core;
 use crate::extensions::State;
 
-/// 包的程序叫什么：扩展、界面照 `[command]`，小程序照 `[worker]`；内置包没有程序。
+/// 包的程序叫什么：扩展、界面照 `[command]`，小程序照 `[worker]`；内置包、吉祥物包没有程序。
 fn program(manifest: &Manifest) -> Option<&str> {
     match manifest.kind {
         PackageKind::Process | PackageKind::Ui => manifest
@@ -20,7 +20,7 @@ fn program(manifest: &Manifest) -> Option<&str> {
             .worker
             .as_ref()
             .map(|worker| worker.program.as_str()),
-        PackageKind::Builtin => None,
+        PackageKind::Builtin | PackageKind::Mascot => None,
     }
 }
 
@@ -46,6 +46,29 @@ pub(crate) fn page(found: &Found, manifest: &Manifest) -> bool {
         .page
         .as_ref()
         .is_some_and(|dir| found.files_dir().join(dir).join("index.html").is_file())
+}
+
+/// 吉祥物包的模型文件最大几个字节（施工 F-7）。
+const MASCOT_MAX: u64 = 256 * 1024;
+
+/// 吉祥物包的模型文件（施工 F-7，`packages.md`「吉祥物包」）：不在（照真实路径找，顺着链接出了包目录的也算不在）、超过
+/// 256 KiB、不是 JSON 的对象，交回 `miyu check` 报的代码；好的没有。模型里面写得对不对由终端查。
+pub(crate) fn mascot_problem(found: &Found, mascot: &Mascot) -> Option<&'static str> {
+    let root = std::fs::canonicalize(found.files_dir()).ok();
+    let real = std::fs::canonicalize(found.files_dir().join(&mascot.model)).ok();
+    let Some(real) = real
+        .filter(|real| root.as_ref().is_some_and(|root| real.starts_with(root)) && real.is_file())
+    else {
+        return Some("mascot_missing");
+    };
+    if std::fs::metadata(&real).map_or(true, |meta| meta.len() > MASCOT_MAX) {
+        return Some("mascot_too_big");
+    }
+    let object = std::fs::read(&real)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok())
+        .is_some_and(|value| value.is_object());
+    (!object).then_some("mascot_not_json")
 }
 
 /// `status`：`program_missing`、`off`、`running`、`starting`、`stopped`、`ready` 之一。`removed` 是出厂的包卸掉了。
@@ -89,7 +112,7 @@ pub(crate) fn enabled(
             Some(!removed && crate::extensions::switched_on(core, id, manifest))
         }
         PackageKind::Builtin if shipped && !manifest.required => Some(!removed),
-        PackageKind::Builtin | PackageKind::Ui | PackageKind::Worker => None,
+        PackageKind::Builtin | PackageKind::Ui | PackageKind::Worker | PackageKind::Mascot => None,
     }
 }
 

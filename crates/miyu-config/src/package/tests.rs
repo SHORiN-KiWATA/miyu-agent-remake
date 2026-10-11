@@ -4,7 +4,6 @@ use super::*;
 
 /// 终端界面的会话 2026-10-07 给的那份草稿。
 const TUI: &str = r#"[package]
-kind = "ui"
 version = "0.0.1"
 protocol = [1, 1]
 name = { en = "Terminal interface", zh = "终端界面", ja = "ターミナル画面" }
@@ -21,7 +20,6 @@ opens = ["config"]
 
 /// 通讯平台的桥那种：核心拉起，带检查。
 const BRIDGE: &str = r#"[package]
-kind = "process"
 protocol = [1, 2]
 name = { en = "QQ bridge" }
 
@@ -54,7 +52,7 @@ fn a_ui_package_reads_every_field() {
     let manifest = read(TUI).unwrap();
     assert_eq!(manifest.kind, PackageKind::Ui);
     assert_eq!(manifest.version.as_deref(), Some("0.0.1"));
-    assert_eq!(manifest.protocol, [1, 1]);
+    assert_eq!(manifest.protocol, Some([1, 1]));
     assert_eq!(
         manifest.name.get("zh").map(String::as_str),
         Some("终端界面")
@@ -76,7 +74,7 @@ fn a_ui_package_reads_every_field() {
 fn a_process_package_reads_its_start_check_and_settings() {
     let manifest = read(BRIDGE).unwrap();
     assert_eq!(manifest.kind, PackageKind::Process);
-    assert_eq!(manifest.protocol, [1, 2]);
+    assert_eq!(manifest.protocol, Some([1, 2]));
     assert_eq!(manifest.version, None);
     assert_eq!(
         manifest.process,
@@ -112,9 +110,18 @@ fn a_process_package_reads_its_start_check_and_settings() {
 
 #[test]
 fn the_smallest_manifest_has_a_kind_a_protocol_and_a_name() {
-    let manifest =
-        read("[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = { en = \"x\" }\n").unwrap();
-    assert_eq!((manifest.command, manifest.ui), (None, None));
+    let manifest = read("[package]\nprotocol = [1, 1]\nname = { en = \"x\" }\n\n[ui]\n").unwrap();
+    assert_eq!(manifest.kind, PackageKind::Ui, "照 [ui] 认");
+    assert_eq!(
+        (manifest.command, manifest.ui),
+        (
+            None,
+            Some(Pages {
+                opens: Vec::new(),
+                pages_dir: None
+            })
+        )
+    );
 }
 
 #[test]
@@ -125,34 +132,33 @@ fn broken_toml_and_unknown_or_misplaced_tables_say_where() {
         Code::UnknownTable
     );
     assert_eq!(wrong("package = 1\n"), (Code::NotATable, Some(1)));
-    assert_eq!(wrong(&TUI.replace("[ui]", "[process]")).0, Code::WrongKind);
     assert_eq!(
-        wrong(
-            &BRIDGE
-                .replace("[process]", "[ui]")
-                .replace("start = \"manual\"\n", "")
-        )
-        .0,
-        Code::WrongKind
+        wrong(&format!("{TUI}\n[connection]\nplatform = \"qq\"\n")).0,
+        Code::WrongKind,
+        "界面不能写平台接入"
     );
     assert_eq!(wrong("[command]\nname = \"x\"\n"), (Code::MissingKey, None));
 }
 
 #[test]
 fn every_package_field_is_checked() {
-    let missing_kind = TUI.replace("kind = \"ui\"\n", "");
-    assert_eq!(wrong(&missing_kind), (Code::MissingKey, Some(1)));
+    let nothing = TUI.replace("\n[ui]\n", "");
     assert_eq!(
-        wrong(&TUI.replace("\"ui\"", "\"daemon\"")),
-        (Code::BadKind, Some(2))
+        wrong(&nothing),
+        (Code::MissingKey, None),
+        "程序、吉祥物都没带"
+    );
+    assert_eq!(
+        wrong(&TUI.replace("[package]\n", "[package]\nkind = \"ui\"\n")),
+        (Code::UnknownKey, Some(2))
     );
     assert_eq!(
         wrong(&TUI.replace("version = \"0.0.1\"", "version = 1")),
-        (Code::NotText, Some(3))
+        (Code::NotText, Some(2))
     );
     for protocol in ["[2, 1]", "[1]", "[-1, 1]", "\"1\""] {
         let text = TUI.replace("[1, 1]", protocol);
-        assert_eq!(wrong(&text), (Code::BadProtocol, Some(4)), "{protocol}");
+        assert_eq!(wrong(&text), (Code::BadProtocol, Some(3)), "{protocol}");
     }
     assert_eq!(
         wrong(&TUI.replace("name = { en = \"Terminal", "name = { fr = \"Terminal")).0,
@@ -187,7 +193,7 @@ fn every_command_field_is_checked() {
         "about = { en = \"Open the terminal interface\", zh = \"打开终端界面\", ja = \"ターミナル画面を開く\" }\n",
         "",
     );
-    assert_eq!(wrong(&no_about), (Code::MissingKey, Some(8)));
+    assert_eq!(wrong(&no_about), (Code::MissingKey, Some(7)));
 }
 
 #[test]
@@ -204,10 +210,12 @@ fn process_ui_and_check_fields_are_checked() {
         wrong(&BRIDGE.replace("args = [\"check\"]", "args = [1]")).0,
         Code::NotTexts
     );
-    let no_command = "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = { en = \"x\" }\n\n[process]\nargs = []\n";
-    assert_eq!(wrong(no_command), (Code::NeedsCommand, Some(6)));
-    let check_alone = "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = { en = \"x\" }\n\n[check]\nargs = []\n";
-    assert_eq!(wrong(check_alone), (Code::NeedsCommand, Some(6)));
+    let no_command =
+        "[package]\nprotocol = [1, 1]\nname = { en = \"x\" }\n\n[process]\nargs = []\n";
+    assert_eq!(wrong(no_command), (Code::NeedsCommand, Some(5)));
+    let check_alone =
+        "[package]\nprotocol = [1, 1]\nname = { en = \"x\" }\n\n[check]\nargs = []\n\n[ui]\n";
+    assert_eq!(wrong(check_alone), (Code::NeedsCommand, Some(5)));
     for page in ["\"Config\"", "\"\"", "1"] {
         let text = TUI.replace("\"config\"", page);
         assert_eq!(wrong(&text).0, Code::BadPage, "{page}");
@@ -281,7 +289,7 @@ fn capabilities_are_read_in_the_table_order() {
             "start = \"manual\"\n",
             &format!("start = \"manual\"\ncapabilities = {list}\n"),
         );
-        assert_eq!(wrong(&text), (code, Some(14)), "{list}");
+        assert_eq!(wrong(&text), (code, Some(13)), "{list}");
     }
     assert_eq!(Code::BadCapability.as_str(), "bad_capability");
 }
@@ -316,7 +324,7 @@ fn a_process_package_may_declare_a_system_account() {
     );
     assert_eq!(
         wrong(&with("system_account = \"yes\"")),
-        (Code::NotBool, Some(14))
+        (Code::NotBool, Some(13))
     );
     let ui = TUI.replace(
         "opens = [\"config\"]\n",
@@ -328,15 +336,15 @@ fn a_process_package_may_declare_a_system_account() {
 
 #[test]
 fn every_code_has_a_name_and_the_message_is_english() {
-    let problem = read(&TUI.replace("\"ui\"", "\"daemon\"")).unwrap_err();
-    assert_eq!(problem.code.as_str(), "bad_kind");
-    assert_eq!(problem.detail, "daemon");
+    let problem = read("[package]\n\n[ui]\n\n[process]\n").unwrap_err();
+    assert_eq!(problem.code.as_str(), "two_programs");
+    assert_eq!(problem.detail, "[ui], [process]");
     assert_eq!(
         problem.message,
-        "package.kind must be ui, process, builtin or worker, not \"daemon\""
+        "a package carries one program: [ui] and [process] can't both be here"
     );
     assert_eq!(
         problem.to_string(),
-        "line 2: package.kind must be ui, process, builtin or worker, not \"daemon\""
+        "line 5: a package carries one program: [ui] and [process] can't both be here"
     );
 }

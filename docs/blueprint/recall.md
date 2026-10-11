@@ -38,7 +38,7 @@
 | `crates/miyu-session/src/embed/remote.rs` | 远程的 embedding：照一家供应商发 `/embeddings`、读向量、归一化、记账、记日志（第四条第 7 款） | R-5 补 |
 | `crates/miyu-session/src/route/endpoint.rs` | 照一家供应商拼地址、key、另配的头，不走路由、池、冷却：`provider.test` 和远程的 embedding 共用（从 `route/probe.rs` 抽出来） | R-5 补 |
 | `crates/miyu-http/src/post.rs` | 一次 POST、整个读完：有总时限、有大小上限，出错的说法同一次 GET | R-5 补 |
-| `crates/miyu-embed/package/embed.toml`、`package/embed/model.toml` | 「内置语义模型」这个小程序包的原本：包清单、bge-small-zh-v1.5 的模型清单（模型资料，不给模型看，不进登记簿；模型文件不进仓库） | R-5 三补 |
+| `crates/miyu-embed/package/embed/package.toml`、`model.toml` | 「内置语义模型」这个小程序包的原本：包清单、bge-small-zh-v1.5 的模型清单（模型资料，不给模型看，不进登记簿；模型文件不进仓库） | R-5 三补 |
 
 `miyu-recall` 只用白名单里的 crate（`01-架构.md` 第九节），不碰 I/O。SQLite 的那一半放在 `miyu-store`：它已经有 `rusqlite` 和开库的规矩（`sqlite.rs`，`store/index.md`），检索库照同一套开、坏了删、版本不对删。
 
@@ -190,7 +190,7 @@ R-5 三补做好的：
 |---|---|
 | `crates/miyu-core/src/embed/tests.rs` | 第四条第 1 款：人格记忆装着、推荐了 `embed`、`embed` 是装着的小程序包的照它拼（程序在主程序旁边、模型清单和目录在包目录里）；没装 `embed`、人格记忆没装、没推荐、`embed` 不是小程序、写坏了的没有；程序不在的照拼、造的时候报用不了；装卸时照清单拼的（`find`，施工 F-5 再补）和起来时一样、说得出缺的是哪一样 |
 | `crates/miyu-core/tests/embed_log.rs`（施工 F-5 再补，自己一个程序：装日志订阅者） | 「没装内置语义模型」那一行只有起来时（`setup`）记，装卸时（`find`）不记 |
-| `crates/miyu-core/tests/embed_package.rs` | 第四条第 1、2 款：仓库里的 `embed.toml` 读得成小程序包、程序是 `miyu-embed`；出厂的人格记忆推荐它、不依赖它；出厂的资源里没有它（出厂不装） |
+| `crates/miyu-core/tests/embed_package.rs` | 第四条第 1、2 款：仓库里的 `embed/package.toml` 读得成小程序包、程序是 `miyu-embed`；出厂的人格记忆推荐它、不依赖它；出厂的资源里没有它（出厂不装） |
 | `crates/miyu-endpoint/tests/config.rs`、`memory_meaning.rs` | 第四条第 1 款的设置页：没有本机的那一路的核心，`local` 带 `available: false`、没有暗字；接上的带暗字、不带 `available`；`off` 都不带 |
 
 R-5 补做好的：

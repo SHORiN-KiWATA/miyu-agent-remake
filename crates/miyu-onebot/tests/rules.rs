@@ -70,7 +70,7 @@ pub fn copied_resources() -> PathBuf {
     let (dir, _) = temp_root();
     let copy = dir.join("resources");
     for file in [
-        "packages/onebot.toml",
+        "packages/onebot/package.toml",
         "software/onebot/bridge.json",
         "software/onebot/human/en.json",
         "software/onebot/human/zh.json",

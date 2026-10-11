@@ -1,5 +1,6 @@
 //! 会话表（`docs/designs/07-存储.md` 第七节「会话按需载入」）：照编号找会话；这次运行里没在跑的，从磁盘
-//! 载入；停了的拿掉，下次用到再载入。删会话连子会话在 `sessions/delete.rs`（施工 3-8 三补）。
+//! 载入；停了的、闲够了退下的拿掉，下次用到再载入（退下在 `sessions/idle.rs`，施工 V-2 再补）。删会话连子会话在
+//! `sessions/delete.rs`（施工 3-8 三补）。
 //!
 //! 表拿 tokio 的锁护着，载入期间一直拿着：两个连接同时说给同一个没在跑的会话，只载入一次、只起一个
 //! actor（一个会话只能有一个写者，`07-存储.md` 第三节）。
@@ -27,6 +28,7 @@ use crate::spawn;
 
 mod delete;
 mod found;
+mod idle;
 mod orphans;
 mod places;
 
@@ -39,9 +41,13 @@ mod tests;
 const REMEMBERED: usize = 1024;
 
 /// 会话表。
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct Sessions {
     open: Mutex<Open>,
+    /// 闲多久退下（施工 V-2 再补）：出厂 [`idle::IDLE`]，测试里设短的。
+    idle: std::time::Duration,
+    /// 看空闲的任务起了没有：第一次往表里放会话时起。
+    sweeping: std::sync::atomic::AtomicBool,
 }
 
 #[derive(Debug, Default)]
@@ -199,6 +205,7 @@ impl Sessions {
             preset: Some(presets::chosen(core, preset)),
             presets: Some(presets::places(core)),
             group: who.group,
+            owner_is_admin: who.owner == core.admin,
         })
         .await;
         let handle = match created {
@@ -221,6 +228,7 @@ impl Sessions {
         if open.created.len() > REMEMBERED {
             open.created.pop_front();
         }
+        self.sweep(core);
         Ok(Created {
             id,
             cwd: workspace,
@@ -239,7 +247,9 @@ impl Sessions {
     /// `session.set_workspace`（`workspace.rs`）。
     pub(crate) async fn get(&self, core: &Arc<Core>, id: &SessionId) -> Result<Found, Refusal> {
         let mut open = self.open.lock().await;
-        open.found(core, id).await
+        let found = open.found(core, id).await;
+        self.sweep(core);
+        found
     }
 
     /// 会话 `id` 换了工作区（施工 9-7 上）：会话表记着的跟着换（说话的回应照它写 `cwd`）。写了 `dirs` 的整份换掉。交回现在
@@ -285,6 +295,7 @@ impl Sessions {
             )),
             None => None,
         };
+        let owner_is_admin = child.owner == core.admin;
         let handle = create(Create {
             root: &core.root,
             resources: &core.resources,
@@ -324,6 +335,7 @@ impl Sessions {
             preset,
             presets: Some(presets::places(core)),
             group: false,
+            owner_is_admin,
         })
         .await
         .map_err(|error| error.to_string())?;

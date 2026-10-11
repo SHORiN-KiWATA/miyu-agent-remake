@@ -23,6 +23,7 @@
 mod effort;
 mod environment;
 pub(crate) mod file;
+pub(crate) mod forget;
 pub(crate) mod hub;
 pub(crate) mod journal;
 pub(crate) mod methods;

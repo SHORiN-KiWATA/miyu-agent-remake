@@ -262,3 +262,21 @@ fn later_requests_render_the_same_block() {
         Some("user: <recent>\n[15:00] 小林 [msg=8803]: 又来了\n | [15:00] 小林 [msg=8804]: 嗯")
     );
 }
+
+/// 施工 O-33：近况里旁听的一行照群里的一行的写法：不止一样的标第几个，带大小。
+#[test]
+fn overheard_media_carry_their_number_and_size() {
+    let mut log = Log::new();
+    log.detached(
+        MEMBER,
+        "message.user",
+        r#"{"blocks":[],"venue":{"msg":"8895","name":"小林","ambient":true,"media":[{"kind":"image","id":"i-1","size":1500},{"kind":"image","id":"i-2","size":999500}]}}"#,
+    );
+    opens(&mut log, "看看", "8896");
+    assert_eq!(
+        shape(&render(log.history(), &group_texts_o33(480))),
+        [
+            "user: <recent>\n[15:00] 小林 [msg=8895]: [image #1: 2 KB] [image #2: 1.0 MB]\n | [15:00] 小林 [msg=8896]: 看看"
+        ]
+    );
+}

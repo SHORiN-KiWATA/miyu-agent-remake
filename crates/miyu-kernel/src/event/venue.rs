@@ -51,6 +51,10 @@ pub struct Media {
     /// 文件的文件名、表情的字；语音、视频没有。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// 多少字节（施工 O-33）：平台说了的才有，群里的一行照它写成人看得懂的大小（`miyu-assemble` 的 `size.rs`）。以前记的
+    /// 没有，照旧不写。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size: Option<u64>,
 }
 
 text_enum!(

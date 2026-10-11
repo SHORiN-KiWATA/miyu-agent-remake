@@ -15,16 +15,16 @@
 //! 一样经它写出去。
 //!
 //! 配置的推送另有一个订阅（施工 8-4，`subscriptions/config.rs`）：一个连接至多一个，`config.set` 的回应经它写出去。会话列表
-//! 的推送也是（施工 9-5，`subscriptions/sessions.rs`）：订阅的回应经它写出去，排在推送前面。扩展的状态的推送同会话列表（施工
-//! 9-4 补，`subscriptions/extensions.rs`）。
+//! 的推送也是（施工 9-5，`subscriptions/sessions.rs`）：订阅的回应经它写出去，排在推送前面。扩展的状态、软件包列表的推送同会话
+//! 列表（施工 9-4 补、F-8 三补，`subscriptions/listed.rs`）。
 //!
 //! 在后台答的回应（施工 R-7 补，`/dream`）办完了照那一刻的会话订阅走，表在 `subscriptions/later.rs`（[`Later`]）。记忆日志的
 //! 订阅（施工 R-12 上，`subscriptions/memory.rs`）：一间至多一个，先补、再回应、再推。
 
 mod config;
 mod extension_config;
-mod extensions;
 mod later;
+mod listed;
 mod memory;
 mod sessions;
 mod view;
@@ -43,8 +43,8 @@ use miyu_session::{Ended, Pushed, Subscription};
 use crate::Core;
 use config::ConfigForwarder;
 use extension_config::ExtensionConfigForwarder;
-use extensions::ExtensionsForwarder;
 pub(crate) use later::Later;
+use listed::{Listed, ListedForwarder};
 pub(crate) use memory::MemoryAt;
 use memory::MemoryForwarder;
 use sessions::SessionsForwarder;
@@ -56,7 +56,9 @@ pub(crate) struct Subscriptions {
     live: BTreeMap<SessionId, Forwarder>,
     config: Option<ConfigForwarder>,
     sessions: Option<SessionsForwarder>,
-    extensions: Option<ExtensionsForwarder>,
+    extensions: Option<ListedForwarder>,
+    /// 软件包列表的推送（施工 F-8 三补）。
+    packages: Option<ListedForwarder>,
     /// 核心拉起的扩展自己的配置的推送（施工 9-4 下下）：握手以后起，不用订阅。
     extension_config: Option<ExtensionConfigForwarder>,
     /// 会话订阅交回应的那一头的弱引用：开通道时一起记下，在后台答的回应照它走（施工 R-7 补）。
@@ -76,6 +78,8 @@ pub(crate) enum Target {
     Sessions,
     /// 扩展的状态的订阅的回应：同上（施工 9-4 补）。
     Extensions,
+    /// 软件包列表的订阅的回应：同上（施工 F-8 三补）。
+    Packages,
     /// 记忆日志的订阅的回应：经它写出去，排在补的后面、之后的推送前面（施工 R-12 上）。
     Memory(MemoryAt),
 }
@@ -239,29 +243,39 @@ impl Subscriptions {
         ));
     }
 
-    /// 订阅扩展的状态的推送（施工 9-4 补）：先拿收推送的一头，再算一份整的（排在这之前的变化照样推，推的是这一刻的整项，
-    /// 重复了也对），起一个新的转发任务替掉原来的；交回订阅的回应 `{"extensions": […]}`，它经 [`Target::Extensions`] 交给新的
-    /// 转发任务写出去。`shaken` 是这个连接握手时记下的：推的时候照这一刻的语言挑名字。
-    pub(crate) fn add_extensions(
+    /// 订阅一个照编号推整项的列表（扩展的状态，施工 9-4 补；软件包列表，施工 F-8 三补）：先起新的转发任务（它先拿收推送的
+    /// 几头，排在这之前的变化照样推，推的是这一刻的整项，重复了也对）替掉原来的，再算一份整的；交回订阅的回应
+    /// （`{"extensions": […]}`、`{"packages": […]}`），它经 [`Target::Extensions`]、[`Target::Packages`] 交给新的转发任务写出去。
+    /// `shaken` 是这个连接握手时记下的：推的时候照这一刻的语言挑名字。
+    pub(crate) fn add_listed(
         &mut self,
         core: &Arc<Core>,
+        packages: bool,
         shaken: crate::hello::Shaken,
         out: &mpsc::Sender<String>,
-    ) -> serde_json::Value {
-        let pushes = core.extensions.subscribe();
-        let listed = crate::extensions::status(core, shaken.now(core));
-        self.extensions = Some(ExtensionsForwarder::start(
+    ) -> Result<serde_json::Value, crate::refusal::Refusal> {
+        let (listed, slot) = match packages {
+            true => (Listed::Packages, &mut self.packages),
+            false => (Listed::Extensions, &mut self.extensions),
+        };
+        *slot = Some(ListedForwarder::start(
             Arc::clone(core),
+            listed,
             shaken,
-            pushes,
             out.clone(),
         ));
-        listed
+        match listed {
+            Listed::Packages => crate::packages::list(core, shaken.now(core)),
+            Listed::Extensions => Ok(crate::extensions::status(core, shaken.now(core))),
+        }
     }
 
-    /// 取消订阅扩展的状态的推送：转发任务当场停。
-    pub(crate) fn remove_extensions(&mut self) {
-        self.extensions = None;
+    /// 取消订阅扩展的状态（`packages` 是假的）、软件包列表的推送：转发任务当场停。
+    pub(crate) fn remove_listed(&mut self, packages: bool) {
+        match packages {
+            true => self.packages = None,
+            false => self.extensions = None,
+        }
     }
 
     /// 订阅记忆日志的 `at` 那一间（施工 R-12 上）：起一个转发任务，先写补的；原来订阅着这一间的换掉。订阅的回应经
@@ -304,13 +318,19 @@ impl Subscriptions {
                 },
                 None => line,
             },
-            Some(Target::Extensions) => match &mut self.extensions {
-                Some(forwarder) => match forwarder.reply(line) {
-                    Ok(()) => return true,
-                    Err(line) => line,
-                },
-                None => line,
-            },
+            Some(target @ (Target::Extensions | Target::Packages)) => {
+                let slot = match target {
+                    Target::Packages => &mut self.packages,
+                    _ => &mut self.extensions,
+                };
+                match slot {
+                    Some(forwarder) => match forwarder.reply(line) {
+                        Ok(()) => return true,
+                        Err(line) => line,
+                    },
+                    None => line,
+                }
+            }
             Some(Target::Memory(at)) => match self.memory.get_mut(at) {
                 Some(forwarder) => match forwarder.reply(line) {
                     Ok(()) => return true,

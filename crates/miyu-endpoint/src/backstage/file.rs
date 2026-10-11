@@ -1,4 +1,5 @@
 //! `package.file`（施工 F-6 中，`package-pages.md`「`package.file`」）：读一个包的后台页目录里的一份文件，一次最多 512 KiB。
+//! 吉祥物包（施工 F-7）只给 `[mascot] model` 指的那一份。
 //! 媒体类型不给：网页软件照扩展名查它自己的那张表（同它给自己页面的那一套），核心不另放一份。
 
 use std::path::{Path, PathBuf};
@@ -23,8 +24,7 @@ pub(crate) struct FileParams {
 
 /// 读一块：`{"data", "size", "eof"}`。
 pub(crate) async fn read(core: &Core, params: FileParams) -> Result<Value, Refusal> {
-    let segments = segments(&params.path).ok_or(Refusal::BAD_PARAMS)?;
-    let dir = page_dir(core, &params.package)?;
+    let (dir, segments) = located(core, &params.package, &params.path)?;
     let offset = params.offset;
     tokio::task::spawn_blocking(move || {
         let real = beneath(&dir, &segments).ok_or(Refusal::FILE_NOT_FOUND)?;
@@ -37,17 +37,25 @@ pub(crate) async fn read(core: &Core, params: FileParams) -> Result<Value, Refus
     .map_err(|_| Refusal::INTERNAL)?
 }
 
-/// 包 `id` 的后台页目录：没有这个包、没装的 `unknown_package`；没有后台页的 `no_page`。
-fn page_dir(core: &Core, id: &str) -> Result<PathBuf, Refusal> {
+/// 包 `id` 里 `path` 那一份在哪个目录下、拆成哪几段：后台页照路径在页目录下找；吉祥物包只给 `[mascot] model` 那一份（施工
+/// F-7），别的路径 `file_not_found`。没有这个包、没装的 `unknown_package`；两样都没有的 `no_page`；路径写错的 `bad_params`。
+fn located(core: &Core, id: &str, path: &str) -> Result<(PathBuf, Vec<String>), Refusal> {
+    let segments = segments(path).ok_or(Refusal::BAD_PARAMS)?;
     let packages = core.packages();
     let found = packages
         .iter()
         .find(|found| found.id == id)
         .ok_or(Refusal::UNKNOWN_PACKAGE)?;
     let manifest = found.read.as_ref().map_err(|_| Refusal::UNKNOWN_PACKAGE)?;
+    if let Some(mascot) = &manifest.mascot {
+        return match path == mascot.model {
+            true => Ok((found.files_dir(), segments)),
+            false => Err(Refusal::FILE_NOT_FOUND),
+        };
+    }
     match &manifest.page {
         Some(dir) if crate::packages::status::page(found, manifest) => {
-            Ok(found.files_dir().join(dir))
+            Ok((found.files_dir().join(dir), segments))
         }
         _ => Err(Refusal::NO_PAGE),
     }

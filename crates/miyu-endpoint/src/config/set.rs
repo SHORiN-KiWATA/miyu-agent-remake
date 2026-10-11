@@ -37,7 +37,7 @@ use crate::hello::Peer;
 use crate::refusal::Refusal;
 
 /// 替换前发现有人手改，最多重来几次（第五条第 6 条）。
-const TRIES: usize = 3;
+pub(super) const TRIES: usize = 3;
 
 /// `config.set` 的参数。
 #[derive(Debug, Deserialize)]
@@ -147,7 +147,14 @@ pub(crate) fn set_by(
                     text,
                     bom: file.bom,
                 };
-                return Ok(done(core, &mut config, layer, written, (via, by), cause));
+                return Ok(done(
+                    core,
+                    &mut config,
+                    layer,
+                    written,
+                    (via, by),
+                    Some(cause),
+                ));
             }
             Err(WriteError::Changed) => {}
             Err(WriteError::Io(error)) => {
@@ -357,20 +364,20 @@ fn changed(
 
 /// 写成了：换上新的一份、重算最终值，记日志和运行日志，推给订阅着配置的头（发这一条的连接先见推送、后见回应，施工 8-4），
 /// 交回回应。
-fn done(
+pub(super) fn done(
     core: &Core,
     config: &mut Config,
     layer: Layer,
     written: ConfigText,
     (via, by): (Via, By),
-    cause: &CommandId,
+    cause: Option<&CommandId>,
 ) -> Json {
     let old = config.file(layer).clone();
     let new = File::written(config.items(), &old, written);
     let version = new.version.clone();
     let changes = differences(&old, &new);
     config.replace(new);
-    record(config, layer, via, by.clone(), Some(cause), &changes);
+    record(config, layer, via, by.clone(), cause, &changes);
     let keys: Vec<String> = changes.iter().map(|(key, _, _)| key.clone()).collect();
     let listed = push::keys(config, layer, &keys);
     core.hub.publish(

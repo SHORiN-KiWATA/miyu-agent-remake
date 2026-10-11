@@ -17,10 +17,11 @@
 //!   （施工 O-28 下从桥自己的 WebUI 挪出来；桥自己的网页随 O-28 下去掉）。
 //! - [`rules`]：场所规则和出厂数据（施工 O-21）：出厂的起来时读一次，系统的照群聊内核读好、合起来、套到场所上，变了下一次
 //!   用就照新的。
+//! - `media`：取图、视频、文件到手，视频、文件存进会话工作区的 `qq-files/`（施工 O-33）。
 //! - [`venue`]：`miyu onebot venue show <场所>`：一个场所每一项的值和来处（施工 O-21）。
 //! - [`web`]：`miyu onebot web`：跑旁边的 `miyu web --package onebot`，打开网页软件里接入QQ 的后台页（施工 O-28 补）。
 //!
-//! 分层照 `01-架构.md` 第九节第 5 层：只用本机传输连核心（`start` 这几样照终端的样子连，用 `miyu-webserve` 的 `open::Core`）；场所、平台上的人的编号经第 2
+//! 分层照 `01-架构.md` 第九节第 5 层：只用本机传输连核心（`start` 这几样照终端的样子连，用 `miyu-client` 的 `open::Core`）；场所、平台上的人的编号经第 2
 //! 层的群聊内核 `miyu-chat` 拼；不依赖核心的 crate（`miyu-core`、`miyu-endpoint`，`18-通讯平台.md` 第一节）：配置由核心交
 //! （施工 O-20）。
 
@@ -29,6 +30,7 @@ mod core;
 mod current;
 mod listen;
 pub mod logs;
+mod media;
 pub mod onebot;
 pub mod rules;
 mod running;
@@ -46,5 +48,5 @@ pub const TARGET: &str = "miyu::onebot";
 /// 还没有字可用时印原话的开头，也是程序的名字。
 pub const PROGRAM: &str = "miyu-onebot";
 
-/// 这个软件包的编号（`resources/packages/onebot.toml`，施工 O-18）：`extension.*` 照它找桥，状态目录、标准错误的文件照它起名。
+/// 这个软件包的编号（`resources/packages/onebot/package.toml`，施工 O-18）：`extension.*` 照它找桥，状态目录、标准错误的文件照它起名。
 pub const PACKAGE: &str = "onebot";

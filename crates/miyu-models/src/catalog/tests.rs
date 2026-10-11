@@ -24,8 +24,10 @@ fn the_trimmed_real_catalog_reads_with_the_broken_model_skipped() {
     assert_eq!(flash.family.as_deref(), Some("deepseek-flash"));
     assert_eq!(flash.tools, Some(true));
     assert_eq!(
-        flash.inputs,
-        Some(vec!["text".to_string(), "image".to_string()])
+        flash
+            .inputs
+            .map(|inputs| inputs.names().collect::<Vec<_>>()),
+        Some(vec!["text", "image"])
     );
     assert_eq!(
         (flash.window, flash.max_output),
@@ -69,14 +71,16 @@ fn the_index_finds_names_and_normalized_names_in_byte_order() {
     let named: Vec<&str> = catalog
         .named("deepseek-v4.1-flash")
         .iter()
-        .map(|(provider, _)| provider.as_str())
+        .map(|(provider, _)| &**provider)
         .collect();
     assert_eq!(named, ["above", "aihubmix", "opencode", "opencode-go"]);
     assert_eq!(catalog.normalized("deepseek-v4-1-flash").len(), 4);
-    assert_eq!(
-        catalog.normalized("hy3"),
-        [("deepinfra".to_string(), "tencent/Hy3".to_string())]
-    );
+    let hy3: Vec<(&str, &str)> = catalog
+        .normalized("hy3")
+        .iter()
+        .map(|(provider, model)| (&**provider, &**model))
+        .collect();
+    assert_eq!(hy3, [("deepinfra", "tencent/Hy3")]);
     assert!(catalog.named("nope").is_empty());
 }
 
@@ -126,13 +130,10 @@ fn odd_fields_are_read_the_cautious_way() {
         "只有思考预算的没有档位"
     );
     assert_eq!(
-        model("toggle").inputs,
-        Some(vec![
-            "text".to_string(),
-            "pdf".to_string(),
-            "audio".to_string(),
-            "video".to_string()
-        ]),
+        model("toggle")
+            .inputs
+            .map(|inputs| inputs.names().collect::<Vec<_>>()),
+        Some(vec!["text", "pdf", "audio", "video"]),
         "认得的几种照固定的先后，音频、视频也认（施工 8-27），认不得的不要"
     );
     assert_eq!(
@@ -214,4 +215,42 @@ fn a_model_carries_its_own_package_and_interleaved_field() {
     );
     assert_eq!(odd.model("p", "number").expect("有").interleaved, None);
     assert_eq!(odd.model("p", "no-npm").expect("有").npm, None);
+}
+
+#[test]
+fn the_same_text_is_kept_once() {
+    // 同样的字只存一份（施工 V-2 下）：两家列了同一个模型，表里的键和索引里的条目是同一份；家族照字共用。
+    let catalog = Catalog::parse(TRIMMED).expect("读得进").catalog;
+    let entries = catalog.named("deepseek-v4.1-flash");
+    let (provider, model) = &entries[0];
+    let key = catalog
+        .provider(provider)
+        .and_then(|entry| entry.models.keys().find(|name| ***name == **model))
+        .expect("在表里");
+    assert!(
+        std::sync::Arc::ptr_eq(key, model),
+        "索引里的名字就是表里的键"
+    );
+    let families: Vec<_> = entries
+        .iter()
+        .filter_map(|(provider, model)| catalog.model(provider, model)?.family.clone())
+        .collect();
+    assert!(families.len() >= 2, "{families:?}");
+    assert!(
+        families
+            .windows(2)
+            .all(|pair| *pair[0] != *pair[1] || std::sync::Arc::ptr_eq(&pair[0], &pair[1])),
+        "同样的家族是同一份"
+    );
+}
+
+#[test]
+fn inputs_are_switches() {
+    let inputs = super::Inputs::of(["video", "text", "smell", "image"]);
+    assert_eq!(
+        inputs.names().collect::<Vec<_>>(),
+        ["text", "image", "video"]
+    );
+    assert!(inputs.has("image") && !inputs.has("pdf") && !inputs.has("smell"));
+    assert!(super::Inputs::of([]).is_empty());
 }

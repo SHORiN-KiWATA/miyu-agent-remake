@@ -3,6 +3,7 @@
 //! 下）；只读哪儿都不能写；两级都藏数据根。
 
 mod caches;
+mod confined;
 
 pub use caches::SandboxCache;
 
@@ -23,21 +24,25 @@ pub(crate) struct Sandbox {
     home: Option<PathBuf>,
     data_root: PathBuf,
     cache: Option<SandboxCache>,
+    /// 外部身份的会话（施工 5-12 下）：读写都只限工作区（`confined.rs`）。
+    confined: bool,
 }
 
 impl Sandbox {
-    /// 助手是 `helper`，`~` 照 `home` 换，藏的是 `data_root`，工具链的缓存放在 `cache`（没有的不设）。
+    /// 助手是 `helper`，`~` 照 `home` 换，藏的是 `data_root`，工具链的缓存放在 `cache`（没有的不设）；外部身份的会话
+    /// `confined`（施工 5-12 下）。
     pub(crate) fn new(
         helper: PathBuf,
         home: Option<PathBuf>,
         data_root: PathBuf,
-        cache: Option<SandboxCache>,
+        (cache, confined): (Option<SandboxCache>, bool),
     ) -> Sandbox {
         Sandbox {
             helper,
             home,
             data_root,
             cache,
+            confined,
         }
     }
 
@@ -53,6 +58,10 @@ impl Sandbox {
         cwd: &str,
         dirs: &[String],
     ) -> io::Result<Option<Sandboxed>> {
+        // 外部身份的会话不看级别，读写都只限工作区（施工 5-12 下）。
+        if self.confined {
+            return self.confined_call(permission, cwd, dirs).map(Some);
+        }
         let level = effective(permission);
         if level == Effective::Full {
             return Ok(None);
@@ -92,6 +101,7 @@ impl Sandbox {
             spec: Spec {
                 write,
                 hidden: vec![data_root],
+                read: None,
             },
             env,
         }))

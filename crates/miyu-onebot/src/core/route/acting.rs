@@ -16,15 +16,15 @@ use serde_json::Value;
 use super::fields::{NAME, clean};
 use super::platform::{Caller, Order, Origin, Plan, Quote, Scene, Why, duration, plan};
 use super::projection::Projection;
-use super::queue::DETAIL;
 use super::{Peer, Route};
 use crate::TARGET;
 use crate::core::{Answerer, Gone, reason};
 use crate::listen::bots::Bots;
 use crate::onebot::{
     CallError, MEMBER_INFO, Rank, To, delete_msg, group_ban, member_info, person, poke, rank_of,
+    said,
 };
-use crate::rules::Tools;
+use crate::rules::{FETCH_MEDIA, Tools};
 
 /// 要调的平台动作（号已经解成整数）。
 #[derive(Debug, Clone)]
@@ -67,7 +67,8 @@ struct Job {
 }
 
 impl Route {
-    /// 核心转来的一次平台工具的调用 `pushed`（`tool.call`，「平台工具（一）」第 2 到 5 条）。桥不认识这个会话的答
+    /// 核心转来的一次平台工具的调用 `pushed`（`tool.call`，「平台工具（一）」第 2 到 5 条；`fetch_media` 交给 `fetching`，施工
+    /// O-33）。桥不认识这个会话的答
     /// `unreachable`；私聊里调到禁言的（`venues` 不给，照说不会）照不认识的工具答。
     ///
     /// # Errors
@@ -76,6 +77,9 @@ impl Route {
     pub(super) async fn tool_called(&mut self, pushed: &Value) -> Result<(), Gone> {
         let params = &pushed["params"];
         let (id, tool) = (&pushed["id"], params["tool"].as_str().unwrap_or_default());
+        if tool == FETCH_MEDIA {
+            return self.fetch_called(pushed).await;
+        }
         let session = params["session"].as_str().unwrap_or_default().to_string();
         let answerer = self.core.answerer();
         self.gather(&session).await?;
@@ -213,7 +217,7 @@ impl Route {
 
     /// 把会话 `session` 留着的推送收进来：群的进投影（同「群里怎么叫她」第 3 条），私聊的照「怎么走」第 9 条那条路（记下最近一条
     /// 的引用）。
-    async fn gather(&mut self, session: &str) -> Result<(), Gone> {
+    pub(super) async fn gather(&mut self, session: &str) -> Result<(), Gone> {
         if self.groups.contains_key(session) {
             return self.catch_up(session).await;
         }
@@ -352,19 +356,11 @@ async fn act(job: &Job) -> Result<(), Undone> {
         .map_err(undone)
 }
 
-/// NapCat 没成算成哪一句：回了失败的是 `failed`，原因照它的 `message`（空的换 `wording`，再空的写 `retcode`）去掉首尾空白、截到
-/// [`DETAIL`] 个字符；等不到是 `unanswered`；没连着、断了是 `unreachable`。
+/// NapCat 没成算成哪一句：回了失败的是 `failed`，原因照它说的（`onebot::said`：`message`，空的换 `wording`，再空的写 `retcode`，
+/// 去掉首尾空白、截到 200 个字符）；等不到是 `unanswered`；没连着、断了是 `unreachable`。
 fn undone(error: CallError) -> Undone {
     match error {
-        CallError::Failed(reply) => {
-            let said = ["message", "wording"]
-                .iter()
-                .filter_map(|key| reply[*key].as_str())
-                .map(str::trim)
-                .find(|said| !said.is_empty())
-                .map_or_else(|| reply["retcode"].to_string(), str::to_string);
-            Undone::Failed("failed", Some(said.chars().take(DETAIL).collect()))
-        }
+        CallError::Failed(reply) => Undone::Failed("failed", Some(said(&reply))),
         CallError::Timeout => Undone::Failed("unanswered", None),
         CallError::Closed => Undone::Failed("unreachable", None),
     }

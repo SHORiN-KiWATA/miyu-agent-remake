@@ -17,9 +17,9 @@ path = "src/main.rs"
 miyu-store = { path = "../miyu-store" }
 # 运行日志 `state/logs/onebot.log`，满了照核心的换法。
 miyu-log = { path = "../miyu-log" }
-# `start`、`stop`、`restart`、`status` 照终端的样子连核心、一问一答（`open::Core`），和网页软件共用的底子（webserve.md）。
-# 施工 O-28 下桥自己的网页去掉以后只用这一样（onebot.md「施工时定的」第 166 条）。
-miyu-webserve = { path = "../miyu-webserve" }
+# `start`、`stop`、`restart`、`status` 照终端的样子连核心、一问一答（`open::Core`），和网页软件同一个（onebot.md「施工时定的」
+# 第 166 条）；施工 S-1 起在门面 miyu-client 里。
+miyu-client = { path = "../miyu-client" }
 # 给人看的字照说法换（`Said`，`Human::say`）；场所、平台上的人的编号是内核的 `VenueId`、`ExternalId`。
 miyu-kernel = { path = "../miyu-kernel" }
 # 群聊内核（第 2 层）：场所、平台上的人的编号经它拼，桥不手拼（`chat.md` 第七条第 1 条）。
@@ -45,6 +45,12 @@ serde_json = "1.0"
 # `io-std`：`serve` 的标准输入输出是跟核心说协议的管道（施工 O-18）。
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "io-std", "sync", "time", "signal"] }
 tracing = { version = "0.1", default-features = false, features = ["std"] }
+# 取图、视频、文件（施工 O-33，`onebot.md`「平台工具（二）」）：NapCat 回的 url 照核心的 HTTP 客户端下（第 3 层，只 http、https，
+# 超时、代理照它；reqwest 本来就在依赖图里）。
+miyu-http = { path = "../miyu-http" }
+# NapCat 回的 base64 解出来、`blob.write` 分块上传时编成 base64（施工 O-33）。本来就在依赖图里，和核心用的同一份。MIT OR
+# Apache-2.0。
+base64 = "0.22"
 # 本机此刻的时区偏移：群里的睡觉时间照它换成当地时间（施工 O-22，和核心造会话时钉下时区的办法一样）。本来就在依赖图里
 # （`miyu-log` 用它）。Unlicense 或 MIT。
 jiff = "0.2"

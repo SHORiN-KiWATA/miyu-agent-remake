@@ -14,7 +14,6 @@ fn manifest(program: &str, args: &[String]) -> String {
     let args: Vec<String> = args.iter().map(|arg| format!("{arg:?}")).collect();
     format!(
         r#"[package]
-kind = "process"
 protocol = [1, 1]
 name = {{ en = "Echo" }}
 
@@ -78,7 +77,7 @@ async fn the_handshake_hands_over_its_own_settings_and_changes_follow() {
     let program = Program::new();
     let (path, keep) = record(&home, "echo");
     home.write(
-        "home/alice/packages/echo.toml",
+        "home/alice/packages/echo/package.toml",
         &manifest(&program.name(), &steps(&[&keep, "hello", "listen"])),
     );
     home.write(

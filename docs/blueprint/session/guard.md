@@ -14,6 +14,7 @@
 | `crates/miyu-policy/src/guard.rs` | 拒绝时写给她的三句，造会话、载入时从策略快照里拿 |
 | `resources/core/permissions/forbidden.txt`、`unresolvable.txt`，`resources/core/tool-results/read-only.txt` | 三句的原文 |
 | `resources/core/permissions/not-in-venue.txt`（施工 O-31 前） | 本机的会话里拒绝在场所里做的事的那一句：不进策略快照，本机的会话造、载入时读（`crates/miyu-session/src/open.rs` 的 `place`） |
+| `crates/miyu-session/src/guard/confined.rs`、`resources/core/permissions/outside-workspace.txt`、`no-commands.txt`（施工 5-12） | 只碰得到自己工作区的会话（第四条末）：判在不在工作区、拒绝时的两句；两句同样不进策略快照，这种会话造、载入时读 |
 | `crates/miyu-session/src/actor.rs` | 动作「过执行前的链」交给它，当场判（`session/actor.md`） |
 
 ### 对外的样子
@@ -123,6 +124,7 @@
 
 - 读写不报路径的放行：查不到路径的，执行时工具自己报错。
 - 在场所里做的事（`venue`，施工 O-31 前，2026-10-10 核心定）不看级别、不看报的路径：场所会话（场所不是 `local` 的）里放行，不问人，有没有人能确认都一样（场所会话本来就没人能确认，问了等于拒）；本机的会话（终端、网页）里拒绝，`by` 是 `permissions`，写给她出厂的那一句（`core/permissions/not-in-venue.txt`），说法 `core/permissions/not-in-venue`。谁能叫、能动谁是提供者的事（`providers.md`「在场所里做的事」）。本机的会话的工具面本来就没有只给场所的工具（`venues` 不含 `local`），这一条是兜底。
+- 只碰得到自己工作区的会话（施工 5-12，`11-权限与沙盒.md` 第三节「外部身份」，2026-10-11 项目主人定）：场所会话、属主不是管理员的（群会话、陌生人和成员的私聊；协议端点造、载入时照属主填 `owner_is_admin`）。不看级别：文件类工具报的每一条路径换成真实的位置以后，要在这一轮的工作区或者加进来的目录里，外面的（连读）一律拒，`by` 是 `permissions`，写给她出厂的那一句（`core/permissions/outside-workspace.txt`，字段 `path`），说法 `core/permissions/outside-workspace`；访问类别是执行命令的：沙盒能用、又关得住读（`miyu_sandbox::CONFINES_READS`，现在只有 Linux）的放行，在只准读名单里的沙盒里跑（施工 5-12 下，`session/tools.md` 第 1a 条）；别的一律拒（`no-commands.txt`，说法 `core/permissions/no-commands`）；要在沙盒外跑的一律拒。管理员本人的场所会话、本机的会话照旧。
 - 问人时不提规则，只能选允许这一次或者拒绝；说明照第五条第 4 款。
 - 要在沙盒外跑的执行（工具报 `Tool::outside_sandbox`，`shell` 写了 `outside_sandbox`，施工 D-4）：完全放开放行；工作区问人，不管沙盒能不能用，不提规则（一次放开整个沙盒，不该一劳永逸）；只读拒绝，说只读开着、命令不能在沙盒外跑。本会话放行过的规则管不到它：规则只管路径。执行器照同一个报不写沙盒的规格，所以工作区一定问过人才跑得到。
 - 访问类别是 `write` 或者不认识的，内核当成写入：只读时在交给链之前就拦下了，走不到这里（`kernel/session.md`）。
@@ -185,6 +187,8 @@
 | `core/permissions/unresolvable` | 说不清它指向哪里：{reason} | can't tell where it points: {reason} |
 | `core/tool-results/read-only` | 只读模式，未执行 | Read-only mode, not run |
 | `core/permissions/not-in-venue`（施工 O-31 前） | 只能在群聊、私聊里用 | Only works in a group or private chat |
+| `core/permissions/outside-workspace`（施工 5-12） | 工作区外，未执行 | Outside the workspace, not run |
+| `core/permissions/no-commands`（施工 5-12） | 这里不能执行命令 | Commands are not available here |
 
 字在 `resources/core/human/{zh,en}.json`（`store/resources.md`）。
 

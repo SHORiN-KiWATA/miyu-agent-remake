@@ -345,7 +345,7 @@ fn catalog_models(data: &ModelData, provider: &Provider) -> Vec<String> {
         recognized
             .zip(knowledge.catalog)
             .and_then(|(recognized, loaded)| loaded.catalog.provider(&recognized.provider))
-            .map(|entry| entry.models.keys().cloned().collect())
+            .map(|entry| entry.models.keys().map(|name| name.to_string()).collect())
             .unwrap_or_default()
     })
 }

@@ -49,7 +49,7 @@ impl Places {
 /// 一份最小的界面清单，子命令名是 `command`。
 fn ui(command: &str) -> String {
     format!(
-        "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = {{ en = \"{command}\" }}\n\n[command]\nname = \"{command}\"\nprogram = \"miyu-{command}\"\nabout = {{ en = \"Open {command}\" }}\n"
+        "[package]\nprotocol = [1, 1]\nname = {{ en = \"{command}\" }}\n\n[command]\nname = \"{command}\"\nprogram = \"miyu-{command}\"\nabout = {{ en = \"Open {command}\" }}\n\n[ui]\n"
     )
 }
 
@@ -71,10 +71,12 @@ fn brief(found: &[Found]) -> Vec<(String, Layer, Option<Code>)> {
 #[test]
 fn both_layers_are_read_in_order_of_id() {
     let places = Places::new();
-    places.write(Layer::Shipped, "web.toml", &ui("web"));
-    places.write(Layer::Home, "tui.toml", &ui("tui"));
+    places.write(Layer::Shipped, "web/package.toml", &ui("web"));
+    places.write(Layer::Home, "tui/package.toml", &ui("tui"));
     places.write(Layer::Home, "notes.txt", "不是清单");
-    places.write(Layer::Home, "Bad.toml", &ui("bad"));
+    places.write(Layer::Home, "empty/notes.toml", "文件夹里没有清单");
+    places.write(Layer::Home, "old.toml", &ui("old"));
+    places.write(Layer::Home, "Bad/package.toml", &ui("bad"));
     let found = places.packages.read();
     assert_eq!(
         brief(&found),
@@ -82,11 +84,11 @@ fn both_layers_are_read_in_order_of_id() {
             ("tui".to_string(), Layer::Home, None),
             ("web".to_string(), Layer::Shipped, None),
         ],
-        "不是 .toml 的、编号不合写法的不算"
+        "不是文件夹的、文件夹里没有 package.toml 的、编号不合写法的不算"
     );
     let web = found.iter().find(|found| found.id == "web").unwrap();
     assert_eq!(web.read.as_ref().unwrap().kind, PackageKind::Ui);
-    assert!(web.path.ends_with("res/packages/web.toml"));
+    assert!(web.path.ends_with("res/packages/web/package.toml"));
 }
 
 #[test]
@@ -97,8 +99,8 @@ fn nothing_installed_is_an_empty_list() {
 #[test]
 fn the_shipped_one_wins_a_duplicate_id() {
     let places = Places::new();
-    places.write(Layer::Shipped, "web.toml", &ui("web"));
-    places.write(Layer::Home, "web.toml", &ui("web2"));
+    places.write(Layer::Shipped, "web/package.toml", &ui("web"));
+    places.write(Layer::Home, "web/package.toml", &ui("web2"));
     assert_eq!(
         brief(&places.packages.read()),
         [
@@ -111,9 +113,9 @@ fn the_shipped_one_wins_a_duplicate_id() {
 #[test]
 fn a_command_name_is_taken_by_whoever_is_read_first() {
     let places = Places::new();
-    places.write(Layer::Shipped, "web.toml", &ui("open"));
-    places.write(Layer::Shipped, "zeta.toml", &ui("open"));
-    places.write(Layer::Home, "alpha.toml", &ui("open"));
+    places.write(Layer::Shipped, "web/package.toml", &ui("open"));
+    places.write(Layer::Shipped, "zeta/package.toml", &ui("open"));
+    places.write(Layer::Home, "alpha/package.toml", &ui("open"));
     let found = places.packages.read();
     assert_eq!(
         brief(&found),
@@ -128,25 +130,26 @@ fn a_command_name_is_taken_by_whoever_is_read_first() {
         panic!("撞了");
     };
     assert_eq!(problem.detail, "open");
-    assert_eq!(problem.line, Some(7), "报在子命令名那一行");
+    assert_eq!(problem.line, Some(6), "报在子命令名那一行");
 }
 
 /// 一份最小的扩展清单，声明了系统账号。
 fn served(command: &str) -> String {
-    format!(
-        "{}\n[process]\nsystem_account = true\n",
-        ui(command).replace("kind = \"ui\"", "kind = \"process\"")
-    )
+    ui(command).replace("\n[ui]\n", "\n[process]\nsystem_account = true\n")
 }
 
 /// 系统账号（施工 O-4 下）：读成了的、声明了的包各一个，账号名是编号；编号是管理员的那一份报 `account_taken`、整份不收。
 #[test]
 fn a_package_declaring_a_system_account_gets_one_named_after_it() {
     let places = Places::new();
-    places.write(Layer::Shipped, "onebot.toml", &served("onebot"));
-    places.write(Layer::Home, "admin.toml", &served("boss"));
-    places.write(Layer::Home, "tui.toml", &ui("tui"));
-    places.write(Layer::Home, "zz.toml", "[package]\nkind = \"daemon\"\n");
+    places.write(Layer::Shipped, "onebot/package.toml", &served("onebot"));
+    places.write(Layer::Home, "admin/package.toml", &served("boss"));
+    places.write(Layer::Home, "tui/package.toml", &ui("tui"));
+    places.write(
+        Layer::Home,
+        "zz/package.toml",
+        "[package]\n\n[ui]\n\n[process]\n",
+    );
     let found = places.packages.read();
     assert_eq!(
         brief(&found),
@@ -154,7 +157,7 @@ fn a_package_declaring_a_system_account_gets_one_named_after_it() {
             ("admin".to_string(), Layer::Home, Some(Code::AccountTaken)),
             ("onebot".to_string(), Layer::Shipped, None),
             ("tui".to_string(), Layer::Home, None),
-            ("zz".to_string(), Layer::Home, Some(Code::BadKind)),
+            ("zz".to_string(), Layer::Home, Some(Code::TwoPrograms)),
         ]
     );
     assert_eq!(
@@ -172,7 +175,7 @@ fn a_package_declaring_a_system_account_gets_one_named_after_it() {
 /// 一份内置包的清单，带一个功能 `feature`，写在第 6 行。
 fn builtin(feature: &str) -> String {
     format!(
-        "[package]\nkind = \"builtin\"\nprotocol = [1, 1]\nname = {{ en = \"B\" }}\n\n[features.{feature}]\nname = {{ en = \"F\" }}\n"
+        "[package]\nprotocol = [1, 1]\nname = {{ en = \"B\" }}\n\n[features.{feature}]\nname = {{ en = \"F\" }}\n\n[builtin]\n"
     )
 }
 
@@ -181,14 +184,14 @@ fn builtin(feature: &str) -> String {
 #[test]
 fn a_feature_id_is_taken_by_whoever_is_read_first() {
     let places = Places::new();
-    places.write(Layer::Shipped, "basesystem.toml", &builtin("files"));
+    places.write(Layer::Shipped, "basesystem/package.toml", &builtin("files"));
     places.write(
         Layer::Shipped,
-        "files.toml",
-        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = { en = \"Files\" }\n",
+        "files/package.toml",
+        "[package]\nprotocol = [1, 1]\nname = { en = \"Files\" }\n\n[command]\nname = \"files\"\nprogram = \"miyu-files\"\nabout = { en = \"F\" }\n\n[process]\n",
     );
-    places.write(Layer::Home, "alpha.toml", &builtin("files"));
-    places.write(Layer::Home, "beta.toml", &builtin("beta"));
+    places.write(Layer::Home, "alpha/package.toml", &builtin("files"));
+    places.write(Layer::Home, "beta/package.toml", &builtin("beta"));
     let found = places.packages.read();
     assert_eq!(
         brief(&found),
@@ -206,7 +209,7 @@ fn a_feature_id_is_taken_by_whoever_is_read_first() {
     let Err(Issue::Wrong(problem)) = &found[0].read else {
         panic!("撞了");
     };
-    assert_eq!((problem.detail.as_str(), problem.line), ("files", Some(6)));
+    assert_eq!((problem.detail.as_str(), problem.line), ("files", Some(5)));
     let Err(Issue::Wrong(problem)) = &found[3].read else {
         panic!("没写功能的照包的编号算");
     };
@@ -216,10 +219,14 @@ fn a_feature_id_is_taken_by_whoever_is_read_first() {
 #[test]
 fn a_broken_manifest_is_listed_with_its_problem() {
     let places = Places::new();
-    places.write(Layer::Shipped, "web.toml", "[package]\nkind = \"daemon\"\n");
+    places.write(
+        Layer::Shipped,
+        "web/package.toml",
+        "[package]\n\n[ui]\n\n[process]\n",
+    );
     assert_eq!(
         brief(&places.packages.read()),
-        [("web".to_string(), Layer::Shipped, Some(Code::BadKind))]
+        [("web".to_string(), Layer::Shipped, Some(Code::TwoPrograms))]
     );
 }
 

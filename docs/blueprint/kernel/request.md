@@ -92,7 +92,7 @@
 | | `peers` | `PeerTexts`：别的会话发来的话的标签，`core/peers/` 下的两份（施工 C-2，下面「别的会话发来的话」）：`open` 字段 `id`，`close`。以前造的快照里没有的，是没有：那种话照人的话原样渲染。`idle`（施工 C-6，`IdleTexts`，下面「空了的通知」）：`open` 字段 `id`、`reason`，`silent`、`expired`（造快照时照 `peers.watch_hours` 换好了 `hours`）、`gone`、`close`；C-2 时造的快照里没有，是没有：通知不出 |
 | | `recap` | `Recap`：回顾的指令、两种标签、两句记号（`core/recap/` 下的五份），最多几轮 `turns`、整份最多约多少 token `tokens`（施工 3-8 四补，下面「回顾的请求」）。以前造的快照里没有的，是没有：不做回顾 |
 | | `title` | `Title`：起标题的指令（`core/title/instruction.txt`），整份最多约多少 token `tokens`（施工 3-8 五补，下面「起标题的请求」）。标签、截断的记号借 `recap` 的，两样都有才起标题。以前造的快照里没有的，是没有：不起标题 |
-| | `group` | `GroupChat`：群会话钉下的时区和空的一条写什么（`core/venues/no-text.txt`，施工 O-13 中，下面「群里的一行」）；`recent`：群聊近况的块头、缺口提示的模板（字段 `count`）、预算（施工 O-13 下，下面「群聊近况」），O-13 中造的没有。私聊、本机的会话没有：人的话照原样渲染 |
+| | `group` | `GroupChat`：群会话钉下的时区和空的一条写什么（`core/venues/no-text.txt`，施工 O-13 中，下面「群里的一行」）；`recent`：群聊近况的块头、缺口提示的模板（字段 `count`）、预算（施工 O-13 下，下面「群聊近况」），O-13 中造的没有；`voice`：语音那一句（`core/venues/voice.txt`，施工 O-33，下面「群里的一行」），O-33 以前造的没有，带的东西照以前写。私聊、本机的会话没有：人的话照原样渲染 |
 | | `vision` | `Vision`：转述一张图的指令（`core/vision/instruction.txt`）、人的话前面那一行（`question.txt`）（施工 8-17，下面「替它看的图」）。以前造的快照里没有的，是没有：不转述 |
 
 默认的 `summarize`：截到第 `upto` 条照平常组装；最后一条是 user 的，指令并进这一条做最后一块，不是的另起一条 user；`continuation` 是假。指令是一个文本块：`summarize_task`；有要求的接 `summarize_instructions` 和要求（原样，不转义，末尾没有换行的补一个）；最后是 `summarize_end`（施工 6-8，`compaction.md` 第七条第 3 条）。默认的 `summary`：只看正文块，有 `<summary>` 的取到 `</summary>` 或者末尾，没有的去掉 `<analysis>…</analysis>`，前后空白去掉，空的是 `None`（`crates/miyu-assemble/src/summary.rs`）。
@@ -514,6 +514,19 @@ Carry on from where the summary leaves off, without redoing work it records as d
 
 - 钟点照快照钉下的时区（`Timestamp::local_clock`），换了时区的机器上载入也不变。名字照 `venue.name`，没有的写平台身份；括号里 `id=` 只在这一条的 `show_ids` 是真、又有名字时写，身份只写 `owner`（`as` 认出的主人）、`manager`（桥报的），都没有的不写括号。
 - 内容：字去掉前后空白、截到 4096 字节（截在字的边界上），带的东西空一格接在后面（`[image]`、`[file: 名字]`、`[sticker: 字]`、`[voice]`、`[video]`）；都没有的写 `no_text`。图片、文件块接在这一行后面交给驱动。
+- 带的东西的记号（施工 O-33，2026-10-11 主会话、核心定）：`[种类 #第几个: 名字, 大小]`，没有的部分不写，名字、大小都没有的不写冒号。
+  - 大小照 `venue.media` 的 `size`，十进制单位：不到 1000 字节写 `512 B`，KB 写整数，MB、GB 一位小数，都四舍五入（整数算，不用浮点）；舍入到 1000 KB 的写 `1.0 MB`，舍入到 1000.0 MB 的写 `1.0 GB`（`miyu-assemble` 的 `size.rs`）。
+  - 第几个：快照的 `group` 有 `voice` 的（O-33 起造的群会话）一条里不止一样的照先后从 1 数、每样都标 `#n`，不分种类（和桥的 `fetch_media` 的 `index` 一个数法，`onebot.md`）；只有一样的不标。语音后面空一格接 `voice` 那一句（`core/venues/voice.txt`：先不转文字，告诉她听不了）。
+  - 以前造的群会话（快照里没有 `voice`）不标第几个、语音不接那一句；以前记的没有 `size`：老日志渲染出来一个字节不变。
+  - 不在群里的（私聊，下面）只多大小：不标第几个（`fetch_media` 这一步只给群）、语音不接那一句（私聊的快照没有群会话的字）。
+
+  样子（O-33 起造的群会话）：
+
+  ```text
+  [14:05] 阿杰 [msg=8815]: 截图在这 [image #1: 834 KB] [sticker #2: /微笑]
+  [14:06] 阿杰 [msg=8816]: [file: 排班.pdf, 1.2 MB]
+  [14:07] 阿杰 [msg=8817]: [voice: 5 KB] (not playable yet)
+  ```
 - 缩进的两行可选：引用了的写 `reply-to`；`@mentions` 是 `@all`（@ 了全体成员）、`[you]`（@ 了她），`show_ids` 是真的再列 @ 了的人的平台身份，都没有的不写。
 - 名字、字、编号、带的东西的名字、身份照模板的规矩转义（`template::escape`）：多行的字成了一行，伪造不出另一条记录。钟点、`owner`、`manager`、`@all`、`[you]` 原样。
 - 回顾、起标题的请求读人这边的话也走这一步（`spoken`）。
@@ -572,8 +585,9 @@ Carry on from where the summary leaves off, without redoing work it records as d
 | `crates/miyu-assemble/src/title/tests.rs`（施工 3-8 五补） | 起标题的请求：一条 user、没有 system 和工具面，只有第一轮，照到的是第一个回答；那一轮中间一步说的、工具、思考、事实不要；第一轮没答出正文的，两句人的话并成一段、照到第二轮的回答；别的 harness 的话带外壳；没有回答、没有起标题的字或者回顾的标签的没有；放不下两段各截中间，连指令正好到上限，小到连标签都放不下的整份截到上限 |
 | `crates/miyu-assemble/src/tests.rs` 的 `a_title_after_the_notice_still_continues`（施工 3-8 五补） | 被打断的那一句后面内核起了标题，照样接着写 |
 | `crates/miyu-assemble/tests/probe_title.rs`（施工 3-8 五补） | 起标题这张脸：真内核照剧本跑，起标题的请求（`titles/`）和主请求一样和存档（`docs/designs/samples/probe/title/`）逐字节比；它是单独的一次，一条 user，指令接第一轮的话和回答，工具的输出、中间一步说的不在里面；只起一次；主请求照查五条性质，第二轮接着第一轮往后长 |
-| `crates/miyu-assemble/src/group/tests.rs`（施工 O-13 中） | 群里的一行：钟点照会话的时区、名字、`id=` 跟着这一条的 `show_ids`、只写 `owner` 和 `manager`、没名字的写身份；带的东西、图片块接在后面、空的写那一句；引用和 @ 两行（`@all`、`[you]`、看得到身份的列身份）；转义成一行；4096 字节截在字的边界；旁听的不进、私聊的照原样；回顾里也是这一行 |
-| `crates/miyu-assemble/src/group/recent/tests.rs`（施工 O-13 下） | 群聊近况：收两次触发之间的旁听、不收睡着的，回合中途到的归下一块；排在事实后面、触发前面；别的线的 `[you]` 行、自己这条线的不收；撤回的标记（自己撤的、别人撤的、看不到身份的），触发以后才撤的不标；预算从老的去掉、写缺口提示，正好装下的不写；没有的、私聊的、O-13 中的快照不出；回报开的回合不算界；以后的请求里一字不差 |
+| `crates/miyu-assemble/src/group/tests.rs`（施工 O-13 中） | 群里的一行：钟点照会话的时区、名字、`id=` 跟着这一条的 `show_ids`、只写 `owner` 和 `manager`、没名字的写身份；带的东西、图片块接在后面、空的写那一句；引用和 @ 两行（`@all`、`[you]`、看得到身份的列身份）；转义成一行；4096 字节截在字的边界；旁听的不进、私聊的照原样；回顾里也是这一行。施工 O-33：带大小、不止一样的标 `#n`、只有一样的不标、语音接那一句；以前造的快照（没有 `voice`）同一条一字不差；私聊只多大小 |
+| `crates/miyu-assemble/src/size/tests.rs`（施工 O-33） | 人看得懂的大小：`999 B`/`1 KB`、KB 四舍五入、999.5 KB 和 999.95 KB 和 1000 KB 进位成 `1.0 MB`、999.95 MB 进位成 `1.0 GB`、最大的数不溢出 |
+| `crates/miyu-assemble/src/group/recent/tests.rs`（施工 O-13 下） | 群聊近况：收两次触发之间的旁听、不收睡着的，回合中途到的归下一块；排在事实后面、触发前面；别的线的 `[you]` 行、自己这条线的不收；撤回的标记（自己撤的、别人撤的、看不到身份的），触发以后才撤的不标；预算从老的去掉、写缺口提示，正好装下的不写；没有的、私聊的、O-13 中的快照不出；回报开的回合不算界；以后的请求里一字不差；旁听的一行照同一个记号写法（施工 O-33） |
 | `crates/miyu-assemble/src/group/records/tests.rs`（施工 O-24） | 判官看的记录：写法同一行；旁听的、开过回合的收，睡着的不收；主线、别的线的 `[you]` 行都收；撤回只认要判的那一条以前的；条数从新往旧取；不是场所消息的没有、前面没有的是空的 |
 | `crates/miyu-assemble/src/render/tests/respond.rs`（施工 O-14 上） | 照记下的几条开的回合：那几条在回合开始的地方、事实和近况在前，群会话里一行一条、别的照原样；以后的近况不收当过触发的；以前的请求一字不差；并进去的在 `turn.joined` 的位置、接着开的那一轮事实在前（施工 O-14 下） |
 | `crates/miyu-assemble/src/vision/tests.rs`（施工 8-17） | 转述的请求：一条 user、没有 system 和工具面，指令在前、图在后、图去掉了名字；有人的话的接那一行和原话、原样不转义；快照里没有字的没有 |

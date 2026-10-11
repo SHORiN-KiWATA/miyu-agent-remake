@@ -14,21 +14,32 @@ const SESSION: &str = "01900000-0000-7000-8000-000000000001";
 
 /// 一件提供者的工具，等 `timeout`；它的包由一个假连接提供，交回往外写的那一头收的。
 fn remote(timeout: Duration) -> (RemoteTool, Peer, mpsc::Receiver<String>) {
+    remote_with(timeout, stores().0)
+}
+
+/// 同 [`remote`]，扩展传上来的 blob 在 `stores`。
+fn remote_with(timeout: Duration, stores: Stores) -> (RemoteTool, Peer, mpsc::Receiver<String>) {
     let provided = Arc::new(Provided::default());
     let (out, lines) = mpsc::channel(8);
     let peer = Peer::new(out);
     provided.register("onebot", peer.clone());
     let mut checked = checked(tool("read", json!(["local"]))).expect("合写法");
     checked.timeout = timeout;
-    let remote = RemoteTool::new(checked, "onebot", provided, texts());
+    let remote = RemoteTool::new(checked, "onebot", provided, texts(), stores);
     (remote, peer, lines)
 }
 
-/// 一次调用：会话、编号 7 的第 1 件，`asked` 要的。
+/// 一次调用：会话（属主是管理员）、编号 7 的第 1 件，`asked` 要的。
 fn call_by(asked: Option<By>) -> miyu_tool::Call {
+    call_of("admin", asked)
+}
+
+/// 同 [`call_by`]，会话的属主是 `owner`。
+fn call_of(owner: &str, asked: Option<By>) -> miyu_tool::Call {
     let mut call = miyu_tool::testkit::call(r#"{"to":"群"}"#);
     call.ids = Some(CallIds {
         session: SessionId::parse(SESSION).expect("合写法"),
+        owner: AccountId::parse(owner).expect("合写法"),
         call: CallId::new(Seq::new(7).expect("合写法"), 1).expect("合写法"),
         asked,
     });
@@ -166,4 +177,72 @@ async fn a_call_told_to_stop_and_then_timed_out_is_cancelled_once() {
     let done = running.await.unwrap();
     assert!(text(&done).contains("did not answer"), "{}", text(&done));
     assert!(lines.try_recv().is_err(), "只发一次");
+}
+
+/// 一张 1×1 的图片块，引用 `blob`。
+fn image(blob: miyu_kernel::id::ContentHash) -> Block {
+    Block::Image(miyu_kernel::block::Image {
+        blob,
+        name: None,
+        media_type: miyu_kernel::id::MediaType::parse("image/png").expect("合写法"),
+        width: 1,
+        height: 1,
+        path: None,
+    })
+}
+
+/// 属主是 `owner` 的会话调一次，回 `blocks`，交回结果。
+async fn answered_with(stores: Stores, owner: &str, blocks: Vec<Block>) -> miyu_tool::Done {
+    let (remote, peer, mut lines) = remote_with(Duration::from_secs(60), stores);
+    let call = call_of(owner, None);
+    let running = tokio::spawn(async move { remote.run(call, Progress::new(|_| {})).await });
+    let sent = next(&mut lines).await;
+    peer.answer(Response {
+        id: sent["id"].as_str().unwrap().to_string(),
+        outcome: Ok(json!({ "blocks": blocks })),
+    });
+    running.await.unwrap()
+}
+
+/// 测完删掉临时的数据根；删不掉就留在临时目录里，不影响测试。
+fn forget(dir: std::path::PathBuf) {
+    if std::fs::remove_dir_all(dir).is_err() {
+        // 留着。
+    }
+}
+
+/// 扩展传进管理员名下的图（施工 O-2 三补）：交回给系统账号的会话时拷一份进它名下，块原样不动。
+#[tokio::test]
+async fn an_answered_image_is_handed_over_to_the_sessions_owner() {
+    let (place, dir) = stores();
+    let admin = miyu_store::blob::Blobs::new(place.root.blobs(&place.admin));
+    let blob = admin.put(b"not really a png").expect("存得进");
+    let owner = AccountId::parse("onebot").expect("合写法");
+    let theirs = miyu_store::blob::Blobs::new(place.root.blobs(&owner));
+    assert!(!theirs.path(&blob).is_file());
+    let done = answered_with(place, "onebot", vec![image(blob.clone())]).await;
+    assert!(!done.error, "{:?}", done.blocks);
+    assert_eq!(done.blocks, [image(blob.clone())]);
+    assert!(theirs.path(&blob).is_file(), "拷进了属主名下");
+    forget(dir);
+}
+
+/// 管理员名下也没有的 blob：照暂时不可用，不把读不到的图交给她；属主就是管理员的也查在不在。
+#[tokio::test]
+async fn an_image_nobody_uploaded_makes_the_tool_unavailable() {
+    let (elsewhere, first) = stores();
+    let missing = miyu_store::blob::Blobs::new(elsewhere.root.blobs(&elsewhere.admin))
+        .put(b"x")
+        .expect("存得进");
+    for owner in ["onebot", "admin"] {
+        let (place, dir) = stores();
+        let done = answered_with(place, owner, vec![image(missing.clone())]).await;
+        assert!(done.error, "{owner}");
+        assert_eq!(
+            text(&done),
+            "The tool \"send_group\" is not available right now.\n"
+        );
+        forget(dir);
+    }
+    forget(first);
 }

@@ -57,10 +57,12 @@ fn results(memory: bool) -> Results {
         .split_whitespace()
         .map(str::to_string)
         .collect();
+    // 落了盘到收到请求是说出去到收到请求的一半：同步占了另一半。
     let said = |seq, request| Said {
         seq,
         request,
         turn: request * 10.0,
+        projection: request / 2.0,
     };
     let pick = |found: Vec<Process>| if memory { found } else { Vec::new() };
     Results {
@@ -102,6 +104,7 @@ fn results(memory: bool) -> Results {
             log_bytes: 8 * 1024 * 1024,
             reload: vec![150.0],
             first_request: vec![120.0],
+            first_projection: vec![60.0],
             ..Large::default()
         },
         appends: vec![1.0, 2.0, 30.0],
@@ -119,20 +122,28 @@ fn the_table_judges_against_the_budgets() {
     };
     assert!(row("热启动到能提交第一轮：连上").ends_with("| 200 ms | 过 |"));
     assert!(row("热启动到能提交第一轮：重启").ends_with("| 200 ms | 过 |"));
-    // 最后两轮是 4、6：p95 是 6，超了 5。
+    // 最后两轮说出去到收到请求是 4、6，落了盘到收到请求是 2、3：投影照后者比，p95 是 3，没超 5（施工 V-2 中）。
     let projection = row("一次请求的投影");
     assert!(
-        projection.contains("p50 4.0 / p95 6.0 / p99 6.0 ms（2 次）"),
+        projection.contains("p50 2.0 / p95 3.0 / p99 3.0 ms（2 次）"),
         "{projection}"
     );
-    assert!(projection.ends_with("| p95 5 ms | 超 |"), "{projection}");
-    assert!(row("从头投影").ends_with("| 100 ms | 超 |"));
+    assert!(projection.ends_with("| p95 5 ms | 过 |"), "{projection}");
+    assert!(
+        row("从头投影").ends_with("| 100 ms | 过 |"),
+        "照落了盘的 60 比"
+    );
+    assert!(
+        row("大会话上说一句到模型收到请求").contains("| 4.0 / 6.0 ms |"),
+        "含同步的另列一行"
+    );
+    assert!(row("重启、打开大会话后头一次说").contains("| 120.0 / 120.0 ms |"));
     assert!(row("追加一条事件并同步").ends_with("| p99 20 ms | 超 |"));
     assert!(row("核心空闲").contains("| PSS 20.0 MB，匿名 10.0 MB | 30 MB | 过 |"));
     assert!(row("核心里每多一个活动会话").contains("| 2.00 MB | 5 MB | 过 |"));
     assert!(row("大会话 |").contains("10010 条事件，6 轮，日志 8.0 MB"));
     assert!(
-        text.contains("| 0–999 | 1 | 1.0 / 1.0 ms | 10.0 / 10.0 ms |"),
+        text.contains("| 0–999 | 1 | 1.0 / 1.0 ms | 0.5 / 0.5 ms | 10.0 / 10.0 ms |"),
         "{text}"
     );
     assert!(
@@ -172,8 +183,12 @@ fn a_missing_budget_is_an_error() {
 fn the_raw_data_keeps_every_number() {
     let raw = raw::json(&results(true));
     assert_eq!(
-        raw["large"]["turns_seq_request_ms_turn_ms"][1],
-        serde_json::json!([1500, 2.0, 20.0])
+        raw["large"]["turns_seq_request_ms_turn_ms_projection_ms"][1],
+        serde_json::json!([1500, 2.0, 20.0, 1.0])
+    );
+    assert_eq!(
+        raw["large"]["first_projection_ms"],
+        serde_json::json!([60.0])
     );
     assert_eq!(
         raw["append"]["sync_ms"],
@@ -204,9 +219,30 @@ fn the_raw_data_reads_back_exactly() {
 #[test]
 fn a_broken_raw_file_says_which_cell() {
     let mut written = raw::json(&results(true));
-    written["large"]["turns_seq_request_ms_turn_ms"][1][1] = serde_json::json!("slow");
+    written["large"]["turns_seq_request_ms_turn_ms_projection_ms"][1][1] =
+        serde_json::json!("slow");
     let error = load(&written, results(false).args).err().unwrap();
     assert_eq!(error, "原始数据里的 large.turns[1] 缺了，或者类型不对");
     written["plan"] = serde_json::json!({});
     assert!(load(&written, results(false).args).is_err());
+}
+
+#[test]
+fn raw_data_from_before_v2_middle_reads_projection_as_the_whole_request() {
+    // V-2 中以前的原始数据：一轮三格、没有 `first_projection_ms`。落了盘到收到请求照说出去到收到请求算（上界）。
+    let mut written = raw::json(&results(true));
+    let large = written["large"].as_object_mut().unwrap();
+    let turns: Vec<serde_json::Value> = large["turns_seq_request_ms_turn_ms_projection_ms"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|turn| serde_json::json!([turn[0], turn[1], turn[2]]))
+        .collect();
+    large.remove("turns_seq_request_ms_turn_ms_projection_ms");
+    large.insert("turns_seq_request_ms_turn_ms".into(), turns.into());
+    large.remove("first_projection_ms");
+    let read = load(&written, results(false).args).unwrap();
+    let said = read.large.turns[1];
+    assert_eq!((said.request, said.projection), (2.0, 2.0));
+    assert_eq!(read.large.first_projection, vec![120.0]);
 }

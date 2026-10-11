@@ -22,6 +22,7 @@ mod jobs;
 mod peers;
 mod recap;
 mod render;
+mod size;
 mod summary;
 mod tag;
 mod texts;

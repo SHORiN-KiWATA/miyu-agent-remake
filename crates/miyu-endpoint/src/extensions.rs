@@ -11,6 +11,7 @@ pub(crate) mod methods;
 mod stderr;
 mod supervise;
 
+pub(crate) use approval::described;
 pub(crate) use methods::{disable, enable, entry, restart, status};
 pub use supervise::Timing;
 

@@ -37,7 +37,7 @@ use miyu_store::root::DataRoot;
 use crate::{PACKAGE, TARGET};
 use files::Stamp;
 pub use tools::Tools;
-pub(crate) use tools::{MUTE, POKE, RECALL, SKIP_REPLY};
+pub(crate) use tools::{FETCH_MEDIA, MUTE, POKE, RECALL, SKIP_REPLY};
 
 /// 场所规则的目录：出厂的在资源目录的 `software/onebot/` 里，系统的在数据根的 `system/` 里。
 const VENUES: &str = "venues.d";

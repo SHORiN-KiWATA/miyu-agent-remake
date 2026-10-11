@@ -4,7 +4,7 @@
 use serde_json::json;
 
 use super::{Flags, MEDIA_NAME, NAME, fields};
-use crate::onebot::{Media, MediaKind, Posted, Segments, person};
+use crate::onebot::{Fetch, Media, MediaKind, Posted, Segments, person};
 
 /// 一条消息：名字是 `name`，认出来的段是 `segments`。
 fn posted(name: Option<&str>, segments: Segments) -> Posted {
@@ -20,13 +20,42 @@ fn posted(name: Option<&str>, segments: Segments) -> Posted {
     }
 }
 
-/// 一样带的东西。
+/// 一样带的东西：没有大小。
 fn media(id: &str, name: Option<&str>) -> Media {
     Media {
         kind: MediaKind::File,
         id: id.to_string(),
         name: name.map(str::to_string),
+        size: None,
+        fetch: Some(Fetch::File),
     }
+}
+
+/// 施工 O-33：带的东西有大小的写 `size`，0 也写；没有的不写。
+#[test]
+fn a_size_is_written_when_known() {
+    let segments = Segments {
+        media: vec![
+            Media {
+                size: Some(1_234_567),
+                ..media("f-1", Some("a.pdf"))
+            },
+            Media {
+                size: Some(0),
+                ..media("f-2", None)
+            },
+            media("f-3", None),
+        ],
+        ..Segments::default()
+    };
+    assert_eq!(
+        fields(&posted(None, segments), &[], Flags::default())["media"],
+        json!([
+            {"kind": "file", "id": "f-1", "name": "a.pdf", "size": 1_234_567},
+            {"kind": "file", "id": "f-2", "size": 0},
+            {"kind": "file", "id": "f-3"},
+        ])
+    );
 }
 
 #[test]

@@ -113,9 +113,24 @@ pub(crate) async fn catalog(core: &Core, peer: Peer, params: Value) -> Result<Va
     let listed = data.with(onboard::listed);
     let providers: Vec<Value> = onboard::search(&listed, params.query.as_deref(), limit)
         .into_iter()
-        .map(Listed::json)
+        .map(|entry| with_logo(&data, entry))
         .collect();
     Ok(json!({ "providers": providers }))
+}
+
+/// 目录里的一家，多一格图标（施工 8-31）。
+fn with_logo(data: &miyu_session::ModelData, entry: &Listed) -> Value {
+    let mut item = entry.json();
+    item["logo"] = logo(data, Some(&entry.id));
+    item
+}
+
+/// 目录里编号 `id` 那一家的图标（施工 8-31，`models.md`「图标」）：`{"svg", "tint"}`，没有的、不知道是哪一家的是 null。
+pub(crate) fn logo(data: &miyu_session::ModelData, id: Option<&str>) -> Value {
+    match id.and_then(|id| data.logo(id)) {
+        Some(logo) => json!({"svg": logo.svg, "tint": logo.tint}),
+        None => Value::Null,
+    }
 }
 
 /// 常用的几家（施工 8-11 再补，`models.md`「协议」）：照 `featured.toml` 的先后，目录、档案里有的才交，写法同一家目录，
@@ -139,7 +154,7 @@ async fn featured(core: &Core, language: &str) -> Result<Value, Refusal> {
         .filter_map(|one| {
             let id = one.id(language);
             let found = listed.iter().find(|entry| entry.id == id)?;
-            let mut item = found.json();
+            let mut item = with_logo(&data, found);
             item["name"] = json!(one.name.pick(language).unwrap_or(&found.name));
             Some(item)
         })

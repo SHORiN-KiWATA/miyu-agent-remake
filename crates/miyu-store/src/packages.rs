@@ -1,12 +1,14 @@
-//! 软件包清单在哪、两层怎么认（施工 9-1 上，`docs/blueprint/packages.md`「在哪」）：出厂的放资源目录的
-//! `packages/<编号>.toml`，管理员自己装的放 `home/<管理员>/packages/<编号>.toml`。一个包只有一份清单，不像人格那样一层层
+//! 软件包清单在哪、两层怎么认（施工 9-1 上，`docs/blueprint/packages.md`「在哪」）：一个文件夹就是一个包（施工 F-8 上，设计
+//! `31-软件包.md` 第二节），出厂的放资源目录的 `packages/<编号>/package.toml`，管理员自己装的放
+//! `home/<管理员>/packages/<编号>/package.toml`，包的文件都在这个文件夹里。一个包只有一份清单，不像人格那样一层层
 //! 叠：同一个编号两层都有的，认出厂的，家目录那一份报 `duplicate`。两个包要同一个子命令名的，出厂的先于家目录、同一层照
 //! 编号，后读到的那一份报 `command_taken`。读法同配置文件：顺着链接读。文件怎么读成样子在 `miyu_config::package`。
 //!
 //! 包自己在这台机器上的状态放 `<数据根>/state/packages/<编号>/`，包自己建、自己用（[`Packages::state_dir`]）。
 //!
 //! 装、卸（施工 F-5 上）：只动家目录那一层（`install.rs`）。卸掉的出厂的包在家目录记一笔 `<编号>.removed`，读的时候不算装了
-//! （[`Packages::read`]），另外照样读得出来（[`Packages::read_removed`]），好让头给人装回来。
+//! （[`Packages::read`]），另外照样读得出来（[`Packages::read_removed`]），好让头给人装回来。家目录里以前的写法
+//! （`<编号>.toml` 加同名目录）由 `migrate.rs` 挪成新的（施工 F-8 上）。
 
 use std::collections::BTreeMap;
 use std::io;
@@ -19,6 +21,11 @@ use crate::resources::ResourceRoot;
 use crate::root::DataRoot;
 
 pub mod install;
+pub mod local;
+pub mod migrate;
+
+/// 清单在包文件夹里的名字（施工 F-8 上）。
+pub const MANIFEST: &str = "package.toml";
 
 /// 一层：清单从哪来。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -42,21 +49,23 @@ impl Layer {
 /// 读到的一份清单。
 #[derive(Debug)]
 pub struct Found {
-    /// 编号：文件名去掉 `.toml`。
+    /// 编号：包文件夹的名字。
     pub id: String,
     /// 哪一层。
     pub layer: Layer,
-    /// 文件在哪。
+    /// 清单在哪：包文件夹里的 `package.toml`。
     pub path: PathBuf,
     /// 读成的样子，或者问题。
     pub read: Result<Manifest, Issue>,
 }
 
 impl Found {
-    /// 包自己的文件放在哪个目录（施工 R-5 三补，`packages.md`「在哪」）：清单旁边的同名目录，例如
-    /// `home/<管理员>/packages/embed.toml` 的是 `home/<管理员>/packages/embed/`。两层都是这样；目录在不在不管。
+    /// 包自己的文件放在哪个目录（施工 R-5 三补，`packages.md`「在哪」）：包文件夹本身，清单就在里面，例如
+    /// `home/<管理员>/packages/embed/package.toml` 的是 `home/<管理员>/packages/embed/`（施工 F-8 上）。两层都是这样。
     pub fn files_dir(&self) -> PathBuf {
-        self.path.with_file_name(&self.id)
+        self.path
+            .parent()
+            .map_or_else(PathBuf::new, Path::to_path_buf)
     }
 }
 
@@ -100,7 +109,8 @@ impl Packages {
         }
     }
 
-    /// 两层里所有的清单，照编号排（同一个编号出厂的在前）。目录读不了的一层当没有；不是 `.toml` 的、编号不合写法的不算。
+    /// 两层里所有的清单，照编号排（同一个编号出厂的在前）。目录读不了的一层当没有；不是文件夹的、编号不合写法的、文件夹里
+    /// 没有 `package.toml` 的不算。
     /// 卸掉的出厂的包（施工 F-5 上，家目录记了一笔的）不在里面。
     pub fn read(&self) -> Vec<Found> {
         let removed = self.removed();
@@ -152,6 +162,11 @@ impl Packages {
                 path,
             })
             .collect()
+    }
+
+    /// 本地库在哪：`<数据根>/state/packages/.local`（施工 F-8 中上，[`local`]）。
+    pub fn local_root(&self) -> PathBuf {
+        local::root(&self.state)
     }
 
     /// 家目录那一层的目录（施工 F-5 上：装、卸只动它）；只有出厂那一层的没有。
@@ -208,7 +223,8 @@ pub fn locate(program: &str, main: &Path) -> Option<PathBuf> {
         .filter(|path| path.is_file())
 }
 
-/// 一层目录里的清单：编号和路径。读不了的目录当没有。
+/// 一层目录里的清单：编号（包文件夹的名字）和清单的路径。读不了的目录当没有；点开头的（装到一半的暂存、备份）编号不合
+/// 写法，不算。
 fn files(dir: &Path) -> Vec<(String, PathBuf)> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return Vec::new();
@@ -216,13 +232,10 @@ fn files(dir: &Path) -> Vec<(String, PathBuf)> {
     entries
         .flatten()
         .filter_map(|entry| {
-            let path = entry.path();
-            let id = path
-                .file_name()?
-                .to_str()?
-                .strip_suffix(".toml")?
-                .to_string();
-            (crate::personas::valid(&id) && path.is_file()).then_some((id, path))
+            let folder = entry.path();
+            let id = folder.file_name()?.to_str()?.to_string();
+            let manifest = folder.join(MANIFEST);
+            (crate::personas::valid(&id) && manifest.is_file()).then_some((id, manifest))
         })
         .collect()
 }

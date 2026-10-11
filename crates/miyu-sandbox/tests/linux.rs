@@ -18,6 +18,7 @@ fn spec(write: &[&Path], hidden: &[&Path]) -> Spec {
     Spec {
         write: write.iter().map(|path| path.to_path_buf()).collect(),
         hidden: hidden.iter().map(|path| path.to_path_buf()).collect(),
+        read: None,
     }
 }
 
@@ -356,5 +357,51 @@ fn ci_machines_run_with_landlock() {
             landlock(),
             "CI 的内核没有能用的 Landlock，Linux 的沙盒没真测到"
         );
+    }
+}
+
+/// 只准读名单里的（施工 5-12 下，外部身份的会话）：名单外的文件读不到、目录列不出，名单里的照常读，能写的照常写；程序照样
+/// 跑得起来（系统目录在名单里）。
+#[test]
+fn a_read_list_keeps_everything_else_unreadable() {
+    let _serial = serial();
+    let work = Dir::new();
+    let other = Dir::new();
+    let secret = other.file("secret.txt", b"keep out\n");
+    let mine = work.file("mine.txt", b"mine\n");
+    let read: Vec<std::path::PathBuf> = [
+        "/usr", "/bin", "/sbin", "/lib", "/lib32", "/lib64", "/etc", "/dev",
+    ]
+    .iter()
+    .map(std::path::PathBuf::from)
+    .chain([work.path().to_path_buf()])
+    .collect();
+    let spec = Spec {
+        write: vec![work.path().to_path_buf()],
+        hidden: Vec::new(),
+        read: Some(read),
+    };
+    if refused_without_landlock(&spec) {
+        return;
+    }
+    let out = run(
+        &spec,
+        &format!(
+            "cat '{}' && echo new > '{}/new.txt' && cat '{}/new.txt'",
+            mine.display(),
+            work.path().display(),
+            work.path().display()
+        ),
+    );
+    assert_eq!(out.status.code(), Some(0), "{out:?}");
+    assert_eq!(text(&out.stdout), "mine\nnew\n");
+    let home = std::env::var("HOME").expect("有家目录");
+    for script in [
+        format!("cat '{}'", secret.display()),
+        format!("ls '{}'", other.path().display()),
+        format!("ls '{home}'"),
+        "cat /proc/1/environ".to_string(),
+    ] {
+        denied(&spec, &script);
     }
 }

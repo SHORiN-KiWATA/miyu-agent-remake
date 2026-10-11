@@ -11,15 +11,20 @@ use miyu_config::{Item, Words};
 use miyu_kernel::id::AccountId;
 use miyu_policy::features::{Feature, Features};
 use miyu_store::human::Human;
-use miyu_store::packages::{Found, Issue, Packages};
+use miyu_store::packages::{Found, Issue, Packages, migrate};
 use miyu_store::resources::ResourceRoot;
 use miyu_store::root::DataRoot;
 
 use crate::Core;
 
+pub(crate) mod changes;
+pub(crate) mod local;
 pub(crate) mod manage;
+pub(crate) mod methods;
+pub(crate) mod preview;
 pub(crate) mod status;
 pub(crate) mod switch;
+pub(crate) mod verify;
 use crate::config::methods::words;
 use crate::hello::Peer;
 use crate::personas::pick;
@@ -37,9 +42,36 @@ pub(crate) fn packages(core: &Core) -> Packages {
     Packages::new(&core.resources, &core.root, &core.admin)
 }
 
-/// 核心起来时读一次：写错的、撞了的各记一行 `WARN package invalid`，读不了的 `WARN package unreadable`。
+/// 核心起来时读一次：写错的、撞了的各记一行 `WARN package invalid`，读不了的 `WARN package unreadable`。读之前把家目录里
+/// 以前的写法挪成新的（施工 F-8 上），挪了的记一行 `INFO package moved`，挪不了的 `WARN package not moved`；写了 `kind` 的
+/// 改成照表认的（施工 F-8 上补），`INFO package rewritten`、`WARN package not rewritten`。
 pub fn load(resources: &ResourceRoot, root: &DataRoot, admin: &AccountId) -> Vec<Found> {
-    let found = Packages::new(resources, root, admin).read();
+    let packages = Packages::new(resources, root, admin);
+    if let Some(home) = packages.home_dir() {
+        for moved in migrate::old_layout(home) {
+            match &moved.result {
+                Ok(()) => {
+                    tracing::info!(target: TARGET, package = moved.id.as_str(), "package moved");
+                }
+                Err(why) => {
+                    tracing::warn!(target: TARGET, package = moved.id.as_str(), why = ?why, "package not moved");
+                }
+            }
+        }
+        for rewritten in migrate::old_kind(home) {
+            match &rewritten.result {
+                Ok(()) => {
+                    tracing::info!(target: TARGET, package = rewritten.id.as_str(), "package rewritten");
+                }
+                Err(why) => {
+                    tracing::warn!(target: TARGET, package = rewritten.id.as_str(), why = ?why, "package not rewritten");
+                }
+            }
+        }
+    }
+    let found = packages.read();
+    // 本地库（施工 F-8 中上）：以前装的、还没记的补一份。
+    local::backfill(&packages, &found);
     for one in &found {
         match &one.read {
             Ok(_) => {}
@@ -71,6 +103,18 @@ pub(crate) fn list(core: &Core, peer: Peer) -> Result<Value, Refusal> {
             .map(|found| listed(core, found, &places, &words, peer.language, true)),
     );
     Ok(json!({ "packages": items }))
+}
+
+/// 列表里包 `id` 那一项，照 `peer` 的语言（施工 F-8 三补：推送照它算）；装着的、卸掉了的出厂的都有，都不是的没有。
+pub(crate) fn entry(core: &Core, id: &str, peer: Peer) -> Option<Value> {
+    let words = words(core, peer.language).ok()?;
+    let places = packages(core);
+    if let Some(found) = core.packages().iter().find(|found| found.id == id) {
+        return Some(listed(core, found, &places, &words, peer.language, false));
+    }
+    let removed = places.read_removed();
+    let found = removed.iter().find(|found| found.id == id)?;
+    Some(listed(core, found, &places, &words, peer.language, true))
 }
 
 /// 一项。`removed` 是卸掉了的出厂的包（带 `removed: true`）。
@@ -128,7 +172,9 @@ fn listed(
 /// 读成了的几格；没有的不写。
 fn fill(item: &mut Value, id: &str, manifest: &Manifest, language: &str) {
     item["kind"] = json!(manifest.kind.as_str());
-    item["protocol"] = json!(manifest.protocol);
+    if let Some(protocol) = manifest.protocol {
+        item["protocol"] = json!(protocol);
+    }
     item["name"] = json!(pick(&manifest.name, language));
     if let Some(version) = &manifest.version {
         item["version"] = json!(version);
@@ -194,11 +240,14 @@ fn links(item: &mut Value, id: &str, manifest: &Manifest, language: &str) {
     if let Some(icon) = &manifest.icon {
         item["icon"] = json!(icon);
     }
+    if let Some(mascot) = &manifest.mascot {
+        item["mascot"] = json!({"model": mascot.model});
+    }
 }
 
-/// 说的协议版本不包含核心的：交回给人看的那个范围，例如 `2–3`；包含的没有。
+/// 说的协议版本不包含核心的：交回给人看的那个范围，例如 `2–3`；包含的、不说协议的（吉祥物包）没有。
 pub(crate) fn mismatch(manifest: &Manifest) -> Option<String> {
-    let [low, high] = manifest.protocol;
+    let [low, high] = manifest.protocol?;
     if (low..=high).contains(&PROTOCOL) {
         return None;
     }

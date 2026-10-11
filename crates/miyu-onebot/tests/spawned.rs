@@ -47,7 +47,7 @@ fn home(script: &Script, listen: u16) -> Home {
 
 /// 经核心调一次 `method`（`secret.set`、`config.set`），照页面、命令行的样子：核心收了才回。
 async fn core_call(root: &DataRoot, method: &str, params: Value) {
-    let mut core = miyu_webserve::open::Core::connect_running(root, "test")
+    let mut core = miyu_client::open::Core::connect_running(root, "test")
         .await
         .expect("连得上核心");
     core.call("o20", method, params)

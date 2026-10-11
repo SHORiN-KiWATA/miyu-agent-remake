@@ -259,7 +259,7 @@ pub async fn stopped(home: Home) {
 /// `session.respond` 拿序号是 `to` 的那几条开，命令编号是 `id`。核心拒了的照实报出来。
 pub async fn respond(home: &Home, venue: &str, id: &str, to: &[Value]) {
     let (session, _) = venue_session(&home.root, venue).expect("有会话");
-    let mut core = miyu_webserve::open::Core::connect_running(&home.root, "test")
+    let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await
         .expect("连得上核心");
     let params = json!({"session": session, "to": to});

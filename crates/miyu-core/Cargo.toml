@@ -17,6 +17,8 @@ mermaid = ["dep:miyu-mermaid"]
 net = ["dep:miyu-net"]
 
 [dependencies]
+# 空闲时把空着的堆还给系统、glibc 上限制 arena（23 F3，施工 V-2 再补）。
+miyu-heap = { path = "../miyu-heap" }
 # 驱动：DeepSeek 那一套写法、一次调用要定的（施工 3-4）。
 miyu-drivers = { path = "../miyu-drivers" }
 # 协议端点：核心的家底、一个个接连接、空不空闲（施工 3-8）。

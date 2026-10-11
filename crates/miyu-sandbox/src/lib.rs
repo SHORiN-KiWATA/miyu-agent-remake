@@ -31,6 +31,10 @@ pub use probe::{Platform, Probe, ProbeError, VERSION, probe};
 pub use spec::Spec;
 pub use wrap::{Sandboxed, argv};
 
+/// 这个平台的沙盒能不能把读也关住（规格的 `read`，施工 5-12 下）：现在只有 Linux 的 Landlock 做了；别的平台助手收到写了
+/// `read` 的规格不跑，核心照它决定外部身份的会话能不能跑命令。
+pub const CONFINES_READS: bool = cfg!(target_os = "linux");
+
 /// 助手的退出码：它自己出了错（参数、规格写坏了，收紧失败）。照 `env`、`timeout` 的约定。
 pub const EXIT_HELPER: u8 = 125;
 /// 助手的退出码：找到了命令，执行不了。

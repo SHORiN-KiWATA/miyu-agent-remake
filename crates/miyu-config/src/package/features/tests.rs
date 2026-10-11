@@ -5,7 +5,6 @@ use crate::package::{Code, PackageKind, read};
 
 /// 基础系统那种：内置、必需、两个功能。
 const BASESYSTEM: &str = r#"[package]
-kind = "builtin"
 required = true
 protocol = [1, 1]
 name = { en = "Base system", zh = "基础系统" }
@@ -18,11 +17,12 @@ tools = ["read", "write", "edit"]
 [features.commands]
 name = { en = "Commands", zh = "运行命令" }
 tools = ["shell"]
+
+[builtin]
 "#;
 
 /// 只写了包、没写功能的扩展。
 const BRIDGE: &str = r#"[package]
-kind = "process"
 protocol = [1, 1]
 name = { en = "Connect QQ", zh = "接入QQ" }
 summary = { en = "Talk with the AI on QQ" }
@@ -58,7 +58,7 @@ fn a_builtin_package_reads_its_features_in_order() {
     assert_eq!(features[0].tools, ["read", "write", "edit"]);
     assert!(features[1].summary.is_empty(), "说明可以不写");
     assert_eq!(features[1].tools, ["shell"]);
-    assert_eq!(features[0].line, Some(7), "编号在第几行");
+    assert_eq!(features[0].line, Some(6), "编号在第几行");
 }
 
 #[test]
@@ -83,16 +83,16 @@ fn an_empty_features_table_means_no_feature_at_all() {
 
 #[test]
 fn interfaces_and_workers_bring_no_feature() {
-    let ui = "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = { en = \"Web\" }\n";
+    let ui = "[package]\nprotocol = [1, 1]\nname = { en = \"Web\" }\n\n[ui]\n";
     assert!(read(ui).unwrap().features_of("web").is_empty());
-    let worker = "[package]\nkind = \"worker\"\nprotocol = [1, 1]\nname = { en = \"Embed\" }\n\n[worker]\nprogram = \"miyu-embed\"\n";
+    let worker = "[package]\nprotocol = [1, 1]\nname = { en = \"Embed\" }\n\n[worker]\nprogram = \"miyu-embed\"\n";
     assert!(read(worker).unwrap().features_of("embed").is_empty());
 }
 
 #[test]
 fn a_feature_id_is_written_like_a_package_id() {
     let text = BASESYSTEM.replace("[features.commands]", "[features.Commands]");
-    assert_eq!(wrong(&text), (Code::BadFeature, Some(12)));
+    assert_eq!(wrong(&text), (Code::BadFeature, Some(11)));
     let text = BASESYSTEM.replace("[features.commands]", "[features.\"9lives\"]");
     assert_eq!(wrong(&text).0, Code::BadFeature);
 }
@@ -105,9 +105,9 @@ fn a_feature_must_be_a_table_with_a_name() {
     );
     assert_eq!(wrong(&text).0, Code::NotATable);
     let text = BASESYSTEM.replace("name = { en = \"Commands\", zh = \"运行命令\" }\n", "");
-    assert_eq!(wrong(&text), (Code::MissingKey, Some(12)), "报在功能那一行");
+    assert_eq!(wrong(&text), (Code::MissingKey, Some(11)), "报在功能那一行");
     let text = BASESYSTEM.replace("tools = [\"shell\"]", "tools = [\"shell\"]\nicon = \"x\"");
-    assert_eq!(wrong(&text), (Code::UnknownKey, Some(15)));
+    assert_eq!(wrong(&text), (Code::UnknownKey, Some(14)));
     let text = BASESYSTEM.replace(
         "summary = { en = \"Read, write and search files\" }",
         "summary = 3",
@@ -118,17 +118,17 @@ fn a_feature_must_be_a_table_with_a_name() {
 #[test]
 fn tools_are_tool_names_listed_once_in_the_whole_package() {
     let text = BASESYSTEM.replace("tools = [\"shell\"]", "tools = \"shell\"");
-    assert_eq!(wrong(&text), (Code::NotTexts, Some(14)));
+    assert_eq!(wrong(&text), (Code::NotTexts, Some(13)));
     let text = BASESYSTEM.replace("tools = [\"shell\"]", "tools = [\"run shell\"]");
-    assert_eq!(wrong(&text), (Code::BadTool, Some(14)));
+    assert_eq!(wrong(&text), (Code::BadTool, Some(13)));
     let text = BASESYSTEM.replace("tools = [\"shell\"]", "tools = [\"shell\", \"read\"]");
     let problem = read(&text).expect_err("read 列了两次");
-    assert_eq!((problem.code, problem.line), (Code::BadTool, Some(14)));
+    assert_eq!((problem.code, problem.line), (Code::BadTool, Some(13)));
     assert_eq!(problem.detail, "read");
     let text = BASESYSTEM.replace("tools = [\"shell\"]", "tools = [\"shell\", \"shell\"]");
     assert_eq!(
         wrong(&text),
-        (Code::BadTool, Some(14)),
+        (Code::BadTool, Some(13)),
         "同一个功能里也只列一次"
     );
     let long = "x".repeat(65);
@@ -138,8 +138,8 @@ fn tools_are_tool_names_listed_once_in_the_whole_package() {
 
 #[test]
 fn only_builtin_and_process_packages_write_features() {
-    let ui = "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = { en = \"Web\" }\n\n[features]\n";
-    assert_eq!(wrong(ui), (Code::WrongKind, Some(6)));
-    let worker = "[package]\nkind = \"worker\"\nprotocol = [1, 1]\nname = { en = \"Embed\" }\n\n[worker]\nprogram = \"miyu-embed\"\n\n[features.x]\nname = { en = \"X\" }\n";
+    let ui = "[package]\nprotocol = [1, 1]\nname = { en = \"Web\" }\n\n[features]\n\n[ui]\n";
+    assert_eq!(wrong(ui), (Code::WrongKind, Some(5)));
+    let worker = "[package]\nprotocol = [1, 1]\nname = { en = \"Embed\" }\n\n[worker]\nprogram = \"miyu-embed\"\n\n[features.x]\nname = { en = \"X\" }\n";
     assert_eq!(wrong(worker).0, Code::WrongKind);
 }

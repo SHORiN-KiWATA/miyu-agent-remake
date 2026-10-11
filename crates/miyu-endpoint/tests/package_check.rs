@@ -11,9 +11,9 @@ use crate::support::*;
 fn install(home: &Home, id: &str, program: &str, args: &[&str]) {
     let args: Vec<String> = args.iter().map(|arg| format!("{arg:?}")).collect();
     home.write(
-        &format!("home/alice/packages/{id}.toml"),
+        &format!("home/alice/packages/{id}/package.toml"),
         &format!(
-            "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"P\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"P\" }}\n\n[process]\n\n[check]\nargs = [{}]\n",
+            "[package]\nprotocol = [1, 1]\nname = {{ en = \"P\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"P\" }}\n\n[process]\n\n[check]\nargs = [{}]\n",
             args.join(", ")
         ),
     );
@@ -36,13 +36,13 @@ async fn a_missing_program_is_one_warning() {
     let problems = checked(&home).await;
     let ghost: Vec<&Value> = problems
         .iter()
-        .filter(|problem| problem["file"] == "home/alice/packages/ghost.toml")
+        .filter(|problem| problem["file"] == "home/alice/packages/ghost/package.toml")
         .collect();
     assert_eq!(
         ghost,
         [&json!({
             "kind": "package",
-            "file": "home/alice/packages/ghost.toml",
+            "file": "home/alice/packages/ghost/package.toml",
             "code": "check_unavailable",
             "level": "warning",
             "message": "没找到 miyu-no-such-program-anywhere，这个包自己的检查没跑",
@@ -112,8 +112,8 @@ async fn a_package_check_reports_its_problems_after_the_cores_own() {
         from_packages,
         [
             &json!({"kind":"venue","file":"system/venues.d/x.toml","line":2,"level":"error","message":"bad rule"}),
-            &json!({"kind":"package","file":"home/alice/packages/bridge.toml","code":"check_output","level":"warning","message":"这个包自己的检查印了 1 行看不懂的，跳过了"}),
-            &json!({"kind":"package","file":"home/alice/packages/broken.toml","code":"check_failed","level":"warning","message":"这个包自己的检查没跑完：exit code 7"}),
+            &json!({"kind":"package","file":"home/alice/packages/bridge/package.toml","code":"check_output","level":"warning","message":"这个包自己的检查印了 1 行看不懂的，跳过了"}),
+            &json!({"kind":"package","file":"home/alice/packages/broken/package.toml","code":"check_failed","level":"warning","message":"这个包自己的检查没跑完：exit code 7"}),
         ],
         "照编号的先后，接在核心自己查的后面"
     );

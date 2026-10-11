@@ -9,6 +9,8 @@ publish.workspace = true
 autotests = false
 
 [dependencies]
+# 空闲时把空着的堆还给系统、glibc 上限制 arena（23 F3，施工 V-2 再补）。
+miyu-heap = { path = "../miyu-heap" }
 # 驱动：请求编码成字节、读回来的分片解码（施工 3-7 下）。
 miyu-drivers = { path = "../miyu-drivers" }
 # HTTP 执行器：照编码好的字节发请求，流式读回来（施工 3-7 下）。

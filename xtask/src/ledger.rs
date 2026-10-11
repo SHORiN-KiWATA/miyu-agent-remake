@@ -36,7 +36,7 @@ const DATA: &str = "models";
 /// 资源目录最上一层的这个目录放网页软件的设置（`web.json`）和页面，给浏览器的，不发给模型，不登记（施工 W-9，`web-ui.md`）。
 const WEB: &str = "web";
 
-/// 资源目录最上一层的这个目录放软件包清单（施工 9-1 上，`packages.md`）：给人看的名字、说明和程序名，不发给模型，不登记。
+/// 资源目录最上一层的这个目录放软件包（施工 9-1 上，F-8 上起一个文件夹一个包，`packages.md`）：给人看的名字、说明和程序名，不发给模型，不登记。
 const PACKAGES: &str = "packages";
 
 /// 资源目录最上一层的这个目录放出厂的预设（施工 P-2 上，`presets.md`）：给人看的名字、说明和开关表，不发给模型，不登记。
@@ -259,7 +259,7 @@ mod tests {
             ("software/onebot/venues.d/50-defaults.toml", "[[rule]]"),
             ("software/onebot/venues.d/60-more.toml", "[[rule]]"),
             ("software/x/moderation.txt", "m"),
-            ("packages/web.toml", "[package]"),
+            ("packages/web/package.toml", "[package]"),
             ("core/packages/p.txt", "p"),
             ("presets/dev.toml", "[preset]"),
             ("core/presets/p.txt", "p"),

@@ -25,7 +25,14 @@ pub fn json(results: &Results) -> Value {
     let turns: Vec<Value> = large
         .turns
         .iter()
-        .map(|said| json!([said.seq, round(said.request), round(said.turn)]))
+        .map(|said| {
+            json!([
+                said.seq,
+                round(said.request),
+                round(said.turn),
+                round(said.projection)
+            ])
+        })
         .collect();
     json!({
         "date": results.date,
@@ -39,9 +46,10 @@ pub fn json(results: &Results) -> Value {
         "hot": {"sessions": results.hot.sessions, "load_ms": times(&results.hot.load),
             "idle": processes(&results.hot.idle), "active": processes(&results.hot.active)},
         "large": {"events": large.events, "log_bytes": large.log_bytes, "tail": large.tail,
-            "turns_seq_request_ms_turn_ms": turns,
+            "turns_seq_request_ms_turn_ms_projection_ms": turns,
             "loaded": processes(&large.loaded), "idle": processes(&large.idle),
             "reload_ms": times(&large.reload), "first_request_ms": times(&large.first_request),
+            "first_projection_ms": times(&large.first_projection),
             "reloaded": processes(&large.reloaded)},
         "append": {"sync_ms": times(&results.appends)},
     })

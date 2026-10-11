@@ -12,7 +12,7 @@
 //! - 她被禁言到什么时候（O-25 中，「出站队列」第 7 条）：最后一条 `ext.onebot.venues.muted` 的 `until`，之后有 `unmuted` 的不算。
 //! - 判过要回、她还没回完的（O-23 下，「群里怎么叫她」第 11 条，「施工时定的」第 91 条）：判断（`ext.onebot.chat.decided`）
 //!   的结论是回的那几条，到收了它们的那一轮 `turn.ended` 为止；顶替看它们（`Status::Committed`）。
-//! - 她新说的话（`message.assistant`，序号大于订阅时的 `upto`）：交出回合编号和这一轮回的人，调的一方发回群里。O-25 上连同
+//! - 她说的话（`message.assistant`；序号不大于订阅时的 `upto` 的标上补来的，O-32）：交出回合编号和这一轮回的人，调的一方发回群里。O-25 上连同
 //!   出站链要的（「群里怎么叫她」第 2、9 条）：她回的那一条（这一轮触发里最后一条，并进来的换成并进来的最后一条），那之后
 //!   别人说了几条，群里最后一条是不是她的，这一轮已经发出去的：O-25 中照入队的（`ext.onebot.venues.queued` 里 `kind` 是
 //!   `reply` 的正文），桥入队记成了先算进来（[`Projection::queued`]），日志推来的同一段不重复算（「施工时定的」第 112 条）。
@@ -124,6 +124,8 @@ pub(super) struct Speaking {
     pub(super) last_is_own: bool,
     /// 这一轮已经发出去的：这一轮入队了的她的话的正文，照先后（O-25 中；O-25 上照 `venue.delivered`）。
     pub(super) sent: Vec<String>,
+    /// 订阅补来的（序号不大于 `upto`，O-32）：不照常发，期限以内、没入队的补发（「出站队列」第 6 条）。
+    pub(super) replayed: bool,
 }
 
 /// 一轮发出去的（O-25 上）：去重只看这一回合。
@@ -191,7 +193,7 @@ impl Projection {
         self.last
     }
 
-    /// 收一条事件。她新说的话（`message.assistant`，序号大于 `upto`）交出这一轮回的是谁；别的交回空的。
+    /// 收一条事件。她说的话（`message.assistant`）交出这一轮回的是谁，序号不大于 `upto` 的标上补来的；别的交回空的。
     pub(super) fn take(&mut self, event: &Event) -> Option<Speaking> {
         let seq = event.seq.get();
         if seq <= self.last {
@@ -274,9 +276,7 @@ impl Projection {
             Body::MessageAssistant(_) => {
                 let turn = turn?;
                 self.spoke = Some((turn, seq));
-                if seq > self.upto {
-                    return Some(self.speaking(turn));
-                }
+                return Some(self.speaking(turn, seq <= self.upto));
             }
             Body::Unknown { kind, body } if kind.as_str() == QUEUED => {
                 let body: Value = serde_json::from_str(body.get()).unwrap_or_default();
@@ -308,8 +308,8 @@ impl Projection {
         None
     }
 
-    /// 她在回合编号是 `turn` 的那一轮新说了一段：交出这一刻群里的样子（第 9 条）。
-    fn speaking(&self, turn: u64) -> Speaking {
+    /// 她在回合编号是 `turn` 的那一轮说了一段（`replayed` 的是订阅补来的）：交出这一刻群里的样子（第 9 条）。
+    fn speaking(&self, turn: u64, replayed: bool) -> Speaking {
         let running = self.running.as_ref().filter(|running| running.turn == turn);
         let to = running
             .map(|running| running.to.clone())
@@ -338,6 +338,7 @@ impl Projection {
             others,
             last_is_own: self.own > last_said,
             sent,
+            replayed,
         }
     }
 

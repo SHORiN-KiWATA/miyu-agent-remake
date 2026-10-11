@@ -2,6 +2,9 @@
 //! 不可用」；有的，反向调用 `tool.call {session, call_id, tool, args, cwd, by, owner}`，照回应 `{blocks, error}` 交回结果。回应是
 //! 错误的、写法不对的，算出错，原话写进结果；等着时连接断了，也是暂时不可用。到了登记时写的时限没回的，交回「没在 N 秒内答完」；
 //! 超时、叫它停、掐掉（这个 future 被丢掉）时发一次 `tool.cancel {session, call_id}`，回应先到的不发（施工 O-2 下）。
+//!
+//! 交回的图、文件引用的 blob 是扩展经 `blob.put` 传进管理员名下的，她照会话的属主读：回应到了先拷一份进属主名下，块原样不动；
+//! 拷不成的（管理员名下也没有这个 blob、存不下）照暂时不可用（施工 O-2 三补，同 `session.send` 的附件，`attach::copy_over`）。
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -12,7 +15,9 @@ use serde_json::{Value, json};
 
 use miyu_kernel::block::{Block, Text};
 use miyu_kernel::event::Said;
+use miyu_kernel::id::AccountId;
 use miyu_kernel::template::Template;
+use miyu_store::root::DataRoot;
 use miyu_tool::{Call, Done, Progress, Running, Spec, Tool, Venues};
 
 use super::{Checked, Provided};
@@ -30,6 +35,13 @@ pub(super) struct Texts {
     pub(super) timed_out: String,
 }
 
+/// 扩展传上来的 blob 在哪（施工 O-2 三补）：数据根和管理员，`blob.put` 都存在管理员名下。
+#[derive(Clone)]
+pub(crate) struct Stores {
+    pub(crate) root: DataRoot,
+    pub(crate) admin: AccountId,
+}
+
 /// 提供者的一件工具。
 pub(crate) struct RemoteTool {
     spec: Spec,
@@ -38,6 +50,7 @@ pub(crate) struct RemoteTool {
     package: String,
     provided: Arc<Provided>,
     texts: Texts,
+    stores: Stores,
 }
 
 /// 回应里的结果。
@@ -55,6 +68,7 @@ impl RemoteTool {
         package: &str,
         provided: Arc<Provided>,
         texts: Texts,
+        stores: Stores,
     ) -> RemoteTool {
         RemoteTool {
             spec: checked.spec,
@@ -63,6 +77,7 @@ impl RemoteTool {
             package: package.to_string(),
             provided,
             texts,
+            stores,
         }
     }
 
@@ -112,6 +127,27 @@ impl RemoteTool {
             Err(Gone) => self.unavailable(),
         }
     }
+
+    /// 交回的图、文件引用的 blob 拷一份进会话的属主 `owner` 名下（施工 O-2 三补）。没有引用的、不知道是哪个会话的（测试里的
+    /// 假调用）原样交回；拷不成的记一行，照暂时不可用。
+    async fn handed(&self, done: Done, owner: Option<AccountId>) -> Done {
+        let hashes = crate::attach::blobs_of(&done.blocks);
+        let Some(owner) = owner.filter(|_| !hashes.is_empty()) else {
+            return done;
+        };
+        let stores = self.stores.clone();
+        let copied = tokio::task::spawn_blocking(move || {
+            crate::attach::copy_over(&stores.root, &stores.admin, &owner, &hashes)
+        })
+        .await;
+        match copied {
+            Ok(Ok(())) => done,
+            Ok(Err(_)) | Err(_) => {
+                tracing::warn!(target: "miyu::endpoint", tool = self.spec.name.as_str(), "tool blobs not handed over");
+                self.unavailable()
+            }
+        }
+    }
 }
 
 impl Tool for RemoteTool {
@@ -132,6 +168,7 @@ impl Tool for RemoteTool {
             let ids = call.ids.as_ref();
             let asked = ids.and_then(|ids| ids.asked.as_ref());
             let session = ids.map(|ids| ids.session.as_str());
+            let owner = ids.map(|ids| ids.owner.clone());
             let call_id = ids.map(|ids| ids.call.to_string());
             let mut params = json!({
                 "session": session,
@@ -156,7 +193,7 @@ impl Tool for RemoteTool {
                 tokio::select! {
                     outcome = &mut answer => {
                         cancel.state = Sending::Done;
-                        return self.answered(outcome);
+                        return self.handed(self.answered(outcome), owner).await;
                     }
                     // 超时：交回那一句，`tool.cancel` 由 `cancel` 丢掉时发。
                     () = tokio::time::sleep_until(deadline) => return self.timed_out(),

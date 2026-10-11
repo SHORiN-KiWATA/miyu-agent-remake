@@ -654,6 +654,28 @@ Can't tell where "{path}" points: {reason}.
 This tool only works in a group or private chat on a messaging platform, not in this session.
 ```
 
+#### `core/permissions/outside-workspace.txt`
+
+- 什么时候加进来：权限策略拒绝：只碰得到自己工作区的会话（外部身份的场所会话）要碰工作区外面的路径（施工 5-12）
+- token：约 22（路径按 `~/notes/a.md` 算，按 o200k 估）
+- 为什么加：告诉她哪一条、为什么，别换个说法再试，只用工作区里的；不进策略快照，这种会话造、载入时读（同 `not-in-venue.txt`）
+- 指纹：`235676a5`
+
+```text
+"{path}" is outside this chat's workspace. Here you can only use files inside it.
+```
+
+#### `core/permissions/no-commands.txt`
+
+- 什么时候加进来：权限策略拒绝：只碰得到自己工作区的会话要跑命令（施工 5-12：沙盒把读也关进工作区以前）
+- token：约 9（按 o200k 估）
+- 为什么加：告诉她这里不能跑命令，别再试；同上不进策略快照
+- 指纹：`4d0ca87a`
+
+```text
+Commands can't run in this chat yet.
+```
+
 #### `software/basesystem/common/missing.txt`
 
 - 什么时候加进来：`read`、`glob`、`grep` 要的文件或目录不存在
@@ -2183,6 +2205,83 @@ Not done: QQ is not reachable right now.
 QQ did not answer in time; it may or may not have happened.
 ```
 
+#### `software/onebot/tool-results/saved.txt`
+
+- 什么时候加进来：`fetch_media` 把视频、文件（存不成图的图）写进了工作区，`path` 是落到的真实路径
+- token：33（`path` 填 `/home/me/.local/share/miyu/home/onebot/workspace/qq-files/8816-1-排班.pdf`）
+- 为什么加：她拿路径再 `read`（视频以后 `shell` 调 ffmpeg）
+- 指纹：`b0a83124`
+
+```text
+Saved to {path}.
+```
+
+#### `software/onebot/tool-results/not-found.txt`
+
+- 什么时候加进来：`fetch_media` 的 `msg` 不是整数、QQ 说没有这一条、那一条不在这个群
+- token：12
+- 为什么加：编号不对、过期了、别处的都照没有说：不让她拿编号看别的群
+- 指纹：`25ddb28b`
+
+```text
+Not found: no message with that msg in this group.
+```
+
+#### `software/onebot/tool-results/no-item.txt`
+
+- 什么时候加进来：`fetch_media` 的 `index` 不对：那一条没有第几样
+- token：16（`count` 填 2）
+- 为什么加：说清那一条有几样、从 1 数，她改了再取
+- 指纹：`e9233523`
+
+```text
+Not found: that message has {count} item(s), counted from 1.
+```
+
+#### `software/onebot/tool-results/not-fetchable.txt`
+
+- 什么时候加进来：`fetch_media` 点到的是语音、小黄脸、`mface` 商城表情
+- token：13
+- 为什么加：语音先不转文字（2026-10-11 项目主人定），表情没有可取的原图：说清取不了，不再试
+- 指纹：`cb87ab72`
+
+```text
+Not fetched: voice and QQ emoji can't be fetched.
+```
+
+#### `software/onebot/tool-results/unfetched.txt`
+
+- 什么时候加进来：NapCat 回了，东西拿不到手：地址下不下来、路径读不到、没有 base64；`detail` 是每一样为什么（截到 200 个字符）
+- token：9（`detail` 填 `url: HTTP 404`）
+- 为什么加：照实说没取到、为什么
+- 指纹：`2418337c`
+
+```text
+Not fetched: {detail}
+```
+
+#### `software/onebot/tool-results/too-many.txt`
+
+- 什么时候加进来：这一轮已经取了 `fetch_per_turn` 次（出厂 4）
+- token：12（`count` 填 4）
+- 为什么加：照旧 Miyu 的配额，一轮不取太多；说清上限，她下一轮再取
+- 指纹：`4cec53d7`
+
+```text
+Not fetched: at most {count} fetches per turn.
+```
+
+#### `software/onebot/tool-results/not-saved.txt`
+
+- 什么时候加进来：取到了，写不进工作区：`qq-files` 不是真目录、落到了工作区外面、写不了；`detail` 是为什么
+- token：12（`detail` 填 `qq-files is not a folder`）
+- 为什么加：照实说没存下，不装作存了
+- 指纹：`44b686f0`
+
+```text
+Not saved: {detail}
+```
+
 #### `software/basesystem/common/not-read.txt`
 
 - 什么时候加进来：`write`、`edit` 要改的文件已经在了、她这个会话里没看过
@@ -2719,6 +2818,19 @@ Group messages look like [HH:MM] name (id=..., role) [msg=...]: text, with optio
 ({count} earlier messages did not fit here; fetch them with history.)
 ```
 
+### 人这边：群里一行的内容，语音的记号后面空一格
+
+#### `core/venues/voice.txt`
+
+- 什么时候加进来：群会话里，群里的人发的一条带着语音（施工 O-33）；O-33 起造的群会话才有（快照的 `group.voice`），以前造的一个字节不变
+- token：6（2026-10-11，接在 `[voice]` 后面比只有 `[voice]` 多 6；单独接在 `hi` 后面也是 6）
+- 为什么加：语音先不转文字（2026-10-11 项目主人定）：只写 `[voice]` 她会当听到了、编内容，告诉她这一条听不了。英文短句，括号是记号的一部分
+- 指纹：`9c24eebb`
+
+```text
+(not playable yet)
+```
+
 ### 回顾那一次请求，不进主对话
 
 #### `core/recap/instruction.txt`
@@ -3207,6 +3319,20 @@ Start a subagent in a new session to do one task and wait for it; its report arr
 {
   "description": "Poke the one person @-mentioned in the message you are answering, or its sender if nobody is.",
   "parameters": {"type":"object","properties":{}}
+}
+```
+
+#### `software/onebot/tools/fetch_media.json`
+
+- 什么时候加进来：群会话的工具面里有 `fetch_media`（施工 O-33；私聊、本机的会话没有）
+- token：114（2026-10-11，二十件一起的边际份量；第一稿 122）
+- 为什么加：按需看（2026-10-11 项目主人定）：群里的图、视频、文件她要看才去 QQ 取。说明一句说清取什么、图回来看、视频文件存进 `qq-files/`；`index` 写明是那一条里第几样、从 1 数（近况那一行的 `#n`，核心审时要的）
+- 指纹：`25552e26`
+
+```json
+{
+  "description": "Fetch an image, video or file from a group message. Images come back to view; videos and files are saved to qq-files/ in your workspace.",
+  "parameters": {"type":"object","properties":{"msg":{"type":"string","description":"The msg= id."},"index":{"type":"integer","description":"Which item in that message, from 1 (the #n); default 1."}},"required":["msg"]}
 }
 ```
 

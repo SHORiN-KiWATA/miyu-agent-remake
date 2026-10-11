@@ -6,6 +6,8 @@ use std::ffi::OsStr;
 use std::io::Write;
 use std::path::{MAIN_SEPARATOR, Path};
 
+use miyu_kernel::time::UtcOffset;
+
 /// 终端里的灰色、红色、绿色，和回到原色。
 pub(crate) const GRAY: &str = "\x1b[90m";
 const RED: &str = "\x1b[31m";
@@ -189,6 +191,13 @@ pub(crate) fn write(to: &mut dyn Write, text: &str) {
 /// 说一句话，带换行。
 pub(crate) fn say(to: &mut dyn Write, line: &str) {
     write(to, &format!("{line}\n"));
+}
+
+/// 这台机器此刻的时区（照核心给会话的环境的算法，`miyu-endpoint` 的 `sessions.rs`）：`miyu memory` 的日期、`miyu pkg info`
+/// 的安装时间照它换。
+pub(crate) fn offset() -> UtcOffset {
+    let minutes = jiff::Zoned::now().offset().seconds() / 60;
+    UtcOffset::from_minutes(minutes).unwrap_or(UtcOffset::UTC)
 }
 
 #[cfg(test)]

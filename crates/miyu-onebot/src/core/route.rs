@@ -12,8 +12,10 @@
 //!   O-25 上）发回群里（`speak`）。要问判官的（O-23 下）交给 `judges`，任务（`ask`）经并着发的调用口
 //!   问，跟核心的那一头接着办别的；判官回来了照号收回来、算分、记判断（`judged`）。判官带这个群会话所用的人格的说明（O-23
 //!   补，`persona`）。
-//! - 找会话（`session`）：「场所 → 会话编号」只记在内存里，每个场所桥起来以后第一次要用时问一次 `venue.session`；私聊的
-//!   问到了订阅（不写 `after`），群的从头订阅（施工 O-23）。会话不在了（`session_not_found`、`session_stopped`）
+//! - 起来就订阅（施工 O-32，`revive`）：每次连上核心、握手以后先经 `venue.sessions` 列出名下的场所会话和终端管理员的私聊，群的
+//!   从头订阅，白名单成员的、终端管理员的私聊也从头订阅一次；补来的（`backlog`）认出发到哪，期限以内、没入队的她的话补发。
+//! - 找会话（`session`）：「场所 → 会话编号」只记在内存里，每个场所桥起来以后第一次要用时问一次 `venue.session`（起来时订阅了的
+//!   群不再问）；私聊的问到了订阅（不写 `after`），群的从头订阅（施工 O-23）。会话不在了（`session_not_found`、`session_stopped`）
 //!   忘掉，再问一次、再交一次，只重来一次。私聊不是终端管理员、也不在白名单里的（`no_system_account`，或者会话的属主是桥
 //!   自己，「施工时定的」第 49 条，施工 O-27）、群的规则写错的不接，同一个场所只记一行运行日志。
 //! - 好友请求（施工 O-27，`request`）：白名单成员的另起任务同意，别的放着；群邀请只记一行。
@@ -36,12 +38,14 @@
 mod acting;
 mod applied;
 mod ask;
+mod backlog;
 mod bindings;
 mod body;
 mod called;
 mod command;
 mod decide;
 mod discipline;
+mod fetching;
 mod fields;
 mod group;
 mod judged;
@@ -50,6 +54,7 @@ mod muted;
 mod names;
 mod outbound;
 mod persona;
+mod pictures;
 mod platform;
 mod projection;
 mod queue;
@@ -58,6 +63,7 @@ mod reaction;
 mod recall;
 mod receipt;
 mod request;
+mod revive;
 mod sending;
 mod session;
 mod speak;
@@ -85,11 +91,14 @@ use crate::serve::Failure;
 use crate::settings::{whitelist, whitelist_key};
 use crate::texts::Texts;
 pub(crate) use ask::Slots;
+use backlog::Backlog;
 use bindings::Bindings;
+pub(crate) use fetching::Fetching;
 use fields::{Flags, fields};
 use judges::Judges;
 use outbound::Spoken;
 pub(crate) use persona::Personas;
+use pictures::Pictures;
 use projection::Projection;
 use queue::Queue;
 use quiet::Quiet;
@@ -119,6 +128,8 @@ struct Message {
     fields: Value,
     /// 它的场所：怎么找会话、回执发到哪。
     place: Place,
+    /// 交以前要取的图（施工 O-33，`pictures`）：群里冲她来的、私聊收下的才有。
+    pictures: Option<Pictures>,
 }
 
 /// 拿着跟核心的连接的那一个。
@@ -166,6 +177,12 @@ pub(crate) struct Route {
     bindings: Bindings,
     /// 私聊会话编号 → 推来的最近一条人说的话引用的平台编号（没引用的是空的，施工 O-31，`acting`：私聊里叫她做的那条）。
     quotes: HashMap<String, Option<String>>,
+    /// 会话编号 → 订阅补来的那一段（施工 O-32，`backlog`）：只在订阅到补完的这一会儿有，补完了补发、拿掉。
+    backlogs: HashMap<String, Backlog>,
+    /// 取东西的几个数（施工 O-33，`fetching`、`pictures`）。
+    fetching: Fetching,
+    /// 群会话编号 → 这一轮的回合编号和 `fetch_media` 取了几次（施工 O-33，`fetching`）。
+    fetches: HashMap<String, (Option<u64>, usize)>,
     /// 推来的配置变化交给 `serve`（施工 O-20）。
     configured: mpsc::UnboundedSender<Map<String, Value>>,
 }
@@ -175,13 +192,13 @@ impl Route {
     /// 说，问判官照全局的名额 `slots` 排队（施工 O-23 下）、判官带的人格原文照 `personas` 记（施工 O-23 补），群里的命令回执
     /// `recall` 以后撤回（施工 O-25 上），出站排着的过了 `expire` 作废（施工 O-25 中），表情照 `reactions` 贴、摘（施工 O-25 下），
     /// 推来的配置变化交给 `configured`。白名单成员照握手交来的配置（`core.config`）。问到的「是不是终端管理员」记 `binding`（施工
-    /// O-31）。
+    /// O-31）。取图、视频、文件照 `fetching`（施工 O-33）。
     pub(crate) fn new(
         core: Core,
         bots: Arc<Bots>,
         rules: Venues,
         members: Members,
-        (texts, slots, personas, recall, expire, reactions, binding): (
+        (texts, slots, personas, recall, expire, reactions, binding, fetching): (
             Texts,
             Slots,
             Personas,
@@ -189,6 +206,7 @@ impl Route {
             Duration,
             Reactions,
             Duration,
+            Fetching,
         ),
         configured: mpsc::UnboundedSender<Map<String, Value>>,
     ) -> Route {
@@ -217,15 +235,23 @@ impl Route {
             tools,
             bindings: Bindings::new(binding),
             quotes: HashMap::new(),
+            backlogs: HashMap::new(),
+            fetching,
+            fetches: HashMap::new(),
             configured,
         }
     }
 
-    /// 一直办，直到办不下去：核心关了管道、写不出去（核心请它退出、核心不在了，第 11 条），交回空的，桥好好停下；发回话
+    /// 先订阅名下的场所会话（施工 O-32，`revive`），再一直办，直到办不下去：核心关了管道、写不出去（核心请它退出、核心不在了，
+    /// 第 11 条），交回空的，桥好好停下；发回话
     /// 的任务、问判官的任务（施工 O-23 下）、撤回执、贴表情的任务（施工 O-25 上、下）崩了，交回 [`Failure::Crashed`]（「施工时定的」
     /// 第 14 条），桥照它退出。`inbound` 关了就只看核心：桥在停、读 NapCat 的那一头都放下了。有东西排着的，另睡到最早的过期、
     /// 禁言到期的时刻，醒了再看一遍（施工 O-25 中，「出站队列」第 8 条）。
     pub(crate) async fn run(mut self, mut inbound: mpsc::Receiver<Event>) -> Option<Failure> {
+        // 起来就订阅（施工 O-32，「群里怎么叫她」第 1 条）：NapCat 那头来的先排着，订阅完了再办。
+        if self.revive().await.is_err() {
+            return None;
+        }
         let mut open = true;
         loop {
             let wake = self.wake();
@@ -306,7 +332,9 @@ impl Route {
                 return Ok(());
             }
         };
-        if posted.text.trim().is_empty() {
+        // 只有图、引用的私聊照取图（施工 O-33）：取不到图、又没有字的不送（`submit`）。
+        let pictures = Pictures::of(posted.bot, posted.message_id, &posted.segments);
+        if posted.text.trim().is_empty() && !pictures.any() {
             tracing::debug!(target: TARGET, venue = %venue.id(), message = posted.message_id, "nothing to send");
             return Ok(());
         }
@@ -325,18 +353,33 @@ impl Route {
             acting: json!({"external": external}),
             fields: fields(&posted, &[], flags),
             place: Place::private(&venue, &external, (posted.bot, posted.user), listed),
+            pictures: Some(pictures),
         };
         self.submit(message).await.map(|_| ())
     }
 
     /// 交一条消息：`/` 开头的先当斜杠命令交（「斜杠命令」），办完了的不再发；别的照 `session.send` 发（第 8 条，「群消息」
-    /// 第 6 条），交回会话编号和回应（接受的、拒绝的都原样：群的照它判，施工 O-23）。命令办完了的、不接的、找不到会话的是
-    /// 空的。
+    /// 第 6 条），交回会话编号和回应（接受的、拒绝的都原样：群的照它判，施工 O-23）。要带图的（施工 O-33）先找到会话（不接的
+    /// 不去取），取了图带上；私聊没有字、图又一张都没取到的不送。命令办完了的、不接的、找不到会话的、不送的是空的。
     async fn submit(&mut self, message: Message) -> Result<Option<(String, Value)>, Gone> {
         if command::looks_like(&message.text) && self.command(&message).await? {
             return Ok(None);
         }
-        let Some((session, reply)) = self.deliver(&message, session::SEND).await? else {
+        let mut attachments = Vec::new();
+        if let Some(pictures) = message.pictures.as_ref().filter(|pictures| pictures.any()) {
+            if !self.found(&message.place).await? {
+                return Ok(None);
+            }
+            let venue = message.place.peer.venue.to_string();
+            attachments = self.pictures(pictures, &venue).await?;
+        }
+        if message.place.private_chat() && message.text.trim().is_empty() && attachments.is_empty()
+        {
+            tracing::debug!(target: TARGET, venue = %message.place.peer.venue, message = message.number, "nothing to send");
+            return Ok(None);
+        }
+        let sent = self.deliver(&message, session::SEND, &attachments).await?;
+        let Some((session, reply)) = sent else {
             return Ok(None);
         };
         let (venue, number) = (&message.place.peer.venue, message.number);
@@ -402,7 +445,7 @@ impl Route {
             }
             (Some("resync"), None) if params["stream"] == "events" => {
                 let session = session.to_string();
-                self.subscribe(&session).await?;
+                self.subscribe(&session, None).await?;
             }
             _ => {}
         }

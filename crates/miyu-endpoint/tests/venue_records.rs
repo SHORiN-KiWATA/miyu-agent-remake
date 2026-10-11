@@ -1,6 +1,7 @@
 //! 场所的格、事件和 `events.append`（施工 O-13 上，`docs/construction/O-13-场所的格、事件和 events.append（上）.md`）：
 //! `session.send` 带 `venue` 原样记进 `message.user`、旁听的不开回合、写错的什么都不记；`events.append` 记扩展自己的
-//! `ext.*` 和核心认得的 `venue.recalled`、`venue.delivered`，不带回合编号、回应交序号；种类、大小、格不对的拒。
+//! `ext.*` 和核心认得的 `venue.recalled`、`venue.delivered`，不带回合编号、回应交序号；种类、大小、格不对的拒。带的东西的
+//! `size`（施工 O-33）原样记，不是非负整数的拒。
 
 use std::time::Duration;
 
@@ -42,7 +43,8 @@ async fn a_venue_message_is_kept_as_written_and_an_ambient_one_opens_no_turn() {
     let (mut client, session) = owners_chat(&home, &Script::new([Play::Says("我来。")])).await;
     let venue = json!({"msg": "8810", "reply_to": "8800", "name": "小林", "mentions": ["qq:20017"],
         "mentions_me": true, "mentions_all": false,
-        "media": [{"kind": "file", "id": "f-1", "name": "排班.pdf"}, {"kind": "voice", "id": "v-1"}],
+        "media": [{"kind": "file", "id": "f-1", "name": "排班.pdf", "size": 1_234_567}, {"kind": "voice", "id": "v-1"},
+            {"kind": "image", "id": "i-1", "size": 0}],
         "ambient": true, "asleep": false, "show_ids": true});
     let reply = client
         .call("s1", "session.send", said(&session, venue))
@@ -60,7 +62,8 @@ async fn a_venue_message_is_kept_as_written_and_an_ambient_one_opens_no_turn() {
     assert_eq!(
         written,
         json!({"msg": "8810", "reply_to": "8800", "name": "小林", "mentions": ["qq:20017"],
-            "mentions_me": true, "media": [{"kind": "file", "id": "f-1", "name": "排班.pdf"}, {"kind": "voice", "id": "v-1"}],
+            "mentions_me": true, "media": [{"kind": "file", "id": "f-1", "name": "排班.pdf", "size": 1_234_567},
+                {"kind": "voice", "id": "v-1"}, {"kind": "image", "id": "i-1", "size": 0}],
             "ambient": true, "show_ids": true}),
         "原样记下，假的不写"
     );
@@ -114,6 +117,23 @@ async fn a_bad_venue_records_nothing() {
             json!({"msg": "1", "media": [{"kind": "gif", "id": "x"}]}),
         ),
         said(&session, json!({"msg": "1", "media": [{"kind": "file"}]})),
+        // 大小（施工 O-33）只收非负整数；时长不收（没人填，不为以后写）。
+        said(
+            &session,
+            json!({"msg": "1", "media": [{"kind": "file", "id": "x", "size": -1}]}),
+        ),
+        said(
+            &session,
+            json!({"msg": "1", "media": [{"kind": "file", "id": "x", "size": 1.5}]}),
+        ),
+        said(
+            &session,
+            json!({"msg": "1", "media": [{"kind": "file", "id": "x", "size": "12"}]}),
+        ),
+        said(
+            &session,
+            json!({"msg": "1", "media": [{"kind": "video", "id": "x", "duration": 3}]}),
+        ),
         said(&session, json!({"msg": "1", "colour": "red"})),
     ]
     .into_iter()

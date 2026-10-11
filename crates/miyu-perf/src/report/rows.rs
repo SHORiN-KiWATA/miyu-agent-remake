@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 
 use super::Results;
 use crate::budget::{Budget, verdict};
+use crate::measure::Said;
 use crate::measure::large::Large;
 use crate::memory::Process;
 use crate::stats::{percentile, spread};
@@ -35,10 +36,7 @@ pub fn markdown(
             .ok_or_else(|| format!("23 第二节没有「{item}」"))
     };
     let large = &results.large;
-    let tail: Vec<f64> = large.turns[large.turns.len().saturating_sub(large.tail)..]
-        .iter()
-        .map(|said| said.request)
-        .collect();
+    let tail: Vec<f64> = tail_of(large).map(|said| said.projection).collect();
 
     let mut text = format!("## 量尺 {name}\n\n");
     conditions(&mut text, results);
@@ -59,14 +57,13 @@ pub fn markdown(
             budget(HOT)?,
         ),
         (
-            "一次请求的投影：大会话上说一句到模型收到请求（上界：含落盘、组装、编码、连接）"
-                .to_string(),
+            "一次请求的投影：大会话上一句落了盘到模型收到请求（组装、编码、连接）".to_string(),
             &tail,
             budget(PROJECTION)?,
         ),
         (
-            "从头投影：重启、打开大会话后头一次说到模型收到请求".to_string(),
-            &large.first_request,
+            "从头投影：重启、打开大会话后头一次说，落了盘到模型收到请求".to_string(),
+            &large.first_projection,
             budget(FROM_SCRATCH)?,
         ),
         (
@@ -187,12 +184,19 @@ fn unbudgeted(text: &mut String, results: &Results) {
     let large = &results.large;
     let cold = &results.cold;
     text.push_str("\n### 没有预算的\n\n| 项目 | 量到 |\n|---|---|\n");
+    // 说出去到模型收到请求（施工 V-2 中）：含这一句落盘的同步，投影那一行不含；两行一比就是同步占了多少。
+    let said: Vec<f64> = tail_of(large).map(|said| said.request).collect();
     for (label, values) in [
         ("冷启动：拉起核心到它写来 ready", &cold.ready),
         ("冷启动：到握完手", &cold.hello),
         (
             "冷启动：到造好会话、订阅上（能提交第一轮，核心这一截；23 没给数，头先画后连，能打字不等核心）",
             &cold.submit,
+        ),
+        ("大会话上说一句到模型收到请求（含这一句落盘的同步）", &said),
+        (
+            "重启、打开大会话后头一次说到模型收到请求（含落盘的同步）",
+            &large.first_request,
         ),
     ] {
         line(
@@ -247,23 +251,25 @@ fn unbudgeted(text: &mut String, results: &Results) {
 fn growth(text: &mut String, large: &Large) {
     text.push_str("\n### 会话长大的一路上\n\n");
     text.push_str(
-        "| 事件数 | 轮数 | 说一句到收到请求 p50 / p95 | 一轮 p50 / p95 |\n|---|---|---|---|\n",
+        "| 事件数 | 轮数 | 说一句到收到请求 p50 / p95 | 落了盘到收到请求 p50 / p95 | 一轮 p50 / p95 |\n|---|---|---|---|---|\n",
     );
-    let mut buckets: BTreeMap<u64, (Vec<f64>, Vec<f64>)> = BTreeMap::new();
+    let mut buckets: BTreeMap<u64, [Vec<f64>; 3]> = BTreeMap::new();
     for said in &large.turns {
-        let (request, turn) = buckets.entry(said.seq / 1000).or_default();
+        let [request, projection, turn] = buckets.entry(said.seq / 1000).or_default();
         request.push(said.request);
+        projection.push(said.projection);
         turn.push(said.turn);
     }
-    for (bucket, (request, turn)) in &buckets {
+    for (bucket, [request, projection, turn]) in &buckets {
         line(
             text,
             &format!(
-                "| {}–{} | {} | {} ms | {} ms |",
+                "| {}–{} | {} | {} ms | {} ms | {} ms |",
                 bucket * 1000,
                 bucket * 1000 + 999,
                 request.len(),
                 spread(request),
+                spread(projection),
                 spread(turn)
             ),
         );
@@ -329,4 +335,9 @@ fn memory_cell(process: Option<&Process>) -> String {
 fn line(text: &mut String, line: &str) {
     text.push_str(line);
     text.push('\n');
+}
+
+/// 大会话到了以后再说的那几轮。
+fn tail_of(large: &Large) -> impl Iterator<Item = &Said> {
+    large.turns[large.turns.len().saturating_sub(large.tail)..].iter()
 }

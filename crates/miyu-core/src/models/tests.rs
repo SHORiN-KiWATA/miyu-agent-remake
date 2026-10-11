@@ -119,12 +119,7 @@ fn the_bundled_catalog_and_vendor_table_read() {
         (flash.window, flash.max_output),
         (Some(1_000_000), Some(393_216))
     );
-    assert!(
-        flash
-            .inputs
-            .as_ref()
-            .is_some_and(|inputs| inputs.iter().any(|input| input == "image"))
-    );
+    assert!(flash.inputs.is_some_and(|inputs| inputs.has("image")));
     let meta: catalog::Meta = serde_json::from_str(include_str!(
         "../../../../resources/models/models-dev.meta.json"
     ))

@@ -2,7 +2,7 @@
 
 ### 是什么
 
-核心拉起 `kind = "process"` 的软件包（第一个是通讯平台的桥），经标准输入输出说同一套协议（`05-内核接口.md` 第四节、I2）。开关存在核心里：开着的常驻，核心重启时照开关拉起；崩了退避重启，连续失败停下、说明原因；随核心退出（第九节）。
+核心拉起带 `[process]` 的软件包（施工 F-8 上补起清单不写种类）（第一个是通讯平台的桥），经标准输入输出说同一套协议（`05-内核接口.md` 第四节、I2）。开关存在核心里：开着的常驻，核心重启时照开关拉起；崩了退避重启，连续失败停下、说明原因；随核心退出（第九节）。
 
 状态：图纸，施工 9-4（上）（2026-10-08 主会话；方向是施工方案第三节 9-4 那一行和 `05-内核接口.md` 第四、九节；桥那一头的形状和通讯平台的会话对过）。能力的声明和审批施工 9-4（下上）做了（2026-10-08，项目主人照推荐定：在开的那一下批）；把包自己的配置交给它随 9-4（下下）。状态的推送随 9-4（补）（2026-10-08 主会话，两个头的设置页要的）。
 
@@ -15,7 +15,7 @@
 | `crates/miyu-endpoint/src/extensions/supervise.rs` | 看管一个包：拉起、交给连接、等它退出、退避、停下 |
 | `crates/miyu-endpoint/src/extensions/stderr.rs` | 标准错误的文件：拉起前太大的挪成 `.old`，状态里给最后几行 |
 | `crates/miyu-endpoint/src/extensions/methods.rs` | `extension.enable`、`extension.disable`、`extension.restart`、`extension.status`；推送用的一项（`entry`，施工 9-4 补） |
-| `crates/miyu-endpoint/src/subscriptions/extensions.rs` | 扩展的状态的订阅（施工 9-4 补）：先写回应，收到哪个包变了照这一刻算那一项推 `extension.changed`，掉了队推 `resync` |
+| `crates/miyu-endpoint/src/subscriptions/listed.rs` | 扩展的状态的订阅（施工 9-4 补；F-8 三补起和软件包列表的订阅共用这一份）：先写回应，收到哪个包变了照这一刻算那一项推 `extension.changed`，掉了队推 `resync` |
 | `crates/miyu-endpoint/src/connection.rs`、`hello.rs`、`login.rs` | 核心亲手给的连接：握手不看凭据（`Via::Spawned`） |
 | `crates/miyu-core/src/lib.rs`、`serve.rs` | 写了 `ready` 以后照开关拉起，停的时候请扩展退出 |
 | `crates/miyu-endpoint/src/bin/miyu-test-extension.rs` | 测试用的扩展：照参数一步步做（握手、调方法、带参数调方法（参数里的 `{session}` 换成最近回应里的会话编号，施工 O-4 下）、等标准输入读到头、不理它、退出码、往标准错误写、记下一个环境变量（施工 O-18）），不随发行带出去 |

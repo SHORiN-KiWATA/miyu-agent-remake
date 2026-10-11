@@ -2,6 +2,8 @@
 //! 按上下文分的档（`tiers`）、超过 20 万的价（`context_over_200k`）、思考的价。价格是一整格：从哪一层来，四项和币种就都
 //! 照那一层的。怎么照它算金额在 [`crate::price`]（施工 8-15）。
 
+use std::borrow::Cow;
+
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 
@@ -34,8 +36,8 @@ pub struct Price {
     pub rates: Rates,
     /// 单写的思考价。
     pub reasoning: Option<f64>,
-    /// 币种：ISO 4217 的三个大写字母。目录的是 `USD`。
-    pub currency: String,
+    /// 币种：ISO 4217 的三个大写字母。目录的是 `USD`，不另分配（施工 V-2 下：八千多个模型各存一份 `USD`）。
+    pub currency: Cow<'static, str>,
     /// 按上下文分的档，照写的先后。
     pub tiers: Vec<Tier>,
     /// 超过 20 万 token 的价。
@@ -51,7 +53,10 @@ impl Price {
         Price {
             rates,
             reasoning: None,
-            currency: currency.to_string(),
+            currency: match currency {
+                USD => Cow::Borrowed(USD),
+                other => Cow::Owned(other.to_string()),
+            },
             tiers: Vec::new(),
             over_200k: None,
         }
@@ -173,7 +178,7 @@ impl RawCost {
         Price {
             rates: self.rates.rates(),
             reasoning: self.reasoning,
-            currency: USD.to_string(),
+            currency: Cow::Borrowed(USD),
             tiers: self
                 .tiers
                 .into_iter()

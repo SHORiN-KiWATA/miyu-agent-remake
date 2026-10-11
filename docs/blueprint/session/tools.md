@@ -73,6 +73,7 @@ The tool "{name}" stopped because of an internal error. It may have been partly 
 **1a. 一次调用带的沙盒**（`crates/miyu-session/src/sandbox.rs`，施工 5-4 上；`sandbox.md`、`11-权限与沙盒.md` 第四节）
 
 1. 这台机器上的沙盒用不了（核心起来时没探到手段，`core.md`）：不带。执行命令在这之前已经问过人了（`session/guard.md`）。
+   - 外部身份的会话（施工 5-12 下，`sandbox/confined.rs`）先于下面几条：不看级别（完全放开也关进来），读只准名单里的（`read`：系统目录、`/dev`、`/proc/self`、这一轮的工作目录、加进来的目录、工作目录里的 `.tmp`），写这一轮的工作目录、加进来的目录、`.tmp`（只读的哪儿都不能写），`TMPDIR` 指到 `.tmp`，藏数据根，不给工具链的缓存。不给整个 `/proc`：同一个用户的进程的环境变量在 `/proc/<编号>/environ`，核心的环境里有各家的 key。只有关得住读的平台走到这里，别的平台权限策略拒命令（`session/guard.md`）。
 2. 实际生效的那一级（和权限策略同一个算法：只读开关开着是只读；级别不认识的按只读）：
    - 完全放开：不带。
    - 工作区：能写这一轮的工作目录、加进来的目录（施工 5-10 上）、临时目录；藏数据根。

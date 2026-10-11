@@ -1,11 +1,11 @@
 //! 几个测试共用的：临时的数据根、造一份核心、连核心的客户端（内存管道上，或者真的套接字上）、等磁盘上的日志。
 
 #![allow(dead_code, reason = "几个测试各用其中一部分")]
-
 pub mod deleting;
 pub mod extensions;
 pub mod login;
 pub mod memories;
+pub mod packaged;
 pub mod providers;
 mod pushes;
 pub mod venues;

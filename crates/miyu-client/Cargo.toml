@@ -1,0 +1,26 @@
+[package]
+name = "miyu-client"
+description = "给界面用的门面：连核心、找数据根、协议里的类型、给人看的字、读自己的清单、运行日志（设计 32 第二节，施工 S-1）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# 界面的测试照钉住的那份核心检出读资源目录、协议样本（`WORKSPACE_ROOT`）。
+testkit = []
+
+[dependencies]
+# 下面这几个都是转出去的：界面只经这里拿，代码留在原处（设计 32 第二节第 1 条）。
+miyu-ipc = { path = "../miyu-ipc" }
+miyu-store = { path = "../miyu-store" }
+miyu-kernel = { path = "../miyu-kernel" }
+miyu-config = { path = "../miyu-config" }
+miyu-log = { path = "../miyu-log" }
+# `open`：照终端的样子连核心、一问一答（从 miyu-webserve 挪来，施工 S-1）。
+serde_json = "1.0"
+tokio = { version = "1", features = ["io-util", "time"] }
+
+[lints]
+workspace = true

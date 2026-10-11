@@ -1554,6 +1554,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-client"
+version = "0.0.0"
+dependencies = [
+ "miyu-config",
+ "miyu-ipc",
+ "miyu-kernel",
+ "miyu-log",
+ "miyu-store",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "miyu-config"
 version = "0.0.0"
 dependencies = [
@@ -1570,6 +1583,7 @@ dependencies = [
  "miyu-config",
  "miyu-drivers",
  "miyu-endpoint",
+ "miyu-heap",
  "miyu-http",
  "miyu-ipc",
  "miyu-kernel",
@@ -1659,6 +1673,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-heap"
+version = "0.0.0"
+
+[[package]]
 name = "miyu-http"
 version = "0.0.0"
 dependencies = [
@@ -1702,6 +1720,17 @@ dependencies = [
  "miyu-config",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "miyu-mcp"
+version = "0.0.0"
+dependencies = [
+ "miyu-mcp",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -1763,6 +1792,7 @@ dependencies = [
 name = "miyu-onebot"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "futures-util",
  "getrandom 0.4.3",
  "http-body-util",
@@ -1770,6 +1800,7 @@ dependencies = [
  "hyper-util",
  "jiff",
  "miyu-chat",
+ "miyu-client",
  "miyu-config",
  "miyu-core",
  "miyu-endpoint",
@@ -1781,7 +1812,6 @@ dependencies = [
  "miyu-session",
  "miyu-store",
  "miyu-tool",
- "miyu-webserve",
  "serde",
  "serde_json",
  "tokio",
@@ -1855,6 +1885,7 @@ dependencies = [
  "miyu-config",
  "miyu-drivers",
  "miyu-fs",
+ "miyu-heap",
  "miyu-http",
  "miyu-kernel",
  "miyu-log",
@@ -1929,6 +1960,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "miyu-client",
  "miyu-config",
  "miyu-ipc",
  "miyu-log",
@@ -1949,6 +1981,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "miyu-client",
  "miyu-ipc",
  "miyu-store",
  "serde_json",

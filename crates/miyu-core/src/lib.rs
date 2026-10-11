@@ -11,8 +11,9 @@
 //! 5. 换本机令牌、在套接字上等连接（施工 3-8 下）；找沙盒的助手、探一次，只记日志（施工 5-1）；照编进来的可选
 //!    软件包往查询表里登记（[`packages::register`]，cargo 开关 `mermaid`、`net`，施工 W-4、W-7），交给 `Core`；清掉管理员
 //!    分块上传留下的暂存（[`packages::clear_uploads`]，施工 W-5）；
-//! 6. 往标准输出写一行 `ready`：拉起它的头等着这一行；接着照开关拉起开着的扩展（施工 9-4 上）；在后台读 models.dev 的目录、
-//!    用出来的、供应商的列表，读完再答要它的，之后在后台更新目录（施工 8-7）；在后台清一次回收处（施工 3-8 三补，`trash.rs`）。
+//! 6. 往标准输出写一行 `ready`：拉起它的头等着这一行；接着照开关拉起开着的扩展（施工 9-4 上）；在后台更新 models.dev 的
+//!    目录（施工 8-7；读目录、用出来的在第 4 步造好路由就在阻塞线程里开始了，读完再答要它的，施工 V-2 下）；在后台清一次
+//!    回收处（施工 3-8 三补，`trash.rs`）。
 //!
 //! 之后 [`serve()`] 一个个接连接：没有连接、也没有在跑的回合，空闲够久了就退出；收到停的信号，先让在跑的
 //! 会话有计划地停下再退出。起不来的，把原因写成那一行（`error …`）交给头。
@@ -65,6 +66,8 @@ pub fn admin() -> AccountId {
 
 /// 跑核心进程，交回退出码。
 pub fn main(options: Options) -> ExitCode {
+    // 堆先调好（23 F3，施工 V-2 再补）：arena 的个数要在起别的线程之前限。
+    let heap = miyu_heap::tune();
     let env = Env::current();
     let root = match DataRoot::locate(&env) {
         Ok(root) => root,
@@ -96,6 +99,13 @@ pub fn main(options: Options) -> ExitCode {
         tz = %miyu_log::utc_offset(),
         "starting"
     );
+    tracing::debug!(
+        target: TARGET,
+        tuned = heap,
+        arenas = miyu_heap::ARENAS,
+        mmap_from = miyu_heap::MMAP_FROM,
+        "heap tuned"
+    );
     // 核心没了，它起的子进程跟着结束（施工 7-8，`core.md`「起来的先后」第 4 条）：Windows 上核心进作业对象，别的平台什么都
     // 不做（Unix 上每条命令的组里有看门的）。进不去照样起来。
     if let Err(error) = miyu_sandbox::lifeline::bind_children() {
@@ -108,6 +118,15 @@ pub fn main(options: Options) -> ExitCode {
         Ok(resources) => resources,
         Err(error) => return failed("resources", error.to_string()),
     };
+    // 目录最先读（施工 V-2 下补）：和下面读清单、配置、生成文件并着走。
+    let catalog = models::read_early(
+        resources
+            .catalog_snapshot()
+            .parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_default(),
+        models::cache(&env),
+    );
     let mut found = load_packages(&resources, &root);
     let packaged = settings::Packaged::of(&mut found);
     let config = settings::read(&root, &admin(), env.home.as_deref(), &packaged);
@@ -134,7 +153,13 @@ pub fn main(options: Options) -> ExitCode {
         Ok(runtime) => runtime,
         Err(error) => return failed("runtime", error.to_string()),
     };
-    let outcome = runtime.block_on(run(env, root, resources, lock, options, (config, live)));
+    let outcome = runtime.block_on(run(
+        env,
+        (root, resources, lock),
+        options,
+        (config, live),
+        catalog,
+    ));
     drop(log);
     outcome
 }
@@ -142,12 +167,17 @@ pub fn main(options: Options) -> ExitCode {
 /// 这一份核心编进来的内置包（施工 F-2，设计 `30-插件框架.md` 第二节）：清单是内置包、编号不在这里的，照读坏了的清单报
 /// （`miyu_endpoint::packages::compiled`）。画 mermaid、联网照 cargo 开关。
 pub fn built_in() -> Vec<&'static str> {
-    let mut built_in = vec![miyu_tool::BASESYSTEM, miyu_memory::PACKAGE, ROLEPLAY];
-    #[cfg(feature = "mermaid")]
-    built_in.push("mermaid");
-    #[cfg(feature = "net")]
-    built_in.push("net");
-    built_in
+    // 照开关挑，不用 `#[cfg]` 掉 `push`：两个开关都关着时 `mut` 就成了多余的（单独编 `miyu-onebot` 时 clippy 报）。
+    [
+        Some(miyu_tool::BASESYSTEM),
+        Some(miyu_memory::PACKAGE),
+        Some(ROLEPLAY),
+        cfg!(feature = "mermaid").then_some("mermaid"),
+        cfg!(feature = "net").then_some("net"),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
 }
 
 /// 人设遵循提醒这个内置包的编号（施工 F-2）：代码在策略、会话两层，核心这里只认编号。
@@ -257,11 +287,10 @@ struct Live {
 /// 起来时读的配置和当场生效要的。开始监视配置文件、跟着配置换级别和重写生成的文件（施工 8-4）在说「好了」之前。
 async fn run(
     env: Env,
-    root: DataRoot,
-    resources: ResourceRoot,
-    lock: Lock,
+    (root, resources, lock): (DataRoot, ResourceRoot, Lock),
     options: Options,
     (config, live): (miyu_endpoint::config::Config, Live),
+    catalog: models::Early,
 ) -> ExitCode {
     let opened = match miyu_ipc::open_locked(&root, &Dirs::current(), lock) {
         Ok(opened) => opened,
@@ -272,10 +301,13 @@ async fn run(
         Err(error) => return failed("models", error),
     };
     let model_data = Arc::clone(&routes.data);
-    let catalog_places = (
-        resources.catalog_snapshot().parent().map(Path::to_path_buf),
-        models::cache(&env),
-        root.state().join("models"),
+    // 造好路由就放行目录（施工 V-2 下）：读在找到资源目录时就开始了（施工 V-2 下补），这里等它读完、读用出来的，不挡
+    // `ready`。
+    let cache = catalog.cache();
+    let reading = models::begin(
+        Arc::clone(&model_data),
+        catalog,
+        Some(root.state().join("models")),
     );
     let sandbox = sandbox::probe(env.exe.as_deref());
     let sandbox_cache = sandbox::cache(&env, std::env::var_os("CARGO_HOME"));
@@ -326,15 +358,8 @@ async fn run(
     core.start_extensions();
     // 池的成员下架了的，路由确认以后从池里拿掉（施工 8-23）。
     core.start_retirement();
-    // 写了 `ready` 以后读目录、在后台更新（施工 8-7，「起草时定的」第 13 条）。
-    let (snapshot, cache, state) = catalog_places;
-    models::start(
-        model_data,
-        snapshot.unwrap_or_default(),
-        cache,
-        Some(state),
-        models::catalog_settings(core.config_now()),
-    );
+    // 写了 `ready` 以后在后台更新目录、拉图标（施工 8-7，「起草时定的」第 13 条）；读在上面已经开始了（施工 V-2 下）。
+    models::follow(reading, cache, models::catalog_settings(core.config_now()));
     let purging = trash::purge(trashed, admin());
     serve(opened.listener, core, options.idle, serve::signal()).await;
     if let Err(error) = purging.await {

@@ -190,6 +190,14 @@ impl SessionJobs {
         }
     }
 
+    /// 派出去的都回报了，结束了的都落了盘（施工 V-2 再补）：没有的才能退下，不然回报没人记、子代理的那一支没人管。
+    pub(crate) fn settled(&self) -> bool {
+        let owner = self.shared.owner;
+        self.landing.is_empty()
+            && !self.shared.roster().any_running()
+            && !self.shared.table.lock().keys().any(|(of, _)| *of == owner)
+    }
+
     /// 交进内核的结束都落了盘：从表里拿掉。
     pub(crate) fn land(&mut self) {
         if self.landing.is_empty() {

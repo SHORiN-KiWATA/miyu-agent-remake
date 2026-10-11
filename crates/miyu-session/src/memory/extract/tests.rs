@@ -182,3 +182,27 @@ fn the_same_slice_failing_three_times_is_let_go() {
     assert_eq!(failed(9), 3);
     assert_eq!(failed(9), 1, "放过以后重新数");
 }
+
+#[test]
+fn an_alarm_is_pending_until_it_starts_or_is_let_go() {
+    let extractor = Extractor::default();
+    assert!(!extractor.pending(), "没上过闹钟");
+    let first = extractor.arm();
+    assert!(extractor.pending(), "上了，还没响");
+    extractor.disarm(first);
+    assert!(!extractor.pending(), "响了、不抽，放下了");
+    let second = extractor.arm();
+    extractor.disarm(first);
+    assert!(extractor.pending(), "作废的那一个放下不算数");
+    assert!(extractor.start(second));
+    assert!(extractor.pending(), "在路上");
+    extractor.finish(seq(1), true);
+    assert!(!extractor.pending(), "抽完了");
+    extractor.arm();
+    extractor.cancel();
+    assert!(!extractor.pending(), "忙起来撤掉了");
+    let third = extractor.arm();
+    extractor.start(third);
+    extractor.abandon();
+    assert!(!extractor.pending(), "读不成的放下了");
+}

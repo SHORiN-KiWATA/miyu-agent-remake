@@ -133,7 +133,7 @@ async fn the_whitelist_chats_in_private_and_strangers_do_not() {
         "陌生人的话不进会话：{stranger:#?}"
     );
     // 从白名单里删了：推来就照新的认，下一条不接。
-    let mut core = miyu_webserve::open::Core::connect_running(&home.root, "test")
+    let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await
         .expect("连得上核心");
     let changes = json!({"layer": "system", "changes": [{"key": "onebot.whitelist", "value": []}]});

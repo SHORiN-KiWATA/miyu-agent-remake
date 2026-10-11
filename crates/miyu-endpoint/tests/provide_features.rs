@@ -23,9 +23,9 @@ fn spec(name: &str) -> Value {
 fn install_featured(home: &Home, id: &str, program: &str, steps: &[String], features: &str) {
     let args: Vec<String> = steps.iter().map(|arg| format!("{arg:?}")).collect();
     home.write(
-        &format!("home/alice/packages/{id}.toml"),
+        &format!("home/alice/packages/{id}/package.toml"),
         &format!(
-            "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"Echo\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"E\" }}\n\n[process]\nargs = [{}]\nstart = \"always\"\n\n{features}",
+            "[package]\nprotocol = [1, 1]\nname = {{ en = \"Echo\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"E\" }}\n\n[process]\nargs = [{}]\nstart = \"always\"\n\n{features}",
             args.join(", ")
         ),
     );

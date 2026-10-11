@@ -9,6 +9,7 @@
 //! 档案、认原厂的表是 TOML，这里读成 JSON 交给 `miyu-models`（那一层只用白名单里的 `serde_json`）。
 
 pub mod catalog;
+pub mod logos;
 pub mod refresh;
 
 use std::path::PathBuf;
@@ -18,6 +19,7 @@ use tokio::sync::watch;
 
 use miyu_config::secret::Reference;
 use miyu_http::{Proxy, client, fetcher};
+use miyu_models::catalog::Loaded;
 use miyu_models::cooldown::Rules;
 use miyu_models::matching::Vendors;
 use miyu_models::profile::Profiles;
@@ -29,7 +31,7 @@ use crate::TARGET;
 use catalog::Places;
 use refresh::{Refresher, Schedule};
 
-/// 照资源目录造路由，模型资料还没读（目录、用出来的、供应商的列表随 [`start`]）。用出来的、列表写进 `state`
+/// 照资源目录造路由，模型资料还没读（目录、用出来的、供应商的列表随 [`begin`]、[`follow`]）。用出来的、列表写进 `state`
 /// （`state/models`，没有的不写）。
 ///
 /// # Errors
@@ -87,36 +89,100 @@ pub fn routes(resources: &ResourceRoot) -> Result<Arc<dyn Models>, String> {
     Ok(Arc::new(routes))
 }
 
-/// 写了 `ready` 以后：在阻塞线程里读目录（快照和缓存挑新的）、用出来的、供应商的列表，读完放行；再照 `settings` 在后台
-/// 更新目录。缓存目录 `cache`（`<缓存目录>/models`）算不出来的只读快照、不拉。
-pub fn start(
-    data: Arc<ModelData>,
-    snapshot: PathBuf,
-    cache: Option<PathBuf>,
-    state: Option<PathBuf>,
-    settings: watch::Receiver<Schedule>,
-) {
-    let places = Places {
-        snapshot,
-        cache: cache.clone(),
-    };
-    tokio::spawn(async move {
-        let reading = Arc::clone(&data);
-        let read = tokio::task::spawn_blocking(move || {
-            let observed = state.as_deref().map(read_observed).unwrap_or_default();
-            reading.loaded(catalog::load(&places), observed);
+/// 最早的一步（施工 V-2 下补）：找到资源目录就在一个线程里读目录（快照和缓存挑新的），和读配置、生成文件这些起来的步子
+/// 并着走。头一连上就要载入会话，载入要等目录读完：原来造好路由才开始读，起来约 15 ms 以后才动手。线程起不来的，到
+/// [`begin`] 再读。
+pub fn read_early(snapshot: PathBuf, cache: Option<PathBuf>) -> Early {
+    let places = Places { snapshot, cache };
+    let reading = places.clone();
+    let thread = std::thread::Builder::new()
+        .name("catalog".to_string())
+        .spawn(move || catalog::load(&reading));
+    if let Err(error) = &thread {
+        tracing::warn!(target: TARGET, error = %error, "catalog thread not started");
+    }
+    Early {
+        places,
+        thread: thread.ok(),
+    }
+}
+
+/// [`read_early`] 起的那一次读。
+pub struct Early {
+    places: Places,
+    thread: Option<std::thread::JoinHandle<Option<Loaded>>>,
+}
+
+impl Early {
+    /// 缓存目录（`<缓存目录>/models`）：写了 `ready` 以后照它在后台更新（[`follow`]）。算不出来的没有。
+    pub fn cache(&self) -> Option<PathBuf> {
+        self.places.cache.clone()
+    }
+
+    /// 等它读完；线程没起来的现在读，读的线程 panic 了的当没读到。在阻塞线程里调。
+    fn finish(self) -> Option<Loaded> {
+        let Some(thread) = self.thread else {
+            return catalog::load(&self.places);
+        };
+        thread.join().unwrap_or_else(|_| {
+            tracing::error!(target: TARGET, "catalog read panicked");
+            None
         })
-        .await;
-        if let Err(error) = read {
-            tracing::error!(target: TARGET, error = %error, "catalog read panicked");
-            data.loaded(None, Observed::default());
-        }
+    }
+}
+
+/// 造好路由以后（施工 V-2 下）：在阻塞线程里等 [`read_early`] 的目录、读用出来的，读完放行要它的（造会话、载入、
+/// `model.list`）。不等写 `ready`。交回读好的图标表，[`follow`] 照它在后台拉图标。
+pub fn begin(data: Arc<ModelData>, early: Early, state: Option<PathBuf>) -> Reading {
+    let table = early.places.snapshot.join(logos::TABLE);
+    let reading = Arc::clone(&data);
+    let task = tokio::task::spawn_blocking(move || {
+        let observed = state.as_deref().map(read_observed).unwrap_or_default();
+        reading.loaded(early.finish(), observed);
+        // 读目录剩下的还给系统（23 F3，施工 V-2 再补）：原文、解析的半成品放掉了，glibc 不还就一直占着。
+        miyu_heap::trim();
+        logos::table(&table)
+    });
+    Reading { data, task }
+}
+
+/// [`begin`] 起的那一次读。
+pub struct Reading {
+    data: Arc<ModelData>,
+    task: tokio::task::JoinHandle<Option<miyu_models::logos::LogoTable>>,
+}
+
+/// 写了 `ready` 以后：等读完，再照 `settings` 在后台更新目录、拉图标。缓存目录 `cache`（`<缓存目录>/models`）算不出来的只读
+/// 快照、不拉。
+pub fn follow(reading: Reading, cache: Option<PathBuf>, settings: watch::Receiver<Schedule>) {
+    tokio::spawn(async move {
+        let Reading { data, task } = reading;
+        let table = match task.await {
+            Ok(table) => table,
+            Err(error) => {
+                tracing::error!(target: TARGET, error = %error, "catalog read panicked");
+                data.loaded(None, Observed::default());
+                None
+            }
+        };
         // 缓存目录算不出来的不拉：算的时候已经记过一行 `WARN catalog cache unavailable`（[`cache`]）。
         let Some(cache) = cache else {
             return;
         };
         // 和拉供应商的列表用同一个 GET 的客户端（[`prepare`] 造的）。
         if let Some(client) = data.fetcher().cloned() {
+            // 供应商的图标（施工 8-31）：和目录一个节奏，另一个任务。
+            if let Some(table) = table {
+                tokio::spawn(
+                    logos::Logos {
+                        data: Arc::clone(&data),
+                        client: client.clone(),
+                        dir: cache.join("logos"),
+                        table,
+                    }
+                    .run(settings.clone()),
+                );
+            }
             Refresher {
                 data,
                 client,

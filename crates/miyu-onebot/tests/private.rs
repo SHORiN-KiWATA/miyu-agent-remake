@@ -133,6 +133,7 @@ async fn a_strangers_private_chat_goes_nowhere() {
     bridge.stop().await.expect("停得下");
 }
 
+/// 只有图的私聊：施工 O-33 起去 QQ 取图、带上交；这个假 NapCat 取不到（回失败），没有字的照旧不送。
 #[tokio::test]
 async fn segments_and_cq_strings_are_read_and_image_only_messages_are_not_sent() {
     let script = Script::new([Play::Says("一。"), Play::Says("二。")]);
@@ -220,12 +221,13 @@ async fn a_venue_owned_by_the_bridge_itself_is_a_stranger_and_not_taken() {
         }
     })
     .await;
-    // 头两个是起来时登记工具（施工 O-26）、后台页的方法（施工 O-28 上）。
+    // 头三个是起来时登记工具（施工 O-26）、后台页的方法（施工 O-28 上）、列名下的场所会话（施工 O-32：进程里的桥不是系统账号，核心拒了）。
     assert_eq!(
         relay.asked(),
         [
             "provide",
             "package.methods",
+            "venue.sessions",
             "venue.session",
             "venue.session",
             "venue.session",
@@ -246,12 +248,13 @@ async fn a_venue_owned_by_someone_else_or_by_nobody_is_taken() {
         napcat.admin_says(1, "在吗").await;
         assert_eq!(napcat.reply().await, "在。", "{venue:?}");
         assert_eq!(home.said_texts(), ["在吗"], "{venue:?}");
-        // 她的回话先入队再发（施工 O-25 中）：多一个 `events.append`。头两个是起来时登记工具（施工 O-26）、后台页的方法（施工 O-28 上）。
+        // 她的回话先入队再发（施工 O-25 中）：多一个 `events.append`。头三个是起来时登记工具（施工 O-26）、后台页的方法（施工 O-28 上）、列名下的场所会话（施工 O-32：进程里的桥不是系统账号，核心拒了）。
         assert_eq!(
             relay.asked(),
             [
                 "provide",
                 "package.methods",
+                "venue.sessions",
                 "venue.session",
                 "subscribe",
                 "session.send",

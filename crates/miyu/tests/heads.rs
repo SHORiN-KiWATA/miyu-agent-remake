@@ -102,7 +102,7 @@ fn install(home: &Home, id: &str, program: &str, opens: &str) {
     std::fs::write(
         dir.join(format!("{id}.toml")),
         format!(
-            "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = {{ en = \"T\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"T\" }}\n\n[ui]\nopens = [{opens}]\n"
+            "[package]\nprotocol = [1, 1]\nname = {{ en = \"T\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"T\" }}\n\n[ui]\nopens = [{opens}]\n"
         ),
     )
     .expect("写得进");

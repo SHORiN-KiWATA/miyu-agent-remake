@@ -220,7 +220,7 @@ fn time(text: &str) -> Option<SystemTime> {
 }
 
 /// 此刻，Unix 毫秒。
-fn now_millis() -> i64 {
+pub(super) fn now_millis() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |since| {

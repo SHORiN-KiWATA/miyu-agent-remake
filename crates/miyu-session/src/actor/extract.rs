@@ -47,6 +47,13 @@ impl Actor {
         });
     }
 
+    /// 记忆的闹钟上着、或者有一次抽取在路上（施工 V-2 再补，`life.rs`）：这时不退下。
+    pub(super) fn extracting(&self) -> bool {
+        self.tools
+            .memory()
+            .is_some_and(|(calls, _)| calls.extracting().3.pending())
+    }
+
     /// 忙起来了：撤掉闹钟。在路上的那一次照样走完。
     pub(super) fn extract_cancel(&self) {
         if let Some((calls, _)) = self.tools.memory() {
@@ -62,10 +69,10 @@ impl Actor {
         let (keeper, session, _, extractor) = calls.extracting();
         let dir = self.store.as_ref().and_then(|store| store.dir());
         let Some(dir) = dir else {
-            return;
+            return extractor.disarm(generation);
         };
         if !extractor.due(generation) || !self.session.vacant() || !keeper.installed() {
-            return;
+            return extractor.disarm(generation);
         }
         let (keeper, session, backs) = (keeper.clone(), session.clone(), self.backs.clone());
         tokio::task::spawn_blocking(move || {
@@ -88,10 +95,10 @@ impl Actor {
         };
         let (keeper, session, owner, extractor) = calls.extracting();
         let Some(extraction) = keeper.extraction() else {
-            return;
+            return extractor.disarm(generation);
         };
         if !self.session.vacant() || !extractor.start(generation) {
-            return;
+            return extractor.disarm(generation);
         }
         let (after, events) = match read {
             Ok(read) => read,
@@ -196,6 +203,7 @@ impl Actor {
             _ => None,
         };
         let Some(((after, events), extraction)) = read else {
+            extractor.disarm(generation);
             let (keeper, owner) = (keeper.clone(), owner.clone());
             tokio::spawn(async move { answer(reply, keeper.dream(config, owner, offset).await) });
             return;

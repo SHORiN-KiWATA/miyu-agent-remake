@@ -8,30 +8,41 @@
 //!
 //! 一个模型的格坏了（类型不对、数是负的），跳过它，交回它的名字由读的一方记一行；一家供应商自己的格坏了，整家跳过。
 //! 整份不是 JSON 对象的，算读不了。读好以后照名字建两份索引：一模一样的名字、规整以后的名字（[`crate::matching`]）。
+//!
+//! 存法要紧凑（施工 V-2 下）：出厂的快照有八千多个模型，原来每个名字、家族、日期各存一份、索引里再各抄一份，读进来占约
+//! 11.5 MB、十三万多次分配，核心空闲时的内存一大半是它。现在同样的字只存一份（[`Text`]：模型名既是表的键也是索引里的那一
+//! 份，家族、日期这些照字共用），认得的几种输入是几个开关（[`Inputs`]）。
 
+mod inputs;
 mod price;
 
+pub use inputs::Inputs;
 pub use price::{Price, Rates, Tier, USD};
 
-use std::collections::BTreeMap;
+use std::borrow::Cow;
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use serde::Deserialize;
 use serde_json::value::RawValue;
 
 use crate::matching::normalize;
 
+/// 目录里共用的一段字：同样的字只存一份，抄一份只是多一个引用（施工 V-2 下）。
+pub type Text = Arc<str>;
+
 /// 读好的目录。
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Catalog {
-    providers: BTreeMap<String, CatalogProvider>,
+    providers: BTreeMap<Text, CatalogProvider>,
     /// 一模一样的模型名 → 列了它的（供应商，模型），照字节排。
-    named: BTreeMap<String, Vec<Entry>>,
+    named: BTreeMap<Text, Vec<Entry>>,
     /// 规整以后的模型名 → 同上。
-    normalized: BTreeMap<String, Vec<Entry>>,
+    normalized: BTreeMap<Text, Vec<Entry>>,
 }
 
-/// 目录里的一个条目：供应商的编号、模型名。
-pub type Entry = (String, String);
+/// 目录里的一个条目：供应商的编号、模型名，和表里的键是同一份。
+pub type Entry = (Text, Text);
 
 /// 目录里的一家供应商。
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -49,20 +60,20 @@ pub struct CatalogProvider {
     /// 文档。
     pub doc: Option<String>,
     /// 模型：名字 → 资料。
-    pub models: BTreeMap<String, CatalogModel>,
+    pub models: BTreeMap<Text, CatalogModel>,
 }
 
 /// 目录里的一个模型：只有用得上的格。
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct CatalogModel {
     /// 显示名。
-    pub name: Option<String>,
+    pub name: Option<Text>,
     /// 家族：认原厂用（[`crate::matching`] 第 6 条）。
-    pub family: Option<String>,
+    pub family: Option<Text>,
     /// 能不能调工具。
     pub tools: Option<bool>,
-    /// 能收的输入里认得的几种：`text`、`image`、`pdf`。没写的没有。
-    pub inputs: Option<Vec<String>>,
+    /// 能收的输入里认得的几种：`text`、`image`、`pdf`、`audio`、`video`。没写的没有。
+    pub inputs: Option<Inputs>,
     /// 窗口：`limit.context` 和 `limit.input` 里小的那个。
     pub window: Option<u64>,
     /// 最大输出：`limit.output`。
@@ -74,14 +85,14 @@ pub struct CatalogModel {
     /// 能不能调温度（`temperature`，施工 8-22）。没写的没有：当能调。
     pub temperature: Option<bool>,
     /// `deprecated`、`beta` 这类。
-    pub status: Option<String>,
+    pub status: Option<Text>,
     /// 发布日期，原样（`2026-09-10`）：照字比新旧（施工 8-11，第一次接入推荐模型用）。
-    pub release_date: Option<String>,
+    pub release_date: Option<Text>,
     /// 这个模型自己的 AI SDK 包名（`provider.npm`，施工 8-14）：和这一家的不一样的才写，照档案的 `[npm]` 认驱动。
-    pub npm: Option<String>,
+    pub npm: Option<Text>,
     /// 交错思考写回哪个字段（`interleaved` 写成 `{"field": …}` 的那个字段名，施工 8-14）：`true` 这类说不出字段的没有。认不
     /// 认这个字段名归合资料的一方（[`crate::provider::Provider::for_model`]）。
-    pub interleaved: Option<String>,
+    pub interleaved: Option<Text>,
 }
 
 /// 目录里一个模型的思考强度（施工 8-18，`models.md`「模型的资料」）：开关算不算、能不能关，合资料时照这一家的档案定
@@ -133,9 +144,6 @@ pub struct Read {
     pub skipped: Vec<String>,
 }
 
-/// 认得的几种输入。
-const INPUTS: [&str; 5] = ["text", "image", "pdf", "audio", "video"];
-
 /// 一家供应商的原文：模型先不读，一个个读，坏一个不连累别的。
 #[derive(Deserialize)]
 struct RawProvider<'a> {
@@ -153,17 +161,17 @@ struct RawProvider<'a> {
     models: BTreeMap<String, &'a RawValue>,
 }
 
-/// 一个模型的原文里用得上的格。
+/// 一个模型的原文里用得上的格：字能借原文的就借，不另分配（施工 V-2 下）。
 #[derive(Deserialize)]
-struct RawModel {
-    #[serde(default)]
-    name: Option<String>,
-    #[serde(default)]
-    family: Option<String>,
+struct RawModel<'a> {
+    #[serde(default, borrow)]
+    name: Option<Cow<'a, str>>,
+    #[serde(default, borrow)]
+    family: Option<Cow<'a, str>>,
     #[serde(default)]
     tool_call: Option<bool>,
-    #[serde(default)]
-    modalities: Option<Modalities>,
+    #[serde(default, borrow)]
+    modalities: Option<Modalities<'a>>,
     #[serde(default)]
     limit: Option<Limit>,
     #[serde(default)]
@@ -172,12 +180,12 @@ struct RawModel {
     reasoning_options: Option<Vec<ReasoningOption>>,
     #[serde(default)]
     temperature: Option<bool>,
-    #[serde(default)]
-    status: Option<String>,
-    #[serde(default)]
-    release_date: Option<String>,
-    #[serde(default)]
-    provider: Option<ModelProvider>,
+    #[serde(default, borrow)]
+    status: Option<Cow<'a, str>>,
+    #[serde(default, borrow)]
+    release_date: Option<Cow<'a, str>>,
+    #[serde(default, borrow)]
+    provider: Option<ModelProvider<'a>>,
     /// 写法不一（`true`、`{"field": …}`），原样收下再看，不为它跳过整个模型。
     #[serde(default)]
     interleaved: Option<serde_json::Value>,
@@ -185,15 +193,15 @@ struct RawModel {
 
 /// 模型上的 `provider`：只用 `npm`。
 #[derive(Deserialize)]
-struct ModelProvider {
-    #[serde(default)]
-    npm: Option<String>,
+struct ModelProvider<'a> {
+    #[serde(default, borrow)]
+    npm: Option<Cow<'a, str>>,
 }
 
 #[derive(Deserialize)]
-struct Modalities {
-    #[serde(default)]
-    input: Option<Vec<String>>,
+struct Modalities<'a> {
+    #[serde(default, borrow)]
+    input: Option<Vec<Cow<'a, str>>>,
 }
 
 #[derive(Deserialize)]
@@ -226,6 +234,7 @@ impl Catalog {
         let raw: BTreeMap<String, &RawValue> =
             serde_json::from_str(text).map_err(|error| format!("catalog not readable: {error}"))?;
         let mut read = Read::default();
+        let mut texts = Texts::default();
         for (id, provider) in raw {
             let Ok(provider) = serde_json::from_str::<RawProvider<'_>>(provider.get()) else {
                 read.skipped.push(id);
@@ -233,9 +242,10 @@ impl Catalog {
             };
             let mut models = BTreeMap::new();
             for (name, model) in provider.models {
-                match serde_json::from_str::<RawModel>(model.get()) {
+                match serde_json::from_str::<RawModel<'_>>(model.get()) {
                     Ok(model) => {
-                        models.insert(name, model.into());
+                        let model = CatalogModel::of(model, &mut texts);
+                        models.insert(texts.get(&name), model);
                     }
                     Err(_) => read.skipped.push(format!("{id}/{name}")),
                 }
@@ -249,23 +259,23 @@ impl Catalog {
                 doc: provider.doc,
                 models,
             };
-            read.catalog.providers.insert(id, entry);
+            read.catalog.providers.insert(texts.get(&id), entry);
         }
-        read.catalog.index();
+        read.catalog.index(&mut texts);
         Ok(read)
     }
 
-    /// 照名字建索引。
-    fn index(&mut self) {
+    /// 照名字建索引：条目、键都是表里那一份的引用，规整以后的名字照字共用。
+    fn index(&mut self, texts: &mut Texts) {
         for (provider, entry) in &self.providers {
             for model in entry.models.keys() {
-                let at = (provider.clone(), model.clone());
+                let at = (Arc::clone(provider), Arc::clone(model));
                 self.named
-                    .entry(model.clone())
+                    .entry(Arc::clone(model))
                     .or_default()
                     .push(at.clone());
                 self.normalized
-                    .entry(normalize(model))
+                    .entry(texts.get(&normalize(model)))
                     .or_default()
                     .push(at);
             }
@@ -306,8 +316,9 @@ impl Catalog {
     }
 }
 
-impl From<RawModel> for CatalogModel {
-    fn from(raw: RawModel) -> CatalogModel {
+impl CatalogModel {
+    /// 照原文里用得上的格造，字照 `texts` 共用。
+    fn of(raw: RawModel<'_>, texts: &mut Texts) -> CatalogModel {
         let limit = raw.limit.unwrap_or(Limit {
             context: None,
             input: None,
@@ -320,16 +331,11 @@ impl From<RawModel> for CatalogModel {
         let inputs = raw
             .modalities
             .and_then(|modalities| modalities.input)
-            .map(|inputs| {
-                INPUTS
-                    .iter()
-                    .filter(|known| inputs.iter().any(|input| input == *known))
-                    .map(|known| (*known).to_string())
-                    .collect()
-            });
+            .map(|inputs| Inputs::of(inputs.iter().map(|input| &**input)));
+        let mut text = |value: Option<Cow<'_, str>>| value.map(|value| texts.get(&value));
         CatalogModel {
-            name: raw.name,
-            family: raw.family,
+            name: text(raw.name),
+            family: text(raw.family),
             tools: raw.tool_call,
             inputs,
             window: window.filter(|window| *window > 0),
@@ -337,15 +343,32 @@ impl From<RawModel> for CatalogModel {
             price: raw.cost.map(price::RawCost::price),
             reasoning: raw.reasoning_options.and_then(reasoning),
             temperature: raw.temperature,
-            status: raw.status,
-            release_date: raw.release_date,
-            npm: raw.provider.and_then(|provider| provider.npm),
-            interleaved: raw
-                .interleaved
-                .as_ref()
-                .and_then(|interleaved| interleaved.get("field")?.as_str())
-                .map(str::to_string),
+            status: text(raw.status),
+            release_date: text(raw.release_date),
+            npm: text(raw.provider.and_then(|provider| provider.npm)),
+            interleaved: text(
+                raw.interleaved
+                    .as_ref()
+                    .and_then(|interleaved| interleaved.get("field")?.as_str())
+                    .map(Cow::Borrowed),
+            ),
         }
+    }
+}
+
+/// 读一份目录时同样的字只存一份（施工 V-2 下）。
+#[derive(Default)]
+struct Texts(BTreeSet<Text>);
+
+impl Texts {
+    /// `text` 的那一份：见过的交回原来那一份，没见过的存下来。
+    fn get(&mut self, text: &str) -> Text {
+        if let Some(seen) = self.0.get(text) {
+            return Arc::clone(seen);
+        }
+        let fresh: Text = Arc::from(text);
+        self.0.insert(Arc::clone(&fresh));
+        fresh
     }
 }
 

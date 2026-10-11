@@ -115,6 +115,8 @@ struct State {
     generation: u64,
     /// 有一次在路上。
     running: bool,
+    /// 第 `generation` 个闹钟上了，还没响完（施工 V-2 再补）：响了开始抽、作废了、读不了的放下。
+    armed: bool,
     /// 从第几条起抽、失败了几次。
     failures: Option<(Seq, u32)>,
 }
@@ -128,12 +130,29 @@ impl Extractor {
     pub(crate) fn arm(&self) -> u64 {
         let mut state = self.state();
         state.generation += 1;
+        state.armed = true;
         state.generation
     }
 
     /// 撤掉闹钟：新一轮开始了。在路上的那一次照样走完。
     pub(crate) fn cancel(&self) {
-        self.state().generation += 1;
+        let mut state = self.state();
+        state.generation += 1;
+        state.armed = false;
+    }
+
+    /// 第 `generation` 个闹钟响了、不抽（还没闲着、没装记忆、正有一次在路上……）：放下它。对不上的是作废的，不管。
+    pub(crate) fn disarm(&self, generation: u64) {
+        let mut state = self.state();
+        if state.generation == generation {
+            state.armed = false;
+        }
+    }
+
+    /// 有闹钟上着、或者有一次在路上（施工 V-2 再补）：会话这时退下，这一段要等下次载入、闲下来才抽。
+    pub(crate) fn pending(&self) -> bool {
+        let state = self.state();
+        state.armed || state.running
     }
 
     /// 第 `generation` 个闹钟还算数、没有一次在路上。
@@ -149,6 +168,7 @@ impl Extractor {
             return false;
         }
         state.running = true;
+        state.armed = false;
         true
     }
 

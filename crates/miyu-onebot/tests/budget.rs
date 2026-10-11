@@ -1,18 +1,19 @@
-//! 桥的工具面预算（`docs/designs/10-自带软件.md` 第九节，施工 O-26、O-31）：`resources/software/onebot/tools/` 下的说明加起来
+//! 桥的工具面预算（`docs/designs/10-自带软件.md` 第九节，施工 O-26、O-31、O-33）：`resources/software/onebot/tools/` 下的说明加起来
 //! 不超过 [`BUDGET`] 字节。
 //!
 //! 照基础系统、记忆的办法：2026-10-09 照 magpie 网关的 `clinepass/cline-pass/deepseek-v4.1-flash` 量，十六件（基础系统十五件加
 //! `skip_reply`）一起时 `skip_reply` 的边际份量 70 个 token，说明 249 字节，预算 280 字节。施工 O-31 加 `recall`、`mute`、`poke`
 //! （2026-10-10 同一个端点、同一个办法）：十九件一起时四件的边际份量 70、36、80、46，合计 232 个 token、825 字节；预算是实测加
-//! 一成，255 个 token，合 910 字节。加工具、改说明超了，重新量过再改这里和设计。
+//! 一成，255 个 token，合 910 字节。施工 O-33 加 `fetch_media`（2026-10-11 同一个端点、同一个办法）：二十件一起时边际份量 114，
+//! 五件合计 346 个 token、1206 字节；预算是实测加一成，381 个 token，合 1327 字节。加工具、改说明超了，重新量过再改这里和设计。
 
 use std::path::Path;
 
 /// 预算：字节，回车 `\r` 不算（Windows 上检出的可能多出回车）。
-const BUDGET: usize = 910;
+const BUDGET: usize = 1327;
 
 /// 桥的工具：一件一份说明。
-const TOOLS: [&str; 4] = ["mute", "poke", "recall", "skip_reply"];
+const TOOLS: [&str; 5] = ["fetch_media", "mute", "poke", "recall", "skip_reply"];
 
 #[test]
 fn the_bridge_tool_face_stays_within_its_budget() {

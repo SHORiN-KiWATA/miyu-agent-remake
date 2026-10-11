@@ -7,6 +7,7 @@ use crate::ask::usage_line;
 mod agents;
 mod config;
 mod config_write;
+mod confirm;
 mod harness;
 mod login;
 mod memory;
@@ -14,6 +15,9 @@ mod pkg;
 mod sandbox;
 mod setup;
 mod undo;
+
+pub(crate) use confirm::{Carried, Doing, PlanLabel};
+pub(crate) use pkg::Checked;
 
 /// 界面语言。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

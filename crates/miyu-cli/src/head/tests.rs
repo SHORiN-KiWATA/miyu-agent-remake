@@ -11,13 +11,13 @@ use super::*;
 fn ui(id: &str, program: &str, opens: &[&str]) -> Found {
     let opens: Vec<String> = opens.iter().map(|page| format!("{page:?}")).collect();
     let text = format!(
-        "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = {{ en = \"U\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"U\" }}\n\n[ui]\nopens = [{}]\n",
+        "[package]\nprotocol = [1, 1]\nname = {{ en = \"U\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"U\" }}\n\n[ui]\nopens = [{}]\n",
         opens.join(", ")
     );
     Found {
         id: id.to_string(),
         layer: Layer::Home,
-        path: PathBuf::from(format!("/data/home/admin/packages/{id}.toml")),
+        path: PathBuf::from(format!("/data/home/admin/packages/{id}/package.toml")),
         read: Ok(miyu_config::package::read(&text).expect("清单合写法")),
     }
 }

@@ -210,7 +210,7 @@ async fn a_command_after_the_session_was_deleted_finds_it_again() {
     let old = home.sessions()[0].clone();
     let mut core = within(
         "连上核心",
-        miyu_webserve::open::Core::connect_running(&home.root, "test"),
+        miyu_client::open::Core::connect_running(&home.root, "test"),
     )
     .await
     .expect("连得上核心");

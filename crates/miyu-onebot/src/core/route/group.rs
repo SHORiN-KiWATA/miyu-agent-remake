@@ -4,17 +4,19 @@
 //! 1. 场所、平台上的人经群聊内核拼（`onebot::venue`、`onebot::person`），拼不出的记一行、这条不送。
 //! 2. 场所规则套到这个群上（`applied`）：找会话带的人格、预设、工作区，发的人是不是管理的人，睡没睡，看不看得到号。
 //! 3. 发的人的名字、身份（施工 O-31）顺手记进群成员的缓存；正文里的 @ 写成名字（`names`）。
-//! 4. 正文空白、又没有带的东西的不送；只有带的东西的照样交（「施工时定的」第 67 条）。
+//! 4. 正文空白、又没有带的东西的不送；只有带的东西的照样交（「施工时定的」第 67 条）。冲她来的（@ 她、引用她、关键词开头）
+//!    交以前取这一条和它引用的那一条的图，`attachments` 带上（施工 O-33，`pictures`）。
 //! 5. 照私聊的办法交（`Route::submit`）：`/` 开头的先当斜杠命令，回执发回群里；别的 `session.send` 带场所的格。
 //! 6. 核心记下了（回应交回序号）的交给 `called` 判（施工 O-23）。
 
 use std::time::Instant;
 
-use miyu_chat::VenueKind;
+use miyu_chat::{VenueKind, addressed};
 use serde_json::json;
 
 use super::called::Heard;
 use super::fields::{Flags, fields};
+use super::pictures::Pictures;
 use super::session::Place;
 use super::{Message, Route, applied};
 use crate::TARGET;
@@ -61,6 +63,21 @@ impl Route {
             asleep: applied::asleep(&applied),
             show_ids: applied::show_ids(&applied),
         };
+        // 冲她来的取这一条和它引用的那一条的图（施工 O-33，`pictures`）：照「群里怎么叫她」第 4 条认，引用她照这个群的投影。
+        let quotes_me = posted.segments.reply_to.as_deref().is_some_and(|msg| {
+            self.venues
+                .get(venue.id().as_str())
+                .and_then(|session| self.groups.get(session))
+                .is_some_and(|group| group.mine(msg))
+        });
+        let keywords = applied::keywords(&applied);
+        let calls_her = addressed(
+            VenueKind::Group,
+            flags.mentions_me,
+            quotes_me,
+            &text,
+            &keywords,
+        );
         let message = Message {
             id: command_id(posted.bot, posted.message_id, posted.time),
             number: posted.message_id,
@@ -68,6 +85,8 @@ impl Route {
             fields: fields(&posted, &mentions, flags),
             place: Place::group(&venue, &applied, posted.bot, group),
             text,
+            pictures: calls_her
+                .then(|| Pictures::of(posted.bot, posted.message_id, &posted.segments)),
         };
         let heard = Heard {
             id: message.id.clone(),

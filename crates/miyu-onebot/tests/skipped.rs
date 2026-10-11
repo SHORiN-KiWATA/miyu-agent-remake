@@ -187,7 +187,7 @@ async fn a_private_turn_can_be_skipped_and_local_sessions_never_see_the_tool() {
     assert!(offers_skip(&requests[0]), "私聊的工具面里有它");
     assert!(format!("{:?}", requests[1]).contains(skipped().trim()));
     // 本机的会话：造一个、说一句，工具面里没有它。
-    let mut core = miyu_webserve::open::Core::connect_running(&home.root, "test")
+    let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await
         .expect("连得上核心");
     let cwd = home.root.path().to_string_lossy().into_owned();

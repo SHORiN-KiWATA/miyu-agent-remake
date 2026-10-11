@@ -147,13 +147,10 @@ pub(crate) async fn call(
             )
             .await
         }
-        "package.list" => crate::packages::list(core, peer),
-        "package.install" => crate::packages::manage::install(core, peer, params(request)?).await,
-        "package.remove" => crate::packages::manage::remove(core, params(request)?).await,
-        "package.enable" => crate::packages::switch::enable(core, peer, params(request)?).await,
-        "package.file" => crate::backstage::read(core, params(request)?).await,
-        "package.methods" => crate::backstage::register(core, caller, params(request)?),
-        "package.disable" => crate::packages::switch::disable(core, peer, params(request)?).await,
+        // 软件包的几个方法（施工 F-8 中上挪出去：这里放不下了）。
+        name if name.starts_with("package.") => {
+            crate::packages::methods::call(core, peer, caller, request).await
+        }
         "view.page" => crate::view::page(core, peer, params(request)?).await,
         "view.detail" => crate::view::detail(core, params(request)?).await,
         "extension.status" => Ok(crate::extensions::status(core, peer)),
@@ -186,6 +183,10 @@ pub(crate) async fn call(
         "venue.binding" => venues::binding(core, &caller.account, params(request)?),
         "venue.session" => {
             venues::session(core, &caller.account, request.id.clone(), params(request)?).await
+        }
+        "venue.sessions" => {
+            let params: venues::SessionsParams = params(request)?;
+            venues::sessions(core, &caller.account, params).await
         }
         "session.send" => {
             let params: SendParams = params(request)?;
@@ -486,7 +487,7 @@ fn said(text: String) -> Vec<Block> {
 }
 
 /// 读参数；读不成的是参数不对。
-fn params<T: serde::de::DeserializeOwned>(request: &Request) -> Result<T, Refusal> {
+pub(crate) fn params<T: serde::de::DeserializeOwned>(request: &Request) -> Result<T, Refusal> {
     serde_json::from_value(request.params.clone()).map_err(|_| Refusal::BAD_PARAMS)
 }
 

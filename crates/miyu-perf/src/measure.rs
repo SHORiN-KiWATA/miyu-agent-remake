@@ -19,13 +19,16 @@ use crate::stats::ms;
 /// 核心起来、会话说完以后，量内存之前歇多久：让刚才的活干完、刚放开的内存落定。
 pub const SETTLE: Duration = Duration::from_secs(2);
 
-/// 说了一句：这一句 `message.user` 的序号，说出去到模型收到请求、到这一轮结束各用了多久（毫秒）。
+/// 说了一句：这一句 `message.user` 的序号，说出去到模型收到请求、落了盘到模型收到请求、说出去到这一轮结束各用了多久（毫秒）。
 #[derive(Debug, Clone, Copy)]
 pub struct Said {
     /// 这一句的序号：说之前会话里有几条事件。
     pub seq: u64,
-    /// 发出 `session.send` 到假模型读全请求头。
+    /// 发出 `session.send` 到假模型读全请求头：含 `message.user` 落盘（同步）。
     pub request: f64,
+    /// 收到 `session.send` 的回应（这一句落了盘才回）到假模型读全请求头：组装、编码、连上假模型，不含落盘（施工 V-2 中）。
+    /// 核心回了就去组装，回应在路上的那一点也算在里面；请求先到的记 0。
+    pub projection: f64,
     /// 发出 `session.send` 到推来 `turn.ended`。
     pub turn: f64,
 }
@@ -76,6 +79,7 @@ pub async fn say(
             json!({"session": session, "text": format!("{marker}: keep going.")}),
         )
         .await?;
+    let persisted = Instant::now();
     let seq = sent["events"][0]
         .as_u64()
         .ok_or("session.send 的回应里没有序号")?;
@@ -84,6 +88,7 @@ pub async fn say(
     Ok(Said {
         seq,
         request: ms(arrival.at.saturating_duration_since(began)),
+        projection: ms(arrival.at.saturating_duration_since(persisted)),
         turn: ms(began.elapsed()),
     })
 }

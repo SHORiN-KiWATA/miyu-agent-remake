@@ -40,6 +40,11 @@ pub(crate) struct Watches {
 }
 
 impl Watches {
+    /// 一个都没订（施工 V-2 再补）：空闲的会话退不退照它看。
+    pub(crate) fn is_empty(&self) -> bool {
+        self.placed.is_empty()
+    }
+
     /// 一批送完了：照内核这时在等的去订、计时，不在等了的撤掉计时。`now` 是这一刻，`agents` 是会话表的端口（没有的订不了，
     /// 照样计时、到点作废），到点、不在了交回 `backs`。
     pub(crate) fn sync(

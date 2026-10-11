@@ -185,23 +185,23 @@ pub fn find(
     if let Some(written) = written {
         return match written.split_once('/') {
             Some((provider, name)) if catalog.model(provider, name).is_some() => {
-                Found::Matched(matched((provider.to_string(), name.to_string()), 1, true))
+                Found::Matched(matched(provider, name, 1, true))
             }
             _ => Found::Missing(written.to_string()),
         };
     }
     let normalized = normalize(model);
     if let Some(entry) = recognized.and_then(|provider| catalog.provider(provider)) {
-        let same = entry.models.contains_key(model).then(|| model.to_string());
+        let same = entry.models.contains_key(model).then_some(model);
         let similar = || {
             entry
                 .models
                 .keys()
                 .find(|name| normalize(name) == normalized)
-                .cloned()
+                .map(|name| &**name)
         };
         if let Some(name) = same.or_else(similar) {
-            return Found::Matched(matched((entry.id.clone(), name), 2, true));
+            return Found::Matched(matched(&entry.id, name, 2, true));
         }
     }
     let named = catalog.named(model);
@@ -242,9 +242,9 @@ fn pick(
 ) -> Matched {
     if let Some(entry) = entries
         .iter()
-        .find(|(provider, _)| Some(provider.as_str()) == recognized)
+        .find(|(provider, _)| Some(&**provider) == recognized)
     {
-        return matched(entry.clone(), layer, true);
+        return matched(&entry.0, &entry.1, layer, true);
     }
     let vendor = entries
         .iter()
@@ -254,17 +254,17 @@ fn pick(
                 .and_then(|entry| entry.family.as_deref());
             vendors.of(family, model)
         })
-        .find_map(|vendor| entries.iter().find(|(provider, _)| provider == vendor));
+        .find_map(|vendor| entries.iter().find(|(provider, _)| **provider == **vendor));
     match vendor {
-        Some(entry) => matched(entry.clone(), layer, true),
-        None => matched(entries[0].clone(), layer, false),
+        Some((provider, model)) => matched(provider, model, layer, true),
+        None => matched(&entries[0].0, &entries[0].1, layer, false),
     }
 }
 
-fn matched((provider, model): Entry, layer: u8, price: bool) -> Matched {
+fn matched(provider: &str, model: &str, layer: u8, price: bool) -> Matched {
     Matched {
-        provider,
-        model,
+        provider: provider.to_string(),
+        model: model.to_string(),
         layer,
         price,
     }

@@ -25,6 +25,22 @@ pub enum CallError {
     Failed(Value),
 }
 
+/// NapCat 回失败时说的为什么（施工 O-31 起平台工具、O-33 取东西照它答）：`message` 去掉首尾空白，空的换 `wording`，再空的写
+/// `retcode`；截到 [`DETAIL`] 个字符。
+pub fn said(reply: &Value) -> String {
+    let said = ["message", "wording"]
+        .iter()
+        .filter_map(|key| reply[*key].as_str())
+        .map(str::trim)
+        .find(|said| !said.is_empty())
+        .map_or_else(|| reply["retcode"].to_string(), str::to_string);
+    said.chars().take(DETAIL).collect()
+}
+
+/// 回失败时说的为什么最多留几个字符：出站队列 `failed` 的 `detail`（`onebot.md`「出站队列」第 4 条）、平台工具答的原话（施工
+/// O-31）、取东西答的原话（施工 O-33）都照它。
+pub const DETAIL: usize = 200;
+
 /// 一条连接上在等回应的调用。
 #[derive(Debug)]
 pub struct Calls {
@@ -142,7 +158,17 @@ impl Pending {
     ///
     /// 等的时候连接断了；过了时；回的 `status` 不是 `ok`。
     pub async fn wait(self) -> Result<Value, CallError> {
-        match tokio::time::timeout(self.timeout, self.answer).await {
+        let timeout = self.timeout;
+        self.wait_for(timeout).await
+    }
+
+    /// 等回应，最多 `timeout`（施工 O-33：`get_image`、`get_file` 要 NapCat 先把东西下下来，等得比别的动作久）。
+    ///
+    /// # Errors
+    ///
+    /// 同 [`Pending::wait`]。
+    pub async fn wait_for(self, timeout: Duration) -> Result<Value, CallError> {
+        match tokio::time::timeout(timeout, self.answer).await {
             Err(_) => Err(CallError::Timeout),
             Ok(Err(_)) => Err(CallError::Closed),
             Ok(Ok(reply)) if reply["status"] == "ok" => Ok(reply),

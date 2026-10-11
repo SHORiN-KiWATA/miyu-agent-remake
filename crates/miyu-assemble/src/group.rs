@@ -6,15 +6,20 @@
 //! 编号、带的东西的名字是不可信的，照模板的规矩转义成一行（`template::escape`）：伪造不出另一条记录；钟点、身份、`@all`、
 //! `[you]` 是可信的，原样。图片、文件块照旧接在这一行后面交给驱动。
 //!
+//! 带的东西的记号（施工 O-33）：`[种类 #第几个: 名字, 大小]`，大小照 `size.rs` 写；O-33 起造的群会话（快照里有语音那一句）
+//! 一条里不止一样的照先后从 1 数、每样标 `#n`（和 `fetch_media` 的 `index` 一个数法），语音后面接那一句；以前造的不标、
+//! 不接，前缀一个字节不变。
+//!
 //! 开一轮的那条前面的群聊近况在 `recent.rs`（施工 O-13 下）：两次触发之间的旁听、别的线替她发的话，一行一条。
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::{Event, Media, VenueDelivered, VenueMessage};
+use miyu_kernel::event::{Event, Media, MediaKind, VenueDelivered, VenueMessage};
 use miyu_kernel::id::ExternalId;
 use miyu_kernel::origin::{By, Role};
 use miyu_kernel::template::escape;
 use miyu_kernel::time::Timestamp;
 
+use crate::size::readable;
 use crate::texts::GroupChat;
 
 /// 正文最多留多少字节（照旧版）：超了的在字的边界上截掉后面的。
@@ -52,7 +57,7 @@ fn record(
         at.local_clock(texts.offset),
         sender(by, venue),
         escape(&venue.msg),
-        content(words, &venue.media, &texts.no_text),
+        content(words, &venue.media, texts),
     );
     if let Some(reply_to) = &venue.reply_to {
         line.push_str("\n  reply-to: msg=");
@@ -97,8 +102,8 @@ fn sender(by: &By, venue: &VenueMessage) -> String {
     }
 }
 
-/// 内容：正文去掉前后空白、截到 [`TEXT_LIMIT`] 字节，带的东西空一格接在后面；都没有的写 `no_text`。
-fn content(words: &[Block], media: &[Media], no_text: &str) -> String {
+/// 内容：正文去掉前后空白、截到 [`TEXT_LIMIT`] 字节，带的东西空一格接在后面（[`markers`]）；都没有的写 `no_text`。
+fn content(words: &[Block], media: &[Media], texts: &GroupChat) -> String {
     let joined = words
         .iter()
         .filter_map(|block| match block {
@@ -112,25 +117,57 @@ fn content(words: &[Block], media: &[Media], no_text: &str) -> String {
     if !text.is_empty() {
         parts.push(escape(text));
     }
-    parts.extend(media.iter().map(marker));
+    parts.extend(markers(media, texts.voice.as_deref()));
     if parts.is_empty() {
-        no_text.to_string()
+        texts.no_text.clone()
     } else {
         parts.join(" ")
     }
 }
 
-/// 带的一样东西的记号：`[image]`，有名字的 `[file: 名字]`，名字照模板的规矩转义。
-fn marker(item: &Media) -> String {
-    match &item.name {
-        Some(name) => format!("[{}: {}]", item.kind.as_str(), escape(name)),
-        None => format!("[{}]", item.kind.as_str()),
+/// 一条带的东西的记号，照先后。`voice` 是语音那一句：有它的（O-33 起造的群会话）不止一样的标第几个、语音接这一句；
+/// 没有的照以前写。
+fn markers(media: &[Media], voice: Option<&str>) -> Vec<String> {
+    let numbered = voice.is_some() && media.len() > 1;
+    media
+        .iter()
+        .zip(1..)
+        .map(|(item, number)| {
+            let mut marker = marker(item, numbered.then_some(number));
+            if let (MediaKind::Voice, Some(voice)) = (&item.kind, voice) {
+                marker.push(' ');
+                marker.push_str(voice);
+            }
+            marker
+        })
+        .collect()
+}
+
+/// 带的一样东西的记号：`[image]`；标第几个的 `[image #2]`；有名字、大小的冒号后面逗号隔开，`[file: 名字, 1.2 MB]`。
+/// 名字照模板的规矩转义。
+fn marker(item: &Media, number: Option<usize>) -> String {
+    let mut head = item.kind.as_str().to_string();
+    if let Some(number) = number {
+        head.push_str(&format!(" #{number}"));
+    }
+    let details: Vec<String> = item
+        .name
+        .as_deref()
+        .map(escape)
+        .into_iter()
+        .chain(item.size.map(readable))
+        .collect();
+    if details.is_empty() {
+        format!("[{head}]")
+    } else {
+        format!("[{head}: {}]", details.join(", "))
     }
 }
 
 /// 不在群里的一条场所消息、没有内容块的（施工 O-13 补）：带的东西的记号一个文本块，空一格隔开；带的东西也没有的，没有。
+/// 不标第几个、语音不接那一句（施工 O-33：`fetch_media` 只给群，私聊没有群会话的字），只多大小。
 pub(crate) fn bare(venue: &VenueMessage) -> Option<Block> {
-    let markers: Vec<String> = venue.media.iter().map(marker).collect();
+    let markers = markers(&venue.media, None);
     (!markers.is_empty()).then(|| {
         Block::Text(Text {
             text: markers.join(" "),

@@ -72,7 +72,7 @@ fn switch(manifest: &Manifest, layer: Layer) -> Result<Switch, Refusal> {
     match manifest.kind {
         PackageKind::Process => Ok(Switch::Extension),
         PackageKind::Builtin if layer == Layer::Shipped => Ok(Switch::Shipped),
-        PackageKind::Builtin | PackageKind::Ui | PackageKind::Worker => {
+        PackageKind::Builtin | PackageKind::Ui | PackageKind::Worker | PackageKind::Mascot => {
             Err(Refusal::NOT_SWITCHABLE)
         }
     }

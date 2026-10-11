@@ -12,7 +12,6 @@ use crate::support::*;
 
 /// 终端界面的会话 2026-10-07 给的那份草稿：编号、子命令名改成 `term`，出厂以后才有的 `tui` 撞不上它。
 const TERM: &str = r#"[package]
-kind = "ui"
 version = "0.0.1"
 protocol = [1, 1]
 name = { en = "Terminal interface", zh = "终端界面", ja = "ターミナル画面" }
@@ -28,8 +27,8 @@ opens = ["config"]
 "#;
 
 /// 管理员（测试里是 alice）家目录里的一份清单。
-fn mine(home: &Home, file: &str, text: &str) {
-    home.write(&format!("home/alice/packages/{file}"), text);
+fn mine(home: &Home, id: &str, text: &str) {
+    home.write(&format!("home/alice/packages/{id}/package.toml"), text);
 }
 
 /// 只留这几个编号的，照列出的先后。
@@ -54,7 +53,7 @@ async fn listed(home: &Home) -> Vec<Value> {
 #[tokio::test]
 async fn shipped_and_home_packages_are_listed_in_the_connections_language() {
     let home = Home::new();
-    mine(&home, "term.toml", TERM);
+    mine(&home, "term", TERM);
     let packages = listed(&home).await;
     let state = home.root.path().join("state").join("packages").join("term");
     assert_eq!(
@@ -98,9 +97,8 @@ async fn features_connections_and_workers_are_listed() {
     let home = Home::new();
     mine(
         &home,
-        "xbase.toml",
+        "xbase",
         r#"[package]
-kind = "builtin"
 required = true
 protocol = [1, 1]
 name = { en = "Base", zh = "基础" }
@@ -115,28 +113,35 @@ name = { en = "Commands" }
 
 [recommends]
 workers = ["xembed"]
+
+[builtin]
 "#,
     );
     mine(
         &home,
-        "xbridge.toml",
+        "xbridge",
         r#"[package]
-kind = "process"
 protocol = [1, 1]
 name = { en = "Connect X", zh = "接入X" }
+
+[command]
+name = "xbridge"
+program = "miyu-xbridge"
+about = { en = "Connect X", zh = "接入X" }
 
 [connection]
 platform = "x"
 
 [depends]
 workers = ["xembed"]
+
+[process]
 "#,
     );
     mine(
         &home,
-        "xembed.toml",
+        "xembed",
         r#"[package]
-kind = "worker"
 protocol = [1, 1]
 name = { en = "Model" }
 
@@ -173,10 +178,12 @@ args = ["serve"]
                 "kind": "process",
                 "protocol": [1, 1],
                 "name": "接入X",
+                "command": {"name": "xbridge", "program": "miyu-xbridge", "about": "接入X"},
+                "process": {"args": [], "start": "manual"},
                 "features": [{"id": "xbridge", "name": "接入X"}],
                 "connection": {"platform": "x"},
                 "depends": {"workers": ["xembed"]},
-                "status": "off",
+                "status": "program_missing",
                 "enabled": false,
             }),
             json!({
@@ -198,10 +205,10 @@ fn a_builtin_the_core_lacks_is_not_built_in() {
     let home = Home::new();
     mine(
         &home,
-        "xghost.toml",
-        "[package]\nkind = \"builtin\"\nprotocol = [1, 1]\nname = { en = \"Ghost\" }\n",
+        "xghost",
+        "[package]\nprotocol = [1, 1]\nname = { en = \"Ghost\" }\n\n[builtin]\n",
     );
-    mine(&home, "term.toml", TERM);
+    mine(&home, "term", TERM);
     let resources = miyu_store::resources::ResourceRoot::at(default_resources());
     let mut found = miyu_endpoint::packages::load(&resources, &home.root, &alice());
     miyu_endpoint::packages::compiled(
@@ -239,21 +246,21 @@ fn a_builtin_the_core_lacks_is_not_built_in() {
 #[tokio::test]
 async fn broken_taken_and_mismatched_ones_carry_a_code_and_a_sentence() {
     let home = Home::new();
-    mine(&home, "bad.toml", "[package]\nkind = \"daemon\"\n");
-    mine(&home, "web.toml", TERM);
-    mine(&home, "web2.toml", &TERM.replace("\"term\"", "\"web\""));
+    mine(&home, "bad", "[package]\n\n[ui]\n\n[process]\n");
+    mine(&home, "web", TERM);
+    mine(&home, "web2", &TERM.replace("\"term\"", "\"web\""));
     mine(
         &home,
-        "later.toml",
+        "later",
         &TERM
             .replace("[1, 1]", "[2, 3]")
             .replace("\"term\"", "\"later\""),
     );
     mine(
         &home,
-        "bridge.toml",
+        "bridge",
         // 子命令不叫 onebot：出厂的桥占着它（施工 O-18）。
-        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = { en = \"Bridge\" }\n\n[command]\nname = \"bridge\"\nprogram = \"miyu-onebot\"\nabout = { en = \"QQ\" }\n\n[process]\nargs = [\"serve\"]\n\n[check]\nargs = [\"check\"]\n",
+        "[package]\nprotocol = [1, 1]\nname = { en = \"Bridge\" }\n\n[command]\nname = \"bridge\"\nprogram = \"miyu-onebot\"\nabout = { en = \"QQ\" }\n\n[process]\nargs = [\"serve\"]\n\n[check]\nargs = [\"check\"]\n",
     );
     let packages = listed(&home).await;
     let by_id = |id: &str| {
@@ -268,9 +275,9 @@ async fn broken_taken_and_mismatched_ones_carry_a_code_and_a_sentence() {
         [json!({
             "package": "bad",
             "layer": "home",
-            "code": "bad_kind",
-            "line": 2,
-            "problem": "package.kind 只能是 ui、process、builtin 或 worker，写的是 daemon",
+            "code": "two_programs",
+            "line": 5,
+            "problem": "一个包只带一个程序：[ui], [process] 只能留一张",
         })]
     );
     let web = by_id("web");
@@ -293,7 +300,7 @@ async fn broken_taken_and_mismatched_ones_carry_a_code_and_a_sentence() {
 async fn manifests_are_read_once_when_the_core_starts() {
     let home = Home::new();
     let core = home.core(&Script::new([]));
-    mine(&home, "term.toml", TERM);
+    mine(&home, "term", TERM);
     let mut client = Client::connect(core);
     client.hello().await;
     let reply = client.call("p1", "package.list", json!({})).await;
@@ -313,8 +320,8 @@ async fn check_reads_the_manifests_from_disk() {
     let home = Home::new();
     let mut client = Client::connect(home.core(&Script::new([])));
     client.hello().await;
-    mine(&home, "bad.toml", "[package]\nkind = \"daemon\"\n");
-    mine(&home, "term.toml", TERM);
+    mine(&home, "bad", "[package]\n\n[ui]\n\n[process]\n");
+    mine(&home, "term", TERM);
     let reply = client.call("c1", "check", json!({})).await;
     let packages: Vec<&Value> = reply["result"]["problems"]
         .as_array()
@@ -326,31 +333,68 @@ async fn check_reads_the_manifests_from_disk() {
         packages,
         [&json!({
             "kind": "package",
-            "file": "home/alice/packages/bad.toml",
-            "code": "bad_kind",
+            "file": "home/alice/packages/bad/package.toml",
+            "code": "two_programs",
             "level": "error",
-            "line": 2,
-            "message": "package.kind 只能是 ui、process、builtin 或 worker，写的是 daemon",
+            "line": 5,
+            "message": "一个包只带一个程序：[ui], [process] 只能留一张",
         })],
         "{reply}"
     );
-    let file = home.root.path().join("home/alice/packages/term.toml");
+    let file = home
+        .root
+        .path()
+        .join("home/alice/packages/term/package.toml");
     let reply = client
         .call("c2", "check", json!({"file": file.to_string_lossy()}))
         .await;
     assert_eq!(reply["result"], json!({"problems": []}), "{reply}");
-    let file = home.root.path().join("home/alice/packages/bad.toml");
+    let file = home
+        .root
+        .path()
+        .join("home/alice/packages/bad/package.toml");
     let reply = client
         .call("c3", "check", json!({"file": file.to_string_lossy()}))
         .await;
     assert_eq!(
-        reply["result"]["problems"][0]["code"], "bad_kind",
+        reply["result"]["problems"][0]["code"], "two_programs",
         "{reply}"
     );
-    mine(&home, "notes.txt", "x");
-    let file = home.root.path().join("home/alice/packages/notes.txt");
-    let reply = client
-        .call("c4", "check", json!({"file": file.to_string_lossy()}))
-        .await;
-    assert_eq!(reason(&reply), Some("unknown_file"), "{reply}");
+    // 包目录里别的文件、以前那种放在 `packages/` 下的 `<编号>.toml` 都不是清单（施工 F-8 上）。
+    for stray in ["term/notes.toml", "old.toml"] {
+        home.write(&format!("home/alice/packages/{stray}"), "x");
+        let file = home.root.path().join("home/alice/packages").join(stray);
+        let reply = client
+            .call("c4", "check", json!({"file": file.to_string_lossy()}))
+            .await;
+        assert_eq!(reason(&reply), Some("unknown_file"), "{stray}: {reply}");
+    }
+}
+
+/// 家目录里以前的写法（`<编号>.toml` 加同名目录，施工 F-8 上，设计 `31-软件包.md` 第七节第 2 条）：读清单时挪成一个文件夹一个包，
+/// 照样读得成，包自己的文件照旧在。
+#[test]
+fn an_old_layout_in_the_home_is_moved_when_read() {
+    let home = Home::new();
+    // 施工 F-8 上补以前的清单还写着 `kind`：挪的同时改成照表认的。
+    home.write(
+        "home/alice/packages/term.toml",
+        &TERM.replace("[package]\n", "[package]\nkind = \"ui\"\n"),
+    );
+    home.write("home/alice/packages/term/page/index.html", "<p>");
+    let resources = miyu_store::resources::ResourceRoot::at(default_resources());
+    let found = miyu_endpoint::packages::load(&resources, &home.root, &alice());
+    assert!(
+        found.iter().any(|one| one.id == "term" && one.read.is_ok()),
+        "挪了照样读得成"
+    );
+    let dir = home.root.path().join("home/alice/packages");
+    assert!(dir.join("term/package.toml").is_file());
+    assert!(!dir.join("term.toml").exists());
+    assert!(
+        dir.join("term/page/index.html").is_file(),
+        "包自己的文件照旧在"
+    );
+    let text = std::fs::read_to_string(dir.join("term/package.toml")).expect("在");
+    assert!(!text.contains("kind"), "{text}");
 }

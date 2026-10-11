@@ -54,7 +54,19 @@ fn it_measures_itself_and_a_child() {
         .arg("30")
         .spawn()
         .unwrap();
-    let found = tree(std::process::id());
+    // `spawn` 走 vfork：内核换掉内存时就放父进程走，进程名稍后才换成 `sleep`（`begin_new_exec` 里 `exec_mmap` 在
+    // `__set_task_comm` 前头），这一小会儿读到的还是测试线程的名字。等它换过来，最多五秒（CI 上偶发过两回）。
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    let found = loop {
+        let found = tree(std::process::id());
+        let named = found
+            .iter()
+            .any(|process| process.pid == child.id() && process.name == "sleep");
+        if named || std::time::Instant::now() > deadline {
+            break found;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    };
     child.kill().unwrap();
     child.wait().unwrap();
     assert_eq!(found[0].pid, std::process::id());

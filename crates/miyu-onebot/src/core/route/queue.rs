@@ -10,7 +10,7 @@ use std::time::Duration;
 use miyu_kernel::time::Timestamp;
 use serde_json::Value;
 
-use crate::onebot::{CallError, number};
+use crate::onebot::{CallError, DETAIL, number};
 
 /// `failed` 的 `why`：NapCat 回了失败。
 pub(super) const REJECTED: &str = "rejected";
@@ -23,9 +23,6 @@ pub(super) const DISCONNECTED: &str = "disconnected";
 
 /// `failed` 的 `why`：排着过了期限（第 5 条）。
 pub(super) const EXPIRED: &str = "expired";
-
-/// `failed` 的 `detail` 最多几个字符（第 4 条）：NapCat 说的原因截到这么长。平台工具（一）答的原话也照它（施工 O-31）。
-pub(super) const DETAIL: usize = 200;
 
 /// 排着的一段：入队的时刻、要发的。
 struct Waiting<T> {
@@ -59,6 +56,12 @@ impl<T> Queue<T> {
             expire: i64::try_from(expire.as_millis()).unwrap_or(i64::MAX),
             lines: BTreeMap::new(),
         }
+    }
+
+    /// 此刻是 `now`，说的时刻晚于它（毫秒）的还在期限里（施工 O-32，「出站队列」第 6 条：订阅补来的她的话照它补发）：和排着的
+    /// 一个算法，此刻减期限。
+    pub(super) fn since(&self, now: Timestamp) -> i64 {
+        now.unix_millis().saturating_sub(self.expire)
     }
 
     /// 会话 `session` 在 `at` 入队了一段 `item`：排在这个会话的最后。

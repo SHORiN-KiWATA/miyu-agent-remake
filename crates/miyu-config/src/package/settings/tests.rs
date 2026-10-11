@@ -7,7 +7,7 @@ use crate::package::{Code, read};
 /// 一份带配置项的网页清单。
 fn web(settings: &str) -> String {
     format!(
-        "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = {{ en = \"Web\", zh = \"网页\" }}\n\n{settings}"
+        "[package]\nprotocol = [1, 1]\nname = {{ en = \"Web\", zh = \"网页\" }}\n\n{settings}\n\n[ui]\n"
     )
 }
 

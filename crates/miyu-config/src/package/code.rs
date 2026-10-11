@@ -13,12 +13,12 @@ pub enum Code {
     UnknownKey,
     /// 少了必写的：`[package]` 或者某一格。
     MissingKey,
-    /// 这张表、这一格不给这种包（[`super::PackageKind::tables`]；`required` 只给内置包）。
+    /// 这张表、这一格不给这种包（`kinds::tables`；`required` 只给内置包）。
     WrongKind,
     /// `[process]`、`[check]` 要有 `[command]`。
     NeedsCommand,
-    /// `kind` 不是 `ui`、`process`、`builtin`、`worker`。
-    BadKind,
+    /// 程序表写了不止一张（施工 F-8 上补，设计 31 第二节第 2 条）：`[ui]`、`[process]`、`[builtin]`、`[worker]` 至多一张。
+    TwoPrograms,
     /// `protocol` 不是两个非负整数、最低不大于最高。
     BadProtocol,
     /// 该是字的不是字。
@@ -85,6 +85,8 @@ pub enum Code {
     BadIcon,
     /// `[page] dir` 不是包目录里的相对目录（施工 F-6 上）。
     BadPageDir,
+    /// `[mascot] model` 不是包目录里的相对路径（施工 F-7）。
+    BadMascotModel,
 }
 
 impl Code {
@@ -98,7 +100,7 @@ impl Code {
             Code::MissingKey => "missing_key",
             Code::WrongKind => "wrong_kind",
             Code::NeedsCommand => "needs_command",
-            Code::BadKind => "bad_kind",
+            Code::TwoPrograms => "two_programs",
             Code::BadProtocol => "bad_protocol",
             Code::NotText => "not_text",
             Code::NotTexts => "not_texts",
@@ -132,11 +134,12 @@ impl Code {
             Code::NotBuiltIn => "not_built_in",
             Code::BadIcon => "bad_icon",
             Code::BadPageDir => "bad_page_dir",
+            Code::BadMascotModel => "bad_mascot_model",
         }
     }
 
     /// 全部代码：给人看的字的门禁照它查三种语言都有。
-    pub const ALL: [Code; 41] = [
+    pub const ALL: [Code; 42] = [
         Code::Syntax,
         Code::UnknownTable,
         Code::NotATable,
@@ -144,7 +147,7 @@ impl Code {
         Code::MissingKey,
         Code::WrongKind,
         Code::NeedsCommand,
-        Code::BadKind,
+        Code::TwoPrograms,
         Code::BadProtocol,
         Code::NotText,
         Code::NotTexts,
@@ -178,5 +181,6 @@ impl Code {
         Code::NotBuiltIn,
         Code::BadIcon,
         Code::BadPageDir,
+        Code::BadMascotModel,
     ];
 }

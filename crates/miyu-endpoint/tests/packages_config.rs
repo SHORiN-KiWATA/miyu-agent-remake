@@ -47,15 +47,16 @@ impl Builtins for Port {
 /// 一份手动拉起的扩展包的清单：带一项系统配置的整数 `port`。程序要在测试程序旁边（施工 F-6 上：程序不在的当没装，配置项不算）。
 fn manifest(id: &str, program: &str) -> String {
     format!(
-        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"X\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"X\" }}\n\n[process]\nstart = \"manual\"\n\n[settings.port]\ntype = \"int\"\ndefault = 8400\nlayers = [\"system\"]\nname = {{ en = \"Port\" }}\n"
+        "[package]\nprotocol = [1, 1]\nname = {{ en = \"X\" }}\n\n[command]\nname = \"{id}\"\nprogram = \"{program}\"\nabout = {{ en = \"X\" }}\n\n[process]\nstart = \"manual\"\n\n[settings.port]\ntype = \"int\"\ndefault = 8400\nlayers = [\"system\"]\nname = {{ en = \"Port\" }}\n"
     )
 }
 
-/// 要装的那一份：放在数据根外面的工作目录里。
+/// 要装的那个包：放在数据根外面的工作目录里，交回包目录。
 fn source(home: &Home, id: &str, program: &str) -> std::path::PathBuf {
-    let path = home.work.join(format!("{id}.toml"));
-    std::fs::write(&path, manifest(id, program)).expect("写得进");
-    path
+    let folder = home.work.join(id);
+    std::fs::create_dir_all(&folder).expect("建得了");
+    std::fs::write(folder.join("package.toml"), manifest(id, program)).expect("写得进");
+    folder
 }
 
 /// 照磁盘上的系统配置起来、装了端口的核心。

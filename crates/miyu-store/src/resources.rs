@@ -174,7 +174,8 @@ impl ResourceRoot {
     }
 
     /// 群会话钉下的（施工 O-13 中）：时区 `offset`（比 UTC 早多少分钟），空的一条写什么照 `core/venues/no-text.txt` 的原文；
-    /// 群聊近况（施工 O-13 下）的块头、缺口提示照 `core/venues/recent-open.txt`、`recent-omitted.txt` 的原文，预算是出厂的。
+    /// 群聊近况（施工 O-13 下）的块头、缺口提示照 `core/venues/recent-open.txt`、`recent-omitted.txt` 的原文，预算是出厂的；
+    /// 语音那一句（施工 O-33）照 `core/venues/voice.txt` 的原文。
     ///
     /// # Errors
     ///
@@ -188,6 +189,7 @@ impl ResourceRoot {
                 omitted: self.read(&["core", "venues", "recent-omitted.txt"])?,
                 budget: miyu_policy::RECENT_BUDGET,
             }),
+            voice: Some(self.read(&["core", "venues", "voice.txt"])?),
         })
     }
 
@@ -458,6 +460,20 @@ impl ResourceRoot {
     /// 读不出来：写明是哪个文件。
     pub fn not_in_venue(&self) -> Result<String, SourceError> {
         self.read(&["core", "permissions", "not-in-venue.txt"])
+    }
+
+    /// 只碰得到自己工作区的会话（外部身份的场所会话，施工 5-12，`11-权限与沙盒.md` 第三节）拒绝时写给她的两句：要碰的路径在
+    /// 工作区外面（`outside-workspace.txt`，字段 `path`）、这里还不能跑命令（`no-commands.txt`）。不进策略快照，同
+    /// [`ResourceRoot::not_in_venue`]：这种会话造、载入时读。
+    ///
+    /// # Errors
+    ///
+    /// 读不出来：写明是哪个文件。
+    pub fn confined_texts(&self) -> Result<(String, String), SourceError> {
+        Ok((
+            self.read(&["core", "permissions", "outside-workspace.txt"])?,
+            self.read(&["core", "permissions", "no-commands.txt"])?,
+        ))
     }
 
     /// 读资源目录下的一份文件，路径一段一段地接上（三个平台一样）。

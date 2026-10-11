@@ -70,10 +70,14 @@
 | `package-pages.md` | 软件包页和软件后台：清单的图标和后台页、`package.list` 的状态和开关、程序不在当没装、配置项归包、`package.file`、`package.call`、网页软件怎么给后台页、框和网页之间的方法表：图纸，2026-10-10 起草，F-6 照它施工 |
 | `extensions.md` | 扩展进程：核心拉起 `process` 包、开关、退避重启、随核心退出、`extension.*`（施工 9-4 上起） |
 | `providers.md` | 提供者：扩展经 `provide` 登记工具，核心反向调用 `tool.call`（施工 O-2 上起） |
+| `mcp.md` | MCP 适配器：现成的 MCP 服务接进来，两个时代都认（草稿，等项目主人过） |
+| `goal.md` | 长期目标：交代一件要做很久的事，她自己一轮轮做下去（草稿，等项目主人过） |
+| `skills.md` | 技能和脚本：技能照公开格式、她用 `read` 读正文；脚本照旧版开头注释接成工具（草稿，等项目主人过） |
 | `presets.md` | 预设：在哪、格式、三层怎么叠、默认预设、找人格的先后、`preset.list`、`preset.get`（施工 P-2 上起） |
 | `web-module.md` | 网页界面这个软件和核心给它的通用方法：网页软件 `miyu-web`（端口、页面、WebSocket 照转、一次性登录、媒体地址），核心给所有头的 `human.get`、`fs.*`、`mermaid.render`、分块传和读 blob、`link.preview`：图纸，2026-10-01 项目主人批准；W-1 到 W-7 现在做，身份、网页软件等用户系统 |
 | `web-ui.md` | 网页软件 `miyu-web`：起停、端口（8300）、页面、WebSocket 照转、`miyu web`（施工 W-9，从 `web-module.md` 搬出来独立成页）；媒体地址随 W-10 |
-| `webserve.md` | 只听本机的网页端口共用的底子 `miyu-webserve`：给页面文件、核对 Host 和 Origin、`/ws` 原样转给核心、带一次性码开浏览器；网页软件用，QQ 桥只用它照终端的样子连核心（原来的 WebUI 随 O-28 下去掉），从 `miyu-web` 搬来的搬家表（施工 O-16） |
+| `webserve.md` | 只听本机的网页端口共用的底子 `miyu-webserve`：给页面文件、核对 Host 和 Origin、`/ws` 原样转给核心；网页软件用，从 `miyu-web` 搬来的搬家表（施工 O-16）；照终端的样子连核心的 `open` 施工 S-1 挪进 `miyu-client` |
+| `client.md` | 给界面用的门面 `miyu-client`：连核心、找数据根、协议里的类型、给人看的字、读自己的清单、运行日志，`open`（施工 S-1，设计 32 第二节） |
 | `mermaid.md` | mermaid 源码画成 SVG：可选软件包 `mermaid`、crate `miyu-mermaid`、`mermaid.render`，懒初始化、缓存、三种记号色（施工 W-4，2026-10-02 从 `web-module.md` 搬出来独立成页） |
 | `onebot.md` | 通讯平台的桥 `miyu-onebot`：骨架和主人的私聊（施工 O-8 起），以后的群、图片、斜杠命令、出站、开关、后台页：图纸，O 线随步子补 |
 | `chat.md` | 群聊内核 `miyu-chat`：场所规则（施工 O-1 起），以后的进站链、线路规程、主动回复判断、出站链与出站队列、并行的分派：图纸，O 线随步子补 |
@@ -81,6 +85,7 @@
 | `recall.md` | 检索的底子：中文两字切分加 FTS5、向量、两路合并、embedding（`miyu-embed`、`models.embedding`）：图纸，2026-10-07 起草，R 线照它施工 |
 | `memory.md` | 记忆：回合索引、记下的四类、记忆日志、常驻摘要、联想、抽取、合并、听众、缓存和 token 的账：图纸，2026-10-07 起草，R 线照它施工 |
 | `memory/eval.md` | 记忆的测评集：虚构的一份、格式、量尺怎么量、量什么、基线（施工 R-11） |
+| `heap.md` | 进程的堆 `miyu-heap`：glibc 上限制 arena、空闲时还给系统（施工 V-2 再补，23 F3） |
 | `perf.md` | 量尺 `miyu-perf`：`cargo xtask perf`，假模型、沙盒、每一项量的是哪一段、对照预算的表（施工 V-1） |
 | `licenses.md` | 仓库用什么许可证；门禁查依赖的许可证能不能和它合在一起发（施工 4-12） |
 | `prompts.md` | 给模型看的每一份字的原文，按进到请求的哪里分组，带 token 数、什么时候出现；由门禁从 `resources/` 和登记簿生成（施工 4-9 三补） |

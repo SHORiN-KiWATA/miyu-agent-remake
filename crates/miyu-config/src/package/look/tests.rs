@@ -5,7 +5,7 @@ use crate::package::{Code, PackageKind, read};
 /// 一份扩展的清单，`extra` 接在 `[package]` 后面（`[package]` 里的几格）、`tables` 接在最后（别的表）。
 fn process(extra: &str, tables: &str) -> String {
     format!(
-        "[package]\nkind = \"process\"\nprotocol = [1, 1]\nname = {{ en = \"Bridge\" }}\n{extra}\n[command]\nname = \"bridge\"\nprogram = \"miyu-bridge\"\nabout = {{ en = \"Bridge\" }}\n\n[process]\n{tables}"
+        "[package]\nprotocol = [1, 1]\nname = {{ en = \"Bridge\" }}\n{extra}\n[command]\nname = \"bridge\"\nprogram = \"miyu-bridge\"\nabout = {{ en = \"Bridge\" }}\n\n[process]\n{tables}"
     )
 }
 
@@ -20,7 +20,7 @@ fn icon_and_page_are_read() {
     assert_eq!(manifest.page.as_deref(), Some("page"));
     let manifest = read(&process("", "")).unwrap();
     assert_eq!((manifest.icon, manifest.page), (None, None));
-    let builtin = "[package]\nkind = \"builtin\"\nprotocol = [1, 1]\nname = { en = \"Memory\" }\nicon = \"brain\"\n\n[page]\ndir = \"web/page\"\n";
+    let builtin = "[package]\nprotocol = [1, 1]\nname = { en = \"Memory\" }\nicon = \"brain\"\n\n[page]\ndir = \"web/page\"\n\n[builtin]\n";
     let manifest = read(builtin).unwrap();
     assert_eq!(manifest.kind, PackageKind::Builtin);
     assert_eq!(manifest.page.as_deref(), Some("web/page"));
@@ -32,7 +32,7 @@ fn a_bad_icon_is_refused_on_its_line() {
         let problem = read(&process(&format!("icon = {icon}"), "")).unwrap_err();
         assert_eq!(
             (problem.code, problem.line),
-            (Code::BadIcon, Some(5)),
+            (Code::BadIcon, Some(4)),
             "{icon}"
         );
     }
@@ -68,8 +68,9 @@ fn a_bad_page_dir_is_refused() {
 
 #[test]
 fn only_extensions_and_built_in_packages_have_a_page() {
-    let ui = "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = { en = \"UI\" }\n\n[page]\ndir = \"page\"\n";
+    let ui =
+        "[package]\nprotocol = [1, 1]\nname = { en = \"UI\" }\n\n[page]\ndir = \"page\"\n\n[ui]\n";
     assert_eq!(read(ui).unwrap_err().code, Code::WrongKind);
-    let worker = "[package]\nkind = \"worker\"\nprotocol = [1, 1]\nname = { en = \"W\" }\n\n[worker]\nprogram = \"w\"\n\n[page]\ndir = \"page\"\n";
+    let worker = "[package]\nprotocol = [1, 1]\nname = { en = \"W\" }\n\n[worker]\nprogram = \"w\"\n\n[page]\ndir = \"page\"\n";
     assert_eq!(read(worker).unwrap_err().code, Code::WrongKind);
 }

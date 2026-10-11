@@ -36,7 +36,7 @@ use miyu_store::root::DataRoot;
 
 use crate::TARGET;
 use crate::core::methods::{Methods, register};
-use crate::core::route::{Personas, Reactions, Route, Slots};
+use crate::core::route::{Fetching, Personas, Reactions, Route, Slots};
 use crate::core::{Core, provide};
 use crate::current::Current;
 use crate::listen::bots::Bots;
@@ -231,6 +231,12 @@ pub async fn run(
         gate.tuning.queue_expire(),
         reactions,
         gate.tuning.binding(),
+        Fetching {
+            images: gate.tuning.message_images,
+            per_turn: gate.tuning.fetch_per_turn,
+            wait: gate.tuning.fetch(),
+            quick: gate.tuning.call_timeout(),
+        },
     );
     let route = Route::new(core, bots, venues, members, parts, configured);
     let route = tasks.spawn(async move { route.run(received).await }).id();

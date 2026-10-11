@@ -55,6 +55,13 @@ pub struct Tuning {
     /// 一个平台身份是不是终端管理员（核心的 `venue.binding`）问到了记几秒（施工 O-31，`onebot.md`「平台工具（一）」第 3 条，
     /// 「施工时定的」第 183 条）：对应表改了，桥最多晚这么久看到。0 是每次都问。
     pub binding_seconds: u64,
+    /// 冲她来的那条（和它引用的那条）各最多带几张原图（施工 O-33，`onebot.md`「平台工具（二）」第 3 条；照旧 Miyu 的实测）。0 是
+    /// 不带。
+    pub message_images: usize,
+    /// `fetch_media` 一轮最多取几次（施工 O-33，「平台工具（二）」第 4 条；照旧 Miyu 的配额）。0 是一次都不给。
+    pub fetch_per_turn: usize,
+    /// `fetch_media` 等 NapCat 回 `get_image`、`get_file`，下载，各最多几秒（施工 O-33）：大的视频 NapCat 要先下完才回。
+    pub fetch_seconds: u64,
 }
 
 impl Tuning {
@@ -137,5 +144,10 @@ impl Tuning {
     /// 问到的「是不是终端管理员」记多久（施工 O-31）。
     pub fn binding(&self) -> Duration {
         Duration::from_secs(self.binding_seconds)
+    }
+
+    /// `fetch_media` 等 NapCat、下载各最多多久（施工 O-33）。
+    pub fn fetch(&self) -> Duration {
+        Duration::from_secs(self.fetch_seconds)
     }
 }

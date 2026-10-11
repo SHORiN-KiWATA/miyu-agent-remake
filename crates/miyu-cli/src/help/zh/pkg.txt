@@ -1,12 +1,22 @@
 用法：miyu pkg [命令] [选项]
 
-看装了哪些软件包，装、卸。不写命令就是 list。
+看装了哪些软件包，装、卸，查装好的文件。不写命令就是 list。
+包目录是带 package.toml 的文件夹，文件夹名就是编号。
 
 命令：
   list                    列出软件包
-  install <清单|编号>     装一份清单（<编号>.toml 的路径），或者把卸掉的出厂的装回来
-  remove <编号>           卸掉
+  install <包目录|编号>   装一个包目录，或者把卸掉的出厂的装回来
+  remove <编号>           卸掉，连同它的设置和状态
+  info <编号>             一个包的信息
+  files <编号>            一个包装了哪些文件
+  owns <路径>             一个文件归哪个包
+  check [<编号>]          装好的文件有没有改过、少了；不写是全部
+
+pacman 的写法也认：
+  -U、-R、-Q              install、remove、list
+  -Qi、-Ql、-Qo、-Qk      info、files、owns、check
 
 选项：
-      --format text|json  list：json 给脚本
+      --format text|json  list、info、files、owns、check：json 给脚本
+      --yes, --noconfirm  install、remove：不问，直接做
   -h, --help              印帮助

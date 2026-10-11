@@ -159,35 +159,48 @@ pub(crate) async fn hand_over(
     owner: &AccountId,
     blocks: &[Block],
 ) -> Result<(), Refusal> {
-    let hashes: Vec<ContentHash> = blocks
+    let hashes = blobs_of(blocks);
+    if *owner == core.admin || hashes.is_empty() {
+        return Ok(());
+    }
+    let place = place(core);
+    let owner = owner.clone();
+    blocking(move || copy_over(&place.root, &place.admin, &owner, &hashes)).await
+}
+
+/// 块里引用的 blob：图片、文件的，照先后。
+pub(crate) fn blobs_of(blocks: &[Block]) -> Vec<ContentHash> {
+    blocks
         .iter()
         .filter_map(|block| match block {
             Block::Image(image) => Some(image.blob.clone()),
             Block::File(file) => Some(file.blob.clone()),
             _ => None,
         })
-        .collect();
-    if *owner == core.admin || hashes.is_empty() {
-        return Ok(());
-    }
-    let place = place(core);
-    let owner = owner.clone();
-    blocking(move || {
-        let from = Blobs::new(place.root.blobs(&place.admin));
-        let to = Blobs::new(place.root.blobs(&owner));
-        for hash in hashes {
-            if to.path(&hash).is_file() {
-                continue;
-            }
-            let bytes = read_blob(&from, &hash)?;
-            to.put(&bytes).map_err(|error| {
-                tracing::warn!(target: TARGET, blob = hash.as_str(), error = %error, "attachment not handed over");
-                Refusal::INTERNAL
-            })?;
+        .collect()
+}
+
+/// 把 `hashes` 从管理员 `admin` 名下拷进 `owner` 名下（施工 O-4 下；扩展工具交回的图也走它，施工 O-2 三补）：属主那里已经有的
+/// 不再拷，所以属主就是管理员的只看在不在。管理员名下也没有的 `unknown_attachment`；读不了、存不下的记一行、`internal_error`。
+pub(crate) fn copy_over(
+    root: &DataRoot,
+    admin: &AccountId,
+    owner: &AccountId,
+    hashes: &[ContentHash],
+) -> Result<(), Refusal> {
+    let from = Blobs::new(root.blobs(admin));
+    let to = Blobs::new(root.blobs(owner));
+    for hash in hashes {
+        if to.path(hash).is_file() {
+            continue;
         }
-        Ok(())
-    })
-    .await
+        let bytes = read_blob(&from, hash)?;
+        to.put(&bytes).map_err(|error| {
+            tracing::warn!(target: TARGET, blob = hash.as_str(), error = %error, "attachment not handed over");
+            Refusal::INTERNAL
+        })?;
+    }
+    Ok(())
 }
 
 /// `model.call` 的图（施工 8-20）：每个哈希一块图片，照先后。blob 这个账号没有的 `unknown_attachment`，不是图的

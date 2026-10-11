@@ -9,14 +9,14 @@ use crate::support::{Home, MIYU};
 /// 一份清单：子命令 `name` 跑 `program`。
 fn manifest(name: &str, program: &str, about: &str) -> String {
     format!(
-        "[package]\nkind = \"ui\"\nprotocol = [1, 1]\nname = {{ en = \"P\" }}\n\n[command]\nname = \"{name}\"\nprogram = \"{program}\"\nabout = {{ en = \"{about}\", zh = \"{about}（中）\" }}\n"
+        "[package]\nprotocol = [1, 1]\nname = {{ en = \"P\" }}\n\n[command]\nname = \"{name}\"\nprogram = \"{program}\"\nabout = {{ en = \"{about}\", zh = \"{about}（中）\" }}\n\n[ui]\n"
     )
 }
 
 fn install(home: &Home, id: &str, text: &str) {
-    let dir = home.root.path().join("home/admin/packages");
+    let dir = home.root.path().join("home/admin/packages").join(id);
     std::fs::create_dir_all(&dir).expect("建得了目录");
-    std::fs::write(dir.join(format!("{id}.toml")), text).expect("写得进");
+    std::fs::write(dir.join("package.toml"), text).expect("写得进");
 }
 
 /// 在临时的数据根上跑 `miyu <args>`，界面语言是 `lang`。
@@ -118,7 +118,10 @@ fn a_missing_program_is_said_and_an_unknown_word_is_still_refused() {
     let said = text(&missing.stderr);
     assert!(
         said.starts_with("miyu-no-such-program-anywhere not found: ")
-            && said.contains("ghost.toml says miyu ghost runs it"),
+            && said.contains(&format!(
+                "{} says miyu ghost runs it",
+                std::path::Path::new("ghost").join("package.toml").display()
+            )),
         "{said}"
     );
     let unknown = miyu(&home, "C", &["hello"]);
@@ -134,7 +137,7 @@ async fn the_core_says_which_builtin_it_lacks() {
     install(
         &home,
         "xghost",
-        "[package]\nkind = \"builtin\"\nprotocol = [1, 1]\nname = { en = \"Ghost\" }\n",
+        "[package]\nprotocol = [1, 1]\nname = { en = \"Ghost\" }\n\n[builtin]\n",
     );
     let (connection, token) = crate::support::within(
         "拉起",

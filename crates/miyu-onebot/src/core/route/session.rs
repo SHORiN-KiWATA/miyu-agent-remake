@@ -1,5 +1,6 @@
 //! 找会话（`onebot.md` 第一条「怎么走」第 7、9 条，「群消息」第 3 条；施工 O-22 从 `route.rs` 挪出来，群也走这里）：场所
-//! → 会话编号只记在内存里，每个场所桥起来以后第一次要用时问一次 `venue.session`；会话不在了忘掉、再问一次。
+//! → 会话编号只记在内存里，每个场所桥起来以后第一次要用时问一次 `venue.session`（起来时经 `venue.sessions` 订阅了的群不再问，
+//! 施工 O-32，`revive`）；会话不在了忘掉、再问一次。
 //!
 //! - 私聊：`venue.session {venue, kind: "private", peer}`；不是终端管理员（`no_system_account`），或者回应的属主是桥自己（核心
 //!   O-4 中以后陌生人的会话归系统账号，「施工时定的」第 49 条）、对方又不在白名单里的：不接，会话编号不记、不订阅。白名单成员
@@ -78,23 +79,28 @@ impl Place {
     }
 
     /// 是不是私聊。
-    fn private_chat(&self) -> bool {
+    pub(super) fn private_chat(&self) -> bool {
         matches!(self.peer.to, To::Private(_))
     }
 }
 
 impl Route {
     /// 把 `message` 照 `method`（[`SEND`]、`command.run`）交给它那个场所的会话：`{session, text, as}`，[`SEND`] 另带
-    /// `venue`，编号是这条消息的命令编号（第 8 条）。交回会话编号和最后一次的回应（接受的、拒绝的都原样），这时记下这个
-    /// 会话的回执、回话发给谁（「施工时定的」第 36 条）；不接的、找不到会话的是空的（已经记了运行日志）。
+    /// `venue`，有图的带 `attachments`（施工 O-33），编号是这条消息的命令编号（第 8 条）。交回会话编号和最后一次的回应（接受的、
+    /// 拒绝的都原样），这时记下这个会话的回执、回话发给谁（「施工时定的」第 36 条）；不接的、找不到会话的是空的（已经记了运行
+    /// 日志）。
     pub(super) async fn deliver(
         &mut self,
         message: &Message,
         method: &str,
+        attachments: &[Value],
     ) -> Result<Option<(String, Value)>, Gone> {
         let mut params = json!({"text": message.text, "as": message.acting});
         if method == SEND {
             params["venue"] = message.fields.clone();
+        }
+        if !attachments.is_empty() {
+            params["attachments"] = json!(attachments);
         }
         let found = self
             .on_session(&message.place, Some(&message.id), method, params)
@@ -146,6 +152,18 @@ impl Route {
         Ok(None)
     }
 
+    /// 场所 `place` 的会话找得到（施工 O-33：取图以前先看接不接）：记着的是，没记着的照 [`Route::find`] 找。
+    ///
+    /// # Errors
+    ///
+    /// 写不出去、等的时候核心断开。
+    pub(super) async fn found(&mut self, place: &Place) -> Result<bool, Gone> {
+        if self.venues.contains_key(place.peer.venue.as_str()) {
+            return Ok(true);
+        }
+        Ok(self.find(place).await?.is_some())
+    }
+
     /// 找回场所 `place` 的会话，私聊的再订阅它，群的从头订阅（第 7、9 条，「群消息」第 3 条，「群里怎么叫她」第 1 条）。不接的、
     /// 问不到的、订阅不上的是空的（记一行运行日志）。
     async fn find(&mut self, place: &Place) -> Result<Option<String>, Gone> {
@@ -186,7 +204,7 @@ impl Route {
             return Ok(None);
         };
         let subscribed = if place.private_chat() {
-            self.subscribe(&session).await?
+            self.subscribe(&session, None).await?
         } else {
             // 补来的有她正在说的话的（订阅时有一轮在跑），照这里发回群里。
             self.peers.insert(session.clone(), place.peer.clone());
@@ -200,7 +218,8 @@ impl Route {
     }
 
     /// 订阅群会话 `session` 的事件流，补 `after` 以后的（施工 O-23，「群里怎么叫她」第 1 条）：头一次是 0，从头补；掉了队的是
-    /// 收到的最后一条。补来的照先后收进这个群的投影，序号不大于回应的 `upto` 的她的话不发。订阅不上的记一行、交回假，这个群的
+    /// 收到的最后一条。补来的照先后收进这个群的投影，序号不大于回应的 `upto` 的她的话不照常发：期限以内、没入队的补发（施工
+    /// O-32，`revive`）。订阅不上的记一行、交回假，这个群的
     /// 会话和投影都忘掉：下一条照第 7 条再找、从头订阅（掉了队再订阅不上的，投影不再跟着日志走，留着会判错）。订阅上了的，
     /// 回应的 `persona`（这个群会话用的人格，没有的是无人格）交给判官那边记下（施工 O-23 补）。
     pub(super) async fn follow(&mut self, session: &str, after: u64) -> Result<bool, Gone> {
@@ -219,17 +238,28 @@ impl Route {
             .entry(session.to_string())
             .or_insert_with(|| Projection::new(upto))
             .caught_up(upto);
-        self.catch_up(session).await?;
+        self.replay(session, upto).await?;
         Ok(true)
     }
 
-    /// 订阅会话 `session` 的事件流，不写 `after`（第 9 条）：只要以后的新事件。订阅不上的记一行、交回假。
-    pub(super) async fn subscribe(&mut self, session: &str) -> Result<bool, Gone> {
-        let params = json!({"session": session, "stream": "events"});
+    /// 订阅私聊会话 `session` 的事件流（第 9 条）：`after` 是空的不写，只要以后的新事件；桥起来时从头补一次（`Some(0)`，施工
+    /// O-32，`revive`）：补来的认出发到哪，期限以内、没入队的她的话补发。订阅不上的记一行、交回假。
+    pub(super) async fn subscribe(
+        &mut self,
+        session: &str,
+        after: Option<u64>,
+    ) -> Result<bool, Gone> {
+        let mut params = json!({"session": session, "stream": "events"});
+        if let Some(after) = after {
+            params["after"] = json!(after);
+        }
         let reply = self.core.call("subscribe", params).await?;
         if let Some(reason) = reason(&reply) {
             tracing::warn!(target: TARGET, session, reason, "not subscribed");
             return Ok(false);
+        }
+        if let Some(upto) = after.and(reply["result"]["upto"].as_u64()) {
+            self.replay(session, upto).await?;
         }
         Ok(true)
     }

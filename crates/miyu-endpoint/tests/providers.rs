@@ -159,10 +159,10 @@ async fn the_catalog_is_searched_and_usable_ones_come_first() {
         json!([
             {"id": "deepseek", "name": "DeepSeek", "driver": "openai-chat", "base_url": "https://api.deepseek.com",
                 "env": ["DEEPSEEK_API_KEY"], "doc": "https://api-docs.deepseek.com/quick_start/pricing",
-                "models": 4, "supported": true, "local": false},
+                "models": 4, "supported": true, "local": false, "logo": null},
             {"id": "deepinfra", "name": "Deep Infra", "driver": null, "base_url": null,
                 "env": ["DEEPINFRA_API_KEY"], "doc": "https://deepinfra.com/models", "models": 1,
-                "supported": false, "local": false},
+                "supported": false, "local": false, "logo": null},
         ])
     );
     let local = json!({"here": {"name": "Here", "driver": "openai-chat", "base_url": "http://localhost:1/v1"}});
@@ -303,4 +303,39 @@ fn pairs(wanted: &[(&str, &str)]) -> Vec<(String, String)> {
         .iter()
         .map(|(id, name)| ((*id).to_string(), (*name).to_string()))
         .collect()
+}
+
+/// 图标（施工 8-31，`models.md`「图标」）：拉到了的照 `{svg, tint}` 带上，没有的是 null；常用的几家也带。
+#[tokio::test]
+async fn a_known_logo_rides_with_its_provider() {
+    let home = Home::new();
+    let data = data(profiles(json!({})));
+    data.set_logos(std::collections::BTreeMap::from([(
+        "deepseek".to_string(),
+        miyu_models::logos::Logo {
+            svg: "<svg></svg>".to_string(),
+            tint: false,
+        },
+    )]));
+    let mut client = Client::connect(core(&home, &[], data));
+    client.hello().await;
+    let found = client
+        .call("c1", "provider.catalog", json!({"query": "DEEP"}))
+        .await;
+    let providers = &found["result"]["providers"];
+    assert_eq!(providers[0]["id"], "deepseek");
+    assert_eq!(
+        providers[0]["logo"],
+        json!({"svg": "<svg></svg>", "tint": false})
+    );
+    assert_eq!(providers[1]["logo"], Value::Null, "{found}");
+    let featured = client
+        .call("c2", "provider.catalog", json!({"featured": true}))
+        .await;
+    let deepseek = featured["result"]["providers"]
+        .as_array()
+        .and_then(|all| all.iter().find(|one| one["id"] == "deepseek"))
+        .cloned()
+        .expect("常用的里有 DeepSeek");
+    assert_eq!(deepseek["logo"]["tint"], false, "{featured}");
 }

@@ -2,7 +2,8 @@
 //! @全体、带的东西；是字符串（CQ 码）时照第 6 条只读字（「施工时定的」第 62 条）。
 //!
 //! 只认、不洗：名字、编号合不合核心的写法（长短、控制字符）由交给核心的一方照 `venues.md`「场所的格」洗
-//! （`core/route/fields.rs`）。不下载，带的东西只记平台的编号（懒下载，18 第五节）。
+//! （`core/route/fields.rs`）。不下载，带的东西只记平台的编号、大小和怎么取（懒下载，18 第五节；取的一方在
+//! `core/route/pictures.rs`、`fetching.rs`，施工 O-33）。
 
 use serde_json::Value;
 
@@ -52,6 +53,19 @@ pub struct Media {
     pub id: String,
     /// 文件名、表情的字：有的话，去掉首尾空白不空的才有。
     pub name: Option<String>,
+    /// 多少字节（施工 O-33）：段里的 `file_size`，非负整数（NapCat 给的是字，整数也认）；没有的、读不出的是空的。
+    pub size: Option<u64>,
+    /// 怎么去 QQ 取（施工 O-33，`fetch_media`、冲她来的那条的图）：取不了的（语音、小黄脸、`mface` 商城表情）是空的。
+    pub fetch: Option<Fetch>,
+}
+
+/// 带的东西怎么取（施工 O-33，`onebot.md`「平台工具（二）」）：照 NapCat 的动作。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Fetch {
+    /// 图片段（图、表情包、NapCat 发成图片的商城表情）：`get_image`。
+    Image,
+    /// 视频、文件：`get_file`。
+    File,
 }
 
 /// 带的东西的种类，和核心认的五种一样（`venues.md`「场所的格」）。
@@ -145,26 +159,46 @@ pub fn segments(message: &Value) -> Segments {
     segments
 }
 
-/// 带的东西的一段：种类照段（图片里的表情包、商城表情记成表情），编号照 [`IDS`]；不是带东西的段、一个编号都没有的不记。
+/// 带的东西的一段：种类照段（图片里的表情包、商城表情记成表情），编号照 [`IDS`]，大小照 `file_size`，怎么取照段（施工 O-33）；
+/// 不是带东西的段、一个编号都没有的不记。
 fn media(kind: &str, data: &Value) -> Option<Media> {
-    let (kind, name) = match kind {
+    let image = Some(Fetch::Image);
+    let (kind, name, fetch) = match kind {
         // NapCat 把商城表情发成 `image`，带 `emoji_id`，`summary` 是表情的字。
-        "image" if !data["emoji_id"].is_null() => (MediaKind::Sticker, words(&data["summary"])),
+        "image" if !data["emoji_id"].is_null() => {
+            (MediaKind::Sticker, words(&data["summary"]), image)
+        }
         // `sub_type` 是 1 的是表情包；它的 `summary` 是「[动画表情]」这类，不是表情的字。
-        "image" if number(&data["sub_type"]) == Some(1) => (MediaKind::Sticker, None),
-        "image" => (MediaKind::Image, None),
-        "mface" => (MediaKind::Sticker, words(&data["summary"])),
-        "face" => (MediaKind::Sticker, words(&data["raw"]["faceText"])),
-        "record" => (MediaKind::Voice, None),
-        "video" => (MediaKind::Video, None),
+        "image" if number(&data["sub_type"]) == Some(1) => (MediaKind::Sticker, None, image),
+        "image" => (MediaKind::Image, None, image),
+        "mface" => (MediaKind::Sticker, words(&data["summary"]), None),
+        "face" => (MediaKind::Sticker, words(&data["raw"]["faceText"]), None),
+        "record" => (MediaKind::Voice, None, None),
+        "video" => (MediaKind::Video, None, Some(Fetch::File)),
         "file" => (
             MediaKind::File,
             FILE_NAMES.iter().find_map(|key| words(&data[*key])),
+            Some(Fetch::File),
         ),
         _ => return None,
     };
     let id = IDS.iter().find_map(|key| id(&data[*key]))?;
-    Some(Media { kind, id, name })
+    Some(Media {
+        kind,
+        id,
+        name,
+        size: size(&data["file_size"]),
+        fetch,
+    })
+}
+
+/// 大小（施工 O-33）：非负整数，写成十进制的字也认（NapCat 照 NT 给的是字）；别的不认。
+fn size(value: &Value) -> Option<u64> {
+    match value {
+        Value::Number(number) => number.as_u64(),
+        Value::String(text) => text.parse().ok(),
+        _ => None,
+    }
 }
 
 /// 一格编号：不空的字，或者整数写成十进制的字。

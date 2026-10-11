@@ -83,9 +83,12 @@ async fn an_installed_extension_starts_and_a_removed_one_stops() {
             "err:stopped",
         ]),
     );
-    let written = home.root.path().join("home/alice/packages/xbridge.toml");
-    let source = home.work.join("xbridge.toml");
-    std::fs::rename(&written, &source).expect("挪得动");
+    let written = home
+        .root
+        .path()
+        .join("home/alice/packages/xbridge/package.toml");
+    let source = home.work.join("xbridge");
+    std::fs::rename(written.parent().expect("在包目录里"), &source).expect("挪得动");
     let script = Script::new([
         Play::calls(&[("echo_back", "{}")]),
         Play::Says("嗯。"),
@@ -148,8 +151,11 @@ async fn an_upgraded_extension_restarts() {
     let home = Home::new();
     let program = Program::new();
     let (path, step) = record(&home, "xup");
-    let written = home.root.path().join("home/alice/packages/xup.toml");
-    let source = home.work.join("xup.toml");
+    let written = home
+        .root
+        .path()
+        .join("home/alice/packages/xup/package.toml");
+    let source = home.work.join("xup");
     install(
         &home,
         "xup",
@@ -157,7 +163,7 @@ async fn an_upgraded_extension_restarts() {
         "always",
         &steps(&[&step, "hello", "serve"]),
     );
-    std::fs::rename(&written, &source).expect("挪得动");
+    std::fs::rename(written.parent().expect("在包目录里"), &source).expect("挪得动");
     let core = Arc::new(
         home.core_full(&Script::new([]), Catalog::default(), None, TOKEN)
             .with_extension_timing(quick()),
@@ -172,12 +178,8 @@ async fn an_upgraded_extension_restarts() {
     lines(&path, 2).await;
     let running = until_state(&mut client, "xup", |entry| entry["state"] == "running").await;
     install(&home, "xoff", &program.name(), "manual", &steps(&["serve"]));
-    let other = home.work.join("xoff.toml");
-    std::fs::rename(
-        home.root.path().join("home/alice/packages/xoff.toml"),
-        &other,
-    )
-    .expect("挪得动");
+    let other = home.work.join("xoff");
+    std::fs::rename(home.root.path().join("home/alice/packages/xoff"), &other).expect("挪得动");
     let reply = client
         .call("i0", "package.install", json!({"path": other}))
         .await;
@@ -192,7 +194,7 @@ async fn an_upgraded_extension_restarts() {
         "always",
         &steps(&[&step, "hello", "err:v2", "serve"]),
     );
-    std::fs::rename(&written, &source).expect("挪得动");
+    std::fs::rename(&written, source.join("package.toml")).expect("挪得动");
     let reply = client
         .call("i2", "package.install", json!({"path": source}))
         .await;
@@ -208,7 +210,10 @@ async fn a_removed_extension_stops_before_its_files_go() {
     let home = Home::new();
     let program = Program::new();
     let (path, step) = record(&home, "xgone");
-    let written = home.root.path().join("home/alice/packages/xgone.toml");
+    let written = home
+        .root
+        .path()
+        .join("home/alice/packages/xgone/package.toml");
     let check = format!("exists:{}", written.display());
     install(
         &home,
@@ -266,8 +271,9 @@ async fn a_failed_upgrade_or_removal_brings_the_extension_back() {
     until_state(&mut client, "xstay", |entry| entry["state"] == "running").await;
     lines(&path, 2).await;
     let dir = home.root.path().join("home/alice/packages");
-    let source = home.work.join("xstay.toml");
-    std::fs::copy(dir.join("xstay.toml"), &source).expect("拷得了");
+    let source = home.work.join("xstay");
+    std::fs::create_dir_all(&source).expect("建得了");
+    std::fs::copy(dir.join("xstay/package.toml"), source.join("package.toml")).expect("拷得了");
     let set = |mode| std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(mode));
     set(0o555).expect("改得了权限");
     let upgraded = client
@@ -297,7 +303,10 @@ async fn an_invalid_upgrade_brings_the_old_extension_back() {
         "always",
         &steps(&[&step, "hello", "serve"]),
     );
-    let written = home.root.path().join("home/alice/packages/xbad.toml");
+    let written = home
+        .root
+        .path()
+        .join("home/alice/packages/xbad/package.toml");
     let good = std::fs::read_to_string(&written).expect("读得到");
     let core = Arc::new(
         home.core_full(&Script::new([]), Catalog::default(), None, TOKEN)
@@ -309,8 +318,13 @@ async fn an_invalid_upgrade_brings_the_old_extension_back() {
     until_state(&mut client, "xbad", |entry| entry["state"] == "running").await;
     lines(&path, 2).await;
     // 子命令名撞了出厂的网页。
-    let source = home.work.join("xbad.toml");
-    std::fs::write(&source, good.replace("name = \"xbad\"", "name = \"web\"")).expect("写得进");
+    let source = home.work.join("xbad");
+    std::fs::create_dir_all(&source).expect("建得了");
+    std::fs::write(
+        source.join("package.toml"),
+        good.replace("name = \"xbad\"", "name = \"web\""),
+    )
+    .expect("写得进");
     let reply = client
         .call("i1", "package.install", json!({"path": source}))
         .await;

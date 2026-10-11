@@ -311,7 +311,7 @@ async fn a_private_chat_recalls_and_pokes_but_cannot_mute_and_local_sessions_hav
         ]
     );
     // 本机的会话：一件都没有。
-    let mut core = miyu_webserve::open::Core::connect_running(&home.root, "test")
+    let mut core = miyu_client::open::Core::connect_running(&home.root, "test")
         .await
         .expect("连得上核心");
     let cwd = home.root.path().to_string_lossy().into_owned();

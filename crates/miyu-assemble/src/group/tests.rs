@@ -32,6 +32,11 @@ fn in_group(log: &Log) -> Vec<String> {
     shape(&render(log.history(), &group_texts(480)))
 }
 
+/// 东八区、O-33 起造的群会话渲染出来的样子。
+fn in_new_group(log: &Log) -> Vec<String> {
+    shape(&render(log.history(), &group_texts_o33(480)))
+}
+
 #[test]
 fn a_member_is_one_line_with_the_clock_the_name_and_the_msg() {
     let mut log = Log::new();
@@ -244,5 +249,96 @@ fn outside_a_group_a_message_with_only_media_reads_as_its_markers() {
     assert_eq!(
         shape(&render(log.history(), &texts())),
         ["user: [image] [sticker: \\u003c狗头\\u003e] | 在吗"]
+    );
+}
+
+/// 施工 O-33：带的东西写大小；一条里不止一样的照先后从 1 数、每样标 `#n`，只有一样的不标；语音后面接那一句。
+#[test]
+fn media_carry_their_size_their_number_and_the_voice_note() {
+    let mut log = Log::new();
+    heard(
+        &mut log,
+        MEMBER,
+        "看这个",
+        r#"{"msg":"8870","name":"小林","media":[{"kind":"sticker","id":"s-1","name":"/微笑"},{"kind":"image","id":"i-1","size":834000},{"kind":"image","id":"i-2"}]}"#,
+    );
+    heard(
+        &mut log,
+        MEMBER,
+        "",
+        r#"{"msg":"8871","name":"小林","media":[{"kind":"file","id":"f-1","name":"排班.pdf","size":1234567}]}"#,
+    );
+    heard(
+        &mut log,
+        MEMBER,
+        "",
+        r#"{"msg":"8872","name":"小林","media":[{"kind":"video","id":"m-1","size":12345678}]}"#,
+    );
+    heard(
+        &mut log,
+        MEMBER,
+        "",
+        r#"{"msg":"8873","name":"小林","media":[{"kind":"voice","id":"v-1","size":5321}]}"#,
+    );
+    heard(
+        &mut log,
+        MEMBER,
+        "",
+        r#"{"msg":"8874","name":"小林","media":[{"kind":"voice","id":"v-2"}]}"#,
+    );
+    assert_eq!(
+        in_new_group(&log),
+        [concat!(
+            "user: [15:00] 小林 [msg=8870]: 看这个 [sticker #1: /微笑] [image #2: 834 KB] [image #3]",
+            " | [15:00] 小林 [msg=8871]: [file: 排班.pdf, 1.2 MB]",
+            " | [15:00] 小林 [msg=8872]: [video: 12.3 MB]",
+            " | [15:00] 小林 [msg=8873]: [voice: 5 KB] <voice>",
+            " | [15:00] 小林 [msg=8874]: [voice] <voice>",
+        )]
+    );
+}
+
+/// 施工 O-33：以前造的群会话（快照里没有语音那一句）一个字节不变：不标第几个、语音不接那一句；以前记的没有大小。
+#[test]
+fn a_group_made_before_reads_its_media_as_it_did() {
+    let mut log = Log::new();
+    heard(
+        &mut log,
+        MEMBER,
+        "看这个",
+        r#"{"msg":"8880","name":"小林","media":[{"kind":"image","id":"i-1"},{"kind":"image","id":"i-2"},{"kind":"voice","id":"v-1"}]}"#,
+    );
+    assert_eq!(
+        in_group(&log),
+        ["user: [15:00] 小林 [msg=8880]: 看这个 [image] [image] [voice]"]
+    );
+    // 新造的同一条：标第几个、语音接那一句；其余一字不差。
+    assert_eq!(
+        in_new_group(&log),
+        ["user: [15:00] 小林 [msg=8880]: 看这个 [image #1] [image #2] [voice #3] <voice>"]
+    );
+    // 只有一样、没有大小的：新旧一字不差。
+    let mut one = Log::new();
+    heard(
+        &mut one,
+        MEMBER,
+        "看这个",
+        r#"{"msg":"8881","name":"小林","media":[{"kind":"file","id":"f-1","name":"排班.pdf"}]}"#,
+    );
+    assert_eq!(in_group(&one), in_new_group(&one));
+}
+
+/// 施工 O-33：不在群里的（私聊）只多大小，不标第几个（`fetch_media` 这一步只给群），语音不接那一句（私聊没有群会话的字）。
+#[test]
+fn outside_a_group_media_carry_only_their_size() {
+    let mut log = Log::new();
+    log.push(
+        OWNER,
+        "message.user",
+        r#"{"blocks":[],"venue":{"msg":"8890","media":[{"kind":"image","id":"i-1","size":2048},{"kind":"image","id":"i-2"},{"kind":"voice","id":"v-1"}]}}"#,
+    );
+    assert_eq!(
+        shape(&render(log.history(), &texts())),
+        ["user: [image: 2 KB] [image] [voice]"]
     );
 }

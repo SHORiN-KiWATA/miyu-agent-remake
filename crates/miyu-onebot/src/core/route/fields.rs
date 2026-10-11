@@ -1,5 +1,5 @@
 //! `session.send` 的场所的格（`onebot.md` 第一条「群消息」第 6 条、第 8 条，`venues.md`「场所的格」，施工 O-22）：一条
-//! 消息的平台编号、发的人的名字、引用、@、带的东西，加上旁听、睡着、看不看得到号。
+//! 消息的平台编号、发的人的名字、引用、@、带的东西（施工 O-33 起带大小），加上旁听、睡着、看不看得到号。
 //!
 //! 照核心的写法洗：核心收到写错的格整条 `bad_params`、什么都不记，一个怪名字、一个长编号不能让整条消息丢了（「施工时定的」
 //! 第 63 条）。名字去掉控制字符、截到上限，空白的不写；引用、带的东西的编号不合的那一格、那一样不记。假的、空的格不写。
@@ -58,6 +58,9 @@ pub(super) fn fields(posted: &Posted, mentions: &[ExternalId], flags: Flags) -> 
             {
                 one["name"] = json!(name);
             }
+            if let Some(size) = media.size {
+                one["size"] = json!(size);
+            }
             one
         })
         .collect();
@@ -89,7 +92,7 @@ pub(super) fn clean(name: &str, most: usize) -> Option<String> {
 }
 
 /// 一个平台的编号合不合核心的写法：不空，最多 [`ID`] 个字符，没有控制字符。
-fn fits(id: &str) -> bool {
+pub(super) fn fits(id: &str) -> bool {
     !id.is_empty() && id.chars().count() <= ID && !id.chars().any(char::is_control)
 }
 

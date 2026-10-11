@@ -1,0 +1,46 @@
+# 基础系统（施工 F-2，设计 30 第二节、第三节）：内置包，代码编在核心里，必需。九个功能和下面的工具，预设照功能开关（F-3）。
+# 给人看的字，不发给模型。
+
+[package]
+required = true
+protocol = [1, 1]
+name = { en = "Base system", zh = "基础系统", ja = "基本システム" }
+summary = { en = "Read and edit files, run commands, look up earlier talk", zh = "读写文件、跑命令、查以前说过的话", ja = "ファイルの読み書き、コマンドの実行、前の話の検索" }
+
+[features.files]
+name = { en = "Files", zh = "文件读写", ja = "ファイルの読み書き" }
+tools = ["read", "write", "edit", "glob", "grep", "trash"]
+
+[features.commands]
+name = { en = "Commands", zh = "运行命令", ja = "コマンドの実行" }
+tools = ["shell"]
+
+[features.background]
+name = { en = "Background", zh = "后台运行", ja = "バックグラウンド実行" }
+tools = ["jobs"]
+
+[features.subagents]
+name = { en = "Subagents", zh = "子代理", ja = "サブエージェント" }
+tools = ["subagent"]
+
+[features.peers]
+name = { en = "Messages between sessions", zh = "跨会话消息", ja = "セッション間のメッセージ" }
+tools = ["sessions", "send_message"]
+
+[features.questions]
+name = { en = "Questions", zh = "提问", ja = "質問" }
+tools = ["ask_user"]
+
+[features.todos]
+name = { en = "To-do list", zh = "待办清单", ja = "ToDo リスト" }
+tools = ["todowrite"]
+
+[features.history]
+name = { en = "Session history", zh = "翻查本会话", ja = "このセッションの履歴" }
+tools = ["history"]
+
+[features.usage]
+name = { en = "Usage", zh = "用量", ja = "使用量" }
+tools = ["session_usage"]
+
+[builtin]

@@ -51,6 +51,8 @@ pub struct Large {
     pub reload: Vec<f64>,
     /// 重启、打开以后头一次说，到模型收到请求用了多久（毫秒）。
     pub first_request: Vec<f64>,
+    /// 同一句落了盘到模型收到请求（施工 V-2 中）。
+    pub first_projection: Vec<f64>,
     /// 最后一次重启、打开、说了一句以后的内存。
     pub reloaded: Vec<Process>,
 }
@@ -103,6 +105,7 @@ pub async fn large(sandbox: &Sandbox, fake: &mut Fake, plan: Plan) -> Result<Lar
         large.reload.push(ms(began.elapsed()));
         let said = say(&mut rpc, fake, &session, &format!("perf-reload-{n:03}")).await?;
         large.first_request.push(said.request);
+        large.first_projection.push(said.projection);
         if n + 1 == plan.reloads {
             tokio::time::sleep(SETTLE).await;
             large.reloaded = memory::tree(running.pid());

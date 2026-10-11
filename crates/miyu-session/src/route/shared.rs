@@ -16,7 +16,7 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError, RwLock};
 
 use tokio::sync::watch;
 
@@ -26,6 +26,7 @@ use miyu_kernel::time::Timestamp;
 use miyu_models::Knowledge;
 use miyu_models::catalog::Loaded;
 use miyu_models::cooldown::{Cooldowns, Rules};
+use miyu_models::logos::Logo;
 use miyu_models::matching::Vendors;
 use miyu_models::observed::{Learned, ProviderList};
 use miyu_models::pools::Pointers;
@@ -62,6 +63,9 @@ pub struct ModelData {
     /// 占位工具给模型看的说明（施工 8-14 补）：档案点名了占位工具的供应商，工具面里缺这几件时补上
     /// （`route/placeholder.rs`）。没读到的（测试、老数据根）是空的，空的不补。
     placeholder_tool: String,
+    /// 供应商的图标（施工 8-31）：目录里的编号 → 图标。核心起来时从缓存读回来、拉过以后换上（`miyu-core` 的
+    /// `models/logos.rs`）；没有的是空的，头照名字的第一个字画。
+    logos: RwLock<Arc<BTreeMap<String, Logo>>>,
 }
 
 /// 用出来的、供应商的列表、池的指针：核心起来时从 `state/models/` 读回来的。
@@ -91,7 +95,22 @@ impl ModelData {
             ledger: Mutex::new(None),
             retiring: Mutex::new(Retiring::default()),
             placeholder_tool: String::new(),
+            logos: RwLock::new(Arc::new(BTreeMap::new())),
         }
+    }
+
+    /// 换上一份供应商的图标（施工 8-31）。
+    pub fn set_logos(&self, logos: BTreeMap<String, Logo>) {
+        *self.logos.write().unwrap_or_else(PoisonError::into_inner) = Arc::new(logos);
+    }
+
+    /// 目录里编号 `id` 那一家的图标；没有的没有。
+    pub fn logo(&self, id: &str) -> Option<Logo> {
+        self.logos
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(id)
+            .cloned()
     }
 
     /// 一次性入口的用量记进 `ledger`（施工 8-15，`models.md`「怎么走」第九条第 4 条）：核心造家底时交进来，和会话写的是同一份。

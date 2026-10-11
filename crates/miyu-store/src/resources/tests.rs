@@ -323,6 +323,11 @@ fn the_group_chat_texts_are_their_own_files() {
         include_str!("../../../../resources/core/venues/recent-omitted.txt")
     );
     assert_eq!(recent.budget, miyu_policy::RECENT_BUDGET);
+    // 语音那一句（施工 O-33）。
+    assert_eq!(
+        chat.voice.as_deref(),
+        Some(include_str!("../../../../resources/core/venues/voice.txt"))
+    );
     let scratch = Scratch::new();
     let empty = ResourceRoot::at(scratch.path());
     for (error, file) in [
@@ -343,6 +348,14 @@ fn the_group_chat_texts_are_their_own_files() {
                 empty.group_chat(0).unwrap_err()
             },
             "core/venues/recent-omitted.txt",
+        ),
+        (
+            {
+                std::fs::write(scratch.path().join("core/venues/recent-omitted.txt"), "x\n")
+                    .unwrap();
+                empty.group_chat(0).unwrap_err()
+            },
+            "core/venues/voice.txt",
         ),
     ] {
         match error {

@@ -42,6 +42,8 @@ pub struct Lines {
     pub preset: Option<miyu_policy::preset::Chosen>,
     /// 核心交不交记忆（施工 R-2 下）：不交的是以前的版本造的会话，回合库里一条都没有。默认交。
     pub indexed: bool,
+    /// 属主是不是管理员（施工 5-12）：不是的场所会话只碰得到自己的工作区。默认是。
+    pub owner_is_admin: bool,
     /// 群会话（施工 O-13 中）：默认不是。
     pub group: bool,
 }
@@ -61,6 +63,7 @@ impl Default for Lines {
             preset: None,
             indexed: true,
             group: false,
+            owner_is_admin: true,
         }
     }
 }

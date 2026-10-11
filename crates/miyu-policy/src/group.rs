@@ -18,6 +18,10 @@ pub struct GroupChat {
     /// 群聊近况（施工 O-13 下）。O-13（中）造的没有：不出近况；没有的不写，字节不变。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recent: Option<GroupRecent>,
+    /// 语音后面接的那一句（施工 O-33，`core/venues/voice.txt` 的原文）。它也是「O-33 起造的群会话」的标志：有它的，带的东西
+    /// 不止一样的标第几个；O-33 以前造的没有，照旧写记号，字节不变。没有的不写。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub voice: Option<String>,
 }
 
 /// 群聊近况一块最多多少字节（照旧版的 80000）。
@@ -35,7 +39,7 @@ pub struct GroupRecent {
 }
 
 impl GroupChat {
-    /// 组装器要的：时区换成内核的类型，空的那一句去掉行尾的空白。
+    /// 组装器要的：时区换成内核的类型，空的那一句、语音那一句去掉行尾的空白。
     ///
     /// # Errors
     ///
@@ -47,6 +51,10 @@ impl GroupChat {
             offset,
             no_text: self.no_text.trim_end().to_string(),
             recent,
+            voice: self
+                .voice
+                .as_deref()
+                .map(|voice| voice.trim_end().to_string()),
         })
     }
 }

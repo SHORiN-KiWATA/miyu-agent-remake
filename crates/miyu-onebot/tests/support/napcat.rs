@@ -136,7 +136,8 @@ impl NapCat {
         .await;
     }
 
-    /// 下一个不是 `get_version_info` 的动作，回它成了；`get_version_info` 照 NapCat 的样子回。最多等十秒。
+    /// 下一个不是 `get_version_info`、取东西（`get_msg`、`get_image`、`get_file`，施工 O-33：回失败）的动作，回它成了；
+    /// `get_version_info` 照 NapCat 的样子回。最多等十秒。
     pub async fn action(&mut self) -> Value {
         loop {
             let frame = within("桥调动作", self.ws.next())
@@ -147,16 +148,20 @@ impl NapCat {
                 continue;
             };
             let action: Value = serde_json::from_str(&text).expect("是 JSON");
-            let data = match action["action"].as_str() {
-                Some("get_version_info") => json!({
+            let kind = action["action"].as_str().unwrap_or_default();
+            // 取东西（施工 O-33）：这个假 NapCat 什么都没存，回失败、不交出去。
+            let fetching = ["get_msg", "get_image", "get_file"].contains(&kind);
+            let data = match kind {
+                "get_version_info" => json!({
                     "app_name": "NapCat.Onebot",
                     "app_version": "4.8.0",
                     "protocol_version": "v11",
                 }),
                 _ => json!({"message_id": 1}),
             };
+            let status = if fetching { "failed" } else { "ok" };
             self.send(json!({
-                "status": "ok",
+                "status": status,
                 "retcode": 0,
                 "data": data,
                 "message": "",
@@ -164,7 +169,7 @@ impl NapCat {
                 "echo": action["echo"],
             }))
             .await;
-            if action["action"] != "get_version_info" {
+            if kind != "get_version_info" && !fetching {
                 return action;
             }
         }
