@@ -248,6 +248,31 @@ async fn one_that_never_says_hello_fails_too() {
     assert_eq!(stderr(&home, "echo"), "up\n".repeat(5));
 }
 
+/// 不握手、也不理关掉的输入（施工 9-4 修）：每次都是核心杀掉的，照失败退避、连续几次停下，不当「配置错」：Windows 上杀掉的
+/// 进程退出码是 1，原来照退出码 1 当成配置错，第一次就停。
+#[tokio::test]
+async fn one_killed_every_time_fails_repeatedly_not_as_a_config_error() {
+    let home = Home::new();
+    let program = Program::new();
+    install(
+        &home,
+        "echo",
+        &program.name(),
+        "manual",
+        &steps(&["err:up", "hang"]),
+    );
+    let core = Arc::new(
+        home.core_full(&Script::new([]), Catalog::default(), None, TOKEN)
+            .with_extension_timing(quick())
+            .with_hello_wait(Duration::from_millis(100)),
+    );
+    let mut client = Client::connect(Arc::clone(&core));
+    client.hello().await;
+    call(&mut client, "extension.enable", "echo").await;
+    let stopped = until_state(&mut client, "echo", |one| one["state"] == "stopped").await;
+    assert_eq!(stopped["reason"], "failed_repeatedly", "{stopped}");
+}
+
 #[tokio::test]
 async fn one_that_ignores_the_closed_input_is_killed_after_the_grace() {
     let home = Home::new();

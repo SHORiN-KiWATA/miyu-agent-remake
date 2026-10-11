@@ -94,3 +94,16 @@ fn a_run_that_stayed_up_starts_the_count_again() {
         "没跑满：接着数，到 5 停下"
     );
 }
+
+#[test]
+fn a_process_the_core_killed_is_a_failure_not_a_config_error() {
+    // Windows 上杀掉的进程退出码是 1（施工 9-4 修）：核心杀的当没有退出码，照一次失败退避，不当「配置错」停下。
+    assert_eq!(exit_code(Some(1), true), None);
+    assert_eq!(exit_code(Some(1), false), Some(1), "自己退出的照旧");
+    assert_eq!(exit_code(None, false), None);
+    let timing = Timing::default();
+    assert!(matches!(
+        next(&timing, 0, exit_code(Some(1), true), false),
+        Next::Retry { failures: 1, .. }
+    ));
+}

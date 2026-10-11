@@ -147,8 +147,11 @@ pub(super) async fn run(
             failures,
         };
         let (stopping, ready_at) = watched.serve(serving, shook, &mut asked).await;
-        let status = finish(&mut child, timing.grace).await;
-        let code = status.as_ref().and_then(std::process::ExitStatus::code);
+        let (status, killed) = finish(&mut child, timing.grace).await;
+        let code = exit_code(
+            status.as_ref().and_then(std::process::ExitStatus::code),
+            killed,
+        );
         let said = status.map_or_else(|| "unknown".to_string(), |status| status.to_string());
         if stopping {
             tracing::info!(target: TARGET, package = id, status = said.as_str(), "extension exited");
@@ -245,15 +248,21 @@ fn spawn(plan: &Plan) -> io::Result<Child> {
     command.spawn()
 }
 
-/// 连接丢下了（标准输入关了）：等它退出，最多等 `grace`，没退的杀掉。交回它怎么退出的；等不到的没有。
-async fn finish(child: &mut Child, grace: Duration) -> Option<std::process::ExitStatus> {
+/// 连接丢下了（标准输入关了）：等它退出，最多等 `grace`，没退的杀掉。交回它怎么退出的（等不到的没有），和是不是核心杀掉的。
+async fn finish(child: &mut Child, grace: Duration) -> (Option<std::process::ExitStatus>, bool) {
     if let Ok(waited) = tokio::time::timeout(grace, child.wait()).await {
-        return waited.ok();
+        return (waited.ok(), false);
     }
     if let Err(error) = child.start_kill() {
         tracing::warn!(target: TARGET, error = %error, "extension not killed");
     }
-    child.wait().await.ok()
+    (child.wait().await.ok(), true)
+}
+
+/// 照退出码判下一步用的退出码：核心杀掉的当没有退出码（施工 9-4 修）。Windows 上杀掉的进程退出码是 1，不当它说「配置错」，
+/// 照一次失败退避重启；Unix 上杀掉的本来就是被信号杀掉，没有退出码。
+pub(super) fn exit_code(code: Option<i32>, killed: bool) -> Option<i32> {
+    if killed { None } else { code }
 }
 
 /// 记下状态，广播一声。
