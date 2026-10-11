@@ -16,10 +16,12 @@ use miyu_tool::{JobError, Log, Output};
 
 use crate::backlog::Backlog;
 
+mod retire;
 mod subscription;
 
 use crate::jobs::Unreadable;
 use crate::shown::{Next, Shown};
+pub use retire::Retire;
 use subscription::Watching;
 pub use subscription::{Ended, Subscription};
 
@@ -83,6 +85,11 @@ pub(crate) enum Message {
     Watch {
         watcher: SessionId,
         since: Timestamp,
+    },
+    /// 会话表问闲够 `idle` 了没有（施工 V-2 再补，`retire.rs`）：够了、什么事都没有的答了就退出。它不算一次动静。
+    Retire {
+        idle: std::time::Duration,
+        reply: oneshot::Sender<Retire>,
     },
 }
 

@@ -123,6 +123,11 @@ impl Roster {
         self.0.get(job)
     }
 
+    /// 有没有还在跑的（施工 V-2 再补）：空闲的会话退不退照它看。
+    pub(crate) fn any_running(&self) -> bool {
+        self.0.values().any(|record| record.end.is_none())
+    }
+
     /// 还在跑的，照编号：停下全部时用。
     pub(crate) fn running(&self) -> Vec<(JobId, Record)> {
         self.0

@@ -5,15 +5,14 @@
 //! （`miyu-kernel` 的 `testkit`）一个先后。
 
 use std::collections::{BTreeMap, VecDeque};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use tokio::sync::{broadcast, mpsc, oneshot};
-use tracing::Instrument;
 
 use miyu_kernel::event::Purpose;
-use miyu_kernel::id::{CommandId, Seq, SessionId};
+use miyu_kernel::id::{CommandId, Seq};
 use miyu_kernel::session::{Action, Input, Limits, Outcome, Session};
 use miyu_kernel::time::Timestamp;
 
@@ -37,6 +36,7 @@ use crate::tools::{Dispatch, ToolKit, Tools};
 mod back;
 mod extract;
 mod halt;
+mod life;
 mod listing;
 mod mail;
 mod model;
@@ -46,6 +46,7 @@ mod store;
 mod watchers;
 
 use back::answer_back;
+pub(crate) use life::{span, spawn};
 use mail::Mail;
 
 /// 推送的队列：一个会话最多攒这么多份还没被读走的。读得慢的订阅者被挤掉，掉了队
@@ -109,6 +110,8 @@ pub(crate) struct Actor {
     shown: Arc<Mutex<Shown>>,
     /// 人格的文件改了，下一个回合换上（施工 P-1 再补，`persona.rs`）：造会话、载入时交，测试里造的没有。
     persona: Option<persona::Refresh>,
+    /// 最后一次有动静：收件箱、执行器送回来一封（会话表问退不退的不算），空闲够不够照它算（施工 V-2 再补，`life.rs`）。
+    quiet: Instant,
 }
 
 /// 会话停了：写不进去。
@@ -116,31 +119,6 @@ pub(crate) struct Stop;
 
 /// 任务表里这个会话的那一份要的（施工 7-3；施工 7-4 挪到 `jobs.rs`，多了名册和会话表的端口）。
 pub(crate) use crate::jobs::Kit as JobKit;
-
-/// 会话的 span：开在 `ERROR` 级。span 也照级别筛，开在 `INFO` 的话，调到 `WARN` 它就被筛掉了，底下的
-/// 行就没了会话编号（`miyu-log` 的说明，施工 3-7 上）。
-pub(crate) fn span(id: &SessionId) -> tracing::Span {
-    tracing::error_span!(target: TARGET, "session", session = id.as_str())
-}
-
-/// 起一个 actor 的任务，外面再套一个看着它的：它 panic 了（内核自己的 bug、端口的 bug），记一条
-/// `ERROR`，别的会话照常（`28-运行日志.md` 第三节：`ERROR` 一定是 bug）。
-pub(crate) fn spawn(actor: Actor, first: Vec<Action>, span: tracing::Span) {
-    let busy = actor.busy();
-    let task = tokio::spawn(actor.run(first).instrument(span.clone()));
-    tokio::spawn(
-        async move {
-            if let Err(error) = task.await
-                && error.is_panic()
-            {
-                tracing::error!(target: TARGET, "panicked, stopped");
-            }
-            // 停了的会话不算在跑：核心不为它不肯空闲退出。
-            busy.store(false, Ordering::Release);
-        }
-        .instrument(span),
-    );
-}
 
 impl Actor {
     /// 一个 actor：会话的状态机、写盘的地方、请求模型的端口、工具目录和替工具写的两句、任务表、权限策略、收件箱、时钟、
@@ -201,6 +179,7 @@ impl Actor {
             handed,
             shown,
             persona: None,
+            quiet: Instant::now(),
         }
     }
 
@@ -244,6 +223,7 @@ impl Actor {
                 message = self.inbox.recv() => match message.map(|message| self.mail(message)) {
                     Some(Mail::Input(input)) => input,
                     Some(Mail::Done) => continue,
+                    Some(Mail::Retired) => return,
                     Some(Mail::Stop(reply)) => return self.stop(reply).await,
                     Some(Mail::Halt(halt)) => match self.halt(halt).await {
                         Ok(()) => continue,

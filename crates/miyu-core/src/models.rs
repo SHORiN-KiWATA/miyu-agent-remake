@@ -139,6 +139,8 @@ pub fn begin(data: Arc<ModelData>, early: Early, state: Option<PathBuf>) -> Read
     let task = tokio::task::spawn_blocking(move || {
         let observed = state.as_deref().map(read_observed).unwrap_or_default();
         reading.loaded(early.finish(), observed);
+        // 读目录剩下的还给系统（23 F3，施工 V-2 再补）：原文、解析的半成品放掉了，glibc 不还就一直占着。
+        miyu_heap::trim();
         logos::table(&table)
     });
     Reading { data, task }

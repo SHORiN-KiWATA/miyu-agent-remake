@@ -11,6 +11,7 @@ mod opening;
 pub mod package;
 pub mod routing;
 mod scratch;
+pub mod table;
 
 pub use opening::{Lines, Opening};
 pub use scratch::Scratch;

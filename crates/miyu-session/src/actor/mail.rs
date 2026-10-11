@@ -5,6 +5,7 @@
 //! 记进名单，当场办完。
 
 use std::sync::atomic::Ordering;
+use std::time::Instant;
 
 use tokio::sync::oneshot;
 
@@ -26,11 +27,16 @@ pub(super) enum Mail {
     Halt(Halt),
     /// 删会话之前停下（施工 3-8 三补，`stop.rs`）。
     Delete(bool, oneshot::Sender<Result<(), Reason>>),
+    /// 闲够了，答了会话表，退出（施工 V-2 再补，`life.rs`）。
+    Retired,
 }
 
 impl Actor {
     /// 收件箱里的一封：命令照 actor 的时钟记下到的时刻，订阅当场办，看着的头有没有变了送进内核（施工 7-9）。
     pub(super) fn mail(&mut self, message: Message) -> Mail {
+        if !matches!(message, Message::Retire { .. }) {
+            self.quiet = Instant::now();
+        }
         match message {
             Message::Command {
                 id,
@@ -83,6 +89,7 @@ impl Actor {
                 self.dream(reply);
                 Mail::Done
             }
+            Message::Retire { idle, reply } => self.retire(idle, reply),
         }
     }
 

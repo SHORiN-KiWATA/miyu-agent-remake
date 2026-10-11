@@ -52,6 +52,7 @@ mod read;
 mod rebuild;
 mod report_up;
 mod restore;
+mod retire;
 mod route;
 mod route_anthropic;
 mod route_cost;

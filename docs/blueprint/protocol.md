@@ -21,6 +21,7 @@
 | `crates/miyu-endpoint/src/sessions.rs` | 会话表：造会话、找会话；工作目录太宽的退回工作区；造子会话（施工 7-5） |
 | `crates/miyu-endpoint/src/sessions/found.rs` | 找会话、载入（施工 7-8 从 `sessions.rs` 挪出来：表的锁在调的一方手里）。会话认自己的属主（施工 O-4 上）：在跑的照把手（`Handle::owner`），没在跑的照哪个账号的家目录下有它（`DataRoot::owner_of`）；载入、读页、订阅补的日志、撤销、删会话（回收处、子会话、收空子会话）、派子代理读子会话的日志都照属主的家目录。造会话、连接的身份、列会话照旧是管理员 |
 | `crates/miyu-endpoint/src/sessions/orphans.rs` | 载入时收掉派到一半的空子会话（施工 7-8，「会话表」第 8 条） |
+| `crates/miyu-endpoint/src/sessions/idle.rs` | 闲够了的会话退下：看空闲的任务、问退不退、从表里拿掉（施工 V-2 再补，「会话表」第 9 条）；`Core::with_session_idle`（测试里设短的）、`Core::loaded`（这时载入着几个会话） |
 | `crates/miyu-endpoint/src/sessions/delete.rs` | 会话表删会话：认出它派的子会话、停下、挪进回收处（施工 3-8 三补）；删子会话照人停掉它、父会话记回报，都在表的锁里（施工 7-8） |
 | `crates/miyu-endpoint/src/from.rs` | `session.send` 的 `from`：去掉控制字符、截到 128 字节，记成 `harness`（施工 7-10） |
 | `crates/miyu-endpoint/src/spawn.rs` | 会话表交给会话的端口：造子会话、给会话发命令（施工 7-5，`session/tools.md`「派子代理」）；停下子会话、照日志看它（施工 7-4）；列主会话（施工 C-3） |
@@ -1033,9 +1034,10 @@
 3. 发命令、订阅时会话已经停了（写不进去、出了 bug）：从表里拿掉，回 `session_stopped`；下一次用到再载入。
 4. `session.send` 带着 `cwd`、`dirs`，和这个会话上一次报的不一样：照「工作目录太宽」重新定实际干活的目录，送进会话，到下一个边界才注入（`kernel/request.md`）；会话这时停了的，回 `session_stopped`。不带的、一样的，照旧。
 5. 载入时没有报来的 `cwd`（`session.interrupt`、`session.revert`、`session.unrevert`、`session.redo`、`session.compact`、`session.set_permission_level`、`session.clear`、`session.recap`、`session.set_meta`、`subscribe` 载入的）：照日志里最后一条带 `cwd` 的 `turn.started`（加进来的目录照最后一条 `turn.started` 的 `dirs`，没有就是没有（施工 5-10 上）），没有就照 `session.created` 的，都没有（之前的日志）才当报来的是 `~`，退回管理员的默认工作区（施工 4-9 再补三上）。核心重启以后撤销，路径照会话真正的目录写短。
-6. 会话一直留在表里，直到核心退出、停下全部会话、删了它（`session.delete`），或者用到时发现它停了。
+6. 会话留在表里，直到核心退出、停下全部会话、删了它（`session.delete`）、用到时发现它停了，或者闲够了退下（第 9 条）。
 7. 造会话、载入时，交给会话一份造子会话的端口（施工 7-5，`session/tools.md`「派子代理」）：会话里派出去的子会话由会话表造，放进表里，和头造的一样照编号找得到、只起一个；子会话也算进「有没有会话忙着」，停下全部会话时一起停。父会话已经不在表里的（删了、停了）不再造，派不了（施工 3-8 三补：不留下没有父会话的子会话）。
 8. 载入一个会话以后、放进表之前，收掉它派到一半的空子会话（施工 7-8，`agents.md` 第一条第 8 条）：它的日志里有没派成的 `subagent` 调用（以前造的会话里叫 `agent`，也算；结果里没有 `job.started`，或者还没有结果）才去认，认的是放会话的目录里 `session.created` 的 `parent` 是它、它的日志里又没有这个子会话的 `job.started` 的，连同它们派的；在跑的停下（`Handle::discard`），目录挪进回收处，最深的在前，照 `session.delete` 第 7 条。一个记一行 `INFO orphan subagent removed`；挪不走的记一行 `WARN`，不耽误载入。这时表拿着锁，它不在表里，也就派不出新的，认不错。
+9. 闲够了退下（施工 V-2 再补，`07-存储.md` 第七节第 3 条，`sessions/idle.rs`）：表里第一次放进会话时起一个任务，隔一阵拿着表的锁问一遍。没有回合在跑、没人订阅、除了表里那一个没有别的把手（正在办的请求、订阅着的头都拿着一个）的，问它闲够 3 分钟了没有（`Handle::retire`，会话照自己的账答，`session/actor.md` 第 9 条）；退下了的、已经停了的从表里拿掉，下次用到照第 1 条载入。拿着锁问：这时谁也拿不到新的把手，退下和再载入不会同时有两个写者。下一次隔多久问：答了还差多久的，取最少的那个；都没得问的，过 3 分钟（两次之间至少 10 毫秒）。退下的会话 actor 放掉的内存还给系统（`heap.md`）。
 
 **工作目录太宽**
 

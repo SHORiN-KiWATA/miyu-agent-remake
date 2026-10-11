@@ -54,6 +54,11 @@ pub fn every_turn(text: &str) -> Reply {
 /// 场地接上抽取：整理记忆的照 `server` 上的 `org/m`（key 是 `{ env = "ORG_KEY" }`，值 `sk-org-0123456789abcdef`），`extra`
 /// 接在配置后面；闲 100 毫秒就抽。
 pub fn organizer(home: &mut Home, server: &Server, extra: &str) {
+    organizer_after(home, server, extra, Duration::from_millis(100));
+}
+
+/// 同 [`organizer`]，闲 `idle` 才抽。
+pub fn organizer_after(home: &mut Home, server: &Server, extra: &str, idle: Duration) {
     let source = format!(
         "[providers.org]\ndriver = \"openai-chat\"\nbase_url = \"{}\"\nkey = {{ env = \"ORG_KEY\" }}\n\n[memory]\norganizer = \"org/m\"\n{extra}",
         server.base_url
@@ -73,7 +78,7 @@ pub fn organizer(home: &mut Home, server: &Server, extra: &str) {
         shapes,
         ask: entry(&routes(serde_json::json!({}), Duration::from_secs(60))),
         blobs: Blobs::new(home.root.blobs(&alice_account())),
-        idle: Some(Duration::from_millis(100)),
+        idle: Some(idle),
         merge: MergeTexts::load(&resources).expect("读得到"),
     };
     assert!(home.memory.give_extraction(extraction));

@@ -17,9 +17,11 @@
 | `crates/miyu-session/src/actor/watchers.rs` | 「空了告诉我」被等的这一边：谁在等这个会话空下来，每送完一批看空没空，空了发通知（施工 C-6，下面「被等的名单」） |
 | `crates/miyu-session/src/peers.rs` | 「空了告诉我」等的这一边：照内核在等的去订、计时，到点、不在了交回（施工 C-6，`session/tools.md`「订、计时、再订」） |
 | `crates/miyu-session/src/actor/model.rs` | 请求模型：交给端口、叫停、说完了记一行；回顾的请求也在这里（施工 3-8 四补）；替它看图交给端口（施工 8-17） |
+| `crates/miyu-session/src/actor/life.rs` | 起 actor 的任务、看着它，停了以后把堆还给系统；闲够了退下：照自己的账答会话表（施工 V-2 再补从 `actor.rs` 挪出来，那个文件到了行数上限；第 9 条） |
 | `crates/miyu-session/src/actor/stop.rs` | 有计划地停下：要重启了、后台命令记 `restarted`、落了盘再整组杀（施工 7-3） |
 | `crates/miyu-session/src/actor/store.rs` | 写盘；撤掉压缩时读回日志（施工 6-9） |
 | `crates/miyu-session/src/handle.rs` | `Handle`：发命令、订阅、停下；推送 |
+| `crates/miyu-session/src/handle/retire.rs` | 问退不退：除了这一个没有别的把手（`alone`）、闲够了没有（`retire`，等一秒不答的叫它别答了，施工 V-2 再补） |
 | `crates/miyu-session/src/handle/subscription.rs` | 订阅：掉了队、会话停了就断；放下时告诉 actor（施工 7-9；施工 R-3 补从 `handle.rs` 挪出来：那边放不下了） |
 | `crates/miyu-session/src/backlog.rs` | 订阅时要补发的那一截：补到哪一条、在阻塞线程里读出来（施工 3-8 六补） |
 | `crates/miyu-session/src/config.rs` | 会话从哪取配置（`ConfigSource`、`Configs`、`fixed`），回合开始时冻结的一份（`TurnConfig`）；造会话、载入时先取一份（施工 8-4）；一次性调用照端点交的一份冻结（`Turn::new`，施工 8-20） |
@@ -115,7 +117,7 @@
 5. 造请求模型的端口：引用照内核从日志算的（`Session::reference()`，施工 8-10：换过模型的是换过以后的），钉住的池照第 3 条记下的认回钉着的成员。
    马上交给内核这个模型的限额，同上：接着干的那一轮，发主请求之前就知道限额（施工 6-3 上）；给头看的那一份也同上（施工 6-3 补）。检查点重读过的文件，内核在那一串动作的第一个交出 `Recall`，照下面第 4 条读（施工 6-9：认哪个检查点还算数是内核的事，执行器不自己找）。
 6. 造权限策略、执行工具的端口（任务编号、派子代理要照抄的那一份照日志里的 `session.created` 和快照，施工 7-5）、actor；子会话交回报的那一头（「向上回报」，施工 7-6）；记一行 `loaded`；叫起还没回报的子会话（内核的 `waiting_children()`，一个一个起任务叫、不等：会话表这时正拿着表的锁载入它，等载入完才轮得到，施工 7-6）；起 actor，先回那一串动作。
-7. 马上交回 `Handle`，不等那一串动作做完。
+7. 马上交回 `Handle`，不等那一串动作做完。读、解日志用的这时都放掉了，在阻塞线程里把堆里空着的还给系统（施工 V-2 再补，`heap.md`）：整份日志只留最近一次压缩以后的，别的不等会话退下就还。
 
 **3. 收件箱**
 
@@ -259,6 +261,7 @@
 | 有计划地停下（`Handle::stop`） | 先把这个会话在跑的后台命令记成报了、各写一条 `restarted`（`session/tools.md` 第 5 条第 4 款）；收件箱里已经到了的后台命令结束拿出来，别的回报不要了。依次送进「要重启了」、这几条结束（排在后面：内核这时只记下、不开轮，`kernel/session.md`「有计划的重启」）、那几条 `restarted`；都落了盘，这个会话的后台命令整组杀掉，记一行 `stopped`，回一声，actor 退出。再载入时被打断的那一轮接着干（施工 7-3） |
 | 删之前停下（`Handle::delete`、`Handle::discard`，施工 3-8 三补） | `delete` 先问内核（`deletable()`）：删不了的交回原因，照常收下一封。删得了的、`discard` 不问的：这个会话的后台命令不再收新的，在跑的整组杀掉、不记回报（不像有计划地停下那样记 `restarted`：会话要删了，没人再看它的日志）；什么都不再写，关上日志的文件，记一行 `stopped for deletion`，回一声，actor 退出。日志关了才回：会话表一收到就挪会话目录（`protocol.md` 的 `session.delete`），Windows 上开着的文件挪不走。在跑的回合不收尾：路上的请求、在跑的工具随 actor 退出叫停、掐掉 |
 | 拿着 `Handle` 的都放下了 | 记一行 `closed`，actor 退出 |
+| 闲够了退下（`Handle::retire`，施工 V-2 再补，`actor/life.rs`） | 会话表问闲够 `idle` 了没有（`protocol.md`「会话表」）。actor 照自己的账答：还有事的答 `Kept`——内核不空（有回合、在重启、在等子代理），有头订阅着，有等着回应的命令、在路上的请求或辅助请求（起标题这类），派出去还没回报、结束了还没落盘的任务（名册、任务表里还有它的），记忆的闹钟上着或者一次抽取在路上（`memory.md` 第六条），有会话等它空下来、它自己在等别的会话，收件箱、回报的路里还有没办的；别的都空着、最后一次有动静（收件箱、回报到的那一刻，这一问不算）离现在不到 `idle` 的答 `Later`，带还差多久；都没有、闲够了的答 `Retired`，记一行 `retired`，actor 退出。回答交不出去的（会话表等了一秒不等了）不退。退下的会话磁盘上什么都没变，下次用到照载入走 |
 | 写不进去、写盘的线程 panic 了 | 第 5 条 |
 | actor 自己 panic 了（内核的 bug、端口的 bug） | 看着它的任务记一行 `panicked, stopped`，别的会话照常 |
 
@@ -283,6 +286,8 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 | 级别 | 这件事 | 键 | 什么时候 |
 |---|---|---|---|
 | INFO | `created` | `persona`、`venue`、`tools`（几件） | 造好会话，起 actor 之前 |
+| INFO | `retired` | — | 闲够了退下（第 9 条，施工 V-2 再补） |
+| — | （载入以后、会话停了以后） | — | 载入交回把手、actor 的任务结束它占的放掉以后，在阻塞线程里把堆里空着的还给系统（施工 V-2 再补，`heap.md`） |
 | INFO | `loaded` | `events`（几条）；`read_ms`、`snapshot_ms`、`memory_ms`、`scan_ms`、`replay_ms`、`total_ms`：读、解日志，读快照，接上记忆，几样从日志重建的（看过的文件、任务、发给谁、累计用量），内核重放，各用了多少毫秒，和载入一共用了多少（含等模型目录读完；施工 V-2 中、下） | 载入，起 actor 之前 |
 | INFO | `request` | `seen`、`endpoint`、`model`、`changed`（变了的才有） | 第 7 条 |
 | WARN | `no model` | `why`：`no_model` 的原话 | 路由挑不出端点，当场说完（第 8 条第 3 条，施工 8-6） |
@@ -375,6 +380,8 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 |---|---|
 | `crates/miyu-session/tests/route_vision.rs`、`vision_log.rs`（施工 8-17） | 替它看图：会话的模型看不了图，经一次性入口问 `models.vision`（指令、那一行、人这一轮说的那句、图的字节，不带工具），内核记一条 `image.described`，主请求里图的位置是带标签的转述、不发图；同一张图下一轮不再问；会话的模型看得了图的不问、照发原图；没配 `models.vision` 的照旧占位、主请求照发；没成的记一行 `image not described`（会话编号、图、为什么），成了的不另记、一次性入口那一行带会话编号 |
 | `crates/miyu-session/tests/watch.rs`（施工 C-6） | 被等的名单：订进来时已经空着不当场发、等它下一次忙完才发（2026-10-01 改）、起算时刻不晚于上一次忙完的时刻的照样当场发、正忙时订了忙完才发（编号、`by`、带的那一行）、同一个会话只记一个、子代理没报完不发、报完被叫醒的那一轮做完了才发；等的这一边见 `session/tools.md`「订、计时、再订」。真核心见 `crates/miyu-endpoint/tests/watch.rs`（被重启打断的不算空：停的时候不发，再起来做完才发） |
+| `crates/miyu-session/tests/retire.rs`（施工 V-2 再补） | 闲够了退下：别的都空着的答还差多久，从最后一封信起算；闲够了退下，再交命令是「会话停了」，载入回来接着用；有头订阅着、派出去的后台命令没回报、起标题的请求在路上、有会话等它空下来、它在等别的会话、记忆的闹钟上着的，一直答还有事（假的会话表在 `tests/support/table.rs`） |
+| `crates/miyu-endpoint/tests/retire.rs`、`src/sessions/tests.rs`（施工 V-2 再补） | 真核心走一遍：没人订阅的闲够了从表里拿掉、再说话载入回来，核心重启以后先载入的也照样退；订阅着的不退、放下以后退；正在办的请求拿着把手的不退（`protocol.md`「会话表」第 9 条） |
 | `crates/miyu-session/tests/delete.rs`（施工 3-8 三补） | 删之前停下：空闲的，后台命令回之前整组杀掉、不记回报，日志一条不多，回了以后连打断都收不到；有回合在进行的说删不了、会话照常、打断以后删得了；`discard` 停下停在请求上的会话，后台命令杀掉、不记，那一轮不收尾 |
 | `crates/miyu-endpoint/tests/delete.rs`、`delete_children.rs`（施工 3-8 三补） | 真核心走一遍：目录挪得走；子会话不问忙不忙一起停（`protocol.md`「守着它的」） |
 | `crates/miyu-session/tests/jobs.rs`（施工 7-3） | 有计划地停下先记 `restarted`、杀的时候已经落了盘；没人拿着了停下的，整组杀掉不记、再载入补 `aborted`（`session/tools.md`「守着它的」） |

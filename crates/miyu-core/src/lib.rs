@@ -66,6 +66,8 @@ pub fn admin() -> AccountId {
 
 /// 跑核心进程，交回退出码。
 pub fn main(options: Options) -> ExitCode {
+    // 堆先调好（23 F3，施工 V-2 再补）：arena 的个数要在起别的线程之前限。
+    let heap = miyu_heap::tune();
     let env = Env::current();
     let root = match DataRoot::locate(&env) {
         Ok(root) => root,
@@ -96,6 +98,13 @@ pub fn main(options: Options) -> ExitCode {
         root = %root.path().display(),
         tz = %miyu_log::utc_offset(),
         "starting"
+    );
+    tracing::debug!(
+        target: TARGET,
+        tuned = heap,
+        arenas = miyu_heap::ARENAS,
+        mmap_from = miyu_heap::MMAP_FROM,
+        "heap tuned"
     );
     // 核心没了，它起的子进程跟着结束（施工 7-8，`core.md`「起来的先后」第 4 条）：Windows 上核心进作业对象，别的平台什么都
     // 不做（Unix 上每条命令的组里有看门的）。进不去照样起来。

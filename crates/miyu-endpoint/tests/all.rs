@@ -103,6 +103,7 @@ mod replay_race;
 mod reports;
 mod respond;
 mod restart;
+mod retire;
 mod revert;
 mod secrets;
 mod sessions;

@@ -1583,6 +1583,7 @@ dependencies = [
  "miyu-config",
  "miyu-drivers",
  "miyu-endpoint",
+ "miyu-heap",
  "miyu-http",
  "miyu-ipc",
  "miyu-kernel",
@@ -1670,6 +1671,10 @@ dependencies = [
  "tracing",
  "trash",
 ]
+
+[[package]]
+name = "miyu-heap"
+version = "0.0.0"
 
 [[package]]
 name = "miyu-http"
@@ -1869,6 +1874,7 @@ dependencies = [
  "miyu-config",
  "miyu-drivers",
  "miyu-fs",
+ "miyu-heap",
  "miyu-http",
  "miyu-kernel",
  "miyu-log",

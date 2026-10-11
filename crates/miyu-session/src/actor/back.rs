@@ -30,6 +30,7 @@ impl Actor {
 
     /// 执行器送回来的，照 actor 的时钟记下到的时刻，写成内核的输入；已经不要了的工具回报，不理。
     pub(super) fn back(&mut self, back: Back) -> Option<Input> {
+        self.quiet = std::time::Instant::now();
         let at = self.clock.now();
         Some(match back {
             Back::Woke { seen } => Input::Woke { at, seen },

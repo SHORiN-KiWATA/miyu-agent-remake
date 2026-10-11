@@ -48,6 +48,14 @@ use super::{Load, LoadError, ledger_of};
 ///
 /// 日志打不开或者坏了、快照取不出来或者读不懂、内核载入不了。
 pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
+    let handle = open(setup).await?;
+    // 载入读、解的整份日志只留最近一次压缩以后的（23 F3，施工 V-2 再补）：别的放掉了，还给系统，不等会话退下。
+    drop(tokio::task::spawn_blocking(miyu_heap::trim));
+    Ok(handle)
+}
+
+/// 载入，读、解日志用的都在这里放掉。
+async fn open(setup: Load<'_>) -> Result<Handle, LoadError> {
     let Load {
         root,
         owner,
