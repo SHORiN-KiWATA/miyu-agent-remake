@@ -1,0 +1,34 @@
+[package]
+name = "miyu-mcp"
+description = "MCP 的客户端：经标准输入输出说 MCP，两个时代都认，列工具、调工具（施工 X-1，docs/blueprint/mcp.md）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+autotests = false
+
+[dependencies]
+# 消息是一行一条的 JSON-RPC 2.0。
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+# 读写管道、等回应、限时。
+tokio = { version = "1", features = ["io-util", "macros", "rt", "sync", "time"] }
+# 运行日志：服务反过来要东西、读到写法不对的行。
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+
+[features]
+# 测试用的假服务（`src/testkit.rs`）：照剧本演新旧两个时代。这个包自己的测试、接进核心那一步的测试打开。
+testkit = []
+
+[dev-dependencies]
+miyu-mcp = { path = ".", features = ["testkit"] }
+tokio = { version = "1", features = ["io-util", "macros", "rt", "rt-multi-thread", "sync", "time"] }
+
+[lints]
+workspace = true
+
+# 集成测试并成一个程序（施工 0-3 三补）。
+[[test]]
+name = "all"
+path = "tests/all.rs"

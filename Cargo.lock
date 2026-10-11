@@ -1723,6 +1723,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "miyu-mcp"
+version = "0.0.0"
+dependencies = [
+ "miyu-mcp",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "miyu-memory"
 version = "0.0.0"
 dependencies = [

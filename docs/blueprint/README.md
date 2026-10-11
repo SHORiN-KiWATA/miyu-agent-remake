@@ -70,6 +70,7 @@
 | `package-pages.md` | 软件包页和软件后台：清单的图标和后台页、`package.list` 的状态和开关、程序不在当没装、配置项归包、`package.file`、`package.call`、网页软件怎么给后台页、框和网页之间的方法表：图纸，2026-10-10 起草，F-6 照它施工 |
 | `extensions.md` | 扩展进程：核心拉起 `process` 包、开关、退避重启、随核心退出、`extension.*`（施工 9-4 上起） |
 | `providers.md` | 提供者：扩展经 `provide` 登记工具，核心反向调用 `tool.call`（施工 O-2 上起） |
+| `mcp.md` | MCP 适配器：现成的 MCP 服务接进来，两个时代都认（草稿，等项目主人过） |
 | `presets.md` | 预设：在哪、格式、三层怎么叠、默认预设、找人格的先后、`preset.list`、`preset.get`（施工 P-2 上起） |
 | `web-module.md` | 网页界面这个软件和核心给它的通用方法：网页软件 `miyu-web`（端口、页面、WebSocket 照转、一次性登录、媒体地址），核心给所有头的 `human.get`、`fs.*`、`mermaid.render`、分块传和读 blob、`link.preview`：图纸，2026-10-01 项目主人批准；W-1 到 W-7 现在做，身份、网页软件等用户系统 |
 | `web-ui.md` | 网页软件 `miyu-web`：起停、端口（8300）、页面、WebSocket 照转、`miyu web`（施工 W-9，从 `web-module.md` 搬出来独立成页）；媒体地址随 W-10 |
