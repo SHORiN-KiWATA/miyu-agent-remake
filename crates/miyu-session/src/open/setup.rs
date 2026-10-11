@@ -7,6 +7,7 @@ use miyu_kernel::event::Permission;
 use miyu_kernel::facts::Environment;
 use miyu_kernel::id::{AccountId, CommandId, SessionId, VenueId};
 use miyu_kernel::origin::By;
+use miyu_kernel::time::UtcOffset;
 use miyu_policy::PersonaTexts;
 use miyu_policy::features::Features;
 use miyu_policy::memory::MemoryScope;
@@ -115,6 +116,23 @@ pub struct Create<'a> {
     pub owner_is_admin: bool,
 }
 
+/// 照最后一次记下的工作目录（没有的是空的）定实际在哪干活。
+pub type Pick<'a> = Box<dyn FnOnce(Option<&str>) -> String + Send + 'a>;
+
+/// 载入的会话在哪干活（施工 V-2 三补）。
+pub enum Workplace<'a> {
+    /// 给定的：时区、工作目录、加进来的目录。
+    Given(Environment),
+    /// 照日志里最后一次记下的：载入读日志时顺手认出最后一次记下的工作目录（都没记下的是空的）、加进来的目录，交给 `pick`
+    /// 定实际在哪干活（太宽的、落在数据根里的怎么退是会话表的事）。原来会话表在载入之前另读一遍整份日志认它。
+    Remembered {
+        /// 时区。
+        offset: UtcOffset,
+        /// 照最后一次记下的工作目录定实际在哪干活。
+        pick: Pick<'a>,
+    },
+}
+
 /// 载入一个会话要的。
 pub struct Load<'a> {
     /// 数据根。
@@ -128,8 +146,8 @@ pub struct Load<'a> {
     pub resources: &'a ResourceRoot,
     /// 会话编号。
     pub id: SessionId,
-    /// 会话所在的环境：时区、工作目录。
-    pub environment: Environment,
+    /// 会话在哪干活（施工 V-2 三补）：给定的，或者照日志里最后一次记下的挑。
+    pub place: Workplace<'a>,
     /// 给会话造请求模型的端口：驱动的占位取自这个会话的策略快照。
     pub models: &'a dyn Models,
     /// 工具目录的架子：执行工具时照名字在现在的那一份里找（施工 4-2）。工具面照快照；提供者的包换了，下一个回合换上

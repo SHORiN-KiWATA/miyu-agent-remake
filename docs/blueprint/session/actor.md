@@ -60,7 +60,7 @@
 | `Jobs` | 执行器的任务表，核心里一张：`Jobs::new()`，`running()` 有没有在跑的后台命令（结束了、记录还没落盘的也算，施工 7-3） |
 | `Unreadable` | 头读不了这个任务的输出：`Unknown` 没有这个任务，`Agent` 是子代理（施工 7-4 补） |
 
-`Create` 的格：数据根 `root`、资源目录 `resources`（随核心附带的字）、会话编号 `id`、人格 `persona`（编号）和叠好的人格的字 `persona_texts`（施工 P-1 上：端点照 `personas.md` 找好交进来，会话不再自己读人格目录）、人格的几层 `personas`（施工 P-1 再补：回合开始时照它看人格的文件改了没有，「换快照」）、记忆归哪个账号 `memory_account`（施工 P-1 上，`personas.md`「怎么走」第 5 条：回合库、记忆日志照它和人格开）、记忆的范围 `memory_scope`（施工 R-3 下，`memory.md`「范围」：记进快照的 `memory`；子会话不管交的是什么都写 `off`）、场所 `venue`、属主 `owner`、开始时的权限 `permission`、有没有人能确认 `attended`、一次性的 `oneshot`、环境 `environment`（时区、工作目录）、造会话的命令编号 `command`、谁发的 `by`、造端口的 `models`、工具目录 `tools`、系统的家目录 `home`（读不出来的是空的）、沙盒的助手 `sandbox`（这台机器上的沙盒能用才有，施工 5-4 上）、沙盒的缓存 `sandbox_cache`（`<缓存目录>/sandbox/<属主>`，核心算不出缓存目录的没有，施工 5-4 下）、父会话和第几层 `lineage`（子会话才有，施工 7-5）、造子会话的端口 `sessions`（会话表交进来的，测试里自己造的没有，施工 7-5）、任务表 `jobs`（核心里那一张，施工 7-3）、属主的会话列表的索引 `index`（会话表交进来的，测试里自己造的可以没有，施工 3-8 七补，`store/index.md`）、核心一份的记忆 `memory`（回合库的登记和记忆日志的登记，施工 R-2 上、R-3 中，`memory.md`）。`Load` 的格：`root`、`owner`、`personas` 和资源目录 `resources`（施工 P-1 再补：回合开始时看人格改了没有、照新的重拼）、`memory_account`（端点照会话的人格和属主同一条规则算，施工 P-1 上）、`id`、`environment`、`models`、`tools`、`home`、`sandbox`、`sandbox_cache`、`sessions`、`jobs`、`index`、`memory`。
+`Create` 的格：数据根 `root`、资源目录 `resources`（随核心附带的字）、会话编号 `id`、人格 `persona`（编号）和叠好的人格的字 `persona_texts`（施工 P-1 上：端点照 `personas.md` 找好交进来，会话不再自己读人格目录）、人格的几层 `personas`（施工 P-1 再补：回合开始时照它看人格的文件改了没有，「换快照」）、记忆归哪个账号 `memory_account`（施工 P-1 上，`personas.md`「怎么走」第 5 条：回合库、记忆日志照它和人格开）、记忆的范围 `memory_scope`（施工 R-3 下，`memory.md`「范围」：记进快照的 `memory`；子会话不管交的是什么都写 `off`）、场所 `venue`、属主 `owner`、开始时的权限 `permission`、有没有人能确认 `attended`、一次性的 `oneshot`、环境 `environment`（时区、工作目录）、造会话的命令编号 `command`、谁发的 `by`、造端口的 `models`、工具目录 `tools`、系统的家目录 `home`（读不出来的是空的）、沙盒的助手 `sandbox`（这台机器上的沙盒能用才有，施工 5-4 上）、沙盒的缓存 `sandbox_cache`（`<缓存目录>/sandbox/<属主>`，核心算不出缓存目录的没有，施工 5-4 下）、父会话和第几层 `lineage`（子会话才有，施工 7-5）、造子会话的端口 `sessions`（会话表交进来的，测试里自己造的没有，施工 7-5）、任务表 `jobs`（核心里那一张，施工 7-3）、属主的会话列表的索引 `index`（会话表交进来的，测试里自己造的可以没有，施工 3-8 七补，`store/index.md`）、核心一份的记忆 `memory`（回合库的登记和记忆日志的登记，施工 R-2 上、R-3 中，`memory.md`）。`Load` 的格：`root`、`owner`、`personas` 和资源目录 `resources`（施工 P-1 再补：回合开始时看人格改了没有、照新的重拼）、`memory_account`（端点照会话的人格和属主同一条规则算，施工 P-1 上）、`id`、在哪干活 `place`（施工 V-2 三补：`Workplace::Given` 给定的环境；`Workplace::Remembered` 给时区和挑法，载入读日志时顺手认出最后一次记下的工作目录、加进来的目录，工作目录交给挑法定）、`models`、`tools`、`home`、`sandbox`、`sandbox_cache`、`sessions`、`jobs`、`index`、`memory`。
 
 | `Handle` 的方法 | 做什么 |
 |---|---|
@@ -110,6 +110,7 @@
 1. 在阻塞线程里依次做，哪一步不成就交回那一种错：
    1. 打开会话日志：自检，截掉最后一段末尾那半行（`store.md`）。
    2. 第一条要是 `session.created`；日志是空的、第一条不是它的，报错。
+   - 同一遍里认出最后一次记下的工作目录、加进来的目录（施工 V-2 三补，同列会话的认法 `miyu_store::index::cwd`）：`place` 是 `Remembered` 的，读完照它定环境，再开这个会话的配置（`Turning::start` 要工作目录，挪到读完以后）。定下的环境由 `load_placed` 和把手一起交回。
    3. 照它记的哈希从属主的 blob 里取快照，读懂，造策略、驱动的占位、两句、三句。
 2. 时钟从日志里最后一条的时刻起：系统时间比它还早（往回拨过），照它。
 3. 从日志里的效果重建她看过的（`session/tools.md`）；记下最后一条发出去了的 `model.called` 发给了谁（施工 8-8）。
@@ -380,6 +381,7 @@ actor 退出以后：等着回应的命令、要订阅的、要停下的，都�
 |---|---|
 | `crates/miyu-session/tests/route_vision.rs`、`vision_log.rs`（施工 8-17） | 替它看图：会话的模型看不了图，经一次性入口问 `models.vision`（指令、那一行、人这一轮说的那句、图的字节，不带工具），内核记一条 `image.described`，主请求里图的位置是带标签的转述、不发图；同一张图下一轮不再问；会话的模型看得了图的不问、照发原图；没配 `models.vision` 的照旧占位、主请求照发；没成的记一行 `image not described`（会话编号、图、为什么），成了的不另记、一次性入口那一行带会话编号 |
 | `crates/miyu-session/tests/watch.rs`（施工 C-6） | 被等的名单：订进来时已经空着不当场发、等它下一次忙完才发（2026-10-01 改）、起算时刻不晚于上一次忙完的时刻的照样当场发、正忙时订了忙完才发（编号、`by`、带的那一行）、同一个会话只记一个、子代理没报完不发、报完被叫醒的那一轮做完了才发；等的这一边见 `session/tools.md`「订、计时、再订」。真核心见 `crates/miyu-endpoint/tests/watch.rs`（被重启打断的不算空：停的时候不发，再起来做完才发） |
+| `crates/miyu-session/tests/workplace.rs`（施工 V-2 三补） | 照日志里最后一次记下的挑：挑法拿到的是记下的那一个、只挑一次，会话在挑定的目录里，加进来的目录照记下的 |
 | `crates/miyu-session/tests/retire.rs`（施工 V-2 再补） | 闲够了退下：别的都空着的答还差多久，从最后一封信起算；闲够了退下，再交命令是「会话停了」，载入回来接着用；有头订阅着、派出去的后台命令没回报、起标题的请求在路上、有会话等它空下来、它在等别的会话、记忆的闹钟上着的，一直答还有事（假的会话表在 `tests/support/table.rs`） |
 | `crates/miyu-endpoint/tests/retire.rs`、`src/sessions/tests.rs`（施工 V-2 再补） | 真核心走一遍：没人订阅的闲够了从表里拿掉、再说话载入回来，核心重启以后先载入的也照样退；订阅着的不退、放下以后退；正在办的请求拿着把手的不退（`protocol.md`「会话表」第 9 条） |
 | `crates/miyu-session/tests/delete.rs`（施工 3-8 三补） | 删之前停下：空闲的，后台命令回之前整组杀掉、不记回报，日志一条不多，回了以后连打断都收不到；有回合在进行的说删不了、会话照常、打断以后删得了；`discard` 停下停在请求上的会话，后台命令杀掉、不记，那一轮不收尾 |

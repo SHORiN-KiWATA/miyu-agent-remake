@@ -79,4 +79,5 @@ mod turn_config;
 mod undo_compaction;
 mod watch;
 mod watched;
+mod workplace;
 mod write;

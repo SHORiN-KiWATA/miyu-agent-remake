@@ -71,7 +71,9 @@ pub use memory::{
     Dreamed, EMBED_LOCAL, ExtractTexts, Extraction, Filter, Following, Keeper, Memory, MergeTexts,
     NotDreamed, Query, RecallTexts, Stamp, SummaryTexts, Using, Vectors,
 };
-pub use open::{Create, CreateError, Load, LoadError, PresetPlaces, create, load};
+pub use open::{
+    Create, CreateError, Load, LoadError, PresetPlaces, Workplace, create, load, load_placed,
+};
 pub use port::{Cancel, ForSession, ModelPort, Models, Reports, Sight};
 pub use route::{
     Answer, Ask, IDLE, LOCAL_WAIT, ModelData, Observed, OneShot, Probe, Probed, Retirement, Routes,

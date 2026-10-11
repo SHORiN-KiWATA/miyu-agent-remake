@@ -31,7 +31,7 @@ use miyu_session::{
     Configs, Create, Handle, Jobs, Lineage, Load, Models, Pushed, SandboxCache, SessionPort,
     Stopped, Subscription, create, load, new_id,
 };
-use miyu_session::{Memory, SummaryTexts};
+use miyu_session::{Memory, SummaryTexts, Workplace};
 use miyu_store::env::{Env, Platform};
 use miyu_store::index::{FILE, SessionIndex};
 use miyu_store::log::{read_events, read_segments};
@@ -249,6 +249,25 @@ impl Home {
         environment: Environment,
         sessions: Option<Arc<dyn SessionPort>>,
     ) -> Handle {
+        self.load_placed(
+            session,
+            models,
+            tools,
+            Workplace::Given(environment),
+            sessions,
+        )
+        .await
+    }
+
+    /// 同 [`Home::load_in`]，在哪干活照 `place`（施工 V-2 三补：照日志里最后一次记下的挑）。
+    pub async fn load_placed(
+        &self,
+        session: &SessionId,
+        models: &dyn Models,
+        tools: &Catalog,
+        place: Workplace<'_>,
+        sessions: Option<Arc<dyn SessionPort>>,
+    ) -> Handle {
         let tools = &miyu_tool::Shelf::new(tools.clone());
         let loaded = load(Load {
             root: &self.root,
@@ -260,7 +279,7 @@ impl Home {
             ),
             resources: &self.resources,
             id: session.clone(),
-            environment,
+            place,
             models,
             tools,
             home: Some(&self.home),

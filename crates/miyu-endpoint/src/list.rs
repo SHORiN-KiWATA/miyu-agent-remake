@@ -23,8 +23,6 @@ use miyu_tool::Stop;
 use crate::Core;
 use crate::refusal::Refusal;
 
-pub(crate) use miyu_store::index::cwd;
-
 /// 日志里一条工作目录都没记的（很早以前的日志）照这个算：当头报来的是 `~`（`protocol.md`「会话表」第 5 条）。
 pub(crate) const NO_CWD: &str = "~";
 

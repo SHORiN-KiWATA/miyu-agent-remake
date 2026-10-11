@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 
 use miyu_kernel::event::{Body, Event};
+use miyu_kernel::facts::Environment;
 use miyu_kernel::id::ContentHash;
 use miyu_kernel::origin::Model;
 use miyu_kernel::session::{Input, Session};
@@ -39,7 +40,7 @@ use crate::spawn::Lineage;
 use crate::store::{Indexed, LogDir};
 use crate::tools::ToolKit;
 
-use super::{Load, LoadError, ledger_of};
+use super::{Load, LoadError, Workplace, ledger_of};
 
 /// 从磁盘载入一个会话：打开日志（自检、截尾），照第 1 条的策略哈希取快照、造策略，交给内核载入。
 /// 内核吐出来的动作照样回：有计划的重启打断了的一轮，接着干。
@@ -48,21 +49,30 @@ use super::{Load, LoadError, ledger_of};
 ///
 /// 日志打不开或者坏了、快照取不出来或者读不懂、内核载入不了。
 pub async fn load(setup: Load<'_>) -> Result<Handle, LoadError> {
-    let handle = open(setup).await?;
+    load_placed(setup).await.map(|(handle, _)| handle)
+}
+
+/// 同 [`load`]，另交回会话这时在哪干活（施工 V-2 三补）：照日志里最后一次记下的挑的，会话表照它记，不用再问 actor。
+///
+/// # Errors
+///
+/// 同 [`load`]。
+pub async fn load_placed(setup: Load<'_>) -> Result<(Handle, Environment), LoadError> {
+    let loaded = open(setup).await?;
     // 载入读、解的整份日志只留最近一次压缩以后的（23 F3，施工 V-2 再补）：别的放掉了，还给系统，不等会话退下。
     drop(tokio::task::spawn_blocking(miyu_heap::trim));
-    Ok(handle)
+    Ok(loaded)
 }
 
 /// 载入，读、解日志用的都在这里放掉。
-async fn open(setup: Load<'_>) -> Result<Handle, LoadError> {
+async fn open(setup: Load<'_>) -> Result<(Handle, Environment), LoadError> {
     let Load {
         root,
         owner,
         personas,
         resources,
         id,
-        environment,
+        place: placing,
         models,
         tools,
         home,
@@ -79,10 +89,8 @@ async fn open(setup: Load<'_>) -> Result<Handle, LoadError> {
     } = setup;
     let span = actor::span(&id);
     let loading = Instant::now();
-    let config = Turning::start(configs, environment.cwd.clone()).await;
     let dir = root.session_dir(&owner, &id);
     let log_dir = LogDir(dir.clone());
-    let offset = environment.offset;
     let blobs = Blobs::new(root.blobs(&owner));
     let store = blobs.clone();
     let (watching, shipped, stored) = (personas.clone(), resources.clone(), blobs.clone());
@@ -100,6 +108,7 @@ async fn open(setup: Load<'_>) -> Result<Handle, LoadError> {
         (guard, place),
         wired,
         (read, snapshotted, connected),
+        remembered,
     ) = blocking(move || {
         // 载入各段用了多久（施工 V-2 中）：读、解日志，接上记忆，记进 `loaded` 那一行。
         let began = Instant::now();
@@ -141,6 +150,7 @@ async fn open(setup: Load<'_>) -> Result<Handle, LoadError> {
             &created.venue,
             &events,
         );
+        let remembered = remembered(&events);
         Ok((
             log,
             events,
@@ -152,9 +162,24 @@ async fn open(setup: Load<'_>) -> Result<Handle, LoadError> {
             (guard, place),
             turns,
             (read, snapshotted, connecting.elapsed()),
+            remembered,
         ))
     })
     .await?;
+    // 在哪干活（施工 V-2 三补）：照日志里最后一次记下的，交给会话表挑；会话表原来在载入之前另读一遍整份日志认它。
+    let environment = match placing {
+        Workplace::Given(environment) => environment,
+        Workplace::Remembered { offset, pick } => {
+            let (last, dirs) = remembered;
+            Environment {
+                offset,
+                cwd: pick(last.as_deref()),
+                dirs,
+            }
+        }
+    };
+    let offset = environment.offset;
+    let config = Turning::start(configs, environment.cwd.clone()).await;
     let (turns, calls) = wired;
     let attended = snapshot.attended;
     let room = calls.as_ref().map(|calls| calls.room().clone());
@@ -207,6 +232,7 @@ async fn open(setup: Load<'_>) -> Result<Handle, LoadError> {
     let tally = Tally::of(&events);
     let scanned = scanning.elapsed();
     let replaying = Instant::now();
+    let placed = environment.clone();
     let (mut session, first) = Session::load(id.clone(), events, clock.now(), policy, environment)
         .map_err(LoadError::Kernel)?;
     let replayed = replaying.elapsed();
@@ -325,7 +351,8 @@ async fn open(setup: Load<'_>) -> Result<Handle, LoadError> {
     }
     actor::spawn(actor, first, span);
     let ids = Ids { id, venue, owner };
-    Ok(Handle::new(ids, inbox, busy, created.oneshot, watched, shown).with_memory(room))
+    let handle = Handle::new(ids, inbox, busy, created.oneshot, watched, shown).with_memory(room);
+    Ok((handle, placed))
 }
 
 /// 现在的快照（施工 P-1 再补）：整份日志里最近一条带 `policy` 的 `session.policy_changed`，撤掉的回合里的也算（换快照不是
@@ -351,4 +378,24 @@ fn last_sent(events: &[Event]) -> Option<Model> {
 /// 毫秒，一位小数：运行日志里写载入各段用了多久（施工 V-2 中）。
 fn millis(took: Duration) -> f64 {
     (took.as_secs_f64() * 10_000.0).round() / 10.0
+}
+
+/// 日志里最后一次记下的工作目录、加进来的目录（施工 4-9 再补三上、5-10 上、9-7 上；V-2 三补从会话表挪来）：工作目录照列会话的
+/// 同一个认法（`miyu_store::index::cwd`：最后一条带 `cwd` 的 `turn.started`、换工作区，没有就照 `session.created`）；加进来的
+/// 目录照最后一条 `turn.started` 的，换工作区写了的照它，都没有的是空的。
+fn remembered(events: &[Event]) -> (Option<String>, Vec<String>) {
+    let cwd = events
+        .iter()
+        .rev()
+        .find_map(|event| miyu_store::index::cwd(event).map(str::to_string));
+    let dirs = events
+        .iter()
+        .rev()
+        .find_map(|event| match &event.body {
+            Body::TurnStarted(started) => Some(started.dirs.clone()),
+            Body::WorkspaceChanged(changed) => changed.dirs.clone(),
+            _ => None,
+        })
+        .unwrap_or_default();
+    (cwd, dirs)
 }

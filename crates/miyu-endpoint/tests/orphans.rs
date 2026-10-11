@@ -79,7 +79,8 @@ async fn a_child_its_parent_never_recorded_goes_to_the_trash_when_the_parent_loa
     client.hello().await;
     // 随便一个要载入它的命令：订阅。
     client.subscribe("s1", &parent).await;
-    assert!(!in_place(&home, child.as_str()), "空子会话挪走了");
+    // 载入以后在后台收（施工 V-2 三补）：等它收完。
+    until("空子会话挪走了", || !in_place(&home, child.as_str())).await;
     assert!(trashed(&home, child.as_str()).join("deleted_at").exists());
     assert!(in_place(&home, &parent), "父会话还在");
     let log = home.log(&parent);
@@ -101,7 +102,7 @@ async fn a_parent_made_before_the_rename_still_has_its_orphan_swept() {
     let mut client = Client::connect(home.core_with_models(Arc::new(router), base_tools()));
     client.hello().await;
     client.subscribe("s1", &parent).await;
-    assert!(!in_place(&home, child.as_str()), "空子会话挪走了");
+    until("空子会话挪走了", || !in_place(&home, child.as_str())).await;
     assert!(trashed(&home, child.as_str()).join("deleted_at").exists());
 }
 
@@ -162,6 +163,13 @@ async fn only_the_child_its_parent_never_recorded_goes() {
     let mut client = Client::connect(home.core_with_models(Arc::new(router), base_tools()));
     client.hello().await;
     client.subscribe("s1", &parent).await;
+    until("没记下的那个挪走了", || {
+        children
+            .iter()
+            .filter(|child| **child != recorded)
+            .all(|child| !in_place(&home, child.as_str()))
+    })
+    .await;
     for child in &children {
         let stays = *child == recorded;
         assert_eq!(
