@@ -287,7 +287,7 @@ impl Answering {
         self.frames.send(frame).expect("任务还在");
     }
 
-    /// 下一个桥调的动作（问版本、问群成员的不算），最多等十秒。
+    /// 下一个桥调的动作（问版本、问群成员的不算），最多等六十秒。
     pub async fn action(&mut self) -> Value {
         within("桥调动作", self.actions.recv())
             .await
@@ -318,7 +318,7 @@ impl Answering {
             .clone()
     }
 
-    /// 下一个撤回（`delete_msg`）的参数，最多等十秒。
+    /// 下一个撤回（`delete_msg`）的参数，最多等六十秒。
     pub async fn recalled(&mut self) -> Value {
         let action = within("桥撤回", self.recalls.recv())
             .await
@@ -331,7 +331,7 @@ impl Answering {
         self.recalls.try_recv().ok()
     }
 
-    /// 下一个贴、摘表情（`set_msg_emoji_like`）的参数，最多等十秒（施工 O-25 下）。
+    /// 下一个贴、摘表情（`set_msg_emoji_like`）的参数，最多等六十秒（施工 O-25 下）。
     pub async fn reacted(&mut self) -> Value {
         let action = within("桥贴摘表情", self.reactions.recv())
             .await

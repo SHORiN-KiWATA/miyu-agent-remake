@@ -73,7 +73,7 @@ pub async fn napcat(
 }
 
 /// 照 `auth` 一直连，直到进得去（施工 O-20：令牌刚推来的，桥换上以前那一下还照旧的比）；回的不是
-/// 401 的不再连。最多等十秒。
+/// 401 的不再连。最多等六十秒。
 pub async fn admitted(port: u16, path: &str, auth: Auth<'_>, self_id: Option<i64>) -> NapCat {
     within("NapCat 进得去", async {
         loop {
@@ -137,7 +137,7 @@ impl NapCat {
     }
 
     /// 下一个不是 `get_version_info`、取东西（`get_msg`、`get_image`、`get_file`，施工 O-33：回失败）的动作，回它成了；
-    /// `get_version_info` 照 NapCat 的样子回。最多等十秒。
+    /// `get_version_info` 照 NapCat 的样子回。最多等六十秒。
     pub async fn action(&mut self) -> Value {
         loop {
             let frame = within("桥调动作", self.ws.next())
@@ -175,7 +175,7 @@ impl NapCat {
         }
     }
 
-    /// 等桥连上就调的 `get_version_info`，照 NapCat 的样子回（施工 O-16：后台页的 `status`、状态文件照它说是哪个实现）。最多等十秒。
+    /// 等桥连上就调的 `get_version_info`，照 NapCat 的样子回（施工 O-16：后台页的 `status`、状态文件照它说是哪个实现）。最多等六十秒。
     pub async fn version(&mut self) {
         loop {
             let frame = within("桥问版本", self.ws.next())

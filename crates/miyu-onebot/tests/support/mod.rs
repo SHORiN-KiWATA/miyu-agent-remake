@@ -444,11 +444,12 @@ pub async fn start(serve: Serve) -> Bridge {
     }
 }
 
-/// 等 `future`，最多十秒。
+/// 等 `future`，最多 [`group::WAIT`]（六十秒）。正向的等待照仓库的规矩放到六十秒：真核心冷启动、重启再连，机器压满时
+/// 十秒不够（整套测试一起跑时撞出来过）；平常一下就到，放长不拖慢。
 pub async fn within<T>(what: &str, future: impl Future<Output = T>) -> T {
-    tokio::time::timeout(Duration::from_secs(10), future)
+    tokio::time::timeout(group::WAIT, future)
         .await
-        .unwrap_or_else(|_| panic!("十秒内没等到{what}"))
+        .unwrap_or_else(|_| panic!("六十秒内没等到{what}"))
 }
 
 /// 照核心转来后台页调 `status` 的样子，经 `relay` 往桥推一条 `method.call`（编号 `id`，各次不重），等到桥回了交回 `result`

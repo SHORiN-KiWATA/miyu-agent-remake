@@ -253,7 +253,7 @@ impl Served {
     }
 
     /// 等它起来时问的 `venue.sessions`（施工 O-32），照核心的样子回名下一个场所会话都没有：它等到回应才往下办推来的配置。最多等
-    /// 十秒。
+    /// 六十秒。
     pub async fn listed(&mut self) {
         let asked = within("桥列场所会话", async {
             loop {
@@ -276,7 +276,7 @@ impl Served {
         self.send(&reply).await;
     }
 
-    /// 等到它在标准输出上回了编号是 `id` 的那一条（施工 O-28 上），交回它。最多等十秒。
+    /// 等到它在标准输出上回了编号是 `id` 的那一条（施工 O-28 上），交回它。最多等六十秒。
     pub async fn answer(&self, id: &str) -> Value {
         within("桥回核心", async {
             loop {
