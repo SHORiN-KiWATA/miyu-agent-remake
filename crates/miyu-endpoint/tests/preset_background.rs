@@ -5,7 +5,7 @@
 use serde_json::{Value, json};
 
 use miyu_kernel::block::{Block, Text};
-use miyu_kernel::event::{Body, ChildReason, ToolStatus};
+use miyu_kernel::event::{Body, ChildReason, Effect, ToolStatus};
 use miyu_kernel::request::Request;
 use miyu_policy::Snapshot;
 use miyu_session::testkit::{Play, Script};
@@ -211,6 +211,19 @@ async fn interrupting_the_parent_stops_its_foreground_subagent() {
         .to_string();
     client.say("s1", &parent, "hi").await;
     until("子代理开始请求", || script.requests().len() == 2).await;
+    // 派它的那次调用落了盘再打断（施工 T-1 下修）：子会话造好、开始请求的时候，父会话这边派它的结果可能还在存效果、没送回
+    // 来；这时打断，调用照「已取消」记，送回来的结果没人要，执行器照「没人认的」停掉子会话（施工 7-5 补），父会话不记回报。
+    // 那是另一条路，这里测的是记成了任务以后打断。
+    until("派它的那次调用落了盘", || {
+        home.log(&parent).into_iter().any(|event| match event.body {
+            Body::ToolResult(result) => result
+                .effects
+                .iter()
+                .any(|effect| matches!(effect, Effect::JobStarted(_))),
+            _ => false,
+        })
+    })
+    .await;
     let reply = client
         .call(
             "i1",
